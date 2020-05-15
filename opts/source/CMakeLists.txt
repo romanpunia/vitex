@@ -26,16 +26,15 @@ foreach(ITEM IN ITEMS ${SOURCE})
     source_group("${ITEM_GROUP}" FILES "${ITEM}")
 endforeach()
 
-#Resolving compiled source groups
-foreach(ITEM IN ITEMS ${RESOURCE})
-    get_filename_component(ITEM_PATH "${ITEM}" PATH)
-    string(REPLACE "${PROJECT_SOURCE_DIR}" "" ITEM_GROUP "${ITEM_PATH}")
-    string(REPLACE "/" "\\" ITEM_GROUP "${ITEM_GROUP}")
-    source_group("${ITEM_GROUP}" FILES "${ITEM}")
-endforeach()
+#Resources compile switch option
+option(THAWK_RESOURCES "allow to compile embedded resources" ON)
 
 #Compiling resources
 if (THAWK_RESOURCES)
     add_resource_batch("${PROJECT_SOURCE_DIR}/opts/resource" "${PROJECT_SOURCE_DIR}/opts/resource.h")
     list(APPEND SOURCE "${PROJECT_SOURCE_DIR}/opts/resource.h")
+	source_group("opts" FILES "${PROJECT_SOURCE_DIR}/opts/resource.h")
+else()
+    file(WRITE "${PROJECT_SOURCE_DIR}/opts/resource.h" "")
+	message(STATUS "Resource file has been cleared")
 endif()

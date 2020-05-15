@@ -1,8 +1,7 @@
 #Project's log options
-set(THAWK_INFO true CACHE BOOL "allow to log info messages")
-set(THAWK_WARN true CACHE BOOL "allow to log warning messages")
-set(THAWK_ERROR true CACHE BOOL "allow to log error messages")
-set(THAWK_RESOURCES true CACHE BOOL "allow to compile embedded resources")
+option(THAWK_INFO "allow to log info messages" ON)
+option(THAWK_WARN "allow to log warning messages" ON)
+option(THAWK_ERROR "allow to log error messages" ON)
 
 #Project's log level
 if (THAWK_INFO AND THAWK_WARN AND THAWK_ERROR)

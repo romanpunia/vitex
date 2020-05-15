@@ -1,6 +1,6 @@
-#include <shape-vertex-in.hlsl>
-#include <shape-vertex-out.hlsl>
-#include <render-buffer.hlsl>
+#include "shape-vertex-in.hlsl"
+#include "shape-vertex-out.hlsl"
+#include "render-buffer.hlsl"
 
 Texture2D Input1 : register(t0);
 SamplerState State : register(s0);

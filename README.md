@@ -108,7 +108,10 @@ There are several build options for this project.
 + **THAWK_RESOURC** to embed resources from /opts/resource to this project, defaults to true 
 
 ## Linking
-*Tomahawk has support for CMake's install command, to link it with your project you can use CMake as usual.*
+Tomahawk has support for CMake's install command, to link it with your project you can use CMake as usual.
+
+## Resources
+Tomahawk has embedded resources. They are located at **/opts/resource**. Resources will be packed to **opts/resource.h** at CMake's configuration stage. If you want to disable resource embedding then shaders must not use standard library otherwise error will be raised.
 
 ## Core built-in dependencies from **/refs**
 *These are used widely and presents useful features*

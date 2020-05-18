@@ -259,7 +259,7 @@ namespace Tomahawk
             void OGLRenderTarget2D::CopyTexture2D(Graphics::GraphicsDevice* Device, Graphics::Texture2D** Value)
             {
             }
-            void OGLRenderTarget2D::SetViewport(Graphics::Viewport In)
+            void OGLRenderTarget2D::SetViewport(const Graphics::Viewport& In)
             {
                 Viewport = In;
                 glViewport((GLuint)Viewport.TopLeftX, (GLuint)Viewport.TopLeftY, (GLuint)Viewport.Width, (GLuint)Viewport.Height);glClearColor(0.2f, 0.3f, 0.3f, 1.0f);
@@ -305,7 +305,7 @@ namespace Tomahawk
             void OGLMultiRenderTarget2D::CopyTexture2D(int Target, Graphics::GraphicsDevice* Device, Graphics::Texture2D** Value)
             {
             }
-            void OGLMultiRenderTarget2D::SetViewport(Graphics::Viewport In)
+            void OGLMultiRenderTarget2D::SetViewport(const Graphics::Viewport& In)
             {
             }
             Graphics::Viewport OGLMultiRenderTarget2D::GetViewport()
@@ -342,7 +342,7 @@ namespace Tomahawk
             void OGLRenderTarget2DArray::Clear(Graphics::GraphicsDevice* Device, int Target, float R, float G, float B)
             {
             }
-            void OGLRenderTarget2DArray::SetViewport(Graphics::Viewport In)
+            void OGLRenderTarget2DArray::SetViewport(const Graphics::Viewport& In)
             {
             }
             Graphics::Viewport OGLRenderTarget2DArray::GetViewport()
@@ -384,7 +384,7 @@ namespace Tomahawk
             void OGLRenderTargetCube::CopyTexture2D(int FaceId, Graphics::GraphicsDevice* Device, Graphics::Texture2D** Value)
             {
             }
-            void OGLRenderTargetCube::SetViewport(Graphics::Viewport In)
+            void OGLRenderTargetCube::SetViewport(const Graphics::Viewport& In)
             {
             }
             Graphics::Viewport OGLRenderTargetCube::GetViewport()
@@ -432,7 +432,7 @@ namespace Tomahawk
             void OGLMultiRenderTargetCube::CopyTexture2D(int CubeId, int FaceId, Graphics::GraphicsDevice* Device, Graphics::Texture2D** Value)
             {
             }
-            void OGLMultiRenderTargetCube::SetViewport(Graphics::Viewport In)
+            void OGLMultiRenderTargetCube::SetViewport(const Graphics::Viewport& In)
             {
             }
             Graphics::Viewport OGLMultiRenderTargetCube::GetViewport()
@@ -477,7 +477,7 @@ namespace Tomahawk
 
                 IndexBuffer = Graphics::ElementBuffer::Create(Device, F);
             }
-            void OGLMesh::UpdateSubresource(Graphics::GraphicsDevice* Device, Compute::Vertex* Elements)
+            void OGLMesh::Update(Graphics::GraphicsDevice* Device, Compute::Vertex* Elements)
             {
                 Graphics::MappedSubresource Resource;
                 VertexBuffer->Map(Device, Graphics::ResourceMap_Write, &Resource);
@@ -523,7 +523,7 @@ namespace Tomahawk
 
                 IndexBuffer = Graphics::ElementBuffer::Create(Device, F);
             }
-            void OGLSkinnedMesh::UpdateSubresource(Graphics::GraphicsDevice* Device, Compute::InfluenceVertex* Elements)
+            void OGLSkinnedMesh::Update(Graphics::GraphicsDevice* Device, Compute::InfluenceVertex* Elements)
             {
                 Graphics::MappedSubresource Resource;
                 VertexBuffer->Map(Device, Graphics::ResourceMap_Write, &Resource);

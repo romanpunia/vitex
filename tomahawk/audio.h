@@ -121,7 +121,7 @@ namespace Tomahawk
 
 		public:
 			AudioClip();
-			~AudioClip();
+			virtual ~AudioClip() override;
 			float Length();
 			bool IsMono();
 		};
@@ -134,7 +134,7 @@ namespace Tomahawk
 
 		public:
 			AudioSource();
-			~AudioSource();
+			virtual ~AudioSource() override;
 			void Apply(AudioClip* Clip);
 			void Reset();
 			void Pause();
@@ -151,7 +151,7 @@ namespace Tomahawk
 
 		public:
 			AudioDevice();
-			~AudioDevice();
+			virtual ~AudioDevice() override;
 			void Offset(AudioSource* Source, float& Seconds, bool Get);
 			void Velocity(AudioSource* Source, Compute::Vector3& Velocity, bool Get);
 			void Position(AudioSource* Source, Compute::Vector3& Position, bool Get);

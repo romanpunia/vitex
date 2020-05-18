@@ -17,7 +17,7 @@ subject to the following restrictions:
 /*
   Make sure this dummy function never changes so that it
   can be used by probes that are checking whether the
-  refs is actually installed.
+  library is actually installed.
 */
 extern "C"
 {

@@ -109,11 +109,6 @@ typedef socklen_t socket_size_t;
 #define THAWK_ERROR(...)
 #endif
 #define THAWK_LOG(Format, ...) Tomahawk::Rest::LT::Inform(0, THAWK_FUNCTION, Format THAWK_VA_ARGS(__VA_ARGS__))
-#define THAWK_COMPONENT(Identification, ClassName) \
-virtual const char* Name() { return #ClassName; } \
-virtual UInt64 Id() { return Identification; } \
-static const char* BaseName() { return #ClassName; } \
-static UInt64 BaseId() { return Identification; } \
 
 namespace Tomahawk
 {
@@ -126,8 +121,6 @@ namespace Tomahawk
         class Document;
 
         class Object;
-		
-		class Aim;
 
         enum EventState
         {
@@ -821,7 +814,7 @@ namespace Tomahawk
 
         public:
             Console();
-            ~Console() override;
+            virtual ~Console() override;
             void Hide();
             void Show();
             void Clear();
@@ -873,7 +866,7 @@ namespace Tomahawk
 
         public:
             Timer();
-            ~Timer() override;
+            virtual ~Timer() override;
             void SetStepLimitation(Float64 MaxFrames, Float64 MinFrames);
             void Synchronize();
             void CaptureTime();
@@ -896,7 +889,7 @@ namespace Tomahawk
 
         public:
             FileStream();
-            ~FileStream() override;
+            virtual ~FileStream() override;
             void Clear();
             bool Open(const char* File, FileMode Mode);
 			bool OpenZ(const char* File, FileMode Mode);
@@ -931,7 +924,7 @@ namespace Tomahawk
 
         public:
             FileLogger(const std::string& Root);
-            ~FileLogger() override;
+            virtual ~FileLogger() override;
             void Process(const std::function<bool(FileLogger*, const char*, Int64)>& Callback);
         };
 
@@ -944,7 +937,7 @@ namespace Tomahawk
 
 		public:
 			FileTree(const std::string& Path);
-			~FileTree() override;
+            virtual ~FileTree() override;
 			void Loop(const std::function<bool(FileTree*)>& Callback);
 			FileTree* Find(const std::string& Path);
 			UInt64 GetFiles();
@@ -1008,7 +1001,7 @@ namespace Tomahawk
 
         public:
             EventWorker(EventQueue* Value, bool IsTask);
-            ~EventWorker() override;
+            virtual ~EventWorker() override;
 
         private:
             bool QueueTask();
@@ -1051,7 +1044,7 @@ namespace Tomahawk
 
         public:
             EventQueue();
-            ~EventQueue() override;
+            virtual ~EventQueue() override;
             void SetIdleTime(UInt64 IdleTime);
             void SetState(EventState NewState);
             bool Tick();
@@ -1222,7 +1215,7 @@ namespace Tomahawk
 
 		public:
 			Document();
-			~Document() override;
+			virtual ~Document() override;
 			void Clear();
 			void Save();
 			Document* GetIndex(Int64 Index);

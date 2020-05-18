@@ -402,7 +402,7 @@ namespace Tomahawk
                 std::vector<SiteEntry*> Sites;
 
                 MapRouter();
-                ~MapRouter();
+                virtual ~MapRouter() override;
 				SiteEntry* Site(const char* Host);
             };
 
@@ -416,10 +416,10 @@ namespace Tomahawk
                 RequestFrame Request;
                 ResponseFrame Response;
 
-                virtual ~Connection();
-                bool Finish();
-                bool Finish(int StatusCode);
-                bool Certify(Certificate* Output);
+                virtual ~Connection() override;
+                bool Finish() override;
+                bool Finish(int StatusCode) override;
+                bool Certify(Certificate* Output) override;
                 bool Consume(const ContentCallback& Callback = nullptr);
                 bool Store(const ResourceCallback& Callback = nullptr);
             };
@@ -439,7 +439,7 @@ namespace Tomahawk
 
             public:
                 Query();
-                ~Query();
+                virtual ~Query() override;
                 void Clear();
                 void Decode(const char* ContentType, const std::string& URI);
                 std::string Encode(const char* ContentType);
@@ -466,7 +466,7 @@ namespace Tomahawk
 
             public:
                 Session();
-                ~Session();
+                virtual ~Session() override;
                 void Clear();
                 bool Write(Connection* Base);
                 bool Read(Connection* Base);
@@ -546,7 +546,7 @@ namespace Tomahawk
 
             public:
                 Parser();
-                ~Parser();
+                virtual ~Parser() override;
                 Int64 MultipartParse(const char* Boundary, const char* Buffer, Int64 Length);
                 Int64 ParseRequest(const char* BufferStart, UInt64 Length, UInt64 LastLength);
                 Int64 ParseResponse(const char* BufferStart, UInt64 Length, UInt64 LastLength);
@@ -633,21 +633,18 @@ namespace Tomahawk
 
             public:
                 Server();
-                virtual ~Server();
+                virtual ~Server() override;
 
             private:
-                bool OnConfigure(SocketRouter* New);
-                bool OnRequestEnded(SocketConnection* Base, bool Check);
-                bool OnRequestBegin(SocketConnection* Base);
-                bool OnDeallocate(SocketConnection* Base);
-                bool OnDeallocateRouter(SocketRouter* Base);
-                bool OnListen(Rest::EventQueue* Loop);
-                bool OnUnlisten();
-                SocketConnection* OnAllocate(Listener* Host, Socket* Stream);
-                SocketRouter* OnAllocateRouter();
-
-            private:
-                static bool Handle(Socket* Connection, const char* Buffer, Int64 Size);
+                bool OnConfigure(SocketRouter* New) override;
+                bool OnRequestEnded(SocketConnection* Base, bool Check) override;
+                bool OnRequestBegin(SocketConnection* Base) override;
+                bool OnDeallocate(SocketConnection* Base) override;
+                bool OnDeallocateRouter(SocketRouter* Base) override;
+                bool OnListen(Rest::EventQueue* Loop) override;
+                bool OnUnlisten() override;
+                SocketConnection* OnAllocate(Listener* Host, Socket* Stream) override;
+                SocketRouter* OnAllocateRouter() override;
             };
 
             class THAWK_OUT Client : public SocketClient
@@ -658,7 +655,7 @@ namespace Tomahawk
 
             public:
                 Client(Int64 ReadTimeout);
-                ~Client();
+                ~Client() override;
                 bool Send(HTTP::RequestFrame* Root, const ResponseCallback& Callback);
 				bool Consume(Int64 MaxSize, const ResponseCallback& Callback);
 				RequestFrame* GetRequest();

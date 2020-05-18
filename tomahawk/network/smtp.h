@@ -68,16 +68,14 @@ namespace Tomahawk
 
             public:
                 Client(Int64 ReadTimeout);
-                ~Client();
+                virtual ~Client() override;
 				bool Send(RequestFrame* Root, const ResponseCallback& Callback);
 				RequestFrame* GetRequest();
 
-			protected:
-				bool OnResolveHost(Host* Address);
-				bool OnConnect();
-				bool OnClose();
-
 			private:
+                bool OnResolveHost(Host* Address) override;
+                bool OnConnect() override;
+                bool OnClose() override;
 				bool Authorize(const ReplyCallback& Callback);
 				bool SendAttachment();
 				bool ProcessAttachment();

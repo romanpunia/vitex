@@ -3,7 +3,7 @@ Tomahawk is a cross-platform C++14 framework to create any type of application f
 
 ## Features
 #### Base
-+ Event queue
++ Thread-safe event queue
 + File system
 + Process management
 + Timers
@@ -20,7 +20,10 @@ Tomahawk is a cross-platform C++14 framework to create any type of application f
 + Quaternions
 + Joints (bones)
 + Animation keys
-+ Physics
++ Rigid body physics
++ Soft body physics
++ Constraint physics
++ Physics simulator
 + Regular expressions (custom)
 + Cryptography (MD5, SHA1, SHA256, AES256)
 + Encoding (HYBI10, Base64, URI)
@@ -82,6 +85,51 @@ Tomahawk is a cross-platform C++14 framework to create any type of application f
 + Built-in components for different simulations
 + Built-in renderers for different visualisations
 + Built-in shader code for every renderer
+#### Built-in renderers
++ Model renderer
++ Skinned model renderer
++ Depth renderer (shadow maps for meshes and particles)
++ Probe renderer (probes for reflections and illumination lights)
++ Light renderer (to render point, spot, line and probe lights with shadowing)
++ Element system renderer (for particles)
++ Image renderer (to render current image to the screen or elsewhere)
++ Reflection renderer (for screen-space reflections)
++ Depth of field renderer
++ Emission renderer (to render glowing materials)
++ Glitch renderer (to render different glitches on the screen)
++ Ambient occlusion renderer (simple screen-space AO)
++ Indirect occlusion renderer (simple GI)
++ Tone renderer (tone mapping)
++ GUI renderer (ImGui-based ui renderer)
+#### Built-in components
++ Rigid body
++ Acceleration (force applier for rigid bodies)
++ Slider constraint (constraints for rigid bodies)
++ Audio source
++ Audio listener
++ Skin animator (for skinned models)
++ Key animator (for any entity)
++ Element system (particle buffer)
++ Element animator (for particle systems)
++ Free-look (rotation with cursor, for cameras originally)
++ Fly (direction-oriented movement with input keys, for cameras originally)
++ Model
++ Skinned model
++ Point light (lamp)
++ Spot light (flashlight)
++ Line light (sun)
++ Probe light (can cast reflections to entities)
++ Camera (with rendering system that holds renderers)
+#### Built-in file processor
++ Scene graph processor
++ Font processor (ImGui-based)
++ Audio clip processor (WAVE only for now)
++ Texture 2d processor (JPG, PNG, TGA, BMP, PSD, GIF, HDR, PIC)
++ Shader processor (render backend dependent, code preprocessor included)
++ Model processor (with Assimp's import options, if supported)
++ Skinned model processor (with Assimp's import options, if supported)
++ Document processor (XML, JSON, binary)
++ Server processor (for HTTP server to load router config)
 
 *Note: some functionality might be stripped without needed dependencies. Also exceptions were not used, it's more C-like with return codes.*
 ## Cross platform

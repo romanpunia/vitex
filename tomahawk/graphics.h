@@ -1223,7 +1223,7 @@ namespace Tomahawk
 			virtual void Apply(GraphicsDevice* Device, float R, float G, float B) = 0;
 			virtual void Apply(GraphicsDevice* Device) = 0;
 			virtual void Clear(GraphicsDevice* Device, float R, float G, float B) = 0;
-			virtual void SetViewport(Viewport In) = 0;
+			virtual void SetViewport(const Viewport& In) = 0;
 			virtual void* GetResource() = 0;
 			virtual Viewport GetViewport() = 0;
 			virtual float GetWidth() = 0;
@@ -1265,7 +1265,7 @@ namespace Tomahawk
 			virtual void Apply(GraphicsDevice* Device, float R, float G, float B) = 0;
 			virtual void Apply(GraphicsDevice* Device) = 0;
 			virtual void Clear(GraphicsDevice* Device, int Target, float R, float G, float B) = 0;
-			virtual void SetViewport(Viewport In) = 0;
+			virtual void SetViewport(const Viewport& In) = 0;
 			virtual Viewport GetViewport() = 0;
 			virtual float GetWidth() = 0;
 			virtual float GetHeight() = 0;
@@ -1304,7 +1304,7 @@ namespace Tomahawk
 			virtual void Apply(GraphicsDevice* Device, int Target, float R, float G, float B) = 0;
 			virtual void Apply(GraphicsDevice* Device, int Target) = 0;
 			virtual void Clear(GraphicsDevice* Device, int Target, float R, float G, float B) = 0;
-			virtual void SetViewport(Viewport In) = 0;
+			virtual void SetViewport(const Viewport& In) = 0;
 			virtual Viewport GetViewport() = 0;
 			virtual float GetWidth() = 0;
 			virtual float GetHeight() = 0;
@@ -1342,7 +1342,7 @@ namespace Tomahawk
 			virtual void Apply(GraphicsDevice* Device, float R, float G, float B) = 0;
 			virtual void Apply(GraphicsDevice* Device) = 0;
 			virtual void Clear(GraphicsDevice* Device, float R, float G, float B) = 0;
-			virtual void SetViewport(Viewport In) = 0;
+			virtual void SetViewport(const Viewport& In) = 0;
 			virtual Viewport GetViewport() = 0;
 			virtual float GetWidth() = 0;
 			virtual float GetHeight() = 0;
@@ -1384,7 +1384,7 @@ namespace Tomahawk
 			virtual void Apply(GraphicsDevice* Device, float R, float G, float B) = 0;
 			virtual void Apply(GraphicsDevice* Device) = 0;
 			virtual void Clear(GraphicsDevice* Device, int Target, float R, float G, float B) = 0;
-			virtual void SetViewport(Viewport In) = 0;
+			virtual void SetViewport(const Viewport& In) = 0;
 			virtual Viewport GetViewport() = 0;
 			virtual float GetWidth() = 0;
 			virtual float GetHeight() = 0;
@@ -1421,7 +1421,7 @@ namespace Tomahawk
 		public:
 			virtual ~Mesh();
 			virtual void Draw(GraphicsDevice* Device) = 0;
-			virtual void UpdateSubresource(GraphicsDevice* Device, Compute::Vertex* Elements) = 0;
+			virtual void Update(GraphicsDevice* Device, Compute::Vertex* Elements) = 0;
 			virtual Compute::Vertex* Elements(GraphicsDevice* Device) = 0;
             ElementBuffer* GetVertexBuffer();
             ElementBuffer* GetIndexBuffer();
@@ -1455,7 +1455,7 @@ namespace Tomahawk
 		public:
 			virtual ~SkinnedMesh();
 			virtual void Draw(GraphicsDevice* Device) = 0;
-			virtual void UpdateSubresource(GraphicsDevice* Device, Compute::InfluenceVertex* Elements) = 0;
+			virtual void Update(GraphicsDevice* Device, Compute::InfluenceVertex* Elements) = 0;
 			virtual Compute::InfluenceVertex* Elements(GraphicsDevice* Device) = 0;
             ElementBuffer* GetVertexBuffer();
             ElementBuffer* GetIndexBuffer();

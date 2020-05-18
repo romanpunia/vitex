@@ -6,7 +6,7 @@
  *   
  * COPYRIGHT:
  *   Copyright (C) Stephen Thompson, <stephen@solarflare.org.uk>, 2011-2013
- *   Portions written By Erwin Coumans: connection to LCP solver, various multibody constraints, replacing Eigen math refs by Bullet LinearMath and a dedicated 6x6 matrix inverse (solveImatrix)
+ *   Portions written By Erwin Coumans: connection to LCP solver, various multibody constraints, replacing Eigen math library by Bullet LinearMath and a dedicated 6x6 matrix inverse (solveImatrix)
  *   Portions written By Jakub Stepien: support for multi-DOF constraints, introduction of spatial algebra and several other improvements
 
  This software is provided 'as-is', without any express or implied warranty.

@@ -4,14 +4,17 @@
 #include "rest.h"
 #include <cmath>
 
-class btDefaultCollisionConfiguration;
+class btCollisionConfiguration;
 class btBroadphaseInterface;
-class btSequentialImpulseConstraintSolver;
+class btConstraintSolver;
 class btDiscreteDynamicsWorld;
 class btCollisionDispatcher;
+class btSoftBodySolver;
 class btRigidBody;
+class btSoftBody;
 class btSliderConstraint;
 class btTransform;
+class btCollisionObject;
 class btBoxShape;
 class btSphereShape;
 class btCapsuleShape;
@@ -42,6 +45,7 @@ namespace Tomahawk
 
         typedef std::function<bool(class Preprocessor*, const std::string& Include, std::string* Out)> ProcIncludeCallback;
         typedef std::function<bool(class Preprocessor*, const std::string& Pragma)> ProcPragmaCallback;
+        typedef std::function<void(const struct CollisionBody&)> CollisionCallback;
 
 		enum Hybi10_Opcode
 		{
@@ -121,6 +125,15 @@ namespace Tomahawk
 			RegexFlags_None = (1 << 0),
 			RegexFlags_IgnoreCase = (1 << 1)
 		};
+
+        enum SoftFeature
+        {
+            SoftFeature_None,
+            SoftFeature_Node,
+            SoftFeature_Link,
+            SoftFeature_Face,
+            SoftFeature_Tetra
+        };
 
 		struct THAWK_OUT Vertex
 		{
@@ -343,6 +356,8 @@ namespace Tomahawk
 			float& operator [] (int Axis);
             float operator [] (int Axis) const;
 
+            static void ToBtVector3(const Vector3& In, btVector3* Out);
+            static void FromBtVector3(const btVector3& In, Vector3* Out);
 			static Vector3 Random();
 			static Vector3 RandomAbs();
 			static Vector3 One() { return Vector3(1, 1, 1); }
@@ -744,6 +759,14 @@ namespace Tomahawk
 			const char* Pointer();
 		};
 
+		struct THAWK_OUT CollisionBody
+        {
+		    class RigidBody* Rigid = nullptr;
+		    class SoftBody* Soft = nullptr;
+
+		    CollisionBody(btCollisionObject* Object);
+        };
+
 		class THAWK_OUT MD5Hasher
 		{
 		private:
@@ -1056,7 +1079,13 @@ namespace Tomahawk
 			static btCollisionShape* Cylinder(const Vector3& Scale = Vector3(1, 1, 1));
 			static btCollisionShape* ConvexHull(std::vector<InfluenceVertex>& Mesh);
 			static btCollisionShape* ConvexHull(std::vector<Vertex>& Mesh);
+            static btCollisionShape* ConvexHull(std::vector<Vector2>& Mesh);
+            static btCollisionShape* ConvexHull(std::vector<Vector3>& Mesh);
+            static btCollisionShape* ConvexHull(std::vector<Vector4>& Mesh);
+            static btCollisionShape* ConvexHull(btCollisionShape* From);
 			static btCollisionShape* Auto(Shape Shape);
+            static std::vector<Vector3> GetVertices(btCollisionShape* Shape);
+            static UInt64 GetVerticesCount(btCollisionShape* Shape);
 		};
 
 	    class THAWK_OUT Preprocessor : public Rest::Object
@@ -1069,6 +1098,7 @@ namespace Tomahawk
 
         public:
             Preprocessor();
+            virtual ~Preprocessor() = default;
             void SetIncludeCallback(const ProcIncludeCallback& Callback);
             void SetPragmaCallback(const ProcPragmaCallback& Callback);
             bool Process(const std::string& Path, std::string& Buffer);
@@ -1103,7 +1133,7 @@ namespace Tomahawk
 
 		public:
 			Transform();
-			~Transform() override;
+			virtual ~Transform() override;
 			void GetRootBasis(Vector3& Position, Vector3& Scale, Vector3& Rotation);
 			void SetRoot(Transform* Root);
 			void SetMatrix(Matrix4x4 Matrix);
@@ -1155,28 +1185,36 @@ namespace Tomahawk
 
 		class THAWK_OUT RigidBody : public Rest::Object
 		{
+		public:
+		    struct Desc
+            {
+                btCollisionShape* Shape = nullptr;
+                Transform* Transform = nullptr;
+                float Anticipation = 0;
+                float Mass = 0;
+            };
+
 		private:
 			btRigidBody * Instance;
 
 		public:
-			std::function<void(RigidBody*)> OnCollisionEnter;
-			std::function<void(RigidBody*)> OnCollisionExit;
+            CollisionCallback OnCollisionEnter;
+            CollisionCallback OnCollisionExit;
 			Simulator* Ref;
 			void* UserPointer;
 
 		public:
-			RigidBody(Simulator* Refer);
-			~RigidBody() override;
+			RigidBody(Simulator* Refer, const Desc& I);
+			virtual ~RigidBody() override;
 			void Copy(RigidBody* Target);
-			void Initialize(btCollisionShape* Shape, Transform* Transform, float Mass, float Anticipation);
 			void Add();
 			void Remove();
 			void Activate(bool Force);
-			void Push(Vector3 Velocity);
-			void Push(Vector3 Velocity, Vector3 Torque);
-			void Push(Vector3 Velocity, Vector3 Torque, Vector3 Center);
-			void PushKinematically(Vector3 Velocity);
-			void PushKinematically(Vector3 Velocity, Vector3 Torque);
+			void Push(const Vector3& Velocity);
+			void Push(const Vector3& Velocity, const Vector3& Torque);
+			void Push(const Vector3& Velocity, const Vector3& Torque, const Vector3& Center);
+			void PushKinematically(const Vector3& Velocity);
+			void PushKinematically(const Vector3& Velocity, const Vector3& Torque);
 			void Synchronize(Transform* Transform, bool Kinematically);
 			void SetCollisionFlags(UInt64 Flags);
 			void SetActivity(bool Active);
@@ -1186,6 +1224,7 @@ namespace Tomahawk
 			void SetWorldTransform(btTransform* Value);
 			void SetCollisionShape(btCollisionShape* Shape, Transform* Transform);
 			void SetMassUnsafe(float Mass);
+			void SetMass(Simulator* Root, float Mass);
 			void SetActivationState(MotionState Value);
 			void SetAngularDamping(float Value);
 			void SetAngularSleepingThreshold(float Value);
@@ -1202,64 +1241,244 @@ namespace Tomahawk
 			void SetContactProcessingThreshold(float Value);
 			void SetDeactivationTime(float Value);
 			void SetRollingFriction(float Value);
-			void SetAngularFactor(Vector3 Value);
-			void SetAnisotropicFriction(Vector3 Value);
-			void SetGravity(Vector3 Value);
-			void SetLinearFactor(Vector3 Value);
-			void SetLinearVelocity(Vector3 Value);
-			void SetAngularVelocity(Vector3 Value);
-			MotionState ActivationState();
-			Shape CollisionShapeType();
-			Vector3 AngularFactor();
-			Vector3 AnisotropicFriction();
-			Vector3 Gravity();
-			Vector3 LinearFactor();
-			Vector3 LinearVelocity();
-			Vector3 AngularVelocity();
-			Vector3 Scale();
-			Vector3 Position();
-			Vector3 Rotation();
-			btTransform* WorldTransform();
-			btCollisionShape* CollisionShape();
+			void SetAngularFactor(const Vector3& Value);
+			void SetAnisotropicFriction(const Vector3& Value);
+			void SetGravity(const Vector3& Value);
+			void SetLinearFactor(const Vector3& Value);
+			void SetLinearVelocity(const Vector3& Value);
+			void SetAngularVelocity(const Vector3& Value);
+			MotionState GetActivationState();
+			Shape GetCollisionShapeType();
+			Vector3 GetAngularFactor();
+			Vector3 GetAnisotropicFriction();
+			Vector3 GetGravity();
+			Vector3 GetLinearFactor();
+			Vector3 GetLinearVelocity();
+			Vector3 GetAngularVelocity();
+			Vector3 GetScale();
+			Vector3 GetPosition();
+			Vector3 GetRotation();
+			btTransform* GetWorldTransform();
+			btCollisionShape* GetCollisionShape();
 			btRigidBody* Bullet();
 			bool IsActive();
 			bool IsStatic();
 			bool IsGhost();
 			bool IsColliding();
-			float SpinningFriction();
-			float ContactStiffness();
-			float ContactDamping();
-			float AngularDamping();
-			float AngularSleepingThreshold();
-			float Friction();
-			float Restitution();
-			float HitFraction();
-			float LinearDamping();
-			float LinearSleepingThreshold();
-			float CcdMotionThreshold();
-			float CcdSweptSphereRadius();
-			float ContactProcessingThreshold();
-			float DeactivationTime();
-			float RollingFriction();
-			float Mass();
-			UInt64 CollisionFlags();
+			float GetSpinningFriction();
+			float GetContactStiffness();
+			float GetContactDamping();
+			float GetAngularDamping();
+			float GetAngularSleepingThreshold();
+			float GetFriction();
+			float GetRestitution();
+			float GetHitFraction();
+			float GetLinearDamping();
+			float GetLinearSleepingThreshold();
+			float GetCcdMotionThreshold();
+			float GetCcdSweptSphereRadius();
+			float GetContactProcessingThreshold();
+			float GetDeactivationTime();
+			float GetRollingFriction();
+			float GetMass();
+			UInt64 GetCollisionFlags();
+
+        public:
+            static RigidBody* Get(btRigidBody* From);
 		};
+
+        class THAWK_OUT SoftBody : public Rest::Object
+        {
+        public:
+            struct Desc
+            {
+                Transform* Transform = nullptr;
+                float Anticipation = 0;
+                float Mass = 0;
+            };
+
+            struct Element
+            {
+                void* Tag = nullptr;
+            };
+
+            struct Material : Element
+            {
+                float LST = 0;
+                float AST = 0;
+                float VST = 0;
+                int Flags = 0;
+            };
+
+            struct Feature : Element
+            {
+                Material* Base = nullptr;
+            };
+
+            struct Node : Feature
+            {
+                Vector3 Position;
+                Vector3 PrevPosition;
+                Vector3 Velocity;
+                Vector3 Force;
+                Vector3 Normal;
+                float InvMass = 0;
+                float Area = 0;
+                int Attach : 1;
+            };
+
+            struct Link : Feature
+            {
+                Vector3 C3;
+                Node* Nodes[2];
+                float RestLength;
+                int Bending : 1;
+                float C0;
+                float C1;
+                float C2;
+            };
+
+            struct Face : Feature
+            {
+                Node* Nodes[3];
+                Vector3 Normal;
+                float RestArea;
+            };
+
+            struct RayCast
+            {
+                SoftBody* Body = nullptr;
+                SoftFeature Feature = SoftFeature_None;
+                float Fraction = 0;
+                int Index = 0;
+            };
+
+        private:
+            btSoftBody* Instance;
+
+        public:
+            CollisionCallback OnCollisionEnter;
+            CollisionCallback OnCollisionExit;
+            Simulator* Ref;
+            void* UserPointer;
+
+        public:
+            SoftBody(Simulator* Refer, const Desc& I);
+            virtual ~SoftBody() override;
+            void Copy(SoftBody* Target);
+            void Add();
+            void Remove();
+            void Activate(bool Force);
+            void Synchronize(Transform* Transform, bool Kinematically);
+            void SetContactStiffnessAndDamping(float Stiffness, float Damping);
+            void AppendNode(const Vector3& X, float Value);
+            void AppendLink(int Node0, int Node1);
+            void AppendFace(int Node0, int Node1, int Node2);
+            void AppendTetra(int Node0, int Node1, int Node2, int Node3);
+            void AppendAnchor(int Node, RigidBody* Body, bool DisableCollisionBetweenLinkedBodies = false, float Influence = 1);
+            void AppendAnchor(int Node, RigidBody* Body, const Vector3& LocalPivot, bool DisableCollisionBetweenLinkedBodies = false, float Influence = 1);
+            void AddForce(const Vector3& Force);
+            void AddForce(const Vector3& Force, int Node);
+            void AddAeroForceToNode(const Vector3& WindVelocity, int NodeIndex);
+            void AddAeroForceToFace(const Vector3& WindVelocity, int FaceIndex);
+            void AddVelocity(const Vector3& Velocity);
+            void SetVelocity(const Vector3& Velocity);
+            void AddVelocity(const Vector3& Velocity, int Node);
+            void SetMass(int Node, float Mass);
+            void SetTotalMass(float Mass, bool FromFaces = false);
+            void SetTotalDensity(float Density);
+            void SetVolumeMass(float Mass);
+            void SetVolumeDensity(float Density);
+            void SetTransform(Transform* Base);
+            void SetPosition(const Vector3& Position);
+            void SetRotation(const Vector3& Rotation);
+            void SetScale(const Vector3& Scale);
+            void SetRestLengthScale(float RestLength);
+            void SetPose(bool Volume, bool Frame);
+            float GetMass(int Node) const;
+            float GetTotalMass() const;
+            float GetRestLengthScale();
+            float GetVolume() const;
+            int GenerateBendingConstraints(int Distance);
+            void RandomizeConstraints();
+            bool CutLink(int Node0, int Node1, float Position);
+            bool RayTest(const Vector3& From, const Vector3& To, RayCast& Result);
+            void SetWindVelocity(const Vector3& Velocity);
+            Vector3 GetWindVelocity();
+            void GetAabb(Vector3& Min, Vector3& Max) const;
+            void IndicesToPointers(const int* Map = 0);
+            void SetSpinningFriction(float Value);
+            Material AppendMaterial();
+            Vector3 GetLinearVelocity();
+            Vector3 GetAngularVelocity();
+            void SetActivity(bool Active);
+            void SetAsGhost();
+            void SetAsNormal();
+            void SetSelfPointer();
+            void SetWorldTransform(btTransform* Value);
+            void SetActivationState(MotionState Value);
+            void SetContactStiffness(float Value);
+            void SetContactDamping(float Value);
+            void SetFriction(float Value);
+            void SetRestitution(float Value);
+            void SetHitFraction(float Value);
+            void SetCcdMotionThreshold(float Value);
+            void SetCcdSweptSphereRadius(float Value);
+            void SetContactProcessingThreshold(float Value);
+            void SetDeactivationTime(float Value);
+            void SetRollingFriction(float Value);
+            void SetAnisotropicFriction(const Vector3& Value);
+            MotionState GetActivationState();
+            Vector3 GetAnisotropicFriction();
+            Vector3 GetScale();
+            Vector3 GetPosition();
+            Vector3 GetRotation();
+            btTransform* GetWorldTransform();
+            btSoftBody* Bullet();
+            bool IsActive();
+            bool IsStatic();
+            bool IsGhost();
+            bool IsColliding();
+            float GetSpinningFriction();
+            float GetContactStiffness();
+            float GetContactDamping();
+            float GetFriction();
+            float GetRestitution();
+            float GetHitFraction();
+            float GetCcdMotionThreshold();
+            float GetCcdSweptSphereRadius();
+            float GetContactProcessingThreshold();
+            float GetDeactivationTime();
+            float GetRollingFriction();
+            UInt64 GetCollisionFlags();
+
+        public:
+            static SoftBody* Get(btSoftBody* From);
+        };
 
 		class THAWK_OUT SliderConstraint : public Rest::Object
 		{
+		public:
+		    struct Desc
+            {
+                RigidBody* Target1 = nullptr;
+                RigidBody* Target2 = nullptr;
+                bool UseCollisions = true;
+                bool UseLinearPower = true;
+            };
+
 		private:
-			btRigidBody * First, *Second;
+			btRigidBody* First, *Second;
 			btSliderConstraint* Constraint;
 
 		public:
-			Simulator * Ref;
+			Simulator* Ref;
 			void* UserPointer;
 
 		public:
-			SliderConstraint(Simulator* Refer);
-			~SliderConstraint() override;
+			SliderConstraint(Simulator* Refer, const Desc& I);
+            virtual ~SliderConstraint() override;
 			void Copy(SliderConstraint* Target);
-			void Initialize(RigidBody* A, RigidBody* B, bool UseCollisions, bool UseLinearPower);
 			void SetAngularMotorVelocity(float Value);
 			void SetLinearMotorVelocity(float Value);
 			void SetUpperLinearLimit(float Value);
@@ -1293,79 +1512,106 @@ namespace Tomahawk
 			class btSliderConstraint* Bullet();
 			class btRigidBody* GetFirst();
 			class btRigidBody* GetSecond();
-			float AngularMotorVelocity();
-			float LinearMotorVelocity();
-			float UpperLinearLimit();
-			float LowerLinearLimit();
-			float BreakingImpulseThreshold();
-			float AngularDampingDirection();
-			float LinearDampingDirection();
-			float AngularDampingLimit();
-			float LinearDampingLimit();
-			float AngularDampingOrtho();
-			float LinearDampingOrtho();
-			float UpperAngularLimit();
-			float LowerAngularLimit();
-			float MaxAngularMotorForce();
-			float MaxLinearMotorForce();
-			float AngularRestitutionDirection();
-			float LinearRestitutionDirection();
-			float AngularRestitutionLimit();
-			float LinearRestitutionLimit();
-			float AngularRestitutionOrtho();
-			float LinearRestitutionOrtho();
-			float AngularSoftnessDirection();
-			float LinearSoftnessDirection();
-			float AngularSoftnessLimit();
-			float LinearSoftnessLimit();
-			float AngularSoftnessOrtho();
-			float LinearSoftnessOrtho();
+			float GetAngularMotorVelocity();
+			float GetLinearMotorVelocity();
+			float GetUpperLinearLimit();
+			float GetLowerLinearLimit();
+			float GetBreakingImpulseThreshold();
+			float GetAngularDampingDirection();
+			float GetLinearDampingDirection();
+			float GetAngularDampingLimit();
+			float GetLinearDampingLimit();
+			float GetAngularDampingOrtho();
+			float GetLinearDampingOrtho();
+			float GetUpperAngularLimit();
+			float GetLowerAngularLimit();
+			float GetMaxAngularMotorForce();
+			float GetMaxLinearMotorForce();
+			float GetAngularRestitutionDirection();
+			float GetLinearRestitutionDirection();
+			float GetAngularRestitutionLimit();
+			float GetLinearRestitutionLimit();
+			float GetAngularRestitutionOrtho();
+			float GetLinearRestitutionOrtho();
+			float GetAngularSoftnessDirection();
+			float GetLinearSoftnessDirection();
+			float GetAngularSoftnessLimit();
+			float GetLinearSoftnessLimit();
+			float GetAngularSoftnessOrtho();
+			float GetLinearSoftnessOrtho();
 			bool FindCollisionState();
 			bool FindLinearPowerState();
-			bool PoweredAngularMotor();
-			bool PoweredLinearMotor();
-			bool Enabled();
+			bool GetPoweredAngularMotor();
+			bool GetPoweredLinearMotor();
+			bool IsEnabled();
 		};
 
 		class THAWK_OUT Simulator : public Rest::Object
 		{
+        public:
+            struct Desc
+            {
+                bool EnableSoftBody = false;
+                float AirDensity = 1.2f;
+                float WaterDensity = 0;
+                float WaterOffset = 0;
+                float MaxDisplacement = 1000;
+                Vector3 WaterNormal;
+                Vector3 Gravity = Vector3(0, -10, 0);
+            };
+
+		private:
+            btCollisionConfiguration* Collision;
+		    btBroadphaseInterface* Broadphase;
+            btConstraintSolver* Solver;
+            btDiscreteDynamicsWorld* World;
+		    btCollisionDispatcher* Dispatcher;
+            btSoftBodySolver* SoftSolver;
+
 		public:
-			class btDefaultCollisionConfiguration * CollisionConfiguration;
-			class btBroadphaseInterface* OverlappingPairCache;
-			class btSequentialImpulseConstraintSolver* Solver;
-			class btDiscreteDynamicsWorld* World;
-			class btCollisionDispatcher* Dispatcher;
 			float TimeSpeed;
 			int Interpolate;
 			bool Active;
 
 		public:
-			Simulator();
-			~Simulator() override;
-			void SetGravity(Vector3 Gravity);
-			void SetLinearImpulse(Vector3 Impulse, bool RandomFactor = false);
-			void SetLinearImpulse(Vector3 Impulse, int Start, int End, bool RandomFactor = false);
-			void SetAngularImpulse(Vector3 Impulse, bool RandomFactor = false);
-			void SetAngularImpulse(Vector3 Impulse, int Start, int End, bool RandomFactor = false);
-			void SetOnCollsionEnter(ContactStartedCallback Callback);
-			void SetOnCollsionExit(ContactEndedCallback Callback);
-			void CreateLinearImpulse(Vector3 Impulse, bool RandomFactor = false);
-			void CreateLinearImpulse(Vector3 Impulse, int Start, int End, bool RandomFactor = false);
-			void CreateAngularImpulse(Vector3 Impulse, bool RandomFactor = false);
-			void CreateAngularImpulse(Vector3 Impulse, int Start, int End, bool RandomFactor = false);
-			void AddRigidBody(RigidBody* Body);
+			Simulator(const Desc& I);
+            virtual ~Simulator() override;
+			void SetGravity(const Vector3& Gravity);
+			void SetLinearImpulse(const Vector3& Impulse, bool RandomFactor = false);
+			void SetLinearImpulse(const Vector3& Impulse, int Start, int End, bool RandomFactor = false);
+			void SetAngularImpulse(const Vector3& Impulse, bool RandomFactor = false);
+			void SetAngularImpulse(const Vector3& Impulse, int Start, int End, bool RandomFactor = false);
+			void SetOnCollisionEnter(ContactStartedCallback Callback);
+			void SetOnCollisionExit(ContactEndedCallback Callback);
+			void CreateLinearImpulse(const Vector3& Impulse, bool RandomFactor = false);
+			void CreateLinearImpulse(const Vector3& Impulse, int Start, int End, bool RandomFactor = false);
+			void CreateAngularImpulse(const Vector3& Impulse, bool RandomFactor = false);
+			void CreateAngularImpulse(const Vector3& Impulse, int Start, int End, bool RandomFactor = false);
+            void AddSoftBody(SoftBody* Body);
+            void RemoveSoftBody(SoftBody* Body);
+            void AddRigidBody(RigidBody* Body);
 			void RemoveRigidBody(RigidBody* Body);
 			void AddSliderConstraint(SliderConstraint* Constraint, bool UseCollisions);
 			void RemoveSliderConstraint(SliderConstraint* Constraint);
 			void RemoveAll();
 			void Simulate(float TimeStep);
-			void FindContacts(RigidBody* Body, int(*Callback)(ShapeContact*, RigidBody*, RigidBody*));
-			bool FindRayContacts(Vector3 Start, Vector3 End, int(*Callback)(RayContact*, RigidBody*));
-			bool FindClosestRayContacts(Vector3 Start, Vector3 End, int(*Callback)(RayContact*, RigidBody*));
-			RigidBody* CreateRigidBody(Transform* Transform, btCollisionShape* Shape, float Mass, float Anticipation = 0);
-			ContactStartedCallback& GetOnCollsionEnter();
-			ContactEndedCallback& GetOnCollsionExit();
-			int ContactManifoldCount();
+			void FindContacts(RigidBody* Body, int(*Callback)(ShapeContact*, const CollisionBody&, const CollisionBody&));
+			bool FindRayContacts(const Vector3& Start, const Vector3& End, int(*Callback)(RayContact*, const CollisionBody&));
+			RigidBody* CreateRigidBody(Transform* Transform, const RigidBody::Desc& I);
+            SoftBody* CreateSoftBody(Transform* Transform, const SoftBody::Desc& I);
+			ContactStartedCallback GetOnCollisionEnter();
+			ContactEndedCallback GetOnCollisionExit();
+			btCollisionConfiguration* GetCollision();
+			btBroadphaseInterface* GetBroadphase();
+			btConstraintSolver* GetSolver();
+			btDiscreteDynamicsWorld* GetWorld();
+			btCollisionDispatcher* GetDispatcher();
+            btSoftBodySolver* GetSoftSolver();
+			bool HasSoftBodySupport();
+			int GetContactManifoldCount();
+
+		public:
+		    static Simulator* Get(btDiscreteDynamicsWorld* From);
 		};
 	}
 }

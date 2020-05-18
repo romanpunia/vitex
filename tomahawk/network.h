@@ -255,7 +255,7 @@ namespace Tomahawk
             UInt64 MaxConnections = 0;
             bool EnableNoDelay = false;
 
-			~SocketRouter();
+			virtual ~SocketRouter();
         };
 
 		class THAWK_OUT Multiplexer
@@ -306,7 +306,7 @@ namespace Tomahawk
 
         public:
             SocketServer();
-            virtual ~SocketServer();
+            virtual ~SocketServer() override;
             void Lock();
             void Unlock();
             bool Configure(SocketRouter* New);
@@ -349,7 +349,7 @@ namespace Tomahawk
 
 		public:
 			SocketClient(Int64 RequestTimeout);
-			~SocketClient();
+            virtual ~SocketClient() override;
 			bool Connect(Host* Address, const SocketClientCallback& Callback);
 			bool Close(const SocketClientCallback& Callback);
 			Socket* GetStream();

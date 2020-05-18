@@ -36,10 +36,10 @@ namespace Tomahawk
                 D3D11ModelRenderer(Engine::RenderSystem* Lab);
                 ~D3D11ModelRenderer();
                 void OnInitialize();
-                void OnRasterization(Rest::Timer* Time);
-                void OnPhaseRasterization(Rest::Timer* Time);
-                void OnDepthRasterization(Rest::Timer* Time);
-                void OnCubicDepthRasterization(Rest::Timer* Time, Compute::Matrix4x4* ViewProjection);
+                void OnRender(Rest::Timer* Time);
+                void OnPhaseRender(Rest::Timer* Time);
+                void OnDepthRender(Rest::Timer* Time);
+                void OnCubicDepthRender(Rest::Timer* Time, Compute::Matrix4x4* ViewProjection);
                 const char* GetMultiCode();
                 const char* GetDepthCode();
                 const char* GetCubicDepthCode();
@@ -70,10 +70,10 @@ namespace Tomahawk
                 D3D11SkinnedModelRenderer(Engine::RenderSystem* Lab);
                 ~D3D11SkinnedModelRenderer();
                 void OnInitialize();
-                void OnRasterization(Rest::Timer* Time);
-                void OnPhaseRasterization(Rest::Timer* Time);
-                void OnDepthRasterization(Rest::Timer* Time);
-                void OnCubicDepthRasterization(Rest::Timer* Time, Compute::Matrix4x4* ViewProjection);
+                void OnRender(Rest::Timer* Time);
+                void OnPhaseRender(Rest::Timer* Time);
+                void OnDepthRender(Rest::Timer* Time);
+                void OnCubicDepthRender(Rest::Timer* Time, Compute::Matrix4x4* ViewProjection);
                 const char* GetMultiCode();
                 const char* GetDepthCode();
                 const char* GetCubicDepthCode();
@@ -107,10 +107,10 @@ namespace Tomahawk
                 D3D11ElementSystemRenderer(Engine::RenderSystem* Lab);
                 ~D3D11ElementSystemRenderer();
                 void OnInitialize();
-                void OnRasterization(Rest::Timer* Time);
-                void OnPhaseRasterization(Rest::Timer* Time);
-                void OnDepthRasterization(Rest::Timer* Time);
-                void OnCubicDepthRasterization(Rest::Timer* Time, Compute::Matrix4x4* ViewProjection);
+                void OnRender(Rest::Timer* Time);
+                void OnPhaseRender(Rest::Timer* Time);
+                void OnDepthRender(Rest::Timer* Time);
+                void OnCubicDepthRender(Rest::Timer* Time, Compute::Matrix4x4* ViewProjection);
                 const char* GetMultiCode();
                 const char* GetDepthCode();
                 const char* GetCubicDepthPointCode();
@@ -128,7 +128,7 @@ namespace Tomahawk
             public:
                 D3D11DepthRenderer(Engine::RenderSystem* Lab);
                 void OnInitialize();
-                void OnIntervalRasterization(Rest::Timer* Time);
+                void OnIntervalRender(Rest::Timer* Time);
             };
 
             class D3D11ProbeRenderer : public Engine::Renderers::ProbeRenderer
@@ -146,7 +146,7 @@ namespace Tomahawk
             public:
                 D3D11ProbeRenderer(Engine::RenderSystem* Lab);
                 void OnInitialize();
-                void OnRasterization(Rest::Timer* Time);
+                void OnRender(Rest::Timer* Time);
                 void CreateRenderTarget();
                 bool ResourceBound(Graphics::TextureCube** Cube);
             };
@@ -196,8 +196,8 @@ namespace Tomahawk
                 ~D3D11LightRenderer();
                 void OnInitialize();
                 void OnRelease();
-                void OnRasterization(Rest::Timer* Time);
-                void OnPhaseRasterization(Rest::Timer* Time);
+                void OnRender(Rest::Timer* Time);
+                void OnPhaseRender(Rest::Timer* Time);
                 void OnResizeBuffers();
                 void CreatePointLighting();
                 void CreateProbeLighting();
@@ -226,7 +226,7 @@ namespace Tomahawk
                 D3D11ImageRenderer(Engine::RenderSystem* Lab);
                 D3D11ImageRenderer(Engine::RenderSystem* Lab, Graphics::RenderTarget2D* Target);
                 ~D3D11ImageRenderer();
-                void OnRasterization(Rest::Timer* Time);
+                void OnRender(Rest::Timer* Time);
             };
 
             class D3D11ReflectionsRenderer : public Engine::Renderers::ReflectionsRenderer
@@ -242,7 +242,7 @@ namespace Tomahawk
                 D3D11ReflectionsRenderer(Engine::RenderSystem* Lab);
                 ~D3D11ReflectionsRenderer();
                 void OnInitialize();
-                void OnRasterization(Rest::Timer* Time);
+                void OnRender(Rest::Timer* Time);
                 void OnResizeBuffers();
                 const char* GetShaderCode();
             };
@@ -260,7 +260,7 @@ namespace Tomahawk
                 D3D11DepthOfFieldRenderer(Engine::RenderSystem* Lab);
                 ~D3D11DepthOfFieldRenderer();
                 void OnInitialize();
-                void OnRasterization(Rest::Timer* Time);
+                void OnRender(Rest::Timer* Time);
                 void OnResizeBuffers();
                 const char* GetShaderCode();
             };
@@ -278,7 +278,7 @@ namespace Tomahawk
                 D3D11EmissionRenderer(Engine::RenderSystem* Lab);
                 ~D3D11EmissionRenderer();
                 void OnInitialize();
-                void OnRasterization(Rest::Timer* Time);
+                void OnRender(Rest::Timer* Time);
                 void OnResizeBuffers();
                 const char* GetShaderCode();
             };
@@ -296,7 +296,7 @@ namespace Tomahawk
                 D3D11GlitchRenderer(Engine::RenderSystem* Lab);
                 ~D3D11GlitchRenderer();
                 void OnInitialize();
-                void OnRasterization(Rest::Timer* Time);
+                void OnRender(Rest::Timer* Time);
                 void OnResizeBuffers();
                 const char* GetShaderCode();
             };
@@ -314,7 +314,7 @@ namespace Tomahawk
                 D3D11AmbientOcclusionRenderer(Engine::RenderSystem* Lab);
                 ~D3D11AmbientOcclusionRenderer();
                 void OnInitialize();
-                void OnRasterization(Rest::Timer* Time);
+                void OnRender(Rest::Timer* Time);
                 void OnResizeBuffers();
                 const char* GetShaderCode();
             };
@@ -332,7 +332,7 @@ namespace Tomahawk
                 D3D11IndirectOcclusionRenderer(Engine::RenderSystem* Lab);
                 ~D3D11IndirectOcclusionRenderer();
                 void OnInitialize();
-                void OnRasterization(Rest::Timer* Time);
+                void OnRender(Rest::Timer* Time);
                 void OnResizeBuffers();
                 const char* GetShaderCode();
             };
@@ -350,7 +350,7 @@ namespace Tomahawk
                 D3D11ToneRenderer(Engine::RenderSystem* Lab);
                 ~D3D11ToneRenderer();
                 void OnInitialize();
-                void OnRasterization(Rest::Timer* Time);
+                void OnRender(Rest::Timer* Time);
                 void OnResizeBuffers();
                 const char* GetShaderCode();
             };

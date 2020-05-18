@@ -6,7 +6,7 @@
 // stb_truetype.h - v1.20 - public domain
 // authored from 2009-2016 by Sean Barrett / RAD Game Tools
 //
-//   This refs processes TrueType files:
+//   This library processes TrueType files:
 //        parse files
 //        extract glyph metrics
 //        extract glyph shapes
@@ -134,7 +134,7 @@
 //   After the sample programs is the "header file" section. This section
 //   includes documentation for each API function.
 //
-//   Some important concepts to understand to use this refs:
+//   Some important concepts to understand to use this library:
 //
 //      Codepoint
 //         Characters are defined by unicode codepoints, e.g. 65 is
@@ -142,7 +142,7 @@
 //         the hiragana for "ma".
 //
 //      Glyph
-//         A graphics character shape (every codepoint is rendered as
+//         A visual character shape (every codepoint is rendered as
 //         some glyph)
 //
 //      Glyph index
@@ -258,7 +258,7 @@
 //   Bitmap management                  100 LOC   /
 //   Baked bitmap interface              70 LOC  /
 //   Font name matching & access        150 LOC  ---- 150 
-//   C runtime refs abstraction       60 LOC  ----  60
+//   C runtime library abstraction       60 LOC  ----  60
 //
 //
 // PERFORMANCE MEASUREMENTS FOR 1.06:
@@ -2538,11 +2538,11 @@ static stbtt_int32  stbtt__GetGlyphGPOSInfoAdvance(const stbtt_fontinfo *info, i
                             // There are no other cases.
                             STBTT_assert(0);
                             break;
-                        };
+                        } // [DEAR IMGUI] removed ;
                     }
                 }
                 break;
-            };
+            } // [DEAR IMGUI] removed ;
 
             default:
                 // TODO: Implement other stuff.
@@ -3073,7 +3073,7 @@ static void stbtt__fill_active_edges_new(float *scanline, float *scanline_fill, 
          } else {
             // if edge goes outside of box we're drawing, we require
             // clipping logic. since this does not match the intended use
-            // of this refs, we use a different, very slow brute
+            // of this library, we use a different, very slow brute
             // force implementation
             int x;
             for (x=0; x < len; ++x) {
@@ -4132,7 +4132,7 @@ STBTT_DEF void stbtt_PackFontRangesPackRects(stbtt_pack_context *spc, stbrp_rect
 STBTT_DEF int stbtt_PackFontRanges(stbtt_pack_context *spc, const unsigned char *fontdata, int font_index, stbtt_pack_range *ranges, int num_ranges)
 {
    stbtt_fontinfo info;
-   int i,j,n, return_value = 1;
+   int i,j,n, return_value; // [DEAR IMGUI] removed = 1
    //stbrp_context *context = (stbrp_context *) spc->pack_info;
    stbrp_rect    *rects;
 

@@ -52,7 +52,6 @@ namespace Tomahawk
 				I.Queue = Application::Get()->Queue;
 
                 std::string Environment = Content->GetEnvironment();
-
 				Rest::Document* Document = Content->Load<Rest::Document>(Stream->Filename());
 				if (!Document)
 					return nullptr;
@@ -62,6 +61,7 @@ namespace Tomahawk
                 {
 					NMake::Unpack(Metadata->Find("components"), &I.ComponentCount);
 					NMake::Unpack(Metadata->Find("entities"), &I.EntityCount);
+                    NMake::Unpack(Metadata->Find("soft-bodies"), &I.EnableSoftBodies);
 					NMake::Unpack(Metadata->Find("component-types"), &I.ComponentTypes);
 					NMake::Unpack(Metadata->Find("render-quality"), &I.RenderQuality);
                 }
@@ -261,6 +261,7 @@ namespace Tomahawk
                 Rest::Document* Metadata = Document->SetDocument("metadata");
 				NMake::Pack(Metadata->SetDocument("components"), Object->GetComponentStorageCount());
 				NMake::Pack(Metadata->SetDocument("entities"), Object->GetEntityStorageCount());
+                NMake::Pack(Metadata->SetDocument("soft-bodies"), Object->GetSimulator()->HasSoftBodySupport());
 				NMake::Pack(Metadata->SetDocument("component-types"), Object->GetComponentTypesCount());
 				NMake::Pack(Metadata->SetDocument("render-quality"), Object->GetRenderQuality());
 
@@ -1061,10 +1062,10 @@ namespace Tomahawk
 				}
 			}
 
-            NodeProcessor::NodeProcessor(ContentManager* Manager) : FileProcessor(Manager)
+            DocumentProcessor::DocumentProcessor(ContentManager* Manager) : FileProcessor(Manager)
             {
             }
-            void* NodeProcessor::Load(Rest::FileStream* Stream, UInt64 Length, UInt64 Offset, ContentArgs* Args)
+            void* DocumentProcessor::Load(Rest::FileStream* Stream, UInt64 Length, UInt64 Offset, ContentArgs* Args)
             {
 				Rest::NReadCallback Callback = [Stream](char* Buffer, Int64 Size)
 				{
@@ -1086,7 +1087,7 @@ namespace Tomahawk
 				Stream->Seek(Rest::FileSeek_Begin, Offset);
                 return Rest::Document::ReadXML(Length, Callback);
             }
-            bool NodeProcessor::Save(Rest::FileStream* Stream, void* Instance, ContentArgs* Args)
+            bool DocumentProcessor::Save(Rest::FileStream* Stream, void* Instance, ContentArgs* Args)
             {
 				auto Document = (Rest::Document*)Instance;
 				bool Result = false;

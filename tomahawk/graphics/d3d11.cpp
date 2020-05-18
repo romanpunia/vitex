@@ -744,7 +744,7 @@ namespace Tomahawk
                 RefDevice->ImmediateContext->CopyResource(RefTexture->Rest, Texture);
                 *Value = RefTexture;
             }
-            void D3D11RenderTarget2D::SetViewport(Graphics::Viewport In)
+            void D3D11RenderTarget2D::SetViewport(const Graphics::Viewport& In)
             {
                 Viewport.Height = In.Height;
                 Viewport.TopLeftX = In.TopLeftX;
@@ -970,7 +970,7 @@ namespace Tomahawk
                 RefDevice->ImmediateContext->CopyResource(RefTexture->Rest, Texture[Target]);
                 *Value = RefTexture;
             }
-            void D3D11MultiRenderTarget2D::SetViewport(Graphics::Viewport In)
+            void D3D11MultiRenderTarget2D::SetViewport(const Graphics::Viewport& In)
             {
                 Viewport.Height = In.Height;
                 Viewport.TopLeftX = In.TopLeftX;
@@ -1154,7 +1154,7 @@ namespace Tomahawk
                 ImmediateContext->ClearRenderTargetView(RenderTargetView[Target], ClearColor);
                 ImmediateContext->ClearDepthStencilView(DepthStencilView, D3D11_CLEAR_DEPTH, 1.0f, 0);
             }
-            void D3D11RenderTarget2DArray::SetViewport(Graphics::Viewport In)
+            void D3D11RenderTarget2DArray::SetViewport(const Graphics::Viewport& In)
             {
                 Viewport.Height = In.Height;
                 Viewport.TopLeftX = In.TopLeftX;
@@ -1360,7 +1360,7 @@ namespace Tomahawk
                 RefDevice->ImmediateContext->CopySubresourceRegion(RefTexture->Rest, FaceId * Information.MipLevels, 0, 0, 0, Cube, 0, 0);
                 *Value = RefTexture;
             }
-            void D3D11RenderTargetCube::SetViewport(Graphics::Viewport In)
+            void D3D11RenderTargetCube::SetViewport(const Graphics::Viewport& In)
             {
                 Viewport.Height = In.Height;
                 Viewport.TopLeftX = In.TopLeftX;
@@ -1593,7 +1593,7 @@ namespace Tomahawk
                 RefDevice->ImmediateContext->CopySubresourceRegion(RefTexture->Rest, FaceId * Information.MipLevels, 0, 0, 0, Cube[CubeId], 0, 0);
                 *Value = RefTexture;
             }
-            void D3D11MultiRenderTargetCube::SetViewport(Graphics::Viewport In)
+            void D3D11MultiRenderTargetCube::SetViewport(const Graphics::Viewport& In)
             {
                 Viewport.Height = In.Height;
                 Viewport.TopLeftX = In.TopLeftX;
@@ -1651,7 +1651,7 @@ namespace Tomahawk
 
                 IndexBuffer = Graphics::ElementBuffer::Create(Device, F);
             }
-            void D3D11Mesh::UpdateSubresource(Graphics::GraphicsDevice* Device, Compute::Vertex* Elements)
+            void D3D11Mesh::Update(Graphics::GraphicsDevice* Device, Compute::Vertex* Elements)
             {
                 Graphics::MappedSubresource Resource;
                 VertexBuffer->Map(Device, Graphics::ResourceMap_Write, &Resource);
@@ -1705,7 +1705,7 @@ namespace Tomahawk
 
                 IndexBuffer = Graphics::ElementBuffer::Create(Device, F);
             }
-            void D3D11SkinnedMesh::UpdateSubresource(Graphics::GraphicsDevice* Device, Compute::InfluenceVertex* Elements)
+            void D3D11SkinnedMesh::Update(Graphics::GraphicsDevice* Device, Compute::InfluenceVertex* Elements)
             {
                 Graphics::MappedSubresource Resource;
                 VertexBuffer->Map(Device, Graphics::ResourceMap_Write, &Resource);
@@ -2460,7 +2460,7 @@ namespace Tomahawk
                 if (D3DDevice->CreateRasterizerState(&State, &DeviceState) != S_OK)
                 {
                     ReleaseCom(DeviceState);
-                    THAWK_ERROR("couldn't create rasterizer state");
+                    THAWK_ERROR("couldn't create Rasterizer state");
                     return 0;
                 }
 

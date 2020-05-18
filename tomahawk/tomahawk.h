@@ -63,7 +63,7 @@ namespace Tomahawk
         static const char* Platform();
     };
 
-	THAWK_OUT bool Initialize(int Modules = TInit_All);
+	THAWK_OUT bool Initialize(unsigned int Modules = TInit_All);
     THAWK_OUT bool Uninitialize();
 }
 #endif

@@ -38,7 +38,7 @@ namespace Tomahawk
             {
                 Models = System->GetScene()->GetComponents(Engine::ComponentId_Model);
             }
-            void D3D11ModelRenderer::OnRasterization(Rest::Timer* Time)
+            void D3D11ModelRenderer::OnRender(Rest::Timer* Time)
             {
                 D3D11MultiRenderTarget2D* RefSurface = System->GetScene()->GetSurface()->As<D3D11MultiRenderTarget2D>();
                 if (!Models || Models->Empty())
@@ -96,7 +96,7 @@ namespace Tomahawk
                     }
                 }
             }
-            void D3D11ModelRenderer::OnPhaseRasterization(Rest::Timer* Time)
+            void D3D11ModelRenderer::OnPhaseRender(Rest::Timer* Time)
             {
                 D3D11MultiRenderTarget2D* RefSurface = System->GetScene()->GetSurface()->As<D3D11MultiRenderTarget2D>();
                 if (!Models || Models->Empty())
@@ -157,7 +157,7 @@ namespace Tomahawk
                     }
                 }
             }
-            void D3D11ModelRenderer::OnDepthRasterization(Rest::Timer* Time)
+            void D3D11ModelRenderer::OnDepthRender(Rest::Timer* Time)
             {
                 if (!Models || Models->Empty())
                     return;
@@ -204,7 +204,7 @@ namespace Tomahawk
                     }
                 }
             }
-            void D3D11ModelRenderer::OnCubicDepthRasterization(Rest::Timer* Time, Compute::Matrix4x4* ViewProjection)
+            void D3D11ModelRenderer::OnCubicDepthRender(Rest::Timer* Time, Compute::Matrix4x4* ViewProjection)
             {
                 if (!Models || Models->Empty())
                     return;
@@ -450,7 +450,7 @@ namespace Tomahawk
             {
                 SkinnedModels = System->GetScene()->GetComponents(Engine::ComponentId_Skinned_Model);
             }
-            void D3D11SkinnedModelRenderer::OnRasterization(Rest::Timer* Time)
+            void D3D11SkinnedModelRenderer::OnRender(Rest::Timer* Time)
             {
                 D3D11MultiRenderTarget2D* RefSurface = System->GetScene()->GetSurface()->As<D3D11MultiRenderTarget2D>();
                 if (!SkinnedModels || SkinnedModels->Empty())
@@ -513,7 +513,7 @@ namespace Tomahawk
                     }
                 }
             }
-            void D3D11SkinnedModelRenderer::OnPhaseRasterization(Rest::Timer* Time)
+            void D3D11SkinnedModelRenderer::OnPhaseRender(Rest::Timer* Time)
             {
                 D3D11MultiRenderTarget2D* RefSurface = System->GetScene()->GetSurface()->As<D3D11MultiRenderTarget2D>();
                 if (!SkinnedModels || SkinnedModels->Empty())
@@ -579,7 +579,7 @@ namespace Tomahawk
                     }
                 }
             }
-            void D3D11SkinnedModelRenderer::OnDepthRasterization(Rest::Timer* Time)
+            void D3D11SkinnedModelRenderer::OnDepthRender(Rest::Timer* Time)
             {
                 if (!SkinnedModels || SkinnedModels->Empty())
                     return;
@@ -631,7 +631,7 @@ namespace Tomahawk
                     }
                 }
             }
-            void D3D11SkinnedModelRenderer::OnCubicDepthRasterization(Rest::Timer* Time, Compute::Matrix4x4* ViewProjection)
+            void D3D11SkinnedModelRenderer::OnCubicDepthRender(Rest::Timer* Time, Compute::Matrix4x4* ViewProjection)
             {
                 if (!SkinnedModels || SkinnedModels->Empty())
                     return;
@@ -926,7 +926,7 @@ namespace Tomahawk
             {
                 ElementSystems = System->GetScene()->GetComponents(Engine::ComponentId_Element_System);
             }
-            void D3D11ElementSystemRenderer::OnRasterization(Rest::Timer* Time)
+            void D3D11ElementSystemRenderer::OnRender(Rest::Timer* Time)
             {
                 if (!ElementSystems || ElementSystems->Empty())
                     return;
@@ -976,7 +976,7 @@ namespace Tomahawk
                 Device->ImmediateContext->IASetPrimitiveTopology(LastTopology);
                 Device->ImmediateContext->GSSetShader(nullptr, nullptr, 0);
             }
-            void D3D11ElementSystemRenderer::OnPhaseRasterization(Rest::Timer* Time)
+            void D3D11ElementSystemRenderer::OnPhaseRender(Rest::Timer* Time)
             {
                 if (!ElementSystems || ElementSystems->Empty())
                     return;
@@ -1029,7 +1029,7 @@ namespace Tomahawk
                 Device->ImmediateContext->IASetPrimitiveTopology(LastTopology);
                 Device->ImmediateContext->GSSetShader(nullptr, nullptr, 0);
             }
-            void D3D11ElementSystemRenderer::OnDepthRasterization(Rest::Timer* Time)
+            void D3D11ElementSystemRenderer::OnDepthRender(Rest::Timer* Time)
             {
                 if (!ElementSystems || ElementSystems->Empty())
                     return;
@@ -1080,7 +1080,7 @@ namespace Tomahawk
                 Device->ImmediateContext->IASetPrimitiveTopology(LastTopology);
                 Device->ImmediateContext->GSSetShader(nullptr, nullptr, 0);
             }
-            void D3D11ElementSystemRenderer::OnCubicDepthRasterization(Rest::Timer* Time, Compute::Matrix4x4* ViewProjection)
+            void D3D11ElementSystemRenderer::OnCubicDepthRender(Rest::Timer* Time, Compute::Matrix4x4* ViewProjection)
             {
                 if (!ElementSystems || ElementSystems->Empty())
                     return;
@@ -1472,7 +1472,7 @@ namespace Tomahawk
             D3D11DepthRenderer::D3D11DepthRenderer(Engine::RenderSystem* Lab) : Engine::Renderers::DepthRenderer(Lab)
             {
                 Device = System->GetDevice()->As<D3D11Device>();
-                Time.Delay = 10;
+                Timer.Delay = 10;
             }
             void D3D11DepthRenderer::OnInitialize()
             {
@@ -1533,7 +1533,7 @@ namespace Tomahawk
                     *It = Graphics::RenderTarget2D::Create(System->GetDevice(), I);
                 }
             }
-            void D3D11DepthRenderer::OnIntervalRasterization(Rest::Timer* Time)
+            void D3D11DepthRenderer::OnIntervalRender(Rest::Timer* Time)
             {
                 Device->SetBlendState(Graphics::RenderLab_Blend_Overwrite);
                 Device->SetRasterizerState(Graphics::RenderLab_Raster_Cull_Front);
@@ -1550,7 +1550,7 @@ namespace Tomahawk
                         continue;
 
                     Renderers.PointLight[Shadows]->Apply(Device, 0, 0, 0);
-                    RasterizeCubicDepth(Time, Light->Projection, Light->GetEntity()->Transform->Position.MtVector4().SetW(Light->ShadowDistance));
+                    RenderCubicDepth(Time, Light->Projection, Light->GetEntity()->Transform->Position.MtVector4().SetW(Light->ShadowDistance));
 
                     Light->Occlusion = Renderers.PointLight[Shadows++]->GetTarget()->GetResource();
                 }
@@ -1567,7 +1567,7 @@ namespace Tomahawk
                         continue;
 
                     Renderers.SpotLight[Shadows]->Apply(Device, 0, 0, 0);
-                    RasterizeDepth(Time, Light->View, Light->Projection, Light->GetEntity()->Transform->Position.MtVector4().SetW(Light->ShadowDistance));
+                    RenderDepth(Time, Light->View, Light->Projection, Light->GetEntity()->Transform->Position.MtVector4().SetW(Light->ShadowDistance));
 
                     Light->Occlusion = Renderers.SpotLight[Shadows++]->GetTarget()->GetResource();
                 }
@@ -1584,7 +1584,7 @@ namespace Tomahawk
                         continue;
 
                     Renderers.LineLight[Shadows]->Apply(Device, 0, 0, 0);
-                    RasterizeDepth(Time, Light->View, Light->Projection, Compute::Vector4(0, 0, 0, -1));
+                    RenderDepth(Time, Light->View, Light->Projection, Compute::Vector4(0, 0, 0, -1));
 
                     Light->Occlusion = Renderers.LineLight[Shadows++]->GetTarget()->GetResource();
                 }
@@ -1613,7 +1613,7 @@ namespace Tomahawk
 					}
 				}
             }
-            void D3D11ProbeRenderer::OnRasterization(Rest::Timer* Time)
+            void D3D11ProbeRenderer::OnRender(Rest::Timer* Time)
             {
                 RefSurface = System->GetScene()->GetSurface();
                 System->GetScene()->SetSurface(Surface);
@@ -1642,7 +1642,7 @@ namespace Tomahawk
                     for (int j = 0; j < 6; j++)
                     {
                         Light->View[j] = Compute::Matrix4x4::CreateCubeMapLookAt(j, Position);
-                        RasterizePhase(Time, Light->View[j], Light->Projection, Position.MtVector4().SetW(Light->CaptureRange));
+                        RenderPhase(Time, Light->View[j], Light->Projection, Position.MtVector4().SetW(Light->CaptureRange));
 
                         Device->D3DDevice->CreateTexture2D(&TextureView, nullptr, &Face);
                         Device->ImmediateContext->CopyResource(Face, Surface->As<D3D11MultiRenderTarget2D>()->Texture[0]);
@@ -1773,7 +1773,7 @@ namespace Tomahawk
 				delete PhaseInput;
 				delete PhaseOutput;
             }
-            void D3D11LightRenderer::OnRasterization(Rest::Timer* Time)
+            void D3D11LightRenderer::OnRender(Rest::Timer* Time)
             {
                 D3D11MultiRenderTarget2D* Surface = System->GetScene()->GetSurface()->As<D3D11MultiRenderTarget2D>();
                 ID3D11ShaderResourceView* Nullable[5] = { nullptr };
@@ -1931,7 +1931,7 @@ namespace Tomahawk
                 Device->ImmediateContext->Draw(6, 0);
                 Device->ImmediateContext->PSSetShaderResources(1, 5, Nullable);
             }
-            void D3D11LightRenderer::OnPhaseRasterization(Rest::Timer* Time)
+            void D3D11LightRenderer::OnPhaseRender(Rest::Timer* Time)
             {
                 ID3D11ShaderResourceView* Nullable[5] = { nullptr };
                 D3D11MultiRenderTarget2D* RefSurface = System->GetScene()->GetSurface()->As<D3D11MultiRenderTarget2D>();
@@ -2746,7 +2746,7 @@ namespace Tomahawk
             D3D11ImageRenderer::~D3D11ImageRenderer()
             {
             }
-            void D3D11ImageRenderer::OnRasterization(Rest::Timer* Time)
+            void D3D11ImageRenderer::OnRender(Rest::Timer* Time)
             {
                 if (!System->GetScene()->GetSurface()->GetTarget(0)->As<D3D11Texture2D>()->Resource)
                     return;
@@ -2798,7 +2798,7 @@ namespace Tomahawk
             {
                 OnResizeBuffers();
             }
-            void D3D11ReflectionsRenderer::OnRasterization(Rest::Timer* Time)
+            void D3D11ReflectionsRenderer::OnRender(Rest::Timer* Time)
             {
                 ID3D11ShaderResourceView* Nullable[3] = { nullptr };
                 FLOAT Color[4] = { 0.0f };
@@ -2925,7 +2925,7 @@ namespace Tomahawk
             {
                 OnResizeBuffers();
             }
-            void D3D11DepthOfFieldRenderer::OnRasterization(Rest::Timer* Time)
+            void D3D11DepthOfFieldRenderer::OnRender(Rest::Timer* Time)
             {
                 ID3D11ShaderResourceView* Nullable[3] = { nullptr };
                 FLOAT Color[4] = { 0.0f };
@@ -3093,7 +3093,7 @@ namespace Tomahawk
             {
                 OnResizeBuffers();
             }
-            void D3D11EmissionRenderer::OnRasterization(Rest::Timer* Time)
+            void D3D11EmissionRenderer::OnRender(Rest::Timer* Time)
             {
                 ID3D11ShaderResourceView* Nullable[3] = { nullptr };
                 FLOAT Color[4] = { 0.0f };
@@ -3207,7 +3207,7 @@ namespace Tomahawk
             {
                 OnResizeBuffers();
             }
-            void D3D11GlitchRenderer::OnRasterization(Rest::Timer* Time)
+            void D3D11GlitchRenderer::OnRender(Rest::Timer* Time)
             {
                 ID3D11ShaderResourceView* Nullable[3] = { nullptr };
                 FLOAT Color[4] = { 0.0f };
@@ -3321,7 +3321,7 @@ namespace Tomahawk
             {
                 OnResizeBuffers();
             }
-            void D3D11AmbientOcclusionRenderer::OnRasterization(Rest::Timer* Time)
+            void D3D11AmbientOcclusionRenderer::OnRender(Rest::Timer* Time)
             {
                 ID3D11ShaderResourceView* Nullable[3] = { nullptr };
                 FLOAT Color[4] = { 0.0f };
@@ -3458,7 +3458,7 @@ namespace Tomahawk
             {
                 OnResizeBuffers();
             }
-            void D3D11IndirectOcclusionRenderer::OnRasterization(Rest::Timer* Time)
+            void D3D11IndirectOcclusionRenderer::OnRender(Rest::Timer* Time)
             {
                 ID3D11ShaderResourceView* Nullable[3] = { nullptr };
                 FLOAT Color[4] = { 0.0f };
@@ -3596,7 +3596,7 @@ namespace Tomahawk
             {
                 OnResizeBuffers();
             }
-            void D3D11ToneRenderer::OnRasterization(Rest::Timer* Time)
+            void D3D11ToneRenderer::OnRender(Rest::Timer* Time)
             {
                 ID3D11ShaderResourceView* Nullable[3] = { nullptr };
                 FLOAT Color[4] = { 0.0f };

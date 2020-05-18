@@ -38,7 +38,7 @@ namespace Tomahawk
 	static std::vector<std::shared_ptr<std::mutex>>* CryptoLocks = nullptr;
 	static int State = 0;
 #endif
-	static int Modes = 0;
+	static unsigned int Modes = 0;
 
 	void Library::Describe()
     {
@@ -233,7 +233,7 @@ namespace Tomahawk
         return "OS with C/C++ support";
     }
 
-	bool Initialize(int Modules)
+	bool Initialize(unsigned int Modules)
 	{
 		State++;
 		if (State > 1)
@@ -244,9 +244,6 @@ namespace Tomahawk
 		{
 			if (Modes & TInit_Logger)
 				Rest::LT::AttachStream();
-
-			Library::Describe();
-			THAWK_INFO("rest initialized");
 		}
 
 		if (Modes & TInit_Network)
@@ -254,12 +251,9 @@ namespace Tomahawk
 #ifdef THAWK_MICROSOFT
 			WSADATA WSAData;
 			WORD VersionRequested = MAKEWORD(2, 2);
-			if (WSAStartup(VersionRequested, &WSAData) == 0)
-				THAWK_INFO("windows socket refs initialized");
-			else
+			if (WSAStartup(VersionRequested, &WSAData) != 0)
 				THAWK_ERROR("windows socket refs cannot be initialized");
 #endif
-			THAWK_INFO("network initialized");
 		}
 
 		if (Modes & TInit_Crypto)
@@ -289,7 +283,6 @@ namespace Tomahawk
 				return (unsigned long)syscall(SYS_gettid);
 #endif
 			});
-			THAWK_INFO("openssl crypto initialized");
 #else
 			THAWK_WARN("openssl crypto cannot be initialized");
 #endif
@@ -300,7 +293,6 @@ namespace Tomahawk
 #ifdef THAWK_HAS_OPENSSL
 			SSL_library_init();
 			SSL_load_error_strings();
-			THAWK_INFO("openssl ssl initialized");
 #else
 			THAWK_WARN("openssl ssl cannot be initialized");
 #endif
@@ -364,24 +356,18 @@ namespace Tomahawk
 			SDL_EventState(SDL_RENDER_DEVICE_RESET, SDL_DISABLE);
 #endif
 			SDL_EventState(SDL_RENDER_TARGETS_RESET, SDL_DISABLE);
-			THAWK_INFO("sdl2 initialized");
 #else
 			THAWK_WARN("sdl2 cannot be initialized");
 #endif
 		}
 
 		if (Modes & TInit_Compute)
-		{
 			Compute::MathCommon::Randomize();
-			THAWK_INFO("compute initialized");
-		}
 		
 		if (Modes & TInit_Locale)
 		{
 			if (!setlocale(LC_TIME, "C"))
 				THAWK_WARN("en-US locale cannot be initialized");
-			else
-				THAWK_INFO("en-US locale initialized");
 		}
 
 #ifndef THAWK_MICROSOFT
@@ -407,7 +393,6 @@ namespace Tomahawk
 				delete CryptoLocks;
 				CryptoLocks = nullptr;
 			}
-			THAWK_INFO("openssl crypto uninitialized");
 #else
 			THAWK_WARN("openssl ssl cannot be uninitialized");
 #endif
@@ -420,7 +405,6 @@ namespace Tomahawk
 			CONF_modules_unload(1);
 			ERR_free_strings();
 			EVP_cleanup();
-			THAWK_INFO("openssl ssl uninitialized");
 #else
 			THAWK_WARN("openssl ssl cannot be uninitialized");
 #endif
@@ -430,7 +414,6 @@ namespace Tomahawk
 		{
 #ifdef THAWK_HAS_SDL2
 			SDL_Quit();
-			THAWK_INFO("sdl2 uninitialized");
 #else
 			THAWK_WARN("sdl2 cannot be uninitialized");
 #endif
@@ -440,18 +423,14 @@ namespace Tomahawk
 		{
 			Network::Multiplexer::Release();
 #ifdef THAWK_MICROSOFT
-			THAWK_INFO("windows socket refs uninitialized");
 			WSACleanup();
 #endif
-			THAWK_INFO("network uninitialized");
 		}
 
 		if (Modes & TInit_Rest)
 		{
 			if (Modes & TInit_Logger)
 				Rest::LT::DetachStream();
-
-			THAWK_INFO("rest uninitialized");
 		}
 
 		return true;

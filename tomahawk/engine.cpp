@@ -3,7 +3,6 @@
 #include "engine/processors.h"
 #include "engine/renderers.h"
 #include "network/http.h"
-#include <btBulletDynamicsCommon.h>
 #include <sstream>
 #ifdef THAWK_HAS_SDL2
 #include <SDL2/SDL_syswm.h>
@@ -89,16 +88,6 @@ namespace Tomahawk
 				return false;
 
 			return V->SetString("[s]", Value) != nullptr;
-		}
-		bool NMake::Pack(Rest::Document* V, const btVector3& Value)
-		{
-			if (!V)
-				return false;
-
-			return
-				V->SetNumber("[x]", Value.x()) != nullptr &&
-				V->SetNumber("[y]", Value.y()) != nullptr &&
-				V->SetNumber("[z]", Value.z()) != nullptr;
 		}
 		bool NMake::Pack(Rest::Document* V, const Compute::Vector2& Value)
 		{
@@ -227,7 +216,7 @@ namespace Tomahawk
 
 			Rest::Document* Array = V->SetArray("frames");
 			for (auto&& It : Value.Keys)
-				NMake::Pack(V->SetDocument("frame"), It);
+				NMake::Pack(Array->SetDocument("frame"), It);
 
 			return true;
 		}
@@ -462,17 +451,6 @@ namespace Tomahawk
 
 			return V->SetString("i-array", Stream.str().substr(0, Stream.str().size() - 1)) && V->SetInteger("[size]", Value.size());
 		}
-		bool NMake::Pack(Rest::Document* V, const std::vector<btVector3>& Value)
-		{
-			if (!V)
-				return false;
-
-			std::stringstream Stream;
-			for (auto&& It : Value)
-				Stream << It.x() << " " << It.y() << " " << It.z() << " ";
-
-			return V->SetString("bv3-array", Stream.str().substr(0, Stream.str().size() - 1)) && V->SetInteger("[size]", Value.size());
-		}
 		bool NMake::Pack(Rest::Document* V, const std::vector<Compute::Vector2>& Value)
 		{
 			if (!V)
@@ -514,8 +492,8 @@ namespace Tomahawk
 			std::stringstream Stream;
 			for (auto&& It : Value)
 			{
-				for (Int64 i = 0; i < 16; i++)
-					Stream << It.Row[i] << " ";
+				for (float i : It.Row)
+					Stream << i << " ";
 			}
 
 			return V->SetString("m4x4-array", Stream.str().substr(0, Stream.str().size() - 1)) && V->SetInteger("[size]", Value.size());
@@ -810,16 +788,6 @@ namespace Tomahawk
 			*O = V->GetInteger("[i]");
 			return true;
 		}
-		bool NMake::Unpack(Rest::Document* V, btVector3* O)
-		{
-			if (!V || !O)
-				return false;
-
-			O->setX(V->GetNumber("[x]"));
-			O->setY(V->GetNumber("[y]"));
-			O->setZ(V->GetNumber("[z]"));
-			return true;
-		}
 		bool NMake::Unpack(Rest::Document* V, Compute::Vector2* O)
 		{
 			if (!V || !O)
@@ -949,7 +917,7 @@ namespace Tomahawk
 			std::vector<Rest::Document*> Frames = V->FindCollectionPath("frames.frame", true);
 			for (auto&& It : Frames)
 			{
-				O->Keys.push_back(std::vector<Compute::AnimatorKey>());
+				O->Keys.emplace_back();
 				NMake::Unpack(It, &O->Keys.back());
 			}
 
@@ -989,7 +957,7 @@ namespace Tomahawk
 			std::vector<Rest::Document*> Joints = V->FindCollectionPath("childs.joint", true);
 			for (auto& It : Joints)
 			{
-				O->Childs.push_back(Compute::Joint());
+				O->Childs.emplace_back();
 				NMake::Unpack(It, &O->Childs.back());
 			}
 
@@ -1301,30 +1269,6 @@ namespace Tomahawk
 
 			return true;
 		}
-		bool NMake::Unpack(Rest::Document* V, std::vector<btVector3>* O)
-		{
-			if (!V || !O)
-				return false;
-
-			std::string& Array = V->GetStringBlob("bv3-array");
-			Int64 Size = V->GetInteger("[size]");
-			if (Array.empty() || !Size)
-				return false;
-
-			std::stringstream Stream(Array);
-			O->resize((size_t)Size);
-
-			for (auto It = O->begin(); It != O->end(); It++)
-			{
-				float X, Y, Z;
-				Stream >> X >> Y >> Z;
-				It->setX(X);
-				It->setY(Y);
-				It->setZ(Z);
-			}
-
-			return true;
-		}
 		bool NMake::Unpack(Rest::Document* V, std::vector<Compute::Vector2>* O)
 		{
 			if (!V || !O)
@@ -1338,8 +1282,8 @@ namespace Tomahawk
 			std::stringstream Stream(Array);
 			O->resize((size_t)Size);
 
-			for (auto It = O->begin(); It != O->end(); It++)
-				Stream >> It->X >> It->Y;
+			for (auto & It : *O)
+				Stream >> It.X >> It.Y;
 
 			return true;
 		}
@@ -1356,8 +1300,8 @@ namespace Tomahawk
 			std::stringstream Stream(Array);
 			O->resize((size_t)Size);
 
-			for (auto It = O->begin(); It != O->end(); It++)
-				Stream >> It->X >> It->Y >> It->Z;
+			for (auto & It : *O)
+				Stream >> It.X >> It.Y >> It.Z;
 
 			return true;
 		}
@@ -1374,8 +1318,8 @@ namespace Tomahawk
 			std::stringstream Stream(Array);
 			O->resize((size_t)Size);
 
-			for (auto It = O->begin(); It != O->end(); It++)
-				Stream >> It->X >> It->Y >> It->Z >> It->W;
+			for (auto & It : *O)
+				Stream >> It.X >> It.Y >> It.Z >> It.W;
 
 			return true;
 		}
@@ -1392,10 +1336,10 @@ namespace Tomahawk
 			std::stringstream Stream(Array);
 			O->resize((size_t)Size);
 
-			for (auto It = O->begin(); It != O->end(); It++)
+			for (auto & It : *O)
 			{
 				for (Int64 i = 0; i < 16; i++)
-					Stream >> It->Row[i];
+					Stream >> It.Row[i];
 			}
 
 			return true;
@@ -1413,16 +1357,16 @@ namespace Tomahawk
 			std::stringstream Stream(Array);
 			O->resize((size_t)Size);
 
-			for (auto It = O->begin(); It != O->end(); It++)
+			for (auto & It : *O)
 			{
-				Stream >> It->Paused;
-				Stream >> It->Looped;
-				Stream >> It->Blended;
-				Stream >> It->Length;
-				Stream >> It->Speed;
-				Stream >> It->Time;
-				Stream >> It->Frame;
-				Stream >> It->Clip;
+				Stream >> It.Paused;
+				Stream >> It.Looped;
+				Stream >> It.Blended;
+				Stream >> It.Length;
+				Stream >> It.Speed;
+				Stream >> It.Time;
+				Stream >> It.Frame;
+				Stream >> It.Clip;
 			}
 
 			return true;
@@ -1440,24 +1384,24 @@ namespace Tomahawk
 			std::stringstream Stream(Array);
 			O->resize((size_t)Size);
 
-			for (auto It = O->begin(); It != O->end(); It++)
+			for (auto & It : *O)
 			{
-				Stream >> It->Angular.Accuracy >> It->Angular.Min >> It->Angular.Max;
-				Stream >> It->Rotation.Accuracy >> It->Rotation.Min >> It->Rotation.Max;
-				Stream >> It->Scale.Accuracy >> It->Scale.Min >> It->Scale.Max;
-				Stream >> It->Diffusion.Accuracy;
-				Stream >> It->Diffusion.Min.X >> It->Diffusion.Min.Y >> It->Diffusion.Min.Z >> It->Diffusion.Min.W;
-				Stream >> It->Diffusion.Max.X >> It->Diffusion.Max.Y >> It->Diffusion.Max.Z >> It->Diffusion.Max.W;
-				Stream >> It->Noise.Accuracy;
-				Stream >> It->Noise.Min.X >> It->Noise.Min.Y >> It->Noise.Min.Z;
-				Stream >> It->Noise.Max.X >> It->Noise.Max.Y >> It->Noise.Max.Z;
-				Stream >> It->Position.Accuracy;
-				Stream >> It->Position.Min.X >> It->Position.Min.Y >> It->Position.Min.Z;
-				Stream >> It->Position.Max.X >> It->Position.Max.Y >> It->Position.Max.Z;
-				Stream >> It->Velocity.Accuracy;
-				Stream >> It->Velocity.Min.X >> It->Velocity.Min.Y >> It->Velocity.Min.Z;
-				Stream >> It->Velocity.Max.X >> It->Velocity.Max.Y >> It->Velocity.Max.Z;
-				Stream >> It->Iterations;
+				Stream >> It.Angular.Accuracy >> It.Angular.Min >> It.Angular.Max;
+				Stream >> It.Rotation.Accuracy >> It.Rotation.Min >> It.Rotation.Max;
+				Stream >> It.Scale.Accuracy >> It.Scale.Min >> It.Scale.Max;
+				Stream >> It.Diffusion.Accuracy;
+				Stream >> It.Diffusion.Min.X >> It.Diffusion.Min.Y >> It.Diffusion.Min.Z >> It.Diffusion.Min.W;
+				Stream >> It.Diffusion.Max.X >> It.Diffusion.Max.Y >> It.Diffusion.Max.Z >> It.Diffusion.Max.W;
+				Stream >> It.Noise.Accuracy;
+				Stream >> It.Noise.Min.X >> It.Noise.Min.Y >> It.Noise.Min.Z;
+				Stream >> It.Noise.Max.X >> It.Noise.Max.Y >> It.Noise.Max.Z;
+				Stream >> It.Position.Accuracy;
+				Stream >> It.Position.Min.X >> It.Position.Min.Y >> It.Position.Min.Z;
+				Stream >> It.Position.Max.X >> It.Position.Max.Y >> It.Position.Max.Z;
+				Stream >> It.Velocity.Accuracy;
+				Stream >> It.Velocity.Min.X >> It.Velocity.Min.Y >> It.Velocity.Min.Z;
+				Stream >> It.Velocity.Max.X >> It.Velocity.Max.Y >> It.Velocity.Max.Z;
+				Stream >> It.Iterations;
 			}
 
 			return true;
@@ -1503,10 +1447,10 @@ namespace Tomahawk
 			std::stringstream Stream(Array);
 			O->resize((size_t)Size);
 
-			for (auto It = O->begin(); It != O->end(); It++)
+			for (auto & It : *O)
 			{
-				Stream >> It->Position.X >> It->Position.Y >> It->Position.Z >> It->Rotation.X >> It->Rotation.Y >> It->Rotation.Z;
-				Stream >> It->Scale.X >> It->Scale.Y >> It->Scale.Z >> It->PlayingSpeed;
+				Stream >> It.Position.X >> It.Position.Y >> It.Position.Z >> It.Rotation.X >> It.Rotation.Y >> It.Rotation.Z;
+				Stream >> It.Scale.X >> It.Scale.Y >> It.Scale.Z >> It.PlayingSpeed;
 			}
 
 			return true;
@@ -1524,21 +1468,21 @@ namespace Tomahawk
 			std::stringstream Stream(Array);
 			O->resize((size_t)Size);
 
-			for (auto It = O->begin(); It != O->end(); It++)
+			for (auto & It : *O)
 			{
-				Stream >> It->PositionX;
-				Stream >> It->PositionY;
-				Stream >> It->PositionZ;
-				Stream >> It->ColorX;
-				Stream >> It->ColorY;
-				Stream >> It->ColorZ;
-				Stream >> It->ColorW;
-				Stream >> It->VelocityX;
-				Stream >> It->VelocityY;
-				Stream >> It->VelocityZ;
-				Stream >> It->Angular;
-				Stream >> It->Rotation;
-				Stream >> It->Scale;
+				Stream >> It.PositionX;
+				Stream >> It.PositionY;
+				Stream >> It.PositionZ;
+				Stream >> It.ColorX;
+				Stream >> It.ColorY;
+				Stream >> It.ColorZ;
+				Stream >> It.ColorW;
+				Stream >> It.VelocityX;
+				Stream >> It.VelocityY;
+				Stream >> It.VelocityZ;
+				Stream >> It.Angular;
+				Stream >> It.Rotation;
+				Stream >> It.Scale;
 			}
 
 			return true;
@@ -1571,22 +1515,22 @@ namespace Tomahawk
 			O->resize((size_t)Size);
 
 			float Dummy;
-			for (auto It = O->begin(); It != O->end(); It++)
+			for (auto & It : *O)
 			{
-				Stream >> It->PositionX;
-				Stream >> It->PositionY;
-				Stream >> It->PositionZ;
-				Stream >> It->TexCoordX;
-				Stream >> It->TexCoordY;
-				Stream >> It->NormalX;
-				Stream >> It->NormalY;
-				Stream >> It->NormalZ;
-				Stream >> It->TangentX;
-				Stream >> It->TangentY;
-				Stream >> It->TangentZ;
-				Stream >> It->BitangentX;
-				Stream >> It->BitangentY;
-				Stream >> It->BitangentZ;
+				Stream >> It.PositionX;
+				Stream >> It.PositionY;
+				Stream >> It.PositionZ;
+				Stream >> It.TexCoordX;
+				Stream >> It.TexCoordY;
+				Stream >> It.NormalX;
+				Stream >> It.NormalY;
+				Stream >> It.NormalZ;
+				Stream >> It.TangentX;
+				Stream >> It.TangentY;
+				Stream >> It.TangentZ;
+				Stream >> It.BitangentX;
+				Stream >> It.BitangentY;
+				Stream >> It.BitangentZ;
 				Stream >> Dummy;
 				Stream >> Dummy;
 				Stream >> Dummy;
@@ -1612,30 +1556,30 @@ namespace Tomahawk
 			std::stringstream Stream(Array);
 			O->resize((size_t)Size);
 
-			for (auto It = O->begin(); It != O->end(); It++)
+			for (auto & It : *O)
 			{
-				Stream >> It->PositionX;
-				Stream >> It->PositionY;
-				Stream >> It->PositionZ;
-				Stream >> It->TexCoordX;
-				Stream >> It->TexCoordY;
-				Stream >> It->NormalX;
-				Stream >> It->NormalY;
-				Stream >> It->NormalZ;
-				Stream >> It->TangentX;
-				Stream >> It->TangentY;
-				Stream >> It->TangentZ;
-				Stream >> It->BitangentX;
-				Stream >> It->BitangentY;
-				Stream >> It->BitangentZ;
-				Stream >> It->JointIndex0;
-				Stream >> It->JointIndex1;
-				Stream >> It->JointIndex2;
-				Stream >> It->JointIndex3;
-				Stream >> It->JointBias0;
-				Stream >> It->JointBias1;
-				Stream >> It->JointBias2;
-				Stream >> It->JointBias3;
+				Stream >> It.PositionX;
+				Stream >> It.PositionY;
+				Stream >> It.PositionZ;
+				Stream >> It.TexCoordX;
+				Stream >> It.TexCoordY;
+				Stream >> It.NormalX;
+				Stream >> It.NormalY;
+				Stream >> It.NormalZ;
+				Stream >> It.TangentX;
+				Stream >> It.TangentY;
+				Stream >> It.TangentZ;
+				Stream >> It.BitangentX;
+				Stream >> It.BitangentY;
+				Stream >> It.BitangentZ;
+				Stream >> It.JointIndex0;
+				Stream >> It.JointIndex1;
+				Stream >> It.JointIndex2;
+				Stream >> It.JointIndex3;
+				Stream >> It.JointBias0;
+				Stream >> It.JointBias1;
+				Stream >> It.JointBias2;
+				Stream >> It.JointBias3;
 			}
 
 			return true;
@@ -1653,8 +1597,8 @@ namespace Tomahawk
 			std::stringstream Stream(Array);
 			O->resize((size_t)Size);
 
-			for (auto It = O->begin(); It != O->end(); It++)
-				Stream >> It->Delay;
+			for (auto & It : *O)
+				Stream >> It.Delay;
 
 			return true;
 		}
@@ -1793,7 +1737,7 @@ namespace Tomahawk
 		void Component::OnSynchronize(Rest::Timer* Time)
 		{
 		}
-		void Component::OnRenovate(Rest::Timer* Time)
+		void Component::OnUpdate(Rest::Timer* Time)
 		{
 		}
 		void Component::OnEvent(Event* Value)
@@ -1973,20 +1917,20 @@ namespace Tomahawk
         {
 		    System = NewSystem;
         }
-		void Renderer::RasterizeCubicDepth(Rest::Timer* Time, Compute::Matrix4x4 iProjection, Compute::Vector4 iPosition)
+		void Renderer::RenderCubicDepth(Rest::Timer* Time, Compute::Matrix4x4 iProjection, Compute::Vector4 iPosition)
 		{
 			if (System && System->GetScene())
-                System->GetScene()->RasterizeCubicDepth(Time, iProjection, iPosition);
+                System->GetScene()->RenderCubicDepth(Time, iProjection, iPosition);
 		}
-		void Renderer::RasterizeDepth(Rest::Timer* Time, Compute::Matrix4x4 iView, Compute::Matrix4x4 iProjection, Compute::Vector4 iPosition)
+		void Renderer::RenderDepth(Rest::Timer* Time, Compute::Matrix4x4 iView, Compute::Matrix4x4 iProjection, Compute::Vector4 iPosition)
 		{
 			if (System && System->GetScene())
-                System->GetScene()->RasterizeDepth(Time, iView, iProjection, iPosition);
+                System->GetScene()->RenderDepth(Time, iView, iProjection, iPosition);
 		}
-		void Renderer::RasterizePhase(Rest::Timer* Time, Compute::Matrix4x4 iView, Compute::Matrix4x4 iProjection, Compute::Vector4 iPosition)
+		void Renderer::RenderPhase(Rest::Timer* Time, Compute::Matrix4x4 iView, Compute::Matrix4x4 iProjection, Compute::Vector4 iPosition)
 		{
 			if (System && System->GetScene())
-                System->GetScene()->RasterizePhase(Time, iView, iProjection, iPosition);
+                System->GetScene()->RenderPhase(Time, iView, iProjection, iPosition);
 		}
 		Rest::Object* Renderer::Abstract(RenderSystem* Lab, UInt64 iFlag)
 		{
@@ -2011,33 +1955,33 @@ namespace Tomahawk
 		IntervalRenderer::~IntervalRenderer()
 		{
 		}
-		void IntervalRenderer::OnRasterization(Rest::Timer* Timer)
+		void IntervalRenderer::OnRender(Rest::Timer* Time)
 		{
-			if (Time.OnTickEvent(Timer->GetElapsedTime()))
-				OnIntervalRasterization(Timer);
+			if (Timer.OnTickEvent(Time->GetElapsedTime()))
+				OnIntervalRender(Time);
 
-			OnImmediateRasterization(Timer);
+			OnImmediateRender(Time);
 		}
-		void IntervalRenderer::OnDepthRasterization(Rest::Timer* Timer)
+		void IntervalRenderer::OnDepthRender(Rest::Timer* Time)
 		{
-			if (Time.OnTickEvent(Timer->GetElapsedTime()))
-				OnIntervalDepthRasterization(Timer);
+			if (Timer.OnTickEvent(Time->GetElapsedTime()))
+				OnIntervalDepthRender(Time);
 
-			OnImmediateDepthRasterization(Timer);
+			OnImmediateDepthRender(Time);
 		}
-		void IntervalRenderer::OnCubicDepthRasterization(Rest::Timer* Timer, Compute::Matrix4x4* ViewProjection)
+		void IntervalRenderer::OnCubicDepthRender(Rest::Timer* Time, Compute::Matrix4x4* ViewProjection)
 		{
-			if (Time.OnTickEvent(Timer->GetElapsedTime()))
-				OnIntervalCubicDepthRasterization(Timer, ViewProjection);
+			if (Timer.OnTickEvent(Time->GetElapsedTime()))
+				OnIntervalCubicDepthRender(Time, ViewProjection);
 
-			OnImmediateCubicDepthRasterization(Timer, ViewProjection);
+			OnImmediateCubicDepthRender(Time, ViewProjection);
 		}
-		void IntervalRenderer::OnPhaseRasterization(Rest::Timer* Timer)
+		void IntervalRenderer::OnPhaseRender(Rest::Timer* Time)
 		{
-			if (Time.OnTickEvent(Timer->GetElapsedTime()))
-				OnIntervalPhaseRasterization(Timer);
+			if (Timer.OnTickEvent(Time->GetElapsedTime()))
+				OnIntervalPhaseRender(Time);
 
-			OnImmediatePhaseRasterization(Timer);
+			OnImmediatePhaseRender(Time);
 		}
 
         RenderSystem::RenderSystem(Graphics::GraphicsDevice* Ref) : Device(Ref), Scene(nullptr), QuadVertex(nullptr), SphereVertex(nullptr), SphereIndex(nullptr)
@@ -2123,13 +2067,13 @@ namespace Tomahawk
 			delete SphereVertex;
 			delete SphereIndex;
 
-			for (auto It = RenderStages.begin(); It != RenderStages.end(); It++)
+			for (auto & RenderStage : RenderStages)
 			{
-			    if (!*It)
+			    if (!RenderStage)
 			        continue;
 
-				(*It)->OnRelease();
-				delete *It;
+				RenderStage->OnRelease();
+				delete RenderStage;
 			}
 		}
         void RenderSystem::SetScene(SceneGraph* NewScene)
@@ -2167,16 +2111,16 @@ namespace Tomahawk
 			if (!In)
 				return nullptr;
 
-			for (auto It = RenderStages.begin(); It != RenderStages.end(); It++)
+			for (auto & RenderStage : RenderStages)
 			{
-				if (*It && (*It)->Type() == In->Type())
+				if (RenderStage && RenderStage->Type() == In->Type())
 				{
-                    (*It)->OnRelease();
-					delete *It;
+                    RenderStage->OnRelease();
+					delete RenderStage;
 
 					In->SetRenderer(this);
 					In->OnInitialize();
-					*It = In;
+					RenderStage = In;
 
 					return In;
 				}
@@ -2190,10 +2134,10 @@ namespace Tomahawk
 		}
 		Renderer* RenderSystem::AddRenderStageByType(UInt64 Type)
 		{
-			for (auto It = RenderStages.begin(); It != RenderStages.end(); It++)
+			for (auto & RenderStage : RenderStages)
 			{
-				if ((*It)->Type() == Type)
-					return *It;
+				if (RenderStage->Type() == Type)
+					return RenderStage;
 			}
 
 			Renderer* New = nullptr;
@@ -2257,10 +2201,10 @@ namespace Tomahawk
 		}
 		Renderer* RenderSystem::GetRenderStage(UInt64 Type)
 		{
-			for (auto It = RenderStages.begin(); It != RenderStages.end(); It++)
+			for (auto & RenderStage : RenderStages)
 			{
-				if ((*It)->Type() == Type)
-					return *It;
+				if (RenderStage->Type() == Type)
+					return RenderStage;
 			}
 
 			return nullptr;
@@ -2304,7 +2248,7 @@ namespace Tomahawk
 			Materials.push_back(Material);
 			Configure(I);
 
-			Simulator = new Compute::Simulator();
+			Simulator = new Compute::Simulator(I.EnableSoftBodies);
 			ExpandMaterialStructure();
 		}
 		SceneGraph::~SceneGraph()
@@ -2354,9 +2298,9 @@ namespace Tomahawk
 			});
 			Unlock();
 		}
-		void SceneGraph::Rasterize(Rest::Timer* Time)
+		void SceneGraph::Render(Rest::Timer* Time)
 		{
-			BeginThread(ThreadId_Rasterize);
+			BeginThread(ThreadId_Render);
 			if (Camera != nullptr)
 			{
 				Camera->As<Components::Camera>()->FillViewer(&View);
@@ -2372,12 +2316,12 @@ namespace Tomahawk
 				for (auto It = RenderStages->begin(); It != RenderStages->end(); It++)
 				{
 					if ((*It)->Active)
-						(*It)->OnRasterization(Time);
+						(*It)->OnRender(Time);
 				}
 
 				Device->GetRenderTarget()->Apply(Device);
 			}
-			EndThread(ThreadId_Rasterize);
+			EndThread(ThreadId_Render);
 		}
 		void SceneGraph::Simulation(Rest::Timer* Time)
 		{
@@ -2400,16 +2344,16 @@ namespace Tomahawk
 			}
 			EndThread(ThreadId_Synchronize);
 		}
-		void SceneGraph::Renovate(Rest::Timer* Time)
+		void SceneGraph::Update(Rest::Timer* Time)
 		{
-			BeginThread(ThreadId_Renovate);
+			BeginThread(ThreadId_Update);
             for (auto It = Pending.Begin(); It != Pending.End(); It++)
-                (*It)->OnRenovate(Time);
+                (*It)->OnUpdate(Time);
 
 			DispatchEvents();
-			EndThread(ThreadId_Renovate);
+			EndThread(ThreadId_Update);
 		}
-		void SceneGraph::RasterizeCubicDepth(Rest::Timer* Time, Compute::Matrix4x4 iProjection, Compute::Vector4 iPosition)
+		void SceneGraph::RenderCubicDepth(Rest::Timer* Time, Compute::Matrix4x4 iProjection, Compute::Vector4 iPosition)
 		{
 			View.ViewPosition = Compute::Vector3(-iPosition.X, -iPosition.Y, iPosition.Z);
 			View.ViewProjection.Identify();
@@ -2435,10 +2379,10 @@ namespace Tomahawk
 			for (auto It = RenderStages->begin(); It != RenderStages->end(); It++)
 			{
 				if ((*It)->Active && (*It)->Priority)
-					(*It)->OnCubicDepthRasterization(Time, ViewProjection);
+					(*It)->OnCubicDepthRender(Time, ViewProjection);
 			}
 		}
-		void SceneGraph::RasterizeDepth(Rest::Timer* Time, Compute::Matrix4x4 iView, Compute::Matrix4x4 iProjection, Compute::Vector4 iPosition)
+		void SceneGraph::RenderDepth(Rest::Timer* Time, Compute::Matrix4x4 iView, Compute::Matrix4x4 iProjection, Compute::Vector4 iPosition)
 		{
 			View.ViewPosition = Compute::Vector3(-iPosition.X, -iPosition.Y, iPosition.Z);
 			View.ViewProjection = iView * iProjection;
@@ -2456,10 +2400,10 @@ namespace Tomahawk
             for (auto It = RenderStages->begin(); It != RenderStages->end(); It++)
 			{
 				if ((*It)->Active && (*It)->Priority)
-					(*It)->OnDepthRasterization(Time);
+					(*It)->OnDepthRender(Time);
 			}
 		}
-		void SceneGraph::RasterizePhase(Rest::Timer* Time, Compute::Matrix4x4 iView, Compute::Matrix4x4 iProjection, Compute::Vector4 iPosition)
+		void SceneGraph::RenderPhase(Rest::Timer* Time, Compute::Matrix4x4 iView, Compute::Matrix4x4 iProjection, Compute::Vector4 iPosition)
 		{
 			View.ViewPosition = Compute::Vector3(-iPosition.X, -iPosition.Y, iPosition.Z);
 			View.ViewProjection = iView * iProjection;
@@ -2475,7 +2419,7 @@ namespace Tomahawk
             for (auto It = RenderStages->begin(); It != RenderStages->end(); It++)
 			{
 				if ((*It)->Active && (*It)->Priority)
-					(*It)->OnPhaseRasterization(Time);
+					(*It)->OnPhaseRender(Time);
 			}
 		}
 		void SceneGraph::Rescale(const Compute::Vector3& Scaling)
@@ -3501,9 +3445,7 @@ namespace Tomahawk
 			if (!I)
 				return;
 
-			Time = new Rest::Timer();
 			Host = this;
-
 #ifdef THAWK_HAS_SDL2
 			if (I->Usage & ApplicationUse_Activity_Module)
 			{
@@ -3511,12 +3453,8 @@ namespace Tomahawk
                 {
                     SDL_DisplayMode Display;
                     SDL_GetCurrentDisplayMode(0, &Display);
-
                     I->Activity.Width = Display.w;
                     I->Activity.Height = Display.h;
-
-                    if (I->Activity.Width > 0 && I->Activity.Height > 0)
-                        THAWK_INFO("auto set resoultion %i/%i", (int)I->Activity.Width, (int)I->Activity.Height);
                 }
 
                 if (I->Activity.Width > 0 && I->Activity.Height > 0)
@@ -3535,7 +3473,7 @@ namespace Tomahawk
                         
                         Renderers::GUIRenderer* GUI = (Renderers::GUIRenderer*)Lab->GetRenderStage(RendererId_GUI);
                         if (GUI != nullptr)
-                            GUI->KeyStateCallback(Key, Mod, Virtual, Repeat, Pressed);
+                            GUI->GetTree()->ApplyKeyState(Key, Mod, Virtual, Repeat, Pressed);
                     };
                     Activity->Callbacks.Input = [this](char* Buffer, int Length)
                     {
@@ -3549,7 +3487,7 @@ namespace Tomahawk
 
                         Renderers::GUIRenderer* GUI = (Renderers::GUIRenderer*)Lab->GetRenderStage(RendererId_GUI);
                         if (GUI != nullptr)
-                            GUI->InputCallback(Buffer, Length);
+                            GUI->GetTree()->ApplyInput(Buffer, Length);
                     };
                     Activity->Callbacks.CursorWheelState = [this](int X, int Y, bool Normal)
                     {
@@ -3563,7 +3501,7 @@ namespace Tomahawk
 
                         Renderers::GUIRenderer* GUI = (Renderers::GUIRenderer*)Lab->GetRenderStage(RendererId_GUI);
                         if (GUI != nullptr)
-                            GUI->CursorWheelStateCallback(X, Y, Normal);
+                            GUI->GetTree()->ApplyCursorWheelState(X, Y, Normal);
                     };
                     Activity->Callbacks.WindowStateChange = [this](Graphics::WindowState NewState, int X, int Y)
                     {
@@ -3587,11 +3525,7 @@ namespace Tomahawk
                             THAWK_ERROR("graphics device cannot be created");
                             return;
                         }
-
-                        THAWK_INFO("graphics device is loaded");
                     }
-
-                    THAWK_INFO("activity is loaded with auto hooks");
 				}
                 else
                     THAWK_ERROR("cannot detect display to create activity");
@@ -3602,12 +3536,7 @@ namespace Tomahawk
 			{
                 Audio = new Audio::AudioDevice();
                 if (!Audio->IsValid())
-                {
-                    THAWK_ERROR("sound device cannot be created");
                     return;
-                }
-
-                THAWK_INFO("sound device is loaded");
             }
 
 			if (I->Usage & ApplicationUse_Content_Module)
@@ -3620,32 +3549,22 @@ namespace Tomahawk
 				Content->AddProcessor<FileProcessors::ShaderProcessor, Graphics::Shader>();
 				Content->AddProcessor<FileProcessors::ModelProcessor, Graphics::Model>();
 				Content->AddProcessor<FileProcessors::SkinnedModelProcessor, Graphics::SkinnedModel>();
-				Content->AddProcessor<FileProcessors::NodeProcessor, Rest::Document>();
+				Content->AddProcessor<FileProcessors::DocumentProcessor, Rest::Document>();
 				Content->AddProcessor<FileProcessors::ServerProcessor, Network::HTTP::Server>();
 				Content->SetEnvironment(I->Environment.empty() ? Rest::OS::GetDirectory() + I->Directory : I->Environment + I->Directory);
-                THAWK_INFO("content manager is loaded");
 			}
 
             if (I->Usage & ApplicationUse_AngelScript_Module)
-            {
                 VM = new Script::VMManager();
-                THAWK_INFO("script vm-manager is loaded");
-            }
 
 			Queue = new Rest::EventQueue();
 			State = ApplicationState_Staging;
-            THAWK_INFO("initialization done");
 		}
 		Application::~Application()
 		{
-            THAWK_INFO("application is about to exit");
 			if (Renderer != nullptr)
-			{
-                THAWK_INFO("resetting graphics device state if any");
                 Renderer->RestoreState();
-            }
 
-            THAWK_INFO("releasing host objects");
 			delete Scene;
 			delete Queue;
 			delete VM;
@@ -3653,101 +3572,108 @@ namespace Tomahawk
 			delete Content;
 			delete Renderer;
 			delete Activity;
-			delete Time;
-
-            THAWK_INFO("application is about to be deallocated");
 			Host = nullptr;
 		}
+		void Application::OnKeyState(Graphics::KeyCode Key, Graphics::KeyMod Mod, int Virtual, int Repeat, bool Pressed)
+        {
+        }
+        void Application::OnInput(char* Buffer, int Length)
+        {
+        }
+        void Application::OnCursorWheelState(int X, int Y, bool Normal)
+        {
+        }
+        void Application::OnWindowState(Graphics::WindowState NewState, int X, int Y)
+        {
+        }
+        void Application::OnInteract(Engine::Renderer* GUI)
+        {
+        }
+        void Application::OnRender(Rest::Timer* Time)
+        {
+        }
+        void Application::OnUpdate(Rest::Timer* Time)
+        {
+        }
+        void Application::OnInitialize(Desc* I)
+        {
+        }
 		void Application::Run(Desc* I)
 		{
-			if (!I || !Queue || !Time)
+			if (!I || !Queue)
 				return;
 
-            THAWK_INFO("initializing application interface");
 			OnInitialize(I);
-
 			if (State == ApplicationState_Terminated)
-			{
-                THAWK_INFO("application interface requested exit procedure");
                 return;
-            }
 
 			if (Scene != nullptr)
-			{
-                THAWK_INFO("loading scene events");
                 Scene->Denotify();
-            }
 
-            THAWK_INFO("application is about to start");
 			if (I->TaskWorkersCount < Workers)
 				I->TaskWorkersCount = Workers;
 
-            THAWK_INFO("selecting threading model");
+            Rest::Timer* Time = new Rest::Timer();
+            Time->SetStepLimitation(I->MaxFrames, I->MinFrames);
+            Time->FrameLimit = I->FrameLimit;
+
 			if (I->Threading != Rest::EventWorkflow_Singlethreaded)
 			{
 			    if (!I->TaskWorkersCount)
 			        THAWK_WARN("tasks will not be processed (no workers)");
 
-                THAWK_INFO("selected multi-threaded model (%i-threaded)", (int)(I->TaskWorkersCount + I->EventWorkersCount + 1));
-				State = ApplicationState_Multithreaded;
+                State = ApplicationState_Multithreaded;
 				Queue->Start(I->Threading, I->TaskWorkersCount, I->EventWorkersCount);
 
-                THAWK_INFO("internal queue has started");
                 if (Activity != nullptr)
                 {
-                    THAWK_INFO("entering main cycle (with activity)");
                     while (State == ApplicationState_Multithreaded)
                     {
                         Activity->Dispatch();
                         Time->Synchronize();
-                        OnRenovate();
-                        OnRasterize();
+                        OnUpdate(Time);
+                        OnRender(Time);
                     }
                 }
                 else
 				{
-                    THAWK_INFO("entering main cycle");
 					while (State == ApplicationState_Multithreaded)
 					{
 						Time->Synchronize();
-						OnRenovate();
+						OnUpdate(Time);
 					}
 				}
-
-                THAWK_INFO("leaving main cycle");
 			}
 			else
 			{
-                THAWK_INFO("selected single-threaded model (1-threaded)");
                 State = ApplicationState_Singlethreaded;
 				Queue->SetState(Rest::EventState_Working);
 
 				if (Activity != nullptr)
 				{
-                    THAWK_INFO("entering main cycle (with activity)");
 					while (State == ApplicationState_Singlethreaded)
 					{
                         Queue->Tick();
                         Time->Synchronize();
                         Activity->Dispatch();
-						OnRenovate();
-						OnRasterize();
+						OnUpdate(Time);
+						OnRender(Time);
 					}
 				}
 				else
                 {
-                    THAWK_INFO("entering main cycle");
 					while (State == ApplicationState_Singlethreaded)
 					{
                         Queue->Tick();
 						Time->Synchronize();
-						OnRenovate();
+						OnUpdate(Time);
 					}
 				}
 
 				Queue->SetState(Rest::EventState_Idle);
-                THAWK_INFO("leaving main cycle");
 			}
+
+			delete Time;
 		}
 		void Application::Restate(ApplicationState Value)
 		{

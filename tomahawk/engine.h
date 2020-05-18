@@ -6,6 +6,16 @@
 #include "script.h"
 #include <atomic>
 #include <cstdarg>
+#define THAWK_COMPONENT(Identification, ClassName) \
+virtual const char* Name() override { return #ClassName; } \
+virtual UInt64 Id() override { return Identification; } \
+static const char* BaseName() { return #ClassName; } \
+static UInt64 BaseId() { return Identification; }
+#define THAWK_COMPONENT_TABLE(Identification, ClassName) \
+virtual const char* Name() { return #ClassName; } \
+virtual UInt64 Id() { return Identification; } \
+static const char* BaseName() { return #ClassName; } \
+static UInt64 BaseId() { return Identification; }
 
 namespace Tomahawk
 {
@@ -91,8 +101,8 @@ namespace Tomahawk
 
 		enum ThreadId
 		{
-			ThreadId_Renovate,
-			ThreadId_Rasterize,
+			ThreadId_Update,
+			ThreadId_Render,
 			ThreadId_Simulation,
 			ThreadId_Synchronize,
 			ThreadId_Count
@@ -217,7 +227,6 @@ namespace Tomahawk
 			static bool Pack(Rest::Document* V, LFloat64 Value);
 			static bool Pack(Rest::Document* V, UInt64 Value);
 			static bool Pack(Rest::Document* V, const char* Value);
-			static bool Pack(Rest::Document* V, const btVector3& Value);
 			static bool Pack(Rest::Document* V, const Compute::Vector2& Value);
 			static bool Pack(Rest::Document* V, const Compute::Vector3& Value);
 			static bool Pack(Rest::Document* V, const Compute::Vector4& Value);
@@ -243,7 +252,6 @@ namespace Tomahawk
 			static bool Pack(Rest::Document* V, const std::vector<Int64>& Value);
 			static bool Pack(Rest::Document* V, const std::vector<LFloat64>& Value);
 			static bool Pack(Rest::Document* V, const std::vector<UInt64>& Value);
-			static bool Pack(Rest::Document* V, const std::vector<btVector3>& Value);
 			static bool Pack(Rest::Document* V, const std::vector<Compute::Vector2>& Value);
 			static bool Pack(Rest::Document* V, const std::vector<Compute::Vector3>& Value);
 			static bool Pack(Rest::Document* V, const std::vector<Compute::Vector4>& Value);
@@ -269,7 +277,6 @@ namespace Tomahawk
 			static bool Unpack(Rest::Document* V, Int64* O);
 			static bool Unpack(Rest::Document* V, LFloat64* O);
 			static bool Unpack(Rest::Document* V, UInt64* O);
-			static bool Unpack(Rest::Document* V, btVector3* O);
 			static bool Unpack(Rest::Document* V, Compute::Vector2* O);
 			static bool Unpack(Rest::Document* V, Compute::Vector3* O);
 			static bool Unpack(Rest::Document* V, Compute::Vector4* O);
@@ -295,7 +302,6 @@ namespace Tomahawk
 			static bool Unpack(Rest::Document* V, std::vector<Int64>* O);
 			static bool Unpack(Rest::Document* V, std::vector<LFloat64>* O);
 			static bool Unpack(Rest::Document* V, std::vector<UInt64>* O);
-			static bool Unpack(Rest::Document* V, std::vector<btVector3>* O);
 			static bool Unpack(Rest::Document* V, std::vector<Compute::Vector2>* O);
 			static bool Unpack(Rest::Document* V, std::vector<Compute::Vector3>* O);
 			static bool Unpack(Rest::Document* V, std::vector<Compute::Vector4>* O);
@@ -345,7 +351,7 @@ namespace Tomahawk
 
 		public:
 			FileProcessor(ContentManager* NewContent);
-			virtual ~FileProcessor();
+			virtual ~FileProcessor() override;
 			virtual void Free(AssetResource* Asset);
 			virtual void* Duplicate(AssetResource* Asset, ContentArgs* Keys);
 			virtual void* Load(Rest::FileStream* Stream, UInt64 Length, UInt64 Offset, ContentArgs* Keys);
@@ -366,23 +372,21 @@ namespace Tomahawk
 
 		public:
 			Component(Entity* Ref);
-			virtual ~Component();
+			virtual ~Component() override;
 			virtual void OnLoad(ContentManager* Content, Rest::Document* Node);
 			virtual void OnSave(ContentManager* Content, Rest::Document* Node);
 			virtual void OnAwake(Component* New);
 			virtual void OnAsleep();
 			virtual void OnSynchronize(Rest::Timer* Time);
-			virtual void OnRenovate(Rest::Timer* Time);
+			virtual void OnUpdate(Rest::Timer* Time);
 			virtual void OnEvent(Event* Value);
 			virtual Component* OnClone();
             Entity* GetEntity();
-
-		public:
-			THAWK_COMPONENT(ComponentId_Empty, Component);
-
-		public:
 			void SetActive(bool Enabled);
 			bool IsActive();
+
+        public:
+            THAWK_COMPONENT_TABLE(ComponentId_Empty, Component);
 		};
 
 		class THAWK_OUT Entity : public Rest::Object
@@ -400,7 +404,7 @@ namespace Tomahawk
 
 		public:
 			Entity(SceneGraph* Ref);
-			~Entity();
+			virtual ~Entity() override;
 			void RemoveComponent(UInt64 Id);
 			void RemoveChilds();
 			void SetScene(SceneGraph* NewScene);
@@ -448,21 +452,21 @@ namespace Tomahawk
 
 		public:
 			Renderer(RenderSystem* Lab, UInt64 iFlag);
-			virtual ~Renderer();
+			virtual ~Renderer() override;
 			virtual void OnLoad(ContentManager* Content, Rest::Document* Node) { }
 			virtual void OnSave(ContentManager* Content, Rest::Document* Node) { }
 			virtual void OnResizeBuffers() { }
 			virtual void OnInitialize() { }
-			virtual void OnRasterization(Rest::Timer* TimeStep) { }
-			virtual void OnDepthRasterization(Rest::Timer* TimeStep) { }
-			virtual void OnCubicDepthRasterization(Rest::Timer* TimeStep) { }
-			virtual void OnCubicDepthRasterization(Rest::Timer* TimeStep, Compute::Matrix4x4* ViewProjection) { }
-			virtual void OnPhaseRasterization(Rest::Timer* TimeStep) { }
+			virtual void OnRender(Rest::Timer* TimeStep) { }
+			virtual void OnDepthRender(Rest::Timer* TimeStep) { }
+			virtual void OnCubicDepthRender(Rest::Timer* TimeStep) { }
+			virtual void OnCubicDepthRender(Rest::Timer* TimeStep, Compute::Matrix4x4* ViewProjection) { }
+			virtual void OnPhaseRender(Rest::Timer* TimeStep) { }
 			virtual void OnRelease() { }
 			void SetRenderer(RenderSystem* NewSystem);
-			void RasterizeCubicDepth(Rest::Timer* Time, Compute::Matrix4x4 Projection, Compute::Vector4 Position);
-			void RasterizeDepth(Rest::Timer* Time, Compute::Matrix4x4 View, Compute::Matrix4x4 Projection, Compute::Vector4 Position);
-			void RasterizePhase(Rest::Timer* Time, Compute::Matrix4x4 View, Compute::Matrix4x4 Projection, Compute::Vector4 Position);
+			void RenderCubicDepth(Rest::Timer* Time, Compute::Matrix4x4 Projection, Compute::Vector4 Position);
+			void RenderDepth(Rest::Timer* Time, Compute::Matrix4x4 View, Compute::Matrix4x4 Projection, Compute::Vector4 Position);
+			void RenderPhase(Rest::Timer* Time, Compute::Matrix4x4 View, Compute::Matrix4x4 Projection, Compute::Vector4 Position);
 			bool Is(UInt64 Flag);
             RenderSystem* GetRenderer();
 			UInt64 Type();
@@ -474,23 +478,23 @@ namespace Tomahawk
 		class THAWK_OUT IntervalRenderer : public Renderer
 		{
 		protected:
-			Rest::TickTimer Time;
+			Rest::TickTimer Timer;
 
 		public:
 			IntervalRenderer(RenderSystem* Lab, UInt64 Flag);
-			virtual ~IntervalRenderer();
-			virtual void OnIntervalRasterization(Rest::Timer* Time) { }
-			virtual void OnImmediateRasterization(Rest::Timer* Time) { }
-			virtual void OnIntervalDepthRasterization(Rest::Timer* Time) { }
-			virtual void OnImmediateDepthRasterization(Rest::Timer* Time) { }
-			virtual void OnIntervalCubicDepthRasterization(Rest::Timer* Time, Compute::Matrix4x4* ViewProjection) { }
-			virtual void OnImmediateCubicDepthRasterization(Rest::Timer* Time, Compute::Matrix4x4* ViewProjection) { }
-			virtual void OnIntervalPhaseRasterization(Rest::Timer* Time) { }
-			virtual void OnImmediatePhaseRasterization(Rest::Timer* Time) { }
-			void OnRasterization(Rest::Timer* Time);
-			void OnDepthRasterization(Rest::Timer* Time);
-			void OnCubicDepthRasterization(Rest::Timer* Time, Compute::Matrix4x4* ViewProjection);
-			void OnPhaseRasterization(Rest::Timer* Time);
+			virtual ~IntervalRenderer() override;
+			virtual void OnIntervalRender(Rest::Timer* Time) { }
+			virtual void OnImmediateRender(Rest::Timer* Time) { }
+			virtual void OnIntervalDepthRender(Rest::Timer* Time) { }
+			virtual void OnImmediateDepthRender(Rest::Timer* Time) { }
+			virtual void OnIntervalCubicDepthRender(Rest::Timer* Time, Compute::Matrix4x4* ViewProjection) { }
+			virtual void OnImmediateCubicDepthRender(Rest::Timer* Time, Compute::Matrix4x4* ViewProjection) { }
+			virtual void OnIntervalPhaseRender(Rest::Timer* Time) { }
+			virtual void OnImmediatePhaseRender(Rest::Timer* Time) { }
+			void OnRender(Rest::Timer* Time) override;
+			void OnDepthRender(Rest::Timer* Time) override;
+			void OnCubicDepthRender(Rest::Timer* Time, Compute::Matrix4x4* ViewProjection) override;
+			void OnPhaseRender(Rest::Timer* Time) override;
 		};
 
 		class THAWK_OUT RenderSystem : public Rest::Object
@@ -505,7 +509,7 @@ namespace Tomahawk
 
 		public:
 			RenderSystem(Graphics::GraphicsDevice* Device);
-			~RenderSystem();
+			virtual ~RenderSystem() override;
 			void SetScene(SceneGraph* NewScene);
 			void RemoveRenderStage(Renderer* In);
 			void RemoveRenderStageByType(UInt64 Type);
@@ -533,6 +537,7 @@ namespace Tomahawk
                 UInt64 ComponentTypes = ComponentId_Count;
                 UInt64 EntityCount = 1ll << 15;
                 UInt64 ComponentCount = 1ll << 16;
+                bool EnableSoftBodies = false;
                 Graphics::GraphicsDevice* Device = nullptr;
                 Rest::EventQueue* Queue = nullptr;
             };
@@ -575,10 +580,10 @@ namespace Tomahawk
 
 		public:
             SceneGraph(const Desc& I);
-			~SceneGraph();
+			virtual ~SceneGraph() override;
 			void Configure(const Desc& Conf);
-			void Rasterize(Rest::Timer* Time);
-			void Renovate(Rest::Timer* Time);
+			void Render(Rest::Timer* Time);
+			void Update(Rest::Timer* Time);
 			void Simulation(Rest::Timer* Time);
 			void Synchronize(Rest::Timer* Time);
 			void Rescale(const Compute::Vector3& Scale);
@@ -636,9 +641,9 @@ namespace Tomahawk
             Rest::EventQueue* GetQueue();
 
 		protected:
-			void RasterizeCubicDepth(Rest::Timer* Time, Compute::Matrix4x4 Projection, Compute::Vector4 Position);
-			void RasterizeDepth(Rest::Timer* Time, Compute::Matrix4x4 View, Compute::Matrix4x4 Projection, Compute::Vector4 Position);
-			void RasterizePhase(Rest::Timer* Time, Compute::Matrix4x4 View, Compute::Matrix4x4 Projection, Compute::Vector4 Position);
+			void RenderCubicDepth(Rest::Timer* Time, Compute::Matrix4x4 Projection, Compute::Vector4 Position);
+			void RenderDepth(Rest::Timer* Time, Compute::Matrix4x4 View, Compute::Matrix4x4 Projection, Compute::Vector4 Position);
+			void RenderPhase(Rest::Timer* Time, Compute::Matrix4x4 View, Compute::Matrix4x4 Projection, Compute::Vector4 Position);
 			void BeginThread(ThreadId Thread);
 			void EndThread(ThreadId Thread);
 			void DispatchEvents();
@@ -723,7 +728,7 @@ namespace Tomahawk
 
 		public:
 			ContentManager(Graphics::GraphicsDevice* NewDevice);
-			~ContentManager();
+			virtual ~ContentManager() override;
 			void InvalidateDockers();
 			void InvalidateCache();
 			void SetEnvironment(const std::string& Path);
@@ -798,6 +803,9 @@ namespace Tomahawk
                 std::string Directory;
                 UInt64 TaskWorkersCount = 0;
                 UInt64 EventWorkersCount = 0;
+                Float64 FrameLimit = 0;
+                Float64 MaxFrames = 60;
+                Float64 MinFrames = 10;
                 unsigned int Usage =
                         ApplicationUse_Graphics_Module |
                         ApplicationUse_Activity_Module |
@@ -816,7 +824,6 @@ namespace Tomahawk
 			Graphics::GraphicsDevice* Renderer = nullptr;
 			Graphics::Activity* Activity = nullptr;
 			Script::VMManager* VM = nullptr;
-			Rest::Timer* Time = nullptr;
 			Rest::EventQueue* Queue = nullptr;
 			ContentManager* Content = nullptr;
             SceneGraph* Scene = nullptr;
@@ -824,15 +831,15 @@ namespace Tomahawk
 
 		public:
 			Application(Desc* I);
-			virtual ~Application();
-			virtual void OnKeyState(Graphics::KeyCode Key, Graphics::KeyMod Mod, int Virtual, int Repeat, bool Pressed) { }
-            virtual void OnInput(char* Buffer, int Length) { }
-            virtual void OnCursorWheelState(int X, int Y, bool Normal) { }
-            virtual void OnWindowState(Graphics::WindowState NewState, int X, int Y) { }
-            virtual void OnInteract(Engine::Renderer* GUI) { }
-			virtual void OnRasterize() { }
-			virtual void OnRenovate() { }
-			virtual void OnInitialize(Desc* I) { }
+			virtual ~Application() override;
+			virtual void OnKeyState(Graphics::KeyCode Key, Graphics::KeyMod Mod, int Virtual, int Repeat, bool Pressed);
+            virtual void OnInput(char* Buffer, int Length);
+            virtual void OnCursorWheelState(int X, int Y, bool Normal);
+            virtual void OnWindowState(Graphics::WindowState NewState, int X, int Y);
+            virtual void OnInteract(Engine::Renderer* GUI);
+			virtual void OnRender(Rest::Timer* Time);
+			virtual void OnUpdate(Rest::Timer* Time);
+			virtual void OnInitialize(Desc* I);
             void Run(Desc* I);
             void Restate(ApplicationState Value);
             void Enqueue(const std::function<void(Rest::Timer*)>& Callback, Float64 Limit = 0);

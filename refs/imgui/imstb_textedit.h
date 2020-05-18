@@ -5,7 +5,7 @@
 // Grep for [DEAR IMGUI] to find the changes.
 
 // stb_textedit.h - v1.13  - public domain - Sean Barrett
-// Development of this refs was sponsored by RAD Game Tools
+// Development of this library was sponsored by RAD Game Tools
 //
 // This C header file implements the guts of a multi-line text-editing
 // widget; you implement display, word-wrapping, and low-level string
@@ -15,7 +15,7 @@
 //
 // It is intended for use in games and other systems that need to build
 // their own custom widgets and which do not have heavy text-editing
-// requirements (this refs is not recommended for use for editing large
+// requirements (this library is not recommended for use for editing large
 // texts, as its performance does not scale and it has limited undo).
 //
 // Non-trivial behaviors are modelled after Windows text controls.
@@ -190,7 +190,7 @@
 //
 // STB_TEXTEDIT_LAYOUTROW returns information about the shape of one displayed
 // row of characters assuming they start on the i'th character--the width and
-// the height and the number of characters consumed. This allows this refs
+// the height and the number of characters consumed. This allows this library
 // to traverse the entire layout incrementally. You need to compute word-wrapping
 // here.
 //

@@ -8,10 +8,12 @@ include(opts/package/CMakeLists.txt)
 project(tomahawk)
 set(CMAKE_DISABLE_IN_SOURCE_BUILD ON)
 set(CMAKE_CONFIGURATION_TYPES "Debug;Release")
+
+#Build directory if not defined
 if (NOT DEFINED CMAKE_LIBRARY_OUTPUT_DIRECTORY)
-    set(CMAKE_LIBRARY_OUTPUT_DIRECTORY bin)
-    set(CMAKE_LIBRARY_OUTPUT_DIRECTORY_DEBUG bin)
-    set(CMAKE_LIBRARY_OUTPUT_DIRECTORY_RELEASE bin)
+    set(CMAKE_LIBRARY_OUTPUT_DIRECTORY ${PROJECT_SOURCE_DIR}/../../bin)
+    set(CMAKE_LIBRARY_OUTPUT_DIRECTORY_DEBUG ${PROJECT_SOURCE_DIR}/../../bin)
+    set(CMAKE_LIBRARY_OUTPUT_DIRECTORY_RELEASE ${PROJECT_SOURCE_DIR}/../../bin)
 endif()
 
 #Project's source resolver
@@ -29,7 +31,20 @@ target_compile_definitions(tomahawk PRIVATE
 		-D_GNU_SOURCE)
 
 #Project's options
-include(opts/option/CMakeLists.txt)
+set(THAWK_INFO true CACHE BOOL "allow to log info messages")
+set(THAWK_WARN true CACHE BOOL "allow to log warning messages")
+set(THAWK_ERROR true CACHE BOOL "allow to log error messages")
+
+#Project's log level
+if (THAWK_INFO AND THAWK_WARN AND THAWK_ERROR)
+    target_compile_definitions(tomahawk PUBLIC -DTHAWK_DLEVEL=3)
+elseif (THAWK_WARN AND THAWK_ERROR)
+    target_compile_definitions(tomahawk PUBLIC -DTHAWK_DLEVEL=2)
+elseif (THAWK_ERROR)
+    target_compile_definitions(tomahawk PUBLIC -DTHAWK_DLEVEL=1)
+else()
+    target_compile_definitions(tomahawk PUBLIC -DTHAWK_DLEVEL=0)
+endif()
 
 #Project's compiler support for non-UNIX platforms
 include(opts/windows/CMakeLists.txt)

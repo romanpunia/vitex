@@ -49,9 +49,9 @@ namespace Tomahawk
 
             public:
                 OGLShader(Graphics::GraphicsDevice* Device, const Desc& I);
-                ~OGLShader();
-                void SendConstantStream(Graphics::GraphicsDevice* Device);
-                void Apply(Graphics::GraphicsDevice* Device);
+                virtual ~OGLShader() override;
+                void SendConstantStream(Graphics::GraphicsDevice* Device) override;
+                void Apply(Graphics::GraphicsDevice* Device) override;
             };
 
             class OGLElementBuffer : public Graphics::ElementBuffer
@@ -62,12 +62,12 @@ namespace Tomahawk
 
             public:
                 OGLElementBuffer(Graphics::GraphicsDevice* Device, const Desc& I);
-                ~OGLElementBuffer();
-                void IndexedBuffer(Graphics::GraphicsDevice* Device, Graphics::Format Format, unsigned int Offset);
-                void VertexBuffer(Graphics::GraphicsDevice* Device, unsigned int Slot, unsigned int Stride, unsigned int Offset);
-                void Map(Graphics::GraphicsDevice* Device, Graphics::ResourceMap Mode, Graphics::MappedSubresource* Map);
-                void Unmap(Graphics::GraphicsDevice* Device, Graphics::MappedSubresource* Map);
-                void* GetResource();
+                virtual ~OGLElementBuffer() override;
+                void IndexedBuffer(Graphics::GraphicsDevice* Device, Graphics::Format Format, unsigned int Offset) override;
+                void VertexBuffer(Graphics::GraphicsDevice* Device, unsigned int Slot, unsigned int Stride, unsigned int Offset) override;
+                void Map(Graphics::GraphicsDevice* Device, Graphics::ResourceMap Mode, Graphics::MappedSubresource* Map) override;
+                void Unmap(Graphics::GraphicsDevice* Device, Graphics::MappedSubresource* Map) override;
+                void* GetResource() override;
             };
 
             class OGLStructureBuffer : public Graphics::StructureBuffer
@@ -78,13 +78,13 @@ namespace Tomahawk
 
             public:
                 OGLStructureBuffer(Graphics::GraphicsDevice* Device, const Desc& I);
-                ~OGLStructureBuffer();
-                void Map(Graphics::GraphicsDevice* Device, Graphics::ResourceMap Mode, Graphics::MappedSubresource* Map);
-                void RemapSubresource(Graphics::GraphicsDevice* Device, void* Pointer, UInt64 Size);
-                void Unmap(Graphics::GraphicsDevice* Device, Graphics::MappedSubresource* Map);
-                void Apply(Graphics::GraphicsDevice* Device, int Slot);
-                void* GetElement();
-                void* GetResource();
+                virtual ~OGLStructureBuffer() override;
+                void Map(Graphics::GraphicsDevice* Device, Graphics::ResourceMap Mode, Graphics::MappedSubresource* Map) override;
+                void RemapSubresource(Graphics::GraphicsDevice* Device, void* Pointer, UInt64 Size) override;
+                void Unmap(Graphics::GraphicsDevice* Device, Graphics::MappedSubresource* Map) override;
+                void Apply(Graphics::GraphicsDevice* Device, int Slot) override;
+                void* GetElement() override;
+                void* GetResource() override;
             };
 
             class OGLTexture2D : public Graphics::Texture2D
@@ -95,10 +95,10 @@ namespace Tomahawk
             public:
                 OGLTexture2D(Graphics::GraphicsDevice* Device);
                 OGLTexture2D(Graphics::GraphicsDevice* Device, const Desc& I);
-                ~OGLTexture2D();
-                void Apply(Graphics::GraphicsDevice* Device, int Slot);
+                virtual ~OGLTexture2D() override;
+                void Apply(Graphics::GraphicsDevice* Device, int Slot) override;
+                void* GetResource() override;
                 void Fill(OGLDevice* Device);
-                void* GetResource();
             };
 
             class OGLTexture3D : public Graphics::Texture3D
@@ -108,9 +108,9 @@ namespace Tomahawk
 
             public:
                 OGLTexture3D(Graphics::GraphicsDevice* Device);
-                ~OGLTexture3D();
-                void Apply(Graphics::GraphicsDevice* Device, int Slot);
-                void* GetResource();
+                virtual ~OGLTexture3D() override;
+                void Apply(Graphics::GraphicsDevice* Device, int Slot) override;
+                void* GetResource() override;
             };
 
             class OGLTextureCube : public Graphics::TextureCube
@@ -121,9 +121,9 @@ namespace Tomahawk
             public:
                 OGLTextureCube(Graphics::GraphicsDevice* Device);
                 OGLTextureCube(Graphics::GraphicsDevice* Device, const Desc& I);
-                ~OGLTextureCube();
-                void Apply(Graphics::GraphicsDevice* Device, int Slot);
-                void* GetResource();
+                virtual ~OGLTextureCube() override;
+                void Apply(Graphics::GraphicsDevice* Device, int Slot) override;
+                void* GetResource() override;
             };
 
             class OGLRenderTarget2D : public Graphics::RenderTarget2D
@@ -138,16 +138,16 @@ namespace Tomahawk
 
             public:
                 OGLRenderTarget2D(Graphics::GraphicsDevice* Device, const Desc& I);
-                ~OGLRenderTarget2D();
-                void Apply(Graphics::GraphicsDevice* Device, float R, float G, float B);
-                void Apply(Graphics::GraphicsDevice* Device);
-                void Clear(Graphics::GraphicsDevice* Device, float R, float G, float B);
-                void CopyTexture2D(Graphics::GraphicsDevice* Device, Graphics::Texture2D** Value);
-                void SetViewport(Graphics::Viewport In);
-                Graphics::Viewport GetViewport();
-                float GetWidth();
-                float GetHeight();
-                void* GetResource();
+                virtual ~OGLRenderTarget2D() override;
+                void Apply(Graphics::GraphicsDevice* Device, float R, float G, float B) override;
+                void Apply(Graphics::GraphicsDevice* Device) override;
+                void Clear(Graphics::GraphicsDevice* Device, float R, float G, float B) override;
+                void CopyTexture2D(Graphics::GraphicsDevice* Device, Graphics::Texture2D** Value) override;
+                void SetViewport(const Graphics::Viewport& In) override;
+                Graphics::Viewport GetViewport() override;
+                float GetWidth() override;
+                float GetHeight() override;
+                void* GetResource() override;
             };
 
             class OGLMultiRenderTarget2D : public Graphics::MultiRenderTarget2D
@@ -157,18 +157,18 @@ namespace Tomahawk
 
             public:
                 OGLMultiRenderTarget2D(Graphics::GraphicsDevice* Device, const Desc& I);
-                ~OGLMultiRenderTarget2D();
-                void Apply(Graphics::GraphicsDevice* Device, int Target, float R, float G, float B);
-                void Apply(Graphics::GraphicsDevice* Device, int Target);
-                void Apply(Graphics::GraphicsDevice* Device, float R, float G, float B);
-                void Apply(Graphics::GraphicsDevice* Device);
-                void Clear(Graphics::GraphicsDevice* Device, int Target, float R, float G, float B);
-                void CopyTexture2D(int Target, Graphics::GraphicsDevice* Device, Graphics::Texture2D** Value);
-                void SetViewport(Graphics::Viewport In);
-                Graphics::Viewport GetViewport();
-                float GetWidth();
-                float GetHeight();
-                void* GetResource(int Id);
+                virtual ~OGLMultiRenderTarget2D() override;
+                void Apply(Graphics::GraphicsDevice* Device, int Target, float R, float G, float B) override;
+                void Apply(Graphics::GraphicsDevice* Device, int Target) override;
+                void Apply(Graphics::GraphicsDevice* Device, float R, float G, float B) override;
+                void Apply(Graphics::GraphicsDevice* Device) override;
+                void Clear(Graphics::GraphicsDevice* Device, int Target, float R, float G, float B) override;
+                void CopyTexture2D(int Target, Graphics::GraphicsDevice* Device, Graphics::Texture2D** Value) override;
+                void SetViewport(const Graphics::Viewport& In) override;
+                Graphics::Viewport GetViewport() override;
+                float GetWidth() override;
+                float GetHeight() override;
+                void* GetResource(int Id) override;
             };
 
             class OGLRenderTarget2DArray : public Graphics::RenderTarget2DArray
@@ -178,15 +178,15 @@ namespace Tomahawk
 
             public:
                 OGLRenderTarget2DArray(Graphics::GraphicsDevice* Device, const Desc& I);
-                ~OGLRenderTarget2DArray();
-                void Apply(Graphics::GraphicsDevice* Device, int Target, float R, float G, float B);
-                void Apply(Graphics::GraphicsDevice* Device, int Target);
-                void Clear(Graphics::GraphicsDevice* Device, int Target, float R, float G, float B);
-                void SetViewport(Graphics::Viewport In);
-                Graphics::Viewport GetViewport();
-                float GetWidth();
-                float GetHeight();
-                void* GetResource();
+                virtual ~OGLRenderTarget2DArray() override;
+                void Apply(Graphics::GraphicsDevice* Device, int Target, float R, float G, float B) override;
+                void Apply(Graphics::GraphicsDevice* Device, int Target) override;
+                void Clear(Graphics::GraphicsDevice* Device, int Target, float R, float G, float B) override;
+                void SetViewport(const Graphics::Viewport& In) override;
+                Graphics::Viewport GetViewport() override;
+                float GetWidth() override;
+                float GetHeight() override;
+                void* GetResource() override;
             };
 
             class OGLRenderTargetCube : public Graphics::RenderTargetCube
@@ -196,17 +196,17 @@ namespace Tomahawk
 
             public:
                 OGLRenderTargetCube(Graphics::GraphicsDevice* Device, const Desc& I);
-                ~OGLRenderTargetCube();
-                void Apply(Graphics::GraphicsDevice* Device, float R, float G, float B);
-                void Apply(Graphics::GraphicsDevice* Device);
-                void Clear(Graphics::GraphicsDevice* Device, float R, float G, float B);
-                void CopyTextureCube(Graphics::GraphicsDevice* Device, Graphics::TextureCube** Value);
-                void CopyTexture2D(int FaceId, Graphics::GraphicsDevice* Device, Graphics::Texture2D** Value);
-                void SetViewport(Graphics::Viewport In);
-                Graphics::Viewport GetViewport();
-                float GetWidth();
-                float GetHeight();
-                void* GetResource();
+                virtual ~OGLRenderTargetCube() override;
+                void Apply(Graphics::GraphicsDevice* Device, float R, float G, float B) override;
+                void Apply(Graphics::GraphicsDevice* Device) override;
+                void Clear(Graphics::GraphicsDevice* Device, float R, float G, float B) override;
+                void CopyTextureCube(Graphics::GraphicsDevice* Device, Graphics::TextureCube** Value) override;
+                void CopyTexture2D(int FaceId, Graphics::GraphicsDevice* Device, Graphics::Texture2D** Value) override;
+                void SetViewport(const Graphics::Viewport& In) override;
+                Graphics::Viewport GetViewport() override;
+                float GetWidth() override;
+                float GetHeight() override;
+                void* GetResource() override;
             };
 
             class OGLMultiRenderTargetCube : public Graphics::MultiRenderTargetCube
@@ -217,37 +217,37 @@ namespace Tomahawk
 
             public:
                 OGLMultiRenderTargetCube(Graphics::GraphicsDevice* Device, const Desc& I);
-                ~OGLMultiRenderTargetCube();
-                void Apply(Graphics::GraphicsDevice* Device, int Target, float R, float G, float B);
-                void Apply(Graphics::GraphicsDevice* Device, int Target);
-                void Apply(Graphics::GraphicsDevice* Device, float R, float G, float B);
-                void Apply(Graphics::GraphicsDevice* Device);
-                void Clear(Graphics::GraphicsDevice* Device, int Target, float R, float G, float B);
-                void CopyTextureCube(int CubeId, Graphics::GraphicsDevice* Device, Graphics::TextureCube** Value);
-                void CopyTexture2D(int CubeId, int FaceId, Graphics::GraphicsDevice* Device, Graphics::Texture2D** Value);
-                void SetViewport(Graphics::Viewport In);
-                Graphics::Viewport GetViewport();
-                float GetWidth();
-                float GetHeight();
-                void* GetResource(int Id);
+                virtual ~OGLMultiRenderTargetCube() override;
+                void Apply(Graphics::GraphicsDevice* Device, int Target, float R, float G, float B) override;
+                void Apply(Graphics::GraphicsDevice* Device, int Target) override;
+                void Apply(Graphics::GraphicsDevice* Device, float R, float G, float B) override;
+                void Apply(Graphics::GraphicsDevice* Device) override;
+                void Clear(Graphics::GraphicsDevice* Device, int Target, float R, float G, float B) override;
+                void CopyTextureCube(int CubeId, Graphics::GraphicsDevice* Device, Graphics::TextureCube** Value) override;
+                void CopyTexture2D(int CubeId, int FaceId, Graphics::GraphicsDevice* Device, Graphics::Texture2D** Value) override;
+                void SetViewport(const Graphics::Viewport& In) override;
+                Graphics::Viewport GetViewport() override;
+                float GetWidth() override;
+                float GetHeight() override;
+                void* GetResource(int Id) override;
             };
 
             class OGLMesh : public Graphics::Mesh
             {
             public:
                 OGLMesh(Graphics::GraphicsDevice* Device, const Desc& I);
-                void UpdateSubresource(Graphics::GraphicsDevice* Device, Compute::Vertex* Elements);
-                void Draw(Graphics::GraphicsDevice* Device);
-                Compute::Vertex* Elements(Graphics::GraphicsDevice* Device);
+                void Update(Graphics::GraphicsDevice* Device, Compute::Vertex* Elements) override;
+                void Draw(Graphics::GraphicsDevice* Device) override;
+                Compute::Vertex* Elements(Graphics::GraphicsDevice* Device) override;
             };
 
             class OGLSkinnedMesh : public Graphics::SkinnedMesh
             {
             public:
                 OGLSkinnedMesh(Graphics::GraphicsDevice* Device, const Desc& I);
-                void UpdateSubresource(Graphics::GraphicsDevice* Device, Compute::InfluenceVertex* Elements);
-                void Draw(Graphics::GraphicsDevice* Device);
-                Compute::InfluenceVertex* Elements(Graphics::GraphicsDevice* Device);
+                void Update(Graphics::GraphicsDevice* Device, Compute::InfluenceVertex* Elements) override;
+                void Draw(Graphics::GraphicsDevice* Device) override;
+                Compute::InfluenceVertex* Elements(Graphics::GraphicsDevice* Device) override;
             };
 
             class OGLInstanceBuffer : public Graphics::InstanceBuffer
@@ -260,10 +260,10 @@ namespace Tomahawk
 
             public:
                 OGLInstanceBuffer(Graphics::GraphicsDevice* Device, const Desc& I);
-                ~OGLInstanceBuffer();
-                void SendPool();
-                void Restore();
-                void Resize(UInt64 Size);
+                virtual ~OGLInstanceBuffer() override;
+                void SendPool() override;
+                void Restore() override;
+                void Resize(UInt64 Size) override;
             };
 
             class OGLDirectBuffer : public Graphics::DirectBuffer
@@ -280,19 +280,19 @@ namespace Tomahawk
 
             public:
                 OGLDirectBuffer(Graphics::GraphicsDevice* NewDevice);
-                ~OGLDirectBuffer();
-                void Begin();
-                void End();
-                void EmitVertex();
-                void Position(float X, float Y, float Z);
-                void TexCoord(float X, float Y);
-                void Color(float X, float Y, float Z, float W);
-                void Texture(Graphics::Texture2D* InView);
-                void Intensity(float Intensity);
-                void TexCoordOffset(float X, float Y);
-                void Transform(Compute::Matrix4x4 Input);
+                virtual ~OGLDirectBuffer() override;
+                void Begin() override;
+                void End() override;
+                void EmitVertex() override;
+                void Position(float X, float Y, float Z) override;
+                void TexCoord(float X, float Y) override;
+                void Color(float X, float Y, float Z, float W) override;
+                void Texture(Graphics::Texture2D* InView) override;
+                void Intensity(float Intensity) override;
+                void TexCoordOffset(float X, float Y) override;
+                void Transform(Compute::Matrix4x4 Input) override;
+                void Topology(Graphics::PrimitiveTopology DrawTopology) override;
                 void AllocVertexBuffer(UInt64 Size);
-                void Topology(Graphics::PrimitiveTopology DrawTopology);
             };
 
             class OGLDevice : public Graphics::GraphicsDevice
@@ -308,49 +308,49 @@ namespace Tomahawk
 
             public:
                 OGLDevice(const Desc& I);
-                ~OGLDevice();
-                void RestoreSamplerStates();
-                void RestoreBlendStates();
-                void RestoreRasterizerStates();
-                void RestoreDepthStencilStates();
-                void RestoreState(Graphics::DeviceState* RefState);
-                void ReleaseState(Graphics::DeviceState** RefState);
-                void RestoreState();
-                void SetConstantBuffers();
-                void SetShaderModel(Graphics::ShaderModel RShaderModel);
-                UInt64 AddDepthStencilState(Graphics::DepthStencilState* In);
-                UInt64 AddBlendState(Graphics::BlendState* In);
-                UInt64 AddRasterizerState(Graphics::RasterizerState* In);
-                UInt64 AddSamplerState(Graphics::SamplerState* In);
-                void SetSamplerState(UInt64 State);
-                void SetBlendState(UInt64 State);
-                void SetRasterizerState(UInt64 State);
-                void SetDepthStencilState(UInt64 State);
-                void SendBufferStream(Graphics::RenderBufferType Buffer);
-                void Present();
-                void SetPrimitiveTopology(Graphics::PrimitiveTopology Topology);
-                void RestoreTexture2D(int Slot, int Size);
-                void RestoreTexture2D(int Size);
-                void RestoreTexture3D(int Slot, int Size);
-                void RestoreTexture3D(int Size);
-                void RestoreTextureCube(int Slot, int Size);
-                void RestoreTextureCube(int Size);
-                void RestoreShader();
-                void ResizeBuffers(unsigned int Width, unsigned int Height);
-                void DrawIndexed(unsigned int Count, unsigned int IndexLocation, unsigned int BaseLocation);
-                void Draw(unsigned int Count, unsigned int Start);
-                Graphics::ShaderModel GetSupportedShaderModel();
-                void* GetDevice();
-                void* GetContext();
-                void* GetBackBuffer();
-                void* GetBackBufferMSAA();
-                void* GetBackBufferNoAA();
-                Graphics::DeviceState* CreateState();
+                virtual ~OGLDevice() override;
+                void RestoreSamplerStates() override;
+                void RestoreBlendStates() override;
+                void RestoreRasterizerStates() override;
+                void RestoreDepthStencilStates() override;
+                void RestoreState(Graphics::DeviceState* RefState) override;
+                void ReleaseState(Graphics::DeviceState** RefState) override;
+                void RestoreState() override;
+                void SetConstantBuffers() override;
+                void SetShaderModel(Graphics::ShaderModel RShaderModel) override;
+                UInt64 AddDepthStencilState(Graphics::DepthStencilState* In) override;
+                UInt64 AddBlendState(Graphics::BlendState* In) override;
+                UInt64 AddRasterizerState(Graphics::RasterizerState* In) override;
+                UInt64 AddSamplerState(Graphics::SamplerState* In) override;
+                void SetSamplerState(UInt64 State) override;
+                void SetBlendState(UInt64 State) override;
+                void SetRasterizerState(UInt64 State) override;
+                void SetDepthStencilState(UInt64 State) override;
+                void SendBufferStream(Graphics::RenderBufferType Buffer) override;
+                void Present() override;
+                void SetPrimitiveTopology(Graphics::PrimitiveTopology Topology) override;
+                void RestoreTexture2D(int Slot, int Size) override;
+                void RestoreTexture2D(int Size) override;
+                void RestoreTexture3D(int Slot, int Size) override;
+                void RestoreTexture3D(int Size) override;
+                void RestoreTextureCube(int Slot, int Size) override;
+                void RestoreTextureCube(int Size) override;
+                void RestoreShader() override;
+                void ResizeBuffers(unsigned int Width, unsigned int Height) override;
+                void DrawIndexed(unsigned int Count, unsigned int IndexLocation, unsigned int BaseLocation) override;
+                void Draw(unsigned int Count, unsigned int Start) override;
+                Graphics::ShaderModel GetSupportedShaderModel() override;
+                void* GetDevice() override;
+                void* GetContext() override;
+                void* GetBackBuffer() override;
+                void* GetBackBufferMSAA() override;
+                void* GetBackBufferNoAA() override;
+                Graphics::DeviceState* CreateState() override;
+                void LoadShaderSections() override;
                 const char* GetShaderVersion();
                 void CopyConstantBuffer(GLuint Id, void* Buffer, size_t Size);
                 int CreateConstantBuffer(int Size, GLuint& Buffer);
                 std::string CompileState(GLuint Handle);
-                void LoadShaderSections();
 
             public:
                 static GLenum GetFormat(Graphics::Format Value);

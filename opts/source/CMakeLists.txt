@@ -16,7 +16,7 @@ file(GLOB_RECURSE SOURCE
         ${PROJECT_SOURCE_DIR}/tomahawk/*.cpp*
         ${PROJECT_SOURCE_DIR}/tomahawk/*.hxx*
         ${PROJECT_SOURCE_DIR}/tomahawk/*.cxx*)
-file(GLOB_RECURSE RESOURCE ${PROJECT_SOURCE_DIR}/opts/resource/*)
+file(GLOB_RECURSE RESOURCE ${PROJECT_SOURCE_DIR}/resource/*)
 
 #Resolving default source groups
 foreach(ITEM IN ITEMS ${SOURCE})
@@ -27,11 +27,11 @@ foreach(ITEM IN ITEMS ${SOURCE})
 endforeach()
 
 #Resources compile switch option
-option(THAWK_RESOURCES "allow to compile embedded resources" ON)
+set(THAWK_RESOURCES true CACHE BOOL "allow to compile embedded resources")
 
 #Compiling resources
 if (THAWK_RESOURCES)
-    add_resource_batch("${PROJECT_SOURCE_DIR}/opts/resource" "${PROJECT_SOURCE_DIR}/opts/resource.h")
+    add_resource_batch("${PROJECT_SOURCE_DIR}/resource" "${PROJECT_SOURCE_DIR}/opts/resource.h")
     list(APPEND SOURCE "${PROJECT_SOURCE_DIR}/opts/resource.h")
 	source_group("opts" FILES "${PROJECT_SOURCE_DIR}/opts/resource.h")
 else()

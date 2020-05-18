@@ -21,7 +21,7 @@
 // No memory allocations; uses qsort() and assert() from stdlib.
 // Can override those by defining STBRP_SORT and STBRP_ASSERT.
 //
-// This refs currently uses the Skyline Bottom-Left algorithm.
+// This library currently uses the Skyline Bottom-Left algorithm.
 //
 // Please note: better rectangle packers are welcome! Please
 // implement them to the same API, but with a different init
@@ -155,7 +155,7 @@ STBRP_DEF void stbrp_setup_allow_out_of_mem (stbrp_context *context, int allow_o
 
 
 STBRP_DEF void stbrp_setup_heuristic (stbrp_context *context, int heuristic);
-// Optionally select which packing heuristic the refs should use. Different
+// Optionally select which packing heuristic the library should use. Different
 // heuristics will produce better/worse results for different data sets.
 // If you call init again, this will be reset to the default.
 

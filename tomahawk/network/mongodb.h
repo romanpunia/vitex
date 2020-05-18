@@ -486,7 +486,7 @@ namespace Tomahawk
 
             public:
                 Client();
-                ~Client();
+                virtual ~Client() override;
                 bool Connect(const char* Address);
                 bool ConnectWithURI(TURI* URI);
                 bool Disconnect();
@@ -529,7 +529,7 @@ namespace Tomahawk
 
             public:
                 ClientPool();
-                ~ClientPool();
+                virtual ~ClientPool() override;
                 bool Connect(const char* Address);
                 bool ConnectWithURI(TURI* URI);
                 bool Disconnect();

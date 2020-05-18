@@ -16,7 +16,7 @@ namespace Tomahawk
             public:
                 OGLModelRenderer(Engine::RenderSystem* Lab);
                 void OnInitialize();
-                void OnRasterization(Rest::Timer* Time);
+                void OnRender(Rest::Timer* Time);
                 void OnRelease();
             };
 
@@ -25,7 +25,7 @@ namespace Tomahawk
             public:
                 OGLSkinnedModelRenderer(Engine::RenderSystem* Lab);
                 void OnInitialize();
-                void OnRasterization(Rest::Timer* Time);
+                void OnRender(Rest::Timer* Time);
                 void OnRelease();
             };
 
@@ -34,7 +34,7 @@ namespace Tomahawk
             public:
                 OGLElementSystemRenderer(Engine::RenderSystem* Lab);
                 void OnInitialize();
-                void OnRasterization(Rest::Timer* Time);
+                void OnRender(Rest::Timer* Time);
                 void OnRelease();
             };
 
@@ -43,7 +43,7 @@ namespace Tomahawk
             public:
                 OGLDepthRenderer(Engine::RenderSystem* Lab);
                 void OnInitialize();
-                void OnRasterization(Rest::Timer* Time);
+                void OnRender(Rest::Timer* Time);
                 void OnRelease();
             };
 
@@ -52,7 +52,7 @@ namespace Tomahawk
             public:
                 OGLProbeRenderer(Engine::RenderSystem* Lab);
                 void OnInitialize();
-                void OnRasterization(Rest::Timer* Time);
+                void OnRender(Rest::Timer* Time);
                 void OnRelease();
             };
 
@@ -61,7 +61,7 @@ namespace Tomahawk
             public:
                 OGLLightRenderer(Engine::RenderSystem* Lab);
                 void OnInitialize();
-                void OnRasterization(Rest::Timer* Time);
+                void OnRender(Rest::Timer* Time);
                 void OnRelease();
                 void OnResizeBuffers();
             };
@@ -72,7 +72,7 @@ namespace Tomahawk
                 OGLImageRenderer(Engine::RenderSystem* Lab);
                 OGLImageRenderer(Engine::RenderSystem* Lab, Graphics::RenderTarget2D* Target);
                 void OnInitialize();
-                void OnRasterization(Rest::Timer* Time);
+                void OnRender(Rest::Timer* Time);
                 void OnRelease();
             };
 
@@ -86,7 +86,7 @@ namespace Tomahawk
             public:
                 OGLReflectionsRenderer(Engine::RenderSystem* Lab);
                 void OnInitialize();
-                void OnRasterization(Rest::Timer* Time);
+                void OnRender(Rest::Timer* Time);
                 void OnRelease();
                 void OnResizeBuffers();
             };
@@ -101,7 +101,7 @@ namespace Tomahawk
             public:
                 OGLDepthOfFieldRenderer(Engine::RenderSystem* Lab);
                 void OnInitialize();
-                void OnRasterization(Rest::Timer* Time);
+                void OnRender(Rest::Timer* Time);
                 void OnRelease();
                 void OnResizeBuffers();
             };
@@ -116,7 +116,7 @@ namespace Tomahawk
             public:
                 OGLEmissionRenderer(Engine::RenderSystem* Lab);
                 void OnInitialize();
-                void OnRasterization(Rest::Timer* Time);
+                void OnRender(Rest::Timer* Time);
                 void OnRelease();
                 void OnResizeBuffers();
             };
@@ -131,7 +131,7 @@ namespace Tomahawk
             public:
                 OGLGlitchRenderer(Engine::RenderSystem* Lab);
                 void OnInitialize();
-                void OnRasterization(Rest::Timer* Time);
+                void OnRender(Rest::Timer* Time);
                 void OnRelease();
                 void OnResizeBuffers();
             };
@@ -146,7 +146,7 @@ namespace Tomahawk
             public:
                 OGLAmbientOcclusionRenderer(Engine::RenderSystem* Lab);
                 void OnInitialize();
-                void OnRasterization(Rest::Timer* Time);
+                void OnRender(Rest::Timer* Time);
                 void OnRelease();
                 void OnResizeBuffers();
             };
@@ -161,7 +161,7 @@ namespace Tomahawk
             public:
                 OGLIndirectOcclusionRenderer(Engine::RenderSystem* Lab);
                 void OnInitialize();
-                void OnRasterization(Rest::Timer* Time);
+                void OnRender(Rest::Timer* Time);
                 void OnRelease();
                 void OnResizeBuffers();
             };
@@ -176,7 +176,7 @@ namespace Tomahawk
             public:
                 OGLToneRenderer(Engine::RenderSystem* Lab);
                 void OnInitialize();
-                void OnRasterization(Rest::Timer* Time);
+                void OnRender(Rest::Timer* Time);
                 void OnRelease();
                 void OnResizeBuffers();
             };

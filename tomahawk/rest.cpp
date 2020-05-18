@@ -1938,7 +1938,6 @@ namespace Tomahawk
 			}
 			
 			Memory -= It->second;
-			THAWK_INFO("delete (%p): %llu bytes", Ptr, It->second);
 			Objects->erase(It);
 
 			if (Objects->empty())
@@ -1968,7 +1967,6 @@ namespace Tomahawk
 			Safe->lock();
 			void* Ptr = malloc((size_t)Size);
 			Objects->insert({ Ptr, Size });
-			THAWK_INFO("new (%p): %llu bytes", Ptr, Size);
 			Safe->unlock();
 
 			return Ptr;
@@ -2384,7 +2382,6 @@ namespace Tomahawk
         Float64 Timer::GetDeltaTime()
         {
             Float64 DeltaTime = FrameRelation / FrameCount;
-
             if (DeltaTime > DeltaTimeLimit)
                 return DeltaTimeLimit;
 
@@ -2606,7 +2603,7 @@ namespace Tomahawk
             if (!Buffer)
                 return -1;
 
-            return fileno(Buffer);
+            return _fileno(Buffer);
         }
         unsigned char FileStream::Get()
         {
@@ -2632,7 +2629,7 @@ namespace Tomahawk
         }
         UInt64 FileStream::WriteAny(const char* Format, ...)
         {
-			va_list Args; UInt64 R;
+			va_list Args; UInt64 R = 0;
             va_start(Args, Format);
 #ifdef THAWK_HAS_ZLIB
 			if (Compress != nullptr)
@@ -2664,7 +2661,7 @@ namespace Tomahawk
 			if (Compress != nullptr)
 				return 0;
 #endif
-			va_list Args; UInt64 R;
+			va_list Args; UInt64 R = 0;
             va_start(Args, Format);
 
 			if (Buffer != nullptr)
@@ -3451,7 +3448,7 @@ namespace Tomahawk
                 return false;
 
 #ifdef THAWK_MICROSOFT
-            return TransmitFile((SOCKET)Socket, (HANDLE)_get_osfhandle(fileno(Stream)), (DWORD)Size, 16384, nullptr, nullptr, 0) > 0;
+            return TransmitFile((SOCKET)Socket, (HANDLE)_get_osfhandle(_fileno(Stream)), (DWORD)Size, 16384, nullptr, nullptr, 0) > 0;
 #elif defined(THAWK_APPLE)
             return sendfile(fileno(Stream), Socket, 0, (off_t*)&Size, nullptr, 0);
 #elif defined(THAWK_UNIX)
@@ -4389,38 +4386,38 @@ namespace Tomahawk
 
 			return Nodes[Index];
 		}
-		Document* Document::Get(const std::string& Name)
+		Document* Document::Get(const std::string& Label)
 		{
-			if (Name.empty())
+			if (Label.empty())
 				return nullptr;
 
 			for (auto Document : Nodes)
 			{
-				if (Document->Name == Name)
+				if (Document->Name == Label)
 					return Document;
 			}
 
 			return nullptr;
 		}
-		Document* Document::SetCast(const std::string& Name, const std::string& Prop)
+		Document* Document::SetCast(const std::string& Label, const std::string& Prop)
 		{
 			Document* Value = new Document();
 			if (!Deserialize(Prop, Value))
 			{
 				delete Value;
-				return SetNull(Name);
+				return SetNull(Label);
 			}
 
 			Value->Saved = false;
 			Value->Parent = this;
-			Value->Name.assign(Name);
+			Value->Name.assign(Label);
 			Saved = false;
 
 			if (Type != NodeType_Array)
 			{
 				for (auto It = Nodes.begin(); It != Nodes.end(); It++)
 				{
-					if (!*It || (*It)->Name != Name)
+					if (!*It || (*It)->Name != Label)
 						continue;
 
 					(*It)->Parent = nullptr;
@@ -4434,11 +4431,11 @@ namespace Tomahawk
 			Nodes.push_back(Value);
 			return Value;
 		}
-		Document* Document::SetUndefined(const std::string& Name)
+		Document* Document::SetUndefined(const std::string& Label)
 		{
 			for (auto It = Nodes.begin(); It != Nodes.end(); It++)
 			{
-				if (!*It || (*It)->Name != Name)
+				if (!*It || (*It)->Name != Label)
 					continue;
 
 				(*It)->Parent = nullptr;
@@ -4449,16 +4446,16 @@ namespace Tomahawk
 
 			return nullptr;
 		}
-		Document* Document::SetNull(const std::string& Name)
+		Document* Document::SetNull(const std::string& Label)
 		{
-			Document* Duplicate = Get(Name);
+			Document* Duplicate = Get(Label);
 			Saved = false;
 
 			if (Duplicate != nullptr)
 			{
 				Duplicate->Type = NodeType_Null;
 				Duplicate->Saved = false;
-				Duplicate->Name.assign(Name);
+				Duplicate->Name.assign(Label);
 
 				return Duplicate;
 			}
@@ -4467,14 +4464,14 @@ namespace Tomahawk
 			Duplicate->Type = NodeType_Null;
 			Duplicate->Saved = false;
 			Duplicate->Parent = this;
-			Duplicate->Name.assign(Name);
+			Duplicate->Name.assign(Label);
 
 			Nodes.push_back(Duplicate);
 			return Duplicate;
 		}
-		Document* Document::SetId(const std::string& Name, unsigned char Value[12])
+		Document* Document::SetId(const std::string& Label, unsigned char Value[12])
 		{
-			Document* Duplicate = Get(Name);
+			Document* Duplicate = Get(Label);
 			Saved = false;
 
 			if (Duplicate != nullptr)
@@ -4482,7 +4479,7 @@ namespace Tomahawk
 				Duplicate->Type = NodeType_Id;
 				Duplicate->String.assign((const char*)Value, 12);
 				Duplicate->Saved = false;
-				Duplicate->Name.assign(Name);
+				Duplicate->Name.assign(Label);
 
 				return Duplicate;
 			}
@@ -4492,27 +4489,27 @@ namespace Tomahawk
 			Duplicate->String.assign((const char*)Value, 12);
 			Duplicate->Saved = false;
 			Duplicate->Parent = this;
-			Duplicate->Name.assign(Name);
+			Duplicate->Name.assign(Label);
 
 			Nodes.push_back(Duplicate);
 			return Duplicate;
 		}
-		Document* Document::SetDocument(const std::string& Name, Document* Value)
+		Document* Document::SetDocument(const std::string& Label, Document* Value)
 		{
 			if (!Value)
-				return SetNull(Name);
+				return SetNull(Label);
 
 			Value->Type = NodeType_Object;
 			Value->Saved = false;
 			Value->Parent = this;
-			Value->Name.assign(Name);
+			Value->Name.assign(Label);
 			Saved = false;
 
 			if (Type != NodeType_Array)
 			{
 				for (auto It = Nodes.begin(); It != Nodes.end(); It++)
 				{
-					if (!*It || (*It)->Name != Name)
+					if (!*It || (*It)->Name != Label)
 						continue;
 
 					(*It)->Parent = nullptr;
@@ -4526,26 +4523,26 @@ namespace Tomahawk
 			Nodes.push_back(Value);
 			return Value;
 		}
-		Document* Document::SetDocument(const std::string& Name)
+		Document* Document::SetDocument(const std::string& Label)
 		{
-			return SetDocument(Name, new Document());
+			return SetDocument(Label, new Document());
 		}
-		Document* Document::SetArray(const std::string& Name, Document* Value)
+		Document* Document::SetArray(const std::string& Label, Document* Value)
 		{
 			if (!Value)
-				return SetNull(Name);
+				return SetNull(Label);
 
 			Value->Type = NodeType_Array;
 			Value->Saved = false;
 			Value->Parent = this;
-			Value->Name.assign(Name);
+			Value->Name.assign(Label);
 			Saved = false;
 
 			if (Type != NodeType_Array)
 			{
 				for (auto It = Nodes.begin(); It != Nodes.end(); It++)
 				{
-					if (!*It || (*It)->Name != Name)
+					if (!*It || (*It)->Name != Label)
 						continue;
 
 					(*It)->Parent = nullptr;
@@ -4559,20 +4556,20 @@ namespace Tomahawk
 			Nodes.push_back(Value);
 			return Value;
 		}
-		Document* Document::SetArray(const std::string& Name)
+		Document* Document::SetArray(const std::string& Label)
 		{
-			return SetArray(Name, new Document());
+			return SetArray(Label, new Document());
 		}
-		Document* Document::SetAttribute(const std::string& Name, const std::string& Value)
+		Document* Document::SetAttribute(const std::string& Label, const std::string& Value)
 		{
-			return SetCast("[" + Name + "]", Value);
+			return SetCast("[" + Label + "]", Value);
 		}
-		Document* Document::SetString(const std::string& Name, const char* Value, Int64 Size)
+		Document* Document::SetString(const std::string& Label, const char* Value, Int64 Size)
 		{
 			if (!Value)
-				return SetNull(Name);
+				return SetNull(Label);
 
-			Document* Duplicate = Get(Name);
+			Document* Duplicate = Get(Label);
 			Saved = false;
 
 			if (Duplicate != nullptr)
@@ -4580,7 +4577,7 @@ namespace Tomahawk
 				Duplicate->Type = NodeType_String;
 				Duplicate->String.assign(Value, (size_t)(Size < 0 ? strlen(Value) : Size));
 				Duplicate->Saved = false;
-				Duplicate->Name.assign(Name);
+				Duplicate->Name.assign(Label);
 
 				return Duplicate;
 			}
@@ -4590,14 +4587,14 @@ namespace Tomahawk
 			Duplicate->String.assign(Value, (size_t)(Size < 0 ? strlen(Value) : Size));
 			Duplicate->Saved = false;
 			Duplicate->Parent = this;
-			Duplicate->Name.assign(Name);
+			Duplicate->Name.assign(Label);
 
 			Nodes.push_back(Duplicate);
 			return Duplicate;
 		}
-		Document* Document::SetString(const std::string& Name, const std::string& Value)
+		Document* Document::SetString(const std::string& Label, const std::string& Value)
 		{
-			Document* Duplicate = Get(Name);
+			Document* Duplicate = Get(Label);
 			Saved = false;
 
 			if (Duplicate != nullptr)
@@ -4605,7 +4602,7 @@ namespace Tomahawk
 				Duplicate->Type = NodeType_String;
 				Duplicate->String.assign(Value);
 				Duplicate->Saved = false;
-				Duplicate->Name.assign(Name);
+				Duplicate->Name.assign(Label);
 
 				return Duplicate;
 			}
@@ -4615,14 +4612,14 @@ namespace Tomahawk
 			Duplicate->String.assign(Value);
 			Duplicate->Saved = false;
 			Duplicate->Parent = this;
-			Duplicate->Name.assign(Name);
+			Duplicate->Name.assign(Label);
 
 			Nodes.push_back(Duplicate);
 			return Duplicate;
 		}
-		Document* Document::SetInteger(const std::string& Name, Int64 Value)
+		Document* Document::SetInteger(const std::string& Label, Int64 Value)
 		{
-			Document* Duplicate = Get(Name);
+			Document* Duplicate = Get(Label);
 			Saved = false;
 
 			if (Duplicate != nullptr)
@@ -4631,7 +4628,7 @@ namespace Tomahawk
 				Duplicate->Integer = Value;
 				Duplicate->Number = (Float64)Value;
 				Duplicate->Saved = false;
-				Duplicate->Name.assign(Name);
+				Duplicate->Name.assign(Label);
 
 				return Duplicate;
 			}
@@ -4642,14 +4639,14 @@ namespace Tomahawk
 			Duplicate->Number = (Float64)Value;
 			Duplicate->Saved = false;
 			Duplicate->Parent = this;
-			Duplicate->Name.assign(Name);
+			Duplicate->Name.assign(Label);
 
 			Nodes.push_back(Duplicate);
 			return Duplicate;
 		}
-		Document* Document::SetNumber(const std::string& Name, Float64 Value)
+		Document* Document::SetNumber(const std::string& Label, Float64 Value)
 		{
-			Document* Duplicate = Get(Name);
+			Document* Duplicate = Get(Label);
 			Saved = false;
 
 			if (Duplicate != nullptr)
@@ -4658,7 +4655,7 @@ namespace Tomahawk
 				Duplicate->Integer = (Int64)Value;
 				Duplicate->Number = Value;
 				Duplicate->Saved = false;
-				Duplicate->Name.assign(Name);
+				Duplicate->Name.assign(Label);
 
 				return Duplicate;
 			}
@@ -4669,53 +4666,53 @@ namespace Tomahawk
 			Duplicate->Number = Value;
 			Duplicate->Saved = false;
 			Duplicate->Parent = this;
-			Duplicate->Name.assign(Name);
+			Duplicate->Name.assign(Label);
 
 			Nodes.push_back(Duplicate);
 			return Duplicate;
 		}
-		Document* Document::SetDecimal(const std::string& Name, Int64 High, Int64 Low)
+		Document* Document::SetDecimal(const std::string& Label, Int64 fHigh, Int64 fLow)
 		{
-			Document* Duplicate = Get(Name);
+			Document* Duplicate = Get(Label);
 			Saved = false;
 
 			if (Duplicate != nullptr)
 			{
 				Duplicate->Type = NodeType_Decimal;
-				Duplicate->Integer = High;
-				Duplicate->Low = Low;
+				Duplicate->Integer = fHigh;
+				Duplicate->Low = fLow;
 				Duplicate->Saved = false;
-				Duplicate->Name.assign(Name);
+				Duplicate->Name.assign(Label);
 
 				return Duplicate;
 			}
 
 			Duplicate = new Document();
 			Duplicate->Type = NodeType_Decimal;
-			Duplicate->Integer = High;
-			Duplicate->Low = Low;
+			Duplicate->Integer = fHigh;
+			Duplicate->Low = fLow;
 			Duplicate->Saved = false;
 			Duplicate->Parent = this;
-			Duplicate->Name.assign(Name);
+			Duplicate->Name.assign(Label);
 
 			Nodes.push_back(Duplicate);
 			return Duplicate;
 		}
-		Document* Document::SetDecimal(const std::string& Name, const std::string& Value)
+		Document* Document::SetDecimal(const std::string& Label, const std::string& Value)
 		{
 #ifdef THAWK_HAS_MONGOC
-			Int64 High, Low;
-			if (!Network::BSON::Document::ParseDecimal(Value.c_str(), &High, &Low))
+			Int64 fHigh, fLow;
+			if (!Network::BSON::Document::ParseDecimal(Value.c_str(), &fHigh, &fLow))
 				return nullptr;
 
-			return SetDecimal(Name, High, Low);
+			return SetDecimal(Label, fHigh, fLow);
 #else
 			return nullptr;
 #endif
 		}
-		Document* Document::SetBoolean(const std::string& Name, bool Value)
+		Document* Document::SetBoolean(const std::string& Label, bool Value)
 		{
-			Document* Duplicate = Get(Name);
+			Document* Duplicate = Get(Label);
 			Saved = false;
 
 			if (Duplicate != nullptr)
@@ -4723,7 +4720,7 @@ namespace Tomahawk
 				Duplicate->Type = NodeType_Boolean;
 				Duplicate->Boolean = Value;
 				Duplicate->Saved = false;
-				Duplicate->Name.assign(Name);
+				Duplicate->Name.assign(Label);
 
 				return Duplicate;
 			}
@@ -4733,7 +4730,7 @@ namespace Tomahawk
 			Duplicate->Boolean = Value;
 			Duplicate->Saved = false;
 			Duplicate->Parent = this;
-			Duplicate->Name.assign(Name);
+			Duplicate->Name.assign(Label);
 
 			Nodes.push_back(Duplicate);
 			return Duplicate;
@@ -4764,9 +4761,9 @@ namespace Tomahawk
 		{
 			return Parent;
 		}
-		Document* Document::GetAttribute(const std::string& Name)
+		Document* Document::GetAttribute(const std::string& Label)
 		{
-			return Get("[" + Name + "]");
+			return Get("[" + Label + "]");
 		}
 		bool Document::Deserialize(const std::string& Value)
 		{
@@ -4783,48 +4780,42 @@ namespace Tomahawk
 		{
 			return Type == NodeType_Object || Type == NodeType_Array;
 		}
-		bool Document::GetBoolean(const std::string& Name)
+		bool Document::GetBoolean(const std::string& Label)
 		{
-			Document* Value = Get(Name);
+			Document* Value = Get(Label);
 			if (!Value || Value->Type != NodeType_Boolean)
 				return false;
 
 			return Value->Boolean;
 		}
-		bool Document::GetNull(const std::string& Name)
+		bool Document::GetNull(const std::string& Label)
 		{
-			Document* Value = Get(Name);
-			if (!Value || Value->Type != NodeType_Null)
-				return false;
-
-			return true;
+			Document* Value = Get(Label);
+			return !Value || Value->Type == NodeType_Null;
 		}
-		bool Document::GetUndefined(const std::string& Name)
+		bool Document::GetUndefined(const std::string& Label)
 		{
-			Document* Value = Get(Name);
-			if (!Value || Value->Type == NodeType_Null)
-				return true;
-
-			return false;
+			Document* Value = Get(Label);
+            return !Value || Value->Type == NodeType_Undefined;
 		}
 		Int64 Document::Size()
 		{
 			return (Int64)Nodes.size();
 		}
-		Int64 Document::GetDecimal(const std::string& Name, Int64* Low)
+		Int64 Document::GetDecimal(const std::string& Label, Int64* fLow)
 		{
-			Document* Value = Get(Name);
+			Document* Value = Get(Label);
 			if (!Value || Value->Type != NodeType_Decimal)
 				return 0;
 
-			if (Low != nullptr)
-				*Low = Value->Low;
+			if (fLow != nullptr)
+				*fLow = Value->Low;
 
 			return Value->Integer;
 		}
-		Int64 Document::GetInteger(const std::string& Name)
+		Int64 Document::GetInteger(const std::string& Label)
 		{
-			Document* Value = Get(Name);
+			Document* Value = Get(Label);
 			if (!Value)
 				return 0;
 
@@ -4836,9 +4827,9 @@ namespace Tomahawk
 
 			return 0;
 		}
-		Float64 Document::GetNumber(const std::string& Name)
+		Float64 Document::GetNumber(const std::string& Label)
 		{
-			Document* Value = Get(Name);
+			Document* Value = Get(Label);
 			if (!Value)
 				return 0.0;
 
@@ -4850,25 +4841,25 @@ namespace Tomahawk
 
 			return 0.0;
 		}
-		unsigned char* Document::GetId(const std::string& Name)
+		unsigned char* Document::GetId(const std::string& Label)
 		{
-			Document* Value = Get(Name);
+			Document* Value = Get(Label);
 			if (!Value || Value->Type != NodeType_Id || Value->String.size() != 12)
 				return nullptr;
 
 			return (unsigned char*)Value->String.c_str();
 		}
-		const char* Document::GetString(const std::string& Name)
+		const char* Document::GetString(const std::string& Label)
 		{
-			Document* Value = Get(Name);
+			Document* Value = Get(Label);
 			if (!Value || Value->Type != NodeType_String)
 				return nullptr;
 
 			return Value->String.c_str();
 		}
-		std::string& Document::GetStringBlob(const std::string& Name)
+		std::string& Document::GetStringBlob(const std::string& Label)
 		{
-			Document* Value = Get(Name);
+			Document* Value = Get(Label);
 			if (!Value || Value->Type != NodeType_String)
 				return String;
 
@@ -4878,17 +4869,17 @@ namespace Tomahawk
 		{
 			return Serialize(this);
 		}
-		Document* Document::Find(const std::string& Name, bool Here)
+		Document* Document::Find(const std::string& Label, bool Here)
 		{
 			for (auto K : Nodes)
 			{
-				if (K->Name == Name)
+				if (K->Name == Label)
 					return K;
 
 				if (Here)
 					continue;
 
-				Document* V = K->Find(Name);
+				Document* V = K->Find(Label);
 				if (V != nullptr)
 					return V;
 			}
@@ -4914,18 +4905,18 @@ namespace Tomahawk
 
 			return Current;
 		}
-		std::vector<Document*> Document::FindCollection(const std::string& Name, bool Here)
+		std::vector<Document*> Document::FindCollection(const std::string& Label, bool Here)
 		{
 			std::vector<Document*> Result;
 			for (auto Value : Nodes)
 			{
-				if (Value->Name == Name)
+				if (Value->Name == Label)
 					Result.push_back(Value);
 
 				if (Here)
 					continue;
 
-				std::vector<Document*> New = Value->FindCollection(Name);
+				std::vector<Document*> New = Value->FindCollection(Label);
 				for (auto& Ji : New)
 					Result.push_back(Ji);
 			}

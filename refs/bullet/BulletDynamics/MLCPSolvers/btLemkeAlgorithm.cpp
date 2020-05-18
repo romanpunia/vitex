@@ -16,7 +16,7 @@ subject to the following restrictions:
 //The original version is here
 //https://code.google.com/p/mbsim-env/source/browse/trunk/kernel/mbsim/numerics/linear_complementarity_problem/lemke_algorithm.cc
 //This file is re-distributed under the ZLib license, with permission of the original author
-//Math refs was replaced from fmatvec to a the file src/LinearMath/btMatrixX.h
+//Math library was replaced from fmatvec to a the file src/LinearMath/btMatrixX.h
 //STL/std::vector replaced by btAlignedObjectArray
 
 #include "btLemkeAlgorithm.h"

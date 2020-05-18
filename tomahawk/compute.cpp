@@ -1,6 +1,10 @@
 #include "compute.h"
 #include <cctype>
-#include <btBulletDynamicsCommon.h>
+#include <bullet/btBulletDynamicsCommon.h>
+#include <bullet/BulletSoftBody/btSoftRigidDynamicsWorld.h>
+#include <bullet/BulletSoftBody/btDefaultSoftBodySolver.h>
+#include <bullet/BulletSoftBody/btSoftBodyHelpers.h>
+#include <bullet/BulletSoftBody/btSoftBodyRigidBodyCollisionConfiguration.h>
 #ifdef THAWK_HAS_OPENSSL
 extern "C"
 {
@@ -19,7 +23,7 @@ namespace Tomahawk
 		class FindContactsHandler : public btCollisionWorld::ContactResultCallback
 		{
 		public:
-			int(*Callback)(ShapeContact*, RigidBody*, RigidBody*) = nullptr;
+			int(*Callback)(ShapeContact*, const CollisionBody&, const CollisionBody&) = nullptr;
 
 		public:
 			btScalar addSingleResult(btManifoldPoint& Point, const btCollisionObjectWrapper* Object1, int PartId0, int Index0, const btCollisionObjectWrapper* Object2, int PartId1, int Index1)
@@ -57,14 +61,16 @@ namespace Tomahawk
 				Contact.ContactPointFlags = Point.m_contactPointFlags;
 				Contact.LifeTime = Point.m_lifeTime;
 
-				return (btScalar)Callback(&Contact, (RigidBody*)Object1->getCollisionObject()->getUserPointer(), (RigidBody*)Object2->getCollisionObject()->getUserPointer());
+                btCollisionObject* Body1 = (btCollisionObject*)Object1->getCollisionObject();
+                btCollisionObject* Body2 = (btCollisionObject*)Object2->getCollisionObject();
+				return (btScalar)Callback(&Contact, CollisionBody(Body1), CollisionBody(Body2));
 			}
 		};
 
 		class FindRayContactsHandler : public btCollisionWorld::RayResultCallback
 		{
 		public:
-			int(*Callback)(RayContact*, RigidBody*) = nullptr;
+			int(*Callback)(RayContact*, const CollisionBody&) = nullptr;
 
 		public:
 			btScalar addSingleResult(btCollisionWorld::LocalRayResult& RayResult, bool NormalInWorldSpace)
@@ -78,32 +84,8 @@ namespace Tomahawk
 				Contact.HitFraction = RayResult.m_hitFraction;
 				Contact.ClosestHitFraction = m_closestHitFraction;
 
-				return (btScalar)Callback(&Contact, (RigidBody*)RayResult.m_collisionObject->getUserPointer());
-			}
-		};
-
-		class FindClosestRayContactsHandler : public btCollisionWorld::ClosestRayResultCallback
-		{
-		public:
-			int(*Callback)(RayContact*, RigidBody*) = nullptr;
-
-		public:
-			btScalar addSingleResult(btCollisionWorld::LocalRayResult& RayResult, bool NormalInWorldSpace)
-			{
-				if (!Callback || !RayResult.m_collisionObject)
-					return 0;
-
-				RayContact Contact;
-				Contact.HitNormalLocal = V3Bt(RayResult.m_hitNormalLocal);
-				Contact.NormalInWorldSpace = NormalInWorldSpace;
-				Contact.HitFraction = RayResult.m_hitFraction;
-				Contact.ClosestHitFraction = m_closestHitFraction;
-				Contact.HitNormalWorld = V3Bt(m_hitNormalWorld);
-				Contact.HitPointWorld = V3Bt(m_hitPointWorld);
-				Contact.RayFromWorld = V3Bt(m_rayFromWorld);
-				Contact.RayToWorld = V3Bt(m_rayToWorld);
-
-				return (btScalar)Callback(&Contact, (RigidBody*)RayResult.m_collisionObject->getUserPointer());
+                btCollisionObject* Body1 = (btCollisionObject*)RayResult.m_collisionObject;
+                return (btScalar)Callback(&Contact, CollisionBody(Body1));
 			}
 		};
 
@@ -763,6 +745,24 @@ namespace Tomahawk
 		{
 			return (*this) * Math<float>::Rad2Deg();
 		}
+		void Vector3::ToBtVector3(const Vector3& In, btVector3* Out)
+        {
+		    if (Out != nullptr)
+            {
+		        Out->setX(In.X);
+		        Out->setY(In.Y);
+		        Out->setZ(In.Z);
+            }
+        }
+        void Vector3::FromBtVector3(const btVector3& In, Vector3* Out)
+        {
+            if (Out != nullptr)
+            {
+                Out->X = In.getX();
+                Out->Y = In.getY();
+                Out->Z = In.getZ();
+            }
+        }
 
 		Vector4::Vector4()
 		{
@@ -2778,6 +2778,17 @@ namespace Tomahawk
 				"\"[^...]\" - Match any character but ones from set\n";
 		}
 
+        CollisionBody::CollisionBody(btCollisionObject* Object)
+        {
+            btRigidBody* RigidObject = btRigidBody::upcast(Object);
+            if (RigidObject != nullptr)
+                Rigid = (RigidBody*)RigidObject->getUserPointer();
+
+            btSoftBody* SoftObject = btSoftBody::upcast(Object);
+            if (SoftObject != nullptr)
+                Soft = (SoftBody*)SoftObject->getUserPointer();
+        }
+
 		MD5Hasher::MD5Hasher()
 		{
 			Finalized = false;
@@ -4289,6 +4300,54 @@ namespace Tomahawk
 
             return Shape;
 		}
+        btCollisionShape* CollisionShape::ConvexHull(std::vector<Vector2>& Vertices)
+        {
+            btConvexHullShape* Shape = new btConvexHullShape();
+            for (auto It = Vertices.begin(); It != Vertices.end(); It++)
+                Shape->addPoint(btVector3(It->X, It->Y, 0), false);
+
+            Shape->recalcLocalAabb();
+            Shape->optimizeConvexHull();
+
+            return Shape;
+        }
+        btCollisionShape* CollisionShape::ConvexHull(std::vector<Vector3>& Vertices)
+        {
+            btConvexHullShape* Shape = new btConvexHullShape();
+            for (auto It = Vertices.begin(); It != Vertices.end(); It++)
+                Shape->addPoint(btVector3(It->X, It->Y, It->Z), false);
+
+            Shape->recalcLocalAabb();
+            Shape->optimizeConvexHull();
+
+            return Shape;
+        }
+        btCollisionShape* CollisionShape::ConvexHull(std::vector<Vector4>& Vertices)
+        {
+            btConvexHullShape* Shape = new btConvexHullShape();
+            for (auto It = Vertices.begin(); It != Vertices.end(); It++)
+                Shape->addPoint(btVector3(It->X, It->Y, It->Z), false);
+
+            Shape->recalcLocalAabb();
+            Shape->optimizeConvexHull();
+
+            return Shape;
+        }
+        btCollisionShape* CollisionShape::ConvexHull(btCollisionShape* From)
+        {
+		    if (!From || From->getShapeType() != Shape_Convex_Hull)
+		        return nullptr;
+
+            btConvexHullShape* Hull = new btConvexHullShape();
+            btConvexHullShape* Base = (btConvexHullShape*)From;
+
+            for (size_t i = 0; i < Base->getNumPoints(); i++)
+                Hull->addPoint(*(Base->getUnscaledPoints() + i), false);
+
+            Hull->recalcLocalAabb();
+            Hull->optimizeConvexHull();
+            return Hull;
+        }
 		btCollisionShape* CollisionShape::Auto(Shape Wanted)
 		{
 			switch (Wanted)
@@ -4309,6 +4368,41 @@ namespace Tomahawk
 
 			return nullptr;
 		}
+		std::vector<Vector3> CollisionShape::GetVertices(btCollisionShape* Value)
+        {
+		    if (!Value)
+		        return std::vector<Vector3>();
+
+		    auto Type = (Shape)Value->getShapeType();
+            if (Type != Shape_Convex_Hull)
+                return std::vector<Vector3>();
+
+            btConvexHullShape* Hull = (btConvexHullShape*)Value;
+            btVector3* Points = Hull->getUnscaledPoints();
+            size_t Count = Hull->getNumPoints();
+            std::vector<Vector3> Vertices;
+            Vertices.reserve(Count);
+
+            for (size_t i = 0; i < Count; i++)
+            {
+                btVector3& It = Points[i];
+                Vertices.emplace_back(It.getX(), It.getY(), It.getZ());
+            }
+
+            return Vertices;
+        }
+        UInt64 CollisionShape::GetVerticesCount(btCollisionShape* Value)
+        {
+            if (!Value)
+                return 0;
+
+            auto Type = (Compute::Shape)Value->getShapeType();
+            if (Type != Shape_Convex_Hull)
+                return 0;
+
+            btConvexHullShape* Hull = (btConvexHullShape*)Value;
+            return Hull->getNumPoints();
+        }
 
         Preprocessor::Preprocessor() : Resolve(0)
         {
@@ -4746,7 +4840,6 @@ namespace Tomahawk
 		bool Transform::HasRoot(Transform* Target)
 		{
 			Compute::Transform* UpperRoot = Root;
-
 			while (true)
 			{
 				if (!UpperRoot)
@@ -4942,17 +5035,33 @@ namespace Tomahawk
 			if (Parent == this)
 				return false;
 
-			if (Parent && Parent->GetRoot() == this)
-				return false;
-
-			return true;
+			return !Parent || Parent->GetRoot() != this;
 		}
 
-		RigidBody::RigidBody(Simulator* Refer)
+		RigidBody::RigidBody(Simulator* Refer, const Desc& I) : UserPointer(nullptr), Instance(nullptr), Ref(Refer)
 		{
-			UserPointer = nullptr;
-			Instance = nullptr;
-			Ref = Refer;
+		    if (!I.Shape || !I.Transform || !Ref)
+		        return;
+
+            btVector3 LocalInertia(0, 0, 0);
+            I.Shape->setLocalScaling(BtV3(I.Transform->Scale));
+
+            if (I.Mass > 0)
+                I.Shape->calculateLocalInertia(I.Mass, LocalInertia);
+
+            btTransform BtTransform;
+            I.Transform->GetWorld(&BtTransform);
+
+            btRigidBody::btRigidBodyConstructionInfo Info(I.Mass, new btDefaultMotionState(BtTransform), I.Shape, LocalInertia);
+            Instance = new btRigidBody(Info);
+            Instance->setUserPointer(this);
+            Instance->setGravity(Ref->GetWorld()->getGravity());
+
+            if (I.Anticipation > 0 && I.Mass > 0)
+            {
+                Instance->setCcdMotionThreshold(I.Anticipation);
+                Instance->setCcdSweptSphereRadius(I.Transform->Scale.Length() / 15.0f);
+            }
 		}
 		RigidBody::~RigidBody()
 		{
@@ -4976,10 +5085,6 @@ namespace Tomahawk
 
 			Instance->setUserPointer(nullptr);
 			delete Instance;
-
-			Instance = nullptr;
-			UserPointer = nullptr;
-			Ref = nullptr;
 		}
 		void RigidBody::Copy(RigidBody* Target)
 		{
@@ -4988,63 +5093,29 @@ namespace Tomahawk
 				return;
 
 			Instance->setUserPointer(this);
-			SetSpinningFriction(Target->SpinningFriction());
-			SetContactDamping(Target->ContactDamping());
-			SetContactStiffness(Target->ContactStiffness());
-			SetActivationState(Target->ActivationState());
-			SetAngularDamping(Target->AngularDamping());
-			SetAngularSleepingThreshold(Target->AngularSleepingThreshold());
-			SetFriction(Target->Friction());
-			SetRestitution(Target->Restitution());
-			SetHitFraction(Target->HitFraction());
-			SetLinearDamping(Target->LinearDamping());
-			SetLinearSleepingThreshold(Target->LinearSleepingThreshold());
-			SetCcdMotionThreshold(Target->CcdMotionThreshold());
-			SetCcdSweptSphereRadius(Target->CcdSweptSphereRadius());
-			SetContactProcessingThreshold(Target->ContactProcessingThreshold());
-			SetDeactivationTime(Target->DeactivationTime());
-			SetRollingFriction(Target->RollingFriction());
-			SetAngularFactor(Target->AngularFactor());
-			SetAnisotropicFriction(Target->AnisotropicFriction());
-			SetGravity(Target->Gravity());
-			SetLinearFactor(Target->LinearFactor());
-			SetLinearVelocity(Target->LinearVelocity());
-			SetAngularVelocity(Target->AngularVelocity());
-			SetCollisionFlags(Target->CollisionFlags());
-		}
-		void RigidBody::Initialize(btCollisionShape* Shape, Transform* Transform, float Mass, float Anticipation)
-		{
-			btVector3 LocalInertia(0, 0, 0);
-			Shape->setLocalScaling(BtV3(Transform->Scale));
-
-			if (Mass > 0)
-				Shape->calculateLocalInertia(Mass, LocalInertia);
-
-			if (!Instance)
-			{
-				btTransform BtTransform;
-				Transform->GetWorld(&BtTransform);
-
-				btRigidBody::btRigidBodyConstructionInfo Info(Mass, new btDefaultMotionState(BtTransform), Shape, LocalInertia);
-				Instance = new btRigidBody(Info);
-
-				if (Anticipation > 0 && Mass > 0)
-				{
-					Instance->setCcdMotionThreshold(Anticipation);
-					Instance->setCcdSweptSphereRadius(Transform->Scale.Length() / 15.0f);
-				}
-			}
-			else if (Instance->getCollisionShape())
-			{
-				btCollisionShape* Source = Instance->getCollisionShape();
-				Instance->setCollisionShape(Shape);
-
-				std::this_thread::sleep_for(std::chrono::milliseconds(8));
-				delete Source;
-			}
-
-			Instance->setUserPointer(this);
-			Instance->setGravity(Ref->World->getGravity());
+			SetSpinningFriction(Target->GetSpinningFriction());
+			SetContactDamping(Target->GetContactDamping());
+			SetContactStiffness(Target->GetContactStiffness());
+			SetActivationState(Target->GetActivationState());
+			SetAngularDamping(Target->GetAngularDamping());
+			SetAngularSleepingThreshold(Target->GetAngularSleepingThreshold());
+			SetFriction(Target->GetFriction());
+			SetRestitution(Target->GetRestitution());
+			SetHitFraction(Target->GetHitFraction());
+			SetLinearDamping(Target->GetLinearDamping());
+			SetLinearSleepingThreshold(Target->GetLinearSleepingThreshold());
+			SetCcdMotionThreshold(Target->GetCcdMotionThreshold());
+			SetCcdSweptSphereRadius(Target->GetCcdSweptSphereRadius());
+			SetContactProcessingThreshold(Target->GetContactProcessingThreshold());
+			SetDeactivationTime(Target->GetDeactivationTime());
+			SetRollingFriction(Target->GetRollingFriction());
+			SetAngularFactor(Target->GetAngularFactor());
+			SetAnisotropicFriction(Target->GetAnisotropicFriction());
+			SetGravity(Target->GetGravity());
+			SetLinearFactor(Target->GetLinearFactor());
+			SetLinearVelocity(Target->GetLinearVelocity());
+			SetAngularVelocity(Target->GetAngularVelocity());
+			SetCollisionFlags(Target->GetCollisionFlags());
 		}
 		void RigidBody::Add()
 		{
@@ -5052,7 +5123,7 @@ namespace Tomahawk
 				return;
 
 			if (Instance->getWorldArrayIndex() == -1)
-				Ref->World->addRigidBody(Instance);
+				Ref->GetWorld()->addRigidBody(Instance);
 		}
 		void RigidBody::Remove()
 		{
@@ -5060,21 +5131,19 @@ namespace Tomahawk
 				return;
 
 			if (Instance->getWorldArrayIndex() >= 0)
-				Ref->World->removeRigidBody(Instance);
+				Ref->GetWorld()->removeRigidBody(Instance);
 		}
 		void RigidBody::Activate(bool Force)
 		{
-			if (!Instance)
-				return;
-
-			Instance->activate(Force);
+			if (Instance)
+			    Instance->activate(Force);
 		}
-		void RigidBody::Push(Vector3 Velocity)
+		void RigidBody::Push(const Vector3& Velocity)
 		{
 			if (Instance)
 				Instance->applyCentralImpulse(BtV3(Velocity));
 		}
-		void RigidBody::Push(Vector3 Velocity, Vector3 Torque)
+		void RigidBody::Push(const Vector3& Velocity, const Vector3& Torque)
 		{
 			if (Instance)
 			{
@@ -5082,7 +5151,7 @@ namespace Tomahawk
 				Instance->applyTorqueImpulse(BtV3(Torque));
 			}
 		}
-		void RigidBody::Push(Vector3 Velocity, Vector3 Torque, Vector3 Center)
+		void RigidBody::Push(const Vector3& Velocity, const Vector3& Torque, const Vector3& Center)
 		{
 			if (Instance)
 			{
@@ -5090,7 +5159,7 @@ namespace Tomahawk
 				Instance->applyTorqueImpulse(BtV3(Torque));
 			}
 		}
-		void RigidBody::PushKinematically(Vector3 Velocity)
+		void RigidBody::PushKinematically(const Vector3& Velocity)
 		{
 			if (Instance)
 			{
@@ -5106,7 +5175,7 @@ namespace Tomahawk
 				Instance->getMotionState()->setWorldTransform(Offset);
 			}
 		}
-		void RigidBody::PushKinematically(Vector3 Velocity, Vector3 Torque)
+		void RigidBody::PushKinematically(const Vector3& Velocity, const Vector3& Torque)
 		{
 			if (Instance)
 			{
@@ -5130,27 +5199,27 @@ namespace Tomahawk
 			if (!Instance)
 				return;
 
-			if (Kinematically)
+			if (!Kinematically)
 			{
-				btTransform& Offset = Instance->getWorldTransform();
-				Offset.setOrigin(btVector3(Transform->Position.X, Transform->Position.Y, -Transform->Position.Z));
-				Offset.getBasis().setEulerZYX(Transform->Rotation.X, Transform->Rotation.Y, Transform->Rotation.Z);
-				Instance->getCollisionShape()->setLocalScaling(BtV3(Transform->Scale));
+                btTransform& Offset = Instance->getWorldTransform();
+                Transform->Rotation = Matrix4x4(&Offset).Rotation();
+
+                btVector3 Value = Offset.getOrigin();
+                Transform->Position.X = Value.getX();
+                Transform->Position.Y = Value.getY();
+                Transform->Position.Z = Value.getZ();
+
+                Value = Instance->getCollisionShape()->getLocalScaling();
+                Transform->Scale.X = Value.getX();
+                Transform->Scale.Y = Value.getY();
+                Transform->Scale.Z = Value.getZ();
 			}
 			else
 			{
-				btTransform& Offset = Instance->getWorldTransform();
-				Transform->Rotation = Matrix4x4(&Offset).Rotation();
-
-				btVector3 Value = Offset.getOrigin();
-				Transform->Position.X = Value.getX();
-				Transform->Position.Y = Value.getY();
-				Transform->Position.Z = Value.getZ();
-
-				Value = Instance->getCollisionShape()->getLocalScaling();
-				Transform->Scale.X = Value.getX();
-				Transform->Scale.Y = Value.getY();
-				Transform->Scale.Z = Value.getZ();
+                btTransform& Offset = Instance->getWorldTransform();
+                Offset.setOrigin(btVector3(Transform->Position.X, Transform->Position.Y, -Transform->Position.Z));
+                Offset.getBasis().setEulerZYX(Transform->Rotation.X, Transform->Rotation.Y, Transform->Rotation.Z);
+                Instance->getCollisionShape()->setLocalScaling(BtV3(Transform->Scale));
 			}
 		}
 		void RigidBody::SetActivity(bool Active)
@@ -5165,185 +5234,133 @@ namespace Tomahawk
 		}
 		void RigidBody::SetAsGhost()
 		{
-			if (!Instance)
-				return;
-
-			Instance->setCollisionFlags(btCollisionObject::CF_NO_CONTACT_RESPONSE);
+			if (Instance)
+			    Instance->setCollisionFlags(btCollisionObject::CF_NO_CONTACT_RESPONSE);
 		}
 		void RigidBody::SetAsNormal()
 		{
-			if (!Instance)
-				return;
-
-			Instance->setCollisionFlags(0);
+			if (Instance)
+			    Instance->setCollisionFlags(0);
 		}
 		void RigidBody::SetSelfPointer()
 		{
-			if (!Instance)
-				return;
-
-			Instance->setUserPointer(this);
+			if (Instance)
+			    Instance->setUserPointer(this);
 		}
 		void RigidBody::SetWorldTransform(btTransform* Value)
 		{
-			if (!Instance || !Value)
-				return;
-
-			Instance->setWorldTransform(*Value);
+			if (Instance && Value)
+			    Instance->setWorldTransform(*Value);
 		}
 		void RigidBody::SetActivationState(MotionState Value)
 		{
-			if (!Instance)
-				return;
-
-			Instance->forceActivationState((int)Value);
+			if (Instance)
+			    Instance->forceActivationState((int)Value);
 		}
 		void RigidBody::SetAngularDamping(float Value)
 		{
-			if (!Instance)
-				return;
-
-			Instance->setDamping(Instance->getLinearDamping(), Value);
+			if (Instance)
+			    Instance->setDamping(Instance->getLinearDamping(), Value);
 		}
 		void RigidBody::SetAngularSleepingThreshold(float Value)
 		{
-			if (!Instance)
-				return;
-
-			Instance->setSleepingThresholds(Instance->getLinearSleepingThreshold(), Value);
+			if (Instance)
+			    Instance->setSleepingThresholds(Instance->getLinearSleepingThreshold(), Value);
 		}
 		void RigidBody::SetFriction(float Value)
 		{
-			if (!Instance)
-				return;
-
-			Instance->setFriction(Value);
+			if (Instance)
+			    Instance->setFriction(Value);
 		}
 		void RigidBody::SetRestitution(float Value)
 		{
-			if (!Instance)
-				return;
-
-			Instance->setRestitution(Value);
+			if (Instance)
+			    Instance->setRestitution(Value);
 		}
 		void RigidBody::SetSpinningFriction(float Value)
 		{
-			if (!Instance)
-				return;
-
-			Instance->setSpinningFriction(Value);
+			if (Instance)
+			    Instance->setSpinningFriction(Value);
 		}
 		void RigidBody::SetContactStiffness(float Value)
 		{
-			if (!Instance)
-				return;
-
-			Instance->setContactStiffnessAndDamping(Value, Instance->getContactDamping());
+			if (Instance)
+			    Instance->setContactStiffnessAndDamping(Value, Instance->getContactDamping());
 		}
 		void RigidBody::SetContactDamping(float Value)
 		{
-			if (!Instance)
-				return;
-
-			Instance->setContactStiffnessAndDamping(Instance->getContactStiffness(), Value);
+			if (Instance)
+			    Instance->setContactStiffnessAndDamping(Instance->getContactStiffness(), Value);
 		}
 		void RigidBody::SetHitFraction(float Value)
 		{
-			if (!Instance)
-				return;
-
-			Instance->setHitFraction(Value);
+			if (Instance)
+			    Instance->setHitFraction(Value);
 		}
 		void RigidBody::SetLinearDamping(float Value)
 		{
-			if (!Instance)
-				return;
-
-			Instance->setDamping(Value, Instance->getAngularDamping());
+			if (Instance)
+			    Instance->setDamping(Value, Instance->getAngularDamping());
 		}
 		void RigidBody::SetLinearSleepingThreshold(float Value)
 		{
-			if (!Instance)
-				return;
-
-			Instance->setSleepingThresholds(Value, Instance->getAngularSleepingThreshold());
+			if (Instance)
+			    Instance->setSleepingThresholds(Value, Instance->getAngularSleepingThreshold());
 		}
 		void RigidBody::SetCcdMotionThreshold(float Value)
 		{
-			if (!Instance)
-				return;
-
-			Instance->setCcdMotionThreshold(Value);
+			if (Instance)
+			    Instance->setCcdMotionThreshold(Value);
 		}
 		void RigidBody::SetCcdSweptSphereRadius(float Value)
 		{
-			if (!Instance)
-				return;
-
-			Instance->setCcdSweptSphereRadius(Value);
+			if (Instance)
+			    Instance->setCcdSweptSphereRadius(Value);
 		}
 		void RigidBody::SetContactProcessingThreshold(float Value)
 		{
-			if (!Instance)
-				return;
-
-			Instance->setContactProcessingThreshold(Value);
+			if (Instance)
+			    Instance->setContactProcessingThreshold(Value);
 		}
 		void RigidBody::SetDeactivationTime(float Value)
 		{
-			if (!Instance)
-				return;
-
-			Instance->setDeactivationTime(Value);
+			if (Instance)
+			    Instance->setDeactivationTime(Value);
 		}
 		void RigidBody::SetRollingFriction(float Value)
 		{
-			if (!Instance)
-				return;
-
-			Instance->setRollingFriction(Value);
+			if (Instance)
+			    Instance->setRollingFriction(Value);
 		}
-		void RigidBody::SetAngularFactor(Vector3 Value)
+		void RigidBody::SetAngularFactor(const Vector3& Value)
 		{
-			if (!Instance)
-				return;
-
-			Instance->setAngularFactor(BtV3(Value));
+			if (Instance)
+			    Instance->setAngularFactor(BtV3(Value));
 		}
-		void RigidBody::SetAnisotropicFriction(Vector3 Value)
+		void RigidBody::SetAnisotropicFriction(const Vector3& Value)
 		{
-			if (!Instance)
-				return;
-
-			Instance->setAnisotropicFriction(BtV3(Value));
+			if (Instance)
+			    Instance->setAnisotropicFriction(BtV3(Value));
 		}
-		void RigidBody::SetGravity(Vector3 Value)
+		void RigidBody::SetGravity(const Vector3& Value)
 		{
-			if (!Instance)
-				return;
-
-			Instance->setGravity(BtV3(Value));
+			if (Instance)
+			    Instance->setGravity(BtV3(Value));
 		}
-		void RigidBody::SetLinearFactor(Vector3 Value)
+		void RigidBody::SetLinearFactor(const Vector3& Value)
 		{
-			if (!Instance)
-				return;
-
-			Instance->setLinearFactor(BtV3(Value));
+			if (Instance)
+			    Instance->setLinearFactor(BtV3(Value));
 		}
-		void RigidBody::SetLinearVelocity(Vector3 Value)
+		void RigidBody::SetLinearVelocity(const Vector3& Value)
 		{
-			if (!Instance)
-				return;
-
-			Instance->setLinearVelocity(BtV3(Value));
+			if (Instance)
+			    Instance->setLinearVelocity(BtV3(Value));
 		}
-		void RigidBody::SetAngularVelocity(Vector3 Value)
+		void RigidBody::SetAngularVelocity(const Vector3& Value)
 		{
-			if (!Instance)
-				return;
-
-			Instance->setAngularVelocity(BtV3(Value));
+			if (Instance)
+			    Instance->setAngularVelocity(BtV3(Value));
 		}
 		void RigidBody::SetCollisionShape(btCollisionShape* Shape, Transform* Transform)
 		{
@@ -5369,29 +5386,43 @@ namespace Tomahawk
 
 			Remove();
 			Instance->setMassProps(Mass, LocalInertia);
-			Instance->setGravity(Ref->World->getGravity());
+			Instance->setGravity(Ref->GetWorld()->getGravity());
 			Add();
 		}
+        void RigidBody::SetMass(Simulator* Root, float Mass)
+        {
+		    if (!Instance || !Root)
+		        return;
+
+            btVector3 Inertia = Root->GetWorld()->getGravity();
+
+            Remove();
+            Instance->setGravity(Inertia);
+            Instance->getCollisionShape()->calculateLocalInertia(Mass, Inertia);
+            Instance->setMassProps(Mass, Inertia);
+            Add();
+            Activate(true);
+        }
 		void RigidBody::SetCollisionFlags(UInt64 Flags)
 		{
 			if (Instance)
 				Instance->setCollisionFlags((int)Flags);
 		}
-		MotionState RigidBody::ActivationState()
+		MotionState RigidBody::GetActivationState()
 		{
 			if (!Instance)
 				return MotionState_Active;
 
 			return (MotionState)Instance->getActivationState();
 		}
-		Shape RigidBody::CollisionShapeType()
+		Shape RigidBody::GetCollisionShapeType()
 		{
 			if (!Instance || !Instance->getCollisionShape())
 				return Shape_Invalid;
 
 			return (Shape)Instance->getCollisionShape()->getShapeType();
 		}
-		Vector3 RigidBody::AngularFactor()
+		Vector3 RigidBody::GetAngularFactor()
 		{
 			if (!Instance)
 				return 0;
@@ -5399,7 +5430,7 @@ namespace Tomahawk
 			btVector3 Value = Instance->getAngularFactor();
 			return Vector3(Value.getX(), Value.getY(), Value.getZ());
 		}
-		Vector3 RigidBody::AnisotropicFriction()
+		Vector3 RigidBody::GetAnisotropicFriction()
 		{
 			if (!Instance)
 				return 0;
@@ -5407,7 +5438,7 @@ namespace Tomahawk
 			btVector3 Value = Instance->getAnisotropicFriction();
 			return Vector3(Value.getX(), Value.getY(), Value.getZ());
 		}
-		Vector3 RigidBody::Gravity()
+		Vector3 RigidBody::GetGravity()
 		{
 			if (!Instance)
 				return 0;
@@ -5415,7 +5446,7 @@ namespace Tomahawk
 			btVector3 Value = Instance->getGravity();
 			return Vector3(Value.getX(), Value.getY(), Value.getZ());
 		}
-		Vector3 RigidBody::LinearFactor()
+		Vector3 RigidBody::GetLinearFactor()
 		{
 			if (!Instance)
 				return 0;
@@ -5423,7 +5454,7 @@ namespace Tomahawk
 			btVector3 Value = Instance->getLinearFactor();
 			return Vector3(Value.getX(), Value.getY(), Value.getZ());
 		}
-		Vector3 RigidBody::LinearVelocity()
+		Vector3 RigidBody::GetLinearVelocity()
 		{
 			if (!Instance)
 				return 0;
@@ -5431,7 +5462,7 @@ namespace Tomahawk
 			btVector3 Value = Instance->getLinearVelocity();
 			return Vector3(Value.getX(), Value.getY(), Value.getZ());
 		}
-		Vector3 RigidBody::AngularVelocity()
+		Vector3 RigidBody::GetAngularVelocity()
 		{
 			if (!Instance)
 				return 0;
@@ -5439,7 +5470,7 @@ namespace Tomahawk
 			btVector3 Value = Instance->getAngularVelocity();
 			return Vector3(Value.getX(), Value.getY(), Value.getZ());
 		}
-		Vector3 RigidBody::Scale()
+		Vector3 RigidBody::GetScale()
 		{
 			if (!Instance || !Instance->getCollisionShape())
 				return Vector3(1, 1, 1);
@@ -5447,23 +5478,23 @@ namespace Tomahawk
 			btVector3 Value = Instance->getCollisionShape()->getLocalScaling();
 			return Vector3(Value.getX(), Value.getY(), Value.getZ());
 		}
-		Vector3 RigidBody::Position()
+		Vector3 RigidBody::GetPosition()
 		{
 			btVector3 Value = Instance->getWorldTransform().getOrigin();
 			return Vector3(Value.getX(), Value.getY(), Value.getZ());
 		}
-		Vector3 RigidBody::Rotation()
+		Vector3 RigidBody::GetRotation()
 		{
 			Vector3 Rotation = 0;
 			Instance->getWorldTransform().getBasis().getEulerZYX(Rotation.Z, Rotation.Y, Rotation.X);
 
 			return Rotation;
 		}
-		btTransform* RigidBody::WorldTransform()
+		btTransform* RigidBody::GetWorldTransform()
 		{
 			return &Instance->getWorldTransform();
 		}
-		btCollisionShape* RigidBody::CollisionShape()
+		btCollisionShape* RigidBody::GetCollisionShape()
 		{
 			if (!Instance)
 				return nullptr;
@@ -5502,146 +5533,775 @@ namespace Tomahawk
 
 			return Instance->hasContactResponse();
 		}
-		float RigidBody::SpinningFriction()
+		float RigidBody::GetSpinningFriction()
 		{
 			if (!Instance)
 				return 0;
 
 			return Instance->getSpinningFriction();
 		}
-		float RigidBody::ContactStiffness()
+		float RigidBody::GetContactStiffness()
 		{
 			if (!Instance)
 				return 0;
 
 			return Instance->getContactStiffness();
 		}
-		float RigidBody::ContactDamping()
+		float RigidBody::GetContactDamping()
 		{
 			if (!Instance)
 				return 0;
 
 			return Instance->getContactDamping();
 		}
-		float RigidBody::AngularDamping()
+		float RigidBody::GetAngularDamping()
 		{
 			if (!Instance)
 				return 0;
 
 			return Instance->getAngularDamping();
 		}
-		float RigidBody::AngularSleepingThreshold()
+		float RigidBody::GetAngularSleepingThreshold()
 		{
 			if (!Instance)
 				return 0;
 
 			return Instance->getAngularSleepingThreshold();
 		}
-		float RigidBody::Friction()
+		float RigidBody::GetFriction()
 		{
 			if (!Instance)
 				return 0;
 
 			return Instance->getFriction();
 		}
-		float RigidBody::Restitution()
+		float RigidBody::GetRestitution()
 		{
 			if (!Instance)
 				return 0;
 
 			return Instance->getRestitution();
 		}
-		float RigidBody::HitFraction()
+		float RigidBody::GetHitFraction()
 		{
 			if (!Instance)
 				return 0;
 
 			return Instance->getHitFraction();
 		}
-		float RigidBody::LinearDamping()
+		float RigidBody::GetLinearDamping()
 		{
 			if (!Instance)
 				return 0;
 
 			return Instance->getLinearDamping();
 		}
-		float RigidBody::LinearSleepingThreshold()
+		float RigidBody::GetLinearSleepingThreshold()
 		{
 			if (!Instance)
 				return 0;
 
 			return Instance->getLinearSleepingThreshold();
 		}
-		float RigidBody::CcdMotionThreshold()
+		float RigidBody::GetCcdMotionThreshold()
 		{
 			if (!Instance)
 				return 0;
 
 			return Instance->getCcdMotionThreshold();
 		}
-		float RigidBody::CcdSweptSphereRadius()
+		float RigidBody::GetCcdSweptSphereRadius()
 		{
 			if (!Instance)
 				return 0;
 
 			return Instance->getCcdSweptSphereRadius();
 		}
-		float RigidBody::ContactProcessingThreshold()
+		float RigidBody::GetContactProcessingThreshold()
 		{
 			if (!Instance)
 				return 0;
 
 			return Instance->getContactProcessingThreshold();
 		}
-		float RigidBody::DeactivationTime()
+		float RigidBody::GetDeactivationTime()
 		{
 			if (!Instance)
 				return 0;
 
 			return Instance->getDeactivationTime();
 		}
-		float RigidBody::RollingFriction()
+		float RigidBody::GetRollingFriction()
 		{
 			if (!Instance)
 				return 0;
 
 			return Instance->getRollingFriction();
 		}
-		float RigidBody::Mass()
+		float RigidBody::GetMass()
 		{
 			if (Instance && Instance->getInvMass() != 0)
 				return 1.0f / Instance->getInvMass();
 
 			return 0;
 		}
-		UInt64 RigidBody::CollisionFlags()
+		UInt64 RigidBody::GetCollisionFlags()
 		{
 			if (!Instance)
 				return 0;
 
 			return Instance->getCollisionFlags();
 		}
+		RigidBody* RigidBody::Get(btRigidBody* From)
+        {
+		    if (!From)
+		        return nullptr;
 
-		SliderConstraint::SliderConstraint(Simulator* Refer)
+		    return (RigidBody*)From->getUserPointer();
+        }
+
+        SoftBody::SoftBody(Simulator* Refer, const Desc& I) : UserPointer(nullptr), Instance(nullptr), Ref(Refer)
+        {
+		    if (!I.Transform || !Ref || !Ref->HasSoftBodySupport())
+                return;
+
+            btTransform BtTransform;
+            I.Transform->GetWorld(&BtTransform);
+
+            btSoftRigidDynamicsWorld* World = (btSoftRigidDynamicsWorld*)Ref->GetWorld();
+            btSoftBodyWorldInfo& Info = World->getWorldInfo();
+
+            Instance = btSoftBodyHelpers::CreateEllipsoid(Info, btVector3(), btVector3(), 1);
+            Instance->setUserPointer(this);
+
+            if (I.Anticipation > 0 && I.Mass > 0)
+            {
+                Instance->setCcdMotionThreshold(I.Anticipation);
+                Instance->setCcdSweptSphereRadius(I.Transform->Scale.Length() / 15.0f);
+            }
+        }
+        SoftBody::~SoftBody()
+        {
+            if (!Instance)
+                return;
+
+            Remove();
+            Instance->setUserPointer(nullptr);
+            delete Instance;
+        }
+        void SoftBody::Copy(SoftBody* Target)
+        {
+            UserPointer = Target->UserPointer;
+            if (!Target->Instance)
+                return;
+
+            Instance->setUserPointer(this);
+            SetSpinningFriction(Target->GetSpinningFriction());
+            SetContactDamping(Target->GetContactDamping());
+            SetContactStiffness(Target->GetContactStiffness());
+            SetActivationState(Target->GetActivationState());
+            SetFriction(Target->GetFriction());
+            SetRestitution(Target->GetRestitution());
+            SetHitFraction(Target->GetHitFraction());
+            SetCcdMotionThreshold(Target->GetCcdMotionThreshold());
+            SetCcdSweptSphereRadius(Target->GetCcdSweptSphereRadius());
+            SetContactProcessingThreshold(Target->GetContactProcessingThreshold());
+            SetDeactivationTime(Target->GetDeactivationTime());
+            SetRollingFriction(Target->GetRollingFriction());
+            SetAnisotropicFriction(Target->GetAnisotropicFriction());
+            SetWindVelocity(Target->GetWindVelocity());
+            SetContactStiffnessAndDamping(Target->GetContactStiffness(), GetContactDamping());
+            SetTotalMass(Target->GetTotalMass());
+            SetRestLengthScale(Target->GetRestLengthScale());
+            Instance->m_cfg = Target->Instance->m_cfg;
+            Instance->m_sst = Target->Instance->m_sst;
+            Instance->m_pose = Target->Instance->m_pose;
+            Instance->m_nodes = Target->Instance->m_nodes;
+            Instance->m_links = Target->Instance->m_links;
+            Instance->m_faces = Target->Instance->m_faces;
+            Instance->m_tetras = Target->Instance->m_tetras;
+            Instance->m_anchors = Target->Instance->m_anchors;
+            Instance->m_rcontacts = Target->Instance->m_rcontacts;
+            Instance->m_scontacts = Target->Instance->m_scontacts;
+            Instance->m_joints = Target->Instance->m_joints;
+            Instance->m_materials = Target->Instance->m_materials;
+            Instance->m_timeacc = Target->Instance->m_timeacc;
+            Instance->m_bounds[0] = Target->Instance->m_bounds[0];
+            Instance->m_bounds[1] = Target->Instance->m_bounds[1];
+            Instance->m_bUpdateRtCst = Target->Instance->m_bUpdateRtCst;
+            Instance->m_initialWorldTransform = Target->Instance->m_initialWorldTransform;
+        }
+        void SoftBody::Add()
+        {
+            if (!Instance)
+                return;
+
+            btSoftRigidDynamicsWorld* World = (btSoftRigidDynamicsWorld*)Ref->GetWorld();
+            if (Instance->getWorldArrayIndex() == -1)
+                World->addSoftBody(Instance);
+        }
+        void SoftBody::Remove()
+        {
+            if (!Instance)
+                return;
+
+            btSoftRigidDynamicsWorld* World = (btSoftRigidDynamicsWorld*)Ref->GetWorld();
+            if (Instance->getWorldArrayIndex() >= 0)
+                World->removeSoftBody(Instance);
+        }
+        void SoftBody::Activate(bool Force)
+        {
+            if (Instance)
+                Instance->activate(Force);
+        }
+        void SoftBody::Synchronize(Transform* Transform, bool Kinematically)
+        {
+            if (!Instance)
+                return;
+
+            if (!Kinematically)
+            {
+                btTransform& Offset = Instance->getWorldTransform();
+                Transform->Rotation = Matrix4x4(&Offset).Rotation();
+
+                btVector3 Value = Offset.getOrigin();
+                Transform->Position.X = Value.getX();
+                Transform->Position.Y = Value.getY();
+                Transform->Position.Z = Value.getZ();
+
+                Value = Instance->getCollisionShape()->getLocalScaling();
+                Transform->Scale.X = Value.getX();
+                Transform->Scale.Y = Value.getY();
+                Transform->Scale.Z = Value.getZ();
+            }
+            else
+            {
+                btTransform& Offset = Instance->getWorldTransform();
+                Offset.setOrigin(btVector3(Transform->Position.X, Transform->Position.Y, -Transform->Position.Z));
+                Offset.getBasis().setEulerZYX(Transform->Rotation.X, Transform->Rotation.Y, Transform->Rotation.Z);
+                Instance->getCollisionShape()->setLocalScaling(BtV3(Transform->Scale));
+            }
+        }
+        void SoftBody::SetContactStiffnessAndDamping(float Stiffness, float Damping)
+        {
+            if (Instance)
+                Instance->setContactStiffnessAndDamping(Stiffness, Damping);
+        }
+        void SoftBody::AppendNode(const Vector3& X, float Value)
+        {
+            if (Instance)
+                Instance->appendNode(BtV3(X), Value);
+        }
+        void SoftBody::AppendLink(int Node0, int Node1)
+        {
+            if (Instance)
+                Instance->appendLink(Node0, Node1);
+        }
+        void SoftBody::AppendFace(int Node0, int Node1, int Node2)
+        {
+            if (Instance)
+                Instance->appendFace(Node0, Node1, Node2);
+        }
+        void SoftBody::AppendTetra(int Node0, int Node1, int Node2, int Node3)
+        {
+            if (Instance)
+                Instance->appendTetra(Node0, Node1, Node2, Node3);
+        }
+        void SoftBody::AppendAnchor(int Node, RigidBody* Body, bool DisableCollisionBetweenLinkedBodies, float Influence)
+        {
+            if (Instance && Body)
+                Instance->appendAnchor(Node, Body->Bullet(), DisableCollisionBetweenLinkedBodies, Influence);
+        }
+        void SoftBody::AppendAnchor(int Node, RigidBody* Body, const Vector3& LocalPivot, bool DisableCollisionBetweenLinkedBodies, float Influence)
+        {
+            if (Instance && Body)
+                Instance->appendAnchor(Node, Body->Bullet(), BtV3(LocalPivot), DisableCollisionBetweenLinkedBodies, Influence);
+        }
+        void SoftBody::AddForce(const Vector3& Force)
+        {
+            if (Instance)
+                Instance->addForce(BtV3(Force));
+        }
+        void SoftBody::AddForce(const Vector3& Force, int Node)
+        {
+            if (Instance)
+                Instance->addForce(BtV3(Force), Node);
+        }
+        void SoftBody::AddAeroForceToNode(const Vector3& WindVelocity, int NodeIndex)
+        {
+            if (Instance)
+                Instance->addAeroForceToNode(BtV3(WindVelocity), NodeIndex);
+        }
+        void SoftBody::AddAeroForceToFace(const Vector3& WindVelocity, int FaceIndex)
+        {
+            if (Instance)
+                Instance->addAeroForceToFace(BtV3(WindVelocity), FaceIndex);
+        }
+        void SoftBody::AddVelocity(const Vector3& Velocity)
+        {
+            if (Instance)
+                Instance->addVelocity(BtV3(Velocity));
+        }
+        void SoftBody::SetVelocity(const Vector3& Velocity)
+        {
+            if (Instance)
+                Instance->setVelocity(BtV3(Velocity));
+        }
+        void SoftBody::AddVelocity(const Vector3& Velocity, int Node)
+        {
+            if (Instance)
+                Instance->addVelocity(BtV3(Velocity), Node);
+        }
+        void SoftBody::SetMass(int Node, float Mass)
+        {
+            if (Instance)
+                Instance->setMass(Node, Mass);
+        }
+        void SoftBody::SetTotalMass(float Mass, bool FromFaces)
+        {
+            if (Instance)
+                Instance->setTotalMass(Mass, FromFaces);
+        }
+        void SoftBody::SetTotalDensity(float Density)
+        {
+            if (Instance)
+                Instance->setTotalDensity(Density);
+        }
+        void SoftBody::SetVolumeMass(float Mass)
+        {
+            if (Instance)
+                Instance->setVolumeMass(Mass);
+        }
+        void SoftBody::SetVolumeDensity(float Density)
+        {
+            if (Instance)
+                Instance->setVolumeDensity(Density);
+        }
+        void SoftBody::SetTransform(Transform* Base)
+        {
+            if (!Instance || !Base)
+                return;
+
+            btTransform Offset;
+            Offset.setOrigin(btVector3(Base->Position.X, Base->Position.Y, -Base->Position.Z));
+            Offset.getBasis().setEulerZYX(Base->Rotation.X, Base->Rotation.Y, Base->Rotation.Z);
+            Base->Rotation = Matrix4x4(&Offset).Rotation();
+
+            Instance->transform(Offset);
+            Instance->scale(BtV3(Base->Scale));
+        }
+        void SoftBody::SetPosition(const Vector3& Position)
+        {
+            if (Instance)
+                Instance->translate(BtV3(Position));
+        }
+        void SoftBody::SetRotation(const Vector3& Rotation)
+        {
+            if (Instance)
+            {
+                btQuaternion Value;
+                Value.setEulerZYX(Rotation.X, Rotation.Y, Rotation.Z);
+                Instance->rotate(Value);
+            }
+        }
+        void SoftBody::SetScale(const Vector3& Scale)
+        {
+            if (Instance)
+                Instance->scale(BtV3(Scale));
+        }
+        void SoftBody::SetRestLengthScale(float RestLength)
+        {
+            if (Instance)
+                Instance->setRestLengthScale(RestLength);
+        }
+        void SoftBody::SetPose(bool Volume, bool Frame)
+        {
+            if (Instance)
+                Instance->setPose(Volume, Frame);
+        }
+        float SoftBody::GetMass(int Node) const
+        {
+            if (!Instance)
+                return 0;
+
+            return Instance->getMass(Node);
+        }
+        float SoftBody::GetTotalMass() const
+        {
+            if (!Instance)
+                return 0;
+
+            return Instance->getTotalMass();
+        }
+        float SoftBody::GetRestLengthScale()
+        {
+            if (!Instance)
+                return 0;
+
+            return Instance->getRestLengthScale();
+        }
+        float SoftBody::GetVolume() const
+        {
+            if (!Instance)
+                return 0;
+
+            return Instance->getVolume();
+        }
+        int SoftBody::GenerateBendingConstraints(int Distance)
+        {
+            if (Instance)
+                Instance->generateBendingConstraints(Distance);
+        }
+        void SoftBody::RandomizeConstraints()
+        {
+            if (Instance)
+                Instance->randomizeConstraints();
+        }
+        bool SoftBody::CutLink(int Node0, int Node1, float Position)
+        {
+            if (!Instance)
+                return false;
+
+            return Instance->cutLink(Node0, Node1, Position);
+        }
+        bool SoftBody::RayTest(const Vector3& From, const Vector3& To, RayCast& Result)
+        {
+            if (!Instance)
+                return false;
+
+            btSoftBody::sRayCast Cast;
+            bool R = Instance->rayTest(BtV3(From), BtV3(To), Cast);
+            Result.Body = Get(Cast.body);
+            Result.Feature = (SoftFeature)Cast.feature;
+            Result.Index = Cast.index;
+            Result.Fraction = Cast.fraction;
+
+            return R;
+        }
+        void SoftBody::SetWindVelocity(const Vector3& Velocity)
+        {
+            if (Instance)
+                Instance->setWindVelocity(BtV3(Velocity));
+        }
+        Vector3 SoftBody::GetWindVelocity()
+        {
+            if (!Instance)
+                return 0;
+
+            btVector3 Value = Instance->getWindVelocity();
+            return V3Bt(Value);
+        }
+        void SoftBody::GetAabb(Vector3& Min, Vector3& Max) const
+        {
+            if (!Instance)
+                return;
+
+            btVector3 BMin, BMax;
+            Instance->getAabb(BMin, BMax);
+            Min = V3Bt(BMin); Max = V3Bt(BMax);
+        }
+        void SoftBody::IndicesToPointers(const int* Map)
+        {
+            if (Instance)
+                Instance->indicesToPointers(Map);
+        }
+        void SoftBody::SetSpinningFriction(float Value)
+        {
+            if (Instance)
+                Instance->setSpinningFriction(Value);
+        }
+        SoftBody::Material SoftBody::AppendMaterial()
+        {
+            if (!Instance)
+                return Material();
+
+
+        }
+        Vector3 SoftBody::GetLinearVelocity()
+        {
+            if (!Instance)
+                return 0;
+
+            btVector3 Value = Instance->getInterpolationLinearVelocity();
+            return Vector3(Value.getX(), Value.getY(), Value.getZ());
+        }
+        Vector3 SoftBody::GetAngularVelocity()
+        {
+            if (!Instance)
+                return 0;
+
+            btVector3 Value = Instance->getInterpolationAngularVelocity();
+            return Vector3(Value.getX(), Value.getY(), Value.getZ());
+        }
+        void SoftBody::SetActivity(bool Active)
+        {
+            if (!Instance)
+                return;
+
+            if (Active)
+                Instance->forceActivationState(MotionState_Active);
+            else
+                Instance->forceActivationState(MotionState_Deactivation_Needed);
+        }
+        void SoftBody::SetAsGhost()
+        {
+            if (Instance)
+                Instance->setCollisionFlags(btCollisionObject::CF_NO_CONTACT_RESPONSE);
+        }
+        void SoftBody::SetAsNormal()
+        {
+            if (Instance)
+                Instance->setCollisionFlags(0);
+        }
+        void SoftBody::SetSelfPointer()
+        {
+            if (Instance)
+                Instance->setUserPointer(this);
+        }
+        void SoftBody::SetWorldTransform(btTransform* Value)
+        {
+            if (Instance && Value)
+                Instance->setWorldTransform(*Value);
+        }
+        void SoftBody::SetActivationState(MotionState Value)
+        {
+            if (Instance)
+                Instance->forceActivationState((int)Value);
+        }
+        void SoftBody::SetFriction(float Value)
+        {
+            if (Instance)
+                Instance->setFriction(Value);
+        }
+        void SoftBody::SetRestitution(float Value)
+        {
+            if (Instance)
+                Instance->setRestitution(Value);
+        }
+        void SoftBody::SetContactStiffness(float Value)
+        {
+            if (Instance)
+                Instance->setContactStiffnessAndDamping(Value, Instance->getContactDamping());
+        }
+        void SoftBody::SetContactDamping(float Value)
+        {
+            if (Instance)
+                Instance->setContactStiffnessAndDamping(Instance->getContactStiffness(), Value);
+        }
+        void SoftBody::SetHitFraction(float Value)
+        {
+            if (Instance)
+                Instance->setHitFraction(Value);
+        }
+        void SoftBody::SetCcdMotionThreshold(float Value)
+        {
+            if (Instance)
+                Instance->setCcdMotionThreshold(Value);
+        }
+        void SoftBody::SetCcdSweptSphereRadius(float Value)
+        {
+            if (Instance)
+                Instance->setCcdSweptSphereRadius(Value);
+        }
+        void SoftBody::SetContactProcessingThreshold(float Value)
+        {
+            if (Instance)
+                Instance->setContactProcessingThreshold(Value);
+        }
+        void SoftBody::SetDeactivationTime(float Value)
+        {
+            if (Instance)
+                Instance->setDeactivationTime(Value);
+        }
+        void SoftBody::SetRollingFriction(float Value)
+        {
+            if (Instance)
+                Instance->setRollingFriction(Value);
+        }
+        void SoftBody::SetAnisotropicFriction(const Vector3& Value)
+        {
+            if (Instance)
+                Instance->setAnisotropicFriction(BtV3(Value));
+        }
+        MotionState SoftBody::GetActivationState()
+        {
+            if (!Instance)
+                return MotionState_Active;
+
+            return (MotionState)Instance->getActivationState();
+        }
+        Vector3 SoftBody::GetAnisotropicFriction()
+        {
+            if (!Instance)
+                return 0;
+
+            btVector3 Value = Instance->getAnisotropicFriction();
+            return Vector3(Value.getX(), Value.getY(), Value.getZ());
+        }
+        Vector3 SoftBody::GetScale()
+        {
+            if (!Instance || !Instance->getCollisionShape())
+                return Vector3(1, 1, 1);
+
+            btVector3 Value = Instance->getCollisionShape()->getLocalScaling();
+            return Vector3(Value.getX(), Value.getY(), Value.getZ());
+        }
+        Vector3 SoftBody::GetPosition()
+        {
+            btVector3 Value = Instance->getWorldTransform().getOrigin();
+            return Vector3(Value.getX(), Value.getY(), Value.getZ());
+        }
+        Vector3 SoftBody::GetRotation()
+        {
+            Vector3 Rotation = 0;
+            Instance->getWorldTransform().getBasis().getEulerZYX(Rotation.Z, Rotation.Y, Rotation.X);
+
+            return Rotation;
+        }
+        btTransform* SoftBody::GetWorldTransform()
+        {
+            return &Instance->getWorldTransform();
+        }
+        btSoftBody* SoftBody::Bullet()
+        {
+            return Instance;
+        }
+        bool SoftBody::IsGhost()
+        {
+            if (!Instance)
+                return false;
+
+            return (Instance->getCollisionFlags() & btCollisionObject::CF_NO_CONTACT_RESPONSE) != 0;
+        }
+        bool SoftBody::IsActive()
+        {
+            if (!Instance)
+                return false;
+
+            return Instance->isActive();
+        }
+        bool SoftBody::IsStatic()
+        {
+            if (!Instance)
+                return false;
+
+            return Instance->isStaticObject();
+        }
+        bool SoftBody::IsColliding()
+        {
+            if (!Instance)
+                return false;
+
+            return Instance->hasContactResponse();
+        }
+        float SoftBody::GetSpinningFriction()
+        {
+            if (!Instance)
+                return 0;
+
+            return Instance->getSpinningFriction();
+        }
+        float SoftBody::GetContactStiffness()
+        {
+            if (!Instance)
+                return 0;
+
+            return Instance->getContactStiffness();
+        }
+        float SoftBody::GetContactDamping()
+        {
+            if (!Instance)
+                return 0;
+
+            return Instance->getContactDamping();
+        }
+        float SoftBody::GetFriction()
+        {
+            if (!Instance)
+                return 0;
+
+            return Instance->getFriction();
+        }
+        float SoftBody::GetRestitution()
+        {
+            if (!Instance)
+                return 0;
+
+            return Instance->getRestitution();
+        }
+        float SoftBody::GetHitFraction()
+        {
+            if (!Instance)
+                return 0;
+
+            return Instance->getHitFraction();
+        }
+        float SoftBody::GetCcdMotionThreshold()
+        {
+            if (!Instance)
+                return 0;
+
+            return Instance->getCcdMotionThreshold();
+        }
+        float SoftBody::GetCcdSweptSphereRadius()
+        {
+            if (!Instance)
+                return 0;
+
+            return Instance->getCcdSweptSphereRadius();
+        }
+        float SoftBody::GetContactProcessingThreshold()
+        {
+            if (!Instance)
+                return 0;
+
+            return Instance->getContactProcessingThreshold();
+        }
+        float SoftBody::GetDeactivationTime()
+        {
+            if (!Instance)
+                return 0;
+
+            return Instance->getDeactivationTime();
+        }
+        float SoftBody::GetRollingFriction()
+        {
+            if (!Instance)
+                return 0;
+
+            return Instance->getRollingFriction();
+        }
+        UInt64 SoftBody::GetCollisionFlags()
+        {
+            if (!Instance)
+                return 0;
+
+            return Instance->getCollisionFlags();
+        }
+        SoftBody* SoftBody::Get(btSoftBody* From)
+        {
+            if (!From)
+                return nullptr;
+
+            return (SoftBody*)From->getUserPointer();
+        }
+
+		SliderConstraint::SliderConstraint(Simulator* Refer, const Desc& I) : First(nullptr), Second(nullptr), Constraint(nullptr), UserPointer(nullptr), Ref(Refer)
 		{
-			First = nullptr;
-			Second = nullptr;
-			Constraint = nullptr;
-			UserPointer = nullptr;
-			Ref = Refer;
+		    if (!I.Target1 || !I.Target2 || !Ref)
+		        return;
+
+            First = I.Target1->Bullet(); Second = I.Target2->Bullet();
+            Constraint = new btSliderConstraint(*First, *Second, btTransform::getIdentity(), btTransform::getIdentity(), I.UseLinearPower);
+            Constraint->setUpperLinLimit(20);
+            Constraint->setLowerLinLimit(10);
+
+            Ref->AddSliderConstraint(this, !I.UseCollisions);
 		}
 		SliderConstraint::~SliderConstraint()
 		{
 			Ref->RemoveSliderConstraint(this);
-			if (Constraint != nullptr)
-			{
-				delete Constraint;
-				Constraint = nullptr;
-			}
-
-			Ref = nullptr;
-			First = Second = nullptr;
-			UserPointer = nullptr;
+			delete Constraint;
 		}
 		void SliderConstraint::Copy(SliderConstraint* Target)
 		{
@@ -5649,46 +6309,37 @@ namespace Tomahawk
 			if (!Target->Constraint)
 				return;
 
-			SetAngularMotorVelocity(Target->AngularMotorVelocity());
-			SetLinearMotorVelocity(Target->LinearMotorVelocity());
-			SetUpperLinearLimit(Target->UpperLinearLimit());
-			SetLowerLinearLimit(Target->LowerLinearLimit());
-			SetBreakingImpulseThreshold(Target->BreakingImpulseThreshold());
-			SetAngularDampingDirection(Target->AngularDampingDirection());
-			SetLinearDampingDirection(Target->LinearDampingDirection());
-			SetAngularDampingLimit(Target->AngularDampingLimit());
-			SetLinearDampingLimit(Target->LinearDampingLimit());
-			SetAngularDampingOrtho(Target->AngularDampingOrtho());
-			SetLinearDampingOrtho(Target->LinearDampingOrtho());
-			SetUpperAngularLimit(Target->UpperAngularLimit());
-			SetLowerAngularLimit(Target->LowerAngularLimit());
-			SetMaxAngularMotorForce(Target->MaxAngularMotorForce());
-			SetMaxLinearMotorForce(Target->MaxLinearMotorForce());
-			SetAngularRestitutionDirection(Target->AngularRestitutionDirection());
-			SetLinearRestitutionDirection(Target->LinearRestitutionDirection());
-			SetAngularRestitutionLimit(Target->AngularRestitutionLimit());
-			SetLinearRestitutionLimit(Target->LinearRestitutionLimit());
-			SetAngularRestitutionOrtho(Target->AngularRestitutionOrtho());
-			SetLinearRestitutionOrtho(Target->LinearRestitutionOrtho());
-			SetAngularSoftnessDirection(Target->AngularSoftnessDirection());
-			SetLinearSoftnessDirection(Target->LinearSoftnessDirection());
-			SetAngularSoftnessLimit(Target->AngularSoftnessLimit());
-			SetLinearSoftnessLimit(Target->LinearSoftnessLimit());
-			SetAngularSoftnessOrtho(Target->AngularSoftnessOrtho());
-			SetLinearSoftnessOrtho(Target->LinearSoftnessOrtho());
-			SetPoweredAngularMotor(Target->PoweredAngularMotor());
-			SetPoweredLinearMotor(Target->PoweredLinearMotor());
-			SetEnabled(Target->Enabled());
+			SetAngularMotorVelocity(Target->GetAngularMotorVelocity());
+			SetLinearMotorVelocity(Target->GetLinearMotorVelocity());
+			SetUpperLinearLimit(Target->GetUpperLinearLimit());
+			SetLowerLinearLimit(Target->GetLowerLinearLimit());
+			SetBreakingImpulseThreshold(Target->GetBreakingImpulseThreshold());
+			SetAngularDampingDirection(Target->GetAngularDampingDirection());
+			SetLinearDampingDirection(Target->GetLinearDampingDirection());
+			SetAngularDampingLimit(Target->GetAngularDampingLimit());
+			SetLinearDampingLimit(Target->GetLinearDampingLimit());
+			SetAngularDampingOrtho(Target->GetAngularDampingOrtho());
+			SetLinearDampingOrtho(Target->GetLinearDampingOrtho());
+			SetUpperAngularLimit(Target->GetUpperAngularLimit());
+			SetLowerAngularLimit(Target->GetLowerAngularLimit());
+			SetMaxAngularMotorForce(Target->GetMaxAngularMotorForce());
+			SetMaxLinearMotorForce(Target->GetMaxLinearMotorForce());
+			SetAngularRestitutionDirection(Target->GetAngularRestitutionDirection());
+			SetLinearRestitutionDirection(Target->GetLinearRestitutionDirection());
+			SetAngularRestitutionLimit(Target->GetAngularRestitutionLimit());
+			SetLinearRestitutionLimit(Target->GetLinearRestitutionLimit());
+			SetAngularRestitutionOrtho(Target->GetAngularRestitutionOrtho());
+			SetLinearRestitutionOrtho(Target->GetLinearRestitutionOrtho());
+			SetAngularSoftnessDirection(Target->GetAngularSoftnessDirection());
+			SetLinearSoftnessDirection(Target->GetLinearSoftnessDirection());
+			SetAngularSoftnessLimit(Target->GetAngularSoftnessLimit());
+			SetLinearSoftnessLimit(Target->GetLinearSoftnessLimit());
+			SetAngularSoftnessOrtho(Target->GetAngularSoftnessOrtho());
+			SetLinearSoftnessOrtho(Target->GetLinearSoftnessOrtho());
+			SetPoweredAngularMotor(Target->GetPoweredAngularMotor());
+			SetPoweredLinearMotor(Target->GetPoweredLinearMotor());
+			SetEnabled(Target->IsEnabled());
 			Ref->AddSliderConstraint(this, Target->FindCollisionState());
-		}
-		void SliderConstraint::Initialize(RigidBody* A, RigidBody* B, bool UseCollisions, bool UseLinearPower)
-		{
-			First = A->Bullet(); Second = A->Bullet();
-			Constraint = new btSliderConstraint(*A->Bullet(), *B->Bullet(), btTransform::getIdentity(), btTransform::getIdentity(), UseLinearPower);
-			Constraint->setUpperLinLimit(20);
-			Constraint->setLowerLinLimit(10);
-
-			Ref->AddSliderConstraint(this, !UseCollisions);
 		}
 		void SliderConstraint::SetAngularMotorVelocity(float Value)
 		{
@@ -5852,203 +6503,203 @@ namespace Tomahawk
 		{
 			return Second;
 		}
-		float SliderConstraint::AngularMotorVelocity()
+		float SliderConstraint::GetAngularMotorVelocity()
 		{
 			if (!Constraint)
 				return 0;
 
 			return Constraint->getTargetAngMotorVelocity();
 		}
-		float SliderConstraint::LinearMotorVelocity()
+		float SliderConstraint::GetLinearMotorVelocity()
 		{
 			if (!Constraint)
 				return 0;
 
 			return Constraint->getTargetLinMotorVelocity();
 		}
-		float SliderConstraint::UpperLinearLimit()
+		float SliderConstraint::GetUpperLinearLimit()
 		{
 			if (!Constraint)
 				return 0;
 
 			return Constraint->getUpperLinLimit();
 		}
-		float SliderConstraint::LowerLinearLimit()
+		float SliderConstraint::GetLowerLinearLimit()
 		{
 			if (!Constraint)
 				return 0;
 
 			return Constraint->getLowerLinLimit();
 		}
-		float SliderConstraint::BreakingImpulseThreshold()
+		float SliderConstraint::GetBreakingImpulseThreshold()
 		{
 			if (!Constraint)
 				return 0;
 
 			return Constraint->getBreakingImpulseThreshold();
 		}
-		float SliderConstraint::AngularDampingDirection()
+		float SliderConstraint::GetAngularDampingDirection()
 		{
 			if (!Constraint)
 				return 0;
 
 			return Constraint->getDampingDirAng();
 		}
-		float SliderConstraint::LinearDampingDirection()
+		float SliderConstraint::GetLinearDampingDirection()
 		{
 			if (!Constraint)
 				return 0;
 
 			return Constraint->getDampingDirLin();
 		}
-		float SliderConstraint::AngularDampingLimit()
+		float SliderConstraint::GetAngularDampingLimit()
 		{
 			if (!Constraint)
 				return 0;
 
 			return Constraint->getDampingLimAng();
 		}
-		float SliderConstraint::LinearDampingLimit()
+		float SliderConstraint::GetLinearDampingLimit()
 		{
 			if (!Constraint)
 				return 0;
 
 			return Constraint->getDampingLimLin();
 		}
-		float SliderConstraint::AngularDampingOrtho()
+		float SliderConstraint::GetAngularDampingOrtho()
 		{
 			if (!Constraint)
 				return 0;
 
 			return Constraint->getDampingOrthoAng();
 		}
-		float SliderConstraint::LinearDampingOrtho()
+		float SliderConstraint::GetLinearDampingOrtho()
 		{
 			if (!Constraint)
 				return 0;
 
 			return Constraint->getDampingOrthoLin();
 		}
-		float SliderConstraint::UpperAngularLimit()
+		float SliderConstraint::GetUpperAngularLimit()
 		{
 			if (!Constraint)
 				return 0;
 
 			return Constraint->getUpperAngLimit();
 		}
-		float SliderConstraint::LowerAngularLimit()
+		float SliderConstraint::GetLowerAngularLimit()
 		{
 			if (!Constraint)
 				return 0;
 
 			return Constraint->getLowerAngLimit();
 		}
-		float SliderConstraint::MaxAngularMotorForce()
+		float SliderConstraint::GetMaxAngularMotorForce()
 		{
 			if (!Constraint)
 				return 0;
 
 			return Constraint->getMaxAngMotorForce();
 		}
-		float SliderConstraint::MaxLinearMotorForce()
+		float SliderConstraint::GetMaxLinearMotorForce()
 		{
 			if (!Constraint)
 				return 0;
 
 			return Constraint->getMaxLinMotorForce();
 		}
-		float SliderConstraint::AngularRestitutionDirection()
+		float SliderConstraint::GetAngularRestitutionDirection()
 		{
 			if (!Constraint)
 				return 0;
 
 			return Constraint->getRestitutionDirAng();
 		}
-		float SliderConstraint::LinearRestitutionDirection()
+		float SliderConstraint::GetLinearRestitutionDirection()
 		{
 			if (!Constraint)
 				return 0;
 
 			return Constraint->getRestitutionDirLin();
 		}
-		float SliderConstraint::AngularRestitutionLimit()
+		float SliderConstraint::GetAngularRestitutionLimit()
 		{
 			if (!Constraint)
 				return 0;
 
 			return Constraint->getRestitutionLimAng();
 		}
-		float SliderConstraint::LinearRestitutionLimit()
+		float SliderConstraint::GetLinearRestitutionLimit()
 		{
 			if (!Constraint)
 				return 0;
 
 			return Constraint->getRestitutionLimLin();
 		}
-		float SliderConstraint::AngularRestitutionOrtho()
+		float SliderConstraint::GetAngularRestitutionOrtho()
 		{
 			if (!Constraint)
 				return 0;
 
 			return Constraint->getRestitutionOrthoAng();
 		}
-		float SliderConstraint::LinearRestitutionOrtho()
+		float SliderConstraint::GetLinearRestitutionOrtho()
 		{
 			if (!Constraint)
 				return 0;
 
 			return Constraint->getRestitutionOrthoLin();
 		}
-		float SliderConstraint::AngularSoftnessDirection()
+		float SliderConstraint::GetAngularSoftnessDirection()
 		{
 			if (!Constraint)
 				return 0;
 
 			return Constraint->getSoftnessDirAng();
 		}
-		float SliderConstraint::LinearSoftnessDirection()
+		float SliderConstraint::GetLinearSoftnessDirection()
 		{
 			if (!Constraint)
 				return 0;
 
 			return Constraint->getSoftnessDirLin();
 		}
-		float SliderConstraint::AngularSoftnessLimit()
+		float SliderConstraint::GetAngularSoftnessLimit()
 		{
 			if (!Constraint)
 				return 0;
 
 			return Constraint->getSoftnessLimAng();
 		}
-		float SliderConstraint::LinearSoftnessLimit()
+		float SliderConstraint::GetLinearSoftnessLimit()
 		{
 			if (!Constraint)
 				return 0;
 
 			return Constraint->getSoftnessLimLin();
 		}
-		float SliderConstraint::AngularSoftnessOrtho()
+		float SliderConstraint::GetAngularSoftnessOrtho()
 		{
 			if (!Constraint)
 				return 0;
 
 			return Constraint->getSoftnessOrthoAng();
 		}
-		float SliderConstraint::LinearSoftnessOrtho()
+		float SliderConstraint::GetLinearSoftnessOrtho()
 		{
 			if (!Constraint)
 				return 0;
 
 			return Constraint->getSoftnessOrthoLin();
 		}
-		bool SliderConstraint::PoweredAngularMotor()
+		bool SliderConstraint::GetPoweredAngularMotor()
 		{
 			if (!Constraint)
 				return 0;
 
 			return Constraint->getPoweredAngMotor();
 		}
-		bool SliderConstraint::PoweredLinearMotor()
+		bool SliderConstraint::GetPoweredLinearMotor()
 		{
 			if (!Constraint)
 				return 0;
@@ -6088,7 +6739,7 @@ namespace Tomahawk
 
 			return Constraint->getUseLinearReferenceFrameA();
 		}
-		bool SliderConstraint::Enabled()
+		bool SliderConstraint::IsEnabled()
 		{
 			if (!Constraint)
 				return 0;
@@ -6096,74 +6747,93 @@ namespace Tomahawk
 			return Constraint->isEnabled();
 		}
 
-		Simulator::Simulator()
+		Simulator::Simulator(const Desc& I) : Active(true), Interpolate(1), TimeSpeed(1), SoftSolver(nullptr)
 		{
-			CollisionConfiguration = new btDefaultCollisionConfiguration();
-			Dispatcher = new btCollisionDispatcher(CollisionConfiguration);
-			OverlappingPairCache = new btDbvtBroadphase();
-			Solver = new btSequentialImpulseConstraintSolver();
-			World = new btDiscreteDynamicsWorld(Dispatcher, OverlappingPairCache, Solver, CollisionConfiguration);
-			World->setGravity(btVector3(0, -10, 0));
+            Broadphase = new btDbvtBroadphase();
+            Solver = new btSequentialImpulseConstraintSolver();
 
+		    if (I.EnableSoftBody)
+		    {
+                SoftSolver = new btDefaultSoftBodySolver();
+                Collision = new btSoftBodyRigidBodyCollisionConfiguration();
+                Dispatcher = new btCollisionDispatcher(Collision);
+                World = new btSoftRigidDynamicsWorld(Dispatcher, Broadphase, Solver, Collision, SoftSolver);
+
+                btSoftRigidDynamicsWorld* SoftWorld = (btSoftRigidDynamicsWorld*)World;
+                btSoftBodyWorldInfo& Info = SoftWorld->getWorldInfo();
+                Info.m_gravity = BtV3(I.Gravity);
+                Info.water_normal = BtV3(I.WaterNormal);
+                Info.water_density = I.WaterDensity;
+                Info.water_offset = I.WaterOffset;
+                Info.air_density = I.AirDensity;
+                Info.m_maxDisplacement = I.MaxDisplacement;
+		    }
+		    else
+            {
+                Collision = new btDefaultCollisionConfiguration();
+                Dispatcher = new btCollisionDispatcher(Collision);
+                World = new btDiscreteDynamicsWorld(Dispatcher, Broadphase, Solver, Collision);
+            }
+
+		    World->setWorldUserInfo(this);
+		    World->setGravity(BtV3(I.Gravity));
 			gContactAddedCallback = nullptr;
 			gContactDestroyedCallback = nullptr;
 			gContactProcessedCallback = nullptr;
 			gContactStartedCallback = [](btPersistentManifold* const& Manifold) -> void
 			{
-				RigidBody* Body = (RigidBody*)(Manifold->getBody0()->getUserPointer());
-				if (Body != nullptr && Body->OnCollisionEnter)
-					Body->OnCollisionEnter((RigidBody*)(Manifold->getBody1()->getUserPointer()));
+				btCollisionObject* Body1 = (btCollisionObject*)Manifold->getBody0();
+				btRigidBody* Rigid1 = btRigidBody::upcast(Body1);
+                btSoftBody* Soft1 = btSoftBody::upcast(Body1);
+
+                if (Rigid1 != nullptr)
+                {
+                    RigidBody* Body = (RigidBody*)Rigid1->getUserPointer();
+                    if (Body != nullptr && Body->OnCollisionEnter)
+                        Body->OnCollisionEnter(CollisionBody((btCollisionObject*)Manifold->getBody1()));
+                }
+                else if (Soft1 != nullptr)
+                {
+                    SoftBody* Body = (SoftBody*)Soft1->getUserPointer();
+                    if (Body != nullptr && Body->OnCollisionEnter)
+                        Body->OnCollisionEnter(CollisionBody((btCollisionObject*)Manifold->getBody1()));
+                }
 			};
 			gContactEndedCallback = [](btPersistentManifold* const& Manifold) -> void
 			{
-				RigidBody* Body = (RigidBody*)(Manifold->getBody0()->getUserPointer());
-				if (Body != nullptr && Body->OnCollisionExit)
-					Body->OnCollisionExit((RigidBody*)(Manifold->getBody1()->getUserPointer()));
-			};
+                btCollisionObject* Body1 = (btCollisionObject*)Manifold->getBody0();
+                btRigidBody* Rigid1 = btRigidBody::upcast(Body1);
+                btSoftBody* Soft1 = btSoftBody::upcast(Body1);
 
-			Active = true;
-			Interpolate = 1;
-			TimeSpeed = 1;
+                if (Rigid1 != nullptr)
+                {
+                    RigidBody* Body = (RigidBody*)Rigid1->getUserPointer();
+                    if (Body != nullptr && Body->OnCollisionEnter)
+                        Body->OnCollisionExit(CollisionBody((btCollisionObject*)Manifold->getBody1()));
+                }
+                else if (Soft1 != nullptr)
+                {
+                    SoftBody* Body = (SoftBody*)Soft1->getUserPointer();
+                    if (Body != nullptr && Body->OnCollisionEnter)
+                        Body->OnCollisionExit(CollisionBody((btCollisionObject*)Manifold->getBody1()));
+                }
+			};
 		}
 		Simulator::~Simulator()
 		{
 			RemoveAll();
-
-			if (World != nullptr)
-			{
-				delete World;
-				World = nullptr;
-			}
-
-			if (Solver != nullptr)
-			{
-				delete Solver;
-				Solver = nullptr;
-			}
-
-			if (OverlappingPairCache != nullptr)
-			{
-				delete OverlappingPairCache;
-				OverlappingPairCache = nullptr;
-			}
-
-			if (Dispatcher != nullptr)
-			{
-				delete Dispatcher;
-				Dispatcher = nullptr;
-			}
-
-			if (CollisionConfiguration != nullptr)
-			{
-				delete CollisionConfiguration;
-				CollisionConfiguration = nullptr;
-			}
+            delete Dispatcher;
+            delete Collision;
+            delete Solver;
+            delete Broadphase;
+            delete SoftSolver;
+            delete World;
 		}
-		void Simulator::SetGravity(Vector3 Gravity)
+		void Simulator::SetGravity(const Vector3& Gravity)
 		{
 			World->setGravity(BtV3(Gravity));
 		}
-		void Simulator::SetLinearImpulse(Vector3 Impulse, bool RandomFactor)
+		void Simulator::SetLinearImpulse(const Vector3& Impulse, bool RandomFactor)
 		{
 			for (int i = 0; i < World->getNumCollisionObjects(); i++)
 			{
@@ -6171,7 +6841,7 @@ namespace Tomahawk
 				btRigidBody::upcast(World->getCollisionObjectArray()[i])->setLinearVelocity(BtV3(Velocity));
 			}
 		}
-		void Simulator::SetLinearImpulse(Vector3 Impulse, int Start, int End, bool RandomFactor)
+		void Simulator::SetLinearImpulse(const Vector3& Impulse, int Start, int End, bool RandomFactor)
 		{
 			if (Start >= 0 && Start < World->getNumCollisionObjects() && End >= 0 && End < World->getNumCollisionObjects())
 			{
@@ -6182,7 +6852,7 @@ namespace Tomahawk
 				}
 			}
 		}
-		void Simulator::SetAngularImpulse(Vector3 Impulse, bool RandomFactor)
+		void Simulator::SetAngularImpulse(const Vector3& Impulse, bool RandomFactor)
 		{
 			for (int i = 0; i < World->getNumCollisionObjects(); i++)
 			{
@@ -6190,7 +6860,7 @@ namespace Tomahawk
 				btRigidBody::upcast(World->getCollisionObjectArray()[i])->setAngularVelocity(BtV3(Velocity));
 			}
 		}
-		void Simulator::SetAngularImpulse(Vector3 Impulse, int Start, int End, bool RandomFactor)
+		void Simulator::SetAngularImpulse(const Vector3& Impulse, int Start, int End, bool RandomFactor)
 		{
 			if (Start >= 0 && Start < World->getNumCollisionObjects() && End >= 0 && End < World->getNumCollisionObjects())
 			{
@@ -6201,15 +6871,15 @@ namespace Tomahawk
 				}
 			}
 		}
-		void Simulator::SetOnCollsionEnter(ContactStartedCallback Callback)
+		void Simulator::SetOnCollisionEnter(ContactStartedCallback Callback)
 		{
 			gContactStartedCallback = Callback;
 		}
-		void Simulator::SetOnCollsionExit(ContactEndedCallback Callback)
+		void Simulator::SetOnCollisionExit(ContactEndedCallback Callback)
 		{
 			gContactEndedCallback = Callback;
 		}
-		void Simulator::CreateLinearImpulse(Vector3 Impulse, bool RandomFactor)
+		void Simulator::CreateLinearImpulse(const Vector3& Impulse, bool RandomFactor)
 		{
 			for (int i = 0; i < World->getNumCollisionObjects(); i++)
 			{
@@ -6221,7 +6891,7 @@ namespace Tomahawk
 				btRigidBody::upcast(World->getCollisionObjectArray()[i])->setLinearVelocity(Velocity);
 			}
 		}
-		void Simulator::CreateLinearImpulse(Vector3 Impulse, int Start, int End, bool RandomFactor)
+		void Simulator::CreateLinearImpulse(const Vector3& Impulse, int Start, int End, bool RandomFactor)
 		{
 			if (Start >= 0 && Start < World->getNumCollisionObjects() && End >= 0 && End < World->getNumCollisionObjects())
 			{
@@ -6236,7 +6906,7 @@ namespace Tomahawk
 				}
 			}
 		}
-		void Simulator::CreateAngularImpulse(Vector3 Impulse, bool RandomFactor)
+		void Simulator::CreateAngularImpulse(const Vector3& Impulse, bool RandomFactor)
 		{
 			for (int i = 0; i < World->getNumCollisionObjects(); i++)
 			{
@@ -6248,7 +6918,7 @@ namespace Tomahawk
 				btRigidBody::upcast(World->getCollisionObjectArray()[i])->setAngularVelocity(Velocity);
 			}
 		}
-		void Simulator::CreateAngularImpulse(Vector3 Impulse, int Start, int End, bool RandomFactor)
+		void Simulator::CreateAngularImpulse(const Vector3& Impulse, int Start, int End, bool RandomFactor)
 		{
 			if (Start >= 0 && Start < World->getNumCollisionObjects() && End >= 0 && End < World->getNumCollisionObjects())
 			{
@@ -6263,21 +6933,37 @@ namespace Tomahawk
 				}
 			}
 		}
-		void Simulator::AddRigidBody(RigidBody* Body)
+        void Simulator::AddSoftBody(SoftBody* Body)
+        {
+            btSoftRigidDynamicsWorld* SoftWorld = (btSoftRigidDynamicsWorld*)World;
+		    if (Body != nullptr && HasSoftBodySupport())
+                SoftWorld->addSoftBody(Body->Bullet());
+        }
+        void Simulator::RemoveSoftBody(SoftBody* Body)
+        {
+            btSoftRigidDynamicsWorld* SoftWorld = (btSoftRigidDynamicsWorld*)World;
+            if (Body != nullptr && HasSoftBodySupport())
+                SoftWorld->removeSoftBody(Body->Bullet());
+        }
+        void Simulator::AddRigidBody(RigidBody* Body)
 		{
-			World->addRigidBody(Body->Bullet());
+            if (Body != nullptr)
+			    World->addRigidBody(Body->Bullet());
 		}
 		void Simulator::RemoveRigidBody(RigidBody* Body)
 		{
-			World->removeRigidBody(Body->Bullet());
+            if (Body != nullptr)
+                World->removeRigidBody(Body->Bullet());
 		}
 		void Simulator::AddSliderConstraint(SliderConstraint* Constraint, bool UseCollisions)
 		{
-			World->addConstraint(Constraint->Bullet(), !UseCollisions);
+            if (Constraint != nullptr)
+			    World->addConstraint(Constraint->Bullet(), !UseCollisions);
 		}
 		void Simulator::RemoveSliderConstraint(SliderConstraint* Constraint)
 		{
-			World->removeConstraint(Constraint->Bullet());
+            if (Constraint != nullptr)
+                World->removeConstraint(Constraint->Bullet());
 		}
 		void Simulator::RemoveAll()
 		{
@@ -6287,24 +6973,15 @@ namespace Tomahawk
 				btRigidBody* Body = btRigidBody::upcast(Object);
 				if (Body != nullptr)
 				{
-					if (Body->getMotionState())
-					{
-						btMotionState* State = Body->getMotionState();
-						delete State;
-						Body->setMotionState(nullptr);
-					}
+                    delete Body->getMotionState();
+                    Body->setMotionState(nullptr);
 
-					if (Body->getCollisionShape())
-					{
-						btCollisionShape* State = Body->getCollisionShape();
-						delete State;
-						Body->setCollisionShape(nullptr);
-					}
+                    delete Body->getCollisionShape();
+                    Body->setCollisionShape(nullptr);
 				}
 
 				World->removeCollisionObject(Object);
-				if (Object != nullptr)
-					delete Object;
+				delete Object;
 			}
 		}
 		void Simulator::Simulate(float TimeStep)
@@ -6314,17 +6991,16 @@ namespace Tomahawk
 
 			World->stepSimulation(TimeStep * TimeSpeed, Interpolate, TimeSpeed / 60.0f);
 		}
-		void Simulator::FindContacts(RigidBody* Body, int(*Callback)(ShapeContact*, RigidBody*, RigidBody*))
+		void Simulator::FindContacts(RigidBody* Body, int(*Callback)(ShapeContact*, const CollisionBody&, const CollisionBody&))
 		{
 			if (!Callback || !Body)
 				return;
 
 			FindContactsHandler Handler;
 			Handler.Callback = Callback;
-
 			World->contactTest(Body->Bullet(), Handler);
 		}
-		bool Simulator::FindRayContacts(Vector3 Start, Vector3 End, int(*Callback)(RayContact*, RigidBody*))
+		bool Simulator::FindRayContacts(const Vector3& Start, const Vector3& End, int(*Callback)(RayContact*, const CollisionBody&))
 		{
 			if (!Callback)
 				return false;
@@ -6335,36 +7011,69 @@ namespace Tomahawk
 			World->rayTest(btVector3(Start.X, Start.Y, Start.Z), btVector3(End.X, End.Y, End.Z), Handler);
 			return Handler.m_collisionObject != nullptr;
 		}
-		bool Simulator::FindClosestRayContacts(Vector3 Start, Vector3 End, int(*Callback)(RayContact*, RigidBody*))
+		RigidBody* Simulator::CreateRigidBody(Transform* Transform, const RigidBody::Desc& I)
 		{
-			if (!Callback)
-				return false;
-
-			FindRayContactsHandler Handler;
-			Handler.Callback = Callback;
-
-			World->rayTest(btVector3(Start.X, Start.Y, Start.Z), btVector3(End.X, End.Y, End.Z), Handler);
-			return Handler.m_collisionObject != nullptr;
-		}
-		RigidBody* Simulator::CreateRigidBody(Transform* Transform, btCollisionShape* Shape, float Mass, float Anticipation)
-		{
-			RigidBody* Body = new RigidBody(this);
-			Body->Initialize(Shape, Transform, Mass, Anticipation);
+			RigidBody* Body = new RigidBody(this, I);
 			World->addRigidBody(Body->Bullet());
 
 			return Body;
 		}
-		ContactStartedCallback& Simulator::GetOnCollsionEnter()
+		SoftBody* Simulator::CreateSoftBody(Transform* Transform, const SoftBody::Desc& I)
+        {
+		    if (!HasSoftBodySupport())
+		        return nullptr;
+
+            SoftBody* Body = new SoftBody(this, I);
+            ((btSoftRigidDynamicsWorld*)World)->addSoftBody(Body->Bullet());
+
+            return Body;
+        }
+		ContactStartedCallback Simulator::GetOnCollisionEnter()
 		{
 			return gContactStartedCallback;
 		}
-		ContactEndedCallback& Simulator::GetOnCollsionExit()
+		ContactEndedCallback Simulator::GetOnCollisionExit()
 		{
 			return gContactEndedCallback;
 		}
-		int Simulator::ContactManifoldCount()
+        btCollisionConfiguration* Simulator::GetCollision()
+        {
+            return Collision;
+        }
+        btBroadphaseInterface* Simulator::GetBroadphase()
+        {
+            return Broadphase;
+        }
+        btConstraintSolver* Simulator::GetSolver()
+        {
+            return Solver;
+        }
+        btDiscreteDynamicsWorld* Simulator::GetWorld()
+        {
+            return World;
+        }
+        btCollisionDispatcher* Simulator::GetDispatcher()
+        {
+            return Dispatcher;
+        }
+        btSoftBodySolver* Simulator::GetSoftSolver()
+        {
+		    return SoftSolver;
+        }
+        bool Simulator::HasSoftBodySupport()
+        {
+            return SoftSolver != nullptr;
+        }
+		int Simulator::GetContactManifoldCount()
 		{
 			return Dispatcher->getNumManifolds();
 		}
-	}
+        Simulator* Simulator::Get(btDiscreteDynamicsWorld* From)
+        {
+            if (!From)
+                return nullptr;
+
+            return (Simulator*)From->getWorldUserInfo();
+        }
+    }
 }

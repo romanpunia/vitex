@@ -4022,7 +4022,7 @@ namespace Tomahawk
 				return;
 
 			if (Context->WillExceptionBeCaught())
-				return THAWK_INFO("exception raised");
+				return THAWK_WARN("exception raised");
 
 			const char* Decl = Function->GetDeclaration();
 			const char* Mod = Function->GetModuleName();

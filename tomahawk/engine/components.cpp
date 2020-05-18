@@ -1,5 +1,4 @@
 #include "components.h"
-#include <btBulletDynamicsCommon.h>
 
 namespace Tomahawk
 {
@@ -31,16 +30,9 @@ namespace Tomahawk
 					Shape = Compute::CollisionShape::Auto((Compute::Shape)Type);
 					if (Shape == nullptr && Type == (UInt64)Compute::Shape_Convex_Hull)
 					{
-						std::vector<btVector3> Vertices;
+						std::vector<Compute::Vector3> Vertices;
 						if (NMake::Unpack(Node->Find("shape-data"), &Vertices))
-						{
-							btConvexHullShape* Hull = new btConvexHullShape();
-							for (auto&& Point : Vertices)
-								Hull->addPoint(Point, false);
-
-							Hull->recalcLocalAabb();
-							Hull->optimizeConvexHull();
-						}
+						    Shape = Compute::CollisionShape::ConvexHull(Vertices);
 					}
 				}
 
@@ -143,23 +135,14 @@ namespace Tomahawk
             void RigidBody::OnSave(ContentManager* Content, Rest::Document* Node)
             {
                 NMake::Pack(Node->SetDocument("kinematic"), Kinematic);
-                NMake::Pack(Node->SetDocument("extended"), !!Instance);
+                NMake::Pack(Node->SetDocument("extended"), Instance != nullptr);
                 if (!Instance)
                     return;
 
 				NMake::Pack(Node->SetDocument("shape"), (UInt64)Instance->CollisionShapeType());
-                btConvexHullShape* Shape = (btConvexHullShape*)Instance->CollisionShape();
-
-                if (Instance->CollisionShapeType() == Compute::Shape_Convex_Hull && Shape)
+                if (Instance->CollisionShapeType() == Compute::Shape_Convex_Hull)
                 {
-                    size_t Count = (size_t)Shape->getNumPoints();
-					std::vector<btVector3> Vertices;
-					Vertices.reserve(Count);
-
-					btVector3* Points = Shape->getUnscaledPoints();
-					for (size_t i = 0; i < Count; i++)
-						Vertices.push_back(Points[i]);
-
+                    std::vector<Compute::Vector3> Vertices = Compute::CollisionShape::GetVertices(Instance->CollisionShape());
 					NMake::Pack(Node->SetDocument("shape-data"), Vertices);
                 }
 
@@ -197,32 +180,8 @@ namespace Tomahawk
             }
             void RigidBody::OnSynchronize(Rest::Timer* Time)
             {
-                if (!Instance || !Synchronize)
-                    return;
-
-                btRigidBody* Bt = Instance->Bullet();
-                btTransform& Offset = Bt->getWorldTransform();
-
-                if (Kinematic)
-                {
-                    Offset.setOrigin(btVector3(Parent->Transform->Position.X, Parent->Transform->Position.Y, -Parent->Transform->Position.Z));
-                    Offset.getBasis().setEulerZYX(Parent->Transform->Rotation.X, Parent->Transform->Rotation.Y, Parent->Transform->Rotation.Z);
-                    Bt->getCollisionShape()->setLocalScaling(btVector3(Parent->Transform->Scale.X, Parent->Transform->Scale.Y, Parent->Transform->Scale.Z));
-                }
-                else
-                {
-                    Parent->Transform->Rotation = Compute::Matrix4x4(&Offset).Rotation();
-
-                    btVector3 Value = Offset.getOrigin();
-                    Parent->Transform->Position.X = Value.getX();
-                    Parent->Transform->Position.Y = Value.getY();
-                    Parent->Transform->Position.Z = -Value.getZ();
-
-                    Value = Bt->getCollisionShape()->getLocalScaling();
-                    Parent->Transform->Scale.X = Value.getX();
-                    Parent->Transform->Scale.Y = Value.getY();
-                    Parent->Transform->Scale.Z = Value.getZ();
-                }
+                if (Instance && Synchronize)
+                    Instance->Synchronize(Parent->Transform, Kinematic);
             }
             void RigidBody::OnAsleep()
             {
@@ -279,18 +238,11 @@ namespace Tomahawk
             }
             void RigidBody::Reweight(float Mass)
             {
-                if (!Parent || !Parent->GetScene())
+                if (!Parent || !Parent->GetScene() || !Instance)
                     return;
 
                 Parent->GetScene()->Lock();
-                btVector3 Inertia = Parent->GetScene()->GetSimulator()->World->getGravity();
-
-                Instance->Remove();
-                Instance->SetGravity(Compute::Vector3(Inertia.getX(), Inertia.getY(), Inertia.getZ()));
-                Instance->CollisionShape()->calculateLocalInertia(Mass, Inertia);
-                Instance->Bullet()->setMassProps(Mass, Inertia);
-                Instance->Add();
-                Instance->Activate(true);
+                Instance->SetMass(Parent->GetScene()->GetSimulator(), Mass);
                 Parent->GetScene()->Unlock();
             }
             Component* RigidBody::OnClone()
@@ -302,18 +254,8 @@ namespace Tomahawk
                     return Object;
 
                 btCollisionShape* Shape = Compute::CollisionShape::Auto(Instance->CollisionShapeType());
-                if (Shape == nullptr && Instance->CollisionShapeType() == Compute::Shape_Convex_Hull)
-                {
-                    btConvexHullShape* ConvexHull = new btConvexHullShape();
-                    btConvexHullShape* From = (btConvexHullShape*)Instance->CollisionShape();
-
-                    for (UInt64 i = 0; i < From->getNumPoints(); i++)
-                        ConvexHull->addPoint(*(From->getUnscaledPoints() + i), false);
-
-                    ConvexHull->recalcLocalAabb();
-                    ConvexHull->optimizeConvexHull();
-                    Shape = ConvexHull;
-                }
+                if (!Shape && Instance->CollisionShapeType() == Compute::Shape_Convex_Hull)
+                    Shape = Compute::CollisionShape::ConvexHull(Instance->CollisionShape());
 
                 Object->Activate(Shape, Instance->Mass(), Instance->CcdMotionThreshold());
                 Object->Instance->Copy(Instance);
@@ -330,7 +272,7 @@ namespace Tomahawk
                 ConstantTorque = 0;
                 ConstantCenter = 0;
                 RigidBody = nullptr;
-                Velocitize = false;
+                Velocity = false;
             }
             void Acceleration::OnLoad(ContentManager* Content, Rest::Document* Node)
             {
@@ -339,7 +281,7 @@ namespace Tomahawk
 				NMake::Unpack(Node->Find("constant-velocity"), &ConstantVelocity);
 				NMake::Unpack(Node->Find("constant-torque"), &ConstantTorque);
 				NMake::Unpack(Node->Find("constant-center"), &ConstantCenter);
-				NMake::Unpack(Node->Find("velocitize"), &Velocitize);
+				NMake::Unpack(Node->Find("velocity"), &Velocity);
             }
             void Acceleration::OnSave(ContentManager* Content, Rest::Document* Node)
             {
@@ -348,7 +290,7 @@ namespace Tomahawk
                 NMake::Pack(Node->SetDocument("constant-velocity"), ConstantVelocity);
                 NMake::Pack(Node->SetDocument("constant-torque"), ConstantTorque);
                 NMake::Pack(Node->SetDocument("constant-center"), ConstantCenter);
-                NMake::Pack(Node->SetDocument("velocitize"), Velocitize);
+                NMake::Pack(Node->SetDocument("velocity"), Velocity);
             }
             void Acceleration::OnAwake(Component* New)
             {
@@ -365,7 +307,7 @@ namespace Tomahawk
                     return;
 
                 float DeltaTime = (float)Time->GetDeltaTime();
-                if (!Velocitize)
+                if (!Velocity)
                 {
                     RigidBody->SetLinearVelocity(ConstantVelocity);
                     RigidBody->SetAngularVelocity(ConstantTorque);
@@ -373,24 +315,24 @@ namespace Tomahawk
                 else
                     RigidBody->Push(ConstantVelocity * DeltaTime, ConstantTorque * DeltaTime, ConstantCenter);
 
-                Compute::Vector3 Velocity = RigidBody->LinearVelocity();
+                Compute::Vector3 Force = RigidBody->LinearVelocity();
                 Compute::Vector3 Torque = RigidBody->AngularVelocity();
                 Compute::Vector3 ACT = ConstantTorque.Abs();
                 Compute::Vector3 ACV = ConstantVelocity.Abs();
 
-                if (AmplitudeVelocity.X > 0 && Velocity.X > AmplitudeVelocity.X)
+                if (AmplitudeVelocity.X > 0 && Force.X > AmplitudeVelocity.X)
                     ConstantVelocity.X = -ACV.X;
-                else if (AmplitudeVelocity.X > 0 && Velocity.X < -AmplitudeVelocity.X)
+                else if (AmplitudeVelocity.X > 0 && Force.X < -AmplitudeVelocity.X)
                     ConstantVelocity.X = ACV.X;
 
-                if (AmplitudeVelocity.Y > 0 && Velocity.Y > AmplitudeVelocity.Y)
+                if (AmplitudeVelocity.Y > 0 && Force.Y > AmplitudeVelocity.Y)
                     ConstantVelocity.Y = -ACV.Y;
-                else if (AmplitudeVelocity.Y > 0 && Velocity.Y < -AmplitudeVelocity.Y)
+                else if (AmplitudeVelocity.Y > 0 && Force.Y < -AmplitudeVelocity.Y)
                     ConstantVelocity.Y = ACV.Y;
 
-                if (AmplitudeVelocity.Z > 0 && Velocity.Z > AmplitudeVelocity.Z)
+                if (AmplitudeVelocity.Z > 0 && Force.Z > AmplitudeVelocity.Z)
                     ConstantVelocity.Z = -ACV.Z;
-                else if (AmplitudeVelocity.Z > 0 && Velocity.Z < -AmplitudeVelocity.Z)
+                else if (AmplitudeVelocity.Z > 0 && Force.Z < -AmplitudeVelocity.Z)
                     ConstantVelocity.Z = ACV.Z;
 
                 if (AmplitudeTorque.X > 0 && Torque.X > AmplitudeTorque.X)
@@ -411,7 +353,7 @@ namespace Tomahawk
             Component* Acceleration::OnClone()
             {
                 Acceleration* Instance = new Acceleration(Parent);
-                Instance->Velocitize = Velocitize;
+                Instance->Velocity = Velocity;
                 Instance->AmplitudeTorque = AmplitudeTorque;
                 Instance->AmplitudeVelocity = AmplitudeVelocity;
                 Instance->ConstantCenter = ConstantCenter;
@@ -1315,11 +1257,11 @@ NMake::Pack(Node->SetDocument("enabled"), Constraint->Enabled());
 
             ElementAnimator::ElementAnimator(Entity* Ref) : Component(Ref)
             {
-                Positioning = 0.0f;
-                Diffusing = 0.0f;
+                Position = 0.0f;
+                Diffuse = 0.0f;
                 ScaleSpeed = 0.0f;
                 RotationSpeed = 0.0f;
-                Velocitizing = 1000000000.0f;
+                Velocity = 1000000000.0f;
                 Spawner.Scale.Max = 1;
                 Spawner.Scale.Min = 1;
                 Spawner.Rotation.Max = 0;
@@ -1341,9 +1283,9 @@ NMake::Pack(Node->SetDocument("enabled"), Constraint->Enabled());
             }
             void ElementAnimator::OnLoad(ContentManager* Content, Rest::Document* Node)
             {
-				NMake::Unpack(Node->Find("diffusing"), &Diffusing);
-				NMake::Unpack(Node->Find("positioning"), &Positioning);
-				NMake::Unpack(Node->Find("velocitizing"), &Velocitizing);
+				NMake::Unpack(Node->Find("diffuse"), &Diffuse);
+				NMake::Unpack(Node->Find("position"), &Position);
+				NMake::Unpack(Node->Find("velocity"), &Velocity);
 				NMake::Unpack(Node->Find("spawner"), &Spawner);
 				NMake::Unpack(Node->Find("noisiness"), &Noisiness);
 				NMake::Unpack(Node->Find("rotation-speed"), &RotationSpeed);
@@ -1352,9 +1294,9 @@ NMake::Pack(Node->SetDocument("enabled"), Constraint->Enabled());
             }
             void ElementAnimator::OnSave(ContentManager* Content, Rest::Document* Node)
             {
-                NMake::Pack(Node->SetDocument("diffusing"), Diffusing);
-                NMake::Pack(Node->SetDocument("positioning"), Positioning);
-                NMake::Pack(Node->SetDocument("velocitizing"), Velocitizing);
+                NMake::Pack(Node->SetDocument("diffuse"), Diffuse);
+                NMake::Pack(Node->SetDocument("position"), Position);
+                NMake::Pack(Node->SetDocument("velocity"), Velocity);
                 NMake::Pack(Node->SetDocument("spawner"), Spawner);
                 NMake::Pack(Node->SetDocument("noisiness"), Noisiness);
                 NMake::Pack(Node->SetDocument("rotation-speed"), RotationSpeed);
@@ -1377,21 +1319,21 @@ NMake::Pack(Node->SetDocument("enabled"), Constraint->Enabled());
                     if (Array->Size() + 1 >= System->Instance->GetElementLimit())
                         continue;
 
-                    Compute::Vector3 Position = (System->StrongConnection ? Spawner.Position.Generate() : Spawner.Position.Generate() + Parent->Transform->Position.InvertZ());
-                    Compute::Vector3 Velocity = Spawner.Velocity.Generate();
-                    Compute::Vector4 Diffusion = Spawner.Diffusion.Generate();
+                    Compute::Vector3 FPosition = (System->StrongConnection ? Spawner.Position.Generate() : Spawner.Position.Generate() + Parent->Transform->Position.InvertZ());
+                    Compute::Vector3 FVelocity = Spawner.Velocity.Generate();
+                    Compute::Vector4 FDiffusion = Spawner.Diffusion.Generate();
 
                     Compute::ElementVertex Element;
-                    Element.PositionX = Position.X;
-                    Element.PositionY = Position.Y;
-                    Element.PositionZ = Position.Z;
-                    Element.VelocityX = Velocity.X;
-                    Element.VelocityY = Velocity.Y;
-                    Element.VelocityZ = Velocity.Z;
-                    Element.ColorX = Diffusion.X;
-                    Element.ColorY = Diffusion.Y;
-                    Element.ColorZ = Diffusion.Z;
-                    Element.ColorW = Diffusion.W;
+                    Element.PositionX = FPosition.X;
+                    Element.PositionY = FPosition.Y;
+                    Element.PositionZ = FPosition.Z;
+                    Element.VelocityX = FVelocity.X;
+                    Element.VelocityY = FVelocity.Y;
+                    Element.VelocityZ = FVelocity.Z;
+                    Element.ColorX = FDiffusion.X;
+                    Element.ColorY = FDiffusion.Y;
+                    Element.ColorZ = FDiffusion.Z;
+                    Element.ColorW = FDiffusion.W;
                     Element.Angular = Spawner.Angular.Generate();
                     Element.Rotation = Spawner.Rotation.Generate();
                     Element.Scale = Spawner.Scale.Generate();
@@ -1413,16 +1355,16 @@ NMake::Pack(Node->SetDocument("enabled"), Constraint->Enabled());
                 for (auto It = Array->Begin(); It != Array->End(); It++)
                 {
                     Compute::Vector3 Noise = Spawner.Noise.Generate() / Noisiness;
-                    It->PositionX += (It->VelocityX + Positioning.X + Noise.X) * DeltaTime;
-                    It->PositionY += (It->VelocityY + Positioning.Y + Noise.Y) * DeltaTime;
-                    It->PositionZ += (It->VelocityZ + Positioning.Z + Noise.Z) * DeltaTime;
-                    It->VelocityX -= (It->VelocityX / Velocitizing.X) * DeltaTime;
-                    It->VelocityY -= (It->VelocityY / Velocitizing.Y) * DeltaTime;
-                    It->VelocityZ -= (It->VelocityZ / Velocitizing.Z) * DeltaTime;
-                    It->ColorX += Diffusing.X * DeltaTime;
-                    It->ColorY += Diffusing.Y * DeltaTime;
-                    It->ColorZ += Diffusing.Z * DeltaTime;
-                    It->ColorW += Diffusing.W * DeltaTime;
+                    It->PositionX += (It->VelocityX + Position.X + Noise.X) * DeltaTime;
+                    It->PositionY += (It->VelocityY + Position.Y + Noise.Y) * DeltaTime;
+                    It->PositionZ += (It->VelocityZ + Position.Z + Noise.Z) * DeltaTime;
+                    It->VelocityX -= (It->VelocityX / Velocity.X) * DeltaTime;
+                    It->VelocityY -= (It->VelocityY / Velocity.Y) * DeltaTime;
+                    It->VelocityZ -= (It->VelocityZ / Velocity.Z) * DeltaTime;
+                    It->ColorX += Diffuse.X * DeltaTime;
+                    It->ColorY += Diffuse.Y * DeltaTime;
+                    It->ColorZ += Diffuse.Z * DeltaTime;
+                    It->ColorW += Diffuse.W * DeltaTime;
                     It->Scale += ScaleSpeed * DeltaTime;
                     It->Rotation += (It->Angular + RotationSpeed) * DeltaTime;
 
@@ -1435,16 +1377,16 @@ NMake::Pack(Node->SetDocument("enabled"), Constraint->Enabled());
                 Rest::Pool<Compute::ElementVertex>* Array = System->Instance->GetArray();
                 for (auto It = Array->Begin(); It != Array->End(); It++)
                 {
-                    It->PositionX += (It->VelocityX + Positioning.X) * DeltaTime;
-                    It->PositionY += (It->VelocityY + Positioning.Y) * DeltaTime;
-                    It->PositionZ += (It->VelocityZ + Positioning.Z) * DeltaTime;
-                    It->VelocityX -= (It->VelocityX / Velocitizing.X) * DeltaTime;
-                    It->VelocityY -= (It->VelocityY / Velocitizing.Y) * DeltaTime;
-                    It->VelocityZ -= (It->VelocityZ / Velocitizing.Z) * DeltaTime;
-                    It->ColorX += Diffusing.X * DeltaTime;
-                    It->ColorY += Diffusing.Y * DeltaTime;
-                    It->ColorZ += Diffusing.Z * DeltaTime;
-                    It->ColorW += Diffusing.W * DeltaTime;
+                    It->PositionX += (It->VelocityX + Position.X) * DeltaTime;
+                    It->PositionY += (It->VelocityY + Position.Y) * DeltaTime;
+                    It->PositionZ += (It->VelocityZ + Position.Z) * DeltaTime;
+                    It->VelocityX -= (It->VelocityX / Velocity.X) * DeltaTime;
+                    It->VelocityY -= (It->VelocityY / Velocity.Y) * DeltaTime;
+                    It->VelocityZ -= (It->VelocityZ / Velocity.Z) * DeltaTime;
+                    It->ColorX += Diffuse.X * DeltaTime;
+                    It->ColorY += Diffuse.Y * DeltaTime;
+                    It->ColorZ += Diffuse.Z * DeltaTime;
+                    It->ColorW += Diffuse.W * DeltaTime;
                     It->Scale += ScaleSpeed * DeltaTime;
                     It->Rotation += (It->Angular + RotationSpeed) * DeltaTime;
 
@@ -1455,9 +1397,9 @@ NMake::Pack(Node->SetDocument("enabled"), Constraint->Enabled());
             Component* ElementAnimator::OnClone()
             {
                 ElementAnimator* Instance = new ElementAnimator(Parent);
-                Instance->Diffusing = Diffusing;
-                Instance->Positioning = Positioning;
-                Instance->Velocitizing = Velocitizing;
+                Instance->Diffuse = Diffuse;
+                Instance->Position = Position;
+                Instance->Velocity = Velocity;
                 Instance->ScaleSpeed = ScaleSpeed;
                 Instance->RotationSpeed = RotationSpeed;
                 Instance->Spawner = Spawner;
@@ -1467,7 +1409,7 @@ NMake::Pack(Node->SetDocument("enabled"), Constraint->Enabled());
                 return Instance;
             }
 
-            FreeLook::FreeLook(Entity* Ref) : Component(Ref), Activity(nullptr), Rotate(Graphics::KeyCode_CURSORRIGHT), Sensivity(0.005f)
+            FreeLook::FreeLook(Entity* Ref) : Component(Ref), Activity(nullptr), Rotate(Graphics::KeyCode_CURSORRIGHT), Sensitivity(0.005f)
             {
             }
             void FreeLook::OnAwake(Component* New)
@@ -1479,7 +1421,7 @@ NMake::Pack(Node->SetDocument("enabled"), Constraint->Enabled());
                 Activity = App->Activity;
                 SetActive(Activity != nullptr);
             }
-            void FreeLook::OnRenovate(Rest::Timer* Time)
+            void FreeLook::OnUpdate(Rest::Timer* Time)
             {
                 if (!Activity)
                     return;
@@ -1489,8 +1431,8 @@ NMake::Pack(Node->SetDocument("enabled"), Constraint->Enabled());
                     Compute::Vector2 Cursor = Activity->GetCursorPosition();
                     if (!Activity->IsKeyDownHit(Rotate))
                     {
-                        float X = (Cursor.Y - Position.Y) * Sensivity;
-                        float Y = (Cursor.X - Position.X) * Sensivity;
+                        float X = (Cursor.Y - Position.Y) * Sensitivity;
+                        float Y = (Cursor.X - Position.X) * Sensitivity;
                         Parent->Transform->Rotation += Compute::Vector3(X, Y);
                         Parent->Transform->Rotation.X = Compute::Math<float>::Clamp(Parent->Transform->Rotation.X, -1.57079632679f, 1.57079632679f);
                     }
@@ -1526,7 +1468,7 @@ NMake::Pack(Node->SetDocument("enabled"), Constraint->Enabled());
                 Activity = App->Activity;
                 SetActive(Activity != nullptr);
             }
-            void Fly::OnRenovate(Rest::Timer* Time)
+            void Fly::OnUpdate(Rest::Timer* Time)
             {
                 if (!Activity)
                     return;
@@ -2190,11 +2132,11 @@ NMake::Pack(Node->SetDocument("enabled"), Constraint->Enabled());
             }
             void ProbeLight::OnSynchronize(Rest::Timer* Time)
             {
-                Viewer View = Parent->GetScene()->GetCameraViewer();
-                float Hardness = 1.0f - Parent->Transform->Position.Distance(Parent->GetScene()->GetCamera()->GetEntity()->Transform->Position) / (View.ViewDistance);
+                Viewer ViewPoint = Parent->GetScene()->GetCameraViewer();
+                float Hardness = 1.0f - Parent->Transform->Position.Distance(Parent->GetScene()->GetCamera()->GetEntity()->Transform->Position) / (ViewPoint.ViewDistance);
 
                 if (Hardness > 0.0f)
-                    Visibility = Compute::MathCommon::IsClipping(View.ViewProjection, Parent->Transform->GetWorld(), Range) == -1 ? Hardness : 0.0f;
+                    Visibility = Compute::MathCommon::IsClipping(ViewPoint.ViewProjection, Parent->Transform->GetWorld(), Range) == -1 ? Hardness : 0.0f;
                 else
                     Visibility = 0.0f;
             }

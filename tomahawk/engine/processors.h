@@ -91,7 +91,7 @@ namespace Tomahawk
             {
             public:
                 AudioClipProcessor(ContentManager* Manager);
-                virtual ~AudioClipProcessor();
+                virtual ~AudioClipProcessor() override;
 				void Free(AssetResource* Asset) override;
                 void* Duplicate(AssetResource* Asset, ContentArgs* Args) override;
                 void* Load(Rest::FileStream* Stream, UInt64 Length, UInt64 Offset, ContentArgs* Args) override;
@@ -101,7 +101,7 @@ namespace Tomahawk
             {
             public:
                 Texture2DProcessor(ContentManager* Manager);
-                virtual ~Texture2DProcessor();
+                virtual ~Texture2DProcessor() override;
 				void Free(AssetResource* Asset) override;
                 void* Duplicate(AssetResource* Asset, ContentArgs* Args) override;
                 void* Load(Rest::FileStream* Stream, UInt64 Length, UInt64 Offset, ContentArgs* Args) override;
@@ -111,7 +111,7 @@ namespace Tomahawk
             {
             public:
                 ShaderProcessor(ContentManager* Manager);
-                virtual ~ShaderProcessor();
+                virtual ~ShaderProcessor() override;
 				void Free(AssetResource* Asset) override;
                 void* Duplicate(AssetResource* Asset, ContentArgs* Args) override;
                 void* Load(Rest::FileStream* Stream, UInt64 Length, UInt64 Offset, ContentArgs* Args) override;
@@ -124,7 +124,7 @@ namespace Tomahawk
 
             public:
 				ModelProcessor(ContentManager* Manager);
-                virtual ~ModelProcessor();
+                virtual ~ModelProcessor() override;
 				void Free(AssetResource* Asset) override;
                 void* Duplicate(AssetResource* Asset, ContentArgs* Args) override;
                 void* Load(Rest::FileStream* Stream, UInt64 Length, UInt64 Offset, ContentArgs* Args) override;
@@ -162,7 +162,7 @@ namespace Tomahawk
 
             public:
 				SkinnedModelProcessor(ContentManager* Manager);
-                virtual ~SkinnedModelProcessor();
+                virtual ~SkinnedModelProcessor() override;
 				void Free(AssetResource* Asset) override;
                 void* Duplicate(AssetResource* Asset, ContentArgs* Args) override;
                 void* Load(Rest::FileStream* Stream, UInt64 Length, UInt64 Offset, ContentArgs* Args) override;
@@ -192,10 +192,10 @@ namespace Tomahawk
 				static void ProcessKeys(std::vector<Compute::AnimatorKey>* Keys, std::unordered_map<std::string, MeshNode>* Joints);
             };
 
-            class THAWK_OUT NodeProcessor : public FileProcessor
+            class THAWK_OUT DocumentProcessor : public FileProcessor
             {
             public:
-                NodeProcessor(ContentManager* Manager);
+                DocumentProcessor(ContentManager* Manager);
                 void* Load(Rest::FileStream* Stream, UInt64 Length, UInt64 Offset, ContentArgs* Args) override;
                 bool Save(Rest::FileStream* Stream, void* Object, ContentArgs* Args) override;
             };

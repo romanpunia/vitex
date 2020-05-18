@@ -9,6 +9,8 @@ namespace Tomahawk
     {
         namespace Renderers
         {
+            class GUIRenderer;
+
             namespace GUI
             {
                 enum WindowFlags
@@ -369,37 +371,345 @@ namespace Tomahawk
 
                 struct THAWK_OUT Style
                 {
-                    float Alpha;
+                    float Alpha = 0;
                     Compute::Vector2 WindowPadding;
-                    float WindowRounding;
-                    float WindowBorderSize;
+                    float WindowRounding = 0;
+                    float WindowBorderSize = 0;
                     Compute::Vector2 WindowMinSize;
                     Compute::Vector2 WindowTitleAlign;
-                    float ChildRounding;
-                    float ChildBorderSize;
-                    float PopupRounding;
-                    float PopupBorderSize;
+                    float ChildRounding = 0;
+                    float ChildBorderSize = 0;
+                    float PopupRounding = 0;
+                    float PopupBorderSize = 0;
                     Compute::Vector2 FramePadding;
-                    float FrameRounding;
-                    float FrameBorderSize;
+                    float FrameRounding = 0;
+                    float FrameBorderSize = 0;
                     Compute::Vector2 ItemSpacing;
                     Compute::Vector2 ItemInnerSpacing;
                     Compute::Vector2 TouchExtraPadding;
-                    float IndentSpacing;
-                    float ColumnsMinSpacing;
-                    float ScrollbarSize;
-                    float ScrollbarRounding;
-                    float GrabMinSize;
-                    float GrabRounding;
+                    float IndentSpacing = 0;
+                    float ColumnsMinSpacing = 0;
+                    float ScrollbarSize = 0;
+                    float ScrollbarRounding = 0;
+                    float GrabMinSize = 0;
+                    float GrabRounding = 0;
                     Compute::Vector2 ButtonTextAlign;
                     Compute::Vector2 DisplayWindowPadding;
                     Compute::Vector2 DisplaySafeAreaPadding;
-                    float MouseCursorScale;
-                    bool AntiAliasedLines;
-                    bool AntiAliasedFill;
-                    float CurveTessellationTol;
+                    float MouseCursorScale = 0;
+                    bool AntiAliasedLines = 0;
+                    bool AntiAliasedFill = 0;
+                    float CurveTessellationTol = 0;
                     Compute::Vector4 Colors[ColorValue_Count];
                 };
+
+                class THAWK_OUT Interface
+                {
+                public:
+                    static void ApplyInput(char* Buffer, int Length);
+                    static void ApplyKeyState(Graphics::KeyCode Key, Graphics::KeyMod Mod, int Virtual, int Repeat, bool Pressed);
+                    static void ApplyCursorWheelState(int X, int Y, bool Normal);
+                    static void SetMouseDraw(bool Enabled);
+                    static void EndChild();
+                    static void End();
+                    static void Restyle(GUI::Style* Style);
+                    static void GetStyle(GUI::Style* Style);
+                    static void SetNextWindowPos(Compute::Vector2 pos, int cond = 0, Compute::Vector2 pivot = Compute::Vector2(0, 0));
+                    static void SetNextWindowSize(Compute::Vector2 size, int cond = 0);
+                    static void SetNextWindowContentSize(Compute::Vector2 size);
+                    static void SetNextWindowCollapsed(bool collapsed, int cond);
+                    static void SetNextWindowFocus();
+                    static void SetNextWindowBgAlpha(float alpha);
+                    static void SetWindowPos(Compute::Vector2 pos, int cond = 0);
+                    static void SetWindowSize(Compute::Vector2 size, int cond = 0);
+                    static void SetWindowCollapsed(bool collapsed, int cond = 0);
+                    static void SetWindowFocus();
+                    static void SetWindowFontScale(float scale);
+                    static void SetWindowPos(const char* name, Compute::Vector2 pos, int cond = 0);
+                    static void SetWindowSize(const char* name, Compute::Vector2 size, int cond = 0);
+                    static void SetWindowCollapsed(const char* name, bool collapsed, int cond = 0);
+                    static void SetWindowFocus(const char* name);
+                    static void SetScrollX(float scroll_x);
+                    static void SetScrollY(float scroll_y);
+                    static void SetScrollHere(float center_y_ratio = 0.5f);
+                    static void SetScrollFromPosY(float pos_y, float center_y_ratio = 0.5f);
+                    static void PushStyleColor(int idx, unsigned int col);
+                    static void PushStyleColor(int idx, Compute::Vector4 col);
+                    static void PopStyleColor(int count = 1);
+                    static void PushStyleVar(int idx, float val);
+                    static void PushStyleVar(int idx, Compute::Vector2 val);
+                    static void PopStyleVar(int count = 1);
+                    static void PushItemWidth(float item_width);
+                    static void PopItemWidth();
+                    static void PushTextWrapPos(float wrap_pos_x = 0.0f);
+                    static void PopTextWrapPos();
+                    static void PushAllowKeyboardFocus(bool allow_keyboard_focus);
+                    static void PopAllowKeyboardFocus();
+                    static void PushButtonRepeat(bool repeat);
+                    static void PopButtonRepeat();
+                    static void Separator();
+                    static void SameLine(float pos_x = 0.0f, float spacing_w = -1.0f);
+                    static void NewLine();
+                    static void Spacing();
+                    static void Dummy(Compute::Vector2 size);
+                    static void Indent(float indent_w = 0.0f);
+                    static void Unindent(float indent_w = 0.0f);
+                    static void BeginGroup();
+                    static void EndGroup();
+                    static void SetCursorPos(Compute::Vector2 local_pos);
+                    static void SetCursorPosX(float x);
+                    static void SetCursorPosY(float y);
+                    static void SetCursorScreenPos(Compute::Vector2 screen_pos);
+                    static void AlignTextToFramePadding();
+                    static void PushID(const char* str_id);
+                    static void PushID(const char* str_id_begin, const char* str_id_end);
+                    static void PushID(const void* ptr_id);
+                    static void PushID(int int_id);
+                    static void PopID();
+                    static void TextUnformatted(const char* text, const char* text_end = nullptr);
+                    static void Text(const char* fmt, ...);
+                    static void TextV(const char* fmt, va_list args);
+                    static void TextColored(Compute::Vector4 col, const char* fmt, ...);
+                    static void TextColoredV(Compute::Vector4 col, const char* fmt, va_list args);
+                    static void TextDisabled(const char* fmt, ...);
+                    static void TextDisabledV(const char* fmt, va_list args);
+                    static void TextWrapped(const char* fmt, ...);
+                    static void TextWrappedV(const char* fmt, va_list args);
+                    static void LabelText(const char* label, const char* fmt, ...);
+                    static void LabelTextV(const char* label, const char* fmt, va_list args);
+                    static void BulletText(const char* fmt, ...);
+                    static void BulletTextV(const char* fmt, va_list args);
+                    static void ProgressBar(float fraction, Compute::Vector2 size_arg = Compute::Vector2(-1, 0), const char* overlay = nullptr);
+                    static void Bullet();
+                    static void EndCombo();
+                    static void Image(Graphics::Texture2D* user_texture_id, Compute::Vector2 size, Compute::Vector2 uv0 = Compute::Vector2(0, 0), Compute::Vector2 uv1 = Compute::Vector2(1, 1), Compute::Vector4 tint_col = Compute::Vector4(1, 1, 1, 1), Compute::Vector4 border_col = Compute::Vector4(0, 0, 0, 0));
+                    static void SetColorEditOptions(int flags);
+                    static void TreePush(const char* str_id);
+                    static void TreePush(const void* ptr_id = nullptr);
+                    static void TreePop();
+                    static void TreeAdvanceToLabelPos();
+                    static void SetNextTreeNodeOpen(bool is_open, int cond = 0);
+                    static void ListBoxFooter();
+                    static void PlotLines(const char* label, const float* values, int values_count, int values_offset = 0, const char* overlay_text = nullptr, float scale_min = std::numeric_limits<float>::max(), float scale_max = std::numeric_limits<float>::max(), Compute::Vector2 graph_size = Compute::Vector2(0, 0), int stride = sizeof(float));
+                    static void PlotLines(const char* label, float(*values_getter)(void* data, int idx), void* data, int values_count, int values_offset = 0, const char* overlay_text = nullptr, float scale_min = std::numeric_limits<float>::max(), float scale_max = std::numeric_limits<float>::max(), Compute::Vector2 graph_size = Compute::Vector2(0, 0));
+                    static void PlotHistogram(const char* label, const float* values, int values_count, int values_offset = 0, const char* overlay_text = nullptr, float scale_min = std::numeric_limits<float>::max(), float scale_max = std::numeric_limits<float>::max(), Compute::Vector2 graph_size = Compute::Vector2(0, 0), int stride = sizeof(float));
+                    static void PlotHistogram(const char* label, float(*values_getter)(void* data, int idx), void* data, int values_count, int values_offset = 0, const char* overlay_text = nullptr, float scale_min = std::numeric_limits<float>::max(), float scale_max = std::numeric_limits<float>::max(), Compute::Vector2 graph_size = Compute::Vector2(0, 0));
+                    static void Value(const char* prefix, bool b);
+                    static void Value(const char* prefix, int v);
+                    static void Value(const char* prefix, unsigned int v);
+                    static void Value(const char* prefix, float v, const char* float_format = nullptr);
+                    static void EndMainMenuBar();
+                    static void EndMenuBar();
+                    static void EndMenu();
+                    static void BeginTooltip();
+                    static void EndTooltip();
+                    static void SetTooltip(const char* fmt, ...);
+                    static void SetTooltipV(const char* fmt, va_list args);
+                    static void OpenPopup(const char* str_id);
+                    static void CloseCurrentPopup();
+                    static void EndPopup();
+                    static void Columns(int count = 1, const char* id = nullptr, bool border = true);
+                    static void NextColumn();
+                    static void SetColumnWidth(int column_index, float width);
+                    static void SetColumnOffset(int column_index, float offset_x);
+                    static void EndDragDropSource();
+                    static void EndDragDropTarget();
+                    static void PushClipRect(Compute::Vector2 clip_rect_min, Compute::Vector2 clip_rect_max, bool intersect_with_current_clip_rect);
+                    static void PopClipRect();
+                    static void SetItemDefaultFocus();
+                    static void SetKeyboardFocusHere(int offset = 0);
+                    static void SetItemAllowOverlap();
+                    static void EndChildFrame();
+                    static void CalcListClipping(int items_count, float items_height, int* out_items_display_start, int* out_items_display_end);
+                    static void ColorConvertRGBtoHSV(float r, float g, float b, float& out_h, float& out_s, float& out_v);
+                    static void ColorConvertHSVtoRGB(float h, float s, float v, float& out_r, float& out_g, float& out_b);
+                    static void ResetMouseDragDelta(int button = 0);
+                    static void SetMouseCursor(int type);
+                    static void CaptureKeyboardFromApp(bool capture = true);
+                    static void CaptureMouseFromApp(bool capture = true);
+                    static void SetClipboardText(const char* text);
+                    static bool BeginCanvas(const char* name);
+                    static bool BeginCanvasFull(const char* name);
+                    static bool Begin(const char* name, bool* p_open = nullptr, int flags = 0);
+                    static bool BeginChild(const char* str_id, Compute::Vector2 size = Compute::Vector2(0, 0), bool border = false, int flags = 0);
+                    static bool BeginChild(unsigned int id, Compute::Vector2 size = Compute::Vector2(0, 0), bool border = false, int flags = 0);
+                    static bool IsWindowAppearing();
+                    static bool IsWindowCollapsed();
+                    static bool IsWindowFocused(int flags = 0);
+                    static bool IsWindowHovered(int flags = 0);
+                    static bool Button(const char* label, Compute::Vector2 size = Compute::Vector2(0, 0));
+                    static bool SmallButton(const char* label);
+                    static bool InvisibleButton(const char* str_id, Compute::Vector2 size);
+                    static bool ArrowButton(const char* str_id, int dir);
+                    static bool ImageButton(Graphics::Texture2D* user_texture_id, Compute::Vector2 size, Compute::Vector2 uv0 = Compute::Vector2(0, 0), Compute::Vector2 uv1 = Compute::Vector2(1, 1), int frame_padding = -1, Compute::Vector4 bg_col = Compute::Vector4(0, 0, 0, 0), Compute::Vector4 tint_col = Compute::Vector4(1, 1, 1, 1));
+                    static bool Checkbox(const char* label, bool* v);
+                    static bool CheckboxFlags(const char* label, unsigned int* flags, unsigned int flags_value);
+                    static bool RadioButton(const char* label, bool active);
+                    static bool RadioButton(const char* label, int* v, int v_button);
+                    static bool BeginCombo(const char* label, const char* preview_value, int flags = 0);
+                    static bool Combo(const char* label, int* current_item, const char* const items[], int items_count, int popup_max_height_in_items = -1);
+                    static bool Combo(const char* label, int* current_item, const char* items_separated_by_zeros, int popup_max_height_in_items = -1);
+                    static bool Combo(const char* label, int* current_item, bool(*items_getter)(void* data, int idx, const char** out_text), void* data, int items_count, int popup_max_height_in_items = -1);
+                    static bool DragFloat(const char* label, float* v, float v_speed = 1.0f, float v_min = 0.0f, float v_max = 0.0f, const char* format = "%.3f", float power = 1.0f);
+                    static bool DragFloat2(const char* label, float v[2], float v_speed = 1.0f, float v_min = 0.0f, float v_max = 0.0f, const char* format = "%.3f", float power = 1.0f);
+                    static bool DragFloat3(const char* label, float v[3], float v_speed = 1.0f, float v_min = 0.0f, float v_max = 0.0f, const char* format = "%.3f", float power = 1.0f);
+                    static bool DragFloat4(const char* label, float v[4], float v_speed = 1.0f, float v_min = 0.0f, float v_max = 0.0f, const char* format = "%.3f", float power = 1.0f);
+                    static bool DragFloatRange2(const char* label, float* v_current_min, float* v_current_max, float v_speed = 1.0f, float v_min = 0.0f, float v_max = 0.0f, const char* format = "%.3f", const char* format_max = nullptr, float power = 1.0f);
+                    static bool DragInt(const char* label, int* v, float v_speed = 1.0f, int v_min = 0, int v_max = 0, const char* format = "%d");
+                    static bool DragInt2(const char* label, int v[2], float v_speed = 1.0f, int v_min = 0, int v_max = 0, const char* format = "%d");
+                    static bool DragInt3(const char* label, int v[3], float v_speed = 1.0f, int v_min = 0, int v_max = 0, const char* format = "%d");
+                    static bool DragInt4(const char* label, int v[4], float v_speed = 1.0f, int v_min = 0, int v_max = 0, const char* format = "%d");
+                    static bool DragIntRange2(const char* label, int* v_current_min, int* v_current_max, float v_speed = 1.0f, int v_min = 0, int v_max = 0, const char* format = "%d", const char* format_max = nullptr);
+                    static bool DragScalar(const char* label, int data_type, void* v, float v_speed, const void* v_min = nullptr, const void* v_max = nullptr, const char* format = nullptr, float power = 1.0f);
+                    static bool DragScalarN(const char* label, int data_type, void* v, int components, float v_speed, const void* v_min = nullptr, const void* v_max = nullptr, const char* format = nullptr, float power = 1.0f);
+                    static bool SliderFloat(const char* label, float* v, float v_min, float v_max, const char* format = "%.3f", float power = 1.0f);
+                    static bool SliderFloat2(const char* label, float v[2], float v_min, float v_max, const char* format = "%.3f", float power = 1.0f);
+                    static bool SliderFloat3(const char* label, float v[3], float v_min, float v_max, const char* format = "%.3f", float power = 1.0f);
+                    static bool SliderFloat4(const char* label, float v[4], float v_min, float v_max, const char* format = "%.3f", float power = 1.0f);
+                    static bool SliderAngle(const char* label, float* v_rad, float v_degrees_min = -360.0f, float v_degrees_max = +360.0f);
+                    static bool SliderInt(const char* label, int* v, int v_min, int v_max, const char* format = "%d");
+                    static bool SliderInt2(const char* label, int v[2], int v_min, int v_max, const char* format = "%d");
+                    static bool SliderInt3(const char* label, int v[3], int v_min, int v_max, const char* format = "%d");
+                    static bool SliderInt4(const char* label, int v[4], int v_min, int v_max, const char* format = "%d");
+                    static bool SliderScalar(const char* label, int data_type, void* v, const void* v_min, const void* v_max, const char* format = nullptr, float power = 1.0f);
+                    static bool SliderScalarN(const char* label, int data_type, void* v, int components, const void* v_min, const void* v_max, const char* format = nullptr, float power = 1.0f);
+                    static bool VSliderFloat(const char* label, Compute::Vector2 size, float* v, float v_min, float v_max, const char* format = "%.3f", float power = 1.0f);
+                    static bool VSliderInt(const char* label, Compute::Vector2 size, int* v, int v_min, int v_max, const char* format = "%d");
+                    static bool VSliderScalar(const char* label, Compute::Vector2 size, int data_type, void* v, const void* v_min, const void* v_max, const char* format = nullptr, float power = 1.0f);
+                    static bool InputText(const char* label, char* buf, size_t buf_size, int flags = 0);
+                    static bool InputTextMultiline(const char* label, char* buf, size_t buf_size, Compute::Vector2 size = Compute::Vector2(0, 0), int flags = 0);
+                    static bool InputFloat(const char* label, float* v, float step = 0.0f, float step_fast = 0.0f, const char* format = "%.3f", int extra_flags = 0);
+                    static bool InputFloat2(const char* label, float v[2], const char* format = "%.3f", int extra_flags = 0);
+                    static bool InputFloat3(const char* label, float v[3], const char* format = "%.3f", int extra_flags = 0);
+                    static bool InputFloat4(const char* label, float v[4], const char* format = "%.3f", int extra_flags = 0);
+                    static bool InputInt(const char* label, int* v, int step = 1, int step_fast = 100, int extra_flags = 0);
+                    static bool InputInt2(const char* label, int v[2], int extra_flags = 0);
+                    static bool InputInt3(const char* label, int v[3], int extra_flags = 0);
+                    static bool InputInt4(const char* label, int v[4], int extra_flags = 0);
+                    static bool InputDouble(const char* label, Float64* v, Float64 step = 0.0f, Float64 step_fast = 0.0f, const char* format = "%.6f", int extra_flags = 0);
+                    static bool InputScalar(const char* label, int data_type, void* v, const void* step = nullptr, const void* step_fast = nullptr, const char* format = nullptr, int extra_flags = 0);
+                    static bool InputScalarN(const char* label, int data_type, void* v, int components, const void* step = nullptr, const void* step_fast = nullptr, const char* format = nullptr, int extra_flags = 0);
+                    static bool ColorEdit3(const char* label, float col[3], int flags = 0);
+                    static bool ColorEdit4(const char* label, float col[4], int flags = 0);
+                    static bool ColorPicker3(const char* label, float col[3], int flags = 0);
+                    static bool ColorPicker4(const char* label, float col[4], int flags = 0, const float* ref_col = nullptr);
+                    static bool ColorButton(const char* desc_id, Compute::Vector4 col, int flags = 0, Compute::Vector2 size = Compute::Vector2(0, 0));
+                    static bool TreeNode(const char* label);
+                    static bool TreeNode(const char* str_id, const char* fmt, ...);
+                    static bool TreeNode(const void* ptr_id, const char* fmt, ...);
+                    static bool TreeNodeV(const char* str_id, const char* fmt, va_list args);
+                    static bool TreeNodeV(const void* ptr_id, const char* fmt, va_list args);
+                    static bool TreeNodeEx(const char* label, int flags);
+                    static bool TreeNodeEx(const char* str_id, int flags, const char* fmt, ...);
+                    static bool TreeNodeEx(const void* ptr_id, int flags, const char* fmt, ...);
+                    static bool TreeNodeExV(const char* str_id, int flags, const char* fmt, va_list args);
+                    static bool TreeNodeExV(const void* ptr_id, int flags, const char* fmt, va_list args);
+                    static bool CollapsingHeader(const char* label, int flags = 0);
+                    static bool CollapsingHeader(const char* label, bool* p_open, int flags = 0);
+                    static bool Selectable(const char* label, bool selected = false, int flags = 0, Compute::Vector2 size = Compute::Vector2(0, 0));
+                    static bool Selectable(const char* label, bool* p_selected, int flags = 0, Compute::Vector2 size = Compute::Vector2(0, 0));
+                    static bool ListBox(const char* label, int* current_item, const char* const items[], int items_count, int height_in_items = -1);
+                    static bool ListBox(const char* label, int* current_item, bool(*items_getter)(void* data, int idx, const char** out_text), void* data, int items_count, int height_in_items = -1);
+                    static bool ListBoxHeader(const char* label, Compute::Vector2 size = Compute::Vector2(0, 0));
+                    static bool ListBoxHeader(const char* label, int items_count, int height_in_items = -1);
+                    static bool BeginMainMenuBar();
+                    static bool BeginMenuBar();
+                    static bool BeginMenu(const char* label, bool enabled = true);
+                    static bool MenuItem(const char* label, const char* shortcut = nullptr, bool selected = false, bool enabled = true);
+                    static bool MenuItem(const char* label, const char* shortcut, bool* p_selected, bool enabled = true);
+                    static bool BeginPopup(const char* str_id, int flags = 0);
+                    static bool BeginPopupContextItem(const char* str_id = nullptr, int mouse_button = 1);
+                    static bool BeginPopupContextWindow(const char* str_id = nullptr, int mouse_button = 1, bool also_over_items = true);
+                    static bool BeginPopupContextVoid(const char* str_id = nullptr, int mouse_button = 1);
+                    static bool BeginPopupModal(const char* name, bool* p_open = nullptr, int flags = 0);
+                    static bool OpenPopupOnItemClick(const char* str_id = nullptr, int mouse_button = 1);
+                    static bool IsPopupOpen(const char* str_id);
+                    static bool BeginDragDropSource(int flags = 0);
+                    static bool SetDragDropPayload(const char* type, const void* data, size_t size, int cond = 0);
+                    static bool BeginDragDropTarget();
+                    static bool IsItemHovered(int flags = 0);
+                    static bool IsItemActive();
+                    static bool IsItemFocused();
+                    static bool IsItemClicked(int mouse_button = 0);
+                    static bool IsItemVisible();
+                    static bool IsItemEdited();
+                    static bool IsItemDeactivated();
+                    static bool IsItemDeactivatedAfterEdit();
+                    static bool IsAnyItemHovered();
+                    static bool IsAnyItemActive();
+                    static bool IsAnyItemFocused();
+                    static bool IsRectVisible(Compute::Vector2 size);
+                    static bool IsRectVisible(Compute::Vector2 rect_min, Compute::Vector2 rect_max);
+                    static bool BeginChildFrame(unsigned int id, Compute::Vector2 size, int flags = 0);
+                    static bool IsKeyDown(int user_key_index);
+                    static bool IsKeyPressed(int user_key_index, bool repeat = true);
+                    static bool IsKeyReleased(int user_key_index);
+                    static bool IsMouseDown(int button);
+                    static bool IsAnyMouseDown();
+                    static bool IsMouseClicked(int button, bool repeat = false);
+                    static bool IsMouseDoubleClicked(int button);
+                    static bool IsMouseReleased(int button);
+                    static bool IsMouseDragging(int button = 0, float lock_threshold = -1.0f);
+                    static bool IsMouseHoveringRect(Compute::Vector2 r_min, Compute::Vector2 r_max, bool clip = true);
+                    static bool IsMousePosValid(Compute::Vector2* mouse_pos = nullptr);
+                    static bool IsTextFocused();
+                    static int GetMouseCursor();
+                    static int GetKeyIndex(int _key);
+                    static int GetFrameCount();
+                    static int GetColumnIndex();
+                    static int GetColumnsCount();
+                    static int GetKeyPressedAmount(int key_index, float repeat_delay, float rate);
+                    static float GetWindowWidth();
+                    static float GetWindowHeight();
+                    static float GetContentRegionAvailWidth();
+                    static float GetWindowContentRegionWidth();
+                    static float GetScrollX();
+                    static float GetScrollY();
+                    static float GetScrollMaxX();
+                    static float GetScrollMaxY();
+                    static float GetFontSize();
+                    static float CalcItemWidth();
+                    static float GetCursorPosX();
+                    static float GetCursorPosY();
+                    static float GetTextLineHeight();
+                    static float GetTextLineHeightWithSpacing();
+                    static float GetFrameHeight();
+                    static float GetFrameHeightWithSpacing();
+                    static float GetTreeNodeToLabelSpacing();
+                    static float GetColumnWidth(int column_index = -1);
+                    static float GetColumnOffset(int column_index = -1);
+                    static Float64 GetTime();
+                    static unsigned int GetColorU32(int idx, float alpha_mul = 1.0f);
+                    static unsigned int GetColorU32(Compute::Vector4 col);
+                    static unsigned int GetColorU32(unsigned int col);
+                    static unsigned int ColorConvertFloat4ToU32(Compute::Vector4 in);
+                    static unsigned int GetID(const char* str_id);
+                    static unsigned int GetID(const char* str_id_begin, const char* str_id_end);
+                    static unsigned int GetID(const void* ptr_id);
+                    static Compute::Vector2 GetWindowPos();
+                    static Compute::Vector2 GetWindowSize();
+                    static Compute::Vector2 GetContentRegionMax();
+                    static Compute::Vector2 GetContentRegionAvail();
+                    static Compute::Vector2 GetWindowContentRegionMin();
+                    static Compute::Vector2 GetWindowContentRegionMax();
+                    static Compute::Vector2 GetFontTexUvWhitePixel();
+                    static Compute::Vector2 GetCursorPos();
+                    static Compute::Vector2 GetCursorStartPos();
+                    static Compute::Vector2 GetCursorScreenPos();
+                    static Compute::Vector2 GetItemRectMin();
+                    static Compute::Vector2 GetItemRectMax();
+                    static Compute::Vector2 GetItemRectSize();
+                    static Compute::Vector2 CalcTextSize(const char* text, const char* text_end = nullptr, bool hide_text_after_double_hash = false, float wrap_width = -1.0f);
+                    static Compute::Vector2 GetMousePos();
+                    static Compute::Vector2 GetMousePosOnOpeningCurrentPopup();
+                    static Compute::Vector2 GetMouseDragDelta(int button = 0, float lock_threshold = -1.0f);
+                    static Compute::Vector4 GetStyleColorVec4(int idx);
+                    static Compute::Vector4 ColorConvertU32ToFloat4(unsigned int in);
+                    static const char* GetClipboardText();
+                    static const char* GetStyleColorName(int idx);
+                };
+
+                typedef std::function<void(GUIRenderer*)> RendererCallback;
             }
 
             class THAWK_OUT ModelRenderer : public Renderer
@@ -409,8 +719,8 @@ namespace Tomahawk
 
             public:
                 virtual ~ModelRenderer() = default;
-                void OnLoad(ContentManager* Content, Rest::Document* Node);
-                void OnSave(ContentManager* Content, Rest::Document* Node);
+                void OnLoad(ContentManager* Content, Rest::Document* Node) override;
+                void OnSave(ContentManager* Content, Rest::Document* Node) override;
 
             public:
                 static ModelRenderer* Create(RenderSystem* Lab);
@@ -423,8 +733,8 @@ namespace Tomahawk
 
             public:
                 virtual ~SkinnedModelRenderer() = default;
-                void OnLoad(ContentManager* Content, Rest::Document* Node);
-                void OnSave(ContentManager* Content, Rest::Document* Node);
+                void OnLoad(ContentManager* Content, Rest::Document* Node) override;
+                void OnSave(ContentManager* Content, Rest::Document* Node) override;
 
             public:
                 static SkinnedModelRenderer* Create(RenderSystem* Lab);
@@ -454,8 +764,8 @@ namespace Tomahawk
 
             public:
                 virtual ~DepthRenderer();
-                void OnLoad(ContentManager* Content, Rest::Document* Node);
-                void OnSave(ContentManager* Content, Rest::Document* Node);
+                void OnLoad(ContentManager* Content, Rest::Document* Node) override;
+                void OnSave(ContentManager* Content, Rest::Document* Node) override;
 
             public:
                 static DepthRenderer* Create(RenderSystem* Lab);
@@ -472,8 +782,8 @@ namespace Tomahawk
 
             public:
                 virtual ~ProbeRenderer();
-                void OnLoad(ContentManager* Content, Rest::Document* Node);
-                void OnSave(ContentManager* Content, Rest::Document* Node);
+                void OnLoad(ContentManager* Content, Rest::Document* Node) override;
+                void OnSave(ContentManager* Content, Rest::Document* Node) override;
 
             public:
                 static ProbeRenderer* Create(RenderSystem* Lab);
@@ -549,8 +859,8 @@ namespace Tomahawk
 
             public:
                 virtual ~LightRenderer() = default;
-                void OnLoad(ContentManager* Content, Rest::Document* Node);
-                void OnSave(ContentManager* Content, Rest::Document* Node);
+                void OnLoad(ContentManager* Content, Rest::Document* Node) override;
+                void OnSave(ContentManager* Content, Rest::Document* Node) override;
 
             public:
                 static LightRenderer* Create(RenderSystem* Lab);
@@ -563,8 +873,8 @@ namespace Tomahawk
 
             public:
                 virtual ~ElementSystemRenderer() = default;
-                void OnLoad(ContentManager* Content, Rest::Document* Node);
-                void OnSave(ContentManager* Content, Rest::Document* Node);
+                void OnLoad(ContentManager* Content, Rest::Document* Node) override;
+                void OnSave(ContentManager* Content, Rest::Document* Node) override;
 
             public:
                 static ElementSystemRenderer* Create(RenderSystem* Lab);
@@ -580,9 +890,9 @@ namespace Tomahawk
                 ImageRenderer(RenderSystem* Lab, Graphics::RenderTarget2D* Target);
 
             public:
-                virtual ~ImageRenderer();
-                void OnLoad(ContentManager* Content, Rest::Document* Node);
-                void OnSave(ContentManager* Content, Rest::Document* Node);
+                virtual ~ImageRenderer() override;
+                void OnLoad(ContentManager* Content, Rest::Document* Node) override;
+                void OnSave(ContentManager* Content, Rest::Document* Node) override;
 
             public:
                 static ImageRenderer* Create(RenderSystem* Lab);
@@ -606,9 +916,9 @@ namespace Tomahawk
 
             public:
                 virtual ~ReflectionsRenderer() = default;
-                void OnInitialize();
-                void OnLoad(ContentManager* Content, Rest::Document* Node);
-                void OnSave(ContentManager* Content, Rest::Document* Node);
+                void OnInitialize() override;
+                void OnLoad(ContentManager* Content, Rest::Document* Node) override;
+                void OnSave(ContentManager* Content, Rest::Document* Node) override;
 
             public:
                 static ReflectionsRenderer* Create(RenderSystem* Lab);
@@ -647,9 +957,9 @@ namespace Tomahawk
 
             public:
                 virtual ~DepthOfFieldRenderer() = default;
-                void OnInitialize();
-                void OnLoad(ContentManager* Content, Rest::Document* Node);
-                void OnSave(ContentManager* Content, Rest::Document* Node);
+                void OnInitialize() override;
+                void OnLoad(ContentManager* Content, Rest::Document* Node) override;
+                void OnSave(ContentManager* Content, Rest::Document* Node) override;
 
             public:
                 static DepthOfFieldRenderer* Create(RenderSystem* Lab);
@@ -676,9 +986,9 @@ namespace Tomahawk
 
             public:
                 virtual ~EmissionRenderer() = default;
-                void OnInitialize();
-                void OnLoad(ContentManager* Content, Rest::Document* Node);
-                void OnSave(ContentManager* Content, Rest::Document* Node);
+                void OnInitialize() override;
+                void OnLoad(ContentManager* Content, Rest::Document* Node) override;
+                void OnSave(ContentManager* Content, Rest::Document* Node) override;
 
             public:
                 static EmissionRenderer* Create(RenderSystem* Lab);
@@ -710,9 +1020,9 @@ namespace Tomahawk
 
             public:
                 virtual ~GlitchRenderer() = default;
-                void OnInitialize();
-                void OnLoad(ContentManager* Content, Rest::Document* Node);
-                void OnSave(ContentManager* Content, Rest::Document* Node);
+                void OnInitialize() override;
+                void OnLoad(ContentManager* Content, Rest::Document* Node) override;
+                void OnSave(ContentManager* Content, Rest::Document* Node) override;
 
             public:
                 static GlitchRenderer* Create(RenderSystem* Lab);
@@ -742,9 +1052,9 @@ namespace Tomahawk
 
             public:
                 virtual ~AmbientOcclusionRenderer() = default;
-                void OnInitialize();
-                void OnLoad(ContentManager* Content, Rest::Document* Node);
-                void OnSave(ContentManager* Content, Rest::Document* Node);
+                void OnInitialize() override;
+                void OnLoad(ContentManager* Content, Rest::Document* Node) override;
+                void OnSave(ContentManager* Content, Rest::Document* Node) override;
 
             public:
                 static AmbientOcclusionRenderer* Create(RenderSystem* Lab);
@@ -774,9 +1084,9 @@ namespace Tomahawk
 
             public:
                 virtual ~IndirectOcclusionRenderer() = default;
-                void OnInitialize();
-                void OnLoad(ContentManager* Content, Rest::Document* Node);
-                void OnSave(ContentManager* Content, Rest::Document* Node);
+                void OnInitialize() override;
+                void OnLoad(ContentManager* Content, Rest::Document* Node) override;
+                void OnSave(ContentManager* Content, Rest::Document* Node) override;
 
             public:
                 static IndirectOcclusionRenderer* Create(RenderSystem* Lab);
@@ -806,9 +1116,9 @@ namespace Tomahawk
 
             public:
                 virtual ~ToneRenderer() = default;
-                void OnInitialize();
-                void OnLoad(ContentManager* Content, Rest::Document* Node);
-                void OnSave(ContentManager* Content, Rest::Document* Node);
+                void OnInitialize() override;
+                void OnLoad(ContentManager* Content, Rest::Document* Node) override;
+                void OnSave(ContentManager* Content, Rest::Document* Node) override;
 
             public:
                 static ToneRenderer* Create(RenderSystem* Lab);
@@ -819,6 +1129,7 @@ namespace Tomahawk
             protected:
                 Compute::Matrix4x4 WorldViewProjection;
                 std::function<void(GUIRenderer*)> Callback;
+                GUI::Interface Tree;
                 UInt64 Time, Frequency;
                 Graphics::Activity* Activity;
                 char* ClipboardTextData;
@@ -831,320 +1142,18 @@ namespace Tomahawk
                 GUIRenderer(RenderSystem* Lab, Graphics::Activity* NewWindow);
 
             public:
-                virtual ~GUIRenderer();
-                void OnRasterization(Rest::Timer* Time);
-                void KeyStateCallback(Graphics::KeyCode Key, Graphics::KeyMod Mod, int Virtual, int Repeat, bool Pressed);
-                void InputCallback(char* Buffer, int Length);
-                void CursorWheelStateCallback(int X, int Y, bool Normal);
-                void Transform(Compute::Matrix4x4 In);
+                virtual ~GUIRenderer() override;
+                void OnRender(Rest::Timer* Time) override;
+                void SetRenderCallback(const GUI::RendererCallback& NewCallback);
+                void Transform(const Compute::Matrix4x4& In);
                 void Activate();
                 void Deactivate();
-                void Prepare();
-                void Render();
                 void Reset();
-                void End();
-                void EndChild();
-                void Restyle(GUI::Style* Style);
-                void GetStyle(GUI::Style* Style);
-                void SetRenderCallback(const std::function<void(GUIRenderer*)>& NewCallback);
-                void SetMouseDraw(bool Enabled);
-                void SetNextWindowPos(Compute::Vector2 pos, int cond = 0, Compute::Vector2 pivot = Compute::Vector2(0, 0));
-                void SetNextWindowSize(Compute::Vector2 size, int cond = 0);
-                void SetNextWindowContentSize(Compute::Vector2 size);
-                void SetNextWindowCollapsed(bool collapsed, int cond);
-                void SetNextWindowFocus();
-                void SetNextWindowBgAlpha(float alpha);
-                void SetWindowPos(Compute::Vector2 pos, int cond = 0);
-                void SetWindowSize(Compute::Vector2 size, int cond = 0);
-                void SetWindowCollapsed(bool collapsed, int cond = 0);
-                void SetWindowFocus();
-                void SetWindowFontScale(float scale);
-                void SetWindowPos(const char* name, Compute::Vector2 pos, int cond = 0);
-                void SetWindowSize(const char* name, Compute::Vector2 size, int cond = 0);
-                void SetWindowCollapsed(const char* name, bool collapsed, int cond = 0);
-                void SetWindowFocus(const char* name);
-                void SetScrollX(float scroll_x);
-                void SetScrollY(float scroll_y);
-                void SetScrollHere(float center_y_ratio = 0.5f);
-                void SetScrollFromPosY(float pos_y, float center_y_ratio = 0.5f);
-                void PushStyleColor(int idx, unsigned int col);
-                void PushStyleColor(int idx, Compute::Vector4 col);
-                void PopStyleColor(int count = 1);
-                void PushStyleVar(int idx, float val);
-                void PushStyleVar(int idx, Compute::Vector2 val);
-                void PopStyleVar(int count = 1);
-                void PushItemWidth(float item_width);
-                void PopItemWidth();
-                void PushTextWrapPos(float wrap_pos_x = 0.0f);
-                void PopTextWrapPos();
-                void PushAllowKeyboardFocus(bool allow_keyboard_focus);
-                void PopAllowKeyboardFocus();
-                void PushButtonRepeat(bool repeat);
-                void PopButtonRepeat();
-                void Separator();
-                void SameLine(float pos_x = 0.0f, float spacing_w = -1.0f);
-                void NewLine();
-                void Spacing();
-                void Dummy(Compute::Vector2 size);
-                void Indent(float indent_w = 0.0f);
-                void Unindent(float indent_w = 0.0f);
-                void BeginGroup();
-                void EndGroup();
-                void SetCursorPos(Compute::Vector2 local_pos);
-                void SetCursorPosX(float x);
-                void SetCursorPosY(float y);
-                void SetCursorScreenPos(Compute::Vector2 screen_pos);
-                void AlignTextToFramePadding();
-                void PushID(const char* str_id);
-                void PushID(const char* str_id_begin, const char* str_id_end);
-                void PushID(const void* ptr_id);
-                void PushID(int int_id);
-                void PopID();
-                void TextUnformatted(const char* text, const char* text_end = nullptr);
-                void Text(const char* fmt, ...);
-                void TextV(const char* fmt, va_list args);
-                void TextColored(Compute::Vector4 col, const char* fmt, ...);
-                void TextColoredV(Compute::Vector4 col, const char* fmt, va_list args);
-                void TextDisabled(const char* fmt, ...);
-                void TextDisabledV(const char* fmt, va_list args);
-                void TextWrapped(const char* fmt, ...);
-                void TextWrappedV(const char* fmt, va_list args);
-                void LabelText(const char* label, const char* fmt, ...);
-                void LabelTextV(const char* label, const char* fmt, va_list args);
-                void BulletText(const char* fmt, ...);
-                void BulletTextV(const char* fmt, va_list args);
-                void ProgressBar(float fraction, Compute::Vector2 size_arg = Compute::Vector2(-1, 0), const char* overlay = nullptr);
-                void Bullet();
-                void EndCombo();
-                void Image(Graphics::Texture2D* user_texture_id, Compute::Vector2 size, Compute::Vector2 uv0 = Compute::Vector2(0, 0), Compute::Vector2 uv1 = Compute::Vector2(1, 1), Compute::Vector4 tint_col = Compute::Vector4(1, 1, 1, 1), Compute::Vector4 border_col = Compute::Vector4(0, 0, 0, 0));
-                void SetColorEditOptions(int flags);
-                void TreePush(const char* str_id);
-                void TreePush(const void* ptr_id = nullptr);
-                void TreePop();
-                void TreeAdvanceToLabelPos();
-                void SetNextTreeNodeOpen(bool is_open, int cond = 0);
-                void ListBoxFooter();
-                void PlotLines(const char* label, const float* values, int values_count, int values_offset = 0, const char* overlay_text = nullptr, float scale_min = std::numeric_limits<float>::max(), float scale_max = std::numeric_limits<float>::max(), Compute::Vector2 graph_size = Compute::Vector2(0, 0), int stride = sizeof(float));
-                void PlotLines(const char* label, float(*values_getter)(void* data, int idx), void* data, int values_count, int values_offset = 0, const char* overlay_text = nullptr, float scale_min = std::numeric_limits<float>::max(), float scale_max = std::numeric_limits<float>::max(), Compute::Vector2 graph_size = Compute::Vector2(0, 0));
-                void PlotHistogram(const char* label, const float* values, int values_count, int values_offset = 0, const char* overlay_text = nullptr, float scale_min = std::numeric_limits<float>::max(), float scale_max = std::numeric_limits<float>::max(), Compute::Vector2 graph_size = Compute::Vector2(0, 0), int stride = sizeof(float));
-                void PlotHistogram(const char* label, float(*values_getter)(void* data, int idx), void* data, int values_count, int values_offset = 0, const char* overlay_text = nullptr, float scale_min = std::numeric_limits<float>::max(), float scale_max = std::numeric_limits<float>::max(), Compute::Vector2 graph_size = Compute::Vector2(0, 0));
-                void Value(const char* prefix, bool b);
-                void Value(const char* prefix, int v);
-                void Value(const char* prefix, unsigned int v);
-                void Value(const char* prefix, float v, const char* float_format = nullptr);
-                void EndMainMenuBar();
-                void EndMenuBar();
-                void EndMenu();
-                void BeginTooltip();
-                void EndTooltip();
-                void SetTooltip(const char* fmt, ...);
-                void SetTooltipV(const char* fmt, va_list args);
-                void OpenPopup(const char* str_id);
-                void CloseCurrentPopup();
-                void EndPopup();
-                void Columns(int count = 1, const char* id = nullptr, bool border = true);
-                void NextColumn();
-                void SetColumnWidth(int column_index, float width);
-                void SetColumnOffset(int column_index, float offset_x);
-                void EndDragDropSource();
-                void EndDragDropTarget();
-                void PushClipRect(Compute::Vector2 clip_rect_min, Compute::Vector2 clip_rect_max, bool intersect_with_current_clip_rect);
-                void PopClipRect();
-                void SetItemDefaultFocus();
-                void SetKeyboardFocusHere(int offset = 0);
-                void SetItemAllowOverlap();
-                void EndChildFrame();
-                void CalcListClipping(int items_count, float items_height, int* out_items_display_start, int* out_items_display_end);
-                void ColorConvertRGBtoHSV(float r, float g, float b, float& out_h, float& out_s, float& out_v);
-                void ColorConvertHSVtoRGB(float h, float s, float v, float& out_r, float& out_g, float& out_b);
-                void ResetMouseDragDelta(int button = 0);
-                void SetMouseCursor(int type);
-                void CaptureKeyboardFromApp(bool capture = true);
-                void CaptureMouseFromApp(bool capture = true);
-                void SetClipboardText(const char* text);
-                bool BeginCanvas(const char* name);
-                bool BeginCanvasFull(const char* name);
-                bool Begin(const char* name, bool* p_open = nullptr, int flags = 0);
-                bool BeginChild(const char* str_id, Compute::Vector2 size = Compute::Vector2(0, 0), bool border = false, int flags = 0);
-                bool BeginChild(unsigned int id, Compute::Vector2 size = Compute::Vector2(0, 0), bool border = false, int flags = 0);
-                bool IsWindowAppearing();
-                bool IsWindowCollapsed();
-                bool IsWindowFocused(int flags = 0);
-                bool IsWindowHovered(int flags = 0);
-                bool Button(const char* label, Compute::Vector2 size = Compute::Vector2(0, 0));
-                bool SmallButton(const char* label);
-                bool InvisibleButton(const char* str_id, Compute::Vector2 size);
-                bool ArrowButton(const char* str_id, int dir);
-                bool ImageButton(Graphics::Texture2D* user_texture_id, Compute::Vector2 size, Compute::Vector2 uv0 = Compute::Vector2(0, 0), Compute::Vector2 uv1 = Compute::Vector2(1, 1), int frame_padding = -1, Compute::Vector4 bg_col = Compute::Vector4(0, 0, 0, 0), Compute::Vector4 tint_col = Compute::Vector4(1, 1, 1, 1));
-                bool Checkbox(const char* label, bool* v);
-                bool CheckboxFlags(const char* label, unsigned int* flags, unsigned int flags_value);
-                bool RadioButton(const char* label, bool active);
-                bool RadioButton(const char* label, int* v, int v_button);
-                bool BeginCombo(const char* label, const char* preview_value, int flags = 0);
-                bool Combo(const char* label, int* current_item, const char* const items[], int items_count, int popup_max_height_in_items = -1);
-                bool Combo(const char* label, int* current_item, const char* items_separated_by_zeros, int popup_max_height_in_items = -1);
-                bool Combo(const char* label, int* current_item, bool(*items_getter)(void* data, int idx, const char** out_text), void* data, int items_count, int popup_max_height_in_items = -1);
-                bool DragFloat(const char* label, float* v, float v_speed = 1.0f, float v_min = 0.0f, float v_max = 0.0f, const char* format = "%.3f", float power = 1.0f);
-                bool DragFloat2(const char* label, float v[2], float v_speed = 1.0f, float v_min = 0.0f, float v_max = 0.0f, const char* format = "%.3f", float power = 1.0f);
-                bool DragFloat3(const char* label, float v[3], float v_speed = 1.0f, float v_min = 0.0f, float v_max = 0.0f, const char* format = "%.3f", float power = 1.0f);
-                bool DragFloat4(const char* label, float v[4], float v_speed = 1.0f, float v_min = 0.0f, float v_max = 0.0f, const char* format = "%.3f", float power = 1.0f);
-                bool DragFloatRange2(const char* label, float* v_current_min, float* v_current_max, float v_speed = 1.0f, float v_min = 0.0f, float v_max = 0.0f, const char* format = "%.3f", const char* format_max = nullptr, float power = 1.0f);
-                bool DragInt(const char* label, int* v, float v_speed = 1.0f, int v_min = 0, int v_max = 0, const char* format = "%d");
-                bool DragInt2(const char* label, int v[2], float v_speed = 1.0f, int v_min = 0, int v_max = 0, const char* format = "%d");
-                bool DragInt3(const char* label, int v[3], float v_speed = 1.0f, int v_min = 0, int v_max = 0, const char* format = "%d");
-                bool DragInt4(const char* label, int v[4], float v_speed = 1.0f, int v_min = 0, int v_max = 0, const char* format = "%d");
-                bool DragIntRange2(const char* label, int* v_current_min, int* v_current_max, float v_speed = 1.0f, int v_min = 0, int v_max = 0, const char* format = "%d", const char* format_max = nullptr);
-                bool DragScalar(const char* label, int data_type, void* v, float v_speed, const void* v_min = nullptr, const void* v_max = nullptr, const char* format = nullptr, float power = 1.0f);
-                bool DragScalarN(const char* label, int data_type, void* v, int components, float v_speed, const void* v_min = nullptr, const void* v_max = nullptr, const char* format = nullptr, float power = 1.0f);
-                bool SliderFloat(const char* label, float* v, float v_min, float v_max, const char* format = "%.3f", float power = 1.0f);
-                bool SliderFloat2(const char* label, float v[2], float v_min, float v_max, const char* format = "%.3f", float power = 1.0f);
-                bool SliderFloat3(const char* label, float v[3], float v_min, float v_max, const char* format = "%.3f", float power = 1.0f);
-                bool SliderFloat4(const char* label, float v[4], float v_min, float v_max, const char* format = "%.3f", float power = 1.0f);
-                bool SliderAngle(const char* label, float* v_rad, float v_degrees_min = -360.0f, float v_degrees_max = +360.0f);
-                bool SliderInt(const char* label, int* v, int v_min, int v_max, const char* format = "%d");
-                bool SliderInt2(const char* label, int v[2], int v_min, int v_max, const char* format = "%d");
-                bool SliderInt3(const char* label, int v[3], int v_min, int v_max, const char* format = "%d");
-                bool SliderInt4(const char* label, int v[4], int v_min, int v_max, const char* format = "%d");
-                bool SliderScalar(const char* label, int data_type, void* v, const void* v_min, const void* v_max, const char* format = nullptr, float power = 1.0f);
-                bool SliderScalarN(const char* label, int data_type, void* v, int components, const void* v_min, const void* v_max, const char* format = nullptr, float power = 1.0f);
-                bool VSliderFloat(const char* label, Compute::Vector2 size, float* v, float v_min, float v_max, const char* format = "%.3f", float power = 1.0f);
-                bool VSliderInt(const char* label, Compute::Vector2 size, int* v, int v_min, int v_max, const char* format = "%d");
-                bool VSliderScalar(const char* label, Compute::Vector2 size, int data_type, void* v, const void* v_min, const void* v_max, const char* format = nullptr, float power = 1.0f);
-                bool InputText(const char* label, char* buf, size_t buf_size, int flags = 0);
-                bool InputTextMultiline(const char* label, char* buf, size_t buf_size, Compute::Vector2 size = Compute::Vector2(0, 0), int flags = 0);
-                bool InputFloat(const char* label, float* v, float step = 0.0f, float step_fast = 0.0f, const char* format = "%.3f", int extra_flags = 0);
-                bool InputFloat2(const char* label, float v[2], const char* format = "%.3f", int extra_flags = 0);
-                bool InputFloat3(const char* label, float v[3], const char* format = "%.3f", int extra_flags = 0);
-                bool InputFloat4(const char* label, float v[4], const char* format = "%.3f", int extra_flags = 0);
-                bool InputInt(const char* label, int* v, int step = 1, int step_fast = 100, int extra_flags = 0);
-                bool InputInt2(const char* label, int v[2], int extra_flags = 0);
-                bool InputInt3(const char* label, int v[3], int extra_flags = 0);
-                bool InputInt4(const char* label, int v[4], int extra_flags = 0);
-                bool InputDouble(const char* label, Float64* v, Float64 step = 0.0f, Float64 step_fast = 0.0f, const char* format = "%.6f", int extra_flags = 0);
-                bool InputScalar(const char* label, int data_type, void* v, const void* step = nullptr, const void* step_fast = nullptr, const char* format = nullptr, int extra_flags = 0);
-                bool InputScalarN(const char* label, int data_type, void* v, int components, const void* step = nullptr, const void* step_fast = nullptr, const char* format = nullptr, int extra_flags = 0);
-                bool ColorEdit3(const char* label, float col[3], int flags = 0);
-                bool ColorEdit4(const char* label, float col[4], int flags = 0);
-                bool ColorPicker3(const char* label, float col[3], int flags = 0);
-                bool ColorPicker4(const char* label, float col[4], int flags = 0, const float* ref_col = nullptr);
-                bool ColorButton(const char* desc_id, Compute::Vector4 col, int flags = 0, Compute::Vector2 size = Compute::Vector2(0, 0));
-                bool TreeNode(const char* label);
-                bool TreeNode(const char* str_id, const char* fmt, ...);
-                bool TreeNode(const void* ptr_id, const char* fmt, ...);
-                bool TreeNodeV(const char* str_id, const char* fmt, va_list args);
-                bool TreeNodeV(const void* ptr_id, const char* fmt, va_list args);
-                bool TreeNodeEx(const char* label, int flags);
-                bool TreeNodeEx(const char* str_id, int flags, const char* fmt, ...);
-                bool TreeNodeEx(const void* ptr_id, int flags, const char* fmt, ...);
-                bool TreeNodeExV(const char* str_id, int flags, const char* fmt, va_list args);
-                bool TreeNodeExV(const void* ptr_id, int flags, const char* fmt, va_list args);
-                bool CollapsingHeader(const char* label, int flags = 0);
-                bool CollapsingHeader(const char* label, bool* p_open, int flags = 0);
-                bool Selectable(const char* label, bool selected = false, int flags = 0, Compute::Vector2 size = Compute::Vector2(0, 0));
-                bool Selectable(const char* label, bool* p_selected, int flags = 0, Compute::Vector2 size = Compute::Vector2(0, 0));
-                bool ListBox(const char* label, int* current_item, const char* const items[], int items_count, int height_in_items = -1);
-                bool ListBox(const char* label, int* current_item, bool(*items_getter)(void* data, int idx, const char** out_text), void* data, int items_count, int height_in_items = -1);
-                bool ListBoxHeader(const char* label, Compute::Vector2 size = Compute::Vector2(0, 0));
-                bool ListBoxHeader(const char* label, int items_count, int height_in_items = -1);
-                bool BeginMainMenuBar();
-                bool BeginMenuBar();
-                bool BeginMenu(const char* label, bool enabled = true);
-                bool MenuItem(const char* label, const char* shortcut = nullptr, bool selected = false, bool enabled = true);
-                bool MenuItem(const char* label, const char* shortcut, bool* p_selected, bool enabled = true);
-                bool BeginPopup(const char* str_id, int flags = 0);
-                bool BeginPopupContextItem(const char* str_id = nullptr, int mouse_button = 1);
-                bool BeginPopupContextWindow(const char* str_id = nullptr, int mouse_button = 1, bool also_over_items = true);
-                bool BeginPopupContextVoid(const char* str_id = nullptr, int mouse_button = 1);
-                bool BeginPopupModal(const char* name, bool* p_open = nullptr, int flags = 0);
-                bool OpenPopupOnItemClick(const char* str_id = nullptr, int mouse_button = 1);
-                bool IsPopupOpen(const char* str_id);
-                bool BeginDragDropSource(int flags = 0);
-                bool SetDragDropPayload(const char* type, const void* data, size_t size, int cond = 0);
-                bool BeginDragDropTarget();
-                bool IsItemHovered(int flags = 0);
-                bool IsItemActive();
-                bool IsItemFocused();
-                bool IsItemClicked(int mouse_button = 0);
-                bool IsItemVisible();
-                bool IsItemEdited();
-                bool IsItemDeactivated();
-                bool IsItemDeactivatedAfterEdit();
-                bool IsAnyItemHovered();
-                bool IsAnyItemActive();
-                bool IsAnyItemFocused();
-                bool IsRectVisible(Compute::Vector2 size);
-                bool IsRectVisible(Compute::Vector2 rect_min, Compute::Vector2 rect_max);
-                bool BeginChildFrame(unsigned int id, Compute::Vector2 size, int flags = 0);
-                bool IsKeyDown(int user_key_index);
-                bool IsKeyPressed(int user_key_index, bool repeat = true);
-                bool IsKeyReleased(int user_key_index);
-                bool IsMouseDown(int button);
-                bool IsAnyMouseDown();
-                bool IsMouseClicked(int button, bool repeat = false);
-                bool IsMouseDoubleClicked(int button);
-                bool IsMouseReleased(int button);
-                bool IsMouseDragging(int button = 0, float lock_threshold = -1.0f);
-                bool IsMouseHoveringRect(Compute::Vector2 r_min, Compute::Vector2 r_max, bool clip = true);
-                bool IsMousePosValid(Compute::Vector2* mouse_pos = nullptr);
-                bool IsTextFocused();
-                int GetMouseCursor();
-                int GetKeyIndex(int _key);
-                int GetFrameCount();
-                int GetColumnIndex();
-                int GetColumnsCount();
-                int GetKeyPressedAmount(int key_index, float repeat_delay, float rate);
-                float GetWindowWidth();
-                float GetWindowHeight();
-                float GetContentRegionAvailWidth();
-                float GetWindowContentRegionWidth();
-                float GetScrollX();
-                float GetScrollY();
-                float GetScrollMaxX();
-                float GetScrollMaxY();
-                float GetFontSize();
-                float CalcItemWidth();
-                float GetCursorPosX();
-                float GetCursorPosY();
-                float GetTextLineHeight();
-                float GetTextLineHeightWithSpacing();
-                float GetFrameHeight();
-                float GetFrameHeightWithSpacing();
-                float GetTreeNodeToLabelSpacing();
-                float GetColumnWidth(int column_index = -1);
-                float GetColumnOffset(int column_index = -1);
-                Float64 GetTime();
-                unsigned int GetColorU32(int idx, float alpha_mul = 1.0f);
-                unsigned int GetColorU32(Compute::Vector4 col);
-                unsigned int GetColorU32(unsigned int col);
-                unsigned int ColorConvertFloat4ToU32(Compute::Vector4 in);
-                unsigned int GetID(const char* str_id);
-                unsigned int GetID(const char* str_id_begin, const char* str_id_end);
-                unsigned int GetID(const void* ptr_id);
-                Compute::Vector2 GetWindowPos();
-                Compute::Vector2 GetWindowSize();
-                Compute::Vector2 GetContentRegionMax();
-                Compute::Vector2 GetContentRegionAvail();
-                Compute::Vector2 GetWindowContentRegionMin();
-                Compute::Vector2 GetWindowContentRegionMax();
-                Compute::Vector2 GetFontTexUvWhitePixel();
-                Compute::Vector2 GetCursorPos();
-                Compute::Vector2 GetCursorStartPos();
-                Compute::Vector2 GetCursorScreenPos();
-                Compute::Vector2 GetItemRectMin();
-                Compute::Vector2 GetItemRectMax();
-                Compute::Vector2 GetItemRectSize();
-                Compute::Vector2 CalcTextSize(const char* text, const char* text_end = nullptr, bool hide_text_after_double_hash = false, float wrap_width = -1.0f);
-                Compute::Vector2 GetMousePos();
-                Compute::Vector2 GetMousePosOnOpeningCurrentPopup();
-                Compute::Vector2 GetMouseDragDelta(int button = 0, float lock_threshold = -1.0f);
-                Compute::Vector4 GetStyleColorVec4(int idx);
-                Compute::Vector4 ColorConvertU32ToFloat4(unsigned int in);
-                const char* GetClipboardText();
-                const char* GetStyleColorName(int idx);
-                const char* CopyClipboard();
                 void* GetUi();
-                Compute::Matrix4x4 GetTransform();
+                const char* GetClipboardCopy();
+                Compute::Matrix4x4& GetTransform();
                 Graphics::Activity* GetActivity();
+                GUI::Interface* GetTree();
 
             public:
                 static GUIRenderer* Create(RenderSystem* Lab, Graphics::Activity* Window);

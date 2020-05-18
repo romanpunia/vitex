@@ -16,14 +16,14 @@ struct epoll_event;
 
 namespace Tomahawk
 {
-	namespace Network
-	{
-		typedef std::function<bool(struct Socket*, const char*, Int64)> SocketReadCallback;
-		typedef std::function<bool(struct Socket*, Int64)> SocketWriteCallback;
-		typedef std::function<bool(struct Socket*)> SocketAcceptCallback;
-		typedef std::function<void(class SocketClient*, int)> SocketClientCallback;
+    namespace Network
+    {
+        typedef std::function<bool(struct Socket*, const char*, Int64)> SocketReadCallback;
+        typedef std::function<bool(struct Socket*, Int64)> SocketWriteCallback;
+        typedef std::function<bool(struct Socket*)> SocketAcceptCallback;
+        typedef std::function<void(class SocketClient*, int)> SocketClientCallback;
 
-		class Multiplexer;
+        class Multiplexer;
 
         enum Secure
         {
@@ -41,143 +41,144 @@ namespace Tomahawk
             ServerState_Idle
         };
 
-		enum SocketEvent
-		{
-			SocketEvent_Read = (1 << 0),
-			SocketEvent_Write = (1 << 1),
-			SocketEvent_Close = (1 << 2),
-			SocketEvent_Timeout = (1 << 3),
-			SocketEvent_None = (1 << 4)
-		};
+        enum SocketEvent
+        {
+            SocketEvent_Read = (1 << 0),
+            SocketEvent_Write = (1 << 1),
+            SocketEvent_Close = (1 << 2),
+            SocketEvent_Timeout = (1 << 3),
+            SocketEvent_None = (1 << 4)
+        };
 
-		enum SocketType
-		{
-			SocketType_Stream,
-			SocketType_Datagram,
-			SocketType_Raw,
-			SocketType_Reliably_Delivered_Message,
-			SocketType_Sequence_Packet_Stream
-		};
+        enum SocketType
+        {
+            SocketType_Stream,
+            SocketType_Datagram,
+            SocketType_Raw,
+            SocketType_Reliably_Delivered_Message,
+            SocketType_Sequence_Packet_Stream
+        };
 
-		struct THAWK_OUT Address
-		{
-			addrinfo* Host = nullptr;
-			addrinfo* Active = nullptr;
-			bool Resolved = false;
+        struct THAWK_OUT Address
+        {
+            addrinfo* Host = nullptr;
+            addrinfo* Active = nullptr;
+            bool Resolved = false;
 
-			static bool Free(Network::Address* Address);
-		};
+            static bool Free(Network::Address* Address);
+        };
 
-		struct THAWK_OUT WriteEvent
-		{
-			WriteEvent* Prev = nullptr;
-			WriteEvent* Next = nullptr;
-			char* Buffer = nullptr;
-			Int64 Size = 0;
-			SocketWriteCallback Callback;
-		};
+        struct THAWK_OUT WriteEvent
+        {
+            WriteEvent* Prev = nullptr;
+            WriteEvent* Next = nullptr;
+            char* Buffer = nullptr;
+            Int64 Size = 0;
+            SocketWriteCallback Callback;
+        };
 
-		struct THAWK_OUT ReadEvent
-		{
-			ReadEvent* Prev = nullptr;
-			ReadEvent* Next = nullptr;
-			const char* Match = nullptr;
-			Int64 Size = 0, Index = 0;
-			SocketReadCallback Callback;
-		};
+        struct THAWK_OUT ReadEvent
+        {
+            ReadEvent* Prev = nullptr;
+            ReadEvent* Next = nullptr;
+            const char* Match = nullptr;
+            Int64 Size = 0, Index = 0;
+            SocketReadCallback Callback;
+        };
 
-		struct THAWK_OUT Socket
-		{
-			friend Multiplexer;
+        struct THAWK_OUT Socket
+        {
+            friend Multiplexer;
 
-		private:
-			struct
-			{
-				std::mutex IO;
-				std::mutex Device;
-				Int64 Time, Timeout;
-				bool Await;
-			} Sync;
+        private:
+            struct
+            {
+                std::mutex IO;
+                std::mutex Device;
+                Int64 Time, Timeout;
+                bool Await;
+            } Sync;
 
-		private:
-			SocketAcceptCallback Listener;
-			ReadEvent* Input;
-			WriteEvent* Output;
-			ssl_st* Device;
-			socket_t Fd;
-			int TimeWait = 1;
+        private:
+            SocketAcceptCallback Listener;
+            ReadEvent* Input;
+            WriteEvent* Output;
+            ssl_st* Device;
+            socket_t Fd;
+            int TimeWait = 1;
 
-		public:
-			Int64 Income, Outcome;
-			void* UserData;
+        public:
+            Int64 Income, Outcome;
+            void* UserData;
 
-		public:
-			Socket();
-			int Open(const char* Host, int Port, SocketType Type, Address* Result);
-			int Open(const char* Host, int Port, Address* Result);
-			int Open(addrinfo* Info, Address* Result);
-			int Secure(ssl_ctx_st* Context);
-			int Bind(Address* Address);
-			int Connect(Address* Address);
-			int Listen(int Backlog);
-			int Accept(Socket* Connection, Address* Output);
-			int AcceptAsync(const SocketAcceptCallback& Callback);
-			int Close(bool Detach);
-			int CloseOnExec();
-			int Skip(int IO, int Code);
-			int Clear();
-			int Write(const char* Buffer, int Size);
-			int Write(const char* Buffer, int Size, const SocketWriteCallback& Callback);
-			int Write(const std::string& Buffer);
-			int WriteAsync(const char* Buffer, Int64 Size, const SocketWriteCallback& Callback);
-			int fWrite(const char* Format, ...);
-			int fWriteAsync(const SocketWriteCallback& Callback, const char* Format, ...);
-			int Read(char* Buffer, int Size);
-			int Read(char* Buffer, int Size, const SocketReadCallback& Callback);
-			int ReadAsync(Int64 Size, const SocketReadCallback& Callback);
-			int ReadUntil(const char* Match, const SocketReadCallback& Callback);
-			int ReadUntilAsync(const char* Match, const SocketReadCallback& Callback);
-			int SetTimeWait(int Timeout);
-			int SetSocket(int Option, void* Value, int Size);
-			int SetAny(int Level, int Option, void* Value, int Size);
-			int SetAnyFlag(int Level, int Option, int Value);
-			int SetSocketFlag(int Option, int Value);
-			int SetBlocking(bool Enabled);
-			int SetNodelay(bool Enabled);
-			int SetKeepAlive(bool Enabled);
-			int SetTimeout(int Timeout);
-			int SetAsyncTimeout(Int64 Timeout);
-			int GetError(int Result);
-			int GetAnyFlag(int Level, int Option, int* Value);
-			int GetAny(int Level, int Option, void* Value, int* Size);
-			int GetSocket(int Option, void* Value, int* Size);
-			int GetSocketFlag(int Option, int* Value);
-			int GetPort();
-			socket_t GetFd();
-			ssl_st* GetDevice();
-			bool IsValid();
-			bool IsAwaiting();
-			bool HasIncomingData();
-			bool HasOutcomingData();
-			bool HasPendingData();
-			std::string GetRemoteAddress();
-			Int64 GetAsyncTimeout();
+        public:
+            Socket();
+            int Open(const char* Host, int Port, SocketType Type, Address* Result);
+            int Open(const char* Host, int Port, Address* Result);
+            int Open(addrinfo* Info, Address* Result);
+            int Secure(ssl_ctx_st* Context);
+            int Bind(Address* Address);
+            int Connect(Address* Address);
+            int Listen(int Backlog);
+            int Accept(Socket* Connection, Address* Output);
+            int AcceptAsync(const SocketAcceptCallback& Callback);
+            int Close(bool Detach);
+            int CloseOnExec();
+            int Skip(int IO, int Code);
+            int Clear();
+            int Write(const char* Buffer, int Size);
+            int Write(const char* Buffer, int Size, const SocketWriteCallback& Callback);
+            int Write(const std::string& Buffer);
+            int WriteAsync(const char* Buffer, Int64 Size, const SocketWriteCallback& Callback);
+            int fWrite(const char* Format, ...);
+            int fWriteAsync(const SocketWriteCallback& Callback, const char* Format, ...);
+            int Read(char* Buffer, int Size);
+            int Read(char* Buffer, int Size, const SocketReadCallback& Callback);
+            int ReadAsync(Int64 Size, const SocketReadCallback& Callback);
+            int ReadUntil(const char* Match, const SocketReadCallback& Callback);
+            int ReadUntilAsync(const char* Match, const SocketReadCallback& Callback);
+            int SetTimeWait(int Timeout);
+            int SetSocket(int Option, void* Value, int Size);
+            int SetAny(int Level, int Option, void* Value, int Size);
+            int SetAnyFlag(int Level, int Option, int Value);
+            int SetSocketFlag(int Option, int Value);
+            int SetBlocking(bool Enabled);
+            int SetNodelay(bool Enabled);
+            int SetKeepAlive(bool Enabled);
+            int SetTimeout(int Timeout);
+            int SetAsyncTimeout(Int64 Timeout);
+            int GetError(int Result);
+            int GetAnyFlag(int Level, int Option, int* Value);
+            int GetAny(int Level, int Option, void* Value, int* Size);
+            int GetSocket(int Option, void* Value, int* Size);
+            int GetSocketFlag(int Option, int* Value);
+            int GetPort();
+            socket_t GetFd();
+            ssl_st* GetDevice();
+            bool IsValid();
+            bool IsAwaiting();
+            bool HasIncomingData();
+            bool HasOutcomingData();
+            bool HasPendingData();
+            std::string GetRemoteAddress();
+            Int64 GetAsyncTimeout();
 
-		private:
-			void ReadPush(const SocketReadCallback& Callback, const char* Match, Int64 Size, Int64 Index);
-			void ReadPop();
-			void WritePush(const SocketWriteCallback& Callback, const char* Buffer, Int64 Size);
-			void WritePop();
+        private:
+            void ReadPush(const SocketReadCallback& Callback, const char* Match, Int64 Size, Int64 Index);
+            void ReadPop();
+            void WritePush(const SocketWriteCallback& Callback, const char* Buffer, Int64 Size);
+            void WritePop();
 
-		public:
-			template <typename T> T* Context()
-			{
-				return (T*)UserData;
-			}
+        public:
+            template <typename T>
+            T* Context()
+            {
+                return (T*)UserData;
+            }
 
-		public:
-			static std::string LocalIpAddress();
-		};
+        public:
+            static std::string LocalIpAddress();
+        };
 
         struct THAWK_OUT Host
         {
@@ -189,7 +190,7 @@ namespace Tomahawk
         struct THAWK_OUT Listener
         {
             Address Source;
-			std::string Name;
+            std::string Name;
             Host* Hostname = nullptr;
             Socket* Base = nullptr;
         };
@@ -214,16 +215,16 @@ namespace Tomahawk
             bool Await = false;
         };
 
-		struct THAWK_OUT SocketCertificate
-		{
-			ssl_ctx_st* Context = nullptr;
-			std::string Key;
-			std::string Chain;
-			std::string Ciphers = "ALL";
-			Secure Protocol = Secure_Any;
-			bool VerifyPeers = true;
-			UInt64 Depth = 9;
-		};
+        struct THAWK_OUT SocketCertificate
+        {
+            ssl_ctx_st* Context = nullptr;
+            std::string Key;
+            std::string Chain;
+            std::string Ciphers = "ALL";
+            Secure Protocol = Secure_Any;
+            bool VerifyPeers = true;
+            UInt64 Depth = 9;
+        };
 
         struct THAWK_OUT SocketConnection
         {
@@ -243,8 +244,8 @@ namespace Tomahawk
 
         struct THAWK_OUT SocketRouter
         {
-			std::unordered_map<std::string, SocketCertificate> Certificates;
-			std::unordered_map<std::string, Host> Listeners;
+            std::unordered_map<std::string, SocketCertificate> Certificates;
+            std::unordered_map<std::string, Host> Listeners;
             UInt64 KeepAliveMaxCount = 10;
             UInt64 PayloadMaxLength = std::numeric_limits<UInt64>::max();
             UInt64 BacklogQueue = 20;
@@ -255,44 +256,44 @@ namespace Tomahawk
             UInt64 MaxConnections = 0;
             bool EnableNoDelay = false;
 
-			virtual ~SocketRouter();
+            virtual ~SocketRouter();
         };
 
-		class THAWK_OUT Multiplexer
-		{
-			friend struct Socket;
+        class THAWK_OUT Multiplexer
+        {
+            friend struct Socket;
 
-		private:
+        private:
 #ifdef THAWK_APPLE
-		    static kevent* Array;
+            static kevent* Array;
 #else
-			static epoll_event* Array;
+            static epoll_event* Array;
 #endif
-			static Rest::EventQueue* Loop;
+            static Rest::EventQueue* Loop;
             static epoll_handle Handle;
-			static Int64 PipeTimeout;
-			static int ArraySize;
+            static Int64 PipeTimeout;
+            static int ArraySize;
 
-		public:
+        public:
             static void Create(int MaxEvents);
-			static void Release();
-			static void Dispatch();
-			static bool Create(int MaxEvents, Int64 Timeout, Rest::EventQueue* Queue);
-			static bool Bind(Int64 Timeout, Rest::EventQueue* Queue);
+            static void Release();
+            static void Dispatch();
+            static bool Create(int MaxEvents, Int64 Timeout, Rest::EventQueue* Queue);
+            static bool Bind(Int64 Timeout, Rest::EventQueue* Queue);
             static int Listen(Socket* Value);
-			static int Unlisten(Socket* Value);
-			static int Dispatch(Socket* Value, int* Events, Int64 Time);
-			static int Poll(pollfd* Fd, int FdCount, int Timeout);
-			static Int64 Clock();
+            static int Unlisten(Socket* Value);
+            static int Dispatch(Socket* Value, int* Events, Int64 Time);
+            static int Poll(pollfd* Fd, int FdCount, int Timeout);
+            static Int64 Clock();
             static Rest::EventQueue* GetQueue();
 
-		private:
-			static void Worker(Rest::EventQueue* Queue, Rest::EventArgs* Args);
-		};
+        private:
+            static void Worker(Rest::EventQueue* Queue, Rest::EventArgs* Args);
+        };
 
-	    class THAWK_OUT SocketServer : public Rest::Object
+        class THAWK_OUT SocketServer : public Rest::Object
         {
-	        friend SocketConnection;
+            friend SocketConnection;
 
         protected:
             std::unordered_set<SocketConnection*> Good;
@@ -325,46 +326,46 @@ namespace Tomahawk
             virtual bool OnDeallocateRouter(SocketRouter* Base);
             virtual bool OnListen(Rest::EventQueue* Loop);
             virtual bool OnUnlisten();
-			virtual bool OnProtect(Socket* Fd, Listener* Host, ssl_ctx_st** Context);
+            virtual bool OnProtect(Socket* Fd, Listener* Host, ssl_ctx_st** Context);
             virtual SocketConnection* OnAllocate(Listener* Host, Socket* Stream);
             virtual SocketRouter* OnAllocateRouter();
 
         protected:
-			bool FreeQueued();
+            bool FreeQueued();
             bool Accept(Listener* Host);
             bool Protect(Socket* Fd, Listener* Host);
             bool Manage(SocketConnection* Base);
         };
 
-		class THAWK_OUT SocketClient : public Rest::Object
-		{
-		protected:
-			SocketClientCallback Done;
-			ssl_ctx_st* Context;
-			std::string Action;
-			Socket Stream;
-			Host Hostname;
-			Int64 Timeout;
-			bool AutoCertify;
+        class THAWK_OUT SocketClient : public Rest::Object
+        {
+        protected:
+            SocketClientCallback Done;
+            ssl_ctx_st* Context;
+            std::string Action;
+            Socket Stream;
+            Host Hostname;
+            Int64 Timeout;
+            bool AutoCertify;
 
-		public:
-			SocketClient(Int64 RequestTimeout);
+        public:
+            SocketClient(Int64 RequestTimeout);
             virtual ~SocketClient() override;
-			bool Connect(Host* Address, const SocketClientCallback& Callback);
-			bool Close(const SocketClientCallback& Callback);
-			Socket* GetStream();
+            bool Connect(Host* Address, const SocketClientCallback& Callback);
+            bool Close(const SocketClientCallback& Callback);
+            Socket* GetStream();
 
-		protected:
-			virtual bool OnResolveHost(Host* Address);
-			virtual bool OnConnect();
-			virtual bool OnClose();
+        protected:
+            virtual bool OnResolveHost(Host* Address);
+            virtual bool OnConnect();
+            virtual bool OnClose();
 
-		protected:
-			bool Certify();
-			bool Stage(const std::string& Name);
-			bool Error(const char* Message, ...);
-			bool Success(int Code);
-		};
-	}
+        protected:
+            bool Certify();
+            bool Stage(const std::string& Name);
+            bool Error(const char* Message, ...);
+            bool Success(int Code);
+        };
+    }
 }
 #endif

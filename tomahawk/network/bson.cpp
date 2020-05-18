@@ -1,6 +1,5 @@
 #include "bson.h"
 #include "../compute.h"
-
 extern "C"
 {
 #ifdef THAWK_HAS_MONGOC
@@ -12,387 +11,390 @@ namespace Tomahawk
 {
     namespace Network
     {
-		namespace BSON
-		{
-			KeyPair::~KeyPair()
-			{
-				Release();
-			}
-			void KeyPair::Release()
-			{
-				BSON::Document::Release(&Document);
-				BSON::Document::Release(&Array);
-				Name.clear(); String.clear();
+        namespace BSON
+        {
+            KeyPair::~KeyPair()
+            {
+                Release();
+            }
+            void KeyPair::Release()
+            {
+                BSON::Document::Release(&Document);
+                BSON::Document::Release(&Array);
+                Name.clear();
+                String.clear();
 
-				Integer = 0;
-				Number = 0;
-				Boolean = false;
-				Mod = Type_Unknown;
-				IsValid = false;
-			}
-			std::string& KeyPair::ToString()
-			{
-				switch (Mod)
-				{
-					case BSON::Type_Document:
-						return String.assign("{}");
-					case BSON::Type_Array:
-						return String.assign("[]");
-					case BSON::Type_String:
-						return String;
-					case BSON::Type_Boolean:
-						return String.assign(Boolean ? "true" : "false");
-					case BSON::Type_Number:
-						return String.assign(std::to_string(Number));
-					case BSON::Type_Integer:
-						return String.assign(std::to_string(Integer));
-					case BSON::Type_ObjectId:
-						return String.assign(Compute::MathCommon::Base64Encode((const char*)ObjectId));
-					case BSON::Type_Null:
-						return String.assign("null");
+                Integer = 0;
+                Number = 0;
+                Boolean = false;
+                Mod = Type_Unknown;
+                IsValid = false;
+            }
+            std::string& KeyPair::ToString()
+            {
+                switch (Mod)
+                {
+                    case BSON::Type_Document:
+                        return String.assign("{}");
+                    case BSON::Type_Array:
+                        return String.assign("[]");
+                    case BSON::Type_String:
+                        return String;
+                    case BSON::Type_Boolean:
+                        return String.assign(Boolean ? "true" : "false");
+                    case BSON::Type_Number:
+                        return String.assign(std::to_string(Number));
+                    case BSON::Type_Integer:
+                        return String.assign(std::to_string(Integer));
+                    case BSON::Type_ObjectId:
+                        return String.assign(Compute::MathCommon::Base64Encode((const char*)ObjectId));
+                    case BSON::Type_Null:
+                        return String.assign("null");
                     case BSON::Type_Unknown:
                     case BSON::Type_Uncastable:
                         return String.assign("undefined");
                     case BSON::Type_Decimal:
-					{
-						bson_decimal128_t Decimal;
-						Decimal.high = (uint64_t)High;
-						Decimal.low = (uint64_t)Low;
+                    {
+                        bson_decimal128_t Decimal;
+                        Decimal.high = (uint64_t)High;
+                        Decimal.low = (uint64_t)Low;
 
-						char Buffer[BSON_DECIMAL128_STRING];
-						bson_decimal128_to_string(&Decimal, Buffer);
-						return String.assign(Buffer);
-					}
-				}
+                        char Buffer[BSON_DECIMAL128_STRING];
+                        bson_decimal128_to_string(&Decimal, Buffer);
+                        return String.assign(Buffer);
+                    }
+                }
 
-				return String;
-			}
+                return String;
+            }
 
-			TDocument* Document::Create(bool Array)
-			{
+            TDocument* Document::Create(bool Array)
+            {
 #ifdef THAWK_HAS_MONGOC
-				if (!Array)
-					return bson_new();
+                if (!Array)
+                    return bson_new();
 
-				return BCON_NEW("pipeline", "[", "]");
+                return BCON_NEW("pipeline", "[", "]");
 #else
-				return nullptr;
+                return nullptr;
 #endif
-			}
-			TDocument* Document::Create(Rest::Document* Document)
-			{
+            }
+            TDocument* Document::Create(Rest::Document* Document)
+            {
 #ifdef THAWK_HAS_MONGOC
-				if (!Document)
-					return nullptr;
+                if (!Document)
+                    return nullptr;
 
-				TDocument* New = bson_new();
-				TDocument* Replica = nullptr;
-				UInt64 Index = 0;
+                TDocument* New = bson_new();
+                TDocument* Replica = nullptr;
+                UInt64 Index = 0;
 
-				bool Array = (Document->Type == Rest::NodeType_Array);
-				for (auto&& Node : *Document->GetNodes())
-				{
-					switch (Node->Type)
-					{
-					case Rest::NodeType_Object:
-						Replica = Create(Node);
-						AddKeyDocument(New, Array ? nullptr : Node->Name.c_str(), &Replica, Index);
-						break;
-					case Rest::NodeType_Array:
-						Replica = Create(Node);
-						AddKeyArray(New, Array ? nullptr : Node->Name.c_str(), &Replica, Index);
-						break;
-					case Rest::NodeType_String:
-						AddKeyString(New, Array ? nullptr : Node->Name.c_str(), Node->String.c_str(), Index);
-						break;
-					case Rest::NodeType_Boolean:
-						AddKeyBoolean(New, Array ? nullptr : Node->Name.c_str(), Node->Boolean, Index);
-						break;
-					case Rest::NodeType_Decimal:
-						AddKeyDecimal(New, Array ? nullptr : Node->Name.c_str(), Node->Integer, Node->Low, Index);
-						break;
-					case Rest::NodeType_Number:
-						AddKeyNumber(New, Array ? nullptr : Node->Name.c_str(), Node->Number, Index);
-						break;
-					case Rest::NodeType_Integer:
-						AddKeyInteger(New, Array ? nullptr : Node->Name.c_str(), Node->Integer, Index);
-						break;
-					case Rest::NodeType_Null:
-						AddKeyNull(New, Array ? nullptr : Node->Name.c_str(), Index);
-						break;
-					case Rest::NodeType_Id:
-						AddKeyObjectId(New, Array ? nullptr : Node->Name.c_str(), (unsigned char*)Node->String.c_str(), Index);
-						break;
-					default:
-						break;
-					}
-				}
+                bool Array = (Document->Type == Rest::NodeType_Array);
+                for (auto&& Node : *Document->GetNodes())
+                {
+                    switch (Node->Type)
+                    {
+                        case Rest::NodeType_Object:
+                            Replica = Create(Node);
+                            AddKeyDocument(New, Array ? nullptr : Node->Name.c_str(), &Replica, Index);
+                            break;
+                        case Rest::NodeType_Array:
+                            Replica = Create(Node);
+                            AddKeyArray(New, Array ? nullptr : Node->Name.c_str(), &Replica, Index);
+                            break;
+                        case Rest::NodeType_String:
+                            AddKeyString(New, Array ? nullptr : Node->Name.c_str(), Node->String.c_str(), Index);
+                            break;
+                        case Rest::NodeType_Boolean:
+                            AddKeyBoolean(New, Array ? nullptr : Node->Name.c_str(), Node->Boolean, Index);
+                            break;
+                        case Rest::NodeType_Decimal:
+                            AddKeyDecimal(New, Array ? nullptr : Node->Name.c_str(), Node->Integer, Node->Low, Index);
+                            break;
+                        case Rest::NodeType_Number:
+                            AddKeyNumber(New, Array ? nullptr : Node->Name.c_str(), Node->Number, Index);
+                            break;
+                        case Rest::NodeType_Integer:
+                            AddKeyInteger(New, Array ? nullptr : Node->Name.c_str(), Node->Integer, Index);
+                            break;
+                        case Rest::NodeType_Null:
+                            AddKeyNull(New, Array ? nullptr : Node->Name.c_str(), Index);
+                            break;
+                        case Rest::NodeType_Id:
+                            AddKeyObjectId(New, Array ? nullptr : Node->Name.c_str(), (unsigned char*)Node->String.c_str(), Index);
+                            break;
+                        default:
+                            break;
+                    }
+                }
 
-				return New;
+                return New;
 #else
-				return nullptr;
+                return nullptr;
 #endif
-			}
-			TDocument* Document::Create(const std::string& JSON)
-			{
+            }
+            TDocument* Document::Create(const std::string& JSON)
+            {
 #ifdef THAWK_HAS_MONGOC
-				bson_error_t Error;
-				memset(&Error, 0, sizeof(bson_error_t));
+                bson_error_t Error;
+                memset(&Error, 0, sizeof(bson_error_t));
 
-				TDocument* Document = bson_new_from_json((unsigned char*)JSON.c_str(), (ssize_t)JSON.size(), &Error);
-				if (!Document || Error.code != 0)
-				{
-					if (Document != nullptr)
-						bson_destroy(Document);
+                TDocument* Document = bson_new_from_json((unsigned char*)JSON.c_str(), (ssize_t)JSON.size(), &Error);
+                if (!Document || Error.code != 0)
+                {
+                    if (Document != nullptr)
+                        bson_destroy(Document);
 
-					THAWK_ERROR("couldn't parse JSON data -> %s", Error.message);
-					return nullptr;
-				}
+                    THAWK_ERROR("couldn't parse JSON data -> %s", Error.message);
+                    return nullptr;
+                }
 
-				return Document;
+                return Document;
 #else
-				return nullptr;
+                return nullptr;
 #endif
-			}
-			TDocument* Document::Create(const unsigned char* Buffer, UInt64 Length)
-			{
+            }
+            TDocument* Document::Create(const unsigned char* Buffer, UInt64 Length)
+            {
 #ifdef THAWK_HAS_MONGOC
-				return bson_new_from_data(Buffer, (size_t)Length);
+                return bson_new_from_data(Buffer, (size_t)Length);
 #else
-				return nullptr;
+                return nullptr;
 #endif
-			}
-			void Document::Release(TDocument** Document)
-			{
+            }
+            void Document::Release(TDocument** Document)
+            {
 #ifdef THAWK_HAS_MONGOC
-				if (Document == nullptr || *Document == nullptr)
-					return;
+                if (Document == nullptr || *Document == nullptr)
+                    return;
 
-				if ((*Document)->flags == 2)
-				{
-					bson_destroy(*Document);
-					bson_free(*Document);
-				}
-				else
-					bson_destroy(*Document);
+                if ((*Document)->flags == 2)
+                {
+                    bson_destroy(*Document);
+                    bson_free(*Document);
+                }
+                else
+                    bson_destroy(*Document);
 #endif
-				*Document = nullptr;
-			}
-			void Document::Loop(TDocument* Document, void* Context, const std::function<bool(TDocument*, KeyPair*, void*)>& Callback)
-			{
-				if (!Callback || !Document)
-					return;
+                *Document = nullptr;
+            }
+            void Document::Loop(TDocument* Document, void* Context, const std::function<bool(TDocument*, KeyPair*, void*)>& Callback)
+            {
+                if (!Callback || !Document)
+                    return;
 
 #ifdef THAWK_HAS_MONGOC
-				bson_iter_t It;
-				if (!bson_iter_init(&It, Document))
-					return;
+                bson_iter_t It;
+                if (!bson_iter_init(&It, Document))
+                    return;
 
-				KeyPair Output;
-				while (bson_iter_next(&It))
-				{
-					Clone(&It, &Output);
-					bool Continue = Callback(Document, &Output, Context);
-					Output.Release();
+                KeyPair Output;
+                while (bson_iter_next(&It))
+                {
+                    Clone(&It, &Output);
+                    bool Continue = Callback(Document, &Output, Context);
+                    Output.Release();
 
-					if (!Continue)
-						break;
-				}
+                    if (!Continue)
+                        break;
+                }
 #endif
-			}
-			bool Document::GenerateId(unsigned char* Id12)
-			{
+            }
+            bool Document::GenerateId(unsigned char* Id12)
+            {
 #ifdef THAWK_HAS_MONGOC
-				if (Id12 == nullptr)
-					return false;
+                if (Id12 == nullptr)
+                    return false;
 
-				bson_oid_t ObjectId;
-				bson_oid_init(&ObjectId, nullptr);
+                bson_oid_t ObjectId;
+                bson_oid_init(&ObjectId, nullptr);
 
-				memcpy((void*)Id12, (void*)ObjectId.bytes, sizeof(char) * 12);
-				return true;
+                memcpy((void*)Id12, (void*)ObjectId.bytes, sizeof(char) * 12);
+                return true;
 #else
-				return false;
+                return false;
 #endif
-			}
-			bool Document::AddKeyDocument(TDocument* Document, const char* Key, TDocument** Value, UInt64 ArrayId)
-			{
+            }
+            bool Document::AddKeyDocument(TDocument* Document, const char* Key, TDocument** Value, UInt64 ArrayId)
+            {
 #ifdef THAWK_HAS_MONGOC
-				if (!Value || !*Value || !Document)
-					return false;
+                if (!Value || !*Value || !Document)
+                    return false;
 
-				char Index[16];
-				if (Key == nullptr)
-					bson_uint32_to_string((uint32_t)ArrayId, &Key, Index, sizeof(Index));
+                char Index[16];
+                if (Key == nullptr)
+                    bson_uint32_to_string((uint32_t)ArrayId, &Key, Index, sizeof(Index));
 
-				bool Result = bson_append_document(Document, Key, -1, *Value);
-				bson_destroy(*Value); *Value = nullptr;
+                bool Result = bson_append_document(Document, Key, -1, *Value);
+                bson_destroy(*Value);
+                *Value = nullptr;
 
-				return Result;
+                return Result;
 #else
-				return false;
+                return false;
 #endif
-			}
-			bool Document::AddKeyArray(TDocument* Document, const char* Key, TDocument** Value, UInt64 ArrayId)
-			{
+            }
+            bool Document::AddKeyArray(TDocument* Document, const char* Key, TDocument** Value, UInt64 ArrayId)
+            {
 #ifdef THAWK_HAS_MONGOC
-				if (!Value || !*Value || !Document)
-					return false;
+                if (!Value || !*Value || !Document)
+                    return false;
 
-				char Index[16];
-				if (Key == nullptr)
-					bson_uint32_to_string((uint32_t)ArrayId, &Key, Index, sizeof(Index));
+                char Index[16];
+                if (Key == nullptr)
+                    bson_uint32_to_string((uint32_t)ArrayId, &Key, Index, sizeof(Index));
 
-				bool Result = bson_append_array(Document, Key, -1, *Value);
-				bson_destroy(*Value); *Value = nullptr;
+                bool Result = bson_append_array(Document, Key, -1, *Value);
+                bson_destroy(*Value);
+                *Value = nullptr;
 
-				return Result;
+                return Result;
 #else
-				return false;
+                return false;
 #endif
-			}
-			bool Document::AddKeyString(TDocument* Document, const char* Key, const char* Value, UInt64 ArrayId)
-			{
+            }
+            bool Document::AddKeyString(TDocument* Document, const char* Key, const char* Value, UInt64 ArrayId)
+            {
 #ifdef THAWK_HAS_MONGOC
-				if (!Document)
-					return false;
+                if (!Document)
+                    return false;
 
-				char Index[16];
-				if (Key == nullptr)
-					bson_uint32_to_string((uint32_t)ArrayId, &Key, Index, sizeof(Index));
+                char Index[16];
+                if (Key == nullptr)
+                    bson_uint32_to_string((uint32_t)ArrayId, &Key, Index, sizeof(Index));
 
-				return bson_append_utf8(Document, Key, -1, Value, -1);
+                return bson_append_utf8(Document, Key, -1, Value, -1);
 #else
-				return false;
+                return false;
 #endif
-			}
-			bool Document::AddKeyStringBuffer(TDocument* Document, const char* Key, const char* Value, UInt64 Length, UInt64 ArrayId)
-			{
+            }
+            bool Document::AddKeyStringBuffer(TDocument* Document, const char* Key, const char* Value, UInt64 Length, UInt64 ArrayId)
+            {
 #ifdef THAWK_HAS_MONGOC
-				if (!Document)
-					return false;
+                if (!Document)
+                    return false;
 
-				char Index[16];
-				if (Key == nullptr)
-					bson_uint32_to_string((uint32_t)ArrayId, &Key, Index, sizeof(Index));
+                char Index[16];
+                if (Key == nullptr)
+                    bson_uint32_to_string((uint32_t)ArrayId, &Key, Index, sizeof(Index));
 
-				return bson_append_utf8(Document, Key, -1, Value, (int)Length);
+                return bson_append_utf8(Document, Key, -1, Value, (int)Length);
 #else
-				return false;
+                return false;
 #endif
-			}
-			bool Document::AddKeyInteger(TDocument* Document, const char* Key, Int64 Value, UInt64 ArrayId)
-			{
+            }
+            bool Document::AddKeyInteger(TDocument* Document, const char* Key, Int64 Value, UInt64 ArrayId)
+            {
 #ifdef THAWK_HAS_MONGOC
-				if (!Document)
-					return false;
+                if (!Document)
+                    return false;
 
-				char Index[16];
-				if (Key == nullptr)
-					bson_uint32_to_string((uint32_t)ArrayId, &Key, Index, sizeof(Index));
+                char Index[16];
+                if (Key == nullptr)
+                    bson_uint32_to_string((uint32_t)ArrayId, &Key, Index, sizeof(Index));
 
-				return bson_append_int64(Document, Key, -1, Value);
+                return bson_append_int64(Document, Key, -1, Value);
 #else
-				return false;
+                return false;
 #endif
-			}
-			bool Document::AddKeyNumber(TDocument* Document, const char* Key, Float64 Value, UInt64 ArrayId)
-			{
+            }
+            bool Document::AddKeyNumber(TDocument* Document, const char* Key, Float64 Value, UInt64 ArrayId)
+            {
 #ifdef THAWK_HAS_MONGOC
-				if (!Document)
-					return false;
+                if (!Document)
+                    return false;
 
-				char Index[16];
-				if (Key == nullptr)
-					bson_uint32_to_string((uint32_t)ArrayId, &Key, Index, sizeof(Index));
+                char Index[16];
+                if (Key == nullptr)
+                    bson_uint32_to_string((uint32_t)ArrayId, &Key, Index, sizeof(Index));
 
-				return bson_append_double(Document, Key, -1, Value);
+                return bson_append_double(Document, Key, -1, Value);
 #else
-				return false;
+                return false;
 #endif
-			}
-			bool Document::AddKeyDecimal(TDocument* Document, const char* Key, UInt64 High, UInt64 Low, UInt64 ArrayId)
-			{
+            }
+            bool Document::AddKeyDecimal(TDocument* Document, const char* Key, UInt64 High, UInt64 Low, UInt64 ArrayId)
+            {
 #ifdef THAWK_HAS_MONGOC
-				if (!Document)
-					return false;
+                if (!Document)
+                    return false;
 
-				char Index[16];
-				if (Key == nullptr)
-					bson_uint32_to_string((uint32_t)ArrayId, &Key, Index, sizeof(Index));
+                char Index[16];
+                if (Key == nullptr)
+                    bson_uint32_to_string((uint32_t)ArrayId, &Key, Index, sizeof(Index));
 
-				bson_decimal128_t Decimal;
-				Decimal.high = (uint64_t)High;
-				Decimal.low = (uint64_t)Low;
+                bson_decimal128_t Decimal;
+                Decimal.high = (uint64_t)High;
+                Decimal.low = (uint64_t)Low;
 
-				return bson_append_decimal128(Document, Key, -1, &Decimal);
+                return bson_append_decimal128(Document, Key, -1, &Decimal);
 #else
-				return false;
+                return false;
 #endif
-			}
-			bool Document::AddKeyDecimalString(TDocument* Document, const char* Key, const std::string& Value, UInt64 ArrayId)
-			{
+            }
+            bool Document::AddKeyDecimalString(TDocument* Document, const char* Key, const std::string& Value, UInt64 ArrayId)
+            {
 #ifdef THAWK_HAS_MONGOC
-				if (!Document)
-					return false;
+                if (!Document)
+                    return false;
 
-				char Index[16];
-				if (Key == nullptr)
-					bson_uint32_to_string((uint32_t)ArrayId, &Key, Index, sizeof(Index));
+                char Index[16];
+                if (Key == nullptr)
+                    bson_uint32_to_string((uint32_t)ArrayId, &Key, Index, sizeof(Index));
 
-				bson_decimal128_t Decimal;
-				bson_decimal128_from_string(Value.c_str(), &Decimal);
+                bson_decimal128_t Decimal;
+                bson_decimal128_from_string(Value.c_str(), &Decimal);
 
-				return bson_append_decimal128(Document, Key, -1, &Decimal);
+                return bson_append_decimal128(Document, Key, -1, &Decimal);
 #else
-				return false;
+                return false;
 #endif
-			}
-			bool Document::AddKeyDecimalInteger(TDocument* Document, const char* Key, Int64 Value, UInt64 ArrayId)
-			{
+            }
+            bool Document::AddKeyDecimalInteger(TDocument* Document, const char* Key, Int64 Value, UInt64 ArrayId)
+            {
 #ifdef THAWK_HAS_MONGOC
-				if (!Document)
-					return false;
+                if (!Document)
+                    return false;
 
-				char Index[16];
-				if (Key == nullptr)
-					bson_uint32_to_string((uint32_t)ArrayId, &Key, Index, sizeof(Index));
+                char Index[16];
+                if (Key == nullptr)
+                    bson_uint32_to_string((uint32_t)ArrayId, &Key, Index, sizeof(Index));
 
-				char Data[64];
-				sprintf(Data, "%lld", Value);
+                char Data[64];
+                sprintf(Data, "%lld", Value);
 
-				bson_decimal128_t Decimal;
-				bson_decimal128_from_string(Data, &Decimal);
+                bson_decimal128_t Decimal;
+                bson_decimal128_from_string(Data, &Decimal);
 
-				return bson_append_decimal128(Document, Key, -1, &Decimal);
+                return bson_append_decimal128(Document, Key, -1, &Decimal);
 #else
-				return false;
+                return false;
 #endif
-			}
-			bool Document::AddKeyDecimalNumber(TDocument* Document, const char* Key, Float64 Value, UInt64 ArrayId)
-			{
+            }
+            bool Document::AddKeyDecimalNumber(TDocument* Document, const char* Key, Float64 Value, UInt64 ArrayId)
+            {
 #ifdef THAWK_HAS_MONGOC
-				if (!Document)
-					return false;
+                if (!Document)
+                    return false;
 
-				char Index[16];
-				if (Key == nullptr)
-					bson_uint32_to_string((uint32_t)ArrayId, &Key, Index, sizeof(Index));
+                char Index[16];
+                if (Key == nullptr)
+                    bson_uint32_to_string((uint32_t)ArrayId, &Key, Index, sizeof(Index));
 
-				char Data[64];
-				sprintf(Data, "%f", Value);
+                char Data[64];
+                sprintf(Data, "%f", Value);
 
-				for (size_t i = 0; i < 64; i++)
+                for (size_t i = 0; i < 64; i++)
                     Data[i] = (Data[i] == ',' ? '.' : Data[i]);
 
-				bson_decimal128_t Decimal;
-				bson_decimal128_from_string(Data, &Decimal);
+                bson_decimal128_t Decimal;
+                bson_decimal128_from_string(Data, &Decimal);
 
-				return bson_append_decimal128(Document, Key, -1, &Decimal);
+                return bson_append_decimal128(Document, Key, -1, &Decimal);
 #else
-				return false;
+                return false;
 #endif
-			}
+            }
             bool Document::AddKeyBoolean(TDocument* Document, const char* Key, bool Value, UInt64 ArrayId)
             {
 #ifdef THAWK_HAS_MONGOC
@@ -468,8 +470,8 @@ namespace Tomahawk
                         return AddKeyNumber(Document, Key, Value->Number);
                     case BSON::Type_Integer:
                         return AddKeyInteger(Document, Key, Value->Integer);
-					case BSON::Type_Decimal:
-						return AddKeyDecimal(Document, Key, Value->High, Value->Low);
+                    case BSON::Type_Decimal:
+                        return AddKeyDecimal(Document, Key, Value->High, Value->Low);
                     case BSON::Type_ObjectId:
                         return AddKeyObjectId(Document, Key, Value->ObjectId);
                     default:
@@ -516,19 +518,19 @@ namespace Tomahawk
                 return false;
 #endif
             }
-			bool Document::ParseDecimal(const char* Value, Int64* High, Int64* Low)
-			{
-				if (!Value || !High || !Low)
-					return false;
+            bool Document::ParseDecimal(const char* Value, Int64* High, Int64* Low)
+            {
+                if (!Value || !High || !Low)
+                    return false;
 
-				bson_decimal128_t Decimal;
-				if (!bson_decimal128_from_string(Value, &Decimal))
-					return false;
+                bson_decimal128_t Decimal;
+                if (!bson_decimal128_from_string(Value, &Decimal))
+                    return false;
 
-				*High = Decimal.high;
-				*Low = Decimal.low;
-				return true;
-			}
+                *High = Decimal.high;
+                *Low = Decimal.low;
+                return true;
+            }
             bool Document::Clone(void* It, KeyPair* Output)
             {
 #ifdef THAWK_HAS_MONGOC
@@ -565,11 +567,11 @@ namespace Tomahawk
                         Output->Mod = Type_Number;
                         Output->Number = Value->value.v_double;
                         break;
-					case BSON_TYPE_DECIMAL128:
-						Output->Mod = Type_Decimal;
-						Output->High = (UInt64)Value->value.v_decimal128.high;
-						Output->Low = (UInt64)Value->value.v_decimal128.low;
-						break;
+                    case BSON_TYPE_DECIMAL128:
+                        Output->Mod = Type_Decimal;
+                        Output->High = (UInt64)Value->value.v_decimal128.high;
+                        Output->Low = (UInt64)Value->value.v_decimal128.low;
+                        break;
                     case BSON_TYPE_UTF8:
                         Output->Mod = Type_String;
                         Output->String.assign(Value->value.v_utf8.str, (UInt64)Value->value.v_utf8.len);
@@ -733,7 +735,7 @@ namespace Tomahawk
                 {
                     Rest::Document* Node = (Rest::Document*)UserData;
                     std::string Name = (Node->Type == Rest::NodeType_Array ? "" : Key->Name);
-					Float64 Decimal;
+                    Float64 Decimal;
 
                     switch (Key->Mod)
                     {
@@ -756,13 +758,13 @@ namespace Tomahawk
                         case BSON::Type_Number:
                             Node->SetNumber(Name, Key->Number);
                             break;
-						case BSON::Type_Decimal:
-							Decimal = Rest::Stroke(&Key->ToString()).ToFloat64();
-							if (Decimal != (Int64)Decimal)
-								Node->SetNumber(Name, Decimal);
-							else
-								Node->SetInteger(Name, (Int64)Decimal);
-							break;
+                        case BSON::Type_Decimal:
+                            Decimal = Rest::Stroke(&Key->ToString()).ToFloat64();
+                            if (Decimal != (Int64)Decimal)
+                                Node->SetNumber(Name, Decimal);
+                            else
+                                Node->SetInteger(Name, (Int64)Decimal);
+                            break;
                         case BSON::Type_Integer:
                             Node->SetInteger(Name, Key->Integer);
                             break;

@@ -43,8 +43,8 @@ extern "C"
 
 namespace Tomahawk
 {
-	namespace Rest
-	{
+    namespace Rest
+    {
 #ifdef THAWK_MICROSOFT
         BOOL WINAPI ConsoleEventHandler(DWORD Event)
         {
@@ -71,8 +71,9 @@ namespace Tomahawk
             do
             {
                 Difference = tolower(*Value1) - tolower(*Value2);
-                Value1++; Value2++;
-            } while (Difference == 0 && Value1[-1] != '\0');
+                Value1++;
+                Value2++;
+            }while (Difference == 0 && Value1[-1] != '\0');
 
             return Difference;
         }
@@ -143,43 +144,33 @@ namespace Tomahawk
             Time = std::chrono::duration_cast<std::chrono::system_clock::duration>(std::chrono::seconds(mktime(&DateValue)));
             DateRebuild = false;
         }
-        void DateTime::operator += (const DateTime& Right)
+        void DateTime::operator +=(const DateTime& Right)
         {
             Time += Right.Time;
         }
-        void DateTime::operator -= (const DateTime& Right)
+        void DateTime::operator -=(const DateTime& Right)
         {
             Time -= Right.Time;
         }
-        bool DateTime::operator >= (const DateTime& Right)
+        bool DateTime::operator >=(const DateTime& Right)
         {
             return Time >= Right.Time;
         }
-        bool DateTime::operator <= (const DateTime& Right)
+        bool DateTime::operator <=(const DateTime& Right)
         {
             return Time <= Right.Time;
         }
-        bool DateTime::operator > (const DateTime& Right)
+        bool DateTime::operator >(const DateTime& Right)
         {
             return Time > Right.Time;
         }
-        bool DateTime::operator < (const DateTime& Right)
+        bool DateTime::operator <(const DateTime& Right)
         {
             return Time < Right.Time;
         }
         std::string DateTime::Format(const std::string& Value)
         {
-            return Stroke(Value).
-                    Replace("{ns}", std::to_string(Nanoseconds())).
-                    Replace("{us}", std::to_string(Microseconds())).
-                    Replace("{ms}", std::to_string(Milliseconds())).
-                    Replace("{s}", std::to_string(Seconds())).
-                    Replace("{m}", std::to_string(Minutes())).
-                    Replace("{h}", std::to_string(Hours())).
-                    Replace("{D}", std::to_string(Days())).
-                    Replace("{W}", std::to_string(Weeks())).
-                    Replace("{M}", std::to_string(Months())).
-                    Replace("{Y}", std::to_string(Years())).R();
+            return Stroke(Value).Replace("{ns}", std::to_string(Nanoseconds())).Replace("{us}", std::to_string(Microseconds())).Replace("{ms}", std::to_string(Milliseconds())).Replace("{s}", std::to_string(Seconds())).Replace("{m}", std::to_string(Minutes())).Replace("{h}", std::to_string(Hours())).Replace("{D}", std::to_string(Days())).Replace("{W}", std::to_string(Weeks())).Replace("{M}", std::to_string(Months())).Replace("{Y}", std::to_string(Years())).R();
         }
         std::string DateTime::Date(const std::string& Value)
         {
@@ -188,17 +179,10 @@ namespace Tomahawk
 
             auto Offset = std::chrono::system_clock::to_time_t(std::chrono::system_clock::time_point(Time));
             tm* T = std::localtime(&Offset);
-            T->tm_mon++; T->tm_year += 1900;
+            T->tm_mon++;
+            T->tm_year += 1900;
 
-            return Stroke(Value).
-                    Replace("{s}", T->tm_sec < 10 ? Form("0%i", T->tm_sec).R() : std::to_string(T->tm_sec)).
-                    Replace("{m}", T->tm_min < 10 ? Form("0%i", T->tm_min).R() : std::to_string(T->tm_min)).
-                    Replace("{h}", std::to_string(T->tm_hour)).
-                    Replace("{D}", std::to_string(T->tm_yday)).
-                    Replace("{MD}", T->tm_mday < 10 ? Form("0%i", T->tm_mday).R() : std::to_string(T->tm_mday)).
-                    Replace("{WD}", std::to_string(T->tm_wday + 1)).
-                    Replace("{M}", T->tm_mon < 10 ? Form("0%i", T->tm_mon).R() : std::to_string(T->tm_mon)).
-                    Replace("{Y}", std::to_string(T->tm_year)).R();
+            return Stroke(Value).Replace("{s}", T->tm_sec < 10 ? Form("0%i", T->tm_sec).R() : std::to_string(T->tm_sec)).Replace("{m}", T->tm_min < 10 ? Form("0%i", T->tm_min).R() : std::to_string(T->tm_min)).Replace("{h}", std::to_string(T->tm_hour)).Replace("{D}", std::to_string(T->tm_yday)).Replace("{MD}", T->tm_mday < 10 ? Form("0%i", T->tm_mday).R() : std::to_string(T->tm_mday)).Replace("{WD}", std::to_string(T->tm_wday + 1)).Replace("{M}", T->tm_mon < 10 ? Form("0%i", T->tm_mon).R() : std::to_string(T->tm_mon)).Replace("{Y}", std::to_string(T->tm_year)).R();
         }
         DateTime DateTime::Now()
         {
@@ -251,8 +235,7 @@ namespace Tomahawk
         }
         DateTime DateTime::FromDays(UInt64 Value)
         {
-            using _Days = std::chrono::duration
-                    <UInt64, std::ratio_multiply<std::ratio<24>, std::chrono::hours::period>>;
+            using _Days = std::chrono::duration<UInt64, std::ratio_multiply<std::ratio<24>, std::chrono::hours::period>>;
 
             DateTime New;
             New.Time = std::chrono::duration_cast<std::chrono::system_clock::duration>(_Days(Value));
@@ -261,11 +244,9 @@ namespace Tomahawk
         }
         DateTime DateTime::FromWeeks(UInt64 Value)
         {
-            using _Days = std::chrono::duration
-                    <UInt64, std::ratio_multiply<std::ratio<24>, std::chrono::hours::period>>;
+            using _Days = std::chrono::duration<UInt64, std::ratio_multiply<std::ratio<24>, std::chrono::hours::period>>;
 
-            using _Weeks = std::chrono::duration
-                    <UInt64, std::ratio_multiply<std::ratio<7>, _Days::period>>;
+            using _Weeks = std::chrono::duration<UInt64, std::ratio_multiply<std::ratio<7>, _Days::period>>;
 
             DateTime New;
             New.Time = std::chrono::duration_cast<std::chrono::system_clock::duration>(_Weeks(Value));
@@ -274,14 +255,11 @@ namespace Tomahawk
         }
         DateTime DateTime::FromMonths(UInt64 Value)
         {
-            using _Days = std::chrono::duration
-                    <UInt64, std::ratio_multiply<std::ratio<24>, std::chrono::hours::period>>;
+            using _Days = std::chrono::duration<UInt64, std::ratio_multiply<std::ratio<24>, std::chrono::hours::period>>;
 
-            using _Years = std::chrono::duration
-                    <UInt64, std::ratio_multiply<std::ratio<146097, 400>, _Days::period>>;
+            using _Years = std::chrono::duration<UInt64, std::ratio_multiply<std::ratio<146097, 400>, _Days::period>>;
 
-            using _Months = std::chrono::duration
-                    <UInt64, std::ratio_divide<_Years::period, std::ratio<12>>>;
+            using _Months = std::chrono::duration<UInt64, std::ratio_divide<_Years::period, std::ratio<12>>>;
 
             DateTime New;
             New.Time = std::chrono::duration_cast<std::chrono::system_clock::duration>(_Months(Value));
@@ -290,25 +268,23 @@ namespace Tomahawk
         }
         DateTime DateTime::FromYears(UInt64 Value)
         {
-            using _Days = std::chrono::duration
-                    <UInt64, std::ratio_multiply<std::ratio<24>, std::chrono::hours::period>>;
+            using _Days = std::chrono::duration<UInt64, std::ratio_multiply<std::ratio<24>, std::chrono::hours::period>>;
 
-            using _Years = std::chrono::duration
-                    <UInt64, std::ratio_multiply<std::ratio<146097, 400>, _Days::period>>;
+            using _Years = std::chrono::duration<UInt64, std::ratio_multiply<std::ratio<146097, 400>, _Days::period>>;
 
             DateTime New;
             New.Time = std::chrono::duration_cast<std::chrono::system_clock::duration>(_Years(Value));
 
             return New;
         }
-        DateTime DateTime::operator + (const DateTime& Right)
+        DateTime DateTime::operator +(const DateTime& Right)
         {
             DateTime New;
             New.Time = Time + Right.Time;
 
             return New;
         }
-        DateTime DateTime::operator - (const DateTime& Right)
+        DateTime DateTime::operator -(const DateTime& Right)
         {
             DateTime New;
             New.Time = Time - Right.Time;
@@ -321,7 +297,8 @@ namespace Tomahawk
             {
                 if (!NoFlush)
                 {
-                    time_t TimeNow; time(&TimeNow);
+                    time_t TimeNow;
+                    time(&TimeNow);
                     DateValue = *localtime(&TimeNow);
                 }
                 DateRebuild = true;
@@ -339,7 +316,8 @@ namespace Tomahawk
             {
                 if (!NoFlush)
                 {
-                    time_t TimeNow; time(&TimeNow);
+                    time_t TimeNow;
+                    time(&TimeNow);
                     DateValue = *localtime(&TimeNow);
                 }
                 DateRebuild = true;
@@ -359,7 +337,8 @@ namespace Tomahawk
             {
                 if (!NoFlush)
                 {
-                    time_t TimeNow; time(&TimeNow);
+                    time_t TimeNow;
+                    time(&TimeNow);
                     DateValue = *localtime(&TimeNow);
                 }
                 DateRebuild = true;
@@ -379,7 +358,8 @@ namespace Tomahawk
             {
                 if (!NoFlush)
                 {
-                    time_t TimeNow; time(&TimeNow);
+                    time_t TimeNow;
+                    time(&TimeNow);
                     DateValue = *localtime(&TimeNow);
                 }
                 DateRebuild = true;
@@ -413,7 +393,8 @@ namespace Tomahawk
             {
                 if (!NoFlush)
                 {
-                    time_t TimeNow; time(&TimeNow);
+                    time_t TimeNow;
+                    time(&TimeNow);
                     DateValue = *localtime(&TimeNow);
                 }
                 DateRebuild = true;
@@ -433,7 +414,8 @@ namespace Tomahawk
             {
                 if (!NoFlush)
                 {
-                    time_t TimeNow; time(&TimeNow);
+                    time_t TimeNow;
+                    time(&TimeNow);
                     DateValue = *localtime(&TimeNow);
                 }
                 DateRebuild = true;
@@ -453,7 +435,8 @@ namespace Tomahawk
             {
                 if (!NoFlush)
                 {
-                    time_t TimeNow; time(&TimeNow);
+                    time_t TimeNow;
+                    time(&TimeNow);
                     DateValue = *localtime(&TimeNow);
                 }
                 DateRebuild = true;
@@ -512,8 +495,7 @@ namespace Tomahawk
             if (DateRebuild)
                 Rebuild();
 
-            using _Days = std::chrono::duration
-                    <UInt64, std::ratio_multiply<std::ratio<24>, std::chrono::hours::period>>;
+            using _Days = std::chrono::duration<UInt64, std::ratio_multiply<std::ratio<24>, std::chrono::hours::period>>;
 
             return std::chrono::duration_cast<_Days>(Time).count();
         }
@@ -522,11 +504,9 @@ namespace Tomahawk
             if (DateRebuild)
                 Rebuild();
 
-            using _Days = std::chrono::duration
-                    <UInt64, std::ratio_multiply<std::ratio<24>, std::chrono::hours::period>>;
+            using _Days = std::chrono::duration<UInt64, std::ratio_multiply<std::ratio<24>, std::chrono::hours::period>>;
 
-            using _Weeks = std::chrono::duration
-                    <UInt64, std::ratio_multiply<std::ratio<7>, _Days::period>>;
+            using _Weeks = std::chrono::duration<UInt64, std::ratio_multiply<std::ratio<7>, _Days::period>>;
 
             return std::chrono::duration_cast<_Weeks>(Time).count();
         }
@@ -535,14 +515,11 @@ namespace Tomahawk
             if (DateRebuild)
                 Rebuild();
 
-            using _Days = std::chrono::duration
-                    <UInt64, std::ratio_multiply<std::ratio<24>, std::chrono::hours::period>>;
+            using _Days = std::chrono::duration<UInt64, std::ratio_multiply<std::ratio<24>, std::chrono::hours::period>>;
 
-            using _Years = std::chrono::duration
-                    <UInt64, std::ratio_multiply<std::ratio<146097, 400>, _Days::period>>;
+            using _Years = std::chrono::duration<UInt64, std::ratio_multiply<std::ratio<146097, 400>, _Days::period>>;
 
-            using _Months = std::chrono::duration
-                    <UInt64, std::ratio_divide<_Years::period, std::ratio<12>>>;
+            using _Months = std::chrono::duration<UInt64, std::ratio_divide<_Years::period, std::ratio<12>>>;
 
             return std::chrono::duration_cast<_Months>(Time).count();
         }
@@ -551,18 +528,16 @@ namespace Tomahawk
             if (DateRebuild)
                 Rebuild();
 
-            using _Days = std::chrono::duration
-                    <UInt64, std::ratio_multiply<std::ratio<24>, std::chrono::hours::period>>;
+            using _Days = std::chrono::duration<UInt64, std::ratio_multiply<std::ratio<24>, std::chrono::hours::period>>;
 
-            using _Years = std::chrono::duration
-                    <int, std::ratio_multiply<std::ratio<146097, 400>, _Days::period>>;
+            using _Years = std::chrono::duration<int, std::ratio_multiply<std::ratio<146097, 400>, _Days::period>>;
 
             return std::chrono::duration_cast<_Years>(Time).count();
         }
         std::string DateTime::GetGMTBasedString(Int64 TimeStamp)
         {
             auto Time = (time_t)TimeStamp;
-            struct tm GTMTimeStamp{};
+            struct tm GTMTimeStamp{ };
 
 #ifdef THAWK_MICROSOFT
             if (gmtime_s(&GTMTimeStamp, &Time) != 0)
@@ -581,35 +556,35 @@ namespace Tomahawk
                 return false;
 
             auto TimeStamp = (time_t)Time;
-            struct tm Date{};
+            struct tm Date{ };
 
 #if defined(_WIN32_CE)
             static const int DaysPerMonth[] = { 31, 28, 31, 30, 31, 30, 31, 31, 30, 31, 30, 31 };
 
-			FILETIME FileTime;
-			*(Int64)&FileTime = ((Int64)*clk) * RATE_DIFF * EPOCH_DIFF;
+            FILETIME FileTime;
+            *(Int64)&FileTime = ((Int64)*clk) * RATE_DIFF * EPOCH_DIFF;
 
-			SYSTEMTIME SystemTime;
-			FileTimeToSystemTime(&FileTime, &SystemTime);
+            SYSTEMTIME SystemTime;
+            FileTimeToSystemTime(&FileTime, &SystemTime);
 
-			Date.tm_year = SystemTime.wYear - 1900;
-			Date.tm_mon = SystemTime.wMonth - 1;
-			Date.tm_wday = SystemTime.wDayOfWeek;
-			Date.tm_mday = SystemTime.wDay;
-			Date.tm_hour = SystemTime.wHour;
-			Date.tm_min = SystemTime.wMinute;
-			Date.tm_sec = SystemTime.wSecond;
-			Date.tm_isdst = false;
+            Date.tm_year = SystemTime.wYear - 1900;
+            Date.tm_mon = SystemTime.wMonth - 1;
+            Date.tm_wday = SystemTime.wDayOfWeek;
+            Date.tm_mday = SystemTime.wDay;
+            Date.tm_hour = SystemTime.wHour;
+            Date.tm_min = SystemTime.wMinute;
+            Date.tm_sec = SystemTime.wSecond;
+            Date.tm_isdst = false;
 
-			int Day = Date.tm_mday;
-			for (int i = 0; i < Date.tm_mon; i++)
-				Day += DaysPerMonth[i];
+            int Day = Date.tm_mday;
+            for (int i = 0; i < Date.tm_mon; i++)
+                Day += DaysPerMonth[i];
 
-			if (Date.tm_mon >= 2 && LEAP_YEAR(Date.tm_year + 1900))
-				Day++;
+            if (Date.tm_mon >= 2 && LEAP_YEAR(Date.tm_year + 1900))
+                Day++;
 
-			Date.tm_yday = Day;
-			strftime(Buffer, Length, "%a, %d %b %Y %H:%M:%S GMT", &Date);
+            Date.tm_yday = Day;
+            strftime(Buffer, Length, "%a, %d %b %Y %H:%M:%S GMT", &Date);
 #elif defined(THAWK_MICROSOFT)
             if (gmtime_s(&Date, &TimeStamp) != 0)
                 strncpy(Buffer, "Thu, 01 Jan 1970 00:00:00 GMT", (size_t)Length);
@@ -617,46 +592,46 @@ namespace Tomahawk
                 strftime(Buffer, (size_t)Length, "%a, %d %b %Y %H:%M:%S GMT", &Date);
 #else
             if (gmtime_r(&TimeStamp, &Date) == nullptr)
-				strncpy(Buffer, "Thu, 01 Jan 1970 00:00:00 GMT", Length);
-			else
-				strftime(Buffer, Length, "%a, %d %b %Y %H:%M:%S GMT", &Date);
+                strncpy(Buffer, "Thu, 01 Jan 1970 00:00:00 GMT", Length);
+            else
+                strftime(Buffer, Length, "%a, %d %b %Y %H:%M:%S GMT", &Date);
 #endif
             return true;
         }
         bool DateTime::TimeFormatLCL(char* Buffer, UInt64 Length, Int64 Time)
         {
             auto TimeStamp = (time_t)Time;
-            struct tm Date{};
+            struct tm Date{ };
 
 #if defined(_WIN32_WCE)
             static const int DaysPerMonth[] = { 31, 28, 31, 30, 31, 30, 31, 31, 30, 31, 30, 31 };
 
-			FILETIME FileTime, LocalFileTime;
-			*(Int64)&FileTime = ((Int64)*clk) * RATE_DIFF * EPOCH_DIFF;
-			FileTimeToLocalFileTime(&FileTime, &LocalFileTime);
+            FILETIME FileTime, LocalFileTime;
+            *(Int64)&FileTime = ((Int64)*clk) * RATE_DIFF * EPOCH_DIFF;
+            FileTimeToLocalFileTime(&FileTime, &LocalFileTime);
 
-			SYSTEMTIME SystemTime;
-			FileTimeToSystemTime(&LocalFileTime, &SystemTime);
+            SYSTEMTIME SystemTime;
+            FileTimeToSystemTime(&LocalFileTime, &SystemTime);
 
-			TIME_ZONE_INFORMATION TimeZone;
-			Date.tm_year = st.wYear - 1900;
-			Date.tm_mon = st.wMonth - 1;
-			Date.tm_wday = st.wDayOfWeek;
-			Date.tm_mday = st.wDay;
-			Date.tm_hour = st.wHour;
-			Date.tm_min = st.wMinute;
-			Date.tm_sec = st.wSecond;
-			Date.tm_isdst = (GetTimeZoneInformation(&TimeZone) == TIME_ZONE_ID_DAYLIGHT) ? 1 : 0;
+            TIME_ZONE_INFORMATION TimeZone;
+            Date.tm_year = st.wYear - 1900;
+            Date.tm_mon = st.wMonth - 1;
+            Date.tm_wday = st.wDayOfWeek;
+            Date.tm_mday = st.wDay;
+            Date.tm_hour = st.wHour;
+            Date.tm_min = st.wMinute;
+            Date.tm_sec = st.wSecond;
+            Date.tm_isdst = (GetTimeZoneInformation(&TimeZone) == TIME_ZONE_ID_DAYLIGHT) ? 1 : 0;
 
-			int Day = Date.tm_mday;
-			for (int i = 0; i < Date.tm_mon; i++)
-				Day += DaysPerMonth[i];
+            int Day = Date.tm_mday;
+            for (int i = 0; i < Date.tm_mon; i++)
+                Day += DaysPerMonth[i];
 
-			if (Date.tm_mon >= 2 && LEAP_YEAR(Date.tm_year + 1900))
-				Day++;
+            if (Date.tm_mon >= 2 && LEAP_YEAR(Date.tm_year + 1900))
+                Day++;
 
-			Date.tm_yday = doy;
-			strftime(Buffer, Length, "%d-%b-%Y %H:%M", &Date);
+            Date.tm_yday = doy;
+            strftime(Buffer, Length, "%d-%b-%Y %H:%M", &Date);
 #elif defined(_WIN32)
             if (localtime_s(&Date, &TimeStamp) != 0)
                 strncpy(Buffer, "01-Jan-1970 00:00", (size_t)Length);
@@ -664,35 +639,19 @@ namespace Tomahawk
                 strftime(Buffer, (size_t)Length, "%d-%b-%Y %H:%M", &Date);
 #else
             if (localtime_r(&TimeStamp, &Date) == nullptr)
-				strncpy(Buffer, "01-Jan-1970 00:00", Length);
-			else
-				strftime(Buffer, Length, "%d-%b-%Y %H:%M", &Date);
+                strncpy(Buffer, "01-Jan-1970 00:00", Length);
+            else
+                strftime(Buffer, Length, "%d-%b-%Y %H:%M", &Date);
 #endif
             return true;
         }
         Int64 DateTime::ReadGMTBasedString(const char* Date)
         {
-            static const char* MonthNames[] =
-                    {
-                            "Jan",
-                            "Feb",
-                            "Mar",
-                            "Apr",
-                            "May",
-                            "Jun",
-                            "Jul",
-                            "Aug",
-                            "Sep",
-                            "Oct",
-                            "Nov",
-                            "Dec"
-                    };
+            static const char* MonthNames[] = { "Jan", "Feb", "Mar", "Apr", "May", "Jun", "Jul", "Aug", "Sep", "Oct", "Nov", "Dec" };
 
-            char Name[32] = { 0 }; int Second, Minute, Hour, Day, Year;
-            if (sscanf(Date, "%d/%3s/%d %d:%d:%d", &Day, Name, &Year, &Hour, &Minute, &Second) != 6 &&
-                sscanf(Date, "%d %3s %d %d:%d:%d", &Day, Name, &Year, &Hour, &Minute, &Second) != 6 &&
-                sscanf(Date, "%*3s, %d %3s %d %d:%d:%d", &Day, Name, &Year, &Hour, &Minute, &Second) != 6 &&
-                sscanf(Date, "%d-%3s-%d %d:%d:%d", &Day, Name, &Year, &Hour, &Minute, &Second) != 6)
+            char Name[32] = { 0 };
+            int Second, Minute, Hour, Day, Year;
+            if (sscanf(Date, "%d/%3s/%d %d:%d:%d", &Day, Name, &Year, &Hour, &Minute, &Second) != 6 && sscanf(Date, "%d %3s %d %d:%d:%d", &Day, Name, &Year, &Hour, &Minute, &Second) != 6 && sscanf(Date, "%*3s, %d %3s %d %d:%d:%d", &Day, Name, &Year, &Hour, &Minute, &Second) != 6 && sscanf(Date, "%d-%3s-%d %d:%d:%d", &Day, Name, &Year, &Hour, &Minute, &Second) != 6)
                 return 0;
 
             if (Year <= 1970)
@@ -703,7 +662,7 @@ namespace Tomahawk
                 if (strcmp(Name, MonthNames[i]) != 0)
                     continue;
 
-                struct tm Time{};
+                struct tm Time{ };
                 Time.tm_year = Year - 1900;
                 Time.tm_mon = (int)i;
                 Time.tm_mday = Day;
@@ -725,42 +684,42 @@ namespace Tomahawk
         {
             L = new std::string();
         }
-		Stroke::Stroke(int Value) : Safe(true)
-		{
-            L = new std::string(std::to_string(Value));
-		}
-		Stroke::Stroke(unsigned int Value) : Safe(true)
+        Stroke::Stroke(int Value) : Safe(true)
         {
             L = new std::string(std::to_string(Value));
         }
-		Stroke::Stroke(Int64 Value) : Safe(true)
+        Stroke::Stroke(unsigned int Value) : Safe(true)
         {
             L = new std::string(std::to_string(Value));
         }
-		Stroke::Stroke(UInt64 Value) : Safe(true)
+        Stroke::Stroke(Int64 Value) : Safe(true)
         {
             L = new std::string(std::to_string(Value));
         }
-		Stroke::Stroke(float Value) : Safe(true)
+        Stroke::Stroke(UInt64 Value) : Safe(true)
         {
             L = new std::string(std::to_string(Value));
         }
-		Stroke::Stroke(Float64 Value) : Safe(true)
+        Stroke::Stroke(float Value) : Safe(true)
         {
             L = new std::string(std::to_string(Value));
         }
-		Stroke::Stroke(LFloat64 Value) : Safe(true)
+        Stroke::Stroke(Float64 Value) : Safe(true)
         {
             L = new std::string(std::to_string(Value));
         }
-		Stroke::Stroke(const std::string& Buffer) : Safe(true)
+        Stroke::Stroke(LFloat64 Value) : Safe(true)
+        {
+            L = new std::string(std::to_string(Value));
+        }
+        Stroke::Stroke(const std::string& Buffer) : Safe(true)
         {
             L = new std::string(Buffer);
         }
         Stroke::Stroke(std::string* Buffer)
         {
-		    Safe = (!Buffer);
-		    L = (Safe ? new std::string() : Buffer);
+            Safe = (!Buffer);
+            L = (Safe ? new std::string() : Buffer);
         }
         Stroke::Stroke(const std::string* Buffer)
         {
@@ -781,710 +740,712 @@ namespace Tomahawk
             else
                 L = new std::string();
         }
-		Stroke::Stroke(const Stroke& Value) : Safe(true)
+        Stroke::Stroke(const Stroke& Value) : Safe(true)
         {
-		    if (Value.L != nullptr)
-		        L = new std::string(*Value.L);
-		    else
+            if (Value.L != nullptr)
+                L = new std::string(*Value.L);
+            else
                 L = new std::string();
         }
-		Stroke::~Stroke()
-		{
-		    if (Safe)
-		        delete L;
-		}
-		Stroke& Stroke::EscapePrint()
-		{
-			for (size_t i = 0; i < L->size(); i++)
-			{
-				if (L->at(i) != '%')
-					continue;
+        Stroke::~Stroke()
+        {
+            if (Safe)
+                delete L;
+        }
+        Stroke& Stroke::EscapePrint()
+        {
+            for (size_t i = 0; i < L->size(); i++)
+            {
+                if (L->at(i) != '%')
+                    continue;
 
-				if (i + 1 < L->size())
-				{
-					if (L->at(i + 1) != '%')
-					{
-						L->insert(L->begin() + i, '%');
-						i++;
-					}
-				}
-				else
-				{
-					L->append(1, '%');
-					i++;
-				}
-			}
+                if (i + 1 < L->size())
+                {
+                    if (L->at(i + 1) != '%')
+                    {
+                        L->insert(L->begin() + i, '%');
+                        i++;
+                    }
+                }
+                else
+                {
+                    L->append(1, '%');
+                    i++;
+                }
+            }
 
-			return *this;
-		}
-		Stroke& Stroke::Reserve(UInt64 Count)
-		{
-			L->reserve(L->capacity() + Count);
-			return *this;
-		}
-		Stroke& Stroke::Resize(UInt64 Count)
-		{
-			L->resize(Count);
-			return *this;
-		}
-		Stroke& Stroke::Resize(UInt64 Count, char Char)
-		{
-			L->resize(Count, Char);
-			return *this;
-		}
-		Stroke& Stroke::Clear()
-		{
-			L->clear();
-			return *this;
-		}
-		Stroke& Stroke::ToUtf8()
-		{
-#pragma warning(push)  
+            return *this;
+        }
+        Stroke& Stroke::Reserve(UInt64 Count)
+        {
+            L->reserve(L->capacity() + Count);
+            return *this;
+        }
+        Stroke& Stroke::Resize(UInt64 Count)
+        {
+            L->resize(Count);
+            return *this;
+        }
+        Stroke& Stroke::Resize(UInt64 Count, char Char)
+        {
+            L->resize(Count, Char);
+            return *this;
+        }
+        Stroke& Stroke::Clear()
+        {
+            L->clear();
+            return *this;
+        }
+        Stroke& Stroke::ToUtf8()
+        {
+#pragma warning(push)
 #pragma warning(disable: 4333)
-			std::string Output;
-			for (char i : *L)
-			{
-				auto V = (wchar_t)i;
-				if (0 <= V && V <= 0x7f)
-				{
-					Output += V;
-				}
-				else if (0x80 <= V && V <= 0x7ff)
-				{
-					Output += (wchar_t)((0xc0 | (V >> 6)));
-					Output += (wchar_t)((0x80 | (V & 0x3f)));
-				}
-				else if (0x800 <= V && V <= 0xffff)
-				{
-					Output += (wchar_t)((0xe0 | (V >> 12)));
-					Output += (wchar_t)((0x80 | ((V >> 6) & 0x3f)));
-					Output += (wchar_t)((0x80 | (V & 0x3f)));
-				}
-				else if (0x10000 <= V && V <= 0x1fffff)
-				{
-					Output += (wchar_t)((0xf0 | (V >> 18)));
-					Output += (wchar_t)((0x80 | ((V >> 12) & 0x3f)));
-					Output += (wchar_t)((0x80 | ((V >> 6) & 0x3f)));
-					Output += (wchar_t)((0x80 | (V & 0x3f)));
-				}
-				else if (0x200000 <= V && V <= 0x3ffffff)
-				{
-					Output += (wchar_t)((0xf8 | (V >> 24)));
-					Output += (wchar_t)((0x80 | ((V >> 18) & 0x3f)));
-					Output += (wchar_t)((0x80 | ((V >> 12) & 0x3f)));
-					Output += (wchar_t)((0x80 | ((V >> 6) & 0x3f)));
-					Output += (wchar_t)((0x80 | (V & 0x3f)));
-				}
-				else if (0x4000000 <= V && V <= 0x7fffffff)
-				{
-					Output += (wchar_t)((0xfc | (V >> 30)));
-					Output += (wchar_t)((0x80 | ((V >> 24) & 0x3f)));
-					Output += (wchar_t)((0x80 | ((V >> 18) & 0x3f)));
-					Output += (wchar_t)((0x80 | ((V >> 12) & 0x3f)));
-					Output += (wchar_t)(0x80 | ((V >> 6) & 0x3f));
-					Output += (wchar_t)((0x80 | (V & 0x3f)));
-				}
-			}
+            std::string Output;
+            for (char i : *L)
+            {
+                auto V = (wchar_t)i;
+                if (0 <= V && V <= 0x7f)
+                {
+                    Output += V;
+                }
+                else if (0x80 <= V && V <= 0x7ff)
+                {
+                    Output += (wchar_t)((0xc0 | (V >> 6)));
+                    Output += (wchar_t)((0x80 | (V & 0x3f)));
+                }
+                else if (0x800 <= V && V <= 0xffff)
+                {
+                    Output += (wchar_t)((0xe0 | (V >> 12)));
+                    Output += (wchar_t)((0x80 | ((V >> 6) & 0x3f)));
+                    Output += (wchar_t)((0x80 | (V & 0x3f)));
+                }
+                else if (0x10000 <= V && V <= 0x1fffff)
+                {
+                    Output += (wchar_t)((0xf0 | (V >> 18)));
+                    Output += (wchar_t)((0x80 | ((V >> 12) & 0x3f)));
+                    Output += (wchar_t)((0x80 | ((V >> 6) & 0x3f)));
+                    Output += (wchar_t)((0x80 | (V & 0x3f)));
+                }
+                else if (0x200000 <= V && V <= 0x3ffffff)
+                {
+                    Output += (wchar_t)((0xf8 | (V >> 24)));
+                    Output += (wchar_t)((0x80 | ((V >> 18) & 0x3f)));
+                    Output += (wchar_t)((0x80 | ((V >> 12) & 0x3f)));
+                    Output += (wchar_t)((0x80 | ((V >> 6) & 0x3f)));
+                    Output += (wchar_t)((0x80 | (V & 0x3f)));
+                }
+                else if (0x4000000 <= V && V <= 0x7fffffff)
+                {
+                    Output += (wchar_t)((0xfc | (V >> 30)));
+                    Output += (wchar_t)((0x80 | ((V >> 24) & 0x3f)));
+                    Output += (wchar_t)((0x80 | ((V >> 18) & 0x3f)));
+                    Output += (wchar_t)((0x80 | ((V >> 12) & 0x3f)));
+                    Output += (wchar_t)(0x80 | ((V >> 6) & 0x3f));
+                    Output += (wchar_t)((0x80 | (V & 0x3f)));
+                }
+            }
 #pragma warning(pop)
 
-			L->assign(Output);
-			return *this;
-		}
-		Stroke& Stroke::ToUpper()
-		{
-			std::transform(L->begin(), L->end(), L->begin(), ::toupper);
-			return *this;
-		}
-		Stroke& Stroke::ToLower()
-		{
-			std::transform(L->begin(), L->end(), L->begin(), ::tolower);
-			return *this;
-		}
-		Stroke& Stroke::Clip(UInt64 Length)
-		{
-			if (Length < L->size())
-				L->erase(Length, L->size() - Length);
+            L->assign(Output);
+            return *this;
+        }
+        Stroke& Stroke::ToUpper()
+        {
+            std::transform(L->begin(), L->end(), L->begin(), ::toupper);
+            return *this;
+        }
+        Stroke& Stroke::ToLower()
+        {
+            std::transform(L->begin(), L->end(), L->begin(), ::tolower);
+            return *this;
+        }
+        Stroke& Stroke::Clip(UInt64 Length)
+        {
+            if (Length < L->size())
+                L->erase(Length, L->size() - Length);
 
-			return *this;
-		}
-		Stroke& Stroke::ReplaceOf(const char* Chars, const char* To, UInt64 Start)
-		{
-			if (!Chars || Chars[0] == '\0' || !To)
-				return *this;
+            return *this;
+        }
+        Stroke& Stroke::ReplaceOf(const char* Chars, const char* To, UInt64 Start)
+        {
+            if (!Chars || Chars[0] == '\0' || !To)
+                return *this;
 
-			Stroke::Settle Result{};
-			UInt64 Offset = Start, ToSize = (UInt64)strlen(To);
-			while ((Result = FindOf(Chars, Offset)).Found)
-			{
-				EraseOffsets(Result.Start, Result.End);
-				Insert(To, Result.Start);
-				Offset += ToSize;
-			}
+            Stroke::Settle Result{ };
+            UInt64 Offset = Start, ToSize = (UInt64)strlen(To);
+            while ((Result = FindOf(Chars, Offset)).Found)
+            {
+                EraseOffsets(Result.Start, Result.End);
+                Insert(To, Result.Start);
+                Offset += ToSize;
+            }
 
-			return *this;
-		}
-		Stroke& Stroke::Replace(const std::string& From, const std::string& To, UInt64 Start)
-		{
-			UInt64 Offset = Start;
-			Stroke::Settle Result{};
+            return *this;
+        }
+        Stroke& Stroke::Replace(const std::string& From, const std::string& To, UInt64 Start)
+        {
+            UInt64 Offset = Start;
+            Stroke::Settle Result{ };
 
-			while ((Result = Find(From, Offset)).Found)
-			{
-				EraseOffsets(Result.Start, Result.End);
-				Insert(To, Result.Start);
-				Offset += To.size();
-			}
+            while ((Result = Find(From, Offset)).Found)
+            {
+                EraseOffsets(Result.Start, Result.End);
+                Insert(To, Result.Start);
+                Offset += To.size();
+            }
 
-			return *this;
-		}
-		Stroke& Stroke::Replace(const char* From, const char* To, UInt64 Start)
-		{
-			if (!From || !To)
-				return *this;
+            return *this;
+        }
+        Stroke& Stroke::Replace(const char* From, const char* To, UInt64 Start)
+        {
+            if (!From || !To)
+                return *this;
 
-			UInt64 Offset = Start;
-			auto Size = (UInt64)strlen(To);
-			Stroke::Settle Result{};
+            UInt64 Offset = Start;
+            auto Size = (UInt64)strlen(To);
+            Stroke::Settle Result{ };
 
-			while ((Result = Find(From, Offset)).Found)
-			{
-				EraseOffsets(Result.Start, Result.End);
-				Insert(To, Result.Start);
-				Offset += Size;
-			}
+            while ((Result = Find(From, Offset)).Found)
+            {
+                EraseOffsets(Result.Start, Result.End);
+                Insert(To, Result.Start);
+                Offset += Size;
+            }
 
-			return *this;
-		}
-		Stroke& Stroke::Replace(const char& From, const char& To, UInt64 Position)
-		{
-			for (UInt64 i = Position; i < L->size(); i++)
-			{
-				if (L->at(i) == From)
-					L->at(i) = To;
-			}
+            return *this;
+        }
+        Stroke& Stroke::Replace(const char& From, const char& To, UInt64 Position)
+        {
+            for (UInt64 i = Position; i < L->size(); i++)
+            {
+                if (L->at(i) == From)
+                    L->at(i) = To;
+            }
 
-			return *this;
-		}
-		Stroke& Stroke::Replace(const char& From, const char& To, UInt64 Position, UInt64 Count)
-		{
-			if (L->size() < (Position + Count))
-				return *this;
+            return *this;
+        }
+        Stroke& Stroke::Replace(const char& From, const char& To, UInt64 Position, UInt64 Count)
+        {
+            if (L->size() < (Position + Count))
+                return *this;
 
-			for (UInt64 i = Position; i < (Position + Count); i++)
-			{
-				if (L->at(i) == From)
-					L->at(i) = To;
-			}
+            for (UInt64 i = Position; i < (Position + Count); i++)
+            {
+                if (L->at(i) == From)
+                    L->at(i) = To;
+            }
 
-			return *this;
-		}
-		Stroke& Stroke::ReplacePart(UInt64 Start, UInt64 End, const std::string& Value)
-		{
-			return ReplacePart(Start, End, Value.c_str());
-		}
-		Stroke& Stroke::ReplacePart(UInt64 Start, UInt64 End, const char* Value)
-		{
-			if (Start >= L->size() || End > L->size() || Start >= End || !Value)
-				return *this;
+            return *this;
+        }
+        Stroke& Stroke::ReplacePart(UInt64 Start, UInt64 End, const std::string& Value)
+        {
+            return ReplacePart(Start, End, Value.c_str());
+        }
+        Stroke& Stroke::ReplacePart(UInt64 Start, UInt64 End, const char* Value)
+        {
+            if (Start >= L->size() || End > L->size() || Start >= End || !Value)
+                return *this;
 
-			if (Start == 0 && L->size() == End)
-				L->assign(Value);
-			else if (Start == 0)
-				L->assign(Value + L->substr(End, L->size() - End));
-			else if (L->size() == End)
-				L->assign(L->substr(0, Start) + Value);
-			else
-				L->assign(L->substr(0, Start) + Value + L->substr(End, L->size() - End));
+            if (Start == 0 && L->size() == End)
+                L->assign(Value);
+            else if (Start == 0)
+                L->assign(Value + L->substr(End, L->size() - End));
+            else if (L->size() == End)
+                L->assign(L->substr(0, Start) + Value);
+            else
+                L->assign(L->substr(0, Start) + Value + L->substr(End, L->size() - End));
 
-			return *this;
-		}
-		Stroke& Stroke::RemovePart(UInt64 Start, UInt64 End)
-		{
-			if (Start >= L->size() || End > L->size() || Start >= End)
-				return *this;
+            return *this;
+        }
+        Stroke& Stroke::RemovePart(UInt64 Start, UInt64 End)
+        {
+            if (Start >= L->size() || End > L->size() || Start >= End)
+                return *this;
 
-			if (Start == 0 && L->size() == End)
-				L->clear();
-			else if (Start == 0)
-				L->assign(L->substr(End, L->size() - End));
-			else if (L->size() == End)
-				L->assign(L->substr(0, Start));
-			else
+            if (Start == 0 && L->size() == End)
+                L->clear();
+            else if (Start == 0)
+                L->assign(L->substr(End, L->size() - End));
+            else if (L->size() == End)
+                L->assign(L->substr(0, Start));
+            else
                 L->assign(L->substr(0, Start) + L->substr(End, L->size() - End));
 
-			return *this;
-		}
-		Stroke& Stroke::Reverse()
-		{
-			return Reverse(0, L->size() - 1);
-		}
-		Stroke& Stroke::Reverse(UInt64 Start, UInt64 End)
-		{
-			if (Start == End || L->size() < 2 || End > (L->size() - 1) || Start > (L->size() - 1))
-				return *this;
+            return *this;
+        }
+        Stroke& Stroke::Reverse()
+        {
+            return Reverse(0, L->size() - 1);
+        }
+        Stroke& Stroke::Reverse(UInt64 Start, UInt64 End)
+        {
+            if (Start == End || L->size() < 2 || End > (L->size() - 1) || Start > (L->size() - 1))
+                return *this;
 
-			while (Start < End)
-			{
-				char Temp = L->at(Start);
-				L[Start] = L[End];
-				L[End] = Temp;
-				++Start; --End;
-			}
+            while (Start < End)
+            {
+                char Temp = L->at(Start);
+                L[Start] = L[End];
+                L[End] = Temp;
+                ++Start;
+                --End;
+            }
 
-			return *this;
-		}
-		Stroke& Stroke::Substring(UInt64 Start)
-		{
-			if (Start >= L->size())
-			{
-				L->clear();
-				return *this;
-			}
+            return *this;
+        }
+        Stroke& Stroke::Substring(UInt64 Start)
+        {
+            if (Start >= L->size())
+            {
+                L->clear();
+                return *this;
+            }
 
-			L->substr(Start);
-			return *this;
-		}
-		Stroke& Stroke::Substring(UInt64 Start, UInt64 Count)
-		{
-			if (Start >= L->size() || !Count)
-			{
-				L->clear();
-				return *this;
-			}
+            L->substr(Start);
+            return *this;
+        }
+        Stroke& Stroke::Substring(UInt64 Start, UInt64 Count)
+        {
+            if (Start >= L->size() || !Count)
+            {
+                L->clear();
+                return *this;
+            }
 
-			L->assign(L->substr(Start, Count));
-			return *this;
-		}
-		Stroke& Stroke::Substring(const Stroke::Settle& Result)
-		{
-			if (!Result.Found)
-			{
-				L->clear();
-				return *this;
-			}
+            L->assign(L->substr(Start, Count));
+            return *this;
+        }
+        Stroke& Stroke::Substring(const Stroke::Settle& Result)
+        {
+            if (!Result.Found)
+            {
+                L->clear();
+                return *this;
+            }
 
-			if (Result.Start > (L->size() - 1))
-				return *this;
+            if (Result.Start > (L->size() - 1))
+                return *this;
 
-			auto Offset = (Int64)Result.End;
-			if (Result.End > L->size())
-				Offset = (Int64)(L->size() - Result.Start);
+            auto Offset = (Int64)Result.End;
+            if (Result.End > L->size())
+                Offset = (Int64)(L->size() - Result.Start);
 
-			Offset = (Int64)Result.Start - Offset;
-			L->assign(L->substr(Result.Start, (UInt64)(Offset < 0 ? -Offset : Offset)));
-			return *this;
-		}
-		Stroke& Stroke::Splice(UInt64 Start, UInt64 End)
-		{
-			if (Start > (L->size() - 1))
-				return (*this);
+            Offset = (Int64)Result.Start - Offset;
+            L->assign(L->substr(Result.Start, (UInt64)(Offset < 0 ? -Offset : Offset)));
+            return *this;
+        }
+        Stroke& Stroke::Splice(UInt64 Start, UInt64 End)
+        {
+            if (Start > (L->size() - 1))
+                return (*this);
 
-			if (End > L->size())
-				End = (L->size() - Start);
+            if (End > L->size())
+                End = (L->size() - Start);
 
-			Int64 Offset = (Int64)Start - (Int64)End;
+            Int64 Offset = (Int64)Start - (Int64)End;
             L->assign(L->substr(Start, (UInt64)(Offset < 0 ? -Offset : Offset)));
-			return *this;
-		}
-		Stroke& Stroke::Trim()
-		{
-			L->erase(L->begin(), std::find_if(L->begin(), L->end(), std::not1(std::ptr_fun<int, int>(std::isspace))));
-			L->erase(std::find_if(L->rbegin(), L->rend(), std::not1(std::ptr_fun<int, int>(std::isspace))).base(), L->end());
+            return *this;
+        }
+        Stroke& Stroke::Trim()
+        {
+            L->erase(L->begin(), std::find_if(L->begin(), L->end(), std::not1(std::ptr_fun<int, int>(std::isspace))));
+            L->erase(std::find_if(L->rbegin(), L->rend(), std::not1(std::ptr_fun<int, int>(std::isspace))).base(), L->end());
 
-			return *this;
-		}
-		Stroke& Stroke::Fill(const char& Char)
-		{
-			if (L->empty())
-				return (*this);
+            return *this;
+        }
+        Stroke& Stroke::Fill(const char& Char)
+        {
+            if (L->empty())
+                return (*this);
 
-			for (char & i : *L)
-				i = Char;
+            for (char& i : *L)
+                i = Char;
 
-			return *this;
-		}
-		Stroke& Stroke::Fill(const char& Char, UInt64 Count)
-		{
-			if (L->empty())
-				return (*this);
+            return *this;
+        }
+        Stroke& Stroke::Fill(const char& Char, UInt64 Count)
+        {
+            if (L->empty())
+                return (*this);
 
-			L->assign(Count, Char);
-			return *this;
-		}
-		Stroke& Stroke::Fill(const char& Char, UInt64 Start, UInt64 Count)
-		{
-			if (L->empty() || Start > L->size())
-				return (*this);
+            L->assign(Count, Char);
+            return *this;
+        }
+        Stroke& Stroke::Fill(const char& Char, UInt64 Start, UInt64 Count)
+        {
+            if (L->empty() || Start > L->size())
+                return (*this);
 
-			if (Start + Count > L->size())
-				Count = L->size() - Start;
+            if (Start + Count > L->size())
+                Count = L->size() - Start;
 
-			for (UInt64 i = Start; i < (Start + Count); i++)
-				L->at(i) = Char;
+            for (UInt64 i = Start; i < (Start + Count); i++)
+                L->at(i) = Char;
 
-			return *this;
-		}
-		Stroke& Stroke::Assign(const char* Raw)
-		{
-			if (Raw != nullptr)
-				L->assign(Raw);
-			else
-				L->clear();
+            return *this;
+        }
+        Stroke& Stroke::Assign(const char* Raw)
+        {
+            if (Raw != nullptr)
+                L->assign(Raw);
+            else
+                L->clear();
 
-			return *this;
-		}
-		Stroke& Stroke::Assign(const char* Raw, UInt64 Length)
-		{
-			if (Raw != nullptr)
-				L->assign(Raw, Length);
-			else
-				L->clear();
+            return *this;
+        }
+        Stroke& Stroke::Assign(const char* Raw, UInt64 Length)
+        {
+            if (Raw != nullptr)
+                L->assign(Raw, Length);
+            else
+                L->clear();
 
-			return *this;
-		}
-		Stroke& Stroke::Assign(const std::string& Raw)
-		{
-			L->assign(Raw);
-			return *this;
-		}
-		Stroke& Stroke::Assign(const std::string& Raw, UInt64 Start, UInt64 Count)
-		{
-			L->assign(Raw.substr(Start, Count));
-			return *this;
-		}
-		Stroke& Stroke::Assign(const char* Raw, UInt64 Start, UInt64 Count)
-		{
-			if (!Raw)
-			{
-				L->clear();
-				return *this;
-			}
+            return *this;
+        }
+        Stroke& Stroke::Assign(const std::string& Raw)
+        {
+            L->assign(Raw);
+            return *this;
+        }
+        Stroke& Stroke::Assign(const std::string& Raw, UInt64 Start, UInt64 Count)
+        {
+            L->assign(Raw.substr(Start, Count));
+            return *this;
+        }
+        Stroke& Stroke::Assign(const char* Raw, UInt64 Start, UInt64 Count)
+        {
+            if (!Raw)
+            {
+                L->clear();
+                return *this;
+            }
 
-			L->assign(Raw);
-			return Substring(Start, Count);
-		}
-		Stroke& Stroke::Append(const char* Raw)
-		{
-			if (Raw != nullptr)
-				L->append(Raw);
+            L->assign(Raw);
+            return Substring(Start, Count);
+        }
+        Stroke& Stroke::Append(const char* Raw)
+        {
+            if (Raw != nullptr)
+                L->append(Raw);
 
-			return *this;
-		}
-		Stroke& Stroke::Append(const char& Char)
-		{
-			L->append(1, Char);
-			return *this;
-		}
-		Stroke& Stroke::Append(const char& Char, UInt64 Count)
-		{
-			L->append(Count, Char);
-			return *this;
-		}
-		Stroke& Stroke::Append(const std::string& Raw)
-		{
-			L->append(Raw);
-			return *this;
-		}
-		Stroke& Stroke::Append(const char* Raw, UInt64 Count)
-		{
-			if (Raw != nullptr)
-				L->append(Raw, Count);
+            return *this;
+        }
+        Stroke& Stroke::Append(const char& Char)
+        {
+            L->append(1, Char);
+            return *this;
+        }
+        Stroke& Stroke::Append(const char& Char, UInt64 Count)
+        {
+            L->append(Count, Char);
+            return *this;
+        }
+        Stroke& Stroke::Append(const std::string& Raw)
+        {
+            L->append(Raw);
+            return *this;
+        }
+        Stroke& Stroke::Append(const char* Raw, UInt64 Count)
+        {
+            if (Raw != nullptr)
+                L->append(Raw, Count);
 
-			return *this;
-		}
-		Stroke& Stroke::Append(const char* Raw, UInt64 Start, UInt64 Count)
-		{
-			if (!Raw)
-				return *this;
+            return *this;
+        }
+        Stroke& Stroke::Append(const char* Raw, UInt64 Start, UInt64 Count)
+        {
+            if (!Raw)
+                return *this;
 
-			std::string V(Raw);
-			if (!Count || V.size() < Start + Count)
-				return *this;
+            std::string V(Raw);
+            if (!Count || V.size() < Start + Count)
+                return *this;
 
-			L->append(V.substr(Start, Count));
-			return *this;
-		}
-		Stroke& Stroke::Append(const std::string& Raw, UInt64 Start, UInt64 Count)
-		{
-			if (!Count || Raw.size() < Start + Count)
-				return *this;
+            L->append(V.substr(Start, Count));
+            return *this;
+        }
+        Stroke& Stroke::Append(const std::string& Raw, UInt64 Start, UInt64 Count)
+        {
+            if (!Count || Raw.size() < Start + Count)
+                return *this;
 
-			L->append(Raw.substr(Start, Count));
-			return *this;
-		}
-		Stroke& Stroke::fAppend(const char* Format, ...)
-		{
-			if (!Format)
-				return *this;
+            L->append(Raw.substr(Start, Count));
+            return *this;
+        }
+        Stroke& Stroke::fAppend(const char* Format, ...)
+        {
+            if (!Format)
+                return *this;
 
-			char Buffer[16384];
-			va_list Args;
-			va_start(Args, Format);
-			int Count = vsnprintf(Buffer, sizeof(Buffer), Format, Args);
-			va_end(Args);
+            char Buffer[16384];
+            va_list Args;
+                    va_start(Args, Format);
+            int Count = vsnprintf(Buffer, sizeof(Buffer), Format, Args);
+                    va_end(Args);
 
-			return Append(Buffer, Count);
-		}
-		Stroke& Stroke::Insert(const std::string& Raw, UInt64 Position)
-		{
-			if (Position >= L->size())
-				Position = L->size();
+            return Append(Buffer, Count);
+        }
+        Stroke& Stroke::Insert(const std::string& Raw, UInt64 Position)
+        {
+            if (Position >= L->size())
+                Position = L->size();
 
-			L->insert(Position, Raw);
-			return *this;
-		}
-		Stroke& Stroke::Insert(const std::string& Raw, UInt64 Position, UInt64 Start, UInt64 Count)
-		{
-			if (Position >= L->size())
-				Position = L->size();
+            L->insert(Position, Raw);
+            return *this;
+        }
+        Stroke& Stroke::Insert(const std::string& Raw, UInt64 Position, UInt64 Start, UInt64 Count)
+        {
+            if (Position >= L->size())
+                Position = L->size();
 
-			if (Raw.size() >= Start + Count)
-				L->insert(Position, Raw.substr(Start, Count));
+            if (Raw.size() >= Start + Count)
+                L->insert(Position, Raw.substr(Start, Count));
 
-			return *this;
-		}
-		Stroke& Stroke::Insert(const std::string& Raw, UInt64 Position, UInt64 Count)
-		{
-			if (Position >= L->size())
-				Position = L->size();
+            return *this;
+        }
+        Stroke& Stroke::Insert(const std::string& Raw, UInt64 Position, UInt64 Count)
+        {
+            if (Position >= L->size())
+                Position = L->size();
 
-			if (Count >= Raw.size())
-				Count = Raw.size();
+            if (Count >= Raw.size())
+                Count = Raw.size();
 
-			L->insert(Position, Raw.substr(0, Count));
-			return *this;
-		}
-		Stroke& Stroke::Insert(const char& Char, UInt64 Position, UInt64 Count)
-		{
-			if (Position >= L->size())
-				return *this;
+            L->insert(Position, Raw.substr(0, Count));
+            return *this;
+        }
+        Stroke& Stroke::Insert(const char& Char, UInt64 Position, UInt64 Count)
+        {
+            if (Position >= L->size())
+                return *this;
 
-			L->insert(Position, Count, Char);
-			return *this;
-		}
-		Stroke& Stroke::Insert(const char& Char, UInt64 Position)
-		{
-			if (Position >= L->size())
-				return *this;
+            L->insert(Position, Count, Char);
+            return *this;
+        }
+        Stroke& Stroke::Insert(const char& Char, UInt64 Position)
+        {
+            if (Position >= L->size())
+                return *this;
 
-			L->insert(L->begin() + Position, Char);
-			return *this;
-		}
-		Stroke& Stroke::Erase(UInt64 Position)
-		{
-			if (Position >= L->size())
-				return *this;
+            L->insert(L->begin() + Position, Char);
+            return *this;
+        }
+        Stroke& Stroke::Erase(UInt64 Position)
+        {
+            if (Position >= L->size())
+                return *this;
 
-			L->erase(Position);
-			return *this;
-		}
-		Stroke& Stroke::Erase(UInt64 Position, UInt64 Count)
-		{
-			if (Position >= L->size())
-				return *this;
+            L->erase(Position);
+            return *this;
+        }
+        Stroke& Stroke::Erase(UInt64 Position, UInt64 Count)
+        {
+            if (Position >= L->size())
+                return *this;
 
-			L->erase(Position, Count);
-			return *this;
-		}
-		Stroke& Stroke::EraseOffsets(UInt64 Start, UInt64 End)
-		{
-			return Erase(Start, End - Start);
-		}
-		Stroke& Stroke::Path(const std::string& Net, const std::string& Dir)
-		{
-			if (StartsOf("./\\"))
-			{
-				std::string Result = Rest::OS::Resolve(L->c_str(), Dir);
-				if (!Result.empty())
-					Assign(Result);
-			}
-			else
-				Replace("[Subnet]", Net);
+            L->erase(Position, Count);
+            return *this;
+        }
+        Stroke& Stroke::EraseOffsets(UInt64 Start, UInt64 End)
+        {
+            return Erase(Start, End - Start);
+        }
+        Stroke& Stroke::Path(const std::string& Net, const std::string& Dir)
+        {
+            if (StartsOf("./\\"))
+            {
+                std::string Result = Rest::OS::Resolve(L->c_str(), Dir);
+                if (!Result.empty())
+                    Assign(Result);
+            }
+            else
+                Replace("[Subnet]", Net);
 
-			return *this;
-		}
-		Stroke::Settle Stroke::ReverseFind(const std::string& Needle, UInt64 Offset) const
-		{
-			const char* Ptr = L->c_str() - Offset;
-			if (Needle.c_str() > Ptr)
-				return { L->size() - 1, L->size(), false };
+            return *this;
+        }
+        Stroke::Settle Stroke::ReverseFind(const std::string& Needle, UInt64 Offset) const
+        {
+            const char* Ptr = L->c_str() - Offset;
+            if (Needle.c_str() > Ptr)
+                return { L->size() - 1, L->size(), false };
 
-			const char* It = nullptr;
-			for (It = Ptr + L->size() - Needle.size(); It > Ptr; --It)
-			{
-				if (strncmp(Ptr, Needle.c_str(), (size_t)Needle.size()) == 0)
-					return { (UInt64)(It - Ptr), (UInt64)(It - Ptr + Needle.size()), true };
-			}
+            const char* It = nullptr;
+            for (It = Ptr + L->size() - Needle.size(); It > Ptr; --It)
+            {
+                if (strncmp(Ptr, Needle.c_str(), (size_t)Needle.size()) == 0)
+                    return { (UInt64)(It - Ptr), (UInt64)(It - Ptr + Needle.size()), true };
+            }
 
-			return { L->size() - 1, L->size(), false };
-		}
-		Stroke::Settle Stroke::ReverseFind(const char* Needle, UInt64 Offset) const
-		{
-			if (!Needle)
-				return { L->size() - 1, L->size(), false };
+            return { L->size() - 1, L->size(), false };
+        }
+        Stroke::Settle Stroke::ReverseFind(const char* Needle, UInt64 Offset) const
+        {
+            if (!Needle)
+                return { L->size() - 1, L->size(), false };
 
-			const char* Ptr = L->c_str() - Offset;
-			if (Needle > Ptr)
-				return { L->size() - 1, L->size(), false };
+            const char* Ptr = L->c_str() - Offset;
+            if (Needle > Ptr)
+                return { L->size() - 1, L->size(), false };
 
-			const char* It = nullptr; auto Length = (UInt64)strlen(Needle);
-			for (It = Ptr + L->size() - Length; It > Ptr; --It)
-			{
-				if (strncmp(Ptr, Needle, (size_t)Length) == 0)
-					return { (UInt64)(It - Ptr), (UInt64)(It - Ptr + Length), true };
-			}
+            const char* It = nullptr;
+            auto Length = (UInt64)strlen(Needle);
+            for (It = Ptr + L->size() - Length; It > Ptr; --It)
+            {
+                if (strncmp(Ptr, Needle, (size_t)Length) == 0)
+                    return { (UInt64)(It - Ptr), (UInt64)(It - Ptr + Length), true };
+            }
 
-			return { L->size() - 1, L->size(), false };
-		}
-		Stroke::Settle Stroke::ReverseFind(const char& Needle, UInt64 Offset) const
-		{
-			for (UInt64 i = L->size() - 1 - Offset; i > 0; i--)
-			{
-				if (L->at(i) == Needle)
-					return { i, i + 1, true };
-			}
+            return { L->size() - 1, L->size(), false };
+        }
+        Stroke::Settle Stroke::ReverseFind(const char& Needle, UInt64 Offset) const
+        {
+            for (UInt64 i = L->size() - 1 - Offset; i > 0; i--)
+            {
+                if (L->at(i) == Needle)
+                    return { i, i + 1, true };
+            }
 
-			return { L->size() - 1, L->size(), false };
-		}
-		Stroke::Settle Stroke::ReverseFindUnescaped(const char& Needle, UInt64 Offset) const
-		{
-			for (UInt64 i = L->size() - 1 - Offset; i > 0; i--)
-			{
-				if (L->at(i) == Needle && ((Int64)i - 1 < 0 || L->at(i - 1) != '\\'))
-					return { i, i + 1, true };
-			}
+            return { L->size() - 1, L->size(), false };
+        }
+        Stroke::Settle Stroke::ReverseFindUnescaped(const char& Needle, UInt64 Offset) const
+        {
+            for (UInt64 i = L->size() - 1 - Offset; i > 0; i--)
+            {
+                if (L->at(i) == Needle && ((Int64)i - 1 < 0 || L->at(i - 1) != '\\'))
+                    return { i, i + 1, true };
+            }
 
-			return { L->size() - 1, L->size(), false };
-		}
-		Stroke::Settle Stroke::ReverseFindOf(const std::string& Needle, UInt64 Offset) const
-		{
-			for (UInt64 i = L->size() - 1 - Offset; i > 0; i--)
-			{
-				for (char k : Needle)
-				{
-					if (L->at(i) == k)
-						return { i, i + 1, true };
-				}
-			}
+            return { L->size() - 1, L->size(), false };
+        }
+        Stroke::Settle Stroke::ReverseFindOf(const std::string& Needle, UInt64 Offset) const
+        {
+            for (UInt64 i = L->size() - 1 - Offset; i > 0; i--)
+            {
+                for (char k : Needle)
+                {
+                    if (L->at(i) == k)
+                        return { i, i + 1, true };
+                }
+            }
 
-			return { L->size() - 1, L->size(), false };
-		}
-		Stroke::Settle Stroke::ReverseFindOf(const char* Needle, UInt64 Offset) const
-		{
-			if (!Needle)
-				return { L->size() - 1, L->size(), false };
+            return { L->size() - 1, L->size(), false };
+        }
+        Stroke::Settle Stroke::ReverseFindOf(const char* Needle, UInt64 Offset) const
+        {
+            if (!Needle)
+                return { L->size() - 1, L->size(), false };
 
-			UInt64 Length = strlen(Needle);
-			for (UInt64 i = L->size() - 1 - Offset; i >= 0; i--)
-			{
-				for (UInt64 k = 0; k < Length; k++)
-				{
-					if (L->at(i) == Needle[k])
-						return { i, i + 1, true };
-				}
-			}
+            UInt64 Length = strlen(Needle);
+            for (UInt64 i = L->size() - 1 - Offset; i >= 0; i--)
+            {
+                for (UInt64 k = 0; k < Length; k++)
+                {
+                    if (L->at(i) == Needle[k])
+                        return { i, i + 1, true };
+                }
+            }
 
-			return { L->size() - 1, L->size(), false };
-		}
-		Stroke::Settle Stroke::Find(const std::string& Needle, UInt64 Offset) const
-		{
-			const char* It = strstr(L->c_str() + Offset, Needle.c_str());
-			if (It == nullptr)
-				return { L->size() - 1, L->size(), false };
+            return { L->size() - 1, L->size(), false };
+        }
+        Stroke::Settle Stroke::Find(const std::string& Needle, UInt64 Offset) const
+        {
+            const char* It = strstr(L->c_str() + Offset, Needle.c_str());
+            if (It == nullptr)
+                return { L->size() - 1, L->size(), false };
 
-			return { (UInt64)(It - L->c_str()), (UInt64)(It - L->c_str() + Needle.size()), true };
-		}
-		Stroke::Settle Stroke::Find(const char* Needle, UInt64 Offset) const
-		{
-			if (!Needle)
-				return { L->size() - 1, L->size(), false };
+            return { (UInt64)(It - L->c_str()), (UInt64)(It - L->c_str() + Needle.size()), true };
+        }
+        Stroke::Settle Stroke::Find(const char* Needle, UInt64 Offset) const
+        {
+            if (!Needle)
+                return { L->size() - 1, L->size(), false };
 
-			const char* It = strstr(L->c_str() + Offset, Needle);
-			if (It == nullptr)
-				return { L->size() - 1, L->size(), false };
+            const char* It = strstr(L->c_str() + Offset, Needle);
+            if (It == nullptr)
+                return { L->size() - 1, L->size(), false };
 
-			return { (UInt64)(It - L->c_str()), (UInt64)(It - L->c_str() + strlen(Needle)), true };
-		}
-		Stroke::Settle Stroke::Find(const char& Needle, UInt64 Offset) const
-		{
-			for (UInt64 i = Offset; i < L->size(); i++)
-			{
-				if (L->at(i) == Needle)
-					return { i, i + 1, true };
-			}
+            return { (UInt64)(It - L->c_str()), (UInt64)(It - L->c_str() + strlen(Needle)), true };
+        }
+        Stroke::Settle Stroke::Find(const char& Needle, UInt64 Offset) const
+        {
+            for (UInt64 i = Offset; i < L->size(); i++)
+            {
+                if (L->at(i) == Needle)
+                    return { i, i + 1, true };
+            }
 
-			return { L->size() - 1, L->size(), false };
-		}
-		Stroke::Settle Stroke::FindUnescaped(const char& Needle, UInt64 Offset) const
-		{
-			for (UInt64 i = Offset; i < L->size(); i++)
-			{
-				if (L->at(i) == Needle && ((Int64)i - 1 < 0 || L->at(i - 1) != '\\'))
-					return { i, i + 1, true };
-			}
+            return { L->size() - 1, L->size(), false };
+        }
+        Stroke::Settle Stroke::FindUnescaped(const char& Needle, UInt64 Offset) const
+        {
+            for (UInt64 i = Offset; i < L->size(); i++)
+            {
+                if (L->at(i) == Needle && ((Int64)i - 1 < 0 || L->at(i - 1) != '\\'))
+                    return { i, i + 1, true };
+            }
 
-			return { L->size() - 1, L->size(), false };
-		}
-		Stroke::Settle Stroke::FindOf(const std::string& Needle, UInt64 Offset) const
-		{
-			for (UInt64 i = Offset; i < L->size(); i++)
-			{
-				for (char k : Needle)
-				{
-					if (L->at(i) == k)
-						return { i, i + 1, true };
-				}
-			}
+            return { L->size() - 1, L->size(), false };
+        }
+        Stroke::Settle Stroke::FindOf(const std::string& Needle, UInt64 Offset) const
+        {
+            for (UInt64 i = Offset; i < L->size(); i++)
+            {
+                for (char k : Needle)
+                {
+                    if (L->at(i) == k)
+                        return { i, i + 1, true };
+                }
+            }
 
-			return { L->size() - 1, L->size(), false };
-		}
-		Stroke::Settle Stroke::FindOf(const char* Needle, UInt64 Offset) const
-		{
-			if (!Needle)
-				return { L->size() - 1, L->size(), false };
+            return { L->size() - 1, L->size(), false };
+        }
+        Stroke::Settle Stroke::FindOf(const char* Needle, UInt64 Offset) const
+        {
+            if (!Needle)
+                return { L->size() - 1, L->size(), false };
 
-			auto Length = (UInt64)strlen(Needle);
-			for (UInt64 i = Offset; i < L->size(); i++)
-			{
-				for (UInt64 k = 0; k < Length; k++)
-				{
-					if (L->at(i) == Needle[k])
-						return { i, i + 1, true };
-				}
-			}
+            auto Length = (UInt64)strlen(Needle);
+            for (UInt64 i = Offset; i < L->size(); i++)
+            {
+                for (UInt64 k = 0; k < Length; k++)
+                {
+                    if (L->at(i) == Needle[k])
+                        return { i, i + 1, true };
+                }
+            }
 
-			return { L->size() - 1, L->size(), false };
-		}
-		bool Stroke::StartsWith(const std::string& Value, UInt64 Offset) const
-		{
-			if (L->size() < Value.size())
-				return false;
+            return { L->size() - 1, L->size(), false };
+        }
+        bool Stroke::StartsWith(const std::string& Value, UInt64 Offset) const
+        {
+            if (L->size() < Value.size())
+                return false;
 
-			for (UInt64 i = 0; i < Value.size(); i++)
-			{
-				if (Value[i] != L->at(i + Offset))
-					return false;
-			}
+            for (UInt64 i = 0; i < Value.size(); i++)
+            {
+                if (Value[i] != L->at(i + Offset))
+                    return false;
+            }
 
-			return true;
-		}
-		bool Stroke::StartsWith(const char* Value, UInt64 Offset) const
-		{
-			if (!Value)
-				return false;
+            return true;
+        }
+        bool Stroke::StartsWith(const char* Value, UInt64 Offset) const
+        {
+            if (!Value)
+                return false;
 
-			auto Length = (UInt64)strlen(Value);
-			if (L->size() < Length)
-				return false;
+            auto Length = (UInt64)strlen(Value);
+            if (L->size() < Length)
+                return false;
 
-			for (UInt64 i = 0; i < Length; i++)
-			{
-				if (Value[i] != L->at(i + Offset))
-					return false;
-			}
+            for (UInt64 i = 0; i < Length; i++)
+            {
+                if (Value[i] != L->at(i + Offset))
+                    return false;
+            }
 
-			return true;
-		}
+            return true;
+        }
         bool Stroke::StartsOf(const char* Value, UInt64 Offset) const
         {
             if (!Value)
@@ -1502,24 +1463,24 @@ namespace Tomahawk
 
             return false;
         }
-		bool Stroke::EndsWith(const std::string& Value) const
-		{
-			if (L->empty())
-				return false;
+        bool Stroke::EndsWith(const std::string& Value) const
+        {
+            if (L->empty())
+                return false;
 
-			return strcmp(L->c_str() + L->size() - Value.size(), Value.c_str()) == 0;
-		}
-		bool Stroke::EndsWith(const char* Value) const
-		{
-			if (L->empty() || !Value)
-				return false;
+            return strcmp(L->c_str() + L->size() - Value.size(), Value.c_str()) == 0;
+        }
+        bool Stroke::EndsWith(const char* Value) const
+        {
+            if (L->empty() || !Value)
+                return false;
 
-			return strcmp(L->c_str() + L->size() - strlen(Value), Value) == 0;
-		}
-		bool Stroke::EndsWith(const char& Value) const
-		{
-			return !L->empty() && L->back() == Value;
-		}
+            return strcmp(L->c_str() + L->size() - strlen(Value), Value) == 0;
+        }
+        bool Stroke::EndsWith(const char& Value) const
+        {
+            return !L->empty() && L->back() == Value;
+        }
         bool Stroke::EndsOf(const char* Value) const
         {
             if (!Value)
@@ -1539,316 +1500,318 @@ namespace Tomahawk
             return L->empty();
         }
         bool Stroke::HasInteger() const
-		{
-			if (L->empty())
-				return false;
+        {
+            if (L->empty())
+                return false;
 
-			bool HadSign = false;
-			for (char i : *L)
-			{
-				if (IsDigit(i))
-					continue;
+            bool HadSign = false;
+            for (char i : *L)
+            {
+                if (IsDigit(i))
+                    continue;
 
-				if (i != '-' || HadSign)
-					return false;
-				
-				HadSign = true;
-			}
+                if (i != '-' || HadSign)
+                    return false;
 
-			return true;
-		}
-		bool Stroke::HasNumber() const
-		{
-			if (L->empty())
-				return false;
+                HadSign = true;
+            }
 
-			bool HadPoint = false, HadSign = false;
-			for (char i : *L)
-			{
-				if (IsDigit(i))
-					continue;
+            return true;
+        }
+        bool Stroke::HasNumber() const
+        {
+            if (L->empty())
+                return false;
 
-				if (i != '.' || HadPoint)
-				{
-					if (i != '-' || HadSign)
-						return false;
-					
-					HadSign = true;
-				}
-				else
-					HadPoint = true;
-			}
+            bool HadPoint = false, HadSign = false;
+            for (char i : *L)
+            {
+                if (IsDigit(i))
+                    continue;
 
-			return true;
-		}
-		bool Stroke::HasDecimal() const
-		{
-			auto F = Find('.');
-			if (F.Found)
-			{
-				auto D1 = Stroke(L->c_str(), F.End);
-				if (D1.Empty() || !D1.HasInteger())
-					return false;
+                if (i != '.' || HadPoint)
+                {
+                    if (i != '-' || HadSign)
+                        return false;
 
-				auto D2 = Stroke(L->c_str() + F.End + 1, L->size() - F.End);
-				if (D2.Empty() || !D2.HasInteger())
-					return false;
+                    HadSign = true;
+                }
+                else
+                    HadPoint = true;
+            }
 
-				return D1.Size() > 19 || D2.Size() > 15;
-			}
+            return true;
+        }
+        bool Stroke::HasDecimal() const
+        {
+            auto F = Find('.');
+            if (F.Found)
+            {
+                auto D1 = Stroke(L->c_str(), F.End);
+                if (D1.Empty() || !D1.HasInteger())
+                    return false;
 
-			return HasInteger() && L->size() > 19;
-		}
-		bool Stroke::ToBoolean() const
-		{
-			return !strncmp(L->c_str(), "true", 4) || !strncmp(L->c_str(), "1", 1);
-		}
-		bool Stroke::IsDigit(char Char)
-		{
-			return Char == '0' || Char == '1' || Char == '2' || Char == '3' ||
-				Char == '4' || Char == '5' || Char == '6' || Char == '7' || Char == '8' || Char == '9';
-		}
-		int Stroke::CaseCompare(const char* Value1, const char* Value2)
-		{
-			if (!Value1 || !Value2)
-				return 0;
+                auto D2 = Stroke(L->c_str() + F.End + 1, L->size() - F.End);
+                if (D2.Empty() || !D2.HasInteger())
+                    return false;
 
-			int Result;
-			do
-			{
-				Result = tolower(*(const unsigned char*)(Value1++)) - tolower(*(const unsigned char*)(Value2++));
-			} while (Result == 0 && Value1[-1] != '\0');
+                return D1.Size() > 19 || D2.Size() > 15;
+            }
 
-			return Result;
-		}
-		int Stroke::Match(const char* Pattern, const char* Text)
-		{
-			return Match(Pattern, strlen(Pattern), Text);
-		}
-		int Stroke::Match(const char* Pattern, UInt64 Length, const char* Text)
-		{
-			if (!Pattern || !Text)
-				return -1;
+            return HasInteger() && L->size() > 19;
+        }
+        bool Stroke::ToBoolean() const
+        {
+            return !strncmp(L->c_str(), "true", 4) || !strncmp(L->c_str(), "1", 1);
+        }
+        bool Stroke::IsDigit(char Char)
+        {
+            return Char == '0' || Char == '1' || Char == '2' || Char == '3' || Char == '4' || Char == '5' || Char == '6' || Char == '7' || Char == '8' || Char == '9';
+        }
+        int Stroke::CaseCompare(const char* Value1, const char* Value2)
+        {
+            if (!Value1 || !Value2)
+                return 0;
 
-			const char* Token = (const char*)memchr(Pattern, '|', (size_t)Length);
-			if (Token != nullptr)
-			{
-				int Output = Match(Pattern, (UInt64)(Token - Pattern), Text);
-				return (Output > 0) ? Output : Match(Token + 1, (UInt64)((Pattern + Length) - (Token + 1)), Text);
-			}
+            int Result;
+            do
+            {
+                Result = tolower(*(const unsigned char*)(Value1++)) - tolower(*(const unsigned char*)(Value2++));
+            }while (Result == 0 && Value1[-1] != '\0');
 
-			int Offset = 0, Result = 0;
-			UInt64 i = 0; int j = 0;
-			while (i  < Length)
-			{
-				if (Pattern[i] == '?' && Text[j] != '\0')
-					continue;
+            return Result;
+        }
+        int Stroke::Match(const char* Pattern, const char* Text)
+        {
+            return Match(Pattern, strlen(Pattern), Text);
+        }
+        int Stroke::Match(const char* Pattern, UInt64 Length, const char* Text)
+        {
+            if (!Pattern || !Text)
+                return -1;
 
-				if (Pattern[i] == '$')
-					return (Text[j] == '\0') ? j : -1;
+            const char* Token = (const char*)memchr(Pattern, '|', (size_t)Length);
+            if (Token != nullptr)
+            {
+                int Output = Match(Pattern, (UInt64)(Token - Pattern), Text);
+                return (Output > 0) ? Output : Match(Token + 1, (UInt64)((Pattern + Length) - (Token + 1)), Text);
+            }
 
-				if (Pattern[i] == '*')
-				{
-					i++;
-					if (Pattern[i] == '*')
-					{
-						Offset = (int)strlen(Text + j);
-						i++;
-					}
-					else
-						Offset = (int)strcspn(Text + j, "/");
+            int Offset = 0, Result = 0;
+            UInt64 i = 0;
+            int j = 0;
+            while (i < Length)
+            {
+                if (Pattern[i] == '?' && Text[j] != '\0')
+                    continue;
 
-					if (i == Length)
-						return j + Offset;
+                if (Pattern[i] == '$')
+                    return (Text[j] == '\0') ? j : -1;
 
-					do
-					{
-						Result = Match(Pattern + i, Length - i, Text + j + Offset);
-					} while (Result == -1 && Offset-- > 0);
+                if (Pattern[i] == '*')
+                {
+                    i++;
+                    if (Pattern[i] == '*')
+                    {
+                        Offset = (int)strlen(Text + j);
+                        i++;
+                    }
+                    else
+                        Offset = (int)strcspn(Text + j, "/");
 
-					return (Result == -1) ? -1 : j + Result + Offset;
-				}
-				else if (tolower((const unsigned char)Pattern[i]) != tolower((const unsigned char)Text[j]))
-					return -1;
+                    if (i == Length)
+                        return j + Offset;
 
-				i++; j++;
-			}
+                    do
+                    {
+                        Result = Match(Pattern + i, Length - i, Text + j + Offset);
+                    }while (Result == -1 && Offset-- > 0);
 
-			return j;
-		}
-		int Stroke::ToInt() const
-		{
+                    return (Result == -1) ? -1 : j + Result + Offset;
+                }
+                else if (tolower((const unsigned char)Pattern[i]) != tolower((const unsigned char)Text[j]))
+                    return -1;
+
+                i++;
+                j++;
+            }
+
+            return j;
+        }
+        int Stroke::ToInt() const
+        {
             return (int)strtol(L->c_str(), nullptr, 10);
-		}
-		long Stroke::ToLong() const
-		{
-			return strtol(L->c_str(), nullptr, 10);
-		}
-		float Stroke::ToFloat() const
-		{
-			return strtof(L->c_str(), nullptr);
-		}
-		unsigned int Stroke::ToUInt() const
-		{
-			return (unsigned int)ToULong();
-		}
-		unsigned long Stroke::ToULong() const
-		{
-			return strtoul(L->c_str(), nullptr, 10);
-		}
-		Int64 Stroke::ToInt64() const
-		{
-			return strtoll(L->c_str(), nullptr, 10);
-		}
-		Float64 Stroke::ToFloat64() const
-		{
-			return strtod(L->c_str(), nullptr);
-		}
-		LFloat64 Stroke::ToLFloat64() const
-		{
-			return strtold(L->c_str(), nullptr);
-		}
-		UInt64 Stroke::ToUInt64() const
-		{
-			return strtoull(L->c_str(), nullptr, 10);
-		}
-		UInt64 Stroke::Size() const
-		{
-			return L->size();
-		}
-		UInt64 Stroke::Capacity() const
-		{
-			return L->capacity();
-		}
-		char* Stroke::Value() const
-		{
-			return (char*)L->data();
-		}
-		const char* Stroke::Get() const
-		{
-			return L->c_str();
-		}
-		std::string& Stroke::R()
-		{
-			return *L;
-		}
-		std::basic_string<wchar_t> Stroke::ToUnicode() const
-		{
+        }
+        long Stroke::ToLong() const
+        {
+            return strtol(L->c_str(), nullptr, 10);
+        }
+        float Stroke::ToFloat() const
+        {
+            return strtof(L->c_str(), nullptr);
+        }
+        unsigned int Stroke::ToUInt() const
+        {
+            return (unsigned int)ToULong();
+        }
+        unsigned long Stroke::ToULong() const
+        {
+            return strtoul(L->c_str(), nullptr, 10);
+        }
+        Int64 Stroke::ToInt64() const
+        {
+            return strtoll(L->c_str(), nullptr, 10);
+        }
+        Float64 Stroke::ToFloat64() const
+        {
+            return strtod(L->c_str(), nullptr);
+        }
+        LFloat64 Stroke::ToLFloat64() const
+        {
+            return strtold(L->c_str(), nullptr);
+        }
+        UInt64 Stroke::ToUInt64() const
+        {
+            return strtoull(L->c_str(), nullptr, 10);
+        }
+        UInt64 Stroke::Size() const
+        {
+            return L->size();
+        }
+        UInt64 Stroke::Capacity() const
+        {
+            return L->capacity();
+        }
+        char* Stroke::Value() const
+        {
+            return (char*)L->data();
+        }
+        const char* Stroke::Get() const
+        {
+            return L->c_str();
+        }
+        std::string& Stroke::R()
+        {
+            return *L;
+        }
+        std::basic_string<wchar_t> Stroke::ToUnicode() const
+        {
 #pragma warning(push)
 #pragma warning(disable: 4333)
-			std::basic_string<wchar_t> Output; wchar_t W;
-			for (UInt64 i = 0; i < L->size();)
-			{
-				char C = L->at(i);
-				if ((C & 0x80) == 0)
-				{
-					W = C;
-					i++;
-				}
-				else if ((C & 0xE0) == 0xC0)
-				{
-					W = (C & 0x1F) << 6;
-					W |= (L->at(i + 1) & 0x3F);
-					i += 2;
-				}
-				else if ((C & 0xF0) == 0xE0)
-				{
-					W = (C & 0xF) << 12;
-					W |= (L->at(i + 1) & 0x3F) << 6;
-					W |= (L->at(i + 2) & 0x3F);
-					i += 3;
-				}
-				else if ((C & 0xF8) == 0xF0)
-				{
-					W = (C & 0x7) << 18;
-					W |= (L->at(i + 1) & 0x3F) << 12;
-					W |= (L->at(i + 2) & 0x3F) << 6;
-					W |= (L->at(i + 3) & 0x3F);
-					i += 4;
-				}
-				else if ((C & 0xFC) == 0xF8)
-				{
-					W = (C & 0x3) << 24;
-					W |= (C & 0x3F) << 18;
-					W |= (C & 0x3F) << 12;
-					W |= (C & 0x3F) << 6;
-					W |= (C & 0x3F);
-					i += 5;
-				}
-				else if ((C & 0xFE) == 0xFC)
-				{
-					W = (C & 0x1) << 30;
-					W |= (C & 0x3F) << 24;
-					W |= (C & 0x3F) << 18;
-					W |= (C & 0x3F) << 12;
-					W |= (C & 0x3F) << 6;
-					W |= (C & 0x3F);
-					i += 6;
-				}
-				else
-					W = C;
+            std::basic_string<wchar_t> Output;
+            wchar_t W;
+            for (UInt64 i = 0; i < L->size();)
+            {
+                char C = L->at(i);
+                if ((C & 0x80) == 0)
+                {
+                    W = C;
+                    i++;
+                }
+                else if ((C & 0xE0) == 0xC0)
+                {
+                    W = (C & 0x1F) << 6;
+                    W |= (L->at(i + 1) & 0x3F);
+                    i += 2;
+                }
+                else if ((C & 0xF0) == 0xE0)
+                {
+                    W = (C & 0xF) << 12;
+                    W |= (L->at(i + 1) & 0x3F) << 6;
+                    W |= (L->at(i + 2) & 0x3F);
+                    i += 3;
+                }
+                else if ((C & 0xF8) == 0xF0)
+                {
+                    W = (C & 0x7) << 18;
+                    W |= (L->at(i + 1) & 0x3F) << 12;
+                    W |= (L->at(i + 2) & 0x3F) << 6;
+                    W |= (L->at(i + 3) & 0x3F);
+                    i += 4;
+                }
+                else if ((C & 0xFC) == 0xF8)
+                {
+                    W = (C & 0x3) << 24;
+                    W |= (C & 0x3F) << 18;
+                    W |= (C & 0x3F) << 12;
+                    W |= (C & 0x3F) << 6;
+                    W |= (C & 0x3F);
+                    i += 5;
+                }
+                else if ((C & 0xFE) == 0xFC)
+                {
+                    W = (C & 0x1) << 30;
+                    W |= (C & 0x3F) << 24;
+                    W |= (C & 0x3F) << 18;
+                    W |= (C & 0x3F) << 12;
+                    W |= (C & 0x3F) << 6;
+                    W |= (C & 0x3F);
+                    i += 6;
+                }
+                else
+                    W = C;
 
-				Output += W;
-			}
+                Output += W;
+            }
 #pragma warning(pop)
-			return Output;
-		}
-		std::vector<std::string> Stroke::Split(const std::string& With, UInt64 Start) const
-		{
-			Stroke::Settle Result = Find(With, Start);
-			UInt64 Offset = Start;
+            return Output;
+        }
+        std::vector<std::string> Stroke::Split(const std::string& With, UInt64 Start) const
+        {
+            Stroke::Settle Result = Find(With, Start);
+            UInt64 Offset = Start;
 
-			std::vector<std::string> Output;
-			while (Result.Found)
-			{
-				Output.push_back(L->substr(Offset, Result.Start - Offset));
-				Result = Find(With, Offset = Result.End);
-			}
+            std::vector<std::string> Output;
+            while (Result.Found)
+            {
+                Output.push_back(L->substr(Offset, Result.Start - Offset));
+                Result = Find(With, Offset = Result.End);
+            }
 
-			if (Offset < L->size())
-				Output.push_back(L->substr(Offset));
+            if (Offset < L->size())
+                Output.push_back(L->substr(Offset));
 
-			return Output;
-		}
-		std::vector<std::string> Stroke::Split(char With, UInt64 Start) const
-		{
-			Stroke::Settle Result = Find(With, Start);
-			UInt64 Offset = Start;
+            return Output;
+        }
+        std::vector<std::string> Stroke::Split(char With, UInt64 Start) const
+        {
+            Stroke::Settle Result = Find(With, Start);
+            UInt64 Offset = Start;
 
-			std::vector<std::string> Output;
-			while (Result.Found)
-			{
-				Output.push_back(L->substr(Offset, Result.Start - Offset));
-				Result = Find(With, Offset = Result.End);
-			}
+            std::vector<std::string> Output;
+            while (Result.Found)
+            {
+                Output.push_back(L->substr(Offset, Result.Start - Offset));
+                Result = Find(With, Offset = Result.End);
+            }
 
-			if (Offset < L->size())
-				Output.push_back(L->substr(Offset));
+            if (Offset < L->size())
+                Output.push_back(L->substr(Offset));
 
-			return Output;
-		}
-		std::vector<std::string> Stroke::SplitOf(const char* With, UInt64 Start) const
-		{
-			Stroke::Settle Result = FindOf(With, Start);
-			UInt64 Offset = Start;
+            return Output;
+        }
+        std::vector<std::string> Stroke::SplitOf(const char* With, UInt64 Start) const
+        {
+            Stroke::Settle Result = FindOf(With, Start);
+            UInt64 Offset = Start;
 
-			std::vector<std::string> Output;
-			while (Result.Found)
-			{
-				Output.push_back(L->substr(Offset, Result.Start - Offset));
-				Result = FindOf(With, Offset = Result.End);
-			}
+            std::vector<std::string> Output;
+            while (Result.Found)
+            {
+                Output.push_back(L->substr(Offset, Result.Start - Offset));
+                Result = FindOf(With, Offset = Result.End);
+            }
 
-			if (Offset < L->size())
-				Output.push_back(L->substr(Offset));
+            if (Offset < L->size())
+                Output.push_back(L->substr(Offset));
 
-			return Output;
-		}
+            return Output;
+        }
 
-		void LT::AttachCallback(const std::function<void(const char*, int)>& _Callback)
-		{
-			Callback = _Callback;
-		}
+        void LT::AttachCallback(const std::function<void(const char*, int)>& _Callback)
+        {
+            Callback = _Callback;
+        }
         void LT::AttachStream()
         {
             Enabled = true;
@@ -1857,24 +1820,25 @@ namespace Tomahawk
         {
             Callback = nullptr;
         }
-		void LT::DetachStream()
+        void LT::DetachStream()
         {
             Enabled = false;
         }
-		void LT::Inform(int Level, const char* Source, const char* Format, ...)
+        void LT::Inform(int Level, const char* Source, const char* Format, ...)
         {
-		    if (!Source || !Format || (!Enabled && !Callback))
-		        return;
+            if (!Source || !Format || (!Enabled && !Callback))
+                return;
 
             auto TimeStamp = (time_t)time(nullptr);
-            tm DateTime{}; char Date[64];
+            tm DateTime{ };
+            char Date[64];
 
 #if defined(THAWK_MICROSOFT)
             if (gmtime_s(&DateTime, &TimeStamp) != 0)
 #elif defined(THAWK_UNIX)
-            if (gmtime_r(&TimeStamp, &DateTime) == 0)
+                if (gmtime_r(&TimeStamp, &DateTime) == 0)
 #else
-            if (true)
+                if (true)
 #endif
                 strncpy(Date, "01-01-1970 00:00:00", sizeof(Date));
             else
@@ -1902,150 +1866,150 @@ namespace Tomahawk
                 snprintf(Buffer, sizeof(Buffer), "%s %s() Info: %s\n", Date, Source, Format);
 
             va_list Args;
-            va_start(Args, Format);
+                    va_start(Args, Format);
 
             char Storage[8192];
             vsnprintf(Storage, sizeof(Storage), Buffer, Args);
             if (Callback)
                 Callback(Storage, Level);
 
-			if (Enabled)
-			{
+            if (Enabled)
+            {
 #if defined(THAWK_MICROSOFT) && defined(_DEBUG)
-				OutputDebugStringA(Storage);
+                OutputDebugStringA(Storage);
 #endif
-				printf("%s", Storage);
-			}
+                printf("%s", Storage);
+            }
 
-            va_end(Args);
+                    va_end(Args);
         }
-		void LT::Free(void* Ptr)
-		{
+        void LT::Free(void* Ptr)
+        {
 #ifndef NDEBUG
-			if (!Objects || !Safe)
-			{
-				THAWK_ERROR("segfault (%p): object delete", Ptr);
-				return;
-			}
+            if (!Objects || !Safe)
+            {
+                THAWK_ERROR("segfault (%p): object delete", Ptr);
+                return;
+            }
 
-			Safe->lock();
-			auto It = Objects->find((Object*)Ptr);
-			if (It == Objects->end())
-			{
-				Safe->unlock();
-				THAWK_ERROR("segfault (%p): object delete", Ptr);
-				return;
-			}
-			
-			Memory -= It->second;
-			Objects->erase(It);
+            Safe->lock();
+            auto It = Objects->find((Object*)Ptr);
+            if (It == Objects->end())
+            {
+                Safe->unlock();
+                THAWK_ERROR("segfault (%p): object delete", Ptr);
+                return;
+            }
 
-			if (Objects->empty())
-			{
-				delete Objects;
-				Objects = nullptr;
-			}
+            Memory -= It->second;
+            Objects->erase(It);
 
-			Safe->unlock();
-			if (!Objects)
-			{
-				delete Safe;
-				Safe = nullptr;
-			}
+            if (Objects->empty())
+            {
+                delete Objects;
+                Objects = nullptr;
+            }
+
+            Safe->unlock();
+            if (!Objects)
+            {
+                delete Safe;
+                Safe = nullptr;
+            }
 #endif
-			free(Ptr);
-		}
-		void* LT::Alloc(UInt64 Size)
-		{
+            free(Ptr);
+        }
+        void* LT::Alloc(UInt64 Size)
+        {
 #ifndef NDEBUG
-			if (!Objects)
-				Objects = new std::unordered_map<void*, UInt64>();
+            if (!Objects)
+                Objects = new std::unordered_map<void*, UInt64>();
 
-			if (!Safe)
-				Safe = new std::mutex();
+            if (!Safe)
+                Safe = new std::mutex();
 
-			Safe->lock();
-			void* Ptr = malloc((size_t)Size);
-			Objects->insert({ Ptr, Size });
-			Safe->unlock();
+            Safe->lock();
+            void* Ptr = malloc((size_t)Size);
+            Objects->insert({ Ptr, Size });
+            Safe->unlock();
 
-			return Ptr;
+            return Ptr;
 #else
-			return malloc((size_t)Size);
+            return malloc((size_t)Size);
 #endif
-		}
-		void* LT::GetPtr(void* Ptr)
-		{
+        }
+        void* LT::GetPtr(void* Ptr)
+        {
 #ifndef NDEBUG
-			if (!Objects)
-				return nullptr;
+            if (!Objects)
+                return nullptr;
 
-			auto It = Objects->find((Object*)Ptr);
-			if (It == Objects->end())
-				return nullptr;
+            auto It = Objects->find((Object*)Ptr);
+            if (It == Objects->end())
+                return nullptr;
 
-			return It->first;
+            return It->first;
 #else
-			return (Object*)Ptr;
+            return (Object*)Ptr;
 #endif
-		}
-		UInt64 LT::GetSize(void* Ptr)
-		{
+        }
+        UInt64 LT::GetSize(void* Ptr)
+        {
 #ifndef NDEBUG
-			if (!Objects)
-				return 0;
+            if (!Objects)
+                return 0;
 
-			auto It = Objects->find((Object*)Ptr);
-			if (It == Objects->end())
-				return 0;
+            auto It = Objects->find((Object*)Ptr);
+            if (It == Objects->end())
+                return 0;
 
-			return It->second;
+            return It->second;
 #else
-			return 0;
+            return 0;
 #endif
-		}
-		UInt64 LT::GetCount()
-		{
+        }
+        UInt64 LT::GetCount()
+        {
 #ifndef NDEBUG
-			if (!Objects || !Safe)
-				return 0;
+            if (!Objects || !Safe)
+                return 0;
 
-			Safe->lock();
-			UInt64 Count = (UInt64)Objects->size();
-			Safe->unlock();
+            Safe->lock();
+            UInt64 Count = (UInt64)Objects->size();
+            Safe->unlock();
 
-			return Count;
+            return Count;
 #else
-			return 0;
+            return 0;
 #endif
-		}
-		UInt64 LT::GetMemory()
-		{
+        }
+        UInt64 LT::GetMemory()
+        {
 #ifndef NDEBUG
-			return Memory;
+            return Memory;
 #else
-			return 0;
+            return 0;
 #endif
-		}
-		std::function<void(const char*, int)> LT::Callback;
+        }
+        std::function<void(const char*, int)> LT::Callback;
         bool LT::Enabled = false;
 #ifndef NDEBUG
-		std::unordered_map<void*, UInt64>* LT::Objects = nullptr;
-		std::mutex* LT::Safe = nullptr;
-		UInt64 LT::Memory = 0;
+        std::unordered_map<void*, UInt64>* LT::Objects = nullptr;
+        std::mutex* LT::Safe = nullptr;
+        UInt64 LT::Memory = 0;
 #endif
 
-		Object::Object()
+        Object::Object()
         {
         }
-		void Object::operator delete(void* Data)
-		{
-			LT::Free(Data);
-		}
-		void* Object::operator new(size_t Size)
-		{
-			return LT::Alloc((UInt64)Size);
-		}
+        void Object::operator delete(void* Data)
+        {
+            LT::Free(Data);
+        }
+        void* Object::operator new(size_t Size)
+        {
+            return LT::Alloc((UInt64)Size);
+        }
 
         Console::Console() : Handle(false), Time(0)
         {
@@ -2088,7 +2052,7 @@ namespace Tomahawk
             SetConsoleCtrlHandler(ConsoleEventHandler, true);
 #else
             if (Handle)
-				return;
+                return;
 #endif
             Handle = true;
         }
@@ -2103,7 +2067,8 @@ namespace Tomahawk
             CONSOLE_SCREEN_BUFFER_INFO Info;
             GetConsoleScreenBufferInfo((HANDLE)Wnd, &Info);
 
-            COORD TopLeft = { 0, 0 }; DWORD Written;
+            COORD TopLeft = { 0, 0 };
+            DWORD Written;
             FillConsoleOutputCharacterA((HANDLE)Wnd, ' ', Info.dwSize.X * Info.dwSize.Y, TopLeft, &Written);
             FillConsoleOutputAttribute((HANDLE)Wnd, FOREGROUND_GREEN | FOREGROUND_RED | FOREGROUND_BLUE, Info.dwSize.X * Info.dwSize.Y, TopLeft, &Written);
             SetConsoleCursorPosition((HANDLE)Wnd, TopLeft);
@@ -2143,13 +2108,13 @@ namespace Tomahawk
             char Buffer[8192] = { '\0' };
 
             va_list Args;
-            va_start(Args, Format);
+                    va_start(Args, Format);
 #ifdef THAWK_MICROSOFT
             _vsnprintf(Buffer, sizeof(Buffer), Format, Args);
 #else
             vsnprintf(Buffer, sizeof(Buffer), Format, Args);
 #endif
-            va_end(Args);
+                    va_end(Args);
 
             std::cout << Buffer << '\n';
         }
@@ -2161,13 +2126,13 @@ namespace Tomahawk
             char Buffer[8192] = { '\0' };
 
             va_list Args;
-            va_start(Args, Format);
+                    va_start(Args, Format);
 #ifdef THAWK_MICROSOFT
             _vsnprintf(Buffer, sizeof(Buffer), Format, Args);
 #else
             vsnprintf(Buffer, sizeof(Buffer), Format, Args);
 #endif
-            va_end(Args);
+                    va_end(Args);
 
             std::cout << Buffer;
         }
@@ -2197,13 +2162,13 @@ namespace Tomahawk
             char Buffer[8192] = { '\0' };
 
             va_list Args;
-            va_start(Args, Format);
+                    va_start(Args, Format);
 #ifdef THAWK_MICROSOFT
             _vsnprintf(Buffer, sizeof(Buffer), Format, Args);
 #else
             vsnprintf(Buffer, sizeof(Buffer), Format, Args);
 #endif
-            va_end(Args);
+                    va_end(Args);
 
             Lock.lock();
             std::cout << Buffer << '\n';
@@ -2217,13 +2182,13 @@ namespace Tomahawk
             char Buffer[8192] = { '\0' };
 
             va_list Args;
-            va_start(Args, Format);
+                    va_start(Args, Format);
 #ifdef THAWK_MICROSOFT
             _vsnprintf(Buffer, sizeof(Buffer), Format, Args);
 #else
             vsnprintf(Buffer, sizeof(Buffer), Format, Args);
 #endif
-            va_end(Args);
+                    va_end(Args);
 
             Lock.lock();
             std::cout << Buffer;
@@ -2234,17 +2199,17 @@ namespace Tomahawk
             char Buffer[2048] = { '\0' };
 
             va_list Args;
-            va_start(Args, Format);
+                    va_start(Args, Format);
 #ifdef THAWK_MICROSOFT
             _vsnprintf(Buffer, sizeof(Buffer), Format, Args);
-            va_end(Args);
+                    va_end(Args);
 
             OutputDebugString(Buffer);
 #elif defined THAWK_UNIX
             vsnprintf(Buffer, sizeof(Buffer), Format, Args);
-			va_end(Args);
+            va_end(Args);
 
-			std::cout << Buffer;
+            std::cout << Buffer;
 #endif
         }
         Float64 Console::GetCapturedTime()
@@ -2308,13 +2273,13 @@ namespace Tomahawk
             QueryPerformanceCounter((LARGE_INTEGER*)PastTime);
 #elif defined THAWK_UNIX
             Frequency = new timespec();
-			clock_gettime(CLOCK_REALTIME, (timespec*)Frequency);
+            clock_gettime(CLOCK_REALTIME, (timespec*)Frequency);
 
-			TimeLimit = new timespec();
-			clock_gettime(CLOCK_REALTIME, (timespec*)TimeLimit);
+            TimeLimit = new timespec();
+            clock_gettime(CLOCK_REALTIME, (timespec*)TimeLimit);
 
-			PastTime = new timespec();
-			clock_gettime(CLOCK_REALTIME, (timespec*)PastTime);
+            PastTime = new timespec();
+            clock_gettime(CLOCK_REALTIME, (timespec*)PastTime);
 #endif
             SetStepLimitation(60.0f, 10.0f);
         }
@@ -2334,15 +2299,15 @@ namespace Tomahawk
             Frequency = nullptr;
 #elif defined THAWK_UNIX
             if (PastTime != nullptr)
-				delete (timespec*)PastTime;
-			PastTime = nullptr;
+                delete (timespec*)PastTime;
+            PastTime = nullptr;
 
-			if (TimeLimit != nullptr)
-				delete (timespec*)TimeLimit;
-			TimeLimit = nullptr;
+            if (TimeLimit != nullptr)
+                delete (timespec*)TimeLimit;
+            TimeLimit = nullptr;
 
-			if (Frequency != nullptr)
-				delete (timespec*)Frequency;
+            if (Frequency != nullptr)
+                delete (timespec*)Frequency;
 #endif
         }
         Float64 Timer::GetTimeIncrement()
@@ -2364,7 +2329,7 @@ namespace Tomahawk
             return (((LARGE_INTEGER*)PastTime)->QuadPart - ((LARGE_INTEGER*)TimeLimit)->QuadPart) * 1000.0 / ((LARGE_INTEGER*)Frequency)->QuadPart;
 #elif defined THAWK_UNIX
             clock_gettime(CLOCK_REALTIME, (timespec*)PastTime);
-			return (((timespec*)PastTime)->tv_nsec - ((timespec*)TimeLimit)->tv_nsec) * 1000.0 / ((timespec*)Frequency)->tv_nsec;
+            return (((timespec*)PastTime)->tv_nsec - ((timespec*)TimeLimit)->tv_nsec) * 1000.0 / ((timespec*)Frequency)->tv_nsec;
 #endif
         }
         Float64 Timer::GetCapturedTime()
@@ -2428,7 +2393,7 @@ namespace Tomahawk
         }
         void FileStream::Clear()
         {
-			Close();
+            Close();
             if (!Path.empty())
                 Buffer = (FILE*)OS::Open(Path.c_str(), "w");
         }
@@ -2480,54 +2445,54 @@ namespace Tomahawk
 
             return Buffer != nullptr;
         }
-		bool FileStream::OpenZ(const char* File, FileMode Mode)
-		{
-			if (!File || !Close())
-				return false;
+        bool FileStream::OpenZ(const char* File, FileMode Mode)
+        {
+            if (!File || !Close())
+                return false;
 
 #ifdef THAWK_HAS_ZLIB
-			Path = OS::Resolve(File).c_str();
-			switch (Mode)
-			{
-			case FileMode_Binary_Read_Only:
-			case FileMode_Read_Only:
-				Compress = gzopen(Path.c_str(), "rb");
-				break;
-			case FileMode_Binary_Write_Only:
-			case FileMode_Write_Only:
-				Compress = gzopen(Path.c_str(), "wb");
-				break;
-			case FileMode_Read_Write:
-			case FileMode_Write_Read:
-			case FileMode_Append_Only:
-			case FileMode_Read_Append_Write:
-			case FileMode_Binary_Append_Only:
-			case FileMode_Binary_Read_Write:
-			case FileMode_Binary_Write_Read:
-			case FileMode_Binary_Read_Append_Write:
-				Close();
-				break;
-			}
+            Path = OS::Resolve(File).c_str();
+            switch (Mode)
+            {
+                case FileMode_Binary_Read_Only:
+                case FileMode_Read_Only:
+                    Compress = gzopen(Path.c_str(), "rb");
+                    break;
+                case FileMode_Binary_Write_Only:
+                case FileMode_Write_Only:
+                    Compress = gzopen(Path.c_str(), "wb");
+                    break;
+                case FileMode_Read_Write:
+                case FileMode_Write_Read:
+                case FileMode_Append_Only:
+                case FileMode_Read_Append_Write:
+                case FileMode_Binary_Append_Only:
+                case FileMode_Binary_Read_Write:
+                case FileMode_Binary_Write_Read:
+                case FileMode_Binary_Read_Append_Write:
+                    Close();
+                    break;
+            }
 
-			return Compress;
+            return Compress;
 #else
-			return false;
+            return false;
 #endif
-		}
+        }
         bool FileStream::Close()
         {
 #ifdef THAWK_HAS_ZLIB
-			if (Compress != nullptr)
-			{
-				gzclose((gzFile)Compress);
-				Compress = nullptr;
-			}
+            if (Compress != nullptr)
+            {
+                gzclose((gzFile)Compress);
+                Compress = nullptr;
+            }
 #endif
-			if (Buffer != nullptr)
-			{
-				fclose(Buffer);
-				Buffer = nullptr;
-			}
+            if (Buffer != nullptr)
+            {
+                fclose(Buffer);
+                Buffer = nullptr;
+            }
 
             return true;
         }
@@ -2537,28 +2502,28 @@ namespace Tomahawk
             {
                 case FileSeek_Begin:
 #ifdef THAWK_HAS_ZLIB
-					if (Compress != nullptr)
-						return gzseek((gzFile)Compress, (long)Offset, SEEK_SET) == 0;
+                    if (Compress != nullptr)
+                        return gzseek((gzFile)Compress, (long)Offset, SEEK_SET) == 0;
 #endif
-					if (Buffer != nullptr)
-						return fseek(Buffer, (long)Offset, SEEK_SET) == 0;
-					break;
+                    if (Buffer != nullptr)
+                        return fseek(Buffer, (long)Offset, SEEK_SET) == 0;
+                    break;
                 case FileSeek_Current:
 #ifdef THAWK_HAS_ZLIB
-					if (Compress != nullptr)
-						return gzseek((gzFile)Compress, (long)Offset, SEEK_CUR) == 0;
+                    if (Compress != nullptr)
+                        return gzseek((gzFile)Compress, (long)Offset, SEEK_CUR) == 0;
 #endif
-					if (Buffer != nullptr)
-						return fseek(Buffer, (long)Offset, SEEK_CUR) == 0;
-					break;
+                    if (Buffer != nullptr)
+                        return fseek(Buffer, (long)Offset, SEEK_CUR) == 0;
+                    break;
                 case FileSeek_End:
 #ifdef THAWK_HAS_ZLIB
-					if (Compress != nullptr)
-						return gzseek((gzFile)Compress, (long)Offset, SEEK_END) == 0;
+                    if (Compress != nullptr)
+                        return gzseek((gzFile)Compress, (long)Offset, SEEK_END) == 0;
 #endif
-					if (Buffer != nullptr)
-						return fseek(Buffer, (long)Offset, SEEK_END) == 0;
-					break;
+                    if (Buffer != nullptr)
+                        return fseek(Buffer, (long)Offset, SEEK_END) == 0;
+                    break;
             }
 
             return false;
@@ -2566,8 +2531,8 @@ namespace Tomahawk
         bool FileStream::Move(Int64 Offset)
         {
 #ifdef THAWK_HAS_ZLIB
-			if (Compress != nullptr)
-				return gzseek((gzFile)Compress, (long)Offset, SEEK_CUR) == 0;
+            if (Compress != nullptr)
+                return gzseek((gzFile)Compress, (long)Offset, SEEK_CUR) == 0;
 #endif
             if (!Buffer)
                 return false;
@@ -2577,14 +2542,15 @@ namespace Tomahawk
         int FileStream::Error()
         {
 #ifdef THAWK_HAS_ZLIB
-			if (Compress != nullptr)
-			{
-				int Error; const char* M = gzerror((gzFile)Compress, &Error);
-				if (M != nullptr && M[0] != '\0')
-					THAWK_ERROR("gz stream error -> %s", M);
+            if (Compress != nullptr)
+            {
+                int Error;
+                const char* M = gzerror((gzFile)Compress, &Error);
+                if (M != nullptr && M[0] != '\0')
+                    THAWK_ERROR("gz stream error -> %s", M);
 
-				return Error;
-			}
+                return Error;
+            }
 #endif
             if (!Buffer)
                 return 0;
@@ -2608,8 +2574,8 @@ namespace Tomahawk
         unsigned char FileStream::Get()
         {
 #ifdef THAWK_HAS_ZLIB
-			if (Compress != nullptr)
-				return (unsigned char)gzgetc((gzFile)Compress);
+            if (Compress != nullptr)
+                return (unsigned char)gzgetc((gzFile)Compress);
 #endif
             if (!Buffer)
                 return 0;
@@ -2619,8 +2585,8 @@ namespace Tomahawk
         unsigned char FileStream::Put(unsigned char Value)
         {
 #ifdef THAWK_HAS_ZLIB
-			if (Compress != nullptr)
-				return (unsigned char)gzputc((gzFile)Compress, Value);
+            if (Compress != nullptr)
+                return (unsigned char)gzputc((gzFile)Compress, Value);
 #endif
             if (!Buffer)
                 return 0;
@@ -2629,26 +2595,27 @@ namespace Tomahawk
         }
         UInt64 FileStream::WriteAny(const char* Format, ...)
         {
-			va_list Args; UInt64 R = 0;
-            va_start(Args, Format);
+            va_list Args;
+            UInt64 R = 0;
+                    va_start(Args, Format);
 #ifdef THAWK_HAS_ZLIB
-			if (Compress != nullptr)
-				R = (UInt64)gzvprintf((gzFile)Compress, Format, Args);
-			else if (Buffer != nullptr)
-				R = (UInt64)vfprintf(Buffer, Format, Args);
+            if (Compress != nullptr)
+                R = (UInt64)gzvprintf((gzFile)Compress, Format, Args);
+            else if (Buffer != nullptr)
+                R = (UInt64)vfprintf(Buffer, Format, Args);
 #else
-			if (Buffer != nullptr)
-				R = (UInt64)vfprintf(Buffer, Format, Args);
+                if (Buffer != nullptr)
+                    R = (UInt64)vfprintf(Buffer, Format, Args);
 #endif
-            va_end(Args);
+                    va_end(Args);
 
             return R;
         }
         UInt64 FileStream::Write(const char* Data, UInt64 Length)
         {
 #ifdef THAWK_HAS_ZLIB
-			if (Compress != nullptr)
-				return gzfwrite(Data, 1, (size_t)Length, (gzFile)Compress);
+            if (Compress != nullptr)
+                return gzfwrite(Data, 1, (size_t)Length, (gzFile)Compress);
 #endif
             if (!Buffer)
                 return 0;
@@ -2658,26 +2625,27 @@ namespace Tomahawk
         UInt64 FileStream::ReadAny(const char* Format, ...)
         {
 #ifdef THAWK_HAS_ZLIB
-			if (Compress != nullptr)
-				return 0;
+            if (Compress != nullptr)
+                return 0;
 #endif
-			va_list Args; UInt64 R = 0;
-            va_start(Args, Format);
+            va_list Args;
+            UInt64 R = 0;
+                    va_start(Args, Format);
 
-			if (Buffer != nullptr)
-				R = (UInt64)vfscanf(Buffer, Format, Args);
+            if (Buffer != nullptr)
+                R = (UInt64)vfscanf(Buffer, Format, Args);
 
-            va_end(Args);
+                    va_end(Args);
 
             return R;
         }
         UInt64 FileStream::Read(char* Data, UInt64 Length)
         {
 #ifdef THAWK_HAS_ZLIB
-			if (Compress != nullptr)
-				return gzfread(Data, 1, (size_t)Length, (gzFile)Compress);
+            if (Compress != nullptr)
+                return gzfread(Data, 1, (size_t)Length, (gzFile)Compress);
 #endif
-           if (!Buffer)
+            if (!Buffer)
                 return 0;
 
             return fread(Data, 1, (size_t)Length, Buffer);
@@ -2685,8 +2653,8 @@ namespace Tomahawk
         UInt64 FileStream::Tell()
         {
 #ifdef THAWK_HAS_ZLIB
-			if (Compress != nullptr)
-				return gztell((gzFile)Compress);
+            if (Compress != nullptr)
+                return gztell((gzFile)Compress);
 #endif
             if (!Buffer)
                 return 0;
@@ -2699,82 +2667,82 @@ namespace Tomahawk
                 return 0;
 
             UInt64 Position = Tell();
-			Seek(FileSeek_End, 0);
+            Seek(FileSeek_End, 0);
             UInt64 Size = Tell();
-			Seek(FileSeek_Begin, Position);
+            Seek(FileSeek_Begin, Position);
 
             return Size;
         }
         std::string& FileStream::Filename()
         {
-			return Path;
+            return Path;
         }
         FILE* FileStream::Stream()
         {
             return Buffer;
         }
-		void* FileStream::StreamZ()
-		{
-			return Compress;
-		}
+        void* FileStream::StreamZ()
+        {
+            return Compress;
+        }
 
-		FileTree::FileTree(const std::string& Folder)
-		{
-			Path = OS::Resolve(Folder.c_str());
-			if (!Path.empty())
-			{
-				OS::Iterate(Path.c_str(), [this](DirectoryEntry* Entry) -> bool
-				{
-					if (Entry->IsDirectory)
-						Directories.push_back(new FileTree(Entry->Path));
-					else
-						Files.push_back(OS::Resolve(Entry->Path.c_str()));
+        FileTree::FileTree(const std::string& Folder)
+        {
+            Path = OS::Resolve(Folder.c_str());
+            if (!Path.empty())
+            {
+                OS::Iterate(Path.c_str(), [this](DirectoryEntry* Entry) -> bool
+                {
+                    if (Entry->IsDirectory)
+                        Directories.push_back(new FileTree(Entry->Path));
+                    else
+                        Files.push_back(OS::Resolve(Entry->Path.c_str()));
 
-					return true;
-				});
-			}
-			else
-			{
-				std::vector<std::string> Drives = OS::GetDiskDrives();
-				for (auto & Drive : Drives)
-					Directories.push_back(new FileTree(Drive));
-			}
-		}
-		FileTree::~FileTree()
-		{
-			for (auto& Directory : Directories)
-				delete Directory;
-		}
-		void FileTree::Loop(const std::function<bool(FileTree*)>& Callback)
-		{
-			if (!Callback || !Callback(this))
-				return;
+                    return true;
+                });
+            }
+            else
+            {
+                std::vector<std::string> Drives = OS::GetDiskDrives();
+                for (auto& Drive : Drives)
+                    Directories.push_back(new FileTree(Drive));
+            }
+        }
+        FileTree::~FileTree()
+        {
+            for (auto& Directory : Directories)
+                delete Directory;
+        }
+        void FileTree::Loop(const std::function<bool(FileTree*)>& Callback)
+        {
+            if (!Callback || !Callback(this))
+                return;
 
-			for (auto& Directory : Directories)
-				Directory->Loop(Callback);
-		}
-		FileTree* FileTree::Find(const std::string& V)
-		{
-			if (Path == V)
-				return this;
+            for (auto& Directory : Directories)
+                Directory->Loop(Callback);
+        }
+        FileTree* FileTree::Find(const std::string& V)
+        {
+            if (Path == V)
+                return this;
 
-			for (auto& Directory : Directories)
-			{
-				FileTree* Ref = Directory->Find(V);
-				if (Ref != nullptr)
-					return Ref;
-			}
+            for (auto& Directory : Directories)
+            {
+                FileTree* Ref = Directory->Find(V);
+                if (Ref != nullptr)
+                    return Ref;
+            }
 
-			return nullptr;
-		}
-		UInt64 FileTree::GetFiles()
-		{
-			UInt64 Count = Files.size();
-			for (auto& Directory : Directories)
-				Count += Directory->GetFiles();
+            return nullptr;
+        }
+        UInt64 FileTree::GetFiles()
+        {
+            UInt64 Count = Files.size();
+            for (auto& Directory : Directories)
+                Count += Directory->GetFiles();
 
-			return Count;
-		}
+            return Count;
+        }
 
         void OS::SetDirectory(const char* Path)
         {
@@ -2789,27 +2757,9 @@ namespace Tomahawk
         }
         void OS::SaveBitmap(const char* Path, int Width, int Height, unsigned char* Ptr)
         {
-            unsigned char File[14] =
-            {
-                'B','M',
-                0, 0, 0, 0,
-                0, 0, 0, 0,
-                40 + 14, 0, 0, 0
-            };
+            unsigned char File[14] = { 'B', 'M', 0, 0, 0, 0, 0, 0, 0, 0, 40 + 14, 0, 0, 0 };
 
-            unsigned char Header[40] =
-            {
-                40, 0, 0, 0,
-                0, 0, 0, 0,
-                0, 0, 0, 0,
-                1, 0, 24, 0,
-                0, 0, 0, 0,
-                0, 0, 0, 0,
-                0x13, 0x0B, 0, 0,
-                0x13, 0x0B, 0, 0,
-                0, 0, 0, 0,
-                0, 0, 0, 0
-            };
+            unsigned char Header[40] = { 40, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 1, 0, 24, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0x13, 0x0B, 0, 0, 0x13, 0x0B, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0 };
 
             int PadSize = (4 - (Width * 3) % 4) % 4;
             int DataSize = Width * Height * 3 + Height * PadSize;
@@ -2839,7 +2789,7 @@ namespace Tomahawk
             fwrite((char*)File, sizeof(File), 1, Stream);
             fwrite((char*)Header, sizeof(Header), 1, Stream);
 
-            unsigned char Padding[3] = { 0,0,0 };
+            unsigned char Padding[3] = { 0, 0, 0 };
             UInt64 Offset = 0;
 
             for (int y = 0; y < Width; y++)
@@ -2872,7 +2822,7 @@ namespace Tomahawk
             if (!R.EndsWith('/') && !R.EndsWith('\\'))
                 Result += '/';
 
-            for (auto & Entrie : Entries)
+            for (auto& Entrie : Entries)
             {
                 DirectoryEntry Entry;
                 Entry.Path = Result + Entrie.Path;
@@ -2889,7 +2839,7 @@ namespace Tomahawk
         }
         bool OS::FileExists(const char* Path)
         {
-            struct stat Buffer{};
+            struct stat Buffer{ };
             return (stat(Resolve(Path).c_str(), &Buffer) == 0);
         }
         bool OS::ExecExists(const char* Path)
@@ -2906,7 +2856,7 @@ namespace Tomahawk
         }
         bool OS::DirExists(const char* Path)
         {
-            struct stat Buffer{};
+            struct stat Buffer{ };
             if (stat(Resolve(Path).c_str(), &Buffer) != 0)
                 return false;
 
@@ -2967,7 +2917,7 @@ namespace Tomahawk
 
                 if (::DeleteFile(FilePath.c_str()) == FALSE)
                     return false;
-            } while (::FindNextFile(Handle, &FileInformation) == TRUE);
+            }while (::FindNextFile(Handle, &FileInformation) == TRUE);
             ::FindClose(Handle);
 
             if (::GetLastError() != ERROR_NO_MORE_FILES)
@@ -2979,42 +2929,42 @@ namespace Tomahawk
             return ::RemoveDirectory(Path) != FALSE;
 #elif defined THAWK_UNIX
             DIR* Root = opendir(Path);
-			size_t Size = strlen(Path);
+            size_t Size = strlen(Path);
 
-			if (!Root)
-				return (rmdir(Path) == 0);
+            if (!Root)
+                return (rmdir(Path) == 0);
 
-			struct dirent* It;
-			while ((It = readdir(Root)))
-			{
-				char* Buffer; bool Next = false; size_t Length;
-				if (!strcmp(It->d_name, ".") || !strcmp(It->d_name, ".."))
-					continue;
+            struct dirent* It;
+            while ((It = readdir(Root)))
+            {
+                char* Buffer; bool Next = false; size_t Length;
+                if (!strcmp(It->d_name, ".") || !strcmp(It->d_name, ".."))
+                    continue;
 
-				Length = Size + strlen(It->d_name) + 2;
-				Buffer = (char*)malloc(Length);
+                Length = Size + strlen(It->d_name) + 2;
+                Buffer = (char*)malloc(Length);
 
-				if (!Buffer)
-					continue;
+                if (!Buffer)
+                    continue;
 
-				struct stat State;
-				snprintf(Buffer, Length, "%s/%s", Path, It->d_name);
+                struct stat State;
+                snprintf(Buffer, Length, "%s/%s", Path, It->d_name);
 
-				if (!stat(Buffer, &State))
-				{
-					if (S_ISDIR(State.st_mode))
-						Next = RemoveDir(Buffer);
-					else
-						Next = (unlink(Buffer) == 0);
-				}
+                if (!stat(Buffer, &State))
+                {
+                    if (S_ISDIR(State.st_mode))
+                        Next = RemoveDir(Buffer);
+                    else
+                        Next = (unlink(Buffer) == 0);
+                }
 
-				free(Buffer);
-				if (!Next)
-					break;
-			}
+                free(Buffer);
+                if (!Next)
+                    break;
+            }
 
-			closedir(Root);
-			return (rmdir(Path) == 0);
+            closedir(Root);
+            return (rmdir(Path) == 0);
 #endif
         }
         bool OS::CreateDir(const char* Path)
@@ -3120,20 +3070,20 @@ namespace Tomahawk
             return true;
 #else
             DIR* Value = opendir(Path.c_str());
-			if (!Value)
-				return false;
+            if (!Value)
+                return false;
 
-			dirent* Dirent = nullptr;
-			while ((Dirent = readdir(Value)) != nullptr)
-			{
-				if (strcmp(Dirent->d_name, ".") && strcmp(Dirent->d_name, "..") && StateResource(Path + '/' + Dirent->d_name, &Entry.Source))
-				{
-					Entry.Path = Dirent->d_name;
-					Entries->push_back(Entry);
-				}
-			}
+            dirent* Dirent = nullptr;
+            while ((Dirent = readdir(Value)) != nullptr)
+            {
+                if (strcmp(Dirent->d_name, ".") && strcmp(Dirent->d_name, "..") && StateResource(Path + '/' + Dirent->d_name, &Entry.Source))
+                {
+                    Entry.Path = Dirent->d_name;
+                    Entries->push_back(Entry);
+                }
+            }
 
-			closedir(Value);
+            closedir(Value);
 #endif
             return true;
         }
@@ -3163,8 +3113,8 @@ namespace Tomahawk
             if (Resource->IsDirectory)
                 return true;
 
-			if (Path.empty())
-				return false;
+            if (Path.empty())
+                return false;
 
             int End = Path.back();
             if (isalnum(End) || strchr("_-", End) != nullptr)
@@ -3174,16 +3124,16 @@ namespace Tomahawk
             return false;
 #else
             struct stat State{};
-			if (stat(Path.c_str(), &State) != 0)
-				return false;
+            if (stat(Path.c_str(), &State) != 0)
+                return false;
 
-			struct tm* Time = localtime(&State.st_ctime);
-			Resource->CreationTime = mktime(Time);
-			Resource->Size = (UInt64)(State.st_size);
-			Resource->LastModified = State.st_mtime;
-			Resource->IsDirectory = S_ISDIR(State.st_mode);
+            struct tm* Time = localtime(&State.st_ctime);
+            Resource->CreationTime = mktime(Time);
+            Resource->Size = (UInt64)(State.st_size);
+            Resource->LastModified = State.st_mtime;
+            Resource->IsDirectory = S_ISDIR(State.st_mode);
 
-			return true;
+            return true;
 #endif
         }
         bool OS::ConstructETag(char* Buffer, UInt64 Length, Resource* Resource)
@@ -3244,7 +3194,7 @@ namespace Tomahawk
                 Exe.Append(".exe");
 
             Stroke Args = Form("\"%s\"", Exe.Get());
-            for (const auto & Param : Params)
+            for (const auto& Param : Params)
                 Args.Append(' ').Append(Param);
 
             if (!CreateProcessA(Exe.Get(), Args.Value(), nullptr, nullptr, TRUE, CREATE_BREAKAWAY_FROM_JOB | HIGH_PRIORITY_CLASS, NULL, NULL, &StartupInfo, &Process))
@@ -3366,9 +3316,9 @@ namespace Tomahawk
             return ErrorCode;
 #else
             int ErrorCode = errno;
-		    errno = 0;
+            errno = 0;
 
-		    return ErrorCode;
+            return ErrorCode;
 #endif
         }
         std::string OS::GetErrorName(int Code)
@@ -3392,13 +3342,13 @@ namespace Tomahawk
             char Buffer[16384];
 
             va_list Args;
-            va_start(Args, Format);
+                    va_start(Args, Format);
 #ifdef THAWK_MICROSOFT
             _vsnprintf(Buffer, sizeof(Buffer), Format, Args);
 #else
             vsnprintf(Buffer, sizeof(Buffer), Format, Args);
 #endif
-            va_end(Args);
+                    va_end(Args);
             system(Buffer);
         }
         void* OS::LoadObject(const char* Path)
@@ -3454,7 +3404,7 @@ namespace Tomahawk
 #elif defined(THAWK_UNIX)
             return sendfile(Socket, fileno(Stream), nullptr, (size_t)Size) > 0;
 #else
-		    return false;
+            return false;
 #endif
         }
         std::string OS::FileDirectory(const std::string& Path, int Level)
@@ -3533,14 +3483,14 @@ namespace Tomahawk
         std::string OS::ResolveDir(const char* Path)
         {
             std::string Result = Resolve(Path);
-			if (!Result.empty() && !Stroke(&Result).EndsOf("/\\"))
-			{
+            if (!Result.empty() && !Stroke(&Result).EndsOf("/\\"))
+            {
 #ifdef THAWK_MICROSOFT
-				Result += '\\';
+                Result += '\\';
 #else
-				Result += '/';
+                Result += '/';
 #endif
-			}
+            }
 
             return Result;
         }
@@ -3557,24 +3507,24 @@ namespace Tomahawk
 #ifndef THAWK_HAS_SDL2
             char Buffer[THAWK_MAX_PATH] = { 0 };
 #ifdef THAWK_MICROSOFT
-			GetModuleFileNameA(nullptr, Buffer, THAWK_MAX_PATH);
+            GetModuleFileNameA(nullptr, Buffer, THAWK_MAX_PATH);
 #elif defined THAWK_UNIX
-			getcwd(Buffer, THAWK_MAX_PATH);
+            getcwd(Buffer, THAWK_MAX_PATH);
 #endif
 
-			Int64 Length = 0;
-			for (Int64 i = 0; i < THAWK_MAX_PATH; i++)
-			{
-				if (Buffer[i] == '\0')
-					break;
+            Int64 Length = 0;
+            for (Int64 i = 0; i < THAWK_MAX_PATH; i++)
+            {
+                if (Buffer[i] == '\0')
+                    break;
 
-				if (Buffer[i] != '\\')
-					continue;
+                if (Buffer[i] != '\\')
+                    continue;
 
-				Buffer[Length = i] = '/';
-			}
+                Buffer[Length = i] = '/';
+            }
 
-			return std::string(Buffer, Length + 1);
+            return std::string(Buffer, Length + 1);
 #else
             char* Base = SDL_GetBasePath();
             std::string Result = Base;
@@ -3585,8 +3535,8 @@ namespace Tomahawk
         }
         FileState OS::GetState(const char* Path)
         {
-            FileState State{};
-            struct stat Buffer{};
+            FileState State{ };
+            struct stat Buffer{ };
 
             if (stat(Path, &Buffer) != 0)
                 return State;
@@ -3640,7 +3590,8 @@ namespace Tomahawk
             {
                 if (DriveMask & 1)
                     Output.push_back(std::string(1, (char)Offset) + '\\');
-                DriveMask >>= 1; Offset++;
+                DriveMask >>= 1;
+                Offset++;
             }
 
             return Output;
@@ -3677,7 +3628,7 @@ namespace Tomahawk
             fseek(Stream, 0, SEEK_SET);
 
             auto* Bytes = (unsigned char*)malloc(sizeof(unsigned char) * (size_t)(Size + 1));
-            if (fread((char*)Bytes,  sizeof(unsigned char), (size_t)Size, Stream) != (size_t)Size)
+            if (fread((char*)Bytes, sizeof(unsigned char), (size_t)Size, Stream) != (size_t)Size)
             {
                 fclose(Stream);
                 free(Bytes);
@@ -3724,12 +3675,12 @@ namespace Tomahawk
         {
             Stream = new FileStream();
             auto V = Stroke(&Path).Replace("/", "\\").Split('\\');
-			if (!V.empty())
-				Name = V.back();
+            if (!V.empty())
+                Name = V.back();
         }
         FileLogger::~FileLogger()
         {
-			delete Stream;
+            delete Stream;
         }
         void FileLogger::Process(const std::function<bool(FileLogger*, const char*, Int64)>& Callback)
         {
@@ -3748,7 +3699,8 @@ namespace Tomahawk
             char* Data = (char*)malloc(sizeof(char) * ((size_t)Delta + 1));
             Stream->Read(Data, sizeof(char) * Delta);
 
-            std::string Value = Data; Int64 ValueLength = -1;
+            std::string Value = Data;
+            Int64 ValueLength = -1;
             for (Int64 i = Value.size(); i > 0; i--)
             {
                 if (Value[i] == '\n' && ValueLength == -1)
@@ -3771,7 +3723,7 @@ namespace Tomahawk
             if (V.Find("\n").Found)
             {
                 std::vector<std::string> Lines = V.Split('\n');
-                for (auto & Line : Lines)
+                for (auto& Line : Lines)
                 {
                     if (Line.empty())
                         continue;
@@ -3820,7 +3772,7 @@ namespace Tomahawk
                     std::unique_lock<std::mutex> Lock(Queue->Async.Safe[0]);
                     Condition->wait(Lock);
                 }
-            } while (Queue->State == EventState_Working);
+            }while (Queue->State == EventState_Working);
 
             return true;
         }
@@ -3843,7 +3795,7 @@ namespace Tomahawk
                     std::unique_lock<std::mutex> Lock(Queue->Async.Safe[1]);
                     Condition->wait(Lock);
                 }
-            } while (Queue->State == EventState_Working);
+            }while (Queue->State == EventState_Working);
 
             return true;
         }
@@ -3942,10 +3894,10 @@ namespace Tomahawk
             }
 
             State = EventState_Terminated;
-            for (auto & Worker : Async.Workers)
+            for (auto& Worker : Async.Workers)
             {
-				for (auto It = Worker.begin(); It != Worker.end(); It++)
-					delete *It;
+                for (auto It = Worker.begin(); It != Worker.end(); It++)
+                    delete *It;
                 Worker.clear();
             }
 
@@ -3958,19 +3910,19 @@ namespace Tomahawk
             while (!Timers.empty())
                 RemoveAny(EventType_Timers, 0, nullptr, false);
 
-            for (auto & Task : Tasks)
+            for (auto& Task : Tasks)
                 delete Task;
             Tasks.clear();
 
-            for (auto & Event : Events)
+            for (auto& Event : Events)
                 delete Event;
             Events.clear();
 
-            for (auto & Event : Timers)
+            for (auto& Event : Timers)
                 delete Event;
             Timers.clear();
 
-            for (auto & Listener : Listeners)
+            for (auto& Listener : Listeners)
                 delete Listener.second;
             Listeners.clear();
 
@@ -4333,1344 +4285,1348 @@ namespace Tomahawk
             return State;
         }
 
-		Document::Document() : Parent(nullptr), Type(NodeType_Object), Low(0), Integer(0), Number(0.0), Boolean(false), Saved(true)
-		{
-		}
-		Document::~Document()
-		{
-			if (Parent != nullptr)
-			{
-				for (auto It = Parent->Nodes.begin(); It != Parent->Nodes.end(); It++)
-				{
-					if (*It != this)
-						continue;
+        Document::Document() : Parent(nullptr), Type(NodeType_Object), Low(0), Integer(0), Number(0.0), Boolean(false), Saved(true)
+        {
+        }
+        Document::~Document()
+        {
+            if (Parent != nullptr)
+            {
+                for (auto It = Parent->Nodes.begin(); It != Parent->Nodes.end(); It++)
+                {
+                    if (*It != this)
+                        continue;
 
-					Parent->Nodes.erase(It);
-					break;
-				}
+                    Parent->Nodes.erase(It);
+                    break;
+                }
 
-				Parent = nullptr;
-			}
+                Parent = nullptr;
+            }
 
-			Clear();
-		}
-		void Document::Clear()
-		{
-			for (auto& Document : Nodes)
-			{
+            Clear();
+        }
+        void Document::Clear()
+        {
+            for (auto& Document : Nodes)
+            {
                 if (Document != nullptr)
                 {
                     Document->Parent = nullptr;
-					delete Document;
+                    delete Document;
                 }
             }
 
-			Nodes.clear();
-		}
-		void Document::Save()
-		{
-			for (auto& It : Nodes)
-			{
-				if (It->Type == NodeType_Array || It->Type == NodeType_Object)
-					It->Save();
-				else
-					It->Saved = true;
-			}
+            Nodes.clear();
+        }
+        void Document::Save()
+        {
+            for (auto& It : Nodes)
+            {
+                if (It->Type == NodeType_Array || It->Type == NodeType_Object)
+                    It->Save();
+                else
+                    It->Saved = true;
+            }
 
-			Saved = true;
-		}
-		Document* Document::GetIndex(Int64 Index)
-		{
-			if (Index < 0 || Index >= Nodes.size())
-				return nullptr;
+            Saved = true;
+        }
+        Document* Document::GetIndex(Int64 Index)
+        {
+            if (Index < 0 || Index >= Nodes.size())
+                return nullptr;
 
-			return Nodes[Index];
-		}
-		Document* Document::Get(const std::string& Label)
-		{
-			if (Label.empty())
-				return nullptr;
+            return Nodes[Index];
+        }
+        Document* Document::Get(const std::string& Label)
+        {
+            if (Label.empty())
+                return nullptr;
 
-			for (auto Document : Nodes)
-			{
-				if (Document->Name == Label)
-					return Document;
-			}
+            for (auto Document : Nodes)
+            {
+                if (Document->Name == Label)
+                    return Document;
+            }
 
-			return nullptr;
-		}
-		Document* Document::SetCast(const std::string& Label, const std::string& Prop)
-		{
-			Document* Value = new Document();
-			if (!Deserialize(Prop, Value))
-			{
-				delete Value;
-				return SetNull(Label);
-			}
+            return nullptr;
+        }
+        Document* Document::SetCast(const std::string& Label, const std::string& Prop)
+        {
+            Document* Value = new Document();
+            if (!Deserialize(Prop, Value))
+            {
+                delete Value;
+                return SetNull(Label);
+            }
 
-			Value->Saved = false;
-			Value->Parent = this;
-			Value->Name.assign(Label);
-			Saved = false;
+            Value->Saved = false;
+            Value->Parent = this;
+            Value->Name.assign(Label);
+            Saved = false;
 
-			if (Type != NodeType_Array)
-			{
-				for (auto It = Nodes.begin(); It != Nodes.end(); It++)
-				{
-					if (!*It || (*It)->Name != Label)
-						continue;
+            if (Type != NodeType_Array)
+            {
+                for (auto It = Nodes.begin(); It != Nodes.end(); It++)
+                {
+                    if (!*It || (*It)->Name != Label)
+                        continue;
 
-					(*It)->Parent = nullptr;
-					delete *It;
-					*It = Value;
+                    (*It)->Parent = nullptr;
+                    delete *It;
+                    *It = Value;
 
-					return Value;
-				}
-			}
+                    return Value;
+                }
+            }
 
-			Nodes.push_back(Value);
-			return Value;
-		}
-		Document* Document::SetUndefined(const std::string& Label)
-		{
-			for (auto It = Nodes.begin(); It != Nodes.end(); It++)
-			{
-				if (!*It || (*It)->Name != Label)
-					continue;
+            Nodes.push_back(Value);
+            return Value;
+        }
+        Document* Document::SetUndefined(const std::string& Label)
+        {
+            for (auto It = Nodes.begin(); It != Nodes.end(); It++)
+            {
+                if (!*It || (*It)->Name != Label)
+                    continue;
 
-				(*It)->Parent = nullptr;
-				delete *It;
-				Nodes.erase(It);
-				break;
-			}
+                (*It)->Parent = nullptr;
+                delete *It;
+                Nodes.erase(It);
+                break;
+            }
 
-			return nullptr;
-		}
-		Document* Document::SetNull(const std::string& Label)
-		{
-			Document* Duplicate = Get(Label);
-			Saved = false;
+            return nullptr;
+        }
+        Document* Document::SetNull(const std::string& Label)
+        {
+            Document* Duplicate = Get(Label);
+            Saved = false;
 
-			if (Duplicate != nullptr)
-			{
-				Duplicate->Type = NodeType_Null;
-				Duplicate->Saved = false;
-				Duplicate->Name.assign(Label);
+            if (Duplicate != nullptr)
+            {
+                Duplicate->Type = NodeType_Null;
+                Duplicate->Saved = false;
+                Duplicate->Name.assign(Label);
 
-				return Duplicate;
-			}
+                return Duplicate;
+            }
 
-			Duplicate = new Document();
-			Duplicate->Type = NodeType_Null;
-			Duplicate->Saved = false;
-			Duplicate->Parent = this;
-			Duplicate->Name.assign(Label);
+            Duplicate = new Document();
+            Duplicate->Type = NodeType_Null;
+            Duplicate->Saved = false;
+            Duplicate->Parent = this;
+            Duplicate->Name.assign(Label);
 
-			Nodes.push_back(Duplicate);
-			return Duplicate;
-		}
-		Document* Document::SetId(const std::string& Label, unsigned char Value[12])
-		{
-			Document* Duplicate = Get(Label);
-			Saved = false;
+            Nodes.push_back(Duplicate);
+            return Duplicate;
+        }
+        Document* Document::SetId(const std::string& Label, unsigned char Value[12])
+        {
+            Document* Duplicate = Get(Label);
+            Saved = false;
 
-			if (Duplicate != nullptr)
-			{
-				Duplicate->Type = NodeType_Id;
-				Duplicate->String.assign((const char*)Value, 12);
-				Duplicate->Saved = false;
-				Duplicate->Name.assign(Label);
+            if (Duplicate != nullptr)
+            {
+                Duplicate->Type = NodeType_Id;
+                Duplicate->String.assign((const char*)Value, 12);
+                Duplicate->Saved = false;
+                Duplicate->Name.assign(Label);
 
-				return Duplicate;
-			}
+                return Duplicate;
+            }
 
-			Duplicate = new Document();
-			Duplicate->Type = NodeType_Id;
-			Duplicate->String.assign((const char*)Value, 12);
-			Duplicate->Saved = false;
-			Duplicate->Parent = this;
-			Duplicate->Name.assign(Label);
+            Duplicate = new Document();
+            Duplicate->Type = NodeType_Id;
+            Duplicate->String.assign((const char*)Value, 12);
+            Duplicate->Saved = false;
+            Duplicate->Parent = this;
+            Duplicate->Name.assign(Label);
 
-			Nodes.push_back(Duplicate);
-			return Duplicate;
-		}
-		Document* Document::SetDocument(const std::string& Label, Document* Value)
-		{
-			if (!Value)
-				return SetNull(Label);
+            Nodes.push_back(Duplicate);
+            return Duplicate;
+        }
+        Document* Document::SetDocument(const std::string& Label, Document* Value)
+        {
+            if (!Value)
+                return SetNull(Label);
 
-			Value->Type = NodeType_Object;
-			Value->Saved = false;
-			Value->Parent = this;
-			Value->Name.assign(Label);
-			Saved = false;
+            Value->Type = NodeType_Object;
+            Value->Saved = false;
+            Value->Parent = this;
+            Value->Name.assign(Label);
+            Saved = false;
 
-			if (Type != NodeType_Array)
-			{
-				for (auto It = Nodes.begin(); It != Nodes.end(); It++)
-				{
-					if (!*It || (*It)->Name != Label)
-						continue;
+            if (Type != NodeType_Array)
+            {
+                for (auto It = Nodes.begin(); It != Nodes.end(); It++)
+                {
+                    if (!*It || (*It)->Name != Label)
+                        continue;
 
-					(*It)->Parent = nullptr;
-					delete *It;
-					*It = Value;
+                    (*It)->Parent = nullptr;
+                    delete *It;
+                    *It = Value;
 
-					return Value;
-				}
-			}
+                    return Value;
+                }
+            }
 
-			Nodes.push_back(Value);
-			return Value;
-		}
-		Document* Document::SetDocument(const std::string& Label)
-		{
-			return SetDocument(Label, new Document());
-		}
-		Document* Document::SetArray(const std::string& Label, Document* Value)
-		{
-			if (!Value)
-				return SetNull(Label);
+            Nodes.push_back(Value);
+            return Value;
+        }
+        Document* Document::SetDocument(const std::string& Label)
+        {
+            return SetDocument(Label, new Document());
+        }
+        Document* Document::SetArray(const std::string& Label, Document* Value)
+        {
+            if (!Value)
+                return SetNull(Label);
 
-			Value->Type = NodeType_Array;
-			Value->Saved = false;
-			Value->Parent = this;
-			Value->Name.assign(Label);
-			Saved = false;
+            Value->Type = NodeType_Array;
+            Value->Saved = false;
+            Value->Parent = this;
+            Value->Name.assign(Label);
+            Saved = false;
 
-			if (Type != NodeType_Array)
-			{
-				for (auto It = Nodes.begin(); It != Nodes.end(); It++)
-				{
-					if (!*It || (*It)->Name != Label)
-						continue;
+            if (Type != NodeType_Array)
+            {
+                for (auto It = Nodes.begin(); It != Nodes.end(); It++)
+                {
+                    if (!*It || (*It)->Name != Label)
+                        continue;
 
-					(*It)->Parent = nullptr;
-					delete *It;
-					*It = Value;
+                    (*It)->Parent = nullptr;
+                    delete *It;
+                    *It = Value;
 
-					return Value;
-				}
-			}
+                    return Value;
+                }
+            }
 
-			Nodes.push_back(Value);
-			return Value;
-		}
-		Document* Document::SetArray(const std::string& Label)
-		{
-			return SetArray(Label, new Document());
-		}
-		Document* Document::SetAttribute(const std::string& Label, const std::string& Value)
-		{
-			return SetCast("[" + Label + "]", Value);
-		}
-		Document* Document::SetString(const std::string& Label, const char* Value, Int64 Size)
-		{
-			if (!Value)
-				return SetNull(Label);
+            Nodes.push_back(Value);
+            return Value;
+        }
+        Document* Document::SetArray(const std::string& Label)
+        {
+            return SetArray(Label, new Document());
+        }
+        Document* Document::SetAttribute(const std::string& Label, const std::string& Value)
+        {
+            return SetCast("[" + Label + "]", Value);
+        }
+        Document* Document::SetString(const std::string& Label, const char* Value, Int64 Size)
+        {
+            if (!Value)
+                return SetNull(Label);
 
-			Document* Duplicate = Get(Label);
-			Saved = false;
+            Document* Duplicate = Get(Label);
+            Saved = false;
 
-			if (Duplicate != nullptr)
-			{
-				Duplicate->Type = NodeType_String;
-				Duplicate->String.assign(Value, (size_t)(Size < 0 ? strlen(Value) : Size));
-				Duplicate->Saved = false;
-				Duplicate->Name.assign(Label);
+            if (Duplicate != nullptr)
+            {
+                Duplicate->Type = NodeType_String;
+                Duplicate->String.assign(Value, (size_t)(Size < 0 ? strlen(Value) : Size));
+                Duplicate->Saved = false;
+                Duplicate->Name.assign(Label);
 
-				return Duplicate;
-			}
+                return Duplicate;
+            }
 
-			Duplicate = new Document();
-			Duplicate->Type = NodeType_String;
-			Duplicate->String.assign(Value, (size_t)(Size < 0 ? strlen(Value) : Size));
-			Duplicate->Saved = false;
-			Duplicate->Parent = this;
-			Duplicate->Name.assign(Label);
+            Duplicate = new Document();
+            Duplicate->Type = NodeType_String;
+            Duplicate->String.assign(Value, (size_t)(Size < 0 ? strlen(Value) : Size));
+            Duplicate->Saved = false;
+            Duplicate->Parent = this;
+            Duplicate->Name.assign(Label);
 
-			Nodes.push_back(Duplicate);
-			return Duplicate;
-		}
-		Document* Document::SetString(const std::string& Label, const std::string& Value)
-		{
-			Document* Duplicate = Get(Label);
-			Saved = false;
+            Nodes.push_back(Duplicate);
+            return Duplicate;
+        }
+        Document* Document::SetString(const std::string& Label, const std::string& Value)
+        {
+            Document* Duplicate = Get(Label);
+            Saved = false;
 
-			if (Duplicate != nullptr)
-			{
-				Duplicate->Type = NodeType_String;
-				Duplicate->String.assign(Value);
-				Duplicate->Saved = false;
-				Duplicate->Name.assign(Label);
+            if (Duplicate != nullptr)
+            {
+                Duplicate->Type = NodeType_String;
+                Duplicate->String.assign(Value);
+                Duplicate->Saved = false;
+                Duplicate->Name.assign(Label);
 
-				return Duplicate;
-			}
+                return Duplicate;
+            }
 
-			Duplicate = new Document();
-			Duplicate->Type = NodeType_String;
-			Duplicate->String.assign(Value);
-			Duplicate->Saved = false;
-			Duplicate->Parent = this;
-			Duplicate->Name.assign(Label);
+            Duplicate = new Document();
+            Duplicate->Type = NodeType_String;
+            Duplicate->String.assign(Value);
+            Duplicate->Saved = false;
+            Duplicate->Parent = this;
+            Duplicate->Name.assign(Label);
 
-			Nodes.push_back(Duplicate);
-			return Duplicate;
-		}
-		Document* Document::SetInteger(const std::string& Label, Int64 Value)
-		{
-			Document* Duplicate = Get(Label);
-			Saved = false;
+            Nodes.push_back(Duplicate);
+            return Duplicate;
+        }
+        Document* Document::SetInteger(const std::string& Label, Int64 Value)
+        {
+            Document* Duplicate = Get(Label);
+            Saved = false;
 
-			if (Duplicate != nullptr)
-			{
-				Duplicate->Type = NodeType_Integer;
-				Duplicate->Integer = Value;
-				Duplicate->Number = (Float64)Value;
-				Duplicate->Saved = false;
-				Duplicate->Name.assign(Label);
+            if (Duplicate != nullptr)
+            {
+                Duplicate->Type = NodeType_Integer;
+                Duplicate->Integer = Value;
+                Duplicate->Number = (Float64)Value;
+                Duplicate->Saved = false;
+                Duplicate->Name.assign(Label);
 
-				return Duplicate;
-			}
+                return Duplicate;
+            }
 
-			Duplicate = new Document();
-			Duplicate->Type = NodeType_Integer;
-			Duplicate->Integer = Value;
-			Duplicate->Number = (Float64)Value;
-			Duplicate->Saved = false;
-			Duplicate->Parent = this;
-			Duplicate->Name.assign(Label);
+            Duplicate = new Document();
+            Duplicate->Type = NodeType_Integer;
+            Duplicate->Integer = Value;
+            Duplicate->Number = (Float64)Value;
+            Duplicate->Saved = false;
+            Duplicate->Parent = this;
+            Duplicate->Name.assign(Label);
 
-			Nodes.push_back(Duplicate);
-			return Duplicate;
-		}
-		Document* Document::SetNumber(const std::string& Label, Float64 Value)
-		{
-			Document* Duplicate = Get(Label);
-			Saved = false;
+            Nodes.push_back(Duplicate);
+            return Duplicate;
+        }
+        Document* Document::SetNumber(const std::string& Label, Float64 Value)
+        {
+            Document* Duplicate = Get(Label);
+            Saved = false;
 
-			if (Duplicate != nullptr)
-			{
-				Duplicate->Type = NodeType_Number;
-				Duplicate->Integer = (Int64)Value;
-				Duplicate->Number = Value;
-				Duplicate->Saved = false;
-				Duplicate->Name.assign(Label);
+            if (Duplicate != nullptr)
+            {
+                Duplicate->Type = NodeType_Number;
+                Duplicate->Integer = (Int64)Value;
+                Duplicate->Number = Value;
+                Duplicate->Saved = false;
+                Duplicate->Name.assign(Label);
 
-				return Duplicate;
-			}
+                return Duplicate;
+            }
 
-			Duplicate = new Document();
-			Duplicate->Type = NodeType_Number;
-			Duplicate->Integer = (Int64)Value;
-			Duplicate->Number = Value;
-			Duplicate->Saved = false;
-			Duplicate->Parent = this;
-			Duplicate->Name.assign(Label);
+            Duplicate = new Document();
+            Duplicate->Type = NodeType_Number;
+            Duplicate->Integer = (Int64)Value;
+            Duplicate->Number = Value;
+            Duplicate->Saved = false;
+            Duplicate->Parent = this;
+            Duplicate->Name.assign(Label);
 
-			Nodes.push_back(Duplicate);
-			return Duplicate;
-		}
-		Document* Document::SetDecimal(const std::string& Label, Int64 fHigh, Int64 fLow)
-		{
-			Document* Duplicate = Get(Label);
-			Saved = false;
+            Nodes.push_back(Duplicate);
+            return Duplicate;
+        }
+        Document* Document::SetDecimal(const std::string& Label, Int64 fHigh, Int64 fLow)
+        {
+            Document* Duplicate = Get(Label);
+            Saved = false;
 
-			if (Duplicate != nullptr)
-			{
-				Duplicate->Type = NodeType_Decimal;
-				Duplicate->Integer = fHigh;
-				Duplicate->Low = fLow;
-				Duplicate->Saved = false;
-				Duplicate->Name.assign(Label);
+            if (Duplicate != nullptr)
+            {
+                Duplicate->Type = NodeType_Decimal;
+                Duplicate->Integer = fHigh;
+                Duplicate->Low = fLow;
+                Duplicate->Saved = false;
+                Duplicate->Name.assign(Label);
 
-				return Duplicate;
-			}
+                return Duplicate;
+            }
 
-			Duplicate = new Document();
-			Duplicate->Type = NodeType_Decimal;
-			Duplicate->Integer = fHigh;
-			Duplicate->Low = fLow;
-			Duplicate->Saved = false;
-			Duplicate->Parent = this;
-			Duplicate->Name.assign(Label);
+            Duplicate = new Document();
+            Duplicate->Type = NodeType_Decimal;
+            Duplicate->Integer = fHigh;
+            Duplicate->Low = fLow;
+            Duplicate->Saved = false;
+            Duplicate->Parent = this;
+            Duplicate->Name.assign(Label);
 
-			Nodes.push_back(Duplicate);
-			return Duplicate;
-		}
-		Document* Document::SetDecimal(const std::string& Label, const std::string& Value)
-		{
+            Nodes.push_back(Duplicate);
+            return Duplicate;
+        }
+        Document* Document::SetDecimal(const std::string& Label, const std::string& Value)
+        {
 #ifdef THAWK_HAS_MONGOC
-			Int64 fHigh, fLow;
-			if (!Network::BSON::Document::ParseDecimal(Value.c_str(), &fHigh, &fLow))
-				return nullptr;
+            Int64 fHigh, fLow;
+            if (!Network::BSON::Document::ParseDecimal(Value.c_str(), &fHigh, &fLow))
+                return nullptr;
 
-			return SetDecimal(Label, fHigh, fLow);
+            return SetDecimal(Label, fHigh, fLow);
 #else
-			return nullptr;
+            return nullptr;
 #endif
-		}
-		Document* Document::SetBoolean(const std::string& Label, bool Value)
-		{
-			Document* Duplicate = Get(Label);
-			Saved = false;
+        }
+        Document* Document::SetBoolean(const std::string& Label, bool Value)
+        {
+            Document* Duplicate = Get(Label);
+            Saved = false;
 
-			if (Duplicate != nullptr)
-			{
-				Duplicate->Type = NodeType_Boolean;
-				Duplicate->Boolean = Value;
-				Duplicate->Saved = false;
-				Duplicate->Name.assign(Label);
+            if (Duplicate != nullptr)
+            {
+                Duplicate->Type = NodeType_Boolean;
+                Duplicate->Boolean = Value;
+                Duplicate->Saved = false;
+                Duplicate->Name.assign(Label);
 
-				return Duplicate;
-			}
+                return Duplicate;
+            }
 
-			Duplicate = new Document();
-			Duplicate->Type = NodeType_Boolean;
-			Duplicate->Boolean = Value;
-			Duplicate->Saved = false;
-			Duplicate->Parent = this;
-			Duplicate->Name.assign(Label);
+            Duplicate = new Document();
+            Duplicate->Type = NodeType_Boolean;
+            Duplicate->Boolean = Value;
+            Duplicate->Saved = false;
+            Duplicate->Parent = this;
+            Duplicate->Name.assign(Label);
 
-			Nodes.push_back(Duplicate);
-			return Duplicate;
-		}
-		Document* Document::Copy()
-		{
-			Document* New = new Document();
-			New->Parent = nullptr;
-			New->Name.assign(Name);
-			New->String.assign(String);
-			New->Type = Type;
-			New->Low = Low;
-			New->Integer = Integer;
-			New->Number = Number;
-			New->Boolean = Boolean;
-			New->Saved = Saved;
-			New->Nodes = Nodes;
+            Nodes.push_back(Duplicate);
+            return Duplicate;
+        }
+        Document* Document::Copy()
+        {
+            Document* New = new Document();
+            New->Parent = nullptr;
+            New->Name.assign(Name);
+            New->String.assign(String);
+            New->Type = Type;
+            New->Low = Low;
+            New->Integer = Integer;
+            New->Number = Number;
+            New->Boolean = Boolean;
+            New->Saved = Saved;
+            New->Nodes = Nodes;
 
-			for (auto It = New->Nodes.begin(); It != New->Nodes.end(); It++)
-			{
-			    if (*It != nullptr)
+            for (auto It = New->Nodes.begin(); It != New->Nodes.end(); It++)
+            {
+                if (*It != nullptr)
                     *It = (*It)->Copy();
             }
 
-			return New;
-		}
-		Document* Document::GetParent()
-		{
-			return Parent;
-		}
-		Document* Document::GetAttribute(const std::string& Label)
-		{
-			return Get("[" + Label + "]");
-		}
-		bool Document::Deserialize(const std::string& Value)
-		{
-			return Deserialize(Value, this);
-		}
-		bool Document::IsAttribute()
-		{
-			if (Name.empty())
-				return false;
+            return New;
+        }
+        Document* Document::GetParent()
+        {
+            return Parent;
+        }
+        Document* Document::GetAttribute(const std::string& Label)
+        {
+            return Get("[" + Label + "]");
+        }
+        bool Document::Deserialize(const std::string& Value)
+        {
+            return Deserialize(Value, this);
+        }
+        bool Document::IsAttribute()
+        {
+            if (Name.empty())
+                return false;
 
-			return (Name.front() == '[' && Name.back() == ']');
-		}
-		bool Document::IsObject()
-		{
-			return Type == NodeType_Object || Type == NodeType_Array;
-		}
-		bool Document::GetBoolean(const std::string& Label)
-		{
-			Document* Value = Get(Label);
-			if (!Value || Value->Type != NodeType_Boolean)
-				return false;
+            return (Name.front() == '[' && Name.back() == ']');
+        }
+        bool Document::IsObject()
+        {
+            return Type == NodeType_Object || Type == NodeType_Array;
+        }
+        bool Document::GetBoolean(const std::string& Label)
+        {
+            Document* Value = Get(Label);
+            if (!Value || Value->Type != NodeType_Boolean)
+                return false;
 
-			return Value->Boolean;
-		}
-		bool Document::GetNull(const std::string& Label)
-		{
-			Document* Value = Get(Label);
-			return !Value || Value->Type == NodeType_Null;
-		}
-		bool Document::GetUndefined(const std::string& Label)
-		{
-			Document* Value = Get(Label);
+            return Value->Boolean;
+        }
+        bool Document::GetNull(const std::string& Label)
+        {
+            Document* Value = Get(Label);
+            return !Value || Value->Type == NodeType_Null;
+        }
+        bool Document::GetUndefined(const std::string& Label)
+        {
+            Document* Value = Get(Label);
             return !Value || Value->Type == NodeType_Undefined;
-		}
-		Int64 Document::Size()
-		{
-			return (Int64)Nodes.size();
-		}
-		Int64 Document::GetDecimal(const std::string& Label, Int64* fLow)
-		{
-			Document* Value = Get(Label);
-			if (!Value || Value->Type != NodeType_Decimal)
-				return 0;
+        }
+        Int64 Document::Size()
+        {
+            return (Int64)Nodes.size();
+        }
+        Int64 Document::GetDecimal(const std::string& Label, Int64* fLow)
+        {
+            Document* Value = Get(Label);
+            if (!Value || Value->Type != NodeType_Decimal)
+                return 0;
 
-			if (fLow != nullptr)
-				*fLow = Value->Low;
+            if (fLow != nullptr)
+                *fLow = Value->Low;
 
-			return Value->Integer;
-		}
-		Int64 Document::GetInteger(const std::string& Label)
-		{
-			Document* Value = Get(Label);
-			if (!Value)
-				return 0;
+            return Value->Integer;
+        }
+        Int64 Document::GetInteger(const std::string& Label)
+        {
+            Document* Value = Get(Label);
+            if (!Value)
+                return 0;
 
-			if (Value->Type == NodeType_Integer)
-				return Value->Integer;
+            if (Value->Type == NodeType_Integer)
+                return Value->Integer;
 
-			if (Value->Type == NodeType_Number)
-				return (Int64)Value->Number;
+            if (Value->Type == NodeType_Number)
+                return (Int64)Value->Number;
 
-			return 0;
-		}
-		Float64 Document::GetNumber(const std::string& Label)
-		{
-			Document* Value = Get(Label);
-			if (!Value)
-				return 0.0;
+            return 0;
+        }
+        Float64 Document::GetNumber(const std::string& Label)
+        {
+            Document* Value = Get(Label);
+            if (!Value)
+                return 0.0;
 
-			if (Value->Type == NodeType_Integer)
-				return (Float64)Value->Integer;
+            if (Value->Type == NodeType_Integer)
+                return (Float64)Value->Integer;
 
-			if (Value->Type == NodeType_Number)
-				return Value->Number;
+            if (Value->Type == NodeType_Number)
+                return Value->Number;
 
-			return 0.0;
-		}
-		unsigned char* Document::GetId(const std::string& Label)
-		{
-			Document* Value = Get(Label);
-			if (!Value || Value->Type != NodeType_Id || Value->String.size() != 12)
-				return nullptr;
+            return 0.0;
+        }
+        unsigned char* Document::GetId(const std::string& Label)
+        {
+            Document* Value = Get(Label);
+            if (!Value || Value->Type != NodeType_Id || Value->String.size() != 12)
+                return nullptr;
 
-			return (unsigned char*)Value->String.c_str();
-		}
-		const char* Document::GetString(const std::string& Label)
-		{
-			Document* Value = Get(Label);
-			if (!Value || Value->Type != NodeType_String)
-				return nullptr;
+            return (unsigned char*)Value->String.c_str();
+        }
+        const char* Document::GetString(const std::string& Label)
+        {
+            Document* Value = Get(Label);
+            if (!Value || Value->Type != NodeType_String)
+                return nullptr;
 
-			return Value->String.c_str();
-		}
-		std::string& Document::GetStringBlob(const std::string& Label)
-		{
-			Document* Value = Get(Label);
-			if (!Value || Value->Type != NodeType_String)
-				return String;
+            return Value->String.c_str();
+        }
+        std::string& Document::GetStringBlob(const std::string& Label)
+        {
+            Document* Value = Get(Label);
+            if (!Value || Value->Type != NodeType_String)
+                return String;
 
-			return Value->String;
-		}
-		std::string Document::Serialize()
-		{
-			return Serialize(this);
-		}
-		Document* Document::Find(const std::string& Label, bool Here)
-		{
-			for (auto K : Nodes)
-			{
-				if (K->Name == Label)
-					return K;
+            return Value->String;
+        }
+        std::string Document::Serialize()
+        {
+            return Serialize(this);
+        }
+        Document* Document::Find(const std::string& Label, bool Here)
+        {
+            for (auto K : Nodes)
+            {
+                if (K->Name == Label)
+                    return K;
 
-				if (Here)
-					continue;
+                if (Here)
+                    continue;
 
-				Document* V = K->Find(Label);
-				if (V != nullptr)
-					return V;
-			}
+                Document* V = K->Find(Label);
+                if (V != nullptr)
+                    return V;
+            }
 
-			return nullptr;
-		}
-		Document* Document::FindPath(const std::string& Notation, bool Here)
-		{
-			std::vector<std::string> Names = Stroke(Notation).Split('.');
-			if (Names.empty())
-				return nullptr;
+            return nullptr;
+        }
+        Document* Document::FindPath(const std::string& Notation, bool Here)
+        {
+            std::vector<std::string> Names = Stroke(Notation).Split('.');
+            if (Names.empty())
+                return nullptr;
 
-			Document* Current = Find(*Names.begin(), Here);
-			if (!Current)
-				return nullptr;
+            Document* Current = Find(*Names.begin(), Here);
+            if (!Current)
+                return nullptr;
 
-			for (auto It = Names.begin() + 1; It != Names.end(); It++)
-			{
-				Current = Current->Find(*It, Here);
-				if (!Current)
-					return nullptr;
-			}
+            for (auto It = Names.begin() + 1; It != Names.end(); It++)
+            {
+                Current = Current->Find(*It, Here);
+                if (!Current)
+                    return nullptr;
+            }
 
-			return Current;
-		}
-		std::vector<Document*> Document::FindCollection(const std::string& Label, bool Here)
-		{
-			std::vector<Document*> Result;
-			for (auto Value : Nodes)
-			{
-				if (Value->Name == Label)
-					Result.push_back(Value);
+            return Current;
+        }
+        std::vector<Document*> Document::FindCollection(const std::string& Label, bool Here)
+        {
+            std::vector<Document*> Result;
+            for (auto Value : Nodes)
+            {
+                if (Value->Name == Label)
+                    Result.push_back(Value);
 
-				if (Here)
-					continue;
+                if (Here)
+                    continue;
 
-				std::vector<Document*> New = Value->FindCollection(Label);
-				for (auto& Ji : New)
-					Result.push_back(Ji);
-			}
+                std::vector<Document*> New = Value->FindCollection(Label);
+                for (auto& Ji : New)
+                    Result.push_back(Ji);
+            }
 
-			return Result;
-		}
-		std::vector<Document*> Document::FindCollectionPath(const std::string& Notation, bool Here)
-		{
-			std::vector<std::string> Names = Stroke(Notation).Split('.');
-			if (Names.empty())
-				return std::vector<Document*>();
+            return Result;
+        }
+        std::vector<Document*> Document::FindCollectionPath(const std::string& Notation, bool Here)
+        {
+            std::vector<std::string> Names = Stroke(Notation).Split('.');
+            if (Names.empty())
+                return std::vector<Document*>();
 
-			if (Names.size() == 1)
-				return FindCollection(*Names.begin());
+            if (Names.size() == 1)
+                return FindCollection(*Names.begin());
 
-			Document* Current = Find(*Names.begin(), Here);
-			if (!Current)
-				return std::vector<Document*>();
+            Document* Current = Find(*Names.begin(), Here);
+            if (!Current)
+                return std::vector<Document*>();
 
-			for (auto It = Names.begin() + 1; It != Names.end() - 1; It++)
-			{
-				Current = Current->Find(*It, Here);
-				if (!Current)
-					return std::vector<Document*>();
-			}
+            for (auto It = Names.begin() + 1; It != Names.end() - 1; It++)
+            {
+                Current = Current->Find(*It, Here);
+                if (!Current)
+                    return std::vector<Document*>();
+            }
 
-			return Current->FindCollection(*(Names.end() - 1), Here);
-		}
-		std::vector<Document*> Document::GetAttributes()
-		{
-			std::vector<Document*> Attributes;
-			for (auto It : Nodes)
-			{
-				if (It->IsAttribute())
-					Attributes.push_back(It);
-			}
+            return Current->FindCollection(*(Names.end() - 1), Here);
+        }
+        std::vector<Document*> Document::GetAttributes()
+        {
+            std::vector<Document*> Attributes;
+            for (auto It : Nodes)
+            {
+                if (It->IsAttribute())
+                    Attributes.push_back(It);
+            }
 
-			return Attributes;
-		}
-		std::vector<Document*>* Document::GetNodes()
-		{
-			return &Nodes;
-		}
-		std::unordered_map<std::string, UInt64> Document::CreateMapping()
-		{
-			std::unordered_map<std::string, UInt64> Mapping;
-			UInt64 Index = 0;
+            return Attributes;
+        }
+        std::vector<Document*>* Document::GetNodes()
+        {
+            return &Nodes;
+        }
+        std::unordered_map<std::string, UInt64> Document::CreateMapping()
+        {
+            std::unordered_map<std::string, UInt64> Mapping;
+            UInt64 Index = 0;
 
-			ProcessMAPRead(this, &Mapping, Index);
-			return Mapping;
-		}
-		std::string Document::Serialize(Document* Value)
-		{
-			switch (Value->Type)
-			{
-			case NodeType_Object:
-			case NodeType_Array:
-			case NodeType_String:
-				return Value->String;
-			case NodeType_Integer:
-				return std::to_string(Value->Integer);
-			case NodeType_Number:
-				return std::to_string(Value->Number);
-			case NodeType_Boolean:
-				return Value->Boolean ? "true" : "false";
-			case NodeType_Decimal:
-			{
+            ProcessMAPRead(this, &Mapping, Index);
+            return Mapping;
+        }
+        std::string Document::Serialize(Document* Value)
+        {
+            switch (Value->Type)
+            {
+                case NodeType_Object:
+                case NodeType_Array:
+                case NodeType_String:
+                    return Value->String;
+                case NodeType_Integer:
+                    return std::to_string(Value->Integer);
+                case NodeType_Number:
+                    return std::to_string(Value->Number);
+                case NodeType_Boolean:
+                    return Value->Boolean ? "true" : "false";
+                case NodeType_Decimal:
+                {
 #ifdef THAWK_HAS_MONGOC
-				Network::BSON::KeyPair Pair;
-				Pair.Mod = Network::BSON::Type_Decimal;
-				Pair.High = Value->Integer;
-				Pair.Low = Value->Low;
+                    Network::BSON::KeyPair Pair;
+                    Pair.Mod = Network::BSON::Type_Decimal;
+                    Pair.High = Value->Integer;
+                    Pair.Low = Value->Low;
 
-				return Pair.ToString();
+                    return Pair.ToString();
 #else
-				break;
+                    break;
 #endif
-			}
-			case NodeType_Id:
-				return "\xFF" + Compute::MathCommon::Base64Encode(Value->String);
-			case NodeType_Null:
-				return "\xFF" "null";
-			case NodeType_Undefined:
-				return "\xFF" "undefined";
-			default:
-				break;
-			}
+                }
+                case NodeType_Id:
+                    return "\xFF" + Compute::MathCommon::Base64Encode(Value->String);
+                case NodeType_Null:
+                    return "\xFF" "null";
+                case NodeType_Undefined:
+                    return "\xFF" "undefined";
+                default:
+                    break;
+            }
 
-			return "";
-		}
-		bool Document::Deserialize(const std::string& Value, Document* Output)
-		{
-			if (!Output)
-				return false;
+            return "";
+        }
+        bool Document::Deserialize(const std::string& Value, Document* Output)
+        {
+            if (!Output)
+                return false;
 
-			if (Value == "\xFF" "undefined")
-			{
-				Output->Type = NodeType_Undefined;
-				return true;
-			}
+            if (Value == "\xFF" "undefined")
+            {
+                Output->Type = NodeType_Undefined;
+                return true;
+            }
 
-			if (Value == "\xFF" "object")
-			{
-				Output->Type = NodeType_Object;
-				return true;
-			}
+            if (Value == "\xFF" "object")
+            {
+                Output->Type = NodeType_Object;
+                return true;
+            }
 
-			if (Value == "\xFF" "array")
-			{
-				Output->Type = NodeType_Array;
-				return true;
-			}
+            if (Value == "\xFF" "array")
+            {
+                Output->Type = NodeType_Array;
+                return true;
+            }
 
-			if (Value == "\xFF" "null")
-			{
-				Output->Type = NodeType_Null;
-				return true;
-			}
+            if (Value == "\xFF" "null")
+            {
+                Output->Type = NodeType_Null;
+                return true;
+            }
 
-			if (!Value.empty() && Value.front() == '\xFF')
-			{
-				Output->Type = NodeType_Id;
-				Output->String = Compute::MathCommon::Base64Decode(Value.substr(1));
-				return true;
-			}
+            if (!Value.empty() && Value.front() == '\xFF')
+            {
+                Output->Type = NodeType_Id;
+                Output->String = Compute::MathCommon::Base64Decode(Value.substr(1));
+                return true;
+            }
 
-			if (Value == "true")
-			{
-				Output->Type = NodeType_Boolean;
-				Output->Boolean = true;
-				return true;
-			}
+            if (Value == "true")
+            {
+                Output->Type = NodeType_Boolean;
+                Output->Boolean = true;
+                return true;
+            }
 
-			if (Value == "false")
-			{
-				Output->Type = NodeType_Boolean;
-				Output->Boolean = false;
-				return true;
-			}
+            if (Value == "false")
+            {
+                Output->Type = NodeType_Boolean;
+                Output->Boolean = false;
+                return true;
+            }
 
-			Stroke Man(&Value);
-			if (Man.HasNumber())
-			{
-				if (Man.HasDecimal() && Network::BSON::Document::ParseDecimal(Value.c_str(), &Output->Integer, &Output->Low))
-				{
-					Output->Type = NodeType_Decimal;
-					return true;
-				}
-				
-				if (Man.HasInteger())
-				{
-					Output->Type = NodeType_Integer;
-					Output->Integer = Man.ToInt64();
-					Output->Number = (Float64)Output->Integer;
-				}
-				else
-				{
-					Output->Type = NodeType_Number;
-					Output->Integer = (Int64)Output->Number;
-					Output->Number = Man.ToFloat64();
-				}
+            Stroke Man(&Value);
+            if (Man.HasNumber())
+            {
+                if (Man.HasDecimal() && Network::BSON::Document::ParseDecimal(Value.c_str(), &Output->Integer, &Output->Low))
+                {
+                    Output->Type = NodeType_Decimal;
+                    return true;
+                }
 
-				return true;
-			}
+                if (Man.HasInteger())
+                {
+                    Output->Type = NodeType_Integer;
+                    Output->Integer = Man.ToInt64();
+                    Output->Number = (Float64)Output->Integer;
+                }
+                else
+                {
+                    Output->Type = NodeType_Number;
+                    Output->Integer = (Int64)Output->Number;
+                    Output->Number = Man.ToFloat64();
+                }
 
-			Output->Type = NodeType_String;
-			Output->String = Value;
+                return true;
+            }
 
-			return true;
-		}
-		bool Document::WriteBIN(Document* Value, const NWriteCallback& Callback)
-		{
-			if (!Value || !Callback)
-				return false;
+            Output->Type = NodeType_String;
+            Output->String = Value;
 
-			std::unordered_map<std::string, UInt64> Mapping = Value->CreateMapping();
-			UInt64 Set = (UInt64)Mapping.size();
+            return true;
+        }
+        bool Document::WriteBIN(Document* Value, const NWriteCallback& Callback)
+        {
+            if (!Value || !Callback)
+                return false;
 
-			Callback(DocumentPretty_Dummy, "\0b\0i\0n\0h\0e\0a\0d\r\n", sizeof(char) * 16);
-			Callback(DocumentPretty_Dummy, (const char*)&Set, sizeof(UInt64));
+            std::unordered_map<std::string, UInt64> Mapping = Value->CreateMapping();
+            UInt64 Set = (UInt64)Mapping.size();
 
-			for (auto It = Mapping.begin(); It != Mapping.end(); It++)
-			{
-				UInt64 Size = (UInt64)It->first.size();
-				Callback(DocumentPretty_Dummy, (const char*)&It->second, sizeof(UInt64));
-				Callback(DocumentPretty_Dummy, (const char*)&Size, sizeof(UInt64));
+            Callback(DocumentPretty_Dummy, "\0b\0i\0n\0h\0e\0a\0d\r\n", sizeof(char) * 16);
+            Callback(DocumentPretty_Dummy, (const char*)&Set, sizeof(UInt64));
 
-				if (Size > 0)
-					Callback(DocumentPretty_Dummy, It->first.c_str(), sizeof(char) * Size);
-			}
+            for (auto It = Mapping.begin(); It != Mapping.end(); It++)
+            {
+                UInt64 Size = (UInt64)It->first.size();
+                Callback(DocumentPretty_Dummy, (const char*)&It->second, sizeof(UInt64));
+                Callback(DocumentPretty_Dummy, (const char*)&Size, sizeof(UInt64));
 
-			ProcessBINWrite(Value, &Mapping, Callback);
-			return true;
-		}
-		bool Document::WriteXML(Document* Value, const NWriteCallback& Callback)
-		{
-			if (!Value || !Callback)
-				return false;
+                if (Size > 0)
+                    Callback(DocumentPretty_Dummy, It->first.c_str(), sizeof(char) * Size);
+            }
 
-			std::vector<Document*> Attributes = Value->GetAttributes();
-			std::string Text = Value->String;
+            ProcessBINWrite(Value, &Mapping, Callback);
+            return true;
+        }
+        bool Document::WriteXML(Document* Value, const NWriteCallback& Callback)
+        {
+            if (!Value || !Callback)
+                return false;
 
-			bool Scalable = (!Text.empty() || ((Int64)Value->Nodes.size() - (Int64)Attributes.size()) > 0);
-			Callback(DocumentPretty_Write_Tab, "", 0);
-			Callback(DocumentPretty_Dummy, "<", 1);
-			Callback(DocumentPretty_Dummy, Value->Name.c_str(), (Int64)Value->Name.size());
+            std::vector<Document*> Attributes = Value->GetAttributes();
+            std::string Text = Value->String;
 
-			if (Attributes.empty())
-			{
-				if (Scalable)
-					Callback(DocumentPretty_Dummy, ">", 1);
-				else
-					Callback(DocumentPretty_Dummy, " />", 3);
-			}
-			else
-				Callback(DocumentPretty_Dummy, " ", 1);
+            bool Scalable = (!Text.empty() || ((Int64)Value->Nodes.size() - (Int64)Attributes.size()) > 0);
+            Callback(DocumentPretty_Write_Tab, "", 0);
+            Callback(DocumentPretty_Dummy, "<", 1);
+            Callback(DocumentPretty_Dummy, Value->Name.c_str(), (Int64)Value->Name.size());
 
-			for (auto It = Attributes.begin(); It != Attributes.end(); It++)
-			{
-				std::string Name = (*It)->Name;
-				std::string Blob = (*It)->Serialize();
+            if (Attributes.empty())
+            {
+                if (Scalable)
+                    Callback(DocumentPretty_Dummy, ">", 1);
+                else
+                    Callback(DocumentPretty_Dummy, " />", 3);
+            }
+            else
+                Callback(DocumentPretty_Dummy, " ", 1);
 
-				Callback(DocumentPretty_Dummy, Name.c_str() + 1, (Int64)Name.size() - 2);
-				Callback(DocumentPretty_Dummy, "=\"", 2);
-				Callback(DocumentPretty_Dummy, Blob.c_str(), (Int64)Blob.size());
-				It++;
+            for (auto It = Attributes.begin(); It != Attributes.end(); It++)
+            {
+                std::string Name = (*It)->Name;
+                std::string Blob = (*It)->Serialize();
 
-				if (It == Attributes.end())
-				{
-					if (!Scalable)
-					{
-						Callback(DocumentPretty_Write_Space, "\"", 1);
-						Callback(DocumentPretty_Dummy, "/>", 2);
-					}
-					else
-						Callback(DocumentPretty_Dummy, "\">", 2);
-				}
-				else
-					Callback(DocumentPretty_Write_Space, "\"", 1);
+                Callback(DocumentPretty_Dummy, Name.c_str() + 1, (Int64)Name.size() - 2);
+                Callback(DocumentPretty_Dummy, "=\"", 2);
+                Callback(DocumentPretty_Dummy, Blob.c_str(), (Int64)Blob.size());
+                It++;
 
-				It--;
-			}
+                if (It == Attributes.end())
+                {
+                    if (!Scalable)
+                    {
+                        Callback(DocumentPretty_Write_Space, "\"", 1);
+                        Callback(DocumentPretty_Dummy, "/>", 2);
+                    }
+                    else
+                        Callback(DocumentPretty_Dummy, "\">", 2);
+                }
+                else
+                    Callback(DocumentPretty_Write_Space, "\"", 1);
 
-			Callback(DocumentPretty_Tab_Increase, "", 0);
-			if (!Text.empty())
-			{
-				if (!Value->Nodes.empty())
-				{
-					Callback(DocumentPretty_Write_Line, "", 0);
-					Callback(DocumentPretty_Write_Tab, "", 0);
-					Callback(DocumentPretty_Dummy, Text.c_str(), Text.size());
-					Callback(DocumentPretty_Write_Line, "", 0);
-				}
-				else
-					Callback(DocumentPretty_Dummy, Text.c_str(), Text.size());
-			}
-			else
-				Callback(DocumentPretty_Write_Line, "", 0);
+                It--;
+            }
 
-			for (auto&& It : Value->Nodes)
-			{
-				if (!It->IsAttribute())
-					WriteXML(It, Callback);
-			}
+            Callback(DocumentPretty_Tab_Increase, "", 0);
+            if (!Text.empty())
+            {
+                if (!Value->Nodes.empty())
+                {
+                    Callback(DocumentPretty_Write_Line, "", 0);
+                    Callback(DocumentPretty_Write_Tab, "", 0);
+                    Callback(DocumentPretty_Dummy, Text.c_str(), Text.size());
+                    Callback(DocumentPretty_Write_Line, "", 0);
+                }
+                else
+                    Callback(DocumentPretty_Dummy, Text.c_str(), Text.size());
+            }
+            else
+                Callback(DocumentPretty_Write_Line, "", 0);
 
-			Callback(DocumentPretty_Tab_Decrease, "", 0);
-			if (!Scalable)
-				return true;
+            for (auto&& It : Value->Nodes)
+            {
+                if (!It->IsAttribute())
+                    WriteXML(It, Callback);
+            }
 
-			if (!Value->Nodes.empty())
-				Callback(DocumentPretty_Write_Tab, "", 0);
+            Callback(DocumentPretty_Tab_Decrease, "", 0);
+            if (!Scalable)
+                return true;
 
-			Callback(DocumentPretty_Dummy, "</", 2);
-			Callback(DocumentPretty_Dummy, Value->Name.c_str(), (Int64)Value->Name.size());
-			Callback(Value->Parent ? DocumentPretty_Write_Line : DocumentPretty_Dummy, ">", 1);
+            if (!Value->Nodes.empty())
+                Callback(DocumentPretty_Write_Tab, "", 0);
 
-			return true;
-		}
-		bool Document::WriteJSON(Document* Value, const NWriteCallback& Callback)
-		{
-			if (!Value || !Callback)
-				return false;
+            Callback(DocumentPretty_Dummy, "</", 2);
+            Callback(DocumentPretty_Dummy, Value->Name.c_str(), (Int64)Value->Name.size());
+            Callback(Value->Parent ? DocumentPretty_Write_Line : DocumentPretty_Dummy, ">", 1);
 
-			auto Size = Value->Nodes.size(); size_t Offset = 0;
-			bool Array = (Value->Type == NodeType_Array);
-			if (Array)
-			{
-				for (auto&& Document : Value->Nodes)
-				{
-					if (Document->Name.empty())
-						continue;
+            return true;
+        }
+        bool Document::WriteJSON(Document* Value, const NWriteCallback& Callback)
+        {
+            if (!Value || !Callback)
+                return false;
 
-					Array = false;
-					break;
-				}
-			}
+            auto Size = Value->Nodes.size();
+            size_t Offset = 0;
+            bool Array = (Value->Type == NodeType_Array);
+            if (Array)
+            {
+                for (auto&& Document : Value->Nodes)
+                {
+                    if (Document->Name.empty())
+                        continue;
 
-			if (Value->Parent != nullptr)
-				Callback(DocumentPretty_Write_Line, "", 0);
+                    Array = false;
+                    break;
+                }
+            }
 
-			Callback(DocumentPretty_Write_Tab, "", 0);
-			Callback(DocumentPretty_Dummy, Array ? "[" : "{", 1);
-			Callback(DocumentPretty_Tab_Increase, "", 0);
+            if (Value->Parent != nullptr)
+                Callback(DocumentPretty_Write_Line, "", 0);
 
-			if (!Array && !Value->String.empty())
-			{
-				Callback(DocumentPretty_Write_Line, "", 0);
-				Callback(DocumentPretty_Write_Tab, "", 0);
-				Callback(DocumentPretty_Write_Space, "\"@text@\":", 9);
-				Callback(DocumentPretty_Dummy, "\"", 1);
-				Callback(DocumentPretty_Dummy, Value->String.c_str(), (Int64)Value->String.size());
-				Callback(DocumentPretty_Dummy, "\"", 1);
-			}
+            Callback(DocumentPretty_Write_Tab, "", 0);
+            Callback(DocumentPretty_Dummy, Array ? "[" : "{", 1);
+            Callback(DocumentPretty_Tab_Increase, "", 0);
 
-			std::unordered_map<std::string, UInt64> Mapping = Value->CreateMapping();
-			for (auto&& It : Mapping)
-				It.second = 0;
+            if (!Array && !Value->String.empty())
+            {
+                Callback(DocumentPretty_Write_Line, "", 0);
+                Callback(DocumentPretty_Write_Tab, "", 0);
+                Callback(DocumentPretty_Write_Space, "\"@text@\":", 9);
+                Callback(DocumentPretty_Dummy, "\"", 1);
+                Callback(DocumentPretty_Dummy, Value->String.c_str(), (Int64)Value->String.size());
+                Callback(DocumentPretty_Dummy, "\"", 1);
+            }
 
-			for (auto&& Document : Value->Nodes)
-			{
-				if (!Array)
-				{
-					std::string Name = Document->Name;
+            std::unordered_map<std::string, UInt64> Mapping = Value->CreateMapping();
+            for (auto&& It : Mapping)
+                It.second = 0;
 
-					auto It = Mapping.find(Name);
-					if (It != Mapping.end())
-					{
-						if (It->second > 0)
-							Name.append(1, '@').append(std::to_string(It->second - 1));
-						It->second++;
-					}
+            for (auto&& Document : Value->Nodes)
+            {
+                if (!Array)
+                {
+                    std::string Name = Document->Name;
 
-					Callback(DocumentPretty_Write_Line, "", 0);
-					Callback(DocumentPretty_Write_Tab, "", 0);
-					Callback(DocumentPretty_Dummy, "\"", 1);
-					Callback(DocumentPretty_Dummy, Name.c_str(), (Int64)Name.size());
-					Callback(DocumentPretty_Write_Space, "\":", 2);
-				}
+                    auto It = Mapping.find(Name);
+                    if (It != Mapping.end())
+                    {
+                        if (It->second > 0)
+                            Name.append(1, '@').append(std::to_string(It->second - 1));
+                        It->second++;
+                    }
 
-				bool Blob = Document->IsObject();
-				if (Blob && Document->Type == NodeType_Array && !Document->String.empty() && Document->Nodes.empty())
-					Blob = false;
+                    Callback(DocumentPretty_Write_Line, "", 0);
+                    Callback(DocumentPretty_Write_Tab, "", 0);
+                    Callback(DocumentPretty_Dummy, "\"", 1);
+                    Callback(DocumentPretty_Dummy, Name.c_str(), (Int64)Name.size());
+                    Callback(DocumentPretty_Write_Space, "\":", 2);
+                }
 
-				if (!Blob)
-				{
-					std::string Key = Document->Serialize();
-					if (Array)
-					{
-						Callback(DocumentPretty_Write_Line, "", 0);
-						Callback(DocumentPretty_Write_Tab, "", 0);
-					}
+                bool Blob = Document->IsObject();
+                if (Blob && Document->Type == NodeType_Array && !Document->String.empty() && Document->Nodes.empty())
+                    Blob = false;
 
-					if (!Document->IsObject() && Document->Type != NodeType_String && Document->Type != NodeType_Id)
-					{
-						if (!Key.empty() && Key.front() == '\xFF')
-							Callback(DocumentPretty_Dummy, Key.c_str() + 1, (Int64)Key.size() - 1);
-						else
-							Callback(DocumentPretty_Dummy, Key.c_str(), (Int64)Key.size());
-					}
-					else
-					{
-						Callback(DocumentPretty_Dummy, "\"", 1);
-						Callback(DocumentPretty_Dummy, Key.c_str(), (Int64)Key.size());
-						Callback(DocumentPretty_Dummy, "\"", 1);
-					}
-				}
-				else
-					WriteJSON(Document, Callback);
+                if (!Blob)
+                {
+                    std::string Key = Document->Serialize();
+                    if (Array)
+                    {
+                        Callback(DocumentPretty_Write_Line, "", 0);
+                        Callback(DocumentPretty_Write_Tab, "", 0);
+                    }
 
-				Offset++;
-				if (Offset < Size)
-					Callback(DocumentPretty_Dummy, ",", 1);
-			}
+                    if (!Document->IsObject() && Document->Type != NodeType_String && Document->Type != NodeType_Id)
+                    {
+                        if (!Key.empty() && Key.front() == '\xFF')
+                            Callback(DocumentPretty_Dummy, Key.c_str() + 1, (Int64)Key.size() - 1);
+                        else
+                            Callback(DocumentPretty_Dummy, Key.c_str(), (Int64)Key.size());
+                    }
+                    else
+                    {
+                        Callback(DocumentPretty_Dummy, "\"", 1);
+                        Callback(DocumentPretty_Dummy, Key.c_str(), (Int64)Key.size());
+                        Callback(DocumentPretty_Dummy, "\"", 1);
+                    }
+                }
+                else
+                    WriteJSON(Document, Callback);
 
-			Callback(DocumentPretty_Tab_Decrease, "", 0);
-			Callback(DocumentPretty_Write_Line, "", 0);
+                Offset++;
+                if (Offset < Size)
+                    Callback(DocumentPretty_Dummy, ",", 1);
+            }
 
-			if (Value->Parent != nullptr)
-				Callback(DocumentPretty_Write_Tab, "", 0);
+            Callback(DocumentPretty_Tab_Decrease, "", 0);
+            Callback(DocumentPretty_Write_Line, "", 0);
 
-			Callback(DocumentPretty_Dummy, Array ? "]" : "}", 1);
-			return true;
-		}
-		Document* Document::ReadBIN(const NReadCallback& Callback)
-		{
-			if (!Callback)
-				return nullptr;
+            if (Value->Parent != nullptr)
+                Callback(DocumentPretty_Write_Tab, "", 0);
 
-			char Hello[18];
-			if (!Callback((char*)Hello, sizeof(char) * 16))
-			{
-				THAWK_ERROR("form cannot be defined");
-				return nullptr;
-			}
+            Callback(DocumentPretty_Dummy, Array ? "]" : "}", 1);
+            return true;
+        }
+        Document* Document::ReadBIN(const NReadCallback& Callback)
+        {
+            if (!Callback)
+                return nullptr;
 
-			if (memcmp((void*)Hello, (void*)"\0b\0i\0n\0h\0e\0a\0d\r\n", sizeof(char) * 16) != 0)
-			{
-				THAWK_ERROR("version is undefined");
-				return nullptr;
-			}
-
-			UInt64 Set = 0;
-			if (!Callback((char*)&Set, sizeof(UInt64)))
-			{
-				THAWK_ERROR("name map is undefined");
-				return nullptr;
-			}
-
-			std::unordered_map<UInt64, std::string> Map;
-			for (UInt64 i = 0; i < Set; i++)
-			{
-				UInt64 Index = 0;
-				if (!Callback((char*)&Index, sizeof(UInt64)))
-				{
-					THAWK_ERROR("name index is undefined");
-					return nullptr;
-				}
-
-				UInt64 Size = 0;
-				if (!Callback((char*)&Size, sizeof(UInt64)))
-				{
-					THAWK_ERROR("name size is undefined");
-					return nullptr;
-				}
-
-				if (Size <= 0)
-					continue;
-
-				std::string Name; Name.resize(Size);
-				if (!Callback((char*)Name.c_str(), sizeof(char) * Size))
-				{
-					THAWK_ERROR("name data is undefined");
-					return nullptr;
-				}
-				
-				Map.insert({ Index, Name });
-			}
-
-			Document* Current = new Document();
-			if (!ProcessBINRead(Current, &Map, Callback))
-			{
-				delete Current;
+            char Hello[18];
+            if (!Callback((char*)Hello, sizeof(char) * 16))
+            {
+                THAWK_ERROR("form cannot be defined");
                 return nullptr;
             }
 
-			return Current;
-		}
-		Document* Document::ReadXML(Int64 Size, const NReadCallback& Callback)
-		{
-			if (!Callback || !Size)
-				return nullptr;
-
-			std::string Buffer; Buffer.resize(Size);
-			if (!Callback((char*)Buffer.c_str(), sizeof(char) * Size))
-			{
-				THAWK_ERROR("cannot read xml document");
-				return nullptr;
-			}
-
-			auto iDocument = new rapidxml::xml_document<>();
-			try
-			{
-				iDocument->parse<rapidxml::parse_trim_whitespace>((char*)Buffer.c_str());
-			}
-			catch (const std::runtime_error& e)
-			{
-				delete iDocument;
-				THAWK_ERROR("xml runtime error caused because %s", e.what());
-				return nullptr;
-			}
-			catch (const rapidxml::parse_error& e)
-			{
-				delete iDocument;
-				THAWK_ERROR("xml parse error caused because %s", e.what());
-				return nullptr;
-			}
-			catch (const std::exception& e)
-			{
-				delete iDocument;
-				THAWK_ERROR("xml parse exception caused because %s", e.what());
-				return nullptr;
-			}
-			catch (...)
-			{
-				delete iDocument;
-				THAWK_ERROR("undefined xml parse error");
-				return nullptr;
-			}
-
-			rapidxml::xml_node<>* Base = iDocument->first_node();
-			if (!Base)
-			{
-				iDocument->clear();
-				delete iDocument;
-
-				return nullptr;
-			}
-
-			Document* Result = new Document();
-			Result->Name = Base->name();
-			Result->String = Base->value();
-			Result->Type = NodeType_Object;
-
-			if (!ProcessXMLRead((void*)Base, Result))
+            if (memcmp((void*)Hello, (void*)"\0b\0i\0n\0h\0e\0a\0d\r\n", sizeof(char) * 16) != 0)
             {
-				delete Result;
-			    Result = nullptr;
+                THAWK_ERROR("version is undefined");
+                return nullptr;
             }
 
-			iDocument->clear();
-			delete iDocument;
+            UInt64 Set = 0;
+            if (!Callback((char*)&Set, sizeof(UInt64)))
+            {
+                THAWK_ERROR("name map is undefined");
+                return nullptr;
+            }
 
-			return Result;
-		}
-		Document* Document::ReadJSON(Int64 Size, const NReadCallback& Callback)
-		{
-			if (!Callback || !Size)
-				return nullptr;
+            std::unordered_map<UInt64, std::string> Map;
+            for (UInt64 i = 0; i < Set; i++)
+            {
+                UInt64 Index = 0;
+                if (!Callback((char*)&Index, sizeof(UInt64)))
+                {
+                    THAWK_ERROR("name index is undefined");
+                    return nullptr;
+                }
+
+                UInt64 Size = 0;
+                if (!Callback((char*)&Size, sizeof(UInt64)))
+                {
+                    THAWK_ERROR("name size is undefined");
+                    return nullptr;
+                }
+
+                if (Size <= 0)
+                    continue;
+
+                std::string Name;
+                Name.resize(Size);
+                if (!Callback((char*)Name.c_str(), sizeof(char) * Size))
+                {
+                    THAWK_ERROR("name data is undefined");
+                    return nullptr;
+                }
+
+                Map.insert({ Index, Name });
+            }
+
+            Document* Current = new Document();
+            if (!ProcessBINRead(Current, &Map, Callback))
+            {
+                delete Current;
+                return nullptr;
+            }
+
+            return Current;
+        }
+        Document* Document::ReadXML(Int64 Size, const NReadCallback& Callback)
+        {
+            if (!Callback || !Size)
+                return nullptr;
+
+            std::string Buffer;
+            Buffer.resize(Size);
+            if (!Callback((char*)Buffer.c_str(), sizeof(char) * Size))
+            {
+                THAWK_ERROR("cannot read xml document");
+                return nullptr;
+            }
+
+            auto iDocument = new rapidxml::xml_document<>();
+            try
+            {
+                iDocument->parse<rapidxml::parse_trim_whitespace>((char*)Buffer.c_str());
+            }
+            catch (const std::runtime_error& e)
+            {
+                delete iDocument;
+                THAWK_ERROR("xml runtime error caused because %s", e.what());
+                return nullptr;
+            }
+            catch (const rapidxml::parse_error& e)
+            {
+                delete iDocument;
+                THAWK_ERROR("xml parse error caused because %s", e.what());
+                return nullptr;
+            }
+            catch (const std::exception& e)
+            {
+                delete iDocument;
+                THAWK_ERROR("xml parse exception caused because %s", e.what());
+                return nullptr;
+            }
+            catch (...)
+            {
+                delete iDocument;
+                THAWK_ERROR("undefined xml parse error");
+                return nullptr;
+            }
+
+            rapidxml::xml_node<>* Base = iDocument->first_node();
+            if (!Base)
+            {
+                iDocument->clear();
+                delete iDocument;
+
+                return nullptr;
+            }
+
+            Document* Result = new Document();
+            Result->Name = Base->name();
+            Result->String = Base->value();
+            Result->Type = NodeType_Object;
+
+            if (!ProcessXMLRead((void*)Base, Result))
+            {
+                delete Result;
+                Result = nullptr;
+            }
+
+            iDocument->clear();
+            delete iDocument;
+
+            return Result;
+        }
+        Document* Document::ReadJSON(Int64 Size, const NReadCallback& Callback)
+        {
+            if (!Callback || !Size)
+                return nullptr;
 
 #ifdef THAWK_HAS_MONGOC
-			std::string Buffer; Buffer.resize(Size);
-			if (!Callback((char*)Buffer.c_str(), sizeof(char) * Size))
-			{
-				THAWK_ERROR("cannot read json document");
-				return nullptr;
-			}
+            std::string Buffer;
+            Buffer.resize(Size);
+            if (!Callback((char*)Buffer.c_str(), sizeof(char) * Size))
+            {
+                THAWK_ERROR("cannot read json document");
+                return nullptr;
+            }
 
-			Network::BSON::TDocument* Document = Network::BSON::Document::Create(Buffer);
-			if (!Document)
-			{
-				THAWK_ERROR("cannot parse json document");
-				return nullptr;
-			}
+            Network::BSON::TDocument* Document = Network::BSON::Document::Create(Buffer);
+            if (!Document)
+            {
+                THAWK_ERROR("cannot parse json document");
+                return nullptr;
+            }
 
-			Rest::Document* Result = Network::BSON::Document::ToDocument(Document);
-			Network::BSON::Document::Release(&Document);
-			ProcessJSONRead(Result);
+            Rest::Document* Result = Network::BSON::Document::ToDocument(Document);
+            Network::BSON::Document::Release(&Document);
+            ProcessJSONRead(Result);
 
-			if (Result != nullptr && Result->Name.empty())
-				Result->Name.assign("document");
+            if (Result != nullptr && Result->Name.empty())
+                Result->Name.assign("document");
 
-			return Result;
+            return Result;
 #else
-			THAWK_ERROR("json parse is unsupported for this build");
-			return false;
+            THAWK_ERROR("json parse is unsupported for this build");
+            return false;
 #endif
-		}
-		void Document::ProcessBINWrite(Document* Current, std::unordered_map<std::string, UInt64>* Map, const NWriteCallback& Callback)
-		{
-			UInt64 Id = Map->at(Current->Name), Count = 0;
-			Callback(DocumentPretty_Dummy, (const char*)&Id, sizeof(UInt64));
-			Callback(DocumentPretty_Dummy, (const char*)&Current->Type, sizeof(NodeType));
-			Callback(DocumentPretty_Dummy, (const char*)&(Count = Current->String.size()), sizeof(UInt64));
+        }
+        void Document::ProcessBINWrite(Document* Current, std::unordered_map<std::string, UInt64>* Map, const NWriteCallback& Callback)
+        {
+            UInt64 Id = Map->at(Current->Name), Count = 0;
+            Callback(DocumentPretty_Dummy, (const char*)&Id, sizeof(UInt64));
+            Callback(DocumentPretty_Dummy, (const char*)&Current->Type, sizeof(NodeType));
+            Callback(DocumentPretty_Dummy, (const char*)&(Count = Current->String.size()), sizeof(UInt64));
 
-			if (Count > 0)
-				Callback(DocumentPretty_Dummy, (const char*)Current->String.c_str(), (size_t)Count);
+            if (Count > 0)
+                Callback(DocumentPretty_Dummy, (const char*)Current->String.c_str(), (size_t)Count);
 
-			switch (Current->Type)
-			{
-			case NodeType_Integer:
-				Callback(DocumentPretty_Dummy, (const char*)&Current->Integer, sizeof(Int64));
-				break;
-			case NodeType_Number:
-				Callback(DocumentPretty_Dummy, (const char*)&Current->Number, sizeof(Float64));
-				break;
-			case NodeType_Decimal:
-				Callback(DocumentPretty_Dummy, (const char*)&Current->Integer, sizeof(Int64));
-				Callback(DocumentPretty_Dummy, (const char*)&Current->Low, sizeof(Int64));
-				break;
-			case NodeType_Boolean:
-				Callback(DocumentPretty_Dummy, (const char*)&Current->Boolean, sizeof(bool));
-				break;
-			case NodeType_Array:
-			case NodeType_Object:
-				Callback(DocumentPretty_Dummy, (const char*)&(Count = Current->Nodes.size()), sizeof(UInt64));
-				for (auto& Document : Current->Nodes)
-					ProcessBINWrite(Document, Map, Callback);
-				break;
-			default:
-				break;
-			}
-		}
-		bool Document::ProcessBINRead(Document* Current, std::unordered_map<UInt64, std::string>* Map, const NReadCallback& Callback)
-		{
-			UInt64 Id = 0;
-			if (!Callback((char*)&Id, sizeof(UInt64)))
-			{
-				THAWK_ERROR("key name index is undefined");
-				return false;
-			}
+            switch (Current->Type)
+            {
+                case NodeType_Integer:
+                    Callback(DocumentPretty_Dummy, (const char*)&Current->Integer, sizeof(Int64));
+                    break;
+                case NodeType_Number:
+                    Callback(DocumentPretty_Dummy, (const char*)&Current->Number, sizeof(Float64));
+                    break;
+                case NodeType_Decimal:
+                    Callback(DocumentPretty_Dummy, (const char*)&Current->Integer, sizeof(Int64));
+                    Callback(DocumentPretty_Dummy, (const char*)&Current->Low, sizeof(Int64));
+                    break;
+                case NodeType_Boolean:
+                    Callback(DocumentPretty_Dummy, (const char*)&Current->Boolean, sizeof(bool));
+                    break;
+                case NodeType_Array:
+                case NodeType_Object:
+                    Callback(DocumentPretty_Dummy, (const char*)&(Count = Current->Nodes.size()), sizeof(UInt64));
+                    for (auto& Document : Current->Nodes)
+                        ProcessBINWrite(Document, Map, Callback);
+                    break;
+                default:
+                    break;
+            }
+        }
+        bool Document::ProcessBINRead(Document* Current, std::unordered_map<UInt64, std::string>* Map, const NReadCallback& Callback)
+        {
+            UInt64 Id = 0;
+            if (!Callback((char*)&Id, sizeof(UInt64)))
+            {
+                THAWK_ERROR("key name index is undefined");
+                return false;
+            }
 
-			auto It = Map->find(Id);
-			if (It != Map->end())
-				Current->Name = It->second;
+            auto It = Map->find(Id);
+            if (It != Map->end())
+                Current->Name = It->second;
 
-			if (!Callback((char*)&Current->Type, sizeof(NodeType)))
-			{
-				THAWK_ERROR("key type is undefined");
-				return false;
-			}
+            if (!Callback((char*)&Current->Type, sizeof(NodeType)))
+            {
+                THAWK_ERROR("key type is undefined");
+                return false;
+            }
 
-			UInt64 Count = 0;
-			if (!Callback((char*)&Count, sizeof(UInt64)))
-			{
-				THAWK_ERROR("key value size is undefined");
-				return false;
-			}
+            UInt64 Count = 0;
+            if (!Callback((char*)&Count, sizeof(UInt64)))
+            {
+                THAWK_ERROR("key value size is undefined");
+                return false;
+            }
 
-			if (Count > 0)
-			{
-				Current->String.resize(Count);
-				if (!Callback((char*)Current->String.c_str(), sizeof(char) * Count))
-				{
-					THAWK_ERROR("key value data is undefined");
-					return false;
-				}
-			}
+            if (Count > 0)
+            {
+                Current->String.resize(Count);
+                if (!Callback((char*)Current->String.c_str(), sizeof(char) * Count))
+                {
+                    THAWK_ERROR("key value data is undefined");
+                    return false;
+                }
+            }
 
-			switch (Current->Type)
-			{
-				case NodeType_Integer:
-					if (!Callback((char*)&Current->Integer, sizeof(Int64)))
-					{
-						THAWK_ERROR("key value is undefined");
-						return false;
-					}
+            switch (Current->Type)
+            {
+                case NodeType_Integer:
+                    if (!Callback((char*)&Current->Integer, sizeof(Int64)))
+                    {
+                        THAWK_ERROR("key value is undefined");
+                        return false;
+                    }
 
-					Current->Number = (Float64)Current->Integer;
-					break;
-				case NodeType_Number:
-					if (!Callback((char*)&Current->Number, sizeof(Float64)))
-					{
-						THAWK_ERROR("key value is undefined");
-						return false;
-					}
+                    Current->Number = (Float64)Current->Integer;
+                    break;
+                case NodeType_Number:
+                    if (!Callback((char*)&Current->Number, sizeof(Float64)))
+                    {
+                        THAWK_ERROR("key value is undefined");
+                        return false;
+                    }
 
-					Current->Integer = (Int64)Current->Number;
-					break;
-				case NodeType_Decimal:
-					if (!Callback((char*)&Current->Integer, sizeof(Int64)))
-					{
-						THAWK_ERROR("key value is undefined");
-						return false;
-					}
+                    Current->Integer = (Int64)Current->Number;
+                    break;
+                case NodeType_Decimal:
+                    if (!Callback((char*)&Current->Integer, sizeof(Int64)))
+                    {
+                        THAWK_ERROR("key value is undefined");
+                        return false;
+                    }
 
-					if (!Callback((char*)&Current->Low, sizeof(Int64)))
-					{
-						THAWK_ERROR("key value is undefined");
-						return false;
-					}
-					break;
-				case NodeType_Boolean:
-					if (!Callback((char*)&Current->Boolean, sizeof(bool)))
-					{
-						THAWK_ERROR("key value is undefined");
-						return false;
-					}
-					break;
-				case NodeType_Array:
-				case NodeType_Object:
-					if (!Callback((char*)&Count, sizeof(UInt64)))
-					{
-						THAWK_ERROR("key value size is undefined");
-						return false;
-					}
+                    if (!Callback((char*)&Current->Low, sizeof(Int64)))
+                    {
+                        THAWK_ERROR("key value is undefined");
+                        return false;
+                    }
+                    break;
+                case NodeType_Boolean:
+                    if (!Callback((char*)&Current->Boolean, sizeof(bool)))
+                    {
+                        THAWK_ERROR("key value is undefined");
+                        return false;
+                    }
+                    break;
+                case NodeType_Array:
+                case NodeType_Object:
+                    if (!Callback((char*)&Count, sizeof(UInt64)))
+                    {
+                        THAWK_ERROR("key value size is undefined");
+                        return false;
+                    }
 
-					if (!Count)
-						break;
+                    if (!Count)
+                        break;
 
-					Current->Nodes.resize(Count);
-					for (auto K = Current->Nodes.begin(); K != Current->Nodes.end(); K++)
-					{
-						*K = new Document();
-						(*K)->Parent = Current;
-						(*K)->Saved = true;
+                    Current->Nodes.resize(Count);
+                    for (auto K = Current->Nodes.begin(); K != Current->Nodes.end(); K++)
+                    {
+                        *K = new Document();
+                        (*K)->Parent = Current;
+                        (*K)->Saved = true;
 
-						ProcessBINRead(*K, Map, Callback);
-					}
-					break;
-				default:
-					break;
-			}
+                        ProcessBINRead(*K, Map, Callback);
+                    }
+                    break;
+                default:
+                    break;
+            }
 
-			return true;
-		}
-		bool Document::ProcessMAPRead(Document* Current, std::unordered_map<std::string, UInt64>* Map, UInt64& Index)
-		{
-			auto M = Map->find(Current->Name);
-			if (M == Map->end())
-				Map->insert({ Current->Name, Index++ });
+            return true;
+        }
+        bool Document::ProcessMAPRead(Document* Current, std::unordered_map<std::string, UInt64>* Map, UInt64& Index)
+        {
+            auto M = Map->find(Current->Name);
+            if (M == Map->end())
+                Map->insert({ Current->Name, Index++ });
 
-			for (auto Document : Current->Nodes)
-				ProcessMAPRead(Document, Map, Index);
+            for (auto Document : Current->Nodes)
+                ProcessMAPRead(Document, Map, Index);
 
-			return true;
-		}
-		bool Document::ProcessXMLRead(void* Base, Document* Current)
-		{
-			auto Ref = (rapidxml::xml_node<>*)Base;
-			if (!Ref || !Current)
-				return false;
+            return true;
+        }
+        bool Document::ProcessXMLRead(void* Base, Document* Current)
+        {
+            auto Ref = (rapidxml::xml_node<>*)Base;
+            if (!Ref || !Current)
+                return false;
 
-			for (rapidxml::xml_attribute<>* It = Ref->first_attribute(); It; It = It->next_attribute())
-			{
-				if (strcmp(It->name(), "") != 0)
-					Current->SetAttribute(It->name(), It->value());
-			}
+            for (rapidxml::xml_attribute<>* It = Ref->first_attribute(); It; It = It->next_attribute())
+            {
+                if (strcmp(It->name(), "") != 0)
+                    Current->SetAttribute(It->name(), It->value());
+            }
 
-			for (rapidxml::xml_node<>* It = Ref->first_node(); It; It = It->next_sibling())
-			{
-				if (strcmp(It->name(), "") == 0)
-					continue;
+            for (rapidxml::xml_node<>* It = Ref->first_node(); It; It = It->next_sibling())
+            {
+                if (strcmp(It->name(), "") == 0)
+                    continue;
 
-				Document* V = Current->SetArray(It->name());
-				V->String = It->value();
+                Document* V = Current->SetArray(It->name());
+                V->String = It->value();
 
-				ProcessXMLRead((void*)It, V);
-				if (V->Nodes.empty() && !V->String.empty())
-					V->Type = NodeType_String;
-			}
+                ProcessXMLRead((void*)It, V);
+                if (V->Nodes.empty() && !V->String.empty())
+                    V->Type = NodeType_String;
+            }
 
-			return true;
-		}
-		bool Document::ProcessJSONRead(Document* Current)
-		{
-			Document* Text = Current->Get("@text@");
-			if (Text != nullptr)
-			{
-				NodeType Base = Current->Type;
-				Current->Deserialize(Text->Serialize());
-				Current->SetUndefined("@text@");
-				Current->Type = Base;
-			}
+            return true;
+        }
+        bool Document::ProcessJSONRead(Document* Current)
+        {
+            Document* Text = Current->Get("@text@");
+            if (Text != nullptr)
+            {
+                NodeType Base = Current->Type;
+                Current->Deserialize(Text->Serialize());
+                Current->SetUndefined("@text@");
+                Current->Type = Base;
+            }
 
-			for (auto&& Document : Current->Nodes)
-			{
-				Stroke V(&Document->Name);
-				Stroke::Settle F = V.Find('@');
+            for (auto&& Document : Current->Nodes)
+            {
+                Stroke V(&Document->Name);
+                Stroke::Settle F = V.Find('@');
 
-				if (F.Found)
-				{
-					const char* Buffer = V.Get() + F.End;
-					while (*Buffer != '\0' && Stroke::IsDigit(*Buffer))
-						Buffer++;
+                if (F.Found)
+                {
+                    const char* Buffer = V.Get() + F.End;
+                    while (*Buffer != '\0' && Stroke::IsDigit(*Buffer))
+                        Buffer++;
 
-					if (*Buffer == '\0')
-						V.Clip(F.End - 1);
-				}
+                    if (*Buffer == '\0')
+                        V.Clip(F.End - 1);
+                }
 
-				ProcessJSONRead(Document);
-			}
+                ProcessJSONRead(Document);
+            }
 
-			return true;
-		}
+            return true;
+        }
 
         Stroke Form(const char* Format, ...)
         {
@@ -5679,11 +5635,11 @@ namespace Tomahawk
                 return Stroke();
 
             va_list Args;
-            va_start(Args, Format);
+                    va_start(Args, Format);
             int Size = vsnprintf(Buffer, sizeof(Buffer), Format, Args);
-            va_end(Args);
+                    va_end(Args);
 
-           return Stroke(Buffer, Size > 16384 ? 16384 : (size_t)Size);
+            return Stroke(Buffer, Size > 16384 ? 16384 : (size_t)Size);
         }
     }
 }

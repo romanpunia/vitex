@@ -79,7 +79,7 @@ namespace Tomahawk
             class OGLReflectionsRenderer : public Engine::Renderers::ReflectionsRenderer
             {
             private:
-                OGLDevice * Device;
+                OGLDevice* Device;
                 OGLElementBuffer* QuadVertex;
                 unsigned int Stride, Offset;
 
@@ -94,7 +94,7 @@ namespace Tomahawk
             class OGLDepthOfFieldRenderer : public Engine::Renderers::DepthOfFieldRenderer
             {
             private:
-                OGLDevice * Device;
+                OGLDevice* Device;
                 OGLElementBuffer* QuadVertex;
                 unsigned int Stride, Offset;
 
@@ -109,7 +109,7 @@ namespace Tomahawk
             class OGLEmissionRenderer : public Engine::Renderers::EmissionRenderer
             {
             private:
-                OGLDevice * Device;
+                OGLDevice* Device;
                 OGLElementBuffer* QuadVertex;
                 unsigned int Stride, Offset;
 
@@ -124,7 +124,7 @@ namespace Tomahawk
             class OGLGlitchRenderer : public Engine::Renderers::GlitchRenderer
             {
             private:
-                OGLDevice * Device;
+                OGLDevice* Device;
                 OGLElementBuffer* QuadVertex;
                 unsigned int Stride, Offset;
 
@@ -139,7 +139,7 @@ namespace Tomahawk
             class OGLAmbientOcclusionRenderer : public Engine::Renderers::AmbientOcclusionRenderer
             {
             private:
-                OGLDevice * Device;
+                OGLDevice* Device;
                 OGLElementBuffer* QuadVertex;
                 unsigned int Stride, Offset;
 
@@ -154,7 +154,7 @@ namespace Tomahawk
             class OGLIndirectOcclusionRenderer : public Engine::Renderers::IndirectOcclusionRenderer
             {
             private:
-                OGLDevice * Device;
+                OGLDevice* Device;
                 OGLElementBuffer* QuadVertex;
                 unsigned int Stride, Offset;
 

@@ -11,9 +11,9 @@ namespace Tomahawk
 {
     namespace Graphics
     {
-	    namespace D3D11
+        namespace D3D11
         {
-	        class D3D11Device;
+            class D3D11Device;
 
             struct D3D11DeviceState : public Graphics::DeviceState
             {
@@ -134,7 +134,7 @@ namespace Tomahawk
             class D3D11Texture3D : public Graphics::Texture3D
             {
             public:
-                ID3D11ShaderResourceView * Resource;
+                ID3D11ShaderResourceView* Resource;
                 ID3D11Texture3D* Rest;
 
             public:
@@ -147,7 +147,7 @@ namespace Tomahawk
             class D3D11TextureCube : public Graphics::TextureCube
             {
             public:
-                ID3D11ShaderResourceView * Resource;
+                ID3D11ShaderResourceView* Resource;
                 ID3D11Texture2D* Rest;
 
             public:
@@ -161,7 +161,7 @@ namespace Tomahawk
             class D3D11RenderTarget2D : public Graphics::RenderTarget2D
             {
             public:
-                ID3D11RenderTargetView * RenderTargetView;
+                ID3D11RenderTargetView* RenderTargetView;
                 ID3D11Texture2D* Texture;
                 ID3D11DepthStencilView* DepthStencilView;
                 D3D11_VIEWPORT Viewport;
@@ -230,7 +230,7 @@ namespace Tomahawk
             class D3D11RenderTargetCube : public Graphics::RenderTargetCube
             {
             public:
-                ID3D11DepthStencilView * DepthStencilView;
+                ID3D11DepthStencilView* DepthStencilView;
                 ID3D11RenderTargetView* RenderTargetView;
                 ID3D11Texture2D* Texture;
                 ID3D11Texture2D* Cube;
@@ -302,7 +302,7 @@ namespace Tomahawk
                 bool SynchronizationState;
 
             public:
-                ID3D11ShaderResourceView * Resource;
+                ID3D11ShaderResourceView* Resource;
 
             public:
                 D3D11InstanceBuffer(Graphics::GraphicsDevice* Device, const Desc& I);
@@ -322,7 +322,7 @@ namespace Tomahawk
                 };
 
             private:
-                ID3DBlob * VertexShaderBlob;
+                ID3DBlob* VertexShaderBlob;
                 ID3D11VertexShader* VertexShader;
                 ID3D11InputLayout* InputLayout;
                 ID3D11Buffer* VertexConstantBuffer;
@@ -351,7 +351,7 @@ namespace Tomahawk
             class D3D11Device : public Graphics::GraphicsDevice
             {
             private:
-                const char* VSP, *PSP, *GSP, *HSP, *DSP, *CSP;
+                const char* VSP, * PSP, * GSP, * HSP, * DSP, * CSP;
 
             public:
                 ID3D11DeviceContext* ImmediateContext;
@@ -413,7 +413,7 @@ namespace Tomahawk
                 char* CompileState(ID3DBlob* Error);
             };
         }
-	}
+    }
 }
 #endif
 #endif

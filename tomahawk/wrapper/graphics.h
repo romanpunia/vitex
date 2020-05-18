@@ -7,10 +7,10 @@ namespace Tomahawk
 {
     namespace Wrapper
     {
-		namespace Graphics
-		{
-			THAWK_OUT void Enable(Script::VMManager* Manager);
-		}
+        namespace Graphics
+        {
+            THAWK_OUT void Enable(Script::VMManager* Manager);
+        }
     }
 }
 #endif

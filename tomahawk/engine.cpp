@@ -10,1979 +10,1891 @@
 
 namespace Tomahawk
 {
-	namespace Engine
-	{
-		bool NMake::Pack(Rest::Document* V, bool Value)
-		{
-			if (!V)
-				return false;
-
-			return V->SetBoolean("[b]", Value) != nullptr;
-		}
-		bool NMake::Pack(Rest::Document* V, int Value)
-		{
-			if (!V)
-				return false;
-
-			return V->SetInteger("[i]", Value) != nullptr;
-		}
-		bool NMake::Pack(Rest::Document* V, unsigned int Value)
-		{
-			if (!V)
-				return false;
-
-			return V->SetInteger("[i]", Value) != nullptr;
-		}
-		bool NMake::Pack(Rest::Document* V, long Value)
-		{
-			if (!V)
-				return false;
-
-			return V->SetInteger("[i]", Value) != nullptr;
-		}
-		bool NMake::Pack(Rest::Document* V, unsigned long Value)
-		{
-			if (!V)
-				return false;
-
-			return V->SetInteger("[i]", Value) != nullptr;
-		}
-		bool NMake::Pack(Rest::Document* V, float Value)
-		{
-			if (!V)
-				return false;
-
-			return V->SetNumber("[n]", Value) != nullptr;
-		}
-		bool NMake::Pack(Rest::Document* V, Float64 Value)
-		{
-			if (!V)
-				return false;
-
-			return V->SetNumber("[n]", Value) != nullptr;
-		}
-		bool NMake::Pack(Rest::Document* V, Int64 Value)
-		{
-			if (!V)
-				return false;
-
-			return V->SetInteger("[i]", Value) != nullptr;
-		}
-		bool NMake::Pack(Rest::Document* V, LFloat64 Value)
-		{
-			if (!V)
-				return false;
-
-			return V->SetDecimal("[d]", std::to_string(Value)) != nullptr;
-		}
-		bool NMake::Pack(Rest::Document* V, UInt64 Value)
-		{
-			if (!V)
-				return false;
-
-			return V->SetInteger("[i]", Value) != nullptr;
-		}
-		bool NMake::Pack(Rest::Document* V, const char* Value)
-		{
-			if (!V || !Value)
-				return false;
-
-			return V->SetString("[s]", Value) != nullptr;
-		}
-		bool NMake::Pack(Rest::Document* V, const Compute::Vector2& Value)
-		{
-			if (!V)
-				return false;
-
-			return
-				V->SetNumber("[x]", Value.X) != nullptr &&
-				V->SetNumber("[y]", Value.Y) != nullptr;
-		}
-		bool NMake::Pack(Rest::Document* V, const Compute::Vector3& Value)
-		{
-			if (!V)
-				return false;
-
-			return
-				V->SetNumber("[x]", Value.X) != nullptr &&
-				V->SetNumber("[y]", Value.Y) != nullptr &&
-				V->SetNumber("[z]", Value.Z) != nullptr;
-		}
-		bool NMake::Pack(Rest::Document* V, const Compute::Vector4& Value)
-		{
-			if (!V)
-				return false;
-
-			return
-				V->SetNumber("[x]", Value.X) != nullptr &&
-				V->SetNumber("[y]", Value.Y) != nullptr &&
-				V->SetNumber("[z]", Value.Z) != nullptr &&
-				V->SetNumber("[w]", Value.W) != nullptr;
-		}
-		bool NMake::Pack(Rest::Document* V, const Compute::Matrix4x4& Value)
-		{
-			if (!V)
-				return false;
-
-			return
-				V->SetNumber("[m11]", Value.Row[0]) != nullptr &&
-				V->SetNumber("[m12]", Value.Row[1]) != nullptr &&
-				V->SetNumber("[m13]", Value.Row[2]) != nullptr &&
-				V->SetNumber("[m14]", Value.Row[3]) != nullptr &&
-				V->SetNumber("[m21]", Value.Row[4]) != nullptr &&
-				V->SetNumber("[m22]", Value.Row[5]) != nullptr &&
-				V->SetNumber("[m23]", Value.Row[6]) != nullptr &&
-				V->SetNumber("[m24]", Value.Row[7]) != nullptr &&
-				V->SetNumber("[m31]", Value.Row[8]) != nullptr &&
-				V->SetNumber("[m32]", Value.Row[9]) != nullptr &&
-				V->SetNumber("[m33]", Value.Row[10]) != nullptr &&
-				V->SetNumber("[m34]", Value.Row[11]) != nullptr &&
-				V->SetNumber("[m41]", Value.Row[12]) != nullptr &&
-				V->SetNumber("[m42]", Value.Row[13]) != nullptr &&
-				V->SetNumber("[m43]", Value.Row[14]) != nullptr &&
-				V->SetNumber("[m44]", Value.Row[15]) != nullptr;
-		}
-		bool NMake::Pack(Rest::Document* V, const AnimatorState& Value)
-		{
-			if (!V)
-				return false;
-
-			return
-				V->SetBoolean("[looped]", Value.Looped) != nullptr &&
-				V->SetBoolean("[paused]", Value.Paused) != nullptr &&
-				V->SetBoolean("[blended]", Value.Blended) != nullptr &&
-				V->SetInteger("[clip]", Value.Clip) != nullptr &&
-				V->SetInteger("[frame]", Value.Frame) != nullptr &&
-				V->SetNumber("[speed]", Value.Speed) != nullptr &&
-				V->SetNumber("[length]", Value.Length) != nullptr &&
-				V->SetNumber("[time]", Value.Time) != nullptr;
-		}
-		bool NMake::Pack(Rest::Document* V, const SpawnerProperties& Value)
-		{
-			if (!V)
-				return false;
-
-			Rest::Document* Angular = V->SetDocument("angular");
-			NMake::Pack(Angular->SetDocument("intensity"), Value.Angular.Intensity);
-			NMake::Pack(Angular->SetDocument("accuracy"), Value.Angular.Accuracy);
-			NMake::Pack(Angular->SetDocument("min"), Value.Angular.Min);
-			NMake::Pack(Angular->SetDocument("max"), Value.Angular.Max);
-
-			Rest::Document* Diffusion = V->SetDocument("diffusion");
-			NMake::Pack(Diffusion->SetDocument("intensity"), Value.Diffusion.Intensity);
-			NMake::Pack(Diffusion->SetDocument("accuracy"), Value.Diffusion.Accuracy);
-			NMake::Pack(Diffusion->SetDocument("min"), Value.Diffusion.Min);
-			NMake::Pack(Diffusion->SetDocument("max"), Value.Diffusion.Max);
-
-			Rest::Document* Noise = V->SetDocument("noise");
-			NMake::Pack(Noise->SetDocument("intensity"), Value.Noise.Intensity);
-			NMake::Pack(Noise->SetDocument("accuracy"), Value.Noise.Accuracy);
-			NMake::Pack(Noise->SetDocument("min"), Value.Noise.Min);
-			NMake::Pack(Noise->SetDocument("max"), Value.Noise.Max);
-
-			Rest::Document* Position = V->SetDocument("position");
-			NMake::Pack(Position->SetDocument("intensity"), Value.Position.Intensity);
-			NMake::Pack(Position->SetDocument("accuracy"), Value.Position.Accuracy);
-			NMake::Pack(Position->SetDocument("min"), Value.Position.Min);
-			NMake::Pack(Position->SetDocument("max"), Value.Position.Max);
-
-			Rest::Document* Rotation = V->SetDocument("rotation");
-			NMake::Pack(Rotation->SetDocument("intensity"), Value.Rotation.Intensity);
-			NMake::Pack(Rotation->SetDocument("accuracy"), Value.Rotation.Accuracy);
-			NMake::Pack(Rotation->SetDocument("min"), Value.Rotation.Min);
-			NMake::Pack(Rotation->SetDocument("max"), Value.Rotation.Max);
-
-			Rest::Document* Scale = V->SetDocument("scale");
-			NMake::Pack(Scale->SetDocument("intensity"), Value.Scale.Intensity);
-			NMake::Pack(Scale->SetDocument("accuracy"), Value.Scale.Accuracy);
-			NMake::Pack(Scale->SetDocument("min"), Value.Scale.Min);
-			NMake::Pack(Scale->SetDocument("max"), Value.Scale.Max);
-
-			Rest::Document* Velocity = V->SetDocument("velocity");
-			NMake::Pack(Velocity->SetDocument("intensity"), Value.Velocity.Intensity);
-			NMake::Pack(Velocity->SetDocument("accuracy"), Value.Velocity.Accuracy);
-			NMake::Pack(Velocity->SetDocument("min"), Value.Velocity.Min);
-			NMake::Pack(Velocity->SetDocument("max"), Value.Velocity.Max);
-
-			return V->SetInteger("[iterations]", Value.Iterations) && Angular && Diffusion && Noise && Position && Rotation && Scale && Velocity;
-		}
-		bool NMake::Pack(Rest::Document* V, const Compute::SkinAnimatorClip& Value)
-		{
-			if (!V)
-				return false;
-
-			NMake::Pack(V->SetDocument("name"), Value.Name);
-			NMake::Pack(V->SetDocument("playing-speed"), Value.PlayingSpeed);
-
-			Rest::Document* Array = V->SetArray("frames");
-			for (auto&& It : Value.Keys)
-				NMake::Pack(Array->SetDocument("frame"), It);
-
-			return true;
-		}
-		bool NMake::Pack(Rest::Document* V, const Compute::KeyAnimatorClip& Value)
-		{
-			if (!V)
-				return false;		
-
-			return
-				NMake::Pack(V->SetDocument("name"), Value.Name) &&
-				NMake::Pack(V->SetDocument("playing-speed"), Value.PlayingSpeed) &&
-				NMake::Pack(V->SetDocument("frames"), Value.Keys);
-		}
-		bool NMake::Pack(Rest::Document* V, const Compute::AnimatorKey& Value)
-		{
-			if (!V)
-				return false;
-
-			return
-				NMake::Pack(V->SetDocument("position"), Value.Position) &&
-				NMake::Pack(V->SetDocument("rotation"), Value.Rotation) &&
-				NMake::Pack(V->SetDocument("scale"), Value.Scale) &&
-				NMake::Pack(V->SetDocument("playing-speed"), Value.PlayingSpeed);
-		}
-		bool NMake::Pack(Rest::Document* V, const Compute::ElementVertex& Value)
-		{
-			if (!V)
-				return false;
-
-			return
-				V->SetNumber("[px]", Value.PositionX) != nullptr &&
-				V->SetNumber("[py]", Value.PositionY) != nullptr &&
-				V->SetNumber("[pz]", Value.PositionZ) != nullptr &&
-				V->SetNumber("[vx]", Value.VelocityX) != nullptr &&
-				V->SetNumber("[vy]", Value.VelocityY) != nullptr &&
-				V->SetNumber("[vz]", Value.VelocityZ) != nullptr &&
-				V->SetNumber("[cx]", Value.ColorX) != nullptr &&
-				V->SetNumber("[cy]", Value.ColorY) != nullptr &&
-				V->SetNumber("[cz]", Value.ColorZ) != nullptr &&
-				V->SetNumber("[cw]", Value.ColorW) != nullptr &&
-				V->SetNumber("[a]", Value.Angular) != nullptr &&
-				V->SetNumber("[s]", Value.Scale) != nullptr &&
-				V->SetNumber("[r]", Value.Rotation) != nullptr;
-		}
-		bool NMake::Pack(Rest::Document* V, const Compute::Vertex& Value)
-		{
-			if (!V)
-				return false;
-
-			return
-				V->SetNumber("[px]", Value.PositionX) != nullptr &&
-				V->SetNumber("[py]", Value.PositionY) != nullptr &&
-				V->SetNumber("[pz]", Value.PositionZ) != nullptr &&
-				V->SetNumber("[tx]", Value.TexCoordX) != nullptr &&
-				V->SetNumber("[ty]", Value.TexCoordY) != nullptr &&
-				V->SetNumber("[nx]", Value.NormalX) != nullptr &&
-				V->SetNumber("[ny]", Value.NormalY) != nullptr &&
-				V->SetNumber("[nz]", Value.NormalZ) != nullptr &&
-				V->SetNumber("[tnx]", Value.TangentX) != nullptr &&
-				V->SetNumber("[tny]", Value.TangentY) != nullptr &&
-				V->SetNumber("[tnz]", Value.TangentZ) != nullptr &&
-				V->SetNumber("[btx]", Value.BitangentX) != nullptr &&
-				V->SetNumber("[bty]", Value.BitangentY) != nullptr &&
-				V->SetNumber("[btz]", Value.BitangentZ) != nullptr;
-		}
-		bool NMake::Pack(Rest::Document* V, const Compute::InfluenceVertex& Value)
-		{
-			if (!V)
-				return false;
-
-			return
-				V->SetNumber("[px]", Value.PositionX) != nullptr &&
-				V->SetNumber("[py]", Value.PositionY) != nullptr &&
-				V->SetNumber("[pz]", Value.PositionZ) != nullptr &&
-				V->SetNumber("[tx]", Value.TexCoordX) != nullptr &&
-				V->SetNumber("[ty]", Value.TexCoordY) != nullptr &&
-				V->SetNumber("[nx]", Value.NormalX) != nullptr &&
-				V->SetNumber("[ny]", Value.NormalY) != nullptr &&
-				V->SetNumber("[nz]", Value.NormalZ) != nullptr &&
-				V->SetNumber("[tnx]", Value.TangentX) != nullptr &&
-				V->SetNumber("[tny]", Value.TangentY) != nullptr &&
-				V->SetNumber("[tnz]", Value.TangentZ) != nullptr &&
-				V->SetNumber("[btx]", Value.BitangentX) != nullptr &&
-				V->SetNumber("[bty]", Value.BitangentY) != nullptr &&
-				V->SetNumber("[btz]", Value.BitangentZ) != nullptr &&
-				V->SetNumber("[ji0]", Value.JointIndex0) != nullptr &&
-				V->SetNumber("[ji1]", Value.JointIndex1) != nullptr &&
-				V->SetNumber("[ji2]", Value.JointIndex2) != nullptr &&
-				V->SetNumber("[ji3]", Value.JointIndex3) != nullptr &&
-				V->SetNumber("[jb0]", Value.JointBias0) != nullptr &&
-				V->SetNumber("[jb1]", Value.JointBias1) != nullptr &&
-				V->SetNumber("[jb2]", Value.JointBias2) != nullptr &&
-				V->SetNumber("[jb3]", Value.JointBias3) != nullptr;
-		}
-		bool NMake::Pack(Rest::Document* V, const Compute::Joint& Value)
-		{
-			if (!V)
-				return false;
-
-			NMake::Pack(V->SetDocument("index"), Value.Index);
-			NMake::Pack(V->SetDocument("name"), Value.Name);
-			NMake::Pack(V->SetDocument("transform"), Value.Transform);
-			NMake::Pack(V->SetDocument("bind-shape"), Value.BindShape);
-
-			Rest::Document* Joints = V->SetArray("childs");
-			for (auto& It : Value.Childs)
-				NMake::Pack(Joints->SetDocument("joint"), It);
-
-			return true;
-		}
-		bool NMake::Pack(Rest::Document* V, const Rest::TickTimer& Value)
-		{
-			if (!V)
-				return false;
-
-			return V->SetInteger("[delay]", Value.Delay) != nullptr;
-		}
-		bool NMake::Pack(Rest::Document* V, const std::string& Value)
-		{
-			if (!V)
-				return false;
-
-			return V->SetString("[s]", Value) != nullptr;
-		}
-		bool NMake::Pack(Rest::Document* V, const std::vector<bool>& Value)
-		{
-			if (!V)
-				return false;
-
-			std::stringstream Stream;
-			for (auto&& It : Value)
-				Stream << It << " ";
-
-			return V->SetString("b-array", Stream.str().substr(0, Stream.str().size() - 1)) && V->SetInteger("[size]", Value.size());
-		}
-		bool NMake::Pack(Rest::Document* V, const std::vector<int>& Value)
-		{
-			if (!V)
-				return false;
-
-			std::stringstream Stream;
-			for (auto&& It : Value)
-				Stream << It << " ";
-
-			return V->SetString("i-array", Stream.str().substr(0, Stream.str().size() - 1)) && V->SetInteger("[size]", Value.size());
-		}
-		bool NMake::Pack(Rest::Document* V, const std::vector<unsigned int>& Value)
-		{
-			if (!V)
-				return false;
-
-			std::stringstream Stream;
-			for (auto&& It : Value)
-				Stream << It << " ";
-
-			return V->SetString("i-array", Stream.str().substr(0, Stream.str().size() - 1)) && V->SetInteger("[size]", Value.size());
-		}
-		bool NMake::Pack(Rest::Document* V, const std::vector<long>& Value)
-		{
-			if (!V)
-				return false;
-
-			std::stringstream Stream;
-			for (auto&& It : Value)
-				Stream << It << " ";
-
-			return V->SetString("i-array", Stream.str().substr(0, Stream.str().size() - 1)) && V->SetInteger("[size]", Value.size());
-		}
-		bool NMake::Pack(Rest::Document* V, const std::vector<unsigned long>& Value)
-		{
-			if (!V)
-				return false;
-
-			std::stringstream Stream;
-			for (auto&& It : Value)
-				Stream << It << " ";
-
-			return V->SetString("i-array", Stream.str().substr(0, Stream.str().size() - 1)) && V->SetInteger("[size]", Value.size());
-		}
-		bool NMake::Pack(Rest::Document* V, const std::vector<float>& Value)
-		{
-			if (!V)
-				return false;
-
-			std::stringstream Stream;
-			for (auto&& It : Value)
-				Stream << It << " ";
-
-			return V->SetString("f-array", Stream.str().substr(0, Stream.str().size() - 1)) && V->SetInteger("[size]", Value.size());
-		}
-		bool NMake::Pack(Rest::Document* V, const std::vector<Float64>& Value)
-		{
-			if (!V)
-				return false;
-
-			std::stringstream Stream;
-			for (auto&& It : Value)
-				Stream << It << " ";
-
-			return V->SetString("f-array", Stream.str().substr(0, Stream.str().size() - 1)) && V->SetInteger("[size]", Value.size());
-		}
-		bool NMake::Pack(Rest::Document* V, const std::vector<Int64>& Value)
-		{
-			if (!V)
-				return false;
-
-			std::stringstream Stream;
-			for (auto&& It : Value)
-				Stream << It << " ";
-
-			return V->SetString("f-array", Stream.str().substr(0, Stream.str().size() - 1)) && V->SetInteger("[size]", Value.size());
-		}
-		bool NMake::Pack(Rest::Document* V, const std::vector<LFloat64>& Value)
-		{
-			if (!V)
-				return false;
-
-			std::stringstream Stream;
-			for (auto&& It : Value)
-				Stream << It << " ";
-
-			return V->SetString("f-array", Stream.str().substr(0, Stream.str().size() - 1)) && V->SetInteger("[size]", Value.size());
-		}
-		bool NMake::Pack(Rest::Document* V, const std::vector<UInt64>& Value)
-		{
-			if (!V)
-				return false;
-
-			std::stringstream Stream;
-			for (auto&& It : Value)
-				Stream << It << " ";
-
-			return V->SetString("i-array", Stream.str().substr(0, Stream.str().size() - 1)) && V->SetInteger("[size]", Value.size());
-		}
-		bool NMake::Pack(Rest::Document* V, const std::vector<Compute::Vector2>& Value)
-		{
-			if (!V)
-				return false;
-
-			std::stringstream Stream;
-			for (auto&& It : Value)
-				Stream << It.X << " " << It.Y << " ";
-
-			return V->SetString("v2-array", Stream.str().substr(0, Stream.str().size() - 1)) && V->SetInteger("[size]", Value.size());
-		}
-		bool NMake::Pack(Rest::Document* V, const std::vector<Compute::Vector3>& Value)
-		{
-			if (!V)
-				return false;
-
-			std::stringstream Stream;
-			for (auto&& It : Value)
-				Stream << It.X << " " << It.Y << " " << It.Z << " ";
-
-			return V->SetString("v3-array", Stream.str().substr(0, Stream.str().size() - 1)) && V->SetInteger("[size]", Value.size());
-		}
-		bool NMake::Pack(Rest::Document* V, const std::vector<Compute::Vector4>& Value)
-		{
-			if (!V)
-				return false;
-
-			std::stringstream Stream;
-			for (auto&& It : Value)
-				Stream << It.X << " " << It.Y << " " << It.Z << " " << It.W << " ";
-
-			return V->SetString("v4-array", Stream.str().substr(0, Stream.str().size() - 1)) && V->SetInteger("[size]", Value.size());
-		}
-		bool NMake::Pack(Rest::Document* V, const std::vector<Compute::Matrix4x4>& Value)
-		{
-			if (!V)
-				return false;
-
-			std::stringstream Stream;
-			for (auto&& It : Value)
-			{
-				for (float i : It.Row)
-					Stream << i << " ";
-			}
-
-			return V->SetString("m4x4-array", Stream.str().substr(0, Stream.str().size() - 1)) && V->SetInteger("[size]", Value.size());
-		}
-		bool NMake::Pack(Rest::Document* V, const std::vector<AnimatorState>& Value)
-		{
-			if (!V)
-				return false;
-
-			std::stringstream Stream;
-			for (auto&& It : Value)
-			{
-				Stream << It.Paused << " ";
-				Stream << It.Looped << " ";
-				Stream << It.Blended << " ";
-				Stream << It.Length << " ";
-				Stream << It.Speed << " ";
-				Stream << It.Time << " ";
-				Stream << It.Frame << " ";
-				Stream << It.Clip << " ";
-			}
-
-			return V->SetString("as-array", Stream.str().substr(0, Stream.str().size() - 1)) && V->SetInteger("[size]", Value.size());
-		}
-		bool NMake::Pack(Rest::Document* V, const std::vector<SpawnerProperties>& Value)
-		{
-			if (!V)
-				return false;
-
-			std::stringstream Stream;
-			for (auto&& It : Value)
-			{
-				Stream << It.Angular.Accuracy << " " << It.Angular.Min << " " << It.Angular.Max << " ";
-				Stream << It.Rotation.Accuracy << " " << It.Rotation.Min << " " << It.Rotation.Max << " ";
-				Stream << It.Scale.Accuracy << " " << It.Scale.Min << " " << It.Scale.Max << " ";
-				Stream << It.Diffusion.Accuracy << " ";
-				Stream << It.Diffusion.Min.X << " " << It.Diffusion.Min.Y << " " << It.Diffusion.Min.Z << " " << It.Diffusion.Min.W << " ";
-				Stream << It.Diffusion.Max.X << " " << It.Diffusion.Max.Y << " " << It.Diffusion.Max.Z << " " << It.Diffusion.Max.W << " ";
-				Stream << It.Noise.Accuracy << " ";
-				Stream << It.Noise.Min.X << " " << It.Noise.Min.Y << " " << It.Noise.Min.Z << " ";
-				Stream << It.Noise.Max.X << " " << It.Noise.Max.Y << " " << It.Noise.Max.Z << " ";
-				Stream << It.Position.Accuracy << " ";
-				Stream << It.Position.Min.X << " " << It.Position.Min.Y << " " << It.Position.Min.Z << " ";
-				Stream << It.Position.Max.X << " " << It.Position.Max.Y << " " << It.Position.Max.Z << " ";
-				Stream << It.Velocity.Accuracy << " ";
-				Stream << It.Velocity.Min.X << " " << It.Velocity.Min.Y << " " << It.Velocity.Min.Z << " ";
-				Stream << It.Velocity.Max.X << " " << It.Velocity.Max.Y << " " << It.Velocity.Max.Z << " ";
-				Stream << It.Iterations << " ";
-			}
-
-			return V->SetString("sp-array", Stream.str().substr(0, Stream.str().size() - 1)) && V->SetInteger("[size]", Value.size());
-		}
-		bool NMake::Pack(Rest::Document* V, const std::vector<Compute::SkinAnimatorClip>& Value)
-		{
-			if (!V)
-				return false;
-
-			Rest::Document* Array = V->SetArray("clips");
-			for (auto&& It : Value)
-				NMake::Pack(V->SetDocument("clip"), It);
-
-			return true;
-		}
-		bool NMake::Pack(Rest::Document* V, const std::vector<Compute::KeyAnimatorClip>& Value)
-		{
-			if (!V)
-				return false;
-
-			Rest::Document* Array = V->SetArray("clips");
-			for (auto&& It : Value)
-				NMake::Pack(V->SetDocument("clip"), It);
-
-			return true;
-		}
-		bool NMake::Pack(Rest::Document* V, const std::vector<Compute::AnimatorKey>& Value)
-		{
-			if (!V)
-				return false;
-
-			std::stringstream Stream;
-			for (auto&& It : Value)
-			{
-				Stream << It.Position.X << " ";
-				Stream << It.Position.Y << " ";
-				Stream << It.Position.Z << " ";
-				Stream << It.Rotation.X << " ";
-				Stream << It.Rotation.Y << " ";
-				Stream << It.Rotation.Z << " ";
-				Stream << It.Scale.X << " ";
-				Stream << It.Scale.Y << " ";
-				Stream << It.Scale.Z << " ";
-				Stream << It.PlayingSpeed << " ";
-			}
-
-			return V->SetString("ak-array", Stream.str().substr(0, Stream.str().size() - 1)) && V->SetInteger("[size]", Value.size());
-		}
-		bool NMake::Pack(Rest::Document* V, const std::vector<Compute::ElementVertex>& Value)
-		{
-			if (!V)
-				return false;
-
-			std::stringstream Stream;
-			for (auto&& It : Value)
-			{
-				Stream << It.PositionX << " ";
-				Stream << It.PositionY << " ";
-				Stream << It.PositionZ << " ";
-				Stream << It.ColorX << " ";
-				Stream << It.ColorY << " ";
-				Stream << It.ColorZ << " ";
-				Stream << It.ColorW << " ";
-				Stream << It.VelocityX << " ";
-				Stream << It.VelocityY << " ";
-				Stream << It.VelocityZ << " ";
-				Stream << It.Angular << " ";
-				Stream << It.Rotation << " ";
-				Stream << It.Scale << " ";
-			}
-
-			return V->SetString("ev-array", Stream.str().substr(0, Stream.str().size() - 1)) && V->SetInteger("[size]", Value.size());
-		}
-		bool NMake::Pack(Rest::Document* V, const std::vector<Compute::Joint>& Value)
-		{
-			if (!V)
-				return false;
-
-			for (auto&& It : Value)
-				NMake::Pack(V->SetDocument("joint"), It);
-			
-			return true;
-		}
-		bool NMake::Pack(Rest::Document* V, const std::vector<Compute::Vertex>& Value)
-		{
-			if (!V)
-				return false;
-
-			std::stringstream Stream;
-			for (auto&& It : Value)
-			{
-				Stream << It.PositionX << " ";
-				Stream << It.PositionY << " ";
-				Stream << It.PositionZ << " ";
-				Stream << It.TexCoordX << " ";
-				Stream << It.TexCoordY << " ";
-				Stream << It.NormalX << " ";
-				Stream << It.NormalY << " ";
-				Stream << It.NormalZ << " ";
-				Stream << It.TangentX << " ";
-				Stream << It.TangentY << " ";
-				Stream << It.TangentZ << " ";
-				Stream << It.BitangentX << " ";
-				Stream << It.BitangentY << " ";
-				Stream << It.BitangentZ << " ";
-				Stream << "-1 -1 -1 -1 0 0 0 0 ";
-			}
-
-			return V->SetString("iv-array", Stream.str().substr(0, Stream.str().size() - 1)) && V->SetInteger("[size]", Value.size());
-		}
-		bool NMake::Pack(Rest::Document* V, const std::vector<Compute::InfluenceVertex>& Value)
-		{
-			if (!V)
-				return false;
-
-			std::stringstream Stream;
-			for (auto&& It : Value)
-			{
-				Stream << It.PositionX << " ";
-				Stream << It.PositionY << " ";
-				Stream << It.PositionZ << " ";
-				Stream << It.TexCoordX << " ";
-				Stream << It.TexCoordY << " ";
-				Stream << It.NormalX << " ";
-				Stream << It.NormalY << " ";
-				Stream << It.NormalZ << " ";
-				Stream << It.TangentX << " ";
-				Stream << It.TangentY << " ";
-				Stream << It.TangentZ << " ";
-				Stream << It.BitangentX << " ";
-				Stream << It.BitangentY << " ";
-				Stream << It.BitangentZ << " ";
-				Stream << It.JointIndex0 << " ";
-				Stream << It.JointIndex1 << " ";
-				Stream << It.JointIndex2 << " ";
-				Stream << It.JointIndex3 << " ";
-				Stream << It.JointBias0 << " ";
-				Stream << It.JointBias1 << " ";
-				Stream << It.JointBias2 << " ";
-				Stream << It.JointBias3 << " ";
-			}
-
-			return V->SetString("iv-array", Stream.str().substr(0, Stream.str().size() - 1)) && V->SetInteger("[size]", Value.size());
-		}
-		bool NMake::Pack(Rest::Document* V, const std::vector<Rest::TickTimer>& Value)
-		{
-			if (!V)
-				return false;
-
-			std::stringstream Stream;
-			for (auto&& It : Value)
-				Stream << It.Delay << " ";
-
-			return V->SetString("tt-array", Stream.str().substr(0, Stream.str().size() - 1)) && V->SetInteger("[size]", Value.size());
-		}
-		bool NMake::Pack(Rest::Document* V, const std::vector<std::string>& Value)
-		{
-			if (!V)
-				return false;
-
-			Rest::Document* A = V->SetArray("s-array");
-			for (auto&& It : Value)
-				A->SetString("s", It);
-
-			return V->SetInteger("[size]", Value.size());
-		}
-		bool NMake::Unpack(Rest::Document* V, bool* O)
-		{
-			if (!V || !O)
-				return false;
-
-			*O = V->GetBoolean("[b]");
-			return true;
-		}
-		bool NMake::Unpack(Rest::Document* V, int* O)
-		{
-			if (!V || !O)
-				return false;
-
-			*O = V->GetInteger("[i]");
-			return true;
-		}
-		bool NMake::Unpack(Rest::Document* V, unsigned int* O)
-		{
-			if (!V || !O)
-				return false;
-
-			*O = V->GetInteger("[i]");
-			return true;
-		}
-		bool NMake::Unpack(Rest::Document* V, long* O)
-		{
-			if (!V || !O)
-				return false;
-
-			*O = V->GetInteger("[i]");
-			return true;
-		}
-		bool NMake::Unpack(Rest::Document* V, unsigned long* O)
-		{
-			if (!V || !O)
-				return false;
-
-			*O = V->GetInteger("[i]");
-			return true;
-		}
-		bool NMake::Unpack(Rest::Document* V, float* O)
-		{
-			if (!V || !O)
-				return false;
-
-			*O = V->GetNumber("[n]");
-			return true;
-		}
-		bool NMake::Unpack(Rest::Document* V, Float64* O)
-		{
-			if (!V || !O)
-				return false;
-
-			*O = V->GetNumber("[n]");
-			return true;
-		}
-		bool NMake::Unpack(Rest::Document* V, LFloat64* O)
-		{
-			if (!V || !O)
-				return false;
-
-			*O = V->GetNumber("[n]");
-			return true;
-		}
-		bool NMake::Unpack(Rest::Document* V, Int64* O)
-		{
-			if (!V || !O)
-				return false;
-
-			*O = V->GetInteger("[i]");
-			return true;
-		}
-		bool NMake::Unpack(Rest::Document* V, UInt64* O)
-		{
-			if (!V || !O)
-				return false;
-
-			*O = V->GetInteger("[i]");
-			return true;
-		}
-		bool NMake::Unpack(Rest::Document* V, Compute::Vector2* O)
-		{
-			if (!V || !O)
-				return false;
-
-			O->X = V->GetNumber("[x]");
-			O->Y = V->GetNumber("[y]");
-			return true;
-		}
-		bool NMake::Unpack(Rest::Document* V, Compute::Vector3* O)
-		{
-			if (!V || !O)
-				return false;
-
-			O->X = V->GetNumber("[x]");
-			O->Y = V->GetNumber("[y]");
-			O->Z = V->GetNumber("[z]");
-			return true;
-		}
-		bool NMake::Unpack(Rest::Document* V, Compute::Vector4* O)
-		{
-			if (!V || !O)
-				return false;
-
-			O->X = V->GetNumber("[x]");
-			O->Y = V->GetNumber("[y]");
-			O->Z = V->GetNumber("[z]");
-			O->W = V->GetNumber("[w]");
-			return true;
-		}
-		bool NMake::Unpack(Rest::Document* V, Compute::Matrix4x4* O)
-		{
-			if (!V || !O)
-				return false;
-
-			O->Row[0] = V->GetNumber("[m11]");
-			O->Row[1] = V->GetNumber("[m12]");
-			O->Row[2] = V->GetNumber("[m13]");
-			O->Row[3] = V->GetNumber("[m14]");
-			O->Row[4] = V->GetNumber("[m21]");
-			O->Row[5] = V->GetNumber("[m22]");
-			O->Row[6] = V->GetNumber("[m23]");
-			O->Row[7] = V->GetNumber("[m24]");
-			O->Row[8] = V->GetNumber("[m31]");
-			O->Row[9] = V->GetNumber("[m32]");
-			O->Row[10] = V->GetNumber("[m33]");
-			O->Row[11] = V->GetNumber("[m34]");
-			O->Row[12] = V->GetNumber("[m41]");
-			O->Row[13] = V->GetNumber("[m42]");
-			O->Row[14] = V->GetNumber("[m43]");
-			O->Row[15] = V->GetNumber("[m44]");
-			return true;
-		}
-		bool NMake::Unpack(Rest::Document* V, AnimatorState* O)
-		{
-			if (!V || !O)
-				return false;
-
-			O->Looped = V->GetBoolean("[looped]");
-			O->Paused = V->GetBoolean("[paused]");
-			O->Blended = V->GetBoolean("[blended]");
-			O->Clip = V->GetInteger("[clip]");
-			O->Frame = V->GetInteger("[frame]");
-			O->Speed = V->GetNumber("[speed]");
-			O->Length = V->GetNumber("[length]");
-			O->Time = V->GetNumber("[time]");
-			return true;
-		}
-		bool NMake::Unpack(Rest::Document* V, SpawnerProperties* O)
-		{
-			if (!V || !O)
-				return false;
-
-			Rest::Document* Angular = V->Get("angular");
-			NMake::Unpack(Angular->Get("intensity"), &O->Angular.Intensity);
-			NMake::Unpack(Angular->Get("accuracy"), &O->Angular.Accuracy);
-			NMake::Unpack(Angular->Get("min"), &O->Angular.Min);
-			NMake::Unpack(Angular->Get("max"), &O->Angular.Max);
-
-			Rest::Document* Diffusion = V->Get("diffusion");
-			NMake::Unpack(Diffusion->Get("intensity"), &O->Diffusion.Intensity);
-			NMake::Unpack(Diffusion->Get("accuracy"), &O->Diffusion.Accuracy);
-			NMake::Unpack(Diffusion->Get("min"), &O->Diffusion.Min);
-			NMake::Unpack(Diffusion->Get("max"), &O->Diffusion.Max);
-
-			Rest::Document* Noise = V->Get("noise");
-			NMake::Unpack(Noise->Get("intensity"), &O->Noise.Intensity);
-			NMake::Unpack(Noise->Get("accuracy"), &O->Noise.Accuracy);
-			NMake::Unpack(Noise->Get("min"), &O->Noise.Min);
-			NMake::Unpack(Noise->Get("max"), &O->Noise.Max);
-
-			Rest::Document* Position = V->Get("position");
-			NMake::Unpack(Position->Get("intensity"), &O->Position.Intensity);
-			NMake::Unpack(Position->Get("accuracy"), &O->Position.Accuracy);
-			NMake::Unpack(Position->Get("min"), &O->Position.Min);
-			NMake::Unpack(Position->Get("max"), &O->Position.Max);
-
-			Rest::Document* Rotation = V->Get("rotation");
-			NMake::Unpack(Rotation->Get("intensity"), &O->Rotation.Intensity);
-			NMake::Unpack(Rotation->Get("accuracy"), &O->Rotation.Accuracy);
-			NMake::Unpack(Rotation->Get("min"), &O->Rotation.Min);
-			NMake::Unpack(Rotation->Get("max"), &O->Rotation.Max);
-
-			Rest::Document* Scale = V->Get("scale");
-			NMake::Unpack(Scale->Get("intensity"), &O->Scale.Intensity);
-			NMake::Unpack(Scale->Get("accuracy"), &O->Scale.Accuracy);
-			NMake::Unpack(Scale->Get("min"), &O->Scale.Min);
-			NMake::Unpack(Scale->Get("max"), &O->Scale.Max);
-
-			Rest::Document* Velocity = V->Get("velocity");
-			NMake::Unpack(Velocity->Get("intensity"), &O->Velocity.Intensity);
-			NMake::Unpack(Velocity->Get("accuracy"), &O->Velocity.Accuracy);
-			NMake::Unpack(Velocity->Get("min"), &O->Velocity.Min);
-			NMake::Unpack(Velocity->Get("max"), &O->Velocity.Max);
-
-			O->Iterations = V->GetInteger("[iterations]");
-			return true;
-		}
-		bool NMake::Unpack(Rest::Document* V, Compute::SkinAnimatorClip* O)
-		{
-			if (!V || !O)
-				return false;
-
-			NMake::Unpack(V->Find("name"), &O->Name);
-			NMake::Unpack(V->Find("playing-speed"), &O->PlayingSpeed);
-
-			std::vector<Rest::Document*> Frames = V->FindCollectionPath("frames.frame", true);
-			for (auto&& It : Frames)
-			{
-				O->Keys.emplace_back();
-				NMake::Unpack(It, &O->Keys.back());
-			}
-
-			return true;
-		}
-		bool NMake::Unpack(Rest::Document* V, Compute::KeyAnimatorClip* O)
-		{
-			if (!V || !O)
-				return false;
-
-			NMake::Unpack(V->Find("name"), &O->Name);
-			NMake::Unpack(V->Find("playing-speed"), &O->PlayingSpeed);
-			NMake::Unpack(V->Find("frames"), &O->Keys);
-			return true;
-		}
-		bool NMake::Unpack(Rest::Document* V, Compute::AnimatorKey* O)
-		{
-			if (!V || !O)
-				return false;
-
-			NMake::Unpack(V->Get("position"), &O->Position);
-			NMake::Unpack(V->Get("rotation"), &O->Rotation);
-			NMake::Unpack(V->Get("scale"), &O->Scale);
-			NMake::Unpack(V->Get("playing-speed"), &O->PlayingSpeed);
-			return true;
-		}
-		bool NMake::Unpack(Rest::Document* V, Compute::Joint* O)
-		{
-			if (!V || !O)
-				return false;
-
-			NMake::Unpack(V->Get("index"), &O->Index);
-			NMake::Unpack(V->Get("name"), &O->Name);
-			NMake::Unpack(V->Get("transform"), &O->Transform);
-			NMake::Unpack(V->Get("bind-shape"), &O->BindShape);
-
-			std::vector<Rest::Document*> Joints = V->FindCollectionPath("childs.joint", true);
-			for (auto& It : Joints)
-			{
-				O->Childs.emplace_back();
-				NMake::Unpack(It, &O->Childs.back());
-			}
-
-			return true;
-		}
-		bool NMake::Unpack(Rest::Document* V, Compute::ElementVertex* O)
-		{
-			if (!V || !O)
-				return false;
-
-			O->PositionX = V->GetNumber("[px]");
-			O->PositionY = V->GetNumber("[py]");
-			O->PositionZ = V->GetNumber("[pz]");
-			O->VelocityX = V->GetNumber("[vx]");
-			O->VelocityY = V->GetNumber("[vy]");
-			O->VelocityZ = V->GetNumber("[vz]");
-			O->ColorX = V->GetNumber("[cx]");
-			O->ColorY = V->GetNumber("[cy]");
-			O->ColorZ = V->GetNumber("[cz]");
-			O->ColorW = V->GetNumber("[cw]");
-			O->Angular = V->GetNumber("[a]");
-			O->Scale = V->GetNumber("[s]");
-			O->Rotation = V->GetNumber("[r]");
-			return true;
-		}
-		bool NMake::Unpack(Rest::Document* V, Compute::Vertex* O)
-		{
-			if (!V || !O)
-				return false;
-
-			O->PositionX = V->GetNumber("[px]");
-			O->PositionY = V->GetNumber("[py]");
-			O->PositionZ = V->GetNumber("[pz]");
-			O->TexCoordX = V->GetNumber("[tx]");
-			O->TexCoordY = V->GetNumber("[ty]");
-			O->NormalX = V->GetNumber("[nx]");
-			O->NormalY = V->GetNumber("[ny]");
-			O->NormalZ = V->GetNumber("[nz]");
-			O->TangentX = V->GetNumber("[tnx]");
-			O->TangentY = V->GetNumber("[tny]");
-			O->TangentZ = V->GetNumber("[tnz]");
-			O->BitangentX = V->GetNumber("[btx]");
-			O->BitangentY = V->GetNumber("[bty]");
-			O->BitangentZ = V->GetNumber("[btz]");
-			return true;
-		}
-		bool NMake::Unpack(Rest::Document* V, Compute::InfluenceVertex* O)
-		{
-			if (!V || !O)
-				return false;
-
-			O->PositionX = V->GetNumber("[px]");
-			O->PositionY = V->GetNumber("[py]");
-			O->PositionZ = V->GetNumber("[pz]");
-			O->TexCoordX = V->GetNumber("[tx]");
-			O->TexCoordY = V->GetNumber("[ty]");
-			O->NormalX = V->GetNumber("[nx]");
-			O->NormalY = V->GetNumber("[ny]");
-			O->NormalZ = V->GetNumber("[nz]");
-			O->TangentX = V->GetNumber("[tnx]");
-			O->TangentY = V->GetNumber("[tny]");
-			O->TangentZ = V->GetNumber("[tnz]");
-			O->BitangentX = V->GetNumber("[btx]");
-			O->BitangentY = V->GetNumber("[bty]");
-			O->BitangentZ = V->GetNumber("[btz]");
-			O->JointIndex0 = V->GetNumber("[ji0]");
-			O->JointIndex1 = V->GetNumber("[ji1]");
-			O->JointIndex2 = V->GetNumber("[ji2]");
-			O->JointIndex3 = V->GetNumber("[ji3]");
-			O->JointBias0 = V->GetNumber("[jb0]");
-			O->JointBias1 = V->GetNumber("[jb1]");
-			O->JointBias2 = V->GetNumber("[jb2]");
-			O->JointBias3 = V->GetNumber("[jb3]");
-			return true;
-		}
-		bool NMake::Unpack(Rest::Document* V, Rest::TickTimer* O)
-		{
-			if (!V || !O)
-				return false;
-
-			O->Delay = V->GetNumber("[delay]");
-			return true;
-		}
-		bool NMake::Unpack(Rest::Document* V, std::string* O)
-		{
-			if (!V || !O)
-				return false;
-
-			*O = V->GetString("[s]");
-			return true;
-		}
-		bool NMake::Unpack(Rest::Document* V, std::vector<bool>* O)
-		{
-			if (!V || !O)
-				return false;
-
-			std::string& Array = V->GetStringBlob("b-array");
-			Int64 Size = V->GetInteger("[size]");
-			if (Array.empty() || !Size)
-				return false;
-
-			std::stringstream Stream(Array);
-			O->resize((size_t)Size);
-
-			for (auto It = O->begin(); It != O->end(); It++)
-			{
-				bool Item;
-				Stream >> Item;
-				*It = Item;
-			}
-
-			return true;
-		}
-		bool NMake::Unpack(Rest::Document* V, std::vector<int>* O)
-		{
-			if (!V || !O)
-				return false;
-
-			std::string& Array = V->GetStringBlob("i-array");
-			Int64 Size = V->GetInteger("[size]");
-			if (Array.empty() || !Size)
-				return false;
-
-			std::stringstream Stream(Array);
-			O->resize((size_t)Size);
-
-			for (auto It = O->begin(); It != O->end(); It++)
-			{
-				int Item;
-				Stream >> Item;
-				*It = Item;
-			}
-
-			return true;
-		}
-		bool NMake::Unpack(Rest::Document* V, std::vector<unsigned int>* O)
-		{
-			if (!V || !O)
-				return false;
-
-			std::string& Array = V->GetStringBlob("i-array");
-			Int64 Size = V->GetInteger("[size]");
-			if (Array.empty() || !Size)
-				return false;
-
-			std::stringstream Stream(Array);
-			O->resize((size_t)Size);
-
-			for (auto It = O->begin(); It != O->end(); It++)
-			{
-				unsigned int Item;
-				Stream >> Item;
-				*It = Item;
-			}
-
-			return true;
-		}
-		bool NMake::Unpack(Rest::Document* V, std::vector<long>* O)
-		{
-			if (!V || !O)
-				return false;
-
-			std::string& Array = V->GetStringBlob("i-array");
-			Int64 Size = V->GetInteger("[size]");
-			if (Array.empty() || !Size)
-				return false;
-
-			std::stringstream Stream(Array);
-			O->resize((size_t)Size);
-
-			for (auto It = O->begin(); It != O->end(); It++)
-			{
-				long Item;
-				Stream >> Item;
-				*It = Item;
-			}
-
-			return true;
-		}
-		bool NMake::Unpack(Rest::Document* V, std::vector<unsigned long>* O)
-		{
-			if (!V || !O)
-				return false;
-
-			std::string& Array = V->GetStringBlob("i-array");
-			Int64 Size = V->GetInteger("[size]");
-			if (Array.empty() || !Size)
-				return false;
-
-			std::stringstream Stream(Array);
-			O->resize((size_t)Size);
-
-			for (auto It = O->begin(); It != O->end(); It++)
-			{
-				unsigned long Item;
-				Stream >> Item;
-				*It = Item;
-			}
-
-			return true;
-		}
-		bool NMake::Unpack(Rest::Document* V, std::vector<float>* O)
-		{
-			if (!V || !O)
-				return false;
-
-			std::string& Array = V->GetStringBlob("f-array");
-			Int64 Size = V->GetInteger("[size]");
-			if (Array.empty() || !Size)
-				return false;
-
-			std::stringstream Stream(Array);
-			O->resize((size_t)Size);
-
-			for (auto It = O->begin(); It != O->end(); It++)
-			{
-				float Item;
-				Stream >> Item;
-				*It = Item;
-			}
-
-			return true;
-		}
-		bool NMake::Unpack(Rest::Document* V, std::vector<Float64>* O)
-		{
-			if (!V || !O)
-				return false;
-
-			std::string& Array = V->GetStringBlob("f-array");
-			Int64 Size = V->GetInteger("[size]");
-			if (Array.empty() || !Size)
-				return false;
-
-			std::stringstream Stream(Array);
-			O->resize((size_t)Size);
-
-			for (auto It = O->begin(); It != O->end(); It++)
-			{
-				Float64 Item;
-				Stream >> Item;
-				*It = Item;
-			}
-
-			return true;
-		}
-		bool NMake::Unpack(Rest::Document* V, std::vector<Int64>* O)
-		{
-			if (!V || !O)
-				return false;
-
-			std::string& Array = V->GetStringBlob("i-array");
-			Int64 Size = V->GetInteger("[size]");
-			if (Array.empty() || !Size)
-				return false;
-
-			std::stringstream Stream(Array);
-			O->resize((size_t)Size);
-
-			for (auto It = O->begin(); It != O->end(); It++)
-			{
-				Int64 Item;
-				Stream >> Item;
-				*It = Item;
-			}
-
-			return true;
-		}
-		bool NMake::Unpack(Rest::Document* V, std::vector<LFloat64>* O)
-		{
-			if (!V || !O)
-				return false;
-
-			std::string& Array = V->GetStringBlob("f-array");
-			Int64 Size = V->GetInteger("[size]");
-			if (Array.empty() || !Size)
-				return false;
-
-			std::stringstream Stream(Array);
-			O->resize((size_t)Size);
-
-			for (auto It = O->begin(); It != O->end(); It++)
-			{
-				LFloat64 Item;
-				Stream >> Item;
-				*It = Item;
-			}
-
-			return true;
-		}
-		bool NMake::Unpack(Rest::Document* V, std::vector<UInt64>* O)
-		{
-			if (!V || !O)
-				return false;
-
-			std::string& Array = V->GetStringBlob("i-array");
-			Int64 Size = V->GetInteger("[size]");
-			if (Array.empty() || !Size)
-				return false;
-
-			std::stringstream Stream(Array);
-			O->resize((size_t)Size);
-
-			for (auto It = O->begin(); It != O->end(); It++)
-			{
-				UInt64 Item;
-				Stream >> Item;
-				*It = Item;
-			}
-
-			return true;
-		}
-		bool NMake::Unpack(Rest::Document* V, std::vector<Compute::Vector2>* O)
-		{
-			if (!V || !O)
-				return false;
-
-			std::string& Array = V->GetStringBlob("v2-array");
-			Int64 Size = V->GetInteger("[size]");
-			if (Array.empty() || !Size)
-				return false;
-
-			std::stringstream Stream(Array);
-			O->resize((size_t)Size);
-
-			for (auto & It : *O)
-				Stream >> It.X >> It.Y;
-
-			return true;
-		}
-		bool NMake::Unpack(Rest::Document* V, std::vector<Compute::Vector3>* O)
-		{
-			if (!V || !O)
-				return false;
-
-			std::string& Array = V->GetStringBlob("v3-array");
-			Int64 Size = V->GetInteger("[size]");
-			if (Array.empty() || !Size)
-				return false;
-
-			std::stringstream Stream(Array);
-			O->resize((size_t)Size);
-
-			for (auto & It : *O)
-				Stream >> It.X >> It.Y >> It.Z;
-
-			return true;
-		}
-		bool NMake::Unpack(Rest::Document* V, std::vector<Compute::Vector4>* O)
-		{
-			if (!V || !O)
-				return false;
-
-			std::string& Array = V->GetStringBlob("v4-array");
-			Int64 Size = V->GetInteger("[size]");
-			if (Array.empty() || !Size)
-				return false;
-
-			std::stringstream Stream(Array);
-			O->resize((size_t)Size);
-
-			for (auto & It : *O)
-				Stream >> It.X >> It.Y >> It.Z >> It.W;
-
-			return true;
-		}
-		bool NMake::Unpack(Rest::Document* V, std::vector<Compute::Matrix4x4>* O)
-		{
-			if (!V || !O)
-				return false;
-
-			std::string& Array = V->GetStringBlob("m4x4-array");
-			Int64 Size = V->GetInteger("[size]");
-			if (Array.empty() || !Size)
-				return false;
-
-			std::stringstream Stream(Array);
-			O->resize((size_t)Size);
-
-			for (auto & It : *O)
-			{
-				for (Int64 i = 0; i < 16; i++)
-					Stream >> It.Row[i];
-			}
-
-			return true;
-		}
-		bool NMake::Unpack(Rest::Document* V, std::vector<AnimatorState>* O)
-		{
-			if (!V || !O)
-				return false;
-
-			std::string& Array = V->GetStringBlob("as-array");
-			Int64 Size = V->GetInteger("[size]");
-			if (Array.empty() || !Size)
-				return false;
-
-			std::stringstream Stream(Array);
-			O->resize((size_t)Size);
-
-			for (auto & It : *O)
-			{
-				Stream >> It.Paused;
-				Stream >> It.Looped;
-				Stream >> It.Blended;
-				Stream >> It.Length;
-				Stream >> It.Speed;
-				Stream >> It.Time;
-				Stream >> It.Frame;
-				Stream >> It.Clip;
-			}
-
-			return true;
-		}
-		bool NMake::Unpack(Rest::Document* V, std::vector<SpawnerProperties>* O)
-		{
-			if (!V || !O)
-				return false;
-
-			std::string& Array = V->GetStringBlob("sp-array");
-			Int64 Size = V->GetInteger("[size]");
-			if (Array.empty() || !Size)
-				return false;
-
-			std::stringstream Stream(Array);
-			O->resize((size_t)Size);
-
-			for (auto & It : *O)
-			{
-				Stream >> It.Angular.Accuracy >> It.Angular.Min >> It.Angular.Max;
-				Stream >> It.Rotation.Accuracy >> It.Rotation.Min >> It.Rotation.Max;
-				Stream >> It.Scale.Accuracy >> It.Scale.Min >> It.Scale.Max;
-				Stream >> It.Diffusion.Accuracy;
-				Stream >> It.Diffusion.Min.X >> It.Diffusion.Min.Y >> It.Diffusion.Min.Z >> It.Diffusion.Min.W;
-				Stream >> It.Diffusion.Max.X >> It.Diffusion.Max.Y >> It.Diffusion.Max.Z >> It.Diffusion.Max.W;
-				Stream >> It.Noise.Accuracy;
-				Stream >> It.Noise.Min.X >> It.Noise.Min.Y >> It.Noise.Min.Z;
-				Stream >> It.Noise.Max.X >> It.Noise.Max.Y >> It.Noise.Max.Z;
-				Stream >> It.Position.Accuracy;
-				Stream >> It.Position.Min.X >> It.Position.Min.Y >> It.Position.Min.Z;
-				Stream >> It.Position.Max.X >> It.Position.Max.Y >> It.Position.Max.Z;
-				Stream >> It.Velocity.Accuracy;
-				Stream >> It.Velocity.Min.X >> It.Velocity.Min.Y >> It.Velocity.Min.Z;
-				Stream >> It.Velocity.Max.X >> It.Velocity.Max.Y >> It.Velocity.Max.Z;
-				Stream >> It.Iterations;
-			}
-
-			return true;
-		}
-		bool NMake::Unpack(Rest::Document* V, std::vector<Compute::SkinAnimatorClip>* O)
-		{
-			if (!V || !O)
-				return false;
-
-			std::vector<Rest::Document*> Frames = V->FindCollectionPath("clips.clip", true);
-			for (auto&& It : Frames)
-			{
-				O->push_back(Compute::SkinAnimatorClip());
-				NMake::Unpack(It, &O->back());
-			}
-
-			return true;
-		}
-		bool NMake::Unpack(Rest::Document* V, std::vector<Compute::KeyAnimatorClip>* O)
-		{
-			if (!V || !O)
-				return false;
-
-			std::vector<Rest::Document*> Frames = V->FindCollectionPath("clips.clip", true);
-			for (auto&& It : Frames)
-			{
-				O->push_back(Compute::KeyAnimatorClip());
-				NMake::Unpack(It, &O->back());
-			}
-
-			return true;
-		}
-		bool NMake::Unpack(Rest::Document* V, std::vector<Compute::AnimatorKey>* O)
-		{
-			if (!V || !O)
-				return false;
-
-			std::string& Array = V->GetStringBlob("ak-array");
-			Int64 Size = V->GetInteger("[size]");
-			if (Array.empty() || !Size)
-				return false;
-
-			std::stringstream Stream(Array);
-			O->resize((size_t)Size);
-
-			for (auto & It : *O)
-			{
-				Stream >> It.Position.X >> It.Position.Y >> It.Position.Z >> It.Rotation.X >> It.Rotation.Y >> It.Rotation.Z;
-				Stream >> It.Scale.X >> It.Scale.Y >> It.Scale.Z >> It.PlayingSpeed;
-			}
-
-			return true;
-		}
-		bool NMake::Unpack(Rest::Document* V, std::vector<Compute::ElementVertex>* O)
-		{
-			if (!V || !O)
-				return false;
-
-			std::string& Array = V->GetStringBlob("ev-array");
-			Int64 Size = V->GetInteger("[size]");
-			if (Array.empty() || !Size)
-				return false;
-
-			std::stringstream Stream(Array);
-			O->resize((size_t)Size);
-
-			for (auto & It : *O)
-			{
-				Stream >> It.PositionX;
-				Stream >> It.PositionY;
-				Stream >> It.PositionZ;
-				Stream >> It.ColorX;
-				Stream >> It.ColorY;
-				Stream >> It.ColorZ;
-				Stream >> It.ColorW;
-				Stream >> It.VelocityX;
-				Stream >> It.VelocityY;
-				Stream >> It.VelocityZ;
-				Stream >> It.Angular;
-				Stream >> It.Rotation;
-				Stream >> It.Scale;
-			}
-
-			return true;
-		}
-		bool NMake::Unpack(Rest::Document* V, std::vector<Compute::Joint>* O)
-		{
-			if (!V || !O)
-				return false;
-
-			O->reserve(V->GetNodes()->size());
-			for (auto&& It : *V->GetNodes())
-			{
-				O->push_back(Compute::Joint());
-				NMake::Unpack(It, &O->back());
-			}
-
-			return true;
-		}
-		bool NMake::Unpack(Rest::Document* V, std::vector<Compute::Vertex>* O)
-		{
-			if (!V || !O)
-				return false;
-
-			std::string& Array = V->GetStringBlob("iv-array");
-			Int64 Size = V->GetInteger("[size]");
-			if (Array.empty() || !Size)
-				return false;
-
-			std::stringstream Stream(Array);
-			O->resize((size_t)Size);
-
-			float Dummy;
-			for (auto & It : *O)
-			{
-				Stream >> It.PositionX;
-				Stream >> It.PositionY;
-				Stream >> It.PositionZ;
-				Stream >> It.TexCoordX;
-				Stream >> It.TexCoordY;
-				Stream >> It.NormalX;
-				Stream >> It.NormalY;
-				Stream >> It.NormalZ;
-				Stream >> It.TangentX;
-				Stream >> It.TangentY;
-				Stream >> It.TangentZ;
-				Stream >> It.BitangentX;
-				Stream >> It.BitangentY;
-				Stream >> It.BitangentZ;
-				Stream >> Dummy;
-				Stream >> Dummy;
-				Stream >> Dummy;
-				Stream >> Dummy;
-				Stream >> Dummy;
-				Stream >> Dummy;
-				Stream >> Dummy;
-				Stream >> Dummy;
-			}
-
-			return true;
-		}
-		bool NMake::Unpack(Rest::Document* V, std::vector<Compute::InfluenceVertex>* O)
-		{
-			if (!V || !O)
-				return false;
-
-			std::string& Array = V->GetStringBlob("iv-array");
-			Int64 Size = V->GetInteger("[size]");
-			if (Array.empty() || !Size)
-				return false;
-
-			std::stringstream Stream(Array);
-			O->resize((size_t)Size);
-
-			for (auto & It : *O)
-			{
-				Stream >> It.PositionX;
-				Stream >> It.PositionY;
-				Stream >> It.PositionZ;
-				Stream >> It.TexCoordX;
-				Stream >> It.TexCoordY;
-				Stream >> It.NormalX;
-				Stream >> It.NormalY;
-				Stream >> It.NormalZ;
-				Stream >> It.TangentX;
-				Stream >> It.TangentY;
-				Stream >> It.TangentZ;
-				Stream >> It.BitangentX;
-				Stream >> It.BitangentY;
-				Stream >> It.BitangentZ;
-				Stream >> It.JointIndex0;
-				Stream >> It.JointIndex1;
-				Stream >> It.JointIndex2;
-				Stream >> It.JointIndex3;
-				Stream >> It.JointBias0;
-				Stream >> It.JointBias1;
-				Stream >> It.JointBias2;
-				Stream >> It.JointBias3;
-			}
-
-			return true;
-		}
-		bool NMake::Unpack(Rest::Document* V, std::vector<Rest::TickTimer>* O)
-		{
-			if (!V || !O)
-				return false;
-
-			std::string& Array = V->GetStringBlob("tt-array");
-			Int64 Size = V->GetInteger("[size]");
-			if (Array.empty() || !Size)
-				return false;
-
-			std::stringstream Stream(Array);
-			O->resize((size_t)Size);
-
-			for (auto & It : *O)
-				Stream >> It.Delay;
-
-			return true;
-		}
-		bool NMake::Unpack(Rest::Document* V, std::vector<std::string>* O)
-		{
-			if (!V || !O)
-				return false;
-
-			Rest::Document* Array = V->Get("tt-array");
-			Int64 Size = V->GetInteger("[size]");
-			if (!Array || !Size)
-				return false;
-
-			O->reserve((size_t)Size);
-			for (auto&& It : *Array->GetNodes())
-			{
-				if (It->Name == "s" && It->Type == Rest::NodeType_String)
-					O->push_back(It->String);
-			}
-
-			return true;
-		}
-
-		ContentKey::ContentKey() : Type(ContentType_Null), Integer(0), Number(0), Boolean(false), Pointer(nullptr)
-		{
-		}
-		ContentKey::ContentKey(const std::string& Value) : Type(ContentType_String), Integer(0), Number(0), Boolean(false), Pointer(nullptr), String(Value)
-		{
-		}
-		ContentKey::ContentKey(Int64 Value) : Type(ContentType_Integer), Integer(Value), Number((Float64)Value), Boolean(false), Pointer(nullptr)
-		{
-		}
-		ContentKey::ContentKey(Float64 Value) : Type(ContentType_Number), Integer((Int64)Value), Number(Value), Boolean(false), Pointer(nullptr)
-		{
-		}
-		ContentKey::ContentKey(bool Value) : Type(ContentType_Boolean), Integer(0), Number(0), Boolean(Value), Pointer(nullptr)
-		{
-		}
-		ContentKey::ContentKey(void* Value) : Type(ContentType_Pointer), Integer(0), Number(0), Boolean(false), Pointer(Value)
-		{
-			if (!Pointer)
-				Type = ContentType_Null;
-		}
-
-		ContentArgs::ContentArgs(ContentMap* Map) : Args(Map)
-		{
-		}
-		bool ContentArgs::Is(const std::string& Name, const ContentKey& Value)
-		{
-			ContentKey* V = Get(Name);
-			if (!V || V->Type != Value.Type)
-				return false;
-
-			switch (V->Type)
-			{
-				case ContentType_Null:
-					return true;
-				case ContentType_String:
-					return V->String == Value.String;
-				case ContentType_Integer:
-					return V->Integer == Value.Integer;
-				case ContentType_Number:
-					return V->Number == Value.Number;
-				case ContentType_Boolean:
-					return V->Boolean == Value.Boolean;
-				case ContentType_Pointer:
-					return V->Pointer == Value.Pointer;
-			}
-
-			return false;
-		}
-		ContentKey* ContentArgs::Get(const std::string& Name)
-		{
-			if (!Args)
-				return nullptr;
-
-			auto It = Args->find(Name);
-			if (It == Args->end())
-				return nullptr;
-
-			return &It->second;
-		}
-		ContentKey* ContentArgs::Get(const std::string& Name, ContentType Type)
-		{
-			ContentKey* V = Get(Name);
-			if (!V || V->Type != Type)
-				return nullptr;
-
-			return V;
-		}
-
-		FileProcessor::FileProcessor(ContentManager* NewContent) : Content(NewContent)
-		{
-		}
-		FileProcessor::~FileProcessor()
-		{
-		}
-		void FileProcessor::Free(AssetResource* Asset)
-		{
-		}
-		void* FileProcessor::Duplicate(AssetResource* Asset, ContentArgs* Args)
-		{
-			return nullptr;
-		}
-		void* FileProcessor::Load(Rest::FileStream* Stream, UInt64 Length, UInt64 Offset, ContentArgs* Args)
-		{
-			return nullptr;
-		}
-		bool FileProcessor::Save(Rest::FileStream* Stream, void* Object, ContentArgs* Args)
-		{
-			return false;
-		}
-        ContentManager* FileProcessor::GetContent()
+    namespace Engine
+    {
+        bool NMake::Pack(Rest::Document* V, bool Value)
         {
-		    return Content;
+            if (!V)
+                return false;
+
+            return V->SetBoolean("[b]", Value) != nullptr;
+        }
+        bool NMake::Pack(Rest::Document* V, int Value)
+        {
+            if (!V)
+                return false;
+
+            return V->SetInteger("[i]", Value) != nullptr;
+        }
+        bool NMake::Pack(Rest::Document* V, unsigned int Value)
+        {
+            if (!V)
+                return false;
+
+            return V->SetInteger("[i]", Value) != nullptr;
+        }
+        bool NMake::Pack(Rest::Document* V, long Value)
+        {
+            if (!V)
+                return false;
+
+            return V->SetInteger("[i]", Value) != nullptr;
+        }
+        bool NMake::Pack(Rest::Document* V, unsigned long Value)
+        {
+            if (!V)
+                return false;
+
+            return V->SetInteger("[i]", Value) != nullptr;
+        }
+        bool NMake::Pack(Rest::Document* V, float Value)
+        {
+            if (!V)
+                return false;
+
+            return V->SetNumber("[n]", Value) != nullptr;
+        }
+        bool NMake::Pack(Rest::Document* V, Float64 Value)
+        {
+            if (!V)
+                return false;
+
+            return V->SetNumber("[n]", Value) != nullptr;
+        }
+        bool NMake::Pack(Rest::Document* V, Int64 Value)
+        {
+            if (!V)
+                return false;
+
+            return V->SetInteger("[i]", Value) != nullptr;
+        }
+        bool NMake::Pack(Rest::Document* V, LFloat64 Value)
+        {
+            if (!V)
+                return false;
+
+            return V->SetDecimal("[d]", std::to_string(Value)) != nullptr;
+        }
+        bool NMake::Pack(Rest::Document* V, UInt64 Value)
+        {
+            if (!V)
+                return false;
+
+            return V->SetInteger("[i]", Value) != nullptr;
+        }
+        bool NMake::Pack(Rest::Document* V, const char* Value)
+        {
+            if (!V || !Value)
+                return false;
+
+            return V->SetString("[s]", Value) != nullptr;
+        }
+        bool NMake::Pack(Rest::Document* V, const Compute::Vector2& Value)
+        {
+            if (!V)
+                return false;
+
+            return V->SetNumber("[x]", Value.X) != nullptr && V->SetNumber("[y]", Value.Y) != nullptr;
+        }
+        bool NMake::Pack(Rest::Document* V, const Compute::Vector3& Value)
+        {
+            if (!V)
+                return false;
+
+            return V->SetNumber("[x]", Value.X) != nullptr && V->SetNumber("[y]", Value.Y) != nullptr && V->SetNumber("[z]", Value.Z) != nullptr;
+        }
+        bool NMake::Pack(Rest::Document* V, const Compute::Vector4& Value)
+        {
+            if (!V)
+                return false;
+
+            return V->SetNumber("[x]", Value.X) != nullptr && V->SetNumber("[y]", Value.Y) != nullptr && V->SetNumber("[z]", Value.Z) != nullptr && V->SetNumber("[w]", Value.W) != nullptr;
+        }
+        bool NMake::Pack(Rest::Document* V, const Compute::Matrix4x4& Value)
+        {
+            if (!V)
+                return false;
+
+            return V->SetNumber("[m11]", Value.Row[0]) != nullptr && V->SetNumber("[m12]", Value.Row[1]) != nullptr && V->SetNumber("[m13]", Value.Row[2]) != nullptr && V->SetNumber("[m14]", Value.Row[3]) != nullptr && V->SetNumber("[m21]", Value.Row[4]) != nullptr && V->SetNumber("[m22]", Value.Row[5]) != nullptr && V->SetNumber("[m23]", Value.Row[6]) != nullptr && V->SetNumber("[m24]", Value.Row[7]) != nullptr && V->SetNumber("[m31]", Value.Row[8]) != nullptr && V->SetNumber("[m32]", Value.Row[9]) != nullptr && V->SetNumber("[m33]", Value.Row[10]) != nullptr && V->SetNumber("[m34]", Value.Row[11]) != nullptr && V->SetNumber("[m41]", Value.Row[12]) != nullptr && V->SetNumber("[m42]", Value.Row[13]) != nullptr && V->SetNumber("[m43]", Value.Row[14]) != nullptr && V->SetNumber("[m44]", Value.Row[15]) != nullptr;
+        }
+        bool NMake::Pack(Rest::Document* V, const AnimatorState& Value)
+        {
+            if (!V)
+                return false;
+
+            return V->SetBoolean("[looped]", Value.Looped) != nullptr && V->SetBoolean("[paused]", Value.Paused) != nullptr && V->SetBoolean("[blended]", Value.Blended) != nullptr && V->SetInteger("[clip]", Value.Clip) != nullptr && V->SetInteger("[frame]", Value.Frame) != nullptr && V->SetNumber("[speed]", Value.Speed) != nullptr && V->SetNumber("[length]", Value.Length) != nullptr && V->SetNumber("[time]", Value.Time) != nullptr;
+        }
+        bool NMake::Pack(Rest::Document* V, const SpawnerProperties& Value)
+        {
+            if (!V)
+                return false;
+
+            Rest::Document* Angular = V->SetDocument("angular");
+            NMake::Pack(Angular->SetDocument("intensity"), Value.Angular.Intensity);
+            NMake::Pack(Angular->SetDocument("accuracy"), Value.Angular.Accuracy);
+            NMake::Pack(Angular->SetDocument("min"), Value.Angular.Min);
+            NMake::Pack(Angular->SetDocument("max"), Value.Angular.Max);
+
+            Rest::Document* Diffusion = V->SetDocument("diffusion");
+            NMake::Pack(Diffusion->SetDocument("intensity"), Value.Diffusion.Intensity);
+            NMake::Pack(Diffusion->SetDocument("accuracy"), Value.Diffusion.Accuracy);
+            NMake::Pack(Diffusion->SetDocument("min"), Value.Diffusion.Min);
+            NMake::Pack(Diffusion->SetDocument("max"), Value.Diffusion.Max);
+
+            Rest::Document* Noise = V->SetDocument("noise");
+            NMake::Pack(Noise->SetDocument("intensity"), Value.Noise.Intensity);
+            NMake::Pack(Noise->SetDocument("accuracy"), Value.Noise.Accuracy);
+            NMake::Pack(Noise->SetDocument("min"), Value.Noise.Min);
+            NMake::Pack(Noise->SetDocument("max"), Value.Noise.Max);
+
+            Rest::Document* Position = V->SetDocument("position");
+            NMake::Pack(Position->SetDocument("intensity"), Value.Position.Intensity);
+            NMake::Pack(Position->SetDocument("accuracy"), Value.Position.Accuracy);
+            NMake::Pack(Position->SetDocument("min"), Value.Position.Min);
+            NMake::Pack(Position->SetDocument("max"), Value.Position.Max);
+
+            Rest::Document* Rotation = V->SetDocument("rotation");
+            NMake::Pack(Rotation->SetDocument("intensity"), Value.Rotation.Intensity);
+            NMake::Pack(Rotation->SetDocument("accuracy"), Value.Rotation.Accuracy);
+            NMake::Pack(Rotation->SetDocument("min"), Value.Rotation.Min);
+            NMake::Pack(Rotation->SetDocument("max"), Value.Rotation.Max);
+
+            Rest::Document* Scale = V->SetDocument("scale");
+            NMake::Pack(Scale->SetDocument("intensity"), Value.Scale.Intensity);
+            NMake::Pack(Scale->SetDocument("accuracy"), Value.Scale.Accuracy);
+            NMake::Pack(Scale->SetDocument("min"), Value.Scale.Min);
+            NMake::Pack(Scale->SetDocument("max"), Value.Scale.Max);
+
+            Rest::Document* Velocity = V->SetDocument("velocity");
+            NMake::Pack(Velocity->SetDocument("intensity"), Value.Velocity.Intensity);
+            NMake::Pack(Velocity->SetDocument("accuracy"), Value.Velocity.Accuracy);
+            NMake::Pack(Velocity->SetDocument("min"), Value.Velocity.Min);
+            NMake::Pack(Velocity->SetDocument("max"), Value.Velocity.Max);
+
+            return V->SetInteger("[iterations]", Value.Iterations) && Angular && Diffusion && Noise && Position && Rotation && Scale && Velocity;
+        }
+        bool NMake::Pack(Rest::Document* V, const Compute::SkinAnimatorClip& Value)
+        {
+            if (!V)
+                return false;
+
+            NMake::Pack(V->SetDocument("name"), Value.Name);
+            NMake::Pack(V->SetDocument("playing-speed"), Value.PlayingSpeed);
+
+            Rest::Document* Array = V->SetArray("frames");
+            for (auto&& It : Value.Keys)
+                NMake::Pack(Array->SetDocument("frame"), It);
+
+            return true;
+        }
+        bool NMake::Pack(Rest::Document* V, const Compute::KeyAnimatorClip& Value)
+        {
+            if (!V)
+                return false;
+
+            return NMake::Pack(V->SetDocument("name"), Value.Name) && NMake::Pack(V->SetDocument("playing-speed"), Value.PlayingSpeed) && NMake::Pack(V->SetDocument("frames"), Value.Keys);
+        }
+        bool NMake::Pack(Rest::Document* V, const Compute::AnimatorKey& Value)
+        {
+            if (!V)
+                return false;
+
+            return NMake::Pack(V->SetDocument("position"), Value.Position) && NMake::Pack(V->SetDocument("rotation"), Value.Rotation) && NMake::Pack(V->SetDocument("scale"), Value.Scale) && NMake::Pack(V->SetDocument("playing-speed"), Value.PlayingSpeed);
+        }
+        bool NMake::Pack(Rest::Document* V, const Compute::ElementVertex& Value)
+        {
+            if (!V)
+                return false;
+
+            return V->SetNumber("[px]", Value.PositionX) != nullptr && V->SetNumber("[py]", Value.PositionY) != nullptr && V->SetNumber("[pz]", Value.PositionZ) != nullptr && V->SetNumber("[vx]", Value.VelocityX) != nullptr && V->SetNumber("[vy]", Value.VelocityY) != nullptr && V->SetNumber("[vz]", Value.VelocityZ) != nullptr && V->SetNumber("[cx]", Value.ColorX) != nullptr && V->SetNumber("[cy]", Value.ColorY) != nullptr && V->SetNumber("[cz]", Value.ColorZ) != nullptr && V->SetNumber("[cw]", Value.ColorW) != nullptr && V->SetNumber("[a]", Value.Angular) != nullptr && V->SetNumber("[s]", Value.Scale) != nullptr && V->SetNumber("[r]", Value.Rotation) != nullptr;
+        }
+        bool NMake::Pack(Rest::Document* V, const Compute::Vertex& Value)
+        {
+            if (!V)
+                return false;
+
+            return V->SetNumber("[px]", Value.PositionX) != nullptr && V->SetNumber("[py]", Value.PositionY) != nullptr && V->SetNumber("[pz]", Value.PositionZ) != nullptr && V->SetNumber("[tx]", Value.TexCoordX) != nullptr && V->SetNumber("[ty]", Value.TexCoordY) != nullptr && V->SetNumber("[nx]", Value.NormalX) != nullptr && V->SetNumber("[ny]", Value.NormalY) != nullptr && V->SetNumber("[nz]", Value.NormalZ) != nullptr && V->SetNumber("[tnx]", Value.TangentX) != nullptr && V->SetNumber("[tny]", Value.TangentY) != nullptr && V->SetNumber("[tnz]", Value.TangentZ) != nullptr && V->SetNumber("[btx]", Value.BitangentX) != nullptr && V->SetNumber("[bty]", Value.BitangentY) != nullptr && V->SetNumber("[btz]", Value.BitangentZ) != nullptr;
+        }
+        bool NMake::Pack(Rest::Document* V, const Compute::InfluenceVertex& Value)
+        {
+            if (!V)
+                return false;
+
+            return V->SetNumber("[px]", Value.PositionX) != nullptr && V->SetNumber("[py]", Value.PositionY) != nullptr && V->SetNumber("[pz]", Value.PositionZ) != nullptr && V->SetNumber("[tx]", Value.TexCoordX) != nullptr && V->SetNumber("[ty]", Value.TexCoordY) != nullptr && V->SetNumber("[nx]", Value.NormalX) != nullptr && V->SetNumber("[ny]", Value.NormalY) != nullptr && V->SetNumber("[nz]", Value.NormalZ) != nullptr && V->SetNumber("[tnx]", Value.TangentX) != nullptr && V->SetNumber("[tny]", Value.TangentY) != nullptr && V->SetNumber("[tnz]", Value.TangentZ) != nullptr && V->SetNumber("[btx]", Value.BitangentX) != nullptr && V->SetNumber("[bty]", Value.BitangentY) != nullptr && V->SetNumber("[btz]", Value.BitangentZ) != nullptr && V->SetNumber("[ji0]", Value.JointIndex0) != nullptr && V->SetNumber("[ji1]", Value.JointIndex1) != nullptr && V->SetNumber("[ji2]", Value.JointIndex2) != nullptr && V->SetNumber("[ji3]", Value.JointIndex3) != nullptr && V->SetNumber("[jb0]", Value.JointBias0) != nullptr && V->SetNumber("[jb1]", Value.JointBias1) != nullptr && V->SetNumber("[jb2]", Value.JointBias2) != nullptr && V->SetNumber("[jb3]", Value.JointBias3) != nullptr;
+        }
+        bool NMake::Pack(Rest::Document* V, const Compute::Joint& Value)
+        {
+            if (!V)
+                return false;
+
+            NMake::Pack(V->SetDocument("index"), Value.Index);
+            NMake::Pack(V->SetDocument("name"), Value.Name);
+            NMake::Pack(V->SetDocument("transform"), Value.Transform);
+            NMake::Pack(V->SetDocument("bind-shape"), Value.BindShape);
+
+            Rest::Document* Joints = V->SetArray("childs");
+            for (auto& It : Value.Childs)
+                NMake::Pack(Joints->SetDocument("joint"), It);
+
+            return true;
+        }
+        bool NMake::Pack(Rest::Document* V, const Rest::TickTimer& Value)
+        {
+            if (!V)
+                return false;
+
+            return V->SetInteger("[delay]", Value.Delay) != nullptr;
+        }
+        bool NMake::Pack(Rest::Document* V, const std::string& Value)
+        {
+            if (!V)
+                return false;
+
+            return V->SetString("[s]", Value) != nullptr;
+        }
+        bool NMake::Pack(Rest::Document* V, const std::vector<bool>& Value)
+        {
+            if (!V)
+                return false;
+
+            std::stringstream Stream;
+            for (auto&& It : Value)
+                Stream << It << " ";
+
+            return V->SetString("b-array", Stream.str().substr(0, Stream.str().size() - 1)) && V->SetInteger("[size]", Value.size());
+        }
+        bool NMake::Pack(Rest::Document* V, const std::vector<int>& Value)
+        {
+            if (!V)
+                return false;
+
+            std::stringstream Stream;
+            for (auto&& It : Value)
+                Stream << It << " ";
+
+            return V->SetString("i-array", Stream.str().substr(0, Stream.str().size() - 1)) && V->SetInteger("[size]", Value.size());
+        }
+        bool NMake::Pack(Rest::Document* V, const std::vector<unsigned int>& Value)
+        {
+            if (!V)
+                return false;
+
+            std::stringstream Stream;
+            for (auto&& It : Value)
+                Stream << It << " ";
+
+            return V->SetString("i-array", Stream.str().substr(0, Stream.str().size() - 1)) && V->SetInteger("[size]", Value.size());
+        }
+        bool NMake::Pack(Rest::Document* V, const std::vector<long>& Value)
+        {
+            if (!V)
+                return false;
+
+            std::stringstream Stream;
+            for (auto&& It : Value)
+                Stream << It << " ";
+
+            return V->SetString("i-array", Stream.str().substr(0, Stream.str().size() - 1)) && V->SetInteger("[size]", Value.size());
+        }
+        bool NMake::Pack(Rest::Document* V, const std::vector<unsigned long>& Value)
+        {
+            if (!V)
+                return false;
+
+            std::stringstream Stream;
+            for (auto&& It : Value)
+                Stream << It << " ";
+
+            return V->SetString("i-array", Stream.str().substr(0, Stream.str().size() - 1)) && V->SetInteger("[size]", Value.size());
+        }
+        bool NMake::Pack(Rest::Document* V, const std::vector<float>& Value)
+        {
+            if (!V)
+                return false;
+
+            std::stringstream Stream;
+            for (auto&& It : Value)
+                Stream << It << " ";
+
+            return V->SetString("f-array", Stream.str().substr(0, Stream.str().size() - 1)) && V->SetInteger("[size]", Value.size());
+        }
+        bool NMake::Pack(Rest::Document* V, const std::vector<Float64>& Value)
+        {
+            if (!V)
+                return false;
+
+            std::stringstream Stream;
+            for (auto&& It : Value)
+                Stream << It << " ";
+
+            return V->SetString("f-array", Stream.str().substr(0, Stream.str().size() - 1)) && V->SetInteger("[size]", Value.size());
+        }
+        bool NMake::Pack(Rest::Document* V, const std::vector<Int64>& Value)
+        {
+            if (!V)
+                return false;
+
+            std::stringstream Stream;
+            for (auto&& It : Value)
+                Stream << It << " ";
+
+            return V->SetString("f-array", Stream.str().substr(0, Stream.str().size() - 1)) && V->SetInteger("[size]", Value.size());
+        }
+        bool NMake::Pack(Rest::Document* V, const std::vector<LFloat64>& Value)
+        {
+            if (!V)
+                return false;
+
+            std::stringstream Stream;
+            for (auto&& It : Value)
+                Stream << It << " ";
+
+            return V->SetString("f-array", Stream.str().substr(0, Stream.str().size() - 1)) && V->SetInteger("[size]", Value.size());
+        }
+        bool NMake::Pack(Rest::Document* V, const std::vector<UInt64>& Value)
+        {
+            if (!V)
+                return false;
+
+            std::stringstream Stream;
+            for (auto&& It : Value)
+                Stream << It << " ";
+
+            return V->SetString("i-array", Stream.str().substr(0, Stream.str().size() - 1)) && V->SetInteger("[size]", Value.size());
+        }
+        bool NMake::Pack(Rest::Document* V, const std::vector<Compute::Vector2>& Value)
+        {
+            if (!V)
+                return false;
+
+            std::stringstream Stream;
+            for (auto&& It : Value)
+                Stream << It.X << " " << It.Y << " ";
+
+            return V->SetString("v2-array", Stream.str().substr(0, Stream.str().size() - 1)) && V->SetInteger("[size]", Value.size());
+        }
+        bool NMake::Pack(Rest::Document* V, const std::vector<Compute::Vector3>& Value)
+        {
+            if (!V)
+                return false;
+
+            std::stringstream Stream;
+            for (auto&& It : Value)
+                Stream << It.X << " " << It.Y << " " << It.Z << " ";
+
+            return V->SetString("v3-array", Stream.str().substr(0, Stream.str().size() - 1)) && V->SetInteger("[size]", Value.size());
+        }
+        bool NMake::Pack(Rest::Document* V, const std::vector<Compute::Vector4>& Value)
+        {
+            if (!V)
+                return false;
+
+            std::stringstream Stream;
+            for (auto&& It : Value)
+                Stream << It.X << " " << It.Y << " " << It.Z << " " << It.W << " ";
+
+            return V->SetString("v4-array", Stream.str().substr(0, Stream.str().size() - 1)) && V->SetInteger("[size]", Value.size());
+        }
+        bool NMake::Pack(Rest::Document* V, const std::vector<Compute::Matrix4x4>& Value)
+        {
+            if (!V)
+                return false;
+
+            std::stringstream Stream;
+            for (auto&& It : Value)
+            {
+                for (float i : It.Row)
+                    Stream << i << " ";
+            }
+
+            return V->SetString("m4x4-array", Stream.str().substr(0, Stream.str().size() - 1)) && V->SetInteger("[size]", Value.size());
+        }
+        bool NMake::Pack(Rest::Document* V, const std::vector<AnimatorState>& Value)
+        {
+            if (!V)
+                return false;
+
+            std::stringstream Stream;
+            for (auto&& It : Value)
+            {
+                Stream << It.Paused << " ";
+                Stream << It.Looped << " ";
+                Stream << It.Blended << " ";
+                Stream << It.Length << " ";
+                Stream << It.Speed << " ";
+                Stream << It.Time << " ";
+                Stream << It.Frame << " ";
+                Stream << It.Clip << " ";
+            }
+
+            return V->SetString("as-array", Stream.str().substr(0, Stream.str().size() - 1)) && V->SetInteger("[size]", Value.size());
+        }
+        bool NMake::Pack(Rest::Document* V, const std::vector<SpawnerProperties>& Value)
+        {
+            if (!V)
+                return false;
+
+            std::stringstream Stream;
+            for (auto&& It : Value)
+            {
+                Stream << It.Angular.Accuracy << " " << It.Angular.Min << " " << It.Angular.Max << " ";
+                Stream << It.Rotation.Accuracy << " " << It.Rotation.Min << " " << It.Rotation.Max << " ";
+                Stream << It.Scale.Accuracy << " " << It.Scale.Min << " " << It.Scale.Max << " ";
+                Stream << It.Diffusion.Accuracy << " ";
+                Stream << It.Diffusion.Min.X << " " << It.Diffusion.Min.Y << " " << It.Diffusion.Min.Z << " " << It.Diffusion.Min.W << " ";
+                Stream << It.Diffusion.Max.X << " " << It.Diffusion.Max.Y << " " << It.Diffusion.Max.Z << " " << It.Diffusion.Max.W << " ";
+                Stream << It.Noise.Accuracy << " ";
+                Stream << It.Noise.Min.X << " " << It.Noise.Min.Y << " " << It.Noise.Min.Z << " ";
+                Stream << It.Noise.Max.X << " " << It.Noise.Max.Y << " " << It.Noise.Max.Z << " ";
+                Stream << It.Position.Accuracy << " ";
+                Stream << It.Position.Min.X << " " << It.Position.Min.Y << " " << It.Position.Min.Z << " ";
+                Stream << It.Position.Max.X << " " << It.Position.Max.Y << " " << It.Position.Max.Z << " ";
+                Stream << It.Velocity.Accuracy << " ";
+                Stream << It.Velocity.Min.X << " " << It.Velocity.Min.Y << " " << It.Velocity.Min.Z << " ";
+                Stream << It.Velocity.Max.X << " " << It.Velocity.Max.Y << " " << It.Velocity.Max.Z << " ";
+                Stream << It.Iterations << " ";
+            }
+
+            return V->SetString("sp-array", Stream.str().substr(0, Stream.str().size() - 1)) && V->SetInteger("[size]", Value.size());
+        }
+        bool NMake::Pack(Rest::Document* V, const std::vector<Compute::SkinAnimatorClip>& Value)
+        {
+            if (!V)
+                return false;
+
+            Rest::Document* Array = V->SetArray("clips");
+            for (auto&& It : Value)
+                NMake::Pack(V->SetDocument("clip"), It);
+
+            return true;
+        }
+        bool NMake::Pack(Rest::Document* V, const std::vector<Compute::KeyAnimatorClip>& Value)
+        {
+            if (!V)
+                return false;
+
+            Rest::Document* Array = V->SetArray("clips");
+            for (auto&& It : Value)
+                NMake::Pack(V->SetDocument("clip"), It);
+
+            return true;
+        }
+        bool NMake::Pack(Rest::Document* V, const std::vector<Compute::AnimatorKey>& Value)
+        {
+            if (!V)
+                return false;
+
+            std::stringstream Stream;
+            for (auto&& It : Value)
+            {
+                Stream << It.Position.X << " ";
+                Stream << It.Position.Y << " ";
+                Stream << It.Position.Z << " ";
+                Stream << It.Rotation.X << " ";
+                Stream << It.Rotation.Y << " ";
+                Stream << It.Rotation.Z << " ";
+                Stream << It.Scale.X << " ";
+                Stream << It.Scale.Y << " ";
+                Stream << It.Scale.Z << " ";
+                Stream << It.PlayingSpeed << " ";
+            }
+
+            return V->SetString("ak-array", Stream.str().substr(0, Stream.str().size() - 1)) && V->SetInteger("[size]", Value.size());
+        }
+        bool NMake::Pack(Rest::Document* V, const std::vector<Compute::ElementVertex>& Value)
+        {
+            if (!V)
+                return false;
+
+            std::stringstream Stream;
+            for (auto&& It : Value)
+            {
+                Stream << It.PositionX << " ";
+                Stream << It.PositionY << " ";
+                Stream << It.PositionZ << " ";
+                Stream << It.ColorX << " ";
+                Stream << It.ColorY << " ";
+                Stream << It.ColorZ << " ";
+                Stream << It.ColorW << " ";
+                Stream << It.VelocityX << " ";
+                Stream << It.VelocityY << " ";
+                Stream << It.VelocityZ << " ";
+                Stream << It.Angular << " ";
+                Stream << It.Rotation << " ";
+                Stream << It.Scale << " ";
+            }
+
+            return V->SetString("ev-array", Stream.str().substr(0, Stream.str().size() - 1)) && V->SetInteger("[size]", Value.size());
+        }
+        bool NMake::Pack(Rest::Document* V, const std::vector<Compute::Joint>& Value)
+        {
+            if (!V)
+                return false;
+
+            for (auto&& It : Value)
+                NMake::Pack(V->SetDocument("joint"), It);
+
+            return true;
+        }
+        bool NMake::Pack(Rest::Document* V, const std::vector<Compute::Vertex>& Value)
+        {
+            if (!V)
+                return false;
+
+            std::stringstream Stream;
+            for (auto&& It : Value)
+            {
+                Stream << It.PositionX << " ";
+                Stream << It.PositionY << " ";
+                Stream << It.PositionZ << " ";
+                Stream << It.TexCoordX << " ";
+                Stream << It.TexCoordY << " ";
+                Stream << It.NormalX << " ";
+                Stream << It.NormalY << " ";
+                Stream << It.NormalZ << " ";
+                Stream << It.TangentX << " ";
+                Stream << It.TangentY << " ";
+                Stream << It.TangentZ << " ";
+                Stream << It.BitangentX << " ";
+                Stream << It.BitangentY << " ";
+                Stream << It.BitangentZ << " ";
+                Stream << "-1 -1 -1 -1 0 0 0 0 ";
+            }
+
+            return V->SetString("iv-array", Stream.str().substr(0, Stream.str().size() - 1)) && V->SetInteger("[size]", Value.size());
+        }
+        bool NMake::Pack(Rest::Document* V, const std::vector<Compute::InfluenceVertex>& Value)
+        {
+            if (!V)
+                return false;
+
+            std::stringstream Stream;
+            for (auto&& It : Value)
+            {
+                Stream << It.PositionX << " ";
+                Stream << It.PositionY << " ";
+                Stream << It.PositionZ << " ";
+                Stream << It.TexCoordX << " ";
+                Stream << It.TexCoordY << " ";
+                Stream << It.NormalX << " ";
+                Stream << It.NormalY << " ";
+                Stream << It.NormalZ << " ";
+                Stream << It.TangentX << " ";
+                Stream << It.TangentY << " ";
+                Stream << It.TangentZ << " ";
+                Stream << It.BitangentX << " ";
+                Stream << It.BitangentY << " ";
+                Stream << It.BitangentZ << " ";
+                Stream << It.JointIndex0 << " ";
+                Stream << It.JointIndex1 << " ";
+                Stream << It.JointIndex2 << " ";
+                Stream << It.JointIndex3 << " ";
+                Stream << It.JointBias0 << " ";
+                Stream << It.JointBias1 << " ";
+                Stream << It.JointBias2 << " ";
+                Stream << It.JointBias3 << " ";
+            }
+
+            return V->SetString("iv-array", Stream.str().substr(0, Stream.str().size() - 1)) && V->SetInteger("[size]", Value.size());
+        }
+        bool NMake::Pack(Rest::Document* V, const std::vector<Rest::TickTimer>& Value)
+        {
+            if (!V)
+                return false;
+
+            std::stringstream Stream;
+            for (auto&& It : Value)
+                Stream << It.Delay << " ";
+
+            return V->SetString("tt-array", Stream.str().substr(0, Stream.str().size() - 1)) && V->SetInteger("[size]", Value.size());
+        }
+        bool NMake::Pack(Rest::Document* V, const std::vector<std::string>& Value)
+        {
+            if (!V)
+                return false;
+
+            Rest::Document* A = V->SetArray("s-array");
+            for (auto&& It : Value)
+                A->SetString("s", It);
+
+            return V->SetInteger("[size]", Value.size());
+        }
+        bool NMake::Unpack(Rest::Document* V, bool* O)
+        {
+            if (!V || !O)
+                return false;
+
+            *O = V->GetBoolean("[b]");
+            return true;
+        }
+        bool NMake::Unpack(Rest::Document* V, int* O)
+        {
+            if (!V || !O)
+                return false;
+
+            *O = V->GetInteger("[i]");
+            return true;
+        }
+        bool NMake::Unpack(Rest::Document* V, unsigned int* O)
+        {
+            if (!V || !O)
+                return false;
+
+            *O = V->GetInteger("[i]");
+            return true;
+        }
+        bool NMake::Unpack(Rest::Document* V, long* O)
+        {
+            if (!V || !O)
+                return false;
+
+            *O = V->GetInteger("[i]");
+            return true;
+        }
+        bool NMake::Unpack(Rest::Document* V, unsigned long* O)
+        {
+            if (!V || !O)
+                return false;
+
+            *O = V->GetInteger("[i]");
+            return true;
+        }
+        bool NMake::Unpack(Rest::Document* V, float* O)
+        {
+            if (!V || !O)
+                return false;
+
+            *O = V->GetNumber("[n]");
+            return true;
+        }
+        bool NMake::Unpack(Rest::Document* V, Float64* O)
+        {
+            if (!V || !O)
+                return false;
+
+            *O = V->GetNumber("[n]");
+            return true;
+        }
+        bool NMake::Unpack(Rest::Document* V, LFloat64* O)
+        {
+            if (!V || !O)
+                return false;
+
+            *O = V->GetNumber("[n]");
+            return true;
+        }
+        bool NMake::Unpack(Rest::Document* V, Int64* O)
+        {
+            if (!V || !O)
+                return false;
+
+            *O = V->GetInteger("[i]");
+            return true;
+        }
+        bool NMake::Unpack(Rest::Document* V, UInt64* O)
+        {
+            if (!V || !O)
+                return false;
+
+            *O = V->GetInteger("[i]");
+            return true;
+        }
+        bool NMake::Unpack(Rest::Document* V, Compute::Vector2* O)
+        {
+            if (!V || !O)
+                return false;
+
+            O->X = V->GetNumber("[x]");
+            O->Y = V->GetNumber("[y]");
+            return true;
+        }
+        bool NMake::Unpack(Rest::Document* V, Compute::Vector3* O)
+        {
+            if (!V || !O)
+                return false;
+
+            O->X = V->GetNumber("[x]");
+            O->Y = V->GetNumber("[y]");
+            O->Z = V->GetNumber("[z]");
+            return true;
+        }
+        bool NMake::Unpack(Rest::Document* V, Compute::Vector4* O)
+        {
+            if (!V || !O)
+                return false;
+
+            O->X = V->GetNumber("[x]");
+            O->Y = V->GetNumber("[y]");
+            O->Z = V->GetNumber("[z]");
+            O->W = V->GetNumber("[w]");
+            return true;
+        }
+        bool NMake::Unpack(Rest::Document* V, Compute::Matrix4x4* O)
+        {
+            if (!V || !O)
+                return false;
+
+            O->Row[0] = V->GetNumber("[m11]");
+            O->Row[1] = V->GetNumber("[m12]");
+            O->Row[2] = V->GetNumber("[m13]");
+            O->Row[3] = V->GetNumber("[m14]");
+            O->Row[4] = V->GetNumber("[m21]");
+            O->Row[5] = V->GetNumber("[m22]");
+            O->Row[6] = V->GetNumber("[m23]");
+            O->Row[7] = V->GetNumber("[m24]");
+            O->Row[8] = V->GetNumber("[m31]");
+            O->Row[9] = V->GetNumber("[m32]");
+            O->Row[10] = V->GetNumber("[m33]");
+            O->Row[11] = V->GetNumber("[m34]");
+            O->Row[12] = V->GetNumber("[m41]");
+            O->Row[13] = V->GetNumber("[m42]");
+            O->Row[14] = V->GetNumber("[m43]");
+            O->Row[15] = V->GetNumber("[m44]");
+            return true;
+        }
+        bool NMake::Unpack(Rest::Document* V, AnimatorState* O)
+        {
+            if (!V || !O)
+                return false;
+
+            O->Looped = V->GetBoolean("[looped]");
+            O->Paused = V->GetBoolean("[paused]");
+            O->Blended = V->GetBoolean("[blended]");
+            O->Clip = V->GetInteger("[clip]");
+            O->Frame = V->GetInteger("[frame]");
+            O->Speed = V->GetNumber("[speed]");
+            O->Length = V->GetNumber("[length]");
+            O->Time = V->GetNumber("[time]");
+            return true;
+        }
+        bool NMake::Unpack(Rest::Document* V, SpawnerProperties* O)
+        {
+            if (!V || !O)
+                return false;
+
+            Rest::Document* Angular = V->Get("angular");
+            NMake::Unpack(Angular->Get("intensity"), &O->Angular.Intensity);
+            NMake::Unpack(Angular->Get("accuracy"), &O->Angular.Accuracy);
+            NMake::Unpack(Angular->Get("min"), &O->Angular.Min);
+            NMake::Unpack(Angular->Get("max"), &O->Angular.Max);
+
+            Rest::Document* Diffusion = V->Get("diffusion");
+            NMake::Unpack(Diffusion->Get("intensity"), &O->Diffusion.Intensity);
+            NMake::Unpack(Diffusion->Get("accuracy"), &O->Diffusion.Accuracy);
+            NMake::Unpack(Diffusion->Get("min"), &O->Diffusion.Min);
+            NMake::Unpack(Diffusion->Get("max"), &O->Diffusion.Max);
+
+            Rest::Document* Noise = V->Get("noise");
+            NMake::Unpack(Noise->Get("intensity"), &O->Noise.Intensity);
+            NMake::Unpack(Noise->Get("accuracy"), &O->Noise.Accuracy);
+            NMake::Unpack(Noise->Get("min"), &O->Noise.Min);
+            NMake::Unpack(Noise->Get("max"), &O->Noise.Max);
+
+            Rest::Document* Position = V->Get("position");
+            NMake::Unpack(Position->Get("intensity"), &O->Position.Intensity);
+            NMake::Unpack(Position->Get("accuracy"), &O->Position.Accuracy);
+            NMake::Unpack(Position->Get("min"), &O->Position.Min);
+            NMake::Unpack(Position->Get("max"), &O->Position.Max);
+
+            Rest::Document* Rotation = V->Get("rotation");
+            NMake::Unpack(Rotation->Get("intensity"), &O->Rotation.Intensity);
+            NMake::Unpack(Rotation->Get("accuracy"), &O->Rotation.Accuracy);
+            NMake::Unpack(Rotation->Get("min"), &O->Rotation.Min);
+            NMake::Unpack(Rotation->Get("max"), &O->Rotation.Max);
+
+            Rest::Document* Scale = V->Get("scale");
+            NMake::Unpack(Scale->Get("intensity"), &O->Scale.Intensity);
+            NMake::Unpack(Scale->Get("accuracy"), &O->Scale.Accuracy);
+            NMake::Unpack(Scale->Get("min"), &O->Scale.Min);
+            NMake::Unpack(Scale->Get("max"), &O->Scale.Max);
+
+            Rest::Document* Velocity = V->Get("velocity");
+            NMake::Unpack(Velocity->Get("intensity"), &O->Velocity.Intensity);
+            NMake::Unpack(Velocity->Get("accuracy"), &O->Velocity.Accuracy);
+            NMake::Unpack(Velocity->Get("min"), &O->Velocity.Min);
+            NMake::Unpack(Velocity->Get("max"), &O->Velocity.Max);
+
+            O->Iterations = V->GetInteger("[iterations]");
+            return true;
+        }
+        bool NMake::Unpack(Rest::Document* V, Compute::SkinAnimatorClip* O)
+        {
+            if (!V || !O)
+                return false;
+
+            NMake::Unpack(V->Find("name"), &O->Name);
+            NMake::Unpack(V->Find("playing-speed"), &O->PlayingSpeed);
+
+            std::vector<Rest::Document*> Frames = V->FindCollectionPath("frames.frame", true);
+            for (auto&& It : Frames)
+            {
+                O->Keys.emplace_back();
+                NMake::Unpack(It, &O->Keys.back());
+            }
+
+            return true;
+        }
+        bool NMake::Unpack(Rest::Document* V, Compute::KeyAnimatorClip* O)
+        {
+            if (!V || !O)
+                return false;
+
+            NMake::Unpack(V->Find("name"), &O->Name);
+            NMake::Unpack(V->Find("playing-speed"), &O->PlayingSpeed);
+            NMake::Unpack(V->Find("frames"), &O->Keys);
+            return true;
+        }
+        bool NMake::Unpack(Rest::Document* V, Compute::AnimatorKey* O)
+        {
+            if (!V || !O)
+                return false;
+
+            NMake::Unpack(V->Get("position"), &O->Position);
+            NMake::Unpack(V->Get("rotation"), &O->Rotation);
+            NMake::Unpack(V->Get("scale"), &O->Scale);
+            NMake::Unpack(V->Get("playing-speed"), &O->PlayingSpeed);
+            return true;
+        }
+        bool NMake::Unpack(Rest::Document* V, Compute::Joint* O)
+        {
+            if (!V || !O)
+                return false;
+
+            NMake::Unpack(V->Get("index"), &O->Index);
+            NMake::Unpack(V->Get("name"), &O->Name);
+            NMake::Unpack(V->Get("transform"), &O->Transform);
+            NMake::Unpack(V->Get("bind-shape"), &O->BindShape);
+
+            std::vector<Rest::Document*> Joints = V->FindCollectionPath("childs.joint", true);
+            for (auto& It : Joints)
+            {
+                O->Childs.emplace_back();
+                NMake::Unpack(It, &O->Childs.back());
+            }
+
+            return true;
+        }
+        bool NMake::Unpack(Rest::Document* V, Compute::ElementVertex* O)
+        {
+            if (!V || !O)
+                return false;
+
+            O->PositionX = V->GetNumber("[px]");
+            O->PositionY = V->GetNumber("[py]");
+            O->PositionZ = V->GetNumber("[pz]");
+            O->VelocityX = V->GetNumber("[vx]");
+            O->VelocityY = V->GetNumber("[vy]");
+            O->VelocityZ = V->GetNumber("[vz]");
+            O->ColorX = V->GetNumber("[cx]");
+            O->ColorY = V->GetNumber("[cy]");
+            O->ColorZ = V->GetNumber("[cz]");
+            O->ColorW = V->GetNumber("[cw]");
+            O->Angular = V->GetNumber("[a]");
+            O->Scale = V->GetNumber("[s]");
+            O->Rotation = V->GetNumber("[r]");
+            return true;
+        }
+        bool NMake::Unpack(Rest::Document* V, Compute::Vertex* O)
+        {
+            if (!V || !O)
+                return false;
+
+            O->PositionX = V->GetNumber("[px]");
+            O->PositionY = V->GetNumber("[py]");
+            O->PositionZ = V->GetNumber("[pz]");
+            O->TexCoordX = V->GetNumber("[tx]");
+            O->TexCoordY = V->GetNumber("[ty]");
+            O->NormalX = V->GetNumber("[nx]");
+            O->NormalY = V->GetNumber("[ny]");
+            O->NormalZ = V->GetNumber("[nz]");
+            O->TangentX = V->GetNumber("[tnx]");
+            O->TangentY = V->GetNumber("[tny]");
+            O->TangentZ = V->GetNumber("[tnz]");
+            O->BitangentX = V->GetNumber("[btx]");
+            O->BitangentY = V->GetNumber("[bty]");
+            O->BitangentZ = V->GetNumber("[btz]");
+            return true;
+        }
+        bool NMake::Unpack(Rest::Document* V, Compute::InfluenceVertex* O)
+        {
+            if (!V || !O)
+                return false;
+
+            O->PositionX = V->GetNumber("[px]");
+            O->PositionY = V->GetNumber("[py]");
+            O->PositionZ = V->GetNumber("[pz]");
+            O->TexCoordX = V->GetNumber("[tx]");
+            O->TexCoordY = V->GetNumber("[ty]");
+            O->NormalX = V->GetNumber("[nx]");
+            O->NormalY = V->GetNumber("[ny]");
+            O->NormalZ = V->GetNumber("[nz]");
+            O->TangentX = V->GetNumber("[tnx]");
+            O->TangentY = V->GetNumber("[tny]");
+            O->TangentZ = V->GetNumber("[tnz]");
+            O->BitangentX = V->GetNumber("[btx]");
+            O->BitangentY = V->GetNumber("[bty]");
+            O->BitangentZ = V->GetNumber("[btz]");
+            O->JointIndex0 = V->GetNumber("[ji0]");
+            O->JointIndex1 = V->GetNumber("[ji1]");
+            O->JointIndex2 = V->GetNumber("[ji2]");
+            O->JointIndex3 = V->GetNumber("[ji3]");
+            O->JointBias0 = V->GetNumber("[jb0]");
+            O->JointBias1 = V->GetNumber("[jb1]");
+            O->JointBias2 = V->GetNumber("[jb2]");
+            O->JointBias3 = V->GetNumber("[jb3]");
+            return true;
+        }
+        bool NMake::Unpack(Rest::Document* V, Rest::TickTimer* O)
+        {
+            if (!V || !O)
+                return false;
+
+            O->Delay = V->GetNumber("[delay]");
+            return true;
+        }
+        bool NMake::Unpack(Rest::Document* V, std::string* O)
+        {
+            if (!V || !O)
+                return false;
+
+            *O = V->GetString("[s]");
+            return true;
+        }
+        bool NMake::Unpack(Rest::Document* V, std::vector<bool>* O)
+        {
+            if (!V || !O)
+                return false;
+
+            std::string& Array = V->GetStringBlob("b-array");
+            Int64 Size = V->GetInteger("[size]");
+            if (Array.empty() || !Size)
+                return false;
+
+            std::stringstream Stream(Array);
+            O->resize((size_t)Size);
+
+            for (auto It = O->begin(); It != O->end(); It++)
+            {
+                bool Item;
+                Stream >> Item;
+                *It = Item;
+            }
+
+            return true;
+        }
+        bool NMake::Unpack(Rest::Document* V, std::vector<int>* O)
+        {
+            if (!V || !O)
+                return false;
+
+            std::string& Array = V->GetStringBlob("i-array");
+            Int64 Size = V->GetInteger("[size]");
+            if (Array.empty() || !Size)
+                return false;
+
+            std::stringstream Stream(Array);
+            O->resize((size_t)Size);
+
+            for (auto It = O->begin(); It != O->end(); It++)
+            {
+                int Item;
+                Stream >> Item;
+                *It = Item;
+            }
+
+            return true;
+        }
+        bool NMake::Unpack(Rest::Document* V, std::vector<unsigned int>* O)
+        {
+            if (!V || !O)
+                return false;
+
+            std::string& Array = V->GetStringBlob("i-array");
+            Int64 Size = V->GetInteger("[size]");
+            if (Array.empty() || !Size)
+                return false;
+
+            std::stringstream Stream(Array);
+            O->resize((size_t)Size);
+
+            for (auto It = O->begin(); It != O->end(); It++)
+            {
+                unsigned int Item;
+                Stream >> Item;
+                *It = Item;
+            }
+
+            return true;
+        }
+        bool NMake::Unpack(Rest::Document* V, std::vector<long>* O)
+        {
+            if (!V || !O)
+                return false;
+
+            std::string& Array = V->GetStringBlob("i-array");
+            Int64 Size = V->GetInteger("[size]");
+            if (Array.empty() || !Size)
+                return false;
+
+            std::stringstream Stream(Array);
+            O->resize((size_t)Size);
+
+            for (auto It = O->begin(); It != O->end(); It++)
+            {
+                long Item;
+                Stream >> Item;
+                *It = Item;
+            }
+
+            return true;
+        }
+        bool NMake::Unpack(Rest::Document* V, std::vector<unsigned long>* O)
+        {
+            if (!V || !O)
+                return false;
+
+            std::string& Array = V->GetStringBlob("i-array");
+            Int64 Size = V->GetInteger("[size]");
+            if (Array.empty() || !Size)
+                return false;
+
+            std::stringstream Stream(Array);
+            O->resize((size_t)Size);
+
+            for (auto It = O->begin(); It != O->end(); It++)
+            {
+                unsigned long Item;
+                Stream >> Item;
+                *It = Item;
+            }
+
+            return true;
+        }
+        bool NMake::Unpack(Rest::Document* V, std::vector<float>* O)
+        {
+            if (!V || !O)
+                return false;
+
+            std::string& Array = V->GetStringBlob("f-array");
+            Int64 Size = V->GetInteger("[size]");
+            if (Array.empty() || !Size)
+                return false;
+
+            std::stringstream Stream(Array);
+            O->resize((size_t)Size);
+
+            for (auto It = O->begin(); It != O->end(); It++)
+            {
+                float Item;
+                Stream >> Item;
+                *It = Item;
+            }
+
+            return true;
+        }
+        bool NMake::Unpack(Rest::Document* V, std::vector<Float64>* O)
+        {
+            if (!V || !O)
+                return false;
+
+            std::string& Array = V->GetStringBlob("f-array");
+            Int64 Size = V->GetInteger("[size]");
+            if (Array.empty() || !Size)
+                return false;
+
+            std::stringstream Stream(Array);
+            O->resize((size_t)Size);
+
+            for (auto It = O->begin(); It != O->end(); It++)
+            {
+                Float64 Item;
+                Stream >> Item;
+                *It = Item;
+            }
+
+            return true;
+        }
+        bool NMake::Unpack(Rest::Document* V, std::vector<Int64>* O)
+        {
+            if (!V || !O)
+                return false;
+
+            std::string& Array = V->GetStringBlob("i-array");
+            Int64 Size = V->GetInteger("[size]");
+            if (Array.empty() || !Size)
+                return false;
+
+            std::stringstream Stream(Array);
+            O->resize((size_t)Size);
+
+            for (auto It = O->begin(); It != O->end(); It++)
+            {
+                Int64 Item;
+                Stream >> Item;
+                *It = Item;
+            }
+
+            return true;
+        }
+        bool NMake::Unpack(Rest::Document* V, std::vector<LFloat64>* O)
+        {
+            if (!V || !O)
+                return false;
+
+            std::string& Array = V->GetStringBlob("f-array");
+            Int64 Size = V->GetInteger("[size]");
+            if (Array.empty() || !Size)
+                return false;
+
+            std::stringstream Stream(Array);
+            O->resize((size_t)Size);
+
+            for (auto It = O->begin(); It != O->end(); It++)
+            {
+                LFloat64 Item;
+                Stream >> Item;
+                *It = Item;
+            }
+
+            return true;
+        }
+        bool NMake::Unpack(Rest::Document* V, std::vector<UInt64>* O)
+        {
+            if (!V || !O)
+                return false;
+
+            std::string& Array = V->GetStringBlob("i-array");
+            Int64 Size = V->GetInteger("[size]");
+            if (Array.empty() || !Size)
+                return false;
+
+            std::stringstream Stream(Array);
+            O->resize((size_t)Size);
+
+            for (auto It = O->begin(); It != O->end(); It++)
+            {
+                UInt64 Item;
+                Stream >> Item;
+                *It = Item;
+            }
+
+            return true;
+        }
+        bool NMake::Unpack(Rest::Document* V, std::vector<Compute::Vector2>* O)
+        {
+            if (!V || !O)
+                return false;
+
+            std::string& Array = V->GetStringBlob("v2-array");
+            Int64 Size = V->GetInteger("[size]");
+            if (Array.empty() || !Size)
+                return false;
+
+            std::stringstream Stream(Array);
+            O->resize((size_t)Size);
+
+            for (auto& It : *O)
+                Stream >> It.X >> It.Y;
+
+            return true;
+        }
+        bool NMake::Unpack(Rest::Document* V, std::vector<Compute::Vector3>* O)
+        {
+            if (!V || !O)
+                return false;
+
+            std::string& Array = V->GetStringBlob("v3-array");
+            Int64 Size = V->GetInteger("[size]");
+            if (Array.empty() || !Size)
+                return false;
+
+            std::stringstream Stream(Array);
+            O->resize((size_t)Size);
+
+            for (auto& It : *O)
+                Stream >> It.X >> It.Y >> It.Z;
+
+            return true;
+        }
+        bool NMake::Unpack(Rest::Document* V, std::vector<Compute::Vector4>* O)
+        {
+            if (!V || !O)
+                return false;
+
+            std::string& Array = V->GetStringBlob("v4-array");
+            Int64 Size = V->GetInteger("[size]");
+            if (Array.empty() || !Size)
+                return false;
+
+            std::stringstream Stream(Array);
+            O->resize((size_t)Size);
+
+            for (auto& It : *O)
+                Stream >> It.X >> It.Y >> It.Z >> It.W;
+
+            return true;
+        }
+        bool NMake::Unpack(Rest::Document* V, std::vector<Compute::Matrix4x4>* O)
+        {
+            if (!V || !O)
+                return false;
+
+            std::string& Array = V->GetStringBlob("m4x4-array");
+            Int64 Size = V->GetInteger("[size]");
+            if (Array.empty() || !Size)
+                return false;
+
+            std::stringstream Stream(Array);
+            O->resize((size_t)Size);
+
+            for (auto& It : *O)
+            {
+                for (Int64 i = 0; i < 16; i++)
+                    Stream >> It.Row[i];
+            }
+
+            return true;
+        }
+        bool NMake::Unpack(Rest::Document* V, std::vector<AnimatorState>* O)
+        {
+            if (!V || !O)
+                return false;
+
+            std::string& Array = V->GetStringBlob("as-array");
+            Int64 Size = V->GetInteger("[size]");
+            if (Array.empty() || !Size)
+                return false;
+
+            std::stringstream Stream(Array);
+            O->resize((size_t)Size);
+
+            for (auto& It : *O)
+            {
+                Stream >> It.Paused;
+                Stream >> It.Looped;
+                Stream >> It.Blended;
+                Stream >> It.Length;
+                Stream >> It.Speed;
+                Stream >> It.Time;
+                Stream >> It.Frame;
+                Stream >> It.Clip;
+            }
+
+            return true;
+        }
+        bool NMake::Unpack(Rest::Document* V, std::vector<SpawnerProperties>* O)
+        {
+            if (!V || !O)
+                return false;
+
+            std::string& Array = V->GetStringBlob("sp-array");
+            Int64 Size = V->GetInteger("[size]");
+            if (Array.empty() || !Size)
+                return false;
+
+            std::stringstream Stream(Array);
+            O->resize((size_t)Size);
+
+            for (auto& It : *O)
+            {
+                Stream >> It.Angular.Accuracy >> It.Angular.Min >> It.Angular.Max;
+                Stream >> It.Rotation.Accuracy >> It.Rotation.Min >> It.Rotation.Max;
+                Stream >> It.Scale.Accuracy >> It.Scale.Min >> It.Scale.Max;
+                Stream >> It.Diffusion.Accuracy;
+                Stream >> It.Diffusion.Min.X >> It.Diffusion.Min.Y >> It.Diffusion.Min.Z >> It.Diffusion.Min.W;
+                Stream >> It.Diffusion.Max.X >> It.Diffusion.Max.Y >> It.Diffusion.Max.Z >> It.Diffusion.Max.W;
+                Stream >> It.Noise.Accuracy;
+                Stream >> It.Noise.Min.X >> It.Noise.Min.Y >> It.Noise.Min.Z;
+                Stream >> It.Noise.Max.X >> It.Noise.Max.Y >> It.Noise.Max.Z;
+                Stream >> It.Position.Accuracy;
+                Stream >> It.Position.Min.X >> It.Position.Min.Y >> It.Position.Min.Z;
+                Stream >> It.Position.Max.X >> It.Position.Max.Y >> It.Position.Max.Z;
+                Stream >> It.Velocity.Accuracy;
+                Stream >> It.Velocity.Min.X >> It.Velocity.Min.Y >> It.Velocity.Min.Z;
+                Stream >> It.Velocity.Max.X >> It.Velocity.Max.Y >> It.Velocity.Max.Z;
+                Stream >> It.Iterations;
+            }
+
+            return true;
+        }
+        bool NMake::Unpack(Rest::Document* V, std::vector<Compute::SkinAnimatorClip>* O)
+        {
+            if (!V || !O)
+                return false;
+
+            std::vector<Rest::Document*> Frames = V->FindCollectionPath("clips.clip", true);
+            for (auto&& It : Frames)
+            {
+                O->push_back(Compute::SkinAnimatorClip());
+                NMake::Unpack(It, &O->back());
+            }
+
+            return true;
+        }
+        bool NMake::Unpack(Rest::Document* V, std::vector<Compute::KeyAnimatorClip>* O)
+        {
+            if (!V || !O)
+                return false;
+
+            std::vector<Rest::Document*> Frames = V->FindCollectionPath("clips.clip", true);
+            for (auto&& It : Frames)
+            {
+                O->push_back(Compute::KeyAnimatorClip());
+                NMake::Unpack(It, &O->back());
+            }
+
+            return true;
+        }
+        bool NMake::Unpack(Rest::Document* V, std::vector<Compute::AnimatorKey>* O)
+        {
+            if (!V || !O)
+                return false;
+
+            std::string& Array = V->GetStringBlob("ak-array");
+            Int64 Size = V->GetInteger("[size]");
+            if (Array.empty() || !Size)
+                return false;
+
+            std::stringstream Stream(Array);
+            O->resize((size_t)Size);
+
+            for (auto& It : *O)
+            {
+                Stream >> It.Position.X >> It.Position.Y >> It.Position.Z >> It.Rotation.X >> It.Rotation.Y >> It.Rotation.Z;
+                Stream >> It.Scale.X >> It.Scale.Y >> It.Scale.Z >> It.PlayingSpeed;
+            }
+
+            return true;
+        }
+        bool NMake::Unpack(Rest::Document* V, std::vector<Compute::ElementVertex>* O)
+        {
+            if (!V || !O)
+                return false;
+
+            std::string& Array = V->GetStringBlob("ev-array");
+            Int64 Size = V->GetInteger("[size]");
+            if (Array.empty() || !Size)
+                return false;
+
+            std::stringstream Stream(Array);
+            O->resize((size_t)Size);
+
+            for (auto& It : *O)
+            {
+                Stream >> It.PositionX;
+                Stream >> It.PositionY;
+                Stream >> It.PositionZ;
+                Stream >> It.ColorX;
+                Stream >> It.ColorY;
+                Stream >> It.ColorZ;
+                Stream >> It.ColorW;
+                Stream >> It.VelocityX;
+                Stream >> It.VelocityY;
+                Stream >> It.VelocityZ;
+                Stream >> It.Angular;
+                Stream >> It.Rotation;
+                Stream >> It.Scale;
+            }
+
+            return true;
+        }
+        bool NMake::Unpack(Rest::Document* V, std::vector<Compute::Joint>* O)
+        {
+            if (!V || !O)
+                return false;
+
+            O->reserve(V->GetNodes()->size());
+            for (auto&& It : *V->GetNodes())
+            {
+                O->push_back(Compute::Joint());
+                NMake::Unpack(It, &O->back());
+            }
+
+            return true;
+        }
+        bool NMake::Unpack(Rest::Document* V, std::vector<Compute::Vertex>* O)
+        {
+            if (!V || !O)
+                return false;
+
+            std::string& Array = V->GetStringBlob("iv-array");
+            Int64 Size = V->GetInteger("[size]");
+            if (Array.empty() || !Size)
+                return false;
+
+            std::stringstream Stream(Array);
+            O->resize((size_t)Size);
+
+            float Dummy;
+            for (auto& It : *O)
+            {
+                Stream >> It.PositionX;
+                Stream >> It.PositionY;
+                Stream >> It.PositionZ;
+                Stream >> It.TexCoordX;
+                Stream >> It.TexCoordY;
+                Stream >> It.NormalX;
+                Stream >> It.NormalY;
+                Stream >> It.NormalZ;
+                Stream >> It.TangentX;
+                Stream >> It.TangentY;
+                Stream >> It.TangentZ;
+                Stream >> It.BitangentX;
+                Stream >> It.BitangentY;
+                Stream >> It.BitangentZ;
+                Stream >> Dummy;
+                Stream >> Dummy;
+                Stream >> Dummy;
+                Stream >> Dummy;
+                Stream >> Dummy;
+                Stream >> Dummy;
+                Stream >> Dummy;
+                Stream >> Dummy;
+            }
+
+            return true;
+        }
+        bool NMake::Unpack(Rest::Document* V, std::vector<Compute::InfluenceVertex>* O)
+        {
+            if (!V || !O)
+                return false;
+
+            std::string& Array = V->GetStringBlob("iv-array");
+            Int64 Size = V->GetInteger("[size]");
+            if (Array.empty() || !Size)
+                return false;
+
+            std::stringstream Stream(Array);
+            O->resize((size_t)Size);
+
+            for (auto& It : *O)
+            {
+                Stream >> It.PositionX;
+                Stream >> It.PositionY;
+                Stream >> It.PositionZ;
+                Stream >> It.TexCoordX;
+                Stream >> It.TexCoordY;
+                Stream >> It.NormalX;
+                Stream >> It.NormalY;
+                Stream >> It.NormalZ;
+                Stream >> It.TangentX;
+                Stream >> It.TangentY;
+                Stream >> It.TangentZ;
+                Stream >> It.BitangentX;
+                Stream >> It.BitangentY;
+                Stream >> It.BitangentZ;
+                Stream >> It.JointIndex0;
+                Stream >> It.JointIndex1;
+                Stream >> It.JointIndex2;
+                Stream >> It.JointIndex3;
+                Stream >> It.JointBias0;
+                Stream >> It.JointBias1;
+                Stream >> It.JointBias2;
+                Stream >> It.JointBias3;
+            }
+
+            return true;
+        }
+        bool NMake::Unpack(Rest::Document* V, std::vector<Rest::TickTimer>* O)
+        {
+            if (!V || !O)
+                return false;
+
+            std::string& Array = V->GetStringBlob("tt-array");
+            Int64 Size = V->GetInteger("[size]");
+            if (Array.empty() || !Size)
+                return false;
+
+            std::stringstream Stream(Array);
+            O->resize((size_t)Size);
+
+            for (auto& It : *O)
+                Stream >> It.Delay;
+
+            return true;
+        }
+        bool NMake::Unpack(Rest::Document* V, std::vector<std::string>* O)
+        {
+            if (!V || !O)
+                return false;
+
+            Rest::Document* Array = V->Get("tt-array");
+            Int64 Size = V->GetInteger("[size]");
+            if (!Array || !Size)
+                return false;
+
+            O->reserve((size_t)Size);
+            for (auto&& It : *Array->GetNodes())
+            {
+                if (It->Name == "s" && It->Type == Rest::NodeType_String)
+                    O->push_back(It->String);
+            }
+
+            return true;
         }
 
-		Component::Component(Entity* Reference) : Parent(Reference), Active(true)
-		{
-		}
+        ContentKey::ContentKey() : Type(ContentType_Null), Integer(0), Number(0), Boolean(false), Pointer(nullptr)
+        {
+        }
+        ContentKey::ContentKey(const std::string& Value) : Type(ContentType_String), Integer(0), Number(0), Boolean(false), Pointer(nullptr), String(Value)
+        {
+        }
+        ContentKey::ContentKey(Int64 Value) : Type(ContentType_Integer), Integer(Value), Number((Float64)Value), Boolean(false), Pointer(nullptr)
+        {
+        }
+        ContentKey::ContentKey(Float64 Value) : Type(ContentType_Number), Integer((Int64)Value), Number(Value), Boolean(false), Pointer(nullptr)
+        {
+        }
+        ContentKey::ContentKey(bool Value) : Type(ContentType_Boolean), Integer(0), Number(0), Boolean(Value), Pointer(nullptr)
+        {
+        }
+        ContentKey::ContentKey(void* Value) : Type(ContentType_Pointer), Integer(0), Number(0), Boolean(false), Pointer(Value)
+        {
+            if (!Pointer)
+                Type = ContentType_Null;
+        }
+
+        ContentArgs::ContentArgs(ContentMap* Map) : Args(Map)
+        {
+        }
+        bool ContentArgs::Is(const std::string& Name, const ContentKey& Value)
+        {
+            ContentKey* V = Get(Name);
+            if (!V || V->Type != Value.Type)
+                return false;
+
+            switch (V->Type)
+            {
+                case ContentType_Null:
+                    return true;
+                case ContentType_String:
+                    return V->String == Value.String;
+                case ContentType_Integer:
+                    return V->Integer == Value.Integer;
+                case ContentType_Number:
+                    return V->Number == Value.Number;
+                case ContentType_Boolean:
+                    return V->Boolean == Value.Boolean;
+                case ContentType_Pointer:
+                    return V->Pointer == Value.Pointer;
+            }
+
+            return false;
+        }
+        ContentKey* ContentArgs::Get(const std::string& Name)
+        {
+            if (!Args)
+                return nullptr;
+
+            auto It = Args->find(Name);
+            if (It == Args->end())
+                return nullptr;
+
+            return &It->second;
+        }
+        ContentKey* ContentArgs::Get(const std::string& Name, ContentType Type)
+        {
+            ContentKey* V = Get(Name);
+            if (!V || V->Type != Type)
+                return nullptr;
+
+            return V;
+        }
+
+        FileProcessor::FileProcessor(ContentManager* NewContent) : Content(NewContent)
+        {
+        }
+        FileProcessor::~FileProcessor()
+        {
+        }
+        void FileProcessor::Free(AssetResource* Asset)
+        {
+        }
+        void* FileProcessor::Duplicate(AssetResource* Asset, ContentArgs* Args)
+        {
+            return nullptr;
+        }
+        void* FileProcessor::Load(Rest::FileStream* Stream, UInt64 Length, UInt64 Offset, ContentArgs* Args)
+        {
+            return nullptr;
+        }
+        bool FileProcessor::Save(Rest::FileStream* Stream, void* Object, ContentArgs* Args)
+        {
+            return false;
+        }
+        ContentManager* FileProcessor::GetContent()
+        {
+            return Content;
+        }
+
+        Component::Component(Entity* Reference) : Parent(Reference), Active(true)
+        {
+        }
         Component::~Component()
         {
         }
-		void Component::OnLoad(ContentManager* Content, Rest::Document* Node)
-		{
-		}
-		void Component::OnSave(ContentManager* Content, Rest::Document* Node)
-		{
-		}
-		void Component::OnAwake(Component* New)
-		{
-		}
-		void Component::OnAsleep()
-		{
-		}
-		void Component::OnSynchronize(Rest::Timer* Time)
-		{
-		}
-		void Component::OnUpdate(Rest::Timer* Time)
-		{
-		}
-		void Component::OnEvent(Event* Value)
-		{
-		}
-		Component* Component::OnClone()
-		{
-			Component* Component = new Engine::Component(Parent);
-			Component->Active = Active;
+        void Component::OnLoad(ContentManager* Content, Rest::Document* Node)
+        {
+        }
+        void Component::OnSave(ContentManager* Content, Rest::Document* Node)
+        {
+        }
+        void Component::OnAwake(Component* New)
+        {
+        }
+        void Component::OnAsleep()
+        {
+        }
+        void Component::OnSynchronize(Rest::Timer* Time)
+        {
+        }
+        void Component::OnUpdate(Rest::Timer* Time)
+        {
+        }
+        void Component::OnEvent(Event* Value)
+        {
+        }
+        Component* Component::OnClone()
+        {
+            Component* Component = new Engine::Component(Parent);
+            Component->Active = Active;
 
-			return Component;
-		}
+            return Component;
+        }
         Entity* Component::GetEntity()
         {
-		    return Parent;
+            return Parent;
         }
-		void Component::SetActive(bool Enabled)
-		{
-			if (Active == Enabled)
-				return;
+        void Component::SetActive(bool Enabled)
+        {
+            if (Active == Enabled)
+                return;
 
-			if ((Active = Enabled))
-				OnAwake(nullptr);
-			else
-				OnAsleep();
+            if ((Active = Enabled))
+                OnAwake(nullptr);
+            else
+                OnAsleep();
 
-			if (!Parent || !Parent->GetScene())
-				return;
+            if (!Parent || !Parent->GetScene())
+                return;
 
-			auto Components = &Parent->GetScene()->Components[Id()];
+            auto Components = &Parent->GetScene()->Components[Id()];
             if (Active)
                 Components->AddUnique(this);
             else
                 Components->Remove(this);
 
-			if (Active)
+            if (Active)
                 Parent->GetScene()->Pending.AddUnique(this);
-			else
+            else
                 Parent->GetScene()->Pending.Remove(this);
-		}
-		bool Component::IsActive()
-		{
-			return Active;
-		}
+        }
+        bool Component::IsActive()
+        {
+            return Active;
+        }
 
-		Entity::Entity(SceneGraph* Ref) : Scene(Ref), Tag(-1), Self(-1)
-		{
-			Transform = new Compute::Transform();
-			Transform->UserPointer = this;
-		}
-		Entity::~Entity()
-		{
-			for (auto & Component : Components)
-			{
-			    if (!Component.second)
-			        continue;
+        Entity::Entity(SceneGraph* Ref) : Scene(Ref), Tag(-1), Self(-1)
+        {
+            Transform = new Compute::Transform();
+            Transform->UserPointer = this;
+        }
+        Entity::~Entity()
+        {
+            for (auto& Component : Components)
+            {
+                if (!Component.second)
+                    continue;
 
-				Component.second->SetActive(false);
-				delete Component.second;
-			}
+                Component.second->SetActive(false);
+                delete Component.second;
+            }
 
-			delete Transform;
-		}
-		void Entity::RemoveComponent(UInt64 Id)
-		{
-			std::unordered_map<UInt64, Component*>::iterator It = Components.find(Id);
-			if (It == Components.end())
-				return;
+            delete Transform;
+        }
+        void Entity::RemoveComponent(UInt64 Id)
+        {
+            std::unordered_map<UInt64, Component*>::iterator It = Components.find(Id);
+            if (It == Components.end())
+                return;
 
-			It->second->SetActive(false);
-			if (Scene != nullptr)
-			{
+            It->second->SetActive(false);
+            if (Scene != nullptr)
+            {
                 Scene->Lock();
-				if (Scene->Camera == It->second)
+                if (Scene->Camera == It->second)
                     Scene->Camera = nullptr;
-			}
+            }
 
-			delete It->second;
-			Components.erase(It);
-			if (Scene != nullptr)
+            delete It->second;
+            Components.erase(It);
+            if (Scene != nullptr)
                 Scene->Unlock();
-		}
-		void Entity::RemoveChilds()
-		{
-			if (!Transform->GetChilds())
-				return;
+        }
+        void Entity::RemoveChilds()
+        {
+            if (!Transform->GetChilds())
+                return;
 
-			if (Scene != nullptr)
+            if (Scene != nullptr)
                 Scene->Lock();
 
-			UInt64 Count = Transform->GetChilds()->size();
-			for (UInt64 i = 0; i < Count; i++)
-			{
-				if (!Transform->GetChilds())
-				{
-					if (Scene != nullptr)
+            UInt64 Count = Transform->GetChilds()->size();
+            for (UInt64 i = 0; i < Count; i++)
+            {
+                if (!Transform->GetChilds())
+                {
+                    if (Scene != nullptr)
                         Scene->Unlock();
 
-					return;
-				}
+                    return;
+                }
 
-				Entity* Entity = Transform->GetChild(i)->Ptr<Engine::Entity>();
-				if (!Entity || Entity == this)
-					continue;
+                Entity* Entity = Transform->GetChild(i)->Ptr<Engine::Entity>();
+                if (!Entity || Entity == this)
+                    continue;
 
-				if (Scene != nullptr)
+                if (Scene != nullptr)
                     Scene->RemoveEntity(Entity, true);
-				else
-					delete Entity;
+                else
+                    delete Entity;
 
-				if (Transform->GetChildCount() == 0)
-				{
-					if (Scene != nullptr)
+                if (Transform->GetChildCount() == 0)
+                {
+                    if (Scene != nullptr)
                         Scene->Unlock();
 
-					return;
-				}
+                    return;
+                }
 
-				Count--; i--;
-			}
+                Count--;
+                i--;
+            }
 
-			if (Scene != nullptr)
+            if (Scene != nullptr)
                 Scene->Unlock();
-		}
+        }
         void Entity::SetScene(SceneGraph* NewScene)
         {
-		    Scene = NewScene;
+            Scene = NewScene;
         }
-		std::unordered_map<UInt64, Component*>::iterator Entity::First()
-		{
-			return Components.begin();
-		}
-		std::unordered_map<UInt64, Component*>::iterator Entity::Last()
-		{
-			return Components.end();
-		}
-		Component* Entity::AddComponent(Component* In)
-		{
-			if (!In || In == GetComponent(In->Id()))
-				return In;
-
-			RemoveComponent(In->Id());
-            In->Active = false;
-			In->Parent = this;
-
-			Components.insert({ In->Id(), In });
-			for (auto & Component : Components)
-				Component.second->OnAwake(In == Component.second ? nullptr : In);
-
-			In->SetActive(true);
-			return In;
-		}
-		Component* Entity::GetComponent(UInt64 Id)
-		{
-			std::unordered_map<UInt64, Component*>::iterator It = Components.find(Id);
-			if (It != Components.end())
-				return It->second;
-
-			return nullptr;
-		}
-		UInt64 Entity::GetComponentCount()
-		{
-			return Components.size();
-		}
-		SceneGraph* Entity::GetScene()
+        std::unordered_map<UInt64, Component*>::iterator Entity::First()
         {
-		    return Scene;
+            return Components.begin();
+        }
+        std::unordered_map<UInt64, Component*>::iterator Entity::Last()
+        {
+            return Components.end();
+        }
+        Component* Entity::AddComponent(Component* In)
+        {
+            if (!In || In == GetComponent(In->Id()))
+                return In;
+
+            RemoveComponent(In->Id());
+            In->Active = false;
+            In->Parent = this;
+
+            Components.insert({ In->Id(), In });
+            for (auto& Component : Components)
+                Component.second->OnAwake(In == Component.second ? nullptr : In);
+
+            In->SetActive(true);
+            return In;
+        }
+        Component* Entity::GetComponent(UInt64 Id)
+        {
+            std::unordered_map<UInt64, Component*>::iterator It = Components.find(Id);
+            if (It != Components.end())
+                return It->second;
+
+            return nullptr;
+        }
+        UInt64 Entity::GetComponentCount()
+        {
+            return Components.size();
+        }
+        SceneGraph* Entity::GetScene()
+        {
+            return Scene;
         }
 
-		Renderer::Renderer(RenderSystem* Lab, UInt64 Type) : System(Lab), Flag(Type)
-		{
-		}
+        Renderer::Renderer(RenderSystem* Lab, UInt64 Type) : System(Lab), Flag(Type)
+        {
+        }
         Renderer::~Renderer()
         {
         }
         void Renderer::SetRenderer(RenderSystem* NewSystem)
         {
-		    System = NewSystem;
+            System = NewSystem;
         }
-		void Renderer::RenderCubicDepth(Rest::Timer* Time, Compute::Matrix4x4 iProjection, Compute::Vector4 iPosition)
-		{
-			if (System && System->GetScene())
+        void Renderer::RenderCubicDepth(Rest::Timer* Time, Compute::Matrix4x4 iProjection, Compute::Vector4 iPosition)
+        {
+            if (System && System->GetScene())
                 System->GetScene()->RenderCubicDepth(Time, iProjection, iPosition);
-		}
-		void Renderer::RenderDepth(Rest::Timer* Time, Compute::Matrix4x4 iView, Compute::Matrix4x4 iProjection, Compute::Vector4 iPosition)
-		{
-			if (System && System->GetScene())
+        }
+        void Renderer::RenderDepth(Rest::Timer* Time, Compute::Matrix4x4 iView, Compute::Matrix4x4 iProjection, Compute::Vector4 iPosition)
+        {
+            if (System && System->GetScene())
                 System->GetScene()->RenderDepth(Time, iView, iProjection, iPosition);
-		}
-		void Renderer::RenderPhase(Rest::Timer* Time, Compute::Matrix4x4 iView, Compute::Matrix4x4 iProjection, Compute::Vector4 iPosition)
-		{
-			if (System && System->GetScene())
+        }
+        void Renderer::RenderPhase(Rest::Timer* Time, Compute::Matrix4x4 iView, Compute::Matrix4x4 iProjection, Compute::Vector4 iPosition)
+        {
+            if (System && System->GetScene())
                 System->GetScene()->RenderPhase(Time, iView, iProjection, iPosition);
-		}
-		Rest::Object* Renderer::Abstract(RenderSystem* Lab, UInt64 iFlag)
-		{
-			return nullptr;
-		}
-		bool Renderer::Is(UInt64 Flags)
-		{
-			return Flag == Flags;
-		}
-		UInt64 Renderer::Type()
-		{
-			return Flag;
-		}
+        }
+        Rest::Object* Renderer::Abstract(RenderSystem* Lab, UInt64 iFlag)
+        {
+            return nullptr;
+        }
+        bool Renderer::Is(UInt64 Flags)
+        {
+            return Flag == Flags;
+        }
+        UInt64 Renderer::Type()
+        {
+            return Flag;
+        }
         RenderSystem* Renderer::GetRenderer()
         {
-		    return System;
+            return System;
         }
 
-		IntervalRenderer::IntervalRenderer(RenderSystem* Lab, UInt64 Type) : Renderer(Lab, Type)
-		{
-		}
-		IntervalRenderer::~IntervalRenderer()
-		{
-		}
-		void IntervalRenderer::OnRender(Rest::Timer* Time)
-		{
-			if (Timer.OnTickEvent(Time->GetElapsedTime()))
-				OnIntervalRender(Time);
+        IntervalRenderer::IntervalRenderer(RenderSystem* Lab, UInt64 Type) : Renderer(Lab, Type)
+        {
+        }
+        IntervalRenderer::~IntervalRenderer()
+        {
+        }
+        void IntervalRenderer::OnRender(Rest::Timer* Time)
+        {
+            if (Timer.OnTickEvent(Time->GetElapsedTime()))
+                OnIntervalRender(Time);
 
-			OnImmediateRender(Time);
-		}
-		void IntervalRenderer::OnDepthRender(Rest::Timer* Time)
-		{
-			if (Timer.OnTickEvent(Time->GetElapsedTime()))
-				OnIntervalDepthRender(Time);
+            OnImmediateRender(Time);
+        }
+        void IntervalRenderer::OnDepthRender(Rest::Timer* Time)
+        {
+            if (Timer.OnTickEvent(Time->GetElapsedTime()))
+                OnIntervalDepthRender(Time);
 
-			OnImmediateDepthRender(Time);
-		}
-		void IntervalRenderer::OnCubicDepthRender(Rest::Timer* Time, Compute::Matrix4x4* ViewProjection)
-		{
-			if (Timer.OnTickEvent(Time->GetElapsedTime()))
-				OnIntervalCubicDepthRender(Time, ViewProjection);
+            OnImmediateDepthRender(Time);
+        }
+        void IntervalRenderer::OnCubicDepthRender(Rest::Timer* Time, Compute::Matrix4x4* ViewProjection)
+        {
+            if (Timer.OnTickEvent(Time->GetElapsedTime()))
+                OnIntervalCubicDepthRender(Time, ViewProjection);
 
-			OnImmediateCubicDepthRender(Time, ViewProjection);
-		}
-		void IntervalRenderer::OnPhaseRender(Rest::Timer* Time)
-		{
-			if (Timer.OnTickEvent(Time->GetElapsedTime()))
-				OnIntervalPhaseRender(Time);
+            OnImmediateCubicDepthRender(Time, ViewProjection);
+        }
+        void IntervalRenderer::OnPhaseRender(Rest::Timer* Time)
+        {
+            if (Timer.OnTickEvent(Time->GetElapsedTime()))
+                OnIntervalPhaseRender(Time);
 
-			OnImmediatePhaseRender(Time);
-		}
+            OnImmediatePhaseRender(Time);
+        }
 
         RenderSystem::RenderSystem(Graphics::GraphicsDevice* Ref) : Device(Ref), Scene(nullptr), QuadVertex(nullptr), SphereVertex(nullptr), SphereIndex(nullptr)
         {
@@ -1991,34 +1903,80 @@ namespace Tomahawk
             const float N = 0.0f;
 
             std::vector<Compute::ShapeVertex> Elements;
-            Elements.push_back({ -X, N, Z }); Elements.push_back({ X, N, Z });
-            Elements.push_back({ -X, N, -Z }); Elements.push_back({ X, N, -Z });
-            Elements.push_back({ N, Z, X }); Elements.push_back({ N, Z, -X });
-            Elements.push_back({ N, -Z, X }); Elements.push_back({ N, -Z, -X });
-            Elements.push_back({ Z, X, N }); Elements.push_back({ -Z, X, N });
-            Elements.push_back({ Z, -X, N }); Elements.push_back({ -Z, -X, N });
+            Elements.push_back({ -X, N, Z });
+            Elements.push_back({ X, N, Z });
+            Elements.push_back({ -X, N, -Z });
+            Elements.push_back({ X, N, -Z });
+            Elements.push_back({ N, Z, X });
+            Elements.push_back({ N, Z, -X });
+            Elements.push_back({ N, -Z, X });
+            Elements.push_back({ N, -Z, -X });
+            Elements.push_back({ Z, X, N });
+            Elements.push_back({ -Z, X, N });
+            Elements.push_back({ Z, -X, N });
+            Elements.push_back({ -Z, -X, N });
 
             std::vector<int> Indices;
-            Indices.push_back(0); Indices.push_back(4); Indices.push_back(1);
-            Indices.push_back(0); Indices.push_back(9); Indices.push_back(4);
-            Indices.push_back(9); Indices.push_back(5); Indices.push_back(4);
-            Indices.push_back(4); Indices.push_back(5); Indices.push_back(8);
-            Indices.push_back(4); Indices.push_back(8); Indices.push_back(1);
-            Indices.push_back(8); Indices.push_back(10); Indices.push_back(1);
-            Indices.push_back(8); Indices.push_back(3); Indices.push_back(10);
-            Indices.push_back(5); Indices.push_back(3); Indices.push_back(8);
-            Indices.push_back(5); Indices.push_back(2); Indices.push_back(3);
-            Indices.push_back(2); Indices.push_back(7); Indices.push_back(3);
-            Indices.push_back(7); Indices.push_back(10); Indices.push_back(3);
-            Indices.push_back(7); Indices.push_back(6); Indices.push_back(10);
-            Indices.push_back(7); Indices.push_back(11); Indices.push_back(6);
-            Indices.push_back(11); Indices.push_back(0); Indices.push_back(6);
-            Indices.push_back(0); Indices.push_back(1); Indices.push_back(6);
-            Indices.push_back(6); Indices.push_back(1); Indices.push_back(10);
-            Indices.push_back(9); Indices.push_back(0); Indices.push_back(11);
-            Indices.push_back(9); Indices.push_back(11); Indices.push_back(2);
-            Indices.push_back(9); Indices.push_back(2); Indices.push_back(5);
-            Indices.push_back(7); Indices.push_back(2); Indices.push_back(11);
+            Indices.push_back(0);
+            Indices.push_back(4);
+            Indices.push_back(1);
+            Indices.push_back(0);
+            Indices.push_back(9);
+            Indices.push_back(4);
+            Indices.push_back(9);
+            Indices.push_back(5);
+            Indices.push_back(4);
+            Indices.push_back(4);
+            Indices.push_back(5);
+            Indices.push_back(8);
+            Indices.push_back(4);
+            Indices.push_back(8);
+            Indices.push_back(1);
+            Indices.push_back(8);
+            Indices.push_back(10);
+            Indices.push_back(1);
+            Indices.push_back(8);
+            Indices.push_back(3);
+            Indices.push_back(10);
+            Indices.push_back(5);
+            Indices.push_back(3);
+            Indices.push_back(8);
+            Indices.push_back(5);
+            Indices.push_back(2);
+            Indices.push_back(3);
+            Indices.push_back(2);
+            Indices.push_back(7);
+            Indices.push_back(3);
+            Indices.push_back(7);
+            Indices.push_back(10);
+            Indices.push_back(3);
+            Indices.push_back(7);
+            Indices.push_back(6);
+            Indices.push_back(10);
+            Indices.push_back(7);
+            Indices.push_back(11);
+            Indices.push_back(6);
+            Indices.push_back(11);
+            Indices.push_back(0);
+            Indices.push_back(6);
+            Indices.push_back(0);
+            Indices.push_back(1);
+            Indices.push_back(6);
+            Indices.push_back(6);
+            Indices.push_back(1);
+            Indices.push_back(10);
+            Indices.push_back(9);
+            Indices.push_back(0);
+            Indices.push_back(11);
+            Indices.push_back(9);
+            Indices.push_back(11);
+            Indices.push_back(2);
+            Indices.push_back(9);
+            Indices.push_back(2);
+            Indices.push_back(5);
+            Indices.push_back(7);
+            Indices.push_back(2);
+            Indices.push_back(11);
 
             Graphics::ElementBuffer::Desc F = Graphics::ElementBuffer::Desc();
             F.AccessFlags = Graphics::CPUAccess_Invalid;
@@ -2061,87 +2019,87 @@ namespace Tomahawk
 
             QuadVertex = Graphics::ElementBuffer::Create(Device, F);
         }
-		RenderSystem::~RenderSystem()
-		{
-			delete QuadVertex;
-			delete SphereVertex;
-			delete SphereIndex;
+        RenderSystem::~RenderSystem()
+        {
+            delete QuadVertex;
+            delete SphereVertex;
+            delete SphereIndex;
 
-			for (auto & RenderStage : RenderStages)
-			{
-			    if (!RenderStage)
-			        continue;
+            for (auto& RenderStage : RenderStages)
+            {
+                if (!RenderStage)
+                    continue;
 
-				RenderStage->OnRelease();
-				delete RenderStage;
-			}
-		}
+                RenderStage->OnRelease();
+                delete RenderStage;
+            }
+        }
         void RenderSystem::SetScene(SceneGraph* NewScene)
         {
             Scene = NewScene;
         }
-		void RenderSystem::RemoveRenderStage(Renderer* In)
-		{
-			for (auto It = RenderStages.begin(); It != RenderStages.end(); It++)
-			{
-				if (*It == In)
-				{
+        void RenderSystem::RemoveRenderStage(Renderer* In)
+        {
+            for (auto It = RenderStages.begin(); It != RenderStages.end(); It++)
+            {
+                if (*It == In)
+                {
                     (*It)->OnRelease();
-					delete *It;
-					RenderStages.erase(It);
-					break;
-				}
-			}
-		}
-		void RenderSystem::RemoveRenderStageByType(UInt64 Type)
-		{
-			for (auto It = RenderStages.begin(); It != RenderStages.end(); It++)
-			{
-				if (*It && (*It)->Type() == Type)
-				{
+                    delete *It;
+                    RenderStages.erase(It);
+                    break;
+                }
+            }
+        }
+        void RenderSystem::RemoveRenderStageByType(UInt64 Type)
+        {
+            for (auto It = RenderStages.begin(); It != RenderStages.end(); It++)
+            {
+                if (*It && (*It)->Type() == Type)
+                {
                     (*It)->OnRelease();
-					delete *It;
-					RenderStages.erase(It);
-					break;
-				}
-			}
-		}
-		Renderer* RenderSystem::AddRenderStage(Renderer* In)
-		{
-			if (!In)
-				return nullptr;
+                    delete *It;
+                    RenderStages.erase(It);
+                    break;
+                }
+            }
+        }
+        Renderer* RenderSystem::AddRenderStage(Renderer* In)
+        {
+            if (!In)
+                return nullptr;
 
-			for (auto & RenderStage : RenderStages)
-			{
-				if (RenderStage && RenderStage->Type() == In->Type())
-				{
+            for (auto& RenderStage : RenderStages)
+            {
+                if (RenderStage && RenderStage->Type() == In->Type())
+                {
                     RenderStage->OnRelease();
-					delete RenderStage;
+                    delete RenderStage;
 
-					In->SetRenderer(this);
-					In->OnInitialize();
-					RenderStage = In;
+                    In->SetRenderer(this);
+                    In->OnInitialize();
+                    RenderStage = In;
 
-					return In;
-				}
-			}
+                    return In;
+                }
+            }
 
-			In->SetRenderer(this);
-			In->OnInitialize();
-			RenderStages.push_back(In);
+            In->SetRenderer(this);
+            In->OnInitialize();
+            RenderStages.push_back(In);
 
-			return In;
-		}
-		Renderer* RenderSystem::AddRenderStageByType(UInt64 Type)
-		{
-			for (auto & RenderStage : RenderStages)
-			{
-				if (RenderStage->Type() == Type)
-					return RenderStage;
-			}
+            return In;
+        }
+        Renderer* RenderSystem::AddRenderStageByType(UInt64 Type)
+        {
+            for (auto& RenderStage : RenderStages)
+            {
+                if (RenderStage->Type() == Type)
+                    return RenderStage;
+            }
 
-			Renderer* New = nullptr;
-			switch (Type)
+            Renderer* New = nullptr;
+            switch (Type)
             {
                 case RendererId_Model:
                     New = Engine::Renderers::ModelRenderer::Create(this);
@@ -2191,36 +2149,36 @@ namespace Tomahawk
                 case RendererId_Empty:
                 default:
                     return nullptr;
-			}
+            }
 
-			New->SetRenderer(this);
-			New->OnInitialize();
-			RenderStages.push_back(New);
+            New->SetRenderer(this);
+            New->OnInitialize();
+            RenderStages.push_back(New);
 
-			return New;
-		}
-		Renderer* RenderSystem::GetRenderStage(UInt64 Type)
-		{
-			for (auto & RenderStage : RenderStages)
-			{
-				if (RenderStage->Type() == Type)
-					return RenderStage;
-			}
+            return New;
+        }
+        Renderer* RenderSystem::GetRenderStage(UInt64 Type)
+        {
+            for (auto& RenderStage : RenderStages)
+            {
+                if (RenderStage->Type() == Type)
+                    return RenderStage;
+            }
 
-			return nullptr;
-		}
-		Graphics::ElementBuffer* RenderSystem::VertexQuad()
-		{
-			return QuadVertex;
-		}
-		Graphics::ElementBuffer* RenderSystem::VertexSphere()
-		{
-			return SphereVertex;
-		}
-		Graphics::ElementBuffer* RenderSystem::IndexSphere()
-		{
-			return SphereIndex;
-		}
+            return nullptr;
+        }
+        Graphics::ElementBuffer* RenderSystem::VertexQuad()
+        {
+            return QuadVertex;
+        }
+        Graphics::ElementBuffer* RenderSystem::VertexSphere()
+        {
+            return SphereVertex;
+        }
+        Graphics::ElementBuffer* RenderSystem::IndexSphere()
+        {
+            return SphereIndex;
+        }
         std::vector<Renderer*>* RenderSystem::GetRenderStages()
         {
             return &RenderStages;
@@ -2235,317 +2193,320 @@ namespace Tomahawk
         }
 
         SceneGraph::SceneGraph(const Desc& I)
-		{
-            Sync.Count = 0; Sync.Locked = false;
-		    for (int i = 0; i < ThreadId_Count; i++)
-		        Sync.Threads[i].State = 0;
+        {
+            Sync.Count = 0;
+            Sync.Locked = false;
+            for (int i = 0; i < ThreadId_Count; i++)
+                Sync.Threads[i].State = 0;
 
-			Graphics::Material Material;
-			Material.Micrometal = 0.0f;
-			Material.Microrough = 0.0f;
-			Material.Roughness = 1.0f;
-			Materials.reserve(16);
-			Materials.push_back(Material);
-			Configure(I);
+            Graphics::Material Material;
+            Material.Micrometal = 0.0f;
+            Material.Microrough = 0.0f;
+            Material.Roughness = 1.0f;
+            Materials.reserve(16);
+            Materials.push_back(Material);
+            Configure(I);
 
-			Simulator = new Compute::Simulator(I.EnableSoftBodies);
-			ExpandMaterialStructure();
-		}
-		SceneGraph::~SceneGraph()
-		{
-			Denotify();
-			Lock();
+            Simulator = new Compute::Simulator(I.Simulator);
+            ExpandMaterialStructure();
+        }
+        SceneGraph::~SceneGraph()
+        {
+            Denotify();
+            Lock();
 
             for (auto It = Entities.Begin(); It != Entities.End(); It++)
-				delete *It;
+                delete *It;
 
-			delete Structure;
-			delete Surface;
-			delete Simulator;
-            
-			Unlock();
-		}
-		void SceneGraph::Configure(const Desc& Conf)
-		{
-			if (!Conf.Queue || !Conf.Device)
-				return;
-			else
-				Lock();
+            delete Structure;
+            delete Surface;
+            delete Simulator;
 
-			Queue = Conf.Queue;
-			Device = Conf.Device;
-			RenderQuality = Conf.RenderQuality;
-			Entities.Reserve(Conf.EntityCount);
-			Pending.Reserve(Conf.ComponentCount);
+            Unlock();
+        }
+        void SceneGraph::Configure(const Desc& Conf)
+        {
+            if (!Conf.Queue || !Conf.Device)
+                return;
+            else
+                Lock();
 
-			Components.resize(Conf.ComponentTypes);
-			for (auto It = Components.begin(); It != Components.end(); It++)
-				It->Reserve(Conf.ComponentCount);
+            Queue = Conf.Queue;
+            Device = Conf.Device;
+            RenderQuality = Conf.RenderQuality;
+            Entities.Reserve(Conf.EntityCount);
+            Pending.Reserve(Conf.ComponentCount);
 
-			ResizeBuffers();
-			if (Camera != nullptr)
-				Camera->OnAwake(Camera);
+            Components.resize(Conf.ComponentTypes);
+            for (auto It = Components.begin(); It != Components.end(); It++)
+                It->Reserve(Conf.ComponentCount);
 
-			Queue->Subscribe<Event>([this](Rest::EventQueue*, Rest::EventArgs* Args)
-			{
-				Event* Message = Args->Get<Event>();
-				if (Message != nullptr)
-				{
-					Sync.Events.lock();
-					Events.push_back(Message);
-					Sync.Events.unlock();
-				}
-			});
-			Unlock();
-		}
-		void SceneGraph::Render(Rest::Timer* Time)
-		{
-			BeginThread(ThreadId_Render);
-			if (Camera != nullptr)
-			{
-				Camera->As<Components::Camera>()->FillViewer(&View);
-				Device->View.InvViewProjection = View.InvViewProjection;
-				Device->View.ViewPosition = View.Position.MtVector4();
-				Device->SendBufferStream(Graphics::RenderBufferType_View);
+            ResizeBuffers();
+            if (Camera != nullptr)
+                Camera->OnAwake(Camera);
 
-				Structure->RemapSubresource(Device, Materials.data(), Materials.size() * sizeof(Graphics::Material));
-				Structure->Apply(Device, 0);
-				Surface->Apply(Device, 0, 0, 0);
+            Queue->Subscribe<Event>([this](Rest::EventQueue*, Rest::EventArgs* Args)
+            {
+                Event* Message = Args->Get<Event>();
+                if (Message != nullptr)
+                {
+                    Sync.Events.lock();
+                    Events.push_back(Message);
+                    Sync.Events.unlock();
+                }
+            });
+            Unlock();
+        }
+        void SceneGraph::Render(Rest::Timer* Time)
+        {
+            BeginThread(ThreadId_Render);
+            if (Camera != nullptr)
+            {
+                Camera->As<Components::Camera>()->FillViewer(&View);
+                Device->View.InvViewProjection = View.InvViewProjection;
+                Device->View.ViewPosition = View.Position.MtVector4();
+                Device->SendBufferStream(Graphics::RenderBufferType_View);
 
-				auto* RenderStages = View.Renderer->GetRenderStages();
-				for (auto It = RenderStages->begin(); It != RenderStages->end(); It++)
-				{
-					if ((*It)->Active)
-						(*It)->OnRender(Time);
-				}
+                Structure->RemapSubresource(Device, Materials.data(), Materials.size() * sizeof(Graphics::Material));
+                Structure->Apply(Device, 0);
+                Surface->Apply(Device, 0, 0, 0);
 
-				Device->GetRenderTarget()->Apply(Device);
-			}
-			EndThread(ThreadId_Render);
-		}
-		void SceneGraph::Simulation(Rest::Timer* Time)
-		{
-			BeginThread(ThreadId_Simulation);
-			Simulator->Simulate((float)Time->GetTimeStep());
-			EndThread(ThreadId_Simulation);
-		}
-		void SceneGraph::Synchronize(Rest::Timer* Time)
-		{
-			BeginThread(ThreadId_Synchronize);
+                auto* RenderStages = View.Renderer->GetRenderStages();
+                for (auto It = RenderStages->begin(); It != RenderStages->end(); It++)
+                {
+                    if ((*It)->Active)
+                        (*It)->OnRender(Time);
+                }
+
+                Device->GetRenderTarget()->Apply(Device);
+            }
+            EndThread(ThreadId_Render);
+        }
+        void SceneGraph::Simulation(Rest::Timer* Time)
+        {
+            BeginThread(ThreadId_Simulation);
+            Simulator->Simulate((float)Time->GetTimeStep());
+            EndThread(ThreadId_Simulation);
+        }
+        void SceneGraph::Synchronize(Rest::Timer* Time)
+        {
+            BeginThread(ThreadId_Synchronize);
             for (auto It = Pending.Begin(); It != Pending.End(); It++)
                 (*It)->OnSynchronize(Time);
 
-			UInt64 Index = 0;
+            UInt64 Index = 0;
             for (auto It = Entities.Begin(); It != Entities.End(); It++)
-			{
+            {
                 Entity* V = *It;
                 V->Transform->Synchronize();
-                V->Self = Index; Index++;
-			}
-			EndThread(ThreadId_Synchronize);
-		}
-		void SceneGraph::Update(Rest::Timer* Time)
-		{
-			BeginThread(ThreadId_Update);
+                V->Self = Index;
+                Index++;
+            }
+            EndThread(ThreadId_Synchronize);
+        }
+        void SceneGraph::Update(Rest::Timer* Time)
+        {
+            BeginThread(ThreadId_Update);
             for (auto It = Pending.Begin(); It != Pending.End(); It++)
                 (*It)->OnUpdate(Time);
 
-			DispatchEvents();
-			EndThread(ThreadId_Update);
-		}
-		void SceneGraph::RenderCubicDepth(Rest::Timer* Time, Compute::Matrix4x4 iProjection, Compute::Vector4 iPosition)
-		{
-			View.ViewPosition = Compute::Vector3(-iPosition.X, -iPosition.Y, iPosition.Z);
-			View.ViewProjection.Identify();
-			View.InvViewProjection = View.ViewProjection.Invert();
-			View.Projection = iProjection;
-			View.RealPosition = iPosition.MtVector3();
-			View.Position = View.RealPosition.InvertZ();
-			View.ViewDistance = (iPosition.W < 0 ? 999999999 : iPosition.W);
-			RestoreViewBuffer(&View);
+            DispatchEvents();
+            EndThread(ThreadId_Update);
+        }
+        void SceneGraph::RenderCubicDepth(Rest::Timer* Time, Compute::Matrix4x4 iProjection, Compute::Vector4 iPosition)
+        {
+            View.ViewPosition = Compute::Vector3(-iPosition.X, -iPosition.Y, iPosition.Z);
+            View.ViewProjection.Identify();
+            View.InvViewProjection = View.ViewProjection.Invert();
+            View.Projection = iProjection;
+            View.RealPosition = iPosition.MtVector3();
+            View.Position = View.RealPosition.InvertZ();
+            View.ViewDistance = (iPosition.W < 0 ? 999999999 : iPosition.W);
+            RestoreViewBuffer(&View);
 
-			Compute::Matrix4x4 ViewProjection[6];
-			ViewProjection[0] = Compute::Matrix4x4::CreateCubeMapLookAt(0, View.Position) * View.Projection;
-			ViewProjection[1] = Compute::Matrix4x4::CreateCubeMapLookAt(1, View.Position) * View.Projection;
-			ViewProjection[2] = Compute::Matrix4x4::CreateCubeMapLookAt(2, View.Position) * View.Projection;
-			ViewProjection[3] = Compute::Matrix4x4::CreateCubeMapLookAt(3, View.Position) * View.Projection;
-			ViewProjection[4] = Compute::Matrix4x4::CreateCubeMapLookAt(4, View.Position) * View.Projection;
-			ViewProjection[5] = Compute::Matrix4x4::CreateCubeMapLookAt(5, View.Position) * View.Projection;
+            Compute::Matrix4x4 ViewProjection[6];
+            ViewProjection[0] = Compute::Matrix4x4::CreateCubeMapLookAt(0, View.Position) * View.Projection;
+            ViewProjection[1] = Compute::Matrix4x4::CreateCubeMapLookAt(1, View.Position) * View.Projection;
+            ViewProjection[2] = Compute::Matrix4x4::CreateCubeMapLookAt(2, View.Position) * View.Projection;
+            ViewProjection[3] = Compute::Matrix4x4::CreateCubeMapLookAt(3, View.Position) * View.Projection;
+            ViewProjection[4] = Compute::Matrix4x4::CreateCubeMapLookAt(4, View.Position) * View.Projection;
+            ViewProjection[5] = Compute::Matrix4x4::CreateCubeMapLookAt(5, View.Position) * View.Projection;
 
-			if (!View.Renderer)
-				return;
-
-            auto* RenderStages = View.Renderer->GetRenderStages();
-			for (auto It = RenderStages->begin(); It != RenderStages->end(); It++)
-			{
-				if ((*It)->Active && (*It)->Priority)
-					(*It)->OnCubicDepthRender(Time, ViewProjection);
-			}
-		}
-		void SceneGraph::RenderDepth(Rest::Timer* Time, Compute::Matrix4x4 iView, Compute::Matrix4x4 iProjection, Compute::Vector4 iPosition)
-		{
-			View.ViewPosition = Compute::Vector3(-iPosition.X, -iPosition.Y, iPosition.Z);
-			View.ViewProjection = iView * iProjection;
-			View.InvViewProjection = View.ViewProjection.Invert();
-			View.Projection = iProjection;
-			View.RealPosition = iPosition.MtVector3();
-			View.Position = View.RealPosition.InvertZ();
-			View.ViewDistance = (iPosition.W < 0 ? 999999999 : iPosition.W);
-			RestoreViewBuffer(&View);
-
-			if (!View.Renderer)
-				return;
+            if (!View.Renderer)
+                return;
 
             auto* RenderStages = View.Renderer->GetRenderStages();
             for (auto It = RenderStages->begin(); It != RenderStages->end(); It++)
-			{
-				if ((*It)->Active && (*It)->Priority)
-					(*It)->OnDepthRender(Time);
-			}
-		}
-		void SceneGraph::RenderPhase(Rest::Timer* Time, Compute::Matrix4x4 iView, Compute::Matrix4x4 iProjection, Compute::Vector4 iPosition)
-		{
-			View.ViewPosition = Compute::Vector3(-iPosition.X, -iPosition.Y, iPosition.Z);
-			View.ViewProjection = iView * iProjection;
-			View.InvViewProjection = View.ViewProjection.Invert();
-			View.Projection = iProjection;
-			View.RealPosition = iPosition.MtVector3();
-			View.Position = View.RealPosition.InvertZ();
-			View.ViewDistance = (iPosition.W < 0 ? 999999999 : iPosition.W);
-			RestoreViewBuffer(&View);
+            {
+                if ((*It)->Active && (*It)->Priority)
+                    (*It)->OnCubicDepthRender(Time, ViewProjection);
+            }
+        }
+        void SceneGraph::RenderDepth(Rest::Timer* Time, Compute::Matrix4x4 iView, Compute::Matrix4x4 iProjection, Compute::Vector4 iPosition)
+        {
+            View.ViewPosition = Compute::Vector3(-iPosition.X, -iPosition.Y, iPosition.Z);
+            View.ViewProjection = iView * iProjection;
+            View.InvViewProjection = View.ViewProjection.Invert();
+            View.Projection = iProjection;
+            View.RealPosition = iPosition.MtVector3();
+            View.Position = View.RealPosition.InvertZ();
+            View.ViewDistance = (iPosition.W < 0 ? 999999999 : iPosition.W);
+            RestoreViewBuffer(&View);
 
-			Surface->Apply(Device, 0, 0, 0);
+            if (!View.Renderer)
+                return;
+
             auto* RenderStages = View.Renderer->GetRenderStages();
             for (auto It = RenderStages->begin(); It != RenderStages->end(); It++)
-			{
-				if ((*It)->Active && (*It)->Priority)
-					(*It)->OnPhaseRender(Time);
-			}
-		}
-		void SceneGraph::Rescale(const Compute::Vector3& Scaling)
-		{
-			Lock();
-			for (auto It = Entities.Begin(); It != Entities.End(); It++)
-			{
-			    Entity* V = *It;
-				if (V->Transform->GetRoot() == nullptr)
-                    V->Transform->Scale *= Scaling;
-			}
-			Unlock();
-		}
-		void SceneGraph::Redistribute()
-		{
-			Lock();
-            for (auto & Component : Components)
-				Component.Clear();
+            {
+                if ((*It)->Active && (*It)->Priority)
+                    (*It)->OnDepthRender(Time);
+            }
+        }
+        void SceneGraph::RenderPhase(Rest::Timer* Time, Compute::Matrix4x4 iView, Compute::Matrix4x4 iProjection, Compute::Vector4 iPosition)
+        {
+            View.ViewPosition = Compute::Vector3(-iPosition.X, -iPosition.Y, iPosition.Z);
+            View.ViewProjection = iView * iProjection;
+            View.InvViewProjection = View.ViewProjection.Invert();
+            View.Projection = iProjection;
+            View.RealPosition = iPosition.MtVector3();
+            View.Position = View.RealPosition.InvertZ();
+            View.ViewDistance = (iPosition.W < 0 ? 999999999 : iPosition.W);
+            RestoreViewBuffer(&View);
 
-			Pending.Clear();
-			for (auto It = Entities.Begin(); It != Entities.End(); It++)
-				RegisterEntity(*It);
-
-			Unlock();
-			GetCamera();
-		}
-		void SceneGraph::Reindex()
-		{
-			Lock();
-			Int64 Index = 0;
+            Surface->Apply(Device, 0, 0, 0);
+            auto* RenderStages = View.Renderer->GetRenderStages();
+            for (auto It = RenderStages->begin(); It != RenderStages->end(); It++)
+            {
+                if ((*It)->Active && (*It)->Priority)
+                    (*It)->OnPhaseRender(Time);
+            }
+        }
+        void SceneGraph::Rescale(const Compute::Vector3& Scaling)
+        {
+            Lock();
             for (auto It = Entities.Begin(); It != Entities.End(); It++)
-			{
+            {
+                Entity* V = *It;
+                if (V->Transform->GetRoot() == nullptr)
+                    V->Transform->Scale *= Scaling;
+            }
+            Unlock();
+        }
+        void SceneGraph::Redistribute()
+        {
+            Lock();
+            for (auto& Component : Components)
+                Component.Clear();
+
+            Pending.Clear();
+            for (auto It = Entities.Begin(); It != Entities.End(); It++)
+                RegisterEntity(*It);
+
+            Unlock();
+            GetCamera();
+        }
+        void SceneGraph::Reindex()
+        {
+            Lock();
+            Int64 Index = 0;
+            for (auto It = Entities.Begin(); It != Entities.End(); It++)
+            {
                 (*It)->Self = Index;
                 Index++;
             }
-			Unlock();
-		}
-		void SceneGraph::RandomizeMaterial(Graphics::Material& Material)
-		{
-			Material.Emission = Compute::Vector3::RandomAbs();
-			Material.Metallic = Compute::Vector3::RandomAbs();
-			Material.Micrometal = Compute::Math<float>::Random();
-			Material.Microrough = Compute::Math<float>::Random();
-			Material.Roughness = Compute::Math<float>::Random();
-		}
-		void SceneGraph::SortEntitiesBackToFront()
-		{
-			Lock();
-			for (size_t i = 0; i < Entities.Size(); i++)
-			{
-				if (i + 1 >= Entities.Size())
-					break;
+            Unlock();
+        }
+        void SceneGraph::RandomizeMaterial(Graphics::Material& Material)
+        {
+            Material.Emission = Compute::Vector3::RandomAbs();
+            Material.Metallic = Compute::Vector3::RandomAbs();
+            Material.Micrometal = Compute::Math<float>::Random();
+            Material.Microrough = Compute::Math<float>::Random();
+            Material.Roughness = Compute::Math<float>::Random();
+        }
+        void SceneGraph::SortEntitiesBackToFront()
+        {
+            Lock();
+            for (size_t i = 0; i < Entities.Size(); i++)
+            {
+                if (i + 1 >= Entities.Size())
+                    break;
 
-				Entity* Entity1 = Entities[i], *Entity2 = Entities[i + 1];
-				float Distance1 = Entity1->Transform->Position.Distance(View.RealPosition);
-				float Distance2 = Entity2->Transform->Position.Distance(View.RealPosition);
+                Entity* Entity1 = Entities[i], * Entity2 = Entities[i + 1];
+                float Distance1 = Entity1->Transform->Position.Distance(View.RealPosition);
+                float Distance2 = Entity2->Transform->Position.Distance(View.RealPosition);
 
-				if (Distance1 < Distance2)
-				{
-					Entity* Value = Entities[i];
-					Entities[i] = Entities[i + 1];
-					Entities[i + 1] = Value; i++;
-				}
-			}
-			Unlock();
-		}
-		void SceneGraph::SetCamera(Entity* In)
-		{
-			if (In != nullptr)
-			{
-				auto Viewer = In->GetComponent<Components::Camera>();
-				if (Viewer != nullptr && Viewer->Active)
-				{
-					Viewer->OnAwake(nullptr);
-					Lock();
-					Camera = Viewer;
-					Unlock();
-				}
-			}
-			else
-			{
-				Lock();
-				Camera = nullptr;
-				Unlock();
-			}
-		}
-		void SceneGraph::RemoveEntity(Entity* Entity, bool Release)
-		{
-			if (!Entity)
-				return;
+                if (Distance1 < Distance2)
+                {
+                    Entity* Value = Entities[i];
+                    Entities[i] = Entities[i + 1];
+                    Entities[i + 1] = Value;
+                    i++;
+                }
+            }
+            Unlock();
+        }
+        void SceneGraph::SetCamera(Entity* In)
+        {
+            if (In != nullptr)
+            {
+                auto Viewer = In->GetComponent<Components::Camera>();
+                if (Viewer != nullptr && Viewer->Active)
+                {
+                    Viewer->OnAwake(nullptr);
+                    Lock();
+                    Camera = Viewer;
+                    Unlock();
+                }
+            }
+            else
+            {
+                Lock();
+                Camera = nullptr;
+                Unlock();
+            }
+        }
+        void SceneGraph::RemoveEntity(Entity* Entity, bool Release)
+        {
+            if (!Entity)
+                return;
 
-			Denotify();
-			if (!UnregisterEntity(Entity) || !Release)
-				return;
-			else
-				Entity->RemoveChilds();
+            Denotify();
+            if (!UnregisterEntity(Entity) || !Release)
+                return;
+            else
+                Entity->RemoveChilds();
 
-			Lock();
-			delete Entity;
-			Unlock();
-		}
-		void SceneGraph::RemoveMaterial(UInt64 Material)
-		{
-			if (Material < 1 || Material >= Materials.size())
-				return;
+            Lock();
+            delete Entity;
+            Unlock();
+        }
+        void SceneGraph::RemoveMaterial(UInt64 Material)
+        {
+            if (Material < 1 || Material >= Materials.size())
+                return;
 
-			NotifyEach<Graphics::Material>(nullptr, Materials[Material]);
-			Materials[Material] = Materials.back();
+            NotifyEach<Graphics::Material>(nullptr, Materials[Material]);
+            Materials[Material] = Materials.back();
 
-			if (!Materials.empty())
-				Materials.resize(Materials.size() - 1);
+            if (!Materials.empty())
+                Materials.resize(Materials.size() - 1);
 
-			for (UInt64 i = 0; i < Materials.size(); i++)
-				Materials[i].Self = (float)i;
-		}
-		void SceneGraph::RegisterEntity(Entity* In)
-		{
-			if (!In)
-				return;
+            for (UInt64 i = 0; i < Materials.size(); i++)
+                Materials[i].Self = (float)i;
+        }
+        void SceneGraph::RegisterEntity(Entity* In)
+        {
+            if (!In)
+                return;
 
-			In->SetScene(this);
-			for (auto& Component : In->Components)
-			{
-				Component.second->OnAwake(Component.second);
+            In->SetScene(this);
+            for (auto& Component : In->Components)
+            {
+                Component.second->OnAwake(Component.second);
 
-				auto Storage = &Components[Component.second->Id()];
+                auto Storage = &Components[Component.second->Id()];
                 if (Component.second->Active)
                     Storage->AddUnique(Component.second);
                 else
@@ -2555,206 +2516,206 @@ namespace Tomahawk
                     Pending.AddUnique(Component.second);
                 else
                     Pending.Remove(Component.second);
-			}
-		}
-		bool SceneGraph::UnregisterEntity(Entity* Entity)
-		{
-			if (Camera != nullptr && Entity == Camera->Parent)
-			{
-				Lock();
-				Camera = nullptr;
-				Unlock();
-			}
+            }
+        }
+        bool SceneGraph::UnregisterEntity(Entity* Entity)
+        {
+            if (Camera != nullptr && Entity == Camera->Parent)
+            {
+                Lock();
+                Camera = nullptr;
+                Unlock();
+            }
 
-			if (!Entity || !Entity->GetScene())
-				return false;
+            if (!Entity || !Entity->GetScene())
+                return false;
 
-			for (auto & Component : Entity->Components)
-			{
-				Component.second->OnAsleep();
+            for (auto& Component : Entity->Components)
+            {
+                Component.second->OnAsleep();
 
-				auto Storage = &Components[Component.second->Id()];
-				Storage->Remove(Component.second);
-				Pending.Remove(Component.second);
-			}
+                auto Storage = &Components[Component.second->Id()];
+                Storage->Remove(Component.second);
+                Pending.Remove(Component.second);
+            }
 
-			Entity->SetScene(nullptr);
+            Entity->SetScene(nullptr);
             Entities.Remove(Entity);
-			return true;
-		}
-		void SceneGraph::CloneEntities(Entity* Instance, std::vector<Entity*>* Array)
-		{
-			if (!Instance || !Array)
-				return;
+            return true;
+        }
+        void SceneGraph::CloneEntities(Entity* Instance, std::vector<Entity*>* Array)
+        {
+            if (!Instance || !Array)
+                return;
 
-			Lock();
-			Entity* Clone = CloneEntity(Instance);
-			Array->push_back(Clone);
+            Lock();
+            Entity* Clone = CloneEntity(Instance);
+            Array->push_back(Clone);
 
-			if (Clone->Transform->GetRoot() && Clone->Transform->GetRoot()->GetChilds())
-				Clone->Transform->GetRoot()->GetChilds()->push_back(Clone->Transform);
+            if (Clone->Transform->GetRoot() && Clone->Transform->GetRoot()->GetChilds())
+                Clone->Transform->GetRoot()->GetChilds()->push_back(Clone->Transform);
 
-			std::vector<Compute::Transform*>* Childs = Instance->Transform->GetChilds();
-			if (Instance->Transform->GetChildCount() <= 0)
-				return Unlock();
+            std::vector<Compute::Transform*>* Childs = Instance->Transform->GetChilds();
+            if (Instance->Transform->GetChildCount() <= 0)
+                return Unlock();
 
-			Clone->Transform->GetChilds()->clear();
-			for (UInt64 i = 0; i < Childs->size(); i++)
-			{
-				UInt64 Offset = Array->size();
-				CloneEntities((*Childs)[i]->Ptr<Entity>(), Array);
-				for (UInt64 j = Offset; j < Array->size(); j++)
-				{
-					if ((*Array)[j]->Transform->GetRoot() == Instance->Transform)
-						(*Array)[j]->Transform->SetRoot(Clone->Transform);
-				}
-			}
+            Clone->Transform->GetChilds()->clear();
+            for (UInt64 i = 0; i < Childs->size(); i++)
+            {
+                UInt64 Offset = Array->size();
+                CloneEntities((*Childs)[i]->Ptr<Entity>(), Array);
+                for (UInt64 j = Offset; j < Array->size(); j++)
+                {
+                    if ((*Array)[j]->Transform->GetRoot() == Instance->Transform)
+                        (*Array)[j]->Transform->SetRoot(Clone->Transform);
+                }
+            }
 
-			Unlock();
-		}
-		void SceneGraph::AddMaterial(const Graphics::Material& From)
-		{
-			Graphics::Material Material = From;
+            Unlock();
+        }
+        void SceneGraph::AddMaterial(const Graphics::Material& From)
+        {
+            Graphics::Material Material = From;
             Material.Self = (float)Materials.size();
 
-			if (Materials.size() + 1 < Materials.capacity())
-				return Materials.push_back(Material);
+            if (Materials.size() + 1 < Materials.capacity())
+                return Materials.push_back(Material);
 
-			ExpandMaterialStructure();
-			Materials.push_back(Material);
-		}
-		void SceneGraph::RestoreViewBuffer(Viewer* iView)
-		{
-			if (&View != iView)
-			{
-				if (iView == nullptr)
-				{
-					if (Camera != nullptr)
-						Camera->As<Components::Camera>()->FillViewer(&View);
-				}
-				else
-				    View = *iView;
-			}
+            ExpandMaterialStructure();
+            Materials.push_back(Material);
+        }
+        void SceneGraph::RestoreViewBuffer(Viewer* iView)
+        {
+            if (&View != iView)
+            {
+                if (iView == nullptr)
+                {
+                    if (Camera != nullptr)
+                        Camera->As<Components::Camera>()->FillViewer(&View);
+                }
+                else
+                    View = *iView;
+            }
 
-			Device->View.InvViewProjection = View.InvViewProjection;
-			Device->View.ViewPosition = View.Position.MtVector4();
-			Device->SendBufferStream(Graphics::RenderBufferType_View);
-		}
-		void SceneGraph::ExpandMaterialStructure()
-		{
-			Lock();
-			for (size_t i = 0; i < Materials.size(); i++)
-				Materials[i].Self = (float)i;
-			Materials.reserve(Materials.capacity() * 2);
+            Device->View.InvViewProjection = View.InvViewProjection;
+            Device->View.ViewPosition = View.Position.MtVector4();
+            Device->SendBufferStream(Graphics::RenderBufferType_View);
+        }
+        void SceneGraph::ExpandMaterialStructure()
+        {
+            Lock();
+            for (size_t i = 0; i < Materials.size(); i++)
+                Materials[i].Self = (float)i;
+            Materials.reserve(Materials.capacity() * 2);
 
-			Graphics::StructureBuffer::Desc F = Graphics::StructureBuffer::Desc();
-			F.ElementCount = (unsigned int)Materials.capacity();
-			F.ElementWidth = sizeof(Graphics::Material);
-			F.Elements = Materials.data();
+            Graphics::StructureBuffer::Desc F = Graphics::StructureBuffer::Desc();
+            F.ElementCount = (unsigned int)Materials.capacity();
+            F.ElementWidth = sizeof(Graphics::Material);
+            F.Elements = Materials.data();
 
-			delete Structure;
-			Structure = Graphics::StructureBuffer::Create(Device, F);
-			Unlock();
-		}
-		void SceneGraph::Lock()
-		{
-			auto Id = std::this_thread::get_id();
-			if (Sync.Id == Id)
-			{
-				Sync.Count++;
-				return;
-			}
-			else if (Sync.Locked && Sync.Id != std::thread::id())
-				return;
+            delete Structure;
+            Structure = Graphics::StructureBuffer::Create(Device, F);
+            Unlock();
+        }
+        void SceneGraph::Lock()
+        {
+            auto Id = std::this_thread::get_id();
+            if (Sync.Id == Id)
+            {
+                Sync.Count++;
+                return;
+            }
+            else if (Sync.Locked && Sync.Id != std::thread::id())
+                return;
 
-			Sync.Safe.lock();
-			Sync.Id = Id;
-			Sync.Locked = true;
+            Sync.Safe.lock();
+            Sync.Id = Id;
+            Sync.Locked = true;
 
-			std::unique_lock<std::mutex> Timeout(Sync.Await);
-			for (auto& i : Sync.Threads)
-			{
-				Thread* Entry = &i;
-				if (Entry->Id != std::thread::id() && Entry->Id != Id)
-				{
-					Entry->State = 1;
-					Sync.Condition.wait(Timeout);
-					Entry->State = 2;
-				}
-			}
-		}
-		void SceneGraph::Unlock()
-		{
-			auto Id = std::this_thread::get_id();
-			if (Sync.Id == Id && Sync.Count > 0)
-			{
-				Sync.Count--;
-				return;
-			}
+            std::unique_lock<std::mutex> Timeout(Sync.Await);
+            for (auto& i : Sync.Threads)
+            {
+                Thread* Entry = &i;
+                if (Entry->Id != std::thread::id() && Entry->Id != Id)
+                {
+                    Entry->State = 1;
+                    Sync.Condition.wait(Timeout);
+                    Entry->State = 2;
+                }
+            }
+        }
+        void SceneGraph::Unlock()
+        {
+            auto Id = std::this_thread::get_id();
+            if (Sync.Id == Id && Sync.Count > 0)
+            {
+                Sync.Count--;
+                return;
+            }
 
-			Sync.Locked = false;
-			Sync.Id = std::thread::id();
-			Sync.Safe.unlock();
-			Sync.Callback.notify_all();
-		}
-		void SceneGraph::BeginThread(ThreadId Id)
-		{
-			Thread* Entry = &Sync.Threads[(UInt64)Id];
-			if (Sync.Locked && Entry->State != 0)
-			{
-				if (Entry->Id == Sync.Id)
-					return;
+            Sync.Locked = false;
+            Sync.Id = std::thread::id();
+            Sync.Safe.unlock();
+            Sync.Callback.notify_all();
+        }
+        void SceneGraph::BeginThread(ThreadId Id)
+        {
+            Thread* Entry = &Sync.Threads[(UInt64)Id];
+            if (Sync.Locked && Entry->State != 0)
+            {
+                if (Entry->Id == Sync.Id)
+                    return;
 
-				while (Entry->State == 1)
-					Sync.Condition.notify_all();
+                while (Entry->State == 1)
+                    Sync.Condition.notify_all();
 
-				std::unique_lock<std::mutex> Timeout(Sync.Global);
-				Sync.Callback.wait(Timeout);
-				Entry->State = 0;
-			}
+                std::unique_lock<std::mutex> Timeout(Sync.Global);
+                Sync.Callback.wait(Timeout);
+                Entry->State = 0;
+            }
 
-			Entry->Id = std::this_thread::get_id();
-		}
-		void SceneGraph::EndThread(ThreadId Id)
-		{
-			Thread* Entry = &Sync.Threads[(UInt64)Id];
-			Entry->Id = std::thread::id();
-		}
-		void SceneGraph::DispatchEvents()
-		{
-			Sync.Events.lock();
-			if (Events.empty())
-				return Sync.Events.unlock();
+            Entry->Id = std::this_thread::get_id();
+        }
+        void SceneGraph::EndThread(ThreadId Id)
+        {
+            Thread* Entry = &Sync.Threads[(UInt64)Id];
+            Entry->Id = std::thread::id();
+        }
+        void SceneGraph::DispatchEvents()
+        {
+            Sync.Events.lock();
+            if (Events.empty())
+                return Sync.Events.unlock();
 
-			Event* Message = *Events.begin();
-			Events.erase(Events.begin());
-			Sync.Events.unlock();
+            Event* Message = *Events.begin();
+            Events.erase(Events.begin());
+            Sync.Events.unlock();
 
-			if (Message->Foreach)
-			{
-				if (!Message->Root || !Message->Root->Parent)
-				{
+            if (Message->Foreach)
+            {
+                if (!Message->Root || !Message->Root->Parent)
+                {
                     for (auto It = Entities.Begin(); It != Entities.End(); It++)
-					{
-						for (auto K = (*It)->First(); K != (*It)->Last(); K++)
-							K->second->OnEvent(Message);
-					}
-				}
-				else
-				{
-					for (auto It = Message->Root->Parent->First(); It != Message->Root->Parent->Last(); It++)
-						It->second->OnEvent(Message);
-				}
-			}
-			else if (Message->Root)
-				Message->Root->OnEvent(Message);
+                    {
+                        for (auto K = (*It)->First(); K != (*It)->Last(); K++)
+                            K->second->OnEvent(Message);
+                    }
+                }
+                else
+                {
+                    for (auto It = Message->Root->Parent->First(); It != Message->Root->Parent->Last(); It++)
+                        It->second->OnEvent(Message);
+                }
+            }
+            else if (Message->Root)
+                Message->Root->OnEvent(Message);
 
-			if (Message->Context != nullptr)
-				free(Message->Context);
+            if (Message->Context != nullptr)
+                free(Message->Context);
 
-			delete Message;
-		}
-		void SceneGraph::ResizeBuffers()
+            delete Message;
+        }
+        void SceneGraph::ResizeBuffers()
         {
             Graphics::MultiRenderTarget2D::Desc F = Graphics::MultiRenderTarget2D::Desc();
             F.FormatMode[0] = Graphics::Format_R8G8B8A8_Unorm;
@@ -2774,7 +2735,7 @@ namespace Tomahawk
             if (Camera != nullptr)
             {
                 Lock();
-				delete Surface;
+                delete Surface;
                 Surface = Graphics::MultiRenderTarget2D::Create(Device, F);
 
                 auto&& List = Components[ComponentId_Camera];
@@ -2785,308 +2746,308 @@ namespace Tomahawk
             }
             else
             {
-				delete Surface;
+                delete Surface;
                 Surface = Graphics::MultiRenderTarget2D::Create(Device, F);
             }
         }
         void SceneGraph::SetSurface(Graphics::MultiRenderTarget2D* NewSurface)
         {
-		    Surface = NewSurface;
+            Surface = NewSurface;
         }
-		Component* SceneGraph::GetCamera()
-		{
-			if (Camera != nullptr)
-				return Camera;
+        Component* SceneGraph::GetCamera()
+        {
+            if (Camera != nullptr)
+                return Camera;
 
-			auto Viewer = GetComponent<Components::Camera>();
-			if (Viewer != nullptr && Viewer->Active)
-			{
-				Viewer->OnAwake(Viewer);
-				Lock();
-				Camera = Viewer;
-				Unlock();
-			}
-			else
-			{
-				auto New = new Entity(this);
-				New->AddComponent<Components::Camera>();
-				AddEntity(New);
-				SetCamera(New);
-			}
+            auto Viewer = GetComponent<Components::Camera>();
+            if (Viewer != nullptr && Viewer->Active)
+            {
+                Viewer->OnAwake(Viewer);
+                Lock();
+                Camera = Viewer;
+                Unlock();
+            }
+            else
+            {
+                auto New = new Entity(this);
+                New->AddComponent<Components::Camera>();
+                AddEntity(New);
+                SetCamera(New);
+            }
 
-			return Camera;
-		}
-		Component* SceneGraph::GetComponent(UInt64 Component, UInt64 Section)
-		{
-			return Components[Section][Component];
-		}
-		RenderSystem* SceneGraph::GetRenderer()
-		{
-			return GetCamera()->As<Components::Camera>()->Renderer;
-		}
-		Viewer SceneGraph::GetCameraViewer()
-		{
-			return GetCamera()->As<Components::Camera>()->GetViewer();
-		}
-		Entity* SceneGraph::GetEntity(UInt64 Entity)
-		{
-			if (Entities.Empty())
-				return nullptr;
+            return Camera;
+        }
+        Component* SceneGraph::GetComponent(UInt64 Component, UInt64 Section)
+        {
+            return Components[Section][Component];
+        }
+        RenderSystem* SceneGraph::GetRenderer()
+        {
+            return GetCamera()->As<Components::Camera>()->Renderer;
+        }
+        Viewer SceneGraph::GetCameraViewer()
+        {
+            return GetCamera()->As<Components::Camera>()->GetViewer();
+        }
+        Entity* SceneGraph::GetEntity(UInt64 Entity)
+        {
+            if (Entities.Empty())
+                return nullptr;
 
-			return Entities[Entity];
-		}
-		Entity* SceneGraph::GetLastEntity()
-		{
-			if (Entities.Empty())
-				return nullptr;
+            return Entities[Entity];
+        }
+        Entity* SceneGraph::GetLastEntity()
+        {
+            if (Entities.Empty())
+                return nullptr;
 
-			return Entities.Back();
-		}
-		Entity* SceneGraph::FindNamedEntity(const std::string& Name)
-		{
-			Lock();
-			for (auto It = Entities.Begin(); It != Entities.End(); It++)
-			{
-				if ((*It)->Name == Name)
-				{
-					Unlock();
-					return *It;
-				}
-			}
-
-			Unlock();
-			return nullptr;
-		}
-		Entity* SceneGraph::FindEntityAt(Compute::Vector3 Position, float Radius)
-		{
-			Lock();
+            return Entities.Back();
+        }
+        Entity* SceneGraph::FindNamedEntity(const std::string& Name)
+        {
+            Lock();
             for (auto It = Entities.Begin(); It != Entities.End(); It++)
-			{
-				if ((*It)->Transform->Position.Distance(Position) <= Radius + (*It)->Transform->Scale.Length())
-				{
-					Unlock();
-					return *It;
-				}
-			}
+            {
+                if ((*It)->Name == Name)
+                {
+                    Unlock();
+                    return *It;
+                }
+            }
 
-			Unlock();
-			return nullptr;
-		}
-		Entity* SceneGraph::FindTaggedEntity(UInt64 Tag)
-		{
-			Lock();
+            Unlock();
+            return nullptr;
+        }
+        Entity* SceneGraph::FindEntityAt(Compute::Vector3 Position, float Radius)
+        {
+            Lock();
             for (auto It = Entities.Begin(); It != Entities.End(); It++)
-			{
-				if ((*It)->Tag == Tag)
-				{
-					Unlock();
-					return *It;
-				}
-			}
+            {
+                if ((*It)->Transform->Position.Distance(Position) <= Radius + (*It)->Transform->Scale.Length())
+                {
+                    Unlock();
+                    return *It;
+                }
+            }
 
-			Unlock();
-			return nullptr;
-		}
-		Entity* SceneGraph::CloneEntity(Entity* Entity)
-		{
-			if (!Entity)
-				return nullptr;
+            Unlock();
+            return nullptr;
+        }
+        Entity* SceneGraph::FindTaggedEntity(UInt64 Tag)
+        {
+            Lock();
+            for (auto It = Entities.Begin(); It != Entities.End(); It++)
+            {
+                if ((*It)->Tag == Tag)
+                {
+                    Unlock();
+                    return *It;
+                }
+            }
 
-			Engine::Entity* Instance = new Engine::Entity(this);
-			Instance->Transform->Copy(Entity->Transform);
-			Instance->Transform->UserPointer = Instance;
-			Instance->Tag = Entity->Tag;
-			Instance->Name = Entity->Name;
-			Instance->Self = Entity->Self;
-			Instance->Components = Entity->Components;
+            Unlock();
+            return nullptr;
+        }
+        Entity* SceneGraph::CloneEntity(Entity* Entity)
+        {
+            if (!Entity)
+                return nullptr;
+
+            Engine::Entity* Instance = new Engine::Entity(this);
+            Instance->Transform->Copy(Entity->Transform);
+            Instance->Transform->UserPointer = Instance;
+            Instance->Tag = Entity->Tag;
+            Instance->Name = Entity->Name;
+            Instance->Self = Entity->Self;
+            Instance->Components = Entity->Components;
 
             for (auto& It : Instance->Components)
-			{
-				Component* Source = It.second;
-				It.second = Source->OnClone();
-				It.second->Parent = Instance;
-				It.second->Active = Source->Active;
-			}
+            {
+                Component* Source = It.second;
+                It.second = Source->OnClone();
+                It.second->Parent = Instance;
+                It.second->Active = Source->Active;
+            }
 
-			AddEntity(Instance);
-			return Instance;
-		}
-		Entity* SceneGraph::CloneEntities(Entity* Value)
-		{
-			if (!Value)
-				return nullptr;
+            AddEntity(Instance);
+            return Instance;
+        }
+        Entity* SceneGraph::CloneEntities(Entity* Value)
+        {
+            if (!Value)
+                return nullptr;
 
-			std::vector<Entity*> Array;
-			CloneEntities(Value, &Array);
+            std::vector<Entity*> Array;
+            CloneEntities(Value, &Array);
 
-			return !Array.empty() ? Array.front() : nullptr;
-		}
-		Graphics::Material& SceneGraph::CloneMaterial(UInt64 Material)
-		{
-			if (Material < 0 || Material >= Materials.capacity())
-				return GetMaterialStandartLit();
+            return !Array.empty() ? Array.front() : nullptr;
+        }
+        Graphics::Material& SceneGraph::CloneMaterial(UInt64 Material)
+        {
+            if (Material < 0 || Material >= Materials.capacity())
+                return GetMaterialStandartLit();
 
-			AddMaterial(Materials[Material]);
-			return Materials.back();
-		}
-		Graphics::Material& SceneGraph::GetMaterial(UInt64 Material)
-		{
-			return Materials[Material];
-		}
-		Graphics::Material& SceneGraph::GetMaterialStandartLit()
-		{
-			return Materials.front();
-		}
-		Rest::Pool<Component*>* SceneGraph::GetComponents(UInt64 Section)
-		{
-			return &Components[Section];
-		}
-		std::vector<Entity*> SceneGraph::FindParentFreeEntities(Entity* Entity)
-		{
-			std::vector<Engine::Entity*> Array;
-			if (!Entity)
-				return Array;
+            AddMaterial(Materials[Material]);
+            return Materials.back();
+        }
+        Graphics::Material& SceneGraph::GetMaterial(UInt64 Material)
+        {
+            return Materials[Material];
+        }
+        Graphics::Material& SceneGraph::GetMaterialStandartLit()
+        {
+            return Materials.front();
+        }
+        Rest::Pool<Component*>* SceneGraph::GetComponents(UInt64 Section)
+        {
+            return &Components[Section];
+        }
+        std::vector<Entity*> SceneGraph::FindParentFreeEntities(Entity* Entity)
+        {
+            std::vector<Engine::Entity*> Array;
+            if (!Entity)
+                return Array;
 
-			Lock();
+            Lock();
             for (auto It = Entities.Begin(); It != Entities.End(); It++)
-			{
-				if (*It == Entity)
-					continue;
+            {
+                if (*It == Entity)
+                    continue;
 
-				if (!(*It)->Transform->HasRoot(Entity->Transform))
-					Array.push_back(*It);
-			}
-			Unlock();
+                if (!(*It)->Transform->HasRoot(Entity->Transform))
+                    Array.push_back(*It);
+            }
+            Unlock();
 
-			return Array;
-		}
-		std::vector<Entity*> SceneGraph::FindNamedEntities(const std::string& Name)
-		{
-			std::vector<Entity*> Array;
-			Lock();
-
-            for (auto It = Entities.Begin(); It != Entities.End(); It++)
-			{
-				if ((*It)->Name == Name)
-					Array.push_back(*It);
-			}
-
-			Unlock();
-			return Array;
-		}
-		std::vector<Entity*> SceneGraph::FindEntitiesAt(Compute::Vector3 Position, float Radius)
-		{
-			std::vector<Entity*> Array;
-			Lock();
+            return Array;
+        }
+        std::vector<Entity*> SceneGraph::FindNamedEntities(const std::string& Name)
+        {
+            std::vector<Entity*> Array;
+            Lock();
 
             for (auto It = Entities.Begin(); It != Entities.End(); It++)
-			{
-				if ((*It)->Transform->Position.Distance(Position) <= Radius + (*It)->Transform->Scale.Length())
-					Array.push_back(*It);
-			}
+            {
+                if ((*It)->Name == Name)
+                    Array.push_back(*It);
+            }
 
-			Unlock();
-			return Array;
-		}
-		std::vector<Entity*> SceneGraph::FindTaggedEntities(UInt64 Tag)
-		{
-			std::vector<Entity*> Array;
-			Lock();
+            Unlock();
+            return Array;
+        }
+        std::vector<Entity*> SceneGraph::FindEntitiesAt(Compute::Vector3 Position, float Radius)
+        {
+            std::vector<Entity*> Array;
+            Lock();
 
             for (auto It = Entities.Begin(); It != Entities.End(); It++)
-			{
-				if ((*It)->Tag == Tag)
-					Array.push_back(*It);
-			}
+            {
+                if ((*It)->Transform->Position.Distance(Position) <= Radius + (*It)->Transform->Scale.Length())
+                    Array.push_back(*It);
+            }
 
-			Unlock();
-			return Array;
-		}
-		bool SceneGraph::IsEntityVisible(Entity* Entity, Compute::Matrix4x4 ViewProjection)
-		{
-			if (!Camera || !Entity || Entity->Transform->Position.Distance(Camera->Parent->Transform->Position) > View.ViewDistance + Entity->Transform->Scale.Length())
-				return false;
+            Unlock();
+            return Array;
+        }
+        std::vector<Entity*> SceneGraph::FindTaggedEntities(UInt64 Tag)
+        {
+            std::vector<Entity*> Array;
+            Lock();
 
-			return (Compute::MathCommon::IsClipping(ViewProjection, Entity->Transform->GetWorld(), 2) == -1);
-		}
-		bool SceneGraph::IsEntityVisible(Entity* Entity, Compute::Matrix4x4 ViewProjection, Compute::Vector3 ViewPosition, float DrawDistance)
-		{
-			if (!Entity || Entity->Transform->Position.Distance(ViewPosition) > DrawDistance + Entity->Transform->Scale.Length())
-				return false;
+            for (auto It = Entities.Begin(); It != Entities.End(); It++)
+            {
+                if ((*It)->Tag == Tag)
+                    Array.push_back(*It);
+            }
 
-			return (Compute::MathCommon::IsClipping(ViewProjection, Entity->Transform->GetWorld(), 2) == -1);
-		}
-		bool SceneGraph::AddEntity(Entity* Entity)
-		{
-			if (!Entity)
-				return false;
+            Unlock();
+            return Array;
+        }
+        bool SceneGraph::IsEntityVisible(Entity* Entity, Compute::Matrix4x4 ViewProjection)
+        {
+            if (!Camera || !Entity || Entity->Transform->Position.Distance(Camera->Parent->Transform->Position) > View.ViewDistance + Entity->Transform->Scale.Length())
+                return false;
+
+            return (Compute::MathCommon::IsClipping(ViewProjection, Entity->Transform->GetWorld(), 2) == -1);
+        }
+        bool SceneGraph::IsEntityVisible(Entity* Entity, Compute::Matrix4x4 ViewProjection, Compute::Vector3 ViewPosition, float DrawDistance)
+        {
+            if (!Entity || Entity->Transform->Position.Distance(ViewPosition) > DrawDistance + Entity->Transform->Scale.Length())
+                return false;
+
+            return (Compute::MathCommon::IsClipping(ViewProjection, Entity->Transform->GetWorld(), 2) == -1);
+        }
+        bool SceneGraph::AddEntity(Entity* Entity)
+        {
+            if (!Entity)
+                return false;
 
             Entity->SetScene(this);
             if (Entities.Add(Entity) == Entities.End())
                 return false;
 
-			RegisterEntity(Entity);
-			return true;
-		}
-		bool SceneGraph::Denotify()
-		{
-			if (!Queue)
-				return false;
+            RegisterEntity(Entity);
+            return true;
+        }
+        bool SceneGraph::Denotify()
+        {
+            if (!Queue)
+                return false;
 
-			while (Queue->Pull<Event>(Rest::EventType_Events));
-			return true;
-		}
-		float SceneGraph::GetRenderQuality()
-		{
-			return RenderQuality;
-		}
-		UInt64 SceneGraph::HasEntity(Entity* Entity)
-		{
-			Lock();
-			for (UInt64 i = 0; i < Entities.Size(); i++)
-			{
-				if (Entities[i] == Entity)
-				{
-					Unlock();
-					return i + 1;
-				}
-			}
+            while (Queue->Pull<Event>(Rest::EventType_Events));
+            return true;
+        }
+        float SceneGraph::GetRenderQuality()
+        {
+            return RenderQuality;
+        }
+        UInt64 SceneGraph::HasEntity(Entity* Entity)
+        {
+            Lock();
+            for (UInt64 i = 0; i < Entities.Size(); i++)
+            {
+                if (Entities[i] == Entity)
+                {
+                    Unlock();
+                    return i + 1;
+                }
+            }
 
-			Unlock();
-			return 0;
-		}
-		UInt64 SceneGraph::HasEntity(UInt64 Entity)
-		{
-			return (Entity >= 0 && Entity < Entities.Size()) ? Entity : -1;
-		}
-		UInt64 SceneGraph::HasMaterial(UInt64 Material)
-		{
-			return (Material >= 0 && Material < Materials.size()) ? Material : -1;
-		}
-		UInt64 SceneGraph::GetEntityCount()
-		{
-			return Entities.Size();
-		}
-		UInt64 SceneGraph::GetComponentCount(UInt64 Section)
-		{
-			return Components[Section].Size();
-		}
-		UInt64 SceneGraph::GetMaterialCount()
-		{
-			return Materials.size();
-		}
-		UInt64 SceneGraph::GetComponentTypesCount()
-		{
-			return Components.size();
-		}
-		UInt64 SceneGraph::GetComponentStorageCount()
-		{
-			return Pending.Capacity();
-		}
-		UInt64 SceneGraph::GetEntityStorageCount()
-		{
-			return Entities.Capacity();
-		}
+            Unlock();
+            return 0;
+        }
+        UInt64 SceneGraph::HasEntity(UInt64 Entity)
+        {
+            return (Entity >= 0 && Entity < Entities.Size()) ? Entity : -1;
+        }
+        UInt64 SceneGraph::HasMaterial(UInt64 Material)
+        {
+            return (Material >= 0 && Material < Materials.size()) ? Material : -1;
+        }
+        UInt64 SceneGraph::GetEntityCount()
+        {
+            return Entities.Size();
+        }
+        UInt64 SceneGraph::GetComponentCount(UInt64 Section)
+        {
+            return Components[Section].Size();
+        }
+        UInt64 SceneGraph::GetMaterialCount()
+        {
+            return Materials.size();
+        }
+        UInt64 SceneGraph::GetComponentTypesCount()
+        {
+            return Components.size();
+        }
+        UInt64 SceneGraph::GetComponentStorageCount()
+        {
+            return Pending.Capacity();
+        }
+        UInt64 SceneGraph::GetEntityStorageCount()
+        {
+            return Entities.Capacity();
+        }
         Graphics::MultiRenderTarget2D* SceneGraph::GetSurface()
         {
             return Surface;
@@ -3108,347 +3069,348 @@ namespace Tomahawk
             return Queue;
         }
 
-		ContentManager::ContentManager(Graphics::GraphicsDevice* NewDevice) : Device(NewDevice)
-		{
-			Base = Rest::OS::ResolveDir(Rest::OS::GetDirectory().c_str());
-			SetEnvironment(Base);
-		}
-		ContentManager::~ContentManager()
-		{
+        ContentManager::ContentManager(Graphics::GraphicsDevice* NewDevice) : Device(NewDevice)
+        {
+            Base = Rest::OS::ResolveDir(Rest::OS::GetDirectory().c_str());
+            SetEnvironment(Base);
+        }
+        ContentManager::~ContentManager()
+        {
             InvalidateCache();
             InvalidateDockers();
 
             for (auto It = Streams.begin(); It != Streams.end(); It++)
-				delete It->first;
+                delete It->first;
 
             for (auto It = Processors.begin(); It != Processors.end(); It++)
-				delete It->second;
+                delete It->second;
         }
-		void ContentManager::InvalidateDockers()
-		{
-			for (auto It = Dockers.begin(); It != Dockers.end(); It++)
-			{
-				if (!It->second)
-					continue;
+        void ContentManager::InvalidateDockers()
+        {
+            for (auto It = Dockers.begin(); It != Dockers.end(); It++)
+            {
+                if (!It->second)
+                    continue;
 
-				delete It->second;
-			}
+                delete It->second;
+            }
 
-			Dockers.clear();
-		}
-		void ContentManager::InvalidateCache()
-		{
-			for (auto It = Assets.begin(); It != Assets.end(); It++)
-			{
-				if (!It->second)
-					continue;
+            Dockers.clear();
+        }
+        void ContentManager::InvalidateCache()
+        {
+            for (auto It = Assets.begin(); It != Assets.end(); It++)
+            {
+                if (!It->second)
+                    continue;
 
-				FileProcessor* Root = It->second->Processor;
-				if (Root != nullptr)
-					Root->Free(It->second);
+                FileProcessor* Root = It->second->Processor;
+                if (Root != nullptr)
+                    Root->Free(It->second);
 
-				delete It->second;
-			}
+                delete It->second;
+            }
 
-			Assets.clear();
-		}
-		void ContentManager::SetEnvironment(const std::string& Path)
-		{
-			Environment = Rest::OS::ResolveDir(Path.c_str());
-		}
-		void* ContentManager::LoadForward(const std::string& Path, FileProcessor* Processor, ContentMap* Map)
-		{
-		    ContentArgs Args(Map);
-			if (!Processor)
-			{
-				THAWK_ERROR("file processor for \"%s\" wasn't found", Path.c_str());
-				return nullptr;
-			}
-
-			void* Object = LoadStreaming(Path, Processor, Map);
-			if (Object != nullptr)
-				return Object;
-
-			std::string File = Rest::OS::Resolve(Path, Environment);
-			if (!Rest::OS::FileExists(File.c_str()))
-			{
-				if (!Rest::OS::FileExists(Path.c_str()))
-				{
-					THAWK_ERROR("file \"%s\" wasn't found", File.c_str());
-					return nullptr;
-				}
-
-				File = Path;
-			}
-
-			AssetResource* Asset = FindAsset(Path);
-			if (Asset != nullptr && Asset->Processor == Processor)
-				return Processor->Duplicate(Asset, &Args);
-
-			auto Stream = new Rest::FileStream();
-			Stream->Open(File.c_str(), Rest::FileMode_Binary_Read_Only);
-			Object = Processor->Load(Stream, Stream->Size(), 0, &Args);
-			delete Stream;
-
-			return Object;
-		}
-		void* ContentManager::LoadStreaming(const std::string& Path, FileProcessor* Processor, ContentMap* Map)
-		{
-			auto Docker = Dockers.find(Rest::Stroke(Path).Replace('\\', '/').Replace("./", "").R());
-			if (Docker == Dockers.end() || !Docker->second || !Docker->second->Stream)
-				return nullptr;
-
-			AssetResource* Asset = FindAsset(Path); ContentArgs Args(Map);
-			if (Asset != nullptr && Asset->Processor == Processor)
-				return Processor->Duplicate(Asset, &Args);
-
-			auto It = Streams.find(Docker->second->Stream);
-			if (It == Streams.end())
-			{
-				THAWK_ERROR("cannot resolve stream offset for \"%s\"", Path.c_str());
-				return nullptr;
-			}
-
-			Rest::FileStream* Stream = Docker->second->Stream;
-			Stream->Seek(Rest::FileSeek_Begin, It->second + Docker->second->Offset);
-			Stream->Filename() = Path;
-
-			return Processor->Load(Stream, Docker->second->Length, It->second + Docker->second->Offset, &Args);
-		}
-		bool ContentManager::SaveForward(const std::string& Path, FileProcessor* Processor, void* Object, ContentMap* Map)
-		{
-			if (!Processor)
-			{
-				THAWK_ERROR("file processor for \"%s\" wasn't found", Path.c_str());
-				return false;
-			}
-
-			if (!Object)
-			{
-				THAWK_ERROR("cannot save null object to \"%s\"", Path.c_str());
-				return false;
-			}
-
+            Assets.clear();
+        }
+        void ContentManager::SetEnvironment(const std::string& Path)
+        {
+            Environment = Rest::OS::ResolveDir(Path.c_str());
+        }
+        void* ContentManager::LoadForward(const std::string& Path, FileProcessor* Processor, ContentMap* Map)
+        {
             ContentArgs Args(Map);
-			std::string Directory = Rest::OS::FileDirectory(Path);
-			std::string File = Rest::OS::Resolve(Directory, Environment);
-			File.append(Path.substr(Directory.size()));
+            if (!Processor)
+            {
+                THAWK_ERROR("file processor for \"%s\" wasn't found", Path.c_str());
+                return nullptr;
+            }
+
+            void* Object = LoadStreaming(Path, Processor, Map);
+            if (Object != nullptr)
+                return Object;
+
+            std::string File = Rest::OS::Resolve(Path, Environment);
+            if (!Rest::OS::FileExists(File.c_str()))
+            {
+                if (!Rest::OS::FileExists(Path.c_str()))
+                {
+                    THAWK_ERROR("file \"%s\" wasn't found", File.c_str());
+                    return nullptr;
+                }
+
+                File = Path;
+            }
+
+            AssetResource* Asset = FindAsset(Path);
+            if (Asset != nullptr && Asset->Processor == Processor)
+                return Processor->Duplicate(Asset, &Args);
 
             auto Stream = new Rest::FileStream();
-			if (!Stream->Open(File.c_str(), Rest::FileMode_Binary_Write_Only))
-			{
-				if (!Stream->Open(Path.c_str(), Rest::FileMode_Binary_Write_Only))
-				{
-					THAWK_ERROR("cannot open stream for writing at \"%s\" or \"%s\"", File.c_str(), Path.c_str());
-					delete Stream;
-					return false;
-				}
-			}
+            Stream->Open(File.c_str(), Rest::FileMode_Binary_Read_Only);
+            Object = Processor->Load(Stream, Stream->Size(), 0, &Args);
+            delete Stream;
 
-			bool Result = Processor->Save(Stream, Object, &Args);
-			delete Stream;
-			return Result;
-		}
-		bool ContentManager::Import(const std::string& Path)
-		{
-			std::string File = Rest::OS::Resolve(Path, Environment);
-			if (!Rest::OS::FileExists(File.c_str()))
-			{
-				if (!Rest::OS::FileExists(Path.c_str()))
-				{
-					THAWK_ERROR("file \"%s\" wasn't found", Path.c_str());
-					return false;
-				}
+            return Object;
+        }
+        void* ContentManager::LoadStreaming(const std::string& Path, FileProcessor* Processor, ContentMap* Map)
+        {
+            auto Docker = Dockers.find(Rest::Stroke(Path).Replace('\\', '/').Replace("./", "").R());
+            if (Docker == Dockers.end() || !Docker->second || !Docker->second->Stream)
+                return nullptr;
 
-				File = Path;
-			}
+            AssetResource* Asset = FindAsset(Path);
+            ContentArgs Args(Map);
+            if (Asset != nullptr && Asset->Processor == Processor)
+                return Processor->Duplicate(Asset, &Args);
 
-			Rest::FileStream* Stream = new Rest::FileStream();
-			if (!Stream->OpenZ(File.c_str(), Rest::FileMode::FileMode_Binary_Read_Only))
-			{
-				THAWK_ERROR("cannot open \"%s\" for reading", File.c_str());
-				delete Stream;
-				return false;
-			}
+            auto It = Streams.find(Docker->second->Stream);
+            if (It == Streams.end())
+            {
+                THAWK_ERROR("cannot resolve stream offset for \"%s\"", Path.c_str());
+                return nullptr;
+            }
 
-			char Buffer[16];
-			if (Stream->Read(Buffer, 16) != 16)
-			{
-				THAWK_ERROR("file \"%s\" has corrupted header", File.c_str());
-				delete Stream;
-				return false;
-			}
+            Rest::FileStream* Stream = Docker->second->Stream;
+            Stream->Seek(Rest::FileSeek_Begin, It->second + Docker->second->Offset);
+            Stream->Filename() = Path;
 
-			if (memcmp(Buffer, "\0d\0o\0c\0k\0h\0e\0a\0d", sizeof(char) * 16) != 0)
-			{
-				THAWK_ERROR("file \"%s\" header version is corrupted", File.c_str());
-				delete Stream;
-				return false;
-			}	
+            return Processor->Load(Stream, Docker->second->Length, It->second + Docker->second->Offset, &Args);
+        }
+        bool ContentManager::SaveForward(const std::string& Path, FileProcessor* Processor, void* Object, ContentMap* Map)
+        {
+            if (!Processor)
+            {
+                THAWK_ERROR("file processor for \"%s\" wasn't found", Path.c_str());
+                return false;
+            }
 
-			UInt64 Size = 0;
-			if (Stream->Read((char*)&Size, sizeof(UInt64)) != sizeof(UInt64))
-			{
-				THAWK_ERROR("file \"%s\" has corrupted dock size", File.c_str());
-				delete Stream;
-				return false;
-			}
+            if (!Object)
+            {
+                THAWK_ERROR("cannot save null object to \"%s\"", Path.c_str());
+                return false;
+            }
 
-			for (UInt64 i = 0; i < Size; i++)
-			{
-				AssetDocker* Docker = new AssetDocker();
-				Docker->Stream = Stream;
-				
-				UInt64 Length;
-				Stream->Read((char*)&Length, sizeof(UInt64));
-				Stream->Read((char*)&Docker->Offset, sizeof(UInt64));
-				Stream->Read((char*)&Docker->Length, sizeof(UInt64));
+            ContentArgs Args(Map);
+            std::string Directory = Rest::OS::FileDirectory(Path);
+            std::string File = Rest::OS::Resolve(Directory, Environment);
+            File.append(Path.substr(Directory.size()));
 
-				if (!Length)
-				{
-					delete Docker;
-					continue;
-				}
+            auto Stream = new Rest::FileStream();
+            if (!Stream->Open(File.c_str(), Rest::FileMode_Binary_Write_Only))
+            {
+                if (!Stream->Open(Path.c_str(), Rest::FileMode_Binary_Write_Only))
+                {
+                    THAWK_ERROR("cannot open stream for writing at \"%s\" or \"%s\"", File.c_str(), Path.c_str());
+                    delete Stream;
+                    return false;
+                }
+            }
 
-				Docker->Path.resize(Length);
-				Stream->Read((char*)Docker->Path.c_str(), sizeof(char) * Length);
-				Dockers[Docker->Path] = Docker;
-			}
+            bool Result = Processor->Save(Stream, Object, &Args);
+            delete Stream;
+            return Result;
+        }
+        bool ContentManager::Import(const std::string& Path)
+        {
+            std::string File = Rest::OS::Resolve(Path, Environment);
+            if (!Rest::OS::FileExists(File.c_str()))
+            {
+                if (!Rest::OS::FileExists(Path.c_str()))
+                {
+                    THAWK_ERROR("file \"%s\" wasn't found", Path.c_str());
+                    return false;
+                }
 
-			Streams[Stream] = (Int64)Stream->Tell();
-			return true;
-		}
-		bool ContentManager::Export(const std::string& Path, const std::string& Directory, const std::string& Name)
-		{
-			if (Path.empty() || Directory.empty())
-			{
-				THAWK_ERROR("cannot export to/from unknown location");
-				return false;
-			}
+                File = Path;
+            }
 
-			auto Stream = new Rest::FileStream();
-			if (!Stream->OpenZ(Rest::OS::Resolve(Path, Environment).c_str(), Rest::FileMode_Write_Only))
-			{
-				THAWK_ERROR("cannot open \"%s\" for writing", Path.c_str());
-				delete Stream;
-				return false;
-			}
+            Rest::FileStream* Stream = new Rest::FileStream();
+            if (!Stream->OpenZ(File.c_str(), Rest::FileMode::FileMode_Binary_Read_Only))
+            {
+                THAWK_ERROR("cannot open \"%s\" for reading", File.c_str());
+                delete Stream;
+                return false;
+            }
 
-			std::string Base = Rest::OS::Resolve(Directory, Environment);
-			auto Tree = new Rest::FileTree(Base);
-			Stream->Write("\0d\0o\0c\0k\0h\0e\0a\0d", sizeof(char) * 16);
+            char Buffer[16];
+            if (Stream->Read(Buffer, 16) != 16)
+            {
+                THAWK_ERROR("file \"%s\" has corrupted header", File.c_str());
+                delete Stream;
+                return false;
+            }
 
-			UInt64 Size = Tree->GetFiles();
-			Stream->Write((char*)&Size, sizeof(UInt64));
+            if (memcmp(Buffer, "\0d\0o\0c\0k\0h\0e\0a\0d", sizeof(char) * 16) != 0)
+            {
+                THAWK_ERROR("file \"%s\" header version is corrupted", File.c_str());
+                delete Stream;
+                return false;
+            }
 
-			UInt64 Offset = 0;
-			Tree->Loop([Stream, &Offset, &Base, &Name](Rest::FileTree* Tree)
-			{
-				for (auto& Resource : Tree->Files)
-				{
-					Rest::FileStream* File = new Rest::FileStream();
-					if (File->Open(Resource.c_str(), Rest::FileMode_Binary_Read_Only))
-					{
-						std::string Path = Rest::Stroke(Resource).Replace(Base, Name).Replace('\\', '/').R();
-						if (Name.empty())
-							Path.assign(Path.substr(1));
+            UInt64 Size = 0;
+            if (Stream->Read((char*)&Size, sizeof(UInt64)) != sizeof(UInt64))
+            {
+                THAWK_ERROR("file \"%s\" has corrupted dock size", File.c_str());
+                delete Stream;
+                return false;
+            }
 
-						UInt64 Size = (UInt64)Path.size();
-						UInt64 Length = File->Size();
-						
-						Stream->Write((char*)&Size, sizeof(UInt64));
-						Stream->Write((char*)&Offset, sizeof(UInt64));
-						Stream->Write((char*)&Length, sizeof(UInt64));
+            for (UInt64 i = 0; i < Size; i++)
+            {
+                AssetDocker* Docker = new AssetDocker();
+                Docker->Stream = Stream;
 
-						Offset += Length;
-						if (Size > 0)
-							Stream->Write((char*)Path.c_str(), sizeof(char) * Size);
-					}
-					delete File;
-				}
+                UInt64 Length;
+                Stream->Read((char*)&Length, sizeof(UInt64));
+                Stream->Read((char*)&Docker->Offset, sizeof(UInt64));
+                Stream->Read((char*)&Docker->Length, sizeof(UInt64));
 
-				return true;
-			});
-			Tree->Loop([Stream](Rest::FileTree* Tree)
-			{
-				for (auto& Resource : Tree->Files)
-				{
-					Rest::FileStream* File = new Rest::FileStream();
-					if (File->Open(Resource.c_str(), Rest::FileMode_Binary_Read_Only))
-					{
-						Int64 Size = (Int64)File->Size();
-						while (Size > 0)
-						{
-							char Buffer[8192];
-							Int64 Offset = File->Read(Buffer, Size > 8192 ? 8192 : Size);
-							if (Offset <= 0)
-								break;
+                if (!Length)
+                {
+                    delete Docker;
+                    continue;
+                }
 
-							Stream->Write(Buffer, Offset);
-							Size -= Offset;
-						}
-					}
-					delete File;
-				}
+                Docker->Path.resize(Length);
+                Stream->Read((char*)Docker->Path.c_str(), sizeof(char) * Length);
+                Dockers[Docker->Path] = Docker;
+            }
 
-				return true;
-			});
+            Streams[Stream] = (Int64)Stream->Tell();
+            return true;
+        }
+        bool ContentManager::Export(const std::string& Path, const std::string& Directory, const std::string& Name)
+        {
+            if (Path.empty() || Directory.empty())
+            {
+                THAWK_ERROR("cannot export to/from unknown location");
+                return false;
+            }
 
-			delete Tree;
-			delete Stream;
+            auto Stream = new Rest::FileStream();
+            if (!Stream->OpenZ(Rest::OS::Resolve(Path, Environment).c_str(), Rest::FileMode_Write_Only))
+            {
+                THAWK_ERROR("cannot open \"%s\" for writing", Path.c_str());
+                delete Stream;
+                return false;
+            }
 
-			return true;
-		}
-		bool ContentManager::Cache(FileProcessor* Root, const std::string& Path, void* Resource)
-		{
-			auto It = Assets.find(Path);
-			if (It != Assets.end())
-				return false;
+            std::string Base = Rest::OS::Resolve(Directory, Environment);
+            auto Tree = new Rest::FileTree(Base);
+            Stream->Write("\0d\0o\0c\0k\0h\0e\0a\0d", sizeof(char) * 16);
 
-			AssetResource* Asset = new AssetResource();
-			Asset->Processor = Root;
-			Asset->Path = Rest::Stroke(Path).Replace(Environment, "./").Replace('\\', '/').R();
-			Asset->Resource = Resource;
-			Assets[Asset->Path] = Asset;
+            UInt64 Size = Tree->GetFiles();
+            Stream->Write((char*)&Size, sizeof(UInt64));
 
-			return true;
-		}
-		AssetResource* ContentManager::FindAsset(const std::string& Path)
-		{
-			auto It = Assets.find(Rest::Stroke(Path).Replace(Environment, "./").Replace('\\','/').R());
-			if (It != Assets.end())
-				return It->second;
+            UInt64 Offset = 0;
+            Tree->Loop([Stream, &Offset, &Base, &Name](Rest::FileTree* Tree)
+            {
+                for (auto& Resource : Tree->Files)
+                {
+                    Rest::FileStream* File = new Rest::FileStream();
+                    if (File->Open(Resource.c_str(), Rest::FileMode_Binary_Read_Only))
+                    {
+                        std::string Path = Rest::Stroke(Resource).Replace(Base, Name).Replace('\\', '/').R();
+                        if (Name.empty())
+                            Path.assign(Path.substr(1));
 
-			return nullptr;
-		}
-		AssetResource* ContentManager::FindAsset(void* Resource)
-		{
-			for (auto& It : Assets)
-			{
-				if (It.second && It.second->Resource == Resource)
-					return It.second;
-			}
+                        UInt64 Size = (UInt64)Path.size();
+                        UInt64 Length = File->Size();
 
-			return nullptr;
-		}
+                        Stream->Write((char*)&Size, sizeof(UInt64));
+                        Stream->Write((char*)&Offset, sizeof(UInt64));
+                        Stream->Write((char*)&Length, sizeof(UInt64));
+
+                        Offset += Length;
+                        if (Size > 0)
+                            Stream->Write((char*)Path.c_str(), sizeof(char) * Size);
+                    }
+                    delete File;
+                }
+
+                return true;
+            });
+            Tree->Loop([Stream](Rest::FileTree* Tree)
+            {
+                for (auto& Resource : Tree->Files)
+                {
+                    Rest::FileStream* File = new Rest::FileStream();
+                    if (File->Open(Resource.c_str(), Rest::FileMode_Binary_Read_Only))
+                    {
+                        Int64 Size = (Int64)File->Size();
+                        while (Size > 0)
+                        {
+                            char Buffer[8192];
+                            Int64 Offset = File->Read(Buffer, Size > 8192 ? 8192 : Size);
+                            if (Offset <= 0)
+                                break;
+
+                            Stream->Write(Buffer, Offset);
+                            Size -= Offset;
+                        }
+                    }
+                    delete File;
+                }
+
+                return true;
+            });
+
+            delete Tree;
+            delete Stream;
+
+            return true;
+        }
+        bool ContentManager::Cache(FileProcessor* Root, const std::string& Path, void* Resource)
+        {
+            auto It = Assets.find(Path);
+            if (It != Assets.end())
+                return false;
+
+            AssetResource* Asset = new AssetResource();
+            Asset->Processor = Root;
+            Asset->Path = Rest::Stroke(Path).Replace(Environment, "./").Replace('\\', '/').R();
+            Asset->Resource = Resource;
+            Assets[Asset->Path] = Asset;
+
+            return true;
+        }
+        AssetResource* ContentManager::FindAsset(const std::string& Path)
+        {
+            auto It = Assets.find(Rest::Stroke(Path).Replace(Environment, "./").Replace('\\', '/').R());
+            if (It != Assets.end())
+                return It->second;
+
+            return nullptr;
+        }
+        AssetResource* ContentManager::FindAsset(void* Resource)
+        {
+            for (auto& It : Assets)
+            {
+                if (It.second && It.second->Resource == Resource)
+                    return It.second;
+            }
+
+            return nullptr;
+        }
         Graphics::GraphicsDevice* ContentManager::GetDevice()
         {
-		    return Device;
+            return Device;
         }
-		std::string ContentManager::GetEnvironment()
-		{
-			return Environment;
-		}
+        std::string ContentManager::GetEnvironment()
+        {
+            return Environment;
+        }
 
-		Application::Application(Desc* I)
-		{
-			if (!I)
-				return;
+        Application::Application(Desc* I)
+        {
+            if (!I)
+                return;
 
-			Host = this;
+            Host = this;
 #ifdef THAWK_HAS_SDL2
-			if (I->Usage & ApplicationUse_Activity_Module)
-			{
+            if (I->Usage & ApplicationUse_Activity_Module)
+            {
                 if (I->Activity.Width <= 0 || I->Activity.Height <= 0)
                 {
                     SDL_DisplayMode Display;
@@ -3466,11 +3428,11 @@ namespace Tomahawk
                         OnKeyState(Key, Mod, Virtual, Repeat, Pressed);
                         if (!Scene)
                             return;
-                        
+
                         RenderSystem* Lab = Scene->GetRenderer();
                         if (!Lab)
                             return;
-                        
+
                         Renderers::GUIRenderer* GUI = (Renderers::GUIRenderer*)Lab->GetRenderStage(RendererId_GUI);
                         if (GUI != nullptr)
                             GUI->GetTree()->ApplyKeyState(Key, Mod, Virtual, Repeat, Pressed);
@@ -3526,55 +3488,55 @@ namespace Tomahawk
                             return;
                         }
                     }
-				}
+                }
                 else
                     THAWK_ERROR("cannot detect display to create activity");
-			}
+            }
 #endif
 
-			if (I->Usage & ApplicationUse_Audio_Module)
-			{
+            if (I->Usage & ApplicationUse_Audio_Module)
+            {
                 Audio = new Audio::AudioDevice();
                 if (!Audio->IsValid())
                     return;
             }
 
-			if (I->Usage & ApplicationUse_Content_Module)
-			{
-				Content = new ContentManager(Renderer);
-				Content->AddProcessor<FileProcessors::SceneGraphProcessor, Engine::SceneGraph>();
-				Content->AddProcessor<FileProcessors::FontProcessor, Renderers::GUIRenderer>();
-				Content->AddProcessor<FileProcessors::AudioClipProcessor, Audio::AudioClip>();
-				Content->AddProcessor<FileProcessors::Texture2DProcessor, Graphics::Texture2D>();
-				Content->AddProcessor<FileProcessors::ShaderProcessor, Graphics::Shader>();
-				Content->AddProcessor<FileProcessors::ModelProcessor, Graphics::Model>();
-				Content->AddProcessor<FileProcessors::SkinnedModelProcessor, Graphics::SkinnedModel>();
-				Content->AddProcessor<FileProcessors::DocumentProcessor, Rest::Document>();
-				Content->AddProcessor<FileProcessors::ServerProcessor, Network::HTTP::Server>();
-				Content->SetEnvironment(I->Environment.empty() ? Rest::OS::GetDirectory() + I->Directory : I->Environment + I->Directory);
-			}
+            if (I->Usage & ApplicationUse_Content_Module)
+            {
+                Content = new ContentManager(Renderer);
+                Content->AddProcessor<FileProcessors::SceneGraphProcessor, Engine::SceneGraph>();
+                Content->AddProcessor<FileProcessors::FontProcessor, Renderers::GUIRenderer>();
+                Content->AddProcessor<FileProcessors::AudioClipProcessor, Audio::AudioClip>();
+                Content->AddProcessor<FileProcessors::Texture2DProcessor, Graphics::Texture2D>();
+                Content->AddProcessor<FileProcessors::ShaderProcessor, Graphics::Shader>();
+                Content->AddProcessor<FileProcessors::ModelProcessor, Graphics::Model>();
+                Content->AddProcessor<FileProcessors::SkinnedModelProcessor, Graphics::SkinnedModel>();
+                Content->AddProcessor<FileProcessors::DocumentProcessor, Rest::Document>();
+                Content->AddProcessor<FileProcessors::ServerProcessor, Network::HTTP::Server>();
+                Content->SetEnvironment(I->Environment.empty() ? Rest::OS::GetDirectory() + I->Directory : I->Environment + I->Directory);
+            }
 
             if (I->Usage & ApplicationUse_AngelScript_Module)
                 VM = new Script::VMManager();
 
-			Queue = new Rest::EventQueue();
-			State = ApplicationState_Staging;
-		}
-		Application::~Application()
-		{
-			if (Renderer != nullptr)
+            Queue = new Rest::EventQueue();
+            State = ApplicationState_Staging;
+        }
+        Application::~Application()
+        {
+            if (Renderer != nullptr)
                 Renderer->RestoreState();
 
-			delete Scene;
-			delete Queue;
-			delete VM;
-			delete Audio;
-			delete Content;
-			delete Renderer;
-			delete Activity;
-			Host = nullptr;
-		}
-		void Application::OnKeyState(Graphics::KeyCode Key, Graphics::KeyMod Mod, int Virtual, int Repeat, bool Pressed)
+            delete Scene;
+            delete Queue;
+            delete VM;
+            delete Audio;
+            delete Content;
+            delete Renderer;
+            delete Activity;
+            Host = nullptr;
+        }
+        void Application::OnKeyState(Graphics::KeyCode Key, Graphics::KeyMod Mod, int Virtual, int Repeat, bool Pressed)
         {
         }
         void Application::OnInput(char* Buffer, int Length)
@@ -3598,32 +3560,32 @@ namespace Tomahawk
         void Application::OnInitialize(Desc* I)
         {
         }
-		void Application::Run(Desc* I)
-		{
-			if (!I || !Queue)
-				return;
-
-			OnInitialize(I);
-			if (State == ApplicationState_Terminated)
+        void Application::Run(Desc* I)
+        {
+            if (!I || !Queue)
                 return;
 
-			if (Scene != nullptr)
+            OnInitialize(I);
+            if (State == ApplicationState_Terminated)
+                return;
+
+            if (Scene != nullptr)
                 Scene->Denotify();
 
-			if (I->TaskWorkersCount < Workers)
-				I->TaskWorkersCount = Workers;
+            if (I->TaskWorkersCount < Workers)
+                I->TaskWorkersCount = Workers;
 
             Rest::Timer* Time = new Rest::Timer();
             Time->SetStepLimitation(I->MaxFrames, I->MinFrames);
             Time->FrameLimit = I->FrameLimit;
 
-			if (I->Threading != Rest::EventWorkflow_Singlethreaded)
-			{
-			    if (!I->TaskWorkersCount)
-			        THAWK_WARN("tasks will not be processed (no workers)");
+            if (I->Threading != Rest::EventWorkflow_Singlethreaded)
+            {
+                if (!I->TaskWorkersCount)
+                    THAWK_WARN("tasks will not be processed (no workers)");
 
                 State = ApplicationState_Multithreaded;
-				Queue->Start(I->Threading, I->TaskWorkersCount, I->EventWorkersCount);
+                Queue->Start(I->Threading, I->TaskWorkersCount, I->EventWorkersCount);
 
                 if (Activity != nullptr)
                 {
@@ -3636,86 +3598,86 @@ namespace Tomahawk
                     }
                 }
                 else
-				{
-					while (State == ApplicationState_Multithreaded)
-					{
-						Time->Synchronize();
-						OnUpdate(Time);
-					}
-				}
-			}
-			else
-			{
+                {
+                    while (State == ApplicationState_Multithreaded)
+                    {
+                        Time->Synchronize();
+                        OnUpdate(Time);
+                    }
+                }
+            }
+            else
+            {
                 State = ApplicationState_Singlethreaded;
-				Queue->SetState(Rest::EventState_Working);
+                Queue->SetState(Rest::EventState_Working);
 
-				if (Activity != nullptr)
-				{
-					while (State == ApplicationState_Singlethreaded)
-					{
+                if (Activity != nullptr)
+                {
+                    while (State == ApplicationState_Singlethreaded)
+                    {
                         Queue->Tick();
                         Time->Synchronize();
                         Activity->Dispatch();
-						OnUpdate(Time);
-						OnRender(Time);
-					}
-				}
-				else
+                        OnUpdate(Time);
+                        OnRender(Time);
+                    }
+                }
+                else
                 {
-					while (State == ApplicationState_Singlethreaded)
-					{
+                    while (State == ApplicationState_Singlethreaded)
+                    {
                         Queue->Tick();
-						Time->Synchronize();
-						OnUpdate(Time);
-					}
-				}
+                        Time->Synchronize();
+                        OnUpdate(Time);
+                    }
+                }
 
-				Queue->SetState(Rest::EventState_Idle);
-			}
+                Queue->SetState(Rest::EventState_Idle);
+            }
 
-			delete Time;
-		}
-		void Application::Restate(ApplicationState Value)
-		{
-			State = Value;
-		}
-		void Application::Enqueue(const std::function<void(Rest::Timer*)>& Callback, Float64 Limit)
-		{
-			if (!Queue || !Callback)
-				return;
+            delete Time;
+        }
+        void Application::Restate(ApplicationState Value)
+        {
+            State = Value;
+        }
+        void Application::Enqueue(const std::function<void(Rest::Timer*)>& Callback, Float64 Limit)
+        {
+            if (!Queue || !Callback)
+                return;
 
-			ThreadEvent* Call = new ThreadEvent();
-			Call->Callback = Callback;
-			Call->App = this;
-			Call->Timer = new Rest::Timer();
-			Call->Timer->FrameLimit = Limit;
+            ThreadEvent* Call = new ThreadEvent();
+            Call->Callback = Callback;
+            Call->App = this;
+            Call->Timer = new Rest::Timer();
+            Call->Timer->FrameLimit = Limit;
 
-			if (State == ApplicationState_Staging)
-				Workers++;
+            if (State == ApplicationState_Staging)
+                Workers++;
 
-			Queue->Task<ThreadEvent>(Call, Callee);
-		}
-		void Application::Callee(Rest::EventQueue* Queue, Rest::EventArgs* Args)
-		{
-			ThreadEvent* Data = Args->Get<ThreadEvent>();
-			do
-			{
-				Data->Callback(Data->Timer);
-				Data->Timer->Synchronize();
-			} while (Data->App->State == ApplicationState_Multithreaded && Args->Blockable());
+            Queue->Task<ThreadEvent>(Call, Callee);
+        }
+        void Application::Callee(Rest::EventQueue* Queue, Rest::EventArgs* Args)
+        {
+            ThreadEvent* Data = Args->Get<ThreadEvent>();
+            do
+            {
+                Data->Callback(Data->Timer);
+                Data->Timer->Synchronize();
+            }while (Data->App->State == ApplicationState_Multithreaded && Args->Blockable());
 
-			if (Data->App->State != ApplicationState_Singlethreaded)
-			{
-				delete Data->Timer;
-				Args->Free<ThreadEvent>();
-			}
-			else
-				Queue->Task<ThreadEvent>(Data, Callee);
-		}
-		Application* Application::Get()
-		{
-			return Host;
-		}
-		Application* Application::Host = nullptr;
-	}
+            if (Data->App->State != ApplicationState_Singlethreaded)
+            {
+                delete Data->Timer;
+                Args->Free<ThreadEvent>();
+            }
+            else
+                Queue->Task<ThreadEvent>(Data, Callee);
+        }
+        Application* Application::Get()
+        {
+            return Host;
+        }
+        Application* Application::Host = nullptr;
+    }
 }

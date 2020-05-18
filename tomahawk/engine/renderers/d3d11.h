@@ -304,7 +304,7 @@ namespace Tomahawk
             class D3D11AmbientOcclusionRenderer : public Engine::Renderers::AmbientOcclusionRenderer
             {
             private:
-                D3D11Device * Device;
+                D3D11Device* Device;
                 D3D11ElementBuffer* QuadVertex;
                 D3D11Shader* Shader;
                 D3D11RenderTarget2D* Output;
@@ -374,9 +374,9 @@ namespace Tomahawk
                     ID3D11PixelShader* PS;
                     ID3D11VertexShader* VS;
                     unsigned int PSInstancesCount, VSInstancesCount;
-                    ID3D11ClassInstance* PSInstances[256], *VSInstances[256];
+                    ID3D11ClassInstance* PSInstances[256], * VSInstances[256];
                     D3D11_PRIMITIVE_TOPOLOGY PrimitiveTopology;
-                    ID3D11Buffer* IndexBuffer, *VertexBuffer, *VSConstantBuffer;
+                    ID3D11Buffer* IndexBuffer, * VertexBuffer, * VSConstantBuffer;
                     unsigned int IndexBufferOffset, VertexBufferStride, VertexBufferOffset;
                     DXGI_FORMAT IndexBufferFormat;
                     ID3D11InputLayout* InputLayout;

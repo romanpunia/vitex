@@ -7,10 +7,10 @@ namespace Tomahawk
 {
     namespace Wrapper
     {
-		namespace Audio
-		{
-			THAWK_OUT void Enable(Script::VMManager* Manager);
-		}
+        namespace Audio
+        {
+            THAWK_OUT void Enable(Script::VMManager* Manager);
+        }
     }
 }
 #endif

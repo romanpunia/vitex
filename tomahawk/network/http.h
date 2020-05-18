@@ -88,9 +88,9 @@ namespace Tomahawk
 
             struct RouteEntry;
 
-			struct SiteEntry;
+            struct SiteEntry;
 
-			struct MapRouter;
+            struct MapRouter;
 
             class Server;
 
@@ -202,6 +202,7 @@ namespace Tomahawk
             struct THAWK_OUT WebSocketFrame
             {
                 friend struct GatewayFrame;
+
                 friend class Util;
 
             private:
@@ -216,7 +217,7 @@ namespace Tomahawk
                 bool Clear = false;
                 bool Error = false;
                 bool Notified = false;
-				bool Save = false;
+                bool Save = false;
 
             public:
                 HTTP::Connection* Base = nullptr;
@@ -230,12 +231,13 @@ namespace Tomahawk
                 void Finish();
                 void Next();
                 void Notify();
-				bool IsFinished();
+                bool IsFinished();
             };
 
             struct THAWK_OUT GatewayFrame
             {
                 friend WebSocketFrame;
+
                 friend class Util;
 
             private:
@@ -246,8 +248,8 @@ namespace Tomahawk
                 UInt64 Offset = 0;
                 bool EoF = false;
                 bool Core = false;
-				bool Save = false;
-				char Type = '?';
+                bool Save = false;
+                char Type = '?';
 
             public:
                 Connection* Base = nullptr;
@@ -258,7 +260,7 @@ namespace Tomahawk
                 bool Next();
                 bool Finish(const GatewayFreeCallback& Callback);
                 bool Error(const GatewayFreeCallback& Callback);
-				bool IsDone();
+                bool IsDone();
 
             private:
                 bool Done(bool Normal);
@@ -349,53 +351,53 @@ namespace Tomahawk
                 SiteEntry* Site = nullptr;
             };
 
-			struct THAWK_OUT SiteEntry
-			{
-				struct
-				{
-					struct
-					{
-						std::string DocumentRoot = "./sessions/";
-						std::string Name = "Sid";
-						std::string Domain;
-						std::string Path = "/";
-						UInt64 Expires = 604800;
-						UInt64 CookieExpires = 31536000;
-					} Session;
+            struct THAWK_OUT SiteEntry
+            {
+                struct
+                {
+                    struct
+                    {
+                        std::string DocumentRoot = "./sessions/";
+                        std::string Name = "Sid";
+                        std::string Domain;
+                        std::string Path = "/";
+                        UInt64 Expires = 604800;
+                        UInt64 CookieExpires = 31536000;
+                    } Session;
 
-					void* Manager = nullptr;
+                    void* Manager = nullptr;
                     std::string ModuleRoot;
-					bool Enabled = false;
-				} Gateway;
-				struct
-				{
-					SuccessCallback OnRewriteURL;
-					GatewayCreateCallback OnGatewayCreate;
-					GatewayReleaseCallback OnGatewayRelease;
-				} Callbacks;
+                    bool Enabled = false;
+                } Gateway;
+                struct
+                {
+                    SuccessCallback OnRewriteURL;
+                    GatewayCreateCallback OnGatewayCreate;
+                    GatewayReleaseCallback OnGatewayRelease;
+                } Callbacks;
 
-				std::unordered_set<std::string> Hosts;
-				std::vector<RouteEntry*> Routes;
-				std::string ResourceRoot = "./files/";
-				std::string SiteName;
-				UInt64 MaxResources = 5;
-				RouteEntry* Base = nullptr;
-				MapRouter* Router = nullptr;
+                std::unordered_set<std::string> Hosts;
+                std::vector<RouteEntry*> Routes;
+                std::string ResourceRoot = "./files/";
+                std::string SiteName;
+                UInt64 MaxResources = 5;
+                RouteEntry* Base = nullptr;
+                MapRouter* Router = nullptr;
 
-				SiteEntry();
-				~SiteEntry();
-				RouteEntry* Route(const char* Pattern);
-				bool Get(const char* Pattern, SuccessCallback Callback);
-				bool Post(const char* Pattern, SuccessCallback Callback);
-				bool Put(const char* Pattern, SuccessCallback Callback);
-				bool Patch(const char* Pattern, SuccessCallback Callback);
-				bool Delete(const char* Pattern, SuccessCallback Callback);
-				bool Options(const char* Pattern, SuccessCallback Callback);
-				bool Access(const char* Pattern, SuccessCallback Callback);
-				bool WebSocketConnect(const char* Pattern, WebSocketCallback Callback);
-				bool WebSocketDisconnect(const char* Pattern, WebSocketCallback Callback);
-				bool WebSocketReceive(const char* Pattern, WebSocketReadCallback Callback);
-			};
+                SiteEntry();
+                ~SiteEntry();
+                RouteEntry* Route(const char* Pattern);
+                bool Get(const char* Pattern, SuccessCallback Callback);
+                bool Post(const char* Pattern, SuccessCallback Callback);
+                bool Put(const char* Pattern, SuccessCallback Callback);
+                bool Patch(const char* Pattern, SuccessCallback Callback);
+                bool Delete(const char* Pattern, SuccessCallback Callback);
+                bool Options(const char* Pattern, SuccessCallback Callback);
+                bool Access(const char* Pattern, SuccessCallback Callback);
+                bool WebSocketConnect(const char* Pattern, WebSocketCallback Callback);
+                bool WebSocketDisconnect(const char* Pattern, WebSocketCallback Callback);
+                bool WebSocketReceive(const char* Pattern, WebSocketReadCallback Callback);
+            };
 
             struct THAWK_OUT MapRouter : public SocketRouter
             {
@@ -403,7 +405,7 @@ namespace Tomahawk
 
                 MapRouter();
                 virtual ~MapRouter() override;
-				SiteEntry* Site(const char* Host);
+                SiteEntry* Site(const char* Host);
             };
 
             struct THAWK_OUT Connection : public SocketConnection
@@ -412,7 +414,7 @@ namespace Tomahawk
                 WebSocketFrame* WebSocket = nullptr;
                 GatewayFrame* Gateway = nullptr;
                 RouteEntry* Route = nullptr;
-				Server* Root = nullptr;
+                Server* Root = nullptr;
                 RequestFrame Request;
                 ResponseFrame Response;
 
@@ -503,15 +505,15 @@ namespace Tomahawk
                     MultipartState_End
                 };
 
-				enum ChunkedState
-				{
-					ChunkedState_Size,
-					ChunkedState_Ext,
-					ChunkedState_Data,
-					ChunkedState_End,
-					ChunkedState_Head,
-					ChunkedState_Middle
-				};
+                enum ChunkedState
+                {
+                    ChunkedState_Size,
+                    ChunkedState_Ext,
+                    ChunkedState_Data,
+                    ChunkedState_End,
+                    ChunkedState_Head,
+                    ChunkedState_Middle
+                };
 
             private:
                 struct
@@ -524,10 +526,10 @@ namespace Tomahawk
 
                 struct
                 {
-					size_t Length = 0;
-					char ConsumeTrailer = 1;
-					char HexCount = 0;
-					char State = 0;
+                    size_t Length = 0;
+                    char ConsumeTrailer = 1;
+                    char HexCount = 0;
+                    char State = 0;
                 } Chunked;
 
             public:
@@ -657,9 +659,9 @@ namespace Tomahawk
                 Client(Int64 ReadTimeout);
                 ~Client() override;
                 bool Send(HTTP::RequestFrame* Root, const ResponseCallback& Callback);
-				bool Consume(Int64 MaxSize, const ResponseCallback& Callback);
-				RequestFrame* GetRequest();
-				ResponseFrame* GetResponse();
+                bool Consume(Int64 MaxSize, const ResponseCallback& Callback);
+                RequestFrame* GetRequest();
+                ResponseFrame* GetResponse();
 
             private:
                 bool Receive();

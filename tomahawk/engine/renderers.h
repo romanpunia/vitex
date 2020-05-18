@@ -491,9 +491,9 @@ namespace Tomahawk
                     static void SetNextTreeNodeOpen(bool is_open, int cond = 0);
                     static void ListBoxFooter();
                     static void PlotLines(const char* label, const float* values, int values_count, int values_offset = 0, const char* overlay_text = nullptr, float scale_min = std::numeric_limits<float>::max(), float scale_max = std::numeric_limits<float>::max(), Compute::Vector2 graph_size = Compute::Vector2(0, 0), int stride = sizeof(float));
-                    static void PlotLines(const char* label, float(*values_getter)(void* data, int idx), void* data, int values_count, int values_offset = 0, const char* overlay_text = nullptr, float scale_min = std::numeric_limits<float>::max(), float scale_max = std::numeric_limits<float>::max(), Compute::Vector2 graph_size = Compute::Vector2(0, 0));
+                    static void PlotLines(const char* label, float(* values_getter)(void* data, int idx), void* data, int values_count, int values_offset = 0, const char* overlay_text = nullptr, float scale_min = std::numeric_limits<float>::max(), float scale_max = std::numeric_limits<float>::max(), Compute::Vector2 graph_size = Compute::Vector2(0, 0));
                     static void PlotHistogram(const char* label, const float* values, int values_count, int values_offset = 0, const char* overlay_text = nullptr, float scale_min = std::numeric_limits<float>::max(), float scale_max = std::numeric_limits<float>::max(), Compute::Vector2 graph_size = Compute::Vector2(0, 0), int stride = sizeof(float));
-                    static void PlotHistogram(const char* label, float(*values_getter)(void* data, int idx), void* data, int values_count, int values_offset = 0, const char* overlay_text = nullptr, float scale_min = std::numeric_limits<float>::max(), float scale_max = std::numeric_limits<float>::max(), Compute::Vector2 graph_size = Compute::Vector2(0, 0));
+                    static void PlotHistogram(const char* label, float(* values_getter)(void* data, int idx), void* data, int values_count, int values_offset = 0, const char* overlay_text = nullptr, float scale_min = std::numeric_limits<float>::max(), float scale_max = std::numeric_limits<float>::max(), Compute::Vector2 graph_size = Compute::Vector2(0, 0));
                     static void Value(const char* prefix, bool b);
                     static void Value(const char* prefix, int v);
                     static void Value(const char* prefix, unsigned int v);
@@ -549,7 +549,7 @@ namespace Tomahawk
                     static bool BeginCombo(const char* label, const char* preview_value, int flags = 0);
                     static bool Combo(const char* label, int* current_item, const char* const items[], int items_count, int popup_max_height_in_items = -1);
                     static bool Combo(const char* label, int* current_item, const char* items_separated_by_zeros, int popup_max_height_in_items = -1);
-                    static bool Combo(const char* label, int* current_item, bool(*items_getter)(void* data, int idx, const char** out_text), void* data, int items_count, int popup_max_height_in_items = -1);
+                    static bool Combo(const char* label, int* current_item, bool(* items_getter)(void* data, int idx, const char** out_text), void* data, int items_count, int popup_max_height_in_items = -1);
                     static bool DragFloat(const char* label, float* v, float v_speed = 1.0f, float v_min = 0.0f, float v_max = 0.0f, const char* format = "%.3f", float power = 1.0f);
                     static bool DragFloat2(const char* label, float v[2], float v_speed = 1.0f, float v_min = 0.0f, float v_max = 0.0f, const char* format = "%.3f", float power = 1.0f);
                     static bool DragFloat3(const char* label, float v[3], float v_speed = 1.0f, float v_min = 0.0f, float v_max = 0.0f, const char* format = "%.3f", float power = 1.0f);
@@ -609,7 +609,7 @@ namespace Tomahawk
                     static bool Selectable(const char* label, bool selected = false, int flags = 0, Compute::Vector2 size = Compute::Vector2(0, 0));
                     static bool Selectable(const char* label, bool* p_selected, int flags = 0, Compute::Vector2 size = Compute::Vector2(0, 0));
                     static bool ListBox(const char* label, int* current_item, const char* const items[], int items_count, int height_in_items = -1);
-                    static bool ListBox(const char* label, int* current_item, bool(*items_getter)(void* data, int idx, const char** out_text), void* data, int items_count, int height_in_items = -1);
+                    static bool ListBox(const char* label, int* current_item, bool(* items_getter)(void* data, int idx, const char** out_text), void* data, int items_count, int height_in_items = -1);
                     static bool ListBoxHeader(const char* label, Compute::Vector2 size = Compute::Vector2(0, 0));
                     static bool ListBoxHeader(const char* label, int items_count, int height_in_items = -1);
                     static bool BeginMainMenuBar();

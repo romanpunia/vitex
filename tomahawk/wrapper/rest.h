@@ -7,10 +7,10 @@ namespace Tomahawk
 {
     namespace Wrapper
     {
-		namespace Rest
-		{
-			THAWK_OUT void Enable(Script::VMManager* Manager);
-		}
+        namespace Rest
+        {
+            THAWK_OUT void Enable(Script::VMManager* Manager);
+        }
     }
 }
 #endif

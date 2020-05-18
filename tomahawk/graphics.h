@@ -11,9 +11,9 @@ struct SDL_Surface;
 
 namespace Tomahawk
 {
-	namespace Graphics
-	{
-	    enum AppState
+    namespace Graphics
+    {
+        enum AppState
         {
             AppState_Close_Window,
             AppState_Terminating,
@@ -24,7 +24,7 @@ namespace Tomahawk
             AppState_Enter_Foreground_End
         };
 
-	    enum WindowState
+        enum WindowState
         {
             WindowState_Show,
             WindowState_Hide,
@@ -339,384 +339,384 @@ namespace Tomahawk
             JoyStickHat_Left_Down = 0x08 | 0x04
         };
 
-		enum RenderLab
-		{
-			RenderLab_Raster_Cull_Back = 0,
-			RenderLab_Raster_Cull_Front = 1,
-			RenderLab_DepthStencil_Less = 0,
-			RenderLab_DepthStencil_Greater_Equal = 1,
-			RenderLab_DepthStencil_None = 2,
-			RenderLab_DepthStencil_None_Less = 3,
-			RenderLab_Blend_Overwrite = 0,
-			RenderLab_Blend_Additive = 1,
-			RenderLab_Blend_Additive_Alpha = 2,
-			RenderLab_Sampler_Trilinear_X16 = 0
-		};
+        enum RenderLab
+        {
+            RenderLab_Raster_Cull_Back = 0,
+            RenderLab_Raster_Cull_Front = 1,
+            RenderLab_DepthStencil_Less = 0,
+            RenderLab_DepthStencil_Greater_Equal = 1,
+            RenderLab_DepthStencil_None = 2,
+            RenderLab_DepthStencil_None_Less = 3,
+            RenderLab_Blend_Overwrite = 0,
+            RenderLab_Blend_Additive = 1,
+            RenderLab_Blend_Additive_Alpha = 2,
+            RenderLab_Sampler_Trilinear_X16 = 0
+        };
 
-		enum RenderBackend
-		{
+        enum RenderBackend
+        {
             RenderBackend_NONE,
             RenderBackend_D3D11,
             RenderBackend_OGL
-		};
+        };
 
-		enum VSync
-		{
-			VSync_Disabled,
-			VSync_Frequency_X1,
-			VSync_Frequency_X2,
-			VSync_Frequency_X3,
-			VSync_Frequency_X4
-		};
+        enum VSync
+        {
+            VSync_Disabled,
+            VSync_Frequency_X1,
+            VSync_Frequency_X2,
+            VSync_Frequency_X3,
+            VSync_Frequency_X4
+        };
 
-		enum SurfaceTarget
-		{
-			SurfaceTarget0 = 1,
-			SurfaceTarget1 = 2,
-			SurfaceTarget2 = 3,
-			SurfaceTarget3 = 4,
-			SurfaceTarget4 = 5,
-			SurfaceTarget5 = 6,
-			SurfaceTarget6 = 7,
-			SurfaceTarget7 = 8,
-		};
+        enum SurfaceTarget
+        {
+            SurfaceTarget0 = 1,
+            SurfaceTarget1 = 2,
+            SurfaceTarget2 = 3,
+            SurfaceTarget3 = 4,
+            SurfaceTarget4 = 5,
+            SurfaceTarget5 = 6,
+            SurfaceTarget6 = 7,
+            SurfaceTarget7 = 8,
+        };
 
-		enum PrimitiveTopology
-		{
-			PrimitiveTopology_Invalid,
-			PrimitiveTopology_Point_List,
-			PrimitiveTopology_Line_List,
-			PrimitiveTopology_Line_Strip,
-			PrimitiveTopology_Triangle_List,
-			PrimitiveTopology_Triangle_Strip,
-			PrimitiveTopology_Line_List_Adj,
-			PrimitiveTopology_Line_Strip_Adj,
-			PrimitiveTopology_Triangle_List_Adj,
-			PrimitiveTopology_Triangle_Strip_Adj
-		};
+        enum PrimitiveTopology
+        {
+            PrimitiveTopology_Invalid,
+            PrimitiveTopology_Point_List,
+            PrimitiveTopology_Line_List,
+            PrimitiveTopology_Line_Strip,
+            PrimitiveTopology_Triangle_List,
+            PrimitiveTopology_Triangle_Strip,
+            PrimitiveTopology_Line_List_Adj,
+            PrimitiveTopology_Line_Strip_Adj,
+            PrimitiveTopology_Triangle_List_Adj,
+            PrimitiveTopology_Triangle_Strip_Adj
+        };
 
-		enum Format
-		{
-			Format_Invalid = 0,
-			Format_R32G32B32A32_Typeless = 1,
-			Format_R32G32B32A32_Float = 2,
-			Format_R32G32B32A32_Uint = 3,
-			Format_R32G32B32A32_Sint = 4,
-			Format_R32G32B32_Typeless = 5,
-			Format_R32G32B32_Float = 6,
-			Format_R32G32B32_Uint = 7,
-			Format_R32G32B32_Sint = 8,
-			Format_R16G16B16A16_Typeless = 9,
-			Format_R16G16B16A16_Float = 10,
-			Format_R16G16B16A16_Unorm = 11,
-			Format_R16G16B16A16_Uint = 12,
-			Format_R16G16B16A16_Snorm = 13,
-			Format_R16G16B16A16_Sint = 14,
-			Format_R32G32_Typeless = 15,
-			Format_R32G32_Float = 16,
-			Format_R32G32_Uint = 17,
-			Format_R32G32_Sint = 18,
-			Format_R32G8X24_Typeless = 19,
-			Format_D32_Float_S8X24_Uint = 20,
-			Format_R32_Float_X8X24_Typeless = 21,
-			Format_X32_Typeless_G8X24_Uint = 22,
-			Format_R10G10B10A2_Typeless = 23,
-			Format_R10G10B10A2_Unorm = 24,
-			Format_R10G10B10A2_Uint = 25,
-			Format_R11G11B10_Float = 26,
-			Format_R8G8B8A8_Typeless = 27,
-			Format_R8G8B8A8_Unorm = 28,
-			Format_R8G8B8A8_Unorm_SRGB = 29,
-			Format_R8G8B8A8_Uint = 30,
-			Format_R8G8B8A8_Snorm = 31,
-			Format_R8G8B8A8_Sint = 32,
-			Format_R16G16_Typeless = 33,
-			Format_R16G16_Float = 34,
-			Format_R16G16_Unorm = 35,
-			Format_R16G16_Uint = 36,
-			Format_R16G16_Snorm = 37,
-			Format_R16G16_Sint = 38,
-			Format_R32_Typeless = 39,
-			Format_D32_Float = 40,
-			Format_R32_Float = 41,
-			Format_R32_Uint = 42,
-			Format_R32_Sint = 43,
-			Format_R24G8_Typeless = 44,
-			Format_D24_Unorm_S8_Uint = 45,
-			Format_R24_Unorm_X8_Typeless = 46,
-			Format_X24_Typeless_G8_Uint = 47,
-			Format_R8G8_Typeless = 48,
-			Format_R8G8_Unorm = 49,
-			Format_R8G8_Uint = 50,
-			Format_R8G8_Snorm = 51,
-			Format_R8G8_Sint = 52,
-			Format_R16_Typeless = 53,
-			Format_R16_Float = 54,
-			Format_D16_Unorm = 55,
-			Format_R16_Unorm = 56,
-			Format_R16_Uint = 57,
-			Format_R16_Snorm = 58,
-			Format_R16_Sint = 59,
-			Format_R8_Typeless = 60,
-			Format_R8_Unorm = 61,
-			Format_R8_Uint = 62,
-			Format_R8_Snorm = 63,
-			Format_R8_Sint = 64,
-			Format_A8_Unorm = 65,
-			Format_R1_Unorm = 66,
-			Format_R9G9B9E5_Share_Dexp = 67,
-			Format_R8G8_B8G8_Unorm = 68,
-			Format_G8R8_G8B8_Unorm = 69,
-			Format_BC1_Typeless = 70,
-			Format_BC1_Unorm = 71,
-			Format_BC1_Unorm_SRGB = 72,
-			Format_BC2_Typeless = 73,
-			Format_BC2_Unorm = 74,
-			Format_BC2_Unorm_SRGB = 75,
-			Format_BC3_Typeless = 76,
-			Format_BC3_Unorm = 77,
-			Format_BC3_Unorm_SRGB = 78,
-			Format_BC4_Typeless = 79,
-			Format_BC4_Unorm = 80,
-			Format_BC4_Snorm = 81,
-			Format_BC5_Typeless = 82,
-			Format_BC5_Unorm = 83,
-			Format_BC5_Snorm = 84,
-			Format_B5G6R5_Unorm = 85,
-			Format_B5G5R5A1_Unorm = 86,
-			Format_B8G8R8A8_Unorm = 87,
-			Format_B8G8R8X8_Unorm = 88,
-			Format_R10G10B10_XR_Bias_A2_Unorm = 89,
-			Format_B8G8R8A8_Typeless = 90,
-			Format_B8G8R8A8_Unorm_SRGB = 91,
-			Format_B8G8R8X8_Typeless = 92,
-			Format_B8G8R8X8_Unorm_SRGB = 93,
-			Format_BC6H_Typeless = 94,
-			Format_BC6H_UF16 = 95,
-			Format_BC6H_SF16 = 96,
-			Format_BC7_Typeless = 97,
-			Format_BC7_Unorm = 98,
-			Format_BC7_Unorm_SRGB = 99,
-			Format_AYUV = 100,
-			Format_Y410 = 101,
-			Format_Y416 = 102,
-			Format_NV12 = 103,
-			Format_P010 = 104,
-			Format_P016 = 105,
-			Format_420_OPAQUE = 106,
-			Format_YUY2 = 107,
-			Format_Y210 = 108,
-			Format_Y216 = 109,
-			Format_NV11 = 110,
-			Format_AI44 = 111,
-			Format_IA44 = 112,
-			Format_P8 = 113,
-			Format_A8P8 = 114,
-			Format_B4G4R4A4_Unorm = 115,
-			Format_P208 = 130,
-			Format_V208 = 131,
-			Format_V408 = 132,
-			Format_FOE_Uint = 0xffffffff
-		};
+        enum Format
+        {
+            Format_Invalid = 0,
+            Format_R32G32B32A32_Typeless = 1,
+            Format_R32G32B32A32_Float = 2,
+            Format_R32G32B32A32_Uint = 3,
+            Format_R32G32B32A32_Sint = 4,
+            Format_R32G32B32_Typeless = 5,
+            Format_R32G32B32_Float = 6,
+            Format_R32G32B32_Uint = 7,
+            Format_R32G32B32_Sint = 8,
+            Format_R16G16B16A16_Typeless = 9,
+            Format_R16G16B16A16_Float = 10,
+            Format_R16G16B16A16_Unorm = 11,
+            Format_R16G16B16A16_Uint = 12,
+            Format_R16G16B16A16_Snorm = 13,
+            Format_R16G16B16A16_Sint = 14,
+            Format_R32G32_Typeless = 15,
+            Format_R32G32_Float = 16,
+            Format_R32G32_Uint = 17,
+            Format_R32G32_Sint = 18,
+            Format_R32G8X24_Typeless = 19,
+            Format_D32_Float_S8X24_Uint = 20,
+            Format_R32_Float_X8X24_Typeless = 21,
+            Format_X32_Typeless_G8X24_Uint = 22,
+            Format_R10G10B10A2_Typeless = 23,
+            Format_R10G10B10A2_Unorm = 24,
+            Format_R10G10B10A2_Uint = 25,
+            Format_R11G11B10_Float = 26,
+            Format_R8G8B8A8_Typeless = 27,
+            Format_R8G8B8A8_Unorm = 28,
+            Format_R8G8B8A8_Unorm_SRGB = 29,
+            Format_R8G8B8A8_Uint = 30,
+            Format_R8G8B8A8_Snorm = 31,
+            Format_R8G8B8A8_Sint = 32,
+            Format_R16G16_Typeless = 33,
+            Format_R16G16_Float = 34,
+            Format_R16G16_Unorm = 35,
+            Format_R16G16_Uint = 36,
+            Format_R16G16_Snorm = 37,
+            Format_R16G16_Sint = 38,
+            Format_R32_Typeless = 39,
+            Format_D32_Float = 40,
+            Format_R32_Float = 41,
+            Format_R32_Uint = 42,
+            Format_R32_Sint = 43,
+            Format_R24G8_Typeless = 44,
+            Format_D24_Unorm_S8_Uint = 45,
+            Format_R24_Unorm_X8_Typeless = 46,
+            Format_X24_Typeless_G8_Uint = 47,
+            Format_R8G8_Typeless = 48,
+            Format_R8G8_Unorm = 49,
+            Format_R8G8_Uint = 50,
+            Format_R8G8_Snorm = 51,
+            Format_R8G8_Sint = 52,
+            Format_R16_Typeless = 53,
+            Format_R16_Float = 54,
+            Format_D16_Unorm = 55,
+            Format_R16_Unorm = 56,
+            Format_R16_Uint = 57,
+            Format_R16_Snorm = 58,
+            Format_R16_Sint = 59,
+            Format_R8_Typeless = 60,
+            Format_R8_Unorm = 61,
+            Format_R8_Uint = 62,
+            Format_R8_Snorm = 63,
+            Format_R8_Sint = 64,
+            Format_A8_Unorm = 65,
+            Format_R1_Unorm = 66,
+            Format_R9G9B9E5_Share_Dexp = 67,
+            Format_R8G8_B8G8_Unorm = 68,
+            Format_G8R8_G8B8_Unorm = 69,
+            Format_BC1_Typeless = 70,
+            Format_BC1_Unorm = 71,
+            Format_BC1_Unorm_SRGB = 72,
+            Format_BC2_Typeless = 73,
+            Format_BC2_Unorm = 74,
+            Format_BC2_Unorm_SRGB = 75,
+            Format_BC3_Typeless = 76,
+            Format_BC3_Unorm = 77,
+            Format_BC3_Unorm_SRGB = 78,
+            Format_BC4_Typeless = 79,
+            Format_BC4_Unorm = 80,
+            Format_BC4_Snorm = 81,
+            Format_BC5_Typeless = 82,
+            Format_BC5_Unorm = 83,
+            Format_BC5_Snorm = 84,
+            Format_B5G6R5_Unorm = 85,
+            Format_B5G5R5A1_Unorm = 86,
+            Format_B8G8R8A8_Unorm = 87,
+            Format_B8G8R8X8_Unorm = 88,
+            Format_R10G10B10_XR_Bias_A2_Unorm = 89,
+            Format_B8G8R8A8_Typeless = 90,
+            Format_B8G8R8A8_Unorm_SRGB = 91,
+            Format_B8G8R8X8_Typeless = 92,
+            Format_B8G8R8X8_Unorm_SRGB = 93,
+            Format_BC6H_Typeless = 94,
+            Format_BC6H_UF16 = 95,
+            Format_BC6H_SF16 = 96,
+            Format_BC7_Typeless = 97,
+            Format_BC7_Unorm = 98,
+            Format_BC7_Unorm_SRGB = 99,
+            Format_AYUV = 100,
+            Format_Y410 = 101,
+            Format_Y416 = 102,
+            Format_NV12 = 103,
+            Format_P010 = 104,
+            Format_P016 = 105,
+            Format_420_OPAQUE = 106,
+            Format_YUY2 = 107,
+            Format_Y210 = 108,
+            Format_Y216 = 109,
+            Format_NV11 = 110,
+            Format_AI44 = 111,
+            Format_IA44 = 112,
+            Format_P8 = 113,
+            Format_A8P8 = 114,
+            Format_B4G4R4A4_Unorm = 115,
+            Format_P208 = 130,
+            Format_V208 = 131,
+            Format_V408 = 132,
+            Format_FOE_Uint = 0xffffffff
+        };
 
-		enum ResourceMap
-		{
-			ResourceMap_Read = 1,
-			ResourceMap_Write = 2,
-			ResourceMap_Read_Write = 3,
-			ResourceMap_Write_Discard = 4,
-			ResourceMap_Write_No_Overwrite = 5
-		};
+        enum ResourceMap
+        {
+            ResourceMap_Read = 1,
+            ResourceMap_Write = 2,
+            ResourceMap_Read_Write = 3,
+            ResourceMap_Write_Discard = 4,
+            ResourceMap_Write_No_Overwrite = 5
+        };
 
-		enum ResourceUsage
-		{
-			ResourceUsage_Default = 0,
-			ResourceUsage_Immutable = 1,
-			ResourceUsage_Dynamic = 2,
-			ResourceUsage_Staging = 3
-		};
+        enum ResourceUsage
+        {
+            ResourceUsage_Default = 0,
+            ResourceUsage_Immutable = 1,
+            ResourceUsage_Dynamic = 2,
+            ResourceUsage_Staging = 3
+        };
 
-		enum ShaderModel
-		{
-			ShaderModel_Invalid,
-			ShaderModel_Auto,
-			ShaderModel_HLSL_1_0,
-			ShaderModel_HLSL_2_0,
-			ShaderModel_HLSL_3_0,
-			ShaderModel_HLSL_4_1,
-			ShaderModel_HLSL_4_0,
-			ShaderModel_HLSL_5_0,
-			ShaderModel_GLSL_1_1_0,
-			ShaderModel_GLSL_1_2_0,
-			ShaderModel_GLSL_1_3_0,
-			ShaderModel_GLSL_1_4_0,
-			ShaderModel_GLSL_1_5_0,
-			ShaderModel_GLSL_3_3_0,
-			ShaderModel_GLSL_4_0_0,
-			ShaderModel_GLSL_4_1_0,
-			ShaderModel_GLSL_4_2_0,
-			ShaderModel_GLSL_4_3_0,
-			ShaderModel_GLSL_4_4_0,
-			ShaderModel_GLSL_4_5_0,
-			ShaderModel_GLSL_4_6_0
-		};
+        enum ShaderModel
+        {
+            ShaderModel_Invalid,
+            ShaderModel_Auto,
+            ShaderModel_HLSL_1_0,
+            ShaderModel_HLSL_2_0,
+            ShaderModel_HLSL_3_0,
+            ShaderModel_HLSL_4_1,
+            ShaderModel_HLSL_4_0,
+            ShaderModel_HLSL_5_0,
+            ShaderModel_GLSL_1_1_0,
+            ShaderModel_GLSL_1_2_0,
+            ShaderModel_GLSL_1_3_0,
+            ShaderModel_GLSL_1_4_0,
+            ShaderModel_GLSL_1_5_0,
+            ShaderModel_GLSL_3_3_0,
+            ShaderModel_GLSL_4_0_0,
+            ShaderModel_GLSL_4_1_0,
+            ShaderModel_GLSL_4_2_0,
+            ShaderModel_GLSL_4_3_0,
+            ShaderModel_GLSL_4_4_0,
+            ShaderModel_GLSL_4_5_0,
+            ShaderModel_GLSL_4_6_0
+        };
 
-		enum ResourceBind
-		{
-			ResourceBind_Vertex_Buffer = 0x1L,
-			ResourceBind_Index_Buffer = 0x2L,
-			ResourceBind_Constant_Buffer = 0x4L,
-			ResourceBind_Shader_Input = 0x8L,
-			ResourceBind_Stream_Output = 0x10L,
-			ResourceBind_Render_Target = 0x20L,
-			ResourceBind_Depth_Stencil = 0x40L,
-			ResourceBind_Unordered_Access = 0x80L
-		};
+        enum ResourceBind
+        {
+            ResourceBind_Vertex_Buffer = 0x1L,
+            ResourceBind_Index_Buffer = 0x2L,
+            ResourceBind_Constant_Buffer = 0x4L,
+            ResourceBind_Shader_Input = 0x8L,
+            ResourceBind_Stream_Output = 0x10L,
+            ResourceBind_Render_Target = 0x20L,
+            ResourceBind_Depth_Stencil = 0x40L,
+            ResourceBind_Unordered_Access = 0x80L
+        };
 
-		enum CPUAccess
-		{
-			CPUAccess_Invalid = 0,
-			CPUAccess_Write = 0x10000L,
-			CPUAccess_Read = 0x20000L
-		};
+        enum CPUAccess
+        {
+            CPUAccess_Invalid = 0,
+            CPUAccess_Write = 0x10000L,
+            CPUAccess_Read = 0x20000L
+        };
 
-		enum DepthWrite
-		{
-			DepthWrite_Zero,
-			DepthWrite_All
-		};
+        enum DepthWrite
+        {
+            DepthWrite_Zero,
+            DepthWrite_All
+        };
 
-		enum Comparison
-		{
-			Comparison_Never = 1,
-			Comparison_Less = 2,
-			Comparison_Equal = 3,
-			Comparison_Less_Equal = 4,
-			Comparison_Greater = 5,
-			Comparison_Not_Equal = 6,
-			Comparison_Greater_Equal = 7,
-			Comparison_Always = 8
-		};
+        enum Comparison
+        {
+            Comparison_Never = 1,
+            Comparison_Less = 2,
+            Comparison_Equal = 3,
+            Comparison_Less_Equal = 4,
+            Comparison_Greater = 5,
+            Comparison_Not_Equal = 6,
+            Comparison_Greater_Equal = 7,
+            Comparison_Always = 8
+        };
 
-		enum StencilOperation
-		{
-			StencilOperation_Keep = 1,
-			StencilOperation_Zero = 2,
-			StencilOperation_Replace = 3,
-			StencilOperation_SAT_Add = 4,
-			StencilOperation_SAT_Subtract = 5,
-			StencilOperation_Invert = 6,
-			StencilOperation_Add = 7,
-			StencilOperation_Subtract = 8
-		};
+        enum StencilOperation
+        {
+            StencilOperation_Keep = 1,
+            StencilOperation_Zero = 2,
+            StencilOperation_Replace = 3,
+            StencilOperation_SAT_Add = 4,
+            StencilOperation_SAT_Subtract = 5,
+            StencilOperation_Invert = 6,
+            StencilOperation_Add = 7,
+            StencilOperation_Subtract = 8
+        };
 
-		enum Blend
-		{
-			Blend_Zero = 1,
-			Blend_One = 2,
-			Blend_Source_Color = 3,
-			Blend_Source_Color_Invert = 4,
-			Blend_Source_Alpha = 5,
-			Blend_Source_Alpha_Invert = 6,
-			Blend_Destination_Alpha = 7,
-			Blend_Destination_Alpha_Invert = 8,
-			Blend_Destination_Color = 9,
-			Blend_Destination_Color_Invert = 10,
-			Blend_Source_Alpha_SAT = 11,
-			Blend_Blend_Factor = 14,
-			Blend_Blend_Factor_Invert = 15,
-			Blend_Source1_Color = 16,
-			Blend_Source1_Color_Invert = 17,
-			Blend_Source1_Alpha = 18,
-			Blend_Source1_Alpha_Invert = 19
-		};
+        enum Blend
+        {
+            Blend_Zero = 1,
+            Blend_One = 2,
+            Blend_Source_Color = 3,
+            Blend_Source_Color_Invert = 4,
+            Blend_Source_Alpha = 5,
+            Blend_Source_Alpha_Invert = 6,
+            Blend_Destination_Alpha = 7,
+            Blend_Destination_Alpha_Invert = 8,
+            Blend_Destination_Color = 9,
+            Blend_Destination_Color_Invert = 10,
+            Blend_Source_Alpha_SAT = 11,
+            Blend_Blend_Factor = 14,
+            Blend_Blend_Factor_Invert = 15,
+            Blend_Source1_Color = 16,
+            Blend_Source1_Color_Invert = 17,
+            Blend_Source1_Alpha = 18,
+            Blend_Source1_Alpha_Invert = 19
+        };
 
-		enum SurfaceFill
-		{
-			SurfaceFill_Wireframe = 2,
-			SurfaceFill_Solid = 3
-		};
+        enum SurfaceFill
+        {
+            SurfaceFill_Wireframe = 2,
+            SurfaceFill_Solid = 3
+        };
 
-		enum PixelFilter
-		{
-			PixelFilter_Min_Mag_Mip_Point = 0,
-			PixelFilter_Min_Mag_Point_Mip_Linear = 0x1,
-			PixelFilter_Min_Point_Mag_Linear_Mip_Point = 0x4,
-			PixelFilter_Min_Point_Mag_Mip_Linear = 0x5,
-			PixelFilter_Min_Linear_Mag_Mip_Point = 0x10,
-			PixelFilter_Min_Linear_Mag_Point_Mip_Linear = 0x11,
-			PixelFilter_Min_Mag_Linear_Mip_Point = 0x14,
-			PixelFilter_Min_Mag_Mip_Linear = 0x15,
-			PixelFilter_Anistropic = 0x55,
-			PixelFilter_Compare_Min_Mag_Mip_Point = 0x80,
-			PixelFilter_Compare_Min_Mag_Point_Mip_Linear = 0x81,
-			PixelFilter_Compare_Min_Point_Mag_Linear_Mip_Point = 0x84,
-			PixelFilter_Compare_Min_Point_Mag_Mip_Linear = 0x85,
-			PixelFilter_Compare_Min_Linear_Mag_Mip_Point = 0x90,
-			PixelFilter_Compare_Min_Linear_Mag_Point_Mip_Linear = 0x91,
-			PixelFilter_Compare_Min_Mag_Linear_Mip_Point = 0x94,
-			PixelFilter_Compare_Min_Mag_Mip_Linear = 0x95,
-			PixelFilter_Compare_Anistropic = 0xd5
-		};
+        enum PixelFilter
+        {
+            PixelFilter_Min_Mag_Mip_Point = 0,
+            PixelFilter_Min_Mag_Point_Mip_Linear = 0x1,
+            PixelFilter_Min_Point_Mag_Linear_Mip_Point = 0x4,
+            PixelFilter_Min_Point_Mag_Mip_Linear = 0x5,
+            PixelFilter_Min_Linear_Mag_Mip_Point = 0x10,
+            PixelFilter_Min_Linear_Mag_Point_Mip_Linear = 0x11,
+            PixelFilter_Min_Mag_Linear_Mip_Point = 0x14,
+            PixelFilter_Min_Mag_Mip_Linear = 0x15,
+            PixelFilter_Anistropic = 0x55,
+            PixelFilter_Compare_Min_Mag_Mip_Point = 0x80,
+            PixelFilter_Compare_Min_Mag_Point_Mip_Linear = 0x81,
+            PixelFilter_Compare_Min_Point_Mag_Linear_Mip_Point = 0x84,
+            PixelFilter_Compare_Min_Point_Mag_Mip_Linear = 0x85,
+            PixelFilter_Compare_Min_Linear_Mag_Mip_Point = 0x90,
+            PixelFilter_Compare_Min_Linear_Mag_Point_Mip_Linear = 0x91,
+            PixelFilter_Compare_Min_Mag_Linear_Mip_Point = 0x94,
+            PixelFilter_Compare_Min_Mag_Mip_Linear = 0x95,
+            PixelFilter_Compare_Anistropic = 0xd5
+        };
 
-		enum TextureAddress
-		{
-			TextureAddress_Wrap = 1,
-			TextureAddress_Mirror = 2,
-			TextureAddress_Clamp = 3,
-			TextureAddress_Border = 4,
-			TextureAddress_Mirror_Once = 5
-		};
+        enum TextureAddress
+        {
+            TextureAddress_Wrap = 1,
+            TextureAddress_Mirror = 2,
+            TextureAddress_Clamp = 3,
+            TextureAddress_Border = 4,
+            TextureAddress_Mirror_Once = 5
+        };
 
-		enum ColorWriteEnable
-		{
-			ColorWriteEnable_Red = 1,
-			ColorWriteEnable_Green = 2,
-			ColorWriteEnable_Blue = 4,
-			ColorWriteEnable_Alpha = 8,
-			ColorWriteEnable_All = (((ColorWriteEnable_Red | ColorWriteEnable_Green) | ColorWriteEnable_Blue) | ColorWriteEnable_Alpha)
-		};
+        enum ColorWriteEnable
+        {
+            ColorWriteEnable_Red = 1,
+            ColorWriteEnable_Green = 2,
+            ColorWriteEnable_Blue = 4,
+            ColorWriteEnable_Alpha = 8,
+            ColorWriteEnable_All = (((ColorWriteEnable_Red | ColorWriteEnable_Green) | ColorWriteEnable_Blue) | ColorWriteEnable_Alpha)
+        };
 
-		enum BlendOperation
-		{
-			BlendOperation_Add = 1,
-			BlendOperation_Subtract = 2,
-			BlendOperation_Subtract_Reverse = 3,
-			BlendOperation_Min = 4,
-			BlendOperation_Max = 5
-		};
+        enum BlendOperation
+        {
+            BlendOperation_Add = 1,
+            BlendOperation_Subtract = 2,
+            BlendOperation_Subtract_Reverse = 3,
+            BlendOperation_Min = 4,
+            BlendOperation_Max = 5
+        };
 
-		enum VertexCull
-		{
-			VertexCull_Disabled = 1,
-			VertexCull_Front = 2,
-			VertexCull_Back = 3
-		};
+        enum VertexCull
+        {
+            VertexCull_Disabled = 1,
+            VertexCull_Front = 2,
+            VertexCull_Back = 3
+        };
 
-		enum ShaderCompile
-		{
-			ShaderCompile_Debug = 1ll << 0,
-			ShaderCompile_Skip_Validation = 1ll << 1,
-			ShaderCompile_Skip_Optimization = 1ll << 2,
-			ShaderCompile_Matrix_Row_Major = 1ll << 3,
-			ShaderCompile_Matrix_Column_Major = 1ll << 4,
-			ShaderCompile_Partial_Precision = 1ll << 5,
-			ShaderCompile_FOE_VS_No_OPT = 1ll << 6,
-			ShaderCompile_FOE_PS_No_OPT = 1ll << 7,
-			ShaderCompile_No_Preshader = 1ll << 8,
-			ShaderCompile_Avoid_Flow_Control = 1ll << 9,
-			ShaderCompile_Prefer_Flow_Control = 1ll << 10,
-			ShaderCompile_Enable_Strictness = 1ll << 11,
-			ShaderCompile_Enable_Backwards_Compatibility = 1ll << 12,
-			ShaderCompile_IEEE_Strictness = 1ll << 13,
-			ShaderCompile_Optimization_Level0 = 1ll << 14,
-			ShaderCompile_Optimization_Level1 = 0,
-			ShaderCompile_Optimization_Level2 = (1ll << 14) | (1ll << 15),
-			ShaderCompile_Optimization_Level3 = 1ll << 15,
-			ShaderCompile_Reseed_X16 = 1ll << 16,
-			ShaderCompile_Reseed_X17 = 1ll << 17,
-			ShaderCompile_Picky = 1ll << 18
-		};
+        enum ShaderCompile
+        {
+            ShaderCompile_Debug = 1ll << 0,
+            ShaderCompile_Skip_Validation = 1ll << 1,
+            ShaderCompile_Skip_Optimization = 1ll << 2,
+            ShaderCompile_Matrix_Row_Major = 1ll << 3,
+            ShaderCompile_Matrix_Column_Major = 1ll << 4,
+            ShaderCompile_Partial_Precision = 1ll << 5,
+            ShaderCompile_FOE_VS_No_OPT = 1ll << 6,
+            ShaderCompile_FOE_PS_No_OPT = 1ll << 7,
+            ShaderCompile_No_Preshader = 1ll << 8,
+            ShaderCompile_Avoid_Flow_Control = 1ll << 9,
+            ShaderCompile_Prefer_Flow_Control = 1ll << 10,
+            ShaderCompile_Enable_Strictness = 1ll << 11,
+            ShaderCompile_Enable_Backwards_Compatibility = 1ll << 12,
+            ShaderCompile_IEEE_Strictness = 1ll << 13,
+            ShaderCompile_Optimization_Level0 = 1ll << 14,
+            ShaderCompile_Optimization_Level1 = 0,
+            ShaderCompile_Optimization_Level2 = (1ll << 14) | (1ll << 15),
+            ShaderCompile_Optimization_Level3 = 1ll << 15,
+            ShaderCompile_Reseed_X16 = 1ll << 16,
+            ShaderCompile_Reseed_X17 = 1ll << 17,
+            ShaderCompile_Picky = 1ll << 18
+        };
 
         enum RenderBufferType
         {
@@ -725,26 +725,26 @@ namespace Tomahawk
             RenderBufferType_View
         };
 
-		enum ResourceMisc
-		{
-			ResourceMisc_None = 0,
-			ResourceMisc_Generate_Mips = 0x1L,
-			ResourceMisc_Shared = 0x2L,
-			ResourceMisc_Texture_Cube = 0x4L,
-			ResourceMisc_Draw_Indirect_Args = 0x10L,
-			ResourceMisc_Buffer_Allow_Raw_Views = 0x20L,
-			ResourceMisc_Buffer_Structured = 0x40L,
-			ResourceMisc_Clamp = 0x80L,
-			ResourceMisc_Shared_Keyed_Mutex = 0x100L,
-			ResourceMisc_GDI_Compatible = 0x200L,
-			ResourceMisc_Shared_NT_Handle = 0x800L,
-			ResourceMisc_Restricted_Content = 0x1000L,
-			ResourceMisc_Restrict_Shared = 0x2000L,
-			ResourceMisc_Restrict_Shared_Driver = 0x4000L,
-			ResourceMisc_Guarded = 0x8000L,
-			ResourceMisc_Tile_Pool = 0x20000L,
-			ResourceMisc_Tiled = 0x40000L
-		};
+        enum ResourceMisc
+        {
+            ResourceMisc_None = 0,
+            ResourceMisc_Generate_Mips = 0x1L,
+            ResourceMisc_Shared = 0x2L,
+            ResourceMisc_Texture_Cube = 0x4L,
+            ResourceMisc_Draw_Indirect_Args = 0x10L,
+            ResourceMisc_Buffer_Allow_Raw_Views = 0x20L,
+            ResourceMisc_Buffer_Structured = 0x40L,
+            ResourceMisc_Clamp = 0x80L,
+            ResourceMisc_Shared_Keyed_Mutex = 0x100L,
+            ResourceMisc_GDI_Compatible = 0x200L,
+            ResourceMisc_Shared_NT_Handle = 0x800L,
+            ResourceMisc_Restricted_Content = 0x1000L,
+            ResourceMisc_Restrict_Shared = 0x2000L,
+            ResourceMisc_Restrict_Shared_Driver = 0x4000L,
+            ResourceMisc_Guarded = 0x8000L,
+            ResourceMisc_Tile_Pool = 0x20000L,
+            ResourceMisc_Tiled = 0x40000L
+        };
 
         enum DisplayCursor
         {
@@ -828,132 +828,132 @@ namespace Tomahawk
             KeyMap(const KeyCode& Value, const KeyMod& Control);
         };
 
-		struct THAWK_OUT DeviceState
-		{
-			unsigned int _DeviceState;
-		};
+        struct THAWK_OUT DeviceState
+        {
+            unsigned int _DeviceState;
+        };
 
-		struct THAWK_OUT MappedSubresource
-		{
-			void* Pointer;
-			unsigned int RowPitch;
-			unsigned int DepthPitch;
-		};
+        struct THAWK_OUT MappedSubresource
+        {
+            void* Pointer;
+            unsigned int RowPitch;
+            unsigned int DepthPitch;
+        };
 
-		struct THAWK_OUT Viewport
-		{
-			float TopLeftX;
-			float TopLeftY;
-			float Width;
-			float Height;
-			float MinDepth;
-			float MaxDepth;
-		};
+        struct THAWK_OUT Viewport
+        {
+            float TopLeftX;
+            float TopLeftY;
+            float Width;
+            float Height;
+            float MinDepth;
+            float MaxDepth;
+        };
 
-		struct THAWK_OUT InputLayout
-		{
-			const char* SemanticName;
-			Format FormatMode;
-			unsigned int AlignedByteOffset;
-			unsigned int SemanticIndex;
-		};
+        struct THAWK_OUT InputLayout
+        {
+            const char* SemanticName;
+            Format FormatMode;
+            unsigned int AlignedByteOffset;
+            unsigned int SemanticIndex;
+        };
 
-		struct THAWK_OUT RenderTargetBlendState
-		{
-			bool BlendEnable;
-			Blend SrcBlend;
-			Blend DestBlend;
-			BlendOperation BlendOperationMode;
-			Blend SrcBlendAlpha;
-			Blend DestBlendAlpha;
-			BlendOperation BlendOperationAlpha;
-			unsigned char RenderTargetWriteMask;
-		};
+        struct THAWK_OUT RenderTargetBlendState
+        {
+            bool BlendEnable;
+            Blend SrcBlend;
+            Blend DestBlend;
+            BlendOperation BlendOperationMode;
+            Blend SrcBlendAlpha;
+            Blend DestBlendAlpha;
+            BlendOperation BlendOperationAlpha;
+            unsigned char RenderTargetWriteMask;
+        };
 
-		struct THAWK_OUT DepthStencilState
-		{
-			StencilOperation FrontFaceStencilFailOperation;
-			StencilOperation FrontFaceStencilDepthFailOperation;
-			StencilOperation FrontFaceStencilPassOperation;
-			Comparison FrontFaceStencilFunction;
-			StencilOperation BackFaceStencilFailOperation;
-			StencilOperation BackFaceStencilDepthFailOperation;
-			StencilOperation BackFaceStencilPassOperation;
-			Comparison BackFaceStencilFunction;
-			DepthWrite DepthWriteMask;
-			Comparison DepthFunction;
-			unsigned char StencilReadMask;
-			unsigned char StencilWriteMask;
-			bool DepthEnable;
-			bool StencilEnable;
-			void* Pointer;
-			UInt64 Index;
-		};
+        struct THAWK_OUT DepthStencilState
+        {
+            StencilOperation FrontFaceStencilFailOperation;
+            StencilOperation FrontFaceStencilDepthFailOperation;
+            StencilOperation FrontFaceStencilPassOperation;
+            Comparison FrontFaceStencilFunction;
+            StencilOperation BackFaceStencilFailOperation;
+            StencilOperation BackFaceStencilDepthFailOperation;
+            StencilOperation BackFaceStencilPassOperation;
+            Comparison BackFaceStencilFunction;
+            DepthWrite DepthWriteMask;
+            Comparison DepthFunction;
+            unsigned char StencilReadMask;
+            unsigned char StencilWriteMask;
+            bool DepthEnable;
+            bool StencilEnable;
+            void* Pointer;
+            UInt64 Index;
+        };
 
-		struct THAWK_OUT RasterizerState
-		{
-			SurfaceFill FillMode;
-			VertexCull CullMode;
-			float DepthBiasClamp;
-			float SlopeScaledDepthBias;
-			int DepthBias;
-			bool FrontCounterClockwise;
-			bool DepthClipEnable;
-			bool ScissorEnable;
-			bool MultisampleEnable;
-			bool AntialiasedLineEnable;
-			void* Pointer;
-			UInt64 Index;
-		};
+        struct THAWK_OUT RasterizerState
+        {
+            SurfaceFill FillMode;
+            VertexCull CullMode;
+            float DepthBiasClamp;
+            float SlopeScaledDepthBias;
+            int DepthBias;
+            bool FrontCounterClockwise;
+            bool DepthClipEnable;
+            bool ScissorEnable;
+            bool MultisampleEnable;
+            bool AntialiasedLineEnable;
+            void* Pointer;
+            UInt64 Index;
+        };
 
-		struct THAWK_OUT BlendState
-		{
-			RenderTargetBlendState RenderTarget[8];
-			bool AlphaToCoverageEnable;
-			bool IndependentBlendEnable;
-			void* Pointer;
-			UInt64 Index;
-		};
+        struct THAWK_OUT BlendState
+        {
+            RenderTargetBlendState RenderTarget[8];
+            bool AlphaToCoverageEnable;
+            bool IndependentBlendEnable;
+            void* Pointer;
+            UInt64 Index;
+        };
 
-		struct THAWK_OUT SamplerState
-		{
-			Comparison ComparisonFunction;
-			TextureAddress AddressU;
-			TextureAddress AddressV;
-			TextureAddress AddressW;
-			PixelFilter Filter;
-			float MipLODBias;
-			unsigned int MaxAnisotropy;
-			float BorderColor[4];
-			float MinLOD;
-			float MaxLOD;
-			void* Pointer;
-			UInt64 Index;
-		};
+        struct THAWK_OUT SamplerState
+        {
+            Comparison ComparisonFunction;
+            TextureAddress AddressU;
+            TextureAddress AddressV;
+            TextureAddress AddressW;
+            PixelFilter Filter;
+            float MipLODBias;
+            unsigned int MaxAnisotropy;
+            float BorderColor[4];
+            float MinLOD;
+            float MaxLOD;
+            void* Pointer;
+            UInt64 Index;
+        };
 
-		struct THAWK_OUT AnimationBuffer
-		{
-			Compute::Matrix4x4 Transformation[96];
-			Compute::Vector4 Base;
-		};
+        struct THAWK_OUT AnimationBuffer
+        {
+            Compute::Matrix4x4 Transformation[96];
+            Compute::Vector4 Base;
+        };
 
-		struct THAWK_OUT RenderBuffer
-		{
-			Compute::Matrix4x4 WorldViewProjection;
-			Compute::Matrix4x4 World;
-			Compute::Vector3 Diffusion;
-			float SurfaceDiffuse = 0.0f;
-			Compute::Vector2 TexCoord;
-			float SurfaceNormal = 0.0f;
-			float Material = 0.0f;
-		};
+        struct THAWK_OUT RenderBuffer
+        {
+            Compute::Matrix4x4 WorldViewProjection;
+            Compute::Matrix4x4 World;
+            Compute::Vector3 Diffusion;
+            float SurfaceDiffuse = 0.0f;
+            Compute::Vector2 TexCoord;
+            float SurfaceNormal = 0.0f;
+            float Material = 0.0f;
+        };
 
-		struct THAWK_OUT ViewBuffer
-		{
-			Compute::Matrix4x4 InvViewProjection;
-			Compute::Matrix4x4 View;
-			Compute::Vector4 ViewPosition;
-		};
+        struct THAWK_OUT ViewBuffer
+        {
+            Compute::Matrix4x4 InvViewProjection;
+            Compute::Matrix4x4 View;
+            Compute::Vector4 ViewPosition;
+        };
 
         struct THAWK_OUT PoseBuffer
         {
@@ -1008,9 +1008,9 @@ namespace Tomahawk
             void* GetResource();
         };
 
-		class THAWK_OUT Shader : public Rest::Object
-		{
-		public:
+        class THAWK_OUT Shader : public Rest::Object
+        {
+        public:
             struct Desc
             {
                 Compute::ProcIncludeCallback Include = nullptr;
@@ -1022,33 +1022,33 @@ namespace Tomahawk
             };
 
         public:
-			std::vector<InputLayout> Layout;
-			const void* ConstantData;
+            std::vector<InputLayout> Layout;
+            const void* ConstantData;
 
-		protected:
+        protected:
             Shader(GraphicsDevice* Device, const Desc& I);
 
-		public:
-			virtual ~Shader() = default;
-			virtual void SendConstantStream(GraphicsDevice* Device) = 0;
-			virtual void Apply(GraphicsDevice* Device) = 0;
+        public:
+            virtual ~Shader() = default;
+            virtual void SendConstantStream(GraphicsDevice* Device) = 0;
+            virtual void Apply(GraphicsDevice* Device) = 0;
 
-		public:
+        public:
             static Shader* Create(GraphicsDevice* Device, const Desc& I);
-			static InputLayout* GetShapeVertexLayout();
-			static InputLayout* GetElementVertexLayout();
-			static InputLayout* GetInfluenceVertexLayout();
-			static InputLayout* GetVertexLayout();
-			static unsigned int GetShapeVertexLayoutStride();
-			static unsigned int GetElementVertexLayoutStride();
-			static unsigned int GetInfluenceVertexLayoutStride();
-			static unsigned int GetVertexLayoutStride();
-		};
+            static InputLayout* GetShapeVertexLayout();
+            static InputLayout* GetElementVertexLayout();
+            static InputLayout* GetInfluenceVertexLayout();
+            static InputLayout* GetVertexLayout();
+            static unsigned int GetShapeVertexLayoutStride();
+            static unsigned int GetElementVertexLayoutStride();
+            static unsigned int GetInfluenceVertexLayoutStride();
+            static unsigned int GetVertexLayoutStride();
+        };
 
-		class THAWK_OUT ElementBuffer : public Rest::Object
-		{
-		public:
-		    struct Desc
+        class THAWK_OUT ElementBuffer : public Rest::Object
+        {
+        public:
+            struct Desc
             {
                 CPUAccess AccessFlags = CPUAccess_Invalid;
                 ResourceUsage Usage = ResourceUsage_Default;
@@ -1062,28 +1062,28 @@ namespace Tomahawk
             };
 
         protected:
-			UInt64 Elements;
+            UInt64 Elements;
 
         protected:
             ElementBuffer(GraphicsDevice* Device, const Desc& I);
 
-		public:
-			virtual ~ElementBuffer() = default;
-			virtual void IndexedBuffer(GraphicsDevice* Device, Format FormatMode, unsigned int Offset) = 0;
-			virtual void VertexBuffer(GraphicsDevice* Device, unsigned int Slot, unsigned int Stride, unsigned int Offset) = 0;
-			virtual void Map(GraphicsDevice* Device, ResourceMap Mode, MappedSubresource* Map) = 0;
-			virtual void Unmap(GraphicsDevice* Device, MappedSubresource* Map) = 0;
-			virtual void* GetResource() = 0;
+        public:
+            virtual ~ElementBuffer() = default;
+            virtual void IndexedBuffer(GraphicsDevice* Device, Format FormatMode, unsigned int Offset) = 0;
+            virtual void VertexBuffer(GraphicsDevice* Device, unsigned int Slot, unsigned int Stride, unsigned int Offset) = 0;
+            virtual void Map(GraphicsDevice* Device, ResourceMap Mode, MappedSubresource* Map) = 0;
+            virtual void Unmap(GraphicsDevice* Device, MappedSubresource* Map) = 0;
+            virtual void* GetResource() = 0;
             UInt64 GetElements();
 
         public:
             static ElementBuffer* Create(GraphicsDevice* Device, const Desc& I);
-		};
+        };
 
-		class THAWK_OUT StructureBuffer : public Rest::Object
-		{
-		public:
-		    struct Desc
+        class THAWK_OUT StructureBuffer : public Rest::Object
+        {
+        public:
+            struct Desc
             {
                 CPUAccess AccessFlags = CPUAccess_Write;
                 ResourceUsage Usage = ResourceUsage_Dynamic;
@@ -1093,30 +1093,30 @@ namespace Tomahawk
                 void* Elements = nullptr;
             };
 
-		protected:
-			UInt64 Elements;
+        protected:
+            UInt64 Elements;
 
         protected:
             StructureBuffer(GraphicsDevice* Device, const Desc& I);
 
-		public:
-			virtual ~StructureBuffer() = default;
-			virtual void RemapSubresource(GraphicsDevice* Device, void* Pointer, UInt64 Size) = 0;
-			virtual void Map(GraphicsDevice* Device, ResourceMap Mode, MappedSubresource* Map) = 0;
-			virtual void Unmap(GraphicsDevice* Device, MappedSubresource* Map) = 0;
-			virtual void Apply(GraphicsDevice* Device, int Slot) = 0;
-			virtual void* GetElement() = 0;
-			virtual void* GetResource() = 0;
+        public:
+            virtual ~StructureBuffer() = default;
+            virtual void RemapSubresource(GraphicsDevice* Device, void* Pointer, UInt64 Size) = 0;
+            virtual void Map(GraphicsDevice* Device, ResourceMap Mode, MappedSubresource* Map) = 0;
+            virtual void Unmap(GraphicsDevice* Device, MappedSubresource* Map) = 0;
+            virtual void Apply(GraphicsDevice* Device, int Slot) = 0;
+            virtual void* GetElement() = 0;
+            virtual void* GetResource() = 0;
             UInt64 GetElements();
 
         public:
             static StructureBuffer* Create(GraphicsDevice* Device, const Desc& I);
-		};
+        };
 
-		class THAWK_OUT Texture2D : public Rest::Object
-		{
-		public:
-		    struct Desc
+        class THAWK_OUT Texture2D : public Rest::Object
+        {
+        public:
+            struct Desc
             {
                 CPUAccess AccessFlags = CPUAccess_Invalid;
                 Format FormatMode = Format_R8G8B8A8_Unorm;
@@ -1133,20 +1133,20 @@ namespace Tomahawk
             };
 
         protected:
-			CPUAccess AccessFlags;
-			Format FormatMode;
-			ResourceUsage Usage;
-			unsigned int Width, Height;
-			unsigned int MipLevels;
+            CPUAccess AccessFlags;
+            Format FormatMode;
+            ResourceUsage Usage;
+            unsigned int Width, Height;
+            unsigned int MipLevels;
 
-		protected:
+        protected:
             Texture2D(GraphicsDevice* Device);
             Texture2D(GraphicsDevice* Device, const Desc& I);
 
-		public:
-			virtual ~Texture2D() = default;
-			virtual void Apply(GraphicsDevice* Device, int Slot) = 0;
-			virtual void* GetResource() = 0;
+        public:
+            virtual ~Texture2D() = default;
+            virtual void Apply(GraphicsDevice* Device, int Slot) = 0;
+            virtual void* GetResource() = 0;
             CPUAccess GetAccessFlags();
             Format GetFormatMode();
             ResourceUsage GetUsage();
@@ -1157,48 +1157,48 @@ namespace Tomahawk
         public:
             static Texture2D* Create(GraphicsDevice* Device);
             static Texture2D* Create(GraphicsDevice* Device, const Desc& I);
-		};
+        };
 
-		class THAWK_OUT Texture3D : public Rest::Object
-		{
+        class THAWK_OUT Texture3D : public Rest::Object
+        {
         protected:
             Texture3D(GraphicsDevice* Device);
 
-		public:
-			virtual ~Texture3D() = default;
-			virtual void Apply(GraphicsDevice* Device, int Slot) = 0;
-			virtual void* GetResource() = 0;
+        public:
+            virtual ~Texture3D() = default;
+            virtual void Apply(GraphicsDevice* Device, int Slot) = 0;
+            virtual void* GetResource() = 0;
 
         public:
             static Texture3D* Create(GraphicsDevice* Device);
-		};
+        };
 
-		class THAWK_OUT TextureCube : public Rest::Object
-		{
-		public:
-		    struct Desc
+        class THAWK_OUT TextureCube : public Rest::Object
+        {
+        public:
+            struct Desc
             {
                 void* Texture2D[6] = { nullptr, nullptr, nullptr, nullptr, nullptr, nullptr };
             };
 
-		protected:
+        protected:
             TextureCube(GraphicsDevice* Device);
             TextureCube(GraphicsDevice* Device, const Desc& I);
 
         public:
-			virtual ~TextureCube() = default;
-			virtual void Apply(GraphicsDevice* Device, int Slot) = 0;
-			virtual void* GetResource() = 0;
+            virtual ~TextureCube() = default;
+            virtual void Apply(GraphicsDevice* Device, int Slot) = 0;
+            virtual void* GetResource() = 0;
 
         public:
             static TextureCube* Create(GraphicsDevice* Device);
             static TextureCube* Create(GraphicsDevice* Device, const Desc& I);
-		};
+        };
 
-		class THAWK_OUT RenderTarget2D : public Rest::Object
-		{
-		public:
-		    struct Desc
+        class THAWK_OUT RenderTarget2D : public Rest::Object
+        {
+        public:
+            struct Desc
             {
                 CPUAccess AccessFlags = CPUAccess_Invalid;
                 Format FormatMode = Format_B8G8R8A8_Unorm;
@@ -1212,32 +1212,32 @@ namespace Tomahawk
             };
 
         protected:
-			Texture2D* Resource;
+            Texture2D* Resource;
 
         protected:
             RenderTarget2D(GraphicsDevice* Device, const Desc& I);
 
-		public:
-			virtual ~RenderTarget2D();
-			virtual void CopyTexture2D(GraphicsDevice* Device, Texture2D** Value) = 0;
-			virtual void Apply(GraphicsDevice* Device, float R, float G, float B) = 0;
-			virtual void Apply(GraphicsDevice* Device) = 0;
-			virtual void Clear(GraphicsDevice* Device, float R, float G, float B) = 0;
-			virtual void SetViewport(const Viewport& In) = 0;
-			virtual void* GetResource() = 0;
-			virtual Viewport GetViewport() = 0;
-			virtual float GetWidth() = 0;
-			virtual float GetHeight() = 0;
-			Texture2D* GetTarget();
+        public:
+            virtual ~RenderTarget2D();
+            virtual void CopyTexture2D(GraphicsDevice* Device, Texture2D** Value) = 0;
+            virtual void Apply(GraphicsDevice* Device, float R, float G, float B) = 0;
+            virtual void Apply(GraphicsDevice* Device) = 0;
+            virtual void Clear(GraphicsDevice* Device, float R, float G, float B) = 0;
+            virtual void SetViewport(const Viewport& In) = 0;
+            virtual void* GetResource() = 0;
+            virtual Viewport GetViewport() = 0;
+            virtual float GetWidth() = 0;
+            virtual float GetHeight() = 0;
+            Texture2D* GetTarget();
 
         public:
             static RenderTarget2D* Create(GraphicsDevice* Device, const Desc& I);
-		};
+        };
 
-		class THAWK_OUT MultiRenderTarget2D : public Rest::Object
-		{
-		public:
-		    struct Desc
+        class THAWK_OUT MultiRenderTarget2D : public Rest::Object
+        {
+        public:
+            struct Desc
             {
                 CPUAccess AccessFlags = CPUAccess_Invalid;
                 SurfaceTarget SVTarget = SurfaceTarget0;
@@ -1251,36 +1251,36 @@ namespace Tomahawk
             };
 
         protected:
-			SurfaceTarget SVTarget;
-			Texture2D* Resource[8];
+            SurfaceTarget SVTarget;
+            Texture2D* Resource[8];
 
-		protected:
+        protected:
             MultiRenderTarget2D(GraphicsDevice* Device, const Desc& I);
 
-		public:
-			virtual ~MultiRenderTarget2D();
-			virtual void CopyTexture2D(int Target, GraphicsDevice* Device, Texture2D** Value) = 0;
-			virtual void Apply(GraphicsDevice* Device, int Target, float R, float G, float B) = 0;
-			virtual void Apply(GraphicsDevice* Device, int Target) = 0;
-			virtual void Apply(GraphicsDevice* Device, float R, float G, float B) = 0;
-			virtual void Apply(GraphicsDevice* Device) = 0;
-			virtual void Clear(GraphicsDevice* Device, int Target, float R, float G, float B) = 0;
-			virtual void SetViewport(const Viewport& In) = 0;
-			virtual Viewport GetViewport() = 0;
-			virtual float GetWidth() = 0;
-			virtual float GetHeight() = 0;
-			virtual void* GetResource(int Id) = 0;
+        public:
+            virtual ~MultiRenderTarget2D();
+            virtual void CopyTexture2D(int Target, GraphicsDevice* Device, Texture2D** Value) = 0;
+            virtual void Apply(GraphicsDevice* Device, int Target, float R, float G, float B) = 0;
+            virtual void Apply(GraphicsDevice* Device, int Target) = 0;
+            virtual void Apply(GraphicsDevice* Device, float R, float G, float B) = 0;
+            virtual void Apply(GraphicsDevice* Device) = 0;
+            virtual void Clear(GraphicsDevice* Device, int Target, float R, float G, float B) = 0;
+            virtual void SetViewport(const Viewport& In) = 0;
+            virtual Viewport GetViewport() = 0;
+            virtual float GetWidth() = 0;
+            virtual float GetHeight() = 0;
+            virtual void* GetResource(int Id) = 0;
             SurfaceTarget GetSVTarget();
             Texture2D* GetTarget(int Target);
 
         public:
             static MultiRenderTarget2D* Create(GraphicsDevice* Device, const Desc& I);
-		};
+        };
 
-		class THAWK_OUT RenderTarget2DArray : public Rest::Object
-		{
-		public:
-		    struct Desc
+        class THAWK_OUT RenderTarget2DArray : public Rest::Object
+        {
+        public:
+            struct Desc
             {
                 CPUAccess AccessFlags = CPUAccess_Invalid;
                 Format FormatMode = Format_R8G8B8A8_Unorm;
@@ -1294,31 +1294,31 @@ namespace Tomahawk
             };
 
         protected:
-			Texture2D* Resource;
+            Texture2D* Resource;
 
-		protected:
+        protected:
             RenderTarget2DArray(GraphicsDevice* Device, const Desc& I);
 
-		public:
-			virtual ~RenderTarget2DArray();
-			virtual void Apply(GraphicsDevice* Device, int Target, float R, float G, float B) = 0;
-			virtual void Apply(GraphicsDevice* Device, int Target) = 0;
-			virtual void Clear(GraphicsDevice* Device, int Target, float R, float G, float B) = 0;
-			virtual void SetViewport(const Viewport& In) = 0;
-			virtual Viewport GetViewport() = 0;
-			virtual float GetWidth() = 0;
-			virtual float GetHeight() = 0;
-			virtual void* GetResource() = 0;
+        public:
+            virtual ~RenderTarget2DArray();
+            virtual void Apply(GraphicsDevice* Device, int Target, float R, float G, float B) = 0;
+            virtual void Apply(GraphicsDevice* Device, int Target) = 0;
+            virtual void Clear(GraphicsDevice* Device, int Target, float R, float G, float B) = 0;
+            virtual void SetViewport(const Viewport& In) = 0;
+            virtual Viewport GetViewport() = 0;
+            virtual float GetWidth() = 0;
+            virtual float GetHeight() = 0;
+            virtual void* GetResource() = 0;
             Texture2D* GetTarget();
 
         public:
             static RenderTarget2DArray* Create(GraphicsDevice* Device, const Desc& I);
-		};
+        };
 
-		class THAWK_OUT RenderTargetCube : public Rest::Object
-		{
-		public:
-		    struct Desc
+        class THAWK_OUT RenderTargetCube : public Rest::Object
+        {
+        public:
+            struct Desc
             {
                 CPUAccess AccessFlags = CPUAccess_Invalid;
                 Format FormatMode = Format_R8G8B8A8_Unorm;
@@ -1330,33 +1330,33 @@ namespace Tomahawk
             };
 
         protected:
-			Texture2D* Resource;
+            Texture2D* Resource;
 
-		protected:
+        protected:
             RenderTargetCube(GraphicsDevice* Device, const Desc& I);
 
-		public:
-			virtual ~RenderTargetCube();
-			virtual void CopyTextureCube(GraphicsDevice* Device, TextureCube** Value) = 0;
-			virtual void CopyTexture2D(int Face, GraphicsDevice* Device, Texture2D** Value) = 0;
-			virtual void Apply(GraphicsDevice* Device, float R, float G, float B) = 0;
-			virtual void Apply(GraphicsDevice* Device) = 0;
-			virtual void Clear(GraphicsDevice* Device, float R, float G, float B) = 0;
-			virtual void SetViewport(const Viewport& In) = 0;
-			virtual Viewport GetViewport() = 0;
-			virtual float GetWidth() = 0;
-			virtual float GetHeight() = 0;
-			virtual void* GetResource() = 0;
-			Texture2D* GetTarget();
+        public:
+            virtual ~RenderTargetCube();
+            virtual void CopyTextureCube(GraphicsDevice* Device, TextureCube** Value) = 0;
+            virtual void CopyTexture2D(int Face, GraphicsDevice* Device, Texture2D** Value) = 0;
+            virtual void Apply(GraphicsDevice* Device, float R, float G, float B) = 0;
+            virtual void Apply(GraphicsDevice* Device) = 0;
+            virtual void Clear(GraphicsDevice* Device, float R, float G, float B) = 0;
+            virtual void SetViewport(const Viewport& In) = 0;
+            virtual Viewport GetViewport() = 0;
+            virtual float GetWidth() = 0;
+            virtual float GetHeight() = 0;
+            virtual void* GetResource() = 0;
+            Texture2D* GetTarget();
 
         public:
             static RenderTargetCube* Create(GraphicsDevice* Device, const Desc& I);
-		};
+        };
 
-		class THAWK_OUT MultiRenderTargetCube : public Rest::Object
-		{
-		public:
-		    struct Desc
+        class THAWK_OUT MultiRenderTargetCube : public Rest::Object
+        {
+        public:
+            struct Desc
             {
                 CPUAccess AccessFlags = CPUAccess_Invalid;
                 SurfaceTarget Target = SurfaceTarget0;
@@ -1369,37 +1369,37 @@ namespace Tomahawk
             };
 
         protected:
-			SurfaceTarget SVTarget;
-			Texture2D* Resource[8];
+            SurfaceTarget SVTarget;
+            Texture2D* Resource[8];
 
-		protected:
+        protected:
             MultiRenderTargetCube(GraphicsDevice* Device, const Desc& I);
 
-		public:
-			virtual ~MultiRenderTargetCube();
-			virtual void CopyTextureCube(int Cube, GraphicsDevice* Device, TextureCube** Value) = 0;
-			virtual void CopyTexture2D(int Cube, int Face, GraphicsDevice* Device, Texture2D** Value) = 0;
-			virtual void Apply(GraphicsDevice* Device, int Target, float R, float G, float B) = 0;
-			virtual void Apply(GraphicsDevice* Device, int Target) = 0;
-			virtual void Apply(GraphicsDevice* Device, float R, float G, float B) = 0;
-			virtual void Apply(GraphicsDevice* Device) = 0;
-			virtual void Clear(GraphicsDevice* Device, int Target, float R, float G, float B) = 0;
-			virtual void SetViewport(const Viewport& In) = 0;
-			virtual Viewport GetViewport() = 0;
-			virtual float GetWidth() = 0;
-			virtual float GetHeight() = 0;
-			virtual void* GetResource(int Id) = 0;
+        public:
+            virtual ~MultiRenderTargetCube();
+            virtual void CopyTextureCube(int Cube, GraphicsDevice* Device, TextureCube** Value) = 0;
+            virtual void CopyTexture2D(int Cube, int Face, GraphicsDevice* Device, Texture2D** Value) = 0;
+            virtual void Apply(GraphicsDevice* Device, int Target, float R, float G, float B) = 0;
+            virtual void Apply(GraphicsDevice* Device, int Target) = 0;
+            virtual void Apply(GraphicsDevice* Device, float R, float G, float B) = 0;
+            virtual void Apply(GraphicsDevice* Device) = 0;
+            virtual void Clear(GraphicsDevice* Device, int Target, float R, float G, float B) = 0;
+            virtual void SetViewport(const Viewport& In) = 0;
+            virtual Viewport GetViewport() = 0;
+            virtual float GetWidth() = 0;
+            virtual float GetHeight() = 0;
+            virtual void* GetResource(int Id) = 0;
             SurfaceTarget GetSVTarget();
             Texture2D* GetTarget(int Target);
 
         public:
             static MultiRenderTargetCube* Create(GraphicsDevice* Device, const Desc& I);
-		};
+        };
 
-		class THAWK_OUT Mesh : public Rest::Object
-		{
-		public:
-		    struct Desc
+        class THAWK_OUT Mesh : public Rest::Object
+        {
+        public:
+            struct Desc
             {
                 std::vector<Compute::Vertex> Elements;
                 std::vector<int> Indices;
@@ -1407,33 +1407,33 @@ namespace Tomahawk
                 ResourceUsage Usage = ResourceUsage_Default;
             };
 
-		protected:
+        protected:
             ElementBuffer* VertexBuffer;
             ElementBuffer* IndexBuffer;
 
         public:
-			Compute::Matrix4x4 World;
-			std::string Name;
+            Compute::Matrix4x4 World;
+            std::string Name;
 
-		protected:
+        protected:
             Mesh(GraphicsDevice* Device, const Desc& I);
 
-		public:
-			virtual ~Mesh();
-			virtual void Draw(GraphicsDevice* Device) = 0;
-			virtual void Update(GraphicsDevice* Device, Compute::Vertex* Elements) = 0;
-			virtual Compute::Vertex* Elements(GraphicsDevice* Device) = 0;
+        public:
+            virtual ~Mesh();
+            virtual void Draw(GraphicsDevice* Device) = 0;
+            virtual void Update(GraphicsDevice* Device, Compute::Vertex* Elements) = 0;
+            virtual Compute::Vertex* Elements(GraphicsDevice* Device) = 0;
             ElementBuffer* GetVertexBuffer();
             ElementBuffer* GetIndexBuffer();
 
         public:
             static Mesh* Create(GraphicsDevice* Device, const Desc& I);
-		};
+        };
 
-		class THAWK_OUT SkinnedMesh : public Rest::Object
-		{
-		public:
-		    struct Desc
+        class THAWK_OUT SkinnedMesh : public Rest::Object
+        {
+        public:
+            struct Desc
             {
                 std::vector<Compute::InfluenceVertex> Elements;
                 std::vector<int> Indices;
@@ -1441,138 +1441,138 @@ namespace Tomahawk
                 ResourceUsage Usage = ResourceUsage_Default;
             };
 
-		protected:
+        protected:
             ElementBuffer* VertexBuffer;
             ElementBuffer* IndexBuffer;
 
         public:
-			Compute::Matrix4x4 World;
-			std::string Name;
+            Compute::Matrix4x4 World;
+            std::string Name;
 
-		protected:
+        protected:
             SkinnedMesh(GraphicsDevice* Device, const Desc& I);
 
-		public:
-			virtual ~SkinnedMesh();
-			virtual void Draw(GraphicsDevice* Device) = 0;
-			virtual void Update(GraphicsDevice* Device, Compute::InfluenceVertex* Elements) = 0;
-			virtual Compute::InfluenceVertex* Elements(GraphicsDevice* Device) = 0;
+        public:
+            virtual ~SkinnedMesh();
+            virtual void Draw(GraphicsDevice* Device) = 0;
+            virtual void Update(GraphicsDevice* Device, Compute::InfluenceVertex* Elements) = 0;
+            virtual Compute::InfluenceVertex* Elements(GraphicsDevice* Device) = 0;
             ElementBuffer* GetVertexBuffer();
             ElementBuffer* GetIndexBuffer();
 
         public:
             static SkinnedMesh* Create(GraphicsDevice* Device, const Desc& I);
-		};
+        };
 
-		class THAWK_OUT Model : public Rest::Object
-		{
-		public:
-			std::vector<Mesh*> Meshes;
-			Compute::Matrix4x4 Root;
-			Compute::Vector4 Max;
-			Compute::Vector4 Min;
+        class THAWK_OUT Model : public Rest::Object
+        {
+        public:
+            std::vector<Mesh*> Meshes;
+            Compute::Matrix4x4 Root;
+            Compute::Vector4 Max;
+            Compute::Vector4 Min;
 
-		public:
-			Model();
-			~Model();
-			Mesh* Find(const std::string& Name);
-		};
+        public:
+            Model();
+            ~Model();
+            Mesh* Find(const std::string& Name);
+        };
 
-		class THAWK_OUT SkinnedModel : public Rest::Object
-		{
-		public:
-			std::vector<SkinnedMesh*> Meshes;
-			std::vector<Compute::Joint> Joints;
-			Compute::Matrix4x4 Root;
-			Compute::Vector4 Max;
-			Compute::Vector4 Min;
+        class THAWK_OUT SkinnedModel : public Rest::Object
+        {
+        public:
+            std::vector<SkinnedMesh*> Meshes;
+            std::vector<Compute::Joint> Joints;
+            Compute::Matrix4x4 Root;
+            Compute::Vector4 Max;
+            Compute::Vector4 Min;
 
-		public:
-			SkinnedModel();
-			~SkinnedModel();
-			void BuildSkeleton(PoseBuffer* Map);
-			SkinnedMesh* FindMesh(const std::string& Name);
-			Compute::Joint* FindJoint(const std::string& Name, Compute::Joint* Root = nullptr);
-			Compute::Joint* FindJoint(Int64 Index, Compute::Joint* Root = nullptr);
+        public:
+            SkinnedModel();
+            ~SkinnedModel();
+            void BuildSkeleton(PoseBuffer* Map);
+            SkinnedMesh* FindMesh(const std::string& Name);
+            Compute::Joint* FindJoint(const std::string& Name, Compute::Joint* Root = nullptr);
+            Compute::Joint* FindJoint(Int64 Index, Compute::Joint* Root = nullptr);
 
-		private:
-			void BuildSkeleton(PoseBuffer* Map, Compute::Joint* Root, const Compute::Matrix4x4& World);
-		};
+        private:
+            void BuildSkeleton(PoseBuffer* Map, Compute::Joint* Root, const Compute::Matrix4x4& World);
+        };
 
-		class THAWK_OUT InstanceBuffer : public Rest::Object
-		{
-		public:
-		    struct Desc
+        class THAWK_OUT InstanceBuffer : public Rest::Object
+        {
+        public:
+            struct Desc
             {
                 unsigned int ElementLimit = 100;
             };
 
         protected:
-            Rest::Pool<Compute::ElementVertex> Array;
+            Rest::Pool <Compute::ElementVertex> Array;
             ElementBuffer* Elements;
             GraphicsDevice* Device;
-			UInt64 ElementLimit;
+            UInt64 ElementLimit;
 
-		protected:
+        protected:
             InstanceBuffer(GraphicsDevice* Device, const Desc& I);
 
-		public:
-			virtual ~InstanceBuffer();
-			virtual void SendPool() = 0;
-			virtual void Restore() = 0;
-			virtual void Resize(UInt64 Size) = 0;
-            Rest::Pool<Compute::ElementVertex>* GetArray();
+        public:
+            virtual ~InstanceBuffer();
+            virtual void SendPool() = 0;
+            virtual void Restore() = 0;
+            virtual void Resize(UInt64 Size) = 0;
+            Rest::Pool <Compute::ElementVertex>* GetArray();
             ElementBuffer* GetElements();
             GraphicsDevice* GetDevice();
-			UInt64 GetElementLimit();
+            UInt64 GetElementLimit();
 
         public:
             static InstanceBuffer* Create(GraphicsDevice* Device, const Desc& I);
-		};
+        };
 
-		class THAWK_OUT DirectBuffer : public Rest::Object
-		{
-		protected:
-			struct THAWK_OUT Vertex
-			{
-				float PX, PY, PZ;
-				float TX, TY;
-				float CX, CY, CZ, CW;
-			};
+        class THAWK_OUT DirectBuffer : public Rest::Object
+        {
+        protected:
+            struct THAWK_OUT Vertex
+            {
+                float PX, PY, PZ;
+                float TX, TY;
+                float CX, CY, CZ, CW;
+            };
 
-		protected:
-			PrimitiveTopology Primitives;
-			std::vector<Vertex> Elements;
-			Texture2D* View;
-			UInt64 MaxElements;
+        protected:
+            PrimitiveTopology Primitives;
+            std::vector<Vertex> Elements;
+            Texture2D* View;
+            UInt64 MaxElements;
 
-		public:
-			GraphicsDevice* Device;
+        public:
+            GraphicsDevice* Device;
 
-		protected:
+        protected:
             DirectBuffer(GraphicsDevice* NewDevice);
 
-		public:
-			virtual ~DirectBuffer();
-			virtual void Begin() = 0;
-			virtual void End() = 0;
-			virtual void EmitVertex() = 0;
-			virtual void Position(float X, float Y, float Z) = 0;
-			virtual void TexCoord(float X, float Y) = 0;
-			virtual void Color(float X, float Y, float Z, float W) = 0;
-			virtual void Texture(Texture2D* In) = 0;
-			virtual void Intensity(float Intensity) = 0;
-			virtual void TexCoordOffset(float X, float Y) = 0;
-			virtual void Transform(Compute::Matrix4x4 Matrix4x4) = 0;
-			virtual void Topology(PrimitiveTopology DrawTopology) = 0;
+        public:
+            virtual ~DirectBuffer();
+            virtual void Begin() = 0;
+            virtual void End() = 0;
+            virtual void EmitVertex() = 0;
+            virtual void Position(float X, float Y, float Z) = 0;
+            virtual void TexCoord(float X, float Y) = 0;
+            virtual void Color(float X, float Y, float Z, float W) = 0;
+            virtual void Texture(Texture2D* In) = 0;
+            virtual void Intensity(float Intensity) = 0;
+            virtual void TexCoordOffset(float X, float Y) = 0;
+            virtual void Transform(Compute::Matrix4x4 Matrix4x4) = 0;
+            virtual void Topology(PrimitiveTopology DrawTopology) = 0;
 
-		public:
+        public:
             static DirectBuffer* Create(GraphicsDevice* Device);
-		};
+        };
 
-		class THAWK_OUT GraphicsDevice : public Rest::Object
-		{
-		public:
+        class THAWK_OUT GraphicsDevice : public Rest::Object
+        {
+        public:
             struct Desc
             {
                 RenderBackend Backend = Graphics::RenderBackend_NONE;
@@ -1595,70 +1595,70 @@ namespace Tomahawk
             };
 
         protected:
-			static Compute::Vector2 ScreenDimensions;
+            static Compute::Vector2 ScreenDimensions;
 
-		protected:
-			std::vector<DepthStencilState*> DepthStencilStates;
-			std::vector<RasterizerState*> RasterizerStates;
-			std::vector<BlendState*> BlendStates;
-			std::vector<SamplerState*> SamplerStates;
-			std::vector<Section*> Sections;
-			ShaderModel ShaderModelType;
-			RenderTarget2D* RenderTarget = nullptr;
+        protected:
+            std::vector<DepthStencilState*> DepthStencilStates;
+            std::vector<RasterizerState*> RasterizerStates;
+            std::vector<BlendState*> BlendStates;
+            std::vector<SamplerState*> SamplerStates;
+            std::vector<Section*> Sections;
+            ShaderModel ShaderModelType;
+            RenderTarget2D* RenderTarget = nullptr;
             Shader* BasicEffect = nullptr;
-			unsigned int PresentationFlag = 0;
-			unsigned int CompilationFlag = 0;
-			VSync VSyncMode = VSync_Frequency_X1;
+            unsigned int PresentationFlag = 0;
+            unsigned int CompilationFlag = 0;
+            VSync VSyncMode = VSync_Frequency_X1;
             const void* ConstantData[4];
             RenderBackend Backend;
 
-		public:
+        public:
             RenderBuffer Render;
             ViewBuffer View;
             AnimationBuffer Animation;
 
-		protected:
+        protected:
             GraphicsDevice(const Desc& I);
 
-		public:
-			virtual ~GraphicsDevice();
-			virtual void ReleaseState(DeviceState** RefState) = 0;
-			virtual void RestoreState(DeviceState* RefState) = 0;
-			virtual void SetConstantBuffers() = 0;
-			virtual void SetShaderModel(ShaderModel RShaderModel) = 0;
-			virtual void SetSamplerState(UInt64 State) = 0;
-			virtual void SetBlendState(UInt64 State) = 0;
-			virtual void SetRasterizerState(UInt64 State) = 0;
-			virtual void SetDepthStencilState(UInt64 State) = 0;
-			virtual void SendBufferStream(RenderBufferType Buffer) = 0;
-			virtual void Present() = 0;
-			virtual void SetPrimitiveTopology(PrimitiveTopology Topology) = 0;
-			virtual void RestoreSamplerStates() = 0;
-			virtual void RestoreBlendStates() = 0;
-			virtual void RestoreRasterizerStates() = 0;
-			virtual void RestoreDepthStencilStates() = 0;
-			virtual void RestoreTexture2D(int Slot, int Size) = 0;
-			virtual void RestoreTexture2D(int Size) = 0;
-			virtual void RestoreTexture3D(int Slot, int Size) = 0;
-			virtual void RestoreTexture3D(int Size) = 0;
-			virtual void RestoreTextureCube(int Slot, int Size) = 0;
-			virtual void RestoreTextureCube(int Size) = 0;
-			virtual void RestoreState() = 0;
-			virtual void ResizeBuffers(unsigned int Width, unsigned int Height) = 0;
-			virtual void DrawIndexed(unsigned int Count, unsigned int IndexLocation, unsigned int BaseLocation) = 0;
-			virtual void Draw(unsigned int Count, unsigned int Location) = 0;
-			virtual void RestoreShader() = 0;
-			virtual ShaderModel GetSupportedShaderModel() = 0;
-			virtual UInt64 AddDepthStencilState(DepthStencilState* In) = 0;
-			virtual UInt64 AddBlendState(BlendState* In) = 0;
-			virtual UInt64 AddRasterizerState(RasterizerState* In) = 0;
-			virtual UInt64 AddSamplerState(SamplerState* In) = 0;
-			virtual void* GetBackBuffer() = 0;
-			virtual void* GetBackBufferMSAA() = 0;
-			virtual void* GetBackBufferNoAA() = 0;
-			virtual void* GetDevice() = 0;
-			virtual void* GetContext() = 0;
-			virtual DeviceState* CreateState() = 0;
+        public:
+            virtual ~GraphicsDevice();
+            virtual void ReleaseState(DeviceState** RefState) = 0;
+            virtual void RestoreState(DeviceState* RefState) = 0;
+            virtual void SetConstantBuffers() = 0;
+            virtual void SetShaderModel(ShaderModel RShaderModel) = 0;
+            virtual void SetSamplerState(UInt64 State) = 0;
+            virtual void SetBlendState(UInt64 State) = 0;
+            virtual void SetRasterizerState(UInt64 State) = 0;
+            virtual void SetDepthStencilState(UInt64 State) = 0;
+            virtual void SendBufferStream(RenderBufferType Buffer) = 0;
+            virtual void Present() = 0;
+            virtual void SetPrimitiveTopology(PrimitiveTopology Topology) = 0;
+            virtual void RestoreSamplerStates() = 0;
+            virtual void RestoreBlendStates() = 0;
+            virtual void RestoreRasterizerStates() = 0;
+            virtual void RestoreDepthStencilStates() = 0;
+            virtual void RestoreTexture2D(int Slot, int Size) = 0;
+            virtual void RestoreTexture2D(int Size) = 0;
+            virtual void RestoreTexture3D(int Slot, int Size) = 0;
+            virtual void RestoreTexture3D(int Size) = 0;
+            virtual void RestoreTextureCube(int Slot, int Size) = 0;
+            virtual void RestoreTextureCube(int Size) = 0;
+            virtual void RestoreState() = 0;
+            virtual void ResizeBuffers(unsigned int Width, unsigned int Height) = 0;
+            virtual void DrawIndexed(unsigned int Count, unsigned int IndexLocation, unsigned int BaseLocation) = 0;
+            virtual void Draw(unsigned int Count, unsigned int Location) = 0;
+            virtual void RestoreShader() = 0;
+            virtual ShaderModel GetSupportedShaderModel() = 0;
+            virtual UInt64 AddDepthStencilState(DepthStencilState* In) = 0;
+            virtual UInt64 AddBlendState(BlendState* In) = 0;
+            virtual UInt64 AddRasterizerState(RasterizerState* In) = 0;
+            virtual UInt64 AddSamplerState(SamplerState* In) = 0;
+            virtual void* GetBackBuffer() = 0;
+            virtual void* GetBackBufferMSAA() = 0;
+            virtual void* GetBackBufferNoAA() = 0;
+            virtual void* GetDevice() = 0;
+            virtual void* GetContext() = 0;
+            virtual DeviceState* CreateState() = 0;
             virtual void ProcessShaderCode(Shader::Desc& ShaderCode);
             virtual void AddSection(const std::string& Name, const std::string& Code);
             virtual void RemoveSection(const std::string& Name);
@@ -1681,17 +1681,17 @@ namespace Tomahawk
             UInt64 GetRasterizerStateCount();
             UInt64 GetSamplerStateCount();
 
-		protected:
+        protected:
             virtual void LoadShaderSections() = 0;
 
-		public:
-			static GraphicsDevice* Create(const Desc& I);
-			static Compute::Vector2 GetScreenDimensions();
-		};
+        public:
+            static GraphicsDevice* Create(const Desc& I);
+            static Compute::Vector2 GetScreenDimensions();
+        };
 
-		class THAWK_OUT Activity : public Rest::Object
-		{
-		public:
+        class THAWK_OUT Activity : public Rest::Object
+        {
+        public:
             struct Desc
             {
                 RenderBackend Backend = RenderBackend_NONE;
@@ -1734,95 +1734,95 @@ namespace Tomahawk
                 DropTextCallback DropText;
             } Callbacks;
 
-		private:
-		    struct
+        private:
+            struct
             {
-		        bool Captured = false;
+                bool Captured = false;
                 bool Mapped = false;
                 bool Enabled = false;
                 KeyMap Key;
             } Mapping;
 
-		private:
+        private:
             SDL_Cursor* Cursors[DisplayCursor_Count];
             SDL_Window* Handle;
             Desc Rest;
             bool Keys[2][1024];
             int Command, CX, CY;
 
-		public:
-			void* UserPointer = nullptr;
-			Alert Message;
+        public:
+            void* UserPointer = nullptr;
+            Alert Message;
 
-		public:
+        public:
             Activity(const Desc& I);
-			~Activity();
+            ~Activity();
             void SetCursorPosition(const Compute::Vector2& Position);
             void SetCursorPosition(float X, float Y);
             void SetKey(KeyCode KeyCode, bool Value);
             void SetCursor(DisplayCursor Style);
             void Cursor(bool Enabled);
             void Grab(bool Enabled);
-			void Reset();
-			void Hide();
-			void Show();
-			void Maximize();
+            void Reset();
+            void Hide();
+            void Show();
+            void Maximize();
             void Minimize();
-			void Focus();
-			void Fullscreen(bool Enabled);
-			void Borderless(bool Enabled);
-			void Move(int X, int Y);
-			void Resize(int Width, int Height);
-			void Title(const char* Value);
-			void Icon(Surface* Icon);
+            void Focus();
+            void Fullscreen(bool Enabled);
+            void Borderless(bool Enabled);
+            void Move(int X, int Y);
+            void Resize(int Width, int Height);
+            void Title(const char* Value);
+            void Icon(Surface* Icon);
             void Load(SDL_SysWMinfo* Base);
             bool CaptureKeyMap(KeyMap* Value);
             bool Dispatch();
-			bool IsFullscreen();
+            bool IsFullscreen();
             bool IsAnyKeyDown();
             bool IsKeyDown(const KeyMap& Key);
             bool IsKeyUp(const KeyMap& Key);
             bool IsKeyDownHit(const KeyMap& Key);
             bool IsKeyUpHit(const KeyMap& Key);
-			float GetX();
-			float GetY();
-			float GetWidth();
-			float GetHeight();
-			float GetAspectRatio();
-			Graphics::Viewport GetViewport();
-			Compute::Vector2 GetOffset();
-			Compute::Vector2 GetSize();
+            float GetX();
+            float GetY();
+            float GetWidth();
+            float GetHeight();
+            float GetAspectRatio();
+            Graphics::Viewport GetViewport();
+            Compute::Vector2 GetOffset();
+            Compute::Vector2 GetSize();
             Compute::Vector2 GetClientSize();
-			Compute::Vector2 GetClientCursorPosition();
+            Compute::Vector2 GetClientCursorPosition();
             Compute::Vector2 GetCursorPosition();
             Compute::Vector2 GetCursorPosition(float ScreenWidth, float ScreenHeight);
             Compute::Vector2 GetCursorPosition(Compute::Vector2 ScreenDimensions);
             SDL_Window* GetHandle();
             std::string GetError();
 
-		private:
-			bool* GetInputState();
-		};
+        private:
+            bool* GetInputState();
+        };
 
-		inline ResourceMap operator| (ResourceMap A, ResourceMap B)
-		{
-			return static_cast<ResourceMap>(static_cast<UInt64>(A) | static_cast<UInt64>(B));
-		}
+        inline ResourceMap operator |(ResourceMap A, ResourceMap B)
+        {
+            return static_cast<ResourceMap>(static_cast<UInt64>(A) | static_cast<UInt64>(B));
+        }
 
-		inline ShaderCompile operator| (ShaderCompile A, ShaderCompile B)
-		{
-			return static_cast<ShaderCompile>(static_cast<UInt64>(A) | static_cast<UInt64>(B));
-		}
+        inline ShaderCompile operator |(ShaderCompile A, ShaderCompile B)
+        {
+            return static_cast<ShaderCompile>(static_cast<UInt64>(A) | static_cast<UInt64>(B));
+        }
 
-		inline ResourceMisc operator| (ResourceMisc A, ResourceMisc B)
-		{
-			return static_cast<ResourceMisc>(static_cast<UInt64>(A) | static_cast<UInt64>(B));
-		}
+        inline ResourceMisc operator |(ResourceMisc A, ResourceMisc B)
+        {
+            return static_cast<ResourceMisc>(static_cast<UInt64>(A) | static_cast<UInt64>(B));
+        }
 
-		inline ResourceBind operator| (ResourceBind A, ResourceBind B)
-		{
-			return static_cast<ResourceBind>(static_cast<UInt64>(A) | static_cast<UInt64>(B));
-		}
-	}
+        inline ResourceBind operator |(ResourceBind A, ResourceBind B)
+        {
+            return static_cast<ResourceBind>(static_cast<UInt64>(A) | static_cast<UInt64>(B));
+        }
+    }
 }
 #endif

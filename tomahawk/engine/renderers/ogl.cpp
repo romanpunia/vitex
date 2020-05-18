@@ -226,8 +226,9 @@ namespace Tomahawk
                 Activity = NewWindow;
                 Context = (void*)ImGui::CreateContext();
                 ImGuiIO& Input = ImGui::GetIO();
-                Input.RenderDrawListsFn = (void(*)(ImDrawData*))DrawList;
-                Reset(); Activate();
+                Input.RenderDrawListsFn = (void (*)(ImDrawData*))DrawList;
+                Reset();
+                Activate();
 
                 GLint LastTexture, LastArrayBuffer, LastVertexArray;
                 glGetIntegerv(GL_TEXTURE_BINDING_2D, &LastTexture);
@@ -345,38 +346,36 @@ namespace Tomahawk
             }
             const char* OGLGUIRenderer::GetVertexShaderCode()
             {
-                return
-                        "layout(binding = 3) uniform VertexBuffer"
-                        "{"
-                        "    mat4 WorldViewProjection;"
-                        "};"
+                return "layout(binding = 3) uniform VertexBuffer"
+                       "{"
+                       "    mat4 WorldViewProjection;"
+                       "};"
 
-                        "layout (location = 0) in vec2 vs_Position;"
-                        "layout (location = 1) in vec2 vs_TexCoord;"
-                        "layout (location = 2) in vec4 vs_Color;"
-                        "out vec2 ps_TexCoord;"
-                        "out vec4 ps_Color;"
+                       "layout (location = 0) in vec2 vs_Position;"
+                       "layout (location = 1) in vec2 vs_TexCoord;"
+                       "layout (location = 2) in vec4 vs_Color;"
+                       "out vec2 ps_TexCoord;"
+                       "out vec4 ps_Color;"
 
-                        "void main()"
-                        "{"
-                        "    ps_TexCoord = vs_TexCoord;"
-                        "    ps_Color = vs_Color;"
-                        "    gl_Position = WorldViewProjection * vec4(vs_Position.xy, 0, 1);"
-                        "}";
+                       "void main()"
+                       "{"
+                       "    ps_TexCoord = vs_TexCoord;"
+                       "    ps_Color = vs_Color;"
+                       "    gl_Position = WorldViewProjection * vec4(vs_Position.xy, 0, 1);"
+                       "}";
             }
             const char* OGLGUIRenderer::GetPixelShaderCode()
             {
-                return
-                        "layout (location = 0) out vec4 vs_Color;"
-                        "in vec2 ps_TexCoord;"
-                        "in vec4 ps_Color;"
+                return "layout (location = 0) out vec4 vs_Color;"
+                       "in vec2 ps_TexCoord;"
+                       "in vec4 ps_Color;"
 
-                        "uniform sampler2D Texture;"
+                       "uniform sampler2D Texture;"
 
-                        "void main()"
-                        "{"
-                        "    vs_Color = ps_Color * texture(Texture, ps_TexCoord.st);"
-                        "}";
+                       "void main()"
+                       "{"
+                       "    vs_Color = ps_Color * texture(Texture, ps_TexCoord.st);"
+                       "}";
             }
             void OGLGUIRenderer::DrawList(void* Context)
             {
@@ -402,7 +401,8 @@ namespace Tomahawk
                 RefLink->Location.Buffer.WorldViewProjection = RefLink->WorldViewProjection;
                 Device->As<OGLDevice>()->CopyConstantBuffer(RefLink->UniformBuffer, &RefLink->Location.Buffer, sizeof(RefLink->Location.Buffer));
 
-                GLuint VAO = 0; glGenVertexArrays(1, &VAO);
+                GLuint VAO = 0;
+                glGenVertexArrays(1, &VAO);
                 RefLink->DrawSetup(Context, Width, Height, VAO);
 
                 for (int k = 0; k < Info->CmdListsCount; k++)

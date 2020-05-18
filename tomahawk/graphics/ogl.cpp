@@ -240,7 +240,8 @@ namespace Tomahawk
             void OGLRenderTarget2D::Apply(Graphics::GraphicsDevice* Device, float R, float G, float B)
             {
                 glBindFramebuffer(GL_FRAMEBUFFER, FrameBuffer != GL_INVALID_VALUE ? FrameBuffer : 0);
-                glViewport((GLuint)Viewport.TopLeftX, (GLuint)Viewport.TopLeftY, (GLuint)Viewport.Width, (GLuint)Viewport.Height);glClearColor(0.2f, 0.3f, 0.3f, 1.0f);
+                glViewport((GLuint)Viewport.TopLeftX, (GLuint)Viewport.TopLeftY, (GLuint)Viewport.Width, (GLuint)Viewport.Height);
+                glClearColor(0.2f, 0.3f, 0.3f, 1.0f);
                 glClearColor(R, G, B, 1.0f);
                 glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT | GL_STENCIL_BUFFER_BIT);
             }
@@ -252,7 +253,8 @@ namespace Tomahawk
             void OGLRenderTarget2D::Clear(Graphics::GraphicsDevice* Device, float R, float G, float B)
             {
                 glBindFramebuffer(GL_FRAMEBUFFER, FrameBuffer != GL_INVALID_VALUE ? FrameBuffer : 0);
-                glViewport((GLuint)Viewport.TopLeftX, (GLuint)Viewport.TopLeftY, (GLuint)Viewport.Width, (GLuint)Viewport.Height);glClearColor(0.2f, 0.3f, 0.3f, 1.0f);
+                glViewport((GLuint)Viewport.TopLeftX, (GLuint)Viewport.TopLeftY, (GLuint)Viewport.Width, (GLuint)Viewport.Height);
+                glClearColor(0.2f, 0.3f, 0.3f, 1.0f);
                 glClearColor(R, G, B, 1.0f);
                 glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT | GL_STENCIL_BUFFER_BIT);
             }
@@ -262,7 +264,8 @@ namespace Tomahawk
             void OGLRenderTarget2D::SetViewport(const Graphics::Viewport& In)
             {
                 Viewport = In;
-                glViewport((GLuint)Viewport.TopLeftX, (GLuint)Viewport.TopLeftY, (GLuint)Viewport.Width, (GLuint)Viewport.Height);glClearColor(0.2f, 0.3f, 0.3f, 1.0f);
+                glViewport((GLuint)Viewport.TopLeftX, (GLuint)Viewport.TopLeftY, (GLuint)Viewport.Width, (GLuint)Viewport.Height);
+                glClearColor(0.2f, 0.3f, 0.3f, 1.0f);
             }
             Graphics::Viewport OGLRenderTarget2D::GetViewport()
             {
@@ -280,7 +283,7 @@ namespace Tomahawk
             {
                 return (void*)(intptr_t)FrameBuffer;
             }
-            
+
             OGLMultiRenderTarget2D::OGLMultiRenderTarget2D(Graphics::GraphicsDevice* Device, const Desc& I) : Graphics::MultiRenderTarget2D(Device, I)
             {
             }
@@ -331,7 +334,7 @@ namespace Tomahawk
             }
             OGLRenderTarget2DArray::~OGLRenderTarget2DArray()
             {
-				delete Resource;
+                delete Resource;
             }
             void OGLRenderTarget2DArray::Apply(Graphics::GraphicsDevice* Device, int Target, float R, float G, float B)
             {
@@ -570,7 +573,7 @@ namespace Tomahawk
             void OGLInstanceBuffer::Resize(UInt64 Size)
             {
                 Restore();
-				delete Elements;
+                delete Elements;
 
                 ElementLimit = Size + 1;
                 if (ElementLimit < 1)
@@ -602,7 +605,8 @@ namespace Tomahawk
             void OGLDirectBuffer::Begin()
             {
                 Buffer.WorldViewProjection = Compute::Matrix4x4::Identity();
-                Buffer.Padding = { 0, 0, 0, 1 }; View = nullptr;
+                Buffer.Padding = { 0, 0, 0, 1 };
+                View = nullptr;
                 Primitives = Graphics::PrimitiveTopology_Triangle_List;
                 Elements.clear();
             }
@@ -815,10 +819,22 @@ namespace Tomahawk
                 glBindBuffer(GL_ARRAY_BUFFER, State->ArrayBuffer);
                 glBlendEquationSeparate(State->BlendEquation, State->BlendEquationAlpha);
                 glBlendFuncSeparate(State->BlendSrc, State->BlendDst, State->BlendSrcAlpha, State->BlendDstAlpha);
-                if (State->EnableBlend) glEnable(GL_BLEND); else glDisable(GL_BLEND);
-                if (State->EnableCullFace) glEnable(GL_CULL_FACE); else glDisable(GL_CULL_FACE);
-                if (State->EnableDepthTest) glEnable(GL_DEPTH_TEST); else glDisable(GL_DEPTH_TEST);
-                if (State->EnableScissorTest) glEnable(GL_SCISSOR_TEST); else glDisable(GL_SCISSOR_TEST);
+                if (State->EnableBlend)
+                    glEnable(GL_BLEND);
+                else
+                    glDisable(GL_BLEND);
+                if (State->EnableCullFace)
+                    glEnable(GL_CULL_FACE);
+                else
+                    glDisable(GL_CULL_FACE);
+                if (State->EnableDepthTest)
+                    glEnable(GL_DEPTH_TEST);
+                else
+                    glDisable(GL_DEPTH_TEST);
+                if (State->EnableScissorTest)
+                    glEnable(GL_SCISSOR_TEST);
+                else
+                    glDisable(GL_SCISSOR_TEST);
                 glViewport(State->Viewport[0], State->Viewport[1], (GLsizei)State->Viewport[2], (GLsizei)State->Viewport[3]);
                 glScissor(State->ScissorBox[0], State->ScissorBox[1], (GLsizei)State->ScissorBox[2], (GLsizei)State->ScissorBox[3]);
             }
@@ -1112,7 +1128,7 @@ namespace Tomahawk
                 F.BindFlags = Graphics::ResourceBind_Render_Target | Graphics::ResourceBind_Shader_Input;
                 F.RenderSurface = (void*)this;
 
-				delete RenderTarget;
+                delete RenderTarget;
                 RenderTarget = Graphics::RenderTarget2D::Create(this, F);
                 RenderTarget->Apply(this);
             }
@@ -1198,7 +1214,7 @@ namespace Tomahawk
                 GLuint Resource;
                 glGenTextures(1, &Resource);
                 glBindTexture(GL_TEXTURE_2D, Resource);
-                glCopyTexSubImage2D(GL_TEXTURE_2D,0, 0, 0, 0, 0, (GLsizei)RenderTarget->GetWidth(), (GLsizei)RenderTarget->GetHeight());
+                glCopyTexSubImage2D(GL_TEXTURE_2D, 0, 0, 0, 0, 0, (GLsizei)RenderTarget->GetWidth(), (GLsizei)RenderTarget->GetHeight());
 
                 return (void*)(intptr_t)Resource;
             }
@@ -1685,110 +1701,92 @@ namespace Tomahawk
             void OGLDevice::LoadShaderSections()
             {
 #ifdef HAS_OGL_ANIMATION_BUFFER_GLSL
-                AddSection("animation-buffer.glsl",
-                        reinterpret_cast<const char*>(resource_batch::ogl_animation_buffer_glsl::data));
+                AddSection("animation-buffer.glsl", reinterpret_cast<const char*>(resource_batch::ogl_animation_buffer_glsl::data));
 #else
                 THAWK_ERROR("animation-buffer.glsl was not compiled");
 #endif
 #ifdef HAS_OGL_RENDER_BUFFER_GLSL
-                AddSection("render-buffer.glsl",
-                        reinterpret_cast<const char*>(resource_batch::ogl_render_buffer_glsl::data));
+                AddSection("render-buffer.glsl", reinterpret_cast<const char*>(resource_batch::ogl_render_buffer_glsl::data));
 #else
                 THAWK_ERROR("render-buffer.glsl was not compiled");
 #endif
 #ifdef HAS_OGL_VIEW_BUFFER_GLSL
-                AddSection("view-buffer.glsl",
-                        reinterpret_cast<const char*>(resource_batch::ogl_view_buffer_glsl::data));
+                AddSection("view-buffer.glsl", reinterpret_cast<const char*>(resource_batch::ogl_view_buffer_glsl::data));
 #else
                 THAWK_ERROR("view-buffer.glsl was not compiled");
 #endif
 #ifdef HAS_OGL_VERTEX_IN_GLSL
-                AddSection("vertex-in.glsl",
-                        reinterpret_cast<const char*>(resource_batch::ogl_vertex_in_glsl::data));
+                AddSection("vertex-in.glsl", reinterpret_cast<const char*>(resource_batch::ogl_vertex_in_glsl::data));
 #else
                 THAWK_ERROR("vertex-in.glsl was not compiled");
 #endif
 #ifdef HAS_OGL_VERTEX_OUT_GLSL
-                AddSection("vertex-out.glsl",
-                        reinterpret_cast<const char*>(resource_batch::ogl_vertex_out_glsl::data));
+                AddSection("vertex-out.glsl", reinterpret_cast<const char*>(resource_batch::ogl_vertex_out_glsl::data));
 #else
                 THAWK_ERROR("vertex-out.glsl was not compiled");
 #endif
 #ifdef HAS_OGL_INFLUENCE_VERTEX_IN_GLSL
-                AddSection("influence-vertex-in.glsl",
-                        reinterpret_cast<const char*>(resource_batch::ogl_influence_vertex_in_glsl::data));
+                AddSection("influence-vertex-in.glsl", reinterpret_cast<const char*>(resource_batch::ogl_influence_vertex_in_glsl::data));
 #else
                 THAWK_ERROR("influence-vertex-in.glsl was not compiled");
 #endif
 #ifdef HAS_OGL_INFLUENCE_VERTEX_OUT_GLSL
-                AddSection("influence-vertex-out.glsl",
-                        reinterpret_cast<const char*>(resource_batch::ogl_influence_vertex_out_glsl::data));
+                AddSection("influence-vertex-out.glsl", reinterpret_cast<const char*>(resource_batch::ogl_influence_vertex_out_glsl::data));
 #else
                 THAWK_ERROR("influence-vertex-out.glsl was not compiled");
 #endif
 #ifdef HAS_OGL_SHAPE_VERTEX_IN_GLSL
-                AddSection("shape-vertex-in.glsl",
-                        reinterpret_cast<const char*>(resource_batch::ogl_shape_vertex_in_glsl::data));
+                AddSection("shape-vertex-in.glsl", reinterpret_cast<const char*>(resource_batch::ogl_shape_vertex_in_glsl::data));
 #else
                 THAWK_ERROR("shape-vertex-in.glsl was not compiled");
 #endif
 #ifdef HAS_OGL_SHAPE_VERTEX_OUT_GLSL
-                AddSection("shape-vertex-out.glsl",
-                        reinterpret_cast<const char*>(resource_batch::ogl_shape_vertex_out_glsl::data));
+                AddSection("shape-vertex-out.glsl", reinterpret_cast<const char*>(resource_batch::ogl_shape_vertex_out_glsl::data));
 #else
                 THAWK_ERROR("shape-vertex-out.glsl was not compiled");
 #endif
 #ifdef HAS_OGL_DEFERRED_OUT_GLSL
-                AddSection("deferred-out.glsl",
-                        reinterpret_cast<const char*>(resource_batch::ogl_deferred_out_glsl::data));
+                AddSection("deferred-out.glsl", reinterpret_cast<const char*>(resource_batch::ogl_deferred_out_glsl::data));
 #else
                 THAWK_ERROR("deferred-out.glsl was not compiled");
 #endif
 #ifdef HAS_OGL_INSTANCE_ELEMENT_GLSL
-                AddSection("instance-element.glsl",
-                        reinterpret_cast<const char*>(resource_batch::ogl_instance_element_glsl::data));
+                AddSection("instance-element.glsl", reinterpret_cast<const char*>(resource_batch::ogl_instance_element_glsl::data));
 #else
                 THAWK_ERROR("instance-element.glsl was not compiled");
 #endif
 #ifdef HAS_OGL_GEOMETRY_GLSL
-                AddSection("geometry.glsl",
-                        reinterpret_cast<const char*>(resource_batch::ogl_geometry_glsl::data));
+                AddSection("geometry.glsl", reinterpret_cast<const char*>(resource_batch::ogl_geometry_glsl::data));
 #else
                 THAWK_ERROR("geometry.glsl was not compiled");
 #endif
 #ifdef HAS_OGL_LOAD_GEOMETRY_GLSL
-                AddSection("load-geometry.glsl",
-                        reinterpret_cast<const char*>(resource_batch::ogl_load_geometry_glsl::data));
+                AddSection("load-geometry.glsl", reinterpret_cast<const char*>(resource_batch::ogl_load_geometry_glsl::data));
 #else
                 THAWK_ERROR("load-geometry.glsl was not compiled");
 #endif
 #ifdef HAS_OGL_LOAD_TEXCOORD_GLSL
-                AddSection("load-texcoord.glsl",
-                        reinterpret_cast<const char*>(resource_batch::ogl_load_texcoord_glsl::data));
+                AddSection("load-texcoord.glsl", reinterpret_cast<const char*>(resource_batch::ogl_load_texcoord_glsl::data));
 #else
                 THAWK_ERROR("load-texcoord.glsl was not compiled");
 #endif
 #ifdef HAS_OGL_LOAD_POSITION_GLSL
-                AddSection("load-position.glsl",
-                        reinterpret_cast<const char*>(resource_batch::ogl_load_position_glsl::data));
+                AddSection("load-position.glsl", reinterpret_cast<const char*>(resource_batch::ogl_load_position_glsl::data));
 #else
                 THAWK_ERROR("load-position.glsl was not compiled");
 #endif
 #ifdef HAS_OGL_COOK_TORRANCE_GLSL
-                AddSection("cook-torrance.glsl",
-                        reinterpret_cast<const char*>(resource_batch::ogl_cook_torrance_glsl::data));
+                AddSection("cook-torrance.glsl", reinterpret_cast<const char*>(resource_batch::ogl_cook_torrance_glsl::data));
 #else
                 THAWK_ERROR("cook-torrance.glsl was not compiled");
 #endif
 #ifdef HAS_OGL_HEMI_AMBIENT_GLSL
-                AddSection("hemi-ambient.glsl",
-                        reinterpret_cast<const char*>(resource_batch::ogl_hemi_ambient_glsl::data));
+                AddSection("hemi-ambient.glsl", reinterpret_cast<const char*>(resource_batch::ogl_hemi_ambient_glsl::data));
 #else
                 THAWK_ERROR("hemi-ambient.glsl was not compiled");
 #endif
 #ifdef HAS_OGL_HEMI_AMBIENT_GLSL
-                AddSection("random-float-2.glsl",
-                        reinterpret_cast<const char*>(resource_batch::ogl_random_float_2_glsl::data));
+                AddSection("random-float-2.glsl", reinterpret_cast<const char*>(resource_batch::ogl_random_float_2_glsl::data));
 #else
                 THAWK_ERROR("random-float-2.glsl was not compiled");
 #endif

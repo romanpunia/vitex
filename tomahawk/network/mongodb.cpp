@@ -1096,7 +1096,7 @@ namespace Tomahawk
                 *Cursor = nullptr;
 #endif
             }
-            void Cursor::Receive(TCursor* Cursor, void* Context, bool(*Next)(TCursor*, BSON::TDocument*, void*))
+            void Cursor::Receive(TCursor* Cursor, void* Context, bool(* Next)(TCursor*, BSON::TDocument*, void*))
             {
 #ifdef THAWK_HAS_MONGOC
                 if (!Next || !Cursor)
@@ -3742,7 +3742,7 @@ namespace Tomahawk
                 (*Client)->Connected = false;
                 (*Client)->Master = nullptr;
 
-				delete *Client;
+                delete *Client;
                 *Client = nullptr;
 #endif
             }

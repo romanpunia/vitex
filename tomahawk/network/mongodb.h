@@ -215,18 +215,18 @@ namespace Tomahawk
 
             struct THAWK_OUT APMCallbacks
             {
-                void(*OnCommandStarted)(Client* Client, APMCommandStarted* Command) = nullptr;
-                void(*OnCommandSucceeded)(Client* Client, APMCommandSucceeded* Command) = nullptr;
-                void(*OnCommandFailed)(Client* Client, APMCommandFailed* Command) = nullptr;
-                void(*OnServerChanged)(Client* Client, APMServerChanged* Command) = nullptr;
-                void(*OnServerOpened)(Client* Client, APMServerOpened* Command) = nullptr;
-                void(*OnServerClosed)(Client* Client, APMServerClosed* Command) = nullptr;
-                void(*OnTopologyChanged)(Client* Client, APMTopologyChanged* Command) = nullptr;
-                void(*OnTopologyOpened)(Client* Client, APMTopologyOpened* Command) = nullptr;
-                void(*OnTopologyClosed)(Client* Client, APMTopologyClosed* Command) = nullptr;
-                void(*OnServerHeartbeatStarted)(Client* Client, APMServerHeartbeatStarted* Command) = nullptr;
-                void(*OnServerHeartbeatSucceeded)(Client* Client, APMServerHeartbeatSucceeded* Command) = nullptr;
-                void(*OnServerHeartbeatFailed)(Client* Client, APMServerHeartbeatFailed* Command) = nullptr;
+                void (* OnCommandStarted)(Client* Client, APMCommandStarted* Command) = nullptr;
+                void (* OnCommandSucceeded)(Client* Client, APMCommandSucceeded* Command) = nullptr;
+                void (* OnCommandFailed)(Client* Client, APMCommandFailed* Command) = nullptr;
+                void (* OnServerChanged)(Client* Client, APMServerChanged* Command) = nullptr;
+                void (* OnServerOpened)(Client* Client, APMServerOpened* Command) = nullptr;
+                void (* OnServerClosed)(Client* Client, APMServerClosed* Command) = nullptr;
+                void (* OnTopologyChanged)(Client* Client, APMTopologyChanged* Command) = nullptr;
+                void (* OnTopologyOpened)(Client* Client, APMTopologyOpened* Command) = nullptr;
+                void (* OnTopologyClosed)(Client* Client, APMTopologyClosed* Command) = nullptr;
+                void (* OnServerHeartbeatStarted)(Client* Client, APMServerHeartbeatStarted* Command) = nullptr;
+                void (* OnServerHeartbeatSucceeded)(Client* Client, APMServerHeartbeatSucceeded* Command) = nullptr;
+                void (* OnServerHeartbeatFailed)(Client* Client, APMServerHeartbeatFailed* Command) = nullptr;
             };
 
             class THAWK_OUT Connector
@@ -361,7 +361,7 @@ namespace Tomahawk
                 static void Release(TCursor** Cursor);
                 static void SetMaxAwaitTime(TCursor* Cursor, UInt64 MaxAwaitTime);
                 static void SetBatchSize(TCursor* Cursor, UInt64 BatchSize);
-                static void Receive(TCursor* Cursor, void* Context, bool(*Next)(TCursor*, BSON::TDocument*, void*));
+                static void Receive(TCursor* Cursor, void* Context, bool(* Next)(TCursor*, BSON::TDocument*, void*));
                 static bool Next(TCursor* Cursor);
                 static bool SetLimit(TCursor* Cursor, Int64 Limit);
                 static bool SetHint(TCursor* Cursor, UInt64 Hint);
@@ -477,7 +477,7 @@ namespace Tomahawk
                 friend ClientPool;
 
             private:
-                TConnection * Connection = nullptr;
+                TConnection* Connection = nullptr;
                 ClientPool* Master = nullptr;
                 bool Connected = false;
 
@@ -542,7 +542,7 @@ namespace Tomahawk
                 TURI* GetURI();
             };
 
-            inline FindAndModifyMode operator| (FindAndModifyMode A, FindAndModifyMode B)
+            inline FindAndModifyMode operator |(FindAndModifyMode A, FindAndModifyMode B)
             {
                 return static_cast<FindAndModifyMode>(static_cast<UInt64>(A) | static_cast<UInt64>(B));
             }

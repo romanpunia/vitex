@@ -4,7 +4,6 @@
 #ifdef THAWK_HAS_SDL2
 #include <SDL2/SDL_syswm.h>
 #endif
-
 #ifdef THAWK_MICROSOFT
 #define ReleaseCom(Value) { if (Value != nullptr) { Value->Release(); Value = nullptr; } }
 
@@ -71,7 +70,8 @@ namespace Tomahawk
                     if (ShaderLayout != nullptr && I.LayoutSize != 0)
                     {
                         Ref->D3DDevice->CreateInputLayout(ShaderLayout, I.LayoutSize, ShaderBlob->GetBufferPointer(), ShaderBlob->GetBufferSize(), &VertexLayout);
-                        delete[] ShaderLayout; ShaderLayout = nullptr;
+                        delete[] ShaderLayout;
+                        ShaderLayout = nullptr;
                     }
                     ReleaseCom(ShaderBlob);
                 }
@@ -270,7 +270,7 @@ namespace Tomahawk
             {
                 return (void*)Element;
             }
-  
+
             D3D11StructureBuffer::D3D11StructureBuffer(Graphics::GraphicsDevice* Device, const Desc& I) : Graphics::StructureBuffer(Device, I)
             {
                 D3D11_BUFFER_DESC Buffer;
@@ -388,7 +388,7 @@ namespace Tomahawk
                     return;
                 }
 
-                D3D11_SHADER_RESOURCE_VIEW_DESC SRVDescription = {};
+                D3D11_SHADER_RESOURCE_VIEW_DESC SRVDescription = { };
                 SRVDescription.Format = (DXGI_FORMAT)I.FormatMode;
                 SRVDescription.ViewDimension = D3D11_SRV_DIMENSION_TEXTURE2D;
                 SRVDescription.Texture2D.MipLevels = (VMipLevels == -10 ? -1 : VMipLevels);
@@ -777,7 +777,7 @@ namespace Tomahawk
             {
                 return Resource->GetResource();
             }
- 
+
             D3D11MultiRenderTarget2D::D3D11MultiRenderTarget2D(Graphics::GraphicsDevice* Device, const Desc& I) : Graphics::MultiRenderTarget2D(Device, I)
             {
                 D3D11Device* Ref = Device->As<D3D11Device>();
@@ -906,7 +906,7 @@ namespace Tomahawk
                 {
                     ReleaseCom(Texture[i]);
                     ReleaseCom(RenderTargetView[i]);
-					delete Resource[i];
+                    delete Resource[i];
                 }
             }
             void D3D11MultiRenderTarget2D::Apply(Graphics::GraphicsDevice* Device, int Target, float R, float G, float B)
@@ -1003,7 +1003,7 @@ namespace Tomahawk
             {
                 return Resource[Id]->GetResource();
             }
- 
+
             D3D11RenderTarget2DArray::D3D11RenderTarget2DArray(Graphics::GraphicsDevice* Device, const Desc& I) : Graphics::RenderTarget2DArray(Device, I)
             {
                 D3D11Device* Ref = Device->As<D3D11Device>();
@@ -1128,7 +1128,7 @@ namespace Tomahawk
                 ReleaseCom(DepthStencilView);
 
                 for (int i = 0; i < RenderTargetView.size(); i++)
-                    ReleaseCom(RenderTargetView[i]);
+                ReleaseCom(RenderTargetView[i]);
             }
             void D3D11RenderTarget2DArray::Apply(Graphics::GraphicsDevice* Device, int Target, float R, float G, float B)
             {
@@ -1484,7 +1484,8 @@ namespace Tomahawk
 
                 for (int i = 0; i < SVTarget; i++)
                 {
-                    SRV.Format = (DXGI_FORMAT)I.FormatMode[i]; Resource[i] = (D3D11Texture2D*)Graphics::Texture2D::Create(Ref);
+                    SRV.Format = (DXGI_FORMAT)I.FormatMode[i];
+                    Resource[i] = (D3D11Texture2D*)Graphics::Texture2D::Create(Ref);
                     if (Ref->D3DDevice->CreateShaderResourceView(Cube[i], &SRV, &Resource[i]->As<D3D11Texture2D>()->Resource) != S_OK)
                     {
                         THAWK_ERROR("couldn't create shader resource view");
@@ -1800,7 +1801,7 @@ namespace Tomahawk
             void D3D11InstanceBuffer::Resize(UInt64 Size)
             {
                 Restore();
-				delete Elements;
+                delete Elements;
 
                 ReleaseCom(Resource);
                 ElementLimit = Size + 1;
@@ -1864,53 +1865,51 @@ namespace Tomahawk
                     return;
                 }
 
-                static const char* VertexShaderCode =
-                    "cbuffer VertexBuffer : register(b0)"
-                    "{"
-                    "   matrix WorldViewProjection;"
-                    "   float4 Padding;"
-                    "}; "
-                    "struct VS_INPUT"
-                    "{"
-                    "   float4 Position : POSITION0;"
-                    "   float2 TexCoord : TEXCOORD0;"
-                    "   float4 Color : COLOR0;"
-                    "};"
-                    "struct PS_INPUT"
-                    "{"
-                    "   float4 Position : SV_POSITION;"
-                    "   float2 TexCoord : TEXCOORD0;"
-                    "   float4 Color : COLOR0;"
-                    "};"
-                    "PS_INPUT VS (VS_INPUT Input)"
-                    "{"
-                    "   PS_INPUT Output;"
-                    "   Output.Position = mul(WorldViewProjection, float4(Input.Position.xyz, 1));"
-                    "   Output.Color = Input.Color;"
-                    "   Output.TexCoord = Input.TexCoord;"
-                    "   return Output;"
-                    "}";
+                static const char* VertexShaderCode = "cbuffer VertexBuffer : register(b0)"
+                                                      "{"
+                                                      "   matrix WorldViewProjection;"
+                                                      "   float4 Padding;"
+                                                      "}; "
+                                                      "struct VS_INPUT"
+                                                      "{"
+                                                      "   float4 Position : POSITION0;"
+                                                      "   float2 TexCoord : TEXCOORD0;"
+                                                      "   float4 Color : COLOR0;"
+                                                      "};"
+                                                      "struct PS_INPUT"
+                                                      "{"
+                                                      "   float4 Position : SV_POSITION;"
+                                                      "   float2 TexCoord : TEXCOORD0;"
+                                                      "   float4 Color : COLOR0;"
+                                                      "};"
+                                                      "PS_INPUT VS (VS_INPUT Input)"
+                                                      "{"
+                                                      "   PS_INPUT Output;"
+                                                      "   Output.Position = mul(WorldViewProjection, float4(Input.Position.xyz, 1));"
+                                                      "   Output.Color = Input.Color;"
+                                                      "   Output.TexCoord = Input.TexCoord;"
+                                                      "   return Output;"
+                                                      "}";
 
-                static const char* PixelShaderCode =
-                    "cbuffer VertexBuffer : register(b0)"
-                    "{"
-                    "   matrix WorldViewProjection;"
-                    "   float4 Padding;"
-                    "};"
-                    "struct PS_INPUT"
-                    "{"
-                    "   float4 Position : SV_POSITION;"
-                    "   float2 TexCoord : TEXCOORD0;"
-                    "   float4 Color : COLOR0;"
-                    "};"
-                    "sampler State;"
-                    "Texture2D Diffuse;"
-                    "float4 PS (PS_INPUT Input) : SV_TARGET0"
-                    "{"
-                    "   if (Padding.z > 0)"
-                    "       return Input.Color * Diffuse.Sample(State, Input.TexCoord + Padding.xy) * Padding.w;"
-                    "   return Input.Color * Padding.w;"
-                    "}";
+                static const char* PixelShaderCode = "cbuffer VertexBuffer : register(b0)"
+                                                     "{"
+                                                     "   matrix WorldViewProjection;"
+                                                     "   float4 Padding;"
+                                                     "};"
+                                                     "struct PS_INPUT"
+                                                     "{"
+                                                     "   float4 Position : SV_POSITION;"
+                                                     "   float2 TexCoord : TEXCOORD0;"
+                                                     "   float4 Color : COLOR0;"
+                                                     "};"
+                                                     "sampler State;"
+                                                     "Texture2D Diffuse;"
+                                                     "float4 PS (PS_INPUT Input) : SV_TARGET0"
+                                                     "{"
+                                                     "   if (Padding.z > 0)"
+                                                     "       return Input.Color * Diffuse.Sample(State, Input.TexCoord + Padding.xy) * Padding.w;"
+                                                     "   return Input.Color * Padding.w;"
+                                                     "}";
 
                 D3DCompile(VertexShaderCode, strlen(VertexShaderCode), nullptr, nullptr, nullptr, "VS", Dev->GetVSProfile(), 0, 0, &VertexShaderBlob, nullptr);
                 if (VertexShaderBlob == nullptr)
@@ -1925,12 +1924,7 @@ namespace Tomahawk
                     return;
                 }
 
-                D3D11_INPUT_ELEMENT_DESC Layout[] =
-                {
-                    { "POSITION", 0, DXGI_FORMAT_R32G32B32_FLOAT, 0, 0, D3D11_INPUT_PER_VERTEX_DATA, 0 },
-                    { "TEXCOORD", 0, DXGI_FORMAT_R32G32_FLOAT, 0, 3 * sizeof(float), D3D11_INPUT_PER_VERTEX_DATA, 0 },
-                    { "COLOR", 0, DXGI_FORMAT_R32G32B32A32_FLOAT, 0, 5 * sizeof(float), D3D11_INPUT_PER_VERTEX_DATA, 0 },
-                };
+                D3D11_INPUT_ELEMENT_DESC Layout[] = {{ "POSITION", 0, DXGI_FORMAT_R32G32B32_FLOAT, 0, 0, D3D11_INPUT_PER_VERTEX_DATA, 0 }, { "TEXCOORD", 0, DXGI_FORMAT_R32G32_FLOAT, 0, 3 * sizeof(float), D3D11_INPUT_PER_VERTEX_DATA, 0 }, { "COLOR", 0, DXGI_FORMAT_R32G32B32A32_FLOAT, 0, 5 * sizeof(float), D3D11_INPUT_PER_VERTEX_DATA, 0 }, };
 
                 if (Dev->D3DDevice->CreateInputLayout(Layout, 3, VertexShaderBlob->GetBufferPointer(), VertexShaderBlob->GetBufferSize(), &InputLayout) != S_OK)
                 {
@@ -1975,7 +1969,8 @@ namespace Tomahawk
                 Dev->ImmediateContext->VSSetShader(VertexShader, nullptr, 0);
                 Dev->ImmediateContext->PSSetShader(PixelShader, nullptr, 0);
                 Buffer.WorldViewProjection = Compute::Matrix4x4::Identity();
-                Buffer.Padding = { 0, 0, 0, 1 }; View = nullptr;
+                Buffer.Padding = { 0, 0, 0, 1 };
+                View = nullptr;
                 Primitives = Graphics::PrimitiveTopology_Triangle_List;
                 Elements.clear();
             }
@@ -1992,7 +1987,7 @@ namespace Tomahawk
                 Dev->ImmediateContext->IAGetPrimitiveTopology(&LastTopology);
                 Dev->ImmediateContext->IASetPrimitiveTopology((D3D11_PRIMITIVE_TOPOLOGY)Primitives);
 
-                ID3D11Buffer* First, *Second;
+                ID3D11Buffer* First, * Second;
                 Dev->ImmediateContext->VSGetConstantBuffers(0, 1, &First);
                 Dev->ImmediateContext->PSGetConstantBuffers(0, 1, &Second);
 
@@ -2015,7 +2010,8 @@ namespace Tomahawk
                 Dev->ImmediateContext->IASetPrimitiveTopology(LastTopology);
                 Dev->ImmediateContext->VSSetConstantBuffers(0, 1, &First);
                 Dev->ImmediateContext->PSSetConstantBuffers(0, 1, &Second);
-				ReleaseCom(First); ReleaseCom(Second);
+                ReleaseCom(First);
+                ReleaseCom(Second);
             }
             void D3D11DirectBuffer::EmitVertex()
             {
@@ -2098,15 +2094,7 @@ namespace Tomahawk
                 CreationFlags |= D3D11_CREATE_DEVICE_DISABLE_GPU_TIMEOUT;
                 CreationFlags |= D3D11_CREATE_DEVICE_SINGLETHREADED;
 
-                D3D_FEATURE_LEVEL FeatureLevels[] =
-                {
-                    D3D_FEATURE_LEVEL_11_0,
-                    D3D_FEATURE_LEVEL_10_1,
-                    D3D_FEATURE_LEVEL_10_0,
-                    D3D_FEATURE_LEVEL_9_3,
-                    D3D_FEATURE_LEVEL_9_2,
-                    D3D_FEATURE_LEVEL_9_1,
-                };
+                D3D_FEATURE_LEVEL FeatureLevels[] = { D3D_FEATURE_LEVEL_11_0, D3D_FEATURE_LEVEL_10_1, D3D_FEATURE_LEVEL_10_0, D3D_FEATURE_LEVEL_9_3, D3D_FEATURE_LEVEL_9_2, D3D_FEATURE_LEVEL_9_1, };
 
                 ZeroMemory(&SwapChainResource, sizeof(SwapChainResource));
                 SwapChainResource.BufferCount = 1;
@@ -2271,40 +2259,41 @@ namespace Tomahawk
                     return;
 
                 D3D11DeviceState* State = (D3D11DeviceState*)*RefState;
-				ReleaseCom(State->CSConstantBuffer);
-				ReleaseCom(State->CSSampler);
-				ReleaseCom(State->CSShader);
-				ReleaseCom(State->CSShaderResource);
-				ReleaseCom(State->CSUnorderedAccessView);
-				ReleaseCom(State->DSConstantBuffer);
-				ReleaseCom(State->DSSampler);
-				ReleaseCom(State->DSShaderResource);
-				ReleaseCom(State->DSShader);
-				ReleaseCom(State->GSConstantBuffer);
-				ReleaseCom(State->GSSampler);
-				ReleaseCom(State->GSShaderResource);
-				ReleaseCom(State->GSShader);
-				ReleaseCom(State->HSConstantBuffer);
-				ReleaseCom(State->HSSampler);
-				ReleaseCom(State->HSShaderResource);
-				ReleaseCom(State->HSShader);
-				ReleaseCom(State->PSConstantBuffer);
-				ReleaseCom(State->PSSampler);
-				ReleaseCom(State->PSShaderResource);
-				ReleaseCom(State->PSShader);
-				ReleaseCom(State->VSConstantBuffer);
-				ReleaseCom(State->VSSampler);
-				ReleaseCom(State->VSShaderResource);
-				ReleaseCom(State->VSShader);
-				ReleaseCom(State->IndexBuffer);
-				ReleaseCom(State->InputLayout);
-				ReleaseCom(State->VertexBuffer);
-				ReleaseCom(State->BlendState);
-				ReleaseCom(State->DepthStencilState);
-				ReleaseCom(State->RenderTargetView);
-				ReleaseCom(State->DepthStencilView);
-				ReleaseCom(State->RasterizerState);
-                delete State; *RefState = nullptr;
+                ReleaseCom(State->CSConstantBuffer);
+                ReleaseCom(State->CSSampler);
+                ReleaseCom(State->CSShader);
+                ReleaseCom(State->CSShaderResource);
+                ReleaseCom(State->CSUnorderedAccessView);
+                ReleaseCom(State->DSConstantBuffer);
+                ReleaseCom(State->DSSampler);
+                ReleaseCom(State->DSShaderResource);
+                ReleaseCom(State->DSShader);
+                ReleaseCom(State->GSConstantBuffer);
+                ReleaseCom(State->GSSampler);
+                ReleaseCom(State->GSShaderResource);
+                ReleaseCom(State->GSShader);
+                ReleaseCom(State->HSConstantBuffer);
+                ReleaseCom(State->HSSampler);
+                ReleaseCom(State->HSShaderResource);
+                ReleaseCom(State->HSShader);
+                ReleaseCom(State->PSConstantBuffer);
+                ReleaseCom(State->PSSampler);
+                ReleaseCom(State->PSShaderResource);
+                ReleaseCom(State->PSShader);
+                ReleaseCom(State->VSConstantBuffer);
+                ReleaseCom(State->VSSampler);
+                ReleaseCom(State->VSShaderResource);
+                ReleaseCom(State->VSShader);
+                ReleaseCom(State->IndexBuffer);
+                ReleaseCom(State->InputLayout);
+                ReleaseCom(State->VertexBuffer);
+                ReleaseCom(State->BlendState);
+                ReleaseCom(State->DepthStencilState);
+                ReleaseCom(State->RenderTargetView);
+                ReleaseCom(State->DepthStencilView);
+                ReleaseCom(State->RasterizerState);
+                delete State;
+                *RefState = nullptr;
             }
             void D3D11Device::SetConstantBuffers()
             {
@@ -2374,8 +2363,12 @@ namespace Tomahawk
                 }
                 else
                 {
-                    VSP = ""; PSP = VSP; GSP = VSP;
-                    CSP = VSP; DSP = VSP; HSP = VSP;
+                    VSP = "";
+                    PSP = VSP;
+                    GSP = VSP;
+                    CSP = VSP;
+                    DSP = VSP;
+                    HSP = VSP;
                 }
             }
             UInt64 D3D11Device::AddDepthStencilState(Graphics::DepthStencilState* In)
@@ -2584,7 +2577,7 @@ namespace Tomahawk
                 if (RenderTarget != nullptr)
                 {
                     ImmediateContext->OMSetRenderTargets(0, 0, 0);
-					delete RenderTarget;
+                    delete RenderTarget;
 
                     DXGI_SWAP_CHAIN_DESC Info;
                     SwapChain->GetDesc(&Info);
@@ -2663,7 +2656,8 @@ namespace Tomahawk
                 ID3D11Texture2D* Resource = nullptr;
                 if (SwapChainResource.SampleDesc.Count > 1)
                 {
-                    Texture.SampleDesc.Count = 1; Texture.SampleDesc.Quality = 0;
+                    Texture.SampleDesc.Count = 1;
+                    Texture.SampleDesc.Quality = 0;
                     D3DDevice->CreateTexture2D(&Texture, nullptr, &Resource);
                     ImmediateContext->ResolveSubresource(Resource, 0, BackBuffer, 0, DXGI_FORMAT_R8G8B8A8_UNORM);
                 }
@@ -2681,7 +2675,8 @@ namespace Tomahawk
 
                 ID3D11ShaderResourceView* ResourceView = nullptr;
                 D3DDevice->CreateShaderResourceView(Resource, &SRV, &ResourceView);
-				ReleaseCom(BackBuffer); ReleaseCom(Resource);
+                ReleaseCom(BackBuffer);
+                ReleaseCom(Resource);
 
                 return (void*)ResourceView;
             }
@@ -2708,7 +2703,8 @@ namespace Tomahawk
 
                 ID3D11ShaderResourceView* ResourceView = nullptr;
                 D3DDevice->CreateShaderResourceView(Resource, &SRV, &ResourceView);
-				ReleaseCom(BackBuffer); ReleaseCom(Resource);
+                ReleaseCom(BackBuffer);
+                ReleaseCom(Resource);
 
                 return (void*)Resource;
             }
@@ -2733,7 +2729,8 @@ namespace Tomahawk
 
                 ID3D11ShaderResourceView* ResourceView = nullptr;
                 D3DDevice->CreateShaderResourceView(Resource, &SRV, &ResourceView);
-				ReleaseCom(BackBuffer); ReleaseCom(Resource);
+                ReleaseCom(BackBuffer);
+                ReleaseCom(Resource);
 
                 return (void*)ResourceView;
             }
@@ -2825,110 +2822,92 @@ namespace Tomahawk
             void D3D11Device::LoadShaderSections()
             {
 #ifdef HAS_D3D11_ANIMATION_BUFFER_HLSL
-                AddSection("animation-buffer.hlsl",
-                        reinterpret_cast<const char*>(resource_batch::d3d11_animation_buffer_hlsl::data));
+                AddSection("animation-buffer.hlsl", reinterpret_cast<const char*>(resource_batch::d3d11_animation_buffer_hlsl::data));
 #else
                 THAWK_ERROR("animation-buffer.hlsl was not compiled");
 #endif
 #ifdef HAS_D3D11_RENDER_BUFFER_HLSL
-                AddSection("render-buffer.hlsl",
-                        reinterpret_cast<const char*>(resource_batch::d3d11_render_buffer_hlsl::data));
+                AddSection("render-buffer.hlsl", reinterpret_cast<const char*>(resource_batch::d3d11_render_buffer_hlsl::data));
 #else
                 THAWK_ERROR("render-buffer.hlsl was not compiled");
 #endif
 #ifdef HAS_D3D11_VIEW_BUFFER_HLSL
-                AddSection("view-buffer.hlsl",
-                        reinterpret_cast<const char*>(resource_batch::d3d11_view_buffer_hlsl::data));
+                AddSection("view-buffer.hlsl", reinterpret_cast<const char*>(resource_batch::d3d11_view_buffer_hlsl::data));
 #else
                 THAWK_ERROR("view-buffer.hlsl was not compiled");
 #endif
 #ifdef HAS_D3D11_VERTEX_IN_HLSL
-                AddSection("vertex-in.hlsl",
-                        reinterpret_cast<const char*>(resource_batch::d3d11_vertex_in_hlsl::data));
+                AddSection("vertex-in.hlsl", reinterpret_cast<const char*>(resource_batch::d3d11_vertex_in_hlsl::data));
 #else
                 THAWK_ERROR("vertex-in.hlsl was not compiled");
 #endif
 #ifdef HAS_D3D11_VERTEX_OUT_HLSL
-                AddSection("vertex-out.hlsl",
-                        reinterpret_cast<const char*>(resource_batch::d3d11_vertex_out_hlsl::data));
+                AddSection("vertex-out.hlsl", reinterpret_cast<const char*>(resource_batch::d3d11_vertex_out_hlsl::data));
 #else
                 THAWK_ERROR("vertex-out.hlsl was not compiled");
 #endif
 #ifdef HAS_D3D11_INFLUENCE_VERTEX_IN_HLSL
-                AddSection("influence-vertex-in.hlsl",
-                        reinterpret_cast<const char*>(resource_batch::d3d11_influence_vertex_in_hlsl::data));
+                AddSection("influence-vertex-in.hlsl", reinterpret_cast<const char*>(resource_batch::d3d11_influence_vertex_in_hlsl::data));
 #else
                 THAWK_ERROR("influence-vertex-in.hlsl was not compiled");
 #endif
 #ifdef HAS_D3D11_INFLUENCE_VERTEX_OUT_HLSL
-                AddSection("influence-vertex-out.hlsl",
-                        reinterpret_cast<const char*>(resource_batch::d3d11_influence_vertex_out_hlsl::data));
+                AddSection("influence-vertex-out.hlsl", reinterpret_cast<const char*>(resource_batch::d3d11_influence_vertex_out_hlsl::data));
 #else
                 THAWK_ERROR("influence-vertex-out.hlsl was not compiled");
 #endif
 #ifdef HAS_D3D11_SHAPE_VERTEX_IN_HLSL
-                AddSection("shape-vertex-in.hlsl",
-                        reinterpret_cast<const char*>(resource_batch::d3d11_shape_vertex_in_hlsl::data));
+                AddSection("shape-vertex-in.hlsl", reinterpret_cast<const char*>(resource_batch::d3d11_shape_vertex_in_hlsl::data));
 #else
                 THAWK_ERROR("shape-vertex-in.hlsl was not compiled");
 #endif
 #ifdef HAS_D3D11_SHAPE_VERTEX_OUT_HLSL
-                AddSection("shape-vertex-out.hlsl",
-                        reinterpret_cast<const char*>(resource_batch::d3d11_shape_vertex_out_hlsl::data));
+                AddSection("shape-vertex-out.hlsl", reinterpret_cast<const char*>(resource_batch::d3d11_shape_vertex_out_hlsl::data));
 #else
                 THAWK_ERROR("shape-vertex-out.hlsl was not compiled");
 #endif
 #ifdef HAS_D3D11_DEFERRED_OUT_HLSL
-                AddSection("deferred-out.hlsl",
-                        reinterpret_cast<const char*>(resource_batch::d3d11_deferred_out_hlsl::data));
+                AddSection("deferred-out.hlsl", reinterpret_cast<const char*>(resource_batch::d3d11_deferred_out_hlsl::data));
 #else
                 THAWK_ERROR("deferred-out.hlsl was not compiled");
 #endif
 #ifdef HAS_D3D11_INSTANCE_ELEMENT_HLSL
-                AddSection("instance-element.hlsl",
-                        reinterpret_cast<const char*>(resource_batch::d3d11_instance_element_hlsl::data));
+                AddSection("instance-element.hlsl", reinterpret_cast<const char*>(resource_batch::d3d11_instance_element_hlsl::data));
 #else
                 THAWK_ERROR("instance-element.hlsl was not compiled");
 #endif
 #ifdef HAS_D3D11_GEOMETRY_HLSL
-                AddSection("geometry.hlsl",
-                        reinterpret_cast<const char*>(resource_batch::d3d11_geometry_hlsl::data));
+                AddSection("geometry.hlsl", reinterpret_cast<const char*>(resource_batch::d3d11_geometry_hlsl::data));
 #else
                 THAWK_ERROR("geometry.hlsl was not compiled");
 #endif
 #ifdef HAS_D3D11_LOAD_GEOMETRY_HLSL
-                AddSection("load-geometry.hlsl",
-                        reinterpret_cast<const char*>(resource_batch::d3d11_load_geometry_hlsl::data));
+                AddSection("load-geometry.hlsl", reinterpret_cast<const char*>(resource_batch::d3d11_load_geometry_hlsl::data));
 #else
                 THAWK_ERROR("load-geometry.hlsl was not compiled");
 #endif
 #ifdef HAS_D3D11_LOAD_TEXCOORD_HLSL
-                AddSection("load-texcoord.hlsl",
-                        reinterpret_cast<const char*>(resource_batch::d3d11_load_texcoord_hlsl::data));
+                AddSection("load-texcoord.hlsl", reinterpret_cast<const char*>(resource_batch::d3d11_load_texcoord_hlsl::data));
 #else
                 THAWK_ERROR("load-texcoord.hlsl was not compiled");
 #endif
 #ifdef HAS_D3D11_LOAD_POSITION_HLSL
-                AddSection("load-position.hlsl",
-                        reinterpret_cast<const char*>(resource_batch::d3d11_load_position_hlsl::data));
+                AddSection("load-position.hlsl", reinterpret_cast<const char*>(resource_batch::d3d11_load_position_hlsl::data));
 #else
                 THAWK_ERROR("load-position.hlsl was not compiled");
 #endif
 #ifdef HAS_D3D11_COOK_TORRANCE_HLSL
-                AddSection("cook-torrance.hlsl",
-                        reinterpret_cast<const char*>(resource_batch::d3d11_cook_torrance_hlsl::data));
+                AddSection("cook-torrance.hlsl", reinterpret_cast<const char*>(resource_batch::d3d11_cook_torrance_hlsl::data));
 #else
                 THAWK_ERROR("cook-torrance.hlsl was not compiled");
 #endif
 #ifdef HAS_D3D11_HEMI_AMBIENT_HLSL
-                AddSection("hemi-ambient.hlsl",
-                        reinterpret_cast<const char*>(resource_batch::d3d11_hemi_ambient_hlsl::data));
+                AddSection("hemi-ambient.hlsl", reinterpret_cast<const char*>(resource_batch::d3d11_hemi_ambient_hlsl::data));
 #else
                 THAWK_ERROR("hemi-ambient.hlsl was not compiled");
 #endif
 #ifdef HAS_D3D11_HEMI_AMBIENT_HLSL
-                AddSection("random-float-2.hlsl",
-                        reinterpret_cast<const char*>(resource_batch::d3d11_random_float_2_hlsl::data));
+                AddSection("random-float-2.hlsl", reinterpret_cast<const char*>(resource_batch::d3d11_random_float_2_hlsl::data));
 #else
                 THAWK_ERROR("random-float-2.hlsl was not compiled");
 #endif

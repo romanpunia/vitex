@@ -407,7 +407,7 @@ namespace Tomahawk
                 {
                     ImGui::PlotLines(label, values, values_count, values_offset, overlay_text, scale_min, scale_max, ImVec2(graph_size.X, graph_size.Y), stride);
                 }
-                void Interface::PlotLines(const char* label, float(*values_getter)(void* data, int idx), void* data, int values_count, int values_offset, const char* overlay_text, float scale_min, float scale_max, Compute::Vector2 graph_size)
+                void Interface::PlotLines(const char* label, float(* values_getter)(void* data, int idx), void* data, int values_count, int values_offset, const char* overlay_text, float scale_min, float scale_max, Compute::Vector2 graph_size)
                 {
                     ImGui::PlotLines(label, values_getter, data, values_count, values_offset, overlay_text, scale_min, scale_max, ImVec2(graph_size.X, graph_size.Y));
                 }
@@ -415,7 +415,7 @@ namespace Tomahawk
                 {
                     ImGui::PlotHistogram(label, values, values_count, values_offset, overlay_text, scale_min, scale_max, ImVec2(graph_size.X, graph_size.Y), stride);
                 }
-                void Interface::PlotHistogram(const char* label, float(*values_getter)(void* data, int idx), void* data, int values_count, int values_offset, const char* overlay_text, float scale_min, float scale_max, Compute::Vector2 graph_size)
+                void Interface::PlotHistogram(const char* label, float(* values_getter)(void* data, int idx), void* data, int values_count, int values_offset, const char* overlay_text, float scale_min, float scale_max, Compute::Vector2 graph_size)
                 {
                     ImGui::PlotHistogram(label, values_getter, data, values_count, values_offset, overlay_text, scale_min, scale_max, ImVec2(graph_size.X, graph_size.Y));
                 }
@@ -561,13 +561,7 @@ namespace Tomahawk
                 bool Interface::BeginCanvas(const char* name)
                 {
                     ImGui::SetNextWindowBgAlpha(0);
-                    return ImGui::Begin(name, 0,
-                                        GUI::WindowFlags_NoBringToFrontOnFocus |
-                                        GUI::WindowFlags_NoCollapse |
-                                        GUI::WindowFlags_NoFocusOnAppearing |
-                                        GUI::WindowFlags_NoMove |
-                                        GUI::WindowFlags_NoTitleBar |
-                                        GUI::WindowFlags_NoResize);
+                    return ImGui::Begin(name, 0, GUI::WindowFlags_NoBringToFrontOnFocus | GUI::WindowFlags_NoCollapse | GUI::WindowFlags_NoFocusOnAppearing | GUI::WindowFlags_NoMove | GUI::WindowFlags_NoTitleBar | GUI::WindowFlags_NoResize);
                 }
                 bool Interface::BeginCanvasFull(const char* name)
                 {
@@ -575,13 +569,7 @@ namespace Tomahawk
                     ImGui::SetNextWindowPos(ImVec2(0, 0));
                     ImGui::SetNextWindowSize(IO.DisplaySize);
                     ImGui::SetNextWindowBgAlpha(0);
-                    return ImGui::Begin(name, 0,
-                                        GUI::WindowFlags_NoBringToFrontOnFocus |
-                                        GUI::WindowFlags_NoCollapse |
-                                        GUI::WindowFlags_NoFocusOnAppearing |
-                                        GUI::WindowFlags_NoMove |
-                                        GUI::WindowFlags_NoTitleBar |
-                                        GUI::WindowFlags_NoResize);
+                    return ImGui::Begin(name, 0, GUI::WindowFlags_NoBringToFrontOnFocus | GUI::WindowFlags_NoCollapse | GUI::WindowFlags_NoFocusOnAppearing | GUI::WindowFlags_NoMove | GUI::WindowFlags_NoTitleBar | GUI::WindowFlags_NoResize);
                 }
                 bool Interface::Begin(const char* name, bool* p_open, int flags)
                 {
@@ -662,7 +650,7 @@ namespace Tomahawk
                 {
                     return ImGui::Combo(label, current_item, items_separated_by_zeros, popup_max_height_in_items);
                 }
-                bool Interface::Combo(const char* label, int* current_item, bool(*items_getter)(void* data, int idx, const char** out_text), void* data, int items_count, int popup_max_height_in_items)
+                bool Interface::Combo(const char* label, int* current_item, bool(* items_getter)(void* data, int idx, const char** out_text), void* data, int items_count, int popup_max_height_in_items)
                 {
                     return ImGui::Combo(label, current_item, items_getter, data, items_count, popup_max_height_in_items);
                 }
@@ -922,7 +910,7 @@ namespace Tomahawk
                 {
                     return ImGui::ListBox(label, current_item, items, items_count, height_in_items);
                 }
-                bool Interface::ListBox(const char* label, int* current_item, bool(*items_getter)(void* data, int idx, const char** out_text), void* data, int items_count, int height_in_items)
+                bool Interface::ListBox(const char* label, int* current_item, bool(* items_getter)(void* data, int idx, const char** out_text), void* data, int items_count, int height_in_items)
                 {
                     return ImGui::ListBox(label, current_item, items_getter, data, items_count, height_in_items);
                 }
@@ -1334,7 +1322,7 @@ namespace Tomahawk
                     return ImGui::GetStyleColorName(idx);
                 }
             }
-            
+
             ModelRenderer::ModelRenderer(RenderSystem* Lab) : Renderer(Lab, RendererId_Model)
             {
                 Priority = true;
@@ -1413,14 +1401,14 @@ namespace Tomahawk
             }
             DepthRenderer::~DepthRenderer()
             {
-				for (auto It = Renderers.PointLight.begin(); It != Renderers.PointLight.end(); It++)
-					delete *It;
+                for (auto It = Renderers.PointLight.begin(); It != Renderers.PointLight.end(); It++)
+                    delete *It;
 
                 for (auto It = Renderers.SpotLight.begin(); It != Renderers.SpotLight.end(); It++)
-					delete *It;
+                    delete *It;
 
                 for (auto It = Renderers.LineLight.begin(); It != Renderers.LineLight.end(); It++)
-					delete *It;
+                    delete *It;
 
                 if (!System || !System->GetScene())
                     return;
@@ -1439,23 +1427,23 @@ namespace Tomahawk
             }
             void DepthRenderer::OnLoad(ContentManager* Content, Rest::Document* Node)
             {
-				NMake::Unpack(Node->Find("point-light-resolution"), &Renderers.PointLightResolution);
-				NMake::Unpack(Node->Find("point-light-limits"), &Renderers.PointLightLimits);
-				NMake::Unpack(Node->Find("spot-light-resolution"), &Renderers.SpotLightResolution);
-				NMake::Unpack(Node->Find("spot-light-limits"), &Renderers.SpotLightLimits);
-				NMake::Unpack(Node->Find("line-light-resolution"), &Renderers.LineLightResolution);
-				NMake::Unpack(Node->Find("line-light-limits"), &Renderers.LineLightLimits);
-				NMake::Unpack(Node->Find("shadow-distance"), &ShadowDistance);
+                NMake::Unpack(Node->Find("point-light-resolution"), &Renderers.PointLightResolution);
+                NMake::Unpack(Node->Find("point-light-limits"), &Renderers.PointLightLimits);
+                NMake::Unpack(Node->Find("spot-light-resolution"), &Renderers.SpotLightResolution);
+                NMake::Unpack(Node->Find("spot-light-limits"), &Renderers.SpotLightLimits);
+                NMake::Unpack(Node->Find("line-light-resolution"), &Renderers.LineLightResolution);
+                NMake::Unpack(Node->Find("line-light-limits"), &Renderers.LineLightLimits);
+                NMake::Unpack(Node->Find("shadow-distance"), &ShadowDistance);
             }
             void DepthRenderer::OnSave(ContentManager* Content, Rest::Document* Node)
             {
-				NMake::Pack(Node->SetDocument("point-light-resolution"), Renderers.PointLightResolution);
-				NMake::Pack(Node->SetDocument("point-light-limits"), Renderers.PointLightLimits);
-				NMake::Pack(Node->SetDocument("spot-light-resolution"), Renderers.SpotLightResolution);
-				NMake::Pack(Node->SetDocument("spot-light-limits"), Renderers.SpotLightLimits);
-				NMake::Pack(Node->SetDocument("line-light-resolution"), Renderers.LineLightResolution);
-				NMake::Pack(Node->SetDocument("line-light-limits"), Renderers.LineLightLimits);
-				NMake::Pack(Node->SetDocument("shadow-distance"), ShadowDistance);
+                NMake::Pack(Node->SetDocument("point-light-resolution"), Renderers.PointLightResolution);
+                NMake::Pack(Node->SetDocument("point-light-limits"), Renderers.PointLightLimits);
+                NMake::Pack(Node->SetDocument("spot-light-resolution"), Renderers.SpotLightResolution);
+                NMake::Pack(Node->SetDocument("spot-light-limits"), Renderers.SpotLightLimits);
+                NMake::Pack(Node->SetDocument("line-light-resolution"), Renderers.LineLightResolution);
+                NMake::Pack(Node->SetDocument("line-light-limits"), Renderers.LineLightLimits);
+                NMake::Pack(Node->SetDocument("shadow-distance"), ShadowDistance);
             }
             DepthRenderer* DepthRenderer::Create(RenderSystem* Lab)
             {
@@ -1477,17 +1465,17 @@ namespace Tomahawk
             }
             ProbeRenderer::~ProbeRenderer()
             {
-				delete Surface;
+                delete Surface;
             }
             void ProbeRenderer::OnLoad(ContentManager* Content, Rest::Document* Node)
             {
-				NMake::Unpack(Node->Find("size"), &Size);
-				NMake::Unpack(Node->Find("mip-levels"), &MipLevels);
+                NMake::Unpack(Node->Find("size"), &Size);
+                NMake::Unpack(Node->Find("mip-levels"), &MipLevels);
             }
             void ProbeRenderer::OnSave(ContentManager* Content, Rest::Document* Node)
             {
-				NMake::Pack(Node->SetDocument("size"), Size);
-				NMake::Pack(Node->SetDocument("mip-levels"), MipLevels);
+                NMake::Pack(Node->SetDocument("size"), Size);
+                NMake::Pack(Node->SetDocument("mip-levels"), MipLevels);
             }
             ProbeRenderer* ProbeRenderer::Create(RenderSystem* Lab)
             {
@@ -1509,15 +1497,15 @@ namespace Tomahawk
             }
             void LightRenderer::OnLoad(ContentManager* Content, Rest::Document* Node)
             {
-				NMake::Unpack(Node->Find("high-emission"), &AmbientLight.HighEmission);
-				NMake::Unpack(Node->Find("low-emission"), &AmbientLight.LowEmission);
-				NMake::Unpack(Node->Find("recursive-probes"), &RecursiveProbes);
+                NMake::Unpack(Node->Find("high-emission"), &AmbientLight.HighEmission);
+                NMake::Unpack(Node->Find("low-emission"), &AmbientLight.LowEmission);
+                NMake::Unpack(Node->Find("recursive-probes"), &RecursiveProbes);
             }
             void LightRenderer::OnSave(ContentManager* Content, Rest::Document* Node)
             {
-				NMake::Pack(Node->SetDocument("high-emission"), AmbientLight.HighEmission);
-				NMake::Pack(Node->SetDocument("low-emission"), AmbientLight.LowEmission);
-				NMake::Pack(Node->SetDocument("recursive-probes"), RecursiveProbes);
+                NMake::Pack(Node->SetDocument("high-emission"), AmbientLight.HighEmission);
+                NMake::Pack(Node->SetDocument("low-emission"), AmbientLight.LowEmission);
+                NMake::Pack(Node->SetDocument("recursive-probes"), RecursiveProbes);
             }
             LightRenderer* LightRenderer::Create(RenderSystem* Lab)
             {
@@ -1585,15 +1573,15 @@ namespace Tomahawk
             }
             void ReflectionsRenderer::OnLoad(ContentManager* Content, Rest::Document* Node)
             {
-				NMake::Unpack(Node->Find("iteration-count"), &Render.IterationCount);
-				NMake::Unpack(Node->Find("ray-count"), &Render.RayCorrection);
-				NMake::Unpack(Node->Find("ray-length"), &Render.RayLength);
+                NMake::Unpack(Node->Find("iteration-count"), &Render.IterationCount);
+                NMake::Unpack(Node->Find("ray-count"), &Render.RayCorrection);
+                NMake::Unpack(Node->Find("ray-length"), &Render.RayLength);
             }
             void ReflectionsRenderer::OnSave(ContentManager* Content, Rest::Document* Node)
             {
-				NMake::Pack(Node->SetDocument("iteration-count"), Render.IterationCount);
-				NMake::Pack(Node->SetDocument("ray-count"), Render.RayCorrection);
-				NMake::Pack(Node->SetDocument("ray-length"), Render.RayLength);
+                NMake::Pack(Node->SetDocument("iteration-count"), Render.IterationCount);
+                NMake::Pack(Node->SetDocument("ray-count"), Render.RayCorrection);
+                NMake::Pack(Node->SetDocument("ray-length"), Render.RayLength);
             }
             ReflectionsRenderer* ReflectionsRenderer::Create(RenderSystem* Lab)
             {
@@ -1618,43 +1606,43 @@ namespace Tomahawk
             }
             void DepthOfFieldRenderer::OnLoad(ContentManager* Content, Rest::Document* Node)
             {
-				NMake::Unpack(Node->Find("horizontal-resolution"), &HorizontalResolution);
-				NMake::Unpack(Node->Find("vertical-resolution"), &VerticalResolution);
-				NMake::Unpack(Node->Find("auto-viewport"), &AutoViewport);
-				NMake::Unpack(Node->Find("threshold"), &Render.Threshold);
-				NMake::Unpack(Node->Find("gain"), &Render.Gain);
-				NMake::Unpack(Node->Find("fringe"), &Render.Fringe);
-				NMake::Unpack(Node->Find("bias"), &Render.Bias);
-				NMake::Unpack(Node->Find("dither"), &Render.Dither);
-				NMake::Unpack(Node->Find("samples"), &Render.Samples);
-				NMake::Unpack(Node->Find("rings"), &Render.Rings);
-				NMake::Unpack(Node->Find("far-distance"), &Render.FarDistance);
-				NMake::Unpack(Node->Find("far-range"), &Render.FarRange);
-				NMake::Unpack(Node->Find("near-distance"), &Render.NearDistance);
-				NMake::Unpack(Node->Find("near-range"), &Render.NearRange);
-				NMake::Unpack(Node->Find("focal-depth"), &Render.FocalDepth);
-				NMake::Unpack(Node->Find("intensity"), &Render.Intensity);
-				NMake::Unpack(Node->Find("circular"), &Render.Circular);
+                NMake::Unpack(Node->Find("horizontal-resolution"), &HorizontalResolution);
+                NMake::Unpack(Node->Find("vertical-resolution"), &VerticalResolution);
+                NMake::Unpack(Node->Find("auto-viewport"), &AutoViewport);
+                NMake::Unpack(Node->Find("threshold"), &Render.Threshold);
+                NMake::Unpack(Node->Find("gain"), &Render.Gain);
+                NMake::Unpack(Node->Find("fringe"), &Render.Fringe);
+                NMake::Unpack(Node->Find("bias"), &Render.Bias);
+                NMake::Unpack(Node->Find("dither"), &Render.Dither);
+                NMake::Unpack(Node->Find("samples"), &Render.Samples);
+                NMake::Unpack(Node->Find("rings"), &Render.Rings);
+                NMake::Unpack(Node->Find("far-distance"), &Render.FarDistance);
+                NMake::Unpack(Node->Find("far-range"), &Render.FarRange);
+                NMake::Unpack(Node->Find("near-distance"), &Render.NearDistance);
+                NMake::Unpack(Node->Find("near-range"), &Render.NearRange);
+                NMake::Unpack(Node->Find("focal-depth"), &Render.FocalDepth);
+                NMake::Unpack(Node->Find("intensity"), &Render.Intensity);
+                NMake::Unpack(Node->Find("circular"), &Render.Circular);
             }
             void DepthOfFieldRenderer::OnSave(ContentManager* Content, Rest::Document* Node)
             {
-				NMake::Pack(Node->SetDocument("horizontal-resolution"), HorizontalResolution);
-				NMake::Pack(Node->SetDocument("vertical-resolution"), VerticalResolution);
-				NMake::Pack(Node->SetDocument("auto-viewport"), AutoViewport);
-				NMake::Pack(Node->SetDocument("threshold"), Render.Threshold);
-				NMake::Pack(Node->SetDocument("gain"), Render.Gain);
-				NMake::Pack(Node->SetDocument("fringe"), Render.Fringe);
-				NMake::Pack(Node->SetDocument("bias"), Render.Bias);
-				NMake::Pack(Node->SetDocument("dither"), Render.Dither);
-				NMake::Pack(Node->SetDocument("samples"), Render.Samples);
-				NMake::Pack(Node->SetDocument("rings"), Render.Rings);
-				NMake::Pack(Node->SetDocument("far-distance"), Render.FarDistance);
-				NMake::Pack(Node->SetDocument("far-range"), Render.FarRange);
-				NMake::Pack(Node->SetDocument("near-distance"), Render.NearDistance);
-				NMake::Pack(Node->SetDocument("near-range"), Render.NearRange);
-				NMake::Pack(Node->SetDocument("focal-depth"), Render.FocalDepth);
-				NMake::Pack(Node->SetDocument("intensity"), Render.Intensity);
-				NMake::Pack(Node->SetDocument("circular"), Render.Circular);
+                NMake::Pack(Node->SetDocument("horizontal-resolution"), HorizontalResolution);
+                NMake::Pack(Node->SetDocument("vertical-resolution"), VerticalResolution);
+                NMake::Pack(Node->SetDocument("auto-viewport"), AutoViewport);
+                NMake::Pack(Node->SetDocument("threshold"), Render.Threshold);
+                NMake::Pack(Node->SetDocument("gain"), Render.Gain);
+                NMake::Pack(Node->SetDocument("fringe"), Render.Fringe);
+                NMake::Pack(Node->SetDocument("bias"), Render.Bias);
+                NMake::Pack(Node->SetDocument("dither"), Render.Dither);
+                NMake::Pack(Node->SetDocument("samples"), Render.Samples);
+                NMake::Pack(Node->SetDocument("rings"), Render.Rings);
+                NMake::Pack(Node->SetDocument("far-distance"), Render.FarDistance);
+                NMake::Pack(Node->SetDocument("far-range"), Render.FarRange);
+                NMake::Pack(Node->SetDocument("near-distance"), Render.NearDistance);
+                NMake::Pack(Node->SetDocument("near-range"), Render.NearRange);
+                NMake::Pack(Node->SetDocument("focal-depth"), Render.FocalDepth);
+                NMake::Pack(Node->SetDocument("intensity"), Render.Intensity);
+                NMake::Pack(Node->SetDocument("circular"), Render.Circular);
             }
             DepthOfFieldRenderer* DepthOfFieldRenderer::Create(RenderSystem* Lab)
             {
@@ -1679,23 +1667,23 @@ namespace Tomahawk
             }
             void EmissionRenderer::OnLoad(ContentManager* Content, Rest::Document* Node)
             {
-				NMake::Unpack(Node->Find("auto-viewport"), &AutoViewport);
-				NMake::Unpack(Node->Find("intensity"), &Render.Intensity);
-				NMake::Unpack(Node->Find("threshold"), &Render.Threshold);
-				NMake::Unpack(Node->Find("scaling1"), &Render.Scaling[0]);
-				NMake::Unpack(Node->Find("scaling2"), &Render.Scaling[1]);
-				NMake::Unpack(Node->Find("samples"), &Render.Samples);
-				NMake::Unpack(Node->Find("sample-count"), &Render.SampleCount);
+                NMake::Unpack(Node->Find("auto-viewport"), &AutoViewport);
+                NMake::Unpack(Node->Find("intensity"), &Render.Intensity);
+                NMake::Unpack(Node->Find("threshold"), &Render.Threshold);
+                NMake::Unpack(Node->Find("scaling1"), &Render.Scaling[0]);
+                NMake::Unpack(Node->Find("scaling2"), &Render.Scaling[1]);
+                NMake::Unpack(Node->Find("samples"), &Render.Samples);
+                NMake::Unpack(Node->Find("sample-count"), &Render.SampleCount);
             }
             void EmissionRenderer::OnSave(ContentManager* Content, Rest::Document* Node)
             {
-				NMake::Pack(Node->SetDocument("auto-viewport"), AutoViewport);
-				NMake::Pack(Node->SetDocument("intensity"), Render.Intensity);
-				NMake::Pack(Node->SetDocument("threshold"), Render.Threshold);
-				NMake::Pack(Node->SetDocument("scaling1"), Render.Scaling[0]);
-				NMake::Pack(Node->SetDocument("scaling2"), Render.Scaling[1]);
-				NMake::Pack(Node->SetDocument("samples"), Render.Samples);
-				NMake::Pack(Node->SetDocument("sample-count"), Render.SampleCount);
+                NMake::Pack(Node->SetDocument("auto-viewport"), AutoViewport);
+                NMake::Pack(Node->SetDocument("intensity"), Render.Intensity);
+                NMake::Pack(Node->SetDocument("threshold"), Render.Threshold);
+                NMake::Pack(Node->SetDocument("scaling1"), Render.Scaling[0]);
+                NMake::Pack(Node->SetDocument("scaling2"), Render.Scaling[1]);
+                NMake::Pack(Node->SetDocument("samples"), Render.Samples);
+                NMake::Pack(Node->SetDocument("sample-count"), Render.SampleCount);
             }
             EmissionRenderer* EmissionRenderer::Create(RenderSystem* Lab)
             {
@@ -1720,33 +1708,33 @@ namespace Tomahawk
             }
             void GlitchRenderer::OnLoad(ContentManager* Content, Rest::Document* Node)
             {
-				NMake::Unpack(Node->Find("scanline-jitter"), &ScanLineJitter);
-				NMake::Unpack(Node->Find("vertical-jump"), &VerticalJump);
-				NMake::Unpack(Node->Find("horizontal-shake"), &HorizontalShake);
-				NMake::Unpack(Node->Find("color-drift"), &ColorDrift);
-				NMake::Unpack(Node->Find("horizontal-shake"), &HorizontalShake);
-				NMake::Unpack(Node->Find("elapsed-time"), &Render.ElapsedTime);
-				NMake::Unpack(Node->Find("scanline-jitter-displacement"), &Render.ScanLineJitterDisplacement);
-				NMake::Unpack(Node->Find("scanline-jitter-threshold"), &Render.ScanLineJitterThreshold);
-				NMake::Unpack(Node->Find("vertical-jump-amount"), &Render.VerticalJumpAmount);
-				NMake::Unpack(Node->Find("vertical-jump-time"), &Render.VerticalJumpTime);
-				NMake::Unpack(Node->Find("color-drift-amount"), &Render.ColorDriftAmount);
-				NMake::Unpack(Node->Find("color-drift-time"), &Render.ColorDriftTime);
+                NMake::Unpack(Node->Find("scanline-jitter"), &ScanLineJitter);
+                NMake::Unpack(Node->Find("vertical-jump"), &VerticalJump);
+                NMake::Unpack(Node->Find("horizontal-shake"), &HorizontalShake);
+                NMake::Unpack(Node->Find("color-drift"), &ColorDrift);
+                NMake::Unpack(Node->Find("horizontal-shake"), &HorizontalShake);
+                NMake::Unpack(Node->Find("elapsed-time"), &Render.ElapsedTime);
+                NMake::Unpack(Node->Find("scanline-jitter-displacement"), &Render.ScanLineJitterDisplacement);
+                NMake::Unpack(Node->Find("scanline-jitter-threshold"), &Render.ScanLineJitterThreshold);
+                NMake::Unpack(Node->Find("vertical-jump-amount"), &Render.VerticalJumpAmount);
+                NMake::Unpack(Node->Find("vertical-jump-time"), &Render.VerticalJumpTime);
+                NMake::Unpack(Node->Find("color-drift-amount"), &Render.ColorDriftAmount);
+                NMake::Unpack(Node->Find("color-drift-time"), &Render.ColorDriftTime);
             }
             void GlitchRenderer::OnSave(ContentManager* Content, Rest::Document* Node)
             {
-				NMake::Pack(Node->SetDocument("scanline-jitter"), ScanLineJitter);
-				NMake::Pack(Node->SetDocument("vertical-jump"), VerticalJump);
-				NMake::Pack(Node->SetDocument("horizontal-shake"), HorizontalShake);
-				NMake::Pack(Node->SetDocument("color-drift"), ColorDrift);
-				NMake::Pack(Node->SetDocument("horizontal-shake"), HorizontalShake);
-				NMake::Pack(Node->SetDocument("elapsed-time"), Render.ElapsedTime);
-				NMake::Pack(Node->SetDocument("scanline-jitter-displacement"), Render.ScanLineJitterDisplacement);
-				NMake::Pack(Node->SetDocument("scanline-jitter-threshold"), Render.ScanLineJitterThreshold);
-				NMake::Pack(Node->SetDocument("vertical-jump-amount"), Render.VerticalJumpAmount);
-				NMake::Pack(Node->SetDocument("vertical-jump-time"), Render.VerticalJumpTime);
-				NMake::Pack(Node->SetDocument("color-drift-amount"), Render.ColorDriftAmount);
-				NMake::Pack(Node->SetDocument("color-drift-time"), Render.ColorDriftTime);
+                NMake::Pack(Node->SetDocument("scanline-jitter"), ScanLineJitter);
+                NMake::Pack(Node->SetDocument("vertical-jump"), VerticalJump);
+                NMake::Pack(Node->SetDocument("horizontal-shake"), HorizontalShake);
+                NMake::Pack(Node->SetDocument("color-drift"), ColorDrift);
+                NMake::Pack(Node->SetDocument("horizontal-shake"), HorizontalShake);
+                NMake::Pack(Node->SetDocument("elapsed-time"), Render.ElapsedTime);
+                NMake::Pack(Node->SetDocument("scanline-jitter-displacement"), Render.ScanLineJitterDisplacement);
+                NMake::Pack(Node->SetDocument("scanline-jitter-threshold"), Render.ScanLineJitterThreshold);
+                NMake::Pack(Node->SetDocument("vertical-jump-amount"), Render.VerticalJumpAmount);
+                NMake::Pack(Node->SetDocument("vertical-jump-time"), Render.VerticalJumpTime);
+                NMake::Pack(Node->SetDocument("color-drift-amount"), Render.ColorDriftAmount);
+                NMake::Pack(Node->SetDocument("color-drift-time"), Render.ColorDriftTime);
             }
             GlitchRenderer* GlitchRenderer::Create(RenderSystem* Lab)
             {
@@ -1771,31 +1759,31 @@ namespace Tomahawk
             }
             void AmbientOcclusionRenderer::OnLoad(ContentManager* Content, Rest::Document* Node)
             {
-				NMake::Unpack(Node->Find("scale"), &Render.Scale);
-				NMake::Unpack(Node->Find("intensity"), &Render.Intensity);
-				NMake::Unpack(Node->Find("bias"), &Render.Bias);
-				NMake::Unpack(Node->Find("radius"), &Render.Radius);
-				NMake::Unpack(Node->Find("step"), &Render.Step);
-				NMake::Unpack(Node->Find("offset"), &Render.Offset);
-				NMake::Unpack(Node->Find("distance"), &Render.Distance);
-				NMake::Unpack(Node->Find("fading"), &Render.Fading);
-				NMake::Unpack(Node->Find("power"), &Render.Power);
-				NMake::Unpack(Node->Find("samples"), &Render.Samples);
-				NMake::Unpack(Node->Find("sample-count"), &Render.SampleCount);
+                NMake::Unpack(Node->Find("scale"), &Render.Scale);
+                NMake::Unpack(Node->Find("intensity"), &Render.Intensity);
+                NMake::Unpack(Node->Find("bias"), &Render.Bias);
+                NMake::Unpack(Node->Find("radius"), &Render.Radius);
+                NMake::Unpack(Node->Find("step"), &Render.Step);
+                NMake::Unpack(Node->Find("offset"), &Render.Offset);
+                NMake::Unpack(Node->Find("distance"), &Render.Distance);
+                NMake::Unpack(Node->Find("fading"), &Render.Fading);
+                NMake::Unpack(Node->Find("power"), &Render.Power);
+                NMake::Unpack(Node->Find("samples"), &Render.Samples);
+                NMake::Unpack(Node->Find("sample-count"), &Render.SampleCount);
             }
             void AmbientOcclusionRenderer::OnSave(ContentManager* Content, Rest::Document* Node)
             {
-				NMake::Pack(Node->SetDocument("scale"), Render.Scale);
-				NMake::Pack(Node->SetDocument("intensity"), Render.Intensity);
-				NMake::Pack(Node->SetDocument("bias"), Render.Bias);
-				NMake::Pack(Node->SetDocument("radius"), Render.Radius);
-				NMake::Pack(Node->SetDocument("step"), Render.Step);
-				NMake::Pack(Node->SetDocument("offset"), Render.Offset);
-				NMake::Pack(Node->SetDocument("distance"), Render.Distance);
-				NMake::Pack(Node->SetDocument("fading"), Render.Fading);
-				NMake::Pack(Node->SetDocument("power"), Render.Power);
-				NMake::Pack(Node->SetDocument("samples"), Render.Samples);
-				NMake::Pack(Node->SetDocument("sample-count"), Render.SampleCount);
+                NMake::Pack(Node->SetDocument("scale"), Render.Scale);
+                NMake::Pack(Node->SetDocument("intensity"), Render.Intensity);
+                NMake::Pack(Node->SetDocument("bias"), Render.Bias);
+                NMake::Pack(Node->SetDocument("radius"), Render.Radius);
+                NMake::Pack(Node->SetDocument("step"), Render.Step);
+                NMake::Pack(Node->SetDocument("offset"), Render.Offset);
+                NMake::Pack(Node->SetDocument("distance"), Render.Distance);
+                NMake::Pack(Node->SetDocument("fading"), Render.Fading);
+                NMake::Pack(Node->SetDocument("power"), Render.Power);
+                NMake::Pack(Node->SetDocument("samples"), Render.Samples);
+                NMake::Pack(Node->SetDocument("sample-count"), Render.SampleCount);
             }
             AmbientOcclusionRenderer* AmbientOcclusionRenderer::Create(RenderSystem* Lab)
             {
@@ -1820,31 +1808,31 @@ namespace Tomahawk
             }
             void IndirectOcclusionRenderer::OnLoad(ContentManager* Content, Rest::Document* Node)
             {
-				NMake::Unpack(Node->Find("scale"), &Render.Scale);
-				NMake::Unpack(Node->Find("intensity"), &Render.Intensity);
-				NMake::Unpack(Node->Find("bias"), &Render.Bias);
-				NMake::Unpack(Node->Find("radius"), &Render.Radius);
-				NMake::Unpack(Node->Find("step"), &Render.Step);
-				NMake::Unpack(Node->Find("offset"), &Render.Offset);
-				NMake::Unpack(Node->Find("distance"), &Render.Distance);
-				NMake::Unpack(Node->Find("fading"), &Render.Fading);
-				NMake::Unpack(Node->Find("power"), &Render.Power);
-				NMake::Unpack(Node->Find("samples"), &Render.Samples);
-				NMake::Unpack(Node->Find("sample-count"), &Render.SampleCount);
+                NMake::Unpack(Node->Find("scale"), &Render.Scale);
+                NMake::Unpack(Node->Find("intensity"), &Render.Intensity);
+                NMake::Unpack(Node->Find("bias"), &Render.Bias);
+                NMake::Unpack(Node->Find("radius"), &Render.Radius);
+                NMake::Unpack(Node->Find("step"), &Render.Step);
+                NMake::Unpack(Node->Find("offset"), &Render.Offset);
+                NMake::Unpack(Node->Find("distance"), &Render.Distance);
+                NMake::Unpack(Node->Find("fading"), &Render.Fading);
+                NMake::Unpack(Node->Find("power"), &Render.Power);
+                NMake::Unpack(Node->Find("samples"), &Render.Samples);
+                NMake::Unpack(Node->Find("sample-count"), &Render.SampleCount);
             }
             void IndirectOcclusionRenderer::OnSave(ContentManager* Content, Rest::Document* Node)
             {
-				NMake::Pack(Node->SetDocument("scale"), Render.Scale);
-				NMake::Pack(Node->SetDocument("intensity"), Render.Intensity);
-				NMake::Pack(Node->SetDocument("bias"), Render.Bias);
-				NMake::Pack(Node->SetDocument("radius"), Render.Radius);
-				NMake::Pack(Node->SetDocument("step"), Render.Step);
-				NMake::Pack(Node->SetDocument("offset"), Render.Offset);
-				NMake::Pack(Node->SetDocument("distance"), Render.Distance);
-				NMake::Pack(Node->SetDocument("fading"), Render.Fading);
-				NMake::Pack(Node->SetDocument("power"), Render.Power);
-				NMake::Pack(Node->SetDocument("samples"), Render.Samples);
-				NMake::Pack(Node->SetDocument("sample-count"), Render.SampleCount);
+                NMake::Pack(Node->SetDocument("scale"), Render.Scale);
+                NMake::Pack(Node->SetDocument("intensity"), Render.Intensity);
+                NMake::Pack(Node->SetDocument("bias"), Render.Bias);
+                NMake::Pack(Node->SetDocument("radius"), Render.Radius);
+                NMake::Pack(Node->SetDocument("step"), Render.Step);
+                NMake::Pack(Node->SetDocument("offset"), Render.Offset);
+                NMake::Pack(Node->SetDocument("distance"), Render.Distance);
+                NMake::Pack(Node->SetDocument("fading"), Render.Fading);
+                NMake::Pack(Node->SetDocument("power"), Render.Power);
+                NMake::Pack(Node->SetDocument("samples"), Render.Samples);
+                NMake::Pack(Node->SetDocument("sample-count"), Render.SampleCount);
             }
             IndirectOcclusionRenderer* IndirectOcclusionRenderer::Create(RenderSystem* Lab)
             {
@@ -1869,33 +1857,33 @@ namespace Tomahawk
             }
             void ToneRenderer::OnLoad(ContentManager* Content, Rest::Document* Node)
             {
-				NMake::Unpack(Node->Find("blind-vision-r"), &Render.BlindVisionR);
-				NMake::Unpack(Node->Find("blind-vision-g"), &Render.BlindVisionG);
-				NMake::Unpack(Node->Find("blind-vision-b"), &Render.BlindVisionB);
-				NMake::Unpack(Node->Find("vignette-color"), &Render.VignetteColor);
-				NMake::Unpack(Node->Find("color-gamma"), &Render.ColorGamma);
-				NMake::Unpack(Node->Find("desaturation-gamma"), &Render.DesaturationGamma);
-				NMake::Unpack(Node->Find("vignette-amount"), &Render.VignetteAmount);
-				NMake::Unpack(Node->Find("vignette-curve"), &Render.VignetteCurve);
-				NMake::Unpack(Node->Find("vignette-radius"), &Render.VignetteRadius);
-				NMake::Unpack(Node->Find("linear-intensity"), &Render.LinearIntensity);
-				NMake::Unpack(Node->Find("gamma-intensity"), &Render.GammaIntensity);
-				NMake::Unpack(Node->Find("desaturation-intensity"), &Render.DesaturationIntensity);
+                NMake::Unpack(Node->Find("blind-vision-r"), &Render.BlindVisionR);
+                NMake::Unpack(Node->Find("blind-vision-g"), &Render.BlindVisionG);
+                NMake::Unpack(Node->Find("blind-vision-b"), &Render.BlindVisionB);
+                NMake::Unpack(Node->Find("vignette-color"), &Render.VignetteColor);
+                NMake::Unpack(Node->Find("color-gamma"), &Render.ColorGamma);
+                NMake::Unpack(Node->Find("desaturation-gamma"), &Render.DesaturationGamma);
+                NMake::Unpack(Node->Find("vignette-amount"), &Render.VignetteAmount);
+                NMake::Unpack(Node->Find("vignette-curve"), &Render.VignetteCurve);
+                NMake::Unpack(Node->Find("vignette-radius"), &Render.VignetteRadius);
+                NMake::Unpack(Node->Find("linear-intensity"), &Render.LinearIntensity);
+                NMake::Unpack(Node->Find("gamma-intensity"), &Render.GammaIntensity);
+                NMake::Unpack(Node->Find("desaturation-intensity"), &Render.DesaturationIntensity);
             }
             void ToneRenderer::OnSave(ContentManager* Content, Rest::Document* Node)
             {
-				NMake::Pack(Node->SetDocument("blind-vision-r"), Render.BlindVisionR);
-				NMake::Pack(Node->SetDocument("blind-vision-g"), Render.BlindVisionG);
-				NMake::Pack(Node->SetDocument("blind-vision-b"), Render.BlindVisionB);
-				NMake::Pack(Node->SetDocument("vignette-color"), Render.VignetteColor);
-				NMake::Pack(Node->SetDocument("color-gamma"), Render.ColorGamma);
-				NMake::Pack(Node->SetDocument("desaturation-gamma"), Render.DesaturationGamma);
-				NMake::Pack(Node->SetDocument("vignette-amount"), Render.VignetteAmount);
-				NMake::Pack(Node->SetDocument("vignette-curve"), Render.VignetteCurve);
-				NMake::Pack(Node->SetDocument("vignette-radius"), Render.VignetteRadius);
-				NMake::Pack(Node->SetDocument("linear-intensity"), Render.LinearIntensity);
-				NMake::Pack(Node->SetDocument("gamma-intensity"), Render.GammaIntensity);
-				NMake::Pack(Node->SetDocument("desaturation-intensity"), Render.DesaturationIntensity);
+                NMake::Pack(Node->SetDocument("blind-vision-r"), Render.BlindVisionR);
+                NMake::Pack(Node->SetDocument("blind-vision-g"), Render.BlindVisionG);
+                NMake::Pack(Node->SetDocument("blind-vision-b"), Render.BlindVisionB);
+                NMake::Pack(Node->SetDocument("vignette-color"), Render.VignetteColor);
+                NMake::Pack(Node->SetDocument("color-gamma"), Render.ColorGamma);
+                NMake::Pack(Node->SetDocument("desaturation-gamma"), Render.DesaturationGamma);
+                NMake::Pack(Node->SetDocument("vignette-amount"), Render.VignetteAmount);
+                NMake::Pack(Node->SetDocument("vignette-curve"), Render.VignetteCurve);
+                NMake::Pack(Node->SetDocument("vignette-radius"), Render.VignetteRadius);
+                NMake::Pack(Node->SetDocument("linear-intensity"), Render.LinearIntensity);
+                NMake::Pack(Node->SetDocument("gamma-intensity"), Render.GammaIntensity);
+                NMake::Pack(Node->SetDocument("desaturation-intensity"), Render.DesaturationIntensity);
             }
             ToneRenderer* ToneRenderer::Create(RenderSystem* Lab)
             {
@@ -1960,7 +1948,8 @@ namespace Tomahawk
                 else
                     Settings->MousePos = ImVec2(-FLT_MAX, -FLT_MAX);
 
-                int X, Y; Uint32 Buttons = SDL_GetMouseState(&X, &Y);
+                int X, Y;
+                Uint32 Buttons = SDL_GetMouseState(&X, &Y);
                 Settings->MouseDown[0] = (Buttons & SDL_BUTTON(SDL_BUTTON_LEFT)) != 0;
                 Settings->MouseDown[1] = (Buttons & SDL_BUTTON(SDL_BUTTON_RIGHT)) != 0;
                 Settings->MouseDown[2] = (Buttons & SDL_BUTTON(SDL_BUTTON_MIDDLE)) != 0;

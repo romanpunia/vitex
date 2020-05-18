@@ -49,104 +49,105 @@ namespace Tomahawk
             {
             }
 
-			void WebSocketFrame::Write(const char* Data, Int64 Length, WebSocketOp OpCode, const SuccessCallback& Callback)
-			{
-				Util::WebSocketWriteMask(Base, Data, Length, OpCode, 0, Callback);
-			}
-			void WebSocketFrame::Finish()
-			{
-				if (Error || State == WebSocketState_Close)
-				{
-					State = WebSocketState_Free;
-					return Next();
-				}
+            void WebSocketFrame::Write(const char* Data, Int64 Length, WebSocketOp OpCode, const SuccessCallback& Callback)
+            {
+                Util::WebSocketWriteMask(Base, Data, Length, OpCode, 0, Callback);
+            }
+            void WebSocketFrame::Finish()
+            {
+                if (Error || State == WebSocketState_Close)
+                {
+                    State = WebSocketState_Free;
+                    return Next();
+                }
 
-				if (State != WebSocketState_Free)
-					State = WebSocketState_Close;
+                if (State != WebSocketState_Free)
+                    State = WebSocketState_Close;
 
-				Util::WebSocketWriteMask(Base, Base->Info.Message.c_str(), Base->Info.Message.size(), WebSocketOp_Close, 0, [this](HTTP::Connection*)
-				{
-					Next();
-					return true;
-				});
-			}
-			void WebSocketFrame::Next()
-			{
-				if (State & WebSocketState_Free)
-				{
-					Base->Stream->Close(true);
-					if (Disconnect)
-					{
-						WebSocketCallback Callback = Disconnect;
-						Disconnect = nullptr;
+                Util::WebSocketWriteMask(Base, Base->Info.Message.c_str(), Base->Info.Message.size(), WebSocketOp_Close, 0, [this](HTTP::Connection*)
+                {
+                    Next();
+                    return true;
+                });
+            }
+            void WebSocketFrame::Next()
+            {
+                if (State & WebSocketState_Free)
+                {
+                    Base->Stream->Close(true);
+                    if (Disconnect)
+                    {
+                        WebSocketCallback Callback = Disconnect;
+                        Disconnect = nullptr;
 
-						return Callback(this);
-					}
+                        return Callback(this);
+                    }
 
-					if (Base->Gateway && !Base->Gateway->IsDone())
-						return (void)Base->Gateway->Done(true);
+                    if (Base->Gateway && !Base->Gateway->IsDone())
+                        return (void)Base->Gateway->Done(true);
 
-					if (Base->Response.StatusCode < 0)
-						Base->Response.StatusCode = 101;
+                    if (Base->Response.StatusCode < 0)
+                        Base->Response.StatusCode = 101;
 
-					Save = true;
-					Base->Info.KeepAlive = 0;
-					Base->Unlock();
+                    Save = true;
+                    Base->Info.KeepAlive = 0;
+                    Base->Unlock();
 
-					auto Queue = Base->Root->GetQueue();
-					if (Queue != nullptr)
-					{
-						return (void)Queue->Callback<HTTP::Connection>(Base, [](Rest::EventQueue*, Rest::EventArgs* Args)
-						{
-							Args->Get<HTTP::Connection>()->Finish();
-						});
-					}
+                    auto Queue = Base->Root->GetQueue();
+                    if (Queue != nullptr)
+                    {
+                        return (void)Queue->Callback<HTTP::Connection>(Base, [](Rest::EventQueue*, Rest::EventArgs* Args)
+                        {
+                            Args->Get<HTTP::Connection>()->Finish();
+                        });
+                    }
 
-					return (void)Base->Finish();
-				}
-				else if (State & WebSocketState_Handshake)
-				{
-					if (Connect || Receive)
-					{
-						State = WebSocketState_Active;
-						if (Connect)
-							Connect(this);
-						else
-							Next();
-					}
-					else
-						Finish();
-				}
-				else if (State & WebSocketState_Reset)
-				{
-					State = WebSocketState_Free;
-					Finish();
-				}
-				else
-					Util::ProcessWebSocketPass(Base);
-			}
-			void WebSocketFrame::Notify()
-			{
-				Notified = true;
-				Base->Stream->Skip(SocketEvent_Read, 0);
-			}
-			bool WebSocketFrame::IsFinished()
-			{
-				return Save;
-			}
+                    return (void)Base->Finish();
+                }
+                else if (State & WebSocketState_Handshake)
+                {
+                    if (Connect || Receive)
+                    {
+                        State = WebSocketState_Active;
+                        if (Connect)
+                            Connect(this);
+                        else
+                            Next();
+                    }
+                    else
+                        Finish();
+                }
+                else if (State & WebSocketState_Reset)
+                {
+                    State = WebSocketState_Free;
+                    Finish();
+                }
+                else
+                    Util::ProcessWebSocketPass(Base);
+            }
+            void WebSocketFrame::Notify()
+            {
+                Notified = true;
+                Base->Stream->Skip(SocketEvent_Read, 0);
+            }
+            bool WebSocketFrame::IsFinished()
+            {
+                return Save;
+            }
 
             bool GatewayFrame::Done(bool Normal)
             {
                 Base->Unlock();
-				if (Destroy && !Destroy(this, Device))
-				{
-					return Base->Root->GetQueue()->Task<GatewayFrame>(nullptr, [this, Normal](Rest::EventQueue*, Rest::EventArgs*)
-					{
-						Done(Normal);
-					}) || true;
-				}
+                if (Destroy && !Destroy(this, Device))
+                {
+                    return Base->Root->GetQueue()->Task<GatewayFrame>(nullptr, [this, Normal](Rest::EventQueue*, Rest::EventArgs*)
+                    {
+                        Done(Normal);
+                    }) || true;
+                }
 
-				Save = true; Device = nullptr;
+                Save = true;
+                Device = nullptr;
                 if (Base->WebSocket != nullptr)
                 {
                     Base->Response.Buffer.clear();
@@ -155,19 +156,19 @@ namespace Tomahawk
                     else
                         Base->WebSocket->Next();
 
-					return false;
+                    return false;
                 }
 
-				auto Queue = Base->Root->GetQueue();
-				if (Queue != nullptr)
-				{
-					return Queue->Callback<HTTP::Connection>(Base, [](Rest::EventQueue*, Rest::EventArgs* Args)
-					{
-						Args->Get<HTTP::Connection>()->Finish();
-					}) && false;
-				}
+                auto Queue = Base->Root->GetQueue();
+                if (Queue != nullptr)
+                {
+                    return Queue->Callback<HTTP::Connection>(Base, [](Rest::EventQueue*, Rest::EventArgs* Args)
+                    {
+                        Args->Get<HTTP::Connection>()->Finish();
+                    }) && false;
+                }
 
-				return Base->Finish() && false;
+                return Base->Finish() && false;
             }
             bool GatewayFrame::Finish(const GatewayFreeCallback& Function)
             {
@@ -211,12 +212,12 @@ namespace Tomahawk
                 {
                     return Base->Root->GetQueue()->Task<GatewayFrame>(nullptr, [this](Rest::EventQueue*, Rest::EventArgs*)
                     {
-						if (!EoF)
-						{
-							EoF = true;
-							Callback(this, Buffer, Size, Type);
-						}
-						else
+                        if (!EoF)
+                        {
+                            EoF = true;
+                            Callback(this, Buffer, Size, Type);
+                        }
+                        else
                             Callback(this, nullptr, 0, Type);
                     });
                 }
@@ -225,7 +226,7 @@ namespace Tomahawk
                 {
                     for (; i < Size; i++)
                     {
-                        if (i + 3 >= Size || Buffer[i] != '<' || (Buffer[i + 1] != '?' &&  Buffer[i + 1] != '!'))
+                        if (i + 3 >= Size || Buffer[i] != '<' || (Buffer[i + 1] != '?' && Buffer[i + 1] != '!'))
                             continue;
 
                         if (i > 0)
@@ -247,8 +248,9 @@ namespace Tomahawk
 
                         const char* Data = Buffer + Offset;
                         UInt64 SSize = i - Offset;
-						Type = Buffer[i];
-                        i += 2; Offset = i;
+                        Type = Buffer[i];
+                        i += 2;
+                        Offset = i;
 
                         if (SSize <= 2)
                             continue;
@@ -268,18 +270,18 @@ namespace Tomahawk
                     Callback(this, nullptr, 0, Type);
                 });
             }
-			bool GatewayFrame::IsDone()
-			{
-				return Save;
-			}
+            bool GatewayFrame::IsDone()
+            {
+                return Save;
+            }
 
-			SiteEntry::SiteEntry()
+            SiteEntry::SiteEntry()
             {
                 Base = new RouteEntry();
                 Base->URI.Regex.assign("/");
                 Base->Site = this;
             }
-			SiteEntry::~SiteEntry()
+            SiteEntry::~SiteEntry()
             {
                 for (auto It = Routes.begin(); It != Routes.end(); It++)
                 {
@@ -420,35 +422,35 @@ namespace Tomahawk
                 return true;
             }
 
-			MapRouter::MapRouter()
-			{
-			}
-			MapRouter::~MapRouter()
-			{
-				for (auto It = Sites.begin(); It != Sites.end(); It++)
-				{
-					SiteEntry* Entry = *It;
-					delete Entry;
-				}
-			}
-			SiteEntry* MapRouter::Site(const char* Pattern)
-			{
-				if (!Pattern)
-					return nullptr;
+            MapRouter::MapRouter()
+            {
+            }
+            MapRouter::~MapRouter()
+            {
+                for (auto It = Sites.begin(); It != Sites.end(); It++)
+                {
+                    SiteEntry* Entry = *It;
+                    delete Entry;
+                }
+            }
+            SiteEntry* MapRouter::Site(const char* Pattern)
+            {
+                if (!Pattern)
+                    return nullptr;
 
-				for (auto It = Sites.begin(); It != Sites.end(); It++)
-				{
-					SiteEntry* Entry = *It;
-					if (Entry->SiteName.find(Pattern) != std::string::npos)
-						return Entry;
-				}
+                for (auto It = Sites.begin(); It != Sites.end(); It++)
+                {
+                    SiteEntry* Entry = *It;
+                    if (Entry->SiteName.find(Pattern) != std::string::npos)
+                        return Entry;
+                }
 
-				HTTP::SiteEntry* Result = new HTTP::SiteEntry();
-				Result->SiteName = Rest::Stroke(Pattern).ToLower().R();
-				Sites.push_back(Result);
+                HTTP::SiteEntry* Result = new HTTP::SiteEntry();
+                Result->SiteName = Rest::Stroke(Pattern).ToLower().R();
+                Sites.push_back(Result);
 
-				return Result;
-			}
+                return Result;
+            }
 
             void Resource::SetHeader(const char* Key, const char* Value)
             {
@@ -863,7 +865,7 @@ namespace Tomahawk
                             Int64 Result = Parser->ParseDecodeChunked((char*)Buffer, &Size);
                             if (Result == -1)
                             {
-								delete Parser;
+                                delete Parser;
                                 Base->Request.ContentState = Content_Corrupted;
 
                                 if (Callback)
@@ -883,7 +885,7 @@ namespace Tomahawk
                             return Result == -2;
                         }
 
-						delete Parser;
+                        delete Parser;
                         if (Size != -1)
                         {
                             if (!Base->Route || Base->Request.Buffer.size() < Base->Route->MaxCacheLength)
@@ -1012,7 +1014,7 @@ namespace Tomahawk
                     return true;
                 }
 
-                const char* ContentType = Request.GetHeader("Content-Type"), *BoundaryName;
+                const char* ContentType = Request.GetHeader("Content-Type"), * BoundaryName;
                 if (ContentType && !strncmp(ContentType, "multipart/form-data", 19))
                     Request.ContentState = Content_Wants_Save;
 
@@ -1051,7 +1053,7 @@ namespace Tomahawk
                             if (Segment->Callback)
                                 Segment->Callback(Base, nullptr, Size);
 
-							delete Parser;
+                            delete Parser;
                             delete Segment;
                             return true;
                         }
@@ -1062,7 +1064,7 @@ namespace Tomahawk
                             if (Segment->Callback)
                                 Segment->Callback(Base, nullptr, 0);
 
-							delete Parser;
+                            delete Parser;
                             delete Segment;
                             return false;
                         }
@@ -1076,7 +1078,7 @@ namespace Tomahawk
                     Resource.Length = Request.ContentLength;
                     Resource.Memory = false;
                     Resource.Type = (ContentType ? ContentType : "application/octet-stream");
-					Resource.Path = Rest::OS::GetDirectory() + Compute::MathCommon::MD5Hash(Compute::MathCommon::RandomBytes(16));
+                    Resource.Path = Rest::OS::GetDirectory() + Compute::MathCommon::MD5Hash(Compute::MathCommon::RandomBytes(16));
 
                     FILE* File = (FILE*)Rest::OS::Open(Resource.Path.c_str(), "wb");
                     if (!File)
@@ -1140,26 +1142,26 @@ namespace Tomahawk
                 Info.Sync.unlock();
                 if (WebSocket != nullptr)
                 {
-					if (!WebSocket->IsFinished())
-					{
-						WebSocket->Finish();
-						return true;
-					}
+                    if (!WebSocket->IsFinished())
+                    {
+                        WebSocket->Finish();
+                        return true;
+                    }
 
-					delete WebSocket;
-					WebSocket = nullptr;
+                    delete WebSocket;
+                    WebSocket = nullptr;
                 }
-				
-				if (Gateway != nullptr)
-                {
-					if (!Gateway->IsDone())
-					{
-						Gateway->Finish(nullptr);
-						return true;
-					}
 
-					delete Gateway;
-					Gateway = nullptr;
+                if (Gateway != nullptr)
+                {
+                    if (!Gateway->IsDone())
+                    {
+                        Gateway->Finish(nullptr);
+                        return true;
+                    }
+
+                    delete Gateway;
+                    Gateway = nullptr;
                 }
 
                 if (Response.StatusCode < 0 || Stream->Outcome > 0 || !Stream->IsValid())
@@ -1168,17 +1170,17 @@ namespace Tomahawk
                 if (Response.StatusCode >= 400 && !Info.Error)
                 {
                     Info.Error = true;
-					if (Route != nullptr)
-					{
-						for (auto It = Route->ErrorFiles.begin(); It != Route->ErrorFiles.end(); It++)
-						{
-							if (It->StatusCode != Response.StatusCode && It->StatusCode != 0)
-								continue;
+                    if (Route != nullptr)
+                    {
+                        for (auto It = Route->ErrorFiles.begin(); It != Route->ErrorFiles.end(); It++)
+                        {
+                            if (It->StatusCode != Response.StatusCode && It->StatusCode != 0)
+                                continue;
 
-							Request.Path = It->Pattern;
-							return Util::RouteGET(this);
-						}
-					}
+                            Request.Path = It->Pattern;
+                            return Util::RouteGET(this);
+                        }
+                    }
 
                     const char* StatusText = Util::StatusMessage(Response.StatusCode);
                     Rest::Stroke Content;
@@ -1199,15 +1201,12 @@ namespace Tomahawk
                     if (HasContents)
                     {
                         char Buffer[2048];
-                        snprintf(Buffer, sizeof(Buffer),
-                                 "<html><head><title>%d %s</title><style>html{font-family:\"Helvetica Neue\",Helvetica,Arial,sans-serif;height:95%%;}body{display:flex;align-items:center;justify-content:center;height:100%%;}div{text-align:center;}</style></head><body><div><h1>%d %s</h1></div></body></html>\n",
-                                 Response.StatusCode, StatusText, Response.StatusCode, Info.Message.empty() ? StatusText : Info.Message.c_str());
+                        snprintf(Buffer, sizeof(Buffer), "<html><head><title>%d %s</title><style>html{font-family:\"Helvetica Neue\",Helvetica,Arial,sans-serif;height:95%%;}body{display:flex;align-items:center;justify-content:center;height:100%%;}div{text-align:center;}</style></head><body><div><h1>%d %s</h1></div></body></html>\n", Response.StatusCode, StatusText, Response.StatusCode, Info.Message.empty() ? StatusText : Info.Message.c_str());
 
                         if (Route && Route->Callbacks.Headers)
                             Route->Callbacks.Headers(this, &Content);
 
-                        Content.fAppend("Date: %s\r\n%sContent-Type: text/html; charset=%s\r\nAccept-Ranges: bytes\r\nContent-Length: %llu\r\n%s\r\n%s",
-                                        Date, Util::ConnectionResolve(this).c_str(), Route ? Route->CharSet.c_str() : "utf-8", (UInt64)strlen(Buffer), Auth.c_str(), Buffer);
+                        Content.fAppend("Date: %s\r\n%sContent-Type: text/html; charset=%s\r\nAccept-Ranges: bytes\r\nContent-Length: %llu\r\n%s\r\n%s", Date, Util::ConnectionResolve(this).c_str(), Route ? Route->CharSet.c_str() : "utf-8", (UInt64)strlen(Buffer), Auth.c_str(), Buffer);
                     }
                     else
                     {
@@ -1229,7 +1228,9 @@ namespace Tomahawk
                     });
                 }
 
-                Rest::Stroke Content; std::string Boundary; const char* ContentType;
+                Rest::Stroke Content;
+                std::string Boundary;
+                const char* ContentType;
                 Content.fAppend("%s %d %s\r\n", Request.Version, Response.StatusCode, Util::StatusMessage(Response.StatusCode));
 
                 if (!Response.GetHeader("Date"))
@@ -1247,18 +1248,18 @@ namespace Tomahawk
 
                 if (!Response.GetHeader("Content-Type"))
                 {
-					if (Route != nullptr)
-						ContentType = Util::ContentType(Request.Path, &Route->MimeTypes);
-					else
-						ContentType = "application/octet-stream";
+                    if (Route != nullptr)
+                        ContentType = Util::ContentType(Request.Path, &Route->MimeTypes);
+                    else
+                        ContentType = "application/octet-stream";
 
-					if (Request.GetHeader("Range") != nullptr)
-					{
-						Boundary = Util::ParseMultipartDataBoundary();
-						Content.fAppend("Content-Type: multipart/byteranges; boundary=%s; charset=%s\r\n", ContentType, Boundary.c_str(), Route ? Route->CharSet.c_str() : "utf-8");
-					}
-					else
-						Content.fAppend("Content-Type: %s; charset=%s\r\n", ContentType, Route ? Route->CharSet.c_str() : "utf-8");
+                    if (Request.GetHeader("Range") != nullptr)
+                    {
+                        Boundary = Util::ParseMultipartDataBoundary();
+                        Content.fAppend("Content-Type: multipart/byteranges; boundary=%s; charset=%s\r\n", ContentType, Boundary.c_str(), Route ? Route->CharSet.c_str() : "utf-8");
+                    }
+                    else
+                        Content.fAppend("Content-Type: %s; charset=%s\r\n", ContentType, Route ? Route->CharSet.c_str() : "utf-8");
                 }
                 else
                     ContentType = Response.GetHeader("Content-Type");
@@ -1369,8 +1370,7 @@ namespace Tomahawk
                     if (!It->Path.empty())
                         It->Path.insert(0, "; path=");
 
-                    Content.fAppend("Set-Cookie: %s=%s; expires=%s%s%s%s\r\n", It->Name.c_str(), It->Value.c_str(),
-                            Rest::DateTime::GetGMTBasedString(It->Expires).c_str(), It->Path.c_str(), It->Domain.c_str(), It->Secure ? "; secure" : "");
+                    Content.fAppend("Set-Cookie: %s=%s; expires=%s%s%s%s\r\n", It->Name.c_str(), It->Value.c_str(), Rest::DateTime::GetGMTBasedString(It->Expires).c_str(), It->Path.c_str(), It->Domain.c_str(), It->Secure ? "; secure" : "");
                 }
 
                 if (Route && Route->Callbacks.Headers)
@@ -1446,7 +1446,7 @@ namespace Tomahawk
                     *SerialBuffer = '\0';
 
                 unsigned int Size = 0;
-                ASN1_digest((int(*)(void *, unsigned char**))i2d_X509, Digest, (char*)Certificate, Buffer, &Size);
+                ASN1_digest((int (*)(void*, unsigned char**))i2d_X509, Digest, (char*)Certificate, Buffer, &Size);
 
                 char FingerBuffer[1024];
                 if (!Compute::MathCommon::HexToString(Buffer, (UInt64)Size, FingerBuffer, sizeof(FingerBuffer)))
@@ -1551,12 +1551,12 @@ namespace Tomahawk
             }
             Query::~Query()
             {
-				delete Object;
+                delete Object;
             }
             void Query::Clear()
             {
-				if (Object != nullptr)
-					Object->Clear();
+                if (Object != nullptr)
+                    Object->Clear();
             }
             void Query::NewParameter(std::vector<QueryToken>* Tokens, const QueryToken& Name, const QueryToken& Value)
             {
@@ -1615,7 +1615,7 @@ namespace Tomahawk
                     return;
 
                 if (Value.Value != nullptr && Value.Length > 0)
-					Rest::Document::Deserialize(Compute::MathCommon::URIDecode(Value.Value, Value.Length), Parameter);
+                    Rest::Document::Deserialize(Compute::MathCommon::URIDecode(Value.Value, Value.Length), Parameter);
                 else
                     Parameter->Type = Rest::NodeType_Undefined;
             }
@@ -1657,7 +1657,9 @@ namespace Tomahawk
                     Value.Length = i - Offset;
 
                     NewParameter(&Tokens, Name, Value);
-                    Tokens.clear(); Offset = i + 2; i++;
+                    Tokens.clear();
+                    Offset = i + 2;
+                    i++;
                 }
             }
             void Query::DecodeAJSON(const std::string& URI)
@@ -1666,7 +1668,7 @@ namespace Tomahawk
                 if (!JSON)
                     return;
 
-				delete Object;
+                delete Object;
                 Object = BSON::Document::ToDocument(JSON)->As<QueryParameter>();
                 BSON::Document::Release(&JSON);
             }
@@ -1760,12 +1762,12 @@ namespace Tomahawk
             }
             Session::~Session()
             {
-				delete Query;
+                delete Query;
             }
             void Session::Clear()
             {
-				if (Query != nullptr)
-					Query->Clear();
+                if (Query != nullptr)
+                    Query->Clear();
             }
             bool Session::Write(Connection* Base)
             {
@@ -1781,11 +1783,11 @@ namespace Tomahawk
                 SessionExpires = time(nullptr) + Base->Route->Site->Gateway.Session.Expires;
                 fwrite(&SessionExpires, sizeof(Int64), 1, Stream);
 
-				Query->WriteBIN(Query, [Stream](Rest::DocumentPretty, const char* Buffer, Int64 Size)
-				{
-					if (Buffer != nullptr && Size > 0)
-						fwrite(Buffer, Size, 1, Stream);
-				});
+                Query->WriteBIN(Query, [Stream](Rest::DocumentPretty, const char* Buffer, Int64 Size)
+                {
+                    if (Buffer != nullptr && Size > 0)
+                        fwrite(Buffer, Size, 1, Stream);
+                });
 
                 fclose(Stream);
                 return true;
@@ -1826,22 +1828,22 @@ namespace Tomahawk
                     return false;
                 }
 
-				
-				Rest::Document* V = Rest::Document::ReadBIN([Stream](char* Buffer, Int64 Size)
-				{
-					if (!Buffer || !Size)
-						return true;
 
-					return fread(Buffer, sizeof(char), Size, Stream) == Size;
-				});
+                Rest::Document* V = Rest::Document::ReadBIN([Stream](char* Buffer, Int64 Size)
+                {
+                    if (!Buffer || !Size)
+                        return true;
 
-				if (V != nullptr)
-				{
-					delete Query;
-					Query = V;
-				}
+                    return fread(Buffer, sizeof(char), Size, Stream) == Size;
+                });
 
-				fclose(Stream);
+                if (V != nullptr)
+                {
+                    delete Query;
+                    Query = V;
+                }
+
+                fclose(Stream);
                 return true;
             }
             std::string& Session::FindSessionId(Connection* Base)
@@ -1867,11 +1869,7 @@ namespace Tomahawk
                 if (SessionExpires == 0)
                     SessionExpires = Time + Base->Route->Site->Gateway.Session.Expires;
 
-                Base->Response.SetCookie(
-                        Base->Route->Site->Gateway.Session.Name.c_str(), SessionId.c_str(),
-                        Base->Route->Site->Gateway.Session.Domain.c_str(),
-                        Base->Route->Site->Gateway.Session.Path.c_str(),
-                        Time + (Int64)Base->Route->Site->Gateway.Session.CookieExpires, false);
+                Base->Response.SetCookie(Base->Route->Site->Gateway.Session.Name.c_str(), SessionId.c_str(), Base->Route->Site->Gateway.Session.Domain.c_str(), Base->Route->Site->Gateway.Session.Path.c_str(), Time + (Int64)Base->Route->Site->Gateway.Session.CookieExpires, false);
                 return SessionId;
             }
             bool Session::InvalidateCache(const std::string& Path)
@@ -2122,7 +2120,7 @@ namespace Tomahawk
             }
             Int64 Parser::ParseRequest(const char* BufferStart, UInt64 Length, UInt64 LastLength)
             {
-                const char *Buffer = BufferStart;
+                const char* Buffer = BufferStart;
                 const char* BufferEnd = BufferStart + Length;
                 int Result;
 
@@ -2150,158 +2148,158 @@ namespace Tomahawk
             }
             Int64 Parser::ParseDecodeChunked(char* Buffer, Int64* Length)
             {
-				if (!Buffer || !Length)
-					return -1;
+                if (!Buffer || !Length)
+                    return -1;
 
-				size_t Dest = 0, Src = 0, Size = *Length;
-				Int64 Result = -2;
+                size_t Dest = 0, Src = 0, Size = *Length;
+                Int64 Result = -2;
 
-				while (true)
-				{
-					switch (Chunked.State)
-					{
-					case ChunkedState_Size:
-						for (;; ++Src)
-						{
-							if (Src == Size)
-								goto Exit;
+                while (true)
+                {
+                    switch (Chunked.State)
+                    {
+                        case ChunkedState_Size:
+                            for (;; ++Src)
+                            {
+                                if (Src == Size)
+                                    goto Exit;
 
-							int V = Buffer[Src];
-							if ('0' <= V && V <= '9')
-								V = V - '0';
-							else if ('A' <= V && V <= 'F')
-								V = V - 'A' + 0xa;
-							else if ('a' <= V && V <= 'f')
-								V = V - 'a' + 0xa;
-							else
-								V = -1;
+                                int V = Buffer[Src];
+                                if ('0' <= V && V <= '9')
+                                    V = V - '0';
+                                else if ('A' <= V && V <= 'F')
+                                    V = V - 'A' + 0xa;
+                                else if ('a' <= V && V <= 'f')
+                                    V = V - 'a' + 0xa;
+                                else
+                                    V = -1;
 
-							if (V == -1)
-							{
-								if (Chunked.HexCount == 0)
-								{
-									Result = -1;
-									goto Exit;
-								}
-								break;
-							}
-							
-							if (Chunked.HexCount == sizeof(size_t) * 2)
-							{
-								Result = -1;
-								goto Exit;
-							}
+                                if (V == -1)
+                                {
+                                    if (Chunked.HexCount == 0)
+                                    {
+                                        Result = -1;
+                                        goto Exit;
+                                    }
+                                    break;
+                                }
 
-							Chunked.Length = Chunked.Length * 16 + V;
-							++Chunked.HexCount;
-						}
+                                if (Chunked.HexCount == sizeof(size_t) * 2)
+                                {
+                                    Result = -1;
+                                    goto Exit;
+                                }
 
-						Chunked.HexCount = 0;
-						Chunked.State = ChunkedState_Ext;
-					case ChunkedState_Ext:
-						for (;; ++Src)
-						{
-							if (Src == Size)
-								goto Exit;
-							if (Buffer[Src] == '\012')
-								break;
-						}
+                                Chunked.Length = Chunked.Length * 16 + V;
+                                ++Chunked.HexCount;
+                            }
 
-						++Src;
-						if (Chunked.Length == 0)
-						{
-							if (Chunked.ConsumeTrailer)
-							{
-								Chunked.State = ChunkedState_Head;
-								break;
-							}
-							else
-								goto Complete;
-						}
+                            Chunked.HexCount = 0;
+                            Chunked.State = ChunkedState_Ext;
+                        case ChunkedState_Ext:
+                            for (;; ++Src)
+                            {
+                                if (Src == Size)
+                                    goto Exit;
+                                if (Buffer[Src] == '\012')
+                                    break;
+                            }
 
-						Chunked.State = ChunkedState_Data;
-					case ChunkedState_Data:
-					{
-						size_t avail = Size - Src;
-						if (avail < Chunked.Length)
-						{
-							if (Dest != Src)
-								memmove(Buffer + Dest, Buffer + Src, avail);
+                            ++Src;
+                            if (Chunked.Length == 0)
+                            {
+                                if (Chunked.ConsumeTrailer)
+                                {
+                                    Chunked.State = ChunkedState_Head;
+                                    break;
+                                }
+                                else
+                                    goto Complete;
+                            }
 
-							Src += avail;
-							Dest += avail;
-							Chunked.Length -= avail;
-							goto Exit;
-						}
+                            Chunked.State = ChunkedState_Data;
+                        case ChunkedState_Data:
+                        {
+                            size_t avail = Size - Src;
+                            if (avail < Chunked.Length)
+                            {
+                                if (Dest != Src)
+                                    memmove(Buffer + Dest, Buffer + Src, avail);
 
-						if (Dest != Src)
-							memmove(Buffer + Dest, Buffer + Src, Chunked.Length);
+                                Src += avail;
+                                Dest += avail;
+                                Chunked.Length -= avail;
+                                goto Exit;
+                            }
 
-						Src += Chunked.Length;
-						Dest += Chunked.Length;
-						Chunked.Length = 0;
-						Chunked.State = ChunkedState_End;
-					}
-					case ChunkedState_End:
-						for (;; ++Src)
-						{
-							if (Src == Size)
-								goto Exit;
+                            if (Dest != Src)
+                                memmove(Buffer + Dest, Buffer + Src, Chunked.Length);
 
-							if (Buffer[Src] != '\015')
-								break;
-						}
+                            Src += Chunked.Length;
+                            Dest += Chunked.Length;
+                            Chunked.Length = 0;
+                            Chunked.State = ChunkedState_End;
+                        }
+                        case ChunkedState_End:
+                            for (;; ++Src)
+                            {
+                                if (Src == Size)
+                                    goto Exit;
 
-						if (Buffer[Src] != '\012')
-						{
-							Result = -1;
-							goto Exit;
-						}
+                                if (Buffer[Src] != '\015')
+                                    break;
+                            }
 
-						++Src;
-						Chunked.State = ChunkedState_Size;
-						break;
-					case ChunkedState_Head:
-						for (;; ++Src)
-						{
-							if (Src == Size)
-								goto Exit;
+                            if (Buffer[Src] != '\012')
+                            {
+                                Result = -1;
+                                goto Exit;
+                            }
 
-							if (Buffer[Src] != '\015')
-								break;
-						}
+                            ++Src;
+                            Chunked.State = ChunkedState_Size;
+                            break;
+                        case ChunkedState_Head:
+                            for (;; ++Src)
+                            {
+                                if (Src == Size)
+                                    goto Exit;
 
-						if (Buffer[Src++] == '\012')
-							goto Complete;
+                                if (Buffer[Src] != '\015')
+                                    break;
+                            }
 
-						Chunked.State = ChunkedState_Middle;
-					case ChunkedState_Middle:
-						for (;; ++Src)
-						{
-							if (Src == Size)
-								goto Exit;
+                            if (Buffer[Src++] == '\012')
+                                goto Complete;
 
-							if (Buffer[Src] == '\012')
-								break;
-						}
+                            Chunked.State = ChunkedState_Middle;
+                        case ChunkedState_Middle:
+                            for (;; ++Src)
+                            {
+                                if (Src == Size)
+                                    goto Exit;
 
-						++Src;
-						Chunked.State = ChunkedState_Head;
-						break;
-					default:
-						return -1;
-					}
-				}
+                                if (Buffer[Src] == '\012')
+                                    break;
+                            }
 
-			Complete:
-				Result = Size - Src;
+                            ++Src;
+                            Chunked.State = ChunkedState_Head;
+                            break;
+                        default:
+                            return -1;
+                    }
+                }
 
-			Exit:
-				if (Dest != Src)
-					memmove(Buffer + Dest, Buffer + Src, Size - Src);
+                Complete:
+                Result = Size - Src;
 
-				*Length = Dest;
-				return Result;
+                Exit:
+                if (Dest != Src)
+                    memmove(Buffer + Dest, Buffer + Src, Size - Src);
+
+                *Length = Dest;
+                return Result;
             }
             const char* Parser::Tokenize(const char* Buffer, const char* BufferEnd, const char** Token, UInt64* TokenLength, int* Out)
             {
@@ -2485,15 +2483,14 @@ namespace Tomahawk
             }
             const char* Parser::ProcessHeaders(const char* Buffer, const char* BufferEnd, int* Out)
             {
-                static const char* Mapping =
-                        "\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0"
-                        "\0\1\0\1\1\1\1\1\0\0\1\1\0\1\1\0\1\1\1\1\1\1\1\1\1\1\0\0\0\0\0\0"
-                        "\0\1\1\1\1\1\1\1\1\1\1\1\1\1\1\1\1\1\1\1\1\1\1\1\1\1\1\0\0\0\1\1"
-                        "\1\1\1\1\1\1\1\1\1\1\1\1\1\1\1\1\1\1\1\1\1\1\1\1\1\1\1\0\1\0\1\0"
-                        "\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0"
-                        "\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0"
-                        "\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0"
-                        "\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0";
+                static const char* Mapping = "\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0"
+                                             "\0\1\0\1\1\1\1\1\0\0\1\1\0\1\1\0\1\1\1\1\1\1\1\1\1\1\0\0\0\0\0\0"
+                                             "\0\1\1\1\1\1\1\1\1\1\1\1\1\1\1\1\1\1\1\1\1\1\1\1\1\1\1\0\0\0\1\1"
+                                             "\1\1\1\1\1\1\1\1\1\1\1\1\1\1\1\1\1\1\1\1\1\1\1\1\1\1\1\0\1\0\1\0"
+                                             "\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0"
+                                             "\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0"
+                                             "\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0"
+                                             "\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0";
 
                 while (true)
                 {
@@ -2592,7 +2589,8 @@ namespace Tomahawk
                         return nullptr;
                     }
 
-                    const char* Value; UInt64 ValueLength;
+                    const char* Value;
+                    UInt64 ValueLength;
                     if ((Buffer = Tokenize(Buffer, BufferEnd, &Value, &ValueLength, Out)) == nullptr)
                     {
                         if (OnHeaderValue)
@@ -2682,7 +2680,10 @@ namespace Tomahawk
                     return nullptr;
                 }
 
-                do { ++Buffer; } while (*Buffer == ' ');
+                do
+                {
+                    ++Buffer;
+                }while (*Buffer == ' ');
 
                 TokenStart = Buffer;
                 if (Buffer == BufferEnd)
@@ -2723,7 +2724,8 @@ namespace Tomahawk
 
                 if (QL > 0 && QL < PL)
                 {
-                    QL = PL - QL - 1; PL -= QL + 1;
+                    QL = PL - QL - 1;
+                    PL -= QL + 1;
                     if (OnQueryValue && !OnQueryValue(this, Path + PL + 1, QL))
                     {
                         *Out = -1;
@@ -2737,7 +2739,10 @@ namespace Tomahawk
                     return nullptr;
                 }
 
-                do { ++Buffer; } while (*Buffer == ' ');
+                do
+                {
+                    ++Buffer;
+                }while (*Buffer == ' ');
                 if ((Buffer = ProcessVersion(Buffer, BufferEnd, Out)) == nullptr)
                     return nullptr;
 
@@ -2777,7 +2782,10 @@ namespace Tomahawk
                     return nullptr;
                 }
 
-                do { ++Buffer; } while (*Buffer == ' ');
+                do
+                {
+                    ++Buffer;
+                }while (*Buffer == ' ');
                 if (BufferEnd - Buffer < 4)
                 {
                     *Out = -2;
@@ -2818,7 +2826,8 @@ namespace Tomahawk
                     return nullptr;
                 }
 
-                const char* Message; UInt64 MessageLength;
+                const char* Message;
+                UInt64 MessageLength;
                 if ((Buffer = Tokenize(Buffer, BufferEnd, &Message, &MessageLength, Out)) == nullptr)
                     return nullptr;
 
@@ -2831,7 +2840,11 @@ namespace Tomahawk
                     return nullptr;
                 }
 
-                do { ++Message; --MessageLength; } while (*Message == ' ');
+                do
+                {
+                    ++Message;
+                    --MessageLength;
+                }while (*Message == ' ');
                 if (OnStatusMessage && !OnStatusMessage(this, Message, MessageLength))
                 {
                     *Out = -1;
@@ -2943,8 +2956,7 @@ namespace Tomahawk
                     if (!It->Path.empty())
                         It->Path.insert(0, "; path=");
 
-                    Buffer->fAppend("Set-Cookie: %s=%s; expires=%s%s%s%s\r\n", It->Name.c_str(), It->Value.c_str(),
-                                    Rest::DateTime::GetGMTBasedString(It->Expires).c_str(), It->Path.c_str(), It->Domain.c_str(), It->Secure ? "; secure" : "");
+                    Buffer->fAppend("Set-Cookie: %s=%s; expires=%s%s%s%s\r\n", It->Name.c_str(), It->Value.c_str(), Rest::DateTime::GetGMTBasedString(It->Expires).c_str(), It->Path.c_str(), It->Domain.c_str(), It->Secure ? "; secure" : "");
                 }
             }
             void Util::ConstructHeadCache(Connection* Base, Rest::Stroke* Buffer)
@@ -2962,50 +2974,49 @@ namespace Tomahawk
                 if (!Base || !Buffer)
                     return;
 
-                Buffer->Append(
-                        "Cache-Control: no-cache, no-store, must-revalidate, private, max-age=0\r\n"
-                        "Pragma: no-cache\r\n"
-                        "Expires: 0\r\n", 102);
+                Buffer->Append("Cache-Control: no-cache, no-store, must-revalidate, private, max-age=0\r\n"
+                               "Pragma: no-cache\r\n"
+                               "Expires: 0\r\n", 102);
             }
             bool Util::ConstructRoute(MapRouter* Router, Connection* Base)
             {
                 if (!Router || !Base || Router->Sites.empty())
                     return false;
 
-				std::string* Host = nullptr;
-				for (auto& Header : Base->Request.Headers)
-				{
-					if (Rest::Stroke::CaseCompare(Header.Key.c_str(), "Host"))
-						continue;
-					
-					Host = &Header.Value;
-					break;
-				}
+                std::string* Host = nullptr;
+                for (auto& Header : Base->Request.Headers)
+                {
+                    if (Rest::Stroke::CaseCompare(Header.Key.c_str(), "Host"))
+                        continue;
 
-				if (!Host)
-					return false;
+                    Host = &Header.Value;
+                    break;
+                }
 
-				Rest::Stroke(Host).ToLower();
+                if (!Host)
+                    return false;
+
+                Rest::Stroke(Host).ToLower();
                 for (auto Entry : Router->Sites)
                 {
                     if (Entry->SiteName != "*" && Entry->SiteName.find(*Host) == std::string::npos)
-						continue;
+                        continue;
 
-					auto&& Hostname = Entry->Hosts.find(Base->Host->Name);
-					if (Hostname == Entry->Hosts.end())
-						return false;
+                    auto&& Hostname = Entry->Hosts.find(Base->Host->Name);
+                    if (Hostname == Entry->Hosts.end())
+                        return false;
 
-					for (auto Entry : Entry->Routes)
-					{
+                    for (auto Entry : Entry->Routes)
+                    {
                         if (!Compute::Regex::Match(&Entry->URI, &Base->Request.Match, Base->Request.URI))
-							continue;
+                            continue;
 
-						Base->Route = Entry;
-						return true;
-					}
+                        Base->Route = Entry;
+                        return true;
+                    }
 
-					Base->Route = Entry->Base;
-					return true;
+                    Base->Route = Entry->Base;
+                    return true;
                 }
 
                 return false;
@@ -3147,10 +3158,7 @@ namespace Tomahawk
                 if (!Connection && strcmp(Base->Request.Version, "1.1"))
                     return "Connection: Close\r\n";
 
-                return
-                    "Connection: Keep-Alive\r\nKeep-Alive: timeout=" +
-                    std::to_string(Base->Root->Router->SocketTimeout / 1000) + ", max=" +
-                    std::to_string(Base->Root->Router->KeepAliveMaxCount) + "\r\n";
+                return "Connection: Keep-Alive\r\nKeep-Alive: timeout=" + std::to_string(Base->Root->Router->SocketTimeout / 1000) + ", max=" + std::to_string(Base->Root->Router->KeepAliveMaxCount) + "\r\n";
             }
             std::string Util::ConstructContentRange(UInt64 Offset, UInt64 Length, UInt64 ContentLength)
             {
@@ -3165,485 +3173,7 @@ namespace Tomahawk
             }
             const char* Util::ContentType(const std::string& Path, std::vector<MimeType>* Types)
             {
-                static MimeStatic MimeTypes[] =
-                        {
-                                MimeStatic(".3dm", "x-world/x-3dmf"),
-                                MimeStatic(".3dmf", "x-world/x-3dmf"),
-                                MimeStatic(".a", "application/octet-stream"),
-                                MimeStatic(".aab", "application/x-authorware-bin"),
-                                MimeStatic(".aac", "audio/aac"),
-                                MimeStatic(".aam", "application/x-authorware-map"),
-                                MimeStatic(".aas", "application/x-authorware-seg"),
-                                MimeStatic(".aat", "application/font-sfnt"),
-                                MimeStatic(".abc", "text/vnd.abc"),
-                                MimeStatic(".acgi", "text/html"),
-                                MimeStatic(".afl", "video/animaflex"),
-                                MimeStatic(".ai", "application/postscript"),
-                                MimeStatic(".aif", "audio/x-aiff"),
-                                MimeStatic(".aifc", "audio/x-aiff"),
-                                MimeStatic(".aiff", "audio/x-aiff"),
-                                MimeStatic(".aim", "application/x-aim"),
-                                MimeStatic(".aip", "text/x-audiosoft-intra"),
-                                MimeStatic(".ani", "application/x-navi-animation"),
-                                MimeStatic(".aos", "application/x-nokia-9000-communicator-add-on-software"),
-                                MimeStatic(".aps", "application/mime"),
-                                MimeStatic(".arc", "application/octet-stream"),
-                                MimeStatic(".arj", "application/arj"),
-                                MimeStatic(".art", "image/x-jg"),
-                                MimeStatic(".asf", "video/x-ms-asf"),
-                                MimeStatic(".asm", "text/x-asm"),
-                                MimeStatic(".asp", "text/asp"),
-                                MimeStatic(".asx", "video/x-ms-asf"),
-                                MimeStatic(".au", "audio/x-au"),
-                                MimeStatic(".avi", "video/x-msvideo"),
-                                MimeStatic(".avs", "video/avs-video"),
-                                MimeStatic(".bcpio", "application/x-bcpio"),
-                                MimeStatic(".bin", "application/x-binary"),
-                                MimeStatic(".bm", "image/bmp"),
-                                MimeStatic(".bmp", "image/bmp"),
-                                MimeStatic(".boo", "application/book"),
-                                MimeStatic(".book", "application/book"),
-                                MimeStatic(".boz", "application/x-bzip2"),
-                                MimeStatic(".bsh", "application/x-bsh"),
-                                MimeStatic(".bz", "application/x-bzip"),
-                                MimeStatic(".bz2", "application/x-bzip2"),
-                                MimeStatic(".c",  "text/x-c"),
-                                MimeStatic(".c++", "text/x-c"),
-                                MimeStatic(".cat", "application/vnd.ms-pki.seccat"),
-                                MimeStatic(".cc", "text/x-c"),
-                                MimeStatic(".ccad", "application/clariscad"),
-                                MimeStatic(".cco", "application/x-cocoa"),
-                                MimeStatic(".cdf", "application/x-cdf"),
-                                MimeStatic(".cer", "application/pkix-cert"),
-                                MimeStatic(".cff", "application/font-sfnt"),
-                                MimeStatic(".cha", "application/x-chat"),
-                                MimeStatic(".chat", "application/x-chat"),
-                                MimeStatic(".class", "application/x-java-class"),
-                                MimeStatic(".com", "application/octet-stream"),
-                                MimeStatic(".conf", "text/plain"),
-                                MimeStatic(".cpio", "application/x-cpio"),
-                                MimeStatic(".cpp", "text/x-c"),
-                                MimeStatic(".cpt", "application/x-compactpro"),
-                                MimeStatic(".crl", "application/pkcs-crl"),
-                                MimeStatic(".crt", "application/x-x509-user-cert"),
-                                MimeStatic(".csh", "text/x-script.csh"),
-                                MimeStatic(".css", "text/css"),
-                                MimeStatic(".csv", "text/csv"),
-                                MimeStatic(".cxx", "text/plain"),
-                                MimeStatic(".dcr", "application/x-director"),
-                                MimeStatic(".deepv", "application/x-deepv"),
-                                MimeStatic(".def", "text/plain"),
-                                MimeStatic(".der", "application/x-x509-ca-cert"),
-                                MimeStatic(".dif", "video/x-dv"),
-                                MimeStatic(".dir", "application/x-director"),
-                                MimeStatic(".dl", "video/x-dl"),
-                                MimeStatic(".dll", "application/octet-stream"),
-                                MimeStatic(".doc", "application/msword"),
-                                MimeStatic(".dot", "application/msword"),
-                                MimeStatic(".dp", "application/commonground"),
-                                MimeStatic(".drw", "application/drafting"),
-                                MimeStatic(".dump", "application/octet-stream"),
-                                MimeStatic(".dv", "video/x-dv"),
-                                MimeStatic(".dvi", "application/x-dvi"),
-                                MimeStatic(".dwf", "model/vnd.dwf"),
-                                MimeStatic(".dwg", "image/vnd.dwg"),
-                                MimeStatic(".dxf", "image/vnd.dwg"),
-                                MimeStatic(".dxr", "application/x-director"),
-                                MimeStatic(".el", "text/x-script.elisp"),
-                                MimeStatic(".elc", "application/x-bytecode.elisp"),
-                                MimeStatic(".env", "application/x-envoy"),
-                                MimeStatic(".eps", "application/postscript"),
-                                MimeStatic(".es", "application/x-esrehber"),
-                                MimeStatic(".etx", "text/x-setext"),
-                                MimeStatic(".evy", "application/x-envoy"),
-                                MimeStatic(".exe", "application/octet-stream"),
-                                MimeStatic(".f",  "text/x-fortran"),
-                                MimeStatic(".f77", "text/x-fortran"),
-                                MimeStatic(".f90", "text/x-fortran"),
-                                MimeStatic(".fdf", "application/vnd.fdf"),
-                                MimeStatic(".fif", "image/fif"),
-                                MimeStatic(".fli", "video/x-fli"),
-                                MimeStatic(".flo", "image/florian"),
-                                MimeStatic(".flx", "text/vnd.fmi.flexstor"),
-                                MimeStatic(".fmf", "video/x-atomic3d-feature"),
-                                MimeStatic(".for", "text/x-fortran"),
-                                MimeStatic(".fpx", "image/vnd.fpx"),
-                                MimeStatic(".frl", "application/freeloader"),
-                                MimeStatic(".funk", "audio/make"),
-                                MimeStatic(".g",  "text/plain"),
-                                MimeStatic(".g3", "image/g3fax"),
-                                MimeStatic(".gif", "image/gif"),
-                                MimeStatic(".gl", "video/x-gl"),
-                                MimeStatic(".gsd", "audio/x-gsm"),
-                                MimeStatic(".gsm", "audio/x-gsm"),
-                                MimeStatic(".gsp", "application/x-gsp"),
-                                MimeStatic(".gss", "application/x-gss"),
-                                MimeStatic(".gtar", "application/x-gtar"),
-                                MimeStatic(".gz", "application/x-gzip"),
-                                MimeStatic(".h",  "text/x-h"),
-                                MimeStatic(".hdf", "application/x-hdf"),
-                                MimeStatic(".help", "application/x-helpfile"),
-                                MimeStatic(".hgl", "application/vnd.hp-hpgl"),
-                                MimeStatic(".hh", "text/x-h"),
-                                MimeStatic(".hlb", "text/x-script"),
-                                MimeStatic(".hlp", "application/x-helpfile"),
-                                MimeStatic(".hpg", "application/vnd.hp-hpgl"),
-                                MimeStatic(".hpgl", "application/vnd.hp-hpgl"),
-                                MimeStatic(".hqx", "application/binhex"),
-                                MimeStatic(".hta", "application/hta"),
-                                MimeStatic(".htc", "text/x-component"),
-                                MimeStatic(".htm", "text/html"),
-                                MimeStatic(".html", "text/html"),
-                                MimeStatic(".htmls", "text/html"),
-                                MimeStatic(".htt", "text/webviewhtml"),
-                                MimeStatic(".htx", "text/html"),
-                                MimeStatic(".ice", "x-conference/x-cooltalk"),
-                                MimeStatic(".ico", "image/x-icon"),
-                                MimeStatic(".idc", "text/plain"),
-                                MimeStatic(".ief", "image/ief"),
-                                MimeStatic(".iefs", "image/ief"),
-                                MimeStatic(".iges", "model/iges"),
-                                MimeStatic(".igs", "model/iges"),
-                                MimeStatic(".ima", "application/x-ima"),
-                                MimeStatic(".imap", "application/x-httpd-imap"),
-                                MimeStatic(".inf", "application/inf"),
-                                MimeStatic(".ins", "application/x-internett-signup"),
-                                MimeStatic(".ip", "application/x-ip2"),
-                                MimeStatic(".isu", "video/x-isvideo"),
-                                MimeStatic(".it", "audio/it"),
-                                MimeStatic(".iv", "application/x-inventor"),
-                                MimeStatic(".ivr", "i-world/i-vrml"),
-                                MimeStatic(".ivy", "application/x-livescreen"),
-                                MimeStatic(".jam", "audio/x-jam"),
-                                MimeStatic(".jav", "text/x-java-source"),
-                                MimeStatic(".java", "text/x-java-source"),
-                                MimeStatic(".jcm", "application/x-java-commerce"),
-                                MimeStatic(".jfif", "image/jpeg"),
-                                MimeStatic(".jfif-tbnl", "image/jpeg"),
-                                MimeStatic(".jpe", "image/jpeg"),
-                                MimeStatic(".jpeg", "image/jpeg"),
-                                MimeStatic(".jpg", "image/jpeg"),
-                                MimeStatic(".jpm", "image/jpm"),
-                                MimeStatic(".jps", "image/x-jps"),
-                                MimeStatic(".jpx", "image/jpx"),
-                                MimeStatic(".js", "application/x-javascript"),
-                                MimeStatic(".json", "application/json"),
-                                MimeStatic(".jut", "image/jutvision"),
-                                MimeStatic(".kar", "music/x-karaoke"),
-                                MimeStatic(".kml", "application/vnd.google-earth.kml+xml"),
-                                MimeStatic(".kmz", "application/vnd.google-earth.kmz"),
-                                MimeStatic(".ksh", "text/x-script.ksh"),
-                                MimeStatic(".la", "audio/x-nspaudio"),
-                                MimeStatic(".lam", "audio/x-liveaudio"),
-                                MimeStatic(".latex", "application/x-latex"),
-                                MimeStatic(".lha", "application/x-lha"),
-                                MimeStatic(".lhx", "application/octet-stream"),
-                                MimeStatic(".lib", "application/octet-stream"),
-                                MimeStatic(".list", "text/plain"),
-                                MimeStatic(".lma", "audio/x-nspaudio"),
-                                MimeStatic(".log", "text/plain"),
-                                MimeStatic(".lsp", "text/x-script.lisp"),
-                                MimeStatic(".lst", "text/plain"),
-                                MimeStatic(".lsx", "text/x-la-asf"),
-                                MimeStatic(".ltx", "application/x-latex"),
-                                MimeStatic(".lzh", "application/x-lzh"),
-                                MimeStatic(".lzx", "application/x-lzx"),
-                                MimeStatic(".m",  "text/x-m"),
-                                MimeStatic(".m1v", "video/mpeg"),
-                                MimeStatic(".m2a", "audio/mpeg"),
-                                MimeStatic(".m2v", "video/mpeg"),
-                                MimeStatic(".m3u", "audio/x-mpegurl"),
-                                MimeStatic(".m4v", "video/x-m4v"),
-                                MimeStatic(".man", "application/x-troff-man"),
-                                MimeStatic(".map", "application/x-navimap"),
-                                MimeStatic(".mar", "text/plain"),
-                                MimeStatic(".mbd", "application/mbedlet"),
-                                MimeStatic(".mc$", "application/x-magic-cap-package-1.0"),
-                                MimeStatic(".mcd", "application/x-mathcad"),
-                                MimeStatic(".mcf", "text/mcf"),
-                                MimeStatic(".mcp", "application/netmc"),
-                                MimeStatic(".me", "application/x-troff-me"),
-                                MimeStatic(".mht", "message/rfc822"),
-                                MimeStatic(".mhtml", "message/rfc822"),
-                                MimeStatic(".mid", "audio/x-midi"),
-                                MimeStatic(".midi", "audio/x-midi"),
-                                MimeStatic(".mif", "application/x-mif"),
-                                MimeStatic(".mime", "www/mime"),
-                                MimeStatic(".mjf", "audio/x-vnd.audioexplosion.mjuicemediafile"),
-                                MimeStatic(".mjpg", "video/x-motion-jpeg"),
-                                MimeStatic(".mm", "application/base64"),
-                                MimeStatic(".mme", "application/base64"),
-                                MimeStatic(".mod", "audio/x-mod"),
-                                MimeStatic(".moov", "video/quicktime"),
-                                MimeStatic(".mov", "video/quicktime"),
-                                MimeStatic(".movie", "video/x-sgi-movie"),
-                                MimeStatic(".mp2", "video/x-mpeg"),
-                                MimeStatic(".mp3", "audio/x-mpeg-3"),
-                                MimeStatic(".mp4", "video/mp4"),
-                                MimeStatic(".mpa", "audio/mpeg"),
-                                MimeStatic(".mpc", "application/x-project"),
-                                MimeStatic(".mpeg", "video/mpeg"),
-                                MimeStatic(".mpg", "video/mpeg"),
-                                MimeStatic(".mpga", "audio/mpeg"),
-                                MimeStatic(".mpp", "application/vnd.ms-project"),
-                                MimeStatic(".mpt", "application/x-project"),
-                                MimeStatic(".mpv", "application/x-project"),
-                                MimeStatic(".mpx", "application/x-project"),
-                                MimeStatic(".mrc", "application/marc"),
-                                MimeStatic(".ms", "application/x-troff-ms"),
-                                MimeStatic(".mv", "video/x-sgi-movie"),
-                                MimeStatic(".my", "audio/make"),
-                                MimeStatic(".mzz", "application/x-vnd.audioexplosion.mzz"),
-                                MimeStatic(".nap", "image/naplps"),
-                                MimeStatic(".naplps", "image/naplps"),
-                                MimeStatic(".nc", "application/x-netcdf"),
-                                MimeStatic(".ncm", "application/vnd.nokia.configuration-message"),
-                                MimeStatic(".nif", "image/x-niff"),
-                                MimeStatic(".niff", "image/x-niff"),
-                                MimeStatic(".nix", "application/x-mix-transfer"),
-                                MimeStatic(".nsc", "application/x-conference"),
-                                MimeStatic(".nvd", "application/x-navidoc"),
-                                MimeStatic(".o",  "application/octet-stream"),
-                                MimeStatic(".obj", "application/octet-stream"),
-                                MimeStatic(".oda", "application/oda"),
-                                MimeStatic(".oga", "audio/ogg"),
-                                MimeStatic(".ogg", "audio/ogg"),
-                                MimeStatic(".ogv", "video/ogg"),
-                                MimeStatic(".omc", "application/x-omc"),
-                                MimeStatic(".omcd", "application/x-omcdatamaker"),
-                                MimeStatic(".omcr", "application/x-omcregerator"),
-                                MimeStatic(".otf", "application/font-sfnt"),
-                                MimeStatic(".p",  "text/x-pascal"),
-                                MimeStatic(".p10", "application/x-pkcs10"),
-                                MimeStatic(".p12", "application/x-pkcs12"),
-                                MimeStatic(".p7a", "application/x-pkcs7-signature"),
-                                MimeStatic(".p7c", "application/x-pkcs7-mime"),
-                                MimeStatic(".p7m", "application/x-pkcs7-mime"),
-                                MimeStatic(".p7r", "application/x-pkcs7-certreqresp"),
-                                MimeStatic(".p7s", "application/pkcs7-signature"),
-                                MimeStatic(".part", "application/pro_eng"),
-                                MimeStatic(".pas", "text/x-pascal"),
-                                MimeStatic(".pbm", "image/x-portable-bitmap"),
-                                MimeStatic(".pcl", "application/vnd.hp-pcl"),
-                                MimeStatic(".pct", "image/x-pct"),
-                                MimeStatic(".pcx", "image/x-pcx"),
-                                MimeStatic(".pdb", "chemical/x-pdb"),
-                                MimeStatic(".pdf", "application/pdf"),
-                                MimeStatic(".pfr", "application/font-tdpfr"),
-                                MimeStatic(".pfunk", "audio/make"),
-                                MimeStatic(".pgm", "image/x-portable-greymap"),
-                                MimeStatic(".pic", "image/pict"),
-                                MimeStatic(".pict", "image/pict"),
-                                MimeStatic(".pkg", "application/x-newton-compatible-pkg"),
-                                MimeStatic(".pko", "application/vnd.ms-pki.pko"),
-                                MimeStatic(".pl", "text/x-script.perl"),
-                                MimeStatic(".plx", "application/x-pixelscript"),
-                                MimeStatic(".pm", "text/x-script.perl-module"),
-                                MimeStatic(".pm4", "application/x-pagemaker"),
-                                MimeStatic(".pm5", "application/x-pagemaker"),
-                                MimeStatic(".png", "image/png"),
-                                MimeStatic(".pnm", "image/x-portable-anymap"),
-                                MimeStatic(".pot", "application/vnd.ms-powerpoint"),
-                                MimeStatic(".pov", "model/x-pov"),
-                                MimeStatic(".ppa", "application/vnd.ms-powerpoint"),
-                                MimeStatic(".ppm", "image/x-portable-pixmap"),
-                                MimeStatic(".pps", "application/vnd.ms-powerpoint"),
-                                MimeStatic(".ppt", "application/vnd.ms-powerpoint"),
-                                MimeStatic(".ppz", "application/vnd.ms-powerpoint"),
-                                MimeStatic(".pre", "application/x-freelance"),
-                                MimeStatic(".prt", "application/pro_eng"),
-                                MimeStatic(".ps", "application/postscript"),
-                                MimeStatic(".psd", "application/octet-stream"),
-                                MimeStatic(".pvu", "paleovu/x-pv"),
-                                MimeStatic(".pwz", "application/vnd.ms-powerpoint"),
-                                MimeStatic(".py", "text/x-script.python"),
-                                MimeStatic(".pyc", "application/x-bytecode.python"),
-                                MimeStatic(".qcp", "audio/vnd.qcelp"),
-                                MimeStatic(".qd3", "x-world/x-3dmf"),
-                                MimeStatic(".qd3d", "x-world/x-3dmf"),
-                                MimeStatic(".qif", "image/x-quicktime"),
-                                MimeStatic(".qt", "video/quicktime"),
-                                MimeStatic(".qtc", "video/x-qtc"),
-                                MimeStatic(".qti", "image/x-quicktime"),
-                                MimeStatic(".qtif", "image/x-quicktime"),
-                                MimeStatic(".ra", "audio/x-pn-realaudio"),
-                                MimeStatic(".ram", "audio/x-pn-realaudio"),
-                                MimeStatic(".rar", "application/x-arj-compressed"),
-                                MimeStatic(".ras", "image/x-cmu-raster"),
-                                MimeStatic(".rast", "image/cmu-raster"),
-                                MimeStatic(".rexx", "text/x-script.rexx"),
-                                MimeStatic(".rf", "image/vnd.rn-realflash"),
-                                MimeStatic(".rgb", "image/x-rgb"),
-                                MimeStatic(".rm", "audio/x-pn-realaudio"),
-                                MimeStatic(".rmi", "audio/mid"),
-                                MimeStatic(".rmm", "audio/x-pn-realaudio"),
-                                MimeStatic(".rmp", "audio/x-pn-realaudio"),
-                                MimeStatic(".rng", "application/vnd.nokia.ringing-tone"),
-                                MimeStatic(".rnx", "application/vnd.rn-realplayer"),
-                                MimeStatic(".roff", "application/x-troff"),
-                                MimeStatic(".rp", "image/vnd.rn-realpix"),
-                                MimeStatic(".rpm", "audio/x-pn-realaudio-plugin"),
-                                MimeStatic(".rt", "text/vnd.rn-realtext"),
-                                MimeStatic(".rtf", "application/x-rtf"),
-                                MimeStatic(".rtx", "application/x-rtf"),
-                                MimeStatic(".rv", "video/vnd.rn-realvideo"),
-                                MimeStatic(".s", "text/x-asm"),
-                                MimeStatic(".s3m", "audio/s3m"),
-                                MimeStatic(".saveme", "application/octet-stream"),
-                                MimeStatic(".sbk", "application/x-tbook"),
-                                MimeStatic(".scm", "text/x-script.scheme"),
-                                MimeStatic(".sdml", "text/plain"),
-                                MimeStatic(".sdp", "application/x-sdp"),
-                                MimeStatic(".sdr", "application/sounder"),
-                                MimeStatic(".sea", "application/x-sea"),
-                                MimeStatic(".set", "application/set"),
-                                MimeStatic(".sgm", "text/x-sgml"),
-                                MimeStatic(".sgml", "text/x-sgml"),
-                                MimeStatic(".sh", "text/x-script.sh"),
-                                MimeStatic(".shar", "application/x-shar"),
-                                MimeStatic(".shtm", "text/html"),
-                                MimeStatic(".shtml", "text/html"),
-                                MimeStatic(".sid", "audio/x-psid"),
-                                MimeStatic(".sil", "application/font-sfnt"),
-                                MimeStatic(".sit", "application/x-sit"),
-                                MimeStatic(".skd", "application/x-koan"),
-                                MimeStatic(".skm", "application/x-koan"),
-                                MimeStatic(".skp", "application/x-koan"),
-                                MimeStatic(".skt", "application/x-koan"),
-                                MimeStatic(".sl", "application/x-seelogo"),
-                                MimeStatic(".smi", "application/smil"),
-                                MimeStatic(".smil", "application/smil"),
-                                MimeStatic(".snd", "audio/x-adpcm"),
-                                MimeStatic(".so", "application/octet-stream"),
-                                MimeStatic(".sol", "application/solids"),
-                                MimeStatic(".spc", "text/x-speech"),
-                                MimeStatic(".spl", "application/futuresplash"),
-                                MimeStatic(".spr", "application/x-sprite"),
-                                MimeStatic(".sprite", "application/x-sprite"),
-                                MimeStatic(".src", "application/x-wais-source"),
-                                MimeStatic(".ssi", "text/x-server-parsed-html"),
-                                MimeStatic(".ssm", "application/streamingmedia"),
-                                MimeStatic(".sst", "application/vnd.ms-pki.certstore"),
-                                MimeStatic(".step", "application/step"),
-                                MimeStatic(".stl", "application/vnd.ms-pki.stl"),
-                                MimeStatic(".stp", "application/step"),
-                                MimeStatic(".sv4cpio", "application/x-sv4cpio"),
-                                MimeStatic(".sv4crc", "application/x-sv4crc"),
-                                MimeStatic(".svf", "image/x-dwg"),
-                                MimeStatic(".svg", "image/svg+xml"),
-                                MimeStatic(".svr", "x-world/x-svr"),
-                                MimeStatic(".swf", "application/x-shockwave-flash"),
-                                MimeStatic(".t",  "application/x-troff"),
-                                MimeStatic(".talk", "text/x-speech"),
-                                MimeStatic(".tar", "application/x-tar"),
-                                MimeStatic(".tbk", "application/x-tbook"),
-                                MimeStatic(".tcl", "text/x-script.tcl"),
-                                MimeStatic(".tcsh", "text/x-script.tcsh"),
-                                MimeStatic(".tex", "application/x-tex"),
-                                MimeStatic(".texi", "application/x-texinfo"),
-                                MimeStatic(".texinfo", "application/x-texinfo"),
-                                MimeStatic(".text", "text/plain"),
-                                MimeStatic(".tgz", "application/x-compressed"),
-                                MimeStatic(".tif", "image/x-tiff"),
-                                MimeStatic(".tiff", "image/x-tiff"),
-                                MimeStatic(".torrent", "application/x-bittorrent"),
-                                MimeStatic(".tr", "application/x-troff"),
-                                MimeStatic(".tsi", "audio/tsp-audio"),
-                                MimeStatic(".tsp", "audio/tsplayer"),
-                                MimeStatic(".tsv", "text/tab-separated-values"),
-                                MimeStatic(".ttf", "application/font-sfnt"),
-                                MimeStatic(".turbot", "image/florian"),
-                                MimeStatic(".txt", "text/plain"),
-                                MimeStatic(".uil", "text/x-uil"),
-                                MimeStatic(".uni", "text/uri-list"),
-                                MimeStatic(".unis", "text/uri-list"),
-                                MimeStatic(".unv", "application/i-deas"),
-                                MimeStatic(".uri", "text/uri-list"),
-                                MimeStatic(".uris", "text/uri-list"),
-                                MimeStatic(".ustar", "application/x-ustar"),
-                                MimeStatic(".uu", "text/x-uuencode"),
-                                MimeStatic(".uue", "text/x-uuencode"),
-                                MimeStatic(".vcd", "application/x-cdlink"),
-                                MimeStatic(".vcs", "text/x-vcalendar"),
-                                MimeStatic(".vda", "application/vda"),
-                                MimeStatic(".vdo", "video/vdo"),
-                                MimeStatic(".vew", "application/groupwise"),
-                                MimeStatic(".viv", "video/vnd.vivo"),
-                                MimeStatic(".vivo", "video/vnd.vivo"),
-                                MimeStatic(".vmd", "application/vocaltec-media-desc"),
-                                MimeStatic(".vmf", "application/vocaltec-media-resource"),
-                                MimeStatic(".voc", "audio/x-voc"),
-                                MimeStatic(".vos", "video/vosaic"),
-                                MimeStatic(".vox", "audio/voxware"),
-                                MimeStatic(".vqe", "audio/x-twinvq-plugin"),
-                                MimeStatic(".vqf", "audio/x-twinvq"),
-                                MimeStatic(".vql", "audio/x-twinvq-plugin"),
-                                MimeStatic(".vrml", "model/vrml"),
-                                MimeStatic(".vrt", "x-world/x-vrt"),
-                                MimeStatic(".vsd", "application/x-visio"),
-                                MimeStatic(".vst", "application/x-visio"),
-                                MimeStatic(".vsw", "application/x-visio"),
-                                MimeStatic(".w60", "application/wordperfect6.0"),
-                                MimeStatic(".w61", "application/wordperfect6.1"),
-                                MimeStatic(".w6w", "application/msword"),
-                                MimeStatic(".wav", "audio/x-wav"),
-                                MimeStatic(".wb1", "application/x-qpro"),
-                                MimeStatic(".wbmp", "image/vnd.wap.wbmp"),
-                                MimeStatic(".web", "application/vnd.xara"),
-                                MimeStatic(".webm", "video/webm"),
-                                MimeStatic(".wiz", "application/msword"),
-                                MimeStatic(".wk1", "application/x-123"),
-                                MimeStatic(".wmf", "windows/metafile"),
-                                MimeStatic(".wml", "text/vnd.wap.wml"),
-                                MimeStatic(".wmlc", "application/vnd.wap.wmlc"),
-                                MimeStatic(".wmls", "text/vnd.wap.wmlscript"),
-                                MimeStatic(".wmlsc", "application/vnd.wap.wmlscriptc"),
-                                MimeStatic(".woff", "application/font-woff"),
-                                MimeStatic(".word", "application/msword"),
-                                MimeStatic(".wp", "application/wordperfect"),
-                                MimeStatic(".wp5", "application/wordperfect"),
-                                MimeStatic(".wp6", "application/wordperfect"),
-                                MimeStatic(".wpd", "application/wordperfect"),
-                                MimeStatic(".wq1", "application/x-lotus"),
-                                MimeStatic(".wri", "application/x-wri"),
-                                MimeStatic(".wrl", "model/vrml"),
-                                MimeStatic(".wrz", "model/vrml"),
-                                MimeStatic(".wsc", "text/scriplet"),
-                                MimeStatic(".wsrc", "application/x-wais-source"),
-                                MimeStatic(".wtk", "application/x-wintalk"),
-                                MimeStatic(".x-png", "image/png"),
-                                MimeStatic(".xbm", "image/x-xbm"),
-                                MimeStatic(".xdr", "video/x-amt-demorun"),
-                                MimeStatic(".xgz", "xgl/drawing"),
-                                MimeStatic(".xhtml", "application/xhtml+xml"),
-                                MimeStatic(".xif", "image/vnd.xiff"),
-                                MimeStatic(".xl", "application/vnd.ms-excel"),
-                                MimeStatic(".xla", "application/vnd.ms-excel"),
-                                MimeStatic(".xlb", "application/vnd.ms-excel"),
-                                MimeStatic(".xlc", "application/vnd.ms-excel"),
-                                MimeStatic(".xld", "application/vnd.ms-excel"),
-                                MimeStatic(".xlk", "application/vnd.ms-excel"),
-                                MimeStatic(".xll", "application/vnd.ms-excel"),
-                                MimeStatic(".xlm", "application/vnd.ms-excel"),
-                                MimeStatic(".xls", "application/vnd.ms-excel"),
-                                MimeStatic(".xlt", "application/vnd.ms-excel"),
-                                MimeStatic(".xlv", "application/vnd.ms-excel"),
-                                MimeStatic(".xlw", "application/vnd.ms-excel"),
-                                MimeStatic(".xm", "audio/xm"),
-                                MimeStatic(".xml", "text/xml"),
-                                MimeStatic(".xmz", "xgl/movie"),
-                                MimeStatic(".xpix", "application/x-vnd.ls-xpix"),
-                                MimeStatic(".xpm", "image/x-xpixmap"),
-                                MimeStatic(".xsl", "application/xml"),
-                                MimeStatic(".xslt", "application/xml"),
-                                MimeStatic(".xsr", "video/x-amt-showrun"),
-                                MimeStatic(".xwd", "image/x-xwd"),
-                                MimeStatic(".xyz", "chemical/x-pdb"),
-                                MimeStatic(".z",  "application/x-compressed"),
-                                MimeStatic(".zip", "application/x-zip-compressed"),
-                                MimeStatic(".zoo", "application/octet-stream"),
-                                MimeStatic(".zsh", "text/x-script.zsh")
-                        };
+                static MimeStatic MimeTypes[] = { MimeStatic(".3dm", "x-world/x-3dmf"), MimeStatic(".3dmf", "x-world/x-3dmf"), MimeStatic(".a", "application/octet-stream"), MimeStatic(".aab", "application/x-authorware-bin"), MimeStatic(".aac", "audio/aac"), MimeStatic(".aam", "application/x-authorware-map"), MimeStatic(".aas", "application/x-authorware-seg"), MimeStatic(".aat", "application/font-sfnt"), MimeStatic(".abc", "text/vnd.abc"), MimeStatic(".acgi", "text/html"), MimeStatic(".afl", "video/animaflex"), MimeStatic(".ai", "application/postscript"), MimeStatic(".aif", "audio/x-aiff"), MimeStatic(".aifc", "audio/x-aiff"), MimeStatic(".aiff", "audio/x-aiff"), MimeStatic(".aim", "application/x-aim"), MimeStatic(".aip", "text/x-audiosoft-intra"), MimeStatic(".ani", "application/x-navi-animation"), MimeStatic(".aos", "application/x-nokia-9000-communicator-add-on-software"), MimeStatic(".aps", "application/mime"), MimeStatic(".arc", "application/octet-stream"), MimeStatic(".arj", "application/arj"), MimeStatic(".art", "image/x-jg"), MimeStatic(".asf", "video/x-ms-asf"), MimeStatic(".asm", "text/x-asm"), MimeStatic(".asp", "text/asp"), MimeStatic(".asx", "video/x-ms-asf"), MimeStatic(".au", "audio/x-au"), MimeStatic(".avi", "video/x-msvideo"), MimeStatic(".avs", "video/avs-video"), MimeStatic(".bcpio", "application/x-bcpio"), MimeStatic(".bin", "application/x-binary"), MimeStatic(".bm", "image/bmp"), MimeStatic(".bmp", "image/bmp"), MimeStatic(".boo", "application/book"), MimeStatic(".book", "application/book"), MimeStatic(".boz", "application/x-bzip2"), MimeStatic(".bsh", "application/x-bsh"), MimeStatic(".bz", "application/x-bzip"), MimeStatic(".bz2", "application/x-bzip2"), MimeStatic(".c", "text/x-c"), MimeStatic(".c++", "text/x-c"), MimeStatic(".cat", "application/vnd.ms-pki.seccat"), MimeStatic(".cc", "text/x-c"), MimeStatic(".ccad", "application/clariscad"), MimeStatic(".cco", "application/x-cocoa"), MimeStatic(".cdf", "application/x-cdf"), MimeStatic(".cer", "application/pkix-cert"), MimeStatic(".cff", "application/font-sfnt"), MimeStatic(".cha", "application/x-chat"), MimeStatic(".chat", "application/x-chat"), MimeStatic(".class", "application/x-java-class"), MimeStatic(".com", "application/octet-stream"), MimeStatic(".conf", "text/plain"), MimeStatic(".cpio", "application/x-cpio"), MimeStatic(".cpp", "text/x-c"), MimeStatic(".cpt", "application/x-compactpro"), MimeStatic(".crl", "application/pkcs-crl"), MimeStatic(".crt", "application/x-x509-user-cert"), MimeStatic(".csh", "text/x-script.csh"), MimeStatic(".css", "text/css"), MimeStatic(".csv", "text/csv"), MimeStatic(".cxx", "text/plain"), MimeStatic(".dcr", "application/x-director"), MimeStatic(".deepv", "application/x-deepv"), MimeStatic(".def", "text/plain"), MimeStatic(".der", "application/x-x509-ca-cert"), MimeStatic(".dif", "video/x-dv"), MimeStatic(".dir", "application/x-director"), MimeStatic(".dl", "video/x-dl"), MimeStatic(".dll", "application/octet-stream"), MimeStatic(".doc", "application/msword"), MimeStatic(".dot", "application/msword"), MimeStatic(".dp", "application/commonground"), MimeStatic(".drw", "application/drafting"), MimeStatic(".dump", "application/octet-stream"), MimeStatic(".dv", "video/x-dv"), MimeStatic(".dvi", "application/x-dvi"), MimeStatic(".dwf", "model/vnd.dwf"), MimeStatic(".dwg", "image/vnd.dwg"), MimeStatic(".dxf", "image/vnd.dwg"), MimeStatic(".dxr", "application/x-director"), MimeStatic(".el", "text/x-script.elisp"), MimeStatic(".elc", "application/x-bytecode.elisp"), MimeStatic(".env", "application/x-envoy"), MimeStatic(".eps", "application/postscript"), MimeStatic(".es", "application/x-esrehber"), MimeStatic(".etx", "text/x-setext"), MimeStatic(".evy", "application/x-envoy"), MimeStatic(".exe", "application/octet-stream"), MimeStatic(".f", "text/x-fortran"), MimeStatic(".f77", "text/x-fortran"), MimeStatic(".f90", "text/x-fortran"), MimeStatic(".fdf", "application/vnd.fdf"), MimeStatic(".fif", "image/fif"), MimeStatic(".fli", "video/x-fli"), MimeStatic(".flo", "image/florian"), MimeStatic(".flx", "text/vnd.fmi.flexstor"), MimeStatic(".fmf", "video/x-atomic3d-feature"), MimeStatic(".for", "text/x-fortran"), MimeStatic(".fpx", "image/vnd.fpx"), MimeStatic(".frl", "application/freeloader"), MimeStatic(".funk", "audio/make"), MimeStatic(".g", "text/plain"), MimeStatic(".g3", "image/g3fax"), MimeStatic(".gif", "image/gif"), MimeStatic(".gl", "video/x-gl"), MimeStatic(".gsd", "audio/x-gsm"), MimeStatic(".gsm", "audio/x-gsm"), MimeStatic(".gsp", "application/x-gsp"), MimeStatic(".gss", "application/x-gss"), MimeStatic(".gtar", "application/x-gtar"), MimeStatic(".gz", "application/x-gzip"), MimeStatic(".h", "text/x-h"), MimeStatic(".hdf", "application/x-hdf"), MimeStatic(".help", "application/x-helpfile"), MimeStatic(".hgl", "application/vnd.hp-hpgl"), MimeStatic(".hh", "text/x-h"), MimeStatic(".hlb", "text/x-script"), MimeStatic(".hlp", "application/x-helpfile"), MimeStatic(".hpg", "application/vnd.hp-hpgl"), MimeStatic(".hpgl", "application/vnd.hp-hpgl"), MimeStatic(".hqx", "application/binhex"), MimeStatic(".hta", "application/hta"), MimeStatic(".htc", "text/x-component"), MimeStatic(".htm", "text/html"), MimeStatic(".html", "text/html"), MimeStatic(".htmls", "text/html"), MimeStatic(".htt", "text/webviewhtml"), MimeStatic(".htx", "text/html"), MimeStatic(".ice", "x-conference/x-cooltalk"), MimeStatic(".ico", "image/x-icon"), MimeStatic(".idc", "text/plain"), MimeStatic(".ief", "image/ief"), MimeStatic(".iefs", "image/ief"), MimeStatic(".iges", "model/iges"), MimeStatic(".igs", "model/iges"), MimeStatic(".ima", "application/x-ima"), MimeStatic(".imap", "application/x-httpd-imap"), MimeStatic(".inf", "application/inf"), MimeStatic(".ins", "application/x-internett-signup"), MimeStatic(".ip", "application/x-ip2"), MimeStatic(".isu", "video/x-isvideo"), MimeStatic(".it", "audio/it"), MimeStatic(".iv", "application/x-inventor"), MimeStatic(".ivr", "i-world/i-vrml"), MimeStatic(".ivy", "application/x-livescreen"), MimeStatic(".jam", "audio/x-jam"), MimeStatic(".jav", "text/x-java-source"), MimeStatic(".java", "text/x-java-source"), MimeStatic(".jcm", "application/x-java-commerce"), MimeStatic(".jfif", "image/jpeg"), MimeStatic(".jfif-tbnl", "image/jpeg"), MimeStatic(".jpe", "image/jpeg"), MimeStatic(".jpeg", "image/jpeg"), MimeStatic(".jpg", "image/jpeg"), MimeStatic(".jpm", "image/jpm"), MimeStatic(".jps", "image/x-jps"), MimeStatic(".jpx", "image/jpx"), MimeStatic(".js", "application/x-javascript"), MimeStatic(".json", "application/json"), MimeStatic(".jut", "image/jutvision"), MimeStatic(".kar", "music/x-karaoke"), MimeStatic(".kml", "application/vnd.google-earth.kml+xml"), MimeStatic(".kmz", "application/vnd.google-earth.kmz"), MimeStatic(".ksh", "text/x-script.ksh"), MimeStatic(".la", "audio/x-nspaudio"), MimeStatic(".lam", "audio/x-liveaudio"), MimeStatic(".latex", "application/x-latex"), MimeStatic(".lha", "application/x-lha"), MimeStatic(".lhx", "application/octet-stream"), MimeStatic(".lib", "application/octet-stream"), MimeStatic(".list", "text/plain"), MimeStatic(".lma", "audio/x-nspaudio"), MimeStatic(".log", "text/plain"), MimeStatic(".lsp", "text/x-script.lisp"), MimeStatic(".lst", "text/plain"), MimeStatic(".lsx", "text/x-la-asf"), MimeStatic(".ltx", "application/x-latex"), MimeStatic(".lzh", "application/x-lzh"), MimeStatic(".lzx", "application/x-lzx"), MimeStatic(".m", "text/x-m"), MimeStatic(".m1v", "video/mpeg"), MimeStatic(".m2a", "audio/mpeg"), MimeStatic(".m2v", "video/mpeg"), MimeStatic(".m3u", "audio/x-mpegurl"), MimeStatic(".m4v", "video/x-m4v"), MimeStatic(".man", "application/x-troff-man"), MimeStatic(".map", "application/x-navimap"), MimeStatic(".mar", "text/plain"), MimeStatic(".mbd", "application/mbedlet"), MimeStatic(".mc$", "application/x-magic-cap-package-1.0"), MimeStatic(".mcd", "application/x-mathcad"), MimeStatic(".mcf", "text/mcf"), MimeStatic(".mcp", "application/netmc"), MimeStatic(".me", "application/x-troff-me"), MimeStatic(".mht", "message/rfc822"), MimeStatic(".mhtml", "message/rfc822"), MimeStatic(".mid", "audio/x-midi"), MimeStatic(".midi", "audio/x-midi"), MimeStatic(".mif", "application/x-mif"), MimeStatic(".mime", "www/mime"), MimeStatic(".mjf", "audio/x-vnd.audioexplosion.mjuicemediafile"), MimeStatic(".mjpg", "video/x-motion-jpeg"), MimeStatic(".mm", "application/base64"), MimeStatic(".mme", "application/base64"), MimeStatic(".mod", "audio/x-mod"), MimeStatic(".moov", "video/quicktime"), MimeStatic(".mov", "video/quicktime"), MimeStatic(".movie", "video/x-sgi-movie"), MimeStatic(".mp2", "video/x-mpeg"), MimeStatic(".mp3", "audio/x-mpeg-3"), MimeStatic(".mp4", "video/mp4"), MimeStatic(".mpa", "audio/mpeg"), MimeStatic(".mpc", "application/x-project"), MimeStatic(".mpeg", "video/mpeg"), MimeStatic(".mpg", "video/mpeg"), MimeStatic(".mpga", "audio/mpeg"), MimeStatic(".mpp", "application/vnd.ms-project"), MimeStatic(".mpt", "application/x-project"), MimeStatic(".mpv", "application/x-project"), MimeStatic(".mpx", "application/x-project"), MimeStatic(".mrc", "application/marc"), MimeStatic(".ms", "application/x-troff-ms"), MimeStatic(".mv", "video/x-sgi-movie"), MimeStatic(".my", "audio/make"), MimeStatic(".mzz", "application/x-vnd.audioexplosion.mzz"), MimeStatic(".nap", "image/naplps"), MimeStatic(".naplps", "image/naplps"), MimeStatic(".nc", "application/x-netcdf"), MimeStatic(".ncm", "application/vnd.nokia.configuration-message"), MimeStatic(".nif", "image/x-niff"), MimeStatic(".niff", "image/x-niff"), MimeStatic(".nix", "application/x-mix-transfer"), MimeStatic(".nsc", "application/x-conference"), MimeStatic(".nvd", "application/x-navidoc"), MimeStatic(".o", "application/octet-stream"), MimeStatic(".obj", "application/octet-stream"), MimeStatic(".oda", "application/oda"), MimeStatic(".oga", "audio/ogg"), MimeStatic(".ogg", "audio/ogg"), MimeStatic(".ogv", "video/ogg"), MimeStatic(".omc", "application/x-omc"), MimeStatic(".omcd", "application/x-omcdatamaker"), MimeStatic(".omcr", "application/x-omcregerator"), MimeStatic(".otf", "application/font-sfnt"), MimeStatic(".p", "text/x-pascal"), MimeStatic(".p10", "application/x-pkcs10"), MimeStatic(".p12", "application/x-pkcs12"), MimeStatic(".p7a", "application/x-pkcs7-signature"), MimeStatic(".p7c", "application/x-pkcs7-mime"), MimeStatic(".p7m", "application/x-pkcs7-mime"), MimeStatic(".p7r", "application/x-pkcs7-certreqresp"), MimeStatic(".p7s", "application/pkcs7-signature"), MimeStatic(".part", "application/pro_eng"), MimeStatic(".pas", "text/x-pascal"), MimeStatic(".pbm", "image/x-portable-bitmap"), MimeStatic(".pcl", "application/vnd.hp-pcl"), MimeStatic(".pct", "image/x-pct"), MimeStatic(".pcx", "image/x-pcx"), MimeStatic(".pdb", "chemical/x-pdb"), MimeStatic(".pdf", "application/pdf"), MimeStatic(".pfr", "application/font-tdpfr"), MimeStatic(".pfunk", "audio/make"), MimeStatic(".pgm", "image/x-portable-greymap"), MimeStatic(".pic", "image/pict"), MimeStatic(".pict", "image/pict"), MimeStatic(".pkg", "application/x-newton-compatible-pkg"), MimeStatic(".pko", "application/vnd.ms-pki.pko"), MimeStatic(".pl", "text/x-script.perl"), MimeStatic(".plx", "application/x-pixelscript"), MimeStatic(".pm", "text/x-script.perl-module"), MimeStatic(".pm4", "application/x-pagemaker"), MimeStatic(".pm5", "application/x-pagemaker"), MimeStatic(".png", "image/png"), MimeStatic(".pnm", "image/x-portable-anymap"), MimeStatic(".pot", "application/vnd.ms-powerpoint"), MimeStatic(".pov", "model/x-pov"), MimeStatic(".ppa", "application/vnd.ms-powerpoint"), MimeStatic(".ppm", "image/x-portable-pixmap"), MimeStatic(".pps", "application/vnd.ms-powerpoint"), MimeStatic(".ppt", "application/vnd.ms-powerpoint"), MimeStatic(".ppz", "application/vnd.ms-powerpoint"), MimeStatic(".pre", "application/x-freelance"), MimeStatic(".prt", "application/pro_eng"), MimeStatic(".ps", "application/postscript"), MimeStatic(".psd", "application/octet-stream"), MimeStatic(".pvu", "paleovu/x-pv"), MimeStatic(".pwz", "application/vnd.ms-powerpoint"), MimeStatic(".py", "text/x-script.python"), MimeStatic(".pyc", "application/x-bytecode.python"), MimeStatic(".qcp", "audio/vnd.qcelp"), MimeStatic(".qd3", "x-world/x-3dmf"), MimeStatic(".qd3d", "x-world/x-3dmf"), MimeStatic(".qif", "image/x-quicktime"), MimeStatic(".qt", "video/quicktime"), MimeStatic(".qtc", "video/x-qtc"), MimeStatic(".qti", "image/x-quicktime"), MimeStatic(".qtif", "image/x-quicktime"), MimeStatic(".ra", "audio/x-pn-realaudio"), MimeStatic(".ram", "audio/x-pn-realaudio"), MimeStatic(".rar", "application/x-arj-compressed"), MimeStatic(".ras", "image/x-cmu-raster"), MimeStatic(".rast", "image/cmu-raster"), MimeStatic(".rexx", "text/x-script.rexx"), MimeStatic(".rf", "image/vnd.rn-realflash"), MimeStatic(".rgb", "image/x-rgb"), MimeStatic(".rm", "audio/x-pn-realaudio"), MimeStatic(".rmi", "audio/mid"), MimeStatic(".rmm", "audio/x-pn-realaudio"), MimeStatic(".rmp", "audio/x-pn-realaudio"), MimeStatic(".rng", "application/vnd.nokia.ringing-tone"), MimeStatic(".rnx", "application/vnd.rn-realplayer"), MimeStatic(".roff", "application/x-troff"), MimeStatic(".rp", "image/vnd.rn-realpix"), MimeStatic(".rpm", "audio/x-pn-realaudio-plugin"), MimeStatic(".rt", "text/vnd.rn-realtext"), MimeStatic(".rtf", "application/x-rtf"), MimeStatic(".rtx", "application/x-rtf"), MimeStatic(".rv", "video/vnd.rn-realvideo"), MimeStatic(".s", "text/x-asm"), MimeStatic(".s3m", "audio/s3m"), MimeStatic(".saveme", "application/octet-stream"), MimeStatic(".sbk", "application/x-tbook"), MimeStatic(".scm", "text/x-script.scheme"), MimeStatic(".sdml", "text/plain"), MimeStatic(".sdp", "application/x-sdp"), MimeStatic(".sdr", "application/sounder"), MimeStatic(".sea", "application/x-sea"), MimeStatic(".set", "application/set"), MimeStatic(".sgm", "text/x-sgml"), MimeStatic(".sgml", "text/x-sgml"), MimeStatic(".sh", "text/x-script.sh"), MimeStatic(".shar", "application/x-shar"), MimeStatic(".shtm", "text/html"), MimeStatic(".shtml", "text/html"), MimeStatic(".sid", "audio/x-psid"), MimeStatic(".sil", "application/font-sfnt"), MimeStatic(".sit", "application/x-sit"), MimeStatic(".skd", "application/x-koan"), MimeStatic(".skm", "application/x-koan"), MimeStatic(".skp", "application/x-koan"), MimeStatic(".skt", "application/x-koan"), MimeStatic(".sl", "application/x-seelogo"), MimeStatic(".smi", "application/smil"), MimeStatic(".smil", "application/smil"), MimeStatic(".snd", "audio/x-adpcm"), MimeStatic(".so", "application/octet-stream"), MimeStatic(".sol", "application/solids"), MimeStatic(".spc", "text/x-speech"), MimeStatic(".spl", "application/futuresplash"), MimeStatic(".spr", "application/x-sprite"), MimeStatic(".sprite", "application/x-sprite"), MimeStatic(".src", "application/x-wais-source"), MimeStatic(".ssi", "text/x-server-parsed-html"), MimeStatic(".ssm", "application/streamingmedia"), MimeStatic(".sst", "application/vnd.ms-pki.certstore"), MimeStatic(".step", "application/step"), MimeStatic(".stl", "application/vnd.ms-pki.stl"), MimeStatic(".stp", "application/step"), MimeStatic(".sv4cpio", "application/x-sv4cpio"), MimeStatic(".sv4crc", "application/x-sv4crc"), MimeStatic(".svf", "image/x-dwg"), MimeStatic(".svg", "image/svg+xml"), MimeStatic(".svr", "x-world/x-svr"), MimeStatic(".swf", "application/x-shockwave-flash"), MimeStatic(".t", "application/x-troff"), MimeStatic(".talk", "text/x-speech"), MimeStatic(".tar", "application/x-tar"), MimeStatic(".tbk", "application/x-tbook"), MimeStatic(".tcl", "text/x-script.tcl"), MimeStatic(".tcsh", "text/x-script.tcsh"), MimeStatic(".tex", "application/x-tex"), MimeStatic(".texi", "application/x-texinfo"), MimeStatic(".texinfo", "application/x-texinfo"), MimeStatic(".text", "text/plain"), MimeStatic(".tgz", "application/x-compressed"), MimeStatic(".tif", "image/x-tiff"), MimeStatic(".tiff", "image/x-tiff"), MimeStatic(".torrent", "application/x-bittorrent"), MimeStatic(".tr", "application/x-troff"), MimeStatic(".tsi", "audio/tsp-audio"), MimeStatic(".tsp", "audio/tsplayer"), MimeStatic(".tsv", "text/tab-separated-values"), MimeStatic(".ttf", "application/font-sfnt"), MimeStatic(".turbot", "image/florian"), MimeStatic(".txt", "text/plain"), MimeStatic(".uil", "text/x-uil"), MimeStatic(".uni", "text/uri-list"), MimeStatic(".unis", "text/uri-list"), MimeStatic(".unv", "application/i-deas"), MimeStatic(".uri", "text/uri-list"), MimeStatic(".uris", "text/uri-list"), MimeStatic(".ustar", "application/x-ustar"), MimeStatic(".uu", "text/x-uuencode"), MimeStatic(".uue", "text/x-uuencode"), MimeStatic(".vcd", "application/x-cdlink"), MimeStatic(".vcs", "text/x-vcalendar"), MimeStatic(".vda", "application/vda"), MimeStatic(".vdo", "video/vdo"), MimeStatic(".vew", "application/groupwise"), MimeStatic(".viv", "video/vnd.vivo"), MimeStatic(".vivo", "video/vnd.vivo"), MimeStatic(".vmd", "application/vocaltec-media-desc"), MimeStatic(".vmf", "application/vocaltec-media-resource"), MimeStatic(".voc", "audio/x-voc"), MimeStatic(".vos", "video/vosaic"), MimeStatic(".vox", "audio/voxware"), MimeStatic(".vqe", "audio/x-twinvq-plugin"), MimeStatic(".vqf", "audio/x-twinvq"), MimeStatic(".vql", "audio/x-twinvq-plugin"), MimeStatic(".vrml", "model/vrml"), MimeStatic(".vrt", "x-world/x-vrt"), MimeStatic(".vsd", "application/x-visio"), MimeStatic(".vst", "application/x-visio"), MimeStatic(".vsw", "application/x-visio"), MimeStatic(".w60", "application/wordperfect6.0"), MimeStatic(".w61", "application/wordperfect6.1"), MimeStatic(".w6w", "application/msword"), MimeStatic(".wav", "audio/x-wav"), MimeStatic(".wb1", "application/x-qpro"), MimeStatic(".wbmp", "image/vnd.wap.wbmp"), MimeStatic(".web", "application/vnd.xara"), MimeStatic(".webm", "video/webm"), MimeStatic(".wiz", "application/msword"), MimeStatic(".wk1", "application/x-123"), MimeStatic(".wmf", "windows/metafile"), MimeStatic(".wml", "text/vnd.wap.wml"), MimeStatic(".wmlc", "application/vnd.wap.wmlc"), MimeStatic(".wmls", "text/vnd.wap.wmlscript"), MimeStatic(".wmlsc", "application/vnd.wap.wmlscriptc"), MimeStatic(".woff", "application/font-woff"), MimeStatic(".word", "application/msword"), MimeStatic(".wp", "application/wordperfect"), MimeStatic(".wp5", "application/wordperfect"), MimeStatic(".wp6", "application/wordperfect"), MimeStatic(".wpd", "application/wordperfect"), MimeStatic(".wq1", "application/x-lotus"), MimeStatic(".wri", "application/x-wri"), MimeStatic(".wrl", "model/vrml"), MimeStatic(".wrz", "model/vrml"), MimeStatic(".wsc", "text/scriplet"), MimeStatic(".wsrc", "application/x-wais-source"), MimeStatic(".wtk", "application/x-wintalk"), MimeStatic(".x-png", "image/png"), MimeStatic(".xbm", "image/x-xbm"), MimeStatic(".xdr", "video/x-amt-demorun"), MimeStatic(".xgz", "xgl/drawing"), MimeStatic(".xhtml", "application/xhtml+xml"), MimeStatic(".xif", "image/vnd.xiff"), MimeStatic(".xl", "application/vnd.ms-excel"), MimeStatic(".xla", "application/vnd.ms-excel"), MimeStatic(".xlb", "application/vnd.ms-excel"), MimeStatic(".xlc", "application/vnd.ms-excel"), MimeStatic(".xld", "application/vnd.ms-excel"), MimeStatic(".xlk", "application/vnd.ms-excel"), MimeStatic(".xll", "application/vnd.ms-excel"), MimeStatic(".xlm", "application/vnd.ms-excel"), MimeStatic(".xls", "application/vnd.ms-excel"), MimeStatic(".xlt", "application/vnd.ms-excel"), MimeStatic(".xlv", "application/vnd.ms-excel"), MimeStatic(".xlw", "application/vnd.ms-excel"), MimeStatic(".xm", "audio/xm"), MimeStatic(".xml", "text/xml"), MimeStatic(".xmz", "xgl/movie"), MimeStatic(".xpix", "application/x-vnd.ls-xpix"), MimeStatic(".xpm", "image/x-xpixmap"), MimeStatic(".xsl", "application/xml"), MimeStatic(".xslt", "application/xml"), MimeStatic(".xsr", "video/x-amt-showrun"), MimeStatic(".xwd", "image/x-xwd"), MimeStatic(".xyz", "chemical/x-pdb"), MimeStatic(".z", "application/x-compressed"), MimeStatic(".zip", "application/x-zip-compressed"), MimeStatic(".zoo", "application/octet-stream"), MimeStatic(".zsh", "text/x-script.zsh") };
 
                 UInt64 PathLength = Path.size();
                 while (PathLength >= 1 && Path[PathLength - 1] != '.')
@@ -4315,8 +3845,8 @@ namespace Tomahawk
                 if (!Base)
                     return false;
 
-				if (!Base->Route)
-					return Base->Error(404, "Requested resource was not found.");
+                if (!Base->Route)
+                    return Base->Error(404, "Requested resource was not found.");
 
                 if (!Rest::OS::StateResource(Base->Request.Path, &Base->Resource))
                 {
@@ -4384,8 +3914,8 @@ namespace Tomahawk
                 if (!Base)
                     return false;
 
-				if (!Base->Route)
-					return Base->Error(404, "Requested resource was not found.");
+                if (!Base->Route)
+                    return Base->Error(404, "Requested resource was not found.");
 
                 if (!Rest::OS::StateResource(Base->Request.Path, &Base->Resource))
                 {
@@ -4472,8 +4002,7 @@ namespace Tomahawk
                     Rest::DateTime::TimeFormatGMT(Date, sizeof(Date), Base->Info.Start / 1000);
 
                     Rest::Stroke Content;
-                    Content.fAppend("%s 204 No Content\r\nDate: %s\r\n%sContent-Location: %s\r\n",
-                         Base->Request.Version, Date, Util::ConnectionResolve(Base).c_str(), Base->Request.URI.c_str());
+                    Content.fAppend("%s 204 No Content\r\nDate: %s\r\n%sContent-Location: %s\r\n", Base->Request.Version, Date, Util::ConnectionResolve(Base).c_str(), Base->Request.URI.c_str());
 
                     fclose(Stream);
                     if (Base->Route->Callbacks.Headers)
@@ -4523,8 +4052,7 @@ namespace Tomahawk
                 Rest::DateTime::TimeFormatGMT(Date, sizeof(Date), Base->Info.Start / 1000);
 
                 Rest::Stroke Content;
-                Content.fAppend("%s 204 No Content\r\nDate: %s\r\n%s",
-                                Base->Request.Version, Date, Util::ConnectionResolve(Base).c_str());
+                Content.fAppend("%s 204 No Content\r\nDate: %s\r\n%s", Base->Request.Version, Date, Util::ConnectionResolve(Base).c_str());
 
                 if (Base->Route->Callbacks.Headers)
                     Base->Route->Callbacks.Headers(Base, nullptr);
@@ -4546,8 +4074,8 @@ namespace Tomahawk
                 if (!Base)
                     return false;
 
-				if (!Base->Route)
-					return Base->Error(403, "Operation denied by server.");
+                if (!Base->Route)
+                    return Base->Error(403, "Operation denied by server.");
 
                 if (!Rest::OS::StateResource(Base->Request.Path, &Base->Resource))
                 {
@@ -4570,8 +4098,7 @@ namespace Tomahawk
                 Rest::DateTime::TimeFormatGMT(Date, sizeof(Date), Base->Info.Start / 1000);
 
                 Rest::Stroke Content;
-                Content.fAppend("%s 204 No Content\r\nDate: %s\r\n%sContent-Location: %s\r\n",
-                                Base->Request.Version, Date, Util::ConnectionResolve(Base).c_str(), Base->Request.URI.c_str());
+                Content.fAppend("%s 204 No Content\r\nDate: %s\r\n%sContent-Location: %s\r\n", Base->Request.Version, Date, Util::ConnectionResolve(Base).c_str(), Base->Request.URI.c_str());
 
                 if (Base->Route->Callbacks.Headers)
                     Base->Route->Callbacks.Headers(Base, nullptr);
@@ -4597,8 +4124,7 @@ namespace Tomahawk
                 Rest::DateTime::TimeFormatGMT(Date, sizeof(Date), Base->Info.Start / 1000);
 
                 Rest::Stroke Content;
-                Content.fAppend("%s 204 No Content\r\nDate: %s\r\n%sAllow: GET, POST, HEAD, PUT, DELETE, OPTIONS\r\n",
-                                Base->Request.Version, Date, Util::ConnectionResolve(Base).c_str());
+                Content.fAppend("%s 204 No Content\r\nDate: %s\r\n%sAllow: GET, POST, HEAD, PUT, DELETE, OPTIONS\r\n", Base->Request.Version, Date, Util::ConnectionResolve(Base).c_str());
 
                 if (Base->Route && Base->Route->Callbacks.Headers)
                     Base->Route->Callbacks.Headers(Base, &Content);
@@ -4628,8 +4154,7 @@ namespace Tomahawk
                 Rest::DateTime::TimeFormatGMT(Date, sizeof(Date), Base->Info.Start / 1000);
 
                 Rest::Stroke Content;
-                Content.fAppend("%s 200 OK\r\nDate: %s\r\n%sContent-Type: text/html; charset=%s\r\nAccept-Ranges: bytes\r\n", Base->Request.Version,
-					Date, ConnectionResolve(Base).c_str(), Base->Route->CharSet.c_str());
+                Content.fAppend("%s 200 OK\r\nDate: %s\r\n%sContent-Type: text/html; charset=%s\r\nAccept-Ranges: bytes\r\n", Base->Request.Version, Date, ConnectionResolve(Base).c_str(), Base->Route->CharSet.c_str());
 
                 ConstructHeadCache(Base, &Content);
                 if (Base->Route->Callbacks.Headers)
@@ -4645,16 +4170,15 @@ namespace Tomahawk
                 if (Base->Request.URI.size() > 1)
                     Parent = Rest::OS::FileDirectory(Base->Request.URI.substr(0, Base->Request.URI.size() - 1));
 
-                Base->Response.Buffer =
-                    "<html><head><title>Index of " + Name + "</title>"
-                    "<style>th {text-align: left;}</style></head>"
-                    "<body><h1>Index of " + Name + "</h1><pre><table cellpadding=\"0\">"
-                    "<tr><th><a href=\"?n" + Direction + "\">Name</a></th>"
-                    "<th><a href=\"?d" + Direction + "\">Modified</a></th>"
-                    "<th><a href=\"?s" + Direction + "\">Size</a></th></tr>"
-                    "<tr><td colspan=\"3\"><hr></td></tr>"
-                    "<tr><td><a href=\"" + Parent + "\">Parent directory</a></td>"
-                    "<td>&nbsp;-</td><td>&nbsp;&nbsp;-</td></tr>";
+                Base->Response.Buffer = "<html><head><title>Index of " + Name + "</title>"
+                                                                                "<style>th {text-align: left;}</style></head>"
+                                                                                "<body><h1>Index of " + Name + "</h1><pre><table cellpadding=\"0\">"
+                                                                                                               "<tr><th><a href=\"?n" + Direction + "\">Name</a></th>"
+                                                                                                                                                    "<th><a href=\"?d" + Direction + "\">Modified</a></th>"
+                                                                                                                                                                                     "<th><a href=\"?s" + Direction + "\">Size</a></th></tr>"
+                                                                                                                                                                                                                      "<tr><td colspan=\"3\"><hr></td></tr>"
+                                                                                                                                                                                                                      "<tr><td><a href=\"" + Parent + "\">Parent directory</a></td>"
+                                                                                                                                                                                                                                                      "<td>&nbsp;-</td><td>&nbsp;&nbsp;-</td></tr>";
 
                 for (auto It = Entries.begin(); It != Entries.end(); It++)
                     It->UserData = Base;
@@ -4685,9 +4209,9 @@ namespace Tomahawk
 
                     std::string URI = Compute::MathCommon::URIEncode(It->Path);
                     std::string HREF = (Base->Request.URI + ((*(Base->Request.URI.c_str() + 1) != '\0' && Base->Request.URI[Base->Request.URI.size() - 1] != '/') ? "/" : "") + URI);
-					if (It->Source.IsDirectory && !Rest::Stroke(&HREF).EndsOf("/\\"))
-						HREF.append(1, '/');
-						
+                    if (It->Source.IsDirectory && !Rest::Stroke(&HREF).EndsOf("/\\"))
+                        HREF.append(1, '/');
+
                     Base->Response.Buffer.append("<tr><td><a href=\"" + HREF + "\">" + It->Path + "</a></td><td>&nbsp;" + Date + "</td><td>&nbsp;&nbsp;" + Size + "</td></tr>\n");
                 }
                 Base->Response.Buffer.append("</table></pre></body></html>");
@@ -4787,7 +4311,7 @@ namespace Tomahawk
                 }
 #endif
                 const char* Origin = Base->Request.GetHeader("Origin");
-                const char* CORS1 = "", *CORS2 = "", *CORS3 = "";
+                const char* CORS1 = "", * CORS2 = "", * CORS3 = "";
                 if (Origin != nullptr)
                 {
                     CORS1 = "Access-Control-Allow-Origin: ";
@@ -4811,14 +4335,11 @@ namespace Tomahawk
                 if (Base->Route->Callbacks.Headers)
                     Base->Route->Callbacks.Headers(Base, &Content);
 
-                Content.fAppend(
-                        "Accept-Ranges: bytes\r\n"
-                        "Last-Modified: %s\r\nEtag: %s\r\n"
-                        "Content-Type: %s; charset=%s\r\n"
-                        "Content-Length: %lld\r\n"
-                        "%s%s\r\n",
-                        LastModified, ETag, ContentType, Base->Route->CharSet.c_str(), ContentLength,
-                        Util::ConnectionResolve(Base).c_str(), ContentRange);
+                Content.fAppend("Accept-Ranges: bytes\r\n"
+                                "Last-Modified: %s\r\nEtag: %s\r\n"
+                                "Content-Type: %s; charset=%s\r\n"
+                                "Content-Length: %lld\r\n"
+                                "%s%s\r\n", LastModified, ETag, ContentType, Base->Route->CharSet.c_str(), ContentLength, Util::ConnectionResolve(Base).c_str(), ContentRange);
 
                 if (!ContentLength || !strcmp(Base->Request.Method, "HEAD"))
                 {
@@ -4858,7 +4379,7 @@ namespace Tomahawk
                 Int64 ContentLength = Base->Resource.Size;
 
                 const char* Origin = Base->Request.GetHeader("Origin");
-                const char* CORS1 = "", *CORS2 = "", *CORS3 = "";
+                const char* CORS1 = "", * CORS2 = "", * CORS3 = "";
                 if (Origin != nullptr)
                 {
                     CORS1 = "Access-Control-Allow-Origin: ";
@@ -4882,15 +4403,12 @@ namespace Tomahawk
                 if (Base->Route->Callbacks.Headers)
                     Base->Route->Callbacks.Headers(Base, &Content);
 
-                Content.fAppend(
-                        "Accept-Ranges: bytes\r\n"
-                        "Last-Modified: %s\r\nEtag: %s\r\n"
-                        "Content-Type: %s; charset=%s\r\n"
-                        "Content-Encoding: %s\r\n"
-                        "Transfer-Encoding: chunked\r\n"
-                        "%s%s\r\n",
-                        LastModified, ETag, ContentType, Base->Route->CharSet.c_str(), (Gzip ? "gzip" : "deflate"),
-                        Util::ConnectionResolve(Base).c_str(), ContentRange);
+                Content.fAppend("Accept-Ranges: bytes\r\n"
+                                "Last-Modified: %s\r\nEtag: %s\r\n"
+                                "Content-Type: %s; charset=%s\r\n"
+                                "Content-Encoding: %s\r\n"
+                                "Transfer-Encoding: chunked\r\n"
+                                "%s%s\r\n", LastModified, ETag, ContentType, Base->Route->CharSet.c_str(), (Gzip ? "gzip" : "deflate"), Util::ConnectionResolve(Base).c_str(), ContentRange);
 
                 if (!ContentLength || !strcmp(Base->Request.Method, "HEAD"))
                 {
@@ -5164,7 +4682,8 @@ namespace Tomahawk
                         int Size = Base->Stream->Write(Deflate + Offset, Read);
                         if (Size < 0)
                         {
-                            fclose(Stream); deflateEnd(&ZStream);
+                            fclose(Stream);
+                            deflateEnd(&ZStream);
                             if (Server->State != ServerState_Working)
                                 return false;
 
@@ -5180,7 +4699,8 @@ namespace Tomahawk
                     Base->Stream->Write("\r\n", 2);
                 }
 
-                fclose(Stream); deflateEnd(&ZStream);
+                fclose(Stream);
+                deflateEnd(&ZStream);
                 if (Server->State != ServerState_Working)
                     return false;
 
@@ -5252,11 +4772,10 @@ namespace Tomahawk
                 Compute::MathCommon::Sha1Compute(Buffer, (int)strlen(Buffer), (unsigned char*)Encoded20);
 
                 Rest::Stroke Content;
-                Content.fAppend(
-                        "HTTP/1.1 101 Switching Protocols\r\n"
-                        "Upgrade: websocket\r\n"
-                        "Connection: Upgrade\r\n"
-                        "Sec-WebSocket-Accept: %s\r\n", Compute::MathCommon::Base64Encode((const unsigned char*)Encoded20, 20).c_str());
+                Content.fAppend("HTTP/1.1 101 Switching Protocols\r\n"
+                                "Upgrade: websocket\r\n"
+                                "Connection: Upgrade\r\n"
+                                "Sec-WebSocket-Accept: %s\r\n", Compute::MathCommon::Base64Encode((const unsigned char*)Encoded20, 20).c_str());
 
                 const char* Protocol = Base->Request.GetHeader("Sec-WebSocket-Protocol");
                 if (Protocol != nullptr)
@@ -5338,7 +4857,7 @@ namespace Tomahawk
                     else if (Base->Request.Buffer.size() >= 10 + Base->WebSocket->MaskLength + 10)
                     {
                         Base->WebSocket->HeaderLength = Base->WebSocket->MaskLength + 10;
-                        Base->WebSocket->DataLength = (((uint64_t)ntohl(*(uint32_t *)(void *)&Base->Request.Buffer[2])) << 32) + ntohl(*(uint32_t *)(void *)&Base->Request.Buffer[6]);
+                        Base->WebSocket->DataLength = (((uint64_t)ntohl(*(uint32_t*)(void*)&Base->Request.Buffer[2])) << 32) + ntohl(*(uint32_t*)(void*)&Base->Request.Buffer[6]);
                     }
                 }
 
@@ -5446,61 +4965,61 @@ namespace Tomahawk
             }
             Server::~Server()
             {
-				Unlisten();
+                Unlisten();
             }
             bool Server::OnConfigure(SocketRouter* NewRouter)
             {
                 std::string Directory = Rest::OS::GetDirectory();
                 auto* Root = (MapRouter*)NewRouter;
 
-				for (auto K = Root->Sites.begin(); K != Root->Sites.end(); K++)
-				{
-					SiteEntry* Entry = *K;
-					Entry->Gateway.ModuleRoot = Rest::OS::ResolveDir(Entry->Gateway.ModuleRoot.c_str());
-					Entry->Gateway.Session.DocumentRoot = Rest::OS::ResolveDir(Entry->Gateway.Session.DocumentRoot.c_str());
-					Entry->ResourceRoot = Rest::OS::ResolveDir(Entry->ResourceRoot.c_str());
-					Entry->Base->URI.Regex = "/";
-					Entry->Base->DocumentRoot = Rest::OS::ResolveDir(Entry->Base->DocumentRoot.c_str());
-					Entry->Base->Site = Entry;
-					Entry->Router = Root;
+                for (auto K = Root->Sites.begin(); K != Root->Sites.end(); K++)
+                {
+                    SiteEntry* Entry = *K;
+                    Entry->Gateway.ModuleRoot = Rest::OS::ResolveDir(Entry->Gateway.ModuleRoot.c_str());
+                    Entry->Gateway.Session.DocumentRoot = Rest::OS::ResolveDir(Entry->Gateway.Session.DocumentRoot.c_str());
+                    Entry->ResourceRoot = Rest::OS::ResolveDir(Entry->ResourceRoot.c_str());
+                    Entry->Base->URI.Regex = "/";
+                    Entry->Base->DocumentRoot = Rest::OS::ResolveDir(Entry->Base->DocumentRoot.c_str());
+                    Entry->Base->Site = Entry;
+                    Entry->Router = Root;
 
-					if (Entry->Hosts.empty())
-					    THAWK_WARN("site \"%s\" has no hosts", Entry->SiteName.c_str());
+                    if (Entry->Hosts.empty())
+                        THAWK_WARN("site \"%s\" has no hosts", Entry->SiteName.c_str());
 
-					if (!Entry->Base->Default.empty())
-						Entry->Base->Default = Rest::OS::Resolve((Entry->Base->DocumentRoot + Entry->Base->Default).c_str());
+                    if (!Entry->Base->Default.empty())
+                        Entry->Base->Default = Rest::OS::Resolve((Entry->Base->DocumentRoot + Entry->Base->Default).c_str());
 
-					for (auto It = Entry->Base->ErrorFiles.begin(); It < Entry->Base->ErrorFiles.end(); It++)
-						It->Pattern = Rest::OS::Resolve(It->Pattern.c_str());
+                    for (auto It = Entry->Base->ErrorFiles.begin(); It < Entry->Base->ErrorFiles.end(); It++)
+                        It->Pattern = Rest::OS::Resolve(It->Pattern.c_str());
 
-					for (auto It = Entry->Routes.begin(); It != Entry->Routes.end(); It++)
-					{
-						HTTP::RouteEntry* Route = *It;
-						Route->DocumentRoot = Rest::OS::ResolveDir(Route->DocumentRoot.c_str());
-						Route->Site = Entry;
+                    for (auto It = Entry->Routes.begin(); It != Entry->Routes.end(); It++)
+                    {
+                        HTTP::RouteEntry* Route = *It;
+                        Route->DocumentRoot = Rest::OS::ResolveDir(Route->DocumentRoot.c_str());
+                        Route->Site = Entry;
 
-						if (!Route->Default.empty())
-							Route->Default = Rest::OS::Resolve((Route->DocumentRoot + Route->Default).c_str());
+                        if (!Route->Default.empty())
+                            Route->Default = Rest::OS::Resolve((Route->DocumentRoot + Route->Default).c_str());
 
-						for (auto J = Route->ErrorFiles.begin(); J < Route->ErrorFiles.end(); J++)
-							J->Pattern = Rest::OS::Resolve(J->Pattern.c_str());
-					}
+                        for (auto J = Route->ErrorFiles.begin(); J < Route->ErrorFiles.end(); J++)
+                            J->Pattern = Rest::OS::Resolve(J->Pattern.c_str());
+                    }
 
-					qsort((void*)Entry->Routes.data(), (size_t)Entry->Routes.size(), sizeof(HTTP::RouteEntry*), [](const void* A1, const void* B1) -> int
-					{
-						HTTP::RouteEntry* A = *(HTTP::RouteEntry**)B1;
-						A->URI.Flags = Compute::RegexFlags_IgnoreCase;
-						if (!A || A->URI.Regex.empty())
-							return -1;
+                    qsort((void*)Entry->Routes.data(), (size_t)Entry->Routes.size(), sizeof(HTTP::RouteEntry*), [](const void* A1, const void* B1) -> int
+                    {
+                        HTTP::RouteEntry* A = *(HTTP::RouteEntry**)B1;
+                        A->URI.Flags = Compute::RegexFlags_IgnoreCase;
+                        if (!A || A->URI.Regex.empty())
+                            return -1;
 
-						HTTP::RouteEntry* B = *(HTTP::RouteEntry**)A1;
-						B->URI.Flags = Compute::RegexFlags_IgnoreCase;
-						if (!B || B->URI.Regex.empty())
-							return 1;
+                        HTTP::RouteEntry* B = *(HTTP::RouteEntry**)A1;
+                        B->URI.Flags = Compute::RegexFlags_IgnoreCase;
+                        if (!B || B->URI.Regex.empty())
+                            return 1;
 
-						return (int)A->URI.Regex.size() - (int)B->URI.Regex.size();
-					});
-				}
+                        return (int)A->URI.Regex.size() - (int)B->URI.Regex.size();
+                    });
+                }
 
                 return true;
             }
@@ -5563,124 +5082,124 @@ namespace Tomahawk
             }
             bool Server::OnRequestBegin(SocketConnection* Base)
             {
-				auto Conf = (MapRouter*)Router;
-				return Base->Stream->ReadUntilAsync("\r\n\r\n", [Conf](Socket* Fd, const char* Buffer, Int64 Size)
-				{
-					auto Base = Fd->Context<HTTP::Connection>();
-					if (Size > 0)
-					{
-						Base->Request.Buffer.append(Buffer, Size);
-						return true;
-					}
-					else if (Size < 0)
-						return Base->Break();
+                auto Conf = (MapRouter*)Router;
+                return Base->Stream->ReadUntilAsync("\r\n\r\n", [Conf](Socket* Fd, const char* Buffer, Int64 Size)
+                {
+                    auto Base = Fd->Context<HTTP::Connection>();
+                    if (Size > 0)
+                    {
+                        Base->Request.Buffer.append(Buffer, Size);
+                        return true;
+                    }
+                    else if (Size < 0)
+                        return Base->Break();
 
-					ParserFrame Segment;
-					Segment.Request = &Base->Request;
+                    ParserFrame Segment;
+                    Segment.Request = &Base->Request;
 
                     HTTP::Parser* Parser = new HTTP::Parser();
-					Parser->OnMethodValue = Util::ParseMethodValue;
-					Parser->OnPathValue = Util::ParsePathValue;
-					Parser->OnQueryValue = Util::ParseQueryValue;
-					Parser->OnVersion = Util::ParseVersion;
-					Parser->OnHeaderField = Util::ParseHeaderField;
-					Parser->OnHeaderValue = Util::ParseHeaderValue;
-					Parser->UserPointer = &Segment;
+                    Parser->OnMethodValue = Util::ParseMethodValue;
+                    Parser->OnPathValue = Util::ParsePathValue;
+                    Parser->OnQueryValue = Util::ParseQueryValue;
+                    Parser->OnVersion = Util::ParseVersion;
+                    Parser->OnHeaderField = Util::ParseHeaderField;
+                    Parser->OnHeaderValue = Util::ParseHeaderValue;
+                    Parser->UserPointer = &Segment;
 
-					strcpy(Base->Request.RemoteAddress, Base->Stream->GetRemoteAddress().c_str());
-					Base->Info.Start = Multiplexer::Clock();
+                    strcpy(Base->Request.RemoteAddress, Base->Stream->GetRemoteAddress().c_str());
+                    Base->Info.Start = Multiplexer::Clock();
 
-					if (Parser->ParseRequest(Base->Request.Buffer.c_str(), Base->Request.Buffer.size(), 0) < 0)
-					{
-						Base->Request.Buffer.clear();
-						delete Parser;
+                    if (Parser->ParseRequest(Base->Request.Buffer.c_str(), Base->Request.Buffer.size(), 0) < 0)
+                    {
+                        Base->Request.Buffer.clear();
+                        delete Parser;
 
-						return Base->Error(400, "Invalid request was provided by client");
-					}
+                        return Base->Error(400, "Invalid request was provided by client");
+                    }
 
-					Base->Request.Buffer.clear();
-					delete Parser;
+                    Base->Request.Buffer.clear();
+                    delete Parser;
 
-					if (!Util::ConstructRoute(Conf, Base) || !Base->Route)
-						return Base->Error(400, "Request cannot be resolved");
+                    if (!Util::ConstructRoute(Conf, Base) || !Base->Route)
+                        return Base->Error(400, "Request cannot be resolved");
 
-					if (!Base->Route->Refer.empty())
-					{
-						Base->Request.URI = Base->Route->Refer;
-						if (!Util::ConstructRoute(Conf, Base))
-							Base->Route = Base->Route->Site->Base;
-					}
+                    if (!Base->Route->Refer.empty())
+                    {
+                        Base->Request.URI = Base->Route->Refer;
+                        if (!Util::ConstructRoute(Conf, Base))
+                            Base->Route = Base->Route->Site->Base;
+                    }
 
-					const char* ContentLength = Base->Request.GetHeader("Content-Length");
-					if (ContentLength != nullptr)
-					{
-						Int64 Len = std::atoll(ContentLength);
-						Base->Request.ContentLength = (Len <= 0 ? 0 : Len);
-					}
+                    const char* ContentLength = Base->Request.GetHeader("Content-Length");
+                    if (ContentLength != nullptr)
+                    {
+                        Int64 Len = std::atoll(ContentLength);
+                        Base->Request.ContentLength = (Len <= 0 ? 0 : Len);
+                    }
 
-					Base->Stream->SetTimeWait((int)Base->Route->GracefulTimeWait);
-					if (!Base->Request.ContentLength)
-						Base->Request.ContentState = Content_Empty;
+                    Base->Stream->SetTimeWait((int)Base->Route->GracefulTimeWait);
+                    if (!Base->Request.ContentLength)
+                        Base->Request.ContentState = Content_Empty;
 
-					if (!Base->Route->ProxyIpAddress.empty())
-					{
-						const char* Address = Base->Request.GetHeader(Base->Route->ProxyIpAddress.c_str());
-						if (Address != nullptr)
-							strcpy(Base->Request.RemoteAddress, Address);
-					}
+                    if (!Base->Route->ProxyIpAddress.empty())
+                    {
+                        const char* Address = Base->Request.GetHeader(Base->Route->ProxyIpAddress.c_str());
+                        if (Address != nullptr)
+                            strcpy(Base->Request.RemoteAddress, Address);
+                    }
 
-					Util::ConstructPath(Base);
-					if (!Util::MethodAllowed(Base))
-						return Base->Error(405, "Requested method \"%s\" is not allowed on this server", Base->Request.Method);
+                    Util::ConstructPath(Base);
+                    if (!Util::MethodAllowed(Base))
+                        return Base->Error(405, "Requested method \"%s\" is not allowed on this server", Base->Request.Method);
 
-					if (!Util::Authorize(Base))
-						return false;
+                    if (!Util::Authorize(Base))
+                        return false;
 
-					if (!memcmp(Base->Request.Method, "GET", 3) || !memcmp(Base->Request.Method, "HEAD", 4))
-					{
-						if (Base->Route->Callbacks.Get)
-							return Base->Route->Callbacks.Get(Base);
+                    if (!memcmp(Base->Request.Method, "GET", 3) || !memcmp(Base->Request.Method, "HEAD", 4))
+                    {
+                        if (Base->Route->Callbacks.Get)
+                            return Base->Route->Callbacks.Get(Base);
 
-						return Util::RouteGET(Base);
-					}
-					else if (!memcmp(Base->Request.Method, "POST", 4))
-					{
-						if (Base->Route->Callbacks.Post)
-							return Base->Route->Callbacks.Post(Base);
+                        return Util::RouteGET(Base);
+                    }
+                    else if (!memcmp(Base->Request.Method, "POST", 4))
+                    {
+                        if (Base->Route->Callbacks.Post)
+                            return Base->Route->Callbacks.Post(Base);
 
-						return Util::RoutePOST(Base);
-					}
-					else if (!memcmp(Base->Request.Method, "PUT", 3))
-					{
-						if (Base->Route->Callbacks.Put)
-							return Base->Route->Callbacks.Put(Base);
+                        return Util::RoutePOST(Base);
+                    }
+                    else if (!memcmp(Base->Request.Method, "PUT", 3))
+                    {
+                        if (Base->Route->Callbacks.Put)
+                            return Base->Route->Callbacks.Put(Base);
 
-						return Util::RoutePUT(Base);
-					}
-					else if (!memcmp(Base->Request.Method, "PATCH", 5))
-					{
-						if (Base->Route->Callbacks.Patch)
-							return Base->Route->Callbacks.Patch(Base);
+                        return Util::RoutePUT(Base);
+                    }
+                    else if (!memcmp(Base->Request.Method, "PATCH", 5))
+                    {
+                        if (Base->Route->Callbacks.Patch)
+                            return Base->Route->Callbacks.Patch(Base);
 
-						return Util::RoutePATCH(Base);
-					}
-					else if (!memcmp(Base->Request.Method, "DELETE", 6))
-					{
-						if (Base->Route->Callbacks.Delete)
-							return Base->Route->Callbacks.Delete(Base);
+                        return Util::RoutePATCH(Base);
+                    }
+                    else if (!memcmp(Base->Request.Method, "DELETE", 6))
+                    {
+                        if (Base->Route->Callbacks.Delete)
+                            return Base->Route->Callbacks.Delete(Base);
 
-						return Util::RouteDELETE(Base);
-					}
-					else if (!memcmp(Base->Request.Method, "OPTIONS", 7))
-					{
-						if (Base->Route->Callbacks.Options)
-							return Base->Route->Callbacks.Options(Base);
+                        return Util::RouteDELETE(Base);
+                    }
+                    else if (!memcmp(Base->Request.Method, "OPTIONS", 7))
+                    {
+                        if (Base->Route->Callbacks.Options)
+                            return Base->Route->Callbacks.Options(Base);
 
-						return Util::RouteOPTIONS(Base);
-					}
+                        return Util::RouteOPTIONS(Base);
+                    }
 
-					return Base->Error(405, "Request method \"%s\" is not allowed", Base->Request.Method);
-				});
+                    return Base->Error(405, "Request method \"%s\" is not allowed", Base->Request.Method);
+                });
             }
             bool Server::OnDeallocate(SocketConnection* Base)
             {
@@ -5701,48 +5220,48 @@ namespace Tomahawk
             bool Server::OnListen(Rest::EventQueue* Loop)
             {
                 MapRouter* Root = (MapRouter*)Router;
-				for (auto K = Root->Sites.begin(); K != Root->Sites.end(); K++)
-				{
-					SiteEntry* Entry = *K;
-					if (Entry->Callbacks.OnGatewayRelease)
-						Entry->Callbacks.OnGatewayRelease(&Entry->Gateway.Manager, Entry);
+                for (auto K = Root->Sites.begin(); K != Root->Sites.end(); K++)
+                {
+                    SiteEntry* Entry = *K;
+                    if (Entry->Callbacks.OnGatewayRelease)
+                        Entry->Callbacks.OnGatewayRelease(&Entry->Gateway.Manager, Entry);
 
-					if (Entry->Callbacks.OnGatewayCreate)
-						Entry->Callbacks.OnGatewayCreate(&Entry->Gateway.Manager, Entry);
-				}
+                    if (Entry->Callbacks.OnGatewayCreate)
+                        Entry->Callbacks.OnGatewayCreate(&Entry->Gateway.Manager, Entry);
+                }
 
                 return true;
             }
             bool Server::OnUnlisten()
             {
                 MapRouter* Root = (MapRouter*)Router;
-				for (auto K = Root->Sites.begin(); K != Root->Sites.end(); K++)
-				{
-					SiteEntry* Entry = *K;
-					if (Entry->Callbacks.OnGatewayRelease)
-						Entry->Callbacks.OnGatewayRelease(&Entry->Gateway.Manager, Entry);
+                for (auto K = Root->Sites.begin(); K != Root->Sites.end(); K++)
+                {
+                    SiteEntry* Entry = *K;
+                    if (Entry->Callbacks.OnGatewayRelease)
+                        Entry->Callbacks.OnGatewayRelease(&Entry->Gateway.Manager, Entry);
 
-					if (!Entry->ResourceRoot.empty())
-					{
-						if (!Rest::OS::RemoveDir(Entry->ResourceRoot.c_str()))
-							THAWK_ERROR("resource directory %s cannot be deleted", Entry->ResourceRoot.c_str());
+                    if (!Entry->ResourceRoot.empty())
+                    {
+                        if (!Rest::OS::RemoveDir(Entry->ResourceRoot.c_str()))
+                            THAWK_ERROR("resource directory %s cannot be deleted", Entry->ResourceRoot.c_str());
 
-						if (!Rest::OS::CreateDir(Entry->ResourceRoot.c_str()))
-							THAWK_ERROR("resource directory %s cannot be created", Entry->ResourceRoot.c_str());
-					}
+                        if (!Rest::OS::CreateDir(Entry->ResourceRoot.c_str()))
+                            THAWK_ERROR("resource directory %s cannot be created", Entry->ResourceRoot.c_str());
+                    }
 
-					if (!Entry->Gateway.Session.DocumentRoot.empty())
-						Session::InvalidateCache(Entry->Gateway.Session.DocumentRoot.c_str());
-				}
+                    if (!Entry->Gateway.Session.DocumentRoot.empty())
+                        Session::InvalidateCache(Entry->Gateway.Session.DocumentRoot.c_str());
+                }
 
                 return true;
             }
-			SocketConnection* Server::OnAllocate(Listener* Host, Socket* Stream)
+            SocketConnection* Server::OnAllocate(Listener* Host, Socket* Stream)
             {
                 auto Base = new HTTP::Connection();
-				Base->Root = this;
+                Base->Root = this;
 
-				return Base;
+                return Base;
             }
             SocketRouter* Server::OnAllocateRouter()
             {
@@ -5760,18 +5279,18 @@ namespace Tomahawk
                 if (!Root || !Stream.IsValid())
                     return false;
 
-				Stage("request delivery");
-				Request = *Root;
-				Request.ContentState = Content_Not_Loaded;
-				Done = [Callback](SocketClient* Client, int Code)
-				{
-					HTTP::Client* Base = Client->As<HTTP::Client>();
-					if (Code < 0)
-						Base->GetResponse()->StatusCode = -1;
+                Stage("request delivery");
+                Request = *Root;
+                Request.ContentState = Content_Not_Loaded;
+                Done = [Callback](SocketClient* Client, int Code)
+                {
+                    HTTP::Client* Base = Client->As<HTTP::Client>();
+                    if (Code < 0)
+                        Base->GetResponse()->StatusCode = -1;
 
-					if (Callback)
-						Callback(Base, Base->GetRequest(), Base->GetResponse());
-				};
+                    if (Callback)
+                        Callback(Base, Base->GetRequest(), Base->GetResponse());
+                };
 
                 Rest::Stroke Content;
                 if (!Request.GetHeader("Host"))
@@ -5804,8 +5323,8 @@ namespace Tomahawk
                     Request.SetHeader("Content-Length", std::to_string(Request.Buffer.size()));
                 }
 
-				if (!Request.GetHeader("Connection"))
-					Request.SetHeader("Connection", "Keep-Alive");
+                if (!Request.GetHeader("Connection"))
+                    Request.SetHeader("Connection", "Keep-Alive");
 
                 if (!Request.Buffer.empty())
                 {
@@ -5821,8 +5340,8 @@ namespace Tomahawk
                 Content.fAppend("%s %s %s\r\n", Request.Method, Request.URI.c_str(), Request.Version);
                 Util::ConstructHeadFull(&Request, &Response, true, &Content);
                 Content.Append("\r\n");
-				
-				Response.Buffer.clear();
+
+                Response.Buffer.clear();
                 return !Stream.WriteAsync(Content.Get(), (Int64)Content.Size(), [this](Socket*, Int64 Size)
                 {
                     if (Size < 0)
@@ -5835,9 +5354,9 @@ namespace Tomahawk
                         return !Stream.ReadUntilAsync("\r\n\r\n", [this](Socket*, const char* Buffer, Int64 Size)
                         {
                             if (Size < 0)
-								return Error("http socket read %s", (Size == -2 ? "timeout" : "error"));
+                                return Error("http socket read %s", (Size == -2 ? "timeout" : "error"));
                             else if (Size == 0)
-								return Receive();
+                                return Receive();
 
                             this->Response.Buffer.append(Buffer, Size);
                             return true;
@@ -5846,17 +5365,17 @@ namespace Tomahawk
 
                     return !Stream.WriteAsync(this->Request.Buffer.c_str(), (Int64)this->Request.Buffer.size(), [this](Socket*, Int64 Size)
                     {
-						if (Size < 0)
-							return Error("http socket write %s", (Size == -2 ? "timeout" : "error"));
-						else if (Size > 0)
-							return true;
+                        if (Size < 0)
+                            return Error("http socket write %s", (Size == -2 ? "timeout" : "error"));
+                        else if (Size > 0)
+                            return true;
 
                         return !Stream.ReadUntilAsync("\r\n\r\n", [this](Socket*, const char* Buffer, Int64 Size)
                         {
-							if (Size < 0)
-								return Error("http socket read %s", (Size == -2 ? "timeout" : "error"));
-							else if (Size == 0)
-								return Receive();
+                            if (Size < 0)
+                                return Error("http socket read %s", (Size == -2 ? "timeout" : "error"));
+                            else if (Size == 0)
+                                return Receive();
 
                             this->Response.Buffer.append(Buffer, Size);
                             return true;
@@ -5864,189 +5383,189 @@ namespace Tomahawk
                     });
                 });
             }
-			bool Client::Consume(Int64 MaxSize, const ResponseCallback& Callback)
-			{
-				if (Request.ContentState == Content_Lost || Request.ContentState == Content_Empty || Request.ContentState == Content_Saved || Request.ContentState == Content_Wants_Save)
-				{
-					if (Callback)
-						Callback(this, &Request, &Response);
+            bool Client::Consume(Int64 MaxSize, const ResponseCallback& Callback)
+            {
+                if (Request.ContentState == Content_Lost || Request.ContentState == Content_Empty || Request.ContentState == Content_Saved || Request.ContentState == Content_Wants_Save)
+                {
+                    if (Callback)
+                        Callback(this, &Request, &Response);
 
-					return true;
-				}
+                    return true;
+                }
 
-				if (Request.ContentState == Content_Corrupted || Request.ContentState == Content_Payload_Exceeded || Request.ContentState == Content_Save_Exception)
-				{
-					if (Callback)
-						Callback(this, &Request, &Response);
+                if (Request.ContentState == Content_Corrupted || Request.ContentState == Content_Payload_Exceeded || Request.ContentState == Content_Save_Exception)
+                {
+                    if (Callback)
+                        Callback(this, &Request, &Response);
 
-					return true;
-				}
+                    return true;
+                }
 
-				if (Request.ContentState == Content_Cached)
-				{
-					if (Callback)
-						Callback(this, &Request, &Response);
+                if (Request.ContentState == Content_Cached)
+                {
+                    if (Callback)
+                        Callback(this, &Request, &Response);
 
-					return true;
-				}
+                    return true;
+                }
 
-				Response.Buffer.clear();
+                Response.Buffer.clear();
 
-				const char* ContentType = Response.GetHeader("Content-Type");
-				if (ContentType && !strncmp(ContentType, "multipart/form-data", 19))
-				{
-					Request.ContentState = Content_Wants_Save;
-					if (Callback)
-						Callback(this, &Request, &Response);
+                const char* ContentType = Response.GetHeader("Content-Type");
+                if (ContentType && !strncmp(ContentType, "multipart/form-data", 19))
+                {
+                    Request.ContentState = Content_Wants_Save;
+                    if (Callback)
+                        Callback(this, &Request, &Response);
 
-					return true;
-				}
+                    return true;
+                }
 
-				const char* TransferEncoding = Response.GetHeader("Transfer-Encoding");
-				if (TransferEncoding && !Rest::Stroke::CaseCompare(TransferEncoding, "chunked"))
-				{
-					Parser* Parser = new HTTP::Parser();
-					return Stream.ReadAsync(MaxSize, [this, Parser, Callback, MaxSize](Network::Socket* Socket, const char* Buffer, Int64 Size)
-					{
-						if (Size > 0)
-						{
-							Int64 Result = Parser->ParseDecodeChunked((char*)Buffer, &Size);
-							if (Result == -1)
-							{
-								delete Parser;
-								Request.ContentState = Content_Corrupted;
+                const char* TransferEncoding = Response.GetHeader("Transfer-Encoding");
+                if (TransferEncoding && !Rest::Stroke::CaseCompare(TransferEncoding, "chunked"))
+                {
+                    Parser* Parser = new HTTP::Parser();
+                    return Stream.ReadAsync(MaxSize, [this, Parser, Callback, MaxSize](Network::Socket* Socket, const char* Buffer, Int64 Size)
+                    {
+                        if (Size > 0)
+                        {
+                            Int64 Result = Parser->ParseDecodeChunked((char*)Buffer, &Size);
+                            if (Result == -1)
+                            {
+                                delete Parser;
+                                Request.ContentState = Content_Corrupted;
 
-								if (Callback)
-									Callback(this, &Request, &Response);
+                                if (Callback)
+                                    Callback(this, &Request, &Response);
 
-								return false;
-							}
-							else if (Result >= 0)
-							{
-								if (Response.Buffer.size() < MaxSize)
-									Response.Buffer.append(Buffer, Size);
+                                return false;
+                            }
+                            else if (Result >= 0)
+                            {
+                                if (Response.Buffer.size() < MaxSize)
+                                    Response.Buffer.append(Buffer, Size);
 
-								if (Callback)
-									Callback(this, &Request, &Response);
-							}
+                                if (Callback)
+                                    Callback(this, &Request, &Response);
+                            }
 
-							return Result == -2;
-						}
+                            return Result == -2;
+                        }
 
-						delete Parser;
-						if (Size != -1)
-						{
-							if (Response.Buffer.size() < MaxSize)
-								Request.ContentState = Content_Cached;
-							else
-								Request.ContentState = Content_Lost;
-						}
-						else
-							Request.ContentState = Content_Corrupted;
+                        delete Parser;
+                        if (Size != -1)
+                        {
+                            if (Response.Buffer.size() < MaxSize)
+                                Request.ContentState = Content_Cached;
+                            else
+                                Request.ContentState = Content_Lost;
+                        }
+                        else
+                            Request.ContentState = Content_Corrupted;
 
-						if (Callback)
-							Callback(this, &Request, &Response);
+                        if (Callback)
+                            Callback(this, &Request, &Response);
 
-						return true;
-					}) > 0;
-				}
-				else if (!Response.GetHeader("Content-Length"))
-				{
-					return Stream.ReadAsync(MaxSize, [this, Callback, MaxSize](Network::Socket* Socket, const char* Buffer, Int64 Size)
-					{
-						if (Size <= 0)
-						{
-							if (Response.Buffer.size() < MaxSize)
-								Request.ContentState = Content_Cached;
-							else
-								Request.ContentState = Content_Lost;
+                        return true;
+                    }) > 0;
+                }
+                else if (!Response.GetHeader("Content-Length"))
+                {
+                    return Stream.ReadAsync(MaxSize, [this, Callback, MaxSize](Network::Socket* Socket, const char* Buffer, Int64 Size)
+                    {
+                        if (Size <= 0)
+                        {
+                            if (Response.Buffer.size() < MaxSize)
+                                Request.ContentState = Content_Cached;
+                            else
+                                Request.ContentState = Content_Lost;
 
-							if (Callback)
-								Callback(this, &Request, &Response);
+                            if (Callback)
+                                Callback(this, &Request, &Response);
 
-							return false;
-						}
+                            return false;
+                        }
 
-						if (Response.Buffer.size() < MaxSize)
-							Response.Buffer.append(Buffer, Size);
+                        if (Response.Buffer.size() < MaxSize)
+                            Response.Buffer.append(Buffer, Size);
 
-						if (Callback)
-							Callback(this, &Request, &Response);
+                        if (Callback)
+                            Callback(this, &Request, &Response);
 
-						return true;
-					}) > 0;
-				}
+                        return true;
+                    }) > 0;
+                }
 
-				const char* HContentLength = Response.GetHeader("Content-Length");
-				if (!HContentLength)
-				{
-					Request.ContentState = Content_Corrupted;
-					if (Callback)
-						Callback(this, &Request, &Response);
+                const char* HContentLength = Response.GetHeader("Content-Length");
+                if (!HContentLength)
+                {
+                    Request.ContentState = Content_Corrupted;
+                    if (Callback)
+                        Callback(this, &Request, &Response);
 
-					return false;
-				}
+                    return false;
+                }
 
                 Rest::Stroke HLength = HContentLength;
-				if (!HLength.HasInteger())
-				{
-					Request.ContentState = Content_Corrupted;
-					if (Callback)
-						Callback(this, &Request, &Response);
+                if (!HLength.HasInteger())
+                {
+                    Request.ContentState = Content_Corrupted;
+                    if (Callback)
+                        Callback(this, &Request, &Response);
 
-					return false;
-				}
+                    return false;
+                }
 
-				Int64 Length = HLength.ToInt64();
-				if (Length <= 0)
-				{
-					Request.ContentState = Content_Empty;
-					if (Callback)
-						Callback(this, &Request, &Response);
+                Int64 Length = HLength.ToInt64();
+                if (Length <= 0)
+                {
+                    Request.ContentState = Content_Empty;
+                    if (Callback)
+                        Callback(this, &Request, &Response);
 
-					return false;
-				}
+                    return false;
+                }
 
-				if (Length > MaxSize)
-				{
-					Request.ContentState = Content_Wants_Save;
-					if (Callback)
-						Callback(this, &Request, &Response);
+                if (Length > MaxSize)
+                {
+                    Request.ContentState = Content_Wants_Save;
+                    if (Callback)
+                        Callback(this, &Request, &Response);
 
-					return false;
-				}
+                    return false;
+                }
 
-				return Stream.ReadAsync(Length, [this, Callback, MaxSize, Length](Network::Socket* Socket, const char* Buffer, Int64 Size)
-				{
-					if (Size <= 0)
-					{
-						if (Size != -1)
-						{
-							if (Response.Buffer.size() < MaxSize)
-								Request.ContentState = Content_Cached;
-							else
-								Request.ContentState = Content_Lost;
-						}
-						else
-							Request.ContentState = Content_Corrupted;
+                return Stream.ReadAsync(Length, [this, Callback, MaxSize, Length](Network::Socket* Socket, const char* Buffer, Int64 Size)
+                {
+                    if (Size <= 0)
+                    {
+                        if (Size != -1)
+                        {
+                            if (Response.Buffer.size() < MaxSize)
+                                Request.ContentState = Content_Cached;
+                            else
+                                Request.ContentState = Content_Lost;
+                        }
+                        else
+                            Request.ContentState = Content_Corrupted;
 
-						if (Callback)
-							Callback(this, &Request, &Response);
+                        if (Callback)
+                            Callback(this, &Request, &Response);
 
-						return false;
-					}
+                        return false;
+                    }
 
-					if (Response.Buffer.size() < MaxSize)
-						Response.Buffer.append(Buffer, Size);
+                    if (Response.Buffer.size() < MaxSize)
+                        Response.Buffer.append(Buffer, Size);
 
-					return true;
-				}) > 0;
-			}
+                    return true;
+                }) > 0;
+            }
             bool Client::Receive()
             {
                 ParserFrame Segment;
                 Segment.Response = &Response;
-				Stage("http response receive");
+                Stage("http response receive");
 
                 Parser* Parser = new HTTP::Parser();
                 Parser->OnMethodValue = Util::ParseMethodValue;
@@ -6061,21 +5580,21 @@ namespace Tomahawk
                 strcpy(Request.RemoteAddress, Stream.GetRemoteAddress().c_str());
                 if (Parser->ParseResponse(Response.Buffer.c_str(), Response.Buffer.size(), 0) < 0)
                 {
-					delete Parser;
-					return Error("cannot parse http response");
+                    delete Parser;
+                    return Error("cannot parse http response");
                 }
 
-				delete Parser;
-				return Success(0);
+                delete Parser;
+                return Success(0);
             }
-			RequestFrame* Client::GetRequest()
-			{
-				return &Request;
-			}
-			ResponseFrame* Client::GetResponse()
-			{
-				return &Response;
-			}
+            RequestFrame* Client::GetRequest()
+            {
+                return &Request;
+            }
+            ResponseFrame* Client::GetResponse()
+            {
+                return &Response;
+            }
         }
     }
 }

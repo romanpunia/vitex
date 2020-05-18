@@ -7,30 +7,30 @@ namespace Tomahawk
 {
     namespace Wrapper
     {
-		namespace Network
-		{
-			namespace HTTP
-			{
-				THAWK_OUT void Enable(Script::VMManager* Manager);
-			}
+        namespace Network
+        {
+            namespace HTTP
+            {
+                THAWK_OUT void Enable(Script::VMManager* Manager);
+            }
 
-			namespace SMTP
-			{
-				THAWK_OUT void Enable(Script::VMManager* Manager);
-			}
+            namespace SMTP
+            {
+                THAWK_OUT void Enable(Script::VMManager* Manager);
+            }
 
-			namespace BSON
-			{
-				THAWK_OUT void Enable(Script::VMManager* Manager);
-			}
+            namespace BSON
+            {
+                THAWK_OUT void Enable(Script::VMManager* Manager);
+            }
 
-			namespace MongoDB
-			{
-				THAWK_OUT void Enable(Script::VMManager* Manager);
-			}
+            namespace MongoDB
+            {
+                THAWK_OUT void Enable(Script::VMManager* Manager);
+            }
 
-			THAWK_OUT void Enable(Script::VMManager* Manager);
-		}
+            THAWK_OUT void Enable(Script::VMManager* Manager);
+        }
     }
 }
 #endif

@@ -153,7 +153,7 @@ There are several build options for this project.
 + **THAWK_INFO** to allow informational logs, defaults to true
 + **THAWK_WARN** to allow warning logs, defaults to true
 + **THAWK_ERROR** to allow error logs, defaults to true
-+ **THAWK_RESOURCE** to embed resources from /opts/resource to this project, defaults to true 
++ **THAWK_RESOURCE** to embed resources from **/resource** to this project, defaults to true 
 
 ## Linking
 Tomahawk has support for CMake's install command, to link it with your project you can use CMake as usual.

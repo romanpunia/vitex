@@ -19,20 +19,19 @@ namespace Tomahawk
 
             public:
                 RigidBody(Entity* Ref);
-                virtual    ~RigidBody() override;
+                virtual ~RigidBody() override;
                 virtual void OnLoad(ContentManager* Content, Rest::Document* Node) override;
                 virtual void OnSave(ContentManager* Content, Rest::Document* Node) override;
-                virtual void OnAwake(Component* New) override;
                 virtual void OnSynchronize(Rest::Timer* Time) override;
                 virtual void OnAsleep() override;
-                virtual Component* OnClone() override;
-                void Activate(btCollisionShape* Shape, float Mass, float Anticipation);
-                void ResynchronizeFrom(Compute::Matrix4x4 World);
-                void Resynchronize(bool Kinematically);
-                void Reweight(float Mass);
+                virtual Component* OnClone(Entity* New) override;
+                void Initialize(btCollisionShape* Shape, float Mass, float Anticipation);
+                void SetTransform(const Compute::Matrix4x4& World);
+                void SetTransform(bool Kinematic);
+                void SetMass(float Mass);
 
             public:
-                THAWK_COMPONENT(ComponentId_Rigidbody, RigidBody);
+                THAWK_COMPONENT(RigidBody);
             };
 
             class THAWK_OUT Acceleration : public Component
@@ -48,34 +47,33 @@ namespace Tomahawk
 
             public:
                 Acceleration(Entity* Ref);
-                virtual    ~Acceleration() = default;
+                virtual ~Acceleration() = default;
                 virtual void OnLoad(ContentManager* Content, Rest::Document* Node) override;
                 virtual void OnSave(ContentManager* Content, Rest::Document* Node) override;
                 virtual void OnAwake(Component* New) override;
                 virtual void OnSynchronize(Rest::Timer* Time) override;
-                virtual Component* OnClone() override;
+                virtual Component* OnClone(Entity* New) override;
 
             public:
-                THAWK_COMPONENT(ComponentId_Acceleration, Acceleration);
+                THAWK_COMPONENT(Acceleration);
             };
 
             class THAWK_OUT SliderConstraint : public Component
             {
             public:
-                Compute::SliderConstraint* Constraint;
+                Compute::SliderConstraint* Instance;
                 Entity* Connection;
 
             public:
                 SliderConstraint(Entity* Ref);
-                virtual    ~SliderConstraint() override;
+                virtual ~SliderConstraint() override;
                 virtual void OnLoad(ContentManager* Content, Rest::Document* Node) override;
                 virtual void OnSave(ContentManager* Content, Rest::Document* Node) override;
-                virtual void OnAwake(Component* New) override;
-                virtual Component* OnClone() override;
-                void Activate(bool IsGhosted, bool IsLinearPowered);
+                virtual Component* OnClone(Entity* New) override;
+                void Initialize(bool IsGhosted, bool IsLinear);
 
             public:
-                THAWK_COMPONENT(ComponentId_Slider_Constraint, SliderConstraint);
+                THAWK_COMPONENT(SliderConstraint);
             };
 
             class THAWK_OUT AudioSource : public Component
@@ -96,15 +94,15 @@ namespace Tomahawk
 
             public:
                 AudioSource(Entity* Ref);
-                virtual    ~AudioSource() override;
+                virtual ~AudioSource() override;
                 virtual void OnLoad(ContentManager* Content, Rest::Document* Node) override;
                 virtual void OnSave(ContentManager* Content, Rest::Document* Node) override;
                 virtual void OnSynchronize(Rest::Timer* Time) override;
-                virtual Component* OnClone() override;
+                virtual Component* OnClone(Entity* New) override;
                 void ApplyPlayingPosition();
 
             public:
-                THAWK_COMPONENT(ComponentId_Audio_Source, AudioSource);
+                THAWK_COMPONENT(AudioSource);
             };
 
             class THAWK_OUT AudioListener : public Component
@@ -115,15 +113,15 @@ namespace Tomahawk
 
             public:
                 AudioListener(Entity* Ref);
-                virtual    ~AudioListener() override;
+                virtual ~AudioListener() override;
                 virtual void OnLoad(ContentManager* Content, Rest::Document* Node) override;
                 virtual void OnSave(ContentManager* Content, Rest::Document* Node) override;
                 virtual void OnSynchronize(Rest::Timer* Time) override;
                 virtual void OnAsleep() override;
-                virtual Component* OnClone() override;
+                virtual Component* OnClone(Entity* New) override;
 
             public:
-                THAWK_COMPONENT(ComponentId_Audio_Listener, AudioListener);
+                THAWK_COMPONENT(AudioListener);
             };
 
             class THAWK_OUT SkinAnimator : public Component
@@ -140,12 +138,12 @@ namespace Tomahawk
 
             public:
                 SkinAnimator(Entity* Ref);
-                virtual    ~SkinAnimator() override;
+                virtual ~SkinAnimator() override;
                 virtual void OnLoad(ContentManager* Content, Rest::Document* Node) override;
                 virtual void OnSave(ContentManager* Content, Rest::Document* Node) override;
                 virtual void OnAwake(Component* New) override;
                 virtual void OnSynchronize(Rest::Timer* Time) override;
-                virtual Component* OnClone() override;
+                virtual Component* OnClone(Entity* New) override;
                 void Play(Int64 Clip = -1, Int64 Frame = -1);
                 void Pause();
                 void Stop();
@@ -158,7 +156,7 @@ namespace Tomahawk
                 bool IsPosed(Int64 Clip, Int64 Frame);
 
             public:
-                THAWK_COMPONENT(ComponentId_Skin_Animator, SkinAnimator);
+                THAWK_COMPONENT(SkinAnimator);
             };
 
             class THAWK_OUT KeyAnimator : public Component
@@ -170,11 +168,11 @@ namespace Tomahawk
 
             public:
                 KeyAnimator(Entity* Ref);
-                virtual    ~KeyAnimator() override;
+                virtual ~KeyAnimator() override;
                 virtual void OnLoad(ContentManager* Content, Rest::Document* Node) override;
                 virtual void OnSave(ContentManager* Content, Rest::Document* Node) override;
                 virtual void OnSynchronize(Rest::Timer* Time) override;
-                virtual Component* OnClone() override;
+                virtual Component* OnClone(Entity* New) override;
                 void Play(Int64 Clip = -1, Int64 Frame = -1);
                 void Pause();
                 void Stop();
@@ -187,7 +185,7 @@ namespace Tomahawk
                 bool IsPosed(Int64 Clip, Int64 Frame);
 
             public:
-                THAWK_COMPONENT(ComponentId_Key_Animator, KeyAnimator);
+                THAWK_COMPONENT(KeyAnimator);
             };
 
             class THAWK_OUT ElementSystem : public Component
@@ -207,17 +205,17 @@ namespace Tomahawk
 
             public:
                 ElementSystem(Entity* Ref);
-                virtual    ~ElementSystem();
+                virtual ~ElementSystem();
                 virtual void OnAwake(Component* New) override;
                 virtual void OnLoad(ContentManager* Content, Rest::Document* Node) override;
                 virtual void OnSave(ContentManager* Content, Rest::Document* Node) override;
                 virtual void OnSynchronize(Rest::Timer* Time) override;
                 virtual void OnEvent(Event* Value) override;
-                virtual Component* OnClone() override;
+                virtual Component* OnClone(Entity* New) override;
                 Graphics::Material& GetMaterial();
 
             public:
-                THAWK_COMPONENT(ComponentId_Element_System, ElementSystem);
+                THAWK_COMPONENT(ElementSystem);
             };
 
             class THAWK_OUT ElementAnimator : public Component
@@ -238,19 +236,19 @@ namespace Tomahawk
 
             public:
                 ElementAnimator(Entity* Ref);
-                virtual    ~ElementAnimator() = default;
+                virtual ~ElementAnimator() = default;
                 virtual void OnLoad(ContentManager* Content, Rest::Document* Node) override;
                 virtual void OnSave(ContentManager* Content, Rest::Document* Node) override;
                 virtual void OnAwake(Component* New) override;
                 virtual void OnSynchronize(Rest::Timer* Time) override;
-                virtual Component* OnClone() override;
+                virtual Component* OnClone(Entity* New) override;
 
             protected:
                 void AccurateSynchronization(float DeltaTime);
                 void FastSynchronization(float DeltaTime);
 
             public:
-                THAWK_COMPONENT(ComponentId_Element_Animator, ElementAnimator);
+                THAWK_COMPONENT(ElementAnimator);
             };
 
             class THAWK_OUT FreeLook : public Component
@@ -265,12 +263,12 @@ namespace Tomahawk
 
             public:
                 FreeLook(Entity* Ref);
-                virtual    ~FreeLook() = default;
+                virtual ~FreeLook() = default;
                 virtual void OnAwake(Component* New) override;
                 virtual void OnUpdate(Rest::Timer* Time) override;
 
             public:
-                THAWK_COMPONENT(ComponentId_Free_Look, FreeLook);
+                THAWK_COMPONENT(FreeLook);
             };
 
             class THAWK_OUT Fly : public Component
@@ -294,12 +292,12 @@ namespace Tomahawk
 
             public:
                 Fly(Entity* Ref);
-                virtual    ~Fly() = default;
+                virtual ~Fly() = default;
                 virtual void OnAwake(Component* New) override;
                 virtual void OnUpdate(Rest::Timer* Time) override;
 
             public:
-                THAWK_COMPONENT(ComponentId_Fly, Fly);
+                THAWK_COMPONENT(Fly);
             };
 
             class THAWK_OUT Model : public Component
@@ -311,19 +309,19 @@ namespace Tomahawk
 
             public:
                 Model(Entity* Ref);
-                virtual    ~Model() = default;
+                virtual ~Model() = default;
                 virtual void OnLoad(ContentManager* Content, Rest::Document* Node) override;
                 virtual void OnSave(ContentManager* Content, Rest::Document* Node) override;
                 virtual void OnSynchronize(Rest::Timer* Time) override;
                 virtual void OnEvent(Event* Value) override;
-                virtual Component* OnClone() override;
+                virtual Component* OnClone(Entity* New) override;
                 Graphics::Material& GetMaterial(Graphics::Mesh* Mesh);
                 Graphics::Material& GetMaterial(TSurface* Surface);
                 TSurface* GetSurface(Graphics::Mesh* Mesh);
                 Compute::Matrix4x4 GetBoundingBox();
 
             public:
-                THAWK_COMPONENT(ComponentId_Model, Model);
+                THAWK_COMPONENT(Model);
             };
 
             class THAWK_OUT SkinnedModel : public Component
@@ -336,19 +334,19 @@ namespace Tomahawk
 
             public:
                 SkinnedModel(Entity* Ref);
-                virtual    ~SkinnedModel() = default;
+                virtual ~SkinnedModel() = default;
                 virtual void OnLoad(ContentManager* Content, Rest::Document* Node) override;
                 virtual void OnSave(ContentManager* Content, Rest::Document* Node) override;
                 virtual void OnSynchronize(Rest::Timer* Time) override;
                 virtual void OnEvent(Event* Value) override;
-                virtual Component* OnClone() override;
+                virtual Component* OnClone(Entity* New) override;
                 Graphics::Material& GetMaterial(Graphics::SkinnedMesh* Mesh);
                 Graphics::Material& GetMaterial(TSurface* Surface);
                 TSurface* GetSurface(Graphics::SkinnedMesh* Mesh);
                 Compute::Matrix4x4 GetBoundingBox();
 
             public:
-                THAWK_COMPONENT(ComponentId_Skinned_Model, SkinnedModel);
+                THAWK_COMPONENT(SkinnedModel);
             };
 
             class THAWK_OUT PointLight : public Component
@@ -371,14 +369,14 @@ namespace Tomahawk
 
             public:
                 PointLight(Entity* Ref);
-                virtual    ~PointLight() = default;
+                virtual ~PointLight() = default;
                 virtual void OnLoad(ContentManager* Content, Rest::Document* Node) override;
                 virtual void OnSave(ContentManager* Content, Rest::Document* Node) override;
                 virtual void OnSynchronize(Rest::Timer* Time) override;
-                virtual Component* OnClone() override;
+                virtual Component* OnClone(Entity* New) override;
 
             public:
-                THAWK_COMPONENT(ComponentId_Point_Light, PointLight);
+                THAWK_COMPONENT(PointLight);
             };
 
             class THAWK_OUT SpotLight : public Component
@@ -403,14 +401,14 @@ namespace Tomahawk
 
             public:
                 SpotLight(Entity* Ref);
-                virtual    ~SpotLight() = default;
+                virtual ~SpotLight() = default;
                 virtual void OnLoad(ContentManager* Content, Rest::Document* Node) override;
                 virtual void OnSave(ContentManager* Content, Rest::Document* Node) override;
                 virtual void OnSynchronize(Rest::Timer* Time) override;
-                virtual Component* OnClone() override;
+                virtual Component* OnClone(Entity* New) override;
 
             public:
-                THAWK_COMPONENT(ComponentId_Spot_Light, SpotLight);
+                THAWK_COMPONENT(SpotLight);
             };
 
             class THAWK_OUT LineLight : public Component
@@ -434,14 +432,14 @@ namespace Tomahawk
 
             public:
                 LineLight(Entity* Ref);
-                virtual    ~LineLight() = default;
+                virtual ~LineLight() = default;
                 virtual void OnLoad(ContentManager* Content, Rest::Document* Node) override;
                 virtual void OnSave(ContentManager* Content, Rest::Document* Node) override;
                 virtual void OnSynchronize(Rest::Timer* Time) override;
-                virtual Component* OnClone() override;
+                virtual Component* OnClone(Entity* New) override;
 
             public:
-                THAWK_COMPONENT(ComponentId_Line_Light, LineLight);
+                THAWK_COMPONENT(LineLight);
             };
 
             class THAWK_OUT ProbeLight : public Component
@@ -471,15 +469,15 @@ namespace Tomahawk
 
             public:
                 ProbeLight(Entity* Ref);
-                virtual    ~ProbeLight() override;
+                virtual ~ProbeLight() override;
                 virtual void OnLoad(ContentManager* Content, Rest::Document* Node) override;
                 virtual void OnSave(ContentManager* Content, Rest::Document* Node) override;
                 virtual void OnSynchronize(Rest::Timer* Time) override;
-                virtual Component* OnClone() override;
+                virtual Component* OnClone(Entity* New) override;
                 bool RebuildDiffuseMap();
 
             public:
-                THAWK_COMPONENT(ComponentId_Probe_Light, ProbeLight);
+                THAWK_COMPONENT(ProbeLight);
             };
 
             class THAWK_OUT Camera : public Component
@@ -494,12 +492,12 @@ namespace Tomahawk
 
             public:
                 Camera(Entity* Ref);
-                virtual    ~Camera() override;
+                virtual ~Camera() override;
                 virtual void OnLoad(ContentManager* Content, Rest::Document* Node) override;
                 virtual void OnSave(ContentManager* Content, Rest::Document* Node) override;
                 virtual void OnAwake(Component* New) override;
                 virtual void OnAsleep() override;
-                virtual Component* OnClone() override;
+                virtual Component* OnClone(Entity* New) override;
                 void FillViewer(Viewer* View);
                 void ResizeBuffers();
                 Viewer GetViewer();
@@ -509,7 +507,7 @@ namespace Tomahawk
                 float GetFieldOfView();
 
             public:
-                THAWK_COMPONENT(ComponentId_Camera, Camera);
+                THAWK_COMPONENT(Camera);
             };
         }
     }

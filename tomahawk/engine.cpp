@@ -1654,12 +1654,20 @@ namespace Tomahawk
         void Component::OnEvent(Event* Value)
         {
         }
-        Component* Component::OnClone()
+        const char* Component::Name()
         {
-            Component* Component = new Engine::Component(Parent);
-            Component->Active = Active;
+            return "Component";
+        }
+        UInt64 Component::Id()
+        {
+            return (UInt64)typeid(Component).hash_code();
+        }
+        Component* Component::OnClone(Entity* New)
+        {
+            Component* Target = new Engine::Component(New);
+            Target->Active = Active;
 
-            return Component;
+            return Target;
         }
         Entity* Component::GetEntity()
         {
@@ -1692,6 +1700,14 @@ namespace Tomahawk
         bool Component::IsActive()
         {
             return Active;
+        }
+        const char* Component::BaseName()
+        {
+            return "Component";
+        }
+        UInt64 Component::BaseId()
+        {
+            return (UInt64)typeid(Component).hash_code();
         }
 
         Entity::Entity(SceneGraph* Ref) : Scene(Ref), Tag(-1), Self(-1)
@@ -1819,11 +1835,50 @@ namespace Tomahawk
             return Scene;
         }
 
-        Renderer::Renderer(RenderSystem* Lab, UInt64 Type) : System(Lab), Flag(Type)
+        Renderer::Renderer(RenderSystem* Lab) : System(Lab), Stride(0), Offset(0), Active(true), Priority(true)
         {
         }
         Renderer::~Renderer()
         {
+        }
+        void Renderer::OnLoad(ContentManager* Content, Rest::Document* Node)
+        {
+        }
+        void Renderer::OnSave(ContentManager* Content, Rest::Document* Node)
+        {
+        }
+        void Renderer::OnResizeBuffers()
+        {
+        }
+        void Renderer::OnInitialize()
+        {
+        }
+        void Renderer::OnRender(Rest::Timer* TimeStep)
+        {
+        }
+        void Renderer::OnDepthRender(Rest::Timer* TimeStep)
+        {
+        }
+        void Renderer::OnCubicDepthRender(Rest::Timer* TimeStep)
+        {
+        }
+        void Renderer::OnCubicDepthRender(Rest::Timer* TimeStep, Compute::Matrix4x4* ViewProjection)
+        {
+        }
+        void Renderer::OnPhaseRender(Rest::Timer* TimeStep)
+        {
+        }
+        void Renderer::OnRelease()
+        {
+        }
+        const char* Renderer::Name()
+        {
+            return "Component";
+        }
+        UInt64 Renderer::Id()
+        {
+            std::hash<std::string> H;
+            return (UInt64)H("Component");
         }
         void Renderer::SetRenderer(RenderSystem* NewSystem)
         {
@@ -1844,24 +1899,21 @@ namespace Tomahawk
             if (System && System->GetScene())
                 System->GetScene()->RenderPhase(Time, iView, iProjection, iPosition);
         }
-        Rest::Object* Renderer::Abstract(RenderSystem* Lab, UInt64 iFlag)
-        {
-            return nullptr;
-        }
-        bool Renderer::Is(UInt64 Flags)
-        {
-            return Flag == Flags;
-        }
-        UInt64 Renderer::Type()
-        {
-            return Flag;
-        }
         RenderSystem* Renderer::GetRenderer()
         {
             return System;
         }
+        const char* Renderer::BaseName()
+        {
+            return "Component";
+        }
+        UInt64 Renderer::BaseId()
+        {
+            std::hash<std::string> H;
+            return (UInt64)H("Component");
+        }
 
-        IntervalRenderer::IntervalRenderer(RenderSystem* Lab, UInt64 Type) : Renderer(Lab, Type)
+        IntervalRenderer::IntervalRenderer(RenderSystem* Lab) : Renderer(Lab)
         {
         }
         IntervalRenderer::~IntervalRenderer()
@@ -2038,11 +2090,11 @@ namespace Tomahawk
         {
             Scene = NewScene;
         }
-        void RenderSystem::RemoveRenderStage(Renderer* In)
+        void RenderSystem::RemoveRenderer(UInt64 Id)
         {
             for (auto It = RenderStages.begin(); It != RenderStages.end(); It++)
             {
-                if (*It == In)
+                if (*It && (*It)->Id() == Id)
                 {
                     (*It)->OnRelease();
                     delete *It;
@@ -2051,27 +2103,14 @@ namespace Tomahawk
                 }
             }
         }
-        void RenderSystem::RemoveRenderStageByType(UInt64 Type)
-        {
-            for (auto It = RenderStages.begin(); It != RenderStages.end(); It++)
-            {
-                if (*It && (*It)->Type() == Type)
-                {
-                    (*It)->OnRelease();
-                    delete *It;
-                    RenderStages.erase(It);
-                    break;
-                }
-            }
-        }
-        Renderer* RenderSystem::AddRenderStage(Renderer* In)
+        Renderer* RenderSystem::AddRenderer(Renderer* In)
         {
             if (!In)
                 return nullptr;
 
-            for (auto& RenderStage : RenderStages)
+            for (auto&& RenderStage : RenderStages)
             {
-                if (RenderStage && RenderStage->Type() == In->Type())
+                if (RenderStage && RenderStage->Id() == In->Id())
                 {
                     RenderStage->OnRelease();
                     delete RenderStage;
@@ -2090,78 +2129,11 @@ namespace Tomahawk
 
             return In;
         }
-        Renderer* RenderSystem::AddRenderStageByType(UInt64 Type)
+        Renderer* RenderSystem::GetRenderer(UInt64 Id)
         {
             for (auto& RenderStage : RenderStages)
             {
-                if (RenderStage->Type() == Type)
-                    return RenderStage;
-            }
-
-            Renderer* New = nullptr;
-            switch (Type)
-            {
-                case RendererId_Model:
-                    New = Engine::Renderers::ModelRenderer::Create(this);
-                    break;
-                case RendererId_Skinned_Model:
-                    New = Engine::Renderers::SkinnedModelRenderer::Create(this);
-                    break;
-                case RendererId_Depth:
-                    New = Engine::Renderers::DepthRenderer::Create(this);
-                    break;
-                case RendererId_Light:
-                    New = Engine::Renderers::LightRenderer::Create(this);
-                    break;
-                case RendererId_Probe:
-                    New = Engine::Renderers::ProbeRenderer::Create(this);
-                    break;
-                case RendererId_Image:
-                    New = Engine::Renderers::ImageRenderer::Create(this);
-                    break;
-                case RendererId_Element_System:
-                    New = Engine::Renderers::ElementSystemRenderer::Create(this);
-                    break;
-                case RendererId_Reflections:
-                    New = Engine::Renderers::ReflectionsRenderer::Create(this);
-                    break;
-                case RendererId_Depth_Of_Field:
-                    New = Engine::Renderers::DepthOfFieldRenderer::Create(this);
-                    break;
-                case RendererId_Emission:
-                    New = Engine::Renderers::EmissionRenderer::Create(this);
-                    break;
-                case RendererId_Glitch:
-                    New = Engine::Renderers::GlitchRenderer::Create(this);
-                    break;
-                case RendererId_Ambient_Occlusion:
-                    New = Engine::Renderers::AmbientOcclusionRenderer::Create(this);
-                    break;
-                case RendererId_Indirect_Occlusion:
-                    New = Engine::Renderers::IndirectOcclusionRenderer::Create(this);
-                    break;
-                case RendererId_Tone:
-                    New = Engine::Renderers::ToneRenderer::Create(this);
-                    break;
-                case RendererId_GUI:
-                    New = Engine::Renderers::GUIRenderer::Create(this, Application::Get()->Activity);
-                    break;
-                case RendererId_Empty:
-                default:
-                    return nullptr;
-            }
-
-            New->SetRenderer(this);
-            New->OnInitialize();
-            RenderStages.push_back(New);
-
-            return New;
-        }
-        Renderer* RenderSystem::GetRenderStage(UInt64 Type)
-        {
-            for (auto& RenderStage : RenderStages)
-            {
-                if (RenderStage->Type() == Type)
+                if (RenderStage->Id() == Id)
                     return RenderStage;
             }
 
@@ -2192,7 +2164,7 @@ namespace Tomahawk
             return Scene;
         }
 
-        SceneGraph::SceneGraph(const Desc& I)
+        SceneGraph::SceneGraph(const Desc& I) : Conf(I)
         {
             Sync.Count = 0;
             Sync.Locked = false;
@@ -2224,28 +2196,21 @@ namespace Tomahawk
 
             Unlock();
         }
-        void SceneGraph::Configure(const Desc& Conf)
+        void SceneGraph::Configure(const Desc& NewConf)
         {
             if (!Conf.Queue || !Conf.Device)
                 return;
-            else
-                Lock();
 
-            Queue = Conf.Queue;
-            Device = Conf.Device;
-            RenderQuality = Conf.RenderQuality;
+            Lock();
+            Conf = NewConf;
             Entities.Reserve(Conf.EntityCount);
             Pending.Reserve(Conf.ComponentCount);
-
-            Components.resize(Conf.ComponentTypes);
-            for (auto It = Components.begin(); It != Components.end(); It++)
-                It->Reserve(Conf.ComponentCount);
 
             ResizeBuffers();
             if (Camera != nullptr)
                 Camera->OnAwake(Camera);
 
-            Queue->Subscribe<Event>([this](Rest::EventQueue*, Rest::EventArgs* Args)
+            Conf.Queue->Subscribe<Event>([this](Rest::EventQueue*, Rest::EventArgs* Args)
             {
                 Event* Message = Args->Get<Event>();
                 if (Message != nullptr)
@@ -2263,13 +2228,13 @@ namespace Tomahawk
             if (Camera != nullptr)
             {
                 Camera->As<Components::Camera>()->FillViewer(&View);
-                Device->View.InvViewProjection = View.InvViewProjection;
-                Device->View.ViewPosition = View.Position.MtVector4();
-                Device->SendBufferStream(Graphics::RenderBufferType_View);
+                Conf.Device->View.InvViewProjection = View.InvViewProjection;
+                Conf.Device->View.ViewPosition = View.Position.MtVector4();
+                Conf.Device->SendBufferStream(Graphics::RenderBufferType_View);
 
-                Structure->RemapSubresource(Device, Materials.data(), Materials.size() * sizeof(Graphics::Material));
-                Structure->Apply(Device, 0);
-                Surface->Apply(Device, 0, 0, 0);
+                Structure->RemapSubresource(Conf.Device, Materials.data(), Materials.size() * sizeof(Graphics::Material));
+                Structure->Apply(Conf.Device, 0);
+                Surface->Apply(Conf.Device, 0, 0, 0);
 
                 auto* RenderStages = View.Renderer->GetRenderStages();
                 for (auto It = RenderStages->begin(); It != RenderStages->end(); It++)
@@ -2278,7 +2243,7 @@ namespace Tomahawk
                         (*It)->OnRender(Time);
                 }
 
-                Device->GetRenderTarget()->Apply(Device);
+                Conf.Device->GetRenderTarget()->Apply(Conf.Device);
             }
             EndThread(ThreadId_Render);
         }
@@ -2374,7 +2339,7 @@ namespace Tomahawk
             View.ViewDistance = (iPosition.W < 0 ? 999999999 : iPosition.W);
             RestoreViewBuffer(&View);
 
-            Surface->Apply(Device, 0, 0, 0);
+            Surface->Apply(Conf.Device, 0, 0, 0);
             auto* RenderStages = View.Renderer->GetRenderStages();
             for (auto It = RenderStages->begin(); It != RenderStages->end(); It++)
             {
@@ -2397,7 +2362,7 @@ namespace Tomahawk
         {
             Lock();
             for (auto& Component : Components)
-                Component.Clear();
+                Component.second.Clear();
 
             Pending.Clear();
             for (auto It = Entities.Begin(); It != Entities.End(); It++)
@@ -2416,14 +2381,6 @@ namespace Tomahawk
                 Index++;
             }
             Unlock();
-        }
-        void SceneGraph::RandomizeMaterial(Graphics::Material& Material)
-        {
-            Material.Emission = Compute::Vector3::RandomAbs();
-            Material.Metallic = Compute::Vector3::RandomAbs();
-            Material.Micrometal = Compute::Math<float>::Random();
-            Material.Microrough = Compute::Math<float>::Random();
-            Material.Roughness = Compute::Math<float>::Random();
         }
         void SceneGraph::SortEntitiesBackToFront()
         {
@@ -2597,9 +2554,9 @@ namespace Tomahawk
                     View = *iView;
             }
 
-            Device->View.InvViewProjection = View.InvViewProjection;
-            Device->View.ViewPosition = View.Position.MtVector4();
-            Device->SendBufferStream(Graphics::RenderBufferType_View);
+            Conf.Device->View.InvViewProjection = View.InvViewProjection;
+            Conf.Device->View.ViewPosition = View.Position.MtVector4();
+            Conf.Device->SendBufferStream(Graphics::RenderBufferType_View);
         }
         void SceneGraph::ExpandMaterialStructure()
         {
@@ -2614,7 +2571,7 @@ namespace Tomahawk
             F.Elements = Materials.data();
 
             delete Structure;
-            Structure = Graphics::StructureBuffer::Create(Device, F);
+            Structure = Graphics::StructureBuffer::Create(Conf.Device, F);
             Unlock();
         }
         void SceneGraph::Lock()
@@ -2728,18 +2685,18 @@ namespace Tomahawk
             F.FormatMode[7] = Graphics::Format_Invalid;
             F.SVTarget = Graphics::SurfaceTarget2;
             F.MiscFlags = Graphics::ResourceMisc_Generate_Mips;
-            F.Width = (unsigned int)(Device->GetRenderTarget()->GetWidth() * RenderQuality);
-            F.Height = (unsigned int)(Device->GetRenderTarget()->GetHeight() * RenderQuality);
-            F.MipLevels = Device->GetMipLevelCount(F.Width, F.Height);
+            F.Width = (unsigned int)(Conf.Device->GetRenderTarget()->GetWidth() * Conf.RenderQuality);
+            F.Height = (unsigned int)(Conf.Device->GetRenderTarget()->GetHeight() * Conf.RenderQuality);
+            F.MipLevels = Conf.Device->GetMipLevelCount(F.Width, F.Height);
 
             if (Camera != nullptr)
             {
                 Lock();
                 delete Surface;
-                Surface = Graphics::MultiRenderTarget2D::Create(Device, F);
+                Surface = Graphics::MultiRenderTarget2D::Create(Conf.Device, F);
 
-                auto&& List = Components[ComponentId_Camera];
-                for (auto It = List.Begin(); It != List.End(); It++)
+                auto* Array = GetComponents(THAWK_COMPONENT_ID(Components::Camera));
+                for (auto It = Array->Begin(); It != Array->End(); It++)
                     (*It)->As<Components::Camera>()->ResizeBuffers();
 
                 Unlock();
@@ -2747,7 +2704,7 @@ namespace Tomahawk
             else
             {
                 delete Surface;
-                Surface = Graphics::MultiRenderTarget2D::Create(Device, F);
+                Surface = Graphics::MultiRenderTarget2D::Create(Conf.Device, F);
             }
         }
         void SceneGraph::SetSurface(Graphics::MultiRenderTarget2D* NewSurface)
@@ -2779,7 +2736,11 @@ namespace Tomahawk
         }
         Component* SceneGraph::GetComponent(UInt64 Component, UInt64 Section)
         {
-            return Components[Section][Component];
+            auto* Array = GetComponents(Section);
+            if (Component >= Array->Size())
+                return nullptr;
+
+            return *Array->At(Component);
         }
         RenderSystem* SceneGraph::GetRenderer()
         {
@@ -2791,7 +2752,7 @@ namespace Tomahawk
         }
         Entity* SceneGraph::GetEntity(UInt64 Entity)
         {
-            if (Entities.Empty())
+            if (Entity >= Entities.Size())
                 return nullptr;
 
             return Entities[Entity];
@@ -2864,7 +2825,7 @@ namespace Tomahawk
             for (auto& It : Instance->Components)
             {
                 Component* Source = It.second;
-                It.second = Source->OnClone();
+                It.second = Source->OnClone(Instance);
                 It.second->Parent = Instance;
                 It.second->Active = Source->Active;
             }
@@ -2892,6 +2853,9 @@ namespace Tomahawk
         }
         Graphics::Material& SceneGraph::GetMaterial(UInt64 Material)
         {
+            if (Material >= Materials.size())
+                return Materials.front();
+
             return Materials[Material];
         }
         Graphics::Material& SceneGraph::GetMaterialStandartLit()
@@ -2900,7 +2864,15 @@ namespace Tomahawk
         }
         Rest::Pool<Component*>* SceneGraph::GetComponents(UInt64 Section)
         {
-            return &Components[Section];
+            Rest::Pool<Component*>* Array = &Components[Section];
+            if (Array->Capacity() >= Conf.ComponentCount)
+                return Array;
+
+            Lock();
+            Array->Reserve(Conf.ComponentCount);
+            Unlock();
+
+            return Array;
         }
         std::vector<Entity*> SceneGraph::FindParentFreeEntities(Entity* Entity)
         {
@@ -2991,15 +2963,11 @@ namespace Tomahawk
         }
         bool SceneGraph::Denotify()
         {
-            if (!Queue)
+            if (!Conf.Queue)
                 return false;
 
-            while (Queue->Pull<Event>(Rest::EventType_Events));
+            while (Conf.Queue->Pull<Event>(Rest::EventType_Events));
             return true;
-        }
-        float SceneGraph::GetRenderQuality()
-        {
-            return RenderQuality;
         }
         UInt64 SceneGraph::HasEntity(Entity* Entity)
         {
@@ -3036,18 +3004,6 @@ namespace Tomahawk
         {
             return Materials.size();
         }
-        UInt64 SceneGraph::GetComponentTypesCount()
-        {
-            return Components.size();
-        }
-        UInt64 SceneGraph::GetComponentStorageCount()
-        {
-            return Pending.Capacity();
-        }
-        UInt64 SceneGraph::GetEntityStorageCount()
-        {
-            return Entities.Capacity();
-        }
         Graphics::MultiRenderTarget2D* SceneGraph::GetSurface()
         {
             return Surface;
@@ -3058,15 +3014,19 @@ namespace Tomahawk
         }
         Graphics::GraphicsDevice* SceneGraph::GetDevice()
         {
-            return Device;
+            return Conf.Device;
+        }
+        Rest::EventQueue* SceneGraph::GetQueue()
+        {
+            return Conf.Queue;
         }
         Compute::Simulator* SceneGraph::GetSimulator()
         {
             return Simulator;
         }
-        Rest::EventQueue* SceneGraph::GetQueue()
+        SceneGraph::Desc& SceneGraph::GetConf()
         {
-            return Queue;
+            return Conf;
         }
 
         ContentManager::ContentManager(Graphics::GraphicsDevice* NewDevice) : Device(NewDevice)
@@ -3433,7 +3393,7 @@ namespace Tomahawk
                         if (!Lab)
                             return;
 
-                        Renderers::GUIRenderer* GUI = (Renderers::GUIRenderer*)Lab->GetRenderStage(RendererId_GUI);
+                        Renderers::GUIRenderer* GUI = Lab->GetRenderer<Renderers::GUIRenderer>();
                         if (GUI != nullptr)
                             GUI->GetTree()->ApplyKeyState(Key, Mod, Virtual, Repeat, Pressed);
                     };
@@ -3447,7 +3407,7 @@ namespace Tomahawk
                         if (!Lab)
                             return;
 
-                        Renderers::GUIRenderer* GUI = (Renderers::GUIRenderer*)Lab->GetRenderStage(RendererId_GUI);
+                        Renderers::GUIRenderer* GUI = Lab->GetRenderer<Renderers::GUIRenderer>();
                         if (GUI != nullptr)
                             GUI->GetTree()->ApplyInput(Buffer, Length);
                     };
@@ -3461,7 +3421,7 @@ namespace Tomahawk
                         if (!Lab)
                             return;
 
-                        Renderers::GUIRenderer* GUI = (Renderers::GUIRenderer*)Lab->GetRenderStage(RendererId_GUI);
+                        Renderers::GUIRenderer* GUI = Lab->GetRenderer<Renderers::GUIRenderer>();
                         if (GUI != nullptr)
                             GUI->GetTree()->ApplyCursorWheelState(X, Y, Normal);
                     };

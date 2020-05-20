@@ -1,5 +1,6 @@
 #include "ogl.h"
 #include "../components.h"
+#include "../../resource.h"
 #include <imgui.h>
 #ifdef THAWK_HAS_GL
 

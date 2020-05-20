@@ -71,8 +71,8 @@ namespace Tomahawk
             class THAWK_OUT SceneGraphProcessor : public FileProcessor
             {
             public:
-                void (* OnComponentCreation)(Entity*, Component*&, UInt64);
-                void (* OnRendererCreation)(Renderer*&, UInt64);
+                void (* OnComponentCreation)(Entity*, Component**, UInt64);
+                void (* OnRendererCreation)(Renderer**, UInt64);
 
             public:
                 SceneGraphProcessor(ContentManager* Manager);

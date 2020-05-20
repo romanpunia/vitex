@@ -1,4 +1,5 @@
 #include "components.h"
+#include "renderers.h"
 
 namespace Tomahawk
 {
@@ -24,23 +25,22 @@ namespace Tomahawk
                 if (!Extended)
                     return;
 
-                btCollisionShape* Shape = nullptr;
-                UInt64 Type;
+                btCollisionShape* Shape = nullptr; UInt64 Type;
                 if (NMake::Unpack(Node->Find("shape"), &Type))
                 {
-                    Shape = Compute::CollisionShape::Auto((Compute::Shape)Type);
+                    Shape = Parent->GetScene()->GetSimulator()->CreateShape((Compute::Shape)Type);
                     if (Shape == nullptr && Type == (UInt64)Compute::Shape_Convex_Hull)
                     {
                         std::vector<Compute::Vector3> Vertices;
                         if (NMake::Unpack(Node->Find("shape-data"), &Vertices))
-                            Shape = Compute::CollisionShape::ConvexHull(Vertices);
+                            Shape = Parent->GetScene()->GetSimulator()->CreateConvexHull(Vertices);
                     }
                 }
 
                 float Mass = 0, CcdMotionThreshold = 0;
                 NMake::Unpack(Node->Find("mass"), &Mass);
                 NMake::Unpack(Node->Find("ccd-motion-threshold"), &CcdMotionThreshold);
-                Activate(Shape ? Shape : Compute::CollisionShape::Cube(1), Mass, CcdMotionThreshold);
+                Initialize(Shape ? Shape : Parent->GetScene()->GetSimulator()->CreateCube(), Mass, CcdMotionThreshold);
 
                 if (!Instance)
                     return;
@@ -143,7 +143,7 @@ namespace Tomahawk
                 NMake::Pack(Node->SetDocument("shape"), (UInt64)Instance->GetCollisionShapeType());
                 if (Instance->GetCollisionShapeType() == Compute::Shape_Convex_Hull)
                 {
-                    std::vector<Compute::Vector3> Vertices = Compute::CollisionShape::GetVertices(Instance->GetCollisionShape());
+                    std::vector<Compute::Vector3> Vertices = Parent->GetScene()->GetSimulator()->GetShapeVertices(Instance->GetCollisionShape());
                     NMake::Pack(Node->SetDocument("shape-data"), Vertices);
                 }
 
@@ -172,13 +172,6 @@ namespace Tomahawk
                 NMake::Pack(Node->SetDocument("linear-velocity"), Instance->GetLinearVelocity());
                 NMake::Pack(Node->SetDocument("collision-flags"), (UInt64)Instance->GetCollisionFlags());
             }
-            void RigidBody::OnAwake(Component* New)
-            {
-                if (New != this || Instance)
-                    return;
-
-                Activate(Compute::CollisionShape::Cube(), 0, 0.0f);
-            }
             void RigidBody::OnSynchronize(Rest::Timer* Time)
             {
                 if (Instance && Synchronize)
@@ -189,40 +182,25 @@ namespace Tomahawk
                 if (Instance != nullptr)
                     Instance->SetAsGhost();
             }
-            void RigidBody::Activate(btCollisionShape* Shape, float Mass, float Anticipation)
+            void RigidBody::Initialize(btCollisionShape* Shape, float Mass, float Anticipation)
             {
                 if (!Shape || !Parent || !Parent->GetScene() || !Parent->GetScene()->GetSimulator())
                     return;
 
-                bool FirstTime = false;
                 Parent->GetScene()->Lock();
+                delete Instance;
+                
+                Compute::RigidBody::Desc I;
+                I.Anticipation = Anticipation;
+                I.Mass = Mass;
+                I.Shape = Shape;
 
-                if (!Instance)
-                {
-                    Compute::RigidBody::Desc I;
-                    I.Transform = Parent->Transform;
-                    I.Anticipation = Anticipation;
-                    I.Mass = Mass;
-                    I.Shape = Shape;
-
-                    Instance = new Compute::RigidBody(Parent->GetScene()->GetSimulator(), I);
-                    FirstTime = true;
-                }
-
+                Instance = Parent->GetScene()->GetSimulator()->CreateRigidBody(I, Parent->Transform);
                 Instance->UserPointer = this;
-                if (FirstTime)
-                {
-                    Instance->Add();
-                    Instance->Activate(true);
-                    Parent->GetScene()->Unlock();
-                }
-                else
-                {
-                    Parent->GetScene()->Unlock();
-                    Reweight(Mass);
-                }
+                Instance->Activate(true);
+                Parent->GetScene()->Unlock();
             }
-            void RigidBody::ResynchronizeFrom(Compute::Matrix4x4 World)
+            void RigidBody::SetTransform(const Compute::Matrix4x4& World)
             {
                 if (Parent && Parent->GetScene())
                     Parent->GetScene()->Lock();
@@ -232,41 +210,36 @@ namespace Tomahawk
                 if (Parent && Parent->GetScene())
                     Parent->GetScene()->Unlock();
             }
-            void RigidBody::Resynchronize(bool Kinematically)
+            void RigidBody::SetTransform(bool Kinematics)
             {
                 if (Parent && Parent->GetScene())
                     Parent->GetScene()->Lock();
 
-                Instance->Synchronize(Parent->Transform, Kinematically);
+                Instance->Synchronize(Parent->Transform, Kinematics);
                 if (Parent && Parent->GetScene())
                     Parent->GetScene()->Unlock();
             }
-            void RigidBody::Reweight(float Mass)
+            void RigidBody::SetMass(float Mass)
             {
                 if (!Parent || !Parent->GetScene() || !Instance)
                     return;
 
                 Parent->GetScene()->Lock();
-                Instance->SetMass(Parent->GetScene()->GetSimulator(), Mass);
+                Instance->SetMass(Mass);
                 Parent->GetScene()->Unlock();
             }
-            Component* RigidBody::OnClone()
+            Component* RigidBody::OnClone(Entity* New)
             {
-                RigidBody* Object = new RigidBody(Parent);
-                Object->Kinematic = Kinematic;
+                RigidBody* Target = new RigidBody(New);
+                Target->Kinematic = Kinematic;
 
-                if (!Instance)
-                    return Object;
+                if (Instance != nullptr)
+                {
+                    Target->Instance = Instance->Copy();
+                    Target->Instance->UserPointer = Target;
+                }
 
-                btCollisionShape* Shape = Compute::CollisionShape::Auto(Instance->GetCollisionShapeType());
-                if (!Shape && Instance->GetCollisionShapeType() == Compute::Shape_Convex_Hull)
-                    Shape = Compute::CollisionShape::ConvexHull(Instance->GetCollisionShape());
-
-                Object->Activate(Shape, Instance->GetMass(), Instance->GetCcdMotionThreshold());
-                Object->Instance->Copy(Instance);
-                Object->Instance->UserPointer = Object;
-
-                return Object;
+                return Target;
             }
 
             Acceleration::Acceleration(Entity* Ref) : Component(Ref)
@@ -355,28 +328,26 @@ namespace Tomahawk
                 else if (AmplitudeTorque.Z > 0 && Torque.Z < -AmplitudeTorque.Z)
                     ConstantTorque.Z = ACT.Z;
             }
-            Component* Acceleration::OnClone()
+            Component* Acceleration::OnClone(Entity* New)
             {
-                Acceleration* Instance = new Acceleration(Parent);
-                Instance->Velocity = Velocity;
-                Instance->AmplitudeTorque = AmplitudeTorque;
-                Instance->AmplitudeVelocity = AmplitudeVelocity;
-                Instance->ConstantCenter = ConstantCenter;
-                Instance->ConstantTorque = ConstantTorque;
-                Instance->ConstantVelocity = ConstantVelocity;
-                Instance->RigidBody = RigidBody;
+                Acceleration* Target = new Acceleration(New);
+                Target->Velocity = Velocity;
+                Target->AmplitudeTorque = AmplitudeTorque;
+                Target->AmplitudeVelocity = AmplitudeVelocity;
+                Target->ConstantCenter = ConstantCenter;
+                Target->ConstantTorque = ConstantTorque;
+                Target->ConstantVelocity = ConstantVelocity;
+                Target->RigidBody = RigidBody;
 
-                return Instance;
+                return Target;
             }
 
-            SliderConstraint::SliderConstraint(Entity* Ref) : Component(Ref)
+            SliderConstraint::SliderConstraint(Entity* Ref) : Component(Ref), Instance(nullptr), Connection(nullptr)
             {
-                Constraint = nullptr;
-                Connection = nullptr;
             }
             SliderConstraint::~SliderConstraint()
             {
-                delete Constraint;
+                delete Instance;
             }
             void SliderConstraint::OnLoad(ContentManager* Content, Rest::Document* Node)
             {
@@ -395,179 +366,174 @@ namespace Tomahawk
                 bool CollisionState = false, LinearPowerState = false;
                 NMake::Unpack(Node->Find("collision-state"), &CollisionState);
                 NMake::Unpack(Node->Find("linear-power-state"), &CollisionState);
-                Activate(CollisionState, LinearPowerState);
+                Initialize(CollisionState, LinearPowerState);
 
-                if (!Constraint)
+                if (!Instance)
                     return;
 
                 float AngularMotorVelocity;
                 if (NMake::Unpack(Node->Find("angular-motor-velocity"), &AngularMotorVelocity))
-                    Constraint->SetAngularMotorVelocity(AngularMotorVelocity);
+                    Instance->SetAngularMotorVelocity(AngularMotorVelocity);
 
                 float LinearMotorVelocity;
                 if (NMake::Unpack(Node->Find("linear-motor-velocity"), &LinearMotorVelocity))
-                    Constraint->SetLinearMotorVelocity(LinearMotorVelocity);
+                    Instance->SetLinearMotorVelocity(LinearMotorVelocity);
 
                 float UpperLinearLimit;
                 if (NMake::Unpack(Node->Find("upper-linear-limit"), &UpperLinearLimit))
-                    Constraint->SetUpperLinearLimit(UpperLinearLimit);
+                    Instance->SetUpperLinearLimit(UpperLinearLimit);
 
                 float LowerLinearLimit;
                 if (NMake::Unpack(Node->Find("lower-linear-limit"), &LowerLinearLimit))
-                    Constraint->SetLowerLinearLimit(LowerLinearLimit);
+                    Instance->SetLowerLinearLimit(LowerLinearLimit);
 
                 float AngularDampingDirection;
                 if (NMake::Unpack(Node->Find("angular-damping-direction"), &AngularDampingDirection))
-                    Constraint->SetAngularDampingDirection(AngularDampingDirection);
+                    Instance->SetAngularDampingDirection(AngularDampingDirection);
 
                 float LinearDampingDirection;
                 if (NMake::Unpack(Node->Find("linear-damping-direction"), &LinearDampingDirection))
-                    Constraint->SetLinearDampingDirection(LinearDampingDirection);
+                    Instance->SetLinearDampingDirection(LinearDampingDirection);
 
                 float AngularDampingLimit;
                 if (NMake::Unpack(Node->Find("angular-damping-limit"), &AngularDampingLimit))
-                    Constraint->SetAngularDampingLimit(AngularDampingLimit);
+                    Instance->SetAngularDampingLimit(AngularDampingLimit);
 
                 float LinearDampingLimit;
                 if (NMake::Unpack(Node->Find("linear-damping-limit"), &LinearDampingLimit))
-                    Constraint->SetLinearDampingLimit(LinearDampingLimit);
+                    Instance->SetLinearDampingLimit(LinearDampingLimit);
 
                 float AngularDampingOrtho;
                 if (NMake::Unpack(Node->Find("angular-damping-ortho"), &AngularDampingOrtho))
-                    Constraint->SetAngularDampingOrtho(AngularDampingOrtho);
+                    Instance->SetAngularDampingOrtho(AngularDampingOrtho);
 
                 float LinearDampingOrtho;
                 if (NMake::Unpack(Node->Find("linear-damping-ortho"), &LinearDampingOrtho))
-                    Constraint->SetLinearDampingOrtho(LinearDampingOrtho);
+                    Instance->SetLinearDampingOrtho(LinearDampingOrtho);
 
                 float UpperAngularLimit;
                 if (NMake::Unpack(Node->Find("upper-angular-limit"), &UpperAngularLimit))
-                    Constraint->SetUpperAngularLimit(UpperAngularLimit);
+                    Instance->SetUpperAngularLimit(UpperAngularLimit);
 
                 float LowerAngularLimit;
                 if (NMake::Unpack(Node->Find("lower-angular-limit"), &LowerAngularLimit))
-                    Constraint->SetLowerAngularLimit(LowerAngularLimit);
+                    Instance->SetLowerAngularLimit(LowerAngularLimit);
 
                 float MaxAngularMotorForce;
                 if (NMake::Unpack(Node->Find("max-angular-motor-force"), &MaxAngularMotorForce))
-                    Constraint->SetMaxAngularMotorForce(MaxAngularMotorForce);
+                    Instance->SetMaxAngularMotorForce(MaxAngularMotorForce);
 
                 float MaxLinearMotorForce;
                 if (NMake::Unpack(Node->Find("max-linear-motor-force"), &MaxLinearMotorForce))
-                    Constraint->SetMaxLinearMotorForce(MaxLinearMotorForce);
+                    Instance->SetMaxLinearMotorForce(MaxLinearMotorForce);
 
                 float AngularRestitutionDirection;
                 if (NMake::Unpack(Node->Find("angular-restitution-direction"), &AngularRestitutionDirection))
-                    Constraint->SetAngularRestitutionDirection(AngularRestitutionDirection);
+                    Instance->SetAngularRestitutionDirection(AngularRestitutionDirection);
 
                 float LinearRestitutionDirection;
                 if (NMake::Unpack(Node->Find("linear-restitution-direction"), &LinearRestitutionDirection))
-                    Constraint->SetLinearRestitutionDirection(LinearRestitutionDirection);
+                    Instance->SetLinearRestitutionDirection(LinearRestitutionDirection);
 
                 float AngularRestitutionLimit;
                 if (NMake::Unpack(Node->Find("angular-restitution-limit"), &AngularRestitutionLimit))
-                    Constraint->SetAngularRestitutionLimit(AngularRestitutionLimit);
+                    Instance->SetAngularRestitutionLimit(AngularRestitutionLimit);
 
                 float LinearRestitutionLimit;
                 if (NMake::Unpack(Node->Find("linear-restitution-limit"), &LinearRestitutionLimit))
-                    Constraint->SetLinearRestitutionLimit(LinearRestitutionLimit);
+                    Instance->SetLinearRestitutionLimit(LinearRestitutionLimit);
 
                 float AngularRestitutionOrtho;
                 if (NMake::Unpack(Node->Find("angular-restitution-ortho"), &AngularRestitutionOrtho))
-                    Constraint->SetAngularRestitutionOrtho(AngularRestitutionOrtho);
+                    Instance->SetAngularRestitutionOrtho(AngularRestitutionOrtho);
 
                 float LinearRestitutionOrtho;
                 if (NMake::Unpack(Node->Find("linear-restitution-ortho"), &LinearRestitutionOrtho))
-                    Constraint->SetLinearRestitutionOrtho(LinearRestitutionOrtho);
+                    Instance->SetLinearRestitutionOrtho(LinearRestitutionOrtho);
 
                 float AngularSoftnessDirection;
                 if (NMake::Unpack(Node->Find("angular-softness-direction"), &AngularSoftnessDirection))
-                    Constraint->SetAngularSoftnessDirection(AngularSoftnessDirection);
+                    Instance->SetAngularSoftnessDirection(AngularSoftnessDirection);
 
                 float LinearSoftnessDirection;
                 if (NMake::Unpack(Node->Find("linear-softness-direction"), &LinearSoftnessDirection))
-                    Constraint->SetLinearSoftnessDirection(LinearSoftnessDirection);
+                    Instance->SetLinearSoftnessDirection(LinearSoftnessDirection);
 
                 float AngularSoftnessLimit;
                 if (NMake::Unpack(Node->Find("angular-softness-limit"), &AngularSoftnessLimit))
-                    Constraint->SetAngularSoftnessLimit(AngularSoftnessLimit);
+                    Instance->SetAngularSoftnessLimit(AngularSoftnessLimit);
 
                 float LinearSoftnessLimit;
                 if (NMake::Unpack(Node->Find("linear-softness-limit"), &LinearSoftnessLimit))
-                    Constraint->SetLinearSoftnessLimit(LinearSoftnessLimit);
+                    Instance->SetLinearSoftnessLimit(LinearSoftnessLimit);
 
                 float AngularSoftnessOrtho;
                 if (NMake::Unpack(Node->Find("angular-softness-ortho"), &AngularSoftnessOrtho))
-                    Constraint->SetAngularSoftnessOrtho(AngularSoftnessOrtho);
+                    Instance->SetAngularSoftnessOrtho(AngularSoftnessOrtho);
 
                 float LinearSoftnessOrtho;
                 if (NMake::Unpack(Node->Find("linear-softness-ortho"), &LinearSoftnessOrtho))
-                    Constraint->SetLinearSoftnessOrtho(LinearSoftnessOrtho);
+                    Instance->SetLinearSoftnessOrtho(LinearSoftnessOrtho);
 
                 bool PoweredAngularMotor;
                 if (NMake::Unpack(Node->Find("powered-angular-motor"), &PoweredAngularMotor))
-                    Constraint->SetPoweredAngularMotor(PoweredAngularMotor);
+                    Instance->SetPoweredAngularMotor(PoweredAngularMotor);
 
                 bool PoweredLinearMotor;
                 if (NMake::Unpack(Node->Find("powered-linear-motor"), &PoweredLinearMotor))
-                    Constraint->SetPoweredLinearMotor(PoweredLinearMotor);
+                    Instance->SetPoweredLinearMotor(PoweredLinearMotor);
 
                 bool Enabled;
                 if (NMake::Unpack(Node->Find("enabled"), &Enabled))
-                    Constraint->SetEnabled(Enabled);
+                    Instance->SetEnabled(Enabled);
             }
             void SliderConstraint::OnSave(ContentManager* Content, Rest::Document* Node)
             {
-                NMake::Pack(Node->SetDocument("extended"), !!Constraint);
-                if (!Constraint)
+                NMake::Pack(Node->SetDocument("extended"), Instance != nullptr);
+                if (!Instance)
                     return;
 
+                NMake::Pack(Node->SetDocument("collision-state"), Instance->GetInitialState().UseCollisions);
+                NMake::Pack(Node->SetDocument("linear-power-state"), Instance->GetInitialState().UseLinearPower);
                 NMake::Pack(Node->SetDocument("connection"), (UInt64)(Connection ? Connection->Self : -1));
-                NMake::Pack(Node->SetDocument("collision-state"), Constraint->FindCollisionState());
-                NMake::Pack(Node->SetDocument("linear-power-state"), Constraint->FindLinearPowerState());
-                NMake::Pack(Node->SetDocument("angular-motor-velocity"), Constraint->GetAngularMotorVelocity());
-                NMake::Pack(Node->SetDocument("linear-motor-velocity"), Constraint->GetLinearMotorVelocity());
-                NMake::Pack(Node->SetDocument("upper-linear-limit"), Constraint->GetUpperLinearLimit());
-                NMake::Pack(Node->SetDocument("lower-linear-limit"), Constraint->GetLowerLinearLimit());
-                NMake::Pack(Node->SetDocument("breaking-impulse-threshold"), Constraint->GetBreakingImpulseThreshold());
-                NMake::Pack(Node->SetDocument("angular-damping-direction"), Constraint->GetAngularDampingDirection());
-                NMake::Pack(Node->SetDocument("linear-amping-direction"), Constraint->GetLinearDampingDirection());
-                NMake::Pack(Node->SetDocument("angular-damping-limit"), Constraint->GetAngularDampingLimit());
-                NMake::Pack(Node->SetDocument("linear-damping-limit"), Constraint->GetLinearDampingLimit());
-                NMake::Pack(Node->SetDocument("angular-damping-ortho"), Constraint->GetAngularDampingOrtho());
-                NMake::Pack(Node->SetDocument("linear-damping-ortho"), Constraint->GetLinearDampingOrtho());
-                NMake::Pack(Node->SetDocument("upper-angular-limit"), Constraint->GetUpperAngularLimit());
-                NMake::Pack(Node->SetDocument("lower-angular-limit"), Constraint->GetLowerAngularLimit());
-                NMake::Pack(Node->SetDocument("max-angular-motor-force"), Constraint->GetMaxAngularMotorForce());
-                NMake::Pack(Node->SetDocument("max-linear-motor-force"), Constraint->GetMaxLinearMotorForce());
-                NMake::Pack(Node->SetDocument("angular-restitution-direction"), Constraint->GetAngularRestitutionDirection());
-                NMake::Pack(Node->SetDocument("linear-restitution-direction"), Constraint->GetLinearRestitutionDirection());
-                NMake::Pack(Node->SetDocument("angular-restitution-limit"), Constraint->GetAngularRestitutionLimit());
-                NMake::Pack(Node->SetDocument("linear-restitution-limit"), Constraint->GetLinearRestitutionLimit());
-                NMake::Pack(Node->SetDocument("angular-restitution-ortho"), Constraint->GetAngularRestitutionOrtho());
-                NMake::Pack(Node->SetDocument("linear-restitution-ortho"), Constraint->GetLinearRestitutionOrtho());
-                NMake::Pack(Node->SetDocument("angular-softness-direction"), Constraint->GetAngularSoftnessDirection());
-                NMake::Pack(Node->SetDocument("linear-softness-direction"), Constraint->GetLinearSoftnessDirection());
-                NMake::Pack(Node->SetDocument("angular-softness-limit"), Constraint->GetAngularSoftnessLimit());
-                NMake::Pack(Node->SetDocument("linear-softness-limit"), Constraint->GetLinearSoftnessLimit());
-                NMake::Pack(Node->SetDocument("angular-softness-ortho"), Constraint->GetAngularSoftnessOrtho());
-                NMake::Pack(Node->SetDocument("linear-softness-ortho"), Constraint->GetLinearSoftnessOrtho());
-                NMake::Pack(Node->SetDocument("powered-angular-motor"), Constraint->GetPoweredAngularMotor());
-                NMake::Pack(Node->SetDocument("powered-linear-motor"), Constraint->GetPoweredLinearMotor());
-                NMake::Pack(Node->SetDocument("enabled"), Constraint->IsEnabled());
+                NMake::Pack(Node->SetDocument("angular-motor-velocity"), Instance->GetAngularMotorVelocity());
+                NMake::Pack(Node->SetDocument("linear-motor-velocity"), Instance->GetLinearMotorVelocity());
+                NMake::Pack(Node->SetDocument("upper-linear-limit"), Instance->GetUpperLinearLimit());
+                NMake::Pack(Node->SetDocument("lower-linear-limit"), Instance->GetLowerLinearLimit());
+                NMake::Pack(Node->SetDocument("breaking-impulse-threshold"), Instance->GetBreakingImpulseThreshold());
+                NMake::Pack(Node->SetDocument("angular-damping-direction"), Instance->GetAngularDampingDirection());
+                NMake::Pack(Node->SetDocument("linear-amping-direction"), Instance->GetLinearDampingDirection());
+                NMake::Pack(Node->SetDocument("angular-damping-limit"), Instance->GetAngularDampingLimit());
+                NMake::Pack(Node->SetDocument("linear-damping-limit"), Instance->GetLinearDampingLimit());
+                NMake::Pack(Node->SetDocument("angular-damping-ortho"), Instance->GetAngularDampingOrtho());
+                NMake::Pack(Node->SetDocument("linear-damping-ortho"), Instance->GetLinearDampingOrtho());
+                NMake::Pack(Node->SetDocument("upper-angular-limit"), Instance->GetUpperAngularLimit());
+                NMake::Pack(Node->SetDocument("lower-angular-limit"), Instance->GetLowerAngularLimit());
+                NMake::Pack(Node->SetDocument("max-angular-motor-force"), Instance->GetMaxAngularMotorForce());
+                NMake::Pack(Node->SetDocument("max-linear-motor-force"), Instance->GetMaxLinearMotorForce());
+                NMake::Pack(Node->SetDocument("angular-restitution-direction"), Instance->GetAngularRestitutionDirection());
+                NMake::Pack(Node->SetDocument("linear-restitution-direction"), Instance->GetLinearRestitutionDirection());
+                NMake::Pack(Node->SetDocument("angular-restitution-limit"), Instance->GetAngularRestitutionLimit());
+                NMake::Pack(Node->SetDocument("linear-restitution-limit"), Instance->GetLinearRestitutionLimit());
+                NMake::Pack(Node->SetDocument("angular-restitution-ortho"), Instance->GetAngularRestitutionOrtho());
+                NMake::Pack(Node->SetDocument("linear-restitution-ortho"), Instance->GetLinearRestitutionOrtho());
+                NMake::Pack(Node->SetDocument("angular-softness-direction"), Instance->GetAngularSoftnessDirection());
+                NMake::Pack(Node->SetDocument("linear-softness-direction"), Instance->GetLinearSoftnessDirection());
+                NMake::Pack(Node->SetDocument("angular-softness-limit"), Instance->GetAngularSoftnessLimit());
+                NMake::Pack(Node->SetDocument("linear-softness-limit"), Instance->GetLinearSoftnessLimit());
+                NMake::Pack(Node->SetDocument("angular-softness-ortho"), Instance->GetAngularSoftnessOrtho());
+                NMake::Pack(Node->SetDocument("linear-softness-ortho"), Instance->GetLinearSoftnessOrtho());
+                NMake::Pack(Node->SetDocument("powered-angular-motor"), Instance->GetPoweredAngularMotor());
+                NMake::Pack(Node->SetDocument("powered-linear-motor"), Instance->GetPoweredLinearMotor());
+                NMake::Pack(Node->SetDocument("enabled"), Instance->IsEnabled());
             }
-            void SliderConstraint::OnAwake(Component* New)
-            {
-                if (Parent->GetComponent<RigidBody>() && Connection)
-                    Activate(true, true);
-            }
-            void SliderConstraint::Activate(bool UseCollisions, bool UseLinearPower)
+            void SliderConstraint::Initialize(bool IsGhosted, bool IsLinear)
             {
                 if (!Parent || !Parent->GetScene())
                     return;
 
                 Parent->GetScene()->Lock();
-                delete Constraint;
+                delete Instance;
 
                 if (!Connection)
                     return Parent->GetScene()->Unlock();
@@ -580,35 +546,33 @@ namespace Tomahawk
                 Compute::SliderConstraint::Desc I;
                 I.Target1 = FirstBody->Instance;
                 I.Target2 = SecondBody->Instance;
-                I.UseCollisions = UseCollisions;
-                I.UseLinearPower = UseLinearPower;
+                I.UseCollisions = !IsGhosted;
+                I.UseLinearPower = IsLinear;
 
-                Constraint = new Compute::SliderConstraint(Parent->GetScene()->GetSimulator(), I);
+                Instance = Parent->GetScene()->GetSimulator()->CreateSliderConstraint(I);
                 Parent->GetScene()->Unlock();
             }
-            Component* SliderConstraint::OnClone()
+            Component* SliderConstraint::OnClone(Entity* New)
             {
-                SliderConstraint* Instance = new SliderConstraint(Parent);
-                Instance->Connection = Connection;
+                SliderConstraint* Target = new SliderConstraint(New);
+                Target->Connection = Connection;
 
-                if (!Constraint)
-                    return Instance;
+                if (!Instance)
+                    return Target;
 
-                RigidBody* FirstBody = Parent->GetComponent<RigidBody>();
-                RigidBody* SecondBody = Connection->GetComponent<RigidBody>();
-                if (!FirstBody || !SecondBody)
-                    return Instance;
+                RigidBody* FirstBody = New->GetComponent<RigidBody>();
+                if (!FirstBody)
+                    FirstBody = Parent->GetComponent<RigidBody>();
+                
+                if (!FirstBody)
+                    return Target;
 
-                Compute::SliderConstraint::Desc I;
-                I.Target1 = FirstBody->Instance;
-                I.Target2 = SecondBody->Instance;
-                I.UseCollisions = Constraint->IsUsesCollisions();
-                I.UseLinearPower = Constraint->IsUsesLinearPower();
+                Compute::SliderConstraint::Desc I(Instance->GetInitialState());
+                Instance->GetInitialState().Target1 = FirstBody->Instance;
+                Target->Instance = Instance->Copy();
+                Instance->GetInitialState() = I;
 
-                Instance->Constraint = new Compute::SliderConstraint(Parent->GetScene()->GetSimulator(), I);
-                Instance->Constraint->Copy(Constraint);
-
-                return Instance;
+                return Target;
             }
 
             AudioSource::AudioSource(Entity* Ref) : Component(Ref)
@@ -708,19 +672,19 @@ namespace Tomahawk
             {
                 Audio::AudioContext::SetSourceData1F(Source->Instance, Audio::SoundEx_Seconds_Offset, Position);
             }
-            Component* AudioSource::OnClone()
+            Component* AudioSource::OnClone(Entity* New)
             {
-                AudioSource* Instance = new AudioSource(Parent);
-                Instance->Distance = Distance;
-                Instance->Gain = Gain;
-                Instance->Loop = Loop;
-                Instance->Pitch = Pitch;
-                Instance->Position = Position;
-                Instance->RefDistance = RefDistance;
-                Instance->Relative = Relative;
-                Instance->Source->Apply(Source->Clip);
+                AudioSource* Target = new AudioSource(New);
+                Target->Distance = Distance;
+                Target->Gain = Gain;
+                Target->Loop = Loop;
+                Target->Pitch = Pitch;
+                Target->Position = Position;
+                Target->RefDistance = RefDistance;
+                Target->Relative = Relative;
+                Target->Source->Apply(Source->Clip);
 
-                return Instance;
+                return Target;
             }
 
             AudioListener::AudioListener(Entity* Ref) : Component(Ref)
@@ -761,13 +725,13 @@ namespace Tomahawk
                 Audio::AudioContext::SetListenerDataVF(Audio::SoundEx_Orientation, LookAt);
                 Audio::AudioContext::SetListenerData1F(Audio::SoundEx_Gain, 0.0f);
             }
-            Component* AudioListener::OnClone()
+            Component* AudioListener::OnClone(Entity* New)
             {
-                AudioListener* Instance = new AudioListener(Parent);
-                Instance->Velocity = Velocity;
-                Instance->Gain = Gain;
+                AudioListener* Target = new AudioListener(New);
+                Target->Velocity = Velocity;
+                Target->Gain = Gain;
 
-                return Instance;
+                return Target;
             }
 
             SkinAnimator::SkinAnimator(Entity* Ref) : Component(Ref)
@@ -804,7 +768,7 @@ namespace Tomahawk
                 else
                     Instance = nullptr;
 
-                SetActive(!!Instance);
+                SetActive(Instance != nullptr);
             }
             void SkinAnimator::OnSynchronize(Rest::Timer* Time)
             {
@@ -889,8 +853,8 @@ namespace Tomahawk
 
                 if (State.Clip >= 0 && State.Clip < Clips.size())
                 {
-                    Compute::SkinAnimatorClip* Clip = &Clips[State.Clip];
-                    if (State.Frame < 0 || State.Frame >= Clip->Keys.size())
+                    Compute::SkinAnimatorClip* CurrentClip = &Clips[State.Clip];
+                    if (State.Frame < 0 || State.Frame >= CurrentClip->Keys.size())
                         State.Frame = -1;
                 }
                 else
@@ -933,8 +897,8 @@ namespace Tomahawk
 
                 if (State.Clip >= 0 && State.Clip < Clips.size())
                 {
-                    Compute::SkinAnimatorClip* Clip = &Clips[State.Clip];
-                    if (State.Frame < 0 || State.Frame >= Clip->Keys.size())
+                    Compute::SkinAnimatorClip* CurrentClip = &Clips[State.Clip];
+                    if (State.Frame < 0 || State.Frame >= CurrentClip->Keys.size())
                         State.Frame = -1;
                 }
                 else
@@ -978,15 +942,15 @@ namespace Tomahawk
 
                 return &Clips[Clip].Keys;
             }
-            Component* SkinAnimator::OnClone()
+            Component* SkinAnimator::OnClone(Entity* New)
             {
-                SkinAnimator* Instance = new SkinAnimator(Parent);
-                Instance->Clips = Clips;
-                Instance->State = State;
-                Instance->Bind = Bind;
-                Instance->Current = Current;
+                SkinAnimator* Target = new SkinAnimator(New);
+                Target->Clips = Clips;
+                Target->State = State;
+                Target->Bind = Bind;
+                Target->Current = Current;
 
-                return Instance;
+                return Target;
             }
 
             KeyAnimator::KeyAnimator(Entity* Ref) : Component(Ref)
@@ -1073,8 +1037,8 @@ namespace Tomahawk
 
                 if (State.Clip >= 0 && State.Clip < Clips.size())
                 {
-                    Compute::KeyAnimatorClip* Clip = &Clips[State.Clip];
-                    if (State.Frame < 0 || State.Frame >= Clip->Keys.size())
+                    Compute::KeyAnimatorClip* CurrentClip = &Clips[State.Clip];
+                    if (State.Frame < 0 || State.Frame >= CurrentClip->Keys.size())
                         State.Frame = -1;
                 }
                 else
@@ -1109,8 +1073,8 @@ namespace Tomahawk
 
                 if (State.Clip >= 0 && State.Clip < Clips.size())
                 {
-                    Compute::KeyAnimatorClip* Clip = &Clips[State.Clip];
-                    if (State.Frame < 0 || State.Frame >= Clip->Keys.size())
+                    Compute::KeyAnimatorClip* CurrentClip = &Clips[State.Clip];
+                    if (State.Frame < 0 || State.Frame >= CurrentClip->Keys.size())
                         State.Frame = -1;
                 }
                 else
@@ -1143,15 +1107,15 @@ namespace Tomahawk
 
                 return &Clips[Clip].Keys;
             }
-            Component* KeyAnimator::OnClone()
+            Component* KeyAnimator::OnClone(Entity* New)
             {
-                KeyAnimator* Instance = new KeyAnimator(Parent);
-                Instance->Clips = Clips;
-                Instance->State = State;
-                Instance->Bind = Bind;
-                Instance->Current = Current;
+                KeyAnimator* Target = new KeyAnimator(New);
+                Target->Clips = Clips;
+                Target->State = State;
+                Target->Bind = Bind;
+                Target->Current = Current;
 
-                return Instance;
+                return Target;
             }
 
             ElementSystem::ElementSystem(Entity* Ref) : Component(Ref)
@@ -1264,15 +1228,15 @@ namespace Tomahawk
 
                 return Parent->GetScene()->GetMaterial((int)Material);
             }
-            Component* ElementSystem::OnClone()
+            Component* ElementSystem::OnClone(Entity* New)
             {
-                ElementSystem* Clone = new ElementSystem(Parent);
-                Clone->Visibility = Visibility;
-                Clone->Volume = Volume;
-                Clone->StrongConnection = StrongConnection;
-                Clone->Instance->GetArray()->Copy(*Instance->GetArray());
+                ElementSystem* Target = new ElementSystem(New);
+                Target->Visibility = Visibility;
+                Target->Volume = Volume;
+                Target->StrongConnection = StrongConnection;
+                Target->Instance->GetArray()->Copy(*Instance->GetArray());
 
-                return Clone;
+                return Target;
             }
 
             ElementAnimator::ElementAnimator(Entity* Ref) : Component(Ref)
@@ -1414,19 +1378,19 @@ namespace Tomahawk
                         Array->RemoveAt(It);
                 }
             }
-            Component* ElementAnimator::OnClone()
+            Component* ElementAnimator::OnClone(Entity* New)
             {
-                ElementAnimator* Instance = new ElementAnimator(Parent);
-                Instance->Diffuse = Diffuse;
-                Instance->Position = Position;
-                Instance->Velocity = Velocity;
-                Instance->ScaleSpeed = ScaleSpeed;
-                Instance->RotationSpeed = RotationSpeed;
-                Instance->Spawner = Spawner;
-                Instance->Noisiness = Noisiness;
-                Instance->Simulate = Simulate;
+                ElementAnimator* Target = new ElementAnimator(New);
+                Target->Diffuse = Diffuse;
+                Target->Position = Position;
+                Target->Velocity = Velocity;
+                Target->ScaleSpeed = ScaleSpeed;
+                Target->RotationSpeed = RotationSpeed;
+                Target->Spawner = Spawner;
+                Target->Noisiness = Noisiness;
+                Target->Simulate = Simulate;
 
-                return Instance;
+                return Target;
             }
 
             FreeLook::FreeLook(Entity* Ref) : Component(Ref), Activity(nullptr), Rotate(Graphics::KeyCode_CURSORRIGHT), Sensitivity(0.005f)
@@ -1650,14 +1614,14 @@ namespace Tomahawk
 
                 return Compute::Matrix4x4::Create(Parent->Transform->Position, Parent->Transform->Scale * Compute::Vector3(Instance->Min.W - Instance->Max.W).Div(2.0f).Abs(), Parent->Transform->Rotation);
             }
-            Component* Model::OnClone()
+            Component* Model::OnClone(Entity* New)
             {
-                Model* New = new Model(Parent);
-                New->Visibility = Visibility;
-                New->Instance = Instance;
-                New->Surfaces = Surfaces;
+                Model* Target = new Model(New);
+                Target->Visibility = Visibility;
+                Target->Instance = Instance;
+                Target->Surfaces = Surfaces;
 
-                return New;
+                return Target;
             }
 
             SkinnedModel::SkinnedModel(Entity* Ref) : Component(Ref)
@@ -1811,14 +1775,14 @@ namespace Tomahawk
 
                 return Compute::Matrix4x4::Create(Parent->Transform->Position, Parent->Transform->Scale * Compute::Vector3(Instance->Min.W - Instance->Max.W).Div(2.0f).Abs(), Parent->Transform->Rotation);
             }
-            Component* SkinnedModel::OnClone()
+            Component* SkinnedModel::OnClone(Entity* New)
             {
-                SkinnedModel* New = new SkinnedModel(Parent);
-                New->Visibility = Visibility;
-                New->Instance = Instance;
-                New->Surfaces = Surfaces;
+                SkinnedModel* Target = new SkinnedModel(New);
+                Target->Visibility = Visibility;
+                Target->Instance = Instance;
+                Target->Surfaces = Surfaces;
 
-                return New;
+                return Target;
             }
 
             PointLight::PointLight(Entity* Ref) : Component(Ref)
@@ -1869,22 +1833,22 @@ namespace Tomahawk
                 else
                     Visibility = 0.0f;
             }
-            Component* PointLight::OnClone()
+            Component* PointLight::OnClone(Entity* New)
             {
-                PointLight* Instance = new PointLight(Parent);
-                Instance->Diffusion = Diffusion;
-                Instance->Emission = Emission;
-                Instance->Visibility = Visibility;
-                Instance->Range = Range;
-                Instance->Projection = Projection;
-                Instance->ShadowBias = ShadowBias;
-                Instance->ShadowDistance = ShadowDistance;
-                Instance->ShadowIterations = ShadowIterations;
-                Instance->ShadowSoftness = ShadowSoftness;
-                Instance->Shadowed = Shadowed;
-                Instance->View = View;
+                PointLight* Target = new PointLight(New);
+                Target->Diffusion = Diffusion;
+                Target->Emission = Emission;
+                Target->Visibility = Visibility;
+                Target->Range = Range;
+                Target->Projection = Projection;
+                Target->ShadowBias = ShadowBias;
+                Target->ShadowDistance = ShadowDistance;
+                Target->ShadowIterations = ShadowIterations;
+                Target->ShadowSoftness = ShadowSoftness;
+                Target->Shadowed = Shadowed;
+                Target->View = View;
 
-                return Instance;
+                return Target;
             }
 
             SpotLight::SpotLight(Entity* Ref) : Component(Ref)
@@ -1952,23 +1916,23 @@ namespace Tomahawk
                 else
                     Visibility = 0.0f;
             }
-            Component* SpotLight::OnClone()
+            Component* SpotLight::OnClone(Entity* New)
             {
-                SpotLight* Instance = new SpotLight(Parent);
-                Instance->Diffuse = Diffuse;
-                Instance->Projection = Projection;
-                Instance->View = View;
-                Instance->Diffusion = Diffusion;
-                Instance->FieldOfView = FieldOfView;
-                Instance->Range = Range;
-                Instance->Emission = Emission;
-                Instance->Shadowed = Shadowed;
-                Instance->ShadowBias = ShadowBias;
-                Instance->ShadowDistance = ShadowDistance;
-                Instance->ShadowIterations = ShadowIterations;
-                Instance->ShadowSoftness = ShadowSoftness;
+                SpotLight* Target = new SpotLight(New);
+                Target->Diffuse = Diffuse;
+                Target->Projection = Projection;
+                Target->View = View;
+                Target->Diffusion = Diffusion;
+                Target->FieldOfView = FieldOfView;
+                Target->Range = Range;
+                Target->Emission = Emission;
+                Target->Shadowed = Shadowed;
+                Target->ShadowBias = ShadowBias;
+                Target->ShadowDistance = ShadowDistance;
+                Target->ShadowIterations = ShadowIterations;
+                Target->ShadowSoftness = ShadowSoftness;
 
-                return Instance;
+                return Target;
             }
 
             LineLight::LineLight(Entity* Ref) : Component(Ref)
@@ -2020,23 +1984,23 @@ namespace Tomahawk
                 Projection = Compute::Matrix4x4::CreateOrthographic(ShadowDistance, ShadowDistance, -ShadowDistance / 2.0f - ShadowFarBias, ShadowDistance / 2.0f + ShadowFarBias);
                 View = Compute::Matrix4x4::CreateLineLightLookAt(Parent->Transform->Position, Parent->GetScene()->GetCamera()->GetEntity()->Transform->Position.SetY(ShadowHeight));
             }
-            Component* LineLight::OnClone()
+            Component* LineLight::OnClone(Entity* New)
             {
-                LineLight* Instance = new LineLight(Parent);
-                Instance->Projection = Projection;
-                Instance->View = View;
-                Instance->Diffusion = Diffusion;
-                Instance->ShadowBias = ShadowBias;
-                Instance->ShadowDistance = ShadowDistance;
-                Instance->ShadowFarBias = ShadowFarBias;
-                Instance->ShadowSoftness = ShadowSoftness;
-                Instance->ShadowLength = ShadowLength;
-                Instance->ShadowHeight = ShadowHeight;
-                Instance->ShadowIterations = ShadowIterations;
-                Instance->Emission = Emission;
-                Instance->Shadowed = Shadowed;
+                LineLight* Target = new LineLight(New);
+                Target->Projection = Projection;
+                Target->View = View;
+                Target->Diffusion = Diffusion;
+                Target->ShadowBias = ShadowBias;
+                Target->ShadowDistance = ShadowDistance;
+                Target->ShadowFarBias = ShadowFarBias;
+                Target->ShadowSoftness = ShadowSoftness;
+                Target->ShadowLength = ShadowLength;
+                Target->ShadowHeight = ShadowHeight;
+                Target->ShadowIterations = ShadowIterations;
+                Target->Emission = Emission;
+                Target->Shadowed = Shadowed;
 
-                return Instance;
+                return Target;
             }
 
             ProbeLight::ProbeLight(Entity* Ref) : Component(Ref)
@@ -2171,20 +2135,20 @@ namespace Tomahawk
                 Diffuse = Graphics::TextureCube::Create(Parent->GetScene()->GetDevice(), F);
                 return Diffuse != nullptr;
             }
-            Component* ProbeLight::OnClone()
+            Component* ProbeLight::OnClone(Entity* New)
             {
-                ProbeLight* Instance = new ProbeLight(Parent);
-                Instance->Projection = Projection;
-                Instance->Range = Range;
-                Instance->Diffusion = Diffusion;
-                Instance->Visibility = Visibility;
-                Instance->Emission = Emission;
-                Instance->CaptureRange = CaptureRange;
-                Instance->ImageBased = ImageBased;
-                Instance->Rebuild = Rebuild;
-                memcpy(Instance->View, View, 6 * sizeof(Compute::Matrix4x4));
+                ProbeLight* Target = new ProbeLight(New);
+                Target->Projection = Projection;
+                Target->Range = Range;
+                Target->Diffusion = Diffusion;
+                Target->Visibility = Visibility;
+                Target->Emission = Emission;
+                Target->CaptureRange = CaptureRange;
+                Target->ImageBased = ImageBased;
+                Target->Rebuild = Rebuild;
+                memcpy(Target->View, View, 6 * sizeof(Compute::Matrix4x4));
 
-                return Instance;
+                return Target;
             }
 
             Camera::Camera(Entity* Ref) : Component(Ref)
@@ -2242,21 +2206,55 @@ namespace Tomahawk
 
                 for (auto& Render : Renderers)
                 {
-                    UInt64 Id = RendererId_Empty;
-                    NMake::Unpack(Render->Find("type"), &Id);
+                    UInt64 RendererId;
+                    NMake::Unpack(Render->Find("id"), &RendererId);
+                    Engine::Renderer* Target = nullptr;
+                    
+                    if (RendererId == THAWK_COMPONENT_ID(Renderers::ModelRenderer))
+                        Target = Engine::Renderers::ModelRenderer::Create(Renderer);
+                    else if (RendererId == THAWK_COMPONENT_ID(Renderers::SkinnedModelRenderer))
+                        Target = Engine::Renderers::SkinnedModelRenderer::Create(Renderer);
+                    else if (RendererId == THAWK_COMPONENT_ID(Renderers::DepthRenderer))
+                        Target = Engine::Renderers::DepthRenderer::Create(Renderer);
+                    else if (RendererId == THAWK_COMPONENT_ID(Renderers::LightRenderer))
+                        Target = Engine::Renderers::LightRenderer::Create(Renderer);
+                    else if (RendererId == THAWK_COMPONENT_ID(Renderers::ProbeRenderer))
+                        Target = Engine::Renderers::ProbeRenderer::Create(Renderer);
+                    else if (RendererId == THAWK_COMPONENT_ID(Renderers::ImageRenderer))
+                        Target = Engine::Renderers::ImageRenderer::Create(Renderer);
+                    else if (RendererId == THAWK_COMPONENT_ID(Renderers::ElementSystemRenderer))
+                        Target = Engine::Renderers::ElementSystemRenderer::Create(Renderer);
+                    else if (RendererId == THAWK_COMPONENT_ID(Renderers::ReflectionsRenderer))
+                        Target = Engine::Renderers::ReflectionsRenderer::Create(Renderer);
+                    else if (RendererId == THAWK_COMPONENT_ID(Renderers::DepthOfFieldRenderer))
+                        Target = Engine::Renderers::DepthOfFieldRenderer::Create(Renderer);
+                    else if (RendererId == THAWK_COMPONENT_ID(Renderers::EmissionRenderer))
+                        Target = Engine::Renderers::EmissionRenderer::Create(Renderer);
+                    else if (RendererId == THAWK_COMPONENT_ID(Renderers::GlitchRenderer))
+                        Target = Engine::Renderers::GlitchRenderer::Create(Renderer);
+                    else if (RendererId == THAWK_COMPONENT_ID(Renderers::AmbientOcclusionRenderer))
+                        Target = Engine::Renderers::AmbientOcclusionRenderer::Create(Renderer);
+                    else if (RendererId == THAWK_COMPONENT_ID(Renderers::IndirectOcclusionRenderer))
+                        Target = Engine::Renderers::IndirectOcclusionRenderer::Create(Renderer);
+                    else if (RendererId == THAWK_COMPONENT_ID(Renderers::ToneRenderer))
+                        Target = Engine::Renderers::ToneRenderer::Create(Renderer);
+                    else if (RendererId == THAWK_COMPONENT_ID(Renderers::GUIRenderer))
+                        Target = Engine::Renderers::GUIRenderer::Create(Renderer, Application::Get()->Activity);
 
-                    Engine::Renderer* Ref = Renderer->AddRenderStageByType(Id);
-                    if (!Ref)
+                    if (!Renderer)
+                    {
+                        THAWK_WARN("cannot create renderer with id %llu", RendererId);
                         continue;
+                    }
 
                     Rest::Document* Meta = Render->Find("metadata");
                     if (!Meta)
                         Meta = Render->SetDocument("metadata");
 
-                    Ref->OnRelease();
-                    Ref->OnLoad(Content, Meta);
-                    Ref->OnInitialize();
-                    NMake::Unpack(Render->Find("active"), &Ref->Active);
+                    Target->OnRelease();
+                    Target->OnLoad(Content, Meta);
+                    Target->OnInitialize();
+                    NMake::Unpack(Render->Find("active"), &Target->Active);
                 }
             }
             void Camera::OnSave(ContentManager* Content, Rest::Document* Node)
@@ -2268,7 +2266,7 @@ namespace Tomahawk
                 for (auto& Ref : *Renderer->GetRenderStages())
                 {
                     Rest::Document* Render = Renderers->SetDocument("renderer");
-                    NMake::Pack(Render->SetDocument("type"), Ref->Type());
+                    NMake::Pack(Render->SetDocument("id"), Ref->Id());
                     NMake::Pack(Render->SetDocument("active"), Ref->Active);
                     Ref->OnSave(Content, Render->SetDocument("metadata"));
                 }
@@ -2315,13 +2313,13 @@ namespace Tomahawk
             {
                 return Compute::Math<float>::ACotan(Projection.Row[5]) * 2.0f / Compute::Math<float>::Deg2Rad();
             }
-            Component* Camera::OnClone()
+            Component* Camera::OnClone(Entity* New)
             {
-                Camera* Instance = new Camera(Parent);
-                Instance->ViewDistance = ViewDistance;
-                Instance->Projection = Projection;
+                Camera* Target = new Camera(New);
+                Target->ViewDistance = ViewDistance;
+                Target->Projection = Projection;
 
-                return Instance;
+                return Target;
             }
         }
     }

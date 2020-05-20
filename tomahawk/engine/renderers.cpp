@@ -1323,7 +1323,7 @@ namespace Tomahawk
                 }
             }
 
-            ModelRenderer::ModelRenderer(RenderSystem* Lab) : Renderer(Lab, RendererId_Model)
+            ModelRenderer::ModelRenderer(RenderSystem* Lab) : Renderer(Lab)
             {
                 Priority = true;
             }
@@ -1347,7 +1347,7 @@ namespace Tomahawk
                 return nullptr;
             }
 
-            SkinnedModelRenderer::SkinnedModelRenderer(RenderSystem* Lab) : Renderer(Lab, RendererId_Skinned_Model)
+            SkinnedModelRenderer::SkinnedModelRenderer(RenderSystem* Lab) : Renderer(Lab)
             {
                 Priority = true;
             }
@@ -1371,7 +1371,7 @@ namespace Tomahawk
                 return nullptr;
             }
 
-            ElementSystemRenderer::ElementSystemRenderer(RenderSystem* Lab) : Renderer(Lab, RendererId_Element_System)
+            ElementSystemRenderer::ElementSystemRenderer(RenderSystem* Lab) : Renderer(Lab)
             {
                 Priority = true;
             }
@@ -1395,7 +1395,7 @@ namespace Tomahawk
                 return nullptr;
             }
 
-            DepthRenderer::DepthRenderer(RenderSystem* Lab) : IntervalRenderer(Lab, RendererId_Depth), ShadowDistance(0.5f)
+            DepthRenderer::DepthRenderer(RenderSystem* Lab) : IntervalRenderer(Lab), ShadowDistance(0.5f)
             {
                 Priority = false;
             }
@@ -1413,15 +1413,15 @@ namespace Tomahawk
                 if (!System || !System->GetScene())
                     return;
 
-                Rest::Pool<Component*>* Lights = System->GetScene()->GetComponents(Engine::ComponentId_Point_Light);
+                Rest::Pool<Component*>* Lights = System->GetScene()->GetComponents<Components::PointLight>();
                 for (auto It = Lights->Begin(); It != Lights->End(); It++)
                     (*It)->As<Components::PointLight>()->Occlusion = nullptr;
 
-                Lights = System->GetScene()->GetComponents(Engine::ComponentId_Spot_Light);
+                Lights = System->GetScene()->GetComponents<Components::SpotLight>();
                 for (auto It = Lights->Begin(); It != Lights->End(); It++)
                     (*It)->As<Components::SpotLight>()->Occlusion = nullptr;
 
-                Lights = System->GetScene()->GetComponents(Engine::ComponentId_Line_Light);
+                Lights = System->GetScene()->GetComponents<Components::LineLight>();
                 for (auto It = Lights->Begin(); It != Lights->End(); It++)
                     (*It)->As<Components::LineLight>()->Occlusion = nullptr;
             }
@@ -1459,7 +1459,7 @@ namespace Tomahawk
                 return nullptr;
             }
 
-            ProbeRenderer::ProbeRenderer(RenderSystem* Lab) : Renderer(Lab, RendererId_Probe), Surface(nullptr), Size(128), MipLevels(7)
+            ProbeRenderer::ProbeRenderer(RenderSystem* Lab) : Renderer(Lab), Surface(nullptr), Size(128), MipLevels(7)
             {
                 Priority = false;
             }
@@ -1491,7 +1491,7 @@ namespace Tomahawk
                 return nullptr;
             }
 
-            LightRenderer::LightRenderer(RenderSystem* Lab) : Renderer(Lab, RendererId_Light), RecursiveProbes(true)
+            LightRenderer::LightRenderer(RenderSystem* Lab) : Renderer(Lab), RecursiveProbes(true)
             {
                 Priority = true;
             }
@@ -1521,10 +1521,10 @@ namespace Tomahawk
                 return nullptr;
             }
 
-            ImageRenderer::ImageRenderer(RenderSystem* Lab) : Renderer(Lab, RendererId_Image), RenderTarget(nullptr)
+            ImageRenderer::ImageRenderer(RenderSystem* Lab) : Renderer(Lab), RenderTarget(nullptr)
             {
             }
-            ImageRenderer::ImageRenderer(RenderSystem* Lab, Graphics::RenderTarget2D* Value) : Renderer(Lab, RendererId_Image), RenderTarget(Value)
+            ImageRenderer::ImageRenderer(RenderSystem* Lab, Graphics::RenderTarget2D* Value) : Renderer(Lab), RenderTarget(Value)
             {
                 Priority = false;
             }
@@ -1564,7 +1564,7 @@ namespace Tomahawk
                 return nullptr;
             }
 
-            ReflectionsRenderer::ReflectionsRenderer(RenderSystem* Lab) : Renderer(Lab, RendererId_Reflections)
+            ReflectionsRenderer::ReflectionsRenderer(RenderSystem* Lab) : Renderer(Lab)
             {
                 Priority = false;
             }
@@ -1597,7 +1597,7 @@ namespace Tomahawk
                 return nullptr;
             }
 
-            DepthOfFieldRenderer::DepthOfFieldRenderer(RenderSystem* Lab) : Renderer(Lab, RendererId_Depth_Of_Field), HorizontalResolution(512.0f), VerticalResolution(512.0f), AutoViewport(true)
+            DepthOfFieldRenderer::DepthOfFieldRenderer(RenderSystem* Lab) : Renderer(Lab), HorizontalResolution(512.0f), VerticalResolution(512.0f), AutoViewport(true)
             {
                 Priority = false;
             }
@@ -1658,7 +1658,7 @@ namespace Tomahawk
                 return nullptr;
             }
 
-            EmissionRenderer::EmissionRenderer(RenderSystem* Lab) : Renderer(Lab, RendererId_Emission), AutoViewport(true)
+            EmissionRenderer::EmissionRenderer(RenderSystem* Lab) : Renderer(Lab), AutoViewport(true)
             {
                 Priority = false;
             }
@@ -1699,7 +1699,7 @@ namespace Tomahawk
                 return nullptr;
             }
 
-            GlitchRenderer::GlitchRenderer(RenderSystem* Lab) : Renderer(Lab, RendererId_Glitch), ScanLineJitter(0), VerticalJump(0), HorizontalShake(0), ColorDrift(0)
+            GlitchRenderer::GlitchRenderer(RenderSystem* Lab) : Renderer(Lab), ScanLineJitter(0), VerticalJump(0), HorizontalShake(0), ColorDrift(0)
             {
                 Priority = false;
             }
@@ -1750,7 +1750,7 @@ namespace Tomahawk
                 return nullptr;
             }
 
-            AmbientOcclusionRenderer::AmbientOcclusionRenderer(RenderSystem* Lab) : Renderer(Lab, RendererId_Ambient_Occlusion)
+            AmbientOcclusionRenderer::AmbientOcclusionRenderer(RenderSystem* Lab) : Renderer(Lab)
             {
                 Priority = false;
             }
@@ -1799,7 +1799,7 @@ namespace Tomahawk
                 return nullptr;
             }
 
-            IndirectOcclusionRenderer::IndirectOcclusionRenderer(RenderSystem* Lab) : Renderer(Lab, RendererId_Indirect_Occlusion)
+            IndirectOcclusionRenderer::IndirectOcclusionRenderer(RenderSystem* Lab) : Renderer(Lab)
             {
                 Priority = false;
             }
@@ -1848,7 +1848,7 @@ namespace Tomahawk
                 return nullptr;
             }
 
-            ToneRenderer::ToneRenderer(RenderSystem* Lab) : Renderer(Lab, RendererId_Tone)
+            ToneRenderer::ToneRenderer(RenderSystem* Lab) : Renderer(Lab)
             {
                 Priority = false;
             }
@@ -1899,7 +1899,7 @@ namespace Tomahawk
                 return nullptr;
             }
 
-            GUIRenderer::GUIRenderer(RenderSystem* Lab, Graphics::Activity* NewActivity) : Renderer(Lab, RendererId_GUI), Activity(NewActivity), ClipboardTextData(nullptr), Context(nullptr)
+            GUIRenderer::GUIRenderer(RenderSystem* Lab, Graphics::Activity* NewActivity) : Renderer(Lab), Activity(NewActivity), ClipboardTextData(nullptr), Context(nullptr)
             {
                 Priority = false;
             }

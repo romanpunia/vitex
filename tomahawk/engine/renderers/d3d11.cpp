@@ -1,5 +1,6 @@
 #include "d3d11.h"
 #include "../components.h"
+#include "../../resource.h"
 #include <imgui.h>
 #ifdef THAWK_MICROSOFT
 #define ReleaseCom(Value) { if (Value != nullptr) { Value->Release(); Value = nullptr; } }
@@ -13,15 +14,28 @@ namespace Tomahawk
             D3D11ModelRenderer::D3D11ModelRenderer(Engine::RenderSystem* Lab) : Engine::Renderers::ModelRenderer(Lab)
             {
                 Graphics::Shader::Desc I = Graphics::Shader::Desc();
-                I.Data = GetMultiCode();
                 I.Layout = Graphics::Shader::GetVertexLayout();
                 I.LayoutSize = 5;
+
+#ifdef HAS_D3D11_MODEL_GBUFFER_HLSL
+                I.Data = reinterpret_cast<const char*>(resource_batch::d3d11_model_gbuffer_hlsl::data);
+#else
+                THAWK_ERROR("model-gbuffer.hlsl was not compiled");
+#endif
                 Shaders.Multi = (D3D11Shader*)Graphics::Shader::Create(System->GetDevice(), I);
 
-                I.Data = GetDepthCode();
+#ifdef HAS_D3D11_MODEL_DEPTH_HLSL
+                I.Data = reinterpret_cast<const char*>(resource_batch::d3d11_model_depth_hlsl::data);
+#else
+                THAWK_ERROR("model-depth.hlsl was not compiled");
+#endif
                 Shaders.Depth = (D3D11Shader*)Graphics::Shader::Create(System->GetDevice(), I);
 
-                I.Data = GetCubicDepthCode();
+#ifdef HAS_D3D11_MODEL_DEPTH_360_HLSL
+                I.Data = reinterpret_cast<const char*>(resource_batch::d3d11_model_depth_360_hlsl::data);
+#else
+                THAWK_ERROR("model-depth-360.hlsl was not compiled");
+#endif
                 Shaders.CubicDepth = (D3D11Shader*)Graphics::Shader::Create(System->GetDevice(), I);
 
                 Device = System->GetDevice()->As<D3D11Device>();
@@ -36,7 +50,7 @@ namespace Tomahawk
             }
             void D3D11ModelRenderer::OnInitialize()
             {
-                Models = System->GetScene()->GetComponents(Engine::ComponentId_Model);
+                Models = System->GetScene()->GetComponents<Engine::Components::Model>();
             }
             void D3D11ModelRenderer::OnRender(Rest::Timer* Time)
             {
@@ -258,164 +272,6 @@ namespace Tomahawk
 
                 Device->ImmediateContext->GSSetShader(nullptr, nullptr, 0);
             }
-            const char* D3D11ModelRenderer::GetMultiCode()
-            {
-                return "#include VertexIn.h"
-                       "#include VertexOut.h"
-                       "#include DeferredOutput.h"
-                       "#include RenderBuffer.h"
-
-                       "Texture2D Input1 : register(t1);"
-                       "Texture2D Input2 : register(t2);"
-                       "Texture2D Input3 : register(t3);"
-                       "SamplerState State : register(s0);"
-
-                       "VertexOut VS(VertexIn Input)"
-                       "{"
-                       "    VertexOut Output = (VertexOut)0;"
-                       "    Output.Position = Output.RawPosition = mul(Input.Position, WorldViewProjection);"
-                       "    Output.Normal = normalize(mul(Input.Normal, (float3x3)World));"
-                       "    Output.Tangent = normalize(mul(Input.Tangent, (float3x3)World));"
-                       "    Output.Bitangent = normalize(mul(Input.Bitangent, (float3x3)World));"
-                       "    Output.TexCoord = Input.TexCoord * TexCoord;"
-
-                       "    return Output;"
-                       "}"
-
-                       "DeferredOutput PS(VertexOut Input)"
-                       "{"
-                       "    float3 Diffuse = Diffusion;"
-                       "    [branch] if (SurfaceDiffuse > 0)"
-                       "        Diffuse *= Input1.Sample(State, Input.TexCoord).xyz;"
-
-                       "    float3 Normal = Input.Normal;"
-                       "    [branch] if (SurfaceNormal > 0)"
-                       "    {"
-                       "        Normal = Input2.Sample(State, Input.TexCoord).xyz * 2.0f - 1.0f;"
-                       "        Normal = normalize(Normal.x * Input.Tangent + Normal.y * Input.Bitangent + Normal.z * Input.Normal);"
-                       "    }"
-
-                       "    float2 Surface = Input3.SampleLevel(State, Input.TexCoord, 0).xy;"
-
-                       "    DeferredOutput Output = (DeferredOutput)0;"
-                       "    Output.Output1 = float4(Diffuse, Surface.x);"
-                       "    Output.Output2 = float4(Normal, Material);"
-                       "    Output.Output3 = float2(Input.RawPosition.z / Input.RawPosition.w, Surface.y);"
-
-                       "    return Output;"
-                       "};";
-            }
-            const char* D3D11ModelRenderer::GetDepthCode()
-            {
-                return "#include VertexIn.h"
-                       "#include RenderBuffer.h"
-
-                       "struct VertexOut"
-                       "{"
-                       "    float4 Position : SV_POSITION;"
-                       "    float2 TexCoord : TEXCOORD0;"
-                       "    float4 RawPosition : TEXCOORD1;"
-                       "};"
-
-                       "Texture2D Input1 : register(t1);"
-                       "SamplerState State : register(s0);"
-
-                       "VertexOut VS(VertexIn Input)"
-                       "{"
-                       "    VertexOut Output = (VertexOut)0;"
-                       "    Output.Position = Output.RawPosition = mul(Input.Position, WorldViewProjection);"
-                       "    Output.TexCoord = Input.TexCoord * TexCoord;"
-                       "    return Output;"
-                       "}"
-
-                       "float4 PS(VertexOut Input) : SV_TARGET0"
-                       "{"
-                       "    float Alpha = (1.0f - Diffusion.y);"
-                       "    [branch] if (SurfaceDiffuse > 0)"
-                       "        Alpha *= Input1.Sample(State, Input.TexCoord * TexCoord).w;"
-
-                       "	 [branch] if (Alpha < Diffusion.x)"
-                       "		 discard;"
-
-                       "    return float4(Input.RawPosition.z / Input.RawPosition.w, Alpha, 1.0f, 1.0f);"
-                       "};";
-            }
-            const char* D3D11ModelRenderer::GetCubicDepthCode()
-            {
-                return "#include VertexIn.h"
-                       "#include RenderBuffer.h"
-
-                       "cbuffer ViewBuffer : register(b3)"
-                       "{"
-                       "	 matrix SliceViewProjection[6];"
-                       "    float3 Position;"
-                       "    float Distance;"
-                       "};"
-
-                       "struct VertexCubeOut"
-                       "{"
-                       "	 float4 Position : SV_POSITION;"
-                       "	 float2 TexCoord : TEXCOORD0;"
-                       "	 float4 RawPosition : TEXCOORD1;"
-                       "	 uint RenderTarget : SV_RenderTargetArrayIndex;"
-                       "};"
-
-                       "struct VertexOut"
-                       "{"
-                       "    float4 Position : SV_POSITION;"
-                       "    float2 TexCoord : TEXCOORD0;"
-                       "    float4 RawPosition : TEXCOORD1;"
-                       "};"
-
-                       "Texture2D Input1 : register(t1);"
-                       "SamplerState State : register(s0);"
-
-                       "[maxvertexcount(18)]"
-                       "void GS(triangle VertexOut Input[3], inout TriangleStream<VertexCubeOut> Stream)"
-                       "{"
-                       "	 VertexCubeOut Output = (VertexCubeOut)0;"
-                       "	 for (Output.RenderTarget = 0; Output.RenderTarget < 6; Output.RenderTarget++)"
-                       "	 {"
-                       "		 Output.Position = mul(Input[0].Position, SliceViewProjection[Output.RenderTarget]);"
-                       "        Output.RawPosition = Input[0].RawPosition;"
-                       "		 Output.TexCoord = Input[0].TexCoord;"
-                       "		 Stream.Append(Output);"
-
-                       "		 Output.Position = mul(Input[1].Position, SliceViewProjection[Output.RenderTarget]);"
-                       "        Output.RawPosition = Input[1].RawPosition;"
-                       "		 Output.TexCoord = Input[1].TexCoord;"
-                       "		 Stream.Append(Output);"
-
-                       "		 Output.Position = mul(Input[2].Position, SliceViewProjection[Output.RenderTarget]);"
-                       "        Output.RawPosition = Input[2].RawPosition;"
-                       "		 Output.TexCoord = Input[2].TexCoord;"
-                       "		 Stream.Append(Output);"
-
-                       "		 Stream.RestartStrip();"
-                       "	 }"
-                       "}"
-
-                       "VertexOut VS(VertexIn Input)"
-                       "{"
-                       "	 VertexOut Output = (VertexOut)0;"
-                       "	 Output.Position = Output.RawPosition = mul(Input.Position, World);"
-                       "	 Output.TexCoord = Input.TexCoord * TexCoord;"
-
-                       "	 return Output;"
-                       "}"
-
-                       "float4 PS(VertexOut Input) : SV_TARGET0"
-                       "{"
-                       "    float Alpha = (1.0f - Diffusion.y);"
-                       "    [branch] if (SurfaceDiffuse > 0)"
-                       "        Alpha *= Input1.Sample(State, Input.TexCoord * TexCoord).w;"
-
-                       "	 [branch] if (Alpha < Diffusion.x)"
-                       "		 discard;"
-
-                       "    return float4(length(Input.RawPosition.xyz - Position) / Distance, Alpha, 1.0f, 1.0f);"
-                       "};";
-            }
 
             D3D11SkinnedModelRenderer::D3D11SkinnedModelRenderer(Engine::RenderSystem* Lab) : Engine::Renderers::SkinnedModelRenderer(Lab)
             {
@@ -423,16 +279,28 @@ namespace Tomahawk
                 Stride = sizeof(Compute::InfluenceVertex);
 
                 Graphics::Shader::Desc I = Graphics::Shader::Desc();
-                I.Data = GetMultiCode();
                 I.Layout = Graphics::Shader::GetInfluenceVertexLayout();
                 I.LayoutSize = 7;
 
+#ifdef HAS_D3D11_SKINNED_MODEL_GBUFFER_HLSL
+                I.Data = reinterpret_cast<const char*>(resource_batch::d3d11_skinned_model_gbuffer_hlsl::data);
+#else
+                THAWK_ERROR("skinned-model-gbuffer.hlsl was not compiled");
+#endif
                 Shaders.Multi = (D3D11Shader*)Graphics::Shader::Create(System->GetDevice(), I);
 
-                I.Data = GetDepthCode();
+#ifdef HAS_D3D11_SKINNED_MODEL_DEPTH_HLSL
+                I.Data = reinterpret_cast<const char*>(resource_batch::d3d11_skinned_model_depth_hlsl::data);
+#else
+                THAWK_ERROR("skinned-model-depth.hlsl was not compiled");
+#endif
                 Shaders.Depth = (D3D11Shader*)Graphics::Shader::Create(System->GetDevice(), I);
 
-                I.Data = GetCubicDepthCode();
+#ifdef HAS_D3D11_SKINNED_MODEL_DEPTH_360_HLSL
+                I.Data = reinterpret_cast<const char*>(resource_batch::d3d11_skinned_model_depth_360_hlsl::data);
+#else
+                THAWK_ERROR("skinned-model-depth-360.hlsl was not compiled");
+#endif
                 Shaders.CubicDepth = (D3D11Shader*)Graphics::Shader::Create(System->GetDevice(), I);
 
                 Device->CreateConstantBuffer(sizeof(CubicDepth), Shaders.CubicDepth->ConstantBuffer);
@@ -445,7 +313,7 @@ namespace Tomahawk
             }
             void D3D11SkinnedModelRenderer::OnInitialize()
             {
-                SkinnedModels = System->GetScene()->GetComponents(Engine::ComponentId_Skinned_Model);
+                SkinnedModels = System->GetScene()->GetComponents<Engine::Components::SkinnedModel>();
             }
             void D3D11SkinnedModelRenderer::OnRender(Rest::Timer* Time)
             {
@@ -687,204 +555,6 @@ namespace Tomahawk
 
                 Device->ImmediateContext->GSSetShader(nullptr, nullptr, 0);
             }
-            const char* D3D11SkinnedModelRenderer::GetMultiCode()
-            {
-                return "#include InfluenceVertexIn.h"
-                       "#include InfluenceVertexOut.h"
-                       "#include DeferredOutput.h"
-                       "#include AnimationBuffer.h"
-                       "#include RenderBuffer.h"
-
-                       "Texture2D Input1 : register(t1);"
-                       "Texture2D Input2 : register(t2);"
-                       "Texture2D Input3 : register(t3);"
-                       "SamplerState State : register(s0);"
-
-                       "InfluenceVertexOut VS(InfluenceVertexIn Input)"
-                       "{"
-                       "    InfluenceVertexOut Output = (InfluenceVertexOut)0;"
-                       "    Output.TexCoord = Input.TexCoord * TexCoord;"
-
-                       "    [branch] if (Base.x > 0)"
-                       "    {"
-                       "	     matrix Offset ="
-                       "            mul(Transformation[(int)Input.Index.x], Input.Bias.x) +"
-                       "            mul(Transformation[(int)Input.Index.y], Input.Bias.y) +"
-                       "	         mul(Transformation[(int)Input.Index.z], Input.Bias.z) +"
-                       "	         mul(Transformation[(int)Input.Index.w], Input.Bias.w);"
-
-                       "        Output.Position = Output.RawPosition = mul(mul(Input.Position, Offset), WorldViewProjection);"
-                       "        Output.Normal = normalize(mul(mul(float4(Input.Normal, 0), Offset).xyz, (float3x3)World));"
-                       "        Output.Tangent = normalize(mul(mul(float4(Input.Tangent, 0), Offset).xyz, (float3x3)World));"
-                       "        Output.Bitangent = normalize(mul(mul(float4(Input.Bitangent, 0), Offset).xyz, (float3x3)World));"
-                       "    }"
-                       "    else"
-                       "    {"
-
-                       "        Output.Position = Output.RawPosition = mul(Input.Position, WorldViewProjection);"
-                       "        Output.Normal = normalize(mul(Input.Normal, (float3x3)World));"
-                       "        Output.Tangent = normalize(mul(Input.Tangent, (float3x3)World));"
-                       "        Output.Bitangent = normalize(mul(Input.Bitangent, (float3x3)World));"
-                       "    }"
-
-                       "    return Output;"
-                       "}"
-
-                       "DeferredOutput PS(InfluenceVertexOut Input)"
-                       "{"
-                       "    float3 Diffuse = Diffusion;"
-                       "    [branch] if (SurfaceDiffuse > 0)"
-                       "        Diffuse *= Input1.Sample(State, Input.TexCoord).xyz;"
-
-                       "    float3 Normal = Input.Normal;"
-                       "    [branch] if (SurfaceNormal > 0)"
-                       "    {"
-                       "        Normal = Input2.Sample(State, Input.TexCoord).xyz * 2.0f - 1.0f;"
-                       "        Normal = normalize(Normal.x * Input.Tangent + Normal.y * Input.Bitangent + Normal.z * Input.Normal);"
-                       "    }"
-
-                       "    float2 Surface = Input3.SampleLevel(State, Input.TexCoord, 0).xy;"
-
-                       "    DeferredOutput Output = (DeferredOutput)0;"
-                       "    Output.Output1 = float4(Diffuse, Surface.x);"
-                       "    Output.Output2 = float4(Normal, Material);"
-                       "    Output.Output3 = float2(Input.RawPosition.z / Input.RawPosition.w, Surface.y);"
-
-                       "    return Output;"
-                       "};";
-            }
-            const char* D3D11SkinnedModelRenderer::GetDepthCode()
-            {
-                return "#include InfluenceVertexIn.h"
-                       "#include InfluenceVertexOut.h"
-                       "#include AnimationBuffer.h"
-                       "#include RenderBuffer.h"
-
-                       "Texture2D Input1 : register(t1);"
-                       "SamplerState State : register(s0);"
-
-                       "InfluenceVertexOut VS(InfluenceVertexIn Input)"
-                       "{"
-                       "    InfluenceVertexOut Output = (InfluenceVertexOut)0;"
-                       "    Output.TexCoord = Input.TexCoord * TexCoord;"
-
-                       "    [branch] if (Base.x > 0)"
-                       "    {"
-                       "	     matrix Offset ="
-                       "            mul(Transformation[(int)Input.Index.x], Input.Bias.x) +"
-                       "            mul(Transformation[(int)Input.Index.y], Input.Bias.y) +"
-                       "	         mul(Transformation[(int)Input.Index.z], Input.Bias.z) +"
-                       "	         mul(Transformation[(int)Input.Index.w], Input.Bias.w);"
-
-                       "        Output.Position = Output.RawPosition = mul(mul(Input.Position, Offset), WorldViewProjection);"
-                       "    }"
-                       "    else"
-                       "        Output.Position = Output.RawPosition = mul(Input.Position, WorldViewProjection);"
-
-                       "    return Output;"
-                       "}"
-
-                       "float4 PS(InfluenceVertexOut Input) : SV_TARGET0"
-                       "{"
-                       "    float Alpha = (1.0f - Diffusion.y);"
-                       "    [branch] if (SurfaceDiffuse > 0)"
-                       "        Alpha *= Input1.Sample(State, Input.TexCoord * TexCoord).w;"
-
-                       "	 [branch] if (Alpha < Diffusion.x)"
-                       "		 discard;"
-
-                       "    return float4(Input.RawPosition.z / Input.RawPosition.w, Alpha, 1.0f, 1.0f);"
-                       "};";
-            }
-            const char* D3D11SkinnedModelRenderer::GetCubicDepthCode()
-            {
-                return "#include InfluenceVertexIn.h"
-                       "#include AnimationBuffer.h"
-                       "#include RenderBuffer.h"
-
-                       "cbuffer ViewBuffer : register(b3)"
-                       "{"
-                       "	 matrix SliceViewProjection[6];"
-                       "    float3 Position;"
-                       "    float Distance;"
-                       "};"
-
-                       "struct VertexCubeOut"
-                       "{"
-                       "	 float4 Position : SV_POSITION;"
-                       "	 float2 TexCoord : TEXCOORD0;"
-                       "	 float4 RawPosition : TEXCOORD1;"
-                       "	 uint RenderTarget : SV_RenderTargetArrayIndex;"
-                       "};"
-
-                       "struct VertexOut"
-                       "{"
-                       "    float4 Position : SV_POSITION;"
-                       "    float2 TexCoord : TEXCOORD0;"
-                       "    float4 RawPosition : TEXCOORD1;"
-                       "};"
-
-                       "Texture2D Input1 : register(t1);"
-                       "SamplerState State : register(s0);"
-
-                       "[maxvertexcount(18)]"
-                       "void GS(triangle VertexOut Input[3], inout TriangleStream<VertexCubeOut> Stream)"
-                       "{"
-                       "	 VertexCubeOut Output = (VertexCubeOut)0;"
-                       "	 for (Output.RenderTarget = 0; Output.RenderTarget < 6; Output.RenderTarget++)"
-                       "	 {"
-                       "		 Output.Position = Output.RawPosition = mul(Input[0].Position, SliceViewProjection[Output.RenderTarget]);"
-                       "        Output.RawPosition = Input[0].RawPosition;"
-                       "		 Output.TexCoord = Input[0].TexCoord;"
-                       "		 Stream.Append(Output);"
-
-                       "		 Output.Position = Output.RawPosition = mul(Input[1].Position, SliceViewProjection[Output.RenderTarget]);"
-                       "        Output.RawPosition = Input[1].RawPosition;"
-                       "		 Output.TexCoord = Input[1].TexCoord;"
-                       "		 Stream.Append(Output);"
-
-                       "		 Output.Position = mul(Input[2].Position, SliceViewProjection[Output.RenderTarget]);"
-                       "        Output.RawPosition = Input[2].RawPosition;"
-                       "		 Output.TexCoord = Input[2].TexCoord;"
-                       "		 Stream.Append(Output);"
-
-                       "		 Stream.RestartStrip();"
-                       "	 }"
-                       "}"
-
-                       "VertexOut VS(InfluenceVertexIn Input)"
-                       "{"
-                       "	 VertexOut Output = (VertexOut)0;"
-                       "	 Output.TexCoord = Input.TexCoord * TexCoord;"
-
-                       "    [branch] if (Base.x > 0)"
-                       "    {"
-                       "	     matrix Offset ="
-                       "            mul(Transformation[(int)Input.Index.x], Input.Bias.x) +"
-                       "            mul(Transformation[(int)Input.Index.y], Input.Bias.y) +"
-                       "	         mul(Transformation[(int)Input.Index.z], Input.Bias.z) +"
-                       "	         mul(Transformation[(int)Input.Index.w], Input.Bias.w);"
-
-                       "	     Output.Position = Output.RawPosition = mul(mul(Input.Position, Offset), World);"
-                       "    }"
-                       "    else"
-                       "	     Output.Position = Output.RawPosition = mul(Input.Position, World);"
-
-                       "	 return Output;"
-                       "}"
-
-                       "float4 PS(VertexOut Input) : SV_TARGET0"
-                       "{"
-                       "    float Alpha = (1.0f - Diffusion.y);"
-                       "    [branch] if (SurfaceDiffuse > 0)"
-                       "        Alpha *= Input1.Sample(State, Input.TexCoord * TexCoord).w;"
-
-                       "	 [branch] if (Alpha < Diffusion.x)"
-                       "		 discard;"
-
-                       "    return float4(length(Input.RawPosition.xyz - Position) / Distance, Alpha, 1.0f, 1.0f);"
-                       "};";
-            }
 
             D3D11ElementSystemRenderer::D3D11ElementSystemRenderer(Engine::RenderSystem* Lab) : Engine::Renderers::ElementSystemRenderer(Lab)
             {
@@ -892,19 +562,35 @@ namespace Tomahawk
                 Stride = sizeof(Compute::InfluenceVertex);
 
                 Graphics::Shader::Desc I = Graphics::Shader::Desc();
-                I.Data = GetMultiCode();
                 I.Layout = nullptr;
                 I.LayoutSize = 0;
 
+#ifdef HAS_D3D11_ELEMENT_SYSTEM_GBUFFER_HLSL
+                I.Data = reinterpret_cast<const char*>(resource_batch::d3d11_element_system_gbuffer_hlsl::data);
+#else
+                THAWK_ERROR("element-system-gbuffer.hlsl was not compiled");
+#endif
                 Shaders.Multi = (D3D11Shader*)Graphics::Shader::Create(System->GetDevice(), I);
 
-                I.Data = GetDepthCode();
+#ifdef HAS_D3D11_ELEMENT_SYSTEM_DEPTH_HLSL
+                I.Data = reinterpret_cast<const char*>(resource_batch::d3d11_element_system_depth_hlsl::data);
+#else
+                THAWK_ERROR("element-system-depth.hlsl was not compiled");
+#endif
                 Shaders.Depth = (D3D11Shader*)Graphics::Shader::Create(System->GetDevice(), I);
 
-                I.Data = GetCubicDepthPointCode();
+#ifdef HAS_D3D11_ELEMENT_SYSTEM_DEPTH_360_POINT_HLSL
+                I.Data = reinterpret_cast<const char*>(resource_batch::d3d11_element_system_depth_360_point_hlsl::data);
+#else
+                THAWK_ERROR("element-system-depth-360-point.hlsl was not compiled");
+#endif
                 Shaders.CubicDepthPoint = (D3D11Shader*)Graphics::Shader::Create(System->GetDevice(), I);
 
-                I.Data = GetCubicDepthTriangleCode();
+#ifdef HAS_D3D11_ELEMENT_SYSTEM_DEPTH_360_QUAD_HLSL
+                I.Data = reinterpret_cast<const char*>(resource_batch::d3d11_element_system_depth_360_quad_hlsl::data);
+#else
+                THAWK_ERROR("element-system-depth-360-quad.hlsl was not compiled");
+#endif
                 Shaders.CubicDepthTriangle = (D3D11Shader*)Graphics::Shader::Create(System->GetDevice(), I);
 
                 Device->CreateConstantBuffer(sizeof(CubicDepth), Shaders.CubicDepthTriangle->ConstantBuffer);
@@ -918,7 +604,7 @@ namespace Tomahawk
             }
             void D3D11ElementSystemRenderer::OnInitialize()
             {
-                ElementSystems = System->GetScene()->GetComponents(Engine::ComponentId_Element_System);
+                ElementSystems = System->GetScene()->GetComponents<Engine::Components::ElementSystem>();
             }
             void D3D11ElementSystemRenderer::OnRender(Rest::Timer* Time)
             {
@@ -1141,323 +827,6 @@ namespace Tomahawk
                 Device->ImmediateContext->IASetPrimitiveTopology(LastTopology);
                 Device->ImmediateContext->GSSetShader(nullptr, nullptr, 0);
             }
-            const char* D3D11ElementSystemRenderer::GetMultiCode()
-            {
-                return "#include InstanceElement.h"
-                       "#include RenderBuffer.h"
-
-                       "Texture2D Input1 : register(t1);"
-                       "SamplerState State : register(s0);"
-                       "StructuredBuffer<InstanceElement> Elements : register(t2);"
-
-                       "struct VertexIn"
-                       "{"
-                       "    uint Position : SV_VERTEXID;"
-                       "};"
-
-                       "struct VertexOut"
-                       "{"
-                       "    float4 Position : SV_POSITION;"
-                       "    float4 Color : TEXCOORD0;"
-                       "    float2 TexCoord : TEXCOORD2;"
-                       "    float Scale : TEXCOORD3;"
-                       "    float Rotation : TEXCOORD4;"
-                       "};"
-
-                       "VertexOut TransformElement(VertexOut Input, float2 Offset, float2 TexCoord2)"
-                       "{"
-                       "    float Sin = sin(Input.Rotation), Cos = cos(Input.Rotation);"
-                       "    Input.Position.xy += float2(Offset.x * Cos - Offset.y * Sin, Offset.x * Sin + Offset.y * Cos);"
-                       "    Input.Position = mul(Input.Position, World);"
-                       "    Input.TexCoord = TexCoord2;"
-                       "    return Input;"
-                       "}"
-
-                       "[maxvertexcount(4)]"
-                       "void GS(point VertexOut Input[1], inout TriangleStream<VertexOut> Stream)"
-                       "{"
-                       "    Stream.Append(TransformElement(Input[0], float2(-1, -1) * Input[0].Scale, float2(0, 0)));"
-                       "    Stream.Append(TransformElement(Input[0], float2(-1, 1) * Input[0].Scale, float2(0, -1)));"
-                       "    Stream.Append(TransformElement(Input[0], float2(1, -1) * Input[0].Scale, float2(1, 0)));"
-                       "    Stream.Append(TransformElement(Input[0], float2(1, 1) * Input[0].Scale, float2(1, -1)));"
-                       "    Stream.RestartStrip();"
-                       "}"
-
-                       "VertexOut VS(VertexIn Input)"
-                       "{"
-                       "    VertexOut Output = (VertexOut)0;"
-                       "    Output.Position = mul(float4(Elements[Input.Position].Position, 1), WorldViewProjection);"
-                       "    Output.Rotation = Elements[Input.Position].Rotation;"
-                       "    Output.Color = Elements[Input.Position].Color;"
-                       "    Output.Scale = Elements[Input.Position].Scale;"
-                       "    return Output;"
-                       "}"
-
-                       "float4 PS(VertexOut Input) : SV_TARGET0"
-                       "{"
-                       "    [branch] if (SurfaceDiffuse > 0)"
-                       "        return float4(Input.Color.xyz * Diffusion, Input.Color.w) * Input1.Sample(State, Input.TexCoord * TexCoord);"
-
-                       "    return float4(Input.Color.xyz * Diffusion, Input.Color.w);"
-                       "};";
-            }
-            const char* D3D11ElementSystemRenderer::GetDepthCode()
-            {
-                return "#include InstanceElement.h"
-                       "#include RenderBuffer.h"
-
-                       "Texture2D Input1 : register(t1);"
-                       "SamplerState State : register(s0);"
-                       "StructuredBuffer<InstanceElement> Elements : register(t2);"
-
-                       "struct VertexIn"
-                       "{"
-                       "    uint Position : SV_VERTEXID;"
-                       "};"
-
-                       "struct VertexOut"
-                       "{"
-                       "    float4 Position : SV_POSITION;"
-                       "    float4 RawPosition : TEXCOORD0;"
-                       "    float2 TexCoord : TEXCOORD1;"
-                       "    float Rotation : TEXCOORD2;"
-                       "    float Scale : TEXCOORD3;"
-                       "    float Alpha : TEXCOORD4;"
-                       "};"
-
-                       "VertexOut TransformElement(VertexOut Input, float2 Offset, float2 TexCoord2)"
-                       "{"
-                       "    float Sin = sin(Input.Rotation), Cos = cos(Input.Rotation);"
-                       "    Input.Position.xy += float2(Offset.x * Cos - Offset.y * Sin, Offset.x * Sin + Offset.y * Cos);"
-                       "    Input.Position = mul(Input.Position, World);"
-                       "    Input.TexCoord = TexCoord2;"
-                       "    return Input;"
-                       "}"
-
-                       "[maxvertexcount(4)]"
-                       "void GS(point VertexOut Input[1], inout TriangleStream<VertexOut> Stream)"
-                       "{"
-                       "    Stream.Append(TransformElement(Input[0], float2(1, -1) * Input[0].Scale, float2(0, 0)));"
-                       "    Stream.Append(TransformElement(Input[0], float2(1, 1) * Input[0].Scale, float2(0, -1)));"
-                       "    Stream.Append(TransformElement(Input[0], float2(-1, -1) * Input[0].Scale, float2(1, 0)));"
-                       "    Stream.Append(TransformElement(Input[0], float2(-1, 1) * Input[0].Scale, float2(1, -1)));"
-                       "    Stream.RestartStrip();"
-                       "}"
-
-                       "VertexOut VS(VertexIn Input)"
-                       "{"
-                       "    VertexOut Output = (VertexOut)0;"
-                       "    Output.Position = mul(float4(Elements[Input.Position].Position, 1), WorldViewProjection);"
-                       "    Output.RawPosition = mul(Output.Position, World);"
-                       "    Output.Rotation = Elements[Input.Position].Rotation;"
-                       "    Output.Scale = Elements[Input.Position].Scale;"
-                       "    Output.Alpha = Elements[Input.Position].Color.w;"
-                       "    return Output;"
-                       "}"
-
-                       "float4 PS(VertexOut Input) : SV_TARGET0"
-                       "{"
-                       "    float Alpha = (1.0f - Diffusion.y) * Input.Alpha;"
-                       "    [branch] if (SurfaceDiffuse > 0)"
-                       "        Alpha *= Input1.Sample(State, Input.TexCoord * TexCoord).w;"
-
-                       "	 [branch] if (Alpha < Diffusion.x)"
-                       "		 discard;"
-
-                       "    return float4(Input.RawPosition.z / Input.RawPosition.w, Alpha, 1.0f, 1.0f);"
-                       "};";
-            }
-            const char* D3D11ElementSystemRenderer::GetCubicDepthPointCode()
-            {
-                return "#include InstanceElement.h"
-                       "#include RenderBuffer.h"
-
-                       "Texture2D Input1 : register(t1);"
-                       "SamplerState State : register(s0);"
-                       "StructuredBuffer<InstanceElement> Elements : register(t2);"
-
-                       "cbuffer ViewBuffer : register(b3)"
-                       "{"
-                       "	 matrix SliceView[6];"
-                       "	 matrix Projection;"
-                       "    float3 Position;"
-                       "    float Distance;"
-                       "};"
-
-                       "struct VertexIn"
-                       "{"
-                       "    uint Position : SV_VERTEXID;"
-                       "};"
-
-                       "struct VertexCubeOut"
-                       "{"
-                       "    float4 Position : SV_POSITION;"
-                       "    float4 RawPosition : TEXCOORD0;"
-                       "    float2 TexCoord : TEXCOORD1;"
-                       "    float Rotation : TEXCOORD2;"
-                       "    float Scale : TEXCOORD3;"
-                       "    float Alpha : TEXCOORD4;"
-                       "	 uint RenderTarget : SV_RenderTargetArrayIndex;"
-                       "};"
-
-                       "struct VertexOut"
-                       "{"
-                       "    float4 Position : SV_POSITION;"
-                       "    float4 RawPosition : TEXCOORD0;"
-                       "    float2 TexCoord : TEXCOORD1;"
-                       "    float Rotation : TEXCOORD2;"
-                       "    float Scale : TEXCOORD3;"
-                       "    float Alpha : TEXCOORD4;"
-                       "};"
-
-                       "VertexCubeOut TransformElement(VertexOut Input, float2 Offset, float2 TexCoord2, uint i)"
-                       "{"
-                       "    float Sin = sin(Input.Rotation), Cos = cos(Input.Rotation);"
-                       "	 Input.Position = mul(Input.Position, SliceView[i]);"
-                       "	 Input.Position += float4(Offset.x * Cos - Offset.y * Sin, Offset.x * Sin + Offset.y * Cos, 0, 0);"
-                       "	 Input.Position = mul(Input.Position, Projection);"
-
-                       "    VertexCubeOut Output = (VertexCubeOut)0;"
-                       "	 Output.Position = Input.Position;"
-                       "	 Output.RawPosition = Input.RawPosition;"
-                       "	 Output.Rotation = Input.Rotation;"
-                       "	 Output.Scale = Input.Scale;"
-                       "	 Output.Alpha = Input.Alpha;"
-                       "	 Output.RenderTarget = i;"
-                       "	 Output.TexCoord = TexCoord2;"
-
-                       "    return Output;"
-                       "}"
-
-                       "[maxvertexcount(6)]"
-                       "void GS(point VertexOut Input[1], inout PointStream<VertexCubeOut> Stream)"
-                       "{"
-                       "	 for (uint i = 0; i < 6; i++)"
-                       "	 {"
-                       "		 Stream.Append(TransformElement(Input[0], float2(0, 0), float2(0, 0), i));"
-                       "		 Stream.RestartStrip();"
-                       "	 }"
-                       "}"
-
-                       "VertexOut VS(VertexIn Input)"
-                       "{"
-                       "    VertexOut Output = (VertexOut)0;"
-                       "    Output.Position = Output.RawPosition = mul(float4(Elements[Input.Position].Position, 1), World);"
-                       "    Output.Rotation = Elements[Input.Position].Rotation;"
-                       "    Output.Scale = Elements[Input.Position].Scale;"
-                       "    Output.Alpha = Elements[Input.Position].Color.w;"
-                       "    return Output;"
-                       "}"
-
-                       "float4 PS(VertexOut Input) : SV_TARGET0"
-                       "{"
-                       "    float Alpha = (1.0f - Diffusion.y) * Input.Alpha;"
-                       "    [branch] if (SurfaceDiffuse > 0)"
-                       "        Alpha *= Input1.Sample(State, Input.TexCoord * TexCoord).w;"
-
-                       "	 [branch] if (Alpha < Diffusion.x)"
-                       "		 discard;"
-
-                       "    return float4(length(Input.RawPosition.xyz - Position) / Distance, Alpha, 1.0f, 1.0f);"
-                       "};";
-            }
-            const char* D3D11ElementSystemRenderer::GetCubicDepthTriangleCode()
-            {
-                return "#include InstanceElement.h"
-                       "#include RenderBuffer.h"
-
-                       "Texture2D Input1 : register(t1);"
-                       "SamplerState State : register(s0);"
-                       "StructuredBuffer<InstanceElement> Elements : register(t2);"
-
-                       "cbuffer ViewBuffer : register(b3)"
-                       "{"
-                       "	 matrix SliceView[6];"
-                       "	 matrix Projection;"
-                       "    float3 Position;"
-                       "    float Distance;"
-                       "};"
-
-                       "struct VertexIn"
-                       "{"
-                       "    uint Position : SV_VERTEXID;"
-                       "};"
-
-                       "struct VertexCubeOut"
-                       "{"
-                       "    float4 Position : SV_POSITION;"
-                       "    float4 RawPosition : TEXCOORD0;"
-                       "    float2 TexCoord : TEXCOORD1;"
-                       "    float Rotation : TEXCOORD2;"
-                       "    float Scale : TEXCOORD3;"
-                       "    float Alpha : TEXCOORD4;"
-                       "	 uint RenderTarget : SV_RenderTargetArrayIndex;"
-                       "};"
-
-                       "struct VertexOut"
-                       "{"
-                       "    float4 Position : SV_POSITION;"
-                       "    float4 RawPosition : TEXCOORD0;"
-                       "    float2 TexCoord : TEXCOORD1;"
-                       "    float Rotation : TEXCOORD2;"
-                       "    float Scale : TEXCOORD3;"
-                       "    float Alpha : TEXCOORD4;"
-                       "};"
-
-                       "VertexCubeOut TransformElement(VertexOut Input, float2 Offset, float2 TexCoord2, uint i)"
-                       "{"
-                       "    float Sin = sin(Input.Rotation), Cos = cos(Input.Rotation);"
-                       "	 Input.Position = mul(Input.Position, SliceView[i]);"
-                       "	 Input.Position += float4(Offset.x * Cos - Offset.y * Sin, Offset.x * Sin + Offset.y * Cos, 0, 0);"
-                       "	 Input.Position = mul(Input.Position, Projection);"
-
-                       "    VertexCubeOut Output = (VertexCubeOut)0;"
-                       "	 Output.Position = Input.Position;"
-                       "	 Output.RawPosition = Input.RawPosition;"
-                       "	 Output.Rotation = Input.Rotation;"
-                       "	 Output.Scale = Input.Scale;"
-                       "	 Output.Alpha = Input.Alpha;"
-                       "	 Output.RenderTarget = i;"
-                       "	 Output.TexCoord = TexCoord2;"
-
-                       "    return Output;"
-                       "}"
-
-                       "[maxvertexcount(24)]"
-                       "void GS(point VertexOut Input[1], inout TriangleStream<VertexCubeOut> Stream)"
-                       "{"
-                       "	 for (uint i = 0; i < 6; i++)"
-                       "	 {"
-                       "		 Stream.Append(TransformElement(Input[0], float2(1, -1) * Input[0].Scale, float2(0, 0), i));"
-                       "		 Stream.Append(TransformElement(Input[0], float2(1, 1) * Input[0].Scale, float2(0, -1), i));"
-                       "		 Stream.Append(TransformElement(Input[0], float2(-1, -1) * Input[0].Scale, float2(1, 0), i));"
-                       "		 Stream.Append(TransformElement(Input[0], float2(-1, 1) * Input[0].Scale, float2(1, -1), i));"
-                       "		 Stream.RestartStrip();"
-                       "	 }"
-                       "}"
-
-                       "VertexOut VS(VertexIn Input)"
-                       "{"
-                       "    VertexOut Output = (VertexOut)0;"
-                       "    Output.Position = Output.RawPosition = mul(float4(Elements[Input.Position].Position, 1), World);"
-                       "    Output.Rotation = Elements[Input.Position].Rotation;"
-                       "    Output.Scale = Elements[Input.Position].Scale;"
-                       "    Output.Alpha = Elements[Input.Position].Color.w;"
-                       "    return Output;"
-                       "}"
-
-                       "float4 PS(VertexOut Input) : SV_TARGET0"
-                       "{"
-                       "    float Alpha = (1.0f - Diffusion.y) * Input.Alpha;"
-                       "    [branch] if (SurfaceDiffuse > 0)"
-                       "        Alpha *= Input1.Sample(State, Input.TexCoord * TexCoord).w;"
-
-                       "	 [branch] if (Alpha < Diffusion.x)"
-                       "		 discard;"
-
-                       "    return float4(length(Input.RawPosition.xyz - Position) / Distance, Alpha, 1.0f, 1.0f);"
-                       "};";
-            }
 
             D3D11DepthRenderer::D3D11DepthRenderer(Engine::RenderSystem* Lab) : Engine::Renderers::DepthRenderer(Lab)
             {
@@ -1466,11 +835,11 @@ namespace Tomahawk
             }
             void D3D11DepthRenderer::OnInitialize()
             {
-                PointLights = System->GetScene()->GetComponents(Engine::ComponentId_Point_Light);
-                SpotLights = System->GetScene()->GetComponents(Engine::ComponentId_Spot_Light);
-                LineLights = System->GetScene()->GetComponents(Engine::ComponentId_Line_Light);
+                PointLights = System->GetScene()->GetComponents<Engine::Components::PointLight>();
+                SpotLights = System->GetScene()->GetComponents<Engine::Components::SpotLight>();
+                LineLights = System->GetScene()->GetComponents<Engine::Components::LineLight>();
 
-                Rest::Pool<Engine::Component*>* Lights = System->GetScene()->GetComponents(Engine::ComponentId_Point_Light);
+                Rest::Pool<Engine::Component*>* Lights = System->GetScene()->GetComponents<Engine::Components::PointLight>();
                 for (auto It = Lights->Begin(); It != Lights->End(); It++)
                     (*It)->As<Engine::Components::PointLight>()->Occlusion = nullptr;
 
@@ -1487,7 +856,7 @@ namespace Tomahawk
                     *It = Graphics::RenderTargetCube::Create(System->GetDevice(), I);
                 }
 
-                Lights = System->GetScene()->GetComponents(Engine::ComponentId_Spot_Light);
+                Lights = System->GetScene()->GetComponents<Engine::Components::SpotLight>();
                 for (auto It = Lights->Begin(); It != Lights->End(); It++)
                     (*It)->As<Engine::Components::SpotLight>()->Occlusion = nullptr;
 
@@ -1505,7 +874,7 @@ namespace Tomahawk
                     *It = Graphics::RenderTarget2D::Create(System->GetDevice(), I);
                 }
 
-                Lights = System->GetScene()->GetComponents(Engine::ComponentId_Line_Light);
+                Lights = System->GetScene()->GetComponents<Engine::Components::LineLight>();
                 for (auto It = Lights->Begin(); It != Lights->End(); It++)
                     (*It)->As<Engine::Components::LineLight>()->Occlusion = nullptr;
 
@@ -1592,7 +961,7 @@ namespace Tomahawk
             {
                 CreateRenderTarget();
 
-                ProbeLights = System->GetScene()->GetComponents(Engine::ComponentId_Probe_Light);
+                ProbeLights = System->GetScene()->GetComponents<Engine::Components::ProbeLight>();
                 for (auto It = ProbeLights->Begin(); It != ProbeLights->End(); It++)
                 {
                     Engine::Components::ProbeLight* Light = (Engine::Components::ProbeLight*)*It;
@@ -1735,22 +1104,22 @@ namespace Tomahawk
             }
             void D3D11LightRenderer::OnInitialize()
             {
-                PointLights = System->GetScene()->GetComponents(Engine::ComponentId_Point_Light);
-                ProbeLights = System->GetScene()->GetComponents(Engine::ComponentId_Probe_Light);
-                SpotLights = System->GetScene()->GetComponents(Engine::ComponentId_Spot_Light);
-                LineLights = System->GetScene()->GetComponents(Engine::ComponentId_Line_Light);
+                PointLights = System->GetScene()->GetComponents<Engine::Components::PointLight>();
+                ProbeLights = System->GetScene()->GetComponents<Engine::Components::ProbeLight>();
+                SpotLights = System->GetScene()->GetComponents<Engine::Components::SpotLight>();
+                LineLights = System->GetScene()->GetComponents<Engine::Components::LineLight>();
 
                 auto* RenderStages = System->GetRenderStages();
                 for (auto It = RenderStages->begin(); It != RenderStages->end(); It++)
                 {
-                    if ((*It)->Is(Engine::RendererId_Depth))
+                    if ((*It)->Id() == THAWK_COMPONENT_ID(Engine::Renderers::DepthRenderer))
                     {
                         Engine::Renderers::DepthRenderer* DepthRenderer = (*It)->As<Engine::Renderers::DepthRenderer>();
                         Quality.SpotLight = (float)DepthRenderer->Renderers.SpotLightResolution;
                         Quality.LineLight = (float)DepthRenderer->Renderers.LineLightResolution;
                     }
 
-                    if ((*It)->Is(Engine::RendererId_Probe))
+                    if ((*It)->Id() == THAWK_COMPONENT_ID(Engine::Renderers::ProbeRenderer))
                         ProbeLight.Mipping = (float)(*It)->As<Engine::Renderers::ProbeRenderer>()->MipLevels;
                 }
 
@@ -2110,16 +1479,21 @@ namespace Tomahawk
             void D3D11LightRenderer::CreatePointLighting()
             {
                 Graphics::Shader::Desc I = Graphics::Shader::Desc();
-                I.Data = GetPointLightCode();
                 I.Layout = Graphics::Shader::GetShapeVertexLayout();
                 I.LayoutSize = 2;
-
+#ifdef HAS_D3D11_LIGHT_POINT_HLSL
+                I.Data = reinterpret_cast<const char*>(resource_batch::d3d11_light_point_hlsl::data);
+#else
+                THAWK_ERROR("light-point.hlsl was not compiled");
+#endif
                 Shaders.PointLighting = (D3D11Shader*)Graphics::Shader::Create(Device, I);
                 Shaders.PointLighting->ConstantData = &PointLight;
                 Shaders.Layout = Shaders.PointLighting->VertexLayout;
-
-                I.Data = GetShadedPointLightCode();
-
+#ifdef HAS_D3D11_LIGHT_POINT_SHADED_HLSL
+                I.Data = reinterpret_cast<const char*>(resource_batch::d3d11_light_point_shaded_hlsl::data);
+#else
+                THAWK_ERROR("light-point-shaded.hlsl was not compiled");
+#endif
                 Shaders.ShadedPointLighting = (D3D11Shader*)Graphics::Shader::Create(Device, I);
                 ReleaseCom(Shaders.ShadedPointLighting->VertexLayout);
 
@@ -2128,10 +1502,13 @@ namespace Tomahawk
             void D3D11LightRenderer::CreateProbeLighting()
             {
                 Graphics::Shader::Desc I = Graphics::Shader::Desc();
-                I.Data = GetProbeLightCode();
                 I.Layout = Graphics::Shader::GetShapeVertexLayout();
                 I.LayoutSize = 2;
-
+#ifdef HAS_D3D11_LIGHT_PROBE_HLSL
+                I.Data = reinterpret_cast<const char*>(resource_batch::d3d11_light_probe_hlsl::data);
+#else
+                THAWK_ERROR("light-probe.hlsl was not compiled");
+#endif
                 Shaders.ProbeLighting = (D3D11Shader*)Graphics::Shader::Create(Device, I);
                 Shaders.ProbeLighting->ConstantData = &ProbeLight;
                 ReleaseCom(Shaders.ProbeLighting->VertexLayout);
@@ -2141,16 +1518,21 @@ namespace Tomahawk
             void D3D11LightRenderer::CreateSpotLighting()
             {
                 Graphics::Shader::Desc I = Graphics::Shader::Desc();
-                I.Data = GetSpotLightCode();
                 I.Layout = Graphics::Shader::GetShapeVertexLayout();
                 I.LayoutSize = 2;
-
+#ifdef HAS_D3D11_LIGHT_SPOT_HLSL
+                I.Data = reinterpret_cast<const char*>(resource_batch::d3d11_light_spot_hlsl::data);
+#else
+                THAWK_ERROR("light-spot.hlsl was not compiled");
+#endif
                 Shaders.SpotLighting = (D3D11Shader*)Graphics::Shader::Create(Device, I);
                 Shaders.SpotLighting->ConstantData = &SpotLight;
                 ReleaseCom(Shaders.SpotLighting->VertexLayout);
-
-                I.Data = GetShadedSpotLightCode();
-
+#ifdef HAS_D3D11_LIGHT_SPOT_SHADED_HLSL
+                I.Data = reinterpret_cast<const char*>(resource_batch::d3d11_light_spot_shaded_hlsl::data);
+#else
+                THAWK_ERROR("light-spot-shaded.hlsl was not compiled");
+#endif
                 Shaders.ShadedSpotLighting = (D3D11Shader*)Graphics::Shader::Create(Device, I);
                 ReleaseCom(Shaders.ShadedSpotLighting->VertexLayout);
 
@@ -2159,16 +1541,21 @@ namespace Tomahawk
             void D3D11LightRenderer::CreateLineLighting()
             {
                 Graphics::Shader::Desc I = Graphics::Shader::Desc();
-                I.Data = GetLineLightCode();
                 I.Layout = Graphics::Shader::GetShapeVertexLayout();
                 I.LayoutSize = 2;
-
+#ifdef HAS_D3D11_LIGHT_LINE_HLSL
+                I.Data = reinterpret_cast<const char*>(resource_batch::d3d11_light_line_hlsl::data);
+#else
+                THAWK_ERROR("light-line.hlsl was not compiled");
+#endif
                 Shaders.LineLighting = (D3D11Shader*)Graphics::Shader::Create(Device, I);
                 Shaders.LineLighting->ConstantData = &LineLight;
                 ReleaseCom(Shaders.LineLighting->VertexLayout);
-
-                I.Data = GetShadedLineLightCode();
-
+#ifdef HAS_D3D11_LIGHT_LINE_SHADED_HLSL
+                I.Data = reinterpret_cast<const char*>(resource_batch::d3d11_light_line_shaded_hlsl::data);
+#else
+                THAWK_ERROR("light-line-shaded.hlsl was not compiled");
+#endif
                 Shaders.ShadedLineLighting = (D3D11Shader*)Graphics::Shader::Create(Device, I);
                 ReleaseCom(Shaders.ShadedLineLighting->VertexLayout);
 
@@ -2177,10 +1564,13 @@ namespace Tomahawk
             void D3D11LightRenderer::CreateAmbientLighting()
             {
                 Graphics::Shader::Desc I = Graphics::Shader::Desc();
-                I.Data = GetAmbientLightCode();
                 I.Layout = Graphics::Shader::GetShapeVertexLayout();
                 I.LayoutSize = 2;
-
+#ifdef HAS_D3D11_LIGHT_AMBIENT_HLSL
+                I.Data = reinterpret_cast<const char*>(resource_batch::d3d11_light_ambient_hlsl::data);
+#else
+                THAWK_ERROR("light-ambient.hlsl was not compiled");
+#endif
                 Shaders.AmbientLighting = (D3D11Shader*)Graphics::Shader::Create(Device, I);
                 Shaders.AmbientLighting->ConstantData = &AmbientLight;
                 ReleaseCom(Shaders.AmbientLighting->VertexLayout);
@@ -2206,7 +1596,7 @@ namespace Tomahawk
                 auto* RenderStages = System->GetRenderStages();
                 for (auto It = RenderStages->begin(); It != RenderStages->end(); It++)
                 {
-                    if (!(*It)->Is(Engine::RendererId_Probe))
+                    if ((*It)->Id() != THAWK_COMPONENT_ID(Engine::Renderers::ProbeRenderer))
                         continue;
 
                     Engine::Renderers::ProbeRenderer* ProbeRenderer = (*It)->As<Engine::Renderers::ProbeRenderer>();
@@ -2222,495 +1612,6 @@ namespace Tomahawk
                 PhaseInput = (D3D11RenderTarget2D*)Graphics::RenderTarget2D::Create(System->GetDevice(), I);
                 ReleaseCom(Input->RenderTargetView);
                 ReleaseCom(Input->DepthStencilView);
-            }
-            const char* D3D11LightRenderer::GetProbeLightCode()
-            {
-                return "#include ShapeVertexIn.h"
-                       "#include ShapeVertexOut.h"
-                       "#include ViewBuffer.h"
-                       "#include Geometry.h"
-                       "#include LoadGeometry.h"
-
-                       "cbuffer ProbeLight : register(b3)"
-                       "{"
-                       "    matrix OwnWorldViewProjection;"
-                       "    float3 Position;"
-                       "    float Range;"
-                       "    float3 Lighting;"
-                       "    float Mipping;"
-                       "    float3 Scale;"
-                       "    float Parallax;"
-                       "};"
-
-                       "TextureCube Probe1 : register(t4);"
-
-                       "float Pow4(float Value)"
-                       "{"
-                       "    return Value * Value * Value * Value;"
-                       "}"
-
-                       "ShapeVertexOut VS(ShapeVertexIn Input)"
-                       "{"
-                       "    ShapeVertexOut Output = (ShapeVertexOut)0;"
-                       "    Output.Position = mul(Input.Position, OwnWorldViewProjection);"
-                       "    Output.TexCoord = Output.Position;"
-                       "    return Output;"
-                       "}"
-
-                       "float4 PS(ShapeVertexOut Input) : SV_TARGET0"
-                       "{"
-                       "    Geometry F = LoadGeometrySV(InvViewProjection, Input.TexCoord);"
-                       "    Material S = Materials[F.Material];"
-                       "    float3 D = Position - F.Position;"
-                       "    float3 M = S.Metallic + F.Surface.x * S.Micrometal;"
-                       "    float R = Pow4(S.Roughness + F.Surface.y * S.Microrough);"
-                       "    float A = 1.0f - length(D) / Range;"
-
-                       "    D = -normalize(reflect(normalize(ViewPosition.xyz - F.Position), -F.Normal));"
-                       "    [branch] if (Parallax > 0)"
-                       "    {"
-                       "        float3 Max = Position + Scale;"
-                       "        float3 Min = Position - Scale;"
-                       "        float3 Plane = ((D > 0.0 ? Max : Min) - F.Position) / D;"
-
-                       "        D = F.Position + D * min(min(Plane.x, Plane.y), Plane.z) - Position;"
-                       "    }"
-
-                       "    return float4(Lighting * Probe1.SampleLevel(State, D, Mipping * R).xyz * M * A * S.Reflectance, A);"
-                       "};";
-            }
-            const char* D3D11LightRenderer::GetPointLightCode()
-            {
-                return "#include ShapeVertexIn.h"
-                       "#include ShapeVertexOut.h"
-                       "#include ViewBuffer.h"
-                       "#include Geometry.h"
-                       "#include LoadGeometry.h"
-                       "#include CookTorrance.h"
-
-                       "cbuffer PointLight : register(b3)"
-                       "{"
-                       "    matrix OwnWorldViewProjection;"
-                       "    float3 Position;"
-                       "    float Range;"
-                       "    float3 Lighting;"
-                       "    float Distance;"
-                       "    float Softness;"
-                       "    float Recount;"
-                       "    float Bias;"
-                       "    float Iterations;"
-                       "};"
-
-                       "float Pow4(float Value)"
-                       "{"
-                       "    return Value * Value * Value * Value;"
-                       "}"
-
-                       "ShapeVertexOut VS(ShapeVertexIn Input)"
-                       "{"
-                       "    ShapeVertexOut Output = (ShapeVertexOut)0;"
-                       "    Output.Position = mul(Input.Position, OwnWorldViewProjection);"
-                       "    Output.TexCoord = Output.Position;"
-                       "    return Output;"
-                       "}"
-
-                       "float4 PS(ShapeVertexOut Input) : SV_TARGET0"
-                       "{"
-                       "    Geometry F = LoadGeometrySV(InvViewProjection, Input.TexCoord);"
-                       "    Material S = Materials[F.Material];"
-                       "    float3 D = Position - F.Position;"
-                       "    float3 M = S.Metallic + F.Surface.x * S.Micrometal;"
-                       "    float R = Pow4(S.Roughness + F.Surface.y * S.Microrough);"
-                       "    float A = 1.0f - length(D) / Range;"
-                       "    float3 V = normalize(ViewPosition.xyz - F.Position);"
-
-                       "    return float4(Lighting * CookTorrance(V, normalize(D), F.Normal, M, R, D) * A, A);"
-                       "};";
-            }
-            const char* D3D11LightRenderer::GetShadedPointLightCode()
-            {
-                return "#include ShapeVertexIn.h"
-                       "#include ShapeVertexOut.h"
-                       "#include ViewBuffer.h"
-                       "#include Geometry.h"
-                       "#include LoadGeometry.h"
-                       "#include CookTorrance.h"
-
-                       "cbuffer PointLight : register(b3)"
-                       "{"
-                       "    matrix OwnWorldViewProjection;"
-                       "    float3 Position;"
-                       "    float Range;"
-                       "    float3 Lighting;"
-                       "    float Distance;"
-                       "    float Softness;"
-                       "    float Recount;"
-                       "    float Bias;"
-                       "    float Iterations;"
-                       "};"
-
-                       "TextureCube Probe1 : register(t4);"
-
-                       "float Pow4(float Value)"
-                       "{"
-                       "    return Value * Value * Value * Value;"
-                       "}"
-
-                       "void SampleProbe(float3 D, float L, out float C, out float B)"
-                       "{"
-                       "    for (int x = -Iterations; x < Iterations; x++)"
-                       "    {"
-                       "        for (int y = -Iterations; y < Iterations; y++)"
-                       "        {"
-                       "            for (int z = -Iterations; z < Iterations; z++)"
-                       "			 {"
-                       "				 float2 Probe = Probe1.SampleLevel(State, D + float3(x, y, z) / Softness, 0).xy;"
-                       "                C += step(L, Probe.x); B += Probe.y;"
-                       "			 }"
-                       "        }"
-                       "    }"
-
-                       "    C /= Recount; B /= Recount;"
-                       "}"
-
-                       "ShapeVertexOut VS(ShapeVertexIn Input)"
-                       "{"
-                       "    ShapeVertexOut Output = (ShapeVertexOut)0;"
-                       "    Output.Position = mul(Input.Position, OwnWorldViewProjection);"
-                       "    Output.TexCoord = Output.Position;"
-                       "    return Output;"
-                       "}"
-
-                       "float4 PS(ShapeVertexOut Input) : SV_TARGET0"
-                       "{"
-                       "    Geometry F = LoadGeometrySV(InvViewProjection, Input.TexCoord);"
-                       "    Material S = Materials[F.Material];"
-                       "    float3 D = Position - F.Position;"
-                       "    float3 K = normalize(D);"
-                       "    float3 M = S.Metallic + F.Surface.x * S.Micrometal;"
-                       "    float R = Pow4(S.Roughness + F.Surface.y * S.Microrough);"
-                       "    float L = length(D);"
-                       "    float A = 1.0f - L / Range;"
-                       "    float3 V = normalize(ViewPosition.xyz - F.Position);"
-                       "    float I = L / Distance - Bias, C = 0.0, B = 0.0;"
-
-                       "    float3 E = CookTorrance(V, K, F.Normal, M, R, D) * A;"
-                       "    [branch] if (Softness <= 0.0)"
-                       "	 {"
-                       "		 float2 Probe = Probe1.SampleLevel(State, -K, 0).xy;"
-                       "        C = step(I, Probe.x); B = Probe.y;"
-                       "	 }"
-                       "    else"
-                       "        SampleProbe(-K, I, C, B);"
-
-                       "    E *= C + B * (1.0 - C);"
-                       "    return float4(Lighting * E, A);"
-                       "};";
-            }
-            const char* D3D11LightRenderer::GetSpotLightCode()
-            {
-                return "#include ShapeVertexIn.h"
-                       "#include ShapeVertexOut.h"
-                       "#include ViewBuffer.h"
-                       "#include Geometry.h"
-                       "#include LoadGeometry.h"
-                       "#include CookTorrance.h"
-
-                       "cbuffer SpotLight : register(b3)"
-                       "{"
-                       "    matrix OwnWorldViewProjection;"
-                       "    matrix OwnViewProjection;"
-                       "    float3 Position;"
-                       "    float Range;"
-                       "    float3 Lighting;"
-                       "    float Diffuse;"
-                       "    float3 Shadow;"
-                       "    float Iterations;"
-                       "};"
-
-                       "Texture2D Probe1 : register(t4);"
-
-                       "float Pow4(float Value)"
-                       "{"
-                       "    return Value * Value * Value * Value;"
-                       "}"
-
-                       "ShapeVertexOut VS(ShapeVertexIn Input)"
-                       "{"
-                       "    ShapeVertexOut Output = (ShapeVertexOut)0;"
-                       "    Output.Position = mul(Input.Position, OwnWorldViewProjection);"
-                       "    Output.TexCoord = Output.Position;"
-                       "    return Output;"
-                       "}"
-
-                       "float4 PS(ShapeVertexOut Input) : SV_TARGET0"
-                       "{"
-                       "    Geometry F = LoadGeometrySV(InvViewProjection, Input.TexCoord);"
-                       "    float4 L = mul(float4(F.Position, 1), OwnViewProjection);"
-                       "    float2 P = float2(L.x / L.w / 2.0f + 0.5f, 1 - (L.y / L.w / 2.0f + 0.5f));"
-                       "    [branch] if (L.z <= 0 || saturate(P.x) != P.x || saturate(P.y) != P.y)"
-                       "        return float4(0, 0, 0, 0);"
-
-                       "    Material S = Materials[F.Material];"
-                       "    float3 D = Position - F.Position;"
-                       "    float3 A = 1.0f - length(D) / Range;"
-                       "    [branch] if (Diffuse > 0)"
-                       "        A *= Probe1.SampleLevel(State, P, 0).xyz;"
-
-                       "    float3 V = normalize(ViewPosition.xyz - F.Position);"
-                       "    float3 M = S.Metallic + F.Surface.x * S.Micrometal;"
-                       "    float R = Pow4(S.Roughness + F.Surface.y * S.Microrough);"
-                       "    float3 E = CookTorrance(V, normalize(D), F.Normal, M, R, D) * A;"
-
-                       "    return float4(Lighting * E, length(A) / 3.0f);"
-                       "};";
-            }
-            const char* D3D11LightRenderer::GetShadedSpotLightCode()
-            {
-                return "#include ShapeVertexIn.h"
-                       "#include ShapeVertexOut.h"
-                       "#include ViewBuffer.h"
-                       "#include Geometry.h"
-                       "#include LoadGeometry.h"
-                       "#include CookTorrance.h"
-
-                       "cbuffer SpotLight : register(b3)"
-                       "{"
-                       "    matrix OwnWorldViewProjection;"
-                       "    matrix OwnViewProjection;"
-                       "    float3 Position;"
-                       "    float Range;"
-                       "    float3 Lighting;"
-                       "    float Diffuse;"
-                       "    float Softness;"
-                       "    float Recount;"
-                       "    float Bias;"
-                       "    float Iterations;"
-                       "};"
-
-                       "Texture2D Probe1 : register(t4);"
-                       "Texture2D Probe2 : register(t5);"
-
-                       "float Pow4(float Value)"
-                       "{"
-                       "    return Value * Value * Value * Value;"
-                       "}"
-
-                       "void SampleProbe(float2 D, float L, out float C, out float B)"
-                       "{"
-                       "    for (int x = -Iterations; x < Iterations; x++)"
-                       "    {"
-                       "        for (int y = -Iterations; y < Iterations; y++)"
-                       "        {"
-                       "			 float2 Probe = Probe2.SampleLevel(State, D + float2(x, y) / Softness, 0).xy;"
-                       "			 C += step(L, Probe.x); B += Probe.y;"
-                       "        }"
-                       "    }"
-
-                       "    C /= Recount; B /= Recount;"
-                       "}"
-
-                       "ShapeVertexOut VS(ShapeVertexIn Input)"
-                       "{"
-                       "    ShapeVertexOut Output = (ShapeVertexOut)0;"
-                       "    Output.Position = mul(Input.Position, OwnWorldViewProjection);"
-                       "    Output.TexCoord = Output.Position;"
-                       "    return Output;"
-                       "}"
-
-                       "float4 PS(ShapeVertexOut Input) : SV_TARGET0"
-                       "{"
-                       "    Geometry F = LoadGeometrySV(InvViewProjection, Input.TexCoord);"
-                       "    float4 L = mul(float4(F.Position, 1), OwnViewProjection);"
-                       "    float2 P = float2(L.x / L.w / 2.0f + 0.5f, 1 - (L.y / L.w / 2.0f + 0.5f));"
-                       "    [branch] if (L.z <= 0 || saturate(P.x) != P.x || saturate(P.y) != P.y)"
-                       "        return float4(0, 0, 0, 0);"
-
-                       "    Material S = Materials[F.Material];"
-                       "    float3 D = Position - F.Position;"
-                       "    float3 A = 1.0 - length(D) / Range;"
-                       "    [branch] if (Diffuse > 0)"
-                       "        A *= Probe1.SampleLevel(State, P, 0).xyz;"
-
-                       "    float3 M = S.Metallic + F.Surface.x * S.Micrometal;"
-                       "    float R = Pow4(S.Roughness + F.Surface.y * S.Microrough);"
-                       "    float3 V = normalize(ViewPosition.xyz - F.Position);"
-                       "    float3 E = CookTorrance(V, normalize(D), F.Normal, M, R, D) * A;"
-                       "    float I = L.z / L.w - Bias, C = 0.0, B = 0.0;"
-
-                       "    [branch] if (Softness <= 0.0)"
-                       "	 {"
-                       "		 float2 Probe = Probe2.SampleLevel(State, P, 0).xy;"
-                       "        C = step(I, Probe.x); B = Probe.y;"
-                       "	 }"
-                       "    else"
-                       "        SampleProbe(P, I, C, B);"
-
-                       "    E *= C + B * (1.0 - C);"
-                       "    return float4(Lighting * E, length(A) / 3.0f);"
-                       "};";
-            }
-            const char* D3D11LightRenderer::GetLineLightCode()
-            {
-                return "#include ShapeVertexIn.h"
-                       "#include ShapeVertexOut.h"
-                       "#include ViewBuffer.h"
-                       "#include Geometry.h"
-                       "#include LoadGeometry.h"
-                       "#include CookTorrance.h"
-
-                       "cbuffer LineLight : register(b3)"
-                       "{"
-                       "    matrix OwnViewProjection;"
-                       "    float3 Position;"
-                       "    float Padding1;"
-                       "    float3 Lighting;"
-                       "    float Padding2;"
-                       "};"
-
-                       "float Pow4(float Value)"
-                       "{"
-                       "    return Value * Value * Value * Value;"
-                       "}"
-
-                       "ShapeVertexOut VS(ShapeVertexIn Input)"
-                       "{"
-                       "    ShapeVertexOut Output = (ShapeVertexOut)0;"
-                       "    Output.Position = Input.Position;"
-                       "    Output.TexCoord = Output.Position;"
-                       "    return Output;"
-                       "}"
-
-                       "float4 PS(ShapeVertexOut Input) : SV_TARGET0"
-                       "{"
-                       "    Geometry F = LoadGeometrySV(InvViewProjection, Input.TexCoord);"
-                       "    Material S = Materials[F.Material];"
-                       "    float3 D = Position;"
-                       "    float3 M = S.Metallic + F.Surface.x * S.Micrometal;"
-                       "    float R = Pow4(S.Roughness + F.Surface.y * S.Microrough);"
-                       "    float3 V = normalize(ViewPosition.xyz - F.Position);"
-
-                       "    return float4(Lighting * CookTorrance(V, D, F.Normal, M, R, D), 1.0f);"
-                       "};";
-            }
-            const char* D3D11LightRenderer::GetShadedLineLightCode()
-            {
-                return "#include ShapeVertexIn.h"
-                       "#include ShapeVertexOut.h"
-                       "#include ViewBuffer.h"
-                       "#include Geometry.h"
-                       "#include LoadGeometry.h"
-                       "#include CookTorrance.h"
-
-                       "cbuffer LineLight : register(b3)"
-                       "{"
-                       "    matrix OwnViewProjection;"
-                       "    float3 Position;"
-                       "    float ShadowDistance;"
-                       "    float3 Lighting;"
-                       "    float ShadowLength;"
-                       "    float Softness;"
-                       "    float Recount;"
-                       "    float Bias;"
-                       "    float Iterations;"
-                       "};"
-
-                       "Texture2D Probe1 : register(t4);"
-
-                       "float Pow4(float Value)"
-                       "{"
-                       "    return Value * Value * Value * Value;"
-                       "}"
-
-                       "void SampleProbe(float2 D, float L, out float C, out float B)"
-                       "{"
-                       "    for (int x = -Iterations; x < Iterations; x++)"
-                       "    {"
-                       "        for (int y = -Iterations; y < Iterations; y++)"
-                       "        {"
-                       "			 float2 Probe = Probe1.SampleLevel(State, D + float2(x, y) / Softness, 0).xy;"
-                       "			 C += step(L, Probe.x); B += Probe.y;"
-                       "        }"
-                       "    }"
-
-                       "    C /= Recount; B /= Recount;"
-                       "}"
-
-                       "ShapeVertexOut VS(ShapeVertexIn Input)"
-                       "{"
-                       "    ShapeVertexOut Output = (ShapeVertexOut)0;"
-                       "    Output.Position = Input.Position;"
-                       "    Output.TexCoord = Output.Position;"
-                       "    return Output;"
-                       "}"
-
-                       "float4 PS(ShapeVertexOut Input) : SV_TARGET0"
-                       "{"
-                       "    Geometry F = LoadGeometrySV(InvViewProjection, Input.TexCoord);"
-                       "    Material S = Materials[F.Material];"
-                       "    float4 L = mul(float4(F.Position, 1), OwnViewProjection);"
-                       "    float2 P = float2(L.x / L.w / 2.0f + 0.5f, 1 - (L.y / L.w / 2.0f + 0.5f));"
-                       "    float3 D = Position;"
-                       "    float3 M = S.Metallic + F.Surface.x * S.Micrometal;"
-                       "    float R = Pow4(S.Roughness + F.Surface.y * S.Microrough);"
-                       "    float3 V = normalize(ViewPosition.xyz - F.Position);"
-                       "    float3 E = CookTorrance(V, D, F.Normal, M, R, D);"
-
-                       "    [branch] if (saturate(P.x) == P.x && saturate(P.y) == P.y)"
-                       "    {"
-                       "        float G = length(float2(ViewPosition.x - V.x, ViewPosition.z - V.z));"
-                       "        float I = L.z / L.w - Bias, C = 0.0, B = 0.0;"
-
-                       "        [branch] if (Softness <= 0.0)"
-                       "		 {"
-                       "			 float2 Probe = Probe1.SampleLevel(State, P, 0).xy;"
-                       "			 C = step(I, Probe.x); B = Probe.y;"
-                       "		 }"
-                       "        else"
-                       "			 SampleProbe(P, I, C, B);"
-
-                       "        C = saturate(C + saturate(pow(abs(G / ShadowDistance), ShadowLength)));"
-                       "        E *= C + B * (1.0f - C);"
-                       "    }"
-
-                       "    return float4(Lighting * E, 1.0f);"
-                       "};";
-            }
-            const char* D3D11LightRenderer::GetAmbientLightCode()
-            {
-                return "#include ShapeVertexIn.h"
-                       "#include ShapeVertexOut.h"
-                       "#include ViewBuffer.h"
-                       "#include Geometry.h"
-                       "#include HemiAmbient.h"
-
-                       "Texture2D Input4 : register(t4);"
-
-                       "cbuffer AmbientLight : register(b3)"
-                       "{"
-                       "    float3 HighEmission;"
-                       "    float Padding1;"
-                       "    float3 LowEmission;"
-                       "    float Padding2;"
-                       "};"
-
-                       "ShapeVertexOut VS(ShapeVertexIn Input)"
-                       "{"
-                       "    ShapeVertexOut Output = (ShapeVertexOut)0;"
-                       "    Output.Position = Input.Position;"
-                       "    Output.TexCoord.xy = Input.TexCoord;"
-                       "    return Output;"
-                       "}"
-
-                       "float4 PS(ShapeVertexOut Input) : SV_TARGET0"
-                       "{"
-                       "    float4 Diffusion = Input1.Sample(State, Input.TexCoord.xy);"
-                       "    float4 Emission = Input4.Sample(State, Input.TexCoord.xy);"
-                       "    float4 Normal = Input2.Sample(State, Input.TexCoord.xy);"
-                       "    float3 Ambient = HemiAmbient(HighEmission, LowEmission, Normal.y);"
-
-                       "    return float4(Diffusion.xyz * (Emission.xyz + Ambient) + Emission.xyz * Emission.a, 1.0f);"
-                       "};";
             }
 
             D3D11ImageRenderer::D3D11ImageRenderer(Engine::RenderSystem* Lab) : Engine::Renderers::ImageRenderer(Lab), Offset(0)
@@ -2761,9 +1662,13 @@ namespace Tomahawk
                 Stride = sizeof(Compute::ShapeVertex);
 
                 Graphics::Shader::Desc Desc = Graphics::Shader::Desc();
-                Desc.Data = GetShaderCode();
                 Desc.Layout = Graphics::Shader::GetShapeVertexLayout();
                 Desc.LayoutSize = 2;
+#ifdef HAS_D3D11_REFLECTION_PASS_HLSL
+                Desc.Data = reinterpret_cast<const char*>(resource_batch::d3d11_reflection_pass_hlsl::data);
+#else
+                THAWK_ERROR("reflection-pass.hlsl was not compiled");
+#endif
 
                 Shader = (D3D11Shader*)Graphics::Shader::Create(System->GetDevice(), Desc);
                 Shader->ConstantData = &Render;
@@ -2816,70 +1721,6 @@ namespace Tomahawk
                 Output = (D3D11RenderTarget2D*)Graphics::RenderTarget2D::Create(System->GetDevice(), IOutput);
                 ReleaseCom(Output->DepthStencilView);
             }
-            const char* D3D11ReflectionsRenderer::GetShaderCode()
-            {
-                return "#include ShapeVertexIn.h"
-                       "#include ShapeVertexOut.h"
-                       "#include ViewBuffer.h"
-                       "#include Geometry.h"
-                       "#include LoadGeometry.h"
-                       "#include LoadPosition.h"
-                       "#include CookTorrance.h"
-
-                       "cbuffer RenderConstant : register(b3)"
-                       "{"
-                       "    matrix ViewProjection;"
-                       "    float IterationCount;"
-                       "    float RayCorrection;"
-                       "    float RayLength;"
-                       "    float MipLevels;"
-                       "}"
-
-                       "float Pow4(float Value)"
-                       "{"
-                       "    return Value * Value * Value * Value;"
-                       "}"
-
-                       "ShapeVertexOut VS(ShapeVertexIn Input)"
-                       "{"
-                       "    ShapeVertexOut Output = (ShapeVertexOut)0;"
-                       "    Output.Position = Input.Position;"
-                       "    Output.TexCoord = Output.Position;"
-                       "    return Output;"
-                       "}"
-
-                       "float4 PS(ShapeVertexOut Input) : SV_TARGET0"
-                       "{"
-                       "    Geometry F = LoadGeometrySV(InvViewProjection, Input.TexCoord);"
-                       "    Material S = Materials[F.Material];"
-                       "    float4 Offset = float4(0, 0, 0, 0);"
-                       "    float3 Eye = normalize(F.Position - ViewPosition.xyz);"
-                       "    float3 Ray = reflect(Eye, F.Normal), Sample;"
-                       "    float3 Angle = pow(abs(1 - dot(-Eye, F.Normal)), 2);"
-                       "    float3 M = S.Metallic + F.Surface.x * S.Micrometal;"
-                       "    float R = Pow4(S.Roughness + F.Surface.y * S.Microrough);"
-                       "    float Depth = RayLength;"
-
-                       "    [branch] if (S.Reflection <= 0)"
-                       "        return float4(F.Diffuse, 1.0f);"
-
-                       "    [loop] for (int i = 0; i < IterationCount; i++)"
-                       "    {"
-                       "        Offset = mul(float4(F.Position + Ray * Depth, 1.0f), ViewProjection);"
-                       "        Offset.xy = float2(0.5f, 0.5f) + float2(0.5f, -0.5f) * Offset.xy / Offset.w;"
-
-                       "		 Depth = Input3.SampleLevel(State, Offset.xy, 0).r;"
-                       "		 [branch] if (Depth < RayCorrection)"
-                       "			 return float4(F.Diffuse, 1.0f);"
-
-                       "		 Sample = LoadPosition(F.TexCoord, Input3.SampleLevel(State, Offset.xy, 0).r, InvViewProjection);"
-                       "		 Depth = length(F.Position - Sample);"
-                       "    }"
-
-                       "    Ray = Input1.SampleLevel(State, Offset.xy, MipLevels * R).xyz;"
-                       "    return float4(F.Diffuse + Ray * Angle * M * S.Reflection, 1.0f);"
-                       "};";
-            }
 
             D3D11DepthOfFieldRenderer::D3D11DepthOfFieldRenderer(Engine::RenderSystem* Lab) : Engine::Renderers::DepthOfFieldRenderer(Lab), Offset(0)
             {
@@ -2887,9 +1728,13 @@ namespace Tomahawk
                 Stride = sizeof(Compute::ShapeVertex);
 
                 Graphics::Shader::Desc Desc = Graphics::Shader::Desc();
-                Desc.Data = GetShaderCode();
                 Desc.Layout = Graphics::Shader::GetShapeVertexLayout();
                 Desc.LayoutSize = 2;
+#ifdef HAS_D3D11_DOF_PASS_HLSL
+                Desc.Data = reinterpret_cast<const char*>(resource_batch::d3d11_dof_pass_hlsl::data);
+#else
+                THAWK_ERROR("dof-pass.hlsl was not compiled");
+#endif
 
                 Shader = (D3D11Shader*)Graphics::Shader::Create(System->GetDevice(), Desc);
                 Shader->ConstantData = &Render;
@@ -2951,102 +1796,6 @@ namespace Tomahawk
                 Output = (D3D11RenderTarget2D*)Graphics::RenderTarget2D::Create(System->GetDevice(), IOutput);
                 ReleaseCom(Output->DepthStencilView);
             }
-            const char* D3D11DepthOfFieldRenderer::GetShaderCode()
-            {
-                return "#include ShapeVertexIn.h"
-                       "#include ShapeVertexOut.h"
-                       "#include ViewBuffer.h"
-                       "#include Geometry.h"
-                       "#include LoadGeometry.h"
-                       "#include LoadPosition.h"
-                       "#include LoadTexCoord.h"
-
-                       "cbuffer RenderConstant : register(b3)"
-                       "{"
-                       "    matrix ViewProjection;"
-                       "    float2 Texel;"
-                       "    float Threshold;"
-                       "    float Gain;"
-                       "    float Fringe;"
-                       "    float Bias;"
-                       "    float Dither;"
-                       "    float Samples;"
-                       "    float Rings;"
-                       "    float FarDistance;"
-                       "    float FarRange;"
-                       "    float NearDistance;"
-                       "    float NearRange;"
-                       "    float FocalDepth;"
-                       "    float Intensity;"
-                       "    float Circular;"
-                       "}"
-
-                       "float3 Aberate(float2 TexCoord, float Weight)"
-                       "{"
-                       "    float3 Coefficient = float3(0.299, 0.587, 0.114);"
-                       "    float3 Aberation = float3(Input1.SampleLevel(State, TexCoord + float2(0.0, 1.0) * Texel * Fringe * Weight, 0).r,"
-                       "        Input1.SampleLevel(State, TexCoord + float2(-0.866, -0.5) * Texel * Fringe * Weight, 0).g,"
-                       "        Input1.SampleLevel(State, TexCoord + float2(0.866, -0.5) * Texel * Fringe * Weight, 0).b);"
-                       "    float Luminance = dot(Aberation * Intensity, Coefficient);"
-
-                       "    return Aberation + lerp(0, Aberation, max((Luminance - Threshold) * Gain, 0.0) * Weight);"
-                       "}"
-
-                       "float2 Random(float2 TexCoord)"
-                       "{"
-                       "    float NoiseX = saturate(frac(sin(dot(TexCoord, float2(12.9898f, 78.233f))) * 43758.5453f)) * 2.0f - 1.0f;"
-                       "    float NoiseY = saturate(frac(sin(dot(TexCoord, float2(12.9898f, 78.233f) * 2.0f)) * 43758.5453f)) * 2.0f - 1.0f;"
-                       "    return float2(NoiseX, NoiseY);"
-                       "}"
-
-                       "float Weight(float2 TexCoord)"
-                       "{"
-                       "    float4 Position = float4(LoadPosition(TexCoord, Input3.SampleLevel(State, TexCoord, 0).r, InvViewProjection), 1);"
-                       "    Position = mul(Position, ViewProjection);"
-
-                       "    float Alpha = 1.0f - (Position.z - NearDistance) / NearRange;"
-                       "    float Gamma = (Position.z - (FarDistance - FarRange)) / FarRange;"
-                       "    return saturate(max(Alpha, Gamma)) * FocalDepth;"
-                       "}"
-
-                       "ShapeVertexOut VS(ShapeVertexIn Input)"
-                       "{"
-                       "    ShapeVertexOut Output = (ShapeVertexOut)0;"
-                       "    Output.Position = Input.Position;"
-                       "    Output.TexCoord = Output.Position;"
-                       "    return Output;"
-                       "}"
-
-                       "float4 PS(ShapeVertexOut Input) : SV_TARGET0"
-                       "{"
-                       "    float2 TexCoord = LoadTexCoord(Input.TexCoord);"
-                       "    float Amount = Weight(TexCoord);"
-                       "    float3 Color = Input1.Sample(State, TexCoord).rgb;"
-                       "    float2 Noise = Random(TexCoord) * Dither * Amount;"
-                       "    float Width = Texel.x * Amount + Noise.x;"
-                       "    float Height = Texel.y * Amount + Noise.y;"
-                       "    float SampleAmount = 1.0;"
-
-                       "    [loop] for (int i = 1; i <= Rings; i++)"
-                       "    {"
-                       "        float Count = i * Samples;"
-                       "        [loop] for (int j = 0; j < Count; j++)"
-                       "        {"
-                       "            float Step = 6.28318530f / Count;"
-                       "            float2 Fragment = TexCoord + float2(cos(j * Step) * i * Width, sin(j * Step) * i * Height);"
-
-                       "            [branch] if (Weight(Fragment) >= Amount)"
-                       "            {"
-                       "                Color += Aberate(Fragment, Amount) * lerp(1.0f, (float)i / Rings, Bias) * Circular;"
-                       "                SampleAmount += lerp(1.0f, (float)i / Rings, Bias);"
-                       "            }"
-                       "        }"
-                       "    }"
-
-                       "    Color /= SampleAmount;"
-                       "    return float4(Color, 1);"
-                       "};";
-            }
 
             D3D11EmissionRenderer::D3D11EmissionRenderer(Engine::RenderSystem* Lab) : Engine::Renderers::EmissionRenderer(Lab), Offset(0)
             {
@@ -3054,9 +1803,13 @@ namespace Tomahawk
                 Stride = sizeof(Compute::ShapeVertex);
 
                 Graphics::Shader::Desc Desc = Graphics::Shader::Desc();
-                Desc.Data = GetShaderCode();
                 Desc.Layout = Graphics::Shader::GetShapeVertexLayout();
                 Desc.LayoutSize = 2;
+#ifdef HAS_D3D11_EMISSION_PASS_HLSL
+                Desc.Data = reinterpret_cast<const char*>(resource_batch::d3d11_emission_pass_hlsl::data);
+#else
+                THAWK_ERROR("emission-pass.hlsl was not compiled");
+#endif
 
                 Shader = (D3D11Shader*)Graphics::Shader::Create(System->GetDevice(), Desc);
                 Shader->ConstantData = &Render;
@@ -3115,51 +1868,6 @@ namespace Tomahawk
                 Output = (D3D11RenderTarget2D*)Graphics::RenderTarget2D::Create(System->GetDevice(), IOutput);
                 ReleaseCom(Output->DepthStencilView);
             }
-            const char* D3D11EmissionRenderer::GetShaderCode()
-            {
-                return "#pragma warning(disable: 4000)\n"
-                       "#include ShapeVertexIn.h"
-                       "#include ShapeVertexOut.h"
-                       "#include ViewBuffer.h"
-                       "#include Geometry.h"
-                       "#include LoadGeometry.h"
-
-                       "cbuffer RenderConstant : register(b3)"
-                       "{"
-                       "    float2 Texel;"
-                       "    float Intensity;"
-                       "    float Threshold;"
-                       "    float2 Scaling;"
-                       "    float Samples;"
-                       "    float SampleCount;"
-                       "}"
-
-                       "ShapeVertexOut VS(ShapeVertexIn Input)"
-                       "{"
-                       "    ShapeVertexOut Output = (ShapeVertexOut)0;"
-                       "    Output.Position = Input.Position;"
-                       "    Output.TexCoord.xy = Input.TexCoord;"
-                       "    return Output;"
-                       "}"
-
-                       "float4 PS(ShapeVertexOut Input) : SV_TARGET0"
-                       "{"
-                       "	 Geometry F; Material S; float3 B = 0.0;"
-                       "    [loop] for (int x = -Samples; x < Samples; x++)"
-                       "    {"
-                       "        [loop] for (int y = -Samples; y < Samples; y++)"
-                       "        {"
-                       "            float2 Offset = float2(x, y) / (Texel * Scaling);"
-                       "			 F = LoadGeometry(InvViewProjection, Input.TexCoord.xy + Offset);"
-                       "			 S = Materials[F.Material];"
-
-                       "            B += saturate(F.Diffuse + S.Emission * S.Intensity - Threshold) * Intensity;"
-                       "        }"
-                       "    }"
-
-                       "    return float4(F.Diffuse + B / SampleCount, 1.0f);"
-                       "};";
-            }
 
             D3D11GlitchRenderer::D3D11GlitchRenderer(Engine::RenderSystem* Lab) : Engine::Renderers::GlitchRenderer(Lab), Offset(0)
             {
@@ -3167,9 +1875,13 @@ namespace Tomahawk
                 Stride = sizeof(Compute::ShapeVertex);
 
                 Graphics::Shader::Desc Desc = Graphics::Shader::Desc();
-                Desc.Data = GetShaderCode();
                 Desc.Layout = Graphics::Shader::GetShapeVertexLayout();
                 Desc.LayoutSize = 2;
+#ifdef HAS_D3D11_GLITCH_PASS_HLSL
+                Desc.Data = reinterpret_cast<const char*>(resource_batch::d3d11_glitch_pass_hlsl::data);
+#else
+                THAWK_ERROR("glitch-pass.hlsl was not compiled");
+#endif
 
                 Shader = (D3D11Shader*)Graphics::Shader::Create(System->GetDevice(), Desc);
                 Shader->ConstantData = &Render;
@@ -3233,46 +1945,6 @@ namespace Tomahawk
                 Output = (D3D11RenderTarget2D*)Graphics::RenderTarget2D::Create(System->GetDevice(), IOutput);
                 ReleaseCom(Output->DepthStencilView);
             }
-            const char* D3D11GlitchRenderer::GetShaderCode()
-            {
-                return "#include ShapeVertexIn.h"
-                       "#include ShapeVertexOut.h"
-                       "#include Geometry.h"
-                       "#include RandomFloat2.h"
-
-                       "cbuffer RenderConstant : register(b3)"
-                       "{"
-                       "    float ScanLineJitterDisplacement;"
-                       "    float ScanLineJitterThreshold;"
-                       "    float VerticalJumpAmount;"
-                       "    float VerticalJumpTime;"
-                       "    float ColorDriftAmount;"
-                       "    float ColorDriftTime;"
-                       "    float HorizontalShake;"
-                       "    float ElapsedTime;"
-                       "}"
-
-                       "ShapeVertexOut VS(ShapeVertexIn Input)"
-                       "{"
-                       "    ShapeVertexOut Output = (ShapeVertexOut)0;"
-                       "    Output.Position = Input.Position;"
-                       "    Output.TexCoord.xy = Input.TexCoord;"
-                       "    return Output;"
-                       "}"
-
-                       "float4 PS(ShapeVertexOut Input) : SV_TARGET0"
-                       "{"
-                       "    float Jitter = RandomFloat2(Input.TexCoord.y, ElapsedTime) * 2.0f - 1.0f;"
-                       "    Jitter *= step(ScanLineJitterThreshold, abs(Jitter)) * ScanLineJitterDisplacement;"
-                       "    float Jump = lerp(Input.TexCoord.y, frac(Input.TexCoord.y + VerticalJumpTime), VerticalJumpAmount);"
-                       "    float Shake = (RandomFloat2(ElapsedTime, 2) - 0.5) * HorizontalShake;"
-                       "    float Drift = sin(Jump + ColorDriftTime) * ColorDriftAmount;"
-                       "    float4 Alpha = Input1.Sample(State, frac(float2(Input.TexCoord.x + Jitter + Shake, Jump)));"
-                       "    float4 Beta = Input1.Sample(State, frac(float2(Input.TexCoord.x + Jitter + Shake + Drift, Jump)));"
-
-                       "    return float4(Alpha.r, Beta.g, Alpha.b, 1);"
-                       "};";
-            }
 
             D3D11AmbientOcclusionRenderer::D3D11AmbientOcclusionRenderer(Engine::RenderSystem* Lab) : Engine::Renderers::AmbientOcclusionRenderer(Lab), Offset(0)
             {
@@ -3280,9 +1952,13 @@ namespace Tomahawk
                 Stride = sizeof(Compute::ShapeVertex);
 
                 Graphics::Shader::Desc Desc = Graphics::Shader::Desc();
-                Desc.Data = GetShaderCode();
                 Desc.Layout = Graphics::Shader::GetShapeVertexLayout();
                 Desc.LayoutSize = 2;
+#ifdef HAS_D3D11_SSAO_PASS_HLSL
+                Desc.Data = reinterpret_cast<const char*>(resource_batch::d3d11_ssao_pass_hlsl::data);
+#else
+                THAWK_ERROR("ssao-pass.hlsl was not compiled");
+#endif
 
                 Shader = (D3D11Shader*)Graphics::Shader::Create(System->GetDevice(), Desc);
                 Shader->ConstantData = &Render;
@@ -3336,79 +2012,6 @@ namespace Tomahawk
                 Output = (D3D11RenderTarget2D*)Graphics::RenderTarget2D::Create(System->GetDevice(), IOutput);
                 ReleaseCom(Output->DepthStencilView);
             }
-            const char* D3D11AmbientOcclusionRenderer::GetShaderCode()
-            {
-                return "#pragma warning(disable: 4000)\n"
-                       "#include ShapeVertexIn.h"
-                       "#include ShapeVertexOut.h"
-                       "#include Geometry.h"
-                       "#include ViewBuffer.h"
-                       "#include LoadPosition.h"
-                       "#include LoadTexCoord.h"
-
-                       "cbuffer RenderConstant : register(b3)"
-                       "{"
-                       "    float Scale;"
-                       "    float Intensity;"
-                       "    float Bias;"
-                       "    float Radius;"
-                       "    float Step;"
-                       "    float Offset;"
-                       "    float Distance;"
-                       "    float Fading;"
-                       "    float Power;"
-                       "    float Samples;"
-                       "    float SampleCount;"
-                       "    float Padding;"
-                       "}"
-
-                       "float2 MakeRay(float2 TexCoord)"
-                       "{"
-                       "    float RayX = saturate(frac(sin(dot(TexCoord, float2(12.9898f, 78.233f))) * 43758.5453f)) * 2.0f - 1.0f;"
-                       "    float RayY = saturate(frac(sin(dot(TexCoord, float2(12.9898f, 78.233f) * 2.0f)) * 43758.5453f)) * 2.0f - 1.0f;"
-                       "    return float2(RayX, RayY);"
-                       "}"
-
-                       "float Occlude(float2 TexCoord, float3 Position, float3 Normal)"
-                       "{"
-                       "    float3 Direction = LoadPosition(TexCoord, Input3.SampleLevel(State, TexCoord, 0).r, InvViewProjection) - Position;"
-                       "    float Length = length(Direction) * Scale;"
-
-                       "    return max(0.0, dot(normalize(Direction), Normal) * Power - Bias) * Intensity / (1.0f + Length * Length);"
-                       "}"
-
-                       "ShapeVertexOut VS(ShapeVertexIn Input)"
-                       "{"
-                       "    ShapeVertexOut Output = (ShapeVertexOut)0;"
-                       "    Output.Position = Input.Position;"
-                       "    Output.TexCoord = Output.Position;"
-                       "    return Output;"
-                       "}"
-
-                       "float4 PS(ShapeVertexOut Input) : SV_TARGET0"
-                       "{"
-                       "    float2 TexCoord = LoadTexCoord(Input.TexCoord);"
-                       "    float4 Normal = Input2.SampleLevel(State, TexCoord, 0);"
-                       "    float3 Position = LoadPosition(TexCoord, Input3.SampleLevel(State, TexCoord, 0).r, InvViewProjection);"
-                       "    float Fade = saturate(pow(abs(distance(ViewPosition.xyz, Position) / Distance), Fading));"
-                       "    float Factor = 0.0f;"
-
-                       "    Material S = Materials[Normal.w];"
-                       "    float AmbientRadius = Radius + S.Radius;"
-
-                       "    [loop] for (int x = -Samples; x < Samples; x++)"
-                       "    {"
-                       "        [loop] for (int y = -Samples; y < Samples; y++)"
-                       "        {"
-                       "            float2 Ray = MakeRay(TexCoord) * Step - float2(y, x) * Offset;"
-                       "            float2 Direction = reflect(Ray, float2(x, y)) * AmbientRadius;"
-                       "            Factor += S.Occlusion * (Occlude(TexCoord + Direction, Position, Normal.xyz) + Occlude(TexCoord - Direction, Position, Normal.xyz));"
-                       "        }"
-                       "    }"
-
-                       "    return float4(Input1.Sample(State, TexCoord).xyz * (1.0f - Factor * Fade / SampleCount), 1);"
-                       "};";
-            }
 
             D3D11IndirectOcclusionRenderer::D3D11IndirectOcclusionRenderer(Engine::RenderSystem* Lab) : Engine::Renderers::IndirectOcclusionRenderer(Lab), Offset(0)
             {
@@ -3416,9 +2019,13 @@ namespace Tomahawk
                 Stride = sizeof(Compute::ShapeVertex);
 
                 Graphics::Shader::Desc Desc = Graphics::Shader::Desc();
-                Desc.Data = GetShaderCode();
                 Desc.Layout = Graphics::Shader::GetShapeVertexLayout();
                 Desc.LayoutSize = 2;
+#ifdef HAS_D3D11_SSIO_PASS_HLSL
+                Desc.Data = reinterpret_cast<const char*>(resource_batch::d3d11_ssio_pass_hlsl::data);
+#else
+                THAWK_ERROR("ssio-pass.hlsl was not compiled");
+#endif
 
                 Shader = (D3D11Shader*)Graphics::Shader::Create(System->GetDevice(), Desc);
                 Shader->ConstantData = &Render;
@@ -3472,80 +2079,6 @@ namespace Tomahawk
                 Output = (D3D11RenderTarget2D*)Graphics::RenderTarget2D::Create(System->GetDevice(), IOutput);
                 ReleaseCom(Output->DepthStencilView);
             }
-            const char* D3D11IndirectOcclusionRenderer::GetShaderCode()
-            {
-                return "#pragma warning(disable: 4000)\n"
-                       "#include ShapeVertexIn.h"
-                       "#include ShapeVertexOut.h"
-                       "#include Geometry.h"
-                       "#include ViewBuffer.h"
-                       "#include LoadPosition.h"
-                       "#include LoadTexCoord.h"
-
-                       "cbuffer RenderConstant : register(b3)"
-                       "{"
-                       "    float Scale;"
-                       "    float Intensity;"
-                       "    float Bias;"
-                       "    float Radius;"
-                       "    float Step;"
-                       "    float Offset;"
-                       "    float Distance;"
-                       "    float Fading;"
-                       "    float Power;"
-                       "    float Samples;"
-                       "    float SampleCount;"
-                       "    float Padding;"
-                       "}"
-
-                       "float2 MakeRay(float2 TexCoord)"
-                       "{"
-                       "    float RayX = saturate(frac(sin(dot(TexCoord, float2(12.9898f, 78.233f))) * 43758.5453f)) * 2.0f - 1.0f;"
-                       "    float RayY = saturate(frac(sin(dot(TexCoord, float2(12.9898f, 78.233f) * 2.0f)) * 43758.5453f)) * 2.0f - 1.0f;"
-                       "    return float2(RayX, RayY);"
-                       "}"
-
-                       "float3 Occlude(float2 TexCoord, float3 Position, float3 Normal)"
-                       "{"
-                       "    float3 Direction = LoadPosition(TexCoord, Input3.SampleLevel(State, TexCoord, 0).r, InvViewProjection) - Position;"
-                       "    float Length = length(Direction) * Scale;"
-                       "    float Occlusion = max(0.0, dot(normalize(Direction), Normal) * Power - Bias) * Intensity / (1.0f + Length * Length);"
-
-                       "    return Input1.Sample(State, TexCoord).xyz * Occlusion;"
-                       "}"
-
-                       "ShapeVertexOut VS(ShapeVertexIn Input)"
-                       "{"
-                       "    ShapeVertexOut Output = (ShapeVertexOut)0;"
-                       "    Output.Position = Input.Position;"
-                       "    Output.TexCoord = Output.Position;"
-                       "    return Output;"
-                       "}"
-
-                       "float4 PS(ShapeVertexOut Input) : SV_TARGET0"
-                       "{"
-                       "    float2 TexCoord = LoadTexCoord(Input.TexCoord);"
-                       "    float4 Normal = Input2.SampleLevel(State, TexCoord, 0);"
-                       "    float3 Position = LoadPosition(TexCoord, Input3.SampleLevel(State, TexCoord, 0).r, InvViewProjection);"
-                       "    float Fade = saturate(pow(abs(distance(ViewPosition.xyz, Position) / Distance), Fading));"
-                       "    float3 Factor = 0.0f;"
-
-                       "    Material S = Materials[Normal.w];"
-                       "    float AmbientRadius = Radius + S.Radius;"
-
-                       "    [loop] for (int x = -Samples; x < Samples; x++)"
-                       "    {"
-                       "        [loop] for (int y = -Samples; y < Samples; y++)"
-                       "        {"
-                       "            float2 Ray = MakeRay(TexCoord) * Step - float2(y, x) * Offset;"
-                       "            float2 Direction = reflect(Ray, float2(x, y)) * AmbientRadius;"
-                       "            Factor += S.Occlusion * (Occlude(TexCoord + Direction, Position, Normal.xyz) + Occlude(TexCoord - Direction, Position, Normal.xyz));"
-                       "        }"
-                       "    }"
-
-                       "    return float4(Input1.Sample(State, TexCoord).xyz * (1 + Factor * Fade / SampleCount), 1);"
-                       "};";
-            }
 
             D3D11ToneRenderer::D3D11ToneRenderer(Engine::RenderSystem* Lab) : Engine::Renderers::ToneRenderer(Lab), Offset(0)
             {
@@ -3553,9 +2086,13 @@ namespace Tomahawk
                 Stride = sizeof(Compute::ShapeVertex);
 
                 Graphics::Shader::Desc Desc = Graphics::Shader::Desc();
-                Desc.Data = GetShaderCode();
                 Desc.Layout = Graphics::Shader::GetShapeVertexLayout();
                 Desc.LayoutSize = 2;
+#ifdef HAS_D3D11_TONE_PASS_HLSL
+                Desc.Data = reinterpret_cast<const char*>(resource_batch::d3d11_tone_pass_hlsl::data);
+#else
+                THAWK_ERROR("tone-pass.hlsl was not compiled");
+#endif
 
                 Shader = (D3D11Shader*)Graphics::Shader::Create(System->GetDevice(), Desc);
                 Shader->ConstantData = &Render;
@@ -3607,65 +2144,6 @@ namespace Tomahawk
                 Output = (D3D11RenderTarget2D*)Graphics::RenderTarget2D::Create(System->GetDevice(), IOutput);
                 ReleaseCom(Output->DepthStencilView);
             }
-            const char* D3D11ToneRenderer::GetShaderCode()
-            {
-                return "#include ShapeVertexIn.h"
-                       "#include ShapeVertexOut.h"
-                       "#include Geometry.h"
-
-                       "cbuffer RenderConstant : register(b3)"
-                       "{"
-                       "    float3 BlindVisionR;"
-                       "    float VignetteAmount;"
-                       "    float3 BlindVisionG;"
-                       "    float VignetteCurve;"
-                       "    float3 BlindVisionB;"
-                       "    float VignetteRadius;"
-                       "    float3 VignetteColor;"
-                       "    float LinearIntensity;"
-                       "    float3 ColorGamma;"
-                       "    float GammaIntensity;"
-                       "    float3 DesaturationGamma;"
-                       "    float DesaturationIntensity;"
-                       "}"
-
-                       "float3 GetToneMapping(float3 Pixel)"
-                       "{"
-                       "    float3 Color = Pixel / (Pixel + LinearIntensity) * GammaIntensity;"
-                       "    return float3(dot(Color, BlindVisionR.xyz), dot(Color, BlindVisionG.xyz), dot(Color, BlindVisionB.xyz)) * ColorGamma;"
-                       "}"
-
-                       "float3 GetDesaturation(float3 Pixel)"
-                       "{"
-                       "    float3 Color = Pixel;"
-                       "    float Intensity = DesaturationGamma.x * Color.r + DesaturationGamma.y * Color.b + DesaturationGamma.z * Color.g;"
-                       "    Intensity *= DesaturationIntensity;"
-
-                       "    Color.r = Intensity + Color.r * (1 - DesaturationIntensity);"
-                       "    Color.g = Intensity + Color.g * (1 - DesaturationIntensity);"
-                       "    Color.b = Intensity + Color.b * (1 - DesaturationIntensity);"
-
-                       "    return Color;"
-                       "}"
-
-                       "ShapeVertexOut VS(ShapeVertexIn Input)"
-                       "{"
-                       "    ShapeVertexOut Output = (ShapeVertexOut)0;"
-                       "    Output.Position = Input.Position;"
-                       "    Output.TexCoord.xy = Input.TexCoord;"
-                       "    return Output;"
-                       "}"
-
-                       "float4 PS(ShapeVertexOut Input) : SV_TARGET0"
-                       "{"
-                       "    float3 Color = Input1.Sample(State, Input.TexCoord.xy).xyz;"
-                       "    float Vignette = saturate(distance((Input.TexCoord.xy + 0.5f) / VignetteRadius - 0.5f, -float2(0.5f, 0.5f)));"
-                       "    Color = lerp(Color, VignetteColor.xyz, pow(Vignette, VignetteCurve) * VignetteAmount);"
-                       "    Color = GetDesaturation(Color);"
-
-                       "    return float4(GetToneMapping(Color), 1);"
-                       "};";
-            }
 
             D3D11GUIRenderer::D3D11GUIRenderer(Engine::RenderSystem* Lab, Graphics::Activity* NewWindow) : GUIRenderer(Lab, NewWindow)
             {
@@ -3690,11 +2168,16 @@ namespace Tomahawk
                 Reset();
                 Activate();
 
-                const char* VertexShaderCode = GetVertexShaderCode();
-                const char* PixelShaderCode = GetPixelShaderCode();
+#ifdef HAS_D3D11_GUI_GBUFFER_HLSL
+                const char* ShaderCode = reinterpret_cast<const char*>(resource_batch::d3d11_gui_gbuffer_hlsl::data);
+#else
+                const char* ShaderCode = nullptr;
+                THAWK_ERROR("gui-gbuffer.hlsl was not compiled");
+                return;
+#endif
 
                 D3D11Device* Device = Lab->GetDevice()->As<D3D11Device>();
-                D3DCompile(VertexShaderCode, strlen(VertexShaderCode), nullptr, nullptr, nullptr, "VS", Device->GetVSProfile(), 0, 0, &VertexShaderBlob, nullptr);
+                D3DCompile(ShaderCode, strlen(ShaderCode), nullptr, nullptr, nullptr, "VS", Device->GetVSProfile(), 0, 0, &VertexShaderBlob, nullptr);
                 if (VertexShaderBlob == nullptr)
                 {
                     THAWK_ERROR("couldn't compile vertex shader");
@@ -3723,7 +2206,7 @@ namespace Tomahawk
                 BufferDESC.MiscFlags = 0;
                 Device->D3DDevice->CreateBuffer(&BufferDESC, nullptr, &VertexConstantBuffer);
 
-                D3DCompile(PixelShaderCode, strlen(PixelShaderCode), nullptr, nullptr, nullptr, "PS", Device->GetPSProfile(), 0, 0, &PixelShaderBlob, nullptr);
+                D3DCompile(ShaderCode, strlen(ShaderCode), nullptr, nullptr, nullptr, "PS", Device->GetPSProfile(), 0, 0, &PixelShaderBlob, nullptr);
                 if (PixelShaderBlob == nullptr)
                 {
                     THAWK_ERROR("couldn't compile pixel shader");
@@ -3833,51 +2316,6 @@ namespace Tomahawk
 
                 Deactivate();
                 ImGui::DestroyContext((ImGuiContext*)Context);
-            }
-            const char* D3D11GUIRenderer::GetVertexShaderCode()
-            {
-                return "cbuffer VertexBuffer : register(b0)"
-                       "{"
-                       "   float4x4 WorldViewProjection;"
-                       "};"
-                       "struct VS_INPUT"
-                       "{"
-                       "   float2 Position : POSITION;"
-                       "   float4 Color : COLOR0;"
-                       "   float2 TexCoord : TEXCOORD0;"
-                       "};"
-                       "struct PS_INPUT"
-                       "{"
-                       "   float4 Position : SV_POSITION;"
-                       "   float4 Color : COLOR0;"
-                       "   float2 TexCoord : TEXCOORD0;"
-                       "};"
-
-                       "PS_INPUT VS(VS_INPUT Input)"
-                       "{"
-                       "   PS_INPUT Output;"
-                       "   Output.Position = mul(WorldViewProjection, float4(Input.Position.xy, 0.f, 1.f));"
-                       "   Output.Color = Input.Color;"
-                       "   Output.TexCoord = Input.TexCoord;"
-                       "   return Output;"
-                       "}";
-            }
-            const char* D3D11GUIRenderer::GetPixelShaderCode()
-            {
-                return "struct PS_INPUT"
-                       "{"
-                       "   float4 Position : SV_POSITION;"
-                       "   float4 Color : COLOR0;"
-                       "   float2 TexCoord : TEXCOORD0;"
-                       "};"
-
-                       "sampler State;"
-                       "Texture2D Diffuse;"
-
-                       "float4 PS(PS_INPUT Input) : SV_Target"
-                       "{"
-                       "   return Input.Color * Diffuse.Sample(State, Input.TexCoord);"
-                       "}";
             }
             void D3D11GUIRenderer::DrawList(void* Context)
             {

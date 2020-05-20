@@ -724,6 +724,9 @@ namespace Tomahawk
 
             public:
                 static ModelRenderer* Create(RenderSystem* Lab);
+
+            public:
+                THAWK_COMPONENT(ModelRenderer);
             };
 
             class THAWK_OUT SkinnedModelRenderer : public Renderer
@@ -738,6 +741,9 @@ namespace Tomahawk
 
             public:
                 static SkinnedModelRenderer* Create(RenderSystem* Lab);
+
+            public:
+                THAWK_COMPONENT(SkinnedModelRenderer);
             };
 
             class THAWK_OUT DepthRenderer : public IntervalRenderer
@@ -769,6 +775,9 @@ namespace Tomahawk
 
             public:
                 static DepthRenderer* Create(RenderSystem* Lab);
+
+            public:
+                THAWK_COMPONENT(DepthRenderer);
             };
 
             class THAWK_OUT ProbeRenderer : public Renderer
@@ -787,6 +796,9 @@ namespace Tomahawk
 
             public:
                 static ProbeRenderer* Create(RenderSystem* Lab);
+
+            public:
+                THAWK_COMPONENT(ProbeRenderer);
             };
 
             class THAWK_OUT LightRenderer : public Renderer
@@ -864,6 +876,9 @@ namespace Tomahawk
 
             public:
                 static LightRenderer* Create(RenderSystem* Lab);
+
+            public:
+                THAWK_COMPONENT(LightRenderer);
             };
 
             class THAWK_OUT ElementSystemRenderer : public Renderer
@@ -878,6 +893,9 @@ namespace Tomahawk
 
             public:
                 static ElementSystemRenderer* Create(RenderSystem* Lab);
+
+            public:
+                THAWK_COMPONENT(ElementSystemRenderer);
             };
 
             class THAWK_OUT ImageRenderer : public Renderer
@@ -897,6 +915,9 @@ namespace Tomahawk
             public:
                 static ImageRenderer* Create(RenderSystem* Lab);
                 static ImageRenderer* Create(RenderSystem* Lab, Graphics::RenderTarget2D* Target);
+
+            public:
+                THAWK_COMPONENT(ImageRenderer);
             };
 
             class THAWK_OUT ReflectionsRenderer : public Renderer
@@ -922,6 +943,9 @@ namespace Tomahawk
 
             public:
                 static ReflectionsRenderer* Create(RenderSystem* Lab);
+
+            public:
+                THAWK_COMPONENT(ReflectionsRenderer);
             };
 
             class THAWK_OUT DepthOfFieldRenderer : public Renderer
@@ -963,6 +987,9 @@ namespace Tomahawk
 
             public:
                 static DepthOfFieldRenderer* Create(RenderSystem* Lab);
+
+            public:
+                THAWK_COMPONENT(DepthOfFieldRenderer);
             };
 
             class THAWK_OUT EmissionRenderer : public Renderer
@@ -992,6 +1019,9 @@ namespace Tomahawk
 
             public:
                 static EmissionRenderer* Create(RenderSystem* Lab);
+
+            public:
+                THAWK_COMPONENT(EmissionRenderer);
             };
 
             class THAWK_OUT GlitchRenderer : public Renderer
@@ -1026,6 +1056,9 @@ namespace Tomahawk
 
             public:
                 static GlitchRenderer* Create(RenderSystem* Lab);
+
+            public:
+                THAWK_COMPONENT(GlitchRenderer);
             };
 
             class THAWK_OUT AmbientOcclusionRenderer : public Renderer
@@ -1058,6 +1091,9 @@ namespace Tomahawk
 
             public:
                 static AmbientOcclusionRenderer* Create(RenderSystem* Lab);
+
+            public:
+                THAWK_COMPONENT(AmbientOcclusionRenderer);
             };
 
             class THAWK_OUT IndirectOcclusionRenderer : public Renderer
@@ -1090,6 +1126,9 @@ namespace Tomahawk
 
             public:
                 static IndirectOcclusionRenderer* Create(RenderSystem* Lab);
+
+            public:
+                THAWK_COMPONENT(IndirectOcclusionRenderer);
             };
 
             class THAWK_OUT ToneRenderer : public Renderer
@@ -1122,6 +1161,9 @@ namespace Tomahawk
 
             public:
                 static ToneRenderer* Create(RenderSystem* Lab);
+
+            public:
+                THAWK_COMPONENT(ToneRenderer);
             };
 
             class THAWK_OUT GUIRenderer : public Renderer
@@ -1157,6 +1199,9 @@ namespace Tomahawk
 
             public:
                 static GUIRenderer* Create(RenderSystem* Lab, Graphics::Activity* Window);
+
+            public:
+                THAWK_COMPONENT(GUIRenderer);
             };
         }
     }

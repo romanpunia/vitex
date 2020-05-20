@@ -135,6 +135,17 @@ namespace Tomahawk
             SoftFeature_Tetra
         };
 
+        enum SoftAeroModel
+        {
+            SoftAeroModel_VPoint,
+            SoftAeroModel_VTwoSided,
+            SoftAeroModel_VTwoSidedLiftDrag,
+            SoftAeroModel_VOneSided,
+            SoftAeroModel_FTwoSided,
+            SoftAeroModel_FTwoSidedLiftDrag,
+            SoftAeroModel_FOneSided
+        };
+
         struct THAWK_OUT Vertex
         {
             float PositionX;
@@ -1139,25 +1150,6 @@ namespace Tomahawk
             static const char* Syntax();
         };
 
-        class THAWK_OUT CollisionShape
-        {
-        public:
-            static btCollisionShape* Cube(const Vector3& Scale = Vector3(1, 1, 1));
-            static btCollisionShape* Sphere(float Radius = 1);
-            static btCollisionShape* Capsule(float Radius = 1, float Height = 1);
-            static btCollisionShape* Cone(float Radius = 1, float Height = 1);
-            static btCollisionShape* Cylinder(const Vector3& Scale = Vector3(1, 1, 1));
-            static btCollisionShape* ConvexHull(std::vector<InfluenceVertex>& Mesh);
-            static btCollisionShape* ConvexHull(std::vector<Vertex>& Mesh);
-            static btCollisionShape* ConvexHull(std::vector<Vector2>& Mesh);
-            static btCollisionShape* ConvexHull(std::vector<Vector3>& Mesh);
-            static btCollisionShape* ConvexHull(std::vector<Vector4>& Mesh);
-            static btCollisionShape* ConvexHull(btCollisionShape* From);
-            static btCollisionShape* Auto(Shape Shape);
-            static std::vector<Vector3> GetVertices(btCollisionShape* Shape);
-            static UInt64 GetVerticesCount(btCollisionShape* Shape);
-        };
-
         class THAWK_OUT Preprocessor : public Rest::Object
         {
         private:
@@ -1229,17 +1221,17 @@ namespace Tomahawk
             Vector3 Up();
             Vector3 Right();
             Vector3 Forward();
-            Vector3 Direction(Vector3 Direction);
+            Vector3 Direction(const Vector3& Direction);
             Matrix4x4 GetWorld();
-            Matrix4x4 GetWorld(Vector3 Rescale);
+            Matrix4x4 GetWorld(const Vector3& Rescale);
             Matrix4x4 GetWorldUnscaled();
-            Matrix4x4 GetWorldUnscaled(Vector3 Rescale);
+            Matrix4x4 GetWorldUnscaled(const Vector3& Rescale);
             Matrix4x4 GetLocal();
-            Matrix4x4 GetLocal(Vector3 Rescale);
+            Matrix4x4 GetLocal(const Vector3& Rescale);
             Matrix4x4 GetLocalUnscaled();
-            Matrix4x4 GetLocalUnscaled(Vector3 Rescale);
-            Matrix4x4 Localize(Matrix4x4 In);
-            Matrix4x4 Globalize(Matrix4x4 In);
+            Matrix4x4 GetLocalUnscaled(const Vector3& Rescale);
+            Matrix4x4 Localize(const Matrix4x4& In);
+            Matrix4x4 Globalize(const Matrix4x4& In);
             Transform* GetUpperRoot();
             Transform* GetRoot();
             bool HasRoot(Transform* Target);
@@ -1256,37 +1248,41 @@ namespace Tomahawk
 
         class THAWK_OUT RigidBody : public Rest::Object
         {
+            friend Simulator;
+
         public:
             struct Desc
             {
                 btCollisionShape* Shape = nullptr;
-                Transform* Transform = nullptr;
-                float Anticipation = 0;
-                float Mass = 0;
+                float Anticipation = 0, Mass = 0;
+                Vector3 Position;
+                Vector3 Rotation;
+                Vector3 Scale;
             };
 
         private:
             btRigidBody* Instance;
+            Simulator* Engine;
+            Desc Initial;
 
         public:
             CollisionCallback OnCollisionEnter;
             CollisionCallback OnCollisionExit;
-            Simulator* Ref;
             void* UserPointer;
 
-        public:
+        private:
             RigidBody(Simulator* Refer, const Desc& I);
+
+        public:
             virtual ~RigidBody() override;
-            void Copy(RigidBody* Target);
-            void Add();
-            void Remove();
+            RigidBody* Copy();
             void Activate(bool Force);
             void Push(const Vector3& Velocity);
             void Push(const Vector3& Velocity, const Vector3& Torque);
             void Push(const Vector3& Velocity, const Vector3& Torque, const Vector3& Center);
-            void PushKinematically(const Vector3& Velocity);
-            void PushKinematically(const Vector3& Velocity, const Vector3& Torque);
-            void Synchronize(Transform* Transform, bool Kinematically);
+            void PushKinematic(const Vector3& Velocity);
+            void PushKinematic(const Vector3& Velocity, const Vector3& Torque);
+            void Synchronize(Transform* Transform, bool Kinematic);
             void SetCollisionFlags(UInt64 Flags);
             void SetActivity(bool Active);
             void SetAsGhost();
@@ -1294,8 +1290,7 @@ namespace Tomahawk
             void SetSelfPointer();
             void SetWorldTransform(btTransform* Value);
             void SetCollisionShape(btCollisionShape* Shape, Transform* Transform);
-            void SetMassUnsafe(float Mass);
-            void SetMass(Simulator* Root, float Mass);
+            void SetMass(float Mass);
             void SetActivationState(MotionState Value);
             void SetAngularDamping(float Value);
             void SetAngularSleepingThreshold(float Value);
@@ -1353,6 +1348,8 @@ namespace Tomahawk
             float GetRollingFriction();
             float GetMass();
             UInt64 GetCollisionFlags();
+            Desc& GetInitialState();
+            Simulator* GetSimulator();
 
         public:
             static RigidBody* Get(btRigidBody* From);
@@ -1360,60 +1357,88 @@ namespace Tomahawk
 
         class THAWK_OUT SoftBody : public Rest::Object
         {
+            friend Simulator;
+
         public:
             struct Desc
             {
-                Transform* Transform = nullptr;
+                struct
+                {
+                    struct
+                    {
+                        btCollisionShape* Source = nullptr;
+                        bool Enabled = false;
+                    } Convex;
+
+                    struct
+                    {
+                        bool StartFixed = false;
+                        bool EndFixed = false;
+                        bool Enabled = false;
+                        int Count = 0;
+                        Vector3 Start = 0;
+                        Vector3 End = 1;
+                    } Rope;
+
+                    struct
+                    {
+                        bool GenerateDiagonals = false;
+                        bool Corner00Fixed = false;
+                        bool Corner10Fixed = false;
+                        bool Corner01Fixed = false;
+                        bool Corner11Fixed = false;
+                        bool Enabled = false;
+                        int CountX = 2;
+                        int CountY = 2;
+                        Vector3 Corner00 = Vector3(0, 0);
+                        Vector3 Corner10 = Vector3(1, 0);
+                        Vector3 Corner01 = Vector3(0, 1);
+                        Vector3 Corner11 = Vector3(1, 1);
+                    } Patch;
+
+                    struct
+                    {
+                        Vector3 Center;
+                        Vector3 Radius = 1;
+                        int Count = 3;
+                        bool Enabled = false;
+                    } Ellipsoid;
+                } Shape;
+
+                struct
+                {
+                    SoftAeroModel AeroModel;
+                    float VCF;
+                    float DP;
+                    float DG;
+                    float LF;
+                    float PR;
+                    float VC;
+                    float DF;
+                    float MT;
+                    float CHR;
+                    float KHR;
+                    float SHR;
+                    float AHR;
+                    float SRHR_CL;
+                    float SKHR_CL;
+                    float SSHR_CL;
+                    float SR_SPLT_CL;
+                    float SK_SPLT_CL;
+                    float SS_SPLT_CL;
+                    float MaxVolume;
+                    float TimeScale;
+                    int VIterations;
+                    int PIterations;
+                    int DIterations;
+                    int CIterations;
+                    int Collisions;
+                } Config;
+
                 float Anticipation = 0;
-                float Mass = 0;
-            };
-
-            struct Element
-            {
-                void* Tag = nullptr;
-            };
-
-            struct Material : Element
-            {
-                float LST = 0;
-                float AST = 0;
-                float VST = 0;
-                int Flags = 0;
-            };
-
-            struct Feature : Element
-            {
-                Material* Base = nullptr;
-            };
-
-            struct Node : Feature
-            {
                 Vector3 Position;
-                Vector3 PrevPosition;
-                Vector3 Velocity;
-                Vector3 Force;
-                Vector3 Normal;
-                float InvMass = 0;
-                float Area = 0;
-                int Attach : 1;
-            };
-
-            struct Link : Feature
-            {
-                Vector3 C3;
-                Node* Nodes[2];
-                float RestLength;
-                int Bending : 1;
-                float C0;
-                float C1;
-                float C2;
-            };
-
-            struct Face : Feature
-            {
-                Node* Nodes[3];
-                Vector3 Normal;
-                float RestArea;
+                Vector3 Rotation;
+                Vector3 Scale;
             };
 
             struct RayCast
@@ -1426,28 +1451,33 @@ namespace Tomahawk
 
         private:
             btSoftBody* Instance;
+            Simulator* Engine;
+            Desc Initial;
 
         public:
             CollisionCallback OnCollisionEnter;
             CollisionCallback OnCollisionExit;
-            Simulator* Ref;
             void* UserPointer;
 
-        public:
+        private:
             SoftBody(Simulator* Refer, const Desc& I);
+
+        public:
             virtual ~SoftBody() override;
-            void Copy(SoftBody* Target);
-            void Add();
-            void Remove();
+            SoftBody* Copy();
             void Activate(bool Force);
-            void Synchronize(Transform* Transform, bool Kinematically);
+            void Synchronize(Transform* Transform, bool Kinematic);
+            void Map(std::vector<Vertex>* Vertices);
+            void Map(Vertex* Vertices, size_t Size);
+            void Map(std::vector<InfluenceVertex>* Vertices);
+            void Map(InfluenceVertex* Vertices, size_t Size);
+            void Map(std::vector<ShapeVertex>* Vertices);
+            void Map(ShapeVertex* Vertices, size_t Size);
+            void Map(std::vector<ElementVertex>* Vertices);
+            void Map(ElementVertex* Vertices, size_t Size);
             void SetContactStiffnessAndDamping(float Stiffness, float Damping);
-            void AppendNode(const Vector3& X, float Value);
-            void AppendLink(int Node0, int Node1);
-            void AppendFace(int Node0, int Node1, int Node2);
-            void AppendTetra(int Node0, int Node1, int Node2, int Node3);
-            void AppendAnchor(int Node, RigidBody* Body, bool DisableCollisionBetweenLinkedBodies = false, float Influence = 1);
-            void AppendAnchor(int Node, RigidBody* Body, const Vector3& LocalPivot, bool DisableCollisionBetweenLinkedBodies = false, float Influence = 1);
+            void AddAnchor(int Node, RigidBody* Body, bool DisableCollisionBetweenLinkedBodies = false, float Influence = 1);
+            void AddAnchor(int Node, RigidBody* Body, const Vector3& LocalPivot, bool DisableCollisionBetweenLinkedBodies = false, float Influence = 1);
             void AddForce(const Vector3& Force);
             void AddForce(const Vector3& Force, int Node);
             void AddAeroForceToNode(const Vector3& WindVelocity, int NodeIndex);
@@ -1461,9 +1491,9 @@ namespace Tomahawk
             void SetVolumeMass(float Mass);
             void SetVolumeDensity(float Density);
             void SetTransform(Transform* Base);
-            void SetPosition(const Vector3& Position);
-            void SetRotation(const Vector3& Rotation);
-            void SetScale(const Vector3& Scale);
+            void Translate(const Vector3& Position);
+            void Rotate(const Vector3& Rotation);
+            void Scale(const Vector3& Scale);
             void SetRestLengthScale(float RestLength);
             void SetPose(bool Volume, bool Frame);
             float GetMass(int Node) const;
@@ -1479,7 +1509,6 @@ namespace Tomahawk
             void GetAabb(Vector3& Min, Vector3& Max) const;
             void IndicesToPointers(const int* Map = 0);
             void SetSpinningFriction(float Value);
-            Material AppendMaterial();
             Vector3 GetLinearVelocity();
             Vector3 GetAngularVelocity();
             void SetActivity(bool Active);
@@ -1499,12 +1528,14 @@ namespace Tomahawk
             void SetDeactivationTime(float Value);
             void SetRollingFriction(float Value);
             void SetAnisotropicFriction(const Vector3& Value);
+            Shape GetCollisionShapeType();
             MotionState GetActivationState();
             Vector3 GetAnisotropicFriction();
             Vector3 GetScale();
             Vector3 GetPosition();
             Vector3 GetRotation();
             btTransform* GetWorldTransform();
+            btCollisionShape* GetCollisionShape();
             btSoftBody* Bullet();
             bool IsActive();
             bool IsStatic();
@@ -1522,6 +1553,9 @@ namespace Tomahawk
             float GetDeactivationTime();
             float GetRollingFriction();
             UInt64 GetCollisionFlags();
+            UInt64 GetVerticesCount();
+            Desc& GetInitialState();
+            Simulator* GetSimulator();
 
         public:
             static SoftBody* Get(btSoftBody* From);
@@ -1529,6 +1563,8 @@ namespace Tomahawk
 
         class THAWK_OUT SliderConstraint : public Rest::Object
         {
+            friend Simulator;
+
         public:
             struct Desc
             {
@@ -1539,19 +1575,20 @@ namespace Tomahawk
             };
 
         private:
-            btRigidBody* First, * Second;
-            btSliderConstraint* Constraint;
-            bool UsesCollisions;
-            bool UsesLinearPower;
+            btRigidBody* First, *Second;
+            btSliderConstraint* Instance;
+            Simulator* Engine;
+            Desc Initial;
 
         public:
-            Simulator* Ref;
             void* UserPointer;
 
-        public:
+        private:
             SliderConstraint(Simulator* Refer, const Desc& I);
+
+        public:
             virtual ~SliderConstraint() override;
-            void Copy(SliderConstraint* Target);
+            SliderConstraint* Copy();
             void SetAngularMotorVelocity(float Value);
             void SetLinearMotorVelocity(float Value);
             void SetUpperLinearLimit(float Value);
@@ -1582,9 +1619,9 @@ namespace Tomahawk
             void SetPoweredAngularMotor(bool Value);
             void SetPoweredLinearMotor(bool Value);
             void SetEnabled(bool Value);
-            class btSliderConstraint* Bullet();
-            class btRigidBody* GetFirst();
-            class btRigidBody* GetSecond();
+            btSliderConstraint* Bullet();
+            btRigidBody* GetFirst();
+            btRigidBody* GetSecond();
             float GetAngularMotorVelocity();
             float GetLinearMotorVelocity();
             float GetUpperLinearLimit();
@@ -1612,13 +1649,12 @@ namespace Tomahawk
             float GetLinearSoftnessLimit();
             float GetAngularSoftnessOrtho();
             float GetLinearSoftnessOrtho();
-            bool FindCollisionState();
-            bool FindLinearPowerState();
             bool GetPoweredAngularMotor();
             bool GetPoweredLinearMotor();
+            bool IsConnected();
             bool IsEnabled();
-            bool IsUsesCollisions();
-            bool IsUsesLinearPower();
+            Desc& GetInitialState();
+            Simulator* GetSimulator();
         };
 
         class THAWK_OUT Simulator : public Rest::Object
@@ -1636,12 +1672,14 @@ namespace Tomahawk
             };
 
         private:
+            std::vector<btCollisionShape*> Shapes;
             btCollisionConfiguration* Collision;
             btBroadphaseInterface* Broadphase;
             btConstraintSolver* Solver;
             btDiscreteDynamicsWorld* World;
             btCollisionDispatcher* Dispatcher;
             btSoftBodySolver* SoftSolver;
+            std::mutex Safe;
 
         public:
             float TimeSpeed;
@@ -1666,14 +1704,31 @@ namespace Tomahawk
             void RemoveSoftBody(SoftBody* Body);
             void AddRigidBody(RigidBody* Body);
             void RemoveRigidBody(RigidBody* Body);
-            void AddSliderConstraint(SliderConstraint* Constraint, bool UseCollisions);
+            void AddSliderConstraint(SliderConstraint* Constraint);
             void RemoveSliderConstraint(SliderConstraint* Constraint);
             void RemoveAll();
             void Simulate(float TimeStep);
             void FindContacts(RigidBody* Body, int(* Callback)(ShapeContact*, const CollisionBody&, const CollisionBody&));
             bool FindRayContacts(const Vector3& Start, const Vector3& End, int(* Callback)(RayContact*, const CollisionBody&));
-            RigidBody* CreateRigidBody(Transform* Transform, const RigidBody::Desc& I);
-            SoftBody* CreateSoftBody(Transform* Transform, const SoftBody::Desc& I);
+            RigidBody* CreateRigidBody(const RigidBody::Desc& I);
+            RigidBody* CreateRigidBody(const RigidBody::Desc& I, Transform* Transform);
+            SoftBody* CreateSoftBody(const SoftBody::Desc& I);
+            SoftBody* CreateSoftBody(const SoftBody::Desc& I, Transform* Transform);
+            SliderConstraint* CreateSliderConstraint(const SliderConstraint::Desc& I);
+            btCollisionShape* CreateShape(Shape Type);
+            btCollisionShape* CreateCube(const Vector3& Scale = Vector3(1, 1, 1));
+            btCollisionShape* CreateSphere(float Radius = 1);
+            btCollisionShape* CreateCapsule(float Radius = 1, float Height = 1);
+            btCollisionShape* CreateCone(float Radius = 1, float Height = 1);
+            btCollisionShape* CreateCylinder(const Vector3& Scale = Vector3(1, 1, 1));
+            btCollisionShape* CreateConvexHull(std::vector<InfluenceVertex>& Mesh);
+            btCollisionShape* CreateConvexHull(std::vector<Vertex>& Mesh);
+            btCollisionShape* CreateConvexHull(std::vector<Vector2>& Mesh);
+            btCollisionShape* CreateConvexHull(std::vector<Vector3>& Mesh);
+            btCollisionShape* CreateConvexHull(std::vector<Vector4>& Mesh);
+            btCollisionShape* CreateConvexHull(btCollisionShape* From);
+            std::vector<Vector3> GetShapeVertices(btCollisionShape* Shape);
+            UInt64 GetShapeVerticesCount(btCollisionShape* Shape);
             float GetMaxDisplacement();
             float GetAirDensity();
             float GetWaterOffset();

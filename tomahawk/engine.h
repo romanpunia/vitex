@@ -6,16 +6,12 @@
 #include "script.h"
 #include <atomic>
 #include <cstdarg>
-#define THAWK_COMPONENT(Identification, ClassName) \
+#define THAWK_COMPONENT_ID(ClassName) (UInt64)typeid(ClassName).hash_code()
+#define THAWK_COMPONENT(ClassName) \
 virtual const char* Name() override { return #ClassName; } \
-virtual UInt64 Id() override { return Identification; } \
+virtual UInt64 Id() override { return THAWK_COMPONENT_ID(ClassName); } \
 static const char* BaseName() { return #ClassName; } \
-static UInt64 BaseId() { return Identification; }
-#define THAWK_COMPONENT_TABLE(Identification, ClassName) \
-virtual const char* Name() { return #ClassName; } \
-virtual UInt64 Id() { return Identification; } \
-static const char* BaseName() { return #ClassName; } \
-static UInt64 BaseId() { return Identification; }
+static UInt64 BaseId() { return THAWK_COMPONENT_ID(ClassName); }
 
 namespace Tomahawk
 {
@@ -52,51 +48,6 @@ namespace Tomahawk
             ApplicationState_Staging,
             ApplicationState_Singlethreaded,
             ApplicationState_Multithreaded
-        };
-
-        enum ComponentId
-        {
-            ComponentId_Empty,
-            ComponentId_Slider_Constraint,
-            ComponentId_Rigidbody,
-            ComponentId_Audio_Source,
-            ComponentId_Audio_Listener,
-            ComponentId_Acceleration,
-            ComponentId_Key_Animator,
-            ComponentId_Skin_Animator,
-            ComponentId_Element_Animator,
-            ComponentId_Free_Look,
-            ComponentId_Fly,
-            ComponentId_Model,
-            ComponentId_Skinned_Model,
-            ComponentId_Point_Light,
-            ComponentId_Spot_Light,
-            ComponentId_Line_Light,
-            ComponentId_Probe_Light,
-            ComponentId_Element_System,
-            ComponentId_Camera,
-            ComponentId_Count
-        };
-
-        enum RendererId
-        {
-            RendererId_Empty,
-            RendererId_Model,
-            RendererId_Skinned_Model,
-            RendererId_Depth,
-            RendererId_Light,
-            RendererId_Probe,
-            RendererId_Element_System,
-            RendererId_Image,
-            RendererId_Reflections,
-            RendererId_Depth_Of_Field,
-            RendererId_Emission,
-            RendererId_Glitch,
-            RendererId_Ambient_Occlusion,
-            RendererId_Indirect_Occlusion,
-            RendererId_Tone,
-            RendererId_GUI,
-            RendererId_Count
         };
 
         enum ThreadId
@@ -380,13 +331,16 @@ namespace Tomahawk
             virtual void OnSynchronize(Rest::Timer* Time);
             virtual void OnUpdate(Rest::Timer* Time);
             virtual void OnEvent(Event* Value);
-            virtual Component* OnClone();
+            virtual const char* Name();
+            virtual UInt64 Id();
+            virtual Component* OnClone(Entity* New);
             Entity* GetEntity();
             void SetActive(bool Enabled);
             bool IsActive();
 
         public:
-            THAWK_COMPONENT_TABLE(ComponentId_Empty, Component);
+            static const char* BaseName();
+            static UInt64 BaseId();
         };
 
         class THAWK_OUT Entity : public Rest::Object
@@ -444,58 +398,38 @@ namespace Tomahawk
             friend SceneGraph;
 
         protected:
-            RenderSystem* System = nullptr;
-            unsigned int Stride = 0;
-            unsigned int Offset = 0;
-            UInt64 Flag = 0;
+            RenderSystem* System;
+            unsigned int Stride;
+            unsigned int Offset;
 
         public:
-            bool Active = true;
-            bool Priority = true;
+            bool Active;
+            bool Priority;
 
         public:
-            Renderer(RenderSystem* Lab, UInt64 iFlag);
+            Renderer(RenderSystem* Lab);
             virtual ~Renderer() override;
-            virtual void OnLoad(ContentManager* Content, Rest::Document* Node)
-            {
-            }
-            virtual void OnSave(ContentManager* Content, Rest::Document* Node)
-            {
-            }
-            virtual void OnResizeBuffers()
-            {
-            }
-            virtual void OnInitialize()
-            {
-            }
-            virtual void OnRender(Rest::Timer* TimeStep)
-            {
-            }
-            virtual void OnDepthRender(Rest::Timer* TimeStep)
-            {
-            }
-            virtual void OnCubicDepthRender(Rest::Timer* TimeStep)
-            {
-            }
-            virtual void OnCubicDepthRender(Rest::Timer* TimeStep, Compute::Matrix4x4* ViewProjection)
-            {
-            }
-            virtual void OnPhaseRender(Rest::Timer* TimeStep)
-            {
-            }
-            virtual void OnRelease()
-            {
-            }
+            virtual void OnLoad(ContentManager* Content, Rest::Document* Node);
+            virtual void OnSave(ContentManager* Content, Rest::Document* Node);
+            virtual void OnResizeBuffers();
+            virtual void OnInitialize();
+            virtual void OnRender(Rest::Timer* TimeStep);
+            virtual void OnDepthRender(Rest::Timer* TimeStep);
+            virtual void OnCubicDepthRender(Rest::Timer* TimeStep);
+            virtual void OnCubicDepthRender(Rest::Timer* TimeStep, Compute::Matrix4x4* ViewProjection);
+            virtual void OnPhaseRender(Rest::Timer* TimeStep);
+            virtual void OnRelease();
+            virtual const char* Name();
+            virtual UInt64 Id();
             void SetRenderer(RenderSystem* NewSystem);
             void RenderCubicDepth(Rest::Timer* Time, Compute::Matrix4x4 Projection, Compute::Vector4 Position);
             void RenderDepth(Rest::Timer* Time, Compute::Matrix4x4 View, Compute::Matrix4x4 Projection, Compute::Vector4 Position);
             void RenderPhase(Rest::Timer* Time, Compute::Matrix4x4 View, Compute::Matrix4x4 Projection, Compute::Vector4 Position);
-            bool Is(UInt64 Flag);
             RenderSystem* GetRenderer();
-            UInt64 Type();
 
         public:
-            static Rest::Object* Abstract(RenderSystem* Lab, UInt64 iFlag);
+            static const char* BaseName();
+            static UInt64 BaseId();
         };
 
         class THAWK_OUT IntervalRenderer : public Renderer
@@ -504,7 +438,7 @@ namespace Tomahawk
             Rest::TickTimer Timer;
 
         public:
-            IntervalRenderer(RenderSystem* Lab, UInt64 Flag);
+            IntervalRenderer(RenderSystem* Lab);
             virtual ~IntervalRenderer() override;
             virtual void OnIntervalRender(Rest::Timer* Time)
             {
@@ -534,6 +468,9 @@ namespace Tomahawk
             void OnDepthRender(Rest::Timer* Time) override;
             void OnCubicDepthRender(Rest::Timer* Time, Compute::Matrix4x4* ViewProjection) override;
             void OnPhaseRender(Rest::Timer* Time) override;
+
+        public:
+            THAWK_COMPONENT(IntervalRenderer);
         };
 
         class THAWK_OUT RenderSystem : public Rest::Object
@@ -550,17 +487,32 @@ namespace Tomahawk
             RenderSystem(Graphics::GraphicsDevice* Device);
             virtual ~RenderSystem() override;
             void SetScene(SceneGraph* NewScene);
-            void RemoveRenderStage(Renderer* In);
-            void RemoveRenderStageByType(UInt64 Type);
-            Renderer* AddRenderStage(Renderer* In);
-            Renderer* AddRenderStageByType(UInt64 Type);
-            Renderer* GetRenderStage(UInt64 Type);
+            void RemoveRenderer(UInt64 Id);
+            Renderer* AddRenderer(Renderer* In);
+            Renderer* GetRenderer(UInt64 Id);
             Graphics::ElementBuffer* VertexQuad();
             Graphics::ElementBuffer* VertexSphere();
             Graphics::ElementBuffer* IndexSphere();
             std::vector<Renderer*>* GetRenderStages();
             Graphics::GraphicsDevice* GetDevice();
             SceneGraph* GetScene();
+
+        public:
+            template <typename In>
+            void RemoveRenderer()
+            {
+                RemoveRenderer(In::BaseId());
+            }
+            template <typename In>
+            In* AddRenderer()
+            {
+                return (In*)AddRenderer(new In(this));
+            }
+            template <typename In>
+            In* GetRenderer()
+            {
+                return (In*)GetRenderer(In::BaseId());
+            }
         };
 
         class THAWK_OUT SceneGraph : public Rest::Object
@@ -573,7 +525,6 @@ namespace Tomahawk
             struct Desc
             {
                 float RenderQuality = 1.0f;
-                UInt64 ComponentTypes = ComponentId_Count;
                 UInt64 EntityCount = 1ll << 15;
                 UInt64 ComponentCount = 1ll << 16;
                 Compute::Simulator::Desc Simulator;
@@ -603,16 +554,14 @@ namespace Tomahawk
         protected:
             Graphics::MultiRenderTarget2D* Surface = nullptr;
             Graphics::StructureBuffer* Structure = nullptr;
-            Graphics::GraphicsDevice* Device = nullptr;
             Compute::Simulator* Simulator = nullptr;
-            Rest::EventQueue* Queue = nullptr;
-            std::vector<Rest::Pool < Component * >> Components;
+            std::unordered_map<UInt64, Rest::Pool<Component*>> Components;
             std::vector<Graphics::Material> Materials;
             std::vector<Event*> Events;
             Rest::Pool<Component*> Pending;
             Rest::Pool<Entity*> Entities;
             Component* Camera = nullptr;
-            float RenderQuality = 1.0f;
+            Desc Conf;
 
         public:
             Viewer View;
@@ -626,7 +575,6 @@ namespace Tomahawk
             void Simulation(Rest::Timer* Time);
             void Synchronize(Rest::Timer* Time);
             void Rescale(const Compute::Vector3& Scale);
-            void RandomizeMaterial(Graphics::Material& Material);
             void RemoveMaterial(UInt64 MaterialId);
             void RemoveEntity(Entity* Entity, bool Release);
             void SetCamera(Entity* Camera);
@@ -663,10 +611,6 @@ namespace Tomahawk
             bool IsEntityVisible(Entity* Entity, Compute::Matrix4x4 ViewProjection, Compute::Vector3 ViewPosition, float DrawDistance);
             bool AddEntity(Entity* Entity);
             bool Denotify();
-            float GetRenderQuality();
-            UInt64 GetEntityStorageCount();
-            UInt64 GetComponentStorageCount();
-            UInt64 GetComponentTypesCount();
             UInt64 GetMaterialCount();
             UInt64 GetEntityCount();
             UInt64 GetComponentCount(UInt64 Section);
@@ -676,8 +620,9 @@ namespace Tomahawk
             Graphics::MultiRenderTarget2D* GetSurface();
             Graphics::StructureBuffer* GetStructure();
             Graphics::GraphicsDevice* GetDevice();
-            Compute::Simulator* GetSimulator();
             Rest::EventQueue* GetQueue();
+            Compute::Simulator* GetSimulator();
+            Desc& GetConf();
 
         protected:
             void RenderCubicDepth(Rest::Timer* Time, Compute::Matrix4x4 Projection, Compute::Vector4 Position);
@@ -709,7 +654,7 @@ namespace Tomahawk
             template <typename T>
             bool NotifyEach(Component* To, const T& Value)
             {
-                if (!Queue)
+                if (!Conf.Queue)
                     return false;
 
                 Event* Message = new Event();
@@ -719,20 +664,21 @@ namespace Tomahawk
                 Message->Context = malloc(sizeof(T));
                 memcpy(Message->Context, &Value, sizeof(T));
 
-                return Queue->Event<Event>(Message);
+                return Conf.Queue->Event<Event>(Message);
             }
             template <typename T>
             UInt64 GetEntityCount()
             {
-                return Components[T::BaseId()].Count();
+                return GetComponents(T::BaseId())->Count();
             }
             template <typename T>
             Entity* GetLastEntity()
             {
-                if (Components[T::BaseId()].Empty())
+                auto* Array = GetComponents(T::BaseId());
+                if (Array->Empty())
                     return nullptr;
 
-                Component* Value = GetComponent(Components[T::BaseId()].Count() - 1, T::BaseId());
+                Component* Value = GetComponent(Array->Count() - 1, T::BaseId());
                 if (Value != nullptr)
                     return Value->Root;
 
@@ -748,6 +694,11 @@ namespace Tomahawk
                 return nullptr;
             }
             template <typename T>
+            Rest::Pool<Component*>* GetComponents()
+            {
+                return GetComponents(T::BaseId());
+            }
+            template <typename T>
             T* GetComponent()
             {
                 return (T*)GetComponent(0, T::BaseId());
@@ -755,10 +706,11 @@ namespace Tomahawk
             template <typename T>
             T* GetLastComponent()
             {
-                if (Components[T::BaseId()].Empty())
+                auto* Array = GetComponents(T::BaseId());
+                if (Array->Empty())
                     return nullptr;
 
-                return (T*)GetComponent(Components[T::BaseId()].Count() - 1, T::BaseId());
+                return (T*)GetComponent(Array->Count() - 1, T::BaseId());
             }
         };
 

@@ -40,9 +40,6 @@ namespace Tomahawk
                 void OnPhaseRender(Rest::Timer* Time);
                 void OnDepthRender(Rest::Timer* Time);
                 void OnCubicDepthRender(Rest::Timer* Time, Compute::Matrix4x4* ViewProjection);
-                const char* GetMultiCode();
-                const char* GetDepthCode();
-                const char* GetCubicDepthCode();
             };
 
             class D3D11SkinnedModelRenderer : public Engine::Renderers::SkinnedModelRenderer
@@ -74,9 +71,6 @@ namespace Tomahawk
                 void OnPhaseRender(Rest::Timer* Time);
                 void OnDepthRender(Rest::Timer* Time);
                 void OnCubicDepthRender(Rest::Timer* Time, Compute::Matrix4x4* ViewProjection);
-                const char* GetMultiCode();
-                const char* GetDepthCode();
-                const char* GetCubicDepthCode();
             };
 
             class D3D11ElementSystemRenderer : public Engine::Renderers::ElementSystemRenderer
@@ -111,10 +105,6 @@ namespace Tomahawk
                 void OnPhaseRender(Rest::Timer* Time);
                 void OnDepthRender(Rest::Timer* Time);
                 void OnCubicDepthRender(Rest::Timer* Time, Compute::Matrix4x4* ViewProjection);
-                const char* GetMultiCode();
-                const char* GetDepthCode();
-                const char* GetCubicDepthPointCode();
-                const char* GetCubicDepthTriangleCode();
             };
 
             class D3D11DepthRenderer : public Engine::Renderers::DepthRenderer
@@ -205,14 +195,6 @@ namespace Tomahawk
                 void CreateLineLighting();
                 void CreateAmbientLighting();
                 void CreateRenderTargets();
-                const char* GetProbeLightCode();
-                const char* GetPointLightCode();
-                const char* GetShadedPointLightCode();
-                const char* GetSpotLightCode();
-                const char* GetShadedSpotLightCode();
-                const char* GetLineLightCode();
-                const char* GetShadedLineLightCode();
-                const char* GetAmbientLightCode();
             };
 
             class D3D11ImageRenderer : public Engine::Renderers::ImageRenderer
@@ -244,7 +226,6 @@ namespace Tomahawk
                 void OnInitialize();
                 void OnRender(Rest::Timer* Time);
                 void OnResizeBuffers();
-                const char* GetShaderCode();
             };
 
             class D3D11DepthOfFieldRenderer : public Engine::Renderers::DepthOfFieldRenderer
@@ -262,7 +243,6 @@ namespace Tomahawk
                 void OnInitialize();
                 void OnRender(Rest::Timer* Time);
                 void OnResizeBuffers();
-                const char* GetShaderCode();
             };
 
             class D3D11EmissionRenderer : public Engine::Renderers::EmissionRenderer
@@ -280,7 +260,6 @@ namespace Tomahawk
                 void OnInitialize();
                 void OnRender(Rest::Timer* Time);
                 void OnResizeBuffers();
-                const char* GetShaderCode();
             };
 
             class D3D11GlitchRenderer : public Engine::Renderers::GlitchRenderer
@@ -298,7 +277,6 @@ namespace Tomahawk
                 void OnInitialize();
                 void OnRender(Rest::Timer* Time);
                 void OnResizeBuffers();
-                const char* GetShaderCode();
             };
 
             class D3D11AmbientOcclusionRenderer : public Engine::Renderers::AmbientOcclusionRenderer
@@ -316,7 +294,6 @@ namespace Tomahawk
                 void OnInitialize();
                 void OnRender(Rest::Timer* Time);
                 void OnResizeBuffers();
-                const char* GetShaderCode();
             };
 
             class D3D11IndirectOcclusionRenderer : public Engine::Renderers::IndirectOcclusionRenderer
@@ -334,7 +311,6 @@ namespace Tomahawk
                 void OnInitialize();
                 void OnRender(Rest::Timer* Time);
                 void OnResizeBuffers();
-                const char* GetShaderCode();
             };
 
             class D3D11ToneRenderer : public Engine::Renderers::ToneRenderer
@@ -352,7 +328,6 @@ namespace Tomahawk
                 void OnInitialize();
                 void OnRender(Rest::Timer* Time);
                 void OnResizeBuffers();
-                const char* GetShaderCode();
             };
 
             class D3D11GUIRenderer : public Engine::Renderers::GUIRenderer
@@ -402,8 +377,6 @@ namespace Tomahawk
             public:
                 D3D11GUIRenderer(Engine::RenderSystem* Lab, Graphics::Activity* NewWindow);
                 ~D3D11GUIRenderer();
-                const char* GetVertexShaderCode();
-                const char* GetPixelShaderCode();
 
             public:
                 static void DrawList(void* Context);

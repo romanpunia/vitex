@@ -68,7 +68,6 @@ namespace Tomahawk
 
                     NMake::Unpack(Metadata->Find("components"), &I.ComponentCount);
                     NMake::Unpack(Metadata->Find("entities"), &I.EntityCount);
-                    NMake::Unpack(Metadata->Find("component-types"), &I.ComponentTypes);
                     NMake::Unpack(Metadata->Find("render-quality"), &I.RenderQuality);
                 }
 
@@ -154,86 +153,67 @@ namespace Tomahawk
                             std::vector<Rest::Document*> Elements = It->FindCollection("component");
                             for (auto& Element : Elements)
                             {
-                                UInt64 Id = ComponentId_Empty;
-                                NMake::Unpack(Element->Find("id"), &Id);
+                                UInt64 ComponentId;
+                                NMake::Unpack(Element->Find("id"), &ComponentId);
+                                Component* Target = nullptr;
+                                
+                                if (ComponentId == THAWK_COMPONENT_ID(Component))
+                                    Target = Entity->AddComponent<Engine::Component>();
+                                else if (ComponentId == THAWK_COMPONENT_ID(Components::FreeLook))
+                                    Target = Entity->AddComponent<Components::FreeLook>();
+                                else if (ComponentId == THAWK_COMPONENT_ID(Components::AudioListener))
+                                    Target = Entity->AddComponent<Components::AudioListener>();
+                                else if (ComponentId == THAWK_COMPONENT_ID(Components::AudioSource))
+                                    Target = Entity->AddComponent<Components::AudioSource>();
+                                else if (ComponentId == THAWK_COMPONENT_ID(Components::Acceleration))
+                                    Target = Entity->AddComponent<Components::Acceleration>();
+                                else if (ComponentId == THAWK_COMPONENT_ID(Components::KeyAnimator))
+                                    Target = Entity->AddComponent<Components::KeyAnimator>();
+                                else if (ComponentId == THAWK_COMPONENT_ID(Components::RigidBody))
+                                    Target = Entity->AddComponent<Components::RigidBody>();
+                                else if (ComponentId == THAWK_COMPONENT_ID(Components::SkinAnimator))
+                                    Target = Entity->AddComponent<Components::SkinAnimator>();
+                                else if (ComponentId == THAWK_COMPONENT_ID(Components::SliderConstraint))
+                                    Target = Entity->AddComponent<Components::SliderConstraint>();
+                                else if (ComponentId == THAWK_COMPONENT_ID(Components::ElementAnimator))
+                                    Target = Entity->AddComponent<Components::ElementAnimator>();
+                                else if (ComponentId == THAWK_COMPONENT_ID(Components::Model))
+                                    Target = Entity->AddComponent<Components::Model>();
+                                else if (ComponentId == THAWK_COMPONENT_ID(Components::SkinnedModel))
+                                    Target = Entity->AddComponent<Components::SkinnedModel>();
+                                else if (ComponentId == THAWK_COMPONENT_ID(Components::PointLight))
+                                    Target = Entity->AddComponent<Components::PointLight>();
+                                else if (ComponentId == THAWK_COMPONENT_ID(Components::SpotLight))
+                                    Target = Entity->AddComponent<Components::SpotLight>();
+                                else if (ComponentId == THAWK_COMPONENT_ID(Components::LineLight))
+                                    Target = Entity->AddComponent<Components::LineLight>();
+                                else if (ComponentId == THAWK_COMPONENT_ID(Components::ProbeLight))
+                                    Target = Entity->AddComponent<Components::ProbeLight>();
+                                else if (ComponentId == THAWK_COMPONENT_ID(Components::ElementSystem))
+                                    Target = Entity->AddComponent<Components::ElementSystem>();
+                                else if (ComponentId == THAWK_COMPONENT_ID(Components::Camera))
+                                    Target = Entity->AddComponent<Components::Camera>();
+                                else if (ComponentId == THAWK_COMPONENT_ID(Components::Fly))
+                                    Target = Entity->AddComponent<Components::Fly>();
+                        
+                                if (!Target && OnComponentCreation)
+                                    OnComponentCreation(Entity, &Target, ComponentId);
 
-                                Component* Component = nullptr;
-                                switch (Id)
+                                if (!Target)
                                 {
-                                    case ComponentId_Free_Look:
-                                        Component = Entity->AddComponent<Components::FreeLook>();
-                                        break;
-                                    case ComponentId_Audio_Listener:
-                                        Component = Entity->AddComponent<Components::AudioListener>();
-                                        break;
-                                    case ComponentId_Audio_Source:
-                                        Component = Entity->AddComponent<Components::AudioSource>();
-                                        break;
-                                    case ComponentId_Acceleration:
-                                        Component = Entity->AddComponent<Components::Acceleration>();
-                                        break;
-                                    case ComponentId_Empty:
-                                        Component = Entity->AddComponent<Engine::Component>();
-                                        break;
-                                    case ComponentId_Key_Animator:
-                                        Component = Entity->AddComponent<Components::KeyAnimator>();
-                                        break;
-                                    case ComponentId_Rigidbody:
-                                        Component = Entity->AddComponent<Components::RigidBody>();
-                                        break;
-                                    case ComponentId_Skin_Animator:
-                                        Component = Entity->AddComponent<Components::SkinAnimator>();
-                                        break;
-                                    case ComponentId_Slider_Constraint:
-                                        Component = Entity->AddComponent<Components::SliderConstraint>();
-                                        break;
-                                    case ComponentId_Element_Animator:
-                                        Component = Entity->AddComponent<Components::ElementAnimator>();
-                                        break;
-                                    case ComponentId_Model:
-                                        Component = Entity->AddComponent<Components::Model>();
-                                        break;
-                                    case ComponentId_Skinned_Model:
-                                        Component = Entity->AddComponent<Components::SkinnedModel>();
-                                        break;
-                                    case ComponentId_Point_Light:
-                                        Component = Entity->AddComponent<Components::PointLight>();
-                                        break;
-                                    case ComponentId_Spot_Light:
-                                        Component = Entity->AddComponent<Components::SpotLight>();
-                                        break;
-                                    case ComponentId_Line_Light:
-                                        Component = Entity->AddComponent<Components::LineLight>();
-                                        break;
-                                    case ComponentId_Probe_Light:
-                                        Component = Entity->AddComponent<Components::ProbeLight>();
-                                        break;
-                                    case ComponentId_Element_System:
-                                        Component = Entity->AddComponent<Components::ElementSystem>();
-                                        break;
-                                    case ComponentId_Camera:
-                                        Component = Entity->AddComponent<Components::Camera>();
-                                        break;
-                                    case ComponentId_Fly:
-                                        Component = Entity->AddComponent<Components::Fly>();
-                                        break;
-                                    default:
-                                        if (OnComponentCreation)
-                                            OnComponentCreation(Entity, Component, Id);
-                                        else
-                                            Component = Entity->AddComponent<Engine::Component>();
-                                        break;
+                                    THAWK_WARN("component with id %llu cannot be created", ComponentId);
+                                    continue;
                                 }
-
+                                
                                 bool Active;
                                 if (NMake::Unpack(Element->Find("active"), &Active))
-                                    Component->SetActive(Active);
+                                    Target->SetActive(Active);
 
                                 Rest::Document* Meta = Element->Find("metadata", "");
                                 if (!Meta)
                                     Meta = Element->SetDocument("metadata");
 
-                                Component->OnLoad(Content, Meta);
+                                Target->OnLoad(Content, Meta);
                             }
                         }
                     }
@@ -266,11 +246,9 @@ namespace Tomahawk
                 Document->Name = "scene";
 
                 Rest::Document* Metadata = Document->SetDocument("metadata");
-                NMake::Pack(Metadata->SetDocument("components"), Object->GetComponentStorageCount());
-                NMake::Pack(Metadata->SetDocument("entities"), Object->GetEntityStorageCount());
-                NMake::Pack(Metadata->SetDocument("soft-bodies"), Object->GetSimulator()->HasSoftBodySupport());
-                NMake::Pack(Metadata->SetDocument("component-types"), Object->GetComponentTypesCount());
-                NMake::Pack(Metadata->SetDocument("render-quality"), Object->GetRenderQuality());
+                NMake::Pack(Metadata->SetDocument("components"), Object->GetConf().ComponentCount);
+                NMake::Pack(Metadata->SetDocument("entities"), Object->GetConf().EntityCount);
+                NMake::Pack(Metadata->SetDocument("render-quality"), Object->GetConf().RenderQuality);
 
                 Rest::Document* Simulator = Metadata->SetDocument("simulator");
                 NMake::Pack(Simulator->SetDocument("enable-soft-body"), Object->GetSimulator()->HasSoftBodySupport());

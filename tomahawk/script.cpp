@@ -3134,6 +3134,9 @@ namespace Tomahawk
             Builder->SetIncludeCallback(IncludeBase, this);
             Builder->SetPragmaCallback(PragmaBase, this);
 
+			Desc.Exts.push_back(".as");
+			Desc.Root = Rest::OS::GetDirectory();
+
             if (Manager != nullptr)
             {
                 Context = Manager->CreateContext();
@@ -3207,6 +3210,12 @@ namespace Tomahawk
             Pragma = Callback;
             return Builder->SetPragmaCallback(PragmaBase, this);
         }
+		void VMCompiler::SetIncludeOptions(const Compute::IncludeDesc& NewDesc)
+		{
+			Desc = NewDesc;
+			Desc.Exts.clear();
+			Desc.Exts.push_back(".as");
+		}
         void VMCompiler::Define(const char* Word)
         {
             if (!Manager || !Builder)
@@ -3284,46 +3293,14 @@ namespace Tomahawk
             if (Compiler->Include)
                 return Compiler->Include(Compiler, Path, From);
 
-            std::string Base, Resolve;
-            if (From != nullptr)
-                Base.assign(Rest::OS::FileDirectory(From));
-            else
-                Base.assign(Rest::OS::GetDirectory());
+			Compiler->Desc.Path = Path;
+			Compiler->Desc.From = From;
 
-            if (!Rest::Stroke(Path).StartsOf("/."))
-            {
-                std::string DocumentRoot = Compiler->GetManager()->GetDocumentRoot();
-                if (DocumentRoot.empty())
-                    return -1;
+			auto Result = Compute::Preprocessor::ResolveInclude(Compiler->Desc);
+			if (Result.Module.empty() || (!Result.IsFile && Result.IsSystem))
+				return -1;
 
-                Resolve = Rest::OS::Resolve(Path, DocumentRoot);
-                if (!Rest::OS::FileExists(Resolve.c_str()))
-                {
-                    if (Resolve.empty())
-                        Resolve.assign(Rest::OS::Resolve(Rest::Stroke(Path).Append(".as").Get(), DocumentRoot));
-                    else
-                        Resolve.append(".as");
-
-                    if (!Rest::OS::FileExists(Resolve.c_str()))
-                        return -1;
-                }
-            }
-            else
-            {
-                Resolve = Rest::OS::Resolve(Path, Base);
-                if (!Rest::OS::FileExists(Resolve.c_str()))
-                {
-                    if (Resolve.empty())
-                        Resolve.assign(Rest::OS::Resolve(Rest::Stroke(Path).Append(".as").Get(), Base));
-                    else
-                        Resolve.append(".as");
-
-                    if (!Rest::OS::FileExists(Resolve.c_str()))
-                        return -1;
-                }
-            }
-
-            return Compiler->CompileFromFile(Resolve.c_str());
+            return Compiler->CompileFromFile(Result.Module.c_str());
         }
         int VMCompiler::PragmaBase(const std::string& Pragma, CScriptBuilder& Builder, void* Param)
         {

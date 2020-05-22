@@ -1599,11 +1599,12 @@ namespace Tomahawk
             static int CompilerUD;
 
         private:
+			Compute::IncludeDesc Desc;
+			IncludeCallback Include;
+			PragmaCallback Pragma;
+			CScriptBuilder* Builder;
             VMManager* Manager;
             VMContext* Context;
-            CScriptBuilder* Builder;
-            IncludeCallback Include;
-            PragmaCallback Pragma;
 
         public:
             VMCompiler(VMManager* Engine);
@@ -1615,6 +1616,7 @@ namespace Tomahawk
             int CompileFromMemory(const char* SectionName, const char* ScriptCode, unsigned int ScriptLength = 0, int LineOffset = 0);
             void SetIncludeCallback(const IncludeCallback& Callback);
             void SetPragmaCallback(const PragmaCallback& Callback);
+			void SetIncludeOptions(const Compute::IncludeDesc& NewDesc);
             void Define(const char* Word);
             unsigned int GetSectionsCount() const;
             std::string GetSectionName(unsigned int Index) const;

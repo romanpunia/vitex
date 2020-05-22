@@ -840,6 +840,7 @@ namespace Tomahawk
             VSyncMode = I.VSyncMode;
             PresentationFlag = I.PresentationFlags;
             CompilationFlag = I.CompilationFlags;
+			Backend = I.Backend;
 #ifdef THAWK_MICROSOFT
             RECT Desktop;
             HWND Handle = GetDesktopWindow();
@@ -859,26 +860,39 @@ namespace Tomahawk
         }
         void GraphicsDevice::ProcessShaderCode(Shader::Desc& In)
         {
-            if (In.Filename.empty() || In.Data.empty())
+            if (In.Data.empty())
                 return;
 
+			Compute::IncludeDesc Desc;
+			Desc.Exts.push_back(".hlsl");
+			Desc.Exts.push_back(".glsl");
+			Desc.Root = Rest::OS::GetDirectory();
+
             Compute::Preprocessor* Processor = new Compute::Preprocessor();
-            Processor->SetIncludeCallback([this, &In](Compute::Preprocessor* P, const std::string& Path, std::string* Output)
+            Processor->SetIncludeCallback([this, &In](Compute::Preprocessor* P, const Compute::IncludeResult& File, std::string* Output)
             {
-                if (In.Include && In.Include(P, Path, Output))
+                if (In.Include && In.Include(P, File, Output))
                     return true;
 
-                for (auto& It : Sections)
-                {
-                    if (It->Name != Path)
-                        continue;
+				if (File.Module.empty() || (!File.IsFile && !File.IsSystem))
+					return false;
 
-                    Output->assign(It->Code);
-                    return true;
-                }
+				if (File.IsSystem && !File.IsFile)
+				{
+					for (auto& It : Sections)
+					{
+						if (It->Name != File.Module)
+							continue;
+
+						Output->assign(It->Code);
+						return true;
+					}
+
+					return false;
+				}
 
                 UInt64 Length;
-                unsigned char* Data = Rest::OS::ReadAllBytes(Path.c_str(), &Length);
+                unsigned char* Data = Rest::OS::ReadAllBytes(File.Module.c_str(), &Length);
                 if (!Data)
                     return false;
 
@@ -893,6 +907,7 @@ namespace Tomahawk
 
                 return true;
             });
+			Processor->SetIncludeOptions(Desc);
             Processor->Process(In.Filename, In.Data);
             delete Processor;
         }
@@ -1278,6 +1293,17 @@ namespace Tomahawk
                 SDL_GL_SetAttribute(SDL_GL_STENCIL_SIZE, 8);
                 Flags |= SDL_WINDOW_OPENGL;
             }
+
+			if (Rest.Centered)
+			{
+				Rest.X = SDL_WINDOWPOS_CENTERED;
+				Rest.Y = SDL_WINDOWPOS_CENTERED;
+			}
+			else if (Rest.FreePosition)
+			{
+				Rest.X = SDL_WINDOWPOS_UNDEFINED;
+				Rest.Y = SDL_WINDOWPOS_UNDEFINED;
+			}
 
             Handle = SDL_CreateWindow(Rest.Title, Rest.X, Rest.Y, Rest.Width, Rest.Height, Flags);
 #endif

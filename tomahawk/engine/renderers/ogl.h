@@ -215,8 +215,6 @@ namespace Tomahawk
                 OGLGUIRenderer(Engine::RenderSystem* Lab, Graphics::Activity* NewWindow);
                 ~OGLGUIRenderer();
                 void DrawSetup(void* Context, int Width, int Height, GLuint VAO);
-                const char* GetVertexShaderCode();
-                const char* GetPixelShaderCode();
 
             public:
                 static void DrawList(void* Context);

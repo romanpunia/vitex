@@ -1580,6 +1580,7 @@ namespace Tomahawk
                 Format BufferFormat = Format_R8G8B8A8_Unorm;
                 VSync VSyncMode = VSync_Frequency_X1;
                 int IsWindowed = 1;
+                bool Debug = false;
                 unsigned int PresentationFlags = 0;
                 unsigned int CompilationFlags = ShaderCompile_Enable_Strictness | ShaderCompile_Optimization_Level3 | ShaderCompile_Matrix_Row_Major;
                 unsigned int CreationFlags = 0;
@@ -1659,6 +1660,7 @@ namespace Tomahawk
             virtual void* GetDevice() = 0;
             virtual void* GetContext() = 0;
             virtual DeviceState* CreateState() = 0;
+			virtual bool IsValid() = 0;
             virtual void ProcessShaderCode(Shader::Desc& ShaderCode);
             virtual void AddSection(const std::string& Name, const std::string& Code);
             virtual void RemoveSection(const std::string& Name);
@@ -1705,6 +1707,8 @@ namespace Tomahawk
                 bool Resizable = true;
                 bool Minimized = false;
                 bool Maximized = false;
+				bool Centered = false;
+				bool FreePosition = false;
                 bool Focused = false;
                 bool AllowHighDPI = true;
             };

@@ -403,6 +403,7 @@ namespace Tomahawk
                 void* GetBackBufferMSAA() override;
                 void* GetBackBufferNoAA() override;
                 Graphics::DeviceState* CreateState() override;
+				bool IsValid() override;
                 int CreateConstantBuffer(int Size, ID3D11Buffer*& Buffer);
                 char* GetVSProfile();
                 char* GetPSProfile();

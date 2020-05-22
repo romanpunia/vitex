@@ -26,7 +26,7 @@ endif()
 
 #Resource management system
 function(add_resource_batch DIRECTORY OUTPUT)
-    set(BUFFER "#ifndef HAS_RESOURCE_BRANCH\n#define HAS_RESOURCE_BRANCH\n\nnamespace resource_batch\n{")
+    set(BUFFER "#ifndef HAS_RESOURCE_BATCH\n#define HAS_RESOURCE_BATCH\n#define GET_RESOURCE_BATCH(V) std::string((const char*)resource_batch::##V::data, resource_batch::##V::size)\n\nnamespace resource_batch\n{")
     file(GLOB_RECURSE BINARIES ${DIRECTORY}/*)
     foreach(BINARY ${BINARIES})
         string(REPLACE "${DIRECTORY}" "" FILENAME ${BINARY})

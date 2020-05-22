@@ -405,7 +405,15 @@ namespace Tomahawk
 
                 class THAWK_OUT Interface
                 {
+				private:
+					GUIRenderer* Renderer;
+
+				public:
+					Interface(GUIRenderer* Parent);
+					GUIRenderer* GetGUI();
+
                 public:
+					static bool IsMouseOver();
                     static void ApplyInput(char* Buffer, int Length);
                     static void ApplyKeyState(Graphics::KeyCode Key, Graphics::KeyMod Mod, int Virtual, int Repeat, bool Pressed);
                     static void ApplyCursorWheelState(int X, int Y, bool Normal);
@@ -709,7 +717,7 @@ namespace Tomahawk
                     static const char* GetStyleColorName(int idx);
                 };
 
-                typedef std::function<void(GUIRenderer*)> RendererCallback;
+                typedef std::function<void(GUIRenderer*, Rest::Timer*)> RendererCallback;
             }
 
             class THAWK_OUT ModelRenderer : public Renderer
@@ -1170,17 +1178,20 @@ namespace Tomahawk
             {
             protected:
                 Compute::Matrix4x4 WorldViewProjection;
-                std::function<void(GUIRenderer*)> Callback;
+				GUI::RendererCallback Callback;
                 GUI::Interface Tree;
                 UInt64 Time, Frequency;
                 Graphics::Activity* Activity;
                 char* ClipboardTextData;
                 void* Context;
+				std::mutex Safe;
+				bool TreeActive;
 
             public:
                 bool AllowMouseOffset;
 
             protected:
+				GUIRenderer(RenderSystem* Lab);
                 GUIRenderer(RenderSystem* Lab, Graphics::Activity* NewWindow);
 
             public:
@@ -1190,14 +1201,18 @@ namespace Tomahawk
                 void Transform(const Compute::Matrix4x4& In);
                 void Activate();
                 void Deactivate();
-                void Reset();
+                void Restore(void* FontAtlas = nullptr, void* Callback = nullptr);
+				void Setup(const std::function<void(GUI::Interface*)>& Callback);
+				void GetFontAtlas(unsigned char** Pixels, int* Width, int* Height);
                 void* GetUi();
                 const char* GetClipboardCopy();
                 Compute::Matrix4x4& GetTransform();
                 Graphics::Activity* GetActivity();
                 GUI::Interface* GetTree();
+				bool IsTreeActive();
 
             public:
+				static GUIRenderer* Create(RenderSystem* Lab);
                 static GUIRenderer* Create(RenderSystem* Lab, Graphics::Activity* Window);
 
             public:

@@ -221,24 +221,22 @@ namespace Tomahawk
 
             OGLGUIRenderer::OGLGUIRenderer(Engine::RenderSystem* Lab, Graphics::Activity* NewWindow) : GUIRenderer(Lab, NewWindow)
             {
-                Time = Frequency = 0;
-                AllowMouseOffset = false;
-                Context = nullptr;
-                Activity = NewWindow;
-                Context = (void*)ImGui::CreateContext();
-                ImGuiIO& Input = ImGui::GetIO();
-                Input.RenderDrawListsFn = (void (*)(ImDrawData*))DrawList;
-                Reset();
-                Activate();
-
                 GLint LastTexture, LastArrayBuffer, LastVertexArray;
                 glGetIntegerv(GL_TEXTURE_BINDING_2D, &LastTexture);
                 glGetIntegerv(GL_ARRAY_BUFFER_BINDING, &LastArrayBuffer);
                 glGetIntegerv(GL_VERTEX_ARRAY_BINDING, &LastVertexArray);
 
+#ifdef HAS_OGL_GUI_GBUFFER_GLSL
+				std::string ShaderCode = GET_RESOURCE_BATCH(ogl_gui_gbuffer_glsl);
+#else
+				std::string ShaderCode;
+				THAWK_ERROR("gui-gbuffer.glsl was not compiled");
+				return;
+#endif
+
                 OGLDevice* Device = Lab->GetDevice()->As<OGLDevice>();
-                const GLchar* VertexShaderCode[2] = { Device->GetShaderVersion(), GetVertexShaderCode() };
-                const GLchar* PixelShaderCode[2] = { Device->GetShaderVersion(), GetPixelShaderCode() };
+                const GLchar* VertexShaderCode[3] = { Device->GetShaderVersion(), "#define VS\n", ShaderCode.c_str() };
+                const GLchar* PixelShaderCode[3] = { Device->GetShaderVersion(), "#define PS\n", ShaderCode.c_str() };
 
                 VertexShader = glCreateShader(GL_VERTEX_SHADER);
                 glShaderSource(VertexShader, 2, VertexShaderCode, NULL);
@@ -274,9 +272,9 @@ namespace Tomahawk
                     return;
                 }
 
-                Location.Position = glGetAttribLocation(ShaderProgram, "vs_Position");
-                Location.TexCoord = glGetAttribLocation(ShaderProgram, "vs_TexCoord");
-                Location.Color = glGetAttribLocation(ShaderProgram, "vs_Color");
+                Location.Position = glGetAttribLocation(ShaderProgram, "VS_Position");
+                Location.TexCoord = glGetAttribLocation(ShaderProgram, "VS_TexCoord");
+                Location.Color = glGetAttribLocation(ShaderProgram, "VS_Color");
                 Location.Texture = glGetUniformLocation(ShaderProgram, "Texture");
                 Device->CreateConstantBuffer(sizeof(Location.Buffer), UniformBuffer);
 
@@ -285,7 +283,7 @@ namespace Tomahawk
 
                 unsigned char* Pixels;
                 int Width, Height;
-                Input.Fonts->GetTexDataAsRGBA32(&Pixels, &Width, &Height);
+				GetFontAtlas(&Pixels, &Width, &Height);
 
                 glGenTextures(1, &FontTexture);
                 glBindTexture(GL_TEXTURE_2D, FontTexture);
@@ -296,16 +294,14 @@ namespace Tomahawk
 #endif
                 glTexImage2D(GL_TEXTURE_2D, 0, GL_RGBA, Width, Height, 0, GL_RGBA, GL_UNSIGNED_BYTE, Pixels);
 
-                Input.Fonts->TexID = (ImTextureID)(intptr_t)FontTexture;
-
                 glBindTexture(GL_TEXTURE_2D, LastTexture);
                 glBindBuffer(GL_ARRAY_BUFFER, LastArrayBuffer);
                 glBindVertexArray(LastVertexArray);
+
+				Restore((void*)(ImTextureID)(intptr_t)FontTexture, (void*)DrawList);
             }
             OGLGUIRenderer::~OGLGUIRenderer()
             {
-                Deactivate();
-                ImGui::DestroyContext((ImGuiContext*)Context);
                 glDeleteTextures(1, &FontTexture);
                 glDeleteBuffers(1, &UniformBuffer);
                 glDeleteBuffers(1, &VertexBuffer);
@@ -344,39 +340,6 @@ namespace Tomahawk
                 glVertexAttribPointer(Location.Position, 2, GL_FLOAT, GL_FALSE, sizeof(ImDrawVert), (GLvoid*)IM_OFFSETOF(ImDrawVert, pos));
                 glVertexAttribPointer(Location.TexCoord, 2, GL_FLOAT, GL_FALSE, sizeof(ImDrawVert), (GLvoid*)IM_OFFSETOF(ImDrawVert, uv));
                 glVertexAttribPointer(Location.Color, 4, GL_UNSIGNED_BYTE, GL_TRUE, sizeof(ImDrawVert), (GLvoid*)IM_OFFSETOF(ImDrawVert, col));
-            }
-            const char* OGLGUIRenderer::GetVertexShaderCode()
-            {
-                return "layout(binding = 3) uniform VertexBuffer"
-                       "{"
-                       "    mat4 WorldViewProjection;"
-                       "};"
-
-                       "layout (location = 0) in vec2 vs_Position;"
-                       "layout (location = 1) in vec2 vs_TexCoord;"
-                       "layout (location = 2) in vec4 vs_Color;"
-                       "out vec2 ps_TexCoord;"
-                       "out vec4 ps_Color;"
-
-                       "void main()"
-                       "{"
-                       "    ps_TexCoord = vs_TexCoord;"
-                       "    ps_Color = vs_Color;"
-                       "    gl_Position = WorldViewProjection * vec4(vs_Position.xy, 0, 1);"
-                       "}";
-            }
-            const char* OGLGUIRenderer::GetPixelShaderCode()
-            {
-                return "layout (location = 0) out vec4 vs_Color;"
-                       "in vec2 ps_TexCoord;"
-                       "in vec4 ps_Color;"
-
-                       "uniform sampler2D Texture;"
-
-                       "void main()"
-                       "{"
-                       "    vs_Color = ps_Color * texture(Texture, ps_TexCoord.st);"
-                       "}";
             }
             void OGLGUIRenderer::DrawList(void* Context)
             {

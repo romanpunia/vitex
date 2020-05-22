@@ -3511,7 +3511,6 @@ namespace Tomahawk
 #elif defined THAWK_UNIX
             getcwd(Buffer, THAWK_MAX_PATH);
 #endif
-
             Int64 Length = 0;
             for (Int64 i = 0; i < THAWK_MAX_PATH; i++)
             {

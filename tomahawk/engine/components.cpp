@@ -105,27 +105,27 @@ namespace Tomahawk
                 if (NMake::Unpack(Node->Find("contact-damping"), &ContactDamping))
                     Instance->SetContactDamping(ContactDamping);
 
-                float AngularFactor;
+				Compute::Vector3 AngularFactor;
                 if (NMake::Unpack(Node->Find("angular-factor"), &AngularFactor))
                     Instance->SetAngularFactor(AngularFactor);
 
-                float AngularVelocity;
+				Compute::Vector3 AngularVelocity;
                 if (NMake::Unpack(Node->Find("angular-velocity"), &AngularVelocity))
                     Instance->SetAngularVelocity(AngularVelocity);
 
-                float AnisotropicFriction;
+				Compute::Vector3 AnisotropicFriction;
                 if (NMake::Unpack(Node->Find("anisotropic-friction"), &AnisotropicFriction))
                     Instance->SetAnisotropicFriction(AnisotropicFriction);
 
-                float Gravity;
+                Compute::Vector3 Gravity;
                 if (NMake::Unpack(Node->Find("gravity"), &Gravity))
                     Instance->SetGravity(Gravity);
 
-                float LinearFactor;
+				Compute::Vector3 LinearFactor;
                 if (NMake::Unpack(Node->Find("linear-factor"), &LinearFactor))
                     Instance->SetLinearFactor(LinearFactor);
 
-                float LinearVelocity;
+				Compute::Vector3 LinearVelocity;
                 if (NMake::Unpack(Node->Find("linear-velocity"), &LinearVelocity))
                     Instance->SetLinearVelocity(LinearVelocity);
 
@@ -197,25 +197,35 @@ namespace Tomahawk
 
                 Instance = Parent->GetScene()->GetSimulator()->CreateRigidBody(I, Parent->Transform);
                 Instance->UserPointer = this;
-                Instance->Activate(true);
+                Instance->SetActivity(true);
                 Parent->GetScene()->Unlock();
             }
             void RigidBody::SetTransform(const Compute::Matrix4x4& World)
             {
+				if (!Instance)
+					return;
+
                 if (Parent && Parent->GetScene())
                     Parent->GetScene()->Lock();
 
                 Parent->Transform->SetMatrix(World);
                 Instance->Synchronize(Parent->Transform, true);
+				Instance->SetActivity(true);
+
                 if (Parent && Parent->GetScene())
                     Parent->GetScene()->Unlock();
             }
             void RigidBody::SetTransform(bool Kinematics)
             {
+				if (!Instance)
+					return;
+
                 if (Parent && Parent->GetScene())
                     Parent->GetScene()->Lock();
 
                 Instance->Synchronize(Parent->Transform, Kinematics);
+				Instance->SetActivity(true);
+
                 if (Parent && Parent->GetScene())
                     Parent->GetScene()->Unlock();
             }
@@ -1430,8 +1440,8 @@ namespace Tomahawk
 
             Fly::Fly(Entity* Ref) : Component(Ref), Activity(nullptr)
             {
-                SpeedNormal = 1.0f;
-                SpeedUp = 4.0f;
+                SpeedNormal = 1.2f;
+                SpeedUp = 2.6f;
                 SpeedDown = 0.25f;
                 Forward = Graphics::KeyCode_W;
                 Backward = Graphics::KeyCode_S;
@@ -2172,7 +2182,7 @@ namespace Tomahawk
                     return;
 
                 Renderer->SetScene(Parent->GetScene());
-                auto* RenderStages = Renderer->GetRenderStages();
+                auto* RenderStages = Renderer->GetRenderers();
                 for (auto It = RenderStages->begin(); It != RenderStages->end(); It++)
                 {
                     (*It)->OnRelease();
@@ -2210,35 +2220,35 @@ namespace Tomahawk
                     NMake::Unpack(Render->Find("id"), &RendererId);
                     Engine::Renderer* Target = nullptr;
                     
-                    if (RendererId == THAWK_COMPONENT_ID(Renderers::ModelRenderer))
+                    if (RendererId == THAWK_COMPONENT_ID(ModelRenderer))
                         Target = Engine::Renderers::ModelRenderer::Create(Renderer);
-                    else if (RendererId == THAWK_COMPONENT_ID(Renderers::SkinnedModelRenderer))
+                    else if (RendererId == THAWK_COMPONENT_ID(SkinnedModelRenderer))
                         Target = Engine::Renderers::SkinnedModelRenderer::Create(Renderer);
-                    else if (RendererId == THAWK_COMPONENT_ID(Renderers::DepthRenderer))
+                    else if (RendererId == THAWK_COMPONENT_ID(DepthRenderer))
                         Target = Engine::Renderers::DepthRenderer::Create(Renderer);
-                    else if (RendererId == THAWK_COMPONENT_ID(Renderers::LightRenderer))
+                    else if (RendererId == THAWK_COMPONENT_ID(LightRenderer))
                         Target = Engine::Renderers::LightRenderer::Create(Renderer);
-                    else if (RendererId == THAWK_COMPONENT_ID(Renderers::ProbeRenderer))
+                    else if (RendererId == THAWK_COMPONENT_ID(ProbeRenderer))
                         Target = Engine::Renderers::ProbeRenderer::Create(Renderer);
-                    else if (RendererId == THAWK_COMPONENT_ID(Renderers::ImageRenderer))
+                    else if (RendererId == THAWK_COMPONENT_ID(ImageRenderer))
                         Target = Engine::Renderers::ImageRenderer::Create(Renderer);
-                    else if (RendererId == THAWK_COMPONENT_ID(Renderers::ElementSystemRenderer))
+                    else if (RendererId == THAWK_COMPONENT_ID(ElementSystemRenderer))
                         Target = Engine::Renderers::ElementSystemRenderer::Create(Renderer);
-                    else if (RendererId == THAWK_COMPONENT_ID(Renderers::ReflectionsRenderer))
+                    else if (RendererId == THAWK_COMPONENT_ID(ReflectionsRenderer))
                         Target = Engine::Renderers::ReflectionsRenderer::Create(Renderer);
-                    else if (RendererId == THAWK_COMPONENT_ID(Renderers::DepthOfFieldRenderer))
+                    else if (RendererId == THAWK_COMPONENT_ID(DepthOfFieldRenderer))
                         Target = Engine::Renderers::DepthOfFieldRenderer::Create(Renderer);
-                    else if (RendererId == THAWK_COMPONENT_ID(Renderers::EmissionRenderer))
+                    else if (RendererId == THAWK_COMPONENT_ID(EmissionRenderer))
                         Target = Engine::Renderers::EmissionRenderer::Create(Renderer);
-                    else if (RendererId == THAWK_COMPONENT_ID(Renderers::GlitchRenderer))
+                    else if (RendererId == THAWK_COMPONENT_ID(GlitchRenderer))
                         Target = Engine::Renderers::GlitchRenderer::Create(Renderer);
-                    else if (RendererId == THAWK_COMPONENT_ID(Renderers::AmbientOcclusionRenderer))
+                    else if (RendererId == THAWK_COMPONENT_ID(AmbientOcclusionRenderer))
                         Target = Engine::Renderers::AmbientOcclusionRenderer::Create(Renderer);
-                    else if (RendererId == THAWK_COMPONENT_ID(Renderers::IndirectOcclusionRenderer))
+                    else if (RendererId == THAWK_COMPONENT_ID(IndirectOcclusionRenderer))
                         Target = Engine::Renderers::IndirectOcclusionRenderer::Create(Renderer);
-                    else if (RendererId == THAWK_COMPONENT_ID(Renderers::ToneRenderer))
+                    else if (RendererId == THAWK_COMPONENT_ID(ToneRenderer))
                         Target = Engine::Renderers::ToneRenderer::Create(Renderer);
-                    else if (RendererId == THAWK_COMPONENT_ID(Renderers::GUIRenderer))
+                    else if (RendererId == THAWK_COMPONENT_ID(GUIRenderer))
                         Target = Engine::Renderers::GUIRenderer::Create(Renderer, Application::Get()->Activity);
 
                     if (!Renderer)
@@ -2254,6 +2264,8 @@ namespace Tomahawk
                     Target->OnRelease();
                     Target->OnLoad(Content, Meta);
                     Target->OnInitialize();
+
+					Renderer->AddRenderer(Target);
                     NMake::Unpack(Render->Find("active"), &Target->Active);
                 }
             }
@@ -2263,7 +2275,7 @@ namespace Tomahawk
                 NMake::Pack(Node->SetDocument("view-distance"), ViewDistance);
 
                 Rest::Document* Renderers = Node->SetArray("renderers");
-                for (auto& Ref : *Renderer->GetRenderStages())
+                for (auto& Ref : *Renderer->GetRenderers())
                 {
                     Rest::Document* Render = Renderers->SetDocument("renderer");
                     NMake::Pack(Render->SetDocument("id"), Ref->Id());
@@ -2289,7 +2301,7 @@ namespace Tomahawk
                     return;
 
                 Renderer->SetScene(Parent->GetScene());
-                auto* RenderStages = Renderer->GetRenderStages();
+                auto* RenderStages = Renderer->GetRenderers();
                 for (auto It = RenderStages->begin(); It != RenderStages->end(); It++)
                     (*It)->OnResizeBuffers();
             }

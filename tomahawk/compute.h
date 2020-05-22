@@ -43,7 +43,7 @@ namespace Tomahawk
 
         struct Vector4;
 
-        typedef std::function<bool(class Preprocessor*, const std::string& Include, std::string* Out)> ProcIncludeCallback;
+        typedef std::function<bool(class Preprocessor*, const struct IncludeResult& File, std::string* Out)> ProcIncludeCallback;
         typedef std::function<bool(class Preprocessor*, const std::string& Pragma)> ProcPragmaCallback;
         typedef std::function<void(const struct CollisionBody&)> CollisionCallback;
 
@@ -145,6 +145,21 @@ namespace Tomahawk
             SoftAeroModel_FTwoSidedLiftDrag,
             SoftAeroModel_FOneSided
         };
+
+		struct THAWK_OUT IncludeDesc
+		{
+			std::vector<std::string> Exts;
+			std::string From;
+			std::string Path;
+			std::string Root;
+		};
+
+		struct THAWK_OUT IncludeResult
+		{
+			std::string Module;
+			bool IsSystem = false;
+			bool IsFile = false;
+		};
 
         struct THAWK_OUT Vertex
         {
@@ -466,6 +481,7 @@ namespace Tomahawk
             Vector4 Degrees() const;
             Vector2 MtVector2() const;
             Vector3 MtVector3() const;
+			Vector4 operator *(const Matrix4x4& vec) const;
             Vector4 operator *(const Vector4& vec) const;
             Vector4 operator *(float vec) const;
             Vector4 operator /(const Vector4& vec) const;
@@ -482,6 +498,7 @@ namespace Tomahawk
             void Get4(float* In) const;
             void operator -=(const Vector4& right);
             void operator -=(float right);
+			void operator *=(const Matrix4x4& vec);
             void operator *=(const Vector4& vec);
             void operator *=(float vec);
             void operator /=(const Vector4& vec);
@@ -537,6 +554,22 @@ namespace Tomahawk
                 return Vector4(0, 0, -1, 0);
             };
         };
+
+		struct THAWK_OUT Ray
+		{
+			Vector3 Origin;
+			Vector3 Direction;
+
+		public:
+			Ray();
+			Ray(const Vector3& _Origin, const Vector3& _Direction);
+			Vector3 GetPoint(float T) const;
+			Vector3 operator *(float T) const;
+			bool IntersectsPlane(const Vector3& Normal, float Diameter) const;
+			bool IntersectsSphere(const Vector3& Position, float Radius, bool DiscardInside = true) const;
+			bool IntersectsAABBAt(const Vector3& Min, const Vector3& Max) const;
+			bool IntersectsAABB(const Vector3& Position, const Vector3& Scale) const;
+		};
 
         struct THAWK_OUT Matrix4x4
         {
@@ -1073,7 +1106,6 @@ namespace Tomahawk
             static std::string URIDecode(const char* Text, UInt64 Length);
             static std::string Encrypt(const std::string& Text, int Offset);
             static std::string Decrypt(const std::string& Text, int Offset);
-            static void MakeRay(Vector3& RayOrigin, Vector3& RayDirection, Vector2 Position, float Width, float Height, Matrix4x4 InvView, Matrix4x4 Projection);
             static float IsClipping(Matrix4x4 ViewProjection, Matrix4x4 World, float Radius);
             static bool HasSphereIntersected(Vector3 PositionR0, float RadiusR0, Vector3 PositionR1, float RadiusR1);
             static bool HasLineIntersected(float DistanceF, float DistanceD, Vector3 Start, Vector3 End, Vector3& Hit);
@@ -1121,7 +1153,9 @@ namespace Tomahawk
             static unsigned char RandomUC();
             static Int64 RandomNumber(Int64 Begin, Int64 End);
             static UInt64 Utf8(int code, char* Buffer);
-        };
+			static Ray CreateCursorRay(const Vector3& Origin, const Vector2& Cursor, const Vector2& Screen, const Matrix4x4& InvProjection, const Matrix4x4& InvView);
+			static bool CursorRayTest(const Ray& Cursor, const Vector3& Position, const Vector3& Scale);
+		};
 
         class THAWK_OUT Regex
         {
@@ -1156,11 +1190,13 @@ namespace Tomahawk
             std::vector<std::string> Sets;
             ProcIncludeCallback Include;
             ProcPragmaCallback Pragma;
+			IncludeDesc Desc;
             int Resolve;
 
         public:
             Preprocessor();
             virtual ~Preprocessor() = default;
+			void SetIncludeOptions(const IncludeDesc& NewDesc);
             void SetIncludeCallback(const ProcIncludeCallback& Callback);
             void SetPragmaCallback(const ProcPragmaCallback& Callback);
             bool Process(const std::string& Path, std::string& Buffer);
@@ -1172,6 +1208,9 @@ namespace Tomahawk
             bool ProcessPragmaDirective(std::string& Buffer);
             int FindDirective(Rest::Stroke& Buffer, const char* V, UInt64* Offset, UInt64* Base, UInt64* Start, UInt64* End);
             bool HasSet(const std::string& Path);
+
+		public:
+			static IncludeResult ResolveInclude(const IncludeDesc& Desc);
         };
 
         class THAWK_OUT Transform : public Rest::Object
@@ -1207,36 +1246,33 @@ namespace Tomahawk
             void Synchronize();
             void GetWorld(btTransform* Out);
             void GetLocal(btTransform* Out);
+			std::vector<Transform*>* GetChilds();
+			Transform* GetChild(UInt64 Child);
+			Vector3* GetLocalPosition();
+			Vector3* GetLocalRotation();
+			Vector3* GetLocalScale();
+			Vector3 Up();
+			Vector3 Right();
+			Vector3 Forward();
+			Vector3 Direction(const Vector3& Direction);
+			Matrix4x4 GetWorld();
+			Matrix4x4 GetWorld(const Vector3& Rescale);
+			Matrix4x4 GetWorldUnscaled();
+			Matrix4x4 GetWorldUnscaled(const Vector3& Rescale);
+			Matrix4x4 GetLocal();
+			Matrix4x4 GetLocal(const Vector3& Rescale);
+			Matrix4x4 GetLocalUnscaled();
+			Matrix4x4 GetLocalUnscaled(const Vector3& Rescale);
+			Matrix4x4 Localize(const Matrix4x4& In);
+			Matrix4x4 Globalize(const Matrix4x4& In);
+			Transform* GetUpperRoot();
+			Transform* GetRoot();
+			bool HasRoot(Transform* Target);
+			bool HasChild(Transform* Target);
+			UInt64 GetChildCount();
 
         protected:
             bool CanRootBeApplied(Transform* Root);
-            void RemoveChildSafe(Transform* Child);
-
-        public:
-            std::vector<Transform*>* GetChilds();
-            Transform* GetChild(UInt64 Child);
-            Vector3* GetLocalPosition();
-            Vector3* GetLocalRotation();
-            Vector3* GetLocalScale();
-            Vector3 Up();
-            Vector3 Right();
-            Vector3 Forward();
-            Vector3 Direction(const Vector3& Direction);
-            Matrix4x4 GetWorld();
-            Matrix4x4 GetWorld(const Vector3& Rescale);
-            Matrix4x4 GetWorldUnscaled();
-            Matrix4x4 GetWorldUnscaled(const Vector3& Rescale);
-            Matrix4x4 GetLocal();
-            Matrix4x4 GetLocal(const Vector3& Rescale);
-            Matrix4x4 GetLocalUnscaled();
-            Matrix4x4 GetLocalUnscaled(const Vector3& Rescale);
-            Matrix4x4 Localize(const Matrix4x4& In);
-            Matrix4x4 Globalize(const Matrix4x4& In);
-            Transform* GetUpperRoot();
-            Transform* GetRoot();
-            bool HasRoot(Transform* Target);
-            bool HasChild(Transform* Target);
-            UInt64 GetChildCount();
 
         public:
             template <typename In>
@@ -1276,7 +1312,6 @@ namespace Tomahawk
         public:
             virtual ~RigidBody() override;
             RigidBody* Copy();
-            void Activate(bool Force);
             void Push(const Vector3& Velocity);
             void Push(const Vector3& Velocity, const Vector3& Torque);
             void Push(const Vector3& Velocity, const Vector3& Torque, const Vector3& Center);
@@ -1672,7 +1707,7 @@ namespace Tomahawk
             };
 
         private:
-            std::vector<btCollisionShape*> Shapes;
+            std::unordered_map<btCollisionShape*, UInt64> Shapes;
             btCollisionConfiguration* Collision;
             btBroadphaseInterface* Broadphase;
             btConstraintSolver* Solver;
@@ -1727,6 +1762,9 @@ namespace Tomahawk
             btCollisionShape* CreateConvexHull(std::vector<Vector3>& Mesh);
             btCollisionShape* CreateConvexHull(std::vector<Vector4>& Mesh);
             btCollisionShape* CreateConvexHull(btCollisionShape* From);
+			btCollisionShape* TryCloneShape(btCollisionShape* Shape);
+			btCollisionShape* ReuseShape(btCollisionShape* Shape);
+			void FreeShape(btCollisionShape** Value);
             std::vector<Vector3> GetShapeVertices(btCollisionShape* Shape);
             UInt64 GetShapeVerticesCount(btCollisionShape* Shape);
             float GetMaxDisplacement();

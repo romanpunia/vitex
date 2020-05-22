@@ -159,41 +159,41 @@ namespace Tomahawk
                                 
                                 if (ComponentId == THAWK_COMPONENT_ID(Component))
                                     Target = Entity->AddComponent<Engine::Component>();
-                                else if (ComponentId == THAWK_COMPONENT_ID(Components::FreeLook))
+                                else if (ComponentId == THAWK_COMPONENT_ID(FreeLook))
                                     Target = Entity->AddComponent<Components::FreeLook>();
-                                else if (ComponentId == THAWK_COMPONENT_ID(Components::AudioListener))
+                                else if (ComponentId == THAWK_COMPONENT_ID(AudioListener))
                                     Target = Entity->AddComponent<Components::AudioListener>();
-                                else if (ComponentId == THAWK_COMPONENT_ID(Components::AudioSource))
+                                else if (ComponentId == THAWK_COMPONENT_ID(AudioSource))
                                     Target = Entity->AddComponent<Components::AudioSource>();
-                                else if (ComponentId == THAWK_COMPONENT_ID(Components::Acceleration))
+                                else if (ComponentId == THAWK_COMPONENT_ID(Acceleration))
                                     Target = Entity->AddComponent<Components::Acceleration>();
-                                else if (ComponentId == THAWK_COMPONENT_ID(Components::KeyAnimator))
+                                else if (ComponentId == THAWK_COMPONENT_ID(KeyAnimator))
                                     Target = Entity->AddComponent<Components::KeyAnimator>();
-                                else if (ComponentId == THAWK_COMPONENT_ID(Components::RigidBody))
+                                else if (ComponentId == THAWK_COMPONENT_ID(RigidBody))
                                     Target = Entity->AddComponent<Components::RigidBody>();
-                                else if (ComponentId == THAWK_COMPONENT_ID(Components::SkinAnimator))
+                                else if (ComponentId == THAWK_COMPONENT_ID(SkinAnimator))
                                     Target = Entity->AddComponent<Components::SkinAnimator>();
-                                else if (ComponentId == THAWK_COMPONENT_ID(Components::SliderConstraint))
+                                else if (ComponentId == THAWK_COMPONENT_ID(SliderConstraint))
                                     Target = Entity->AddComponent<Components::SliderConstraint>();
-                                else if (ComponentId == THAWK_COMPONENT_ID(Components::ElementAnimator))
+                                else if (ComponentId == THAWK_COMPONENT_ID(ElementAnimator))
                                     Target = Entity->AddComponent<Components::ElementAnimator>();
-                                else if (ComponentId == THAWK_COMPONENT_ID(Components::Model))
+                                else if (ComponentId == THAWK_COMPONENT_ID(Model))
                                     Target = Entity->AddComponent<Components::Model>();
-                                else if (ComponentId == THAWK_COMPONENT_ID(Components::SkinnedModel))
+                                else if (ComponentId == THAWK_COMPONENT_ID(SkinnedModel))
                                     Target = Entity->AddComponent<Components::SkinnedModel>();
-                                else if (ComponentId == THAWK_COMPONENT_ID(Components::PointLight))
+                                else if (ComponentId == THAWK_COMPONENT_ID(PointLight))
                                     Target = Entity->AddComponent<Components::PointLight>();
-                                else if (ComponentId == THAWK_COMPONENT_ID(Components::SpotLight))
+                                else if (ComponentId == THAWK_COMPONENT_ID(SpotLight))
                                     Target = Entity->AddComponent<Components::SpotLight>();
-                                else if (ComponentId == THAWK_COMPONENT_ID(Components::LineLight))
+                                else if (ComponentId == THAWK_COMPONENT_ID(LineLight))
                                     Target = Entity->AddComponent<Components::LineLight>();
-                                else if (ComponentId == THAWK_COMPONENT_ID(Components::ProbeLight))
+                                else if (ComponentId == THAWK_COMPONENT_ID(ProbeLight))
                                     Target = Entity->AddComponent<Components::ProbeLight>();
-                                else if (ComponentId == THAWK_COMPONENT_ID(Components::ElementSystem))
+                                else if (ComponentId == THAWK_COMPONENT_ID(ElementSystem))
                                     Target = Entity->AddComponent<Components::ElementSystem>();
-                                else if (ComponentId == THAWK_COMPONENT_ID(Components::Camera))
+                                else if (ComponentId == THAWK_COMPONENT_ID(Camera))
                                     Target = Entity->AddComponent<Components::Camera>();
-                                else if (ComponentId == THAWK_COMPONENT_ID(Components::Fly))
+                                else if (ComponentId == THAWK_COMPONENT_ID(Fly))
                                     Target = Entity->AddComponent<Components::Fly>();
                         
                                 if (!Target && OnComponentCreation)
@@ -317,7 +317,6 @@ namespace Tomahawk
                     for (auto It = Ref->First(); It != Ref->Last(); It++)
                     {
                         Rest::Document* Component = Components->SetDocument("component");
-                        NMake::Pack(Component->SetDocument("name"), It->second->Name());
                         NMake::Pack(Component->SetDocument("id"), It->second->Id());
                         NMake::Pack(Component->SetDocument("active"), It->second->IsActive());
                         It->second->OnSave(Content, Component->SetDocument("metadata"));

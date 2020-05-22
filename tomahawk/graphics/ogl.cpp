@@ -696,6 +696,12 @@ namespace Tomahawk
                 SDL_GL_SetAttribute(SDL_GL_GREEN_SIZE, 6);
                 SDL_GL_SetAttribute(SDL_GL_BLUE_SIZE, 5);
 
+                if (I.Debug)
+                {
+                    glEnable(GL_DEBUG_OUTPUT);
+                    glDebugMessageCallback(DebugMessage, nullptr);
+                }
+
                 Context = SDL_GL_CreateContext(Window->GetHandle());
                 if (!Context)
                 {
@@ -720,7 +726,6 @@ namespace Tomahawk
                         break;
                 }
 #endif
-
                 const GLenum ErrorCode = glewInit();
                 if (ErrorCode != GLEW_OK)
                 {
@@ -750,19 +755,18 @@ namespace Tomahawk
                 F.Layout = Graphics::Shader::GetShapeVertexLayout();
                 F.LayoutSize = 2;
 #ifdef HAS_OGL_BASIC_EFFECT_GLSL
-                F.Data = reinterpret_cast<const char*>(resource_batch::ogl_basic_effect_glsl::data);
+                F.Data = GET_RESOURCE_BATCH(ogl_basic_effect_glsl);
 #else
                 THAWK_ERROR("basic-effect.glsl was not compiled");
 #endif
-
                 BasicEffect = Shader::Create(this, F);
             }
             OGLDevice::~OGLDevice()
             {
-                RestoreSamplerStates();
-                RestoreBlendStates();
-                RestoreRasterizerStates();
-                RestoreDepthStencilStates();
+				RestoreSamplerStates();
+				RestoreBlendStates();
+				RestoreRasterizerStates();
+				RestoreDepthStencilStates();
 
                 if (Context != nullptr)
                 {
@@ -1698,98 +1702,168 @@ namespace Tomahawk
 
                 return GL_READ_ONLY;
             }
+			bool OGLDevice::IsValid()
+			{
+				return BasicEffect != nullptr;
+			}
             void OGLDevice::LoadShaderSections()
             {
 #ifdef HAS_OGL_ANIMATION_BUFFER_GLSL
-                AddSection("animation-buffer.glsl", reinterpret_cast<const char*>(resource_batch::ogl_animation_buffer_glsl::data));
+                AddSection("animation-buffer.glsl", GET_RESOURCE_BATCH(ogl_animation_buffer_glsl));
 #else
                 THAWK_ERROR("animation-buffer.glsl was not compiled");
 #endif
 #ifdef HAS_OGL_RENDER_BUFFER_GLSL
-                AddSection("render-buffer.glsl", reinterpret_cast<const char*>(resource_batch::ogl_render_buffer_glsl::data));
+                AddSection("render-buffer.glsl", GET_RESOURCE_BATCH(ogl_render_buffer_glsl));
 #else
                 THAWK_ERROR("render-buffer.glsl was not compiled");
 #endif
 #ifdef HAS_OGL_VIEW_BUFFER_GLSL
-                AddSection("view-buffer.glsl", reinterpret_cast<const char*>(resource_batch::ogl_view_buffer_glsl::data));
+                AddSection("view-buffer.glsl", GET_RESOURCE_BATCH(ogl_view_buffer_glsl));
 #else
                 THAWK_ERROR("view-buffer.glsl was not compiled");
 #endif
 #ifdef HAS_OGL_VERTEX_IN_GLSL
-                AddSection("vertex-in.glsl", reinterpret_cast<const char*>(resource_batch::ogl_vertex_in_glsl::data));
+                AddSection("vertex-in.glsl", GET_RESOURCE_BATCH(ogl_vertex_in_glsl));
 #else
                 THAWK_ERROR("vertex-in.glsl was not compiled");
 #endif
 #ifdef HAS_OGL_VERTEX_OUT_GLSL
-                AddSection("vertex-out.glsl", reinterpret_cast<const char*>(resource_batch::ogl_vertex_out_glsl::data));
+                AddSection("vertex-out.glsl", GET_RESOURCE_BATCH(ogl_vertex_out_glsl));
 #else
                 THAWK_ERROR("vertex-out.glsl was not compiled");
 #endif
 #ifdef HAS_OGL_INFLUENCE_VERTEX_IN_GLSL
-                AddSection("influence-vertex-in.glsl", reinterpret_cast<const char*>(resource_batch::ogl_influence_vertex_in_glsl::data));
+                AddSection("influence-vertex-in.glsl", GET_RESOURCE_BATCH(ogl_influence_vertex_in_glsl));
 #else
                 THAWK_ERROR("influence-vertex-in.glsl was not compiled");
 #endif
 #ifdef HAS_OGL_INFLUENCE_VERTEX_OUT_GLSL
-                AddSection("influence-vertex-out.glsl", reinterpret_cast<const char*>(resource_batch::ogl_influence_vertex_out_glsl::data));
+                AddSection("influence-vertex-out.glsl", GET_RESOURCE_BATCH(ogl_influence_vertex_out_glsl));
 #else
                 THAWK_ERROR("influence-vertex-out.glsl was not compiled");
 #endif
 #ifdef HAS_OGL_SHAPE_VERTEX_IN_GLSL
-                AddSection("shape-vertex-in.glsl", reinterpret_cast<const char*>(resource_batch::ogl_shape_vertex_in_glsl::data));
+                AddSection("shape-vertex-in.glsl", GET_RESOURCE_BATCH(ogl_shape_vertex_in_glsl));
 #else
                 THAWK_ERROR("shape-vertex-in.glsl was not compiled");
 #endif
 #ifdef HAS_OGL_SHAPE_VERTEX_OUT_GLSL
-                AddSection("shape-vertex-out.glsl", reinterpret_cast<const char*>(resource_batch::ogl_shape_vertex_out_glsl::data));
+                AddSection("shape-vertex-out.glsl", GET_RESOURCE_BATCH(ogl_shape_vertex_out_glsl));
 #else
                 THAWK_ERROR("shape-vertex-out.glsl was not compiled");
 #endif
 #ifdef HAS_OGL_DEFERRED_OUT_GLSL
-                AddSection("deferred-out.glsl", reinterpret_cast<const char*>(resource_batch::ogl_deferred_out_glsl::data));
+                AddSection("deferred-out.glsl", GET_RESOURCE_BATCH(ogl_deferred_out_glsl));
 #else
                 THAWK_ERROR("deferred-out.glsl was not compiled");
 #endif
 #ifdef HAS_OGL_INSTANCE_ELEMENT_GLSL
-                AddSection("instance-element.glsl", reinterpret_cast<const char*>(resource_batch::ogl_instance_element_glsl::data));
+                AddSection("instance-element.glsl", GET_RESOURCE_BATCH(ogl_instance_element_glsl));
 #else
                 THAWK_ERROR("instance-element.glsl was not compiled");
 #endif
 #ifdef HAS_OGL_GEOMETRY_GLSL
-                AddSection("geometry.glsl", reinterpret_cast<const char*>(resource_batch::ogl_geometry_glsl::data));
+                AddSection("geometry.glsl", GET_RESOURCE_BATCH(ogl_geometry_glsl));
 #else
                 THAWK_ERROR("geometry.glsl was not compiled");
 #endif
 #ifdef HAS_OGL_LOAD_GEOMETRY_GLSL
-                AddSection("load-geometry.glsl", reinterpret_cast<const char*>(resource_batch::ogl_load_geometry_glsl::data));
+                AddSection("load-geometry.glsl", GET_RESOURCE_BATCH(ogl_load_geometry_glsl));
 #else
                 THAWK_ERROR("load-geometry.glsl was not compiled");
 #endif
 #ifdef HAS_OGL_LOAD_TEXCOORD_GLSL
-                AddSection("load-texcoord.glsl", reinterpret_cast<const char*>(resource_batch::ogl_load_texcoord_glsl::data));
+                AddSection("load-texcoord.glsl", GET_RESOURCE_BATCH(ogl_load_texcoord_glsl));
 #else
                 THAWK_ERROR("load-texcoord.glsl was not compiled");
 #endif
 #ifdef HAS_OGL_LOAD_POSITION_GLSL
-                AddSection("load-position.glsl", reinterpret_cast<const char*>(resource_batch::ogl_load_position_glsl::data));
+                AddSection("load-position.glsl", GET_RESOURCE_BATCH(ogl_load_position_glsl));
 #else
                 THAWK_ERROR("load-position.glsl was not compiled");
 #endif
 #ifdef HAS_OGL_COOK_TORRANCE_GLSL
-                AddSection("cook-torrance.glsl", reinterpret_cast<const char*>(resource_batch::ogl_cook_torrance_glsl::data));
+                AddSection("cook-torrance.glsl", GET_RESOURCE_BATCH(ogl_cook_torrance_glsl));
 #else
                 THAWK_ERROR("cook-torrance.glsl was not compiled");
 #endif
 #ifdef HAS_OGL_HEMI_AMBIENT_GLSL
-                AddSection("hemi-ambient.glsl", reinterpret_cast<const char*>(resource_batch::ogl_hemi_ambient_glsl::data));
+                AddSection("hemi-ambient.glsl", GET_RESOURCE_BATCH(ogl_hemi_ambient_glsl));
 #else
                 THAWK_ERROR("hemi-ambient.glsl was not compiled");
 #endif
 #ifdef HAS_OGL_HEMI_AMBIENT_GLSL
-                AddSection("random-float-2.glsl", reinterpret_cast<const char*>(resource_batch::ogl_random_float_2_glsl::data));
+                AddSection("random-float-2.glsl", GET_RESOURCE_BATCH(ogl_random_float_2_glsl));
 #else
                 THAWK_ERROR("random-float-2.glsl was not compiled");
 #endif
+            }
+            void OGLDevice::DebugMessage(GLenum Source, GLenum Type, GLuint Id, GLenum Severity, GLsizei Length, const GLchar* Message, const void* Data)
+            {
+                const char* _Source, * _Type;
+                switch (Source)
+                {
+                    case GL_DEBUG_SOURCE_API:
+                        _Source = "API";
+                        break;
+                    case GL_DEBUG_SOURCE_WINDOW_SYSTEM:
+                        _Source = "WINDOW SYSTEM";
+                        break;
+                    case GL_DEBUG_SOURCE_SHADER_COMPILER:
+                        _Source = "SHADER COMPILER";
+                        break;
+                    case GL_DEBUG_SOURCE_THIRD_PARTY:
+                        _Source = "THIRD PARTY";
+                        break;
+                    case GL_DEBUG_SOURCE_APPLICATION:
+                        _Source = "APPLICATION";
+                        break;
+                    default:
+                        _Source = "NONE";
+                        break;
+                }
+
+                switch (Type)
+                {
+                    case GL_DEBUG_TYPE_ERROR:
+                        _Type = "ERROR";
+                        break;
+                    case GL_DEBUG_TYPE_DEPRECATED_BEHAVIOR:
+                        _Type = "DEPRECATED";
+                        break;
+                    case GL_DEBUG_TYPE_UNDEFINED_BEHAVIOR:
+                        _Type = "UDEFINED";
+                        break;
+                    case GL_DEBUG_TYPE_PORTABILITY:
+                        _Type = "PORTABILITY";
+                        break;
+                    case GL_DEBUG_TYPE_PERFORMANCE:
+                        _Type = "PERFORMANCE";
+                        break;
+                    case GL_DEBUG_TYPE_OTHER:
+                        _Type = "OTHER";
+                        break;
+                    case GL_DEBUG_TYPE_MARKER:
+                        _Type = "MARKER";
+                        break;
+                    default:
+                        _Type = "NONE";
+                        break;
+                }
+
+                switch (Severity)
+                {
+                    case GL_DEBUG_SEVERITY_HIGH:
+                        THAWK_ERROR("%s (%s:%d): %s %s", _Source, _Type, Id, Message);
+                        break;
+                    case GL_DEBUG_SEVERITY_MEDIUM:
+                        THAWK_WARN("%s (%s:%d): %s %s", _Source, _Type, Id, Message);
+                        break;
+                    default:
+                        THAWK_INFO("%s (%s:%d): %s %s", _Source, _Type, Id, Message);
+                        break;
+                }
             }
         }
     }

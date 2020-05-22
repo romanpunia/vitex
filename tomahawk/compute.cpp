@@ -322,30 +322,30 @@ namespace Tomahawk
             Y = right.Y;
             return *this;
         }
-        bool Vector2::operator ==(const Vector2& right) const
-        {
-            return X == right.X && Y == right.Y;
-        }
-        bool Vector2::operator !=(const Vector2& right) const
-        {
-            return !(X == right.X && Y == right.Y);
-        }
-        bool Vector2::operator <=(const Vector2& right) const
-        {
-            return ModLength() <= right.ModLength();
-        }
-        bool Vector2::operator >=(const Vector2& right) const
-        {
-            return ModLength() >= right.ModLength();
-        }
-        bool Vector2::operator <(const Vector2& right) const
-        {
-            return ModLength() < right.ModLength();
-        }
-        bool Vector2::operator >(const Vector2& right) const
-        {
-            return ModLength() > right.ModLength();
-        }
+		bool Vector2::operator ==(const Vector2& R) const
+		{
+			return X == R.X && Y == R.Y;
+		}
+		bool Vector2::operator !=(const Vector2& R) const
+		{
+			return !(X == R.X && Y == R.Y);
+		}
+		bool Vector2::operator <=(const Vector2& R) const
+		{
+			return X <= R.X && Y <= R.Y;
+		}
+		bool Vector2::operator >=(const Vector2& R) const
+		{
+			return X >= R.X && Y >= R.Y;
+		}
+		bool Vector2::operator <(const Vector2& R) const
+		{
+			return X < R.X && Y < R.Y;
+		}
+		bool Vector2::operator >(const Vector2& R) const
+		{
+			return X > R.X && Y > R.Y;
+		}
         float& Vector2::operator [](int Axis)
         {
             if (Axis == 0)
@@ -667,29 +667,29 @@ namespace Tomahawk
             Z = right.Z;
             return *this;
         }
-        bool Vector3::operator ==(const Vector3& right) const
+        bool Vector3::operator ==(const Vector3& R) const
         {
-            return X == right.X && Y == right.Y && Z == right.Z;
+            return X == R.X && Y == R.Y && Z == R.Z;
         }
-        bool Vector3::operator !=(const Vector3& right) const
+        bool Vector3::operator !=(const Vector3& R) const
         {
-            return !(X == right.X && Y == right.Y && Z == right.Z);
+            return !(X == R.X && Y == R.Y && Z == R.Z);
         }
-        bool Vector3::operator <=(const Vector3& right) const
+        bool Vector3::operator <=(const Vector3& R) const
         {
-            return ModLength() <= right.ModLength();
+			return X <= R.X && Y <= R.Y && Z <= R.Z;
         }
-        bool Vector3::operator >=(const Vector3& right) const
+        bool Vector3::operator >=(const Vector3& R) const
         {
-            return ModLength() >= right.ModLength();
+			return X >= R.X && Y >= R.Y && Z >= R.Z;
         }
-        bool Vector3::operator <(const Vector3& right) const
+        bool Vector3::operator <(const Vector3& R) const
         {
-            return ModLength() < right.ModLength();
+			return X < R.X && Y < R.Y && Z < R.Z;
         }
-        bool Vector3::operator >(const Vector3& right) const
+        bool Vector3::operator >(const Vector3& R) const
         {
-            return ModLength() > right.ModLength();
+			return X > R.X && Y > R.Y && Z > R.Z;
         }
         float& Vector3::operator [](int Axis)
         {
@@ -959,6 +959,10 @@ namespace Tomahawk
             Z -= right;
             W -= right;
         }
+		void Vector4::operator *=(const Matrix4x4& right)
+		{
+			Transform(right);
+		}
         void Vector4::operator *=(const Vector4& right)
         {
             X *= right.X;
@@ -1001,6 +1005,10 @@ namespace Tomahawk
             Z += right;
             W += right;
         }
+		Vector4 Vector4::operator *(const Matrix4x4& right) const
+		{
+			return Transform(right);
+		}
         Vector4 Vector4::operator *(const Vector4& right) const
         {
             return Vector4(X * right.X, Y * right.Y, Z * right.Z, W * right.W);
@@ -1055,30 +1063,30 @@ namespace Tomahawk
             W = right.W;
             return *this;
         }
-        bool Vector4::operator ==(const Vector4& right) const
-        {
-            return X == right.X && Y == right.Y && Z == right.Z && W == right.W;
-        }
-        bool Vector4::operator !=(const Vector4& right) const
-        {
-            return !(X == right.X && Y == right.Y && Z == right.Z && W == right.W);
-        }
-        bool Vector4::operator <=(const Vector4& right) const
-        {
-            return ModLength() <= right.ModLength();
-        }
-        bool Vector4::operator >=(const Vector4& right) const
-        {
-            return ModLength() >= right.ModLength();
-        }
-        bool Vector4::operator <(const Vector4& right) const
-        {
-            return ModLength() < right.ModLength();
-        }
-        bool Vector4::operator >(const Vector4& right) const
-        {
-            return ModLength() > right.ModLength();
-        }
+		bool Vector4::operator ==(const Vector4& R) const
+		{
+			return X == R.X && Y == R.Y && Z == R.Z && W == R.W;
+		}
+		bool Vector4::operator !=(const Vector4& R) const
+		{
+			return !(X == R.X && Y == R.Y && Z == R.Z && W == R.W);
+		}
+		bool Vector4::operator <=(const Vector4& R) const
+		{
+			return X <= R.X && Y <= R.Y && Z <= R.Z && W <= R.W;
+		}
+		bool Vector4::operator >=(const Vector4& R) const
+		{
+			return X >= R.X && Y >= R.Y && Z >= R.Z && W >= R.W;
+		}
+		bool Vector4::operator <(const Vector4& R) const
+		{
+			return X < R.X && Y < R.Y && Z < R.Z && W < R.W;
+		}
+		bool Vector4::operator >(const Vector4& R) const
+		{
+			return X > R.X && Y > R.Y && Z > R.Z && W > R.W;
+		}
         float& Vector4::operator [](int Axis)
         {
             if (Axis == 0)
@@ -1129,6 +1137,122 @@ namespace Tomahawk
         {
             return (*this) * Math<float>::Rad2Deg();
         }
+
+		Ray::Ray() : Direction(0, 0, 1)
+		{
+		}
+		Ray::Ray(const Vector3& _Origin, const Vector3& _Direction) : Origin(_Origin), Direction(_Direction)
+		{
+		}
+		Vector3 Ray::GetPoint(float T) const
+		{
+			return Origin + (Direction * T);
+		}
+		Vector3 Ray::operator *(float T) const
+		{
+			return GetPoint(T);
+		}
+		bool Ray::IntersectsPlane(const Vector3& Normal, float Diameter) const
+		{
+			float D = Normal.DotProduct(Direction);
+			if (Math<float>::Abs(D) < std::numeric_limits<float>::epsilon())
+				return false;
+
+			float N = Normal.DotProduct(Origin) + Diameter;
+			float T = -(N / D);
+			return T >= 0;
+		}
+		bool Ray::IntersectsSphere(const Vector3& Position, float Radius, bool DiscardInside) const
+		{
+			Vector3 R = Origin - Position;
+			float L = R.Length();
+
+			if (L * L <= Radius * Radius && DiscardInside)
+				return true;
+
+			float A = Direction.DotProduct(Direction);
+			float B = 2 * R.DotProduct(Direction);
+			float C = R.DotProduct(R) - Radius * Radius;
+
+			float D = (B * B) - (4 * A * C);
+			if (D < 0)
+				return false;
+
+			float T = (-B - Math<float>::Sqrt(D)) / (2 * A);
+			if (T < 0)
+				T = (-B + Math<float>::Sqrt(D)) / (2 * A);
+
+			return true;
+		}
+		bool Ray::IntersectsAABBAt(const Vector3& Min, const Vector3& Max) const
+		{
+			Vector3 HitPoint; float T;
+			if (Origin > Min && Origin < Max)
+				return true;
+
+			if (Origin.X <= Min.X && Direction.X > 0)
+			{
+				T = (Min.X - Origin.X) / Direction.X;
+				HitPoint = Origin + Direction * T;
+
+				if (HitPoint.Y >= Min.Y && HitPoint.Y <= Max.Y && HitPoint.Z >= Min.Z && HitPoint.Z <= Max.Z)
+					return true;
+			}
+
+			if (Origin.X >= Max.X && Direction.X < 0)
+			{
+				T = (Max.X - Origin.X) / Direction.X;
+				HitPoint = Origin + Direction * T;
+
+				if (HitPoint.Y >= Min.Y && HitPoint.Y <= Max.Y && HitPoint.Z >= Min.Z && HitPoint.Z <= Max.Z)
+					return true;
+			}
+
+			if (Origin.Y <= Min.Y && Direction.Y > 0)
+			{
+				T = (Min.Y - Origin.Y) / Direction.Y;
+				HitPoint = Origin + Direction * T;
+
+				if (HitPoint.X >= Min.X && HitPoint.X <= Max.X && HitPoint.Z >= Min.Z && HitPoint.Z <= Max.Z)
+					return true;
+			}
+
+			if (Origin.Y >= Max.Y && Direction.Y < 0)
+			{
+				T = (Max.Y - Origin.Y) / Direction.Y;
+				HitPoint = Origin + Direction * T;
+
+				if (HitPoint.X >= Min.X && HitPoint.X <= Max.X && HitPoint.Z >= Min.Z && HitPoint.Z <= Max.Z)
+					return true;
+			}
+
+			if (Origin.Z <= Min.Z && Direction.Z > 0)
+			{
+				T = (Min.Z - Origin.Z) / Direction.Z;
+				HitPoint = Origin + Direction * T;
+
+				if (HitPoint.X >= Min.X && HitPoint.X <= Max.X && HitPoint.Y >= Min.Y && HitPoint.Y <= Max.Y)
+					return true;
+			}
+
+			if (Origin.Z >= Max.Z && Direction.Z < 0)
+			{
+				T = (Max.Z - Origin.Z) / Direction.Z;
+				HitPoint = Origin + Direction * T;
+
+				if (HitPoint.X >= Min.X && HitPoint.X <= Max.X && HitPoint.Y >= Min.Y && HitPoint.Y <= Max.Y)
+					return true;
+			}
+
+			return false;
+		}
+		bool Ray::IntersectsAABB(const Vector3& Position, const Vector3& Scale) const
+		{
+			Vector3 Min = Position - Scale;
+			Vector3 Max = Position + Scale;
+
+			return IntersectsAABBAt(Min, Max);
+		}
 
         Matrix4x4::Matrix4x4()
         {
@@ -2923,15 +3047,6 @@ namespace Tomahawk
             A = L(A + I(B, C, D) + X + AC, S) + B;
         }
 
-        void MathCommon::MakeRay(Vector3& RayOrigin, Vector3& RayDirection, Vector2 Position, float Width, float Height, Matrix4x4 InvView, Matrix4x4 Projection)
-        {
-            Vector3 ScreenCoord = Vector3(0.0f, 0.0f, -1.0f);
-            ScreenCoord.X = -(((2.0f * Position.X) / Width) - 1.0f) / Projection.Row[0];
-            ScreenCoord.Y = (((2.0f * Position.Y) / Height) - 1.0f) / Projection.Row[5];
-
-            RayDirection = ScreenCoord.Transform(InvView).NormalizeSafe();
-            RayOrigin = InvView.Position();
-        }
         float MathCommon::IsClipping(Matrix4x4 ViewProjection, Matrix4x4 World, float Radius)
         {
             Matrix4x4 WVP = World * ViewProjection;
@@ -4123,10 +4238,28 @@ namespace Tomahawk
 
             return Decoded;
         }
+		Ray MathCommon::CreateCursorRay(const Vector3& Origin, const Vector2& Cursor, const Vector2& Screen, const Matrix4x4& InvProjection, const Matrix4x4& InvView)
+		{
+			Vector4 Eye = Vector4(
+				(2.0f * Cursor.X) / Screen.X - 1.0f,
+				1.0f - (2.0f * Cursor.Y) / Screen.Y,
+				1.0f, 1.0f) * InvProjection;
+
+			Eye = (Vector4(Eye.X, Eye.Y, 1.0f, 0.0f) * InvView).NormalizeSafe();
+			return Ray(Origin.InvertZ(), Vector3(Eye.X, Eye.Y, Eye.Z));
+		}
+		bool MathCommon::CursorRayTest(const Ray& Cursor, const Vector3& Position, const Vector3& Scale)
+		{
+			return Cursor.IntersectsAABB(Position.InvertZ(), Scale);
+		}
 
         Preprocessor::Preprocessor() : Resolve(0)
         {
         }
+		void Preprocessor::SetIncludeOptions(const IncludeDesc& NewDesc)
+		{
+			Desc = NewDesc;
+		}
         void Preprocessor::SetIncludeCallback(const ProcIncludeCallback& Callback)
         {
             Include = Callback;
@@ -4137,21 +4270,25 @@ namespace Tomahawk
         }
         bool Preprocessor::Process(const std::string& Path, std::string& Buffer)
         {
-            if (Path.empty() || Buffer.empty())
+            if (Buffer.empty())
                 return false;
 
-            std::string R = Rest::OS::Resolve(Path.c_str());
-            if (Resolve > 0 && HasSet(R))
+            std::string R = Path.empty() ? "" : Rest::OS::Resolve(Path.c_str());
+            if (Resolve > 0 && (!Path.empty() && HasSet(R)))
                 return true;
 
-            PushSet(R);
+			if (!R.empty())
+				PushSet(R);
+
             if (!ProcessIncludeDirective(R, Buffer))
             {
                 PopSet();
                 return false;
             }
 
-            PopSet();
+			if (!R.empty())
+				PopSet();
+
             if (!ProcessPragmaDirective(Buffer))
                 return false;
 
@@ -4174,7 +4311,7 @@ namespace Tomahawk
         }
         bool Preprocessor::ProcessIncludeDirective(const std::string& Path, std::string& Data)
         {
-            if (!Include || Path.empty() || Data.empty())
+            if (!Include || Data.empty())
                 return true;
 
             Rest::Stroke Buffer(&Data);
@@ -4182,7 +4319,7 @@ namespace Tomahawk
             Result.Start = Result.End = 0;
             Result.Found = false;
 
-            std::string Dir = Rest::OS::FileDirectory(Path);
+            std::string Dir = Path.empty() ? Rest::OS::GetDirectory() : Rest::OS::FileDirectory(Path);
             while (true)
             {
                 Result = Buffer.Find("#include", Result.End);
@@ -4211,13 +4348,15 @@ namespace Tomahawk
                 Section.Trim();
                 End++;
 
-                std::string File = Rest::OS::Resolve(Section.R(), Dir), Output;
+                std::string File = Rest::OS::Resolve(Section.R(), Dir);
                 if (File.empty())
                     File = Section.R();
 
+				std::string Output;
                 if (!HasSet(File))
                 {
-                    if (!Include(this, File, &Output))
+					Desc.Path = Section.R(); Desc.From = Path;
+                    if (!Include(this, ResolveInclude(Desc), &Output))
                     {
                         THAWK_ERROR("%s: cannot find \"%s\"", Path.c_str(), Section.Get());
                         return false;
@@ -4297,6 +4436,86 @@ namespace Tomahawk
 
             return false;
         }
+		IncludeResult Preprocessor::ResolveInclude(const IncludeDesc& Desc)
+		{
+			std::string Base;
+			if (!Desc.From.empty())
+				Base.assign(Rest::OS::FileDirectory(Desc.From));
+			else
+				Base.assign(Rest::OS::GetDirectory());
+
+			IncludeResult Result;
+			if (!Rest::Stroke(Desc.Path).StartsOf("/."))
+			{
+				if (Desc.Root.empty())
+				{
+					Result.Module = Desc.Path;
+					Result.IsSystem = true;
+					Result.IsFile = false;
+					return Result;
+				}
+
+				Result.Module = Rest::OS::Resolve(Desc.Path, Desc.Root);
+				if (Rest::OS::FileExists(Result.Module.c_str()))
+				{
+					Result.IsSystem = true;
+					Result.IsFile = true;
+					return Result;
+				}
+
+				for (auto It : Desc.Exts)
+				{
+					std::string File(Result.Module);
+					if (Result.Module.empty())
+						File.assign(Rest::OS::Resolve(Desc.Path + It, Desc.Root));
+					else
+						File.append(It);
+						
+					if (!Rest::OS::FileExists(File.c_str()))
+						continue;
+
+					Result.Module = File;
+					Result.IsSystem = true;
+					Result.IsFile = true;
+					return Result;
+				}
+
+				Result.Module = Desc.Path;
+				Result.IsSystem = true;
+				Result.IsFile = false;
+				return Result;
+			}
+
+			Result.Module = Rest::OS::Resolve(Desc.Path, Base);
+			if (Rest::OS::FileExists(Result.Module.c_str()))
+			{
+				Result.IsSystem = false;
+				Result.IsFile = true;
+				return Result;
+			}
+
+			for (auto It : Desc.Exts)
+			{
+				std::string File(Result.Module);
+				if (Result.Module.empty())
+					File.assign(Rest::OS::Resolve(Desc.Path + It, Desc.Root));
+				else
+					File.append(It);
+
+				if (!Rest::OS::FileExists(File.c_str()))
+					continue;
+
+				Result.Module = File;
+				Result.IsSystem = false;
+				Result.IsFile = true;
+				return Result;
+			}
+
+			Result.Module.clear();
+			Result.IsFile = false;
+			Result.IsSystem = false;
+			return Result;
+		}
 
         Transform::Transform()
         {
@@ -4415,7 +4634,7 @@ namespace Tomahawk
             if (!CanRootBeApplied(Parent))
                 return;
 
-            if (Root)
+            if (Root != nullptr)
             {
                 GetRootBasis(Position, Scale, Rotation);
                 if (LocalTransform != nullptr)
@@ -4442,12 +4661,28 @@ namespace Tomahawk
                     LocalScale = nullptr;
                 }
 
-                Root->RemoveChildSafe(this);
-                if (!(Root = Parent))
-                    return;
+				if (Root->Childs != nullptr)
+				{
+					for (auto It = Root->Childs->begin(); It != Root->Childs->end(); It++)
+					{
+						if ((*It) == this)
+						{
+							Root->Childs->erase(It);
+							break;
+						}
+					}
+
+					if (Root->Childs->empty())
+					{
+						delete Root->Childs;
+						Root->Childs = nullptr;
+					}
+				}
             }
-            else
-                Root = Parent;
+
+			Root = Parent;
+			if (!Root)
+				return;
 
             Root->AddChild(this);
             LocalTransform = new Matrix4x4(Matrix4x4::Create(Position, Rotation) * Root->GetWorldUnscaled().Invert());
@@ -4507,28 +4742,14 @@ namespace Tomahawk
                 Childs = nullptr;
             }
         }
-        void Transform::RemoveChildSafe(Transform* Child)
-        {
-            if (!Childs)
-                return;
-
-            if (Child->Root == this)
-                Childs->erase(std::remove(Childs->begin(), Childs->end(), this), Childs->end());
-
-            if (Childs->empty())
-            {
-                delete Childs;
-                Childs = nullptr;
-            }
-        }
         void Transform::RemoveChilds()
         {
             if (!Childs)
                 return;
 
-            for (auto It = Childs->begin(); It != Childs->end(); It++)
+			std::vector<Transform*> Array = *Childs;
+            for (auto& Child : Array)
             {
-                Transform* Child = *It;
                 if (Child->Root == this)
                     Child->SetRoot(nullptr);
             }
@@ -4750,13 +4971,16 @@ namespace Tomahawk
         }
         bool Transform::CanRootBeApplied(Transform* Parent)
         {
-            if ((!Root && !Parent) || Root == Parent)
-                return false;
+			if ((!Root && !Parent) || Root == Parent)
+				return false;
 
-            if (Parent == this)
-                return false;
+			if (Parent == this)
+				return false;
 
-            return !Parent || Parent->GetRoot() != this;
+			if (Parent && Parent->HasRoot(this))
+				return false;
+
+			return true;
         }
 
         RigidBody::RigidBody(Simulator* Refer, const Desc& I) : UserPointer(nullptr), Instance(nullptr), Engine(Refer), Initial(I)
@@ -4805,6 +5029,9 @@ namespace Tomahawk
             if (Instance->getWorldArrayIndex() >= 0)
                 Engine->GetWorld()->removeRigidBody(Instance);
 
+			if (Initial.Shape)
+				Engine->FreeShape(&Initial.Shape);
+
             delete Instance;
         }
         RigidBody* RigidBody::Copy()
@@ -4817,6 +5044,7 @@ namespace Tomahawk
             I.Rotation = GetRotation();
             I.Scale = GetScale();
             I.Mass = GetMass();
+			I.Shape = Engine->TryCloneShape(I.Shape);
 
             RigidBody* Target = new RigidBody(Engine, I);
             Target->SetSpinningFriction(GetSpinningFriction());
@@ -4844,11 +5072,6 @@ namespace Tomahawk
             Target->SetCollisionFlags(GetCollisionFlags());
 
             return Target;
-        }
-        void RigidBody::Activate(bool Force)
-        {
-            if (Instance)
-                Instance->activate(Force);
         }
         void RigidBody::Push(const Vector3& Velocity)
         {
@@ -4939,9 +5162,12 @@ namespace Tomahawk
             if (!Instance)
                 return;
 
-            if (Active)
-                Instance->forceActivationState(MotionState_Active);
-            else
+			if (Active)
+			{
+				Instance->forceActivationState(MotionState_Active);
+				Instance->activate(true);
+			}
+			else
                 Instance->forceActivationState(MotionState_Deactivation_Needed);
         }
         void RigidBody::SetAsGhost()
@@ -5102,7 +5328,7 @@ namespace Tomahawk
             if (Instance->getWorldArrayIndex() == -1)
                 Engine->GetWorld()->addRigidBody(Instance);
 
-            Activate(true);
+            SetActivity(true);
         }
         void RigidBody::SetCollisionFlags(UInt64 Flags)
         {
@@ -5494,6 +5720,9 @@ ConstructDefault:
             if (Instance->getWorldArrayIndex() >= 0)
                 World->removeSoftBody(Instance);
 
+			if (Initial.Shape.Convex.Enabled)
+				Engine->FreeShape(&Initial.Shape.Convex.Source);
+
             Instance->setUserPointer(nullptr);
             delete Instance;
         }
@@ -5506,6 +5735,9 @@ ConstructDefault:
             I.Position = GetPosition();
             I.Rotation = GetRotation();
             I.Scale = GetScale();
+
+			if (I.Shape.Convex.Enabled && I.Shape.Convex.Source)
+				I.Shape.Convex.Source = Engine->ReuseShape(I.Shape.Convex.Source);
 
             SoftBody* Target = new SoftBody(Engine, I);
             Target->SetSpinningFriction(GetSpinningFriction());
@@ -6744,7 +6976,7 @@ ConstructDefault:
 
             for (auto It = Shapes.begin(); It != Shapes.end(); It++)
             {
-                btCollisionShape* Object = *It;
+                btCollisionShape* Object = It->first;
                 delete Object;
             }
 
@@ -6952,7 +7184,6 @@ ConstructDefault:
         {
             Safe.lock();
             RigidBody* Body = new RigidBody(this, I);
-            World->addRigidBody(Body->Instance);
             Safe.unlock();
 
             return Body;
@@ -6975,7 +7206,6 @@ ConstructDefault:
 
             Safe.lock();
             SoftBody* Body = new SoftBody(this, I);
-            ((btSoftRigidDynamicsWorld*)World)->addSoftBody(Body->Instance);
             Safe.unlock();
 
             return Body;
@@ -6984,7 +7214,6 @@ ConstructDefault:
         {
             Safe.lock();
             SliderConstraint* Body = new SliderConstraint(this, I);
-            World->addConstraint(Body->Instance);
             Safe.unlock();
 
             return Body;
@@ -6993,7 +7222,7 @@ ConstructDefault:
         {
             btCollisionShape* Shape = new btBoxShape(BtV3(Scale));
             Safe.lock();
-            Shapes.push_back(Shape);
+            Shapes[Shape] = 1;
             Safe.unlock();
 
             return Shape;
@@ -7002,7 +7231,7 @@ ConstructDefault:
         {
             btCollisionShape* Shape = new btSphereShape(Radius);
             Safe.lock();
-            Shapes.push_back(Shape);
+			Shapes[Shape] = 1;
             Safe.unlock();
 
             return Shape;
@@ -7011,7 +7240,7 @@ ConstructDefault:
         {
             btCollisionShape* Shape = new btCapsuleShape(Radius, Height);
             Safe.lock();
-            Shapes.push_back(Shape);
+			Shapes[Shape] = 1;
             Safe.unlock();
 
             return Shape;
@@ -7020,7 +7249,7 @@ ConstructDefault:
         {
             btCollisionShape* Shape = new btConeShape(Radius, Height);
             Safe.lock();
-            Shapes.push_back(Shape);
+			Shapes[Shape] = 1;
             Safe.unlock();
 
             return Shape;
@@ -7029,7 +7258,7 @@ ConstructDefault:
         {
             btCollisionShape* Shape = new btCylinderShape(BtV3(Scale));
             Safe.lock();
-            Shapes.push_back(Shape);
+			Shapes[Shape] = 1;
             Safe.unlock();
 
             return Shape;
@@ -7044,7 +7273,7 @@ ConstructDefault:
             Shape->optimizeConvexHull();
 
             Safe.lock();
-            Shapes.push_back(Shape);
+			Shapes[Shape] = 1;
             Safe.unlock();
 
             return Shape;
@@ -7059,7 +7288,7 @@ ConstructDefault:
             Shape->optimizeConvexHull();
 
             Safe.lock();
-            Shapes.push_back(Shape);
+			Shapes[Shape] = 1;
             Safe.unlock();
 
             return Shape;
@@ -7074,7 +7303,7 @@ ConstructDefault:
             Shape->optimizeConvexHull();
 
             Safe.lock();
-            Shapes.push_back(Shape);
+			Shapes[Shape] = 1;
             Safe.unlock();
 
             return Shape;
@@ -7089,7 +7318,7 @@ ConstructDefault:
             Shape->optimizeConvexHull();
 
             Safe.lock();
-            Shapes.push_back(Shape);
+			Shapes[Shape] = 1;
             Safe.unlock();
 
             return Shape;
@@ -7104,7 +7333,7 @@ ConstructDefault:
             Shape->optimizeConvexHull();
 
             Safe.lock();
-            Shapes.push_back(Shape);
+			Shapes[Shape] = 1;
             Safe.unlock();
 
             return Shape;
@@ -7124,7 +7353,7 @@ ConstructDefault:
             Hull->optimizeConvexHull();
 
             Safe.lock();
-            Shapes.push_back(Hull);
+			Shapes[Hull] = 1;
             Safe.unlock();
 
             return Hull;
@@ -7147,6 +7376,77 @@ ConstructDefault:
                     return nullptr;
             }
         }
+		btCollisionShape* Simulator::TryCloneShape(btCollisionShape* Value)
+		{
+			if (!Value)
+				return nullptr;
+
+			Shape Type = (Shape)Value->getShapeType();
+			if (Type == Shape_Box)
+			{
+				btVector3 Scale = Value->getLocalScaling();
+				return CreateCube(V3Bt(Scale));
+			}
+			else if (Type == Shape_Sphere)
+			{
+				btSphereShape* Sphere = (btSphereShape*)Value;
+				return CreateSphere(Sphere->getRadius());
+			}
+			else if (Type == Shape_Capsule)
+			{
+				btCapsuleShape* Capsule = (btCapsuleShape*)Value;
+				return CreateCapsule(Capsule->getRadius(), Capsule->getHalfHeight() * 2.0f);
+			}
+			else if (Type == Shape_Cone)
+			{
+				btConeShape* Cone = (btConeShape*)Value;
+				return CreateCone(Cone->getRadius(), Cone->getHeight());
+			}
+			else if (Type == Shape_Cylinder)
+			{
+				btVector3 Scale = Value->getLocalScaling();
+				return CreateCylinder(V3Bt(Scale));
+			}
+			else if (Type == Shape_Convex_Hull)
+				return CreateConvexHull(Value);
+
+			return nullptr;
+		}
+		btCollisionShape* Simulator::ReuseShape(btCollisionShape* Value)
+		{
+			if (!Value)
+				return nullptr;
+
+			Safe.lock();
+			auto It = Shapes.find(Value);
+			if (It == Shapes.end())
+			{
+				Safe.unlock();
+				return nullptr;
+			}
+
+			It->second++;
+			Safe.unlock();
+			return Value;
+		}
+		void Simulator::FreeShape(btCollisionShape** Value)
+		{
+			if (!Value || !*Value)
+				return;
+
+			Safe.lock();
+			auto It = Shapes.find(*Value);
+			if (It != Shapes.end())
+			{
+				*Value = nullptr;
+				if (It->second-- <= 1)
+				{
+					delete It->first;
+					Shapes.erase(It);
+				}
+			}
+			Safe.unlock();
+		}
         std::vector<Vector3> Simulator::GetShapeVertices(btCollisionShape* Value)
         {
             if (!Value)

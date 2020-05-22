@@ -18,6 +18,17 @@ namespace Tomahawk
         {
             namespace GUI
             {
+				Interface::Interface(GUIRenderer* Parent) : Renderer(Parent)
+				{
+				}
+				GUIRenderer* Interface::GetGUI()
+				{
+					return Renderer;
+				}
+				bool Interface::IsMouseOver()
+				{
+					return ImGui::GetIO().WantCaptureMouse;
+				}
                 void Interface::ApplyKeyState(Graphics::KeyCode Key, Graphics::KeyMod Mod, int Virtual, int Repeat, bool Pressed)
                 {
                     ImGuiIO& Input = ImGui::GetIO();
@@ -1899,18 +1910,38 @@ namespace Tomahawk
                 return nullptr;
             }
 
-            GUIRenderer::GUIRenderer(RenderSystem* Lab, Graphics::Activity* NewActivity) : Renderer(Lab), Activity(NewActivity), ClipboardTextData(nullptr), Context(nullptr)
+			GUIRenderer::GUIRenderer(RenderSystem* Lab) : GUIRenderer(Lab, Application::Get() ? Application::Get()->Activity : nullptr)
+			{
+			}
+            GUIRenderer::GUIRenderer(RenderSystem* Lab, Graphics::Activity* NewActivity) : Renderer(Lab), Activity(NewActivity), ClipboardTextData(nullptr), Context(nullptr), Tree(this), TreeActive(false)
             {
+				Time = Frequency = 0;
+				AllowMouseOffset = false;
                 Priority = false;
             }
             GUIRenderer::~GUIRenderer()
             {
+				ImGuiContext* LastContext = ImGui::GetCurrentContext();
+				ImGui::DestroyContext((ImGuiContext*)Context);
+				if (LastContext != Context)
+					ImGui::SetCurrentContext(LastContext);
             }
             void GUIRenderer::OnRender(Rest::Timer* Timer)
             {
                 auto* App = Engine::Application::Get();
                 if (!App && !Callback)
                     return;
+
+				Safe.lock();
+				if (TreeActive)
+				{
+					Safe.unlock();
+					return;
+				}
+				Safe.unlock();
+
+				if (ImGui::GetCurrentContext() != Context)
+					Activate();
 
 #ifdef THAWK_HAS_SDL2
                 int DW, DH, W, H;
@@ -2006,14 +2037,21 @@ namespace Tomahawk
                         Settings->BackendFlags &= ~ImGuiBackendFlags_HasGamepad;
                 }
 #endif
+				Safe.lock();
+				TreeActive = true;
                 ImGui::NewFrame();
+				Safe.unlock();
+
                 if (App != nullptr)
-                    App->OnInteract(this);
+                    App->OnInteract(this, Timer);
 
                 if (Callback)
-                    Callback(this);
+                    Callback(this, Timer);
 
+				Safe.lock();
                 ImGui::Render();
+				TreeActive = false;
+				Safe.unlock();
             }
             void GUIRenderer::SetRenderCallback(const GUI::RendererCallback& NewCallback)
             {
@@ -2023,8 +2061,13 @@ namespace Tomahawk
             {
                 WorldViewProjection = In;
             }
-            void GUIRenderer::Reset()
+            void GUIRenderer::Restore(void* FontAtlas, void* Callback)
             {
+				ImGuiContext* LastContext = ImGui::GetCurrentContext();
+				if (!Context)
+					Context = (void*)ImGui::CreateContext();
+
+				ImGui::SetCurrentContext((ImGuiContext*)Context);
                 ImGuiIO& Input = ImGui::GetIO();
                 Input.IniFilename = "";
                 Input.UserData = this;
@@ -2033,6 +2076,12 @@ namespace Tomahawk
                 Input.BackendFlags |= ImGuiBackendFlags_HasSetMousePos;
                 Input.BackendPlatformName = "";
                 Input.ClipboardUserData = this;
+
+				if (FontAtlas != nullptr)
+					Input.Fonts->TexID = FontAtlas;
+
+				if (Callback != nullptr)
+					Input.RenderDrawListsFn = (void(*)(ImDrawData*))Callback;
 
 #ifdef THAWK_HAS_SDL2
                 Input.KeyMap[ImGuiKey_Tab] = SDL_SCANCODE_TAB;
@@ -2077,7 +2126,6 @@ namespace Tomahawk
                 Input.ImeWindowHandle = (void*)Info.info.x11.window;
 #endif
 #endif
-
                 ImGuiStyle* Style = &ImGui::GetStyle();
                 Style->WindowPadding = ImVec2(10, 10);
                 Style->WindowRounding = 0;
@@ -2133,14 +2181,15 @@ namespace Tomahawk
                 Style->Colors[ImGuiCol_PlotHistogramHovered] = ImVec4(0.25f, 1.00f, 0.00f, 1.00f);
                 Style->Colors[ImGuiCol_ModalWindowDarkening] = ImVec4(-1.00f, -1.00f, -1.00f, 0.25f);
                 ImGui::SetMouseCursor(ImGuiMouseCursor_Arrow);
+				ImGui::SetCurrentContext(LastContext);
             }
             void GUIRenderer::Deactivate()
             {
-                ImGui::GetIO().UserData = nullptr;
                 ImGui::SetCurrentContext(nullptr);
             }
             void GUIRenderer::Activate()
             {
+				ImGui::SetCurrentContext((ImGuiContext*)Context);
 #ifdef THAWK_HAS_SDL2
                 SDL_SysWMinfo Info;
                 Activity->Load(&Info);
@@ -2152,9 +2201,29 @@ namespace Tomahawk
                 ImGui::GetIO().ImeWindowHandle = (void*)Info.info.x11.window;
 #endif
 #endif
-                ImGui::GetIO().UserData = this;
-                ImGui::SetCurrentContext((ImGuiContext*)Context);
             }
+			void GUIRenderer::Setup(const std::function<void(GUI::Interface*)>& Callback)
+			{
+				ImGuiContext* LastContext = ImGui::GetCurrentContext();
+				if (!Context)
+					Context = (void*)ImGui::CreateContext();
+
+				ImGui::SetCurrentContext((ImGuiContext*)Context);
+				if (Callback)
+					Callback(&Tree);
+
+				ImGui::SetCurrentContext(LastContext);
+			}
+			void GUIRenderer::GetFontAtlas(unsigned char** Pixels, int* Width, int* Height)
+			{
+				ImGuiContext* LastContext = ImGui::GetCurrentContext();
+				if (!Context)
+					Context = (void*)ImGui::CreateContext();
+
+				ImGui::SetCurrentContext((ImGuiContext*)Context);
+				ImGui::GetIO().Fonts->GetTexDataAsRGBA32(Pixels, Width, Height);
+				ImGui::SetCurrentContext(LastContext);
+			}
             void* GUIRenderer::GetUi()
             {
                 return (void*)&ImGui::GetIO();
@@ -2181,8 +2250,19 @@ namespace Tomahawk
             }
             GUI::Interface* GUIRenderer::GetTree()
             {
+				if (ImGui::GetCurrentContext() != Context || !Context)
+					return nullptr;
+
                 return &Tree;
             }
+			bool GUIRenderer::IsTreeActive()
+			{
+				return TreeActive;
+			}
+			GUIRenderer* GUIRenderer::Create(RenderSystem* Lab)
+			{
+				return Create(Lab, Application::Get() ? Application::Get()->Activity : nullptr);
+			}
             GUIRenderer* GUIRenderer::Create(RenderSystem* Lab, Graphics::Activity* Window)
             {
 #ifdef THAWK_MICROSOFT

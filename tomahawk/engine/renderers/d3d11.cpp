@@ -18,21 +18,21 @@ namespace Tomahawk
                 I.LayoutSize = 5;
 
 #ifdef HAS_D3D11_MODEL_GBUFFER_HLSL
-                I.Data = reinterpret_cast<const char*>(resource_batch::d3d11_model_gbuffer_hlsl::data);
+                I.Data = GET_RESOURCE_BATCH(d3d11_model_gbuffer_hlsl);
 #else
                 THAWK_ERROR("model-gbuffer.hlsl was not compiled");
 #endif
                 Shaders.Multi = (D3D11Shader*)Graphics::Shader::Create(System->GetDevice(), I);
 
 #ifdef HAS_D3D11_MODEL_DEPTH_HLSL
-                I.Data = reinterpret_cast<const char*>(resource_batch::d3d11_model_depth_hlsl::data);
+                I.Data = GET_RESOURCE_BATCH(d3d11_model_depth_hlsl);
 #else
                 THAWK_ERROR("model-depth.hlsl was not compiled");
 #endif
                 Shaders.Depth = (D3D11Shader*)Graphics::Shader::Create(System->GetDevice(), I);
 
 #ifdef HAS_D3D11_MODEL_DEPTH_360_HLSL
-                I.Data = reinterpret_cast<const char*>(resource_batch::d3d11_model_depth_360_hlsl::data);
+                I.Data = GET_RESOURCE_BATCH(d3d11_model_depth_360_hlsl);
 #else
                 THAWK_ERROR("model-depth-360.hlsl was not compiled");
 #endif
@@ -74,32 +74,39 @@ namespace Tomahawk
 
                     for (auto&& Mesh : Model->Instance->Meshes)
                     {
-                        auto Face = Model->Surfaces.find(Mesh);
-                        if (Face != Model->Surfaces.end())
+                        auto Face = Model->GetSurface(Mesh);
+                        if (Face != nullptr)
                         {
-                            Device->Render.SurfaceDiffuse = (float)(Face->second.Diffuse != nullptr);
-                            Device->Render.SurfaceNormal = (float)(Face->second.Normal != nullptr);
-                            Device->Render.Material = (float)Face->second.Material;
-                            Device->Render.Diffusion = Face->second.Diffusion;
-                            Device->Render.TexCoord = Face->second.TexCoord;
+                            Device->Render.SurfaceDiffuse = (float)(Face->Diffuse != nullptr);
+                            Device->Render.SurfaceNormal = (float)(Face->Normal != nullptr);
+                            Device->Render.Material = (float)Face->Material;
+                            Device->Render.Diffusion = Face->Diffusion;
+                            Device->Render.TexCoord = Face->TexCoord;
 
-                            if (Face->second.Diffuse != nullptr)
-                                Face->second.Diffuse->Apply(Device, 1);
+                            if (Face->Diffuse != nullptr)
+                                Face->Diffuse->Apply(Device, 1);
                             else
                                 Device->RestoreTexture2D(1, 1);
 
-                            if (Face->second.Normal != nullptr)
-                                Face->second.Normal->Apply(Device, 2);
+                            if (Face->Normal != nullptr)
+                                Face->Normal->Apply(Device, 2);
                             else
                                 Device->RestoreTexture2D(2, 1);
 
-                            if (Face->second.Surface != nullptr)
-                                Face->second.Surface->Apply(Device, 3);
+                            if (Face->Surface != nullptr)
+                                Face->Surface->Apply(Device, 3);
                             else
                                 Device->RestoreTexture2D(3, 1);
                         }
-                        else
-                            Device->RestoreTexture2D(1, 3);
+						else
+						{
+							Device->Render.SurfaceDiffuse = 0.0f;
+							Device->Render.SurfaceNormal = 0.0f;
+							Device->Render.Material = 0.0f;
+							Device->Render.Diffusion = 1.0f;
+							Device->Render.TexCoord = 1.0f;
+							Device->RestoreTexture2D(1, 3);
+						}
 
                         Device->Render.World = Mesh->World * Model->GetEntity()->Transform->GetWorld();
                         Device->Render.WorldViewProjection = Device->Render.World * System->GetScene()->View.ViewProjection;
@@ -135,32 +142,39 @@ namespace Tomahawk
 
                     for (auto&& Mesh : Model->Instance->Meshes)
                     {
-                        auto Face = Model->Surfaces.find(Mesh);
-                        if (Face != Model->Surfaces.end())
+						auto Face = Model->GetSurface(Mesh);
+                        if (Face != nullptr)
                         {
-                            Device->Render.SurfaceDiffuse = (float)(Face->second.Diffuse != nullptr);
-                            Device->Render.SurfaceNormal = (float)(Face->second.Normal != nullptr);
-                            Device->Render.Material = (float)Face->second.Material;
-                            Device->Render.Diffusion = Face->second.Diffusion;
-                            Device->Render.TexCoord = Face->second.TexCoord;
+                            Device->Render.SurfaceDiffuse = (float)(Face->Diffuse != nullptr);
+                            Device->Render.SurfaceNormal = (float)(Face->Normal != nullptr);
+                            Device->Render.Material = (float)Face->Material;
+                            Device->Render.Diffusion = Face->Diffusion;
+                            Device->Render.TexCoord = Face->TexCoord;
 
-                            if (Face->second.Diffuse != nullptr)
-                                Face->second.Diffuse->Apply(Device, 1);
+                            if (Face->Diffuse != nullptr)
+                                Face->Diffuse->Apply(Device, 1);
                             else
                                 Device->RestoreTexture2D(1, 1);
 
-                            if (Face->second.Normal != nullptr)
-                                Face->second.Normal->Apply(Device, 2);
+                            if (Face->Normal != nullptr)
+                                Face->Normal->Apply(Device, 2);
                             else
                                 Device->RestoreTexture2D(2, 1);
 
-                            if (Face->second.Surface != nullptr)
-                                Face->second.Surface->Apply(Device, 3);
+                            if (Face->Surface != nullptr)
+                                Face->Surface->Apply(Device, 3);
                             else
                                 Device->RestoreTexture2D(3, 1);
                         }
                         else
-                            Device->RestoreTexture2D(1, 3);
+						{
+							Device->Render.SurfaceDiffuse = 0.0f;
+							Device->Render.SurfaceNormal = 0.0f;
+							Device->Render.Material = 0.0f;
+							Device->Render.Diffusion = 1.0f;
+							Device->Render.TexCoord = 1.0f;
+							Device->RestoreTexture2D(1, 3);
+						}
 
                         Device->Render.World = Mesh->World * Model->GetEntity()->Transform->GetWorld();
                         Device->Render.WorldViewProjection = Device->Render.World * System->GetScene()->View.ViewProjection;
@@ -192,22 +206,28 @@ namespace Tomahawk
 
                     for (auto&& Mesh : Model->Instance->Meshes)
                     {
-                        auto Face = Model->Surfaces.find(Mesh);
-                        if (Face != Model->Surfaces.end())
+						auto Face = Model->GetSurface(Mesh);
+						if (Face != nullptr)
                         {
-                            Graphics::Material& Material = Model->GetMaterial(&Face->second);
-                            Device->Render.SurfaceDiffuse = (float)(Face->second.Diffuse != nullptr);
-                            Device->Render.Diffusion.X = Material.Transmittance;
-                            Device->Render.Diffusion.Y = Material.Shadowness;
-                            Device->Render.TexCoord = Face->second.TexCoord;
+                            Graphics::Material& Material = Model->GetMaterial(Face);
+                            Device->Render.SurfaceDiffuse = (float)(Face->Diffuse != nullptr);
+							Device->Render.Diffusion.X = Material.Transmittance;
+							Device->Render.Diffusion.Y = Material.Shadowness;
+                            Device->Render.TexCoord = Face->TexCoord;
 
-                            if (Face->second.Diffuse != nullptr)
-                                Face->second.Diffuse->Apply(Device, 1);
+                            if (Face->Diffuse != nullptr)
+                                Face->Diffuse->Apply(Device, 1);
                             else
                                 Device->RestoreTexture2D(1, 1);
                         }
-                        else
-                            Device->RestoreTexture2D(1, 1);
+						else
+						{
+							Device->Render.SurfaceDiffuse = 0.0f;
+							Device->Render.Diffusion.X = 1.0f;
+							Device->Render.Diffusion.Y = 0.0f;
+							Device->Render.TexCoord = 1.0f;
+							Device->RestoreTexture2D(1, 1);
+						}
 
                         Device->Render.World = Mesh->World * Model->GetEntity()->Transform->GetWorld();
                         Device->Render.WorldViewProjection = Device->Render.World * System->GetScene()->View.ViewProjection;
@@ -245,22 +265,28 @@ namespace Tomahawk
 
                     for (auto&& Mesh : Model->Instance->Meshes)
                     {
-                        auto Face = Model->Surfaces.find(Mesh);
-                        if (Face != Model->Surfaces.end())
-                        {
-                            Graphics::Material& Material = Model->GetMaterial(&Face->second);
-                            Device->Render.SurfaceDiffuse = (float)(Face->second.Diffuse != nullptr);
-                            Device->Render.Diffusion.X = Material.Transmittance;
-                            Device->Render.Diffusion.Y = Material.Shadowness;
-                            Device->Render.TexCoord = Face->second.TexCoord;
+						auto Face = Model->GetSurface(Mesh);
+						if (Face != nullptr)
+						{
+							Graphics::Material& Material = Model->GetMaterial(Face);
+                            Device->Render.SurfaceDiffuse = (float)(Face->Diffuse != nullptr);
+							Device->Render.Diffusion.X = Material.Transmittance;
+							Device->Render.Diffusion.Y = Material.Shadowness;
+                            Device->Render.TexCoord = Face->TexCoord;
 
-                            if (Face->second.Diffuse != nullptr)
-                                Face->second.Diffuse->Apply(Device, 1);
+                            if (Face->Diffuse != nullptr)
+                                Face->Diffuse->Apply(Device, 1);
                             else
                                 Device->RestoreTexture2D(1, 1);
                         }
                         else
-                            Device->RestoreTexture2D(1, 1);
+						{
+							Device->Render.SurfaceDiffuse = 0.0f;
+							Device->Render.Diffusion.X = 1.0f;
+							Device->Render.Diffusion.Y = 0.0f;
+							Device->Render.TexCoord = 1.0f;
+							Device->RestoreTexture2D(1, 1);
+						}
 
                         Device->Render.World = Mesh->World * Model->GetEntity()->Transform->GetWorld();
                         Device->ImmediateContext->IASetVertexBuffers(0, 1, &Mesh->GetVertexBuffer()->As<D3D11ElementBuffer>()->Element, &Stride, &Offset);
@@ -283,21 +309,21 @@ namespace Tomahawk
                 I.LayoutSize = 7;
 
 #ifdef HAS_D3D11_SKINNED_MODEL_GBUFFER_HLSL
-                I.Data = reinterpret_cast<const char*>(resource_batch::d3d11_skinned_model_gbuffer_hlsl::data);
+                I.Data = GET_RESOURCE_BATCH(d3d11_skinned_model_gbuffer_hlsl);
 #else
                 THAWK_ERROR("skinned-model-gbuffer.hlsl was not compiled");
 #endif
                 Shaders.Multi = (D3D11Shader*)Graphics::Shader::Create(System->GetDevice(), I);
 
 #ifdef HAS_D3D11_SKINNED_MODEL_DEPTH_HLSL
-                I.Data = reinterpret_cast<const char*>(resource_batch::d3d11_skinned_model_depth_hlsl::data);
+                I.Data = GET_RESOURCE_BATCH(d3d11_skinned_model_depth_hlsl);
 #else
                 THAWK_ERROR("skinned-model-depth.hlsl was not compiled");
 #endif
                 Shaders.Depth = (D3D11Shader*)Graphics::Shader::Create(System->GetDevice(), I);
 
 #ifdef HAS_D3D11_SKINNED_MODEL_DEPTH_360_HLSL
-                I.Data = reinterpret_cast<const char*>(resource_batch::d3d11_skinned_model_depth_360_hlsl::data);
+                I.Data = GET_RESOURCE_BATCH(d3d11_skinned_model_depth_360_hlsl);
 #else
                 THAWK_ERROR("skinned-model-depth-360.hlsl was not compiled");
 #endif
@@ -342,32 +368,39 @@ namespace Tomahawk
                     Device->ImmediateContext->UpdateSubresource(Device->ConstantBuffer[Graphics::RenderBufferType_Animation], 0, nullptr, &Device->Animation, 0, 0);
                     for (auto&& Mesh : SkinnedModel->Instance->Meshes)
                     {
-                        auto Face = SkinnedModel->Surfaces.find(Mesh);
-                        if (Face != SkinnedModel->Surfaces.end())
-                        {
-                            Device->Render.SurfaceDiffuse = (float)(Face->second.Diffuse != nullptr);
-                            Device->Render.SurfaceNormal = (float)(Face->second.Normal != nullptr);
-                            Device->Render.Material = (float)Face->second.Material;
-                            Device->Render.Diffusion = Face->second.Diffusion;
-                            Device->Render.TexCoord = Face->second.TexCoord;
+						auto Face = SkinnedModel->GetSurface(Mesh);
+						if (Face != nullptr)
+						{
+                            Device->Render.SurfaceDiffuse = (float)(Face->Diffuse != nullptr);
+                            Device->Render.SurfaceNormal = (float)(Face->Normal != nullptr);
+                            Device->Render.Material = (float)Face->Material;
+                            Device->Render.Diffusion = Face->Diffusion;
+                            Device->Render.TexCoord = Face->TexCoord;
 
-                            if (Face->second.Diffuse != nullptr)
-                                Face->second.Diffuse->Apply(Device, 1);
+                            if (Face->Diffuse != nullptr)
+                                Face->Diffuse->Apply(Device, 1);
                             else
                                 Device->RestoreTexture2D(1, 1);
 
-                            if (Face->second.Normal != nullptr)
-                                Face->second.Normal->Apply(Device, 2);
+                            if (Face->Normal != nullptr)
+                                Face->Normal->Apply(Device, 2);
                             else
                                 Device->RestoreTexture2D(2, 1);
 
-                            if (Face->second.Surface != nullptr)
-                                Face->second.Surface->Apply(Device, 3);
+                            if (Face->Surface != nullptr)
+                                Face->Surface->Apply(Device, 3);
                             else
                                 Device->RestoreTexture2D(3, 1);
                         }
-                        else
-                            Device->RestoreTexture2D(1, 3);
+						else
+						{
+							Device->Render.SurfaceDiffuse = 0.0f;
+							Device->Render.SurfaceNormal = 0.0f;
+							Device->Render.Material = 0.0f;
+							Device->Render.Diffusion = 1.0f;
+							Device->Render.TexCoord = 1.0f;
+							Device->RestoreTexture2D(1, 3);
+						}
 
                         Device->Render.World = Mesh->World * SkinnedModel->GetEntity()->Transform->GetWorld();
                         Device->Render.WorldViewProjection = Device->Render.World * System->GetScene()->View.ViewProjection;
@@ -408,32 +441,39 @@ namespace Tomahawk
                     Device->ImmediateContext->UpdateSubresource(Device->ConstantBuffer[Graphics::RenderBufferType_Animation], 0, nullptr, &Device->Animation, 0, 0);
                     for (auto&& Mesh : SkinnedModel->Instance->Meshes)
                     {
-                        auto Face = SkinnedModel->Surfaces.find(Mesh);
-                        if (Face != SkinnedModel->Surfaces.end())
+						auto Face = SkinnedModel->GetSurface(Mesh);
+						if (Face != nullptr)
                         {
-                            Device->Render.SurfaceDiffuse = (float)(Face->second.Diffuse != nullptr);
-                            Device->Render.SurfaceNormal = (float)(Face->second.Normal != nullptr);
-                            Device->Render.Material = (float)Face->second.Material;
-                            Device->Render.Diffusion = Face->second.Diffusion;
-                            Device->Render.TexCoord = Face->second.TexCoord;
+                            Device->Render.SurfaceDiffuse = (float)(Face->Diffuse != nullptr);
+                            Device->Render.SurfaceNormal = (float)(Face->Normal != nullptr);
+                            Device->Render.Material = (float)Face->Material;
+                            Device->Render.Diffusion = Face->Diffusion;
+                            Device->Render.TexCoord = Face->TexCoord;
 
-                            if (Face->second.Diffuse != nullptr)
-                                Face->second.Diffuse->Apply(Device, 1);
+                            if (Face->Diffuse != nullptr)
+                                Face->Diffuse->Apply(Device, 1);
                             else
                                 Device->RestoreTexture2D(1, 1);
 
-                            if (Face->second.Normal != nullptr)
-                                Face->second.Normal->Apply(Device, 2);
+                            if (Face->Normal != nullptr)
+                                Face->Normal->Apply(Device, 2);
                             else
                                 Device->RestoreTexture2D(2, 1);
 
-                            if (Face->second.Surface != nullptr)
-                                Face->second.Surface->Apply(Device, 3);
+                            if (Face->Surface != nullptr)
+                                Face->Surface->Apply(Device, 3);
                             else
                                 Device->RestoreTexture2D(3, 1);
                         }
-                        else
-                            Device->RestoreTexture2D(1, 3);
+						else
+						{
+							Device->Render.SurfaceDiffuse = 0.0f;
+							Device->Render.SurfaceNormal = 0.0f;
+							Device->Render.Material = 0.0f;
+							Device->Render.Diffusion = 1.0f;
+							Device->Render.TexCoord = 1.0f;
+							Device->RestoreTexture2D(1, 3);
+						}
 
                         Device->Render.World = Mesh->World * SkinnedModel->GetEntity()->Transform->GetWorld();
                         Device->Render.WorldViewProjection = Device->Render.World * System->GetScene()->View.ViewProjection;
@@ -470,22 +510,28 @@ namespace Tomahawk
                     Device->ImmediateContext->UpdateSubresource(Device->ConstantBuffer[Graphics::RenderBufferType_Animation], 0, nullptr, &Device->Animation, 0, 0);
                     for (auto&& Mesh : SkinnedModel->Instance->Meshes)
                     {
-                        auto Face = SkinnedModel->Surfaces.find(Mesh);
-                        if (Face != SkinnedModel->Surfaces.end())
-                        {
-                            Graphics::Material& Material = SkinnedModel->GetMaterial(&Face->second);
-                            Device->Render.TexCoord = Face->second.TexCoord;
-                            Device->Render.Diffusion.X = Material.Transmittance;
-                            Device->Render.Diffusion.Y = Material.Shadowness;
-                            Device->Render.SurfaceDiffuse = (float)(Face->second.Diffuse != nullptr);
+						auto Face = SkinnedModel->GetSurface(Mesh);
+						if (Face != nullptr)
+						{
+                            Graphics::Material& Material = SkinnedModel->GetMaterial(Face);
+							Device->Render.SurfaceDiffuse = (float)(Face->Diffuse != nullptr);
+							Device->Render.Diffusion.X = Material.Transmittance;
+							Device->Render.Diffusion.Y = Material.Shadowness;
+							Device->Render.TexCoord = Face->TexCoord;
 
-                            if (Face->second.Diffuse != nullptr)
-                                Face->second.Diffuse->Apply(Device, 1);
+                            if (Face->Diffuse != nullptr)
+                                Face->Diffuse->Apply(Device, 1);
                             else
                                 Device->RestoreTexture2D(1, 1);
                         }
-                        else
-                            Device->RestoreTexture2D(1, 1);
+						else
+						{
+							Device->Render.SurfaceDiffuse = 0.0f;
+							Device->Render.Diffusion.X = 0.0f;
+							Device->Render.Diffusion.Y = 1.0f;
+							Device->Render.TexCoord = 1.0f;
+							Device->RestoreTexture2D(1, 1);
+						}
 
                         Device->Render.World = Mesh->World * SkinnedModel->GetEntity()->Transform->GetWorld();
                         Device->Render.WorldViewProjection = Device->Render.World * System->GetScene()->View.ViewProjection;
@@ -528,22 +574,28 @@ namespace Tomahawk
                     Device->ImmediateContext->UpdateSubresource(Device->ConstantBuffer[Graphics::RenderBufferType_Animation], 0, nullptr, &Device->Animation, 0, 0);
                     for (auto&& Mesh : SkinnedModel->Instance->Meshes)
                     {
-                        auto Face = SkinnedModel->Surfaces.find(Mesh);
-                        if (Face != SkinnedModel->Surfaces.end())
-                        {
-                            Graphics::Material& Material = SkinnedModel->GetMaterial(&Face->second);
-                            Device->Render.SurfaceDiffuse = (float)(Face->second.Diffuse != nullptr);
-                            Device->Render.TexCoord = Face->second.TexCoord;
-                            Device->Render.Diffusion.X = Material.Transmittance;
-                            Device->Render.Diffusion.Y = Material.Shadowness;
+						auto Face = SkinnedModel->GetSurface(Mesh);
+						if (Face != nullptr)
+						{
+							Graphics::Material& Material = SkinnedModel->GetMaterial(Face);
+                            Device->Render.SurfaceDiffuse = (float)(Face->Diffuse != nullptr);
+							Device->Render.Diffusion.X = Material.Transmittance;
+							Device->Render.Diffusion.Y = Material.Shadowness;
+                            Device->Render.TexCoord = Face->TexCoord;
 
-                            if (Face->second.Diffuse != nullptr)
-                                Face->second.Diffuse->Apply(Device, 1);
+                            if (Face->Diffuse != nullptr)
+                                Face->Diffuse->Apply(Device, 1);
                             else
                                 Device->RestoreTexture2D(1, 1);
                         }
-                        else
-                            Device->RestoreTexture2D(1, 1);
+						else
+						{
+							Device->Render.SurfaceDiffuse = 0.0f;
+							Device->Render.Diffusion.X = 0.0f;
+							Device->Render.Diffusion.Y = 1.0f;
+							Device->Render.TexCoord = 1.0f;
+							Device->RestoreTexture2D(1, 1);
+						}
 
                         Device->Render.World = Mesh->World * SkinnedModel->GetEntity()->Transform->GetWorld();
                         Device->ImmediateContext->IASetVertexBuffers(0, 1, &Mesh->GetVertexBuffer()->As<D3D11ElementBuffer>()->Element, &Stride, &Offset);
@@ -566,28 +618,28 @@ namespace Tomahawk
                 I.LayoutSize = 0;
 
 #ifdef HAS_D3D11_ELEMENT_SYSTEM_GBUFFER_HLSL
-                I.Data = reinterpret_cast<const char*>(resource_batch::d3d11_element_system_gbuffer_hlsl::data);
+                I.Data = GET_RESOURCE_BATCH(d3d11_element_system_gbuffer_hlsl);
 #else
                 THAWK_ERROR("element-system-gbuffer.hlsl was not compiled");
 #endif
                 Shaders.Multi = (D3D11Shader*)Graphics::Shader::Create(System->GetDevice(), I);
 
 #ifdef HAS_D3D11_ELEMENT_SYSTEM_DEPTH_HLSL
-                I.Data = reinterpret_cast<const char*>(resource_batch::d3d11_element_system_depth_hlsl::data);
+                I.Data = GET_RESOURCE_BATCH(d3d11_element_system_depth_hlsl);
 #else
                 THAWK_ERROR("element-system-depth.hlsl was not compiled");
 #endif
                 Shaders.Depth = (D3D11Shader*)Graphics::Shader::Create(System->GetDevice(), I);
 
 #ifdef HAS_D3D11_ELEMENT_SYSTEM_DEPTH_360_POINT_HLSL
-                I.Data = reinterpret_cast<const char*>(resource_batch::d3d11_element_system_depth_360_point_hlsl::data);
+                I.Data = GET_RESOURCE_BATCH(d3d11_element_system_depth_360_point_hlsl);
 #else
                 THAWK_ERROR("element-system-depth-360-point.hlsl was not compiled");
 #endif
                 Shaders.CubicDepthPoint = (D3D11Shader*)Graphics::Shader::Create(System->GetDevice(), I);
 
 #ifdef HAS_D3D11_ELEMENT_SYSTEM_DEPTH_360_QUAD_HLSL
-                I.Data = reinterpret_cast<const char*>(resource_batch::d3d11_element_system_depth_360_quad_hlsl::data);
+                I.Data = GET_RESOURCE_BATCH(d3d11_element_system_depth_360_quad_hlsl);
 #else
                 THAWK_ERROR("element-system-depth-360-quad.hlsl was not compiled");
 #endif
@@ -739,8 +791,8 @@ namespace Tomahawk
                     Device->Render.WorldViewProjection = (ElementSystem->QuadBased ? View : System->GetScene()->View.ViewProjection);
                     Device->Render.TexCoord = ElementSystem->TexCoord;
                     Device->Render.SurfaceDiffuse = (float)(ElementSystem->Diffuse != nullptr);
-                    Device->Render.Diffusion.X = Material.Transmittance;
-                    Device->Render.Diffusion.Y = Material.Shadowness;
+					Device->Render.Diffusion.X = Material.Transmittance;
+					Device->Render.Diffusion.Y = Material.Shadowness;
 
                     if (ElementSystem->StrongConnection)
                         Device->Render.WorldViewProjection = ElementSystem->GetEntity()->Transform->GetWorld() * Device->Render.WorldViewProjection;
@@ -797,8 +849,8 @@ namespace Tomahawk
                     Device->Render.World = (ElementSystem->StrongConnection ? ElementSystem->GetEntity()->Transform->GetWorld() : Compute::Matrix4x4::Identity());
                     Device->Render.TexCoord = ElementSystem->TexCoord;
                     Device->Render.SurfaceDiffuse = (float)(ElementSystem->Diffuse != nullptr);
-                    Device->Render.Diffusion.X = Material.Transmittance;
-                    Device->Render.Diffusion.Y = Material.Shadowness;
+					Device->Render.Diffusion.X = Material.Transmittance;
+					Device->Render.Diffusion.Y = Material.Shadowness;
 
                     if (ElementSystem->Diffuse)
                         ElementSystem->Diffuse->Apply(Device, 1);
@@ -1109,17 +1161,17 @@ namespace Tomahawk
                 SpotLights = System->GetScene()->GetComponents<Engine::Components::SpotLight>();
                 LineLights = System->GetScene()->GetComponents<Engine::Components::LineLight>();
 
-                auto* RenderStages = System->GetRenderStages();
+                auto* RenderStages = System->GetRenderers();
                 for (auto It = RenderStages->begin(); It != RenderStages->end(); It++)
                 {
-                    if ((*It)->Id() == THAWK_COMPONENT_ID(Engine::Renderers::DepthRenderer))
+                    if ((*It)->Id() == THAWK_COMPONENT_ID(DepthRenderer))
                     {
                         Engine::Renderers::DepthRenderer* DepthRenderer = (*It)->As<Engine::Renderers::DepthRenderer>();
                         Quality.SpotLight = (float)DepthRenderer->Renderers.SpotLightResolution;
                         Quality.LineLight = (float)DepthRenderer->Renderers.LineLightResolution;
                     }
 
-                    if ((*It)->Id() == THAWK_COMPONENT_ID(Engine::Renderers::ProbeRenderer))
+                    if ((*It)->Id() == THAWK_COMPONENT_ID(ProbeRenderer))
                         ProbeLight.Mipping = (float)(*It)->As<Engine::Renderers::ProbeRenderer>()->MipLevels;
                 }
 
@@ -1482,7 +1534,7 @@ namespace Tomahawk
                 I.Layout = Graphics::Shader::GetShapeVertexLayout();
                 I.LayoutSize = 2;
 #ifdef HAS_D3D11_LIGHT_POINT_HLSL
-                I.Data = reinterpret_cast<const char*>(resource_batch::d3d11_light_point_hlsl::data);
+                I.Data = GET_RESOURCE_BATCH(d3d11_light_point_hlsl);
 #else
                 THAWK_ERROR("light-point.hlsl was not compiled");
 #endif
@@ -1490,7 +1542,7 @@ namespace Tomahawk
                 Shaders.PointLighting->ConstantData = &PointLight;
                 Shaders.Layout = Shaders.PointLighting->VertexLayout;
 #ifdef HAS_D3D11_LIGHT_POINT_SHADED_HLSL
-                I.Data = reinterpret_cast<const char*>(resource_batch::d3d11_light_point_shaded_hlsl::data);
+                I.Data = GET_RESOURCE_BATCH(d3d11_light_point_shaded_hlsl);
 #else
                 THAWK_ERROR("light-point-shaded.hlsl was not compiled");
 #endif
@@ -1505,7 +1557,7 @@ namespace Tomahawk
                 I.Layout = Graphics::Shader::GetShapeVertexLayout();
                 I.LayoutSize = 2;
 #ifdef HAS_D3D11_LIGHT_PROBE_HLSL
-                I.Data = reinterpret_cast<const char*>(resource_batch::d3d11_light_probe_hlsl::data);
+                I.Data = GET_RESOURCE_BATCH(d3d11_light_probe_hlsl);
 #else
                 THAWK_ERROR("light-probe.hlsl was not compiled");
 #endif
@@ -1521,7 +1573,7 @@ namespace Tomahawk
                 I.Layout = Graphics::Shader::GetShapeVertexLayout();
                 I.LayoutSize = 2;
 #ifdef HAS_D3D11_LIGHT_SPOT_HLSL
-                I.Data = reinterpret_cast<const char*>(resource_batch::d3d11_light_spot_hlsl::data);
+                I.Data = GET_RESOURCE_BATCH(d3d11_light_spot_hlsl);
 #else
                 THAWK_ERROR("light-spot.hlsl was not compiled");
 #endif
@@ -1529,7 +1581,7 @@ namespace Tomahawk
                 Shaders.SpotLighting->ConstantData = &SpotLight;
                 ReleaseCom(Shaders.SpotLighting->VertexLayout);
 #ifdef HAS_D3D11_LIGHT_SPOT_SHADED_HLSL
-                I.Data = reinterpret_cast<const char*>(resource_batch::d3d11_light_spot_shaded_hlsl::data);
+                I.Data = GET_RESOURCE_BATCH(d3d11_light_spot_shaded_hlsl);
 #else
                 THAWK_ERROR("light-spot-shaded.hlsl was not compiled");
 #endif
@@ -1544,7 +1596,7 @@ namespace Tomahawk
                 I.Layout = Graphics::Shader::GetShapeVertexLayout();
                 I.LayoutSize = 2;
 #ifdef HAS_D3D11_LIGHT_LINE_HLSL
-                I.Data = reinterpret_cast<const char*>(resource_batch::d3d11_light_line_hlsl::data);
+                I.Data = GET_RESOURCE_BATCH(d3d11_light_line_hlsl);
 #else
                 THAWK_ERROR("light-line.hlsl was not compiled");
 #endif
@@ -1552,7 +1604,7 @@ namespace Tomahawk
                 Shaders.LineLighting->ConstantData = &LineLight;
                 ReleaseCom(Shaders.LineLighting->VertexLayout);
 #ifdef HAS_D3D11_LIGHT_LINE_SHADED_HLSL
-                I.Data = reinterpret_cast<const char*>(resource_batch::d3d11_light_line_shaded_hlsl::data);
+                I.Data = GET_RESOURCE_BATCH(d3d11_light_line_shaded_hlsl);
 #else
                 THAWK_ERROR("light-line-shaded.hlsl was not compiled");
 #endif
@@ -1567,7 +1619,7 @@ namespace Tomahawk
                 I.Layout = Graphics::Shader::GetShapeVertexLayout();
                 I.LayoutSize = 2;
 #ifdef HAS_D3D11_LIGHT_AMBIENT_HLSL
-                I.Data = reinterpret_cast<const char*>(resource_batch::d3d11_light_ambient_hlsl::data);
+                I.Data = GET_RESOURCE_BATCH(d3d11_light_ambient_hlsl);
 #else
                 THAWK_ERROR("light-ambient.hlsl was not compiled");
 #endif
@@ -1593,10 +1645,10 @@ namespace Tomahawk
                 ReleaseCom(Input->RenderTargetView);
                 ReleaseCom(Input->DepthStencilView);
 
-                auto* RenderStages = System->GetRenderStages();
+                auto* RenderStages = System->GetRenderers();
                 for (auto It = RenderStages->begin(); It != RenderStages->end(); It++)
                 {
-                    if ((*It)->Id() != THAWK_COMPONENT_ID(Engine::Renderers::ProbeRenderer))
+                    if ((*It)->Id() != THAWK_COMPONENT_ID(ProbeRenderer))
                         continue;
 
                     Engine::Renderers::ProbeRenderer* ProbeRenderer = (*It)->As<Engine::Renderers::ProbeRenderer>();
@@ -1656,7 +1708,7 @@ namespace Tomahawk
                 Device->ImmediateContext->PSSetShaderResources(0, 1, &Empty);
             }
 
-            D3D11ReflectionsRenderer::D3D11ReflectionsRenderer(Engine::RenderSystem* Lab) : Engine::Renderers::ReflectionsRenderer(Lab), Offset(0)
+            D3D11ReflectionsRenderer::D3D11ReflectionsRenderer(Engine::RenderSystem* Lab) : Engine::Renderers::ReflectionsRenderer(Lab), Offset(0), Output(nullptr), Shader(nullptr)
             {
                 QuadVertex = System->VertexQuad()->As<D3D11ElementBuffer>();
                 Stride = sizeof(Compute::ShapeVertex);
@@ -1665,7 +1717,7 @@ namespace Tomahawk
                 Desc.Layout = Graphics::Shader::GetShapeVertexLayout();
                 Desc.LayoutSize = 2;
 #ifdef HAS_D3D11_REFLECTION_PASS_HLSL
-                Desc.Data = reinterpret_cast<const char*>(resource_batch::d3d11_reflection_pass_hlsl::data);
+                Desc.Data = GET_RESOURCE_BATCH(d3d11_reflection_pass_hlsl);
 #else
                 THAWK_ERROR("reflection-pass.hlsl was not compiled");
 #endif
@@ -1722,7 +1774,7 @@ namespace Tomahawk
                 ReleaseCom(Output->DepthStencilView);
             }
 
-            D3D11DepthOfFieldRenderer::D3D11DepthOfFieldRenderer(Engine::RenderSystem* Lab) : Engine::Renderers::DepthOfFieldRenderer(Lab), Offset(0)
+            D3D11DepthOfFieldRenderer::D3D11DepthOfFieldRenderer(Engine::RenderSystem* Lab) : Engine::Renderers::DepthOfFieldRenderer(Lab), Offset(0), Output(nullptr), Shader(nullptr)
             {
                 QuadVertex = System->VertexQuad()->As<D3D11ElementBuffer>();
                 Stride = sizeof(Compute::ShapeVertex);
@@ -1731,7 +1783,7 @@ namespace Tomahawk
                 Desc.Layout = Graphics::Shader::GetShapeVertexLayout();
                 Desc.LayoutSize = 2;
 #ifdef HAS_D3D11_DOF_PASS_HLSL
-                Desc.Data = reinterpret_cast<const char*>(resource_batch::d3d11_dof_pass_hlsl::data);
+                Desc.Data = GET_RESOURCE_BATCH(d3d11_dof_pass_hlsl);
 #else
                 THAWK_ERROR("dof-pass.hlsl was not compiled");
 #endif
@@ -1797,7 +1849,7 @@ namespace Tomahawk
                 ReleaseCom(Output->DepthStencilView);
             }
 
-            D3D11EmissionRenderer::D3D11EmissionRenderer(Engine::RenderSystem* Lab) : Engine::Renderers::EmissionRenderer(Lab), Offset(0)
+            D3D11EmissionRenderer::D3D11EmissionRenderer(Engine::RenderSystem* Lab) : Engine::Renderers::EmissionRenderer(Lab), Offset(0), Output(nullptr), Shader(nullptr)
             {
                 QuadVertex = System->VertexQuad()->As<D3D11ElementBuffer>();
                 Stride = sizeof(Compute::ShapeVertex);
@@ -1806,7 +1858,7 @@ namespace Tomahawk
                 Desc.Layout = Graphics::Shader::GetShapeVertexLayout();
                 Desc.LayoutSize = 2;
 #ifdef HAS_D3D11_EMISSION_PASS_HLSL
-                Desc.Data = reinterpret_cast<const char*>(resource_batch::d3d11_emission_pass_hlsl::data);
+                Desc.Data = GET_RESOURCE_BATCH(d3d11_emission_pass_hlsl);
 #else
                 THAWK_ERROR("emission-pass.hlsl was not compiled");
 #endif
@@ -1869,7 +1921,7 @@ namespace Tomahawk
                 ReleaseCom(Output->DepthStencilView);
             }
 
-            D3D11GlitchRenderer::D3D11GlitchRenderer(Engine::RenderSystem* Lab) : Engine::Renderers::GlitchRenderer(Lab), Offset(0)
+            D3D11GlitchRenderer::D3D11GlitchRenderer(Engine::RenderSystem* Lab) : Engine::Renderers::GlitchRenderer(Lab), Offset(0), Output(nullptr), Shader(nullptr)
             {
                 QuadVertex = System->VertexQuad()->As<D3D11ElementBuffer>();
                 Stride = sizeof(Compute::ShapeVertex);
@@ -1878,7 +1930,7 @@ namespace Tomahawk
                 Desc.Layout = Graphics::Shader::GetShapeVertexLayout();
                 Desc.LayoutSize = 2;
 #ifdef HAS_D3D11_GLITCH_PASS_HLSL
-                Desc.Data = reinterpret_cast<const char*>(resource_batch::d3d11_glitch_pass_hlsl::data);
+                Desc.Data = GET_RESOURCE_BATCH(d3d11_glitch_pass_hlsl);
 #else
                 THAWK_ERROR("glitch-pass.hlsl was not compiled");
 #endif
@@ -1946,7 +1998,7 @@ namespace Tomahawk
                 ReleaseCom(Output->DepthStencilView);
             }
 
-            D3D11AmbientOcclusionRenderer::D3D11AmbientOcclusionRenderer(Engine::RenderSystem* Lab) : Engine::Renderers::AmbientOcclusionRenderer(Lab), Offset(0)
+            D3D11AmbientOcclusionRenderer::D3D11AmbientOcclusionRenderer(Engine::RenderSystem* Lab) : Engine::Renderers::AmbientOcclusionRenderer(Lab), Offset(0), Output(nullptr), Shader(nullptr)
             {
                 QuadVertex = System->VertexQuad()->As<D3D11ElementBuffer>();
                 Stride = sizeof(Compute::ShapeVertex);
@@ -1955,7 +2007,7 @@ namespace Tomahawk
                 Desc.Layout = Graphics::Shader::GetShapeVertexLayout();
                 Desc.LayoutSize = 2;
 #ifdef HAS_D3D11_SSAO_PASS_HLSL
-                Desc.Data = reinterpret_cast<const char*>(resource_batch::d3d11_ssao_pass_hlsl::data);
+                Desc.Data = GET_RESOURCE_BATCH(d3d11_ssao_pass_hlsl);
 #else
                 THAWK_ERROR("ssao-pass.hlsl was not compiled");
 #endif
@@ -2013,7 +2065,7 @@ namespace Tomahawk
                 ReleaseCom(Output->DepthStencilView);
             }
 
-            D3D11IndirectOcclusionRenderer::D3D11IndirectOcclusionRenderer(Engine::RenderSystem* Lab) : Engine::Renderers::IndirectOcclusionRenderer(Lab), Offset(0)
+            D3D11IndirectOcclusionRenderer::D3D11IndirectOcclusionRenderer(Engine::RenderSystem* Lab) : Engine::Renderers::IndirectOcclusionRenderer(Lab), Offset(0), Output(nullptr), Shader(nullptr)
             {
                 QuadVertex = System->VertexQuad()->As<D3D11ElementBuffer>();
                 Stride = sizeof(Compute::ShapeVertex);
@@ -2022,7 +2074,7 @@ namespace Tomahawk
                 Desc.Layout = Graphics::Shader::GetShapeVertexLayout();
                 Desc.LayoutSize = 2;
 #ifdef HAS_D3D11_SSIO_PASS_HLSL
-                Desc.Data = reinterpret_cast<const char*>(resource_batch::d3d11_ssio_pass_hlsl::data);
+                Desc.Data = GET_RESOURCE_BATCH(d3d11_ssio_pass_hlsl);
 #else
                 THAWK_ERROR("ssio-pass.hlsl was not compiled");
 #endif
@@ -2080,7 +2132,7 @@ namespace Tomahawk
                 ReleaseCom(Output->DepthStencilView);
             }
 
-            D3D11ToneRenderer::D3D11ToneRenderer(Engine::RenderSystem* Lab) : Engine::Renderers::ToneRenderer(Lab), Offset(0)
+            D3D11ToneRenderer::D3D11ToneRenderer(Engine::RenderSystem* Lab) : Engine::Renderers::ToneRenderer(Lab), Offset(0), Output(nullptr), Shader(nullptr)
             {
                 QuadVertex = System->VertexQuad()->As<D3D11ElementBuffer>();
                 Stride = sizeof(Compute::ShapeVertex);
@@ -2089,7 +2141,7 @@ namespace Tomahawk
                 Desc.Layout = Graphics::Shader::GetShapeVertexLayout();
                 Desc.LayoutSize = 2;
 #ifdef HAS_D3D11_TONE_PASS_HLSL
-                Desc.Data = reinterpret_cast<const char*>(resource_batch::d3d11_tone_pass_hlsl::data);
+                Desc.Data = GET_RESOURCE_BATCH(d3d11_tone_pass_hlsl);
 #else
                 THAWK_ERROR("tone-pass.hlsl was not compiled");
 #endif
@@ -2162,22 +2214,17 @@ namespace Tomahawk
                 DepthStencilState = nullptr;
                 VertexBufferSize = 5000;
                 IndexBufferSize = 10000;
-                Context = (void*)ImGui::CreateContext();
-                ImGuiIO& Input = ImGui::GetIO();
-                Input.RenderDrawListsFn = (void (*)(ImDrawData*))DrawList;
-                Reset();
-                Activate();
 
 #ifdef HAS_D3D11_GUI_GBUFFER_HLSL
-                const char* ShaderCode = reinterpret_cast<const char*>(resource_batch::d3d11_gui_gbuffer_hlsl::data);
+                std::string ShaderCode = GET_RESOURCE_BATCH(d3d11_gui_gbuffer_hlsl);
 #else
-                const char* ShaderCode = nullptr;
+				std::string ShaderCode;
                 THAWK_ERROR("gui-gbuffer.hlsl was not compiled");
                 return;
 #endif
 
                 D3D11Device* Device = Lab->GetDevice()->As<D3D11Device>();
-                D3DCompile(ShaderCode, strlen(ShaderCode), nullptr, nullptr, nullptr, "VS", Device->GetVSProfile(), 0, 0, &VertexShaderBlob, nullptr);
+                D3DCompile(ShaderCode.c_str(), ShaderCode.size(), nullptr, nullptr, nullptr, "VS", Device->GetVSProfile(), 0, 0, &VertexShaderBlob, nullptr);
                 if (VertexShaderBlob == nullptr)
                 {
                     THAWK_ERROR("couldn't compile vertex shader");
@@ -2191,7 +2238,6 @@ namespace Tomahawk
                 }
 
                 D3D11_INPUT_ELEMENT_DESC Layout[] = {{ "POSITION", 0, DXGI_FORMAT_R32G32_FLOAT, 0, (size_t)(&((ImDrawVert*)0)->pos), D3D11_INPUT_PER_VERTEX_DATA, 0 }, { "TEXCOORD", 0, DXGI_FORMAT_R32G32_FLOAT, 0, (size_t)(&((ImDrawVert*)0)->uv), D3D11_INPUT_PER_VERTEX_DATA, 0 }, { "COLOR", 0, DXGI_FORMAT_R8G8B8A8_UNORM, 0, (size_t)(&((ImDrawVert*)0)->col), D3D11_INPUT_PER_VERTEX_DATA, 0 }, };
-
                 if (Device->D3DDevice->CreateInputLayout(Layout, 3, VertexShaderBlob->GetBufferPointer(), VertexShaderBlob->GetBufferSize(), &InputLayout) != S_OK)
                 {
                     THAWK_ERROR("couldn't create input layout");
@@ -2206,7 +2252,7 @@ namespace Tomahawk
                 BufferDESC.MiscFlags = 0;
                 Device->D3DDevice->CreateBuffer(&BufferDESC, nullptr, &VertexConstantBuffer);
 
-                D3DCompile(ShaderCode, strlen(ShaderCode), nullptr, nullptr, nullptr, "PS", Device->GetPSProfile(), 0, 0, &PixelShaderBlob, nullptr);
+                D3DCompile(ShaderCode.c_str(), ShaderCode.size(), nullptr, nullptr, nullptr, "PS", Device->GetPSProfile(), 0, 0, &PixelShaderBlob, nullptr);
                 if (PixelShaderBlob == nullptr)
                 {
                     THAWK_ERROR("couldn't compile pixel shader");
@@ -2253,8 +2299,7 @@ namespace Tomahawk
 
                 unsigned char* Pixels = nullptr;
                 int Width = 0, Height = 0;
-
-                Input.Fonts->GetTexDataAsRGBA32(&Pixels, &Width, &Height);
+				GetFontAtlas(&Pixels, &Width, &Height);
 
                 D3D11_TEXTURE2D_DESC Texture2DDESC;
                 ZeroMemory(&Texture2DDESC, sizeof(Texture2DDESC));
@@ -2284,8 +2329,6 @@ namespace Tomahawk
                 Device->As<D3D11Device>()->D3DDevice->CreateShaderResourceView(Texture, &ShaderResourceViewDESC, &FontTextureView);
                 ReleaseCom(Texture);
 
-                Input.Fonts->TexID = (void*)FontTextureView;
-
                 D3D11_SAMPLER_DESC SamplerDESC;
                 ZeroMemory(&SamplerDESC, sizeof(SamplerDESC));
                 SamplerDESC.Filter = D3D11_FILTER_MIN_MAG_MIP_LINEAR;
@@ -2297,6 +2340,8 @@ namespace Tomahawk
                 SamplerDESC.MinLOD = 0.f;
                 SamplerDESC.MaxLOD = 0.f;
                 Device->As<D3D11Device>()->D3DDevice->CreateSamplerState(&SamplerDESC, &FontSamplerState);
+
+				Restore((void*)FontTextureView, (void*)DrawList);
             }
             D3D11GUIRenderer::~D3D11GUIRenderer()
             {
@@ -2313,9 +2358,6 @@ namespace Tomahawk
                 ReleaseCom(InputLayout);
                 ReleaseCom(VertexShader);
                 ReleaseCom(VertexShaderBlob);
-
-                Deactivate();
-                ImGui::DestroyContext((ImGuiContext*)Context);
             }
             void D3D11GUIRenderer::DrawList(void* Context)
             {
@@ -2431,10 +2473,12 @@ namespace Tomahawk
                 Viewport.TopLeftX = Viewport.TopLeftY = 0.0f;
                 Device->ImmediateContext->RSSetViewports(1, &Viewport);
 
+				FLOAT Color[4] = { 0.0f };
                 unsigned int Stride = sizeof(ImDrawVert);
                 unsigned int Offset = 0;
 
-                Device->ImmediateContext->IASetInputLayout(RefLink->InputLayout);
+				RefLink->System->GetScene()->GetSurface()->Apply(RefLink->System->GetDevice(), 0);
+				Device->ImmediateContext->IASetInputLayout(RefLink->InputLayout);
                 Device->ImmediateContext->IASetVertexBuffers(0, 1, &RefLink->VertexBuffer, &Stride, &Offset);
                 Device->ImmediateContext->IASetIndexBuffer(RefLink->IndexBuffer, sizeof(ImDrawIdx) == 2 ? DXGI_FORMAT_R16_UINT : DXGI_FORMAT_R32_UINT, 0);
                 Device->ImmediateContext->IASetPrimitiveTopology(D3D11_PRIMITIVE_TOPOLOGY_TRIANGLELIST);
@@ -2471,7 +2515,7 @@ namespace Tomahawk
                     VTXOffset += CommandList->VtxBuffer.Size;
                 }
 
-                Device->ImmediateContext->RSSetScissorRects(State.ScissorRectsCount, State.ScissorRects);
+				Device->ImmediateContext->RSSetScissorRects(State.ScissorRectsCount, State.ScissorRects);
                 Device->ImmediateContext->RSSetViewports(State.ViewportsCount, State.Viewports);
                 Device->ImmediateContext->RSSetState(State.RasterState);
                 if (State.RasterState)

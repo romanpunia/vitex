@@ -1654,14 +1654,6 @@ namespace Tomahawk
         void Component::OnEvent(Event* Value)
         {
         }
-        const char* Component::Name()
-        {
-            return "Component";
-        }
-        UInt64 Component::Id()
-        {
-            return (UInt64)typeid(Component).hash_code();
-        }
         Component* Component::OnClone(Entity* New)
         {
             Component* Target = new Engine::Component(New);
@@ -1700,14 +1692,6 @@ namespace Tomahawk
         bool Component::IsActive()
         {
             return Active;
-        }
-        const char* Component::BaseName()
-        {
-            return "Component";
-        }
-        UInt64 Component::BaseId()
-        {
-            return (UInt64)typeid(Component).hash_code();
         }
 
         Entity::Entity(SceneGraph* Ref) : Scene(Ref), Tag(-1), Self(-1)
@@ -1871,15 +1855,6 @@ namespace Tomahawk
         void Renderer::OnRelease()
         {
         }
-        const char* Renderer::Name()
-        {
-            return "Component";
-        }
-        UInt64 Renderer::Id()
-        {
-            std::hash<std::string> H;
-            return (UInt64)H("Component");
-        }
         void Renderer::SetRenderer(RenderSystem* NewSystem)
         {
             System = NewSystem;
@@ -1902,15 +1877,6 @@ namespace Tomahawk
         RenderSystem* Renderer::GetRenderer()
         {
             return System;
-        }
-        const char* Renderer::BaseName()
-        {
-            return "Component";
-        }
-        UInt64 Renderer::BaseId()
-        {
-            std::hash<std::string> H;
-            return (UInt64)H("Component");
         }
 
         IntervalRenderer::IntervalRenderer(RenderSystem* Lab) : Renderer(Lab)
@@ -2108,18 +2074,14 @@ namespace Tomahawk
             if (!In)
                 return nullptr;
 
-            for (auto&& RenderStage : RenderStages)
+            for (auto It = RenderStages.begin(); It != RenderStages.end(); It++)
             {
-                if (RenderStage && RenderStage->Id() == In->Id())
+                if (*It && (*It)->Id() == In->Id())
                 {
-                    RenderStage->OnRelease();
-                    delete RenderStage;
-
-                    In->SetRenderer(this);
-                    In->OnInitialize();
-                    RenderStage = In;
-
-                    return In;
+					(*It)->OnRelease();
+                    delete (*It);
+					RenderStages.erase(It);
+					break;
                 }
             }
 
@@ -2151,7 +2113,7 @@ namespace Tomahawk
         {
             return SphereIndex;
         }
-        std::vector<Renderer*>* RenderSystem::GetRenderStages()
+        std::vector<Renderer*>* RenderSystem::GetRenderers()
         {
             return &RenderStages;
         }
@@ -2224,29 +2186,36 @@ namespace Tomahawk
         }
         void SceneGraph::Render(Rest::Timer* Time)
         {
-            BeginThread(ThreadId_Render);
-            if (Camera != nullptr)
-            {
-                Camera->As<Components::Camera>()->FillViewer(&View);
-                Conf.Device->View.InvViewProjection = View.InvViewProjection;
-                Conf.Device->View.ViewPosition = View.Position.MtVector4();
-                Conf.Device->SendBufferStream(Graphics::RenderBufferType_View);
-
-                Structure->RemapSubresource(Conf.Device, Materials.data(), Materials.size() * sizeof(Graphics::Material));
-                Structure->Apply(Conf.Device, 0);
-                Surface->Apply(Conf.Device, 0, 0, 0);
-
-                auto* RenderStages = View.Renderer->GetRenderStages();
-                for (auto It = RenderStages->begin(); It != RenderStages->end(); It++)
-                {
-                    if ((*It)->Active)
-                        (*It)->OnRender(Time);
-                }
-
-                Conf.Device->GetRenderTarget()->Apply(Conf.Device);
-            }
-            EndThread(ThreadId_Render);
+			RenderInject(Time, nullptr);
         }
+		void SceneGraph::RenderInject(Rest::Timer* Time, const RenderCallback& Callback)
+		{
+			BeginThread(ThreadId_Render);
+			if (Camera != nullptr)
+			{
+				Camera->As<Components::Camera>()->FillViewer(&View);
+				Conf.Device->View.InvViewProjection = View.InvViewProjection;
+				Conf.Device->View.ViewPosition = View.Position.MtVector4();
+				Conf.Device->SendBufferStream(Graphics::RenderBufferType_View);
+
+				Structure->RemapSubresource(Conf.Device, Materials.data(), Materials.size() * sizeof(Graphics::Material));
+				Structure->Apply(Conf.Device, 0);
+				Surface->Apply(Conf.Device, 0, 0, 0);
+
+				auto* RenderStages = View.Renderer->GetRenderers();
+				for (auto It = RenderStages->begin(); It != RenderStages->end(); It++)
+				{
+					if ((*It)->Active)
+						(*It)->OnRender(Time);
+				}
+
+				if (Callback)
+					Callback(Time, &View);
+
+				Conf.Device->GetRenderTarget()->Apply(Conf.Device);
+			}
+			EndThread(ThreadId_Render);
+		}
         void SceneGraph::Simulation(Rest::Timer* Time)
         {
             BeginThread(ThreadId_Simulation);
@@ -2300,7 +2269,7 @@ namespace Tomahawk
             if (!View.Renderer)
                 return;
 
-            auto* RenderStages = View.Renderer->GetRenderStages();
+            auto* RenderStages = View.Renderer->GetRenderers();
             for (auto It = RenderStages->begin(); It != RenderStages->end(); It++)
             {
                 if ((*It)->Active && (*It)->Priority)
@@ -2321,7 +2290,7 @@ namespace Tomahawk
             if (!View.Renderer)
                 return;
 
-            auto* RenderStages = View.Renderer->GetRenderStages();
+            auto* RenderStages = View.Renderer->GetRenderers();
             for (auto It = RenderStages->begin(); It != RenderStages->end(); It++)
             {
                 if ((*It)->Active && (*It)->Priority)
@@ -2340,7 +2309,7 @@ namespace Tomahawk
             RestoreViewBuffer(&View);
 
             Surface->Apply(Conf.Device, 0, 0, 0);
-            auto* RenderStages = View.Renderer->GetRenderStages();
+            auto* RenderStages = View.Renderer->GetRenderers();
             for (auto It = RenderStages->begin(); It != RenderStages->end(); It++)
             {
                 if ((*It)->Active && (*It)->Priority)
@@ -2496,7 +2465,6 @@ namespace Tomahawk
                 Pending.Remove(Component.second);
             }
 
-            Entity->SetScene(nullptr);
             Entities.Remove(Entity);
             return true;
         }
@@ -2695,7 +2663,7 @@ namespace Tomahawk
                 delete Surface;
                 Surface = Graphics::MultiRenderTarget2D::Create(Conf.Device, F);
 
-                auto* Array = GetComponents(THAWK_COMPONENT_ID(Components::Camera));
+                auto* Array = GetComponents(THAWK_COMPONENT_ID(Camera));
                 for (auto It = Array->Begin(); It != Array->End(); It++)
                     (*It)->As<Components::Camera>()->ResizeBuffers();
 
@@ -3375,8 +3343,8 @@ namespace Tomahawk
                 {
                     SDL_DisplayMode Display;
                     SDL_GetCurrentDisplayMode(0, &Display);
-                    I->Activity.Width = Display.w;
-                    I->Activity.Height = Display.h;
+                    I->Activity.Width = Display.w / 1.1;
+                    I->Activity.Height = Display.h / 1.2;
                 }
 
                 if (I->Activity.Width > 0 && I->Activity.Height > 0)
@@ -3385,45 +3353,27 @@ namespace Tomahawk
                     Activity->UserPointer = this;
                     Activity->Callbacks.KeyState = [this](Graphics::KeyCode Key, Graphics::KeyMod Mod, int Virtual, int Repeat, bool Pressed)
                     {
+						auto* GUI = (Renderers::GUI::Interface*)GetAnyGUI();
+						if (GUI != nullptr)
+							GUI->ApplyKeyState(Key, Mod, Virtual, Repeat, Pressed);
+
                         OnKeyState(Key, Mod, Virtual, Repeat, Pressed);
-                        if (!Scene)
-                            return;
-
-                        RenderSystem* Lab = Scene->GetRenderer();
-                        if (!Lab)
-                            return;
-
-                        Renderers::GUIRenderer* GUI = Lab->GetRenderer<Renderers::GUIRenderer>();
-                        if (GUI != nullptr)
-                            GUI->GetTree()->ApplyKeyState(Key, Mod, Virtual, Repeat, Pressed);
                     };
                     Activity->Callbacks.Input = [this](char* Buffer, int Length)
                     {
+						auto* GUI = (Renderers::GUI::Interface*)GetAnyGUI();
+						if (GUI != nullptr)
+							GUI->ApplyInput(Buffer, Length);
+
                         OnInput(Buffer, Length);
-                        if (!Scene)
-                            return;
-
-                        RenderSystem* Lab = Scene->GetRenderer();
-                        if (!Lab)
-                            return;
-
-                        Renderers::GUIRenderer* GUI = Lab->GetRenderer<Renderers::GUIRenderer>();
-                        if (GUI != nullptr)
-                            GUI->GetTree()->ApplyInput(Buffer, Length);
                     };
                     Activity->Callbacks.CursorWheelState = [this](int X, int Y, bool Normal)
                     {
+						auto* GUI = (Renderers::GUI::Interface*)GetAnyGUI();
+						if (GUI != nullptr)
+							GUI->ApplyCursorWheelState(X, Y, Normal);
+
                         OnCursorWheelState(X, Y, Normal);
-                        if (!Scene)
-                            return;
-
-                        RenderSystem* Lab = Scene->GetRenderer();
-                        if (!Lab)
-                            return;
-
-                        Renderers::GUIRenderer* GUI = Lab->GetRenderer<Renderers::GUIRenderer>();
-                        if (GUI != nullptr)
-                            GUI->GetTree()->ApplyCursorWheelState(X, Y, Normal);
                     };
                     Activity->Callbacks.WindowStateChange = [this](Graphics::WindowState NewState, int X, int Y)
                     {
@@ -3442,8 +3392,10 @@ namespace Tomahawk
                         I->GraphicsDevice.Window = Activity;
 
                         Renderer = Graphics::GraphicsDevice::Create(I->GraphicsDevice);
-                        if (!Renderer)
+                        if (!Renderer || !Renderer->IsValid())
                         {
+							delete Renderer;
+							Renderer = nullptr;
                             THAWK_ERROR("graphics device cannot be created");
                             return;
                         }
@@ -3454,12 +3406,17 @@ namespace Tomahawk
             }
 #endif
 
-            if (I->Usage & ApplicationUse_Audio_Module)
-            {
-                Audio = new Audio::AudioDevice();
-                if (!Audio->IsValid())
-                    return;
-            }
+			if (I->Usage & ApplicationUse_Audio_Module)
+			{
+				Audio = new Audio::AudioDevice();
+				if (!Audio->IsValid())
+				{
+					delete Audio;
+					Audio = nullptr;
+					THAWK_ERROR("audio device cannot be created");
+					return;
+				}
+			}
 
             if (I->Usage & ApplicationUse_Content_Module)
             {
@@ -3508,7 +3465,7 @@ namespace Tomahawk
         void Application::OnWindowState(Graphics::WindowState NewState, int X, int Y)
         {
         }
-        void Application::OnInteract(Engine::Renderer* GUI)
+        void Application::OnInteract(Engine::Renderer* GUI, Rest::Timer* Time)
         {
         }
         void Application::OnRender(Rest::Timer* Time)
@@ -3523,7 +3480,34 @@ namespace Tomahawk
         void Application::Run(Desc* I)
         {
             if (!I || !Queue)
-                return;
+			{
+				THAWK_ERROR("(CONF): event queue was not found");
+				return;
+			}
+
+			if (I->Usage & ApplicationUse_Activity_Module && !Activity)
+			{
+				THAWK_ERROR("(CONF): activity was not found");
+				return;
+			}
+
+			if (I->Usage & ApplicationUse_Graphics_Module && !Renderer)
+			{
+				THAWK_ERROR("(CONF): graphics device was not found");
+				return;
+			}
+
+			if (I->Usage & ApplicationUse_Audio_Module && !Audio)
+			{
+				THAWK_ERROR("(CONF): audio device was not found");
+				return;
+			}
+
+			if (I->Usage & ApplicationUse_AngelScript_Module && !VM)
+			{
+				THAWK_ERROR("(CONF): VM was not found");
+				return;
+			}
 
             OnInitialize(I);
             if (State == ApplicationState_Terminated)
@@ -3617,6 +3601,37 @@ namespace Tomahawk
 
             Queue->Task<ThreadEvent>(Call, Callee);
         }
+		void* Application::GetCurrentGUI()
+		{
+			if (!Scene)
+				return nullptr;
+
+			Components::Camera* BaseCamera = (Components::Camera*)Scene->GetCamera();
+			if (!BaseCamera)
+				return nullptr;
+
+			Renderers::GUIRenderer* BaseGui = BaseCamera->Renderer->GetRenderer<Renderers::GUIRenderer>();
+			if (!BaseGui || !BaseGui->IsTreeActive())
+				return nullptr;
+
+			return BaseGui->GetTree();
+		}
+		void* Application::GetAnyGUI()
+		{
+			if (!Scene)
+				return nullptr;
+
+			Components::Camera* BaseCamera = (Components::Camera*)Scene->GetCamera();
+			if (!BaseCamera)
+				return nullptr;
+
+			Renderers::GUIRenderer* BaseGui = BaseCamera->Renderer->GetRenderer<Renderers::GUIRenderer>();
+			if (!BaseGui)
+				return nullptr;
+
+			return BaseGui->GetTree();
+		}
+
         void Application::Callee(Rest::EventQueue* Queue, Rest::EventArgs* Args)
         {
             ThreadEvent* Data = Args->Get<ThreadEvent>();

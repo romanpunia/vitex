@@ -6,18 +6,24 @@
 #include "script.h"
 #include <atomic>
 #include <cstdarg>
-#define THAWK_COMPONENT_ID(ClassName) (UInt64)typeid(ClassName).hash_code()
+#define THAWK_COMPONENT_ID(ClassName) (UInt64)std::hash<std::string>()(#ClassName)
 #define THAWK_COMPONENT(ClassName) \
-virtual const char* Name() override { return #ClassName; } \
-virtual UInt64 Id() override { return THAWK_COMPONENT_ID(ClassName); } \
-static const char* BaseName() { return #ClassName; } \
-static UInt64 BaseId() { return THAWK_COMPONENT_ID(ClassName); }
+virtual const char* Name() override { static const char* V = #ClassName; return V; } \
+virtual UInt64 Id() override { static UInt64 V = THAWK_COMPONENT_ID(ClassName); return V; } \
+static const char* BaseName() { static const char* V = #ClassName; return V; } \
+static UInt64 BaseId() { static UInt64 V = THAWK_COMPONENT_ID(ClassName); return V; }
+#define THAWK_COMPONENT_BASIS(ClassName) \
+virtual const char* Name() { static const char* V = #ClassName; return V; } \
+virtual UInt64 Id() { static UInt64 V = THAWK_COMPONENT_ID(ClassName); return V; } \
+static const char* BaseName() { static const char* V = #ClassName; return V; } \
+static UInt64 BaseId() { static UInt64 V = THAWK_COMPONENT_ID(ClassName); return V; }
 
 namespace Tomahawk
 {
     namespace Engine
     {
         typedef std::unordered_map<std::string, struct ContentKey> ContentMap;
+		typedef std::function<void(Rest::Timer*, struct Viewer*)> RenderCallback;
 
         class SceneGraph;
 
@@ -331,16 +337,13 @@ namespace Tomahawk
             virtual void OnSynchronize(Rest::Timer* Time);
             virtual void OnUpdate(Rest::Timer* Time);
             virtual void OnEvent(Event* Value);
-            virtual const char* Name();
-            virtual UInt64 Id();
             virtual Component* OnClone(Entity* New);
             Entity* GetEntity();
             void SetActive(bool Enabled);
             bool IsActive();
 
         public:
-            static const char* BaseName();
-            static UInt64 BaseId();
+			THAWK_COMPONENT_BASIS(Component);
         };
 
         class THAWK_OUT Entity : public Rest::Object
@@ -419,17 +422,14 @@ namespace Tomahawk
             virtual void OnCubicDepthRender(Rest::Timer* TimeStep, Compute::Matrix4x4* ViewProjection);
             virtual void OnPhaseRender(Rest::Timer* TimeStep);
             virtual void OnRelease();
-            virtual const char* Name();
-            virtual UInt64 Id();
             void SetRenderer(RenderSystem* NewSystem);
             void RenderCubicDepth(Rest::Timer* Time, Compute::Matrix4x4 Projection, Compute::Vector4 Position);
             void RenderDepth(Rest::Timer* Time, Compute::Matrix4x4 View, Compute::Matrix4x4 Projection, Compute::Vector4 Position);
             void RenderPhase(Rest::Timer* Time, Compute::Matrix4x4 View, Compute::Matrix4x4 Projection, Compute::Vector4 Position);
             RenderSystem* GetRenderer();
 
-        public:
-            static const char* BaseName();
-            static UInt64 BaseId();
+		public:
+			THAWK_COMPONENT_BASIS(Renderer);
         };
 
         class THAWK_OUT IntervalRenderer : public Renderer
@@ -493,7 +493,7 @@ namespace Tomahawk
             Graphics::ElementBuffer* VertexQuad();
             Graphics::ElementBuffer* VertexSphere();
             Graphics::ElementBuffer* IndexSphere();
-            std::vector<Renderer*>* GetRenderStages();
+            std::vector<Renderer*>* GetRenderers();
             Graphics::GraphicsDevice* GetDevice();
             SceneGraph* GetScene();
 
@@ -503,10 +503,10 @@ namespace Tomahawk
             {
                 RemoveRenderer(In::BaseId());
             }
-            template <typename In>
-            In* AddRenderer()
+            template <typename In, typename... Args>
+            In* AddRenderer(Args&&... Data)
             {
-                return (In*)AddRenderer(new In(this));
+                return (In*)AddRenderer(In::Create(this, Data...));
             }
             template <typename In>
             In* GetRenderer()
@@ -571,6 +571,7 @@ namespace Tomahawk
             virtual ~SceneGraph() override;
             void Configure(const Desc& Conf);
             void Render(Rest::Timer* Time);
+			void RenderInject(Rest::Timer* Time, const RenderCallback& Callback);
             void Update(Rest::Timer* Time);
             void Simulation(Rest::Timer* Time);
             void Synchronize(Rest::Timer* Time);
@@ -834,13 +835,15 @@ namespace Tomahawk
             virtual void OnInput(char* Buffer, int Length);
             virtual void OnCursorWheelState(int X, int Y, bool Normal);
             virtual void OnWindowState(Graphics::WindowState NewState, int X, int Y);
-            virtual void OnInteract(Engine::Renderer* GUI);
+            virtual void OnInteract(Engine::Renderer* GUI, Rest::Timer* Time);
             virtual void OnRender(Rest::Timer* Time);
             virtual void OnUpdate(Rest::Timer* Time);
             virtual void OnInitialize(Desc* I);
             void Run(Desc* I);
             void Restate(ApplicationState Value);
             void Enqueue(const std::function<void(Rest::Timer * )>& Callback, Float64 Limit = 0);
+			void* GetCurrentGUI();
+			void* GetAnyGUI();
 
         private:
             static void Callee(Rest::EventQueue* Queue, Rest::EventArgs* Args);

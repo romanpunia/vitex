@@ -906,7 +906,6 @@ namespace Tomahawk
                 {
                     ReleaseCom(Texture[i]);
                     ReleaseCom(RenderTargetView[i]);
-                    delete Resource[i];
                 }
             }
             void D3D11MultiRenderTarget2D::Apply(Graphics::GraphicsDevice* Device, int Target, float R, float G, float B)
@@ -1128,7 +1127,7 @@ namespace Tomahawk
                 ReleaseCom(DepthStencilView);
 
                 for (int i = 0; i < RenderTargetView.size(); i++)
-                ReleaseCom(RenderTargetView[i]);
+					ReleaseCom(RenderTargetView[i]);
             }
             void D3D11RenderTarget2DArray::Apply(Graphics::GraphicsDevice* Device, int Target, float R, float G, float B)
             {
@@ -2085,19 +2084,24 @@ namespace Tomahawk
                 Primitives = DrawTopology;
             }
 
-            D3D11Device::D3D11Device(const Desc& I) : Graphics::GraphicsDevice(I)
+            D3D11Device::D3D11Device(const Desc& I) : Graphics::GraphicsDevice(I), ImmediateContext(nullptr), SwapChain(nullptr), D3DDevice(nullptr)
             {
                 DriverType = D3D_DRIVER_TYPE_HARDWARE;
                 FeatureLevel = D3D_FEATURE_LEVEL_11_0;
+				ConstantBuffer[0] = nullptr;
+				ConstantBuffer[1] = nullptr;
+				ConstantBuffer[2] = nullptr;
 
                 unsigned int CreationFlags = I.CreationFlags;
                 CreationFlags |= D3D11_CREATE_DEVICE_DISABLE_GPU_TIMEOUT;
                 CreationFlags |= D3D11_CREATE_DEVICE_SINGLETHREADED;
 
-                D3D_FEATURE_LEVEL FeatureLevels[] = { D3D_FEATURE_LEVEL_11_0, D3D_FEATURE_LEVEL_10_1, D3D_FEATURE_LEVEL_10_0, D3D_FEATURE_LEVEL_9_3, D3D_FEATURE_LEVEL_9_2, D3D_FEATURE_LEVEL_9_1, };
+                if (I.Debug)
+                    CreationFlags |= D3D11_CREATE_DEVICE_DEBUG;
 
+                D3D_FEATURE_LEVEL FeatureLevels[] = { D3D_FEATURE_LEVEL_11_0, D3D_FEATURE_LEVEL_10_1, D3D_FEATURE_LEVEL_10_0, D3D_FEATURE_LEVEL_9_3, D3D_FEATURE_LEVEL_9_2, D3D_FEATURE_LEVEL_9_1, };
                 ZeroMemory(&SwapChainResource, sizeof(SwapChainResource));
-                SwapChainResource.BufferCount = 1;
+                SwapChainResource.BufferCount = 2;
                 SwapChainResource.BufferDesc.Width = I.BufferWidth;
                 SwapChainResource.BufferDesc.Height = I.BufferHeight;
                 SwapChainResource.BufferDesc.Format = (DXGI_FORMAT)I.BufferFormat;
@@ -2110,7 +2114,7 @@ namespace Tomahawk
                 SwapChainResource.Flags = 0;
                 SwapChainResource.BufferDesc.ScanlineOrdering = DXGI_MODE_SCANLINE_ORDER_UNSPECIFIED;
                 SwapChainResource.BufferDesc.Scaling = DXGI_MODE_SCALING_UNSPECIFIED;
-                SwapChainResource.SwapEffect = DXGI_SWAP_EFFECT_DISCARD;
+				SwapChainResource.SwapEffect = DXGI_SWAP_EFFECT_FLIP_SEQUENTIAL;
 #if defined(THAWK_MICROSOFT) && defined(THAWK_HAS_SDL2)
                 if (I.Window != nullptr)
                 {
@@ -2151,7 +2155,7 @@ namespace Tomahawk
                 F.Layout = Graphics::Shader::GetShapeVertexLayout();
                 F.LayoutSize = 2;
 #ifdef HAS_D3D11_BASIC_EFFECT_HLSL
-                F.Data = reinterpret_cast<const char*>(resource_batch::d3d11_basic_effect_hlsl::data);
+                F.Data = GET_RESOURCE_BATCH(d3d11_basic_effect_hlsl);
 #else
                 THAWK_ERROR("basic-effect.hlsl was not compiled");
 #endif
@@ -2159,13 +2163,13 @@ namespace Tomahawk
             }
             D3D11Device::~D3D11Device()
             {
-                RestoreSamplerStates();
-                RestoreBlendStates();
-                RestoreRasterizerStates();
-                RestoreDepthStencilStates();
+				RestoreSamplerStates();
+				RestoreBlendStates();
+				RestoreRasterizerStates();
+				RestoreDepthStencilStates();
 
                 for (int i = 0; i < 3; i++)
-                ReleaseCom(ConstantBuffer[i]);
+					ReleaseCom(ConstantBuffer[i]);
 
                 ReleaseCom(ImmediateContext);
                 ReleaseCom(SwapChain);
@@ -2581,7 +2585,7 @@ namespace Tomahawk
 
                     DXGI_SWAP_CHAIN_DESC Info;
                     SwapChain->GetDesc(&Info);
-                    SwapChain->ResizeBuffers(1, Width, Height, Info.BufferDesc.Format, Info.Flags);
+                    SwapChain->ResizeBuffers(2, Width, Height, Info.BufferDesc.Format, Info.Flags);
                 }
 
                 ID3D11Texture2D* BackBuffer = nullptr;
@@ -2776,6 +2780,10 @@ namespace Tomahawk
 
                 return State;
             }
+			bool D3D11Device::IsValid()
+			{
+				return BasicEffect != nullptr;
+			}
             int D3D11Device::CreateConstantBuffer(int Size, ID3D11Buffer*& Buffer)
             {
                 D3D11_BUFFER_DESC Information;
@@ -2822,92 +2830,92 @@ namespace Tomahawk
             void D3D11Device::LoadShaderSections()
             {
 #ifdef HAS_D3D11_ANIMATION_BUFFER_HLSL
-                AddSection("animation-buffer.hlsl", reinterpret_cast<const char*>(resource_batch::d3d11_animation_buffer_hlsl::data));
+                AddSection("animation-buffer.hlsl", GET_RESOURCE_BATCH(d3d11_animation_buffer_hlsl));
 #else
                 THAWK_ERROR("animation-buffer.hlsl was not compiled");
 #endif
 #ifdef HAS_D3D11_RENDER_BUFFER_HLSL
-                AddSection("render-buffer.hlsl", reinterpret_cast<const char*>(resource_batch::d3d11_render_buffer_hlsl::data));
+                AddSection("render-buffer.hlsl", GET_RESOURCE_BATCH(d3d11_render_buffer_hlsl));
 #else
                 THAWK_ERROR("render-buffer.hlsl was not compiled");
 #endif
 #ifdef HAS_D3D11_VIEW_BUFFER_HLSL
-                AddSection("view-buffer.hlsl", reinterpret_cast<const char*>(resource_batch::d3d11_view_buffer_hlsl::data));
+                AddSection("view-buffer.hlsl", GET_RESOURCE_BATCH(d3d11_view_buffer_hlsl));
 #else
                 THAWK_ERROR("view-buffer.hlsl was not compiled");
 #endif
 #ifdef HAS_D3D11_VERTEX_IN_HLSL
-                AddSection("vertex-in.hlsl", reinterpret_cast<const char*>(resource_batch::d3d11_vertex_in_hlsl::data));
+                AddSection("vertex-in.hlsl", GET_RESOURCE_BATCH(d3d11_vertex_in_hlsl));
 #else
                 THAWK_ERROR("vertex-in.hlsl was not compiled");
 #endif
 #ifdef HAS_D3D11_VERTEX_OUT_HLSL
-                AddSection("vertex-out.hlsl", reinterpret_cast<const char*>(resource_batch::d3d11_vertex_out_hlsl::data));
+                AddSection("vertex-out.hlsl", GET_RESOURCE_BATCH(d3d11_vertex_out_hlsl));
 #else
                 THAWK_ERROR("vertex-out.hlsl was not compiled");
 #endif
 #ifdef HAS_D3D11_INFLUENCE_VERTEX_IN_HLSL
-                AddSection("influence-vertex-in.hlsl", reinterpret_cast<const char*>(resource_batch::d3d11_influence_vertex_in_hlsl::data));
+                AddSection("influence-vertex-in.hlsl", GET_RESOURCE_BATCH(d3d11_influence_vertex_in_hlsl));
 #else
                 THAWK_ERROR("influence-vertex-in.hlsl was not compiled");
 #endif
 #ifdef HAS_D3D11_INFLUENCE_VERTEX_OUT_HLSL
-                AddSection("influence-vertex-out.hlsl", reinterpret_cast<const char*>(resource_batch::d3d11_influence_vertex_out_hlsl::data));
+                AddSection("influence-vertex-out.hlsl", GET_RESOURCE_BATCH(d3d11_influence_vertex_out_hlsl));
 #else
                 THAWK_ERROR("influence-vertex-out.hlsl was not compiled");
 #endif
 #ifdef HAS_D3D11_SHAPE_VERTEX_IN_HLSL
-                AddSection("shape-vertex-in.hlsl", reinterpret_cast<const char*>(resource_batch::d3d11_shape_vertex_in_hlsl::data));
+                AddSection("shape-vertex-in.hlsl", GET_RESOURCE_BATCH(d3d11_shape_vertex_in_hlsl));
 #else
                 THAWK_ERROR("shape-vertex-in.hlsl was not compiled");
 #endif
 #ifdef HAS_D3D11_SHAPE_VERTEX_OUT_HLSL
-                AddSection("shape-vertex-out.hlsl", reinterpret_cast<const char*>(resource_batch::d3d11_shape_vertex_out_hlsl::data));
+                AddSection("shape-vertex-out.hlsl", GET_RESOURCE_BATCH(d3d11_shape_vertex_out_hlsl));
 #else
                 THAWK_ERROR("shape-vertex-out.hlsl was not compiled");
 #endif
 #ifdef HAS_D3D11_DEFERRED_OUT_HLSL
-                AddSection("deferred-out.hlsl", reinterpret_cast<const char*>(resource_batch::d3d11_deferred_out_hlsl::data));
+                AddSection("deferred-out.hlsl", GET_RESOURCE_BATCH(d3d11_deferred_out_hlsl));
 #else
                 THAWK_ERROR("deferred-out.hlsl was not compiled");
 #endif
 #ifdef HAS_D3D11_INSTANCE_ELEMENT_HLSL
-                AddSection("instance-element.hlsl", reinterpret_cast<const char*>(resource_batch::d3d11_instance_element_hlsl::data));
+                AddSection("instance-element.hlsl", GET_RESOURCE_BATCH(d3d11_instance_element_hlsl));
 #else
                 THAWK_ERROR("instance-element.hlsl was not compiled");
 #endif
 #ifdef HAS_D3D11_GEOMETRY_HLSL
-                AddSection("geometry.hlsl", reinterpret_cast<const char*>(resource_batch::d3d11_geometry_hlsl::data));
+                AddSection("geometry.hlsl", GET_RESOURCE_BATCH(d3d11_geometry_hlsl));
 #else
                 THAWK_ERROR("geometry.hlsl was not compiled");
 #endif
 #ifdef HAS_D3D11_LOAD_GEOMETRY_HLSL
-                AddSection("load-geometry.hlsl", reinterpret_cast<const char*>(resource_batch::d3d11_load_geometry_hlsl::data));
+                AddSection("load-geometry.hlsl", GET_RESOURCE_BATCH(d3d11_load_geometry_hlsl));
 #else
                 THAWK_ERROR("load-geometry.hlsl was not compiled");
 #endif
 #ifdef HAS_D3D11_LOAD_TEXCOORD_HLSL
-                AddSection("load-texcoord.hlsl", reinterpret_cast<const char*>(resource_batch::d3d11_load_texcoord_hlsl::data));
+                AddSection("load-texcoord.hlsl", GET_RESOURCE_BATCH(d3d11_load_texcoord_hlsl));
 #else
                 THAWK_ERROR("load-texcoord.hlsl was not compiled");
 #endif
 #ifdef HAS_D3D11_LOAD_POSITION_HLSL
-                AddSection("load-position.hlsl", reinterpret_cast<const char*>(resource_batch::d3d11_load_position_hlsl::data));
+                AddSection("load-position.hlsl", GET_RESOURCE_BATCH(d3d11_load_position_hlsl));
 #else
                 THAWK_ERROR("load-position.hlsl was not compiled");
 #endif
 #ifdef HAS_D3D11_COOK_TORRANCE_HLSL
-                AddSection("cook-torrance.hlsl", reinterpret_cast<const char*>(resource_batch::d3d11_cook_torrance_hlsl::data));
+                AddSection("cook-torrance.hlsl", GET_RESOURCE_BATCH(d3d11_cook_torrance_hlsl));
 #else
                 THAWK_ERROR("cook-torrance.hlsl was not compiled");
 #endif
 #ifdef HAS_D3D11_HEMI_AMBIENT_HLSL
-                AddSection("hemi-ambient.hlsl", reinterpret_cast<const char*>(resource_batch::d3d11_hemi_ambient_hlsl::data));
+                AddSection("hemi-ambient.hlsl", GET_RESOURCE_BATCH(d3d11_hemi_ambient_hlsl));
 #else
                 THAWK_ERROR("hemi-ambient.hlsl was not compiled");
 #endif
 #ifdef HAS_D3D11_HEMI_AMBIENT_HLSL
-                AddSection("random-float-2.hlsl", reinterpret_cast<const char*>(resource_batch::d3d11_random_float_2_hlsl::data));
+                AddSection("random-float-2.hlsl", GET_RESOURCE_BATCH(d3d11_random_float_2_hlsl));
 #else
                 THAWK_ERROR("random-float-2.hlsl was not compiled");
 #endif

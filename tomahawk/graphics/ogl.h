@@ -347,6 +347,7 @@ namespace Tomahawk
                 void* GetBackBufferNoAA() override;
                 Graphics::DeviceState* CreateState() override;
                 void LoadShaderSections() override;
+				bool IsValid() override;
                 const char* GetShaderVersion();
                 void CopyConstantBuffer(GLuint Id, void* Buffer, size_t Size);
                 int CreateConstantBuffer(int Size, GLuint& Buffer);
@@ -364,6 +365,7 @@ namespace Tomahawk
                 static GLenum GetPrimitiveTopologyDraw(Graphics::PrimitiveTopology Value);
                 static GLenum GetResourceBind(Graphics::ResourceBind Value);
                 static GLenum GetResourceMap(Graphics::ResourceMap Value);
+                static void APIENTRY DebugMessage(GLenum Source, GLenum Type, GLuint Id, GLenum Severity, GLsizei Length, const GLchar* Message, const void* Data);
             };
         }
     }

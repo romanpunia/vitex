@@ -15,9 +15,9 @@
 #include <scriptmath/scriptmath.h>
 #include <scripthandle/scripthandle.h>
 #include <scripthelper/scripthelper.h>
-#include <scriptbuilder/scriptbuilder.h>
 #include <datetime/datetime.h>
 #include <weakref/weakref.h>
+#include <scriptjit/as_jit.h>
 
 namespace Tomahawk
 {
@@ -860,7 +860,7 @@ namespace Tomahawk
             }))
                 return nullptr;
 
-            auto* Result = Queue.front();
+            CScriptAny* Result = Queue.front();
             Queue.erase(Queue.begin());
 
             return Result;
@@ -931,6 +931,7 @@ namespace Tomahawk
                 if (Thread.joinable())
                     Thread.join();
 
+				ReleaseReferences(nullptr);
                 delete this;
             }
         }
@@ -1110,12 +1111,22 @@ namespace Tomahawk
         VMCThread* VMCThread::StartThread(VMCFunction* Func)
         {
             VMCContext* Context = asGetActiveContext();
-            if (!Context)
-                return nullptr;
+			if (!Context)
+			{
+				if (Func)
+					Func->Release();
+
+				return nullptr;
+			}
 
             VMCManager* Engine = Context->GetEngine();
             if (!Engine)
-                return nullptr;
+			{
+				if (Func)
+					Func->Release();
+
+				return nullptr;
+			}
 
             VMCThread* Thread = new VMCThread(Engine, Func);
             Engine->NotifyGarbageCollectorOfNewObject(Thread, Engine->GetTypeInfoByName("thread"));
@@ -3128,14 +3139,179 @@ namespace Tomahawk
             return Manager;
         }
 
-        VMCompiler::VMCompiler(VMManager* Engine) : Manager(Engine), Context(nullptr)
+        VMCompiler::VMCompiler(VMManager* Engine) : Manager(Engine), Context(nullptr), Module(nullptr)
         {
-            Builder = new CScriptBuilder();
-            Builder->SetIncludeCallback(IncludeBase, this);
-            Builder->SetPragmaCallback(PragmaBase, this);
+			Processor = new Compute::Preprocessor();
+			Processor->SetIncludeCallback([this](Compute::Preprocessor* C, const Compute::IncludeResult& File, std::string* Out)
+			{
+				if (Include && Include(C, File, Out))
+					return true;
 
-			Desc.Exts.push_back(".as");
-			Desc.Root = Rest::OS::GetDirectory();
+				if (File.Module.empty() || (!File.IsFile && File.IsSystem))
+					return false;
+
+				Out->assign(Rest::OS::Read(File.Module.c_str()));
+				return true;
+			});
+			Processor->SetPragmaCallback([this](Compute::Preprocessor* C, const std::string& Value)
+			{
+				if (!Manager)
+					return false;
+
+				if (Pragma && Pragma(C, Value))
+					return true;
+
+				Rest::Stroke Comment(&Value);
+				Comment.Trim();
+
+				auto Start = Comment.Find('(');
+				if (!Start.Found)
+					return false;
+
+				auto End = Comment.ReverseFind(')');
+				if (!End.Found)
+					return false;
+
+				if (Comment.StartsWith("define"))
+				{
+					Rest::Stroke Name(Comment);
+					Name.Substring(Start.End, End.Start - Start.End).Trim();
+					if (Name.Get()[0] == '\"' && Name.Get()[Name.Size() - 1] == '\"')
+						Name.Substring(1, Name.Size() - 2);
+
+					if (!Name.Empty())
+						Define(Name.R());
+				}
+				else if (Comment.StartsWith("compile"))
+				{
+					auto Split = Comment.Find(',', Start.End);
+					if (!Split.Found)
+						return false;
+
+					Rest::Stroke Name(Comment);
+					Name.Substring(Start.End, Split.Start - Start.End).Trim().ToUpper();
+					if (Name.Get()[0] == '\"' && Name.Get()[Name.Size() - 1] == '\"')
+						Name.Substring(1, Name.Size() - 2);
+
+					Rest::Stroke Value(Comment);
+					Value.Substring(Split.End, End.Start - Split.End).Trim();
+					if (Value.Get()[0] == '\"' && Value.Get()[Value.Size() - 1] == '\"')
+						Value.Substring(1, Value.Size() - 2);
+
+					size_t Result = Value.HasInteger() ? Value.ToUInt64() : 0;
+					if (Name.R() == "ALLOW_UNSAFE_REFERENCES")
+						Manager->SetProperty(VMProp_ALLOW_UNSAFE_REFERENCES, Result);
+					else if (Name.R() == "OPTIMIZE_BYTECODE")
+						Manager->SetProperty(VMProp_OPTIMIZE_BYTECODE, Result);
+					else if (Name.R() == "COPY_SCRIPT_SECTIONS")
+						Manager->SetProperty(VMProp_COPY_SCRIPT_SECTIONS, Result);
+					else if (Name.R() == "MAX_STACK_SIZE")
+						Manager->SetProperty(VMProp_MAX_STACK_SIZE, Result);
+					else if (Name.R() == "USE_CHARACTER_LITERALS")
+						Manager->SetProperty(VMProp_USE_CHARACTER_LITERALS, Result);
+					else if (Name.R() == "ALLOW_MULTILINE_STRINGS")
+						Manager->SetProperty(VMProp_ALLOW_MULTILINE_STRINGS, Result);
+					else if (Name.R() == "ALLOW_IMPLICIT_HANDLE_TYPES")
+						Manager->SetProperty(VMProp_ALLOW_IMPLICIT_HANDLE_TYPES, Result);
+					else if (Name.R() == "BUILD_WITHOUT_LINE_CUES")
+						Manager->SetProperty(VMProp_BUILD_WITHOUT_LINE_CUES, Result);
+					else if (Name.R() == "INIT_GLOBAL_VARS_AFTER_BUILD")
+						Manager->SetProperty(VMProp_INIT_GLOBAL_VARS_AFTER_BUILD, Result);
+					else if (Name.R() == "REQUIRE_ENUM_SCOPE")
+						Manager->SetProperty(VMProp_REQUIRE_ENUM_SCOPE, Result);
+					else if (Name.R() == "SCRIPT_SCANNER")
+						Manager->SetProperty(VMProp_SCRIPT_SCANNER, Result);
+					else if (Name.R() == "INCLUDE_JIT_INSTRUCTIONS")
+						Manager->SetProperty(VMProp_INCLUDE_JIT_INSTRUCTIONS, Result);
+					else if (Name.R() == "STRING_ENCODING")
+						Manager->SetProperty(VMProp_STRING_ENCODING, Result);
+					else if (Name.R() == "PROPERTY_ACCESSOR_MODE")
+						Manager->SetProperty(VMProp_PROPERTY_ACCESSOR_MODE, Result);
+					else if (Name.R() == "EXPAND_DEF_ARRAY_TO_TMPL")
+						Manager->SetProperty(VMProp_EXPAND_DEF_ARRAY_TO_TMPL, Result);
+					else if (Name.R() == "AUTO_GARBAGE_COLLECT")
+						Manager->SetProperty(VMProp_AUTO_GARBAGE_COLLECT, Result);
+					else if (Name.R() == "DISALLOW_GLOBAL_VARS")
+						Manager->SetProperty(VMProp_ALWAYS_IMPL_DEFAULT_CONSTRUCT, Result);
+					else if (Name.R() == "ALWAYS_IMPL_DEFAULT_CONSTRUCT")
+						Manager->SetProperty(VMProp_ALWAYS_IMPL_DEFAULT_CONSTRUCT, Result);
+					else if (Name.R() == "COMPILER_WARNINGS")
+						Manager->SetProperty(VMProp_COMPILER_WARNINGS, Result);
+					else if (Name.R() == "DISALLOW_VALUE_ASSIGN_FOR_REF_TYPE")
+						Manager->SetProperty(VMProp_DISALLOW_VALUE_ASSIGN_FOR_REF_TYPE, Result);
+					else if (Name.R() == "ALTER_SYNTAX_NAMED_ARGS")
+						Manager->SetProperty(VMProp_ALTER_SYNTAX_NAMED_ARGS, Result);
+					else if (Name.R() == "DISABLE_INTEGER_DIVISION")
+						Manager->SetProperty(VMProp_DISABLE_INTEGER_DIVISION, Result);
+					else if (Name.R() == "DISALLOW_EMPTY_LIST_ELEMENTS")
+						Manager->SetProperty(VMProp_DISALLOW_EMPTY_LIST_ELEMENTS, Result);
+					else if (Name.R() == "PRIVATE_PROP_AS_PROTECTED")
+						Manager->SetProperty(VMProp_PRIVATE_PROP_AS_PROTECTED, Result);
+					else if (Name.R() == "ALLOW_UNICODE_IDENTIFIERS")
+						Manager->SetProperty(VMProp_ALLOW_UNICODE_IDENTIFIERS, Result);
+					else if (Name.R() == "HEREDOC_TRIM_MODE")
+						Manager->SetProperty(VMProp_HEREDOC_TRIM_MODE, Result);
+					else if (Name.R() == "MAX_NESTED_CALLS")
+						Manager->SetProperty(VMProp_MAX_NESTED_CALLS, Result);
+					else if (Name.R() == "GENERIC_CALL_MODE")
+						Manager->SetProperty(VMProp_GENERIC_CALL_MODE, Result);
+					else if (Name.R() == "INIT_STACK_SIZE")
+						Manager->SetProperty(VMProp_INIT_STACK_SIZE, Result);
+					else if (Name.R() == "INIT_CALL_STACK_SIZE")
+						Manager->SetProperty(VMProp_INIT_CALL_STACK_SIZE, Result);
+					else if (Name.R() == "MAX_CALL_STACK_SIZE")
+						Manager->SetProperty(VMProp_MAX_CALL_STACK_SIZE, Result);
+				}
+				else if (Comment.StartsWith("comment"))
+				{
+					auto Split = Comment.Find(',', Start.End);
+					if (!Split.Found)
+						return false;
+
+					Rest::Stroke Name(Comment);
+					Name.Substring(Start.End, Split.Start - Start.End).Trim().ToUpper();
+					if (Name.Get()[0] == '\"' && Name.Get()[Name.Size() - 1] == '\"')
+						Name.Substring(1, Name.Size() - 2);
+
+					Rest::Stroke Value(Comment);
+					Value.Substring(Split.End, End.Start - Split.End).Trim();
+					if (Value.Get()[0] == '\"' && Value.Get()[Value.Size() - 1] == '\"')
+						Value.Substring(1, Value.Size() - 2);
+
+					if (Name.R() == "INFO")
+						THAWK_INFO("%s", Value.Get());
+					else if (Name.R() == "WARN")
+						THAWK_WARN("%s", Value.Get());
+					else if (Name.R() == "ERROR")
+						THAWK_ERROR("%s", Value.Get());
+				}
+				else if (Comment.StartsWith("modify"))
+				{
+					auto Split = Comment.Find(',', Start.End);
+					if (!Split.Found || !Module)
+						return false;
+
+					Rest::Stroke Name(Comment);
+					Name.Substring(Start.End, Split.Start - Start.End).Trim().ToUpper();
+					if (Name.Get()[0] == '\"' && Name.Get()[Name.Size() - 1] == '\"')
+						Name.Substring(1, Name.Size() - 2);
+
+					Rest::Stroke Value(Comment);
+					Value.Substring(Split.End, End.Start - Split.End).Trim();
+					if (Value.Get()[0] == '\"' && Value.Get()[Value.Size() - 1] == '\"')
+						Value.Substring(1, Value.Size() - 2);
+
+					size_t Result = Value.HasInteger() ? Value.ToUInt64() : 0;
+					if (Name.R() == "NAME")
+						Module->SetName(Value.Value());
+					else if (Name.R() == "NAMESPACE")
+						Module->SetDefaultNamespace(Value.Value());
+					else if (Name.R() == "ACCESS_MASK")
+						Module->SetAccessMask(Result);
+				}
+
+				return true;
+			});
 
             if (Manager != nullptr)
             {
@@ -3145,133 +3321,101 @@ namespace Tomahawk
         }
         VMCompiler::~VMCompiler()
         {
-            delete Builder;
+            delete Processor;
         }
-        int VMCompiler::Prepare(const char* ModuleName)
-        {
-            if (!Manager || !Builder)
-                return -1;
-
-            return Builder->StartNewModule(Manager->GetEngine(), ModuleName);
-        }
-        int VMCompiler::Build()
-        {
-            if (!Manager || !Builder)
-                return -1;
-
-            return Builder->BuildModule();
-        }
-        int VMCompiler::BuildWait()
-        {
-            if (!Manager || !Builder)
-                return -1;
-
-            while (true)
-            {
-                int R = Builder->BuildModule();
-                if (R == asBUILD_IN_PROGRESS)
-                {
-                    std::this_thread::sleep_for(std::chrono::milliseconds(1));
-                    continue;
-                }
-
-                return R;
-            }
-
-            return 0;
-        }
-        int VMCompiler::CompileFromFile(const char* Filename)
-        {
-            if (!Manager || !Builder)
-                return -1;
-
-            return Builder->AddSectionFromFile(Filename);
-        }
-        int VMCompiler::CompileFromMemory(const char* SectionName, const char* ScriptCode, unsigned int ScriptLength, int LineOffset)
-        {
-            if (!Manager || !Builder)
-                return -1;
-
-            return Builder->AddSectionFromMemory(SectionName, ScriptCode, ScriptLength, LineOffset);
-        }
-        void VMCompiler::SetIncludeCallback(const IncludeCallback& Callback)
-        {
-            if (!Manager || !Builder)
-                return;
-
-            Include = Callback;
-            return Builder->SetIncludeCallback(IncludeBase, this);
-        }
-        void VMCompiler::SetPragmaCallback(const PragmaCallback& Callback)
-        {
-            if (!Manager || !Builder)
-                return;
-
-            Pragma = Callback;
-            return Builder->SetPragmaCallback(PragmaBase, this);
-        }
-		void VMCompiler::SetIncludeOptions(const Compute::IncludeDesc& NewDesc)
+		void VMCompiler::SetIncludeCallback(const Compute::ProcIncludeCallback& Callback)
 		{
-			Desc = NewDesc;
-			Desc.Exts.clear();
-			Desc.Exts.push_back(".as");
+			Include = Callback;
 		}
-        void VMCompiler::Define(const char* Word)
-        {
-            if (!Manager || !Builder)
-                return;
+		void VMCompiler::SetPragmaCallback(const Compute::ProcPragmaCallback& Callback)
+		{
+			Pragma = Callback;
+		}
+		void VMCompiler::Define(const std::string& Word)
+		{
+			Processor->Define(Word);
+		}
+		void VMCompiler::Undefine(const std::string& Word)
+		{
+			Processor->Undefine(Word);
+		}
+		void VMCompiler::Clear()
+		{
+			Processor->Clear();
+			Module = nullptr;
+			BuiltOK = false;
+		}
+		bool VMCompiler::IsDefined(const std::string& Word)
+		{
+			return Processor->IsDefined(Word.c_str());
+		}
+		bool VMCompiler::IsBuilt()
+		{
+			return BuiltOK;
+		}
+		int VMCompiler::Prepare(const std::string& ModuleName)
+		{
+			if (!Manager || ModuleName.empty())
+				return -1;
 
-            return Builder->DefineWord(Word);
-        }
-        unsigned int VMCompiler::GetSectionsCount() const
-        {
-            if (!Manager || !Builder)
-                return 0;
+			VMCManager* Engine = Manager->GetEngine();
+			if (!Engine)
+				return -1;
 
-            return Builder->GetSectionCount();
-        }
-        std::string VMCompiler::GetSectionName(unsigned int Index) const
-        {
-            if (!Manager || !Builder)
-                return "";
+			BuiltOK = false;
+			Module = Engine->GetModule(ModuleName.c_str(), asGM_ALWAYS_CREATE);
+			if (!Module)
+				return -1;
 
-            return Builder->GetSectionName(Index);
-        }
-        std::vector<std::string> VMCompiler::GetMetadataForType(int TypeId)
-        {
-            if (!Manager || !Builder)
-                return std::vector<std::string>();
+			Manager->SetProcessorOptions(Processor);
+			return 0;
+		}
+		int VMCompiler::Build(bool Await)
+		{
+			if (!Module)
+				return -1;
 
-            return Builder->GetMetadataForType(TypeId);
-        }
-        std::vector<std::string> VMCompiler::GetMetadataForFunc(const VMWFunction& Function)
-        {
-            if (!Manager || !Builder)
-                return std::vector<std::string>();
+			int R = Module->Build();
+			while (Await && R == asBUILD_IN_PROGRESS)
+			{
+				std::this_thread::sleep_for(std::chrono::milliseconds(1));
+				R = Module->Build();
+			}
 
-            return Builder->GetMetadataForFunc(Function.GetFunction());
-        }
-        std::vector<std::string> VMCompiler::GetMetadataForProperty(int Index)
-        {
-            if (!Manager || !Builder)
-                return std::vector<std::string>();
+			BuiltOK = (R >= 0);
+			return R;
+		}
+		int VMCompiler::Compile(const std::string& Path)
+		{
+			std::string Source = Rest::OS::Resolve(Path.c_str());
+			if (!Rest::OS::FileExists(Source.c_str()))
+			{
+				THAWK_ERROR("file not found");
+				return -1;
+			}
 
-            return Builder->GetMetadataForVar(Index);
-        }
-        std::vector<std::string> VMCompiler::GetMetadataForTypeMethod(int TypeId, const VMWFunction& Method)
-        {
-            if (!Manager || !Builder)
-                return std::vector<std::string>();
+			std::string Buffer = Rest::OS::Read(Source.c_str());
+			if (!Processor->Process(Source, Buffer))
+				return asINVALID_DECLARATION;
 
-            return Builder->GetMetadataForTypeMethod(TypeId, Method.GetFunction());
-        }
-        std::vector<std::string> VMCompiler::GetMetadataForTypeProperty(int TypeId, int Index)
-        {
-            if (!Manager || !Builder)
-                return std::vector<std::string>();
+			return Module->AddScriptSection(Source.c_str(), Buffer.c_str(), Buffer.size());
+		}
+		int VMCompiler::Compile(const std::string& Name, const std::string& Data)
+		{
+			if (!Module)
+				return -1;
 
-            return Builder->GetMetadataForTypeProperty(TypeId, Index);
-        }
+			std::string Buffer(Data);
+			if (!Processor->Process("", Buffer))
+				return asINVALID_DECLARATION;
+
+			return Module->AddScriptSection(Name.c_str(), Buffer.c_str(), Buffer.size());
+		}
+		int VMCompiler::Interpret(const std::string& Value)
+		{
+			Int64 Rand = Compute::MathCommon::RandomNumber(1111111111111111, 9999999999999999);
+			return Compile(std::to_string(Rand), Value);
+		}
         VMManager* VMCompiler::GetManager() const
         {
             return Manager;
@@ -3282,184 +3426,12 @@ namespace Tomahawk
         }
         VMWModule VMCompiler::GetModule() const
         {
-            if (!Manager || !Builder)
-                return nullptr;
-
-            return Builder->GetModule();
+			return Module;
         }
-        int VMCompiler::IncludeBase(const char* Path, const char* From, CScriptBuilder* Builder, void* Param)
-        {
-            VMCompiler* Compiler = (VMCompiler*)Param;
-            if (Compiler->Include)
-                return Compiler->Include(Compiler, Path, From);
-
-			Compiler->Desc.Path = Path;
-			Compiler->Desc.From = From;
-
-			auto Result = Compute::Preprocessor::ResolveInclude(Compiler->Desc);
-			if (Result.Module.empty() || (!Result.IsFile && Result.IsSystem))
-				return -1;
-
-            return Compiler->CompileFromFile(Result.Module.c_str());
-        }
-        int VMCompiler::PragmaBase(const std::string& Pragma, CScriptBuilder& Builder, void* Param)
-        {
-            VMCompiler* Compiler = (VMCompiler*)Param;
-            if (Compiler->Include)
-                return Compiler->Pragma(Compiler, Pragma);
-
-            Rest::Stroke Comment(&Pragma);
-            Comment.Trim();
-
-            auto Start = Comment.Find('(');
-            if (!Start.Found)
-                return -1;
-
-            auto End = Comment.ReverseFind(')');
-            if (!End.Found)
-                return -1;
-
-            if (Comment.StartsWith("define"))
-            {
-                Rest::Stroke Name(Comment);
-                Name.Substring(Start.End, End.Start - Start.End).Trim();
-                if (Name.Get()[0] == '\"' && Name.Get()[Name.Size() - 1] == '\"')
-                    Name.Substring(1, Name.Size() - 2);
-
-                if (!Name.Empty())
-                    Compiler->Define(Name.Value());
-            }
-            else if (Comment.StartsWith("compile"))
-            {
-                auto Split = Comment.Find(',', Start.End);
-                if (!Split.Found)
-                    return -1;
-
-                Rest::Stroke Name(Comment);
-                Name.Substring(Start.End, Split.Start - Start.End).Trim().ToUpper();
-                if (Name.Get()[0] == '\"' && Name.Get()[Name.Size() - 1] == '\"')
-                    Name.Substring(1, Name.Size() - 2);
-
-                Rest::Stroke Value(Comment);
-                Value.Substring(Split.End, End.Start - Split.End).Trim();
-                if (Value.Get()[0] == '\"' && Value.Get()[Value.Size() - 1] == '\"')
-                    Value.Substring(1, Value.Size() - 2);
-
-                size_t Result = Value.HasInteger() ? Value.ToUInt64() : 0;
-                if (Name.R() == "ALLOW_UNSAFE_REFERENCES")
-                    Compiler->GetManager()->SetProperty(VMProp_ALLOW_UNSAFE_REFERENCES, Result);
-                else if (Name.R() == "OPTIMIZE_BYTECODE")
-                    Compiler->GetManager()->SetProperty(VMProp_OPTIMIZE_BYTECODE, Result);
-                else if (Name.R() == "COPY_SCRIPT_SECTIONS")
-                    Compiler->GetManager()->SetProperty(VMProp_COPY_SCRIPT_SECTIONS, Result);
-                else if (Name.R() == "MAX_STACK_SIZE")
-                    Compiler->GetManager()->SetProperty(VMProp_MAX_STACK_SIZE, Result);
-                else if (Name.R() == "USE_CHARACTER_LITERALS")
-                    Compiler->GetManager()->SetProperty(VMProp_USE_CHARACTER_LITERALS, Result);
-                else if (Name.R() == "ALLOW_MULTILINE_STRINGS")
-                    Compiler->GetManager()->SetProperty(VMProp_ALLOW_MULTILINE_STRINGS, Result);
-                else if (Name.R() == "ALLOW_IMPLICIT_HANDLE_TYPES")
-                    Compiler->GetManager()->SetProperty(VMProp_ALLOW_IMPLICIT_HANDLE_TYPES, Result);
-                else if (Name.R() == "BUILD_WITHOUT_LINE_CUES")
-                    Compiler->GetManager()->SetProperty(VMProp_BUILD_WITHOUT_LINE_CUES, Result);
-                else if (Name.R() == "INIT_GLOBAL_VARS_AFTER_BUILD")
-                    Compiler->GetManager()->SetProperty(VMProp_INIT_GLOBAL_VARS_AFTER_BUILD, Result);
-                else if (Name.R() == "REQUIRE_ENUM_SCOPE")
-                    Compiler->GetManager()->SetProperty(VMProp_REQUIRE_ENUM_SCOPE, Result);
-                else if (Name.R() == "SCRIPT_SCANNER")
-                    Compiler->GetManager()->SetProperty(VMProp_SCRIPT_SCANNER, Result);
-                else if (Name.R() == "INCLUDE_JIT_INSTRUCTIONS")
-                    Compiler->GetManager()->SetProperty(VMProp_INCLUDE_JIT_INSTRUCTIONS, Result);
-                else if (Name.R() == "STRING_ENCODING")
-                    Compiler->GetManager()->SetProperty(VMProp_STRING_ENCODING, Result);
-                else if (Name.R() == "PROPERTY_ACCESSOR_MODE")
-                    Compiler->GetManager()->SetProperty(VMProp_PROPERTY_ACCESSOR_MODE, Result);
-                else if (Name.R() == "EXPAND_DEF_ARRAY_TO_TMPL")
-                    Compiler->GetManager()->SetProperty(VMProp_EXPAND_DEF_ARRAY_TO_TMPL, Result);
-                else if (Name.R() == "AUTO_GARBAGE_COLLECT")
-                    Compiler->GetManager()->SetProperty(VMProp_AUTO_GARBAGE_COLLECT, Result);
-                else if (Name.R() == "DISALLOW_GLOBAL_VARS")
-                    Compiler->GetManager()->SetProperty(VMProp_ALWAYS_IMPL_DEFAULT_CONSTRUCT, Result);
-                else if (Name.R() == "ALWAYS_IMPL_DEFAULT_CONSTRUCT")
-                    Compiler->GetManager()->SetProperty(VMProp_ALWAYS_IMPL_DEFAULT_CONSTRUCT, Result);
-                else if (Name.R() == "COMPILER_WARNINGS")
-                    Compiler->GetManager()->SetProperty(VMProp_COMPILER_WARNINGS, Result);
-                else if (Name.R() == "DISALLOW_VALUE_ASSIGN_FOR_REF_TYPE")
-                    Compiler->GetManager()->SetProperty(VMProp_DISALLOW_VALUE_ASSIGN_FOR_REF_TYPE, Result);
-                else if (Name.R() == "ALTER_SYNTAX_NAMED_ARGS")
-                    Compiler->GetManager()->SetProperty(VMProp_ALTER_SYNTAX_NAMED_ARGS, Result);
-                else if (Name.R() == "DISABLE_INTEGER_DIVISION")
-                    Compiler->GetManager()->SetProperty(VMProp_DISABLE_INTEGER_DIVISION, Result);
-                else if (Name.R() == "DISALLOW_EMPTY_LIST_ELEMENTS")
-                    Compiler->GetManager()->SetProperty(VMProp_DISALLOW_EMPTY_LIST_ELEMENTS, Result);
-                else if (Name.R() == "PRIVATE_PROP_AS_PROTECTED")
-                    Compiler->GetManager()->SetProperty(VMProp_PRIVATE_PROP_AS_PROTECTED, Result);
-                else if (Name.R() == "ALLOW_UNICODE_IDENTIFIERS")
-                    Compiler->GetManager()->SetProperty(VMProp_ALLOW_UNICODE_IDENTIFIERS, Result);
-                else if (Name.R() == "HEREDOC_TRIM_MODE")
-                    Compiler->GetManager()->SetProperty(VMProp_HEREDOC_TRIM_MODE, Result);
-                else if (Name.R() == "MAX_NESTED_CALLS")
-                    Compiler->GetManager()->SetProperty(VMProp_MAX_NESTED_CALLS, Result);
-                else if (Name.R() == "GENERIC_CALL_MODE")
-                    Compiler->GetManager()->SetProperty(VMProp_GENERIC_CALL_MODE, Result);
-                else if (Name.R() == "INIT_STACK_SIZE")
-                    Compiler->GetManager()->SetProperty(VMProp_INIT_STACK_SIZE, Result);
-                else if (Name.R() == "INIT_CALL_STACK_SIZE")
-                    Compiler->GetManager()->SetProperty(VMProp_INIT_CALL_STACK_SIZE, Result);
-                else if (Name.R() == "MAX_CALL_STACK_SIZE")
-                    Compiler->GetManager()->SetProperty(VMProp_MAX_CALL_STACK_SIZE, Result);
-            }
-            else if (Comment.StartsWith("comment"))
-            {
-                auto Split = Comment.Find(',', Start.End);
-                if (!Split.Found)
-                    return -1;
-
-                Rest::Stroke Name(Comment);
-                Name.Substring(Start.End, Split.Start - Start.End).Trim().ToUpper();
-                if (Name.Get()[0] == '\"' && Name.Get()[Name.Size() - 1] == '\"')
-                    Name.Substring(1, Name.Size() - 2);
-
-                Rest::Stroke Value(Comment);
-                Value.Substring(Split.End, End.Start - Split.End).Trim();
-                if (Value.Get()[0] == '\"' && Value.Get()[Value.Size() - 1] == '\"')
-                    Value.Substring(1, Value.Size() - 2);
-
-                if (Name.R() == "INFO")
-                    THAWK_INFO("%s", Value.Get());
-                else if (Name.R() == "WARN")
-                    THAWK_WARN("%s", Value.Get());
-                else if (Name.R() == "ERROR")
-                    THAWK_ERROR("%s", Value.Get());
-            }
-            else if (Comment.StartsWith("modify"))
-            {
-                auto Split = Comment.Find(',', Start.End);
-                if (!Split.Found)
-                    return -1;
-
-                Rest::Stroke Name(Comment);
-                Name.Substring(Start.End, Split.Start - Start.End).Trim().ToUpper();
-                if (Name.Get()[0] == '\"' && Name.Get()[Name.Size() - 1] == '\"')
-                    Name.Substring(1, Name.Size() - 2);
-
-                Rest::Stroke Value(Comment);
-                Value.Substring(Split.End, End.Start - Split.End).Trim();
-                if (Value.Get()[0] == '\"' && Value.Get()[Value.Size() - 1] == '\"')
-                    Value.Substring(1, Value.Size() - 2);
-
-                size_t Result = Value.HasInteger() ? Value.ToUInt64() : 0;
-                auto Module = Compiler->GetModule();
-                if (Name.R() == "NAME")
-                    Module.SetName(Value.Value());
-                else if (Name.R() == "NAMESPACE")
-                    Module.SetDefaultNamespace(Value.Value());
-                else if (Name.R() == "ACCESS_MASK")
-                    Module.SetAccessMask(Result);
-            }
-
-            return 0;
-        }
+		Compute::Preprocessor* VMCompiler::GetProcessor() const
+		{
+			return Processor;
+		}
         VMCompiler* VMCompiler::Get(VMContext* Context)
         {
             if (!Context)
@@ -4023,8 +3995,11 @@ namespace Tomahawk
         }
         int VMContext::ContextUD = 552;
 
-        VMManager::VMManager() : Engine(asCreateScriptEngine()), Globals(this)
+        VMManager::VMManager() : Engine(asCreateScriptEngine()), Globals(this), JIT(nullptr)
         {
+			Include.Exts.push_back(".as");
+			Include.Root = Rest::OS::GetDirectory();
+
             Engine->SetUserData(this, ManagerUD);
             Engine->SetContextCallbacks(RequestContext, ReturnContext, nullptr);
             Engine->SetMessageCallback(asFUNCTION(CompileLogger), this, asCALL_CDECL);
@@ -4033,6 +4008,9 @@ namespace Tomahawk
         {
             if (Engine != nullptr)
                 Engine->ShutDownAndRelease();
+#ifdef HAS_AS_JIT
+			delete JIT;
+#endif
         }
         void VMManager::EnableAll()
         {
@@ -4160,6 +4138,50 @@ namespace Tomahawk
             Wrapper::Graphics::Enable(this);
             Wrapper::Engine::Enable(this);
         }
+		void VMManager::SetupJIT(unsigned int JITOpts)
+		{
+#ifdef HAS_AS_JIT
+			if (!JIT)
+				Engine->SetEngineProperty(asEP_INCLUDE_JIT_INSTRUCTIONS, 1);
+			else
+				delete JIT;
+
+			JIT = new asCJITCompiler(JITOpts);
+			Engine->SetJITCompiler(JIT);
+#else
+			THAWK_ERROR("JIT compiler is not supported on this platform");
+#endif
+		}
+		void VMManager::Lock()
+		{
+			Safe.lock();
+		}
+		void VMManager::Unlock()
+		{
+			Safe.unlock();
+		}
+		void VMManager::SetCompilerIncludeOptions(const Compute::IncludeDesc& NewDesc)
+		{
+			Safe.lock();
+			Include = NewDesc;
+			Safe.unlock();
+		}
+		void VMManager::SetCompilerFeatures(const Compute::Preprocessor::Desc& NewDesc)
+		{
+			Safe.lock();
+			Proc = NewDesc;
+			Safe.unlock();
+		}
+		void VMManager::SetProcessorOptions(Compute::Preprocessor* Processor)
+		{
+			if (!Processor)
+				return;
+
+			Safe.lock();
+			Processor->SetIncludeOptions(Include);
+			Processor->SetFeatures(Proc);
+			Safe.unlock();
+		}
         int VMManager::SetLogCallback(void(* Callback)(const asSMessageInfo* Message, void* Object), void* Object)
         {
             if (!Callback)
@@ -4424,14 +4446,14 @@ namespace Tomahawk
         void VMManager::SetDocumentRoot(const std::string& Value)
         {
             Safe.lock();
-            DocumentRoot.assign(Value);
-            if (DocumentRoot.empty())
+			Include.Root = Value;
+            if (Include.Root.empty())
                 return Safe.unlock();
 
-            if (!Rest::Stroke(&DocumentRoot).EndsOf("/\\"))
+            if (!Rest::Stroke(&Include.Root).EndsOf("/\\"))
             {
 #ifdef THAWK_MICROSOFT
-                DocumentRoot.append(1, '\\');
+				Include.Root.append(1, '\\');
 #else
                 DocumentRoot.append(1, '/');
 #endif
@@ -4440,7 +4462,7 @@ namespace Tomahawk
         }
         std::string VMManager::GetDocumentRoot() const
         {
-            return DocumentRoot;
+            return Include.Root;
         }
         size_t VMManager::GetProperty(VMProp Property) const
         {

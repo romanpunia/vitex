@@ -1001,7 +1001,7 @@ namespace Tomahawk
                 return *this;
             }
 
-            L->substr(Start);
+            L->assign(L->substr(Start));
             return *this;
         }
         Stroke& Stroke::Substring(UInt64 Start, UInt64 Count)
@@ -2199,10 +2199,10 @@ namespace Tomahawk
             char Buffer[2048] = { '\0' };
 
             va_list Args;
-                    va_start(Args, Format);
+            va_start(Args, Format);
 #ifdef THAWK_MICROSOFT
             _vsnprintf(Buffer, sizeof(Buffer), Format, Args);
-                    va_end(Args);
+            va_end(Args);
 
             OutputDebugString(Buffer);
 #elif defined THAWK_UNIX

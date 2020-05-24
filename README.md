@@ -32,7 +32,7 @@ Tomahawk is a cross-platform C++14 framework to create any type of application f
 + Strong random functions
 + Collision detection
 + Mesh evaluation
-+ Simple file preprocessor
++ File preprocessor (include, pragma, define, ifdef/else/endif)
 + Transform hierarchy system
 #### Audio
 + Configurable audio playback
@@ -62,6 +62,7 @@ Tomahawk is a cross-platform C++14 framework to create any type of application f
 + Promise-like async data type support
 + Simple debugger support
 + Wrapper over most of the functionality
++ JIT compiler support for Windows and Linux (non-ARM)
 #### Graphics
 + Configurable windowing (activity) system
 + Input detection (keyboard, cursor, controller, joystick, multi-touch)

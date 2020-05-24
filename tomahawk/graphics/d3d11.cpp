@@ -28,9 +28,13 @@ namespace Tomahawk
                 ConstantBuffer = nullptr;
 
                 Desc I(F);
-                Ref->ProcessShaderCode(I);
-                Rest::Stroke Code(&I.Data);
+				if (!Ref->ProcessShaderCode(I))
+				{
+					THAWK_ERROR("shader preprocessing failed");
+					return;
+				}
 
+                Rest::Stroke Code(&I.Data);
                 UInt64 Length = Code.Size();
                 bool VS = Code.Find("VS").Found;
                 bool PS = Code.Find("PS").Found;

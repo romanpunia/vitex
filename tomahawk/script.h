@@ -5,13 +5,13 @@
 #include <type_traits>
 #include <random>
 
-class CScriptBuilder;
 class CScriptArray;
 class CScriptAny;
 class CScriptDictionary;
 class CScriptGrid;
 class CScriptWeakRef;
 class CScriptHandle;
+class asCJITCompiler;
 class asIScriptEngine;
 class asIScriptContext;
 class asIScriptModule;
@@ -39,6 +39,17 @@ namespace Tomahawk
         class VMDummy
         {
         };
+
+		enum VMOptJIT
+		{
+			VMOptJIT_No_Suspend = 0x01,
+			VMOptJIT_Syscall_FPU_No_Reset = 0x02,
+			VMOptJIT_Syscall_No_Errors = 0x04,
+			VMOptJIT_Alloc_Simple = 0x08,
+			VMOptJIT_No_Switches = 0x10,
+			VMOptJIT_No_Script_Calls = 0x20,
+			VMOptJIT_Fast_Ref_Counter = 0x40,
+		};
 
         enum VMLogType
         {
@@ -265,8 +276,6 @@ namespace Tomahawk
         typedef asIScriptGeneric VMCGeneric;
         typedef asILockableSharedBool VMCLockableSharedBool;
         typedef void (VMDummy::*VMMethodPtr)();
-        typedef std::function<int(VMCompiler* Compiler, const char* Include, const char* From)> IncludeCallback;
-        typedef std::function<int(VMCompiler* Compiler, const std::string& Pragma)> PragmaCallback;
         typedef std::function<void(class VMCAsync*)> AsyncWorkCallback;
         typedef std::function<void(enum VMExecState)> AsyncDoneCallback;
 
@@ -396,7 +405,7 @@ namespace Tomahawk
             static asSFuncPtr* CreateDummyBase();
             static void ReleaseFunctor(asSFuncPtr** Ptr);
 
-        private:
+        public:
             template <typename T>
             static size_t GetTypeTraits()
             {
@@ -659,8 +668,8 @@ namespace Tomahawk
             }
             void ___AddRef___()
             {
-                VMCThread::AtomicInc(___GC_Counter___);
-                ___GC_Flag___ = false;
+				VMCThread::AtomicInc(___GC_Counter___);
+				___GC_Flag___ = false;
             }
             void ___SetGCFlag___()
             {
@@ -672,13 +681,12 @@ namespace Tomahawk
             }
             int ___GetRefCount___()
             {
-                return ___Counter___;
+                return ___GC_Counter___;
             }
-            template <typename U>
             void ___Release___()
             {
-                ___GC_Flag___ = false;
-                if (!VMCThread::AtomicDec(___Counter___))
+				___GC_Flag___ = false;
+				if (!VMCThread::AtomicDec(___GC_Counter___))
                     delete this;
             }
 
@@ -1145,7 +1153,7 @@ namespace Tomahawk
             template <typename T>
             int SetRelease()
             {
-                asSFuncPtr* Release = VMBind::BindMethod<VMFactory<T>>(&VMFactory<T>::___Release___<T>);
+                asSFuncPtr* Release = VMBind::BindMethod<VMFactory<T>>(&VMFactory<T>::___Release___);
                 int Result = SetBehaviourAddress("void f()", VMBehave_RELEASE, Release, VMCall_THISCALL);
                 VMBind::ReleaseFunctor(&Release);
 
@@ -1599,39 +1607,35 @@ namespace Tomahawk
             static int CompilerUD;
 
         private:
-			Compute::IncludeDesc Desc;
-			IncludeCallback Include;
-			PragmaCallback Pragma;
-			CScriptBuilder* Builder;
+			Compute::ProcIncludeCallback Include;
+			Compute::ProcPragmaCallback Pragma;
+			Compute::Preprocessor* Processor;
+			asIScriptModule* Module;
             VMManager* Manager;
             VMContext* Context;
+			bool BuiltOK;
 
         public:
             VMCompiler(VMManager* Engine);
             ~VMCompiler();
-            int Prepare(const char* ModuleName);
-            int Build();
-            int BuildWait();
-            int CompileFromFile(const char* Filename);
-            int CompileFromMemory(const char* SectionName, const char* ScriptCode, unsigned int ScriptLength = 0, int LineOffset = 0);
-            void SetIncludeCallback(const IncludeCallback& Callback);
-            void SetPragmaCallback(const PragmaCallback& Callback);
-			void SetIncludeOptions(const Compute::IncludeDesc& NewDesc);
-            void Define(const char* Word);
-            unsigned int GetSectionsCount() const;
-            std::string GetSectionName(unsigned int Index) const;
-            std::vector<std::string> GetMetadataForType(int TypeId);
-            std::vector<std::string> GetMetadataForFunc(const VMWFunction& Function);
-            std::vector<std::string> GetMetadataForProperty(int Index);
-            std::vector<std::string> GetMetadataForTypeMethod(int TypeId, const VMWFunction& Method);
-            std::vector<std::string> GetMetadataForTypeProperty(int TypeId, int Index);
-            VMWModule GetModule() const;
+            void SetIncludeCallback(const Compute::ProcIncludeCallback& Callback);
+            void SetPragmaCallback(const Compute::ProcPragmaCallback& Callback);
+            void Define(const std::string& Word);
+			void Undefine(const std::string& Word);
+			void Clear();
+			bool IsDefined(const std::string& Word);
+			bool IsBuilt();
+			int Prepare(const std::string& ModuleName);
+			int Build(bool Await);
+			int Compile(const std::string& Path);
+			int Compile(const std::string& Name, const std::string& Buffer);
+			int Interpret(const std::string& Value);
+			VMWModule GetModule() const;
             VMManager* GetManager() const;
             VMContext* GetContext() const;
+			Compute::Preprocessor* GetProcessor() const;
 
         private:
-            static int IncludeBase(const char* Include, const char* From, CScriptBuilder* Builder, void* Param);
-            static int PragmaBase(const std::string& Pragma, CScriptBuilder& Builder, void* Param);
             static VMCompiler* Get(VMContext* Context);
         };
 
@@ -1715,6 +1719,11 @@ namespace Tomahawk
             {
                 return SetArgObjectAddress(Arg, (void*)Object);
             }
+			template <typename T>
+			int SetArgFactory(unsigned int Arg, T* Object)
+			{
+				return SetArgObjectAddress(Arg, (void*)(VMFactory<T>*)Object);
+			}
             template <typename T>
             int SetArgAny(unsigned int Arg, T* Object, int TypeId)
             {
@@ -1725,6 +1734,11 @@ namespace Tomahawk
             {
                 return (T*)GetReturnObjectAddress(Arg);
             }
+			template <typename T>
+			VMFactory<T>* GetReturnFactory(unsigned int Arg)
+			{
+				return (VMFactory<T>*)GetReturnObjectAddress(Arg);
+			}
 
         public:
             static VMContext* Get(VMCContext* Context);
@@ -1740,9 +1754,11 @@ namespace Tomahawk
             static int ManagerUD;
 
         private:
+			Compute::IncludeDesc Include;
+			Compute::Preprocessor::Desc Proc;
             std::vector<VMCContext*> Contexts;
-            std::string DocumentRoot;
             std::mutex Safe;
+			asCJITCompiler* JIT;
             VMCManager* Engine;
             VMGlobal Globals;
 
@@ -1764,6 +1780,12 @@ namespace Tomahawk
             void EnableThread();
             void EnableAsync();
             void EnableLibrary();
+			void SetupJIT(unsigned int JITOpts);
+			void Lock();
+			void Unlock();
+			void SetCompilerIncludeOptions(const Compute::IncludeDesc& NewDesc);
+			void SetCompilerFeatures(const Compute::Preprocessor::Desc& NewDesc);
+			void SetProcessorOptions(Compute::Preprocessor* Processor);
             int Collect(size_t NumIterations = 1);
             void GetStatistics(size_t* CurrentSize, size_t* TotalDestroyed, size_t* TotalDetected, size_t* NewObjects, size_t* TotalNewDestroyed) const;
             int NotifyOfNewObject(void* Object, const VMWTypeInfo& Type);

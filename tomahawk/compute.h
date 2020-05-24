@@ -3,6 +3,7 @@
 
 #include "rest.h"
 #include <cmath>
+#include <map>
 
 class btCollisionConfiguration;
 class btBroadphaseInterface;
@@ -1186,11 +1187,22 @@ namespace Tomahawk
 
         class THAWK_OUT Preprocessor : public Rest::Object
         {
+		public:
+			struct Desc
+			{
+				bool Pragmas = true;
+				bool Includes = true;
+				bool Defines = true;
+				bool Conditions = true;
+			};
+
         private:
+			std::vector<std::string> Defines;
             std::vector<std::string> Sets;
             ProcIncludeCallback Include;
             ProcPragmaCallback Pragma;
-			IncludeDesc Desc;
+			IncludeDesc FileDesc;
+			Desc Features;
             int Resolve;
 
         public:
@@ -1199,13 +1211,23 @@ namespace Tomahawk
 			void SetIncludeOptions(const IncludeDesc& NewDesc);
             void SetIncludeCallback(const ProcIncludeCallback& Callback);
             void SetPragmaCallback(const ProcPragmaCallback& Callback);
+			void SetFeatures(const Desc& Value);
+			void Define(const std::string& Name);
+			void Undefine(const std::string& Name);
+			void Clear();
+			bool IsDefined(const char* Name) const;
             bool Process(const std::string& Path, std::string& Buffer);
 
         private:
             void PushSet(const std::string& Path);
             void PopSet();
-            bool ProcessIncludeDirective(const std::string& Path, std::string& Buffer);
-            bool ProcessPragmaDirective(std::string& Buffer);
+            bool ProcessIncludeDirective(const std::string& Path, Rest::Stroke& Buffer);
+            bool ProcessPragmaDirective(Rest::Stroke& Buffer);
+			bool ProcessBlockDirective(Rest::Stroke& Buffer);
+			bool ProcessDefineDirective(Rest::Stroke& Buffer, UInt64 Base, UInt64& Offset, bool Endless);
+			int FindDefineDirective(Rest::Stroke& Buffer, UInt64& Offset, UInt64* Size);
+			int FindBlockDirective(Rest::Stroke& Buffer, UInt64& Offset, bool Nested);
+			int FindBlockNesting(Rest::Stroke& Buffer, Rest::Stroke::Settle& Hash, UInt64& Offset, bool Resolved);
             int FindDirective(Rest::Stroke& Buffer, const char* V, UInt64* Offset, UInt64* Base, UInt64* Start, UInt64* End);
             bool HasSet(const std::string& Path);
 

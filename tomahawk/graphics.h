@@ -1015,6 +1015,8 @@ namespace Tomahawk
             {
                 Compute::ProcIncludeCallback Include = nullptr;
                 Compute::ProcPragmaCallback Pragma = nullptr;
+				Compute::Preprocessor::Desc Features;
+				std::vector<std::string> Defines;
                 InputLayout* Layout = nullptr;
                 UInt64 LayoutSize = 0;
                 std::string Filename;
@@ -1661,7 +1663,7 @@ namespace Tomahawk
             virtual void* GetContext() = 0;
             virtual DeviceState* CreateState() = 0;
 			virtual bool IsValid() = 0;
-            virtual void ProcessShaderCode(Shader::Desc& ShaderCode);
+            virtual bool ProcessShaderCode(Shader::Desc& ShaderCode);
             virtual void AddSection(const std::string& Name, const std::string& Code);
             virtual void RemoveSection(const std::string& Name);
             virtual std::vector<Section*> GetShaderSections();

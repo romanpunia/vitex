@@ -4258,7 +4258,7 @@ namespace Tomahawk
         }
 		void Preprocessor::SetIncludeOptions(const IncludeDesc& NewDesc)
 		{
-			Desc = NewDesc;
+			FileDesc = NewDesc;
 		}
         void Preprocessor::SetIncludeCallback(const ProcIncludeCallback& Callback)
         {
@@ -4268,31 +4268,81 @@ namespace Tomahawk
         {
             Pragma = Callback;
         }
-        bool Preprocessor::Process(const std::string& Path, std::string& Buffer)
+		void Preprocessor::SetFeatures(const Desc& F)
+		{
+			Features = F;
+		}
+		void Preprocessor::Define(const std::string& Name)
+		{
+			Undefine(Name);
+			Defines.push_back(Name);
+		}
+		void Preprocessor::Undefine(const std::string& Name)
+		{
+			for (auto It = Defines.begin(); It != Defines.end(); It++)
+			{
+				if (*It == Name)
+				{
+					Defines.erase(It);
+					return;
+				}
+			}
+		}
+		void Preprocessor::Clear()
+		{
+			Resolve = 0;
+			Defines.clear();
+			Sets.clear();
+		}
+		bool Preprocessor::IsDefined(const char* Name) const
+		{
+			if (!Name)
+				return false;
+
+			for (auto& It : Defines)
+			{
+				if (It == Name)
+					return true;
+			}
+
+			return false;
+		}
+        bool Preprocessor::Process(const std::string& Path, std::string& Data)
         {
-            if (Buffer.empty())
+            if (Data.empty())
                 return false;
 
             std::string R = Path.empty() ? "" : Rest::OS::Resolve(Path.c_str());
             if (Resolve > 0 && (!Path.empty() && HasSet(R)))
                 return true;
 
-			if (!R.empty())
-				PushSet(R);
+			Rest::Stroke Buffer(&Data);
+			if (Features.Conditions && !ProcessBlockDirective(Buffer))
+				return false;
 
-            if (!ProcessIncludeDirective(R, Buffer))
-            {
-                PopSet();
+			if (Features.Includes)
+			{
+				if (!R.empty())
+					PushSet(R);
+
+				if (!ProcessIncludeDirective(R, Buffer))
+				{
+					PopSet();
+					return false;
+				}
+
+				if (!R.empty())
+					PopSet();
+			}
+
+            if (Features.Pragmas && !ProcessPragmaDirective(Buffer))
                 return false;
-            }
 
-			if (!R.empty())
-				PopSet();
+			UInt64 Offset;
+			if (Features.Defines && !ProcessDefineDirective(Buffer, 0, Offset, true))
+				return false;
 
-            if (!ProcessPragmaDirective(Buffer))
-                return false;
-
-            Rest::Stroke(&Buffer).Trim();
+			Buffer.Trim();
             return true;
         }
         void Preprocessor::PushSet(const std::string& Path)
@@ -4309,12 +4359,11 @@ namespace Tomahawk
             Sets.clear();
             Resolve = 0;
         }
-        bool Preprocessor::ProcessIncludeDirective(const std::string& Path, std::string& Data)
+        bool Preprocessor::ProcessIncludeDirective(const std::string& Path, Rest::Stroke& Buffer)
         {
-            if (!Include || Data.empty())
+            if (Buffer.Empty())
                 return true;
 
-            Rest::Stroke Buffer(&Data);
             Rest::Stroke::Settle Result;
             Result.Start = Result.End = 0;
             Result.Found = false;
@@ -4326,15 +4375,15 @@ namespace Tomahawk
                 if (!Result.Found)
                     return true;
 
-                if (Result.Start > 0 && (Data[Result.Start - 1] != '\n' && Data[Result.Start - 1] != '\r'))
+                if (Result.Start > 0 && (Buffer.R()[Result.Start - 1] != '\n' && Buffer.R()[Result.Start - 1] != '\r'))
                     continue;
 
                 UInt64 Start = Result.End;
-                while (Start + 1 < Data.size() && Data[Start] != '\"')
+                while (Start + 1 < Buffer.Size() && Buffer.R()[Start] != '\"')
                     Start++;
 
                 UInt64 End = Start + 1;
-                while (End + 1 < Data.size() && Data[End] != '\"')
+                while (End + 1 < Buffer.Size() && Buffer.R()[End] != '\"')
                     End++;
 
                 Start++;
@@ -4344,9 +4393,8 @@ namespace Tomahawk
                     return false;
                 }
 
-                Rest::Stroke Section(Data.c_str() + Start, End - Start);
-                Section.Trim();
-                End++;
+                Rest::Stroke Section(Buffer.Get() + Start, End - Start);
+                Section.Trim(); End++;
 
                 std::string File = Rest::OS::Resolve(Section.R(), Dir);
                 if (File.empty())
@@ -4355,8 +4403,8 @@ namespace Tomahawk
 				std::string Output;
                 if (!HasSet(File))
                 {
-					Desc.Path = Section.R(); Desc.From = Path;
-                    if (!Include(this, ResolveInclude(Desc), &Output))
+					FileDesc.Path = Section.R(); FileDesc.From = Path;
+                    if (!Include || !Include(this, ResolveInclude(FileDesc), &Output))
                     {
                         THAWK_ERROR("%s: cannot find \"%s\"", Path.c_str(), Section.Get());
                         return false;
@@ -4370,14 +4418,12 @@ namespace Tomahawk
                 Result.End = Result.Start + 1;
             }
         }
-        bool Preprocessor::ProcessPragmaDirective(std::string& Data)
+        bool Preprocessor::ProcessPragmaDirective(Rest::Stroke& Buffer)
         {
-            if (!Include || Data.empty())
+            if (Buffer.Empty())
                 return true;
 
-            Rest::Stroke Buffer(&Data);
             UInt64 Offset = 0;
-
             while (true)
             {
                 UInt64 Base, Start, End;
@@ -4390,8 +4436,8 @@ namespace Tomahawk
                 else if (R == 0)
                     return true;
 
-                Rest::Stroke Value(Data.c_str() + Start, End - Start);
-                if (!Pragma(this, Value.Trim().Replace("  ", " ").R()))
+                Rest::Stroke Value(Buffer.Get() + Start, End - Start);
+                if (Pragma && !Pragma(this, Value.Trim().Replace("  ", " ").R()))
                 {
                     THAWK_ERROR("cannot process pragma \"%s\" directive", Value.Get());
                     return false;
@@ -4400,9 +4446,204 @@ namespace Tomahawk
                 Buffer.ReplacePart(Base, End, "");
             }
         }
+		bool Preprocessor::ProcessBlockDirective(Rest::Stroke& Buffer)
+		{
+			if (Buffer.Empty())
+				return true;
+
+			UInt64 Offset = 0;
+			while (true)
+			{
+				int R = FindBlockDirective(Buffer, Offset, false);
+				if (R < 0)
+				{
+					THAWK_ERROR("cannot process ifdef/endif directive");
+					return false;
+				}
+				else if (R == 0)
+					return true;
+			}
+		}
+		bool Preprocessor::ProcessDefineDirective(Rest::Stroke& Buffer, UInt64 Base, UInt64& Offset, bool Endless)
+		{
+			if (Buffer.Empty())
+				return true;
+
+			UInt64 Size = 0;
+			while (Endless || Base < Offset)
+			{
+				int R = FindDefineDirective(Buffer, Base, &Size);
+				if (R < 0)
+				{
+					THAWK_ERROR("cannot process define directive");
+					return false;
+				}
+				else if (R == 0)
+					return true;
+
+				Offset -= Size;
+			}
+
+			return true;
+		}
+		int Preprocessor::FindDefineDirective(Rest::Stroke& Buffer, UInt64& Offset, UInt64* Size)
+		{
+			UInt64 Base, Start, End, Set = Offset; Offset--;
+			int R = FindDirective(Buffer, "#define", &Offset, &Base, &Start, &End);
+			if (R < 0)
+			{
+				THAWK_ERROR("cannot process define directive");
+				return -1;
+			}
+			else if (R == 0)
+				return 0;
+
+			Rest::Stroke Value(Buffer.Get() + Start, End - Start);
+			Define(Value.Trim().Replace("  ", " ").R());
+			Buffer.ReplacePart(Base, End, "");
+
+			if (Size != nullptr)
+				*Size = End - Base;
+
+			return 1;
+		}
+		int Preprocessor::FindBlockDirective(Rest::Stroke& Buffer, UInt64& Offset, bool Nested)
+		{
+			UInt64 B1Start = 0, B1End = 0;
+			UInt64 B2Start = 0, B2End = 0;
+			UInt64 Start, End, Base, Size;
+			UInt64 BaseOffset = Offset;
+			bool Resolved = false;
+
+			int R = FindDirective(Buffer, "#ifdef", &Offset, nullptr, &Start, &End);
+			if (R < 0)
+			{
+				THAWK_ERROR("cannot parse ifdef block directive");
+				return -1;
+			}
+			else if (R == 0)
+				return 0;
+
+			Base = Offset;
+			ProcessDefineDirective(Buffer, BaseOffset, Base, false);
+			Size = Offset - Base;
+			Start -= Size;
+			End -= Size;
+			Offset = Base;
+
+			Rest::Stroke Name(Buffer.Get() + Start, End - Start);
+			Name.Trim().Replace("  ", " ");
+			Resolved = IsDefined(Name.Get());
+			Start = Offset - 1;
+
+			if (Name.Get()[0] == '!')
+			{
+				Name.Substring(1);
+				Resolved = !Resolved;
+			}
+
+		ResolveDirective:
+			Rest::Stroke::Settle Cond = Buffer.Find('#', Offset);
+			R = FindBlockNesting(Buffer, Cond, Offset, B1Start + B1End == 0 ? Resolved : !Resolved);
+			if (R < 0)
+			{
+				THAWK_ERROR("cannot find endif directive of %s", Name.Get());
+				return -1;
+			}
+			else if (R == 1)
+			{
+				int C = FindBlockDirective(Buffer, Offset, true);
+				if (C == 0)
+				{
+					THAWK_ERROR("cannot process nested ifdef/endif directive of %s", Name.Get());
+					return -1;
+				}
+				else if (C < 0)
+					return -1;
+
+				goto ResolveDirective;
+			}
+			else if (R == 2)
+			{
+				if (B1Start + B1End != 0)
+				{
+					B2Start = B1End + 6;
+					B2End = Cond.Start;
+				}
+				else
+				{
+					B1Start = End;
+					B1End = Offset - 6;
+				}
+			}
+			else if (R == 3)
+			{
+				B1Start = End;
+				B1End = Offset - 5;
+				goto ResolveDirective;
+			}
+			else if (R == 0)
+				goto ResolveDirective;
+
+			if (Resolved)
+			{
+				Rest::Stroke Section(Buffer.Get() + B1Start, B1End - B1Start);
+				if (B2Start + B2End != 0)
+					Buffer.ReplacePart(Start, B2End + 6, Section.R());
+				else
+					Buffer.ReplacePart(Start, B1End + 6, Section.R());
+				Offset = Start + Section.Size() - 1;
+			}
+			else if (B2Start + B2End != 0)
+			{
+				Rest::Stroke Section(Buffer.Get() + B2Start, B2End - B2Start);
+				Buffer.ReplacePart(Start, B2End + 6, Section.R());
+				Offset = Start + Section.Size() - 1;
+			}
+			else
+			{
+				Buffer.ReplacePart(Start, B1End + 6, "");
+				Offset = Start;
+			}
+
+			return 1;
+		}
+		int Preprocessor::FindBlockNesting(Rest::Stroke& Buffer, Rest::Stroke::Settle& Hash, UInt64& Offset, bool Resolved)
+		{
+			if (!Hash.Found)
+				return -1;
+
+			Offset = Hash.End;
+			if (!Hash.Start || (Buffer.R()[Hash.Start - 1] != '\n' && Buffer.R()[Hash.Start - 1] != '\r'))
+				return 0;
+
+			if (Hash.Start + 5 < Buffer.Size() && strncmp(Buffer.Get() + Hash.Start, "#ifdef", 5) == 0)
+			{
+				Offset = Hash.Start;
+				return 1;
+			}
+
+			if (Hash.Start + 5 < Buffer.Size() && strncmp(Buffer.Get() + Hash.Start, "#endif", 5) == 0)
+			{
+				Offset = Hash.End + 5;
+				return 2;
+			}
+
+			if (Hash.Start + 4 < Buffer.Size() && strncmp(Buffer.Get() + Hash.Start, "#else", 5) == 0)
+			{
+				Offset = Hash.End + 4;
+				return 3;
+			}
+
+			if (!Features.Defines || !Resolved)
+				return 0;
+
+			int R = FindDefineDirective(Buffer, Offset, nullptr);
+			return R == 1 ? 0 : R;
+		}
         int Preprocessor::FindDirective(Rest::Stroke& Buffer, const char* V, UInt64* SOffset, UInt64* SBase, UInt64* SStart, UInt64* SEnd)
         {
-            auto Result = Buffer.Find(V, *SOffset);
+            auto Result = Buffer.Find(V, SOffset ? *SOffset : 0);
             if (!Result.Found)
                 return 0;
 
@@ -4420,10 +4661,18 @@ namespace Tomahawk
             if (Start == End)
                 return -1;
 
-            *SOffset = Result.Start + 1;
-            *SBase = Result.Start;
-            *SStart = Start;
-            *SEnd = End + 1;
+			if (SOffset != nullptr)
+				*SOffset = Result.Start + 1;
+
+			if (SBase != nullptr)
+				*SBase = Result.Start;
+
+			if (SStart != nullptr)
+				*SStart = Start;
+
+			if (SEnd != nullptr)
+				*SEnd = End + 1;
+
             return 1;
         }
         bool Preprocessor::HasSet(const std::string& Path)

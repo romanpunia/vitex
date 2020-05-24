@@ -858,10 +858,10 @@ namespace Tomahawk
             for (auto It = Sections.begin(); It != Sections.end(); It++)
                 delete *It;
         }
-        void GraphicsDevice::ProcessShaderCode(Shader::Desc& In)
+		bool GraphicsDevice::ProcessShaderCode(Shader::Desc& In)
         {
             if (In.Data.empty())
-                return;
+                return true;
 
 			Compute::IncludeDesc Desc;
 			Desc.Exts.push_back(".hlsl");
@@ -908,8 +908,15 @@ namespace Tomahawk
                 return true;
             });
 			Processor->SetIncludeOptions(Desc);
-            Processor->Process(In.Filename, In.Data);
+			Processor->SetFeatures(In.Features);
+
+			for (auto& Word : In.Defines)
+				Processor->Define(Word);
+
+            bool Result = Processor->Process(In.Filename, In.Data);
             delete Processor;
+
+			return Result;
         }
         void GraphicsDevice::AddSection(const std::string& Name, const std::string& Code)
         {

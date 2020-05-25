@@ -124,7 +124,7 @@ Tomahawk is a cross-platform C++14 framework to create any type of application f
 #### Built-in file processor
 + Scene graph processor
 + Font processor (ImGui-based)
-+ Audio clip processor (WAVE only for now)
++ Audio clip processor (WAVE, OGG)
 + Texture 2d processor (JPG, PNG, TGA, BMP, PSD, GIF, HDR, PIC)
 + Shader processor (render backend dependent, code preprocessor included)
 + Model processor (with Assimp's import options, if supported)

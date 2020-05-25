@@ -9,6 +9,8 @@ namespace Tomahawk
     {
         namespace Components
         {
+			class Model;
+
             class SkinnedModel;
 
             class THAWK_OUT RigidBody : public Component
@@ -33,6 +35,39 @@ namespace Tomahawk
             public:
                 THAWK_COMPONENT(RigidBody);
             };
+
+			class THAWK_OUT SoftBody : public Component
+			{
+			public:
+				struct
+				{
+					SkinnedModel* Dynamic;
+					Model* Static;
+				} Sync;
+
+			public:
+				Compute::SoftBody* Instance;
+				bool Kinematic, Synchronize;
+
+			public:
+				SoftBody(Entity* Ref);
+				virtual ~SoftBody() override;
+				virtual void OnLoad(ContentManager* Content, Rest::Document* Node) override;
+				virtual void OnSave(ContentManager* Content, Rest::Document* Node) override;
+				virtual void OnSynchronize(Rest::Timer* Time) override;
+				virtual void OnAwake(Component* New) override;
+				virtual void OnAsleep() override;
+				virtual Component* OnClone(Entity* New) override;
+				void InitializeShape(btCollisionShape* Shape, float Anticipation);
+				void InitializeEllipsoid(const Compute::SoftBody::Desc::CV::SEllipsoid& Shape, float Anticipation);
+				void InitializePatch(const Compute::SoftBody::Desc::CV::SPatch& Shape, float Anticipation);
+				void InitializeRope(const Compute::SoftBody::Desc::CV::SRope& Shape, float Anticipation);
+				void SetTransform(const Compute::Matrix4x4& World);
+				void SetTransform(bool Kinematic);
+
+			public:
+				THAWK_COMPONENT(SoftBody);
+			};
 
             class THAWK_OUT Acceleration : public Component
             {

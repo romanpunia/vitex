@@ -359,6 +359,9 @@ namespace Tomahawk
                 THAWK_WARN("en-US locale cannot be initialized");
         }
 
+		if (Modes & TInit_Audio)
+			Audio::AudioContext::Create();
+
 #ifndef THAWK_MICROSOFT
         signal(SIGPIPE, SIG_IGN);
 #endif
@@ -369,6 +372,9 @@ namespace Tomahawk
         State--;
         if (State > 0 || State < 0)
             return State >= 0;
+
+		if (Modes & TInit_Audio)
+			Audio::AudioContext::Release();
 
         if (Modes & TInit_Crypto)
         {

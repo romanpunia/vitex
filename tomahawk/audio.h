@@ -82,9 +82,14 @@ namespace Tomahawk
         class THAWK_OUT AudioContext
         {
         private:
+			static std::mutex* Mutex;
             static int State;
 
         public:
+			static void Create();
+			static void Release();
+			static void Lock();
+			static void Unlock();
             static void GenerateBuffers(int Count, unsigned int* Buffers);
             static void SetBufferData(unsigned int Buffer, int Format, const void* Data, int Size, int Frequency);
             static void SetSourceData3F(unsigned int Source, SoundEx Value, float F1, float F2, float F3);
@@ -115,20 +120,24 @@ namespace Tomahawk
 
         class THAWK_OUT AudioClip : public Rest::Object
         {
-        public:
+        private:
             unsigned int Buffer = 0;
             int Format = 0;
 
         public:
-            AudioClip();
+            AudioClip(int BufferCount, int NewFormat);
             virtual ~AudioClip() override;
             float Length();
             bool IsMono();
+			unsigned int GetBuffer();
+			int GetFormat();
         };
 
         class THAWK_OUT AudioSource : public Rest::Object
         {
-        public:
+			friend class AudioDevice;
+
+        private:
             AudioClip* Clip = nullptr;
             unsigned int Instance = 0;
 
@@ -140,7 +149,9 @@ namespace Tomahawk
             void Pause();
             void Play();
             void Stop();
-            bool IsPlaying();
+            bool IsPlaying() const;
+			AudioClip* GetClip() const;
+			unsigned int GetInstance() const;
         };
 
         class THAWK_OUT AudioDevice : public Rest::Object

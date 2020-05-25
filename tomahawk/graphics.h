@@ -1614,6 +1614,7 @@ namespace Tomahawk
             VSync VSyncMode = VSync_Frequency_X1;
             const void* ConstantData[4];
             RenderBackend Backend;
+			std::mutex Mutex;
 
         public:
             RenderBuffer Render;
@@ -1667,6 +1668,8 @@ namespace Tomahawk
             virtual void AddSection(const std::string& Name, const std::string& Code);
             virtual void RemoveSection(const std::string& Name);
             virtual std::vector<Section*> GetShaderSections();
+			void Lock();
+			void Unlock();
             void CreateRendererStates();
             DepthStencilState* GetDepthStencilState(UInt64 State);
             BlendState* GetBlendState(UInt64 State);

@@ -252,6 +252,327 @@ namespace Tomahawk
                 return Target;
             }
 
+			SoftBody::SoftBody(Entity* Ref) : Component(Ref)
+			{
+				Instance = nullptr;
+				Kinematic = false;
+				Synchronize = true;
+			}
+			SoftBody::~SoftBody()
+			{
+				delete Instance;
+			}
+			void SoftBody::OnLoad(ContentManager* Content, Rest::Document* Node)
+			{
+				bool Extended;
+				NMake::Unpack(Node->Find("extended"), &Extended);
+				NMake::Unpack(Node->Find("kinematic"), &Kinematic);
+				if (!Extended)
+					return;
+
+				float CcdMotionThreshold = 0;
+				NMake::Unpack(Node->Find("ccd-motion-threshold"), &CcdMotionThreshold);
+
+				UInt64 Type; Rest::Document* CV;
+				if (NMake::Unpack(Node->Find("shape"), &Type))
+				{
+					btCollisionShape* Shape = Parent->GetScene()->GetSimulator()->CreateShape((Compute::Shape)Type);
+					if (Shape == nullptr && Type == (UInt64)Compute::Shape_Convex_Hull)
+					{
+						std::vector<Compute::Vector3> Vertices;
+						if (NMake::Unpack(Node->Find("shape-data"), &Vertices))
+							Shape = Parent->GetScene()->GetSimulator()->CreateConvexHull(Vertices);
+					}
+
+					InitializeShape(Shape ? Shape : Parent->GetScene()->GetSimulator()->CreateCube(), CcdMotionThreshold);
+				}
+				else if ((CV = Node->Find("ellipsoid")) != nullptr)
+				{
+					Compute::SoftBody::Desc::CV::SEllipsoid Shape;
+					NMake::Unpack(CV->Get("center"), &Shape.Center);
+					NMake::Unpack(CV->Get("radius"), &Shape.Radius);
+					NMake::Unpack(CV->Get("count"), &Shape.Count);
+					InitializeEllipsoid(Shape, CcdMotionThreshold);
+				}
+				else if ((CV = Node->Find("patch")) != nullptr)
+				{
+					Compute::SoftBody::Desc::CV::SPatch Shape;
+					NMake::Unpack(CV->Get("corner-00"), &Shape.Corner00);
+					NMake::Unpack(CV->Get("corner-00-fixed"), &Shape.Corner00Fixed);
+					NMake::Unpack(CV->Get("corner-01"), &Shape.Corner01);
+					NMake::Unpack(CV->Get("corner-01-fixed"), &Shape.Corner01Fixed);
+					NMake::Unpack(CV->Get("corner-10"), &Shape.Corner10);
+					NMake::Unpack(CV->Get("corner-10-fixed"), &Shape.Corner10Fixed);
+					NMake::Unpack(CV->Get("corner-11"), &Shape.Corner11);
+					NMake::Unpack(CV->Get("corner-11-fixed"), &Shape.Corner11Fixed);
+					NMake::Unpack(CV->Get("count-x"), &Shape.CountX);
+					NMake::Unpack(CV->Get("count-y"), &Shape.CountY);
+					NMake::Unpack(CV->Get("diagonals"), &Shape.GenerateDiagonals);
+					InitializePatch(Shape, CcdMotionThreshold);
+				}
+				else if ((CV = Node->Find("rope")) != nullptr)
+				{
+					Compute::SoftBody::Desc::CV::SRope Shape;
+					NMake::Unpack(CV->Get("start"), &Shape.Start);
+					NMake::Unpack(CV->Get("start-fixed"), &Shape.StartFixed);
+					NMake::Unpack(CV->Get("end"), &Shape.End);
+					NMake::Unpack(CV->Get("end-fixed"), &Shape.EndFixed);
+					NMake::Unpack(CV->Get("count"), &Shape.Count);
+					InitializeRope(Shape, CcdMotionThreshold);
+				}
+
+				if (!Instance)
+					return;
+
+				UInt64 ActivationState;
+				if (NMake::Unpack(Node->Find("activation-state"), &ActivationState))
+					Instance->SetActivationState((Compute::MotionState)ActivationState);
+
+				float Friction;
+				if (NMake::Unpack(Node->Find("friction"), &Friction))
+					Instance->SetFriction(Friction);
+
+				float Restitution;
+				if (NMake::Unpack(Node->Find("restitution"), &Restitution))
+					Instance->SetRestitution(Restitution);
+
+				float HitFraction;
+				if (NMake::Unpack(Node->Find("hit-fraction"), &HitFraction))
+					Instance->SetHitFraction(HitFraction);
+
+				float CcdSweptSphereRadius;
+				if (NMake::Unpack(Node->Find("ccd-swept-sphere-radius"), &CcdSweptSphereRadius))
+					Instance->SetCcdSweptSphereRadius(CcdSweptSphereRadius);
+
+				float ContactProcessingThreshold;
+				if (NMake::Unpack(Node->Find("contact-processing-threshold"), &ContactProcessingThreshold))
+					Instance->SetContactProcessingThreshold(ContactProcessingThreshold);
+
+				float DeactivationTime;
+				if (NMake::Unpack(Node->Find("deactivation-time"), &DeactivationTime))
+					Instance->SetDeactivationTime(DeactivationTime);
+
+				float RollingFriction;
+				if (NMake::Unpack(Node->Find("rolling-friction"), &RollingFriction))
+					Instance->SetRollingFriction(RollingFriction);
+
+				float SpinningFriction;
+				if (NMake::Unpack(Node->Find("spinning-friction"), &SpinningFriction))
+					Instance->SetSpinningFriction(SpinningFriction);
+
+				float ContactStiffness;
+				if (NMake::Unpack(Node->Find("contact-stiffness"), &ContactStiffness))
+					Instance->SetContactStiffness(ContactStiffness);
+
+				float ContactDamping;
+				if (NMake::Unpack(Node->Find("contact-damping"), &ContactDamping))
+					Instance->SetContactDamping(ContactDamping);
+
+				Compute::Vector3 AnisotropicFriction;
+				if (NMake::Unpack(Node->Find("anisotropic-friction"), &AnisotropicFriction))
+					Instance->SetAnisotropicFriction(AnisotropicFriction);
+			}
+			void SoftBody::OnSave(ContentManager* Content, Rest::Document* Node)
+			{
+				NMake::Pack(Node->SetDocument("kinematic"), Kinematic);
+				NMake::Pack(Node->SetDocument("extended"), Instance != nullptr);
+				if (!Instance)
+					return;
+
+				auto& Desc = Instance->GetInitialState();
+				if (Desc.Shape.Convex.Enabled)
+				{
+					NMake::Pack(Node->SetDocument("shape"), (UInt64)Instance->GetCollisionShapeType());
+					if (Instance->GetCollisionShapeType() == Compute::Shape_Convex_Hull)
+					{
+						std::vector<Compute::Vector3> Vertices = Parent->GetScene()->GetSimulator()->GetShapeVertices(Instance->GetCollisionShape());
+						NMake::Pack(Node->SetDocument("shape-data"), Vertices);
+					}
+				}
+				else if (Desc.Shape.Ellipsoid.Enabled)
+				{
+					Rest::Document* Shape = Node->SetDocument("ellipsoid");
+					NMake::Pack(Shape->SetDocument("center"), Desc.Shape.Ellipsoid.Center);
+					NMake::Pack(Shape->SetDocument("radius"), Desc.Shape.Ellipsoid.Radius);
+					NMake::Pack(Shape->SetDocument("count"), Desc.Shape.Ellipsoid.Count);
+				}
+				else if (Desc.Shape.Patch.Enabled)
+				{
+					Rest::Document* Shape = Node->SetDocument("patch");
+					NMake::Pack(Shape->SetDocument("corner-00"), Desc.Shape.Patch.Corner00);
+					NMake::Pack(Shape->SetDocument("corner-00-fixed"), Desc.Shape.Patch.Corner00Fixed);
+					NMake::Pack(Shape->SetDocument("corner-01"), Desc.Shape.Patch.Corner01);
+					NMake::Pack(Shape->SetDocument("corner-01-fixed"), Desc.Shape.Patch.Corner01Fixed);
+					NMake::Pack(Shape->SetDocument("corner-10"), Desc.Shape.Patch.Corner10);
+					NMake::Pack(Shape->SetDocument("corner-10-fixed"), Desc.Shape.Patch.Corner10Fixed);
+					NMake::Pack(Shape->SetDocument("corner-11"), Desc.Shape.Patch.Corner11);
+					NMake::Pack(Shape->SetDocument("corner-11-fixed"), Desc.Shape.Patch.Corner11Fixed);
+					NMake::Pack(Shape->SetDocument("count-x"), Desc.Shape.Patch.CountX);
+					NMake::Pack(Shape->SetDocument("count-y"), Desc.Shape.Patch.CountY);
+					NMake::Pack(Shape->SetDocument("diagonals"), Desc.Shape.Patch.GenerateDiagonals);
+				}
+				else if (Desc.Shape.Rope.Enabled)
+				{
+					Rest::Document* Shape = Node->SetDocument("rope");
+					NMake::Pack(Shape->SetDocument("start"), Desc.Shape.Rope.Start);
+					NMake::Pack(Shape->SetDocument("start-fixed"), Desc.Shape.Rope.StartFixed);
+					NMake::Pack(Shape->SetDocument("end"), Desc.Shape.Rope.End);
+					NMake::Pack(Shape->SetDocument("end-fixed"), Desc.Shape.Rope.EndFixed);
+					NMake::Pack(Shape->SetDocument("count"), Desc.Shape.Rope.Count);
+				}
+
+				NMake::Pack(Node->SetDocument("ccd-motion-threshold"), Instance->GetCcdMotionThreshold());
+				NMake::Pack(Node->SetDocument("activation-state"), (UInt64)Instance->GetActivationState());
+				NMake::Pack(Node->SetDocument("friction"), Instance->GetFriction());
+				NMake::Pack(Node->SetDocument("restitution"), Instance->GetRestitution());
+				NMake::Pack(Node->SetDocument("hit-fraction"), Instance->GetHitFraction());
+				NMake::Pack(Node->SetDocument("ccd-swept-sphere-radius"), Instance->GetCcdSweptSphereRadius());
+				NMake::Pack(Node->SetDocument("contact-processing-threshold"), Instance->GetContactProcessingThreshold());
+				NMake::Pack(Node->SetDocument("deactivation-time"), Instance->GetDeactivationTime());
+				NMake::Pack(Node->SetDocument("rolling-friction"), Instance->GetRollingFriction());
+				NMake::Pack(Node->SetDocument("spinning-friction"), Instance->GetSpinningFriction());
+				NMake::Pack(Node->SetDocument("contact-stiffness"), Instance->GetContactStiffness());
+				NMake::Pack(Node->SetDocument("contact-damping"), Instance->GetContactDamping());
+				NMake::Pack(Node->SetDocument("angular-velocity"), Instance->GetAngularVelocity());
+				NMake::Pack(Node->SetDocument("anisotropic-friction"), Instance->GetAnisotropicFriction());
+				NMake::Pack(Node->SetDocument("linear-velocity"), Instance->GetLinearVelocity());
+				NMake::Pack(Node->SetDocument("collision-flags"), (UInt64)Instance->GetCollisionFlags());
+			}
+			void SoftBody::OnSynchronize(Rest::Timer* Time)
+			{
+				if (Instance && Synchronize)
+					Instance->Synchronize(Parent->Transform, Kinematic);
+			}
+			void SoftBody::OnAwake(Component* New)
+			{
+				Components::SkinnedModel* Dynamic = Parent->GetComponent<Components::SkinnedModel>();
+				if (Dynamic != nullptr)
+					Sync.Dynamic = Dynamic;
+
+				Components::Model* Static = Parent->GetComponent<Components::Model>();
+				if (Dynamic != nullptr)
+					Sync.Static = Static;
+			}
+			void SoftBody::OnAsleep()
+			{
+				if (Instance != nullptr)
+					Instance->SetAsGhost();
+			}
+			void SoftBody::InitializeShape(btCollisionShape* Shape, float Anticipation)
+			{
+				if (!Shape || !Parent || !Parent->GetScene() || !Parent->GetScene()->GetSimulator())
+					return;
+
+				Parent->GetScene()->Lock();
+				delete Instance;
+
+				Compute::SoftBody::Desc I;
+				I.Anticipation = Anticipation;
+				I.Shape.Convex.Source = Shape;
+				I.Shape.Convex.Enabled = true;
+
+				Instance = Parent->GetScene()->GetSimulator()->CreateSoftBody(I, Parent->Transform);
+				Instance->UserPointer = this;
+				Instance->SetActivity(true);
+				Parent->GetScene()->Unlock();
+			}
+			void SoftBody::InitializeEllipsoid(const Compute::SoftBody::Desc::CV::SEllipsoid& Shape, float Anticipation)
+			{
+				if (!Parent || !Parent->GetScene() || !Parent->GetScene()->GetSimulator())
+					return;
+
+				Parent->GetScene()->Lock();
+				delete Instance;
+
+				Compute::SoftBody::Desc I;
+				I.Anticipation = Anticipation;
+				I.Shape.Ellipsoid = Shape;
+				I.Shape.Ellipsoid.Enabled = true;
+
+				Instance = Parent->GetScene()->GetSimulator()->CreateSoftBody(I, Parent->Transform);
+				Instance->UserPointer = this;
+				Instance->SetActivity(true);
+				Parent->GetScene()->Unlock();
+			}
+			void SoftBody::InitializePatch(const Compute::SoftBody::Desc::CV::SPatch& Shape, float Anticipation)
+			{
+				if (!Parent || !Parent->GetScene() || !Parent->GetScene()->GetSimulator())
+					return;
+
+				Parent->GetScene()->Lock();
+				delete Instance;
+
+				Compute::SoftBody::Desc I;
+				I.Anticipation = Anticipation;
+				I.Shape.Patch = Shape;
+				I.Shape.Patch.Enabled = true;
+
+				Instance = Parent->GetScene()->GetSimulator()->CreateSoftBody(I, Parent->Transform);
+				Instance->UserPointer = this;
+				Instance->SetActivity(true);
+				Parent->GetScene()->Unlock();
+			}
+			void SoftBody::InitializeRope(const Compute::SoftBody::Desc::CV::SRope& Shape, float Anticipation)
+			{
+				if (!Parent || !Parent->GetScene() || !Parent->GetScene()->GetSimulator())
+					return;
+
+				Parent->GetScene()->Lock();
+				delete Instance;
+
+				Compute::SoftBody::Desc I;
+				I.Anticipation = Anticipation;
+				I.Shape.Rope = Shape;
+				I.Shape.Rope.Enabled = true;
+
+				Instance = Parent->GetScene()->GetSimulator()->CreateSoftBody(I, Parent->Transform);
+				Instance->UserPointer = this;
+				Instance->SetActivity(true);
+				Parent->GetScene()->Unlock();
+			}
+			void SoftBody::SetTransform(const Compute::Matrix4x4& World)
+			{
+				if (!Instance)
+					return;
+
+				if (Parent && Parent->GetScene())
+					Parent->GetScene()->Lock();
+
+				Parent->Transform->SetMatrix(World);
+				Instance->Synchronize(Parent->Transform, true);
+				Instance->SetActivity(true);
+
+				if (Parent && Parent->GetScene())
+					Parent->GetScene()->Unlock();
+			}
+			void SoftBody::SetTransform(bool Kinematics)
+			{
+				if (!Instance)
+					return;
+
+				if (Parent && Parent->GetScene())
+					Parent->GetScene()->Lock();
+
+				Instance->Synchronize(Parent->Transform, Kinematics);
+				Instance->SetActivity(true);
+
+				if (Parent && Parent->GetScene())
+					Parent->GetScene()->Unlock();
+			}
+			Component* SoftBody::OnClone(Entity* New)
+			{
+				SoftBody* Target = new SoftBody(New);
+				Target->Kinematic = Kinematic;
+
+				if (Instance != nullptr)
+				{
+					Target->Instance = Instance->Copy();
+					Target->Instance->UserPointer = Target;
+				}
+
+				return Target;
+			}
+
             Acceleration::Acceleration(Entity* Ref) : Component(Ref)
             {
                 AmplitudeVelocity = 0;
@@ -608,7 +929,7 @@ namespace Tomahawk
             {
                 std::string Path;
                 if (NMake::Unpack(Node->Find("audio-clip"), &Path))
-                    Source->Apply(Content->Load<Audio::AudioClip>(Path));
+                    Source->Apply(Content->Load<Audio::AudioClip>(Path, nullptr));
 
                 NMake::Unpack(Node->Find("velocity"), &Velocity);
                 NMake::Unpack(Node->Find("direction"), &Direction);
@@ -626,7 +947,7 @@ namespace Tomahawk
                 NMake::Unpack(Node->Find("distance"), &Distance);
 
                 bool Autoplay;
-                if (NMake::Unpack(Node->Find("autoplay"), &Autoplay) && Autoplay && Source->Clip)
+                if (NMake::Unpack(Node->Find("autoplay"), &Autoplay) && Autoplay && Source->GetClip())
                     Source->Play();
 
                 ApplyPlayingPosition();
@@ -634,7 +955,7 @@ namespace Tomahawk
             }
             void AudioSource::OnSave(ContentManager* Content, Rest::Document* Node)
             {
-                AssetResource* Asset = Content->FindAsset(Source->Clip);
+                AssetResource* Asset = Content->FindAsset(Source->GetClip());
                 if (Asset != nullptr)
                     NMake::Pack(Node->SetDocument("audio-clip"), Asset->Path);
 
@@ -656,31 +977,31 @@ namespace Tomahawk
             }
             void AudioSource::OnSynchronize(Rest::Timer* Time)
             {
-                if (!Source->Clip)
+                if (!Source->GetClip())
                     return;
 
                 if (Relative)
-                    Audio::AudioContext::SetSourceData3F(Source->Instance, Audio::SoundEx_Position, 0, 0, 0);
+                    Audio::AudioContext::SetSourceData3F(Source->GetInstance(), Audio::SoundEx_Position, 0, 0, 0);
                 else
-                    Audio::AudioContext::SetSourceData3F(Source->Instance, Audio::SoundEx_Position, -Parent->Transform->Position.X, -Parent->Transform->Position.Y, Parent->Transform->Position.Z);
+                    Audio::AudioContext::SetSourceData3F(Source->GetInstance(), Audio::SoundEx_Position, -Parent->Transform->Position.X, -Parent->Transform->Position.Y, Parent->Transform->Position.Z);
 
-                Audio::AudioContext::SetSourceData3F(Source->Instance, Audio::SoundEx_Velocity, Velocity.X, Velocity.Y, Velocity.Z);
-                Audio::AudioContext::SetSourceData3F(Source->Instance, Audio::SoundEx_Direction, Direction.X, Direction.Y, Direction.Z);
-                Audio::AudioContext::SetSourceData1I(Source->Instance, Audio::SoundEx_Source_Relative, Relative);
-                Audio::AudioContext::SetSourceData1I(Source->Instance, Audio::SoundEx_Looping, Loop);
-                Audio::AudioContext::SetSourceData1F(Source->Instance, Audio::SoundEx_Pitch, Pitch);
-                Audio::AudioContext::SetSourceData1F(Source->Instance, Audio::SoundEx_Gain, Gain);
-                Audio::AudioContext::SetSourceData1F(Source->Instance, Audio::SoundEx_Max_Distance, Distance);
-                Audio::AudioContext::SetSourceData1F(Source->Instance, Audio::SoundEx_Reference_Distance, RefDistance);
-                Audio::AudioContext::SetSourceData1F(Source->Instance, Audio::SoundEx_Rolloff_Factor, Rolloff);
-                Audio::AudioContext::SetSourceData1F(Source->Instance, Audio::SoundEx_Cone_Inner_Angle, ConeInnerAngle);
-                Audio::AudioContext::SetSourceData1F(Source->Instance, Audio::SoundEx_Cone_Outer_Angle, ConeOuterAngle);
-                Audio::AudioContext::SetSourceData1F(Source->Instance, Audio::SoundEx_Cone_Outer_Gain, ConeOuterGain);
-                Audio::AudioContext::GetSourceData1F(Source->Instance, Audio::SoundEx_Seconds_Offset, &Position);
+                Audio::AudioContext::SetSourceData3F(Source->GetInstance(), Audio::SoundEx_Velocity, Velocity.X, Velocity.Y, Velocity.Z);
+                Audio::AudioContext::SetSourceData3F(Source->GetInstance(), Audio::SoundEx_Direction, Direction.X, Direction.Y, Direction.Z);
+                Audio::AudioContext::SetSourceData1I(Source->GetInstance(), Audio::SoundEx_Source_Relative, Relative);
+                Audio::AudioContext::SetSourceData1I(Source->GetInstance(), Audio::SoundEx_Looping, Loop);
+                Audio::AudioContext::SetSourceData1F(Source->GetInstance(), Audio::SoundEx_Pitch, Pitch);
+                Audio::AudioContext::SetSourceData1F(Source->GetInstance(), Audio::SoundEx_Gain, Gain);
+                Audio::AudioContext::SetSourceData1F(Source->GetInstance(), Audio::SoundEx_Max_Distance, Distance);
+                Audio::AudioContext::SetSourceData1F(Source->GetInstance(), Audio::SoundEx_Reference_Distance, RefDistance);
+                Audio::AudioContext::SetSourceData1F(Source->GetInstance(), Audio::SoundEx_Rolloff_Factor, Rolloff);
+                Audio::AudioContext::SetSourceData1F(Source->GetInstance(), Audio::SoundEx_Cone_Inner_Angle, ConeInnerAngle);
+                Audio::AudioContext::SetSourceData1F(Source->GetInstance(), Audio::SoundEx_Cone_Outer_Angle, ConeOuterAngle);
+                Audio::AudioContext::SetSourceData1F(Source->GetInstance(), Audio::SoundEx_Cone_Outer_Gain, ConeOuterGain);
+                Audio::AudioContext::GetSourceData1F(Source->GetInstance(), Audio::SoundEx_Seconds_Offset, &Position);
             }
             void AudioSource::ApplyPlayingPosition()
             {
-                Audio::AudioContext::SetSourceData1F(Source->Instance, Audio::SoundEx_Seconds_Offset, Position);
+                Audio::AudioContext::SetSourceData1F(Source->GetInstance(), Audio::SoundEx_Seconds_Offset, Position);
             }
             Component* AudioSource::OnClone(Entity* New)
             {
@@ -692,7 +1013,7 @@ namespace Tomahawk
                 Target->Position = Position;
                 Target->RefDistance = RefDistance;
                 Target->Relative = Relative;
-                Target->Source->Apply(Source->Clip);
+                Target->Source->Apply(Source->GetClip());
 
                 return Target;
             }
@@ -1161,7 +1482,7 @@ namespace Tomahawk
             {
                 std::string Path;
                 if (NMake::Unpack(Node->Find("diffuse"), &Path))
-                    Diffuse = Content->Load<Graphics::Texture2D>(Path);
+                    Diffuse = Content->Load<Graphics::Texture2D>(Path, nullptr);
 
                 NMake::Unpack(Node->Find("quad-based"), &QuadBased);
                 NMake::Unpack(Node->Find("diffusion"), &Diffusion);
@@ -1504,20 +1825,20 @@ namespace Tomahawk
             {
                 std::string Path;
                 if (NMake::Unpack(Node->Find("model"), &Path))
-                    Instance = Content->Load<Graphics::Model>(Path);
+                    Instance = Content->Load<Graphics::Model>(Path, nullptr);
 
                 std::vector<Rest::Document*> Faces = Node->FindCollectionPath("surfaces.surface");
                 for (auto&& Surface : Faces)
                 {
                     TSurface Face;
                     if (NMake::Unpack(Surface->Find("diffuse"), &Path))
-                        Face.Diffuse = Content->Load<Graphics::Texture2D>(Path);
+                        Face.Diffuse = Content->Load<Graphics::Texture2D>(Path, nullptr);
 
                     if (NMake::Unpack(Surface->Find("normal"), &Path))
-                        Face.Normal = Content->Load<Graphics::Texture2D>(Path);
+                        Face.Normal = Content->Load<Graphics::Texture2D>(Path, nullptr);
 
                     if (NMake::Unpack(Surface->Find("surface"), &Path))
-                        Face.Surface = Content->Load<Graphics::Texture2D>(Path);
+                        Face.Surface = Content->Load<Graphics::Texture2D>(Path, nullptr);
 
                     NMake::Unpack(Surface->Find("diffusion"), &Face.Diffusion);
                     NMake::Unpack(Surface->Find("texcoord"), &Face.TexCoord);
@@ -1643,20 +1964,20 @@ namespace Tomahawk
             {
                 std::string Path;
                 if (NMake::Unpack(Node->Find("skinned-model"), &Path))
-                    Instance = Content->Load<Graphics::SkinnedModel>(Path);
+                    Instance = Content->Load<Graphics::SkinnedModel>(Path, nullptr);
 
                 std::vector<Rest::Document*> Faces = Node->FindCollectionPath("surfaces.surface");
                 for (auto&& Surface : Faces)
                 {
                     TSurface Face;
                     if (NMake::Unpack(Surface->Find("diffuse"), &Path))
-                        Face.Diffuse = Content->Load<Graphics::Texture2D>(Path);
+                        Face.Diffuse = Content->Load<Graphics::Texture2D>(Path, nullptr);
 
                     if (NMake::Unpack(Surface->Find("normal"), &Path))
-                        Face.Normal = Content->Load<Graphics::Texture2D>(Path);
+                        Face.Normal = Content->Load<Graphics::Texture2D>(Path, nullptr);
 
                     if (NMake::Unpack(Surface->Find("surface"), &Path))
-                        Face.Surface = Content->Load<Graphics::Texture2D>(Path);
+                        Face.Surface = Content->Load<Graphics::Texture2D>(Path, nullptr);
 
                     NMake::Unpack(Surface->Find("diffusion"), &Face.Diffusion);
                     NMake::Unpack(Surface->Find("texcoord"), &Face.TexCoord);
@@ -1879,7 +2200,7 @@ namespace Tomahawk
             {
                 std::string Path;
                 if (NMake::Unpack(Node->Find("diffuse"), &Path))
-                    Diffuse = Content->Load<Graphics::Texture2D>(Path);
+                    Diffuse = Content->Load<Graphics::Texture2D>(Path, nullptr);
 
                 NMake::Unpack(Node->Find("diffusion"), &Diffusion);
                 NMake::Unpack(Node->Find("visibility"), &Visibility);
@@ -2041,22 +2362,22 @@ namespace Tomahawk
             {
                 std::string Path;
                 if (NMake::Unpack(Node->Find("diffuse-px"), &Path))
-                    DiffusePX = Content->Load<Graphics::Texture2D>(Path);
+                    DiffusePX = Content->Load<Graphics::Texture2D>(Path, nullptr);
 
                 if (NMake::Unpack(Node->Find("diffuse-nx"), &Path))
-                    DiffuseNX = Content->Load<Graphics::Texture2D>(Path);
+                    DiffuseNX = Content->Load<Graphics::Texture2D>(Path, nullptr);
 
                 if (NMake::Unpack(Node->Find("diffuse-py"), &Path))
-                    DiffusePY = Content->Load<Graphics::Texture2D>(Path);
+                    DiffusePY = Content->Load<Graphics::Texture2D>(Path, nullptr);
 
                 if (NMake::Unpack(Node->Find("diffuse-ny"), &Path))
-                    DiffuseNY = Content->Load<Graphics::Texture2D>(Path);
+                    DiffuseNY = Content->Load<Graphics::Texture2D>(Path, nullptr);
 
                 if (NMake::Unpack(Node->Find("diffuse-pz"), &Path))
-                    DiffusePZ = Content->Load<Graphics::Texture2D>(Path);
+                    DiffusePZ = Content->Load<Graphics::Texture2D>(Path, nullptr);
 
                 if (NMake::Unpack(Node->Find("diffuse-nz"), &Path))
-                    DiffuseNZ = Content->Load<Graphics::Texture2D>(Path);
+                    DiffuseNZ = Content->Load<Graphics::Texture2D>(Path, nullptr);
 
                 std::vector<Compute::Matrix4x4> Views;
                 NMake::Unpack(Node->Find("view"), &Views);

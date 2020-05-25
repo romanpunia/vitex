@@ -2997,7 +2997,7 @@ namespace Tomahawk
             return Conf;
         }
 
-        ContentManager::ContentManager(Graphics::GraphicsDevice* NewDevice) : Device(NewDevice)
+        ContentManager::ContentManager(Graphics::GraphicsDevice* NewDevice, Rest::EventQueue* NewQueue) : Device(NewDevice), Queue(NewQueue)
         {
             Base = Rest::OS::ResolveDir(Rest::OS::GetDirectory().c_str());
             SetEnvironment(Base);
@@ -3015,35 +3015,38 @@ namespace Tomahawk
         }
         void ContentManager::InvalidateDockers()
         {
+			Mutex.lock();
             for (auto It = Dockers.begin(); It != Dockers.end(); It++)
-            {
-                if (!It->second)
-                    continue;
-
                 delete It->second;
-            }
 
             Dockers.clear();
+			Mutex.unlock();
         }
         void ContentManager::InvalidateCache()
         {
+			Mutex.lock();
             for (auto It = Assets.begin(); It != Assets.end(); It++)
             {
                 if (!It->second)
                     continue;
 
                 FileProcessor* Root = It->second->Processor;
+				Mutex.unlock();
                 if (Root != nullptr)
                     Root->Free(It->second);
+				Mutex.lock();
 
                 delete It->second;
             }
 
             Assets.clear();
+			Mutex.unlock();
         }
         void ContentManager::SetEnvironment(const std::string& Path)
         {
+			Mutex.lock();
             Environment = Rest::OS::ResolveDir(Path.c_str());
+			Mutex.unlock();
         }
         void* ContentManager::LoadForward(const std::string& Path, FileProcessor* Processor, ContentMap* Map)
         {
@@ -3058,17 +3061,20 @@ namespace Tomahawk
             if (Object != nullptr)
                 return Object;
 
+			Mutex.lock();
             std::string File = Rest::OS::Resolve(Path, Environment);
             if (!Rest::OS::FileExists(File.c_str()))
             {
                 if (!Rest::OS::FileExists(Path.c_str()))
                 {
+					Mutex.unlock();
                     THAWK_ERROR("file \"%s\" wasn't found", File.c_str());
                     return nullptr;
                 }
 
                 File = Path;
             }
+			Mutex.unlock();
 
             AssetResource* Asset = FindAsset(Path);
             if (Asset != nullptr && Asset->Processor == Processor)
@@ -3119,10 +3125,12 @@ namespace Tomahawk
                 return false;
             }
 
+			Mutex.lock();
             ContentArgs Args(Map);
             std::string Directory = Rest::OS::FileDirectory(Path);
             std::string File = Rest::OS::Resolve(Directory, Environment);
             File.append(Path.substr(Directory.size()));
+			Mutex.unlock();
 
             auto Stream = new Rest::FileStream();
             if (!Stream->Open(File.c_str(), Rest::FileMode_Binary_Write_Only))
@@ -3141,6 +3149,7 @@ namespace Tomahawk
         }
         bool ContentManager::Import(const std::string& Path)
         {
+			Mutex.lock();
             std::string File = Rest::OS::Resolve(Path, Environment);
             if (!Rest::OS::FileExists(File.c_str()))
             {
@@ -3152,6 +3161,7 @@ namespace Tomahawk
 
                 File = Path;
             }
+			Mutex.unlock();
 
             Rest::FileStream* Stream = new Rest::FileStream();
             if (!Stream->OpenZ(File.c_str(), Rest::FileMode::FileMode_Binary_Read_Only))
@@ -3184,6 +3194,7 @@ namespace Tomahawk
                 return false;
             }
 
+			Mutex.lock();
             for (UInt64 i = 0; i < Size; i++)
             {
                 AssetDocker* Docker = new AssetDocker();
@@ -3206,6 +3217,8 @@ namespace Tomahawk
             }
 
             Streams[Stream] = (Int64)Stream->Tell();
+			Mutex.unlock();
+
             return true;
         }
         bool ContentManager::Export(const std::string& Path, const std::string& Directory, const std::string& Name)
@@ -3291,40 +3304,59 @@ namespace Tomahawk
         }
         bool ContentManager::Cache(FileProcessor* Root, const std::string& Path, void* Resource)
         {
+			Mutex.lock();
             auto It = Assets.find(Path);
-            if (It != Assets.end())
-                return false;
+			if (It != Assets.end())
+			{
+				Mutex.unlock();
+				return false;
+			}
 
             AssetResource* Asset = new AssetResource();
             Asset->Processor = Root;
             Asset->Path = Rest::Stroke(Path).Replace(Environment, "./").Replace('\\', '/').R();
             Asset->Resource = Resource;
             Assets[Asset->Path] = Asset;
+			Mutex.unlock();
 
             return true;
         }
         AssetResource* ContentManager::FindAsset(const std::string& Path)
         {
+			Mutex.lock();
             auto It = Assets.find(Rest::Stroke(Path).Replace(Environment, "./").Replace('\\', '/').R());
-            if (It != Assets.end())
-                return It->second;
+			if (It != Assets.end())
+			{
+				Mutex.unlock();
+				return It->second;
+			}
 
+			Mutex.unlock();
             return nullptr;
         }
         AssetResource* ContentManager::FindAsset(void* Resource)
         {
-            for (auto& It : Assets)
-            {
-                if (It.second && It.second->Resource == Resource)
-                    return It.second;
-            }
+			Mutex.lock();
+			for (auto& It : Assets)
+			{
+				if (It.second && It.second->Resource == Resource)
+				{
+					Mutex.unlock();
+					return It.second;
+				}
+			}
 
+			Mutex.unlock();
             return nullptr;
         }
         Graphics::GraphicsDevice* ContentManager::GetDevice()
         {
             return Device;
         }
+		Rest::EventQueue* ContentManager::GetQueue()
+		{
+			return Queue;
+		}
         std::string ContentManager::GetEnvironment()
         {
             return Environment;
@@ -3405,7 +3437,7 @@ namespace Tomahawk
                     THAWK_ERROR("cannot detect display to create activity");
             }
 #endif
-
+			Queue = new Rest::EventQueue();
 			if (I->Usage & ApplicationUse_Audio_Module)
 			{
 				Audio = new Audio::AudioDevice();
@@ -3420,7 +3452,7 @@ namespace Tomahawk
 
             if (I->Usage & ApplicationUse_Content_Module)
             {
-                Content = new ContentManager(Renderer);
+                Content = new ContentManager(Renderer, Queue);
                 Content->AddProcessor<FileProcessors::SceneGraphProcessor, Engine::SceneGraph>();
                 Content->AddProcessor<FileProcessors::FontProcessor, Renderers::GUIRenderer>();
                 Content->AddProcessor<FileProcessors::AudioClipProcessor, Audio::AudioClip>();
@@ -3436,7 +3468,6 @@ namespace Tomahawk
             if (I->Usage & ApplicationUse_AngelScript_Module)
                 VM = new Script::VMManager();
 
-            Queue = new Rest::EventQueue();
             State = ApplicationState_Staging;
         }
         Application::~Application()

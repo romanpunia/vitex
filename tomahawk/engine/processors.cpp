@@ -3,6 +3,7 @@
 #include "renderers.h"
 #include "../network/http.h"
 #include <imgui.h>
+#include <stb_vorbis.h>
 #include <sstream>
 #ifdef THAWK_HAS_OPENAL
 #include <AL/al.h>
@@ -47,7 +48,7 @@ namespace Tomahawk
                 I.Queue = Application::Get()->Queue;
 
                 std::string Environment = Content->GetEnvironment();
-                Rest::Document* Document = Content->Load<Rest::Document>(Stream->Filename());
+                Rest::Document* Document = Content->Load<Rest::Document>(Stream->Filename(), nullptr);
                 if (!Document)
                     return nullptr;
 
@@ -382,59 +383,97 @@ namespace Tomahawk
             }
             void* AudioClipProcessor::Load(Rest::FileStream* Stream, UInt64 Length, UInt64 Offset, ContentArgs* Args)
             {
-#ifdef THAWK_HAS_SDL2
-                void* Binary = malloc(sizeof(char) * Length);
-                if (Stream->Read((char*)Binary, Length) != Length)
-                {
-                    THAWK_ERROR("cannot read %llu bytes from audio clip file", Length);
-                    free(Binary);
-                    return nullptr;
-                }
+				if (Rest::Stroke(&Stream->Filename()).EndsWith(".wav"))
+					return LoadWAVE(Stream, Length, Offset, Args);
+				else if (Rest::Stroke(&Stream->Filename()).EndsWith(".ogg"))
+					return LoadOGG(Stream, Length, Offset, Args);
 
-                SDL_RWops* WavData = SDL_RWFromMem(Binary, (int)Length);
-                SDL_AudioSpec WavInfo;
-                Uint8* WavSamples;
-                Uint32 WavCount;
-
-                if (!SDL_LoadWAV_RW(WavData, 1, &WavInfo, &WavSamples, &WavCount))
-                {
-                    free(Binary);
-                    return nullptr;
-                }
-
-#ifdef THAWK_HAS_OPENAL
-                ALenum Format;
-                switch (WavInfo.format)
-                {
-                    case AUDIO_U8:
-                    case AUDIO_S8:
-                        Format = WavInfo.channels == 2 ? AL_FORMAT_STEREO8 : AL_FORMAT_MONO8;
-                        break;
-                    case AUDIO_U16:
-                    case AUDIO_S16:
-                        Format = WavInfo.channels == 2 ? AL_FORMAT_STEREO16 : AL_FORMAT_MONO16;
-                        break;
-                    default:
-                        SDL_FreeWAV(WavSamples);
-                        free(Binary);
-                        return nullptr;
-                }
-#else
-                int Format = 0;
-#endif
-
-                Audio::AudioClip* Object = new Audio::AudioClip();
-                Audio::AudioContext::GenerateBuffers(1, &Object->Buffer);
-                Audio::AudioContext::SetBufferData(Object->Buffer, (int)Format, (const void*)WavSamples, (int)WavCount, (int)WavInfo.freq);
-                SDL_FreeWAV(WavSamples);
-                free(Binary);
-
-                Content->Cache(this, Stream->Filename(), Object);
-                return Object;
-#else
-                return nullptr;
-#endif
+				return nullptr;
             }
+			void* AudioClipProcessor::LoadWAVE(Rest::FileStream* Stream, UInt64 Length, UInt64 Offset, ContentArgs* Args)
+			{
+#ifdef THAWK_HAS_SDL2
+				void* Binary = malloc(sizeof(char) * Length);
+				if (Stream->Read((char*)Binary, Length) != Length)
+				{
+					THAWK_ERROR("cannot read %llu bytes from audio clip file", Length);
+					free(Binary);
+					return nullptr;
+				}
+
+				SDL_RWops* WavData = SDL_RWFromMem(Binary, (int)Length);
+				SDL_AudioSpec WavInfo;
+				Uint8* WavSamples;
+				Uint32 WavCount;
+
+				if (!SDL_LoadWAV_RW(WavData, 1, &WavInfo, &WavSamples, &WavCount))
+				{
+					free(Binary);
+					return nullptr;
+				}
+
+				int Format = 0;
+#ifdef THAWK_HAS_OPENAL
+				switch (WavInfo.format)
+				{
+				case AUDIO_U8:
+				case AUDIO_S8:
+					Format = WavInfo.channels == 2 ? AL_FORMAT_STEREO8 : AL_FORMAT_MONO8;
+					break;
+				case AUDIO_U16:
+				case AUDIO_S16:
+					Format = WavInfo.channels == 2 ? AL_FORMAT_STEREO16 : AL_FORMAT_MONO16;
+					break;
+				default:
+					SDL_FreeWAV(WavSamples);
+					free(Binary);
+					return nullptr;
+				}
+#endif
+				Audio::AudioClip* Object = new Audio::AudioClip(1, Format);
+				Audio::AudioContext::SetBufferData(Object->GetBuffer(), (int)Format, (const void*)WavSamples, (int)WavCount, (int)WavInfo.freq);
+				SDL_FreeWAV(WavSamples);
+				free(Binary);
+
+				Content->Cache(this, Stream->Filename(), Object);
+				return Object;
+#else
+				return nullptr;
+#endif
+			}
+			void* AudioClipProcessor::LoadOGG(Rest::FileStream* Stream, UInt64 Length, UInt64 Offset, ContentArgs* Args)
+			{
+				void* Binary = malloc(sizeof(char) * Length);
+				if (Stream->Read((char*)Binary, Length) != Length)
+				{
+					THAWK_ERROR("cannot read %llu bytes from audio clip file", Length);
+					free(Binary);
+					return nullptr;
+				}
+
+				short* Buffer; int Channels, SampleRate;
+				int Samples = stb_vorbis_decode_memory((const unsigned char*)Binary, (int)Length, &Channels, &SampleRate, &Buffer);
+				if (Samples <= 0)
+				{
+					THAWK_ERROR("cannot interpret OGG stream");
+					free(Binary);
+					return nullptr;
+				}
+
+				int Format = 0;
+#ifdef THAWK_HAS_OPENAL
+				if (Channels == 2)
+					Format = AL_FORMAT_STEREO16;
+				else
+					Format = AL_FORMAT_MONO16;
+#endif
+				Audio::AudioClip* Object = new Audio::AudioClip(1, Format);
+				Audio::AudioContext::SetBufferData(Object->GetBuffer(), (int)Format, (const void*)Buffer, Samples * sizeof(short) * Channels, (int)SampleRate);
+				free(Buffer); free(Binary);
+
+				Content->Cache(this, Stream->Filename(), Object);
+				return Object;
+			}
 
             Texture2DProcessor::Texture2DProcessor(ContentManager* Manager) : FileProcessor(Manager)
             {
@@ -477,7 +516,10 @@ namespace Tomahawk
                 F.DepthPitch = F.RowPitch * Height;
                 F.MipLevels = -10;
 
+				Content->GetDevice()->Lock();
                 Graphics::Texture2D* Object = Graphics::Texture2D::Create(Content->GetDevice(), F);
+				Content->GetDevice()->Unlock();
+
                 stbi_image_free(Resource);
                 free(Binary);
 
@@ -537,7 +579,10 @@ namespace Tomahawk
                 I.Filename = Stream->Filename();
                 I.Data = Code;
 
+				Content->GetDevice()->Unlock();
                 Graphics::Shader* Object = Graphics::Shader::Create(Content->GetDevice(), I);
+				Content->GetDevice()->Lock();
+
                 delete[] Code;
 
                 if (!Object)
@@ -564,7 +609,7 @@ namespace Tomahawk
             }
             void* ModelProcessor::Load(Rest::FileStream* Stream, UInt64 Length, UInt64 Offset, ContentArgs* Args)
             {
-                auto* Document = Content->Load<Rest::Document>(Stream->Filename());
+                auto* Document = Content->Load<Rest::Document>(Stream->Filename(), nullptr);
                 if (!Document)
                     return nullptr;
 
@@ -598,7 +643,10 @@ namespace Tomahawk
                         Compute::MathCommon::ComputeVertexOrientation(F.Elements, true);
                     }
 
+					Content->GetDevice()->Lock();
                     Object->Meshes.push_back(Graphics::Mesh::Create(Content->GetDevice(), F));
+					Content->GetDevice()->Unlock();
+
                     NMake::Unpack(Mesh->Find("name"), &Object->Meshes.back()->Name);
                     NMake::Unpack(Mesh->Find("world"), &Object->Meshes.back()->World);
 
@@ -872,7 +920,7 @@ namespace Tomahawk
             }
             void* SkinnedModelProcessor::Load(Rest::FileStream* Stream, UInt64 Length, UInt64 Offset, ContentArgs* Args)
             {
-                auto* Document = Content->Load<Rest::Document>(Stream->Filename());
+                auto* Document = Content->Load<Rest::Document>(Stream->Filename(), nullptr);
                 if (!Document)
                     return nullptr;
 
@@ -901,18 +949,12 @@ namespace Tomahawk
                         return nullptr;
                     }
 
-                    //if (Content->GetDevice()->GetBackend() == Graphics::RenderBackend_D3D11)
-                    //{
-                    //Compute::MathCommon::ComputeIndexWindingOrderFlip(F.Indices);
-                    //Compute::MathCommon::ComputeInfluenceOrientation(F.Elements, true);
-                    //}
-
+					Content->GetDevice()->Lock();
                     Object->Meshes.push_back(Graphics::SkinnedMesh::Create(Content->GetDevice(), F));
+					Content->GetDevice()->Unlock();
+
                     NMake::Unpack(Mesh->Find("name"), &Object->Meshes.back()->Name);
                     NMake::Unpack(Mesh->Find("world"), &Object->Meshes.back()->World);
-
-                    //if (Graphics::GraphicsDevice::GetInterface() == Graphics::GraphicsApi_DirectX_11)
-                    //Compute::MathCommon::ComputeMatrixOrientation(&Object->Meshes.back()->World, true);
                 }
 
                 Content->Cache(this, Stream->Filename(), Object);
@@ -1170,9 +1212,9 @@ namespace Tomahawk
                 std::string N = Network::Socket::LocalIpAddress();
                 std::string D = Rest::OS::FileDirectory(Stream->Filename());
 
-                auto Document = Content->Load<Rest::Document>(Stream->Filename());
-                auto Object = new Network::HTTP::Server();
-                auto Router = new Network::HTTP::MapRouter();
+                auto* Document = Content->Load<Rest::Document>(Stream->Filename(), nullptr);
+                auto* Object = new Network::HTTP::Server();
+                auto* Router = new Network::HTTP::MapRouter();
 
                 if (Document == nullptr)
                 {

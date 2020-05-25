@@ -939,6 +939,14 @@ namespace Tomahawk
                 }
             }
         }
+		void GraphicsDevice::Lock()
+		{
+			Mutex.lock();
+		}
+		void GraphicsDevice::Unlock()
+		{
+			Mutex.unlock();
+		}
         void GraphicsDevice::CreateRendererStates()
         {
             Graphics::DepthStencilState* DepthStencilConfig = new Graphics::DepthStencilState();

@@ -95,6 +95,8 @@ namespace Tomahawk
                 void Free(AssetResource* Asset) override;
                 void* Duplicate(AssetResource* Asset, ContentArgs* Args) override;
                 void* Load(Rest::FileStream* Stream, UInt64 Length, UInt64 Offset, ContentArgs* Args) override;
+				void* LoadWAVE(Rest::FileStream* Stream, UInt64 Length, UInt64 Offset, ContentArgs* Args);
+				void* LoadOGG(Rest::FileStream* Stream, UInt64 Length, UInt64 Offset, ContentArgs* Args);
             };
 
             class THAWK_OUT Texture2DProcessor : public FileProcessor

@@ -24,6 +24,7 @@ namespace Tomahawk
     {
         typedef std::unordered_map<std::string, struct ContentKey> ContentMap;
 		typedef std::function<void(Rest::Timer*, struct Viewer*)> RenderCallback;
+		typedef std::function<void(class ContentManager*, bool)> SaveCallback;
 
         class SceneGraph;
 
@@ -723,10 +724,12 @@ namespace Tomahawk
             std::unordered_map<Int64, FileProcessor*> Processors;
             std::unordered_map<Rest::FileStream*, Int64> Streams;
             Graphics::GraphicsDevice* Device;
+			Rest::EventQueue* Queue;
             std::string Environment, Base;
+			std::mutex Mutex;
 
         public:
-            ContentManager(Graphics::GraphicsDevice* NewDevice);
+            ContentManager(Graphics::GraphicsDevice* NewDevice, Rest::EventQueue* NewQueue);
             virtual ~ContentManager() override;
             void InvalidateDockers();
             void InvalidateCache();
@@ -737,35 +740,72 @@ namespace Tomahawk
             AssetResource* FindAsset(const std::string& Path);
             AssetResource* FindAsset(void* Resource);
             Graphics::GraphicsDevice* GetDevice();
+			Rest::EventQueue* GetQueue();
             std::string GetEnvironment();
 
         public:
             template <typename T>
-            T* Load(const std::string& Path, ContentMap* Keys = nullptr)
+            T* Load(const std::string& Path, ContentMap* Keys)
             {
                 return (T*)LoadForward(Path, GetProcessor<T>(), Keys);
             }
+			template <typename T>
+			bool LoadAsync(const std::string& Path, ContentMap* Keys, const std::function<void(class ContentManager*, T*)>& Callback)
+			{
+				if (!Queue)
+					return false;
+
+				ContentMap* Map = Keys ? new ContentMap(*Keys) : nullptr;
+				return Queue->Task<ContentManager>(this, [this, Path, Callback, Map](Rest::EventQueue*, Rest::EventArgs*)
+				{
+					T* Result = (T*)LoadForward(Path, GetProcessor<T>(), Map);
+					if (Callback)
+						Callback(this, Result);
+					delete Map;
+				});
+			}
             template <typename T>
-            bool Save(const std::string& Path, T* Object, ContentMap* Keys = nullptr)
+            bool Save(const std::string& Path, T* Object, ContentMap* Keys)
             {
                 return SaveForward(Path, GetProcessor<T>(), Object, Keys);
             }
+			template <typename T>
+			bool SaveAsync(const std::string& Path, T* Object, ContentMap* Keys, const SaveCallback& Callback)
+			{
+				if (!Queue)
+					return false;
+
+				ContentMap* Map = Keys ? new ContentMap(*Keys) : nullptr;
+				return Queue->Task<ContentManager>(this, [this, Path, Callback, Object, Map](Rest::EventQueue*, Rest::EventArgs*)
+				{
+					bool Result = SaveForward(Path, GetProcessor<T>(), Object, Map);
+					if (Callback)
+						Callback(this, Result);
+					delete Map;
+				});
+			}
             template <typename T>
             bool RemoveProcessor()
             {
+				Mutex.lock();
                 auto It = Processors.find(typeid(T).hash_code());
-                if (It == Processors.end())
-                    return false;
+				if (It == Processors.end())
+				{
+					Mutex.unlock();
+					return false;
+				}
 
                 if (It->second != nullptr)
                     delete It->second;
 
                 Processors.erase(It);
+				Mutex.unlock();
                 return true;
             }
             template <typename V, typename T>
             V* AddProcessor()
             {
+				Mutex.lock();
                 V* Instance = new V(this);
                 auto It = Processors.find(typeid(T).hash_code());
                 if (It != Processors.end())
@@ -777,21 +817,27 @@ namespace Tomahawk
                 else
                     Processors[typeid(T).hash_code()] = Instance;
 
+				Mutex.unlock();
                 return Instance;
             }
             template <typename T>
             FileProcessor* GetProcessor()
             {
+				Mutex.lock();
                 auto It = Processors.find(typeid(T).hash_code());
-                if (It != Processors.end())
-                    return It->second;
+				if (It != Processors.end())
+				{
+					Mutex.unlock();
+					return It->second;
+				}
 
+				Mutex.unlock();
                 return nullptr;
             }
 
         private:
-            void* LoadForward(const std::string& Path, FileProcessor* Processor, ContentMap* Keys);
-            void* LoadStreaming(const std::string& Path, FileProcessor* Processor, ContentMap* Keys);
+			void* LoadForward(const std::string& Path, FileProcessor* Processor, ContentMap* Keys);
+			void* LoadStreaming(const std::string& Path, FileProcessor* Processor, ContentMap* Keys);
             bool SaveForward(const std::string& Path, FileProcessor* Processor, void* Object, ContentMap* Keys);
         };
 

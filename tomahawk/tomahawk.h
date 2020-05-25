@@ -38,7 +38,8 @@ namespace Tomahawk
         TInit_SDL2 = 32,
         TInit_Compute = 64,
         TInit_Locale = 128,
-        TInit_All = (TInit_Rest | TInit_Logger | TInit_Network | TInit_Crypto | TInit_SSL | TInit_SDL2 | TInit_Compute | TInit_Locale)
+		TInit_Audio = 256,
+        TInit_All = (TInit_Rest | TInit_Logger | TInit_Network | TInit_Crypto | TInit_SSL | TInit_SDL2 | TInit_Compute | TInit_Locale | TInit_Audio)
     };
 
     class THAWK_OUT Library

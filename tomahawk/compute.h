@@ -1419,15 +1419,15 @@ namespace Tomahawk
         public:
             struct Desc
             {
-                struct
+                struct CV
                 {
-                    struct
+                    struct SConvex
                     {
                         btCollisionShape* Source = nullptr;
                         bool Enabled = false;
                     } Convex;
 
-                    struct
+                    struct SRope
                     {
                         bool StartFixed = false;
                         bool EndFixed = false;
@@ -1437,7 +1437,7 @@ namespace Tomahawk
                         Vector3 End = 1;
                     } Rope;
 
-                    struct
+                    struct SPatch
                     {
                         bool GenerateDiagonals = false;
                         bool Corner00Fixed = false;
@@ -1453,7 +1453,7 @@ namespace Tomahawk
                         Vector3 Corner11 = Vector3(1, 1);
                     } Patch;
 
-                    struct
+                    struct SEllipsoid
                     {
                         Vector3 Center;
                         Vector3 Radius = 1;

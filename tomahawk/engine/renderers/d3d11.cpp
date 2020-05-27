@@ -608,6 +608,244 @@ namespace Tomahawk
                 Device->ImmediateContext->GSSetShader(nullptr, nullptr, 0);
             }
 
+			D3D11SoftBodyRenderer::D3D11SoftBodyRenderer(Engine::RenderSystem* Lab) : Engine::Renderers::SoftBodyRenderer(Lab)
+			{
+				Graphics::Shader::Desc I = Graphics::Shader::Desc();
+				I.Layout = Graphics::Shader::GetVertexLayout();
+				I.LayoutSize = 5;
+
+#ifdef HAS_D3D11_SOFT_BODY_GBUFFER_HLSL
+				I.Data = GET_RESOURCE_BATCH(d3d11_soft_body_gbuffer_hlsl);
+#else
+				THAWK_ERROR("soft-body-gbuffer.hlsl was not compiled");
+#endif
+				Shaders.Multi = (D3D11Shader*)Graphics::Shader::Create(System->GetDevice(), I);
+
+#ifdef HAS_D3D11_SOFT_BODY_DEPTH_HLSL
+				I.Data = GET_RESOURCE_BATCH(d3d11_soft_body_depth_hlsl);
+#else
+				THAWK_ERROR("soft-body-depth.hlsl was not compiled");
+#endif
+				Shaders.Depth = (D3D11Shader*)Graphics::Shader::Create(System->GetDevice(), I);
+
+#ifdef HAS_D3D11_SOFT_BODY_DEPTH_360_HLSL
+				I.Data = GET_RESOURCE_BATCH(d3d11_soft_body_depth_360_hlsl);
+#else
+				THAWK_ERROR("soft-body-depth-360.hlsl was not compiled");
+#endif
+				Shaders.CubicDepth = (D3D11Shader*)Graphics::Shader::Create(System->GetDevice(), I);
+
+				Device = System->GetDevice()->As<D3D11Device>();
+				Device->CreateConstantBuffer(sizeof(CubicDepth), Shaders.CubicDepth->ConstantBuffer);
+				Stride = sizeof(Compute::Vertex);
+			}
+			D3D11SoftBodyRenderer::~D3D11SoftBodyRenderer()
+			{
+				delete Shaders.Multi;
+				delete Shaders.Depth;
+				delete Shaders.CubicDepth;
+			}
+			void D3D11SoftBodyRenderer::OnInitialize()
+			{
+				SoftBodies = System->GetScene()->GetComponents<Engine::Components::SoftBody>();
+			}
+			void D3D11SoftBodyRenderer::OnRender(Rest::Timer* Time)
+			{
+				D3D11MultiRenderTarget2D* RefSurface = System->GetScene()->GetSurface()->As<D3D11MultiRenderTarget2D>();
+				if (!SoftBodies || SoftBodies->Empty())
+					return;
+
+				Device->SetBlendState(Graphics::RenderLab_Blend_Overwrite);
+				Device->SetDepthStencilState(Graphics::RenderLab_DepthStencil_Less);
+				Device->ImmediateContext->PSSetShader(Shaders.Multi->PixelShader, nullptr, 0);
+				Device->ImmediateContext->VSSetShader(Shaders.Multi->VertexShader, nullptr, 0);
+				Device->ImmediateContext->IASetInputLayout(Shaders.Multi->VertexLayout);
+				Device->ImmediateContext->OMSetRenderTargets(RefSurface->GetSVTarget(), RefSurface->RenderTargetView, RefSurface->DepthStencilView);
+				Device->ImmediateContext->RSSetViewports(1, &RefSurface->Viewport);
+
+				for (auto It = SoftBodies->Begin(); It != SoftBodies->End(); ++It)
+				{
+					Engine::Components::SoftBody* SoftBody = (Engine::Components::SoftBody*)*It;
+					if (!SoftBody->Visibility || SoftBody->Indices.empty())
+						continue;
+
+					Device->Render.SurfaceDiffuse = (float)(SoftBody->Surface.Diffuse != nullptr);
+					Device->Render.SurfaceNormal = (float)(SoftBody->Surface.Normal != nullptr);
+					Device->Render.Material = (float)SoftBody->Surface.Material;
+					Device->Render.Diffusion = SoftBody->Surface.Diffusion;
+					Device->Render.TexCoord = SoftBody->Surface.TexCoord;
+
+					if (SoftBody->Surface.Diffuse != nullptr)
+						SoftBody->Surface.Diffuse->Apply(Device, 1);
+					else
+						Device->RestoreTexture2D(1, 1);
+
+					if (SoftBody->Surface.Normal != nullptr)
+						SoftBody->Surface.Normal->Apply(Device, 2);
+					else
+						Device->RestoreTexture2D(2, 1);
+
+					if (SoftBody->Surface.Surface != nullptr)
+						SoftBody->Surface.Surface->Apply(Device, 3);
+					else
+						Device->RestoreTexture2D(3, 1);
+
+					SoftBody->Fill(Device, IndexBuffer, VertexBuffer);
+
+					Device->Render.World.Identify();
+					Device->Render.WorldViewProjection = System->GetScene()->View.ViewProjection;
+					Device->ImmediateContext->IASetVertexBuffers(0, 1, &VertexBuffer->As<D3D11ElementBuffer>()->Element, &Stride, &Offset);
+					Device->ImmediateContext->IASetIndexBuffer(IndexBuffer->As<D3D11ElementBuffer>()->Element, DXGI_FORMAT_R32_UINT, 0);
+					Device->ImmediateContext->UpdateSubresource(Device->ConstantBuffer[Graphics::RenderBufferType_Render], 0, nullptr, &Device->Render, 0, 0);
+					Device->ImmediateContext->DrawIndexed((unsigned int)SoftBody->Indices.size(), 0, 0);
+				}
+			}
+			void D3D11SoftBodyRenderer::OnPhaseRender(Rest::Timer* Time)
+			{
+				D3D11MultiRenderTarget2D* RefSurface = System->GetScene()->GetSurface()->As<D3D11MultiRenderTarget2D>();
+				if (!SoftBodies || SoftBodies->Empty())
+					return;
+
+				Device->SetBlendState(Graphics::RenderLab_Blend_Overwrite);
+				Device->SetDepthStencilState(Graphics::RenderLab_DepthStencil_Less);
+				Device->ImmediateContext->PSSetShader(Shaders.Multi->PixelShader, nullptr, 0);
+				Device->ImmediateContext->VSSetShader(Shaders.Multi->VertexShader, nullptr, 0);
+				Device->ImmediateContext->IASetInputLayout(Shaders.Multi->VertexLayout);
+				Device->ImmediateContext->OMSetRenderTargets(RefSurface->GetSVTarget(), RefSurface->RenderTargetView, RefSurface->DepthStencilView);
+				Device->ImmediateContext->RSSetViewports(1, &RefSurface->Viewport);
+
+				for (auto It = SoftBodies->Begin(); It != SoftBodies->End(); ++It)
+				{
+					Engine::Components::SoftBody* SoftBody = (Engine::Components::SoftBody*)*It;
+					if (!SoftBody->Visibility || SoftBody->Indices.empty())
+						continue;
+					
+					if (SoftBody->GetEntity()->Transform->Position.Distance(System->GetScene()->View.RealPosition) >= System->GetScene()->View.ViewDistance + SoftBody->GetEntity()->Transform->Scale.Length())
+						continue;
+
+					if (Compute::MathCommon::IsClipping(System->GetScene()->View.ViewProjection, SoftBody->GetEntity()->Transform->GetWorld(), 1.5f) != -1)
+						continue;
+
+					Device->Render.SurfaceDiffuse = (float)(SoftBody->Surface.Diffuse != nullptr);
+					Device->Render.SurfaceNormal = (float)(SoftBody->Surface.Normal != nullptr);
+					Device->Render.Material = (float)SoftBody->Surface.Material;
+					Device->Render.Diffusion = SoftBody->Surface.Diffusion;
+					Device->Render.TexCoord = SoftBody->Surface.TexCoord;
+
+					if (SoftBody->Surface.Diffuse != nullptr)
+						SoftBody->Surface.Diffuse->Apply(Device, 1);
+					else
+						Device->RestoreTexture2D(1, 1);
+
+					if (SoftBody->Surface.Normal != nullptr)
+						SoftBody->Surface.Normal->Apply(Device, 2);
+					else
+						Device->RestoreTexture2D(2, 1);
+
+					if (SoftBody->Surface.Surface != nullptr)
+						SoftBody->Surface.Surface->Apply(Device, 3);
+					else
+						Device->RestoreTexture2D(3, 1);
+
+					SoftBody->Fill(Device, IndexBuffer, VertexBuffer);
+
+					Device->Render.World.Identify();
+					Device->Render.WorldViewProjection = System->GetScene()->View.ViewProjection;
+					Device->ImmediateContext->IASetVertexBuffers(0, 1, &VertexBuffer->As<D3D11ElementBuffer>()->Element, &Stride, &Offset);
+					Device->ImmediateContext->IASetIndexBuffer(IndexBuffer->As<D3D11ElementBuffer>()->Element, DXGI_FORMAT_R32_UINT, 0);
+					Device->ImmediateContext->UpdateSubresource(Device->ConstantBuffer[Graphics::RenderBufferType_Render], 0, nullptr, &Device->Render, 0, 0);
+					Device->ImmediateContext->DrawIndexed((unsigned int)SoftBody->Indices.size(), 0, 0);
+				}
+			}
+			void D3D11SoftBodyRenderer::OnDepthRender(Rest::Timer* Time)
+			{
+				if (!SoftBodies || SoftBodies->Empty())
+					return;
+
+				Device->SetDepthStencilState(Graphics::RenderLab_DepthStencil_Less);
+				Device->ImmediateContext->PSSetShader(Shaders.Depth->PixelShader, nullptr, 0);
+				Device->ImmediateContext->VSSetShader(Shaders.Depth->VertexShader, nullptr, 0);
+				Device->ImmediateContext->IASetInputLayout(Shaders.Depth->VertexLayout);
+
+				for (auto It = SoftBodies->Begin(); It != SoftBodies->End(); ++It)
+				{
+					Engine::Components::SoftBody* SoftBody = (Engine::Components::SoftBody*)*It;
+					if (!SoftBody->Visibility || SoftBody->Indices.empty())
+						continue;
+
+					if (SoftBody->GetEntity()->Transform->Position.Distance(System->GetScene()->View.RealPosition) >= System->GetScene()->View.ViewDistance + SoftBody->GetEntity()->Transform->Scale.Length())
+						continue;
+
+					if (Compute::MathCommon::IsClipping(System->GetScene()->View.ViewProjection, SoftBody->GetEntity()->Transform->GetWorld(), 1.5f) != -1)
+						continue;
+
+					Graphics::Material& Material = SoftBody->GetMaterial();
+					Device->Render.SurfaceDiffuse = (float)(SoftBody->Surface.Diffuse != nullptr);
+					Device->Render.Diffusion.X = Material.Transmittance;
+					Device->Render.Diffusion.Y = Material.Shadowness;
+					Device->Render.TexCoord = SoftBody->Surface.TexCoord;
+
+					if (SoftBody->Surface.Diffuse != nullptr)
+						SoftBody->Surface.Diffuse->Apply(Device, 1);
+					else
+						Device->RestoreTexture2D(1, 1);
+
+					SoftBody->Fill(Device, IndexBuffer, VertexBuffer);
+
+					Device->Render.World.Identify();
+					Device->Render.WorldViewProjection = System->GetScene()->View.ViewProjection;
+					Device->ImmediateContext->IASetVertexBuffers(0, 1, &VertexBuffer->As<D3D11ElementBuffer>()->Element, &Stride, &Offset);
+					Device->ImmediateContext->IASetIndexBuffer(IndexBuffer->As<D3D11ElementBuffer>()->Element, DXGI_FORMAT_R32_UINT, 0);
+					Device->ImmediateContext->UpdateSubresource(Device->ConstantBuffer[Graphics::RenderBufferType_Render], 0, nullptr, &Device->Render, 0, 0);
+					Device->ImmediateContext->DrawIndexed((unsigned int)SoftBody->Indices.size(), 0, 0);
+				}
+			}
+			void D3D11SoftBodyRenderer::OnCubicDepthRender(Rest::Timer* Time, Compute::Matrix4x4* ViewProjection)
+			{
+				if (!SoftBodies || SoftBodies->Empty())
+					return;
+
+				CubicDepth.Position = System->GetScene()->View.Position;
+				CubicDepth.Distance = System->GetScene()->View.ViewDistance;
+				memcpy(CubicDepth.SliceViewProjection, ViewProjection, sizeof(Compute::Matrix4x4) * 6);
+
+				Device->SetDepthStencilState(Graphics::RenderLab_DepthStencil_Less);
+				Device->ImmediateContext->PSSetShader(Shaders.CubicDepth->PixelShader, nullptr, 0);
+				Device->ImmediateContext->VSSetShader(Shaders.CubicDepth->VertexShader, nullptr, 0);
+				Device->ImmediateContext->GSSetShader(Shaders.CubicDepth->GeometryShader, nullptr, 0);
+				Device->ImmediateContext->PSSetConstantBuffers(3, 1, &Shaders.CubicDepth->ConstantBuffer);
+				Device->ImmediateContext->VSSetConstantBuffers(3, 1, &Shaders.CubicDepth->ConstantBuffer);
+				Device->ImmediateContext->GSSetConstantBuffers(3, 1, &Shaders.CubicDepth->ConstantBuffer);
+				Device->ImmediateContext->IASetInputLayout(Shaders.CubicDepth->VertexLayout);
+				Device->ImmediateContext->UpdateSubresource(Shaders.CubicDepth->ConstantBuffer, 0, nullptr, &CubicDepth, 0, 0);
+
+				for (auto It = SoftBodies->Begin(); It != SoftBodies->End(); ++It)
+				{
+					Engine::Components::SoftBody* SoftBody = (Engine::Components::SoftBody*)*It;
+					if (!SoftBody->Instance || SoftBody->GetEntity()->Transform->Position.Distance(System->GetScene()->View.RealPosition) >= System->GetScene()->View.ViewDistance + SoftBody->GetEntity()->Transform->Scale.Length())
+						continue;
+
+						Graphics::Material& Material = SoftBody->GetMaterial();
+						Device->Render.SurfaceDiffuse = (float)(SoftBody->Surface.Diffuse != nullptr);
+						Device->Render.Diffusion.X = Material.Transmittance;
+						Device->Render.Diffusion.Y = Material.Shadowness;
+						Device->Render.TexCoord = SoftBody->Surface.TexCoord;
+
+						if (SoftBody->Surface.Diffuse != nullptr)
+							SoftBody->Surface.Diffuse->Apply(Device, 1);
+						else
+							Device->RestoreTexture2D(1, 1);
+
+						Device->Render.World.Identify();
+						Device->ImmediateContext->IASetVertexBuffers(0, 1, &VertexBuffer->As<D3D11ElementBuffer>()->Element, &Stride, &Offset);
+						Device->ImmediateContext->IASetIndexBuffer(IndexBuffer->As<D3D11ElementBuffer>()->Element, DXGI_FORMAT_R32_UINT, 0);
+						Device->ImmediateContext->UpdateSubresource(Device->ConstantBuffer[Graphics::RenderBufferType_Render], 0, nullptr, &Device->Render, 0, 0);
+						Device->ImmediateContext->DrawIndexed((unsigned int)SoftBody->Indices.size(), 0, 0);
+				}
+
+				Device->ImmediateContext->GSSetShader(nullptr, nullptr, 0);
+			}
+
             D3D11ElementSystemRenderer::D3D11ElementSystemRenderer(Engine::RenderSystem* Lab) : Engine::Renderers::ElementSystemRenderer(Lab)
             {
                 Device = System->GetDevice()->As<D3D11Device>();

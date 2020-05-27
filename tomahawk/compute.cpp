@@ -5234,28 +5234,35 @@ namespace Tomahawk
 
         RigidBody::RigidBody(Simulator* Refer, const Desc& I) : UserPointer(nullptr), Instance(nullptr), Engine(Refer), Initial(I)
         {
-            if (!I.Shape || !Engine)
+            if (!Initial.Shape || !Engine)
                 return;
 
-            btVector3 LocalInertia(0, 0, 0);
-            I.Shape->setLocalScaling(BtV3(I.Scale));
+			Initial.Shape = Engine->ReuseShape(Initial.Shape);
+			if (!Initial.Shape)
+			{
+				Initial.Shape = Engine->TryCloneShape(I.Shape);
+				if (!Initial.Shape)
+					return;
+			}
 
-            if (I.Mass > 0)
-                I.Shape->calculateLocalInertia(I.Mass, LocalInertia);
+			btVector3 LocalInertia(0, 0, 0);
+			Initial.Shape->setLocalScaling(BtV3(Initial.Scale));
+            if (Initial.Mass > 0)
+				Initial.Shape->calculateLocalInertia(Initial.Mass, LocalInertia);
 
             btQuaternion Rotation;
-            Rotation.setEulerZYX(I.Rotation.Z, I.Rotation.Y, I.Rotation.X);
+            Rotation.setEulerZYX(Initial.Rotation.Z, Initial.Rotation.Y, Initial.Rotation.X);
 
-            btTransform BtTransform(Rotation, btVector3(I.Position.X, I.Position.Y, -I.Position.Z));
-            btRigidBody::btRigidBodyConstructionInfo Info(I.Mass, new btDefaultMotionState(BtTransform), I.Shape, LocalInertia);
+            btTransform BtTransform(Rotation, btVector3(Initial.Position.X, Initial.Position.Y, Initial.Position.Z));
+            btRigidBody::btRigidBodyConstructionInfo Info(Initial.Mass, new btDefaultMotionState(BtTransform), Initial.Shape, LocalInertia);
             Instance = new btRigidBody(Info);
             Instance->setUserPointer(this);
             Instance->setGravity(Engine->GetWorld()->getGravity());
 
-            if (I.Anticipation > 0 && I.Mass > 0)
+            if (Initial.Anticipation > 0 && Initial.Mass > 0)
             {
-                Instance->setCcdMotionThreshold(I.Anticipation);
-                Instance->setCcdSweptSphereRadius(I.Scale.Length() / 15.0f);
+                Instance->setCcdMotionThreshold(Initial.Anticipation);
+                Instance->setCcdSweptSphereRadius(Initial.Scale.Length() / 15.0f);
             }
 
             if (Instance->getWorldArrayIndex() == -1)
@@ -5401,7 +5408,7 @@ namespace Tomahawk
             else
             {
                 btTransform& Offset = Instance->getWorldTransform();
-                Offset.setOrigin(btVector3(Transform->Position.X, Transform->Position.Y, -Transform->Position.Z));
+                Offset.setOrigin(btVector3(Transform->Position.X, Transform->Position.Y, Transform->Position.Z));
                 Offset.getBasis().setEulerZYX(Transform->Rotation.X, Transform->Rotation.Y, Transform->Rotation.Z);
                 Instance->getCollisionShape()->setLocalScaling(BtV3(Transform->Scale));
             }
@@ -5850,113 +5857,86 @@ namespace Tomahawk
                 return;
 
             btQuaternion Rotation;
-            Rotation.setEulerZYX(I.Rotation.Z, I.Rotation.Y, I.Rotation.X);
+            Rotation.setEulerZYX(Initial.Rotation.Z, Initial.Rotation.Y, Initial.Rotation.X);
 
-            btTransform BtTransform(Rotation, btVector3(I.Position.X, I.Position.Y, -I.Position.Z));
+            btTransform BtTransform(Rotation, btVector3(Initial.Position.X, Initial.Position.Y, -Initial.Position.Z));
             btSoftRigidDynamicsWorld* World = (btSoftRigidDynamicsWorld*)Engine->GetWorld();
             btSoftBodyWorldInfo& Info = World->getWorldInfo();
 
-            if (I.Shape.Convex.Enabled && I.Shape.Convex.Source)
+            if (Initial.Shape.Convex.Enabled && Initial.Shape.Convex.Hull)
             {
-                Shape Type = (Shape)I.Shape.Convex.Source->getShapeType();
-                switch (Type)
-                {
-                    case Shape_Convex_Hull:
-                    {
-                        btConvexHullShape* V = (btConvexHullShape*)I.Shape.Convex.Source;
-                        Instance = btSoftBodyHelpers::CreateFromConvexHull(Info, V->getUnscaledPoints(), V->getNumPoints());
-                        break;
-                    }
-                    default:
-                        THAWK_WARN("cannot create soft body shape from non-convex-hull shape");
-                        goto ConstructDefault;
-                        break;
-                }
+				UnmanagedShape* Hull = Initial.Shape.Convex.Hull;
+				std::vector<btScalar> Vertices;
+
+				Vertices.resize(Hull->Vertices.size() * 3);
+				for (size_t i = 0; i < Hull->Vertices.size() * 3; i += 3)
+				{
+					Vertex& V = Hull->Vertices[i / 3];
+					Vertices[i + 0] = V.PositionX;
+					Vertices[i + 1] = V.PositionY;
+					Vertices[i + 2] = V.PositionZ;
+				}
+
+                Instance = btSoftBodyHelpers::CreateFromTriMesh(Info, Vertices.data(), Hull->Indices.data(), (int)Hull->Indices.size() / 3);
             }
-            else if (I.Shape.Ellipsoid.Enabled)
+            else if (Initial.Shape.Ellipsoid.Enabled)
             {
                 Instance = btSoftBodyHelpers::CreateEllipsoid(Info,
-                        BtV3(I.Shape.Ellipsoid.Center),
-                        BtV3(I.Shape.Ellipsoid.Radius),
-                        I.Shape.Ellipsoid.Count);
+                        BtV3(Initial.Shape.Ellipsoid.Center),
+                        BtV3(Initial.Shape.Ellipsoid.Radius),
+                        Initial.Shape.Ellipsoid.Count);
             }
-            else if (I.Shape.Rope.Enabled)
+            else if (Initial.Shape.Rope.Enabled)
             {
                 int FixedAnchors = 0;
-                if (I.Shape.Rope.StartFixed)
+                if (Initial.Shape.Rope.StartFixed)
                     FixedAnchors |= 1;
 
-                if (I.Shape.Rope.EndFixed)
+                if (Initial.Shape.Rope.EndFixed)
                     FixedAnchors |= 2;
 
                 Instance = btSoftBodyHelpers::CreateRope(Info,
-                        BtV3(I.Shape.Rope.Start),
-                        BtV3(I.Shape.Rope.End),
-                        I.Shape.Rope.Count,
+                        BtV3(Initial.Shape.Rope.Start),
+                        BtV3(Initial.Shape.Rope.End),
+                        Initial.Shape.Rope.Count,
                         FixedAnchors);
             }
             else
             {
-ConstructDefault:
                 int FixedCorners = 0;
-                if (I.Shape.Patch.Corner00Fixed)
+                if (Initial.Shape.Patch.Corner00Fixed)
                     FixedCorners |= 1;
 
-                if (I.Shape.Patch.Corner01Fixed)
+                if (Initial.Shape.Patch.Corner01Fixed)
                     FixedCorners |= 2;
 
-                if (I.Shape.Patch.Corner10Fixed)
+                if (Initial.Shape.Patch.Corner10Fixed)
                     FixedCorners |= 4;
 
-                if (I.Shape.Patch.Corner11Fixed)
+                if (Initial.Shape.Patch.Corner11Fixed)
                     FixedCorners |= 8;
 
                 Instance = btSoftBodyHelpers::CreatePatch(Info,
-                        BtV3(I.Shape.Patch.Corner00),
-                        BtV3(I.Shape.Patch.Corner10),
-                        BtV3(I.Shape.Patch.Corner01),
-                        BtV3(I.Shape.Patch.Corner11),
-                        I.Shape.Patch.CountX,
-                        I.Shape.Patch.CountY,
+                        BtV3(Initial.Shape.Patch.Corner00),
+                        BtV3(Initial.Shape.Patch.Corner10),
+                        BtV3(Initial.Shape.Patch.Corner01),
+                        BtV3(Initial.Shape.Patch.Corner11),
+                        Initial.Shape.Patch.CountX,
+                        Initial.Shape.Patch.CountY,
                         FixedCorners,
-                        I.Shape.Patch.GenerateDiagonals);
+                        Initial.Shape.Patch.GenerateDiagonals);
             }
 
             Instance->setUserPointer(this);
-            if (I.Anticipation > 0)
+            if (Initial.Anticipation > 0)
             {
-                Instance->setCcdMotionThreshold(I.Anticipation);
-                Instance->setCcdSweptSphereRadius(I.Scale.Length() / 15.0f);
+                Instance->setCcdMotionThreshold(Initial.Anticipation);
+                Instance->setCcdSweptSphereRadius(Initial.Scale.Length() / 15.0f);
             }
 
-            Instance->m_cfg.aeromodel = (btSoftBody::eAeroModel::_)I.Config.AeroModel;
-            Instance->m_cfg.kVCF = I.Config.VCF;
-            Instance->m_cfg.kDP = I.Config.DP;
-            Instance->m_cfg.kDG = I.Config.DG;
-            Instance->m_cfg.kLF = I.Config.LF;
-            Instance->m_cfg.kPR = I.Config.PR;
-            Instance->m_cfg.kVC = I.Config.VC;
-            Instance->m_cfg.kDF = I.Config.DF;
-            Instance->m_cfg.kMT = I.Config.MT;
-            Instance->m_cfg.kCHR = I.Config.CHR;
-            Instance->m_cfg.kKHR = I.Config.KHR;
-            Instance->m_cfg.kSHR = I.Config.SHR;
-            Instance->m_cfg.kAHR = I.Config.AHR;
-            Instance->m_cfg.kSRHR_CL = I.Config.SRHR_CL;
-            Instance->m_cfg.kSKHR_CL = I.Config.SKHR_CL;
-            Instance->m_cfg.kSSHR_CL = I.Config.SSHR_CL;
-            Instance->m_cfg.kSR_SPLT_CL = I.Config.SR_SPLT_CL;
-            Instance->m_cfg.kSK_SPLT_CL = I.Config.SK_SPLT_CL;
-            Instance->m_cfg.kSS_SPLT_CL = I.Config.SS_SPLT_CL;
-            Instance->m_cfg.maxvolume = I.Config.MaxVolume;
-            Instance->m_cfg.timescale = I.Config.TimeScale;
-            Instance->m_cfg.viterations = I.Config.VIterations;
-            Instance->m_cfg.piterations = I.Config.PIterations;
-            Instance->m_cfg.diterations = I.Config.DIterations;
-            Instance->m_cfg.citerations = I.Config.CIterations;
-            Instance->m_cfg.collisions = I.Config.Collisions;
+			SetConfig(Initial.Config);
             Instance->transform(BtTransform);
-
+			Instance->setPose(true, true);
             if (Instance->getWorldArrayIndex() == -1)
                 World->addSoftBody(Instance);
         }
@@ -5969,9 +5949,6 @@ ConstructDefault:
             if (Instance->getWorldArrayIndex() >= 0)
                 World->removeSoftBody(Instance);
 
-			if (Initial.Shape.Convex.Enabled)
-				Engine->FreeShape(&Initial.Shape.Convex.Source);
-
             Instance->setUserPointer(nullptr);
             delete Instance;
         }
@@ -5981,12 +5958,9 @@ ConstructDefault:
                 return nullptr;
 
             Desc I(Initial);
-            I.Position = GetPosition();
+            I.Position = GetCenterPosition();
             I.Rotation = GetRotation();
             I.Scale = GetScale();
-
-			if (I.Shape.Convex.Enabled && I.Shape.Convex.Source)
-				I.Shape.Convex.Source = Engine->ReuseShape(I.Shape.Convex.Source);
 
             SoftBody* Target = new SoftBody(Engine, I);
             Target->SetSpinningFriction(GetSpinningFriction());
@@ -6015,165 +5989,97 @@ ConstructDefault:
             if (Instance)
                 Instance->activate(Force);
         }
-        void SoftBody::Synchronize(Transform* Transform, bool Kinematic)
-        {
-            if (!Instance)
-                return;
+		void SoftBody::Synchronize(Transform* Transform, bool Kinematic)
+		{
+			if (!Instance)
+				return;
 
-            if (!Kinematic)
-            {
-                btTransform& Offset = Instance->m_initialWorldTransform;
-                Transform->Rotation = Matrix4x4(&Offset).Rotation();
+			Center.Set(0);
+			for (int i = 0; i < Instance->m_nodes.size(); i++)
+			{
+				auto& Node = Instance->m_nodes[i];
+				Center.X += Node.m_x.x();
+				Center.Y += Node.m_x.y();
+				Center.Z += Node.m_x.z();
+			}
 
-                btVector3 Value = Offset.getOrigin();
-                Transform->Position.X = Value.getX();
-                Transform->Position.Y = Value.getY();
-                Transform->Position.Z = Value.getZ();
-            }
-            else
-            {
-                btTransform BindShape = Instance->m_initialWorldTransform;
-                BindShape.inverse();
-                Instance->transform(BindShape);
+			Center /= (float)Instance->m_nodes.size();
+			Center = Center.InvertZ();
 
-                btTransform Offset = Instance->m_initialWorldTransform;
-                Offset.setOrigin(btVector3(Transform->Position.X, Transform->Position.Y, -Transform->Position.Z));
-                Offset.getBasis().setEulerZYX(Transform->Rotation.X, Transform->Rotation.Y, Transform->Rotation.Z);
-                Instance->transform(Offset);
-            }
-        }
-        void SoftBody::Map(std::vector<Vertex>* Vertices)
-        {
-            if (!Instance || !Vertices)
-                return;
+			if (Kinematic)
+			{
+				Vector3 Position = Transform->Position.InvertZ() - Center.InvertZ();
+				if (Position.Length() > 0.005f)
+					Instance->translate(BtV3(Position));
+			}
+			else
+			{
+				btTransform& Offset = Instance->getWorldTransform();
+				Transform->Rotation = Matrix4x4(&Offset).Rotation();
+				Transform->Position = Center;
+			}
+		}
+		void SoftBody::Reindex(std::vector<int>* Indices)
+		{
+			if (!Instance || !Indices)
+				return;
 
-            Vertices->resize(Instance->m_nodes.size());
-            for (size_t i = 0; i < Instance->m_nodes.size(); i++)
-            {
-                btSoftBody::Node& Node = Instance->m_nodes[i];
-                Vertex& Vertex = Vertices->at(i);
-                Vertex.PositionX = Node.m_x.x();
-                Vertex.PositionY = Node.m_x.y();
-                Vertex.PositionZ = Node.m_x.z();
-                Vertex.NormalX = Node.m_n.x();
-                Vertex.NormalY = Node.m_n.y();
-                Vertex.NormalZ = Node.m_n.z();
-            }
-        }
-        void SoftBody::Map(Vertex* Vertices, size_t Size)
-        {
-            if (!Instance || !Vertices || !Size)
-                return;
+			std::map<btSoftBody::Node*, int> Nodes;
+			for (int i = 0; i < Instance->m_nodes.size(); i++)
+				Nodes.insert(std::make_pair(&Instance->m_nodes[i], i));
 
-            size_t Count = (Instance->m_nodes.size() > Size ? Size : Instance->m_nodes.size());
-            for (size_t i = 0; i < Count; i++)
-            {
-                btSoftBody::Node& Node = Instance->m_nodes[i];
-                Vertex& Vertex = Vertices[i];
-                Vertex.PositionX = Node.m_x.x();
-                Vertex.PositionY = Node.m_x.y();
-                Vertex.PositionZ = Node.m_x.z();
-                Vertex.NormalX = Node.m_n.x();
-                Vertex.NormalY = Node.m_n.y();
-                Vertex.NormalZ = Node.m_n.z();
-            }
-        }
-        void SoftBody::Map(std::vector<InfluenceVertex>* Vertices)
-        {
-            if (!Instance || !Vertices)
-                return;
+			for (int i = 0; i < Instance->m_faces.size(); i++)
+			{
+				btSoftBody::Face& Face = Instance->m_faces[i];
+				for (int j = 0; j < 3; j++)
+				{
+					auto It = Nodes.find(Face.m_n[j]);
+					if (It != Nodes.end())
+						Indices->push_back(It->second);
+				}
+			}
+		}
+		void SoftBody::Retrieve(std::vector<Vertex>* Vertices)
+		{
+			if (!Instance || !Vertices)
+				return;
 
-            Vertices->resize(Instance->m_nodes.size());
-            for (size_t i = 0; i < Instance->m_nodes.size(); i++)
-            {
-                btSoftBody::Node& Node = Instance->m_nodes[i];
-                InfluenceVertex& Vertex = Vertices->at(i);
-                Vertex.PositionX = Node.m_x.x();
-                Vertex.PositionY = Node.m_x.y();
-                Vertex.PositionZ = Node.m_x.z();
-                Vertex.NormalX = Node.m_n.x();
-                Vertex.NormalY = Node.m_n.y();
-                Vertex.NormalZ = Node.m_n.z();
-            }
-        }
-        void SoftBody::Map(InfluenceVertex* Vertices, size_t Size)
-        {
-            if (!Instance || !Vertices || !Size)
-                return;
+			size_t Size = (size_t)Instance->m_nodes.size();
+			if (Vertices->size() != Size)
+				Vertices->resize(Size);
 
-            size_t Count = (Instance->m_nodes.size() > Size ? Size : Instance->m_nodes.size());
-            for (size_t i = 0; i < Count; i++)
-            {
-                btSoftBody::Node& Node = Instance->m_nodes[i];
-                InfluenceVertex& Vertex = Vertices[i];
-                Vertex.PositionX = Node.m_x.x();
-                Vertex.PositionY = Node.m_x.y();
-                Vertex.PositionZ = Node.m_x.z();
-                Vertex.NormalX = Node.m_n.x();
-                Vertex.NormalY = Node.m_n.y();
-                Vertex.NormalZ = Node.m_n.z();
-            }
-        }
-        void SoftBody::Map(std::vector<ShapeVertex>* Vertices)
-        {
-            if (!Instance || !Vertices)
-                return;
+			for (size_t i = 0; i < Size; i++)
+			{
+				auto* Node = &Instance->m_nodes[i];
+				Vertex& Position = Vertices->at(i);
+				Position.PositionX = Node->m_x.x();
+				Position.PositionY = Node->m_x.y();
+				Position.PositionZ = Node->m_x.z();
+				Position.NormalX = Node->m_n.x();
+				Position.NormalY = Node->m_n.y();
+				Position.NormalZ = Node->m_n.z();
+			}
+		}
+		void SoftBody::Update(std::vector<Vertex>* Vertices)
+		{
+			if (!Instance || !Vertices)
+				return;
 
-            Vertices->resize(Instance->m_nodes.size());
-            for (size_t i = 0; i < Instance->m_nodes.size(); i++)
-            {
-                btSoftBody::Node& Node = Instance->m_nodes[i];
-                ShapeVertex& Vertex = Vertices->at(i);
-                Vertex.PositionX = Node.m_x.x();
-                Vertex.PositionY = Node.m_x.y();
-                Vertex.PositionZ = Node.m_x.z();
-            }
-        }
-        void SoftBody::Map(ShapeVertex* Vertices, size_t Size)
-        {
-            if (!Instance || !Vertices || !Size)
-                return;
+			if (Vertices->size() != Instance->m_nodes.size())
+				return;
 
-            size_t Count = (Instance->m_nodes.size() > Size ? Size : Instance->m_nodes.size());
-            for (size_t i = 0; i < Count; i++)
-            {
-                btSoftBody::Node& Node = Instance->m_nodes[i];
-                ShapeVertex& Vertex = Vertices[i];
-                Vertex.PositionX = Node.m_x.x();
-                Vertex.PositionY = Node.m_x.y();
-                Vertex.PositionZ = Node.m_x.z();
-            }
-        }
-        void SoftBody::Map(std::vector<ElementVertex>* Vertices)
-        {
-            if (!Instance || !Vertices)
-                return;
-
-            Vertices->resize(Instance->m_nodes.size());
-            for (size_t i = 0; i < Instance->m_nodes.size(); i++)
-            {
-                btSoftBody::Node& Node = Instance->m_nodes[i];
-                ElementVertex& Vertex = Vertices->at(i);
-                Vertex.PositionX = Node.m_x.x();
-                Vertex.PositionY = Node.m_x.y();
-                Vertex.PositionZ = Node.m_x.z();
-            }
-        }
-        void SoftBody::Map(ElementVertex* Vertices, size_t Size)
-        {
-            if (!Instance || !Vertices || !Size)
-                return;
-
-            size_t Count = (Instance->m_nodes.size() > Size ? Size : Instance->m_nodes.size());
-            for (size_t i = 0; i < Count; i++)
-            {
-                btSoftBody::Node& Node = Instance->m_nodes[i];
-                ElementVertex& Vertex = Vertices[i];
-                Vertex.PositionX = Node.m_x.x();
-                Vertex.PositionY = Node.m_x.y();
-                Vertex.PositionZ = Node.m_x.z();
-            }
-        }
+			for (int i = 0; i < Instance->m_nodes.size(); i++)
+			{
+				auto* Node = &Instance->m_nodes[i];
+				Vertex& Position = Vertices->at(i);
+				Position.PositionX = Node->m_x.x();
+				Position.PositionY = Node->m_x.y();
+				Position.PositionZ = Node->m_x.z();
+				Position.NormalX = Node->m_n.x();
+				Position.NormalY = Node->m_n.y();
+				Position.NormalZ = Node->m_n.z();
+			}
+		}
         void SoftBody::SetContactStiffnessAndDamping(float Stiffness, float Damping)
         {
             if (Instance)
@@ -6248,19 +6154,6 @@ ConstructDefault:
         {
             if (Instance)
                 Instance->setVolumeDensity(Density);
-        }
-        void SoftBody::SetTransform(Transform* Base)
-        {
-            if (!Instance || !Base)
-                return;
-
-            btTransform Offset;
-            Offset.setOrigin(btVector3(Base->Position.X, Base->Position.Y, -Base->Position.Z));
-            Offset.getBasis().setEulerZYX(Base->Rotation.X, Base->Rotation.Y, Base->Rotation.Z);
-            Base->Rotation = Matrix4x4(&Offset).Rotation();
-
-            Instance->transform(Offset);
-            Instance->scale(BtV3(Base->Scale));
         }
         void SoftBody::Translate(const Vector3& Position)
         {
@@ -6401,6 +6294,10 @@ ConstructDefault:
             btVector3 Value = Instance->getInterpolationAngularVelocity();
             return Vector3(Value.getX(), Value.getY(), Value.getZ());
         }
+		Vector3 SoftBody::GetCenterPosition()
+		{
+			return Center;
+		}
         void SoftBody::SetActivity(bool Active)
         {
             if (!Instance)
@@ -6491,6 +6388,47 @@ ConstructDefault:
             if (Instance)
                 Instance->setAnisotropicFriction(BtV3(Value));
         }
+		void SoftBody::SetConfig(const Desc::SConfig& Conf)
+		{
+			if (!Instance)
+				return;
+
+			Initial.Config = Conf;
+			Instance->m_cfg.aeromodel = (btSoftBody::eAeroModel::_)Initial.Config.AeroModel;
+			Instance->m_cfg.kVCF = Initial.Config.VCF;
+			Instance->m_cfg.kDP = Initial.Config.DP;
+			Instance->m_cfg.kDG = Initial.Config.DG;
+			Instance->m_cfg.kLF = Initial.Config.LF;
+			Instance->m_cfg.kPR = Initial.Config.PR;
+			Instance->m_cfg.kVC = Initial.Config.VC;
+			Instance->m_cfg.kDF = Initial.Config.DF;
+			Instance->m_cfg.kMT = Initial.Config.MT;
+			Instance->m_cfg.kCHR = Initial.Config.CHR;
+			Instance->m_cfg.kKHR = Initial.Config.KHR;
+			Instance->m_cfg.kSHR = Initial.Config.SHR;
+			Instance->m_cfg.kAHR = Initial.Config.AHR;
+			Instance->m_cfg.kSRHR_CL = Initial.Config.SRHR_CL;
+			Instance->m_cfg.kSKHR_CL = Initial.Config.SKHR_CL;
+			Instance->m_cfg.kSSHR_CL = Initial.Config.SSHR_CL;
+			Instance->m_cfg.kSR_SPLT_CL = Initial.Config.SR_SPLT_CL;
+			Instance->m_cfg.kSK_SPLT_CL = Initial.Config.SK_SPLT_CL;
+			Instance->m_cfg.kSS_SPLT_CL = Initial.Config.SS_SPLT_CL;
+			Instance->m_cfg.maxvolume = Initial.Config.MaxVolume;
+			Instance->m_cfg.timescale = Initial.Config.TimeScale;
+			Instance->m_cfg.viterations = Initial.Config.VIterations;
+			Instance->m_cfg.piterations = Initial.Config.PIterations;
+			Instance->m_cfg.diterations = Initial.Config.DIterations;
+			Instance->m_cfg.citerations = Initial.Config.CIterations;
+			Instance->m_cfg.collisions = Initial.Config.Collisions;
+			Instance->m_cfg.m_maxStress = Initial.Config.MaxStress;
+			Instance->m_cfg.drag = Initial.Config.Drag;
+
+			if (Initial.Config.Constraints > 0)
+				Instance->generateBendingConstraints(Initial.Config.Constraints);
+			
+			if (Initial.Config.Clusters > 0)
+				Instance->generateClusters(Initial.Config.Clusters);
+		}
         MotionState SoftBody::GetActivationState()
         {
             if (!Instance)
@@ -6500,10 +6438,10 @@ ConstructDefault:
         }
         Shape SoftBody::GetCollisionShapeType()
         {
-            if (!Instance || !Initial.Shape.Convex.Source || !Initial.Shape.Convex.Enabled)
+            if (!Instance || !Initial.Shape.Convex.Enabled)
                 return Shape_Invalid;
 
-            return (Shape)Initial.Shape.Convex.Source->getShapeType();
+			return Shape_Convex_Hull;
         }
         Vector3 SoftBody::GetAnisotropicFriction()
         {
@@ -6540,13 +6478,6 @@ ConstructDefault:
         btSoftBody* SoftBody::Bullet()
         {
             return Instance;
-        }
-        btCollisionShape* SoftBody::GetCollisionShape()
-        {
-            if (!Instance || !Initial.Shape.Convex.Enabled)
-                return nullptr;
-
-            return Initial.Shape.Convex.Source;
         }
         bool SoftBody::IsGhost()
         {
@@ -7225,7 +7156,7 @@ ConstructDefault:
 
             for (auto It = Shapes.begin(); It != Shapes.end(); It++)
             {
-                btCollisionShape* Object = It->first;
+                btCollisionShape* Object = (btCollisionShape*)It->first;
                 delete Object;
             }
 
@@ -7431,11 +7362,7 @@ ConstructDefault:
         }
         RigidBody* Simulator::CreateRigidBody(const RigidBody::Desc& I)
         {
-            Safe.lock();
-            RigidBody* Body = new RigidBody(this, I);
-            Safe.unlock();
-
-            return Body;
+            return new RigidBody(this, I);
         }
         SoftBody* Simulator::CreateSoftBody(const SoftBody::Desc& I, Transform* Transform)
         {
@@ -7453,19 +7380,11 @@ ConstructDefault:
             if (!HasSoftBodySupport())
                 return nullptr;
 
-            Safe.lock();
-            SoftBody* Body = new SoftBody(this, I);
-            Safe.unlock();
-
-            return Body;
+            return new SoftBody(this, I);
         }
         SliderConstraint* Simulator::CreateSliderConstraint(const SliderConstraint::Desc& I)
         {
-            Safe.lock();
-            SliderConstraint* Body = new SliderConstraint(this, I);
-            Safe.unlock();
-
-            return Body;
+            return new SliderConstraint(this, I);
         }
         btCollisionShape* Simulator::CreateCube(const Vector3& Scale)
         {
@@ -7520,6 +7439,7 @@ ConstructDefault:
 
             Shape->recalcLocalAabb();
             Shape->optimizeConvexHull();
+			Shape->setMargin(0);
 
             Safe.lock();
 			Shapes[Shape] = 1;
@@ -7535,6 +7455,7 @@ ConstructDefault:
 
             Shape->recalcLocalAabb();
             Shape->optimizeConvexHull();
+			Shape->setMargin(0);
 
             Safe.lock();
 			Shapes[Shape] = 1;
@@ -7550,6 +7471,7 @@ ConstructDefault:
 
             Shape->recalcLocalAabb();
             Shape->optimizeConvexHull();
+			Shape->setMargin(0);
 
             Safe.lock();
 			Shapes[Shape] = 1;
@@ -7565,6 +7487,7 @@ ConstructDefault:
 
             Shape->recalcLocalAabb();
             Shape->optimizeConvexHull();
+			Shape->setMargin(0);
 
             Safe.lock();
 			Shapes[Shape] = 1;
@@ -7580,6 +7503,7 @@ ConstructDefault:
 
             Shape->recalcLocalAabb();
             Shape->optimizeConvexHull();
+			Shape->setMargin(0);
 
             Safe.lock();
 			Shapes[Shape] = 1;
@@ -7600,6 +7524,7 @@ ConstructDefault:
 
             Hull->recalcLocalAabb();
             Hull->optimizeConvexHull();
+			Hull->setMargin(0);
 
             Safe.lock();
 			Shapes[Hull] = 1;
@@ -7633,8 +7558,9 @@ ConstructDefault:
 			Shape Type = (Shape)Value->getShapeType();
 			if (Type == Shape_Box)
 			{
-				btVector3 Scale = Value->getLocalScaling();
-				return CreateCube(V3Bt(Scale));
+				btBoxShape* Box = (btBoxShape*)Value;
+				btVector3 Size = Box->getHalfExtentsWithMargin() / Box->getLocalScaling();
+				return CreateCube(V3Bt(Size));
 			}
 			else if (Type == Shape_Sphere)
 			{
@@ -7653,8 +7579,9 @@ ConstructDefault:
 			}
 			else if (Type == Shape_Cylinder)
 			{
-				btVector3 Scale = Value->getLocalScaling();
-				return CreateCylinder(V3Bt(Scale));
+				btCylinderShape* Cylinder = (btCylinderShape*)Value;
+				btVector3 Size = Cylinder->getHalfExtentsWithMargin() / Cylinder->getLocalScaling();
+				return CreateCylinder(V3Bt(Size));
 			}
 			else if (Type == Shape_Convex_Hull)
 				return CreateConvexHull(Value);
@@ -7690,7 +7617,7 @@ ConstructDefault:
 				*Value = nullptr;
 				if (It->second-- <= 1)
 				{
-					delete It->first;
+					delete (btCollisionShape*)It->first;
 					Shapes.erase(It);
 				}
 			}
@@ -7818,6 +7745,11 @@ ConstructDefault:
 
             return Dispatcher->getNumManifolds();
         }
+		void Simulator::FreeUnmanagedShape(btCollisionShape* Shape)
+		{
+			if (Shape != nullptr)
+				delete Shape;
+		}
         Simulator* Simulator::Get(btDiscreteDynamicsWorld* From)
         {
             if (!From)
@@ -7825,5 +7757,34 @@ ConstructDefault:
 
             return (Simulator*)From->getWorldUserInfo();
         }
+		btCollisionShape* Simulator::CreateUnmanagedShape(std::vector<Vertex>& Vertices)
+		{
+			btConvexHullShape* Shape = new btConvexHullShape();
+			for (auto It = Vertices.begin(); It != Vertices.end(); It++)
+				Shape->addPoint(btVector3(It->PositionX, It->PositionY, It->PositionZ), false);
+
+			Shape->recalcLocalAabb();
+			Shape->optimizeConvexHull();
+			Shape->setMargin(0);
+
+			return Shape;
+		}
+		btCollisionShape* Simulator::CreateUnmanagedShape(btCollisionShape* From)
+		{
+			if (!From || From->getShapeType() != Shape_Convex_Hull)
+				return nullptr;
+
+			btConvexHullShape* Hull = new btConvexHullShape();
+			btConvexHullShape* Base = (btConvexHullShape*)From;
+
+			for (size_t i = 0; i < Base->getNumPoints(); i++)
+				Hull->addPoint(*(Base->getUnscaledPoints() + i), false);
+
+			Hull->recalcLocalAabb();
+			Hull->optimizeConvexHull();
+			Hull->setMargin(0);
+
+			return Hull;
+		}
     }
 }

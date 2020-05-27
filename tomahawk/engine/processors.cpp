@@ -172,6 +172,8 @@ namespace Tomahawk
                                     Target = Entity->AddComponent<Components::KeyAnimator>();
                                 else if (ComponentId == THAWK_COMPONENT_ID(RigidBody))
                                     Target = Entity->AddComponent<Components::RigidBody>();
+								else if (ComponentId == THAWK_COMPONENT_ID(SoftBody))
+									Target = Entity->AddComponent<Components::SoftBody>();
                                 else if (ComponentId == THAWK_COMPONENT_ID(SkinAnimator))
                                     Target = Entity->AddComponent<Components::SkinAnimator>();
                                 else if (ComponentId == THAWK_COMPONENT_ID(SliderConstraint))
@@ -1548,6 +1550,63 @@ namespace Tomahawk
 
                 return (void*)Object;
             }
-        }
+
+			ShapeProcessor::ShapeProcessor(ContentManager* Manager) : FileProcessor(Manager)
+			{
+			}
+			ShapeProcessor::~ShapeProcessor()
+			{
+			}
+			void ShapeProcessor::Free(AssetResource* Asset)
+			{
+				if (Asset->Resource != nullptr)
+				{
+					Compute::UnmanagedShape* Shape = (Compute::UnmanagedShape*)Asset->Resource;
+					Compute::Simulator::FreeUnmanagedShape(Shape->Shape);
+					delete Shape;
+				}
+			}
+			void* ShapeProcessor::Duplicate(AssetResource* Asset, ContentArgs* Args)
+			{
+				return Asset->Resource;
+			}
+			void* ShapeProcessor::Load(Rest::FileStream* Stream, UInt64 Length, UInt64 Offset, ContentArgs* Args)
+			{
+				auto* Document = Content->Load<Rest::Document>(Stream->Filename(), nullptr);
+				if (!Document)
+					return nullptr;
+
+				Compute::UnmanagedShape* Object = new Compute::UnmanagedShape();
+				std::vector<Rest::Document*> Meshes = Document->FindCollectionPath("meshes.mesh");
+				for (auto&& Mesh : Meshes)
+				{
+					if (!NMake::Unpack(Mesh->Find("indices"), &Object->Indices))
+					{
+						delete Document;
+						delete Object;
+						return nullptr;
+					}
+
+					if (!NMake::Unpack(Mesh->Find("vertices"), &Object->Vertices))
+					{
+						delete Document;
+						delete Object;
+						return nullptr;
+					}
+				}
+
+				Object->Shape = Compute::Simulator::CreateUnmanagedShape(Object->Vertices);
+				delete Document;
+
+				if (!Object->Shape)
+				{
+					delete Object;
+					return nullptr;
+				}
+
+				Content->Cache(this, Stream->Filename(), Object);
+				return (void*)Object;
+			}
+		}
     }
 }

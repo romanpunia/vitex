@@ -754,6 +754,27 @@ namespace Tomahawk
                 THAWK_COMPONENT(SkinnedModelRenderer);
             };
 
+			class THAWK_OUT SoftBodyRenderer : public Renderer
+			{
+			protected:
+				Graphics::ElementBuffer* VertexBuffer;
+				Graphics::ElementBuffer* IndexBuffer;
+
+			protected:
+				SoftBodyRenderer(RenderSystem* Lab);
+
+			public:
+				virtual ~SoftBodyRenderer();
+				void OnLoad(ContentManager* Content, Rest::Document* Node) override;
+				void OnSave(ContentManager* Content, Rest::Document* Node) override;
+
+			public:
+				static SoftBodyRenderer* Create(RenderSystem* Lab);
+
+			public:
+				THAWK_COMPONENT(SoftBodyRenderer);
+			};
+
             class THAWK_OUT DepthRenderer : public IntervalRenderer
             {
             public:

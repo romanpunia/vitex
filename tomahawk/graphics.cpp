@@ -1043,6 +1043,19 @@ namespace Tomahawk
             RasterizerConfig->SlopeScaledDepthBias = 0.0f;
             AddRasterizerState(RasterizerConfig);
 
+			RasterizerConfig = new Graphics::RasterizerState();
+			RasterizerConfig->AntialiasedLineEnable = false;
+			RasterizerConfig->CullMode = Graphics::VertexCull_Disabled;
+			RasterizerConfig->DepthBias = 0;
+			RasterizerConfig->DepthBiasClamp = 0;
+			RasterizerConfig->DepthClipEnable = true;
+			RasterizerConfig->FillMode = Graphics::SurfaceFill_Solid;
+			RasterizerConfig->FrontCounterClockwise = false;
+			RasterizerConfig->MultisampleEnable = false;
+			RasterizerConfig->ScissorEnable = false;
+			RasterizerConfig->SlopeScaledDepthBias = 0.0f;
+			AddRasterizerState(RasterizerConfig);
+
             Graphics::BlendState* BlendConfig = new Graphics::BlendState();
             BlendConfig->AlphaToCoverageEnable = false;
             BlendConfig->IndependentBlendEnable = false;

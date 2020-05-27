@@ -343,6 +343,7 @@ namespace Tomahawk
         {
             RenderLab_Raster_Cull_Back = 0,
             RenderLab_Raster_Cull_Front = 1,
+			RenderLab_Raster_Cull_None = 1,
             RenderLab_DepthStencil_Less = 0,
             RenderLab_DepthStencil_Greater_Equal = 1,
             RenderLab_DepthStencil_None = 2,

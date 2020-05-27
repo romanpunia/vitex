@@ -77,7 +77,7 @@ Tomahawk is a cross-platform C++14 framework to create any type of application f
 + Switchable render backend
 #### Engine
 + Thread-safe scene graph
-+ Content management with file processors
++ Async/sync content management with file processors
 + Entity system
 + Component system
 + Render system to handle any type of visualisation per camera

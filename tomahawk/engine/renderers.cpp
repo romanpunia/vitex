@@ -1382,6 +1382,54 @@ namespace Tomahawk
                 return nullptr;
             }
 
+			SoftBodyRenderer::SoftBodyRenderer(RenderSystem* Lab) : Renderer(Lab)
+			{
+				Graphics::ElementBuffer::Desc F = Graphics::ElementBuffer::Desc();
+				F.AccessFlags = Graphics::CPUAccess_Write;
+				F.Usage = Graphics::ResourceUsage_Dynamic;
+				F.BindFlags = Graphics::ResourceBind_Vertex_Buffer;
+				F.ElementWidth = sizeof(Compute::Vertex);
+				F.ElementCount = 16384;
+				F.UseSubresource = false;
+
+				VertexBuffer = Graphics::ElementBuffer::Create(Lab->GetDevice(), F);
+
+				F = Graphics::ElementBuffer::Desc();
+				F.AccessFlags = Graphics::CPUAccess_Write;
+				F.Usage = Graphics::ResourceUsage_Dynamic;
+				F.BindFlags = Graphics::ResourceBind_Index_Buffer;
+				F.ElementWidth = sizeof(int);
+				F.ElementCount = 49152;
+				F.UseSubresource = false;
+
+				IndexBuffer = Graphics::ElementBuffer::Create(Lab->GetDevice(), F);
+				Priority = true;
+			}
+			SoftBodyRenderer::~SoftBodyRenderer()
+			{
+				delete VertexBuffer;
+				delete IndexBuffer;
+			}
+			void SoftBodyRenderer::OnLoad(ContentManager* Content, Rest::Document* Node)
+			{
+			}
+			void SoftBodyRenderer::OnSave(ContentManager* Content, Rest::Document* Node)
+			{
+			}
+			SoftBodyRenderer* SoftBodyRenderer::Create(RenderSystem* Lab)
+			{
+#ifdef THAWK_MICROSOFT
+				if (Lab && Lab->GetDevice() && Lab->GetDevice()->GetBackend() == Graphics::RenderBackend_D3D11)
+					return new Graphics::D3D11::D3D11SoftBodyRenderer(Lab);
+#endif
+#ifdef THAWK_HAS_GL
+				if (Lab && Lab->GetDevice() && Lab->GetDevice()->GetBackend() == Graphics::RenderBackend_OGL)
+					return new Graphics::OGL::OGLSoftBodyRenderer(Lab);
+#endif
+				THAWK_ERROR("instance serialization wasn't found");
+				return nullptr;
+			}
+
             ElementSystemRenderer::ElementSystemRenderer(RenderSystem* Lab) : Renderer(Lab)
             {
                 Priority = true;

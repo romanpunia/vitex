@@ -9,6 +9,7 @@ namespace Tomahawk
         {
             RigidBody::RigidBody(Entity* Ref) : Component(Ref)
             {
+				Hull = nullptr;
                 Instance = nullptr;
                 Kinematic = false;
                 Synchronize = true;
@@ -25,22 +26,37 @@ namespace Tomahawk
                 if (!Extended)
                     return;
 
-                btCollisionShape* Shape = nullptr; UInt64 Type;
-                if (NMake::Unpack(Node->Find("shape"), &Type))
-                {
-                    Shape = Parent->GetScene()->GetSimulator()->CreateShape((Compute::Shape)Type);
-                    if (Shape == nullptr && Type == (UInt64)Compute::Shape_Convex_Hull)
-                    {
-                        std::vector<Compute::Vector3> Vertices;
-                        if (NMake::Unpack(Node->Find("shape-data"), &Vertices))
-                            Shape = Parent->GetScene()->GetSimulator()->CreateConvexHull(Vertices);
-                    }
-                }
+				float Mass = 0, CcdMotionThreshold = 0;
+				NMake::Unpack(Node->Find("mass"), &Mass);
+				NMake::Unpack(Node->Find("ccd-motion-threshold"), &CcdMotionThreshold);
 
-                float Mass = 0, CcdMotionThreshold = 0;
-                NMake::Unpack(Node->Find("mass"), &Mass);
-                NMake::Unpack(Node->Find("ccd-motion-threshold"), &CcdMotionThreshold);
-                Initialize(Shape ? Shape : Parent->GetScene()->GetSimulator()->CreateCube(), Mass, CcdMotionThreshold);
+				Rest::Document* CV = nullptr;
+				if ((CV = Node->Find("shape")) != nullptr)
+				{
+					std::string Path; UInt64 Type;
+					if (NMake::Unpack(Node->Find("path"), &Path))
+					{
+						auto* Shape = Content->Load<Compute::UnmanagedShape>(Path, nullptr);
+						if (Shape != nullptr)
+							Initialize(Shape->Shape, Mass, CcdMotionThreshold);
+					}
+					else if (!NMake::Unpack(CV->Find("type"), &Type))
+					{
+						std::vector<Compute::Vector3> Vertices;
+						if (NMake::Unpack(CV->Find("data"), &Vertices))
+						{
+							btCollisionShape* Shape = Parent->GetScene()->GetSimulator()->CreateConvexHull(Vertices);
+							if (Shape != nullptr)
+								Initialize(Shape, Mass, CcdMotionThreshold);
+						}
+					}
+					else
+					{
+						btCollisionShape* Shape = Parent->GetScene()->GetSimulator()->CreateShape((Compute::Shape)Type);
+						if (Shape != nullptr)
+							Initialize(Shape, Mass, CcdMotionThreshold);
+					}
+				}
 
                 if (!Instance)
                     return;
@@ -140,12 +156,20 @@ namespace Tomahawk
                 if (!Instance)
                     return;
 
-                NMake::Pack(Node->SetDocument("shape"), (UInt64)Instance->GetCollisionShapeType());
+				Rest::Document* CV = Node->SetDocument("shape");
                 if (Instance->GetCollisionShapeType() == Compute::Shape_Convex_Hull)
                 {
-                    std::vector<Compute::Vector3> Vertices = Parent->GetScene()->GetSimulator()->GetShapeVertices(Instance->GetCollisionShape());
-                    NMake::Pack(Node->SetDocument("shape-data"), Vertices);
+					AssetResource* Asset = Content->FindAsset(Hull);
+					if (!Asset || !Hull)
+					{
+						std::vector<Compute::Vector3> Vertices = Parent->GetScene()->GetSimulator()->GetShapeVertices(Instance->GetCollisionShape());
+						NMake::Pack(CV->SetDocument("data"), Vertices);
+					}
+					else
+						NMake::Pack(CV->SetDocument("path"), Asset->Path);
                 }
+				else
+					NMake::Pack(CV->SetDocument("type"), (UInt64)Instance->GetCollisionShapeType());
 
                 NMake::Pack(Node->SetDocument("mass"), Instance->GetMass());
                 NMake::Pack(Node->SetDocument("ccd-motion-threshold"), Instance->GetCcdMotionThreshold());
@@ -200,6 +224,25 @@ namespace Tomahawk
                 Instance->SetActivity(true);
                 Parent->GetScene()->Unlock();
             }
+			void RigidBody::Initialize(ContentManager* Content, const std::string& Path, float Mass, float Anticipation)
+			{
+				if (Content != nullptr)
+				{
+					Hull = Content->Load<Compute::UnmanagedShape>(Path, nullptr);
+					if (Hull != nullptr)
+						Initialize(Hull->Shape, Mass, Anticipation);
+				}
+			}
+			void RigidBody::Clear()
+			{
+				if (!Instance || !Parent || !Parent->GetScene() || !Parent->GetScene()->GetSimulator())
+					return;
+
+				Parent->GetScene()->Lock();
+				delete Instance;
+				Instance = nullptr;
+				Parent->GetScene()->Unlock();
+			}
             void RigidBody::SetTransform(const Compute::Matrix4x4& World)
             {
 				if (!Instance)
@@ -254,9 +297,11 @@ namespace Tomahawk
 
 			SoftBody::SoftBody(Entity* Ref) : Component(Ref)
 			{
+				Hull = nullptr;
 				Instance = nullptr;
 				Kinematic = false;
 				Synchronize = true;
+				Visibility = false;
 			}
 			SoftBody::~SoftBody()
 			{
@@ -264,27 +309,40 @@ namespace Tomahawk
 			}
 			void SoftBody::OnLoad(ContentManager* Content, Rest::Document* Node)
 			{
-				bool Extended;
+				std::string Path; bool Extended;
 				NMake::Unpack(Node->Find("extended"), &Extended);
 				NMake::Unpack(Node->Find("kinematic"), &Kinematic);
+				NMake::Unpack(Node->Find("visibility"), &Visibility);
+
+				Rest::Document* Face = Node->Get("surface");
+				if (Face != nullptr)
+				{
+					if (NMake::Unpack(Face->Find("diffuse"), &Path))
+						Surface.Diffuse = Content->Load<Graphics::Texture2D>(Path, nullptr);
+
+					if (NMake::Unpack(Face->Find("surface"), &Path))
+						Surface.Surface = Content->Load<Graphics::Texture2D>(Path, nullptr);
+
+					NMake::Unpack(Face->Find("diffusion"), &Surface.Diffusion);
+					NMake::Unpack(Face->Find("texcoord"), &Surface.TexCoord);
+					NMake::Unpack(Face->Find("material"), &Surface.Material);
+				}
+				
 				if (!Extended)
 					return;
 
 				float CcdMotionThreshold = 0;
 				NMake::Unpack(Node->Find("ccd-motion-threshold"), &CcdMotionThreshold);
-
-				UInt64 Type; Rest::Document* CV;
-				if (NMake::Unpack(Node->Find("shape"), &Type))
+				
+				Rest::Document* CV = nullptr;
+				if ((CV = Node->Find("shape")) != nullptr)
 				{
-					btCollisionShape* Shape = Parent->GetScene()->GetSimulator()->CreateShape((Compute::Shape)Type);
-					if (Shape == nullptr && Type == (UInt64)Compute::Shape_Convex_Hull)
+					if (NMake::Unpack(Node->Find("path"), &Path))
 					{
-						std::vector<Compute::Vector3> Vertices;
-						if (NMake::Unpack(Node->Find("shape-data"), &Vertices))
-							Shape = Parent->GetScene()->GetSimulator()->CreateConvexHull(Vertices);
+						auto* Shape = Content->Load<Compute::UnmanagedShape>(Path, nullptr);
+						if (Shape != nullptr)
+							InitializeShape(Shape, CcdMotionThreshold);
 					}
-
-					InitializeShape(Shape ? Shape : Parent->GetScene()->GetSimulator()->CreateCube(), CcdMotionThreshold);
 				}
 				else if ((CV = Node->Find("ellipsoid")) != nullptr)
 				{
@@ -323,6 +381,47 @@ namespace Tomahawk
 
 				if (!Instance)
 					return;
+
+				Rest::Document* Conf = Node->Get("config");
+				if (Conf != nullptr)
+				{
+					Compute::SoftBody::Desc::SConfig I;
+					NMake::Unpack(Conf->Get("vcf"), &I.VCF);
+					NMake::Unpack(Conf->Get("dp"), &I.DP);
+					NMake::Unpack(Conf->Get("dg"), &I.DG);
+					NMake::Unpack(Conf->Get("lf"), &I.LF);
+					NMake::Unpack(Conf->Get("pr"), &I.PR);
+					NMake::Unpack(Conf->Get("vc"), &I.VC);
+					NMake::Unpack(Conf->Get("df"), &I.DF);
+					NMake::Unpack(Conf->Get("mt"), &I.MT);
+					NMake::Unpack(Conf->Get("chr"), &I.CHR);
+					NMake::Unpack(Conf->Get("khr"), &I.KHR);
+					NMake::Unpack(Conf->Get("shr"), &I.SHR);
+					NMake::Unpack(Conf->Get("ahr"), &I.AHR);
+					NMake::Unpack(Conf->Get("srhr-cl"), &I.SRHR_CL);
+					NMake::Unpack(Conf->Get("skhr-cl"), &I.SKHR_CL);
+					NMake::Unpack(Conf->Get("sshr-cl"), &I.SSHR_CL);
+					NMake::Unpack(Conf->Get("sr-splt-cl"), &I.SR_SPLT_CL);
+					NMake::Unpack(Conf->Get("sk-splt-cl"), &I.SK_SPLT_CL);
+					NMake::Unpack(Conf->Get("ss-splt-cl"), &I.SS_SPLT_CL);
+					NMake::Unpack(Conf->Get("max-volume"), &I.MaxVolume);
+					NMake::Unpack(Conf->Get("time-scale"), &I.TimeScale);
+					NMake::Unpack(Conf->Get("drag"), &I.Drag);
+					NMake::Unpack(Conf->Get("max-stress"), &I.MaxStress);
+					NMake::Unpack(Conf->Get("constraints"), &I.Constraints);
+					NMake::Unpack(Conf->Get("clusters"), &I.Clusters);
+					NMake::Unpack(Conf->Get("v-it"), &I.VIterations);
+					NMake::Unpack(Conf->Get("p-it"), &I.PIterations);
+					NMake::Unpack(Conf->Get("d-it"), &I.DIterations);
+					NMake::Unpack(Conf->Get("c-it"), &I.CIterations);
+					NMake::Unpack(Conf->Get("collisions"), &I.Collisions);
+
+					UInt64 AeroModel;
+					if (NMake::Unpack(Conf->Get("aero-model"), &AeroModel))
+						I.AeroModel = (Compute::SoftAeroModel)AeroModel;
+
+					Instance->SetConfig(I);
+				}
 
 				UInt64 ActivationState;
 				if (NMake::Unpack(Node->Find("activation-state"), &ActivationState))
@@ -371,22 +470,82 @@ namespace Tomahawk
 				Compute::Vector3 AnisotropicFriction;
 				if (NMake::Unpack(Node->Find("anisotropic-friction"), &AnisotropicFriction))
 					Instance->SetAnisotropicFriction(AnisotropicFriction);
+
+				Compute::Vector3 WindVelocity;
+				if (NMake::Unpack(Node->Find("wind-velocity"), &WindVelocity))
+					Instance->SetWindVelocity(WindVelocity);
+
+				float TotalMass;
+				if (NMake::Unpack(Node->Find("total-mass"), &TotalMass))
+					Instance->SetTotalMass(TotalMass);
+
+				float RestLengthScale;
+				if (NMake::Unpack(Node->Find("rest-length-scale"), &RestLengthScale))
+					Instance->SetRestLengthScale(RestLengthScale);
 			}
 			void SoftBody::OnSave(ContentManager* Content, Rest::Document* Node)
 			{
 				NMake::Pack(Node->SetDocument("kinematic"), Kinematic);
 				NMake::Pack(Node->SetDocument("extended"), Instance != nullptr);
+				NMake::Pack(Node->SetDocument("visibility"), Visibility);
+
+				Rest::Document* Face = Node->SetDocument("surface");
+				AssetResource* Asset = Content->FindAsset(Surface.Diffuse);
+				if (Asset != nullptr)
+					NMake::Pack(Face->SetDocument("diffuse"), Asset->Path);
+
+				Asset = Content->FindAsset(Surface.Surface);
+				if (Asset != nullptr)
+					NMake::Pack(Face->SetDocument("surface"), Asset->Path);
+
+				NMake::Pack(Face->SetDocument("diffusion"), Surface.Diffusion);
+				NMake::Pack(Face->SetDocument("texcoord"), Surface.TexCoord);
+				NMake::Pack(Face->SetDocument("material"), Surface.Material);
 				if (!Instance)
 					return;
+
+				Compute::SoftBody::Desc& I = Instance->GetInitialState();
+				Rest::Document* Conf = Node->SetDocument("config");
+				NMake::Pack(Conf->SetDocument("aero-model"), (UInt64)I.Config.AeroModel);
+				NMake::Pack(Conf->SetDocument("vcf"), I.Config.VCF);
+				NMake::Pack(Conf->SetDocument("dp"), I.Config.DP);
+				NMake::Pack(Conf->SetDocument("dg"), I.Config.DG);
+				NMake::Pack(Conf->SetDocument("lf"), I.Config.LF);
+				NMake::Pack(Conf->SetDocument("pr"), I.Config.PR);
+				NMake::Pack(Conf->SetDocument("vc"), I.Config.VC);
+				NMake::Pack(Conf->SetDocument("df"), I.Config.DF);
+				NMake::Pack(Conf->SetDocument("mt"), I.Config.MT);
+				NMake::Pack(Conf->SetDocument("chr"), I.Config.CHR);
+				NMake::Pack(Conf->SetDocument("khr"), I.Config.KHR);
+				NMake::Pack(Conf->SetDocument("shr"), I.Config.SHR);
+				NMake::Pack(Conf->SetDocument("ahr"), I.Config.AHR);
+				NMake::Pack(Conf->SetDocument("srhr-cl"), I.Config.SRHR_CL);
+				NMake::Pack(Conf->SetDocument("skhr-cl"), I.Config.SKHR_CL);
+				NMake::Pack(Conf->SetDocument("sshr-cl"), I.Config.SSHR_CL);
+				NMake::Pack(Conf->SetDocument("sr-splt-cl"), I.Config.SR_SPLT_CL);
+				NMake::Pack(Conf->SetDocument("sk-splt-cl"), I.Config.SK_SPLT_CL);
+				NMake::Pack(Conf->SetDocument("ss-splt-cl"), I.Config.SS_SPLT_CL);
+				NMake::Pack(Conf->SetDocument("max-volume"), I.Config.MaxVolume);
+				NMake::Pack(Conf->SetDocument("time-scale"), I.Config.TimeScale);
+				NMake::Pack(Conf->SetDocument("drag"), I.Config.Drag);
+				NMake::Pack(Conf->SetDocument("max-stress"), I.Config.MaxStress);
+				NMake::Pack(Conf->SetDocument("constraints"), I.Config.Constraints);
+				NMake::Pack(Conf->SetDocument("clusters"), I.Config.Clusters);
+				NMake::Pack(Conf->SetDocument("v-it"), I.Config.VIterations);
+				NMake::Pack(Conf->SetDocument("p-it"), I.Config.PIterations);
+				NMake::Pack(Conf->SetDocument("d-it"), I.Config.DIterations);
+				NMake::Pack(Conf->SetDocument("c-it"), I.Config.CIterations);
+				NMake::Pack(Conf->SetDocument("collisions"), I.Config.Collisions);
 
 				auto& Desc = Instance->GetInitialState();
 				if (Desc.Shape.Convex.Enabled)
 				{
-					NMake::Pack(Node->SetDocument("shape"), (UInt64)Instance->GetCollisionShapeType());
+					Rest::Document* CV = Node->SetDocument("shape");
 					if (Instance->GetCollisionShapeType() == Compute::Shape_Convex_Hull)
 					{
-						std::vector<Compute::Vector3> Vertices = Parent->GetScene()->GetSimulator()->GetShapeVertices(Instance->GetCollisionShape());
-						NMake::Pack(Node->SetDocument("shape-data"), Vertices);
+						Asset = Content->FindAsset(Hull);
+						if (Asset != nullptr && Hull != nullptr)
+							NMake::Pack(CV->SetDocument("path"), Asset->Path);
 					}
 				}
 				else if (Desc.Shape.Ellipsoid.Enabled)
@@ -437,28 +596,40 @@ namespace Tomahawk
 				NMake::Pack(Node->SetDocument("anisotropic-friction"), Instance->GetAnisotropicFriction());
 				NMake::Pack(Node->SetDocument("linear-velocity"), Instance->GetLinearVelocity());
 				NMake::Pack(Node->SetDocument("collision-flags"), (UInt64)Instance->GetCollisionFlags());
+				NMake::Pack(Node->SetDocument("wind-velocity"), Instance->GetWindVelocity());
+				NMake::Pack(Node->SetDocument("total-mass"), Instance->GetTotalMass());
+				NMake::Pack(Node->SetDocument("rest-length-scale"), Instance->GetRestLengthScale());
 			}
 			void SoftBody::OnSynchronize(Rest::Timer* Time)
 			{
-				if (Instance && Synchronize)
-					Instance->Synchronize(Parent->Transform, Kinematic);
-			}
-			void SoftBody::OnAwake(Component* New)
-			{
-				Components::SkinnedModel* Dynamic = Parent->GetComponent<Components::SkinnedModel>();
-				if (Dynamic != nullptr)
-					Sync.Dynamic = Dynamic;
+				if (!Instance)
+				{
+					Visibility = false;
+					return;
+				}
 
-				Components::Model* Static = Parent->GetComponent<Components::Model>();
-				if (Dynamic != nullptr)
-					Sync.Static = Static;
+				if (Synchronize)
+					Instance->Synchronize(Parent->Transform, Kinematic);
+
+				Viewer View = Parent->GetScene()->GetCameraViewer();
+				if (Parent->Transform->Position.Distance(View.RealPosition) < View.ViewDistance + Parent->Transform->Scale.Length())
+					Visibility = Compute::MathCommon::IsClipping(View.ViewProjection, Parent->Transform->GetWorldUnscaled(), 1.5f) == -1;
+				else
+					Visibility = false;
+
+				if (!Visibility)
+					return;
+
+				Instance->Update(&Vertices);
+				if (Indices.empty())
+					Instance->Reindex(&Indices);
 			}
 			void SoftBody::OnAsleep()
 			{
 				if (Instance != nullptr)
 					Instance->SetAsGhost();
 			}
-			void SoftBody::InitializeShape(btCollisionShape* Shape, float Anticipation)
+			void SoftBody::InitializeShape(Compute::UnmanagedShape* Shape, float Anticipation)
 			{
 				if (!Shape || !Parent || !Parent->GetScene() || !Parent->GetScene()->GetSimulator())
 					return;
@@ -468,13 +639,31 @@ namespace Tomahawk
 
 				Compute::SoftBody::Desc I;
 				I.Anticipation = Anticipation;
-				I.Shape.Convex.Source = Shape;
+				I.Shape.Convex.Hull = Shape;
 				I.Shape.Convex.Enabled = true;
 
+				Vertices = Shape->Vertices;
+				Indices = Shape->Indices;
+
 				Instance = Parent->GetScene()->GetSimulator()->CreateSoftBody(I, Parent->Transform);
+				if (!Instance)
+				{
+					THAWK_ERROR("cannot create soft body");
+					return;
+				}
+
 				Instance->UserPointer = this;
 				Instance->SetActivity(true);
 				Parent->GetScene()->Unlock();
+			}
+			void SoftBody::InitializeShape(ContentManager* Content, const std::string& Path, float Anticipation)
+			{
+				if (Content != nullptr)
+				{
+					Hull = Content->Load<Compute::UnmanagedShape>(Path, nullptr);
+					if (Hull != nullptr)
+						InitializeShape(Hull, Anticipation);
+				}
 			}
 			void SoftBody::InitializeEllipsoid(const Compute::SoftBody::Desc::CV::SEllipsoid& Shape, float Anticipation)
 			{
@@ -490,6 +679,12 @@ namespace Tomahawk
 				I.Shape.Ellipsoid.Enabled = true;
 
 				Instance = Parent->GetScene()->GetSimulator()->CreateSoftBody(I, Parent->Transform);
+				if (!Instance)
+				{
+					THAWK_ERROR("cannot create soft body");
+					return;
+				}
+
 				Instance->UserPointer = this;
 				Instance->SetActivity(true);
 				Parent->GetScene()->Unlock();
@@ -508,6 +703,12 @@ namespace Tomahawk
 				I.Shape.Patch.Enabled = true;
 
 				Instance = Parent->GetScene()->GetSimulator()->CreateSoftBody(I, Parent->Transform);
+				if (!Instance)
+				{
+					THAWK_ERROR("cannot create soft body");
+					return;
+				}
+
 				Instance->UserPointer = this;
 				Instance->SetActivity(true);
 				Parent->GetScene()->Unlock();
@@ -526,8 +727,41 @@ namespace Tomahawk
 				I.Shape.Rope.Enabled = true;
 
 				Instance = Parent->GetScene()->GetSimulator()->CreateSoftBody(I, Parent->Transform);
+				if (!Instance)
+				{
+					THAWK_ERROR("cannot create soft body");
+					return;
+				}
+
 				Instance->UserPointer = this;
 				Instance->SetActivity(true);
+				Parent->GetScene()->Unlock();
+			}
+			void SoftBody::Fill(Graphics::GraphicsDevice* Device, Graphics::ElementBuffer* IndexBuffer, Graphics::ElementBuffer* VertexBuffer)
+			{
+				Graphics::MappedSubresource Map;
+				if (VertexBuffer != nullptr && !Vertices.empty())
+				{
+					VertexBuffer->Map(Device, Graphics::ResourceMap_Write_Discard, &Map);
+					memcpy(Map.Pointer, (void*)Vertices.data(), Vertices.size() * sizeof(Compute::Vertex));
+					VertexBuffer->Unmap(Device, &Map);
+				}
+
+				if (IndexBuffer != nullptr && !Indices.empty())
+				{
+					IndexBuffer->Map(Device, Graphics::ResourceMap_Write_Discard, &Map);
+					memcpy(Map.Pointer, (void*)Indices.data(), Indices.size() * sizeof(int));
+					IndexBuffer->Unmap(Device, &Map);
+				}
+			}
+			void SoftBody::Clear()
+			{
+				if (!Instance || !Parent || !Parent->GetScene() || !Parent->GetScene()->GetSimulator())
+					return;
+
+				Parent->GetScene()->Lock();
+				delete Instance;
+				Instance = nullptr;
 				Parent->GetScene()->Unlock();
 			}
 			void SoftBody::SetTransform(const Compute::Matrix4x4& World)
@@ -558,6 +792,13 @@ namespace Tomahawk
 
 				if (Parent && Parent->GetScene())
 					Parent->GetScene()->Unlock();
+			}
+			Graphics::Material& SoftBody::GetMaterial()
+			{
+				if (Surface.Material >= Parent->GetScene()->GetMaterialCount())
+					return Parent->GetScene()->GetMaterialStandartLit();
+
+				return Parent->GetScene()->GetMaterial(Surface.Material);
 			}
 			Component* SoftBody::OnClone(Entity* New)
 			{
@@ -883,6 +1124,16 @@ namespace Tomahawk
                 Instance = Parent->GetScene()->GetSimulator()->CreateSliderConstraint(I);
                 Parent->GetScene()->Unlock();
             }
+			void SliderConstraint::Clear()
+			{
+				if (!Instance || !Parent || !Parent->GetScene() || !Parent->GetScene()->GetSimulator())
+					return;
+
+				Parent->GetScene()->Lock();
+				delete Instance;
+				Instance = nullptr;
+				Parent->GetScene()->Unlock();
+			}
             Component* SliderConstraint::OnClone(Entity* New)
             {
                 SliderConstraint* Target = new SliderConstraint(New);
@@ -2545,6 +2796,8 @@ namespace Tomahawk
                         Target = Engine::Renderers::ModelRenderer::Create(Renderer);
                     else if (RendererId == THAWK_COMPONENT_ID(SkinnedModelRenderer))
                         Target = Engine::Renderers::SkinnedModelRenderer::Create(Renderer);
+					else if (RendererId == THAWK_COMPONENT_ID(SoftBodyRenderer))
+						Target = Engine::Renderers::SoftBodyRenderer::Create(Renderer);
                     else if (RendererId == THAWK_COMPONENT_ID(DepthRenderer))
                         Target = Engine::Renderers::DepthRenderer::Create(Renderer);
                     else if (RendererId == THAWK_COMPONENT_ID(LightRenderer))

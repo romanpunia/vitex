@@ -147,6 +147,21 @@ namespace Tomahawk
             SoftAeroModel_FOneSided
         };
 
+		enum SoftCollision
+		{
+			SoftCollision_RVS_Mask = 0x000f,
+			SoftCollision_SDF_RS = 0x0001,
+			SoftCollision_CL_RS = 0x0002,
+			SoftCollision_SDF_RD = 0x0003,
+			SoftCollision_SDF_RDF = 0x0004,
+			SoftCollision_SVS_Mask = 0x00F0,
+			SoftCollision_VF_SS = 0x0010,
+			SoftCollision_CL_SS = 0x0020,
+			SoftCollision_CL_Self = 0x0040,
+			SoftCollision_VF_DD = 0x0050,
+			SoftCollision_Default = SoftCollision_SDF_RS | SoftCollision_CL_SS
+		};
+
 		struct THAWK_OUT IncludeDesc
 		{
 			std::vector<std::string> Exts;
@@ -231,6 +246,13 @@ namespace Tomahawk
             float Rotation;
             float Angular;
         };
+
+		struct THAWK_OUT UnmanagedShape
+		{
+			std::vector<Vertex> Vertices;
+			std::vector<int> Indices;
+			btCollisionShape* Shape;
+		};
 
         struct THAWK_OUT Vector2
         {
@@ -1423,7 +1445,7 @@ namespace Tomahawk
                 {
                     struct SConvex
                     {
-                        btCollisionShape* Source = nullptr;
+						Compute::UnmanagedShape* Hull;
                         bool Enabled = false;
                     } Convex;
 
@@ -1462,34 +1484,38 @@ namespace Tomahawk
                     } Ellipsoid;
                 } Shape;
 
-                struct
+                struct SConfig
                 {
-                    SoftAeroModel AeroModel;
-                    float VCF;
-                    float DP;
-                    float DG;
-                    float LF;
-                    float PR;
-                    float VC;
-                    float DF;
-                    float MT;
-                    float CHR;
-                    float KHR;
-                    float SHR;
-                    float AHR;
-                    float SRHR_CL;
-                    float SKHR_CL;
-                    float SSHR_CL;
-                    float SR_SPLT_CL;
-                    float SK_SPLT_CL;
-                    float SS_SPLT_CL;
-                    float MaxVolume;
-                    float TimeScale;
-                    int VIterations;
-                    int PIterations;
-                    int DIterations;
-                    int CIterations;
-                    int Collisions;
+                    SoftAeroModel AeroModel = SoftAeroModel_VPoint;
+                    float VCF = 1;
+                    float DP = 0;
+                    float DG = 0;
+                    float LF = 0;
+                    float PR = 0;
+                    float VC = 0;
+					float DF = 0.2f;
+                    float MT = 0;
+                    float CHR = 1;
+                    float KHR = 0.1f;
+                    float SHR = 1;
+                    float AHR = 0.7f;
+                    float SRHR_CL = 0.1;
+                    float SKHR_CL = 1;
+                    float SSHR_CL = 0.5f;
+                    float SR_SPLT_CL = 0.5f;
+                    float SK_SPLT_CL = 0.5f;
+                    float SS_SPLT_CL = 0.5f;
+                    float MaxVolume = 1;
+                    float TimeScale = 1;
+					float Drag = 0;
+					float MaxStress = 0;
+					int Clusters = 16;
+					int Constraints = 8;
+                    int VIterations = 10;
+                    int PIterations = 10;
+                    int DIterations = 0;
+                    int CIterations = 4;
+                    int Collisions = SoftCollision_Default;
                 } Config;
 
                 float Anticipation = 0;
@@ -1509,6 +1535,7 @@ namespace Tomahawk
         private:
             btSoftBody* Instance;
             Simulator* Engine;
+			Vector3 Center;
             Desc Initial;
 
         public:
@@ -1524,14 +1551,9 @@ namespace Tomahawk
             SoftBody* Copy();
             void Activate(bool Force);
             void Synchronize(Transform* Transform, bool Kinematic);
-            void Map(std::vector<Vertex>* Vertices);
-            void Map(Vertex* Vertices, size_t Size);
-            void Map(std::vector<InfluenceVertex>* Vertices);
-            void Map(InfluenceVertex* Vertices, size_t Size);
-            void Map(std::vector<ShapeVertex>* Vertices);
-            void Map(ShapeVertex* Vertices, size_t Size);
-            void Map(std::vector<ElementVertex>* Vertices);
-            void Map(ElementVertex* Vertices, size_t Size);
+			void Reindex(std::vector<int>* Indices);
+			void Retrieve(std::vector<Vertex>* Vertices);
+            void Update(std::vector<Vertex>* Vertices);
             void SetContactStiffnessAndDamping(float Stiffness, float Damping);
             void AddAnchor(int Node, RigidBody* Body, bool DisableCollisionBetweenLinkedBodies = false, float Influence = 1);
             void AddAnchor(int Node, RigidBody* Body, const Vector3& LocalPivot, bool DisableCollisionBetweenLinkedBodies = false, float Influence = 1);
@@ -1547,7 +1569,6 @@ namespace Tomahawk
             void SetTotalDensity(float Density);
             void SetVolumeMass(float Mass);
             void SetVolumeDensity(float Density);
-            void SetTransform(Transform* Base);
             void Translate(const Vector3& Position);
             void Rotate(const Vector3& Rotation);
             void Scale(const Vector3& Scale);
@@ -1568,6 +1589,7 @@ namespace Tomahawk
             void SetSpinningFriction(float Value);
             Vector3 GetLinearVelocity();
             Vector3 GetAngularVelocity();
+			Vector3 GetCenterPosition();
             void SetActivity(bool Active);
             void SetAsGhost();
             void SetAsNormal();
@@ -1585,6 +1607,7 @@ namespace Tomahawk
             void SetDeactivationTime(float Value);
             void SetRollingFriction(float Value);
             void SetAnisotropicFriction(const Vector3& Value);
+			void SetConfig(const Desc::SConfig& Conf);
             Shape GetCollisionShapeType();
             MotionState GetActivationState();
             Vector3 GetAnisotropicFriction();
@@ -1592,7 +1615,6 @@ namespace Tomahawk
             Vector3 GetPosition();
             Vector3 GetRotation();
             btTransform* GetWorldTransform();
-            btCollisionShape* GetCollisionShape();
             btSoftBody* Bullet();
             bool IsActive();
             bool IsStatic();
@@ -1729,7 +1751,7 @@ namespace Tomahawk
             };
 
         private:
-            std::unordered_map<btCollisionShape*, UInt64> Shapes;
+            std::unordered_map<void*, UInt64> Shapes;
             btCollisionConfiguration* Collision;
             btBroadphaseInterface* Broadphase;
             btConstraintSolver* Solver;
@@ -1807,7 +1829,10 @@ namespace Tomahawk
             int GetContactManifoldCount();
 
         public:
+			static void FreeUnmanagedShape(btCollisionShape* Shape);
             static Simulator* Get(btDiscreteDynamicsWorld* From);
+			static btCollisionShape* CreateUnmanagedShape(std::vector<Vertex>& Mesh);
+			static btCollisionShape* CreateUnmanagedShape(btCollisionShape* From);
         };
     }
 }

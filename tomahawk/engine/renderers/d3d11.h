@@ -73,6 +73,37 @@ namespace Tomahawk
                 void OnCubicDepthRender(Rest::Timer* Time, Compute::Matrix4x4* ViewProjection);
             };
 
+			class D3D11SoftBodyRenderer : public Engine::Renderers::SoftBodyRenderer
+			{
+			protected:
+				struct
+				{
+					D3D11Shader* Multi = nullptr;
+					D3D11Shader* Depth = nullptr;
+					D3D11Shader* CubicDepth = nullptr;
+				} Shaders;
+
+				struct
+				{
+					Compute::Matrix4x4 SliceViewProjection[6];
+					Compute::Vector3 Position;
+					float Distance = 0.0f;
+				} CubicDepth;
+
+			private:
+				Rest::Pool<Engine::Component*>* SoftBodies = nullptr;
+				D3D11Device* Device = nullptr;
+
+			public:
+				D3D11SoftBodyRenderer(Engine::RenderSystem* Lab);
+				~D3D11SoftBodyRenderer();
+				void OnInitialize();
+				void OnRender(Rest::Timer* Time);
+				void OnPhaseRender(Rest::Timer* Time);
+				void OnDepthRender(Rest::Timer* Time);
+				void OnCubicDepthRender(Rest::Timer* Time, Compute::Matrix4x4* ViewProjection);
+			};
+
             class D3D11ElementSystemRenderer : public Engine::Renderers::ElementSystemRenderer
             {
             protected:

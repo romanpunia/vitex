@@ -29,6 +29,15 @@ namespace Tomahawk
                 void OnRelease();
             };
 
+			class OGLSoftBodyRenderer : public Engine::Renderers::SoftBodyRenderer
+			{
+			public:
+				OGLSoftBodyRenderer(Engine::RenderSystem* Lab);
+				void OnInitialize();
+				void OnRender(Rest::Timer* Time);
+				void OnRelease();
+			};
+
             class OGLElementSystemRenderer : public Engine::Renderers::ElementSystemRenderer
             {
             public:

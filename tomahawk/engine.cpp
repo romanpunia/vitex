@@ -3462,6 +3462,7 @@ namespace Tomahawk
                 Content->AddProcessor<FileProcessors::SkinnedModelProcessor, Graphics::SkinnedModel>();
                 Content->AddProcessor<FileProcessors::DocumentProcessor, Rest::Document>();
                 Content->AddProcessor<FileProcessors::ServerProcessor, Network::HTTP::Server>();
+				Content->AddProcessor<FileProcessors::ShapeProcessor, Compute::UnmanagedShape>();
                 Content->SetEnvironment(I->Environment.empty() ? Rest::OS::GetDirectory() + I->Directory : I->Environment + I->Directory);
             }
 

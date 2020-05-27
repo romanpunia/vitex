@@ -179,6 +179,16 @@ namespace Tomahawk
                 ServerProcessor(ContentManager* Manager);
                 void* Load(Rest::FileStream* Stream, UInt64 Length, UInt64 Offset, ContentArgs* Args) override;
             };
+
+			class THAWK_OUT ShapeProcessor : public FileProcessor
+			{
+			public:
+				ShapeProcessor(ContentManager* Manager);
+				virtual ~ShapeProcessor() override;
+				void Free(AssetResource* Asset) override;
+				void* Duplicate(AssetResource* Asset, ContentArgs* Args) override;
+				void* Load(Rest::FileStream* Stream, UInt64 Length, UInt64 Offset, ContentArgs* Args) override;
+			};
         }
     }
 }

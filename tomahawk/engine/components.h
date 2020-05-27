@@ -15,6 +15,9 @@ namespace Tomahawk
 
             class THAWK_OUT RigidBody : public Component
             {
+			private:
+				Compute::UnmanagedShape* Hull;
+
             public:
                 Compute::RigidBody* Instance;
                 bool Kinematic, Synchronize;
@@ -28,6 +31,8 @@ namespace Tomahawk
                 virtual void OnAsleep() override;
                 virtual Component* OnClone(Entity* New) override;
                 void Initialize(btCollisionShape* Shape, float Mass, float Anticipation);
+				void Initialize(ContentManager* Content, const std::string& Path, float Mass, float Anticipation);
+				void Clear();
                 void SetTransform(const Compute::Matrix4x4& World);
                 void SetTransform(bool Kinematic);
                 void SetMass(float Mass);
@@ -38,16 +43,16 @@ namespace Tomahawk
 
 			class THAWK_OUT SoftBody : public Component
 			{
-			public:
-				struct
-				{
-					SkinnedModel* Dynamic;
-					Model* Static;
-				} Sync;
+			private:
+				Compute::UnmanagedShape* Hull;
 
 			public:
 				Compute::SoftBody* Instance;
+				std::vector<Compute::Vertex> Vertices;
+				std::vector<int> Indices;
+				TSurface Surface;
 				bool Kinematic, Synchronize;
+				bool Visibility;
 
 			public:
 				SoftBody(Entity* Ref);
@@ -55,15 +60,18 @@ namespace Tomahawk
 				virtual void OnLoad(ContentManager* Content, Rest::Document* Node) override;
 				virtual void OnSave(ContentManager* Content, Rest::Document* Node) override;
 				virtual void OnSynchronize(Rest::Timer* Time) override;
-				virtual void OnAwake(Component* New) override;
 				virtual void OnAsleep() override;
 				virtual Component* OnClone(Entity* New) override;
-				void InitializeShape(btCollisionShape* Shape, float Anticipation);
+				void InitializeShape(Compute::UnmanagedShape* Shape, float Anticipation);
+				void InitializeShape(ContentManager* Content, const std::string& Path, float Anticipation);
 				void InitializeEllipsoid(const Compute::SoftBody::Desc::CV::SEllipsoid& Shape, float Anticipation);
 				void InitializePatch(const Compute::SoftBody::Desc::CV::SPatch& Shape, float Anticipation);
 				void InitializeRope(const Compute::SoftBody::Desc::CV::SRope& Shape, float Anticipation);
+				void Fill(Graphics::GraphicsDevice* Device, Graphics::ElementBuffer* IndexBuffer, Graphics::ElementBuffer* VertexBuffer);
+				void Clear();
 				void SetTransform(const Compute::Matrix4x4& World);
 				void SetTransform(bool Kinematic);
+				Graphics::Material& GetMaterial();
 
 			public:
 				THAWK_COMPONENT(SoftBody);
@@ -106,6 +114,7 @@ namespace Tomahawk
                 virtual void OnSave(ContentManager* Content, Rest::Document* Node) override;
                 virtual Component* OnClone(Entity* New) override;
                 void Initialize(bool IsGhosted, bool IsLinear);
+				void Clear();
 
             public:
                 THAWK_COMPONENT(SliderConstraint);

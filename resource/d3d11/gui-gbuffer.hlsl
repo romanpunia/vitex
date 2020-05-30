@@ -23,7 +23,7 @@ struct VertexOut
 VertexOut VS(VertexIn Input)
 {
 	VertexOut Output;
-	Output.Position = mul(WorldViewProjection, float4(Input.Position.xy, 0.f, 1.f));
+	Output.Position = mul(float4(Input.Position.xy, 0.f, 1.f), WorldViewProjection);
 	Output.Color = Input.Color;
 	Output.TexCoord = Input.TexCoord;
 	return Output;

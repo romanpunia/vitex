@@ -79,8 +79,10 @@ namespace Tomahawk
             public:
                 D3D11Shader(Graphics::GraphicsDevice* Device, const Desc& I);
                 virtual ~D3D11Shader() override;
-                void SendConstantStream(Graphics::GraphicsDevice* Device) override;
-                void Apply(Graphics::GraphicsDevice* Device) override;
+                void UpdateBuffer(Graphics::GraphicsDevice* Device, const void* Data) override;
+				void CreateBuffer(GraphicsDevice* Device, size_t Size) override;
+                void SetShader(Graphics::GraphicsDevice* Device, unsigned int Type) override;
+				void SetBuffer(Graphics::GraphicsDevice* Device, unsigned int Slot, unsigned int Type) override;
             };
 
             class D3D11ElementBuffer : public Graphics::ElementBuffer
@@ -91,8 +93,8 @@ namespace Tomahawk
             public:
                 D3D11ElementBuffer(Graphics::GraphicsDevice* Device, const Desc& I);
                 virtual ~D3D11ElementBuffer() override;
-                void IndexedBuffer(Graphics::GraphicsDevice* Device, Graphics::Format Format, unsigned int Offset) override;
-                void VertexBuffer(Graphics::GraphicsDevice* Device, unsigned int Slot, unsigned int Stride, unsigned int Offset) override;
+                void SetIndexBuffer(Graphics::GraphicsDevice* Device, Graphics::Format Format, unsigned int Offset) override;
+                void SetVertexBuffer(Graphics::GraphicsDevice* Device, unsigned int Slot, unsigned int Stride, unsigned int Offset) override;
                 void Map(Graphics::GraphicsDevice* Device, Graphics::ResourceMap Mode, Graphics::MappedSubresource* Map) override;
                 void Unmap(Graphics::GraphicsDevice* Device, Graphics::MappedSubresource* Map) override;
                 void* GetResource() override;
@@ -110,7 +112,7 @@ namespace Tomahawk
                 void Map(Graphics::GraphicsDevice* Device, Graphics::ResourceMap Mode, Graphics::MappedSubresource* Map) override;
                 void RemapSubresource(Graphics::GraphicsDevice* Device, void* Pointer, UInt64 Size) override;
                 void Unmap(Graphics::GraphicsDevice* Device, Graphics::MappedSubresource* Map) override;
-                void Apply(Graphics::GraphicsDevice* Device, int Slot) override;
+                void SetBuffer(Graphics::GraphicsDevice* Device, int Slot) override;
                 void* GetElement() override;
                 void* GetResource() override;
             };
@@ -125,7 +127,7 @@ namespace Tomahawk
                 D3D11Texture2D(Graphics::GraphicsDevice* Device);
                 D3D11Texture2D(Graphics::GraphicsDevice* Device, const Desc& I);
                 virtual ~D3D11Texture2D() override;
-                void Apply(Graphics::GraphicsDevice* Device, int Slot) override;
+                void SetTexture(Graphics::GraphicsDevice* Device, int Slot) override;
                 void* GetResource() override;
                 void Fill(D3D11Device* Device);
                 void Generate(D3D11Device* Device);
@@ -140,7 +142,7 @@ namespace Tomahawk
             public:
                 D3D11Texture3D(Graphics::GraphicsDevice* Device);
                 virtual ~D3D11Texture3D() override;
-                void Apply(Graphics::GraphicsDevice* Device, int Slot) override;
+                void SetTexture(Graphics::GraphicsDevice* Device, int Slot) override;
                 void* GetResource() override;
             };
 
@@ -154,7 +156,7 @@ namespace Tomahawk
                 D3D11TextureCube(Graphics::GraphicsDevice* Device);
                 D3D11TextureCube(Graphics::GraphicsDevice* Device, const Desc& I);
                 virtual ~D3D11TextureCube() override;
-                void Apply(Graphics::GraphicsDevice* Device, int Slot) override;
+                void SetTexture(Graphics::GraphicsDevice* Device, int Slot) override;
                 void* GetResource() override;
             };
 
@@ -169,8 +171,8 @@ namespace Tomahawk
             public:
                 D3D11RenderTarget2D(Graphics::GraphicsDevice* Device, const Desc& I);
                 virtual ~D3D11RenderTarget2D() override;
-                void Apply(Graphics::GraphicsDevice* Device, float R, float G, float B) override;
-                void Apply(Graphics::GraphicsDevice* Device) override;
+                void SetTarget(Graphics::GraphicsDevice* Device, float R, float G, float B) override;
+                void SetTarget(Graphics::GraphicsDevice* Device) override;
                 void Clear(Graphics::GraphicsDevice* Device, float R, float G, float B) override;
                 void CopyTexture2D(Graphics::GraphicsDevice* Device, Graphics::Texture2D** Value) override;
                 void SetViewport(const Graphics::Viewport& In) override;
@@ -182,6 +184,17 @@ namespace Tomahawk
 
             class D3D11MultiRenderTarget2D : public Graphics::MultiRenderTarget2D
             {
+			public:
+				struct
+				{
+					ID3D11Texture2D* Face = nullptr;
+					D3D11_SHADER_RESOURCE_VIEW_DESC Resource;
+					D3D11_TEXTURE2D_DESC CubeMap;
+					D3D11_TEXTURE2D_DESC Texture;
+					D3D11_BOX Region;
+					int Target = -1;
+				} View;
+
             public:
                 D3D11_TEXTURE2D_DESC Information;
                 D3D11_VIEWPORT Viewport;
@@ -192,17 +205,25 @@ namespace Tomahawk
             public:
                 D3D11MultiRenderTarget2D(Graphics::GraphicsDevice* Device, const Desc& I);
                 virtual ~D3D11MultiRenderTarget2D() override;
-                void Apply(Graphics::GraphicsDevice* Device, int Target, float R, float G, float B) override;
-                void Apply(Graphics::GraphicsDevice* Device, int Target) override;
-                void Apply(Graphics::GraphicsDevice* Device, float R, float G, float B) override;
-                void Apply(Graphics::GraphicsDevice* Device) override;
+                void SetTarget(Graphics::GraphicsDevice* Device, int Target, float R, float G, float B) override;
+                void SetTarget(Graphics::GraphicsDevice* Device, int Target) override;
+                void SetTarget(Graphics::GraphicsDevice* Device, float R, float G, float B) override;
+                void SetTarget(Graphics::GraphicsDevice* Device) override;
                 void Clear(Graphics::GraphicsDevice* Device, int Target, float R, float G, float B) override;
+				void CopyTargetTo(int Target, Graphics::GraphicsDevice* Device, Graphics::RenderTarget2D* Output) override;
+				void CopyTargetFrom(int Target, Graphics::GraphicsDevice* Device, Graphics::RenderTarget2D* Output) override;
                 void CopyTexture2D(int Target, Graphics::GraphicsDevice* Device, Graphics::Texture2D** Value) override;
+				void CopyBegin(GraphicsDevice* Device, int Target, unsigned int MipLevels, unsigned int Size) override;
+				void CopyFace(GraphicsDevice* Device, int Target, int Face) override;
+				void CopyEnd(GraphicsDevice* Device, TextureCube* Value) override;
                 void SetViewport(const Graphics::Viewport& In) override;
                 Graphics::Viewport GetViewport() override;
                 float GetWidth() override;
                 float GetHeight() override;
                 void* GetResource(int Id) override;
+
+			private:
+				void FillView(int Target, unsigned int MipLevels, unsigned int Size);
             };
 
             class D3D11RenderTarget2DArray : public Graphics::RenderTarget2DArray
@@ -217,8 +238,8 @@ namespace Tomahawk
             public:
                 D3D11RenderTarget2DArray(Graphics::GraphicsDevice* Device, const Desc& I);
                 virtual ~D3D11RenderTarget2DArray() override;
-                void Apply(Graphics::GraphicsDevice* Device, int Target, float R, float G, float B) override;
-                void Apply(Graphics::GraphicsDevice* Device, int Target) override;
+                void SetTarget(Graphics::GraphicsDevice* Device, int Target, float R, float G, float B) override;
+                void SetTarget(Graphics::GraphicsDevice* Device, int Target) override;
                 void Clear(Graphics::GraphicsDevice* Device, int Target, float R, float G, float B) override;
                 void SetViewport(const Graphics::Viewport& In) override;
                 Graphics::Viewport GetViewport() override;
@@ -239,8 +260,8 @@ namespace Tomahawk
             public:
                 D3D11RenderTargetCube(Graphics::GraphicsDevice* Device, const Desc& I);
                 virtual ~D3D11RenderTargetCube() override;
-                void Apply(Graphics::GraphicsDevice* Device, float R, float G, float B) override;
-                void Apply(Graphics::GraphicsDevice* Device) override;
+                void SetTarget(Graphics::GraphicsDevice* Device, float R, float G, float B) override;
+                void SetTarget(Graphics::GraphicsDevice* Device) override;
                 void Clear(Graphics::GraphicsDevice* Device, float R, float G, float B) override;
                 void CopyTextureCube(Graphics::GraphicsDevice* Device, Graphics::TextureCube** Value) override;
                 void CopyTexture2D(int FaceId, Graphics::GraphicsDevice* Device, Graphics::Texture2D** Value) override;
@@ -264,10 +285,10 @@ namespace Tomahawk
             public:
                 D3D11MultiRenderTargetCube(Graphics::GraphicsDevice* Device, const Desc& I);
                 virtual ~D3D11MultiRenderTargetCube() override;
-                void Apply(Graphics::GraphicsDevice* Device, int Target, float R, float G, float B) override;
-                void Apply(Graphics::GraphicsDevice* Device, int Target) override;
-                void Apply(Graphics::GraphicsDevice* Device, float R, float G, float B) override;
-                void Apply(Graphics::GraphicsDevice* Device) override;
+                void SetTarget(Graphics::GraphicsDevice* Device, int Target, float R, float G, float B) override;
+                void SetTarget(Graphics::GraphicsDevice* Device, int Target) override;
+                void SetTarget(Graphics::GraphicsDevice* Device, float R, float G, float B) override;
+                void SetTarget(Graphics::GraphicsDevice* Device) override;
                 void Clear(Graphics::GraphicsDevice* Device, int Target, float R, float G, float B) override;
                 void CopyTextureCube(int CubeId, Graphics::GraphicsDevice* Device, Graphics::TextureCube** Value) override;
                 void CopyTexture2D(int CubeId, int FaceId, Graphics::GraphicsDevice* Device, Graphics::Texture2D** Value) override;
@@ -307,9 +328,10 @@ namespace Tomahawk
             public:
                 D3D11InstanceBuffer(Graphics::GraphicsDevice* Device, const Desc& I);
                 virtual ~D3D11InstanceBuffer() override;
-                void SendPool() override;
+                void Update() override;
                 void Restore() override;
                 void Resize(UInt64 Size) override;
+				void SetResource(Graphics::GraphicsDevice* Device, int Slot) override;
             };
 
             class D3D11DirectBuffer : public Graphics::DirectBuffer
@@ -381,7 +403,7 @@ namespace Tomahawk
                 void SetBlendState(UInt64 State) override;
                 void SetRasterizerState(UInt64 State) override;
                 void SetDepthStencilState(UInt64 State) override;
-                void SendBufferStream(Graphics::RenderBufferType Buffer) override;
+                void UpdateBuffer(Graphics::RenderBufferType Buffer) override;
                 void Present() override;
                 void SetPrimitiveTopology(Graphics::PrimitiveTopology Topology) override;
                 void RestoreTexture2D(int Slot, int Size) override;
@@ -390,13 +412,20 @@ namespace Tomahawk
                 void RestoreTexture3D(int Size) override;
                 void RestoreTextureCube(int Slot, int Size) override;
                 void RestoreTextureCube(int Size) override;
+				void RestoreVertexBuffer(int Slot) override;
+				void RestoreIndexBuffer() override;
                 void RestoreState() override;
-                void RestoreShader() override;
+                void RestoreShader(unsigned int Type) override;
                 void ResizeBuffers(unsigned int Width, unsigned int Height) override;
                 void DrawIndexed(unsigned int Count, unsigned int IndexLocation, unsigned int BaseLocation) override;
                 void Draw(unsigned int Count, unsigned int Start) override;
+				void SetViewport(unsigned int Count, Graphics::Viewport* Viewports) override;
+				void SetScissorRect(unsigned int Count, Graphics::Rectangle* Value) override;
+				void GetViewport(unsigned int* Count, Graphics::Viewport* Out) override;
+				void GetScissorRect(unsigned int* Count, Graphics::Rectangle* Out) override;
                 void LoadShaderSections() override;
                 Graphics::ShaderModel GetSupportedShaderModel() override;
+				Graphics::PrimitiveTopology GetPrimitiveTopology() override;
                 void* GetDevice() override;
                 void* GetContext() override;
                 void* GetBackBuffer() override;

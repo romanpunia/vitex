@@ -174,54 +174,68 @@ namespace Tomahawk
                 ReleaseCom(ComputeShader);
                 ReleaseCom(VertexLayout);
             }
-            void D3D11Shader::SendConstantStream(Graphics::GraphicsDevice* Device)
+            void D3D11Shader::UpdateBuffer(Graphics::GraphicsDevice* Device, const void* Data)
             {
-                Device->As<D3D11Device>()->ImmediateContext->UpdateSubresource(ConstantBuffer, 0, nullptr, ConstantData, 0, 0);
+				if (Device != nullptr)
+					Device->As<D3D11Device>()->ImmediateContext->UpdateSubresource(ConstantBuffer, 0, nullptr, Data, 0, 0);
             }
-            void D3D11Shader::Apply(Graphics::GraphicsDevice* Device)
+			void D3D11Shader::CreateBuffer(GraphicsDevice* Device, size_t Size)
+			{
+				if (!Device || !Size)
+					return;
+
+				if (ConstantBuffer != nullptr)
+					ReleaseCom(ConstantBuffer);
+
+				Device->As<D3D11Device>()->CreateConstantBuffer(Size, ConstantBuffer);
+			}
+            void D3D11Shader::SetShader(Graphics::GraphicsDevice* Device, unsigned int Type)
             {
                 ID3D11DeviceContext* ImmediateContext = Device->As<D3D11Device>()->ImmediateContext;
-                if (ConstantBuffer && ConstantData)
-                    ImmediateContext->UpdateSubresource(ConstantBuffer, 0, nullptr, ConstantData, 0, 0);
-
-                if (VertexShader)
-                {
+                if (VertexShader && (Type & Graphics::ShaderType_Vertex))
                     ImmediateContext->VSSetShader(VertexShader, nullptr, 0);
-                    ImmediateContext->VSSetConstantBuffers(4, 1, &ConstantBuffer);
-                }
 
-                if (PixelShader)
-                {
+                if (PixelShader && (Type & Graphics::ShaderType_Pixel))
                     ImmediateContext->PSSetShader(PixelShader, nullptr, 0);
-                    ImmediateContext->PSSetConstantBuffers(4, 1, &ConstantBuffer);
-                }
 
-                if (GeometryShader)
-                {
+                if (GeometryShader && (Type & Graphics::ShaderType_Geometry))
                     ImmediateContext->GSSetShader(GeometryShader, nullptr, 0);
-                    ImmediateContext->GSSetConstantBuffers(4, 1, &ConstantBuffer);
-                }
 
-                if (HullShader)
-                {
+                if (HullShader && (Type & Graphics::ShaderType_Hull))
                     ImmediateContext->HSSetShader(HullShader, nullptr, 0);
-                    ImmediateContext->HSSetConstantBuffers(4, 1, &ConstantBuffer);
-                }
 
-                if (DomainShader)
-                {
+                if (DomainShader && (Type & Graphics::ShaderType_Domain))
                     ImmediateContext->DSSetShader(DomainShader, nullptr, 0);
-                    ImmediateContext->DSSetConstantBuffers(4, 1, &ConstantBuffer);
-                }
 
-                if (ComputeShader)
-                {
+                if (ComputeShader && (Type & Graphics::ShaderType_Compute))
                     ImmediateContext->CSSetShader(ComputeShader, nullptr, 0);
-                    ImmediateContext->CSSetConstantBuffers(4, 1, &ConstantBuffer);
-                }
 
                 ImmediateContext->IASetInputLayout(VertexLayout);
             }
+			void D3D11Shader::SetBuffer(Graphics::GraphicsDevice* Device, unsigned int Slot, unsigned int Type)
+			{
+				ID3D11DeviceContext* ImmediateContext = Device->As<D3D11Device>()->ImmediateContext;
+				if (Slot < 0)
+					return;
+
+				if (VertexShader && (Type & Graphics::ShaderType_Vertex))
+					ImmediateContext->VSSetConstantBuffers(Slot, 1, &ConstantBuffer);
+
+				if (PixelShader && (Type & Graphics::ShaderType_Pixel))
+					ImmediateContext->PSSetConstantBuffers(Slot, 1, &ConstantBuffer);
+
+				if (GeometryShader && (Type & Graphics::ShaderType_Geometry))
+					ImmediateContext->GSSetConstantBuffers(Slot, 1, &ConstantBuffer);
+
+				if (HullShader && (Type & Graphics::ShaderType_Hull))
+					ImmediateContext->HSSetConstantBuffers(Slot, 1, &ConstantBuffer);
+
+				if (DomainShader && (Type & Graphics::ShaderType_Domain))
+					ImmediateContext->DSSetConstantBuffers(Slot, 1, &ConstantBuffer);
+
+				if (ComputeShader && (Type & Graphics::ShaderType_Compute))
+					ImmediateContext->CSSetConstantBuffers(Slot, 1, &ConstantBuffer);
+			}
 
             D3D11ElementBuffer::D3D11ElementBuffer(Graphics::GraphicsDevice* Device, const Desc& I) : Graphics::ElementBuffer(Device, I)
             {
@@ -249,11 +263,11 @@ namespace Tomahawk
             {
                 ReleaseCom(Element);
             }
-            void D3D11ElementBuffer::IndexedBuffer(Graphics::GraphicsDevice* Device, Graphics::Format Format, unsigned int Offset)
+            void D3D11ElementBuffer::SetIndexBuffer(Graphics::GraphicsDevice* Device, Graphics::Format Format, unsigned int Offset)
             {
                 Device->As<D3D11Device>()->ImmediateContext->IASetIndexBuffer(Element, (DXGI_FORMAT)Format, Offset);
             }
-            void D3D11ElementBuffer::VertexBuffer(Graphics::GraphicsDevice* Device, unsigned int Slot, unsigned int Stride, unsigned int Offset)
+            void D3D11ElementBuffer::SetVertexBuffer(Graphics::GraphicsDevice* Device, unsigned int Slot, unsigned int Stride, unsigned int Offset)
             {
                 Device->As<D3D11Device>()->ImmediateContext->IASetVertexBuffers(Slot, 1, &Element, &Stride, &Offset);
             }
@@ -327,7 +341,7 @@ namespace Tomahawk
             {
                 Device->As<D3D11Device>()->ImmediateContext->Unmap(Element, 0);
             }
-            void D3D11StructureBuffer::Apply(Graphics::GraphicsDevice* Device, int Slot)
+            void D3D11StructureBuffer::SetBuffer(Graphics::GraphicsDevice* Device, int Slot)
             {
                 Device->As<D3D11Device>()->ImmediateContext->PSSetShaderResources(Slot, 1, &Resource);
             }
@@ -422,7 +436,7 @@ namespace Tomahawk
                 ReleaseCom(Rest);
                 ReleaseCom(Resource);
             }
-            void D3D11Texture2D::Apply(Graphics::GraphicsDevice* Device, int Slot)
+            void D3D11Texture2D::SetTexture(Graphics::GraphicsDevice* Device, int Slot)
             {
                 Device->As<D3D11Device>()->ImmediateContext->PSSetShaderResources(Slot, 1, &Resource);
             }
@@ -527,7 +541,7 @@ namespace Tomahawk
                 ReleaseCom(Rest);
                 ReleaseCom(Resource);
             }
-            void D3D11Texture3D::Apply(Graphics::GraphicsDevice* Device, int Slot)
+            void D3D11Texture3D::SetTexture(Graphics::GraphicsDevice* Device, int Slot)
             {
                 Device->As<D3D11Device>()->ImmediateContext->PSSetShaderResources(Slot, 1, &Resource);
             }
@@ -591,7 +605,7 @@ namespace Tomahawk
                 ReleaseCom(Rest);
                 ReleaseCom(Resource);
             }
-            void D3D11TextureCube::Apply(Graphics::GraphicsDevice* Device, int Slot)
+            void D3D11TextureCube::SetTexture(Graphics::GraphicsDevice* Device, int Slot)
             {
                 Device->As<D3D11Device>()->ImmediateContext->PSSetShaderResources(Slot, 1, &Resource);
             }
@@ -704,7 +718,7 @@ namespace Tomahawk
                 ReleaseCom(DepthStencilView);
                 ReleaseCom(RenderTargetView);
             }
-            void D3D11RenderTarget2D::Apply(Graphics::GraphicsDevice* Device, float R, float G, float B)
+            void D3D11RenderTarget2D::SetTarget(Graphics::GraphicsDevice* Device, float R, float G, float B)
             {
                 float ClearColor[4] = { R, G, B, 0.0f };
 
@@ -714,7 +728,7 @@ namespace Tomahawk
                 ImmediateContext->ClearRenderTargetView(RenderTargetView, ClearColor);
                 ImmediateContext->ClearDepthStencilView(DepthStencilView, D3D11_CLEAR_DEPTH, 1.0f, 0);
             }
-            void D3D11RenderTarget2D::Apply(Graphics::GraphicsDevice* Device)
+            void D3D11RenderTarget2D::SetTarget(Graphics::GraphicsDevice* Device)
             {
                 ID3D11DeviceContext* ImmediateContext = Device->As<D3D11Device>()->ImmediateContext;
                 ImmediateContext->OMSetRenderTargets(1, &RenderTargetView, DepthStencilView);
@@ -905,6 +919,7 @@ namespace Tomahawk
             }
             D3D11MultiRenderTarget2D::~D3D11MultiRenderTarget2D()
             {
+				ReleaseCom(View.Face);
                 ReleaseCom(DepthStencilView);
                 for (int i = 0; i < 8; i++)
                 {
@@ -912,24 +927,24 @@ namespace Tomahawk
                     ReleaseCom(RenderTargetView[i]);
                 }
             }
-            void D3D11MultiRenderTarget2D::Apply(Graphics::GraphicsDevice* Device, int Target, float R, float G, float B)
+            void D3D11MultiRenderTarget2D::SetTarget(Graphics::GraphicsDevice* Device, int Target, float R, float G, float B)
             {
                 float ClearColor[4] = { R, G, B, 0.0f };
 
                 ID3D11DeviceContext* ImmediateContext = Device->As<D3D11Device>()->ImmediateContext;
-                ImmediateContext->OMSetRenderTargets(SVTarget, &RenderTargetView[Target], DepthStencilView);
+                ImmediateContext->OMSetRenderTargets(1, &RenderTargetView[Target], DepthStencilView);
                 ImmediateContext->RSSetViewports(1, &Viewport);
 
                 ImmediateContext->ClearRenderTargetView(RenderTargetView[Target], ClearColor);
                 ImmediateContext->ClearDepthStencilView(DepthStencilView, D3D11_CLEAR_DEPTH, 1.0f, 0);
             }
-            void D3D11MultiRenderTarget2D::Apply(Graphics::GraphicsDevice* Device, int Target)
+            void D3D11MultiRenderTarget2D::SetTarget(Graphics::GraphicsDevice* Device, int Target)
             {
                 ID3D11DeviceContext* ImmediateContext = Device->As<D3D11Device>()->ImmediateContext;
-                ImmediateContext->OMSetRenderTargets(SVTarget, &RenderTargetView[Target], DepthStencilView);
+                ImmediateContext->OMSetRenderTargets(1, &RenderTargetView[Target], DepthStencilView);
                 ImmediateContext->RSSetViewports(1, &Viewport);
             }
-            void D3D11MultiRenderTarget2D::Apply(Graphics::GraphicsDevice* Device, float R, float G, float B)
+            void D3D11MultiRenderTarget2D::SetTarget(Graphics::GraphicsDevice* Device, float R, float G, float B)
             {
                 float ClearColor[4] = { R, G, B, 0.0f };
 
@@ -941,13 +956,13 @@ namespace Tomahawk
                     ImmediateContext->ClearRenderTargetView(RenderTargetView[i], ClearColor);
                 ImmediateContext->ClearDepthStencilView(DepthStencilView, D3D11_CLEAR_DEPTH, 1.0f, 0);
             }
-            void D3D11MultiRenderTarget2D::Apply(Graphics::GraphicsDevice* Device)
+            void D3D11MultiRenderTarget2D::SetTarget(Graphics::GraphicsDevice* Device)
             {
                 ID3D11DeviceContext* ImmediateContext = Device->As<D3D11Device>()->ImmediateContext;
                 ImmediateContext->OMSetRenderTargets(SVTarget, RenderTargetView, DepthStencilView);
                 ImmediateContext->RSSetViewports(1, &Viewport);
             }
-            void D3D11MultiRenderTarget2D::Clear(Graphics::GraphicsDevice* Device, int Target, float R, float G, float B)
+			void D3D11MultiRenderTarget2D::Clear(Graphics::GraphicsDevice* Device, int Target, float R, float G, float B)
             {
                 float ClearColor[4] = { R, G, B, 0.0f };
 
@@ -956,8 +971,25 @@ namespace Tomahawk
                     ImmediateContext->ClearRenderTargetView(RenderTargetView[i], ClearColor);
                 ImmediateContext->ClearDepthStencilView(DepthStencilView, D3D11_CLEAR_DEPTH, 1.0f, 0);
             }
-            void D3D11MultiRenderTarget2D::CopyTexture2D(int Target, Graphics::GraphicsDevice* Device, Graphics::Texture2D** Value)
+			void D3D11MultiRenderTarget2D::CopyTargetTo(int Target, Graphics::GraphicsDevice* Device, Graphics::RenderTarget2D* Output)
+			{
+				if (!Device || !Output || Target < 0 || Target >= SVTarget)
+					return;
+
+				Device->As<D3D11Device>()->ImmediateContext->CopyResource(Output->As<D3D11RenderTarget2D>()->Texture, Texture[Target]);
+			}
+			void D3D11MultiRenderTarget2D::CopyTargetFrom(int Target, Graphics::GraphicsDevice* Device, Graphics::RenderTarget2D* Output)
+			{
+				if (!Device || !Output || Target < 0 || Target >= SVTarget)
+					return;
+
+				Device->As<D3D11Device>()->ImmediateContext->CopyResource(Texture[Target], Output->As<D3D11RenderTarget2D>()->Texture);
+			}
+			void D3D11MultiRenderTarget2D::CopyTexture2D(int Target, Graphics::GraphicsDevice* Device, Graphics::Texture2D** Value)
             {
+				if (!Device || !Value)
+					return;
+
                 D3D11_TEXTURE2D_DESC T2D;
                 Texture[Target]->GetDesc(&T2D);
 
@@ -966,14 +998,73 @@ namespace Tomahawk
                 T2D.MiscFlags = 0;
                 T2D.MipLevels = 1;
 
-                D3D11Texture2D* RefTexture = (D3D11Texture2D*)Graphics::Texture2D::Create(Device);
+				D3D11Texture2D* RefTexture = (D3D11Texture2D*)Graphics::Texture2D::Create(Device);
                 D3D11Device* RefDevice = Device->As<D3D11Device>();
 
                 RefDevice->D3DDevice->CreateTexture2D(&T2D, nullptr, &RefTexture->Rest);
                 RefDevice->ImmediateContext->CopyResource(RefTexture->Rest, Texture[Target]);
-                *Value = RefTexture;
+				*Value = RefTexture;
             }
-            void D3D11MultiRenderTarget2D::SetViewport(const Graphics::Viewport& In)
+			void D3D11MultiRenderTarget2D::CopyBegin(GraphicsDevice* Device, int Target, unsigned int MipLevels, unsigned int Size)
+			{
+				if (!Device || Target > SVTarget || Target < 0)
+					return;
+
+				if (View.Target != Target)
+				{
+					if (Texture[Target] != nullptr)
+						Texture[Target]->GetDesc(&View.Texture);
+
+					View.Texture.ArraySize = 1;
+					View.Texture.CPUAccessFlags = 0;
+					View.Texture.MiscFlags = 0;
+					View.Texture.MipLevels = MipLevels;
+
+					View.CubeMap = View.Texture;
+					View.CubeMap.MipLevels = MipLevels;
+					View.CubeMap.ArraySize = 6;
+					View.CubeMap.Usage = D3D11_USAGE_DEFAULT;
+					View.CubeMap.BindFlags = D3D11_BIND_RENDER_TARGET | D3D11_BIND_SHADER_RESOURCE;
+					View.CubeMap.CPUAccessFlags = 0;
+					View.CubeMap.MiscFlags = D3D11_RESOURCE_MISC_TEXTURECUBE | D3D11_RESOURCE_MISC_GENERATE_MIPS;
+
+					View.Resource.Format = View.Texture.Format;
+					View.Resource.ViewDimension = D3D11_SRV_DIMENSION_TEXTURECUBE;
+					View.Resource.TextureCube.MostDetailedMip = 0;
+					View.Resource.TextureCube.MipLevels = MipLevels;
+					View.Region = { 0, 0, 0, (unsigned int)Size, (unsigned int)Size, 1 };
+				}
+
+				ReleaseCom(View.Face);
+				Device->As<D3D11Device>()->D3DDevice->CreateTexture2D(&View.CubeMap, nullptr, &View.Face);
+			}
+			void D3D11MultiRenderTarget2D::CopyFace(GraphicsDevice* Device, int Target, int Face)
+			{
+				if (!Device || Target > SVTarget || Target < 0)
+					return;
+
+				D3D11Device* Dev = Device->As<D3D11Device>();
+				ID3D11Texture2D* Subresource = nullptr;
+
+				Dev->D3DDevice->CreateTexture2D(&View.Texture, nullptr, &Subresource);
+				Dev->ImmediateContext->CopyResource(Subresource, Texture[Target]);
+				Dev->ImmediateContext->CopySubresourceRegion(View.Face, Face * View.CubeMap.MipLevels, 0, 0, 0, Subresource, 0, &View.Region);
+				ReleaseCom(Subresource);
+			}
+			void D3D11MultiRenderTarget2D::CopyEnd(GraphicsDevice* Device, TextureCube* Value)
+			{
+				if (!Device || !Value)
+					return;
+
+				D3D11Device* Dev = Device->As<D3D11Device>();
+				ID3D11ShaderResourceView** Resource = &Value->As<D3D11TextureCube>()->Resource;
+				ReleaseCom((*Resource));
+
+				Dev->D3DDevice->CreateShaderResourceView(View.Face, &View.Resource, Resource);
+				Dev->ImmediateContext->GenerateMips(*Resource);
+				ReleaseCom(View.Face);
+			}
+			void D3D11MultiRenderTarget2D::SetViewport(const Graphics::Viewport& In)
             {
                 Viewport.Height = In.Height;
                 Viewport.TopLeftX = In.TopLeftX;
@@ -1133,7 +1224,7 @@ namespace Tomahawk
                 for (int i = 0; i < RenderTargetView.size(); i++)
 					ReleaseCom(RenderTargetView[i]);
             }
-            void D3D11RenderTarget2DArray::Apply(Graphics::GraphicsDevice* Device, int Target, float R, float G, float B)
+            void D3D11RenderTarget2DArray::SetTarget(Graphics::GraphicsDevice* Device, int Target, float R, float G, float B)
             {
                 float ClearColor[4] = { R, G, B, 0.0f };
 
@@ -1143,7 +1234,7 @@ namespace Tomahawk
                 ImmediateContext->ClearRenderTargetView(RenderTargetView[Target], ClearColor);
                 ImmediateContext->ClearDepthStencilView(DepthStencilView, D3D11_CLEAR_DEPTH, 1.0f, 0);
             }
-            void D3D11RenderTarget2DArray::Apply(Graphics::GraphicsDevice* Device, int Target)
+            void D3D11RenderTarget2DArray::SetTarget(Graphics::GraphicsDevice* Device, int Target)
             {
                 ID3D11DeviceContext* ImmediateContext = Device->As<D3D11Device>()->ImmediateContext;
                 ImmediateContext->OMSetRenderTargets(1, &RenderTargetView[Target], DepthStencilView);
@@ -1299,7 +1390,7 @@ namespace Tomahawk
                 ReleaseCom(Texture);
                 ReleaseCom(Cube);
             }
-            void D3D11RenderTargetCube::Apply(Graphics::GraphicsDevice* Device, float R, float G, float B)
+            void D3D11RenderTargetCube::SetTarget(Graphics::GraphicsDevice* Device, float R, float G, float B)
             {
                 float ClearColor[4] = { R, G, B, 0.0f };
 
@@ -1309,7 +1400,7 @@ namespace Tomahawk
                 ImmediateContext->ClearRenderTargetView(RenderTargetView, ClearColor);
                 ImmediateContext->ClearDepthStencilView(DepthStencilView, D3D11_CLEAR_DEPTH, 1.0f, 0);
             }
-            void D3D11RenderTargetCube::Apply(Graphics::GraphicsDevice* Device)
+            void D3D11RenderTargetCube::SetTarget(Graphics::GraphicsDevice* Device)
             {
                 ID3D11DeviceContext* ImmediateContext = Device->As<D3D11Device>()->ImmediateContext;
                 ImmediateContext->OMSetRenderTargets(1, &RenderTargetView, DepthStencilView);
@@ -1513,24 +1604,24 @@ namespace Tomahawk
                 }
                 ReleaseCom(DepthStencilView);
             }
-            void D3D11MultiRenderTargetCube::Apply(Graphics::GraphicsDevice* Device, int Target, float R, float G, float B)
+            void D3D11MultiRenderTargetCube::SetTarget(Graphics::GraphicsDevice* Device, int Target, float R, float G, float B)
             {
                 float ClearColor[4] = { R, G, B, 0.0f };
 
                 ID3D11DeviceContext* ImmediateContext = Device->As<D3D11Device>()->ImmediateContext;
-                ImmediateContext->OMSetRenderTargets(SVTarget, &RenderTargetView[Target], DepthStencilView);
+                ImmediateContext->OMSetRenderTargets(1, &RenderTargetView[Target], DepthStencilView);
                 ImmediateContext->RSSetViewports(1, &Viewport);
 
                 ImmediateContext->ClearRenderTargetView(RenderTargetView[Target], ClearColor);
                 ImmediateContext->ClearDepthStencilView(DepthStencilView, D3D11_CLEAR_DEPTH, 1.0f, 0);
             }
-            void D3D11MultiRenderTargetCube::Apply(Graphics::GraphicsDevice* Device, int Target)
+            void D3D11MultiRenderTargetCube::SetTarget(Graphics::GraphicsDevice* Device, int Target)
             {
                 ID3D11DeviceContext* ImmediateContext = Device->As<D3D11Device>()->ImmediateContext;
-                ImmediateContext->OMSetRenderTargets(SVTarget, &RenderTargetView[Target], DepthStencilView);
+                ImmediateContext->OMSetRenderTargets(1, &RenderTargetView[Target], DepthStencilView);
                 ImmediateContext->RSSetViewports(1, &Viewport);
             }
-            void D3D11MultiRenderTargetCube::Apply(Graphics::GraphicsDevice* Device, float R, float G, float B)
+            void D3D11MultiRenderTargetCube::SetTarget(Graphics::GraphicsDevice* Device, float R, float G, float B)
             {
                 float ClearColor[4] = { R, G, B, 0.0f };
 
@@ -1542,7 +1633,7 @@ namespace Tomahawk
                     ImmediateContext->ClearRenderTargetView(RenderTargetView[i], ClearColor);
                 ImmediateContext->ClearDepthStencilView(DepthStencilView, D3D11_CLEAR_DEPTH, 1.0f, 0);
             }
-            void D3D11MultiRenderTargetCube::Apply(Graphics::GraphicsDevice* Device)
+            void D3D11MultiRenderTargetCube::SetTarget(Graphics::GraphicsDevice* Device)
             {
                 ID3D11DeviceContext* ImmediateContext = Device->As<D3D11Device>()->ImmediateContext;
                 ImmediateContext->OMSetRenderTargets(SVTarget, RenderTargetView, DepthStencilView);
@@ -1553,8 +1644,7 @@ namespace Tomahawk
                 float ClearColor[4] = { R, G, B, 0.0f };
 
                 ID3D11DeviceContext* ImmediateContext = Device->As<D3D11Device>()->ImmediateContext;
-                for (int i = 0; i < SVTarget; i++)
-                    ImmediateContext->ClearRenderTargetView(RenderTargetView[i], ClearColor);
+				ImmediateContext->ClearRenderTargetView(RenderTargetView[Target], ClearColor);
                 ImmediateContext->ClearDepthStencilView(DepthStencilView, D3D11_CLEAR_DEPTH, 1.0f, 0);
             }
             void D3D11MultiRenderTargetCube::CopyTextureCube(int CubeId, Graphics::GraphicsDevice* Device, Graphics::TextureCube** Value)
@@ -1667,7 +1757,7 @@ namespace Tomahawk
                 ID3D11DeviceContext* ImmediateContext = Device->As<D3D11Device>()->ImmediateContext;
                 D3D11ElementBuffer* ElementBuffer = VertexBuffer->As<D3D11ElementBuffer>();
                 D3D11ElementBuffer* IndexedBuffer = IndexBuffer->As<D3D11ElementBuffer>();
-                unsigned int Stride = Graphics::Shader::GetInfluenceVertexLayoutStride(), Offset = 0;
+                unsigned int Stride = Graphics::Shader::GetVertexLayoutStride(), Offset = 0;
 
                 ImmediateContext->IASetVertexBuffers(0, 1, &ElementBuffer->Element, &Stride, &Offset);
                 ImmediateContext->IASetIndexBuffer(IndexedBuffer->Element, DXGI_FORMAT_R32_UINT, 0);
@@ -1771,7 +1861,7 @@ namespace Tomahawk
 
                 ReleaseCom(Resource);
             }
-            void D3D11InstanceBuffer::SendPool()
+            void D3D11InstanceBuffer::Update()
             {
                 if (Array.Size() <= 0 || Array.Size() > ElementLimit)
                     return;
@@ -1838,6 +1928,15 @@ namespace Tomahawk
                     return;
                 }
             }
+			void D3D11InstanceBuffer::SetResource(Graphics::GraphicsDevice* Device, int Slot)
+			{
+				if (!Device || !Resource)
+					return;
+
+				D3D11Device* Dev = Device->As<D3D11Device>();
+				Dev->ImmediateContext->PSSetShaderResources(Slot, 1, &Resource);
+				Dev->ImmediateContext->VSSetShaderResources(Slot, 1, &Resource);
+			}
 
             D3D11DirectBuffer::D3D11DirectBuffer(Graphics::GraphicsDevice* NewDevice) : Graphics::DirectBuffer(NewDevice)
             {
@@ -2000,7 +2099,7 @@ namespace Tomahawk
                 Dev->ImmediateContext->Unmap(ElementBuffer, 0);
 
                 if (View)
-                    View->Apply(Device, 0);
+                    View->SetTexture(Device, 0);
                 else
                     Device->RestoreTexture2D(0, 1);
 
@@ -2522,7 +2621,7 @@ namespace Tomahawk
                 ID3D11DepthStencilState* DeviceState = (ID3D11DepthStencilState*)DepthStencilStates[State]->Pointer;
                 ImmediateContext->OMSetDepthStencilState(DeviceState, 1);
             }
-            void D3D11Device::SendBufferStream(Graphics::RenderBufferType Buffer)
+            void D3D11Device::UpdateBuffer(Graphics::RenderBufferType Buffer)
             {
                 ImmediateContext->UpdateSubresource(ConstantBuffer[Buffer], 0, nullptr, ConstantData[Buffer], 0, 0);
             }
@@ -2566,19 +2665,41 @@ namespace Tomahawk
             {
                 RestoreTexture2D(Size);
             }
+			void D3D11Device::RestoreVertexBuffer(int Slot)
+			{
+				ID3D11Buffer* Buffer = nullptr;
+				UINT Stride = 0, Offset = 0;
+
+				ImmediateContext->IASetVertexBuffers(Slot, 1, &Buffer, &Stride, &Offset);
+			}
+			void D3D11Device::RestoreIndexBuffer()
+			{
+				ImmediateContext->IASetIndexBuffer(nullptr, DXGI_FORMAT_UNKNOWN, 0);
+			}
             void D3D11Device::RestoreState()
             {
                 ImmediateContext->ClearState();
             }
-            void D3D11Device::RestoreShader()
+            void D3D11Device::RestoreShader(unsigned int Type)
             {
                 ImmediateContext->IASetInputLayout(nullptr);
-                ImmediateContext->VSSetShader(nullptr, nullptr, 0);
-                ImmediateContext->PSSetShader(nullptr, nullptr, 0);
-                ImmediateContext->GSSetShader(nullptr, nullptr, 0);
-                ImmediateContext->HSSetShader(nullptr, nullptr, 0);
-                ImmediateContext->DSSetShader(nullptr, nullptr, 0);
-                ImmediateContext->CSSetShader(nullptr, nullptr, 0);
+				if (Type & Graphics::ShaderType_Vertex)
+					ImmediateContext->VSSetShader(nullptr, nullptr, 0);
+
+				if (Type & Graphics::ShaderType_Pixel)
+					ImmediateContext->PSSetShader(nullptr, nullptr, 0);
+
+				if (Type & Graphics::ShaderType_Geometry)
+					ImmediateContext->GSSetShader(nullptr, nullptr, 0);
+
+				if (Type & Graphics::ShaderType_Hull)
+					ImmediateContext->HSSetShader(nullptr, nullptr, 0);
+
+				if (Type & Graphics::ShaderType_Domain)
+					ImmediateContext->DSSetShader(nullptr, nullptr, 0);
+
+				if (Type & Graphics::ShaderType_Compute)
+					ImmediateContext->CSSetShader(nullptr, nullptr, 0);
             }
             void D3D11Device::ResizeBuffers(unsigned int Width, unsigned int Height)
             {
@@ -2611,7 +2732,7 @@ namespace Tomahawk
                 F.RenderSurface = (void*)BackBuffer;
 
                 RenderTarget = Graphics::RenderTarget2D::Create(this, F);
-                RenderTarget->Apply(this);
+                RenderTarget->SetTarget(this);
                 ReleaseCom(BackBuffer);
             }
             void D3D11Device::DrawIndexed(unsigned int Count, unsigned int IndexLocation, unsigned int BaseLocation)
@@ -2622,6 +2743,49 @@ namespace Tomahawk
             {
                 ImmediateContext->Draw(Count, Start);
             }
+			void D3D11Device::SetViewport(unsigned int Count, Graphics::Viewport* Value)
+			{
+				D3D11_VIEWPORT Viewports[D3D11_VIEWPORT_AND_SCISSORRECT_OBJECT_COUNT_PER_PIPELINE];
+				for (unsigned int i = 0; i < Count; i++)
+					memcpy(&Viewports[i], &Value[i], sizeof(Graphics::Viewport));
+
+				ImmediateContext->RSSetViewports(Count, Viewports);
+			}
+			void D3D11Device::SetScissorRect(unsigned int Count, Graphics::Rectangle* Value)
+			{
+				D3D11_RECT Rects[D3D11_VIEWPORT_AND_SCISSORRECT_OBJECT_COUNT_PER_PIPELINE];
+				for (unsigned int i = 0; i < Count; i++)
+					memcpy(&Rects[i], &Value[i], sizeof(Graphics::Rectangle));
+
+				ImmediateContext->RSSetScissorRects(Count, Rects);
+			}
+			void D3D11Device::GetViewport(unsigned int* Count, Graphics::Viewport* Out)
+			{
+				D3D11_VIEWPORT Viewports[D3D11_VIEWPORT_AND_SCISSORRECT_OBJECT_COUNT_PER_PIPELINE];
+				UINT ViewCount = (Count ? *Count : 1);
+
+				ImmediateContext->RSGetViewports(&ViewCount, Viewports);
+				if (!ViewCount || !Out)
+					return;
+
+				for (UINT i = 0; i < ViewCount; i++)
+					memcpy(&Out[i], &Viewports[i], sizeof(D3D11_VIEWPORT));
+			}
+			void D3D11Device::GetScissorRect(unsigned int* Count, Graphics::Rectangle* Out)
+			{
+				D3D11_RECT Rects[D3D11_VIEWPORT_AND_SCISSORRECT_OBJECT_COUNT_PER_PIPELINE];
+				UINT RectCount = (Count ? *Count : 1);
+
+				ImmediateContext->RSGetScissorRects(&RectCount, Rects);
+				if (!Out)
+					return;
+
+				if (Count != nullptr)
+					*Count = RectCount;
+
+				for (UINT i = 0; i < RectCount; i++)
+					memcpy(&Out[i], &Rects[i], sizeof(D3D11_RECT));
+			}
             Graphics::ShaderModel D3D11Device::GetSupportedShaderModel()
             {
                 if (FeatureLevel == D3D_FEATURE_LEVEL::D3D_FEATURE_LEVEL_11_0)
@@ -2644,6 +2808,13 @@ namespace Tomahawk
 
                 return Graphics::ShaderModel_Invalid;
             }
+			Graphics::PrimitiveTopology D3D11Device::GetPrimitiveTopology()
+			{
+				D3D11_PRIMITIVE_TOPOLOGY Topology;
+				ImmediateContext->IAGetPrimitiveTopology(&Topology);
+
+				return (Graphics::PrimitiveTopology)Topology;
+			}
             void* D3D11Device::GetDevice()
             {
                 return (void*)D3DDevice;

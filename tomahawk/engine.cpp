@@ -1819,7 +1819,7 @@ namespace Tomahawk
             return Scene;
         }
 
-        Renderer::Renderer(RenderSystem* Lab) : System(Lab), Stride(0), Offset(0), Active(true), Priority(true)
+        Renderer::Renderer(RenderSystem* Lab) : System(Lab), Active(true), Priority(true)
         {
         }
         Renderer::~Renderer()
@@ -2196,11 +2196,11 @@ namespace Tomahawk
 				Camera->As<Components::Camera>()->FillViewer(&View);
 				Conf.Device->View.InvViewProjection = View.InvViewProjection;
 				Conf.Device->View.ViewPosition = View.Position.MtVector4();
-				Conf.Device->SendBufferStream(Graphics::RenderBufferType_View);
+				Conf.Device->UpdateBuffer(Graphics::RenderBufferType_View);
 
 				Structure->RemapSubresource(Conf.Device, Materials.data(), Materials.size() * sizeof(Graphics::Material));
-				Structure->Apply(Conf.Device, 0);
-				Surface->Apply(Conf.Device, 0, 0, 0);
+				Structure->SetBuffer(Conf.Device, 0);
+				Surface->SetTarget(Conf.Device, 0, 0, 0);
 
 				auto* RenderStages = View.Renderer->GetRenderers();
 				for (auto It = RenderStages->begin(); It != RenderStages->end(); It++)
@@ -2212,7 +2212,7 @@ namespace Tomahawk
 				if (Callback)
 					Callback(Time, &View);
 
-				Conf.Device->GetRenderTarget()->Apply(Conf.Device);
+				Conf.Device->GetRenderTarget()->SetTarget(Conf.Device);
 			}
 			EndThread(ThreadId_Render);
 		}
@@ -2308,7 +2308,7 @@ namespace Tomahawk
             View.ViewDistance = (iPosition.W < 0 ? 999999999 : iPosition.W);
             RestoreViewBuffer(&View);
 
-            Surface->Apply(Conf.Device, 0, 0, 0);
+            Surface->SetTarget(Conf.Device, 0, 0, 0);
             auto* RenderStages = View.Renderer->GetRenderers();
             for (auto It = RenderStages->begin(); It != RenderStages->end(); It++)
             {
@@ -2524,7 +2524,7 @@ namespace Tomahawk
 
             Conf.Device->View.InvViewProjection = View.InvViewProjection;
             Conf.Device->View.ViewPosition = View.Position.MtVector4();
-            Conf.Device->SendBufferStream(Graphics::RenderBufferType_View);
+            Conf.Device->UpdateBuffer(Graphics::RenderBufferType_View);
         }
         void SceneGraph::ExpandMaterialStructure()
         {

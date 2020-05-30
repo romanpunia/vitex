@@ -18,12 +18,18 @@ namespace Tomahawk
             OGLShader::~OGLShader()
             {
             }
-            void OGLShader::SendConstantStream(Graphics::GraphicsDevice* Device)
-            {
-            }
-            void OGLShader::Apply(Graphics::GraphicsDevice* Device)
-            {
-            }
+			void OGLShader::UpdateBuffer(Graphics::GraphicsDevice* Device, const void* Data)
+			{
+			}
+			void OGLShader::CreateBuffer(Graphics::GraphicsDevice* Device, size_t Size)
+			{
+			}
+			void OGLShader::SetShader(Graphics::GraphicsDevice* Device, unsigned int Type)
+			{
+			}
+			void OGLShader::SetBuffer(Graphics::GraphicsDevice* Device, unsigned int Slot, unsigned int Type)
+			{
+			}
 
             OGLElementBuffer::OGLElementBuffer(Graphics::GraphicsDevice* Device, const Desc& I) : Graphics::ElementBuffer(Device, I)
             {
@@ -37,11 +43,11 @@ namespace Tomahawk
             {
                 glDeleteBuffers(1, &Resource);
             }
-            void OGLElementBuffer::IndexedBuffer(Graphics::GraphicsDevice* Device, Graphics::Format Format, unsigned int Offset)
+            void OGLElementBuffer::SetIndexBuffer(Graphics::GraphicsDevice* Device, Graphics::Format Format, unsigned int Offset)
             {
                 glBindBuffer(GL_ELEMENT_ARRAY_BUFFER, Resource);
             }
-            void OGLElementBuffer::VertexBuffer(Graphics::GraphicsDevice* Device, unsigned int Slot, unsigned int Stride, unsigned int Offset)
+            void OGLElementBuffer::SetVertexBuffer(Graphics::GraphicsDevice* Device, unsigned int Slot, unsigned int Stride, unsigned int Offset)
             {
                 glBindBuffer(GL_ARRAY_BUFFER, Resource);
             }
@@ -97,7 +103,7 @@ namespace Tomahawk
                 glBindBuffer(Bind, Resource);
                 glUnmapBuffer(Bind);
             }
-            void OGLStructureBuffer::Apply(Graphics::GraphicsDevice* Device, int Slot)
+            void OGLStructureBuffer::SetBuffer(Graphics::GraphicsDevice* Device, int Slot)
             {
                 glBindBuffer(GL_SHADER_STORAGE_BUFFER, Resource);
             }
@@ -148,7 +154,7 @@ namespace Tomahawk
             {
                 glDeleteTextures(1, &Resource);
             }
-            void OGLTexture2D::Apply(Graphics::GraphicsDevice* Device, int Slot)
+            void OGLTexture2D::SetTexture(Graphics::GraphicsDevice* Device, int Slot)
             {
                 glActiveTexture(GL_TEXTURE0 + Slot);
                 glBindTexture(GL_TEXTURE_2D, Resource);
@@ -167,7 +173,7 @@ namespace Tomahawk
             OGLTexture3D::~OGLTexture3D()
             {
             }
-            void OGLTexture3D::Apply(Graphics::GraphicsDevice* Device, int Slot)
+            void OGLTexture3D::SetTexture(Graphics::GraphicsDevice* Device, int Slot)
             {
             }
             void* OGLTexture3D::GetResource()
@@ -184,7 +190,7 @@ namespace Tomahawk
             OGLTextureCube::~OGLTextureCube()
             {
             }
-            void OGLTextureCube::Apply(Graphics::GraphicsDevice* Device, int Slot)
+            void OGLTextureCube::SetTexture(Graphics::GraphicsDevice* Device, int Slot)
             {
             }
             void* OGLTextureCube::GetResource()
@@ -237,7 +243,7 @@ namespace Tomahawk
             {
                 glDeleteFramebuffers(1, &FrameBuffer);
             }
-            void OGLRenderTarget2D::Apply(Graphics::GraphicsDevice* Device, float R, float G, float B)
+            void OGLRenderTarget2D::SetTarget(Graphics::GraphicsDevice* Device, float R, float G, float B)
             {
                 glBindFramebuffer(GL_FRAMEBUFFER, FrameBuffer != GL_INVALID_VALUE ? FrameBuffer : 0);
                 glViewport((GLuint)Viewport.TopLeftX, (GLuint)Viewport.TopLeftY, (GLuint)Viewport.Width, (GLuint)Viewport.Height);
@@ -245,7 +251,7 @@ namespace Tomahawk
                 glClearColor(R, G, B, 1.0f);
                 glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT | GL_STENCIL_BUFFER_BIT);
             }
-            void OGLRenderTarget2D::Apply(Graphics::GraphicsDevice* Device)
+            void OGLRenderTarget2D::SetTarget(Graphics::GraphicsDevice* Device)
             {
                 glBindFramebuffer(GL_FRAMEBUFFER, FrameBuffer != GL_INVALID_VALUE ? FrameBuffer : 0);
                 glViewport((GLuint)Viewport.TopLeftX, (GLuint)Viewport.TopLeftY, (GLuint)Viewport.Width, (GLuint)Viewport.Height);
@@ -290,25 +296,40 @@ namespace Tomahawk
             OGLMultiRenderTarget2D::~OGLMultiRenderTarget2D()
             {
             }
-            void OGLMultiRenderTarget2D::Apply(Graphics::GraphicsDevice* Device, int Target, float R, float G, float B)
+            void OGLMultiRenderTarget2D::SetTarget(Graphics::GraphicsDevice* Device, int Target, float R, float G, float B)
             {
             }
-            void OGLMultiRenderTarget2D::Apply(Graphics::GraphicsDevice* Device, int Target)
+            void OGLMultiRenderTarget2D::SetTarget(Graphics::GraphicsDevice* Device, int Target)
             {
             }
-            void OGLMultiRenderTarget2D::Apply(Graphics::GraphicsDevice* Device, float R, float G, float B)
+            void OGLMultiRenderTarget2D::SetTarget(Graphics::GraphicsDevice* Device, float R, float G, float B)
             {
             }
-            void OGLMultiRenderTarget2D::Apply(Graphics::GraphicsDevice* Device)
+            void OGLMultiRenderTarget2D::SetTarget(Graphics::GraphicsDevice* Device)
             {
             }
             void OGLMultiRenderTarget2D::Clear(Graphics::GraphicsDevice* Device, int Target, float R, float G, float B)
             {
             }
-            void OGLMultiRenderTarget2D::CopyTexture2D(int Target, Graphics::GraphicsDevice* Device, Graphics::Texture2D** Value)
-            {
-            }
-            void OGLMultiRenderTarget2D::SetViewport(const Graphics::Viewport& In)
+			void OGLMultiRenderTarget2D::CopyTargetTo(int Target, GraphicsDevice* Device, RenderTarget2D* Output)
+			{
+			}
+			void OGLMultiRenderTarget2D::CopyTargetFrom(int Target, GraphicsDevice* Device, RenderTarget2D* Output)
+			{
+			}
+			void OGLMultiRenderTarget2D::CopyTexture2D(int Target, GraphicsDevice* Device, Texture2D** Value)
+			{
+			}
+			void OGLMultiRenderTarget2D::CopyBegin(GraphicsDevice* Device, int Target, unsigned int MipLevels, unsigned int Size)
+			{
+			}
+			void OGLMultiRenderTarget2D::CopyFace(GraphicsDevice* Device, int Target, int Face)
+			{
+			}
+			void OGLMultiRenderTarget2D::CopyEnd(GraphicsDevice* Device, TextureCube* Value)
+			{
+			}
+			void OGLMultiRenderTarget2D::SetViewport(const Graphics::Viewport& In)
             {
             }
             Graphics::Viewport OGLMultiRenderTarget2D::GetViewport()
@@ -336,10 +357,10 @@ namespace Tomahawk
             {
                 delete Resource;
             }
-            void OGLRenderTarget2DArray::Apply(Graphics::GraphicsDevice* Device, int Target, float R, float G, float B)
+            void OGLRenderTarget2DArray::SetTarget(Graphics::GraphicsDevice* Device, int Target, float R, float G, float B)
             {
             }
-            void OGLRenderTarget2DArray::Apply(Graphics::GraphicsDevice* Device, int Target)
+            void OGLRenderTarget2DArray::SetTarget(Graphics::GraphicsDevice* Device, int Target)
             {
             }
             void OGLRenderTarget2DArray::Clear(Graphics::GraphicsDevice* Device, int Target, float R, float G, float B)
@@ -372,10 +393,10 @@ namespace Tomahawk
             OGLRenderTargetCube::~OGLRenderTargetCube()
             {
             }
-            void OGLRenderTargetCube::Apply(Graphics::GraphicsDevice* Device, float R, float G, float B)
+            void OGLRenderTargetCube::SetTarget(Graphics::GraphicsDevice* Device, float R, float G, float B)
             {
             }
-            void OGLRenderTargetCube::Apply(Graphics::GraphicsDevice* Device)
+            void OGLRenderTargetCube::SetTarget(Graphics::GraphicsDevice* Device)
             {
             }
             void OGLRenderTargetCube::Clear(Graphics::GraphicsDevice* Device, float R, float G, float B)
@@ -414,16 +435,16 @@ namespace Tomahawk
             OGLMultiRenderTargetCube::~OGLMultiRenderTargetCube()
             {
             }
-            void OGLMultiRenderTargetCube::Apply(Graphics::GraphicsDevice* Device, int Target, float R, float G, float B)
+            void OGLMultiRenderTargetCube::SetTarget(Graphics::GraphicsDevice* Device, int Target, float R, float G, float B)
             {
             }
-            void OGLMultiRenderTargetCube::Apply(Graphics::GraphicsDevice* Device, int Target)
+            void OGLMultiRenderTargetCube::SetTarget(Graphics::GraphicsDevice* Device, int Target)
             {
             }
-            void OGLMultiRenderTargetCube::Apply(Graphics::GraphicsDevice* Device, float R, float G, float B)
+            void OGLMultiRenderTargetCube::SetTarget(Graphics::GraphicsDevice* Device, float R, float G, float B)
             {
             }
-            void OGLMultiRenderTargetCube::Apply(Graphics::GraphicsDevice* Device)
+            void OGLMultiRenderTargetCube::SetTarget(Graphics::GraphicsDevice* Device)
             {
             }
             void OGLMultiRenderTargetCube::Clear(Graphics::GraphicsDevice* Device, int Target, float R, float G, float B)
@@ -556,7 +577,10 @@ namespace Tomahawk
                 if (SynchronizationState)
                     Restore();
             }
-            void OGLInstanceBuffer::SendPool()
+			void OGLInstanceBuffer::SetResource(GraphicsDevice* Device, int Slot)
+			{
+			}
+            void OGLInstanceBuffer::Update()
             {
                 if (Array.Size() <= 0 || Array.Size() > ElementLimit)
                     return;
@@ -620,7 +644,7 @@ namespace Tomahawk
                     AllocVertexBuffer(Elements.size());
 
                 if (View)
-                    View->Apply(Dev, 0);
+                    View->SetTexture(Dev, 0);
                 else
                     Dev->RestoreTexture2D(0, 1);
             }
@@ -1052,7 +1076,7 @@ namespace Tomahawk
                 glStencilFuncSeparate(GL_BACK, GetComparison(In->BackFaceStencilFunction), 0, 1);
                 glStencilOpSeparate(GL_BACK, GetStencilOperation(In->BackFaceStencilFailOperation), GetStencilOperation(In->BackFaceStencilDepthFailOperation), GetStencilOperation(In->BackFaceStencilPassOperation));
             }
-            void OGLDevice::SendBufferStream(Graphics::RenderBufferType Buffer)
+            void OGLDevice::UpdateBuffer(Graphics::RenderBufferType Buffer)
             {
                 glBindBufferBase(GL_UNIFORM_BUFFER, (int)Buffer, ConstantBuffer[Buffer]);
             }
@@ -1115,10 +1139,58 @@ namespace Tomahawk
             {
                 RestoreTextureCube(0, Size);
             }
-            void OGLDevice::RestoreShader()
+            void OGLDevice::RestoreShader(unsigned int Type)
             {
                 glUseProgram(0);
             }
+			void OGLDevice::RestoreVertexBuffer(int Slot)
+			{
+				glBindVertexArray(0);
+			}
+			void OGLDevice::RestoreIndexBuffer()
+			{
+				glBindBuffer(GL_ELEMENT_ARRAY_BUFFER, 0);
+			}
+			void OGLDevice::SetViewport(unsigned int Count, Viewport* Viewports)
+			{
+				if (Count > 0 && Viewports)
+					glViewport(Viewports[0].TopLeftX, Viewports[0].TopLeftY, Viewports[0].Width, Viewports[0].Height);
+			}
+			void OGLDevice::SetScissorRect(unsigned int Count, Rectangle* Value)
+			{
+				if (Count > 0 && Value)
+					glScissor(Value[0].Left, Value[0].Top, Value[0].Right - Value[0].Left, Value[0].Top - Value[0].Bottom);
+			}
+			void OGLDevice::GetViewport(unsigned int* Count, Viewport* Out)
+			{
+				GLint Viewport[4];
+				glGetIntegerv(GL_VIEWPORT, Viewport);
+				if (Count != nullptr)
+					*Count = 1;
+
+				if (!Out)
+					return;
+
+				Out[0].TopLeftX = Viewport[0];
+				Out[0].TopLeftY = Viewport[1];
+				Out[0].Width = Viewport[2];
+				Out[0].Height = Viewport[3];
+			}
+			void OGLDevice::GetScissorRect(unsigned int* Count, Rectangle* Out)
+			{
+				GLint Rect[4];
+				glGetIntegerv(GL_SCISSOR_BOX, Rect);
+				if (Count != nullptr)
+					*Count = 1;
+
+				if (!Out)
+					return;
+
+				Out[0].Left = Rect[0];
+				Out[0].Right = Rect[2] + Rect[0];
+				Out[0].Top = Rect[1];
+				Out[0].Bottom = Rect[1] - Rect[3];
+			}
             void OGLDevice::ResizeBuffers(unsigned int Width, unsigned int Height)
             {
                 Graphics::RenderTarget2D::Desc F = Graphics::RenderTarget2D::Desc();
@@ -1134,7 +1206,7 @@ namespace Tomahawk
 
                 delete RenderTarget;
                 RenderTarget = Graphics::RenderTarget2D::Create(this, F);
-                RenderTarget->Apply(this);
+                RenderTarget->SetTarget(this);
             }
             void OGLDevice::DrawIndexed(unsigned int Count, unsigned int IndexLocation, unsigned int)
             {
@@ -1144,6 +1216,10 @@ namespace Tomahawk
             {
                 glDrawArrays(GetPrimitiveTopologyDraw(Topology), (GLint)Start, (GLint)Count);
             }
+			PrimitiveTopology OGLDevice::GetPrimitiveTopology()
+			{
+				return Topology;
+			}
             Graphics::ShaderModel OGLDevice::GetSupportedShaderModel()
             {
                 const char* Version = (const char*)glGetString(GL_SHADING_LANGUAGE_VERSION);

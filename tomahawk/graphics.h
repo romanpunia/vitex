@@ -343,15 +343,19 @@ namespace Tomahawk
         {
             RenderLab_Raster_Cull_Back = 0,
             RenderLab_Raster_Cull_Front = 1,
-			RenderLab_Raster_Cull_None = 1,
+			RenderLab_Raster_Cull_None = 2,
+			RenderLab_Raster_Cull_None_Scissor = 3,
             RenderLab_DepthStencil_Less = 0,
             RenderLab_DepthStencil_Greater_Equal = 1,
             RenderLab_DepthStencil_None = 2,
             RenderLab_DepthStencil_None_Less = 3,
+			RenderLab_DepthStencil_None_Always = 4,
             RenderLab_Blend_Overwrite = 0,
             RenderLab_Blend_Additive = 1,
             RenderLab_Blend_Additive_Alpha = 2,
-            RenderLab_Sampler_Trilinear_X16 = 0
+			RenderLab_Blend_Additive_Source = 3,
+            RenderLab_Sampler_Trilinear_X16 = 0,
+			RenderLab_Sampler_Linear = 1
         };
 
         enum RenderBackend
@@ -761,6 +765,17 @@ namespace Tomahawk
             DisplayCursor_Count
         };
 
+		enum ShaderType
+		{
+			ShaderType_Vertex = 1,
+			ShaderType_Pixel = 2,
+			ShaderType_Geometry = 4,
+			ShaderType_Hull = 8,
+			ShaderType_Domain = 16,
+			ShaderType_Compute = 32,
+			ShaderType_All = ShaderType_Vertex | ShaderType_Pixel | ShaderType_Geometry | ShaderType_Hull | ShaderType_Domain | ShaderType_Compute
+		};
+
         typedef std::function<void(enum AppState)> AppStateChangeCallback;
         typedef std::function<void(enum WindowState, int, int)> WindowStateChangeCallback;
         typedef std::function<void(enum KeyCode, enum KeyMod, int, int, bool)> KeyStateCallback;
@@ -850,6 +865,14 @@ namespace Tomahawk
             float MinDepth;
             float MaxDepth;
         };
+
+		struct THAWK_OUT Rectangle
+		{
+			long Left;
+			long Top;
+			long Right;
+			long Bottom;
+		};
 
         struct THAWK_OUT InputLayout
         {
@@ -1026,15 +1049,16 @@ namespace Tomahawk
 
         public:
             std::vector<InputLayout> Layout;
-            const void* ConstantData;
 
         protected:
             Shader(GraphicsDevice* Device, const Desc& I);
 
         public:
             virtual ~Shader() = default;
-            virtual void SendConstantStream(GraphicsDevice* Device) = 0;
-            virtual void Apply(GraphicsDevice* Device) = 0;
+            virtual void UpdateBuffer(GraphicsDevice* Device, const void* Data) = 0;
+			virtual void CreateBuffer(GraphicsDevice* Device, size_t Size) = 0;
+            virtual void SetShader(GraphicsDevice* Device, unsigned int Type = ShaderType_All) = 0;
+			virtual void SetBuffer(GraphicsDevice* Device, unsigned int Slot, unsigned int Type = ShaderType_All) = 0;
 
         public:
             static Shader* Create(GraphicsDevice* Device, const Desc& I);
@@ -1072,8 +1096,8 @@ namespace Tomahawk
 
         public:
             virtual ~ElementBuffer() = default;
-            virtual void IndexedBuffer(GraphicsDevice* Device, Format FormatMode, unsigned int Offset) = 0;
-            virtual void VertexBuffer(GraphicsDevice* Device, unsigned int Slot, unsigned int Stride, unsigned int Offset) = 0;
+            virtual void SetIndexBuffer(GraphicsDevice* Device, Format FormatMode, unsigned int Offset) = 0;
+            virtual void SetVertexBuffer(GraphicsDevice* Device, unsigned int Slot, unsigned int Stride, unsigned int Offset) = 0;
             virtual void Map(GraphicsDevice* Device, ResourceMap Mode, MappedSubresource* Map) = 0;
             virtual void Unmap(GraphicsDevice* Device, MappedSubresource* Map) = 0;
             virtual void* GetResource() = 0;
@@ -1107,7 +1131,7 @@ namespace Tomahawk
             virtual void RemapSubresource(GraphicsDevice* Device, void* Pointer, UInt64 Size) = 0;
             virtual void Map(GraphicsDevice* Device, ResourceMap Mode, MappedSubresource* Map) = 0;
             virtual void Unmap(GraphicsDevice* Device, MappedSubresource* Map) = 0;
-            virtual void Apply(GraphicsDevice* Device, int Slot) = 0;
+            virtual void SetBuffer(GraphicsDevice* Device, int Slot) = 0;
             virtual void* GetElement() = 0;
             virtual void* GetResource() = 0;
             UInt64 GetElements();
@@ -1148,7 +1172,7 @@ namespace Tomahawk
 
         public:
             virtual ~Texture2D() = default;
-            virtual void Apply(GraphicsDevice* Device, int Slot) = 0;
+            virtual void SetTexture(GraphicsDevice* Device, int Slot) = 0;
             virtual void* GetResource() = 0;
             CPUAccess GetAccessFlags();
             Format GetFormatMode();
@@ -1169,7 +1193,7 @@ namespace Tomahawk
 
         public:
             virtual ~Texture3D() = default;
-            virtual void Apply(GraphicsDevice* Device, int Slot) = 0;
+            virtual void SetTexture(GraphicsDevice* Device, int Slot) = 0;
             virtual void* GetResource() = 0;
 
         public:
@@ -1190,7 +1214,7 @@ namespace Tomahawk
 
         public:
             virtual ~TextureCube() = default;
-            virtual void Apply(GraphicsDevice* Device, int Slot) = 0;
+            virtual void SetTexture(GraphicsDevice* Device, int Slot) = 0;
             virtual void* GetResource() = 0;
 
         public:
@@ -1223,9 +1247,9 @@ namespace Tomahawk
         public:
             virtual ~RenderTarget2D();
             virtual void CopyTexture2D(GraphicsDevice* Device, Texture2D** Value) = 0;
-            virtual void Apply(GraphicsDevice* Device, float R, float G, float B) = 0;
-            virtual void Apply(GraphicsDevice* Device) = 0;
-            virtual void Clear(GraphicsDevice* Device, float R, float G, float B) = 0;
+			virtual void Clear(GraphicsDevice* Device, float R, float G, float B) = 0;
+            virtual void SetTarget(GraphicsDevice* Device, float R, float G, float B) = 0;
+            virtual void SetTarget(GraphicsDevice* Device) = 0;
             virtual void SetViewport(const Viewport& In) = 0;
             virtual void* GetResource() = 0;
             virtual Viewport GetViewport() = 0;
@@ -1262,12 +1286,17 @@ namespace Tomahawk
 
         public:
             virtual ~MultiRenderTarget2D();
+			virtual void CopyTargetTo(int Target, GraphicsDevice* Device, RenderTarget2D* Output) = 0;
+			virtual void CopyTargetFrom(int Target, GraphicsDevice* Device, RenderTarget2D* Output) = 0;
             virtual void CopyTexture2D(int Target, GraphicsDevice* Device, Texture2D** Value) = 0;
-            virtual void Apply(GraphicsDevice* Device, int Target, float R, float G, float B) = 0;
-            virtual void Apply(GraphicsDevice* Device, int Target) = 0;
-            virtual void Apply(GraphicsDevice* Device, float R, float G, float B) = 0;
-            virtual void Apply(GraphicsDevice* Device) = 0;
-            virtual void Clear(GraphicsDevice* Device, int Target, float R, float G, float B) = 0;
+			virtual void CopyBegin(GraphicsDevice* Device, int Target, unsigned int MipLevels, unsigned int Size) = 0;
+			virtual void CopyFace(GraphicsDevice* Device, int Target, int Face) = 0;
+			virtual void CopyEnd(GraphicsDevice* Device, TextureCube* Value) = 0;
+			virtual void Clear(GraphicsDevice* Device, int Target, float R, float G, float B) = 0;
+            virtual void SetTarget(GraphicsDevice* Device, int Target, float R, float G, float B) = 0;
+            virtual void SetTarget(GraphicsDevice* Device, int Target) = 0;
+            virtual void SetTarget(GraphicsDevice* Device, float R, float G, float B) = 0;
+            virtual void SetTarget(GraphicsDevice* Device) = 0;
             virtual void SetViewport(const Viewport& In) = 0;
             virtual Viewport GetViewport() = 0;
             virtual float GetWidth() = 0;
@@ -1304,9 +1333,9 @@ namespace Tomahawk
 
         public:
             virtual ~RenderTarget2DArray();
-            virtual void Apply(GraphicsDevice* Device, int Target, float R, float G, float B) = 0;
-            virtual void Apply(GraphicsDevice* Device, int Target) = 0;
-            virtual void Clear(GraphicsDevice* Device, int Target, float R, float G, float B) = 0;
+			virtual void Clear(GraphicsDevice* Device, int Target, float R, float G, float B) = 0;
+            virtual void SetTarget(GraphicsDevice* Device, int Target, float R, float G, float B) = 0;
+            virtual void SetTarget(GraphicsDevice* Device, int Target) = 0;
             virtual void SetViewport(const Viewport& In) = 0;
             virtual Viewport GetViewport() = 0;
             virtual float GetWidth() = 0;
@@ -1342,9 +1371,9 @@ namespace Tomahawk
             virtual ~RenderTargetCube();
             virtual void CopyTextureCube(GraphicsDevice* Device, TextureCube** Value) = 0;
             virtual void CopyTexture2D(int Face, GraphicsDevice* Device, Texture2D** Value) = 0;
-            virtual void Apply(GraphicsDevice* Device, float R, float G, float B) = 0;
-            virtual void Apply(GraphicsDevice* Device) = 0;
             virtual void Clear(GraphicsDevice* Device, float R, float G, float B) = 0;
+			virtual void SetTarget(GraphicsDevice* Device, float R, float G, float B) = 0;
+			virtual void SetTarget(GraphicsDevice* Device) = 0;
             virtual void SetViewport(const Viewport& In) = 0;
             virtual Viewport GetViewport() = 0;
             virtual float GetWidth() = 0;
@@ -1382,11 +1411,11 @@ namespace Tomahawk
             virtual ~MultiRenderTargetCube();
             virtual void CopyTextureCube(int Cube, GraphicsDevice* Device, TextureCube** Value) = 0;
             virtual void CopyTexture2D(int Cube, int Face, GraphicsDevice* Device, Texture2D** Value) = 0;
-            virtual void Apply(GraphicsDevice* Device, int Target, float R, float G, float B) = 0;
-            virtual void Apply(GraphicsDevice* Device, int Target) = 0;
-            virtual void Apply(GraphicsDevice* Device, float R, float G, float B) = 0;
-            virtual void Apply(GraphicsDevice* Device) = 0;
-            virtual void Clear(GraphicsDevice* Device, int Target, float R, float G, float B) = 0;
+			virtual void Clear(GraphicsDevice* Device, int Target, float R, float G, float B) = 0;
+            virtual void SetTarget(GraphicsDevice* Device, int Target, float R, float G, float B) = 0;
+            virtual void SetTarget(GraphicsDevice* Device, int Target) = 0;
+            virtual void SetTarget(GraphicsDevice* Device, float R, float G, float B) = 0;
+            virtual void SetTarget(GraphicsDevice* Device) = 0;
             virtual void SetViewport(const Viewport& In) = 0;
             virtual Viewport GetViewport() = 0;
             virtual float GetWidth() = 0;
@@ -1511,7 +1540,7 @@ namespace Tomahawk
             };
 
         protected:
-            Rest::Pool <Compute::ElementVertex> Array;
+            Rest::Pool<Compute::ElementVertex> Array;
             ElementBuffer* Elements;
             GraphicsDevice* Device;
             UInt64 ElementLimit;
@@ -1521,9 +1550,10 @@ namespace Tomahawk
 
         public:
             virtual ~InstanceBuffer();
-            virtual void SendPool() = 0;
+            virtual void Update() = 0;
             virtual void Restore() = 0;
             virtual void Resize(UInt64 Size) = 0;
+			virtual void SetResource(GraphicsDevice* Device, int Slot) = 0;
             Rest::Pool <Compute::ElementVertex>* GetArray();
             ElementBuffer* GetElements();
             GraphicsDevice* GetDevice();
@@ -1635,7 +1665,7 @@ namespace Tomahawk
             virtual void SetBlendState(UInt64 State) = 0;
             virtual void SetRasterizerState(UInt64 State) = 0;
             virtual void SetDepthStencilState(UInt64 State) = 0;
-            virtual void SendBufferStream(RenderBufferType Buffer) = 0;
+            virtual void UpdateBuffer(RenderBufferType Buffer) = 0;
             virtual void Present() = 0;
             virtual void SetPrimitiveTopology(PrimitiveTopology Topology) = 0;
             virtual void RestoreSamplerStates() = 0;
@@ -1648,11 +1678,18 @@ namespace Tomahawk
             virtual void RestoreTexture3D(int Size) = 0;
             virtual void RestoreTextureCube(int Slot, int Size) = 0;
             virtual void RestoreTextureCube(int Size) = 0;
+			virtual void RestoreVertexBuffer(int Slot) = 0;
+			virtual void RestoreIndexBuffer() = 0;
             virtual void RestoreState() = 0;
             virtual void ResizeBuffers(unsigned int Width, unsigned int Height) = 0;
             virtual void DrawIndexed(unsigned int Count, unsigned int IndexLocation, unsigned int BaseLocation) = 0;
             virtual void Draw(unsigned int Count, unsigned int Location) = 0;
-            virtual void RestoreShader() = 0;
+            virtual void RestoreShader(unsigned int Type = ShaderType_All) = 0;
+			virtual void SetViewport(unsigned int Count, Viewport* Viewports) = 0;
+			virtual void SetScissorRect(unsigned int Count, Rectangle* Value) = 0;
+			virtual void GetViewport(unsigned int* Count, Viewport* Out) = 0;
+			virtual void GetScissorRect(unsigned int* Count, Rectangle* Out) = 0;
+			virtual PrimitiveTopology GetPrimitiveTopology() = 0;
             virtual ShaderModel GetSupportedShaderModel() = 0;
             virtual UInt64 AddDepthStencilState(DepthStencilState* In) = 0;
             virtual UInt64 AddBlendState(BlendState* In) = 0;

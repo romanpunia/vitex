@@ -409,7 +409,7 @@ namespace Tomahawk
                 bool Shadowed = false;
 
             public:
-                void* Occlusion = nullptr;
+				Graphics::Texture2D* Occlusion;
 
             public:
                 PointLight(Entity* Ref);
@@ -441,7 +441,7 @@ namespace Tomahawk
 
             public:
                 Graphics::Texture2D* Diffuse;
-                void* Occlusion;
+				Graphics::Texture2D* Occlusion;
 
             public:
                 SpotLight(Entity* Ref);
@@ -472,7 +472,7 @@ namespace Tomahawk
                 bool Shadowed;
 
             public:
-                void* Occlusion;
+				Graphics::Texture2D* Occlusion;
 
             public:
                 LineLight(Entity* Ref);

@@ -226,7 +226,7 @@ namespace Tomahawk
             return (void*)Handle;
         }
 
-        Shader::Shader(GraphicsDevice* Device, const Desc& I) : ConstantData(nullptr)
+        Shader::Shader(GraphicsDevice* Device, const Desc& I)
         {
         }
         Shader* Shader::Create(GraphicsDevice* Device, const Desc& I)
@@ -236,8 +236,8 @@ namespace Tomahawk
                 return new D3D11::D3D11Shader(Device, I);
 #endif
 #ifdef THAWK_HAS_GL
-            if (Device && Device->GetBackend() == RenderBackend_OGL)
-                return new OGL::OGLShader(Device, I);
+			if (Device && Device->GetBackend() == RenderBackend_OGL)
+				return new OGL::OGLShader(Device, I);
 #endif
             THAWK_ERROR("instance serialization wasn't found");
             return nullptr;
@@ -1017,6 +1017,19 @@ namespace Tomahawk
             DepthStencilConfig->BackFaceStencilFunction = Graphics::Comparison_Always;
             AddDepthStencilState(DepthStencilConfig);
 
+			DepthStencilConfig = new Graphics::DepthStencilState();
+			DepthStencilConfig->DepthEnable = false;
+			DepthStencilConfig->DepthWriteMask = Graphics::DepthWrite_All;
+			DepthStencilConfig->DepthFunction = Graphics::Comparison_Always;
+			DepthStencilConfig->StencilEnable = false;
+			DepthStencilConfig->StencilReadMask = 0xFF;
+			DepthStencilConfig->StencilWriteMask = 0xFF;
+			DepthStencilConfig->FrontFaceStencilFailOperation = Graphics::StencilOperation_Keep;
+			DepthStencilConfig->FrontFaceStencilDepthFailOperation = Graphics::StencilOperation_Keep;
+			DepthStencilConfig->FrontFaceStencilPassOperation = Graphics::StencilOperation_Keep;
+			DepthStencilConfig->FrontFaceStencilFunction = Graphics::Comparison_Always;
+			AddDepthStencilState(DepthStencilConfig);
+
             Graphics::RasterizerState* RasterizerConfig = new Graphics::RasterizerState();
             RasterizerConfig->AntialiasedLineEnable = false;
             RasterizerConfig->CullMode = Graphics::VertexCull_Back;
@@ -1056,6 +1069,19 @@ namespace Tomahawk
 			RasterizerConfig->SlopeScaledDepthBias = 0.0f;
 			AddRasterizerState(RasterizerConfig);
 
+			RasterizerConfig = new Graphics::RasterizerState();
+			RasterizerConfig->AntialiasedLineEnable = false;
+			RasterizerConfig->CullMode = Graphics::VertexCull_Disabled;
+			RasterizerConfig->DepthBias = 0;
+			RasterizerConfig->DepthBiasClamp = 0;
+			RasterizerConfig->DepthClipEnable = true;
+			RasterizerConfig->FillMode = Graphics::SurfaceFill_Solid;
+			RasterizerConfig->FrontCounterClockwise = false;
+			RasterizerConfig->MultisampleEnable = false;
+			RasterizerConfig->ScissorEnable = true;
+			RasterizerConfig->SlopeScaledDepthBias = 0.0f;
+			AddRasterizerState(RasterizerConfig);
+
             Graphics::BlendState* BlendConfig = new Graphics::BlendState();
             BlendConfig->AlphaToCoverageEnable = false;
             BlendConfig->IndependentBlendEnable = false;
@@ -1089,6 +1115,19 @@ namespace Tomahawk
             BlendConfig->RenderTarget[0].RenderTargetWriteMask = Graphics::ColorWriteEnable_All;
             AddBlendState(BlendConfig);
 
+			BlendConfig = new Graphics::BlendState();
+			BlendConfig->AlphaToCoverageEnable = false;
+			BlendConfig->IndependentBlendEnable = false;
+			BlendConfig->RenderTarget[0].BlendEnable = true;
+			BlendConfig->RenderTarget[0].SrcBlend = Graphics::Blend_Source_Alpha;
+			BlendConfig->RenderTarget[0].DestBlend = Graphics::Blend_Source_Alpha_Invert;
+			BlendConfig->RenderTarget[0].BlendOperationMode = Graphics::BlendOperation_Add;
+			BlendConfig->RenderTarget[0].SrcBlendAlpha = Graphics::Blend_Source_Alpha_Invert;
+			BlendConfig->RenderTarget[0].DestBlendAlpha = Graphics::Blend_Zero;
+			BlendConfig->RenderTarget[0].BlendOperationAlpha = Graphics::BlendOperation_Add;
+			BlendConfig->RenderTarget[0].RenderTargetWriteMask = Graphics::ColorWriteEnable_All;
+			AddBlendState(BlendConfig);
+
             Graphics::SamplerState* SamplerConfig = new Graphics::SamplerState();
             SamplerConfig->Filter = Graphics::PixelFilter_Anistropic;
             SamplerConfig->AddressU = Graphics::TextureAddress_Wrap;
@@ -1104,6 +1143,17 @@ namespace Tomahawk
             SamplerConfig->MinLOD = 0.0f;
             SamplerConfig->MaxLOD = std::numeric_limits<float>::max();
             AddSamplerState(SamplerConfig);
+
+			SamplerConfig = new Graphics::SamplerState();
+			SamplerConfig->Filter = Graphics::PixelFilter_Min_Mag_Mip_Linear;
+			SamplerConfig->AddressU = Graphics::TextureAddress_Wrap;
+			SamplerConfig->AddressV = Graphics::TextureAddress_Wrap;
+			SamplerConfig->AddressW = Graphics::TextureAddress_Wrap;
+			SamplerConfig->MipLODBias = 0.0f;
+			SamplerConfig->ComparisonFunction = Graphics::Comparison_Always;
+			SamplerConfig->MinLOD = 0.0f;
+			SamplerConfig->MaxLOD = 0.0f;
+			AddSamplerState(SamplerConfig);
 
             SetDepthStencilState(Graphics::RenderLab_Blend_Overwrite);
             SetRasterizerState(Graphics::RenderLab_Raster_Cull_Back);
@@ -1209,7 +1259,7 @@ namespace Tomahawk
             if (I.Backend == RenderBackend_OGL)
                 return new OGL::OGLDevice(I);
 #endif
-            THAWK_ERROR("backend was not found for GraphicsDevice");
+            THAWK_ERROR("backend was not found");
             return nullptr;
         }
         Compute::Vector2 GraphicsDevice::GetScreenDimensions()

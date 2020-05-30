@@ -1710,6 +1710,7 @@ namespace Tomahawk
                 TexCoord = 1.0f;
                 Diffuse = nullptr;
                 Instance = nullptr;
+				Material = 0;
             }
             ElementSystem::~ElementSystem()
             {
@@ -2369,6 +2370,7 @@ namespace Tomahawk
 
             PointLight::PointLight(Entity* Ref) : Component(Ref)
             {
+				Occlusion = nullptr;
                 Diffusion = Compute::Vector3::One();
                 Visibility = 0.0f;
                 Emission = 1.0f;
@@ -2792,38 +2794,38 @@ namespace Tomahawk
                     NMake::Unpack(Render->Find("id"), &RendererId);
                     Engine::Renderer* Target = nullptr;
                     
-                    if (RendererId == THAWK_COMPONENT_ID(ModelRenderer))
-                        Target = Engine::Renderers::ModelRenderer::Create(Renderer);
+					if (RendererId == THAWK_COMPONENT_ID(ModelRenderer))
+						Target = new Engine::Renderers::ModelRenderer(Renderer);
                     else if (RendererId == THAWK_COMPONENT_ID(SkinnedModelRenderer))
-                        Target = Engine::Renderers::SkinnedModelRenderer::Create(Renderer);
+                        Target = new Engine::Renderers::SkinnedModelRenderer(Renderer);
 					else if (RendererId == THAWK_COMPONENT_ID(SoftBodyRenderer))
-						Target = Engine::Renderers::SoftBodyRenderer::Create(Renderer);
+						Target = new Engine::Renderers::SoftBodyRenderer(Renderer);
                     else if (RendererId == THAWK_COMPONENT_ID(DepthRenderer))
-                        Target = Engine::Renderers::DepthRenderer::Create(Renderer);
+                        Target = new Engine::Renderers::DepthRenderer(Renderer);
                     else if (RendererId == THAWK_COMPONENT_ID(LightRenderer))
-                        Target = Engine::Renderers::LightRenderer::Create(Renderer);
+                        Target = new Engine::Renderers::LightRenderer(Renderer);
                     else if (RendererId == THAWK_COMPONENT_ID(ProbeRenderer))
-                        Target = Engine::Renderers::ProbeRenderer::Create(Renderer);
+                        Target = new Engine::Renderers::ProbeRenderer(Renderer);
                     else if (RendererId == THAWK_COMPONENT_ID(ImageRenderer))
-                        Target = Engine::Renderers::ImageRenderer::Create(Renderer);
+                        Target = new Engine::Renderers::ImageRenderer(Renderer);
                     else if (RendererId == THAWK_COMPONENT_ID(ElementSystemRenderer))
-                        Target = Engine::Renderers::ElementSystemRenderer::Create(Renderer);
+                        Target = new Engine::Renderers::ElementSystemRenderer(Renderer);
                     else if (RendererId == THAWK_COMPONENT_ID(ReflectionsRenderer))
-                        Target = Engine::Renderers::ReflectionsRenderer::Create(Renderer);
+                        Target = new Engine::Renderers::ReflectionsRenderer(Renderer);
                     else if (RendererId == THAWK_COMPONENT_ID(DepthOfFieldRenderer))
-                        Target = Engine::Renderers::DepthOfFieldRenderer::Create(Renderer);
+                        Target = new Engine::Renderers::DepthOfFieldRenderer(Renderer);
                     else if (RendererId == THAWK_COMPONENT_ID(EmissionRenderer))
-                        Target = Engine::Renderers::EmissionRenderer::Create(Renderer);
+                        Target = new Engine::Renderers::EmissionRenderer(Renderer);
                     else if (RendererId == THAWK_COMPONENT_ID(GlitchRenderer))
-                        Target = Engine::Renderers::GlitchRenderer::Create(Renderer);
+                        Target = new Engine::Renderers::GlitchRenderer(Renderer);
                     else if (RendererId == THAWK_COMPONENT_ID(AmbientOcclusionRenderer))
-                        Target = Engine::Renderers::AmbientOcclusionRenderer::Create(Renderer);
+                        Target = new Engine::Renderers::AmbientOcclusionRenderer(Renderer);
                     else if (RendererId == THAWK_COMPONENT_ID(IndirectOcclusionRenderer))
-                        Target = Engine::Renderers::IndirectOcclusionRenderer::Create(Renderer);
+                        Target = new Engine::Renderers::IndirectOcclusionRenderer(Renderer);
                     else if (RendererId == THAWK_COMPONENT_ID(ToneRenderer))
-                        Target = Engine::Renderers::ToneRenderer::Create(Renderer);
+                        Target = new Engine::Renderers::ToneRenderer(Renderer);
                     else if (RendererId == THAWK_COMPONENT_ID(GUIRenderer))
-                        Target = Engine::Renderers::GUIRenderer::Create(Renderer, Application::Get()->Activity);
+                        Target = new Engine::Renderers::GUIRenderer(Renderer, Application::Get()->Activity);
 
                     if (!Renderer)
                     {

@@ -722,16 +722,32 @@ namespace Tomahawk
 
             class THAWK_OUT ModelRenderer : public Renderer
             {
-            protected:
-                ModelRenderer(RenderSystem* Lab);
+			private:
+				struct
+				{
+					Graphics::Shader* Multi = nullptr;
+					Graphics::Shader* Depth = nullptr;
+					Graphics::Shader* CubicDepth = nullptr;
+				} Shaders;
+
+				struct
+				{
+					Compute::Matrix4x4 SliceViewProjection[6];
+					Compute::Vector3 Position;
+					float Distance = 0.0f;
+				} CubicDepth;
+
+			private:
+				Rest::Pool<Engine::Component*>* Models = nullptr;
 
             public:
-                virtual ~ModelRenderer() = default;
-                void OnLoad(ContentManager* Content, Rest::Document* Node) override;
-                void OnSave(ContentManager* Content, Rest::Document* Node) override;
-
-            public:
-                static ModelRenderer* Create(RenderSystem* Lab);
+				ModelRenderer(RenderSystem* Lab);
+                virtual ~ModelRenderer();
+				void OnInitialize() override;
+				void OnRender(Rest::Timer* Time) override;
+				void OnPhaseRender(Rest::Timer* Time) override;
+				void OnDepthRender(Rest::Timer* Time) override;
+				void OnCubicDepthRender(Rest::Timer* Time, Compute::Matrix4x4* ViewProjection) override;
 
             public:
                 THAWK_COMPONENT(ModelRenderer);
@@ -739,16 +755,32 @@ namespace Tomahawk
 
             class THAWK_OUT SkinnedModelRenderer : public Renderer
             {
-            protected:
-                SkinnedModelRenderer(RenderSystem* Lab);
+			private:
+				struct
+				{
+					Graphics::Shader* Multi = nullptr;
+					Graphics::Shader* Depth = nullptr;
+					Graphics::Shader* CubicDepth = nullptr;
+				} Shaders;
+
+				struct
+				{
+					Compute::Matrix4x4 SliceViewProjection[6];
+					Compute::Vector3 Position;
+					float Distance;
+				} CubicDepth;
+
+			private:
+				Rest::Pool<Engine::Component*>* SkinnedModels = nullptr;
 
             public:
-                virtual ~SkinnedModelRenderer() = default;
-                void OnLoad(ContentManager* Content, Rest::Document* Node) override;
-                void OnSave(ContentManager* Content, Rest::Document* Node) override;
-
-            public:
-                static SkinnedModelRenderer* Create(RenderSystem* Lab);
+				SkinnedModelRenderer(RenderSystem* Lab);
+                virtual ~SkinnedModelRenderer();
+				void OnInitialize() override;
+				void OnRender(Rest::Timer* Time) override;
+				void OnPhaseRender(Rest::Timer* Time) override;
+				void OnDepthRender(Rest::Timer* Time) override;
+				void OnCubicDepthRender(Rest::Timer* Time, Compute::Matrix4x4* ViewProjection) override;
 
             public:
                 THAWK_COMPONENT(SkinnedModelRenderer);
@@ -756,23 +788,72 @@ namespace Tomahawk
 
 			class THAWK_OUT SoftBodyRenderer : public Renderer
 			{
-			protected:
-				Graphics::ElementBuffer* VertexBuffer;
-				Graphics::ElementBuffer* IndexBuffer;
+			private:
+				struct
+				{
+					Graphics::Shader* Multi = nullptr;
+					Graphics::Shader* Depth = nullptr;
+					Graphics::Shader* CubicDepth = nullptr;
+				} Shaders;
 
-			protected:
+				struct
+				{
+					Compute::Matrix4x4 SliceViewProjection[6];
+					Compute::Vector3 Position;
+					float Distance = 0.0f;
+				} CubicDepth;
+
+			private:
+				Rest::Pool<Engine::Component*>* SoftBodies = nullptr;
+				Graphics::ElementBuffer* VertexBuffer = nullptr;
+				Graphics::ElementBuffer* IndexBuffer = nullptr;
+
+			public:
 				SoftBodyRenderer(RenderSystem* Lab);
-
-			public:
 				virtual ~SoftBodyRenderer();
-				void OnLoad(ContentManager* Content, Rest::Document* Node) override;
-				void OnSave(ContentManager* Content, Rest::Document* Node) override;
-
-			public:
-				static SoftBodyRenderer* Create(RenderSystem* Lab);
+				void OnInitialize() override;
+				void OnRender(Rest::Timer* Time) override;
+				void OnPhaseRender(Rest::Timer* Time) override;
+				void OnDepthRender(Rest::Timer* Time) override;
+				void OnCubicDepthRender(Rest::Timer* Time, Compute::Matrix4x4* ViewProjection) override;
 
 			public:
 				THAWK_COMPONENT(SoftBodyRenderer);
+			};
+
+			class THAWK_OUT ElementSystemRenderer : public Renderer
+			{
+			private:
+				struct
+				{
+					Graphics::Shader* Multi = nullptr;
+					Graphics::Shader* Depth = nullptr;
+					Graphics::Shader* CubicDepthTriangle = nullptr;
+					Graphics::Shader* CubicDepthPoint = nullptr;
+				} Shaders;
+
+				struct
+				{
+					Compute::Matrix4x4 SliceView[6];
+					Compute::Matrix4x4 Projection;
+					Compute::Vector3 Position;
+					float Distance;
+				} CubicDepth;
+
+			private:
+				Rest::Pool<Engine::Component*>* ElementSystems = nullptr;
+
+			public:
+				ElementSystemRenderer(RenderSystem* Lab);
+				virtual ~ElementSystemRenderer() override;
+				void OnInitialize() override;
+				void OnRender(Rest::Timer* Time) override;
+				void OnPhaseRender(Rest::Timer* Time) override;
+				void OnDepthRender(Rest::Timer* Time) override;
+				void OnCubicDepthRender(Rest::Timer* Time, Compute::Matrix4x4* ViewProjection) override;
+
+			public:
+				THAWK_COMPONENT(ElementSystemRenderer);
 			};
 
             class THAWK_OUT DepthRenderer : public IntervalRenderer
@@ -791,19 +872,21 @@ namespace Tomahawk
                     UInt64 LineLightLimits = 2;
                 } Renderers;
 
+			private:
+				Rest::Pool<Engine::Component*>* PointLights = nullptr;
+				Rest::Pool<Engine::Component*>* SpotLights = nullptr;
+				Rest::Pool<Engine::Component*>* LineLights = nullptr;
+
             public:
                 float ShadowDistance;
 
-            protected:
-                DepthRenderer(RenderSystem* Lab);
-
             public:
+				DepthRenderer(RenderSystem* Lab);
                 virtual ~DepthRenderer();
                 void OnLoad(ContentManager* Content, Rest::Document* Node) override;
                 void OnSave(ContentManager* Content, Rest::Document* Node) override;
-
-            public:
-                static DepthRenderer* Create(RenderSystem* Lab);
+				void OnInitialize() override;
+				void OnIntervalRender(Rest::Timer* Time) override;
 
             public:
                 THAWK_COMPONENT(DepthRenderer);
@@ -811,20 +894,24 @@ namespace Tomahawk
 
             class THAWK_OUT ProbeRenderer : public Renderer
             {
+			private:
+				Rest::Pool<Engine::Component*>* ProbeLights = nullptr;
+				UInt64 Map;
+
             public:
-                Graphics::MultiRenderTarget2D* Surface;
+                Graphics::MultiRenderTarget2D* Surface = nullptr;
+				Graphics::Texture2D* Face = nullptr;
                 UInt64 Size, MipLevels;
 
-            protected:
-                ProbeRenderer(RenderSystem* Lab);
-
             public:
+				ProbeRenderer(RenderSystem* Lab);
                 virtual ~ProbeRenderer();
                 void OnLoad(ContentManager* Content, Rest::Document* Node) override;
                 void OnSave(ContentManager* Content, Rest::Document* Node) override;
-
-            public:
-                static ProbeRenderer* Create(RenderSystem* Lab);
+				void OnInitialize() override;
+				void OnRender(Rest::Timer* Time) override;
+				void CreateRenderTarget();
+				bool ResourceBound(Graphics::TextureCube** Cube);
 
             public:
                 THAWK_COMPONENT(ProbeRenderer);
@@ -892,58 +979,72 @@ namespace Tomahawk
                     float Padding2;
                 } AmbientLight;
 
+			protected:
+				struct
+				{
+					Graphics::Shader* ProbeLighting = nullptr;
+					Graphics::Shader* PointLighting = nullptr;
+					Graphics::Shader* ShadedPointLighting = nullptr;
+					Graphics::Shader* SpotLighting = nullptr;
+					Graphics::Shader* ShadedSpotLighting = nullptr;
+					Graphics::Shader* LineLighting = nullptr;
+					Graphics::Shader* ShadedLineLighting = nullptr;
+					Graphics::Shader* AmbientLighting = nullptr;
+					Graphics::Shader* ActiveLighting = nullptr;
+				} Shaders;
+
+				struct
+				{
+					float SpotLight = 1024;
+					float LineLight = 2048;
+				} Quality;
+
+			private:
+				Rest::Pool<Engine::Component*>* PointLights = nullptr;
+				Rest::Pool<Engine::Component*>* ProbeLights = nullptr;
+				Rest::Pool<Engine::Component*>* SpotLights = nullptr;
+				Rest::Pool<Engine::Component*>* LineLights = nullptr;
+				Graphics::RenderTarget2D* Output = nullptr;
+				Graphics::RenderTarget2D* PhaseOutput = nullptr;
+				Graphics::RenderTarget2D* Input = nullptr;
+				Graphics::RenderTarget2D* PhaseInput = nullptr;
+
             public:
                 bool RecursiveProbes;
 
-            protected:
-                LightRenderer(RenderSystem* Lab);
-
             public:
-                virtual ~LightRenderer() = default;
+				LightRenderer(RenderSystem* Lab);
+                virtual ~LightRenderer();
                 void OnLoad(ContentManager* Content, Rest::Document* Node) override;
                 void OnSave(ContentManager* Content, Rest::Document* Node) override;
-
-            public:
-                static LightRenderer* Create(RenderSystem* Lab);
+				void OnInitialize() override;
+				void OnRelease() override;
+				void OnRender(Rest::Timer* Time) override;
+				void OnPhaseRender(Rest::Timer* Time) override;
+				void OnResizeBuffers() override;
+				void CreatePointLighting();
+				void CreateProbeLighting();
+				void CreateSpotLighting();
+				void CreateLineLighting();
+				void CreateAmbientLighting();
+				void CreateRenderTargets();
 
             public:
                 THAWK_COMPONENT(LightRenderer);
             };
 
-            class THAWK_OUT ElementSystemRenderer : public Renderer
-            {
-            protected:
-                ElementSystemRenderer(RenderSystem* Lab);
-
-            public:
-                virtual ~ElementSystemRenderer() = default;
-                void OnLoad(ContentManager* Content, Rest::Document* Node) override;
-                void OnSave(ContentManager* Content, Rest::Document* Node) override;
-
-            public:
-                static ElementSystemRenderer* Create(RenderSystem* Lab);
-
-            public:
-                THAWK_COMPONENT(ElementSystemRenderer);
-            };
-
             class THAWK_OUT ImageRenderer : public Renderer
             {
             public:
-                Graphics::RenderTarget2D* RenderTarget = nullptr;
-
-            protected:
-                ImageRenderer(RenderSystem* Lab);
-                ImageRenderer(RenderSystem* Lab, Graphics::RenderTarget2D* Target);
+                Graphics::RenderTarget2D* RenderTarget;
 
             public:
+				ImageRenderer(RenderSystem* Lab);
+				ImageRenderer(RenderSystem* Lab, Graphics::RenderTarget2D* Target);
                 virtual ~ImageRenderer() override;
                 void OnLoad(ContentManager* Content, Rest::Document* Node) override;
                 void OnSave(ContentManager* Content, Rest::Document* Node) override;
-
-            public:
-                static ImageRenderer* Create(RenderSystem* Lab);
-                static ImageRenderer* Create(RenderSystem* Lab, Graphics::RenderTarget2D* Target);
+				void OnRender(Rest::Timer* Time) override;
 
             public:
                 THAWK_COMPONENT(ImageRenderer);
@@ -961,17 +1062,18 @@ namespace Tomahawk
                     float MipLevels = 0.0f;
                 } Render;
 
-            protected:
-                ReflectionsRenderer(RenderSystem* Lab);
+			private:
+				Graphics::RenderTarget2D* Output;
+				Graphics::Shader* Shader;
 
             public:
-                virtual ~ReflectionsRenderer() = default;
-                void OnInitialize() override;
+				ReflectionsRenderer(RenderSystem* Lab);
+                virtual ~ReflectionsRenderer() override;
                 void OnLoad(ContentManager* Content, Rest::Document* Node) override;
                 void OnSave(ContentManager* Content, Rest::Document* Node) override;
-
-            public:
-                static ReflectionsRenderer* Create(RenderSystem* Lab);
+				void OnInitialize() override;
+				void OnRender(Rest::Timer* Time) override;
+				void OnResizeBuffers() override;
 
             public:
                 THAWK_COMPONENT(ReflectionsRenderer);
@@ -1000,22 +1102,23 @@ namespace Tomahawk
                     float Circular = 1.0f;
                 } Render;
 
+			private:
+				Graphics::RenderTarget2D* Output;
+				Graphics::Shader* Shader;
+
             public:
                 float HorizontalResolution = 512.0f;
                 float VerticalResolution = 512.0f;
                 bool AutoViewport = true;
 
-            protected:
-                DepthOfFieldRenderer(RenderSystem* Lab);
-
             public:
-                virtual ~DepthOfFieldRenderer() = default;
-                void OnInitialize() override;
+				DepthOfFieldRenderer(RenderSystem* Lab);
+                virtual ~DepthOfFieldRenderer() override;
                 void OnLoad(ContentManager* Content, Rest::Document* Node) override;
                 void OnSave(ContentManager* Content, Rest::Document* Node) override;
-
-            public:
-                static DepthOfFieldRenderer* Create(RenderSystem* Lab);
+				void OnInitialize() override;
+				void OnRender(Rest::Timer* Time) override;
+				void OnResizeBuffers() override;
 
             public:
                 THAWK_COMPONENT(DepthOfFieldRenderer);
@@ -1034,20 +1137,21 @@ namespace Tomahawk
                     float SampleCount = 16.0f;
                 } Render;
 
+			private:
+				Graphics::RenderTarget2D* Output;
+				Graphics::Shader* Shader;
+
             public:
                 bool AutoViewport;
 
-            protected:
-                EmissionRenderer(RenderSystem* Lab);
-
             public:
-                virtual ~EmissionRenderer() = default;
-                void OnInitialize() override;
+				EmissionRenderer(RenderSystem* Lab);
+                virtual ~EmissionRenderer() override;
                 void OnLoad(ContentManager* Content, Rest::Document* Node) override;
                 void OnSave(ContentManager* Content, Rest::Document* Node) override;
-
-            public:
-                static EmissionRenderer* Create(RenderSystem* Lab);
+				void OnInitialize() override;
+				void OnRender(Rest::Timer* Time) override;
+				void OnResizeBuffers() override;
 
             public:
                 THAWK_COMPONENT(EmissionRenderer);
@@ -1068,23 +1172,24 @@ namespace Tomahawk
                     float ElapsedTime;
                 } Render;
 
+			private:
+				Graphics::RenderTarget2D* Output;
+				Graphics::Shader* Shader;
+
             public:
                 float ScanLineJitter;
                 float VerticalJump;
                 float HorizontalShake;
                 float ColorDrift;
 
-            protected:
-                GlitchRenderer(RenderSystem* Lab);
-
             public:
-                virtual ~GlitchRenderer() = default;
-                void OnInitialize() override;
+				GlitchRenderer(RenderSystem* Lab);
+                virtual ~GlitchRenderer() override;
                 void OnLoad(ContentManager* Content, Rest::Document* Node) override;
                 void OnSave(ContentManager* Content, Rest::Document* Node) override;
-
-            public:
-                static GlitchRenderer* Create(RenderSystem* Lab);
+				void OnInitialize() override;
+				void OnRender(Rest::Timer* Time) override;
+				void OnResizeBuffers() override;
 
             public:
                 THAWK_COMPONENT(GlitchRenderer);
@@ -1109,17 +1214,18 @@ namespace Tomahawk
                     float Padding;
                 } Render;
 
-            protected:
-                AmbientOcclusionRenderer(RenderSystem* Lab);
+			private:
+				Graphics::RenderTarget2D* Output;
+				Graphics::Shader* Shader;
 
             public:
-                virtual ~AmbientOcclusionRenderer() = default;
-                void OnInitialize() override;
+				AmbientOcclusionRenderer(RenderSystem* Lab);
+                virtual ~AmbientOcclusionRenderer() override;
                 void OnLoad(ContentManager* Content, Rest::Document* Node) override;
                 void OnSave(ContentManager* Content, Rest::Document* Node) override;
-
-            public:
-                static AmbientOcclusionRenderer* Create(RenderSystem* Lab);
+				void OnInitialize() override;
+				void OnRender(Rest::Timer* Time) override;
+				void OnResizeBuffers() override;
 
             public:
                 THAWK_COMPONENT(AmbientOcclusionRenderer);
@@ -1144,17 +1250,18 @@ namespace Tomahawk
                     float Padding;
                 } Render;
 
-            protected:
-                IndirectOcclusionRenderer(RenderSystem* Lab);
+			private:
+				Graphics::RenderTarget2D* Output;
+				Graphics::Shader* Shader;
 
             public:
-                virtual ~IndirectOcclusionRenderer() = default;
-                void OnInitialize() override;
+				IndirectOcclusionRenderer(RenderSystem* Lab);
+				virtual ~IndirectOcclusionRenderer() override;
                 void OnLoad(ContentManager* Content, Rest::Document* Node) override;
                 void OnSave(ContentManager* Content, Rest::Document* Node) override;
-
-            public:
-                static IndirectOcclusionRenderer* Create(RenderSystem* Lab);
+				void OnInitialize() override;
+				void OnRender(Rest::Timer* Time) override;
+				void OnResizeBuffers() override;
 
             public:
                 THAWK_COMPONENT(IndirectOcclusionRenderer);
@@ -1179,17 +1286,18 @@ namespace Tomahawk
                     float DesaturationIntensity = 0.5f;
                 } Render;
 
-            protected:
-                ToneRenderer(RenderSystem* Lab);
+			private:
+				Graphics::RenderTarget2D* Output;
+				Graphics::Shader* Shader;
 
             public:
-                virtual ~ToneRenderer() = default;
-                void OnInitialize() override;
+				ToneRenderer(RenderSystem* Lab);
+                virtual ~ToneRenderer() override;
                 void OnLoad(ContentManager* Content, Rest::Document* Node) override;
                 void OnSave(ContentManager* Content, Rest::Document* Node) override;
-
-            public:
-                static ToneRenderer* Create(RenderSystem* Lab);
+				void OnInitialize() override;
+				void OnRender(Rest::Timer* Time) override;
+				void OnResizeBuffers() override;
 
             public:
                 THAWK_COMPONENT(ToneRenderer);
@@ -1197,12 +1305,16 @@ namespace Tomahawk
 
             class THAWK_OUT GUIRenderer : public Renderer
             {
-            protected:
+            private:
                 Compute::Matrix4x4 WorldViewProjection;
+				Graphics::ElementBuffer* VertexBuffer;
+				Graphics::ElementBuffer* IndexBuffer;
+				Graphics::Activity* Activity;
+				Graphics::Shader* Shader;
+				Graphics::Texture2D* Font;
 				GUI::RendererCallback Callback;
                 GUI::Interface Tree;
                 UInt64 Time, Frequency;
-                Graphics::Activity* Activity;
                 char* ClipboardTextData;
                 void* Context;
 				std::mutex Safe;
@@ -1211,19 +1323,17 @@ namespace Tomahawk
             public:
                 bool AllowMouseOffset;
 
-            protected:
-				GUIRenderer(RenderSystem* Lab);
-                GUIRenderer(RenderSystem* Lab, Graphics::Activity* NewWindow);
-
             public:
+				GUIRenderer(RenderSystem* Lab);
+				GUIRenderer(RenderSystem* Lab, Graphics::Activity* NewWindow);
                 virtual ~GUIRenderer() override;
                 void OnRender(Rest::Timer* Time) override;
-                void SetRenderCallback(const GUI::RendererCallback& NewCallback);
                 void Transform(const Compute::Matrix4x4& In);
                 void Activate();
                 void Deactivate();
                 void Restore(void* FontAtlas = nullptr, void* Callback = nullptr);
 				void Setup(const std::function<void(GUI::Interface*)>& Callback);
+				void SetRenderCallback(const GUI::RendererCallback& NewCallback);
 				void GetFontAtlas(unsigned char** Pixels, int* Width, int* Height);
                 void* GetUi();
                 const char* GetClipboardCopy();
@@ -1233,8 +1343,9 @@ namespace Tomahawk
 				bool IsTreeActive();
 
             public:
-				static GUIRenderer* Create(RenderSystem* Lab);
-                static GUIRenderer* Create(RenderSystem* Lab, Graphics::Activity* Window);
+				static Graphics::InputLayout* GetDrawVertexLayout();
+				static size_t GetDrawVertexSize();
+				static void DrawList(void* Context);
 
             public:
                 THAWK_COMPONENT(GUIRenderer);

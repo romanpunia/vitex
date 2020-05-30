@@ -403,8 +403,6 @@ namespace Tomahawk
 
         protected:
             RenderSystem* System;
-            unsigned int Stride;
-            unsigned int Offset;
 
         public:
             bool Active;
@@ -507,7 +505,7 @@ namespace Tomahawk
             template <typename In, typename... Args>
             In* AddRenderer(Args&&... Data)
             {
-                return (In*)AddRenderer(In::Create(this, Data...));
+                return (In*)AddRenderer(new In(this, Data...));
             }
             template <typename In>
             In* GetRenderer()

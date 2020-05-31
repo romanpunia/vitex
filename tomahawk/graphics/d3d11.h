@@ -188,6 +188,7 @@ namespace Tomahawk
 				struct
 				{
 					ID3D11Texture2D* Face = nullptr;
+					ID3D11Texture2D* Subresource = nullptr;
 					D3D11_SHADER_RESOURCE_VIEW_DESC Resource;
 					D3D11_TEXTURE2D_DESC CubeMap;
 					D3D11_TEXTURE2D_DESC Texture;

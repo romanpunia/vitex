@@ -272,7 +272,6 @@ namespace Tomahawk
                 Compute::Vector3 Position;
                 Compute::Vector3 Velocity;
                 SpawnerProperties Spawner;
-                float DiffusionIntensity;
                 float RotationSpeed;
                 float ScaleSpeed;
                 float Noisiness;

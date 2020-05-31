@@ -1828,7 +1828,7 @@ namespace Tomahawk
                 Diffuse = 0.0f;
                 ScaleSpeed = 0.0f;
                 RotationSpeed = 0.0f;
-                Velocity = 1000000000.0f;
+                Velocity = 0.0f;
                 Spawner.Scale.Max = 1;
                 Spawner.Scale.Min = 1;
                 Spawner.Rotation.Max = 0;
@@ -1844,7 +1844,7 @@ namespace Tomahawk
                 Spawner.Noise.Min = -1;
                 Spawner.Noise.Max = 1;
                 Spawner.Iterations = 1;
-                Simulate = true;
+                Simulate = false;
                 Noisiness = 0.0f;
                 System = nullptr;
             }
@@ -1883,7 +1883,7 @@ namespace Tomahawk
                 Rest::Pool<Compute::ElementVertex>* Array = System->Instance->GetArray();
                 for (int i = 0; i < Spawner.Iterations; i++)
                 {
-                    if (Array->Size() + 1 >= System->Instance->GetElementLimit())
+                    if (Array->Size() >= Array->Capacity())
                         continue;
 
                     Compute::Vector3 FPosition = (System->StrongConnection ? Spawner.Position.Generate() : Spawner.Position.Generate() + Parent->Transform->Position.InvertZ());
@@ -1916,40 +1916,48 @@ namespace Tomahawk
                 else
                     FastSynchronization(DeltaTime);
             }
-            void ElementAnimator::AccurateSynchronization(float DeltaTime)
-            {
-                Rest::Pool<Compute::ElementVertex>* Array = System->Instance->GetArray();
-                for (auto It = Array->Begin(); It != Array->End(); It++)
-                {
-                    Compute::Vector3 Noise = Spawner.Noise.Generate() / Noisiness;
-                    It->PositionX += (It->VelocityX + Position.X + Noise.X) * DeltaTime;
-                    It->PositionY += (It->VelocityY + Position.Y + Noise.Y) * DeltaTime;
-                    It->PositionZ += (It->VelocityZ + Position.Z + Noise.Z) * DeltaTime;
-                    It->VelocityX -= (It->VelocityX / Velocity.X) * DeltaTime;
-                    It->VelocityY -= (It->VelocityY / Velocity.Y) * DeltaTime;
-                    It->VelocityZ -= (It->VelocityZ / Velocity.Z) * DeltaTime;
-                    It->ColorX += Diffuse.X * DeltaTime;
-                    It->ColorY += Diffuse.Y * DeltaTime;
-                    It->ColorZ += Diffuse.Z * DeltaTime;
-                    It->ColorW += Diffuse.W * DeltaTime;
-                    It->Scale += ScaleSpeed * DeltaTime;
-                    It->Rotation += (It->Angular + RotationSpeed) * DeltaTime;
+			void ElementAnimator::AccurateSynchronization(float DeltaTime)
+			{
+				Rest::Pool<Compute::ElementVertex>* Array = System->Instance->GetArray();
+				float L = Velocity.Length();
 
-                    if (It->ColorW <= 0 || It->Scale <= 0)
-                        Array->RemoveAt(It);
-                }
-            }
+				for (auto It = Array->Begin(); It != Array->End(); It++)
+				{
+					Compute::Vector3 Noise = Spawner.Noise.Generate() / Noisiness;
+					It->PositionX += (It->VelocityX + Position.X + Noise.X) * DeltaTime;
+					It->PositionY += (It->VelocityY + Position.Y + Noise.Y) * DeltaTime;
+					It->PositionZ += (It->VelocityZ + Position.Z + Noise.Z) * DeltaTime;
+					It->ColorX += Diffuse.X * DeltaTime;
+					It->ColorY += Diffuse.Y * DeltaTime;
+					It->ColorZ += Diffuse.Z * DeltaTime;
+					It->ColorW += Diffuse.W * DeltaTime;
+					It->Scale += ScaleSpeed * DeltaTime;
+					It->Rotation += (It->Angular + RotationSpeed) * DeltaTime;
+
+					if (L > 0)
+					{
+						It->VelocityX -= (It->VelocityX / Velocity.X) * DeltaTime;
+						It->VelocityY -= (It->VelocityY / Velocity.Y) * DeltaTime;
+						It->VelocityZ -= (It->VelocityZ / Velocity.Z) * DeltaTime;
+					}
+
+					if (It->ColorW <= 0 || It->Scale <= 0)
+					{
+						Array->RemoveAt(It);
+						It--;
+					}
+				}
+			}
             void ElementAnimator::FastSynchronization(float DeltaTime)
             {
                 Rest::Pool<Compute::ElementVertex>* Array = System->Instance->GetArray();
+				float L = Velocity.Length();
+
                 for (auto It = Array->Begin(); It != Array->End(); It++)
                 {
                     It->PositionX += (It->VelocityX + Position.X) * DeltaTime;
                     It->PositionY += (It->VelocityY + Position.Y) * DeltaTime;
                     It->PositionZ += (It->VelocityZ + Position.Z) * DeltaTime;
-                    It->VelocityX -= (It->VelocityX / Velocity.X) * DeltaTime;
-                    It->VelocityY -= (It->VelocityY / Velocity.Y) * DeltaTime;
-                    It->VelocityZ -= (It->VelocityZ / Velocity.Z) * DeltaTime;
                     It->ColorX += Diffuse.X * DeltaTime;
                     It->ColorY += Diffuse.Y * DeltaTime;
                     It->ColorZ += Diffuse.Z * DeltaTime;
@@ -1957,8 +1965,18 @@ namespace Tomahawk
                     It->Scale += ScaleSpeed * DeltaTime;
                     It->Rotation += (It->Angular + RotationSpeed) * DeltaTime;
 
+					if (L > 0)
+					{
+						It->VelocityX -= (It->VelocityX / Velocity.X) * DeltaTime;
+						It->VelocityY -= (It->VelocityY / Velocity.Y) * DeltaTime;
+						It->VelocityZ -= (It->VelocityZ / Velocity.Z) * DeltaTime;
+					}
+
                     if (It->ColorW <= 0 || It->Scale <= 0)
-                        Array->RemoveAt(It);
+					{
+						Array->RemoveAt(It);
+						It--;
+					}
                 }
             }
             Component* ElementAnimator::OnClone(Entity* New)

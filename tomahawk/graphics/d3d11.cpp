@@ -920,6 +920,7 @@ namespace Tomahawk
             D3D11MultiRenderTarget2D::~D3D11MultiRenderTarget2D()
             {
 				ReleaseCom(View.Face);
+				ReleaseCom(View.Subresource);
                 ReleaseCom(DepthStencilView);
                 for (int i = 0; i < 8; i++)
                 {
@@ -1012,6 +1013,7 @@ namespace Tomahawk
 
 				if (View.Target != Target)
 				{
+					View.Target = Target;
 					if (Texture[Target] != nullptr)
 						Texture[Target]->GetDesc(&View.Texture);
 
@@ -1035,8 +1037,12 @@ namespace Tomahawk
 					View.Region = { 0, 0, 0, (unsigned int)Size, (unsigned int)Size, 1 };
 				}
 
+				ReleaseCom(View.Subresource);
 				ReleaseCom(View.Face);
-				Device->As<D3D11Device>()->D3DDevice->CreateTexture2D(&View.CubeMap, nullptr, &View.Face);
+
+				D3D11Device* Dev = Device->As<D3D11Device>();
+				Dev->D3DDevice->CreateTexture2D(&View.Texture, nullptr, &View.Subresource);
+				Dev->D3DDevice->CreateTexture2D(&View.CubeMap, nullptr, &View.Face);
 			}
 			void D3D11MultiRenderTarget2D::CopyFace(GraphicsDevice* Device, int Target, int Face)
 			{
@@ -1044,12 +1050,8 @@ namespace Tomahawk
 					return;
 
 				D3D11Device* Dev = Device->As<D3D11Device>();
-				ID3D11Texture2D* Subresource = nullptr;
-
-				Dev->D3DDevice->CreateTexture2D(&View.Texture, nullptr, &Subresource);
-				Dev->ImmediateContext->CopyResource(Subresource, Texture[Target]);
-				Dev->ImmediateContext->CopySubresourceRegion(View.Face, Face * View.CubeMap.MipLevels, 0, 0, 0, Subresource, 0, &View.Region);
-				ReleaseCom(Subresource);
+				Dev->ImmediateContext->CopyResource(View.Subresource, Texture[Target]);
+				Dev->ImmediateContext->CopySubresourceRegion(View.Face, Face * View.CubeMap.MipLevels, 0, 0, 0, View.Subresource, 0, &View.Region);
 			}
 			void D3D11MultiRenderTarget2D::CopyEnd(GraphicsDevice* Device, TextureCube* Value)
 			{
@@ -1062,6 +1064,7 @@ namespace Tomahawk
 
 				Dev->D3DDevice->CreateShaderResourceView(View.Face, &View.Resource, Resource);
 				Dev->ImmediateContext->GenerateMips(*Resource);
+				ReleaseCom(View.Subresource);
 				ReleaseCom(View.Face);
 			}
 			void D3D11MultiRenderTarget2D::SetViewport(const Graphics::Viewport& In)
@@ -1829,7 +1832,7 @@ namespace Tomahawk
                 return Vertices;
             }
 
-            D3D11InstanceBuffer::D3D11InstanceBuffer(Graphics::GraphicsDevice* NewDevice, const Desc& I) : Graphics::InstanceBuffer(NewDevice, I), Resource(nullptr)
+            D3D11InstanceBuffer::D3D11InstanceBuffer(Graphics::GraphicsDevice* NewDevice, const Desc& I) : Graphics::InstanceBuffer(NewDevice, I), Resource(nullptr), SynchronizationState(false)
             {
                 Graphics::ElementBuffer::Desc F = Graphics::ElementBuffer::Desc();
                 F.AccessFlags = Graphics::CPUAccess_Write;
@@ -1865,11 +1868,10 @@ namespace Tomahawk
             {
                 if (Array.Size() <= 0 || Array.Size() > ElementLimit)
                     return;
-                else
-                    SynchronizationState = true;
-
+				
                 D3D11Device* Dev = Device->As<D3D11Device>();
                 D3D11ElementBuffer* RefElements = Elements->As<D3D11ElementBuffer>();
+				SynchronizationState = true;
 
                 D3D11_MAPPED_SUBRESOURCE MappedResource;
                 Dev->ImmediateContext->Map(RefElements->Element, 0, D3D11_MAP_WRITE_DISCARD, 0, &MappedResource);
@@ -1880,11 +1882,10 @@ namespace Tomahawk
             {
                 if (!SynchronizationState)
                     return;
-                else
-                    SynchronizationState = false;
 
                 D3D11Device* Dev = Device->As<D3D11Device>();
                 D3D11ElementBuffer* RefElements = Elements->As<D3D11ElementBuffer>();
+				SynchronizationState = false;
 
                 D3D11_MAPPED_SUBRESOURCE MappedResource;
                 Dev->ImmediateContext->Map(RefElements->Element, 0, D3D11_MAP_WRITE_DISCARD, 0, &MappedResource);
@@ -1897,9 +1898,9 @@ namespace Tomahawk
                 delete Elements;
 
                 ReleaseCom(Resource);
-                ElementLimit = Size + 1;
+                ElementLimit = Size;
                 if (ElementLimit < 1)
-                    ElementLimit = 2;
+                    ElementLimit = 1;
 
                 Array.Clear();
                 Array.Reserve(ElementLimit);

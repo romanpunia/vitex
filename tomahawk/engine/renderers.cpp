@@ -3025,7 +3025,7 @@ namespace Tomahawk
 				Device->SetRasterizerState(Graphics::RenderLab_Raster_Cull_Back);
 				Device->SetSamplerState(Graphics::RenderLab_Sampler_Trilinear_X16);
 				Device->SetBlendState(Graphics::RenderLab_Blend_Additive);
-				Device->SetDepthStencilState(Graphics::RenderLab_DepthStencil_Greater_Equal);
+				Device->SetDepthStencilState(Graphics::RenderLab_DepthStencil_None);
 				Surface->CopyTargetTo(0, Device, PhaseInput);
 				PhaseOutput->SetTarget(Device, 0, 0, 0);
 				Surface->GetTarget(1)->SetTexture(Device, 1);

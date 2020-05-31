@@ -523,28 +523,28 @@ namespace Tomahawk
         public:
             Pool() : Count(0), Volume(0), Data(nullptr)
             {
-                Reserve(2);
+                Reserve(1);
             }
-            Pool(UInt64 size, UInt64 capacity, T* Data) : Count(size), Volume(capacity), Data(Data)
+            Pool(UInt64 _Size, UInt64 _Capacity, T* _Data) : Count(_Size), Volume(_Capacity), Data(_Data)
             {
                 if (!Data && Volume > 0)
-                    Reserve(Volume + 1);
-                else if (!Data && Volume == 0)
-                    Reserve(2);
+                    Reserve(Volume);
+                else if (!Data || !Volume)
+                    Reserve(1);
             }
-            Pool(UInt64 capacity) : Count(0), Volume(0), Data(nullptr)
+            Pool(UInt64 _Capacity) : Count(0), Volume(0), Data(nullptr)
             {
-                if (Volume == 0)
-                    Reserve(2);
+                if (_Capacity > 0)
+					Reserve(Capacity);
                 else
-                    Reserve(capacity);
+					Reserve(1);
             }
             Pool(const Pool<T>& Ref) : Count(0), Volume(0), Data(nullptr)
             {
                 if (Ref.Data != nullptr)
                     Copy(Ref);
                 else
-                    Reserve(2);
+                    Reserve(1);
             }
             ~Pool()
             {
@@ -552,26 +552,26 @@ namespace Tomahawk
             }
             void Swap(const Pool<T>& Raw)
             {
-                UInt64 size = Raw.Count;
+                UInt64 _Size = Raw.Count;
                 Raw.Count = Count;
-                Count = size;
+                Count = _Size;
 
-                UInt64 capacity = Raw.Volume;
+                UInt64 _Capacity = Raw.Volume;
                 Raw.Volume = Volume;
-                Volume = capacity;
+                Volume = _Capacity;
 
-                T* data = Raw.Data;
-                if (Raw.Data == nullptr)
+                T* _Data = Raw.Data;
+                if (!Raw.Data)
                     Release();
-                else if (Data == nullptr)
+                else if (!Data)
                     Raw.Release();
 
                 Raw.Data = Data;
-                Data = data;
+                Data = _Data;
             }
             void Reserve(UInt64 NewCount)
             {
-                if (NewCount < Count)
+                if (NewCount <= Volume)
                     return;
 
                 Volume = NewCount;
@@ -600,12 +600,13 @@ namespace Tomahawk
                     free(Data);
                     Data = nullptr;
                 }
+
                 Count = Volume = 0;
             }
             void Resize(UInt64 NewSize)
             {
                 if (NewSize > Volume)
-                    Reserve(IncreaseCapacity(NewSize + 1));
+                    Reserve(IncreaseCapacity(NewSize));
 
                 Count = NewSize;
             }
@@ -752,7 +753,7 @@ namespace Tomahawk
             }
             UInt64 SizeOf(Iterator A)
             {
-                if (std::is_pointer<T>::value)
+                if (!std::is_pointer<T>::value)
                     return sizeof(T);
 
                 return sizeof(UInt64);

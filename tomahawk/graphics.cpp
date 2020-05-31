@@ -773,9 +773,9 @@ namespace Tomahawk
 
         InstanceBuffer::InstanceBuffer(GraphicsDevice* NewDevice, const Desc& I) : Device(NewDevice), Elements(nullptr)
         {
-            ElementLimit = I.ElementLimit + 1;
+            ElementLimit = I.ElementLimit;
             if (ElementLimit < 1)
-                ElementLimit = 2;
+                ElementLimit = 1;
 
             Array.Reserve(ElementLimit);
         }

@@ -3437,7 +3437,7 @@ namespace Tomahawk
 				Device->RestoreTexture2D(0, 1);
 			}
 
-            ReflectionsRenderer::ReflectionsRenderer(RenderSystem* Lab) : Renderer(Lab)
+            ReflectionsRenderer::ReflectionsRenderer(RenderSystem* Lab) : Renderer(Lab), Output(nullptr), Shader(nullptr)
             {
                 Priority = false;
 
@@ -3521,7 +3521,7 @@ namespace Tomahawk
 				Output = Graphics::RenderTarget2D::Create(System->GetDevice(), I);
 			}
 
-			DepthOfFieldRenderer::DepthOfFieldRenderer(RenderSystem* Lab) : Renderer(Lab), AutoViewport(true)
+			DepthOfFieldRenderer::DepthOfFieldRenderer(RenderSystem* Lab) : Renderer(Lab), AutoViewport(true), Output(nullptr), Shader(nullptr)
 			{
 				Priority = false;
 
@@ -3641,7 +3641,7 @@ namespace Tomahawk
 				Output = Graphics::RenderTarget2D::Create(System->GetDevice(), I);
 			}
 
-			EmissionRenderer::EmissionRenderer(RenderSystem* Lab) : Renderer(Lab), AutoViewport(true)
+			EmissionRenderer::EmissionRenderer(RenderSystem* Lab) : Renderer(Lab), AutoViewport(true), Output(nullptr), Shader(nullptr)
 			{
 				Priority = false;
 
@@ -3738,7 +3738,7 @@ namespace Tomahawk
 				Output = Graphics::RenderTarget2D::Create(System->GetDevice(), I);
 			}
 
-            GlitchRenderer::GlitchRenderer(RenderSystem* Lab) : Renderer(Lab), ScanLineJitter(0), VerticalJump(0), HorizontalShake(0), ColorDrift(0)
+            GlitchRenderer::GlitchRenderer(RenderSystem* Lab) : Renderer(Lab), ScanLineJitter(0), VerticalJump(0), HorizontalShake(0), ColorDrift(0), Output(nullptr), Shader(nullptr)
             {
                 Priority = false;
 
@@ -3850,7 +3850,7 @@ namespace Tomahawk
 				Output = Graphics::RenderTarget2D::Create(System->GetDevice(), I);
 			}
 
-            AmbientOcclusionRenderer::AmbientOcclusionRenderer(RenderSystem* Lab) : Renderer(Lab)
+            AmbientOcclusionRenderer::AmbientOcclusionRenderer(RenderSystem* Lab) : Renderer(Lab), Output(nullptr), Shader(nullptr)
             {
                 Priority = false;
 
@@ -3950,7 +3950,7 @@ namespace Tomahawk
 				Output = Graphics::RenderTarget2D::Create(System->GetDevice(), I);
 			}
 
-            IndirectOcclusionRenderer::IndirectOcclusionRenderer(RenderSystem* Lab) : Renderer(Lab)
+            IndirectOcclusionRenderer::IndirectOcclusionRenderer(RenderSystem* Lab) : Renderer(Lab), Output(nullptr), Shader(nullptr)
             {
                 Priority = false;
 
@@ -4050,7 +4050,7 @@ namespace Tomahawk
 				Output = Graphics::RenderTarget2D::Create(System->GetDevice(), I);
 			}
 
-            ToneRenderer::ToneRenderer(RenderSystem* Lab) : Renderer(Lab)
+            ToneRenderer::ToneRenderer(RenderSystem* Lab) : Renderer(Lab), Output(nullptr), Shader(nullptr)
             {
                 Priority = false;
 

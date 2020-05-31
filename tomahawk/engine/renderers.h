@@ -1130,11 +1130,11 @@ namespace Tomahawk
                 struct RenderConstant
                 {
                     float Texel[2] = { 512.0f };
-                    float Intensity = 2.0f;
-                    float Threshold = 0.75f;
-                    float Scaling[2] = { 0.9f, 0.9f };
-                    float Samples = 2.0f;
-                    float SampleCount = 16.0f;
+                    float Intensity = 2.35f;
+                    float Threshold = 0.38f;
+                    float Scaling[2] = { 1.0f, 1.0f };
+                    float Samples = 4.0f;
+                    float SampleCount = 64.0f;
                 } Render;
 
 			private:
@@ -1162,14 +1162,14 @@ namespace Tomahawk
             public:
                 struct RenderConstant
                 {
-                    float ScanLineJitterDisplacement;
-                    float ScanLineJitterThreshold;
-                    float VerticalJumpAmount;
-                    float VerticalJumpTime;
-                    float ColorDriftAmount;
-                    float ColorDriftTime;
-                    float HorizontalShake;
-                    float ElapsedTime;
+                    float ScanLineJitterDisplacement = 0;
+                    float ScanLineJitterThreshold = 0;
+                    float VerticalJumpAmount = 0;
+                    float VerticalJumpTime = 0;
+                    float ColorDriftAmount = 0;
+                    float ColorDriftTime = 0;
+                    float HorizontalShake = 0;
+                    float ElapsedTime = 0;
                 } Render;
 
 			private:

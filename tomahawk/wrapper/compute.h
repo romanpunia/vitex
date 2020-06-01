@@ -5,12 +5,12 @@
 
 namespace Tomahawk
 {
-    namespace Wrapper
-    {
-        namespace Compute
-        {
-            THAWK_OUT void Enable(Script::VMManager* Manager);
-        }
-    }
+	namespace Wrapper
+	{
+		namespace Compute
+		{
+			THAWK_OUT void Enable(Script::VMManager* Manager);
+		}
+	}
 }
 #endif

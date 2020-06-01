@@ -28,42 +28,42 @@
 
 namespace Tomahawk
 {
-    enum TInit
-    {
-        TInit_Rest = 1,
-        TInit_Logger = 2,
-        TInit_Network = 4,
-        TInit_Crypto = 8,
-        TInit_SSL = 16,
-        TInit_SDL2 = 32,
-        TInit_Compute = 64,
-        TInit_Locale = 128,
+	enum TInit
+	{
+		TInit_Rest = 1,
+		TInit_Logger = 2,
+		TInit_Network = 4,
+		TInit_Crypto = 8,
+		TInit_SSL = 16,
+		TInit_SDL2 = 32,
+		TInit_Compute = 64,
+		TInit_Locale = 128,
 		TInit_Audio = 256,
-        TInit_All = (TInit_Rest | TInit_Logger | TInit_Network | TInit_Crypto | TInit_SSL | TInit_SDL2 | TInit_Compute | TInit_Locale | TInit_Audio)
-    };
+		TInit_All = (TInit_Rest | TInit_Logger | TInit_Network | TInit_Crypto | TInit_SSL | TInit_SDL2 | TInit_Compute | TInit_Locale | TInit_Audio)
+	};
 
-    class THAWK_OUT Library
-    {
-    public:
-        static void Describe();
-        static bool HasDirectX();
-        static bool HasOpenGL();
-        static bool HasOpenSSL();
-        static bool HasGLEW();
-        static bool HasZLib();
-        static bool HasAssimp();
-        static bool HasMongoDB();
-        static bool HasOpenAL();
-        static bool HasSDL2();
-        static int Version();
-        static int DebugLevel();
-        static int Architecture();
-        static const char* Build();
-        static const char* Compiler();
-        static const char* Platform();
-    };
+	class THAWK_OUT Library
+	{
+	public:
+		static void Describe();
+		static bool HasDirectX();
+		static bool HasOpenGL();
+		static bool HasOpenSSL();
+		static bool HasGLEW();
+		static bool HasZLib();
+		static bool HasAssimp();
+		static bool HasMongoDB();
+		static bool HasOpenAL();
+		static bool HasSDL2();
+		static int Version();
+		static int DebugLevel();
+		static int Architecture();
+		static const char* Build();
+		static const char* Compiler();
+		static const char* Platform();
+	};
 
-    THAWK_OUT bool Initialize(unsigned int Modules = TInit_All);
-    THAWK_OUT bool Uninitialize();
+	THAWK_OUT bool Initialize(unsigned int Modules = TInit_All);
+	THAWK_OUT bool Uninitialize();
 }
 #endif

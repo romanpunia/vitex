@@ -3,22 +3,22 @@
 
 namespace Tomahawk
 {
-    namespace Wrapper
-    {
-        namespace Engine
-        {
-            void Enable(Script::VMManager* Manager)
-            {
-                Manager->Namespace("Engine", [](Script::VMGlobal* Global)
-                {
-                    /*
-                        TODO: Register types for VM from Tomahawk::Engine
+	namespace Wrapper
+	{
+		namespace Engine
+		{
+			void Enable(Script::VMManager* Manager)
+			{
+				Manager->Namespace("Engine", [](Script::VMGlobal* Global)
+				{
+					/*
+						TODO: Register types for VM from Tomahawk::Engine
 
-                    */
+					*/
 
-                    return 0;
-                });
-            }
-        }
-    }
+					return 0;
+				});
+			}
+		}
+	}
 }

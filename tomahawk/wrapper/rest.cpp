@@ -3,10 +3,10 @@
 
 namespace Tomahawk
 {
-    namespace Wrapper
-    {
-        namespace Rest
-        {
+	namespace Wrapper
+	{
+		namespace Rest
+		{
 			using namespace Tomahawk::Rest;
 
 			static bool FileStream_Open(FileStream* Base, const std::string& Path, FileMode Mode)
@@ -341,7 +341,8 @@ namespace Tomahawk
 			}
 			static std::string Document_GetDecimal(Document* Base, const std::string& Name)
 			{
-				Network::BSON::KeyPair Key; Int64 Low;
+				Network::BSON::KeyPair Key;
+				Int64 Low;
 				Key.Mod = Network::BSON::Type_Decimal;
 				Key.IsValid = true;
 				Key.High = Base->GetDecimal(Name, &Low);
@@ -434,7 +435,7 @@ namespace Tomahawk
 
 				std::unordered_map<std::string, UInt64> Mapping = Base->CreateMapping();
 				Script::VMWDictionary Map = Script::VMWDictionary::Create(Manager);
-				
+
 				for (auto& Item : Mapping)
 				{
 					Int64 V = Item.second;
@@ -646,17 +647,17 @@ namespace Tomahawk
 				return Script::VMWArray::ComposeFromObjects(Type, OS::GetDiskDrives()).GetArray();
 			}
 
-            void Enable(Script::VMManager* Manager)
-            {
-                Manager->Namespace("Rest", [](Script::VMGlobal* Global)
-                {
+			void Enable(Script::VMManager* Manager)
+			{
+				Manager->Namespace("Rest", [](Script::VMGlobal* Global)
+				{
 					Script::VMWEnum VEventState = Global->SetEnum("EventState");
 					{
 						VEventState.SetValue("Working", EventState_Working);
 						VEventState.SetValue("Idle", EventState_Idle);
 						VEventState.SetValue("Terminated", EventState_Terminated);
 					}
-					
+
 					Script::VMWEnum VEventWorkflow = Global->SetEnum("EventWorkflow");
 					{
 						VEventWorkflow.SetValue("Mixed", EventWorkflow_Mixed);
@@ -979,9 +980,9 @@ namespace Tomahawk
 						VOS.SetMethodStatic("array<string>@ GetDiskDrives()", &OS_GetDiskDrives);
 					}
 
-                    return 0;
-                });
-            }
-        }
-    }
+					return 0;
+				});
+			}
+		}
+	}
 }

@@ -1614,9 +1614,9 @@ namespace Tomahawk
                 if (Parameter == nullptr)
                     return;
 
-                if (Value.Value != nullptr && Value.Length > 0)
-                    Rest::Document::Deserialize(Compute::MathCommon::URIDecode(Value.Value, Value.Length), Parameter);
-                else
+				if (Value.Value != nullptr && Value.Length > 0)
+					Parameter->Deserialize(Compute::MathCommon::URIDecode(Value.Value, Value.Length));
+				else
                     Parameter->Type = Rest::NodeType_Undefined;
             }
             void Query::Decode(const char* Type, const std::string& URI)

@@ -1074,14 +1074,6 @@ namespace Tomahawk
             VMWTypeInfo Type = Engine->Global().GetTypeInfoByName(TypeName);
             return Engine->NotifyOfNewObject(Object, Type.GetTypeInfo());
         }
-        int VMCThread::AtomicInc(int& Value)
-        {
-            return asAtomicInc(Value);
-        }
-        int VMCThread::AtomicDec(int& Value)
-        {
-            return asAtomicDec(Value);
-        }
         void VMCThread::SendInThread(VMCAny* Any)
         {
             auto* Thread = GetThisThread();
@@ -2278,6 +2270,18 @@ namespace Tomahawk
 
             return R;
         }
+		int VMWClass::SetOperatorCopyAddress(asSFuncPtr* Value)
+		{
+			if (!IsValid() || !Value)
+				return -1;
+
+			VMCManager* Engine = Manager->GetEngine();
+			if (!Engine)
+				return -1;
+
+			Rest::Stroke Decl = Rest::Form("%s& opAssign(const %s &in)", Object.c_str(), Object.c_str());
+			return Engine->RegisterObjectMethod(Object.c_str(), Decl.Get(), *Value, asCALL_THISCALL);
+		}
         int VMWClass::SetBehaviourAddress(const char* Decl, VMBehave Behave, asSFuncPtr* Value, VMCall Type)
         {
             if (!IsValid() || !Decl || !Value)
@@ -3321,6 +3325,7 @@ namespace Tomahawk
         }
         VMCompiler::~VMCompiler()
         {
+			delete Context;
             delete Processor;
         }
 		void VMCompiler::SetIncludeCallback(const Compute::ProcIncludeCallback& Callback)
@@ -4006,6 +4011,9 @@ namespace Tomahawk
         }
         VMManager::~VMManager()
         {
+			for (auto& Context : Contexts)
+				Context->Release();
+
             if (Engine != nullptr)
                 Engine->ShutDownAndRelease();
 #ifdef HAS_AS_JIT
@@ -4475,6 +4483,10 @@ namespace Tomahawk
         {
             return Engine;
         }
+		void VMManager::FreeProxy()
+		{
+			FreeStdStringProxy();
+		}
         VMManager* VMManager::Get(VMCManager* Engine)
         {
             if (!Engine)

@@ -1998,8 +1998,38 @@ namespace Tomahawk
         std::mutex* LT::Safe = nullptr;
         UInt64 LT::Memory = 0;
 #endif
+		void Factory::AddRef(Object* Value)
+		{
+			if (Value != nullptr)
+			{
+				Value->__vcnt++;
+				Value->__vflg = false;
+			}
+		}
+		void Factory::SetFlag(Object* Value)
+		{
+			if (Value != nullptr)
+				Value->__vflg = true;
+		}
+		bool Factory::GetFlag(Object* Value)
+		{
+			return Value ? Value->__vflg.load() : false;
+		}
+		int Factory::GetRefCount(Object* Value)
+		{
+			return Value ? Value->__vcnt.load() : 1;
+		}
+		void Factory::Release(Object* Value)
+		{
+			if (!Value)
+				return;
 
-        Object::Object()
+			Value->__vflg = false;
+			if (!--Value->__vcnt)
+				delete Value;
+		}
+
+        Object::Object() : __vcnt(1), __vflg(false)
         {
         }
         void Object::operator delete(void* Data)
@@ -2445,7 +2475,7 @@ namespace Tomahawk
 
             return Buffer != nullptr;
         }
-        bool FileStream::OpenZ(const char* File, FileMode Mode)
+		bool FileStream::OpenZ(const char* File, FileMode Mode)
         {
             if (!File || !Close())
                 return false;
@@ -2593,63 +2623,63 @@ namespace Tomahawk
 
             return (unsigned char)putc((int)Value, Buffer);
         }
-        UInt64 FileStream::WriteAny(const char* Format, ...)
-        {
-            va_list Args;
-            UInt64 R = 0;
-                    va_start(Args, Format);
+		UInt64 FileStream::ReadAny(const char* Format, ...)
+		{
 #ifdef THAWK_HAS_ZLIB
-            if (Compress != nullptr)
-                R = (UInt64)gzvprintf((gzFile)Compress, Format, Args);
-            else if (Buffer != nullptr)
-                R = (UInt64)vfprintf(Buffer, Format, Args);
+			if (Compress != nullptr)
+				return 0;
+#endif
+			va_list Args;
+			UInt64 R = 0;
+			va_start(Args, Format);
+
+			if (Buffer != nullptr)
+				R = (UInt64)vfscanf(Buffer, Format, Args);
+
+			va_end(Args);
+
+			return R;
+		}
+		UInt64 FileStream::Read(char* Data, UInt64 Length)
+		{
+#ifdef THAWK_HAS_ZLIB
+			if (Compress != nullptr)
+				return gzfread(Data, 1, (size_t)Length, (gzFile)Compress);
+#endif
+			if (!Buffer)
+				return 0;
+
+			return fread(Data, 1, (size_t)Length, Buffer);
+		}
+		UInt64 FileStream::WriteAny(const char* Format, ...)
+		{
+			va_list Args;
+			UInt64 R = 0;
+			va_start(Args, Format);
+#ifdef THAWK_HAS_ZLIB
+			if (Compress != nullptr)
+				R = (UInt64)gzvprintf((gzFile)Compress, Format, Args);
+			else if (Buffer != nullptr)
+				R = (UInt64)vfprintf(Buffer, Format, Args);
 #else
-                if (Buffer != nullptr)
-                    R = (UInt64)vfprintf(Buffer, Format, Args);
+			if (Buffer != nullptr)
+				R = (UInt64)vfprintf(Buffer, Format, Args);
 #endif
-                    va_end(Args);
+			va_end(Args);
 
-            return R;
-        }
-        UInt64 FileStream::Write(const char* Data, UInt64 Length)
-        {
+			return R;
+		}
+		UInt64 FileStream::Write(const char* Data, UInt64 Length)
+		{
 #ifdef THAWK_HAS_ZLIB
-            if (Compress != nullptr)
-                return gzfwrite(Data, 1, (size_t)Length, (gzFile)Compress);
+			if (Compress != nullptr)
+				return gzfwrite(Data, 1, (size_t)Length, (gzFile)Compress);
 #endif
-            if (!Buffer)
-                return 0;
+			if (!Buffer)
+				return 0;
 
-            return fwrite(Data, 1, (size_t)Length, Buffer);
-        }
-        UInt64 FileStream::ReadAny(const char* Format, ...)
-        {
-#ifdef THAWK_HAS_ZLIB
-            if (Compress != nullptr)
-                return 0;
-#endif
-            va_list Args;
-            UInt64 R = 0;
-                    va_start(Args, Format);
-
-            if (Buffer != nullptr)
-                R = (UInt64)vfscanf(Buffer, Format, Args);
-
-                    va_end(Args);
-
-            return R;
-        }
-        UInt64 FileStream::Read(char* Data, UInt64 Length)
-        {
-#ifdef THAWK_HAS_ZLIB
-            if (Compress != nullptr)
-                return gzfread(Data, 1, (size_t)Length, (gzFile)Compress);
-#endif
-            if (!Buffer)
-                return 0;
-
-            return fread(Data, 1, (size_t)Length, Buffer);
-        }
+			return fwrite(Data, 1, (size_t)Length, Buffer);
+		}
         UInt64 FileStream::Tell()
         {
 #ifdef THAWK_HAS_ZLIB

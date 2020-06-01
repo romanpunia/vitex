@@ -1357,6 +1357,18 @@ void RegisterStdString(asIScriptEngine * engine)
 		RegisterStdString_Native(engine);
 }
 
+void FreeStdStringProxy()
+{
+	if (stringFactory)
+	{
+		if (stringFactory->stringCache.empty())
+		{
+			delete stringFactory;
+			stringFactory = 0;
+		}
+	}
+}
+
 END_AS_NAMESPACE
 
 

@@ -428,6 +428,7 @@ namespace Tomahawk
                 Rest::LT::DetachStream();
         }
 
+		Script::VMManager::FreeProxy();
         return true;
     }
 }

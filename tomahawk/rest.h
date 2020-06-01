@@ -792,8 +792,24 @@ namespace Tomahawk
             static void* Alloc(UInt64 Size);
         };
 
+		class THAWK_OUT Factory
+		{
+		public:
+			static void AddRef(Object* Value);
+			static void SetFlag(Object* Value);
+			static void Release(Object* Value);
+			static bool GetFlag(Object* Value);
+			static int GetRefCount(Object* Value);
+		};
+
         class THAWK_OUT Object
         {
+			friend class Factory;
+
+		private:
+			std::atomic<int> __vcnt;
+			std::atomic<bool> __vflg;
+
         public:
             Object();
             virtual ~Object() = default;
@@ -904,10 +920,10 @@ namespace Tomahawk
             int Fd();
             unsigned char Get();
             unsigned char Put(unsigned char Value);
+			UInt64 ReadAny(const char* Format, ...);
+			UInt64 Read(char* Buffer, UInt64 Length);
             UInt64 WriteAny(const char* Format, ...);
             UInt64 Write(const char* Buffer, UInt64 Length);
-            UInt64 ReadAny(const char* Format, ...);
-            UInt64 Read(char* Buffer, UInt64 Length);
             UInt64 Tell();
             UInt64 Size();
             std::string& Filename();
@@ -1265,8 +1281,6 @@ namespace Tomahawk
             std::unordered_map<std::string, UInt64> CreateMapping();
 
         public:
-            static std::string Serialize(Document* Value);
-            static bool Deserialize(const std::string& Value, Document* Output);
             static bool WriteBIN(Document* Value, const NWriteCallback& Callback);
             static bool WriteXML(Document* Value, const NWriteCallback& Callback);
             static bool WriteJSON(Document* Value, const NWriteCallback& Callback);
@@ -1280,6 +1294,8 @@ namespace Tomahawk
             static bool ProcessMAPRead(Document* Current, std::unordered_map<std::string, UInt64>* Map, UInt64& Index);
             static bool ProcessXMLRead(void* Base, Document* Current);
             static bool ProcessJSONRead(Document* Current);
+			static bool Deserialize(const std::string& Value, Document* Output);
+			static std::string Serialize(Document* Value);
         };
 
         THAWK_OUT Stroke Form(const char* Format, ...);

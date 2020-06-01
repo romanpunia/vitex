@@ -49,6 +49,7 @@ namespace Tomahawk
 			VMOptJIT_No_Switches = 0x10,
 			VMOptJIT_No_Script_Calls = 0x20,
 			VMOptJIT_Fast_Ref_Counter = 0x40,
+			VMOptJIT_Optimal = VMOptJIT_Alloc_Simple | VMOptJIT_Fast_Ref_Counter
 		};
 
         enum VMLogType
@@ -475,15 +476,13 @@ namespace Tomahawk
             {
                 ((T*)Memory)->~T();
             }
-
-        public:
             template <typename T>
             static asSFuncPtr* BindFunction(T Value)
             {
 #ifdef THAWK_64
                 void(*Address)() = reinterpret_cast<void(*)()>(size_t(Value));
 #else
-                void (* Address)() = reinterpret_cast<void (*)()>(Value);
+                void (*Address)() = reinterpret_cast<void (*)()>(Value);
 #endif
                 return VMBind::CreateFunctionBase(Address, 2);
             }
@@ -512,6 +511,31 @@ namespace Tomahawk
             {
                 return BindFunction(Destruct<T>);
             }
+			template <typename T, const char* TypeName, typename... Args>
+			static T* BindManaged(Args&& ... Data)
+			{
+				auto* Result = new T(Data...);
+				VMCThread::AtomicNotifyGC(TypeName, (void*)Result);
+
+				return Result;
+			}
+			template <typename T, const char* TypeName>
+			static void BindManagedList(VMCGeneric* Generic)
+			{
+				T* Result = new T(Generic);
+				VMCThread::AtomicNotifyGC(TypeName, (void*)Result);
+				*((T**)Args.GetAddressOfReturnLocation()) = Result;
+			}
+			template <typename T, typename... Args>
+			static T* BindUnmanaged(Args&& ... Data)
+			{
+				return new T(Data...);
+			}
+			template <typename T>
+			static void BindUnmanagedList(VMCGeneric* Generic)
+			{
+				*((T**)Args.GetAddressOfReturnLocation()) = new T(Generic);
+			}
         };
 
         class THAWK_OUT VMCRandom
@@ -599,8 +623,6 @@ namespace Tomahawk
 
         public:
             static int AtomicNotifyGC(const char* TypeName, void* Object);
-            static int AtomicInc(int& Value);
-            static int AtomicDec(int& Value);
             static void StartRoutine(VMCThread* Thread);
             static void SendInThread(VMCAny* Any);
             static void SleepInThread(uint64_t Timeout);
@@ -649,76 +671,6 @@ namespace Tomahawk
             static VMCAsync* CreateFilled(Int64 Value);
             static VMCAsync* CreateFilled(double Value);
             static VMCAsync* CreateEmpty();
-        };
-
-        template <typename T>
-        class VMFactory : public T
-        {
-        private:
-            int ___GC_Counter___;
-            bool ___GC_Flag___;
-
-        public:
-            template <typename... Args>
-            VMFactory(Args&& ... Data) : T(Data...), ___GC_Counter___(1), ___GC_Flag___(false)
-            {
-            }
-            virtual ~VMFactory()
-            {
-            }
-            void ___AddRef___()
-            {
-				VMCThread::AtomicInc(___GC_Counter___);
-				___GC_Flag___ = false;
-            }
-            void ___SetGCFlag___()
-            {
-                ___GC_Flag___ = true;
-            }
-            bool ___GetGCFlag___()
-            {
-                return ___GC_Flag___;
-            }
-            int ___GetRefCount___()
-            {
-                return ___GC_Counter___;
-            }
-            void ___Release___()
-            {
-				___GC_Flag___ = false;
-				if (!VMCThread::AtomicDec(___GC_Counter___))
-                    delete this;
-            }
-
-        public:
-            template <typename U, const char* TypeName, typename... Args>
-            static VMFactory<U>* ___Managed___(Args&& ... Data)
-            {
-                auto* Result = new VMFactory<U>(Data...);
-                VMCThread::AtomicNotifyGC(TypeName, (void*)Result);
-
-                return Result;
-            }
-            template <typename U, const char* TypeName>
-            static void ___ManagedList___(VMCGeneric* Generic)
-            {
-                VMWGeneric Args = Generic;
-                auto* Result = new VMFactory<U>(&Args);
-                VMCThread::AtomicNotifyGC(TypeName, (void*)Result);
-
-                *((VMFactory<U>**)Args.GetAddressOfReturnLocation()) = Result;
-            }
-            template <typename U, typename... Args>
-            static VMFactory<U>* ___Unmanaged___(Args&& ... Data)
-            {
-                return new VMFactory<U>(Data...);
-            }
-            template <typename U>
-            static void ___UnmanagedList___(VMCGeneric* Generic)
-            {
-                VMWGeneric Args = Generic;
-                *((VMFactory<U>**)Args.GetAddressOfReturnLocation()) = new VMFactory<U>(&Args);
-            }
         };
 
         struct THAWK_OUT VMProperty
@@ -902,6 +854,56 @@ namespace Tomahawk
             static VMWArray Create(const VMWTypeInfo& ArrayType, unsigned int Length);
             static VMWArray Create(const VMWTypeInfo& ArrayType, unsigned int Length, void* DefaultValue);
             static VMWArray Create(const VMWTypeInfo& ArrayType, void* ListBuffer);
+
+		public:
+			template <typename T>
+			static VMWArray ComposeFromObjects(const VMWTypeInfo& ArrayType, const std::vector<T>& Objects)
+			{
+				VMWArray Array = Create(ArrayType, (unsigned int)Objects.size());
+				for (size_t i = 0; i < Objects.size(); i++)
+					Array.SetValue(i, (void*)&Objects[i]);
+
+				return Array;
+			}
+			template <typename T>
+			static VMWArray ComposeFromPointers(const VMWTypeInfo& ArrayType, const std::vector<T*>& Objects)
+			{
+				VMWArray Array = Create(ArrayType, (unsigned int)Objects.size());
+				for (size_t i = 0; i < Objects.size(); i++)
+					Array.SetValue(i, (void*)Objects[i]);
+
+				return Array;
+			}
+			template <typename T>
+			static void DecomposeToObjects(const VMWArray& Array, std::vector<T>* Objects)
+			{
+				if (!Objects)
+					return;
+
+				unsigned int Size = Array.GetSize();
+				Objects->reserve(Size);
+
+				for (unsigned int i = 0; i < Size; i++)
+				{
+					T* Object = (T*)Array.At(i);
+					Objects->push_back(*Object);
+				}
+			}
+			template <typename T>
+			static void DecomposeToPointers(const VMWArray& Array, std::vector<T*>* Objects)
+			{
+				if (!Objects)
+					return;
+
+				unsigned int Size = Array.GetSize();
+				Objects->reserve(Size);
+
+				for (unsigned int i = 0; i < Size; i++)
+				{
+					T* Object = (T*)Array.At(i);
+					Objects->push_back(Object);
+				}
+			}
         };
 
         struct THAWK_OUT VMWAny
@@ -1051,6 +1053,7 @@ namespace Tomahawk
         public:
             VMWClass(VMManager* Engine, const std::string& Name, int Type);
             int SetFunctionDef(const char* Decl);
+			int SetOperatorCopyAddress(asSFuncPtr* Value);
             int SetBehaviourAddress(const char* Decl, VMBehave Behave, asSFuncPtr* Value, VMCall = VMCall_THISCALL);
             int SetPropertyAddress(const char* Decl, int Offset);
             int SetPropertyStaticAddress(const char* Decl, void* Value);
@@ -1071,24 +1074,83 @@ namespace Tomahawk
             {
                 return SetPropertyStaticAddress(Decl, (void*)Value);
             }
-            template <typename T, typename F>
-            int SetMethodStatic(const char* Decl, F Value, VMCall Type = VMCall_CDECL)
+            template <typename R, typename... Args>
+            int SetMethodStatic(const char* Decl, R(*Value)(Args...), VMCall Type = VMCall_CDECL)
             {
-                asSFuncPtr* Ptr = VMBind::BindFunction<F>(Value);
+                asSFuncPtr* Ptr = VMBind::BindFunction<R(*)(Args...)>(Value);
                 int Result = SetMethodStaticAddress(Decl, Ptr, Type);
                 VMBind::ReleaseFunctor(&Ptr);
 
                 return Result;
             }
-            template <typename T>
-            int SetMethodStatic(const char* Decl, void(T::*Value)(VMCGeneric*), VMCall)
+            template <typename R, typename... Args>
+            int SetMethodStatic(const char* Decl, void(*Value)(VMCGeneric*), VMCall Type = VMCall_CDECL)
             {
-                asSFuncPtr* Ptr = VMBind::BindFunction<decltype(Value)>(Value);
+                asSFuncPtr* Ptr = VMBind::BindFunction<void(Value)(VMCGeneric*)>(Value);
                 int Result = SetMethodStaticAddress(Decl, Ptr, VMCall_GENERIC);
                 VMBind::ReleaseFunctor(&Ptr);
 
                 return Result;
             }
+			template <typename T>
+			int SetEnumRefs(void(T::*Value)(VMCManager*))
+			{
+				asSFuncPtr* EnumRefs = VMBind::BindMethod<T>(Value);
+				int Result = SetBehaviourAddress("void f(int &in)", VMBehave_ENUMREFS, EnumRefs, VMCall_THISCALL);
+				VMBind::ReleaseFunctor(&EnumRefs);
+
+				return Result;
+			}
+			template <typename T>
+			int SetReleaseRefs(void(T::*Value)(VMCManager*))
+			{
+				asSFuncPtr* ReleaseRefs = VMBind::BindMethod<T>(Value);
+				int Result = SetBehaviourAddress("void f(int &in)", VMBehave_RELEASEREFS, ReleaseRefs, VMCall_THISCALL);
+				VMBind::ReleaseFunctor(&ReleaseRefs);
+
+				return Result;
+			}
+			template <typename T, typename R>
+			int SetProperty(const char* Decl, R T::*Value)
+			{
+				return SetPropertyAddress(Decl, reinterpret_cast<std::size_t>(&(((T*)0)->*Value)));
+			}
+			template <typename T, typename R, typename... Args>
+			int SetOperator(const char* Decl, R(T::*Value)(Args...))
+			{
+				asSFuncPtr* Ptr = VMBind::BindMethodOp(Value);
+				int Result = SetOperatorAddress(Decl, Ptr, VMCall_THISCALL);
+				VMBind::ReleaseFunctor(&Ptr);
+
+				return Result;
+			}
+			template <typename T>
+			int SetOperatorCopy()
+			{
+				asSFuncPtr* Ptr = VMBind::BindMethodOp<T, T&, const T&>(&T::operator=);
+				int Result = SetOperatorCopyAddress(Ptr);
+				VMBind::ReleaseFunctor(&Ptr);
+
+				return Result;
+			}
+			template <typename T, typename R, typename... Args>
+			int SetMethod(const char* Decl, R(T::*Value)(Args...))
+			{
+				asSFuncPtr* Ptr = VMBind::BindMethod<T, R, Args...>(Value);
+				int Result = SetMethodAddress(Decl, Ptr, VMCall_THISCALL);
+				VMBind::ReleaseFunctor(&Ptr);
+
+				return Result;
+			}
+			template <typename T, typename R, typename... Args>
+			int SetMethodExternal(const char* Decl, R(*Value)(T*, Args...))
+			{
+				asSFuncPtr* Ptr = VMBind::BindFunction<R(*)(T*, Args...)>(Value);
+				int Result = SetMethodAddress(Decl, Ptr, VMCall_CDECL_OBJFIRST);
+				VMBind::ReleaseFunctor(&Ptr);
+
+				return Result;
+			}
         };
 
         struct THAWK_OUT VMWRefClass : public VMWClass
@@ -1105,18 +1167,18 @@ namespace Tomahawk
                 if (!Manager)
                     return -1;
 
-                asSFuncPtr* Factory = VMBind::BindFunction(VMFactory<T>::___Managed___<T, TypeName, Args...>);
-                int Result = SetBehaviourAddress(Decl, VMBehave_FACTORY, Factory, VMCall_CDECL);
-                VMBind::ReleaseFunctor(&Factory);
+                asSFuncPtr* Functor = VMBind::BindFunction(&VMBind::BindManaged<T, TypeName, Args...>);
+                int Result = SetBehaviourAddress(Decl, VMBehave_FACTORY, Functor, VMCall_CDECL);
+                VMBind::ReleaseFunctor(&Functor);
 
                 return Result;
             }
             template <typename T, const char* TypeName>
             int SetManagedConstructorList(const char* Decl)
             {
-                asSFuncPtr* ListFactory = VMBind::BindFunction(VMFactory<T>::___ManagedList___<T, TypeName>);
-                int Result = SetBehaviourAddress(Decl, VMBehave_LIST_FACTORY, ListFactory, VMCall_CDECL);
-                VMBind::ReleaseFunctor(&ListFactory);
+                asSFuncPtr* Functor = VMBind::BindFunction(&VMBind::BindManagedList<T, TypeName>);
+                int Result = SetBehaviourAddress(Decl, VMBehave_LIST_FACTORY, Functor, VMCall_CDECL);
+                VMBind::ReleaseFunctor(&Functor);
 
                 return Result;
             }
@@ -1126,26 +1188,26 @@ namespace Tomahawk
                 if (!Manager)
                     return -1;
 
-                asSFuncPtr* Factory = VMBind::BindFunction(VMFactory<T>::___Unmanaged___<T, Args...>);
-                int Result = SetBehaviourAddress(Decl, VMBehave_FACTORY, Factory, VMCall_CDECL);
-                VMBind::ReleaseFunctor(&Factory);
+                asSFuncPtr* Functor = VMBind::BindFunction(&VMBind::BindUnmanaged<T, Args...>);
+                int Result = SetBehaviourAddress(Decl, VMBehave_FACTORY, Functor, VMCall_CDECL);
+                VMBind::ReleaseFunctor(&Functor);
 
                 return Result;
             }
             template <typename T>
             int SetUnmanagedConstructorList(const char* Decl)
             {
-                asSFuncPtr* ListFactory = VMBind::BindFunction(VMFactory<T>::___UnmanagedList___<T>);
-                int Result = SetBehaviourAddress(Decl, VMBehave_LIST_FACTORY, ListFactory, VMCall_CDECL);
-                VMBind::ReleaseFunctor(&ListFactory);
+                asSFuncPtr* Functor = VMBind::BindFunction(&VMBind::BindUnmanagedList<T>);
+                int Result = SetBehaviourAddress(Decl, VMBehave_LIST_FACTORY, Functor, VMCall_CDECL);
+                VMBind::ReleaseFunctor(&Functor);
 
                 return Result;
             }
             template <typename T>
             int SetAddRef()
             {
-                asSFuncPtr* AddRef = VMBind::BindMethod<VMFactory<T>>(&VMFactory<T>::___AddRef___);
-                int Result = SetBehaviourAddress("void f()", VMBehave_ADDREF, AddRef, VMCall_THISCALL);
+                asSFuncPtr* AddRef = VMBind::BindFunction(&Rest::Factory::AddRef);
+                int Result = SetBehaviourAddress("void f()", VMBehave_ADDREF, AddRef, VMCall_CDECL_OBJFIRST);
                 VMBind::ReleaseFunctor(&AddRef);
 
                 return Result;
@@ -1153,8 +1215,8 @@ namespace Tomahawk
             template <typename T>
             int SetRelease()
             {
-                asSFuncPtr* Release = VMBind::BindMethod<VMFactory<T>>(&VMFactory<T>::___Release___);
-                int Result = SetBehaviourAddress("void f()", VMBehave_RELEASE, Release, VMCall_THISCALL);
+                asSFuncPtr* Release = VMBind::BindFunction(&Rest::Factory::Release);
+                int Result = SetBehaviourAddress("void f()", VMBehave_RELEASE, Release, VMCall_CDECL_OBJFIRST);
                 VMBind::ReleaseFunctor(&Release);
 
                 return Result;
@@ -1162,8 +1224,8 @@ namespace Tomahawk
             template <typename T>
             int SetGetRefCount()
             {
-                asSFuncPtr* GetRefCount = VMBind::BindMethod<VMFactory<T>>(&VMFactory<T>::___GetRefCount___);
-                int Result = SetBehaviourAddress("int f()", VMBehave_GETREFCOUNT, GetRefCount, VMCall_THISCALL);
+                asSFuncPtr* GetRefCount = VMBind::BindFunction(&Rest::Factory::GetRefCount);
+                int Result = SetBehaviourAddress("int f()", VMBehave_GETREFCOUNT, GetRefCount, VMCall_CDECL_OBJFIRST);
                 VMBind::ReleaseFunctor(&GetRefCount);
 
                 return Result;
@@ -1171,8 +1233,8 @@ namespace Tomahawk
             template <typename T>
             int SetSetGCFlag()
             {
-                asSFuncPtr* SetGCFlag = VMBind::BindMethod<VMFactory<T>>(&VMFactory<T>::___SetGCFlag___);
-                int Result = SetBehaviourAddress("void f()", VMBehave_SETGCFLAG, SetGCFlag, VMCall_THISCALL);
+                asSFuncPtr* SetGCFlag = VMBind::BindFunction(&Rest::Factory::SetFlag);
+                int Result = SetBehaviourAddress("void f()", VMBehave_SETGCFLAG, SetGCFlag, VMCall_CDECL_OBJFIRST);
                 VMBind::ReleaseFunctor(&SetGCFlag);
 
                 return Result;
@@ -1180,14 +1242,14 @@ namespace Tomahawk
             template <typename T>
             int SetGetGCFlag()
             {
-                asSFuncPtr* GetGCFlag = VMBind::BindMethod<VMFactory<T>>(&VMFactory<T>::___GetGCFlag___);
-                int Result = SetBehaviourAddress("bool f()", VMBehave_GETGCFLAG, GetGCFlag, VMCall_THISCALL);
+                asSFuncPtr* GetGCFlag = VMBind::BindFunction(&Rest::Factory::GetFlag);
+                int Result = SetBehaviourAddress("bool f()", VMBehave_GETGCFLAG, GetGCFlag, VMCall_CDECL_OBJFIRST);
                 VMBind::ReleaseFunctor(&GetGCFlag);
 
                 return Result;
             }
             template <typename T>
-            int SetManaged(void(VMFactory<T>::*EnumRefs)(VMCManager*), void(VMFactory<T>::*ReleaseRefs)(VMCManager*))
+            int SetManaged(void(T::*EnumRefs)(VMCManager*), void(T::*ReleaseRefs)(VMCManager*))
             {
                 int R = SetAddRef<T>();
                 if (R < 0)
@@ -1224,48 +1286,7 @@ namespace Tomahawk
 
                 return SetRelease<T>();
             }
-            template <typename T>
-            int SetEnumRefs(void(VMFactory<T>::*Value)(VMCManager*))
-            {
-                asSFuncPtr* EnumRefs = VMBind::BindMethod<VMFactory<T>>(Value);
-                int Result = SetBehaviourAddress("void f(int &in)", VMBehave_ENUMREFS, EnumRefs, VMCall_THISCALL);
-                VMBind::ReleaseFunctor(&EnumRefs);
-
-                return Result;
-            }
-            template <typename T>
-            int SetReleaseRefs(void(VMFactory<T>::*Value)(VMCManager*))
-            {
-                asSFuncPtr* ReleaseRefs = VMBind::BindMethod<VMFactory<T>>(Value);
-                int Result = SetBehaviourAddress("void f(int &in)", VMBehave_RELEASEREFS, ReleaseRefs, VMCall_THISCALL);
-                VMBind::ReleaseFunctor(&ReleaseRefs);
-
-                return Result;
-            }
-            template <typename T, typename R>
-            int SetProperty(const char* Decl, R VMFactory<T>::*Value)
-            {
-                return SetPropertyAddress(Decl, reinterpret_cast<std::size_t>(&(((VMFactory<T>*)0)->*Value)));
-            }
-            template <typename T, typename R, typename... Args>
-            int SetOperator(const char* Decl, R(T::*Value)(Args...))
-            {
-                asSFuncPtr* Ptr = VMBind::BindMethodOp<VMFactory<T>, R, Args...>(Value);
-                int Result = SetOperatorAddress(Decl, Ptr, VMCall_THISCALL);
-                VMBind::ReleaseFunctor(&Ptr);
-
-                return Result;
-            }
-            template <typename T, typename R, typename... Args>
-            int SetMethod(const char* Decl, R(T::*Value)(Args...))
-            {
-                asSFuncPtr* Ptr = VMBind::BindMethod<VMFactory<T>, R, Args...>(Value);
-                int Result = SetMethodAddress(Decl, Ptr, VMCall_THISCALL);
-                VMBind::ReleaseFunctor(&Ptr);
-
-                return Result;
-            };
-        };
+		};
 
         struct THAWK_OUT VMWTypeClass : public VMWClass
         {
@@ -1307,47 +1328,6 @@ namespace Tomahawk
             {
                 asSFuncPtr* Ptr = VMBind::BindDestructor<T>();
                 int Result = SetDestructorAddress(Decl, Ptr);
-                VMBind::ReleaseFunctor(&Ptr);
-
-                return Result;
-            }
-            template <typename T>
-            int SetEnumRefs(void(T::*Value)(VMCManager*))
-            {
-                asSFuncPtr* EnumRefs = VMBind::BindMethod<T>(Value);
-                int Result = SetBehaviourAddress("void f(int &in)", VMBehave_ENUMREFS, EnumRefs, VMCall_THISCALL);
-                VMBind::ReleaseFunctor(&EnumRefs);
-
-                return Result;
-            }
-            template <typename T>
-            int SetReleaseRefs(void(T::*Value)(VMCManager*))
-            {
-                asSFuncPtr* ReleaseRefs = VMBind::BindMethod<T>(Value);
-                int Result = SetBehaviourAddress("void f(int &in)", VMBehave_RELEASEREFS, ReleaseRefs, VMCall_THISCALL);
-                VMBind::ReleaseFunctor(&ReleaseRefs);
-
-                return Result;
-            }
-            template <typename T, typename R>
-            int SetProperty(const char* Decl, R T::*Value)
-            {
-                return SetPropertyAddress(Decl, reinterpret_cast<std::size_t>(&(((T*)0)->*Value)));
-            }
-            template <typename T, typename R, typename... Args>
-            int SetOperator(const char* Decl, R(T::*Value)(Args...))
-            {
-                asSFuncPtr* Ptr = VMBind::BindMethodOp<T, R, Args...>(Value);
-                int Result = SetOperatorAddress(Decl, Ptr, VMCall_THISCALL);
-                VMBind::ReleaseFunctor(&Ptr);
-
-                return Result;
-            }
-            template <typename T, typename R, typename... Args>
-            int SetMethod(const char* Decl, R(T::*Value)(Args...))
-            {
-                asSFuncPtr* Ptr = VMBind::BindMethod<T, R, Args...>(Value);
-                int Result = SetMethodAddress(Decl, Ptr, VMCall_THISCALL);
                 VMBind::ReleaseFunctor(&Ptr);
 
                 return Result;
@@ -1484,14 +1464,14 @@ namespace Tomahawk
                 if (Index < 0)
                     return Index;
 
-                VMFactory<T>** Address = (VMFactory<T>**)GetAddressOfProperty(Index);
+                T** Address = (T**)GetAddressOfProperty(Index);
                 if (!Address)
                     return -1;
 
                 if (*Address != nullptr)
                     (*Address)->Release();
 
-                *Address = (VMFactory<T>*)Value;
+                *Address = (T*)Value;
                 if (*Address != nullptr)
                     (*Address)->AddRef();
 
@@ -1565,7 +1545,7 @@ namespace Tomahawk
                 return SetPropertyAddress(Decl, (void*)Value);
             }
             template <typename T>
-            VMWRefClass SetClassManaged(const char* Name, void(VMFactory<T>::*EnumRefs)(VMCManager*), void(VMFactory<T>::*ReleaseRefs)(VMCManager*))
+            VMWRefClass SetClassManaged(const char* Name, void(T::*EnumRefs)(VMCManager*), void(T::*ReleaseRefs)(VMCManager*))
             {
                 VMWRefClass Class = SetClassAddress(Name, VMObjType_REF | VMObjType_GC);
                 Class.SetManaged<T>(EnumRefs, ReleaseRefs);
@@ -1581,10 +1561,10 @@ namespace Tomahawk
                 return Class;
             }
             template <typename T>
-            VMWTypeClass SetStructManaged(const char* Name, void(T::*EnumRefs)(VMCManager*), void(T::*ReleaseRefs)(VMCManager*))
+            VMWTypeClass SetStructManaged(const char* Name, void(T::*EnumRefs)(VMCManager*), void(*ReleaseRefs)(VMCManager*))
             {
                 VMWTypeClass Struct = SetStructAddress(Name, sizeof(T), VMObjType_VALUE | VMObjType_GC | VMBind::GetTypeTraits<T>());
-                Struct.SetEnumRefs(EnumRefs);
+				Struct.SetEnumRefs(EnumRefs);
                 Struct.SetReleaseRefs(ReleaseRefs);
 
                 return Struct;
@@ -1592,12 +1572,15 @@ namespace Tomahawk
             template <typename T>
             VMWTypeClass SetStructUnmanaged(const char* Name)
             {
-                return SetStructAddress(Name, sizeof(T), VMObjType_VALUE | VMBind::GetTypeTraits<T>());
+                VMWTypeClass Struct = SetStructAddress(Name, sizeof(T), VMObjType_VALUE | VMBind::GetTypeTraits<T>());
+				Struct.SetOperatorCopy<T>();
+
+				return Struct;
             }
             template <typename T>
             VMWTypeClass SetPod(const char* Name)
             {
-                return SetPodAddress(Name, sizeof(T), VMObjType_VALUE | VMObjType_POD);
+                return SetPodAddress(Name, sizeof(T), VMObjType_VALUE | VMObjType_POD | VMBind::GetTypeTraits<T>());
             }
         };
 
@@ -1719,11 +1702,6 @@ namespace Tomahawk
             {
                 return SetArgObjectAddress(Arg, (void*)Object);
             }
-			template <typename T>
-			int SetArgFactory(unsigned int Arg, T* Object)
-			{
-				return SetArgObjectAddress(Arg, (void*)(VMFactory<T>*)Object);
-			}
             template <typename T>
             int SetArgAny(unsigned int Arg, T* Object, int TypeId)
             {
@@ -1734,11 +1712,6 @@ namespace Tomahawk
             {
                 return (T*)GetReturnObjectAddress(Arg);
             }
-			template <typename T>
-			VMFactory<T>* GetReturnFactory(unsigned int Arg)
-			{
-				return (VMFactory<T>*)GetReturnObjectAddress(Arg);
-			}
 
         public:
             static VMContext* Get(VMCContext* Context);
@@ -1833,6 +1806,7 @@ namespace Tomahawk
             static VMManager* Get(VMCManager* Engine);
             static VMManager* Get();
             static size_t GetDefaultAccessMask();
+			static void FreeProxy();
 
         private:
             static VMCContext* RequestContext(VMCManager* Engine, void* Data);

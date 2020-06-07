@@ -34,7 +34,7 @@ namespace Tomahawk
 				if ((CV = Node->Find("shape")) != nullptr)
 				{
 					std::string Path;
-					UInt64 Type;
+					uint64_t Type;
 					if (NMake::Unpack(Node->Find("path"), &Path))
 					{
 						auto* Shape = Content->Load<Compute::UnmanagedShape>(Path, nullptr);
@@ -62,7 +62,7 @@ namespace Tomahawk
 				if (!Instance)
 					return;
 
-				UInt64 ActivationState;
+				uint64_t ActivationState;
 				if (NMake::Unpack(Node->Find("activation-state"), &ActivationState))
 					Instance->SetActivationState((Compute::MotionState)ActivationState);
 
@@ -146,7 +146,7 @@ namespace Tomahawk
 				if (NMake::Unpack(Node->Find("linear-velocity"), &LinearVelocity))
 					Instance->SetLinearVelocity(LinearVelocity);
 
-				UInt64 CollisionFlags;
+				uint64_t CollisionFlags;
 				if (NMake::Unpack(Node->Find("collision-flags"), &CollisionFlags))
 					Instance->SetCollisionFlags(CollisionFlags);
 			}
@@ -170,11 +170,11 @@ namespace Tomahawk
 						NMake::Pack(CV->SetDocument("path"), Asset->Path);
 				}
 				else
-					NMake::Pack(CV->SetDocument("type"), (UInt64)Instance->GetCollisionShapeType());
+					NMake::Pack(CV->SetDocument("type"), (uint64_t)Instance->GetCollisionShapeType());
 
 				NMake::Pack(Node->SetDocument("mass"), Instance->GetMass());
 				NMake::Pack(Node->SetDocument("ccd-motion-threshold"), Instance->GetCcdMotionThreshold());
-				NMake::Pack(Node->SetDocument("activation-state"), (UInt64)Instance->GetActivationState());
+				NMake::Pack(Node->SetDocument("activation-state"), (uint64_t)Instance->GetActivationState());
 				NMake::Pack(Node->SetDocument("angular-damping"), Instance->GetAngularDamping());
 				NMake::Pack(Node->SetDocument("angular-sleeping-threshold"), Instance->GetAngularSleepingThreshold());
 				NMake::Pack(Node->SetDocument("friction"), Instance->GetFriction());
@@ -195,7 +195,7 @@ namespace Tomahawk
 				NMake::Pack(Node->SetDocument("gravity"), Instance->GetGravity());
 				NMake::Pack(Node->SetDocument("linear-factor"), Instance->GetLinearFactor());
 				NMake::Pack(Node->SetDocument("linear-velocity"), Instance->GetLinearVelocity());
-				NMake::Pack(Node->SetDocument("collision-flags"), (UInt64)Instance->GetCollisionFlags());
+				NMake::Pack(Node->SetDocument("collision-flags"), (uint64_t)Instance->GetCollisionFlags());
 			}
 			void RigidBody::OnSynchronize(Rest::Timer* Time)
 			{
@@ -418,14 +418,14 @@ namespace Tomahawk
 					NMake::Unpack(Conf->Get("c-it"), &I.CIterations);
 					NMake::Unpack(Conf->Get("collisions"), &I.Collisions);
 
-					UInt64 AeroModel;
+					uint64_t AeroModel;
 					if (NMake::Unpack(Conf->Get("aero-model"), &AeroModel))
 						I.AeroModel = (Compute::SoftAeroModel)AeroModel;
 
 					Instance->SetConfig(I);
 				}
 
-				UInt64 ActivationState;
+				uint64_t ActivationState;
 				if (NMake::Unpack(Node->Find("activation-state"), &ActivationState))
 					Instance->SetActivationState((Compute::MotionState)ActivationState);
 
@@ -508,7 +508,7 @@ namespace Tomahawk
 
 				Compute::SoftBody::Desc& I = Instance->GetInitialState();
 				Rest::Document* Conf = Node->SetDocument("config");
-				NMake::Pack(Conf->SetDocument("aero-model"), (UInt64)I.Config.AeroModel);
+				NMake::Pack(Conf->SetDocument("aero-model"), (uint64_t)I.Config.AeroModel);
 				NMake::Pack(Conf->SetDocument("vcf"), I.Config.VCF);
 				NMake::Pack(Conf->SetDocument("dp"), I.Config.DP);
 				NMake::Pack(Conf->SetDocument("dg"), I.Config.DG);
@@ -583,7 +583,7 @@ namespace Tomahawk
 				}
 
 				NMake::Pack(Node->SetDocument("ccd-motion-threshold"), Instance->GetCcdMotionThreshold());
-				NMake::Pack(Node->SetDocument("activation-state"), (UInt64)Instance->GetActivationState());
+				NMake::Pack(Node->SetDocument("activation-state"), (uint64_t)Instance->GetActivationState());
 				NMake::Pack(Node->SetDocument("friction"), Instance->GetFriction());
 				NMake::Pack(Node->SetDocument("restitution"), Instance->GetRestitution());
 				NMake::Pack(Node->SetDocument("hit-fraction"), Instance->GetHitFraction());
@@ -597,7 +597,7 @@ namespace Tomahawk
 				NMake::Pack(Node->SetDocument("angular-velocity"), Instance->GetAngularVelocity());
 				NMake::Pack(Node->SetDocument("anisotropic-friction"), Instance->GetAnisotropicFriction());
 				NMake::Pack(Node->SetDocument("linear-velocity"), Instance->GetLinearVelocity());
-				NMake::Pack(Node->SetDocument("collision-flags"), (UInt64)Instance->GetCollisionFlags());
+				NMake::Pack(Node->SetDocument("collision-flags"), (uint64_t)Instance->GetCollisionFlags());
 				NMake::Pack(Node->SetDocument("wind-velocity"), Instance->GetWindVelocity());
 				NMake::Pack(Node->SetDocument("total-mass"), Instance->GetTotalMass());
 				NMake::Pack(Node->SetDocument("rest-length-scale"), Instance->GetRestLengthScale());
@@ -930,7 +930,7 @@ namespace Tomahawk
 				if (!Extended)
 					return;
 
-				UInt64 Index;
+				uint64_t Index;
 				if (NMake::Unpack(Node->Find("connection"), &Index))
 				{
 					if (Parent->GetScene()->HasEntity(Index) != -1)
@@ -1069,7 +1069,7 @@ namespace Tomahawk
 
 				NMake::Pack(Node->SetDocument("collision-state"), Instance->GetInitialState().UseCollisions);
 				NMake::Pack(Node->SetDocument("linear-power-state"), Instance->GetInitialState().UseLinearPower);
-				NMake::Pack(Node->SetDocument("connection"), (UInt64)(Connection ? Connection->Self : -1));
+				NMake::Pack(Node->SetDocument("connection"), (uint64_t)(Connection ? Connection->Self : -1));
 				NMake::Pack(Node->SetDocument("angular-motor-velocity"), Instance->GetAngularMotorVelocity());
 				NMake::Pack(Node->SetDocument("linear-motor-velocity"), Instance->GetLinearMotorVelocity());
 				NMake::Pack(Node->SetDocument("upper-linear-limit"), Instance->GetUpperLinearLimit());
@@ -1428,7 +1428,7 @@ namespace Tomahawk
 					State.Time = 0.0f;
 				}
 			}
-			void SkinAnimator::BlendAnimation(Int64 Clip, Int64 Frame_)
+			void SkinAnimator::BlendAnimation(int64_t Clip, int64_t Frame_)
 			{
 				State.Blended = true;
 				State.Time = 0.0f;
@@ -1467,7 +1467,7 @@ namespace Tomahawk
 			{
 				State.Paused = true;
 			}
-			void SkinAnimator::Play(Int64 Clip, Int64 Frame_)
+			void SkinAnimator::Play(int64_t Clip, int64_t Frame_)
 			{
 				if (State.Paused)
 				{
@@ -1493,7 +1493,7 @@ namespace Tomahawk
 				if (!IsPosed(State.Clip, State.Frame))
 					BlendAnimation(State.Clip, State.Frame);
 			}
-			bool SkinAnimator::IsPosed(Int64 Clip, Int64 Frame_)
+			bool SkinAnimator::IsPosed(int64_t Clip, int64_t Frame_)
 			{
 				std::vector<Compute::AnimatorKey>* Key = GetFrame(Clip, Frame_);
 				if (!Key)
@@ -1512,14 +1512,14 @@ namespace Tomahawk
 
 				return true;
 			}
-			std::vector<Compute::AnimatorKey>* SkinAnimator::GetFrame(Int64 Clip, Int64 Frame)
+			std::vector<Compute::AnimatorKey>* SkinAnimator::GetFrame(int64_t Clip, int64_t Frame)
 			{
 				if (Clip < 0 || Clip >= Clips.size() || Frame < 0 || Frame >= Clips[Clip].Keys.size())
 					return nullptr;
 
 				return &Clips[Clip].Keys[Frame];
 			}
-			std::vector<std::vector<Compute::AnimatorKey>>* SkinAnimator::GetClip(Int64 Clip)
+			std::vector<std::vector<Compute::AnimatorKey>>* SkinAnimator::GetClip(int64_t Clip)
 			{
 				if (Clip < 0 || Clip >= Clips.size())
 					return nullptr;
@@ -1612,7 +1612,7 @@ namespace Tomahawk
 					State.Time = 0.0f;
 				}
 			}
-			void KeyAnimator::BlendAnimation(Int64 Clip, Int64 Frame_)
+			void KeyAnimator::BlendAnimation(int64_t Clip, int64_t Frame_)
 			{
 				State.Blended = true;
 				State.Time = 0.0f;
@@ -1643,7 +1643,7 @@ namespace Tomahawk
 			{
 				State.Paused = true;
 			}
-			void KeyAnimator::Play(Int64 Clip, Int64 Frame_)
+			void KeyAnimator::Play(int64_t Clip, int64_t Frame_)
 			{
 				if (State.Paused)
 				{
@@ -1669,7 +1669,7 @@ namespace Tomahawk
 				if (!IsPosed(State.Clip, State.Frame))
 					BlendAnimation(State.Clip, State.Frame);
 			}
-			bool KeyAnimator::IsPosed(Int64 Clip, Int64 Frame_)
+			bool KeyAnimator::IsPosed(int64_t Clip, int64_t Frame_)
 			{
 				Compute::AnimatorKey* Key = GetFrame(Clip, Frame_);
 				if (!Key)
@@ -1677,14 +1677,14 @@ namespace Tomahawk
 
 				return *Parent->Transform->GetLocalPosition() == Key->Position && *Parent->Transform->GetLocalRotation() == Key->Rotation && *Parent->Transform->GetLocalScale() == Key->Scale;
 			}
-			Compute::AnimatorKey* KeyAnimator::GetFrame(Int64 Clip, Int64 Frame)
+			Compute::AnimatorKey* KeyAnimator::GetFrame(int64_t Clip, int64_t Frame)
 			{
 				if (Clip < 0 || Clip >= Clips.size() || Frame < 0 || Frame >= Clips[Clip].Keys.size())
 					return nullptr;
 
 				return &Clips[Clip].Keys[Frame];
 			}
-			std::vector<Compute::AnimatorKey>* KeyAnimator::GetClip(Int64 Clip)
+			std::vector<Compute::AnimatorKey>* KeyAnimator::GetClip(int64_t Clip)
 			{
 				if (Clip < 0 || Clip >= Clips.size())
 					return nullptr;
@@ -1746,7 +1746,7 @@ namespace Tomahawk
 				NMake::Unpack(Node->Find("volume"), &Volume);
 				NMake::Unpack(Node->Find("material"), &Material);
 
-				UInt64 Limit;
+				uint64_t Limit;
 				if (!NMake::Unpack(Node->Find("limit"), &Limit))
 				{
 					std::vector<Compute::ElementVertex> Vertices;
@@ -2181,7 +2181,7 @@ namespace Tomahawk
 				if (!Value->Is<Graphics::Material>())
 					return;
 
-				UInt64 Material = (UInt64)Value->Get<Graphics::Material>()->Self;
+				uint64_t Material = (uint64_t)Value->Get<Graphics::Material>()->Self;
 				for (auto&& Surface : Surfaces)
 				{
 					if (Surface.second.Material == Material)
@@ -2269,7 +2269,7 @@ namespace Tomahawk
 				std::vector<Rest::Document*> Poses = Node->FindCollectionPath("poses.pose");
 				for (auto&& Pose : Poses)
 				{
-					Int64 Index;
+					int64_t Index;
 					NMake::Unpack(Pose->Find("[index]"), &Index);
 
 					Compute::Matrix4x4 Matrix;
@@ -2342,7 +2342,7 @@ namespace Tomahawk
 				if (!Value->Is<Graphics::Material>())
 					return;
 
-				UInt64 Material = (UInt64)Value->Get<Graphics::Material>()->Self;
+				uint64_t Material = (uint64_t)Value->Get<Graphics::Material>()->Self;
 				for (auto&& Surface : Surfaces)
 				{
 					if (Surface.second.Material == Material)
@@ -2664,8 +2664,8 @@ namespace Tomahawk
 				NMake::Unpack(Node->Find("image-based"), &ImageBased);
 				NMake::Unpack(Node->Find("parallax-corrected"), &ParallaxCorrected);
 
-				Int64 Count = Compute::Math<Int64>::Min((Int64)Views.size(), 6);
-				for (Int64 i = 0; i < Count; i++)
+				int64_t Count = Compute::Math<int64_t>::Min((int64_t)Views.size(), 6);
+				for (int64_t i = 0; i < Count; i++)
 					View[i] = Views[i];
 
 				if (ImageBased)
@@ -2698,7 +2698,7 @@ namespace Tomahawk
 					NMake::Pack(Node->SetDocument("diffuse-nz"), Asset->Path);
 
 				std::vector<Compute::Matrix4x4> Views;
-				for (Int64 i = 0; i < 6; i++)
+				for (int64_t i = 0; i < 6; i++)
 					Views.push_back(View[i]);
 
 				NMake::Pack(Node->SetDocument("view"), Views);
@@ -2810,7 +2810,7 @@ namespace Tomahawk
 
 				for (auto& Render : Renderers)
 				{
-					UInt64 RendererId;
+					uint64_t RendererId;
 					NMake::Unpack(Render->Find("id"), &RendererId);
 					Engine::Renderer* Target = nullptr;
 

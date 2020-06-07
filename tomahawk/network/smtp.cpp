@@ -43,7 +43,7 @@ namespace Tomahawk
 	{
 		namespace SMTP
 		{
-			Client::Client(Int64 ReadTimeout) : SocketClient(ReadTimeout), AttachmentFile(nullptr), Authorized(false), Staging(false), Pending(false)
+			Client::Client(int64_t ReadTimeout) : SocketClient(ReadTimeout), AttachmentFile(nullptr), Authorized(false), Staging(false), Pending(false)
 			{
 				AutoCertify = false;
 			}
@@ -148,7 +148,7 @@ namespace Tomahawk
 				for (auto It = Request.BCCRecipients.begin(); It != Request.BCCRecipients.end(); It++)
 					Content.fAppend("RCPT TO: <%s>\r\n", It->Address.c_str());
 
-				return Stream.WriteAsync(Content.Get(), Content.Size(), [this](Socket*, Int64 Size)
+				return Stream.WriteAsync(Content.Get(), Content.Size(), [this](Socket*, int64_t Size)
 				{
 					if (Size < 0)
 						return Error("cannot write data to smtp server");
@@ -196,7 +196,7 @@ namespace Tomahawk
 							}
 
 							std::string Recipients;
-							for (UInt64 i = 0; i < Request.Recipients.size(); i++)
+							for (uint64_t i = 0; i < Request.Recipients.size(); i++)
 							{
 								if (i > 0)
 									Recipients += ',';
@@ -216,7 +216,7 @@ namespace Tomahawk
 							if (!Request.CCRecipients.empty())
 							{
 								Recipients.clear();
-								for (UInt64 i = 0; i < Request.CCRecipients.size(); i++)
+								for (uint64_t i = 0; i < Request.CCRecipients.size(); i++)
 								{
 									if (i > 0)
 										Recipients += ',';
@@ -237,7 +237,7 @@ namespace Tomahawk
 							if (!Request.BCCRecipients.empty())
 							{
 								Recipients.clear();
-								for (UInt64 i = 0; i < Request.BCCRecipients.size(); i++)
+								for (uint64_t i = 0; i < Request.BCCRecipients.size(); i++)
 								{
 									if (i > 0)
 										Recipients += ',';
@@ -268,7 +268,7 @@ namespace Tomahawk
 								Content.fAppend("Content-type: text/plain; charset=\"%s\"\r\n", Request.Charset.c_str());
 
 							Content.Append("Content-Transfer-Encoding: 7bit\r\n\r\n");
-							Stream.WriteAsync(Content.Get(), Content.Size(), [this](Socket*, Int64 Size)
+							Stream.WriteAsync(Content.Get(), Content.Size(), [this](Socket*, int64_t Size)
 							{
 								if (Size < 0)
 									return Error("smtp socket write %s", (Size == -2 ? "timeout" : "error"));
@@ -282,7 +282,7 @@ namespace Tomahawk
 								if (Request.Messages.empty())
 									Content.Assign(" \r\n");
 
-								return !Stream.WriteAsync(Content.Get(), Content.Size(), [this](Socket*, Int64 Size)
+								return !Stream.WriteAsync(Content.Get(), Content.Size(), [this](Socket*, int64_t Size)
 								{
 									if (Size < 0)
 										return Error("smtp socket write %s", (Size == -2 ? "timeout" : "error"));
@@ -315,7 +315,7 @@ namespace Tomahawk
 			bool Client::ReadResponse(int Code, const ReplyCallback& Callback)
 			{
 				Command.clear();
-				return Stream.ReadUntilAsync("\r\n", [this, Callback, Code](Socket*, const char* Data, Int64 Size)
+				return Stream.ReadUntilAsync("\r\n", [this, Callback, Code](Socket*, const char* Data, int64_t Size)
 				{
 					if (Data != nullptr && Size > 0)
 					{
@@ -344,7 +344,7 @@ namespace Tomahawk
 			}
 			bool Client::SendRequest(int Code, const std::string& Content, const ReplyCallback& Callback)
 			{
-				return Stream.WriteAsync(Content.c_str(), Content.size(), [this, Callback, Code](Socket*, Int64 Size)
+				return Stream.WriteAsync(Content.c_str(), Content.size(), [this, Callback, Code](Socket*, int64_t Size)
 				{
 					if (Size < 0)
 						return Error("cannot write data to smtp server");
@@ -359,11 +359,11 @@ namespace Tomahawk
 				if (Keyword == nullptr)
 					return false;
 
-				UInt64 L1 = Buffer.size(), L2 = strlen(Keyword);
+				uint64_t L1 = Buffer.size(), L2 = strlen(Keyword);
 				if (L1 < L2)
 					return false;
 
-				for (UInt64 i = 0; i < L1 - L2 + 1; i++)
+				for (uint64_t i = 0; i < L1 - L2 + 1; i++)
 				{
 #ifdef THAWK_MICROSOFT
 					if (_strnicmp(Keyword, Buffer.c_str() + i, (size_t)L2) || !i)
@@ -426,7 +426,7 @@ namespace Tomahawk
 					std::string Hash = Rest::Form("%s^%s^%s", Request.Login.c_str(), Request.Login.c_str(), Request.Password.c_str()).R();
 					char* Escape = (char*)Hash.c_str();
 
-					for (UInt64 i = 0; i < Hash.size(); i++)
+					for (uint64_t i = 0; i < Hash.size(); i++)
 					{
 						if (Escape[i] == 94)
 							Escape[i] = 0;
@@ -454,7 +454,7 @@ namespace Tomahawk
 							return (void)Error("smtp password cannot be used");
 						}
 
-						UInt64 PasswordLength = Request.Password.size();
+						uint64_t PasswordLength = Request.Password.size();
 						if (PasswordLength > 64)
 						{
 							Compute::MD5Hasher PasswordMD5;
@@ -472,7 +472,7 @@ namespace Tomahawk
 						memcpy(IPad, UserPassword, (size_t)PasswordLength);
 						memcpy(OPad, UserPassword, (size_t)PasswordLength);
 
-						for (UInt64 i = 0; i < 64; i++)
+						for (uint64_t i = 0; i < 64; i++)
 						{
 							IPad[i] ^= 0x36;
 							OPad[i] ^= 0x5c;
@@ -656,7 +656,7 @@ namespace Tomahawk
 						Content.fAppend("\r\n--%s--\r\n", Boundary.c_str());
 
 					Content.Append("\r\n.\r\n");
-					return !Stream.WriteAsync(Content.Get(), Content.Size(), [this](Socket*, Int64 Size)
+					return !Stream.WriteAsync(Content.Get(), Content.Size(), [this](Socket*, int64_t Size)
 					{
 						if (Size < 0)
 							return Error("cannot send finish request");
@@ -669,7 +669,7 @@ namespace Tomahawk
 
 				Attachment& It = Request.Attachments.at(Request.Attachments.size() - Pending);
 				const char* Name = It.Path.c_str();
-				UInt64 Id = strlen(Name) - 1;
+				uint64_t Id = strlen(Name) - 1;
 
 				if (Id > 0 && (Name[Id] == '\\' || Name[Id] == '/'))
 					Name = Name - 1;
@@ -681,7 +681,7 @@ namespace Tomahawk
 				Content.fAppend("Content-Transfer-Encoding: base64\r\n");
 				Content.fAppend("Content-Disposition: attachment; filename=\"%s\"\r\n\r\n", Hash.c_str());
 
-				return Stream.WriteAsync(Content.Get(), Content.Size(), [this, Name](Socket*, Int64 Size)
+				return Stream.WriteAsync(Content.Get(), Content.Size(), [this, Name](Socket*, int64_t Size)
 				{
 					if (Size < 0)
 						return Error("cannot send attachment headers request");
@@ -699,7 +699,7 @@ namespace Tomahawk
 			{
 				Attachment& It = Request.Attachments.at(Request.Attachments.size() - Pending);
 				char Data[8192];
-				Int64 Size = fread(Data, sizeof(char), It.Length > 8192 ? 8192 : It.Length, AttachmentFile);
+				int64_t Size = fread(Data, sizeof(char), It.Length > 8192 ? 8192 : It.Length, AttachmentFile);
 				if (Size == -1)
 					return Error("cannot read attachment block from %s", It.Path.c_str());
 
@@ -711,7 +711,7 @@ namespace Tomahawk
 					fclose(AttachmentFile);
 
 				bool Sent = (It.Length <= 0);
-				return Stream.WriteAsync(Content.c_str(), Content.size(), [this, Sent](Socket*, Int64 Size)
+				return Stream.WriteAsync(Content.c_str(), Content.size(), [this, Sent](Socket*, int64_t Size)
 				{
 					if (Size < 0)
 						return Error("cannot send attachment block request");
@@ -723,10 +723,10 @@ namespace Tomahawk
 			}
 			unsigned char* Client::Unicode(const char* String)
 			{
-				UInt64 Length = strlen(String);
+				uint64_t Length = strlen(String);
 				auto Output = (unsigned char*)malloc(sizeof(unsigned char) * (size_t)(Length + 1));
 
-				for (UInt64 i = 0; i < Length; i++)
+				for (uint64_t i = 0; i < Length; i++)
 					Output[i] = (unsigned char)String[i];
 
 				Output[Length] = '\0';

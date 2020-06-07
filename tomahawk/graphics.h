@@ -911,7 +911,7 @@ namespace Tomahawk
 			bool DepthEnable;
 			bool StencilEnable;
 			void* Pointer;
-			UInt64 Index;
+			uint64_t Index;
 		};
 
 		struct THAWK_OUT RasterizerState
@@ -927,7 +927,7 @@ namespace Tomahawk
 			bool MultisampleEnable;
 			bool AntialiasedLineEnable;
 			void* Pointer;
-			UInt64 Index;
+			uint64_t Index;
 		};
 
 		struct THAWK_OUT BlendState
@@ -936,7 +936,7 @@ namespace Tomahawk
 			bool AlphaToCoverageEnable;
 			bool IndependentBlendEnable;
 			void* Pointer;
-			UInt64 Index;
+			uint64_t Index;
 		};
 
 		struct THAWK_OUT SamplerState
@@ -952,7 +952,7 @@ namespace Tomahawk
 			float MinLOD;
 			float MaxLOD;
 			void* Pointer;
-			UInt64 Index;
+			uint64_t Index;
 		};
 
 		struct THAWK_OUT AnimationBuffer
@@ -981,12 +981,12 @@ namespace Tomahawk
 
 		struct THAWK_OUT PoseBuffer
 		{
-			std::unordered_map<Int64, Compute::Matrix4x4> Pose;
+			std::unordered_map<int64_t, Compute::Matrix4x4> Pose;
 			Compute::Matrix4x4 Transform[96];
 
 			bool Reset(class SkinnedModel* Model);
 			bool ResetKeys(class SkinnedModel* Model, std::vector<Compute::AnimatorKey>* Keys);
-			Compute::Matrix4x4 Offset(Int64 Index);
+			Compute::Matrix4x4 Offset(int64_t Index);
 
 		private:
 			void SetJoint(Compute::Joint* Root);
@@ -1042,7 +1042,7 @@ namespace Tomahawk
 				Compute::Preprocessor::Desc Features;
 				std::vector<std::string> Defines;
 				InputLayout* Layout = nullptr;
-				UInt64 LayoutSize = 0;
+				uint64_t LayoutSize = 0;
 				std::string Filename;
 				std::string Data;
 			};
@@ -1089,7 +1089,7 @@ namespace Tomahawk
 			};
 
 		protected:
-			UInt64 Elements;
+			uint64_t Elements;
 
 		protected:
 			ElementBuffer(GraphicsDevice* Device, const Desc& I);
@@ -1101,7 +1101,7 @@ namespace Tomahawk
 			virtual void Map(GraphicsDevice* Device, ResourceMap Mode, MappedSubresource* Map) = 0;
 			virtual void Unmap(GraphicsDevice* Device, MappedSubresource* Map) = 0;
 			virtual void* GetResource() = 0;
-			UInt64 GetElements();
+			uint64_t GetElements();
 
 		public:
 			static ElementBuffer* Create(GraphicsDevice* Device, const Desc& I);
@@ -1121,20 +1121,20 @@ namespace Tomahawk
 			};
 
 		protected:
-			UInt64 Elements;
+			uint64_t Elements;
 
 		protected:
 			StructureBuffer(GraphicsDevice* Device, const Desc& I);
 
 		public:
 			virtual ~StructureBuffer() = default;
-			virtual void RemapSubresource(GraphicsDevice* Device, void* Pointer, UInt64 Size) = 0;
+			virtual void RemapSubresource(GraphicsDevice* Device, void* Pointer, uint64_t Size) = 0;
 			virtual void Map(GraphicsDevice* Device, ResourceMap Mode, MappedSubresource* Map) = 0;
 			virtual void Unmap(GraphicsDevice* Device, MappedSubresource* Map) = 0;
 			virtual void SetBuffer(GraphicsDevice* Device, int Slot) = 0;
 			virtual void* GetElement() = 0;
 			virtual void* GetResource() = 0;
-			UInt64 GetElements();
+			uint64_t GetElements();
 
 		public:
 			static StructureBuffer* Create(GraphicsDevice* Device, const Desc& I);
@@ -1525,7 +1525,7 @@ namespace Tomahawk
 			void BuildSkeleton(PoseBuffer* Map);
 			SkinnedMesh* FindMesh(const std::string& Name);
 			Compute::Joint* FindJoint(const std::string& Name, Compute::Joint* Root = nullptr);
-			Compute::Joint* FindJoint(Int64 Index, Compute::Joint* Root = nullptr);
+			Compute::Joint* FindJoint(int64_t Index, Compute::Joint* Root = nullptr);
 
 		private:
 			void BuildSkeleton(PoseBuffer* Map, Compute::Joint* Root, const Compute::Matrix4x4& World);
@@ -1543,7 +1543,7 @@ namespace Tomahawk
 			Rest::Pool <Compute::ElementVertex> Array;
 			ElementBuffer* Elements;
 			GraphicsDevice* Device;
-			UInt64 ElementLimit;
+			uint64_t ElementLimit;
 
 		protected:
 			InstanceBuffer(GraphicsDevice* Device, const Desc& I);
@@ -1552,12 +1552,12 @@ namespace Tomahawk
 			virtual ~InstanceBuffer();
 			virtual void Update() = 0;
 			virtual void Restore() = 0;
-			virtual void Resize(UInt64 Size) = 0;
+			virtual void Resize(uint64_t Size) = 0;
 			virtual void SetResource(GraphicsDevice* Device, int Slot) = 0;
 			Rest::Pool <Compute::ElementVertex>* GetArray();
 			ElementBuffer* GetElements();
 			GraphicsDevice* GetDevice();
-			UInt64 GetElementLimit();
+			uint64_t GetElementLimit();
 
 		public:
 			static InstanceBuffer* Create(GraphicsDevice* Device, const Desc& I);
@@ -1577,7 +1577,7 @@ namespace Tomahawk
 			PrimitiveTopology Primitives;
 			std::vector<Vertex> Elements;
 			Texture2D* View;
-			UInt64 MaxElements;
+			uint64_t MaxElements;
 
 		public:
 			GraphicsDevice* Device;
@@ -1661,10 +1661,10 @@ namespace Tomahawk
 			virtual void RestoreState(DeviceState* RefState) = 0;
 			virtual void SetConstantBuffers() = 0;
 			virtual void SetShaderModel(ShaderModel RShaderModel) = 0;
-			virtual void SetSamplerState(UInt64 State) = 0;
-			virtual void SetBlendState(UInt64 State) = 0;
-			virtual void SetRasterizerState(UInt64 State) = 0;
-			virtual void SetDepthStencilState(UInt64 State) = 0;
+			virtual void SetSamplerState(uint64_t State) = 0;
+			virtual void SetBlendState(uint64_t State) = 0;
+			virtual void SetRasterizerState(uint64_t State) = 0;
+			virtual void SetDepthStencilState(uint64_t State) = 0;
 			virtual void UpdateBuffer(RenderBufferType Buffer) = 0;
 			virtual void Present() = 0;
 			virtual void SetPrimitiveTopology(PrimitiveTopology Topology) = 0;
@@ -1691,10 +1691,10 @@ namespace Tomahawk
 			virtual void GetScissorRect(unsigned int* Count, Rectangle* Out) = 0;
 			virtual PrimitiveTopology GetPrimitiveTopology() = 0;
 			virtual ShaderModel GetSupportedShaderModel() = 0;
-			virtual UInt64 AddDepthStencilState(DepthStencilState* In) = 0;
-			virtual UInt64 AddBlendState(BlendState* In) = 0;
-			virtual UInt64 AddRasterizerState(RasterizerState* In) = 0;
-			virtual UInt64 AddSamplerState(SamplerState* In) = 0;
+			virtual uint64_t AddDepthStencilState(DepthStencilState* In) = 0;
+			virtual uint64_t AddBlendState(BlendState* In) = 0;
+			virtual uint64_t AddRasterizerState(RasterizerState* In) = 0;
+			virtual uint64_t AddSamplerState(SamplerState* In) = 0;
 			virtual void* GetBackBuffer() = 0;
 			virtual void* GetBackBufferMSAA() = 0;
 			virtual void* GetBackBufferNoAA() = 0;
@@ -1709,10 +1709,10 @@ namespace Tomahawk
 			void Lock();
 			void Unlock();
 			void CreateRendererStates();
-			DepthStencilState* GetDepthStencilState(UInt64 State);
-			BlendState* GetBlendState(UInt64 State);
-			RasterizerState* GetRasterizerState(UInt64 State);
-			SamplerState* GetSamplerState(UInt64 State);
+			DepthStencilState* GetDepthStencilState(uint64_t State);
+			BlendState* GetBlendState(uint64_t State);
+			RasterizerState* GetRasterizerState(uint64_t State);
+			SamplerState* GetSamplerState(uint64_t State);
 			ShaderModel GetShaderModel();
 			RenderTarget2D* GetRenderTarget();
 			Shader* GetBasicEffect();
@@ -1721,10 +1721,10 @@ namespace Tomahawk
 			unsigned int GetCompilationFlags();
 			unsigned int GetMipLevelCount(unsigned int Width, unsigned int Height);
 			VSync GetVSyncMode();
-			UInt64 GetDepthStencilStateCount();
-			UInt64 GetBlendStateCount();
-			UInt64 GetRasterizerStateCount();
-			UInt64 GetSamplerStateCount();
+			uint64_t GetDepthStencilStateCount();
+			uint64_t GetBlendStateCount();
+			uint64_t GetRasterizerStateCount();
+			uint64_t GetSamplerStateCount();
 
 		protected:
 			virtual void LoadShaderSections() = 0;
@@ -1853,22 +1853,22 @@ namespace Tomahawk
 
 		inline ResourceMap operator |(ResourceMap A, ResourceMap B)
 		{
-			return static_cast<ResourceMap>(static_cast<UInt64>(A) | static_cast<UInt64>(B));
+			return static_cast<ResourceMap>(static_cast<uint64_t>(A) | static_cast<uint64_t>(B));
 		}
 
 		inline ShaderCompile operator |(ShaderCompile A, ShaderCompile B)
 		{
-			return static_cast<ShaderCompile>(static_cast<UInt64>(A) | static_cast<UInt64>(B));
+			return static_cast<ShaderCompile>(static_cast<uint64_t>(A) | static_cast<uint64_t>(B));
 		}
 
 		inline ResourceMisc operator |(ResourceMisc A, ResourceMisc B)
 		{
-			return static_cast<ResourceMisc>(static_cast<UInt64>(A) | static_cast<UInt64>(B));
+			return static_cast<ResourceMisc>(static_cast<uint64_t>(A) | static_cast<uint64_t>(B));
 		}
 
 		inline ResourceBind operator |(ResourceBind A, ResourceBind B)
 		{
-			return static_cast<ResourceBind>(static_cast<UInt64>(A) | static_cast<UInt64>(B));
+			return static_cast<ResourceBind>(static_cast<uint64_t>(A) | static_cast<uint64_t>(B));
 		}
 	}
 }

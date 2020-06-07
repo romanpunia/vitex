@@ -594,7 +594,7 @@ namespace Tomahawk
 					static bool InputInt2(const char* label, int v[2], int extra_flags = 0);
 					static bool InputInt3(const char* label, int v[3], int extra_flags = 0);
 					static bool InputInt4(const char* label, int v[4], int extra_flags = 0);
-					static bool InputDouble(const char* label, Float64* v, Float64 step = 0.0f, Float64 step_fast = 0.0f, const char* format = "%.6f", int extra_flags = 0);
+					static bool InputDouble(const char* label, double* v, double step = 0.0f, double step_fast = 0.0f, const char* format = "%.6f", int extra_flags = 0);
 					static bool InputScalar(const char* label, int data_type, void* v, const void* step = nullptr, const void* step_fast = nullptr, const char* format = nullptr, int extra_flags = 0);
 					static bool InputScalarN(const char* label, int data_type, void* v, int components, const void* step = nullptr, const void* step_fast = nullptr, const char* format = nullptr, int extra_flags = 0);
 					static bool ColorEdit3(const char* label, float col[3], int flags = 0);
@@ -686,7 +686,7 @@ namespace Tomahawk
 					static float GetTreeNodeToLabelSpacing();
 					static float GetColumnWidth(int column_index = -1);
 					static float GetColumnOffset(int column_index = -1);
-					static Float64 GetTime();
+					static double GetTime();
 					static unsigned int GetColorU32(int idx, float alpha_mul = 1.0f);
 					static unsigned int GetColorU32(Compute::Vector4 col);
 					static unsigned int GetColorU32(unsigned int col);
@@ -864,12 +864,12 @@ namespace Tomahawk
 					std::vector<Graphics::RenderTargetCube*> PointLight;
 					std::vector<Graphics::RenderTarget2D*> SpotLight;
 					std::vector<Graphics::RenderTarget2D*> LineLight;
-					UInt64 PointLightResolution = 256;
-					UInt64 PointLightLimits = 4;
-					UInt64 SpotLightResolution = 1024;
-					UInt64 SpotLightLimits = 16;
-					UInt64 LineLightResolution = 2048;
-					UInt64 LineLightLimits = 2;
+					uint64_t PointLightResolution = 256;
+					uint64_t PointLightLimits = 4;
+					uint64_t SpotLightResolution = 1024;
+					uint64_t SpotLightLimits = 16;
+					uint64_t LineLightResolution = 2048;
+					uint64_t LineLightLimits = 2;
 				} Renderers;
 
 			private:
@@ -896,12 +896,12 @@ namespace Tomahawk
 			{
 			private:
 				Rest::Pool<Engine::Component*>* ProbeLights = nullptr;
-				UInt64 Map;
+				uint64_t Map;
 
 			public:
 				Graphics::MultiRenderTarget2D* Surface = nullptr;
 				Graphics::Texture2D* Face = nullptr;
-				UInt64 Size, MipLevels;
+				uint64_t Size, MipLevels;
 
 			public:
 				ProbeRenderer(RenderSystem* Lab);
@@ -1314,7 +1314,7 @@ namespace Tomahawk
 				Graphics::Texture2D* Font;
 				GUI::RendererCallback Callback;
 				GUI::Interface Tree;
-				UInt64 Time, Frequency;
+				uint64_t Time, Frequency;
 				char* ClipboardTextData;
 				void* Context;
 				std::mutex Safe;

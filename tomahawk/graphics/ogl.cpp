@@ -93,7 +93,7 @@ namespace Tomahawk
 				Map->RowPitch = Size;
 				Map->DepthPitch = 1;
 			}
-			void OGLStructureBuffer::RemapSubresource(Graphics::GraphicsDevice* Device, void* Pointer, UInt64 Size)
+			void OGLStructureBuffer::RemapSubresource(Graphics::GraphicsDevice* Device, void* Pointer, uint64_t Size)
 			{
 				glBindBuffer(Bind, Resource);
 				glBufferData(GL_ARRAY_BUFFER, (GLsizeiptr)Size, Pointer, GL_DYNAMIC_DRAW);
@@ -495,7 +495,7 @@ namespace Tomahawk
 				F.Usage = I.Usage;
 				F.BindFlags = Graphics::ResourceBind_Index_Buffer;
 				F.ElementCount = (unsigned int)I.Indices.size();
-				F.ElementWidth = sizeof(UInt64);
+				F.ElementWidth = sizeof(uint64_t);
 				F.Elements = (void*)I.Indices.data();
 				F.UseSubresource = true;
 
@@ -541,7 +541,7 @@ namespace Tomahawk
 				F.Usage = I.Usage;
 				F.BindFlags = Graphics::ResourceBind_Index_Buffer;
 				F.ElementCount = (unsigned int)I.Indices.size();
-				F.ElementWidth = sizeof(UInt64);
+				F.ElementWidth = sizeof(uint64_t);
 				F.Elements = (void*)I.Indices.data();
 				F.UseSubresource = true;
 
@@ -594,7 +594,7 @@ namespace Tomahawk
 				else
 					SynchronizationState = false;
 			}
-			void OGLInstanceBuffer::Resize(UInt64 Size)
+			void OGLInstanceBuffer::Resize(uint64_t Size)
 			{
 				Restore();
 				delete Elements;
@@ -697,7 +697,7 @@ namespace Tomahawk
 			{
 				Buffer.WorldViewProjection = Buffer.WorldViewProjection * Input;
 			}
-			void OGLDirectBuffer::AllocVertexBuffer(UInt64 Size)
+			void OGLDirectBuffer::AllocVertexBuffer(uint64_t Size)
 			{
 				MaxElements = Size;
 			}
@@ -915,7 +915,7 @@ namespace Tomahawk
 				else
 					SetShaderModel(Graphics::ShaderModel_GLSL_1_1_0);
 			}
-			UInt64 OGLDevice::AddDepthStencilState(Graphics::DepthStencilState* In)
+			uint64_t OGLDevice::AddDepthStencilState(Graphics::DepthStencilState* In)
 			{
 				if (!In)
 					return 0;
@@ -924,7 +924,7 @@ namespace Tomahawk
 				DepthStencilStates.push_back(In);
 				return DepthStencilStates.size() - 1;
 			}
-			UInt64 OGLDevice::AddBlendState(Graphics::BlendState* In)
+			uint64_t OGLDevice::AddBlendState(Graphics::BlendState* In)
 			{
 				if (!In)
 					return 0;
@@ -933,7 +933,7 @@ namespace Tomahawk
 				BlendStates.push_back(In);
 				return BlendStates.size() - 1;
 			}
-			UInt64 OGLDevice::AddRasterizerState(Graphics::RasterizerState* In)
+			uint64_t OGLDevice::AddRasterizerState(Graphics::RasterizerState* In)
 			{
 				if (!In)
 					return 0;
@@ -942,7 +942,7 @@ namespace Tomahawk
 				RasterizerStates.push_back(In);
 				return RasterizerStates.size() - 1;
 			}
-			UInt64 OGLDevice::AddSamplerState(Graphics::SamplerState* In)
+			uint64_t OGLDevice::AddSamplerState(Graphics::SamplerState* In)
 			{
 				if (!In)
 					return 0;
@@ -973,11 +973,11 @@ namespace Tomahawk
 				SamplerStates.push_back(In);
 				return SamplerStates.size() - 1;
 			}
-			void OGLDevice::SetSamplerState(UInt64 State)
+			void OGLDevice::SetSamplerState(uint64_t State)
 			{
 				glBindSampler(0, (GLuint)State);
 			}
-			void OGLDevice::SetBlendState(UInt64 State)
+			void OGLDevice::SetBlendState(uint64_t State)
 			{
 				if (State >= BlendStates.size())
 					return;
@@ -1018,7 +1018,7 @@ namespace Tomahawk
 					glBlendFuncSeparate(GetBlend(In->RenderTarget[0].SrcBlend), GetBlend(In->RenderTarget[0].DestBlend), GetBlend(In->RenderTarget[0].SrcBlendAlpha), GetBlend(In->RenderTarget[0].DestBlendAlpha));
 				}
 			}
-			void OGLDevice::SetRasterizerState(UInt64 State)
+			void OGLDevice::SetRasterizerState(uint64_t State)
 			{
 				if (State >= RasterizerStates.size())
 					return;
@@ -1052,7 +1052,7 @@ namespace Tomahawk
 				else
 					glFrontFace(GL_CCW);
 			}
-			void OGLDevice::SetDepthStencilState(UInt64 State)
+			void OGLDevice::SetDepthStencilState(uint64_t State)
 			{
 				if (State >= DepthStencilStates.size())
 					return;

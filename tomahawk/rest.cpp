@@ -35,10 +35,10 @@ extern "C"
 #include <zlib.h>
 }
 #endif
-#define MAKEUQUAD(L, H) ((UInt64)(((uint32_t)(L)) | ((UInt64)((uint32_t)(H))) << 32))
+#define MAKEUQUAD(L, H) ((uint64_t)(((uint32_t)(L)) | ((uint64_t)((uint32_t)(H))) << 32))
 #define RATE_DIFF (10000000)
 #define EPOCH_DIFF (MAKEUQUAD(0xd53e8000, 0x019db1de))
-#define SYS2UNIX_TIME(L, H) ((Int64)((MAKEUQUAD((L), (H)) - EPOCH_DIFF) / RATE_DIFF))
+#define SYS2UNIX_TIME(L, H) ((int64_t)((MAKEUQUAD((L), (H)) - EPOCH_DIFF) / RATE_DIFF))
 #define LEAP_YEAR(X) (((X) % 4 == 0) && (((X) % 100) != 0 || ((X) % 400) == 0))
 
 namespace Tomahawk
@@ -191,86 +191,86 @@ namespace Tomahawk
 
 			return New;
 		}
-		DateTime DateTime::FromNanoseconds(UInt64 Value)
+		DateTime DateTime::FromNanoseconds(uint64_t Value)
 		{
 			DateTime New;
 			New.Time = std::chrono::duration_cast<std::chrono::system_clock::duration>(std::chrono::nanoseconds(Value));
 
 			return New;
 		}
-		DateTime DateTime::FromMicroseconds(UInt64 Value)
+		DateTime DateTime::FromMicroseconds(uint64_t Value)
 		{
 			DateTime New;
 			New.Time = std::chrono::duration_cast<std::chrono::system_clock::duration>(std::chrono::microseconds(Value));
 
 			return New;
 		}
-		DateTime DateTime::FromMilliseconds(UInt64 Value)
+		DateTime DateTime::FromMilliseconds(uint64_t Value)
 		{
 			DateTime New;
 			New.Time = std::chrono::duration_cast<std::chrono::system_clock::duration>(std::chrono::milliseconds(Value));
 
 			return New;
 		}
-		DateTime DateTime::FromSeconds(UInt64 Value)
+		DateTime DateTime::FromSeconds(uint64_t Value)
 		{
 			DateTime New;
 			New.Time = std::chrono::duration_cast<std::chrono::system_clock::duration>(std::chrono::seconds(Value));
 
 			return New;
 		}
-		DateTime DateTime::FromMinutes(UInt64 Value)
+		DateTime DateTime::FromMinutes(uint64_t Value)
 		{
 			DateTime New;
 			New.Time = std::chrono::duration_cast<std::chrono::system_clock::duration>(std::chrono::minutes(Value));
 
 			return New;
 		}
-		DateTime DateTime::FromHours(UInt64 Value)
+		DateTime DateTime::FromHours(uint64_t Value)
 		{
 			DateTime New;
 			New.Time = std::chrono::duration_cast<std::chrono::system_clock::duration>(std::chrono::hours(Value));
 
 			return New;
 		}
-		DateTime DateTime::FromDays(UInt64 Value)
+		DateTime DateTime::FromDays(uint64_t Value)
 		{
-			using _Days = std::chrono::duration<UInt64, std::ratio_multiply<std::ratio<24>, std::chrono::hours::period>>;
+			using _Days = std::chrono::duration<uint64_t, std::ratio_multiply<std::ratio<24>, std::chrono::hours::period>>;
 
 			DateTime New;
 			New.Time = std::chrono::duration_cast<std::chrono::system_clock::duration>(_Days(Value));
 
 			return New;
 		}
-		DateTime DateTime::FromWeeks(UInt64 Value)
+		DateTime DateTime::FromWeeks(uint64_t Value)
 		{
-			using _Days = std::chrono::duration<UInt64, std::ratio_multiply<std::ratio<24>, std::chrono::hours::period>>;
+			using _Days = std::chrono::duration<uint64_t, std::ratio_multiply<std::ratio<24>, std::chrono::hours::period>>;
 
-			using _Weeks = std::chrono::duration<UInt64, std::ratio_multiply<std::ratio<7>, _Days::period>>;
+			using _Weeks = std::chrono::duration<uint64_t, std::ratio_multiply<std::ratio<7>, _Days::period>>;
 
 			DateTime New;
 			New.Time = std::chrono::duration_cast<std::chrono::system_clock::duration>(_Weeks(Value));
 
 			return New;
 		}
-		DateTime DateTime::FromMonths(UInt64 Value)
+		DateTime DateTime::FromMonths(uint64_t Value)
 		{
-			using _Days = std::chrono::duration<UInt64, std::ratio_multiply<std::ratio<24>, std::chrono::hours::period>>;
+			using _Days = std::chrono::duration<uint64_t, std::ratio_multiply<std::ratio<24>, std::chrono::hours::period>>;
 
-			using _Years = std::chrono::duration<UInt64, std::ratio_multiply<std::ratio<146097, 400>, _Days::period>>;
+			using _Years = std::chrono::duration<uint64_t, std::ratio_multiply<std::ratio<146097, 400>, _Days::period>>;
 
-			using _Months = std::chrono::duration<UInt64, std::ratio_divide<_Years::period, std::ratio<12>>>;
+			using _Months = std::chrono::duration<uint64_t, std::ratio_divide<_Years::period, std::ratio<12>>>;
 
 			DateTime New;
 			New.Time = std::chrono::duration_cast<std::chrono::system_clock::duration>(_Months(Value));
 
 			return New;
 		}
-		DateTime DateTime::FromYears(UInt64 Value)
+		DateTime DateTime::FromYears(uint64_t Value)
 		{
-			using _Days = std::chrono::duration<UInt64, std::ratio_multiply<std::ratio<24>, std::chrono::hours::period>>;
+			using _Days = std::chrono::duration<uint64_t, std::ratio_multiply<std::ratio<24>, std::chrono::hours::period>>;
 
-			using _Years = std::chrono::duration<UInt64, std::ratio_multiply<std::ratio<146097, 400>, _Days::period>>;
+			using _Years = std::chrono::duration<uint64_t, std::ratio_multiply<std::ratio<146097, 400>, _Days::period>>;
 
 			DateTime New;
 			New.Time = std::chrono::duration_cast<std::chrono::system_clock::duration>(_Years(Value));
@@ -291,7 +291,7 @@ namespace Tomahawk
 
 			return New;
 		}
-		DateTime& DateTime::SetDateSeconds(UInt64 Value, bool NoFlush)
+		DateTime& DateTime::SetDateSeconds(uint64_t Value, bool NoFlush)
 		{
 			if (!DateRebuild)
 			{
@@ -310,7 +310,7 @@ namespace Tomahawk
 			DateValue.tm_sec = (int)Value;
 			return *this;
 		}
-		DateTime& DateTime::SetDateMinutes(UInt64 Value, bool NoFlush)
+		DateTime& DateTime::SetDateMinutes(uint64_t Value, bool NoFlush)
 		{
 			if (!DateRebuild)
 			{
@@ -331,7 +331,7 @@ namespace Tomahawk
 			DateValue.tm_min = (int)Value - 1;
 			return *this;
 		}
-		DateTime& DateTime::SetDateHours(UInt64 Value, bool NoFlush)
+		DateTime& DateTime::SetDateHours(uint64_t Value, bool NoFlush)
 		{
 			if (!DateRebuild)
 			{
@@ -352,7 +352,7 @@ namespace Tomahawk
 			DateValue.tm_hour = (int)Value - 1;
 			return *this;
 		}
-		DateTime& DateTime::SetDateDay(UInt64 Value, bool NoFlush)
+		DateTime& DateTime::SetDateDay(uint64_t Value, bool NoFlush)
 		{
 			if (!DateRebuild)
 			{
@@ -387,7 +387,7 @@ namespace Tomahawk
 			DateValue.tm_mday = (int)Value;
 			return *this;
 		}
-		DateTime& DateTime::SetDateWeek(UInt64 Value, bool NoFlush)
+		DateTime& DateTime::SetDateWeek(uint64_t Value, bool NoFlush)
 		{
 			if (!DateRebuild)
 			{
@@ -408,7 +408,7 @@ namespace Tomahawk
 			DateValue.tm_wday = (int)Value - 1;
 			return *this;
 		}
-		DateTime& DateTime::SetDateMonth(UInt64 Value, bool NoFlush)
+		DateTime& DateTime::SetDateMonth(uint64_t Value, bool NoFlush)
 		{
 			if (!DateRebuild)
 			{
@@ -429,7 +429,7 @@ namespace Tomahawk
 			DateValue.tm_mday = (int)Value - 1;
 			return *this;
 		}
-		DateTime& DateTime::SetDateYear(UInt64 Value, bool NoFlush)
+		DateTime& DateTime::SetDateYear(uint64_t Value, bool NoFlush)
 		{
 			if (!DateRebuild)
 			{
@@ -448,93 +448,93 @@ namespace Tomahawk
 			DateValue.tm_year = (int)Value - 1900;
 			return *this;
 		}
-		UInt64 DateTime::Nanoseconds()
+		uint64_t DateTime::Nanoseconds()
 		{
 			if (DateRebuild)
 				Rebuild();
 
 			return std::chrono::duration_cast<std::chrono::nanoseconds>(Time).count();
 		}
-		UInt64 DateTime::Microseconds()
+		uint64_t DateTime::Microseconds()
 		{
 			if (DateRebuild)
 				Rebuild();
 
 			return std::chrono::duration_cast<std::chrono::microseconds>(Time).count();
 		}
-		UInt64 DateTime::Milliseconds()
+		uint64_t DateTime::Milliseconds()
 		{
 			if (DateRebuild)
 				Rebuild();
 
 			return std::chrono::duration_cast<std::chrono::milliseconds>(Time).count();
 		}
-		UInt64 DateTime::Seconds()
+		uint64_t DateTime::Seconds()
 		{
 			if (DateRebuild)
 				Rebuild();
 
 			return std::chrono::duration_cast<std::chrono::seconds>(Time).count();
 		}
-		UInt64 DateTime::Minutes()
+		uint64_t DateTime::Minutes()
 		{
 			if (DateRebuild)
 				Rebuild();
 
-			return (UInt64)std::chrono::duration_cast<std::chrono::minutes>(Time).count();
+			return (uint64_t)std::chrono::duration_cast<std::chrono::minutes>(Time).count();
 		}
-		UInt64 DateTime::Hours()
+		uint64_t DateTime::Hours()
 		{
 			if (DateRebuild)
 				Rebuild();
 
-			return (UInt64)std::chrono::duration_cast<std::chrono::hours>(Time).count();
+			return (uint64_t)std::chrono::duration_cast<std::chrono::hours>(Time).count();
 		}
-		UInt64 DateTime::Days()
+		uint64_t DateTime::Days()
 		{
 			if (DateRebuild)
 				Rebuild();
 
-			using _Days = std::chrono::duration<UInt64, std::ratio_multiply<std::ratio<24>, std::chrono::hours::period>>;
+			using _Days = std::chrono::duration<uint64_t, std::ratio_multiply<std::ratio<24>, std::chrono::hours::period>>;
 
 			return std::chrono::duration_cast<_Days>(Time).count();
 		}
-		UInt64 DateTime::Weeks()
+		uint64_t DateTime::Weeks()
 		{
 			if (DateRebuild)
 				Rebuild();
 
-			using _Days = std::chrono::duration<UInt64, std::ratio_multiply<std::ratio<24>, std::chrono::hours::period>>;
+			using _Days = std::chrono::duration<uint64_t, std::ratio_multiply<std::ratio<24>, std::chrono::hours::period>>;
 
-			using _Weeks = std::chrono::duration<UInt64, std::ratio_multiply<std::ratio<7>, _Days::period>>;
+			using _Weeks = std::chrono::duration<uint64_t, std::ratio_multiply<std::ratio<7>, _Days::period>>;
 
 			return std::chrono::duration_cast<_Weeks>(Time).count();
 		}
-		UInt64 DateTime::Months()
+		uint64_t DateTime::Months()
 		{
 			if (DateRebuild)
 				Rebuild();
 
-			using _Days = std::chrono::duration<UInt64, std::ratio_multiply<std::ratio<24>, std::chrono::hours::period>>;
+			using _Days = std::chrono::duration<uint64_t, std::ratio_multiply<std::ratio<24>, std::chrono::hours::period>>;
 
-			using _Years = std::chrono::duration<UInt64, std::ratio_multiply<std::ratio<146097, 400>, _Days::period>>;
+			using _Years = std::chrono::duration<uint64_t, std::ratio_multiply<std::ratio<146097, 400>, _Days::period>>;
 
-			using _Months = std::chrono::duration<UInt64, std::ratio_divide<_Years::period, std::ratio<12>>>;
+			using _Months = std::chrono::duration<uint64_t, std::ratio_divide<_Years::period, std::ratio<12>>>;
 
 			return std::chrono::duration_cast<_Months>(Time).count();
 		}
-		UInt64 DateTime::Years()
+		uint64_t DateTime::Years()
 		{
 			if (DateRebuild)
 				Rebuild();
 
-			using _Days = std::chrono::duration<UInt64, std::ratio_multiply<std::ratio<24>, std::chrono::hours::period>>;
+			using _Days = std::chrono::duration<uint64_t, std::ratio_multiply<std::ratio<24>, std::chrono::hours::period>>;
 
 			using _Years = std::chrono::duration<int, std::ratio_multiply<std::ratio<146097, 400>, _Days::period>>;
 
 			return std::chrono::duration_cast<_Years>(Time).count();
 		}
-		std::string DateTime::GetGMTBasedString(Int64 TimeStamp)
+		std::string DateTime::GetGMTBasedString(int64_t TimeStamp)
 		{
 			auto Time = (time_t)TimeStamp;
 			struct tm GTMTimeStamp{ };
@@ -550,7 +550,7 @@ namespace Tomahawk
 			strftime(Buffer, sizeof(Buffer), "%a, %d %b %Y %H:%M:%S GMT", &GTMTimeStamp);
 			return Buffer;
 		}
-		bool DateTime::TimeFormatGMT(char* Buffer, UInt64 Length, Int64 Time)
+		bool DateTime::TimeFormatGMT(char* Buffer, uint64_t Length, int64_t Time)
 		{
 			if (!Buffer || !Length)
 				return false;
@@ -562,7 +562,7 @@ namespace Tomahawk
 																																	static const int DaysPerMonth[] = { 31, 28, 31, 30, 31, 30, 31, 31, 30, 31, 30, 31 };
 
             FILETIME FileTime;
-            *(Int64)&FileTime = ((Int64)*clk) * RATE_DIFF * EPOCH_DIFF;
+            *(int64_t)&FileTime = ((int64_t)*clk) * RATE_DIFF * EPOCH_DIFF;
 
             SYSTEMTIME SystemTime;
             FileTimeToSystemTime(&FileTime, &SystemTime);
@@ -598,7 +598,7 @@ namespace Tomahawk
 #endif
 			return true;
 		}
-		bool DateTime::TimeFormatLCL(char* Buffer, UInt64 Length, Int64 Time)
+		bool DateTime::TimeFormatLCL(char* Buffer, uint64_t Length, int64_t Time)
 		{
 			auto TimeStamp = (time_t)Time;
 			struct tm Date{ };
@@ -607,7 +607,7 @@ namespace Tomahawk
 																																	static const int DaysPerMonth[] = { 31, 28, 31, 30, 31, 30, 31, 31, 30, 31, 30, 31 };
 
             FILETIME FileTime, LocalFileTime;
-            *(Int64)&FileTime = ((Int64)*clk) * RATE_DIFF * EPOCH_DIFF;
+            *(int64_t)&FileTime = ((int64_t)*clk) * RATE_DIFF * EPOCH_DIFF;
             FileTimeToLocalFileTime(&FileTime, &LocalFileTime);
 
             SYSTEMTIME SystemTime;
@@ -645,7 +645,7 @@ namespace Tomahawk
 #endif
 			return true;
 		}
-		Int64 DateTime::ReadGMTBasedString(const char* Date)
+		int64_t DateTime::ReadGMTBasedString(const char* Date)
 		{
 			static const char* MonthNames[] = { "Jan", "Feb", "Mar", "Apr", "May", "Jun", "Jul", "Aug", "Sep", "Oct", "Nov", "Dec" };
 
@@ -657,7 +657,7 @@ namespace Tomahawk
 			if (Year <= 1970)
 				return 0;
 
-			for (UInt64 i = 0; i < 12; i++)
+			for (uint64_t i = 0; i < 12; i++)
 			{
 				if (strcmp(Name, MonthNames[i]) != 0)
 					continue;
@@ -692,11 +692,11 @@ namespace Tomahawk
 		{
 			L = new std::string(std::to_string(Value));
 		}
-		Stroke::Stroke(Int64 Value) : Safe(true)
+		Stroke::Stroke(int64_t Value) : Safe(true)
 		{
 			L = new std::string(std::to_string(Value));
 		}
-		Stroke::Stroke(UInt64 Value) : Safe(true)
+		Stroke::Stroke(uint64_t Value) : Safe(true)
 		{
 			L = new std::string(std::to_string(Value));
 		}
@@ -704,11 +704,11 @@ namespace Tomahawk
 		{
 			L = new std::string(std::to_string(Value));
 		}
-		Stroke::Stroke(Float64 Value) : Safe(true)
+		Stroke::Stroke(double Value) : Safe(true)
 		{
 			L = new std::string(std::to_string(Value));
 		}
-		Stroke::Stroke(LFloat64 Value) : Safe(true)
+		Stroke::Stroke(long double Value) : Safe(true)
 		{
 			L = new std::string(std::to_string(Value));
 		}
@@ -733,7 +733,7 @@ namespace Tomahawk
 			else
 				L = new std::string();
 		}
-		Stroke::Stroke(const char* Buffer, Int64 Length) : Safe(true)
+		Stroke::Stroke(const char* Buffer, int64_t Length) : Safe(true)
 		{
 			if (Buffer != nullptr)
 				L = new std::string(Buffer, Length);
@@ -776,17 +776,17 @@ namespace Tomahawk
 
 			return *this;
 		}
-		Stroke& Stroke::Reserve(UInt64 Count)
+		Stroke& Stroke::Reserve(uint64_t Count)
 		{
 			L->reserve(L->capacity() + Count);
 			return *this;
 		}
-		Stroke& Stroke::Resize(UInt64 Count)
+		Stroke& Stroke::Resize(uint64_t Count)
 		{
 			L->resize(Count);
 			return *this;
 		}
-		Stroke& Stroke::Resize(UInt64 Count, char Char)
+		Stroke& Stroke::Resize(uint64_t Count, char Char)
 		{
 			L->resize(Count, Char);
 			return *this;
@@ -859,20 +859,20 @@ namespace Tomahawk
 			std::transform(L->begin(), L->end(), L->begin(), ::tolower);
 			return *this;
 		}
-		Stroke& Stroke::Clip(UInt64 Length)
+		Stroke& Stroke::Clip(uint64_t Length)
 		{
 			if (Length < L->size())
 				L->erase(Length, L->size() - Length);
 
 			return *this;
 		}
-		Stroke& Stroke::ReplaceOf(const char* Chars, const char* To, UInt64 Start)
+		Stroke& Stroke::ReplaceOf(const char* Chars, const char* To, uint64_t Start)
 		{
 			if (!Chars || Chars[0] == '\0' || !To)
 				return *this;
 
 			Stroke::Settle Result{ };
-			UInt64 Offset = Start, ToSize = (UInt64)strlen(To);
+			uint64_t Offset = Start, ToSize = (uint64_t)strlen(To);
 			while ((Result = FindOf(Chars, Offset)).Found)
 			{
 				EraseOffsets(Result.Start, Result.End);
@@ -882,9 +882,9 @@ namespace Tomahawk
 
 			return *this;
 		}
-		Stroke& Stroke::Replace(const std::string& From, const std::string& To, UInt64 Start)
+		Stroke& Stroke::Replace(const std::string& From, const std::string& To, uint64_t Start)
 		{
-			UInt64 Offset = Start;
+			uint64_t Offset = Start;
 			Stroke::Settle Result{ };
 
 			while ((Result = Find(From, Offset)).Found)
@@ -896,13 +896,13 @@ namespace Tomahawk
 
 			return *this;
 		}
-		Stroke& Stroke::Replace(const char* From, const char* To, UInt64 Start)
+		Stroke& Stroke::Replace(const char* From, const char* To, uint64_t Start)
 		{
 			if (!From || !To)
 				return *this;
 
-			UInt64 Offset = Start;
-			auto Size = (UInt64)strlen(To);
+			uint64_t Offset = Start;
+			auto Size = (uint64_t)strlen(To);
 			Stroke::Settle Result{ };
 
 			while ((Result = Find(From, Offset)).Found)
@@ -914,9 +914,9 @@ namespace Tomahawk
 
 			return *this;
 		}
-		Stroke& Stroke::Replace(const char& From, const char& To, UInt64 Position)
+		Stroke& Stroke::Replace(const char& From, const char& To, uint64_t Position)
 		{
-			for (UInt64 i = Position; i < L->size(); i++)
+			for (uint64_t i = Position; i < L->size(); i++)
 			{
 				if (L->at(i) == From)
 					L->at(i) = To;
@@ -924,12 +924,12 @@ namespace Tomahawk
 
 			return *this;
 		}
-		Stroke& Stroke::Replace(const char& From, const char& To, UInt64 Position, UInt64 Count)
+		Stroke& Stroke::Replace(const char& From, const char& To, uint64_t Position, uint64_t Count)
 		{
 			if (L->size() < (Position + Count))
 				return *this;
 
-			for (UInt64 i = Position; i < (Position + Count); i++)
+			for (uint64_t i = Position; i < (Position + Count); i++)
 			{
 				if (L->at(i) == From)
 					L->at(i) = To;
@@ -937,11 +937,11 @@ namespace Tomahawk
 
 			return *this;
 		}
-		Stroke& Stroke::ReplacePart(UInt64 Start, UInt64 End, const std::string& Value)
+		Stroke& Stroke::ReplacePart(uint64_t Start, uint64_t End, const std::string& Value)
 		{
 			return ReplacePart(Start, End, Value.c_str());
 		}
-		Stroke& Stroke::ReplacePart(UInt64 Start, UInt64 End, const char* Value)
+		Stroke& Stroke::ReplacePart(uint64_t Start, uint64_t End, const char* Value)
 		{
 			if (Start >= L->size() || End > L->size() || Start >= End || !Value)
 				return *this;
@@ -957,7 +957,7 @@ namespace Tomahawk
 
 			return *this;
 		}
-		Stroke& Stroke::RemovePart(UInt64 Start, UInt64 End)
+		Stroke& Stroke::RemovePart(uint64_t Start, uint64_t End)
 		{
 			if (Start >= L->size() || End > L->size() || Start >= End)
 				return *this;
@@ -977,7 +977,7 @@ namespace Tomahawk
 		{
 			return Reverse(0, L->size() - 1);
 		}
-		Stroke& Stroke::Reverse(UInt64 Start, UInt64 End)
+		Stroke& Stroke::Reverse(uint64_t Start, uint64_t End)
 		{
 			if (Start == End || L->size() < 2 || End > (L->size() - 1) || Start > (L->size() - 1))
 				return *this;
@@ -993,7 +993,7 @@ namespace Tomahawk
 
 			return *this;
 		}
-		Stroke& Stroke::Substring(UInt64 Start)
+		Stroke& Stroke::Substring(uint64_t Start)
 		{
 			if (Start >= L->size())
 			{
@@ -1004,7 +1004,7 @@ namespace Tomahawk
 			L->assign(L->substr(Start));
 			return *this;
 		}
-		Stroke& Stroke::Substring(UInt64 Start, UInt64 Count)
+		Stroke& Stroke::Substring(uint64_t Start, uint64_t Count)
 		{
 			if (Start >= L->size() || !Count)
 			{
@@ -1026,15 +1026,15 @@ namespace Tomahawk
 			if (Result.Start > (L->size() - 1))
 				return *this;
 
-			auto Offset = (Int64)Result.End;
+			auto Offset = (int64_t)Result.End;
 			if (Result.End > L->size())
-				Offset = (Int64)(L->size() - Result.Start);
+				Offset = (int64_t)(L->size() - Result.Start);
 
-			Offset = (Int64)Result.Start - Offset;
-			L->assign(L->substr(Result.Start, (UInt64)(Offset < 0 ? -Offset : Offset)));
+			Offset = (int64_t)Result.Start - Offset;
+			L->assign(L->substr(Result.Start, (uint64_t)(Offset < 0 ? -Offset : Offset)));
 			return *this;
 		}
-		Stroke& Stroke::Splice(UInt64 Start, UInt64 End)
+		Stroke& Stroke::Splice(uint64_t Start, uint64_t End)
 		{
 			if (Start > (L->size() - 1))
 				return (*this);
@@ -1042,8 +1042,8 @@ namespace Tomahawk
 			if (End > L->size())
 				End = (L->size() - Start);
 
-			Int64 Offset = (Int64)Start - (Int64)End;
-			L->assign(L->substr(Start, (UInt64)(Offset < 0 ? -Offset : Offset)));
+			int64_t Offset = (int64_t)Start - (int64_t)End;
+			L->assign(L->substr(Start, (uint64_t)(Offset < 0 ? -Offset : Offset)));
 			return *this;
 		}
 		Stroke& Stroke::Trim()
@@ -1063,7 +1063,7 @@ namespace Tomahawk
 
 			return *this;
 		}
-		Stroke& Stroke::Fill(const char& Char, UInt64 Count)
+		Stroke& Stroke::Fill(const char& Char, uint64_t Count)
 		{
 			if (L->empty())
 				return (*this);
@@ -1071,7 +1071,7 @@ namespace Tomahawk
 			L->assign(Count, Char);
 			return *this;
 		}
-		Stroke& Stroke::Fill(const char& Char, UInt64 Start, UInt64 Count)
+		Stroke& Stroke::Fill(const char& Char, uint64_t Start, uint64_t Count)
 		{
 			if (L->empty() || Start > L->size())
 				return (*this);
@@ -1079,7 +1079,7 @@ namespace Tomahawk
 			if (Start + Count > L->size())
 				Count = L->size() - Start;
 
-			for (UInt64 i = Start; i < (Start + Count); i++)
+			for (uint64_t i = Start; i < (Start + Count); i++)
 				L->at(i) = Char;
 
 			return *this;
@@ -1093,7 +1093,7 @@ namespace Tomahawk
 
 			return *this;
 		}
-		Stroke& Stroke::Assign(const char* Raw, UInt64 Length)
+		Stroke& Stroke::Assign(const char* Raw, uint64_t Length)
 		{
 			if (Raw != nullptr)
 				L->assign(Raw, Length);
@@ -1107,12 +1107,12 @@ namespace Tomahawk
 			L->assign(Raw);
 			return *this;
 		}
-		Stroke& Stroke::Assign(const std::string& Raw, UInt64 Start, UInt64 Count)
+		Stroke& Stroke::Assign(const std::string& Raw, uint64_t Start, uint64_t Count)
 		{
 			L->assign(Raw.substr(Start, Count));
 			return *this;
 		}
-		Stroke& Stroke::Assign(const char* Raw, UInt64 Start, UInt64 Count)
+		Stroke& Stroke::Assign(const char* Raw, uint64_t Start, uint64_t Count)
 		{
 			if (!Raw)
 			{
@@ -1135,7 +1135,7 @@ namespace Tomahawk
 			L->append(1, Char);
 			return *this;
 		}
-		Stroke& Stroke::Append(const char& Char, UInt64 Count)
+		Stroke& Stroke::Append(const char& Char, uint64_t Count)
 		{
 			L->append(Count, Char);
 			return *this;
@@ -1145,14 +1145,14 @@ namespace Tomahawk
 			L->append(Raw);
 			return *this;
 		}
-		Stroke& Stroke::Append(const char* Raw, UInt64 Count)
+		Stroke& Stroke::Append(const char* Raw, uint64_t Count)
 		{
 			if (Raw != nullptr)
 				L->append(Raw, Count);
 
 			return *this;
 		}
-		Stroke& Stroke::Append(const char* Raw, UInt64 Start, UInt64 Count)
+		Stroke& Stroke::Append(const char* Raw, uint64_t Start, uint64_t Count)
 		{
 			if (!Raw)
 				return *this;
@@ -1164,7 +1164,7 @@ namespace Tomahawk
 			L->append(V.substr(Start, Count));
 			return *this;
 		}
-		Stroke& Stroke::Append(const std::string& Raw, UInt64 Start, UInt64 Count)
+		Stroke& Stroke::Append(const std::string& Raw, uint64_t Start, uint64_t Count)
 		{
 			if (!Count || Raw.size() < Start + Count)
 				return *this;
@@ -1185,7 +1185,7 @@ namespace Tomahawk
 
 			return Append(Buffer, Count);
 		}
-		Stroke& Stroke::Insert(const std::string& Raw, UInt64 Position)
+		Stroke& Stroke::Insert(const std::string& Raw, uint64_t Position)
 		{
 			if (Position >= L->size())
 				Position = L->size();
@@ -1193,7 +1193,7 @@ namespace Tomahawk
 			L->insert(Position, Raw);
 			return *this;
 		}
-		Stroke& Stroke::Insert(const std::string& Raw, UInt64 Position, UInt64 Start, UInt64 Count)
+		Stroke& Stroke::Insert(const std::string& Raw, uint64_t Position, uint64_t Start, uint64_t Count)
 		{
 			if (Position >= L->size())
 				Position = L->size();
@@ -1203,7 +1203,7 @@ namespace Tomahawk
 
 			return *this;
 		}
-		Stroke& Stroke::Insert(const std::string& Raw, UInt64 Position, UInt64 Count)
+		Stroke& Stroke::Insert(const std::string& Raw, uint64_t Position, uint64_t Count)
 		{
 			if (Position >= L->size())
 				Position = L->size();
@@ -1214,7 +1214,7 @@ namespace Tomahawk
 			L->insert(Position, Raw.substr(0, Count));
 			return *this;
 		}
-		Stroke& Stroke::Insert(const char& Char, UInt64 Position, UInt64 Count)
+		Stroke& Stroke::Insert(const char& Char, uint64_t Position, uint64_t Count)
 		{
 			if (Position >= L->size())
 				return *this;
@@ -1222,7 +1222,7 @@ namespace Tomahawk
 			L->insert(Position, Count, Char);
 			return *this;
 		}
-		Stroke& Stroke::Insert(const char& Char, UInt64 Position)
+		Stroke& Stroke::Insert(const char& Char, uint64_t Position)
 		{
 			if (Position >= L->size())
 				return *this;
@@ -1230,7 +1230,7 @@ namespace Tomahawk
 			L->insert(L->begin() + Position, Char);
 			return *this;
 		}
-		Stroke& Stroke::Erase(UInt64 Position)
+		Stroke& Stroke::Erase(uint64_t Position)
 		{
 			if (Position >= L->size())
 				return *this;
@@ -1238,7 +1238,7 @@ namespace Tomahawk
 			L->erase(Position);
 			return *this;
 		}
-		Stroke& Stroke::Erase(UInt64 Position, UInt64 Count)
+		Stroke& Stroke::Erase(uint64_t Position, uint64_t Count)
 		{
 			if (Position >= L->size())
 				return *this;
@@ -1246,7 +1246,7 @@ namespace Tomahawk
 			L->erase(Position, Count);
 			return *this;
 		}
-		Stroke& Stroke::EraseOffsets(UInt64 Start, UInt64 End)
+		Stroke& Stroke::EraseOffsets(uint64_t Start, uint64_t End)
 		{
 			return Erase(Start, End - Start);
 		}
@@ -1263,7 +1263,7 @@ namespace Tomahawk
 
 			return *this;
 		}
-		Stroke::Settle Stroke::ReverseFind(const std::string& Needle, UInt64 Offset) const
+		Stroke::Settle Stroke::ReverseFind(const std::string& Needle, uint64_t Offset) const
 		{
 			const char* Ptr = L->c_str() - Offset;
 			if (Needle.c_str() > Ptr)
@@ -1273,12 +1273,12 @@ namespace Tomahawk
 			for (It = Ptr + L->size() - Needle.size(); It > Ptr; --It)
 			{
 				if (strncmp(Ptr, Needle.c_str(), (size_t)Needle.size()) == 0)
-					return { (UInt64)(It - Ptr), (UInt64)(It - Ptr + Needle.size()), true };
+					return { (uint64_t)(It - Ptr), (uint64_t)(It - Ptr + Needle.size()), true };
 			}
 
 			return { L->size() - 1, L->size(), false };
 		}
-		Stroke::Settle Stroke::ReverseFind(const char* Needle, UInt64 Offset) const
+		Stroke::Settle Stroke::ReverseFind(const char* Needle, uint64_t Offset) const
 		{
 			if (!Needle)
 				return { L->size() - 1, L->size(), false };
@@ -1288,18 +1288,18 @@ namespace Tomahawk
 				return { L->size() - 1, L->size(), false };
 
 			const char* It = nullptr;
-			auto Length = (UInt64)strlen(Needle);
+			auto Length = (uint64_t)strlen(Needle);
 			for (It = Ptr + L->size() - Length; It > Ptr; --It)
 			{
 				if (strncmp(Ptr, Needle, (size_t)Length) == 0)
-					return { (UInt64)(It - Ptr), (UInt64)(It - Ptr + Length), true };
+					return { (uint64_t)(It - Ptr), (uint64_t)(It - Ptr + Length), true };
 			}
 
 			return { L->size() - 1, L->size(), false };
 		}
-		Stroke::Settle Stroke::ReverseFind(const char& Needle, UInt64 Offset) const
+		Stroke::Settle Stroke::ReverseFind(const char& Needle, uint64_t Offset) const
 		{
-			for (UInt64 i = L->size() - 1 - Offset; i > 0; i--)
+			for (uint64_t i = L->size() - 1 - Offset; i > 0; i--)
 			{
 				if (L->at(i) == Needle)
 					return { i, i + 1, true };
@@ -1307,19 +1307,19 @@ namespace Tomahawk
 
 			return { L->size() - 1, L->size(), false };
 		}
-		Stroke::Settle Stroke::ReverseFindUnescaped(const char& Needle, UInt64 Offset) const
+		Stroke::Settle Stroke::ReverseFindUnescaped(const char& Needle, uint64_t Offset) const
 		{
-			for (UInt64 i = L->size() - 1 - Offset; i > 0; i--)
+			for (uint64_t i = L->size() - 1 - Offset; i > 0; i--)
 			{
-				if (L->at(i) == Needle && ((Int64)i - 1 < 0 || L->at(i - 1) != '\\'))
+				if (L->at(i) == Needle && ((int64_t)i - 1 < 0 || L->at(i - 1) != '\\'))
 					return { i, i + 1, true };
 			}
 
 			return { L->size() - 1, L->size(), false };
 		}
-		Stroke::Settle Stroke::ReverseFindOf(const std::string& Needle, UInt64 Offset) const
+		Stroke::Settle Stroke::ReverseFindOf(const std::string& Needle, uint64_t Offset) const
 		{
-			for (UInt64 i = L->size() - 1 - Offset; i > 0; i--)
+			for (uint64_t i = L->size() - 1 - Offset; i > 0; i--)
 			{
 				for (char k : Needle)
 				{
@@ -1330,15 +1330,15 @@ namespace Tomahawk
 
 			return { L->size() - 1, L->size(), false };
 		}
-		Stroke::Settle Stroke::ReverseFindOf(const char* Needle, UInt64 Offset) const
+		Stroke::Settle Stroke::ReverseFindOf(const char* Needle, uint64_t Offset) const
 		{
 			if (!Needle)
 				return { L->size() - 1, L->size(), false };
 
-			UInt64 Length = strlen(Needle);
-			for (UInt64 i = L->size() - 1 - Offset; i >= 0; i--)
+			uint64_t Length = strlen(Needle);
+			for (uint64_t i = L->size() - 1 - Offset; i >= 0; i--)
 			{
-				for (UInt64 k = 0; k < Length; k++)
+				for (uint64_t k = 0; k < Length; k++)
 				{
 					if (L->at(i) == Needle[k])
 						return { i, i + 1, true };
@@ -1347,15 +1347,15 @@ namespace Tomahawk
 
 			return { L->size() - 1, L->size(), false };
 		}
-		Stroke::Settle Stroke::Find(const std::string& Needle, UInt64 Offset) const
+		Stroke::Settle Stroke::Find(const std::string& Needle, uint64_t Offset) const
 		{
 			const char* It = strstr(L->c_str() + Offset, Needle.c_str());
 			if (It == nullptr)
 				return { L->size() - 1, L->size(), false };
 
-			return { (UInt64)(It - L->c_str()), (UInt64)(It - L->c_str() + Needle.size()), true };
+			return { (uint64_t)(It - L->c_str()), (uint64_t)(It - L->c_str() + Needle.size()), true };
 		}
-		Stroke::Settle Stroke::Find(const char* Needle, UInt64 Offset) const
+		Stroke::Settle Stroke::Find(const char* Needle, uint64_t Offset) const
 		{
 			if (!Needle)
 				return { L->size() - 1, L->size(), false };
@@ -1364,11 +1364,11 @@ namespace Tomahawk
 			if (It == nullptr)
 				return { L->size() - 1, L->size(), false };
 
-			return { (UInt64)(It - L->c_str()), (UInt64)(It - L->c_str() + strlen(Needle)), true };
+			return { (uint64_t)(It - L->c_str()), (uint64_t)(It - L->c_str() + strlen(Needle)), true };
 		}
-		Stroke::Settle Stroke::Find(const char& Needle, UInt64 Offset) const
+		Stroke::Settle Stroke::Find(const char& Needle, uint64_t Offset) const
 		{
-			for (UInt64 i = Offset; i < L->size(); i++)
+			for (uint64_t i = Offset; i < L->size(); i++)
 			{
 				if (L->at(i) == Needle)
 					return { i, i + 1, true };
@@ -1376,19 +1376,19 @@ namespace Tomahawk
 
 			return { L->size() - 1, L->size(), false };
 		}
-		Stroke::Settle Stroke::FindUnescaped(const char& Needle, UInt64 Offset) const
+		Stroke::Settle Stroke::FindUnescaped(const char& Needle, uint64_t Offset) const
 		{
-			for (UInt64 i = Offset; i < L->size(); i++)
+			for (uint64_t i = Offset; i < L->size(); i++)
 			{
-				if (L->at(i) == Needle && ((Int64)i - 1 < 0 || L->at(i - 1) != '\\'))
+				if (L->at(i) == Needle && ((int64_t)i - 1 < 0 || L->at(i - 1) != '\\'))
 					return { i, i + 1, true };
 			}
 
 			return { L->size() - 1, L->size(), false };
 		}
-		Stroke::Settle Stroke::FindOf(const std::string& Needle, UInt64 Offset) const
+		Stroke::Settle Stroke::FindOf(const std::string& Needle, uint64_t Offset) const
 		{
-			for (UInt64 i = Offset; i < L->size(); i++)
+			for (uint64_t i = Offset; i < L->size(); i++)
 			{
 				for (char k : Needle)
 				{
@@ -1399,15 +1399,15 @@ namespace Tomahawk
 
 			return { L->size() - 1, L->size(), false };
 		}
-		Stroke::Settle Stroke::FindOf(const char* Needle, UInt64 Offset) const
+		Stroke::Settle Stroke::FindOf(const char* Needle, uint64_t Offset) const
 		{
 			if (!Needle)
 				return { L->size() - 1, L->size(), false };
 
-			auto Length = (UInt64)strlen(Needle);
-			for (UInt64 i = Offset; i < L->size(); i++)
+			auto Length = (uint64_t)strlen(Needle);
+			for (uint64_t i = Offset; i < L->size(); i++)
 			{
-				for (UInt64 k = 0; k < Length; k++)
+				for (uint64_t k = 0; k < Length; k++)
 				{
 					if (L->at(i) == Needle[k])
 						return { i, i + 1, true };
@@ -1416,12 +1416,12 @@ namespace Tomahawk
 
 			return { L->size() - 1, L->size(), false };
 		}
-		bool Stroke::StartsWith(const std::string& Value, UInt64 Offset) const
+		bool Stroke::StartsWith(const std::string& Value, uint64_t Offset) const
 		{
 			if (L->size() < Value.size())
 				return false;
 
-			for (UInt64 i = 0; i < Value.size(); i++)
+			for (uint64_t i = 0; i < Value.size(); i++)
 			{
 				if (Value[i] != L->at(i + Offset))
 					return false;
@@ -1429,16 +1429,16 @@ namespace Tomahawk
 
 			return true;
 		}
-		bool Stroke::StartsWith(const char* Value, UInt64 Offset) const
+		bool Stroke::StartsWith(const char* Value, uint64_t Offset) const
 		{
 			if (!Value)
 				return false;
 
-			auto Length = (UInt64)strlen(Value);
+			auto Length = (uint64_t)strlen(Value);
 			if (L->size() < Length)
 				return false;
 
-			for (UInt64 i = 0; i < Length; i++)
+			for (uint64_t i = 0; i < Length; i++)
 			{
 				if (Value[i] != L->at(i + Offset))
 					return false;
@@ -1446,16 +1446,16 @@ namespace Tomahawk
 
 			return true;
 		}
-		bool Stroke::StartsOf(const char* Value, UInt64 Offset) const
+		bool Stroke::StartsOf(const char* Value, uint64_t Offset) const
 		{
 			if (!Value)
 				return false;
 
-			auto Length = (UInt64)strlen(Value);
+			auto Length = (uint64_t)strlen(Value);
 			if (Offset >= L->size())
 				return false;
 
-			for (UInt64 j = 0; j < Length; j++)
+			for (uint64_t j = 0; j < Length; j++)
 			{
 				if (L->at(Offset) == Value[j])
 					return true;
@@ -1486,8 +1486,8 @@ namespace Tomahawk
 			if (!Value)
 				return false;
 
-			auto Length = (UInt64)strlen(Value);
-			for (UInt64 j = 0; j < Length; j++)
+			auto Length = (uint64_t)strlen(Value);
+			for (uint64_t j = 0; j < Length; j++)
 			{
 				if (L->back() == Value[j])
 					return true;
@@ -1585,7 +1585,7 @@ namespace Tomahawk
 		{
 			return Match(Pattern, strlen(Pattern), Text);
 		}
-		int Stroke::Match(const char* Pattern, UInt64 Length, const char* Text)
+		int Stroke::Match(const char* Pattern, uint64_t Length, const char* Text)
 		{
 			if (!Pattern || !Text)
 				return -1;
@@ -1593,12 +1593,12 @@ namespace Tomahawk
 			const char* Token = (const char*)memchr(Pattern, '|', (size_t)Length);
 			if (Token != nullptr)
 			{
-				int Output = Match(Pattern, (UInt64)(Token - Pattern), Text);
-				return (Output > 0) ? Output : Match(Token + 1, (UInt64)((Pattern + Length) - (Token + 1)), Text);
+				int Output = Match(Pattern, (uint64_t)(Token - Pattern), Text);
+				return (Output > 0) ? Output : Match(Token + 1, (uint64_t)((Pattern + Length) - (Token + 1)), Text);
 			}
 
 			int Offset = 0, Result = 0;
-			UInt64 i = 0;
+			uint64_t i = 0;
 			int j = 0;
 			while (i < Length)
 			{
@@ -1658,27 +1658,27 @@ namespace Tomahawk
 		{
 			return strtoul(L->c_str(), nullptr, 10);
 		}
-		Int64 Stroke::ToInt64() const
+		int64_t Stroke::ToInt64() const
 		{
 			return strtoll(L->c_str(), nullptr, 10);
 		}
-		Float64 Stroke::ToFloat64() const
+		double Stroke::ToFloat64() const
 		{
 			return strtod(L->c_str(), nullptr);
 		}
-		LFloat64 Stroke::ToLFloat64() const
+		long double Stroke::ToLFloat64() const
 		{
 			return strtold(L->c_str(), nullptr);
 		}
-		UInt64 Stroke::ToUInt64() const
+		uint64_t Stroke::ToUInt64() const
 		{
 			return strtoull(L->c_str(), nullptr, 10);
 		}
-		UInt64 Stroke::Size() const
+		uint64_t Stroke::Size() const
 		{
 			return L->size();
 		}
-		UInt64 Stroke::Capacity() const
+		uint64_t Stroke::Capacity() const
 		{
 			return L->capacity();
 		}
@@ -1700,7 +1700,7 @@ namespace Tomahawk
 #pragma warning(disable: 4333)
 			std::basic_string<wchar_t> Output;
 			wchar_t W;
-			for (UInt64 i = 0; i < L->size();)
+			for (uint64_t i = 0; i < L->size();)
 			{
 				char C = L->at(i);
 				if ((C & 0x80) == 0)
@@ -1756,10 +1756,10 @@ namespace Tomahawk
 #pragma warning(pop)
 			return Output;
 		}
-		std::vector<std::string> Stroke::Split(const std::string& With, UInt64 Start) const
+		std::vector<std::string> Stroke::Split(const std::string& With, uint64_t Start) const
 		{
 			Stroke::Settle Result = Find(With, Start);
-			UInt64 Offset = Start;
+			uint64_t Offset = Start;
 
 			std::vector<std::string> Output;
 			while (Result.Found)
@@ -1773,10 +1773,10 @@ namespace Tomahawk
 
 			return Output;
 		}
-		std::vector<std::string> Stroke::Split(char With, UInt64 Start) const
+		std::vector<std::string> Stroke::Split(char With, uint64_t Start) const
 		{
 			Stroke::Settle Result = Find(With, Start);
-			UInt64 Offset = Start;
+			uint64_t Offset = Start;
 
 			std::vector<std::string> Output;
 			while (Result.Found)
@@ -1790,10 +1790,10 @@ namespace Tomahawk
 
 			return Output;
 		}
-		std::vector<std::string> Stroke::SplitOf(const char* With, UInt64 Start) const
+		std::vector<std::string> Stroke::SplitOf(const char* With, uint64_t Start) const
 		{
 			Stroke::Settle Result = FindOf(With, Start);
-			UInt64 Offset = Start;
+			uint64_t Offset = Start;
 
 			std::vector<std::string> Output;
 			while (Result.Found)
@@ -1919,11 +1919,11 @@ namespace Tomahawk
 #endif
 			free(Ptr);
 		}
-		void* LT::Alloc(UInt64 Size)
+		void* LT::Alloc(uint64_t Size)
 		{
 #ifndef NDEBUG
 			if (!Objects)
-				Objects = new std::unordered_map<void*, UInt64>();
+				Objects = new std::unordered_map<void*, uint64_t>();
 
 			if (!Safe)
 				Safe = new std::mutex();
@@ -1953,7 +1953,7 @@ namespace Tomahawk
 			return (Object*)Ptr;
 #endif
 		}
-		UInt64 LT::GetSize(void* Ptr)
+		uint64_t LT::GetSize(void* Ptr)
 		{
 #ifndef NDEBUG
 			if (!Objects)
@@ -1968,14 +1968,14 @@ namespace Tomahawk
 			return 0;
 #endif
 		}
-		UInt64 LT::GetCount()
+		uint64_t LT::GetCount()
 		{
 #ifndef NDEBUG
 			if (!Objects || !Safe)
 				return 0;
 
 			Safe->lock();
-			UInt64 Count = (UInt64)Objects->size();
+			uint64_t Count = (uint64_t)Objects->size();
 			Safe->unlock();
 
 			return Count;
@@ -1983,7 +1983,7 @@ namespace Tomahawk
 			return 0;
 #endif
 		}
-		UInt64 LT::GetMemory()
+		uint64_t LT::GetMemory()
 		{
 #ifndef NDEBUG
 			return Memory;
@@ -1994,9 +1994,9 @@ namespace Tomahawk
 		std::function<void(const char*, int)> LT::Callback;
 		bool LT::Enabled = false;
 #ifndef NDEBUG
-		std::unordered_map<void*, UInt64>* LT::Objects = nullptr;
+		std::unordered_map<void*, uint64_t>* LT::Objects = nullptr;
 		std::mutex* LT::Safe = nullptr;
-		UInt64 LT::Memory = 0;
+		uint64_t LT::Memory = 0;
 #endif
 		void Factory::AddRef(Object* Value)
 		{
@@ -2038,7 +2038,7 @@ namespace Tomahawk
 		}
 		void* Object::operator new(size_t Size)
 		{
-			return LT::Alloc((UInt64)Size);
+			return LT::Alloc((uint64_t)Size);
 		}
 
 		Console::Console() : Handle(false), Time(0)
@@ -2118,7 +2118,7 @@ namespace Tomahawk
 		}
 		void Console::CaptureTime()
 		{
-			Time = (Float64)std::chrono::duration_cast<std::chrono::microseconds>(std::chrono::system_clock::now().time_since_epoch()).count() / 1000.0;
+			Time = (double)std::chrono::duration_cast<std::chrono::microseconds>(std::chrono::system_clock::now().time_since_epoch()).count() / 1000.0;
 		}
 		void Console::WriteLine(const std::string& Line)
 		{
@@ -2138,13 +2138,13 @@ namespace Tomahawk
 			char Buffer[8192] = { '\0' };
 
 			va_list Args;
-					va_start(Args, Format);
+			va_start(Args, Format);
 #ifdef THAWK_MICROSOFT
 			_vsnprintf(Buffer, sizeof(Buffer), Format, Args);
 #else
 			vsnprintf(Buffer, sizeof(Buffer), Format, Args);
 #endif
-					va_end(Args);
+			va_end(Args);
 
 			std::cout << Buffer << '\n';
 		}
@@ -2156,13 +2156,13 @@ namespace Tomahawk
 			char Buffer[8192] = { '\0' };
 
 			va_list Args;
-					va_start(Args, Format);
+			va_start(Args, Format);
 #ifdef THAWK_MICROSOFT
 			_vsnprintf(Buffer, sizeof(Buffer), Format, Args);
 #else
 			vsnprintf(Buffer, sizeof(Buffer), Format, Args);
 #endif
-					va_end(Args);
+			va_end(Args);
 
 			std::cout << Buffer;
 		}
@@ -2192,13 +2192,13 @@ namespace Tomahawk
 			char Buffer[8192] = { '\0' };
 
 			va_list Args;
-					va_start(Args, Format);
+			va_start(Args, Format);
 #ifdef THAWK_MICROSOFT
 			_vsnprintf(Buffer, sizeof(Buffer), Format, Args);
 #else
 			vsnprintf(Buffer, sizeof(Buffer), Format, Args);
 #endif
-					va_end(Args);
+			va_end(Args);
 
 			Lock.lock();
 			std::cout << Buffer << '\n';
@@ -2212,13 +2212,13 @@ namespace Tomahawk
 			char Buffer[8192] = { '\0' };
 
 			va_list Args;
-					va_start(Args, Format);
+			va_start(Args, Format);
 #ifdef THAWK_MICROSOFT
 			_vsnprintf(Buffer, sizeof(Buffer), Format, Args);
 #else
 			vsnprintf(Buffer, sizeof(Buffer), Format, Args);
 #endif
-					va_end(Args);
+			va_end(Args);
 
 			Lock.lock();
 			std::cout << Buffer;
@@ -2229,27 +2229,29 @@ namespace Tomahawk
 			char Buffer[2048] = { '\0' };
 
 			va_list Args;
-					va_start(Args, Format);
+			va_start(Args, Format);
 #ifdef THAWK_MICROSOFT
 			_vsnprintf(Buffer, sizeof(Buffer), Format, Args);
-					va_end(Args);
+			va_end(Args);
 
 			OutputDebugString(Buffer);
-#elif defined THAWK_UNIX
-																																	vsnprintf(Buffer, sizeof(Buffer), Format, Args);
+#elif defined THAWK_UNIX																														vsnprintf(Buffer, sizeof(Buffer), Format, Args);
             va_end(Args);
 
             std::cout << Buffer;
 #endif
 		}
-		Float64 Console::GetCapturedTime()
+		double Console::GetCapturedTime()
 		{
-			return (Float64)std::chrono::duration_cast<std::chrono::microseconds>(std::chrono::system_clock::now().time_since_epoch()).count() / 1000.0 - Time;
+			return (double)std::chrono::duration_cast<std::chrono::microseconds>(std::chrono::system_clock::now().time_since_epoch()).count() / 1000.0 - Time;
 		}
-		std::string Console::Read(UInt64 Size)
+		std::string Console::Read(uint64_t Size)
 		{
-			if (!Handle)
+			if (!Handle || !Size)
 				return "";
+
+			if (Size < 2)
+				Size = 2;
 
 			char* Value = new char[(size_t)(Size + 1)];
 			memset(Value, 0, (size_t)Size * sizeof(char));
@@ -2261,7 +2263,7 @@ namespace Tomahawk
 
 			return Output;
 		}
-		Console*& Console::Get()
+		Console* Console::Get()
 		{
 			if (Singleton == nullptr)
 				Singleton = new Console();
@@ -2275,7 +2277,7 @@ namespace Tomahawk
 			Time = 0.0;
 			Delay = 16.0;
 		}
-		bool TickTimer::OnTickEvent(Float64 ElapsedTime)
+		bool TickTimer::OnTickEvent(double ElapsedTime)
 		{
 			if (ElapsedTime - Time > Delay)
 			{
@@ -2285,7 +2287,7 @@ namespace Tomahawk
 
 			return false;
 		}
-		Float64 TickTimer::GetTime()
+		double TickTimer::GetTime()
 		{
 			return Time;
 		}
@@ -2340,19 +2342,19 @@ namespace Tomahawk
                 delete (timespec*)Frequency;
 #endif
 		}
-		Float64 Timer::GetTimeIncrement()
+		double Timer::GetTimeIncrement()
 		{
 			return TimeIncrement;
 		}
-		Float64 Timer::GetTickCounter()
+		double Timer::GetTickCounter()
 		{
 			return TickCounter;
 		}
-		Float64 Timer::GetFrameCount()
+		double Timer::GetFrameCount()
 		{
 			return FrameCount;
 		}
-		Float64 Timer::GetElapsedTime()
+		double Timer::GetElapsedTime()
 		{
 #ifdef THAWK_MICROSOFT
 			QueryPerformanceCounter((LARGE_INTEGER*)PastTime);
@@ -2362,27 +2364,27 @@ namespace Tomahawk
             return (((timespec*)PastTime)->tv_nsec - ((timespec*)TimeLimit)->tv_nsec) * 1000.0 / ((timespec*)Frequency)->tv_nsec;
 #endif
 		}
-		Float64 Timer::GetCapturedTime()
+		double Timer::GetCapturedTime()
 		{
 			return GetElapsedTime() - CapturedTime;
 		}
-		Float64 Timer::GetTimeStep()
+		double Timer::GetTimeStep()
 		{
-			Float64 TimeStep = 1.0 / FrameCount;
+			double TimeStep = 1.0 / FrameCount;
 			if (TimeStep > TimeStepLimit)
 				return TimeStepLimit;
 
 			return TimeStep;
 		}
-		Float64 Timer::GetDeltaTime()
+		double Timer::GetDeltaTime()
 		{
-			Float64 DeltaTime = FrameRelation / FrameCount;
+			double DeltaTime = FrameRelation / FrameCount;
 			if (DeltaTime > DeltaTimeLimit)
 				return DeltaTimeLimit;
 
 			return DeltaTime;
 		}
-		void Timer::SetStepLimitation(Float64 MaxFrames, Float64 MinFrames)
+		void Timer::SetStepLimitation(double MaxFrames, double MinFrames)
 		{
 			MinFrames = MinFrames >= 0.1 ? MinFrames : 0.1;
 			FrameRelation = MaxFrames;
@@ -2392,8 +2394,8 @@ namespace Tomahawk
 		}
 		void Timer::Synchronize()
 		{
-			Float64 ElapsedTime = GetElapsedTime();
-			Float64 Tick = ElapsedTime - TickCounter;
+			double ElapsedTime = GetElapsedTime();
+			double Tick = ElapsedTime - TickCounter;
 
 			FrameCount = 1000.0 / (Tick >= 0.000001 ? Tick : 0.000001);
 			TickCounter = ElapsedTime;
@@ -2402,14 +2404,14 @@ namespace Tomahawk
 				return;
 
 			if (ElapsedTime - TimeIncrement < 1000.0 / FrameLimit)
-				std::this_thread::sleep_for(std::chrono::milliseconds((UInt64)(1000.0f / FrameLimit - ElapsedTime + TimeIncrement)));
+				std::this_thread::sleep_for(std::chrono::milliseconds((uint64_t)(1000.0f / FrameLimit - ElapsedTime + TimeIncrement)));
 			TimeIncrement = GetElapsedTime();
 		}
 		void Timer::CaptureTime()
 		{
 			CapturedTime = GetElapsedTime();
 		}
-		void Timer::Sleep(UInt64 Ms)
+		void Timer::Sleep(uint64_t Ms)
 		{
 			std::this_thread::sleep_for(std::chrono::milliseconds(Ms));
 		}
@@ -2526,7 +2528,7 @@ namespace Tomahawk
 
 			return true;
 		}
-		bool FileStream::Seek(FileSeek Mode, Int64 Offset)
+		bool FileStream::Seek(FileSeek Mode, int64_t Offset)
 		{
 			switch (Mode)
 			{
@@ -2558,7 +2560,7 @@ namespace Tomahawk
 
 			return false;
 		}
-		bool FileStream::Move(Int64 Offset)
+		bool FileStream::Move(int64_t Offset)
 		{
 #ifdef THAWK_HAS_ZLIB
 			if (Compress != nullptr)
@@ -2623,24 +2625,24 @@ namespace Tomahawk
 
 			return (unsigned char)putc((int)Value, Buffer);
 		}
-		UInt64 FileStream::ReadAny(const char* Format, ...)
+		uint64_t FileStream::ReadAny(const char* Format, ...)
 		{
 #ifdef THAWK_HAS_ZLIB
 			if (Compress != nullptr)
 				return 0;
 #endif
 			va_list Args;
-			UInt64 R = 0;
+			uint64_t R = 0;
 					va_start(Args, Format);
 
 			if (Buffer != nullptr)
-				R = (UInt64)vfscanf(Buffer, Format, Args);
+				R = (uint64_t)vfscanf(Buffer, Format, Args);
 
 					va_end(Args);
 
 			return R;
 		}
-		UInt64 FileStream::Read(char* Data, UInt64 Length)
+		uint64_t FileStream::Read(char* Data, uint64_t Length)
 		{
 #ifdef THAWK_HAS_ZLIB
 			if (Compress != nullptr)
@@ -2651,25 +2653,25 @@ namespace Tomahawk
 
 			return fread(Data, 1, (size_t)Length, Buffer);
 		}
-		UInt64 FileStream::WriteAny(const char* Format, ...)
+		uint64_t FileStream::WriteAny(const char* Format, ...)
 		{
 			va_list Args;
-			UInt64 R = 0;
+			uint64_t R = 0;
 					va_start(Args, Format);
 #ifdef THAWK_HAS_ZLIB
 			if (Compress != nullptr)
-				R = (UInt64)gzvprintf((gzFile)Compress, Format, Args);
+				R = (uint64_t)gzvprintf((gzFile)Compress, Format, Args);
 			else if (Buffer != nullptr)
-				R = (UInt64)vfprintf(Buffer, Format, Args);
+				R = (uint64_t)vfprintf(Buffer, Format, Args);
 #else
 																																		if (Buffer != nullptr)
-				R = (UInt64)vfprintf(Buffer, Format, Args);
+				R = (uint64_t)vfprintf(Buffer, Format, Args);
 #endif
 					va_end(Args);
 
 			return R;
 		}
-		UInt64 FileStream::Write(const char* Data, UInt64 Length)
+		uint64_t FileStream::Write(const char* Data, uint64_t Length)
 		{
 #ifdef THAWK_HAS_ZLIB
 			if (Compress != nullptr)
@@ -2680,7 +2682,7 @@ namespace Tomahawk
 
 			return fwrite(Data, 1, (size_t)Length, Buffer);
 		}
-		UInt64 FileStream::Tell()
+		uint64_t FileStream::Tell()
 		{
 #ifdef THAWK_HAS_ZLIB
 			if (Compress != nullptr)
@@ -2691,14 +2693,14 @@ namespace Tomahawk
 
 			return ftell(Buffer);
 		}
-		UInt64 FileStream::Size()
+		uint64_t FileStream::Size()
 		{
 			if (!Buffer)
 				return 0;
 
-			UInt64 Position = Tell();
+			uint64_t Position = Tell();
 			Seek(FileSeek_End, 0);
-			UInt64 Size = Tell();
+			uint64_t Size = Tell();
 			Seek(FileSeek_Begin, Position);
 
 			return Size;
@@ -2765,9 +2767,9 @@ namespace Tomahawk
 
 			return nullptr;
 		}
-		UInt64 FileTree::GetFiles()
+		uint64_t FileTree::GetFiles()
 		{
-			UInt64 Count = Files.size();
+			uint64_t Count = Files.size();
 			for (auto& Directory : Directories)
 				Count += Directory->GetFiles();
 
@@ -2820,7 +2822,7 @@ namespace Tomahawk
 			fwrite((char*)Header, sizeof(Header), 1, Stream);
 
 			unsigned char Padding[3] = { 0, 0, 0 };
-			UInt64 Offset = 0;
+			uint64_t Offset = 0;
 
 			for (int y = 0; y < Width; y++)
 			{
@@ -2892,7 +2894,7 @@ namespace Tomahawk
 
 			return Buffer.st_mode & S_IFDIR;
 		}
-		bool OS::Write(const char* Path, const char* Data, UInt64 Length)
+		bool OS::Write(const char* Path, const char* Data, uint64_t Length)
 		{
 			FILE* Stream = (FILE*)Open(Path, "wb");
 			if (!Stream)
@@ -3159,21 +3161,21 @@ namespace Tomahawk
 
             struct tm* Time = localtime(&State.st_ctime);
             Resource->CreationTime = mktime(Time);
-            Resource->Size = (UInt64)(State.st_size);
+            Resource->Size = (uint64_t)(State.st_size);
             Resource->LastModified = State.st_mtime;
             Resource->IsDirectory = S_ISDIR(State.st_mode);
 
             return true;
 #endif
 		}
-		bool OS::ConstructETag(char* Buffer, UInt64 Length, Resource* Resource)
+		bool OS::ConstructETag(char* Buffer, uint64_t Length, Resource* Resource)
 		{
 			if (Resource != nullptr)
 				ConstructETagManually(Buffer, Length, Resource->LastModified, Resource->Size);
 
 			return true;
 		}
-		bool OS::ConstructETagManually(char* Buffer, UInt64 Length, Int64 LastModified, UInt64 ContentLength)
+		bool OS::ConstructETagManually(char* Buffer, uint64_t Length, int64_t LastModified, uint64_t ContentLength)
 		{
 			if (Buffer != nullptr && Length > 0)
 				snprintf(Buffer, (const size_t)Length, "\"%lx.%llu\"", (unsigned long)LastModified, ContentLength);
@@ -3422,7 +3424,7 @@ namespace Tomahawk
             return (void*)Stream;
 #endif
 		}
-		bool OS::SendFile(FILE* Stream, socket_t Socket, Int64 Size)
+		bool OS::SendFile(FILE* Stream, socket_t Socket, int64_t Size)
 		{
 			if (!Stream || !Size)
 				return false;
@@ -3465,7 +3467,7 @@ namespace Tomahawk
 		}
 		std::string OS::Read(const char* Path)
 		{
-			UInt64 Length = 0;
+			uint64_t Length = 0;
 			char* Data = (char*)ReadAllBytes(Path, &Length);
 			if (!Data)
 				return std::string();
@@ -3541,8 +3543,8 @@ namespace Tomahawk
 #elif defined THAWK_UNIX
             getcwd(Buffer, THAWK_MAX_PATH);
 #endif
-            Int64 Length = 0;
-            for (Int64 i = 0; i < THAWK_MAX_PATH; i++)
+            int64_t Length = 0;
+            for (int64_t i = 0; i < THAWK_MAX_PATH; i++)
             {
                 if (Buffer[i] == '\0')
                     break;
@@ -3591,7 +3593,7 @@ namespace Tomahawk
 				return std::vector<std::string>();
 
 			fseek(Stream, 0, SEEK_END);
-			UInt64 Length = ftell(Stream);
+			uint64_t Length = ftell(Stream);
 			fseek(Stream, 0, SEEK_SET);
 
 			char* Buffer = (char*)malloc(sizeof(char) * Length);
@@ -3646,14 +3648,14 @@ namespace Tomahawk
 
 			return Buffer;
 		}
-		unsigned char* OS::ReadAllBytes(const char* Path, UInt64* Length)
+		unsigned char* OS::ReadAllBytes(const char* Path, uint64_t* Length)
 		{
 			FILE* Stream = (FILE*)Open(Path, "rb");
 			if (!Stream)
 				return nullptr;
 
 			fseek(Stream, 0, SEEK_END);
-			UInt64 Size = ftell(Stream);
+			uint64_t Size = ftell(Stream);
 			fseek(Stream, 0, SEEK_SET);
 
 			auto* Bytes = (unsigned char*)malloc(sizeof(unsigned char) * (size_t)(Size + 1));
@@ -3675,12 +3677,12 @@ namespace Tomahawk
 			fclose(Stream);
 			return Bytes;
 		}
-		unsigned char* OS::ReadAllBytes(FileStream* Stream, UInt64* Length)
+		unsigned char* OS::ReadAllBytes(FileStream* Stream, uint64_t* Length)
 		{
 			if (!Stream)
 				return nullptr;
 
-			UInt64 Size = Stream->Size();
+			uint64_t Size = Stream->Size();
 
 			auto* Bytes = new unsigned char[(size_t)(Size + 1)];
 			Stream->Read((char*)Bytes, Size * sizeof(unsigned char));
@@ -3691,7 +3693,7 @@ namespace Tomahawk
 
 			return Bytes;
 		}
-		unsigned char* OS::ReadByteChunk(FileStream* Stream, UInt64 Length)
+		unsigned char* OS::ReadByteChunk(FileStream* Stream, uint64_t Length)
 		{
 			auto* Bytes = (unsigned char*)malloc((size_t)(Length + 1));
 			Stream->Read((char*)Bytes, Length);
@@ -3711,26 +3713,26 @@ namespace Tomahawk
 		{
 			delete Stream;
 		}
-		void FileLogger::Process(const std::function<bool(FileLogger*, const char*, Int64)>& Callback)
+		void FileLogger::Process(const std::function<bool(FileLogger*, const char*, int64_t)>& Callback)
 		{
 			Stream->Open(Path.c_str(), FileMode_Binary_Read_Only);
 
-			UInt64 Length = Stream->Size();
+			uint64_t Length = Stream->Size();
 			if (Length <= Offset || Offset <= 0)
 			{
 				Offset = Length;
 				return;
 			}
 
-			Int64 Delta = Length - Offset;
+			int64_t Delta = Length - Offset;
 			Stream->Seek(FileSeek_Begin, Length - Delta);
 
 			char* Data = (char*)malloc(sizeof(char) * ((size_t)Delta + 1));
 			Stream->Read(Data, sizeof(char) * Delta);
 
 			std::string Value = Data;
-			Int64 ValueLength = -1;
-			for (Int64 i = Value.size(); i > 0; i--)
+			int64_t ValueLength = -1;
+			for (int64_t i = Value.size(); i > 0; i--)
 			{
 				if (Value[i] == '\n' && ValueLength == -1)
 					ValueLength = i;
@@ -3757,7 +3759,7 @@ namespace Tomahawk
 					if (Line.empty())
 						continue;
 
-					if (Callback && !Callback(this, Line.c_str(), (Int64)Line.size()))
+					if (Callback && !Callback(this, Line.c_str(), (int64_t)Line.size()))
 					{
 						Offset = Length;
 						return;
@@ -3765,7 +3767,7 @@ namespace Tomahawk
 				}
 			}
 			else if (!Value.empty() && Callback)
-				Callback(this, Value.c_str(), (Int64)Value.size());
+				Callback(this, Value.c_str(), (int64_t)Value.size());
 
 			Offset = Length;
 		}
@@ -3848,7 +3850,7 @@ namespace Tomahawk
 					Async.Thread[1].join();
 			}
 		}
-		void EventQueue::SetIdleTime(UInt64 IdleTime)
+		void EventQueue::SetIdleTime(uint64_t IdleTime)
 		{
 			Idle = IdleTime;
 		}
@@ -3869,7 +3871,7 @@ namespace Tomahawk
 
 			return true;
 		}
-		bool EventQueue::Start(EventWorkflow Workflow, UInt64 TaskWorkers, UInt64 EventWorkers)
+		bool EventQueue::Start(EventWorkflow Workflow, uint64_t TaskWorkers, uint64_t EventWorkers)
 		{
 			Synchronize = (int)Workflow;
 			if (State != EventState_Terminated || Async.Thread[0].joinable())
@@ -3878,11 +3880,11 @@ namespace Tomahawk
 				State = EventState_Idle;
 
 			Async.Workers[0].reserve(TaskWorkers);
-			for (UInt64 i = 0; i < TaskWorkers; i++)
+			for (uint64_t i = 0; i < TaskWorkers; i++)
 				Async.Workers[0].push_back(new EventWorker(this, true));
 
 			Async.Workers[1].reserve(EventWorkers);
-			for (UInt64 i = 0; i < EventWorkers; i++)
+			for (uint64_t i = 0; i < EventWorkers; i++)
 				Async.Workers[1].push_back(new EventWorker(this, false));
 
 			State = EventState_Working;
@@ -3957,7 +3959,7 @@ namespace Tomahawk
 
 			return true;
 		}
-		bool EventQueue::Expire(UInt64 TimerId)
+		bool EventQueue::Expire(uint64_t TimerId)
 		{
 			Sync.Timers.lock();
 			for (auto It = Timers.begin(); It != Timers.end(); It++)
@@ -4094,13 +4096,13 @@ namespace Tomahawk
 			delete Task;
 			return true;
 		}
-		bool EventQueue::QueueTimer(Int64 Time)
+		bool EventQueue::QueueTimer(int64_t Time)
 		{
 			Sync.Timers.lock();
 			for (auto It = Timers.begin(); It != Timers.end(); It++)
 			{
 				EventTimer* Element = *It;
-				if (Time - Element->Time < (Int64)Element->Timeout)
+				if (Time - Element->Time < (int64_t)Element->Timeout)
 					continue;
 
 				Element->Time = Time;
@@ -4193,7 +4195,7 @@ namespace Tomahawk
 			Sync.Listeners.unlock();
 			return false;
 		}
-		bool EventQueue::RemoveListener(UInt64 Type)
+		bool EventQueue::RemoveListener(uint64_t Type)
 		{
 			Sync.Listeners.lock();
 			auto It = Listeners.find(Type);
@@ -4226,7 +4228,7 @@ namespace Tomahawk
 
 			return true;
 		}
-		bool EventQueue::RemoveAny(EventType Type, UInt64 Hash, const PullCallback& Callback, bool NoCall)
+		bool EventQueue::RemoveAny(EventType Type, uint64_t Hash, const PullCallback& Callback, bool NoCall)
 		{
 			if ((Type & EventType_Tasks) && !Tasks.empty())
 			{
@@ -4305,7 +4307,7 @@ namespace Tomahawk
 
 			return false;
 		}
-		Int64 EventQueue::Clock()
+		int64_t EventQueue::Clock()
 		{
 			return std::chrono::duration_cast<std::chrono::milliseconds>(std::chrono::system_clock::now().time_since_epoch()).count();
 		}
@@ -4360,7 +4362,7 @@ namespace Tomahawk
 
 			Saved = true;
 		}
-		Document* Document::GetIndex(Int64 Index)
+		Document* Document::GetIndex(int64_t Index)
 		{
 			if (Index < 0 || Index >= Nodes.size())
 				return nullptr;
@@ -4545,7 +4547,7 @@ namespace Tomahawk
 		{
 			return SetCast("[" + Label + "]", Value);
 		}
-		Document* Document::SetString(const std::string& Label, const char* Value, Int64 Size)
+		Document* Document::SetString(const std::string& Label, const char* Value, int64_t Size)
 		{
 			if (!Value)
 				return SetNull(Label);
@@ -4598,7 +4600,7 @@ namespace Tomahawk
 			Nodes.push_back(Duplicate);
 			return Duplicate;
 		}
-		Document* Document::SetInteger(const std::string& Label, Int64 Value)
+		Document* Document::SetInteger(const std::string& Label, int64_t Value)
 		{
 			Document* Duplicate = Get(Label);
 			Saved = false;
@@ -4607,7 +4609,7 @@ namespace Tomahawk
 			{
 				Duplicate->Type = NodeType_Integer;
 				Duplicate->Integer = Value;
-				Duplicate->Number = (Float64)Value;
+				Duplicate->Number = (double)Value;
 				Duplicate->Saved = false;
 				Duplicate->Name.assign(Label);
 
@@ -4617,7 +4619,7 @@ namespace Tomahawk
 			Duplicate = new Document();
 			Duplicate->Type = NodeType_Integer;
 			Duplicate->Integer = Value;
-			Duplicate->Number = (Float64)Value;
+			Duplicate->Number = (double)Value;
 			Duplicate->Saved = false;
 			Duplicate->Parent = this;
 			Duplicate->Name.assign(Label);
@@ -4625,7 +4627,7 @@ namespace Tomahawk
 			Nodes.push_back(Duplicate);
 			return Duplicate;
 		}
-		Document* Document::SetNumber(const std::string& Label, Float64 Value)
+		Document* Document::SetNumber(const std::string& Label, double Value)
 		{
 			Document* Duplicate = Get(Label);
 			Saved = false;
@@ -4633,7 +4635,7 @@ namespace Tomahawk
 			if (Duplicate != nullptr)
 			{
 				Duplicate->Type = NodeType_Number;
-				Duplicate->Integer = (Int64)Value;
+				Duplicate->Integer = (int64_t)Value;
 				Duplicate->Number = Value;
 				Duplicate->Saved = false;
 				Duplicate->Name.assign(Label);
@@ -4643,7 +4645,7 @@ namespace Tomahawk
 
 			Duplicate = new Document();
 			Duplicate->Type = NodeType_Number;
-			Duplicate->Integer = (Int64)Value;
+			Duplicate->Integer = (int64_t)Value;
 			Duplicate->Number = Value;
 			Duplicate->Saved = false;
 			Duplicate->Parent = this;
@@ -4652,7 +4654,7 @@ namespace Tomahawk
 			Nodes.push_back(Duplicate);
 			return Duplicate;
 		}
-		Document* Document::SetDecimal(const std::string& Label, Int64 fHigh, Int64 fLow)
+		Document* Document::SetDecimal(const std::string& Label, int64_t fHigh, int64_t fLow)
 		{
 			Document* Duplicate = Get(Label);
 			Saved = false;
@@ -4682,7 +4684,7 @@ namespace Tomahawk
 		Document* Document::SetDecimal(const std::string& Label, const std::string& Value)
 		{
 #ifdef THAWK_HAS_MONGOC
-			Int64 fHigh, fLow;
+			int64_t fHigh, fLow;
 			if (!Network::BSON::Document::ParseDecimal(Value.c_str(), &fHigh, &fLow))
 				return nullptr;
 
@@ -4779,11 +4781,11 @@ namespace Tomahawk
 			Document* Value = Get(Label);
 			return !Value || Value->Type == NodeType_Undefined;
 		}
-		Int64 Document::Size()
+		int64_t Document::Size()
 		{
-			return (Int64)Nodes.size();
+			return (int64_t)Nodes.size();
 		}
-		Int64 Document::GetDecimal(const std::string& Label, Int64* fLow)
+		int64_t Document::GetDecimal(const std::string& Label, int64_t* fLow)
 		{
 			Document* Value = Get(Label);
 			if (!Value || Value->Type != NodeType_Decimal)
@@ -4794,7 +4796,7 @@ namespace Tomahawk
 
 			return Value->Integer;
 		}
-		Int64 Document::GetInteger(const std::string& Label)
+		int64_t Document::GetInteger(const std::string& Label)
 		{
 			Document* Value = Get(Label);
 			if (!Value)
@@ -4804,18 +4806,18 @@ namespace Tomahawk
 				return Value->Integer;
 
 			if (Value->Type == NodeType_Number)
-				return (Int64)Value->Number;
+				return (int64_t)Value->Number;
 
 			return 0;
 		}
-		Float64 Document::GetNumber(const std::string& Label)
+		double Document::GetNumber(const std::string& Label)
 		{
 			Document* Value = Get(Label);
 			if (!Value)
 				return 0.0;
 
 			if (Value->Type == NodeType_Integer)
-				return (Float64)Value->Integer;
+				return (double)Value->Integer;
 
 			if (Value->Type == NodeType_Number)
 				return Value->Number;
@@ -4941,10 +4943,10 @@ namespace Tomahawk
 		{
 			return &Nodes;
 		}
-		std::unordered_map<std::string, UInt64> Document::CreateMapping()
+		std::unordered_map<std::string, uint64_t> Document::CreateMapping()
 		{
-			std::unordered_map<std::string, UInt64> Mapping;
-			UInt64 Index = 0;
+			std::unordered_map<std::string, uint64_t> Mapping;
+			uint64_t Index = 0;
 
 			ProcessMAPRead(this, &Mapping, Index);
 			return Mapping;
@@ -5051,12 +5053,12 @@ namespace Tomahawk
 				{
 					Output->Type = NodeType_Integer;
 					Output->Integer = Man.ToInt64();
-					Output->Number = (Float64)Output->Integer;
+					Output->Number = (double)Output->Integer;
 				}
 				else
 				{
 					Output->Type = NodeType_Number;
-					Output->Integer = (Int64)Output->Number;
+					Output->Integer = (int64_t)Output->Number;
 					Output->Number = Man.ToFloat64();
 				}
 
@@ -5073,17 +5075,17 @@ namespace Tomahawk
 			if (!Value || !Callback)
 				return false;
 
-			std::unordered_map<std::string, UInt64> Mapping = Value->CreateMapping();
-			UInt64 Set = (UInt64)Mapping.size();
+			std::unordered_map<std::string, uint64_t> Mapping = Value->CreateMapping();
+			uint64_t Set = (uint64_t)Mapping.size();
 
 			Callback(DocumentPretty_Dummy, "\0b\0i\0n\0h\0e\0a\0d\r\n", sizeof(char) * 16);
-			Callback(DocumentPretty_Dummy, (const char*)&Set, sizeof(UInt64));
+			Callback(DocumentPretty_Dummy, (const char*)&Set, sizeof(uint64_t));
 
 			for (auto It = Mapping.begin(); It != Mapping.end(); It++)
 			{
-				UInt64 Size = (UInt64)It->first.size();
-				Callback(DocumentPretty_Dummy, (const char*)&It->second, sizeof(UInt64));
-				Callback(DocumentPretty_Dummy, (const char*)&Size, sizeof(UInt64));
+				uint64_t Size = (uint64_t)It->first.size();
+				Callback(DocumentPretty_Dummy, (const char*)&It->second, sizeof(uint64_t));
+				Callback(DocumentPretty_Dummy, (const char*)&Size, sizeof(uint64_t));
 
 				if (Size > 0)
 					Callback(DocumentPretty_Dummy, It->first.c_str(), sizeof(char) * Size);
@@ -5100,10 +5102,10 @@ namespace Tomahawk
 			std::vector<Document*> Attributes = Value->GetAttributes();
 			std::string Text = Value->String;
 
-			bool Scalable = (!Text.empty() || ((Int64)Value->Nodes.size() - (Int64)Attributes.size()) > 0);
+			bool Scalable = (!Text.empty() || ((int64_t)Value->Nodes.size() - (int64_t)Attributes.size()) > 0);
 			Callback(DocumentPretty_Write_Tab, "", 0);
 			Callback(DocumentPretty_Dummy, "<", 1);
-			Callback(DocumentPretty_Dummy, Value->Name.c_str(), (Int64)Value->Name.size());
+			Callback(DocumentPretty_Dummy, Value->Name.c_str(), (int64_t)Value->Name.size());
 
 			if (Attributes.empty())
 			{
@@ -5120,9 +5122,9 @@ namespace Tomahawk
 				std::string Name = (*It)->Name;
 				std::string Blob = (*It)->Serialize();
 
-				Callback(DocumentPretty_Dummy, Name.c_str() + 1, (Int64)Name.size() - 2);
+				Callback(DocumentPretty_Dummy, Name.c_str() + 1, (int64_t)Name.size() - 2);
 				Callback(DocumentPretty_Dummy, "=\"", 2);
-				Callback(DocumentPretty_Dummy, Blob.c_str(), (Int64)Blob.size());
+				Callback(DocumentPretty_Dummy, Blob.c_str(), (int64_t)Blob.size());
 				It++;
 
 				if (It == Attributes.end())
@@ -5171,7 +5173,7 @@ namespace Tomahawk
 				Callback(DocumentPretty_Write_Tab, "", 0);
 
 			Callback(DocumentPretty_Dummy, "</", 2);
-			Callback(DocumentPretty_Dummy, Value->Name.c_str(), (Int64)Value->Name.size());
+			Callback(DocumentPretty_Dummy, Value->Name.c_str(), (int64_t)Value->Name.size());
 			Callback(Value->Parent ? DocumentPretty_Write_Line : DocumentPretty_Dummy, ">", 1);
 
 			return true;
@@ -5209,11 +5211,11 @@ namespace Tomahawk
 				Callback(DocumentPretty_Write_Tab, "", 0);
 				Callback(DocumentPretty_Write_Space, "\"@text@\":", 9);
 				Callback(DocumentPretty_Dummy, "\"", 1);
-				Callback(DocumentPretty_Dummy, Value->String.c_str(), (Int64)Value->String.size());
+				Callback(DocumentPretty_Dummy, Value->String.c_str(), (int64_t)Value->String.size());
 				Callback(DocumentPretty_Dummy, "\"", 1);
 			}
 
-			std::unordered_map<std::string, UInt64> Mapping = Value->CreateMapping();
+			std::unordered_map<std::string, uint64_t> Mapping = Value->CreateMapping();
 			for (auto&& It : Mapping)
 				It.second = 0;
 
@@ -5234,7 +5236,7 @@ namespace Tomahawk
 					Callback(DocumentPretty_Write_Line, "", 0);
 					Callback(DocumentPretty_Write_Tab, "", 0);
 					Callback(DocumentPretty_Dummy, "\"", 1);
-					Callback(DocumentPretty_Dummy, Name.c_str(), (Int64)Name.size());
+					Callback(DocumentPretty_Dummy, Name.c_str(), (int64_t)Name.size());
 					Callback(DocumentPretty_Write_Space, "\":", 2);
 				}
 
@@ -5254,14 +5256,14 @@ namespace Tomahawk
 					if (!Document->IsObject() && Document->Type != NodeType_String && Document->Type != NodeType_Id)
 					{
 						if (!Key.empty() && Key.front() == '\xFF')
-							Callback(DocumentPretty_Dummy, Key.c_str() + 1, (Int64)Key.size() - 1);
+							Callback(DocumentPretty_Dummy, Key.c_str() + 1, (int64_t)Key.size() - 1);
 						else
-							Callback(DocumentPretty_Dummy, Key.c_str(), (Int64)Key.size());
+							Callback(DocumentPretty_Dummy, Key.c_str(), (int64_t)Key.size());
 					}
 					else
 					{
 						Callback(DocumentPretty_Dummy, "\"", 1);
-						Callback(DocumentPretty_Dummy, Key.c_str(), (Int64)Key.size());
+						Callback(DocumentPretty_Dummy, Key.c_str(), (int64_t)Key.size());
 						Callback(DocumentPretty_Dummy, "\"", 1);
 					}
 				}
@@ -5300,25 +5302,25 @@ namespace Tomahawk
 				return nullptr;
 			}
 
-			UInt64 Set = 0;
-			if (!Callback((char*)&Set, sizeof(UInt64)))
+			uint64_t Set = 0;
+			if (!Callback((char*)&Set, sizeof(uint64_t)))
 			{
 				THAWK_ERROR("name map is undefined");
 				return nullptr;
 			}
 
-			std::unordered_map<UInt64, std::string> Map;
-			for (UInt64 i = 0; i < Set; i++)
+			std::unordered_map<uint64_t, std::string> Map;
+			for (uint64_t i = 0; i < Set; i++)
 			{
-				UInt64 Index = 0;
-				if (!Callback((char*)&Index, sizeof(UInt64)))
+				uint64_t Index = 0;
+				if (!Callback((char*)&Index, sizeof(uint64_t)))
 				{
 					THAWK_ERROR("name index is undefined");
 					return nullptr;
 				}
 
-				UInt64 Size = 0;
-				if (!Callback((char*)&Size, sizeof(UInt64)))
+				uint64_t Size = 0;
+				if (!Callback((char*)&Size, sizeof(uint64_t)))
 				{
 					THAWK_ERROR("name size is undefined");
 					return nullptr;
@@ -5347,7 +5349,7 @@ namespace Tomahawk
 
 			return Current;
 		}
-		Document* Document::ReadXML(Int64 Size, const NReadCallback& Callback)
+		Document* Document::ReadXML(int64_t Size, const NReadCallback& Callback)
 		{
 			if (!Callback || !Size)
 				return nullptr;
@@ -5415,7 +5417,7 @@ namespace Tomahawk
 
 			return Result;
 		}
-		Document* Document::ReadJSON(Int64 Size, const NReadCallback& Callback)
+		Document* Document::ReadJSON(int64_t Size, const NReadCallback& Callback)
 		{
 			if (!Callback || !Size)
 				return nullptr;
@@ -5449,12 +5451,12 @@ namespace Tomahawk
             return false;
 #endif
 		}
-		void Document::ProcessBINWrite(Document* Current, std::unordered_map<std::string, UInt64>* Map, const NWriteCallback& Callback)
+		void Document::ProcessBINWrite(Document* Current, std::unordered_map<std::string, uint64_t>* Map, const NWriteCallback& Callback)
 		{
-			UInt64 Id = Map->at(Current->Name), Count = 0;
-			Callback(DocumentPretty_Dummy, (const char*)&Id, sizeof(UInt64));
+			uint64_t Id = Map->at(Current->Name), Count = 0;
+			Callback(DocumentPretty_Dummy, (const char*)&Id, sizeof(uint64_t));
 			Callback(DocumentPretty_Dummy, (const char*)&Current->Type, sizeof(NodeType));
-			Callback(DocumentPretty_Dummy, (const char*)&(Count = Current->String.size()), sizeof(UInt64));
+			Callback(DocumentPretty_Dummy, (const char*)&(Count = Current->String.size()), sizeof(uint64_t));
 
 			if (Count > 0)
 				Callback(DocumentPretty_Dummy, (const char*)Current->String.c_str(), (size_t)Count);
@@ -5462,21 +5464,21 @@ namespace Tomahawk
 			switch (Current->Type)
 			{
 				case NodeType_Integer:
-					Callback(DocumentPretty_Dummy, (const char*)&Current->Integer, sizeof(Int64));
+					Callback(DocumentPretty_Dummy, (const char*)&Current->Integer, sizeof(int64_t));
 					break;
 				case NodeType_Number:
-					Callback(DocumentPretty_Dummy, (const char*)&Current->Number, sizeof(Float64));
+					Callback(DocumentPretty_Dummy, (const char*)&Current->Number, sizeof(double));
 					break;
 				case NodeType_Decimal:
-					Callback(DocumentPretty_Dummy, (const char*)&Current->Integer, sizeof(Int64));
-					Callback(DocumentPretty_Dummy, (const char*)&Current->Low, sizeof(Int64));
+					Callback(DocumentPretty_Dummy, (const char*)&Current->Integer, sizeof(int64_t));
+					Callback(DocumentPretty_Dummy, (const char*)&Current->Low, sizeof(int64_t));
 					break;
 				case NodeType_Boolean:
 					Callback(DocumentPretty_Dummy, (const char*)&Current->Boolean, sizeof(bool));
 					break;
 				case NodeType_Array:
 				case NodeType_Object:
-					Callback(DocumentPretty_Dummy, (const char*)&(Count = Current->Nodes.size()), sizeof(UInt64));
+					Callback(DocumentPretty_Dummy, (const char*)&(Count = Current->Nodes.size()), sizeof(uint64_t));
 					for (auto& Document : Current->Nodes)
 						ProcessBINWrite(Document, Map, Callback);
 					break;
@@ -5484,10 +5486,10 @@ namespace Tomahawk
 					break;
 			}
 		}
-		bool Document::ProcessBINRead(Document* Current, std::unordered_map<UInt64, std::string>* Map, const NReadCallback& Callback)
+		bool Document::ProcessBINRead(Document* Current, std::unordered_map<uint64_t, std::string>* Map, const NReadCallback& Callback)
 		{
-			UInt64 Id = 0;
-			if (!Callback((char*)&Id, sizeof(UInt64)))
+			uint64_t Id = 0;
+			if (!Callback((char*)&Id, sizeof(uint64_t)))
 			{
 				THAWK_ERROR("key name index is undefined");
 				return false;
@@ -5503,8 +5505,8 @@ namespace Tomahawk
 				return false;
 			}
 
-			UInt64 Count = 0;
-			if (!Callback((char*)&Count, sizeof(UInt64)))
+			uint64_t Count = 0;
+			if (!Callback((char*)&Count, sizeof(uint64_t)))
 			{
 				THAWK_ERROR("key value size is undefined");
 				return false;
@@ -5523,31 +5525,31 @@ namespace Tomahawk
 			switch (Current->Type)
 			{
 				case NodeType_Integer:
-					if (!Callback((char*)&Current->Integer, sizeof(Int64)))
+					if (!Callback((char*)&Current->Integer, sizeof(int64_t)))
 					{
 						THAWK_ERROR("key value is undefined");
 						return false;
 					}
 
-					Current->Number = (Float64)Current->Integer;
+					Current->Number = (double)Current->Integer;
 					break;
 				case NodeType_Number:
-					if (!Callback((char*)&Current->Number, sizeof(Float64)))
+					if (!Callback((char*)&Current->Number, sizeof(double)))
 					{
 						THAWK_ERROR("key value is undefined");
 						return false;
 					}
 
-					Current->Integer = (Int64)Current->Number;
+					Current->Integer = (int64_t)Current->Number;
 					break;
 				case NodeType_Decimal:
-					if (!Callback((char*)&Current->Integer, sizeof(Int64)))
+					if (!Callback((char*)&Current->Integer, sizeof(int64_t)))
 					{
 						THAWK_ERROR("key value is undefined");
 						return false;
 					}
 
-					if (!Callback((char*)&Current->Low, sizeof(Int64)))
+					if (!Callback((char*)&Current->Low, sizeof(int64_t)))
 					{
 						THAWK_ERROR("key value is undefined");
 						return false;
@@ -5562,7 +5564,7 @@ namespace Tomahawk
 					break;
 				case NodeType_Array:
 				case NodeType_Object:
-					if (!Callback((char*)&Count, sizeof(UInt64)))
+					if (!Callback((char*)&Count, sizeof(uint64_t)))
 					{
 						THAWK_ERROR("key value size is undefined");
 						return false;
@@ -5587,7 +5589,7 @@ namespace Tomahawk
 
 			return true;
 		}
-		bool Document::ProcessMAPRead(Document* Current, std::unordered_map<std::string, UInt64>* Map, UInt64& Index)
+		bool Document::ProcessMAPRead(Document* Current, std::unordered_map<std::string, uint64_t>* Map, uint64_t& Index)
 		{
 			auto M = Map->find(Current->Name);
 			if (M == Map->end())

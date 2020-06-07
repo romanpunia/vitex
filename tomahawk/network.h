@@ -18,8 +18,8 @@ namespace Tomahawk
 {
 	namespace Network
 	{
-		typedef std::function<bool(struct Socket*, const char*, Int64)> SocketReadCallback;
-		typedef std::function<bool(struct Socket*, Int64)> SocketWriteCallback;
+		typedef std::function<bool(struct Socket*, const char*, int64_t)> SocketReadCallback;
+		typedef std::function<bool(struct Socket*, int64_t)> SocketWriteCallback;
 		typedef std::function<bool(struct Socket*)> SocketAcceptCallback;
 		typedef std::function<void(class SocketClient*, int)> SocketClientCallback;
 
@@ -73,7 +73,7 @@ namespace Tomahawk
 			WriteEvent* Prev = nullptr;
 			WriteEvent* Next = nullptr;
 			char* Buffer = nullptr;
-			Int64 Size = 0;
+			int64_t Size = 0;
 			SocketWriteCallback Callback;
 		};
 
@@ -82,7 +82,7 @@ namespace Tomahawk
 			ReadEvent* Prev = nullptr;
 			ReadEvent* Next = nullptr;
 			const char* Match = nullptr;
-			Int64 Size = 0, Index = 0;
+			int64_t Size = 0, Index = 0;
 			SocketReadCallback Callback;
 		};
 
@@ -95,7 +95,7 @@ namespace Tomahawk
 			{
 				std::mutex IO;
 				std::mutex Device;
-				Int64 Time, Timeout;
+				int64_t Time, Timeout;
 				bool Await;
 			} Sync;
 
@@ -108,7 +108,7 @@ namespace Tomahawk
 			int TimeWait = 1;
 
 		public:
-			Int64 Income, Outcome;
+			int64_t Income, Outcome;
 			void* UserData;
 
 		public:
@@ -129,12 +129,12 @@ namespace Tomahawk
 			int Write(const char* Buffer, int Size);
 			int Write(const char* Buffer, int Size, const SocketWriteCallback& Callback);
 			int Write(const std::string& Buffer);
-			int WriteAsync(const char* Buffer, Int64 Size, const SocketWriteCallback& Callback);
+			int WriteAsync(const char* Buffer, int64_t Size, const SocketWriteCallback& Callback);
 			int fWrite(const char* Format, ...);
 			int fWriteAsync(const SocketWriteCallback& Callback, const char* Format, ...);
 			int Read(char* Buffer, int Size);
 			int Read(char* Buffer, int Size, const SocketReadCallback& Callback);
-			int ReadAsync(Int64 Size, const SocketReadCallback& Callback);
+			int ReadAsync(int64_t Size, const SocketReadCallback& Callback);
 			int ReadUntil(const char* Match, const SocketReadCallback& Callback);
 			int ReadUntilAsync(const char* Match, const SocketReadCallback& Callback);
 			int SetTimeWait(int Timeout);
@@ -146,7 +146,7 @@ namespace Tomahawk
 			int SetNodelay(bool Enabled);
 			int SetKeepAlive(bool Enabled);
 			int SetTimeout(int Timeout);
-			int SetAsyncTimeout(Int64 Timeout);
+			int SetAsyncTimeout(int64_t Timeout);
 			int GetError(int Result);
 			int GetAnyFlag(int Level, int Option, int* Value);
 			int GetAny(int Level, int Option, void* Value, int* Size);
@@ -161,12 +161,12 @@ namespace Tomahawk
 			bool HasOutcomingData();
 			bool HasPendingData();
 			std::string GetRemoteAddress();
-			Int64 GetAsyncTimeout();
+			int64_t GetAsyncTimeout();
 
 		private:
-			void ReadPush(const SocketReadCallback& Callback, const char* Match, Int64 Size, Int64 Index);
+			void ReadPush(const SocketReadCallback& Callback, const char* Match, int64_t Size, int64_t Index);
 			void ReadPop();
-			void WritePush(const SocketWriteCallback& Callback, const char* Buffer, Int64 Size);
+			void WritePush(const SocketWriteCallback& Callback, const char* Buffer, int64_t Size);
 			void WritePop();
 
 		public:
@@ -207,9 +207,9 @@ namespace Tomahawk
 		{
 			std::string Message;
 			std::mutex Sync;
-			Int64 Start = 0;
-			Int64 Finish = 0;
-			Int64 Timeout = 0;
+			int64_t Start = 0;
+			int64_t Finish = 0;
+			int64_t Timeout = 0;
 			int KeepAlive = 1;
 			bool Error = false;
 			bool Await = false;
@@ -223,7 +223,7 @@ namespace Tomahawk
 			std::string Ciphers = "ALL";
 			Secure Protocol = Secure_Any;
 			bool VerifyPeers = true;
-			UInt64 Depth = 9;
+			uint64_t Depth = 9;
 		};
 
 		struct THAWK_OUT SocketConnection
@@ -246,14 +246,14 @@ namespace Tomahawk
 		{
 			std::unordered_map<std::string, SocketCertificate> Certificates;
 			std::unordered_map<std::string, Host> Listeners;
-			UInt64 KeepAliveMaxCount = 10;
-			UInt64 PayloadMaxLength = std::numeric_limits<UInt64>::max();
-			UInt64 BacklogQueue = 20;
-			UInt64 SocketTimeout = 5000;
-			UInt64 MasterTimeout = 200;
-			UInt64 CloseTimeout = 500;
-			UInt64 MaxEvents = 256;
-			UInt64 MaxConnections = 0;
+			uint64_t KeepAliveMaxCount = 10;
+			uint64_t PayloadMaxLength = std::numeric_limits<uint64_t>::max();
+			uint64_t BacklogQueue = 20;
+			uint64_t SocketTimeout = 5000;
+			uint64_t MasterTimeout = 200;
+			uint64_t CloseTimeout = 500;
+			uint64_t MaxEvents = 256;
+			uint64_t MaxConnections = 0;
 			bool EnableNoDelay = false;
 
 			virtual ~SocketRouter();
@@ -271,20 +271,20 @@ namespace Tomahawk
 #endif
 			static Rest::EventQueue* Loop;
 			static epoll_handle Handle;
-			static Int64 PipeTimeout;
+			static int64_t PipeTimeout;
 			static int ArraySize;
 
 		public:
 			static void Create(int MaxEvents);
 			static void Release();
 			static void Dispatch();
-			static bool Create(int MaxEvents, Int64 Timeout, Rest::EventQueue* Queue);
-			static bool Bind(Int64 Timeout, Rest::EventQueue* Queue);
+			static bool Create(int MaxEvents, int64_t Timeout, Rest::EventQueue* Queue);
+			static bool Bind(int64_t Timeout, Rest::EventQueue* Queue);
 			static int Listen(Socket* Value);
 			static int Unlisten(Socket* Value);
-			static int Dispatch(Socket* Value, int* Events, Int64 Time);
+			static int Dispatch(Socket* Value, int* Events, int64_t Time);
 			static int Poll(pollfd* Fd, int FdCount, int Timeout);
-			static Int64 Clock();
+			static int64_t Clock();
 			static Rest::EventQueue* GetQueue();
 
 		private:
@@ -345,11 +345,11 @@ namespace Tomahawk
 			std::string Action;
 			Socket Stream;
 			Host Hostname;
-			Int64 Timeout;
+			int64_t Timeout;
 			bool AutoCertify;
 
 		public:
-			SocketClient(Int64 RequestTimeout);
+			SocketClient(int64_t RequestTimeout);
 			virtual ~SocketClient() override;
 			bool Connect(Host* Address, const SocketClientCallback& Callback);
 			bool Close(const SocketClientCallback& Callback);

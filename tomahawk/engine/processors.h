@@ -54,7 +54,7 @@ namespace Tomahawk
 
 			struct THAWK_OUT MeshInfo
 			{
-				std::vector<std::pair<Int64, Compute::Joint>> Joints;
+				std::vector<std::pair<int64_t, Compute::Joint>> Joints;
 				std::vector<MeshBlob> Meshes;
 				float PX = 0, PY = 0, PZ = 0;
 				float NX = 0, NY = 0, NZ = 0;
@@ -65,18 +65,18 @@ namespace Tomahawk
 			struct THAWK_OUT MeshNode
 			{
 				Compute::Matrix4x4 Transform;
-				Int64 Index;
+				int64_t Index;
 			};
 
 			class THAWK_OUT SceneGraphProcessor : public FileProcessor
 			{
 			public:
-				void (* OnComponentCreation)(Entity*, Component**, UInt64);
-				void (* OnRendererCreation)(Renderer**, UInt64);
+				void (* OnComponentCreation)(Entity*, Component**, uint64_t);
+				void (* OnRendererCreation)(Renderer**, uint64_t);
 
 			public:
 				SceneGraphProcessor(ContentManager* Manager);
-				void* Load(Rest::FileStream* Stream, UInt64 Length, UInt64 Offset, ContentArgs* Args) override;
+				void* Load(Rest::FileStream* Stream, uint64_t Length, uint64_t Offset, ContentArgs* Args) override;
 				bool Save(Rest::FileStream* Stream, void* Object, ContentArgs* Args) override;
 			};
 
@@ -84,7 +84,7 @@ namespace Tomahawk
 			{
 			public:
 				FontProcessor(ContentManager* Manager);
-				void* Load(Rest::FileStream* Stream, UInt64 Length, UInt64 Offset, ContentArgs* Args) override;
+				void* Load(Rest::FileStream* Stream, uint64_t Length, uint64_t Offset, ContentArgs* Args) override;
 			};
 
 			class THAWK_OUT AudioClipProcessor : public FileProcessor
@@ -94,9 +94,9 @@ namespace Tomahawk
 				virtual ~AudioClipProcessor() override;
 				void Free(AssetResource* Asset) override;
 				void* Duplicate(AssetResource* Asset, ContentArgs* Args) override;
-				void* Load(Rest::FileStream* Stream, UInt64 Length, UInt64 Offset, ContentArgs* Args) override;
-				void* LoadWAVE(Rest::FileStream* Stream, UInt64 Length, UInt64 Offset, ContentArgs* Args);
-				void* LoadOGG(Rest::FileStream* Stream, UInt64 Length, UInt64 Offset, ContentArgs* Args);
+				void* Load(Rest::FileStream* Stream, uint64_t Length, uint64_t Offset, ContentArgs* Args) override;
+				void* LoadWAVE(Rest::FileStream* Stream, uint64_t Length, uint64_t Offset, ContentArgs* Args);
+				void* LoadOGG(Rest::FileStream* Stream, uint64_t Length, uint64_t Offset, ContentArgs* Args);
 			};
 
 			class THAWK_OUT Texture2DProcessor : public FileProcessor
@@ -106,7 +106,7 @@ namespace Tomahawk
 				virtual ~Texture2DProcessor() override;
 				void Free(AssetResource* Asset) override;
 				void* Duplicate(AssetResource* Asset, ContentArgs* Args) override;
-				void* Load(Rest::FileStream* Stream, UInt64 Length, UInt64 Offset, ContentArgs* Args) override;
+				void* Load(Rest::FileStream* Stream, uint64_t Length, uint64_t Offset, ContentArgs* Args) override;
 			};
 
 			class THAWK_OUT ShaderProcessor : public FileProcessor
@@ -116,7 +116,7 @@ namespace Tomahawk
 				virtual ~ShaderProcessor() override;
 				void Free(AssetResource* Asset) override;
 				void* Duplicate(AssetResource* Asset, ContentArgs* Args) override;
-				void* Load(Rest::FileStream* Stream, UInt64 Length, UInt64 Offset, ContentArgs* Args) override;
+				void* Load(Rest::FileStream* Stream, uint64_t Length, uint64_t Offset, ContentArgs* Args) override;
 			};
 
 			class THAWK_OUT ModelProcessor : public FileProcessor
@@ -129,7 +129,7 @@ namespace Tomahawk
 				virtual ~ModelProcessor() override;
 				void Free(AssetResource* Asset) override;
 				void* Duplicate(AssetResource* Asset, ContentArgs* Args) override;
-				void* Load(Rest::FileStream* Stream, UInt64 Length, UInt64 Offset, ContentArgs* Args) override;
+				void* Load(Rest::FileStream* Stream, uint64_t Length, uint64_t Offset, ContentArgs* Args) override;
 
 			public:
 				static Rest::Document* Import(const std::string& Path, unsigned int Opts = MeshOpt_CalcTangentSpace | MeshOpt_GenSmoothNormals | MeshOpt_JoinIdenticalVertices | MeshOpt_ImproveCacheLocality | MeshOpt_LimitBoneWeights | MeshOpt_RemoveRedundantMaterials | MeshOpt_SplitLargeMeshes | MeshOpt_Triangulate | MeshOpt_GenUVCoords | MeshOpt_SortByPType | MeshOpt_RemoveDegenerates | MeshOpt_RemoveInvalidData | MeshOpt_RemoveInstances | MeshOpt_ValidateDataStructure | MeshOpt_OptimizeMeshes | MeshOpt_TransformUVCoords | 0);
@@ -138,7 +138,7 @@ namespace Tomahawk
 				static void ProcessNode(void* Scene, void* Node, MeshInfo* Info, const Compute::Matrix4x4& Global);
 				static void ProcessMesh(void* Scene, void* Mesh, MeshInfo* Info, const Compute::Matrix4x4& Global);
 				static void ProcessHeirarchy(void* Scene, void* Node, MeshInfo* Info, Compute::Joint* Parent);
-				static std::vector<std::pair<Int64, Compute::Joint>>::iterator FindJoint(std::vector<std::pair<Int64, Compute::Joint>>& Joints, const std::string& Name);
+				static std::vector<std::pair<int64_t, Compute::Joint>>::iterator FindJoint(std::vector<std::pair<int64_t, Compute::Joint>>& Joints, const std::string& Name);
 			};
 
 			class THAWK_OUT SkinnedModelProcessor : public FileProcessor
@@ -151,13 +151,13 @@ namespace Tomahawk
 				virtual ~SkinnedModelProcessor() override;
 				void Free(AssetResource* Asset) override;
 				void* Duplicate(AssetResource* Asset, ContentArgs* Args) override;
-				void* Load(Rest::FileStream* Stream, UInt64 Length, UInt64 Offset, ContentArgs* Args) override;
+				void* Load(Rest::FileStream* Stream, uint64_t Length, uint64_t Offset, ContentArgs* Args) override;
 
 			public:
 				static std::vector<Compute::SkinAnimatorClip> ImportAnimation(const std::string& Path, unsigned int Opts = MeshOpt_CalcTangentSpace | MeshOpt_GenSmoothNormals | MeshOpt_JoinIdenticalVertices | MeshOpt_ImproveCacheLocality | MeshOpt_LimitBoneWeights | MeshOpt_RemoveRedundantMaterials | MeshOpt_SplitLargeMeshes | MeshOpt_Triangulate | MeshOpt_GenUVCoords | MeshOpt_SortByPType | MeshOpt_RemoveDegenerates | MeshOpt_RemoveInvalidData | MeshOpt_RemoveInstances | MeshOpt_ValidateDataStructure | MeshOpt_OptimizeMeshes | MeshOpt_TransformUVCoords | 0);
 
 			private:
-				static void ProcessNode(void* Scene, void* Node, std::unordered_map<std::string, MeshNode>* Joints, Int64& Index);
+				static void ProcessNode(void* Scene, void* Node, std::unordered_map<std::string, MeshNode>* Joints, int64_t& Index);
 				static void ProcessHeirarchy(void* Scene, void* Node, std::unordered_map<std::string, MeshNode>* Joints);
 				static void ProcessKeys(std::vector<Compute::AnimatorKey>* Keys, std::unordered_map<std::string, MeshNode>* Joints);
 			};
@@ -166,7 +166,7 @@ namespace Tomahawk
 			{
 			public:
 				DocumentProcessor(ContentManager* Manager);
-				void* Load(Rest::FileStream* Stream, UInt64 Length, UInt64 Offset, ContentArgs* Args) override;
+				void* Load(Rest::FileStream* Stream, uint64_t Length, uint64_t Offset, ContentArgs* Args) override;
 				bool Save(Rest::FileStream* Stream, void* Object, ContentArgs* Args) override;
 			};
 
@@ -177,7 +177,7 @@ namespace Tomahawk
 
 			public:
 				ServerProcessor(ContentManager* Manager);
-				void* Load(Rest::FileStream* Stream, UInt64 Length, UInt64 Offset, ContentArgs* Args) override;
+				void* Load(Rest::FileStream* Stream, uint64_t Length, uint64_t Offset, ContentArgs* Args) override;
 			};
 
 			class THAWK_OUT ShapeProcessor : public FileProcessor
@@ -187,7 +187,7 @@ namespace Tomahawk
 				virtual ~ShapeProcessor() override;
 				void Free(AssetResource* Asset) override;
 				void* Duplicate(AssetResource* Asset, ContentArgs* Args) override;
-				void* Load(Rest::FileStream* Stream, UInt64 Length, UInt64 Offset, ContentArgs* Args) override;
+				void* Load(Rest::FileStream* Stream, uint64_t Length, uint64_t Offset, ContentArgs* Args) override;
 			};
 		}
 	}

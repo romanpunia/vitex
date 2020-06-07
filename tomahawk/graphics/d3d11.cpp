@@ -35,7 +35,7 @@ namespace Tomahawk
 				}
 
 				Rest::Stroke Code(&I.Data);
-				UInt64 Length = Code.Size();
+				uint64_t Length = Code.Size();
 				bool VS = Code.Find("VS").Found;
 				bool PS = Code.Find("PS").Found;
 				bool GS = Code.Find("GS").Found;
@@ -44,7 +44,7 @@ namespace Tomahawk
 				bool CS = Code.Find("CS").Found;
 
 				D3D11_INPUT_ELEMENT_DESC* ShaderLayout = I.LayoutSize <= 0 ? nullptr : new D3D11_INPUT_ELEMENT_DESC[I.LayoutSize];
-				for (Int64 i = 0; i < I.LayoutSize; i++)
+				for (int64_t i = 0; i < I.LayoutSize; i++)
 				{
 					ShaderLayout[i].SemanticName = I.Layout[i].SemanticName;
 					ShaderLayout[i].Format = (DXGI_FORMAT)I.Layout[i].FormatMode;
@@ -328,7 +328,7 @@ namespace Tomahawk
 				Map->RowPitch = MappedResource.RowPitch;
 				Map->DepthPitch = MappedResource.DepthPitch;
 			}
-			void D3D11StructureBuffer::RemapSubresource(Graphics::GraphicsDevice* Device, void* Pointer, UInt64 Size)
+			void D3D11StructureBuffer::RemapSubresource(Graphics::GraphicsDevice* Device, void* Pointer, uint64_t Size)
 			{
 				D3D11Device* RefDevice = Device->As<D3D11Device>();
 
@@ -1892,7 +1892,7 @@ namespace Tomahawk
 				MappedResource.pData = nullptr;
 				Dev->ImmediateContext->Unmap(RefElements->Element, 0);
 			}
-			void D3D11InstanceBuffer::Resize(UInt64 Size)
+			void D3D11InstanceBuffer::Resize(uint64_t Size)
 			{
 				Restore();
 				delete Elements;
@@ -2165,7 +2165,7 @@ namespace Tomahawk
 			{
 				Buffer.WorldViewProjection = Buffer.WorldViewProjection * Input;
 			}
-			void D3D11DirectBuffer::AllocVertexBuffer(UInt64 Size)
+			void D3D11DirectBuffer::AllocVertexBuffer(uint64_t Size)
 			{
 				ReleaseCom(ElementBuffer);
 				MaxElements = Size;
@@ -2479,7 +2479,7 @@ namespace Tomahawk
 					HSP = VSP;
 				}
 			}
-			UInt64 D3D11Device::AddDepthStencilState(Graphics::DepthStencilState* In)
+			uint64_t D3D11Device::AddDepthStencilState(Graphics::DepthStencilState* In)
 			{
 				D3D11_DEPTH_STENCIL_DESC State;
 				State.BackFace.StencilDepthFailOp = (D3D11_STENCIL_OP)In->BackFaceStencilDepthFailOperation;
@@ -2511,7 +2511,7 @@ namespace Tomahawk
 				DepthStencilStates.push_back(In);
 				return DepthStencilStates.size() - 1;
 			}
-			UInt64 D3D11Device::AddBlendState(Graphics::BlendState* In)
+			uint64_t D3D11Device::AddBlendState(Graphics::BlendState* In)
 			{
 				D3D11_BLEND_DESC State;
 				State.AlphaToCoverageEnable = In->AlphaToCoverageEnable;
@@ -2543,7 +2543,7 @@ namespace Tomahawk
 				BlendStates.push_back(In);
 				return BlendStates.size() - 1;
 			}
-			UInt64 D3D11Device::AddRasterizerState(Graphics::RasterizerState* In)
+			uint64_t D3D11Device::AddRasterizerState(Graphics::RasterizerState* In)
 			{
 				D3D11_RASTERIZER_DESC State;
 				State.AntialiasedLineEnable = In->AntialiasedLineEnable;
@@ -2571,7 +2571,7 @@ namespace Tomahawk
 				RasterizerStates.push_back(In);
 				return RasterizerStates.size() - 1;
 			}
-			UInt64 D3D11Device::AddSamplerState(Graphics::SamplerState* In)
+			uint64_t D3D11Device::AddSamplerState(Graphics::SamplerState* In)
 			{
 				D3D11_SAMPLER_DESC State;
 				State.AddressU = (D3D11_TEXTURE_ADDRESS_MODE)In->AddressU;
@@ -2602,22 +2602,22 @@ namespace Tomahawk
 				SamplerStates.push_back(In);
 				return SamplerStates.size() - 1;
 			}
-			void D3D11Device::SetSamplerState(UInt64 State)
+			void D3D11Device::SetSamplerState(uint64_t State)
 			{
 				ID3D11SamplerState* DeviceState = (ID3D11SamplerState*)SamplerStates[State]->Pointer;
 				ImmediateContext->PSSetSamplers(0, 1, &DeviceState);
 			}
-			void D3D11Device::SetBlendState(UInt64 State)
+			void D3D11Device::SetBlendState(uint64_t State)
 			{
 				ID3D11BlendState* DeviceState = (ID3D11BlendState*)BlendStates[State]->Pointer;
 				ImmediateContext->OMSetBlendState(DeviceState, 0, 0xffffffff);
 			}
-			void D3D11Device::SetRasterizerState(UInt64 State)
+			void D3D11Device::SetRasterizerState(uint64_t State)
 			{
 				ID3D11RasterizerState* DeviceState = (ID3D11RasterizerState*)RasterizerStates[State]->Pointer;
 				ImmediateContext->RSSetState(DeviceState);
 			}
-			void D3D11Device::SetDepthStencilState(UInt64 State)
+			void D3D11Device::SetDepthStencilState(uint64_t State)
 			{
 				ID3D11DepthStencilState* DeviceState = (ID3D11DepthStencilState*)DepthStencilStates[State]->Pointer;
 				ImmediateContext->OMSetDepthStencilState(DeviceState, 1);

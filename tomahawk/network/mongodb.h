@@ -119,9 +119,9 @@ namespace Tomahawk
 				BSON::TDocument* Command = nullptr;
 				const char* CommandName = nullptr;
 				const char* DatabaseName = nullptr;
-				Int64 RequestId = 0;
-				Int64 OperationId = 0;
-				UInt64 ServerId = 0;
+				int64_t RequestId = 0;
+				int64_t OperationId = 0;
+				uint64_t ServerId = 0;
 				HostList* Hosts = nullptr;
 				void* Event = nullptr;
 			};
@@ -131,10 +131,10 @@ namespace Tomahawk
 				BSON::TDocument* Reply = nullptr;
 				const char* CommandName = nullptr;
 				const char* DatabaseName = nullptr;
-				Int64 Duration = 0;
-				Int64 RequestId = 0;
-				Int64 OperationId = 0;
-				UInt64 ServerId = 0;
+				int64_t Duration = 0;
+				int64_t RequestId = 0;
+				int64_t OperationId = 0;
+				uint64_t ServerId = 0;
 				HostList* Hosts = nullptr;
 				void* Event = nullptr;
 			};
@@ -144,10 +144,10 @@ namespace Tomahawk
 				BSON::TDocument* Reply = nullptr;
 				const char* CommandName = nullptr;
 				const char* DatabaseName = nullptr;
-				Int64 Duration = 0;
-				Int64 RequestId = 0;
-				Int64 OperationId = 0;
-				UInt64 ServerId = 0;
+				int64_t Duration = 0;
+				int64_t RequestId = 0;
+				int64_t OperationId = 0;
+				uint64_t ServerId = 0;
 				HostList* Hosts = nullptr;
 				void* Event = nullptr;
 			};
@@ -198,17 +198,17 @@ namespace Tomahawk
 			struct THAWK_OUT APMServerHeartbeatSucceeded
 			{
 				BSON::TDocument* Reply = nullptr;
-				Int64 Duration = 0;
+				int64_t Duration = 0;
 				HostList* Hosts = nullptr;
 				void* Event = nullptr;
 			};
 
 			struct THAWK_OUT APMServerHeartbeatFailed
 			{
-				Int64 Duration = 0;
+				int64_t Duration = 0;
 				const char* Message = nullptr;
-				UInt64 ErrorCode = 0;
-				UInt64 Domain = 0;
+				uint64_t ErrorCode = 0;
+				uint64_t Domain = 0;
 				HostList* Hosts = nullptr;
 				void* Event = nullptr;
 			};
@@ -244,7 +244,7 @@ namespace Tomahawk
 			public:
 				static TURI* Create(const char* Uri);
 				static void Release(TURI** URI);
-				static void SetOption(TURI* URI, const char* Name, Int64 Value);
+				static void SetOption(TURI* URI, const char* Name, int64_t Value);
 				static void SetOption(TURI* URI, const char* Name, bool Value);
 				static void SetOption(TURI* URI, const char* Name, const char* Value);
 				static void SetAuthMechanism(TURI* URI, const char* Value);
@@ -261,14 +261,14 @@ namespace Tomahawk
 				static TFindAndModifyOptions* Create();
 				static void Release(TFindAndModifyOptions** Options);
 				static bool SetFlags(TFindAndModifyOptions* Options, FindAndModifyMode Flags);
-				static bool SetMaxTimeMs(TFindAndModifyOptions* Options, UInt64 Time);
+				static bool SetMaxTimeMs(TFindAndModifyOptions* Options, uint64_t Time);
 				static bool SetFields(TFindAndModifyOptions* Options, BSON::TDocument** Fields);
 				static bool SetSort(TFindAndModifyOptions* Options, BSON::TDocument** Sort);
 				static bool SetUpdate(TFindAndModifyOptions* Options, BSON::TDocument** Update);
 				static bool SetBypassDocumentValidation(TFindAndModifyOptions* Options, bool Bypass);
 				static bool Append(TFindAndModifyOptions* Options, BSON::TDocument** Value);
 				static bool WillBypassDocumentValidation(TFindAndModifyOptions* Options);
-				static UInt64 GetMaxTimeMs(TFindAndModifyOptions* Options);
+				static uint64_t GetMaxTimeMs(TFindAndModifyOptions* Options);
 				static FindAndModifyMode GetFlags(TFindAndModifyOptions* Options);
 				static BSON::TDocument* GetFields(TFindAndModifyOptions* Options);
 				static BSON::TDocument* GetSort(TFindAndModifyOptions* Options);
@@ -292,9 +292,9 @@ namespace Tomahawk
 				static TWriteConcern* Create();
 				static void Release(TWriteConcern** WriteConcern);
 				static void Append(TWriteConcern* WriteConcern, BSON::TDocument* Options);
-				static void SetToken(TWriteConcern* WriteConcern, UInt64 W);
-				static void SetMajority(TWriteConcern* WriteConcern, UInt64 Timeout);
-				static void SetTimeout(TWriteConcern* WriteConcern, UInt64 Timeout);
+				static void SetToken(TWriteConcern* WriteConcern, uint64_t W);
+				static void SetMajority(TWriteConcern* WriteConcern, uint64_t Timeout);
+				static void SetTimeout(TWriteConcern* WriteConcern, uint64_t Timeout);
 				static void SetTag(TWriteConcern* WriteConcern, const char* Tag);
 				static void SetJournaled(TWriteConcern* WriteConcern, bool Enabled);
 				static bool ShouldBeJournaled(TWriteConcern* WriteConcern);
@@ -303,8 +303,8 @@ namespace Tomahawk
 				static bool IsAcknowledged(TWriteConcern* WriteConcern);
 				static bool IsDefault(TWriteConcern* WriteConcern);
 				static bool IsValid(TWriteConcern* WriteConcern);
-				static Int64 GetToken(TWriteConcern* WriteConcern);
-				static Int64 GetTimeout(TWriteConcern* WriteConcern);
+				static int64_t GetToken(TWriteConcern* WriteConcern);
+				static int64_t GetTimeout(TWriteConcern* WriteConcern);
 				static const char* GetTag(TWriteConcern* WriteConcern);
 			};
 
@@ -315,10 +315,10 @@ namespace Tomahawk
 				static void Release(TReadPreferences** ReadPreferences);
 				static void SetTags(TReadPreferences* ReadPreferences, BSON::TDocument** Tags);
 				static void SetMode(TReadPreferences* ReadPreferences, ReadMode Mode);
-				static void SetMaxStalenessSeconds(TReadPreferences* ReadPreferences, UInt64 MaxStalenessSeconds);
+				static void SetMaxStalenessSeconds(TReadPreferences* ReadPreferences, uint64_t MaxStalenessSeconds);
 				static bool IsValid(TReadPreferences* ReadPreferences);
 				static ReadMode GetMode(TReadPreferences* ReadPreferences);
-				static UInt64 GetMaxStalenessSeconds(TReadPreferences* ReadPreferences);
+				static uint64_t GetMaxStalenessSeconds(TReadPreferences* ReadPreferences);
 			};
 
 			class THAWK_OUT BulkOperation
@@ -340,7 +340,7 @@ namespace Tomahawk
 				static bool UpdateMany(TBulkOperation* Operation, BSON::TDocument* Selector, BSON::TDocument* Document, BSON::TDocument* Options);
 				static bool Execute(TBulkOperation** Operation, BSON::TDocument** Reply);
 				static bool Execute(TBulkOperation** Operation);
-				static UInt64 GetHint(TBulkOperation* Operation);
+				static uint64_t GetHint(TBulkOperation* Operation);
 				static TWriteConcern* GetWriteConcern(TBulkOperation* Operation);
 			};
 
@@ -359,19 +359,19 @@ namespace Tomahawk
 			{
 			public:
 				static void Release(TCursor** Cursor);
-				static void SetMaxAwaitTime(TCursor* Cursor, UInt64 MaxAwaitTime);
-				static void SetBatchSize(TCursor* Cursor, UInt64 BatchSize);
+				static void SetMaxAwaitTime(TCursor* Cursor, uint64_t MaxAwaitTime);
+				static void SetBatchSize(TCursor* Cursor, uint64_t BatchSize);
 				static void Receive(TCursor* Cursor, void* Context, bool(* Next)(TCursor*, BSON::TDocument*, void*));
 				static bool Next(TCursor* Cursor);
-				static bool SetLimit(TCursor* Cursor, Int64 Limit);
-				static bool SetHint(TCursor* Cursor, UInt64 Hint);
+				static bool SetLimit(TCursor* Cursor, int64_t Limit);
+				static bool SetHint(TCursor* Cursor, uint64_t Hint);
 				static bool HasError(TCursor* Cursor);
 				static bool HasMoreData(TCursor* Cursor);
-				static Int64 GetId(TCursor* Cursor);
-				static Int64 GetLimit(TCursor* Cursor);
-				static UInt64 GetMaxAwaitTime(TCursor* Cursor);
-				static UInt64 GetBatchSize(TCursor* Cursor);
-				static UInt64 GetHint(TCursor* Cursor);
+				static int64_t GetId(TCursor* Cursor);
+				static int64_t GetLimit(TCursor* Cursor);
+				static uint64_t GetMaxAwaitTime(TCursor* Cursor);
+				static uint64_t GetBatchSize(TCursor* Cursor);
+				static uint64_t GetHint(TCursor* Cursor);
 				static HostList GetHosts(TCursor* Cursor);
 				static BSON::TDocument* GetCurrent(TCursor* Cursor);
 			};
@@ -397,7 +397,7 @@ namespace Tomahawk
 				static bool RemoveIndex(TCollection* Collection, const char* Name, BSON::TDocument** Options = nullptr);
 				static bool ReplaceOne(TCollection* Collection, BSON::TDocument** Selector, BSON::TDocument** Replacement, BSON::TDocument** Options, BSON::TDocument** Reply);
 				static bool InsertDocument(TCollection* Collection, InsertMode Flags, BSON::TDocument** Document, TWriteConcern* Concern);
-				static bool InsertMany(TCollection* Collection, BSON::TDocument** Documents, UInt64 Length, BSON::TDocument** Options, BSON::TDocument** Reply);
+				static bool InsertMany(TCollection* Collection, BSON::TDocument** Documents, uint64_t Length, BSON::TDocument** Options, BSON::TDocument** Reply);
 				static bool InsertMany(TCollection* Collection, const std::vector<BSON::TDocument*>& Documents, BSON::TDocument** Options, BSON::TDocument** Reply);
 				static bool InsertOne(TCollection* Collection, BSON::TDocument** Document, BSON::TDocument** Options, BSON::TDocument** Reply);
 				static bool ExecuteCommandWithReply(TCollection* Collection, BSON::TDocument** Command, BSON::TDocument** Reply, TReadPreferences* Preferences = nullptr);
@@ -407,9 +407,9 @@ namespace Tomahawk
 				static bool ExecuteWriteCommandWithOptions(TCollection* Collection, BSON::TDocument** Command, BSON::TDocument** Options, BSON::TDocument** Reply);
 				static bool FindAndModify(TCollection* Collection, BSON::TDocument** Query, BSON::TDocument** Sort, BSON::TDocument** Update, BSON::TDocument** Fields, BSON::TDocument** Reply, bool Remove, bool Upsert, bool New);
 				static bool FindAndModifyWithOptions(TCollection* Collection, BSON::TDocument** Query, BSON::TDocument** Reply, TFindAndModifyOptions** Options);
-				static UInt64 CountElementsInArray(TCollection* Collection, BSON::TDocument** Match, BSON::TDocument** Filter, BSON::TDocument** Options, TReadPreferences* Preferences);
-				static UInt64 CountDocuments(TCollection* Collection, BSON::TDocument** Filter, BSON::TDocument** Options, BSON::TDocument** Reply, TReadPreferences* Preferences);
-				static UInt64 CountDocumentsEstimated(TCollection* Collection, BSON::TDocument** Options, BSON::TDocument** Reply, TReadPreferences* Preferences);
+				static uint64_t CountElementsInArray(TCollection* Collection, BSON::TDocument** Match, BSON::TDocument** Filter, BSON::TDocument** Options, TReadPreferences* Preferences);
+				static uint64_t CountDocuments(TCollection* Collection, BSON::TDocument** Filter, BSON::TDocument** Options, BSON::TDocument** Reply, TReadPreferences* Preferences);
+				static uint64_t CountDocumentsEstimated(TCollection* Collection, BSON::TDocument** Options, BSON::TDocument** Reply, TReadPreferences* Preferences);
 				static std::string StringifyKeyIndexes(TCollection* Collection, BSON::TDocument** Keys);
 				static const char* GetName(TCollection* Collection);
 				static TReadConcern* GetReadConcern(TCollection* Collection);
@@ -419,7 +419,7 @@ namespace Tomahawk
 				static TCursor* FindMany(TCollection* Collection, BSON::TDocument** Filter, BSON::TDocument** Options, TReadPreferences* Preferences);
 				static TCursor* FindOne(TCollection* Collection, BSON::TDocument** Filter, BSON::TDocument** Options, TReadPreferences* Preferences);
 				static TCursor* Aggregate(TCollection* Collection, QueryMode Flags, BSON::TDocument** Pipeline, BSON::TDocument** Options, TReadPreferences* Preferences);
-				static TCursor* ExecuteCommand(TCollection* Collection, QueryMode Flags, UInt64 Skip, UInt64 Limit, UInt64 BatchSize, BSON::TDocument** Command, BSON::TDocument** Fields, TReadPreferences* Preferences = nullptr);
+				static TCursor* ExecuteCommand(TCollection* Collection, QueryMode Flags, uint64_t Skip, uint64_t Limit, uint64_t BatchSize, BSON::TDocument** Command, BSON::TDocument** Fields, TReadPreferences* Preferences = nullptr);
 				static TBulkOperation* CreateBulkOperation(TCollection* Collection, BSON::TDocument** Options);
 			};
 
@@ -443,7 +443,7 @@ namespace Tomahawk
 				static bool ExecuteWriteCommandWithOptions(TDatabase* Database, BSON::TDocument** Command, BSON::TDocument** Options, BSON::TDocument** Reply);
 				static std::vector<std::string> GetCollectionNames(TDatabase* Database, BSON::TDocument** Options);
 				static const char* GetName(TDatabase* Database);
-				static TCursor* ExecuteCommand(TDatabase* Database, QueryMode Flags, UInt64 Skip, UInt64 Limit, UInt64 BatchSize, BSON::TDocument** Command, BSON::TDocument** Fields, TReadPreferences* Preferences = nullptr);
+				static TCursor* ExecuteCommand(TDatabase* Database, QueryMode Flags, uint64_t Skip, uint64_t Limit, uint64_t BatchSize, BSON::TDocument** Command, BSON::TDocument** Fields, TReadPreferences* Preferences = nullptr);
 				static TCursor* FindCollections(TDatabase* Database, BSON::TDocument** Options);
 				static TCollection* CreateCollection(TDatabase* Database, const char* Name, BSON::TDocument** Options);
 				static TCollection* GetCollection(TDatabase* Database, const char* Name);
@@ -456,8 +456,8 @@ namespace Tomahawk
 			{
 			public:
 				static void Release(TServerDescription** Description);
-				static UInt64 GetId(TServerDescription* Description);
-				static Int64 GetTripTime(TServerDescription* Description);
+				static uint64_t GetId(TServerDescription* Description);
+				static int64_t GetTripTime(TServerDescription* Description);
 				static const char* GetType(TServerDescription* Description);
 				static BSON::TDocument* IsMaster(TServerDescription* Description);
 				static HostList* GetHosts(TServerDescription* Description);
@@ -544,7 +544,7 @@ namespace Tomahawk
 
 			inline FindAndModifyMode operator |(FindAndModifyMode A, FindAndModifyMode B)
 			{
-				return static_cast<FindAndModifyMode>(static_cast<UInt64>(A) | static_cast<UInt64>(B));
+				return static_cast<FindAndModifyMode>(static_cast<uint64_t>(A) | static_cast<uint64_t>(B));
 			}
 		}
 	}

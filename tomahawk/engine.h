@@ -6,17 +6,17 @@
 #include "script.h"
 #include <atomic>
 #include <cstdarg>
-#define THAWK_COMPONENT_ID(ClassName) (UInt64)std::hash<std::string>()(#ClassName)
+#define THAWK_COMPONENT_ID(ClassName) (uint64_t)std::hash<std::string>()(#ClassName)
 #define THAWK_COMPONENT(ClassName) \
 virtual const char* Name() override { static const char* V = #ClassName; return V; } \
-virtual UInt64 Id() override { static UInt64 V = THAWK_COMPONENT_ID(ClassName); return V; } \
+virtual uint64_t Id() override { static uint64_t V = THAWK_COMPONENT_ID(ClassName); return V; } \
 static const char* BaseName() { static const char* V = #ClassName; return V; } \
-static UInt64 BaseId() { static UInt64 V = THAWK_COMPONENT_ID(ClassName); return V; }
+static uint64_t BaseId() { static uint64_t V = THAWK_COMPONENT_ID(ClassName); return V; }
 #define THAWK_COMPONENT_BASIS(ClassName) \
 virtual const char* Name() { static const char* V = #ClassName; return V; } \
-virtual UInt64 Id() { static UInt64 V = THAWK_COMPONENT_ID(ClassName); return V; } \
+virtual uint64_t Id() { static uint64_t V = THAWK_COMPONENT_ID(ClassName); return V; } \
 static const char* BaseName() { static const char* V = #ClassName; return V; } \
-static UInt64 BaseId() { static UInt64 V = THAWK_COMPONENT_ID(ClassName); return V; }
+static uint64_t BaseId() { static uint64_t V = THAWK_COMPONENT_ID(ClassName); return V; }
 
 namespace Tomahawk
 {
@@ -87,23 +87,23 @@ namespace Tomahawk
 		{
 			Rest::FileStream* Stream = nullptr;
 			std::string Path;
-			UInt64 Length = 0;
-			UInt64 Offset = 0;
+			uint64_t Length = 0;
+			uint64_t Offset = 0;
 		};
 
 		struct THAWK_OUT ContentKey
 		{
 			ContentType Type;
 			std::string String;
-			Int64 Integer;
-			Float64 Number;
+			int64_t Integer;
+			double Number;
 			bool Boolean;
 			void* Pointer;
 
 			ContentKey();
 			explicit ContentKey(const std::string& Value);
-			explicit ContentKey(Int64 Value);
-			explicit ContentKey(Float64 Value);
+			explicit ContentKey(int64_t Value);
+			explicit ContentKey(double Value);
 			explicit ContentKey(bool Value);
 			explicit ContentKey(void* Value);
 		};
@@ -133,8 +133,8 @@ namespace Tomahawk
 			float Length = 15.0f;
 			float Speed = 1.0f;
 			float Time = 0.0f;
-			Int64 Frame = -1;
-			Int64 Clip = -1;
+			int64_t Frame = -1;
+			int64_t Clip = -1;
 		};
 
 		struct THAWK_OUT SpawnerProperties
@@ -156,7 +156,7 @@ namespace Tomahawk
 			Graphics::Texture2D* Surface = nullptr;
 			Compute::Vector3 Diffusion = 1;
 			Compute::Vector2 TexCoord = 1;
-			UInt64 Material = 0;
+			uint64_t Material = 0;
 		};
 
 		struct THAWK_OUT Viewer
@@ -180,10 +180,10 @@ namespace Tomahawk
 			static bool Pack(Rest::Document* V, long O);
 			static bool Pack(Rest::Document* V, unsigned long O);
 			static bool Pack(Rest::Document* V, float Value);
-			static bool Pack(Rest::Document* V, Float64 Value);
-			static bool Pack(Rest::Document* V, Int64 Value);
-			static bool Pack(Rest::Document* V, LFloat64 Value);
-			static bool Pack(Rest::Document* V, UInt64 Value);
+			static bool Pack(Rest::Document* V, double Value);
+			static bool Pack(Rest::Document* V, int64_t Value);
+			static bool Pack(Rest::Document* V, long double Value);
+			static bool Pack(Rest::Document* V, uint64_t Value);
 			static bool Pack(Rest::Document* V, const char* Value);
 			static bool Pack(Rest::Document* V, const Compute::Vector2& Value);
 			static bool Pack(Rest::Document* V, const Compute::Vector3& Value);
@@ -206,10 +206,10 @@ namespace Tomahawk
 			static bool Pack(Rest::Document* V, const std::vector<long>& Value);
 			static bool Pack(Rest::Document* V, const std::vector<unsigned long>& Value);
 			static bool Pack(Rest::Document* V, const std::vector<float>& Value);
-			static bool Pack(Rest::Document* V, const std::vector<Float64>& Value);
-			static bool Pack(Rest::Document* V, const std::vector<Int64>& Value);
-			static bool Pack(Rest::Document* V, const std::vector<LFloat64>& Value);
-			static bool Pack(Rest::Document* V, const std::vector<UInt64>& Value);
+			static bool Pack(Rest::Document* V, const std::vector<double>& Value);
+			static bool Pack(Rest::Document* V, const std::vector<int64_t>& Value);
+			static bool Pack(Rest::Document* V, const std::vector<long double>& Value);
+			static bool Pack(Rest::Document* V, const std::vector<uint64_t>& Value);
 			static bool Pack(Rest::Document* V, const std::vector<Compute::Vector2>& Value);
 			static bool Pack(Rest::Document* V, const std::vector<Compute::Vector3>& Value);
 			static bool Pack(Rest::Document* V, const std::vector<Compute::Vector4>& Value);
@@ -231,10 +231,10 @@ namespace Tomahawk
 			static bool Unpack(Rest::Document* V, long* O);
 			static bool Unpack(Rest::Document* V, unsigned long* O);
 			static bool Unpack(Rest::Document* V, float* O);
-			static bool Unpack(Rest::Document* V, Float64* O);
-			static bool Unpack(Rest::Document* V, Int64* O);
-			static bool Unpack(Rest::Document* V, LFloat64* O);
-			static bool Unpack(Rest::Document* V, UInt64* O);
+			static bool Unpack(Rest::Document* V, double* O);
+			static bool Unpack(Rest::Document* V, int64_t* O);
+			static bool Unpack(Rest::Document* V, long double* O);
+			static bool Unpack(Rest::Document* V, uint64_t* O);
 			static bool Unpack(Rest::Document* V, Compute::Vector2* O);
 			static bool Unpack(Rest::Document* V, Compute::Vector3* O);
 			static bool Unpack(Rest::Document* V, Compute::Vector4* O);
@@ -256,10 +256,10 @@ namespace Tomahawk
 			static bool Unpack(Rest::Document* V, std::vector<long>* O);
 			static bool Unpack(Rest::Document* V, std::vector<unsigned long>* O);
 			static bool Unpack(Rest::Document* V, std::vector<float>* O);
-			static bool Unpack(Rest::Document* V, std::vector<Float64>* O);
-			static bool Unpack(Rest::Document* V, std::vector<Int64>* O);
-			static bool Unpack(Rest::Document* V, std::vector<LFloat64>* O);
-			static bool Unpack(Rest::Document* V, std::vector<UInt64>* O);
+			static bool Unpack(Rest::Document* V, std::vector<double>* O);
+			static bool Unpack(Rest::Document* V, std::vector<int64_t>* O);
+			static bool Unpack(Rest::Document* V, std::vector<long double>* O);
+			static bool Unpack(Rest::Document* V, std::vector<uint64_t>* O);
 			static bool Unpack(Rest::Document* V, std::vector<Compute::Vector2>* O);
 			static bool Unpack(Rest::Document* V, std::vector<Compute::Vector3>* O);
 			static bool Unpack(Rest::Document* V, std::vector<Compute::Vector4>* O);
@@ -284,7 +284,7 @@ namespace Tomahawk
 		private:
 			Component* Root = nullptr;
 			void* Context = nullptr;
-			UInt64 Type = 0;
+			uint64_t Type = 0;
 			bool Foreach = false;
 
 		public:
@@ -312,7 +312,7 @@ namespace Tomahawk
 			virtual ~FileProcessor() override;
 			virtual void Free(AssetResource* Asset);
 			virtual void* Duplicate(AssetResource* Asset, ContentArgs* Keys);
-			virtual void* Load(Rest::FileStream* Stream, UInt64 Length, UInt64 Offset, ContentArgs* Keys);
+			virtual void* Load(Rest::FileStream* Stream, uint64_t Length, uint64_t Offset, ContentArgs* Keys);
 			virtual bool Save(Rest::FileStream* Stream, void* Instance, ContentArgs* Keys);
 			ContentManager* GetContent();
 		};
@@ -352,25 +352,25 @@ namespace Tomahawk
 			friend SceneGraph;
 
 		protected:
-			std::unordered_map<UInt64, Component*> Components;
+			std::unordered_map<uint64_t, Component*> Components;
 			SceneGraph* Scene;
 
 		public:
 			Compute::Transform* Transform;
 			std::string Name;
-			Int64 Self, Tag;
+			int64_t Self, Tag;
 
 		public:
 			Entity(SceneGraph* Ref);
 			virtual ~Entity() override;
-			void RemoveComponent(UInt64 Id);
+			void RemoveComponent(uint64_t Id);
 			void RemoveChilds();
 			void SetScene(SceneGraph* NewScene);
-			std::unordered_map<UInt64, Component*>::iterator First();
-			std::unordered_map<UInt64, Component*>::iterator Last();
+			std::unordered_map<uint64_t, Component*>::iterator First();
+			std::unordered_map<uint64_t, Component*>::iterator Last();
 			Component* AddComponent(Component* In);
-			Component* GetComponent(UInt64 Id);
-			UInt64 GetComponentCount();
+			Component* GetComponent(uint64_t Id);
+			uint64_t GetComponentCount();
 			SceneGraph* GetScene();
 
 		public:
@@ -486,9 +486,9 @@ namespace Tomahawk
 			RenderSystem(Graphics::GraphicsDevice* Device);
 			virtual ~RenderSystem() override;
 			void SetScene(SceneGraph* NewScene);
-			void RemoveRenderer(UInt64 Id);
+			void RemoveRenderer(uint64_t Id);
 			Renderer* AddRenderer(Renderer* In);
-			Renderer* GetRenderer(UInt64 Id);
+			Renderer* GetRenderer(uint64_t Id);
 			Graphics::ElementBuffer* VertexQuad();
 			Graphics::ElementBuffer* VertexSphere();
 			Graphics::ElementBuffer* IndexSphere();
@@ -524,8 +524,8 @@ namespace Tomahawk
 			struct Desc
 			{
 				float RenderQuality = 1.0f;
-				UInt64 EntityCount = 1ll << 15;
-				UInt64 ComponentCount = 1ll << 16;
+				uint64_t EntityCount = 1ll << 15;
+				uint64_t ComponentCount = 1ll << 16;
 				Compute::Simulator::Desc Simulator;
 				Graphics::GraphicsDevice* Device = nullptr;
 				Rest::EventQueue* Queue = nullptr;
@@ -554,7 +554,7 @@ namespace Tomahawk
 			Graphics::MultiRenderTarget2D* Surface = nullptr;
 			Graphics::StructureBuffer* Structure = nullptr;
 			Compute::Simulator* Simulator = nullptr;
-			std::unordered_map<UInt64, Rest::Pool < Component * >> Components;
+			std::unordered_map<uint64_t, Rest::Pool < Component * >> Components;
 			std::vector<Graphics::Material> Materials;
 			std::vector<Event*> Events;
 			Rest::Pool<Component*> Pending;
@@ -575,7 +575,7 @@ namespace Tomahawk
 			void Simulation(Rest::Timer* Time);
 			void Synchronize(Rest::Timer* Time);
 			void Rescale(const Compute::Vector3& Scale);
-			void RemoveMaterial(UInt64 MaterialId);
+			void RemoveMaterial(uint64_t MaterialId);
 			void RemoveEntity(Entity* Entity, bool Release);
 			void SetCamera(Entity* Camera);
 			void CloneEntities(Entity* Instance, std::vector<Entity*>* Array);
@@ -592,31 +592,31 @@ namespace Tomahawk
 			Entity* CloneEntities(Entity* Value);
 			Entity* FindNamedEntity(const std::string& Name);
 			Entity* FindEntityAt(Compute::Vector3 Position, float Radius);
-			Entity* FindTaggedEntity(UInt64 Tag);
-			Entity* GetEntity(UInt64 Entity);
+			Entity* FindTaggedEntity(uint64_t Tag);
+			Entity* GetEntity(uint64_t Entity);
 			Entity* GetLastEntity();
-			Component* GetComponent(UInt64 Component, UInt64 Section);
+			Component* GetComponent(uint64_t Component, uint64_t Section);
 			Component* GetCamera();
 			RenderSystem* GetRenderer();
 			Viewer GetCameraViewer();
-			Graphics::Material& CloneMaterial(UInt64 Material);
-			Graphics::Material& GetMaterial(UInt64 Material);
+			Graphics::Material& CloneMaterial(uint64_t Material);
+			Graphics::Material& GetMaterial(uint64_t Material);
 			Graphics::Material& GetMaterialStandartLit();
-			Rest::Pool<Component*>* GetComponents(UInt64 Section);
+			Rest::Pool<Component*>* GetComponents(uint64_t Section);
 			std::vector<Entity*> FindParentFreeEntities(Entity* Entity);
 			std::vector<Entity*> FindNamedEntities(const std::string& Name);
 			std::vector<Entity*> FindEntitiesAt(Compute::Vector3 Position, float Radius);
-			std::vector<Entity*> FindTaggedEntities(UInt64 Tag);
+			std::vector<Entity*> FindTaggedEntities(uint64_t Tag);
 			bool IsEntityVisible(Entity* Entity, Compute::Matrix4x4 ViewProjection);
 			bool IsEntityVisible(Entity* Entity, Compute::Matrix4x4 ViewProjection, Compute::Vector3 ViewPosition, float DrawDistance);
 			bool AddEntity(Entity* Entity);
 			bool Denotify();
-			UInt64 GetMaterialCount();
-			UInt64 GetEntityCount();
-			UInt64 GetComponentCount(UInt64 Section);
-			UInt64 HasMaterial(UInt64 Material);
-			UInt64 HasEntity(Entity* Entity);
-			UInt64 HasEntity(UInt64 Entity);
+			uint64_t GetMaterialCount();
+			uint64_t GetEntityCount();
+			uint64_t GetComponentCount(uint64_t Section);
+			uint64_t HasMaterial(uint64_t Material);
+			uint64_t HasEntity(Entity* Entity);
+			uint64_t HasEntity(uint64_t Entity);
 			Graphics::MultiRenderTarget2D* GetSurface();
 			Graphics::StructureBuffer* GetStructure();
 			Graphics::GraphicsDevice* GetDevice();
@@ -667,7 +667,7 @@ namespace Tomahawk
 				return Conf.Queue->Event<Event>(Message);
 			}
 			template <typename T>
-			UInt64 GetEntityCount()
+			uint64_t GetEntityCount()
 			{
 				return GetComponents(T::BaseId())->Count();
 			}
@@ -719,8 +719,8 @@ namespace Tomahawk
 		private:
 			std::unordered_map<std::string, AssetDocker*> Dockers;
 			std::unordered_map<std::string, AssetResource*> Assets;
-			std::unordered_map<Int64, FileProcessor*> Processors;
-			std::unordered_map<Rest::FileStream*, Int64> Streams;
+			std::unordered_map<int64_t, FileProcessor*> Processors;
+			std::unordered_map<Rest::FileStream*, int64_t> Streams;
 			Graphics::GraphicsDevice* Device;
 			Rest::EventQueue* Queue;
 			std::string Environment, Base;
@@ -849,18 +849,18 @@ namespace Tomahawk
 				Rest::EventWorkflow Threading = Rest::EventWorkflow_Singlethreaded;
 				std::string Environment;
 				std::string Directory;
-				UInt64 TaskWorkersCount = 0;
-				UInt64 EventWorkersCount = 0;
-				Float64 FrameLimit = 0;
-				Float64 MaxFrames = 60;
-				Float64 MinFrames = 10;
+				uint64_t TaskWorkersCount = 0;
+				uint64_t EventWorkersCount = 0;
+				double FrameLimit = 0;
+				double MaxFrames = 60;
+				double MinFrames = 10;
 				unsigned int Usage = ApplicationUse_Graphics_Module | ApplicationUse_Activity_Module | ApplicationUse_Audio_Module | ApplicationUse_AngelScript_Module | ApplicationUse_Content_Module;
 				bool DisableCursor = false;
 			};
 
 		private:
 			static Application* Host;
-			UInt64 Workers = 0;
+			uint64_t Workers = 0;
 
 		public:
 			Audio::AudioDevice* Audio = nullptr;
@@ -885,7 +885,7 @@ namespace Tomahawk
 			virtual void OnInitialize(Desc* I);
 			void Run(Desc* I);
 			void Restate(ApplicationState Value);
-			void Enqueue(const std::function<void(Rest::Timer * )>& Callback, Float64 Limit = 0);
+			void Enqueue(const std::function<void(Rest::Timer * )>& Callback, double Limit = 0);
 			void* GetCurrentGUI();
 			void* GetAnyGUI();
 

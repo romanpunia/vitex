@@ -808,7 +808,7 @@ namespace Tomahawk
 				{
 					return ImGui::InputInt4(label, v, extra_flags);
 				}
-				bool Interface::InputDouble(const char* label, Float64* v, Float64 step, Float64 step_fast, const char* format, int extra_flags)
+				bool Interface::InputDouble(const char* label, double* v, double step, double step_fast, const char* format, int extra_flags)
 				{
 					return ImGui::InputDouble(label, v, step, step_fast, format, extra_flags);
 				}
@@ -1196,7 +1196,7 @@ namespace Tomahawk
 				{
 					return ImGui::GetColumnOffset(column_index);
 				}
-				Float64 Interface::GetTime()
+				double Interface::GetTime()
 				{
 					return ImGui::GetTime();
 				}
@@ -2640,7 +2640,7 @@ namespace Tomahawk
 			{
 				Graphics::GraphicsDevice* Device = System->GetDevice();
 
-				UInt64 Shadows = 0;
+				uint64_t Shadows = 0;
 				for (auto It = PointLights->Begin(); It != PointLights->End(); It++)
 				{
 					Engine::Components::PointLight* Light = (Engine::Components::PointLight*)*It;
@@ -2733,7 +2733,7 @@ namespace Tomahawk
 				Graphics::MultiRenderTarget2D* S = System->GetScene()->GetSurface();
 				System->GetScene()->SetSurface(Surface);
 
-				Float64 ElapsedTime = Time->GetElapsedTime();
+				double ElapsedTime = Time->GetElapsedTime();
 				for (auto It = ProbeLights->Begin(); It != ProbeLights->End(); It++)
 				{
 					Engine::Components::ProbeLight* Light = (Engine::Components::ProbeLight*)*It;
@@ -4400,7 +4400,7 @@ namespace Tomahawk
 				{
 					return ((GUIRenderer*)C)->GetClipboardCopy();
 				};
-				Frequency = (UInt64)SDL_GetPerformanceFrequency();
+				Frequency = (uint64_t)SDL_GetPerformanceFrequency();
 
 				SDL_SysWMinfo Info;
 				Activity->Load(&Info);

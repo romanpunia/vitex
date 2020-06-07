@@ -68,15 +68,10 @@
 #undef max
 #endif
 
-typedef long long Int64;
-typedef unsigned long long UInt64;
-typedef double Float64;
-typedef long double LFloat64;
-
 #define THAWK_VA_ARGS(...) , ##__VA_ARGS__
 #ifdef THAWK_MICROSOFT
 #ifdef THAWK_64
-typedef UInt64 socket_t;
+typedef uint64_t socket_t;
 #elif defined(THAWK_32)
 typedef int socket_t;
 #endif
@@ -192,21 +187,21 @@ namespace Tomahawk
 
 		typedef std::function<void(class EventQueue*, struct EventArgs*)> BaseCallback;
 		typedef std::function<bool(class EventQueue*, struct EventArgs*)> PullCallback;
-		typedef std::function<void(DocumentPretty, const char*, Int64)> NWriteCallback;
-		typedef std::function<bool(char*, Int64)> NReadCallback;
+		typedef std::function<void(DocumentPretty, const char*, int64_t)> NWriteCallback;
+		typedef std::function<bool(char*, int64_t)> NReadCallback;
 
 		struct THAWK_OUT FileState
 		{
-			UInt64 Size = 0;
-			UInt64 Links = 0;
-			UInt64 Permissions = 0;
-			UInt64 IDocument = 0;
-			UInt64 Device = 0;
-			UInt64 UserId = 0;
-			UInt64 GroupId = 0;
-			Int64 LastAccess = 0;
-			Int64 LastPermissionChange = 0;
-			Int64 LastModified = 0;
+			uint64_t Size = 0;
+			uint64_t Links = 0;
+			uint64_t Permissions = 0;
+			uint64_t IDocument = 0;
+			uint64_t Device = 0;
+			uint64_t UserId = 0;
+			uint64_t GroupId = 0;
+			int64_t LastAccess = 0;
+			int64_t LastPermissionChange = 0;
+			int64_t LastModified = 0;
 			bool Exists = false;
 		};
 
@@ -219,7 +214,7 @@ namespace Tomahawk
 
 		public:
 			void* Data = nullptr;
-			UInt64 Hash = 0;
+			uint64_t Hash = 0;
 			bool Alive = true;
 
 		public:
@@ -247,7 +242,7 @@ namespace Tomahawk
 
 		struct THAWK_OUT EventBase
 		{
-			UInt64 Type = 0;
+			uint64_t Type = 0;
 			EventArgs Args;
 			BaseCallback Callback;
 		};
@@ -256,22 +251,22 @@ namespace Tomahawk
 		{
 			BaseCallback Callback;
 			EventArgs Args;
-			UInt64 Timeout = 0;
-			UInt64 Id = 0;
-			Int64 Time = 0;
+			uint64_t Timeout = 0;
+			uint64_t Id = 0;
+			int64_t Time = 0;
 		};
 
 		struct THAWK_OUT EventListener
 		{
-			UInt64 Type = 0;
+			uint64_t Type = 0;
 			BaseCallback Callback;
 		};
 
 		struct THAWK_OUT Resource
 		{
-			UInt64 Size = 0;
-			Int64 LastModified = 0;
-			Int64 CreationTime = 0;
+			uint64_t Size = 0;
+			int64_t LastModified = 0;
+			int64_t CreationTime = 0;
 			bool IsReferenced = false;
 			bool IsDirectory = false;
 		};
@@ -288,7 +283,7 @@ namespace Tomahawk
 			std::string Path;
 			bool IsDirectory = false;
 			bool IsGood = false;
-			UInt64 Length = 0;
+			uint64_t Length = 0;
 		};
 
 		struct THAWK_OUT ChildProcess
@@ -327,44 +322,44 @@ namespace Tomahawk
 			std::string Format(const std::string& Value);
 			std::string Date(const std::string& Value);
 			DateTime Now();
-			DateTime FromNanoseconds(UInt64 Value);
-			DateTime FromMicroseconds(UInt64 Value);
-			DateTime FromMilliseconds(UInt64 Value);
-			DateTime FromSeconds(UInt64 Value);
-			DateTime FromMinutes(UInt64 Value);
-			DateTime FromHours(UInt64 Value);
-			DateTime FromDays(UInt64 Value);
-			DateTime FromWeeks(UInt64 Value);
-			DateTime FromMonths(UInt64 Value);
-			DateTime FromYears(UInt64 Value);
+			DateTime FromNanoseconds(uint64_t Value);
+			DateTime FromMicroseconds(uint64_t Value);
+			DateTime FromMilliseconds(uint64_t Value);
+			DateTime FromSeconds(uint64_t Value);
+			DateTime FromMinutes(uint64_t Value);
+			DateTime FromHours(uint64_t Value);
+			DateTime FromDays(uint64_t Value);
+			DateTime FromWeeks(uint64_t Value);
+			DateTime FromMonths(uint64_t Value);
+			DateTime FromYears(uint64_t Value);
 			DateTime operator +(const DateTime& Right);
 			DateTime operator -(const DateTime& Right);
-			DateTime& SetDateSeconds(UInt64 Value, bool NoFlush = false);
-			DateTime& SetDateMinutes(UInt64 Value, bool NoFlush = false);
-			DateTime& SetDateHours(UInt64 Value, bool NoFlush = false);
-			DateTime& SetDateDay(UInt64 Value, bool NoFlush = false);
-			DateTime& SetDateWeek(UInt64 Value, bool NoFlush = false);
-			DateTime& SetDateMonth(UInt64 Value, bool NoFlush = false);
-			DateTime& SetDateYear(UInt64 Value, bool NoFlush = false);
-			UInt64 Nanoseconds();
-			UInt64 Microseconds();
-			UInt64 Milliseconds();
-			UInt64 Seconds();
-			UInt64 Minutes();
-			UInt64 Hours();
-			UInt64 Days();
-			UInt64 Weeks();
-			UInt64 Months();
-			UInt64 Years();
+			DateTime& SetDateSeconds(uint64_t Value, bool NoFlush = false);
+			DateTime& SetDateMinutes(uint64_t Value, bool NoFlush = false);
+			DateTime& SetDateHours(uint64_t Value, bool NoFlush = false);
+			DateTime& SetDateDay(uint64_t Value, bool NoFlush = false);
+			DateTime& SetDateWeek(uint64_t Value, bool NoFlush = false);
+			DateTime& SetDateMonth(uint64_t Value, bool NoFlush = false);
+			DateTime& SetDateYear(uint64_t Value, bool NoFlush = false);
+			uint64_t Nanoseconds();
+			uint64_t Microseconds();
+			uint64_t Milliseconds();
+			uint64_t Seconds();
+			uint64_t Minutes();
+			uint64_t Hours();
+			uint64_t Days();
+			uint64_t Weeks();
+			uint64_t Months();
+			uint64_t Years();
 
 		private:
 			void Rebuild();
 
 		public:
-			static std::string GetGMTBasedString(Int64 TimeStamp);
-			static bool TimeFormatGMT(char* Buffer, UInt64 Length, Int64 Time);
-			static bool TimeFormatLCL(char* Buffer, UInt64 Length, Int64 Time);
-			static Int64 ReadGMTBasedString(const char* Date);
+			static std::string GetGMTBasedString(int64_t TimeStamp);
+			static bool TimeFormatGMT(char* Buffer, uint64_t Length, int64_t Time);
+			static bool TimeFormatLCL(char* Buffer, uint64_t Length, int64_t Time);
+			static int64_t ReadGMTBasedString(const char* Date);
 		};
 
 		struct THAWK_OUT Stroke
@@ -372,8 +367,8 @@ namespace Tomahawk
 		public:
 			struct Settle
 			{
-				UInt64 Start;
-				UInt64 End;
+				uint64_t Start;
+				uint64_t End;
 				bool Found;
 			};
 
@@ -385,82 +380,82 @@ namespace Tomahawk
 			Stroke();
 			Stroke(int Value);
 			Stroke(unsigned int Value);
-			Stroke(Int64 Value);
-			Stroke(UInt64 Value);
+			Stroke(int64_t Value);
+			Stroke(uint64_t Value);
 			Stroke(float Value);
-			Stroke(Float64 Value);
-			Stroke(LFloat64 Value);
+			Stroke(double Value);
+			Stroke(long double Value);
 			Stroke(const std::string& Buffer);
 			Stroke(std::string* Buffer);
 			Stroke(const std::string* Buffer);
 			Stroke(const char* Buffer);
-			Stroke(const char* Buffer, Int64 Length);
+			Stroke(const char* Buffer, int64_t Length);
 			Stroke(const Stroke& Value);
 			~Stroke();
 			Stroke& EscapePrint();
-			Stroke& Reserve(UInt64 Count = 1);
-			Stroke& Resize(UInt64 Count);
-			Stroke& Resize(UInt64 Count, char Char);
+			Stroke& Reserve(uint64_t Count = 1);
+			Stroke& Resize(uint64_t Count);
+			Stroke& Resize(uint64_t Count, char Char);
 			Stroke& Clear();
 			Stroke& ToUtf8();
 			Stroke& ToUpper();
 			Stroke& ToLower();
-			Stroke& Clip(UInt64 Length);
-			Stroke& ReplaceOf(const char* Chars, const char* To, UInt64 Start = 0U);
-			Stroke& Replace(const std::string& From, const std::string& To, UInt64 Start = 0U);
-			Stroke& Replace(const char* From, const char* To, UInt64 Start = 0U);
-			Stroke& Replace(const char& From, const char& To, UInt64 Position = 0U);
-			Stroke& Replace(const char& From, const char& To, UInt64 Position, UInt64 Count);
-			Stroke& ReplacePart(UInt64 Start, UInt64 End, const std::string& Value);
-			Stroke& ReplacePart(UInt64 Start, UInt64 End, const char* Value);
-			Stroke& RemovePart(UInt64 Start, UInt64 End);
+			Stroke& Clip(uint64_t Length);
+			Stroke& ReplaceOf(const char* Chars, const char* To, uint64_t Start = 0U);
+			Stroke& Replace(const std::string& From, const std::string& To, uint64_t Start = 0U);
+			Stroke& Replace(const char* From, const char* To, uint64_t Start = 0U);
+			Stroke& Replace(const char& From, const char& To, uint64_t Position = 0U);
+			Stroke& Replace(const char& From, const char& To, uint64_t Position, uint64_t Count);
+			Stroke& ReplacePart(uint64_t Start, uint64_t End, const std::string& Value);
+			Stroke& ReplacePart(uint64_t Start, uint64_t End, const char* Value);
+			Stroke& RemovePart(uint64_t Start, uint64_t End);
 			Stroke& Reverse();
-			Stroke& Reverse(UInt64 Start, UInt64 End);
-			Stroke& Substring(UInt64 Start);
-			Stroke& Substring(UInt64 Start, UInt64 Count);
+			Stroke& Reverse(uint64_t Start, uint64_t End);
+			Stroke& Substring(uint64_t Start);
+			Stroke& Substring(uint64_t Start, uint64_t Count);
 			Stroke& Substring(const Stroke::Settle& Result);
-			Stroke& Splice(UInt64 Start, UInt64 End);
+			Stroke& Splice(uint64_t Start, uint64_t End);
 			Stroke& Trim();
 			Stroke& Fill(const char& Char);
-			Stroke& Fill(const char& Char, UInt64 Count);
-			Stroke& Fill(const char& Char, UInt64 Start, UInt64 Count);
+			Stroke& Fill(const char& Char, uint64_t Count);
+			Stroke& Fill(const char& Char, uint64_t Start, uint64_t Count);
 			Stroke& Assign(const char* Raw);
-			Stroke& Assign(const char* Raw, UInt64 Length);
+			Stroke& Assign(const char* Raw, uint64_t Length);
 			Stroke& Assign(const std::string& Raw);
-			Stroke& Assign(const std::string& Raw, UInt64 Start, UInt64 Count);
-			Stroke& Assign(const char* Raw, UInt64 Start, UInt64 Count);
+			Stroke& Assign(const std::string& Raw, uint64_t Start, uint64_t Count);
+			Stroke& Assign(const char* Raw, uint64_t Start, uint64_t Count);
 			Stroke& Append(const char* Raw);
 			Stroke& Append(const char& Char);
-			Stroke& Append(const char& Char, UInt64 Count);
+			Stroke& Append(const char& Char, uint64_t Count);
 			Stroke& Append(const std::string& Raw);
-			Stroke& Append(const char* Raw, UInt64 Count);
-			Stroke& Append(const char* Raw, UInt64 Start, UInt64 Count);
-			Stroke& Append(const std::string& Raw, UInt64 Start, UInt64 Count);
+			Stroke& Append(const char* Raw, uint64_t Count);
+			Stroke& Append(const char* Raw, uint64_t Start, uint64_t Count);
+			Stroke& Append(const std::string& Raw, uint64_t Start, uint64_t Count);
 			Stroke& fAppend(const char* Format, ...);
-			Stroke& Insert(const std::string& Raw, UInt64 Position);
-			Stroke& Insert(const std::string& Raw, UInt64 Position, UInt64 Start, UInt64 Count);
-			Stroke& Insert(const std::string& Raw, UInt64 Position, UInt64 Count);
-			Stroke& Insert(const char& Char, UInt64 Position, UInt64 Count);
-			Stroke& Insert(const char& Char, UInt64 Position);
-			Stroke& Erase(UInt64 Position);
-			Stroke& Erase(UInt64 Position, UInt64 Count);
-			Stroke& EraseOffsets(UInt64 Start, UInt64 End);
+			Stroke& Insert(const std::string& Raw, uint64_t Position);
+			Stroke& Insert(const std::string& Raw, uint64_t Position, uint64_t Start, uint64_t Count);
+			Stroke& Insert(const std::string& Raw, uint64_t Position, uint64_t Count);
+			Stroke& Insert(const char& Char, uint64_t Position, uint64_t Count);
+			Stroke& Insert(const char& Char, uint64_t Position);
+			Stroke& Erase(uint64_t Position);
+			Stroke& Erase(uint64_t Position, uint64_t Count);
+			Stroke& EraseOffsets(uint64_t Start, uint64_t End);
 			Stroke& Path(const std::string& Net, const std::string& Dir);
-			Stroke::Settle ReverseFind(const std::string& Needle, UInt64 Offset = 0U) const;
-			Stroke::Settle ReverseFind(const char* Needle, UInt64 Offset = 0U) const;
-			Stroke::Settle ReverseFind(const char& Needle, UInt64 Offset = 0U) const;
-			Stroke::Settle ReverseFindUnescaped(const char& Needle, UInt64 Offset = 0U) const;
-			Stroke::Settle ReverseFindOf(const std::string& Needle, UInt64 Offset = 0U) const;
-			Stroke::Settle ReverseFindOf(const char* Needle, UInt64 Offset = 0U) const;
-			Stroke::Settle Find(const std::string& Needle, UInt64 Offset = 0U) const;
-			Stroke::Settle Find(const char* Needle, UInt64 Offset = 0U) const;
-			Stroke::Settle Find(const char& Needle, UInt64 Offset = 0U) const;
-			Stroke::Settle FindUnescaped(const char& Needle, UInt64 Offset = 0U) const;
-			Stroke::Settle FindOf(const std::string& Needle, UInt64 Offset = 0U) const;
-			Stroke::Settle FindOf(const char* Needle, UInt64 Offset = 0U) const;
-			bool StartsWith(const std::string& Value, UInt64 Offset = 0U) const;
-			bool StartsWith(const char* Value, UInt64 Offset = 0U) const;
-			bool StartsOf(const char* Value, UInt64 Offset = 0U) const;
+			Stroke::Settle ReverseFind(const std::string& Needle, uint64_t Offset = 0U) const;
+			Stroke::Settle ReverseFind(const char* Needle, uint64_t Offset = 0U) const;
+			Stroke::Settle ReverseFind(const char& Needle, uint64_t Offset = 0U) const;
+			Stroke::Settle ReverseFindUnescaped(const char& Needle, uint64_t Offset = 0U) const;
+			Stroke::Settle ReverseFindOf(const std::string& Needle, uint64_t Offset = 0U) const;
+			Stroke::Settle ReverseFindOf(const char* Needle, uint64_t Offset = 0U) const;
+			Stroke::Settle Find(const std::string& Needle, uint64_t Offset = 0U) const;
+			Stroke::Settle Find(const char* Needle, uint64_t Offset = 0U) const;
+			Stroke::Settle Find(const char& Needle, uint64_t Offset = 0U) const;
+			Stroke::Settle FindUnescaped(const char& Needle, uint64_t Offset = 0U) const;
+			Stroke::Settle FindOf(const std::string& Needle, uint64_t Offset = 0U) const;
+			Stroke::Settle FindOf(const char* Needle, uint64_t Offset = 0U) const;
+			bool StartsWith(const std::string& Value, uint64_t Offset = 0U) const;
+			bool StartsWith(const char* Value, uint64_t Offset = 0U) const;
+			bool StartsOf(const char* Value, uint64_t Offset = 0U) const;
 			bool EndsWith(const std::string& Value) const;
 			bool EndsOf(const char* Value) const;
 			bool EndsWith(const char* Value) const;
@@ -475,39 +470,39 @@ namespace Tomahawk
 			float ToFloat() const;
 			unsigned int ToUInt() const;
 			unsigned long ToULong() const;
-			Int64 ToInt64() const;
-			Float64 ToFloat64() const;
-			LFloat64 ToLFloat64() const;
-			UInt64 ToUInt64() const;
-			UInt64 Size() const;
-			UInt64 Capacity() const;
+			int64_t ToInt64() const;
+			double ToFloat64() const;
+			long double ToLFloat64() const;
+			uint64_t ToUInt64() const;
+			uint64_t Size() const;
+			uint64_t Capacity() const;
 			char* Value() const;
 			const char* Get() const;
 			std::string& R();
 			std::basic_string<wchar_t> ToUnicode() const;
-			std::vector<std::string> Split(const std::string& With, UInt64 Start = 0U) const;
-			std::vector<std::string> Split(char With, UInt64 Start = 0U) const;
-			std::vector<std::string> SplitOf(const char* With, UInt64 Start = 0U) const;
+			std::vector<std::string> Split(const std::string& With, uint64_t Start = 0U) const;
+			std::vector<std::string> Split(char With, uint64_t Start = 0U) const;
+			std::vector<std::string> SplitOf(const char* With, uint64_t Start = 0U) const;
 
 		public:
 			static bool IsDigit(char Char);
 			static int CaseCompare(const char* Value1, const char* Value2);
 			static int Match(const char* Pattern, const char* Text);
-			static int Match(const char* Pattern, UInt64 Length, const char* Text);
+			static int Match(const char* Pattern, uint64_t Length, const char* Text);
 		};
 
 		struct THAWK_OUT TickTimer
 		{
 		private:
-			Float64 Time;
+			double Time;
 
 		public:
-			Float64 Delay;
+			double Delay;
 
 		public:
 			TickTimer();
-			bool OnTickEvent(Float64 ElapsedTime);
-			Float64 GetTime();
+			bool OnTickEvent(double ElapsedTime);
+			double GetTime();
 		};
 
 		template <class T>
@@ -517,7 +512,7 @@ namespace Tomahawk
 			typedef T* Iterator;
 
 		protected:
-			UInt64 Count, Volume;
+			uint64_t Count, Volume;
 			T* Data;
 
 		public:
@@ -525,14 +520,14 @@ namespace Tomahawk
 			{
 				Reserve(1);
 			}
-			Pool(UInt64 _Size, UInt64 _Capacity, T* _Data) : Count(_Size), Volume(_Capacity), Data(_Data)
+			Pool(uint64_t _Size, uint64_t _Capacity, T* _Data) : Count(_Size), Volume(_Capacity), Data(_Data)
 			{
 				if (!Data && Volume > 0)
 					Reserve(Volume);
 				else if (!Data || !Volume)
 					Reserve(1);
 			}
-			Pool(UInt64 _Capacity) : Count(0), Volume(0), Data(nullptr)
+			Pool(uint64_t _Capacity) : Count(0), Volume(0), Data(nullptr)
 			{
 				if (_Capacity > 0)
 					Reserve(Capacity);
@@ -552,11 +547,11 @@ namespace Tomahawk
 			}
 			void Swap(const Pool<T>& Raw)
 			{
-				UInt64 _Size = Raw.Count;
+				uint64_t _Size = Raw.Count;
 				Raw.Count = Count;
 				Count = _Size;
 
-				UInt64 _Capacity = Raw.Volume;
+				uint64_t _Capacity = Raw.Volume;
 				Raw.Volume = Volume;
 				Volume = _Capacity;
 
@@ -569,7 +564,7 @@ namespace Tomahawk
 				Raw.Data = Data;
 				Data = _Data;
 			}
-			void Reserve(UInt64 NewCount)
+			void Reserve(uint64_t NewCount)
 			{
 				if (NewCount <= Volume)
 					return;
@@ -603,7 +598,7 @@ namespace Tomahawk
 
 				Count = Volume = 0;
 			}
-			void Resize(UInt64 NewSize)
+			void Resize(uint64_t NewSize)
 			{
 				if (NewSize > Volume)
 					Reserve(IncreaseCapacity(NewSize));
@@ -660,7 +655,7 @@ namespace Tomahawk
 
 				return It;
 			}
-			Iterator At(UInt64 Index) const
+			Iterator At(uint64_t Index) const
 			{
 				if (Index < 0 || Index >= Count)
 					return End();
@@ -689,7 +684,7 @@ namespace Tomahawk
 			{
 				return *(End() - 1);
 			}
-			T& operator [](UInt64 Index) const
+			T& operator [](uint64_t Index) const
 			{
 				return *(Data + Index);
 			}
@@ -724,11 +719,11 @@ namespace Tomahawk
 			}
 
 		public:
-			UInt64 Size() const
+			uint64_t Size() const
 			{
 				return Count;
 			}
-			UInt64 Capacity() const
+			uint64_t Capacity() const
 			{
 				return Volume;
 			}
@@ -751,16 +746,16 @@ namespace Tomahawk
 				if (!std::is_pointer<T>::value)
 					It->~T();
 			}
-			UInt64 SizeOf(Iterator A)
+			uint64_t SizeOf(Iterator A)
 			{
 				if (!std::is_pointer<T>::value)
 					return sizeof(T);
 
-				return sizeof(UInt64);
+				return sizeof(uint64_t);
 			}
-			UInt64 IncreaseCapacity(UInt64 NewSize)
+			uint64_t IncreaseCapacity(uint64_t NewSize)
 			{
-				UInt64 Alpha = Volume ? (Volume + Volume / 2) : 8;
+				uint64_t Alpha = Volume ? (Volume + Volume / 2) : 8;
 				return Alpha > NewSize ? Alpha : NewSize;
 			}
 		};
@@ -771,8 +766,8 @@ namespace Tomahawk
 
 		private:
 #ifndef NDEBUG
-			static UInt64 Memory;
-			static std::unordered_map<void*, UInt64>* Objects;
+			static uint64_t Memory;
+			static std::unordered_map<void*, uint64_t>* Objects;
 			static std::mutex* Safe;
 #endif
 			static std::function<void(const char*, int)> Callback;
@@ -785,11 +780,11 @@ namespace Tomahawk
 			static void DetachStream();
 			static void Inform(int Level, const char* Source, const char* Format, ...);
 			static void* GetPtr(void* Ptr);
-			static UInt64 GetSize(void* Ptr);
-			static UInt64 GetCount();
-			static UInt64 GetMemory();
+			static uint64_t GetSize(void* Ptr);
+			static uint64_t GetCount();
+			static uint64_t GetMemory();
 			static void Free(void* Ptr);
-			static void* Alloc(UInt64 Size);
+			static void* Alloc(uint64_t Size);
 		};
 
 		class THAWK_OUT Factory
@@ -800,6 +795,20 @@ namespace Tomahawk
 			static void Release(Object* Value);
 			static bool GetFlag(Object* Value);
 			static int GetRefCount(Object* Value);
+
+		public:
+			template <typename T>
+			static T* MakeAddRef(T* Value)
+			{
+				AddRef((Object*)Value);
+				return Value;
+			}
+			template <typename T>
+			static T* MakeRelease(Object* Value)
+			{
+				Release((Object*)Value);
+				return Value;
+			}
 		};
 
 		class THAWK_OUT Object
@@ -828,7 +837,7 @@ namespace Tomahawk
 		{
 		protected:
 			bool Handle;
-			Float64 Time;
+			double Time;
 			std::mutex Lock;
 
 		public:
@@ -848,11 +857,11 @@ namespace Tomahawk
 			void sWrite(const std::string& Line);
 			void sfWriteLine(const char* Format, ...);
 			void sfWrite(const char* Format, ...);
-			Float64 GetCapturedTime();
-			std::string Read(UInt64 Size);
+			double GetCapturedTime();
+			std::string Read(uint64_t Size);
 
 		public:
-			static Console*& Get();
+			static Console* Get();
 			static void Trace(const char* Format, ...);
 
 		public:
@@ -869,34 +878,34 @@ namespace Tomahawk
 		class THAWK_OUT Timer : public Object
 		{
 		private:
-			Float64 TimeIncrement;
-			Float64 TickCounter;
-			Float64 FrameCount;
-			Float64 CapturedTime;
-			Float64 DeltaTimeLimit;
-			Float64 TimeStepLimit;
+			double TimeIncrement;
+			double TickCounter;
+			double FrameCount;
+			double CapturedTime;
+			double DeltaTimeLimit;
+			double TimeStepLimit;
 			void* TimeLimit;
 			void* Frequency;
 			void* PastTime;
 
 		public:
-			Float64 FrameRelation;
-			Float64 FrameLimit;
+			double FrameRelation;
+			double FrameLimit;
 
 		public:
 			Timer();
 			virtual ~Timer() override;
-			void SetStepLimitation(Float64 MaxFrames, Float64 MinFrames);
+			void SetStepLimitation(double MaxFrames, double MinFrames);
 			void Synchronize();
 			void CaptureTime();
-			void Sleep(UInt64 MilliSecs);
-			Float64 GetTimeIncrement();
-			Float64 GetTickCounter();
-			Float64 GetFrameCount();
-			Float64 GetElapsedTime();
-			Float64 GetCapturedTime();
-			Float64 GetDeltaTime();
-			Float64 GetTimeStep();
+			void Sleep(uint64_t MilliSecs);
+			double GetTimeIncrement();
+			double GetTickCounter();
+			double GetFrameCount();
+			double GetElapsedTime();
+			double GetCapturedTime();
+			double GetDeltaTime();
+			double GetTimeStep();
 		};
 
 		class THAWK_OUT FileStream : public Object
@@ -913,19 +922,19 @@ namespace Tomahawk
 			bool Open(const char* File, FileMode Mode);
 			bool OpenZ(const char* File, FileMode Mode);
 			bool Close();
-			bool Seek(FileSeek Mode, Int64 Offset);
-			bool Move(Int64 Offset);
+			bool Seek(FileSeek Mode, int64_t Offset);
+			bool Move(int64_t Offset);
 			int Error();
 			int Flush();
 			int Fd();
 			unsigned char Get();
 			unsigned char Put(unsigned char Value);
-			UInt64 ReadAny(const char* Format, ...);
-			UInt64 Read(char* Buffer, UInt64 Length);
-			UInt64 WriteAny(const char* Format, ...);
-			UInt64 Write(const char* Buffer, UInt64 Length);
-			UInt64 Tell();
-			UInt64 Size();
+			uint64_t ReadAny(const char* Format, ...);
+			uint64_t Read(char* Buffer, uint64_t Length);
+			uint64_t WriteAny(const char* Format, ...);
+			uint64_t Write(const char* Buffer, uint64_t Length);
+			uint64_t Tell();
+			uint64_t Size();
 			std::string& Filename();
 			FILE* Stream();
 			void* StreamZ();
@@ -935,7 +944,7 @@ namespace Tomahawk
 		{
 		private:
 			std::string LastValue;
-			UInt64 Offset;
+			uint64_t Offset;
 
 		public:
 			FileStream* Stream = nullptr;
@@ -944,7 +953,7 @@ namespace Tomahawk
 		public:
 			FileLogger(const std::string& Root);
 			virtual ~FileLogger() override;
-			void Process(const std::function<bool(FileLogger*, const char*, Int64)>& Callback);
+			void Process(const std::function<bool(FileLogger*, const char*, int64_t)>& Callback);
 		};
 
 		class THAWK_OUT FileTree : public Object
@@ -959,7 +968,7 @@ namespace Tomahawk
 			virtual ~FileTree() override;
 			void Loop(const std::function<bool(FileTree*)>& Callback);
 			FileTree* Find(const std::string& Path);
-			UInt64 GetFiles();
+			uint64_t GetFiles();
 		};
 
 		class THAWK_OUT OS
@@ -971,20 +980,20 @@ namespace Tomahawk
 			static bool FileExists(const char* Path);
 			static bool ExecExists(const char* Path);
 			static bool DirExists(const char* Path);
-			static bool Write(const char* Path, const char* Data, UInt64 Length);
+			static bool Write(const char* Path, const char* Data, uint64_t Length);
 			static bool Write(const char* Path, const std::string& Data);
 			static bool RemoveFile(const char* Path);
 			static bool RemoveDir(const char* Path);
 			static bool Move(const char* From, const char* To);
 			static bool StateResource(const std::string& Path, Resource* Resource);
 			static bool ScanDir(const std::string& Path, std::vector<ResourceEntry>* Entries);
-			static bool ConstructETag(char* Buffer, UInt64 Length, Resource* Resource);
-			static bool ConstructETagManually(char* Buffer, UInt64 Length, Int64 LastModified, UInt64 ContentLength);
+			static bool ConstructETag(char* Buffer, uint64_t Length, Resource* Resource);
+			static bool ConstructETagManually(char* Buffer, uint64_t Length, int64_t LastModified, uint64_t ContentLength);
 			static bool SpawnProcess(const std::string& Path, const std::vector<std::string>& Params, ChildProcess* Result);
 			static bool FreeProcess(ChildProcess* Process);
 			static bool AwaitProcess(ChildProcess* Process, int* ExitCode);
 			static bool UnloadObject(void* Handle);
-			static bool SendFile(FILE* Stream, socket_t Socket, Int64 Size);
+			static bool SendFile(FILE* Stream, socket_t Socket, int64_t Size);
 			static bool CreateDir(const char* Path);
 			static socket_t GetFD(FILE* Stream);
 			static int GetError();
@@ -1004,9 +1013,9 @@ namespace Tomahawk
 			static std::vector<std::string> ReadAllLines(const char* Path);
 			static std::vector<std::string> GetDiskDrives();
 			static const char* FileExtention(const char* Path);
-			static unsigned char* ReadAllBytes(const char* Path, UInt64* ByteLength);
-			static unsigned char* ReadAllBytes(FileStream* Stream, UInt64* ByteLength);
-			static unsigned char* ReadByteChunk(FileStream* Stream, UInt64 Length);
+			static unsigned char* ReadAllBytes(const char* Path, uint64_t* ByteLength);
+			static unsigned char* ReadAllBytes(FileStream* Stream, uint64_t* ByteLength);
+			static unsigned char* ReadByteChunk(FileStream* Stream, uint64_t Length);
 		};
 
 		class THAWK_OUT EventWorker : public Object
@@ -1050,12 +1059,12 @@ namespace Tomahawk
 			} Sync;
 
 		private:
-			std::unordered_map<UInt64, EventListener*> Listeners;
+			std::unordered_map<uint64_t, EventListener*> Listeners;
 			std::deque<EventBase*> Events;
 			std::deque<EventBase*> Tasks;
 			std::vector<EventTimer*> Timers;
 			EventState State = EventState_Terminated;
-			UInt64 Timer = 0, Idle = 1;
+			uint64_t Timer = 0, Idle = 1;
 			int Synchronize = 0;
 
 		public:
@@ -1064,12 +1073,12 @@ namespace Tomahawk
 		public:
 			EventQueue();
 			virtual ~EventQueue() override;
-			void SetIdleTime(UInt64 IdleTime);
+			void SetIdleTime(uint64_t IdleTime);
 			void SetState(EventState NewState);
 			bool Tick();
-			bool Start(EventWorkflow Workflow, UInt64 TaskWorkers, UInt64 EventWorkers);
+			bool Start(EventWorkflow Workflow, uint64_t TaskWorkers, uint64_t EventWorkers);
 			bool Stop();
-			bool Expire(UInt64 TimerId);
+			bool Expire(uint64_t TimerId);
 			EventState GetState();
 
 		private:
@@ -1078,15 +1087,15 @@ namespace Tomahawk
 			bool TimerLoop();
 			bool QueueEvent(EventWorker* Worker);
 			bool QueueTask(EventWorker* Worker);
-			bool QueueTimer(Int64 Time);
+			bool QueueTimer(int64_t Time);
 			bool AddEvent(EventBase* Value);
 			bool AddTask(EventBase* Value);
 			bool AddTimer(EventTimer* Value);
 			bool AddListener(EventListener* Value);
 			bool RemoveCallback(EventBase* Value);
-			bool RemoveListener(UInt64 Value);
-			bool RemoveAny(EventType Type, UInt64 Hash, const PullCallback& Callback, bool NoCall);
-			Int64 Clock();
+			bool RemoveListener(uint64_t Value);
+			bool RemoveAny(EventType Type, uint64_t Hash, const PullCallback& Callback, bool NoCall);
+			int64_t Clock();
 
 		public:
 			template <typename T>
@@ -1151,7 +1160,7 @@ namespace Tomahawk
 				return AddEvent(Value);
 			}
 			template <typename T>
-			bool Interval(T* Args, UInt64 Milliseconds, const BaseCallback& Callback, EventTimer** Event = nullptr)
+			bool Interval(T* Args, uint64_t Milliseconds, const BaseCallback& Callback, EventTimer** Event = nullptr)
 			{
 				if (!Callback)
 					return false;
@@ -1172,7 +1181,7 @@ namespace Tomahawk
 				return AddTimer(Value);
 			}
 			template <typename T>
-			bool Timeout(T* Args, UInt64 Milliseconds, const BaseCallback& Callback, EventTimer** Event = nullptr)
+			bool Timeout(T* Args, uint64_t Milliseconds, const BaseCallback& Callback, EventTimer** Event = nullptr)
 			{
 				if (!Callback)
 					return false;
@@ -1226,9 +1235,9 @@ namespace Tomahawk
 			std::string Name;
 			std::string String;
 			NodeType Type;
-			Int64 Low;
-			Int64 Integer;
-			Float64 Number;
+			int64_t Low;
+			int64_t Integer;
+			double Number;
 			bool Boolean;
 			bool Saved;
 
@@ -1237,7 +1246,7 @@ namespace Tomahawk
 			virtual ~Document() override;
 			void Clear();
 			void Save();
-			Document* GetIndex(Int64 Index);
+			Document* GetIndex(int64_t Index);
 			Document* Get(const std::string& Name);
 			Document* SetCast(const std::string& Name, const std::string& Prop);
 			Document* SetUndefined(const std::string& Name);
@@ -1248,11 +1257,11 @@ namespace Tomahawk
 			Document* SetArray(const std::string& Name, Document* Value);
 			Document* SetArray(const std::string& Name);
 			Document* SetAttribute(const std::string& Name, const std::string& Value);
-			Document* SetString(const std::string& Name, const char* Value, Int64 Size);
+			Document* SetString(const std::string& Name, const char* Value, int64_t Size);
 			Document* SetString(const std::string& Name, const std::string& Value);
-			Document* SetInteger(const std::string& Name, Int64 Value);
-			Document* SetNumber(const std::string& Name, Float64 Value);
-			Document* SetDecimal(const std::string& Name, Int64 High, Int64 Low);
+			Document* SetInteger(const std::string& Name, int64_t Value);
+			Document* SetNumber(const std::string& Name, double Value);
+			Document* SetDecimal(const std::string& Name, int64_t High, int64_t Low);
 			Document* SetDecimal(const std::string& Name, const std::string& Value);
 			Document* SetBoolean(const std::string& Name, bool Value);
 			Document* Copy();
@@ -1264,10 +1273,10 @@ namespace Tomahawk
 			bool GetBoolean(const std::string& Name);
 			bool GetNull(const std::string& Name);
 			bool GetUndefined(const std::string& Name);
-			Int64 Size();
-			Int64 GetDecimal(const std::string& Name, Int64* Low);
-			Int64 GetInteger(const std::string& Name);
-			Float64 GetNumber(const std::string& Name);
+			int64_t Size();
+			int64_t GetDecimal(const std::string& Name, int64_t* Low);
+			int64_t GetInteger(const std::string& Name);
+			double GetNumber(const std::string& Name);
 			unsigned char* GetId(const std::string& Name);
 			const char* GetString(const std::string& Name);
 			std::string& GetStringBlob(const std::string& Name);
@@ -1278,20 +1287,20 @@ namespace Tomahawk
 			std::vector<Document*> FindCollectionPath(const std::string& Notation, bool Here = false);
 			std::vector<Document*> GetAttributes();
 			std::vector<Document*>* GetNodes();
-			std::unordered_map<std::string, UInt64> CreateMapping();
+			std::unordered_map<std::string, uint64_t> CreateMapping();
 
 		public:
 			static bool WriteBIN(Document* Value, const NWriteCallback& Callback);
 			static bool WriteXML(Document* Value, const NWriteCallback& Callback);
 			static bool WriteJSON(Document* Value, const NWriteCallback& Callback);
 			static Document* ReadBIN(const NReadCallback& Callback);
-			static Document* ReadXML(Int64 Size, const NReadCallback& Callback);
-			static Document* ReadJSON(Int64 Size, const NReadCallback& Callback);
+			static Document* ReadXML(int64_t Size, const NReadCallback& Callback);
+			static Document* ReadJSON(int64_t Size, const NReadCallback& Callback);
 
 		private:
-			static void ProcessBINWrite(Document* Current, std::unordered_map<std::string, UInt64>* Map, const NWriteCallback& Callback);
-			static bool ProcessBINRead(Document* Current, std::unordered_map<UInt64, std::string>* Map, const NReadCallback& Callback);
-			static bool ProcessMAPRead(Document* Current, std::unordered_map<std::string, UInt64>* Map, UInt64& Index);
+			static void ProcessBINWrite(Document* Current, std::unordered_map<std::string, uint64_t>* Map, const NWriteCallback& Callback);
+			static bool ProcessBINRead(Document* Current, std::unordered_map<uint64_t, std::string>* Map, const NReadCallback& Callback);
+			static bool ProcessMAPRead(Document* Current, std::unordered_map<std::string, uint64_t>* Map, uint64_t& Index);
 			static bool ProcessXMLRead(void* Base, Document* Current);
 			static bool ProcessJSONRead(Document* Current);
 			static bool Deserialize(const std::string& Value, Document* Output);

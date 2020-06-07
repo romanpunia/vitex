@@ -290,7 +290,7 @@ namespace Tomahawk
 				if (Value <= 0)
 					return (GetError(Value) == SSL_ERROR_WANT_WRITE ? -2 : -1);
 
-				Outcome += (Int64)Value;
+				Outcome += (int64_t)Value;
 				return Value;
 			}
 #endif
@@ -298,7 +298,7 @@ namespace Tomahawk
 			if (Value <= 0)
 				return (GetError(Value) == ERRWOULDBLOCK ? -2 : -1);
 
-			Outcome += (Int64)Value;
+			Outcome += (int64_t)Value;
 			return Value;
 		}
 		int Socket::Write(const char* Buffer, int Size, const SocketWriteCallback& Callback)
@@ -331,7 +331,7 @@ namespace Tomahawk
 		{
 			return Write(Buffer.c_str(), (int)Buffer.size());
 		}
-		int Socket::WriteAsync(const char* Buffer, Int64 Size, const SocketWriteCallback& Callback)
+		int Socket::WriteAsync(const char* Buffer, int64_t Size, const SocketWriteCallback& Callback)
 		{
 			if (Listener)
 				return 0;
@@ -345,7 +345,7 @@ namespace Tomahawk
 				return 0;
 			}
 
-			Int64 Offset = 0;
+			int64_t Offset = 0;
 			while (Size > 0)
 			{
 				int Length = Write(Buffer + Offset, (int)Size);
@@ -366,10 +366,10 @@ namespace Tomahawk
 					return -1;
 				}
 
-				Size -= (Int64)Length;
-				Offset += (Int64)Length;
+				Size -= (int64_t)Length;
+				Offset += (int64_t)Length;
 
-				if (Callback && !Callback(this, (Int64)Length))
+				if (Callback && !Callback(this, (int64_t)Length))
 					break;
 			}
 
@@ -387,7 +387,7 @@ namespace Tomahawk
 			int Count = vsnprintf(Buffer, sizeof(Buffer), Format, Args);
 					va_end(Args);
 
-			return Write(Buffer, (UInt64)Count);
+			return Write(Buffer, (uint64_t)Count);
 		}
 		int Socket::fWriteAsync(const SocketWriteCallback& Callback, const char* Format, ...)
 		{
@@ -398,7 +398,7 @@ namespace Tomahawk
 			int Count = vsnprintf(Buffer, sizeof(Buffer), Format, Args);
 					va_end(Args);
 
-			return WriteAsync(Buffer, (Int64)Count, Callback);
+			return WriteAsync(Buffer, (int64_t)Count, Callback);
 		}
 		int Socket::Read(char* Buffer, int Size)
 		{
@@ -415,7 +415,7 @@ namespace Tomahawk
 				if (Value <= 0)
 					return (GetError(Value) == SSL_ERROR_WANT_READ ? -2 : -1);
 
-				Income += (Int64)Value;
+				Income += (int64_t)Value;
 				return Value;
 			}
 #endif
@@ -423,7 +423,7 @@ namespace Tomahawk
 			if (Value <= 0)
 				return (GetError(Value) == ERRWOULDBLOCK ? -2 : -1);
 
-			Income += (Int64)Value;
+			Income += (int64_t)Value;
 			return Value;
 		}
 		int Socket::Read(char* Buffer, int Size, const SocketReadCallback& Callback)
@@ -449,7 +449,7 @@ namespace Tomahawk
 
 			return Size;
 		}
-		int Socket::ReadAsync(Int64 Size, const SocketReadCallback& Callback)
+		int Socket::ReadAsync(int64_t Size, const SocketReadCallback& Callback)
 		{
 			if (Input != nullptr)
 			{
@@ -481,8 +481,8 @@ namespace Tomahawk
 					return -1;
 				}
 
-				Size -= (Int64)Length;
-				if (Callback && !Callback(this, Buffer, (Int64)Length))
+				Size -= (int64_t)Length;
+				if (Callback && !Callback(this, Buffer, (int64_t)Length))
 					break;
 			}
 
@@ -534,7 +534,7 @@ namespace Tomahawk
 		}
 		int Socket::ReadUntilAsync(const char* Match, const SocketReadCallback& Callback)
 		{
-			Int64 Size = (Int64)(Match ? strlen(Match) : 0);
+			int64_t Size = (int64_t)(Match ? strlen(Match) : 0);
 			if (!Size)
 				return 0;
 
@@ -548,7 +548,7 @@ namespace Tomahawk
 				return 0;
 			}
 
-			Int64 Index = 0;
+			int64_t Index = 0;
 			while (true)
 			{
 				int Length = Read(&Buffer, 1);
@@ -675,7 +675,7 @@ namespace Tomahawk
 			int Range2 = setsockopt(Fd, SOL_SOCKET, SO_SNDTIMEO, (const char*)&Time, sizeof(Time));
 			return (Range1 || Range2);
 		}
-		int Socket::SetAsyncTimeout(Int64 Timeout)
+		int Socket::SetAsyncTimeout(int64_t Timeout)
 		{
 			Sync.Timeout = Timeout;
 			return 0;
@@ -760,7 +760,7 @@ namespace Tomahawk
 		{
 			return Output || Input;
 		}
-		void Socket::ReadPush(const SocketReadCallback& Callback, const char* Match, Int64 Size, Int64 Index)
+		void Socket::ReadPush(const SocketReadCallback& Callback, const char* Match, int64_t Size, int64_t Index)
 		{
 			ReadEvent* Event = new ReadEvent();
 			Event->Callback = Callback;
@@ -803,7 +803,7 @@ namespace Tomahawk
 
 			delete It;
 		}
-		void Socket::WritePush(const SocketWriteCallback& Callback, const char* Buffer, Int64 Size)
+		void Socket::WritePush(const SocketWriteCallback& Callback, const char* Buffer, int64_t Size)
 		{
 			WriteEvent* Event = new WriteEvent();
 			Event->Callback = Callback;
@@ -876,7 +876,7 @@ namespace Tomahawk
 			return inet_ntoa(*(struct in_addr *)Host->h_addr_list[0]);
 #endif
 		}
-		Int64 Socket::GetAsyncTimeout()
+		int64_t Socket::GetAsyncTimeout()
 		{
 			return Sync.Timeout;
 		}
@@ -952,7 +952,7 @@ namespace Tomahawk
 				unsigned char* Pointer = Buffer;
 				int Size = i2d_ASN1_INTEGER(Serial, &Pointer);
 
-				if (!Compute::MathCommon::HexToString(Buffer, (UInt64)Size, SerialBuffer, sizeof(SerialBuffer)))
+				if (!Compute::MathCommon::HexToString(Buffer, (uint64_t)Size, SerialBuffer, sizeof(SerialBuffer)))
 					*SerialBuffer = '\0';
 			}
 			else
@@ -962,7 +962,7 @@ namespace Tomahawk
 			ASN1_digest((int (*)(void*, unsigned char**))i2d_X509, Digest, (char*)Certificate, Buffer, &Size);
 
 			char FingerBuffer[1024];
-			if (!Compute::MathCommon::HexToString(Buffer, (UInt64)Size, FingerBuffer, sizeof(FingerBuffer)))
+			if (!Compute::MathCommon::HexToString(Buffer, (uint64_t)Size, FingerBuffer, sizeof(FingerBuffer)))
 				*FingerBuffer = '\0';
 
 			Output->Subject = SubjectBuffer;
@@ -1055,7 +1055,7 @@ namespace Tomahawk
 				if (Count <= 0)
 					continue;
 
-				Int64 Time = Clock();
+				int64_t Time = Clock();
 				int Size = 0;
 				for (auto It = Events; It != Events + Count; It++)
 				{
@@ -1097,12 +1097,12 @@ namespace Tomahawk
 					std::this_thread::sleep_for(std::chrono::milliseconds(1));
 			}while (Queue == Loop && Args);
 		}
-		bool Multiplexer::Create(int Length, Int64 Timeout, Rest::EventQueue* Queue)
+		bool Multiplexer::Create(int Length, int64_t Timeout, Rest::EventQueue* Queue)
 		{
 			Create(Length);
 			return Bind(Timeout, Queue);
 		}
-		bool Multiplexer::Bind(Int64 Timeout, Rest::EventQueue* Queue)
+		bool Multiplexer::Bind(int64_t Timeout, Rest::EventQueue* Queue)
 		{
 			if (Loop != nullptr && Queue != nullptr)
 				return false;
@@ -1158,7 +1158,7 @@ namespace Tomahawk
 			return epoll_ctl(Handle, EPOLL_CTL_DEL, Value->Fd, nullptr);
 #endif
 		}
-		int Multiplexer::Dispatch(Socket* Fd, int* Events, Int64 Time)
+		int Multiplexer::Dispatch(Socket* Fd, int* Events, int64_t Time)
 		{
 			if (!Fd || Fd->Fd == INVALID_SOCKET)
 				return 1;
@@ -1182,7 +1182,7 @@ namespace Tomahawk
 						ReadEvent* Event = Fd->Input;
 						while (Event->Size > 0)
 						{
-							int Size = Fd->Read(Buffer, Event->Match ? 1 : (int)std::min(Event->Size, (Int64)sizeof(Buffer)));
+							int Size = Fd->Read(Buffer, Event->Match ? 1 : (int)std::min(Event->Size, (int64_t)sizeof(Buffer)));
 							if (Size == -1)
 							{
 								while (Fd->Input != nullptr)
@@ -1204,7 +1204,7 @@ namespace Tomahawk
 							}
 
 							Fd->Sync.IO.unlock();
-							bool Done = (Callback && !Callback(Fd, Buffer, (Int64)Size));
+							bool Done = (Callback && !Callback(Fd, Buffer, (int64_t)Size));
 							Fd->Sync.IO.lock();
 
 							if (!Fd->Input || Fd->Input != Event)
@@ -1219,7 +1219,7 @@ namespace Tomahawk
 
 							if (!Event->Match)
 							{
-								Event->Size -= (Int64)Size;
+								Event->Size -= (int64_t)Size;
 								continue;
 							}
 
@@ -1275,7 +1275,7 @@ namespace Tomahawk
 
 						auto Callback = Fd->Output->Callback;
 						WriteEvent* Event = Fd->Output;
-						Int64 Offset = 0;
+						int64_t Offset = 0;
 						while (Event->Buffer && Event->Size > 0)
 						{
 							int Size = Fd->Write(Event->Buffer + Offset, (int)Event->Size);
@@ -1300,7 +1300,7 @@ namespace Tomahawk
 							}
 
 							Fd->Sync.IO.unlock();
-							bool Done = (Callback && !Callback(Fd, (Int64)Size));
+							bool Done = (Callback && !Callback(Fd, (int64_t)Size));
 							Fd->Sync.IO.lock();
 
 							if (!Fd->Output || Fd->Output != Event)
@@ -1310,7 +1310,7 @@ namespace Tomahawk
 								break;
 							}
 
-							Event->Size -= (Int64)Size;
+							Event->Size -= (int64_t)Size;
 							if (Done)
 								break;
 						}
@@ -1360,7 +1360,7 @@ namespace Tomahawk
 		{
 			return Loop;
 		}
-		Int64 Multiplexer::Clock()
+		int64_t Multiplexer::Clock()
 		{
 			return std::chrono::duration_cast<std::chrono::milliseconds>(std::chrono::system_clock::now().time_since_epoch()).count();
 		}
@@ -1371,7 +1371,7 @@ namespace Tomahawk
 #endif
 		Rest::EventQueue* Multiplexer::Loop = nullptr;
 		epoll_handle Multiplexer::Handle = INVALID_EPOLL;
-		Int64 Multiplexer::PipeTimeout = 200;
+		int64_t Multiplexer::PipeTimeout = 200;
 		int Multiplexer::ArraySize = 0;
 
 		SocketServer::SocketServer()
@@ -1501,7 +1501,7 @@ namespace Tomahawk
 #ifdef SSL_CTX_set_ecdh_auto
 				SSL_CTX_set_ecdh_auto(It.second.Context, 1);
 #endif
-				std::string ContextId = Compute::MathCommon::MD5Hash(Rest::Stroke((Int64)time(nullptr)).R());
+				std::string ContextId = Compute::MathCommon::MD5Hash(Rest::Stroke((int64_t)time(nullptr)).R());
 				SSL_CTX_set_session_id_context(It.second.Context, (const unsigned char*)ContextId.c_str(), (unsigned int)ContextId.size());
 
 				if (!It.second.Chain.empty() && !It.second.Key.empty())
@@ -1732,7 +1732,7 @@ namespace Tomahawk
 			SFd.fd = Fd->GetFd();
 			SFd.events = POLLIN | POLLOUT;
 
-			Int64 Timeout = Multiplexer::Clock();
+			int64_t Timeout = Multiplexer::Clock();
 			bool OK = true;
 
 			while (OK)
@@ -1741,7 +1741,7 @@ namespace Tomahawk
 				if (Result >= 0)
 					break;
 
-				if (Multiplexer::Clock() - Timeout > (Int64)Router->SocketTimeout)
+				if (Multiplexer::Clock() - Timeout > (int64_t)Router->SocketTimeout)
 					return false;
 
 				int Code = SSL_get_error(Fd->GetDevice(), Result);
@@ -1871,7 +1871,7 @@ namespace Tomahawk
 			return Queue;
 		}
 
-		SocketClient::SocketClient(Int64 RequestTimeout) : Timeout(RequestTimeout), Context(nullptr), AutoCertify(true)
+		SocketClient::SocketClient(int64_t RequestTimeout) : Timeout(RequestTimeout), Context(nullptr), AutoCertify(true)
 		{
 			Stream.UserData = this;
 		}

@@ -1,10 +1,5 @@
 #include "script.h"
-#include "wrapper/rest.h"
-#include "wrapper/compute.h"
-#include "wrapper/graphics.h"
-#include "wrapper/audio.h"
-#include "wrapper/network.h"
-#include "wrapper/engine.h"
+#include "script/interface.h"
 #include <angelscript.h>
 #include <iostream>
 #include <scriptstdstring/scriptstdstring.h>
@@ -26,46 +21,44 @@ namespace Tomahawk
 		class ByteCodeStream : public asIBinaryStream
 		{
 		private:
-			std::vector<asBYTE> Buffer;
-			size_t RPointer, WPointer;
+			std::vector<asBYTE> Code;
+			int ReadPos, WritePos;
 
 		public:
-			ByteCodeStream() : WPointer(0), RPointer(0)
+			ByteCodeStream() : ReadPos(0), WritePos(0)
 			{
 			}
-			ByteCodeStream(const std::string& Data) : WPointer(Data.size()), RPointer(0)
+			ByteCodeStream(const std::vector<asBYTE>& Data) : Code(Data), ReadPos(0), WritePos(0)
 			{
-				Buffer = std::vector<asBYTE>(Data.begin(), Data.end());
 			}
-			int Write(const void* Data, asUINT Size)
+			int Read(void* Ptr, asUINT Size)
 			{
-				if (!Size || !Data)
+				if (!Ptr || !Size)
 					return 0;
 
-				Buffer.resize(Buffer.size() + Size);
-				memcpy(&Buffer[WPointer], Data, Size);
-				WPointer += Size;
+				memcpy(Ptr, &Code[ReadPos], Size);
+				ReadPos += Size;
 
-				return (int)Size;
+				return 0;
 			}
-			int Read(void* Data, asUINT Size)
+			int Write(const void* Ptr, asUINT Size)
 			{
-				if (!Data || !Size)
+				if (!Ptr || !Size)
 					return 0;
 
-				Int64 Avail = (Int64)Buffer.size() - (Int64)RPointer;
-				if (Avail <= 0)
-					return -1;
+				Code.resize(Code.size() + Size);
+				memcpy(&Code[WritePos], Ptr, Size);
+				WritePos += Size;
 
-				Size = std::min(Size, (size_t)Avail);
-				memcpy(Data, &Buffer[RPointer], Size);
-				RPointer += Size;
-
-				return Size;
+				return 0;
 			}
-			std::string GetResult()
+			std::vector<asBYTE>& GetCode()
 			{
-				return std::string(Buffer.begin(), Buffer.end());
+				return Code;
+			}
+			asUINT GetSize()
+			{
+				return (asUINT)Code.size();
 			}
 		};
 
@@ -144,6 +137,32 @@ namespace Tomahawk
 		VMWTypeInfo::VMWTypeInfo(VMCTypeInfo* TypeInfo) : Info(TypeInfo)
 		{
 			Manager = (Info ? VMManager::Get(Info->GetEngine()) : nullptr);
+		}
+		void VMWTypeInfo::ForEachProperty(const PropertyCallback& Callback)
+		{
+			if (!Callback || !IsValid())
+				return;
+
+			unsigned int Count = Info->GetPropertyCount();
+			for (unsigned int i = 0; i < Count; i++)
+			{
+				VMFuncProperty Prop;
+				if (GetProperty(i, &Prop) >= 0)
+					Callback(this, &Prop);
+			}
+		}
+		void VMWTypeInfo::ForEachMethod(const MethodCallback& Callback)
+		{
+			if (!Callback || !IsValid())
+				return;
+
+			unsigned int Count = Info->GetMethodCount();
+			for (unsigned int i = 0; i < Count; i++)
+			{
+				VMWFunction Method = Info->GetMethodByIndex(i);
+				if (Method.IsValid())
+					Callback(this, &Method);
+			}
 		}
 		const char* VMWTypeInfo::GetGroup() const
 		{
@@ -425,19 +444,26 @@ namespace Tomahawk
 
 			return Info->GetFuncdefSignature();
 		}
-		void* VMWTypeInfo::SetUserData(void* Data, UInt64 Type)
+		void* VMWTypeInfo::SetUserData(void* Data, uint64_t Type)
 		{
 			if (!IsValid())
 				return nullptr;
 
 			return Info->SetUserData(Data, Type);
 		}
-		void* VMWTypeInfo::GetUserData(UInt64 Type) const
+		void* VMWTypeInfo::GetUserData(uint64_t Type) const
 		{
 			if (!IsValid())
 				return nullptr;
 
 			return Info->GetUserData(Type);
+		}
+		bool VMWTypeInfo::IsHandle() const
+		{
+			if (!IsValid())
+				return false;
+
+			return IsHandle(Info->GetTypeId());
 		}
 		bool VMWTypeInfo::IsValid() const
 		{
@@ -450,6 +476,14 @@ namespace Tomahawk
 		VMManager* VMWTypeInfo::GetManager() const
 		{
 			return Manager;
+		}
+		bool VMWTypeInfo::IsHandle(int TypeId)
+		{
+			return (TypeId & asTYPEID_OBJHANDLE || TypeId & asTYPEID_HANDLETOCONST);
+		}
+		bool VMWTypeInfo::IsScriptObject(int TypeId)
+		{
+			return (TypeId & asTYPEID_SCRIPTOBJECT);
 		}
 
 		VMWFunction::VMWFunction(VMCFunction* Base) : Function(Base)
@@ -708,14 +742,14 @@ namespace Tomahawk
 
 			return Function->FindNextLineWithCode(Line);
 		}
-		void* VMWFunction::SetUserData(void* UserData, UInt64 Type)
+		void* VMWFunction::SetUserData(void* UserData, uint64_t Type)
 		{
 			if (!IsValid())
 				return nullptr;
 
 			return Function->SetUserData(UserData, Type);
 		}
-		void* VMWFunction::GetUserData(UInt64 Type) const
+		void* VMWFunction::GetUserData(uint64_t Type) const
 		{
 			if (!IsValid())
 				return nullptr;
@@ -1125,13 +1159,13 @@ namespace Tomahawk
 
 			return Thread;
 		}
-		UInt64 VMCThread::GetIdInThread()
+		uint64_t VMCThread::GetIdInThread()
 		{
 			auto* Thread = GetThisThreadSafe();
 			if (!Thread)
 				return 0;
 
-			return (UInt64)std::hash<std::thread::id>()(std::this_thread::get_id());
+			return (uint64_t)std::hash<std::thread::id>()(std::this_thread::get_id());
 		}
 		int VMCThread::ContextUD = 550;
 		int VMCThread::EngineListUD = 551;
@@ -1314,7 +1348,7 @@ namespace Tomahawk
 		{
 			return CreateFilled(&Value, VMTypeId_BOOL);
 		}
-		VMCAsync* VMCAsync::CreateFilled(Int64 Value)
+		VMCAsync* VMCAsync::CreateFilled(int64_t Value)
 		{
 			return CreateFilled(&Value, VMTypeId_INT64);
 		}
@@ -1599,7 +1633,7 @@ namespace Tomahawk
 
 			return Any->Store(Ref, RefTypeId);
 		}
-		void VMWAny::Store(Int64& Value)
+		void VMWAny::Store(int64_t& Value)
 		{
 			if (!IsValid())
 				return;
@@ -1631,7 +1665,7 @@ namespace Tomahawk
 
 			return Any->Retrieve(Ref, RefTypeId);
 		}
-		bool VMWAny::Retrieve(Int64& Value) const
+		bool VMWAny::Retrieve(int64_t& Value) const
 		{
 			if (!IsValid())
 				return -1;
@@ -1668,6 +1702,112 @@ namespace Tomahawk
 			return new VMCAny(Ref, TypeId, Manager->GetEngine());
 		}
 
+		VMWObject::VMWObject(VMCObject* Base) : Object(Base)
+		{
+		}
+		int VMWObject::AddRef() const
+		{
+			if (!IsValid())
+				return 0;
+
+			return Object->AddRef();
+		}
+		int VMWObject::Release()
+		{
+			if (!IsValid())
+				return 0;
+
+			int R = Object->Release();
+			Object = nullptr;
+
+			return R;
+		}
+		VMCLockableSharedBool* VMWObject::GetWeakRefFlag()
+		{
+			if (!IsValid())
+				return nullptr;
+
+			return Object->GetWeakRefFlag();
+		}
+		VMWTypeInfo VMWObject::GetObjectType()
+		{
+			if (!IsValid())
+				return nullptr;
+
+			return Object->GetObjectType();
+		}
+		int VMWObject::GetTypeId()
+		{
+			if (!IsValid())
+				return 0;
+
+			return Object->GetTypeId();
+		}
+		int VMWObject::GetPropertyTypeId(unsigned int Id) const
+		{
+			if (!IsValid())
+				return 0;
+
+			return Object->GetPropertyTypeId(Id);
+		}
+		unsigned int VMWObject::GetPropertiesCount() const
+		{
+			if (!IsValid())
+				return 0;
+
+			return Object->GetPropertyCount();
+		}
+		const char* VMWObject::GetPropertyName(unsigned int Id) const
+		{
+			if (!IsValid())
+				return 0;
+
+			return Object->GetPropertyName(Id);
+		}
+		void* VMWObject::GetAddressOfProperty(unsigned int Id)
+		{
+			if (!IsValid())
+				return nullptr;
+
+			return Object->GetAddressOfProperty(Id);
+		}
+		VMManager* VMWObject::GetManager() const
+		{
+			if (!IsValid())
+				return nullptr;
+
+			return VMManager::Get(Object->GetEngine());
+		}
+		int VMWObject::CopyFrom(const VMWObject& Other)
+		{
+			if (!IsValid())
+				return -1;
+
+			return Object->CopyFrom(Other.GetObject());
+		}
+		void* VMWObject::SetUserData(void* Data, uint64_t Type)
+		{
+			if (!IsValid())
+				return nullptr;
+
+			return Object->SetUserData(Data, (asPWORD)Type);
+		}
+		void* VMWObject::GetUserData(uint64_t Type) const
+		{
+			if (!IsValid())
+				return nullptr;
+
+			return Object->GetUserData((asPWORD)Type);
+		}
+		bool VMWObject::IsValid() const
+		{
+			return Object != nullptr;
+		}
+		VMCObject* VMWObject::GetObject() const
+		{
+			return Object;
+		}
+
 		VMWDictionary::VMWDictionary(VMCDictionary* Base) : Dictionary(Base)
 		{
 		}
@@ -1693,7 +1833,7 @@ namespace Tomahawk
 
 			return Dictionary->Set(Key, Value, TypeId);
 		}
-		void VMWDictionary::Set(const std::string& Key, Int64& Value)
+		void VMWDictionary::Set(const std::string& Key, int64_t& Value)
 		{
 			if (!IsValid())
 				return;
@@ -1707,14 +1847,49 @@ namespace Tomahawk
 
 			return Dictionary->Set(Key, Value);
 		}
-		bool VMWDictionary::Get(const std::string& Key, void* Value, int TypeId) const
+		bool VMWDictionary::GetIndex(size_t Index, std::string* Key, void** Value, int* TypeId) const
+		{
+			if (!IsValid() || Index >= Dictionary->GetSize())
+				return false;
+
+			auto It = Dictionary->begin();
+			size_t Offset = 0;
+
+			while (Offset != Index)
+			{
+				Offset++;
+				It++;
+			}
+
+			if (Key != nullptr)
+				*Key = It.GetKey();
+
+			if (Value != nullptr)
+				*Value = (void*)It.GetAddressOfValue();
+
+			if (TypeId != nullptr)
+				*TypeId = It.GetTypeId();
+
+			return true;
+		}
+		bool VMWDictionary::Get(const std::string& Key, void** Value, int* TypeId) const
 		{
 			if (!IsValid())
 				return false;
 
-			return Dictionary->Get(Key, Value, TypeId);
+			auto It = Dictionary->find(Key);
+			if (It == Dictionary->end())
+				return false;
+
+			if (Value != nullptr)
+				*Value = (void*)It.GetAddressOfValue();
+
+			if (TypeId != nullptr)
+				*TypeId = It.GetTypeId();
+
+			return true;
 		}
-		bool VMWDictionary::Get(const std::string& Key, Int64& Value) const
+		bool VMWDictionary::Get(const std::string& Key, int64_t& Value) const
 		{
 			if (!IsValid())
 				return false;
@@ -2060,7 +2235,7 @@ namespace Tomahawk
 
 			return Generic->GetArgDWord(Argument);
 		}
-		UInt64 VMWGeneric::GetArgQWord(unsigned int Argument)
+		uint64_t VMWGeneric::GetArgQWord(unsigned int Argument)
 		{
 			if (!IsValid())
 				return 0;
@@ -2135,7 +2310,7 @@ namespace Tomahawk
 
 			return Generic->SetReturnDWord(Value);
 		}
-		int VMWGeneric::SetReturnQWord(UInt64 Value)
+		int VMWGeneric::SetReturnQWord(uint64_t Value)
 		{
 			if (!IsValid())
 				return -1;
@@ -2369,7 +2544,7 @@ namespace Tomahawk
 
 			return Engine->RegisterObjectBehaviour(Object.c_str(), asBEHAVE_CONSTRUCT, Decl, *Value, (asECallConvTypes)Type);
 		}
-		int VMWClass::SetConstructorListAddress(const char* Decl, asSFuncPtr* Value)
+		int VMWClass::SetConstructorListAddress(const char* Decl, asSFuncPtr* Value, VMCall Type)
 		{
 			if (!IsValid() || !Decl)
 				return -1;
@@ -2378,7 +2553,7 @@ namespace Tomahawk
 			if (!Engine)
 				return -1;
 
-			return Engine->RegisterObjectBehaviour(Object.c_str(), asBEHAVE_LIST_CONSTRUCT, Decl, *Value, asCALL_GENERIC);
+			return Engine->RegisterObjectBehaviour(Object.c_str(), asBEHAVE_LIST_CONSTRUCT, Decl, *Value, (asECallConvTypes)Type);
 		}
 		int VMWClass::SetDestructorAddress(const char* Decl, asSFuncPtr* Value)
 		{
@@ -2406,6 +2581,163 @@ namespace Tomahawk
 		VMManager* VMWClass::GetManager() const
 		{
 			return Manager;
+		}
+		Rest::Stroke VMWClass::GetOperator(VMOpFunc Op, const char* Out, const char* Args, bool Const, bool Right)
+		{
+			switch (Op)
+			{
+			case VMOpFunc_Neg:
+				if (Right)
+					return "";
+
+				return Rest::Form("%s opNeg()%s", Out, Const ? " const" : "");
+			case VMOpFunc_Com:
+				if (Right)
+					return "";
+
+				return Rest::Form("%s opCom()%s", Out, Const ? " const" : "");
+			case VMOpFunc_PreInc:
+				if (Right)
+					return "";
+
+				return Rest::Form("%s opPreInc()%s", Out, Const ? " const" : "");
+			case VMOpFunc_PreDec:
+				if (Right)
+					return "";
+
+				return Rest::Form("%s opPreDec()%s", Out, Const ? " const" : "");
+			case VMOpFunc_PostInc:
+				if (Right)
+					return "";
+
+				return Rest::Form("%s opPostInc()%s", Out, Const ? " const" : "");
+			case VMOpFunc_PostDec:
+				if (Right)
+					return "";
+
+				return Rest::Form("%s opPostDec()%s", Out, Const ? " const" : "");
+			case VMOpFunc_Equals:
+				if (Right)
+					return "";
+
+				return Rest::Form("%s opEquals(%s)%s", Out, Args ? Args : "", Const ? " const" : "");
+			case VMOpFunc_Cmp:
+				if (Right)
+					return "";
+
+				return Rest::Form("%s opCmp(%s)%s", Out, Args ? Args : "", Const ? " const" : "");
+			case VMOpFunc_Assign:
+				if (Right)
+					return "";
+
+				return Rest::Form("%s opAssign(%s)%s", Out, Args ? Args : "", Const ? " const" : "");
+			case VMOpFunc_AddAssign:
+				if (Right)
+					return "";
+
+				return Rest::Form("%s opAddAssign(%s)%s", Out, Args ? Args : "", Const ? " const" : "");
+			case VMOpFunc_SubAssign:
+				if (Right)
+					return "";
+
+				return Rest::Form("%s opSubAssign(%s)%s", Out, Args ? Args : "", Const ? " const" : "");
+			case VMOpFunc_MulAssign:
+				if (Right)
+					return "";
+
+				return Rest::Form("%s opMulAssign(%s)%s", Out, Args ? Args : "", Const ? " const" : "");
+			case VMOpFunc_DivAssign:
+				if (Right)
+					return "";
+
+				return Rest::Form("%s opDivAssign(%s)%s", Out, Args ? Args : "", Const ? " const" : "");
+			case VMOpFunc_ModAssign:
+				if (Right)
+					return "";
+
+				return Rest::Form("%s opModAssign(%s)%s", Out, Args ? Args : "", Const ? " const" : "");
+			case VMOpFunc_PowAssign:
+				if (Right)
+					return "";
+
+				return Rest::Form("%s opPowAssign(%s)%s", Out, Args ? Args : "", Const ? " const" : "");
+			case VMOpFunc_AndAssign:
+				if (Right)
+					return "";
+
+				return Rest::Form("%s opAndAssign(%s)%s", Out, Args ? Args : "", Const ? " const" : "");
+			case VMOpFunc_OrAssign:
+				if (Right)
+					return "";
+
+				return Rest::Form("%s opOrAssign(%s)%s", Out, Args ? Args : "", Const ? " const" : "");
+			case VMOpFunc_XOrAssign:
+				if (Right)
+					return "";
+
+				return Rest::Form("%s opXorAssign(%s)%s", Out, Args ? Args : "", Const ? " const" : "");
+			case VMOpFunc_ShlAssign:
+				if (Right)
+					return "";
+
+				return Rest::Form("%s opShlAssign(%s)%s", Out, Args ? Args : "", Const ? " const" : "");
+			case VMOpFunc_ShrAssign:
+				if (Right)
+					return "";
+
+				return Rest::Form("%s opShrAssign(%s)%s", Out, Args ? Args : "", Const ? " const" : "");
+			case VMOpFunc_UshrAssign:
+				if (Right)
+					return "";
+
+				return Rest::Form("%s opUshrAssign(%s)%s", Out, Args ? Args : "", Const ? " const" : "");
+			case VMOpFunc_Add:
+				return Rest::Form("%s opAdd%s(%s)%s", Out, Right ? "_r" : "", Args ? Args : "", Const ? " const" : "");
+			case VMOpFunc_Sub:
+				return Rest::Form("%s opSub%s(%s)%s", Out, Right ? "_r" : "", Args ? Args : "", Const ? " const" : "");
+			case VMOpFunc_Mul:
+				return Rest::Form("%s opMul%s(%s)%s", Out, Right ? "_r" : "", Args ? Args : "", Const ? " const" : "");
+			case VMOpFunc_Div:
+				return Rest::Form("%s opDiv%s(%s)%s", Out, Right ? "_r" : "", Args ? Args : "", Const ? " const" : "");
+			case VMOpFunc_Mod:
+				return Rest::Form("%s opMod%s(%s)%s", Out, Right ? "_r" : "", Args ? Args : "", Const ? " const" : "");
+			case VMOpFunc_Pow:
+				return Rest::Form("%s opPow%s(%s)%s", Out, Right ? "_r" : "", Args ? Args : "", Const ? " const" : "");
+			case VMOpFunc_And:
+				return Rest::Form("%s opAnd%s(%s)%s", Out, Right ? "_r" : "", Args ? Args : "", Const ? " const" : "");
+			case VMOpFunc_Or:
+				return Rest::Form("%s opOr%s(%s)%s", Out, Right ? "_r" : "", Args ? Args : "", Const ? " const" : "");
+			case VMOpFunc_XOr:
+				return Rest::Form("%s opXor%s(%s)%s", Out, Right ? "_r" : "", Args ? Args : "", Const ? " const" : "");
+			case VMOpFunc_Shl:
+				return Rest::Form("%s opShl%s(%s)%s", Out, Right ? "_r" : "", Args ? Args : "", Const ? " const" : "");
+			case VMOpFunc_Shr:
+				return Rest::Form("%s opShr%s(%s)%s", Out, Right ? "_r" : "", Args ? Args : "", Const ? " const" : "");
+			case VMOpFunc_Ushr:
+				return Rest::Form("%s opUshr%s(%s)%s", Out, Right ? "_r" : "", Args ? Args : "", Const ? " const" : "");
+			case VMOpFunc_Index:
+				if (Right)
+					return "";
+
+				return Rest::Form("%s opIndex(%s)%s", Out, Args ? Args : "", Const ? " const" : "");
+			case VMOpFunc_Call:
+				if (Right)
+					return "";
+
+				return Rest::Form("%s opCall(%s)%s", Out, Args ? Args : "", Const ? " const" : "");
+			case VMOpFunc_Cast:
+				if (Right)
+					return "";
+
+				return Rest::Form("%s opCast()%s", Out, Const ? " const" : "");
+			case VMOpFunc_ImplCast:
+				if (Right)
+					return "";
+
+				return Rest::Form("%s opImplCast()%s", Out, Const ? " const" : "");
+			default:
+				return "";
+			}
 		}
 
 		VMWInterface::VMWInterface(VMManager* Engine, const std::string& Name, int Type) : Manager(Engine), Object(Name), TypeId(Type)
@@ -2509,13 +2841,13 @@ namespace Tomahawk
 
 			return Mod->Build();
 		}
-		int VMWModule::LoadByteCode(const std::string& Buffer, bool* WasDebugInfoStripped)
+		int VMWModule::LoadByteCode(VMByteCode* Info)
 		{
-			if (!IsValid())
+			if (!Info || !IsValid())
 				return -1;
 
-			ByteCodeStream* Stream = new ByteCodeStream(Buffer);
-			int R = Mod->LoadByteCode(Stream, WasDebugInfoStripped);
+			ByteCodeStream* Stream = new ByteCodeStream(Info->Data);
+			int R = Mod->LoadByteCode(Stream, &Info->Debug);
 			delete Stream;
 
 			return R;
@@ -2648,14 +2980,14 @@ namespace Tomahawk
 
 			return Mod->GetImportedFunctionIndexByDecl(Decl);
 		}
-		int VMWModule::SaveByteCode(std::string& Buffer, bool StripDebugInfo) const
+		int VMWModule::SaveByteCode(VMByteCode* Info) const
 		{
-			if (!IsValid())
+			if (!Info || !IsValid())
 				return -1;
 
 			ByteCodeStream* Stream = new ByteCodeStream();
-			int R = Mod->SaveByteCode(Stream, StripDebugInfo);
-			Buffer.assign(Stream->GetResult());
+			int R = Mod->SaveByteCode(Stream, Info->Debug);
+			Info->Data = Stream->GetCode();
 			delete Stream;
 
 			return R;
@@ -2869,7 +3201,7 @@ namespace Tomahawk
 
 			return VMWInterface(Manager, Name, Engine->RegisterInterface(Name));
 		}
-		VMWTypeClass VMGlobal::SetStructAddress(const char* Name, size_t Size, UInt64 Flags)
+		VMWTypeClass VMGlobal::SetStructAddress(const char* Name, size_t Size, uint64_t Flags)
 		{
 			if (!Manager || !Name)
 				return VMWTypeClass(Manager, "", -1);
@@ -2880,7 +3212,7 @@ namespace Tomahawk
 
 			return VMWTypeClass(Manager, Name, Engine->RegisterObjectType(Name, Size, (asDWORD)Flags));
 		}
-		VMWTypeClass VMGlobal::SetPodAddress(const char* Name, size_t Size, UInt64 Flags)
+		VMWTypeClass VMGlobal::SetPodAddress(const char* Name, size_t Size, uint64_t Flags)
 		{
 			if (!Manager || !Name)
 				return VMWTypeClass(Manager, "", -1);
@@ -2891,7 +3223,7 @@ namespace Tomahawk
 
 			return VMWTypeClass(Manager, Name, Engine->RegisterObjectType(Name, Size, (asDWORD)Flags));
 		}
-		VMWRefClass VMGlobal::SetClassAddress(const char* Name, UInt64 Flags)
+		VMWRefClass VMGlobal::SetClassAddress(const char* Name, uint64_t Flags)
 		{
 			if (!Manager || !Name)
 				return VMWRefClass(Manager, "", -1);
@@ -3077,7 +3409,7 @@ namespace Tomahawk
 			else if (TypeId == VMTypeId_INT32)
 				return "int32(" + std::to_string(*(int*)(Object)) + "), ";
 			else if (TypeId == VMTypeId_INT64)
-				return "int64(" + std::to_string(*(Int64*)(Object)) + "), ";
+				return "int64(" + std::to_string(*(int64_t*)(Object)) + "), ";
 			else if (TypeId == VMTypeId_UINT8)
 				return "uint8(" + std::to_string(*(unsigned char*)(Object)) + "), ";
 			else if (TypeId == VMTypeId_UINT16)
@@ -3085,7 +3417,7 @@ namespace Tomahawk
 			else if (TypeId == VMTypeId_UINT32)
 				return "uint32(" + std::to_string(*(unsigned int*)(Object)) + "), ";
 			else if (TypeId == VMTypeId_UINT64)
-				return "uint64(" + std::to_string(*(UInt64*)(Object)) + "), ";
+				return "uint64(" + std::to_string(*(uint64_t*)(Object)) + "), ";
 			else if (TypeId == VMTypeId_FLOAT)
 				return "float(" + std::to_string(*(float*)(Object)) + "), ";
 			else if (TypeId == VMTypeId_DOUBLE)
@@ -3143,7 +3475,7 @@ namespace Tomahawk
 			return Manager;
 		}
 
-		VMCompiler::VMCompiler(VMManager* Engine) : Manager(Engine), Context(nullptr), Module(nullptr)
+		VMCompiler::VMCompiler(VMManager* Engine) : Manager(Engine), Context(nullptr), Module(nullptr), Features(0), BuiltOK(false)
 		{
 			Processor = new Compute::Preprocessor();
 			Processor->SetIncludeCallback([this](Compute::Preprocessor* C, const Compute::IncludeResult& File, std::string* Out)
@@ -3151,11 +3483,14 @@ namespace Tomahawk
 				if (Include && Include(C, File, Out))
 					return true;
 
-				if (File.Module.empty() || (!File.IsFile && File.IsSystem))
+				if (File.Module.empty() || (!File.IsFile && File.IsSystem) || !Module)
 					return false;
 
-				Out->assign(Rest::OS::Read(File.Module.c_str()));
-				return true;
+				std::string Buffer = Rest::OS::Read(File.Module.c_str());
+				if (!C->Process(File.Module, Buffer))
+					return false;
+
+				return Module->AddScriptSection(File.Module.c_str(), Buffer.c_str(), Buffer.size()) >= 0;
 			});
 			Processor->SetPragmaCallback([this](Compute::Preprocessor* C, const std::string& Value)
 			{
@@ -3313,6 +3648,241 @@ namespace Tomahawk
 					else if (Name.R() == "ACCESS_MASK")
 						Module->SetAccessMask(Result);
 				}
+				else if (Comment.StartsWith("enable"))
+				{
+					Rest::Stroke Name(Comment);
+					Name.Substring(Start.End, End.Start - Start.End).Trim();
+					if (Name.Get()[0] == '\"' && Name.Get()[Name.Size() - 1] == '\"')
+						Name.Substring(1, Name.Size() - 2);
+
+					if (Name.Empty())
+						return false;
+
+					bool All = Name.Find("all").Found;
+					uint64_t Want = 0;
+
+					if (All || Name.Find("string").Found)
+					{
+						Want |= VMFeature_String;
+						if (!(Features & VMFeature_String) && Features != VMFeature_All)
+						{
+							THAWK_ERROR("feature \"string\" is not allowed");
+							return false;
+						}
+					}
+
+					if (All || Name.Find("array").Found)
+					{
+						Want |= VMFeature_Array;
+						if (!(Features & VMFeature_Array) && Features != VMFeature_All)
+						{
+							THAWK_ERROR("feature \"array\" is not allowed");
+							return false;
+						}
+					}
+
+					if (All || Name.Find("any").Found)
+					{
+						Want |= VMFeature_Any;
+						if (!(Features & VMFeature_Any) && Features != VMFeature_All)
+						{
+							THAWK_ERROR("feature \"any\" is not allowed");
+							return false;
+						}
+					}
+
+					if (All || Name.Find("dictionary").Found)
+					{
+						Want |= VMFeature_Dictionary;
+						if (!(Features & VMFeature_Dictionary) && Features != VMFeature_All)
+						{
+							THAWK_ERROR("feature \"dictionary\" is not allowed");
+							return false;
+						}
+					}
+
+					if (All || Name.Find("grid").Found)
+					{
+						Want |= VMFeature_Grid;
+						if (!(Features & VMFeature_Grid) && Features != VMFeature_All)
+						{
+							THAWK_ERROR("feature \"grid\" is not allowed");
+							return false;
+						}
+					}
+
+					if (All || Name.Find("math").Found)
+					{
+						Want |= VMFeature_Math;
+						if (!(Features & VMFeature_Math) && Features != VMFeature_All)
+						{
+							THAWK_ERROR("feature \"math\" is not allowed");
+							return false;
+						}
+					}
+
+					if (All || Name.Find("exception").Found)
+					{
+						Want |= VMFeature_Exception;
+						if (!(Features & VMFeature_Exception) && Features != VMFeature_All)
+						{
+							THAWK_ERROR("feature \"exception\" is not allowed");
+							return false;
+						}
+					}
+
+					if (All || Name.Find("type-reference").Found)
+					{
+						Want |= VMFeature_Reference;
+						if (!(Features & VMFeature_Reference) && Features != VMFeature_All)
+						{
+							THAWK_ERROR("feature \"type-reference\" is not allowed");
+							return false;
+						}
+					}
+
+					if (All || Name.Find("weak-reference").Found)
+					{
+						Want |= VMFeature_WeakReference;
+						if (!(Features & VMFeature_WeakReference) && Features != VMFeature_All)
+						{
+							THAWK_ERROR("feature \"weak-reference\" is not allowed");
+							return false;
+						}
+					}
+
+					if (All || Name.Find("random").Found)
+					{
+						Want |= VMFeature_Random;
+						if (!(Features & VMFeature_Random) && Features != VMFeature_All)
+						{
+							THAWK_ERROR("feature \"random\" is not allowed");
+							return false;
+						}
+					}
+
+					if (All || Name.Find("thread").Found)
+					{
+						Want |= VMFeature_Thread;
+						if (!(Features & VMFeature_Thread) && Features != VMFeature_All)
+						{
+							THAWK_ERROR("feature \"thread\" is not allowed");
+							return false;
+						}
+					}
+
+					if (All || Name.Find("async").Found)
+					{
+						Want |= VMFeature_Async;
+						if (!(Features & VMFeature_Async) && Features != VMFeature_All)
+						{
+							THAWK_ERROR("feature \"async\" is not allowed");
+							return false;
+						}
+					}
+
+					if (All || Name.Find("rest").Found)
+					{
+						Want |= VMFeature_Rest;
+						if (!(Features & VMFeature_Rest) && Features != VMFeature_All)
+						{
+							THAWK_ERROR("feature \"rest\" is not allowed");
+							return false;
+						}
+					}
+
+					if (All || Name.Find("compute").Found)
+					{
+						Want |= VMFeature_Compute;
+						if (!(Features & VMFeature_Compute) && Features != VMFeature_All)
+						{
+							THAWK_ERROR("feature \"compute\" is not allowed");
+							return false;
+						}
+					}
+
+					if (All || Name.Find("audio").Found)
+					{
+						Want |= VMFeature_Audio;
+						if (!(Features & VMFeature_Audio) && Features != VMFeature_All)
+						{
+							THAWK_ERROR("feature \"audio\" is not allowed");
+							return false;
+						}
+					}
+
+					if (All || Name.Find("network").Found)
+					{
+						Want |= VMFeature_Network;
+						if (!(Features & VMFeature_Network) && Features != VMFeature_All)
+						{
+							THAWK_ERROR("feature \"network\" is not allowed");
+							return false;
+						}
+					}
+
+					if (All || Name.Find("http").Found)
+					{
+						Want |= VMFeature_HTTP;
+						if (!(Features & VMFeature_HTTP) && Features != VMFeature_All)
+						{
+							THAWK_ERROR("feature \"http\" is not allowed");
+							return false;
+						}
+					}
+
+					if (All || Name.Find("smtp").Found)
+					{
+						Want |= VMFeature_SMTP;
+						if (!(Features & VMFeature_SMTP) && Features != VMFeature_All)
+						{
+							THAWK_ERROR("feature \"smtp\" is not allowed");
+							return false;
+						}
+					}
+
+					if (All || Name.Find("bson").Found)
+					{
+						Want |= VMFeature_BSON;
+						if (!(Features & VMFeature_BSON) && Features != VMFeature_All)
+						{
+							THAWK_ERROR("feature \"bson\" is not allowed");
+							return false;
+						}
+					}
+
+					if (All || Name.Find("mongodb").Found)
+					{
+						Want |= VMFeature_MongoDB;
+						if (!(Features & VMFeature_MongoDB) && Features != VMFeature_All)
+						{
+							THAWK_ERROR("feature \"mongodb\" is not allowed");
+							return false;
+						}
+					}
+
+					if (All || Name.Find("graphics").Found)
+					{
+						Want |= VMFeature_Graphics;
+						if (!(Features & VMFeature_Graphics) && Features != VMFeature_All)
+						{
+							THAWK_ERROR("feature \"graphics\" is not allowed");
+							return false;
+						}
+					}
+
+					if (All || Name.Find("engine").Found)
+					{
+						Want |= VMFeature_Engine;
+						if (!(Features & VMFeature_Engine) && Features != VMFeature_All)
+						{
+							THAWK_ERROR("feature \"engine\" is not allowed");
+							return false;
+						}
+					}
+
+					Manager->Setup(All ? VMFeature_All : Want);
+				}
 
 				return true;
 			});
@@ -3335,6 +3905,10 @@ namespace Tomahawk
 		void VMCompiler::SetPragmaCallback(const Compute::ProcPragmaCallback& Callback)
 		{
 			Pragma = Callback;
+		}
+		void VMCompiler::SetAllowedFeatures(uint64_t NewFeatures)
+		{
+			Features = NewFeatures;
 		}
 		void VMCompiler::Define(const std::string& Word)
 		{
@@ -3363,11 +3937,14 @@ namespace Tomahawk
 			if (!Manager || ModuleName.empty())
 				return -1;
 
+			BuiltOK = false;
+			VCache.Valid = false;
+			VCache.Name.clear();
+
 			VMCManager* Engine = Manager->GetEngine();
 			if (!Engine)
 				return -1;
 
-			BuiltOK = false;
 			Module = Engine->GetModule(ModuleName.c_str(), asGM_ALWAYS_CREATE);
 			if (!Module)
 				return -1;
@@ -3375,10 +3952,42 @@ namespace Tomahawk
 			Manager->SetProcessorOptions(Processor);
 			return 0;
 		}
-		int VMCompiler::Build(bool Await)
+		int VMCompiler::Prepare(const std::string& ModuleName, const std::string& Name, bool Debug)
 		{
-			if (!Module)
+			if (!Manager)
 				return -1;
+
+			int Result = Prepare(ModuleName);
+			if (Result < 0)
+				return Result;
+
+			VCache.Name = Name;
+			if (!Manager->GetByteCodeCache(&VCache))
+			{
+				VCache.Data.clear();
+				VCache.Debug = Debug;
+				VCache.Valid = false;
+			}
+
+			return Result;
+		}
+		int VMCompiler::Compile(bool Await)
+		{
+			if (!Manager || !Module)
+				return -1;
+
+			if (VCache.Valid)
+			{
+				int R = LoadByteCode(&VCache);
+				while (Await && R == asBUILD_IN_PROGRESS)
+				{
+					std::this_thread::sleep_for(std::chrono::milliseconds(1));
+					R = LoadByteCode(&VCache);
+				}
+
+				BuiltOK = (R >= 0);
+				return R;
+			}
 
 			int R = Module->Build();
 			while (Await && R == asBUILD_IN_PROGRESS)
@@ -3388,10 +3997,44 @@ namespace Tomahawk
 			}
 
 			BuiltOK = (R >= 0);
-			return R;
+			if (!BuiltOK || VCache.Name.empty())
+				return R;
+
+			R = SaveByteCode(&VCache);
+			if (R < 0)
+				return R;
+
+			Manager->SetByteCodeCache(&VCache);
+			return 0;
 		}
-		int VMCompiler::Compile(const std::string& Path)
+		int VMCompiler::SaveByteCode(VMByteCode* Info)
 		{
+			if (!Info || !Module || !BuiltOK)
+			{
+				THAWK_ERROR("module was not built");
+				return -1;
+			}
+
+			return VMWModule(Module).SaveByteCode(Info);
+		}
+		int VMCompiler::LoadByteCode(VMByteCode* Info)
+		{
+			if (!Info || !Module)
+				return -1;
+
+			return VMWModule(Module).LoadByteCode(Info);
+		}
+		int VMCompiler::LoadFile(const std::string& Path)
+		{
+			if (!Module || !Manager)
+			{
+				THAWK_ERROR("module was not created");
+				return -1;
+			}
+
+			if (VCache.Valid)
+				return 0;
+
 			std::string Source = Rest::OS::Resolve(Path.c_str());
 			if (!Rest::OS::FileExists(Source.c_str()))
 			{
@@ -3405,10 +4048,13 @@ namespace Tomahawk
 
 			return Module->AddScriptSection(Source.c_str(), Buffer.c_str(), Buffer.size());
 		}
-		int VMCompiler::Compile(const std::string& Name, const std::string& Data)
+		int VMCompiler::LoadCode(const std::string& Name, const std::string& Data)
 		{
 			if (!Module)
+			{
+				THAWK_ERROR("module was not created");
 				return -1;
+			}
 
 			std::string Buffer(Data);
 			if (!Processor->Process("", Buffer))
@@ -3416,10 +4062,107 @@ namespace Tomahawk
 
 			return Module->AddScriptSection(Name.c_str(), Buffer.c_str(), Buffer.size());
 		}
-		int VMCompiler::Interpret(const std::string& Value)
+		int VMCompiler::LoadCodeScoped(const std::string& Value)
 		{
-			Int64 Rand = Compute::MathCommon::RandomNumber(1111111111111111, 9999999999999999);
-			return Compile(std::to_string(Rand), Value);
+			int64_t Rand = Compute::MathCommon::RandomNumber(1111111111111111, 9999999999999999);
+			return LoadCode(std::to_string(Rand), Value);
+		}
+		int VMCompiler::InterpretEntry(const char* Name, void* Return, int ReturnTypeId)
+		{
+			if (!BuiltOK || !Manager || !Context || !Name || !Module)
+				return -1;
+
+			VMCManager* Engine = Manager->GetEngine();
+			if (!Engine)
+				return -1;
+
+			VMCFunction* Function = Module->GetFunctionByName(Name);
+			if (!Function)
+				return -1;
+
+			VMCContext* VM = Context->GetContext();
+			int R = VM->Prepare(Function);
+			if (R < 0)
+				return R;
+
+			R = VM->Execute();
+			if (Return != 0 && ReturnTypeId != asTYPEID_VOID)
+			{
+				if (ReturnTypeId & asTYPEID_OBJHANDLE)
+				{
+					if ((*reinterpret_cast<void**>(Return) == 0))
+					{
+						*reinterpret_cast<void**>(Return) = *reinterpret_cast<void**>(Context->GetAddressOfReturnValue());
+						Engine->AddRefScriptObject(*reinterpret_cast<void**>(Return), Engine->GetTypeInfoById(ReturnTypeId));
+					}
+				}
+				else if (ReturnTypeId & asTYPEID_MASK_OBJECT)
+					Engine->AssignScriptObject(Return, Context->GetAddressOfReturnValue(), Engine->GetTypeInfoById(ReturnTypeId));
+				else
+					memcpy(Return, Context->GetAddressOfReturnValue(), Engine->GetSizeOfPrimitiveType(ReturnTypeId));
+			}
+
+			return R;
+		}
+		int VMCompiler::InterpretScoped(const std::string& Code, void* Return, int ReturnTypeId)
+		{
+			return InterpretScoped(Code.c_str(), Code.size(), Return, ReturnTypeId);
+		}
+		int VMCompiler::InterpretScoped(const char* Buffer, uint64_t Length, void* Return, int ReturnTypeId)
+		{
+			if (!BuiltOK || !Manager || !Context || !Buffer || !Length || !Module)
+				return -1;
+
+			VMCManager* Engine = Manager->GetEngine();
+			std::string Eval = " __vfbdy(){\n";
+			Eval.append(Buffer, Length);
+			Eval += "\n;}";
+			Eval = Engine->GetTypeDeclaration(ReturnTypeId, true) + Eval;
+
+			VMCTypeInfo* Type = nullptr;
+			if (ReturnTypeId & asTYPEID_MASK_OBJECT)
+			{
+				Type = Engine->GetTypeInfoById(ReturnTypeId);
+				if (Type)
+					Type->AddRef();
+			}
+
+			VMCModule* Module = GetModule().GetModule();
+			if (Type)
+				Type->Release();
+
+			VMCFunction* Function = nullptr;
+			int R = Module->CompileFunction("__vfbdy", Eval.c_str(), -1, 0, &Function);
+			if (R < 0)
+				return R;
+
+			VMCContext* VM = Context->GetContext();
+			R = VM->Prepare(Function);
+			if (R < 0)
+			{
+				Function->Release();
+				return R;
+			}
+
+			R = VM->Execute();
+			if (Return != 0 && ReturnTypeId != asTYPEID_VOID)
+			{
+				if (ReturnTypeId & asTYPEID_OBJHANDLE)
+				{
+					if ((*reinterpret_cast<void**>(Return) == 0))
+					{
+						*reinterpret_cast<void**>(Return) = *reinterpret_cast<void**>(Context->GetAddressOfReturnValue());
+						Engine->AddRefScriptObject(*reinterpret_cast<void**>(Return), Engine->GetTypeInfoById(ReturnTypeId));
+					}
+				}
+				else if (ReturnTypeId & asTYPEID_MASK_OBJECT)
+					Engine->AssignScriptObject(Return, Context->GetAddressOfReturnValue(), Engine->GetTypeInfoById(ReturnTypeId));
+				else
+					memcpy(Return, Context->GetAddressOfReturnValue(), Engine->GetSizeOfPrimitiveType(ReturnTypeId));
+			}
+
+			Function->Release();
+			return R;
 		}
 		VMManager* VMCompiler::GetManager() const
 		{
@@ -3464,65 +4207,6 @@ namespace Tomahawk
 				else
 					Context->Release();
 			}
-		}
-		int VMContext::EvalStatement(VMCompiler* Compiler, const std::string& Code, void* Return, int ReturnTypeId)
-		{
-			return EvalStatement(Compiler, Code.c_str(), Code.size(), Return, ReturnTypeId);
-		}
-		int VMContext::EvalStatement(VMCompiler* Compiler, const char* Buffer, UInt64 Length, void* Return, int ReturnTypeId)
-		{
-			if (!Manager || !Context || !Compiler || !Buffer || !Length || !Compiler->GetModule().IsValid())
-				return -1;
-
-			VMCManager* Engine = Manager->GetEngine();
-			std::string Eval = " __EvalStatement__(){\n";
-			Eval.append(Buffer, Length);
-			Eval += "\n;}";
-			Eval = Engine->GetTypeDeclaration(ReturnTypeId, true) + Eval;
-
-			VMCTypeInfo* Type = nullptr;
-			if (ReturnTypeId & asTYPEID_MASK_OBJECT)
-			{
-				Type = Engine->GetTypeInfoById(ReturnTypeId);
-				if (Type)
-					Type->AddRef();
-			}
-
-			VMCModule* Module = Compiler->GetModule().GetModule();
-			if (Type)
-				Type->Release();
-
-			VMCFunction* Function = nullptr;
-			int R = Module->CompileFunction("__EvalStatement__", Eval.c_str(), -1, 0, &Function);
-			if (R < 0)
-				return R;
-
-			R = Context->Prepare(Function);
-			if (R < 0)
-			{
-				Function->Release();
-				return R;
-			}
-
-			R = Context->Execute();
-			if (Return != 0 && ReturnTypeId != asTYPEID_VOID)
-			{
-				if (ReturnTypeId & asTYPEID_OBJHANDLE)
-				{
-					if ((*reinterpret_cast<void**>(Return) == 0))
-					{
-						*reinterpret_cast<void**>(Return) = *reinterpret_cast<void**>(Context->GetAddressOfReturnValue());
-						Engine->AddRefScriptObject(*reinterpret_cast<void**>(Return), Engine->GetTypeInfoById(ReturnTypeId));
-					}
-				}
-				else if (ReturnTypeId & asTYPEID_MASK_OBJECT)
-					Engine->AssignScriptObject(Return, Context->GetAddressOfReturnValue(), Engine->GetTypeInfoById(ReturnTypeId));
-				else
-					memcpy(Return, Context->GetAddressOfReturnValue(), Engine->GetSizeOfPrimitiveType(ReturnTypeId));
-			}
-
-			Function->Release();
-			return R;
 		}
 		int VMContext::SetExceptionCallback(void(* Callback)(VMCContext* Context, void* Object), void* Object)
 		{
@@ -3620,7 +4304,7 @@ namespace Tomahawk
 					Result << "\t{...engine...}\n";
 			}
 
-			UInt64 Id = VMCThread::GetIdInThread();
+			uint64_t Id = VMCThread::GetIdInThread();
 			if (Id > 0)
 				Result << "\t{...thread-" << Id << "...}\n";
 			else
@@ -3678,7 +4362,7 @@ namespace Tomahawk
 
 			return Context->SetArgDWord(Arg, Value);
 		}
-		int VMContext::SetArgQWord(unsigned int Arg, UInt64 Value)
+		int VMContext::SetArgQWord(unsigned int Arg, uint64_t Value)
 		{
 			if (!Context)
 				return -1;
@@ -3748,7 +4432,7 @@ namespace Tomahawk
 
 			return Context->GetReturnDWord();
 		}
-		UInt64 VMContext::GetReturnQWord()
+		uint64_t VMContext::GetReturnQWord()
 		{
 			if (!Context)
 				return 0;
@@ -3937,14 +4621,14 @@ namespace Tomahawk
 
 			return Context->GetState() == asEXECUTION_SUSPENDED;
 		}
-		void* VMContext::SetUserData(void* Data, UInt64 Type)
+		void* VMContext::SetUserData(void* Data, uint64_t Type)
 		{
 			if (!Context)
 				return nullptr;
 
 			return Context->SetUserData(Data, Type);
 		}
-		void* VMContext::GetUserData(UInt64 Type) const
+		void* VMContext::GetUserData(uint64_t Type) const
 		{
 			if (!Context)
 				return nullptr;
@@ -4000,7 +4684,7 @@ namespace Tomahawk
 		}
 		int VMContext::ContextUD = 552;
 
-		VMManager::VMManager() : Engine(asCreateScriptEngine()), Globals(this), JIT(nullptr)
+		VMManager::VMManager() : Engine(asCreateScriptEngine()), Globals(this), JIT(nullptr), Features(0)
 		{
 			Include.Exts.push_back(".as");
 			Include.Root = Rest::OS::GetDirectory();
@@ -4020,131 +4704,184 @@ namespace Tomahawk
 			delete JIT;
 #endif
 		}
-		void VMManager::EnableAll()
+		void VMManager::Setup(uint64_t NewFeatures)
 		{
-			EnableAny();
-			EnableReference();
-			EnableWeakReference();
-			EnableArray(true);
-			EnableString();
-			EnableDictionary();
-			EnableGrid();
-			EnableMath();
-			EnableDateTime();
-			EnableException();
-			EnableRandom();
-			EnableThread();
-			EnableAsync();
-			EnableLibrary();
-		}
-		void VMManager::EnableString()
-		{
-			RegisterStdString(Engine);
-			RegisterStdStringUtils(Engine);
-		}
-		void VMManager::EnableArray(bool Default)
-		{
-			RegisterScriptArray(Engine, Default);
-		}
-		void VMManager::EnableAny()
-		{
-			RegisterScriptAny(Engine);
-		}
-		void VMManager::EnableDictionary()
-		{
-			RegisterScriptDictionary(Engine);
-		}
-		void VMManager::EnableGrid()
-		{
-			RegisterScriptGrid(Engine);
-		}
-		void VMManager::EnableMath()
-		{
-			RegisterScriptMath(Engine);
-		}
-		void VMManager::EnableDateTime()
-		{
-			RegisterScriptDateTime(Engine);
-		}
-		void VMManager::EnableException()
-		{
-			RegisterExceptionRoutines(Engine);
-		}
-		void VMManager::EnableReference()
-		{
-			RegisterScriptHandle(Engine);
-		}
-		void VMManager::EnableWeakReference()
-		{
-			RegisterScriptWeakRef(Engine);
-		}
-		void VMManager::EnableRandom()
-		{
-			Engine->RegisterObjectType("random", 0, asOBJ_REF);
-			Engine->RegisterObjectBehaviour("random", asBEHAVE_FACTORY, "random@ f()", asFUNCTION(VMCRandom::Create), asCALL_CDECL);
-			Engine->RegisterObjectBehaviour("random", asBEHAVE_ADDREF, "void f()", asMETHOD(VMCRandom, AddRef), asCALL_THISCALL);
-			Engine->RegisterObjectBehaviour("random", asBEHAVE_RELEASE, "void f()", asMETHOD(VMCRandom, Release), asCALL_THISCALL);
-			Engine->RegisterObjectMethod("random", "void opAssign(const random&)", asMETHODPR(VMCRandom, Assign, (VMCRandom * ), void), asCALL_THISCALL);
-			Engine->RegisterObjectMethod("random", "void seed(uint)", asMETHODPR(VMCRandom, Seed, (uint32_t), void), asCALL_THISCALL);
-			Engine->RegisterObjectMethod("random", "void seed(uint[]&)", asMETHODPR(VMCRandom, Seed, (CScriptArray * ), void), asCALL_THISCALL);
-			Engine->RegisterObjectMethod("random", "int getI()", asMETHOD(VMCRandom, GetI), asCALL_THISCALL);
-			Engine->RegisterObjectMethod("random", "uint getU()", asMETHOD(VMCRandom, GetU), asCALL_THISCALL);
-			Engine->RegisterObjectMethod("random", "double getD()", asMETHOD(VMCRandom, GetD), asCALL_THISCALL);
-			Engine->RegisterObjectMethod("random", "void seedFromTime()", asMETHOD(VMCRandom, SeedFromTime), asCALL_THISCALL);
-		}
-		void VMManager::EnableThread()
-		{
-			Engine->RegisterFuncdef("void thread_callback()");
-			Engine->RegisterObjectType("thread", 0, asOBJ_REF | asOBJ_GC);
-			Engine->RegisterObjectBehaviour("thread", asBEHAVE_ADDREF, "void f()", asMETHOD(VMCThread, AddRef), asCALL_THISCALL);
-			Engine->RegisterObjectBehaviour("thread", asBEHAVE_RELEASE, "void f()", asMETHOD(VMCThread, Release), asCALL_THISCALL);
-			Engine->RegisterObjectBehaviour("thread", asBEHAVE_SETGCFLAG, "void f()", asMETHOD(VMCThread, SetGCFlag), asCALL_THISCALL);
-			Engine->RegisterObjectBehaviour("thread", asBEHAVE_GETGCFLAG, "bool f()", asMETHOD(VMCThread, GetGCFlag), asCALL_THISCALL);
-			Engine->RegisterObjectBehaviour("thread", asBEHAVE_GETREFCOUNT, "int f()", asMETHOD(VMCThread, GetRefCount), asCALL_THISCALL);
-			Engine->RegisterObjectBehaviour("thread", asBEHAVE_ENUMREFS, "void f(int&in)", asMETHOD(VMCThread, EnumReferences), asCALL_THISCALL);
-			Engine->RegisterObjectBehaviour("thread", asBEHAVE_RELEASEREFS, "void f(int&in)", asMETHOD(VMCThread, ReleaseReferences), asCALL_THISCALL);
-			Engine->RegisterObjectMethod("thread", "bool start()", asMETHOD(VMCThread, Start), asCALL_THISCALL);
-			Engine->RegisterObjectMethod("thread", "bool isActive()", asMETHOD(VMCThread, IsActive), asCALL_THISCALL);
-			Engine->RegisterObjectMethod("thread", "void suspend()", asMETHOD(VMCThread, Suspend), asCALL_THISCALL);
-			Engine->RegisterObjectMethod("thread", "void send(any &in)", asMETHOD(VMCThread, Send), asCALL_THISCALL);
-			Engine->RegisterObjectMethod("thread", "any@ receiveWait()", asMETHOD(VMCThread, ReceiveWait), asCALL_THISCALL);
-			Engine->RegisterObjectMethod("thread", "any@ receive(uint64)", asMETHOD(VMCThread, Receive), asCALL_THISCALL);
-			Engine->RegisterObjectMethod("thread", "int wait(uint64)", asMETHOD(VMCThread, Wait), asCALL_THISCALL);
-			Engine->RegisterObjectMethod("thread", "int join()", asMETHOD(VMCThread, Join), asCALL_THISCALL);
-			Engine->SetDefaultNamespace("thread");
-			Engine->RegisterGlobalFunction("any@ receiveFrom(uint64 timeout)", asFUNCTION(VMCThread::ReceiveInThread), asCALL_CDECL);
-			Engine->RegisterGlobalFunction("any@ receiveFromWait()", asFUNCTION(VMCThread::ReceiveWaitInThread), asCALL_CDECL);
-			Engine->RegisterGlobalFunction("void sleep(uint64 timeout)", asFUNCTION(VMCThread::SleepInThread), asCALL_CDECL);
-			Engine->RegisterGlobalFunction("void sendTo(any&)", asFUNCTION(VMCThread::SendInThread), asCALL_CDECL);
-			Engine->RegisterGlobalFunction("thread@ create(thread_callback @func)", asFUNCTION(VMCThread::StartThread), asCALL_CDECL);
-			Engine->RegisterGlobalFunction("uint64 id()", asFUNCTION(VMCThread::GetIdInThread), asCALL_CDECL);
-			Engine->SetDefaultNamespace("");
-		}
-		void VMManager::EnableAsync()
-		{
-			Engine->RegisterObjectType("async", 0, asOBJ_REF | asOBJ_GC);
-			Engine->RegisterObjectBehaviour("async", asBEHAVE_ADDREF, "void f()", asMETHOD(VMCAsync, AddRef), asCALL_THISCALL);
-			Engine->RegisterObjectBehaviour("async", asBEHAVE_RELEASE, "void f()", asMETHOD(VMCAsync, Release), asCALL_THISCALL);
-			Engine->RegisterObjectBehaviour("async", asBEHAVE_SETGCFLAG, "void f()", asMETHOD(VMCAsync, SetGCFlag), asCALL_THISCALL);
-			Engine->RegisterObjectBehaviour("async", asBEHAVE_GETGCFLAG, "bool f()", asMETHOD(VMCAsync, GetGCFlag), asCALL_THISCALL);
-			Engine->RegisterObjectBehaviour("async", asBEHAVE_GETREFCOUNT, "int f()", asMETHOD(VMCAsync, GetRefCount), asCALL_THISCALL);
-			Engine->RegisterObjectBehaviour("async", asBEHAVE_ENUMREFS, "void f(int&in)", asMETHOD(VMCAsync, EnumReferences), asCALL_THISCALL);
-			Engine->RegisterObjectBehaviour("async", asBEHAVE_RELEASEREFS, "void f(int&in)", asMETHOD(VMCAsync, ReleaseReferences), asCALL_THISCALL);
-			Engine->RegisterObjectMethod("async", "any@ get()", asMETHOD(VMCAsync, Get), asCALL_THISCALL);
-			Engine->RegisterObjectMethod("async", "async@ await()", asMETHOD(VMCAsync, Await), asCALL_THISCALL);
-		}
-		void VMManager::EnableLibrary()
-		{
-			Wrapper::Rest::Enable(this);
-			Wrapper::Compute::Enable(this);
-			Wrapper::Network::Enable(this);
-			Wrapper::Network::HTTP::Enable(this);
-			Wrapper::Network::SMTP::Enable(this);
-			Wrapper::Network::BSON::Enable(this);
-			Wrapper::Network::MongoDB::Enable(this);
-			Wrapper::Audio::Enable(this);
-			Wrapper::Graphics::Enable(this);
-			Wrapper::Engine::Enable(this);
+			if ((NewFeatures == VMFeature_All || NewFeatures & VMFeature_Any) && !(Features & VMFeature_Any))
+			{
+				Features |= VMFeature_Any;
+				EnableAny();
+			}
+
+			if ((NewFeatures == VMFeature_All || NewFeatures & VMFeature_Reference) && !(Features & VMFeature_Reference))
+			{
+				Features |= VMFeature_Reference;
+				EnableReference();
+			}
+
+			if ((NewFeatures == VMFeature_All || NewFeatures & VMFeature_WeakReference) && !(Features & VMFeature_WeakReference))
+			{
+				Features |= VMFeature_WeakReference;
+				EnableWeakReference();
+			}
+
+			if ((NewFeatures == VMFeature_All || NewFeatures & VMFeature_Array) && !(Features & VMFeature_Array))
+			{
+				Features |= VMFeature_Array;
+				EnableArray(true);
+			}
+
+			if ((NewFeatures == VMFeature_All || NewFeatures & VMFeature_String) && !(Features & VMFeature_String))
+			{
+				Features |= VMFeature_String;
+				EnableString();
+			}
+
+			if ((NewFeatures == VMFeature_All || NewFeatures & VMFeature_Dictionary) && !(Features & VMFeature_Dictionary))
+			{
+				Features |= VMFeature_Dictionary;
+				EnableDictionary();
+			}
+
+			if ((NewFeatures == VMFeature_All || NewFeatures & VMFeature_Grid) && !(Features & VMFeature_Grid))
+			{
+				Features |= VMFeature_Grid;
+				EnableGrid();
+			}
+
+			if ((NewFeatures == VMFeature_All || NewFeatures & VMFeature_Math) && !(Features & VMFeature_Math))
+			{
+				Features |= VMFeature_Math;
+				EnableMath();
+			}
+
+			if ((NewFeatures == VMFeature_All || NewFeatures & VMFeature_DateTime) && !(Features & VMFeature_DateTime))
+			{
+				Features |= VMFeature_DateTime;
+				EnableDateTime();
+			}
+
+			if ((NewFeatures == VMFeature_All || NewFeatures & VMFeature_Exception) && !(Features & VMFeature_Exception))
+			{
+				Features |= VMFeature_Exception;
+				EnableException();
+			}
+
+			if ((NewFeatures == VMFeature_All || NewFeatures & VMFeature_Random) && !(Features & VMFeature_Random))
+			{
+				Features |= VMFeature_Random;
+				EnableRandom();
+			}
+
+			if ((NewFeatures == VMFeature_All || NewFeatures & VMFeature_Thread) && !(Features & VMFeature_Thread))
+			{
+				Features |= VMFeature_Thread;
+				EnableThread();
+			}
+
+			if ((NewFeatures == VMFeature_All || NewFeatures & VMFeature_Async) && !(Features & VMFeature_Async))
+			{
+				Features |= VMFeature_Async;
+				EnableAsync();
+			}
+
+			if ((NewFeatures == VMFeature_All || NewFeatures & VMFeature_Rest) && !(Features & VMFeature_Rest))
+			{
+				if (!(NewFeatures & VMFeature_Any) && NewFeatures != VMFeature_All)
+					return Setup(NewFeatures | VMFeature_Any);
+
+				if (!(NewFeatures & VMFeature_Array) && NewFeatures != VMFeature_All)
+					return Setup(NewFeatures | VMFeature_Array);
+
+				if (!(NewFeatures & VMFeature_String) && NewFeatures != VMFeature_All)
+					return Setup(NewFeatures | VMFeature_String);
+
+				if (!(NewFeatures & VMFeature_Dictionary) && NewFeatures != VMFeature_All)
+					return Setup(NewFeatures | VMFeature_Dictionary);
+
+				Features |= VMFeature_Rest;
+				Interface::EnableRest(this);
+			}
+
+			if ((NewFeatures == VMFeature_All || NewFeatures & VMFeature_Compute) && !(Features & VMFeature_Compute))
+			{
+				if (!(NewFeatures & VMFeature_Rest) && NewFeatures != VMFeature_All)
+					return Setup(NewFeatures | VMFeature_Rest);
+
+				Features |= VMFeature_Compute;
+				Interface::EnableCompute(this);
+			}
+
+			if ((NewFeatures == VMFeature_All || NewFeatures & VMFeature_Network) && !(Features & VMFeature_Network))
+			{
+				if (!(NewFeatures & VMFeature_Compute) && NewFeatures != VMFeature_All)
+					return Setup(NewFeatures | VMFeature_Compute);
+
+				Features |= VMFeature_Network;
+				Interface::EnableNetwork(this);
+			}
+
+			if ((NewFeatures == VMFeature_All || NewFeatures & VMFeature_HTTP) && !(Features & VMFeature_HTTP))
+			{
+				if (!(NewFeatures & VMFeature_Network) && NewFeatures != VMFeature_All)
+					return Setup(NewFeatures | VMFeature_Network);
+
+				Features |= VMFeature_HTTP;
+				Interface::EnableHTTP(this);
+			}
+
+			if ((NewFeatures == VMFeature_All || NewFeatures & VMFeature_SMTP) && !(Features & VMFeature_SMTP))
+			{
+				if (!(NewFeatures & VMFeature_Network) && NewFeatures != VMFeature_All)
+					return Setup(NewFeatures | VMFeature_Network);
+
+				Features |= VMFeature_SMTP;
+				Interface::EnableSMTP(this);
+			}
+
+			if ((NewFeatures == VMFeature_All || NewFeatures & VMFeature_BSON) && !(Features & VMFeature_BSON))
+			{
+				if (!(NewFeatures & VMFeature_Network) && NewFeatures != VMFeature_All)
+					return Setup(NewFeatures | VMFeature_Network);
+
+				Features |= VMFeature_BSON;
+				Interface::EnableBSON(this);
+			}
+
+			if ((NewFeatures == VMFeature_All || NewFeatures & VMFeature_MongoDB) && !(Features & VMFeature_MongoDB))
+			{
+				if (!(NewFeatures & VMFeature_BSON) && NewFeatures != VMFeature_All)
+					return Setup(NewFeatures | VMFeature_BSON);
+
+				Features |= VMFeature_MongoDB;
+				Interface::EnableMongoDB(this);
+			}
+
+			if ((NewFeatures == VMFeature_All || NewFeatures & VMFeature_Audio) && !(Features & VMFeature_Audio))
+			{
+				if (!(NewFeatures & VMFeature_Compute) && NewFeatures != VMFeature_All)
+					return Setup(NewFeatures | VMFeature_Compute);
+
+				Features |= VMFeature_Audio;
+				Interface::EnableAudio(this);
+			}
+
+			if ((NewFeatures == VMFeature_All || NewFeatures & VMFeature_Graphics) && !(Features & VMFeature_Graphics))
+			{
+				if (!(NewFeatures & VMFeature_Compute) && NewFeatures != VMFeature_All)
+					return Setup(NewFeatures | VMFeature_Compute);
+
+				Features |= VMFeature_Graphics;
+				Interface::EnableGraphics(this);
+			}
+
+			if ((NewFeatures == VMFeature_All || NewFeatures & VMFeature_Engine) && !(Features & VMFeature_Engine))
+			{
+				if (!(NewFeatures & VMFeature_Graphics) && NewFeatures != VMFeature_All)
+					return Setup(NewFeatures | VMFeature_Graphics);
+
+				Features |= VMFeature_Engine;
+				Interface::EnableEngine(this);
+			}
 		}
 		void VMManager::SetupJIT(unsigned int JITOpts)
 		{
@@ -4159,6 +4896,10 @@ namespace Tomahawk
 #else
 			THAWK_ERROR("JIT compiler is not supported on this platform");
 #endif
+		}
+		void VMManager::ClearCache()
+		{
+			Cache.clear();
 		}
 		void VMManager::Lock()
 		{
@@ -4188,6 +4929,37 @@ namespace Tomahawk
 			Safe.lock();
 			Processor->SetIncludeOptions(Include);
 			Processor->SetFeatures(Proc);
+			Safe.unlock();
+		}
+		bool VMManager::GetByteCodeCache(VMByteCode* Info)
+		{
+			if (!Info)
+				return false;
+
+			Safe.lock();
+			auto It = Cache.find(Info->Name);
+			if (It == Cache.end())
+			{
+				Safe.unlock();
+				return false;
+			}
+
+			Info->Data = It->second.Data;
+			Info->Debug = It->second.Debug;
+			Info->Valid = true;
+
+			Safe.unlock();
+			return true;
+		}
+		void VMManager::SetByteCodeCache(VMByteCode* Info)
+		{
+			if (!Info)
+				return;
+
+			Info->Valid = true;
+
+			Safe.lock();
+			Cache[Info->Name] = *Info;
 			Safe.unlock();
 		}
 		int VMManager::SetLogCallback(void(* Callback)(const asSMessageInfo* Message, void* Object), void* Object)
@@ -4482,6 +5254,102 @@ namespace Tomahawk
 		VMCManager* VMManager::GetEngine() const
 		{
 			return Engine;
+		}
+		void VMManager::EnableString()
+		{
+			RegisterStdString(Engine);
+			RegisterStdStringUtils(Engine);
+		}
+		void VMManager::EnableArray(bool Default)
+		{
+			RegisterScriptArray(Engine, Default);
+		}
+		void VMManager::EnableAny()
+		{
+			RegisterScriptAny(Engine);
+		}
+		void VMManager::EnableDictionary()
+		{
+			RegisterScriptDictionary(Engine);
+		}
+		void VMManager::EnableGrid()
+		{
+			RegisterScriptGrid(Engine);
+		}
+		void VMManager::EnableMath()
+		{
+			RegisterScriptMath(Engine);
+		}
+		void VMManager::EnableDateTime()
+		{
+			RegisterScriptDateTime(Engine);
+		}
+		void VMManager::EnableException()
+		{
+			RegisterExceptionRoutines(Engine);
+		}
+		void VMManager::EnableReference()
+		{
+			RegisterScriptHandle(Engine);
+		}
+		void VMManager::EnableWeakReference()
+		{
+			RegisterScriptWeakRef(Engine);
+		}
+		void VMManager::EnableRandom()
+		{
+			Engine->RegisterObjectType("random", 0, asOBJ_REF);
+			Engine->RegisterObjectBehaviour("random", asBEHAVE_FACTORY, "random@ f()", asFUNCTION(VMCRandom::Create), asCALL_CDECL);
+			Engine->RegisterObjectBehaviour("random", asBEHAVE_ADDREF, "void f()", asMETHOD(VMCRandom, AddRef), asCALL_THISCALL);
+			Engine->RegisterObjectBehaviour("random", asBEHAVE_RELEASE, "void f()", asMETHOD(VMCRandom, Release), asCALL_THISCALL);
+			Engine->RegisterObjectMethod("random", "void opAssign(const random&)", asMETHODPR(VMCRandom, Assign, (VMCRandom *), void), asCALL_THISCALL);
+			Engine->RegisterObjectMethod("random", "void seed(uint)", asMETHODPR(VMCRandom, Seed, (uint32_t), void), asCALL_THISCALL);
+			Engine->RegisterObjectMethod("random", "void seed(uint[]&)", asMETHODPR(VMCRandom, Seed, (CScriptArray *), void), asCALL_THISCALL);
+			Engine->RegisterObjectMethod("random", "int getI()", asMETHOD(VMCRandom, GetI), asCALL_THISCALL);
+			Engine->RegisterObjectMethod("random", "uint getU()", asMETHOD(VMCRandom, GetU), asCALL_THISCALL);
+			Engine->RegisterObjectMethod("random", "double getD()", asMETHOD(VMCRandom, GetD), asCALL_THISCALL);
+			Engine->RegisterObjectMethod("random", "void seedFromTime()", asMETHOD(VMCRandom, SeedFromTime), asCALL_THISCALL);
+		}
+		void VMManager::EnableThread()
+		{
+			Engine->RegisterFuncdef("void thread_callback()");
+			Engine->RegisterObjectType("thread", 0, asOBJ_REF | asOBJ_GC);
+			Engine->RegisterObjectBehaviour("thread", asBEHAVE_ADDREF, "void f()", asMETHOD(VMCThread, AddRef), asCALL_THISCALL);
+			Engine->RegisterObjectBehaviour("thread", asBEHAVE_RELEASE, "void f()", asMETHOD(VMCThread, Release), asCALL_THISCALL);
+			Engine->RegisterObjectBehaviour("thread", asBEHAVE_SETGCFLAG, "void f()", asMETHOD(VMCThread, SetGCFlag), asCALL_THISCALL);
+			Engine->RegisterObjectBehaviour("thread", asBEHAVE_GETGCFLAG, "bool f()", asMETHOD(VMCThread, GetGCFlag), asCALL_THISCALL);
+			Engine->RegisterObjectBehaviour("thread", asBEHAVE_GETREFCOUNT, "int f()", asMETHOD(VMCThread, GetRefCount), asCALL_THISCALL);
+			Engine->RegisterObjectBehaviour("thread", asBEHAVE_ENUMREFS, "void f(int&in)", asMETHOD(VMCThread, EnumReferences), asCALL_THISCALL);
+			Engine->RegisterObjectBehaviour("thread", asBEHAVE_RELEASEREFS, "void f(int&in)", asMETHOD(VMCThread, ReleaseReferences), asCALL_THISCALL);
+			Engine->RegisterObjectMethod("thread", "bool start()", asMETHOD(VMCThread, Start), asCALL_THISCALL);
+			Engine->RegisterObjectMethod("thread", "bool isActive()", asMETHOD(VMCThread, IsActive), asCALL_THISCALL);
+			Engine->RegisterObjectMethod("thread", "void suspend()", asMETHOD(VMCThread, Suspend), asCALL_THISCALL);
+			Engine->RegisterObjectMethod("thread", "void send(any &in)", asMETHOD(VMCThread, Send), asCALL_THISCALL);
+			Engine->RegisterObjectMethod("thread", "any@ receiveWait()", asMETHOD(VMCThread, ReceiveWait), asCALL_THISCALL);
+			Engine->RegisterObjectMethod("thread", "any@ receive(uint64)", asMETHOD(VMCThread, Receive), asCALL_THISCALL);
+			Engine->RegisterObjectMethod("thread", "int wait(uint64)", asMETHOD(VMCThread, Wait), asCALL_THISCALL);
+			Engine->RegisterObjectMethod("thread", "int join()", asMETHOD(VMCThread, Join), asCALL_THISCALL);
+			Engine->SetDefaultNamespace("thread");
+			Engine->RegisterGlobalFunction("any@ receiveFrom(uint64 timeout)", asFUNCTION(VMCThread::ReceiveInThread), asCALL_CDECL);
+			Engine->RegisterGlobalFunction("any@ receiveFromWait()", asFUNCTION(VMCThread::ReceiveWaitInThread), asCALL_CDECL);
+			Engine->RegisterGlobalFunction("void sleep(uint64 timeout)", asFUNCTION(VMCThread::SleepInThread), asCALL_CDECL);
+			Engine->RegisterGlobalFunction("void sendTo(any&)", asFUNCTION(VMCThread::SendInThread), asCALL_CDECL);
+			Engine->RegisterGlobalFunction("thread@ create(thread_callback @func)", asFUNCTION(VMCThread::StartThread), asCALL_CDECL);
+			Engine->RegisterGlobalFunction("uint64 id()", asFUNCTION(VMCThread::GetIdInThread), asCALL_CDECL);
+			Engine->SetDefaultNamespace("");
+		}
+		void VMManager::EnableAsync()
+		{
+			Engine->RegisterObjectType("async", 0, asOBJ_REF | asOBJ_GC);
+			Engine->RegisterObjectBehaviour("async", asBEHAVE_ADDREF, "void f()", asMETHOD(VMCAsync, AddRef), asCALL_THISCALL);
+			Engine->RegisterObjectBehaviour("async", asBEHAVE_RELEASE, "void f()", asMETHOD(VMCAsync, Release), asCALL_THISCALL);
+			Engine->RegisterObjectBehaviour("async", asBEHAVE_SETGCFLAG, "void f()", asMETHOD(VMCAsync, SetGCFlag), asCALL_THISCALL);
+			Engine->RegisterObjectBehaviour("async", asBEHAVE_GETGCFLAG, "bool f()", asMETHOD(VMCAsync, GetGCFlag), asCALL_THISCALL);
+			Engine->RegisterObjectBehaviour("async", asBEHAVE_GETREFCOUNT, "int f()", asMETHOD(VMCAsync, GetRefCount), asCALL_THISCALL);
+			Engine->RegisterObjectBehaviour("async", asBEHAVE_ENUMREFS, "void f(int&in)", asMETHOD(VMCAsync, EnumReferences), asCALL_THISCALL);
+			Engine->RegisterObjectBehaviour("async", asBEHAVE_RELEASEREFS, "void f(int&in)", asMETHOD(VMCAsync, ReleaseReferences), asCALL_THISCALL);
+			Engine->RegisterObjectMethod("async", "any@ get()", asMETHOD(VMCAsync, Get), asCALL_THISCALL);
+			Engine->RegisterObjectMethod("async", "async@ await()", asMETHOD(VMCAsync, Await), asCALL_THISCALL);
 		}
 		void VMManager::FreeProxy()
 		{

@@ -57,7 +57,7 @@ namespace Tomahawk
 				*URI = nullptr;
 #endif
 			}
-			void URI::SetOption(TURI* URI, const char* Name, Int64 Value)
+			void URI::SetOption(TURI* URI, const char* Name, int64_t Value)
 			{
 #ifdef THAWK_HAS_MONGOC
 				if (URI != nullptr)
@@ -150,7 +150,7 @@ namespace Tomahawk
 				return false;
 #endif
 			}
-			bool FindAndModifyOptions::SetMaxTimeMs(TFindAndModifyOptions* Options, UInt64 Time)
+			bool FindAndModifyOptions::SetMaxTimeMs(TFindAndModifyOptions* Options, uint64_t Time)
 			{
 #ifdef THAWK_HAS_MONGOC
 				if (!Options)
@@ -248,7 +248,7 @@ namespace Tomahawk
 				return false;
 #endif
 			}
-			UInt64 FindAndModifyOptions::GetMaxTimeMs(TFindAndModifyOptions* Options)
+			uint64_t FindAndModifyOptions::GetMaxTimeMs(TFindAndModifyOptions* Options)
 			{
 #ifdef THAWK_HAS_MONGOC
 				if (!Options)
@@ -673,13 +673,13 @@ namespace Tomahawk
 				return false;
 #endif
 			}
-			UInt64 BulkOperation::GetHint(TBulkOperation* Operation)
+			uint64_t BulkOperation::GetHint(TBulkOperation* Operation)
 			{
 #ifdef THAWK_HAS_MONGOC
 				if (!Operation)
 					return 0;
 
-				return (UInt64)mongoc_bulk_operation_get_hint(Operation);
+				return (uint64_t)mongoc_bulk_operation_get_hint(Operation);
 #else
 				return 0;
 #endif
@@ -872,21 +872,21 @@ namespace Tomahawk
 					mongoc_write_concern_append(WriteConcern, Options);
 #endif
 			}
-			void WriteConcern::SetToken(TWriteConcern* WriteConcern, UInt64 W)
+			void WriteConcern::SetToken(TWriteConcern* WriteConcern, uint64_t W)
 			{
 #ifdef THAWK_HAS_MONGOC
 				if (WriteConcern != nullptr)
 					mongoc_write_concern_set_w(WriteConcern, (int32_t)W);
 #endif
 			}
-			void WriteConcern::SetMajority(TWriteConcern* WriteConcern, UInt64 Timeout)
+			void WriteConcern::SetMajority(TWriteConcern* WriteConcern, uint64_t Timeout)
 			{
 #ifdef THAWK_HAS_MONGOC
 				if (WriteConcern != nullptr)
 					mongoc_write_concern_set_wmajority(WriteConcern, (int32_t)Timeout);
 #endif
 			}
-			void WriteConcern::SetTimeout(TWriteConcern* WriteConcern, UInt64 Timeout)
+			void WriteConcern::SetTimeout(TWriteConcern* WriteConcern, uint64_t Timeout)
 			{
 #ifdef THAWK_HAS_MONGOC
 				if (WriteConcern != nullptr)
@@ -973,7 +973,7 @@ namespace Tomahawk
 				return false;
 #endif
 			}
-			Int64 WriteConcern::GetToken(TWriteConcern* WriteConcern)
+			int64_t WriteConcern::GetToken(TWriteConcern* WriteConcern)
 			{
 #ifdef THAWK_HAS_MONGOC
 				if (!WriteConcern)
@@ -984,7 +984,7 @@ namespace Tomahawk
 				return 0;
 #endif
 			}
-			Int64 WriteConcern::GetTimeout(TWriteConcern* WriteConcern)
+			int64_t WriteConcern::GetTimeout(TWriteConcern* WriteConcern)
 			{
 #ifdef THAWK_HAS_MONGOC
 				if (!WriteConcern)
@@ -1045,11 +1045,11 @@ namespace Tomahawk
 					mongoc_read_prefs_set_mode(ReadPreferences, (mongoc_read_mode_t)Mode);
 #endif
 			}
-			void ReadPreferences::SetMaxStalenessSeconds(TReadPreferences* ReadPreferences, UInt64 MaxStalenessSeconds)
+			void ReadPreferences::SetMaxStalenessSeconds(TReadPreferences* ReadPreferences, uint64_t MaxStalenessSeconds)
 			{
 #ifdef THAWK_HAS_MONGOC
 				if (ReadPreferences != nullptr)
-					mongoc_read_prefs_set_max_staleness_seconds(ReadPreferences, (Int64)MaxStalenessSeconds);
+					mongoc_read_prefs_set_max_staleness_seconds(ReadPreferences, (int64_t)MaxStalenessSeconds);
 #endif
 			}
 			bool ReadPreferences::IsValid(TReadPreferences* ReadPreferences)
@@ -1074,13 +1074,13 @@ namespace Tomahawk
 				return ReadMode_Primary;
 #endif
 			}
-			UInt64 ReadPreferences::GetMaxStalenessSeconds(TReadPreferences* ReadPreferences)
+			uint64_t ReadPreferences::GetMaxStalenessSeconds(TReadPreferences* ReadPreferences)
 			{
 #ifdef THAWK_HAS_MONGOC
 				if (!ReadPreferences)
 					return 0;
 
-				return (UInt64)mongoc_read_prefs_get_max_staleness_seconds(ReadPreferences);
+				return (uint64_t)mongoc_read_prefs_get_max_staleness_seconds(ReadPreferences);
 #else
 				return 0;
 #endif
@@ -1110,14 +1110,14 @@ namespace Tomahawk
 				}
 #endif
 			}
-			void Cursor::SetMaxAwaitTime(TCursor* Cursor, UInt64 MaxAwaitTime)
+			void Cursor::SetMaxAwaitTime(TCursor* Cursor, uint64_t MaxAwaitTime)
 			{
 #ifdef THAWK_HAS_MONGOC
 				if (Cursor != nullptr)
 					mongoc_cursor_set_max_await_time_ms(Cursor, (uint32_t)MaxAwaitTime);
 #endif
 			}
-			void Cursor::SetBatchSize(TCursor* Cursor, UInt64 BatchSize)
+			void Cursor::SetBatchSize(TCursor* Cursor, uint64_t BatchSize)
 			{
 #ifdef THAWK_HAS_MONGOC
 				if (Cursor != nullptr)
@@ -1136,7 +1136,7 @@ namespace Tomahawk
 				return false;
 #endif
 			}
-			bool Cursor::SetLimit(TCursor* Cursor, Int64 Limit)
+			bool Cursor::SetLimit(TCursor* Cursor, int64_t Limit)
 			{
 #ifdef THAWK_HAS_MONGOC
 				if (!Cursor)
@@ -1147,7 +1147,7 @@ namespace Tomahawk
 				return false;
 #endif
 			}
-			bool Cursor::SetHint(TCursor* Cursor, UInt64 Hint)
+			bool Cursor::SetHint(TCursor* Cursor, uint64_t Hint)
 			{
 #ifdef THAWK_HAS_MONGOC
 				if (!Cursor)
@@ -1180,57 +1180,57 @@ namespace Tomahawk
 				return false;
 #endif
 			}
-			Int64 Cursor::GetId(TCursor* Cursor)
+			int64_t Cursor::GetId(TCursor* Cursor)
 			{
 #ifdef THAWK_HAS_MONGOC
 				if (!Cursor)
 					return 0;
 
-				return (Int64)mongoc_cursor_get_id(Cursor);
+				return (int64_t)mongoc_cursor_get_id(Cursor);
 #else
 				return 0;
 #endif
 			}
-			Int64 Cursor::GetLimit(TCursor* Cursor)
+			int64_t Cursor::GetLimit(TCursor* Cursor)
 			{
 #ifdef THAWK_HAS_MONGOC
 				if (!Cursor)
 					return 0;
 
-				return (Int64)mongoc_cursor_get_limit(Cursor);
+				return (int64_t)mongoc_cursor_get_limit(Cursor);
 #else
 				return 0;
 #endif
 			}
-			UInt64 Cursor::GetMaxAwaitTime(TCursor* Cursor)
+			uint64_t Cursor::GetMaxAwaitTime(TCursor* Cursor)
 			{
 #ifdef THAWK_HAS_MONGOC
 				if (!Cursor)
 					return 0;
 
-				return (UInt64)mongoc_cursor_get_max_await_time_ms(Cursor);
+				return (uint64_t)mongoc_cursor_get_max_await_time_ms(Cursor);
 #else
 				return 0;
 #endif
 			}
-			UInt64 Cursor::GetBatchSize(TCursor* Cursor)
+			uint64_t Cursor::GetBatchSize(TCursor* Cursor)
 			{
 #ifdef THAWK_HAS_MONGOC
 				if (!Cursor)
 					return 0;
 
-				return (UInt64)mongoc_cursor_get_batch_size(Cursor);
+				return (uint64_t)mongoc_cursor_get_batch_size(Cursor);
 #else
 				return 0;
 #endif
 			}
-			UInt64 Cursor::GetHint(TCursor* Cursor)
+			uint64_t Cursor::GetHint(TCursor* Cursor)
 			{
 #ifdef THAWK_HAS_MONGOC
 				if (!Cursor)
 					return 0;
 
-				return (UInt64)mongoc_cursor_get_hint(Cursor);
+				return (uint64_t)mongoc_cursor_get_hint(Cursor);
 #else
 				return 0;
 #endif
@@ -1661,7 +1661,7 @@ namespace Tomahawk
 				return false;
 #endif
 			}
-			bool Collection::InsertMany(TCollection* Collection, BSON::TDocument** Documents, UInt64 Length, BSON::TDocument** Options, BSON::TDocument** Reply)
+			bool Collection::InsertMany(TCollection* Collection, BSON::TDocument** Documents, uint64_t Length, BSON::TDocument** Options, BSON::TDocument** Reply)
 			{
 #ifdef THAWK_HAS_MONGOC
 				if (!Collection || !Documents || !Length)
@@ -1938,7 +1938,7 @@ namespace Tomahawk
 				return false;
 #endif
 			}
-			UInt64 Collection::CountElementsInArray(TCollection* Collection, BSON::TDocument** Match, BSON::TDocument** Filter, BSON::TDocument** Options, TReadPreferences* Preferences)
+			uint64_t Collection::CountElementsInArray(TCollection* Collection, BSON::TDocument** Match, BSON::TDocument** Filter, BSON::TDocument** Options, TReadPreferences* Preferences)
 			{
 #ifdef THAWK_HAS_MONGOC
 				if (!Collection || !Filter || !*Filter || !Match || !*Match)
@@ -1981,12 +1981,12 @@ namespace Tomahawk
 				BSON::Document::GetKey(Result, "Count", &Count);
 				Cursor::Release(&Cursor);
 
-				return (UInt64)Count.Integer;
+				return (uint64_t)Count.Integer;
 #else
 				return 0;
 #endif
 			}
-			UInt64 Collection::CountDocuments(TCollection* Collection, BSON::TDocument** Filter, BSON::TDocument** Options, BSON::TDocument** Reply, TReadPreferences* Preferences)
+			uint64_t Collection::CountDocuments(TCollection* Collection, BSON::TDocument** Filter, BSON::TDocument** Options, BSON::TDocument** Reply, TReadPreferences* Preferences)
 			{
 #ifdef THAWK_HAS_MONGOC
 				bson_error_t Error;
@@ -1999,7 +1999,7 @@ namespace Tomahawk
 					return 0;
 				}
 
-				UInt64 Count = (UInt64)mongoc_collection_count_documents(Collection, BS(Filter), BS(Options), Preferences, BS(Reply), &Error);
+				uint64_t Count = (uint64_t)mongoc_collection_count_documents(Collection, BS(Filter), BS(Options), Preferences, BS(Reply), &Error);
 				if (Error.code != 0)
 				{
 					BSON::Document::Release(Filter);
@@ -2015,7 +2015,7 @@ namespace Tomahawk
 				return 0;
 #endif
 			}
-			UInt64 Collection::CountDocumentsEstimated(TCollection* Collection, BSON::TDocument** Options, BSON::TDocument** Reply, TReadPreferences* Preferences)
+			uint64_t Collection::CountDocumentsEstimated(TCollection* Collection, BSON::TDocument** Options, BSON::TDocument** Reply, TReadPreferences* Preferences)
 			{
 #ifdef THAWK_HAS_MONGOC
 				bson_error_t Error;
@@ -2027,7 +2027,7 @@ namespace Tomahawk
 					return 0;
 				}
 
-				UInt64 Count = (UInt64)mongoc_collection_estimated_document_count(Collection, BS(Options), Preferences, BS(Reply), &Error);
+				uint64_t Count = (uint64_t)mongoc_collection_estimated_document_count(Collection, BS(Options), Preferences, BS(Reply), &Error);
 				if (Error.code != 0)
 				{
 					BSON::Document::Release(Options);
@@ -2193,7 +2193,7 @@ namespace Tomahawk
 				return nullptr;
 #endif
 			}
-			TCursor* Collection::ExecuteCommand(TCollection* Collection, QueryMode Flags, UInt64 Skip, UInt64 Limit, UInt64 BatchSize, BSON::TDocument** Command, BSON::TDocument** Fields, TReadPreferences* Preferences)
+			TCursor* Collection::ExecuteCommand(TCollection* Collection, QueryMode Flags, uint64_t Skip, uint64_t Limit, uint64_t BatchSize, BSON::TDocument** Command, BSON::TDocument** Fields, TReadPreferences* Preferences)
 			{
 #ifdef THAWK_HAS_MONGOC
 				if (!Collection)
@@ -2580,7 +2580,7 @@ namespace Tomahawk
 				return nullptr;
 #endif
 			}
-			TCursor* Database::ExecuteCommand(TDatabase* Database, QueryMode Flags, UInt64 Skip, UInt64 Limit, UInt64 BatchSize, BSON::TDocument** Command, BSON::TDocument** Fields, TReadPreferences* Preferences)
+			TCursor* Database::ExecuteCommand(TDatabase* Database, QueryMode Flags, uint64_t Skip, uint64_t Limit, uint64_t BatchSize, BSON::TDocument** Command, BSON::TDocument** Fields, TReadPreferences* Preferences)
 			{
 #ifdef THAWK_HAS_MONGOC
 				if (!Database)
@@ -2696,7 +2696,7 @@ namespace Tomahawk
 				*Description = nullptr;
 #endif
 			}
-			UInt64 ServerDescription::GetId(TServerDescription* Description)
+			uint64_t ServerDescription::GetId(TServerDescription* Description)
 			{
 #ifdef THAWK_HAS_MONGOC
 				if (!Description)
@@ -2707,7 +2707,7 @@ namespace Tomahawk
 				return 0;
 #endif
 			}
-			Int64 ServerDescription::GetTripTime(TServerDescription* Description)
+			int64_t ServerDescription::GetTripTime(TServerDescription* Description)
 			{
 #ifdef THAWK_HAS_MONGOC
 				if (!Description)
@@ -2791,7 +2791,7 @@ namespace Tomahawk
 				}
 
 				std::vector<TServerDescription*> Servers;
-				for (UInt64 i = 0; i < Length; i++)
+				for (uint64_t i = 0; i < Length; i++)
 				{
 					Servers.push_back(Values[i]);
 					Values[i] = nullptr;

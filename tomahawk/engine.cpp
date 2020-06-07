@@ -54,28 +54,28 @@ namespace Tomahawk
 
 			return V->SetNumber("[n]", Value) != nullptr;
 		}
-		bool NMake::Pack(Rest::Document* V, Float64 Value)
+		bool NMake::Pack(Rest::Document* V, double Value)
 		{
 			if (!V)
 				return false;
 
 			return V->SetNumber("[n]", Value) != nullptr;
 		}
-		bool NMake::Pack(Rest::Document* V, Int64 Value)
+		bool NMake::Pack(Rest::Document* V, int64_t Value)
 		{
 			if (!V)
 				return false;
 
 			return V->SetInteger("[i]", Value) != nullptr;
 		}
-		bool NMake::Pack(Rest::Document* V, LFloat64 Value)
+		bool NMake::Pack(Rest::Document* V, long double Value)
 		{
 			if (!V)
 				return false;
 
 			return V->SetDecimal("[d]", std::to_string(Value)) != nullptr;
 		}
-		bool NMake::Pack(Rest::Document* V, UInt64 Value)
+		bool NMake::Pack(Rest::Document* V, uint64_t Value)
 		{
 			if (!V)
 				return false;
@@ -318,7 +318,7 @@ namespace Tomahawk
 
 			return V->SetString("f-array", Stream.str().substr(0, Stream.str().size() - 1)) && V->SetInteger("[size]", Value.size());
 		}
-		bool NMake::Pack(Rest::Document* V, const std::vector<Float64>& Value)
+		bool NMake::Pack(Rest::Document* V, const std::vector<double>& Value)
 		{
 			if (!V)
 				return false;
@@ -329,7 +329,7 @@ namespace Tomahawk
 
 			return V->SetString("f-array", Stream.str().substr(0, Stream.str().size() - 1)) && V->SetInteger("[size]", Value.size());
 		}
-		bool NMake::Pack(Rest::Document* V, const std::vector<Int64>& Value)
+		bool NMake::Pack(Rest::Document* V, const std::vector<int64_t>& Value)
 		{
 			if (!V)
 				return false;
@@ -340,7 +340,7 @@ namespace Tomahawk
 
 			return V->SetString("f-array", Stream.str().substr(0, Stream.str().size() - 1)) && V->SetInteger("[size]", Value.size());
 		}
-		bool NMake::Pack(Rest::Document* V, const std::vector<LFloat64>& Value)
+		bool NMake::Pack(Rest::Document* V, const std::vector<long double>& Value)
 		{
 			if (!V)
 				return false;
@@ -351,7 +351,7 @@ namespace Tomahawk
 
 			return V->SetString("f-array", Stream.str().substr(0, Stream.str().size() - 1)) && V->SetInteger("[size]", Value.size());
 		}
-		bool NMake::Pack(Rest::Document* V, const std::vector<UInt64>& Value)
+		bool NMake::Pack(Rest::Document* V, const std::vector<uint64_t>& Value)
 		{
 			if (!V)
 				return false;
@@ -667,7 +667,7 @@ namespace Tomahawk
 			*O = V->GetNumber("[n]");
 			return true;
 		}
-		bool NMake::Unpack(Rest::Document* V, Float64* O)
+		bool NMake::Unpack(Rest::Document* V, double* O)
 		{
 			if (!V || !O)
 				return false;
@@ -675,7 +675,7 @@ namespace Tomahawk
 			*O = V->GetNumber("[n]");
 			return true;
 		}
-		bool NMake::Unpack(Rest::Document* V, LFloat64* O)
+		bool NMake::Unpack(Rest::Document* V, long double* O)
 		{
 			if (!V || !O)
 				return false;
@@ -683,7 +683,7 @@ namespace Tomahawk
 			*O = V->GetNumber("[n]");
 			return true;
 		}
-		bool NMake::Unpack(Rest::Document* V, Int64* O)
+		bool NMake::Unpack(Rest::Document* V, int64_t* O)
 		{
 			if (!V || !O)
 				return false;
@@ -691,7 +691,7 @@ namespace Tomahawk
 			*O = V->GetInteger("[i]");
 			return true;
 		}
-		bool NMake::Unpack(Rest::Document* V, UInt64* O)
+		bool NMake::Unpack(Rest::Document* V, uint64_t* O)
 		{
 			if (!V || !O)
 				return false;
@@ -966,7 +966,7 @@ namespace Tomahawk
 				return false;
 
 			std::string& Array = V->GetStringBlob("b-array");
-			Int64 Size = V->GetInteger("[size]");
+			int64_t Size = V->GetInteger("[size]");
 			if (Array.empty() || !Size)
 				return false;
 
@@ -988,7 +988,7 @@ namespace Tomahawk
 				return false;
 
 			std::string& Array = V->GetStringBlob("i-array");
-			Int64 Size = V->GetInteger("[size]");
+			int64_t Size = V->GetInteger("[size]");
 			if (Array.empty() || !Size)
 				return false;
 
@@ -1010,7 +1010,7 @@ namespace Tomahawk
 				return false;
 
 			std::string& Array = V->GetStringBlob("i-array");
-			Int64 Size = V->GetInteger("[size]");
+			int64_t Size = V->GetInteger("[size]");
 			if (Array.empty() || !Size)
 				return false;
 
@@ -1032,7 +1032,7 @@ namespace Tomahawk
 				return false;
 
 			std::string& Array = V->GetStringBlob("i-array");
-			Int64 Size = V->GetInteger("[size]");
+			int64_t Size = V->GetInteger("[size]");
 			if (Array.empty() || !Size)
 				return false;
 
@@ -1054,7 +1054,7 @@ namespace Tomahawk
 				return false;
 
 			std::string& Array = V->GetStringBlob("i-array");
-			Int64 Size = V->GetInteger("[size]");
+			int64_t Size = V->GetInteger("[size]");
 			if (Array.empty() || !Size)
 				return false;
 
@@ -1076,7 +1076,7 @@ namespace Tomahawk
 				return false;
 
 			std::string& Array = V->GetStringBlob("f-array");
-			Int64 Size = V->GetInteger("[size]");
+			int64_t Size = V->GetInteger("[size]");
 			if (Array.empty() || !Size)
 				return false;
 
@@ -1092,13 +1092,13 @@ namespace Tomahawk
 
 			return true;
 		}
-		bool NMake::Unpack(Rest::Document* V, std::vector<Float64>* O)
+		bool NMake::Unpack(Rest::Document* V, std::vector<double>* O)
 		{
 			if (!V || !O)
 				return false;
 
 			std::string& Array = V->GetStringBlob("f-array");
-			Int64 Size = V->GetInteger("[size]");
+			int64_t Size = V->GetInteger("[size]");
 			if (Array.empty() || !Size)
 				return false;
 
@@ -1107,20 +1107,20 @@ namespace Tomahawk
 
 			for (auto It = O->begin(); It != O->end(); It++)
 			{
-				Float64 Item;
+				double Item;
 				Stream >> Item;
 				*It = Item;
 			}
 
 			return true;
 		}
-		bool NMake::Unpack(Rest::Document* V, std::vector<Int64>* O)
+		bool NMake::Unpack(Rest::Document* V, std::vector<int64_t>* O)
 		{
 			if (!V || !O)
 				return false;
 
 			std::string& Array = V->GetStringBlob("i-array");
-			Int64 Size = V->GetInteger("[size]");
+			int64_t Size = V->GetInteger("[size]");
 			if (Array.empty() || !Size)
 				return false;
 
@@ -1129,20 +1129,20 @@ namespace Tomahawk
 
 			for (auto It = O->begin(); It != O->end(); It++)
 			{
-				Int64 Item;
+				int64_t Item;
 				Stream >> Item;
 				*It = Item;
 			}
 
 			return true;
 		}
-		bool NMake::Unpack(Rest::Document* V, std::vector<LFloat64>* O)
+		bool NMake::Unpack(Rest::Document* V, std::vector<long double>* O)
 		{
 			if (!V || !O)
 				return false;
 
 			std::string& Array = V->GetStringBlob("f-array");
-			Int64 Size = V->GetInteger("[size]");
+			int64_t Size = V->GetInteger("[size]");
 			if (Array.empty() || !Size)
 				return false;
 
@@ -1151,20 +1151,20 @@ namespace Tomahawk
 
 			for (auto It = O->begin(); It != O->end(); It++)
 			{
-				LFloat64 Item;
+				long double Item;
 				Stream >> Item;
 				*It = Item;
 			}
 
 			return true;
 		}
-		bool NMake::Unpack(Rest::Document* V, std::vector<UInt64>* O)
+		bool NMake::Unpack(Rest::Document* V, std::vector<uint64_t>* O)
 		{
 			if (!V || !O)
 				return false;
 
 			std::string& Array = V->GetStringBlob("i-array");
-			Int64 Size = V->GetInteger("[size]");
+			int64_t Size = V->GetInteger("[size]");
 			if (Array.empty() || !Size)
 				return false;
 
@@ -1173,7 +1173,7 @@ namespace Tomahawk
 
 			for (auto It = O->begin(); It != O->end(); It++)
 			{
-				UInt64 Item;
+				uint64_t Item;
 				Stream >> Item;
 				*It = Item;
 			}
@@ -1186,7 +1186,7 @@ namespace Tomahawk
 				return false;
 
 			std::string& Array = V->GetStringBlob("v2-array");
-			Int64 Size = V->GetInteger("[size]");
+			int64_t Size = V->GetInteger("[size]");
 			if (Array.empty() || !Size)
 				return false;
 
@@ -1204,7 +1204,7 @@ namespace Tomahawk
 				return false;
 
 			std::string& Array = V->GetStringBlob("v3-array");
-			Int64 Size = V->GetInteger("[size]");
+			int64_t Size = V->GetInteger("[size]");
 			if (Array.empty() || !Size)
 				return false;
 
@@ -1222,7 +1222,7 @@ namespace Tomahawk
 				return false;
 
 			std::string& Array = V->GetStringBlob("v4-array");
-			Int64 Size = V->GetInteger("[size]");
+			int64_t Size = V->GetInteger("[size]");
 			if (Array.empty() || !Size)
 				return false;
 
@@ -1240,7 +1240,7 @@ namespace Tomahawk
 				return false;
 
 			std::string& Array = V->GetStringBlob("m4x4-array");
-			Int64 Size = V->GetInteger("[size]");
+			int64_t Size = V->GetInteger("[size]");
 			if (Array.empty() || !Size)
 				return false;
 
@@ -1249,7 +1249,7 @@ namespace Tomahawk
 
 			for (auto& It : *O)
 			{
-				for (Int64 i = 0; i < 16; i++)
+				for (int64_t i = 0; i < 16; i++)
 					Stream >> It.Row[i];
 			}
 
@@ -1261,7 +1261,7 @@ namespace Tomahawk
 				return false;
 
 			std::string& Array = V->GetStringBlob("as-array");
-			Int64 Size = V->GetInteger("[size]");
+			int64_t Size = V->GetInteger("[size]");
 			if (Array.empty() || !Size)
 				return false;
 
@@ -1288,7 +1288,7 @@ namespace Tomahawk
 				return false;
 
 			std::string& Array = V->GetStringBlob("sp-array");
-			Int64 Size = V->GetInteger("[size]");
+			int64_t Size = V->GetInteger("[size]");
 			if (Array.empty() || !Size)
 				return false;
 
@@ -1351,7 +1351,7 @@ namespace Tomahawk
 				return false;
 
 			std::string& Array = V->GetStringBlob("ak-array");
-			Int64 Size = V->GetInteger("[size]");
+			int64_t Size = V->GetInteger("[size]");
 			if (Array.empty() || !Size)
 				return false;
 
@@ -1372,7 +1372,7 @@ namespace Tomahawk
 				return false;
 
 			std::string& Array = V->GetStringBlob("ev-array");
-			Int64 Size = V->GetInteger("[size]");
+			int64_t Size = V->GetInteger("[size]");
 			if (Array.empty() || !Size)
 				return false;
 
@@ -1418,7 +1418,7 @@ namespace Tomahawk
 				return false;
 
 			std::string& Array = V->GetStringBlob("iv-array");
-			Int64 Size = V->GetInteger("[size]");
+			int64_t Size = V->GetInteger("[size]");
 			if (Array.empty() || !Size)
 				return false;
 
@@ -1460,7 +1460,7 @@ namespace Tomahawk
 				return false;
 
 			std::string& Array = V->GetStringBlob("iv-array");
-			Int64 Size = V->GetInteger("[size]");
+			int64_t Size = V->GetInteger("[size]");
 			if (Array.empty() || !Size)
 				return false;
 
@@ -1501,7 +1501,7 @@ namespace Tomahawk
 				return false;
 
 			std::string& Array = V->GetStringBlob("tt-array");
-			Int64 Size = V->GetInteger("[size]");
+			int64_t Size = V->GetInteger("[size]");
 			if (Array.empty() || !Size)
 				return false;
 
@@ -1519,7 +1519,7 @@ namespace Tomahawk
 				return false;
 
 			Rest::Document* Array = V->Get("tt-array");
-			Int64 Size = V->GetInteger("[size]");
+			int64_t Size = V->GetInteger("[size]");
 			if (!Array || !Size)
 				return false;
 
@@ -1539,10 +1539,10 @@ namespace Tomahawk
 		ContentKey::ContentKey(const std::string& Value) : Type(ContentType_String), Integer(0), Number(0), Boolean(false), Pointer(nullptr), String(Value)
 		{
 		}
-		ContentKey::ContentKey(Int64 Value) : Type(ContentType_Integer), Integer(Value), Number((Float64)Value), Boolean(false), Pointer(nullptr)
+		ContentKey::ContentKey(int64_t Value) : Type(ContentType_Integer), Integer(Value), Number((double)Value), Boolean(false), Pointer(nullptr)
 		{
 		}
-		ContentKey::ContentKey(Float64 Value) : Type(ContentType_Number), Integer((Int64)Value), Number(Value), Boolean(false), Pointer(nullptr)
+		ContentKey::ContentKey(double Value) : Type(ContentType_Number), Integer((int64_t)Value), Number(Value), Boolean(false), Pointer(nullptr)
 		{
 		}
 		ContentKey::ContentKey(bool Value) : Type(ContentType_Boolean), Integer(0), Number(0), Boolean(Value), Pointer(nullptr)
@@ -1614,7 +1614,7 @@ namespace Tomahawk
 		{
 			return nullptr;
 		}
-		void* FileProcessor::Load(Rest::FileStream* Stream, UInt64 Length, UInt64 Offset, ContentArgs* Args)
+		void* FileProcessor::Load(Rest::FileStream* Stream, uint64_t Length, uint64_t Offset, ContentArgs* Args)
 		{
 			return nullptr;
 		}
@@ -1712,9 +1712,9 @@ namespace Tomahawk
 
 			delete Transform;
 		}
-		void Entity::RemoveComponent(UInt64 Id)
+		void Entity::RemoveComponent(uint64_t Id)
 		{
-			std::unordered_map<UInt64, Component*>::iterator It = Components.find(Id);
+			std::unordered_map<uint64_t, Component*>::iterator It = Components.find(Id);
 			if (It == Components.end())
 				return;
 
@@ -1739,8 +1739,8 @@ namespace Tomahawk
 			if (Scene != nullptr)
 				Scene->Lock();
 
-			UInt64 Count = Transform->GetChilds()->size();
-			for (UInt64 i = 0; i < Count; i++)
+			uint64_t Count = Transform->GetChilds()->size();
+			for (uint64_t i = 0; i < Count; i++)
 			{
 				if (!Transform->GetChilds())
 				{
@@ -1778,11 +1778,11 @@ namespace Tomahawk
 		{
 			Scene = NewScene;
 		}
-		std::unordered_map<UInt64, Component*>::iterator Entity::First()
+		std::unordered_map<uint64_t, Component*>::iterator Entity::First()
 		{
 			return Components.begin();
 		}
-		std::unordered_map<UInt64, Component*>::iterator Entity::Last()
+		std::unordered_map<uint64_t, Component*>::iterator Entity::Last()
 		{
 			return Components.end();
 		}
@@ -1802,15 +1802,15 @@ namespace Tomahawk
 			In->SetActive(true);
 			return In;
 		}
-		Component* Entity::GetComponent(UInt64 Id)
+		Component* Entity::GetComponent(uint64_t Id)
 		{
-			std::unordered_map<UInt64, Component*>::iterator It = Components.find(Id);
+			std::unordered_map<uint64_t, Component*>::iterator It = Components.find(Id);
 			if (It != Components.end())
 				return It->second;
 
 			return nullptr;
 		}
-		UInt64 Entity::GetComponentCount()
+		uint64_t Entity::GetComponentCount()
 		{
 			return Components.size();
 		}
@@ -2056,7 +2056,7 @@ namespace Tomahawk
 		{
 			Scene = NewScene;
 		}
-		void RenderSystem::RemoveRenderer(UInt64 Id)
+		void RenderSystem::RemoveRenderer(uint64_t Id)
 		{
 			for (auto It = RenderStages.begin(); It != RenderStages.end(); It++)
 			{
@@ -2091,7 +2091,7 @@ namespace Tomahawk
 
 			return In;
 		}
-		Renderer* RenderSystem::GetRenderer(UInt64 Id)
+		Renderer* RenderSystem::GetRenderer(uint64_t Id)
 		{
 			for (auto& RenderStage : RenderStages)
 			{
@@ -2228,7 +2228,7 @@ namespace Tomahawk
 			for (auto It = Pending.Begin(); It != Pending.End(); It++)
 				(*It)->OnSynchronize(Time);
 
-			UInt64 Index = 0;
+			uint64_t Index = 0;
 			for (auto It = Entities.Begin(); It != Entities.End(); It++)
 			{
 				Entity* V = *It;
@@ -2343,7 +2343,7 @@ namespace Tomahawk
 		void SceneGraph::Reindex()
 		{
 			Lock();
-			Int64 Index = 0;
+			int64_t Index = 0;
 			for (auto It = Entities.Begin(); It != Entities.End(); It++)
 			{
 				(*It)->Self = Index;
@@ -2408,7 +2408,7 @@ namespace Tomahawk
 			delete Entity;
 			Unlock();
 		}
-		void SceneGraph::RemoveMaterial(UInt64 Material)
+		void SceneGraph::RemoveMaterial(uint64_t Material)
 		{
 			if (Material < 1 || Material >= Materials.size())
 				return;
@@ -2419,7 +2419,7 @@ namespace Tomahawk
 			if (!Materials.empty())
 				Materials.resize(Materials.size() - 1);
 
-			for (UInt64 i = 0; i < Materials.size(); i++)
+			for (uint64_t i = 0; i < Materials.size(); i++)
 				Materials[i].Self = (float)i;
 		}
 		void SceneGraph::RegisterEntity(Entity* In)
@@ -2485,11 +2485,11 @@ namespace Tomahawk
 				return Unlock();
 
 			Clone->Transform->GetChilds()->clear();
-			for (UInt64 i = 0; i < Childs->size(); i++)
+			for (uint64_t i = 0; i < Childs->size(); i++)
 			{
-				UInt64 Offset = Array->size();
+				uint64_t Offset = Array->size();
 				CloneEntities((*Childs)[i]->Ptr<Entity>(), Array);
-				for (UInt64 j = Offset; j < Array->size(); j++)
+				for (uint64_t j = Offset; j < Array->size(); j++)
 				{
 					if ((*Array)[j]->Transform->GetRoot() == Instance->Transform)
 						(*Array)[j]->Transform->SetRoot(Clone->Transform);
@@ -2585,7 +2585,7 @@ namespace Tomahawk
 		}
 		void SceneGraph::BeginThread(ThreadId Id)
 		{
-			Thread* Entry = &Sync.Threads[(UInt64)Id];
+			Thread* Entry = &Sync.Threads[(uint64_t)Id];
 			if (Sync.Locked && Entry->State != 0)
 			{
 				if (Entry->Id == Sync.Id)
@@ -2603,7 +2603,7 @@ namespace Tomahawk
 		}
 		void SceneGraph::EndThread(ThreadId Id)
 		{
-			Thread* Entry = &Sync.Threads[(UInt64)Id];
+			Thread* Entry = &Sync.Threads[(uint64_t)Id];
 			Entry->Id = std::thread::id();
 		}
 		void SceneGraph::DispatchEvents()
@@ -2702,7 +2702,7 @@ namespace Tomahawk
 
 			return Camera;
 		}
-		Component* SceneGraph::GetComponent(UInt64 Component, UInt64 Section)
+		Component* SceneGraph::GetComponent(uint64_t Component, uint64_t Section)
 		{
 			auto* Array = GetComponents(Section);
 			if (Component >= Array->Size())
@@ -2718,7 +2718,7 @@ namespace Tomahawk
 		{
 			return GetCamera()->As<Components::Camera>()->GetViewer();
 		}
-		Entity* SceneGraph::GetEntity(UInt64 Entity)
+		Entity* SceneGraph::GetEntity(uint64_t Entity)
 		{
 			if (Entity >= Entities.Size())
 				return nullptr;
@@ -2762,7 +2762,7 @@ namespace Tomahawk
 			Unlock();
 			return nullptr;
 		}
-		Entity* SceneGraph::FindTaggedEntity(UInt64 Tag)
+		Entity* SceneGraph::FindTaggedEntity(uint64_t Tag)
 		{
 			Lock();
 			for (auto It = Entities.Begin(); It != Entities.End(); It++)
@@ -2811,7 +2811,7 @@ namespace Tomahawk
 
 			return !Array.empty() ? Array.front() : nullptr;
 		}
-		Graphics::Material& SceneGraph::CloneMaterial(UInt64 Material)
+		Graphics::Material& SceneGraph::CloneMaterial(uint64_t Material)
 		{
 			if (Material < 0 || Material >= Materials.capacity())
 				return GetMaterialStandartLit();
@@ -2819,7 +2819,7 @@ namespace Tomahawk
 			AddMaterial(Materials[Material]);
 			return Materials.back();
 		}
-		Graphics::Material& SceneGraph::GetMaterial(UInt64 Material)
+		Graphics::Material& SceneGraph::GetMaterial(uint64_t Material)
 		{
 			if (Material >= Materials.size())
 				return Materials.front();
@@ -2830,7 +2830,7 @@ namespace Tomahawk
 		{
 			return Materials.front();
 		}
-		Rest::Pool<Component*>* SceneGraph::GetComponents(UInt64 Section)
+		Rest::Pool<Component*>* SceneGraph::GetComponents(uint64_t Section)
 		{
 			Rest::Pool<Component*>* Array = &Components[Section];
 			if (Array->Capacity() >= Conf.ComponentCount)
@@ -2889,7 +2889,7 @@ namespace Tomahawk
 			Unlock();
 			return Array;
 		}
-		std::vector<Entity*> SceneGraph::FindTaggedEntities(UInt64 Tag)
+		std::vector<Entity*> SceneGraph::FindTaggedEntities(uint64_t Tag)
 		{
 			std::vector<Entity*> Array;
 			Lock();
@@ -2937,10 +2937,10 @@ namespace Tomahawk
 			while (Conf.Queue->Pull<Event>(Rest::EventType_Events));
 			return true;
 		}
-		UInt64 SceneGraph::HasEntity(Entity* Entity)
+		uint64_t SceneGraph::HasEntity(Entity* Entity)
 		{
 			Lock();
-			for (UInt64 i = 0; i < Entities.Size(); i++)
+			for (uint64_t i = 0; i < Entities.Size(); i++)
 			{
 				if (Entities[i] == Entity)
 				{
@@ -2952,23 +2952,23 @@ namespace Tomahawk
 			Unlock();
 			return 0;
 		}
-		UInt64 SceneGraph::HasEntity(UInt64 Entity)
+		uint64_t SceneGraph::HasEntity(uint64_t Entity)
 		{
 			return (Entity >= 0 && Entity < Entities.Size()) ? Entity : -1;
 		}
-		UInt64 SceneGraph::HasMaterial(UInt64 Material)
+		uint64_t SceneGraph::HasMaterial(uint64_t Material)
 		{
 			return (Material >= 0 && Material < Materials.size()) ? Material : -1;
 		}
-		UInt64 SceneGraph::GetEntityCount()
+		uint64_t SceneGraph::GetEntityCount()
 		{
 			return Entities.Size();
 		}
-		UInt64 SceneGraph::GetComponentCount(UInt64 Section)
+		uint64_t SceneGraph::GetComponentCount(uint64_t Section)
 		{
 			return Components[Section].Size();
 		}
-		UInt64 SceneGraph::GetMaterialCount()
+		uint64_t SceneGraph::GetMaterialCount()
 		{
 			return Materials.size();
 		}
@@ -3186,8 +3186,8 @@ namespace Tomahawk
 				return false;
 			}
 
-			UInt64 Size = 0;
-			if (Stream->Read((char*)&Size, sizeof(UInt64)) != sizeof(UInt64))
+			uint64_t Size = 0;
+			if (Stream->Read((char*)&Size, sizeof(uint64_t)) != sizeof(uint64_t))
 			{
 				THAWK_ERROR("file \"%s\" has corrupted dock size", File.c_str());
 				delete Stream;
@@ -3195,15 +3195,15 @@ namespace Tomahawk
 			}
 
 			Mutex.lock();
-			for (UInt64 i = 0; i < Size; i++)
+			for (uint64_t i = 0; i < Size; i++)
 			{
 				AssetDocker* Docker = new AssetDocker();
 				Docker->Stream = Stream;
 
-				UInt64 Length;
-				Stream->Read((char*)&Length, sizeof(UInt64));
-				Stream->Read((char*)&Docker->Offset, sizeof(UInt64));
-				Stream->Read((char*)&Docker->Length, sizeof(UInt64));
+				uint64_t Length;
+				Stream->Read((char*)&Length, sizeof(uint64_t));
+				Stream->Read((char*)&Docker->Offset, sizeof(uint64_t));
+				Stream->Read((char*)&Docker->Length, sizeof(uint64_t));
 
 				if (!Length)
 				{
@@ -3216,7 +3216,7 @@ namespace Tomahawk
 				Dockers[Docker->Path] = Docker;
 			}
 
-			Streams[Stream] = (Int64)Stream->Tell();
+			Streams[Stream] = (int64_t)Stream->Tell();
 			Mutex.unlock();
 
 			return true;
@@ -3241,10 +3241,10 @@ namespace Tomahawk
 			auto Tree = new Rest::FileTree(Base);
 			Stream->Write("\0d\0o\0c\0k\0h\0e\0a\0d", sizeof(char) * 16);
 
-			UInt64 Size = Tree->GetFiles();
-			Stream->Write((char*)&Size, sizeof(UInt64));
+			uint64_t Size = Tree->GetFiles();
+			Stream->Write((char*)&Size, sizeof(uint64_t));
 
-			UInt64 Offset = 0;
+			uint64_t Offset = 0;
 			Tree->Loop([Stream, &Offset, &Base, &Name](Rest::FileTree* Tree)
 			{
 				for (auto& Resource : Tree->Files)
@@ -3256,12 +3256,12 @@ namespace Tomahawk
 						if (Name.empty())
 							Path.assign(Path.substr(1));
 
-						UInt64 Size = (UInt64)Path.size();
-						UInt64 Length = File->Size();
+						uint64_t Size = (uint64_t)Path.size();
+						uint64_t Length = File->Size();
 
-						Stream->Write((char*)&Size, sizeof(UInt64));
-						Stream->Write((char*)&Offset, sizeof(UInt64));
-						Stream->Write((char*)&Length, sizeof(UInt64));
+						Stream->Write((char*)&Size, sizeof(uint64_t));
+						Stream->Write((char*)&Offset, sizeof(uint64_t));
+						Stream->Write((char*)&Length, sizeof(uint64_t));
 
 						Offset += Length;
 						if (Size > 0)
@@ -3279,11 +3279,11 @@ namespace Tomahawk
 					Rest::FileStream* File = new Rest::FileStream();
 					if (File->Open(Resource.c_str(), Rest::FileMode_Binary_Read_Only))
 					{
-						Int64 Size = (Int64)File->Size();
+						int64_t Size = (int64_t)File->Size();
 						while (Size > 0)
 						{
 							char Buffer[8192];
-							Int64 Offset = File->Read(Buffer, Size > 8192 ? 8192 : Size);
+							int64_t Offset = File->Read(Buffer, Size > 8192 ? 8192 : Size);
 							if (Offset <= 0)
 								break;
 
@@ -3617,7 +3617,7 @@ namespace Tomahawk
 		{
 			State = Value;
 		}
-		void Application::Enqueue(const std::function<void(Rest::Timer*)>& Callback, Float64 Limit)
+		void Application::Enqueue(const std::function<void(Rest::Timer*)>& Callback, double Limit)
 		{
 			if (!Queue || !Callback)
 				return;

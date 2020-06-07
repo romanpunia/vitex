@@ -33,6 +33,10 @@ namespace Tomahawk
 {
 	namespace Compute
 	{
+		class RigidBody;
+		
+		class SoftBody;
+
 		class Simulator;
 
 		class Transform;
@@ -292,33 +296,33 @@ namespace Tomahawk
 			Vector2 Degrees() const;
 			Vector3 MtVector3() const;
 			Vector4 MtVector4() const;
-			Vector2 operator *(const Vector2& vec) const;
-			Vector2 operator *(float vec) const;
-			Vector2 operator /(const Vector2& vec) const;
-			Vector2 operator /(float vec) const;
-			Vector2 operator +(const Vector2& right) const;
-			Vector2 operator +(float right) const;
-			Vector2 operator -(const Vector2& right) const;
-			Vector2 operator -(float right) const;
+			Vector2 operator *(const Vector2& V) const;
+			Vector2 operator *(float V) const;
+			Vector2 operator /(const Vector2& V) const;
+			Vector2 operator /(float V) const;
+			Vector2 operator +(const Vector2& V) const;
+			Vector2 operator +(float V) const;
+			Vector2 operator -(const Vector2& V) const;
+			Vector2 operator -(float V) const;
 			Vector2 operator -() const;
 			void ToInt32(unsigned int& Value) const;
 			void Set(const Vector2& Value);
 			void Get2(float* In) const;
-			void operator -=(const Vector2& right);
-			void operator -=(float right);
-			void operator *=(const Vector2& vec);
-			void operator *=(float vec);
-			void operator /=(const Vector2& vec);
-			void operator /=(float vec);
-			void operator +=(const Vector2& right);
-			void operator +=(float right);
-			Vector2& operator =(const Vector2& right);
-			bool operator ==(const Vector2& right) const;
-			bool operator !=(const Vector2& right) const;
-			bool operator <=(const Vector2& right) const;
-			bool operator >=(const Vector2& right) const;
-			bool operator >(const Vector2& right) const;
-			bool operator <(const Vector2& right) const;
+			Vector2& operator -=(const Vector2& V);
+			Vector2& operator -=(float V);
+			Vector2& operator *=(const Vector2& V);
+			Vector2& operator *=(float V);
+			Vector2& operator /=(const Vector2& V);
+			Vector2& operator /=(float V);
+			Vector2& operator +=(const Vector2& V);
+			Vector2& operator +=(float V);
+			Vector2& operator =(const Vector2& V);
+			bool operator ==(const Vector2& V) const;
+			bool operator !=(const Vector2& V) const;
+			bool operator <=(const Vector2& V) const;
+			bool operator >=(const Vector2& V) const;
+			bool operator >(const Vector2& V) const;
+			bool operator <(const Vector2& V) const;
 			float& operator [](int Axis);
 			float operator [](int Axis) const;
 
@@ -393,34 +397,34 @@ namespace Tomahawk
 			Vector3 Degrees() const;
 			Vector2 MtVector2() const;
 			Vector4 MtVector4() const;
-			Vector3 operator *(const Vector3& vec) const;
-			Vector3 operator *(float vec) const;
-			Vector3 operator /(const Vector3& vec) const;
-			Vector3 operator /(float vec) const;
-			Vector3 operator +(const Vector3& right) const;
-			Vector3 operator +(float right) const;
-			Vector3 operator -(const Vector3& right) const;
-			Vector3 operator -(float right) const;
+			Vector3 operator *(const Vector3& V) const;
+			Vector3 operator *(float V) const;
+			Vector3 operator /(const Vector3& V) const;
+			Vector3 operator /(float V) const;
+			Vector3 operator +(const Vector3& V) const;
+			Vector3 operator +(float V) const;
+			Vector3 operator -(const Vector3& V) const;
+			Vector3 operator -(float V) const;
 			Vector3 operator -() const;
-			void operator -=(const Vector3& right);
-			void operator -=(float right);
-			void operator *=(const Vector3& vec);
-			void operator *=(float vec);
-			void operator /=(const Vector3& vec);
-			void operator /=(float vec);
-			void operator +=(const Vector3& right);
-			void operator +=(float right);
-			Vector3& operator =(const Vector3& right);
+			Vector3& operator -=(const Vector3& V);
+			Vector3& operator -=(float V);
+			Vector3& operator *=(const Vector3& V);
+			Vector3& operator *=(float V);
+			Vector3& operator /=(const Vector3& V);
+			Vector3& operator /=(float V);
+			Vector3& operator +=(const Vector3& V);
+			Vector3& operator +=(float V);
+			Vector3& operator =(const Vector3& V);
 			void ToInt32(unsigned int& Value) const;
 			void Set(const Vector3& Value);
 			void Get2(float* In) const;
 			void Get3(float* In) const;
-			bool operator ==(const Vector3& right) const;
-			bool operator !=(const Vector3& right) const;
-			bool operator <=(const Vector3& right) const;
-			bool operator >=(const Vector3& right) const;
-			bool operator >(const Vector3& right) const;
-			bool operator <(const Vector3& right) const;
+			bool operator ==(const Vector3& V) const;
+			bool operator !=(const Vector3& V) const;
+			bool operator <=(const Vector3& V) const;
+			bool operator >=(const Vector3& V) const;
+			bool operator >(const Vector3& V) const;
+			bool operator <(const Vector3& V) const;
 			float& operator [](int Axis);
 			float operator [](int Axis) const;
 
@@ -505,37 +509,37 @@ namespace Tomahawk
 			Vector4 Degrees() const;
 			Vector2 MtVector2() const;
 			Vector3 MtVector3() const;
-			Vector4 operator *(const Matrix4x4& vec) const;
-			Vector4 operator *(const Vector4& vec) const;
-			Vector4 operator *(float vec) const;
-			Vector4 operator /(const Vector4& vec) const;
-			Vector4 operator /(float vec) const;
-			Vector4 operator +(const Vector4& right) const;
-			Vector4 operator +(float right) const;
-			Vector4 operator -(const Vector4& right) const;
-			Vector4 operator -(float right) const;
+			Vector4 operator *(const Matrix4x4& V) const;
+			Vector4 operator *(const Vector4& V) const;
+			Vector4 operator *(float V) const;
+			Vector4 operator /(const Vector4& V) const;
+			Vector4 operator /(float V) const;
+			Vector4 operator +(const Vector4& V) const;
+			Vector4 operator +(float V) const;
+			Vector4 operator -(const Vector4& V) const;
+			Vector4 operator -(float V) const;
 			Vector4 operator -() const;
 			void ToInt32(unsigned int& Value) const;
 			void Set(const Vector4& Value);
 			void Get2(float* In) const;
 			void Get3(float* In) const;
 			void Get4(float* In) const;
-			void operator -=(const Vector4& right);
-			void operator -=(float right);
-			void operator *=(const Matrix4x4& vec);
-			void operator *=(const Vector4& vec);
-			void operator *=(float vec);
-			void operator /=(const Vector4& vec);
-			void operator /=(float vec);
-			void operator +=(const Vector4& right);
-			void operator +=(float right);
-			Vector4& operator =(const Vector4& right);
-			bool operator ==(const Vector4& right) const;
-			bool operator !=(const Vector4& right) const;
-			bool operator <=(const Vector4& right) const;
-			bool operator >=(const Vector4& right) const;
-			bool operator >(const Vector4& right) const;
-			bool operator <(const Vector4& right) const;
+			Vector4& operator -=(const Vector4& V);
+			Vector4& operator -=(float V);
+			Vector4& operator *=(const Matrix4x4& V);
+			Vector4& operator *=(const Vector4& V);
+			Vector4& operator *=(float V);
+			Vector4& operator /=(const Vector4& V);
+			Vector4& operator /=(float V);
+			Vector4& operator +=(const Vector4& V);
+			Vector4& operator +=(float V);
+			Vector4& operator =(const Vector4& V);
+			bool operator ==(const Vector4& V) const;
+			bool operator !=(const Vector4& V) const;
+			bool operator <=(const Vector4& V) const;
+			bool operator >=(const Vector4& V) const;
+			bool operator >(const Vector4& V) const;
+			bool operator <(const Vector4& V) const;
 			float& operator [](int Axis);
 			float operator [](int Axis) const;
 
@@ -584,7 +588,6 @@ namespace Tomahawk
 			Vector3 Origin;
 			Vector3 Direction;
 
-		public:
 			Ray();
 			Ray(const Vector3& _Origin, const Vector3& _Direction);
 			Vector3 GetPoint(float T) const;
@@ -608,9 +611,9 @@ namespace Tomahawk
 			float operator [](int Index) const;
 			bool operator ==(const Matrix4x4& Index) const;
 			bool operator !=(const Matrix4x4& Index) const;
-			Matrix4x4 operator *(const Matrix4x4& right) const;
-			Matrix4x4 operator *(const Vector4& right) const;
-			Matrix4x4& operator =(const Matrix4x4& right);
+			Matrix4x4 operator *(const Matrix4x4& V) const;
+			Matrix4x4 operator *(const Vector4& V) const;
+			Matrix4x4& operator =(const Matrix4x4& V);
 			Matrix4x4 Mul(const Matrix4x4& Right) const;
 			Matrix4x4 Mul(const Vector4& Right) const;
 			Matrix4x4 Invert() const;
@@ -723,7 +726,7 @@ namespace Tomahawk
 			std::string Name;
 			Matrix4x4 Transform;
 			Matrix4x4 BindShape;
-			Int64 Index = -1;
+			int64_t Index = -1;
 		};
 
 		struct THAWK_OUT RandomVector2
@@ -837,33 +840,33 @@ namespace Tomahawk
 
 		struct THAWK_OUT RegexBracket
 		{
-			const char* Pointer;
-			Int64 Length;
-			Int64 Branches;
-			Int64 BranchesCount;
+			const char* Pointer = nullptr;
+			int64_t Length = 0;
+			int64_t Branches = 0;
+			int64_t BranchesCount = 0;
 		};
 
 		struct THAWK_OUT RegexBranch
 		{
-			Int64 BracketIndex;
+			int64_t BracketIndex;
 			const char* Pointer;
 		};
 
 		struct THAWK_OUT RegexMatch
 		{
 			const char* Pointer;
-			Int64 Start;
-			Int64 End;
-			Int64 Length;
-			Int64 Steps;
+			int64_t Start;
+			int64_t End;
+			int64_t Length;
+			int64_t Steps;
 		};
 
 		struct THAWK_OUT RegExp
 		{
 			std::string Regex;
-			Int64 MaxBranches = 128;
-			Int64 MaxBrackets = 128;
-			Int64 MaxMatches = 128;
+			int64_t MaxBranches = 128;
+			int64_t MaxBrackets = 128;
+			int64_t MaxMatches = 128;
 			RegexFlags Flags = RegexFlags_None;
 		};
 
@@ -875,7 +878,7 @@ namespace Tomahawk
 			std::vector<RegexMatch> Matches;
 			std::vector<RegexBracket> Brackets;
 			std::vector<RegexBranch> Branches;
-			Int64 NextMatch = 0, Steps = 0;
+			int64_t NextMatch = 0, Steps = 0;
 			RegexState State = RegexState_No_Match;
 
 		public:
@@ -885,22 +888,21 @@ namespace Tomahawk
 			void ResetNextMatch();
 			bool HasMatch();
 			bool IsMatch(std::vector<RegexMatch>::iterator It);
-			Int64 Start();
-			Int64 End();
-			Int64 Length();
-			Int64 GetSteps();
-			Int64 GetMatchesCount();
+			int64_t Start();
+			int64_t End();
+			int64_t Length();
+			int64_t GetSteps();
+			int64_t GetMatchesCount();
 			RegexState GetState();
-			std::vector<RegexMatch>::iterator GetMatch(Int64 Id);
+			std::vector<RegexMatch>::iterator GetMatch(int64_t Id);
 			std::vector<RegexMatch>::iterator GetNextMatch();
 			const char* Pointer();
 		};
 
 		struct THAWK_OUT CollisionBody
 		{
-			class RigidBody* Rigid = nullptr;
-
-			class SoftBody* Soft = nullptr;
+			RigidBody* Rigid = nullptr;
+			SoftBody* Soft = nullptr;
 
 			CollisionBody(btCollisionObject* Object);
 		};
@@ -980,7 +982,7 @@ namespace Tomahawk
 			}
 			static Precision Sqrt(Precision Value)
 			{
-				return (Precision)std::sqrt((Float64)Value);
+				return (Precision)std::sqrt((double)Value);
 			}
 			static Precision Abs(Precision Value)
 			{
@@ -988,35 +990,35 @@ namespace Tomahawk
 			}
 			static Precision ATan(Precision Angle)
 			{
-				return (Precision)std::atan((Float64)Angle);
+				return (Precision)std::atan((double)Angle);
 			}
 			static Precision ATan2(Precision Angle0, Precision Angle1)
 			{
-				return (Precision)std::atan2((Float64)Angle0, (Float64)Angle1);
+				return (Precision)std::atan2((double)Angle0, (double)Angle1);
 			}
 			static Precision ACos(Precision Angle)
 			{
-				return (Precision)std::acos((Float64)Angle);
+				return (Precision)std::acos((double)Angle);
 			}
 			static Precision ASin(Precision Angle)
 			{
-				return (Precision)std::asin((Float64)Angle);
+				return (Precision)std::asin((double)Angle);
 			}
 			static Precision Cos(Precision Angle)
 			{
-				return (Precision)std::cos((Float64)Angle);
+				return (Precision)std::cos((double)Angle);
 			}
 			static Precision Sin(Precision Angle)
 			{
-				return (Precision)std::sin((Float64)Angle);
+				return (Precision)std::sin((double)Angle);
 			}
 			static Precision Tan(Precision Angle)
 			{
-				return (Precision)std::tan((Float64)Angle);
+				return (Precision)std::tan((double)Angle);
 			}
 			static Precision ACotan(Precision Angle)
 			{
-				return (Precision)std::atan(1.0 / (Float64)Angle);
+				return (Precision)std::atan(1.0 / (double)Angle);
 			}
 			static Precision Max(Precision Value1, Precision Value2)
 			{
@@ -1028,7 +1030,7 @@ namespace Tomahawk
 			}
 			static Precision Floor(Precision Value)
 			{
-				return (Precision)std::floor((Float64)Value);
+				return (Precision)std::floor((double)Value);
 			}
 			static Precision Lerp(Precision A, Precision B, Precision DeltaTime)
 			{
@@ -1040,7 +1042,7 @@ namespace Tomahawk
 			}
 			static Precision SaturateAngle(Precision Angle)
 			{
-				return (Precision)std::atan2(std::sin((Float64)Angle), std::cos((Float64)Angle));
+				return (Precision)std::atan2(std::sin((double)Angle), std::cos((double)Angle));
 			}
 			static Precision AngluarLerp(Precision A, Precision B, Precision DeltaTime)
 			{
@@ -1066,11 +1068,11 @@ namespace Tomahawk
 				if (Number0 == Number1)
 					return Number0;
 
-				return (Precision)((Float64)Number0 + ((Float64)Number1 - (Float64)Number0) / RAND_MAX * rand());
+				return (Precision)((double)Number0 + ((double)Number1 - (double)Number0) / RAND_MAX * rand());
 			}
 			static Precision Round(Precision Value)
 			{
-				return (Precision)std::round((Float64)Value);
+				return (Precision)std::round((double)Value);
 			}
 			static Precision Random()
 			{
@@ -1082,7 +1084,7 @@ namespace Tomahawk
 			}
 			static Precision Pow(Precision Value0, Precision Value1)
 			{
-				return (Precision)std::pow((Float64)Value0, (Float64)Value1);
+				return (Precision)std::pow((double)Value0, (double)Value1);
 			}
 			static Precision Pow2(Precision Value0)
 			{
@@ -1110,7 +1112,7 @@ namespace Tomahawk
 			}
 			static Precision Cotan(Precision Value)
 			{
-				return (Precision)(1.0 / std::tan((Float64)Value));
+				return (Precision)(1.0 / std::tan((double)Value));
 			}
 			static void Swap(Precision& Value0, Precision& Value1)
 			{
@@ -1123,11 +1125,11 @@ namespace Tomahawk
 		class THAWK_OUT MathCommon
 		{
 		public:
-			static std::string Base10ToBaseN(UInt64 Value, unsigned int BaseLessThan65);
+			static std::string Base10ToBaseN(uint64_t Value, unsigned int BaseLessThan65);
 			static std::string URIEncode(const std::string& Text);
-			static std::string URIEncode(const char* Text, UInt64 Length);
+			static std::string URIEncode(const char* Text, uint64_t Length);
 			static std::string URIDecode(const std::string& Text);
-			static std::string URIDecode(const char* Text, UInt64 Length);
+			static std::string URIDecode(const char* Text, uint64_t Length);
 			static std::string Encrypt(const std::string& Text, int Offset);
 			static std::string Decrypt(const std::string& Text, int Offset);
 			static float IsClipping(Matrix4x4 ViewProjection, Matrix4x4 World, float Radius);
@@ -1141,9 +1143,9 @@ namespace Tomahawk
 			static bool HasOBBIntersected(Transform* BoxR0, Transform* BoxR1);
 			static bool HasAABBIntersected(Transform* BoxR0, Transform* BoxR1);
 			static bool IsBase64(unsigned char Value);
-			static bool HexToString(void* Data, UInt64 Length, char* Buffer, UInt64 BufferLength);
+			static bool HexToString(void* Data, uint64_t Length, char* Buffer, uint64_t BufferLength);
 			static bool Hex(char c, int& v);
-			static bool HexToDecimal(const std::string& s, UInt64 i, UInt64 cnt, int& Value);
+			static bool HexToDecimal(const std::string& s, uint64_t i, uint64_t cnt, int& Value);
 			static void ComputeJointOrientation(Compute::Joint* Matrix, bool LeftHanded);
 			static void ComputeMatrixOrientation(Compute::Matrix4x4* Matrix, bool LeftHanded);
 			static void ComputePositionOrientation(Compute::Vector3* Position, bool LeftHanded);
@@ -1151,7 +1153,7 @@ namespace Tomahawk
 			static void ComputeVertexOrientation(std::vector<Vertex>& Vertices, bool LeftHanded);
 			static void ComputeInfluenceOrientation(std::vector<InfluenceVertex>& Vertices, bool LeftHanded);
 			static void ComputeInfluenceNormals(std::vector<InfluenceVertex>& Vertices);
-			static void ComputeInfluenceNormalsArray(InfluenceVertex* Vertices, UInt64 Count);
+			static void ComputeInfluenceNormalsArray(InfluenceVertex* Vertices, uint64_t Count);
 			static void ComputeInfluenceTangentBitangent(InfluenceVertex V1, InfluenceVertex V2, InfluenceVertex V3, Vector3& Tangent, Vector3& Bitangent, Vector3& Normal);
 			static void ComputeInfluenceTangentBitangent(InfluenceVertex V1, InfluenceVertex V2, InfluenceVertex V3, Vector3& Tangent, Vector3& Bitangent);
 			static void ConfigurateUnsafe(Transform* In, Matrix4x4* LocalTransform, Vector3* LocalPosition, Vector3* LocalRotation, Vector3* LocalScale);
@@ -1162,21 +1164,21 @@ namespace Tomahawk
 			static void Sha1Compute(const void* Value, int Length, unsigned char* Hash20);
 			static void Sha1Hash20ToHex(const unsigned char* Hash20, char* HexString);
 			static std::string BinToHex(const char* Value);
-			static std::string RandomBytes(UInt64 Length);
+			static std::string RandomBytes(uint64_t Length);
 			static std::string MD5Hash(const std::string& Value);
 			static std::string Sha256Encode(const char* Value, const char* Key, const char* IV);
 			static std::string Sha256Decode(const char* Value, const char* Key, const char* IV);
 			static std::string Aes256Encode(const std::string& Value, const char* Key, const char* IV);
 			static std::string Aes256Decode(const std::string& Value, const char* Key, const char* IV);
-			static std::string Base64Encode(const unsigned char* Value, UInt64 Length);
+			static std::string Base64Encode(const unsigned char* Value, uint64_t Length);
 			static std::string Base64Encode(const std::string& Value);
 			static std::string Base64Decode(const std::string& Value);
 			static std::string Hybi10Encode(Hybi10Request hRequest, bool Masked);
-			static std::string DecimalToHex(UInt64 V);
+			static std::string DecimalToHex(uint64_t V);
 			static Hybi10Request Hybi10Decode(const std::string& Data);
 			static unsigned char RandomUC();
-			static Int64 RandomNumber(Int64 Begin, Int64 End);
-			static UInt64 Utf8(int code, char* Buffer);
+			static int64_t RandomNumber(int64_t Begin, int64_t End);
+			static uint64_t Utf8(int code, char* Buffer);
 			static Ray CreateCursorRay(const Vector3& Origin, const Vector2& Cursor, const Vector2& Screen, const Matrix4x4& InvProjection, const Matrix4x4& InvView);
 			static bool CursorRayTest(const Ray& Cursor, const Vector3& Position, const Vector3& Scale);
 		};
@@ -1185,26 +1187,26 @@ namespace Tomahawk
 		{
 		private:
 			static void Setup(RegexResult* Info);
-			static Int64 Meta(const unsigned char* Buffer);
-			static Int64 OpLength(const char* Value);
-			static Int64 SetLength(const char* Value, Int64 ValueLength);
-			static Int64 GetOpLength(const char* Value, Int64 ValueLength);
-			static Int64 Quantifier(const char* Value);
-			static Int64 ToInt(Int64 x);
-			static Int64 HexToInt(const unsigned char* Buffer);
-			static Int64 MatchOp(const unsigned char* Value, const unsigned char* Buffer, RegexResult* Info);
-			static Int64 MatchSet(const char* Value, Int64 ValueLength, const char* Buffer, RegexResult* Info);
-			static Int64 ParseDOH(const char* Buffer, Int64 BufferLength, RegexResult* Info, Int64 Case);
-			static Int64 ParseInner(const char* Value, Int64 ValueLength, const char* Buffer, Int64 BufferLength, RegexResult* Info, Int64 Case);
-			static Int64 ParseOuter(const char* Buffer, Int64 BufferLength, RegexResult* Info);
-			static Int64 Parse(const char* Value, Int64 ValueLength, const char* Buffer, Int64 BufferLength, RegexResult* Info);
+			static int64_t Meta(const unsigned char* Buffer);
+			static int64_t OpLength(const char* Value);
+			static int64_t SetLength(const char* Value, int64_t ValueLength);
+			static int64_t GetOpLength(const char* Value, int64_t ValueLength);
+			static int64_t Quantifier(const char* Value);
+			static int64_t ToInt(int64_t x);
+			static int64_t HexToInt(const unsigned char* Buffer);
+			static int64_t MatchOp(const unsigned char* Value, const unsigned char* Buffer, RegexResult* Info);
+			static int64_t MatchSet(const char* Value, int64_t ValueLength, const char* Buffer, RegexResult* Info);
+			static int64_t ParseDOH(const char* Buffer, int64_t BufferLength, RegexResult* Info, int64_t Case);
+			static int64_t ParseInner(const char* Value, int64_t ValueLength, const char* Buffer, int64_t BufferLength, RegexResult* Info, int64_t Case);
+			static int64_t ParseOuter(const char* Buffer, int64_t BufferLength, RegexResult* Info);
+			static int64_t Parse(const char* Value, int64_t ValueLength, const char* Buffer, int64_t BufferLength, RegexResult* Info);
 
 		public:
 			static bool Match(RegExp* Value, RegexResult* Result, const std::string& Buffer);
-			static bool Match(RegExp* Value, RegexResult* Result, const char* Buffer, Int64 Length);
+			static bool Match(RegExp* Value, RegexResult* Result, const char* Buffer, int64_t Length);
 			static bool MatchAll(RegExp* Value, RegexResult* Result, const std::string& Buffer);
-			static bool MatchAll(RegExp* Value, RegexResult* Result, const char* Buffer, Int64 Length);
-			static RegExp Create(const std::string& Regexp, RegexFlags Flags = RegexFlags_None, Int64 MaxMatches = -1, Int64 MaxBranches = -1, Int64 MaxBrackets = -1);
+			static bool MatchAll(RegExp* Value, RegexResult* Result, const char* Buffer, int64_t Length);
+			static RegExp Create(const std::string& Regexp, RegexFlags Flags = RegexFlags_None, int64_t MaxMatches = -1, int64_t MaxBranches = -1, int64_t MaxBrackets = -1);
 			static const char* Syntax();
 		};
 
@@ -1247,11 +1249,11 @@ namespace Tomahawk
 			bool ProcessIncludeDirective(const std::string& Path, Rest::Stroke& Buffer);
 			bool ProcessPragmaDirective(Rest::Stroke& Buffer);
 			bool ProcessBlockDirective(Rest::Stroke& Buffer);
-			bool ProcessDefineDirective(Rest::Stroke& Buffer, UInt64 Base, UInt64& Offset, bool Endless);
-			int FindDefineDirective(Rest::Stroke& Buffer, UInt64& Offset, UInt64* Size);
-			int FindBlockDirective(Rest::Stroke& Buffer, UInt64& Offset, bool Nested);
-			int FindBlockNesting(Rest::Stroke& Buffer, Rest::Stroke::Settle& Hash, UInt64& Offset, bool Resolved);
-			int FindDirective(Rest::Stroke& Buffer, const char* V, UInt64* Offset, UInt64* Base, UInt64* Start, UInt64* End);
+			bool ProcessDefineDirective(Rest::Stroke& Buffer, uint64_t Base, uint64_t& Offset, bool Endless);
+			int FindDefineDirective(Rest::Stroke& Buffer, uint64_t& Offset, uint64_t* Size);
+			int FindBlockDirective(Rest::Stroke& Buffer, uint64_t& Offset, bool Nested);
+			int FindBlockNesting(Rest::Stroke& Buffer, Rest::Stroke::Settle& Hash, uint64_t& Offset, bool Resolved);
+			int FindDirective(Rest::Stroke& Buffer, const char* V, uint64_t* Offset, uint64_t* Base, uint64_t* Start, uint64_t* End);
 			bool HasSet(const std::string& Path);
 
 		public:
@@ -1282,7 +1284,7 @@ namespace Tomahawk
 			virtual ~Transform() override;
 			void GetRootBasis(Vector3& Position, Vector3& Scale, Vector3& Rotation);
 			void SetRoot(Transform* Root);
-			void SetMatrix(Matrix4x4 Matrix);
+			void SetMatrix(const Matrix4x4& Matrix);
 			void SetLocals(Transform* Target);
 			void Copy(Transform* Target);
 			void AddChild(Transform* Child);
@@ -1292,7 +1294,7 @@ namespace Tomahawk
 			void GetWorld(btTransform* Out);
 			void GetLocal(btTransform* Out);
 			std::vector<Transform*>* GetChilds();
-			Transform* GetChild(UInt64 Child);
+			Transform* GetChild(uint64_t Child);
 			Vector3* GetLocalPosition();
 			Vector3* GetLocalRotation();
 			Vector3* GetLocalScale();
@@ -1314,7 +1316,7 @@ namespace Tomahawk
 			Transform* GetRoot();
 			bool HasRoot(Transform* Target);
 			bool HasChild(Transform* Target);
-			UInt64 GetChildCount();
+			uint64_t GetChildCount();
 
 		protected:
 			bool CanRootBeApplied(Transform* Root);
@@ -1363,7 +1365,7 @@ namespace Tomahawk
 			void PushKinematic(const Vector3& Velocity);
 			void PushKinematic(const Vector3& Velocity, const Vector3& Torque);
 			void Synchronize(Transform* Transform, bool Kinematic);
-			void SetCollisionFlags(UInt64 Flags);
+			void SetCollisionFlags(uint64_t Flags);
 			void SetActivity(bool Active);
 			void SetAsGhost();
 			void SetAsNormal();
@@ -1427,7 +1429,7 @@ namespace Tomahawk
 			float GetDeactivationTime();
 			float GetRollingFriction();
 			float GetMass();
-			UInt64 GetCollisionFlags();
+			uint64_t GetCollisionFlags();
 			Desc& GetInitialState();
 			Simulator* GetSimulator();
 
@@ -1632,8 +1634,8 @@ namespace Tomahawk
 			float GetContactProcessingThreshold();
 			float GetDeactivationTime();
 			float GetRollingFriction();
-			UInt64 GetCollisionFlags();
-			UInt64 GetVerticesCount();
+			uint64_t GetCollisionFlags();
+			uint64_t GetVerticesCount();
 			Desc& GetInitialState();
 			Simulator* GetSimulator();
 
@@ -1752,7 +1754,7 @@ namespace Tomahawk
 			};
 
 		private:
-			std::unordered_map<void*, UInt64> Shapes;
+			std::unordered_map<void*, uint64_t> Shapes;
 			btCollisionConfiguration* Collision;
 			btBroadphaseInterface* Broadphase;
 			btConstraintSolver* Solver;
@@ -1811,7 +1813,7 @@ namespace Tomahawk
 			btCollisionShape* ReuseShape(btCollisionShape* Shape);
 			void FreeShape(btCollisionShape** Value);
 			std::vector<Vector3> GetShapeVertices(btCollisionShape* Shape);
-			UInt64 GetShapeVerticesCount(btCollisionShape* Shape);
+			uint64_t GetShapeVerticesCount(btCollisionShape* Shape);
 			float GetMaxDisplacement();
 			float GetAirDensity();
 			float GetWaterOffset();

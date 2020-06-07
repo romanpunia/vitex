@@ -188,16 +188,16 @@ namespace Tomahawk
 				virtual void OnAwake(Component* New) override;
 				virtual void OnSynchronize(Rest::Timer* Time) override;
 				virtual Component* OnClone(Entity* New) override;
-				void Play(Int64 Clip = -1, Int64 Frame = -1);
+				void Play(int64_t Clip = -1, int64_t Frame = -1);
 				void Pause();
 				void Stop();
-				std::vector<Compute::AnimatorKey>* GetFrame(Int64 Clip, Int64 Frame);
-				std::vector<std::vector<Compute::AnimatorKey>>* GetClip(Int64 Clip);
+				std::vector<Compute::AnimatorKey>* GetFrame(int64_t Clip, int64_t Frame);
+				std::vector<std::vector<Compute::AnimatorKey>>* GetClip(int64_t Clip);
 
 			private:
-				void BlendAnimation(Int64 Clip, Int64 Frame);
+				void BlendAnimation(int64_t Clip, int64_t Frame);
 				void SavePose();
-				bool IsPosed(Int64 Clip, Int64 Frame);
+				bool IsPosed(int64_t Clip, int64_t Frame);
 
 			public:
 				THAWK_COMPONENT(SkinAnimator);
@@ -217,16 +217,16 @@ namespace Tomahawk
 				virtual void OnSave(ContentManager* Content, Rest::Document* Node) override;
 				virtual void OnSynchronize(Rest::Timer* Time) override;
 				virtual Component* OnClone(Entity* New) override;
-				void Play(Int64 Clip = -1, Int64 Frame = -1);
+				void Play(int64_t Clip = -1, int64_t Frame = -1);
 				void Pause();
 				void Stop();
-				Compute::AnimatorKey* GetFrame(Int64 Clip, Int64 Frame);
-				std::vector<Compute::AnimatorKey>* GetClip(Int64 Clip);
+				Compute::AnimatorKey* GetFrame(int64_t Clip, int64_t Frame);
+				std::vector<Compute::AnimatorKey>* GetClip(int64_t Clip);
 
 			private:
-				void BlendAnimation(Int64 Clip, Int64 Frame);
+				void BlendAnimation(int64_t Clip, int64_t Frame);
 				void SavePose();
-				bool IsPosed(Int64 Clip, Int64 Frame);
+				bool IsPosed(int64_t Clip, int64_t Frame);
 
 			public:
 				THAWK_COMPONENT(KeyAnimator);
@@ -237,7 +237,7 @@ namespace Tomahawk
 			public:
 				Compute::Vector3 Diffusion;
 				Compute::Vector2 TexCoord;
-				UInt64 Material;
+				uint64_t Material;
 				float Visibility;
 				float Volume;
 				bool StrongConnection;

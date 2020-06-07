@@ -18,6 +18,7 @@ class asIScriptModule;
 class asITypeInfo;
 class asIScriptFunction;
 class asIScriptGeneric;
+class asIScriptObject;
 class asILockableSharedBool;
 struct asSFuncPtr;
 struct asSMessageInfo;
@@ -30,7 +31,7 @@ namespace Tomahawk
 
 		struct VMWFunction;
 
-		struct VMCompiler;
+		class VMCompiler;
 
 		class VMManager;
 
@@ -263,6 +264,75 @@ namespace Tomahawk
 			VMObjType_MASK_VALID_FLAGS = 0x1FFFFF
 		};
 
+		enum VMOpFunc
+		{
+			VMOpFunc_Neg,
+			VMOpFunc_Com,
+			VMOpFunc_PreInc,
+			VMOpFunc_PreDec,
+			VMOpFunc_PostInc,
+			VMOpFunc_PostDec,
+			VMOpFunc_Equals,
+			VMOpFunc_Cmp,
+			VMOpFunc_Assign,
+			VMOpFunc_AddAssign,
+			VMOpFunc_SubAssign,
+			VMOpFunc_MulAssign,
+			VMOpFunc_DivAssign,
+			VMOpFunc_ModAssign,
+			VMOpFunc_PowAssign,
+			VMOpFunc_AndAssign,
+			VMOpFunc_OrAssign,
+			VMOpFunc_XOrAssign,
+			VMOpFunc_ShlAssign,
+			VMOpFunc_ShrAssign,
+			VMOpFunc_UshrAssign,
+			VMOpFunc_Add,
+			VMOpFunc_Sub,
+			VMOpFunc_Mul,
+			VMOpFunc_Div,
+			VMOpFunc_Mod,
+			VMOpFunc_Pow,
+			VMOpFunc_And,
+			VMOpFunc_Or,
+			VMOpFunc_XOr,
+			VMOpFunc_Shl,
+			VMOpFunc_Shr,
+			VMOpFunc_Ushr,
+			VMOpFunc_Index,
+			VMOpFunc_Call,
+			VMOpFunc_Cast,
+			VMOpFunc_ImplCast
+		};
+
+		enum VMFeature
+		{
+			VMFeature_All = 0,
+			VMFeature_String = (1 << 0),
+			VMFeature_Array = (1 << 1),
+			VMFeature_Any = (1 << 2),
+			VMFeature_Dictionary = (1 << 3),
+			VMFeature_Grid = (1 << 4),
+			VMFeature_Math = (1 << 5),
+			VMFeature_DateTime = (1 << 6),
+			VMFeature_Exception = (1 << 7),
+			VMFeature_Reference = (1 << 8),
+			VMFeature_WeakReference = (1 << 9),
+			VMFeature_Random = (1 << 10),
+			VMFeature_Thread = (1 << 11),
+			VMFeature_Async = (1 << 12),
+			VMFeature_Rest = (1 << 13),
+			VMFeature_Compute = (1 << 14),
+			VMFeature_Audio = (1 << 15),
+			VMFeature_Network = (1 << 16),
+			VMFeature_HTTP = (1 << 17),
+			VMFeature_SMTP = (1 << 18),
+			VMFeature_BSON = (1 << 19),
+			VMFeature_MongoDB = (1 << 20),
+			VMFeature_Graphics = (1 << 21),
+			VMFeature_Engine = (1 << 22)
+		};
+
 		typedef CScriptArray VMCArray;
 		typedef CScriptAny VMCAny;
 		typedef CScriptDictionary VMCDictionary;
@@ -275,10 +345,13 @@ namespace Tomahawk
 		typedef asITypeInfo VMCTypeInfo;
 		typedef asIScriptFunction VMCFunction;
 		typedef asIScriptGeneric VMCGeneric;
+		typedef asIScriptObject VMCObject;
 		typedef asILockableSharedBool VMCLockableSharedBool;
 		typedef void (VMDummy::*VMMethodPtr)();
 		typedef std::function<void(class VMCAsync*)> AsyncWorkCallback;
 		typedef std::function<void(enum VMExecState)> AsyncDoneCallback;
+		typedef std::function<void(struct VMWTypeInfo*, struct VMFuncProperty*)> PropertyCallback;
+		typedef std::function<void(struct VMWTypeInfo*, struct VMWFunction*)> MethodCallback;
 
 		class THAWK_OUT VMWGeneric
 		{
@@ -295,7 +368,7 @@ namespace Tomahawk
 			unsigned char GetArgByte(unsigned int Argument);
 			unsigned short GetArgWord(unsigned int Argument);
 			size_t GetArgDWord(unsigned int Argument);
-			UInt64 GetArgQWord(unsigned int Argument);
+			uint64_t GetArgQWord(unsigned int Argument);
 			float GetArgFloat(unsigned int Argument);
 			double GetArgDouble(unsigned int Argument);
 			void* GetArgAddress(unsigned int Argument);
@@ -305,7 +378,7 @@ namespace Tomahawk
 			int SetReturnByte(unsigned char Value);
 			int SetReturnWord(unsigned short Value);
 			int SetReturnDWord(size_t Value);
-			int SetReturnQWord(UInt64 Value);
+			int SetReturnQWord(uint64_t Value);
 			int SetReturnFloat(float Value);
 			int SetReturnDouble(double Value);
 			int SetReturnAddress(void* Address);
@@ -460,22 +533,6 @@ namespace Tomahawk
 
 				return 0;
 			}
-			template <typename T, typename... Args>
-			static void Construct(void* Memory, Args... Data)
-			{
-				new(Memory) T(Data...);
-			}
-			template <typename T>
-			static void ConstructList(VMCGeneric* Generic)
-			{
-				VMWGeneric Args = Generic;
-				*(T**)Args.GetAddressOfReturnLocation() = new T(&Args);
-			}
-			template <typename T>
-			static void Destruct(void* Memory)
-			{
-				((T*)Memory)->~T();
-			}
 			template <typename T>
 			static asSFuncPtr* BindFunction(T Value)
 			{
@@ -486,8 +543,23 @@ namespace Tomahawk
 #endif
 				return VMBind::CreateFunctionBase(Address, 2);
 			}
+			template <typename T>
+			static asSFuncPtr* BindFunctionGeneric(T Value)
+			{
+#ifdef THAWK_64
+				void(*Address)() = reinterpret_cast<void(*)()>(size_t(Value));
+#else
+				void(*Address)() = reinterpret_cast<void(*)()>(Value);
+#endif
+				return VMBind::CreateFunctionBase(Address, 1);
+			}
 			template <typename T, typename R, typename... Args>
 			static asSFuncPtr* BindMethod(R(T::*Value)(Args...))
+			{
+				return Method<sizeof(void (T::*)())>::Bind((void (T::*)())(Value));
+			}
+			template <typename T, typename R, typename... Args>
+			static asSFuncPtr* BindMethod(R(T::*Value)(Args...) const)
 			{
 				return Method<sizeof(void (T::*)())>::Bind((void (T::*)())(Value));
 			}
@@ -496,20 +568,26 @@ namespace Tomahawk
 			{
 				return Method<sizeof(void (T::*)())>::Bind(static_cast<R(T::*)(Args...)>(Value));
 			}
-			template <typename T, typename... Args>
-			static asSFuncPtr* BindConstructor()
+			template <typename T, typename R, typename... Args>
+			static asSFuncPtr* BindMethodOp(R(T::*Value)(Args...) const)
 			{
-				return BindFunction(Construct<T, Args...>);
+				return Method<sizeof(void (T::*)())>::Bind(static_cast<R(T::*)(Args...)>(Value));
 			}
-			template <typename T, VMCGeneric*>
-			static asSFuncPtr* BindConstructor()
+			template <typename T, typename... Args>
+			static void BindConstructor(void* Memory, Args... Data)
 			{
-				return BindFunction(ConstructList<T>);
+				new(Memory) T(Data...);
 			}
 			template <typename T>
-			static asSFuncPtr* BindDestructor()
+			static void BindConstructorList(VMCGeneric* Generic)
 			{
-				return BindFunction(Destruct<T>);
+				VMWGeneric Args(Generic);
+				*reinterpret_cast<T**>(Args.GetAddressOfReturnLocation()) = new T((unsigned char*)Args.GetArgAddress(0));
+			}
+			template <typename T>
+			static void BindDestructor(void* Memory)
+			{
+				((T*)Memory)->~T();
 			}
 			template <typename T, const char* TypeName, typename... Args>
 			static T* BindManaged(Args&& ... Data)
@@ -522,9 +600,10 @@ namespace Tomahawk
 			template <typename T, const char* TypeName>
 			static void BindManagedList(VMCGeneric* Generic)
 			{
-				T* Result = new T(Generic);
+				VMWGeneric Args(Generic);
+				T* Result = new T((unsigned char*)Args.GetArgAddress(0));
+				*reinterpret_cast<T**>(Args.GetAddressOfReturnLocation()) = Result;
 				VMCThread::AtomicNotifyGC(TypeName, (void*)Result);
-				*((T**)Args.GetAddressOfReturnLocation()) = Result;
 			}
 			template <typename T, typename... Args>
 			static T* BindUnmanaged(Args&& ... Data)
@@ -534,7 +613,8 @@ namespace Tomahawk
 			template <typename T>
 			static void BindUnmanagedList(VMCGeneric* Generic)
 			{
-				*((T**)Args.GetAddressOfReturnLocation()) = new T(Generic);
+				VMWGeneric Args(Generic);
+				*reinterpret_cast<T**>(Args.GetAddressOfReturnLocation()) = new T((unsigned char*)Args.GetArgAddress(0));
 			}
 		};
 
@@ -631,7 +711,7 @@ namespace Tomahawk
 			static VMCAny* ReceiveWaitInThread();
 			static VMCAny* ReceiveInThread(uint64_t Timeout);
 			static VMCThread* StartThread(VMCFunction* Func);
-			static UInt64 GetIdInThread();
+			static uint64_t GetIdInThread();
 		};
 
 		class THAWK_OUT VMCAsync
@@ -668,9 +748,17 @@ namespace Tomahawk
 			static VMCAsync* CreateFilled(void* Ref, int TypeId);
 			static VMCAsync* CreateFilled(void* Ref, const char* TypeName);
 			static VMCAsync* CreateFilled(bool Value);
-			static VMCAsync* CreateFilled(Int64 Value);
+			static VMCAsync* CreateFilled(int64_t Value);
 			static VMCAsync* CreateFilled(double Value);
 			static VMCAsync* CreateEmpty();
+		};
+
+		struct THAWK_OUT VMByteCode
+		{
+			std::vector<unsigned char> Data;
+			std::string Name;
+			bool Valid = false;
+			bool Debug = true;
 		};
 
 		struct THAWK_OUT VMProperty
@@ -719,6 +807,8 @@ namespace Tomahawk
 
 		public:
 			VMWTypeInfo(VMCTypeInfo* TypeInfo);
+			void ForEachProperty(const PropertyCallback& Callback);
+			void ForEachMethod(const MethodCallback& Callback);
 			const char* GetGroup() const;
 			size_t GetAccessMask() const;
 			VMWModule GetModule() const;
@@ -755,11 +845,64 @@ namespace Tomahawk
 			unsigned int GetEnumValueCount() const;
 			const char* GetEnumValueByIndex(unsigned int Index, int* OutValue) const;
 			VMWFunction GetFunctionDefSignature() const;
-			void* SetUserData(void* Data, UInt64 Type = 0);
-			void* GetUserData(UInt64 Type = 0) const;
+			void* SetUserData(void* Data, uint64_t Type = 0);
+			void* GetUserData(uint64_t Type = 0) const;
+			bool IsHandle() const;
 			bool IsValid() const;
 			VMCTypeInfo* GetTypeInfo() const;
 			VMManager* GetManager() const;
+
+		public:
+			template <typename T>
+			T* GetInstance(void* Object)
+			{
+				if (!Object)
+					return nullptr;
+
+				return IsHandle() ? *(T**)Object : (T*)Object;
+			}
+			template <typename T>
+			T* GetProperty(void* Object, int Offset)
+			{
+				if (!Object)
+					return nullptr;
+
+				if (!IsHandle())
+					return reinterpret_cast<T*>(reinterpret_cast<char*>(Object) + Offset);
+
+				if (!(*(void**)Object))
+					return nullptr;
+
+				return reinterpret_cast<T*>(reinterpret_cast<char*>(*(void**)Object) + Offset);
+			}
+
+		public:
+			template <typename T>
+			static T* GetInstance(void* Object, int TypeId)
+			{
+				if (!Object)
+					return nullptr;
+
+				return IsHandle(TypeId) ? *(T**)Object : (T*)Object;
+			}
+			template <typename T>
+			static T* GetProperty(void* Object, int Offset, int TypeId)
+			{
+				if (!Object)
+					return nullptr;
+
+				if (!IsHandle(TypeId))
+					return reinterpret_cast<T*>(reinterpret_cast<char*>(Object) + Offset);
+
+				if (!(*(void**)Object))
+					return nullptr;
+
+				return reinterpret_cast<T*>(reinterpret_cast<char*>(*(void**)Object) + Offset);
+			}
+
+		public:
+			static bool IsHandle(int TypeId);
+			static bool IsScriptObject(int TypeId);
 		};
 
 		struct THAWK_OUT VMWFunction
@@ -804,8 +947,8 @@ namespace Tomahawk
 			int GetProperty(unsigned int Index, const char** Name, int* TypeId = nullptr) const;
 			const char* GetPropertyDecl(unsigned int Index, bool IncludeNamespace = false) const;
 			int FindNextLineWithCode(int Line) const;
-			void* SetUserData(void* UserData, UInt64 Type = 0);
-			void* GetUserData(UInt64 Type = 0) const;
+			void* SetUserData(void* UserData, uint64_t Type = 0);
+			void* GetUserData(uint64_t Type = 0) const;
 			bool IsValid() const;
 			VMCFunction* GetFunction() const;
 			VMManager* GetManager() const;
@@ -917,11 +1060,11 @@ namespace Tomahawk
 			int Release();
 			int CopyFrom(const VMWAny& Other);
 			void Store(void* Ref, int RefTypeId);
-			void Store(Int64& Value);
+			void Store(int64_t& Value);
 			void Store(double& Value);
 			bool RetrieveAny(void** Ref, int* RefTypeId) const;
 			bool Retrieve(void* Ref, int RefTypeId) const;
-			bool Retrieve(Int64& Value) const;
+			bool Retrieve(int64_t& Value) const;
 			bool Retrieve(double& Value) const;
 			int GetTypeId() const;
 			bool IsValid() const;
@@ -929,6 +1072,30 @@ namespace Tomahawk
 
 		public:
 			static VMWAny Create(VMManager* Manager, void* Ref, int TypeId);
+		};
+
+		struct THAWK_OUT VMWObject
+		{
+		private:
+			VMCObject* Object;
+
+		public:
+			VMWObject(VMCObject* Base);
+			int AddRef() const;
+			int Release();
+			VMCLockableSharedBool* GetWeakRefFlag();
+			VMWTypeInfo GetObjectType();
+			int GetTypeId();
+			int GetPropertyTypeId(unsigned int Id) const;
+			unsigned int GetPropertiesCount() const;
+			const char* GetPropertyName(unsigned int Id) const;
+			void* GetAddressOfProperty(unsigned int Id);
+			VMManager* GetManager() const;
+			int CopyFrom(const VMWObject& Other);
+			void* SetUserData(void* Data, uint64_t Type = 0);
+			void* GetUserData(uint64_t Type = 0) const;
+			bool IsValid() const;
+			VMCObject* GetObject() const;
 		};
 
 		struct THAWK_OUT VMWDictionary
@@ -941,10 +1108,11 @@ namespace Tomahawk
 			void AddRef() const;
 			void Release();
 			void Set(const std::string& Key, void* Value, int TypeId);
-			void Set(const std::string& Key, Int64& Value);
+			void Set(const std::string& Key, int64_t& Value);
 			void Set(const std::string& Key, double& Value);
-			bool Get(const std::string& Key, void* Value, int TypeId) const;
-			bool Get(const std::string& Key, Int64& Value) const;
+			bool GetIndex(size_t Index, std::string* Key, void** Value, int* TypeId) const;
+			bool Get(const std::string& Key, void** Value, int* TypeId) const;
+			bool Get(const std::string& Key, int64_t& Value) const;
 			bool Get(const std::string& Key, double& Value) const;
 			int GetTypeId(const std::string& Key) const;
 			bool Exists(const std::string& Key) const;
@@ -1061,38 +1229,17 @@ namespace Tomahawk
 			int SetMethodAddress(const char* Decl, asSFuncPtr* Value, VMCall Type = VMCall_THISCALL);
 			int SetMethodStaticAddress(const char* Decl, asSFuncPtr* Value, VMCall Type = VMCall_CDECL);
 			int SetConstructorAddress(const char* Decl, asSFuncPtr* Value, VMCall Type = VMCall_CDECL_OBJFIRST);
-			int SetConstructorListAddress(const char* Decl, asSFuncPtr* Value);
+			int SetConstructorListAddress(const char* Decl, asSFuncPtr* Value, VMCall Type = VMCall_CDECL_OBJFIRST);
 			int SetDestructorAddress(const char* Decl, asSFuncPtr* Value);
 			int GetTypeId() const;
 			bool IsValid() const;
 			std::string GetName() const;
 			VMManager* GetManager() const;
 
+		private:
+			static Rest::Stroke GetOperator(VMOpFunc Op, const char* Out, const char* Args, bool Const, bool Right);
+
 		public:
-			template <typename T>
-			int SetPropertyStatic(const char* Decl, T* Value)
-			{
-				return SetPropertyStaticAddress(Decl, (void*)Value);
-			}
-			template <typename R, typename... Args>
-			int SetMethodStatic(const char* Decl, R(* Value)(Args...), VMCall Type = VMCall_CDECL)
-			{
-				asSFuncPtr* Ptr = VMBind::BindFunction<R(*)(Args...)>(Value);
-				int Result = SetMethodStaticAddress(Decl, Ptr, Type);
-				VMBind::ReleaseFunctor(&Ptr);
-
-				return Result;
-			}
-			template <typename R, typename... Args>
-			int SetMethodStatic(const char* Decl, void(* Value)(VMCGeneric*), VMCall Type = VMCall_CDECL)
-			{
-				asSFuncPtr* Ptr = VMBind::BindFunction<
-				void (Value)(VMCGeneric*)>(Value);
-				int Result = SetMethodStaticAddress(Decl, Ptr, VMCall_GENERIC);
-				VMBind::ReleaseFunctor(&Ptr);
-
-				return Result;
-			}
 			template <typename T>
 			int SetEnumRefs(void(T::*Value)(VMCManager*))
 			{
@@ -1116,11 +1263,207 @@ namespace Tomahawk
 			{
 				return SetPropertyAddress(Decl, reinterpret_cast<std::size_t>(&(((T*)0)->*Value)));
 			}
-			template <typename T, typename R, typename... Args>
-			int SetOperator(const char* Decl, R(T::*Value)(Args...))
+			template <typename T>
+			int SetPropertyStatic(const char* Decl, T* Value)
 			{
-				asSFuncPtr* Ptr = VMBind::BindMethodOp(Value);
-				int Result = SetOperatorAddress(Decl, Ptr, VMCall_THISCALL);
+				return SetPropertyStaticAddress(Decl, (void*)Value);
+			}
+			template <typename T, typename R>
+			int SetGetter(const char* Type, const char* Name, R(T::*Value)())
+			{
+				asSFuncPtr* Ptr = VMBind::BindMethod<T, R>(Value);
+				int Result = SetMethodAddress(Rest::Form("%s get_%s()", Type, Name).Get(), Ptr, VMCall_THISCALL);
+				VMBind::ReleaseFunctor(&Ptr);
+
+				return Result;
+			}
+			template <typename T, typename R>
+			int SetGetterEx(const char* Type, const char* Name, R(*Value)(T*))
+			{
+				asSFuncPtr* Ptr = VMBind::BindFunction(Value);
+				int Result = SetMethodAddress(Rest::Form("%s get_%s()", Type, Name).Get(), Ptr, VMCall_CDECL_OBJFIRST);
+				VMBind::ReleaseFunctor(&Ptr);
+
+				return Result;
+			}
+			template <typename T, typename R>
+			int SetSetter(const char* Type, const char* Name, void(T::*Value)(R))
+			{
+				asSFuncPtr* Ptr = VMBind::BindMethod<T, void, R>(Value);
+				int Result = SetMethodAddress(Rest::Form("void set_%s(%s)", Name, Type).Get(), Ptr, VMCall_THISCALL);
+				VMBind::ReleaseFunctor(&Ptr);
+
+				return Result;
+			}
+			template <typename T, typename R>
+			int SetSetterEx(const char* Type, const char* Name, void(*Value)(T*, R))
+			{
+				asSFuncPtr* Ptr = VMBind::BindFunction(Value);
+				int Result = SetMethodAddress(Rest::Form("void set_%s(%s)", Name, Type).Get(), Ptr, VMCall_CDECL_OBJFIRST);
+				VMBind::ReleaseFunctor(&Ptr);
+
+				return Result;
+			}
+			template <typename T, typename R>
+			int SetArrayGetter(const char* Type, const char* Name, R(T::*Value)(unsigned int))
+			{
+				asSFuncPtr* Ptr = VMBind::BindMethod<T, R, unsigned int>(Value);
+				int Result = SetMethodAddress(Rest::Form("%s get_%s(uint)", Type, Name).Get(), Ptr, VMCall_THISCALL);
+				VMBind::ReleaseFunctor(&Ptr);
+
+				return Result;
+			}
+			template <typename T, typename R>
+			int SetArrayGetterEx(const char* Type, const char* Name, R(*Value)(T*, unsigned int))
+			{
+				asSFuncPtr* Ptr = VMBind::BindFunction(Value);
+				int Result = SetMethodAddress(Rest::Form("%s get_%s(uint)", Type, Name).Get(), Ptr, VMCall_CDECL_OBJFIRST);
+				VMBind::ReleaseFunctor(&Ptr);
+
+				return Result;
+			}
+			template <typename T, typename R>
+			int SetArraySetter(const char* Type, const char* Name, void(T::*Value)(unsigned int, R))
+			{
+				asSFuncPtr* Ptr = VMBind::BindMethod<T, void, unsigned int, R>(Value);
+				int Result = SetMethodAddress(Rest::Form("void set_%s(uint, %s)", Name, Type).Get(), Ptr, VMCall_THISCALL);
+				VMBind::ReleaseFunctor(&Ptr);
+
+				return Result;
+			}
+			template <typename T, typename R>
+			int SetArraySetterEx(const char* Type, const char* Name, void(*Value)(T*, unsigned int, R))
+			{
+				asSFuncPtr* Ptr = VMBind::BindFunction(Value);
+				int Result = SetMethodAddress(Rest::Form("void set_%s(uint, %s)", Name, Type).Get(), Ptr, VMCall_CDECL_OBJFIRST);
+				VMBind::ReleaseFunctor(&Ptr);
+
+				return Result;
+			}
+			template <typename T, typename R, typename... A>
+			int SetLOperator(VMOpFunc Op, const char* Out, const char* Args, R(T::*Value)(A...))
+			{
+				if (!Out)
+					return -1;
+
+				Rest::Stroke Operator = GetOperator(Op, Out, Args, false, false);
+				if (Operator.Empty())
+					return -1;
+
+				asSFuncPtr* Ptr = VMBind::BindMethod<T, R, A...>(Value);
+				int Result = SetOperatorAddress(Operator.Get(), Ptr, VMCall_THISCALL);
+				VMBind::ReleaseFunctor(&Ptr);
+
+				return Result;
+			}
+			template <typename R, typename... A>
+			int SetLOperatorEx(VMOpFunc Op, const char* Out, const char* Args, R(*Value)(A...))
+			{
+				if (!Out)
+					return -1;
+
+				Rest::Stroke Operator = GetOperator(Op, Out, Args, false, false);
+				if (Operator.Empty())
+					return -1;
+
+				asSFuncPtr* Ptr = VMBind::BindFunction(Value);
+				int Result = SetOperatorAddress(Operator.Get(), Ptr, VMCall_CDECL_OBJFIRST);
+				VMBind::ReleaseFunctor(&Ptr);
+
+				return Result;
+			}
+			template <typename T, typename R, typename... A>
+			int SetLCOperator(VMOpFunc Op, const char* Out, const char* Args, R(T::*Value)(A...))
+			{
+				if (!Out)
+					return -1;
+
+				Rest::Stroke Operator = GetOperator(Op, Out, Args, true, false);
+				if (Operator.Empty())
+					return -1;
+
+				asSFuncPtr* Ptr = VMBind::BindMethod<T, R, A...>(Value);
+				int Result = SetOperatorAddress(Operator.Get(), Ptr, VMCall_THISCALL);
+				VMBind::ReleaseFunctor(&Ptr);
+
+				return Result;
+			}
+			template <typename R, typename... A>
+			int SetLCOperatorEx(VMOpFunc Op, const char* Out, const char* Args, R(*Value)(A...))
+			{
+				if (!Out)
+					return -1;
+
+				Rest::Stroke Operator = GetOperator(Op, Out, Args, true, false);
+				if (Operator.Empty())
+					return -1;
+
+				asSFuncPtr* Ptr = VMBind::BindFunction(Value);
+				int Result = SetOperatorAddress(Operator.Get(), Ptr, VMCall_CDECL_OBJFIRST);
+				VMBind::ReleaseFunctor(&Ptr);
+
+				return Result;
+			}
+			template <typename T, typename R, typename... A>
+			int SetROperator(VMOpFunc Op, const char* Out, const char* Args, R(T::*Value)(A...))
+			{
+				if (!Out)
+					return -1;
+
+				Rest::Stroke Operator = GetOperator(Op, Out, Args, false, true);
+				if (Operator.Empty())
+					return -1;
+
+				asSFuncPtr* Ptr = VMBind::BindMethod<T, R, A...>(Value);
+				int Result = SetOperatorAddress(Operator.Get(), Ptr, VMCall_THISCALL);
+				VMBind::ReleaseFunctor(&Ptr);
+
+				return Result;
+			}
+			template <typename R, typename... A>
+			int SetROperatorEx(VMOpFunc Op, const char* Out, const char* Args, R(*Value)(A...))
+			{
+				if (!Out)
+					return -1;
+
+				Rest::Stroke Operator = GetOperator(Op, Out, Args, false, true);
+				if (Operator.Empty())
+					return -1;
+
+				asSFuncPtr* Ptr = VMBind::BindFunction(Value);
+				int Result = SetOperatorAddress(Operator.Get(), Ptr, VMCall_CDECL_OBJFIRST);
+				VMBind::ReleaseFunctor(&Ptr);
+
+				return Result;
+			}
+			template <typename T, typename R, typename... A>
+			int SetRCOperator(VMOpFunc Op, const char* Out, const char* Args, R(T::*Value)(A...))
+			{
+				if (!Out)
+					return -1;
+
+				Rest::Stroke Operator = GetOperator(Op, Out, Args, true, true);
+				if (Operator.Empty())
+					return -1;
+
+				asSFuncPtr* Ptr = VMBind::BindMethod<T, R, A...>(Value);
+				int Result = SetOperatorAddress(Operator.Get(), Ptr, VMCall_THISCALL);
+				VMBind::ReleaseFunctor(&Ptr);
+
+				return Result;
+			}
+			template <typename R, typename... A>
+			int SetRCOperatorEx(VMOpFunc Op, const char* Out, const char* Args, R(*Value)(A...))
+			{
+				if (!Out)
+					return -1;
+
+				Rest::Stroke Operator = GetOperator(Op, Out, Args, true, true);
+				if (Operator.Empty())
+					return -1;
+
+				asSFuncPtr* Ptr = VMBind::BindFunction(Value);
+				int Result = SetOperatorAddress(Operator.Get(), Ptr, VMCall_CDECL_OBJFIRST);
 				VMBind::ReleaseFunctor(&Ptr);
 
 				return Result;
@@ -1144,10 +1487,28 @@ namespace Tomahawk
 				return Result;
 			}
 			template <typename T, typename R, typename... Args>
-			int SetMethodExternal(const char* Decl, R(* Value)(T*, Args...))
+			int SetMethod(const char* Decl, R(T::*Value)(Args...) const)
+			{
+				asSFuncPtr* Ptr = VMBind::BindMethod<T, R, Args...>(Value);
+				int Result = SetMethodAddress(Decl, Ptr, VMCall_THISCALL);
+				VMBind::ReleaseFunctor(&Ptr);
+
+				return Result;
+			}
+			template <typename T, typename R, typename... Args>
+			int SetMethodEx(const char* Decl, R(* Value)(T*, Args...))
 			{
 				asSFuncPtr* Ptr = VMBind::BindFunction<R(*)(T*, Args...)>(Value);
 				int Result = SetMethodAddress(Decl, Ptr, VMCall_CDECL_OBJFIRST);
+				VMBind::ReleaseFunctor(&Ptr);
+
+				return Result;
+			}
+			template <typename R, typename... Args>
+			int SetMethodStatic(const char* Decl, R(*Value)(Args...), VMCall Type = VMCall_CDECL)
+			{
+				asSFuncPtr* Ptr = (Type == VMCall_GENERIC ? VMBind::BindFunctionGeneric<R(*)(Args...)>(Value) : VMBind::BindFunction<R(*)(Args...)>(Value));
+				int Result = SetMethodStaticAddress(Decl, Ptr, Type);
 				VMBind::ReleaseFunctor(&Ptr);
 
 				return Result;
@@ -1174,11 +1535,23 @@ namespace Tomahawk
 
 				return Result;
 			}
+			template <typename T, const char* TypeName, VMCGeneric*>
+			int SetManagedConstructor(const char* Decl)
+			{
+				if (!Manager)
+					return -1;
+
+				asSFuncPtr* Functor = VMBind::BindFunctionGeneric(&VMBind::BindManaged<T, TypeName, VMCGeneric*>);
+				int Result = SetBehaviourAddress(Decl, VMBehave_FACTORY, Functor, VMCall_GENERIC);
+				VMBind::ReleaseFunctor(&Functor);
+
+				return Result;
+			}
 			template <typename T, const char* TypeName>
 			int SetManagedConstructorList(const char* Decl)
 			{
-				asSFuncPtr* Functor = VMBind::BindFunction(&VMBind::BindManagedList<T, TypeName>);
-				int Result = SetBehaviourAddress(Decl, VMBehave_LIST_FACTORY, Functor, VMCall_CDECL);
+				asSFuncPtr* Functor = VMBind::BindFunctionGeneric(&VMBind::BindManagedList<T, TypeName>);
+				int Result = SetBehaviourAddress(Decl, VMBehave_LIST_FACTORY, Functor, VMCall_GENERIC);
 				VMBind::ReleaseFunctor(&Functor);
 
 				return Result;
@@ -1195,11 +1568,23 @@ namespace Tomahawk
 
 				return Result;
 			}
+			template <typename T, VMCGeneric*>
+			int SetUnmanagedConstructor(const char* Decl)
+			{
+				if (!Manager)
+					return -1;
+
+				asSFuncPtr* Functor = VMBind::BindFunctionGeneric(&VMBind::BindUnmanaged<T, VMCGeneric*>);
+				int Result = SetBehaviourAddress(Decl, VMBehave_FACTORY, Functor, VMCall_GENERIC);
+				VMBind::ReleaseFunctor(&Functor);
+
+				return Result;
+			}
 			template <typename T>
 			int SetUnmanagedConstructorList(const char* Decl)
 			{
-				asSFuncPtr* Functor = VMBind::BindFunction(&VMBind::BindUnmanagedList<T>);
-				int Result = SetBehaviourAddress(Decl, VMBehave_LIST_FACTORY, Functor, VMCall_CDECL);
+				asSFuncPtr* Functor = VMBind::BindFunctionGeneric(&VMBind::BindUnmanagedList<T>);
+				int Result = SetBehaviourAddress(Decl, VMBehave_LIST_FACTORY, Functor, VMCall_GENERIC);
 				VMBind::ReleaseFunctor(&Functor);
 
 				return Result;
@@ -1300,7 +1685,7 @@ namespace Tomahawk
 			template <typename T, typename... Args>
 			int SetConstructor(const char* Decl)
 			{
-				asSFuncPtr* Ptr = VMBind::BindConstructor<T, Args...>();
+				asSFuncPtr* Ptr = VMBind::BindFunction(&VMBind::BindConstructor<T, Args...>);
 				int Result = SetConstructorAddress(Decl, Ptr, VMCall_CDECL_OBJFIRST);
 				VMBind::ReleaseFunctor(&Ptr);
 
@@ -1309,7 +1694,7 @@ namespace Tomahawk
 			template <typename T, VMCGeneric*>
 			int SetConstructor(const char* Decl)
 			{
-				asSFuncPtr* Ptr = VMBind::BindConstructor<T, VMCGeneric*>();
+				asSFuncPtr* Ptr = VMBind::BindFunctionGeneric(&VMBind::BindConstructor<T, VMCGeneric*>);
 				int Result = SetConstructorAddress(Decl, Ptr, VMCall_GENERIC);
 				VMBind::ReleaseFunctor(&Ptr);
 
@@ -1318,7 +1703,7 @@ namespace Tomahawk
 			template <typename T>
 			int SetConstructorList(const char* Decl)
 			{
-				asSFuncPtr* Ptr = VMBind::BindConstructor<T, VMCGeneric*>();
+				asSFuncPtr* Ptr = VMBind::BindFunctionGeneric(&VMBind::BindConstructorList<T>);
 				int Result = SetConstructorListAddress(Decl, Ptr, VMCall_GENERIC);
 				VMBind::ReleaseFunctor(&Ptr);
 
@@ -1327,7 +1712,7 @@ namespace Tomahawk
 			template <typename T>
 			int SetDestructor(const char* Decl)
 			{
-				asSFuncPtr* Ptr = VMBind::BindDestructor<T>();
+				asSFuncPtr* Ptr = VMBind::BindFunction(&VMBind::BindDestructor<T>);
 				int Result = SetDestructorAddress(Decl, Ptr);
 				VMBind::ReleaseFunctor(&Ptr);
 
@@ -1380,7 +1765,7 @@ namespace Tomahawk
 			int RemoveFunction(const VMWFunction& Function);
 			int ResetProperties(VMCContext* Context = nullptr);
 			int Build();
-			int LoadByteCode(const std::string& Buffer, bool* WasDebugInfoStripped = nullptr);
+			int LoadByteCode(VMByteCode* Info);
 			int Discard();
 			int BindImportedFunction(size_t ImportIndex, const VMWFunction& Function);
 			int UnbindImportedFunction(size_t ImportIndex);
@@ -1398,7 +1783,7 @@ namespace Tomahawk
 			VMWFunction GetFunctionByName(const char* Name) const;
 			int GetTypeIdByDecl(const char* Decl) const;
 			int GetImportedFunctionIndexByDecl(const char* Decl) const;
-			int SaveByteCode(std::string& Buffer, bool StripDebugInfo = false) const;
+			int SaveByteCode(VMByteCode* Info) const;
 			int GetPropertyIndexByName(const char* Name) const;
 			int GetPropertyIndexByDecl(const char* Decl) const;
 			int GetProperty(size_t Index, VMProperty* Out) const;
@@ -1490,9 +1875,9 @@ namespace Tomahawk
 			int SetFunctionDef(const char* Decl);
 			int SetFunctionAddress(const char* Decl, asSFuncPtr* Value, VMCall Type = VMCall_CDECL);
 			int SetPropertyAddress(const char* Decl, void* Value);
-			VMWTypeClass SetStructAddress(const char* Name, size_t Size, UInt64 Flags = VMObjType_VALUE);
-			VMWTypeClass SetPodAddress(const char* Name, size_t Size, UInt64 Flags = VMObjType_VALUE | VMObjType_POD);
-			VMWRefClass SetClassAddress(const char* Name, UInt64 Flags = VMObjType_REF);
+			VMWTypeClass SetStructAddress(const char* Name, size_t Size, uint64_t Flags = VMObjType_VALUE);
+			VMWTypeClass SetPodAddress(const char* Name, size_t Size, uint64_t Flags = VMObjType_VALUE | VMObjType_POD);
+			VMWRefClass SetClassAddress(const char* Name, uint64_t Flags = VMObjType_REF);
 			VMWInterface SetInterface(const char* Name);
 			VMWEnum SetEnum(const char* Name);
 			size_t GetFunctionsCount() const;
@@ -1567,6 +1952,7 @@ namespace Tomahawk
 				VMWTypeClass Struct = SetStructAddress(Name, sizeof(T), VMObjType_VALUE | VMObjType_GC | VMBind::GetTypeTraits<T>());
 				Struct.SetEnumRefs(EnumRefs);
 				Struct.SetReleaseRefs(ReleaseRefs);
+				Struct.SetDestructor<T>("void f()");
 
 				return Struct;
 			}
@@ -1575,6 +1961,7 @@ namespace Tomahawk
 			{
 				VMWTypeClass Struct = SetStructAddress(Name, sizeof(T), VMObjType_VALUE | VMBind::GetTypeTraits<T>());
 				Struct.SetOperatorCopy<T>();
+				Struct.SetDestructor<T>("void f()");
 
 				return Struct;
 			}
@@ -1585,7 +1972,7 @@ namespace Tomahawk
 			}
 		};
 
-		struct THAWK_OUT VMCompiler : public Rest::Object
+		class THAWK_OUT VMCompiler : public Rest::Object
 		{
 		private:
 			static int CompilerUD;
@@ -1597,6 +1984,8 @@ namespace Tomahawk
 			asIScriptModule* Module;
 			VMManager* Manager;
 			VMContext* Context;
+			uint64_t Features;
+			VMByteCode VCache;
 			bool BuiltOK;
 
 		public:
@@ -1604,16 +1993,23 @@ namespace Tomahawk
 			~VMCompiler();
 			void SetIncludeCallback(const Compute::ProcIncludeCallback& Callback);
 			void SetPragmaCallback(const Compute::ProcPragmaCallback& Callback);
+			void SetAllowedFeatures(uint64_t Features);
 			void Define(const std::string& Word);
 			void Undefine(const std::string& Word);
 			void Clear();
 			bool IsDefined(const std::string& Word);
 			bool IsBuilt();
 			int Prepare(const std::string& ModuleName);
-			int Build(bool Await);
-			int Compile(const std::string& Path);
-			int Compile(const std::string& Name, const std::string& Buffer);
-			int Interpret(const std::string& Value);
+			int Prepare(const std::string& ModuleName, const std::string& Cache, bool Debug = true);
+			int Compile(bool Await);
+			int SaveByteCode(VMByteCode* Info);
+			int LoadByteCode(VMByteCode* Info);
+			int LoadFile(const std::string& Path);
+			int LoadCode(const std::string& Name, const std::string& Buffer);
+			int LoadCodeScoped(const std::string& Value);
+			int InterpretEntry(const char* Name, void* Return = nullptr, int ReturnTypeId = VMTypeId_VOID);
+			int InterpretScoped(const std::string& Code, void* Return = nullptr, int ReturnTypeId = VMTypeId_VOID);
+			int InterpretScoped(const char* Buffer, uint64_t Length, void* Return = nullptr, int ReturnTypeId = VMTypeId_VOID);
 			VMWModule GetModule() const;
 			VMManager* GetManager() const;
 			VMContext* GetContext() const;
@@ -1635,8 +2031,6 @@ namespace Tomahawk
 		public:
 			VMContext(VMCContext* Base);
 			~VMContext();
-			int EvalStatement(VMCompiler* Compiler, const std::string& Code, void* Return = nullptr, int ReturnTypeId = VMTypeId_VOID);
-			int EvalStatement(VMCompiler* Compiler, const char* Buffer, UInt64 Length, void* Return = nullptr, int ReturnTypeId = VMTypeId_VOID);
 			int SetExceptionCallback(void(* Callback)(VMCContext* Context, void* Object), void* Object);
 			int AddRefVM() const;
 			int ReleaseVM();
@@ -1655,7 +2049,7 @@ namespace Tomahawk
 			int SetArgByte(unsigned int Arg, unsigned char Value);
 			int SetArgWord(unsigned int Arg, unsigned short Value);
 			int SetArgDWord(unsigned int Arg, size_t Value);
-			int SetArgQWord(unsigned int Arg, UInt64 Value);
+			int SetArgQWord(unsigned int Arg, uint64_t Value);
 			int SetArgFloat(unsigned int Arg, float Value);
 			int SetArgDouble(unsigned int Arg, double Value);
 			int SetArgAddress(unsigned int Arg, void* Address);
@@ -1665,7 +2059,7 @@ namespace Tomahawk
 			unsigned char GetReturnByte();
 			unsigned short GetReturnWord();
 			size_t GetReturnDWord();
-			UInt64 GetReturnQWord();
+			uint64_t GetReturnQWord();
 			float GetReturnFloat();
 			double GetReturnDouble();
 			void* GetReturnAddress();
@@ -1692,8 +2086,8 @@ namespace Tomahawk
 			void* GetThisPointer(unsigned int StackLevel = 0);
 			VMWFunction GetSystemFunction();
 			bool IsSuspended() const;
-			void* SetUserData(void* Data, UInt64 Type = 0);
-			void* GetUserData(UInt64 Type = 0) const;
+			void* SetUserData(void* Data, uint64_t Type = 0);
+			void* GetUserData(uint64_t Type = 0) const;
 			VMCContext* GetContext();
 			VMManager* GetManager();
 
@@ -1728,10 +2122,12 @@ namespace Tomahawk
 			static int ManagerUD;
 
 		private:
-			Compute::IncludeDesc Include;
-			Compute::Preprocessor::Desc Proc;
+			std::unordered_map<std::string, VMByteCode> Cache;
 			std::vector<VMCContext*> Contexts;
+			Compute::Preprocessor::Desc Proc;
+			Compute::IncludeDesc Include;
 			std::mutex Safe;
+			uint64_t Features;
 			asCJITCompiler* JIT;
 			VMCManager* Engine;
 			VMGlobal Globals;
@@ -1739,22 +2135,9 @@ namespace Tomahawk
 		public:
 			VMManager();
 			~VMManager();
-			void EnableAll();
-			void EnableString();
-			void EnableArray(bool Default);
-			void EnableAny();
-			void EnableDictionary();
-			void EnableGrid();
-			void EnableMath();
-			void EnableDateTime();
-			void EnableException();
-			void EnableReference();
-			void EnableWeakReference();
-			void EnableRandom();
-			void EnableThread();
-			void EnableAsync();
-			void EnableLibrary();
+			void Setup(uint64_t NewFeatures);
 			void SetupJIT(unsigned int JITOpts);
+			void ClearCache();
 			void Lock();
 			void Unlock();
 			void SetCompilerIncludeOptions(const Compute::IncludeDesc& NewDesc);
@@ -1767,6 +2150,8 @@ namespace Tomahawk
 			void ForwardEnumReferences(void* Reference, const VMWTypeInfo& Type);
 			void ForwardReleaseReferences(void* Reference, const VMWTypeInfo& Type);
 			void GCEnumCallback(void* Reference);
+			bool GetByteCodeCache(VMByteCode* Info);
+			void SetByteCodeCache(VMByteCode* Info);
 			VMContext* CreateContext();
 			VMCompiler* CreateCompiler();
 			void* CreateObject(const VMWTypeInfo& Type);
@@ -1802,6 +2187,22 @@ namespace Tomahawk
 			size_t GetProperty(VMProp Property) const;
 			VMCManager* GetEngine() const;
 			std::string GetDocumentRoot() const;
+
+		private:
+			void EnableString();
+			void EnableArray(bool Default);
+			void EnableAny();
+			void EnableDictionary();
+			void EnableGrid();
+			void EnableMath();
+			void EnableDateTime();
+			void EnableException();
+			void EnableReference();
+			void EnableWeakReference();
+			void EnableRandom();
+			void EnableThread();
+			void EnableAsync();
+			void EnableLibrary();
 
 		public:
 			static VMManager* Get(VMCManager* Engine);

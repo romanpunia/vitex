@@ -11,13 +11,8 @@ install(FILES
         tomahawk/tomahawk.h
         DESTINATION include/tomahawk)
 install(FILES
-        tomahawk/wrapper/audio.h
-        tomahawk/wrapper/compute.h
-        tomahawk/wrapper/engine.h
-        tomahawk/wrapper/graphics.h
-        tomahawk/wrapper/network.h
-        tomahawk/wrapper/rest.h
-        DESTINATION include/tomahawk/wrapper)
+        tomahawk/script/interface.h
+        DESTINATION include/tomahawk/script)
 install(FILES
         tomahawk/network/bson.h
         tomahawk/network/http.h

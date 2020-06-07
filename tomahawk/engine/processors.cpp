@@ -41,7 +41,7 @@ namespace Tomahawk
 				OnComponentCreation = nullptr;
 				OnRendererCreation = nullptr;
 			}
-			void* SceneGraphProcessor::Load(Rest::FileStream* Stream, UInt64 Length, UInt64 Offset, ContentArgs* Args)
+			void* SceneGraphProcessor::Load(Rest::FileStream* Stream, uint64_t Length, uint64_t Offset, ContentArgs* Args)
 			{
 				SceneGraph::Desc I = SceneGraph::Desc();
 				I.Device = Content->GetDevice();
@@ -154,7 +154,7 @@ namespace Tomahawk
 							std::vector<Rest::Document*> Elements = It->FindCollection("component");
 							for (auto& Element : Elements)
 							{
-								UInt64 ComponentId;
+								uint64_t ComponentId;
 								NMake::Unpack(Element->Find("id"), &ComponentId);
 								Component* Target = nullptr;
 
@@ -222,13 +222,13 @@ namespace Tomahawk
 					}
 				}
 
-				for (Int64 i = 0; i < (Int64)Object->GetEntityCount(); i++)
+				for (int64_t i = 0; i < (int64_t)Object->GetEntityCount(); i++)
 				{
 					Entity* Entity = Object->GetEntity(i);
-					Int64 Index = Entity->Self;
+					int64_t Index = Entity->Self;
 					Entity->Self = i;
 
-					if (Index >= 0 && Index < (Int64)Object->GetEntityCount() && Index != i)
+					if (Index >= 0 && Index < (int64_t)Object->GetEntityCount() && Index != i)
 						Compute::MathCommon::SetRootUnsafe(Entity->Transform, Object->GetEntity(Index)->Transform);
 				}
 
@@ -263,7 +263,7 @@ namespace Tomahawk
 				NMake::Pack(Simulator->SetDocument("gravity"), Object->GetSimulator()->GetGravity());
 
 				Rest::Document* Materials = Document->SetArray("materials");
-				for (UInt64 i = 0; i < Object->GetMaterialCount(); i++)
+				for (uint64_t i = 0; i < Object->GetMaterialCount(); i++)
 				{
 					Graphics::Material& It = Object->GetMaterial(i);
 
@@ -287,7 +287,7 @@ namespace Tomahawk
 				}
 
 				Rest::Document* Entities = Document->SetArray("entities");
-				for (UInt64 i = 0; i < Object->GetEntityCount(); i++)
+				for (uint64_t i = 0; i < Object->GetEntityCount(); i++)
 				{
 					Entity* Ref = Object->GetEntity(i);
 
@@ -335,7 +335,7 @@ namespace Tomahawk
 			FontProcessor::FontProcessor(ContentManager* Manager) : FileProcessor(Manager)
 			{
 			}
-			void* FontProcessor::Load(Rest::FileStream* Stream, UInt64 Length, UInt64 Offset, ContentArgs* Args)
+			void* FontProcessor::Load(Rest::FileStream* Stream, uint64_t Length, uint64_t Offset, ContentArgs* Args)
 			{
 				Renderers::GUIRenderer* Gui = nullptr;
 				if (Args->Get("GUI", ContentType_Pointer))
@@ -383,7 +383,7 @@ namespace Tomahawk
 			{
 				return Asset->Resource;
 			}
-			void* AudioClipProcessor::Load(Rest::FileStream* Stream, UInt64 Length, UInt64 Offset, ContentArgs* Args)
+			void* AudioClipProcessor::Load(Rest::FileStream* Stream, uint64_t Length, uint64_t Offset, ContentArgs* Args)
 			{
 				if (Rest::Stroke(&Stream->Filename()).EndsWith(".wav"))
 					return LoadWAVE(Stream, Length, Offset, Args);
@@ -392,7 +392,7 @@ namespace Tomahawk
 
 				return nullptr;
 			}
-			void* AudioClipProcessor::LoadWAVE(Rest::FileStream* Stream, UInt64 Length, UInt64 Offset, ContentArgs* Args)
+			void* AudioClipProcessor::LoadWAVE(Rest::FileStream* Stream, uint64_t Length, uint64_t Offset, ContentArgs* Args)
 			{
 #ifdef THAWK_HAS_SDL2
 				void* Binary = malloc(sizeof(char) * Length);
@@ -443,7 +443,7 @@ namespace Tomahawk
 				return nullptr;
 #endif
 			}
-			void* AudioClipProcessor::LoadOGG(Rest::FileStream* Stream, UInt64 Length, UInt64 Offset, ContentArgs* Args)
+			void* AudioClipProcessor::LoadOGG(Rest::FileStream* Stream, uint64_t Length, uint64_t Offset, ContentArgs* Args)
 			{
 				void* Binary = malloc(sizeof(char) * Length);
 				if (Stream->Read((char*)Binary, Length) != Length)
@@ -494,7 +494,7 @@ namespace Tomahawk
 			{
 				return Asset->Resource;
 			}
-			void* Texture2DProcessor::Load(Rest::FileStream* Stream, UInt64 Length, UInt64 Offset, ContentArgs* Args)
+			void* Texture2DProcessor::Load(Rest::FileStream* Stream, uint64_t Length, uint64_t Offset, ContentArgs* Args)
 			{
 				unsigned char* Binary = (unsigned char*)malloc(sizeof(unsigned char) * Length);
 				if (Stream->Read((char*)Binary, Length) != Length)
@@ -549,7 +549,7 @@ namespace Tomahawk
 			{
 				return Asset->Resource;
 			}
-			void* ShaderProcessor::Load(Rest::FileStream* Stream, UInt64 Length, UInt64 Offset, ContentArgs* Args)
+			void* ShaderProcessor::Load(Rest::FileStream* Stream, uint64_t Length, uint64_t Offset, ContentArgs* Args)
 			{
 				if (!Args)
 				{
@@ -561,7 +561,7 @@ namespace Tomahawk
 				if (Args->Get("Layout", ContentType_Pointer))
 					Layout = (Graphics::InputLayout*)Args->Get("Layout", ContentType_Pointer)->Pointer;
 
-				Int64 LayoutSize = 0;
+				int64_t LayoutSize = 0;
 				if (Args->Get("LayoutSize", ContentType_Integer))
 					LayoutSize = Args->Get("LayoutSize", ContentType_Integer)->Integer;
 
@@ -611,7 +611,7 @@ namespace Tomahawk
 			{
 				return Asset->Resource;
 			}
-			void* ModelProcessor::Load(Rest::FileStream* Stream, UInt64 Length, UInt64 Offset, ContentArgs* Args)
+			void* ModelProcessor::Load(Rest::FileStream* Stream, uint64_t Length, uint64_t Offset, ContentArgs* Args)
 			{
 				auto* Document = Content->Load<Rest::Document>(Stream->Filename(), nullptr);
 				if (!Document)
@@ -828,7 +828,7 @@ namespace Tomahawk
 				for (unsigned int j = 0; j < Mesh->mNumBones; j++)
 				{
 					auto& Joint = Mesh->mBones[j];
-					Int64 Index = 0;
+					int64_t Index = 0;
 
 					auto It = FindJoint(Info->Joints, Joint->mName.C_Str());
 					if (It == Info->Joints.end())
@@ -886,7 +886,7 @@ namespace Tomahawk
 					It->first = -1;
 				}
 
-				for (Int64 i = 0; i < Node->mNumChildren; i++)
+				for (int64_t i = 0; i < Node->mNumChildren; i++)
 					ProcessHeirarchy(Scene, Node->mChildren[i], Info, It == Info->Joints.end() ? Parent : &It->second);
 
 				if (Parent != nullptr && It != Info->Joints.end())
@@ -896,7 +896,7 @@ namespace Tomahawk
 				}
 #endif
 			}
-			std::vector<std::pair<Int64, Compute::Joint>>::iterator ModelProcessor::FindJoint(std::vector<std::pair<Int64, Compute::Joint>>& Joints, const std::string& Name)
+			std::vector<std::pair<int64_t, Compute::Joint>>::iterator ModelProcessor::FindJoint(std::vector<std::pair<int64_t, Compute::Joint>>& Joints, const std::string& Name)
 			{
 				for (auto It = Joints.begin(); It != Joints.end(); It++)
 				{
@@ -922,7 +922,7 @@ namespace Tomahawk
 			{
 				return Asset->Resource;
 			}
-			void* SkinnedModelProcessor::Load(Rest::FileStream* Stream, UInt64 Length, UInt64 Offset, ContentArgs* Args)
+			void* SkinnedModelProcessor::Load(Rest::FileStream* Stream, uint64_t Length, uint64_t Offset, ContentArgs* Args)
 			{
 				auto* Document = Content->Load<Rest::Document>(Stream->Filename(), nullptr);
 				if (!Document)
@@ -979,20 +979,20 @@ namespace Tomahawk
 				}
 
 				std::unordered_map<std::string, MeshNode> Joints;
-				Int64 Index = 0;
+				int64_t Index = 0;
 				ProcessNode((void*)Scene, (void*)Scene->mRootNode, &Joints, Index);
 				ProcessHeirarchy((void*)Scene, (void*)Scene->mRootNode, &Joints);
 
 				std::vector<Compute::SkinAnimatorClip> Clips;
 				Clips.resize((size_t)Scene->mNumAnimations);
 
-				for (Int64 i = 0; i < Scene->mNumAnimations; i++)
+				for (int64_t i = 0; i < Scene->mNumAnimations; i++)
 				{
 					aiAnimation* Animation = Scene->mAnimations[i];
 					Compute::SkinAnimatorClip* Clip = &Clips[i];
 					Clip->Name = Animation->mName.C_Str();
 
-					for (Int64 j = 0; j < Animation->mNumChannels; j++)
+					for (int64_t j = 0; j < Animation->mNumChannels; j++)
 					{
 						auto* Channel = Animation->mChannels[j];
 						auto It = Joints.find(Channel->mNodeName.C_Str());
@@ -1008,7 +1008,7 @@ namespace Tomahawk
 						if (Clip->Keys.size() < Channel->mNumScalingKeys)
 							Clip->Keys.resize(Channel->mNumScalingKeys);
 
-						for (Int64 k = 0; k < Channel->mNumPositionKeys; k++)
+						for (int64_t k = 0; k < Channel->mNumPositionKeys; k++)
 						{
 							auto& Keys = Clip->Keys[k];
 							ProcessKeys(&Keys, &Joints);
@@ -1018,7 +1018,7 @@ namespace Tomahawk
 							Keys[It->second.Index].Position.Z = Channel->mPositionKeys[k].mValue.z;
 						}
 
-						for (Int64 k = 0; k < Channel->mNumRotationKeys; k++)
+						for (int64_t k = 0; k < Channel->mNumRotationKeys; k++)
 						{
 							auto& Keys = Clip->Keys[k];
 							ProcessKeys(&Keys, &Joints);
@@ -1028,7 +1028,7 @@ namespace Tomahawk
 							Keys[It->second.Index].Rotation.Z = Channel->mPositionKeys[k].mValue.z;
 						}
 
-						for (Int64 k = 0; k < Channel->mNumScalingKeys; k++)
+						for (int64_t k = 0; k < Channel->mNumScalingKeys; k++)
 						{
 							auto& Keys = Clip->Keys[k];
 							ProcessKeys(&Keys, &Joints);
@@ -1045,7 +1045,7 @@ namespace Tomahawk
 				return std::vector<Compute::SkinAnimatorClip>();
 #endif
 			}
-			void SkinnedModelProcessor::ProcessNode(void* Scene_, void* Node_, std::unordered_map<std::string, MeshNode>* Joints, Int64& Id)
+			void SkinnedModelProcessor::ProcessNode(void* Scene_, void* Node_, std::unordered_map<std::string, MeshNode>* Joints, int64_t& Id)
 			{
 #ifdef THAWK_HAS_ASSIMP
 				auto* Scene = (aiScene*)Scene_;
@@ -1057,7 +1057,7 @@ namespace Tomahawk
 					for (unsigned int j = 0; j < Mesh->mNumBones; j++)
 					{
 						auto& Joint = Mesh->mBones[j];
-						Int64 Index = 0;
+						int64_t Index = 0;
 
 						auto It = Joints->find(Joint->mName.C_Str());
 						if (It == Joints->end())
@@ -1087,7 +1087,7 @@ namespace Tomahawk
 				if (It != Joints->end())
 					It->second.Transform = ToMatrix(Node->mTransformation).Transpose();
 
-				for (Int64 i = 0; i < Node->mNumChildren; i++)
+				for (int64_t i = 0; i < Node->mNumChildren; i++)
 					ProcessHeirarchy(Scene, Node->mChildren[i], Joints);
 #endif
 			}
@@ -1110,9 +1110,9 @@ namespace Tomahawk
 			DocumentProcessor::DocumentProcessor(ContentManager* Manager) : FileProcessor(Manager)
 			{
 			}
-			void* DocumentProcessor::Load(Rest::FileStream* Stream, UInt64 Length, UInt64 Offset, ContentArgs* Args)
+			void* DocumentProcessor::Load(Rest::FileStream* Stream, uint64_t Length, uint64_t Offset, ContentArgs* Args)
 			{
-				Rest::NReadCallback Callback = [Stream](char* Buffer, Int64 Size)
+				Rest::NReadCallback Callback = [Stream](char* Buffer, int64_t Size)
 				{
 					if (!Buffer || !Size)
 						return true;
@@ -1140,7 +1140,7 @@ namespace Tomahawk
 
 				if (Args->Is("XML", ContentKey(true)))
 				{
-					Rest::Document::WriteXML(Document, [Stream, &Offset](Rest::DocumentPretty Pretty, const char* Buffer, Int64 Length)
+					Rest::Document::WriteXML(Document, [Stream, &Offset](Rest::DocumentPretty Pretty, const char* Buffer, int64_t Length)
 					{
 						if (Buffer != nullptr && Length > 0)
 							Stream->Write(Buffer, Length);
@@ -1169,7 +1169,7 @@ namespace Tomahawk
 				}
 				else if (Args->Is("JSON", ContentKey(true)))
 				{
-					Rest::Document::WriteJSON(Document, [Stream, &Offset](Rest::DocumentPretty Pretty, const char* Buffer, Int64 Length)
+					Rest::Document::WriteJSON(Document, [Stream, &Offset](Rest::DocumentPretty Pretty, const char* Buffer, int64_t Length)
 					{
 						if (Buffer != nullptr && Length > 0)
 							Stream->Write(Buffer, Length);
@@ -1198,7 +1198,7 @@ namespace Tomahawk
 				}
 				else if (Args->Is("BIN", ContentKey(true)))
 				{
-					Rest::Document::WriteBIN(Document, [Stream](Rest::DocumentPretty, const char* Buffer, Int64 Length)
+					Rest::Document::WriteBIN(Document, [Stream](Rest::DocumentPretty, const char* Buffer, int64_t Length)
 					{
 						if (Buffer != nullptr && Length > 0)
 							Stream->Write(Buffer, Length);
@@ -1211,7 +1211,7 @@ namespace Tomahawk
 			ServerProcessor::ServerProcessor(ContentManager* Manager) : FileProcessor(Manager)
 			{
 			}
-			void* ServerProcessor::Load(Rest::FileStream* Stream, UInt64 Length, UInt64 Offset, ContentArgs* Args)
+			void* ServerProcessor::Load(Rest::FileStream* Stream, uint64_t Length, uint64_t Offset, ContentArgs* Args)
 			{
 				std::string N = Network::Socket::LocalIpAddress();
 				std::string D = Rest::OS::FileDirectory(Stream->Filename());
@@ -1232,7 +1232,7 @@ namespace Tomahawk
 					Router->KeepAliveMaxCount = 10;
 
 				if (!NMake::Unpack(Document->Find("payload-max-length"), &Router->PayloadMaxLength))
-					Router->PayloadMaxLength = std::numeric_limits<UInt64>::max();
+					Router->PayloadMaxLength = std::numeric_limits<uint64_t>::max();
 
 				if (!NMake::Unpack(Document->Find("max-events"), &Router->MaxEvents))
 					Router->MaxEvents = 256;
@@ -1572,7 +1572,7 @@ namespace Tomahawk
 			{
 				return Asset->Resource;
 			}
-			void* ShapeProcessor::Load(Rest::FileStream* Stream, UInt64 Length, UInt64 Offset, ContentArgs* Args)
+			void* ShapeProcessor::Load(Rest::FileStream* Stream, uint64_t Length, uint64_t Offset, ContentArgs* Args)
 			{
 				auto* Document = Content->Load<Rest::Document>(Stream->Filename(), nullptr);
 				if (!Document)

@@ -56,7 +56,7 @@ namespace Tomahawk
 				return;
 
 			SDL_MessageBoxButtonData Views[16];
-			for (UInt64 i = 0; i < Buttons.size(); i++)
+			for (uint64_t i = 0; i < Buttons.size(); i++)
 			{
 				SDL_MessageBoxButtonData* To = Views + i;
 				auto From = Buttons.begin() + i;
@@ -132,7 +132,7 @@ namespace Tomahawk
 
 			return true;
 		}
-		Compute::Matrix4x4 PoseBuffer::Offset(Int64 Index)
+		Compute::Matrix4x4 PoseBuffer::Offset(int64_t Index)
 		{
 			auto It = Pose.find(Index);
 			if (It != Pose.end())
@@ -287,7 +287,7 @@ namespace Tomahawk
 		{
 			Elements = I.ElementCount;
 		}
-		UInt64 ElementBuffer::GetElements()
+		uint64_t ElementBuffer::GetElements()
 		{
 			return Elements;
 		}
@@ -309,7 +309,7 @@ namespace Tomahawk
 		{
 			Elements = I.ElementCount;
 		}
-		UInt64 StructureBuffer::GetElements()
+		uint64_t StructureBuffer::GetElements()
 		{
 			return Elements;
 		}
@@ -738,7 +738,7 @@ namespace Tomahawk
 
 			return nullptr;
 		}
-		Compute::Joint* SkinnedModel::FindJoint(Int64 Index, Compute::Joint* Base)
+		Compute::Joint* SkinnedModel::FindJoint(int64_t Index, Compute::Joint* Base)
 		{
 			if (Base != nullptr)
 			{
@@ -795,7 +795,7 @@ namespace Tomahawk
 		{
 			return Device;
 		}
-		UInt64 InstanceBuffer::GetElementLimit()
+		uint64_t InstanceBuffer::GetElementLimit()
 		{
 			return ElementLimit;
 		}
@@ -891,7 +891,7 @@ namespace Tomahawk
 					return false;
 				}
 
-				UInt64 Length;
+				uint64_t Length;
 				unsigned char* Data = Rest::OS::ReadAllBytes(File.Module.c_str(), &Length);
 				if (!Data)
 					return false;
@@ -1181,47 +1181,47 @@ namespace Tomahawk
 		{
 			return ShaderModelType;
 		}
-		DepthStencilState* GraphicsDevice::GetDepthStencilState(UInt64 State)
+		DepthStencilState* GraphicsDevice::GetDepthStencilState(uint64_t State)
 		{
 			if (State < 0 || State >= DepthStencilStates.size())
 				return nullptr;
 
 			return DepthStencilStates[State];
 		}
-		BlendState* GraphicsDevice::GetBlendState(UInt64 State)
+		BlendState* GraphicsDevice::GetBlendState(uint64_t State)
 		{
 			if (State < 0 || State >= BlendStates.size())
 				return nullptr;
 
 			return BlendStates[State];
 		}
-		RasterizerState* GraphicsDevice::GetRasterizerState(UInt64 State)
+		RasterizerState* GraphicsDevice::GetRasterizerState(uint64_t State)
 		{
 			if (State < 0 || State >= RasterizerStates.size())
 				return nullptr;
 
 			return RasterizerStates[State];
 		}
-		SamplerState* GraphicsDevice::GetSamplerState(UInt64 State)
+		SamplerState* GraphicsDevice::GetSamplerState(uint64_t State)
 		{
 			if (State < 0 || State >= SamplerStates.size())
 				return nullptr;
 
 			return SamplerStates[State];
 		}
-		UInt64 GraphicsDevice::GetDepthStencilStateCount()
+		uint64_t GraphicsDevice::GetDepthStencilStateCount()
 		{
 			return DepthStencilStates.size();
 		}
-		UInt64 GraphicsDevice::GetBlendStateCount()
+		uint64_t GraphicsDevice::GetBlendStateCount()
 		{
 			return BlendStates.size();
 		}
-		UInt64 GraphicsDevice::GetRasterizerStateCount()
+		uint64_t GraphicsDevice::GetRasterizerStateCount()
 		{
 			return RasterizerStates.size();
 		}
-		UInt64 GraphicsDevice::GetSamplerStateCount()
+		uint64_t GraphicsDevice::GetSamplerStateCount()
 		{
 			return SamplerStates.size();
 		}

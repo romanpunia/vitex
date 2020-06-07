@@ -69,18 +69,18 @@ namespace Tomahawk
 
 			typedef std::function<bool(struct Connection*)> SuccessCallback;
 			typedef std::function<void(struct Connection*, const char*)> MessageCallback;
-			typedef std::function<bool(struct Connection*, const char*, Int64)> ContentCallback;
-			typedef std::function<bool(struct Connection*, struct Resource*, Int64)> ResourceCallback;
+			typedef std::function<bool(struct Connection*, const char*, int64_t)> ContentCallback;
+			typedef std::function<bool(struct Connection*, struct Resource*, int64_t)> ResourceCallback;
 			typedef std::function<bool(struct Connection*, struct Credentials*, const std::string&)> AuthorizeCallback;
 			typedef std::function<bool(struct Connection*, Rest::Stroke*)> HeaderCallback;
 			typedef std::function<void(struct WebSocketFrame*)> WebSocketCallback;
-			typedef std::function<void(struct WebSocketFrame*, const char*, Int64, enum WebSocketOp)> WebSocketReadCallback;
-			typedef std::function<bool(struct GatewayFrame*, const char*, UInt64, char)> GatewayNextCallback;
+			typedef std::function<void(struct WebSocketFrame*, const char*, int64_t, enum WebSocketOp)> WebSocketReadCallback;
+			typedef std::function<bool(struct GatewayFrame*, const char*, uint64_t, char)> GatewayNextCallback;
 			typedef std::function<bool(struct GatewayFrame*, void*)> GatewayFreeCallback;
 			typedef std::function<bool(void**, struct SiteEntry*)> GatewayCreateCallback;
 			typedef std::function<bool(void**, struct SiteEntry*)> GatewayReleaseCallback;
-			typedef std::function<bool(class Parser*, Int64)> ParserCodeCallback;
-			typedef std::function<bool(class Parser*, const char*, Int64)> ParserDataCallback;
+			typedef std::function<bool(class Parser*, int64_t)> ParserCodeCallback;
+			typedef std::function<bool(class Parser*, const char*, int64_t)> ParserDataCallback;
 			typedef std::function<bool(class Parser*)> ParserNotifyCallback;
 			typedef std::function<void(class Client*, struct RequestFrame*, struct ResponseFrame*)> ResponseCallback;
 
@@ -142,7 +142,7 @@ namespace Tomahawk
 				std::string Type;
 				std::string Name;
 				std::string Key;
-				UInt64 Length = 0;
+				uint64_t Length = 0;
 				bool Memory = false;
 
 				void SetHeader(const char* Key, const char* Value);
@@ -156,7 +156,7 @@ namespace Tomahawk
 				std::string Value;
 				std::string Domain;
 				std::string Path;
-				UInt64 Expires = 0;
+				uint64_t Expires = 0;
 				bool Secure = false;
 			};
 
@@ -175,14 +175,14 @@ namespace Tomahawk
 				char RemoteAddress[48] = { 0 };
 				char Method[10] = { 0 };
 				char Version[10] = { 0 };
-				UInt64 ContentLength = 0;
+				uint64_t ContentLength = 0;
 
 				void SetHeader(const char* Key, const char* Value);
 				void SetHeader(const char* Key, const std::string& Value);
 				const char* GetCookie(const char* Key);
 				const char* GetHeader(const char* Key);
-				std::vector<std::pair<Int64, Int64>> GetRanges();
-				std::pair<UInt64, UInt64> GetRange(std::vector<std::pair<Int64, Int64>>::iterator Range, UInt64 ContentLength);
+				std::vector<std::pair<int64_t, int64_t>> GetRanges();
+				std::pair<uint64_t, uint64_t> GetRange(std::vector<std::pair<int64_t, int64_t>>::iterator Range, uint64_t ContentLength);
 			};
 
 			struct THAWK_OUT ResponseFrame
@@ -194,7 +194,7 @@ namespace Tomahawk
 
 				void SetHeader(const char* Key, const char* Value);
 				void SetHeader(const char* Key, const std::string& Value);
-				void SetCookie(const char* Key, const char* Value, const char* Domain, const char* Path, UInt64 Expires, bool Secure);
+				void SetCookie(const char* Key, const char* Value, const char* Domain, const char* Path, uint64_t Expires, bool Secure);
 				const char* GetHeader(const char* Key);
 				Cookie* GetCookie(const char* Key);
 			};
@@ -207,10 +207,10 @@ namespace Tomahawk
 
 			private:
 				std::string Buffer;
-				UInt64 BodyLength = 0;
-				UInt64 MaskLength = 0;
-				UInt64 HeaderLength = 0;
-				UInt64 DataLength = 0;
+				uint64_t BodyLength = 0;
+				uint64_t MaskLength = 0;
+				uint64_t HeaderLength = 0;
+				uint64_t DataLength = 0;
 				int State = WebSocketState_Handshake;
 				unsigned char Mask[4] = { 0 };
 				unsigned char Opcode = 0;
@@ -227,7 +227,7 @@ namespace Tomahawk
 				WebSocketReadCallback Receive;
 
 			public:
-				void Write(const char* Buffer, Int64 Length, WebSocketOp OpCode, const SuccessCallback& Callback);
+				void Write(const char* Buffer, int64_t Length, WebSocketOp OpCode, const SuccessCallback& Callback);
 				void Finish();
 				void Next();
 				void Notify();
@@ -244,8 +244,8 @@ namespace Tomahawk
 				GatewayNextCallback Callback;
 				GatewayFreeCallback Destroy;
 				char* Buffer = nullptr;
-				UInt64 Size = 0, i = 0;
-				UInt64 Offset = 0;
+				uint64_t Size = 0, i = 0;
+				uint64_t Offset = 0;
 				bool EoF = false;
 				bool Core = false;
 				bool Save = false;
@@ -281,7 +281,7 @@ namespace Tomahawk
 			struct THAWK_OUT QueryToken
 			{
 				char* Value = nullptr;
-				UInt64 Length = 0;
+				uint64_t Length = 0;
 			};
 
 			struct THAWK_OUT RouteEntry
@@ -325,7 +325,7 @@ namespace Tomahawk
 					CompressionTune Tune = CompressionTune_Default;
 					int QualityLevel = 8;
 					int MemoryLevel = 8;
-					UInt64 MinLength = 16384;
+					uint64_t MinLength = 16384;
 					bool Enabled = false;
 				} Compression;
 
@@ -340,10 +340,10 @@ namespace Tomahawk
 				std::string AccessControlAllowOrigin;
 				std::string Refer;
 				std::string Default;
-				UInt64 WebSocketTimeout = 30000;
-				UInt64 StaticFileMaxAge = 604800;
-				UInt64 MaxCacheLength = 16384;
-				UInt64 GracefulTimeWait = 1;
+				uint64_t WebSocketTimeout = 30000;
+				uint64_t StaticFileMaxAge = 604800;
+				uint64_t MaxCacheLength = 16384;
+				uint64_t GracefulTimeWait = 1;
 				bool AllowDirectoryListing = true;
 				bool AllowWebSocket = false;
 				bool AllowSendFile = false;
@@ -361,8 +361,8 @@ namespace Tomahawk
 						std::string Name = "Sid";
 						std::string Domain;
 						std::string Path = "/";
-						UInt64 Expires = 604800;
-						UInt64 CookieExpires = 31536000;
+						uint64_t Expires = 604800;
+						uint64_t CookieExpires = 31536000;
 					} Session;
 
 					void* Manager = nullptr;
@@ -380,7 +380,7 @@ namespace Tomahawk
 				std::vector<RouteEntry*> Routes;
 				std::string ResourceRoot = "./files/";
 				std::string SiteName;
-				UInt64 MaxResources = 5;
+				uint64_t MaxResources = 5;
 				RouteEntry* Base = nullptr;
 				MapRouter* Router = nullptr;
 
@@ -463,7 +463,7 @@ namespace Tomahawk
 			public:
 				Rest::Document* Query = nullptr;
 				std::string SessionId;
-				Int64 SessionExpires = 0;
+				int64_t SessionExpires = 0;
 				bool IsNewSession = false;
 
 			public:
@@ -521,7 +521,7 @@ namespace Tomahawk
 					char* LookBehind = nullptr;
 					char* Boundary = nullptr;
 					unsigned char State = MultipartState_Start;
-					Int64 Index = 0, Length = 0;
+					int64_t Index = 0, Length = 0;
 				} Multipart;
 
 				struct
@@ -549,14 +549,14 @@ namespace Tomahawk
 			public:
 				Parser();
 				virtual ~Parser() override;
-				Int64 MultipartParse(const char* Boundary, const char* Buffer, Int64 Length);
-				Int64 ParseRequest(const char* BufferStart, UInt64 Length, UInt64 LastLength);
-				Int64 ParseResponse(const char* BufferStart, UInt64 Length, UInt64 LastLength);
-				Int64 ParseDecodeChunked(char* Buffer, Int64* BufferLength);
+				int64_t MultipartParse(const char* Boundary, const char* Buffer, int64_t Length);
+				int64_t ParseRequest(const char* BufferStart, uint64_t Length, uint64_t LastLength);
+				int64_t ParseResponse(const char* BufferStart, uint64_t Length, uint64_t LastLength);
+				int64_t ParseDecodeChunked(char* Buffer, int64_t* BufferLength);
 
 			private:
-				const char* Tokenize(const char* Buffer, const char* BufferEnd, const char** Token, UInt64* TokenLength, int* Out);
-				const char* Complete(const char* Buffer, const char* BufferEnd, UInt64 LastLength, int* Out);
+				const char* Tokenize(const char* Buffer, const char* BufferEnd, const char** Token, uint64_t* TokenLength, int* Out);
+				const char* Complete(const char* Buffer, const char* BufferEnd, uint64_t LastLength, int* Out);
 				const char* ProcessVersion(const char* Buffer, const char* BufferEnd, int* Out);
 				const char* ProcessHeaders(const char* Buffer, const char* BufferEnd, int* Out);
 				const char* ProcessRequest(const char* Buffer, const char* BufferEnd, int* Out);
@@ -571,28 +571,28 @@ namespace Tomahawk
 				static void ConstructHeadCache(Connection* Base, Rest::Stroke* Buffer);
 				static void ConstructHeadUncache(Connection* Base, Rest::Stroke* Buffer);
 				static bool ConstructRoute(MapRouter* Router, Connection* Base);
-				static bool WebSocketWrite(Connection* Base, const char* Buffer, Int64 Length, WebSocketOp Type, const SuccessCallback& Callback);
-				static bool WebSocketWriteMask(Connection* Base, const char* Buffer, Int64 Length, WebSocketOp Type, unsigned int Mask, const SuccessCallback& Callback);
+				static bool WebSocketWrite(Connection* Base, const char* Buffer, int64_t Length, WebSocketOp Type, const SuccessCallback& Callback);
+				static bool WebSocketWriteMask(Connection* Base, const char* Buffer, int64_t Length, WebSocketOp Type, unsigned int Mask, const SuccessCallback& Callback);
 				static bool ConstructDirectoryEntries(const Rest::ResourceEntry& A, const Rest::ResourceEntry& B);
 				static std::string ConnectionResolve(Connection* Base);
-				static std::string ConstructContentRange(UInt64 Offset, UInt64 Length, UInt64 ContenLength);
+				static std::string ConstructContentRange(uint64_t Offset, uint64_t Length, uint64_t ContenLength);
 				static const char* ContentType(const std::string& Path, std::vector<MimeType>* MimeTypes);
 				static const char* StatusMessage(int StatusCode);
 
 			public:
-				static bool ParseMultipartHeaderField(Parser* Parser, const char* Name, UInt64 Length);
-				static bool ParseMultipartHeaderValue(Parser* Parser, const char* Name, UInt64 Length);
-				static bool ParseMultipartContentData(Parser* Parser, const char* Name, UInt64 Length);
+				static bool ParseMultipartHeaderField(Parser* Parser, const char* Name, uint64_t Length);
+				static bool ParseMultipartHeaderValue(Parser* Parser, const char* Name, uint64_t Length);
+				static bool ParseMultipartContentData(Parser* Parser, const char* Name, uint64_t Length);
 				static bool ParseMultipartResourceBegin(Parser* Parser);
 				static bool ParseMultipartResourceEnd(Parser* Parser);
-				static bool ParseHeaderField(Parser* Parser, const char* Name, UInt64 Length);
-				static bool ParseHeaderValue(Parser* Parser, const char* Name, UInt64 Length);
-				static bool ParseVersion(Parser* Parser, const char* Name, UInt64 Length);
-				static bool ParseStatusCode(Parser* Parser, UInt64 Length);
-				static bool ParseMethodValue(Parser* Parser, const char* Name, UInt64 Length);
-				static bool ParsePathValue(Parser* Parser, const char* Name, UInt64 Length);
-				static bool ParseQueryValue(Parser* Parser, const char* Name, UInt64 Length);
-				static int ParseContentRange(const char* ContentRange, Int64* Range1, Int64* Range2);
+				static bool ParseHeaderField(Parser* Parser, const char* Name, uint64_t Length);
+				static bool ParseHeaderValue(Parser* Parser, const char* Name, uint64_t Length);
+				static bool ParseVersion(Parser* Parser, const char* Name, uint64_t Length);
+				static bool ParseStatusCode(Parser* Parser, uint64_t Length);
+				static bool ParseMethodValue(Parser* Parser, const char* Name, uint64_t Length);
+				static bool ParsePathValue(Parser* Parser, const char* Name, uint64_t Length);
+				static bool ParseQueryValue(Parser* Parser, const char* Name, uint64_t Length);
+				static int ParseContentRange(const char* ContentRange, int64_t* Range1, int64_t* Range2);
 				static std::string ParseMultipartDataBoundary();
 
 			public:
@@ -605,7 +605,7 @@ namespace Tomahawk
 				static bool ResourceIndexed(Connection* Base, Rest::Resource* Resource);
 				static bool ResourceProvided(Connection* Base, Rest::Resource* Resource);
 				static bool ResourceModified(Connection* Base, Rest::Resource* Resource);
-				static bool ResourceCompressed(Connection* Base, UInt64 Size);
+				static bool ResourceCompressed(Connection* Base, uint64_t Size);
 
 			public:
 				static bool RouteWEBSOCKET(Connection* Base);
@@ -619,10 +619,10 @@ namespace Tomahawk
 			public:
 				static bool ProcessDirectory(Connection* Base);
 				static bool ProcessResource(Connection* Base);
-				static bool ProcessResourceCompress(Connection* Base, bool Deflate, bool Gzip, const char* ContentRange, UInt64 Range);
+				static bool ProcessResourceCompress(Connection* Base, bool Deflate, bool Gzip, const char* ContentRange, uint64_t Range);
 				static bool ProcessResourceCache(Connection* Base);
-				static bool ProcessFile(Connection* Base, UInt64 ContentLength, UInt64 Range);
-				static bool ProcessFileCompress(Connection* Base, UInt64 ContentLength, UInt64 Range, bool Gzip);
+				static bool ProcessFile(Connection* Base, uint64_t ContentLength, uint64_t Range);
+				static bool ProcessFileCompress(Connection* Base, uint64_t ContentLength, uint64_t Range, bool Gzip);
 				static bool ProcessGateway(Connection* Base);
 				static bool ProcessWebSocket(Connection* Base, const char* Key);
 				static bool ProcessWebSocketPass(Connection* Base);
@@ -656,10 +656,10 @@ namespace Tomahawk
 				ResponseFrame Response;
 
 			public:
-				Client(Int64 ReadTimeout);
+				Client(int64_t ReadTimeout);
 				~Client() override;
 				bool Send(HTTP::RequestFrame* Root, const ResponseCallback& Callback);
-				bool Consume(Int64 MaxSize, const ResponseCallback& Callback);
+				bool Consume(int64_t MaxSize, const ResponseCallback& Callback);
 				RequestFrame* GetRequest();
 				ResponseFrame* GetResponse();
 

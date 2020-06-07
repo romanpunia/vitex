@@ -28,7 +28,7 @@ namespace Tomahawk
 			struct THAWK_OUT Attachment
 			{
 				std::string Path;
-				UInt64 Length = 0;
+				uint64_t Length = 0;
 			};
 
 			struct THAWK_OUT RequestFrame
@@ -62,12 +62,12 @@ namespace Tomahawk
 				std::string Command;
 				std::string Boundary;
 				RequestFrame Request;
-				Int64 Pending;
+				int64_t Pending;
 				bool Staging;
 				bool Authorized;
 
 			public:
-				Client(Int64 ReadTimeout);
+				Client(int64_t ReadTimeout);
 				virtual ~Client() override;
 				bool Send(RequestFrame* Root, const ResponseCallback& Callback);
 				RequestFrame* GetRequest();

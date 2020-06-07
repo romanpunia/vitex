@@ -110,7 +110,7 @@ namespace Tomahawk
 				D3D11StructureBuffer(Graphics::GraphicsDevice* Device, const Desc& I);
 				virtual ~D3D11StructureBuffer() override;
 				void Map(Graphics::GraphicsDevice* Device, Graphics::ResourceMap Mode, Graphics::MappedSubresource* Map) override;
-				void RemapSubresource(Graphics::GraphicsDevice* Device, void* Pointer, UInt64 Size) override;
+				void RemapSubresource(Graphics::GraphicsDevice* Device, void* Pointer, uint64_t Size) override;
 				void Unmap(Graphics::GraphicsDevice* Device, Graphics::MappedSubresource* Map) override;
 				void SetBuffer(Graphics::GraphicsDevice* Device, int Slot) override;
 				void* GetElement() override;
@@ -331,7 +331,7 @@ namespace Tomahawk
 				virtual ~D3D11InstanceBuffer() override;
 				void Update() override;
 				void Restore() override;
-				void Resize(UInt64 Size) override;
+				void Resize(uint64_t Size) override;
 				void SetResource(Graphics::GraphicsDevice* Device, int Slot) override;
 			};
 
@@ -368,7 +368,7 @@ namespace Tomahawk
 				void TexCoordOffset(float X, float Y) override;
 				void Transform(Compute::Matrix4x4 Input) override;
 				void Topology(Graphics::PrimitiveTopology DrawTopology) override;
-				void AllocVertexBuffer(UInt64 Size);
+				void AllocVertexBuffer(uint64_t Size);
 			};
 
 			class D3D11Device : public Graphics::GraphicsDevice
@@ -396,14 +396,14 @@ namespace Tomahawk
 				void ReleaseState(Graphics::DeviceState** RefState) override;
 				void SetConstantBuffers() override;
 				void SetShaderModel(Graphics::ShaderModel RShaderModel) override;
-				UInt64 AddDepthStencilState(Graphics::DepthStencilState* In) override;
-				UInt64 AddBlendState(Graphics::BlendState* In) override;
-				UInt64 AddRasterizerState(Graphics::RasterizerState* In) override;
-				UInt64 AddSamplerState(Graphics::SamplerState* In) override;
-				void SetSamplerState(UInt64 State) override;
-				void SetBlendState(UInt64 State) override;
-				void SetRasterizerState(UInt64 State) override;
-				void SetDepthStencilState(UInt64 State) override;
+				uint64_t AddDepthStencilState(Graphics::DepthStencilState* In) override;
+				uint64_t AddBlendState(Graphics::BlendState* In) override;
+				uint64_t AddRasterizerState(Graphics::RasterizerState* In) override;
+				uint64_t AddSamplerState(Graphics::SamplerState* In) override;
+				void SetSamplerState(uint64_t State) override;
+				void SetBlendState(uint64_t State) override;
+				void SetRasterizerState(uint64_t State) override;
+				void SetDepthStencilState(uint64_t State) override;
 				void UpdateBuffer(Graphics::RenderBufferType Buffer) override;
 				void Present() override;
 				void SetPrimitiveTopology(Graphics::PrimitiveTopology Topology) override;

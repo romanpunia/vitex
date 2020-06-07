@@ -49,7 +49,7 @@ namespace Tomahawk
 			{
 			}
 
-			void WebSocketFrame::Write(const char* Data, Int64 Length, WebSocketOp OpCode, const SuccessCallback& Callback)
+			void WebSocketFrame::Write(const char* Data, int64_t Length, WebSocketOp OpCode, const SuccessCallback& Callback)
 			{
 				Util::WebSocketWriteMask(Base, Data, Length, OpCode, 0, Callback);
 			}
@@ -247,7 +247,7 @@ namespace Tomahawk
 						}
 
 						const char* Data = Buffer + Offset;
-						UInt64 SSize = i - Offset;
+						uint64_t SSize = i - Offset;
 						Type = Buffer[i];
 						i += 2;
 						Offset = i;
@@ -576,16 +576,16 @@ namespace Tomahawk
 				if (!Cookie)
 					return nullptr;
 
-				UInt64 Length = strlen(Cookie);
+				uint64_t Length = strlen(Cookie);
 				const char* Offset = Cookie;
 				Cookies.reserve(2);
 
-				for (UInt64 i = 0; i < Length; i++)
+				for (uint64_t i = 0; i < Length; i++)
 				{
 					if (Cookie[i] != '=')
 						continue;
 
-					UInt64 NameLength = (UInt64)((Cookie + i) - Offset), Set = i;
+					uint64_t NameLength = (uint64_t)((Cookie + i) - Offset), Set = i;
 					std::string Name(Offset, NameLength);
 
 					while (i + 1 < Length && Cookie[i] != ';')
@@ -622,14 +622,14 @@ namespace Tomahawk
 
 				return nullptr;
 			}
-			std::vector<std::pair<Int64, Int64>> RequestFrame::GetRanges()
+			std::vector<std::pair<int64_t, int64_t>> RequestFrame::GetRanges()
 			{
 				const char* Range = GetHeader("Range");
 				if (Range == nullptr)
-					return std::vector<std::pair<Int64, Int64>>();
+					return std::vector<std::pair<int64_t, int64_t>>();
 
 				std::vector<std::string> Bases = Rest::Stroke(Range).Split(',');
-				std::vector<std::pair<Int64, Int64>> Ranges;
+				std::vector<std::pair<int64_t, int64_t>> Ranges;
 
 				for (auto It = Bases.begin(); It != Bases.end(); It++)
 				{
@@ -638,31 +638,31 @@ namespace Tomahawk
 						continue;
 
 					const char* Start = It->c_str() + Result.Start;
-					UInt64 StartLength = 0;
+					uint64_t StartLength = 0;
 
 					while (Result.Start > 0 && *Start-- != '\0' && isdigit(*Start))
 						StartLength++;
 
 					const char* End = It->c_str() + Result.Start;
-					UInt64 EndLength = 0;
+					uint64_t EndLength = 0;
 
 					while (*End++ != '\0' && isdigit(*End))
 						EndLength++;
 
-					Int64 From = std::stoll(std::string(Start, StartLength));
+					int64_t From = std::stoll(std::string(Start, StartLength));
 					if (From == -1)
 						break;
 
-					Int64 To = std::stoll(std::string(End, EndLength));
+					int64_t To = std::stoll(std::string(End, EndLength));
 					if (To == -1 || To < From)
 						break;
 
-					Ranges.emplace_back(std::make_pair((UInt64)From, (UInt64)To));
+					Ranges.emplace_back(std::make_pair((uint64_t)From, (uint64_t)To));
 				}
 
 				return Ranges;
 			}
-			std::pair<UInt64, UInt64> RequestFrame::GetRange(std::vector<std::pair<Int64, Int64>>::iterator Range, UInt64 ContenLength)
+			std::pair<uint64_t, uint64_t> RequestFrame::GetRange(std::vector<std::pair<int64_t, int64_t>>::iterator Range, uint64_t ContenLength)
 			{
 				if (Range->first == -1 && Range->second == -1)
 					return std::make_pair(0, ContenLength);
@@ -724,7 +724,7 @@ namespace Tomahawk
 				Header.Value = Value;
 				Headers.push_back(Header);
 			}
-			void ResponseFrame::SetCookie(const char* Key, const char* Value, const char* Domain, const char* Path, UInt64 Expires, bool Secure)
+			void ResponseFrame::SetCookie(const char* Key, const char* Value, const char* Domain, const char* Path, uint64_t Expires, bool Secure)
 			{
 				if (!Key || !Value)
 					return;
@@ -784,7 +784,7 @@ namespace Tomahawk
 				if (!Key)
 					return nullptr;
 
-				for (UInt64 i = 0; i < Cookies.size(); i++)
+				for (uint64_t i = 0; i < Cookies.size(); i++)
 				{
 					Cookie* Result = &Cookies[i];
 					if (!Rest::Stroke::CaseCompare(Result->Name.c_str(), Key))
@@ -854,7 +854,7 @@ namespace Tomahawk
 				if (TransferEncoding && !Rest::Stroke::CaseCompare(TransferEncoding, "chunked"))
 				{
 					Parser* Parser = new HTTP::Parser();
-					return Stream->ReadAsync((Int64)Root->Router->PayloadMaxLength, [Parser, Callback](Network::Socket* Socket, const char* Buffer, Int64 Size)
+					return Stream->ReadAsync((int64_t)Root->Router->PayloadMaxLength, [Parser, Callback](Network::Socket* Socket, const char* Buffer, int64_t Size)
 					{
 						Connection* Base = Socket->Context<Connection>();
 						if (!Base)
@@ -862,7 +862,7 @@ namespace Tomahawk
 
 						if (Size > 0)
 						{
-							Int64 Result = Parser->ParseDecodeChunked((char*)Buffer, &Size);
+							int64_t Result = Parser->ParseDecodeChunked((char*)Buffer, &Size);
 							if (Result == -1)
 							{
 								delete Parser;
@@ -904,7 +904,7 @@ namespace Tomahawk
 				}
 				else if (!Request.GetHeader("Content-Length"))
 				{
-					return Stream->ReadAsync((Int64)Root->Router->PayloadMaxLength, [Callback](Network::Socket* Socket, const char* Buffer, Int64 Size)
+					return Stream->ReadAsync((int64_t)Root->Router->PayloadMaxLength, [Callback](Network::Socket* Socket, const char* Buffer, int64_t Size)
 					{
 						Connection* Base = Socket->Context<Connection>();
 						if (!Base)
@@ -951,7 +951,7 @@ namespace Tomahawk
 					return true;
 				}
 
-				return Stream->ReadAsync((Int64)Request.ContentLength, [Callback](Network::Socket* Socket, const char* Buffer, Int64 Size)
+				return Stream->ReadAsync((int64_t)Request.ContentLength, [Callback](Network::Socket* Socket, const char* Buffer, int64_t Size)
 				{
 					Connection* Base = Socket->Context<Connection>();
 					if (!Base)
@@ -1008,7 +1008,7 @@ namespace Tomahawk
 						return true;
 
 					for (auto It = Request.Resources.begin(); It != Request.Resources.end(); It++)
-						Callback(this, &(*It), (Int64)It->Length);
+						Callback(this, &(*It), (int64_t)It->Length);
 
 					Callback(this, nullptr, 0);
 					return true;
@@ -1037,7 +1037,7 @@ namespace Tomahawk
 					Parser->OnResourceEnd = Util::ParseMultipartResourceEnd;
 					Parser->UserPointer = Segment;
 
-					return Stream->ReadAsync((Int64)Request.ContentLength, [Parser, Segment, Boundary](Network::Socket* Socket, const char* Buffer, Int64 Size)
+					return Stream->ReadAsync((int64_t)Request.ContentLength, [Parser, Segment, Boundary](Network::Socket* Socket, const char* Buffer, int64_t Size)
 					{
 						Connection* Base = Socket->Context<Connection>();
 						if (!Base)
@@ -1087,7 +1087,7 @@ namespace Tomahawk
 						return false;
 					}
 
-					return Stream->ReadAsync((Int64)Request.ContentLength, [File, Resource, Callback](Network::Socket* Socket, const char* Buffer, Int64 Size)
+					return Stream->ReadAsync((int64_t)Request.ContentLength, [File, Resource, Callback](Network::Socket* Socket, const char* Buffer, int64_t Size)
 					{
 						Connection* Base = Socket->Context<Connection>();
 						if (!Base)
@@ -1206,7 +1206,7 @@ namespace Tomahawk
 						if (Route && Route->Callbacks.Headers)
 							Route->Callbacks.Headers(this, &Content);
 
-						Content.fAppend("Date: %s\r\n%sContent-Type: text/html; charset=%s\r\nAccept-Ranges: bytes\r\nContent-Length: %llu\r\n%s\r\n%s", Date, Util::ConnectionResolve(this).c_str(), Route ? Route->CharSet.c_str() : "utf-8", (UInt64)strlen(Buffer), Auth.c_str(), Buffer);
+						Content.fAppend("Date: %s\r\n%sContent-Type: text/html; charset=%s\r\nAccept-Ranges: bytes\r\nContent-Length: %llu\r\n%s\r\n%s", Date, Util::ConnectionResolve(this).c_str(), Route ? Route->CharSet.c_str() : "utf-8", (uint64_t)strlen(Buffer), Auth.c_str(), Buffer);
 					}
 					else
 					{
@@ -1216,7 +1216,7 @@ namespace Tomahawk
 						Content.fAppend("Date: %s\r\nAccept-Ranges: bytes\r\n%s%s\r\n", Date, Util::ConnectionResolve(this).c_str(), Auth.c_str());
 					}
 
-					return Stream->WriteAsync(Content.Get(), (Int64)Content.Size(), [](Network::Socket* Socket, Int64 Size)
+					return Stream->WriteAsync(Content.Get(), (int64_t)Content.Size(), [](Network::Socket* Socket, int64_t Size)
 					{
 						auto Base = Socket->Context<HTTP::Connection>();
 						if (Size < 0)
@@ -1294,7 +1294,7 @@ namespace Tomahawk
 
 								if (deflate(&Stream, Z_FINISH) == Z_STREAM_END && deflateEnd(&Stream) == Z_OK)
 								{
-									Response.Buffer.assign(Buffer.c_str(), (UInt64)Stream.total_out);
+									Response.Buffer.assign(Buffer.c_str(), (uint64_t)Stream.total_out);
 									if (!Response.GetHeader("Content-Encoding"))
 									{
 										if (Gzip)
@@ -1309,13 +1309,13 @@ namespace Tomahawk
 #endif
 					if (Request.GetHeader("Range") != nullptr)
 					{
-						std::vector<std::pair<Int64, Int64>> Ranges = Request.GetRanges();
+						std::vector<std::pair<int64_t, int64_t>> Ranges = Request.GetRanges();
 						if (Ranges.size() > 1)
 						{
 							std::string Data;
 							for (auto It = Ranges.begin(); It != Ranges.end(); It++)
 							{
-								std::pair<UInt64, UInt64> Offset = Request.GetRange(It, Response.Buffer.size());
+								std::pair<uint64_t, uint64_t> Offset = Request.GetRange(It, Response.Buffer.size());
 								std::string ContentRange = Util::ConstructContentRange(Offset.first, Offset.second, Response.Buffer.size());
 
 								Data.append("--", 2);
@@ -1345,7 +1345,7 @@ namespace Tomahawk
 						}
 						else
 						{
-							std::pair<UInt64, UInt64> Offset = Request.GetRange(Ranges.begin(), Response.Buffer.size());
+							std::pair<uint64_t, uint64_t> Offset = Request.GetRange(Ranges.begin(), Response.Buffer.size());
 							if (!Response.GetHeader("Content-Range"))
 								Content.fAppend("Content-Range: %s\r\n", Util::ConstructContentRange(Offset.first, Offset.second, Response.Buffer.size()).c_str());
 
@@ -1354,7 +1354,7 @@ namespace Tomahawk
 					}
 
 					if (!Response.GetHeader("Content-Length"))
-						Content.fAppend("Content-Length: %llu\r\n", (UInt64)Response.Buffer.size());
+						Content.fAppend("Content-Length: %llu\r\n", (uint64_t)Response.Buffer.size());
 				}
 				else if (!Response.GetHeader("Content-Length"))
 					Content.Append("Content-Length: 0\r\n", 19);
@@ -1377,7 +1377,7 @@ namespace Tomahawk
 					Route->Callbacks.Headers(this, &Content);
 
 				Content.Append("\r\n", 2);
-				return Stream->WriteAsync(Content.Get(), (Int64)Content.Size(), [](Socket* Socket, Int64 Size)
+				return Stream->WriteAsync(Content.Get(), (int64_t)Content.Size(), [](Socket* Socket, int64_t Size)
 				{
 					auto Base = Socket->Context<HTTP::Connection>();
 					if (Size < 0)
@@ -1390,7 +1390,7 @@ namespace Tomahawk
 
 					if (!Base->Response.Buffer.empty())
 					{
-						return !Socket->WriteAsync(Base->Response.Buffer.c_str(), (Int64)Base->Response.Buffer.size(), [](Network::Socket* Socket, Int64 Size)
+						return !Socket->WriteAsync(Base->Response.Buffer.c_str(), (int64_t)Base->Response.Buffer.size(), [](Network::Socket* Socket, int64_t Size)
 						{
 							auto Base = Socket->Context<HTTP::Connection>();
 							if (Size <= 0)
@@ -1439,7 +1439,7 @@ namespace Tomahawk
 					unsigned char* Pointer = Buffer;
 					int Size = i2d_ASN1_INTEGER(Serial, &Pointer);
 
-					if (!Compute::MathCommon::HexToString(Buffer, (UInt64)Size, SerialBuffer, sizeof(SerialBuffer)))
+					if (!Compute::MathCommon::HexToString(Buffer, (uint64_t)Size, SerialBuffer, sizeof(SerialBuffer)))
 						*SerialBuffer = '\0';
 				}
 				else
@@ -1449,7 +1449,7 @@ namespace Tomahawk
 				ASN1_digest((int (*)(void*, unsigned char**))i2d_X509, Digest, (char*)Certificate, Buffer, &Size);
 
 				char FingerBuffer[1024];
-				if (!Compute::MathCommon::HexToString(Buffer, (UInt64)Size, FingerBuffer, sizeof(FingerBuffer)))
+				if (!Compute::MathCommon::HexToString(Buffer, (uint64_t)Size, FingerBuffer, sizeof(FingerBuffer)))
 					*FingerBuffer = '\0';
 
 				Output->Subject = SubjectBuffer;
@@ -1563,8 +1563,8 @@ namespace Tomahawk
 				std::string URI = Compute::MathCommon::URIDecode(Name.Value, Name.Length);
 				char* Data = (char*)URI.c_str();
 
-				UInt64 Offset = 0, Length = URI.size();
-				for (UInt64 i = 0; i < Length; i++)
+				uint64_t Offset = 0, Length = URI.size();
+				for (uint64_t i = 0; i < Length; i++)
 				{
 					if (Data[i] != '[')
 					{
@@ -1635,8 +1635,8 @@ namespace Tomahawk
 				std::vector<QueryToken> Tokens;
 				char* Data = (char*)URI.c_str();
 
-				UInt64 Offset = 0, Length = URI.size();
-				for (UInt64 i = 0; i < Length; i++)
+				uint64_t Offset = 0, Length = URI.size();
+				for (uint64_t i = 0; i < Length; i++)
 				{
 					if (Data[i] != '&' && Data[i] != '=' && i + 1 < Length)
 						continue;
@@ -1781,9 +1781,9 @@ namespace Tomahawk
 					return false;
 
 				SessionExpires = time(nullptr) + Base->Route->Site->Gateway.Session.Expires;
-				fwrite(&SessionExpires, sizeof(Int64), 1, Stream);
+				fwrite(&SessionExpires, sizeof(int64_t), 1, Stream);
 
-				Query->WriteBIN(Query, [Stream](Rest::DocumentPretty, const char* Buffer, Int64 Size)
+				Query->WriteBIN(Query, [Stream](Rest::DocumentPretty, const char* Buffer, int64_t Size)
 				{
 					if (Buffer != nullptr && Size > 0)
 						fwrite(Buffer, Size, 1, Stream);
@@ -1811,7 +1811,7 @@ namespace Tomahawk
 				}
 
 				fseek(Stream, 0, SEEK_SET);
-				if (fread(&SessionExpires, 1, sizeof(Int64), Stream) != sizeof(Int64))
+				if (fread(&SessionExpires, 1, sizeof(int64_t), Stream) != sizeof(int64_t))
 				{
 					fclose(Stream);
 					return false;
@@ -1829,7 +1829,7 @@ namespace Tomahawk
 				}
 
 
-				Rest::Document* V = Rest::Document::ReadBIN([Stream](char* Buffer, Int64 Size)
+				Rest::Document* V = Rest::Document::ReadBIN([Stream](char* Buffer, int64_t Size)
 				{
 					if (!Buffer || !Size)
 						return true;
@@ -1862,14 +1862,14 @@ namespace Tomahawk
 				if (!Base || !Base->Route)
 					return SessionId;
 
-				Int64 Time = time(nullptr);
+				int64_t Time = time(nullptr);
 				SessionId = Compute::MathCommon::MD5Hash(Base->Request.URI + std::to_string(Time));
 				IsNewSession = true;
 
 				if (SessionExpires == 0)
 					SessionExpires = Time + Base->Route->Site->Gateway.Session.Expires;
 
-				Base->Response.SetCookie(Base->Route->Site->Gateway.Session.Name.c_str(), SessionId.c_str(), Base->Route->Site->Gateway.Session.Domain.c_str(), Base->Route->Site->Gateway.Session.Path.c_str(), Time + (Int64)Base->Route->Site->Gateway.Session.CookieExpires, false);
+				Base->Response.SetCookie(Base->Route->Site->Gateway.Session.Name.c_str(), SessionId.c_str(), Base->Route->Site->Gateway.Session.Domain.c_str(), Base->Route->Site->Gateway.Session.Path.c_str(), Time + (int64_t)Base->Route->Site->Gateway.Session.CookieExpires, false);
 				return SessionId;
 			}
 			bool Session::InvalidateCache(const std::string& Path)
@@ -1900,7 +1900,7 @@ namespace Tomahawk
 					Multipart.Boundary = nullptr;
 				}
 			}
-			Int64 Parser::MultipartParse(const char* Boundary, const char* Buffer, Int64 Length)
+			int64_t Parser::MultipartParse(const char* Boundary, const char* Buffer, int64_t Length)
 			{
 				if (!Multipart.Boundary || !Multipart.LookBehind)
 				{
@@ -1921,7 +1921,7 @@ namespace Tomahawk
 
 				char Value, Lower;
 				char LF = 10, CR = 13;
-				Int64 i = 0, Mark = 0;
+				int64_t i = 0, Mark = 0;
 				int Last = 0;
 
 				while (i < Length)
@@ -2118,41 +2118,41 @@ namespace Tomahawk
 
 				return Length;
 			}
-			Int64 Parser::ParseRequest(const char* BufferStart, UInt64 Length, UInt64 LastLength)
+			int64_t Parser::ParseRequest(const char* BufferStart, uint64_t Length, uint64_t LastLength)
 			{
 				const char* Buffer = BufferStart;
 				const char* BufferEnd = BufferStart + Length;
 				int Result;
 
 				if (LastLength != 0 && Complete(Buffer, BufferEnd, LastLength, &Result) == nullptr)
-					return (Int64)Result;
+					return (int64_t)Result;
 
 				if ((Buffer = ProcessRequest(Buffer, BufferEnd, &Result)) == nullptr)
-					return (Int64)Result;
+					return (int64_t)Result;
 
-				return (Int64)(Buffer - BufferStart);
+				return (int64_t)(Buffer - BufferStart);
 			}
-			Int64 Parser::ParseResponse(const char* BufferStart, UInt64 Length, UInt64 LastLength)
+			int64_t Parser::ParseResponse(const char* BufferStart, uint64_t Length, uint64_t LastLength)
 			{
 				const char* Buffer = BufferStart;
 				const char* BufferEnd = Buffer + Length;
 				int Result;
 
 				if (LastLength != 0 && Complete(Buffer, BufferEnd, LastLength, &Result) == nullptr)
-					return (Int64)Result;
+					return (int64_t)Result;
 
 				if ((Buffer = ProcessResponse(Buffer, BufferEnd, &Result)) == nullptr)
-					return (Int64)Result;
+					return (int64_t)Result;
 
-				return (Int64)(Buffer - BufferStart);
+				return (int64_t)(Buffer - BufferStart);
 			}
-			Int64 Parser::ParseDecodeChunked(char* Buffer, Int64* Length)
+			int64_t Parser::ParseDecodeChunked(char* Buffer, int64_t* Length)
 			{
 				if (!Buffer || !Length)
 					return -1;
 
 				size_t Dest = 0, Src = 0, Size = *Length;
-				Int64 Result = -2;
+				int64_t Result = -2;
 
 				while (true)
 				{
@@ -2301,7 +2301,7 @@ namespace Tomahawk
 				*Length = Dest;
 				return Result;
 			}
-			const char* Parser::Tokenize(const char* Buffer, const char* BufferEnd, const char** Token, UInt64* TokenLength, int* Out)
+			const char* Parser::Tokenize(const char* Buffer, const char* BufferEnd, const char** Token, uint64_t* TokenLength, int* Out)
 			{
 				const char* TokenStart = Buffer;
 				while (BufferEnd - Buffer >= 8)
@@ -2367,7 +2367,7 @@ namespace Tomahawk
 				*Token = TokenStart;
 				return Buffer;
 			}
-			const char* Parser::Complete(const char* Buffer, const char* BufferEnd, UInt64 LastLength, int* Out)
+			const char* Parser::Complete(const char* Buffer, const char* BufferEnd, uint64_t LastLength, int* Out)
 			{
 				int Result = 0;
 				Buffer = LastLength < 3 ? Buffer : Buffer + LastLength - 3;
@@ -2551,7 +2551,7 @@ namespace Tomahawk
 							}
 						}
 
-						Int64 Length = Buffer - Name;
+						int64_t Length = Buffer - Name;
 						if (Length == 0)
 						{
 							*Out = -1;
@@ -2590,7 +2590,7 @@ namespace Tomahawk
 					}
 
 					const char* Value;
-					UInt64 ValueLength;
+					uint64_t ValueLength;
 					if ((Buffer = Tokenize(Buffer, BufferEnd, &Value, &ValueLength, Out)) == nullptr)
 					{
 						if (OnHeaderValue)
@@ -2718,7 +2718,7 @@ namespace Tomahawk
 					return nullptr;
 
 				char* Path = (char*)TokenStart;
-				Int64 PL = Buffer - TokenStart, QL = 0;
+				int64_t PL = Buffer - TokenStart, QL = 0;
 				while (QL < PL && Path[QL] != '?')
 					QL++;
 
@@ -2820,14 +2820,14 @@ namespace Tomahawk
 
 				*(&Result) = (*Buffer++ - '0');
 				Status += Result;
-				if (OnStatusCode && !OnStatusCode(this, (Int64)Status))
+				if (OnStatusCode && !OnStatusCode(this, (int64_t)Status))
 				{
 					*Out = -1;
 					return nullptr;
 				}
 
 				const char* Message;
-				UInt64 MessageLength;
+				uint64_t MessageLength;
 				if ((Buffer = Tokenize(Buffer, BufferEnd, &Message, &MessageLength, Out)) == nullptr)
 					return nullptr;
 
@@ -2859,7 +2859,7 @@ namespace Tomahawk
 				if (!Base || !Base->Route)
 					return;
 
-				for (UInt64 i = 0; i < Base->Request.URI.size(); i++)
+				for (uint64_t i = 0; i < Base->Request.URI.size(); i++)
 				{
 					if (Base->Request.URI[i] == '%' && i + 1 < Base->Request.URI.size())
 					{
@@ -2869,7 +2869,7 @@ namespace Tomahawk
 							if (Compute::MathCommon::HexToDecimal(Base->Request.URI, i + 2, 4, Value))
 							{
 								char Buffer[4];
-								UInt64 LCount = Compute::MathCommon::Utf8(Value, Buffer);
+								uint64_t LCount = Compute::MathCommon::Utf8(Value, Buffer);
 								if (LCount > 0)
 									Base->Request.Path.append(Buffer, LCount);
 
@@ -3021,11 +3021,11 @@ namespace Tomahawk
 
 				return false;
 			}
-			bool Util::WebSocketWrite(Connection* Base, const char* Buffer, Int64 Size, WebSocketOp Opcode, const SuccessCallback& Callback)
+			bool Util::WebSocketWrite(Connection* Base, const char* Buffer, int64_t Size, WebSocketOp Opcode, const SuccessCallback& Callback)
 			{
 				return WebSocketWriteMask(Base, Buffer, Size, Opcode, 0, Callback);
 			}
-			bool Util::WebSocketWriteMask(Connection* Base, const char* Buffer, Int64 Size, WebSocketOp Opcode, unsigned int Mask, const SuccessCallback& Callback)
+			bool Util::WebSocketWriteMask(Connection* Base, const char* Buffer, int64_t Size, WebSocketOp Opcode, unsigned int Mask, const SuccessCallback& Callback)
 			{
 				if (!Base || !Buffer)
 					return false;
@@ -3063,7 +3063,7 @@ namespace Tomahawk
 					HeaderLength += 4;
 				}
 
-				return !Base->Stream->WriteAsync((const char*)Header, HeaderLength, [Buffer, Size, Callback](Socket* Socket, Int64 Length)
+				return !Base->Stream->WriteAsync((const char*)Header, HeaderLength, [Buffer, Size, Callback](Socket* Socket, int64_t Length)
 				{
 					auto Base = Socket->Context<HTTP::Connection>();
 					if (Length < 0)
@@ -3084,7 +3084,7 @@ namespace Tomahawk
 						return true;
 					}
 
-					return !Base->Stream->WriteAsync(Buffer, Size, [Callback](Network::Socket* Socket, Int64 Size)
+					return !Base->Stream->WriteAsync(Buffer, Size, [Callback](Network::Socket* Socket, int64_t Size)
 					{
 						auto Base = Socket->Context<HTTP::Connection>();
 						if (Size < 0)
@@ -3160,7 +3160,7 @@ namespace Tomahawk
 
 				return "Connection: Keep-Alive\r\nKeep-Alive: timeout=" + std::to_string(Base->Root->Router->SocketTimeout / 1000) + ", max=" + std::to_string(Base->Root->Router->KeepAliveMaxCount) + "\r\n";
 			}
-			std::string Util::ConstructContentRange(UInt64 Offset, UInt64 Length, UInt64 ContentLength)
+			std::string Util::ConstructContentRange(uint64_t Offset, uint64_t Length, uint64_t ContentLength)
 			{
 				std::string Field = "bytes ";
 				Field += std::to_string(Offset);
@@ -3175,7 +3175,7 @@ namespace Tomahawk
 			{
 				static MimeStatic MimeTypes[] = { MimeStatic(".3dm", "x-world/x-3dmf"), MimeStatic(".3dmf", "x-world/x-3dmf"), MimeStatic(".a", "application/octet-stream"), MimeStatic(".aab", "application/x-authorware-bin"), MimeStatic(".aac", "audio/aac"), MimeStatic(".aam", "application/x-authorware-map"), MimeStatic(".aas", "application/x-authorware-seg"), MimeStatic(".aat", "application/font-sfnt"), MimeStatic(".abc", "text/vnd.abc"), MimeStatic(".acgi", "text/html"), MimeStatic(".afl", "video/animaflex"), MimeStatic(".ai", "application/postscript"), MimeStatic(".aif", "audio/x-aiff"), MimeStatic(".aifc", "audio/x-aiff"), MimeStatic(".aiff", "audio/x-aiff"), MimeStatic(".aim", "application/x-aim"), MimeStatic(".aip", "text/x-audiosoft-intra"), MimeStatic(".ani", "application/x-navi-animation"), MimeStatic(".aos", "application/x-nokia-9000-communicator-add-on-software"), MimeStatic(".aps", "application/mime"), MimeStatic(".arc", "application/octet-stream"), MimeStatic(".arj", "application/arj"), MimeStatic(".art", "image/x-jg"), MimeStatic(".asf", "video/x-ms-asf"), MimeStatic(".asm", "text/x-asm"), MimeStatic(".asp", "text/asp"), MimeStatic(".asx", "video/x-ms-asf"), MimeStatic(".au", "audio/x-au"), MimeStatic(".avi", "video/x-msvideo"), MimeStatic(".avs", "video/avs-video"), MimeStatic(".bcpio", "application/x-bcpio"), MimeStatic(".bin", "application/x-binary"), MimeStatic(".bm", "image/bmp"), MimeStatic(".bmp", "image/bmp"), MimeStatic(".boo", "application/book"), MimeStatic(".book", "application/book"), MimeStatic(".boz", "application/x-bzip2"), MimeStatic(".bsh", "application/x-bsh"), MimeStatic(".bz", "application/x-bzip"), MimeStatic(".bz2", "application/x-bzip2"), MimeStatic(".c", "text/x-c"), MimeStatic(".c++", "text/x-c"), MimeStatic(".cat", "application/vnd.ms-pki.seccat"), MimeStatic(".cc", "text/x-c"), MimeStatic(".ccad", "application/clariscad"), MimeStatic(".cco", "application/x-cocoa"), MimeStatic(".cdf", "application/x-cdf"), MimeStatic(".cer", "application/pkix-cert"), MimeStatic(".cff", "application/font-sfnt"), MimeStatic(".cha", "application/x-chat"), MimeStatic(".chat", "application/x-chat"), MimeStatic(".class", "application/x-java-class"), MimeStatic(".com", "application/octet-stream"), MimeStatic(".conf", "text/plain"), MimeStatic(".cpio", "application/x-cpio"), MimeStatic(".cpp", "text/x-c"), MimeStatic(".cpt", "application/x-compactpro"), MimeStatic(".crl", "application/pkcs-crl"), MimeStatic(".crt", "application/x-x509-user-cert"), MimeStatic(".csh", "text/x-script.csh"), MimeStatic(".css", "text/css"), MimeStatic(".csv", "text/csv"), MimeStatic(".cxx", "text/plain"), MimeStatic(".dcr", "application/x-director"), MimeStatic(".deepv", "application/x-deepv"), MimeStatic(".def", "text/plain"), MimeStatic(".der", "application/x-x509-ca-cert"), MimeStatic(".dif", "video/x-dv"), MimeStatic(".dir", "application/x-director"), MimeStatic(".dl", "video/x-dl"), MimeStatic(".dll", "application/octet-stream"), MimeStatic(".doc", "application/msword"), MimeStatic(".dot", "application/msword"), MimeStatic(".dp", "application/commonground"), MimeStatic(".drw", "application/drafting"), MimeStatic(".dump", "application/octet-stream"), MimeStatic(".dv", "video/x-dv"), MimeStatic(".dvi", "application/x-dvi"), MimeStatic(".dwf", "model/vnd.dwf"), MimeStatic(".dwg", "image/vnd.dwg"), MimeStatic(".dxf", "image/vnd.dwg"), MimeStatic(".dxr", "application/x-director"), MimeStatic(".el", "text/x-script.elisp"), MimeStatic(".elc", "application/x-bytecode.elisp"), MimeStatic(".env", "application/x-envoy"), MimeStatic(".eps", "application/postscript"), MimeStatic(".es", "application/x-esrehber"), MimeStatic(".etx", "text/x-setext"), MimeStatic(".evy", "application/x-envoy"), MimeStatic(".exe", "application/octet-stream"), MimeStatic(".f", "text/x-fortran"), MimeStatic(".f77", "text/x-fortran"), MimeStatic(".f90", "text/x-fortran"), MimeStatic(".fdf", "application/vnd.fdf"), MimeStatic(".fif", "image/fif"), MimeStatic(".fli", "video/x-fli"), MimeStatic(".flo", "image/florian"), MimeStatic(".flx", "text/vnd.fmi.flexstor"), MimeStatic(".fmf", "video/x-atomic3d-feature"), MimeStatic(".for", "text/x-fortran"), MimeStatic(".fpx", "image/vnd.fpx"), MimeStatic(".frl", "application/freeloader"), MimeStatic(".funk", "audio/make"), MimeStatic(".g", "text/plain"), MimeStatic(".g3", "image/g3fax"), MimeStatic(".gif", "image/gif"), MimeStatic(".gl", "video/x-gl"), MimeStatic(".gsd", "audio/x-gsm"), MimeStatic(".gsm", "audio/x-gsm"), MimeStatic(".gsp", "application/x-gsp"), MimeStatic(".gss", "application/x-gss"), MimeStatic(".gtar", "application/x-gtar"), MimeStatic(".gz", "application/x-gzip"), MimeStatic(".h", "text/x-h"), MimeStatic(".hdf", "application/x-hdf"), MimeStatic(".help", "application/x-helpfile"), MimeStatic(".hgl", "application/vnd.hp-hpgl"), MimeStatic(".hh", "text/x-h"), MimeStatic(".hlb", "text/x-script"), MimeStatic(".hlp", "application/x-helpfile"), MimeStatic(".hpg", "application/vnd.hp-hpgl"), MimeStatic(".hpgl", "application/vnd.hp-hpgl"), MimeStatic(".hqx", "application/binhex"), MimeStatic(".hta", "application/hta"), MimeStatic(".htc", "text/x-component"), MimeStatic(".htm", "text/html"), MimeStatic(".html", "text/html"), MimeStatic(".htmls", "text/html"), MimeStatic(".htt", "text/webviewhtml"), MimeStatic(".htx", "text/html"), MimeStatic(".ice", "x-conference/x-cooltalk"), MimeStatic(".ico", "image/x-icon"), MimeStatic(".idc", "text/plain"), MimeStatic(".ief", "image/ief"), MimeStatic(".iefs", "image/ief"), MimeStatic(".iges", "model/iges"), MimeStatic(".igs", "model/iges"), MimeStatic(".ima", "application/x-ima"), MimeStatic(".imap", "application/x-httpd-imap"), MimeStatic(".inf", "application/inf"), MimeStatic(".ins", "application/x-internett-signup"), MimeStatic(".ip", "application/x-ip2"), MimeStatic(".isu", "video/x-isvideo"), MimeStatic(".it", "audio/it"), MimeStatic(".iv", "application/x-inventor"), MimeStatic(".ivr", "i-world/i-vrml"), MimeStatic(".ivy", "application/x-livescreen"), MimeStatic(".jam", "audio/x-jam"), MimeStatic(".jav", "text/x-java-source"), MimeStatic(".java", "text/x-java-source"), MimeStatic(".jcm", "application/x-java-commerce"), MimeStatic(".jfif", "image/jpeg"), MimeStatic(".jfif-tbnl", "image/jpeg"), MimeStatic(".jpe", "image/jpeg"), MimeStatic(".jpeg", "image/jpeg"), MimeStatic(".jpg", "image/jpeg"), MimeStatic(".jpm", "image/jpm"), MimeStatic(".jps", "image/x-jps"), MimeStatic(".jpx", "image/jpx"), MimeStatic(".js", "application/x-javascript"), MimeStatic(".json", "application/json"), MimeStatic(".jut", "image/jutvision"), MimeStatic(".kar", "music/x-karaoke"), MimeStatic(".kml", "application/vnd.google-earth.kml+xml"), MimeStatic(".kmz", "application/vnd.google-earth.kmz"), MimeStatic(".ksh", "text/x-script.ksh"), MimeStatic(".la", "audio/x-nspaudio"), MimeStatic(".lam", "audio/x-liveaudio"), MimeStatic(".latex", "application/x-latex"), MimeStatic(".lha", "application/x-lha"), MimeStatic(".lhx", "application/octet-stream"), MimeStatic(".lib", "application/octet-stream"), MimeStatic(".list", "text/plain"), MimeStatic(".lma", "audio/x-nspaudio"), MimeStatic(".log", "text/plain"), MimeStatic(".lsp", "text/x-script.lisp"), MimeStatic(".lst", "text/plain"), MimeStatic(".lsx", "text/x-la-asf"), MimeStatic(".ltx", "application/x-latex"), MimeStatic(".lzh", "application/x-lzh"), MimeStatic(".lzx", "application/x-lzx"), MimeStatic(".m", "text/x-m"), MimeStatic(".m1v", "video/mpeg"), MimeStatic(".m2a", "audio/mpeg"), MimeStatic(".m2v", "video/mpeg"), MimeStatic(".m3u", "audio/x-mpegurl"), MimeStatic(".m4v", "video/x-m4v"), MimeStatic(".man", "application/x-troff-man"), MimeStatic(".map", "application/x-navimap"), MimeStatic(".mar", "text/plain"), MimeStatic(".mbd", "application/mbedlet"), MimeStatic(".mc$", "application/x-magic-cap-package-1.0"), MimeStatic(".mcd", "application/x-mathcad"), MimeStatic(".mcf", "text/mcf"), MimeStatic(".mcp", "application/netmc"), MimeStatic(".me", "application/x-troff-me"), MimeStatic(".mht", "message/rfc822"), MimeStatic(".mhtml", "message/rfc822"), MimeStatic(".mid", "audio/x-midi"), MimeStatic(".midi", "audio/x-midi"), MimeStatic(".mif", "application/x-mif"), MimeStatic(".mime", "www/mime"), MimeStatic(".mjf", "audio/x-vnd.audioexplosion.mjuicemediafile"), MimeStatic(".mjpg", "video/x-motion-jpeg"), MimeStatic(".mm", "application/base64"), MimeStatic(".mme", "application/base64"), MimeStatic(".mod", "audio/x-mod"), MimeStatic(".moov", "video/quicktime"), MimeStatic(".mov", "video/quicktime"), MimeStatic(".movie", "video/x-sgi-movie"), MimeStatic(".mp2", "video/x-mpeg"), MimeStatic(".mp3", "audio/x-mpeg-3"), MimeStatic(".mp4", "video/mp4"), MimeStatic(".mpa", "audio/mpeg"), MimeStatic(".mpc", "application/x-project"), MimeStatic(".mpeg", "video/mpeg"), MimeStatic(".mpg", "video/mpeg"), MimeStatic(".mpga", "audio/mpeg"), MimeStatic(".mpp", "application/vnd.ms-project"), MimeStatic(".mpt", "application/x-project"), MimeStatic(".mpv", "application/x-project"), MimeStatic(".mpx", "application/x-project"), MimeStatic(".mrc", "application/marc"), MimeStatic(".ms", "application/x-troff-ms"), MimeStatic(".mv", "video/x-sgi-movie"), MimeStatic(".my", "audio/make"), MimeStatic(".mzz", "application/x-vnd.audioexplosion.mzz"), MimeStatic(".nap", "image/naplps"), MimeStatic(".naplps", "image/naplps"), MimeStatic(".nc", "application/x-netcdf"), MimeStatic(".ncm", "application/vnd.nokia.configuration-message"), MimeStatic(".nif", "image/x-niff"), MimeStatic(".niff", "image/x-niff"), MimeStatic(".nix", "application/x-mix-transfer"), MimeStatic(".nsc", "application/x-conference"), MimeStatic(".nvd", "application/x-navidoc"), MimeStatic(".o", "application/octet-stream"), MimeStatic(".obj", "application/octet-stream"), MimeStatic(".oda", "application/oda"), MimeStatic(".oga", "audio/ogg"), MimeStatic(".ogg", "audio/ogg"), MimeStatic(".ogv", "video/ogg"), MimeStatic(".omc", "application/x-omc"), MimeStatic(".omcd", "application/x-omcdatamaker"), MimeStatic(".omcr", "application/x-omcregerator"), MimeStatic(".otf", "application/font-sfnt"), MimeStatic(".p", "text/x-pascal"), MimeStatic(".p10", "application/x-pkcs10"), MimeStatic(".p12", "application/x-pkcs12"), MimeStatic(".p7a", "application/x-pkcs7-signature"), MimeStatic(".p7c", "application/x-pkcs7-mime"), MimeStatic(".p7m", "application/x-pkcs7-mime"), MimeStatic(".p7r", "application/x-pkcs7-certreqresp"), MimeStatic(".p7s", "application/pkcs7-signature"), MimeStatic(".part", "application/pro_eng"), MimeStatic(".pas", "text/x-pascal"), MimeStatic(".pbm", "image/x-portable-bitmap"), MimeStatic(".pcl", "application/vnd.hp-pcl"), MimeStatic(".pct", "image/x-pct"), MimeStatic(".pcx", "image/x-pcx"), MimeStatic(".pdb", "chemical/x-pdb"), MimeStatic(".pdf", "application/pdf"), MimeStatic(".pfr", "application/font-tdpfr"), MimeStatic(".pfunk", "audio/make"), MimeStatic(".pgm", "image/x-portable-greymap"), MimeStatic(".pic", "image/pict"), MimeStatic(".pict", "image/pict"), MimeStatic(".pkg", "application/x-newton-compatible-pkg"), MimeStatic(".pko", "application/vnd.ms-pki.pko"), MimeStatic(".pl", "text/x-script.perl"), MimeStatic(".plx", "application/x-pixelscript"), MimeStatic(".pm", "text/x-script.perl-module"), MimeStatic(".pm4", "application/x-pagemaker"), MimeStatic(".pm5", "application/x-pagemaker"), MimeStatic(".png", "image/png"), MimeStatic(".pnm", "image/x-portable-anymap"), MimeStatic(".pot", "application/vnd.ms-powerpoint"), MimeStatic(".pov", "model/x-pov"), MimeStatic(".ppa", "application/vnd.ms-powerpoint"), MimeStatic(".ppm", "image/x-portable-pixmap"), MimeStatic(".pps", "application/vnd.ms-powerpoint"), MimeStatic(".ppt", "application/vnd.ms-powerpoint"), MimeStatic(".ppz", "application/vnd.ms-powerpoint"), MimeStatic(".pre", "application/x-freelance"), MimeStatic(".prt", "application/pro_eng"), MimeStatic(".ps", "application/postscript"), MimeStatic(".psd", "application/octet-stream"), MimeStatic(".pvu", "paleovu/x-pv"), MimeStatic(".pwz", "application/vnd.ms-powerpoint"), MimeStatic(".py", "text/x-script.python"), MimeStatic(".pyc", "application/x-bytecode.python"), MimeStatic(".qcp", "audio/vnd.qcelp"), MimeStatic(".qd3", "x-world/x-3dmf"), MimeStatic(".qd3d", "x-world/x-3dmf"), MimeStatic(".qif", "image/x-quicktime"), MimeStatic(".qt", "video/quicktime"), MimeStatic(".qtc", "video/x-qtc"), MimeStatic(".qti", "image/x-quicktime"), MimeStatic(".qtif", "image/x-quicktime"), MimeStatic(".ra", "audio/x-pn-realaudio"), MimeStatic(".ram", "audio/x-pn-realaudio"), MimeStatic(".rar", "application/x-arj-compressed"), MimeStatic(".ras", "image/x-cmu-raster"), MimeStatic(".rast", "image/cmu-raster"), MimeStatic(".rexx", "text/x-script.rexx"), MimeStatic(".rf", "image/vnd.rn-realflash"), MimeStatic(".rgb", "image/x-rgb"), MimeStatic(".rm", "audio/x-pn-realaudio"), MimeStatic(".rmi", "audio/mid"), MimeStatic(".rmm", "audio/x-pn-realaudio"), MimeStatic(".rmp", "audio/x-pn-realaudio"), MimeStatic(".rng", "application/vnd.nokia.ringing-tone"), MimeStatic(".rnx", "application/vnd.rn-realplayer"), MimeStatic(".roff", "application/x-troff"), MimeStatic(".rp", "image/vnd.rn-realpix"), MimeStatic(".rpm", "audio/x-pn-realaudio-plugin"), MimeStatic(".rt", "text/vnd.rn-realtext"), MimeStatic(".rtf", "application/x-rtf"), MimeStatic(".rtx", "application/x-rtf"), MimeStatic(".rv", "video/vnd.rn-realvideo"), MimeStatic(".s", "text/x-asm"), MimeStatic(".s3m", "audio/s3m"), MimeStatic(".saveme", "application/octet-stream"), MimeStatic(".sbk", "application/x-tbook"), MimeStatic(".scm", "text/x-script.scheme"), MimeStatic(".sdml", "text/plain"), MimeStatic(".sdp", "application/x-sdp"), MimeStatic(".sdr", "application/sounder"), MimeStatic(".sea", "application/x-sea"), MimeStatic(".set", "application/set"), MimeStatic(".sgm", "text/x-sgml"), MimeStatic(".sgml", "text/x-sgml"), MimeStatic(".sh", "text/x-script.sh"), MimeStatic(".shar", "application/x-shar"), MimeStatic(".shtm", "text/html"), MimeStatic(".shtml", "text/html"), MimeStatic(".sid", "audio/x-psid"), MimeStatic(".sil", "application/font-sfnt"), MimeStatic(".sit", "application/x-sit"), MimeStatic(".skd", "application/x-koan"), MimeStatic(".skm", "application/x-koan"), MimeStatic(".skp", "application/x-koan"), MimeStatic(".skt", "application/x-koan"), MimeStatic(".sl", "application/x-seelogo"), MimeStatic(".smi", "application/smil"), MimeStatic(".smil", "application/smil"), MimeStatic(".snd", "audio/x-adpcm"), MimeStatic(".so", "application/octet-stream"), MimeStatic(".sol", "application/solids"), MimeStatic(".spc", "text/x-speech"), MimeStatic(".spl", "application/futuresplash"), MimeStatic(".spr", "application/x-sprite"), MimeStatic(".sprite", "application/x-sprite"), MimeStatic(".src", "application/x-wais-source"), MimeStatic(".ssi", "text/x-server-parsed-html"), MimeStatic(".ssm", "application/streamingmedia"), MimeStatic(".sst", "application/vnd.ms-pki.certstore"), MimeStatic(".step", "application/step"), MimeStatic(".stl", "application/vnd.ms-pki.stl"), MimeStatic(".stp", "application/step"), MimeStatic(".sv4cpio", "application/x-sv4cpio"), MimeStatic(".sv4crc", "application/x-sv4crc"), MimeStatic(".svf", "image/x-dwg"), MimeStatic(".svg", "image/svg+xml"), MimeStatic(".svr", "x-world/x-svr"), MimeStatic(".swf", "application/x-shockwave-flash"), MimeStatic(".t", "application/x-troff"), MimeStatic(".talk", "text/x-speech"), MimeStatic(".tar", "application/x-tar"), MimeStatic(".tbk", "application/x-tbook"), MimeStatic(".tcl", "text/x-script.tcl"), MimeStatic(".tcsh", "text/x-script.tcsh"), MimeStatic(".tex", "application/x-tex"), MimeStatic(".texi", "application/x-texinfo"), MimeStatic(".texinfo", "application/x-texinfo"), MimeStatic(".text", "text/plain"), MimeStatic(".tgz", "application/x-compressed"), MimeStatic(".tif", "image/x-tiff"), MimeStatic(".tiff", "image/x-tiff"), MimeStatic(".torrent", "application/x-bittorrent"), MimeStatic(".tr", "application/x-troff"), MimeStatic(".tsi", "audio/tsp-audio"), MimeStatic(".tsp", "audio/tsplayer"), MimeStatic(".tsv", "text/tab-separated-values"), MimeStatic(".ttf", "application/font-sfnt"), MimeStatic(".turbot", "image/florian"), MimeStatic(".txt", "text/plain"), MimeStatic(".uil", "text/x-uil"), MimeStatic(".uni", "text/uri-list"), MimeStatic(".unis", "text/uri-list"), MimeStatic(".unv", "application/i-deas"), MimeStatic(".uri", "text/uri-list"), MimeStatic(".uris", "text/uri-list"), MimeStatic(".ustar", "application/x-ustar"), MimeStatic(".uu", "text/x-uuencode"), MimeStatic(".uue", "text/x-uuencode"), MimeStatic(".vcd", "application/x-cdlink"), MimeStatic(".vcs", "text/x-vcalendar"), MimeStatic(".vda", "application/vda"), MimeStatic(".vdo", "video/vdo"), MimeStatic(".vew", "application/groupwise"), MimeStatic(".viv", "video/vnd.vivo"), MimeStatic(".vivo", "video/vnd.vivo"), MimeStatic(".vmd", "application/vocaltec-media-desc"), MimeStatic(".vmf", "application/vocaltec-media-resource"), MimeStatic(".voc", "audio/x-voc"), MimeStatic(".vos", "video/vosaic"), MimeStatic(".vox", "audio/voxware"), MimeStatic(".vqe", "audio/x-twinvq-plugin"), MimeStatic(".vqf", "audio/x-twinvq"), MimeStatic(".vql", "audio/x-twinvq-plugin"), MimeStatic(".vrml", "model/vrml"), MimeStatic(".vrt", "x-world/x-vrt"), MimeStatic(".vsd", "application/x-visio"), MimeStatic(".vst", "application/x-visio"), MimeStatic(".vsw", "application/x-visio"), MimeStatic(".w60", "application/wordperfect6.0"), MimeStatic(".w61", "application/wordperfect6.1"), MimeStatic(".w6w", "application/msword"), MimeStatic(".wav", "audio/x-wav"), MimeStatic(".wb1", "application/x-qpro"), MimeStatic(".wbmp", "image/vnd.wap.wbmp"), MimeStatic(".web", "application/vnd.xara"), MimeStatic(".webm", "video/webm"), MimeStatic(".wiz", "application/msword"), MimeStatic(".wk1", "application/x-123"), MimeStatic(".wmf", "windows/metafile"), MimeStatic(".wml", "text/vnd.wap.wml"), MimeStatic(".wmlc", "application/vnd.wap.wmlc"), MimeStatic(".wmls", "text/vnd.wap.wmlscript"), MimeStatic(".wmlsc", "application/vnd.wap.wmlscriptc"), MimeStatic(".woff", "application/font-woff"), MimeStatic(".word", "application/msword"), MimeStatic(".wp", "application/wordperfect"), MimeStatic(".wp5", "application/wordperfect"), MimeStatic(".wp6", "application/wordperfect"), MimeStatic(".wpd", "application/wordperfect"), MimeStatic(".wq1", "application/x-lotus"), MimeStatic(".wri", "application/x-wri"), MimeStatic(".wrl", "model/vrml"), MimeStatic(".wrz", "model/vrml"), MimeStatic(".wsc", "text/scriplet"), MimeStatic(".wsrc", "application/x-wais-source"), MimeStatic(".wtk", "application/x-wintalk"), MimeStatic(".x-png", "image/png"), MimeStatic(".xbm", "image/x-xbm"), MimeStatic(".xdr", "video/x-amt-demorun"), MimeStatic(".xgz", "xgl/drawing"), MimeStatic(".xhtml", "application/xhtml+xml"), MimeStatic(".xif", "image/vnd.xiff"), MimeStatic(".xl", "application/vnd.ms-excel"), MimeStatic(".xla", "application/vnd.ms-excel"), MimeStatic(".xlb", "application/vnd.ms-excel"), MimeStatic(".xlc", "application/vnd.ms-excel"), MimeStatic(".xld", "application/vnd.ms-excel"), MimeStatic(".xlk", "application/vnd.ms-excel"), MimeStatic(".xll", "application/vnd.ms-excel"), MimeStatic(".xlm", "application/vnd.ms-excel"), MimeStatic(".xls", "application/vnd.ms-excel"), MimeStatic(".xlt", "application/vnd.ms-excel"), MimeStatic(".xlv", "application/vnd.ms-excel"), MimeStatic(".xlw", "application/vnd.ms-excel"), MimeStatic(".xm", "audio/xm"), MimeStatic(".xml", "text/xml"), MimeStatic(".xmz", "xgl/movie"), MimeStatic(".xpix", "application/x-vnd.ls-xpix"), MimeStatic(".xpm", "image/x-xpixmap"), MimeStatic(".xsl", "application/xml"), MimeStatic(".xslt", "application/xml"), MimeStatic(".xsr", "video/x-amt-showrun"), MimeStatic(".xwd", "image/x-xwd"), MimeStatic(".xyz", "chemical/x-pdb"), MimeStatic(".z", "application/x-compressed"), MimeStatic(".zip", "application/x-zip-compressed"), MimeStatic(".zoo", "application/octet-stream"), MimeStatic(".zsh", "text/x-script.zsh") };
 
-				UInt64 PathLength = Path.size();
+				uint64_t PathLength = Path.size();
 				while (PathLength >= 1 && Path[PathLength - 1] != '.')
 					PathLength--;
 
@@ -3364,7 +3364,7 @@ namespace Tomahawk
 
 				return "";
 			}
-			bool Util::ParseMultipartHeaderField(Parser* Parser, const char* Name, UInt64 Length)
+			bool Util::ParseMultipartHeaderField(Parser* Parser, const char* Name, uint64_t Length)
 			{
 				if (!Parser || !Name || !Length)
 					return true;
@@ -3376,7 +3376,7 @@ namespace Tomahawk
 				Segment->Header.assign(Name, Length);
 				return true;
 			}
-			bool Util::ParseMultipartHeaderValue(Parser* Parser, const char* Data, UInt64 Length)
+			bool Util::ParseMultipartHeaderValue(Parser* Parser, const char* Data, uint64_t Length)
 			{
 				if (!Parser || !Data || !Length)
 					return true;
@@ -3415,7 +3415,7 @@ namespace Tomahawk
 
 				return true;
 			}
-			bool Util::ParseMultipartContentData(Parser* Parser, const char* Data, UInt64 Length)
+			bool Util::ParseMultipartContentData(Parser* Parser, const char* Data, uint64_t Length)
 			{
 				if (!Parser || !Data || !Length)
 					return true;
@@ -3482,7 +3482,7 @@ namespace Tomahawk
 
 				return true;
 			}
-			bool Util::ParseHeaderField(Parser* Parser, const char* Name, UInt64 Length)
+			bool Util::ParseHeaderField(Parser* Parser, const char* Name, uint64_t Length)
 			{
 				if (!Parser || !Name || !Length)
 					return true;
@@ -3494,7 +3494,7 @@ namespace Tomahawk
 				Segment->Header.assign(Name, Length);
 				return true;
 			}
-			bool Util::ParseHeaderValue(Parser* Parser, const char* Data, UInt64 Length)
+			bool Util::ParseHeaderValue(Parser* Parser, const char* Data, uint64_t Length)
 			{
 				if (!Parser || !Data || !Length)
 					return true;
@@ -3516,7 +3516,7 @@ namespace Tomahawk
 				Segment->Header.clear();
 				return true;
 			}
-			bool Util::ParseVersion(Parser* Parser, const char* Data, UInt64 Length)
+			bool Util::ParseVersion(Parser* Parser, const char* Data, uint64_t Length)
 			{
 				if (!Parser || !Data || !Length)
 					return true;
@@ -3528,7 +3528,7 @@ namespace Tomahawk
 				memcpy((void*)Segment->Request->Version, (void*)Data, (size_t)Length);
 				return true;
 			}
-			bool Util::ParseStatusCode(Parser* Parser, UInt64 Value)
+			bool Util::ParseStatusCode(Parser* Parser, uint64_t Value)
 			{
 				if (!Parser)
 					return true;
@@ -3540,7 +3540,7 @@ namespace Tomahawk
 				Segment->Response->StatusCode = (int)Value;
 				return true;
 			}
-			bool Util::ParseMethodValue(Parser* Parser, const char* Data, UInt64 Length)
+			bool Util::ParseMethodValue(Parser* Parser, const char* Data, uint64_t Length)
 			{
 				if (!Parser || !Data || !Length)
 					return true;
@@ -3552,7 +3552,7 @@ namespace Tomahawk
 				memcpy((void*)Segment->Request->Method, (void*)Data, (size_t)Length);
 				return true;
 			}
-			bool Util::ParsePathValue(Parser* Parser, const char* Data, UInt64 Length)
+			bool Util::ParsePathValue(Parser* Parser, const char* Data, uint64_t Length)
 			{
 				if (!Parser || !Data || !Length)
 					return true;
@@ -3564,7 +3564,7 @@ namespace Tomahawk
 				Segment->Request->URI.assign(Data, Length);
 				return true;
 			}
-			bool Util::ParseQueryValue(Parser* Parser, const char* Data, UInt64 Length)
+			bool Util::ParseQueryValue(Parser* Parser, const char* Data, uint64_t Length)
 			{
 				if (!Parser || !Data || !Length)
 					return true;
@@ -3576,7 +3576,7 @@ namespace Tomahawk
 				Segment->Request->Query.assign(Data, Length);
 				return true;
 			}
-			int Util::ParseContentRange(const char* ContentRange, Int64* Range1, Int64* Range2)
+			int Util::ParseContentRange(const char* ContentRange, int64_t* Range1, int64_t* Range2)
 			{
 				return sscanf(ContentRange, "bytes=%lld-%lld", Range1, Range2);
 			}
@@ -3624,7 +3624,7 @@ namespace Tomahawk
 					return Base->Error(401, "Provide authorization header to continue.") ? false : false;
 				}
 
-				UInt64 Index = 0;
+				uint64_t Index = 0;
 				while (Authorization[Index] != ' ' && Authorization[Index] != '\0')
 					Index++;
 
@@ -3781,7 +3781,7 @@ namespace Tomahawk
 				return !(IfModifiedSince != nullptr && Resource->LastModified <= Rest::DateTime::ReadGMTBasedString(IfModifiedSince));
 
 			}
-			bool Util::ResourceCompressed(Connection* Base, UInt64 Size)
+			bool Util::ResourceCompressed(Connection* Base, uint64_t Size)
 			{
 #ifdef THAWK_HAS_ZLIB
 				if (!Base || !Base->Route)
@@ -3826,7 +3826,7 @@ namespace Tomahawk
 				if (!WebSocketKey2)
 					return Base->Error(400, "Malformed websocket request. Provide second key.");
 
-				return Base->Stream->ReadAsync(8, [](Socket* Socket, const char* Buffer, Int64 Size)
+				return Base->Stream->ReadAsync(8, [](Socket* Socket, const char* Buffer, int64_t Size)
 				{
 					auto Base = Socket->Context<HTTP::Connection>();
 					if (Size > 0)
@@ -3965,7 +3965,7 @@ namespace Tomahawk
 					return ProcessGateway(Base);
 
 				const char* Range = Base->Request.GetHeader("Range");
-				Int64 Range1 = 0, Range2 = 0;
+				int64_t Range1 = 0, Range2 = 0;
 
 				FILE* Stream = (FILE*)Rest::OS::Open(Base->Request.Path.c_str(), "wb");
 				if (!Stream)
@@ -3988,7 +3988,7 @@ namespace Tomahawk
 				else
 					Base->Response.StatusCode = 204;
 
-				return Base->Consume([=](Connection* Base, const char* Buffer, Int64 Size)
+				return Base->Consume([=](Connection* Base, const char* Buffer, int64_t Size)
 				{
 					if (Size < 0)
 					{
@@ -4009,7 +4009,7 @@ namespace Tomahawk
 						Base->Route->Callbacks.Headers(Base, nullptr);
 
 					Content.Append("\r\n", 2);
-					return !Base->Stream->WriteAsync(Content.Get(), (Int64)Content.Size(), [](Socket* Socket, Int64 Size)
+					return !Base->Stream->WriteAsync(Content.Get(), (int64_t)Content.Size(), [](Socket* Socket, int64_t Size)
 					{
 						auto Base = Socket->Context<HTTP::Connection>();
 						if (Size < 0)
@@ -4058,7 +4058,7 @@ namespace Tomahawk
 					Base->Route->Callbacks.Headers(Base, nullptr);
 
 				Content.Append("\r\n", 2);
-				return Base->Stream->WriteAsync(Content.Get(), (Int64)Content.Size(), [](Socket* Socket, Int64 Size)
+				return Base->Stream->WriteAsync(Content.Get(), (int64_t)Content.Size(), [](Socket* Socket, int64_t Size)
 				{
 					auto Base = Socket->Context<HTTP::Connection>();
 					if (Size < 0)
@@ -4104,7 +4104,7 @@ namespace Tomahawk
 					Base->Route->Callbacks.Headers(Base, nullptr);
 
 				Content.Append("\r\n", 2);
-				return Base->Stream->WriteAsync(Content.Get(), (Int64)Content.Size(), [](Socket* Socket, Int64 Size)
+				return Base->Stream->WriteAsync(Content.Get(), (int64_t)Content.Size(), [](Socket* Socket, int64_t Size)
 				{
 					auto Base = Socket->Context<HTTP::Connection>();
 					if (Size < 0)
@@ -4130,7 +4130,7 @@ namespace Tomahawk
 					Base->Route->Callbacks.Headers(Base, &Content);
 
 				Content.Append("\r\n", 2);
-				return Base->Stream->WriteAsync(Content.Get(), (Int64)Content.Size(), [](Socket* Socket, Int64 Size)
+				return Base->Stream->WriteAsync(Content.Get(), (int64_t)Content.Size(), [](Socket* Socket, int64_t Size)
 				{
 					auto Base = Socket->Context<HTTP::Connection>();
 					if (Size < 0)
@@ -4160,7 +4160,7 @@ namespace Tomahawk
 				if (Base->Route->Callbacks.Headers)
 					Base->Route->Callbacks.Headers(Base, &Content);
 
-				UInt64 Size = Base->Request.URI.size() - 1;
+				uint64_t Size = Base->Request.URI.size() - 1;
 				while (Base->Request.URI[Size] != '/')
 					Size--;
 
@@ -4244,7 +4244,7 @@ namespace Tomahawk
 
 							if (deflate(&Stream, Z_FINISH) == Z_STREAM_END && deflateEnd(&Stream) == Z_OK)
 							{
-								Base->Response.Buffer.assign(Buffer.c_str(), (UInt64)Stream.total_out);
+								Base->Response.Buffer.assign(Buffer.c_str(), (uint64_t)Stream.total_out);
 								if (!Base->Response.GetHeader("Content-Encoding"))
 								{
 									if (Gzip)
@@ -4257,12 +4257,12 @@ namespace Tomahawk
 					}
 				}
 #endif
-				Content.fAppend("Content-Length: %llu\r\n\r\n", (UInt64)Base->Response.Buffer.size());
+				Content.fAppend("Content-Length: %llu\r\n\r\n", (uint64_t)Base->Response.Buffer.size());
 				if (strcmp(Base->Request.Method, "HEAD"))
 					Content.Append(Base->Response.Buffer);
 
 				Base->Response.Buffer.clear();
-				return Base->Stream->WriteAsync(Content.Get(), (Int64)Content.Size(), [](Socket* Socket, Int64 Size)
+				return Base->Stream->WriteAsync(Content.Get(), (int64_t)Content.Size(), [](Socket* Socket, int64_t Size)
 				{
 					auto Base = Socket->Context<HTTP::Connection>();
 					if (Size < 0)
@@ -4281,8 +4281,8 @@ namespace Tomahawk
 				const char* ContentType = Util::ContentType(Base->Request.Path, &Base->Route->MimeTypes);
 				const char* Range = Base->Request.GetHeader("Range");
 				const char* StatusMessage = Util::StatusMessage(Base->Info.Error ? Base->Response.StatusCode : Base->Response.StatusCode = 200);
-				Int64 Range1 = 0, Range2 = 0, Count = 0;
-				Int64 ContentLength = Base->Resource.Size;
+				int64_t Range1 = 0, Range2 = 0, Count = 0;
+				int64_t ContentLength = Base->Resource.Size;
 
 				char ContentRange[128] = { 0 };
 				if (Range != nullptr && (Count = Util::ParseContentRange(Range, &Range1, &Range2)) > 0 && Range1 >= 0 && Range2 >= 0)
@@ -4292,12 +4292,12 @@ namespace Tomahawk
 					else
 						ContentLength -= Range1;
 
-					snprintf(ContentRange, sizeof(ContentRange), "Content-Range: bytes %lld-%lld/%lld\r\n", Range1, Range1 + ContentLength - 1, (Int64)Base->Resource.Size);
+					snprintf(ContentRange, sizeof(ContentRange), "Content-Range: bytes %lld-%lld/%lld\r\n", Range1, Range1 + ContentLength - 1, (int64_t)Base->Resource.Size);
 					StatusMessage = Util::StatusMessage(Base->Response.StatusCode = 206);
 				}
 
 #ifdef THAWK_HAS_ZLIB
-				if (Util::ResourceCompressed(Base, (UInt64)ContentLength))
+				if (Util::ResourceCompressed(Base, (uint64_t)ContentLength))
 				{
 					const char* AcceptEncoding = Base->Request.GetHeader("Accept-Encoding");
 					if (AcceptEncoding != nullptr)
@@ -4343,7 +4343,7 @@ namespace Tomahawk
 
 				if (!ContentLength || !strcmp(Base->Request.Method, "HEAD"))
 				{
-					return Base->Stream->WriteAsync(Content.Get(), (Int64)Content.Size(), [](Socket* Socket, Int64 Size)
+					return Base->Stream->WriteAsync(Content.Get(), (int64_t)Content.Size(), [](Socket* Socket, int64_t Size)
 					{
 						auto Base = Socket->Context<HTTP::Connection>();
 						if (Size < 0)
@@ -4355,7 +4355,7 @@ namespace Tomahawk
 					});
 				}
 
-				return Base->Stream->WriteAsync(Content.Get(), (Int64)Content.Size(), [ContentLength, Range1](Socket* Socket, Int64 Size)
+				return Base->Stream->WriteAsync(Content.Get(), (int64_t)Content.Size(), [ContentLength, Range1](Socket* Socket, int64_t Size)
 				{
 					auto Base = Socket->Context<HTTP::Connection>();
 					if (Size < 0)
@@ -4369,14 +4369,14 @@ namespace Tomahawk
 					});
 				});
 			}
-			bool Util::ProcessResourceCompress(Connection* Base, bool Deflate, bool Gzip, const char* ContentRange, UInt64 Range)
+			bool Util::ProcessResourceCompress(Connection* Base, bool Deflate, bool Gzip, const char* ContentRange, uint64_t Range)
 			{
 				if (!Base || !Base->Route || (!Deflate && !Gzip) || !ContentRange)
 					return false;
 
 				const char* ContentType = Util::ContentType(Base->Request.Path, &Base->Route->MimeTypes);
 				const char* StatusMessage = Util::StatusMessage(Base->Info.Error ? Base->Response.StatusCode : Base->Response.StatusCode = 200);
-				Int64 ContentLength = Base->Resource.Size;
+				int64_t ContentLength = Base->Resource.Size;
 
 				const char* Origin = Base->Request.GetHeader("Origin");
 				const char* CORS1 = "", * CORS2 = "", * CORS3 = "";
@@ -4412,7 +4412,7 @@ namespace Tomahawk
 
 				if (!ContentLength || !strcmp(Base->Request.Method, "HEAD"))
 				{
-					return Base->Stream->WriteAsync(Content.Get(), (Int64)Content.Size(), [](Socket* Socket, Int64 Size)
+					return Base->Stream->WriteAsync(Content.Get(), (int64_t)Content.Size(), [](Socket* Socket, int64_t Size)
 					{
 						auto Base = Socket->Context<HTTP::Connection>();
 						if (Size < 0)
@@ -4424,7 +4424,7 @@ namespace Tomahawk
 					});
 				}
 
-				return Base->Stream->WriteAsync(Content.Get(), (Int64)Content.Size(), [Range, ContentLength, Gzip](Socket* Socket, Int64 Size)
+				return Base->Stream->WriteAsync(Content.Get(), (int64_t)Content.Size(), [Range, ContentLength, Gzip](Socket* Socket, int64_t Size)
 				{
 					auto Base = Socket->Context<HTTP::Connection>();
 					if (Size < 0)
@@ -4460,7 +4460,7 @@ namespace Tomahawk
 					Base->Route->Callbacks.Headers(Base, &Content);
 
 				Content.fAppend("Accept-Ranges: bytes\r\nLast-Modified: %s\r\nEtag: %s\r\n%s\r\n", LastModified, ETag, Util::ConnectionResolve(Base).c_str());
-				return Base->Stream->WriteAsync(Content.Get(), (Int64)Content.Size(), [](Socket* Socket, Int64 Size)
+				return Base->Stream->WriteAsync(Content.Get(), (int64_t)Content.Size(), [](Socket* Socket, int64_t Size)
 				{
 					auto Base = Socket->Context<HTTP::Connection>();
 					if (Size < 0)
@@ -4471,7 +4471,7 @@ namespace Tomahawk
 					return Base->Finish(304);
 				});
 			}
-			bool Util::ProcessFile(Connection* Base, UInt64 ContentLength, UInt64 Range)
+			bool Util::ProcessFile(Connection* Base, uint64_t ContentLength, uint64_t Range)
 			{
 				if (!Base || !Base->Route)
 					return false;
@@ -4488,7 +4488,7 @@ namespace Tomahawk
 
 					if (Base->Response.Buffer.size() >= ContentLength)
 					{
-						return Base->Stream->WriteAsync(Base->Response.Buffer.c_str() + Range, (Int64)ContentLength, [](Socket* Socket, Int64 Size)
+						return Base->Stream->WriteAsync(Base->Response.Buffer.c_str() + Range, (int64_t)ContentLength, [](Socket* Socket, int64_t Size)
 						{
 							auto Base = Socket->Context<HTTP::Connection>();
 							if (Size < 0)
@@ -4575,7 +4575,7 @@ namespace Tomahawk
 
 				return Base->Finish();
 			}
-			bool Util::ProcessFileCompress(Connection* Base, UInt64 ContentLength, UInt64 Range, bool Gzip)
+			bool Util::ProcessFileCompress(Connection* Base, uint64_t ContentLength, uint64_t Range, bool Gzip)
 			{
 				if (!Base || !Base->Route)
 					return false;
@@ -4604,10 +4604,10 @@ namespace Tomahawk
 							ZStream.next_out = (Bytef*)Buffer.c_str();
 
 							if (deflate(&ZStream, Z_FINISH) == Z_STREAM_END && deflateEnd(&ZStream) == Z_OK)
-								Base->Response.Buffer.assign(Buffer.c_str(), (UInt64)ZStream.total_out);
+								Base->Response.Buffer.assign(Buffer.c_str(), (uint64_t)ZStream.total_out);
 						}
 #endif
-						return Base->Stream->WriteAsync(Base->Response.Buffer.c_str(), (Int64)ContentLength, [](Socket* Socket, Int64 Size)
+						return Base->Stream->WriteAsync(Base->Response.Buffer.c_str(), (int64_t)ContentLength, [](Socket* Socket, int64_t Size)
 						{
 							auto Base = Socket->Context<HTTP::Connection>();
 							if (Size < 0)
@@ -4791,7 +4791,7 @@ namespace Tomahawk
 					Base->Route->Callbacks.Headers(Base, &Content);
 
 				Content.Append("\r\n", 2);
-				return !Base->Stream->WriteAsync(Content.Get(), (Int64)Content.Size(), [](Socket* Socket, Int64 Size)
+				return !Base->Stream->WriteAsync(Content.Get(), (int64_t)Content.Size(), [](Socket* Socket, int64_t Size)
 				{
 					auto Base = Socket->Context<HTTP::Connection>();
 					if (Size < 0)
@@ -4882,7 +4882,7 @@ namespace Tomahawk
 						Base->WebSocket->BodyLength = Base->Request.Buffer.size() - Base->WebSocket->HeaderLength;
 						Base->WebSocket->Buffer.assign(Base->Request.Buffer.c_str() + Base->WebSocket->HeaderLength, Base->WebSocket->BodyLength);
 
-						return Base->Stream->ReadAsync(Base->WebSocket->DataLength - Base->WebSocket->BodyLength, [](Socket* Socket, const char* Buffer, Int64 Size)
+						return Base->Stream->ReadAsync(Base->WebSocket->DataLength - Base->WebSocket->BodyLength, [](Socket* Socket, const char* Buffer, int64_t Size)
 						{
 							auto Base = Socket->Context<HTTP::Connection>();
 							if (!Base || Size > 0)
@@ -4910,7 +4910,7 @@ namespace Tomahawk
 
 					if (Base->WebSocket->MaskLength > 0)
 					{
-						for (UInt64 i = 0; i < Base->WebSocket->DataLength; i++)
+						for (uint64_t i = 0; i < Base->WebSocket->DataLength; i++)
 							Base->WebSocket->Buffer[i] ^= Base->WebSocket->Mask[i % 4];
 					}
 
@@ -4933,14 +4933,14 @@ namespace Tomahawk
 						});
 					}
 					else if (Base->WebSocket->Receive)
-						Base->WebSocket->Receive(Base->WebSocket, Base->WebSocket->Buffer.c_str(), (Int64)Base->WebSocket->Buffer.size(), (WebSocketOp)Base->WebSocket->Opcode);
+						Base->WebSocket->Receive(Base->WebSocket, Base->WebSocket->Buffer.c_str(), (int64_t)Base->WebSocket->Buffer.size(), (WebSocketOp)Base->WebSocket->Opcode);
 					else
 						Base->WebSocket->Finish();
 
 					return true;
 				}
 
-				return !Base->Stream->ReadAsync(8192, [](Socket* Socket, const char* Buffer, Int64 Size)
+				return !Base->Stream->ReadAsync(8192, [](Socket* Socket, const char* Buffer, int64_t Size)
 				{
 					auto Base = Socket->Context<HTTP::Connection>();
 					if (Size < 0)
@@ -5030,7 +5030,7 @@ namespace Tomahawk
 				{
 					if (Base->Request.ContentLength > 0 && Base->Request.ContentState == Content_Not_Loaded)
 					{
-						Base->Consume([](Connection* Base, const char*, Int64 Size)
+						Base->Consume([](Connection* Base, const char*, int64_t Size)
 						{
 							return (Size <= 0 ? Base->Root->Manage(Base) : true);
 						});
@@ -5083,7 +5083,7 @@ namespace Tomahawk
 			bool Server::OnRequestBegin(SocketConnection* Base)
 			{
 				auto Conf = (MapRouter*)Router;
-				return Base->Stream->ReadUntilAsync("\r\n\r\n", [Conf](Socket* Fd, const char* Buffer, Int64 Size)
+				return Base->Stream->ReadUntilAsync("\r\n\r\n", [Conf](Socket* Fd, const char* Buffer, int64_t Size)
 				{
 					auto Base = Fd->Context<HTTP::Connection>();
 					if (Size > 0)
@@ -5133,7 +5133,7 @@ namespace Tomahawk
 					const char* ContentLength = Base->Request.GetHeader("Content-Length");
 					if (ContentLength != nullptr)
 					{
-						Int64 Len = std::atoll(ContentLength);
+						int64_t Len = std::atoll(ContentLength);
 						Base->Request.ContentLength = (Len <= 0 ? 0 : Len);
 					}
 
@@ -5268,7 +5268,7 @@ namespace Tomahawk
 				return new MapRouter();
 			}
 
-			Client::Client(Int64 ReadTimeout) : SocketClient(ReadTimeout)
+			Client::Client(int64_t ReadTimeout) : SocketClient(ReadTimeout)
 			{
 			}
 			Client::~Client()
@@ -5342,7 +5342,7 @@ namespace Tomahawk
 				Content.Append("\r\n");
 
 				Response.Buffer.clear();
-				return !Stream.WriteAsync(Content.Get(), (Int64)Content.Size(), [this](Socket*, Int64 Size)
+				return !Stream.WriteAsync(Content.Get(), (int64_t)Content.Size(), [this](Socket*, int64_t Size)
 				{
 					if (Size < 0)
 						return Error("http socket write %s", (Size == -2 ? "timeout" : "error"));
@@ -5351,7 +5351,7 @@ namespace Tomahawk
 
 					if (this->Request.Buffer.empty())
 					{
-						return !Stream.ReadUntilAsync("\r\n\r\n", [this](Socket*, const char* Buffer, Int64 Size)
+						return !Stream.ReadUntilAsync("\r\n\r\n", [this](Socket*, const char* Buffer, int64_t Size)
 						{
 							if (Size < 0)
 								return Error("http socket read %s", (Size == -2 ? "timeout" : "error"));
@@ -5363,14 +5363,14 @@ namespace Tomahawk
 						});
 					}
 
-					return !Stream.WriteAsync(this->Request.Buffer.c_str(), (Int64)this->Request.Buffer.size(), [this](Socket*, Int64 Size)
+					return !Stream.WriteAsync(this->Request.Buffer.c_str(), (int64_t)this->Request.Buffer.size(), [this](Socket*, int64_t Size)
 					{
 						if (Size < 0)
 							return Error("http socket write %s", (Size == -2 ? "timeout" : "error"));
 						else if (Size > 0)
 							return true;
 
-						return !Stream.ReadUntilAsync("\r\n\r\n", [this](Socket*, const char* Buffer, Int64 Size)
+						return !Stream.ReadUntilAsync("\r\n\r\n", [this](Socket*, const char* Buffer, int64_t Size)
 						{
 							if (Size < 0)
 								return Error("http socket read %s", (Size == -2 ? "timeout" : "error"));
@@ -5383,7 +5383,7 @@ namespace Tomahawk
 					});
 				});
 			}
-			bool Client::Consume(Int64 MaxSize, const ResponseCallback& Callback)
+			bool Client::Consume(int64_t MaxSize, const ResponseCallback& Callback)
 			{
 				if (Request.ContentState == Content_Lost || Request.ContentState == Content_Empty || Request.ContentState == Content_Saved || Request.ContentState == Content_Wants_Save)
 				{
@@ -5425,11 +5425,11 @@ namespace Tomahawk
 				if (TransferEncoding && !Rest::Stroke::CaseCompare(TransferEncoding, "chunked"))
 				{
 					Parser* Parser = new HTTP::Parser();
-					return Stream.ReadAsync(MaxSize, [this, Parser, Callback, MaxSize](Network::Socket* Socket, const char* Buffer, Int64 Size)
+					return Stream.ReadAsync(MaxSize, [this, Parser, Callback, MaxSize](Network::Socket* Socket, const char* Buffer, int64_t Size)
 					{
 						if (Size > 0)
 						{
-							Int64 Result = Parser->ParseDecodeChunked((char*)Buffer, &Size);
+							int64_t Result = Parser->ParseDecodeChunked((char*)Buffer, &Size);
 							if (Result == -1)
 							{
 								delete Parser;
@@ -5471,7 +5471,7 @@ namespace Tomahawk
 				}
 				else if (!Response.GetHeader("Content-Length"))
 				{
-					return Stream.ReadAsync(MaxSize, [this, Callback, MaxSize](Network::Socket* Socket, const char* Buffer, Int64 Size)
+					return Stream.ReadAsync(MaxSize, [this, Callback, MaxSize](Network::Socket* Socket, const char* Buffer, int64_t Size)
 					{
 						if (Size <= 0)
 						{
@@ -5516,7 +5516,7 @@ namespace Tomahawk
 					return false;
 				}
 
-				Int64 Length = HLength.ToInt64();
+				int64_t Length = HLength.ToInt64();
 				if (Length <= 0)
 				{
 					Request.ContentState = Content_Empty;
@@ -5535,7 +5535,7 @@ namespace Tomahawk
 					return false;
 				}
 
-				return Stream.ReadAsync(Length, [this, Callback, MaxSize, Length](Network::Socket* Socket, const char* Buffer, Int64 Size)
+				return Stream.ReadAsync(Length, [this, Callback, MaxSize, Length](Network::Socket* Socket, const char* Buffer, int64_t Size)
 				{
 					if (Size <= 0)
 					{

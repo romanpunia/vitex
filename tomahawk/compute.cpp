@@ -231,77 +231,85 @@ namespace Tomahawk
 			In[0] = X;
 			In[1] = Y;
 		}
-		void Vector2::operator -=(const Vector2& right)
+		Vector2& Vector2::operator -=(const Vector2& V)
 		{
-			X -= right.X;
-			Y -= right.Y;
+			X -= V.X;
+			Y -= V.Y;
+			return *this;
 		}
-		void Vector2::operator -=(float right)
+		Vector2& Vector2::operator -=(float V)
 		{
-			X -= right;
-			Y -= right;
+			X -= V;
+			Y -= V;
+			return *this;
 		}
-		void Vector2::operator *=(const Vector2& right)
+		Vector2& Vector2::operator *=(const Vector2& V)
 		{
-			X *= right.X;
-			Y *= right.Y;
+			X *= V.X;
+			Y *= V.Y;
+			return *this;
 		}
-		void Vector2::operator *=(float right)
+		Vector2& Vector2::operator *=(float V)
 		{
-			X *= right;
-			Y *= right;
+			X *= V;
+			Y *= V;
+			return *this;
 		}
-		void Vector2::operator /=(const Vector2& right)
+		Vector2& Vector2::operator /=(const Vector2& V)
 		{
-			X /= right.X;
-			Y /= right.Y;
+			X /= V.X;
+			Y /= V.Y;
+			return *this;
 		}
-		void Vector2::operator /=(float right)
+		Vector2& Vector2::operator /=(float V)
 		{
-			X /= right;
-			Y /= right;
+			X /= V;
+			Y /= V;
+			return *this;
 		}
-		void Vector2::operator +=(const Vector2& right)
+		Vector2& Vector2::operator +=(const Vector2& V)
 		{
-			X += right.X;
-			Y += right.Y;
+			X += V.X;
+			Y += V.Y;
+			return *this;
 		}
-		void Vector2::operator +=(float right)
+		Vector2& Vector2::operator +=(float V)
 		{
-			X += right;
-			Y += right;
+			X += V;
+			Y += V;
+			return *this;
 		}
-		Vector2 Vector2::operator *(const Vector2& right) const
+		Vector2 Vector2::operator *(const Vector2& V) const
 		{
-			return Vector2(X * right.X, Y * right.Y);
+			return Vector2(X * V.X, Y * V.Y);
 		}
-		Vector2 Vector2::operator *(float right) const
+		Vector2 Vector2::operator *(float V) const
 		{
-			return Vector2(X * right, Y * right);
+			return Vector2(X * V, Y * V);
 		}
-		Vector2 Vector2::operator /(const Vector2& right) const
+		Vector2 Vector2::operator /(const Vector2& V) const
 		{
-			return Vector2(X / right.X, Y / right.Y);
+			return Vector2(X / V.X, Y / V.Y);
 		}
-		Vector2 Vector2::operator /(float right) const
+		Vector2 Vector2::operator /(float V) const
 		{
-			return Vector2(X / right, Y / right);
+			return Vector2(X / V, Y / V);
 		}
-		Vector2 Vector2::operator +(const Vector2& right) const
+		Vector2 Vector2::operator +(const Vector2& V) const
 		{
-			return Vector2(X + right.X, Y + right.Y);
+			return Vector2(X + V.X, Y + V.Y);
 		}
-		Vector2 Vector2::operator +(float right) const
+		Vector2 Vector2::operator +(float V) const
 		{
-			return Vector2(X + right, Y + right);
+			return Vector2(X + V, Y + V);
 		}
-		Vector2 Vector2::operator -(const Vector2& right) const
+		Vector2 Vector2::operator -(const Vector2& V) const
 		{
-			return Vector2(X - right.X, Y - right.Y);
+			return Vector2(X - V.X, Y - V.Y);
 		}
-		Vector2 Vector2::operator -(float right) const
+		Vector2 Vector2::operator -(float V) const
 		{
-			return Vector2(X - right, Y - right);
+			return Vector2(X - V, Y - V);
 		}
 		Vector2 Vector2::operator -() const
 		{
@@ -316,10 +324,10 @@ namespace Tomahawk
 
 			Value = (unsigned int)(unsigned long long)Bytes;
 		}
-		Vector2& Vector2::operator =(const Vector2& right)
+		Vector2& Vector2::operator =(const Vector2& V)
 		{
-			X = right.X;
-			Y = right.Y;
+			X = V.X;
+			Y = V.Y;
 			return *this;
 		}
 		bool Vector2::operator ==(const Vector2& R) const
@@ -566,85 +574,93 @@ namespace Tomahawk
 			In[1] = Y;
 			In[2] = Z;
 		}
-		void Vector3::operator -=(const Vector3& right)
+		Vector3& Vector3::operator -=(const Vector3& V)
 		{
-			X -= right.X;
-			Y -= right.Y;
-			Z -= right.Z;
+			X -= V.X;
+			Y -= V.Y;
+			Z -= V.Z;
+			return *this;
 		}
-		void Vector3::operator -=(float right)
+		Vector3& Vector3::operator -=(float V)
 		{
-			X -= right;
-			Y -= right;
-			Z -= right;
+			X -= V;
+			Y -= V;
+			Z -= V;
+			return *this;
 		}
-		void Vector3::operator *=(const Vector3& right)
+		Vector3& Vector3::operator *=(const Vector3& V)
 		{
-			X *= right.X;
-			Y *= right.Y;
-			Z *= right.Z;
+			X *= V.X;
+			Y *= V.Y;
+			Z *= V.Z;
+			return *this;
 		}
-		void Vector3::operator *=(float right)
+		Vector3& Vector3::operator *=(float V)
 		{
-			X *= right;
-			Y *= right;
-			Z *= right;
+			X *= V;
+			Y *= V;
+			Z *= V;
+			return *this;
 		}
-		void Vector3::operator /=(const Vector3& right)
+		Vector3& Vector3::operator /=(const Vector3& V)
 		{
-			X /= right.X;
-			Y /= right.Y;
-			Z /= right.Z;
+			X /= V.X;
+			Y /= V.Y;
+			Z /= V.Z;
+			return *this;
 		}
-		void Vector3::operator /=(float right)
+		Vector3& Vector3::operator /=(float V)
 		{
-			X /= right;
-			Y /= right;
-			Z /= right;
+			X /= V;
+			Y /= V;
+			Z /= V;
+			return *this;
 		}
-		void Vector3::operator +=(const Vector3& right)
+		Vector3& Vector3::operator +=(const Vector3& V)
 		{
-			X += right.X;
-			Y += right.Y;
-			Z += right.Z;
+			X += V.X;
+			Y += V.Y;
+			Z += V.Z;
+			return *this;
 		}
-		void Vector3::operator +=(float right)
+		Vector3& Vector3::operator +=(float V)
 		{
-			X += right;
-			Y += right;
-			Z += right;
+			X += V;
+			Y += V;
+			Z += V;
+			return *this;
 		}
-		Vector3 Vector3::operator *(const Vector3& right) const
+		Vector3 Vector3::operator *(const Vector3& V) const
 		{
-			return Vector3(X * right.X, Y * right.Y, Z * right.Z);
+			return Vector3(X * V.X, Y * V.Y, Z * V.Z);
 		}
-		Vector3 Vector3::operator *(float right) const
+		Vector3 Vector3::operator *(float V) const
 		{
-			return Vector3(X * right, Y * right, Z * right);
+			return Vector3(X * V, Y * V, Z * V);
 		}
-		Vector3 Vector3::operator /(const Vector3& right) const
+		Vector3 Vector3::operator /(const Vector3& V) const
 		{
-			return Vector3(X / right.X, Y / right.Y, Z / right.Z);
+			return Vector3(X / V.X, Y / V.Y, Z / V.Z);
 		}
-		Vector3 Vector3::operator /(float right) const
+		Vector3 Vector3::operator /(float V) const
 		{
-			return Vector3(X / right, Y / right, Z / right);
+			return Vector3(X / V, Y / V, Z / V);
 		}
-		Vector3 Vector3::operator +(const Vector3& right) const
+		Vector3 Vector3::operator +(const Vector3& V) const
 		{
-			return Vector3(X + right.X, Y + right.Y, Z + right.Z);
+			return Vector3(X + V.X, Y + V.Y, Z + V.Z);
 		}
-		Vector3 Vector3::operator +(float right) const
+		Vector3 Vector3::operator +(float V) const
 		{
-			return Vector3(X + right, Y + right, Z + right);
+			return Vector3(X + V, Y + V, Z + V);
 		}
-		Vector3 Vector3::operator -(const Vector3& right) const
+		Vector3 Vector3::operator -(const Vector3& V) const
 		{
-			return Vector3(X - right.X, Y - right.Y, Z - right.Z);
+			return Vector3(X - V.X, Y - V.Y, Z - V.Z);
 		}
-		Vector3 Vector3::operator -(float right) const
+		Vector3 Vector3::operator -(float V) const
 		{
-			return Vector3(X - right, Y - right, Z - right);
+			return Vector3(X - V, Y - V, Z - V);
 		}
 		Vector3 Vector3::operator -() const
 		{
@@ -660,11 +676,11 @@ namespace Tomahawk
 
 			Value = (unsigned int)(unsigned long long)Bytes;
 		}
-		Vector3& Vector3::operator =(const Vector3& right)
+		Vector3& Vector3::operator =(const Vector3& V)
 		{
-			X = right.X;
-			Y = right.Y;
-			Z = right.Z;
+			X = V.X;
+			Y = V.Y;
+			Z = V.Z;
 			return *this;
 		}
 		bool Vector3::operator ==(const Vector3& R) const
@@ -945,101 +961,110 @@ namespace Tomahawk
 			In[2] = Z;
 			In[3] = W;
 		}
-		void Vector4::operator -=(const Vector4& right)
+		Vector4& Vector4::operator -=(const Vector4& V)
 		{
-			X -= right.X;
-			Y -= right.Y;
-			Z -= right.Z;
-			W -= right.W;
+			X -= V.X;
+			Y -= V.Y;
+			Z -= V.Z;
+			W -= V.W;
+			return *this;
 		}
-		void Vector4::operator -=(float right)
+		Vector4& Vector4::operator -=(float V)
 		{
-			X -= right;
-			Y -= right;
-			Z -= right;
-			W -= right;
+			X -= V;
+			Y -= V;
+			Z -= V;
+			W -= V;
+			return *this;
 		}
-		void Vector4::operator *=(const Matrix4x4& right)
+		Vector4& Vector4::operator *=(const Matrix4x4& V)
 		{
-			Transform(right);
+			Set(Transform(V));
+			return *this;
 		}
-		void Vector4::operator *=(const Vector4& right)
+		Vector4& Vector4::operator *=(const Vector4& V)
 		{
-			X *= right.X;
-			Y *= right.Y;
-			Z *= right.Z;
-			W *= right.W;
+			X *= V.X;
+			Y *= V.Y;
+			Z *= V.Z;
+			W *= V.W;
+			return *this;
 		}
-		void Vector4::operator *=(float right)
+		Vector4& Vector4::operator *=(float V)
 		{
-			X *= right;
-			Y *= right;
-			Z *= right;
-			W *= right;
+			X *= V;
+			Y *= V;
+			Z *= V;
+			W *= V;
+			return *this;
 		}
-		void Vector4::operator /=(const Vector4& right)
+		Vector4& Vector4::operator /=(const Vector4& V)
 		{
-			X /= right.X;
-			Y /= right.Y;
-			Z /= right.Z;
-			W /= right.W;
+			X /= V.X;
+			Y /= V.Y;
+			Z /= V.Z;
+			W /= V.W;
+			return *this;
 		}
-		void Vector4::operator /=(float right)
+		Vector4& Vector4::operator /=(float V)
 		{
-			X /= right;
-			Y /= right;
-			Z /= right;
-			W /= right;
+			X /= V;
+			Y /= V;
+			Z /= V;
+			W /= V;
+			return *this;
 		}
-		void Vector4::operator +=(const Vector4& right)
+		Vector4& Vector4::operator +=(const Vector4& V)
 		{
-			X += right.X;
-			Y += right.Y;
-			Z += right.Z;
-			W += right.W;
+			X += V.X;
+			Y += V.Y;
+			Z += V.Z;
+			W += V.W;
+			return *this;
 		}
-		void Vector4::operator +=(float right)
+		Vector4& Vector4::operator +=(float V)
 		{
-			X += right;
-			Y += right;
-			Z += right;
-			W += right;
+			X += V;
+			Y += V;
+			Z += V;
+			W += V;
+			return *this;
 		}
-		Vector4 Vector4::operator *(const Matrix4x4& right) const
+		Vector4 Vector4::operator *(const Matrix4x4& V) const
 		{
-			return Transform(right);
+			return Transform(V);
 		}
-		Vector4 Vector4::operator *(const Vector4& right) const
+		Vector4 Vector4::operator *(const Vector4& V) const
 		{
-			return Vector4(X * right.X, Y * right.Y, Z * right.Z, W * right.W);
+			return Vector4(X * V.X, Y * V.Y, Z * V.Z, W * V.W);
 		}
-		Vector4 Vector4::operator *(float right) const
+		Vector4 Vector4::operator *(float V) const
 		{
-			return Vector4(X * right, Y * right, Z * right, W * right);
+			return Vector4(X * V, Y * V, Z * V, W * V);
 		}
-		Vector4 Vector4::operator /(const Vector4& right) const
+		Vector4 Vector4::operator /(const Vector4& V) const
 		{
-			return Vector4(X / right.X, Y / right.Y, Z / right.Z, W / right.W);
+			return Vector4(X / V.X, Y / V.Y, Z / V.Z, W / V.W);
 		}
-		Vector4 Vector4::operator /(float right) const
+		Vector4 Vector4::operator /(float V) const
 		{
-			return Vector4(X / right, Y / right, Z / right, W / right);
+			return Vector4(X / V, Y / V, Z / V, W / V);
 		}
-		Vector4 Vector4::operator +(const Vector4& right) const
+		Vector4 Vector4::operator +(const Vector4& V) const
 		{
-			return Vector4(X + right.X, Y + right.Y, Z + right.Z, W + right.W);
+			return Vector4(X + V.X, Y + V.Y, Z + V.Z, W + V.W);
 		}
-		Vector4 Vector4::operator +(float right) const
+		Vector4 Vector4::operator +(float V) const
 		{
-			return Vector4(X + right, Y + right, Z + right, W + right);
+			return Vector4(X + V, Y + V, Z + V, W + V);
 		}
-		Vector4 Vector4::operator -(const Vector4& right) const
+		Vector4 Vector4::operator -(const Vector4& V) const
 		{
-			return Vector4(X - right.X, Y - right.Y, Z - right.Z, W - right.W);
+			return Vector4(X - V.X, Y - V.Y, Z - V.Z, W - V.W);
 		}
-		Vector4 Vector4::operator -(float right) const
+		Vector4 Vector4::operator -(float V) const
 		{
-			return Vector4(X - right, Y - right, Z - right, W - right);
+			return Vector4(X - V, Y - V, Z - V, W - V);
 		}
 		Vector4 Vector4::operator -() const
 		{
@@ -1055,12 +1080,12 @@ namespace Tomahawk
 
 			Value = (unsigned int)(unsigned long long)Bytes;
 		}
-		Vector4& Vector4::operator =(const Vector4& right)
+		Vector4& Vector4::operator =(const Vector4& V)
 		{
-			X = right.X;
-			Y = right.Y;
-			Z = right.Z;
-			W = right.W;
+			X = V.X;
+			Y = V.Y;
+			Z = V.Z;
+			W = V.W;
 			return *this;
 		}
 		bool Vector4::operator ==(const Vector4& R) const
@@ -1378,32 +1403,32 @@ namespace Tomahawk
 
 			return false;
 		}
-		Matrix4x4 Matrix4x4::operator *(const Matrix4x4& right) const
+		Matrix4x4 Matrix4x4::operator *(const Matrix4x4& V) const
 		{
-			return this->Mul(right);
+			return this->Mul(V);
 		}
-		Matrix4x4 Matrix4x4::operator *(const Vector4& right) const
+		Matrix4x4 Matrix4x4::operator *(const Vector4& V) const
 		{
-			return this->Mul(right);
+			return this->Mul(V);
 		}
-		Matrix4x4& Matrix4x4::operator =(const Matrix4x4& right)
+		Matrix4x4& Matrix4x4::operator =(const Matrix4x4& V)
 		{
-			Row[0] = right.Row[0];
-			Row[1] = right.Row[1];
-			Row[2] = right.Row[2];
-			Row[3] = right.Row[3];
-			Row[4] = right.Row[4];
-			Row[5] = right.Row[5];
-			Row[6] = right.Row[6];
-			Row[7] = right.Row[7];
-			Row[8] = right.Row[8];
-			Row[9] = right.Row[9];
-			Row[10] = right.Row[10];
-			Row[11] = right.Row[11];
-			Row[12] = right.Row[12];
-			Row[13] = right.Row[13];
-			Row[14] = right.Row[14];
-			Row[15] = right.Row[15];
+			Row[0] = V.Row[0];
+			Row[1] = V.Row[1];
+			Row[2] = V.Row[2];
+			Row[3] = V.Row[3];
+			Row[4] = V.Row[4];
+			Row[5] = V.Row[5];
+			Row[6] = V.Row[6];
+			Row[7] = V.Row[7];
+			Row[8] = V.Row[8];
+			Row[9] = V.Row[9];
+			Row[10] = V.Row[10];
+			Row[11] = V.Row[11];
+			Row[12] = V.Row[12];
+			Row[13] = V.Row[13];
+			Row[14] = V.Row[14];
+			Row[15] = V.Row[15];
 
 			return *this;
 		}
@@ -1511,55 +1536,55 @@ namespace Tomahawk
 			Local.Row[10] = Value.Z;
 			return Local;
 		}
-		Matrix4x4 Matrix4x4::Mul(const Matrix4x4& right) const
+		Matrix4x4 Matrix4x4::Mul(const Matrix4x4& V) const
 		{
 			Matrix4x4 Result;
 
-			Result.Row[0] = (Row[0] * right.Row[0]) + (Row[1] * right.Row[4]) + (Row[2] * right.Row[8]) + (Row[3] * right.Row[12]);
-			Result.Row[1] = (Row[0] * right.Row[1]) + (Row[1] * right.Row[5]) + (Row[2] * right.Row[9]) + (Row[3] * right.Row[13]);
-			Result.Row[2] = (Row[0] * right.Row[2]) + (Row[1] * right.Row[6]) + (Row[2] * right.Row[10]) + (Row[3] * right.Row[14]);
-			Result.Row[3] = (Row[0] * right.Row[3]) + (Row[1] * right.Row[7]) + (Row[2] * right.Row[11]) + (Row[3] * right.Row[15]);
+			Result.Row[0] = (Row[0] * V.Row[0]) + (Row[1] * V.Row[4]) + (Row[2] * V.Row[8]) + (Row[3] * V.Row[12]);
+			Result.Row[1] = (Row[0] * V.Row[1]) + (Row[1] * V.Row[5]) + (Row[2] * V.Row[9]) + (Row[3] * V.Row[13]);
+			Result.Row[2] = (Row[0] * V.Row[2]) + (Row[1] * V.Row[6]) + (Row[2] * V.Row[10]) + (Row[3] * V.Row[14]);
+			Result.Row[3] = (Row[0] * V.Row[3]) + (Row[1] * V.Row[7]) + (Row[2] * V.Row[11]) + (Row[3] * V.Row[15]);
 
-			Result.Row[4] = (Row[4] * right.Row[0]) + (Row[5] * right.Row[4]) + (Row[6] * right.Row[8]) + (Row[7] * right.Row[12]);
-			Result.Row[5] = (Row[4] * right.Row[1]) + (Row[5] * right.Row[5]) + (Row[6] * right.Row[9]) + (Row[7] * right.Row[13]);
-			Result.Row[6] = (Row[4] * right.Row[2]) + (Row[5] * right.Row[6]) + (Row[6] * right.Row[10]) + (Row[7] * right.Row[14]);
-			Result.Row[7] = (Row[4] * right.Row[3]) + (Row[5] * right.Row[7]) + (Row[6] * right.Row[11]) + (Row[7] * right.Row[15]);
+			Result.Row[4] = (Row[4] * V.Row[0]) + (Row[5] * V.Row[4]) + (Row[6] * V.Row[8]) + (Row[7] * V.Row[12]);
+			Result.Row[5] = (Row[4] * V.Row[1]) + (Row[5] * V.Row[5]) + (Row[6] * V.Row[9]) + (Row[7] * V.Row[13]);
+			Result.Row[6] = (Row[4] * V.Row[2]) + (Row[5] * V.Row[6]) + (Row[6] * V.Row[10]) + (Row[7] * V.Row[14]);
+			Result.Row[7] = (Row[4] * V.Row[3]) + (Row[5] * V.Row[7]) + (Row[6] * V.Row[11]) + (Row[7] * V.Row[15]);
 
-			Result.Row[8] = (Row[8] * right.Row[0]) + (Row[9] * right.Row[4]) + (Row[10] * right.Row[8]) + (Row[11] * right.Row[12]);
-			Result.Row[9] = (Row[8] * right.Row[1]) + (Row[9] * right.Row[5]) + (Row[10] * right.Row[9]) + (Row[11] * right.Row[13]);
-			Result.Row[10] = (Row[8] * right.Row[2]) + (Row[9] * right.Row[6]) + (Row[10] * right.Row[10]) + (Row[11] * right.Row[14]);
-			Result.Row[11] = (Row[8] * right.Row[3]) + (Row[9] * right.Row[7]) + (Row[10] * right.Row[11]) + (Row[11] * right.Row[15]);
+			Result.Row[8] = (Row[8] * V.Row[0]) + (Row[9] * V.Row[4]) + (Row[10] * V.Row[8]) + (Row[11] * V.Row[12]);
+			Result.Row[9] = (Row[8] * V.Row[1]) + (Row[9] * V.Row[5]) + (Row[10] * V.Row[9]) + (Row[11] * V.Row[13]);
+			Result.Row[10] = (Row[8] * V.Row[2]) + (Row[9] * V.Row[6]) + (Row[10] * V.Row[10]) + (Row[11] * V.Row[14]);
+			Result.Row[11] = (Row[8] * V.Row[3]) + (Row[9] * V.Row[7]) + (Row[10] * V.Row[11]) + (Row[11] * V.Row[15]);
 
-			Result.Row[12] = (Row[12] * right.Row[0]) + (Row[13] * right.Row[4]) + (Row[14] * right.Row[8]) + (Row[15] * right.Row[12]);
-			Result.Row[13] = (Row[12] * right.Row[1]) + (Row[13] * right.Row[5]) + (Row[14] * right.Row[9]) + (Row[15] * right.Row[13]);
-			Result.Row[14] = (Row[12] * right.Row[2]) + (Row[13] * right.Row[6]) + (Row[14] * right.Row[10]) + (Row[15] * right.Row[14]);
-			Result.Row[15] = (Row[12] * right.Row[3]) + (Row[13] * right.Row[7]) + (Row[14] * right.Row[11]) + (Row[15] * right.Row[15]);
+			Result.Row[12] = (Row[12] * V.Row[0]) + (Row[13] * V.Row[4]) + (Row[14] * V.Row[8]) + (Row[15] * V.Row[12]);
+			Result.Row[13] = (Row[12] * V.Row[1]) + (Row[13] * V.Row[5]) + (Row[14] * V.Row[9]) + (Row[15] * V.Row[13]);
+			Result.Row[14] = (Row[12] * V.Row[2]) + (Row[13] * V.Row[6]) + (Row[14] * V.Row[10]) + (Row[15] * V.Row[14]);
+			Result.Row[15] = (Row[12] * V.Row[3]) + (Row[13] * V.Row[7]) + (Row[14] * V.Row[11]) + (Row[15] * V.Row[15]);
 
 			return Result;
 		}
-		Matrix4x4 Matrix4x4::Mul(const Vector4& right) const
+		Matrix4x4 Matrix4x4::Mul(const Vector4& V) const
 		{
 			Matrix4x4 Result;
 
-			Result.Row[0] = (Row[0] * right.X) + (Row[1] * right.Y) + (Row[2] * right.Z) + (Row[3] * right.W);
-			Result.Row[1] = (Row[0] * right.X) + (Row[1] * right.Y) + (Row[2] * right.Z) + (Row[3] * right.W);
-			Result.Row[2] = (Row[0] * right.X) + (Row[1] * right.Y) + (Row[2] * right.Z) + (Row[3] * right.W);
-			Result.Row[3] = (Row[0] * right.X) + (Row[1] * right.Y) + (Row[2] * right.Z) + (Row[3] * right.W);
+			Result.Row[0] = (Row[0] * V.X) + (Row[1] * V.Y) + (Row[2] * V.Z) + (Row[3] * V.W);
+			Result.Row[1] = (Row[0] * V.X) + (Row[1] * V.Y) + (Row[2] * V.Z) + (Row[3] * V.W);
+			Result.Row[2] = (Row[0] * V.X) + (Row[1] * V.Y) + (Row[2] * V.Z) + (Row[3] * V.W);
+			Result.Row[3] = (Row[0] * V.X) + (Row[1] * V.Y) + (Row[2] * V.Z) + (Row[3] * V.W);
 
-			Result.Row[4] = (Row[4] * right.X) + (Row[5] * right.Y) + (Row[6] * right.Z) + (Row[7] * right.W);
-			Result.Row[5] = (Row[4] * right.X) + (Row[5] * right.Y) + (Row[6] * right.Z) + (Row[7] * right.W);
-			Result.Row[6] = (Row[4] * right.X) + (Row[5] * right.Y) + (Row[6] * right.Z) + (Row[7] * right.W);
-			Result.Row[7] = (Row[4] * right.X) + (Row[5] * right.Y) + (Row[6] * right.Z) + (Row[7] * right.W);
+			Result.Row[4] = (Row[4] * V.X) + (Row[5] * V.Y) + (Row[6] * V.Z) + (Row[7] * V.W);
+			Result.Row[5] = (Row[4] * V.X) + (Row[5] * V.Y) + (Row[6] * V.Z) + (Row[7] * V.W);
+			Result.Row[6] = (Row[4] * V.X) + (Row[5] * V.Y) + (Row[6] * V.Z) + (Row[7] * V.W);
+			Result.Row[7] = (Row[4] * V.X) + (Row[5] * V.Y) + (Row[6] * V.Z) + (Row[7] * V.W);
 
-			Result.Row[8] = (Row[8] * right.X) + (Row[9] * right.Y) + (Row[10] * right.Z) + (Row[11] * right.W);
-			Result.Row[9] = (Row[8] * right.X) + (Row[9] * right.Y) + (Row[10] * right.Z) + (Row[11] * right.W);
-			Result.Row[10] = (Row[8] * right.X) + (Row[9] * right.Y) + (Row[10] * right.Z) + (Row[11] * right.W);
-			Result.Row[11] = (Row[8] * right.X) + (Row[9] * right.Y) + (Row[10] * right.Z) + (Row[11] * right.W);
+			Result.Row[8] = (Row[8] * V.X) + (Row[9] * V.Y) + (Row[10] * V.Z) + (Row[11] * V.W);
+			Result.Row[9] = (Row[8] * V.X) + (Row[9] * V.Y) + (Row[10] * V.Z) + (Row[11] * V.W);
+			Result.Row[10] = (Row[8] * V.X) + (Row[9] * V.Y) + (Row[10] * V.Z) + (Row[11] * V.W);
+			Result.Row[11] = (Row[8] * V.X) + (Row[9] * V.Y) + (Row[10] * V.Z) + (Row[11] * V.W);
 
-			Result.Row[12] = (Row[12] * right.X) + (Row[13] * right.Y) + (Row[14] * right.Z) + (Row[15] * right.W);
-			Result.Row[13] = (Row[12] * right.X) + (Row[13] * right.Y) + (Row[14] * right.Z) + (Row[15] * right.W);
-			Result.Row[14] = (Row[12] * right.X) + (Row[13] * right.Y) + (Row[14] * right.Z) + (Row[15] * right.W);
-			Result.Row[15] = (Row[12] * right.X) + (Row[13] * right.Y) + (Row[14] * right.Z) + (Row[15] * right.W);
+			Result.Row[12] = (Row[12] * V.X) + (Row[13] * V.Y) + (Row[14] * V.Z) + (Row[15] * V.W);
+			Result.Row[13] = (Row[12] * V.X) + (Row[13] * V.Y) + (Row[14] * V.Z) + (Row[15] * V.W);
+			Result.Row[14] = (Row[12] * V.X) + (Row[13] * V.Y) + (Row[14] * V.Z) + (Row[15] * V.W);
+			Result.Row[15] = (Row[12] * V.X) + (Row[13] * V.Y) + (Row[14] * V.Z) + (Row[15] * V.W);
 
 			return Result;
 		}
@@ -2265,26 +2290,26 @@ namespace Tomahawk
 		{
 			return It != Matches.end();
 		}
-		Int64 RegexResult::Start()
+		int64_t RegexResult::Start()
 		{
 			auto Match = GetMatch(NextMatch);
 			return (Match != Matches.end() ? Match->Start : -1);
 		}
-		Int64 RegexResult::End()
+		int64_t RegexResult::End()
 		{
 			auto Match = GetMatch(NextMatch);
 			return (Match != Matches.end() ? Match->End : -1);
 		}
-		Int64 RegexResult::Length()
+		int64_t RegexResult::Length()
 		{
 			auto Match = GetMatch(NextMatch);
 			return (Match != Matches.end() ? Match->Length : -1);
 		}
-		Int64 RegexResult::GetSteps()
+		int64_t RegexResult::GetSteps()
 		{
 			return Steps;
 		}
-		Int64 RegexResult::GetMatchesCount()
+		int64_t RegexResult::GetMatchesCount()
 		{
 			return Matches.size();
 		}
@@ -2292,9 +2317,9 @@ namespace Tomahawk
 		{
 			return State;
 		}
-		std::vector<RegexMatch>::iterator RegexResult::GetMatch(Int64 Id)
+		std::vector<RegexMatch>::iterator RegexResult::GetMatch(int64_t Id)
 		{
-			return (Id >= 0 && Id < (Int64)Matches.size() ? Matches.begin() + Id : Matches.end());
+			return (Id >= 0 && Id < (int64_t)Matches.size() ? Matches.begin() + Id : Matches.end());
 		}
 		std::vector<RegexMatch>::iterator RegexResult::GetNextMatch()
 		{
@@ -2308,11 +2333,11 @@ namespace Tomahawk
 
 		void Regex::Setup(RegexResult* Info)
 		{
-			Int64 i, j;
+			int64_t i, j;
 			RegexBranch tmp;
-			for (i = 0; i < (Int64)Info->Branches.size(); i++)
+			for (i = 0; i < (int64_t)Info->Branches.size(); i++)
 			{
-				for (j = i + 1; j < (Int64)Info->Branches.size(); j++)
+				for (j = i + 1; j < (int64_t)Info->Branches.size(); j++)
 				{
 					if (Info->Branches[i].BracketIndex > Info->Branches[j].BracketIndex)
 					{
@@ -2323,11 +2348,11 @@ namespace Tomahawk
 				}
 			}
 
-			for (i = j = 0; i < (Int64)Info->Brackets.size(); i++)
+			for (i = j = 0; i < (int64_t)Info->Brackets.size(); i++)
 			{
 				Info->Brackets[i].BranchesCount = 0;
 				Info->Brackets[i].Branches = j;
-				while (j < (Int64)Info->Branches.size() && Info->Branches[j].BracketIndex == i)
+				while (j < (int64_t)Info->Branches.size() && Info->Branches[j].BracketIndex == i)
 				{
 					Info->Brackets[i].BranchesCount++;
 					j++;
@@ -2338,7 +2363,7 @@ namespace Tomahawk
 		{
 			return Match(Value, Result, Buffer.c_str(), Buffer.size());
 		}
-		bool Regex::Match(RegExp* Value, RegexResult* Result, const char* Buffer, Int64 Length)
+		bool Regex::Match(RegExp* Value, RegexResult* Result, const char* Buffer, int64_t Length)
 		{
 			if (!Value || !Buffer || !Length)
 				return false;
@@ -2349,7 +2374,7 @@ namespace Tomahawk
 			R.Brackets.reserve(8);
 			R.Branches.reserve(8);
 
-			Int64 Code = Parse(Value->Regex.c_str(), (Int64)Value->Regex.size(), Buffer, Length, &R);
+			int64_t Code = Parse(Value->Regex.c_str(), (int64_t)Value->Regex.size(), Buffer, Length, &R);
 			if (Code > 0)
 			{
 				for (auto It = R.Matches.begin(); It != R.Matches.end(); It++)
@@ -2372,7 +2397,7 @@ namespace Tomahawk
 		{
 			return MatchAll(Value, Result, Buffer.c_str(), Buffer.size());
 		}
-		bool Regex::MatchAll(RegExp* Value, RegexResult* Result, const char* Buffer, Int64 Length)
+		bool Regex::MatchAll(RegExp* Value, RegexResult* Result, const char* Buffer, int64_t Length)
 		{
 			if (!Value || !Buffer || !Length)
 				return false;
@@ -2383,10 +2408,10 @@ namespace Tomahawk
 			R.Brackets.reserve(16);
 			R.Branches.reserve(16);
 
-			Int64 Code = 0, Offset = 0, Steps = 0;
+			int64_t Code = 0, Offset = 0, Steps = 0;
 			std::vector<RegexMatch> Matches;
 
-			while ((Code = Parse(Value->Regex.c_str(), (Int64)Value->Regex.size(), Buffer + Offset, Length - Offset, &R)) >= 0)
+			while ((Code = Parse(Value->Regex.c_str(), (int64_t)Value->Regex.size(), Buffer + Offset, Length - Offset, &R)) >= 0)
 			{
 				for (auto It = R.Matches.begin(); It != R.Matches.end(); It++)
 				{
@@ -2410,42 +2435,42 @@ namespace Tomahawk
 
 			return R.Steps > 0;
 		}
-		Int64 Regex::Meta(const unsigned char* Buffer)
+		int64_t Regex::Meta(const unsigned char* Buffer)
 		{
 			static const char* metacharacters = "^$().[]*+?|\\Ssdbfnrtv";
 			return strchr(metacharacters, *Buffer) != nullptr;
 		}
-		Int64 Regex::OpLength(const char* Value)
+		int64_t Regex::OpLength(const char* Value)
 		{
 			return Value[0] == '\\' && Value[1] == 'x' ? 4 : Value[0] == '\\' ? 2 : 1;
 		}
-		Int64 Regex::SetLength(const char* Value, Int64 ValueLength)
+		int64_t Regex::SetLength(const char* Value, int64_t ValueLength)
 		{
-			Int64 Length = 0;
+			int64_t Length = 0;
 			while (Length < ValueLength && Value[Length] != ']')
 				Length += OpLength(Value + Length);
 
 			return Length <= ValueLength ? Length + 1 : -1;
 		}
-		Int64 Regex::GetOpLength(const char* Value, Int64 ValueLength)
+		int64_t Regex::GetOpLength(const char* Value, int64_t ValueLength)
 		{
 			return Value[0] == '[' ? SetLength(Value + 1, ValueLength - 1) + 1 : OpLength(Value);
 		}
-		Int64 Regex::Quantifier(const char* Value)
+		int64_t Regex::Quantifier(const char* Value)
 		{
 			return Value[0] == '*' || Value[0] == '+' || Value[0] == '?';
 		}
-		Int64 Regex::ToInt(Int64 x)
+		int64_t Regex::ToInt(int64_t x)
 		{
-			return (Int64)(isdigit((int)x) ? (int)x - '0' : (int)x - 'W');
+			return (int64_t)(isdigit((int)x) ? (int)x - '0' : (int)x - 'W');
 		}
-		Int64 Regex::HexToInt(const unsigned char* Buffer)
+		int64_t Regex::HexToInt(const unsigned char* Buffer)
 		{
 			return (ToInt(tolower(Buffer[0])) << 4) | ToInt(tolower(Buffer[1]));
 		}
-		Int64 Regex::MatchOp(const unsigned char* Value, const unsigned char* Buffer, RegexResult* Info)
+		int64_t Regex::MatchOp(const unsigned char* Value, const unsigned char* Buffer, RegexResult* Info)
 		{
-			Int64 result = 0;
+			int64_t result = 0;
 			switch (*Value)
 			{
 				case '\\':
@@ -2521,9 +2546,9 @@ namespace Tomahawk
 
 			return result;
 		}
-		Int64 Regex::MatchSet(const char* Value, Int64 ValueLength, const char* Buffer, RegexResult* Info)
+		int64_t Regex::MatchSet(const char* Value, int64_t ValueLength, const char* Buffer, RegexResult* Info)
 		{
-			Int64 Length = 0, result = -1, invert = Value[0] == '^';
+			int64_t Length = 0, result = -1, invert = Value[0] == '^';
 			if (invert)
 				Value++, ValueLength--;
 
@@ -2543,9 +2568,9 @@ namespace Tomahawk
 
 			return (!invert && result > 0) || (invert && result <= 0) ? 1 : -1;
 		}
-		Int64 Regex::ParseInner(const char* Value, Int64 ValueLength, const char* Buffer, Int64 BufferLength, RegexResult* Info, Int64 Case)
+		int64_t Regex::ParseInner(const char* Value, int64_t ValueLength, const char* Buffer, int64_t BufferLength, RegexResult* Info, int64_t Case)
 		{
-			Int64 i, j, n, step;
+			int64_t i, j, n, step;
 			for (i = j = 0; i < ValueLength && j <= BufferLength; i += step)
 			{
 				step = Value[i] == '(' ? Info->Brackets[Case + 1].Length + 2 : GetOpLength(Value + i, ValueLength - i);
@@ -2557,13 +2582,13 @@ namespace Tomahawk
 				{
 					if (Value[i + step] == '?')
 					{
-						Int64 result = ParseInner(Value + i, step, Buffer + j, BufferLength - j, Info, Case);
+						int64_t result = ParseInner(Value + i, step, Buffer + j, BufferLength - j, Info, Case);
 						j += result > 0 ? result : 0;
 						i++;
 					}
 					else if (Value[i + step] == '+' || Value[i + step] == '*')
 					{
-						Int64 j2 = j, nj = j, n1, n2 = -1, ni, non_greedy = 0;
+						int64_t j2 = j, nj = j, n1, n2 = -1, ni, non_greedy = 0;
 						ni = i + step + 1;
 						if (ni < ValueLength && Value[ni] == '?')
 						{
@@ -2609,10 +2634,10 @@ namespace Tomahawk
 				{
 					n = RegexState_No_Match;
 					Case++;
-					REGEX_FAIL(Case >= (Int64)Info->Brackets.size(), RegexState_Internal_Error);
+					REGEX_FAIL(Case >= (int64_t)Info->Brackets.size(), RegexState_Internal_Error);
 					if (ValueLength - (i + step) > 0)
 					{
-						Int64 j2;
+						int64_t j2;
 						for (j2 = 0; j2 <= BufferLength - j; j2++)
 						{
 							if ((n = ParseDOH(Buffer + j, BufferLength - (j + j2), Info, Case)) >= 0 && ParseInner(Value + i + step, ValueLength - (i + step), Buffer + j + n, BufferLength - (j + n), Info, Case) >= 0)
@@ -2626,7 +2651,7 @@ namespace Tomahawk
 					if (n > 0)
 					{
 						RegexMatch* Match;
-						if (Case - 1 >= (Int64)Info->Matches.size())
+						if (Case - 1 >= (int64_t)Info->Matches.size())
 						{
 							Info->Matches.push_back(RegexMatch());
 							Match = &Info->Matches.at(Info->Matches.size() - 1);
@@ -2659,24 +2684,24 @@ namespace Tomahawk
 
 			return j;
 		}
-		Int64 Regex::ParseDOH(const char* Buffer, Int64 BufferLength, RegexResult* Info, Int64 Case)
+		int64_t Regex::ParseDOH(const char* Buffer, int64_t BufferLength, RegexResult* Info, int64_t Case)
 		{
 			const RegexBracket* b = &Info->Brackets[Case];
-			Int64 i = 0, Length, result;
+			int64_t i = 0, Length, result;
 			const char* p;
 
 			do
 			{
 				p = i == 0 ? b->Pointer : Info->Branches[b->Branches + i - 1].Pointer + 1;
-				Length = b->BranchesCount == 0 ? b->Length : i == b->BranchesCount ? (Int64)(b->Pointer + b->Length - p) : (Int64)(Info->Branches[b->Branches + i].Pointer - p);
+				Length = b->BranchesCount == 0 ? b->Length : i == b->BranchesCount ? (int64_t)(b->Pointer + b->Length - p) : (int64_t)(Info->Branches[b->Branches + i].Pointer - p);
 				result = ParseInner(p, Length, Buffer, BufferLength, Info, Case);
 			}while (result <= 0 && i++ < b->BranchesCount);
 
 			return result;
 		}
-		Int64 Regex::ParseOuter(const char* Buffer, Int64 BufferLength, RegexResult* Info)
+		int64_t Regex::ParseOuter(const char* Buffer, int64_t BufferLength, RegexResult* Info)
 		{
-			Int64 is_anchored = Info->Brackets[0].Pointer[0] == '^', i, result = -1;
+			int64_t is_anchored = Info->Brackets[0].Pointer[0] == '^', i, result = -1;
 			for (i = 0; i <= BufferLength; i++)
 			{
 				result = ParseDOH(Buffer + i, BufferLength - i, Info, 0);
@@ -2710,14 +2735,14 @@ namespace Tomahawk
 
 			return result;
 		}
-		Int64 Regex::Parse(const char* Value, Int64 ValueLength, const char* Buffer, Int64 BufferLength, RegexResult* Info)
+		int64_t Regex::Parse(const char* Value, int64_t ValueLength, const char* Buffer, int64_t BufferLength, RegexResult* Info)
 		{
 			RegexBracket Bracket;
 			Bracket.Pointer = Value;
 			Bracket.Length = ValueLength;
 			Info->Brackets.push_back(Bracket);
 
-			Int64 i, step, depth = 0;
+			int64_t i, step, depth = 0;
 			for (i = 0; i < ValueLength; i += step)
 			{
 				step = GetOpLength(Value + i, ValueLength - i);
@@ -2751,8 +2776,8 @@ namespace Tomahawk
 				}
 				else if (Value[i] == ')')
 				{
-					Int64 ind = (Info->Brackets[Info->Brackets.size() - 1].Length == -1 ? Info->Brackets.size() - 1 : depth);
-					Info->Brackets[ind].Length = (Int64)(&Value[i] - Info->Brackets[ind].Pointer);
+					int64_t ind = (Info->Brackets[Info->Brackets.size() - 1].Length == -1 ? Info->Brackets.size() - 1 : depth);
+					Info->Brackets[ind].Length = (int64_t)(&Value[i] - Info->Brackets[ind].Pointer);
 					depth--;
 					REGEX_FAIL(depth < 0, RegexState_Unbalanced_Brackets);
 					REGEX_FAIL(i > 0 && Value[i - 1] == '(', RegexState_No_Match);
@@ -2764,7 +2789,7 @@ namespace Tomahawk
 
 			return ParseOuter(Buffer, BufferLength, Info);
 		}
-		RegExp Regex::Create(const std::string& Regexp, RegexFlags Flags, Int64 MaxMatches, Int64 MaxBranches, Int64 MaxBrackets)
+		RegExp Regex::Create(const std::string& Regexp, RegexFlags Flags, int64_t MaxMatches, int64_t MaxBranches, int64_t MaxBrackets)
 		{
 			RegExp Value;
 			Value.Regex = Regexp;
@@ -3239,7 +3264,7 @@ namespace Tomahawk
 		{
 			return (R0->Position.X - R0->Scale.X) <= (R1->Position.X + R1->Scale.X) && (R1->Position.X - R1->Scale.X) <= (R0->Position.X + R0->Scale.X) && (R0->Position.Y - R0->Scale.Y) <= (R1->Position.Y + R1->Scale.Y) && (R1->Position.Y - R1->Scale.Y) <= (R0->Position.Y + R0->Scale.Y) && (R0->Position.Z - R0->Scale.Z) <= (R1->Position.Z + R1->Scale.Z) && (R1->Position.Z - R1->Scale.Z) <= (R0->Position.Z + R0->Scale.Z);
 		}
-		bool MathCommon::HexToString(void* Data, UInt64 Length, char* Buffer, UInt64 BufferLength)
+		bool MathCommon::HexToString(void* Data, uint64_t Length, char* Buffer, uint64_t BufferLength)
 		{
 			if (!Data || !Length || !Buffer || !BufferLength)
 				return false;
@@ -3280,7 +3305,7 @@ namespace Tomahawk
 
 			return false;
 		}
-		bool MathCommon::HexToDecimal(const std::string& s, UInt64 i, UInt64 cnt, int& Value)
+		bool MathCommon::HexToDecimal(const std::string& s, uint64_t i, uint64_t cnt, int& Value)
 		{
 			if (i >= s.size())
 				return false;
@@ -3371,7 +3396,7 @@ namespace Tomahawk
 		void MathCommon::ComputeInfluenceNormals(std::vector<InfluenceVertex>& Vertices)
 		{
 			Vector3 Tangent, Bitangent;
-			for (UInt64 i = 0; i < Vertices.size(); i += 3)
+			for (uint64_t i = 0; i < Vertices.size(); i += 3)
 			{
 				InfluenceVertex& V1 = Vertices[i], & V2 = Vertices[i + 1], & V3 = Vertices[i + 2];
 				ComputeInfluenceTangentBitangent(V1, V2, V3, Tangent, Bitangent);
@@ -3396,10 +3421,10 @@ namespace Tomahawk
 				V3.BitangentZ = Bitangent.Z;
 			}
 		}
-		void MathCommon::ComputeInfluenceNormalsArray(InfluenceVertex* Vertices, UInt64 Count)
+		void MathCommon::ComputeInfluenceNormalsArray(InfluenceVertex* Vertices, uint64_t Count)
 		{
 			Vector3 Tangent, Bitangent;
-			for (UInt64 i = 0; i < Count; i += 3)
+			for (uint64_t i = 0; i < Count; i += 3)
 			{
 				InfluenceVertex& V1 = Vertices[i], & V2 = Vertices[i + 1], & V3 = Vertices[i + 2];
 				ComputeInfluenceTangentBitangent(V1, V2, V3, Tangent, Bitangent);
@@ -3614,17 +3639,17 @@ namespace Tomahawk
 			static const char Alphabet[] = "0123456789ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz";
 			return Alphabet[rand() % (sizeof(Alphabet) - 1)];
 		}
-		Int64 MathCommon::RandomNumber(Int64 Min, Int64 Max)
+		int64_t MathCommon::RandomNumber(int64_t Min, int64_t Max)
 		{
-			Int64 Raw = 0;
+			int64_t Raw = 0;
 #ifdef THAWK_HAS_OPENSSL
-			RAND_bytes((unsigned char*)&Raw, sizeof(Int64));
+			RAND_bytes((unsigned char*)&Raw, sizeof(int64_t));
 #else
-			Raw = (Int64)rand();
+			Raw = (int64_t)rand();
 #endif
-			return Min + (Raw % static_cast<Int64>(Max - Min + 1));
+			return Min + (Raw % static_cast<int64_t>(Max - Min + 1));
 		}
-		UInt64 MathCommon::Utf8(int code, char* Buffer)
+		uint64_t MathCommon::Utf8(int code, char* Buffer)
 		{
 			if (code < 0x0080)
 			{
@@ -3666,7 +3691,7 @@ namespace Tomahawk
 
 			return 0;
 		}
-		std::string MathCommon::Base10ToBaseN(UInt64 Value, unsigned int BaseLessThan65)
+		std::string MathCommon::Base10ToBaseN(uint64_t Value, unsigned int BaseLessThan65)
 		{
 			static const char* Base62 = "0123456789ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz+/";
 			static const char* Base64 = "ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789+/";
@@ -3690,7 +3715,7 @@ namespace Tomahawk
 		std::string MathCommon::Encrypt(const std::string& Text, int Offset)
 		{
 			std::string Result;
-			for (UInt64 i = 0; i < (UInt64)Text.size(); i++)
+			for (uint64_t i = 0; i < (uint64_t)Text.size(); i++)
 			{
 				if (Text[i] != 0)
 					Result += char(Text[i] + Offset);
@@ -3703,7 +3728,7 @@ namespace Tomahawk
 		std::string MathCommon::Decrypt(const std::string& Text, int Offset)
 		{
 			std::string Result;
-			for (UInt64 i = 0; i < (UInt64)Text.size(); i++)
+			for (uint64_t i = 0; i < (uint64_t)Text.size(); i++)
 			{
 				if (Text[i] != 0)
 					Result += char(Text[i] - Offset);
@@ -3721,8 +3746,8 @@ namespace Tomahawk
 			if (!Value)
 				return Output;
 
-			UInt64 Length = strlen(Value);
-			for (UInt64 i = 0; i < Length; i++)
+			uint64_t Length = strlen(Value);
+			for (uint64_t i = 0; i < Length; i++)
 			{
 				unsigned char C = static_cast<unsigned char>(Value[i]);
 				Output += Hex[C >> 4];
@@ -3731,7 +3756,7 @@ namespace Tomahawk
 
 			return Output;
 		}
-		std::string MathCommon::RandomBytes(UInt64 Length)
+		std::string MathCommon::RandomBytes(uint64_t Length)
 		{
 #ifdef THAWK_HAS_OPENSSL
 			unsigned char* Buffer = (unsigned char*)malloc(sizeof(unsigned char) * Length);
@@ -3905,7 +3930,7 @@ namespace Tomahawk
 			return Value;
 #endif
 		}
-		std::string MathCommon::Base64Encode(const unsigned char* Value, UInt64 Length)
+		std::string MathCommon::Base64Encode(const unsigned char* Value, uint64_t Length)
 		{
 			if (!Value)
 				return "";
@@ -4054,7 +4079,7 @@ namespace Tomahawk
 		{
 			return URIEncode(Text.c_str(), Text.size());
 		}
-		std::string MathCommon::URIEncode(const char* Text, UInt64 Length)
+		std::string MathCommon::URIEncode(const char* Text, uint64_t Length)
 		{
 			if (!Text || !Length)
 				return "";
@@ -4085,7 +4110,7 @@ namespace Tomahawk
 		{
 			return URIDecode(Text.c_str(), Text.size());
 		}
-		std::string MathCommon::URIDecode(const char* Text, UInt64 Length)
+		std::string MathCommon::URIDecode(const char* Text, uint64_t Length)
 		{
 			if (!Text)
 				return "";
@@ -4191,7 +4216,7 @@ namespace Tomahawk
 
 			return Stream;
 		}
-		std::string MathCommon::DecimalToHex(UInt64 n)
+		std::string MathCommon::DecimalToHex(uint64_t n)
 		{
 			const char* Set = "0123456789abcdef";
 			std::string Result;
@@ -4336,7 +4361,7 @@ namespace Tomahawk
 			if (Features.Pragmas && !ProcessPragmaDirective(Buffer))
 				return false;
 
-			UInt64 Offset;
+			uint64_t Offset;
 			if (Features.Defines && !ProcessDefineDirective(Buffer, 0, Offset, true))
 				return false;
 
@@ -4376,11 +4401,11 @@ namespace Tomahawk
 				if (Result.Start > 0 && (Buffer.R()[Result.Start - 1] != '\n' && Buffer.R()[Result.Start - 1] != '\r'))
 					continue;
 
-				UInt64 Start = Result.End;
+				uint64_t Start = Result.End;
 				while (Start + 1 < Buffer.Size() && Buffer.R()[Start] != '\"')
 					Start++;
 
-				UInt64 End = Start + 1;
+				uint64_t End = Start + 1;
 				while (End + 1 < Buffer.Size() && Buffer.R()[End] != '\"')
 					End++;
 
@@ -4410,7 +4435,7 @@ namespace Tomahawk
 						return false;
 					}
 
-					if (!Process(File, Output))
+					if (!Output.empty() && !Process(File, Output))
 						return false;
 				}
 
@@ -4423,10 +4448,10 @@ namespace Tomahawk
 			if (Buffer.Empty())
 				return true;
 
-			UInt64 Offset = 0;
+			uint64_t Offset = 0;
 			while (true)
 			{
-				UInt64 Base, Start, End;
+				uint64_t Base, Start, End;
 				int R = FindDirective(Buffer, "#pragma", &Offset, &Base, &Start, &End);
 				if (R < 0)
 				{
@@ -4451,7 +4476,7 @@ namespace Tomahawk
 			if (Buffer.Empty())
 				return true;
 
-			UInt64 Offset = 0;
+			uint64_t Offset = 0;
 			while (true)
 			{
 				int R = FindBlockDirective(Buffer, Offset, false);
@@ -4464,12 +4489,12 @@ namespace Tomahawk
 					return true;
 			}
 		}
-		bool Preprocessor::ProcessDefineDirective(Rest::Stroke& Buffer, UInt64 Base, UInt64& Offset, bool Endless)
+		bool Preprocessor::ProcessDefineDirective(Rest::Stroke& Buffer, uint64_t Base, uint64_t& Offset, bool Endless)
 		{
 			if (Buffer.Empty())
 				return true;
 
-			UInt64 Size = 0;
+			uint64_t Size = 0;
 			while (Endless || Base < Offset)
 			{
 				int R = FindDefineDirective(Buffer, Base, &Size);
@@ -4486,9 +4511,9 @@ namespace Tomahawk
 
 			return true;
 		}
-		int Preprocessor::FindDefineDirective(Rest::Stroke& Buffer, UInt64& Offset, UInt64* Size)
+		int Preprocessor::FindDefineDirective(Rest::Stroke& Buffer, uint64_t& Offset, uint64_t* Size)
 		{
-			UInt64 Base, Start, End, Set = Offset;
+			uint64_t Base, Start, End, Set = Offset;
 			Offset--;
 			int R = FindDirective(Buffer, "#define", &Offset, &Base, &Start, &End);
 			if (R < 0)
@@ -4508,12 +4533,12 @@ namespace Tomahawk
 
 			return 1;
 		}
-		int Preprocessor::FindBlockDirective(Rest::Stroke& Buffer, UInt64& Offset, bool Nested)
+		int Preprocessor::FindBlockDirective(Rest::Stroke& Buffer, uint64_t& Offset, bool Nested)
 		{
-			UInt64 B1Start = 0, B1End = 0;
-			UInt64 B2Start = 0, B2End = 0;
-			UInt64 Start, End, Base, Size;
-			UInt64 BaseOffset = Offset;
+			uint64_t B1Start = 0, B1End = 0;
+			uint64_t B2Start = 0, B2End = 0;
+			uint64_t Start, End, Base, Size;
+			uint64_t BaseOffset = Offset;
 			bool Resolved = false;
 
 			int R = FindDirective(Buffer, "#ifdef", &Offset, nullptr, &Start, &End);
@@ -4609,7 +4634,7 @@ namespace Tomahawk
 
 			return 1;
 		}
-		int Preprocessor::FindBlockNesting(Rest::Stroke& Buffer, Rest::Stroke::Settle& Hash, UInt64& Offset, bool Resolved)
+		int Preprocessor::FindBlockNesting(Rest::Stroke& Buffer, Rest::Stroke::Settle& Hash, uint64_t& Offset, bool Resolved)
 		{
 			if (!Hash.Found)
 				return -1;
@@ -4642,7 +4667,7 @@ namespace Tomahawk
 			int R = FindDefineDirective(Buffer, Offset, nullptr);
 			return R == 1 ? 0 : R;
 		}
-		int Preprocessor::FindDirective(Rest::Stroke& Buffer, const char* V, UInt64* SOffset, UInt64* SBase, UInt64* SStart, UInt64* SEnd)
+		int Preprocessor::FindDirective(Rest::Stroke& Buffer, const char* V, uint64_t* SOffset, uint64_t* SBase, uint64_t* SStart, uint64_t* SEnd)
 		{
 			auto Result = Buffer.Find(V, SOffset ? *SOffset : 0);
 			if (!Result.Found)
@@ -4651,11 +4676,11 @@ namespace Tomahawk
 			if (Result.Start > 0 && (Buffer.R()[Result.Start - 1] != '\n' && Buffer.R()[Result.Start - 1] != '\r'))
 				return 0;
 
-			UInt64 Start = Result.End + 1;
+			uint64_t Start = Result.End + 1;
 			while (Start + 1 < Buffer.Size() && Buffer.R()[Start] == ' ')
 				Start++;
 
-			UInt64 End = Start;
+			uint64_t End = Start;
 			while (End + 1 < Buffer.Size() && (Buffer.R()[End] != '\n' && Buffer.R()[End] != '\r'))
 				End++;
 
@@ -4951,7 +4976,7 @@ namespace Tomahawk
 			Rotation = LocalTransform->Rotation();
 			Scale = LocalTransform->Scale();
 		}
-		void Transform::SetMatrix(Matrix4x4 Matrix)
+		void Transform::SetMatrix(const Matrix4x4& Matrix)
 		{
 			Position = Matrix.Position();
 			Scale = Matrix.Scale();
@@ -5065,7 +5090,7 @@ namespace Tomahawk
 		{
 			return Childs;
 		}
-		Transform* Transform::GetChild(UInt64 Child)
+		Transform* Transform::GetChild(uint64_t Child)
 		{
 			if (!Childs)
 				return nullptr;
@@ -5212,7 +5237,7 @@ namespace Tomahawk
 
 			return In * (ConstantScale ? Root->GetWorldUnscaled() : Root->GetWorld());
 		}
-		UInt64 Transform::GetChildCount()
+		uint64_t Transform::GetChildCount()
 		{
 			if (!Childs)
 				return 0;
@@ -5587,7 +5612,7 @@ namespace Tomahawk
 
 			SetActivity(true);
 		}
-		void RigidBody::SetCollisionFlags(UInt64 Flags)
+		void RigidBody::SetCollisionFlags(uint64_t Flags)
 		{
 			if (Instance)
 				Instance->setCollisionFlags((int)Flags);
@@ -5829,7 +5854,7 @@ namespace Tomahawk
 
 			return 0;
 		}
-		UInt64 RigidBody::GetCollisionFlags()
+		uint64_t RigidBody::GetCollisionFlags()
 		{
 			if (!Instance)
 				return 0;
@@ -6570,14 +6595,14 @@ namespace Tomahawk
 
 			return Instance->getRollingFriction();
 		}
-		UInt64 SoftBody::GetCollisionFlags()
+		uint64_t SoftBody::GetCollisionFlags()
 		{
 			if (!Instance)
 				return 0;
 
 			return Instance->getCollisionFlags();
 		}
-		UInt64 SoftBody::GetVerticesCount()
+		uint64_t SoftBody::GetVerticesCount()
 		{
 			if (!Instance)
 				return 0;
@@ -7632,7 +7657,7 @@ namespace Tomahawk
 
 			return Vertices;
 		}
-		UInt64 Simulator::GetShapeVerticesCount(btCollisionShape* Value)
+		uint64_t Simulator::GetShapeVerticesCount(btCollisionShape* Value)
 		{
 			if (!Value)
 				return 0;

@@ -87,7 +87,7 @@ namespace Tomahawk
 
 				TDocument* New = bson_new();
 				TDocument* Replica = nullptr;
-				UInt64 Index = 0;
+				uint64_t Index = 0;
 
 				bool Array = (Document->Type == Rest::NodeType_Array);
 				for (auto&& Node : *Document->GetNodes())
@@ -154,7 +154,7 @@ namespace Tomahawk
 				return nullptr;
 #endif
 			}
-			TDocument* Document::Create(const unsigned char* Buffer, UInt64 Length)
+			TDocument* Document::Create(const unsigned char* Buffer, uint64_t Length)
 			{
 #ifdef THAWK_HAS_MONGOC
 				return bson_new_from_data(Buffer, (size_t)Length);
@@ -215,7 +215,7 @@ namespace Tomahawk
 				return false;
 #endif
 			}
-			bool Document::AddKeyDocument(TDocument* Document, const char* Key, TDocument** Value, UInt64 ArrayId)
+			bool Document::AddKeyDocument(TDocument* Document, const char* Key, TDocument** Value, uint64_t ArrayId)
 			{
 #ifdef THAWK_HAS_MONGOC
 				if (!Value || !*Value || !Document)
@@ -234,7 +234,7 @@ namespace Tomahawk
 				return false;
 #endif
 			}
-			bool Document::AddKeyArray(TDocument* Document, const char* Key, TDocument** Value, UInt64 ArrayId)
+			bool Document::AddKeyArray(TDocument* Document, const char* Key, TDocument** Value, uint64_t ArrayId)
 			{
 #ifdef THAWK_HAS_MONGOC
 				if (!Value || !*Value || !Document)
@@ -253,7 +253,7 @@ namespace Tomahawk
 				return false;
 #endif
 			}
-			bool Document::AddKeyString(TDocument* Document, const char* Key, const char* Value, UInt64 ArrayId)
+			bool Document::AddKeyString(TDocument* Document, const char* Key, const char* Value, uint64_t ArrayId)
 			{
 #ifdef THAWK_HAS_MONGOC
 				if (!Document)
@@ -268,7 +268,7 @@ namespace Tomahawk
 				return false;
 #endif
 			}
-			bool Document::AddKeyStringBuffer(TDocument* Document, const char* Key, const char* Value, UInt64 Length, UInt64 ArrayId)
+			bool Document::AddKeyStringBuffer(TDocument* Document, const char* Key, const char* Value, uint64_t Length, uint64_t ArrayId)
 			{
 #ifdef THAWK_HAS_MONGOC
 				if (!Document)
@@ -283,7 +283,7 @@ namespace Tomahawk
 				return false;
 #endif
 			}
-			bool Document::AddKeyInteger(TDocument* Document, const char* Key, Int64 Value, UInt64 ArrayId)
+			bool Document::AddKeyInteger(TDocument* Document, const char* Key, int64_t Value, uint64_t ArrayId)
 			{
 #ifdef THAWK_HAS_MONGOC
 				if (!Document)
@@ -298,7 +298,7 @@ namespace Tomahawk
 				return false;
 #endif
 			}
-			bool Document::AddKeyNumber(TDocument* Document, const char* Key, Float64 Value, UInt64 ArrayId)
+			bool Document::AddKeyNumber(TDocument* Document, const char* Key, double Value, uint64_t ArrayId)
 			{
 #ifdef THAWK_HAS_MONGOC
 				if (!Document)
@@ -313,7 +313,7 @@ namespace Tomahawk
 				return false;
 #endif
 			}
-			bool Document::AddKeyDecimal(TDocument* Document, const char* Key, UInt64 High, UInt64 Low, UInt64 ArrayId)
+			bool Document::AddKeyDecimal(TDocument* Document, const char* Key, uint64_t High, uint64_t Low, uint64_t ArrayId)
 			{
 #ifdef THAWK_HAS_MONGOC
 				if (!Document)
@@ -332,7 +332,7 @@ namespace Tomahawk
 				return false;
 #endif
 			}
-			bool Document::AddKeyDecimalString(TDocument* Document, const char* Key, const std::string& Value, UInt64 ArrayId)
+			bool Document::AddKeyDecimalString(TDocument* Document, const char* Key, const std::string& Value, uint64_t ArrayId)
 			{
 #ifdef THAWK_HAS_MONGOC
 				if (!Document)
@@ -350,7 +350,7 @@ namespace Tomahawk
 				return false;
 #endif
 			}
-			bool Document::AddKeyDecimalInteger(TDocument* Document, const char* Key, Int64 Value, UInt64 ArrayId)
+			bool Document::AddKeyDecimalInteger(TDocument* Document, const char* Key, int64_t Value, uint64_t ArrayId)
 			{
 #ifdef THAWK_HAS_MONGOC
 				if (!Document)
@@ -371,7 +371,7 @@ namespace Tomahawk
 				return false;
 #endif
 			}
-			bool Document::AddKeyDecimalNumber(TDocument* Document, const char* Key, Float64 Value, UInt64 ArrayId)
+			bool Document::AddKeyDecimalNumber(TDocument* Document, const char* Key, double Value, uint64_t ArrayId)
 			{
 #ifdef THAWK_HAS_MONGOC
 				if (!Document)
@@ -395,7 +395,7 @@ namespace Tomahawk
 				return false;
 #endif
 			}
-			bool Document::AddKeyBoolean(TDocument* Document, const char* Key, bool Value, UInt64 ArrayId)
+			bool Document::AddKeyBoolean(TDocument* Document, const char* Key, bool Value, uint64_t ArrayId)
 			{
 #ifdef THAWK_HAS_MONGOC
 				if (!Document)
@@ -410,7 +410,7 @@ namespace Tomahawk
 				return false;
 #endif
 			}
-			bool Document::AddKeyObjectId(TDocument* Document, const char* Key, unsigned char Value[12], UInt64 ArrayId)
+			bool Document::AddKeyObjectId(TDocument* Document, const char* Key, unsigned char Value[12], uint64_t ArrayId)
 			{
 #ifdef THAWK_HAS_MONGOC
 				if (!Document)
@@ -428,7 +428,7 @@ namespace Tomahawk
 				return false;
 #endif
 			}
-			bool Document::AddKeyNull(TDocument* Document, const char* Key, UInt64 ArrayId)
+			bool Document::AddKeyNull(TDocument* Document, const char* Key, uint64_t ArrayId)
 			{
 #ifdef THAWK_HAS_MONGOC
 				if (!Document)
@@ -443,7 +443,7 @@ namespace Tomahawk
 				return false;
 #endif
 			}
-			bool Document::AddKey(TDocument* Document, const char* Key, KeyPair* Value, UInt64 ArrayId)
+			bool Document::AddKey(TDocument* Document, const char* Key, KeyPair* Value, uint64_t ArrayId)
 			{
 #ifdef THAWK_HAS_MONGOC
 				if (!Document || !Value)
@@ -518,7 +518,7 @@ namespace Tomahawk
 				return false;
 #endif
 			}
-			bool Document::ParseDecimal(const char* Value, Int64* High, Int64* Low)
+			bool Document::ParseDecimal(const char* Value, int64_t* High, int64_t* Low)
 			{
 				if (!Value || !High || !Low)
 					return false;
@@ -545,11 +545,11 @@ namespace Tomahawk
 				{
 					case BSON_TYPE_DOCUMENT:
 						Output->Mod = Type_Document;
-						Output->Document = Create((const unsigned char*)Value->value.v_doc.data, (UInt64)Value->value.v_doc.data_len);
+						Output->Document = Create((const unsigned char*)Value->value.v_doc.data, (uint64_t)Value->value.v_doc.data_len);
 						break;
 					case BSON_TYPE_ARRAY:
 						Output->Mod = Type_Array;
-						Output->Array = Create((const unsigned char*)Value->value.v_doc.data, (UInt64)Value->value.v_doc.data_len);
+						Output->Array = Create((const unsigned char*)Value->value.v_doc.data, (uint64_t)Value->value.v_doc.data_len);
 						break;
 					case BSON_TYPE_BOOL:
 						Output->Mod = Type_Boolean;
@@ -569,17 +569,17 @@ namespace Tomahawk
 						break;
 					case BSON_TYPE_DECIMAL128:
 						Output->Mod = Type_Decimal;
-						Output->High = (UInt64)Value->value.v_decimal128.high;
-						Output->Low = (UInt64)Value->value.v_decimal128.low;
+						Output->High = (uint64_t)Value->value.v_decimal128.high;
+						Output->Low = (uint64_t)Value->value.v_decimal128.low;
 						break;
 					case BSON_TYPE_UTF8:
 						Output->Mod = Type_String;
-						Output->String.assign(Value->value.v_utf8.str, (UInt64)Value->value.v_utf8.len);
+						Output->String.assign(Value->value.v_utf8.str, (uint64_t)Value->value.v_utf8.len);
 						break;
 					case BSON_TYPE_TIMESTAMP:
 						Output->Mod = Type_Integer;
-						Output->Integer = (Int64)Value->value.v_timestamp.timestamp;
-						Output->Number = (Float64)Value->value.v_timestamp.increment;
+						Output->Integer = (int64_t)Value->value.v_timestamp.timestamp;
+						Output->Number = (double)Value->value.v_timestamp.increment;
 						break;
 					case BSON_TYPE_DATE_TIME:
 						Output->Mod = Type_Integer;
@@ -591,15 +591,15 @@ namespace Tomahawk
 						break;
 					case BSON_TYPE_CODE:
 						Output->Mod = Type_String;
-						Output->String.assign(Value->value.v_code.code, (UInt64)Value->value.v_code.code_len);
+						Output->String.assign(Value->value.v_code.code, (uint64_t)Value->value.v_code.code_len);
 						break;
 					case BSON_TYPE_SYMBOL:
 						Output->Mod = Type_String;
-						Output->String.assign(Value->value.v_symbol.symbol, (UInt64)Value->value.v_symbol.len);
+						Output->String.assign(Value->value.v_symbol.symbol, (uint64_t)Value->value.v_symbol.len);
 						break;
 					case BSON_TYPE_CODEWSCOPE:
 						Output->Mod = Type_String;
-						Output->String.assign(Value->value.v_codewscope.code, (UInt64)Value->value.v_codewscope.code_len);
+						Output->String.assign(Value->value.v_codewscope.code, (uint64_t)Value->value.v_codewscope.code_len);
 						break;
 					case BSON_TYPE_UNDEFINED:
 					case BSON_TYPE_NULL:
@@ -642,7 +642,7 @@ namespace Tomahawk
 				return 0;
 #endif
 			}
-			Int64 Document::GetTimeId(unsigned char* Id12)
+			int64_t Document::GetTimeId(unsigned char* Id12)
 			{
 #ifdef THAWK_HAS_MONGOC
 				if (!Id12 || strlen((const char*)Id12) != 12)
@@ -656,7 +656,7 @@ namespace Tomahawk
 				return 0;
 #endif
 			}
-			UInt64 Document::CountKeys(TDocument* Document)
+			uint64_t Document::CountKeys(TDocument* Document)
 			{
 #ifdef THAWK_HAS_MONGOC
 				if (!Document)
@@ -677,7 +677,7 @@ namespace Tomahawk
 				char* Value = bson_as_canonical_extended_json(Document, &Length);
 
 				std::string Output;
-				Output.assign(Value, (UInt64)Length);
+				Output.assign(Value, (uint64_t)Length);
 				bson_free(Value);
 
 				return Output;
@@ -695,7 +695,7 @@ namespace Tomahawk
 				char* Value = bson_as_relaxed_extended_json(Document, &Length);
 
 				std::string Output;
-				Output.assign(Value, (UInt64)Length);
+				Output.assign(Value, (uint64_t)Length);
 				bson_free(Value);
 
 				return Output;
@@ -713,7 +713,7 @@ namespace Tomahawk
 				char* Value = bson_as_json(Document, &Length);
 
 				std::string Output;
-				Output.assign(Value, (UInt64)Length);
+				Output.assign(Value, (uint64_t)Length);
 				bson_free(Value);
 
 				return Output;
@@ -735,7 +735,7 @@ namespace Tomahawk
 				{
 					Rest::Document* Node = (Rest::Document*)UserData;
 					std::string Name = (Node->Type == Rest::NodeType_Array ? "" : Key->Name);
-					Float64 Decimal;
+					double Decimal;
 
 					switch (Key->Mod)
 					{
@@ -760,10 +760,10 @@ namespace Tomahawk
 							break;
 						case BSON::Type_Decimal:
 							Decimal = Rest::Stroke(&Key->ToString()).ToFloat64();
-							if (Decimal != (Int64)Decimal)
+							if (Decimal != (int64_t)Decimal)
 								Node->SetNumber(Name, Decimal);
 							else
-								Node->SetInteger(Name, (Int64)Decimal);
+								Node->SetInteger(Name, (int64_t)Decimal);
 							break;
 						case BSON::Type_Integer:
 							Node->SetInteger(Name, Key->Integer);

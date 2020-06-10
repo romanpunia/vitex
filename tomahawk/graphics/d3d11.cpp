@@ -1,5 +1,4 @@
 #include "d3d11.h"
-#include "../resource.h"
 #include <imgui.h>
 #ifdef THAWK_HAS_SDL2
 #include <SDL2/SDL_syswm.h>
@@ -13,7 +12,7 @@ namespace Tomahawk
 	{
 		namespace D3D11
 		{
-			D3D11Shader::D3D11Shader(Graphics::GraphicsDevice* Device, const Desc& F) : Graphics::Shader(Device, F)
+			D3D11Shader::D3D11Shader(Graphics::GraphicsDevice* Device, const Desc& F) : Graphics::Shader(Device, F), Compiled(false)
 			{
 				D3D11Device* Ref = Device->As<D3D11Device>();
 				ID3DBlob* ShaderBlob = nullptr;
@@ -66,7 +65,7 @@ namespace Tomahawk
 
 						std::string Message = Ref->CompileState(ErrorBlob);
 						ReleaseCom(ErrorBlob);
-						THAWK_ERROR("couldn't compile vertex shader -> %s", Message.c_str());
+						THAWK_ERROR("couldn't compile vertex shader\n\t%s", Message.c_str());
 						return;
 					}
 
@@ -88,7 +87,7 @@ namespace Tomahawk
 					{
 						std::string Message = Ref->CompileState(ErrorBlob);
 						ReleaseCom(ErrorBlob);
-						THAWK_ERROR("couldn't compile pixel shader -> %s", Message.c_str());
+						THAWK_ERROR("couldn't compile pixel shader\n\t%s", Message.c_str());
 						return;
 					}
 
@@ -104,7 +103,7 @@ namespace Tomahawk
 					{
 						std::string Message = Ref->CompileState(ErrorBlob);
 						ReleaseCom(ErrorBlob);
-						THAWK_ERROR("couldn't compile geometry shader -> %s", Message.c_str());
+						THAWK_ERROR("couldn't compile geometry shader\n\t%s", Message.c_str());
 						return;
 					}
 
@@ -120,7 +119,7 @@ namespace Tomahawk
 					{
 						std::string Message = Ref->CompileState(ErrorBlob);
 						ReleaseCom(ErrorBlob);
-						THAWK_ERROR("couldn't compile compute shader -> %s", Message.c_str());
+						THAWK_ERROR("couldn't compile compute shader\n\t%s", Message.c_str());
 						return;
 					}
 
@@ -136,7 +135,7 @@ namespace Tomahawk
 					{
 						std::string Message = Ref->CompileState(ErrorBlob);
 						ReleaseCom(ErrorBlob);
-						THAWK_ERROR("couldn't compile hull shader -> %s", Message.c_str());
+						THAWK_ERROR("couldn't compile hull shader\n\t%s", Message.c_str());
 						return;
 					}
 
@@ -152,7 +151,7 @@ namespace Tomahawk
 					{
 						std::string Message = Ref->CompileState(ErrorBlob);
 						ReleaseCom(ErrorBlob);
-						THAWK_ERROR("couldn't compile domain shader -> %s", Message.c_str());
+						THAWK_ERROR("couldn't compile domain shader\n\t%s", Message.c_str());
 						return;
 					}
 
@@ -160,6 +159,7 @@ namespace Tomahawk
 					ReleaseCom(ShaderBlob);
 				}
 
+				Compiled = true;
 				if (ShaderLayout)
 					delete[] ShaderLayout;
 			}
@@ -235,6 +235,10 @@ namespace Tomahawk
 
 				if (ComputeShader && (Type & Graphics::ShaderType_Compute))
 					ImmediateContext->CSSetConstantBuffers(Slot, 1, &ConstantBuffer);
+			}
+			bool D3D11Shader::IsValid()
+			{
+				return Compiled;
 			}
 
 			D3D11ElementBuffer::D3D11ElementBuffer(Graphics::GraphicsDevice* Device, const Desc& I) : Graphics::ElementBuffer(Device, I)
@@ -1778,7 +1782,7 @@ namespace Tomahawk
 				return Vertices;
 			}
 
-			D3D11SkinnedMesh::D3D11SkinnedMesh(Graphics::GraphicsDevice* Device, const Desc& I) : Graphics::SkinnedMesh(Device, I)
+			D3D11SkinMesh::D3D11SkinMesh(Graphics::GraphicsDevice* Device, const Desc& I) : Graphics::SkinMesh(Device, I)
 			{
 				Graphics::ElementBuffer::Desc F = Graphics::ElementBuffer::Desc();
 				F.AccessFlags = I.AccessFlags;
@@ -1787,7 +1791,7 @@ namespace Tomahawk
 				F.ElementCount = (unsigned int)I.Elements.size();
 				F.UseSubresource = true;
 				F.Elements = (void*)I.Elements.data();
-				F.ElementWidth = sizeof(Compute::InfluenceVertex);
+				F.ElementWidth = sizeof(Compute::SkinVertex);
 
 				VertexBuffer = Graphics::ElementBuffer::Create(Device, F);
 
@@ -1802,31 +1806,31 @@ namespace Tomahawk
 
 				IndexBuffer = Graphics::ElementBuffer::Create(Device, F);
 			}
-			void D3D11SkinnedMesh::Update(Graphics::GraphicsDevice* Device, Compute::InfluenceVertex* Elements)
+			void D3D11SkinMesh::Update(Graphics::GraphicsDevice* Device, Compute::SkinVertex* Elements)
 			{
 				Graphics::MappedSubresource Resource;
 				VertexBuffer->Map(Device, Graphics::ResourceMap_Write, &Resource);
-				memcpy(Resource.Pointer, Elements, (size_t)VertexBuffer->GetElements() * sizeof(Compute::InfluenceVertex));
+				memcpy(Resource.Pointer, Elements, (size_t)VertexBuffer->GetElements() * sizeof(Compute::SkinVertex));
 				VertexBuffer->Unmap(Device, &Resource);
 			}
-			void D3D11SkinnedMesh::Draw(Graphics::GraphicsDevice* Device)
+			void D3D11SkinMesh::Draw(Graphics::GraphicsDevice* Device)
 			{
 				ID3D11DeviceContext* ImmediateContext = Device->As<D3D11Device>()->ImmediateContext;
 				D3D11ElementBuffer* ElementBuffer = VertexBuffer->As<D3D11ElementBuffer>();
 				D3D11ElementBuffer* IndexedBuffer = IndexBuffer->As<D3D11ElementBuffer>();
-				unsigned int Stride = Graphics::Shader::GetInfluenceVertexLayoutStride(), Offset = 0;
+				unsigned int Stride = Graphics::Shader::GetSkinVertexLayoutStride(), Offset = 0;
 
 				ImmediateContext->IASetVertexBuffers(0, 1, &ElementBuffer->Element, &Stride, &Offset);
 				ImmediateContext->IASetIndexBuffer(IndexedBuffer->Element, DXGI_FORMAT_R32_UINT, 0);
 				ImmediateContext->DrawIndexed((unsigned int)IndexedBuffer->GetElements(), 0, 0);
 			}
-			Compute::InfluenceVertex* D3D11SkinnedMesh::Elements(Graphics::GraphicsDevice* Device)
+			Compute::SkinVertex* D3D11SkinMesh::Elements(Graphics::GraphicsDevice* Device)
 			{
 				Graphics::MappedSubresource Resource;
 				VertexBuffer->Map(Device, Graphics::ResourceMap_Write, &Resource);
 
-				Compute::InfluenceVertex* Vertices = new Compute::InfluenceVertex[(unsigned int)VertexBuffer->GetElements()];
-				memcpy(Vertices, Resource.Pointer, (size_t)VertexBuffer->GetElements() * sizeof(Compute::InfluenceVertex));
+				Compute::SkinVertex* Vertices = new Compute::SkinVertex[(unsigned int)VertexBuffer->GetElements()];
+				memcpy(Vertices, Resource.Pointer, (size_t)VertexBuffer->GetElements() * sizeof(Compute::SkinVertex));
 
 				VertexBuffer->Unmap(Device, &Resource);
 				return Vertices;
@@ -2233,7 +2237,6 @@ namespace Tomahawk
 					return;
 				}
 
-				LoadShaderSections();
 				CreateConstantBuffer(sizeof(Graphics::AnimationBuffer), ConstantBuffer[0]);
 				ConstantData[0] = &Animation;
 
@@ -2255,15 +2258,16 @@ namespace Tomahawk
 				ResizeBuffers(I.BufferWidth, I.BufferHeight);
 				CreateRendererStates();
 
-				Graphics::Shader::Desc F = Graphics::Shader::Desc();
-				F.Layout = Graphics::Shader::GetShapeVertexLayout();
-				F.LayoutSize = 2;
-#ifdef HAS_D3D11_BASIC_EFFECT_HLSL
-				F.Data = GET_RESOURCE_BATCH(d3d11_basic_effect_hlsl);
-#else
-				THAWK_ERROR("basic-effect.hlsl was not compiled");
-#endif
-				BasicEffect = Shader::Create(this, F);
+				std::string* ShaderCode = GetSection("standard/basic");
+				if (ShaderCode != nullptr)
+				{
+					Graphics::Shader::Desc F = Graphics::Shader::Desc();
+					F.Layout = Graphics::Shader::GetShapeVertexLayout();
+					F.LayoutSize = 2;
+					F.Data = *ShaderCode;
+					F.Filename = "BASIC";
+					BasicEffect = Shader::Create(this, F);
+				}
 			}
 			D3D11Device::~D3D11Device()
 			{
@@ -2271,12 +2275,26 @@ namespace Tomahawk
 				RestoreBlendStates();
 				RestoreRasterizerStates();
 				RestoreDepthStencilStates();
+				FreeProxy();
 
 				for (int i = 0; i < 3; i++)
 				ReleaseCom(ConstantBuffer[i]);
 
 				ReleaseCom(ImmediateContext);
 				ReleaseCom(SwapChain);
+
+				if (Debug)
+				{
+					ID3D11Debug* Debugger = nullptr;
+					D3DDevice->QueryInterface(__uuidof(ID3D11Debug), reinterpret_cast<void**>(&Debugger));
+
+					if (Debugger != nullptr)
+					{
+						Debugger->ReportLiveDeviceObjects(D3D11_RLDO_DETAIL | D3D11_RLDO_IGNORE_INTERNAL);
+						Debugger->Release();
+					}
+				}
+
 				ReleaseCom(D3DDevice);
 			}
 			void D3D11Device::RestoreSamplerStates()
@@ -3002,99 +3020,6 @@ namespace Tomahawk
 					return nullptr;
 
 				return (char*)Error->GetBufferPointer();
-			}
-			void D3D11Device::LoadShaderSections()
-			{
-#ifdef HAS_D3D11_ANIMATION_BUFFER_HLSL
-				AddSection("animation-buffer.hlsl", GET_RESOURCE_BATCH(d3d11_animation_buffer_hlsl));
-#else
-				THAWK_ERROR("animation-buffer.hlsl was not compiled");
-#endif
-#ifdef HAS_D3D11_RENDER_BUFFER_HLSL
-				AddSection("render-buffer.hlsl", GET_RESOURCE_BATCH(d3d11_render_buffer_hlsl));
-#else
-				THAWK_ERROR("render-buffer.hlsl was not compiled");
-#endif
-#ifdef HAS_D3D11_VIEW_BUFFER_HLSL
-				AddSection("view-buffer.hlsl", GET_RESOURCE_BATCH(d3d11_view_buffer_hlsl));
-#else
-				THAWK_ERROR("view-buffer.hlsl was not compiled");
-#endif
-#ifdef HAS_D3D11_VERTEX_IN_HLSL
-				AddSection("vertex-in.hlsl", GET_RESOURCE_BATCH(d3d11_vertex_in_hlsl));
-#else
-				THAWK_ERROR("vertex-in.hlsl was not compiled");
-#endif
-#ifdef HAS_D3D11_VERTEX_OUT_HLSL
-				AddSection("vertex-out.hlsl", GET_RESOURCE_BATCH(d3d11_vertex_out_hlsl));
-#else
-				THAWK_ERROR("vertex-out.hlsl was not compiled");
-#endif
-#ifdef HAS_D3D11_INFLUENCE_VERTEX_IN_HLSL
-				AddSection("influence-vertex-in.hlsl", GET_RESOURCE_BATCH(d3d11_influence_vertex_in_hlsl));
-#else
-				THAWK_ERROR("influence-vertex-in.hlsl was not compiled");
-#endif
-#ifdef HAS_D3D11_INFLUENCE_VERTEX_OUT_HLSL
-				AddSection("influence-vertex-out.hlsl", GET_RESOURCE_BATCH(d3d11_influence_vertex_out_hlsl));
-#else
-				THAWK_ERROR("influence-vertex-out.hlsl was not compiled");
-#endif
-#ifdef HAS_D3D11_SHAPE_VERTEX_IN_HLSL
-				AddSection("shape-vertex-in.hlsl", GET_RESOURCE_BATCH(d3d11_shape_vertex_in_hlsl));
-#else
-				THAWK_ERROR("shape-vertex-in.hlsl was not compiled");
-#endif
-#ifdef HAS_D3D11_SHAPE_VERTEX_OUT_HLSL
-				AddSection("shape-vertex-out.hlsl", GET_RESOURCE_BATCH(d3d11_shape_vertex_out_hlsl));
-#else
-				THAWK_ERROR("shape-vertex-out.hlsl was not compiled");
-#endif
-#ifdef HAS_D3D11_DEFERRED_OUT_HLSL
-				AddSection("deferred-out.hlsl", GET_RESOURCE_BATCH(d3d11_deferred_out_hlsl));
-#else
-				THAWK_ERROR("deferred-out.hlsl was not compiled");
-#endif
-#ifdef HAS_D3D11_INSTANCE_ELEMENT_HLSL
-				AddSection("instance-element.hlsl", GET_RESOURCE_BATCH(d3d11_instance_element_hlsl));
-#else
-				THAWK_ERROR("instance-element.hlsl was not compiled");
-#endif
-#ifdef HAS_D3D11_GEOMETRY_HLSL
-				AddSection("geometry.hlsl", GET_RESOURCE_BATCH(d3d11_geometry_hlsl));
-#else
-				THAWK_ERROR("geometry.hlsl was not compiled");
-#endif
-#ifdef HAS_D3D11_LOAD_GEOMETRY_HLSL
-				AddSection("load-geometry.hlsl", GET_RESOURCE_BATCH(d3d11_load_geometry_hlsl));
-#else
-				THAWK_ERROR("load-geometry.hlsl was not compiled");
-#endif
-#ifdef HAS_D3D11_LOAD_TEXCOORD_HLSL
-				AddSection("load-texcoord.hlsl", GET_RESOURCE_BATCH(d3d11_load_texcoord_hlsl));
-#else
-				THAWK_ERROR("load-texcoord.hlsl was not compiled");
-#endif
-#ifdef HAS_D3D11_LOAD_POSITION_HLSL
-				AddSection("load-position.hlsl", GET_RESOURCE_BATCH(d3d11_load_position_hlsl));
-#else
-				THAWK_ERROR("load-position.hlsl was not compiled");
-#endif
-#ifdef HAS_D3D11_COOK_TORRANCE_HLSL
-				AddSection("cook-torrance.hlsl", GET_RESOURCE_BATCH(d3d11_cook_torrance_hlsl));
-#else
-				THAWK_ERROR("cook-torrance.hlsl was not compiled");
-#endif
-#ifdef HAS_D3D11_HEMI_AMBIENT_HLSL
-				AddSection("hemi-ambient.hlsl", GET_RESOURCE_BATCH(d3d11_hemi_ambient_hlsl));
-#else
-				THAWK_ERROR("hemi-ambient.hlsl was not compiled");
-#endif
-#ifdef HAS_D3D11_HEMI_AMBIENT_HLSL
-				AddSection("random-float-2.hlsl", GET_RESOURCE_BATCH(d3d11_random_float_2_hlsl));
-#else
-				THAWK_ERROR("random-float-2.hlsl was not compiled");
-#endif
 			}
 		}
 	}

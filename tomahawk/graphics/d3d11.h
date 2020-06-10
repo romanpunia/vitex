@@ -66,6 +66,9 @@ namespace Tomahawk
 
 			class D3D11Shader : public Graphics::Shader
 			{
+			private:
+				bool Compiled;
+
 			public:
 				ID3D11VertexShader* VertexShader;
 				ID3D11PixelShader* PixelShader;
@@ -83,6 +86,7 @@ namespace Tomahawk
 				void CreateBuffer(GraphicsDevice* Device, size_t Size) override;
 				void SetShader(Graphics::GraphicsDevice* Device, unsigned int Type) override;
 				void SetBuffer(Graphics::GraphicsDevice* Device, unsigned int Slot, unsigned int Type) override;
+				bool IsValid() override;
 			};
 
 			class D3D11ElementBuffer : public Graphics::ElementBuffer
@@ -309,13 +313,13 @@ namespace Tomahawk
 				Compute::Vertex* Elements(Graphics::GraphicsDevice* Device) override;
 			};
 
-			class D3D11SkinnedMesh : public Graphics::SkinnedMesh
+			class D3D11SkinMesh : public Graphics::SkinMesh
 			{
 			public:
-				D3D11SkinnedMesh(Graphics::GraphicsDevice* Device, const Desc& I);
-				void Update(Graphics::GraphicsDevice* Device, Compute::InfluenceVertex* Elements) override;
+				D3D11SkinMesh(Graphics::GraphicsDevice* Device, const Desc& I);
+				void Update(Graphics::GraphicsDevice* Device, Compute::SkinVertex* Elements) override;
 				void Draw(Graphics::GraphicsDevice* Device) override;
-				Compute::InfluenceVertex* Elements(Graphics::GraphicsDevice* Device) override;
+				Compute::SkinVertex* Elements(Graphics::GraphicsDevice* Device) override;
 			};
 
 			class D3D11InstanceBuffer : public Graphics::InstanceBuffer
@@ -424,7 +428,6 @@ namespace Tomahawk
 				void SetScissorRect(unsigned int Count, Graphics::Rectangle* Value) override;
 				void GetViewport(unsigned int* Count, Graphics::Viewport* Out) override;
 				void GetScissorRect(unsigned int* Count, Graphics::Rectangle* Out) override;
-				void LoadShaderSections() override;
 				Graphics::ShaderModel GetSupportedShaderModel() override;
 				Graphics::PrimitiveTopology GetPrimitiveTopology() override;
 				void* GetDevice() override;

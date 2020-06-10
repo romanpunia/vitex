@@ -1,5 +1,4 @@
 #include "ogl.h"
-#include "../resource.h"
 #include <imgui.h>
 #ifdef THAWK_HAS_SDL2
 #include <SDL2/SDL_syswm.h>
@@ -29,6 +28,10 @@ namespace Tomahawk
 			}
 			void OGLShader::SetBuffer(Graphics::GraphicsDevice* Device, unsigned int Slot, unsigned int Type)
 			{
+			}
+			bool OGLShader::IsValid()
+			{
+				return false;
 			}
 
 			OGLElementBuffer::OGLElementBuffer(Graphics::GraphicsDevice* Device, const Desc& I) : Graphics::ElementBuffer(Device, I)
@@ -523,7 +526,7 @@ namespace Tomahawk
 				return Vertices;
 			}
 
-			OGLSkinnedMesh::OGLSkinnedMesh(Graphics::GraphicsDevice* Device, const Desc& I) : Graphics::SkinnedMesh(Device, I)
+			OGLSkinMesh::OGLSkinMesh(Graphics::GraphicsDevice* Device, const Desc& I) : Graphics::SkinMesh(Device, I)
 			{
 				Graphics::ElementBuffer::Desc F = Graphics::ElementBuffer::Desc();
 				F.AccessFlags = I.AccessFlags;
@@ -532,7 +535,7 @@ namespace Tomahawk
 				F.ElementCount = (unsigned int)I.Elements.size();
 				F.UseSubresource = true;
 				F.Elements = (void*)I.Elements.data();
-				F.ElementWidth = sizeof(Compute::InfluenceVertex);
+				F.ElementWidth = sizeof(Compute::SkinVertex);
 
 				VertexBuffer = Graphics::ElementBuffer::Create(Device, F);
 
@@ -547,23 +550,23 @@ namespace Tomahawk
 
 				IndexBuffer = Graphics::ElementBuffer::Create(Device, F);
 			}
-			void OGLSkinnedMesh::Update(Graphics::GraphicsDevice* Device, Compute::InfluenceVertex* Elements)
+			void OGLSkinMesh::Update(Graphics::GraphicsDevice* Device, Compute::SkinVertex* Elements)
 			{
 				Graphics::MappedSubresource Resource;
 				VertexBuffer->Map(Device, Graphics::ResourceMap_Write, &Resource);
-				memcpy(Resource.Pointer, Elements, (size_t)VertexBuffer->GetElements() * sizeof(Compute::InfluenceVertex));
+				memcpy(Resource.Pointer, Elements, (size_t)VertexBuffer->GetElements() * sizeof(Compute::SkinVertex));
 				VertexBuffer->Unmap(Device, &Resource);
 			}
-			void OGLSkinnedMesh::Draw(Graphics::GraphicsDevice* Device)
+			void OGLSkinMesh::Draw(Graphics::GraphicsDevice* Device)
 			{
 			}
-			Compute::InfluenceVertex* OGLSkinnedMesh::Elements(Graphics::GraphicsDevice* Device)
+			Compute::SkinVertex* OGLSkinMesh::Elements(Graphics::GraphicsDevice* Device)
 			{
 				Graphics::MappedSubresource Resource;
 				VertexBuffer->Map(Device, Graphics::ResourceMap_Write, &Resource);
 
-				Compute::InfluenceVertex* Vertices = new Compute::InfluenceVertex[(unsigned int)VertexBuffer->GetElements()];
-				memcpy(Vertices, Resource.Pointer, (size_t)VertexBuffer->GetElements() * sizeof(Compute::InfluenceVertex));
+				Compute::SkinVertex* Vertices = new Compute::SkinVertex[(unsigned int)VertexBuffer->GetElements()];
+				memcpy(Vertices, Resource.Pointer, (size_t)VertexBuffer->GetElements() * sizeof(Compute::SkinVertex));
 
 				VertexBuffer->Unmap(Device, &Resource);
 				return Vertices;
@@ -757,7 +760,6 @@ namespace Tomahawk
 					return;
 				}
 
-				LoadShaderSections();
 				CreateConstantBuffer(sizeof(Graphics::AnimationBuffer), ConstantBuffer[0]);
 				ConstantData[0] = &Animation;
 
@@ -775,15 +777,16 @@ namespace Tomahawk
 				ResizeBuffers(I.BufferWidth, I.BufferHeight);
 				CreateRendererStates();
 
-				Graphics::Shader::Desc F = Graphics::Shader::Desc();
-				F.Layout = Graphics::Shader::GetShapeVertexLayout();
-				F.LayoutSize = 2;
-#ifdef HAS_OGL_BASIC_EFFECT_GLSL
-				F.Data = GET_RESOURCE_BATCH(ogl_basic_effect_glsl);
-#else
-				THAWK_ERROR("basic-effect.glsl was not compiled");
-#endif
-				BasicEffect = Shader::Create(this, F);
+				std::string* ShaderCode = GetSection("standard/basic");
+				if (ShaderCode != nullptr)
+				{
+					Graphics::Shader::Desc F = Graphics::Shader::Desc();
+					F.Layout = Graphics::Shader::GetShapeVertexLayout();
+					F.LayoutSize = 2;
+					F.Data = *ShaderCode;
+					F.Filename = "BASIC";
+					BasicEffect = Shader::Create(this, F);
+				}
 			}
 			OGLDevice::~OGLDevice()
 			{
@@ -791,6 +794,7 @@ namespace Tomahawk
 				RestoreBlendStates();
 				RestoreRasterizerStates();
 				RestoreDepthStencilStates();
+				FreeProxy();
 
 				if (Context != nullptr)
 				{
@@ -1781,99 +1785,6 @@ namespace Tomahawk
 			bool OGLDevice::IsValid()
 			{
 				return BasicEffect != nullptr;
-			}
-			void OGLDevice::LoadShaderSections()
-			{
-#ifdef HAS_OGL_ANIMATION_BUFFER_GLSL
-				AddSection("animation-buffer.glsl", GET_RESOURCE_BATCH(ogl_animation_buffer_glsl));
-#else
-				THAWK_ERROR("animation-buffer.glsl was not compiled");
-#endif
-#ifdef HAS_OGL_RENDER_BUFFER_GLSL
-				AddSection("render-buffer.glsl", GET_RESOURCE_BATCH(ogl_render_buffer_glsl));
-#else
-				THAWK_ERROR("render-buffer.glsl was not compiled");
-#endif
-#ifdef HAS_OGL_VIEW_BUFFER_GLSL
-				AddSection("view-buffer.glsl", GET_RESOURCE_BATCH(ogl_view_buffer_glsl));
-#else
-				THAWK_ERROR("view-buffer.glsl was not compiled");
-#endif
-#ifdef HAS_OGL_VERTEX_IN_GLSL
-				AddSection("vertex-in.glsl", GET_RESOURCE_BATCH(ogl_vertex_in_glsl));
-#else
-				THAWK_ERROR("vertex-in.glsl was not compiled");
-#endif
-#ifdef HAS_OGL_VERTEX_OUT_GLSL
-				AddSection("vertex-out.glsl", GET_RESOURCE_BATCH(ogl_vertex_out_glsl));
-#else
-				THAWK_ERROR("vertex-out.glsl was not compiled");
-#endif
-#ifdef HAS_OGL_INFLUENCE_VERTEX_IN_GLSL
-				AddSection("influence-vertex-in.glsl", GET_RESOURCE_BATCH(ogl_influence_vertex_in_glsl));
-#else
-				THAWK_ERROR("influence-vertex-in.glsl was not compiled");
-#endif
-#ifdef HAS_OGL_INFLUENCE_VERTEX_OUT_GLSL
-				AddSection("influence-vertex-out.glsl", GET_RESOURCE_BATCH(ogl_influence_vertex_out_glsl));
-#else
-				THAWK_ERROR("influence-vertex-out.glsl was not compiled");
-#endif
-#ifdef HAS_OGL_SHAPE_VERTEX_IN_GLSL
-				AddSection("shape-vertex-in.glsl", GET_RESOURCE_BATCH(ogl_shape_vertex_in_glsl));
-#else
-				THAWK_ERROR("shape-vertex-in.glsl was not compiled");
-#endif
-#ifdef HAS_OGL_SHAPE_VERTEX_OUT_GLSL
-				AddSection("shape-vertex-out.glsl", GET_RESOURCE_BATCH(ogl_shape_vertex_out_glsl));
-#else
-				THAWK_ERROR("shape-vertex-out.glsl was not compiled");
-#endif
-#ifdef HAS_OGL_DEFERRED_OUT_GLSL
-				AddSection("deferred-out.glsl", GET_RESOURCE_BATCH(ogl_deferred_out_glsl));
-#else
-				THAWK_ERROR("deferred-out.glsl was not compiled");
-#endif
-#ifdef HAS_OGL_INSTANCE_ELEMENT_GLSL
-				AddSection("instance-element.glsl", GET_RESOURCE_BATCH(ogl_instance_element_glsl));
-#else
-				THAWK_ERROR("instance-element.glsl was not compiled");
-#endif
-#ifdef HAS_OGL_GEOMETRY_GLSL
-				AddSection("geometry.glsl", GET_RESOURCE_BATCH(ogl_geometry_glsl));
-#else
-				THAWK_ERROR("geometry.glsl was not compiled");
-#endif
-#ifdef HAS_OGL_LOAD_GEOMETRY_GLSL
-				AddSection("load-geometry.glsl", GET_RESOURCE_BATCH(ogl_load_geometry_glsl));
-#else
-				THAWK_ERROR("load-geometry.glsl was not compiled");
-#endif
-#ifdef HAS_OGL_LOAD_TEXCOORD_GLSL
-				AddSection("load-texcoord.glsl", GET_RESOURCE_BATCH(ogl_load_texcoord_glsl));
-#else
-				THAWK_ERROR("load-texcoord.glsl was not compiled");
-#endif
-#ifdef HAS_OGL_LOAD_POSITION_GLSL
-				AddSection("load-position.glsl", GET_RESOURCE_BATCH(ogl_load_position_glsl));
-#else
-				THAWK_ERROR("load-position.glsl was not compiled");
-#endif
-#ifdef HAS_OGL_COOK_TORRANCE_GLSL
-				AddSection("cook-torrance.glsl", GET_RESOURCE_BATCH(ogl_cook_torrance_glsl));
-#else
-				THAWK_ERROR("cook-torrance.glsl was not compiled");
-#endif
-#ifdef HAS_OGL_HEMI_AMBIENT_GLSL
-				AddSection("hemi-ambient.glsl", GET_RESOURCE_BATCH(ogl_hemi_ambient_glsl));
-#else
-				THAWK_ERROR("hemi-ambient.glsl was not compiled");
-#endif
-#ifdef HAS_OGL_HEMI_AMBIENT_GLSL
-				AddSection("random-float-2.glsl", GET_RESOURCE_BATCH(ogl_random_float_2_glsl));
-#else
-				THAWK_ERROR("random-float-2.glsl was not compiled");
-#endif
 			}
 			void OGLDevice::DebugMessage(GLenum Source, GLenum Type, GLuint Id, GLenum Severity, GLsizei Length, const GLchar* Message, const void* Data)
 			{

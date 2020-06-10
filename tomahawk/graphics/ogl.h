@@ -54,6 +54,7 @@ namespace Tomahawk
 				void CreateBuffer(Graphics::GraphicsDevice* Device, size_t Size) override;
 				void SetShader(Graphics::GraphicsDevice* Device, unsigned int Type) override;
 				void SetBuffer(Graphics::GraphicsDevice* Device, unsigned int Slot, unsigned int Type) override;
+				bool IsValid() override;
 			};
 
 			class OGLElementBuffer : public Graphics::ElementBuffer
@@ -248,13 +249,13 @@ namespace Tomahawk
 				Compute::Vertex* Elements(Graphics::GraphicsDevice* Device) override;
 			};
 
-			class OGLSkinnedMesh : public Graphics::SkinnedMesh
+			class OGLSkinMesh : public Graphics::SkinMesh
 			{
 			public:
-				OGLSkinnedMesh(Graphics::GraphicsDevice* Device, const Desc& I);
-				void Update(Graphics::GraphicsDevice* Device, Compute::InfluenceVertex* Elements) override;
+				OGLSkinMesh(Graphics::GraphicsDevice* Device, const Desc& I);
+				void Update(Graphics::GraphicsDevice* Device, Compute::SkinVertex* Elements) override;
 				void Draw(Graphics::GraphicsDevice* Device) override;
-				Compute::InfluenceVertex* Elements(Graphics::GraphicsDevice* Device) override;
+				Compute::SkinVertex* Elements(Graphics::GraphicsDevice* Device) override;
 			};
 
 			class OGLInstanceBuffer : public Graphics::InstanceBuffer
@@ -361,7 +362,6 @@ namespace Tomahawk
 				void* GetBackBufferMSAA() override;
 				void* GetBackBufferNoAA() override;
 				Graphics::DeviceState* CreateState() override;
-				void LoadShaderSections() override;
 				bool IsValid() override;
 				const char* GetShaderVersion();
 				void CopyConstantBuffer(GLuint Id, void* Buffer, size_t Size);

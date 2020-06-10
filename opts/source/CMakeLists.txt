@@ -31,10 +31,14 @@ set(THAWK_RESOURCES true CACHE BOOL "allow to compile embedded resources")
 
 #Compiling resources
 if (THAWK_RESOURCES)
-    add_resource_batch("${PROJECT_SOURCE_DIR}/resource" "${PROJECT_SOURCE_DIR}/tomahawk/resource.h")
+    add_resource_batch("${PROJECT_SOURCE_DIR}/resource" "${PROJECT_SOURCE_DIR}/tomahawk/resource")
     list(APPEND SOURCE "${PROJECT_SOURCE_DIR}/tomahawk/resource.h")
-	source_group("tomahawk" FILES "${PROJECT_SOURCE_DIR}/tomahawk/resource.h")
+    list(APPEND SOURCE "${PROJECT_SOURCE_DIR}/tomahawk/resource.cpp")
+	source_group("tomahawk" FILES
+		"${PROJECT_SOURCE_DIR}/tomahawk/resource.h"
+		"${PROJECT_SOURCE_DIR}/tomahawk/resource.cpp")
 else()
     file(WRITE "${PROJECT_SOURCE_DIR}/tomahawk/resource.h" "")
+    file(WRITE "${PROJECT_SOURCE_DIR}/tomahawk/resource.cpp" "")
 	message(STATUS "Resource file has been cleared")
 endif()

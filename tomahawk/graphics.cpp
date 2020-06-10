@@ -1,6 +1,7 @@
 #include "graphics.h"
 #include "graphics/d3d11.h"
 #include "graphics/ogl.h"
+#include "resource.h"
 #ifdef THAWK_HAS_SDL2
 #include <SDL2/SDL.h>
 #include <SDL2/SDL_syswm.h>
@@ -112,7 +113,7 @@ namespace Tomahawk
 			for (auto&& Child : Root->Childs)
 				SetJoint(&Child);
 		}
-		bool PoseBuffer::ResetKeys(SkinnedModel* Model, std::vector<Compute::AnimatorKey>* Keys)
+		bool PoseBuffer::ResetKeys(SkinModel* Model, std::vector<Compute::AnimatorKey>* Keys)
 		{
 			if (!Model || Model->Joints.empty() || !Keys)
 				return false;
@@ -122,7 +123,7 @@ namespace Tomahawk
 
 			return true;
 		}
-		bool PoseBuffer::Reset(SkinnedModel* Model)
+		bool PoseBuffer::Reset(SkinModel* Model)
 		{
 			if (!Model || Model->Joints.empty())
 				return false;
@@ -254,11 +255,11 @@ namespace Tomahawk
 
 			return ElementVertexLayout;
 		}
-		InputLayout* Shader::GetInfluenceVertexLayout()
+		InputLayout* Shader::GetSkinVertexLayout()
 		{
-			static InputLayout InfluenceVertexLayout[7] = {{ "POSITION", Format_R32G32B32_Float, 0, 0 }, { "TEXCOORD", Format_R32G32_Float, 3 * sizeof(float), 0 }, { "NORMAL", Format_R32G32B32_Float, 5 * sizeof(float), 0 }, { "TANGENT", Format_R32G32B32_Float, 8 * sizeof(float), 0 }, { "BINORMAL", Format_R32G32B32_Float, 11 * sizeof(float), 0 }, { "JOINTBIAS", Format_R32G32B32A32_Float, 14 * sizeof(float), 0 }, { "JOINTBIAS", Format_R32G32B32A32_Float, 18 * sizeof(float), 1 }};
+			static InputLayout SkinVertexLayout[7] = {{ "POSITION", Format_R32G32B32_Float, 0, 0 }, { "TEXCOORD", Format_R32G32_Float, 3 * sizeof(float), 0 }, { "NORMAL", Format_R32G32B32_Float, 5 * sizeof(float), 0 }, { "TANGENT", Format_R32G32B32_Float, 8 * sizeof(float), 0 }, { "BINORMAL", Format_R32G32B32_Float, 11 * sizeof(float), 0 }, { "JOINTBIAS", Format_R32G32B32A32_Float, 14 * sizeof(float), 0 }, { "JOINTBIAS", Format_R32G32B32A32_Float, 18 * sizeof(float), 1 }};
 
-			return InfluenceVertexLayout;
+			return SkinVertexLayout;
 		}
 		InputLayout* Shader::GetVertexLayout()
 		{
@@ -274,9 +275,9 @@ namespace Tomahawk
 		{
 			return sizeof(Compute::ElementVertex);
 		}
-		unsigned int Shader::GetInfluenceVertexLayoutStride()
+		unsigned int Shader::GetSkinVertexLayoutStride()
 		{
-			return sizeof(Compute::InfluenceVertex);
+			return sizeof(Compute::SkinVertex);
 		}
 		unsigned int Shader::GetVertexLayoutStride()
 		{
@@ -624,31 +625,31 @@ namespace Tomahawk
 			return nullptr;
 		}
 
-		SkinnedMesh::SkinnedMesh(GraphicsDevice*, const Desc& I) : VertexBuffer(nullptr), IndexBuffer(nullptr)
+		SkinMesh::SkinMesh(GraphicsDevice*, const Desc& I) : VertexBuffer(nullptr), IndexBuffer(nullptr)
 		{
 		}
-		SkinnedMesh::~SkinnedMesh()
+		SkinMesh::~SkinMesh()
 		{
 			delete VertexBuffer;
 			delete IndexBuffer;
 		}
-		ElementBuffer* SkinnedMesh::GetVertexBuffer()
+		ElementBuffer* SkinMesh::GetVertexBuffer()
 		{
 			return VertexBuffer;
 		}
-		ElementBuffer* SkinnedMesh::GetIndexBuffer()
+		ElementBuffer* SkinMesh::GetIndexBuffer()
 		{
 			return IndexBuffer;
 		}
-		SkinnedMesh* SkinnedMesh::Create(GraphicsDevice* Device, const Desc& I)
+		SkinMesh* SkinMesh::Create(GraphicsDevice* Device, const Desc& I)
 		{
 #ifdef THAWK_MICROSOFT
 			if (Device && Device->GetBackend() == RenderBackend_D3D11)
-				return new D3D11::D3D11SkinnedMesh(Device, I);
+				return new D3D11::D3D11SkinMesh(Device, I);
 #endif
 #ifdef THAWK_HAS_GL
 			if (Device && Device->GetBackend() == RenderBackend_OGL)
-				return new OGL::OGLSkinnedMesh(Device, I);
+				return new OGL::OGLSkinMesh(Device, I);
 #endif
 			THAWK_ERROR("instance serialization wasn't found");
 			return nullptr;
@@ -659,6 +660,8 @@ namespace Tomahawk
 		}
 		Model::~Model()
 		{
+			for (auto It = Meshes.begin(); It != Meshes.end(); It++)
+				delete (*It);
 		}
 		Mesh* Model::Find(const std::string& Name)
 		{
@@ -671,13 +674,15 @@ namespace Tomahawk
 			return nullptr;
 		}
 
-		SkinnedModel::SkinnedModel()
+		SkinModel::SkinModel()
 		{
 		}
-		SkinnedModel::~SkinnedModel()
+		SkinModel::~SkinModel()
 		{
+			for (auto It = Meshes.begin(); It != Meshes.end(); It++)
+				delete (*It);
 		}
-		void SkinnedModel::BuildSkeleton(PoseBuffer* Map)
+		void SkinModel::BuildSkeleton(PoseBuffer* Map)
 		{
 			if (Map != nullptr && !Joints.empty())
 			{
@@ -688,7 +693,7 @@ namespace Tomahawk
 					BuildSkeleton(Map, &Child, Compute::Matrix4x4::Identity());
 			}
 		}
-		void SkinnedModel::BuildSkeleton(PoseBuffer* Map, Compute::Joint* Base, const Compute::Matrix4x4& World)
+		void SkinModel::BuildSkeleton(PoseBuffer* Map, Compute::Joint* Base, const Compute::Matrix4x4& World)
 		{
 			Compute::Matrix4x4 Transform = Map->Offset(Base->Index) * World;
 			Map->Transform[Base->Index] = Base->BindShape * Transform * Root;
@@ -696,7 +701,7 @@ namespace Tomahawk
 			for (auto& Child : Base->Childs)
 				BuildSkeleton(Map, &Child, Transform);
 		}
-		SkinnedMesh* SkinnedModel::FindMesh(const std::string& Name)
+		SkinMesh* SkinModel::FindMesh(const std::string& Name)
 		{
 			for (auto&& It : Meshes)
 			{
@@ -706,7 +711,7 @@ namespace Tomahawk
 
 			return nullptr;
 		}
-		Compute::Joint* SkinnedModel::FindJoint(const std::string& Name, Compute::Joint* Base)
+		Compute::Joint* SkinModel::FindJoint(const std::string& Name, Compute::Joint* Base)
 		{
 			if (Base != nullptr)
 			{
@@ -738,7 +743,7 @@ namespace Tomahawk
 
 			return nullptr;
 		}
-		Compute::Joint* SkinnedModel::FindJoint(int64_t Index, Compute::Joint* Base)
+		Compute::Joint* SkinModel::FindJoint(int64_t Index, Compute::Joint* Base)
 		{
 			if (Base != nullptr)
 			{
@@ -841,6 +846,7 @@ namespace Tomahawk
 			PresentationFlag = I.PresentationFlags;
 			CompilationFlag = I.CompilationFlags;
 			Backend = I.Backend;
+			Debug = I.Debug;
 #ifdef THAWK_MICROSOFT
 			RECT Desktop;
 			HWND Handle = GetDesktopWindow();
@@ -849,12 +855,11 @@ namespace Tomahawk
 			ScreenDimensions.X = (float)Desktop.right;
 			ScreenDimensions.Y = (float)Desktop.bottom;
 #endif
+			LoadSections();
 		}
 		GraphicsDevice::~GraphicsDevice()
 		{
-			delete RenderTarget;
-			delete BasicEffect;
-
+			FreeProxy();
 			for (auto It = Sections.begin(); It != Sections.end(); It++)
 				delete *It;
 		}
@@ -867,6 +872,7 @@ namespace Tomahawk
 			Desc.Exts.push_back(".hlsl");
 			Desc.Exts.push_back(".glsl");
 			Desc.Root = Rest::OS::GetDirectory();
+			In.Features.Pragmas = false;
 
 			Compute::Preprocessor* Processor = new Compute::Preprocessor();
 			Processor->SetIncludeCallback([this, &In](Compute::Preprocessor* P, const Compute::IncludeResult& File, std::string* Output)
@@ -879,16 +885,12 @@ namespace Tomahawk
 
 				if (File.IsSystem && !File.IsFile)
 				{
-					for (auto& It : Sections)
-					{
-						if (It->Name != File.Module)
-							continue;
+					std::string* Result = GetSection(File.Module);
+					if (!Result)
+						return false;
 
-						Output->assign(It->Code);
-						return true;
-					}
-
-					return false;
+					Output->assign(*Result);
+					return true;
 				}
 
 				uint64_t Length;
@@ -898,13 +900,6 @@ namespace Tomahawk
 
 				Output->assign((const char*)Data, (size_t)Length);
 				free(Data);
-				return true;
-			});
-			Processor->SetPragmaCallback([&In](Compute::Preprocessor* P, const std::string& Pragma)
-			{
-				if (In.Include && In.Pragma(P, Pragma))
-					return true;
-
 				return true;
 			});
 			Processor->SetIncludeOptions(Desc);
@@ -1160,7 +1155,324 @@ namespace Tomahawk
 			SetBlendState(Graphics::RenderLab_Blend_Overwrite);
 			SetSamplerState(Graphics::RenderLab_Sampler_Trilinear_X16);
 		}
-		std::vector<GraphicsDevice::Section*> GraphicsDevice::GetShaderSections()
+		void GraphicsDevice::LoadSections()
+		{
+			if (Backend == RenderBackend_D3D11)
+			{
+#ifdef HAS_D3D11_GEOMETRY_DEFERRED_HLSL
+				AddSection("geometry/deferred.hlsl", GET_RESOURCE_BATCH(d3d11_geometry_deferred_hlsl));
+#else
+				THAWK_ERROR("geometry/deferred.hlsl was not compiled");
+#endif
+#ifdef HAS_D3D11_GEOMETRY_FORWARD_HLSL
+				AddSection("geometry/forward.hlsl", GET_RESOURCE_BATCH(d3d11_geometry_forward_hlsl));
+#else
+				THAWK_ERROR("geometry/forward.hlsl was not compiled");
+#endif
+#ifdef HAS_D3D11_GEOMETRY_MINIMAL_HLSL
+				AddSection("geometry/minimal.hlsl", GET_RESOURCE_BATCH(d3d11_geometry_minimal_hlsl));
+#else
+				THAWK_ERROR("geometry/minimal.hlsl was not compiled");
+#endif
+#ifdef HAS_D3D11_GEOMETRY_SV_HLSL
+				AddSection("geometry/sv.hlsl", GET_RESOURCE_BATCH(d3d11_geometry_sv_hlsl));
+#else
+				THAWK_ERROR("geometry/sv.hlsl was not compiled");
+#endif
+#ifdef HAS_D3D11_RENDERER_BUFFER_ANIMATION_HLSL
+				AddSection("renderer/buffer/animation.hlsl", GET_RESOURCE_BATCH(d3d11_renderer_buffer_animation_hlsl));
+#else
+				THAWK_ERROR("renderer/buffer/animation.hlsl was not compiled");
+#endif
+#ifdef HAS_D3D11_RENDERER_BUFFER_CUBIC_HLSL
+				AddSection("renderer/buffer/cubic.hlsl", GET_RESOURCE_BATCH(d3d11_renderer_buffer_cubic_hlsl));
+#else
+				THAWK_ERROR("renderer/buffer/cubic.hlsl was not compiled");
+#endif
+#ifdef HAS_D3D11_RENDERER_BUFFER_GUI_HLSL
+				AddSection("renderer/buffer/gui.hlsl", GET_RESOURCE_BATCH(d3d11_renderer_buffer_gui_hlsl));
+#else
+				THAWK_ERROR("renderer/buffer/gui.hlsl was not compiled");
+#endif
+#ifdef HAS_D3D11_RENDERER_BUFFER_OBJECT_HLSL
+				AddSection("renderer/buffer/object.hlsl", GET_RESOURCE_BATCH(d3d11_renderer_buffer_object_hlsl));
+#else
+				THAWK_ERROR("renderer/buffer/object.hlsl was not compiled");
+#endif
+#ifdef HAS_D3D11_RENDERER_BUFFER_VIEWER_HLSL
+				AddSection("renderer/buffer/viewer.hlsl", GET_RESOURCE_BATCH(d3d11_renderer_buffer_viewer_hlsl));
+#else
+				THAWK_ERROR("renderer/buffer/viewer.hlsl was not compiled");
+#endif
+#ifdef HAS_D3D11_RENDERER_INPUT_BASE_HLSL
+				AddSection("renderer/input/base.hlsl", GET_RESOURCE_BATCH(d3d11_renderer_input_base_hlsl));
+#else
+				THAWK_ERROR("renderer/input/base.hlsl was not compiled");
+#endif
+#ifdef HAS_D3D11_RENDERER_INPUT_ELEMENT_HLSL
+				AddSection("renderer/input/element.hlsl", GET_RESOURCE_BATCH(d3d11_renderer_input_element_hlsl));
+#else
+				THAWK_ERROR("renderer/input/element.hlsl was not compiled");
+#endif
+#ifdef HAS_D3D11_RENDERER_INPUT_SV_HLSL
+				AddSection("renderer/input/sv.hlsl", GET_RESOURCE_BATCH(d3d11_renderer_input_sv_hlsl));
+#else
+				THAWK_ERROR("renderer/input/sv.hlsl was not compiled");
+#endif
+#ifdef HAS_D3D11_RENDERER_VERTEX_ELEMENT_HLSL
+				AddSection("renderer/vertex/element.hlsl", GET_RESOURCE_BATCH(d3d11_renderer_vertex_element_hlsl));
+#else
+				THAWK_ERROR("renderer/vertex/element.hlsl was not compiled");
+#endif
+#ifdef HAS_D3D11_RENDERER_VERTEX_GUI_HLSL
+				AddSection("renderer/vertex/gui.hlsl", GET_RESOURCE_BATCH(d3d11_renderer_vertex_gui_hlsl));
+#else
+				THAWK_ERROR("renderer/vertex/gui.hlsl was not compiled");
+#endif
+#ifdef HAS_D3D11_RENDERER_VERTEX_SHAPE_HLSL
+				AddSection("renderer/vertex/shape.hlsl", GET_RESOURCE_BATCH(d3d11_renderer_vertex_shape_hlsl));
+#else
+				THAWK_ERROR("renderer/vertex/shape.hlsl was not compiled");
+#endif
+#ifdef HAS_D3D11_RENDERER_VERTEX_SKIN_HLSL
+				AddSection("renderer/vertex/skin.hlsl", GET_RESOURCE_BATCH(d3d11_renderer_vertex_skin_hlsl));
+#else
+				THAWK_ERROR("renderer/vertex/skin.hlsl was not compiled");
+#endif
+#ifdef HAS_D3D11_RENDERER_ELEMENT_HLSL
+				AddSection("renderer/element.hlsl", GET_RESOURCE_BATCH(d3d11_renderer_element_hlsl));
+#else
+				THAWK_ERROR("renderer/element.hlsl was not compiled");
+#endif
+#ifdef HAS_D3D11_RENDERER_FRAGMENT_HLSL
+				AddSection("renderer/fragment.hlsl", GET_RESOURCE_BATCH(d3d11_renderer_fragment_hlsl));
+#else
+				THAWK_ERROR("renderer/fragment.hlsl was not compiled");
+#endif
+#ifdef HAS_D3D11_RENDERER_GBUFFER_HLSL
+				AddSection("renderer/gbuffer.hlsl", GET_RESOURCE_BATCH(d3d11_renderer_gbuffer_hlsl));
+#else
+				THAWK_ERROR("renderer/gbuffer.hlsl was not compiled");
+#endif
+#ifdef HAS_D3D11_RENDERER_MATERIAL_HLSL
+				AddSection("renderer/material.hlsl", GET_RESOURCE_BATCH(d3d11_renderer_material_hlsl));
+#else
+				THAWK_ERROR("renderer/material.hlsl was not compiled");
+#endif
+#ifdef HAS_D3D11_RENDERER_VERTEX_HLSL
+				AddSection("renderer/vertex.hlsl", GET_RESOURCE_BATCH(d3d11_renderer_vertex_hlsl));
+#else
+				THAWK_ERROR("renderer/vertex.hlsl was not compiled");
+#endif
+#ifdef HAS_D3D11_STANDARD_BASIC_HLSL
+				AddSection("standard/basic.hlsl", GET_RESOURCE_BATCH(d3d11_standard_basic_hlsl));
+#else
+				THAWK_ERROR("standard/basic.hlsl was not compiled");
+#endif
+#ifdef HAS_D3D11_STANDARD_COOK_TORRANCE_HLSL
+				AddSection("standard/cook-torrance.hlsl", GET_RESOURCE_BATCH(d3d11_standard_cook_torrance_hlsl));
+#else
+				THAWK_ERROR("standard/cook-torrance.hlsl was not compiled");
+#endif
+#ifdef HAS_D3D11_STANDARD_HEMI_AMBIENT_HLSL
+				AddSection("standard/hemi-ambient.hlsl", GET_RESOURCE_BATCH(d3d11_standard_hemi_ambient_hlsl));
+#else
+				THAWK_ERROR("standard/hemi-ambient.hlsl was not compiled");
+#endif
+#ifdef HAS_D3D11_STANDARD_POW_HLSL
+				AddSection("standard/pow.hlsl", GET_RESOURCE_BATCH(d3d11_standard_pow_hlsl));
+#else
+				THAWK_ERROR("standard/pow.hlsl was not compiled");
+#endif
+#ifdef HAS_D3D11_STANDARD_RANDOM_FLOAT_HLSL
+				AddSection("standard/random-float.hlsl", GET_RESOURCE_BATCH(d3d11_standard_random_float_hlsl));
+#else
+				THAWK_ERROR("standard/random-float.hlsl was not compiled");
+#endif
+#ifdef HAS_D3D11_STANDARD_RAY_MARCH_HLSL
+				AddSection("standard/ray-march.hlsl", GET_RESOURCE_BATCH(d3d11_standard_ray_march_hlsl));
+#else
+				THAWK_ERROR("standard/ray-march.hlsl was not compiled");
+#endif
+#ifdef HAS_D3D11_STANDARD_SPACE_SV_HLSL
+				AddSection("standard/space-sv.hlsl", GET_RESOURCE_BATCH(d3d11_standard_space_sv_hlsl));
+#else
+				THAWK_ERROR("standard/space-sv.hlsl was not compiled");
+#endif
+#ifdef HAS_D3D11_STANDARD_SPACE_UV_HLSL
+				AddSection("standard/space-uv.hlsl", GET_RESOURCE_BATCH(d3d11_standard_space_uv_hlsl));
+#else
+				THAWK_ERROR("standard/space-uv.hlsl was not compiled");
+#endif
+			}
+			else if (Backend == RenderBackend_OGL)
+			{
+#ifdef HAS_OGL_GEOMETRY_DEFERRED_GLSL
+			AddSection("geometry/deferred.glsl", GET_RESOURCE_BATCH(ogl_geometry_deferred_glsl));
+#else
+			THAWK_ERROR("geometry/deferred.glsl was not compiled");
+#endif
+#ifdef HAS_OGL_GEOMETRY_FORWARD_GLSL
+			AddSection("geometry/forward.glsl", GET_RESOURCE_BATCH(ogl_geometry_forward_glsl));
+#else
+			THAWK_ERROR("geometry/forward.glsl was not compiled");
+#endif
+#ifdef HAS_OGL_GEOMETRY_MINIMAL_GLSL
+			AddSection("geometry/minimal.glsl", GET_RESOURCE_BATCH(ogl_geometry_minimal_glsl));
+#else
+			THAWK_ERROR("geometry/minimal.glsl was not compiled");
+#endif
+#ifdef HAS_OGL_GEOMETRY_SV_GLSL
+			AddSection("geometry/sv.glsl", GET_RESOURCE_BATCH(ogl_geometry_sv_glsl));
+#else
+			THAWK_ERROR("geometry/sv.glsl was not compiled");
+#endif
+#ifdef HAS_OGL_RENDERER_BUFFER_ANIMATION_GLSL
+			AddSection("renderer/buffer/animation.glsl", GET_RESOURCE_BATCH(ogl_renderer_buffer_animation_glsl));
+#else
+			THAWK_ERROR("renderer/buffer/animation.glsl was not compiled");
+#endif
+#ifdef HAS_OGL_RENDERER_BUFFER_CUBIC_GLSL
+			AddSection("renderer/buffer/cubic.glsl", GET_RESOURCE_BATCH(ogl_renderer_buffer_cubic_glsl));
+#else
+			THAWK_ERROR("renderer/buffer/cubic.glsl was not compiled");
+#endif
+#ifdef HAS_OGL_RENDERER_BUFFER_GUI_GLSL
+			AddSection("renderer/buffer/gui.glsl", GET_RESOURCE_BATCH(ogl_renderer_buffer_gui_glsl));
+#else
+			THAWK_ERROR("renderer/buffer/gui.glsl was not compiled");
+#endif
+#ifdef HAS_OGL_RENDERER_BUFFER_OBJECT_GLSL
+			AddSection("renderer/buffer/object.glsl", GET_RESOURCE_BATCH(ogl_renderer_buffer_object_glsl));
+#else
+			THAWK_ERROR("renderer/buffer/object.glsl was not compiled");
+#endif
+#ifdef HAS_OGL_RENDERER_BUFFER_VIEWER_GLSL
+			AddSection("renderer/buffer/viewer.glsl", GET_RESOURCE_BATCH(ogl_renderer_buffer_viewer_glsl));
+#else
+			THAWK_ERROR("renderer/buffer/viewer.glsl was not compiled");
+#endif
+#ifdef HAS_OGL_RENDERER_INPUT_BASE_GLSL
+			AddSection("renderer/input/base.glsl", GET_RESOURCE_BATCH(ogl_renderer_input_base_glsl));
+#else
+			THAWK_ERROR("renderer/input/base.glsl was not compiled");
+#endif
+#ifdef HAS_OGL_RENDERER_INPUT_ELEMENT_GLSL
+			AddSection("renderer/input/element.glsl", GET_RESOURCE_BATCH(ogl_renderer_input_element_glsl));
+#else
+			THAWK_ERROR("renderer/input/element.glsl was not compiled");
+#endif
+#ifdef HAS_OGL_RENDERER_INPUT_SV_GLSL
+			AddSection("renderer/input/sv.glsl", GET_RESOURCE_BATCH(ogl_renderer_input_sv_glsl));
+#else
+			THAWK_ERROR("renderer/input/sv.glsl was not compiled");
+#endif
+#ifdef HAS_OGL_RENDERER_VERTEX_ELEMENT_GLSL
+			AddSection("renderer/vertex/element.glsl", GET_RESOURCE_BATCH(ogl_renderer_vertex_element_glsl));
+#else
+			THAWK_ERROR("renderer/vertex/element.glsl was not compiled");
+#endif
+#ifdef HAS_OGL_RENDERER_VERTEX_GUI_GLSL
+			AddSection("renderer/vertex/gui.glsl", GET_RESOURCE_BATCH(ogl_renderer_vertex_gui_glsl));
+#else
+			THAWK_ERROR("renderer/vertex/gui.glsl was not compiled");
+#endif
+#ifdef HAS_OGL_RENDERER_VERTEX_SHAPE_GLSL
+			AddSection("renderer/vertex/shape.glsl", GET_RESOURCE_BATCH(ogl_renderer_vertex_shape_glsl));
+#else
+			THAWK_ERROR("renderer/vertex/shape.glsl was not compiled");
+#endif
+#ifdef HAS_OGL_RENDERER_VERTEX_SKIN_GLSL
+			AddSection("renderer/vertex/skin.glsl", GET_RESOURCE_BATCH(ogl_renderer_vertex_skin_glsl));
+#else
+			THAWK_ERROR("renderer/vertex/skin.glsl was not compiled");
+#endif
+#ifdef HAS_OGL_RENDERER_ELEMENT_GLSL
+			AddSection("renderer/element.glsl", GET_RESOURCE_BATCH(ogl_renderer_vertex_element_glsl));
+#else
+			THAWK_ERROR("renderer/element.glsl was not compiled");
+#endif
+#ifdef HAS_OGL_RENDERER_FRAGMENT_GLSL
+			AddSection("renderer/fragment.glsl", GET_RESOURCE_BATCH(ogl_renderer_fragment_glsl));
+#else
+			THAWK_ERROR("renderer/fragment.glsl was not compiled");
+#endif
+#ifdef HAS_OGL_RENDERER_GBUFFER_GLSL
+			AddSection("renderer/gbuffer.glsl", GET_RESOURCE_BATCH(ogl_renderer_gbuffer_glsl));
+#else
+			THAWK_ERROR("renderer/gbuffer.glsl was not compiled");
+#endif
+#ifdef HAS_OGL_RENDERER_MATERIAL_GLSL
+			AddSection("renderer/material.glsl", GET_RESOURCE_BATCH(ogl_renderer_material_glsl));
+#else
+			THAWK_ERROR("renderer/material.glsl was not compiled");
+#endif
+#ifdef HAS_OGL_RENDERER_VERTEX_GLSL
+			AddSection("renderer/vertex.glsl", GET_RESOURCE_BATCH(ogl_renderer_vertex_glsl));
+#else
+			THAWK_ERROR("renderer/vertex.glsl was not compiled");
+#endif
+#ifdef HAS_OGL_STANDARD_BASIC_HLSL
+			AddSection("standard/basic.glsl", GET_RESOURCE_BATCH(ogl_standard_basic_glsl));
+#else
+			THAWK_ERROR("standard/basic.glsl was not compiled");
+#endif
+#ifdef HAS_OGL_STANDARD_COOK_TORRANCE_GLSL
+			AddSection("standard/cook-torrance.glsl", GET_RESOURCE_BATCH(ogl_standard_cook_torrance_glsl));
+#else
+			THAWK_ERROR("standard/cook-torrance.glsl was not compiled");
+#endif
+#ifdef HAS_OGL_STANDARD_HEMI_AMBIENT_GLSL
+			AddSection("standard/hemi-ambient.glsl", GET_RESOURCE_BATCH(ogl_standard_hemi_ambient_glsl));
+#else
+			THAWK_ERROR("standard/hemi-ambient.glsl was not compiled");
+#endif
+#ifdef HAS_OGL_STANDARD_POW_GLSL
+			AddSection("standard/pow.glsl", GET_RESOURCE_BATCH(ogl_standard_pow_glsl));
+#else
+			THAWK_ERROR("standard/pow.glsl was not compiled");
+#endif
+#ifdef HAS_OGL_STANDARD_RANDOM_FLOAT_GLSL
+			AddSection("standard/random-float.glsl", GET_RESOURCE_BATCH(ogl_standard_random_float_glsl));
+#else
+			THAWK_ERROR("standard/random-float.glsl was not compiled");
+#endif
+#ifdef HAS_OGL_STANDARD_RAY_MARCH_GLSL
+			AddSection("standard/ray-march.glsl", GET_RESOURCE_BATCH(ogl_standard_ray_march_glsl));
+#else
+			THAWK_ERROR("standard/ray-march.glsl was not compiled");
+#endif
+#ifdef HAS_OGL_STANDARD_SPACE_SV_GLSL
+			AddSection("standard/space-sv.glsl", GET_RESOURCE_BATCH(ogl_standard_space_sv_glsl));
+#else
+			THAWK_ERROR("standard/space-sv.glsl was not compiled");
+#endif
+#ifdef HAS_OGL_STANDARD_SPACE_UV_GLSL
+			AddSection("standard/space-uv.glsl", GET_RESOURCE_BATCH(ogl_standard_space_uv_glsl));
+#else
+			THAWK_ERROR("standard/space-uv.glsl was not compiled");
+#endif
+			}
+		}
+		std::string* GraphicsDevice::GetSection(const std::string& Name)
+		{
+			if (Name.empty() || Sections.empty())
+				return nullptr;
+
+			for (auto& It : Sections)
+			{
+				if (It->Name != Name)
+				{
+					if (It->Name != Name + ".hlsl" && It->Name != Name + ".glsl")
+						continue;
+				}
+
+				return &It->Code;
+			}
+
+			return nullptr;
+		}
+		std::vector<GraphicsDevice::Section*> GraphicsDevice::GetSections()
 		{
 			return Sections;
 		}
@@ -1248,6 +1560,18 @@ namespace Tomahawk
 		VSync GraphicsDevice::GetVSyncMode()
 		{
 			return VSyncMode;
+		}
+		bool GraphicsDevice::IsDebug()
+		{
+			return Debug;
+		}
+		void GraphicsDevice::FreeProxy()
+		{
+			delete RenderTarget;
+			RenderTarget = nullptr;
+
+			delete BasicEffect;
+			BasicEffect = nullptr;
 		}
 		GraphicsDevice* GraphicsDevice::Create(const Desc& I)
 		{

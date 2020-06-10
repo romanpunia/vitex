@@ -310,25 +310,11 @@ namespace Tomahawk
 			}
 			void SoftBody::OnLoad(ContentManager* Content, Rest::Document* Node)
 			{
-				std::string Path;
-				bool Extended;
+				std::string Path; bool Extended;
 				NMake::Unpack(Node->Find("extended"), &Extended);
 				NMake::Unpack(Node->Find("kinematic"), &Kinematic);
 				NMake::Unpack(Node->Find("visibility"), &Visibility);
-
-				Rest::Document* Face = Node->Get("surface");
-				if (Face != nullptr)
-				{
-					if (NMake::Unpack(Face->Find("diffuse"), &Path))
-						Surface.Diffuse = Content->Load<Graphics::Texture2D>(Path, nullptr);
-
-					if (NMake::Unpack(Face->Find("surface"), &Path))
-						Surface.Surface = Content->Load<Graphics::Texture2D>(Path, nullptr);
-
-					NMake::Unpack(Face->Find("diffusion"), &Surface.Diffusion);
-					NMake::Unpack(Face->Find("texcoord"), &Surface.TexCoord);
-					NMake::Unpack(Face->Find("material"), &Surface.Material);
-				}
+				NMake::Unpack(Node->Get("surface"), &Surface, Content);
 
 				if (!Extended)
 					return;
@@ -490,19 +476,8 @@ namespace Tomahawk
 				NMake::Pack(Node->SetDocument("kinematic"), Kinematic);
 				NMake::Pack(Node->SetDocument("extended"), Instance != nullptr);
 				NMake::Pack(Node->SetDocument("visibility"), Visibility);
+				NMake::Pack(Node->SetDocument("surface"), Surface, Content);
 
-				Rest::Document* Face = Node->SetDocument("surface");
-				AssetResource* Asset = Content->FindAsset(Surface.Diffuse);
-				if (Asset != nullptr)
-					NMake::Pack(Face->SetDocument("diffuse"), Asset->Path);
-
-				Asset = Content->FindAsset(Surface.Surface);
-				if (Asset != nullptr)
-					NMake::Pack(Face->SetDocument("surface"), Asset->Path);
-
-				NMake::Pack(Face->SetDocument("diffusion"), Surface.Diffusion);
-				NMake::Pack(Face->SetDocument("texcoord"), Surface.TexCoord);
-				NMake::Pack(Face->SetDocument("material"), Surface.Material);
 				if (!Instance)
 					return;
 
@@ -545,7 +520,7 @@ namespace Tomahawk
 					Rest::Document* CV = Node->SetDocument("shape");
 					if (Instance->GetCollisionShapeType() == Compute::Shape_Convex_Hull)
 					{
-						Asset = Content->FindAsset(Hull);
+						AssetResource* Asset = Content->FindAsset(Hull);
 						if (Asset != nullptr && Hull != nullptr)
 							NMake::Pack(CV->SetDocument("path"), Asset->Path);
 					}
@@ -614,7 +589,7 @@ namespace Tomahawk
 					Instance->Synchronize(Parent->Transform, Kinematic);
 
 				Viewer View = Parent->GetScene()->GetCameraViewer();
-				if (Parent->Transform->Position.Distance(View.RealPosition) < View.ViewDistance + Parent->Transform->Scale.Length())
+				if (Parent->Transform->Position.Distance(View.RawPosition) < View.ViewDistance + Parent->Transform->Scale.Length())
 					Visibility = Compute::MathCommon::IsClipping(View.ViewProjection, Parent->Transform->GetWorldUnscaled(), 1.5f) == -1;
 				else
 					Visibility = false;
@@ -1343,7 +1318,7 @@ namespace Tomahawk
 			}
 			void SkinAnimator::OnAwake(Component* New)
 			{
-				Components::SkinnedModel* Model = Parent->GetComponent<Components::SkinnedModel>();
+				Components::SkinModel* Model = Parent->GetComponent<Components::SkinModel>();
 				if (Model != nullptr && Model->Instance != nullptr)
 				{
 					Instance = Model;
@@ -1704,15 +1679,11 @@ namespace Tomahawk
 
 			ElementSystem::ElementSystem(Entity* Ref) : Component(Ref)
 			{
-				StrongConnection = false;
+				Instance = nullptr;
+				Connected = false;
 				QuadBased = false;
 				Visibility = 0.0f;
 				Volume = 3.0f;
-				Diffusion = 1.0f;
-				TexCoord = 1.0f;
-				Diffuse = nullptr;
-				Instance = nullptr;
-				Material = 0;
 			}
 			ElementSystem::~ElementSystem()
 			{
@@ -1734,17 +1705,11 @@ namespace Tomahawk
 			}
 			void ElementSystem::OnLoad(ContentManager* Content, Rest::Document* Node)
 			{
-				std::string Path;
-				if (NMake::Unpack(Node->Find("diffuse"), &Path))
-					Diffuse = Content->Load<Graphics::Texture2D>(Path, nullptr);
-
+				NMake::Unpack(Node->Find("surface"), &Surface, Content);
 				NMake::Unpack(Node->Find("quad-based"), &QuadBased);
-				NMake::Unpack(Node->Find("diffusion"), &Diffusion);
-				NMake::Unpack(Node->Find("texcoord"), &TexCoord);
-				NMake::Unpack(Node->Find("strong-connection"), &StrongConnection);
+				NMake::Unpack(Node->Find("connected"), &Connected);
 				NMake::Unpack(Node->Find("visibility"), &Visibility);
 				NMake::Unpack(Node->Find("volume"), &Volume);
-				NMake::Unpack(Node->Find("material"), &Material);
 
 				uint64_t Limit;
 				if (!NMake::Unpack(Node->Find("limit"), &Limit))
@@ -1764,17 +1729,11 @@ namespace Tomahawk
 			}
 			void ElementSystem::OnSave(ContentManager* Content, Rest::Document* Node)
 			{
-				AssetResource* Asset = Content->FindAsset(Diffuse);
-				if (Asset != nullptr)
-					NMake::Pack(Node->SetDocument("diffuse"), Asset->Path);
-
+				NMake::Pack(Node->SetDocument("surface"), Surface, Content);
 				NMake::Pack(Node->SetDocument("quad-based"), QuadBased);
-				NMake::Pack(Node->SetDocument("diffusion"), Diffusion);
-				NMake::Pack(Node->SetDocument("texcoord"), TexCoord);
-				NMake::Pack(Node->SetDocument("strong-connection"), StrongConnection);
+				NMake::Pack(Node->SetDocument("connected"), Connected);
 				NMake::Pack(Node->SetDocument("visibility"), Visibility);
 				NMake::Pack(Node->SetDocument("volume"), Volume);
-				NMake::Pack(Node->SetDocument("material"), Material);
 
 				if (Instance != nullptr)
 				{
@@ -1802,23 +1761,24 @@ namespace Tomahawk
 			{
 				if (Value->Is<Graphics::Material>())
 				{
-					if (Value->Get<Graphics::Material>()->Self == (float)Material)
-						Material = 0;
+					if (Value->Get<Graphics::Material>()->Self == (float)Surface.Material)
+						Surface.Material = 0;
 				}
 			}
 			Graphics::Material& ElementSystem::GetMaterial()
 			{
-				if (Material < 0 || Material >= (unsigned int)Parent->GetScene()->GetMaterialCount())
+				if (Surface.Material < 0 || Surface.Material >= (unsigned int)Parent->GetScene()->GetMaterialCount())
 					return Parent->GetScene()->GetMaterialStandartLit();
 
-				return Parent->GetScene()->GetMaterial((int)Material);
+				return Parent->GetScene()->GetMaterial((uint64_t)Surface.Material);
 			}
 			Component* ElementSystem::OnClone(Entity* New)
 			{
 				ElementSystem* Target = new ElementSystem(New);
 				Target->Visibility = Visibility;
 				Target->Volume = Volume;
-				Target->StrongConnection = StrongConnection;
+				Target->Connected = Connected;
+				Target->Surface = Surface;
 				Target->Instance->GetArray()->Copy(*Instance->GetArray());
 
 				return Target;
@@ -1888,7 +1848,7 @@ namespace Tomahawk
 					if (Array->Size() >= Array->Capacity())
 						continue;
 
-					Compute::Vector3 FPosition = (System->StrongConnection ? Spawner.Position.Generate() : Spawner.Position.Generate() + Parent->Transform->Position.InvertZ());
+					Compute::Vector3 FPosition = (System->Connected ? Spawner.Position.Generate() : Spawner.Position.Generate() + Parent->Transform->Position.InvertZ());
 					Compute::Vector3 FVelocity = Spawner.Velocity.Generate();
 					Compute::Vector4 FDiffusion = Spawner.Diffusion.Generate();
 
@@ -2102,29 +2062,16 @@ namespace Tomahawk
 				std::vector<Rest::Document*> Faces = Node->FindCollectionPath("surfaces.surface");
 				for (auto&& Surface : Faces)
 				{
-					TSurface Face;
-					if (NMake::Unpack(Surface->Find("diffuse"), &Path))
-						Face.Diffuse = Content->Load<Graphics::Texture2D>(Path, nullptr);
+					if (!Instance || !NMake::Unpack(Surface->Find("name"), &Path))
+						continue;
 
-					if (NMake::Unpack(Surface->Find("normal"), &Path))
-						Face.Normal = Content->Load<Graphics::Texture2D>(Path, nullptr);
+					Graphics::Mesh* Ref = Instance->Find(Path);
+					if (!Ref)
+						continue;
 
-					if (NMake::Unpack(Surface->Find("surface"), &Path))
-						Face.Surface = Content->Load<Graphics::Texture2D>(Path, nullptr);
-
-					NMake::Unpack(Surface->Find("diffusion"), &Face.Diffusion);
-					NMake::Unpack(Surface->Find("texcoord"), &Face.TexCoord);
-					NMake::Unpack(Surface->Find("material"), &Face.Material);
-
-					if (NMake::Unpack(Surface->Find("name"), &Path))
-					{
-						if (Instance != nullptr)
-						{
-							Graphics::Mesh* Ref = Instance->Find(Path);
-							if (Ref != nullptr)
-								Surfaces[Ref] = Face;
-						}
-					}
+					Appearance Face;
+					if (NMake::Unpack(Surface, &Face, Content))
+						Surfaces[Ref] = Face;
 				}
 
 				NMake::Unpack(Node->Find("visibility"), &Visibility);
@@ -2139,25 +2086,11 @@ namespace Tomahawk
 				for (auto&& It : Surfaces)
 				{
 					Rest::Document* Surface = Faces->SetDocument("surface");
-
-					Asset = Content->FindAsset(It.second.Diffuse);
-					if (Asset != nullptr)
-						NMake::Pack(Surface->SetDocument("diffuse"), Asset->Path);
-
-					Asset = Content->FindAsset(It.second.Normal);
-					if (Asset != nullptr)
-						NMake::Pack(Surface->SetDocument("normal"), Asset->Path);
-
-					Asset = Content->FindAsset(It.second.Surface);
-					if (Asset != nullptr)
-						NMake::Pack(Surface->SetDocument("surface"), Asset->Path);
-
-					NMake::Pack(Surface->SetDocument("diffusion"), It.second.Diffusion);
-					NMake::Pack(Surface->SetDocument("texcoord"), It.second.TexCoord);
-					NMake::Pack(Surface->SetDocument("material"), It.second.Material);
-
 					if (It.first != nullptr)
+					{
 						NMake::Pack(Surface->SetDocument("name"), It.first->Name);
+						NMake::Pack(Surface, It.second, Content);
+					}
 				}
 
 				NMake::Pack(Node->SetDocument("visibility"), Visibility);
@@ -2171,7 +2104,7 @@ namespace Tomahawk
 				}
 
 				Viewer View = Parent->GetScene()->GetCameraViewer();
-				if (Parent->Transform->Position.Distance(View.RealPosition) < View.ViewDistance + Parent->Transform->Scale.Length())
+				if (Parent->Transform->Position.Distance(View.RawPosition) < View.ViewDistance + Parent->Transform->Scale.Length())
 					Visibility = Compute::MathCommon::IsClipping(View.ViewProjection, GetBoundingBox(), 1.5f) == -1;
 				else
 					Visibility = false;
@@ -2192,19 +2125,19 @@ namespace Tomahawk
 			{
 				return GetMaterial(GetSurface(Mesh));
 			}
-			Graphics::Material& Model::GetMaterial(TSurface* Surface)
+			Graphics::Material& Model::GetMaterial(Appearance* Surface)
 			{
 				if (!Surface || Surface->Material >= Parent->GetScene()->GetMaterialCount())
 					return Parent->GetScene()->GetMaterialStandartLit();
 
 				return Parent->GetScene()->GetMaterial(Surface->Material);
 			}
-			TSurface* Model::GetSurface(Graphics::Mesh* Mesh)
+			Appearance* Model::GetSurface(Graphics::Mesh* Mesh)
 			{
 				auto It = Surfaces.find(Mesh);
 				if (It == Surfaces.end())
 				{
-					Surfaces[Mesh] = TSurface();
+					Surfaces[Mesh] = Appearance();
 					It = Surfaces.find(Mesh);
 				}
 
@@ -2227,43 +2160,30 @@ namespace Tomahawk
 				return Target;
 			}
 
-			SkinnedModel::SkinnedModel(Entity* Ref) : Component(Ref)
+			SkinModel::SkinModel(Entity* Ref) : Component(Ref)
 			{
 				Visibility = false;
 				Instance = nullptr;
 			}
-			void SkinnedModel::OnLoad(ContentManager* Content, Rest::Document* Node)
+			void SkinModel::OnLoad(ContentManager* Content, Rest::Document* Node)
 			{
 				std::string Path;
-				if (NMake::Unpack(Node->Find("skinned-model"), &Path))
-					Instance = Content->Load<Graphics::SkinnedModel>(Path, nullptr);
+				if (NMake::Unpack(Node->Find("skin-model"), &Path))
+					Instance = Content->Load<Graphics::SkinModel>(Path, nullptr);
 
 				std::vector<Rest::Document*> Faces = Node->FindCollectionPath("surfaces.surface");
 				for (auto&& Surface : Faces)
 				{
-					TSurface Face;
-					if (NMake::Unpack(Surface->Find("diffuse"), &Path))
-						Face.Diffuse = Content->Load<Graphics::Texture2D>(Path, nullptr);
+					if (!Instance || !NMake::Unpack(Surface->Find("name"), &Path))
+						continue;
 
-					if (NMake::Unpack(Surface->Find("normal"), &Path))
-						Face.Normal = Content->Load<Graphics::Texture2D>(Path, nullptr);
+					Graphics::SkinMesh* Ref = Instance->FindMesh(Path);
+					if (!Ref)
+						continue;
 
-					if (NMake::Unpack(Surface->Find("surface"), &Path))
-						Face.Surface = Content->Load<Graphics::Texture2D>(Path, nullptr);
-
-					NMake::Unpack(Surface->Find("diffusion"), &Face.Diffusion);
-					NMake::Unpack(Surface->Find("texcoord"), &Face.TexCoord);
-					NMake::Unpack(Surface->Find("material"), &Face.Material);
-
-					if (NMake::Unpack(Surface->Find("name"), &Path))
-					{
-						if (Instance != nullptr)
-						{
-							Graphics::SkinnedMesh* Ref = Instance->FindMesh(Path);
-							if (Ref != nullptr)
-								Surfaces[Ref] = Face;
-						}
-					}
+					Appearance Face;
+					if (NMake::Unpack(Surface, &Face, Content))
+						Surfaces[Ref] = Face;
 				}
 
 				std::vector<Rest::Document*> Poses = Node->FindCollectionPath("poses.pose");
@@ -2280,35 +2200,21 @@ namespace Tomahawk
 
 				NMake::Unpack(Node->Find("visibility"), &Visibility);
 			}
-			void SkinnedModel::OnSave(ContentManager* Content, Rest::Document* Node)
+			void SkinModel::OnSave(ContentManager* Content, Rest::Document* Node)
 			{
 				AssetResource* Asset = Content->FindAsset(Instance);
 				if (Asset != nullptr)
-					NMake::Pack(Node->SetDocument("skinned-model"), Asset->Path);
+					NMake::Pack(Node->SetDocument("skin-model"), Asset->Path);
 
 				Rest::Document* Faces = Node->SetArray("surfaces");
 				for (auto&& It : Surfaces)
 				{
 					Rest::Document* Surface = Faces->SetDocument("surface");
-
-					Asset = Content->FindAsset(It.second.Diffuse);
-					if (Asset != nullptr)
-						NMake::Pack(Surface->SetDocument("diffuse"), Asset->Path);
-
-					Asset = Content->FindAsset(It.second.Normal);
-					if (Asset != nullptr)
-						NMake::Pack(Surface->SetDocument("normal"), Asset->Path);
-
-					Asset = Content->FindAsset(It.second.Surface);
-					if (Asset != nullptr)
-						NMake::Pack(Surface->SetDocument("surface"), Asset->Path);
-
-					NMake::Pack(Surface->SetDocument("diffusion"), It.second.Diffusion);
-					NMake::Pack(Surface->SetDocument("texcoord"), It.second.TexCoord);
-					NMake::Pack(Surface->SetDocument("material"), It.second.Material);
-
 					if (It.first != nullptr)
+					{
 						NMake::Pack(Surface->SetDocument("name"), It.first->Name);
+						NMake::Pack(Surface, It.second, Content);
+					}
 				}
 
 				NMake::Pack(Node->SetDocument("visibility"), Visibility);
@@ -2321,7 +2227,7 @@ namespace Tomahawk
 					NMake::Pack(Value->SetDocument("[matrix]"), Pose.second);
 				}
 			}
-			void SkinnedModel::OnSynchronize(Rest::Timer* Time)
+			void SkinModel::OnSynchronize(Rest::Timer* Time)
 			{
 				if (!Instance)
 				{
@@ -2332,12 +2238,12 @@ namespace Tomahawk
 					Instance->BuildSkeleton(&Skeleton);
 
 				Viewer View = Parent->GetScene()->GetCameraViewer();
-				if (Parent->Transform->Position.Distance(View.RealPosition) < View.ViewDistance + Parent->Transform->Scale.Length())
+				if (Parent->Transform->Position.Distance(View.RawPosition) < View.ViewDistance + Parent->Transform->Scale.Length())
 					Visibility = Compute::MathCommon::IsClipping(View.ViewProjection, GetBoundingBox(), 1.5f) == -1;
 				else
 					Visibility = false;
 			}
-			void SkinnedModel::OnEvent(Event* Value)
+			void SkinModel::OnEvent(Event* Value)
 			{
 				if (!Value->Is<Graphics::Material>())
 					return;
@@ -2349,38 +2255,38 @@ namespace Tomahawk
 						Surface.second.Material = 0;
 				}
 			}
-			Graphics::Material& SkinnedModel::GetMaterial(Graphics::SkinnedMesh* Mesh)
+			Graphics::Material& SkinModel::GetMaterial(Graphics::SkinMesh* Mesh)
 			{
 				return GetMaterial(GetSurface(Mesh));
 			}
-			Graphics::Material& SkinnedModel::GetMaterial(TSurface* Surface)
+			Graphics::Material& SkinModel::GetMaterial(Appearance* Surface)
 			{
 				if (!Surface || Surface->Material >= Parent->GetScene()->GetMaterialCount())
 					return Parent->GetScene()->GetMaterialStandartLit();
 
 				return Parent->GetScene()->GetMaterial(Surface->Material);
 			}
-			TSurface* SkinnedModel::GetSurface(Graphics::SkinnedMesh* Mesh)
+			Appearance* SkinModel::GetSurface(Graphics::SkinMesh* Mesh)
 			{
 				auto It = Surfaces.find(Mesh);
 				if (It == Surfaces.end())
 				{
-					Surfaces[Mesh] = TSurface();
+					Surfaces[Mesh] = Appearance();
 					It = Surfaces.find(Mesh);
 				}
 
 				return &It->second;
 			}
-			Compute::Matrix4x4 SkinnedModel::GetBoundingBox()
+			Compute::Matrix4x4 SkinModel::GetBoundingBox()
 			{
 				if (!Instance)
 					return Parent->Transform->GetWorld();
 
 				return Compute::Matrix4x4::Create(Parent->Transform->Position, Parent->Transform->Scale * Compute::Vector3(Instance->Min.W - Instance->Max.W).Div(2.0f).Abs(), Parent->Transform->Rotation);
 			}
-			Component* SkinnedModel::OnClone(Entity* New)
+			Component* SkinModel::OnClone(Entity* New)
 			{
-				SkinnedModel* Target = new SkinnedModel(New);
+				SkinModel* Target = new SkinModel(New);
 				Target->Visibility = Visibility;
 				Target->Instance = Instance;
 				Target->Surfaces = Surfaces;
@@ -2391,14 +2297,14 @@ namespace Tomahawk
 			PointLight::PointLight(Entity* Ref) : Component(Ref)
 			{
 				Occlusion = nullptr;
-				Diffusion = Compute::Vector3::One();
+				Diffuse = Compute::Vector3::One();
 				Visibility = 0.0f;
 				Emission = 1.0f;
 				Range = 5.0f;
 			}
 			void PointLight::OnLoad(ContentManager* Content, Rest::Document* Node)
 			{
-				NMake::Unpack(Node->Find("diffusion"), &Diffusion);
+				NMake::Unpack(Node->Find("diffuse"), &Diffuse);
 				NMake::Unpack(Node->Find("visibility"), &Visibility);
 				NMake::Unpack(Node->Find("emission"), &Emission);
 				NMake::Unpack(Node->Find("range"), &Range);
@@ -2412,7 +2318,7 @@ namespace Tomahawk
 			}
 			void PointLight::OnSave(ContentManager* Content, Rest::Document* Node)
 			{
-				NMake::Pack(Node->SetDocument("diffusion"), Diffusion);
+				NMake::Pack(Node->SetDocument("diffuse"), Diffuse);
 				NMake::Pack(Node->SetDocument("visibility"), Visibility);
 				NMake::Pack(Node->SetDocument("emission"), Emission);
 				NMake::Pack(Node->SetDocument("range"), Range);
@@ -2440,7 +2346,7 @@ namespace Tomahawk
 			Component* PointLight::OnClone(Entity* New)
 			{
 				PointLight* Target = new PointLight(New);
-				Target->Diffusion = Diffusion;
+				Target->Diffuse = Diffuse;
 				Target->Emission = Emission;
 				Target->Visibility = Visibility;
 				Target->Range = Range;
@@ -2457,9 +2363,9 @@ namespace Tomahawk
 
 			SpotLight::SpotLight(Entity* Ref) : Component(Ref)
 			{
-				Diffusion = Compute::Vector3::One();
+				Diffuse = Compute::Vector3::One();
 				Occlusion = nullptr;
-				Diffuse = nullptr;
+				ProjectMap = nullptr;
 				ShadowSoftness = 0.0f;
 				ShadowIterations = 2;
 				ShadowDistance = 100;
@@ -2472,10 +2378,10 @@ namespace Tomahawk
 			void SpotLight::OnLoad(ContentManager* Content, Rest::Document* Node)
 			{
 				std::string Path;
-				if (NMake::Unpack(Node->Find("diffuse"), &Path))
-					Diffuse = Content->Load<Graphics::Texture2D>(Path, nullptr);
+				if (NMake::Unpack(Node->Find("project-map"), &Path))
+					ProjectMap = Content->Load<Graphics::Texture2D>(Path, nullptr);
 
-				NMake::Unpack(Node->Find("diffusion"), &Diffusion);
+				NMake::Unpack(Node->Find("diffuse"), &Diffuse);
 				NMake::Unpack(Node->Find("visibility"), &Visibility);
 				NMake::Unpack(Node->Find("projection"), &Projection);
 				NMake::Unpack(Node->Find("view"), &View);
@@ -2490,11 +2396,11 @@ namespace Tomahawk
 			}
 			void SpotLight::OnSave(ContentManager* Content, Rest::Document* Node)
 			{
-				AssetResource* Asset = Content->FindAsset(Diffuse);
+				AssetResource* Asset = Content->FindAsset(ProjectMap);
 				if (Asset != nullptr)
-					NMake::Pack(Node->SetDocument("diffuse"), Asset->Path);
+					NMake::Pack(Node->SetDocument("project-map"), Asset->Path);
 
-				NMake::Pack(Node->SetDocument("diffusion"), Diffusion);
+				NMake::Pack(Node->SetDocument("diffuse"), Diffuse);
 				NMake::Pack(Node->SetDocument("visibility"), Visibility);
 				NMake::Pack(Node->SetDocument("projection"), Projection);
 				NMake::Pack(Node->SetDocument("view"), View);
@@ -2526,7 +2432,7 @@ namespace Tomahawk
 				Target->Diffuse = Diffuse;
 				Target->Projection = Projection;
 				Target->View = View;
-				Target->Diffusion = Diffusion;
+				Target->ProjectMap = ProjectMap;
 				Target->FieldOfView = FieldOfView;
 				Target->Range = Range;
 				Target->Emission = Emission;
@@ -2541,7 +2447,7 @@ namespace Tomahawk
 
 			LineLight::LineLight(Entity* Ref) : Component(Ref)
 			{
-				Diffusion = Compute::Vector3(1.0, 0.8, 0.501961);
+				Diffuse = Compute::Vector3(1.0, 0.8, 0.501961);
 				Occlusion = nullptr;
 				Shadowed = false;
 				ShadowSoftness = 0.0f;
@@ -2555,7 +2461,7 @@ namespace Tomahawk
 			}
 			void LineLight::OnLoad(ContentManager* Content, Rest::Document* Node)
 			{
-				NMake::Unpack(Node->Find("diffusion"), &Diffusion);
+				NMake::Unpack(Node->Find("diffuse"), &Diffuse);
 				NMake::Unpack(Node->Find("projection"), &Projection);
 				NMake::Unpack(Node->Find("view"), &View);
 				NMake::Unpack(Node->Find("shadow-bias"), &ShadowBias);
@@ -2570,7 +2476,7 @@ namespace Tomahawk
 			}
 			void LineLight::OnSave(ContentManager* Content, Rest::Document* Node)
 			{
-				NMake::Pack(Node->SetDocument("diffusion"), Diffusion);
+				NMake::Pack(Node->SetDocument("diffuse"), Diffuse);
 				NMake::Pack(Node->SetDocument("projection"), Projection);
 				NMake::Pack(Node->SetDocument("view"), View);
 				NMake::Pack(Node->SetDocument("shadow-bias"), ShadowBias);
@@ -2593,7 +2499,7 @@ namespace Tomahawk
 				LineLight* Target = new LineLight(New);
 				Target->Projection = Projection;
 				Target->View = View;
-				Target->Diffusion = Diffusion;
+				Target->Diffuse = Diffuse;
 				Target->ShadowBias = ShadowBias;
 				Target->ShadowDistance = ShadowDistance;
 				Target->ShadowFarBias = ShadowFarBias;
@@ -2610,15 +2516,15 @@ namespace Tomahawk
 			ProbeLight::ProbeLight(Entity* Ref) : Component(Ref)
 			{
 				Projection = Compute::Matrix4x4::CreatePerspectiveRad(1.57079632679f, 1, 0.01f, 100.0f);
-				Diffusion = Compute::Vector3::One();
+				Diffuse = Compute::Vector3::One();
 				ViewOffset = Compute::Vector3(1, 1, -1);
-				DiffusePX = nullptr;
-				DiffuseNX = nullptr;
-				DiffusePY = nullptr;
-				DiffuseNY = nullptr;
-				DiffusePZ = nullptr;
-				DiffuseNZ = nullptr;
-				Diffuse = nullptr;
+				DiffuseMapX[0] = nullptr;
+				DiffuseMapX[1] = nullptr;
+				DiffuseMapY[0] = nullptr;
+				DiffuseMapY[1] = nullptr;
+				DiffuseMapZ[0] = nullptr;
+				DiffuseMapZ[1] = nullptr;
+				DiffuseMap = nullptr;
 				Emission = 1.0f;
 				Range = 5.0f;
 				Visibility = 0.0f;
@@ -2628,35 +2534,35 @@ namespace Tomahawk
 			}
 			ProbeLight::~ProbeLight()
 			{
-				if (!ImageBased && Diffuse != nullptr)
-					delete Diffuse;
+				if (!ImageBased && DiffuseMap != nullptr)
+					delete DiffuseMap;
 			}
 			void ProbeLight::OnLoad(ContentManager* Content, Rest::Document* Node)
 			{
 				std::string Path;
-				if (NMake::Unpack(Node->Find("diffuse-px"), &Path))
-					DiffusePX = Content->Load<Graphics::Texture2D>(Path, nullptr);
+				if (NMake::Unpack(Node->Find("diffuse-map-px"), &Path))
+					DiffuseMapX[0] = Content->Load<Graphics::Texture2D>(Path, nullptr);
 
-				if (NMake::Unpack(Node->Find("diffuse-nx"), &Path))
-					DiffuseNX = Content->Load<Graphics::Texture2D>(Path, nullptr);
+				if (NMake::Unpack(Node->Find("diffuse-map-nx"), &Path))
+					DiffuseMapX[1] = Content->Load<Graphics::Texture2D>(Path, nullptr);
 
-				if (NMake::Unpack(Node->Find("diffuse-py"), &Path))
-					DiffusePY = Content->Load<Graphics::Texture2D>(Path, nullptr);
+				if (NMake::Unpack(Node->Find("diffuse-map-py"), &Path))
+					DiffuseMapY[0] = Content->Load<Graphics::Texture2D>(Path, nullptr);
 
-				if (NMake::Unpack(Node->Find("diffuse-ny"), &Path))
-					DiffuseNY = Content->Load<Graphics::Texture2D>(Path, nullptr);
+				if (NMake::Unpack(Node->Find("diffuse-map-ny"), &Path))
+					DiffuseMapY[1]= Content->Load<Graphics::Texture2D>(Path, nullptr);
 
-				if (NMake::Unpack(Node->Find("diffuse-pz"), &Path))
-					DiffusePZ = Content->Load<Graphics::Texture2D>(Path, nullptr);
+				if (NMake::Unpack(Node->Find("diffuse-map-pz"), &Path))
+					DiffuseMapZ[0] = Content->Load<Graphics::Texture2D>(Path, nullptr);
 
-				if (NMake::Unpack(Node->Find("diffuse-nz"), &Path))
-					DiffuseNZ = Content->Load<Graphics::Texture2D>(Path, nullptr);
+				if (NMake::Unpack(Node->Find("diffuse-map-nz"), &Path))
+					DiffuseMapZ[1] = Content->Load<Graphics::Texture2D>(Path, nullptr);
 
 				std::vector<Compute::Matrix4x4> Views;
 				NMake::Unpack(Node->Find("view"), &Views);
 				NMake::Unpack(Node->Find("rebuild"), &Rebuild);
 				NMake::Unpack(Node->Find("projection"), &Projection);
-				NMake::Unpack(Node->Find("diffusion"), &Diffusion);
+				NMake::Unpack(Node->Find("diffuse"), &Diffuse);
 				NMake::Unpack(Node->Find("visibility"), &Visibility);
 				NMake::Unpack(Node->Find("range"), &Range);
 				NMake::Unpack(Node->Find("capture-range"), &CaptureRange);
@@ -2673,29 +2579,29 @@ namespace Tomahawk
 			}
 			void ProbeLight::OnSave(ContentManager* Content, Rest::Document* Node)
 			{
-				AssetResource* Asset = Content->FindAsset(DiffusePX);
+				AssetResource* Asset = Content->FindAsset(DiffuseMapX[0]);
 				if (Asset != nullptr)
-					NMake::Pack(Node->SetDocument("diffuse-px"), Asset->Path);
+					NMake::Pack(Node->SetDocument("diffuse-map-px"), Asset->Path);
 
-				Asset = Content->FindAsset(DiffuseNX);
+				Asset = Content->FindAsset(DiffuseMapX[1]);
 				if (Asset != nullptr)
-					NMake::Pack(Node->SetDocument("diffuse-nx"), Asset->Path);
+					NMake::Pack(Node->SetDocument("diffuse-map-nx"), Asset->Path);
 
-				Asset = Content->FindAsset(DiffusePY);
+				Asset = Content->FindAsset(DiffuseMapY[0]);
 				if (Asset != nullptr)
-					NMake::Pack(Node->SetDocument("diffuse-py"), Asset->Path);
+					NMake::Pack(Node->SetDocument("diffuse-map-py"), Asset->Path);
 
-				Asset = Content->FindAsset(DiffuseNY);
+				Asset = Content->FindAsset(DiffuseMapY[1]);
 				if (Asset != nullptr)
-					NMake::Pack(Node->SetDocument("diffuse-ny"), Asset->Path);
+					NMake::Pack(Node->SetDocument("diffuse-map-ny"), Asset->Path);
 
-				Asset = Content->FindAsset(DiffusePZ);
+				Asset = Content->FindAsset(DiffuseMapZ[0]);
 				if (Asset != nullptr)
-					NMake::Pack(Node->SetDocument("diffuse-pz"), Asset->Path);
+					NMake::Pack(Node->SetDocument("diffuse-map-pz"), Asset->Path);
 
-				Asset = Content->FindAsset(DiffuseNZ);
+				Asset = Content->FindAsset(DiffuseMapZ[1]);
 				if (Asset != nullptr)
-					NMake::Pack(Node->SetDocument("diffuse-nz"), Asset->Path);
+					NMake::Pack(Node->SetDocument("diffuse-map-nz"), Asset->Path);
 
 				std::vector<Compute::Matrix4x4> Views;
 				for (int64_t i = 0; i < 6; i++)
@@ -2704,7 +2610,7 @@ namespace Tomahawk
 				NMake::Pack(Node->SetDocument("view"), Views);
 				NMake::Pack(Node->SetDocument("rebuild"), Rebuild);
 				NMake::Pack(Node->SetDocument("projection"), Projection);
-				NMake::Pack(Node->SetDocument("diffusion"), Diffusion);
+				NMake::Pack(Node->SetDocument("diffuse"), Diffuse);
 				NMake::Pack(Node->SetDocument("visibility"), Visibility);
 				NMake::Pack(Node->SetDocument("range"), Range);
 				NMake::Pack(Node->SetDocument("capture-range"), CaptureRange);
@@ -2724,32 +2630,39 @@ namespace Tomahawk
 			}
 			bool ProbeLight::RebuildDiffuseMap()
 			{
-				if (!DiffusePX || !DiffuseNX || !DiffusePY || !DiffuseNY || !DiffusePZ || !DiffuseNZ)
+				if (!DiffuseMapX[0] || !DiffuseMapX[1] || !DiffuseMapY[0] || !DiffuseMapY[1] || !DiffuseMapZ[0] || !DiffuseMapZ[1])
 					return false;
 
 				Graphics::TextureCube::Desc F;
-				F.Texture2D[0] = DiffusePX;
-				F.Texture2D[1] = DiffuseNX;
-				F.Texture2D[2] = DiffusePY;
-				F.Texture2D[3] = DiffuseNY;
-				F.Texture2D[4] = DiffusePZ;
-				F.Texture2D[5] = DiffuseNZ;
+				F.Texture2D[0] = DiffuseMapX[0];
+				F.Texture2D[1] = DiffuseMapX[1];
+				F.Texture2D[2] = DiffuseMapY[0];
+				F.Texture2D[3] = DiffuseMapY[1];
+				F.Texture2D[4] = DiffuseMapZ[0];
+				F.Texture2D[5] = DiffuseMapZ[1];
 
-				delete Diffuse;
-				Diffuse = Graphics::TextureCube::Create(Parent->GetScene()->GetDevice(), F);
-				return Diffuse != nullptr;
+				delete DiffuseMap;
+				DiffuseMap = Graphics::TextureCube::Create(Parent->GetScene()->GetDevice(), F);
+				return DiffuseMap != nullptr;
 			}
 			Component* ProbeLight::OnClone(Entity* New)
 			{
 				ProbeLight* Target = new ProbeLight(New);
 				Target->Projection = Projection;
 				Target->Range = Range;
-				Target->Diffusion = Diffusion;
+				Target->Diffuse = Diffuse;
 				Target->Visibility = Visibility;
 				Target->Emission = Emission;
 				Target->CaptureRange = CaptureRange;
 				Target->ImageBased = ImageBased;
 				Target->Rebuild = Rebuild;
+				Target->DiffuseMapX[0] = DiffuseMapX[0];
+				Target->DiffuseMapX[1] = DiffuseMapX[1];
+				Target->DiffuseMapY[0] = DiffuseMapY[0];
+				Target->DiffuseMapY[1] = DiffuseMapY[1];
+				Target->DiffuseMapZ[0] = DiffuseMapZ[0];
+				Target->DiffuseMapZ[1] = DiffuseMapZ[1];
+				Target->RebuildDiffuseMap();
 				memcpy(Target->View, View, 6 * sizeof(Compute::Matrix4x4));
 
 				return Target;
@@ -2816,8 +2729,8 @@ namespace Tomahawk
 
 					if (RendererId == THAWK_COMPONENT_ID(ModelRenderer))
 						Target = new Engine::Renderers::ModelRenderer(Renderer);
-					else if (RendererId == THAWK_COMPONENT_ID(SkinnedModelRenderer))
-						Target = new Engine::Renderers::SkinnedModelRenderer(Renderer);
+					else if (RendererId == THAWK_COMPONENT_ID(SkinModelRenderer))
+						Target = new Engine::Renderers::SkinModelRenderer(Renderer);
 					else if (RendererId == THAWK_COMPONENT_ID(SoftBodyRenderer))
 						Target = new Engine::Renderers::SoftBodyRenderer(Renderer);
 					else if (RendererId == THAWK_COMPONENT_ID(DepthRenderer))
@@ -2845,9 +2758,9 @@ namespace Tomahawk
 					else if (RendererId == THAWK_COMPONENT_ID(ToneRenderer))
 						Target = new Engine::Renderers::ToneRenderer(Renderer);
 					else if (RendererId == THAWK_COMPONENT_ID(GUIRenderer))
-						Target = new Engine::Renderers::GUIRenderer(Renderer, Application::Get()->Activity);
+						Target = new Engine::Renderers::GUIRenderer(Renderer);
 
-					if (!Renderer)
+					if (!Renderer || !Target)
 					{
 						THAWK_WARN("cannot create renderer with id %llu", RendererId);
 						continue;
@@ -2881,12 +2794,16 @@ namespace Tomahawk
 			}
 			void Camera::FillViewer(Viewer* View)
 			{
+				if (!View)
+					return;
+
 				View->ViewPosition = Compute::Vector3(-Parent->Transform->Position.X, -Parent->Transform->Position.Y, Parent->Transform->Position.Z);
-				View->ViewProjection = Compute::Matrix4x4::CreateCamera(View->ViewPosition, -Parent->Transform->Rotation) * Projection;
-				View->InvViewProjection = View->ViewProjection.Invert();
+				View->View = Compute::Matrix4x4::CreateCamera(View->ViewPosition, -Parent->Transform->Rotation);
 				View->Projection = Projection;
+				View->ViewProjection = View->View * Projection;
+				View->InvViewProjection = View->ViewProjection.Invert();
 				View->Position = Parent->Transform->Position.InvertZ();
-				View->RealPosition = Parent->Transform->Position;
+				View->RawPosition = Parent->Transform->Position;
 				View->ViewDistance = ViewDistance;
 				View->Renderer = Renderer;
 				FieldView = *View;

@@ -725,17 +725,15 @@ namespace Tomahawk
 			private:
 				struct
 				{
-					Graphics::Shader* Multi = nullptr;
-					Graphics::Shader* Depth = nullptr;
-					Graphics::Shader* CubicDepth = nullptr;
+					Graphics::Shader* GBuffer = nullptr;
+					Graphics::Shader* Depth90 = nullptr;
+					Graphics::Shader* Depth360 = nullptr;
 				} Shaders;
 
 				struct
 				{
-					Compute::Matrix4x4 SliceViewProjection[6];
-					Compute::Vector3 Position;
-					float Distance = 0.0f;
-				} CubicDepth;
+					Compute::Matrix4x4 FaceViewProjection[6];
+				} Depth360;
 
 			private:
 				Rest::Pool<Engine::Component*>* Models = nullptr;
@@ -753,29 +751,27 @@ namespace Tomahawk
 				THAWK_COMPONENT(ModelRenderer);
 			};
 
-			class THAWK_OUT SkinnedModelRenderer : public Renderer
+			class THAWK_OUT SkinModelRenderer : public Renderer
 			{
 			private:
 				struct
 				{
-					Graphics::Shader* Multi = nullptr;
-					Graphics::Shader* Depth = nullptr;
-					Graphics::Shader* CubicDepth = nullptr;
+					Graphics::Shader* GBuffer = nullptr;
+					Graphics::Shader* Depth90 = nullptr;
+					Graphics::Shader* Depth360 = nullptr;
 				} Shaders;
 
 				struct
 				{
-					Compute::Matrix4x4 SliceViewProjection[6];
-					Compute::Vector3 Position;
-					float Distance;
-				} CubicDepth;
+					Compute::Matrix4x4 FaceViewProjection[6];
+				} Depth360;
 
 			private:
-				Rest::Pool<Engine::Component*>* SkinnedModels = nullptr;
+				Rest::Pool<Engine::Component*>* SkinModels = nullptr;
 
 			public:
-				SkinnedModelRenderer(RenderSystem* Lab);
-				virtual ~SkinnedModelRenderer();
+				SkinModelRenderer(RenderSystem* Lab);
+				virtual ~SkinModelRenderer();
 				void OnInitialize() override;
 				void OnRender(Rest::Timer* Time) override;
 				void OnPhaseRender(Rest::Timer* Time) override;
@@ -783,7 +779,7 @@ namespace Tomahawk
 				void OnCubicDepthRender(Rest::Timer* Time, Compute::Matrix4x4* ViewProjection) override;
 
 			public:
-				THAWK_COMPONENT(SkinnedModelRenderer);
+				THAWK_COMPONENT(SkinModelRenderer);
 			};
 
 			class THAWK_OUT SoftBodyRenderer : public Renderer
@@ -791,17 +787,15 @@ namespace Tomahawk
 			private:
 				struct
 				{
-					Graphics::Shader* Multi = nullptr;
-					Graphics::Shader* Depth = nullptr;
-					Graphics::Shader* CubicDepth = nullptr;
+					Graphics::Shader* GBuffer = nullptr;
+					Graphics::Shader* Depth90 = nullptr;
+					Graphics::Shader* Depth360 = nullptr;
 				} Shaders;
 
 				struct
 				{
-					Compute::Matrix4x4 SliceViewProjection[6];
-					Compute::Vector3 Position;
-					float Distance = 0.0f;
-				} CubicDepth;
+					Compute::Matrix4x4 FaceViewProjection[6];
+				} Depth360;
 
 			private:
 				Rest::Pool<Engine::Component*>* SoftBodies = nullptr;
@@ -826,19 +820,16 @@ namespace Tomahawk
 			private:
 				struct
 				{
-					Graphics::Shader* Multi = nullptr;
-					Graphics::Shader* Depth = nullptr;
-					Graphics::Shader* CubicDepthTriangle = nullptr;
-					Graphics::Shader* CubicDepthPoint = nullptr;
+					Graphics::Shader* GBuffer = nullptr;
+					Graphics::Shader* Depth90 = nullptr;
+					Graphics::Shader* Depth360Q = nullptr;
+					Graphics::Shader* Depth360P = nullptr;
 				} Shaders;
 
 				struct
 				{
-					Compute::Matrix4x4 SliceView[6];
-					Compute::Matrix4x4 Projection;
-					Compute::Vector3 Position;
-					float Distance;
-				} CubicDepth;
+					Compute::Matrix4x4 FaceView[6];
+				} Depth360;
 
 			private:
 				Rest::Pool<Engine::Component*>* ElementSystems = nullptr;
@@ -982,15 +973,14 @@ namespace Tomahawk
 			protected:
 				struct
 				{
-					Graphics::Shader* ProbeLighting = nullptr;
-					Graphics::Shader* PointLighting = nullptr;
-					Graphics::Shader* ShadedPointLighting = nullptr;
-					Graphics::Shader* SpotLighting = nullptr;
-					Graphics::Shader* ShadedSpotLighting = nullptr;
-					Graphics::Shader* LineLighting = nullptr;
-					Graphics::Shader* ShadedLineLighting = nullptr;
-					Graphics::Shader* AmbientLighting = nullptr;
-					Graphics::Shader* ActiveLighting = nullptr;
+					Graphics::Shader* Probe = nullptr;
+					Graphics::Shader* Point = nullptr;
+					Graphics::Shader* PointOccluded = nullptr;
+					Graphics::Shader* Spot = nullptr;
+					Graphics::Shader* SpotOccluded = nullptr;
+					Graphics::Shader* Line = nullptr;
+					Graphics::Shader* LineOccluded = nullptr;
+					Graphics::Shader* Ambient = nullptr;
 				} Shaders;
 
 				struct
@@ -1004,10 +994,10 @@ namespace Tomahawk
 				Rest::Pool<Engine::Component*>* ProbeLights = nullptr;
 				Rest::Pool<Engine::Component*>* SpotLights = nullptr;
 				Rest::Pool<Engine::Component*>* LineLights = nullptr;
-				Graphics::RenderTarget2D* Output = nullptr;
-				Graphics::RenderTarget2D* PhaseOutput = nullptr;
-				Graphics::RenderTarget2D* Input = nullptr;
-				Graphics::RenderTarget2D* PhaseInput = nullptr;
+				Graphics::RenderTarget2D* Output1 = nullptr;
+				Graphics::RenderTarget2D* Output2 = nullptr;
+				Graphics::RenderTarget2D* Input1 = nullptr;
+				Graphics::RenderTarget2D* Input2 = nullptr;
 
 			public:
 				bool RecursiveProbes;
@@ -1018,15 +1008,14 @@ namespace Tomahawk
 				void OnLoad(ContentManager* Content, Rest::Document* Node) override;
 				void OnSave(ContentManager* Content, Rest::Document* Node) override;
 				void OnInitialize() override;
-				void OnRelease() override;
 				void OnRender(Rest::Timer* Time) override;
 				void OnPhaseRender(Rest::Timer* Time) override;
 				void OnResizeBuffers() override;
-				void CreatePointLighting();
-				void CreateProbeLighting();
-				void CreateSpotLighting();
-				void CreateLineLighting();
-				void CreateAmbientLighting();
+				void CompilePointEffects();
+				void CompileProbeEffects();
+				void CompileSpotEffects();
+				void CompileLineEffects();
+				void CompileAmbientEffects();
 				void CreateRenderTargets();
 
 			public:
@@ -1050,41 +1039,33 @@ namespace Tomahawk
 				THAWK_COMPONENT(ImageRenderer);
 			};
 
-			class THAWK_OUT ReflectionsRenderer : public Renderer
+			class THAWK_OUT ReflectionsRenderer : public PostProcessRenderer
 			{
 			public:
 				struct RenderConstant
 				{
-					Compute::Matrix4x4 ViewProjection;
 					float IterationCount = 24.0f;
-					float RayCorrection = 0.965f;
-					float RayLength = -0.1f;
 					float MipLevels = 0.0f;
+					float Intensity = 1.736f;
+					float Padding = 0.0f;
 				} Render;
-
-			private:
-				Graphics::RenderTarget2D* Output;
-				Graphics::Shader* Shader;
 
 			public:
 				ReflectionsRenderer(RenderSystem* Lab);
-				virtual ~ReflectionsRenderer() override;
+				virtual ~ReflectionsRenderer() = default;
 				void OnLoad(ContentManager* Content, Rest::Document* Node) override;
 				void OnSave(ContentManager* Content, Rest::Document* Node) override;
-				void OnInitialize() override;
-				void OnRender(Rest::Timer* Time) override;
-				void OnResizeBuffers() override;
+				void OnRenderEffect(Rest::Timer* Time) override;
 
 			public:
 				THAWK_COMPONENT(ReflectionsRenderer);
 			};
 
-			class THAWK_OUT DepthOfFieldRenderer : public Renderer
+			class THAWK_OUT DepthOfFieldRenderer : public PostProcessRenderer
 			{
 			public:
 				struct RenderConstant
 				{
-					Compute::Matrix4x4 ViewProjection;
 					float Texel[2] = { 1.0f / 512.0f };
 					float Threshold = 0.5f;
 					float Gain = 2.0f;
@@ -1102,29 +1083,18 @@ namespace Tomahawk
 					float Circular = 1.0f;
 				} Render;
 
-			private:
-				Graphics::RenderTarget2D* Output;
-				Graphics::Shader* Shader;
-
-			public:
-				float HorizontalResolution = 512.0f;
-				float VerticalResolution = 512.0f;
-				bool AutoViewport = true;
-
 			public:
 				DepthOfFieldRenderer(RenderSystem* Lab);
-				virtual ~DepthOfFieldRenderer() override;
+				virtual ~DepthOfFieldRenderer() = default;
 				void OnLoad(ContentManager* Content, Rest::Document* Node) override;
 				void OnSave(ContentManager* Content, Rest::Document* Node) override;
-				void OnInitialize() override;
-				void OnRender(Rest::Timer* Time) override;
-				void OnResizeBuffers() override;
+				void OnRenderEffect(Rest::Timer* Time) override;
 
 			public:
 				THAWK_COMPONENT(DepthOfFieldRenderer);
 			};
 
-			class THAWK_OUT EmissionRenderer : public Renderer
+			class THAWK_OUT EmissionRenderer : public PostProcessRenderer
 			{
 			public:
 				struct RenderConstant
@@ -1132,32 +1102,23 @@ namespace Tomahawk
 					float Texel[2] = { 512.0f };
 					float Intensity = 2.35f;
 					float Threshold = 0.38f;
-					float Scaling[2] = { 1.0f, 1.0f };
+					float Scaling[2] = { 0.3f, 0.3f };
 					float Samples = 4.0f;
 					float SampleCount = 64.0f;
 				} Render;
 
-			private:
-				Graphics::RenderTarget2D* Output;
-				Graphics::Shader* Shader;
-
-			public:
-				bool AutoViewport;
-
 			public:
 				EmissionRenderer(RenderSystem* Lab);
-				virtual ~EmissionRenderer() override;
+				virtual ~EmissionRenderer() = default;
 				void OnLoad(ContentManager* Content, Rest::Document* Node) override;
 				void OnSave(ContentManager* Content, Rest::Document* Node) override;
-				void OnInitialize() override;
-				void OnRender(Rest::Timer* Time) override;
-				void OnResizeBuffers() override;
+				void OnRenderEffect(Rest::Timer* Time) override;
 
 			public:
 				THAWK_COMPONENT(EmissionRenderer);
 			};
 
-			class THAWK_OUT GlitchRenderer : public Renderer
+			class THAWK_OUT GlitchRenderer : public PostProcessRenderer
 			{
 			public:
 				struct RenderConstant
@@ -1172,10 +1133,6 @@ namespace Tomahawk
 					float ElapsedTime = 0;
 				} Render;
 
-			private:
-				Graphics::RenderTarget2D* Output;
-				Graphics::Shader* Shader;
-
 			public:
 				float ScanLineJitter;
 				float VerticalJump;
@@ -1184,18 +1141,16 @@ namespace Tomahawk
 
 			public:
 				GlitchRenderer(RenderSystem* Lab);
-				virtual ~GlitchRenderer() override;
+				virtual ~GlitchRenderer() = default;
 				void OnLoad(ContentManager* Content, Rest::Document* Node) override;
 				void OnSave(ContentManager* Content, Rest::Document* Node) override;
-				void OnInitialize() override;
-				void OnRender(Rest::Timer* Time) override;
-				void OnResizeBuffers() override;
+				void OnRenderEffect(Rest::Timer* Time) override;
 
 			public:
 				THAWK_COMPONENT(GlitchRenderer);
 			};
 
-			class THAWK_OUT AmbientOcclusionRenderer : public Renderer
+			class THAWK_OUT AmbientOcclusionRenderer : public PostProcessRenderer
 			{
 			public:
 				struct RenderConstant
@@ -1214,60 +1169,48 @@ namespace Tomahawk
 					float Padding;
 				} Render;
 
-			private:
-				Graphics::RenderTarget2D* Output;
-				Graphics::Shader* Shader;
-
 			public:
 				AmbientOcclusionRenderer(RenderSystem* Lab);
-				virtual ~AmbientOcclusionRenderer() override;
+				virtual ~AmbientOcclusionRenderer() = default;
 				void OnLoad(ContentManager* Content, Rest::Document* Node) override;
 				void OnSave(ContentManager* Content, Rest::Document* Node) override;
-				void OnInitialize() override;
-				void OnRender(Rest::Timer* Time) override;
-				void OnResizeBuffers() override;
+				void OnRenderEffect(Rest::Timer* Time) override;
 
 			public:
 				THAWK_COMPONENT(AmbientOcclusionRenderer);
 			};
 
-			class THAWK_OUT IndirectOcclusionRenderer : public Renderer
+			class THAWK_OUT IndirectOcclusionRenderer : public PostProcessRenderer
 			{
 			public:
 				struct RenderConstant
 				{
-					float Scale = 0.625f;
-					float Intensity = 5.0f;
-					float Bias = 0.3f;
-					float Radius = 0.008f;
-					float Step = 0.075f;
-					float Offset = 0.85f;
-					float Distance = 3.0f;
-					float Fading = 1.75f;
-					float Power = 1.25;
+					float Scale = 1.936f;
+					float Intensity = 6.745f;
+					float Bias = 0.467f;
+					float Radius = 0.250885f;
+					float Step = 0.030f;
+					float Offset = 0.033f;
+					float Distance = 3.000f;
+					float Fading = 1.965f;
+					float Power = 1.294;
 					float Samples = 2.0f;
 					float SampleCount = 16.0f;
 					float Padding;
 				} Render;
 
-			private:
-				Graphics::RenderTarget2D* Output;
-				Graphics::Shader* Shader;
-
 			public:
 				IndirectOcclusionRenderer(RenderSystem* Lab);
-				virtual ~IndirectOcclusionRenderer() override;
+				virtual ~IndirectOcclusionRenderer() = default;
 				void OnLoad(ContentManager* Content, Rest::Document* Node) override;
 				void OnSave(ContentManager* Content, Rest::Document* Node) override;
-				void OnInitialize() override;
-				void OnRender(Rest::Timer* Time) override;
-				void OnResizeBuffers() override;
+				void OnRenderEffect(Rest::Timer* Time) override;
 
 			public:
 				THAWK_COMPONENT(IndirectOcclusionRenderer);
 			};
 
-			class THAWK_OUT ToneRenderer : public Renderer
+			class THAWK_OUT ToneRenderer : public PostProcessRenderer
 			{
 			public:
 				struct RenderConstant
@@ -1286,18 +1229,12 @@ namespace Tomahawk
 					float DesaturationIntensity = 0.5f;
 				} Render;
 
-			private:
-				Graphics::RenderTarget2D* Output;
-				Graphics::Shader* Shader;
-
 			public:
 				ToneRenderer(RenderSystem* Lab);
-				virtual ~ToneRenderer() override;
+				virtual ~ToneRenderer() = default;
 				void OnLoad(ContentManager* Content, Rest::Document* Node) override;
 				void OnSave(ContentManager* Content, Rest::Document* Node) override;
-				void OnInitialize() override;
-				void OnRender(Rest::Timer* Time) override;
-				void OnResizeBuffers() override;
+				void OnRenderEffect(Rest::Timer* Time) override;
 
 			public:
 				THAWK_COMPONENT(ToneRenderer);

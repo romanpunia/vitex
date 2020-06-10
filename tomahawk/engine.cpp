@@ -12,6 +12,107 @@ namespace Tomahawk
 {
 	namespace Engine
 	{
+		void Appearance::UploadPhase(Graphics::GraphicsDevice* Device, Appearance* Surface)
+		{
+			if (!Device)
+				return;
+
+			if (!Surface)
+			{
+				Device->Render.HasDiffuse = 0.0f;
+				Device->Render.HasNormal = 0.0f;
+				Device->Render.MaterialId = 0.0f;
+				Device->Render.Diffuse = 1.0f;
+				Device->Render.TexCoord = 1.0f;
+
+				return Device->RestoreTexture2D(1, 6);
+			}
+
+			Device->Render.HasDiffuse = (float)(Surface->DiffuseMap != nullptr);
+			Device->Render.HasNormal = (float)(Surface->NormalMap != nullptr);
+			Device->Render.MaterialId = (float)Surface->Material;
+			Device->Render.Diffuse = Surface->Diffuse;
+			Device->Render.TexCoord = Surface->TexCoord;
+
+			if (Surface->DiffuseMap != nullptr)
+				Surface->DiffuseMap->SetTexture(Device, 1);
+			else
+				Device->RestoreTexture2D(1, 1);
+
+			if (Surface->NormalMap != nullptr)
+				Surface->NormalMap->SetTexture(Device, 2);
+			else
+				Device->RestoreTexture2D(2, 1);
+
+			if (Surface->MetallicMap != nullptr)
+				Surface->MetallicMap->SetTexture(Device, 3);
+			else
+				Device->RestoreTexture2D(3, 1);
+
+			if (Surface->HeightMap != nullptr)
+				Surface->HeightMap->SetTexture(Device, 4);
+			else
+				Device->RestoreTexture2D(4, 1);
+
+			if (Surface->OcclusionMap != nullptr)
+				Surface->OcclusionMap->SetTexture(Device, 5);
+			else
+				Device->RestoreTexture2D(5, 1);
+
+			if (Surface->EmissionMap != nullptr)
+				Surface->EmissionMap->SetTexture(Device, 6);
+			else
+				Device->RestoreTexture2D(6, 1);
+		}
+		void Appearance::UploadDepth(Graphics::GraphicsDevice* Device, Appearance* Surface)
+		{
+			if (!Device)
+				return;
+
+			if (!Surface)
+			{
+				Device->Render.HasDiffuse = 0.0f;
+				Device->Render.Diffuse.X = 1.0f;
+				Device->Render.Diffuse.Y = 0.0f;
+				Device->Render.TexCoord = 1.0f;
+
+				return Device->RestoreTexture2D(1, 1);
+			}
+
+			Device->Render.HasDiffuse = (float)(Surface->DiffuseMap != nullptr);
+			Device->Render.MaterialId = Surface->Material;
+			Device->Render.TexCoord = Surface->TexCoord;
+
+			if (Surface->DiffuseMap != nullptr)
+				Surface->DiffuseMap->SetTexture(Device, 1);
+			else
+				Device->RestoreTexture2D(1, 1);
+		}
+		void Appearance::UploadCubicDepth(Graphics::GraphicsDevice* Device, Appearance* Surface)
+		{
+			if (!Device)
+				return;
+
+			if (!Surface)
+			{
+				Device->Render.HasDiffuse = 0.0f;
+				Device->Render.Diffuse.X = 1.0f;
+				Device->Render.Diffuse.Y = 0.0f;
+				Device->Render.TexCoord = 1.0f;
+
+				return Device->RestoreTexture2D(1, 1);
+			}
+
+			Device->Render.HasDiffuse = (float)(Surface->DiffuseMap != nullptr);
+			Device->Render.MaterialId = Surface->Material;
+			Device->Render.TexCoord = Surface->TexCoord;
+
+			if (Surface->DiffuseMap != nullptr)
+				Surface->DiffuseMap->SetTexture(Device, 1);
+			else
+				Device->RestoreTexture2D(1, 1);
+		}
+
 		bool NMake::Pack(Rest::Document* V, bool Value)
 		{
 			if (!V)
@@ -173,6 +274,40 @@ namespace Tomahawk
 
 			return V->SetInteger("[iterations]", Value.Iterations) && Angular && Diffusion && Noise && Position && Rotation && Scale && Velocity;
 		}
+		bool NMake::Pack(Rest::Document* V, const Appearance& Value, ContentManager* Content)
+		{
+			if (!V || !Content)
+				return false;
+
+			AssetResource* Asset = Content->FindAsset(Value.DiffuseMap);
+			if (Asset != nullptr)
+				NMake::Pack(V->SetDocument("diffuse-map"), Asset->Path);
+
+			Asset = Content->FindAsset(Value.NormalMap);
+			if (Asset != nullptr)
+				NMake::Pack(V->SetDocument("normal-map"), Asset->Path);
+
+			Asset = Content->FindAsset(Value.MetallicMap);
+			if (Asset != nullptr)
+				NMake::Pack(V->SetDocument("metallic-map"), Asset->Path);
+
+			Asset = Content->FindAsset(Value.HeightMap);
+			if (Asset != nullptr)
+				NMake::Pack(V->SetDocument("height-map"), Asset->Path);
+
+			Asset = Content->FindAsset(Value.OcclusionMap);
+			if (Asset != nullptr)
+				NMake::Pack(V->SetDocument("occlusion-map"), Asset->Path);
+
+			Asset = Content->FindAsset(Value.EmissionMap);
+			if (Asset != nullptr)
+				NMake::Pack(V->SetDocument("emission-map"), Asset->Path);
+
+			NMake::Pack(V->SetDocument("diffuse"), Value.Diffuse);
+			NMake::Pack(V->SetDocument("texcoord"), Value.TexCoord);
+			NMake::Pack(V->SetDocument("material"), Value.Material);
+			return true;
+		}
 		bool NMake::Pack(Rest::Document* V, const Compute::SkinAnimatorClip& Value)
 		{
 			if (!V)
@@ -215,7 +350,7 @@ namespace Tomahawk
 
 			return V->SetNumber("[px]", Value.PositionX) != nullptr && V->SetNumber("[py]", Value.PositionY) != nullptr && V->SetNumber("[pz]", Value.PositionZ) != nullptr && V->SetNumber("[tx]", Value.TexCoordX) != nullptr && V->SetNumber("[ty]", Value.TexCoordY) != nullptr && V->SetNumber("[nx]", Value.NormalX) != nullptr && V->SetNumber("[ny]", Value.NormalY) != nullptr && V->SetNumber("[nz]", Value.NormalZ) != nullptr && V->SetNumber("[tnx]", Value.TangentX) != nullptr && V->SetNumber("[tny]", Value.TangentY) != nullptr && V->SetNumber("[tnz]", Value.TangentZ) != nullptr && V->SetNumber("[btx]", Value.BitangentX) != nullptr && V->SetNumber("[bty]", Value.BitangentY) != nullptr && V->SetNumber("[btz]", Value.BitangentZ) != nullptr;
 		}
-		bool NMake::Pack(Rest::Document* V, const Compute::InfluenceVertex& Value)
+		bool NMake::Pack(Rest::Document* V, const Compute::SkinVertex& Value)
 		{
 			if (!V)
 				return false;
@@ -563,7 +698,7 @@ namespace Tomahawk
 
 			return V->SetString("iv-array", Stream.str().substr(0, Stream.str().size() - 1)) && V->SetInteger("[size]", Value.size());
 		}
-		bool NMake::Pack(Rest::Document* V, const std::vector<Compute::InfluenceVertex>& Value)
+		bool NMake::Pack(Rest::Document* V, const std::vector<Compute::SkinVertex>& Value)
 		{
 			if (!V)
 				return false;
@@ -817,6 +952,35 @@ namespace Tomahawk
 			O->Iterations = V->GetInteger("[iterations]");
 			return true;
 		}
+		bool NMake::Unpack(Rest::Document* V, Appearance* O, ContentManager* Content)
+		{
+			if (!V || !O || !Content)
+				return false;
+
+			std::string Path;
+			if (NMake::Unpack(V->Find("diffuse-map"), &Path))
+				O->DiffuseMap = Content->Load<Graphics::Texture2D>(Path, nullptr);
+
+			if (NMake::Unpack(V->Find("normal-map"), &Path))
+				O->NormalMap = Content->Load<Graphics::Texture2D>(Path, nullptr);
+
+			if (NMake::Unpack(V->Find("metallic-map"), &Path))
+				O->MetallicMap = Content->Load<Graphics::Texture2D>(Path, nullptr);
+
+			if (NMake::Unpack(V->Find("height-map"), &Path))
+				O->HeightMap = Content->Load<Graphics::Texture2D>(Path, nullptr);
+
+			if (NMake::Unpack(V->Find("occlusion-map"), &Path))
+				O->OcclusionMap = Content->Load<Graphics::Texture2D>(Path, nullptr);
+
+			if (NMake::Unpack(V->Find("emission-map"), &Path))
+				O->EmissionMap = Content->Load<Graphics::Texture2D>(Path, nullptr);
+
+			NMake::Unpack(V->Find("diffuse"), &O->Diffuse);
+			NMake::Unpack(V->Find("texcoord"), &O->TexCoord);
+			NMake::Unpack(V->Find("material"), &O->Material);
+			return true;
+		}
 		bool NMake::Unpack(Rest::Document* V, Compute::SkinAnimatorClip* O)
 		{
 			if (!V || !O)
@@ -915,7 +1079,7 @@ namespace Tomahawk
 			O->BitangentZ = V->GetNumber("[btz]");
 			return true;
 		}
-		bool NMake::Unpack(Rest::Document* V, Compute::InfluenceVertex* O)
+		bool NMake::Unpack(Rest::Document* V, Compute::SkinVertex* O)
 		{
 			if (!V || !O)
 				return false;
@@ -1454,7 +1618,7 @@ namespace Tomahawk
 
 			return true;
 		}
-		bool NMake::Unpack(Rest::Document* V, std::vector<Compute::InfluenceVertex>* O)
+		bool NMake::Unpack(Rest::Document* V, std::vector<Compute::SkinVertex>* O)
 		{
 			if (!V || !O)
 				return false;
@@ -1678,14 +1842,14 @@ namespace Tomahawk
 			if (!Parent || !Parent->GetScene())
 				return;
 
-			auto Components = &Parent->GetScene()->Components[Id()];
+			auto Components = Parent->GetScene()->GetComponents(Id());
 			if (Active)
-				Components->AddUnique(this);
+				Components->AddIfNotExists(this);
 			else
 				Components->Remove(this);
 
 			if (Active)
-				Parent->GetScene()->Pending.AddUnique(this);
+				Parent->GetScene()->Pending.AddIfNotExists(this);
 			else
 				Parent->GetScene()->Pending.Remove(this);
 		}
@@ -1859,17 +2023,17 @@ namespace Tomahawk
 		{
 			System = NewSystem;
 		}
-		void Renderer::RenderCubicDepth(Rest::Timer* Time, Compute::Matrix4x4 iProjection, Compute::Vector4 iPosition)
+		void Renderer::RenderCubicDepth(Rest::Timer* Time, const Compute::Matrix4x4& iProjection, const Compute::Vector4& iPosition)
 		{
 			if (System && System->GetScene())
 				System->GetScene()->RenderCubicDepth(Time, iProjection, iPosition);
 		}
-		void Renderer::RenderDepth(Rest::Timer* Time, Compute::Matrix4x4 iView, Compute::Matrix4x4 iProjection, Compute::Vector4 iPosition)
+		void Renderer::RenderDepth(Rest::Timer* Time, const Compute::Matrix4x4& iView, const Compute::Matrix4x4& iProjection, const Compute::Vector4& iPosition)
 		{
 			if (System && System->GetScene())
 				System->GetScene()->RenderDepth(Time, iView, iProjection, iPosition);
 		}
-		void Renderer::RenderPhase(Rest::Timer* Time, Compute::Matrix4x4 iView, Compute::Matrix4x4 iProjection, Compute::Vector4 iPosition)
+		void Renderer::RenderPhase(Rest::Timer* Time, const Compute::Matrix4x4& iView, const Compute::Matrix4x4& iProjection, const Compute::Vector4& iPosition)
 		{
 			if (System && System->GetScene())
 				System->GetScene()->RenderPhase(Time, iView, iProjection, iPosition);
@@ -1883,6 +2047,30 @@ namespace Tomahawk
 		{
 		}
 		IntervalRenderer::~IntervalRenderer()
+		{
+		}
+		void IntervalRenderer::OnIntervalRender(Rest::Timer* Time)
+		{
+		}
+		void IntervalRenderer::OnImmediateRender(Rest::Timer* Time)
+		{
+		}
+		void IntervalRenderer::OnIntervalDepthRender(Rest::Timer* Time)
+		{
+		}
+		void IntervalRenderer::OnImmediateDepthRender(Rest::Timer* Time)
+		{
+		}
+		void IntervalRenderer::OnIntervalCubicDepthRender(Rest::Timer* Time, Compute::Matrix4x4* ViewProjection)
+		{
+		}
+		void IntervalRenderer::OnImmediateCubicDepthRender(Rest::Timer* Time, Compute::Matrix4x4* ViewProjection)
+		{
+		}
+		void IntervalRenderer::OnIntervalPhaseRender(Rest::Timer* Time)
+		{
+		}
+		void IntervalRenderer::OnImmediatePhaseRender(Rest::Timer* Time)
 		{
 		}
 		void IntervalRenderer::OnRender(Rest::Timer* Time)
@@ -1912,6 +2100,206 @@ namespace Tomahawk
 				OnIntervalPhaseRender(Time);
 
 			OnImmediatePhaseRender(Time);
+		}
+
+		PostProcessRenderer::PostProcessRenderer(RenderSystem* Lab) : Renderer(Lab), Output(nullptr)
+		{
+			Priority = false;
+		}
+		PostProcessRenderer::~PostProcessRenderer()
+		{
+			for (auto It = Shaders.begin(); It != Shaders.end(); It++)
+				System->FreeShader(It->first, It->second);
+
+			delete Output;
+		}
+		void PostProcessRenderer::PostProcess(const std::string& Name, void* Buffer)
+		{
+			auto It = Shaders.find(Name);
+			if (It == Shaders.end() || !It->second)
+				return;
+
+			Graphics::GraphicsDevice* Device = System->GetDevice();
+			It->second->SetShader(Device);
+
+			if (Buffer != nullptr)
+			{
+				It->second->UpdateBuffer(Device, Buffer);
+				It->second->SetBuffer(Device, 3);
+			}
+
+			Device->Draw(6, 0);
+		}
+		void PostProcessRenderer::PostProcess(void* Buffer)
+		{
+			auto It = Shaders.begin();
+			if (It == Shaders.end() || !It->second)
+				return;
+
+			Graphics::GraphicsDevice* Device = System->GetDevice();
+			It->second->SetShader(Device);
+
+			if (Buffer != nullptr)
+			{
+				It->second->UpdateBuffer(Device, Buffer);
+				It->second->SetBuffer(Device, 3);
+			}
+
+			Device->Draw(6, 0);
+		}
+		void PostProcessRenderer::OnRenderEffect(Rest::Timer* Time)
+		{
+		}
+		void PostProcessRenderer::OnInitialize()
+		{
+			OnResizeBuffers();
+		}
+		void PostProcessRenderer::OnRender(Rest::Timer* Time)
+		{
+			if (Shaders.empty())
+				return;
+
+			Graphics::GraphicsDevice* Device = System->GetDevice();
+			Device->SetRasterizerState(Graphics::RenderLab_Raster_Cull_Back);
+			Device->SetSamplerState(Graphics::RenderLab_Sampler_Trilinear_X16);
+			Device->SetBlendState(Graphics::RenderLab_Blend_Overwrite);
+			Device->SetDepthStencilState(Graphics::RenderLab_DepthStencil_None);
+			Output->SetTarget(Device, 0, 0, 0);
+
+			SceneGraph* Scene = System->GetScene();
+			System->GetScene()->GetSurface()->GetTarget(1)->SetTexture(Device, 1);
+			System->GetScene()->GetSurface()->GetTarget(2)->SetTexture(Device, 2);
+			System->GetScene()->GetSurface()->GetTarget(0)->SetTexture(Device, 3);
+
+			System->GetQuadVBuffer()->SetVertexBuffer(Device, 0, sizeof(Compute::ShapeVertex), 0);
+			OnRenderEffect(Time);
+
+			Device->RestoreTexture2D(1, 3);
+			System->GetScene()->GetSurface()->CopyTargetFrom(0, Device, Output);
+		}
+		void PostProcessRenderer::OnResizeBuffers()
+		{
+			Graphics::RenderTarget2D::Desc I = Graphics::RenderTarget2D::Desc();
+			I.FormatMode = Graphics::Format_R8G8B8A8_Unorm;
+			I.MiscFlags = Graphics::ResourceMisc_Generate_Mips;
+			I.Width = (unsigned int)System->GetScene()->GetSurface()->GetWidth();
+			I.Height = (unsigned int)System->GetScene()->GetSurface()->GetHeight();
+			I.MipLevels = System->GetDevice()->GetMipLevelCount(I.Width, I.Height);
+
+			delete Output;
+			Output = Graphics::RenderTarget2D::Create(System->GetDevice(), I);
+		}
+		Graphics::Shader* PostProcessRenderer::CompileEffect(const std::string& Name, const std::string& Code, size_t BufferSize)
+		{
+			if (Name.empty())
+			{
+				THAWK_ERROR("cannot compile unnamed shader source");
+				return nullptr;
+			}
+
+			Graphics::Shader::Desc Desc = Graphics::Shader::Desc();
+			Desc.Layout = Graphics::Shader::GetShapeVertexLayout();
+			Desc.LayoutSize = 2;
+			Desc.Data = Code;
+
+			Graphics::Shader* Shader = System->CompileShader(Name, Desc, BufferSize);
+			if (!Shader)
+				return nullptr;
+
+			auto It = Shaders.find(Name);
+			if (It != Shaders.end())
+			{
+				delete It->second;
+				It->second = Shader;
+			}
+			else
+				Shaders[Name] = Shader;
+
+			return Shader;
+		}
+
+		ShaderCache::ShaderCache(Graphics::GraphicsDevice* NewDevice) : Device(NewDevice)
+		{
+		}
+		ShaderCache::~ShaderCache()
+		{
+			ClearCache();
+		}
+		Graphics::Shader* ShaderCache::Compile(const std::string& Name, const Graphics::Shader::Desc& Desc, size_t BufferSize)
+		{
+			Graphics::Shader* Shader = Get(Name);
+			if (Shader != nullptr)
+				return Shader;
+
+			Shader = Graphics::Shader::Create(Device, Desc);
+			if (!Shader->IsValid())
+			{
+				delete Shader;
+				return nullptr;
+			}
+			else if (BufferSize > 0)
+				Shader->CreateBuffer(Device, BufferSize);
+			
+			Safe.lock();
+			SCache& Result = Cache[Name];
+			Result.Shader = Shader;
+			Result.Count = 1;
+			Safe.unlock();
+
+			return Shader;
+		}
+		Graphics::Shader* ShaderCache::Get(const std::string& Name)
+		{
+			Safe.lock();
+			auto It = Cache.find(Name);
+			if (It != Cache.end())
+			{
+				It->second.Count++;
+				Safe.unlock();
+
+				return It->second.Shader;
+			}
+
+			Safe.unlock();
+			return nullptr;
+		}
+		bool ShaderCache::Free(const std::string& Name, Graphics::Shader* Shader)
+		{
+			Safe.lock();
+			auto It = Cache.find(Name);
+			if (It == Cache.end())
+				return false;
+
+			if (Shader != It->second.Shader)
+			{
+				Safe.unlock();
+				return false;
+			}
+
+			It->second.Count--;
+			if (It->second.Count > 0)
+			{
+				Safe.unlock();
+				return true;
+			}
+
+			delete It->second.Shader;
+			Cache.erase(It);
+			Safe.unlock();
+
+			return true;
+		}
+		void ShaderCache::ClearCache()
+		{
+			Safe.lock();
+			for (auto It = Cache.begin(); It != Cache.end(); It++)
+			{
+				delete It->second.Shader;
+				It->second.Shader = nullptr;
+			}
+
+			Cache.clear();
+			Safe.unlock();
 		}
 
 		RenderSystem::RenderSystem(Graphics::GraphicsDevice* Ref) : Device(Ref), Scene(nullptr), QuadVertex(nullptr), SphereVertex(nullptr), SphereIndex(nullptr)
@@ -2101,15 +2489,15 @@ namespace Tomahawk
 
 			return nullptr;
 		}
-		Graphics::ElementBuffer* RenderSystem::VertexQuad()
+		Graphics::ElementBuffer* RenderSystem::GetQuadVBuffer()
 		{
 			return QuadVertex;
 		}
-		Graphics::ElementBuffer* RenderSystem::VertexSphere()
+		Graphics::ElementBuffer* RenderSystem::GetSphereVBuffer()
 		{
 			return SphereVertex;
 		}
-		Graphics::ElementBuffer* RenderSystem::IndexSphere()
+		Graphics::ElementBuffer* RenderSystem::GetSphereIBuffer()
 		{
 			return SphereIndex;
 		}
@@ -2120,6 +2508,36 @@ namespace Tomahawk
 		Graphics::GraphicsDevice* RenderSystem::GetDevice()
 		{
 			return Device;
+		}
+		Graphics::Shader* RenderSystem::CompileShader(const std::string& Name, Graphics::Shader::Desc& Desc, size_t BufferSize)
+		{
+			if (Name.empty() && Desc.Filename.empty())
+			{
+				THAWK_ERROR("shader must have name or filename");
+				return nullptr;
+			}
+
+			Desc.Filename = Name;
+			ShaderCache* Cache = (Scene ? Scene->GetCache() : nullptr);
+			if (Cache != nullptr)
+				return Cache->Compile(Name.empty() ? Desc.Filename : Name, Desc, BufferSize);
+
+			Graphics::Shader* Shader = Graphics::Shader::Create(Device, Desc);
+			if (BufferSize > 0)
+				Shader->CreateBuffer(Device, BufferSize);
+
+			return Shader;
+		}
+		void RenderSystem::FreeShader(const std::string& Name, Graphics::Shader* Shader)
+		{
+			ShaderCache* Cache = (Scene ? Scene->GetCache() : nullptr);
+			if (Cache != nullptr)
+			{
+				if (Cache->Get(Name) == Shader)
+					return;
+			}
+			
+			delete Shader;
 		}
 		SceneGraph* RenderSystem::GetScene()
 		{
@@ -2133,12 +2551,8 @@ namespace Tomahawk
 			for (int i = 0; i < ThreadId_Count; i++)
 				Sync.Threads[i].State = 0;
 
-			Graphics::Material Material;
-			Material.Micrometal = 0.0f;
-			Material.Microrough = 0.0f;
-			Material.Roughness = 1.0f;
 			Materials.reserve(16);
-			Materials.push_back(Material);
+			Materials.emplace_back();
 			Configure(I);
 
 			Simulator = new Compute::Simulator(I.Simulator);
@@ -2193,11 +2607,7 @@ namespace Tomahawk
 			BeginThread(ThreadId_Render);
 			if (Camera != nullptr)
 			{
-				Camera->As<Components::Camera>()->FillViewer(&View);
-				Conf.Device->View.InvViewProjection = View.InvViewProjection;
-				Conf.Device->View.ViewPosition = View.Position.MtVector4();
-				Conf.Device->UpdateBuffer(Graphics::RenderBufferType_View);
-
+				RestoreViewBuffer(nullptr);
 				Structure->RemapSubresource(Conf.Device, Materials.data(), Materials.size() * sizeof(Graphics::Material));
 				Structure->SetBuffer(Conf.Device, 0);
 				Surface->SetTarget(Conf.Device, 0, 0, 0);
@@ -2251,10 +2661,10 @@ namespace Tomahawk
 		{
 			View.ViewPosition = Compute::Vector3(-iPosition.X, -iPosition.Y, iPosition.Z);
 			View.ViewProjection.Identify();
-			View.InvViewProjection = View.ViewProjection.Invert();
 			View.Projection = iProjection;
-			View.RealPosition = iPosition.MtVector3();
-			View.Position = View.RealPosition.InvertZ();
+			View.InvViewProjection = View.ViewProjection.Invert();
+			View.RawPosition = iPosition.MtVector3();
+			View.Position = View.RawPosition.InvertZ();
 			View.ViewDistance = (iPosition.W < 0 ? 999999999 : iPosition.W);
 			RestoreViewBuffer(&View);
 
@@ -2279,11 +2689,12 @@ namespace Tomahawk
 		void SceneGraph::RenderDepth(Rest::Timer* Time, Compute::Matrix4x4 iView, Compute::Matrix4x4 iProjection, Compute::Vector4 iPosition)
 		{
 			View.ViewPosition = Compute::Vector3(-iPosition.X, -iPosition.Y, iPosition.Z);
+			View.View = iView;
 			View.ViewProjection = iView * iProjection;
 			View.InvViewProjection = View.ViewProjection.Invert();
 			View.Projection = iProjection;
-			View.RealPosition = iPosition.MtVector3();
-			View.Position = View.RealPosition.InvertZ();
+			View.RawPosition = iPosition.MtVector3();
+			View.Position = View.RawPosition.InvertZ();
 			View.ViewDistance = (iPosition.W < 0 ? 999999999 : iPosition.W);
 			RestoreViewBuffer(&View);
 
@@ -2300,11 +2711,12 @@ namespace Tomahawk
 		void SceneGraph::RenderPhase(Rest::Timer* Time, Compute::Matrix4x4 iView, Compute::Matrix4x4 iProjection, Compute::Vector4 iPosition)
 		{
 			View.ViewPosition = Compute::Vector3(-iPosition.X, -iPosition.Y, iPosition.Z);
+			View.View = iView;
+			View.Projection = iProjection;
 			View.ViewProjection = iView * iProjection;
 			View.InvViewProjection = View.ViewProjection.Invert();
-			View.Projection = iProjection;
-			View.RealPosition = iPosition.MtVector3();
-			View.Position = View.RealPosition.InvertZ();
+			View.RawPosition = iPosition.MtVector3();
+			View.Position = View.RawPosition.InvertZ();
 			View.ViewDistance = (iPosition.W < 0 ? 999999999 : iPosition.W);
 			RestoreViewBuffer(&View);
 
@@ -2360,8 +2772,8 @@ namespace Tomahawk
 					break;
 
 				Entity* Entity1 = Entities[i], * Entity2 = Entities[i + 1];
-				float Distance1 = Entity1->Transform->Position.Distance(View.RealPosition);
-				float Distance2 = Entity2->Transform->Position.Distance(View.RealPosition);
+				float Distance1 = Entity1->Transform->Position.Distance(View.RawPosition);
+				float Distance2 = Entity2->Transform->Position.Distance(View.RawPosition);
 
 				if (Distance1 < Distance2)
 				{
@@ -2432,14 +2844,14 @@ namespace Tomahawk
 			{
 				Component.second->OnAwake(Component.second);
 
-				auto Storage = &Components[Component.second->Id()];
+				auto Storage = GetComponents(Component.second->Id());
 				if (Component.second->Active)
-					Storage->AddUnique(Component.second);
+					Storage->AddIfNotExists(Component.second);
 				else
 					Storage->Remove(Component.second);
 
 				if (Component.second->Active)
-					Pending.AddUnique(Component.second);
+					Pending.AddIfNotExists(Component.second);
 				else
 					Pending.Remove(Component.second);
 			}
@@ -2523,7 +2935,11 @@ namespace Tomahawk
 			}
 
 			Conf.Device->View.InvViewProjection = View.InvViewProjection;
-			Conf.Device->View.ViewPosition = View.Position.MtVector4();
+			Conf.Device->View.ViewProjection = View.ViewProjection;
+			Conf.Device->View.Projection = View.Projection;
+			Conf.Device->View.View = View.View;
+			Conf.Device->View.ViewPosition = View.Position;
+			Conf.Device->View.FarPlane = View.ViewDistance;
 			Conf.Device->UpdateBuffer(Graphics::RenderBufferType_View);
 		}
 		void SceneGraph::ExpandMaterialStructure()
@@ -2988,6 +3404,10 @@ namespace Tomahawk
 		{
 			return Conf.Queue;
 		}
+		ShaderCache* SceneGraph::GetCache()
+		{
+			return Conf.Cache;
+		}
 		Compute::Simulator* SceneGraph::GetSimulator()
 		{
 			return Simulator;
@@ -3428,9 +3848,13 @@ namespace Tomahawk
 						{
 							delete Renderer;
 							Renderer = nullptr;
+
 							THAWK_ERROR("graphics device cannot be created");
 							return;
 						}
+
+						if (I->EnableShaderCache)
+							Shaders = new ShaderCache(Renderer);
 					}
 				}
 				else
@@ -3445,6 +3869,7 @@ namespace Tomahawk
 				{
 					delete Audio;
 					Audio = nullptr;
+
 					THAWK_ERROR("audio device cannot be created");
 					return;
 				}
@@ -3459,7 +3884,7 @@ namespace Tomahawk
 				Content->AddProcessor<FileProcessors::Texture2DProcessor, Graphics::Texture2D>();
 				Content->AddProcessor<FileProcessors::ShaderProcessor, Graphics::Shader>();
 				Content->AddProcessor<FileProcessors::ModelProcessor, Graphics::Model>();
-				Content->AddProcessor<FileProcessors::SkinnedModelProcessor, Graphics::SkinnedModel>();
+				Content->AddProcessor<FileProcessors::SkinModelProcessor, Graphics::SkinModel>();
 				Content->AddProcessor<FileProcessors::DocumentProcessor, Rest::Document>();
 				Content->AddProcessor<FileProcessors::ServerProcessor, Network::HTTP::Server>();
 				Content->AddProcessor<FileProcessors::ShapeProcessor, Compute::UnmanagedShape>();
@@ -3481,6 +3906,7 @@ namespace Tomahawk
 			delete VM;
 			delete Audio;
 			delete Content;
+			delete Shaders;
 			delete Renderer;
 			delete Activity;
 			Host = nullptr;

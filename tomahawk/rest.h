@@ -632,9 +632,9 @@ namespace Tomahawk
 				Data[Count++] = Ref;
 				return End() - 1;
 			}
-			Iterator AddUnique(const T& Ref)
+			Iterator AddIfNotExists(const T& Ref)
 			{
-				Iterator It = std::find(Data, Data + Count, Ref);
+				Iterator It = Find(Ref);
 				if (It != End())
 					return It;
 
@@ -650,7 +650,7 @@ namespace Tomahawk
 			Iterator Remove(const T& Value)
 			{
 				Iterator It;
-				while ((It = std::find(Data, Data + Count, Value)) != End())
+				while ((It = Find(Value)) != End())
 					RemoveAt(It);
 
 				return It;
@@ -661,6 +661,16 @@ namespace Tomahawk
 					return End();
 
 				return Data + Index;
+			}
+			Iterator Find(const T& Ref)
+			{
+				for (auto It = Data; It != Data + Count; It++)
+				{
+					if (*It == Ref)
+						return It;
+				}
+
+				return Data + Count;
 			}
 
 		public:

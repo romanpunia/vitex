@@ -46,7 +46,7 @@ namespace Tomahawk
 
 			struct THAWK_OUT MeshBlob
 			{
-				std::vector<Compute::InfluenceVertex> Vertices;
+				std::vector<Compute::SkinVertex> Vertices;
 				std::vector<int> Indices;
 				std::string Name;
 				Compute::Matrix4x4 World;
@@ -141,14 +141,14 @@ namespace Tomahawk
 				static std::vector<std::pair<int64_t, Compute::Joint>>::iterator FindJoint(std::vector<std::pair<int64_t, Compute::Joint>>& Joints, const std::string& Name);
 			};
 
-			class THAWK_OUT SkinnedModelProcessor : public FileProcessor
+			class THAWK_OUT SkinModelProcessor : public FileProcessor
 			{
 			public:
-				Graphics::SkinnedMesh::Desc Options;
+				Graphics::SkinMesh::Desc Options;
 
 			public:
-				SkinnedModelProcessor(ContentManager* Manager);
-				virtual ~SkinnedModelProcessor() override;
+				SkinModelProcessor(ContentManager* Manager);
+				virtual ~SkinModelProcessor() override;
 				void Free(AssetResource* Asset) override;
 				void* Duplicate(AssetResource* Asset, ContentArgs* Args) override;
 				void* Load(Rest::FileStream* Stream, uint64_t Length, uint64_t Offset, ContentArgs* Args) override;

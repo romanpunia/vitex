@@ -45,7 +45,13 @@ namespace Tomahawk
 			{
 				SceneGraph::Desc I = SceneGraph::Desc();
 				I.Device = Content->GetDevice();
-				I.Queue = Application::Get()->Queue;
+
+				Application* App = Application::Get();
+				if (App != nullptr)
+				{
+					I.Queue = App->Queue;
+					I.Cache = App->Shaders;
+				}
 
 				std::string Environment = Content->GetEnvironment();
 				Rest::Document* Document = Content->Load<Rest::Document>(Stream->Filename(), nullptr);
@@ -84,20 +90,13 @@ namespace Tomahawk
 						Graphics::Material New;
 						NMake::Unpack(It->Find("emission"), &New.Emission);
 						NMake::Unpack(It->Find("metallic"), &New.Metallic);
-						NMake::Unpack(It->Find("micrometal"), &New.Micrometal);
-						NMake::Unpack(It->Find("microrough"), &New.Microrough);
 						NMake::Unpack(It->Find("roughness"), &New.Roughness);
-						NMake::Unpack(It->Find("transmittance"), &New.Transmittance);
-						NMake::Unpack(It->Find("shadowness"), &New.Shadowness);
-						NMake::Unpack(It->Find("reflectance"), &New.Reflectance);
+						NMake::Unpack(It->Find("transparency"), &New.Transparency);
+						NMake::Unpack(It->Find("roughness"), &New.Roughness);
 						NMake::Unpack(It->Find("occlusion"), &New.Occlusion);
-						NMake::Unpack(It->Find("self"), &New.Self);
-						NMake::Unpack(It->Find("reflection"), &New.Reflection);
-						NMake::Unpack(It->Find("intensity"), &New.Intensity);
 						NMake::Unpack(It->Find("radius"), &New.Radius);
-						NMake::Unpack(It->Find("padding1"), &New.Padding1);
-						NMake::Unpack(It->Find("padding2"), &New.Padding2);
-						NMake::Unpack(It->Find("padding3"), &New.Padding3);
+						NMake::Unpack(It->Find("self"), &New.Self);
+						NMake::Unpack(It->Find("padding"), &New.Padding);
 
 						if (CopyMaterial)
 						{
@@ -182,8 +181,8 @@ namespace Tomahawk
 									Target = Entity->AddComponent<Components::ElementAnimator>();
 								else if (ComponentId == THAWK_COMPONENT_ID(Model))
 									Target = Entity->AddComponent<Components::Model>();
-								else if (ComponentId == THAWK_COMPONENT_ID(SkinnedModel))
-									Target = Entity->AddComponent<Components::SkinnedModel>();
+								else if (ComponentId == THAWK_COMPONENT_ID(SkinModel))
+									Target = Entity->AddComponent<Components::SkinModel>();
 								else if (ComponentId == THAWK_COMPONENT_ID(PointLight))
 									Target = Entity->AddComponent<Components::PointLight>();
 								else if (ComponentId == THAWK_COMPONENT_ID(SpotLight))
@@ -268,22 +267,15 @@ namespace Tomahawk
 					Graphics::Material& It = Object->GetMaterial(i);
 
 					Rest::Document* Material = Materials->SetDocument("material");
-					NMake::Pack(Material->SetDocument("emission"), It.Emission);
-					NMake::Pack(Material->SetDocument("metallic"), It.Metallic);
-					NMake::Pack(Material->SetDocument("micrometal"), It.Micrometal);
-					NMake::Pack(Material->SetDocument("microrough"), It.Microrough);
-					NMake::Pack(Material->SetDocument("roughness"), It.Roughness);
-					NMake::Pack(Material->SetDocument("transmittance"), It.Transmittance);
-					NMake::Pack(Material->SetDocument("shadowness"), It.Shadowness);
-					NMake::Pack(Material->SetDocument("reflectance"), It.Reflectance);
-					NMake::Pack(Material->SetDocument("occlusion"), It.Occlusion);
-					NMake::Pack(Material->SetDocument("padding1"), It.Padding1);
-					NMake::Pack(Material->SetDocument("padding2"), It.Padding2);
-					NMake::Pack(Material->SetDocument("padding2"), It.Padding3);
-					NMake::Pack(Material->SetDocument("self"), It.Self);
-					NMake::Pack(Material->SetDocument("reflection"), It.Reflection);
-					NMake::Pack(Material->SetDocument("intensity"), It.Intensity);
-					NMake::Pack(Material->SetDocument("radius"), It.Radius);
+					NMake::Pack(Material->Find("emission"), It.Emission);
+					NMake::Pack(Material->Find("metallic"), It.Metallic);
+					NMake::Pack(Material->Find("roughness"), It.Roughness);
+					NMake::Pack(Material->Find("transparency"), It.Transparency);
+					NMake::Pack(Material->Find("roughness"), It.Roughness);
+					NMake::Pack(Material->Find("occlusion"), It.Occlusion);
+					NMake::Pack(Material->Find("radius"), It.Radius);
+					NMake::Pack(Material->Find("self"), It.Self);
+					NMake::Pack(Material->Find("padding"), It.Padding);
 				}
 
 				Rest::Document* Entities = Document->SetArray("entities");
@@ -765,7 +757,7 @@ namespace Tomahawk
 
 				for (unsigned int v = 0; v < Mesh->mNumVertices; v++)
 				{
-					Compute::InfluenceVertex Element = { 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, -1, -1, -1, -1, 0, 0, 0, 0 };
+					Compute::SkinVertex Element = { 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, -1, -1, -1, -1, 0, 0, 0, 0 };
 
 					auto& Vertex = Mesh->mVertices[v];
 					Element.PositionX = Vertex.x;
@@ -907,28 +899,28 @@ namespace Tomahawk
 				return Joints.end();
 			}
 
-			SkinnedModelProcessor::SkinnedModelProcessor(ContentManager* Manager) : FileProcessor(Manager)
+			SkinModelProcessor::SkinModelProcessor(ContentManager* Manager) : FileProcessor(Manager)
 			{
 			}
-			SkinnedModelProcessor::~SkinnedModelProcessor()
+			SkinModelProcessor::~SkinModelProcessor()
 			{
 			}
-			void SkinnedModelProcessor::Free(AssetResource* Asset)
+			void SkinModelProcessor::Free(AssetResource* Asset)
 			{
 				if (Asset->Resource != nullptr)
-					delete ((Graphics::SkinnedMesh*)Asset->Resource);
+					delete ((Graphics::SkinMesh*)Asset->Resource);
 			}
-			void* SkinnedModelProcessor::Duplicate(AssetResource* Asset, ContentArgs* Args)
+			void* SkinModelProcessor::Duplicate(AssetResource* Asset, ContentArgs* Args)
 			{
 				return Asset->Resource;
 			}
-			void* SkinnedModelProcessor::Load(Rest::FileStream* Stream, uint64_t Length, uint64_t Offset, ContentArgs* Args)
+			void* SkinModelProcessor::Load(Rest::FileStream* Stream, uint64_t Length, uint64_t Offset, ContentArgs* Args)
 			{
 				auto* Document = Content->Load<Rest::Document>(Stream->Filename(), nullptr);
 				if (!Document)
 					return nullptr;
 
-				auto Object = new Graphics::SkinnedModel();
+				auto Object = new Graphics::SkinModel();
 				NMake::Unpack(Document->Find("root"), &Object->Root);
 				NMake::Unpack(Document->Find("max"), &Object->Max);
 				NMake::Unpack(Document->Find("min"), &Object->Min);
@@ -937,7 +929,7 @@ namespace Tomahawk
 				std::vector<Rest::Document*> Meshes = Document->FindCollectionPath("meshes.mesh");
 				for (auto&& Mesh : Meshes)
 				{
-					Graphics::SkinnedMesh::Desc F = Graphics::SkinnedMesh::Desc();
+					Graphics::SkinMesh::Desc F = Graphics::SkinMesh::Desc();
 					F.AccessFlags = Options.AccessFlags;
 					F.Usage = Options.Usage;
 
@@ -954,7 +946,7 @@ namespace Tomahawk
 					}
 
 					Content->GetDevice()->Lock();
-					Object->Meshes.push_back(Graphics::SkinnedMesh::Create(Content->GetDevice(), F));
+					Object->Meshes.push_back(Graphics::SkinMesh::Create(Content->GetDevice(), F));
 					Content->GetDevice()->Unlock();
 
 					NMake::Unpack(Mesh->Find("name"), &Object->Meshes.back()->Name);
@@ -966,7 +958,7 @@ namespace Tomahawk
 
 				return (void*)Object;
 			}
-			std::vector<Compute::SkinAnimatorClip> SkinnedModelProcessor::ImportAnimation(const std::string& Path, unsigned int Opts)
+			std::vector<Compute::SkinAnimatorClip> SkinModelProcessor::ImportAnimation(const std::string& Path, unsigned int Opts)
 			{
 #ifdef THAWK_HAS_ASSIMP
 				Assimp::Importer Importer;
@@ -1045,7 +1037,7 @@ namespace Tomahawk
 				return std::vector<Compute::SkinAnimatorClip>();
 #endif
 			}
-			void SkinnedModelProcessor::ProcessNode(void* Scene_, void* Node_, std::unordered_map<std::string, MeshNode>* Joints, int64_t& Id)
+			void SkinModelProcessor::ProcessNode(void* Scene_, void* Node_, std::unordered_map<std::string, MeshNode>* Joints, int64_t& Id)
 			{
 #ifdef THAWK_HAS_ASSIMP
 				auto* Scene = (aiScene*)Scene_;
@@ -1077,7 +1069,7 @@ namespace Tomahawk
 					ProcessNode(Scene, Node->mChildren[n], Joints, Id);
 #endif
 			}
-			void SkinnedModelProcessor::ProcessHeirarchy(void* Scene_, void* Node_, std::unordered_map<std::string, MeshNode>* Joints)
+			void SkinModelProcessor::ProcessHeirarchy(void* Scene_, void* Node_, std::unordered_map<std::string, MeshNode>* Joints)
 			{
 #ifdef THAWK_HAS_ASSIMP
 				auto* Scene = (aiScene*)Scene_;
@@ -1091,7 +1083,7 @@ namespace Tomahawk
 					ProcessHeirarchy(Scene, Node->mChildren[i], Joints);
 #endif
 			}
-			void SkinnedModelProcessor::ProcessKeys(std::vector<Compute::AnimatorKey>* Keys, std::unordered_map<std::string, MeshNode>* Joints)
+			void SkinModelProcessor::ProcessKeys(std::vector<Compute::AnimatorKey>* Keys, std::unordered_map<std::string, MeshNode>* Joints)
 			{
 				if (Keys->size() < Joints->size())
 				{

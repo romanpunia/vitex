@@ -11,7 +11,7 @@ namespace Tomahawk
 		{
 			class Model;
 
-			class SkinnedModel;
+			class SkinModel;
 
 			class THAWK_OUT RigidBody : public Component
 			{
@@ -50,7 +50,7 @@ namespace Tomahawk
 				Compute::SoftBody* Instance;
 				std::vector<Compute::Vertex> Vertices;
 				std::vector<int> Indices;
-				TSurface Surface;
+				Appearance Surface;
 				bool Kinematic, Synchronize;
 				bool Visibility;
 
@@ -171,7 +171,7 @@ namespace Tomahawk
 			class THAWK_OUT SkinAnimator : public Component
 			{
 			public:
-				SkinnedModel* Instance = nullptr;
+				SkinModel* Instance = nullptr;
 
 			public:
 				std::vector<Compute::SkinAnimatorClip> Clips;
@@ -235,17 +235,12 @@ namespace Tomahawk
 			class THAWK_OUT ElementSystem : public Component
 			{
 			public:
-				Compute::Vector3 Diffusion;
-				Compute::Vector2 TexCoord;
-				uint64_t Material;
+				Graphics::InstanceBuffer* Instance;
+				Appearance Surface;
 				float Visibility;
 				float Volume;
-				bool StrongConnection;
+				bool Connected;
 				bool QuadBased;
-
-			public:
-				Graphics::InstanceBuffer* Instance;
-				Graphics::Texture2D* Diffuse;
 
 			public:
 				ElementSystem(Entity* Ref);
@@ -346,7 +341,7 @@ namespace Tomahawk
 			class THAWK_OUT Model : public Component
 			{
 			public:
-				std::unordered_map<Graphics::Mesh*, TSurface> Surfaces;
+				std::unordered_map<Graphics::Mesh*, Appearance> Surfaces;
 				Graphics::Model* Instance = nullptr;
 				bool Visibility;
 
@@ -359,37 +354,37 @@ namespace Tomahawk
 				virtual void OnEvent(Event* Value) override;
 				virtual Component* OnClone(Entity* New) override;
 				Graphics::Material& GetMaterial(Graphics::Mesh* Mesh);
-				Graphics::Material& GetMaterial(TSurface* Surface);
-				TSurface* GetSurface(Graphics::Mesh* Mesh);
+				Graphics::Material& GetMaterial(Appearance* Surface);
+				Appearance* GetSurface(Graphics::Mesh* Mesh);
 				Compute::Matrix4x4 GetBoundingBox();
 
 			public:
 				THAWK_COMPONENT(Model);
 			};
 
-			class THAWK_OUT SkinnedModel : public Component
+			class THAWK_OUT SkinModel : public Component
 			{
 			public:
-				std::unordered_map<Graphics::SkinnedMesh*, TSurface> Surfaces;
-				Graphics::SkinnedModel* Instance = nullptr;
+				std::unordered_map<Graphics::SkinMesh*, Appearance> Surfaces;
+				Graphics::SkinModel* Instance = nullptr;
 				Graphics::PoseBuffer Skeleton;
 				bool Visibility;
 
 			public:
-				SkinnedModel(Entity* Ref);
-				virtual ~SkinnedModel() = default;
+				SkinModel(Entity* Ref);
+				virtual ~SkinModel() = default;
 				virtual void OnLoad(ContentManager* Content, Rest::Document* Node) override;
 				virtual void OnSave(ContentManager* Content, Rest::Document* Node) override;
 				virtual void OnSynchronize(Rest::Timer* Time) override;
 				virtual void OnEvent(Event* Value) override;
 				virtual Component* OnClone(Entity* New) override;
-				Graphics::Material& GetMaterial(Graphics::SkinnedMesh* Mesh);
-				Graphics::Material& GetMaterial(TSurface* Surface);
-				TSurface* GetSurface(Graphics::SkinnedMesh* Mesh);
+				Graphics::Material& GetMaterial(Graphics::SkinMesh* Mesh);
+				Graphics::Material& GetMaterial(Appearance* Surface);
+				Appearance* GetSurface(Graphics::SkinMesh* Mesh);
 				Compute::Matrix4x4 GetBoundingBox();
 
 			public:
-				THAWK_COMPONENT(SkinnedModel);
+				THAWK_COMPONENT(SkinModel);
 			};
 
 			class THAWK_OUT PointLight : public Component
@@ -397,7 +392,7 @@ namespace Tomahawk
 			public:
 				Compute::Matrix4x4 View;
 				Compute::Matrix4x4 Projection;
-				Compute::Vector3 Diffusion;
+				Compute::Vector3 Diffuse;
 				float Visibility = 0.0f;
 				float Emission = 1.0f;
 				float Range = 5.0f;
@@ -427,7 +422,7 @@ namespace Tomahawk
 			public:
 				Compute::Matrix4x4 Projection;
 				Compute::Matrix4x4 View;
-				Compute::Vector3 Diffusion;
+				Compute::Vector3 Diffuse;
 				float ShadowSoftness;
 				float ShadowDistance;
 				float ShadowBias;
@@ -439,7 +434,7 @@ namespace Tomahawk
 				bool Shadowed;
 
 			public:
-				Graphics::Texture2D* Diffuse;
+				Graphics::Texture2D* ProjectMap;
 				Graphics::Texture2D* Occlusion;
 
 			public:
@@ -459,7 +454,7 @@ namespace Tomahawk
 			public:
 				Compute::Matrix4x4 Projection;
 				Compute::Matrix4x4 View;
-				Compute::Vector3 Diffusion;
+				Compute::Vector3 Diffuse;
 				float ShadowDistance;
 				float ShadowSoftness;
 				float ShadowBias;
@@ -490,7 +485,7 @@ namespace Tomahawk
 			public:
 				Compute::Matrix4x4 View[6];
 				Compute::Matrix4x4 Projection;
-				Compute::Vector3 Diffusion;
+				Compute::Vector3 Diffuse;
 				Compute::Vector3 ViewOffset;
 				float CaptureRange;
 				float Emission;
@@ -501,13 +496,10 @@ namespace Tomahawk
 				bool RenderLocked;
 
 			public:
-				Graphics::Texture2D* DiffusePX;
-				Graphics::Texture2D* DiffuseNX;
-				Graphics::Texture2D* DiffusePY;
-				Graphics::Texture2D* DiffuseNY;
-				Graphics::Texture2D* DiffusePZ;
-				Graphics::Texture2D* DiffuseNZ;
-				Graphics::TextureCube* Diffuse;
+				Graphics::Texture2D* DiffuseMapX[2];
+				Graphics::Texture2D* DiffuseMapY[2];
+				Graphics::Texture2D* DiffuseMapZ[2];
+				Graphics::TextureCube* DiffuseMap;
 				Rest::TickTimer Rebuild;
 
 			public:

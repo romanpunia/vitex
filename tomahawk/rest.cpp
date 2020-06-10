@@ -1336,7 +1336,7 @@ namespace Tomahawk
 				return { L->size() - 1, L->size(), false };
 
 			uint64_t Length = strlen(Needle);
-			for (uint64_t i = L->size() - 1 - Offset; i >= 0; i--)
+			for (uint64_t i = L->size() - 1 - Offset; i > 0; i--)
 			{
 				for (uint64_t k = 0; k < Length; k++)
 				{

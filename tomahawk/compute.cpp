@@ -3376,7 +3376,7 @@ namespace Tomahawk
 				It->PositionZ = Position.Z;
 			}
 		}
-		void MathCommon::ComputeInfluenceOrientation(std::vector<InfluenceVertex>& Vertices, bool LeftHanded)
+		void MathCommon::ComputeInfluenceOrientation(std::vector<SkinVertex>& Vertices, bool LeftHanded)
 		{
 			Compute::Matrix4x4 Coord(1, 0, 0, 0, 0, 1, 0, 0, 0, 0, -1, 0, 0, 0, 0, 1);
 
@@ -3393,12 +3393,12 @@ namespace Tomahawk
 				It->PositionZ = Position.Z;
 			}
 		}
-		void MathCommon::ComputeInfluenceNormals(std::vector<InfluenceVertex>& Vertices)
+		void MathCommon::ComputeInfluenceNormals(std::vector<SkinVertex>& Vertices)
 		{
 			Vector3 Tangent, Bitangent;
 			for (uint64_t i = 0; i < Vertices.size(); i += 3)
 			{
-				InfluenceVertex& V1 = Vertices[i], & V2 = Vertices[i + 1], & V3 = Vertices[i + 2];
+				SkinVertex& V1 = Vertices[i], & V2 = Vertices[i + 1], & V3 = Vertices[i + 2];
 				ComputeInfluenceTangentBitangent(V1, V2, V3, Tangent, Bitangent);
 
 				V1.TangentX = Tangent.X;
@@ -3421,12 +3421,12 @@ namespace Tomahawk
 				V3.BitangentZ = Bitangent.Z;
 			}
 		}
-		void MathCommon::ComputeInfluenceNormalsArray(InfluenceVertex* Vertices, uint64_t Count)
+		void MathCommon::ComputeInfluenceNormalsArray(SkinVertex* Vertices, uint64_t Count)
 		{
 			Vector3 Tangent, Bitangent;
 			for (uint64_t i = 0; i < Count; i += 3)
 			{
-				InfluenceVertex& V1 = Vertices[i], & V2 = Vertices[i + 1], & V3 = Vertices[i + 2];
+				SkinVertex& V1 = Vertices[i], & V2 = Vertices[i + 1], & V3 = Vertices[i + 2];
 				ComputeInfluenceTangentBitangent(V1, V2, V3, Tangent, Bitangent);
 
 				V1.TangentX = Tangent.X;
@@ -3449,7 +3449,7 @@ namespace Tomahawk
 				V3.BitangentZ = Bitangent.Z;
 			}
 		}
-		void MathCommon::ComputeInfluenceTangentBitangent(InfluenceVertex V1, InfluenceVertex V2, InfluenceVertex V3, Vector3& Tangent, Vector3& Bitangent, Vector3& Normal)
+		void MathCommon::ComputeInfluenceTangentBitangent(SkinVertex V1, SkinVertex V2, SkinVertex V3, Vector3& Tangent, Vector3& Bitangent, Vector3& Normal)
 		{
 			Vector3 Face1 = Vector3(V2.PositionX - V1.PositionX, V2.PositionY - V1.PositionY, V2.PositionZ - V1.PositionZ);
 			Vector3 Face2 = Vector3(V3.PositionX - V1.PositionX, V3.PositionY - V1.PositionY, V3.PositionZ - V1.PositionZ);
@@ -3473,7 +3473,7 @@ namespace Tomahawk
 			Normal.Z = (Tangent.X * Bitangent.Y) - (Tangent.Y * Bitangent.X);
 			Normal = -Normal.NormalizeSafe();
 		}
-		void MathCommon::ComputeInfluenceTangentBitangent(InfluenceVertex V1, InfluenceVertex V2, InfluenceVertex V3, Vector3& Tangent, Vector3& Bitangent)
+		void MathCommon::ComputeInfluenceTangentBitangent(SkinVertex V1, SkinVertex V2, SkinVertex V3, Vector3& Tangent, Vector3& Bitangent)
 		{
 			Vector3 Face1 = Vector3(V2.PositionX - V1.PositionX, V2.PositionY - V1.PositionY, V2.PositionZ - V1.PositionZ);
 			Vector3 Face2 = Vector3(V3.PositionX - V1.PositionX, V3.PositionY - V1.PositionY, V3.PositionZ - V1.PositionZ);
@@ -4276,7 +4276,7 @@ namespace Tomahawk
 			return Cursor.IntersectsAABB(Position.InvertZ(), Scale);
 		}
 
-		Preprocessor::Preprocessor() : Resolve(0)
+		Preprocessor::Preprocessor() : Nested(false)
 		{
 		}
 		void Preprocessor::SetIncludeOptions(const IncludeDesc& NewDesc)
@@ -4313,7 +4313,6 @@ namespace Tomahawk
 		}
 		void Preprocessor::Clear()
 		{
-			Resolve = 0;
 			Defines.clear();
 			Sets.clear();
 		}
@@ -4332,55 +4331,50 @@ namespace Tomahawk
 		}
 		bool Preprocessor::Process(const std::string& Path, std::string& Data)
 		{
+			bool Nesting = SaveResult();
 			if (Data.empty())
-				return false;
+				return ReturnResult(false, Nesting);
 
-			std::string R = Path.empty() ? "" : Rest::OS::Resolve(Path.c_str());
-			if (Resolve > 0 && (!Path.empty() && HasSet(R)))
-				return true;
+			if (!Path.empty() && HasSet(Path))
+				return ReturnResult(true, Nesting);
 
 			Rest::Stroke Buffer(&Data);
 			if (Features.Conditions && !ProcessBlockDirective(Buffer))
-				return false;
+				return ReturnResult(false, Nesting);
 
 			if (Features.Includes)
 			{
-				if (!R.empty())
-					PushSet(R);
+				if (!Path.empty())
+					Sets.push_back(Path);
 
-				if (!ProcessIncludeDirective(R, Buffer))
-				{
-					PopSet();
-					return false;
-				}
-
-				if (!R.empty())
-					PopSet();
+				if (!ProcessIncludeDirective(Path, Buffer))
+					return ReturnResult(false, Nesting);
 			}
 
 			if (Features.Pragmas && !ProcessPragmaDirective(Buffer))
-				return false;
+				return ReturnResult(false, Nesting);
 
 			uint64_t Offset;
 			if (Features.Defines && !ProcessDefineDirective(Buffer, 0, Offset, true))
-				return false;
+				return ReturnResult(false, Nesting);
 
 			Buffer.Trim();
-			return true;
+			return ReturnResult(true, Nesting);
 		}
-		void Preprocessor::PushSet(const std::string& Path)
+		bool Preprocessor::SaveResult()
 		{
-			Sets.push_back(Path);
-			Resolve++;
-		}
-		void Preprocessor::PopSet()
-		{
-			Resolve--;
-			if (Resolve > 0)
-				return;
+			bool Nesting = Nested;
+			Nested = true;
 
-			Sets.clear();
-			Resolve = 0;
+			return Nesting;
+		}
+		bool Preprocessor::ReturnResult(bool Result, bool WasNested)
+		{
+			Nested = WasNested;
+			if (!Nested)
+				Sets.clear();
+
+			return Result;
 		}
 		bool Preprocessor::ProcessIncludeDirective(const std::string& Path, Rest::Stroke& Buffer)
 		{
@@ -4420,22 +4414,21 @@ namespace Tomahawk
 				Section.Trim();
 				End++;
 
-				std::string File = Rest::OS::Resolve(Section.R(), Dir);
-				if (File.empty())
-					File = Section.R();
+				FileDesc.Path = Section.R();
+				FileDesc.From = Path;
 
+				IncludeResult File = ResolveInclude(FileDesc);
 				std::string Output;
-				if (!HasSet(File))
+
+				if (!HasSet(File.Module))
 				{
-					FileDesc.Path = Section.R();
-					FileDesc.From = Path;
-					if (!Include || !Include(this, ResolveInclude(FileDesc), &Output))
+					if (!Include || !Include(this, File, &Output))
 					{
 						THAWK_ERROR("%s: cannot find \"%s\"", Path.c_str(), Section.Get());
 						return false;
 					}
 
-					if (!Output.empty() && !Process(File, Output))
+					if (!Output.empty() && !Process(File.Module, Output))
 						return false;
 				}
 
@@ -7442,7 +7435,7 @@ namespace Tomahawk
 
 			return Shape;
 		}
-		btCollisionShape* Simulator::CreateConvexHull(std::vector<InfluenceVertex>& Vertices)
+		btCollisionShape* Simulator::CreateConvexHull(std::vector<SkinVertex>& Vertices)
 		{
 			btConvexHullShape* Shape = new btConvexHullShape();
 			for (auto It = Vertices.begin(); It != Vertices.end(); It++)

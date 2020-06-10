@@ -957,26 +957,30 @@ namespace Tomahawk
 
 		struct THAWK_OUT AnimationBuffer
 		{
-			Compute::Matrix4x4 Transformation[96];
-			Compute::Vector4 Base;
+			Compute::Matrix4x4 Offsets[96];
+			float HasAnimation;
+			Compute::Vector3 Padding;
 		};
 
 		struct THAWK_OUT RenderBuffer
 		{
 			Compute::Matrix4x4 WorldViewProjection;
 			Compute::Matrix4x4 World;
-			Compute::Vector3 Diffusion;
-			float SurfaceDiffuse = 0.0f;
+			Compute::Vector3 Diffuse;
+			float HasDiffuse = 0.0f;
 			Compute::Vector2 TexCoord;
-			float SurfaceNormal = 0.0f;
-			float Material = 0.0f;
+			float HasNormal = 0.0f;
+			float MaterialId = 0.0f;
 		};
 
 		struct THAWK_OUT ViewBuffer
 		{
 			Compute::Matrix4x4 InvViewProjection;
+			Compute::Matrix4x4 ViewProjection;
+			Compute::Matrix4x4 Projection;
 			Compute::Matrix4x4 View;
-			Compute::Vector4 ViewPosition;
+			Compute::Vector3 ViewPosition;
+			float FarPlane;
 		};
 
 		struct THAWK_OUT PoseBuffer
@@ -984,8 +988,8 @@ namespace Tomahawk
 			std::unordered_map<int64_t, Compute::Matrix4x4> Pose;
 			Compute::Matrix4x4 Transform[96];
 
-			bool Reset(class SkinnedModel* Model);
-			bool ResetKeys(class SkinnedModel* Model, std::vector<Compute::AnimatorKey>* Keys);
+			bool Reset(class SkinModel* Model);
+			bool ResetKeys(class SkinModel* Model, std::vector<Compute::AnimatorKey>* Keys);
 			Compute::Matrix4x4 Offset(int64_t Index);
 
 		private:
@@ -995,22 +999,14 @@ namespace Tomahawk
 
 		struct THAWK_OUT Material
 		{
-			Compute::Vector3 Emission;
-			float Intensity = 1.0f;
-			Compute::Vector3 Metallic;
-			float Micrometal = 0.0f;
-			float Microrough = 0.0f;
-			float Roughness = 1.0f;
-			float Transmittance = 0.0f;
-			float Shadowness = 1.0f;
-			float Reflectance = 0.0f;
-			float Reflection = 0.0f;
-			float Occlusion = 1.0f;
+			Compute::Vector4 Emission;
+			Compute::Vector4 Metallic;
+			Compute::Vector2 Roughness = { 1, 0 };
+			Compute::Vector2 Transparency;
+			float Occlusion = 0.0f;
 			float Radius = 0.0f;
 			float Self = 0.0f;
-			float Padding1 = 0.0f;
-			float Padding2 = 0.0f;
-			float Padding3 = 0.0f;
+			float Padding = 0.0f;
 		};
 
 		class THAWK_OUT Surface
@@ -1038,7 +1034,6 @@ namespace Tomahawk
 			struct Desc
 			{
 				Compute::ProcIncludeCallback Include = nullptr;
-				Compute::ProcPragmaCallback Pragma = nullptr;
 				Compute::Preprocessor::Desc Features;
 				std::vector<std::string> Defines;
 				InputLayout* Layout = nullptr;
@@ -1059,16 +1054,17 @@ namespace Tomahawk
 			virtual void CreateBuffer(GraphicsDevice* Device, size_t Size) = 0;
 			virtual void SetShader(GraphicsDevice* Device, unsigned int Type = ShaderType_All) = 0;
 			virtual void SetBuffer(GraphicsDevice* Device, unsigned int Slot, unsigned int Type = ShaderType_All) = 0;
+			virtual bool IsValid() = 0;
 
 		public:
 			static Shader* Create(GraphicsDevice* Device, const Desc& I);
 			static InputLayout* GetShapeVertexLayout();
 			static InputLayout* GetElementVertexLayout();
-			static InputLayout* GetInfluenceVertexLayout();
+			static InputLayout* GetSkinVertexLayout();
 			static InputLayout* GetVertexLayout();
 			static unsigned int GetShapeVertexLayoutStride();
 			static unsigned int GetElementVertexLayoutStride();
-			static unsigned int GetInfluenceVertexLayoutStride();
+			static unsigned int GetSkinVertexLayoutStride();
 			static unsigned int GetVertexLayoutStride();
 		};
 
@@ -1462,12 +1458,12 @@ namespace Tomahawk
 			static Mesh* Create(GraphicsDevice* Device, const Desc& I);
 		};
 
-		class THAWK_OUT SkinnedMesh : public Rest::Object
+		class THAWK_OUT SkinMesh : public Rest::Object
 		{
 		public:
 			struct Desc
 			{
-				std::vector<Compute::InfluenceVertex> Elements;
+				std::vector<Compute::SkinVertex> Elements;
 				std::vector<int> Indices;
 				CPUAccess AccessFlags = CPUAccess_Invalid;
 				ResourceUsage Usage = ResourceUsage_Default;
@@ -1482,18 +1478,18 @@ namespace Tomahawk
 			std::string Name;
 
 		protected:
-			SkinnedMesh(GraphicsDevice* Device, const Desc& I);
+			SkinMesh(GraphicsDevice* Device, const Desc& I);
 
 		public:
-			virtual ~SkinnedMesh();
+			virtual ~SkinMesh();
 			virtual void Draw(GraphicsDevice* Device) = 0;
-			virtual void Update(GraphicsDevice* Device, Compute::InfluenceVertex* Elements) = 0;
-			virtual Compute::InfluenceVertex* Elements(GraphicsDevice* Device) = 0;
+			virtual void Update(GraphicsDevice* Device, Compute::SkinVertex* Elements) = 0;
+			virtual Compute::SkinVertex* Elements(GraphicsDevice* Device) = 0;
 			ElementBuffer* GetVertexBuffer();
 			ElementBuffer* GetIndexBuffer();
 
 		public:
-			static SkinnedMesh* Create(GraphicsDevice* Device, const Desc& I);
+			static SkinMesh* Create(GraphicsDevice* Device, const Desc& I);
 		};
 
 		class THAWK_OUT Model : public Rest::Object
@@ -1510,20 +1506,20 @@ namespace Tomahawk
 			Mesh* Find(const std::string& Name);
 		};
 
-		class THAWK_OUT SkinnedModel : public Rest::Object
+		class THAWK_OUT SkinModel : public Rest::Object
 		{
 		public:
-			std::vector<SkinnedMesh*> Meshes;
+			std::vector<SkinMesh*> Meshes;
 			std::vector<Compute::Joint> Joints;
 			Compute::Matrix4x4 Root;
 			Compute::Vector4 Max;
 			Compute::Vector4 Min;
 
 		public:
-			SkinnedModel();
-			~SkinnedModel();
+			SkinModel();
+			~SkinModel();
 			void BuildSkeleton(PoseBuffer* Map);
-			SkinnedMesh* FindMesh(const std::string& Name);
+			SkinMesh* FindMesh(const std::string& Name);
 			Compute::Joint* FindJoint(const std::string& Name, Compute::Joint* Root = nullptr);
 			Compute::Joint* FindJoint(int64_t Index, Compute::Joint* Root = nullptr);
 
@@ -1624,8 +1620,8 @@ namespace Tomahawk
 
 			struct Section
 			{
-				std::string Code;
 				std::string Name;
+				std::string Code;
 			};
 
 		protected:
@@ -1646,6 +1642,7 @@ namespace Tomahawk
 			const void* ConstantData[4];
 			RenderBackend Backend;
 			std::mutex Mutex;
+			bool Debug;
 
 		public:
 			RenderBuffer Render;
@@ -1705,7 +1702,8 @@ namespace Tomahawk
 			virtual bool ProcessShaderCode(Shader::Desc& ShaderCode);
 			virtual void AddSection(const std::string& Name, const std::string& Code);
 			virtual void RemoveSection(const std::string& Name);
-			virtual std::vector<Section*> GetShaderSections();
+			virtual std::string* GetSection(const std::string& Name);
+			virtual std::vector<Section*> GetSections();
 			void Lock();
 			void Unlock();
 			void CreateRendererStates();
@@ -1721,13 +1719,15 @@ namespace Tomahawk
 			unsigned int GetCompilationFlags();
 			unsigned int GetMipLevelCount(unsigned int Width, unsigned int Height);
 			VSync GetVSyncMode();
+			bool IsDebug();
 			uint64_t GetDepthStencilStateCount();
 			uint64_t GetBlendStateCount();
 			uint64_t GetRasterizerStateCount();
 			uint64_t GetSamplerStateCount();
 
 		protected:
-			virtual void LoadShaderSections() = 0;
+			void LoadSections();
+			void FreeProxy();
 
 		public:
 			static GraphicsDevice* Create(const Desc& I);

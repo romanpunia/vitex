@@ -200,7 +200,7 @@ namespace Tomahawk
 			float BitangentZ;
 		};
 
-		struct THAWK_OUT InfluenceVertex
+		struct THAWK_OUT SkinVertex
 		{
 			float PositionX;
 			float PositionY;
@@ -1151,11 +1151,11 @@ namespace Tomahawk
 			static void ComputePositionOrientation(Compute::Vector3* Position, bool LeftHanded);
 			static void ComputeIndexWindingOrderFlip(std::vector<int>& Indices);
 			static void ComputeVertexOrientation(std::vector<Vertex>& Vertices, bool LeftHanded);
-			static void ComputeInfluenceOrientation(std::vector<InfluenceVertex>& Vertices, bool LeftHanded);
-			static void ComputeInfluenceNormals(std::vector<InfluenceVertex>& Vertices);
-			static void ComputeInfluenceNormalsArray(InfluenceVertex* Vertices, uint64_t Count);
-			static void ComputeInfluenceTangentBitangent(InfluenceVertex V1, InfluenceVertex V2, InfluenceVertex V3, Vector3& Tangent, Vector3& Bitangent, Vector3& Normal);
-			static void ComputeInfluenceTangentBitangent(InfluenceVertex V1, InfluenceVertex V2, InfluenceVertex V3, Vector3& Tangent, Vector3& Bitangent);
+			static void ComputeInfluenceOrientation(std::vector<SkinVertex>& Vertices, bool LeftHanded);
+			static void ComputeInfluenceNormals(std::vector<SkinVertex>& Vertices);
+			static void ComputeInfluenceNormalsArray(SkinVertex* Vertices, uint64_t Count);
+			static void ComputeInfluenceTangentBitangent(SkinVertex V1, SkinVertex V2, SkinVertex V3, Vector3& Tangent, Vector3& Bitangent, Vector3& Normal);
+			static void ComputeInfluenceTangentBitangent(SkinVertex V1, SkinVertex V2, SkinVertex V3, Vector3& Tangent, Vector3& Bitangent);
 			static void ConfigurateUnsafe(Transform* In, Matrix4x4* LocalTransform, Vector3* LocalPosition, Vector3* LocalRotation, Vector3* LocalScale);
 			static void SetRootUnsafe(Transform* In, Transform* Root);
 			static void Randomize();
@@ -1228,7 +1228,7 @@ namespace Tomahawk
 			ProcPragmaCallback Pragma;
 			IncludeDesc FileDesc;
 			Desc Features;
-			int Resolve;
+			bool Nested;
 
 		public:
 			Preprocessor();
@@ -1244,8 +1244,8 @@ namespace Tomahawk
 			bool Process(const std::string& Path, std::string& Buffer);
 
 		private:
-			void PushSet(const std::string& Path);
-			void PopSet();
+			bool SaveResult();
+			bool ReturnResult(bool Result, bool WasNested);
 			bool ProcessIncludeDirective(const std::string& Path, Rest::Stroke& Buffer);
 			bool ProcessPragmaDirective(Rest::Stroke& Buffer);
 			bool ProcessBlockDirective(Rest::Stroke& Buffer);
@@ -1803,7 +1803,7 @@ namespace Tomahawk
 			btCollisionShape* CreateCapsule(float Radius = 1, float Height = 1);
 			btCollisionShape* CreateCone(float Radius = 1, float Height = 1);
 			btCollisionShape* CreateCylinder(const Vector3& Scale = Vector3(1, 1, 1));
-			btCollisionShape* CreateConvexHull(std::vector<InfluenceVertex>& Mesh);
+			btCollisionShape* CreateConvexHull(std::vector<SkinVertex>& Mesh);
 			btCollisionShape* CreateConvexHull(std::vector<Vertex>& Mesh);
 			btCollisionShape* CreateConvexHull(std::vector<Vector2>& Mesh);
 			btCollisionShape* CreateConvexHull(std::vector<Vector3>& Mesh);

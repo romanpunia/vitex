@@ -737,6 +737,11 @@ namespace Tomahawk
 
 			private:
 				Rest::Pool<Engine::Component*>* Models = nullptr;
+				Graphics::DepthStencilState* DepthStencil = nullptr;
+				Graphics::RasterizerState* BackRasterizer = nullptr;
+				Graphics::RasterizerState* FrontRasterizer = nullptr;
+				Graphics::BlendState* Blend = nullptr;
+				Graphics::SamplerState* Sampler = nullptr;
 
 			public:
 				ModelRenderer(RenderSystem* Lab);
@@ -768,6 +773,11 @@ namespace Tomahawk
 
 			private:
 				Rest::Pool<Engine::Component*>* SkinModels = nullptr;
+				Graphics::DepthStencilState* DepthStencil = nullptr;
+				Graphics::RasterizerState* BackRasterizer = nullptr;
+				Graphics::RasterizerState* FrontRasterizer = nullptr;
+				Graphics::BlendState* Blend = nullptr;
+				Graphics::SamplerState* Sampler = nullptr;
 
 			public:
 				SkinModelRenderer(RenderSystem* Lab);
@@ -799,6 +809,11 @@ namespace Tomahawk
 
 			private:
 				Rest::Pool<Engine::Component*>* SoftBodies = nullptr;
+				Graphics::DepthStencilState* DepthStencil = nullptr;
+				Graphics::RasterizerState* BackRasterizer = nullptr;
+				Graphics::RasterizerState* FrontRasterizer = nullptr;
+				Graphics::BlendState* Blend = nullptr;
+				Graphics::SamplerState* Sampler = nullptr;
 				Graphics::ElementBuffer* VertexBuffer = nullptr;
 				Graphics::ElementBuffer* IndexBuffer = nullptr;
 
@@ -833,6 +848,12 @@ namespace Tomahawk
 
 			private:
 				Rest::Pool<Engine::Component*>* ElementSystems = nullptr;
+				Graphics::DepthStencilState* DepthStencil = nullptr;
+				Graphics::RasterizerState* BackRasterizer = nullptr;
+				Graphics::RasterizerState* FrontRasterizer = nullptr;
+				Graphics::BlendState* AdditiveBlend = nullptr;
+				Graphics::BlendState* OverwriteBlend = nullptr;
+				Graphics::SamplerState* Sampler = nullptr;
 
 			public:
 				ElementSystemRenderer(RenderSystem* Lab);
@@ -994,6 +1015,10 @@ namespace Tomahawk
 				Rest::Pool<Engine::Component*>* ProbeLights = nullptr;
 				Rest::Pool<Engine::Component*>* SpotLights = nullptr;
 				Rest::Pool<Engine::Component*>* LineLights = nullptr;
+				Graphics::DepthStencilState* DepthStencil = nullptr;
+				Graphics::RasterizerState* Rasterizer = nullptr;
+				Graphics::BlendState* Blend = nullptr;
+				Graphics::SamplerState* Sampler = nullptr;
 				Graphics::RenderTarget2D* Output1 = nullptr;
 				Graphics::RenderTarget2D* Output2 = nullptr;
 				Graphics::RenderTarget2D* Input1 = nullptr;
@@ -1025,7 +1050,11 @@ namespace Tomahawk
 			class THAWK_OUT ImageRenderer : public Renderer
 			{
 			public:
-				Graphics::RenderTarget2D* RenderTarget;
+				Graphics::RenderTarget2D* RenderTarget = nullptr;
+				Graphics::DepthStencilState* DepthStencil = nullptr;
+				Graphics::RasterizerState* Rasterizer = nullptr;
+				Graphics::BlendState* Blend = nullptr;
+				Graphics::SamplerState* Sampler = nullptr;
 
 			public:
 				ImageRenderer(RenderSystem* Lab);
@@ -1099,12 +1128,13 @@ namespace Tomahawk
 			public:
 				struct RenderConstant
 				{
-					float Texel[2] = { 512.0f };
-					float Intensity = 2.35f;
+					float Texel[2] = { 1.0f, 1.0f };
+					float IterationCount = 24.0f;
+					float Intensity = 1.736f;
 					float Threshold = 0.38f;
-					float Scaling[2] = { 0.3f, 0.3f };
-					float Samples = 4.0f;
-					float SampleCount = 64.0f;
+					float Scale = 0.1f;
+					float Padding1 = 0.0f;
+					float Padding2 = 0.0f;
 				} Render;
 
 			public:
@@ -1244,6 +1274,10 @@ namespace Tomahawk
 			{
 			private:
 				Compute::Matrix4x4 WorldViewProjection;
+				Graphics::DepthStencilState* DepthStencil = nullptr;
+				Graphics::RasterizerState* Rasterizer = nullptr;
+				Graphics::BlendState* Blend = nullptr;
+				Graphics::SamplerState* Sampler = nullptr;
 				Graphics::ElementBuffer* VertexBuffer;
 				Graphics::ElementBuffer* IndexBuffer;
 				Graphics::Activity* Activity;

@@ -28,20 +28,24 @@ float GetDepth(in float2 TexCoord)
 {
     return DepthMap.SampleLevel(Sampler, TexCoord, 0).x;
 }
-float4 GetUV(in float2 TexCoord, in float Depth)
-{
-    return float4(TexCoord.x * 2.0f - 1.0f, 1.0f - TexCoord.y * 2.0f, Depth, 1.0f);
-}
 float2 GetTexCoord(in float4 UV)
 {
     return float2(0.5f + 0.5f * UV.x / UV.w, 0.5f - 0.5f * UV.y / UV.w);
 }
 float3 GetPosition(in float2 TexCoord, in float Depth)
 {
-    float4 Position = GetUV(TexCoord, Depth);
+    float4 Position = float4(TexCoord.x * 2.0f - 1.0f, 1.0f - TexCoord.y * 2.0f, Depth, 1.0f);
     Position = mul(Position, InvViewProjection);
 
     return Position.xyz / Position.w;
+}
+float3 GetPositionUV(in float3 Position)
+{
+    float4 Coord = mul(float4(Position, 1.0), ViewProjection);
+    Coord.xy = float2(0.5, 0.5) + float2(0.5f, -0.5) * Coord.xy / Coord.w;
+    Coord.z /= Coord.w;
+    
+    return Coord.xyz;
 }
 float3 GetNormal(in float2 TexCoord)
 {

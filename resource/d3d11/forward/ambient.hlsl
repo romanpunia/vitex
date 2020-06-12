@@ -13,10 +13,12 @@ cbuffer RenderConstant : register(b3)
 
 float4 PS(VertexResult V) : SV_TARGET0
 {
-	float3 Color = GetDiffuse(V.TexCoord.xy).xyz;
+    Fragment Frag = GetFragment(V.TexCoord.xy);
+    Material Mat = GetMaterial(Frag.Material);
+    float3 Emission = Frag.Diffuse * Mat.Emission.xyz * Mat.Emission.w;
 	float4 Light = GetSample(LightMap, V.TexCoord.xy);
-	float3 Normal = GetNormal(V.TexCoord.xy);
-	float3 Ambient = HemiAmbient(HighEmission, LowEmission, Normal.y);
-
-	return float4(Color.xyz * (Light.xyz + Ambient) + Light.xyz * Light.a, 1.0f);
+	float3 Ambient = HemiAmbient(HighEmission, LowEmission, Frag.Normal.y);
+    Emission = HemiAmbient(Emission, Emission * 0.5, Frag.Normal.y);
+    
+	return float4(Frag.Diffuse * (Light.xyz + Ambient + Emission) + Light.xyz * Light.a, 1.0f);
 };

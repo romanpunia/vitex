@@ -339,25 +339,6 @@ namespace Tomahawk
 			JoyStickHat_Left_Down = 0x08 | 0x04
 		};
 
-		enum RenderLab
-		{
-			RenderLab_Raster_Cull_Back = 0,
-			RenderLab_Raster_Cull_Front = 1,
-			RenderLab_Raster_Cull_None = 2,
-			RenderLab_Raster_Cull_None_Scissor = 3,
-			RenderLab_DepthStencil_Less = 0,
-			RenderLab_DepthStencil_Greater_Equal = 1,
-			RenderLab_DepthStencil_None = 2,
-			RenderLab_DepthStencil_None_Less = 3,
-			RenderLab_DepthStencil_None_Always = 4,
-			RenderLab_Blend_Overwrite = 0,
-			RenderLab_Blend_Additive = 1,
-			RenderLab_Blend_Additive_Alpha = 2,
-			RenderLab_Blend_Additive_Source = 3,
-			RenderLab_Sampler_Trilinear_X16 = 0,
-			RenderLab_Sampler_Linear = 1
-		};
-
 		enum RenderBackend
 		{
 			RenderBackend_NONE,
@@ -824,7 +805,7 @@ namespace Tomahawk
 
 		public:
 			Alert(Activity* From);
-			void Create(AlertType Type, const std::string& Title, const std::string& Text);
+			void Setup(AlertType Type, const std::string& Title, const std::string& Text);
 			void Button(AlertConfirm Confirm, const std::string& Text, int Id);
 			void Result(const std::function<void(int)>& Callback);
 
@@ -842,11 +823,6 @@ namespace Tomahawk
 			KeyMap(const KeyCode& Value);
 			KeyMap(const KeyMod& Value);
 			KeyMap(const KeyCode& Value, const KeyMod& Control);
-		};
-
-		struct THAWK_OUT DeviceState
-		{
-			unsigned int _DeviceState;
 		};
 
 		struct THAWK_OUT MappedSubresource
@@ -892,67 +868,6 @@ namespace Tomahawk
 			Blend DestBlendAlpha;
 			BlendOperation BlendOperationAlpha;
 			unsigned char RenderTargetWriteMask;
-		};
-
-		struct THAWK_OUT DepthStencilState
-		{
-			StencilOperation FrontFaceStencilFailOperation;
-			StencilOperation FrontFaceStencilDepthFailOperation;
-			StencilOperation FrontFaceStencilPassOperation;
-			Comparison FrontFaceStencilFunction;
-			StencilOperation BackFaceStencilFailOperation;
-			StencilOperation BackFaceStencilDepthFailOperation;
-			StencilOperation BackFaceStencilPassOperation;
-			Comparison BackFaceStencilFunction;
-			DepthWrite DepthWriteMask;
-			Comparison DepthFunction;
-			unsigned char StencilReadMask;
-			unsigned char StencilWriteMask;
-			bool DepthEnable;
-			bool StencilEnable;
-			void* Pointer;
-			uint64_t Index;
-		};
-
-		struct THAWK_OUT RasterizerState
-		{
-			SurfaceFill FillMode;
-			VertexCull CullMode;
-			float DepthBiasClamp;
-			float SlopeScaledDepthBias;
-			int DepthBias;
-			bool FrontCounterClockwise;
-			bool DepthClipEnable;
-			bool ScissorEnable;
-			bool MultisampleEnable;
-			bool AntialiasedLineEnable;
-			void* Pointer;
-			uint64_t Index;
-		};
-
-		struct THAWK_OUT BlendState
-		{
-			RenderTargetBlendState RenderTarget[8];
-			bool AlphaToCoverageEnable;
-			bool IndependentBlendEnable;
-			void* Pointer;
-			uint64_t Index;
-		};
-
-		struct THAWK_OUT SamplerState
-		{
-			Comparison ComparisonFunction;
-			TextureAddress AddressU;
-			TextureAddress AddressV;
-			TextureAddress AddressW;
-			PixelFilter Filter;
-			float MipLODBias;
-			unsigned int MaxAnisotropy;
-			float BorderColor[4];
-			float MinLOD;
-			float MaxLOD;
-			void* Pointer;
-			uint64_t Index;
 		};
 
 		struct THAWK_OUT AnimationBuffer
@@ -1028,6 +943,123 @@ namespace Tomahawk
 			void* GetResource();
 		};
 
+		class THAWK_OUT DepthStencilState : public Rest::Object
+		{
+		public:
+			struct Desc
+			{
+				StencilOperation FrontFaceStencilFailOperation;
+				StencilOperation FrontFaceStencilDepthFailOperation;
+				StencilOperation FrontFaceStencilPassOperation;
+				Comparison FrontFaceStencilFunction;
+				StencilOperation BackFaceStencilFailOperation;
+				StencilOperation BackFaceStencilDepthFailOperation;
+				StencilOperation BackFaceStencilPassOperation;
+				Comparison BackFaceStencilFunction;
+				DepthWrite DepthWriteMask;
+				Comparison DepthFunction;
+				unsigned char StencilReadMask;
+				unsigned char StencilWriteMask;
+				bool DepthEnable;
+				bool StencilEnable;
+				std::string Name;
+			};
+
+		protected:
+			Desc State;
+
+		protected:
+			DepthStencilState(const Desc& I);
+
+		public:
+			virtual ~DepthStencilState() override;
+			virtual void* GetResource() = 0;
+			Desc GetState();
+		};
+
+		class THAWK_OUT RasterizerState : public Rest::Object
+		{
+		public:
+			struct Desc
+			{
+				SurfaceFill FillMode;
+				VertexCull CullMode;
+				float DepthBiasClamp;
+				float SlopeScaledDepthBias;
+				int DepthBias;
+				bool FrontCounterClockwise;
+				bool DepthClipEnable;
+				bool ScissorEnable;
+				bool MultisampleEnable;
+				bool AntialiasedLineEnable;
+				std::string Name;
+			};
+
+		protected:
+			Desc State;
+
+		protected:
+			RasterizerState(const Desc& I);
+
+		public:
+			virtual ~RasterizerState() override;
+			virtual void* GetResource() = 0;
+			Desc GetState();
+		};
+
+		class THAWK_OUT BlendState : public Rest::Object
+		{
+		public:
+			struct Desc
+			{
+				RenderTargetBlendState RenderTarget[8];
+				bool AlphaToCoverageEnable;
+				bool IndependentBlendEnable;
+				std::string Name;
+			};
+
+		protected:
+			Desc State;
+
+		protected:
+			BlendState(const Desc& I);
+
+		public:
+			virtual ~BlendState() override;
+			virtual void* GetResource() = 0;
+			Desc GetState();
+		};
+
+		class THAWK_OUT SamplerState : public Rest::Object
+		{
+		public:
+			struct Desc
+			{
+				Comparison ComparisonFunction;
+				TextureAddress AddressU;
+				TextureAddress AddressV;
+				TextureAddress AddressW;
+				PixelFilter Filter;
+				float MipLODBias;
+				unsigned int MaxAnisotropy;
+				float BorderColor[4];
+				float MinLOD;
+				float MaxLOD;
+				std::string Name;
+			};
+
+		protected:
+			Desc State;
+
+		protected:
+			SamplerState(const Desc& I);
+
+		public:
+			virtual ~SamplerState() override;
+			virtual void* GetResource() = 0;
+			Desc GetState();
+		};
+
 		class THAWK_OUT Shader : public Rest::Object
 		{
 		public:
@@ -1046,18 +1078,13 @@ namespace Tomahawk
 			std::vector<InputLayout> Layout;
 
 		protected:
-			Shader(GraphicsDevice* Device, const Desc& I);
+			Shader(const Desc& I);
 
 		public:
 			virtual ~Shader() = default;
-			virtual void UpdateBuffer(GraphicsDevice* Device, const void* Data) = 0;
-			virtual void CreateBuffer(GraphicsDevice* Device, size_t Size) = 0;
-			virtual void SetShader(GraphicsDevice* Device, unsigned int Type = ShaderType_All) = 0;
-			virtual void SetBuffer(GraphicsDevice* Device, unsigned int Slot, unsigned int Type = ShaderType_All) = 0;
 			virtual bool IsValid() = 0;
 
 		public:
-			static Shader* Create(GraphicsDevice* Device, const Desc& I);
 			static InputLayout* GetShapeVertexLayout();
 			static InputLayout* GetElementVertexLayout();
 			static InputLayout* GetSkinVertexLayout();
@@ -1088,19 +1115,12 @@ namespace Tomahawk
 			uint64_t Elements;
 
 		protected:
-			ElementBuffer(GraphicsDevice* Device, const Desc& I);
+			ElementBuffer(const Desc& I);
 
 		public:
 			virtual ~ElementBuffer() = default;
-			virtual void SetIndexBuffer(GraphicsDevice* Device, Format FormatMode, unsigned int Offset) = 0;
-			virtual void SetVertexBuffer(GraphicsDevice* Device, unsigned int Slot, unsigned int Stride, unsigned int Offset) = 0;
-			virtual void Map(GraphicsDevice* Device, ResourceMap Mode, MappedSubresource* Map) = 0;
-			virtual void Unmap(GraphicsDevice* Device, MappedSubresource* Map) = 0;
 			virtual void* GetResource() = 0;
 			uint64_t GetElements();
-
-		public:
-			static ElementBuffer* Create(GraphicsDevice* Device, const Desc& I);
 		};
 
 		class THAWK_OUT StructureBuffer : public Rest::Object
@@ -1120,20 +1140,98 @@ namespace Tomahawk
 			uint64_t Elements;
 
 		protected:
-			StructureBuffer(GraphicsDevice* Device, const Desc& I);
+			StructureBuffer(const Desc& I);
 
 		public:
 			virtual ~StructureBuffer() = default;
-			virtual void RemapSubresource(GraphicsDevice* Device, void* Pointer, uint64_t Size) = 0;
-			virtual void Map(GraphicsDevice* Device, ResourceMap Mode, MappedSubresource* Map) = 0;
-			virtual void Unmap(GraphicsDevice* Device, MappedSubresource* Map) = 0;
-			virtual void SetBuffer(GraphicsDevice* Device, int Slot) = 0;
 			virtual void* GetElement() = 0;
 			virtual void* GetResource() = 0;
 			uint64_t GetElements();
+		};
+
+		class THAWK_OUT MeshBuffer : public Rest::Object
+		{
+		public:
+			struct Desc
+			{
+				std::vector<Compute::Vertex> Elements;
+				std::vector<int> Indices;
+				CPUAccess AccessFlags = CPUAccess_Invalid;
+				ResourceUsage Usage = ResourceUsage_Default;
+			};
+
+		protected:
+			ElementBuffer* VertexBuffer;
+			ElementBuffer* IndexBuffer;
 
 		public:
-			static StructureBuffer* Create(GraphicsDevice* Device, const Desc& I);
+			Compute::Matrix4x4 World;
+			std::string Name;
+
+		protected:
+			MeshBuffer(const Desc& I);
+
+		public:
+			virtual ~MeshBuffer() override;
+			virtual Compute::Vertex* GetElements(GraphicsDevice* Device) = 0;
+			ElementBuffer* GetVertexBuffer();
+			ElementBuffer* GetIndexBuffer();
+		};
+
+		class THAWK_OUT SkinMeshBuffer : public Rest::Object
+		{
+		public:
+			struct Desc
+			{
+				std::vector<Compute::SkinVertex> Elements;
+				std::vector<int> Indices;
+				CPUAccess AccessFlags = CPUAccess_Invalid;
+				ResourceUsage Usage = ResourceUsage_Default;
+			};
+
+		protected:
+			ElementBuffer* VertexBuffer;
+			ElementBuffer* IndexBuffer;
+
+		public:
+			Compute::Matrix4x4 World;
+			std::string Name;
+
+		protected:
+			SkinMeshBuffer(const Desc& I);
+
+		public:
+			virtual ~SkinMeshBuffer() override;
+			virtual Compute::SkinVertex* GetElements(GraphicsDevice* Device) = 0;
+			ElementBuffer* GetVertexBuffer();
+			ElementBuffer* GetIndexBuffer();
+		};
+
+		class THAWK_OUT InstanceBuffer : public Rest::Object
+		{
+		public:
+			struct Desc
+			{
+				GraphicsDevice* Device = nullptr;
+				unsigned int ElementLimit = 100;
+			};
+
+		protected:
+			Rest::Pool<Compute::ElementVertex> Array;
+			ElementBuffer* Elements;
+			GraphicsDevice* Device;
+			uint64_t ElementLimit;
+			bool Sync;
+
+		protected:
+			InstanceBuffer(const Desc& I);
+
+		public:
+			virtual ~InstanceBuffer();
+			Rest::Pool <Compute::ElementVertex>* GetArray();
+			ElementBuffer* GetElements();
+			GraphicsDevice* GetDevice();
+			uint64_t GetElementLimit();
 		};
 
 		class THAWK_OUT Texture2D : public Rest::Object
@@ -1163,12 +1261,11 @@ namespace Tomahawk
 			unsigned int MipLevels;
 
 		protected:
-			Texture2D(GraphicsDevice* Device);
-			Texture2D(GraphicsDevice* Device, const Desc& I);
+			Texture2D();
+			Texture2D(const Desc& I);
 
 		public:
 			virtual ~Texture2D() = default;
-			virtual void SetTexture(GraphicsDevice* Device, int Slot) = 0;
 			virtual void* GetResource() = 0;
 			CPUAccess GetAccessFlags();
 			Format GetFormatMode();
@@ -1176,24 +1273,16 @@ namespace Tomahawk
 			unsigned int GetWidth();
 			unsigned int GetHeight();
 			unsigned int GetMipLevels();
-
-		public:
-			static Texture2D* Create(GraphicsDevice* Device);
-			static Texture2D* Create(GraphicsDevice* Device, const Desc& I);
 		};
 
 		class THAWK_OUT Texture3D : public Rest::Object
 		{
 		protected:
-			Texture3D(GraphicsDevice* Device);
+			Texture3D();
 
 		public:
 			virtual ~Texture3D() = default;
-			virtual void SetTexture(GraphicsDevice* Device, int Slot) = 0;
 			virtual void* GetResource() = 0;
-
-		public:
-			static Texture3D* Create(GraphicsDevice* Device);
 		};
 
 		class THAWK_OUT TextureCube : public Rest::Object
@@ -1205,17 +1294,12 @@ namespace Tomahawk
 			};
 
 		protected:
-			TextureCube(GraphicsDevice* Device);
-			TextureCube(GraphicsDevice* Device, const Desc& I);
+			TextureCube();
+			TextureCube(const Desc& I);
 
 		public:
 			virtual ~TextureCube() = default;
-			virtual void SetTexture(GraphicsDevice* Device, int Slot) = 0;
 			virtual void* GetResource() = 0;
-
-		public:
-			static TextureCube* Create(GraphicsDevice* Device);
-			static TextureCube* Create(GraphicsDevice* Device, const Desc& I);
 		};
 
 		class THAWK_OUT RenderTarget2D : public Rest::Object
@@ -1238,23 +1322,15 @@ namespace Tomahawk
 			Texture2D* Resource;
 
 		protected:
-			RenderTarget2D(GraphicsDevice* Device, const Desc& I);
+			RenderTarget2D(const Desc& I);
 
 		public:
 			virtual ~RenderTarget2D();
-			virtual void CopyTexture2D(GraphicsDevice* Device, Texture2D** Value) = 0;
-			virtual void Clear(GraphicsDevice* Device, float R, float G, float B) = 0;
-			virtual void SetTarget(GraphicsDevice* Device, float R, float G, float B) = 0;
-			virtual void SetTarget(GraphicsDevice* Device) = 0;
-			virtual void SetViewport(const Viewport& In) = 0;
 			virtual void* GetResource() = 0;
 			virtual Viewport GetViewport() = 0;
 			virtual float GetWidth() = 0;
 			virtual float GetHeight() = 0;
 			Texture2D* GetTarget();
-
-		public:
-			static RenderTarget2D* Create(GraphicsDevice* Device, const Desc& I);
 		};
 
 		class THAWK_OUT MultiRenderTarget2D : public Rest::Object
@@ -1278,31 +1354,16 @@ namespace Tomahawk
 			Texture2D* Resource[8];
 
 		protected:
-			MultiRenderTarget2D(GraphicsDevice* Device, const Desc& I);
+			MultiRenderTarget2D(const Desc& I);
 
 		public:
 			virtual ~MultiRenderTarget2D();
-			virtual void CopyTargetTo(int Target, GraphicsDevice* Device, RenderTarget2D* Output) = 0;
-			virtual void CopyTargetFrom(int Target, GraphicsDevice* Device, RenderTarget2D* Output) = 0;
-			virtual void CopyTexture2D(int Target, GraphicsDevice* Device, Texture2D** Value) = 0;
-			virtual void CopyBegin(GraphicsDevice* Device, int Target, unsigned int MipLevels, unsigned int Size) = 0;
-			virtual void CopyFace(GraphicsDevice* Device, int Target, int Face) = 0;
-			virtual void CopyEnd(GraphicsDevice* Device, TextureCube* Value) = 0;
-			virtual void Clear(GraphicsDevice* Device, int Target, float R, float G, float B) = 0;
-			virtual void SetTarget(GraphicsDevice* Device, int Target, float R, float G, float B) = 0;
-			virtual void SetTarget(GraphicsDevice* Device, int Target) = 0;
-			virtual void SetTarget(GraphicsDevice* Device, float R, float G, float B) = 0;
-			virtual void SetTarget(GraphicsDevice* Device) = 0;
-			virtual void SetViewport(const Viewport& In) = 0;
 			virtual Viewport GetViewport() = 0;
 			virtual float GetWidth() = 0;
 			virtual float GetHeight() = 0;
 			virtual void* GetResource(int Id) = 0;
 			SurfaceTarget GetSVTarget();
-			Texture2D* GetTarget(int Target);
-
-		public:
-			static MultiRenderTarget2D* Create(GraphicsDevice* Device, const Desc& I);
+			Texture2D* GetTarget(unsigned int Target);
 		};
 
 		class THAWK_OUT RenderTarget2DArray : public Rest::Object
@@ -1325,22 +1386,15 @@ namespace Tomahawk
 			Texture2D* Resource;
 
 		protected:
-			RenderTarget2DArray(GraphicsDevice* Device, const Desc& I);
+			RenderTarget2DArray(const Desc& I);
 
 		public:
 			virtual ~RenderTarget2DArray();
-			virtual void Clear(GraphicsDevice* Device, int Target, float R, float G, float B) = 0;
-			virtual void SetTarget(GraphicsDevice* Device, int Target, float R, float G, float B) = 0;
-			virtual void SetTarget(GraphicsDevice* Device, int Target) = 0;
-			virtual void SetViewport(const Viewport& In) = 0;
 			virtual Viewport GetViewport() = 0;
 			virtual float GetWidth() = 0;
 			virtual float GetHeight() = 0;
 			virtual void* GetResource() = 0;
 			Texture2D* GetTarget();
-
-		public:
-			static RenderTarget2DArray* Create(GraphicsDevice* Device, const Desc& I);
 		};
 
 		class THAWK_OUT RenderTargetCube : public Rest::Object
@@ -1361,24 +1415,15 @@ namespace Tomahawk
 			Texture2D* Resource;
 
 		protected:
-			RenderTargetCube(GraphicsDevice* Device, const Desc& I);
+			RenderTargetCube(const Desc& I);
 
 		public:
 			virtual ~RenderTargetCube();
-			virtual void CopyTextureCube(GraphicsDevice* Device, TextureCube** Value) = 0;
-			virtual void CopyTexture2D(int Face, GraphicsDevice* Device, Texture2D** Value) = 0;
-			virtual void Clear(GraphicsDevice* Device, float R, float G, float B) = 0;
-			virtual void SetTarget(GraphicsDevice* Device, float R, float G, float B) = 0;
-			virtual void SetTarget(GraphicsDevice* Device) = 0;
-			virtual void SetViewport(const Viewport& In) = 0;
 			virtual Viewport GetViewport() = 0;
 			virtual float GetWidth() = 0;
 			virtual float GetHeight() = 0;
 			virtual void* GetResource() = 0;
 			Texture2D* GetTarget();
-
-		public:
-			static RenderTargetCube* Create(GraphicsDevice* Device, const Desc& I);
 		};
 
 		class THAWK_OUT MultiRenderTargetCube : public Rest::Object
@@ -1401,206 +1446,28 @@ namespace Tomahawk
 			Texture2D* Resource[8];
 
 		protected:
-			MultiRenderTargetCube(GraphicsDevice* Device, const Desc& I);
+			MultiRenderTargetCube(const Desc& I);
 
 		public:
 			virtual ~MultiRenderTargetCube();
-			virtual void CopyTextureCube(int Cube, GraphicsDevice* Device, TextureCube** Value) = 0;
-			virtual void CopyTexture2D(int Cube, int Face, GraphicsDevice* Device, Texture2D** Value) = 0;
-			virtual void Clear(GraphicsDevice* Device, int Target, float R, float G, float B) = 0;
-			virtual void SetTarget(GraphicsDevice* Device, int Target, float R, float G, float B) = 0;
-			virtual void SetTarget(GraphicsDevice* Device, int Target) = 0;
-			virtual void SetTarget(GraphicsDevice* Device, float R, float G, float B) = 0;
-			virtual void SetTarget(GraphicsDevice* Device) = 0;
-			virtual void SetViewport(const Viewport& In) = 0;
 			virtual Viewport GetViewport() = 0;
 			virtual float GetWidth() = 0;
 			virtual float GetHeight() = 0;
 			virtual void* GetResource(int Id) = 0;
 			SurfaceTarget GetSVTarget();
-			Texture2D* GetTarget(int Target);
-
-		public:
-			static MultiRenderTargetCube* Create(GraphicsDevice* Device, const Desc& I);
+			Texture2D* GetTarget(unsigned int Target);
 		};
 
-		class THAWK_OUT Mesh : public Rest::Object
-		{
-		public:
-			struct Desc
-			{
-				std::vector<Compute::Vertex> Elements;
-				std::vector<int> Indices;
-				CPUAccess AccessFlags = CPUAccess_Invalid;
-				ResourceUsage Usage = ResourceUsage_Default;
-			};
-
-		protected:
-			ElementBuffer* VertexBuffer;
-			ElementBuffer* IndexBuffer;
-
-		public:
-			Compute::Matrix4x4 World;
-			std::string Name;
-
-		protected:
-			Mesh(GraphicsDevice* Device, const Desc& I);
-
-		public:
-			virtual ~Mesh();
-			virtual void Draw(GraphicsDevice* Device) = 0;
-			virtual void Update(GraphicsDevice* Device, Compute::Vertex* Elements) = 0;
-			virtual Compute::Vertex* Elements(GraphicsDevice* Device) = 0;
-			ElementBuffer* GetVertexBuffer();
-			ElementBuffer* GetIndexBuffer();
-
-		public:
-			static Mesh* Create(GraphicsDevice* Device, const Desc& I);
-		};
-
-		class THAWK_OUT SkinMesh : public Rest::Object
-		{
-		public:
-			struct Desc
-			{
-				std::vector<Compute::SkinVertex> Elements;
-				std::vector<int> Indices;
-				CPUAccess AccessFlags = CPUAccess_Invalid;
-				ResourceUsage Usage = ResourceUsage_Default;
-			};
-
-		protected:
-			ElementBuffer* VertexBuffer;
-			ElementBuffer* IndexBuffer;
-
-		public:
-			Compute::Matrix4x4 World;
-			std::string Name;
-
-		protected:
-			SkinMesh(GraphicsDevice* Device, const Desc& I);
-
-		public:
-			virtual ~SkinMesh();
-			virtual void Draw(GraphicsDevice* Device) = 0;
-			virtual void Update(GraphicsDevice* Device, Compute::SkinVertex* Elements) = 0;
-			virtual Compute::SkinVertex* Elements(GraphicsDevice* Device) = 0;
-			ElementBuffer* GetVertexBuffer();
-			ElementBuffer* GetIndexBuffer();
-
-		public:
-			static SkinMesh* Create(GraphicsDevice* Device, const Desc& I);
-		};
-
-		class THAWK_OUT Model : public Rest::Object
-		{
-		public:
-			std::vector<Mesh*> Meshes;
-			Compute::Matrix4x4 Root;
-			Compute::Vector4 Max;
-			Compute::Vector4 Min;
-
-		public:
-			Model();
-			~Model();
-			Mesh* Find(const std::string& Name);
-		};
-
-		class THAWK_OUT SkinModel : public Rest::Object
-		{
-		public:
-			std::vector<SkinMesh*> Meshes;
-			std::vector<Compute::Joint> Joints;
-			Compute::Matrix4x4 Root;
-			Compute::Vector4 Max;
-			Compute::Vector4 Min;
-
-		public:
-			SkinModel();
-			~SkinModel();
-			void BuildSkeleton(PoseBuffer* Map);
-			SkinMesh* FindMesh(const std::string& Name);
-			Compute::Joint* FindJoint(const std::string& Name, Compute::Joint* Root = nullptr);
-			Compute::Joint* FindJoint(int64_t Index, Compute::Joint* Root = nullptr);
-
-		private:
-			void BuildSkeleton(PoseBuffer* Map, Compute::Joint* Root, const Compute::Matrix4x4& World);
-		};
-
-		class THAWK_OUT InstanceBuffer : public Rest::Object
-		{
-		public:
-			struct Desc
-			{
-				unsigned int ElementLimit = 100;
-			};
-
-		protected:
-			Rest::Pool <Compute::ElementVertex> Array;
-			ElementBuffer* Elements;
-			GraphicsDevice* Device;
-			uint64_t ElementLimit;
-
-		protected:
-			InstanceBuffer(GraphicsDevice* Device, const Desc& I);
-
-		public:
-			virtual ~InstanceBuffer();
-			virtual void Update() = 0;
-			virtual void Restore() = 0;
-			virtual void Resize(uint64_t Size) = 0;
-			virtual void SetResource(GraphicsDevice* Device, int Slot) = 0;
-			Rest::Pool <Compute::ElementVertex>* GetArray();
-			ElementBuffer* GetElements();
-			GraphicsDevice* GetDevice();
-			uint64_t GetElementLimit();
-
-		public:
-			static InstanceBuffer* Create(GraphicsDevice* Device, const Desc& I);
-		};
-
-		class THAWK_OUT DirectBuffer : public Rest::Object
+		class THAWK_OUT GraphicsDevice : public Rest::Object
 		{
 		protected:
-			struct THAWK_OUT Vertex
+			struct Vertex
 			{
 				float PX, PY, PZ;
 				float TX, TY;
 				float CX, CY, CZ, CW;
 			};
 
-		protected:
-			PrimitiveTopology Primitives;
-			std::vector<Vertex> Elements;
-			Texture2D* View;
-			uint64_t MaxElements;
-
-		public:
-			GraphicsDevice* Device;
-
-		protected:
-			DirectBuffer(GraphicsDevice* NewDevice);
-
-		public:
-			virtual ~DirectBuffer();
-			virtual void Begin() = 0;
-			virtual void End() = 0;
-			virtual void EmitVertex() = 0;
-			virtual void Position(float X, float Y, float Z) = 0;
-			virtual void TexCoord(float X, float Y) = 0;
-			virtual void Color(float X, float Y, float Z, float W) = 0;
-			virtual void Texture(Texture2D* In) = 0;
-			virtual void Intensity(float Intensity) = 0;
-			virtual void TexCoordOffset(float X, float Y) = 0;
-			virtual void Transform(Compute::Matrix4x4 Matrix4x4) = 0;
-			virtual void Topology(PrimitiveTopology DrawTopology) = 0;
-
-		public:
-			static DirectBuffer* Create(GraphicsDevice* Device);
-		};
-
-		class THAWK_OUT GraphicsDevice : public Rest::Object
-		{
 		public:
 			struct Desc
 			{
@@ -1625,21 +1492,22 @@ namespace Tomahawk
 			};
 
 		protected:
-			static Compute::Vector2 ScreenDimensions;
-
-		protected:
-			std::vector<DepthStencilState*> DepthStencilStates;
-			std::vector<RasterizerState*> RasterizerStates;
-			std::vector<BlendState*> BlendStates;
-			std::vector<SamplerState*> SamplerStates;
-			std::vector<Section*> Sections;
+			std::unordered_map<std::string, DepthStencilState*> DepthStencilStates;
+			std::unordered_map<std::string, RasterizerState*> RasterizerStates;
+			std::unordered_map<std::string, BlendState*> BlendStates;
+			std::unordered_map<std::string, SamplerState*> SamplerStates;
+			std::unordered_map<std::string, Section*> Sections;
+			PrimitiveTopology Primitives;
 			ShaderModel ShaderModelType;
+			Texture2D* ViewResource = nullptr;
 			RenderTarget2D* RenderTarget = nullptr;
 			Shader* BasicEffect = nullptr;
-			unsigned int PresentationFlag = 0;
-			unsigned int CompilationFlag = 0;
+			unsigned int PresentFlags = 0;
+			unsigned int CompileFlags = 0;
 			VSync VSyncMode = VSync_Frequency_X1;
-			const void* ConstantData[4];
+			std::vector<Vertex> Elements;
+			const void* Constants[4];
+			uint64_t MaxElements;
 			RenderBackend Backend;
 			std::mutex Mutex;
 			bool Debug;
@@ -1654,84 +1522,161 @@ namespace Tomahawk
 
 		public:
 			virtual ~GraphicsDevice();
-			virtual void ReleaseState(DeviceState** RefState) = 0;
-			virtual void RestoreState(DeviceState* RefState) = 0;
 			virtual void SetConstantBuffers() = 0;
-			virtual void SetShaderModel(ShaderModel RShaderModel) = 0;
-			virtual void SetSamplerState(uint64_t State) = 0;
-			virtual void SetBlendState(uint64_t State) = 0;
-			virtual void SetRasterizerState(uint64_t State) = 0;
-			virtual void SetDepthStencilState(uint64_t State) = 0;
-			virtual void UpdateBuffer(RenderBufferType Buffer) = 0;
-			virtual void Present() = 0;
+			virtual void SetShaderModel(ShaderModel Model) = 0;
+			virtual void SetSamplerState(SamplerState* State) = 0;
+			virtual void SetBlendState(BlendState* State) = 0;
+			virtual void SetRasterizerState(RasterizerState* State) = 0;
+			virtual void SetDepthStencilState(DepthStencilState* State) = 0;
+			virtual void SetShader(Shader* Resource, unsigned int Type) = 0;
+			virtual void SetBuffer(Shader* Resource, unsigned int Slot, unsigned int Type) = 0;
+			virtual void SetBuffer(StructureBuffer* Resource, unsigned int Slot) = 0;
+			virtual void SetBuffer(InstanceBuffer* Resource, unsigned int Slot) = 0;
+			virtual void SetIndexBuffer(ElementBuffer* Resource, Format FormatMode, unsigned int Offset) = 0;
+			virtual void SetVertexBuffer(ElementBuffer* Resource, unsigned int Slot, unsigned int Stride, unsigned int Offset) = 0;
+			virtual void SetTexture2D(Texture2D* Resource, unsigned int Slot) = 0;
+			virtual void SetTexture3D(Texture3D* Resource, unsigned int Slot) = 0;
+			virtual void SetTextureCube(TextureCube* Resource, unsigned int Slot) = 0;
+			virtual void SetTarget(float R, float G, float B) = 0;
+			virtual void SetTarget() = 0;
+			virtual void SetTarget(RenderTarget2D* Resource, float R, float G, float B) = 0;
+			virtual void SetTarget(RenderTarget2D* Resource) = 0;
+			virtual void SetTarget(MultiRenderTarget2D* Resource, unsigned int Target, float R, float G, float B) = 0;
+			virtual void SetTarget(MultiRenderTarget2D* Resource, unsigned int Target) = 0;
+			virtual void SetTarget(MultiRenderTarget2D* Resource, float R, float G, float B) = 0;
+			virtual void SetTarget(MultiRenderTarget2D* Resource) = 0;
+			virtual void SetTarget(RenderTarget2DArray* Resource, unsigned int Target, float R, float G, float B) = 0;
+			virtual void SetTarget(RenderTarget2DArray* Resource, unsigned int Target) = 0;
+			virtual void SetTarget(RenderTargetCube* Resource, float R, float G, float B) = 0;
+			virtual void SetTarget(RenderTargetCube* Resource) = 0;
+			virtual void SetTarget(MultiRenderTargetCube* Resource, unsigned int Target, float R, float G, float B) = 0;
+			virtual void SetTarget(MultiRenderTargetCube* Resource, unsigned int Target) = 0;
+			virtual void SetTarget(MultiRenderTargetCube* Resource, float R, float G, float B) = 0;
+			virtual void SetTarget(MultiRenderTargetCube* Resource) = 0;
+			virtual void SetViewport(const Viewport& In) = 0;
+			virtual void SetViewport(RenderTarget2D* Resource, const Viewport& In) = 0;
+			virtual void SetViewport(MultiRenderTarget2D* Resource, const Viewport& In) = 0;
+			virtual void SetViewport(RenderTarget2DArray* Resource, const Viewport& In) = 0;
+			virtual void SetViewport(RenderTargetCube* Resource, const Viewport& In) = 0;
+			virtual void SetViewport(MultiRenderTargetCube* Resource, const Viewport& In) = 0;
+			virtual void SetViewports(unsigned int Count, Viewport* Viewports) = 0;
+			virtual void SetScissorRects(unsigned int Count, Rectangle* Value) = 0;
 			virtual void SetPrimitiveTopology(PrimitiveTopology Topology) = 0;
-			virtual void RestoreSamplerStates() = 0;
-			virtual void RestoreBlendStates() = 0;
-			virtual void RestoreRasterizerStates() = 0;
-			virtual void RestoreDepthStencilStates() = 0;
-			virtual void RestoreTexture2D(int Slot, int Size) = 0;
-			virtual void RestoreTexture2D(int Size) = 0;
-			virtual void RestoreTexture3D(int Slot, int Size) = 0;
-			virtual void RestoreTexture3D(int Size) = 0;
-			virtual void RestoreTextureCube(int Slot, int Size) = 0;
-			virtual void RestoreTextureCube(int Size) = 0;
-			virtual void RestoreVertexBuffer(int Slot) = 0;
-			virtual void RestoreIndexBuffer() = 0;
-			virtual void RestoreState() = 0;
-			virtual void ResizeBuffers(unsigned int Width, unsigned int Height) = 0;
+			virtual void FlushTexture2D(unsigned int Slot, unsigned int Count) = 0;
+			virtual void FlushTexture3D(unsigned int Slot, unsigned int Count) = 0;
+			virtual void FlushTextureCube(unsigned int Slot, unsigned int Count) = 0;
+			virtual void FlushState() = 0;
+			virtual void Map(ElementBuffer* Resource, ResourceMap Mode, MappedSubresource* Map) = 0;
+			virtual void Map(StructureBuffer* Resource, ResourceMap Mode, MappedSubresource* Map) = 0;
+			virtual void Unmap(ElementBuffer* Resource, MappedSubresource* Map) = 0;
+			virtual void Unmap(StructureBuffer* Resource, MappedSubresource* Map) = 0;
+			virtual void UpdateBuffer(StructureBuffer* Resource, void* Data, uint64_t Size) = 0;
+			virtual void UpdateBuffer(Shader* Resource, const void* Data) = 0;
+			virtual void UpdateBuffer(MeshBuffer* Resource, Compute::Vertex* Data) = 0;
+			virtual void UpdateBuffer(SkinMeshBuffer* Resource, Compute::SkinVertex* Data) = 0;
+			virtual void UpdateBuffer(InstanceBuffer* Resource) = 0;
+			virtual void UpdateBuffer(RenderBufferType Buffer) = 0;
+			virtual void UpdateBufferSize(Shader* Resource, size_t Size) = 0;
+			virtual void UpdateBufferSize(InstanceBuffer* Resource, uint64_t Size) = 0;
+			virtual void ClearBuffer(InstanceBuffer* Resource) = 0;
+			virtual void Clear(float R, float G, float B) = 0;
+			virtual void Clear(RenderTarget2D* Resource, float R, float G, float B) = 0;
+			virtual void Clear(MultiRenderTarget2D* Resource, unsigned int Target, float R, float G, float B) = 0;
+			virtual void Clear(RenderTarget2DArray* Resource, unsigned int Target, float R, float G, float B) = 0;
+			virtual void Clear(RenderTargetCube* Resource, float R, float G, float B) = 0;
+			virtual void Clear(MultiRenderTargetCube* Resource, unsigned int Target, float R, float G, float B) = 0;
+			virtual void ClearDepth() = 0;
+			virtual void ClearDepth(RenderTarget2D* Resource) = 0;
+			virtual void ClearDepth(MultiRenderTarget2D* Resource) = 0;
+			virtual void ClearDepth(RenderTarget2DArray* Resource) = 0;
+			virtual void ClearDepth(RenderTargetCube* Resource) = 0;
+			virtual void ClearDepth(MultiRenderTargetCube* Resource) = 0;
 			virtual void DrawIndexed(unsigned int Count, unsigned int IndexLocation, unsigned int BaseLocation) = 0;
+			virtual void DrawIndexed(MeshBuffer* Resource) = 0;
+			virtual void DrawIndexed(SkinMeshBuffer* Resource) = 0;
 			virtual void Draw(unsigned int Count, unsigned int Location) = 0;
-			virtual void RestoreShader(unsigned int Type = ShaderType_All) = 0;
-			virtual void SetViewport(unsigned int Count, Viewport* Viewports) = 0;
-			virtual void SetScissorRect(unsigned int Count, Rectangle* Value) = 0;
-			virtual void GetViewport(unsigned int* Count, Viewport* Out) = 0;
-			virtual void GetScissorRect(unsigned int* Count, Rectangle* Out) = 0;
+			virtual void CopyTexture2D(Texture2D** Result) = 0;
+			virtual void CopyTexture2D(RenderTarget2D* Resource, Texture2D** Result) = 0;
+			virtual void CopyTexture2D(MultiRenderTarget2D* Resource, unsigned int Target, Texture2D** Result) = 0;
+			virtual void CopyTexture2D(RenderTargetCube* Resource, unsigned int Face, Texture2D** Result) = 0;
+			virtual void CopyTexture2D(MultiRenderTargetCube* Resource, unsigned int Cube, unsigned int Face, Texture2D** Result) = 0;
+			virtual void CopyTextureCube(RenderTargetCube* Resource, TextureCube** Result) = 0;
+			virtual void CopyTextureCube(MultiRenderTargetCube* Resource, unsigned int Cube, TextureCube** Result) = 0;
+			virtual void CopyTargetTo(MultiRenderTarget2D* Resource, unsigned int Target, RenderTarget2D* To) = 0;
+			virtual void CopyTargetFrom(MultiRenderTarget2D* Resource, unsigned int Target, RenderTarget2D* From) = 0;
+			virtual void CopyBegin(MultiRenderTarget2D* Resource, unsigned int Target, unsigned int MipLevels, unsigned int Size) = 0;
+			virtual void CopyFace(MultiRenderTarget2D* Resource, unsigned int Target, unsigned int Face) = 0;
+			virtual void CopyEnd(MultiRenderTarget2D* Resource, TextureCube* Result) = 0;
+			virtual void FetchViewports(unsigned int* Count, Viewport* Out) = 0;
+			virtual void FetchScissorRects(unsigned int* Count, Rectangle* Out) = 0;
+			virtual void ResizeBuffers(unsigned int Width, unsigned int Height) = 0;
+			virtual void DirectBegin() = 0;
+			virtual void DirectTransform(const Compute::Matrix4x4& Transform) = 0;
+			virtual void DirectTopology(PrimitiveTopology Topology) = 0;
+			virtual void DirectEmit() = 0;
+			virtual void DirectTexture(Texture2D* In) = 0;
+			virtual void DirectColor(float X, float Y, float Z, float W) = 0;
+			virtual void DirectIntensity(float Intensity) = 0;
+			virtual void DirectTexCoord(float X, float Y) = 0;
+			virtual void DirectTexCoordOffset(float X, float Y) = 0;
+			virtual void DirectPosition(float X, float Y, float Z) = 0;
+			virtual void DirectEnd() = 0;
+			virtual void Submit() = 0;
+			virtual DepthStencilState* CreateDepthStencilState(const DepthStencilState::Desc& I) = 0;
+			virtual BlendState* CreateBlendState(const BlendState::Desc& I) = 0;
+			virtual RasterizerState* CreateRasterizerState(const RasterizerState::Desc& I) = 0;
+			virtual SamplerState* CreateSamplerState(const SamplerState::Desc& I) = 0;
+			virtual Shader* CreateShader(const Shader::Desc& I) = 0;
+			virtual ElementBuffer* CreateElementBuffer(const ElementBuffer::Desc& I) = 0;
+			virtual StructureBuffer* CreateStructureBuffer(const StructureBuffer::Desc& I) = 0;
+			virtual MeshBuffer* CreateMeshBuffer(const MeshBuffer::Desc& I) = 0;
+			virtual SkinMeshBuffer* CreateSkinMeshBuffer(const SkinMeshBuffer::Desc& I) = 0;
+			virtual InstanceBuffer* CreateInstanceBuffer(const InstanceBuffer::Desc& I) = 0;
+			virtual Texture2D* CreateTexture2D() = 0;
+			virtual Texture2D* CreateTexture2D(const Texture2D::Desc& I) = 0;
+			virtual Texture3D* CreateTexture3D() = 0;
+			virtual TextureCube* CreateTextureCube() = 0;
+			virtual TextureCube* CreateTextureCube(const TextureCube::Desc& I) = 0;
+			virtual RenderTarget2D* CreateRenderTarget2D(const RenderTarget2D::Desc& I) = 0;
+			virtual MultiRenderTarget2D* CreateMultiRenderTarget2D(const MultiRenderTarget2D::Desc& I) = 0;
+			virtual RenderTarget2DArray* CreateRenderTarget2DArray(const RenderTarget2DArray::Desc& I) = 0;
+			virtual RenderTargetCube* CreateRenderTargetCube(const RenderTargetCube::Desc& I) = 0;
+			virtual MultiRenderTargetCube* CreateMultiRenderTargetCube(const MultiRenderTargetCube::Desc& I) = 0;
 			virtual PrimitiveTopology GetPrimitiveTopology() = 0;
 			virtual ShaderModel GetSupportedShaderModel() = 0;
-			virtual uint64_t AddDepthStencilState(DepthStencilState* In) = 0;
-			virtual uint64_t AddBlendState(BlendState* In) = 0;
-			virtual uint64_t AddRasterizerState(RasterizerState* In) = 0;
-			virtual uint64_t AddSamplerState(SamplerState* In) = 0;
 			virtual void* GetBackBuffer() = 0;
 			virtual void* GetBackBufferMSAA() = 0;
 			virtual void* GetBackBufferNoAA() = 0;
 			virtual void* GetDevice() = 0;
 			virtual void* GetContext() = 0;
-			virtual DeviceState* CreateState() = 0;
 			virtual bool IsValid() = 0;
-			virtual bool ProcessShaderCode(Shader::Desc& ShaderCode);
-			virtual void AddSection(const std::string& Name, const std::string& Code);
-			virtual void RemoveSection(const std::string& Name);
-			virtual std::string* GetSection(const std::string& Name);
-			virtual std::vector<Section*> GetSections();
 			void Lock();
 			void Unlock();
-			void CreateRendererStates();
-			DepthStencilState* GetDepthStencilState(uint64_t State);
-			BlendState* GetBlendState(uint64_t State);
-			RasterizerState* GetRasterizerState(uint64_t State);
-			SamplerState* GetSamplerState(uint64_t State);
+			void AddSection(const std::string& Name, const std::string& Code);
+			void RemoveSection(const std::string& Name);
+			std::string* GetSection(const std::string& Name);
+			DepthStencilState* GetDepthStencilState(const std::string& Name);
+			BlendState* GetBlendState(const std::string& Name);
+			RasterizerState* GetRasterizerState(const std::string& Name);
+			SamplerState* GetSamplerState(const std::string& Name);
 			ShaderModel GetShaderModel();
 			RenderTarget2D* GetRenderTarget();
 			Shader* GetBasicEffect();
 			RenderBackend GetBackend();
-			unsigned int GetPresentationFlags();
-			unsigned int GetCompilationFlags();
-			unsigned int GetMipLevelCount(unsigned int Width, unsigned int Height);
+			unsigned int GetPresentFlags();
+			unsigned int GetCompileFlags();
+			unsigned int GetMipLevel(unsigned int Width, unsigned int Height);
 			VSync GetVSyncMode();
 			bool IsDebug();
-			uint64_t GetDepthStencilStateCount();
-			uint64_t GetBlendStateCount();
-			uint64_t GetRasterizerStateCount();
-			uint64_t GetSamplerStateCount();
 
 		protected:
-			void LoadSections();
+			bool Preprocess(Shader::Desc& ShaderCode);
+			void InitStates();
+			void InitSections();
 			void FreeProxy();
 
 		public:
 			static GraphicsDevice* Create(const Desc& I);
-			static Compute::Vector2 GetScreenDimensions();
 		};
 
 		class THAWK_OUT Activity : public Rest::Object
@@ -1849,6 +1794,41 @@ namespace Tomahawk
 
 		private:
 			bool* GetInputState();
+		};
+
+		class THAWK_OUT Model : public Rest::Object
+		{
+		public:
+			std::vector<MeshBuffer*> Meshes;
+			Compute::Matrix4x4 Root;
+			Compute::Vector4 Max;
+			Compute::Vector4 Min;
+
+		public:
+			Model();
+			virtual ~Model() override;
+			MeshBuffer* Find(const std::string& Name);
+		};
+
+		class THAWK_OUT SkinModel : public Rest::Object
+		{
+		public:
+			std::vector<SkinMeshBuffer*> Meshes;
+			std::vector<Compute::Joint> Joints;
+			Compute::Matrix4x4 Root;
+			Compute::Vector4 Max;
+			Compute::Vector4 Min;
+
+		public:
+			SkinModel();
+			virtual ~SkinModel() override;
+			void BuildSkeleton(PoseBuffer* Map);
+			SkinMeshBuffer* FindMesh(const std::string& Name);
+			Compute::Joint* FindJoint(const std::string& Name, Compute::Joint* Root = nullptr);
+			Compute::Joint* FindJoint(int64_t Index, Compute::Joint* Root = nullptr);
+
+		private:
+			void BuildSkeleton(PoseBuffer* Map, Compute::Joint* Root, const Compute::Matrix4x4& World);
 		};
 
 		inline ResourceMap operator |(ResourceMap A, ResourceMap B)

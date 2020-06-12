@@ -122,7 +122,7 @@ namespace Tomahawk
 			class THAWK_OUT ModelProcessor : public FileProcessor
 			{
 			public:
-				Graphics::Mesh::Desc Options;
+				Graphics::MeshBuffer::Desc Options;
 
 			public:
 				ModelProcessor(ContentManager* Manager);
@@ -144,7 +144,7 @@ namespace Tomahawk
 			class THAWK_OUT SkinModelProcessor : public FileProcessor
 			{
 			public:
-				Graphics::SkinMesh::Desc Options;
+				Graphics::SkinMeshBuffer::Desc Options;
 
 			public:
 				SkinModelProcessor(ContentManager* Manager);

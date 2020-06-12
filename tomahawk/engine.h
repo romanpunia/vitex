@@ -413,10 +413,10 @@ namespace Tomahawk
 
 		protected:
 			RenderSystem* System;
+			bool Geometric;
 
 		public:
 			bool Active;
-			bool Priority;
 
 		public:
 			Renderer(RenderSystem* Lab);
@@ -431,6 +431,7 @@ namespace Tomahawk
 			virtual void OnCubicDepthRender(Rest::Timer* TimeStep, Compute::Matrix4x4* ViewProjection);
 			virtual void OnPhaseRender(Rest::Timer* TimeStep);
 			virtual void OnRelease();
+			bool IsGeometric();
 			void SetRenderer(RenderSystem* NewSystem);
 			void RenderCubicDepth(Rest::Timer* Time, const Compute::Matrix4x4& Projection, const Compute::Vector4& Position);
 			void RenderDepth(Rest::Timer* Time, const Compute::Matrix4x4& View, const Compute::Matrix4x4& Projection, const Compute::Vector4& Position);
@@ -470,6 +471,10 @@ namespace Tomahawk
 		{
 		protected:
 			std::unordered_map<std::string, Graphics::Shader*> Shaders;
+			Graphics::DepthStencilState* DepthStencil;
+			Graphics::RasterizerState* Rasterizer;
+			Graphics::BlendState* Blend;
+			Graphics::SamplerState* Sampler;
 			Graphics::RenderTarget2D* Output;
 
 		public:
@@ -632,6 +637,9 @@ namespace Tomahawk
 			void Unlock();
 			void ResizeBuffers();
 			void SetSurface(Graphics::MultiRenderTarget2D* NewSurface);
+			void SetSurface();
+			void SetSurfaceCleared();
+			void ClearSurface();
 			Entity* CloneEntities(Entity* Value);
 			Entity* FindNamedEntity(const std::string& Name);
 			Entity* FindEntityAt(Compute::Vector3 Position, float Radius);

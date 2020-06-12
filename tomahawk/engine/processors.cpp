@@ -267,15 +267,15 @@ namespace Tomahawk
 					Graphics::Material& It = Object->GetMaterial(i);
 
 					Rest::Document* Material = Materials->SetDocument("material");
-					NMake::Pack(Material->Find("emission"), It.Emission);
-					NMake::Pack(Material->Find("metallic"), It.Metallic);
-					NMake::Pack(Material->Find("roughness"), It.Roughness);
-					NMake::Pack(Material->Find("transparency"), It.Transparency);
-					NMake::Pack(Material->Find("roughness"), It.Roughness);
-					NMake::Pack(Material->Find("occlusion"), It.Occlusion);
-					NMake::Pack(Material->Find("radius"), It.Radius);
-					NMake::Pack(Material->Find("self"), It.Self);
-					NMake::Pack(Material->Find("padding"), It.Padding);
+					NMake::Pack(Material->SetDocument("emission"), It.Emission);
+					NMake::Pack(Material->SetDocument("metallic"), It.Metallic);
+					NMake::Pack(Material->SetDocument("roughness"), It.Roughness);
+					NMake::Pack(Material->SetDocument("transparency"), It.Transparency);
+					NMake::Pack(Material->SetDocument("roughness"), It.Roughness);
+					NMake::Pack(Material->SetDocument("occlusion"), It.Occlusion);
+					NMake::Pack(Material->SetDocument("radius"), It.Radius);
+					NMake::Pack(Material->SetDocument("self"), It.Self);
+					NMake::Pack(Material->SetDocument("padding"), It.Padding);
 				}
 
 				Rest::Document* Entities = Document->SetArray("entities");
@@ -513,7 +513,7 @@ namespace Tomahawk
 				F.MipLevels = -10;
 
 				Content->GetDevice()->Lock();
-				Graphics::Texture2D* Object = Graphics::Texture2D::Create(Content->GetDevice(), F);
+				Graphics::Texture2D* Object = Content->GetDevice()->CreateTexture2D(F);
 				Content->GetDevice()->Unlock();
 
 				stbi_image_free(Resource);
@@ -576,7 +576,7 @@ namespace Tomahawk
 				I.Data = Code;
 
 				Content->GetDevice()->Unlock();
-				Graphics::Shader* Object = Graphics::Shader::Create(Content->GetDevice(), I);
+				Graphics::Shader* Object = Content->GetDevice()->CreateShader(I);
 				Content->GetDevice()->Lock();
 
 				delete[] Code;
@@ -597,7 +597,7 @@ namespace Tomahawk
 			void ModelProcessor::Free(AssetResource* Asset)
 			{
 				if (Asset->Resource != nullptr)
-					delete ((Graphics::Mesh*)Asset->Resource);
+					delete ((Graphics::MeshBuffer*)Asset->Resource);
 			}
 			void* ModelProcessor::Duplicate(AssetResource* Asset, ContentArgs* Args)
 			{
@@ -617,7 +617,7 @@ namespace Tomahawk
 				std::vector<Rest::Document*> Meshes = Document->FindCollectionPath("meshes.mesh");
 				for (auto&& Mesh : Meshes)
 				{
-					Graphics::Mesh::Desc F = Graphics::Mesh::Desc();
+					Graphics::MeshBuffer::Desc F;
 					F.AccessFlags = Options.AccessFlags;
 					F.Usage = Options.Usage;
 
@@ -640,7 +640,7 @@ namespace Tomahawk
 					}
 
 					Content->GetDevice()->Lock();
-					Object->Meshes.push_back(Graphics::Mesh::Create(Content->GetDevice(), F));
+					Object->Meshes.push_back(Content->GetDevice()->CreateMeshBuffer(F));
 					Content->GetDevice()->Unlock();
 
 					NMake::Unpack(Mesh->Find("name"), &Object->Meshes.back()->Name);
@@ -908,7 +908,7 @@ namespace Tomahawk
 			void SkinModelProcessor::Free(AssetResource* Asset)
 			{
 				if (Asset->Resource != nullptr)
-					delete ((Graphics::SkinMesh*)Asset->Resource);
+					delete ((Graphics::SkinMeshBuffer*)Asset->Resource);
 			}
 			void* SkinModelProcessor::Duplicate(AssetResource* Asset, ContentArgs* Args)
 			{
@@ -929,7 +929,7 @@ namespace Tomahawk
 				std::vector<Rest::Document*> Meshes = Document->FindCollectionPath("meshes.mesh");
 				for (auto&& Mesh : Meshes)
 				{
-					Graphics::SkinMesh::Desc F = Graphics::SkinMesh::Desc();
+					Graphics::SkinMeshBuffer::Desc F;
 					F.AccessFlags = Options.AccessFlags;
 					F.Usage = Options.Usage;
 
@@ -946,7 +946,7 @@ namespace Tomahawk
 					}
 
 					Content->GetDevice()->Lock();
-					Object->Meshes.push_back(Graphics::SkinMesh::Create(Content->GetDevice(), F));
+					Object->Meshes.push_back(Content->GetDevice()->CreateSkinMeshBuffer(F));
 					Content->GetDevice()->Unlock();
 
 					NMake::Unpack(Mesh->Find("name"), &Object->Meshes.back()->Name);

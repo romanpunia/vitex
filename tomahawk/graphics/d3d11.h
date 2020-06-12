@@ -15,57 +15,62 @@ namespace Tomahawk
 		{
 			class D3D11Device;
 
-			struct D3D11DeviceState : public Graphics::DeviceState
+			class D3D11DepthStencilState : public DepthStencilState
 			{
-				ID3D11Buffer* CSConstantBuffer;
-				ID3D11SamplerState* CSSampler;
-				ID3D11ComputeShader* CSShader;
-				ID3D11ShaderResourceView* CSShaderResource;
-				ID3D11UnorderedAccessView* CSUnorderedAccessView;
-				ID3D11Buffer* DSConstantBuffer;
-				ID3D11SamplerState* DSSampler;
-				ID3D11ShaderResourceView* DSShaderResource;
-				ID3D11DomainShader* DSShader;
-				ID3D11Buffer* GSConstantBuffer;
-				ID3D11SamplerState* GSSampler;
-				ID3D11ShaderResourceView* GSShaderResource;
-				ID3D11GeometryShader* GSShader;
-				ID3D11Buffer* HSConstantBuffer;
-				ID3D11SamplerState* HSSampler;
-				ID3D11ShaderResourceView* HSShaderResource;
-				ID3D11HullShader* HSShader;
-				ID3D11Buffer* PSConstantBuffer;
-				ID3D11SamplerState* PSSampler;
-				ID3D11ShaderResourceView* PSShaderResource;
-				ID3D11PixelShader* PSShader;
-				ID3D11Buffer* VSConstantBuffer;
-				ID3D11SamplerState* VSSampler;
-				ID3D11ShaderResourceView* VSShaderResource;
-				ID3D11VertexShader* VSShader;
-				ID3D11Buffer* IndexBuffer;
-				DXGI_FORMAT IDXGIFormat;
-				unsigned int IOffset;
-				ID3D11InputLayout* InputLayout;
-				D3D11_PRIMITIVE_TOPOLOGY PrimitiveTopology;
-				ID3D11Buffer* VertexBuffer;
-				unsigned int VStride, VOffset;
-				ID3D11BlendState* BlendState;
-				float BlendFactor[4];
-				unsigned int SampleMask;
-				ID3D11DepthStencilState* DepthStencilState;
-				unsigned int StencilReference;
-				ID3D11RenderTargetView* RenderTargetView;
-				ID3D11DepthStencilView* DepthStencilView;
-				unsigned int RectCount;
-				D3D11_RECT Rects[D3D11_VIEWPORT_AND_SCISSORRECT_OBJECT_COUNT_PER_PIPELINE];
-				ID3D11RasterizerState* RasterizerState;
-				unsigned int ViewportCount;
-				D3D11_VIEWPORT Viewports[D3D11_VIEWPORT_AND_SCISSORRECT_OBJECT_COUNT_PER_PIPELINE];
-				unsigned int UAVInitialCounts;
+				friend D3D11Device;
+
+			public:
+				ID3D11DepthStencilState* Resource;
+
+			public:
+				D3D11DepthStencilState(const Desc& I);
+				virtual ~D3D11DepthStencilState() override;
+				void* GetResource() override;
 			};
 
-			class D3D11Shader : public Graphics::Shader
+			class D3D11RasterizerState : public RasterizerState
 			{
+				friend D3D11Device;
+
+			public:
+				ID3D11RasterizerState* Resource;
+
+			public:
+				D3D11RasterizerState(const Desc& I);
+				virtual ~D3D11RasterizerState() override;
+				void* GetResource() override;
+			};
+
+			class D3D11BlendState : public BlendState
+			{
+				friend D3D11Device;
+
+			public:
+				ID3D11BlendState* Resource;
+
+			public:
+				D3D11BlendState(const Desc& I);
+				virtual ~D3D11BlendState() override;
+				void* GetResource() override;
+			};
+
+			class D3D11SamplerState : public SamplerState
+			{
+				friend D3D11Device;
+
+			public:
+				ID3D11SamplerState* Resource;
+
+			public:
+				D3D11SamplerState(const Desc& I);
+				virtual ~D3D11SamplerState() override;
+				void* GetResource() override;
+			};
+
+			class D3D11Shader : public Shader
+			{
+				friend D3D11Device;
+
 			private:
 				bool Compiled;
 
@@ -80,92 +85,122 @@ namespace Tomahawk
 				ID3D11Buffer* ConstantBuffer;
 
 			public:
-				D3D11Shader(Graphics::GraphicsDevice* Device, const Desc& I);
+				D3D11Shader(const Desc& I);
 				virtual ~D3D11Shader() override;
-				void UpdateBuffer(Graphics::GraphicsDevice* Device, const void* Data) override;
-				void CreateBuffer(GraphicsDevice* Device, size_t Size) override;
-				void SetShader(Graphics::GraphicsDevice* Device, unsigned int Type) override;
-				void SetBuffer(Graphics::GraphicsDevice* Device, unsigned int Slot, unsigned int Type) override;
 				bool IsValid() override;
 			};
 
-			class D3D11ElementBuffer : public Graphics::ElementBuffer
+			class D3D11ElementBuffer : public ElementBuffer
 			{
+				friend D3D11Device;
+
 			public:
 				ID3D11Buffer* Element;
 
 			public:
-				D3D11ElementBuffer(Graphics::GraphicsDevice* Device, const Desc& I);
+				D3D11ElementBuffer(const Desc& I);
 				virtual ~D3D11ElementBuffer() override;
-				void SetIndexBuffer(Graphics::GraphicsDevice* Device, Graphics::Format Format, unsigned int Offset) override;
-				void SetVertexBuffer(Graphics::GraphicsDevice* Device, unsigned int Slot, unsigned int Stride, unsigned int Offset) override;
-				void Map(Graphics::GraphicsDevice* Device, Graphics::ResourceMap Mode, Graphics::MappedSubresource* Map) override;
-				void Unmap(Graphics::GraphicsDevice* Device, Graphics::MappedSubresource* Map) override;
 				void* GetResource() override;
 			};
 
-			class D3D11StructureBuffer : public Graphics::StructureBuffer
+			class D3D11StructureBuffer : public StructureBuffer
 			{
+				friend D3D11Device;
+
 			public:
 				ID3D11Buffer* Element;
 				ID3D11ShaderResourceView* Resource;
 
 			public:
-				D3D11StructureBuffer(Graphics::GraphicsDevice* Device, const Desc& I);
+				D3D11StructureBuffer(const Desc& I);
 				virtual ~D3D11StructureBuffer() override;
-				void Map(Graphics::GraphicsDevice* Device, Graphics::ResourceMap Mode, Graphics::MappedSubresource* Map) override;
-				void RemapSubresource(Graphics::GraphicsDevice* Device, void* Pointer, uint64_t Size) override;
-				void Unmap(Graphics::GraphicsDevice* Device, Graphics::MappedSubresource* Map) override;
-				void SetBuffer(Graphics::GraphicsDevice* Device, int Slot) override;
 				void* GetElement() override;
 				void* GetResource() override;
 			};
 
-			class D3D11Texture2D : public Graphics::Texture2D
+			class D3D11MeshBuffer : public MeshBuffer
 			{
+				friend D3D11Device;
+
+			public:
+				D3D11MeshBuffer(const Desc& I);
+				Compute::Vertex* GetElements(GraphicsDevice* Device) override;
+			};
+
+			class D3D11SkinMeshBuffer : public SkinMeshBuffer
+			{
+				friend D3D11Device;
+
+			public:
+				D3D11SkinMeshBuffer(const Desc& I);
+				Compute::SkinVertex* GetElements(GraphicsDevice* Device) override;
+			};
+
+			class D3D11InstanceBuffer : public InstanceBuffer
+			{
+				friend D3D11Device;
+
+			private:
+				bool Sync;
+
+			public:
+				ID3D11ShaderResourceView* Resource;
+
+			public:
+				D3D11InstanceBuffer(const Desc& I);
+				virtual ~D3D11InstanceBuffer() override;
+			};
+
+			class D3D11Texture2D : public Texture2D
+			{
+				friend D3D11Device;
+
 			public:
 				ID3D11ShaderResourceView* Resource;
 				ID3D11Texture2D* Rest;
 
 			public:
-				D3D11Texture2D(Graphics::GraphicsDevice* Device);
-				D3D11Texture2D(Graphics::GraphicsDevice* Device, const Desc& I);
+				D3D11Texture2D();
+				D3D11Texture2D(const Desc& I);
 				virtual ~D3D11Texture2D() override;
-				void SetTexture(Graphics::GraphicsDevice* Device, int Slot) override;
 				void* GetResource() override;
 				void Fill(D3D11Device* Device);
 				void Generate(D3D11Device* Device);
 			};
 
-			class D3D11Texture3D : public Graphics::Texture3D
+			class D3D11Texture3D : public Texture3D
 			{
+				friend D3D11Device;
+
 			public:
 				ID3D11ShaderResourceView* Resource;
 				ID3D11Texture3D* Rest;
 
 			public:
-				D3D11Texture3D(Graphics::GraphicsDevice* Device);
+				D3D11Texture3D();
 				virtual ~D3D11Texture3D() override;
-				void SetTexture(Graphics::GraphicsDevice* Device, int Slot) override;
 				void* GetResource() override;
 			};
 
-			class D3D11TextureCube : public Graphics::TextureCube
+			class D3D11TextureCube : public TextureCube
 			{
+				friend D3D11Device;
+
 			public:
 				ID3D11ShaderResourceView* Resource;
 				ID3D11Texture2D* Rest;
 
 			public:
-				D3D11TextureCube(Graphics::GraphicsDevice* Device);
-				D3D11TextureCube(Graphics::GraphicsDevice* Device, const Desc& I);
+				D3D11TextureCube();
+				D3D11TextureCube(const Desc& I);
 				virtual ~D3D11TextureCube() override;
-				void SetTexture(Graphics::GraphicsDevice* Device, int Slot) override;
 				void* GetResource() override;
 			};
 
-			class D3D11RenderTarget2D : public Graphics::RenderTarget2D
+			class D3D11RenderTarget2D : public RenderTarget2D
 			{
+				friend D3D11Device;
+
 			public:
 				ID3D11RenderTargetView* RenderTargetView;
 				ID3D11Texture2D* Texture;
@@ -173,21 +208,18 @@ namespace Tomahawk
 				D3D11_VIEWPORT Viewport;
 
 			public:
-				D3D11RenderTarget2D(Graphics::GraphicsDevice* Device, const Desc& I);
+				D3D11RenderTarget2D(const Desc& I);
 				virtual ~D3D11RenderTarget2D() override;
-				void SetTarget(Graphics::GraphicsDevice* Device, float R, float G, float B) override;
-				void SetTarget(Graphics::GraphicsDevice* Device) override;
-				void Clear(Graphics::GraphicsDevice* Device, float R, float G, float B) override;
-				void CopyTexture2D(Graphics::GraphicsDevice* Device, Graphics::Texture2D** Value) override;
-				void SetViewport(const Graphics::Viewport& In) override;
 				Graphics::Viewport GetViewport() override;
 				float GetWidth() override;
 				float GetHeight() override;
 				void* GetResource() override;
 			};
 
-			class D3D11MultiRenderTarget2D : public Graphics::MultiRenderTarget2D
+			class D3D11MultiRenderTarget2D : public MultiRenderTarget2D
 			{
+				friend D3D11Device;
+
 			public:
 				struct
 				{
@@ -197,7 +229,7 @@ namespace Tomahawk
 					D3D11_TEXTURE2D_DESC CubeMap;
 					D3D11_TEXTURE2D_DESC Texture;
 					D3D11_BOX Region;
-					int Target = -1;
+					unsigned int Target = -1;
 				} View;
 
 			public:
@@ -208,31 +240,21 @@ namespace Tomahawk
 				ID3D11DepthStencilView* DepthStencilView;
 
 			public:
-				D3D11MultiRenderTarget2D(Graphics::GraphicsDevice* Device, const Desc& I);
+				D3D11MultiRenderTarget2D(const Desc& I);
 				virtual ~D3D11MultiRenderTarget2D() override;
-				void SetTarget(Graphics::GraphicsDevice* Device, int Target, float R, float G, float B) override;
-				void SetTarget(Graphics::GraphicsDevice* Device, int Target) override;
-				void SetTarget(Graphics::GraphicsDevice* Device, float R, float G, float B) override;
-				void SetTarget(Graphics::GraphicsDevice* Device) override;
-				void Clear(Graphics::GraphicsDevice* Device, int Target, float R, float G, float B) override;
-				void CopyTargetTo(int Target, Graphics::GraphicsDevice* Device, Graphics::RenderTarget2D* Output) override;
-				void CopyTargetFrom(int Target, Graphics::GraphicsDevice* Device, Graphics::RenderTarget2D* Output) override;
-				void CopyTexture2D(int Target, Graphics::GraphicsDevice* Device, Graphics::Texture2D** Value) override;
-				void CopyBegin(GraphicsDevice* Device, int Target, unsigned int MipLevels, unsigned int Size) override;
-				void CopyFace(GraphicsDevice* Device, int Target, int Face) override;
-				void CopyEnd(GraphicsDevice* Device, TextureCube* Value) override;
-				void SetViewport(const Graphics::Viewport& In) override;
 				Graphics::Viewport GetViewport() override;
 				float GetWidth() override;
 				float GetHeight() override;
 				void* GetResource(int Id) override;
 
 			private:
-				void FillView(int Target, unsigned int MipLevels, unsigned int Size);
+				void FillView(unsigned int Target, unsigned int MipLevels, unsigned int Size);
 			};
 
-			class D3D11RenderTarget2DArray : public Graphics::RenderTarget2DArray
+			class D3D11RenderTarget2DArray : public RenderTarget2DArray
 			{
+				friend D3D11Device;
+
 			public:
 				std::vector<ID3D11RenderTargetView*> RenderTargetView;
 				ID3D11DepthStencilView* DepthStencilView;
@@ -241,20 +263,18 @@ namespace Tomahawk
 				D3D11_VIEWPORT Viewport;
 
 			public:
-				D3D11RenderTarget2DArray(Graphics::GraphicsDevice* Device, const Desc& I);
+				D3D11RenderTarget2DArray(const Desc& I);
 				virtual ~D3D11RenderTarget2DArray() override;
-				void SetTarget(Graphics::GraphicsDevice* Device, int Target, float R, float G, float B) override;
-				void SetTarget(Graphics::GraphicsDevice* Device, int Target) override;
-				void Clear(Graphics::GraphicsDevice* Device, int Target, float R, float G, float B) override;
-				void SetViewport(const Graphics::Viewport& In) override;
 				Graphics::Viewport GetViewport() override;
 				float GetWidth() override;
 				float GetHeight() override;
 				void* GetResource() override;
 			};
 
-			class D3D11RenderTargetCube : public Graphics::RenderTargetCube
+			class D3D11RenderTargetCube : public RenderTargetCube
 			{
+				friend D3D11Device;
+
 			public:
 				ID3D11DepthStencilView* DepthStencilView;
 				ID3D11RenderTargetView* RenderTargetView;
@@ -263,83 +283,35 @@ namespace Tomahawk
 				D3D11_VIEWPORT Viewport;
 
 			public:
-				D3D11RenderTargetCube(Graphics::GraphicsDevice* Device, const Desc& I);
+				D3D11RenderTargetCube(const Desc& I);
 				virtual ~D3D11RenderTargetCube() override;
-				void SetTarget(Graphics::GraphicsDevice* Device, float R, float G, float B) override;
-				void SetTarget(Graphics::GraphicsDevice* Device) override;
-				void Clear(Graphics::GraphicsDevice* Device, float R, float G, float B) override;
-				void CopyTextureCube(Graphics::GraphicsDevice* Device, Graphics::TextureCube** Value) override;
-				void CopyTexture2D(int FaceId, Graphics::GraphicsDevice* Device, Graphics::Texture2D** Value) override;
-				void SetViewport(const Graphics::Viewport& In) override;
 				Graphics::Viewport GetViewport() override;
 				float GetWidth() override;
 				float GetHeight() override;
 				void* GetResource() override;
 			};
 
-			class D3D11MultiRenderTargetCube : public Graphics::MultiRenderTargetCube
+			class D3D11MultiRenderTargetCube : public MultiRenderTargetCube
 			{
+				friend D3D11Device;
+
 			public:
 				ID3D11DepthStencilView* DepthStencilView;
 				ID3D11RenderTargetView* RenderTargetView[8];
 				ID3D11Texture2D* Texture[8];
 				ID3D11Texture2D* Cube[8];
 				D3D11_VIEWPORT Viewport;
-				Graphics::SurfaceTarget SVTarget;
 
 			public:
-				D3D11MultiRenderTargetCube(Graphics::GraphicsDevice* Device, const Desc& I);
+				D3D11MultiRenderTargetCube(const Desc& I);
 				virtual ~D3D11MultiRenderTargetCube() override;
-				void SetTarget(Graphics::GraphicsDevice* Device, int Target, float R, float G, float B) override;
-				void SetTarget(Graphics::GraphicsDevice* Device, int Target) override;
-				void SetTarget(Graphics::GraphicsDevice* Device, float R, float G, float B) override;
-				void SetTarget(Graphics::GraphicsDevice* Device) override;
-				void Clear(Graphics::GraphicsDevice* Device, int Target, float R, float G, float B) override;
-				void CopyTextureCube(int CubeId, Graphics::GraphicsDevice* Device, Graphics::TextureCube** Value) override;
-				void CopyTexture2D(int CubeId, int FaceId, Graphics::GraphicsDevice* Device, Graphics::Texture2D** Value) override;
-				void SetViewport(const Graphics::Viewport& In) override;
 				Graphics::Viewport GetViewport() override;
 				float GetWidth() override;
 				float GetHeight() override;
 				void* GetResource(int Id) override;
 			};
 
-			class D3D11Mesh : public Graphics::Mesh
-			{
-			public:
-				D3D11Mesh(Graphics::GraphicsDevice* Device, const Desc& I);
-				void Update(Graphics::GraphicsDevice* Device, Compute::Vertex* Elements) override;
-				void Draw(Graphics::GraphicsDevice* Device) override;
-				Compute::Vertex* Elements(Graphics::GraphicsDevice* Device) override;
-			};
-
-			class D3D11SkinMesh : public Graphics::SkinMesh
-			{
-			public:
-				D3D11SkinMesh(Graphics::GraphicsDevice* Device, const Desc& I);
-				void Update(Graphics::GraphicsDevice* Device, Compute::SkinVertex* Elements) override;
-				void Draw(Graphics::GraphicsDevice* Device) override;
-				Compute::SkinVertex* Elements(Graphics::GraphicsDevice* Device) override;
-			};
-
-			class D3D11InstanceBuffer : public Graphics::InstanceBuffer
-			{
-			private:
-				bool SynchronizationState;
-
-			public:
-				ID3D11ShaderResourceView* Resource;
-
-			public:
-				D3D11InstanceBuffer(Graphics::GraphicsDevice* Device, const Desc& I);
-				virtual ~D3D11InstanceBuffer() override;
-				void Update() override;
-				void Restore() override;
-				void Resize(uint64_t Size) override;
-				void SetResource(Graphics::GraphicsDevice* Device, int Slot) override;
-			};
-
-			class D3D11DirectBuffer : public Graphics::DirectBuffer
+			class D3D11Device : public GraphicsDevice
 			{
 			private:
 				struct ConstantBuffer
@@ -349,36 +321,15 @@ namespace Tomahawk
 				};
 
 			private:
+				const char* VSP, *PSP, *GSP, *HSP, *DSP, *CSP;
 				ID3DBlob* VertexShaderBlob;
 				ID3D11VertexShader* VertexShader;
 				ID3D11InputLayout* InputLayout;
 				ID3D11Buffer* VertexConstantBuffer;
 				ID3DBlob* PixelShaderBlob;
 				ID3D11PixelShader* PixelShader;
-				ID3D11Buffer* ElementBuffer;
-				ConstantBuffer Buffer;
-
-			public:
-				D3D11DirectBuffer(Graphics::GraphicsDevice* NewDevice);
-				virtual ~D3D11DirectBuffer() override;
-				void Begin() override;
-				void End() override;
-				void EmitVertex() override;
-				void Position(float X, float Y, float Z) override;
-				void TexCoord(float X, float Y) override;
-				void Color(float X, float Y, float Z, float W) override;
-				void Texture(Graphics::Texture2D* InView) override;
-				void Intensity(float Intensity) override;
-				void TexCoordOffset(float X, float Y) override;
-				void Transform(Compute::Matrix4x4 Input) override;
-				void Topology(Graphics::PrimitiveTopology DrawTopology) override;
-				void AllocVertexBuffer(uint64_t Size);
-			};
-
-			class D3D11Device : public Graphics::GraphicsDevice
-			{
-			private:
-				const char* VSP, * PSP, * GSP, * HSP, * DSP, * CSP;
+				ID3D11Buffer* DirectBuffer;
+				ConstantBuffer Direct;
 
 			public:
 				ID3D11DeviceContext* ImmediateContext;
@@ -392,59 +343,144 @@ namespace Tomahawk
 			public:
 				D3D11Device(const Desc& I);
 				virtual ~D3D11Device() override;
-				void RestoreSamplerStates() override;
-				void RestoreBlendStates() override;
-				void RestoreRasterizerStates() override;
-				void RestoreDepthStencilStates() override;
-				void RestoreState(Graphics::DeviceState* RefState) override;
-				void ReleaseState(Graphics::DeviceState** RefState) override;
 				void SetConstantBuffers() override;
-				void SetShaderModel(Graphics::ShaderModel RShaderModel) override;
-				uint64_t AddDepthStencilState(Graphics::DepthStencilState* In) override;
-				uint64_t AddBlendState(Graphics::BlendState* In) override;
-				uint64_t AddRasterizerState(Graphics::RasterizerState* In) override;
-				uint64_t AddSamplerState(Graphics::SamplerState* In) override;
-				void SetSamplerState(uint64_t State) override;
-				void SetBlendState(uint64_t State) override;
-				void SetRasterizerState(uint64_t State) override;
-				void SetDepthStencilState(uint64_t State) override;
-				void UpdateBuffer(Graphics::RenderBufferType Buffer) override;
-				void Present() override;
-				void SetPrimitiveTopology(Graphics::PrimitiveTopology Topology) override;
-				void RestoreTexture2D(int Slot, int Size) override;
-				void RestoreTexture2D(int Size) override;
-				void RestoreTexture3D(int Slot, int Size) override;
-				void RestoreTexture3D(int Size) override;
-				void RestoreTextureCube(int Slot, int Size) override;
-				void RestoreTextureCube(int Size) override;
-				void RestoreVertexBuffer(int Slot) override;
-				void RestoreIndexBuffer() override;
-				void RestoreState() override;
-				void RestoreShader(unsigned int Type) override;
-				void ResizeBuffers(unsigned int Width, unsigned int Height) override;
+				void SetShaderModel(ShaderModel Model) override;
+				void SetSamplerState(SamplerState* State) override;
+				void SetBlendState(BlendState* State) override;
+				void SetRasterizerState(RasterizerState* State) override;
+				void SetDepthStencilState(DepthStencilState* State) override;
+				void SetShader(Shader* Resource, unsigned int Type) override;
+				void SetBuffer(Shader* Resource, unsigned int Slot, unsigned int Type) override;
+				void SetBuffer(StructureBuffer* Resource, unsigned int Slot) override;
+				void SetBuffer(InstanceBuffer* Resource, unsigned int Slot) override;
+				void SetIndexBuffer(ElementBuffer* Resource, Format FormatMode, unsigned int Offset) override;
+				void SetVertexBuffer(ElementBuffer* Resource, unsigned int Slot, unsigned int Stride, unsigned int Offset) override;
+				void SetTexture2D(Texture2D* Resource, unsigned int Slot) override;
+				void SetTexture3D(Texture3D* Resource, unsigned int Slot) override;
+				void SetTextureCube(TextureCube* Resource, unsigned int Slot) override;
+				void SetTarget(float R, float G, float B) override;
+				void SetTarget() override;
+				void SetTarget(RenderTarget2D* Resource, float R, float G, float B) override;
+				void SetTarget(RenderTarget2D* Resource) override;
+				void SetTarget(MultiRenderTarget2D* Resource, unsigned int Target, float R, float G, float B) override;
+				void SetTarget(MultiRenderTarget2D* Resource, unsigned int Target) override;
+				void SetTarget(MultiRenderTarget2D* Resource, float R, float G, float B) override;
+				void SetTarget(MultiRenderTarget2D* Resource) override;
+				void SetTarget(RenderTarget2DArray* Resource, unsigned int Target, float R, float G, float B) override;
+				void SetTarget(RenderTarget2DArray* Resource, unsigned int Target) override;
+				void SetTarget(RenderTargetCube* Resource, float R, float G, float B) override;
+				void SetTarget(RenderTargetCube* Resource) override;
+				void SetTarget(MultiRenderTargetCube* Resource, unsigned int Target, float R, float G, float B) override;
+				void SetTarget(MultiRenderTargetCube* Resource, unsigned int Target) override;
+				void SetTarget(MultiRenderTargetCube* Resource, float R, float G, float B) override;
+				void SetTarget(MultiRenderTargetCube* Resource) override;
+				void SetViewport(const Viewport& In) override;
+				void SetViewport(RenderTarget2D* Resource, const Viewport& In) override;
+				void SetViewport(MultiRenderTarget2D* Resource, const Viewport& In) override;
+				void SetViewport(RenderTarget2DArray* Resource, const Viewport& In) override;
+				void SetViewport(RenderTargetCube* Resource, const Viewport& In) override;
+				void SetViewport(MultiRenderTargetCube* Resource, const Viewport& In) override;
+				void SetViewports(unsigned int Count, Viewport* Viewports) override;
+				void SetScissorRects(unsigned int Count, Rectangle* Value) override;
+				void SetPrimitiveTopology(PrimitiveTopology Topology) override;
+				void FlushTexture2D(unsigned int Slot, unsigned int Count) override;
+				void FlushTexture3D(unsigned int Slot, unsigned int Count) override;
+				void FlushTextureCube(unsigned int Slot, unsigned int Count) override;
+				void FlushState() override;
+				void Map(ElementBuffer* Resource, ResourceMap Mode, MappedSubresource* Map) override;
+				void Map(StructureBuffer* Resource, ResourceMap Mode, MappedSubresource* Map) override;
+				void Unmap(ElementBuffer* Resource, MappedSubresource* Map) override;
+				void Unmap(StructureBuffer* Resource, MappedSubresource* Map) override;
+				void UpdateBuffer(StructureBuffer* Resource, void* Data, uint64_t Size) override;
+				void UpdateBuffer(Shader* Resource, const void* Data) override;
+				void UpdateBuffer(MeshBuffer* Resource, Compute::Vertex* Data) override;
+				void UpdateBuffer(SkinMeshBuffer* Resource, Compute::SkinVertex* Data) override;
+				void UpdateBuffer(InstanceBuffer* Resource) override;
+				void UpdateBuffer(RenderBufferType Buffer) override;
+				void UpdateBufferSize(Shader* Resource, size_t Size) override;
+				void UpdateBufferSize(InstanceBuffer* Resource, uint64_t Size) override;
+				void ClearBuffer(InstanceBuffer* Resource) override;
+				void Clear(float R, float G, float B) override;
+				void Clear(RenderTarget2D* Resource, float R, float G, float B) override;
+				void Clear(MultiRenderTarget2D* Resource, unsigned int Target, float R, float G, float B) override;
+				void Clear(RenderTarget2DArray* Resource, unsigned int Target, float R, float G, float B) override;
+				void Clear(RenderTargetCube* Resource, float R, float G, float B) override;
+				void Clear(MultiRenderTargetCube* Resource, unsigned int Target, float R, float G, float B) override;
+				void ClearDepth() override;
+				void ClearDepth(RenderTarget2D* Resource) override;
+				void ClearDepth(MultiRenderTarget2D* Resource) override;
+				void ClearDepth(RenderTarget2DArray* Resource) override;
+				void ClearDepth(RenderTargetCube* Resource) override;
+				void ClearDepth(MultiRenderTargetCube* Resource) override;
 				void DrawIndexed(unsigned int Count, unsigned int IndexLocation, unsigned int BaseLocation) override;
-				void Draw(unsigned int Count, unsigned int Start) override;
-				void SetViewport(unsigned int Count, Graphics::Viewport* Viewports) override;
-				void SetScissorRect(unsigned int Count, Graphics::Rectangle* Value) override;
-				void GetViewport(unsigned int* Count, Graphics::Viewport* Out) override;
-				void GetScissorRect(unsigned int* Count, Graphics::Rectangle* Out) override;
-				Graphics::ShaderModel GetSupportedShaderModel() override;
-				Graphics::PrimitiveTopology GetPrimitiveTopology() override;
-				void* GetDevice() override;
-				void* GetContext() override;
+				void DrawIndexed(MeshBuffer* Resource) override;
+				void DrawIndexed(SkinMeshBuffer* Resource) override;
+				void Draw(unsigned int Count, unsigned int Location) override;
+				void CopyTexture2D(Texture2D** Result) override;
+				void CopyTexture2D(RenderTarget2D* Resource, Texture2D** Result) override;
+				void CopyTexture2D(MultiRenderTarget2D* Resource, unsigned int Target, Texture2D** Result) override;
+				void CopyTexture2D(RenderTargetCube* Resource, unsigned int Face, Texture2D** Result) override;
+				void CopyTexture2D(MultiRenderTargetCube* Resource, unsigned int Cube, unsigned int Face, Texture2D** Result) override;
+				void CopyTextureCube(RenderTargetCube* Resource, TextureCube** Result) override;
+				void CopyTextureCube(MultiRenderTargetCube* Resource, unsigned int Cube, TextureCube** Result) override;
+				void CopyTargetTo(MultiRenderTarget2D* Resource, unsigned int Target, RenderTarget2D* To) override;
+				void CopyTargetFrom(MultiRenderTarget2D* Resource, unsigned int Target, RenderTarget2D* From) override;
+				void CopyBegin(MultiRenderTarget2D* Resource, unsigned int Target, unsigned int MipLevels, unsigned int Size) override;
+				void CopyFace(MultiRenderTarget2D* Resource, unsigned int Target, unsigned int Face) override;
+				void CopyEnd(MultiRenderTarget2D* Resource, TextureCube* Result) override;
+				void FetchViewports(unsigned int* Count, Viewport* Out) override;
+				void FetchScissorRects(unsigned int* Count, Rectangle* Out) override;
+				void ResizeBuffers(unsigned int Width, unsigned int Height) override;
+				void DirectBegin() override;
+				void DirectTransform(const Compute::Matrix4x4& Transform) override;
+				void DirectTopology(PrimitiveTopology Topology) override;
+				void DirectEmit() override;
+				void DirectTexture(Texture2D* In) override;
+				void DirectColor(float X, float Y, float Z, float W) override;
+				void DirectIntensity(float Intensity) override;
+				void DirectTexCoord(float X, float Y) override;
+				void DirectTexCoordOffset(float X, float Y) override;
+				void DirectPosition(float X, float Y, float Z) override;
+				void DirectEnd() override;
+				void Submit() override;
+				DepthStencilState* CreateDepthStencilState(const DepthStencilState::Desc& I) override;
+				BlendState* CreateBlendState(const BlendState::Desc& I) override;
+				RasterizerState* CreateRasterizerState(const RasterizerState::Desc& I) override;
+				SamplerState* CreateSamplerState(const SamplerState::Desc& I) override;
+				Shader* CreateShader(const Shader::Desc& I) override;
+				ElementBuffer* CreateElementBuffer(const ElementBuffer::Desc& I) override;
+				StructureBuffer* CreateStructureBuffer(const StructureBuffer::Desc& I) override;
+				MeshBuffer* CreateMeshBuffer(const MeshBuffer::Desc& I) override;
+				SkinMeshBuffer* CreateSkinMeshBuffer(const SkinMeshBuffer::Desc& I) override;
+				InstanceBuffer* CreateInstanceBuffer(const InstanceBuffer::Desc& I) override;
+				Texture2D* CreateTexture2D() override;
+				Texture2D* CreateTexture2D(const Texture2D::Desc& I) override;
+				Texture3D* CreateTexture3D() override;
+				TextureCube* CreateTextureCube() override;
+				TextureCube* CreateTextureCube(const TextureCube::Desc& I) override;
+				RenderTarget2D* CreateRenderTarget2D(const RenderTarget2D::Desc& I) override;
+				MultiRenderTarget2D* CreateMultiRenderTarget2D(const MultiRenderTarget2D::Desc& I) override;
+				RenderTarget2DArray* CreateRenderTarget2DArray(const RenderTarget2DArray::Desc& I) override;
+				RenderTargetCube* CreateRenderTargetCube(const RenderTargetCube::Desc& I) override;
+				MultiRenderTargetCube* CreateMultiRenderTargetCube(const MultiRenderTargetCube::Desc& I) override;
+				PrimitiveTopology GetPrimitiveTopology() override;
+				ShaderModel GetSupportedShaderModel() override;
 				void* GetBackBuffer() override;
 				void* GetBackBufferMSAA() override;
 				void* GetBackBufferNoAA() override;
-				Graphics::DeviceState* CreateState() override;
+				void* GetDevice() override;
+				void* GetContext() override;
 				bool IsValid() override;
-				int CreateConstantBuffer(int Size, ID3D11Buffer*& Buffer);
+				bool CreateDirectBuffer();
+				bool CreateVertexBuffer(uint64_t Size);
+				int CreateConstantBuffer(ID3D11Buffer** Buffer, size_t Size);
+				char* GetCompileState(ID3DBlob* Error);
 				char* GetVSProfile();
 				char* GetPSProfile();
 				char* GetGSProfile();
 				char* GetHSProfile();
 				char* GetCSProfile();
 				char* GetDSProfile();
-				char* CompileState(ID3DBlob* Error);
 			};
 		}
 	}

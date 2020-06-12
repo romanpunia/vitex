@@ -341,7 +341,7 @@ namespace Tomahawk
 			class THAWK_OUT Model : public Component
 			{
 			public:
-				std::unordered_map<Graphics::Mesh*, Appearance> Surfaces;
+				std::unordered_map<Graphics::MeshBuffer*, Appearance> Surfaces;
 				Graphics::Model* Instance = nullptr;
 				bool Visibility;
 
@@ -353,9 +353,9 @@ namespace Tomahawk
 				virtual void OnSynchronize(Rest::Timer* Time) override;
 				virtual void OnEvent(Event* Value) override;
 				virtual Component* OnClone(Entity* New) override;
-				Graphics::Material& GetMaterial(Graphics::Mesh* Mesh);
+				Graphics::Material& GetMaterial(Graphics::MeshBuffer* Mesh);
 				Graphics::Material& GetMaterial(Appearance* Surface);
-				Appearance* GetSurface(Graphics::Mesh* Mesh);
+				Appearance* GetSurface(Graphics::MeshBuffer* Mesh);
 				Compute::Matrix4x4 GetBoundingBox();
 
 			public:
@@ -365,7 +365,7 @@ namespace Tomahawk
 			class THAWK_OUT SkinModel : public Component
 			{
 			public:
-				std::unordered_map<Graphics::SkinMesh*, Appearance> Surfaces;
+				std::unordered_map<Graphics::SkinMeshBuffer*, Appearance> Surfaces;
 				Graphics::SkinModel* Instance = nullptr;
 				Graphics::PoseBuffer Skeleton;
 				bool Visibility;
@@ -378,9 +378,9 @@ namespace Tomahawk
 				virtual void OnSynchronize(Rest::Timer* Time) override;
 				virtual void OnEvent(Event* Value) override;
 				virtual Component* OnClone(Entity* New) override;
-				Graphics::Material& GetMaterial(Graphics::SkinMesh* Mesh);
+				Graphics::Material& GetMaterial(Graphics::SkinMeshBuffer* Mesh);
 				Graphics::Material& GetMaterial(Appearance* Surface);
-				Appearance* GetSurface(Graphics::SkinMesh* Mesh);
+				Appearance* GetSurface(Graphics::SkinMeshBuffer* Mesh);
 				Compute::Matrix4x4 GetBoundingBox();
 
 			public:
@@ -517,13 +517,22 @@ namespace Tomahawk
 
 			class THAWK_OUT Camera : public Component
 			{
+			public:
+				enum ProjectionMode
+				{
+					ProjectionMode_Perspective,
+					ProjectionMode_Orthographic
+				} Mode;
+
 			protected:
+				RenderSystem* Renderer = nullptr;
+				Compute::Matrix4x4 Projection;
 				Viewer FieldView;
 
 			public:
-				RenderSystem* Renderer = nullptr;
-				Compute::Matrix4x4 Projection;
-				float ViewDistance;
+				float NearPlane, FarPlane;
+				float Width, Height;
+				float FieldOfView;
 
 			public:
 				Camera(Entity* Ref);
@@ -531,15 +540,17 @@ namespace Tomahawk
 				virtual void OnLoad(ContentManager* Content, Rest::Document* Node) override;
 				virtual void OnSave(ContentManager* Content, Rest::Document* Node) override;
 				virtual void OnAwake(Component* New) override;
+				virtual void OnSynchronize(Rest::Timer* Time) override;
 				virtual void OnAsleep() override;
 				virtual Component* OnClone(Entity* New) override;
 				void FillViewer(Viewer* View);
 				void ResizeBuffers();
 				Viewer GetViewer();
+				RenderSystem* GetRenderer();
+				Compute::Matrix4x4 GetProjection();
 				Compute::Matrix4x4 GetViewProjection();
 				Compute::Matrix4x4 GetView();
 				Compute::Vector3 GetViewPosition();
-				float GetFieldOfView();
 
 			public:
 				THAWK_COMPONENT(Camera);

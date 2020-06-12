@@ -14,7 +14,7 @@ namespace Tomahawk
 		Alert::Alert(Activity* From) : View(AlertType_None), Base(From), Waiting(false)
 		{
 		}
-		void Alert::Create(AlertType Type, const std::string& Title, const std::string& Text)
+		void Alert::Setup(AlertType Type, const std::string& Title, const std::string& Text)
 		{
 			if (View != AlertType_None)
 				return;
@@ -227,21 +227,52 @@ namespace Tomahawk
 			return (void*)Handle;
 		}
 
-		Shader::Shader(GraphicsDevice* Device, const Desc& I)
+		DepthStencilState::DepthStencilState(const Desc& I) : State(I)
 		{
 		}
-		Shader* Shader::Create(GraphicsDevice* Device, const Desc& I)
+		DepthStencilState::~DepthStencilState()
 		{
-#ifdef THAWK_MICROSOFT
-			if (Device && Device->GetBackend() == RenderBackend_D3D11)
-				return new D3D11::D3D11Shader(Device, I);
-#endif
-#ifdef THAWK_HAS_GL
-			if (Device && Device->GetBackend() == RenderBackend_OGL)
-				return new OGL::OGLShader(Device, I);
-#endif
-			THAWK_ERROR("instance serialization wasn't found");
-			return nullptr;
+		}
+		DepthStencilState::Desc DepthStencilState::GetState()
+		{
+			return State;
+		}
+
+		RasterizerState::RasterizerState(const Desc& I) : State(I)
+		{
+		}
+		RasterizerState::~RasterizerState()
+		{
+		}
+		RasterizerState::Desc RasterizerState::GetState()
+		{
+			return State;
+		}
+
+		BlendState::BlendState(const Desc& I) : State(I)
+		{
+		}
+		BlendState::~BlendState()
+		{
+		}
+		BlendState::Desc BlendState::GetState()
+		{
+			return State;
+		}
+
+		SamplerState::SamplerState(const Desc& I) : State(I)
+		{
+		}
+		SamplerState::~SamplerState()
+		{
+		}
+		SamplerState::Desc SamplerState::GetState()
+		{
+			return State;
+		}
+
+		Shader::Shader(const Desc& I)
+		{
 		}
 		InputLayout* Shader::GetShapeVertexLayout()
 		{
@@ -284,7 +315,7 @@ namespace Tomahawk
 			return sizeof(Compute::Vertex);
 		}
 
-		ElementBuffer::ElementBuffer(GraphicsDevice* Device, const Desc& I)
+		ElementBuffer::ElementBuffer(const Desc& I)
 		{
 			Elements = I.ElementCount;
 		}
@@ -292,21 +323,8 @@ namespace Tomahawk
 		{
 			return Elements;
 		}
-		ElementBuffer* ElementBuffer::Create(GraphicsDevice* Device, const Desc& I)
-		{
-#ifdef THAWK_MICROSOFT
-			if (Device && Device->GetBackend() == RenderBackend_D3D11)
-				return new D3D11::D3D11ElementBuffer(Device, I);
-#endif
-#ifdef THAWK_HAS_GL
-			if (Device && Device->GetBackend() == RenderBackend_OGL)
-				return new OGL::OGLElementBuffer(Device, I);
-#endif
-			THAWK_ERROR("instance serialization wasn't found");
-			return nullptr;
-		}
 
-		StructureBuffer::StructureBuffer(GraphicsDevice* Device, const Desc& I)
+		StructureBuffer::StructureBuffer(const Desc& I)
 		{
 			Elements = I.ElementCount;
 		}
@@ -314,21 +332,71 @@ namespace Tomahawk
 		{
 			return Elements;
 		}
-		StructureBuffer* StructureBuffer::Create(GraphicsDevice* Device, const Desc& I)
+
+		MeshBuffer::MeshBuffer(const Desc& I) : VertexBuffer(nullptr), IndexBuffer(nullptr)
 		{
-#ifdef THAWK_MICROSOFT
-			if (Device && Device->GetBackend() == RenderBackend_D3D11)
-				return new D3D11::D3D11StructureBuffer(Device, I);
-#endif
-#ifdef THAWK_HAS_GL
-			if (Device && Device->GetBackend() == RenderBackend_OGL)
-				return new OGL::OGLStructureBuffer(Device, I);
-#endif
-			THAWK_ERROR("instance serialization wasn't found");
-			return nullptr;
+		}
+		MeshBuffer::~MeshBuffer()
+		{
+			delete VertexBuffer;
+			delete IndexBuffer;
+		}
+		ElementBuffer* MeshBuffer::GetVertexBuffer()
+		{
+			return VertexBuffer;
+		}
+		ElementBuffer* MeshBuffer::GetIndexBuffer()
+		{
+			return IndexBuffer;
 		}
 
-		Texture2D::Texture2D(GraphicsDevice* Device)
+		SkinMeshBuffer::SkinMeshBuffer(const Desc& I) : VertexBuffer(nullptr), IndexBuffer(nullptr)
+		{
+		}
+		SkinMeshBuffer::~SkinMeshBuffer()
+		{
+			delete VertexBuffer;
+			delete IndexBuffer;
+		}
+		ElementBuffer* SkinMeshBuffer::GetVertexBuffer()
+		{
+			return VertexBuffer;
+		}
+		ElementBuffer* SkinMeshBuffer::GetIndexBuffer()
+		{
+			return IndexBuffer;
+		}
+
+		InstanceBuffer::InstanceBuffer(const Desc& I) : Device(I.Device), Elements(nullptr), Sync(false)
+		{
+			ElementLimit = I.ElementLimit;
+			if (ElementLimit < 1)
+				ElementLimit = 1;
+
+			Array.Reserve(ElementLimit);
+		}
+		InstanceBuffer::~InstanceBuffer()
+		{
+			delete Elements;
+		}
+		Rest::Pool<Compute::ElementVertex>* InstanceBuffer::GetArray()
+		{
+			return &Array;
+		}
+		ElementBuffer* InstanceBuffer::GetElements()
+		{
+			return Elements;
+		}
+		GraphicsDevice* InstanceBuffer::GetDevice()
+		{
+			return Device;
+		}
+		uint64_t InstanceBuffer::GetElementLimit()
+		{
+			return ElementLimit;
+		}
+
+		Texture2D::Texture2D()
 		{
 			Width = 512;
 			Height = 512;
@@ -337,7 +405,7 @@ namespace Tomahawk
 			Usage = Graphics::ResourceUsage_Default;
 			AccessFlags = Graphics::CPUAccess_Invalid;
 		}
-		Texture2D::Texture2D(GraphicsDevice* Device, const Desc& I)
+		Texture2D::Texture2D(const Desc& I)
 		{
 			Width = I.Width;
 			Height = I.Height;
@@ -370,85 +438,19 @@ namespace Tomahawk
 		{
 			return MipLevels;
 		}
-		Texture2D* Texture2D::Create(GraphicsDevice* Device)
+
+		Texture3D::Texture3D()
 		{
-#ifdef THAWK_MICROSOFT
-			if (Device && Device->GetBackend() == RenderBackend_D3D11)
-				return new D3D11::D3D11Texture2D(Device);
-#endif
-#ifdef THAWK_HAS_GL
-			if (Device && Device->GetBackend() == RenderBackend_OGL)
-				return new OGL::OGLTexture2D(Device);
-#endif
-			THAWK_ERROR("instance serialization wasn't found");
-			return nullptr;
-		}
-		Texture2D* Texture2D::Create(GraphicsDevice* Device, const Desc& I)
-		{
-#ifdef THAWK_MICROSOFT
-			if (Device && Device->GetBackend() == RenderBackend_D3D11)
-				return new D3D11::D3D11Texture2D(Device, I);
-#endif
-#ifdef THAWK_HAS_GL
-			if (Device && Device->GetBackend() == RenderBackend_OGL)
-				return new OGL::OGLTexture2D(Device, I);
-#endif
-			THAWK_ERROR("instance serialization wasn't found");
-			return nullptr;
 		}
 
-		Texture3D::Texture3D(GraphicsDevice* Device)
+		TextureCube::TextureCube()
 		{
 		}
-		Texture3D* Texture3D::Create(GraphicsDevice* Device)
+		TextureCube::TextureCube(const Desc& I)
 		{
-#ifdef THAWK_MICROSOFT
-			if (Device && Device->GetBackend() == RenderBackend_D3D11)
-				return new D3D11::D3D11Texture3D(Device);
-#endif
-#ifdef THAWK_HAS_GL
-			if (Device && Device->GetBackend() == RenderBackend_OGL)
-				return new OGL::OGLTexture3D(Device);
-#endif
-
-			THAWK_ERROR("instance serialization wasn't found");
-			return nullptr;
 		}
 
-		TextureCube::TextureCube(GraphicsDevice* Device)
-		{
-		}
-		TextureCube::TextureCube(GraphicsDevice* Device, const Desc& I)
-		{
-		}
-		TextureCube* TextureCube::Create(GraphicsDevice* Device)
-		{
-#ifdef THAWK_MICROSOFT
-			if (Device && Device->GetBackend() == RenderBackend_D3D11)
-				return new D3D11::D3D11TextureCube(Device);
-#endif
-#ifdef THAWK_HAS_GL
-			if (Device && Device->GetBackend() == RenderBackend_OGL)
-				return new OGL::OGLTextureCube(Device);
-#endif
-			THAWK_ERROR("instance serialization wasn't found");
-			return nullptr;
-		}
-		TextureCube* TextureCube::Create(GraphicsDevice* Device, const Desc& I)
-		{
-#ifdef THAWK_MICROSOFT
-			if (Device && Device->GetBackend() == RenderBackend_D3D11)
-				return new D3D11::D3D11TextureCube(Device, I);
-#endif
-#ifdef THAWK_HAS_GL
-			if (Device && Device->GetBackend() == RenderBackend_OGL)
-				return new OGL::OGLTextureCube(Device, I);
-#endif
-			THAWK_ERROR("instance serialization wasn't found");
-			return nullptr;
-		}
-
-		RenderTarget2D::RenderTarget2D(GraphicsDevice*, const Desc& I) : Resource(nullptr)
+		RenderTarget2D::RenderTarget2D(const Desc& I) : Resource(nullptr)
 		{
 		}
 		RenderTarget2D::~RenderTarget2D()
@@ -459,21 +461,8 @@ namespace Tomahawk
 		{
 			return Resource;
 		}
-		RenderTarget2D* RenderTarget2D::Create(GraphicsDevice* Device, const Desc& I)
-		{
-#ifdef THAWK_MICROSOFT
-			if (Device && Device->GetBackend() == RenderBackend_D3D11)
-				return new D3D11::D3D11RenderTarget2D(Device, I);
-#endif
-#ifdef THAWK_HAS_GL
-			if (Device && Device->GetBackend() == RenderBackend_OGL)
-				return new OGL::OGLRenderTarget2D(Device, I);
-#endif
-			THAWK_ERROR("instance serialization wasn't found");
-			return nullptr;
-		}
 
-		MultiRenderTarget2D::MultiRenderTarget2D(GraphicsDevice* Device, const Desc& I)
+		MultiRenderTarget2D::MultiRenderTarget2D(const Desc& I)
 		{
 			SVTarget = I.SVTarget;
 			for (int i = 0; i < 8; i++)
@@ -488,28 +477,15 @@ namespace Tomahawk
 		{
 			return SVTarget;
 		}
-		Texture2D* MultiRenderTarget2D::GetTarget(int Target)
+		Texture2D* MultiRenderTarget2D::GetTarget(unsigned int Target)
 		{
-			if (Target < 0 || Target > 7)
+			if (Target >= SVTarget)
 				return nullptr;
 
 			return Resource[Target];
 		}
-		MultiRenderTarget2D* MultiRenderTarget2D::Create(GraphicsDevice* Device, const Desc& I)
-		{
-#ifdef THAWK_MICROSOFT
-			if (Device && Device->GetBackend() == RenderBackend_D3D11)
-				return new D3D11::D3D11MultiRenderTarget2D(Device, I);
-#endif
-#ifdef THAWK_HAS_GL
-			if (Device && Device->GetBackend() == RenderBackend_OGL)
-				return new OGL::OGLMultiRenderTarget2D(Device, I);
-#endif
-			THAWK_ERROR("instance serialization wasn't found");
-			return nullptr;
-		}
 
-		RenderTarget2DArray::RenderTarget2DArray(GraphicsDevice*, const Desc& I) : Resource(nullptr)
+		RenderTarget2DArray::RenderTarget2DArray(const Desc& I) : Resource(nullptr)
 		{
 		}
 		RenderTarget2DArray::~RenderTarget2DArray()
@@ -520,21 +496,8 @@ namespace Tomahawk
 		{
 			return Resource;
 		}
-		RenderTarget2DArray* RenderTarget2DArray::Create(GraphicsDevice* Device, const Desc& I)
-		{
-#ifdef THAWK_MICROSOFT
-			if (Device && Device->GetBackend() == RenderBackend_D3D11)
-				return new D3D11::D3D11RenderTarget2DArray(Device, I);
-#endif
-#ifdef THAWK_HAS_GL
-			if (Device && Device->GetBackend() == RenderBackend_OGL)
-				return new OGL::OGLRenderTarget2DArray(Device, I);
-#endif
-			THAWK_ERROR("instance serialization wasn't found");
-			return nullptr;
-		}
 
-		RenderTargetCube::RenderTargetCube(GraphicsDevice*, const Desc& I) : Resource(nullptr)
+		RenderTargetCube::RenderTargetCube(const Desc& I) : Resource(nullptr)
 		{
 		}
 		RenderTargetCube::~RenderTargetCube()
@@ -545,21 +508,8 @@ namespace Tomahawk
 		{
 			return Resource;
 		}
-		RenderTargetCube* RenderTargetCube::Create(GraphicsDevice* Device, const Desc& I)
-		{
-#ifdef THAWK_MICROSOFT
-			if (Device && Device->GetBackend() == RenderBackend_D3D11)
-				return new D3D11::D3D11RenderTargetCube(Device, I);
-#endif
-#ifdef THAWK_HAS_GL
-			if (Device && Device->GetBackend() == RenderBackend_OGL)
-				return new OGL::OGLRenderTargetCube(Device, I);
-#endif
-			THAWK_ERROR("instance serialization wasn't found");
-			return nullptr;
-		}
 
-		MultiRenderTargetCube::MultiRenderTargetCube(GraphicsDevice* Device, const Desc& I)
+		MultiRenderTargetCube::MultiRenderTargetCube(const Desc& I)
 		{
 			SVTarget = I.Target;
 			for (int i = 0; i < 8; i++)
@@ -574,296 +524,58 @@ namespace Tomahawk
 		{
 			return SVTarget;
 		}
-		Texture2D* MultiRenderTargetCube::GetTarget(int Target)
+		Texture2D* MultiRenderTargetCube::GetTarget(unsigned int Target)
 		{
-			if (Target < 0 || Target > 7)
+			if (Target >= SVTarget)
 				return nullptr;
 
 			return Resource[Target];
 		}
-		MultiRenderTargetCube* MultiRenderTargetCube::Create(GraphicsDevice* Device, const Desc& I)
-		{
-#ifdef THAWK_MICROSOFT
-			if (Device && Device->GetBackend() == RenderBackend_D3D11)
-				return new D3D11::D3D11MultiRenderTargetCube(Device, I);
-#endif
-#ifdef THAWK_HAS_GL
-			if (Device && Device->GetBackend() == RenderBackend_OGL)
-				return new OGL::OGLMultiRenderTargetCube(Device, I);
-#endif
-			THAWK_ERROR("instance serialization wasn't found");
-			return nullptr;
-		}
 
-		Mesh::Mesh(GraphicsDevice*, const Desc& I) : VertexBuffer(nullptr), IndexBuffer(nullptr)
-		{
-		}
-		Mesh::~Mesh()
-		{
-			delete VertexBuffer;
-			delete IndexBuffer;
-		}
-		ElementBuffer* Mesh::GetVertexBuffer()
-		{
-			return VertexBuffer;
-		}
-		ElementBuffer* Mesh::GetIndexBuffer()
-		{
-			return IndexBuffer;
-		}
-		Mesh* Mesh::Create(GraphicsDevice* Device, const Desc& I)
-		{
-#ifdef THAWK_MICROSOFT
-			if (Device && Device->GetBackend() == RenderBackend_D3D11)
-				return new D3D11::D3D11Mesh(Device, I);
-#endif
-#ifdef THAWK_HAS_GL
-			if (Device && Device->GetBackend() == RenderBackend_OGL)
-				return new OGL::OGLMesh(Device, I);
-#endif
-			THAWK_ERROR("instance serialization wasn't found");
-			return nullptr;
-		}
-
-		SkinMesh::SkinMesh(GraphicsDevice*, const Desc& I) : VertexBuffer(nullptr), IndexBuffer(nullptr)
-		{
-		}
-		SkinMesh::~SkinMesh()
-		{
-			delete VertexBuffer;
-			delete IndexBuffer;
-		}
-		ElementBuffer* SkinMesh::GetVertexBuffer()
-		{
-			return VertexBuffer;
-		}
-		ElementBuffer* SkinMesh::GetIndexBuffer()
-		{
-			return IndexBuffer;
-		}
-		SkinMesh* SkinMesh::Create(GraphicsDevice* Device, const Desc& I)
-		{
-#ifdef THAWK_MICROSOFT
-			if (Device && Device->GetBackend() == RenderBackend_D3D11)
-				return new D3D11::D3D11SkinMesh(Device, I);
-#endif
-#ifdef THAWK_HAS_GL
-			if (Device && Device->GetBackend() == RenderBackend_OGL)
-				return new OGL::OGLSkinMesh(Device, I);
-#endif
-			THAWK_ERROR("instance serialization wasn't found");
-			return nullptr;
-		}
-
-		Model::Model()
-		{
-		}
-		Model::~Model()
-		{
-			for (auto It = Meshes.begin(); It != Meshes.end(); It++)
-				delete (*It);
-		}
-		Mesh* Model::Find(const std::string& Name)
-		{
-			for (auto&& It : Meshes)
-			{
-				if (It->Name == Name)
-					return It;
-			}
-
-			return nullptr;
-		}
-
-		SkinModel::SkinModel()
-		{
-		}
-		SkinModel::~SkinModel()
-		{
-			for (auto It = Meshes.begin(); It != Meshes.end(); It++)
-				delete (*It);
-		}
-		void SkinModel::BuildSkeleton(PoseBuffer* Map)
-		{
-			if (Map != nullptr && !Joints.empty())
-			{
-				if (Map->Pose.empty())
-					Map->Reset(this);
-
-				for (auto& Child : Joints)
-					BuildSkeleton(Map, &Child, Compute::Matrix4x4::Identity());
-			}
-		}
-		void SkinModel::BuildSkeleton(PoseBuffer* Map, Compute::Joint* Base, const Compute::Matrix4x4& World)
-		{
-			Compute::Matrix4x4 Transform = Map->Offset(Base->Index) * World;
-			Map->Transform[Base->Index] = Base->BindShape * Transform * Root;
-
-			for (auto& Child : Base->Childs)
-				BuildSkeleton(Map, &Child, Transform);
-		}
-		SkinMesh* SkinModel::FindMesh(const std::string& Name)
-		{
-			for (auto&& It : Meshes)
-			{
-				if (It->Name == Name)
-					return It;
-			}
-
-			return nullptr;
-		}
-		Compute::Joint* SkinModel::FindJoint(const std::string& Name, Compute::Joint* Base)
-		{
-			if (Base != nullptr)
-			{
-				if (Base->Name == Name)
-					return Base;
-
-				for (auto&& Child : Base->Childs)
-				{
-					if (Child.Name == Name)
-						return &Child;
-
-					Compute::Joint* Result = FindJoint(Name, &Child);
-					if (Result != nullptr)
-						return Result;
-				}
-			}
-			else
-			{
-				for (auto&& Child : Joints)
-				{
-					if (Child.Name == Name)
-						return &Child;
-
-					Compute::Joint* Result = FindJoint(Name, &Child);
-					if (Result != nullptr)
-						return Result;
-				}
-			}
-
-			return nullptr;
-		}
-		Compute::Joint* SkinModel::FindJoint(int64_t Index, Compute::Joint* Base)
-		{
-			if (Base != nullptr)
-			{
-				if (Base->Index == Index)
-					return Base;
-
-				for (auto&& Child : Base->Childs)
-				{
-					if (Child.Index == Index)
-						return &Child;
-
-					Compute::Joint* Result = FindJoint(Index, &Child);
-					if (Result != nullptr)
-						return Result;
-				}
-			}
-			else
-			{
-				for (auto&& Child : Joints)
-				{
-					if (Child.Index == Index)
-						return &Child;
-
-					Compute::Joint* Result = FindJoint(Index, &Child);
-					if (Result != nullptr)
-						return Result;
-				}
-			}
-
-			return nullptr;
-		}
-
-		InstanceBuffer::InstanceBuffer(GraphicsDevice* NewDevice, const Desc& I) : Device(NewDevice), Elements(nullptr)
-		{
-			ElementLimit = I.ElementLimit;
-			if (ElementLimit < 1)
-				ElementLimit = 1;
-
-			Array.Reserve(ElementLimit);
-		}
-		InstanceBuffer::~InstanceBuffer()
-		{
-			delete Elements;
-		}
-		Rest::Pool<Compute::ElementVertex>* InstanceBuffer::GetArray()
-		{
-			return &Array;
-		}
-		ElementBuffer* InstanceBuffer::GetElements()
-		{
-			return Elements;
-		}
-		GraphicsDevice* InstanceBuffer::GetDevice()
-		{
-			return Device;
-		}
-		uint64_t InstanceBuffer::GetElementLimit()
-		{
-			return ElementLimit;
-		}
-		InstanceBuffer* InstanceBuffer::Create(GraphicsDevice* Device, const Desc& I)
-		{
-#ifdef THAWK_MICROSOFT
-			if (Device && Device->GetBackend() == RenderBackend_D3D11)
-				return new D3D11::D3D11InstanceBuffer(Device, I);
-#endif
-#ifdef THAWK_HAS_GL
-			if (Device && Device->GetBackend() == RenderBackend_OGL)
-				return new OGL::OGLInstanceBuffer(Device, I);
-#endif
-			THAWK_ERROR("instance serialization wasn't found");
-			return nullptr;
-		}
-
-		DirectBuffer::DirectBuffer(GraphicsDevice* NewDevice) : Device(NewDevice), MaxElements(1), View(nullptr), Primitives(PrimitiveTopology_Triangle_List)
-		{
-			Elements.reserve(1);
-		}
-		DirectBuffer::~DirectBuffer()
-		{
-		}
-		DirectBuffer* DirectBuffer::Create(GraphicsDevice* Device)
-		{
-#ifdef THAWK_MICROSOFT
-			if (Device && Device->GetBackend() == RenderBackend_D3D11)
-				return new D3D11::D3D11DirectBuffer(Device);
-#endif
-#ifdef THAWK_HAS_GL
-			if (Device && Device->GetBackend() == RenderBackend_OGL)
-				return new OGL::OGLDirectBuffer(Device);
-#endif
-			THAWK_ERROR("instance serialization wasn't found");
-			return nullptr;
-		}
-
-		GraphicsDevice::GraphicsDevice(const Desc& I)
+		GraphicsDevice::GraphicsDevice(const Desc& I) : MaxElements(1), ViewResource(nullptr), Primitives(PrimitiveTopology_Triangle_List)
 		{
 			ShaderModelType = Graphics::ShaderModel_Invalid;
 			VSyncMode = I.VSyncMode;
-			PresentationFlag = I.PresentationFlags;
-			CompilationFlag = I.CompilationFlags;
+			PresentFlags = I.PresentationFlags;
+			CompileFlags = I.CompilationFlags;
 			Backend = I.Backend;
 			Debug = I.Debug;
-#ifdef THAWK_MICROSOFT
-			RECT Desktop;
-			HWND Handle = GetDesktopWindow();
-			GetWindowRect(Handle, &Desktop);
-
-			ScreenDimensions.X = (float)Desktop.right;
-			ScreenDimensions.Y = (float)Desktop.bottom;
-#endif
-			LoadSections();
+			InitSections();
 		}
 		GraphicsDevice::~GraphicsDevice()
 		{
 			FreeProxy();
 			for (auto It = Sections.begin(); It != Sections.end(); It++)
-				delete *It;
+				delete It->second;
+			Sections.clear();
 		}
-		bool GraphicsDevice::ProcessShaderCode(Shader::Desc& In)
+		void GraphicsDevice::Lock()
+		{
+			Mutex.lock();
+		}
+		void GraphicsDevice::Unlock()
+		{
+			Mutex.unlock();
+		}
+		void GraphicsDevice::AddSection(const std::string& Name, const std::string& Code)
+		{
+			Section* Include = new Section();
+			Include->Code = Code;
+			Include->Name = Name;
+
+			RemoveSection(Name);
+			Sections[Name] = Include;
+		}
+		void GraphicsDevice::RemoveSection(const std::string& Name)
+		{
+			auto It = Sections.find(Name);
+			if (It == Sections.end())
+				return;
+
+			delete It->second;
+			Sections.erase(It);
+		}
+		bool GraphicsDevice::Preprocess(Shader::Desc& In)
 		{
 			if (In.Data.empty())
 				return true;
@@ -913,249 +625,224 @@ namespace Tomahawk
 
 			return Result;
 		}
-		void GraphicsDevice::AddSection(const std::string& Name, const std::string& Code)
+		void GraphicsDevice::InitStates()
 		{
-			Section* Include = new Section();
-			Include->Code = Code;
-			Include->Name = Name;
+			Graphics::DepthStencilState::Desc DepthStencil;
+			DepthStencil.DepthEnable = true;
+			DepthStencil.DepthWriteMask = Graphics::DepthWrite_All;
+			DepthStencil.DepthFunction = Graphics::Comparison_Less;
+			DepthStencil.StencilEnable = true;
+			DepthStencil.StencilReadMask = 0xFF;
+			DepthStencil.StencilWriteMask = 0xFF;
+			DepthStencil.FrontFaceStencilFailOperation = Graphics::StencilOperation_Keep;
+			DepthStencil.FrontFaceStencilDepthFailOperation = Graphics::StencilOperation_Add;
+			DepthStencil.FrontFaceStencilPassOperation = Graphics::StencilOperation_Keep;
+			DepthStencil.FrontFaceStencilFunction = Graphics::Comparison_Always;
+			DepthStencil.BackFaceStencilFailOperation = Graphics::StencilOperation_Keep;
+			DepthStencil.BackFaceStencilDepthFailOperation = Graphics::StencilOperation_Subtract;
+			DepthStencil.BackFaceStencilPassOperation = Graphics::StencilOperation_Keep;
+			DepthStencil.BackFaceStencilFunction = Graphics::Comparison_Always;
+			DepthStencil.Name = "DEF_LESS";
+			DepthStencilStates[DepthStencil.Name] = CreateDepthStencilState(DepthStencil);
 
-			RemoveSection(Name);
-			Sections.push_back(Include);
+			DepthStencil.DepthEnable = true;
+			DepthStencil.DepthWriteMask = Graphics::DepthWrite_Zero;
+			DepthStencil.DepthFunction = Graphics::Comparison_Greater_Equal;
+			DepthStencil.StencilEnable = true;
+			DepthStencil.StencilReadMask = 0xFF;
+			DepthStencil.StencilWriteMask = 0xFF;
+			DepthStencil.FrontFaceStencilFailOperation = Graphics::StencilOperation_Keep;
+			DepthStencil.FrontFaceStencilDepthFailOperation = Graphics::StencilOperation_Add;
+			DepthStencil.FrontFaceStencilPassOperation = Graphics::StencilOperation_Keep;
+			DepthStencil.FrontFaceStencilFunction = Graphics::Comparison_Always;
+			DepthStencil.BackFaceStencilFailOperation = Graphics::StencilOperation_Keep;
+			DepthStencil.BackFaceStencilDepthFailOperation = Graphics::StencilOperation_Subtract;
+			DepthStencil.BackFaceStencilPassOperation = Graphics::StencilOperation_Keep;
+			DepthStencil.BackFaceStencilFunction = Graphics::Comparison_Always;
+			DepthStencil.Name = "DEF_GREATER_EQUAL";
+			DepthStencilStates[DepthStencil.Name] = CreateDepthStencilState(DepthStencil);
+
+			DepthStencil.DepthEnable = false;
+			DepthStencil.DepthWriteMask = Graphics::DepthWrite_All;
+			DepthStencil.DepthFunction = Graphics::Comparison_Less;
+			DepthStencil.StencilEnable = true;
+			DepthStencil.StencilReadMask = 0xFF;
+			DepthStencil.StencilWriteMask = 0xFF;
+			DepthStencil.FrontFaceStencilFailOperation = Graphics::StencilOperation_Keep;
+			DepthStencil.FrontFaceStencilDepthFailOperation = Graphics::StencilOperation_Add;
+			DepthStencil.FrontFaceStencilPassOperation = Graphics::StencilOperation_Keep;
+			DepthStencil.FrontFaceStencilFunction = Graphics::Comparison_Always;
+			DepthStencil.BackFaceStencilFailOperation = Graphics::StencilOperation_Keep;
+			DepthStencil.BackFaceStencilDepthFailOperation = Graphics::StencilOperation_Subtract;
+			DepthStencil.BackFaceStencilPassOperation = Graphics::StencilOperation_Keep;
+			DepthStencil.BackFaceStencilFunction = Graphics::Comparison_Always;
+			DepthStencil.Name = "DEF_NONE";
+			DepthStencilStates[DepthStencil.Name] = CreateDepthStencilState(DepthStencil);
+
+			DepthStencil.DepthEnable = true;
+			DepthStencil.DepthWriteMask = Graphics::DepthWrite_Zero;
+			DepthStencil.DepthFunction = Graphics::Comparison_Less;
+			DepthStencil.StencilEnable = true;
+			DepthStencil.StencilReadMask = 0xFF;
+			DepthStencil.StencilWriteMask = 0xFF;
+			DepthStencil.FrontFaceStencilFailOperation = Graphics::StencilOperation_Keep;
+			DepthStencil.FrontFaceStencilDepthFailOperation = Graphics::StencilOperation_Add;
+			DepthStencil.FrontFaceStencilPassOperation = Graphics::StencilOperation_Keep;
+			DepthStencil.FrontFaceStencilFunction = Graphics::Comparison_Always;
+			DepthStencil.BackFaceStencilFailOperation = Graphics::StencilOperation_Keep;
+			DepthStencil.BackFaceStencilDepthFailOperation = Graphics::StencilOperation_Subtract;
+			DepthStencil.BackFaceStencilPassOperation = Graphics::StencilOperation_Keep;
+			DepthStencil.BackFaceStencilFunction = Graphics::Comparison_Always;
+			DepthStencil.Name = "DEF_NONE_LESS";
+			DepthStencilStates[DepthStencil.Name] = CreateDepthStencilState(DepthStencil);
+
+			DepthStencil.DepthEnable = false;
+			DepthStencil.DepthWriteMask = Graphics::DepthWrite_All;
+			DepthStencil.DepthFunction = Graphics::Comparison_Always;
+			DepthStencil.StencilEnable = false;
+			DepthStencil.StencilReadMask = 0xFF;
+			DepthStencil.StencilWriteMask = 0xFF;
+			DepthStencil.FrontFaceStencilFailOperation = Graphics::StencilOperation_Keep;
+			DepthStencil.FrontFaceStencilDepthFailOperation = Graphics::StencilOperation_Keep;
+			DepthStencil.FrontFaceStencilPassOperation = Graphics::StencilOperation_Keep;
+			DepthStencil.FrontFaceStencilFunction = Graphics::Comparison_Always;
+			DepthStencil.Name = "DEF_NONE_ALWAYS";
+			DepthStencilStates[DepthStencil.Name] = CreateDepthStencilState(DepthStencil);
+
+			Graphics::RasterizerState::Desc Rasterizer;
+			Rasterizer.AntialiasedLineEnable = false;
+			Rasterizer.CullMode = Graphics::VertexCull_Back;
+			Rasterizer.DepthBias = 0;
+			Rasterizer.DepthBiasClamp = 0;
+			Rasterizer.DepthClipEnable = true;
+			Rasterizer.FillMode = Graphics::SurfaceFill_Solid;
+			Rasterizer.FrontCounterClockwise = false;
+			Rasterizer.MultisampleEnable = false;
+			Rasterizer.ScissorEnable = false;
+			Rasterizer.SlopeScaledDepthBias = 0.0f;
+			Rasterizer.Name = "DEF_CULL_BACK";
+			RasterizerStates[Rasterizer.Name] = CreateRasterizerState(Rasterizer);
+
+			Rasterizer.AntialiasedLineEnable = false;
+			Rasterizer.CullMode = Graphics::VertexCull_Front;
+			Rasterizer.DepthBias = 0;
+			Rasterizer.DepthBiasClamp = 0;
+			Rasterizer.DepthClipEnable = true;
+			Rasterizer.FillMode = Graphics::SurfaceFill_Solid;
+			Rasterizer.FrontCounterClockwise = false;
+			Rasterizer.MultisampleEnable = false;
+			Rasterizer.ScissorEnable = false;
+			Rasterizer.SlopeScaledDepthBias = 0.0f;
+			Rasterizer.Name = "DEF_CULL_FRONT";
+			RasterizerStates[Rasterizer.Name] = CreateRasterizerState(Rasterizer);
+
+			Rasterizer.AntialiasedLineEnable = false;
+			Rasterizer.CullMode = Graphics::VertexCull_Disabled;
+			Rasterizer.DepthBias = 0;
+			Rasterizer.DepthBiasClamp = 0;
+			Rasterizer.DepthClipEnable = true;
+			Rasterizer.FillMode = Graphics::SurfaceFill_Solid;
+			Rasterizer.FrontCounterClockwise = false;
+			Rasterizer.MultisampleEnable = false;
+			Rasterizer.ScissorEnable = false;
+			Rasterizer.SlopeScaledDepthBias = 0.0f;
+			Rasterizer.Name = "DEF_CULL_NONE";
+			RasterizerStates[Rasterizer.Name] = CreateRasterizerState(Rasterizer);
+
+			Rasterizer.AntialiasedLineEnable = false;
+			Rasterizer.CullMode = Graphics::VertexCull_Disabled;
+			Rasterizer.DepthBias = 0;
+			Rasterizer.DepthBiasClamp = 0;
+			Rasterizer.DepthClipEnable = true;
+			Rasterizer.FillMode = Graphics::SurfaceFill_Solid;
+			Rasterizer.FrontCounterClockwise = false;
+			Rasterizer.MultisampleEnable = false;
+			Rasterizer.ScissorEnable = true;
+			Rasterizer.SlopeScaledDepthBias = 0.0f;
+			Rasterizer.Name = "DEF_CULL_NONE_SCISSOR";
+			RasterizerStates[Rasterizer.Name] = CreateRasterizerState(Rasterizer);
+
+			Graphics::BlendState::Desc Blend;
+			Blend.AlphaToCoverageEnable = false;
+			Blend.IndependentBlendEnable = false;
+			Blend.RenderTarget[0].BlendEnable = false;
+			Blend.RenderTarget[0].RenderTargetWriteMask = Graphics::ColorWriteEnable_All;
+			Blend.Name = "DEF_OVERWRITE";
+			BlendStates[Blend.Name] = CreateBlendState(Blend);
+
+			Blend.AlphaToCoverageEnable = false;
+			Blend.IndependentBlendEnable = false;
+			Blend.RenderTarget[0].BlendEnable = true;
+			Blend.RenderTarget[0].SrcBlend = Graphics::Blend_One;
+			Blend.RenderTarget[0].DestBlend = Graphics::Blend_One;
+			Blend.RenderTarget[0].BlendOperationMode = Graphics::BlendOperation_Add;
+			Blend.RenderTarget[0].SrcBlendAlpha = Graphics::Blend_One;
+			Blend.RenderTarget[0].DestBlendAlpha = Graphics::Blend_One;
+			Blend.RenderTarget[0].BlendOperationAlpha = Graphics::BlendOperation_Add;
+			Blend.RenderTarget[0].RenderTargetWriteMask = Graphics::ColorWriteEnable_All;
+			Blend.Name = "DEF_ADDITIVE";
+			BlendStates[Blend.Name] = CreateBlendState(Blend);
+
+			Blend.AlphaToCoverageEnable = false;
+			Blend.IndependentBlendEnable = false;
+			Blend.RenderTarget[0].BlendEnable = true;
+			Blend.RenderTarget[0].SrcBlend = Graphics::Blend_Source_Alpha;
+			Blend.RenderTarget[0].DestBlend = Graphics::Blend_One;
+			Blend.RenderTarget[0].BlendOperationMode = Graphics::BlendOperation_Add;
+			Blend.RenderTarget[0].SrcBlendAlpha = Graphics::Blend_One;
+			Blend.RenderTarget[0].DestBlendAlpha = Graphics::Blend_One;
+			Blend.RenderTarget[0].BlendOperationAlpha = Graphics::BlendOperation_Add;
+			Blend.RenderTarget[0].RenderTargetWriteMask = Graphics::ColorWriteEnable_All;
+			Blend.Name = "DEF_ADDITIVE_ALPHA";
+			BlendStates[Blend.Name] = CreateBlendState(Blend);
+
+			Blend.AlphaToCoverageEnable = false;
+			Blend.IndependentBlendEnable = false;
+			Blend.RenderTarget[0].BlendEnable = true;
+			Blend.RenderTarget[0].SrcBlend = Graphics::Blend_Source_Alpha;
+			Blend.RenderTarget[0].DestBlend = Graphics::Blend_Source_Alpha_Invert;
+			Blend.RenderTarget[0].BlendOperationMode = Graphics::BlendOperation_Add;
+			Blend.RenderTarget[0].SrcBlendAlpha = Graphics::Blend_Source_Alpha_Invert;
+			Blend.RenderTarget[0].DestBlendAlpha = Graphics::Blend_Zero;
+			Blend.RenderTarget[0].BlendOperationAlpha = Graphics::BlendOperation_Add;
+			Blend.RenderTarget[0].RenderTargetWriteMask = Graphics::ColorWriteEnable_All;
+			Blend.Name = "DEF_ADDITIVE_SOURCE";
+			BlendStates[Blend.Name] = CreateBlendState(Blend);
+
+			Graphics::SamplerState::Desc Sampler;
+			Sampler.Filter = Graphics::PixelFilter_Anistropic;
+			Sampler.AddressU = Graphics::TextureAddress_Wrap;
+			Sampler.AddressV = Graphics::TextureAddress_Wrap;
+			Sampler.AddressW = Graphics::TextureAddress_Wrap;
+			Sampler.MipLODBias = 0.0f;
+			Sampler.MaxAnisotropy = 16;
+			Sampler.ComparisonFunction = Graphics::Comparison_Never;
+			Sampler.BorderColor[0] = 0.0f;
+			Sampler.BorderColor[1] = 0.0f;
+			Sampler.BorderColor[2] = 0.0f;
+			Sampler.BorderColor[3] = 0.0f;
+			Sampler.MinLOD = 0.0f;
+			Sampler.MaxLOD = std::numeric_limits<float>::max();
+			Sampler.Name = "DEF_TRILINEAR_X16";
+			SamplerStates[Sampler.Name] = CreateSamplerState(Sampler);
+
+			Sampler.Filter = Graphics::PixelFilter_Min_Mag_Mip_Linear;
+			Sampler.AddressU = Graphics::TextureAddress_Wrap;
+			Sampler.AddressV = Graphics::TextureAddress_Wrap;
+			Sampler.AddressW = Graphics::TextureAddress_Wrap;
+			Sampler.MipLODBias = 0.0f;
+			Sampler.ComparisonFunction = Graphics::Comparison_Always;
+			Sampler.MinLOD = 0.0f;
+			Sampler.MaxLOD = 0.0f;
+			Sampler.Name = "DEF_LINEAR";
+			SamplerStates[Sampler.Name] = CreateSamplerState(Sampler);
+
+			SetDepthStencilState(GetDepthStencilState("DEF_LESS"));
+			SetRasterizerState(GetRasterizerState("DEF_CULL_BACK"));
+			SetBlendState(GetBlendState("DEF_OVERWRITE"));
+			SetSamplerState(GetSamplerState("DEF_TRILINEAR_X16"));
 		}
-		void GraphicsDevice::RemoveSection(const std::string& Name)
-		{
-			for (auto It = Sections.begin(); It != Sections.end(); It++)
-			{
-				if ((*It)->Name == Name)
-				{
-					delete *It;
-					Sections.erase(It);
-					break;
-				}
-			}
-		}
-		void GraphicsDevice::Lock()
-		{
-			Mutex.lock();
-		}
-		void GraphicsDevice::Unlock()
-		{
-			Mutex.unlock();
-		}
-		void GraphicsDevice::CreateRendererStates()
-		{
-			Graphics::DepthStencilState* DepthStencilConfig = new Graphics::DepthStencilState();
-			DepthStencilConfig->DepthEnable = true;
-			DepthStencilConfig->DepthWriteMask = Graphics::DepthWrite_All;
-			DepthStencilConfig->DepthFunction = Graphics::Comparison_Less;
-			DepthStencilConfig->StencilEnable = true;
-			DepthStencilConfig->StencilReadMask = 0xFF;
-			DepthStencilConfig->StencilWriteMask = 0xFF;
-			DepthStencilConfig->FrontFaceStencilFailOperation = Graphics::StencilOperation_Keep;
-			DepthStencilConfig->FrontFaceStencilDepthFailOperation = Graphics::StencilOperation_Add;
-			DepthStencilConfig->FrontFaceStencilPassOperation = Graphics::StencilOperation_Keep;
-			DepthStencilConfig->FrontFaceStencilFunction = Graphics::Comparison_Always;
-			DepthStencilConfig->BackFaceStencilFailOperation = Graphics::StencilOperation_Keep;
-			DepthStencilConfig->BackFaceStencilDepthFailOperation = Graphics::StencilOperation_Subtract;
-			DepthStencilConfig->BackFaceStencilPassOperation = Graphics::StencilOperation_Keep;
-			DepthStencilConfig->BackFaceStencilFunction = Graphics::Comparison_Always;
-			AddDepthStencilState(DepthStencilConfig);
-
-			DepthStencilConfig = new Graphics::DepthStencilState();
-			DepthStencilConfig->DepthEnable = true;
-			DepthStencilConfig->DepthWriteMask = Graphics::DepthWrite_Zero;
-			DepthStencilConfig->DepthFunction = Graphics::Comparison_Greater_Equal;
-			DepthStencilConfig->StencilEnable = true;
-			DepthStencilConfig->StencilReadMask = 0xFF;
-			DepthStencilConfig->StencilWriteMask = 0xFF;
-			DepthStencilConfig->FrontFaceStencilFailOperation = Graphics::StencilOperation_Keep;
-			DepthStencilConfig->FrontFaceStencilDepthFailOperation = Graphics::StencilOperation_Add;
-			DepthStencilConfig->FrontFaceStencilPassOperation = Graphics::StencilOperation_Keep;
-			DepthStencilConfig->FrontFaceStencilFunction = Graphics::Comparison_Always;
-			DepthStencilConfig->BackFaceStencilFailOperation = Graphics::StencilOperation_Keep;
-			DepthStencilConfig->BackFaceStencilDepthFailOperation = Graphics::StencilOperation_Subtract;
-			DepthStencilConfig->BackFaceStencilPassOperation = Graphics::StencilOperation_Keep;
-			DepthStencilConfig->BackFaceStencilFunction = Graphics::Comparison_Always;
-			AddDepthStencilState(DepthStencilConfig);
-
-			DepthStencilConfig = new Graphics::DepthStencilState();
-			DepthStencilConfig->DepthEnable = false;
-			DepthStencilConfig->DepthWriteMask = Graphics::DepthWrite_All;
-			DepthStencilConfig->DepthFunction = Graphics::Comparison_Less;
-			DepthStencilConfig->StencilEnable = true;
-			DepthStencilConfig->StencilReadMask = 0xFF;
-			DepthStencilConfig->StencilWriteMask = 0xFF;
-			DepthStencilConfig->FrontFaceStencilFailOperation = Graphics::StencilOperation_Keep;
-			DepthStencilConfig->FrontFaceStencilDepthFailOperation = Graphics::StencilOperation_Add;
-			DepthStencilConfig->FrontFaceStencilPassOperation = Graphics::StencilOperation_Keep;
-			DepthStencilConfig->FrontFaceStencilFunction = Graphics::Comparison_Always;
-			DepthStencilConfig->BackFaceStencilFailOperation = Graphics::StencilOperation_Keep;
-			DepthStencilConfig->BackFaceStencilDepthFailOperation = Graphics::StencilOperation_Subtract;
-			DepthStencilConfig->BackFaceStencilPassOperation = Graphics::StencilOperation_Keep;
-			DepthStencilConfig->BackFaceStencilFunction = Graphics::Comparison_Always;
-			AddDepthStencilState(DepthStencilConfig);
-
-			DepthStencilConfig = new Graphics::DepthStencilState();
-			DepthStencilConfig->DepthEnable = true;
-			DepthStencilConfig->DepthWriteMask = Graphics::DepthWrite_Zero;
-			DepthStencilConfig->DepthFunction = Graphics::Comparison_Less;
-			DepthStencilConfig->StencilEnable = true;
-			DepthStencilConfig->StencilReadMask = 0xFF;
-			DepthStencilConfig->StencilWriteMask = 0xFF;
-			DepthStencilConfig->FrontFaceStencilFailOperation = Graphics::StencilOperation_Keep;
-			DepthStencilConfig->FrontFaceStencilDepthFailOperation = Graphics::StencilOperation_Add;
-			DepthStencilConfig->FrontFaceStencilPassOperation = Graphics::StencilOperation_Keep;
-			DepthStencilConfig->FrontFaceStencilFunction = Graphics::Comparison_Always;
-			DepthStencilConfig->BackFaceStencilFailOperation = Graphics::StencilOperation_Keep;
-			DepthStencilConfig->BackFaceStencilDepthFailOperation = Graphics::StencilOperation_Subtract;
-			DepthStencilConfig->BackFaceStencilPassOperation = Graphics::StencilOperation_Keep;
-			DepthStencilConfig->BackFaceStencilFunction = Graphics::Comparison_Always;
-			AddDepthStencilState(DepthStencilConfig);
-
-			DepthStencilConfig = new Graphics::DepthStencilState();
-			DepthStencilConfig->DepthEnable = false;
-			DepthStencilConfig->DepthWriteMask = Graphics::DepthWrite_All;
-			DepthStencilConfig->DepthFunction = Graphics::Comparison_Always;
-			DepthStencilConfig->StencilEnable = false;
-			DepthStencilConfig->StencilReadMask = 0xFF;
-			DepthStencilConfig->StencilWriteMask = 0xFF;
-			DepthStencilConfig->FrontFaceStencilFailOperation = Graphics::StencilOperation_Keep;
-			DepthStencilConfig->FrontFaceStencilDepthFailOperation = Graphics::StencilOperation_Keep;
-			DepthStencilConfig->FrontFaceStencilPassOperation = Graphics::StencilOperation_Keep;
-			DepthStencilConfig->FrontFaceStencilFunction = Graphics::Comparison_Always;
-			AddDepthStencilState(DepthStencilConfig);
-
-			Graphics::RasterizerState* RasterizerConfig = new Graphics::RasterizerState();
-			RasterizerConfig->AntialiasedLineEnable = false;
-			RasterizerConfig->CullMode = Graphics::VertexCull_Back;
-			RasterizerConfig->DepthBias = 0;
-			RasterizerConfig->DepthBiasClamp = 0;
-			RasterizerConfig->DepthClipEnable = true;
-			RasterizerConfig->FillMode = Graphics::SurfaceFill_Solid;
-			RasterizerConfig->FrontCounterClockwise = false;
-			RasterizerConfig->MultisampleEnable = false;
-			RasterizerConfig->ScissorEnable = false;
-			RasterizerConfig->SlopeScaledDepthBias = 0.0f;
-			AddRasterizerState(RasterizerConfig);
-
-			RasterizerConfig = new Graphics::RasterizerState();
-			RasterizerConfig->AntialiasedLineEnable = false;
-			RasterizerConfig->CullMode = Graphics::VertexCull_Front;
-			RasterizerConfig->DepthBias = 0;
-			RasterizerConfig->DepthBiasClamp = 0;
-			RasterizerConfig->DepthClipEnable = true;
-			RasterizerConfig->FillMode = Graphics::SurfaceFill_Solid;
-			RasterizerConfig->FrontCounterClockwise = false;
-			RasterizerConfig->MultisampleEnable = false;
-			RasterizerConfig->ScissorEnable = false;
-			RasterizerConfig->SlopeScaledDepthBias = 0.0f;
-			AddRasterizerState(RasterizerConfig);
-
-			RasterizerConfig = new Graphics::RasterizerState();
-			RasterizerConfig->AntialiasedLineEnable = false;
-			RasterizerConfig->CullMode = Graphics::VertexCull_Disabled;
-			RasterizerConfig->DepthBias = 0;
-			RasterizerConfig->DepthBiasClamp = 0;
-			RasterizerConfig->DepthClipEnable = true;
-			RasterizerConfig->FillMode = Graphics::SurfaceFill_Solid;
-			RasterizerConfig->FrontCounterClockwise = false;
-			RasterizerConfig->MultisampleEnable = false;
-			RasterizerConfig->ScissorEnable = false;
-			RasterizerConfig->SlopeScaledDepthBias = 0.0f;
-			AddRasterizerState(RasterizerConfig);
-
-			RasterizerConfig = new Graphics::RasterizerState();
-			RasterizerConfig->AntialiasedLineEnable = false;
-			RasterizerConfig->CullMode = Graphics::VertexCull_Disabled;
-			RasterizerConfig->DepthBias = 0;
-			RasterizerConfig->DepthBiasClamp = 0;
-			RasterizerConfig->DepthClipEnable = true;
-			RasterizerConfig->FillMode = Graphics::SurfaceFill_Solid;
-			RasterizerConfig->FrontCounterClockwise = false;
-			RasterizerConfig->MultisampleEnable = false;
-			RasterizerConfig->ScissorEnable = true;
-			RasterizerConfig->SlopeScaledDepthBias = 0.0f;
-			AddRasterizerState(RasterizerConfig);
-
-			Graphics::BlendState* BlendConfig = new Graphics::BlendState();
-			BlendConfig->AlphaToCoverageEnable = false;
-			BlendConfig->IndependentBlendEnable = false;
-			BlendConfig->RenderTarget[0].BlendEnable = false;
-			BlendConfig->RenderTarget[0].RenderTargetWriteMask = Graphics::ColorWriteEnable_All;
-			AddBlendState(BlendConfig);
-
-			BlendConfig = new Graphics::BlendState();
-			BlendConfig->AlphaToCoverageEnable = false;
-			BlendConfig->IndependentBlendEnable = false;
-			BlendConfig->RenderTarget[0].BlendEnable = true;
-			BlendConfig->RenderTarget[0].SrcBlend = Graphics::Blend_One;
-			BlendConfig->RenderTarget[0].DestBlend = Graphics::Blend_One;
-			BlendConfig->RenderTarget[0].BlendOperationMode = Graphics::BlendOperation_Add;
-			BlendConfig->RenderTarget[0].SrcBlendAlpha = Graphics::Blend_One;
-			BlendConfig->RenderTarget[0].DestBlendAlpha = Graphics::Blend_One;
-			BlendConfig->RenderTarget[0].BlendOperationAlpha = Graphics::BlendOperation_Add;
-			BlendConfig->RenderTarget[0].RenderTargetWriteMask = Graphics::ColorWriteEnable_All;
-			AddBlendState(BlendConfig);
-
-			BlendConfig = new Graphics::BlendState();
-			BlendConfig->AlphaToCoverageEnable = false;
-			BlendConfig->IndependentBlendEnable = false;
-			BlendConfig->RenderTarget[0].BlendEnable = true;
-			BlendConfig->RenderTarget[0].SrcBlend = Graphics::Blend_Source_Alpha;
-			BlendConfig->RenderTarget[0].DestBlend = Graphics::Blend_One;
-			BlendConfig->RenderTarget[0].BlendOperationMode = Graphics::BlendOperation_Add;
-			BlendConfig->RenderTarget[0].SrcBlendAlpha = Graphics::Blend_One;
-			BlendConfig->RenderTarget[0].DestBlendAlpha = Graphics::Blend_One;
-			BlendConfig->RenderTarget[0].BlendOperationAlpha = Graphics::BlendOperation_Add;
-			BlendConfig->RenderTarget[0].RenderTargetWriteMask = Graphics::ColorWriteEnable_All;
-			AddBlendState(BlendConfig);
-
-			BlendConfig = new Graphics::BlendState();
-			BlendConfig->AlphaToCoverageEnable = false;
-			BlendConfig->IndependentBlendEnable = false;
-			BlendConfig->RenderTarget[0].BlendEnable = true;
-			BlendConfig->RenderTarget[0].SrcBlend = Graphics::Blend_Source_Alpha;
-			BlendConfig->RenderTarget[0].DestBlend = Graphics::Blend_Source_Alpha_Invert;
-			BlendConfig->RenderTarget[0].BlendOperationMode = Graphics::BlendOperation_Add;
-			BlendConfig->RenderTarget[0].SrcBlendAlpha = Graphics::Blend_Source_Alpha_Invert;
-			BlendConfig->RenderTarget[0].DestBlendAlpha = Graphics::Blend_Zero;
-			BlendConfig->RenderTarget[0].BlendOperationAlpha = Graphics::BlendOperation_Add;
-			BlendConfig->RenderTarget[0].RenderTargetWriteMask = Graphics::ColorWriteEnable_All;
-			AddBlendState(BlendConfig);
-
-			Graphics::SamplerState* SamplerConfig = new Graphics::SamplerState();
-			SamplerConfig->Filter = Graphics::PixelFilter_Anistropic;
-			SamplerConfig->AddressU = Graphics::TextureAddress_Wrap;
-			SamplerConfig->AddressV = Graphics::TextureAddress_Wrap;
-			SamplerConfig->AddressW = Graphics::TextureAddress_Wrap;
-			SamplerConfig->MipLODBias = 0.0f;
-			SamplerConfig->MaxAnisotropy = 16;
-			SamplerConfig->ComparisonFunction = Graphics::Comparison_Never;
-			SamplerConfig->BorderColor[0] = 0.0f;
-			SamplerConfig->BorderColor[1] = 0.0f;
-			SamplerConfig->BorderColor[2] = 0.0f;
-			SamplerConfig->BorderColor[3] = 0.0f;
-			SamplerConfig->MinLOD = 0.0f;
-			SamplerConfig->MaxLOD = std::numeric_limits<float>::max();
-			AddSamplerState(SamplerConfig);
-
-			SamplerConfig = new Graphics::SamplerState();
-			SamplerConfig->Filter = Graphics::PixelFilter_Min_Mag_Mip_Linear;
-			SamplerConfig->AddressU = Graphics::TextureAddress_Wrap;
-			SamplerConfig->AddressV = Graphics::TextureAddress_Wrap;
-			SamplerConfig->AddressW = Graphics::TextureAddress_Wrap;
-			SamplerConfig->MipLODBias = 0.0f;
-			SamplerConfig->ComparisonFunction = Graphics::Comparison_Always;
-			SamplerConfig->MinLOD = 0.0f;
-			SamplerConfig->MaxLOD = 0.0f;
-			AddSamplerState(SamplerConfig);
-
-			SetDepthStencilState(Graphics::RenderLab_Blend_Overwrite);
-			SetRasterizerState(Graphics::RenderLab_Raster_Cull_Back);
-			SetBlendState(Graphics::RenderLab_Blend_Overwrite);
-			SetSamplerState(Graphics::RenderLab_Sampler_Trilinear_X16);
-		}
-		void GraphicsDevice::LoadSections()
+		void GraphicsDevice::InitSections()
 		{
 			if (Backend == RenderBackend_D3D11)
 			{
@@ -1459,24 +1146,21 @@ namespace Tomahawk
 			if (Name.empty() || Sections.empty())
 				return nullptr;
 
-			for (auto& It : Sections)
-			{
-				if (It->Name != Name)
-				{
-					if (It->Name != Name + ".hlsl" && It->Name != Name + ".glsl")
-						continue;
-				}
+			auto It = Sections.find(Name);
+			if (It != Sections.end())
+				return &It->second->Code;
 
-				return &It->Code;
-			}
+			It = Sections.find(Name + ".hlsl");
+			if (It != Sections.end())
+				return &It->second->Code;
+
+			It = Sections.find(Name + ".glsl");
+			if (It != Sections.end())
+				return &It->second->Code;
 
 			return nullptr;
 		}
-		std::vector<GraphicsDevice::Section*> GraphicsDevice::GetSections()
-		{
-			return Sections;
-		}
-		unsigned int GraphicsDevice::GetMipLevelCount(unsigned int Width, unsigned int Height)
+		unsigned int GraphicsDevice::GetMipLevel(unsigned int Width, unsigned int Height)
 		{
 			unsigned int MipLevels = 1;
 
@@ -1493,49 +1177,37 @@ namespace Tomahawk
 		{
 			return ShaderModelType;
 		}
-		DepthStencilState* GraphicsDevice::GetDepthStencilState(uint64_t State)
+		DepthStencilState* GraphicsDevice::GetDepthStencilState(const std::string& Name)
 		{
-			if (State < 0 || State >= DepthStencilStates.size())
-				return nullptr;
+			auto It = DepthStencilStates.find(Name);
+			if (It != DepthStencilStates.end())
+				return It->second;
 
-			return DepthStencilStates[State];
+			return nullptr;
 		}
-		BlendState* GraphicsDevice::GetBlendState(uint64_t State)
+		BlendState* GraphicsDevice::GetBlendState(const std::string& Name)
 		{
-			if (State < 0 || State >= BlendStates.size())
-				return nullptr;
+			auto It = BlendStates.find(Name);
+			if (It != BlendStates.end())
+				return It->second;
 
-			return BlendStates[State];
+			return nullptr;
 		}
-		RasterizerState* GraphicsDevice::GetRasterizerState(uint64_t State)
+		RasterizerState* GraphicsDevice::GetRasterizerState(const std::string& Name)
 		{
-			if (State < 0 || State >= RasterizerStates.size())
-				return nullptr;
+			auto It = RasterizerStates.find(Name);
+			if (It != RasterizerStates.end())
+				return It->second;
 
-			return RasterizerStates[State];
+			return nullptr;
 		}
-		SamplerState* GraphicsDevice::GetSamplerState(uint64_t State)
+		SamplerState* GraphicsDevice::GetSamplerState(const std::string& Name)
 		{
-			if (State < 0 || State >= SamplerStates.size())
-				return nullptr;
+			auto It = SamplerStates.find(Name);
+			if (It != SamplerStates.end())
+				return It->second;
 
-			return SamplerStates[State];
-		}
-		uint64_t GraphicsDevice::GetDepthStencilStateCount()
-		{
-			return DepthStencilStates.size();
-		}
-		uint64_t GraphicsDevice::GetBlendStateCount()
-		{
-			return BlendStates.size();
-		}
-		uint64_t GraphicsDevice::GetRasterizerStateCount()
-		{
-			return RasterizerStates.size();
-		}
-		uint64_t GraphicsDevice::GetSamplerStateCount()
-		{
-			return SamplerStates.size();
+			return nullptr;
 		}
 		RenderTarget2D* GraphicsDevice::GetRenderTarget()
 		{
@@ -1549,13 +1221,13 @@ namespace Tomahawk
 		{
 			return Backend;
 		}
-		unsigned int GraphicsDevice::GetPresentationFlags()
+		unsigned int GraphicsDevice::GetPresentFlags()
 		{
-			return PresentationFlag;
+			return PresentFlags;
 		}
-		unsigned int GraphicsDevice::GetCompilationFlags()
+		unsigned int GraphicsDevice::GetCompileFlags()
 		{
-			return CompilationFlag;
+			return CompileFlags;
 		}
 		VSync GraphicsDevice::GetVSyncMode()
 		{
@@ -1567,6 +1239,22 @@ namespace Tomahawk
 		}
 		void GraphicsDevice::FreeProxy()
 		{
+			for (auto It = DepthStencilStates.begin(); It != DepthStencilStates.end(); It++)
+				delete It->second;
+			DepthStencilStates.clear();
+
+			for (auto It = RasterizerStates.begin(); It != RasterizerStates.end(); It++)
+				delete It->second;
+			RasterizerStates.clear();
+
+			for (auto It = BlendStates.begin(); It != BlendStates.end(); It++)
+				delete It->second;
+			BlendStates.clear();
+
+			for (auto It = SamplerStates.begin(); It != SamplerStates.end(); It++)
+				delete It->second;
+			SamplerStates.clear();
+
 			delete RenderTarget;
 			RenderTarget = nullptr;
 
@@ -1586,11 +1274,6 @@ namespace Tomahawk
 			THAWK_ERROR("backend was not found");
 			return nullptr;
 		}
-		Compute::Vector2 GraphicsDevice::GetScreenDimensions()
-		{
-			return ScreenDimensions;
-		}
-		Compute::Vector2 GraphicsDevice::ScreenDimensions = Compute::Vector2::Zero();
 
 		Activity::Activity(const Desc& I) : Handle(nullptr), Rest(I), Command(0), Message(this)
 		{
@@ -2468,6 +2151,127 @@ namespace Tomahawk
 			Keys[0][KeyCode_CURSORX2] = (State & SDL_BUTTON(SDL_BUTTON_X2));
 #endif
 			return Keys[0];
+		}
+
+		Model::Model()
+		{
+		}
+		Model::~Model()
+		{
+			for (auto It = Meshes.begin(); It != Meshes.end(); It++)
+				delete (*It);
+		}
+		MeshBuffer* Model::Find(const std::string& Name)
+		{
+			for (auto&& It : Meshes)
+			{
+				if (It->Name == Name)
+					return It;
+			}
+
+			return nullptr;
+		}
+
+		SkinModel::SkinModel()
+		{
+		}
+		SkinModel::~SkinModel()
+		{
+			for (auto It = Meshes.begin(); It != Meshes.end(); It++)
+				delete (*It);
+		}
+		void SkinModel::BuildSkeleton(PoseBuffer* Map)
+		{
+			if (Map != nullptr && !Joints.empty())
+			{
+				if (Map->Pose.empty())
+					Map->Reset(this);
+
+				for (auto& Child : Joints)
+					BuildSkeleton(Map, &Child, Compute::Matrix4x4::Identity());
+			}
+		}
+		void SkinModel::BuildSkeleton(PoseBuffer* Map, Compute::Joint* Base, const Compute::Matrix4x4& World)
+		{
+			Compute::Matrix4x4 Transform = Map->Offset(Base->Index) * World;
+			Map->Transform[Base->Index] = Base->BindShape * Transform * Root;
+
+			for (auto& Child : Base->Childs)
+				BuildSkeleton(Map, &Child, Transform);
+		}
+		SkinMeshBuffer* SkinModel::FindMesh(const std::string& Name)
+		{
+			for (auto&& It : Meshes)
+			{
+				if (It->Name == Name)
+					return It;
+			}
+
+			return nullptr;
+		}
+		Compute::Joint* SkinModel::FindJoint(const std::string& Name, Compute::Joint* Base)
+		{
+			if (Base != nullptr)
+			{
+				if (Base->Name == Name)
+					return Base;
+
+				for (auto&& Child : Base->Childs)
+				{
+					if (Child.Name == Name)
+						return &Child;
+
+					Compute::Joint* Result = FindJoint(Name, &Child);
+					if (Result != nullptr)
+						return Result;
+				}
+			}
+			else
+			{
+				for (auto&& Child : Joints)
+				{
+					if (Child.Name == Name)
+						return &Child;
+
+					Compute::Joint* Result = FindJoint(Name, &Child);
+					if (Result != nullptr)
+						return Result;
+				}
+			}
+
+			return nullptr;
+		}
+		Compute::Joint* SkinModel::FindJoint(int64_t Index, Compute::Joint* Base)
+		{
+			if (Base != nullptr)
+			{
+				if (Base->Index == Index)
+					return Base;
+
+				for (auto&& Child : Base->Childs)
+				{
+					if (Child.Index == Index)
+						return &Child;
+
+					Compute::Joint* Result = FindJoint(Index, &Child);
+					if (Result != nullptr)
+						return Result;
+				}
+			}
+			else
+			{
+				for (auto&& Child : Joints)
+				{
+					if (Child.Index == Index)
+						return &Child;
+
+					Compute::Joint* Result = FindJoint(Index, &Child);
+					if (Result != nullptr)
+						return Result;
+				}
+			}
+
+			return nullptr;
 		}
 	}
 }

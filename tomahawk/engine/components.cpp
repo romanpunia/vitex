@@ -719,16 +719,16 @@ namespace Tomahawk
 				Graphics::MappedSubresource Map;
 				if (VertexBuffer != nullptr && !Vertices.empty())
 				{
-					VertexBuffer->Map(Device, Graphics::ResourceMap_Write_Discard, &Map);
+					Device->Map(VertexBuffer, Graphics::ResourceMap_Write_Discard, &Map);
 					memcpy(Map.Pointer, (void*)Vertices.data(), Vertices.size() * sizeof(Compute::Vertex));
-					VertexBuffer->Unmap(Device, &Map);
+					Device->Unmap(VertexBuffer, &Map);
 				}
 
 				if (IndexBuffer != nullptr && !Indices.empty())
 				{
-					IndexBuffer->Map(Device, Graphics::ResourceMap_Write_Discard, &Map);
+					Device->Map(IndexBuffer, Graphics::ResourceMap_Write_Discard, &Map);
 					memcpy(Map.Pointer, (void*)Indices.data(), Indices.size() * sizeof(int));
-					IndexBuffer->Unmap(Device, &Map);
+					Device->Unmap(IndexBuffer, &Map);
 				}
 			}
 			void SoftBody::Clear()
@@ -1688,10 +1688,7 @@ namespace Tomahawk
 			ElementSystem::~ElementSystem()
 			{
 				if (Instance != nullptr)
-				{
-					Instance->Restore();
 					delete Instance;
-				}
 			}
 			void ElementSystem::OnAwake(Component* New)
 			{
@@ -1701,7 +1698,7 @@ namespace Tomahawk
 				Graphics::InstanceBuffer::Desc I = Graphics::InstanceBuffer::Desc();
 				I.ElementLimit = 1 << 10;
 
-				Instance = Graphics::InstanceBuffer::Create(Parent->GetScene()->GetDevice(), I);
+				Instance = Parent->GetScene()->GetDevice()->CreateInstanceBuffer(I);
 			}
 			void ElementSystem::OnLoad(ContentManager* Content, Rest::Document* Node)
 			{
@@ -1717,7 +1714,7 @@ namespace Tomahawk
 					std::vector<Compute::ElementVertex> Vertices;
 					if (Instance != nullptr)
 					{
-						Instance->Resize(Limit);
+						Parent->GetScene()->GetDevice()->UpdateBufferSize(Instance, Limit);
 						if (NMake::Unpack(Node->Find("elements"), &Vertices))
 						{
 							Instance->GetArray()->Reserve(Vertices.size());
@@ -2065,7 +2062,7 @@ namespace Tomahawk
 					if (!Instance || !NMake::Unpack(Surface->Find("name"), &Path))
 						continue;
 
-					Graphics::Mesh* Ref = Instance->Find(Path);
+					Graphics::MeshBuffer* Ref = Instance->Find(Path);
 					if (!Ref)
 						continue;
 
@@ -2121,7 +2118,7 @@ namespace Tomahawk
 						Surface.second.Material = 0;
 				}
 			}
-			Graphics::Material& Model::GetMaterial(Graphics::Mesh* Mesh)
+			Graphics::Material& Model::GetMaterial(Graphics::MeshBuffer* Mesh)
 			{
 				return GetMaterial(GetSurface(Mesh));
 			}
@@ -2132,7 +2129,7 @@ namespace Tomahawk
 
 				return Parent->GetScene()->GetMaterial(Surface->Material);
 			}
-			Appearance* Model::GetSurface(Graphics::Mesh* Mesh)
+			Appearance* Model::GetSurface(Graphics::MeshBuffer* Mesh)
 			{
 				auto It = Surfaces.find(Mesh);
 				if (It == Surfaces.end())
@@ -2177,7 +2174,7 @@ namespace Tomahawk
 					if (!Instance || !NMake::Unpack(Surface->Find("name"), &Path))
 						continue;
 
-					Graphics::SkinMesh* Ref = Instance->FindMesh(Path);
+					Graphics::SkinMeshBuffer* Ref = Instance->FindMesh(Path);
 					if (!Ref)
 						continue;
 
@@ -2255,7 +2252,7 @@ namespace Tomahawk
 						Surface.second.Material = 0;
 				}
 			}
-			Graphics::Material& SkinModel::GetMaterial(Graphics::SkinMesh* Mesh)
+			Graphics::Material& SkinModel::GetMaterial(Graphics::SkinMeshBuffer* Mesh)
 			{
 				return GetMaterial(GetSurface(Mesh));
 			}
@@ -2266,7 +2263,7 @@ namespace Tomahawk
 
 				return Parent->GetScene()->GetMaterial(Surface->Material);
 			}
-			Appearance* SkinModel::GetSurface(Graphics::SkinMesh* Mesh)
+			Appearance* SkinModel::GetSurface(Graphics::SkinMeshBuffer* Mesh)
 			{
 				auto It = Surfaces.find(Mesh);
 				if (It == Surfaces.end())
@@ -2642,7 +2639,7 @@ namespace Tomahawk
 				F.Texture2D[5] = DiffuseMapZ[1];
 
 				delete DiffuseMap;
-				DiffuseMap = Graphics::TextureCube::Create(Parent->GetScene()->GetDevice(), F);
+				DiffuseMap = Parent->GetScene()->GetDevice()->CreateTextureCube(F);
 				return DiffuseMap != nullptr;
 			}
 			Component* ProbeLight::OnClone(Entity* New)
@@ -2668,10 +2665,13 @@ namespace Tomahawk
 				return Target;
 			}
 
-			Camera::Camera(Entity* Ref) : Component(Ref)
+			Camera::Camera(Entity* Ref) : Component(Ref), Mode(ProjectionMode_Perspective)
 			{
 				Projection = Compute::Matrix4x4::Identity();
-				ViewDistance = 500;
+				NearPlane = 0.1f;
+				FarPlane = 1000.0f;
+				Width = Height = -1;
+				FieldOfView = 75.0f;
 			}
 			Camera::~Camera()
 			{
@@ -2707,8 +2707,16 @@ namespace Tomahawk
 			}
 			void Camera::OnLoad(ContentManager* Content, Rest::Document* Node)
 			{
+				int _Mode = 0;
+				if (NMake::Unpack(Node->Find("mode"), &_Mode))
+					Mode = (ProjectionMode)_Mode;
+
 				NMake::Unpack(Node->Find("projection"), &Projection);
-				NMake::Unpack(Node->Find("view-distance"), &ViewDistance);
+				NMake::Unpack(Node->Find("field-of-view"), &FieldOfView);
+				NMake::Unpack(Node->Find("far-plane"), &FarPlane);
+				NMake::Unpack(Node->Find("near-plane"), &NearPlane);
+				NMake::Unpack(Node->Find("width"), &Width);
+				NMake::Unpack(Node->Find("height"), &Height);
 
 				if (!Renderer)
 				{
@@ -2780,8 +2788,13 @@ namespace Tomahawk
 			}
 			void Camera::OnSave(ContentManager* Content, Rest::Document* Node)
 			{
+				NMake::Pack(Node->SetDocument("mode"), (int)Mode);
 				NMake::Pack(Node->SetDocument("projection"), Projection);
-				NMake::Pack(Node->SetDocument("view-distance"), ViewDistance);
+				NMake::Pack(Node->SetDocument("field-of-view"), FieldOfView);
+				NMake::Pack(Node->SetDocument("far-plane"), FarPlane);
+				NMake::Pack(Node->SetDocument("near-plane"), NearPlane);
+				NMake::Pack(Node->SetDocument("width"), Width);
+				NMake::Pack(Node->SetDocument("height"), Height);
 
 				Rest::Document* Renderers = Node->SetArray("renderers");
 				for (auto& Ref : *Renderer->GetRenderers())
@@ -2791,6 +2804,20 @@ namespace Tomahawk
 					NMake::Pack(Render->SetDocument("active"), Ref->Active);
 					Ref->OnSave(Content, Render->SetDocument("metadata"));
 				}
+			}
+			void Camera::OnSynchronize(Rest::Timer* Time)
+			{
+				float W = Width, H = Height;
+				if (W <= 0 || H <= 0 && Renderer != nullptr)
+				{
+					Graphics::Viewport V = Renderer->GetDevice()->GetRenderTarget()->GetViewport();
+					W = V.Width; H = V.Height;
+				}
+				
+				if (Mode == ProjectionMode_Perspective)
+					Projection = Compute::Matrix4x4::CreatePerspective(FieldOfView, W / H, NearPlane, FarPlane);
+				else if (Mode == ProjectionMode_Orthographic)
+					Projection = Compute::Matrix4x4::CreateOrthographic(W, H, NearPlane, FarPlane);
 			}
 			void Camera::FillViewer(Viewer* View)
 			{
@@ -2804,7 +2831,7 @@ namespace Tomahawk
 				View->InvViewProjection = View->ViewProjection.Invert();
 				View->Position = Parent->Transform->Position.InvertZ();
 				View->RawPosition = Parent->Transform->Position;
-				View->ViewDistance = ViewDistance;
+				View->ViewDistance = FarPlane;
 				View->Renderer = Renderer;
 				FieldView = *View;
 			}
@@ -2822,6 +2849,14 @@ namespace Tomahawk
 			{
 				return FieldView;
 			}
+			RenderSystem* Camera::GetRenderer()
+			{
+				return Renderer;
+			}
+			Compute::Matrix4x4 Camera::GetProjection()
+			{
+				return Projection;
+			}
 			Compute::Vector3 Camera::GetViewPosition()
 			{
 				return Compute::Vector3(-Parent->Transform->Position.X, -Parent->Transform->Position.Y, Parent->Transform->Position.Z);
@@ -2834,14 +2869,15 @@ namespace Tomahawk
 			{
 				return Compute::Matrix4x4::CreateCamera(GetViewPosition(), -Parent->Transform->Rotation);
 			}
-			float Camera::GetFieldOfView()
-			{
-				return Compute::Math<float>::ACotan(Projection.Row[5]) * 2.0f / Compute::Math<float>::Deg2Rad();
-			}
 			Component* Camera::OnClone(Entity* New)
 			{
 				Camera* Target = new Camera(New);
-				Target->ViewDistance = ViewDistance;
+				Target->FarPlane = FarPlane;
+				Target->NearPlane = NearPlane;
+				Target->Width = Width;
+				Target->Height = Height;
+				Target->Mode = Mode;
+				Target->FieldOfView = FieldOfView;
 				Target->Projection = Projection;
 
 				return Target;

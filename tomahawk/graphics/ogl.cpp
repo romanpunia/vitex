@@ -11,104 +11,83 @@ namespace Tomahawk
 	{
 		namespace OGL
 		{
-			OGLShader::OGLShader(Graphics::GraphicsDevice* Device, const Desc& I) : Graphics::Shader(Device, I)
+			OGLDepthStencilState::OGLDepthStencilState(const Desc& I) : DepthStencilState(I)
 			{
+			}
+			OGLDepthStencilState::~OGLDepthStencilState()
+			{
+			}
+			void* OGLDepthStencilState::GetResource()
+			{
+				return (void*)&State;
+			}
+
+			OGLRasterizerState::OGLRasterizerState(const Desc& I) : RasterizerState(I)
+			{
+			}
+			OGLRasterizerState::~OGLRasterizerState()
+			{
+			}
+			void* OGLRasterizerState::GetResource()
+			{
+				return (void*)&State;
+			}
+
+			OGLBlendState::OGLBlendState(const Desc& I) : BlendState(I)
+			{
+			}
+			OGLBlendState::~OGLBlendState()
+			{
+			}
+			void* OGLBlendState::GetResource()
+			{
+				return (void*)&State;
+			}
+
+			OGLSamplerState::OGLSamplerState(const Desc& I) : SamplerState(I)
+			{
+			}
+			OGLSamplerState::~OGLSamplerState()
+			{
+				glDeleteSamplers(1, &Resource);
+			}
+			void* OGLSamplerState::GetResource()
+			{
+				return (void*)(intptr_t)Resource;
+			}
+
+			OGLShader::OGLShader(const Desc& I) : Shader(I)
+			{
+				/* TODO: IMPL */
 			}
 			OGLShader::~OGLShader()
 			{
-			}
-			void OGLShader::UpdateBuffer(Graphics::GraphicsDevice* Device, const void* Data)
-			{
-			}
-			void OGLShader::CreateBuffer(Graphics::GraphicsDevice* Device, size_t Size)
-			{
-			}
-			void OGLShader::SetShader(Graphics::GraphicsDevice* Device, unsigned int Type)
-			{
-			}
-			void OGLShader::SetBuffer(Graphics::GraphicsDevice* Device, unsigned int Slot, unsigned int Type)
-			{
+				/* TODO: IMPL */
 			}
 			bool OGLShader::IsValid()
 			{
+				/* TODO: IMPL */
 				return false;
 			}
 
-			OGLElementBuffer::OGLElementBuffer(Graphics::GraphicsDevice* Device, const Desc& I) : Graphics::ElementBuffer(Device, I)
+			OGLElementBuffer::OGLElementBuffer(const Desc& I) : ElementBuffer(I)
 			{
-				Bind = OGLDevice::GetResourceBind(I.BindFlags);
-
-				glGenBuffers(1, &Resource);
-				glBindBuffer(Bind, Resource);
-				glBufferData(Bind, I.ElementCount * I.ElementWidth, I.Elements, GL_STATIC_DRAW);
 			}
 			OGLElementBuffer::~OGLElementBuffer()
 			{
 				glDeleteBuffers(1, &Resource);
-			}
-			void OGLElementBuffer::SetIndexBuffer(Graphics::GraphicsDevice* Device, Graphics::Format Format, unsigned int Offset)
-			{
-				glBindBuffer(GL_ELEMENT_ARRAY_BUFFER, Resource);
-			}
-			void OGLElementBuffer::SetVertexBuffer(Graphics::GraphicsDevice* Device, unsigned int Slot, unsigned int Stride, unsigned int Offset)
-			{
-				glBindBuffer(GL_ARRAY_BUFFER, Resource);
-			}
-			void OGLElementBuffer::Map(Graphics::GraphicsDevice* Device, Graphics::ResourceMap Mode, Graphics::MappedSubresource* Map)
-			{
-				GLint Size;
-				glBindBuffer(Bind, Resource);
-				glGetBufferParameteriv(Bind, GL_BUFFER_SIZE, &Size);
-				Map->Pointer = glMapBuffer(Bind, OGLDevice::GetResourceMap(Mode));
-				Map->RowPitch = Size;
-				Map->DepthPitch = 1;
-			}
-			void OGLElementBuffer::Unmap(Graphics::GraphicsDevice* Device, Graphics::MappedSubresource* Map)
-			{
-				glBindBuffer(Bind, Resource);
-				glUnmapBuffer(Bind);
 			}
 			void* OGLElementBuffer::GetResource()
 			{
 				return (void*)(intptr_t)Resource;
 			}
 
-			OGLStructureBuffer::OGLStructureBuffer(Graphics::GraphicsDevice* Device, const Desc& I) : Graphics::StructureBuffer(Device, I)
+			OGLStructureBuffer::OGLStructureBuffer(const Desc& I) : StructureBuffer(I)
 			{
-				Bind = OGLDevice::GetResourceBind(I.BindFlags);
-
-				glGenBuffers(1, &Resource);
-				glBindBuffer(GL_SHADER_STORAGE_BUFFER, Resource);
-				glBufferData(GL_SHADER_STORAGE_BUFFER, I.ElementWidth * I.ElementCount, I.Elements, GL_DYNAMIC_DRAW);
-				glBindBufferBase(GL_SHADER_STORAGE_BUFFER, 3, Resource);
-				glBindBuffer(GL_SHADER_STORAGE_BUFFER, 0);
 			}
 			OGLStructureBuffer::~OGLStructureBuffer()
 			{
 				glDeleteBuffers(1, &Resource);
-			}
-			void OGLStructureBuffer::Map(Graphics::GraphicsDevice* Device, Graphics::ResourceMap Mode, Graphics::MappedSubresource* Map)
-			{
-				GLint Size;
-				glBindBuffer(Bind, Resource);
-				glGetBufferParameteriv(Bind, GL_BUFFER_SIZE, &Size);
-				Map->Pointer = glMapBuffer(Bind, OGLDevice::GetResourceMap(Mode));
-				Map->RowPitch = Size;
-				Map->DepthPitch = 1;
-			}
-			void OGLStructureBuffer::RemapSubresource(Graphics::GraphicsDevice* Device, void* Pointer, uint64_t Size)
-			{
-				glBindBuffer(Bind, Resource);
-				glBufferData(GL_ARRAY_BUFFER, (GLsizeiptr)Size, Pointer, GL_DYNAMIC_DRAW);
-			}
-			void OGLStructureBuffer::Unmap(Graphics::GraphicsDevice* Device, Graphics::MappedSubresource* Map)
-			{
-				glBindBuffer(Bind, Resource);
-				glUnmapBuffer(Bind);
-			}
-			void OGLStructureBuffer::SetBuffer(Graphics::GraphicsDevice* Device, int Slot)
-			{
-				glBindBuffer(GL_SHADER_STORAGE_BUFFER, Resource);
 			}
 			void* OGLStructureBuffer::GetElement()
 			{
@@ -119,164 +98,107 @@ namespace Tomahawk
 				return (void*)(intptr_t)Resource;
 			}
 
-			OGLTexture2D::OGLTexture2D(Graphics::GraphicsDevice* Device) : Graphics::Texture2D(Device)
+			OGLMeshBuffer::OGLMeshBuffer(const Desc& I) : MeshBuffer(I)
 			{
-				Width = 512;
-				Height = 512;
-				MipLevels = 1;
-				FormatMode = Graphics::Format_Invalid;
-				Usage = Graphics::ResourceUsage_Default;
-				AccessFlags = Graphics::CPUAccess_Invalid;
 			}
-			OGLTexture2D::OGLTexture2D(Graphics::GraphicsDevice* Device, const Desc& I) : Graphics::Texture2D(Device, I)
+			Compute::Vertex* OGLMeshBuffer::GetElements(GraphicsDevice* Device)
 			{
-				Width = I.Width;
-				Height = I.Height;
-				MipLevels = I.MipLevels;
-				FormatMode = I.FormatMode;
-				Usage = I.Usage;
-				AccessFlags = I.AccessFlags;
+				MappedSubresource Resource;
+				Device->Map(VertexBuffer, ResourceMap_Write, &Resource);
 
-				glGenTextures(1, &Resource);
-				glBindTexture(GL_TEXTURE_2D, Resource);
-				glTexImage2D(GL_TEXTURE_2D, 0, OGLDevice::GetFormat(FormatMode), Width, Height, 0, OGLDevice::GetFormat(FormatMode), GL_UNSIGNED_BYTE, I.Data);
+				Compute::Vertex* Vertices = new Compute::Vertex[(unsigned int)VertexBuffer->GetElements()];
+				memcpy(Vertices, Resource.Pointer, (size_t)VertexBuffer->GetElements() * sizeof(Compute::Vertex));
 
-				if (MipLevels != 0)
-				{
-					glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_LINEAR);
-					glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_LINEAR_MIPMAP_LINEAR);
-					glGenerateMipmap(GL_TEXTURE_2D);
-				}
-				else
-				{
-					glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_NEAREST);
-					glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_NEAREST);
-				}
+				Device->Unmap(VertexBuffer, &Resource);
+				return Vertices;
+			}
+
+			OGLSkinMeshBuffer::OGLSkinMeshBuffer(const Desc& I) : SkinMeshBuffer(I)
+			{
+			}
+			Compute::SkinVertex* OGLSkinMeshBuffer::GetElements(GraphicsDevice* Device)
+			{
+				MappedSubresource Resource;
+				Device->Map(VertexBuffer, ResourceMap_Write, &Resource);
+
+				Compute::SkinVertex* Vertices = new Compute::SkinVertex[(unsigned int)VertexBuffer->GetElements()];
+				memcpy(Vertices, Resource.Pointer, (size_t)VertexBuffer->GetElements() * sizeof(Compute::SkinVertex));
+
+				Device->Unmap(VertexBuffer, &Resource);
+				return Vertices;
+			}
+
+			OGLInstanceBuffer::OGLInstanceBuffer(const Desc& I) : InstanceBuffer(I)
+			{
+				/* TODO: IMPL */
+			}
+			OGLInstanceBuffer::~OGLInstanceBuffer()
+			{
+				if (Device != nullptr && Sync)
+					Device->ClearBuffer(this);
+
+				/* TODO: IMPL */
+			}
+
+			OGLTexture2D::OGLTexture2D() : Texture2D()
+			{
+			}
+			OGLTexture2D::OGLTexture2D(const Desc& I) : Texture2D(I)
+			{
 			}
 			OGLTexture2D::~OGLTexture2D()
 			{
 				glDeleteTextures(1, &Resource);
 			}
-			void OGLTexture2D::SetTexture(Graphics::GraphicsDevice* Device, int Slot)
-			{
-				glActiveTexture(GL_TEXTURE0 + Slot);
-				glBindTexture(GL_TEXTURE_2D, Resource);
-			}
 			void OGLTexture2D::Fill(OGLDevice* Device)
 			{
+				/* TODO: IMPL */
 			}
 			void* OGLTexture2D::GetResource()
 			{
 				return (void*)(intptr_t)Resource;
 			}
 
-			OGLTexture3D::OGLTexture3D(Graphics::GraphicsDevice* Device) : Graphics::Texture3D(Device)
+			OGLTexture3D::OGLTexture3D() : Texture3D()
 			{
+				/* TODO: IMPL */
 			}
 			OGLTexture3D::~OGLTexture3D()
 			{
-			}
-			void OGLTexture3D::SetTexture(Graphics::GraphicsDevice* Device, int Slot)
-			{
+				/* TODO: IMPL */
 			}
 			void* OGLTexture3D::GetResource()
 			{
+				/* TODO: IMPL */
 				return (void*)nullptr;
 			}
 
-			OGLTextureCube::OGLTextureCube(Graphics::GraphicsDevice* Device) : Graphics::TextureCube(Device)
+			OGLTextureCube::OGLTextureCube() : TextureCube()
 			{
+				/* TODO: IMPL */
 			}
-			OGLTextureCube::OGLTextureCube(Graphics::GraphicsDevice* Device, const Desc& I) : Graphics::TextureCube(Device, I)
+			OGLTextureCube::OGLTextureCube(const Desc& I) : TextureCube(I)
 			{
+				/* TODO: IMPL */
 			}
 			OGLTextureCube::~OGLTextureCube()
 			{
-			}
-			void OGLTextureCube::SetTexture(Graphics::GraphicsDevice* Device, int Slot)
-			{
+				/* TODO: IMPL */
 			}
 			void* OGLTextureCube::GetResource()
 			{
+				/* TODO: IMPL */
 				return (void*)nullptr;
 			}
 
-			OGLRenderTarget2D::OGLRenderTarget2D(Graphics::GraphicsDevice* Device, const Desc& I) : Graphics::RenderTarget2D(Device, I)
+			OGLRenderTarget2D::OGLRenderTarget2D(const Desc& I) : RenderTarget2D(I)
 			{
-				if (!I.RenderSurface)
-				{
-					GLenum Format = OGLDevice::GetFormat(I.FormatMode);
-					glGenFramebuffers(1, &FrameBuffer);
-					glGenTextures(1, &Texture);
-					glBindTexture(GL_TEXTURE_2D, Texture);
-					glTexImage2D(GL_TEXTURE_2D, 0, Format, I.Width, I.Height, 0, Format, GL_UNSIGNED_BYTE, NULL);
-					glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_LINEAR);
-					glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_LINEAR);
-					glBindFramebuffer(GL_FRAMEBUFFER, FrameBuffer);
-					glFramebufferTexture2D(GL_FRAMEBUFFER, GL_COLOR_ATTACHMENT0, GL_TEXTURE_2D, Texture, 0);
-					glGenRenderbuffers(1, &DepthBuffer);
-					glBindRenderbuffer(GL_RENDERBUFFER, DepthBuffer);
-					glRenderbufferStorage(GL_RENDERBUFFER, GL_DEPTH24_STENCIL8, I.Width, I.Height);
-					glBindRenderbuffer(GL_RENDERBUFFER, 0);
-					glFramebufferRenderbuffer(GL_FRAMEBUFFER, GL_DEPTH_STENCIL_ATTACHMENT, GL_RENDERBUFFER, DepthBuffer);
-					glBindFramebuffer(GL_FRAMEBUFFER, 0);
-				}
-				else if (I.RenderSurface != (void*)Device)
-				{
-					Texture = *(GLuint*)I.RenderSurface;
-					glGenFramebuffers(1, &FrameBuffer);
-					glBindFramebuffer(GL_FRAMEBUFFER, FrameBuffer);
-					glFramebufferTexture2D(GL_FRAMEBUFFER, GL_COLOR_ATTACHMENT0, GL_TEXTURE_2D, Texture, 0);
-					glGenRenderbuffers(1, &DepthBuffer);
-					glBindRenderbuffer(GL_RENDERBUFFER, DepthBuffer);
-					glRenderbufferStorage(GL_RENDERBUFFER, GL_DEPTH24_STENCIL8, I.Width, I.Height);
-					glBindRenderbuffer(GL_RENDERBUFFER, 0);
-					glFramebufferRenderbuffer(GL_FRAMEBUFFER, GL_DEPTH_STENCIL_ATTACHMENT, GL_RENDERBUFFER, DepthBuffer);
-					glBindFramebuffer(GL_FRAMEBUFFER, 0);
-				}
-
-				Viewport.Width = (float)I.Width;
-				Viewport.Height = (float)I.Height;
-				Viewport.TopLeftX = 0.0f;
-				Viewport.TopLeftY = 0.0f;
-				Viewport.MinDepth = 0.0f;
-				Viewport.MaxDepth = 1.0f;
 			}
 			OGLRenderTarget2D::~OGLRenderTarget2D()
 			{
 				glDeleteFramebuffers(1, &FrameBuffer);
 			}
-			void OGLRenderTarget2D::SetTarget(Graphics::GraphicsDevice* Device, float R, float G, float B)
-			{
-				glBindFramebuffer(GL_FRAMEBUFFER, FrameBuffer != GL_INVALID_VALUE ? FrameBuffer : 0);
-				glViewport((GLuint)Viewport.TopLeftX, (GLuint)Viewport.TopLeftY, (GLuint)Viewport.Width, (GLuint)Viewport.Height);
-				glClearColor(0.2f, 0.3f, 0.3f, 1.0f);
-				glClearColor(R, G, B, 1.0f);
-				glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT | GL_STENCIL_BUFFER_BIT);
-			}
-			void OGLRenderTarget2D::SetTarget(Graphics::GraphicsDevice* Device)
-			{
-				glBindFramebuffer(GL_FRAMEBUFFER, FrameBuffer != GL_INVALID_VALUE ? FrameBuffer : 0);
-				glViewport((GLuint)Viewport.TopLeftX, (GLuint)Viewport.TopLeftY, (GLuint)Viewport.Width, (GLuint)Viewport.Height);
-			}
-			void OGLRenderTarget2D::Clear(Graphics::GraphicsDevice* Device, float R, float G, float B)
-			{
-				glBindFramebuffer(GL_FRAMEBUFFER, FrameBuffer != GL_INVALID_VALUE ? FrameBuffer : 0);
-				glViewport((GLuint)Viewport.TopLeftX, (GLuint)Viewport.TopLeftY, (GLuint)Viewport.Width, (GLuint)Viewport.Height);
-				glClearColor(0.2f, 0.3f, 0.3f, 1.0f);
-				glClearColor(R, G, B, 1.0f);
-				glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT | GL_STENCIL_BUFFER_BIT);
-			}
-			void OGLRenderTarget2D::CopyTexture2D(Graphics::GraphicsDevice* Device, Graphics::Texture2D** Value)
-			{
-			}
-			void OGLRenderTarget2D::SetViewport(const Graphics::Viewport& In)
-			{
-				Viewport = In;
-				glViewport((GLuint)Viewport.TopLeftX, (GLuint)Viewport.TopLeftY, (GLuint)Viewport.Width, (GLuint)Viewport.Height);
-				glClearColor(0.2f, 0.3f, 0.3f, 1.0f);
-			}
-			Graphics::Viewport OGLRenderTarget2D::GetViewport()
+			Viewport OGLRenderTarget2D::GetViewport()
 			{
 				return Viewport;
 			}
@@ -293,179 +215,96 @@ namespace Tomahawk
 				return (void*)(intptr_t)FrameBuffer;
 			}
 
-			OGLMultiRenderTarget2D::OGLMultiRenderTarget2D(Graphics::GraphicsDevice* Device, const Desc& I) : Graphics::MultiRenderTarget2D(Device, I)
+			OGLMultiRenderTarget2D::OGLMultiRenderTarget2D(const Desc& I) : MultiRenderTarget2D(I)
 			{
+				/* TODO: IMPL */
 			}
 			OGLMultiRenderTarget2D::~OGLMultiRenderTarget2D()
 			{
+				/* TODO: IMPL */
 			}
-			void OGLMultiRenderTarget2D::SetTarget(Graphics::GraphicsDevice* Device, int Target, float R, float G, float B)
+			Viewport OGLMultiRenderTarget2D::GetViewport()
 			{
-			}
-			void OGLMultiRenderTarget2D::SetTarget(Graphics::GraphicsDevice* Device, int Target)
-			{
-			}
-			void OGLMultiRenderTarget2D::SetTarget(Graphics::GraphicsDevice* Device, float R, float G, float B)
-			{
-			}
-			void OGLMultiRenderTarget2D::SetTarget(Graphics::GraphicsDevice* Device)
-			{
-			}
-			void OGLMultiRenderTarget2D::Clear(Graphics::GraphicsDevice* Device, int Target, float R, float G, float B)
-			{
-			}
-			void OGLMultiRenderTarget2D::CopyTargetTo(int Target, GraphicsDevice* Device, RenderTarget2D* Output)
-			{
-			}
-			void OGLMultiRenderTarget2D::CopyTargetFrom(int Target, GraphicsDevice* Device, RenderTarget2D* Output)
-			{
-			}
-			void OGLMultiRenderTarget2D::CopyTexture2D(int Target, GraphicsDevice* Device, Texture2D** Value)
-			{
-			}
-			void OGLMultiRenderTarget2D::CopyBegin(GraphicsDevice* Device, int Target, unsigned int MipLevels, unsigned int Size)
-			{
-			}
-			void OGLMultiRenderTarget2D::CopyFace(GraphicsDevice* Device, int Target, int Face)
-			{
-			}
-			void OGLMultiRenderTarget2D::CopyEnd(GraphicsDevice* Device, TextureCube* Value)
-			{
-			}
-			void OGLMultiRenderTarget2D::SetViewport(const Graphics::Viewport& In)
-			{
-			}
-			Graphics::Viewport OGLMultiRenderTarget2D::GetViewport()
-			{
-				Graphics::Viewport Output = Graphics::Viewport();
-				return Output;
+				return Viewport;
 			}
 			float OGLMultiRenderTarget2D::GetWidth()
 			{
-				return 0.0f;
+				return Viewport.Width;
 			}
 			float OGLMultiRenderTarget2D::GetHeight()
 			{
-				return 0.0f;
+				return Viewport.Height;
 			}
 			void* OGLMultiRenderTarget2D::GetResource(int Id)
 			{
+				/* TODO: IMPL */
 				return nullptr;
 			}
 
-			OGLRenderTarget2DArray::OGLRenderTarget2DArray(Graphics::GraphicsDevice* Device, const Desc& I) : Graphics::RenderTarget2DArray(Device, I)
+			OGLRenderTarget2DArray::OGLRenderTarget2DArray(const Desc& I) : RenderTarget2DArray(I)
 			{
+				/* TODO: IMPL */
 			}
 			OGLRenderTarget2DArray::~OGLRenderTarget2DArray()
 			{
+				/* TODO: IMPL */
 				delete Resource;
 			}
-			void OGLRenderTarget2DArray::SetTarget(Graphics::GraphicsDevice* Device, int Target, float R, float G, float B)
+			Viewport OGLRenderTarget2DArray::GetViewport()
 			{
-			}
-			void OGLRenderTarget2DArray::SetTarget(Graphics::GraphicsDevice* Device, int Target)
-			{
-			}
-			void OGLRenderTarget2DArray::Clear(Graphics::GraphicsDevice* Device, int Target, float R, float G, float B)
-			{
-			}
-			void OGLRenderTarget2DArray::SetViewport(const Graphics::Viewport& In)
-			{
-			}
-			Graphics::Viewport OGLRenderTarget2DArray::GetViewport()
-			{
-				Graphics::Viewport Output = Graphics::Viewport();
-				return Output;
+				return Viewport;
 			}
 			float OGLRenderTarget2DArray::GetWidth()
 			{
-				return 0.0f;
+				return Viewport.Width;
 			}
 			float OGLRenderTarget2DArray::GetHeight()
 			{
-				return 0.0f;
+				return Viewport.Height;
 			}
 			void* OGLRenderTarget2DArray::GetResource()
 			{
+				/* TODO: IMPL */
 				return nullptr;
 			}
 
-			OGLRenderTargetCube::OGLRenderTargetCube(Graphics::GraphicsDevice* Device, const Desc& I) : Graphics::RenderTargetCube(Device, I)
+			OGLRenderTargetCube::OGLRenderTargetCube(const Desc& I) : RenderTargetCube(I)
 			{
+				/* TODO: IMPL */
 			}
 			OGLRenderTargetCube::~OGLRenderTargetCube()
 			{
+				/* TODO: IMPL */
 			}
-			void OGLRenderTargetCube::SetTarget(Graphics::GraphicsDevice* Device, float R, float G, float B)
+			Viewport OGLRenderTargetCube::GetViewport()
 			{
-			}
-			void OGLRenderTargetCube::SetTarget(Graphics::GraphicsDevice* Device)
-			{
-			}
-			void OGLRenderTargetCube::Clear(Graphics::GraphicsDevice* Device, float R, float G, float B)
-			{
-			}
-			void OGLRenderTargetCube::CopyTextureCube(Graphics::GraphicsDevice* Device, Graphics::TextureCube** Value)
-			{
-			}
-			void OGLRenderTargetCube::CopyTexture2D(int FaceId, Graphics::GraphicsDevice* Device, Graphics::Texture2D** Value)
-			{
-			}
-			void OGLRenderTargetCube::SetViewport(const Graphics::Viewport& In)
-			{
-			}
-			Graphics::Viewport OGLRenderTargetCube::GetViewport()
-			{
-				Graphics::Viewport Output = Graphics::Viewport();
-				return Output;
+				return Viewport;
 			}
 			float OGLRenderTargetCube::GetWidth()
 			{
-				return 0.0f;
+				return Viewport.Width;
 			}
 			float OGLRenderTargetCube::GetHeight()
 			{
-				return 0.0f;
+				return Viewport.Height;
 			}
 			void* OGLRenderTargetCube::GetResource()
 			{
+				/* TODO: IMPL */
 				return (void*)nullptr;
 			}
 
-			OGLMultiRenderTargetCube::OGLMultiRenderTargetCube(Graphics::GraphicsDevice* Device, const Desc& I) : Graphics::MultiRenderTargetCube(Device, I)
+			OGLMultiRenderTargetCube::OGLMultiRenderTargetCube(const Desc& I) : MultiRenderTargetCube(I)
 			{
+				/* TODO: IMPL */
 			}
 			OGLMultiRenderTargetCube::~OGLMultiRenderTargetCube()
 			{
-			}
-			void OGLMultiRenderTargetCube::SetTarget(Graphics::GraphicsDevice* Device, int Target, float R, float G, float B)
-			{
-			}
-			void OGLMultiRenderTargetCube::SetTarget(Graphics::GraphicsDevice* Device, int Target)
-			{
-			}
-			void OGLMultiRenderTargetCube::SetTarget(Graphics::GraphicsDevice* Device, float R, float G, float B)
-			{
-			}
-			void OGLMultiRenderTargetCube::SetTarget(Graphics::GraphicsDevice* Device)
-			{
-			}
-			void OGLMultiRenderTargetCube::Clear(Graphics::GraphicsDevice* Device, int Target, float R, float G, float B)
-			{
-			}
-			void OGLMultiRenderTargetCube::CopyTextureCube(int CubeId, Graphics::GraphicsDevice* Device, Graphics::TextureCube** Value)
-			{
-			}
-			void OGLMultiRenderTargetCube::CopyTexture2D(int CubeId, int FaceId, Graphics::GraphicsDevice* Device, Graphics::Texture2D** Value)
-			{
-			}
-			void OGLMultiRenderTargetCube::SetViewport(const Graphics::Viewport& In)
-			{
+				/* TODO: IMPL */
 			}
 			Graphics::Viewport OGLMultiRenderTargetCube::GetViewport()
 			{
-				Graphics::Viewport Output = Graphics::Viewport();
-				return Output;
+				return Viewport;
 			}
 			float OGLMultiRenderTargetCube::GetWidth()
 			{
@@ -477,239 +316,11 @@ namespace Tomahawk
 			}
 			void* OGLMultiRenderTargetCube::GetResource(int Id)
 			{
+				/* TODO: IMPL */
 				return (void*)nullptr;
 			}
 
-			OGLMesh::OGLMesh(Graphics::GraphicsDevice* Device, const Desc& I) : Graphics::Mesh(Device, I)
-			{
-				Graphics::ElementBuffer::Desc F = Graphics::ElementBuffer::Desc();
-				F.AccessFlags = I.AccessFlags;
-				F.Usage = I.Usage;
-				F.BindFlags = Graphics::ResourceBind_Vertex_Buffer;
-				F.ElementCount = (unsigned int)I.Elements.size();
-				F.UseSubresource = true;
-				F.Elements = (void*)I.Elements.data();
-				F.ElementWidth = sizeof(Compute::Vertex);
-
-				VertexBuffer = Graphics::ElementBuffer::Create(Device, F);
-
-				F = Graphics::ElementBuffer::Desc();
-				F.AccessFlags = I.AccessFlags;
-				F.Usage = I.Usage;
-				F.BindFlags = Graphics::ResourceBind_Index_Buffer;
-				F.ElementCount = (unsigned int)I.Indices.size();
-				F.ElementWidth = sizeof(uint64_t);
-				F.Elements = (void*)I.Indices.data();
-				F.UseSubresource = true;
-
-				IndexBuffer = Graphics::ElementBuffer::Create(Device, F);
-			}
-			void OGLMesh::Update(Graphics::GraphicsDevice* Device, Compute::Vertex* Elements)
-			{
-				Graphics::MappedSubresource Resource;
-				VertexBuffer->Map(Device, Graphics::ResourceMap_Write, &Resource);
-				memcpy(Resource.Pointer, Elements, (size_t)VertexBuffer->GetElements() * sizeof(Compute::Vertex));
-				VertexBuffer->Unmap(Device, &Resource);
-			}
-			void OGLMesh::Draw(Graphics::GraphicsDevice* Device)
-			{
-			}
-			Compute::Vertex* OGLMesh::Elements(Graphics::GraphicsDevice* Device)
-			{
-				Graphics::MappedSubresource Resource;
-				VertexBuffer->Map(Device, Graphics::ResourceMap_Write, &Resource);
-
-				Compute::Vertex* Vertices = new Compute::Vertex[(unsigned int)VertexBuffer->GetElements()];
-				memcpy(Vertices, Resource.Pointer, (size_t)VertexBuffer->GetElements() * sizeof(Compute::Vertex));
-
-				VertexBuffer->Unmap(Device, &Resource);
-				return Vertices;
-			}
-
-			OGLSkinMesh::OGLSkinMesh(Graphics::GraphicsDevice* Device, const Desc& I) : Graphics::SkinMesh(Device, I)
-			{
-				Graphics::ElementBuffer::Desc F = Graphics::ElementBuffer::Desc();
-				F.AccessFlags = I.AccessFlags;
-				F.Usage = I.Usage;
-				F.BindFlags = Graphics::ResourceBind_Vertex_Buffer;
-				F.ElementCount = (unsigned int)I.Elements.size();
-				F.UseSubresource = true;
-				F.Elements = (void*)I.Elements.data();
-				F.ElementWidth = sizeof(Compute::SkinVertex);
-
-				VertexBuffer = Graphics::ElementBuffer::Create(Device, F);
-
-				F = Graphics::ElementBuffer::Desc();
-				F.AccessFlags = I.AccessFlags;
-				F.Usage = I.Usage;
-				F.BindFlags = Graphics::ResourceBind_Index_Buffer;
-				F.ElementCount = (unsigned int)I.Indices.size();
-				F.ElementWidth = sizeof(uint64_t);
-				F.Elements = (void*)I.Indices.data();
-				F.UseSubresource = true;
-
-				IndexBuffer = Graphics::ElementBuffer::Create(Device, F);
-			}
-			void OGLSkinMesh::Update(Graphics::GraphicsDevice* Device, Compute::SkinVertex* Elements)
-			{
-				Graphics::MappedSubresource Resource;
-				VertexBuffer->Map(Device, Graphics::ResourceMap_Write, &Resource);
-				memcpy(Resource.Pointer, Elements, (size_t)VertexBuffer->GetElements() * sizeof(Compute::SkinVertex));
-				VertexBuffer->Unmap(Device, &Resource);
-			}
-			void OGLSkinMesh::Draw(Graphics::GraphicsDevice* Device)
-			{
-			}
-			Compute::SkinVertex* OGLSkinMesh::Elements(Graphics::GraphicsDevice* Device)
-			{
-				Graphics::MappedSubresource Resource;
-				VertexBuffer->Map(Device, Graphics::ResourceMap_Write, &Resource);
-
-				Compute::SkinVertex* Vertices = new Compute::SkinVertex[(unsigned int)VertexBuffer->GetElements()];
-				memcpy(Vertices, Resource.Pointer, (size_t)VertexBuffer->GetElements() * sizeof(Compute::SkinVertex));
-
-				VertexBuffer->Unmap(Device, &Resource);
-				return Vertices;
-			}
-
-			OGLInstanceBuffer::OGLInstanceBuffer(Graphics::GraphicsDevice* Device, const Desc& I) : Graphics::InstanceBuffer(Device, I)
-			{
-			}
-			OGLInstanceBuffer::~OGLInstanceBuffer()
-			{
-				if (SynchronizationState)
-					Restore();
-			}
-			void OGLInstanceBuffer::SetResource(GraphicsDevice* Device, int Slot)
-			{
-			}
-			void OGLInstanceBuffer::Update()
-			{
-				if (Array.Size() <= 0 || Array.Size() > ElementLimit)
-					return;
-				else
-					SynchronizationState = true;
-			}
-			void OGLInstanceBuffer::Restore()
-			{
-				if (!SynchronizationState)
-					return;
-				else
-					SynchronizationState = false;
-			}
-			void OGLInstanceBuffer::Resize(uint64_t Size)
-			{
-				Restore();
-				delete Elements;
-
-				ElementLimit = Size + 1;
-				if (ElementLimit < 1)
-					ElementLimit = 2;
-
-				Array.Clear();
-				Array.Reserve(ElementLimit);
-
-				Graphics::ElementBuffer::Desc F = Graphics::ElementBuffer::Desc();
-				F.AccessFlags = Graphics::CPUAccess_Write;
-				F.MiscFlags = Graphics::ResourceMisc_Buffer_Structured;
-				F.Usage = Graphics::ResourceUsage_Dynamic;
-				F.BindFlags = Graphics::ResourceBind_Shader_Input;
-				F.ElementCount = (unsigned int)ElementLimit;
-				F.ElementWidth = sizeof(Compute::ElementVertex);
-				F.StructureByteStride = F.ElementWidth;
-				F.UseSubresource = false;
-
-				Elements = Graphics::ElementBuffer::Create(Device, F);
-			}
-
-			OGLDirectBuffer::OGLDirectBuffer(Graphics::GraphicsDevice* NewDevice) : Graphics::DirectBuffer(NewDevice)
-			{
-				Elements.push_back(Vertex());
-			}
-			OGLDirectBuffer::~OGLDirectBuffer()
-			{
-			}
-			void OGLDirectBuffer::Begin()
-			{
-				Buffer.WorldViewProjection = Compute::Matrix4x4::Identity();
-				Buffer.Padding = { 0, 0, 0, 1 };
-				View = nullptr;
-				Primitives = Graphics::PrimitiveTopology_Triangle_List;
-				Elements.clear();
-			}
-			void OGLDirectBuffer::End()
-			{
-				OGLDevice* Dev = Device->As<OGLDevice>();
-				if (Elements.empty())
-					return;
-
-				if (Elements.size() > MaxElements)
-					AllocVertexBuffer(Elements.size());
-
-				if (View)
-					View->SetTexture(Dev, 0);
-				else
-					Dev->RestoreTexture2D(0, 1);
-			}
-			void OGLDirectBuffer::EmitVertex()
-			{
-				Elements.push_back({ 0, 0, 0, 0, 0, 1, 1, 1, 1 });
-			}
-			void OGLDirectBuffer::Position(float X, float Y, float Z)
-			{
-				if (Elements.size() > 0)
-				{
-					Elements[Elements.size() - 1].PX = X;
-					Elements[Elements.size() - 1].PY = Y;
-					Elements[Elements.size() - 1].PZ = Z;
-				}
-			}
-			void OGLDirectBuffer::TexCoord(float X, float Y)
-			{
-				if (Elements.size() > 0)
-				{
-					Elements[Elements.size() - 1].TX = X;
-					Elements[Elements.size() - 1].TY = Y;
-				}
-			}
-			void OGLDirectBuffer::Color(float X, float Y, float Z, float W)
-			{
-				if (Elements.size() > 0)
-				{
-					Elements[Elements.size() - 1].CX = X;
-					Elements[Elements.size() - 1].CY = Y;
-					Elements[Elements.size() - 1].CZ = Z;
-					Elements[Elements.size() - 1].CW = W;
-				}
-			}
-			void OGLDirectBuffer::Texture(Graphics::Texture2D* InView)
-			{
-				View = InView;
-				Buffer.Padding.Z = 1;
-			}
-			void OGLDirectBuffer::Intensity(float Intensity)
-			{
-				Buffer.Padding.W = Intensity;
-			}
-			void OGLDirectBuffer::TexCoordOffset(float X, float Y)
-			{
-				Buffer.Padding.X = X;
-				Buffer.Padding.Y = Y;
-			}
-			void OGLDirectBuffer::Transform(Compute::Matrix4x4 Input)
-			{
-				Buffer.WorldViewProjection = Buffer.WorldViewProjection * Input;
-			}
-			void OGLDirectBuffer::AllocVertexBuffer(uint64_t Size)
-			{
-				MaxElements = Size;
-			}
-			void OGLDirectBuffer::Topology(Graphics::PrimitiveTopology DrawTopology)
-			{
-				Primitives = DrawTopology;
-			}
-
-			OGLDevice::OGLDevice(const Desc& I) : Graphics::GraphicsDevice(I), Window(I.Window), Context(nullptr)
+			OGLDevice::OGLDevice(const Desc& I) : GraphicsDevice(I), Window(I.Window), Context(nullptr)
 			{
 				if (!Window)
 				{
@@ -739,15 +350,15 @@ namespace Tomahawk
 				SDL_GL_MakeCurrent(Window->GetHandle(), Context);
 				switch (VSyncMode)
 				{
-					case Graphics::VSync_Disabled:
+					case VSync_Disabled:
 						SDL_GL_SetSwapInterval(0);
 						break;
-					case Graphics::VSync_Frequency_X1:
+					case VSync_Frequency_X1:
 						SDL_GL_SetSwapInterval(1);
 						break;
-					case Graphics::VSync_Frequency_X2:
-					case Graphics::VSync_Frequency_X3:
-					case Graphics::VSync_Frequency_X4:
+					case VSync_Frequency_X2:
+					case VSync_Frequency_X3:
+					case VSync_Frequency_X4:
 						if (SDL_GL_SetSwapInterval(-1) == -1)
 							SDL_GL_SetSwapInterval(1);
 						break;
@@ -760,42 +371,37 @@ namespace Tomahawk
 					return;
 				}
 
-				CreateConstantBuffer(sizeof(Graphics::AnimationBuffer), ConstantBuffer[0]);
-				ConstantData[0] = &Animation;
+				CreateConstantBuffer(&ConstantBuffer[0], sizeof(AnimationBuffer));
+				Constants[0] = &Animation;
 
-				CreateConstantBuffer(sizeof(Graphics::RenderBuffer), ConstantBuffer[1]);
-				ConstantData[1] = &Render;
+				CreateConstantBuffer(&ConstantBuffer[0], sizeof(RenderBuffer));
+				Constants[1] = &Render;
 
-				CreateConstantBuffer(sizeof(Graphics::ViewBuffer), ConstantBuffer[2]);
-				ConstantData[2] = &View;
+				CreateConstantBuffer(&ConstantBuffer[0], sizeof(ViewBuffer));
+				Constants[2] = &View;
 
 				glBindBuffer(GL_UNIFORM_BUFFER, ConstantBuffer[0]);
 				glBindBuffer(GL_UNIFORM_BUFFER, ConstantBuffer[1]);
 				glBindBuffer(GL_UNIFORM_BUFFER, ConstantBuffer[2]);
 				glEnable(GL_TEXTURE_2D);
-				SetShaderModel(I.ShaderMode == Graphics::ShaderModel_Auto ? GetSupportedShaderModel() : I.ShaderMode);
+				SetShaderModel(I.ShaderMode == ShaderModel_Auto ? GetSupportedShaderModel() : I.ShaderMode);
 				ResizeBuffers(I.BufferWidth, I.BufferHeight);
-				CreateRendererStates();
+				InitStates();
 
 				std::string* ShaderCode = GetSection("standard/basic");
 				if (ShaderCode != nullptr)
 				{
-					Graphics::Shader::Desc F = Graphics::Shader::Desc();
-					F.Layout = Graphics::Shader::GetShapeVertexLayout();
+					Shader::Desc F = Shader::Desc();
+					F.Layout = Shader::GetShapeVertexLayout();
 					F.LayoutSize = 2;
 					F.Data = *ShaderCode;
 					F.Filename = "BASIC";
-					BasicEffect = Shader::Create(this, F);
+					BasicEffect = CreateShader(F);
 				}
 			}
 			OGLDevice::~OGLDevice()
 			{
-				RestoreSamplerStates();
-				RestoreBlendStates();
-				RestoreRasterizerStates();
-				RestoreDepthStencilStates();
 				FreeProxy();
-
 				if (Context != nullptr)
 				{
 					SDL_GL_DeleteContext(Context);
@@ -804,190 +410,55 @@ namespace Tomahawk
 
 				glDeleteBuffers(3, ConstantBuffer);
 			}
-			void OGLDevice::RestoreSamplerStates()
-			{
-				for (int i = 0; i < SamplerStates.size(); i++)
-				{
-					GLuint* State = (GLuint*)SamplerStates[i]->Pointer;
-					delete State;
-					delete SamplerStates[i];
-				}
-				SamplerStates.clear();
-			}
-			void OGLDevice::RestoreBlendStates()
-			{
-				for (int i = 0; i < BlendStates.size(); i++)
-					delete BlendStates[i];
-				BlendStates.clear();
-			}
-			void OGLDevice::RestoreRasterizerStates()
-			{
-				for (int i = 0; i < RasterizerStates.size(); i++)
-					delete RasterizerStates[i];
-				RasterizerStates.clear();
-			}
-			void OGLDevice::RestoreDepthStencilStates()
-			{
-				for (int i = 0; i < DepthStencilStates.size(); i++)
-					delete DepthStencilStates[i];
-				DepthStencilStates.clear();
-			}
-			void OGLDevice::RestoreState(Graphics::DeviceState* RefState)
-			{
-				if (!RefState)
-					return;
-
-				OGLDeviceState* State = (OGLDeviceState*)RefState;
-#ifdef GL_SAMPLER_BINDING
-				glBindSampler(0, State->Sampler);
-#endif
-#ifdef GL_POLYGON_MODE
-				glPolygonMode(GL_FRONT_AND_BACK, (GLenum)State->PolygonMode[0]);
-#endif
-				glUseProgram(State->Program);
-				glBindTexture(GL_TEXTURE_2D, State->Texture);
-				glActiveTexture(State->ActiveTexture);
-				glBindVertexArray(State->VertexArrayObject);
-				glBindBuffer(GL_ARRAY_BUFFER, State->ArrayBuffer);
-				glBlendEquationSeparate(State->BlendEquation, State->BlendEquationAlpha);
-				glBlendFuncSeparate(State->BlendSrc, State->BlendDst, State->BlendSrcAlpha, State->BlendDstAlpha);
-				if (State->EnableBlend)
-					glEnable(GL_BLEND);
-				else
-					glDisable(GL_BLEND);
-				if (State->EnableCullFace)
-					glEnable(GL_CULL_FACE);
-				else
-					glDisable(GL_CULL_FACE);
-				if (State->EnableDepthTest)
-					glEnable(GL_DEPTH_TEST);
-				else
-					glDisable(GL_DEPTH_TEST);
-				if (State->EnableScissorTest)
-					glEnable(GL_SCISSOR_TEST);
-				else
-					glDisable(GL_SCISSOR_TEST);
-				glViewport(State->Viewport[0], State->Viewport[1], (GLsizei)State->Viewport[2], (GLsizei)State->Viewport[3]);
-				glScissor(State->ScissorBox[0], State->ScissorBox[1], (GLsizei)State->ScissorBox[2], (GLsizei)State->ScissorBox[3]);
-			}
-			void OGLDevice::ReleaseState(Graphics::DeviceState** RefState)
-			{
-				if (!RefState || !*RefState)
-					return;
-
-				delete (OGLDeviceState*)*RefState;
-				*RefState = nullptr;
-			}
-			void OGLDevice::RestoreState()
-			{
-			}
 			void OGLDevice::SetConstantBuffers()
 			{
 				glBindBufferBase(GL_UNIFORM_BUFFER, 0, ConstantBuffer[0]);
 				glBindBufferBase(GL_UNIFORM_BUFFER, 1, ConstantBuffer[1]);
 				glBindBufferBase(GL_UNIFORM_BUFFER, 2, ConstantBuffer[2]);
 			}
-			void OGLDevice::SetShaderModel(Graphics::ShaderModel RShaderModel)
+			void OGLDevice::SetShaderModel(ShaderModel Model)
 			{
-				ShaderModelType = RShaderModel;
-				if (RShaderModel == Graphics::ShaderModel_GLSL_1_1_0)
+				ShaderModelType = Model;
+				if (ShaderModelType == ShaderModel_GLSL_1_1_0)
 					ShaderVersion = "#version 110\n";
-				else if (RShaderModel == Graphics::ShaderModel_GLSL_1_2_0)
+				else if (ShaderModelType == ShaderModel_GLSL_1_2_0)
 					ShaderVersion = "#version 120\n";
-				else if (RShaderModel == Graphics::ShaderModel_GLSL_1_3_0)
+				else if (ShaderModelType == ShaderModel_GLSL_1_3_0)
 					ShaderVersion = "#version 130\n";
-				else if (RShaderModel == Graphics::ShaderModel_GLSL_1_4_0)
+				else if (ShaderModelType == ShaderModel_GLSL_1_4_0)
 					ShaderVersion = "#version 140\n";
-				else if (RShaderModel == Graphics::ShaderModel_GLSL_1_5_0)
+				else if (ShaderModelType == ShaderModel_GLSL_1_5_0)
 					ShaderVersion = "#version 150\n";
-				else if (RShaderModel == Graphics::ShaderModel_GLSL_3_3_0)
+				else if (ShaderModelType == ShaderModel_GLSL_3_3_0)
 					ShaderVersion = "#version 330\n";
-				else if (RShaderModel == Graphics::ShaderModel_GLSL_4_0_0)
+				else if (ShaderModelType == ShaderModel_GLSL_4_0_0)
 					ShaderVersion = "#version 400\n";
-				else if (RShaderModel == Graphics::ShaderModel_GLSL_4_1_0)
+				else if (ShaderModelType == ShaderModel_GLSL_4_1_0)
 					ShaderVersion = "#version 410\n";
-				else if (RShaderModel == Graphics::ShaderModel_GLSL_4_2_0)
+				else if (ShaderModelType == ShaderModel_GLSL_4_2_0)
 					ShaderVersion = "#version 420\n";
-				else if (RShaderModel == Graphics::ShaderModel_GLSL_4_3_0)
+				else if (ShaderModelType == ShaderModel_GLSL_4_3_0)
 					ShaderVersion = "#version 430\n";
-				else if (RShaderModel == Graphics::ShaderModel_GLSL_4_4_0)
+				else if (ShaderModelType == ShaderModel_GLSL_4_4_0)
 					ShaderVersion = "#version 440\n";
-				else if (RShaderModel == Graphics::ShaderModel_GLSL_4_5_0)
+				else if (ShaderModelType == ShaderModel_GLSL_4_5_0)
 					ShaderVersion = "#version 450\n";
-				else if (RShaderModel == Graphics::ShaderModel_GLSL_4_6_0)
+				else if (ShaderModelType == ShaderModel_GLSL_4_6_0)
 					ShaderVersion = "#version 460\n";
 				else
-					SetShaderModel(Graphics::ShaderModel_GLSL_1_1_0);
+					SetShaderModel(ShaderModel_GLSL_1_1_0);
 			}
-			uint64_t OGLDevice::AddDepthStencilState(Graphics::DepthStencilState* In)
+			void OGLDevice::SetSamplerState(SamplerState* State)
 			{
-				if (!In)
-					return 0;
-
-				In->Index = DepthStencilStates.size();
-				DepthStencilStates.push_back(In);
-				return DepthStencilStates.size() - 1;
+				glBindSampler(0, (GLuint)(State ? State->As<OGLSamplerState>()->Resource : GL_INVALID_VALUE));
 			}
-			uint64_t OGLDevice::AddBlendState(Graphics::BlendState* In)
+			void OGLDevice::SetBlendState(BlendState* State)
 			{
-				if (!In)
-					return 0;
-
-				In->Index = BlendStates.size();
-				BlendStates.push_back(In);
-				return BlendStates.size() - 1;
-			}
-			uint64_t OGLDevice::AddRasterizerState(Graphics::RasterizerState* In)
-			{
-				if (!In)
-					return 0;
-
-				In->Index = RasterizerStates.size();
-				RasterizerStates.push_back(In);
-				return RasterizerStates.size() - 1;
-			}
-			uint64_t OGLDevice::AddSamplerState(Graphics::SamplerState* In)
-			{
-				if (!In)
-					return 0;
-
-				GLuint SamplerState = 0;
-				glGenSamplers(1, &SamplerState);
-				glSamplerParameteri(SamplerState, GL_TEXTURE_WRAP_S, OGLDevice::GetTextureAddress(In->AddressU));
-				glSamplerParameteri(SamplerState, GL_TEXTURE_WRAP_T, OGLDevice::GetTextureAddress(In->AddressV));
-				glSamplerParameteri(SamplerState, GL_TEXTURE_WRAP_R, OGLDevice::GetTextureAddress(In->AddressW));
-				glSamplerParameteri(SamplerState, GL_TEXTURE_MAG_FILTER, OGLDevice::GetPixelFilter(In->Filter, true));
-				glSamplerParameteri(SamplerState, GL_TEXTURE_MIN_FILTER, OGLDevice::GetPixelFilter(In->Filter, false));
-				glSamplerParameteri(SamplerState, GL_TEXTURE_COMPARE_FUNC, OGLDevice::GetComparison(In->ComparisonFunction));
-				glSamplerParameterf(SamplerState, GL_TEXTURE_LOD_BIAS, In->MipLODBias);
-				glSamplerParameterf(SamplerState, GL_TEXTURE_MAX_LOD, In->MaxLOD);
-				glSamplerParameterf(SamplerState, GL_TEXTURE_MIN_LOD, In->MinLOD);
-				glSamplerParameterfv(SamplerState, GL_TEXTURE_BORDER_COLOR, (GLfloat*)In->BorderColor);
-
-#ifdef GL_TEXTURE_MAX_ANISOTROPY
-				if (In->Filter & Graphics::PixelFilter_Anistropic || In->Filter & Graphics::PixelFilter_Compare_Anistropic)
-					glSamplerParameterf(SamplerState, GL_TEXTURE_MAX_ANISOTROPY, (float)In->MaxAnisotropy);
-#elif defined(GL_TEXTURE_MAX_ANISOTROPY_EXT)
-				if (In->Filter & Graphics::PixelFilter_Anistropic || In->Filter & Graphics::PixelFilter_Compare_Anistropic)
-					glSamplerParameterf(SamplerState, GL_TEXTURE_MAX_ANISOTROPY_EXT, (float)In->MaxAnisotropy);
-#endif
-				In->Pointer = (void*)new GLuint(SamplerState);
-				In->Index = SamplerStates.size();
-
-				SamplerStates.push_back(In);
-				return SamplerStates.size() - 1;
-			}
-			void OGLDevice::SetSamplerState(uint64_t State)
-			{
-				glBindSampler(0, (GLuint)State);
-			}
-			void OGLDevice::SetBlendState(uint64_t State)
-			{
-				if (State >= BlendStates.size())
+				if (!State)
 					return;
 
-				Graphics::BlendState* In = BlendStates[State];
-				if (In->AlphaToCoverageEnable)
+				OGLBlendState* V = (OGLBlendState*)State;
+				if (V->State.AlphaToCoverageEnable)
 				{
 					glEnable(GL_SAMPLE_ALPHA_TO_COVERAGE);
 					glSampleCoverage(1.0f, GL_FALSE);
@@ -998,47 +469,47 @@ namespace Tomahawk
 					glSampleCoverage(0.0f, GL_FALSE);
 				}
 
-				if (!In->IndependentBlendEnable)
+				if (!V->State.IndependentBlendEnable)
 				{
 					for (int i = 0; i < 8; i++)
 					{
-						if (In->RenderTarget[i].BlendEnable)
+						if (V->State.RenderTarget[i].BlendEnable)
 							glEnablei(GL_BLEND, i);
 						else
 							glDisablei(GL_BLEND, i);
 
-						glBlendEquationSeparatei(i, GetBlendOperation(In->RenderTarget[i].BlendOperationMode), GetBlendOperation(In->RenderTarget[i].BlendOperationAlpha));
-						glBlendFuncSeparatei(i, GetBlend(In->RenderTarget[i].SrcBlend), GetBlend(In->RenderTarget[i].DestBlend), GetBlend(In->RenderTarget[i].SrcBlendAlpha), GetBlend(In->RenderTarget[i].DestBlendAlpha));
+						glBlendEquationSeparatei(i, GetBlendOperation(V->State.RenderTarget[i].BlendOperationMode), GetBlendOperation(V->State.RenderTarget[i].BlendOperationAlpha));
+						glBlendFuncSeparatei(i, GetBlend(V->State.RenderTarget[i].SrcBlend), GetBlend(V->State.RenderTarget[i].DestBlend), GetBlend(V->State.RenderTarget[i].SrcBlendAlpha), GetBlend(V->State.RenderTarget[i].DestBlendAlpha));
 					}
 				}
 				else
 				{
-					if (In->RenderTarget[0].BlendEnable)
+					if (V->State.RenderTarget[0].BlendEnable)
 						glEnable(GL_BLEND);
 					else
 						glDisable(GL_BLEND);
 
-					glBlendEquationSeparate(GetBlendOperation(In->RenderTarget[0].BlendOperationMode), GetBlendOperation(In->RenderTarget[0].BlendOperationAlpha));
-					glBlendFuncSeparate(GetBlend(In->RenderTarget[0].SrcBlend), GetBlend(In->RenderTarget[0].DestBlend), GetBlend(In->RenderTarget[0].SrcBlendAlpha), GetBlend(In->RenderTarget[0].DestBlendAlpha));
+					glBlendEquationSeparate(GetBlendOperation(V->State.RenderTarget[0].BlendOperationMode), GetBlendOperation(V->State.RenderTarget[0].BlendOperationAlpha));
+					glBlendFuncSeparate(GetBlend(V->State.RenderTarget[0].SrcBlend), GetBlend(V->State.RenderTarget[0].DestBlend), GetBlend(V->State.RenderTarget[0].SrcBlendAlpha), GetBlend(V->State.RenderTarget[0].DestBlendAlpha));
 				}
 			}
-			void OGLDevice::SetRasterizerState(uint64_t State)
+			void OGLDevice::SetRasterizerState(RasterizerState* State)
 			{
-				if (State >= RasterizerStates.size())
+				if (!State)
 					return;
 
-				Graphics::RasterizerState* In = RasterizerStates[State];
-				if (In->AntialiasedLineEnable || In->MultisampleEnable)
+				OGLRasterizerState* V = (OGLRasterizerState*)State;
+				if (V->State.AntialiasedLineEnable || V->State.MultisampleEnable)
 					glEnable(GL_MULTISAMPLE);
 				else
 					glDisable(GL_MULTISAMPLE);
 
-				if (In->CullMode == Graphics::VertexCull_Back)
+				if (V->State.CullMode == VertexCull_Back)
 				{
 					glEnable(GL_CULL_FACE);
 					glCullFace(GL_BACK);
 				}
-				else if (In->CullMode == Graphics::VertexCull_Front)
+				else if (V->State.CullMode == VertexCull_Front)
 				{
 					glEnable(GL_CULL_FACE);
 					glCullFace(GL_FRONT);
@@ -1046,126 +517,581 @@ namespace Tomahawk
 				else
 					glDisable(GL_CULL_FACE);
 
-				if (In->FillMode == Graphics::SurfaceFill_Solid)
+				if (V->State.FillMode == SurfaceFill_Solid)
 					glPolygonMode(GL_FRONT_AND_BACK, GL_FILL);
 				else
 					glPolygonMode(GL_FRONT_AND_BACK, GL_LINE);
 
-				if (In->FrontCounterClockwise)
+				if (V->State.FrontCounterClockwise)
 					glFrontFace(GL_CW);
 				else
 					glFrontFace(GL_CCW);
 			}
-			void OGLDevice::SetDepthStencilState(uint64_t State)
+			void OGLDevice::SetDepthStencilState(DepthStencilState* State)
 			{
-				if (State >= DepthStencilStates.size())
+				if (!State)
 					return;
 
-				Graphics::DepthStencilState* In = DepthStencilStates[State];
-				if (In->DepthEnable)
+				OGLDepthStencilState* V = (OGLDepthStencilState*)State;
+				if (V->State.DepthEnable)
 					glEnable(GL_DEPTH);
 				else
 					glDisable(GL_DEPTH);
 
-				if (In->StencilEnable)
+				if (V->State.StencilEnable)
 					glEnable(GL_STENCIL);
 				else
 					glDisable(GL_STENCIL);
 
-				glDepthFunc(GetComparison(In->DepthFunction));
-				glDepthMask(In->DepthWriteMask == Graphics::DepthWrite_All ? GL_TRUE : GL_FALSE);
-				glStencilMask((GLuint)In->StencilWriteMask);
-				glStencilFuncSeparate(GL_FRONT, GetComparison(In->FrontFaceStencilFunction), 0, 1);
-				glStencilOpSeparate(GL_FRONT, GetStencilOperation(In->FrontFaceStencilFailOperation), GetStencilOperation(In->FrontFaceStencilDepthFailOperation), GetStencilOperation(In->FrontFaceStencilPassOperation));
-				glStencilFuncSeparate(GL_BACK, GetComparison(In->BackFaceStencilFunction), 0, 1);
-				glStencilOpSeparate(GL_BACK, GetStencilOperation(In->BackFaceStencilFailOperation), GetStencilOperation(In->BackFaceStencilDepthFailOperation), GetStencilOperation(In->BackFaceStencilPassOperation));
+				glDepthFunc(GetComparison(V->State.DepthFunction));
+				glDepthMask(V->State.DepthWriteMask == DepthWrite_All ? GL_TRUE : GL_FALSE);
+				glStencilMask((GLuint)V->State.StencilWriteMask);
+				glStencilFuncSeparate(GL_FRONT, GetComparison(V->State.FrontFaceStencilFunction), 0, 1);
+				glStencilOpSeparate(GL_FRONT, GetStencilOperation(V->State.FrontFaceStencilFailOperation), GetStencilOperation(V->State.FrontFaceStencilDepthFailOperation), GetStencilOperation(V->State.FrontFaceStencilPassOperation));
+				glStencilFuncSeparate(GL_BACK, GetComparison(V->State.BackFaceStencilFunction), 0, 1);
+				glStencilOpSeparate(GL_BACK, GetStencilOperation(V->State.BackFaceStencilFailOperation), GetStencilOperation(V->State.BackFaceStencilDepthFailOperation), GetStencilOperation(V->State.BackFaceStencilPassOperation));
 			}
-			void OGLDevice::UpdateBuffer(Graphics::RenderBufferType Buffer)
+			void OGLDevice::SetShader(Shader* Resource, unsigned int Type)
 			{
-				glBindBufferBase(GL_UNIFORM_BUFFER, (int)Buffer, ConstantBuffer[Buffer]);
+				OGLShader* IResource = Resource->As<OGLShader>();
+				/* TODO: IMPL */
 			}
-			void OGLDevice::Present()
+			void OGLDevice::SetBuffer(Shader* Resource, unsigned int Slot, unsigned int Type)
 			{
-#ifdef THAWK_HAS_SDL2
-				SDL_GL_SwapWindow(Window->GetHandle());
-#endif
+				OGLShader* IResource = Resource->As<OGLShader>();
+				/* TODO: IMPL */
 			}
-			void OGLDevice::SetPrimitiveTopology(Graphics::PrimitiveTopology _Topology)
+			void OGLDevice::SetBuffer(StructureBuffer* Resource, unsigned int Slot)
+			{
+				glBindBuffer(GL_SHADER_STORAGE_BUFFER, Resource ? Resource->As<OGLStructureBuffer>()->Resource : GL_INVALID_VALUE);
+			}
+			void OGLDevice::SetBuffer(InstanceBuffer* Resource, unsigned int Slot)
+			{
+				/* TODO: IMPL */
+			}
+			void OGLDevice::SetIndexBuffer(ElementBuffer* Resource, Format FormatMode, unsigned int Offset)
+			{
+				glBindBuffer(GL_ELEMENT_ARRAY_BUFFER, Resource ? Resource->As<OGLElementBuffer>()->Resource : GL_INVALID_VALUE);
+			}
+			void OGLDevice::SetVertexBuffer(ElementBuffer* Resource, unsigned int Slot, unsigned int Stride, unsigned int Offset)
+			{
+				glBindBuffer(GL_ARRAY_BUFFER, Resource ? Resource->As<OGLElementBuffer>()->Resource : GL_INVALID_VALUE);
+			}
+			void OGLDevice::SetTexture2D(Texture2D* Resource, unsigned int Slot)
+			{
+				glActiveTexture(GL_TEXTURE0 + Slot);
+				glBindTexture(GL_TEXTURE_2D, Resource ? Resource->As<OGLTexture2D>()->Resource : GL_INVALID_VALUE);
+			}
+			void OGLDevice::SetTexture3D(Texture3D* Resource, unsigned int Slot)
+			{
+				/* TODO: IMPL */
+			}
+			void OGLDevice::SetTextureCube(TextureCube* Resource, unsigned int Slot)
+			{
+				/* TODO: IMPL */
+			}
+			void OGLDevice::SetTarget(float R, float G, float B)
+			{
+				SetTarget(RenderTarget, R, G, B);
+			}
+			void OGLDevice::SetTarget()
+			{
+				SetTarget(RenderTarget);
+			}
+			void OGLDevice::SetTarget(RenderTarget2D* Resource, float R, float G, float B)
+			{
+				OGLRenderTarget2D* IResource = (OGLRenderTarget2D*)Resource;
+				if (!IResource)
+					return;
+
+				glBindFramebuffer(GL_FRAMEBUFFER, IResource->FrameBuffer != GL_INVALID_VALUE ? IResource->FrameBuffer : 0);
+				glViewport((GLuint)IResource->Viewport.TopLeftX, (GLuint)IResource->Viewport.TopLeftY, (GLuint)IResource->Viewport.Width, (GLuint)IResource->Viewport.Height);
+				glClearColor(R, G, B, 1.0f);
+				glClear(GL_COLOR_BUFFER_BIT);
+			}
+			void OGLDevice::SetTarget(RenderTarget2D* Resource)
+			{
+				OGLRenderTarget2D* IResource = (OGLRenderTarget2D*)Resource;
+				if (!IResource)
+					return;
+
+				glBindFramebuffer(GL_FRAMEBUFFER, IResource->FrameBuffer != GL_INVALID_VALUE ? IResource->FrameBuffer : 0);
+				glViewport((GLuint)IResource->Viewport.TopLeftX, (GLuint)IResource->Viewport.TopLeftY, (GLuint)IResource->Viewport.Width, (GLuint)IResource->Viewport.Height);
+			}
+			void OGLDevice::SetTarget(MultiRenderTarget2D* Resource, unsigned int Target, float R, float G, float B)
+			{
+				OGLMultiRenderTarget2D* IResource = (OGLMultiRenderTarget2D*)Resource;
+				if (!IResource)
+					return;
+				/* TODO: IMPL */
+			}
+			void OGLDevice::SetTarget(MultiRenderTarget2D* Resource, unsigned int Target)
+			{
+				OGLMultiRenderTarget2D* IResource = (OGLMultiRenderTarget2D*)Resource;
+				if (!IResource)
+					return;
+				/* TODO: IMPL */
+			}
+			void OGLDevice::SetTarget(MultiRenderTarget2D* Resource, float R, float G, float B)
+			{
+				OGLMultiRenderTarget2D* IResource = (OGLMultiRenderTarget2D*)Resource;
+				if (!IResource)
+					return;
+				/* TODO: IMPL */
+			}
+			void OGLDevice::SetTarget(MultiRenderTarget2D* Resource)
+			{
+				OGLMultiRenderTarget2D* IResource = (OGLMultiRenderTarget2D*)Resource;
+				if (!IResource)
+					return;
+				/* TODO: IMPL */
+			}
+			void OGLDevice::SetTarget(RenderTarget2DArray* Resource, unsigned int Target, float R, float G, float B)
+			{
+				OGLRenderTarget2DArray* IResource = (OGLRenderTarget2DArray*)Resource;
+				if (!IResource)
+					return;
+				/* TODO: IMPL */
+			}
+			void OGLDevice::SetTarget(RenderTarget2DArray* Resource, unsigned int Target)
+			{
+				OGLRenderTarget2DArray* IResource = (OGLRenderTarget2DArray*)Resource;
+				if (!IResource)
+					return;
+				/* TODO: IMPL */
+			}
+			void OGLDevice::SetTarget(RenderTargetCube* Resource, float R, float G, float B)
+			{
+				OGLRenderTargetCube* IResource = (OGLRenderTargetCube*)Resource;
+				if (!IResource)
+					return;
+				/* TODO: IMPL */
+			}
+			void OGLDevice::SetTarget(RenderTargetCube* Resource)
+			{
+				OGLRenderTargetCube* IResource = (OGLRenderTargetCube*)Resource;
+				if (!IResource)
+					return;
+				/* TODO: IMPL */
+			}
+			void OGLDevice::SetTarget(MultiRenderTargetCube* Resource, unsigned int Target, float R, float G, float B)
+			{
+				OGLMultiRenderTargetCube* IResource = (OGLMultiRenderTargetCube*)Resource;
+				if (!IResource)
+					return;
+				/* TODO: IMPL */
+			}
+			void OGLDevice::SetTarget(MultiRenderTargetCube* Resource, unsigned int Target)
+			{
+				OGLMultiRenderTargetCube* IResource = (OGLMultiRenderTargetCube*)Resource;
+				if (!IResource)
+					return;
+				/* TODO: IMPL */
+			}
+			void OGLDevice::SetTarget(MultiRenderTargetCube* Resource, float R, float G, float B)
+			{
+				OGLMultiRenderTargetCube* IResource = (OGLMultiRenderTargetCube*)Resource;
+				if (!IResource)
+					return;
+				/* TODO: IMPL */
+			}
+			void OGLDevice::SetTarget(MultiRenderTargetCube* Resource)
+			{
+				OGLMultiRenderTargetCube* IResource = (OGLMultiRenderTargetCube*)Resource;
+				if (!IResource)
+					return;
+				/* TODO: IMPL */
+			}
+			void OGLDevice::SetViewport(const Viewport& In)
+			{
+				SetViewport(RenderTarget, In);
+			}
+			void OGLDevice::SetViewport(RenderTarget2D* Resource, const Viewport& In)
+			{
+				OGLRenderTarget2D* IResource = (OGLRenderTarget2D*)Resource;
+				if (!IResource)
+					return;
+
+				IResource->Viewport = In;
+				glViewport((GLuint)IResource->Viewport.TopLeftX, (GLuint)IResource->Viewport.TopLeftY, (GLuint)IResource->Viewport.Width, (GLuint)IResource->Viewport.Height);
+			}
+			void OGLDevice::SetViewport(MultiRenderTarget2D* Resource, const Viewport& In)
+			{
+				OGLMultiRenderTarget2D* IResource = (OGLMultiRenderTarget2D*)Resource;
+				if (!IResource)
+					return;
+				/* TODO: IMPL */
+			}
+			void OGLDevice::SetViewport(RenderTarget2DArray* Resource, const Viewport& In)
+			{
+				OGLRenderTarget2DArray* IResource = (OGLRenderTarget2DArray*)Resource;
+				if (!IResource)
+					return;
+				/* TODO: IMPL */
+			}
+			void OGLDevice::SetViewport(RenderTargetCube* Resource, const Viewport& In)
+			{
+				OGLRenderTargetCube* IResource = (OGLRenderTargetCube*)Resource;
+				if (!IResource)
+					return;
+				/* TODO: IMPL */
+			}
+			void OGLDevice::SetViewport(MultiRenderTargetCube* Resource, const Viewport& In)
+			{
+				OGLMultiRenderTargetCube* IResource = (OGLMultiRenderTargetCube*)Resource;
+				if (!IResource)
+					return;
+				/* TODO: IMPL */
+			}
+			void OGLDevice::SetViewports(unsigned int Count, Viewport* Value)
+			{
+				if (Count > 0 && Value)
+					glViewport(Value[0].TopLeftX, Value[0].TopLeftY, Value[0].Width, Value[0].Height);
+			}
+			void OGLDevice::SetScissorRects(unsigned int Count, Rectangle* Value)
+			{
+				if (Count > 0 && Value)
+					glScissor(Value[0].Left, Value[0].Top, Value[0].Right - Value[0].Left, Value[0].Top - Value[0].Bottom);
+			}
+			void OGLDevice::SetPrimitiveTopology(PrimitiveTopology _Topology)
 			{
 				glPolygonMode(GL_FRONT_AND_BACK, GetPrimitiveTopology(_Topology));
 				Topology = _Topology;
 			}
-			void OGLDevice::RestoreTexture2D(int Slot, int Size)
+			void OGLDevice::FlushTexture2D(unsigned int Slot, unsigned int Count)
 			{
-				if (Size <= 0 || Size > 31)
+				if (Count <= 0 || Count > 31)
 					return;
 
-				for (int i = 0; i < Size; i++)
+				for (unsigned int i = 0; i < Count; i++)
 				{
 					glActiveTexture(GL_TEXTURE0 + Slot + i);
 					glEnable(GL_TEXTURE_2D);
 					glBindTexture(GL_TEXTURE_2D, 0);
 				}
 			}
-			void OGLDevice::RestoreTexture2D(int Size)
+			void OGLDevice::FlushTexture3D(unsigned int Slot, unsigned int Count)
 			{
-				RestoreTexture2D(0, Size);
-			}
-			void OGLDevice::RestoreTexture3D(int Slot, int Size)
-			{
-				if (Size <= 0 || Size > 31)
+				if (Count <= 0 || Count > 31)
 					return;
 
-				for (int i = 0; i < Size; i++)
+				for (unsigned int i = 0; i < Count; i++)
 				{
 					glActiveTexture(GL_TEXTURE0 + Slot + i);
 					glEnable(GL_TEXTURE_3D);
 					glBindTexture(GL_TEXTURE_3D, 0);
 				}
 			}
-			void OGLDevice::RestoreTexture3D(int Size)
+			void OGLDevice::FlushTextureCube(unsigned int Slot, unsigned int Count)
 			{
-				RestoreTexture3D(0, Size);
-			}
-			void OGLDevice::RestoreTextureCube(int Slot, int Size)
-			{
-				if (Size <= 0 || Size > 31)
+				if (Count <= 0 || Count > 31)
 					return;
 
-				for (int i = 0; i < Size; i++)
+				for (unsigned int i = 0; i < Count; i++)
 				{
 					glActiveTexture(GL_TEXTURE0 + Slot + i);
 					glEnable(GL_TEXTURE_CUBE_MAP);
 					glBindTexture(GL_TEXTURE_CUBE_MAP, 0);
 				}
 			}
-			void OGLDevice::RestoreTextureCube(int Size)
+			void OGLDevice::FlushState()
 			{
-				RestoreTextureCube(0, Size);
 			}
-			void OGLDevice::RestoreShader(unsigned int Type)
+			void OGLDevice::Map(ElementBuffer* Resource, ResourceMap Mode, MappedSubresource* Map)
 			{
-				glUseProgram(0);
+				OGLElementBuffer* IResource = (OGLElementBuffer*)Resource;
+				if (!IResource)
+					return;
+
+				GLint Size;
+				glBindBuffer(IResource->Flags, IResource->Resource);
+				glGetBufferParameteriv(IResource->Flags, GL_BUFFER_SIZE, &Size);
+				Map->Pointer = glMapBuffer(IResource->Flags, OGLDevice::GetResourceMap(Mode));
+				Map->RowPitch = Size;
+				Map->DepthPitch = 1;
 			}
-			void OGLDevice::RestoreVertexBuffer(int Slot)
+			void OGLDevice::Map(StructureBuffer* Resource, ResourceMap Mode, MappedSubresource* Map)
 			{
-				glBindVertexArray(0);
+				OGLStructureBuffer* IResource = (OGLStructureBuffer*)Resource;
+				if (!IResource)
+					return;
+
+				GLint Size;
+				glBindBuffer(IResource->Flags, IResource->Resource);
+				glGetBufferParameteriv(IResource->Flags, GL_BUFFER_SIZE, &Size);
+				Map->Pointer = glMapBuffer(IResource->Flags, OGLDevice::GetResourceMap(Mode));
+				Map->RowPitch = Size;
+				Map->DepthPitch = 1;
 			}
-			void OGLDevice::RestoreIndexBuffer()
+			void OGLDevice::Unmap(ElementBuffer* Resource, MappedSubresource* Map)
 			{
-				glBindBuffer(GL_ELEMENT_ARRAY_BUFFER, 0);
+				OGLElementBuffer* IResource = (OGLElementBuffer*)Resource;
+				if (!IResource)
+					return;
+
+				glBindBuffer(IResource->Flags, IResource->Resource);
+				glUnmapBuffer(IResource->Flags);
 			}
-			void OGLDevice::SetViewport(unsigned int Count, Viewport* Viewports)
+			void OGLDevice::Unmap(StructureBuffer* Resource, MappedSubresource* Map)
 			{
-				if (Count > 0 && Viewports)
-					glViewport(Viewports[0].TopLeftX, Viewports[0].TopLeftY, Viewports[0].Width, Viewports[0].Height);
+				OGLStructureBuffer* IResource = (OGLStructureBuffer*)Resource;
+				if (!IResource)
+					return;
+
+				glBindBuffer(IResource->Flags, IResource->Resource);
+				glUnmapBuffer(IResource->Flags);
 			}
-			void OGLDevice::SetScissorRect(unsigned int Count, Rectangle* Value)
+			void OGLDevice::UpdateBuffer(StructureBuffer* Resource, void* Data, uint64_t Size)
 			{
-				if (Count > 0 && Value)
-					glScissor(Value[0].Left, Value[0].Top, Value[0].Right - Value[0].Left, Value[0].Top - Value[0].Bottom);
+				OGLStructureBuffer* IResource = (OGLStructureBuffer*)Resource;
+				if (!IResource)
+					return;
+
+				glBindBuffer(IResource->Flags, IResource->Resource);
+				glBufferData(GL_ARRAY_BUFFER, (GLsizeiptr)Size, Data, GL_DYNAMIC_DRAW);
 			}
-			void OGLDevice::GetViewport(unsigned int* Count, Viewport* Out)
+			void OGLDevice::UpdateBuffer(Shader* Resource, const void* Data)
+			{
+				OGLShader* IResource = (OGLShader*)Resource;
+				if (!IResource)
+					return;
+				/* TODO: IMPL */
+			}
+			void OGLDevice::UpdateBuffer(MeshBuffer* Resource, Compute::Vertex* Data)
+			{
+				OGLMeshBuffer* IResource = (OGLMeshBuffer*)Resource;
+				if (!IResource)
+					return;
+
+				MappedSubresource MappedResource;
+				Map(IResource->VertexBuffer, ResourceMap_Write, &MappedResource);
+				memcpy(MappedResource.Pointer, Data, (size_t)IResource->VertexBuffer->GetElements() * sizeof(Compute::Vertex));
+				Unmap(IResource->VertexBuffer, &MappedResource);
+			}
+			void OGLDevice::UpdateBuffer(SkinMeshBuffer* Resource, Compute::SkinVertex* Data)
+			{
+				OGLSkinMeshBuffer* IResource = (OGLSkinMeshBuffer*)Resource;
+				if (!IResource)
+					return;
+
+				MappedSubresource MappedResource;
+				Map(IResource->VertexBuffer, ResourceMap_Write, &MappedResource);
+				memcpy(MappedResource.Pointer, Data, (size_t)IResource->VertexBuffer->GetElements() * sizeof(Compute::SkinVertex));
+				Unmap(IResource->VertexBuffer, &MappedResource);
+			}
+			void OGLDevice::UpdateBuffer(InstanceBuffer* Resource)
+			{
+				OGLInstanceBuffer* IResource = (OGLInstanceBuffer*)Resource;
+				if (!IResource || IResource->Array.Size() <= 0 || IResource->Array.Size() > IResource->ElementLimit)
+					return;
+
+				OGLElementBuffer* Element = IResource->Elements->As<OGLElementBuffer>();
+				/* TODO: IMPL */
+			}
+			void OGLDevice::UpdateBuffer(RenderBufferType Buffer)
+			{
+				glBindBufferBase(GL_UNIFORM_BUFFER, (int)Buffer, ConstantBuffer[Buffer]);
+			}
+			void OGLDevice::UpdateBufferSize(Shader* Resource, size_t Size)
+			{
+				OGLShader* IResource = (OGLShader*)Resource;
+				if (!IResource || !Size)
+					return;
+				/* TODO: IMPL */
+			}
+			void OGLDevice::UpdateBufferSize(InstanceBuffer* Resource, uint64_t Size)
+			{
+				OGLInstanceBuffer* IResource = (OGLInstanceBuffer*)Resource;
+				if (!IResource)
+					return;
+				/* TODO: IMPL */
+			}
+			void OGLDevice::ClearBuffer(InstanceBuffer* Resource)
+			{
+				OGLInstanceBuffer* IResource = (OGLInstanceBuffer*)Resource;
+				if (!IResource || !IResource->Sync)
+					return;
+				/* TODO: IMPL */
+			}
+			void OGLDevice::Clear(float R, float G, float B)
+			{
+				Clear(RenderTarget, R, G, B);
+			}
+			void OGLDevice::Clear(RenderTarget2D* Resource, float R, float G, float B)
+			{
+				OGLRenderTarget2D* IResource = (OGLRenderTarget2D*)Resource;
+				if (!IResource)
+					return;
+
+				glBindFramebuffer(GL_FRAMEBUFFER, IResource->FrameBuffer != GL_INVALID_VALUE ? IResource->FrameBuffer : 0);
+				glViewport((GLuint)IResource->Viewport.TopLeftX, (GLuint)IResource->Viewport.TopLeftY, (GLuint)IResource->Viewport.Width, (GLuint)IResource->Viewport.Height);
+				glClearColor(R, G, B, 1.0f);
+				glClear(GL_COLOR_BUFFER_BIT);
+			}
+			void OGLDevice::Clear(MultiRenderTarget2D* Resource, unsigned int Target, float R, float G, float B)
+			{
+				OGLMultiRenderTarget2D* IResource = (OGLMultiRenderTarget2D*)Resource;
+				if (!IResource)
+					return;
+				/* TODO: IMPL */
+			}
+			void OGLDevice::Clear(RenderTarget2DArray* Resource, unsigned int Target, float R, float G, float B)
+			{
+				OGLRenderTarget2DArray* IResource = (OGLRenderTarget2DArray*)Resource;
+				if (!IResource)
+					return;
+				/* TODO: IMPL */
+			}
+			void OGLDevice::Clear(RenderTargetCube* Resource, float R, float G, float B)
+			{
+				OGLRenderTargetCube* IResource = (OGLRenderTargetCube*)Resource;
+				if (!IResource)
+					return;
+				/* TODO: IMPL */
+			}
+			void OGLDevice::Clear(MultiRenderTargetCube* Resource, unsigned int Target, float R, float G, float B)
+			{
+				OGLMultiRenderTargetCube* IResource = (OGLMultiRenderTargetCube*)Resource;
+				if (!IResource)
+					return;
+				/* TODO: IMPL */
+			}
+			void OGLDevice::ClearDepth()
+			{
+				ClearDepth(RenderTarget);
+			}
+			void OGLDevice::ClearDepth(RenderTarget2D* Resource)
+			{
+				glClear(GL_DEPTH_BUFFER_BIT | GL_STENCIL_BUFFER_BIT);
+			}
+			void OGLDevice::ClearDepth(MultiRenderTarget2D* Resource)
+			{
+				OGLMultiRenderTarget2D* IResource = (OGLMultiRenderTarget2D*)Resource;
+				if (!IResource)
+					return;
+				/* TODO: IMPL */
+			}
+			void OGLDevice::ClearDepth(RenderTarget2DArray* Resource)
+			{
+				OGLRenderTarget2DArray* IResource = (OGLRenderTarget2DArray*)Resource;
+				if (!IResource)
+					return;
+				/* TODO: IMPL */
+			}
+			void OGLDevice::ClearDepth(RenderTargetCube* Resource)
+			{
+				OGLRenderTargetCube* IResource = (OGLRenderTargetCube*)Resource;
+				if (!IResource)
+					return;
+				/* TODO: IMPL */
+			}
+			void OGLDevice::ClearDepth(MultiRenderTargetCube* Resource)
+			{
+				OGLMultiRenderTargetCube* IResource = (OGLMultiRenderTargetCube*)Resource;
+				if (!IResource)
+					return;
+				/* TODO: IMPL */
+			}
+			void OGLDevice::DrawIndexed(unsigned int Count, unsigned int IndexLocation, unsigned int BaseLocation)
+			{
+				glDrawElements(GetPrimitiveTopologyDraw(Topology), Count, GL_UNSIGNED_INT, &IndexLocation);
+			}
+			void OGLDevice::DrawIndexed(MeshBuffer* Resource)
+			{
+				if (!Resource)
+					return;
+				/* TODO: IMPL */
+			}
+			void OGLDevice::DrawIndexed(SkinMeshBuffer* Resource)
+			{
+				if (!Resource)
+					return;
+				/* TODO: IMPL */
+			}
+			void OGLDevice::Draw(unsigned int Count, unsigned int Location)
+			{
+				glDrawArrays(GetPrimitiveTopologyDraw(Topology), (GLint)Location, (GLint)Count);
+			}
+			void OGLDevice::CopyTexture2D(Texture2D** Result)
+			{
+				CopyTexture2D(RenderTarget, Result);
+			}
+			void OGLDevice::CopyTexture2D(RenderTarget2D* Resource, Texture2D** Result)
+			{
+				OGLRenderTarget2D* IResource = (OGLRenderTarget2D*)Resource;
+				if (!IResource || !IResource->Texture || !Result)
+					return;
+				/* TODO: IMPL */
+			}
+			void OGLDevice::CopyTexture2D(MultiRenderTarget2D* Resource, unsigned int Target, Texture2D** Result)
+			{
+				OGLMultiRenderTarget2D* IResource = (OGLMultiRenderTarget2D*)Resource;
+				if (!IResource || Target >= IResource->SVTarget || !Result)
+					return;
+				/* TODO: IMPL */
+			}
+			void OGLDevice::CopyTexture2D(RenderTargetCube* Resource, unsigned int Face, Texture2D** Result)
+			{
+				OGLRenderTargetCube* IResource = (OGLRenderTargetCube*)Resource;
+				if (!IResource || Face >= 6 || !Result)
+					return;
+				/* TODO: IMPL */
+			}
+			void OGLDevice::CopyTexture2D(MultiRenderTargetCube* Resource, unsigned int Cube, unsigned int Face, Texture2D** Result)
+			{
+				OGLMultiRenderTargetCube* IResource = (OGLMultiRenderTargetCube*)Resource;
+				if (!IResource || Cube >= IResource->SVTarget || Face >= 6 || !Result)
+					return;
+				/* TODO: IMPL */
+			}
+			void OGLDevice::CopyTextureCube(RenderTargetCube* Resource, TextureCube** Result)
+			{
+				OGLRenderTargetCube* IResource = (OGLRenderTargetCube*)Resource;
+				if (!IResource || !Result)
+					return;
+				/* TODO: IMPL */
+			}
+			void OGLDevice::CopyTextureCube(MultiRenderTargetCube* Resource, unsigned int Cube, TextureCube** Result)
+			{
+				OGLMultiRenderTargetCube* IResource = (OGLMultiRenderTargetCube*)Resource;
+				if (!IResource || Cube >= IResource->SVTarget || !Result)
+					return;
+				/* TODO: IMPL */
+			}
+			void OGLDevice::CopyTargetTo(MultiRenderTarget2D* Resource, unsigned int Target, RenderTarget2D* To)
+			{
+				if (!Resource || Target >= Resource->GetSVTarget() || !To)
+					return;
+				/* TODO: IMPL */
+			}
+			void OGLDevice::CopyTargetFrom(MultiRenderTarget2D* Resource, unsigned int Target, RenderTarget2D* From)
+			{
+				if (!Resource || Target >= Resource->GetSVTarget() || !From)
+					return;
+				/* TODO: IMPL */
+			}
+			void OGLDevice::CopyBegin(MultiRenderTarget2D* Resource, unsigned int Target, unsigned int MipLevels, unsigned int Size)
+			{
+				OGLMultiRenderTarget2D* IResource = (OGLMultiRenderTarget2D*)Resource;
+				if (!IResource || Target >= IResource->SVTarget)
+					return;
+				/* TODO: IMPL */
+			}
+			void OGLDevice::CopyFace(MultiRenderTarget2D* Resource, unsigned int Target, unsigned int Face)
+			{
+				OGLMultiRenderTarget2D* IResource = (OGLMultiRenderTarget2D*)Resource;
+				if (!IResource || Target >= IResource->SVTarget || Face >= 6)
+					return;
+				/* TODO: IMPL */
+			}
+			void OGLDevice::CopyEnd(MultiRenderTarget2D* Resource, TextureCube* Result)
+			{
+				OGLMultiRenderTarget2D* IResource = (OGLMultiRenderTarget2D*)Resource;
+				if (!IResource || !Result)
+					return;
+				/* TODO: IMPL */
+			}
+			void OGLDevice::FetchViewports(unsigned int* Count, Viewport* Out)
 			{
 				GLint Viewport[4];
 				glGetIntegerv(GL_VIEWPORT, Viewport);
@@ -1180,7 +1106,7 @@ namespace Tomahawk
 				Out[0].Width = Viewport[2];
 				Out[0].Height = Viewport[3];
 			}
-			void OGLDevice::GetScissorRect(unsigned int* Count, Rectangle* Out)
+			void OGLDevice::FetchScissorRects(unsigned int* Count, Rectangle* Out)
 			{
 				GLint Rect[4];
 				glGetIntegerv(GL_SCISSOR_BOX, Rect);
@@ -1197,101 +1123,424 @@ namespace Tomahawk
 			}
 			void OGLDevice::ResizeBuffers(unsigned int Width, unsigned int Height)
 			{
-				Graphics::RenderTarget2D::Desc F = Graphics::RenderTarget2D::Desc();
+				RenderTarget2D::Desc F = RenderTarget2D::Desc();
 				F.Width = Width;
 				F.Height = Height;
 				F.MipLevels = 1;
-				F.MiscFlags = Graphics::ResourceMisc_None;
-				F.FormatMode = Graphics::Format_R8G8B8A8_Unorm;
-				F.Usage = Graphics::ResourceUsage_Default;
-				F.AccessFlags = Graphics::CPUAccess_Invalid;
-				F.BindFlags = Graphics::ResourceBind_Render_Target | Graphics::ResourceBind_Shader_Input;
+				F.MiscFlags = ResourceMisc_None;
+				F.FormatMode = Format_R8G8B8A8_Unorm;
+				F.Usage = ResourceUsage_Default;
+				F.AccessFlags = CPUAccess_Invalid;
+				F.BindFlags = ResourceBind_Render_Target | ResourceBind_Shader_Input;
 				F.RenderSurface = (void*)this;
 
 				delete RenderTarget;
-				RenderTarget = Graphics::RenderTarget2D::Create(this, F);
-				RenderTarget->SetTarget(this);
+				RenderTarget = CreateRenderTarget2D(F);
+				SetTarget();
 			}
-			void OGLDevice::DrawIndexed(unsigned int Count, unsigned int IndexLocation, unsigned int)
+			void OGLDevice::DirectBegin()
 			{
-				glDrawElements(GetPrimitiveTopologyDraw(Topology), Count, GL_UNSIGNED_INT, &IndexLocation);
+				Primitives = PrimitiveTopology_Triangle_List;
+				Direct.WorldViewProjection = Compute::Matrix4x4::Identity();
+				Direct.Padding = { 0, 0, 0, 1 };
+				ViewResource = nullptr;
+
+				Elements.clear();
+				/* TODO: IMPL */
 			}
-			void OGLDevice::Draw(unsigned int Count, unsigned int Start)
+			void OGLDevice::DirectTransform(const Compute::Matrix4x4& Transform)
 			{
-				glDrawArrays(GetPrimitiveTopologyDraw(Topology), (GLint)Start, (GLint)Count);
+				Direct.WorldViewProjection = Direct.WorldViewProjection * Transform;
+			}
+			void OGLDevice::DirectTopology(PrimitiveTopology Topology)
+			{
+				Primitives = Topology;
+			}
+			void OGLDevice::DirectEmit()
+			{
+				Elements.push_back({ 0, 0, 0, 0, 0, 1, 1, 1, 1 });
+			}
+			void OGLDevice::DirectTexture(Texture2D* In)
+			{
+				ViewResource = In;
+				Direct.Padding.Z = 1;
+			}
+			void OGLDevice::DirectColor(float X, float Y, float Z, float W)
+			{
+				if (Elements.empty())
+					return;
+
+				auto& Element = Elements.back();
+				Element.CX = X;
+				Element.CY = Y;
+				Element.CZ = Z;
+				Element.CW = W;
+			}
+			void OGLDevice::DirectIntensity(float Intensity)
+			{
+				Direct.Padding.W = Intensity;
+			}
+			void OGLDevice::DirectTexCoord(float X, float Y)
+			{
+				if (Elements.empty())
+					return;
+
+				auto& Element = Elements.back();
+				Element.TX = X;
+				Element.TY = Y;
+			}
+			void OGLDevice::DirectTexCoordOffset(float X, float Y)
+			{
+				Direct.Padding.X = X;
+				Direct.Padding.Y = Y;
+			}
+			void OGLDevice::DirectPosition(float X, float Y, float Z)
+			{
+				if (Elements.empty())
+					return;
+
+				auto& Element = Elements.back();
+				Element.PX = X;
+				Element.PY = Y;
+				Element.PZ = Z;
+			}
+			void OGLDevice::DirectEnd()
+			{
+				if (Elements.empty())
+					return;
+				/* TODO: IMPL */
+			}
+			void OGLDevice::Submit()
+			{
+#ifdef THAWK_HAS_SDL2
+				SDL_GL_SwapWindow(Window->GetHandle());
+#endif
+			}
+			DepthStencilState* OGLDevice::CreateDepthStencilState(const DepthStencilState::Desc& I)
+			{
+				return new OGLDepthStencilState(I);
+			}
+			BlendState* OGLDevice::CreateBlendState(const BlendState::Desc& I)
+			{
+				return new OGLBlendState(I);
+			}
+			RasterizerState* OGLDevice::CreateRasterizerState(const RasterizerState::Desc& I)
+			{
+				return new OGLRasterizerState(I);
+			}
+			SamplerState* OGLDevice::CreateSamplerState(const SamplerState::Desc& I)
+			{
+				GLuint DeviceState = 0;
+				glGenSamplers(1, &DeviceState);
+				glSamplerParameteri(DeviceState, GL_TEXTURE_WRAP_S, OGLDevice::GetTextureAddress(I.AddressU));
+				glSamplerParameteri(DeviceState, GL_TEXTURE_WRAP_T, OGLDevice::GetTextureAddress(I.AddressV));
+				glSamplerParameteri(DeviceState, GL_TEXTURE_WRAP_R, OGLDevice::GetTextureAddress(I.AddressW));
+				glSamplerParameteri(DeviceState, GL_TEXTURE_MAG_FILTER, OGLDevice::GetPixelFilter(I.Filter, true));
+				glSamplerParameteri(DeviceState, GL_TEXTURE_MIN_FILTER, OGLDevice::GetPixelFilter(I.Filter, false));
+				glSamplerParameteri(DeviceState, GL_TEXTURE_COMPARE_FUNC, OGLDevice::GetComparison(I.ComparisonFunction));
+				glSamplerParameterf(DeviceState, GL_TEXTURE_LOD_BIAS, I.MipLODBias);
+				glSamplerParameterf(DeviceState, GL_TEXTURE_MAX_LOD, I.MaxLOD);
+				glSamplerParameterf(DeviceState, GL_TEXTURE_MIN_LOD, I.MinLOD);
+				glSamplerParameterfv(DeviceState, GL_TEXTURE_BORDER_COLOR, (GLfloat*)I.BorderColor);
+
+#ifdef GL_TEXTURE_MAX_ANISOTROPY
+				if (I.Filter & Graphics::PixelFilter_Anistropic || I.Filter & Graphics::PixelFilter_Compare_Anistropic)
+					glSamplerParameterf(DeviceState, GL_TEXTURE_MAX_ANISOTROPY, (float)I.MaxAnisotropy);
+#elif defined(GL_TEXTURE_MAX_ANISOTROPY_EXT)
+				if (I.Filter & Graphics::PixelFilter_Anistropic || I.Filter & Graphics::PixelFilter_Compare_Anistropic)
+					glSamplerParameterf(DeviceState, GL_TEXTURE_MAX_ANISOTROPY_EXT, (float)I.MaxAnisotropy);
+#endif
+				OGLSamplerState* Result = new OGLSamplerState(I);
+				Result->Resource = DeviceState;
+
+				return Result;
+			}
+			Shader* OGLDevice::CreateShader(const Shader::Desc& I)
+			{
+				OGLShader* Result = new OGLShader(I);
+				Shader::Desc F(I);
+
+				if (!Preprocess(F))
+				{
+					THAWK_ERROR("shader preprocessing failed");
+					return Result;
+				}
+
+				Rest::Stroke Code(&F.Data);
+				uint64_t Length = Code.Size();
+				bool VS = Code.Find("VS_Main").Found;
+				bool PS = Code.Find("PS_Main").Found;
+				bool GS = Code.Find("GS_Main").Found;
+				bool DS = Code.Find("DS_Main").Found;
+				bool HS = Code.Find("HS_Main").Found;
+				bool CS = Code.Find("CS_Main").Found;
+
+				/* TODO: IMPL */
+				return Result;
+			}
+			ElementBuffer* OGLDevice::CreateElementBuffer(const ElementBuffer::Desc& I)
+			{
+				OGLElementBuffer* Result = new OGLElementBuffer(I);
+				Result->Flags = OGLDevice::GetResourceBind(I.BindFlags);
+
+				glGenBuffers(1, &Result->Resource);
+				glBindBuffer(Result->Flags, Result->Resource);
+
+				if (I.UseSubresource)
+					glBufferData(Result->Flags, I.ElementCount * I.ElementWidth, I.Elements, GL_STATIC_DRAW);
+
+				return Result;
+			}
+			StructureBuffer* OGLDevice::CreateStructureBuffer(const StructureBuffer::Desc& I)
+			{
+				OGLStructureBuffer* Result = new OGLStructureBuffer(I);
+				Result->Flags = OGLDevice::GetResourceBind(I.BindFlags);
+
+				glGenBuffers(1, &Result->Resource);
+				glBindBuffer(GL_SHADER_STORAGE_BUFFER, Result->Resource);
+				glBufferData(GL_SHADER_STORAGE_BUFFER, I.ElementWidth * I.ElementCount, I.Elements, GL_DYNAMIC_DRAW);
+				glBindBufferBase(GL_SHADER_STORAGE_BUFFER, 3, Result->Resource);
+				glBindBuffer(GL_SHADER_STORAGE_BUFFER, 0);
+				return Result;
+			}
+			MeshBuffer* OGLDevice::CreateMeshBuffer(const MeshBuffer::Desc& I)
+			{
+				ElementBuffer::Desc F = ElementBuffer::Desc();
+				F.AccessFlags = I.AccessFlags;
+				F.Usage = I.Usage;
+				F.BindFlags = ResourceBind_Vertex_Buffer;
+				F.ElementCount = (unsigned int)I.Elements.size();
+				F.UseSubresource = true;
+				F.Elements = (void*)I.Elements.data();
+				F.ElementWidth = sizeof(Compute::Vertex);
+
+				OGLMeshBuffer* Result = new OGLMeshBuffer(I);
+				Result->VertexBuffer = CreateElementBuffer(F);
+
+				F = ElementBuffer::Desc();
+				F.AccessFlags = I.AccessFlags;
+				F.Usage = I.Usage;
+				F.BindFlags = ResourceBind_Index_Buffer;
+				F.ElementCount = (unsigned int)I.Indices.size();
+				F.ElementWidth = sizeof(int);
+				F.Elements = (void*)I.Indices.data();
+				F.UseSubresource = true;
+
+				Result->IndexBuffer = CreateElementBuffer(F);
+				return Result;
+			}
+			SkinMeshBuffer* OGLDevice::CreateSkinMeshBuffer(const SkinMeshBuffer::Desc& I)
+			{
+				ElementBuffer::Desc F = ElementBuffer::Desc();
+				F.AccessFlags = I.AccessFlags;
+				F.Usage = I.Usage;
+				F.BindFlags = ResourceBind_Vertex_Buffer;
+				F.ElementCount = (unsigned int)I.Elements.size();
+				F.UseSubresource = true;
+				F.Elements = (void*)I.Elements.data();
+				F.ElementWidth = sizeof(Compute::SkinVertex);
+
+				OGLSkinMeshBuffer* Result = new OGLSkinMeshBuffer(I);
+				Result->VertexBuffer = CreateElementBuffer(F);
+
+				F = ElementBuffer::Desc();
+				F.AccessFlags = I.AccessFlags;
+				F.Usage = I.Usage;
+				F.BindFlags = ResourceBind_Index_Buffer;
+				F.ElementCount = (unsigned int)I.Indices.size();
+				F.ElementWidth = sizeof(int);
+				F.Elements = (void*)I.Indices.data();
+				F.UseSubresource = true;
+
+				Result->IndexBuffer = CreateElementBuffer(F);
+				return Result;
+			}
+			InstanceBuffer* OGLDevice::CreateInstanceBuffer(const InstanceBuffer::Desc& I)
+			{
+				OGLInstanceBuffer* Result = new OGLInstanceBuffer(I);
+				/* TODO: IMPL */
+				return Result;
+			}
+			Texture2D* OGLDevice::CreateTexture2D()
+			{
+				return new OGLTexture2D();
+			}
+			Texture2D* OGLDevice::CreateTexture2D(const Texture2D::Desc& I)
+			{
+				if (I.Dealloc)
+					return new OGLTexture2D(I);
+
+				OGLTexture2D* Result = new OGLTexture2D();
+				glGenTextures(1, &Result->Resource);
+				glBindTexture(GL_TEXTURE_2D, Result->Resource);
+				glTexImage2D(GL_TEXTURE_2D, 0, OGLDevice::GetFormat(Result->FormatMode), Result->Width, Result->Height, 0, OGLDevice::GetFormat(Result->FormatMode), GL_UNSIGNED_BYTE, I.Data);
+
+				if (Result->MipLevels != 0)
+				{
+					glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_LINEAR);
+					glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_LINEAR_MIPMAP_LINEAR);
+					glGenerateMipmap(GL_TEXTURE_2D);
+				}
+				else
+				{
+					glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_NEAREST);
+					glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_NEAREST);
+				}
+
+				return Result;
+			}
+			Texture3D* OGLDevice::CreateTexture3D()
+			{
+				return new OGLTexture3D();
+			}
+			TextureCube* OGLDevice::CreateTextureCube()
+			{
+				return new OGLTextureCube();
+			}
+			TextureCube* OGLDevice::CreateTextureCube(const TextureCube::Desc& I)
+			{
+				if (!I.Texture2D[0] || !I.Texture2D[1] || !I.Texture2D[2] || !I.Texture2D[3] || !I.Texture2D[4] || !I.Texture2D[5])
+				{
+					THAWK_ERROR("couldn't create texture cube without proper mapping");
+					return nullptr;
+				}
+
+				OGLTextureCube* Result = new OGLTextureCube(I);
+				/* TODO: IMPL */
+				return Result;
+			}
+			RenderTarget2D* OGLDevice::CreateRenderTarget2D(const RenderTarget2D::Desc& I)
+			{
+				OGLRenderTarget2D* Result = new OGLRenderTarget2D(I);
+				if (!I.RenderSurface)
+				{
+					GLenum Format = OGLDevice::GetFormat(I.FormatMode);
+					glGenFramebuffers(1, &Result->FrameBuffer);
+					glGenTextures(1, &Result->Texture);
+					glBindTexture(GL_TEXTURE_2D, Result->Texture);
+					glTexImage2D(GL_TEXTURE_2D, 0, Format, I.Width, I.Height, 0, Format, GL_UNSIGNED_BYTE, NULL);
+					glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_LINEAR);
+					glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_LINEAR);
+					glBindFramebuffer(GL_FRAMEBUFFER, Result->FrameBuffer);
+					glFramebufferTexture2D(GL_FRAMEBUFFER, GL_COLOR_ATTACHMENT0, GL_TEXTURE_2D, Result->Texture, 0);
+					glGenRenderbuffers(1, &Result->DepthBuffer);
+					glBindRenderbuffer(GL_RENDERBUFFER, Result->DepthBuffer);
+					glRenderbufferStorage(GL_RENDERBUFFER, GL_DEPTH24_STENCIL8, I.Width, I.Height);
+					glBindRenderbuffer(GL_RENDERBUFFER, 0);
+					glFramebufferRenderbuffer(GL_FRAMEBUFFER, GL_DEPTH_STENCIL_ATTACHMENT, GL_RENDERBUFFER, Result->DepthBuffer);
+					glBindFramebuffer(GL_FRAMEBUFFER, 0);
+				}
+				else if (I.RenderSurface != (void*)this)
+				{
+					Result->Texture = *(GLuint*)I.RenderSurface;
+					glGenFramebuffers(1, &Result->FrameBuffer);
+					glBindFramebuffer(GL_FRAMEBUFFER, Result->FrameBuffer);
+					glFramebufferTexture2D(GL_FRAMEBUFFER, GL_COLOR_ATTACHMENT0, GL_TEXTURE_2D, Result->Texture, 0);
+					glGenRenderbuffers(1, &Result->DepthBuffer);
+					glBindRenderbuffer(GL_RENDERBUFFER, Result->DepthBuffer);
+					glRenderbufferStorage(GL_RENDERBUFFER, GL_DEPTH24_STENCIL8, I.Width, I.Height);
+					glBindRenderbuffer(GL_RENDERBUFFER, 0);
+					glFramebufferRenderbuffer(GL_FRAMEBUFFER, GL_DEPTH_STENCIL_ATTACHMENT, GL_RENDERBUFFER, Result->DepthBuffer);
+					glBindFramebuffer(GL_FRAMEBUFFER, 0);
+				}
+
+				Result->Viewport.Width = (float)I.Width;
+				Result->Viewport.Height = (float)I.Height;
+				Result->Viewport.TopLeftX = 0.0f;
+				Result->Viewport.TopLeftY = 0.0f;
+				Result->Viewport.MinDepth = 0.0f;
+				Result->Viewport.MaxDepth = 1.0f;
+
+				return Result;
+			}
+			MultiRenderTarget2D* OGLDevice::CreateMultiRenderTarget2D(const MultiRenderTarget2D::Desc& I)
+			{
+				OGLMultiRenderTarget2D* Result = new OGLMultiRenderTarget2D(I);
+				/* TODO: IMPL */
+				return Result;
+			}
+			RenderTarget2DArray* OGLDevice::CreateRenderTarget2DArray(const RenderTarget2DArray::Desc& I)
+			{
+				OGLRenderTarget2DArray* Result = new OGLRenderTarget2DArray(I);
+				/* TODO: IMPL */
+				return Result;
+			}
+			RenderTargetCube* OGLDevice::CreateRenderTargetCube(const RenderTargetCube::Desc& I)
+			{
+				OGLRenderTargetCube* Result = new OGLRenderTargetCube(I);
+				/* TODO: IMPL */
+				return Result;
+			}
+			MultiRenderTargetCube* OGLDevice::CreateMultiRenderTargetCube(const MultiRenderTargetCube::Desc& I)
+			{
+				OGLMultiRenderTargetCube* Result = new OGLMultiRenderTargetCube(I);
+				/* TODO: IMPL */
+				return Result;
 			}
 			PrimitiveTopology OGLDevice::GetPrimitiveTopology()
 			{
 				return Topology;
 			}
-			Graphics::ShaderModel OGLDevice::GetSupportedShaderModel()
+			ShaderModel OGLDevice::GetSupportedShaderModel()
 			{
 				const char* Version = (const char*)glGetString(GL_SHADING_LANGUAGE_VERSION);
 				if (!Version)
-					return Graphics::ShaderModel_Invalid;
+					return ShaderModel_Invalid;
 
 				int Major, Minor;
 				if (sscanf(Version, "%i.%i", &Major, &Minor) != 2)
-					return Graphics::ShaderModel_Invalid;
+					return ShaderModel_Invalid;
 
 				if (Major >= 1 && Major <= 2)
 				{
 					if (Minor <= 10)
-						return Graphics::ShaderModel_GLSL_1_1_0;
+						return ShaderModel_GLSL_1_1_0;
 
 					if (Minor <= 20)
-						return Graphics::ShaderModel_GLSL_1_2_0;
+						return ShaderModel_GLSL_1_2_0;
 
 					if (Minor <= 30)
-						return Graphics::ShaderModel_GLSL_1_3_0;
+						return ShaderModel_GLSL_1_3_0;
 
 					if (Minor <= 40)
-						return Graphics::ShaderModel_GLSL_1_4_0;
+						return ShaderModel_GLSL_1_4_0;
 
 					if (Minor <= 50)
-						return Graphics::ShaderModel_GLSL_1_5_0;
+						return ShaderModel_GLSL_1_5_0;
 
-					return Graphics::ShaderModel_GLSL_1_5_0;
+					return ShaderModel_GLSL_1_5_0;
 				}
 				else if (Major >= 2 && Major <= 3)
 				{
 					if (Minor <= 30)
-						return Graphics::ShaderModel_GLSL_3_3_0;
+						return ShaderModel_GLSL_3_3_0;
 
-					return Graphics::ShaderModel_GLSL_1_5_0;
+					return ShaderModel_GLSL_1_5_0;
 				}
 				else if (Major >= 3 && Major <= 4)
 				{
 					if (Minor <= 10)
-						return Graphics::ShaderModel_GLSL_4_1_0;
+						return ShaderModel_GLSL_4_1_0;
 
 					if (Minor <= 20)
-						return Graphics::ShaderModel_GLSL_4_2_0;
+						return ShaderModel_GLSL_4_2_0;
 
 					if (Minor <= 30)
-						return Graphics::ShaderModel_GLSL_4_3_0;
+						return ShaderModel_GLSL_4_3_0;
 
 					if (Minor <= 40)
-						return Graphics::ShaderModel_GLSL_4_4_0;
+						return ShaderModel_GLSL_4_4_0;
 
 					if (Minor <= 50)
-						return Graphics::ShaderModel_GLSL_4_5_0;
+						return ShaderModel_GLSL_4_5_0;
 
 					if (Minor <= 60)
-						return Graphics::ShaderModel_GLSL_4_6_0;
+						return ShaderModel_GLSL_4_6_0;
 
-					return Graphics::ShaderModel_GLSL_4_6_0;
+					return ShaderModel_GLSL_4_6_0;
 				}
 
-				return Graphics::ShaderModel_Invalid;
-			}
-			void* OGLDevice::GetDevice()
-			{
-				return Context;
-			}
-			void* OGLDevice::GetContext()
-			{
-				return Context;
+				return ShaderModel_Invalid;
 			}
 			void* OGLDevice::GetBackBuffer()
 			{
@@ -1310,38 +1559,17 @@ namespace Tomahawk
 			{
 				return GetBackBuffer();
 			}
-			Graphics::DeviceState* OGLDevice::CreateState()
+			void* OGLDevice::GetDevice()
 			{
-				OGLDeviceState* State = new OGLDeviceState();
-				memset(State, 0, sizeof(OGLDeviceState));
-				State->EnableBlend = glIsEnabled(GL_BLEND);
-				State->EnableCullFace = glIsEnabled(GL_CULL_FACE);
-				State->EnableDepthTest = glIsEnabled(GL_DEPTH_TEST);
-				State->EnableScissorTest = glIsEnabled(GL_SCISSOR_TEST);
-				glGetIntegerv(GL_ACTIVE_TEXTURE, (GLint*)&State->ActiveTexture);
-				glActiveTexture(GL_TEXTURE0);
-				glGetIntegerv(GL_CURRENT_PROGRAM, &State->Program);
-				glGetIntegerv(GL_TEXTURE_BINDING_2D, &State->Texture);
-				glGetIntegerv(GL_ARRAY_BUFFER_BINDING, &State->ArrayBuffer);
-				glGetIntegerv(GL_VERTEX_ARRAY_BINDING, &State->VertexArrayObject);
-				glGetIntegerv(GL_VIEWPORT, State->Viewport);
-				glGetIntegerv(GL_SCISSOR_BOX, State->ScissorBox);
-				glGetIntegerv(GL_BLEND_SRC_RGB, (GLint*)&State->BlendSrc);
-				glGetIntegerv(GL_BLEND_DST_RGB, (GLint*)&State->BlendDst);
-				glGetIntegerv(GL_BLEND_SRC_ALPHA, (GLint*)&State->BlendSrcAlpha);
-				glGetIntegerv(GL_BLEND_DST_ALPHA, (GLint*)&State->BlendDstAlpha);
-				glGetIntegerv(GL_BLEND_EQUATION_RGB, (GLint*)&State->BlendEquation);
-				glGetIntegerv(GL_BLEND_EQUATION_ALPHA, (GLint*)&State->BlendEquationAlpha);
-#ifdef GL_SAMPLER_BINDING
-				glGetIntegerv(GL_SAMPLER_BINDING, &State->Sampler);
-#endif
-#ifdef GL_POLYGON_MODE
-				glGetIntegerv(GL_POLYGON_MODE, State->PolygonMode);
-#endif
-#if defined(GL_CLIP_ORIGIN) && !defined(__APPLE__)
-				glGetIntegerv(GL_CLIP_ORIGIN, (GLint*)&State->ClipOrigin);
-#endif
-				return State;
+				return Context;
+			}
+			void* OGLDevice::GetContext()
+			{
+				return Context;
+			}
+			bool OGLDevice::IsValid()
+			{
+				return BasicEffect != nullptr;
 			}
 			const char* OGLDevice::GetShaderVersion()
 			{
@@ -1357,14 +1585,17 @@ namespace Tomahawk
 				memcpy(Data, Buffer, Size);
 				glUnmapBuffer(GL_UNIFORM_BUFFER);
 			}
-			int OGLDevice::CreateConstantBuffer(int Size, GLuint& Buffer)
+			int OGLDevice::CreateConstantBuffer(GLuint* Buffer, size_t Size)
 			{
-				glGenBuffers(1, &Buffer);
-				glBindBuffer(GL_UNIFORM_BUFFER, Buffer);
+				if (!Buffer)
+					return -1;
+
+				glGenBuffers(1, Buffer);
+				glBindBuffer(GL_UNIFORM_BUFFER, *Buffer);
 				glBufferData(GL_UNIFORM_BUFFER, Size, nullptr, GL_DYNAMIC_DRAW);
 				glBindBuffer(GL_UNIFORM_BUFFER, 0);
 
-				return (int)Buffer;
+				return (int)*Buffer;
 			}
 			std::string OGLDevice::CompileState(GLuint Handle)
 			{
@@ -1383,145 +1614,145 @@ namespace Tomahawk
 
 				return Result;
 			}
-			GLenum OGLDevice::GetFormat(Graphics::Format Value)
+			GLenum OGLDevice::GetFormat(Format Value)
 			{
 				switch (Value)
 				{
-					case Graphics::Format_R32G32B32A32_Typeless:
+					case Format_R32G32B32A32_Typeless:
 						return GL_RGBA32UI;
-					case Graphics::Format_R32G32B32A32_Float:
+					case Format_R32G32B32A32_Float:
 						return GL_RGBA32F;
-					case Graphics::Format_R32G32B32A32_Uint:
+					case Format_R32G32B32A32_Uint:
 						return GL_RGBA32UI;
-					case Graphics::Format_R32G32B32A32_Sint:
+					case Format_R32G32B32A32_Sint:
 						return GL_RGBA32I;
-					case Graphics::Format_R32G32B32_Typeless:
+					case Format_R32G32B32_Typeless:
 						return GL_RGB32UI;
-					case Graphics::Format_R32G32B32_Float:
+					case Format_R32G32B32_Float:
 						return GL_RGB32F;
-					case Graphics::Format_R32G32B32_Uint:
+					case Format_R32G32B32_Uint:
 						return GL_RGB32UI;
-					case Graphics::Format_R32G32B32_Sint:
+					case Format_R32G32B32_Sint:
 						return GL_RGB32I;
-					case Graphics::Format_R16G16B16A16_Typeless:
+					case Format_R16G16B16A16_Typeless:
 						return GL_RGBA16UI;
-					case Graphics::Format_R16G16B16A16_Float:
+					case Format_R16G16B16A16_Float:
 						return GL_RGBA16F;
-					case Graphics::Format_R16G16B16A16_Unorm:
+					case Format_R16G16B16A16_Unorm:
 						return GL_RGBA16;
-					case Graphics::Format_R16G16B16A16_Uint:
+					case Format_R16G16B16A16_Uint:
 						return GL_RGBA16UI;
-					case Graphics::Format_R16G16B16A16_Snorm:
+					case Format_R16G16B16A16_Snorm:
 						return GL_RGBA16I;
-					case Graphics::Format_R16G16B16A16_Sint:
+					case Format_R16G16B16A16_Sint:
 						return GL_RGBA16I;
-					case Graphics::Format_R32G32_Typeless:
+					case Format_R32G32_Typeless:
 						return GL_RG16UI;
-					case Graphics::Format_R32G32_Float:
+					case Format_R32G32_Float:
 						return GL_RG16F;
-					case Graphics::Format_R32G32_Uint:
+					case Format_R32G32_Uint:
 						return GL_RG16UI;
-					case Graphics::Format_R32G32_Sint:
+					case Format_R32G32_Sint:
 						return GL_RG16I;
-					case Graphics::Format_R32G8X24_Typeless:
+					case Format_R32G8X24_Typeless:
 						return GL_R32UI;
-					case Graphics::Format_D32_Float_S8X24_Uint:
+					case Format_D32_Float_S8X24_Uint:
 						return GL_R32UI;
-					case Graphics::Format_R32_Float_X8X24_Typeless:
+					case Format_R32_Float_X8X24_Typeless:
 						return GL_R32UI;
-					case Graphics::Format_X32_Typeless_G8X24_Uint:
+					case Format_X32_Typeless_G8X24_Uint:
 						return GL_R32UI;
-					case Graphics::Format_R10G10B10A2_Typeless:
+					case Format_R10G10B10A2_Typeless:
 						return GL_RGB10_A2;
-					case Graphics::Format_R10G10B10A2_Unorm:
+					case Format_R10G10B10A2_Unorm:
 						return GL_RGB10_A2;
-					case Graphics::Format_R10G10B10A2_Uint:
+					case Format_R10G10B10A2_Uint:
 						return GL_RGB10_A2UI;
-					case Graphics::Format_R11G11B10_Float:
+					case Format_R11G11B10_Float:
 						return GL_RGB12;
-					case Graphics::Format_R8G8B8A8_Typeless:
+					case Format_R8G8B8A8_Typeless:
 						return GL_RGBA8UI;
-					case Graphics::Format_R8G8B8A8_Unorm:
+					case Format_R8G8B8A8_Unorm:
 						return GL_RGBA;
-					case Graphics::Format_R8G8B8A8_Unorm_SRGB:
+					case Format_R8G8B8A8_Unorm_SRGB:
 						return GL_RGBA;
-					case Graphics::Format_R8G8B8A8_Uint:
+					case Format_R8G8B8A8_Uint:
 						return GL_RGBA8UI;
-					case Graphics::Format_R8G8B8A8_Snorm:
+					case Format_R8G8B8A8_Snorm:
 						return GL_RGBA8I;
-					case Graphics::Format_R8G8B8A8_Sint:
+					case Format_R8G8B8A8_Sint:
 						return GL_RGBA8I;
-					case Graphics::Format_R16G16_Typeless:
+					case Format_R16G16_Typeless:
 						return GL_RG16UI;
-					case Graphics::Format_R16G16_Float:
+					case Format_R16G16_Float:
 						return GL_RG16F;
-					case Graphics::Format_R16G16_Unorm:
+					case Format_R16G16_Unorm:
 						return GL_RG16;
-					case Graphics::Format_R16G16_Uint:
+					case Format_R16G16_Uint:
 						return GL_RG16UI;
-					case Graphics::Format_R16G16_Snorm:
+					case Format_R16G16_Snorm:
 						return GL_RG16_SNORM;
-					case Graphics::Format_R16G16_Sint:
+					case Format_R16G16_Sint:
 						return GL_RG16I;
-					case Graphics::Format_R32_Typeless:
+					case Format_R32_Typeless:
 						return GL_R32UI;
-					case Graphics::Format_D32_Float:
+					case Format_D32_Float:
 						return GL_R32F;
-					case Graphics::Format_R32_Float:
+					case Format_R32_Float:
 						return GL_R32F;
-					case Graphics::Format_R32_Uint:
+					case Format_R32_Uint:
 						return GL_R32UI;
-					case Graphics::Format_R32_Sint:
+					case Format_R32_Sint:
 						return GL_R32I;
-					case Graphics::Format_R24G8_Typeless:
+					case Format_R24G8_Typeless:
 						return GL_R32UI;
-					case Graphics::Format_D24_Unorm_S8_Uint:
+					case Format_D24_Unorm_S8_Uint:
 						return GL_R32UI;
-					case Graphics::Format_R24_Unorm_X8_Typeless:
+					case Format_R24_Unorm_X8_Typeless:
 						return GL_R32UI;
-					case Graphics::Format_X24_Typeless_G8_Uint:
+					case Format_X24_Typeless_G8_Uint:
 						return GL_R32UI;
-					case Graphics::Format_R8G8_Typeless:
+					case Format_R8G8_Typeless:
 						return GL_RG8UI;
-					case Graphics::Format_R8G8_Unorm:
+					case Format_R8G8_Unorm:
 						return GL_RG8;
-					case Graphics::Format_R8G8_Uint:
+					case Format_R8G8_Uint:
 						return GL_RG8UI;
-					case Graphics::Format_R8G8_Snorm:
+					case Format_R8G8_Snorm:
 						return GL_RG8I;
-					case Graphics::Format_R8G8_Sint:
+					case Format_R8G8_Sint:
 						return GL_RG8I;
-					case Graphics::Format_R16_Typeless:
+					case Format_R16_Typeless:
 						return GL_R16UI;
-					case Graphics::Format_R16_Float:
+					case Format_R16_Float:
 						return GL_R16F;
-					case Graphics::Format_D16_Unorm:
+					case Format_D16_Unorm:
 						return GL_R16;
-					case Graphics::Format_R16_Unorm:
+					case Format_R16_Unorm:
 						return GL_R16;
-					case Graphics::Format_R16_Uint:
+					case Format_R16_Uint:
 						return GL_R16UI;
-					case Graphics::Format_R16_Snorm:
+					case Format_R16_Snorm:
 						return GL_R16I;
-					case Graphics::Format_R16_Sint:
+					case Format_R16_Sint:
 						return GL_R16I;
-					case Graphics::Format_R8_Typeless:
+					case Format_R8_Typeless:
 						return GL_R8UI;
-					case Graphics::Format_R8_Unorm:
+					case Format_R8_Unorm:
 						return GL_R8;
-					case Graphics::Format_R8_Uint:
+					case Format_R8_Uint:
 						return GL_R8UI;
-					case Graphics::Format_R8_Snorm:
+					case Format_R8_Snorm:
 						return GL_R8I;
-					case Graphics::Format_R8_Sint:
+					case Format_R8_Sint:
 						return GL_R8I;
-					case Graphics::Format_A8_Unorm:
+					case Format_A8_Unorm:
 						return GL_ALPHA8_EXT;
-					case Graphics::Format_R1_Unorm:
+					case Format_R1_Unorm:
 						return GL_R8;
-					case Graphics::Format_R9G9B9E5_Share_Dexp:
+					case Format_R9G9B9E5_Share_Dexp:
 						return GL_RGB9_E5;
-					case Graphics::Format_R8G8_B8G8_Unorm:
+					case Format_R8G8_B8G8_Unorm:
 						return GL_RGB;
 					default:
 						break;
@@ -1529,182 +1760,182 @@ namespace Tomahawk
 
 				return GL_RGB;
 			}
-			GLenum OGLDevice::GetTextureAddress(Graphics::TextureAddress Value)
+			GLenum OGLDevice::GetTextureAddress(TextureAddress Value)
 			{
 				switch (Value)
 				{
-					case Graphics::TextureAddress_Wrap:
+					case TextureAddress_Wrap:
 						return GL_REPEAT;
-					case Graphics::TextureAddress_Mirror:
+					case TextureAddress_Mirror:
 						return GL_MIRRORED_REPEAT;
-					case Graphics::TextureAddress_Clamp:
+					case TextureAddress_Clamp:
 						return GL_CLAMP_TO_EDGE;
-					case Graphics::TextureAddress_Border:
+					case TextureAddress_Border:
 						return GL_CLAMP_TO_BORDER;
-					case Graphics::TextureAddress_Mirror_Once:
+					case TextureAddress_Mirror_Once:
 						return GL_MIRROR_CLAMP_TO_EDGE;
 				}
 
 				return GL_REPEAT;
 			}
-			GLenum OGLDevice::GetComparison(Graphics::Comparison Value)
+			GLenum OGLDevice::GetComparison(Comparison Value)
 			{
 				switch (Value)
 				{
-					case Graphics::Comparison_Never:
+					case Comparison_Never:
 						return GL_NEVER;
-					case Graphics::Comparison_Less:
+					case Comparison_Less:
 						return GL_LESS;
-					case Graphics::Comparison_Equal:
+					case Comparison_Equal:
 						return GL_EQUAL;
-					case Graphics::Comparison_Less_Equal:
+					case Comparison_Less_Equal:
 						return GL_LEQUAL;
-					case Graphics::Comparison_Greater:
+					case Comparison_Greater:
 						return GL_GREATER;
-					case Graphics::Comparison_Not_Equal:
+					case Comparison_Not_Equal:
 						return GL_NOTEQUAL;
-					case Graphics::Comparison_Greater_Equal:
+					case Comparison_Greater_Equal:
 						return GL_GEQUAL;
-					case Graphics::Comparison_Always:
+					case Comparison_Always:
 						return GL_ALWAYS;
 				}
 
 				return GL_ALWAYS;
 			}
-			GLenum OGLDevice::GetPixelFilter(Graphics::PixelFilter Value, bool Mag)
+			GLenum OGLDevice::GetPixelFilter(PixelFilter Value, bool Mag)
 			{
 				switch (Value)
 				{
-					case Graphics::PixelFilter_Min_Mag_Mip_Point:
-					case Graphics::PixelFilter_Compare_Min_Mag_Mip_Point:
+					case PixelFilter_Min_Mag_Mip_Point:
+					case PixelFilter_Compare_Min_Mag_Mip_Point:
 						return GL_NEAREST;
-					case Graphics::PixelFilter_Min_Mag_Point_Mip_Linear:
-					case Graphics::PixelFilter_Compare_Min_Mag_Point_Mip_Linear:
+					case PixelFilter_Min_Mag_Point_Mip_Linear:
+					case PixelFilter_Compare_Min_Mag_Point_Mip_Linear:
 						return (Mag ? GL_NEAREST : GL_NEAREST_MIPMAP_LINEAR);
-					case Graphics::PixelFilter_Min_Point_Mag_Linear_Mip_Point:
-					case Graphics::PixelFilter_Compare_Min_Point_Mag_Linear_Mip_Point:
+					case PixelFilter_Min_Point_Mag_Linear_Mip_Point:
+					case PixelFilter_Compare_Min_Point_Mag_Linear_Mip_Point:
 						return (Mag ? GL_LINEAR : GL_NEAREST_MIPMAP_NEAREST);
-					case Graphics::PixelFilter_Min_Point_Mag_Mip_Linear:
-					case Graphics::PixelFilter_Compare_Min_Point_Mag_Mip_Linear:
+					case PixelFilter_Min_Point_Mag_Mip_Linear:
+					case PixelFilter_Compare_Min_Point_Mag_Mip_Linear:
 						return (Mag ? GL_LINEAR : GL_NEAREST_MIPMAP_LINEAR);
-					case Graphics::PixelFilter_Min_Linear_Mag_Mip_Point:
-					case Graphics::PixelFilter_Compare_Min_Linear_Mag_Mip_Point:
+					case PixelFilter_Min_Linear_Mag_Mip_Point:
+					case PixelFilter_Compare_Min_Linear_Mag_Mip_Point:
 						return (Mag ? GL_NEAREST : GL_LINEAR_MIPMAP_NEAREST);
-					case Graphics::PixelFilter_Min_Linear_Mag_Point_Mip_Linear:
-					case Graphics::PixelFilter_Compare_Min_Linear_Mag_Point_Mip_Linear:
+					case PixelFilter_Min_Linear_Mag_Point_Mip_Linear:
+					case PixelFilter_Compare_Min_Linear_Mag_Point_Mip_Linear:
 						return (Mag ? GL_NEAREST : GL_LINEAR_MIPMAP_LINEAR);
-					case Graphics::PixelFilter_Min_Mag_Linear_Mip_Point:
-					case Graphics::PixelFilter_Compare_Min_Mag_Linear_Mip_Point:
+					case PixelFilter_Min_Mag_Linear_Mip_Point:
+					case PixelFilter_Compare_Min_Mag_Linear_Mip_Point:
 						return (Mag ? GL_LINEAR : GL_LINEAR_MIPMAP_NEAREST);
-					case Graphics::PixelFilter_Min_Mag_Mip_Linear:
-					case Graphics::PixelFilter_Compare_Min_Mag_Mip_Linear:
+					case PixelFilter_Min_Mag_Mip_Linear:
+					case PixelFilter_Compare_Min_Mag_Mip_Linear:
 						return (Mag ? GL_LINEAR : GL_LINEAR_MIPMAP_LINEAR);
-					case Graphics::PixelFilter_Anistropic:
-					case Graphics::PixelFilter_Compare_Anistropic:
+					case PixelFilter_Anistropic:
+					case PixelFilter_Compare_Anistropic:
 						return GL_LINEAR;
 				}
 
 				return GL_LINEAR;
 			}
-			GLenum OGLDevice::GetBlendOperation(Graphics::BlendOperation Value)
+			GLenum OGLDevice::GetBlendOperation(BlendOperation Value)
 			{
 				switch (Value)
 				{
-					case Graphics::BlendOperation_Add:
+					case BlendOperation_Add:
 						return GL_FUNC_ADD;
-					case Graphics::BlendOperation_Subtract:
+					case BlendOperation_Subtract:
 						return GL_FUNC_SUBTRACT;
-					case Graphics::BlendOperation_Subtract_Reverse:
+					case BlendOperation_Subtract_Reverse:
 						return GL_FUNC_REVERSE_SUBTRACT;
-					case Graphics::BlendOperation_Min:
+					case BlendOperation_Min:
 						return GL_MIN;
-					case Graphics::BlendOperation_Max:
+					case BlendOperation_Max:
 						return GL_MAX;
 				}
 
 				return GL_FUNC_ADD;
 			}
-			GLenum OGLDevice::GetBlend(Graphics::Blend Value)
+			GLenum OGLDevice::GetBlend(Blend Value)
 			{
 				switch (Value)
 				{
-					case Graphics::Blend_Zero:
+					case Blend_Zero:
 						return GL_ZERO;
-					case Graphics::Blend_One:
+					case Blend_One:
 						return GL_ONE;
-					case Graphics::Blend_Source_Color:
+					case Blend_Source_Color:
 						return GL_SRC_COLOR;
-					case Graphics::Blend_Source_Color_Invert:
+					case Blend_Source_Color_Invert:
 						return GL_ONE_MINUS_SRC_COLOR;
-					case Graphics::Blend_Source_Alpha:
+					case Blend_Source_Alpha:
 						return GL_SRC_ALPHA;
-					case Graphics::Blend_Source_Alpha_Invert:
+					case Blend_Source_Alpha_Invert:
 						return GL_ONE_MINUS_SRC_ALPHA;
-					case Graphics::Blend_Destination_Alpha:
+					case Blend_Destination_Alpha:
 						return GL_DST_ALPHA;
-					case Graphics::Blend_Destination_Alpha_Invert:
+					case Blend_Destination_Alpha_Invert:
 						return GL_ONE_MINUS_DST_ALPHA;
-					case Graphics::Blend_Destination_Color:
+					case Blend_Destination_Color:
 						return GL_DST_COLOR;
-					case Graphics::Blend_Destination_Color_Invert:
+					case Blend_Destination_Color_Invert:
 						return GL_ONE_MINUS_DST_COLOR;
-					case Graphics::Blend_Source_Alpha_SAT:
+					case Blend_Source_Alpha_SAT:
 						return GL_SRC_ALPHA_SATURATE;
-					case Graphics::Blend_Blend_Factor:
+					case Blend_Blend_Factor:
 						return GL_CONSTANT_COLOR;
-					case Graphics::Blend_Blend_Factor_Invert:
+					case Blend_Blend_Factor_Invert:
 						return GL_ONE_MINUS_CONSTANT_ALPHA;
-					case Graphics::Blend_Source1_Color:
+					case Blend_Source1_Color:
 						return GL_SRC1_COLOR;
-					case Graphics::Blend_Source1_Color_Invert:
+					case Blend_Source1_Color_Invert:
 						return GL_ONE_MINUS_SRC1_COLOR;
-					case Graphics::Blend_Source1_Alpha:
+					case Blend_Source1_Alpha:
 						return GL_SRC1_ALPHA;
-					case Graphics::Blend_Source1_Alpha_Invert:
+					case Blend_Source1_Alpha_Invert:
 						return GL_ONE_MINUS_SRC1_ALPHA;
 				}
 
 				return GL_ONE;
 			}
-			GLenum OGLDevice::GetStencilOperation(Graphics::StencilOperation Value)
+			GLenum OGLDevice::GetStencilOperation(StencilOperation Value)
 			{
 				switch (Value)
 				{
-					case Graphics::StencilOperation_Keep:
+					case StencilOperation_Keep:
 						return GL_KEEP;
-					case Graphics::StencilOperation_Zero:
+					case StencilOperation_Zero:
 						return GL_ZERO;
-					case Graphics::StencilOperation_Replace:
+					case StencilOperation_Replace:
 						return GL_REPLACE;
-					case Graphics::StencilOperation_SAT_Add:
+					case StencilOperation_SAT_Add:
 						return GL_INCR_WRAP;
-					case Graphics::StencilOperation_SAT_Subtract:
+					case StencilOperation_SAT_Subtract:
 						return GL_DECR_WRAP;
-					case Graphics::StencilOperation_Invert:
+					case StencilOperation_Invert:
 						return GL_INVERT;
-					case Graphics::StencilOperation_Add:
+					case StencilOperation_Add:
 						return GL_INCR;
-					case Graphics::StencilOperation_Subtract:
+					case StencilOperation_Subtract:
 						return GL_DECR;
 				}
 
 				return GL_KEEP;
 			}
-			GLenum OGLDevice::GetPrimitiveTopology(Graphics::PrimitiveTopology Value)
+			GLenum OGLDevice::GetPrimitiveTopology(PrimitiveTopology Value)
 			{
 				switch (Value)
 				{
-					case Graphics::PrimitiveTopology_Point_List:
+					case PrimitiveTopology_Point_List:
 						return GL_POINT;
-					case Graphics::PrimitiveTopology_Line_List:
-					case Graphics::PrimitiveTopology_Line_Strip:
-					case Graphics::PrimitiveTopology_Line_List_Adj:
-					case Graphics::PrimitiveTopology_Line_Strip_Adj:
+					case PrimitiveTopology_Line_List:
+					case PrimitiveTopology_Line_Strip:
+					case PrimitiveTopology_Line_List_Adj:
+					case PrimitiveTopology_Line_Strip_Adj:
 						return GL_LINE;
-					case Graphics::PrimitiveTopology_Triangle_List:
-					case Graphics::PrimitiveTopology_Triangle_Strip:
-					case Graphics::PrimitiveTopology_Triangle_List_Adj:
-					case Graphics::PrimitiveTopology_Triangle_Strip_Adj:
+					case PrimitiveTopology_Triangle_List:
+					case PrimitiveTopology_Triangle_Strip:
+					case PrimitiveTopology_Triangle_List_Adj:
+					case PrimitiveTopology_Triangle_Strip_Adj:
 						return GL_FILL;
 					default:
 						break;
@@ -1712,27 +1943,27 @@ namespace Tomahawk
 
 				return GL_FILL;
 			}
-			GLenum OGLDevice::GetPrimitiveTopologyDraw(Graphics::PrimitiveTopology Value)
+			GLenum OGLDevice::GetPrimitiveTopologyDraw(PrimitiveTopology Value)
 			{
 				switch (Value)
 				{
-					case Graphics::PrimitiveTopology_Point_List:
+					case PrimitiveTopology_Point_List:
 						return GL_POINTS;
-					case Graphics::PrimitiveTopology_Line_List:
+					case PrimitiveTopology_Line_List:
 						return GL_LINES;
-					case Graphics::PrimitiveTopology_Line_Strip:
+					case PrimitiveTopology_Line_Strip:
 						return GL_LINE_STRIP;
-					case Graphics::PrimitiveTopology_Line_List_Adj:
+					case PrimitiveTopology_Line_List_Adj:
 						return GL_LINES_ADJACENCY;
-					case Graphics::PrimitiveTopology_Line_Strip_Adj:
+					case PrimitiveTopology_Line_Strip_Adj:
 						return GL_LINE_STRIP_ADJACENCY;
-					case Graphics::PrimitiveTopology_Triangle_List:
+					case PrimitiveTopology_Triangle_List:
 						return GL_TRIANGLES;
-					case Graphics::PrimitiveTopology_Triangle_Strip:
+					case PrimitiveTopology_Triangle_Strip:
 						return GL_TRIANGLE_STRIP;
-					case Graphics::PrimitiveTopology_Triangle_List_Adj:
+					case PrimitiveTopology_Triangle_List_Adj:
 						return GL_TRIANGLES_ADJACENCY;
-					case Graphics::PrimitiveTopology_Triangle_Strip_Adj:
+					case PrimitiveTopology_Triangle_Strip_Adj:
 						return GL_TRIANGLE_STRIP_ADJACENCY;
 					default:
 						break;
@@ -1740,51 +1971,47 @@ namespace Tomahawk
 
 				return GL_TRIANGLES;
 			}
-			GLenum OGLDevice::GetResourceBind(Graphics::ResourceBind Value)
+			GLenum OGLDevice::GetResourceBind(ResourceBind Value)
 			{
 				switch (Value)
 				{
-					case Graphics::ResourceBind_Vertex_Buffer:
+					case ResourceBind_Vertex_Buffer:
 						return GL_ARRAY_BUFFER;
-					case Graphics::ResourceBind_Index_Buffer:
+					case ResourceBind_Index_Buffer:
 						return GL_ELEMENT_ARRAY_BUFFER;
-					case Graphics::ResourceBind_Constant_Buffer:
+					case ResourceBind_Constant_Buffer:
 						return GL_UNIFORM_BUFFER;
-					case Graphics::ResourceBind_Shader_Input:
+					case ResourceBind_Shader_Input:
 						return GL_SHADER_STORAGE_BUFFER;
-					case Graphics::ResourceBind_Stream_Output:
+					case ResourceBind_Stream_Output:
 						return GL_TEXTURE_BUFFER;
-					case Graphics::ResourceBind_Render_Target:
+					case ResourceBind_Render_Target:
 						return GL_DRAW_INDIRECT_BUFFER;
-					case Graphics::ResourceBind_Depth_Stencil:
+					case ResourceBind_Depth_Stencil:
 						return GL_DRAW_INDIRECT_BUFFER;
-					case Graphics::ResourceBind_Unordered_Access:
+					case ResourceBind_Unordered_Access:
 						return GL_DISPATCH_INDIRECT_BUFFER;
 				}
 
 				return GL_ARRAY_BUFFER;
 			}
-			GLenum OGLDevice::GetResourceMap(Graphics::ResourceMap Value)
+			GLenum OGLDevice::GetResourceMap(ResourceMap Value)
 			{
 				switch (Value)
 				{
-					case Graphics::ResourceMap_Read:
+					case ResourceMap_Read:
 						return GL_READ_ONLY;
-					case Graphics::ResourceMap_Write:
+					case ResourceMap_Write:
 						return GL_WRITE_ONLY;
-					case Graphics::ResourceMap_Read_Write:
+					case ResourceMap_Read_Write:
 						return GL_READ_WRITE;
-					case Graphics::ResourceMap_Write_Discard:
+					case ResourceMap_Write_Discard:
 						return GL_WRITE_DISCARD_NV;
-					case Graphics::ResourceMap_Write_No_Overwrite:
+					case ResourceMap_Write_No_Overwrite:
 						return GL_WRITE_ONLY;
 				}
 
 				return GL_READ_ONLY;
-			}
-			bool OGLDevice::IsValid()
-			{
-				return BasicEffect != nullptr;
 			}
 			void OGLDevice::DebugMessage(GLenum Source, GLenum Type, GLuint Id, GLenum Severity, GLsizei Length, const GLchar* Message, const void* Data)
 			{

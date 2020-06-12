@@ -1,5 +1,6 @@
 #include "standard/space-sv"
 #include "standard/cook-torrance"
+#include "standard/hemi-ambient"
 
 cbuffer LineLight : register(b3)
 {
@@ -18,7 +19,7 @@ float4 PS(VertexResult V) : SV_TARGET0
 	float3 D = Position;
 	float3 M = GetMetallicFactor(Frag, Mat);
 	float R = GetRoughnessFactor(Frag, Mat);
-	float3 P = normalize(ViewPosition.xyz - Frag.Position);
-
+	float3 P = normalize(ViewPosition - Frag.Position);
+    
 	return float4(Lighting * GetLight(P, D, Frag.Normal, M, R), 1.0f);
 };

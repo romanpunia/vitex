@@ -93,10 +93,10 @@ namespace Tomahawk
 						NMake::Unpack(It->Find("roughness"), &New.Roughness);
 						NMake::Unpack(It->Find("transparency"), &New.Transparency);
 						NMake::Unpack(It->Find("roughness"), &New.Roughness);
+						NMake::Unpack(It->Find("environment"), &New.Environment);
 						NMake::Unpack(It->Find("occlusion"), &New.Occlusion);
 						NMake::Unpack(It->Find("radius"), &New.Radius);
 						NMake::Unpack(It->Find("self"), &New.Self);
-						NMake::Unpack(It->Find("padding"), &New.Padding);
 
 						if (CopyMaterial)
 						{
@@ -154,9 +154,10 @@ namespace Tomahawk
 							for (auto& Element : Elements)
 							{
 								uint64_t ComponentId;
-								NMake::Unpack(Element->Find("id"), &ComponentId);
-								Component* Target = nullptr;
+								if (!NMake::Unpack(Element->Find("id"), &ComponentId))
+									continue;
 
+								Component* Target = nullptr;
 								if (ComponentId == THAWK_COMPONENT_ID(Component))
 									Target = Entity->AddComponent<Engine::Component>();
 								else if (ComponentId == THAWK_COMPONENT_ID(FreeLook))
@@ -272,10 +273,10 @@ namespace Tomahawk
 					NMake::Pack(Material->SetDocument("roughness"), It.Roughness);
 					NMake::Pack(Material->SetDocument("transparency"), It.Transparency);
 					NMake::Pack(Material->SetDocument("roughness"), It.Roughness);
+					NMake::Pack(Material->SetDocument("environment"), It.Environment);
 					NMake::Pack(Material->SetDocument("occlusion"), It.Occlusion);
 					NMake::Pack(Material->SetDocument("radius"), It.Radius);
 					NMake::Pack(Material->SetDocument("self"), It.Self);
-					NMake::Pack(Material->SetDocument("padding"), It.Padding);
 				}
 
 				Rest::Document* Entities = Document->SetArray("entities");
@@ -491,7 +492,7 @@ namespace Tomahawk
 				unsigned char* Binary = (unsigned char*)malloc(sizeof(unsigned char) * Length);
 				if (Stream->Read((char*)Binary, Length) != Length)
 				{
-					THAWK_ERROR("cannot read %llu bytes from audio clip file", Length);
+					THAWK_ERROR("cannot read %llu bytes from texture 2d file", Length);
 					free(Binary);
 					return nullptr;
 				}
@@ -510,7 +511,7 @@ namespace Tomahawk
 				F.Height = (unsigned int)Height;
 				F.RowPitch = (Width * 32 + 7) / 8;
 				F.DepthPitch = F.RowPitch * Height;
-				F.MipLevels = -10;
+				F.MipLevels = Content->GetDevice()->GetMipLevel(F.Width, F.Height);
 
 				Content->GetDevice()->Lock();
 				Graphics::Texture2D* Object = Content->GetDevice()->CreateTexture2D(F);

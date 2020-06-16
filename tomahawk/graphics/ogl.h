@@ -358,6 +358,12 @@ namespace Tomahawk
 				void FetchViewports(unsigned int* Count, Viewport* Out) override;
 				void FetchScissorRects(unsigned int* Count, Rectangle* Out) override;
 				void ResizeBuffers(unsigned int Width, unsigned int Height) override;
+				bool GenerateTexture(Texture2D* Resource) override;
+				bool GenerateTexture(Texture3D* Resource) override;
+				bool GenerateTexture(TextureCube* Resource) override;
+				void GenerateMips(Texture2D* Resource) override;
+				void GenerateMips(Texture3D* Resource) override;
+				void GenerateMips(TextureCube* Resource) override;
 				void DirectBegin() override;
 				void DirectTransform(const Compute::Matrix4x4& Transform) override;
 				void DirectTopology(PrimitiveTopology Topology) override;
@@ -383,8 +389,11 @@ namespace Tomahawk
 				Texture2D* CreateTexture2D() override;
 				Texture2D* CreateTexture2D(const Texture2D::Desc& I) override;
 				Texture3D* CreateTexture3D() override;
+				Texture3D* CreateTexture3D(const Texture3D::Desc& I) override;
 				TextureCube* CreateTextureCube() override;
 				TextureCube* CreateTextureCube(const TextureCube::Desc& I) override;
+				TextureCube* CreateTextureCube(Texture2D* Resource[6]) override;
+				TextureCube* CreateTextureCubeInternal(void* Resources[6]) override;
 				RenderTarget2D* CreateRenderTarget2D(const RenderTarget2D::Desc& I) override;
 				MultiRenderTarget2D* CreateMultiRenderTarget2D(const MultiRenderTarget2D::Desc& I) override;
 				RenderTarget2DArray* CreateRenderTarget2DArray(const RenderTarget2DArray::Desc& I) override;

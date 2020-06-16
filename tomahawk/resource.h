@@ -4,214 +4,200 @@
 
 namespace resource_batch
 {
-	namespace d3d11_deferred_element_system_depth_360_point_hlsl
+	namespace d3d11_geometry_element_system_depth_360_point_hlsl
 	{
-#define HAS_D3D11_DEFERRED_ELEMENT_SYSTEM_DEPTH_360_POINT_HLSL
+#define HAS_D3D11_GEOMETRY_ELEMENT_SYSTEM_DEPTH_360_POINT_HLSL
 		extern const unsigned char data[];
-		const unsigned size = 1754;
+		const unsigned size = 1755;
 	}
 
-	namespace d3d11_deferred_element_system_depth_360_quad_hlsl
+	namespace d3d11_geometry_element_system_depth_360_quad_hlsl
 	{
-#define HAS_D3D11_DEFERRED_ELEMENT_SYSTEM_DEPTH_360_QUAD_HLSL
+#define HAS_D3D11_GEOMETRY_ELEMENT_SYSTEM_DEPTH_360_QUAD_HLSL
 		extern const unsigned char data[];
-		const unsigned size = 2003;
+		const unsigned size = 2004;
 	}
 
-	namespace d3d11_deferred_element_system_depth_hlsl
+	namespace d3d11_geometry_element_system_depth_hlsl
 	{
-#define HAS_D3D11_DEFERRED_ELEMENT_SYSTEM_DEPTH_HLSL
+#define HAS_D3D11_GEOMETRY_ELEMENT_SYSTEM_DEPTH_HLSL
 		extern const unsigned char data[];
-		const unsigned size = 1600;
+		const unsigned size = 1601;
 	}
 
-	namespace d3d11_deferred_element_system_gbuffer_hlsl
+	namespace d3d11_geometry_element_system_gbuffer_hlsl
 	{
-#define HAS_D3D11_DEFERRED_ELEMENT_SYSTEM_GBUFFER_HLSL
+#define HAS_D3D11_GEOMETRY_ELEMENT_SYSTEM_GBUFFER_HLSL
 		extern const unsigned char data[];
-		const unsigned size = 1416;
+		const unsigned size = 1417;
 	}
 
-	namespace d3d11_deferred_model_depth_360_hlsl
+	namespace d3d11_geometry_model_depth_360_hlsl
 	{
-#define HAS_D3D11_DEFERRED_MODEL_DEPTH_360_HLSL
+#define HAS_D3D11_GEOMETRY_MODEL_DEPTH_360_HLSL
 		extern const unsigned char data[];
-		const unsigned size = 1456;
+		const unsigned size = 1457;
 	}
 
-	namespace d3d11_deferred_model_depth_hlsl
+	namespace d3d11_geometry_model_depth_hlsl
 	{
-#define HAS_D3D11_DEFERRED_MODEL_DEPTH_HLSL
+#define HAS_D3D11_GEOMETRY_MODEL_DEPTH_HLSL
 		extern const unsigned char data[];
-		const unsigned size = 623;
+		const unsigned size = 624;
 	}
 
-	namespace d3d11_deferred_model_gbuffer_hlsl
+	namespace d3d11_geometry_model_gbuffer_hlsl
 	{
-#define HAS_D3D11_DEFERRED_MODEL_GBUFFER_HLSL
+#define HAS_D3D11_GEOMETRY_MODEL_GBUFFER_HLSL
 		extern const unsigned char data[];
 		const unsigned size = 842;
 	}
 
-	namespace d3d11_deferred_skin_model_depth_360_hlsl
+	namespace d3d11_geometry_skin_model_depth_360_hlsl
 	{
-#define HAS_D3D11_DEFERRED_SKIN_MODEL_DEPTH_360_HLSL
+#define HAS_D3D11_GEOMETRY_SKIN_MODEL_DEPTH_360_HLSL
 		extern const unsigned char data[];
-		const unsigned size = 1844;
+		const unsigned size = 1845;
 	}
 
-	namespace d3d11_deferred_skin_model_depth_hlsl
+	namespace d3d11_geometry_skin_model_depth_hlsl
 	{
-#define HAS_D3D11_DEFERRED_SKIN_MODEL_DEPTH_HLSL
+#define HAS_D3D11_GEOMETRY_SKIN_MODEL_DEPTH_HLSL
 		extern const unsigned char data[];
-		const unsigned size = 1001;
+		const unsigned size = 1002;
 	}
 
-	namespace d3d11_deferred_skin_model_gbuffer_hlsl
+	namespace d3d11_geometry_skin_model_gbuffer_hlsl
 	{
-#define HAS_D3D11_DEFERRED_SKIN_MODEL_GBUFFER_HLSL
+#define HAS_D3D11_GEOMETRY_SKIN_MODEL_GBUFFER_HLSL
 		extern const unsigned char data[];
 		const unsigned size = 1509;
 	}
 
-	namespace d3d11_forward_ambient_hlsl
+	namespace d3d11_pass_ambient_hlsl
 	{
-#define HAS_D3D11_FORWARD_AMBIENT_HLSL
+#define HAS_D3D11_PASS_AMBIENT_HLSL
 		extern const unsigned char data[];
-		const unsigned size = 745;
+		const unsigned size = 1593;
 	}
 
-	namespace d3d11_forward_bloom_hlsl
+	namespace d3d11_pass_bloom_hlsl
 	{
-#define HAS_D3D11_FORWARD_BLOOM_HLSL
+#define HAS_D3D11_PASS_BLOOM_HLSL
 		extern const unsigned char data[];
-		const unsigned size = 809;
+		const unsigned size = 726;
 	}
 
-	namespace d3d11_forward_dof_hlsl
+	namespace d3d11_pass_blur_hlsl
 	{
-#define HAS_D3D11_FORWARD_DOF_HLSL
+#define HAS_D3D11_PASS_BLUR_HLSL
 		extern const unsigned char data[];
-		const unsigned size = 2126;
+		const unsigned size = 911;
 	}
 
-	namespace d3d11_forward_glitch_hlsl
+	namespace d3d11_pass_focus_hlsl
 	{
-#define HAS_D3D11_FORWARD_GLITCH_HLSL
+#define HAS_D3D11_PASS_FOCUS_HLSL
 		extern const unsigned char data[];
-		const unsigned size = 980;
+		const unsigned size = 2122;
 	}
 
-	namespace d3d11_forward_gui_hlsl
+	namespace d3d11_pass_glitch_hlsl
 	{
-#define HAS_D3D11_FORWARD_GUI_HLSL
+#define HAS_D3D11_PASS_GLITCH_HLSL
+		extern const unsigned char data[];
+		const unsigned size = 978;
+	}
+
+	namespace d3d11_pass_gloss_hlsl
+	{
+#define HAS_D3D11_PASS_GLOSS_HLSL
+		extern const unsigned char data[];
+		const unsigned size = 987;
+	}
+
+	namespace d3d11_pass_gui_hlsl
+	{
+#define HAS_D3D11_PASS_GUI_HLSL
 		extern const unsigned char data[];
 		const unsigned size = 403;
 	}
 
-	namespace d3d11_forward_line_base_hlsl
+	namespace d3d11_pass_indirect_hlsl
 	{
-#define HAS_D3D11_FORWARD_LINE_BASE_HLSL
+#define HAS_D3D11_PASS_INDIRECT_HLSL
 		extern const unsigned char data[];
-		const unsigned size = 632;
+		const unsigned size = 1818;
 	}
 
-	namespace d3d11_forward_line_shade_hlsl
+	namespace d3d11_pass_light_base_ambient_hlsl
 	{
-#define HAS_D3D11_FORWARD_LINE_SHADE_HLSL
+#define HAS_D3D11_PASS_LIGHT_BASE_AMBIENT_HLSL
 		extern const unsigned char data[];
-		const unsigned size = 1746;
+		const unsigned size = 763;
 	}
 
-	namespace d3d11_forward_point_base_hlsl
+	namespace d3d11_pass_light_base_line_hlsl
 	{
-#define HAS_D3D11_FORWARD_POINT_BASE_HLSL
+#define HAS_D3D11_PASS_LIGHT_BASE_LINE_HLSL
 		extern const unsigned char data[];
-		const unsigned size = 959;
+		const unsigned size = 631;
 	}
 
-	namespace d3d11_forward_point_shade_hlsl
+	namespace d3d11_pass_light_base_point_hlsl
 	{
-#define HAS_D3D11_FORWARD_POINT_SHADE_HLSL
+#define HAS_D3D11_PASS_LIGHT_BASE_POINT_HLSL
+		extern const unsigned char data[];
+		const unsigned size = 960;
+	}
+
+	namespace d3d11_pass_light_base_probe_hlsl
+	{
+#define HAS_D3D11_PASS_LIGHT_BASE_PROBE_HLSL
+		extern const unsigned char data[];
+		const unsigned size = 1529;
+	}
+
+	namespace d3d11_pass_light_base_spot_hlsl
+	{
+#define HAS_D3D11_PASS_LIGHT_BASE_SPOT_HLSL
+		extern const unsigned char data[];
+		const unsigned size = 1344;
+	}
+
+	namespace d3d11_pass_light_shade_line_hlsl
+	{
+#define HAS_D3D11_PASS_LIGHT_SHADE_LINE_HLSL
 		extern const unsigned char data[];
 		const unsigned size = 1742;
 	}
 
-	namespace d3d11_forward_probe_hlsl
+	namespace d3d11_pass_light_shade_point_hlsl
 	{
-#define HAS_D3D11_FORWARD_PROBE_HLSL
+#define HAS_D3D11_PASS_LIGHT_SHADE_POINT_HLSL
 		extern const unsigned char data[];
-		const unsigned size = 1230;
+		const unsigned size = 1743;
 	}
 
-	namespace d3d11_forward_spot_base_hlsl
+	namespace d3d11_pass_light_shade_spot_hlsl
 	{
-#define HAS_D3D11_FORWARD_SPOT_BASE_HLSL
+#define HAS_D3D11_PASS_LIGHT_SHADE_SPOT_HLSL
 		extern const unsigned char data[];
-		const unsigned size = 1346;
+		const unsigned size = 2020;
 	}
 
-	namespace d3d11_forward_spot_shade_hlsl
+	namespace d3d11_pass_reflection_hlsl
 	{
-#define HAS_D3D11_FORWARD_SPOT_SHADE_HLSL
+#define HAS_D3D11_PASS_REFLECTION_HLSL
 		extern const unsigned char data[];
-		const unsigned size = 2021;
+		const unsigned size = 1202;
 	}
 
-	namespace d3d11_forward_ssao_hlsl
+	namespace d3d11_pass_tone_hlsl
 	{
-#define HAS_D3D11_FORWARD_SSAO_HLSL
-		extern const unsigned char data[];
-		const unsigned size = 1460;
-	}
-
-	namespace d3d11_forward_ssio_hlsl
-	{
-#define HAS_D3D11_FORWARD_SSIO_HLSL
-		extern const unsigned char data[];
-		const unsigned size = 1525;
-	}
-
-	namespace d3d11_forward_ssr_hlsl
-	{
-#define HAS_D3D11_FORWARD_SSR_HLSL
-		extern const unsigned char data[];
-		const unsigned size = 1062;
-	}
-
-	namespace d3d11_forward_tone_hlsl
-	{
-#define HAS_D3D11_FORWARD_TONE_HLSL
+#define HAS_D3D11_PASS_TONE_HLSL
 		extern const unsigned char data[];
 		const unsigned size = 1407;
-	}
-
-	namespace d3d11_geometry_deferred_hlsl
-	{
-#define HAS_D3D11_GEOMETRY_DEFERRED_HLSL
-		extern const unsigned char data[];
-		const unsigned size = 459;
-	}
-
-	namespace d3d11_geometry_forward_hlsl
-	{
-#define HAS_D3D11_GEOMETRY_FORWARD_HLSL
-		extern const unsigned char data[];
-		const unsigned size = 1019;
-	}
-
-	namespace d3d11_geometry_minimal_hlsl
-	{
-#define HAS_D3D11_GEOMETRY_MINIMAL_HLSL
-		extern const unsigned char data[];
-		const unsigned size = 171;
-	}
-
-	namespace d3d11_geometry_sv_hlsl
-	{
-#define HAS_D3D11_GEOMETRY_SV_HLSL
-		extern const unsigned char data[];
-		const unsigned size = 2930;
 	}
 
 	namespace d3d11_renderer_buffer_animation_hlsl
@@ -288,14 +274,14 @@ namespace resource_batch
 	{
 #define HAS_D3D11_RENDERER_INPUT_SV_HLSL
 		extern const unsigned char data[];
-		const unsigned size = 233;
+		const unsigned size = 268;
 	}
 
 	namespace d3d11_renderer_material_hlsl
 	{
 #define HAS_D3D11_RENDERER_MATERIAL_HLSL
 		extern const unsigned char data[];
-		const unsigned size = 193;
+		const unsigned size = 197;
 	}
 
 	namespace d3d11_renderer_vertex_hlsl
@@ -337,14 +323,14 @@ namespace resource_batch
 	{
 #define HAS_D3D11_STANDARD_BASIC_HLSL
 		extern const unsigned char data[];
-		const unsigned size = 434;
+		const unsigned size = 436;
 	}
 
 	namespace d3d11_standard_cook_torrance_hlsl
 	{
 #define HAS_D3D11_STANDARD_COOK_TORRANCE_HLSL
 		extern const unsigned char data[];
-		const unsigned size = 1180;
+		const unsigned size = 1177;
 	}
 
 	namespace d3d11_standard_hemi_ambient_hlsl
@@ -365,28 +351,56 @@ namespace resource_batch
 	{
 #define HAS_D3D11_STANDARD_RANDOM_FLOAT_HLSL
 		extern const unsigned char data[];
-		const unsigned size = 527;
+		const unsigned size = 518;
 	}
 
 	namespace d3d11_standard_ray_march_hlsl
 	{
 #define HAS_D3D11_STANDARD_RAY_MARCH_HLSL
 		extern const unsigned char data[];
-		const unsigned size = 770;
+		const unsigned size = 1488;
 	}
 
 	namespace d3d11_standard_space_sv_hlsl
 	{
 #define HAS_D3D11_STANDARD_SPACE_SV_HLSL
 		extern const unsigned char data[];
-		const unsigned size = 224;
+		const unsigned size = 226;
 	}
 
 	namespace d3d11_standard_space_uv_hlsl
 	{
 #define HAS_D3D11_STANDARD_SPACE_UV_HLSL
 		extern const unsigned char data[];
-		const unsigned size = 222;
+		const unsigned size = 224;
+	}
+
+	namespace d3d11_workflow_geometry_hlsl
+	{
+#define HAS_D3D11_WORKFLOW_GEOMETRY_HLSL
+		extern const unsigned char data[];
+		const unsigned size = 462;
+	}
+
+	namespace d3d11_workflow_pass_hlsl
+	{
+#define HAS_D3D11_WORKFLOW_PASS_HLSL
+		extern const unsigned char data[];
+		const unsigned size = 3308;
+	}
+
+	namespace d3d11_workflow_primitive_hlsl
+	{
+#define HAS_D3D11_WORKFLOW_PRIMITIVE_HLSL
+		extern const unsigned char data[];
+		const unsigned size = 171;
+	}
+
+	namespace d3d11_workflow_rasterizer_hlsl
+	{
+#define HAS_D3D11_WORKFLOW_RASTERIZER_HLSL
+		extern const unsigned char data[];
+		const unsigned size = 1017;
 	}
 
 	namespace ogl_deferred_element_system_depth_360_point_glsl

@@ -1,6 +1,5 @@
 #include "renderers.h"
 #include "components.h"
-#include "../resource.h"
 #include <imgui.h>
 #ifdef THAWK_HAS_SDL2
 #include <SDL2/SDL.h>
@@ -1346,48 +1345,14 @@ namespace Tomahawk
 				I.Layout = Graphics::Shader::GetVertexLayout();
 				I.LayoutSize = 5;
 
-				if (System->GetDevice()->GetBackend() == Graphics::RenderBackend_D3D11)
-				{
-#ifdef HAS_D3D11_DEFERRED_MODEL_GBUFFER_HLSL
-					I.Data = GET_RESOURCE_BATCH(d3d11_deferred_model_gbuffer_hlsl);
+				if (System->GetDevice()->GetSection("geometry/model/gbuffer", &I.Data))
 					Shaders.GBuffer = System->CompileShader("MR_GBUFFER", I, 0);
-#else
-					THAWK_ERROR("deferred/model/gbuffer.hlsl was not compiled");
-#endif
-#ifdef HAS_D3D11_DEFERRED_MODEL_DEPTH_HLSL
-					I.Data = GET_RESOURCE_BATCH(d3d11_deferred_model_depth_hlsl);
+
+				if (System->GetDevice()->GetSection("geometry/model/depth", &I.Data))
 					Shaders.Depth90 = System->CompileShader("MR_DEPTH90", I, 0);
-#else
-					THAWK_ERROR("deferred/model/depth.hlsl was not compiled");
-#endif
-#ifdef HAS_D3D11_DEFERRED_MODEL_DEPTH_360_HLSL
-					I.Data = GET_RESOURCE_BATCH(d3d11_deferred_model_depth_360_hlsl);
+
+				if (System->GetDevice()->GetSection("geometry/model/depth-360", &I.Data))
 					Shaders.Depth360 = System->CompileShader("MR_DEPTH360", I, sizeof(Depth360));
-#else
-					THAWK_ERROR("deferred/model/depth-360.hlsl was not compiled");
-#endif
-				}
-				else if (System->GetDevice()->GetBackend() == Graphics::RenderBackend_OGL)
-				{
-#ifdef HAS_OGL_DEFERRED_MODEL_GBUFFER_GLSL
-					I.Data = GET_RESOURCE_BATCH(ogl_deferred_model_gbuffer_glsl);
-					Shaders.GBuffer = System->CompileShader("MR_GBUFFER", I, 0);
-#else
-					THAWK_ERROR("deferred/model/gbuffer.glsl was not compiled");
-#endif
-#ifdef HAS_OGL_DEFERRED_MODEL_DEPTH_GLSL
-					I.Data = GET_RESOURCE_BATCH(ogl_deferred_model_depth_glsl);
-					Shaders.Depth90 = System->CompileShader("MR_DEPTH90", I, 0);
-#else
-					THAWK_ERROR("deferred/model/depth.glsl was not compiled");
-#endif
-#ifdef HAS_OGL_DEFERRED_MODEL_DEPTH_360_GLSL
-					I.Data = GET_RESOURCE_BATCH(ogl_deferred_model_depth_360_glsl);
-					Shaders.Depth360 = System->CompileShader("MR_DEPTH360", I, sizeof(Depth360));
-#else
-					THAWK_ERROR("deferred/model/depth-360.glsl was not compiled");
-#endif
-				}
 			}
 			ModelRenderer::~ModelRenderer()
 			{
@@ -1418,7 +1383,7 @@ namespace Tomahawk
 					if (!Model->Visibility)
 						continue;
 
-					for (auto&& Mesh : Model->Instance->Meshes)
+					for (auto&& Mesh : Model->GetDrawable()->Meshes)
 					{
 						auto Face = Model->GetSurface(Mesh);
 						Appearance::UploadPhase(Device, Face);
@@ -1446,13 +1411,13 @@ namespace Tomahawk
 				for (auto It = Models->Begin(); It != Models->End(); ++It)
 				{
 					Engine::Components::Model* Model = (Engine::Components::Model*)*It;
-					if (!Model->Instance || Model->GetEntity()->Transform->Position.Distance(System->GetScene()->View.RawPosition) >= System->GetScene()->View.ViewDistance + Model->GetEntity()->Transform->Scale.Length())
+					if (!Model->GetDrawable() || Model->GetEntity()->Transform->Position.Distance(System->GetScene()->View.RawPosition) >= System->GetScene()->View.ViewDistance + Model->GetEntity()->Transform->Scale.Length())
 						continue;
 
 					if (Compute::MathCommon::IsClipping(System->GetScene()->View.ViewProjection, Model->GetEntity()->Transform->GetWorld(), 1.5f) != -1)
 						continue;
 
-					for (auto&& Mesh : Model->Instance->Meshes)
+					for (auto&& Mesh : Model->GetDrawable()->Meshes)
 					{
 						auto Face = Model->GetSurface(Mesh);
 						Appearance::UploadPhase(Device, Face);
@@ -1479,13 +1444,13 @@ namespace Tomahawk
 				for (auto It = Models->Begin(); It != Models->End(); ++It)
 				{
 					Engine::Components::Model* Model = (Engine::Components::Model*)*It;
-					if (!Model->Instance || Model->GetEntity()->Transform->Position.Distance(System->GetScene()->View.RawPosition) >= System->GetScene()->View.ViewDistance + Model->GetEntity()->Transform->Scale.Length())
+					if (!Model->GetDrawable() || Model->GetEntity()->Transform->Position.Distance(System->GetScene()->View.RawPosition) >= System->GetScene()->View.ViewDistance + Model->GetEntity()->Transform->Scale.Length())
 						continue;
 
 					if (Compute::MathCommon::IsClipping(System->GetScene()->View.ViewProjection, Model->GetEntity()->Transform->GetWorld(), 1.5f) != -1)
 						continue;
 
-					for (auto&& Mesh : Model->Instance->Meshes)
+					for (auto&& Mesh : Model->GetDrawable()->Meshes)
 					{
 						auto Face = Model->GetSurface(Mesh);
 						Appearance::UploadDepth(Device, Face);
@@ -1515,10 +1480,10 @@ namespace Tomahawk
 				for (auto It = Models->Begin(); It != Models->End(); ++It)
 				{
 					Engine::Components::Model* Model = (Engine::Components::Model*)*It;
-					if (!Model->Instance || Model->GetEntity()->Transform->Position.Distance(System->GetScene()->View.RawPosition) >= System->GetScene()->View.ViewDistance + Model->GetEntity()->Transform->Scale.Length())
+					if (!Model->GetDrawable() || Model->GetEntity()->Transform->Position.Distance(System->GetScene()->View.RawPosition) >= System->GetScene()->View.ViewDistance + Model->GetEntity()->Transform->Scale.Length())
 						continue;
 
-					for (auto&& Mesh : Model->Instance->Meshes)
+					for (auto&& Mesh : Model->GetDrawable()->Meshes)
 					{
 						auto Face = Model->GetSurface(Mesh);
 						Appearance::UploadCubicDepth(Device, Face);
@@ -1545,48 +1510,14 @@ namespace Tomahawk
 				I.Layout = Graphics::Shader::GetSkinVertexLayout();
 				I.LayoutSize = 7;
 
-				if (System->GetDevice()->GetBackend() == Graphics::RenderBackend_D3D11)
-				{
-#ifdef HAS_D3D11_DEFERRED_SKIN_MODEL_GBUFFER_HLSL
-					I.Data = GET_RESOURCE_BATCH(d3d11_deferred_skin_model_gbuffer_hlsl);
+				if (System->GetDevice()->GetSection("geometry/skin-model/gbuffer", &I.Data))
 					Shaders.GBuffer = System->CompileShader("SMR_GBUFFER", I, 0);
-#else
-					THAWK_ERROR("deferred/skin-model/gbuffer.hlsl was not compiled");
-#endif
-#ifdef HAS_D3D11_DEFERRED_SKIN_MODEL_DEPTH_HLSL
-					I.Data = GET_RESOURCE_BATCH(d3d11_deferred_skin_model_depth_hlsl);
+
+				if (System->GetDevice()->GetSection("geometry/skin-model/depth", &I.Data))
 					Shaders.Depth90 = System->CompileShader("SMR_DEPTH90", I, 0);
-#else
-					THAWK_ERROR("deferred/skin-model/depth.hlsl was not compiled");
-#endif
-#ifdef HAS_D3D11_DEFERRED_SKIN_MODEL_DEPTH_360_HLSL
-					I.Data = GET_RESOURCE_BATCH(d3d11_deferred_skin_model_depth_360_hlsl);
+
+				if (System->GetDevice()->GetSection("geometry/skin-model/depth-360", &I.Data))
 					Shaders.Depth360 = System->CompileShader("SMR_DEPTH360", I, sizeof(Depth360));
-#else
-					THAWK_ERROR("deferred/skin-model/depth-360.hlsl was not compiled");
-#endif
-				}
-				else if (System->GetDevice()->GetBackend() == Graphics::RenderBackend_OGL)
-				{
-#ifdef HAS_OGL_DEFERRED_SKIN_MODEL_GBUFFER_GLSL
-					I.Data = GET_RESOURCE_BATCH(ogl_deferred_skin_model_gbuffer_glsl);
-					Shaders.GBuffer = System->CompileShader("SMR_GBUFFER", I, 0);
-#else
-					THAWK_ERROR("deferred/skin-model/gbuffer.glsl was not compiled");
-#endif
-#ifdef HAS_OGL_DEFERRED_SKIN_MODEL_DEPTH_GLSL
-					I.Data = GET_RESOURCE_BATCH(ogl_deferred_skin_model_depth_glsl);
-					Shaders.Depth90 = System->CompileShader("SMR_DEPTH90", I, 0);
-#else
-					THAWK_ERROR("deferred/skin-model/depth.glsl was not compiled");
-#endif
-#ifdef HAS_OGL_DEFERRED_SKIN_MODEL_DEPTH_360_GLSL
-					I.Data = GET_RESOURCE_BATCH(ogl_deferred_skin_model_depth_360_glsl);
-					Shaders.Depth360 = System->CompileShader("SMR_DEPTH360", I, sizeof(Depth360));
-#else
-					THAWK_ERROR("deferred/skin-model/depth-360.glsl was not compiled");
-#endif
-				}
 			}
 			SkinModelRenderer::~SkinModelRenderer()
 			{
@@ -1617,12 +1548,12 @@ namespace Tomahawk
 					if (!SkinModel->Visibility)
 						continue;
 
-					Device->Animation.HasAnimation = !SkinModel->Instance->Joints.empty();
+					Device->Animation.HasAnimation = !SkinModel->GetDrawable()->Joints.empty();
 					if (Device->Animation.HasAnimation > 0)
 						memcpy(Device->Animation.Offsets, SkinModel->Skeleton.Transform, 96 * sizeof(Compute::Matrix4x4));
 
 					Device->UpdateBuffer(Graphics::RenderBufferType_Animation);
-					for (auto&& Mesh : SkinModel->Instance->Meshes)
+					for (auto&& Mesh : SkinModel->GetDrawable()->Meshes)
 					{
 						auto Face = SkinModel->GetSurface(Mesh);
 						Appearance::UploadPhase(Device, Face);
@@ -1650,18 +1581,18 @@ namespace Tomahawk
 				for (auto It = SkinModels->Begin(); It != SkinModels->End(); ++It)
 				{
 					Engine::Components::SkinModel* SkinModel = (Engine::Components::SkinModel*)*It;
-					if (!SkinModel->Instance || SkinModel->GetEntity()->Transform->Position.Distance(System->GetScene()->View.RawPosition) >= System->GetScene()->View.ViewDistance + SkinModel->GetEntity()->Transform->Scale.Length())
+					if (!SkinModel->GetDrawable() || SkinModel->GetEntity()->Transform->Position.Distance(System->GetScene()->View.RawPosition) >= System->GetScene()->View.ViewDistance + SkinModel->GetEntity()->Transform->Scale.Length())
 						continue;
 
 					if (Compute::MathCommon::IsClipping(System->GetScene()->View.ViewProjection, SkinModel->GetEntity()->Transform->GetWorld(), 1.5f) != -1)
 						continue;
 
-					Device->Animation.HasAnimation = !SkinModel->Instance->Joints.empty();
+					Device->Animation.HasAnimation = !SkinModel->GetDrawable()->Joints.empty();
 					if (Device->Animation.HasAnimation > 0)
 						memcpy(Device->Animation.Offsets, SkinModel->Skeleton.Transform, 96 * sizeof(Compute::Matrix4x4));
 
 					Device->UpdateBuffer(Graphics::RenderBufferType_Animation);
-					for (auto&& Mesh : SkinModel->Instance->Meshes)
+					for (auto&& Mesh : SkinModel->GetDrawable()->Meshes)
 					{
 						auto Face = SkinModel->GetSurface(Mesh);
 						Appearance::UploadPhase(Device, Face);
@@ -1688,18 +1619,18 @@ namespace Tomahawk
 				for (auto It = SkinModels->Begin(); It != SkinModels->End(); ++It)
 				{
 					Engine::Components::SkinModel* SkinModel = (Engine::Components::SkinModel*)*It;
-					if (!SkinModel->Instance || SkinModel->GetEntity()->Transform->Position.Distance(System->GetScene()->View.RawPosition) >= System->GetScene()->View.ViewDistance + SkinModel->GetEntity()->Transform->Scale.Length())
+					if (!SkinModel->GetDrawable() || SkinModel->GetEntity()->Transform->Position.Distance(System->GetScene()->View.RawPosition) >= System->GetScene()->View.ViewDistance + SkinModel->GetEntity()->Transform->Scale.Length())
 						continue;
 
 					if (Compute::MathCommon::IsClipping(System->GetScene()->View.ViewProjection, SkinModel->GetEntity()->Transform->GetWorld(), 1.5f) != -1)
 						continue;
 
-					Device->Animation.HasAnimation = !SkinModel->Instance->Joints.empty();
+					Device->Animation.HasAnimation = !SkinModel->GetDrawable()->Joints.empty();
 					if (Device->Animation.HasAnimation > 0)
 						memcpy(Device->Animation.Offsets, SkinModel->Skeleton.Transform, 96 * sizeof(Compute::Matrix4x4));
 
 					Device->UpdateBuffer(Graphics::RenderBufferType_Animation);
-					for (auto&& Mesh : SkinModel->Instance->Meshes)
+					for (auto&& Mesh : SkinModel->GetDrawable()->Meshes)
 					{
 						auto Face = SkinModel->GetSurface(Mesh);
 						Appearance::UploadDepth(Device, Face);
@@ -1729,15 +1660,15 @@ namespace Tomahawk
 				for (auto It = SkinModels->Begin(); It != SkinModels->End(); ++It)
 				{
 					Engine::Components::SkinModel* SkinModel = (Engine::Components::SkinModel*)*It;
-					if (!SkinModel->Instance || SkinModel->GetEntity()->Transform->Position.Distance(System->GetScene()->View.RawPosition) >= System->GetScene()->View.ViewDistance + SkinModel->GetEntity()->Transform->Scale.Length())
+					if (!SkinModel->GetDrawable() || SkinModel->GetEntity()->Transform->Position.Distance(System->GetScene()->View.RawPosition) >= System->GetScene()->View.ViewDistance + SkinModel->GetEntity()->Transform->Scale.Length())
 						continue;
 
-					Device->Animation.HasAnimation = !SkinModel->Instance->Joints.empty();
+					Device->Animation.HasAnimation = !SkinModel->GetDrawable()->Joints.empty();
 					if (Device->Animation.HasAnimation > 0)
 						memcpy(Device->Animation.Offsets, SkinModel->Skeleton.Transform, 96 * sizeof(Compute::Matrix4x4));
 
 					Device->UpdateBuffer(Graphics::RenderBufferType_Animation);
-					for (auto&& Mesh : SkinModel->Instance->Meshes)
+					for (auto&& Mesh : SkinModel->GetDrawable()->Meshes)
 					{
 						auto Face = SkinModel->GetSurface(Mesh);
 						Appearance::UploadCubicDepth(Device, Face);
@@ -1778,54 +1709,20 @@ namespace Tomahawk
 				F.ElementCount = 49152;
 				F.UseSubresource = false;
 
-				 IndexBuffer = Lab->GetDevice()->CreateElementBuffer(F);
+				IndexBuffer = Lab->GetDevice()->CreateElementBuffer(F);
 
 				Graphics::Shader::Desc I = Graphics::Shader::Desc();
 				I.Layout = Graphics::Shader::GetVertexLayout();
 				I.LayoutSize = 5;
 
-				if (System->GetDevice()->GetBackend() == Graphics::RenderBackend_D3D11)
-				{
-#ifdef HAS_D3D11_DEFERRED_MODEL_GBUFFER_HLSL
-					I.Data = GET_RESOURCE_BATCH(d3d11_deferred_model_gbuffer_hlsl);
+				if (System->GetDevice()->GetSection("geometry/model/gbuffer", &I.Data))
 					Shaders.GBuffer = System->CompileShader("MR_GBUFFER", I, 0);
-#else
-					THAWK_ERROR("deferred/model/gbuffer.hlsl was not compiled");
-#endif
-#ifdef HAS_D3D11_DEFERRED_MODEL_DEPTH_HLSL
-					I.Data = GET_RESOURCE_BATCH(d3d11_deferred_model_depth_hlsl);
+
+				if (System->GetDevice()->GetSection("geometry/model/depth", &I.Data))
 					Shaders.Depth90 = System->CompileShader("MR_DEPTH90", I, 0);
-#else
-					THAWK_ERROR("deferred/model/depth.hlsl was not compiled");
-#endif
-#ifdef HAS_D3D11_DEFERRED_MODEL_DEPTH_360_HLSL
-					I.Data = GET_RESOURCE_BATCH(d3d11_deferred_model_depth_360_hlsl);
+
+				if (System->GetDevice()->GetSection("geometry/model/depth-360", &I.Data))
 					Shaders.Depth360 = System->CompileShader("MR_DEPTH360", I, sizeof(Depth360));
-#else
-					THAWK_ERROR("deferred/model/depth-360.hlsl was not compiled");
-#endif
-				}
-				else if (System->GetDevice()->GetBackend() == Graphics::RenderBackend_OGL)
-				{
-#ifdef HAS_OGL_DEFERRED_MODEL_GBUFFER_GLSL
-					I.Data = GET_RESOURCE_BATCH(ogl_deferred_model_gbuffer_glsl);
-					Shaders.GBuffer = System->CompileShader("MR_GBUFFER", I, 0);
-#else
-					THAWK_ERROR("deferred/model/gbuffer.glsl was not compiled");
-#endif
-#ifdef HAS_OGL_DEFERRED_MODEL_DEPTH_GLSL
-					I.Data = GET_RESOURCE_BATCH(ogl_deferred_model_depth_glsl);
-					Shaders.Depth90 = System->CompileShader("MR_DEPTH90", I, 0);
-#else
-					THAWK_ERROR("deferred/model/depth.glsl was not compiled");
-#endif
-#ifdef HAS_OGL_DEFERRED_MODEL_DEPTH_360_GLSL
-					I.Data = GET_RESOURCE_BATCH(ogl_deferred_model_depth_360_glsl);
-					Shaders.Depth360 = System->CompileShader("MR_DEPTH360", I, sizeof(Depth360));
-#else
-					THAWK_ERROR("deferred/model/depth-360.glsl was not compiled");
-#endif
-				}
 			}
 			SoftBodyRenderer::~SoftBodyRenderer()
 			{
@@ -1855,7 +1752,7 @@ namespace Tomahawk
 				for (auto It = SoftBodies->Begin(); It != SoftBodies->End(); ++It)
 				{
 					Engine::Components::SoftBody* SoftBody = (Engine::Components::SoftBody*)*It;
-					if (!SoftBody->Visibility || SoftBody->Indices.empty())
+					if (!SoftBody->Visibility || SoftBody->GetIndices().empty())
 						continue;
 
 					Appearance::UploadPhase(Device, &SoftBody->Surface);
@@ -1866,7 +1763,7 @@ namespace Tomahawk
 					Device->UpdateBuffer(Graphics::RenderBufferType_Render);
 					Device->SetVertexBuffer(VertexBuffer, 0, sizeof(Compute::Vertex), 0);
 					Device->SetIndexBuffer(IndexBuffer, Graphics::Format_R32_Uint, 0);
-					Device->DrawIndexed((unsigned int)SoftBody->Indices.size(), 0, 0);
+					Device->DrawIndexed((unsigned int)SoftBody->GetIndices().size(), 0, 0);
 				}
 			}
 			void SoftBodyRenderer::OnPhaseRender(Rest::Timer* Time)
@@ -1885,7 +1782,7 @@ namespace Tomahawk
 				for (auto It = SoftBodies->Begin(); It != SoftBodies->End(); ++It)
 				{
 					Engine::Components::SoftBody* SoftBody = (Engine::Components::SoftBody*)*It;
-					if (!SoftBody->Visibility || SoftBody->Indices.empty())
+					if (!SoftBody->Visibility || SoftBody->GetIndices().empty())
 						continue;
 
 					if (SoftBody->GetEntity()->Transform->Position.Distance(System->GetScene()->View.RawPosition) >= System->GetScene()->View.ViewDistance + SoftBody->GetEntity()->Transform->Scale.Length())
@@ -1902,7 +1799,7 @@ namespace Tomahawk
 					Device->UpdateBuffer(Graphics::RenderBufferType_Render);
 					Device->SetVertexBuffer(VertexBuffer, 0, sizeof(Compute::Vertex), 0);
 					Device->SetIndexBuffer(IndexBuffer, Graphics::Format_R32_Uint, 0);
-					Device->DrawIndexed((unsigned int)SoftBody->Indices.size(), 0, 0);
+					Device->DrawIndexed((unsigned int)SoftBody->GetIndices().size(), 0, 0);
 				}
 			}
 			void SoftBodyRenderer::OnDepthRender(Rest::Timer* Time)
@@ -1920,7 +1817,7 @@ namespace Tomahawk
 				for (auto It = SoftBodies->Begin(); It != SoftBodies->End(); ++It)
 				{
 					Engine::Components::SoftBody* SoftBody = (Engine::Components::SoftBody*)*It;
-					if (!SoftBody->Visibility || SoftBody->Indices.empty())
+					if (!SoftBody->Visibility || SoftBody->GetIndices().empty())
 						continue;
 
 					if (SoftBody->GetEntity()->Transform->Position.Distance(System->GetScene()->View.RawPosition) >= System->GetScene()->View.ViewDistance + SoftBody->GetEntity()->Transform->Scale.Length())
@@ -1937,7 +1834,7 @@ namespace Tomahawk
 					Device->UpdateBuffer(Graphics::RenderBufferType_Render);
 					Device->SetVertexBuffer(VertexBuffer, 0, sizeof(Compute::Vertex), 0);
 					Device->SetIndexBuffer(IndexBuffer, Graphics::Format_R32_Uint, 0);
-					Device->DrawIndexed((unsigned int)SoftBody->Indices.size(), 0, 0);
+					Device->DrawIndexed((unsigned int)SoftBody->GetIndices().size(), 0, 0);
 				}
 			}
 			void SoftBodyRenderer::OnCubicDepthRender(Rest::Timer* Time, Compute::Matrix4x4* ViewProjection)
@@ -1958,7 +1855,7 @@ namespace Tomahawk
 				for (auto It = SoftBodies->Begin(); It != SoftBodies->End(); ++It)
 				{
 					Engine::Components::SoftBody* SoftBody = (Engine::Components::SoftBody*)*It;
-					if (!SoftBody->Instance || SoftBody->GetEntity()->Transform->Position.Distance(System->GetScene()->View.RawPosition) >= System->GetScene()->View.ViewDistance + SoftBody->GetEntity()->Transform->Scale.Length())
+					if (!SoftBody->GetBody() || SoftBody->GetEntity()->Transform->Position.Distance(System->GetScene()->View.RawPosition) >= System->GetScene()->View.ViewDistance + SoftBody->GetEntity()->Transform->Scale.Length())
 						continue;
 
 					Appearance::UploadCubicDepth(Device, &SoftBody->Surface);
@@ -1968,7 +1865,7 @@ namespace Tomahawk
 					Device->UpdateBuffer(Graphics::RenderBufferType_Render);
 					Device->SetVertexBuffer(VertexBuffer, 0, sizeof(Compute::Vertex), 0);
 					Device->SetIndexBuffer(IndexBuffer, Graphics::Format_R32_Uint, 0);
-					Device->DrawIndexed((unsigned int)SoftBody->Indices.size(), 0, 0);
+					Device->DrawIndexed((unsigned int)SoftBody->GetIndices().size(), 0, 0);
 				}
 
 				Device->SetShader(nullptr, Graphics::ShaderType_Geometry);
@@ -1988,67 +1885,24 @@ namespace Tomahawk
 				I.Layout = nullptr;
 				I.LayoutSize = 0;
 
-				if (System->GetDevice()->GetBackend() == Graphics::RenderBackend_D3D11)
-				{
-#ifdef HAS_D3D11_DEFERRED_ELEMENT_SYSTEM_GBUFFER_HLSL
-					I.Data = GET_RESOURCE_BATCH(d3d11_deferred_element_system_gbuffer_hlsl);
+				if (System->GetDevice()->GetSection("geometry/element-system/gbuffer", &I.Data))
 					Shaders.GBuffer = System->CompileShader("ESR_GBUFFER", I, 0);
-#else
-					THAWK_ERROR("deferred/element-system/gbuffer.hlsl was not compiled");
-#endif
-#ifdef HAS_D3D11_DEFERRED_ELEMENT_SYSTEM_DEPTH_HLSL
-					I.Data = GET_RESOURCE_BATCH(d3d11_deferred_element_system_depth_hlsl);
+
+				if (System->GetDevice()->GetSection("geometry/element-system/depth", &I.Data))
 					Shaders.Depth90 = System->CompileShader("ESR_DEPTH90", I, 0);
-#else
-					THAWK_ERROR("deferred/element-system/depth.hlsl was not compiled");
-#endif
-#ifdef HAS_D3D11_DEFERRED_ELEMENT_SYSTEM_DEPTH_360_POINT_HLSL
-					I.Data = GET_RESOURCE_BATCH(d3d11_deferred_element_system_depth_360_point_hlsl);
+
+				if (System->GetDevice()->GetSection("geometry/element-system/depth-360-point", &I.Data))
 					Shaders.Depth360P = System->CompileShader("ESR_DEPTH360P", I, 0);
-#else
-					THAWK_ERROR("deferred/element-system/depth-360-point.hlsl was not compiled");
-#endif
-#ifdef HAS_D3D11_DEFERRED_ELEMENT_SYSTEM_DEPTH_360_QUAD_HLSL
-					I.Data = GET_RESOURCE_BATCH(d3d11_deferred_element_system_depth_360_quad_hlsl);
+
+				if (System->GetDevice()->GetSection("geometry/element-system/depth-360-quad", &I.Data))
 					Shaders.Depth360Q = System->CompileShader("ESR_DEPTH360Q", I, sizeof(Depth360));
-#else
-					THAWK_ERROR("deferred/element-system/-depth-360-quad.hlsl was not compiled");
-#endif
-				}
-				else if (System->GetDevice()->GetBackend() == Graphics::RenderBackend_OGL)
-				{
-#ifdef HAS_OGL_DEFERRED_ELEMENT_SYSTEM_GBUFFER_GLSL
-					I.Data = GET_RESOURCE_BATCH(ogl_deferred_element_system_gbuffer_glsl);
-					Shaders.GBuffer = System->CompileShader("ESR_GBUFFER", I, 0);
-#else
-					THAWK_ERROR("deferred/element-system/-gbuffer.glsl was not compiled");
-#endif
-#ifdef HAS_OGL_DEFERRED_ELEMENT_SYSTEM_DEPTH_GLSL
-					I.Data = GET_RESOURCE_BATCH(ogl_deferred_element_system_depth_glsl);
-					Shaders.Depth90 = System->CompileShader("ESR_DEPTH90", I, 0);
-#else
-					THAWK_ERROR("deferred/element-system/-depth.glsl was not compiled");
-#endif
-#ifdef HAS_OGL_DEFERRED_ELEMENT_SYSTEM_DEPTH_360_POINT_GLSL
-					I.Data = GET_RESOURCE_BATCH(ogl_deferred_element_system_depth_360_point_glsl);
-					Shaders.Depth360P = System->CompileShader("ESR_DEPTH360P", I, 0);
-#else
-					THAWK_ERROR("deferred/element-system/-depth-360-point.glsl was not compiled");
-#endif
-#ifdef HAS_OGL_DEFERRED_ELEMENT_SYSTEM_DEPTH_360_QUAD_GLSL
-					I.Data = GET_RESOURCE_BATCH(ogl_deferred_element_system_depth_360_quad_glsl);
-					Shaders.Depth360Q = System->CompileShader("ESR_DEPTH360Q", I, sizeof(Depth360));
-#else
-					THAWK_ERROR("deferred/element-system/-depth-360-quad.glsl was not compiled");
-#endif
-				}
 			}
 			ElementSystemRenderer::~ElementSystemRenderer()
 			{
 				System->FreeShader("ESR_GBUFFER", Shaders.GBuffer);
 				System->FreeShader("ESR_DEPTH90", Shaders.Depth90);
-				System->FreeShader("ESR_DEPTH360Q", Shaders.Depth360Q);
 				System->FreeShader("ESR_DEPTH360P", Shaders.Depth360P);
+				System->FreeShader("ESR_DEPTH360Q", Shaders.Depth360Q);
 			}
 			void ElementSystemRenderer::OnInitialize()
 			{
@@ -2074,7 +1928,7 @@ namespace Tomahawk
 				for (auto It = ElementSystems->Begin(); It != ElementSystems->End(); ++It)
 				{
 					Engine::Components::ElementSystem* ElementSystem = (Engine::Components::ElementSystem*)*It;
-					if (!ElementSystem->Instance || !ElementSystem->Visibility)
+					if (!ElementSystem->GetBuffer() || !ElementSystem->Visibility)
 						continue;
 
 					Appearance::UploadPhase(Device, &ElementSystem->Surface);
@@ -2084,11 +1938,11 @@ namespace Tomahawk
 					if (ElementSystem->Connected)
 						Device->Render.WorldViewProjection = ElementSystem->GetEntity()->Transform->GetWorld() * Device->Render.WorldViewProjection;
 
-					Device->UpdateBuffer(ElementSystem->Instance);
-					Device->SetBuffer(ElementSystem->Instance, 7);
+					Device->UpdateBuffer(ElementSystem->GetBuffer());
+					Device->SetBuffer(ElementSystem->GetBuffer(), 7);
 					Device->SetShader(ElementSystem->QuadBased ? Shaders.GBuffer : nullptr, Graphics::ShaderType_Geometry);
 					Device->UpdateBuffer(Graphics::RenderBufferType_Render);
-					Device->Draw((unsigned int)ElementSystem->Instance->GetArray()->Size(), 0);
+					Device->Draw((unsigned int)ElementSystem->GetBuffer()->GetArray()->Size(), 0);
 				}
 
 				Device->SetPrimitiveTopology(T);
@@ -2114,7 +1968,7 @@ namespace Tomahawk
 				for (auto It = ElementSystems->Begin(); It != ElementSystems->End(); ++It)
 				{
 					Engine::Components::ElementSystem* ElementSystem = (Engine::Components::ElementSystem*)*It;
-					if (!ElementSystem->Instance || ElementSystem->GetEntity()->Transform->Position.Distance(System->GetScene()->View.RawPosition) >= System->GetScene()->View.ViewDistance + ElementSystem->GetEntity()->Transform->Scale.Length())
+					if (!ElementSystem->GetBuffer() || ElementSystem->GetEntity()->Transform->Position.Distance(System->GetScene()->View.RawPosition) >= System->GetScene()->View.ViewDistance + ElementSystem->GetEntity()->Transform->Scale.Length())
 						continue;
 
 					if (Compute::MathCommon::IsClipping(System->GetScene()->View.ViewProjection, ElementSystem->GetEntity()->Transform->GetWorld(), 1.5f) != -1)
@@ -2127,11 +1981,11 @@ namespace Tomahawk
 					if (ElementSystem->Connected)
 						Device->Render.WorldViewProjection = ElementSystem->GetEntity()->Transform->GetWorld() * Device->Render.WorldViewProjection;
 
-					Device->UpdateBuffer(ElementSystem->Instance);
-					Device->SetBuffer(ElementSystem->Instance, 7);
+					Device->UpdateBuffer(ElementSystem->GetBuffer());
+					Device->SetBuffer(ElementSystem->GetBuffer(), 7);
 					Device->SetShader(ElementSystem->QuadBased ? Shaders.GBuffer : nullptr, Graphics::ShaderType_Geometry);
 					Device->UpdateBuffer(Graphics::RenderBufferType_Render);
-					Device->Draw((unsigned int)ElementSystem->Instance->GetArray()->Size(), 0);
+					Device->Draw((unsigned int)ElementSystem->GetBuffer()->GetArray()->Size(), 0);
 				}
 
 				Device->SetPrimitiveTopology(T);
@@ -2157,7 +2011,7 @@ namespace Tomahawk
 				for (auto It = ElementSystems->Begin(); It != ElementSystems->End(); ++It)
 				{
 					Engine::Components::ElementSystem* ElementSystem = (Engine::Components::ElementSystem*)*It;
-					if (!ElementSystem->Instance || ElementSystem->GetEntity()->Transform->Position.Distance(System->GetScene()->View.RawPosition) >= System->GetScene()->View.ViewDistance + ElementSystem->GetEntity()->Transform->Scale.Length())
+					if (!ElementSystem->GetBuffer() || ElementSystem->GetEntity()->Transform->Position.Distance(System->GetScene()->View.RawPosition) >= System->GetScene()->View.ViewDistance + ElementSystem->GetEntity()->Transform->Scale.Length())
 						continue;
 
 					if (Compute::MathCommon::IsClipping(System->GetScene()->View.ViewProjection, ElementSystem->GetEntity()->Transform->GetWorld(), 1.5f) != -1)
@@ -2170,11 +2024,11 @@ namespace Tomahawk
 					if (ElementSystem->Connected)
 						Device->Render.WorldViewProjection = ElementSystem->GetEntity()->Transform->GetWorld() * Device->Render.WorldViewProjection;
 
-					Device->UpdateBuffer(ElementSystem->Instance);
-					Device->SetBuffer(ElementSystem->Instance, 7);
+					Device->UpdateBuffer(ElementSystem->GetBuffer());
+					Device->SetBuffer(ElementSystem->GetBuffer(), 7);
 					Device->SetShader(ElementSystem->QuadBased ? Shaders.Depth90 : nullptr, Graphics::ShaderType_Geometry);
 					Device->UpdateBuffer(Graphics::RenderBufferType_Render);
-					Device->Draw((unsigned int)ElementSystem->Instance->GetArray()->Size(), 0);
+					Device->Draw((unsigned int)ElementSystem->GetBuffer()->GetArray()->Size(), 0);
 				}
 
 				Device->SetPrimitiveTopology(T);
@@ -2207,16 +2061,16 @@ namespace Tomahawk
 				for (auto It = ElementSystems->Begin(); It != ElementSystems->End(); ++It)
 				{
 					Engine::Components::ElementSystem* ElementSystem = (Engine::Components::ElementSystem*)*It;
-					if (!ElementSystem->Instance || ElementSystem->GetEntity()->Transform->Position.Distance(System->GetScene()->View.RawPosition) >= System->GetScene()->View.ViewDistance + ElementSystem->GetEntity()->Transform->Scale.Length())
+					if (!ElementSystem->GetBuffer() || ElementSystem->GetEntity()->Transform->Position.Distance(System->GetScene()->View.RawPosition) >= System->GetScene()->View.ViewDistance + ElementSystem->GetEntity()->Transform->Scale.Length())
 						continue;
 
 					Appearance::UploadCubicDepth(Device, &ElementSystem->Surface);
 					Device->Render.World = (ElementSystem->Connected ? ElementSystem->GetEntity()->Transform->GetWorld() : Compute::Matrix4x4::Identity());			
-					Device->UpdateBuffer(ElementSystem->Instance);
-					Device->SetBuffer(ElementSystem->Instance, 7);
+					Device->UpdateBuffer(ElementSystem->GetBuffer());
+					Device->SetBuffer(ElementSystem->GetBuffer(), 7);
 					Device->SetShader(ElementSystem->QuadBased ? Shaders.Depth360Q : Shaders.Depth360P, Graphics::ShaderType_Vertex | Graphics::ShaderType_Pixel | Graphics::ShaderType_Geometry);
 					Device->UpdateBuffer(Graphics::RenderBufferType_Render);
-					Device->Draw((unsigned int)ElementSystem->Instance->GetArray()->Size(), 0);
+					Device->Draw((unsigned int)ElementSystem->GetBuffer()->GetArray()->Size(), 0);
 				}
 
 				Device->SetPrimitiveTopology(T);
@@ -2244,15 +2098,15 @@ namespace Tomahawk
 
 				Rest::Pool<Component*>* Lights = System->GetScene()->GetComponents<Components::PointLight>();
 				for (auto It = Lights->Begin(); It != Lights->End(); It++)
-					(*It)->As<Components::PointLight>()->Occlusion = nullptr;
+					(*It)->As<Components::PointLight>()->SetShadowCache(nullptr);
 
 				Lights = System->GetScene()->GetComponents<Components::SpotLight>();
 				for (auto It = Lights->Begin(); It != Lights->End(); It++)
-					(*It)->As<Components::SpotLight>()->Occlusion = nullptr;
+					(*It)->As<Components::SpotLight>()->SetShadowCache(nullptr);
 
 				Lights = System->GetScene()->GetComponents<Components::LineLight>();
 				for (auto It = Lights->Begin(); It != Lights->End(); It++)
-					(*It)->As<Components::LineLight>()->Occlusion = nullptr;
+					(*It)->As<Components::LineLight>()->SetShadowCache(nullptr);
 			}
 			void DepthRenderer::OnLoad(ContentManager* Content, Rest::Document* Node)
 			{
@@ -2282,7 +2136,7 @@ namespace Tomahawk
 
 				Rest::Pool<Engine::Component*>* Lights = System->GetScene()->GetComponents<Engine::Components::PointLight>();
 				for (auto It = Lights->Begin(); It != Lights->End(); It++)
-					(*It)->As<Engine::Components::PointLight>()->Occlusion = nullptr;
+					(*It)->As<Engine::Components::PointLight>()->SetShadowCache(nullptr);
 
 				for (auto It = Renderers.PointLight.begin(); It != Renderers.PointLight.end(); It++)
 					delete *It;
@@ -2299,7 +2153,7 @@ namespace Tomahawk
 
 				Lights = System->GetScene()->GetComponents<Engine::Components::SpotLight>();
 				for (auto It = Lights->Begin(); It != Lights->End(); It++)
-					(*It)->As<Engine::Components::SpotLight>()->Occlusion = nullptr;
+					(*It)->As<Engine::Components::SpotLight>()->SetShadowCache(nullptr);
 
 				for (auto It = Renderers.SpotLight.begin(); It != Renderers.SpotLight.end(); It++)
 					delete *It;
@@ -2317,7 +2171,7 @@ namespace Tomahawk
 
 				Lights = System->GetScene()->GetComponents<Engine::Components::LineLight>();
 				for (auto It = Lights->Begin(); It != Lights->End(); It++)
-					(*It)->As<Engine::Components::LineLight>()->Occlusion = nullptr;
+					(*It)->As<Engine::Components::LineLight>()->SetShadowCache(nullptr);
 
 				for (auto It = Renderers.LineLight.begin(); It != Renderers.LineLight.end(); It++)
 					delete *It;
@@ -2344,7 +2198,7 @@ namespace Tomahawk
 					if (Shadows >= Renderers.PointLight.size())
 						break;
 
-					Light->Occlusion = nullptr;
+					Light->SetShadowCache(nullptr);
 					if (!Light->Shadowed || Light->Visibility < ShadowDistance)
 						continue;
 
@@ -2353,7 +2207,7 @@ namespace Tomahawk
 					Device->ClearDepth(Target);
 
 					RenderCubicDepth(Time, Light->Projection, Light->GetEntity()->Transform->Position.MtVector4().SetW(Light->ShadowDistance));
-					Light->Occlusion = Target->GetTarget(); Shadows++;
+					Light->SetShadowCache(Target->GetTarget()); Shadows++;
 				}
 
 				Shadows = 0;
@@ -2363,7 +2217,7 @@ namespace Tomahawk
 					if (Shadows >= Renderers.SpotLight.size())
 						break;
 
-					Light->Occlusion = nullptr;
+					Light->SetShadowCache(nullptr);
 					if (!Light->Shadowed || Light->Visibility < ShadowDistance)
 						continue;
 
@@ -2372,7 +2226,7 @@ namespace Tomahawk
 					Device->ClearDepth(Target);
 
 					RenderDepth(Time, Light->View, Light->Projection, Light->GetEntity()->Transform->Position.MtVector4().SetW(Light->ShadowDistance));
-					Light->Occlusion = Target->GetTarget(); Shadows++;
+					Light->SetShadowCache(Target->GetTarget()); Shadows++;
 				}
 
 				Shadows = 0;
@@ -2382,7 +2236,7 @@ namespace Tomahawk
 					if (Shadows >= Renderers.LineLight.size())
 						break;
 
-					Light->Occlusion = nullptr;
+					Light->SetShadowCache(nullptr);
 					if (!Light->Shadowed)
 						continue;
 
@@ -2391,7 +2245,7 @@ namespace Tomahawk
 					Device->ClearDepth(Target);
 
 					RenderDepth(Time, Light->View, Light->Projection, Compute::Vector4(0, 0, 0, -1));
-					Light->Occlusion = Target->GetTarget(); Shadows++;
+					Light->SetShadowCache(Target->GetTarget()); Shadows++;
 				}
 
 				System->GetScene()->RestoreViewBuffer(nullptr);
@@ -2418,17 +2272,7 @@ namespace Tomahawk
 			void ProbeRenderer::OnInitialize()
 			{
 				CreateRenderTarget();
-
 				ProbeLights = System->GetScene()->GetComponents<Engine::Components::ProbeLight>();
-				for (auto It = ProbeLights->Begin(); It != ProbeLights->End(); It++)
-				{
-					Engine::Components::ProbeLight* Light = (Engine::Components::ProbeLight*)*It;
-					if (Light->DiffuseMap != nullptr || !Light->ImageBased)
-					{
-						delete Light->DiffuseMap;
-						Light->DiffuseMap = nullptr;
-					}
-				}
 			}
 			void ProbeRenderer::OnRender(Rest::Timer* Time)
 			{
@@ -2440,14 +2284,17 @@ namespace Tomahawk
 				for (auto It = ProbeLights->Begin(); It != ProbeLights->End(); It++)
 				{
 					Engine::Components::ProbeLight* Light = (Engine::Components::ProbeLight*)*It;
-					if (Light->Visibility <= 0 || Light->ImageBased)
+					if (Light->Visibility <= 0 || Light->IsImageBased())
 						continue;
 
-					if (ResourceBound(&Light->DiffuseMap))
+					Graphics::TextureCube* Cache = Light->GetProbeCache();
+					if (!Cache)
 					{
-						if (!Light->Rebuild.OnTickEvent(ElapsedTime) || Light->Rebuild.Delay <= 0.0)
-							continue;
+						Cache = Device->CreateTextureCube();
+						Light->SetProbeCache(Cache);
 					}
+					else if (!Light->Rebuild.OnTickEvent(ElapsedTime) || Light->Rebuild.Delay <= 0.0)
+						continue;
 
 					Device->CopyBegin(Surface, 0, MipLevels, Size);
 					Light->RenderLocked = true;
@@ -2461,7 +2308,7 @@ namespace Tomahawk
 					}
 
 					Light->RenderLocked = false;
-					Device->CopyEnd(Surface, Light->DiffuseMap);
+					Device->CopyEnd(Surface, Cache);
 				}
 
 				System->GetScene()->SetSurface(S);
@@ -2497,13 +2344,10 @@ namespace Tomahawk
 				delete Surface;
 				Surface = System->GetDevice()->CreateMultiRenderTarget2D(F1);
 			}
-			bool ProbeRenderer::ResourceBound(Graphics::TextureCube** Cube)
+			void ProbeRenderer::SetCaptureSize(size_t NewSize)
 			{
-				if (*Cube != nullptr)
-					return true;
-
-				*Cube = System->GetDevice()->CreateTextureCube();
-				return false;
+				Size = NewSize;
+				CreateRenderTarget();
 			}
 
 			LightRenderer::LightRenderer(RenderSystem* Lab) : Renderer(Lab), RecursiveProbes(true), Input1(nullptr), Input2(nullptr), Output1(nullptr), Output2(nullptr)
@@ -2514,22 +2358,44 @@ namespace Tomahawk
 				Blend = Lab->GetDevice()->GetBlendState("DEF_ADDITIVE");
 				Sampler = Lab->GetDevice()->GetSamplerState("DEF_TRILINEAR_X16");
 
-				CompilePointEffects();
-				CompileProbeEffects();
-				CompileSpotEffects();
-				CompileLineEffects();
-				CompileAmbientEffects();
+				Graphics::Shader::Desc I = Graphics::Shader::Desc();
+				I.Layout = Graphics::Shader::GetShapeVertexLayout();
+				I.LayoutSize = 2;
+
+				if (System->GetDevice()->GetSection("pass/light/shade/point", &I.Data))
+					Shaders.PointShade = System->CompileShader("LR_POINT_SHADE", I, 0);
+
+				if (System->GetDevice()->GetSection("pass/light/shade/spot", &I.Data))
+					Shaders.SpotShade = System->CompileShader("LR_SPOT_SHADE", I, 0);
+
+				if (System->GetDevice()->GetSection("pass/light/shade/line", &I.Data))
+					Shaders.LineShade = System->CompileShader("LR_LINE_SHADE", I, 0);
+
+				if (System->GetDevice()->GetSection("pass/light/base/point", &I.Data))
+					Shaders.PointBase = System->CompileShader("LR_POINT_BASE", I, sizeof(PointLight));
+
+				if (System->GetDevice()->GetSection("pass/light/base/spot", &I.Data))
+					Shaders.SpotBase = System->CompileShader("LR_SPOT_BASE", I, sizeof(SpotLight));
+
+				if (System->GetDevice()->GetSection("pass/light/base/line", &I.Data))
+					Shaders.LineBase = System->CompileShader("LR_LINE_BASE", I, sizeof(LineLight));
+
+				if (System->GetDevice()->GetSection("pass/light/base/probe", &I.Data))
+					Shaders.Probe = System->CompileShader("LR_PROBE", I, sizeof(ProbeLight));
+
+				if (System->GetDevice()->GetSection("pass/light/base/ambient", &I.Data))
+					Shaders.Ambient = System->CompileShader("LR_AMBIENT", I, sizeof(AmbientLight));
 			}
 			LightRenderer::~LightRenderer()
 			{
-				System->FreeShader("POINT", Shaders.Point);
-				System->FreeShader("POINT_SHADE", Shaders.PointOccluded);
-				System->FreeShader("PROBE", Shaders.Probe);
-				System->FreeShader("SPOT", Shaders.Spot);
-				System->FreeShader("SPOT_SHADE", Shaders.SpotOccluded);
-				System->FreeShader("LINE", Shaders.Line);
-				System->FreeShader("LINE_SHADE", Shaders.LineOccluded);
-				System->FreeShader("AMBIENT", Shaders.Ambient);
+				System->FreeShader("LR_POINT_BASE", Shaders.PointBase);
+				System->FreeShader("LR_POINT_SHADE", Shaders.PointShade);
+				System->FreeShader("LR_SPOT_BASE", Shaders.SpotBase);
+				System->FreeShader("LR_SPOT_SHADE", Shaders.SpotShade);
+				System->FreeShader("LR_LINE_BASE", Shaders.LineBase);
+				System->FreeShader("LR_LINE_SHADE", Shaders.LineShade);
+				System->FreeShader("LR_PROBE", Shaders.Probe);
+				System->FreeShader("LR_AMBIENT", Shaders.Ambient);
 				delete Input1;
 				delete Output1;
 				delete Input2;
@@ -2565,7 +2431,7 @@ namespace Tomahawk
 					}
 
 					if ((*It)->Id() == THAWK_COMPONENT_ID(ProbeRenderer))
-						ProbeLight.Mipping = (float)(*It)->As<Engine::Renderers::ProbeRenderer>()->MipLevels;
+						ProbeLight.MipLevels = (float)(*It)->As<Engine::Renderers::ProbeRenderer>()->MipLevels;
 				}
 
 				CreateRenderTargets();
@@ -2593,7 +2459,7 @@ namespace Tomahawk
 				for (auto It = ProbeLights->Begin(); It != ProbeLights->End(); ++It)
 				{
 					Engine::Components::ProbeLight* Light = (Engine::Components::ProbeLight*)*It;
-					if (Light->Visibility <= 0 || Light->DiffuseMap == nullptr)
+					if (Light->Visibility <= 0 || !Light->GetProbeCache())
 						continue;
 
 					ProbeLight.OwnWorldViewProjection = Compute::Matrix4x4::CreateTranslatedScale(Light->GetEntity()->Transform->Position, Light->Range * 1.25f) * System->GetScene()->View.ViewProjection;
@@ -2603,13 +2469,13 @@ namespace Tomahawk
 					ProbeLight.Parallax = (Light->ParallaxCorrected ? 1.0f : 0.0f);
 					ProbeLight.Range = Light->Range;
 
-					Device->SetTextureCube(Light->DiffuseMap, 4);
+					Device->SetTextureCube(Light->GetProbeCache(), 4);
 					Device->UpdateBuffer(Shaders.Probe, &ProbeLight);
 					Device->DrawIndexed((unsigned int)System->GetSphereIBuffer()->GetElements(), 0, 0);
 				}
 
-				Device->SetShader(Shaders.Point, Graphics::ShaderType_Vertex);
-				Device->SetBuffer(Shaders.Point, 3, Graphics::ShaderType_Vertex | Graphics::ShaderType_Pixel);
+				Device->SetShader(Shaders.PointBase, Graphics::ShaderType_Vertex);
+				Device->SetBuffer(Shaders.PointBase, 3, Graphics::ShaderType_Vertex | Graphics::ShaderType_Pixel);
 
 				for (auto It = PointLights->Begin(); It != PointLights->End(); ++It)
 				{
@@ -2617,7 +2483,7 @@ namespace Tomahawk
 					if (Light->Visibility <= 0.0f)
 						continue;
 
-					if (Light->Shadowed && Light->Occlusion)
+					if (Light->Shadowed && Light->GetShadowCache())
 					{
 						PointLight.Softness = Light->ShadowSoftness <= 0 ? 0 : Quality.SpotLight / Light->ShadowSoftness;
 						PointLight.Recount = 8.0f * Light->ShadowIterations * Light->ShadowIterations * Light->ShadowIterations;
@@ -2625,11 +2491,11 @@ namespace Tomahawk
 						PointLight.Distance = Light->ShadowDistance;
 						PointLight.Iterations = (float)Light->ShadowIterations;
 
-						Active = Shaders.PointOccluded;
-						Device->SetTexture2D(Light->Occlusion, 4);
+						Active = Shaders.PointShade;
+						Device->SetTexture2D(Light->GetShadowCache(), 4);
 					}
 					else
-						Active = Shaders.Point;
+						Active = Shaders.PointBase;
 
 					PointLight.OwnWorldViewProjection = Compute::Matrix4x4::CreateTranslatedScale(Light->GetEntity()->Transform->Position, Light->Range * 1.25f) * System->GetScene()->View.ViewProjection;
 					PointLight.Position = Light->GetEntity()->Transform->Position.InvertZ();
@@ -2637,12 +2503,12 @@ namespace Tomahawk
 					PointLight.Range = Light->Range;
 
 					Device->SetShader(Active, Graphics::ShaderType_Pixel);
-					Device->UpdateBuffer(Shaders.Point, &PointLight);
+					Device->UpdateBuffer(Shaders.PointBase, &PointLight);
 					Device->DrawIndexed((unsigned int)System->GetSphereIBuffer()->GetElements(), 0, 0);
 				}
 
-				Device->SetShader(Shaders.Spot, Graphics::ShaderType_Vertex);
-				Device->SetBuffer(Shaders.Spot, 3, Graphics::ShaderType_Vertex | Graphics::ShaderType_Pixel);
+				Device->SetShader(Shaders.SpotBase, Graphics::ShaderType_Vertex);
+				Device->SetBuffer(Shaders.SpotBase, 3, Graphics::ShaderType_Vertex | Graphics::ShaderType_Pixel);
 				Device->SetTexture2D(nullptr, 4);
 
 				for (auto It = SpotLights->Begin(); It != SpotLights->End(); ++It)
@@ -2651,18 +2517,18 @@ namespace Tomahawk
 					if (Light->Visibility <= 0.0f)
 						continue;
 
-					if (Light->Shadowed && Light->Occlusion)
+					if (Light->Shadowed && Light->GetShadowCache())
 					{
 						SpotLight.Softness = Light->ShadowSoftness <= 0 ? 0 : Quality.SpotLight / Light->ShadowSoftness;
 						SpotLight.Recount = 4.0f * Light->ShadowIterations * Light->ShadowIterations;
 						SpotLight.Bias = Light->ShadowBias;
 						SpotLight.Iterations = (float)Light->ShadowIterations;
 
-						Active = Shaders.SpotOccluded;
-						Device->SetTexture2D(Light->Occlusion, 5);
+						Active = Shaders.SpotShade;
+						Device->SetTexture2D(Light->GetShadowCache(), 5);
 					}
 					else
-						Active = Shaders.Spot;
+						Active = Shaders.SpotBase;
 
 					SpotLight.OwnWorldViewProjection = Compute::Matrix4x4::CreateScale(Light->Range * 1.25f) * Compute::Matrix4x4::CreateTranslation(Light->GetEntity()->Transform->Position) * System->GetScene()->View.ViewProjection;
 					SpotLight.OwnViewProjection = Light->View * Light->Projection;
@@ -2673,19 +2539,19 @@ namespace Tomahawk
 
 					Device->SetTexture2D(Light->ProjectMap, 4);
 					Device->SetShader(Active, Graphics::ShaderType_Pixel);
-					Device->UpdateBuffer(Shaders.Spot, &SpotLight);
+					Device->UpdateBuffer(Shaders.SpotBase, &SpotLight);
 					Device->DrawIndexed((unsigned int)System->GetSphereIBuffer()->GetElements(), 0, 0);
 				}
 
 				Device->SetTarget(Output1);
-				Device->SetShader(Shaders.Line, Graphics::ShaderType_Vertex);
-				Device->SetBuffer(Shaders.Line, 3, Graphics::ShaderType_Vertex | Graphics::ShaderType_Pixel);
+				Device->SetShader(Shaders.LineBase, Graphics::ShaderType_Vertex);
+				Device->SetBuffer(Shaders.LineBase, 3, Graphics::ShaderType_Vertex | Graphics::ShaderType_Pixel);
 				Device->SetVertexBuffer(System->GetQuadVBuffer(), 0, sizeof(Compute::ShapeVertex), 0);
 
 				for (auto It = LineLights->Begin(); It != LineLights->End(); ++It)
 				{
 					Engine::Components::LineLight* Light = (Engine::Components::LineLight*)*It;
-					if (Light->Shadowed && Light->Occlusion)
+					if (Light->Shadowed && Light->GetShadowCache())
 					{
 						LineLight.OwnViewProjection = Light->View * Light->Projection;
 						LineLight.Softness = Light->ShadowSoftness <= 0 ? 0 : Quality.LineLight / Light->ShadowSoftness;
@@ -2695,17 +2561,17 @@ namespace Tomahawk
 						LineLight.ShadowLength = Light->ShadowLength;
 						LineLight.Iterations = (float)Light->ShadowIterations;
 
-						Active = Shaders.LineOccluded;
-						Device->SetTexture2D(Light->Occlusion, 4);
+						Active = Shaders.LineShade;
+						Device->SetTexture2D(Light->GetShadowCache(), 4);
 					}
 					else
-						Active = Shaders.Line;
+						Active = Shaders.LineBase;
 
 					LineLight.Position = Light->GetEntity()->Transform->Position.InvertZ().NormalizeSafe();
 					LineLight.Lighting = Light->Diffuse.Mul(Light->Emission);
 
 					Device->SetShader(Active, Graphics::ShaderType_Pixel);
-					Device->UpdateBuffer(Shaders.Line, &LineLight);
+					Device->UpdateBuffer(Shaders.LineBase, &LineLight);
 					Device->Draw(6, 0);
 				}
 
@@ -2745,7 +2611,7 @@ namespace Tomahawk
 					for (auto It = ProbeLights->Begin(); It != ProbeLights->End(); ++It)
 					{
 						Engine::Components::ProbeLight* Light = (Engine::Components::ProbeLight*)*It;
-						if (Light->DiffuseMap == nullptr || Light->RenderLocked)
+						if (!Light->GetProbeCache() || Light->RenderLocked)
 							continue;
 
 						float Visibility = Light->Visibility;
@@ -2759,14 +2625,14 @@ namespace Tomahawk
 						ProbeLight.Parallax = (Light->ParallaxCorrected ? 1.0f : 0.0f);
 						ProbeLight.Range = Light->Range;
 
-						Device->SetTextureCube(Light->DiffuseMap, 4);
+						Device->SetTextureCube(Light->GetProbeCache(), 4);
 						Device->UpdateBuffer(Shaders.Probe, &ProbeLight);
 						Device->DrawIndexed((unsigned int)System->GetSphereIBuffer()->GetElements(), 0, 0);
 					}
 				}
 
-				Device->SetShader(Shaders.Point, Graphics::ShaderType_Vertex);
-				Device->SetBuffer(Shaders.Point, 3, Graphics::ShaderType_Vertex | Graphics::ShaderType_Pixel);
+				Device->SetShader(Shaders.PointBase, Graphics::ShaderType_Vertex);
+				Device->SetBuffer(Shaders.PointBase, 3, Graphics::ShaderType_Vertex | Graphics::ShaderType_Pixel);
 
 				for (auto It = PointLights->Begin(); It != PointLights->End(); ++It)
 				{
@@ -2780,7 +2646,7 @@ namespace Tomahawk
 					if (Visibility <= 0.0f)
 						continue;
 
-					if (Light->Shadowed && Light->Occlusion)
+					if (Light->Shadowed && Light->GetShadowCache())
 					{
 						PointLight.Softness = Light->ShadowSoftness <= 0 ? 0 : Quality.SpotLight / Light->ShadowSoftness;
 						PointLight.Recount = 8.0f * Light->ShadowIterations * Light->ShadowIterations * Light->ShadowIterations;
@@ -2788,11 +2654,11 @@ namespace Tomahawk
 						PointLight.Distance = Light->ShadowDistance;
 						PointLight.Iterations = (float)Light->ShadowIterations;
 
-						Active = Shaders.PointOccluded;
-						Device->SetTexture2D(Light->Occlusion, 4);
+						Active = Shaders.PointShade;
+						Device->SetTexture2D(Light->GetShadowCache(), 4);
 					}
 					else
-						Active = Shaders.Point;
+						Active = Shaders.PointBase;
 
 					PointLight.OwnWorldViewProjection = Compute::Matrix4x4::CreateTranslatedScale(Light->GetEntity()->Transform->Position, Light->Range * 1.25f) * System->GetScene()->View.ViewProjection;
 					PointLight.Position = Light->GetEntity()->Transform->Position.InvertZ();
@@ -2800,12 +2666,12 @@ namespace Tomahawk
 					PointLight.Range = Light->Range;
 
 					Device->SetShader(Active, Graphics::ShaderType_Pixel);
-					Device->UpdateBuffer(Shaders.Point, &PointLight);
+					Device->UpdateBuffer(Shaders.PointBase, &PointLight);
 					Device->DrawIndexed((unsigned int)System->GetSphereIBuffer()->GetElements(), 0, 0);
 				}
 
-				Device->SetShader(Shaders.Spot, Graphics::ShaderType_Vertex);
-				Device->SetBuffer(Shaders.Spot, 3, Graphics::ShaderType_Vertex | Graphics::ShaderType_Pixel);
+				Device->SetShader(Shaders.SpotBase, Graphics::ShaderType_Vertex);
+				Device->SetBuffer(Shaders.SpotBase, 3, Graphics::ShaderType_Vertex | Graphics::ShaderType_Pixel);
 				Device->SetTexture2D(nullptr, 4);
 
 				for (auto It = SpotLights->Begin(); It != SpotLights->End(); ++It)
@@ -2820,18 +2686,18 @@ namespace Tomahawk
 					if (Visibility <= 0.0f)
 						continue;
 
-					if (Light->Shadowed && Light->Occlusion)
+					if (Light->Shadowed && Light->GetShadowCache())
 					{
 						SpotLight.Softness = Light->ShadowSoftness <= 0 ? 0 : Quality.SpotLight / Light->ShadowSoftness;
 						SpotLight.Recount = 4.0f * Light->ShadowIterations * Light->ShadowIterations;
 						SpotLight.Bias = Light->ShadowBias;
 						SpotLight.Iterations = (float)Light->ShadowIterations;
 
-						Active = Shaders.SpotOccluded;
-						Device->SetTexture2D(Light->Occlusion, 5);
+						Active = Shaders.SpotShade;
+						Device->SetTexture2D(Light->GetShadowCache(), 5);
 					}
 					else
-						Active = Shaders.Spot;
+						Active = Shaders.SpotBase;
 
 					SpotLight.OwnWorldViewProjection = Compute::Matrix4x4::CreateScale(Light->Range * 1.25f) * Compute::Matrix4x4::CreateTranslation(Light->GetEntity()->Transform->Position) * System->GetScene()->View.ViewProjection;
 					SpotLight.OwnViewProjection = Light->View * Light->Projection;
@@ -2842,19 +2708,19 @@ namespace Tomahawk
 
 					Device->SetTexture2D(Light->ProjectMap, 4);
 					Device->SetShader(Active, Graphics::ShaderType_Pixel);
-					Device->UpdateBuffer(Shaders.Spot, &SpotLight);
+					Device->UpdateBuffer(Shaders.SpotBase, &SpotLight);
 					Device->DrawIndexed((unsigned int)System->GetSphereIBuffer()->GetElements(), 0, 0);
 				}
 
 				Device->SetTarget(Output2);
-				Device->SetShader(Shaders.Line, Graphics::ShaderType_Vertex);
-				Device->SetBuffer(Shaders.Line, 3, Graphics::ShaderType_Vertex | Graphics::ShaderType_Pixel);
+				Device->SetShader(Shaders.LineBase, Graphics::ShaderType_Vertex);
+				Device->SetBuffer(Shaders.LineBase, 3, Graphics::ShaderType_Vertex | Graphics::ShaderType_Pixel);
 				Device->SetVertexBuffer(System->GetQuadVBuffer(), 0, sizeof(Compute::ShapeVertex), 0);
 
 				for (auto It = LineLights->Begin(); It != LineLights->End(); ++It)
 				{
 					Engine::Components::LineLight* Light = (Engine::Components::LineLight*)*It;
-					if (Light->Shadowed && Light->Occlusion)
+					if (Light->Shadowed && Light->GetShadowCache())
 					{
 						LineLight.OwnViewProjection = Light->View * Light->Projection;
 						LineLight.Softness = Light->ShadowSoftness <= 0 ? 0 : Quality.LineLight / Light->ShadowSoftness;
@@ -2864,17 +2730,17 @@ namespace Tomahawk
 						LineLight.ShadowLength = Light->ShadowLength;
 						LineLight.Iterations = (float)Light->ShadowIterations;
 
-						Active = Shaders.LineOccluded;
-						Device->SetTexture2D(Light->Occlusion, 4);
+						Active = Shaders.LineShade;
+						Device->SetTexture2D(Light->GetShadowCache(), 4);
 					}
 					else
-						Active = Shaders.Line;
+						Active = Shaders.LineBase;
 
 					LineLight.Position = Light->GetEntity()->Transform->Position.InvertZ().NormalizeSafe();
 					LineLight.Lighting = Light->Diffuse.Mul(Light->Emission);
 
 					Device->SetShader(Active, Graphics::ShaderType_Pixel);
-					Device->UpdateBuffer(Shaders.Line, &LineLight);
+					Device->UpdateBuffer(Shaders.LineBase, &LineLight);
 					Device->Draw(6, 0);
 				}
 
@@ -2890,167 +2756,6 @@ namespace Tomahawk
 			void LightRenderer::OnResizeBuffers()
 			{
 				CreateRenderTargets();
-			}
-			void LightRenderer::CompilePointEffects()
-			{
-				Graphics::Shader::Desc I = Graphics::Shader::Desc();
-				I.Layout = Graphics::Shader::GetShapeVertexLayout();
-				I.LayoutSize = 2;
-
-				if (System->GetDevice()->GetBackend() == Graphics::RenderBackend_D3D11)
-				{
-#ifdef HAS_D3D11_FORWARD_POINT_BASE_HLSL
-					I.Data = GET_RESOURCE_BATCH(d3d11_forward_point_base_hlsl);
-					Shaders.Point = System->CompileShader("POINT", I, sizeof(ProbeLight));
-#else
-					THAWK_ERROR("light-point.hlsl was not compiled");
-#endif
-#ifdef HAS_D3D11_FORWARD_POINT_SHADE_HLSL
-					I.Data = GET_RESOURCE_BATCH(d3d11_forward_point_shade_hlsl);
-					Shaders.PointOccluded = System->CompileShader("POINT_SHADE", I, 0);
-#else
-					THAWK_ERROR("light-point-shaded.hlsl was not compiled");
-#endif
-				}
-				else if (System->GetDevice()->GetBackend() == Graphics::RenderBackend_OGL)
-				{
-#ifdef HAS_OGL_FORWARD_POINT_BASE_GLSL
-					I.Data = GET_RESOURCE_BATCH(ogl_forward_point_base_glsl);
-					Shaders.Point = System->CompileShader("POINT", I, sizeof(ProbeLight));
-#else
-					THAWK_ERROR("light-point.glsl was not compiled");
-#endif
-#ifdef HAS_OGL_FORWARD_POINT_SHADE_GLSL
-					I.Data = GET_RESOURCE_BATCH(ogl_forward_point_shade_glsl);
-					Shaders.PointOccluded = System->CompileShader("POINT_SHADE", I, 0);
-#else
-					THAWK_ERROR("light-point-shaded.glsl was not compiled");
-#endif
-				}
-			}
-			void LightRenderer::CompileProbeEffects()
-			{
-				Graphics::Shader::Desc I = Graphics::Shader::Desc();
-				I.Layout = Graphics::Shader::GetShapeVertexLayout();
-				I.LayoutSize = 2;
-
-				if (System->GetDevice()->GetBackend() == Graphics::RenderBackend_D3D11)
-				{
-#ifdef HAS_D3D11_FORWARD_PROBE_HLSL
-					I.Data = GET_RESOURCE_BATCH(d3d11_forward_probe_hlsl);
-					Shaders.Probe = System->CompileShader("PROBE", I, sizeof(ProbeLight));
-#else
-					THAWK_ERROR("light-probe.hlsl was not compiled");
-#endif
-				}
-				else if (System->GetDevice()->GetBackend() == Graphics::RenderBackend_OGL)
-				{
-#ifdef HAS_OGL_FORWARD_PROBE_GLSL
-					I.Data = GET_RESOURCE_BATCH(ogl_forward_probe_glsl);
-					Shaders.Probe = System->CompileShader("PROBE", I, sizeof(ProbeLight));
-#else
-					THAWK_ERROR("light-probe.glsl was not compiled");
-#endif
-				}
-			}
-			void LightRenderer::CompileSpotEffects()
-			{
-				Graphics::Shader::Desc I = Graphics::Shader::Desc();
-				I.Layout = Graphics::Shader::GetShapeVertexLayout();
-				I.LayoutSize = 2;
-
-				if (System->GetDevice()->GetBackend() == Graphics::RenderBackend_D3D11)
-				{
-#ifdef HAS_D3D11_FORWARD_SPOT_BASE_HLSL
-					I.Data = GET_RESOURCE_BATCH(d3d11_forward_spot_base_hlsl);
-					Shaders.Spot = System->CompileShader("SPOT", I, sizeof(SpotLight));
-#else
-					THAWK_ERROR("light-spot.hlsl was not compiled");
-#endif
-#ifdef HAS_D3D11_FORWARD_SPOT_SHADE_HLSL
-					I.Data = GET_RESOURCE_BATCH(d3d11_forward_spot_shade_hlsl);
-					Shaders.SpotOccluded = System->CompileShader("SPOT_SHADE", I, 0);
-#else
-					THAWK_ERROR("light-spot-shaded.hlsl was not compiled");
-#endif
-				}
-				else if (System->GetDevice()->GetBackend() == Graphics::RenderBackend_OGL)
-				{
-#ifdef HAS_OGL_FORWARD_SPOT_BASE_GLSL
-					I.Data = GET_RESOURCE_BATCH(ogl_forward_spot_base_glsl);
-					Shaders.Spot = System->CompileShader("SPOT", I, sizeof(SpotLight));
-#else
-					THAWK_ERROR("light-spot.glsl was not compiled");
-#endif
-#ifdef HAS_OGL_FORWARD_SPOT_SHADE_GLSL
-					I.Data = GET_RESOURCE_BATCH(ogl_forward_spot_shade_glsl);
-					Shaders.SpotOccluded = System->CompileShader("SPOT_SHADE", I, 0);
-#else
-					THAWK_ERROR("light-spot-shaded.glsl was not compiled");
-#endif
-				}
-			}
-			void LightRenderer::CompileLineEffects()
-			{
-				Graphics::Shader::Desc I = Graphics::Shader::Desc();
-				I.Layout = Graphics::Shader::GetShapeVertexLayout();
-				I.LayoutSize = 2;
-
-				if (System->GetDevice()->GetBackend() == Graphics::RenderBackend_D3D11)
-				{
-#ifdef HAS_D3D11_FORWARD_LINE_BASE_HLSL
-					I.Data = GET_RESOURCE_BATCH(d3d11_forward_line_base_hlsl);
-					Shaders.Line = System->CompileShader("LINE", I, sizeof(LineLight));
-#else
-					THAWK_ERROR("light-line.hlsl was not compiled");
-#endif
-#ifdef HAS_D3D11_FORWARD_LINE_SHADE_HLSL
-					I.Data = GET_RESOURCE_BATCH(d3d11_forward_line_shade_hlsl);
-					Shaders.LineOccluded = System->CompileShader("LINE_SHADE", I, 0);
-#else
-					THAWK_ERROR("light-line-shaded.hlsl was not compiled");
-#endif
-				}
-				else if (System->GetDevice()->GetBackend() == Graphics::RenderBackend_OGL)
-				{
-#ifdef HAS_OGL_FORWARD_LINE_BASE_GLSL
-					I.Data = GET_RESOURCE_BATCH(ogl_forward_line_base_glsl);
-					Shaders.Line = System->CompileShader("LINE", I, sizeof(LineLight));
-#else
-					THAWK_ERROR("light-line.glsl was not compiled");
-#endif
-#ifdef HAS_OGL_FORWARD_LINE_SHADE_GLSL
-					I.Data = GET_RESOURCE_BATCH(ogl_forward_line_shade_glsl);
-					Shaders.LineOccluded = System->CompileShader("LINE_SHADE", I, 0);
-#else
-					THAWK_ERROR("light-line-shaded.glsl was not compiled");
-#endif
-				}
-			}
-			void LightRenderer::CompileAmbientEffects()
-			{
-				Graphics::Shader::Desc I = Graphics::Shader::Desc();
-				I.Layout = Graphics::Shader::GetShapeVertexLayout();
-				I.LayoutSize = 2;
-
-				if (System->GetDevice()->GetBackend() == Graphics::RenderBackend_D3D11)
-				{
-#ifdef HAS_D3D11_FORWARD_AMBIENT_HLSL
-					I.Data = GET_RESOURCE_BATCH(d3d11_forward_ambient_hlsl);
-					Shaders.Ambient = System->CompileShader("AMBIENT", I, sizeof(AmbientLight));
-#else
-					THAWK_ERROR("light-ambient.hlsl was not compiled");
-#endif
-				}
-				else if (System->GetDevice()->GetBackend() == Graphics::RenderBackend_OGL)
-				{
-#ifdef HAS_OGL_FORWARD_AMBIENT_GLSL
-					I.Data = GET_RESOURCE_BATCH(ogl_forward_ambient_glsl);
-					Shaders.Ambient = System->CompileShader("AMBIENT", I, sizeof(AmbientLight));
-#else
-					THAWK_ERROR("light-ambient.glsl was not compiled");
-#endif
-				}
 			}
 			void LightRenderer::CreateRenderTargets()
 			{
@@ -3132,159 +2837,122 @@ namespace Tomahawk
 				Device->SetTexture2D(nullptr, 0);
 			}
 
-			ReflectionsRenderer::ReflectionsRenderer(RenderSystem* Lab) : PostProcessRenderer(Lab)
+			ReflectionsRenderer::ReflectionsRenderer(RenderSystem* Lab) : PostProcessRenderer(Lab), Pass1(nullptr), Pass2(nullptr)
 			{
-				if (System->GetDevice()->GetBackend() == Graphics::RenderBackend_D3D11)
-				{
-#ifdef HAS_D3D11_FORWARD_SSR_HLSL
-					CompileEffect("SSR", GET_RESOURCE_BATCH(d3d11_forward_ssr_hlsl), sizeof(Render));
-#else
-					THAWK_ERROR("forward/ssr.hlsl was not compiled");
-#endif
-				}
-				else if (System->GetDevice()->GetBackend() == Graphics::RenderBackend_OGL)
-				{
-#ifdef HAS_OGL_FORWARD_SSR_GLSL
-					CompileEffect("SSR", GET_RESOURCE_BATCH(ogl_forward_ssr_glsl), sizeof(Render));
-#else
-					THAWK_ERROR("forward/ssr.glsl was not compiled");
-#endif
-				}
+				std::string Data;
+				if (System->GetDevice()->GetSection("pass/reflection", &Data))
+					Pass1 = CompileEffect("RR_REFLECTION", Data, sizeof(RenderPass1));
+
+				if (System->GetDevice()->GetSection("pass/gloss", &Data))
+					Pass2 = CompileEffect("RR_GLOSS", Data, sizeof(RenderPass2));
 			}
 			void ReflectionsRenderer::OnLoad(ContentManager* Content, Rest::Document* Node)
 			{
-				NMake::Unpack(Node->Find("iteration-count"), &Render.IterationCount);
-				NMake::Unpack(Node->Find("intensity"), &Render.Intensity);
+				NMake::Unpack(Node->Find("iteration-count-1"), &RenderPass1.IterationCount);
+				NMake::Unpack(Node->Find("iteration-count-2"), &RenderPass2.IterationCount);
+				NMake::Unpack(Node->Find("intensity"), &RenderPass1.Intensity);
+				NMake::Unpack(Node->Find("blur"), &RenderPass2.Blur);
 			}
 			void ReflectionsRenderer::OnSave(ContentManager* Content, Rest::Document* Node)
 			{
-				NMake::Pack(Node->SetDocument("iteration-count"), Render.IterationCount);
-				NMake::Pack(Node->SetDocument("intensity"), Render.Intensity);
+				NMake::Pack(Node->SetDocument("iteration-count-1"), RenderPass1.IterationCount);
+				NMake::Pack(Node->SetDocument("iteration-count-2"), RenderPass2.IterationCount);
+				NMake::Pack(Node->SetDocument("intensity"), RenderPass1.Intensity);
+				NMake::Pack(Node->SetDocument("blur"), RenderPass2.Blur);
 			}
 			void ReflectionsRenderer::OnRenderEffect(Rest::Timer* Time)
 			{
-				Render.MipLevels = System->GetDevice()->GetMipLevel((unsigned int)Output->GetWidth(), (unsigned int)Output->GetHeight());
-				PostProcess(&Render);
+				Graphics::MultiRenderTarget2D* Surface = System->GetScene()->GetSurface();
+				if (Surface != nullptr)
+					System->GetDevice()->GenerateMips(Surface->GetTarget(0));
+
+				RenderPass1.MipLevels = System->GetDevice()->GetMipLevel((unsigned int)Output->GetWidth(), (unsigned int)Output->GetHeight());
+				RenderPass2.Texel[0] = 1.0f / Output->GetWidth();
+				RenderPass2.Texel[1] = 1.0f / Output->GetHeight();
+				
+				RenderMerge(Pass1, &RenderPass1);
+				RenderResult(Pass2, &RenderPass2);
 			}
 
 			DepthOfFieldRenderer::DepthOfFieldRenderer(RenderSystem* Lab) : PostProcessRenderer(Lab)
 			{
-				if (System->GetDevice()->GetBackend() == Graphics::RenderBackend_D3D11)
-				{
-#ifdef HAS_D3D11_FORWARD_DOF_HLSL
-					CompileEffect("DOF", GET_RESOURCE_BATCH(d3d11_forward_dof_hlsl), sizeof(Render));
-#else
-					THAWK_ERROR("forward/dof.hlsl was not compiled");
-#endif
-				}
-				else if (System->GetDevice()->GetBackend() == Graphics::RenderBackend_OGL)
-				{
-#ifdef HAS_OGL_FORWARD_DOF_GLSL
-					CompileEffect("DOF", GET_RESOURCE_BATCH(ogl_forward_dof_glsl), sizeof(Render));
-#else
-					THAWK_ERROR("forward/dof.glsl was not compiled");
-#endif
-				}
+				std::string Data;
+				if (System->GetDevice()->GetSection("pass/focus", &Data))
+					CompileEffect("DOFR_FOCUS", Data, sizeof(RenderPass));
 			}
 			void DepthOfFieldRenderer::OnLoad(ContentManager* Content, Rest::Document* Node)
 			{
-				NMake::Unpack(Node->Find("threshold"), &Render.Threshold);
-				NMake::Unpack(Node->Find("gain"), &Render.Gain);
-				NMake::Unpack(Node->Find("fringe"), &Render.Fringe);
-				NMake::Unpack(Node->Find("bias"), &Render.Bias);
-				NMake::Unpack(Node->Find("dither"), &Render.Dither);
-				NMake::Unpack(Node->Find("samples"), &Render.Samples);
-				NMake::Unpack(Node->Find("rings"), &Render.Rings);
-				NMake::Unpack(Node->Find("far-distance"), &Render.FarDistance);
-				NMake::Unpack(Node->Find("far-range"), &Render.FarRange);
-				NMake::Unpack(Node->Find("near-distance"), &Render.NearDistance);
-				NMake::Unpack(Node->Find("near-range"), &Render.NearRange);
-				NMake::Unpack(Node->Find("focal-depth"), &Render.FocalDepth);
-				NMake::Unpack(Node->Find("intensity"), &Render.Intensity);
-				NMake::Unpack(Node->Find("circular"), &Render.Circular);
+				NMake::Unpack(Node->Find("threshold"), &RenderPass.Threshold);
+				NMake::Unpack(Node->Find("gain"), &RenderPass.Gain);
+				NMake::Unpack(Node->Find("fringe"), &RenderPass.Fringe);
+				NMake::Unpack(Node->Find("bias"), &RenderPass.Bias);
+				NMake::Unpack(Node->Find("dither"), &RenderPass.Dither);
+				NMake::Unpack(Node->Find("samples"), &RenderPass.Samples);
+				NMake::Unpack(Node->Find("rings"), &RenderPass.Rings);
+				NMake::Unpack(Node->Find("far-distance"), &RenderPass.FarDistance);
+				NMake::Unpack(Node->Find("far-range"), &RenderPass.FarRange);
+				NMake::Unpack(Node->Find("near-distance"), &RenderPass.NearDistance);
+				NMake::Unpack(Node->Find("near-range"), &RenderPass.NearRange);
+				NMake::Unpack(Node->Find("focal-depth"), &RenderPass.FocalDepth);
+				NMake::Unpack(Node->Find("intensity"), &RenderPass.Intensity);
+				NMake::Unpack(Node->Find("circular"), &RenderPass.Circular);
 			}
 			void DepthOfFieldRenderer::OnSave(ContentManager* Content, Rest::Document* Node)
 			{
-				NMake::Pack(Node->SetDocument("threshold"), Render.Threshold);
-				NMake::Pack(Node->SetDocument("gain"), Render.Gain);
-				NMake::Pack(Node->SetDocument("fringe"), Render.Fringe);
-				NMake::Pack(Node->SetDocument("bias"), Render.Bias);
-				NMake::Pack(Node->SetDocument("dither"), Render.Dither);
-				NMake::Pack(Node->SetDocument("samples"), Render.Samples);
-				NMake::Pack(Node->SetDocument("rings"), Render.Rings);
-				NMake::Pack(Node->SetDocument("far-distance"), Render.FarDistance);
-				NMake::Pack(Node->SetDocument("far-range"), Render.FarRange);
-				NMake::Pack(Node->SetDocument("near-distance"), Render.NearDistance);
-				NMake::Pack(Node->SetDocument("near-range"), Render.NearRange);
-				NMake::Pack(Node->SetDocument("focal-depth"), Render.FocalDepth);
-				NMake::Pack(Node->SetDocument("intensity"), Render.Intensity);
-				NMake::Pack(Node->SetDocument("circular"), Render.Circular);
+				NMake::Pack(Node->SetDocument("threshold"), RenderPass.Threshold);
+				NMake::Pack(Node->SetDocument("gain"), RenderPass.Gain);
+				NMake::Pack(Node->SetDocument("fringe"), RenderPass.Fringe);
+				NMake::Pack(Node->SetDocument("bias"), RenderPass.Bias);
+				NMake::Pack(Node->SetDocument("dither"), RenderPass.Dither);
+				NMake::Pack(Node->SetDocument("samples"), RenderPass.Samples);
+				NMake::Pack(Node->SetDocument("rings"), RenderPass.Rings);
+				NMake::Pack(Node->SetDocument("far-distance"), RenderPass.FarDistance);
+				NMake::Pack(Node->SetDocument("far-range"), RenderPass.FarRange);
+				NMake::Pack(Node->SetDocument("near-distance"), RenderPass.NearDistance);
+				NMake::Pack(Node->SetDocument("near-range"), RenderPass.NearRange);
+				NMake::Pack(Node->SetDocument("focal-depth"), RenderPass.FocalDepth);
+				NMake::Pack(Node->SetDocument("intensity"), RenderPass.Intensity);
+				NMake::Pack(Node->SetDocument("circular"), RenderPass.Circular);
 			}
 			void DepthOfFieldRenderer::OnRenderEffect(Rest::Timer* Time)
 			{
-				Render.Texel[0] = 1.0f / Output->GetWidth();
-				Render.Texel[1] = 1.0f / Output->GetHeight();
-				PostProcess(&Render);
+				RenderPass.Texel[0] = 1.0f / Output->GetWidth();
+				RenderPass.Texel[1] = 1.0f / Output->GetHeight();
+				RenderResult(nullptr, &RenderPass);
 			}
 			
 			EmissionRenderer::EmissionRenderer(RenderSystem* Lab) : PostProcessRenderer(Lab)
 			{
-				if (System->GetDevice()->GetBackend() == Graphics::RenderBackend_D3D11)
-				{
-#ifdef HAS_D3D11_FORWARD_BLOOM_HLSL
-					CompileEffect("BLOOM", GET_RESOURCE_BATCH(d3d11_forward_bloom_hlsl), sizeof(Render));
-#else
-					THAWK_ERROR("forward/bloom.hlsl was not compiled");
-#endif
-				}
-				else if (System->GetDevice()->GetBackend() == Graphics::RenderBackend_OGL)
-				{
-#ifdef HAS_OGL_FORWARD_BLOOM_gLSL
-					CompileEffect("BLOOM", GET_RESOURCE_BATCH(ogl_forward_bloom_glsl), sizeof(Render));
-#else
-					THAWK_ERROR("forward/bloom.glsl was not compiled");
-#endif
-				}
+				std::string Data;
+				if (System->GetDevice()->GetSection("pass/bloom", &Data))
+					CompileEffect("ER_BLOOM", Data, sizeof(RenderPass));
 			}
 			void EmissionRenderer::OnLoad(ContentManager* Content, Rest::Document* Node)
 			{
-				NMake::Unpack(Node->Find("iteration-count"), &Render.IterationCount);
-				NMake::Unpack(Node->Find("intensity"), &Render.Intensity);
-				NMake::Unpack(Node->Find("threshold"), &Render.Threshold);
-				NMake::Unpack(Node->Find("scale"), &Render.Scale);
+				NMake::Unpack(Node->Find("iteration-count"), &RenderPass.IterationCount);
+				NMake::Unpack(Node->Find("intensity"), &RenderPass.Intensity);
+				NMake::Unpack(Node->Find("threshold"), &RenderPass.Threshold);
+				NMake::Unpack(Node->Find("scale"), &RenderPass.Scale);
 			}
 			void EmissionRenderer::OnSave(ContentManager* Content, Rest::Document* Node)
 			{
-				NMake::Pack(Node->SetDocument("iteration-count"), Render.IterationCount);
-				NMake::Pack(Node->SetDocument("intensity"), Render.Intensity);
-				NMake::Pack(Node->SetDocument("threshold"), Render.Threshold);
-				NMake::Pack(Node->SetDocument("scale"), Render.Scale);
+				NMake::Pack(Node->SetDocument("iteration-count"), RenderPass.IterationCount);
+				NMake::Pack(Node->SetDocument("intensity"), RenderPass.Intensity);
+				NMake::Pack(Node->SetDocument("threshold"), RenderPass.Threshold);
+				NMake::Pack(Node->SetDocument("scale"), RenderPass.Scale);
 			}
 			void EmissionRenderer::OnRenderEffect(Rest::Timer* Time)
 			{
-				Render.Texel[0] = 1.0f / Output->GetWidth();
-				Render.Texel[1] = 1.0f / Output->GetHeight();
-				PostProcess(&Render);
+				RenderPass.Texel[0] = 1.0f / Output->GetWidth();
+				RenderPass.Texel[1] = 1.0f / Output->GetHeight();
+				RenderResult(nullptr, &RenderPass);
 			}
 			
 			GlitchRenderer::GlitchRenderer(RenderSystem* Lab) : PostProcessRenderer(Lab), ScanLineJitter(0), VerticalJump(0), HorizontalShake(0), ColorDrift(0)
 			{
-				if (System->GetDevice()->GetBackend() == Graphics::RenderBackend_D3D11)
-				{
-#ifdef HAS_D3D11_FORWARD_GLITCH_HLSL
-					CompileEffect("GLITCH", GET_RESOURCE_BATCH(d3d11_forward_glitch_hlsl), sizeof(Render));
-#else
-					THAWK_ERROR("forward/glitch.hlsl was not compiled");
-#endif
-				}
-				else if (System->GetDevice()->GetBackend() == Graphics::RenderBackend_OGL)
-				{
-#ifdef HAS_OGL_FORWARD_GLITCH_GLSL
-					CompileEffect("GLITCH", GET_RESOURCE_BATCH(ogl_forward_glitch_glsl), sizeof(Render));
-#else
-					THAWK_ERROR("forward/glitch.glsl was not compiled");
-#endif
-				}
+				std::string Data;
+				if (System->GetDevice()->GetSection("pass/glitch", &Data))
+					CompileEffect("GR_GLITCH", Data, sizeof(RenderPass));
 			}
 			void GlitchRenderer::OnLoad(ContentManager* Content, Rest::Document* Node)
 			{
@@ -3293,13 +2961,13 @@ namespace Tomahawk
 				NMake::Unpack(Node->Find("horizontal-shake"), &HorizontalShake);
 				NMake::Unpack(Node->Find("color-drift"), &ColorDrift);
 				NMake::Unpack(Node->Find("horizontal-shake"), &HorizontalShake);
-				NMake::Unpack(Node->Find("elapsed-time"), &Render.ElapsedTime);
-				NMake::Unpack(Node->Find("scanline-jitter-displacement"), &Render.ScanLineJitterDisplacement);
-				NMake::Unpack(Node->Find("scanline-jitter-threshold"), &Render.ScanLineJitterThreshold);
-				NMake::Unpack(Node->Find("vertical-jump-amount"), &Render.VerticalJumpAmount);
-				NMake::Unpack(Node->Find("vertical-jump-time"), &Render.VerticalJumpTime);
-				NMake::Unpack(Node->Find("color-drift-amount"), &Render.ColorDriftAmount);
-				NMake::Unpack(Node->Find("color-drift-time"), &Render.ColorDriftTime);
+				NMake::Unpack(Node->Find("elapsed-time"), &RenderPass.ElapsedTime);
+				NMake::Unpack(Node->Find("scanline-jitter-displacement"), &RenderPass.ScanLineJitterDisplacement);
+				NMake::Unpack(Node->Find("scanline-jitter-threshold"), &RenderPass.ScanLineJitterThreshold);
+				NMake::Unpack(Node->Find("vertical-jump-amount"), &RenderPass.VerticalJumpAmount);
+				NMake::Unpack(Node->Find("vertical-jump-time"), &RenderPass.VerticalJumpTime);
+				NMake::Unpack(Node->Find("color-drift-amount"), &RenderPass.ColorDriftAmount);
+				NMake::Unpack(Node->Find("color-drift-time"), &RenderPass.ColorDriftTime);
 			}
 			void GlitchRenderer::OnSave(ContentManager* Content, Rest::Document* Node)
 			{
@@ -3308,188 +2976,185 @@ namespace Tomahawk
 				NMake::Pack(Node->SetDocument("horizontal-shake"), HorizontalShake);
 				NMake::Pack(Node->SetDocument("color-drift"), ColorDrift);
 				NMake::Pack(Node->SetDocument("horizontal-shake"), HorizontalShake);
-				NMake::Pack(Node->SetDocument("elapsed-time"), Render.ElapsedTime);
-				NMake::Pack(Node->SetDocument("scanline-jitter-displacement"), Render.ScanLineJitterDisplacement);
-				NMake::Pack(Node->SetDocument("scanline-jitter-threshold"), Render.ScanLineJitterThreshold);
-				NMake::Pack(Node->SetDocument("vertical-jump-amount"), Render.VerticalJumpAmount);
-				NMake::Pack(Node->SetDocument("vertical-jump-time"), Render.VerticalJumpTime);
-				NMake::Pack(Node->SetDocument("color-drift-amount"), Render.ColorDriftAmount);
-				NMake::Pack(Node->SetDocument("color-drift-time"), Render.ColorDriftTime);
+				NMake::Pack(Node->SetDocument("elapsed-time"), RenderPass.ElapsedTime);
+				NMake::Pack(Node->SetDocument("scanline-jitter-displacement"), RenderPass.ScanLineJitterDisplacement);
+				NMake::Pack(Node->SetDocument("scanline-jitter-threshold"), RenderPass.ScanLineJitterThreshold);
+				NMake::Pack(Node->SetDocument("vertical-jump-amount"), RenderPass.VerticalJumpAmount);
+				NMake::Pack(Node->SetDocument("vertical-jump-time"), RenderPass.VerticalJumpTime);
+				NMake::Pack(Node->SetDocument("color-drift-amount"), RenderPass.ColorDriftAmount);
+				NMake::Pack(Node->SetDocument("color-drift-time"), RenderPass.ColorDriftTime);
 			}
 			void GlitchRenderer::OnRenderEffect(Rest::Timer* Time)
 			{
-				if (Render.ElapsedTime >= 32000.0f)
-					Render.ElapsedTime = 0.0f;
+				if (RenderPass.ElapsedTime >= 32000.0f)
+					RenderPass.ElapsedTime = 0.0f;
 
-				Render.ElapsedTime += (float)Time->GetDeltaTime() * 10.0f;
-				Render.VerticalJumpAmount = VerticalJump;
-				Render.VerticalJumpTime += (float)Time->GetDeltaTime() * VerticalJump * 11.3f;
-				Render.ScanLineJitterThreshold = Compute::Math<float>::Saturate(1.0f - ScanLineJitter * 1.2f);
-				Render.ScanLineJitterDisplacement = 0.002f + Compute::Math<float>::Pow(ScanLineJitter, 3) * 0.05f;
-				Render.HorizontalShake = HorizontalShake * 0.2f;
-				Render.ColorDriftAmount = ColorDrift * 0.04f;
-				Render.ColorDriftTime = Render.ElapsedTime * 606.11f;
-				PostProcess(&Render);
+				RenderPass.ElapsedTime += (float)Time->GetDeltaTime() * 10.0f;
+				RenderPass.VerticalJumpAmount = VerticalJump;
+				RenderPass.VerticalJumpTime += (float)Time->GetDeltaTime() * VerticalJump * 11.3f;
+				RenderPass.ScanLineJitterThreshold = Compute::Math<float>::Saturate(1.0f - ScanLineJitter * 1.2f);
+				RenderPass.ScanLineJitterDisplacement = 0.002f + Compute::Math<float>::Pow(ScanLineJitter, 3) * 0.05f;
+				RenderPass.HorizontalShake = HorizontalShake * 0.2f;
+				RenderPass.ColorDriftAmount = ColorDrift * 0.04f;
+				RenderPass.ColorDriftTime = RenderPass.ElapsedTime * 606.11f;
+				RenderResult(nullptr, &RenderPass);
 			}
 
-			AmbientOcclusionRenderer::AmbientOcclusionRenderer(RenderSystem* Lab) : PostProcessRenderer(Lab)
+			AmbientOcclusionRenderer::AmbientOcclusionRenderer(RenderSystem* Lab) : PostProcessRenderer(Lab), Pass1(nullptr), Pass2(nullptr)
 			{
-				if (System->GetDevice()->GetBackend() == Graphics::RenderBackend_D3D11)
-				{
-#ifdef HAS_D3D11_FORWARD_SSAO_HLSL
-					CompileEffect("SSAO", GET_RESOURCE_BATCH(d3d11_forward_ssao_hlsl), sizeof(Render));
-#else
-					THAWK_ERROR("forward/ssao.hlsl was not compiled");
-#endif
-				}
-				else if (System->GetDevice()->GetBackend() == Graphics::RenderBackend_OGL)
-				{
-#ifdef HAS_OGL_FORWARD_SSAO_GLSL
-					CompileEffect("SSAO", GET_RESOURCE_BATCH(ogl_forward_ssao_glsl), sizeof(Render));
-#else
-					THAWK_ERROR("forward/ssao.glsl was not compiled");
-#endif
-				}
+				std::string Data;
+				if (System->GetDevice()->GetSection("pass/ambient", &Data))
+					Pass1 = CompileEffect("AOR_AMBIENT", Data, sizeof(RenderPass1));
+
+				if (System->GetDevice()->GetSection("pass/blur", &Data))
+					Pass2 = CompileEffect("AOR_BLUR", Data, sizeof(RenderPass2));
 			}
 			void AmbientOcclusionRenderer::OnLoad(ContentManager* Content, Rest::Document* Node)
 			{
-				NMake::Unpack(Node->Find("scale"), &Render.Scale);
-				NMake::Unpack(Node->Find("intensity"), &Render.Intensity);
-				NMake::Unpack(Node->Find("bias"), &Render.Bias);
-				NMake::Unpack(Node->Find("radius"), &Render.Radius);
-				NMake::Unpack(Node->Find("step"), &Render.Step);
-				NMake::Unpack(Node->Find("offset"), &Render.Offset);
-				NMake::Unpack(Node->Find("distance"), &Render.Distance);
-				NMake::Unpack(Node->Find("fading"), &Render.Fading);
-				NMake::Unpack(Node->Find("power"), &Render.Power);
-				NMake::Unpack(Node->Find("samples"), &Render.Samples);
-				NMake::Unpack(Node->Find("sample-count"), &Render.SampleCount);
+				NMake::Unpack(Node->Find("scale"), &RenderPass1.Scale);
+				NMake::Unpack(Node->Find("intensity"), &RenderPass1.Intensity);
+				NMake::Unpack(Node->Find("bias"), &RenderPass1.Bias);
+				NMake::Unpack(Node->Find("radius"), &RenderPass1.Radius);
+				NMake::Unpack(Node->Find("step"), &RenderPass1.Step);
+				NMake::Unpack(Node->Find("offset"), &RenderPass1.Offset);
+				NMake::Unpack(Node->Find("distance"), &RenderPass1.Distance);
+				NMake::Unpack(Node->Find("fading"), &RenderPass1.Fading);
+				NMake::Unpack(Node->Find("power-1"), &RenderPass1.Power);
+				NMake::Unpack(Node->Find("power-2"), &RenderPass2.Power);
+				NMake::Unpack(Node->Find("threshold-1"), &RenderPass1.Threshold);
+				NMake::Unpack(Node->Find("threshold-2"), &RenderPass2.Threshold);
+				NMake::Unpack(Node->Find("iteration-count-1"), &RenderPass1.IterationCount);
+				NMake::Unpack(Node->Find("iteration-count-2"), &RenderPass2.IterationCount);
+				NMake::Unpack(Node->Find("blur"), &RenderPass2.Blur);
+				NMake::Unpack(Node->Find("additive"), &RenderPass2.Additive);
+				NMake::Unpack(Node->Find("discard"), &RenderPass2.Discard);
 			}
 			void AmbientOcclusionRenderer::OnSave(ContentManager* Content, Rest::Document* Node)
 			{
-				NMake::Pack(Node->SetDocument("scale"), Render.Scale);
-				NMake::Pack(Node->SetDocument("intensity"), Render.Intensity);
-				NMake::Pack(Node->SetDocument("bias"), Render.Bias);
-				NMake::Pack(Node->SetDocument("radius"), Render.Radius);
-				NMake::Pack(Node->SetDocument("step"), Render.Step);
-				NMake::Pack(Node->SetDocument("offset"), Render.Offset);
-				NMake::Pack(Node->SetDocument("distance"), Render.Distance);
-				NMake::Pack(Node->SetDocument("fading"), Render.Fading);
-				NMake::Pack(Node->SetDocument("power"), Render.Power);
-				NMake::Pack(Node->SetDocument("samples"), Render.Samples);
-				NMake::Pack(Node->SetDocument("sample-count"), Render.SampleCount);
+				NMake::Pack(Node->SetDocument("scale"), RenderPass1.Scale);
+				NMake::Pack(Node->SetDocument("intensity"), RenderPass1.Intensity);
+				NMake::Pack(Node->SetDocument("bias"), RenderPass1.Bias);
+				NMake::Pack(Node->SetDocument("radius"), RenderPass1.Radius);
+				NMake::Pack(Node->SetDocument("step"), RenderPass1.Step);
+				NMake::Pack(Node->SetDocument("offset"), RenderPass1.Offset);
+				NMake::Pack(Node->SetDocument("distance"), RenderPass1.Distance);
+				NMake::Pack(Node->SetDocument("fading"), RenderPass1.Fading);
+				NMake::Pack(Node->SetDocument("power-1"), RenderPass1.Power);
+				NMake::Pack(Node->SetDocument("power-2"), RenderPass2.Power);
+				NMake::Pack(Node->SetDocument("threshold-1"), RenderPass1.Threshold);
+				NMake::Pack(Node->SetDocument("threshold-2"), RenderPass2.Threshold);
+				NMake::Pack(Node->SetDocument("iteration-count-1"), RenderPass1.IterationCount);
+				NMake::Pack(Node->SetDocument("iteration-count-2"), RenderPass2.IterationCount);
+				NMake::Pack(Node->SetDocument("blur"), RenderPass2.Blur);
+				NMake::Pack(Node->SetDocument("additive"), RenderPass2.Additive);
+				NMake::Pack(Node->SetDocument("discard"), RenderPass2.Discard);
 			}
 			void AmbientOcclusionRenderer::OnRenderEffect(Rest::Timer* Time)
 			{
-				Render.SampleCount = 4.0f * Render.Samples * Render.Samples;
-				PostProcess(&Render);
+				RenderPass2.Texel[0] = 1.0f / Output->GetWidth();
+				RenderPass2.Texel[1] = 1.0f / Output->GetHeight();
+
+				RenderMerge(Pass1, &RenderPass1);
+				RenderResult(Pass2, &RenderPass2);
 			}
 
-			IndirectOcclusionRenderer::IndirectOcclusionRenderer(RenderSystem* Lab) : PostProcessRenderer(Lab)
+			IndirectOcclusionRenderer::IndirectOcclusionRenderer(RenderSystem* Lab) : PostProcessRenderer(Lab), Pass1(nullptr), Pass2(nullptr)
 			{
-				if (System->GetDevice()->GetBackend() == Graphics::RenderBackend_D3D11)
-				{
-#ifdef HAS_D3D11_FORWARD_SSIO_HLSL
-					CompileEffect("SSIO", GET_RESOURCE_BATCH(d3d11_forward_ssio_hlsl), sizeof(Render));
-#else
-					THAWK_ERROR("forward/ssio.hlsl was not compiled");
-#endif
-				}
-				else if (System->GetDevice()->GetBackend() == Graphics::RenderBackend_OGL)
-				{
-#ifdef HAS_OGL_FORWARD_SSIO_GLSL
-					CompileEffect("SSIO", GET_RESOURCE_BATCH(ogl_forward_ssio_glsl), sizeof(Render));
-#else
-					THAWK_ERROR("forward/ssio.glsl was not compiled");
-#endif
-				}
+				std::string Data;
+				if (System->GetDevice()->GetSection("pass/indirect", &Data))
+					Pass1 = CompileEffect("IOR_INDIRECT", Data, sizeof(RenderPass1));
+
+				if (System->GetDevice()->GetSection("pass/blur", &Data))
+					Pass2 = CompileEffect("AOR_BLUR", Data, sizeof(RenderPass2));
 			}
 			void IndirectOcclusionRenderer::OnLoad(ContentManager* Content, Rest::Document* Node)
 			{
-				NMake::Unpack(Node->Find("scale"), &Render.Scale);
-				NMake::Unpack(Node->Find("intensity"), &Render.Intensity);
-				NMake::Unpack(Node->Find("bias"), &Render.Bias);
-				NMake::Unpack(Node->Find("radius"), &Render.Radius);
-				NMake::Unpack(Node->Find("step"), &Render.Step);
-				NMake::Unpack(Node->Find("offset"), &Render.Offset);
-				NMake::Unpack(Node->Find("distance"), &Render.Distance);
-				NMake::Unpack(Node->Find("fading"), &Render.Fading);
-				NMake::Unpack(Node->Find("power"), &Render.Power);
-				NMake::Unpack(Node->Find("samples"), &Render.Samples);
-				NMake::Unpack(Node->Find("sample-count"), &Render.SampleCount);
+				NMake::Unpack(Node->Find("scale"), &RenderPass1.Scale);
+				NMake::Unpack(Node->Find("intensity"), &RenderPass1.Intensity);
+				NMake::Unpack(Node->Find("bias"), &RenderPass1.Bias);
+				NMake::Unpack(Node->Find("radius"), &RenderPass1.Radius);
+				NMake::Unpack(Node->Find("step"), &RenderPass1.Step);
+				NMake::Unpack(Node->Find("offset"), &RenderPass1.Offset);
+				NMake::Unpack(Node->Find("distance"), &RenderPass1.Distance);
+				NMake::Unpack(Node->Find("fading"), &RenderPass1.Fading);
+				NMake::Unpack(Node->Find("power-1"), &RenderPass1.Power);
+				NMake::Unpack(Node->Find("power-2"), &RenderPass2.Power);
+				NMake::Unpack(Node->Find("threshold-1"), &RenderPass1.Threshold);
+				NMake::Unpack(Node->Find("threshold-2"), &RenderPass2.Threshold);
+				NMake::Unpack(Node->Find("iteration-count-1"), &RenderPass1.IterationCount);
+				NMake::Unpack(Node->Find("iteration-count-2"), &RenderPass2.IterationCount);
+				NMake::Unpack(Node->Find("blur"), &RenderPass2.Blur);
+				NMake::Unpack(Node->Find("additive"), &RenderPass2.Additive);
+				NMake::Unpack(Node->Find("discard"), &RenderPass2.Discard);
 			}
 			void IndirectOcclusionRenderer::OnSave(ContentManager* Content, Rest::Document* Node)
 			{
-				NMake::Pack(Node->SetDocument("scale"), Render.Scale);
-				NMake::Pack(Node->SetDocument("intensity"), Render.Intensity);
-				NMake::Pack(Node->SetDocument("bias"), Render.Bias);
-				NMake::Pack(Node->SetDocument("radius"), Render.Radius);
-				NMake::Pack(Node->SetDocument("step"), Render.Step);
-				NMake::Pack(Node->SetDocument("offset"), Render.Offset);
-				NMake::Pack(Node->SetDocument("distance"), Render.Distance);
-				NMake::Pack(Node->SetDocument("fading"), Render.Fading);
-				NMake::Pack(Node->SetDocument("power"), Render.Power);
-				NMake::Pack(Node->SetDocument("samples"), Render.Samples);
-				NMake::Pack(Node->SetDocument("sample-count"), Render.SampleCount);
+				NMake::Pack(Node->SetDocument("scale"), RenderPass1.Scale);
+				NMake::Pack(Node->SetDocument("intensity"), RenderPass1.Intensity);
+				NMake::Pack(Node->SetDocument("bias"), RenderPass1.Bias);
+				NMake::Pack(Node->SetDocument("radius"), RenderPass1.Radius);
+				NMake::Pack(Node->SetDocument("step"), RenderPass1.Step);
+				NMake::Pack(Node->SetDocument("offset"), RenderPass1.Offset);
+				NMake::Pack(Node->SetDocument("distance"), RenderPass1.Distance);
+				NMake::Pack(Node->SetDocument("fading"), RenderPass1.Fading);
+				NMake::Pack(Node->SetDocument("power-1"), RenderPass1.Power);
+				NMake::Pack(Node->SetDocument("power-2"), RenderPass2.Power);
+				NMake::Pack(Node->SetDocument("threshold-1"), RenderPass1.Threshold);
+				NMake::Pack(Node->SetDocument("threshold-2"), RenderPass2.Threshold);
+				NMake::Pack(Node->SetDocument("iteration-count-1"), RenderPass1.IterationCount);
+				NMake::Pack(Node->SetDocument("iteration-count-2"), RenderPass2.IterationCount);
+				NMake::Pack(Node->SetDocument("blur"), RenderPass2.Blur);
+				NMake::Pack(Node->SetDocument("additive"), RenderPass2.Additive);
+				NMake::Pack(Node->SetDocument("discard"), RenderPass2.Discard);
 			}
 			void IndirectOcclusionRenderer::OnRenderEffect(Rest::Timer* Time)
 			{
-				Render.SampleCount = 4.0f * Render.Samples * Render.Samples;
-				PostProcess(&Render);
+				RenderPass2.Texel[0] = 1.0f / Output->GetWidth();
+				RenderPass2.Texel[1] = 1.0f / Output->GetHeight();
+
+				RenderMerge(Pass1, &RenderPass1);
+				RenderResult(Pass2, &RenderPass2);
 			}
 			
 			ToneRenderer::ToneRenderer(RenderSystem* Lab) : PostProcessRenderer(Lab)
 			{
-				if (System->GetDevice()->GetBackend() == Graphics::RenderBackend_D3D11)
-				{
-#ifdef HAS_D3D11_FORWARD_TONE_HLSL
-					CompileEffect("TONE", GET_RESOURCE_BATCH(d3d11_forward_tone_hlsl), sizeof(Render));
-#else
-					THAWK_ERROR("forward/tone.hlsl was not compiled");
-#endif
-				}
-				else if (System->GetDevice()->GetBackend() == Graphics::RenderBackend_OGL)
-				{
-#ifdef HAS_OGL_FORWARD_TONE_GLSL
-					CompileEffect("TONE", GET_RESOURCE_BATCH(ogl_forward_tone_glsl), sizeof(Render));
-#else
-					THAWK_ERROR("forward/tone.glsl was not compiled");
-#endif
-				}
+				std::string Data;
+				if (System->GetDevice()->GetSection("pass/tone", &Data))
+					CompileEffect("TR_TONE", Data, sizeof(RenderPass));
 			}
 			void ToneRenderer::OnLoad(ContentManager* Content, Rest::Document* Node)
 			{
-				NMake::Unpack(Node->Find("blind-vision-r"), &Render.BlindVisionR);
-				NMake::Unpack(Node->Find("blind-vision-g"), &Render.BlindVisionG);
-				NMake::Unpack(Node->Find("blind-vision-b"), &Render.BlindVisionB);
-				NMake::Unpack(Node->Find("vignette-color"), &Render.VignetteColor);
-				NMake::Unpack(Node->Find("color-gamma"), &Render.ColorGamma);
-				NMake::Unpack(Node->Find("desaturation-gamma"), &Render.DesaturationGamma);
-				NMake::Unpack(Node->Find("vignette-amount"), &Render.VignetteAmount);
-				NMake::Unpack(Node->Find("vignette-curve"), &Render.VignetteCurve);
-				NMake::Unpack(Node->Find("vignette-radius"), &Render.VignetteRadius);
-				NMake::Unpack(Node->Find("linear-intensity"), &Render.LinearIntensity);
-				NMake::Unpack(Node->Find("gamma-intensity"), &Render.GammaIntensity);
-				NMake::Unpack(Node->Find("desaturation-intensity"), &Render.DesaturationIntensity);
+				NMake::Unpack(Node->Find("blind-vision-r"), &RenderPass.BlindVisionR);
+				NMake::Unpack(Node->Find("blind-vision-g"), &RenderPass.BlindVisionG);
+				NMake::Unpack(Node->Find("blind-vision-b"), &RenderPass.BlindVisionB);
+				NMake::Unpack(Node->Find("vignette-color"), &RenderPass.VignetteColor);
+				NMake::Unpack(Node->Find("color-gamma"), &RenderPass.ColorGamma);
+				NMake::Unpack(Node->Find("desaturation-gamma"), &RenderPass.DesaturationGamma);
+				NMake::Unpack(Node->Find("vignette-amount"), &RenderPass.VignetteAmount);
+				NMake::Unpack(Node->Find("vignette-curve"), &RenderPass.VignetteCurve);
+				NMake::Unpack(Node->Find("vignette-radius"), &RenderPass.VignetteRadius);
+				NMake::Unpack(Node->Find("linear-intensity"), &RenderPass.LinearIntensity);
+				NMake::Unpack(Node->Find("gamma-intensity"), &RenderPass.GammaIntensity);
+				NMake::Unpack(Node->Find("desaturation-intensity"), &RenderPass.DesaturationIntensity);
 			}
 			void ToneRenderer::OnSave(ContentManager* Content, Rest::Document* Node)
 			{
-				NMake::Pack(Node->SetDocument("blind-vision-r"), Render.BlindVisionR);
-				NMake::Pack(Node->SetDocument("blind-vision-g"), Render.BlindVisionG);
-				NMake::Pack(Node->SetDocument("blind-vision-b"), Render.BlindVisionB);
-				NMake::Pack(Node->SetDocument("vignette-color"), Render.VignetteColor);
-				NMake::Pack(Node->SetDocument("color-gamma"), Render.ColorGamma);
-				NMake::Pack(Node->SetDocument("desaturation-gamma"), Render.DesaturationGamma);
-				NMake::Pack(Node->SetDocument("vignette-amount"), Render.VignetteAmount);
-				NMake::Pack(Node->SetDocument("vignette-curve"), Render.VignetteCurve);
-				NMake::Pack(Node->SetDocument("vignette-radius"), Render.VignetteRadius);
-				NMake::Pack(Node->SetDocument("linear-intensity"), Render.LinearIntensity);
-				NMake::Pack(Node->SetDocument("gamma-intensity"), Render.GammaIntensity);
-				NMake::Pack(Node->SetDocument("desaturation-intensity"), Render.DesaturationIntensity);
+				NMake::Pack(Node->SetDocument("blind-vision-r"), RenderPass.BlindVisionR);
+				NMake::Pack(Node->SetDocument("blind-vision-g"), RenderPass.BlindVisionG);
+				NMake::Pack(Node->SetDocument("blind-vision-b"), RenderPass.BlindVisionB);
+				NMake::Pack(Node->SetDocument("vignette-color"), RenderPass.VignetteColor);
+				NMake::Pack(Node->SetDocument("color-gamma"), RenderPass.ColorGamma);
+				NMake::Pack(Node->SetDocument("desaturation-gamma"), RenderPass.DesaturationGamma);
+				NMake::Pack(Node->SetDocument("vignette-amount"), RenderPass.VignetteAmount);
+				NMake::Pack(Node->SetDocument("vignette-curve"), RenderPass.VignetteCurve);
+				NMake::Pack(Node->SetDocument("vignette-radius"), RenderPass.VignetteRadius);
+				NMake::Pack(Node->SetDocument("linear-intensity"), RenderPass.LinearIntensity);
+				NMake::Pack(Node->SetDocument("gamma-intensity"), RenderPass.GammaIntensity);
+				NMake::Pack(Node->SetDocument("desaturation-intensity"), RenderPass.DesaturationIntensity);
 			}
 			void ToneRenderer::OnRenderEffect(Rest::Timer* Time)
 			{
-				PostProcess(&Render);
+				RenderResult(nullptr, &RenderPass);
 			}
 
 			GUIRenderer::GUIRenderer(RenderSystem* Lab) : GUIRenderer(Lab, Application::Get() ? Application::Get()->Activity : nullptr)
@@ -3512,24 +3177,8 @@ namespace Tomahawk
 				I.Layout = GetDrawVertexLayout();
 				I.LayoutSize = GetDrawVertexSize();
 
-				if (System->GetDevice()->GetBackend() == Graphics::RenderBackend_D3D11)
-				{
-#ifdef HAS_D3D11_FORWARD_GUI_HLSL
-					I.Data = GET_RESOURCE_BATCH(d3d11_forward_gui_hlsl);
-					Shader = System->CompileShader("GUI", I, sizeof(Compute::Matrix4x4));
-#else
-					THAWK_ERROR("forward/gui.hlsl was not compiled");
-#endif
-				}
-				else if (System->GetDevice()->GetBackend() == Graphics::RenderBackend_OGL)
-				{
-#ifdef HAS_OGL_FORWARD_GUI_GLSL
-					I.Data = GET_RESOURCE_BATCH(ogl_forward_gui_glsl);
-					Shader = System->CompileShader("GUI", I, sizeof(Compute::Matrix4x4));
-#else
-					THAWK_ERROR("forward/gui.glsl was not compiled");
-#endif
-				}
+				if (System->GetDevice()->GetSection("pass/gui", &I.Data))
+					Shader = System->CompileShader("GUIR_GUI", I, sizeof(Compute::Matrix4x4));
 
 				unsigned char* Pixels = nullptr;
 				int Width = 0, Height = 0;
@@ -3556,7 +3205,7 @@ namespace Tomahawk
 				if (LastContext != Context)
 					ImGui::SetCurrentContext(LastContext);
 
-				System->FreeShader("GUI", Shader);
+				System->FreeShader("GUIR_GUI", Shader);
 				delete IndexBuffer;
 				delete VertexBuffer;
 				delete Font;
@@ -3889,6 +3538,17 @@ namespace Tomahawk
 					return nullptr;
 
 				return &Tree;
+			}
+			GUI::Interface* GUIRenderer::GetCurrentTree()
+			{
+				if (!ImGui::GetCurrentContext())
+					return nullptr;
+
+				GUIRenderer* Renderer = (GUIRenderer*)ImGui::GetIO().UserData;
+				if (!Renderer)
+					return nullptr;
+
+				return Renderer->GetTree();
 			}
 			bool GUIRenderer::IsTreeActive()
 			{

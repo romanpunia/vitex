@@ -1,17 +1,95 @@
 #include "audio.h"
+#include "audio/effects.h"
+#include "audio/filters.h"
 #ifdef THAWK_HAS_OPENAL
 #include <AL/al.h>
 #include <AL/alc.h>
+#include <AL/efx.h>
+#include <AL/efx-presets.h>
 #endif
+#define LOAD_PROC(T, X) ((X) = (T)alGetProcAddress(#X))
 
 namespace Tomahawk
 {
 	namespace Audio
 	{
+#ifdef THAWK_HAS_OPENAL
+		LPALGENFILTERS alGenFilters = nullptr;
+		LPALDELETEFILTERS alDeleteFilters = nullptr;
+		LPALISFILTER alIsFilter = nullptr;
+		LPALFILTERI alFilteri = nullptr;
+		LPALFILTERIV alFilteriv = nullptr;
+		LPALFILTERF alFilterf = nullptr;
+		LPALFILTERFV alFilterfv = nullptr;
+		LPALGETFILTERI alGetFilteri = nullptr;
+		LPALGETFILTERIV alGetFilteriv = nullptr;
+		LPALGETFILTERF alGetFilterf = nullptr;
+		LPALGETFILTERFV alGetFilterfv = nullptr;
+		LPALGENEFFECTS alGenEffects = nullptr;
+		LPALDELETEEFFECTS alDeleteEffects = nullptr;
+		LPALISEFFECT alIsEffect = nullptr;
+		LPALEFFECTI alEffecti = nullptr;
+		LPALEFFECTIV alEffectiv = nullptr;
+		LPALEFFECTF alEffectf = nullptr;
+		LPALEFFECTFV alEffectfv = nullptr;
+		LPALGETEFFECTI alGetEffecti = nullptr;
+		LPALGETEFFECTIV alGetEffectiv = nullptr;
+		LPALGETEFFECTF alGetEffectf = nullptr;
+		LPALGETEFFECTFV alGetEffectfv = nullptr;
+		LPALGENAUXILIARYEFFECTSLOTS alGenAuxiliaryEffectSlots = nullptr;
+		LPALDELETEAUXILIARYEFFECTSLOTS alDeleteAuxiliaryEffectSlots = nullptr;
+		LPALISAUXILIARYEFFECTSLOT alIsAuxiliaryEffectSlot = nullptr;
+		LPALAUXILIARYEFFECTSLOTI alAuxiliaryEffectSloti = nullptr;
+		LPALAUXILIARYEFFECTSLOTIV alAuxiliaryEffectSlotiv = nullptr;
+		LPALAUXILIARYEFFECTSLOTF alAuxiliaryEffectSlotf = nullptr;
+		LPALAUXILIARYEFFECTSLOTFV alAuxiliaryEffectSlotfv = nullptr;
+		LPALGETAUXILIARYEFFECTSLOTI alGetAuxiliaryEffectSloti = nullptr;
+		LPALGETAUXILIARYEFFECTSLOTIV alGetAuxiliaryEffectSlotiv = nullptr;
+		LPALGETAUXILIARYEFFECTSLOTF alGetAuxiliaryEffectSlotf = nullptr;
+		LPALGETAUXILIARYEFFECTSLOTFV alGetAuxiliaryEffectSlotfv = nullptr;
+#endif
 		void AudioContext::Create()
 		{
 			if (!Mutex)
 				Mutex = new std::mutex();
+
+#ifdef THAWK_HAS_OPENAL
+			LOAD_PROC(LPALGENFILTERS, alGenFilters);
+			LOAD_PROC(LPALDELETEFILTERS, alDeleteFilters);
+			LOAD_PROC(LPALISFILTER, alIsFilter);
+			LOAD_PROC(LPALFILTERI, alFilteri);
+			LOAD_PROC(LPALFILTERIV, alFilteriv);
+			LOAD_PROC(LPALFILTERF, alFilterf);
+			LOAD_PROC(LPALFILTERFV, alFilterfv);
+			LOAD_PROC(LPALGETFILTERI, alGetFilteri);
+			LOAD_PROC(LPALGETFILTERIV, alGetFilteriv);
+			LOAD_PROC(LPALGETFILTERF, alGetFilterf);
+			LOAD_PROC(LPALGETFILTERFV, alGetFilterfv);
+			LOAD_PROC(LPALGENEFFECTS, alGenEffects);
+			LOAD_PROC(LPALDELETEEFFECTS, alDeleteEffects);
+			LOAD_PROC(LPALISEFFECT, alIsEffect);
+			LOAD_PROC(LPALEFFECTI, alEffecti);
+			LOAD_PROC(LPALEFFECTIV, alEffectiv);
+			LOAD_PROC(LPALEFFECTF, alEffectf);
+			LOAD_PROC(LPALEFFECTFV, alEffectfv);
+			LOAD_PROC(LPALGETEFFECTI, alGetEffecti);
+			LOAD_PROC(LPALGETEFFECTIV, alGetEffectiv);
+			LOAD_PROC(LPALGETEFFECTF, alGetEffectf);
+			LOAD_PROC(LPALGETEFFECTFV, alGetEffectfv);
+			LOAD_PROC(LPALGENAUXILIARYEFFECTSLOTS, alGenAuxiliaryEffectSlots);
+			LOAD_PROC(LPALDELETEAUXILIARYEFFECTSLOTS, alDeleteAuxiliaryEffectSlots);
+			LOAD_PROC(LPALISAUXILIARYEFFECTSLOT, alIsAuxiliaryEffectSlot);
+			LOAD_PROC(LPALAUXILIARYEFFECTSLOTI, alAuxiliaryEffectSloti);
+			LOAD_PROC(LPALAUXILIARYEFFECTSLOTIV, alAuxiliaryEffectSlotiv);
+			LOAD_PROC(LPALAUXILIARYEFFECTSLOTF, alAuxiliaryEffectSlotf);
+			LOAD_PROC(LPALAUXILIARYEFFECTSLOTFV, alAuxiliaryEffectSlotfv);
+			LOAD_PROC(LPALGETAUXILIARYEFFECTSLOTI, alGetAuxiliaryEffectSloti);
+			LOAD_PROC(LPALGETAUXILIARYEFFECTSLOTIV, alGetAuxiliaryEffectSlotiv);
+			LOAD_PROC(LPALGETAUXILIARYEFFECTSLOTF, alGetAuxiliaryEffectSlotf);
+			LOAD_PROC(LPALGETAUXILIARYEFFECTSLOTFV, alGetAuxiliaryEffectSlotfv);
+#endif
+			Effects::EffectContext::Initialize();
+			Filters::FilterContext::Initialize();
 		}
 		void AudioContext::Release()
 		{
@@ -291,6 +369,137 @@ namespace Tomahawk
 		std::mutex* AudioContext::Mutex = nullptr;
 		int AudioContext::State = 0;
 
+		AudioFilter::AudioFilter()
+		{
+#ifdef THAWK_HAS_OPENAL
+			Filter = AL_FILTER_NULL;
+#endif
+		}
+		AudioFilter::~AudioFilter()
+		{
+#ifdef THAWK_HAS_OPENAL
+			AudioContext::Lock();
+			if (alDeleteFilters != nullptr && Filter != AL_FILTER_NULL)
+				alDeleteFilters(1, &Filter);
+			AudioContext::Unlock();
+#endif
+		}
+		bool AudioFilter::CreateLocked(const std::function<bool()>& Callback)
+		{
+#ifdef THAWK_HAS_OPENAL
+			AudioContext::Lock();
+			if (alDeleteFilters != nullptr && Filter != AL_FILTER_NULL)
+				alDeleteFilters(1, &Filter);
+
+			if (alGenFilters != nullptr)
+				alGenFilters(1, &Filter);
+
+			if (Callback)
+				Callback();
+			AudioContext::Unlock();
+#endif
+			return true;
+		}
+		AudioSource* AudioFilter::GetSource()
+		{
+			return Source;
+		}
+
+		AudioEffect::AudioEffect()
+		{
+#ifdef THAWK_HAS_OPENAL
+			Effect = AL_EFFECT_NULL;
+			Slot = AL_EFFECTSLOT_NULL;
+#endif
+		}
+		AudioEffect::~AudioEffect()
+		{
+			Unbind();
+#ifdef THAWK_HAS_OPENAL
+			AudioContext::Lock();
+			if (alDeleteEffects != nullptr && Effect != AL_EFFECT_NULL)
+				alDeleteEffects(1, &Effect);
+
+			if (alDeleteAuxiliaryEffectSlots != nullptr && Slot != AL_EFFECTSLOT_NULL)
+				alDeleteAuxiliaryEffectSlots(1, &Slot);
+			AudioContext::Unlock();
+#endif
+			delete Filter;
+		}
+		bool AudioEffect::CreateLocked(const std::function<bool()>& Callback)
+		{
+#ifdef THAWK_HAS_OPENAL
+			AudioContext::Lock();
+			if (alDeleteAuxiliaryEffectSlots != nullptr && Slot != AL_EFFECTSLOT_NULL)
+				alDeleteAuxiliaryEffectSlots(1, &Slot);
+
+			if (alGenAuxiliaryEffectSlots != nullptr)
+				alGenAuxiliaryEffectSlots(1, &Slot);
+
+			if (alDeleteEffects != nullptr && Effect != AL_EFFECT_NULL)
+				alDeleteEffects(1, &Effect);
+
+			if (alGenEffects != nullptr)
+				alGenEffects(1, &Effect);
+
+			if (Callback)
+				Callback();
+
+			if (alAuxiliaryEffectSloti != nullptr && Effect != AL_EFFECT_NULL)
+				alAuxiliaryEffectSloti(Slot, AL_EFFECTSLOT_EFFECT, (ALint)Effect);
+			AudioContext::Unlock();
+#endif
+			return true;
+		}
+		bool AudioEffect::SetFilter(AudioFilter** NewFilter)
+		{
+			delete Filter;
+			Filter = nullptr;
+
+			if (!NewFilter || !*NewFilter)
+				return true;
+
+			Filter = *NewFilter;
+			*NewFilter = nullptr;
+			Bind(Source, Zone);
+
+			return true;
+		}
+		bool AudioEffect::Bind(AudioSource* NewSource, int NewZone)
+		{
+			Source = NewSource;
+			Zone = NewZone;
+
+			if (!Source)
+				return false;
+#ifdef THAWK_HAS_OPENAL
+			AudioContext::Lock();
+			alSource3i(Source->GetInstance(), AL_AUXILIARY_SEND_FILTER, (ALint)Slot, Zone, (ALint)(Filter ? Filter->Filter : AL_FILTER_NULL));
+			AudioContext::Unlock();
+#endif
+			return true;
+		}
+		bool AudioEffect::Unbind()
+		{
+			if (!Source)
+				return false;
+
+#ifdef THAWK_HAS_OPENAL
+			AudioContext::Lock();
+			alSource3i(Source->GetInstance(), AL_AUXILIARY_SEND_FILTER, AL_EFFECTSLOT_NULL, Zone, AL_FILTER_NULL);
+			AudioContext::Unlock();
+#endif
+			return true;
+		}
+		AudioFilter* AudioEffect::GetFilter()
+		{
+			return Filter;
+		}
+		AudioSource* AudioEffect::GetSource()
+		{
+			return Source;
+		}
+		
 		AudioClip::AudioClip(int BufferCount, int NewFormat) : Format(NewFormat)
 		{
 			if (BufferCount > 0)
@@ -370,27 +579,104 @@ namespace Tomahawk
 		}
 		AudioSource::~AudioSource()
 		{
+			for (auto* Effect : Effects)
+				delete Effect;
+
 #ifdef THAWK_HAS_OPENAL
 			AudioContext::Lock();
 			alSourceStop(Instance);
 			alSourcei(Instance, AL_BUFFER, 0);
 			alDeleteSources(1, &Instance);
 			AudioContext::Unlock();
-
-			Clip = nullptr;
-			Instance = 0;
 #endif
 		}
-		void AudioSource::Apply(AudioClip* In)
+		int64_t AudioSource::AddEffect(AudioEffect* Effect)
+		{
+			if (!Effect)
+				return -1;
+
+			Effect->Bind(this, Effects.size());
+			Effects.push_back(Effect);
+			return Effects.size() - 1;
+		}
+		bool AudioSource::RemoveEffect(uint64_t EffectId)
+		{
+			if (EffectId >= Effects.size())
+				return false;
+
+			auto It = Effects.begin() + EffectId;
+			delete *It;
+			Effects.erase(It);
+
+			for (size_t i = EffectId; i < Effects.size(); i++)
+			{
+				AudioEffect* Effect = Effects[i];
+				if (!Effect)
+					continue;
+
+				Effect->Unbind();
+				Effect->Bind(this, i);	
+			}
+
+			return true;
+		}
+		void AudioSource::SetClip(AudioClip* NewClip)
 		{
 #ifdef THAWK_HAS_OPENAL
 			AudioContext::Lock();
 			alSourceStop(Instance);
 
-			Clip = In;
+			Clip = NewClip;
 			if (Clip != nullptr)
 				alSourcei(Instance, AL_BUFFER, Clip->GetBuffer());
 
+			AudioContext::Unlock();
+#endif
+		}
+		void AudioSource::Synchronize(AudioSync* Sync, const Compute::Vector3& Position)
+		{
+			if (!Sync)
+				return;
+
+			for (auto* Effect : Effects)
+			{
+				if (!Effect)
+					continue;
+
+				Effect->Synchronize();
+				if (Effect->Filter != nullptr)
+					Effect->Filter->Synchronize();
+#ifdef THAWK_HAS_OPENAL
+				if (alAuxiliaryEffectSloti != nullptr && Effect->Effect != AL_EFFECT_NULL && Effect->Slot != AL_EFFECTSLOT_NULL)
+					alAuxiliaryEffectSloti(Effect->Slot, AL_EFFECTSLOT_EFFECT, (ALint)Effect->Effect);
+#endif
+			}
+
+#ifdef THAWK_HAS_OPENAL
+			AudioContext::Lock();
+			if (!Sync->IsRelative)
+				alSource3f(Instance, AL_POSITION, 0, 0, 0);
+			else
+				alSource3f(Instance, AL_POSITION, -Position.X, -Position.Y, Position.Z);
+#ifdef AL_ROOM_ROLLOFF_FACTOR
+			alSourcef(Instance, AL_ROOM_ROLLOFF_FACTOR, Sync->RoomRollOff);
+#endif
+#ifdef AL_AIR_ABSORPTION_FACTOR
+			alSourcef(Instance, AL_AIR_ABSORPTION_FACTOR, Sync->AirAbsorption);
+#endif
+			alSource3f(Instance, AL_VELOCITY, Sync->Velocity.X, Sync->Velocity.Y, Sync->Velocity.Z);
+			alSource3f(Instance, AL_DIRECTION, Sync->Direction.X, Sync->Direction.Y, Sync->Direction.Z);
+			alSourcei(Instance, AL_SOURCE_RELATIVE, Sync->IsRelative ? 0 : 1);
+			alSourcei(Instance, AL_LOOPING, Sync->IsLooped ? 1 : 0);
+			alSourcef(Instance, AL_PITCH, Sync->Pitch);
+			alSourcef(Instance, AL_GAIN, Sync->Gain);
+			alSourcef(Instance, AL_MAX_DISTANCE, Sync->Distance);
+			alSourcef(Instance, AL_REFERENCE_DISTANCE, Sync->RefDistance);
+			alSourcef(Instance, AL_ROLLOFF_FACTOR, Sync->Rolloff);
+			alSourcef(Instance, AL_CONE_INNER_ANGLE, Sync->ConeInnerAngle);
+			alSourcef(Instance, AL_CONE_OUTER_ANGLE, Sync->ConeOuterAngle);
+			alSourcef(Instance, AL_CONE_OUTER_GAIN, Sync->ConeOuterGain);
+			alGetSourcef(Instance, AL_SEC_OFFSET, &Sync->Position);
 			AudioContext::Unlock();
 #endif
 		}
@@ -459,6 +745,10 @@ namespace Tomahawk
 		unsigned int AudioSource::GetInstance() const
 		{
 			return Instance;
+		}
+		std::vector<AudioEffect*>* AudioSource::GetEffects()
+		{
+			return &Effects;
 		}
 
 		AudioDevice::AudioDevice()

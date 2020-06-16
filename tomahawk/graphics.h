@@ -918,10 +918,10 @@ namespace Tomahawk
 			Compute::Vector4 Metallic;
 			Compute::Vector2 Roughness = { 1, 0 };
 			Compute::Vector2 Transparency;
-			float Occlusion = 0.0f;
+			float Environment = 0.0f;
+			float Occlusion = 1.0f;
 			float Radius = 0.0f;
 			float Self = 0.0f;
-			float Padding = 0.0f;
 		};
 
 		class THAWK_OUT Surface
@@ -1249,7 +1249,6 @@ namespace Tomahawk
 				unsigned int DepthPitch = 0;
 				unsigned int Width = 512;
 				unsigned int Height = 512;
-				bool Dealloc = false;
 				int MipLevels = 1;
 			};
 
@@ -1277,12 +1276,41 @@ namespace Tomahawk
 
 		class THAWK_OUT Texture3D : public Rest::Object
 		{
+		public:
+			struct Desc
+			{
+				CPUAccess AccessFlags = CPUAccess_Invalid;
+				Format FormatMode = Format_R8G8B8A8_Unorm;
+				ResourceUsage Usage = ResourceUsage_Default;
+				ResourceBind BindFlags = ResourceBind_Shader_Input;
+				ResourceMisc MiscFlags = ResourceMisc_None;
+				unsigned int Width = 512;
+				unsigned int Height = 512;
+				unsigned int Depth = 1;
+				int MipLevels = 1;
+			};
+
+		protected:
+			CPUAccess AccessFlags;
+			Format FormatMode;
+			ResourceUsage Usage;
+			unsigned int Width, Height;
+			unsigned int MipLevels;
+			unsigned int Depth;
+
 		protected:
 			Texture3D();
 
 		public:
 			virtual ~Texture3D() = default;
 			virtual void* GetResource() = 0;
+			CPUAccess GetAccessFlags();
+			Format GetFormatMode();
+			ResourceUsage GetUsage();
+			unsigned int GetWidth();
+			unsigned int GetHeight();
+			unsigned int GetDepth();
+			unsigned int GetMipLevels();
 		};
 
 		class THAWK_OUT TextureCube : public Rest::Object
@@ -1290,8 +1318,22 @@ namespace Tomahawk
 		public:
 			struct Desc
 			{
-				void* Texture2D[6] = { nullptr, nullptr, nullptr, nullptr, nullptr, nullptr };
+				CPUAccess AccessFlags = CPUAccess_Invalid;
+				Format FormatMode = Format_R8G8B8A8_Unorm;
+				ResourceUsage Usage = ResourceUsage_Default;
+				ResourceBind BindFlags = ResourceBind_Shader_Input;
+				ResourceMisc MiscFlags = ResourceMisc_Texture_Cube;
+				unsigned int Width = 128;
+				unsigned int Height = 128;
+				int MipLevels = 1;
 			};
+
+		protected:
+			CPUAccess AccessFlags;
+			Format FormatMode;
+			ResourceUsage Usage;
+			unsigned int Width, Height;
+			unsigned int MipLevels;
 
 		protected:
 			TextureCube();
@@ -1300,6 +1342,12 @@ namespace Tomahawk
 		public:
 			virtual ~TextureCube() = default;
 			virtual void* GetResource() = 0;
+			CPUAccess GetAccessFlags();
+			Format GetFormatMode();
+			ResourceUsage GetUsage();
+			unsigned int GetWidth();
+			unsigned int GetHeight();
+			unsigned int GetMipLevels();
 		};
 
 		class THAWK_OUT RenderTarget2D : public Rest::Object
@@ -1610,6 +1658,12 @@ namespace Tomahawk
 			virtual void FetchViewports(unsigned int* Count, Viewport* Out) = 0;
 			virtual void FetchScissorRects(unsigned int* Count, Rectangle* Out) = 0;
 			virtual void ResizeBuffers(unsigned int Width, unsigned int Height) = 0;
+			virtual bool GenerateTexture(Texture2D* Resource) = 0;
+			virtual bool GenerateTexture(Texture3D* Resource) = 0;
+			virtual bool GenerateTexture(TextureCube* Resource) = 0;
+			virtual void GenerateMips(Texture2D* Resource) = 0;
+			virtual void GenerateMips(Texture3D* Resource) = 0;
+			virtual void GenerateMips(TextureCube* Resource) = 0;
 			virtual void DirectBegin() = 0;
 			virtual void DirectTransform(const Compute::Matrix4x4& Transform) = 0;
 			virtual void DirectTopology(PrimitiveTopology Topology) = 0;
@@ -1635,8 +1689,11 @@ namespace Tomahawk
 			virtual Texture2D* CreateTexture2D() = 0;
 			virtual Texture2D* CreateTexture2D(const Texture2D::Desc& I) = 0;
 			virtual Texture3D* CreateTexture3D() = 0;
+			virtual Texture3D* CreateTexture3D(const Texture3D::Desc& I) = 0;
 			virtual TextureCube* CreateTextureCube() = 0;
 			virtual TextureCube* CreateTextureCube(const TextureCube::Desc& I) = 0;
+			virtual TextureCube* CreateTextureCube(Texture2D* Resource[6]) = 0;
+			virtual TextureCube* CreateTextureCubeInternal(void* Resource[6]) = 0;
 			virtual RenderTarget2D* CreateRenderTarget2D(const RenderTarget2D::Desc& I) = 0;
 			virtual MultiRenderTarget2D* CreateMultiRenderTarget2D(const MultiRenderTarget2D::Desc& I) = 0;
 			virtual RenderTarget2DArray* CreateRenderTarget2DArray(const RenderTarget2DArray::Desc& I) = 0;
@@ -1654,7 +1711,6 @@ namespace Tomahawk
 			void Unlock();
 			void AddSection(const std::string& Name, const std::string& Code);
 			void RemoveSection(const std::string& Name);
-			std::string* GetSection(const std::string& Name);
 			DepthStencilState* GetDepthStencilState(const std::string& Name);
 			BlendState* GetBlendState(const std::string& Name);
 			RasterizerState* GetRasterizerState(const std::string& Name);
@@ -1666,6 +1722,7 @@ namespace Tomahawk
 			unsigned int GetPresentFlags();
 			unsigned int GetCompileFlags();
 			unsigned int GetMipLevel(unsigned int Width, unsigned int Height);
+			bool GetSection(const std::string& Name, std::string* Out, bool Internal = false);
 			VSync GetVSyncMode();
 			bool IsDebug();
 

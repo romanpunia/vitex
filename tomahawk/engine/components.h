@@ -17,10 +17,11 @@ namespace Tomahawk
 			{
 			private:
 				Compute::UnmanagedShape* Hull;
+				Compute::RigidBody* Instance;
 
 			public:
-				Compute::RigidBody* Instance;
-				bool Kinematic, Synchronize;
+				bool Synchronize;
+				bool Kinematic;
 
 			public:
 				RigidBody(Entity* Ref);
@@ -36,6 +37,7 @@ namespace Tomahawk
 				void SetTransform(const Compute::Matrix4x4& World);
 				void SetTransform(bool Kinematic);
 				void SetMass(float Mass);
+				Compute::RigidBody* GetBody() const;
 
 			public:
 				THAWK_COMPONENT(RigidBody);
@@ -45,13 +47,14 @@ namespace Tomahawk
 			{
 			private:
 				Compute::UnmanagedShape* Hull;
-
-			public:
 				Compute::SoftBody* Instance;
 				std::vector<Compute::Vertex> Vertices;
 				std::vector<int> Indices;
+
+			public:
 				Appearance Surface;
-				bool Kinematic, Synchronize;
+				bool Synchronize;
+				bool Kinematic;
 				bool Visibility;
 
 			public:
@@ -72,6 +75,9 @@ namespace Tomahawk
 				void SetTransform(const Compute::Matrix4x4& World);
 				void SetTransform(bool Kinematic);
 				Graphics::Material& GetMaterial();
+				Compute::SoftBody* GetBody() const;
+				std::vector<Compute::Vertex>& GetVertices();
+				std::vector<int>& GetIndices();
 
 			public:
 				THAWK_COMPONENT(SoftBody);
@@ -79,13 +85,15 @@ namespace Tomahawk
 
 			class THAWK_OUT Acceleration : public Component
 			{
+			private:
+				Compute::RigidBody* RigidBody;
+
 			public:
 				Compute::Vector3 AmplitudeVelocity;
 				Compute::Vector3 AmplitudeTorque;
 				Compute::Vector3 ConstantVelocity;
 				Compute::Vector3 ConstantTorque;
 				Compute::Vector3 ConstantCenter;
-				Compute::RigidBody* RigidBody;
 				bool Velocity;
 
 			public:
@@ -96,6 +104,7 @@ namespace Tomahawk
 				virtual void OnAwake(Component* New) override;
 				virtual void OnSynchronize(Rest::Timer* Time) override;
 				virtual Component* OnClone(Entity* New) override;
+				Compute::RigidBody* GetBody() const;
 
 			public:
 				THAWK_COMPONENT(Acceleration);
@@ -103,7 +112,7 @@ namespace Tomahawk
 
 			class THAWK_OUT SliderConstraint : public Component
 			{
-			public:
+			private:
 				Compute::SliderConstraint* Instance;
 				Entity* Connection;
 
@@ -115,6 +124,8 @@ namespace Tomahawk
 				virtual Component* OnClone(Entity* New) override;
 				void Initialize(bool IsGhosted, bool IsLinear);
 				void Clear();
+				Compute::SliderConstraint* GetConstraint() const;
+				Entity* GetConnection() const;
 
 			public:
 				THAWK_COMPONENT(SliderConstraint);
@@ -122,19 +133,10 @@ namespace Tomahawk
 
 			class THAWK_OUT AudioSource : public Component
 			{
-			public:
+			private:
+				Compute::Vector3 LastPosition;
 				Audio::AudioSource* Source;
-				Compute::Vector3 Direction;
-				Compute::Vector3 Velocity;
-				float ConeInnerAngle;
-				float ConeOuterAngle;
-				float ConeOuterGain;
-				float Pitch, Gain;
-				float RefDistance;
-				float Distance;
-				float Rolloff;
-				float Position;
-				int Relative, Loop;
+				Audio::AudioSync Sync;
 
 			public:
 				AudioSource(Entity* Ref);
@@ -144,6 +146,8 @@ namespace Tomahawk
 				virtual void OnSynchronize(Rest::Timer* Time) override;
 				virtual Component* OnClone(Entity* New) override;
 				void ApplyPlayingPosition();
+				Audio::AudioSource* GetSource() const;
+				Audio::AudioSync& GetSync();
 
 			public:
 				THAWK_COMPONENT(AudioSource);
@@ -151,8 +155,10 @@ namespace Tomahawk
 
 			class THAWK_OUT AudioListener : public Component
 			{
+			private:
+				Compute::Vector3 LastPosition;
+
 			public:
-				Compute::Vector3 Velocity;
 				float Gain;
 
 			public:
@@ -170,7 +176,7 @@ namespace Tomahawk
 
 			class THAWK_OUT SkinAnimator : public Component
 			{
-			public:
+			private:
 				SkinModel* Instance = nullptr;
 
 			public:
@@ -193,6 +199,7 @@ namespace Tomahawk
 				void Stop();
 				std::vector<Compute::AnimatorKey>* GetFrame(int64_t Clip, int64_t Frame);
 				std::vector<std::vector<Compute::AnimatorKey>>* GetClip(int64_t Clip);
+				SkinModel* GetAnimatedObject() const;
 
 			private:
 				void BlendAnimation(int64_t Clip, int64_t Frame);
@@ -234,8 +241,10 @@ namespace Tomahawk
 
 			class THAWK_OUT ElementSystem : public Component
 			{
-			public:
+			private:
 				Graphics::InstanceBuffer* Instance;
+
+			public:
 				Appearance Surface;
 				float Visibility;
 				float Volume;
@@ -252,6 +261,7 @@ namespace Tomahawk
 				virtual void OnEvent(Event* Value) override;
 				virtual Component* OnClone(Entity* New) override;
 				Graphics::Material& GetMaterial();
+				Graphics::InstanceBuffer* GetBuffer() const;
 
 			public:
 				THAWK_COMPONENT(ElementSystem);
@@ -259,7 +269,7 @@ namespace Tomahawk
 
 			class THAWK_OUT ElementAnimator : public Component
 			{
-			protected:
+			private:
 				ElementSystem* System;
 
 			public:
@@ -280,6 +290,7 @@ namespace Tomahawk
 				virtual void OnAwake(Component* New) override;
 				virtual void OnSynchronize(Rest::Timer* Time) override;
 				virtual Component* OnClone(Entity* New) override;
+				ElementSystem* GetSystem() const;
 
 			protected:
 				void AccurateSynchronization(float DeltaTime);
@@ -304,6 +315,7 @@ namespace Tomahawk
 				virtual ~FreeLook() = default;
 				virtual void OnAwake(Component* New) override;
 				virtual void OnUpdate(Rest::Timer* Time) override;
+				Graphics::Activity* GetActivity() const;
 
 			public:
 				THAWK_COMPONENT(FreeLook);
@@ -311,6 +323,9 @@ namespace Tomahawk
 
 			class THAWK_OUT Fly : public Component
 			{
+			private:
+				Graphics::Activity* Activity;
+
 			public:
 				Graphics::KeyMap Forward;
 				Graphics::KeyMap Backward;
@@ -325,14 +340,12 @@ namespace Tomahawk
 				float SpeedUp;
 				float SpeedDown;
 
-			private:
-				Graphics::Activity* Activity;
-
 			public:
 				Fly(Entity* Ref);
 				virtual ~Fly() = default;
 				virtual void OnAwake(Component* New) override;
 				virtual void OnUpdate(Rest::Timer* Time) override;
+				Graphics::Activity* GetActivity() const;
 
 			public:
 				THAWK_COMPONENT(Fly);
@@ -340,9 +353,11 @@ namespace Tomahawk
 
 			class THAWK_OUT Model : public Component
 			{
+			private:
+				Graphics::Model* Instance = nullptr;
+
 			public:
 				std::unordered_map<Graphics::MeshBuffer*, Appearance> Surfaces;
-				Graphics::Model* Instance = nullptr;
 				bool Visibility;
 
 			public:
@@ -353,10 +368,12 @@ namespace Tomahawk
 				virtual void OnSynchronize(Rest::Timer* Time) override;
 				virtual void OnEvent(Event* Value) override;
 				virtual Component* OnClone(Entity* New) override;
+				void SetDrawable(Graphics::Model* Drawable);
 				Graphics::Material& GetMaterial(Graphics::MeshBuffer* Mesh);
 				Graphics::Material& GetMaterial(Appearance* Surface);
 				Appearance* GetSurface(Graphics::MeshBuffer* Mesh);
 				Compute::Matrix4x4 GetBoundingBox();
+				Graphics::Model* GetDrawable() const;
 
 			public:
 				THAWK_COMPONENT(Model);
@@ -364,9 +381,11 @@ namespace Tomahawk
 
 			class THAWK_OUT SkinModel : public Component
 			{
+			private:
+				Graphics::SkinModel* Instance = nullptr;
+
 			public:
 				std::unordered_map<Graphics::SkinMeshBuffer*, Appearance> Surfaces;
-				Graphics::SkinModel* Instance = nullptr;
 				Graphics::PoseBuffer Skeleton;
 				bool Visibility;
 
@@ -378,10 +397,12 @@ namespace Tomahawk
 				virtual void OnSynchronize(Rest::Timer* Time) override;
 				virtual void OnEvent(Event* Value) override;
 				virtual Component* OnClone(Entity* New) override;
+				void SetDrawable(Graphics::SkinModel* Drawable);
 				Graphics::Material& GetMaterial(Graphics::SkinMeshBuffer* Mesh);
 				Graphics::Material& GetMaterial(Appearance* Surface);
 				Appearance* GetSurface(Graphics::SkinMeshBuffer* Mesh);
 				Compute::Matrix4x4 GetBoundingBox();
+				Graphics::SkinModel* GetDrawable() const;
 
 			public:
 				THAWK_COMPONENT(SkinModel);
@@ -389,6 +410,9 @@ namespace Tomahawk
 
 			class THAWK_OUT PointLight : public Component
 			{
+			private:
+				Graphics::Texture2D* ShadowCache;
+
 			public:
 				Compute::Matrix4x4 View;
 				Compute::Matrix4x4 Projection;
@@ -403,15 +427,14 @@ namespace Tomahawk
 				bool Shadowed = false;
 
 			public:
-				Graphics::Texture2D* Occlusion;
-
-			public:
 				PointLight(Entity* Ref);
 				virtual ~PointLight() = default;
 				virtual void OnLoad(ContentManager* Content, Rest::Document* Node) override;
 				virtual void OnSave(ContentManager* Content, Rest::Document* Node) override;
 				virtual void OnSynchronize(Rest::Timer* Time) override;
 				virtual Component* OnClone(Entity* New) override;
+				void SetShadowCache(Graphics::Texture2D* NewCache);
+				Graphics::Texture2D* GetShadowCache() const;
 
 			public:
 				THAWK_COMPONENT(PointLight);
@@ -419,7 +442,11 @@ namespace Tomahawk
 
 			class THAWK_OUT SpotLight : public Component
 			{
+			private:
+				Graphics::Texture2D* ShadowCache;
+
 			public:
+				Graphics::Texture2D* ProjectMap;
 				Compute::Matrix4x4 Projection;
 				Compute::Matrix4x4 View;
 				Compute::Vector3 Diffuse;
@@ -434,16 +461,14 @@ namespace Tomahawk
 				bool Shadowed;
 
 			public:
-				Graphics::Texture2D* ProjectMap;
-				Graphics::Texture2D* Occlusion;
-
-			public:
 				SpotLight(Entity* Ref);
 				virtual ~SpotLight() = default;
 				virtual void OnLoad(ContentManager* Content, Rest::Document* Node) override;
 				virtual void OnSave(ContentManager* Content, Rest::Document* Node) override;
 				virtual void OnSynchronize(Rest::Timer* Time) override;
 				virtual Component* OnClone(Entity* New) override;
+				void SetShadowCache(Graphics::Texture2D* NewCache);
+				Graphics::Texture2D* GetShadowCache() const;
 
 			public:
 				THAWK_COMPONENT(SpotLight);
@@ -451,6 +476,9 @@ namespace Tomahawk
 
 			class THAWK_OUT LineLight : public Component
 			{
+			private:
+				Graphics::Texture2D* ShadowCache;
+
 			public:
 				Compute::Matrix4x4 Projection;
 				Compute::Matrix4x4 View;
@@ -466,15 +494,14 @@ namespace Tomahawk
 				bool Shadowed;
 
 			public:
-				Graphics::Texture2D* Occlusion;
-
-			public:
 				LineLight(Entity* Ref);
 				virtual ~LineLight() = default;
 				virtual void OnLoad(ContentManager* Content, Rest::Document* Node) override;
 				virtual void OnSave(ContentManager* Content, Rest::Document* Node) override;
 				virtual void OnSynchronize(Rest::Timer* Time) override;
 				virtual Component* OnClone(Entity* New) override;
+				void SetShadowCache(Graphics::Texture2D* NewCache);
+				Graphics::Texture2D* GetShadowCache() const;
 
 			public:
 				THAWK_COMPONENT(LineLight);
@@ -482,25 +509,24 @@ namespace Tomahawk
 
 			class THAWK_OUT ProbeLight : public Component
 			{
+			private:
+				Graphics::Texture2D* DiffuseMapX[2];
+				Graphics::Texture2D* DiffuseMapY[2];
+				Graphics::Texture2D* DiffuseMapZ[2];
+				Graphics::TextureCube* ProbeCache;
+
 			public:
 				Compute::Matrix4x4 View[6];
 				Compute::Matrix4x4 Projection;
 				Compute::Vector3 Diffuse;
 				Compute::Vector3 ViewOffset;
+				Rest::TickTimer Rebuild;
 				float CaptureRange;
 				float Emission;
 				float Range;
 				float Visibility;
 				bool ParallaxCorrected;
-				bool ImageBased;
 				bool RenderLocked;
-
-			public:
-				Graphics::Texture2D* DiffuseMapX[2];
-				Graphics::Texture2D* DiffuseMapY[2];
-				Graphics::Texture2D* DiffuseMapZ[2];
-				Graphics::TextureCube* DiffuseMap;
-				Rest::TickTimer Rebuild;
 
 			public:
 				ProbeLight(Entity* Ref);
@@ -509,7 +535,10 @@ namespace Tomahawk
 				virtual void OnSave(ContentManager* Content, Rest::Document* Node) override;
 				virtual void OnSynchronize(Rest::Timer* Time) override;
 				virtual Component* OnClone(Entity* New) override;
-				bool RebuildDiffuseMap();
+				void SetProbeCache(Graphics::TextureCube* NewCache);
+				bool SetDiffuseMap(Graphics::Texture2D* MapX[2], Graphics::Texture2D* MapY[2], Graphics::Texture2D* MapZ[2]);
+				bool IsImageBased() const;
+				Graphics::TextureCube* GetProbeCache() const;
 
 			public:
 				THAWK_COMPONENT(ProbeLight);

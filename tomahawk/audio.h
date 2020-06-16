@@ -7,6 +7,10 @@ namespace Tomahawk
 {
 	namespace Audio
 	{
+		class AudioSource;
+
+		class AudioEffect;
+
 		enum SoundDistanceModel
 		{
 			SoundDistanceModel_Invalid = 0,
@@ -79,6 +83,25 @@ namespace Tomahawk
 			SoundEx_Speed_Of_Sound = 0xC003
 		};
 
+		struct THAWK_OUT AudioSync
+		{
+			Compute::Vector3 Direction;
+			Compute::Vector3 Velocity;
+			float ConeInnerAngle = 360.0f;
+			float ConeOuterAngle = 360.0f;
+			float ConeOuterGain = 0.0f;
+			float Pitch = 1.0f;
+			float Gain = 1.0f;
+			float RefDistance = 0.0f;
+			float Distance = 10.0f;
+			float Rolloff = 1.0f;
+			float Position = 0.0f;
+			float AirAbsorption = 0.0f;
+			float RoomRollOff = 0.0f;
+			bool IsRelative = false;
+			bool IsLooped = false;
+		};
+
 		class THAWK_OUT AudioContext
 		{
 		private:
@@ -118,6 +141,66 @@ namespace Tomahawk
 			static void GetListenerData1I(unsigned int Listener, int* F1);
 		};
 
+		class THAWK_OUT AudioFilter : public Rest::Object
+		{
+			friend AudioEffect;
+			friend AudioSource;
+
+		protected:
+			AudioSource* Source = nullptr;
+			unsigned int Filter = 0;
+
+		public:
+			AudioFilter();
+			virtual ~AudioFilter() override;
+			virtual void Synchronize() = 0;
+			virtual void OnDeserialize(Rest::Document* Node) = 0;
+			virtual void OnSerialize(Rest::Document* Node) = 0;
+			virtual AudioFilter* OnCopy() = 0;
+			AudioSource* GetSource();
+
+		protected:
+			bool CreateLocked(const std::function<bool()>& Callback);
+
+		public:
+			THAWK_COMPONENT_BASIS(AudioFilter);
+		};
+
+		class THAWK_OUT AudioEffect : public Rest::Object
+		{
+			friend AudioSource;
+
+		private:
+			int Zone = -1;
+
+		protected:
+			AudioSource* Source = nullptr;
+			AudioFilter* Filter = nullptr;
+			unsigned int Effect = 0;
+			unsigned int Slot = 0;
+
+		public:
+			AudioEffect();
+			virtual ~AudioEffect() override;
+			virtual void Synchronize() = 0;
+			virtual void OnDeserialize(Rest::Document* Node) = 0;
+			virtual void OnSerialize(Rest::Document* Node) = 0;
+			virtual AudioEffect* OnCopy() = 0;
+			bool SetFilter(AudioFilter** Filter);
+			AudioFilter* GetFilter();
+			AudioSource* GetSource();
+
+		protected:
+			bool CreateLocked(const std::function<bool()>& Callback);
+
+		private:
+			bool Bind(AudioSource* NewSource, int NewZone);
+			bool Unbind();
+
+		public:
+			THAWK_COMPONENT_BASIS(AudioEffect);
+		};
+
 		class THAWK_OUT AudioClip : public Rest::Object
 		{
 		private:
@@ -138,13 +221,17 @@ namespace Tomahawk
 			friend class AudioDevice;
 
 		private:
+			std::vector<AudioEffect*> Effects;
 			AudioClip* Clip = nullptr;
 			unsigned int Instance = 0;
 
 		public:
 			AudioSource();
 			virtual ~AudioSource() override;
-			void Apply(AudioClip* Clip);
+			int64_t AddEffect(AudioEffect* Effect);
+			bool RemoveEffect(uint64_t EffectId);
+			void SetClip(AudioClip* Clip);
+			void Synchronize(AudioSync* Sync, const Compute::Vector3& Position);
 			void Reset();
 			void Pause();
 			void Play();
@@ -152,6 +239,7 @@ namespace Tomahawk
 			bool IsPlaying() const;
 			AudioClip* GetClip() const;
 			unsigned int GetInstance() const;
+			std::vector<AudioEffect*>* GetEffects();
 		};
 
 		class THAWK_OUT AudioDevice : public Rest::Object

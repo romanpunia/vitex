@@ -1,6 +1,6 @@
 #include "renderer/vertex/shape"
 #include "renderer/buffer/object"
-#include "geometry/minimal"
+#include "workflow/primitive"
 
 VertexResult VS(VertexBase V)
 {

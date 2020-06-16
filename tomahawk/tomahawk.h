@@ -9,6 +9,8 @@
 #include "compute.h"
 #include "graphics.h"
 #include "audio.h"
+#include "audio/effects.h"
+#include "audio/filters.h"
 #include "network.h"
 #include "network/http.h"
 #include "network/smtp.h"

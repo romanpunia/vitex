@@ -388,16 +388,13 @@ namespace Tomahawk
 				ResizeBuffers(I.BufferWidth, I.BufferHeight);
 				InitStates();
 
-				std::string* ShaderCode = GetSection("standard/basic");
-				if (ShaderCode != nullptr)
-				{
-					Shader::Desc F = Shader::Desc();
-					F.Layout = Shader::GetShapeVertexLayout();
-					F.LayoutSize = 2;
-					F.Data = *ShaderCode;
-					F.Filename = "BASIC";
+				Shader::Desc F = Shader::Desc();
+				F.Layout = Shader::GetShapeVertexLayout();
+				F.LayoutSize = 2;
+				F.Filename = "BASIC";
+
+				if (GetSection("standard/basic", &F.Data))
 					BasicEffect = CreateShader(F);
-				}
 			}
 			OGLDevice::~OGLDevice()
 			{
@@ -1138,6 +1135,52 @@ namespace Tomahawk
 				RenderTarget = CreateRenderTarget2D(F);
 				SetTarget();
 			}
+			bool OGLDevice::GenerateTexture(Texture2D* Resource)
+			{
+				OGLTexture2D* IResource = (OGLTexture2D*)Resource;
+				if (!IResource || IResource->Resource == GL_INVALID_VALUE)
+					return false;
+				/* TODO: IMPL */
+				return false;
+			}
+			bool OGLDevice::GenerateTexture(Texture3D* Resource)
+			{
+				OGLTexture3D* IResource = (OGLTexture3D*)Resource;
+				if (!IResource)
+					return false;
+				/* TODO: IMPL */
+				return false;
+			}
+			bool OGLDevice::GenerateTexture(TextureCube* Resource)
+			{
+				OGLTextureCube* IResource = (OGLTextureCube*)Resource;
+				if (!IResource)
+					return false;
+				/* TODO: IMPL */
+				return false;
+			}
+			void OGLDevice::GenerateMips(Texture2D* Resource)
+			{
+				OGLTexture2D* IResource = (OGLTexture2D*)Resource;
+				if (!IResource || IResource->Resource != GL_INVALID_VALUE)
+					return;
+
+				glGenerateTextureMipmap(IResource->Resource);
+			}
+			void OGLDevice::GenerateMips(Texture3D* Resource)
+			{
+				OGLTexture3D* IResource = (OGLTexture3D*)Resource;
+				if (!IResource)
+					return;
+				/* TODO: IMPL */
+			}
+			void OGLDevice::GenerateMips(TextureCube* Resource)
+			{
+				OGLTextureCube* IResource = (OGLTextureCube*)Resource;
+				if (!IResource)
+					return;
+				/* TODO: IMPL */
+			}
 			void OGLDevice::DirectBegin()
 			{
 				Primitives = PrimitiveTopology_Triangle_List;
@@ -1367,9 +1410,6 @@ namespace Tomahawk
 			}
 			Texture2D* OGLDevice::CreateTexture2D(const Texture2D::Desc& I)
 			{
-				if (I.Dealloc)
-					return new OGLTexture2D(I);
-
 				OGLTexture2D* Result = new OGLTexture2D();
 				glGenTextures(1, &Result->Resource);
 				glBindTexture(GL_TEXTURE_2D, Result->Resource);
@@ -1393,19 +1433,43 @@ namespace Tomahawk
 			{
 				return new OGLTexture3D();
 			}
+			Texture3D* OGLDevice::CreateTexture3D(const Texture3D::Desc& I)
+			{
+				OGLTexture3D* Result = new OGLTexture3D();
+				/* TODO: IMPL */
+				return Result;
+			}
 			TextureCube* OGLDevice::CreateTextureCube()
 			{
 				return new OGLTextureCube();
 			}
 			TextureCube* OGLDevice::CreateTextureCube(const TextureCube::Desc& I)
 			{
-				if (!I.Texture2D[0] || !I.Texture2D[1] || !I.Texture2D[2] || !I.Texture2D[3] || !I.Texture2D[4] || !I.Texture2D[5])
+				OGLTextureCube* Result = new OGLTextureCube(I);
+				/* TODO: IMPL */
+				return Result;
+			}
+			TextureCube* OGLDevice::CreateTextureCube(Texture2D* Resource[6])
+			{
+				if (!Resource[0] || !Resource[1] || !Resource[2] || !Resource[3] || !Resource[4] || !Resource[5])
 				{
 					THAWK_ERROR("couldn't create texture cube without proper mapping");
 					return nullptr;
 				}
 
-				OGLTextureCube* Result = new OGLTextureCube(I);
+				OGLTextureCube* Result = new OGLTextureCube();
+				/* TODO: IMPL */
+				return Result;
+			}
+			TextureCube* OGLDevice::CreateTextureCubeInternal(void* Resources[6])
+			{
+				if (!Resources[0] || !Resources[1] || !Resources[2] || !Resources[3] || !Resources[4] || !Resources[5])
+				{
+					THAWK_ERROR("couldn't create texture cube without proper mapping");
+					return nullptr;
+				}
+
+				OGLTextureCube* Result = new OGLTextureCube();
 				/* TODO: IMPL */
 				return Result;
 			}

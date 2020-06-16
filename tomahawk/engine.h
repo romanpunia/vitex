@@ -6,17 +6,6 @@
 #include "script.h"
 #include <atomic>
 #include <cstdarg>
-#define THAWK_COMPONENT_ID(ClassName) (uint64_t)std::hash<std::string>()(#ClassName)
-#define THAWK_COMPONENT(ClassName) \
-virtual const char* Name() override { static const char* V = #ClassName; return V; } \
-virtual uint64_t Id() override { static uint64_t V = THAWK_COMPONENT_ID(ClassName); return V; } \
-static const char* BaseName() { static const char* V = #ClassName; return V; } \
-static uint64_t BaseId() { static uint64_t V = THAWK_COMPONENT_ID(ClassName); return V; }
-#define THAWK_COMPONENT_BASIS(ClassName) \
-virtual const char* Name() { static const char* V = #ClassName; return V; } \
-virtual uint64_t Id() { static uint64_t V = THAWK_COMPONENT_ID(ClassName); return V; } \
-static const char* BaseName() { static const char* V = #ClassName; return V; } \
-static uint64_t BaseId() { static uint64_t V = THAWK_COMPONENT_ID(ClassName); return V; }
 
 namespace Tomahawk
 {
@@ -476,6 +465,7 @@ namespace Tomahawk
 			Graphics::BlendState* Blend;
 			Graphics::SamplerState* Sampler;
 			Graphics::RenderTarget2D* Output;
+			Graphics::Texture2D* Pass;
 
 		public:
 			PostProcessRenderer(RenderSystem* Lab);
@@ -486,8 +476,9 @@ namespace Tomahawk
 			void OnResizeBuffers() override;
 
 		protected:
-			void PostProcess(const std::string& Name, void* Buffer = nullptr);
-			void PostProcess(void* Buffer = nullptr);
+			void RenderMerge(Graphics::Shader* Effect, void* Buffer = nullptr);
+			void RenderResult(Graphics::Shader* Effect, void* Buffer = nullptr);
+			Graphics::Shader* GetEffect(const std::string& Name);
 			Graphics::Shader* CompileEffect(const std::string& Name, const std::string& Code, size_t BufferSize = 0);
 
 		public:

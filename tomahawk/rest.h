@@ -101,6 +101,17 @@ typedef socklen_t socket_size_t;
 #define THAWK_ERROR(...)
 #endif
 #define THAWK_LOG(Format, ...) Tomahawk::Rest::LT::Inform(0, THAWK_FUNCTION, Format THAWK_VA_ARGS(__VA_ARGS__))
+#define THAWK_COMPONENT_ID(ClassName) (uint64_t)std::hash<std::string>()(#ClassName)
+#define THAWK_COMPONENT(ClassName) \
+virtual const char* Name() override { static const char* V = #ClassName; return V; } \
+virtual uint64_t Id() override { static uint64_t V = THAWK_COMPONENT_ID(ClassName); return V; } \
+static const char* BaseName() { static const char* V = #ClassName; return V; } \
+static uint64_t BaseId() { static uint64_t V = THAWK_COMPONENT_ID(ClassName); return V; }
+#define THAWK_COMPONENT_BASIS(ClassName) \
+virtual const char* Name() { static const char* V = #ClassName; return V; } \
+virtual uint64_t Id() { static uint64_t V = THAWK_COMPONENT_ID(ClassName); return V; } \
+static const char* BaseName() { static const char* V = #ClassName; return V; } \
+static uint64_t BaseId() { static uint64_t V = THAWK_COMPONENT_ID(ClassName); return V; }
 
 namespace Tomahawk
 {

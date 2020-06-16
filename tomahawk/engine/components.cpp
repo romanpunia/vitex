@@ -1,5 +1,6 @@
 #include "components.h"
 #include "renderers.h"
+#include "../audio/effects.h"
 
 namespace Tomahawk
 {
@@ -294,6 +295,10 @@ namespace Tomahawk
 				}
 
 				return Target;
+			}
+			Compute::RigidBody* RigidBody::GetBody() const
+			{
+				return Instance;
 			}
 
 			SoftBody::SoftBody(Entity* Ref) : Component(Ref)
@@ -790,6 +795,18 @@ namespace Tomahawk
 
 				return Target;
 			}
+			Compute::SoftBody* SoftBody::GetBody() const
+			{
+				return Instance;
+			}
+			std::vector<Compute::Vertex>& SoftBody::GetVertices()
+			{
+				return Vertices;
+			}
+			std::vector<int>& SoftBody::GetIndices()
+			{
+				return Indices;
+			}
 
 			Acceleration::Acceleration(Entity* Ref) : Component(Ref)
 			{
@@ -826,7 +843,7 @@ namespace Tomahawk
 
 				Components::RigidBody* Component = Parent->GetComponent<Components::RigidBody>();
 				if (Component != nullptr)
-					RigidBody = Component->Instance;
+					RigidBody = Component->GetBody();
 			}
 			void Acceleration::OnSynchronize(Rest::Timer* Time)
 			{
@@ -889,6 +906,10 @@ namespace Tomahawk
 				Target->RigidBody = RigidBody;
 
 				return Target;
+			}
+			Compute::RigidBody* Acceleration::GetBody() const
+			{
+				return RigidBody;
 			}
 
 			SliderConstraint::SliderConstraint(Entity* Ref) : Component(Ref), Instance(nullptr), Connection(nullptr)
@@ -1093,8 +1114,8 @@ namespace Tomahawk
 					return Parent->GetScene()->Unlock();
 
 				Compute::SliderConstraint::Desc I;
-				I.Target1 = FirstBody->Instance;
-				I.Target2 = SecondBody->Instance;
+				I.Target1 = FirstBody->GetBody();
+				I.Target2 = SecondBody->GetBody();
 				I.UseCollisions = !IsGhosted;
 				I.UseLinearPower = IsLinear;
 
@@ -1127,27 +1148,24 @@ namespace Tomahawk
 					return Target;
 
 				Compute::SliderConstraint::Desc I(Instance->GetInitialState());
-				Instance->GetInitialState().Target1 = FirstBody->Instance;
+				Instance->GetInitialState().Target1 = FirstBody->GetBody();
 				Target->Instance = Instance->Copy();
 				Instance->GetInitialState() = I;
 
 				return Target;
 			}
+			Compute::SliderConstraint* SliderConstraint::GetConstraint() const
+			{
+				return Instance;
+			}
+			Entity* SliderConstraint::GetConnection() const
+			{
+				return Connection;
+			}
 
 			AudioSource::AudioSource(Entity* Ref) : Component(Ref)
 			{
 				Source = new Audio::AudioSource();
-				Position = 0.0f;
-				Pitch = Gain = 1;
-				Loop = 0;
-				RefDistance = 0.25f;
-				Distance = 100;
-				Relative = 1;
-				Direction = 0;
-				Rolloff = 1;
-				ConeInnerAngle = 360;
-				ConeOuterAngle = 360;
-				ConeOuterGain = 0;
 			}
 			AudioSource::~AudioSource()
 			{
@@ -1157,22 +1175,71 @@ namespace Tomahawk
 			{
 				std::string Path;
 				if (NMake::Unpack(Node->Find("audio-clip"), &Path))
-					Source->Apply(Content->Load<Audio::AudioClip>(Path, nullptr));
+					Source->SetClip(Content->Load<Audio::AudioClip>(Path, nullptr));
 
-				NMake::Unpack(Node->Find("velocity"), &Velocity);
-				NMake::Unpack(Node->Find("direction"), &Direction);
-				NMake::Unpack(Node->Find("rolloff"), &Rolloff);
-				NMake::Unpack(Node->Find("cone-inner-angle"), &ConeInnerAngle);
-				NMake::Unpack(Node->Find("cone-outer-angle"), &ConeOuterAngle);
-				NMake::Unpack(Node->Find("cone-outer-gain"), &ConeOuterGain);
-				NMake::Unpack(Node->Find("distance"), &Distance);
-				NMake::Unpack(Node->Find("gain"), &Gain);
-				NMake::Unpack(Node->Find("pitch"), &Pitch);
-				NMake::Unpack(Node->Find("ref-distance"), &RefDistance);
-				NMake::Unpack(Node->Find("position"), &Position);
-				NMake::Unpack(Node->Find("relative"), &Relative);
-				NMake::Unpack(Node->Find("loop"), &Loop);
-				NMake::Unpack(Node->Find("distance"), &Distance);
+				NMake::Unpack(Node->Find("velocity"), &Sync.Velocity);
+				NMake::Unpack(Node->Find("direction"), &Sync.Direction);
+				NMake::Unpack(Node->Find("rolloff"), &Sync.Rolloff);
+				NMake::Unpack(Node->Find("cone-inner-angle"), &Sync.ConeInnerAngle);
+				NMake::Unpack(Node->Find("cone-outer-angle"), &Sync.ConeOuterAngle);
+				NMake::Unpack(Node->Find("cone-outer-gain"), &Sync.ConeOuterGain);
+				NMake::Unpack(Node->Find("distance"), &Sync.Distance);
+				NMake::Unpack(Node->Find("gain"), &Sync.Gain);
+				NMake::Unpack(Node->Find("pitch"), &Sync.Pitch);
+				NMake::Unpack(Node->Find("ref-distance"), &Sync.RefDistance);
+				NMake::Unpack(Node->Find("position"), &Sync.Position);
+				NMake::Unpack(Node->Find("relative"), &Sync.IsRelative);
+				NMake::Unpack(Node->Find("looped"), &Sync.IsLooped);
+				NMake::Unpack(Node->Find("distance"), &Sync.Distance);
+				NMake::Unpack(Node->Find("air-absorption"), &Sync.AirAbsorption);
+				NMake::Unpack(Node->Find("room-roll-off"), &Sync.RoomRollOff);
+
+				std::vector<Rest::Document*> Effects = Node->FindCollectionPath("effects.effect");
+				for (auto& Effect : Effects)
+				{
+					uint64_t EffectId;
+					if (!NMake::Unpack(Effect->Find("id"), &EffectId))
+						continue;
+
+					Audio::AudioEffect* Target = nullptr;
+					if (EffectId == THAWK_COMPONENT_ID(ReverbEffect))
+						Target = new Audio::Effects::ReverbEffect();
+					else if (EffectId == THAWK_COMPONENT_ID(ChorusEffect))
+						Target = new Audio::Effects::ChorusEffect();
+					else if (EffectId == THAWK_COMPONENT_ID(DistortionEffect))
+						Target = new Audio::Effects::DistortionEffect();
+					else if (EffectId == THAWK_COMPONENT_ID(EchoEffect))
+						Target = new Audio::Effects::EchoEffect();
+					else if (EffectId == THAWK_COMPONENT_ID(FlangerEffect))
+						Target = new Audio::Effects::FlangerEffect();
+					else if (EffectId == THAWK_COMPONENT_ID(FrequencyShifterEffect))
+						Target = new Audio::Effects::FrequencyShifterEffect();
+					else if (EffectId == THAWK_COMPONENT_ID(VocalMorpherEffect))
+						Target = new Audio::Effects::VocalMorpherEffect();
+					else if (EffectId == THAWK_COMPONENT_ID(PitchShifterEffect))
+						Target = new Audio::Effects::PitchShifterEffect();
+					else if (EffectId == THAWK_COMPONENT_ID(RingModulatorEffect))
+						Target = new Audio::Effects::RingModulatorEffect();
+					else if (EffectId == THAWK_COMPONENT_ID(AutowahEffect))
+						Target = new Audio::Effects::AutowahEffect();
+					else if (EffectId == THAWK_COMPONENT_ID(CompressorEffect))
+						Target = new Audio::Effects::CompressorEffect();
+					else if (EffectId == THAWK_COMPONENT_ID(EqualizerEffect))
+						Target = new Audio::Effects::EqualizerEffect();
+
+					if (!Target)
+					{
+						THAWK_WARN("audio effect with id %llu cannot be created", EffectId);
+						continue;
+					}
+
+					Rest::Document* Meta = Effect->Find("metadata", "");
+					if (!Meta)
+						Meta = Effect->SetDocument("metadata");
+
+					Target->OnDeserialize(Meta);
+					Source->AddEffect(Target);
+				}
 
 				bool Autoplay;
 				if (NMake::Unpack(Node->Find("autoplay"), &Autoplay) && Autoplay && Source->GetClip())
@@ -1187,68 +1254,76 @@ namespace Tomahawk
 				if (Asset != nullptr)
 					NMake::Pack(Node->SetDocument("audio-clip"), Asset->Path);
 
-				NMake::Pack(Node->SetDocument("velocity"), Velocity);
-				NMake::Pack(Node->SetDocument("direction"), Direction);
-				NMake::Pack(Node->SetDocument("rolloff"), Rolloff);
-				NMake::Pack(Node->SetDocument("cone-inner-angle"), ConeInnerAngle);
-				NMake::Pack(Node->SetDocument("cone-outer-angle"), ConeOuterAngle);
-				NMake::Pack(Node->SetDocument("cone-outer-gain"), ConeOuterGain);
-				NMake::Pack(Node->SetDocument("distance"), Distance);
-				NMake::Pack(Node->SetDocument("gain"), Gain);
-				NMake::Pack(Node->SetDocument("pitch"), Pitch);
-				NMake::Pack(Node->SetDocument("ref-distance"), RefDistance);
-				NMake::Pack(Node->SetDocument("position"), Position);
-				NMake::Pack(Node->SetDocument("relative"), Relative);
-				NMake::Pack(Node->SetDocument("loop"), Loop);
-				NMake::Pack(Node->SetDocument("distance"), Distance);
+				Rest::Document* Effects = Node->SetArray("effects");
+				for (auto* Effect : *Source->GetEffects())
+				{
+					if (!Effect)
+						continue;
+
+					Rest::Document* Element = Effects->SetDocument("effect");
+					NMake::Pack(Element->SetDocument("id"), Effect->Id());
+					Effect->OnSerialize(Element->SetDocument("metadata"));
+				}
+
+				NMake::Pack(Node->SetDocument("velocity"), Sync.Velocity);
+				NMake::Pack(Node->SetDocument("direction"), Sync.Direction);
+				NMake::Pack(Node->SetDocument("rolloff"), Sync.Rolloff);
+				NMake::Pack(Node->SetDocument("cone-inner-angle"), Sync.ConeInnerAngle);
+				NMake::Pack(Node->SetDocument("cone-outer-angle"), Sync.ConeOuterAngle);
+				NMake::Pack(Node->SetDocument("cone-outer-gain"), Sync.ConeOuterGain);
+				NMake::Pack(Node->SetDocument("distance"), Sync.Distance);
+				NMake::Pack(Node->SetDocument("gain"), Sync.Gain);
+				NMake::Pack(Node->SetDocument("pitch"), Sync.Pitch);
+				NMake::Pack(Node->SetDocument("ref-distance"), Sync.RefDistance);
+				NMake::Pack(Node->SetDocument("position"), Sync.Position);
+				NMake::Pack(Node->SetDocument("relative"), Sync.IsRelative);
+				NMake::Pack(Node->SetDocument("looped"), Sync.IsLooped);
+				NMake::Pack(Node->SetDocument("distance"), Sync.Distance);
 				NMake::Pack(Node->SetDocument("autoplay"), Source->IsPlaying());
+				NMake::Pack(Node->SetDocument("air-absorption"), Sync.AirAbsorption);
+				NMake::Pack(Node->SetDocument("room-roll-off"), Sync.RoomRollOff);
 			}
 			void AudioSource::OnSynchronize(Rest::Timer* Time)
 			{
-				if (!Source->GetClip())
-					return;
+				if (Time != nullptr && Time->GetDeltaTime() > 0.0)
+				{
+					Sync.Velocity = (Parent->Transform->Position - LastPosition) * Time->GetDeltaTime();
+					LastPosition = Parent->Transform->Position;
+				}
 
-				if (Relative)
-					Audio::AudioContext::SetSourceData3F(Source->GetInstance(), Audio::SoundEx_Position, 0, 0, 0);
-				else
-					Audio::AudioContext::SetSourceData3F(Source->GetInstance(), Audio::SoundEx_Position, -Parent->Transform->Position.X, -Parent->Transform->Position.Y, Parent->Transform->Position.Z);
-
-				Audio::AudioContext::SetSourceData3F(Source->GetInstance(), Audio::SoundEx_Velocity, Velocity.X, Velocity.Y, Velocity.Z);
-				Audio::AudioContext::SetSourceData3F(Source->GetInstance(), Audio::SoundEx_Direction, Direction.X, Direction.Y, Direction.Z);
-				Audio::AudioContext::SetSourceData1I(Source->GetInstance(), Audio::SoundEx_Source_Relative, Relative);
-				Audio::AudioContext::SetSourceData1I(Source->GetInstance(), Audio::SoundEx_Looping, Loop);
-				Audio::AudioContext::SetSourceData1F(Source->GetInstance(), Audio::SoundEx_Pitch, Pitch);
-				Audio::AudioContext::SetSourceData1F(Source->GetInstance(), Audio::SoundEx_Gain, Gain);
-				Audio::AudioContext::SetSourceData1F(Source->GetInstance(), Audio::SoundEx_Max_Distance, Distance);
-				Audio::AudioContext::SetSourceData1F(Source->GetInstance(), Audio::SoundEx_Reference_Distance, RefDistance);
-				Audio::AudioContext::SetSourceData1F(Source->GetInstance(), Audio::SoundEx_Rolloff_Factor, Rolloff);
-				Audio::AudioContext::SetSourceData1F(Source->GetInstance(), Audio::SoundEx_Cone_Inner_Angle, ConeInnerAngle);
-				Audio::AudioContext::SetSourceData1F(Source->GetInstance(), Audio::SoundEx_Cone_Outer_Angle, ConeOuterAngle);
-				Audio::AudioContext::SetSourceData1F(Source->GetInstance(), Audio::SoundEx_Cone_Outer_Gain, ConeOuterGain);
-				Audio::AudioContext::GetSourceData1F(Source->GetInstance(), Audio::SoundEx_Seconds_Offset, &Position);
+				if (Source->GetClip())
+					Source->Synchronize(&Sync, Parent->Transform->Position);
 			}
 			void AudioSource::ApplyPlayingPosition()
 			{
-				Audio::AudioContext::SetSourceData1F(Source->GetInstance(), Audio::SoundEx_Seconds_Offset, Position);
+				Audio::AudioContext::SetSourceData1F(Source->GetInstance(), Audio::SoundEx_Seconds_Offset, Sync.Position);
 			}
 			Component* AudioSource::OnClone(Entity* New)
 			{
 				AudioSource* Target = new AudioSource(New);
-				Target->Distance = Distance;
-				Target->Gain = Gain;
-				Target->Loop = Loop;
-				Target->Pitch = Pitch;
-				Target->Position = Position;
-				Target->RefDistance = RefDistance;
-				Target->Relative = Relative;
-				Target->Source->Apply(Source->GetClip());
+				Target->LastPosition = LastPosition;
+				Target->Source->SetClip(Source->GetClip());
+				Target->Sync = Sync;
+
+				for (auto* Effect : *Source->GetEffects())
+				{
+					if (Effect != nullptr)
+						Target->Source->AddEffect(Effect->OnCopy());
+				}
 
 				return Target;
+			}
+			Audio::AudioSource* AudioSource::GetSource() const
+			{
+				return Source;
+			}
+			Audio::AudioSync& AudioSource::GetSync()
+			{
+				return Sync;
 			}
 
 			AudioListener::AudioListener(Entity* Ref) : Component(Ref)
 			{
-				Velocity = { 0, 0, 0 };
 				Gain = 1.0f;
 			}
 			AudioListener::~AudioListener()
@@ -1257,16 +1332,21 @@ namespace Tomahawk
 			}
 			void AudioListener::OnLoad(ContentManager* Content, Rest::Document* Node)
 			{
-				NMake::Unpack(Node->Find("velocity"), &Velocity);
 				NMake::Unpack(Node->Find("gain"), &Gain);
 			}
 			void AudioListener::OnSave(ContentManager* Content, Rest::Document* Node)
 			{
-				NMake::Pack(Node->SetDocument("velocity"), Velocity);
 				NMake::Pack(Node->SetDocument("gain"), Gain);
 			}
 			void AudioListener::OnSynchronize(Rest::Timer* Time)
 			{
+				Compute::Vector3 Velocity;
+				if (Time != nullptr && Time->GetDeltaTime() > 0.0)
+				{
+					Velocity = (Parent->Transform->Position - LastPosition) * Time->GetDeltaTime();
+					LastPosition = Parent->Transform->Position;
+				}
+
 				Compute::Vector3 Rotation = Parent->Transform->Rotation.DepthDirection();
 				float LookAt[6] = { Rotation.X, Rotation.Y, Rotation.Z, 0.0f, 1.0f, 0.0f };
 
@@ -1287,7 +1367,7 @@ namespace Tomahawk
 			Component* AudioListener::OnClone(Entity* New)
 			{
 				AudioListener* Target = new AudioListener(New);
-				Target->Velocity = Velocity;
+				Target->LastPosition = LastPosition;
 				Target->Gain = Gain;
 
 				return Target;
@@ -1319,10 +1399,10 @@ namespace Tomahawk
 			void SkinAnimator::OnAwake(Component* New)
 			{
 				Components::SkinModel* Model = Parent->GetComponent<Components::SkinModel>();
-				if (Model != nullptr && Model->Instance != nullptr)
+				if (Model != nullptr && Model->GetDrawable() != nullptr)
 				{
 					Instance = Model;
-					Instance->Skeleton.ResetKeys(Instance->Instance, &Default);
+					Instance->Skeleton.ResetKeys(Instance->GetDrawable(), &Default);
 				}
 				else
 					Instance = nullptr;
@@ -1510,6 +1590,10 @@ namespace Tomahawk
 				Target->Current = Current;
 
 				return Target;
+			}
+			SkinModel* SkinAnimator::GetAnimatedObject() const
+			{
+				return Instance;
 			}
 
 			KeyAnimator::KeyAnimator(Entity* Ref) : Component(Ref)
@@ -1780,6 +1864,10 @@ namespace Tomahawk
 
 				return Target;
 			}
+			Graphics::InstanceBuffer* ElementSystem::GetBuffer() const
+			{
+				return Instance;
+			}
 
 			ElementAnimator::ElementAnimator(Entity* Ref) : Component(Ref)
 			{
@@ -1836,10 +1924,10 @@ namespace Tomahawk
 			}
 			void ElementAnimator::OnSynchronize(Rest::Timer* Time)
 			{
-				if (!System || !System->Instance)
+				if (!System || !System->GetBuffer())
 					return;
 
-				Rest::Pool<Compute::ElementVertex>* Array = System->Instance->GetArray();
+				Rest::Pool<Compute::ElementVertex>* Array = System->GetBuffer()->GetArray();
 				for (int i = 0; i < Spawner.Iterations; i++)
 				{
 					if (Array->Size() >= Array->Capacity())
@@ -1877,7 +1965,7 @@ namespace Tomahawk
 			}
 			void ElementAnimator::AccurateSynchronization(float DeltaTime)
 			{
-				Rest::Pool<Compute::ElementVertex>* Array = System->Instance->GetArray();
+				Rest::Pool<Compute::ElementVertex>* Array = System->GetBuffer()->GetArray();
 				float L = Velocity.Length();
 
 				for (auto It = Array->Begin(); It != Array->End(); It++)
@@ -1909,7 +1997,7 @@ namespace Tomahawk
 			}
 			void ElementAnimator::FastSynchronization(float DeltaTime)
 			{
-				Rest::Pool<Compute::ElementVertex>* Array = System->Instance->GetArray();
+				Rest::Pool<Compute::ElementVertex>* Array = System->GetBuffer()->GetArray();
 				float L = Velocity.Length();
 
 				for (auto It = Array->Begin(); It != Array->End(); It++)
@@ -1952,6 +2040,10 @@ namespace Tomahawk
 
 				return Target;
 			}
+			ElementSystem* ElementAnimator::GetSystem() const
+			{
+				return System;
+			}
 
 			FreeLook::FreeLook(Entity* Ref) : Component(Ref), Activity(nullptr), Rotate(Graphics::KeyCode_CURSORRIGHT), Sensitivity(0.005f)
 			{
@@ -1986,6 +2078,10 @@ namespace Tomahawk
 					if ((int)Cursor.X != (int)Position.X || (int)Cursor.Y != (int)Position.Y)
 						Activity->SetCursorPosition(Position);
 				}
+			}
+			Graphics::Activity* FreeLook::GetActivity() const
+			{
+				return Activity;
 			}
 
 			Fly::Fly(Entity* Ref) : Component(Ref), Activity(nullptr)
@@ -2043,6 +2139,10 @@ namespace Tomahawk
 
 				if (Activity->IsKeyDown(Down))
 					Parent->Transform->Position -= Parent->Transform->Up() * Speed;
+			}
+			Graphics::Activity* Fly::GetActivity() const
+			{
+				return Activity;
 			}
 
 			Model::Model(Entity* Ref) : Component(Ref)
@@ -2118,6 +2218,10 @@ namespace Tomahawk
 						Surface.second.Material = 0;
 				}
 			}
+			void Model::SetDrawable(Graphics::Model* Drawable)
+			{
+				Instance = Drawable;
+			}
 			Graphics::Material& Model::GetMaterial(Graphics::MeshBuffer* Mesh)
 			{
 				return GetMaterial(GetSurface(Mesh));
@@ -2155,6 +2259,10 @@ namespace Tomahawk
 				Target->Surfaces = Surfaces;
 
 				return Target;
+			}
+			Graphics::Model* Model::GetDrawable() const
+			{
+				return Instance;
 			}
 
 			SkinModel::SkinModel(Entity* Ref) : Component(Ref)
@@ -2252,6 +2360,10 @@ namespace Tomahawk
 						Surface.second.Material = 0;
 				}
 			}
+			void SkinModel::SetDrawable(Graphics::SkinModel* Drawable)
+			{
+				Instance = Drawable;
+			}
 			Graphics::Material& SkinModel::GetMaterial(Graphics::SkinMeshBuffer* Mesh)
 			{
 				return GetMaterial(GetSurface(Mesh));
@@ -2290,10 +2402,14 @@ namespace Tomahawk
 
 				return Target;
 			}
+			Graphics::SkinModel* SkinModel::GetDrawable() const
+			{
+				return Instance;
+			}
 
 			PointLight::PointLight(Entity* Ref) : Component(Ref)
 			{
-				Occlusion = nullptr;
+				ShadowCache = nullptr;
 				Diffuse = Compute::Vector3::One();
 				Visibility = 0.0f;
 				Emission = 1.0f;
@@ -2357,11 +2473,19 @@ namespace Tomahawk
 
 				return Target;
 			}
+			void PointLight::SetShadowCache(Graphics::Texture2D* NewCache)
+			{
+				ShadowCache = NewCache;
+			}
+			Graphics::Texture2D* PointLight::GetShadowCache() const
+			{
+				return ShadowCache;
+			}
 
 			SpotLight::SpotLight(Entity* Ref) : Component(Ref)
 			{
 				Diffuse = Compute::Vector3::One();
-				Occlusion = nullptr;
+				ShadowCache = nullptr;
 				ProjectMap = nullptr;
 				ShadowSoftness = 0.0f;
 				ShadowIterations = 2;
@@ -2441,11 +2565,19 @@ namespace Tomahawk
 
 				return Target;
 			}
+			void SpotLight::SetShadowCache(Graphics::Texture2D* NewCache)
+			{
+				ShadowCache = NewCache;
+			}
+			Graphics::Texture2D* SpotLight::GetShadowCache() const
+			{
+				return ShadowCache;
+			}
 
 			LineLight::LineLight(Entity* Ref) : Component(Ref)
 			{
 				Diffuse = Compute::Vector3(1.0, 0.8, 0.501961);
-				Occlusion = nullptr;
+				ShadowCache = nullptr;
 				Shadowed = false;
 				ShadowSoftness = 0.0f;
 				ShadowDistance = 100;
@@ -2509,6 +2641,14 @@ namespace Tomahawk
 
 				return Target;
 			}
+			void LineLight::SetShadowCache(Graphics::Texture2D* NewCache)
+			{
+				ShadowCache = NewCache;
+			}
+			Graphics::Texture2D* LineLight::GetShadowCache() const
+			{
+				return ShadowCache;
+			}
 
 			ProbeLight::ProbeLight(Entity* Ref) : Component(Ref)
 			{
@@ -2521,18 +2661,17 @@ namespace Tomahawk
 				DiffuseMapY[1] = nullptr;
 				DiffuseMapZ[0] = nullptr;
 				DiffuseMapZ[1] = nullptr;
-				DiffuseMap = nullptr;
+				ProbeCache = nullptr;
 				Emission = 1.0f;
 				Range = 5.0f;
 				Visibility = 0.0f;
 				CaptureRange = Range;
-				ImageBased = false;
+				RenderLocked = false;
 				ParallaxCorrected = false;
 			}
 			ProbeLight::~ProbeLight()
 			{
-				if (!ImageBased && DiffuseMap != nullptr)
-					delete DiffuseMap;
+				delete ProbeCache;
 			}
 			void ProbeLight::OnLoad(ContentManager* Content, Rest::Document* Node)
 			{
@@ -2564,15 +2703,13 @@ namespace Tomahawk
 				NMake::Unpack(Node->Find("range"), &Range);
 				NMake::Unpack(Node->Find("capture-range"), &CaptureRange);
 				NMake::Unpack(Node->Find("emission"), &Emission);
-				NMake::Unpack(Node->Find("image-based"), &ImageBased);
 				NMake::Unpack(Node->Find("parallax-corrected"), &ParallaxCorrected);
 
 				int64_t Count = Compute::Math<int64_t>::Min((int64_t)Views.size(), 6);
 				for (int64_t i = 0; i < Count; i++)
 					View[i] = Views[i];
 
-				if (ImageBased)
-					RebuildDiffuseMap();
+				SetDiffuseMap(DiffuseMapX, DiffuseMapY, DiffuseMapZ);
 			}
 			void ProbeLight::OnSave(ContentManager* Content, Rest::Document* Node)
 			{
@@ -2612,7 +2749,6 @@ namespace Tomahawk
 				NMake::Pack(Node->SetDocument("range"), Range);
 				NMake::Pack(Node->SetDocument("capture-range"), CaptureRange);
 				NMake::Pack(Node->SetDocument("emission"), Emission);
-				NMake::Pack(Node->SetDocument("image-based"), ImageBased);
 				NMake::Pack(Node->SetDocument("parallax-corrected"), ParallaxCorrected);
 			}
 			void ProbeLight::OnSynchronize(Rest::Timer* Time)
@@ -2625,23 +2761,6 @@ namespace Tomahawk
 				else
 					Visibility = 0.0f;
 			}
-			bool ProbeLight::RebuildDiffuseMap()
-			{
-				if (!DiffuseMapX[0] || !DiffuseMapX[1] || !DiffuseMapY[0] || !DiffuseMapY[1] || !DiffuseMapZ[0] || !DiffuseMapZ[1])
-					return false;
-
-				Graphics::TextureCube::Desc F;
-				F.Texture2D[0] = DiffuseMapX[0];
-				F.Texture2D[1] = DiffuseMapX[1];
-				F.Texture2D[2] = DiffuseMapY[0];
-				F.Texture2D[3] = DiffuseMapY[1];
-				F.Texture2D[4] = DiffuseMapZ[0];
-				F.Texture2D[5] = DiffuseMapZ[1];
-
-				delete DiffuseMap;
-				DiffuseMap = Parent->GetScene()->GetDevice()->CreateTextureCube(F);
-				return DiffuseMap != nullptr;
-			}
 			Component* ProbeLight::OnClone(Entity* New)
 			{
 				ProbeLight* Target = new ProbeLight(New);
@@ -2651,20 +2770,47 @@ namespace Tomahawk
 				Target->Visibility = Visibility;
 				Target->Emission = Emission;
 				Target->CaptureRange = CaptureRange;
-				Target->ImageBased = ImageBased;
 				Target->Rebuild = Rebuild;
-				Target->DiffuseMapX[0] = DiffuseMapX[0];
-				Target->DiffuseMapX[1] = DiffuseMapX[1];
-				Target->DiffuseMapY[0] = DiffuseMapY[0];
-				Target->DiffuseMapY[1] = DiffuseMapY[1];
-				Target->DiffuseMapZ[0] = DiffuseMapZ[0];
-				Target->DiffuseMapZ[1] = DiffuseMapZ[1];
-				Target->RebuildDiffuseMap();
+				Target->SetDiffuseMap(DiffuseMapX, DiffuseMapY, DiffuseMapZ);
 				memcpy(Target->View, View, 6 * sizeof(Compute::Matrix4x4));
 
 				return Target;
 			}
+			void ProbeLight::SetProbeCache(Graphics::TextureCube* NewCache)
+			{
+				ProbeCache = NewCache;
+			}
+			bool ProbeLight::SetDiffuseMap(Graphics::Texture2D* MapX[2], Graphics::Texture2D* MapY[2], Graphics::Texture2D* MapZ[2])
+			{
+				if (!MapX[0] || !MapX[1] || !MapY[0] || !MapY[1] || !MapZ[0] || !MapZ[1])
+				{
+					DiffuseMapX[0] = DiffuseMapX[1] = nullptr;
+					DiffuseMapY[0] = DiffuseMapY[1] = nullptr;
+					DiffuseMapZ[0] = DiffuseMapZ[1] = nullptr;
+					return false;
+				}
 
+				Graphics::Texture2D* Resources[6];
+				Resources[0] = DiffuseMapX[0] = MapX[0];
+				Resources[1] = DiffuseMapX[1] = MapX[1];
+				Resources[2] = DiffuseMapY[0] = MapY[0];
+				Resources[3] = DiffuseMapY[1] = MapY[1];
+				Resources[4] = DiffuseMapZ[0] = MapZ[0];
+				Resources[5] = DiffuseMapZ[1] = MapZ[1];
+
+				delete ProbeCache;
+				ProbeCache = Parent->GetScene()->GetDevice()->CreateTextureCube(Resources);
+				return ProbeCache != nullptr;
+			}
+			bool ProbeLight::IsImageBased() const
+			{
+				return DiffuseMapX[0] != nullptr;
+			}
+			Graphics::TextureCube* ProbeLight::GetProbeCache() const
+			{
+				return ProbeCache;
+			}
+			
 			Camera::Camera(Entity* Ref) : Component(Ref), Mode(ProjectionMode_Perspective)
 			{
 				Projection = Compute::Matrix4x4::Identity();

@@ -2074,7 +2074,7 @@ namespace Tomahawk
 			OnImmediatePhaseRender(Time);
 		}
 
-		PostProcessRenderer::PostProcessRenderer(RenderSystem* Lab) : Renderer(Lab), Output(nullptr)
+		PostProcessRenderer::PostProcessRenderer(RenderSystem* Lab) : Renderer(Lab), Output(nullptr), Pass(nullptr)
 		{
 			Geometric = false;
 			DepthStencil = Lab->GetDevice()->GetDepthStencilState("DEF_NONE");
@@ -2087,38 +2087,41 @@ namespace Tomahawk
 			for (auto It = Shaders.begin(); It != Shaders.end(); It++)
 				System->FreeShader(It->first, It->second);
 
+			delete Pass;
 			delete Output;
 		}
-		void PostProcessRenderer::PostProcess(const std::string& Name, void* Buffer)
+		void PostProcessRenderer::RenderMerge(Graphics::Shader* Effect, void* Buffer)
 		{
-			auto It = Shaders.find(Name);
-			if (It == Shaders.end() || !It->second)
-				return;
+			if (!Effect)
+				Effect = Shaders.begin()->second;
 
 			Graphics::GraphicsDevice* Device = System->GetDevice();
-			Device->SetShader(It->second, Graphics::ShaderType_Vertex | Graphics::ShaderType_Pixel);
+			Device->SetTexture2D(Pass, 4);
+			Device->SetShader(Effect, Graphics::ShaderType_Vertex | Graphics::ShaderType_Pixel);
 
 			if (Buffer != nullptr)
 			{
-				Device->UpdateBuffer(It->second, Buffer);
-				Device->SetBuffer(It->second, 3, Graphics::ShaderType_Vertex | Graphics::ShaderType_Pixel);
+				Device->UpdateBuffer(Effect, Buffer);
+				Device->SetBuffer(Effect, 3, Graphics::ShaderType_Vertex | Graphics::ShaderType_Pixel);
 			}
 
 			Device->Draw(6, 0);
+			Device->CopyTexture2D(Output, &Pass);
+			Device->GenerateTexture(Pass);
 		}
-		void PostProcessRenderer::PostProcess(void* Buffer)
+		void PostProcessRenderer::RenderResult(Graphics::Shader* Effect, void* Buffer)
 		{
-			auto It = Shaders.begin();
-			if (It == Shaders.end() || !It->second)
-				return;
+			if (!Effect)
+				Effect = Shaders.begin()->second;
 
 			Graphics::GraphicsDevice* Device = System->GetDevice();
-			Device->SetShader(It->second, Graphics::ShaderType_Vertex | Graphics::ShaderType_Pixel);
+			Device->SetTexture2D(Pass, 4);
+			Device->SetShader(Effect, Graphics::ShaderType_Vertex | Graphics::ShaderType_Pixel);
 
 			if (Buffer != nullptr)
 			{
-				Device->UpdateBuffer(It->second, Buffer);
-				Device->SetBuffer(It->second, 3, Graphics::ShaderType_Vertex | Graphics::ShaderType_Pixel);
+				Device->UpdateBuffer(Effect, Buffer);
+				Device->SetBuffer(Effect, 3, Graphics::ShaderType_Vertex | Graphics::ShaderType_Pixel);
 			}
 
 			Device->Draw(6, 0);
@@ -2149,7 +2152,7 @@ namespace Tomahawk
 
 			OnRenderEffect(Time);
 
-			Device->FlushTexture2D(1, 3);
+			Device->FlushTexture2D(1, 4);
 			Device->CopyTargetFrom(Surface, 0, Output);
 		}
 		void PostProcessRenderer::OnResizeBuffers()
@@ -2163,6 +2166,14 @@ namespace Tomahawk
 
 			delete Output;
 			Output = System->GetDevice()->CreateRenderTarget2D(I);
+		}
+		Graphics::Shader* PostProcessRenderer::GetEffect(const std::string& Name)
+		{
+			auto It = Shaders.find(Name);
+			if (It != Shaders.end())
+				return It->second;
+
+			return nullptr;
 		}
 		Graphics::Shader* PostProcessRenderer::CompileEffect(const std::string& Name, const std::string& Code, size_t BufferSize)
 		{
@@ -4072,18 +4083,7 @@ namespace Tomahawk
 		}
 		void* Application::GetAnyGUI()
 		{
-			if (!Scene)
-				return nullptr;
-
-			Components::Camera* BaseCamera = (Components::Camera*)Scene->GetCamera();
-			if (!BaseCamera)
-				return nullptr;
-
-			Renderers::GUIRenderer* BaseGui = BaseCamera->GetRenderer()->GetRenderer<Renderers::GUIRenderer>();
-			if (!BaseGui)
-				return nullptr;
-
-			return BaseGui->GetTree();
+			return Renderers::GUIRenderer::GetCurrentTree();
 		}
 
 		void Application::Callee(Rest::EventQueue* Queue, Rest::EventArgs* Args)

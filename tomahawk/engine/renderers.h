@@ -923,7 +923,7 @@ namespace Tomahawk
 				void OnInitialize() override;
 				void OnRender(Rest::Timer* Time) override;
 				void CreateRenderTarget();
-				bool ResourceBound(Graphics::TextureCube** Cube);
+				void SetCaptureSize(size_t Size);
 
 			public:
 				THAWK_COMPONENT(ProbeRenderer);
@@ -938,7 +938,7 @@ namespace Tomahawk
 					Compute::Vector3 Position;
 					float Range;
 					Compute::Vector3 Lighting;
-					float Mipping;
+					float MipLevels;
 					Compute::Vector3 Scale;
 					float Parallax;
 				} ProbeLight;
@@ -994,13 +994,13 @@ namespace Tomahawk
 			protected:
 				struct
 				{
+					Graphics::Shader* PointBase = nullptr;
+					Graphics::Shader* PointShade = nullptr;
+					Graphics::Shader* SpotBase = nullptr;
+					Graphics::Shader* SpotShade = nullptr;
+					Graphics::Shader* LineBase = nullptr;
+					Graphics::Shader* LineShade = nullptr;
 					Graphics::Shader* Probe = nullptr;
-					Graphics::Shader* Point = nullptr;
-					Graphics::Shader* PointOccluded = nullptr;
-					Graphics::Shader* Spot = nullptr;
-					Graphics::Shader* SpotOccluded = nullptr;
-					Graphics::Shader* Line = nullptr;
-					Graphics::Shader* LineOccluded = nullptr;
 					Graphics::Shader* Ambient = nullptr;
 				} Shaders;
 
@@ -1036,11 +1036,6 @@ namespace Tomahawk
 				void OnRender(Rest::Timer* Time) override;
 				void OnPhaseRender(Rest::Timer* Time) override;
 				void OnResizeBuffers() override;
-				void CompilePointEffects();
-				void CompileProbeEffects();
-				void CompileSpotEffects();
-				void CompileLineEffects();
-				void CompileAmbientEffects();
 				void CreateRenderTargets();
 
 			public:
@@ -1070,14 +1065,25 @@ namespace Tomahawk
 
 			class THAWK_OUT ReflectionsRenderer : public PostProcessRenderer
 			{
+			private:
+				Graphics::Shader* Pass1;
+				Graphics::Shader* Pass2;
+
 			public:
-				struct RenderConstant
+				struct RenderConstant1
 				{
 					float IterationCount = 24.0f;
 					float MipLevels = 0.0f;
-					float Intensity = 1.736f;
+					float Intensity = 1.0f;
 					float Padding = 0.0f;
-				} Render;
+				} RenderPass1;
+
+				struct RenderConstant2
+				{
+					float Texel[2] = { 1.0f, 1.0f };
+					float IterationCount = 4.000f;
+					float Blur = 4.000f;
+				} RenderPass2;
 
 			public:
 				ReflectionsRenderer(RenderSystem* Lab);
@@ -1110,7 +1116,7 @@ namespace Tomahawk
 					float FocalDepth = 1.0f;
 					float Intensity = 1.0f;
 					float Circular = 1.0f;
-				} Render;
+				} RenderPass;
 
 			public:
 				DepthOfFieldRenderer(RenderSystem* Lab);
@@ -1135,7 +1141,7 @@ namespace Tomahawk
 					float Scale = 0.1f;
 					float Padding1 = 0.0f;
 					float Padding2 = 0.0f;
-				} Render;
+				} RenderPass;
 
 			public:
 				EmissionRenderer(RenderSystem* Lab);
@@ -1161,7 +1167,7 @@ namespace Tomahawk
 					float ColorDriftTime = 0;
 					float HorizontalShake = 0;
 					float ElapsedTime = 0;
-				} Render;
+				} RenderPass;
 
 			public:
 				float ScanLineJitter;
@@ -1182,22 +1188,37 @@ namespace Tomahawk
 
 			class THAWK_OUT AmbientOcclusionRenderer : public PostProcessRenderer
 			{
+			private:
+				Graphics::Shader* Pass1;
+				Graphics::Shader* Pass2;
+
 			public:
-				struct RenderConstant
+				struct RenderConstant1
 				{
-					float Scale = 1.936f;
-					float Intensity = 2.345f;
-					float Bias = 0.467f;
-					float Radius = 0.050885f;
-					float Step = 0.030f;
-					float Offset = 0.033f;
+					float Scale = 1.831f;
+					float Intensity = 0.000f;
+					float Bias = 0.429f;
+					float Radius = 0.019685f;
+					float Step = 0.039f;
+					float Offset = 0.000f;
 					float Distance = 3.000f;
 					float Fading = 1.965f;
-					float Power = 1.294;
-					float Samples = 2.0f;
-					float SampleCount = 16.0f;
-					float Padding;
-				} Render;
+					float Power = 0.606f;
+					float IterationCount = 3.000f;
+					float Threshold = 0.000f;
+					float Padding = 0.0f;
+				} RenderPass1;
+
+				struct RenderConstant2
+				{
+					float Texel[2] = { 1.0f, 1.0f };
+					float IterationCount = 4.000f;
+					float Blur = 2.000f;
+					float Threshold = 0.500f;
+					float Power = 0.500f;
+					float Discard = 0.000f;
+					float Additive = 0.000f;
+				} RenderPass2;
 
 			public:
 				AmbientOcclusionRenderer(RenderSystem* Lab);
@@ -1212,22 +1233,37 @@ namespace Tomahawk
 
 			class THAWK_OUT IndirectOcclusionRenderer : public PostProcessRenderer
 			{
+			private:
+				Graphics::Shader* Pass1;
+				Graphics::Shader* Pass2;
+
 			public:
-				struct RenderConstant
+				struct RenderConstant1
 				{
-					float Scale = 1.936f;
-					float Intensity = 6.745f;
-					float Bias = 0.467f;
-					float Radius = 0.250885f;
-					float Step = 0.030f;
-					float Offset = 0.033f;
-					float Distance = 3.000f;
+					float Scale = 0.571f;
+					float Intensity = 3.858f;
+					float Bias = 0.287f;
+					float Radius = 0.106299f;
+					float Step = 0.118f;
+					float Offset = 0.020f;
+					float Distance = 3.839f;
 					float Fading = 1.965f;
-					float Power = 1.294;
-					float Samples = 2.0f;
-					float SampleCount = 16.0f;
-					float Padding;
-				} Render;
+					float Power = 2.000f;
+					float IterationCount = 3.000f;
+					float Threshold = 0.807f;
+					float Padding = 0.0f;
+				} RenderPass1;
+
+				struct RenderConstant2
+				{
+					float Texel[2] = { 1.0f, 1.0f };
+					float IterationCount = 5.000f;
+					float Blur = 1.000f;
+					float Threshold = 0.000f;
+					float Power = 0.600f;
+					float Discard = 0.272f;
+					float Additive = 1.000f;
+				} RenderPass2;
 
 			public:
 				IndirectOcclusionRenderer(RenderSystem* Lab);
@@ -1257,7 +1293,7 @@ namespace Tomahawk
 					float GammaIntensity = 1.25f;
 					Compute::Vector3 DesaturationGamma = Compute::Vector3(0.3f, 0.59f, 0.11f);
 					float DesaturationIntensity = 0.5f;
-				} Render;
+				} RenderPass;
 
 			public:
 				ToneRenderer(RenderSystem* Lab);
@@ -1314,6 +1350,7 @@ namespace Tomahawk
 				bool IsTreeActive();
 
 			public:
+				static GUI::Interface* GetCurrentTree();
 				static Graphics::InputLayout* GetDrawVertexLayout();
 				static size_t GetDrawVertexSize();
 				static void DrawList(void* Context);

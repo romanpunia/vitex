@@ -160,116 +160,28 @@ namespace Tomahawk
 				ReleaseCom(Resource);
 			}
 
-			D3D11Texture2D::D3D11Texture2D() : Texture2D(), Resource(nullptr), Rest(nullptr)
+			D3D11Texture2D::D3D11Texture2D() : Texture2D(), Resource(nullptr), View(nullptr)
 			{
 			}
-			D3D11Texture2D::D3D11Texture2D(const Desc& I) : Texture2D(I), Resource(nullptr), Rest(nullptr)
+			D3D11Texture2D::D3D11Texture2D(const Desc& I) : Texture2D(I), Resource(nullptr), View(nullptr)
 			{
 			}
 			D3D11Texture2D::~D3D11Texture2D()
 			{
-				ReleaseCom(Rest);
+				ReleaseCom(View);
 				ReleaseCom(Resource);
-			}
-			void D3D11Texture2D::Fill(D3D11Device* Device)
-			{
-				if (!Resource && Rest)
-				{
-					D3D11_TEXTURE2D_DESC Information;
-					Rest->GetDesc(&Information);
-
-					FormatMode = (Format)Information.Format;
-					Usage = (ResourceUsage)Information.Usage;
-					Width = Information.Width;
-					Height = Information.Height;
-					MipLevels = Information.MipLevels;
-					AccessFlags = (CPUAccess)Information.CPUAccessFlags;
-
-					D3D11_SHADER_RESOURCE_VIEW_DESC SRV;
-					ZeroMemory(&SRV, sizeof(SRV));
-					SRV.Format = Information.Format;
-					SRV.ViewDimension = D3D11_SRV_DIMENSION_TEXTURE2D;
-					SRV.TextureCube.MipLevels = 1;
-					SRV.TextureCube.MostDetailedMip = 0;
-
-					Device->D3DDevice->CreateShaderResourceView(Rest, &SRV, &Resource);
-					if (!Resource)
-						THAWK_ERROR("couldn't create shader resource view");
-				}
-				else if (Resource && !Rest)
-				{
-					ID3D11Resource* Texture = nullptr;
-					Resource->GetResource(&Texture);
-
-					Texture->QueryInterface<ID3D11Texture2D>(&Rest);
-					if (Rest)
-					{
-						D3D11_TEXTURE2D_DESC Information;
-						Rest->GetDesc(&Information);
-
-						FormatMode = (Format)Information.Format;
-						Usage = (ResourceUsage)Information.Usage;
-						Width = Information.Width;
-						Height = Information.Height;
-						MipLevels = Information.MipLevels;
-						AccessFlags = (CPUAccess)Information.CPUAccessFlags;
-						ReleaseCom(Texture);
-					}
-					else
-					{
-						ReleaseCom(Texture);
-						THAWK_ERROR("couldn't fetch texture 2d");
-					}
-				}
-				else if (Resource && Rest)
-				{
-					D3D11_TEXTURE2D_DESC Information;
-					Rest->GetDesc(&Information);
-
-					FormatMode = (Format)Information.Format;
-					Usage = (ResourceUsage)Information.Usage;
-					Width = Information.Width;
-					Height = Information.Height;
-					MipLevels = Information.MipLevels;
-					AccessFlags = (CPUAccess)Information.CPUAccessFlags;
-				}
-			}
-			void D3D11Texture2D::Generate(D3D11Device* Device)
-			{
-				D3D11_TEXTURE2D_DESC Information;
-				Rest->GetDesc(&Information);
-
-				FormatMode = (Format)Information.Format;
-				Usage = (ResourceUsage)Information.Usage;
-				Width = Information.Width;
-				Height = Information.Height;
-				MipLevels = Information.MipLevels;
-				AccessFlags = (CPUAccess)Information.CPUAccessFlags;
-
-				D3D11_SHADER_RESOURCE_VIEW_DESC SRV;
-				ZeroMemory(&SRV, sizeof(SRV));
-				SRV.Format = Information.Format;
-				SRV.ViewDimension = D3D11_SRV_DIMENSION_TEXTURE2D;
-				SRV.TextureCube.MipLevels = 1;
-				SRV.TextureCube.MostDetailedMip = 0;
-				Device->D3DDevice->CreateShaderResourceView(Rest, &SRV, &Resource);
-
-				if (!Resource)
-					THAWK_ERROR("couldn't create shader resource view");
 			}
 			void* D3D11Texture2D::GetResource()
 			{
 				return (void*)Resource;
 			}
 
-			D3D11Texture3D::D3D11Texture3D() : Texture3D()
+			D3D11Texture3D::D3D11Texture3D() : Texture3D(), Resource(nullptr), View(nullptr)
 			{
-				Resource = nullptr;
-				Rest = nullptr;
 			}
 			D3D11Texture3D::~D3D11Texture3D()
 			{
-				ReleaseCom(Rest);
+				ReleaseCom(View);
 				ReleaseCom(Resource);
 			}
 			void* D3D11Texture3D::GetResource()
@@ -277,19 +189,15 @@ namespace Tomahawk
 				return (void*)Resource;
 			}
 
-			D3D11TextureCube::D3D11TextureCube() : TextureCube()
+			D3D11TextureCube::D3D11TextureCube() : TextureCube(), Resource(nullptr), View(nullptr)
 			{
-				Resource = nullptr;
-				Rest = nullptr;
 			}
-			D3D11TextureCube::D3D11TextureCube(const Desc& I) : TextureCube(I)
+			D3D11TextureCube::D3D11TextureCube(const Desc& I) : TextureCube(I), Resource(nullptr), View(nullptr)
 			{
-				Resource = nullptr;
-				Rest = nullptr;
 			}
 			D3D11TextureCube::~D3D11TextureCube()
 			{
-				ReleaseCom(Rest);
+				ReleaseCom(View);
 				ReleaseCom(Resource);
 			}
 			void* D3D11TextureCube::GetResource()
@@ -578,16 +486,13 @@ namespace Tomahawk
 				ResizeBuffers(I.BufferWidth, I.BufferHeight);
 				InitStates();
 
-				std::string* ShaderCode = GetSection("standard/basic");
-				if (ShaderCode != nullptr)
-				{
-					Shader::Desc F = Shader::Desc();
-					F.Layout = Shader::GetShapeVertexLayout();
-					F.LayoutSize = 2;
-					F.Data = *ShaderCode;
-					F.Filename = "BASIC";
+				Shader::Desc F = Shader::Desc();
+				F.Layout = Shader::GetShapeVertexLayout();
+				F.LayoutSize = 2;
+				F.Filename = "BASIC";
+				
+				if (GetSection("standard/basic", &F.Data))
 					BasicEffect = CreateShader(F);
-				}
 			}
 			D3D11Device::~D3D11Device()
 			{
@@ -1248,12 +1153,11 @@ namespace Tomahawk
 			void D3D11Device::Clear(MultiRenderTarget2D* Resource, unsigned int Target, float R, float G, float B)
 			{
 				D3D11MultiRenderTarget2D* IResource = (D3D11MultiRenderTarget2D*)Resource;
-				if (!IResource)
+				if (!IResource || Target >= IResource->SVTarget)
 					return;
 
 				float ClearColor[4] = { R, G, B, 0.0f };
-				for (int i = 0; i < IResource->SVTarget; i++)
-					ImmediateContext->ClearRenderTargetView(IResource->RenderTargetView[i], ClearColor);
+				ImmediateContext->ClearRenderTargetView(IResource->RenderTargetView[Target], ClearColor);
 			}
 			void D3D11Device::Clear(RenderTarget2DArray* Resource, unsigned int Target, float R, float G, float B)
 			{
@@ -1276,7 +1180,7 @@ namespace Tomahawk
 			void D3D11Device::Clear(MultiRenderTargetCube* Resource, unsigned int Target, float R, float G, float B)
 			{
 				D3D11MultiRenderTargetCube* IResource = (D3D11MultiRenderTargetCube*)Resource;
-				if (!IResource)
+				if (!IResource || Target >= IResource->SVTarget)
 					return;
 
 				float ClearColor[4] = { R, G, B, 0.0f };
@@ -1373,14 +1277,11 @@ namespace Tomahawk
 				D3D11_TEXTURE2D_DESC Information;
 				IResource->Texture->GetDesc(&Information);
 
-				Information.ArraySize = 1;
-				Information.CPUAccessFlags = 0;
-				Information.MiscFlags = 0;
-				Information.MipLevels = 1;
+				D3D11Texture2D* Texture = (D3D11Texture2D*)(*Result ? *Result : CreateTexture2D());
+				if (!*Result)
+					D3DDevice->CreateTexture2D(&Information, nullptr, &Texture->View);
 
-				D3D11Texture2D* Texture = (D3D11Texture2D*)CreateTexture2D();
-				D3DDevice->CreateTexture2D(&Information, nullptr, &Texture->Rest);
-				ImmediateContext->CopyResource(Texture->Rest, IResource->Texture);
+				ImmediateContext->CopyResource(Texture->View, IResource->Texture);
 				*Result = Texture;
 			}
 			void D3D11Device::CopyTexture2D(MultiRenderTarget2D* Resource, unsigned int Target, Texture2D** Result)
@@ -1392,14 +1293,11 @@ namespace Tomahawk
 				D3D11_TEXTURE2D_DESC Information;
 				IResource->Texture[Target]->GetDesc(&Information);
 
-				Information.ArraySize = 1;
-				Information.CPUAccessFlags = 0;
-				Information.MiscFlags = 0;
-				Information.MipLevels = 1;
+				D3D11Texture2D* Texture = (D3D11Texture2D*)(*Result ? *Result : CreateTexture2D());
+				if (!*Result)
+					D3DDevice->CreateTexture2D(&Information, nullptr, &Texture->View);
 
-				D3D11Texture2D* Texture = (D3D11Texture2D*)CreateTexture2D();
-				D3DDevice->CreateTexture2D(&Information, nullptr, &Texture->Rest);
-				ImmediateContext->CopyResource(Texture->Rest, IResource->Texture[Target]);
+				ImmediateContext->CopyResource(Texture->View, IResource->Texture[Target]);
 				*Result = Texture;
 			}
 			void D3D11Device::CopyTexture2D(RenderTargetCube* Resource, unsigned int Face, Texture2D** Result)
@@ -1411,14 +1309,11 @@ namespace Tomahawk
 				D3D11_TEXTURE2D_DESC Information;
 				IResource->Cube->GetDesc(&Information);
 
-				Information.ArraySize = 1;
-				Information.CPUAccessFlags = 0;
-				Information.MiscFlags = 0;
-				Information.MipLevels = 1;
+				D3D11Texture2D* Texture = (D3D11Texture2D*)(*Result ? *Result : CreateTexture2D());
+				if (!*Result)
+					D3DDevice->CreateTexture2D(&Information, nullptr, &Texture->View);
 
-				D3D11Texture2D* Texture = (D3D11Texture2D*)CreateTexture2D();
-				D3DDevice->CreateTexture2D(&Information, nullptr, &Texture->Rest);
-				ImmediateContext->CopySubresourceRegion(Texture->Rest, Face * Information.MipLevels, 0, 0, 0, IResource->Cube, 0, 0);
+				ImmediateContext->CopySubresourceRegion(Texture->View, Face * Information.MipLevels, 0, 0, 0, IResource->Cube, 0, 0);
 				*Result = Texture;
 			}
 			void D3D11Device::CopyTexture2D(MultiRenderTargetCube* Resource, unsigned int Cube, unsigned int Face, Texture2D** Result)
@@ -1430,14 +1325,11 @@ namespace Tomahawk
 				D3D11_TEXTURE2D_DESC Information;
 				IResource->Cube[Cube]->GetDesc(&Information);
 
-				Information.ArraySize = 1;
-				Information.CPUAccessFlags = 0;
-				Information.MiscFlags = 0;
-				Information.MipLevels = 1;
+				D3D11Texture2D* Texture = (D3D11Texture2D*)(*Result ? *Result : CreateTexture2D());
+				if (!*Result)
+					D3DDevice->CreateTexture2D(&Information, nullptr, &Texture->View);
 
-				D3D11Texture2D* Texture = (D3D11Texture2D*)CreateTexture2D();
-				D3DDevice->CreateTexture2D(&Information, nullptr, &Texture->Rest);
-				ImmediateContext->CopySubresourceRegion(Texture->Rest, Face * Information.MipLevels, 0, 0, 0, IResource->Cube[Cube], 0, 0);
+				ImmediateContext->CopySubresourceRegion(Texture->View, Face * Information.MipLevels, 0, 0, 0, IResource->Cube[Cube], 0, 0);
 				*Result = Texture;
 			}
 			void D3D11Device::CopyTextureCube(RenderTargetCube* Resource, TextureCube** Result)
@@ -1449,21 +1341,16 @@ namespace Tomahawk
 				D3D11_TEXTURE2D_DESC Information;
 				IResource->Cube->GetDesc(&Information);
 
-				Information.ArraySize = 1;
-				Information.CPUAccessFlags = 0;
-				Information.MiscFlags = 0;
-				Information.MipLevels = 1;
-
-				TextureCube::Desc F = TextureCube::Desc();
+				void* Resources[6];
 				for (unsigned int i = 0; i < 6; i++)
 				{
 					ID3D11Texture2D* Subresource;
 					D3DDevice->CreateTexture2D(&Information, nullptr, &Subresource);
 					ImmediateContext->CopySubresourceRegion(Subresource, i, 0, 0, 0, IResource->Cube, 0, 0);
-					F.Texture2D[i] = (void*)Resource;
+					Resources[i] = (void*)Subresource;
 				}
 
-				*Result = CreateTextureCube(F);
+				*Result = CreateTextureCubeInternal(Resources);
 			}
 			void D3D11Device::CopyTextureCube(MultiRenderTargetCube* Resource, unsigned int Cube, TextureCube** Result)
 			{
@@ -1474,21 +1361,16 @@ namespace Tomahawk
 				D3D11_TEXTURE2D_DESC Information;
 				IResource->Cube[Cube]->GetDesc(&Information);
 
-				Information.ArraySize = 1;
-				Information.CPUAccessFlags = 0;
-				Information.MiscFlags = 0;
-				Information.MipLevels = 1;
-
-				TextureCube::Desc F = TextureCube::Desc();
+				void* Resources[6];
 				for (unsigned int i = 0; i < 6; i++)
 				{
 					ID3D11Texture2D* Subresource;
 					D3DDevice->CreateTexture2D(&Information, nullptr, &Subresource);
 					ImmediateContext->CopySubresourceRegion(Subresource, i, 0, 0, 0, IResource->Cube[Cube], 0, 0);
-					F.Texture2D[i] = (void*)Resource;
+					Resources[i] = (void*)Subresource;
 				}
 
-				*Result = CreateTextureCube(F);
+				*Result = CreateTextureCubeInternal(Resources);
 			}
 			void D3D11Device::CopyTargetTo(MultiRenderTarget2D* Resource, unsigned int Target, RenderTarget2D* To)
 			{
@@ -1623,6 +1505,146 @@ namespace Tomahawk
 				RenderTarget = CreateRenderTarget2D(F);
 				SetTarget(RenderTarget);
 				ReleaseCom(BackBuffer);
+			}
+			bool D3D11Device::GenerateTexture(Texture2D* Resource)
+			{
+				D3D11Texture2D* IResource = (D3D11Texture2D*)Resource;
+				if (!IResource || !IResource->View)
+					return false;
+				
+				D3D11_TEXTURE2D_DESC Description;
+				IResource->View->GetDesc(&Description);
+				IResource->FormatMode = (Format)Description.Format;
+				IResource->Usage = (ResourceUsage)Description.Usage;
+				IResource->Width = Description.Width;
+				IResource->Height = Description.Height;
+				IResource->MipLevels = Description.MipLevels;
+				IResource->AccessFlags = (CPUAccess)Description.CPUAccessFlags;
+
+				D3D11_SHADER_RESOURCE_VIEW_DESC SRV;
+				ZeroMemory(&SRV, sizeof(SRV));
+				SRV.Format = Description.Format;
+
+				if (Description.ArraySize > 1)
+				{
+					if (Description.MiscFlags & D3D11_RESOURCE_MISC_TEXTURECUBE)
+					{
+						SRV.ViewDimension = D3D11_SRV_DIMENSION_TEXTURECUBE;
+						SRV.TextureCube.MostDetailedMip = 0;
+						SRV.TextureCube.MipLevels = Description.MipLevels;
+					}
+					else if (Description.SampleDesc.Count <= 1)
+					{
+						SRV.ViewDimension = D3D11_SRV_DIMENSION_TEXTURE2DARRAY;
+						SRV.Texture2DArray.MostDetailedMip = 0;
+						SRV.Texture2DArray.MipLevels = Description.MipLevels;
+						SRV.Texture2DArray.FirstArraySlice = 0;
+						SRV.Texture2DArray.ArraySize = Description.ArraySize;
+					}
+					else
+					{
+						SRV.ViewDimension = D3D11_SRV_DIMENSION_TEXTURE2DMSARRAY;
+						SRV.Texture2DMSArray.FirstArraySlice = 0;
+						SRV.Texture2DMSArray.ArraySize = Description.ArraySize;
+					}
+				}
+				else if (Description.SampleDesc.Count <= 1)
+				{
+					SRV.ViewDimension = D3D11_SRV_DIMENSION_TEXTURE2D;
+					SRV.Texture2D.MostDetailedMip = 0;
+					SRV.Texture2D.MipLevels = Description.MipLevels;
+				}
+				else
+					SRV.ViewDimension = D3D11_SRV_DIMENSION_TEXTURE2DMS;
+
+				ReleaseCom(IResource->Resource);
+				if (D3DDevice->CreateShaderResourceView(IResource->View, &SRV, &IResource->Resource) == S_OK)
+					return true;
+
+				THAWK_ERROR("could not generate texture 2d resource");
+				return false;
+			}
+			bool D3D11Device::GenerateTexture(Texture3D* Resource)
+			{
+				D3D11Texture3D* IResource = (D3D11Texture3D*)Resource;
+				if (!IResource || !IResource->View)
+					return false;
+
+				D3D11_TEXTURE3D_DESC Description;
+				IResource->View->GetDesc(&Description);
+				IResource->FormatMode = (Format)Description.Format;
+				IResource->Usage = (ResourceUsage)Description.Usage;
+				IResource->Width = Description.Width;
+				IResource->Height = Description.Height;
+				IResource->MipLevels = Description.MipLevels;
+				IResource->AccessFlags = (CPUAccess)Description.CPUAccessFlags;
+
+				D3D11_SHADER_RESOURCE_VIEW_DESC SRV;
+				ZeroMemory(&SRV, sizeof(SRV));
+				SRV.Format = Description.Format;
+				SRV.ViewDimension = D3D11_SRV_DIMENSION_TEXTURE3D;
+				SRV.Texture3D.MostDetailedMip = 0;
+				SRV.Texture3D.MipLevels = Description.MipLevels;
+
+				ReleaseCom(IResource->Resource);
+				if (D3DDevice->CreateShaderResourceView(IResource->View, &SRV, &IResource->Resource) == S_OK)
+					return true;
+
+				THAWK_ERROR("could not generate texture 3d resource");
+				return false;
+			}
+			bool D3D11Device::GenerateTexture(TextureCube* Resource)
+			{
+				D3D11TextureCube* IResource = (D3D11TextureCube*)Resource;
+				if (!IResource || !IResource->View)
+					return false;
+
+				D3D11_TEXTURE2D_DESC Description;
+				IResource->View->GetDesc(&Description);
+				IResource->FormatMode = (Format)Description.Format;
+				IResource->Usage = (ResourceUsage)Description.Usage;
+				IResource->Width = Description.Width;
+				IResource->Height = Description.Height;
+				IResource->MipLevels = Description.MipLevels;
+				IResource->AccessFlags = (CPUAccess)Description.CPUAccessFlags;
+
+				D3D11_SHADER_RESOURCE_VIEW_DESC SRV;
+				ZeroMemory(&SRV, sizeof(SRV));
+				SRV.Format = Description.Format;
+				SRV.ViewDimension = D3D11_SRV_DIMENSION_TEXTURECUBE;
+				SRV.TextureCube.MostDetailedMip = 0;
+				SRV.TextureCube.MipLevels = Description.MipLevels;
+
+				ReleaseCom(IResource->Resource);
+				if (D3DDevice->CreateShaderResourceView(IResource->View, &SRV, &IResource->Resource) == S_OK)
+					return true;
+
+				THAWK_ERROR("could not generate texture cube resource");
+				return false;
+			}
+			void D3D11Device::GenerateMips(Texture2D* Resource)
+			{
+				D3D11Texture2D* IResource = (D3D11Texture2D*)Resource;
+				if (!IResource || !IResource->Resource)
+					return;
+
+				ImmediateContext->GenerateMips(IResource->Resource);
+			}
+			void D3D11Device::GenerateMips(Texture3D* Resource)
+			{
+				D3D11Texture3D* IResource = (D3D11Texture3D*)Resource;
+				if (!IResource || !IResource->Resource)
+					return;
+
+				ImmediateContext->GenerateMips(IResource->Resource);
+			}
+			void D3D11Device::GenerateMips(TextureCube* Resource)
+			{
+				D3D11TextureCube* IResource = (D3D11TextureCube*)Resource;
+				if (!IResource || !IResource->Resource)
+					return;
+
+				ImmediateContext->GenerateMips(IResource->Resource);
 			}
 			void D3D11Device::DirectBegin()
 			{
@@ -2149,9 +2171,6 @@ namespace Tomahawk
 			}
 			Texture2D* D3D11Device::CreateTexture2D(const Texture2D::Desc& I)
 			{
-				if (I.Dealloc)
-					return new D3D11Texture2D(I);
-
 				D3D11_TEXTURE2D_DESC Description;
 				ZeroMemory(&Description, sizeof(Description));
 				Description.Width = I.Width;
@@ -2165,23 +2184,11 @@ namespace Tomahawk
 				Description.BindFlags = I.BindFlags;
 				Description.CPUAccessFlags = I.AccessFlags;
 				Description.MiscFlags = (unsigned int)I.MiscFlags;
-
-				int MipLevels = I.MipLevels;
-				if (MipLevels == -10)
+		
+				if (I.Data != nullptr && I.MipLevels > 0)
 				{
-					unsigned int Support = 0;
-					D3DDevice->CheckFormatSupport(Description.Format, &Support);
-					if ((Support & D3D11_FORMAT_SUPPORT_MIP_AUTOGEN))
-					{
-						Description.MipLevels = 0;
-						Description.BindFlags |= D3D11_BIND_RENDER_TARGET;
-						Description.MiscFlags |= D3D11_RESOURCE_MISC_GENERATE_MIPS;
-					}
-					else
-					{
-						MipLevels = 1;
-						Description.MipLevels = 1;
-					}
+					Description.BindFlags |= D3D11_BIND_RENDER_TARGET;
+					Description.MiscFlags |= D3D11_RESOURCE_MISC_GENERATE_MIPS;
 				}
 
 				D3D11_SUBRESOURCE_DATA Data;
@@ -2190,36 +2197,23 @@ namespace Tomahawk
 				Data.SysMemSlicePitch = I.DepthPitch;
 
 				D3D11Texture2D* Result = new D3D11Texture2D();
-				if (D3DDevice->CreateTexture2D(&Description, (I.Data && MipLevels != -10) ? &Data : nullptr, &Result->Rest) != S_OK)
+				if (D3DDevice->CreateTexture2D(&Description, I.Data && I.MipLevels <= 0 ? &Data : nullptr, &Result->View) != S_OK)
+				{
+					THAWK_ERROR("couldn't create 2d texture");
+					return Result;
+				}
+
+				if (!GenerateTexture(Result))
 				{
 					THAWK_ERROR("couldn't create 2d resource");
 					return Result;
 				}
 
-				D3D11_SHADER_RESOURCE_VIEW_DESC SRVDescription = { };
-				SRVDescription.Format = (DXGI_FORMAT)I.FormatMode;
-				SRVDescription.ViewDimension = D3D11_SRV_DIMENSION_TEXTURE2D;
-				SRVDescription.Texture2D.MipLevels = (MipLevels == -10 ? -1 : MipLevels);
-
-				if (D3DDevice->CreateShaderResourceView(Result->Rest, &SRVDescription, &Result->Resource) != S_OK)
+				if (I.Data != nullptr && I.MipLevels > 0)
 				{
-					THAWK_ERROR("couldn't create shader resource view");
-					return Result;
-				}
-
-				if (MipLevels == -10)
-				{
-					ImmediateContext->UpdateSubresource(Result->Rest, 0, nullptr, I.Data, I.RowPitch, I.DepthPitch);
+					ImmediateContext->UpdateSubresource(Result->View, 0, nullptr, I.Data, I.RowPitch, I.DepthPitch);
 					ImmediateContext->GenerateMips(Result->Resource);
 				}
-
-				Result->Rest->GetDesc(&Description);
-				Result->FormatMode = (Format)Description.Format;
-				Result->Usage = (ResourceUsage)Description.Usage;
-				Result->Width = Description.Width;
-				Result->Height = Description.Height;
-				Result->MipLevels = Description.MipLevels;
-				Result->AccessFlags = (CPUAccess)Description.CPUAccessFlags;
 
 				return Result;
 			}
@@ -2227,29 +2221,52 @@ namespace Tomahawk
 			{
 				return new D3D11Texture3D();
 			}
+			Texture3D* D3D11Device::CreateTexture3D(const Texture3D::Desc& I)
+			{
+				D3D11_TEXTURE3D_DESC Description;
+				ZeroMemory(&Description, sizeof(Description));
+				Description.Width = I.Width;
+				Description.Height = I.Height;
+				Description.Depth = I.Depth;
+				Description.MipLevels = I.MipLevels;
+				Description.Format = (DXGI_FORMAT)I.FormatMode;
+				Description.Usage = (D3D11_USAGE)I.Usage;
+				Description.BindFlags = I.BindFlags;
+				Description.CPUAccessFlags = I.AccessFlags;
+				Description.MiscFlags = (unsigned int)I.MiscFlags;
+
+				D3D11Texture3D* Result = new D3D11Texture3D();
+				if (D3DDevice->CreateTexture3D(&Description, nullptr, &Result->View) != S_OK)
+				{
+					THAWK_ERROR("couldn't create 2d resource");
+					return Result;
+				}
+
+				GenerateTexture(Result);
+				return Result;
+			}
 			TextureCube* D3D11Device::CreateTextureCube()
 			{
 				return new D3D11TextureCube();
 			}
 			TextureCube* D3D11Device::CreateTextureCube(const TextureCube::Desc& I)
 			{
-				if (!I.Texture2D[0] || !I.Texture2D[1] || !I.Texture2D[2] || !I.Texture2D[3] || !I.Texture2D[4] || !I.Texture2D[5])
-				{
-					THAWK_ERROR("couldn't create texture cube without proper mapping");
-					return nullptr;
-				}
+				D3D11_TEXTURE2D_DESC Description;
+				ZeroMemory(&Description, sizeof(Description));
+				Description.Width = I.Width;
+				Description.Height = I.Height;
+				Description.MipLevels = I.MipLevels;
+				Description.ArraySize = 6;
+				Description.Format = (DXGI_FORMAT)I.FormatMode;
+				Description.SampleDesc.Count = 1;
+				Description.SampleDesc.Quality = 0;
+				Description.Usage = (D3D11_USAGE)I.Usage;
+				Description.BindFlags = I.BindFlags;
+				Description.CPUAccessFlags = I.AccessFlags;
+				Description.MiscFlags = (unsigned int)I.MiscFlags;
 
-				D3D11_TEXTURE2D_DESC Texture2D;
-				((ID3D11Texture2D*)I.Texture2D[0])->GetDesc(&Texture2D);
-				Texture2D.MipLevels = 1;
-				Texture2D.ArraySize = 6;
-				Texture2D.Usage = D3D11_USAGE_DEFAULT;
-				Texture2D.BindFlags = D3D11_BIND_SHADER_RESOURCE;
-				Texture2D.CPUAccessFlags = 0;
-				Texture2D.MiscFlags = D3D11_RESOURCE_MISC_TEXTURECUBE;
-
-				D3D11TextureCube* Result = new D3D11TextureCube(I);
-				if (D3DDevice->CreateTexture2D(&Texture2D, 0, &Result->Rest) != S_OK)
+				D3D11TextureCube* Result = new D3D11TextureCube();
+				if (D3DDevice->CreateTexture2D(&Description, 0, &Result->View) != S_OK)
 				{
 					THAWK_ERROR("couldn't create texture 2d");
 					return Result;
@@ -2257,27 +2274,65 @@ namespace Tomahawk
 
 				D3D11_BOX Region;
 				Region.left = 0;
-				Region.right = Texture2D.Width;
+				Region.right = Description.Width;
 				Region.top = 0;
-				Region.bottom = Texture2D.Height;
+				Region.bottom = Description.Height;
+				Region.front = 0;
+				Region.back = 1;
+
+				GenerateTexture(Result);
+				return Result;
+			}
+			TextureCube* D3D11Device::CreateTextureCube(Graphics::Texture2D* Resource[6])
+			{
+				if (!Resource[0] || !Resource[1] || !Resource[2] || !Resource[3] || !Resource[4] || !Resource[5])
+				{
+					THAWK_ERROR("couldn't create texture cube without proper mapping");
+					return nullptr;
+				}
+
+				void* Resources[6];
+				for (unsigned int i = 0; i < 6; i++)
+					Resources[i] = (void*)Resource[i]->As<D3D11Texture2D>()->View;
+
+				return CreateTextureCubeInternal(Resources);
+			}
+			TextureCube* D3D11Device::CreateTextureCubeInternal(void* Resource[6])
+			{
+				if (!Resource[0] || !Resource[1] || !Resource[2] || !Resource[3] || !Resource[4] || !Resource[5])
+				{
+					THAWK_ERROR("couldn't create texture cube without proper mapping");
+					return nullptr;
+				}
+
+				D3D11_TEXTURE2D_DESC Description;
+				((ID3D11Texture2D*)Resource[0])->GetDesc(&Description);
+				Description.MipLevels = 1;
+				Description.ArraySize = 6;
+				Description.Usage = D3D11_USAGE_DEFAULT;
+				Description.BindFlags = D3D11_BIND_SHADER_RESOURCE;
+				Description.CPUAccessFlags = 0;
+				Description.MiscFlags = D3D11_RESOURCE_MISC_TEXTURECUBE;
+
+				D3D11TextureCube* Result = new D3D11TextureCube();
+				if (D3DDevice->CreateTexture2D(&Description, 0, &Result->View) != S_OK)
+				{
+					THAWK_ERROR("couldn't create texture 2d");
+					return Result;
+				}
+
+				D3D11_BOX Region;
+				Region.left = 0;
+				Region.right = Description.Width;
+				Region.top = 0;
+				Region.bottom = Description.Height;
 				Region.front = 0;
 				Region.back = 1;
 
 				for (unsigned int j = 0; j < 6; j++)
-					ImmediateContext->CopySubresourceRegion(Result->Rest, j, 0, 0, 0, (ID3D11Texture2D*)I.Texture2D[j], 0, &Region);
+					ImmediateContext->CopySubresourceRegion(Result->View, j, 0, 0, 0, (ID3D11Texture2D*)Resource[j], 0, &Region);
 
-				D3D11_SHADER_RESOURCE_VIEW_DESC SRV;
-				SRV.Format = Texture2D.Format;
-				SRV.ViewDimension = D3D11_SRV_DIMENSION_TEXTURECUBE;
-				SRV.TextureCube.MostDetailedMip = 0;
-				SRV.TextureCube.MipLevels = Texture2D.MipLevels;
-
-				if (D3DDevice->CreateShaderResourceView(Result->Rest, &SRV, &Result->Resource) != S_OK)
-				{
-					THAWK_ERROR("couldn't create shader resource view");
-					return Result;
-				}
-
+				GenerateTexture(Result);
 				return Result;
 			}
 			RenderTarget2D* D3D11Device::CreateRenderTarget2D(const RenderTarget2D::Desc& I)
@@ -2285,34 +2340,33 @@ namespace Tomahawk
 				D3D11RenderTarget2D* Result = new D3D11RenderTarget2D(I);
 				if (I.RenderSurface == nullptr)
 				{
-					D3D11_TEXTURE2D_DESC Information;
-					ZeroMemory(&Information, sizeof(Information));
-					Information.Width = I.Width;
-					Information.Height = I.Height;
-					Information.MipLevels = (I.MipLevels < 1 ? 1 : I.MipLevels);
-					Information.ArraySize = 1;
-					Information.Format = (DXGI_FORMAT)I.FormatMode;
-					Information.SampleDesc.Count = 1;
-					Information.SampleDesc.Quality = 0;
-					Information.Usage = (D3D11_USAGE)I.Usage;
-					Information.BindFlags = I.BindFlags;
-					Information.CPUAccessFlags = I.AccessFlags;
-					Information.MiscFlags = (unsigned int)I.MiscFlags;
+					D3D11_TEXTURE2D_DESC Description;
+					ZeroMemory(&Description, sizeof(Description));
+					Description.Width = I.Width;
+					Description.Height = I.Height;
+					Description.MipLevels = (I.MipLevels < 1 ? 1 : I.MipLevels);
+					Description.ArraySize = 1;
+					Description.Format = (DXGI_FORMAT)I.FormatMode;
+					Description.SampleDesc.Count = 1;
+					Description.SampleDesc.Quality = 0;
+					Description.Usage = (D3D11_USAGE)I.Usage;
+					Description.BindFlags = I.BindFlags;
+					Description.CPUAccessFlags = I.AccessFlags;
+					Description.MiscFlags = (unsigned int)I.MiscFlags;
 
-					if (D3DDevice->CreateTexture2D(&Information, nullptr, &Result->Texture) != S_OK)
+					if (D3DDevice->CreateTexture2D(&Description, nullptr, &Result->Texture) != S_OK)
 					{
 						THAWK_ERROR("couldn't create surface texture view");
 						return Result;
 					}
 
-					D3D11_SHADER_RESOURCE_VIEW_DESC SRV;
-					SRV.Format = (DXGI_FORMAT)I.FormatMode;
-					SRV.ViewDimension = D3D11_SRV_DIMENSION_TEXTURE2D;
-					SRV.Texture2D.MostDetailedMip = 0;
-					SRV.Texture2D.MipLevels = (I.MipLevels < 1 ? 1 : I.MipLevels);
+					D3D11Texture2D* Target = (D3D11Texture2D*)CreateTexture2D();
+					Target->View = Result->Texture;
 
-					Result->Resource = CreateTexture2D();
-					if (D3DDevice->CreateShaderResourceView(Result->Texture, &SRV, &Result->Resource->As<D3D11Texture2D>()->Resource) != S_OK)
+					Result->Resource = Target;
+					Result->Texture->AddRef();
+
+					if (!GenerateTexture(Target))
 					{
 						THAWK_ERROR("couldn't create shader resource view");
 						return Result;
@@ -2392,62 +2446,45 @@ namespace Tomahawk
 				Result->Information.MiscFlags = (unsigned int)I.MiscFlags;
 
 				D3D11_RENDER_TARGET_VIEW_DESC RTV;
-				RTV.ViewDimension = D3D11_RTV_DIMENSION_TEXTURE2D;
-				RTV.Texture2DArray.MipSlice = 0;
-				RTV.Texture2DArray.ArraySize = 1;
-
 				if (Result->Information.SampleDesc.Count > 1)
+				{
 					RTV.ViewDimension = D3D11_RTV_DIMENSION_TEXTURE2DMS;
+					RTV.Texture2DMSArray.ArraySize = 1;
+				}
+				else
+				{
+					RTV.ViewDimension = D3D11_RTV_DIMENSION_TEXTURE2D;
+					RTV.Texture2DArray.MipSlice = 0;
+					RTV.Texture2DArray.ArraySize = 1;
+				}
 
 				for (int i = 0; i < Result->SVTarget; i++)
 				{
 					Result->Information.Format = (DXGI_FORMAT)I.FormatMode[i];
-					if (D3DDevice->CreateTexture2D(&Result->Information, nullptr, &Result->Texture[i]) == S_OK)
-						continue;
-
-					THAWK_ERROR("couldn't create surface texture 2d #%i", i);
-					return Result;
-				}
-
-				for (int i = 0; i < Result->SVTarget; i++)
-				{
-					RTV.Format = (DXGI_FORMAT)I.FormatMode[i];
-					if (D3DDevice->CreateRenderTargetView(Result->Texture[i], &RTV, &Result->RenderTargetView[i]) == S_OK)
-						continue;
-
-					THAWK_ERROR("couldn't create render target view #%i", i);
-					return Result;
-				}
-
-				D3D11_SHADER_RESOURCE_VIEW_DESC SRV;
-				SRV.ViewDimension = D3D11_SRV_DIMENSION_TEXTURE2D;
-				SRV.Texture2D.MostDetailedMip = 0;
-				SRV.Texture2D.MipLevels = MipLevels;
-
-				if (Result->Information.SampleDesc.Count > 1)
-					SRV.ViewDimension = D3D11_SRV_DIMENSION_TEXTURE2DMS;
-
-				for (int i = 0; i < Result->SVTarget; i++)
-				{
-					Texture2D::Desc F;
-					F.AccessFlags = I.AccessFlags;
-					F.FormatMode = I.FormatMode[i];
-					F.Height = I.Height;
-					F.Width = I.Width;
-					F.MipLevels = MipLevels;
-					F.Usage = I.Usage;
-					F.Dealloc = true;
-
-					Result->Resource[i] = CreateTexture2D(F);
-					if (!Result->Resource[i])
+					if (D3DDevice->CreateTexture2D(&Result->Information, nullptr, &Result->Texture[i]) != S_OK)
+					{
+						THAWK_ERROR("couldn't create surface texture 2d #%i", i);
 						return Result;
+					}
 
-					SRV.Format = (DXGI_FORMAT)I.FormatMode[i];
-					if (D3DDevice->CreateShaderResourceView(Result->Texture[i], &SRV, &Result->Resource[i]->As<D3D11Texture2D>()->Resource) == S_OK)
-						continue;
+					RTV.Format = (DXGI_FORMAT)I.FormatMode[i];
+					if (D3DDevice->CreateRenderTargetView(Result->Texture[i], &RTV, &Result->RenderTargetView[i]) != S_OK)
+					{
+						THAWK_ERROR("couldn't create render target view #%i", i);
+						return Result;
+					}
 
-					THAWK_ERROR("couldn't create shader resource view #%i", i);
-					return Result;
+					D3D11Texture2D* Subtarget = (D3D11Texture2D*)CreateTexture2D();
+					Subtarget->View = Result->Texture[i];
+
+					Result->Resource[i] = Subtarget;
+					Result->Texture[i]->AddRef();
+					
+					if (!GenerateTexture(Subtarget))
+					{
+						THAWK_ERROR("couldn't create shader resource view #%i", i);
+						return Result;
+					}
 				}
 
 				D3D11_TEXTURE2D_DESC DepthBuffer;
@@ -2545,23 +2582,13 @@ namespace Tomahawk
 					return Result;
 				}
 
-				D3D11_SHADER_RESOURCE_VIEW_DESC SRV;
-				SRV.ViewDimension = D3D11_SRV_DIMENSION_TEXTURE2DARRAY;
-				SRV.Texture2DArray.FirstArraySlice = 0;
-				SRV.Texture2DArray.MostDetailedMip = 0;
-				SRV.Texture2DArray.MipLevels = MipLevels;
-				SRV.Format = (DXGI_FORMAT)I.FormatMode;
-				SRV.Texture2DArray.ArraySize = I.ArraySize;
+				D3D11Texture2D* Target = (D3D11Texture2D*)CreateTexture2D();
+				Target->View = Result->Texture;
 
-				if (Result->Information.SampleDesc.Count > 1)
-				{
-					SRV.ViewDimension = D3D11_SRV_DIMENSION_TEXTURE2DMSARRAY;
-					SRV.Texture2DMSArray.ArraySize = SRV.Texture2DArray.ArraySize;
-					SRV.Texture2DArray.ArraySize = 0;
-				}
+				Result->Resource = Target;
+				Result->Texture->AddRef();
 
-				Result->Resource = CreateTexture2D();
-				if (D3DDevice->CreateShaderResourceView(Result->Texture, &SRV, &Result->Resource->As<D3D11Texture2D>()->Resource) != S_OK)
+				if (!GenerateTexture(Target))
 				{
 					THAWK_ERROR("couldn't create shader resource view");
 					return Result;
@@ -2615,21 +2642,21 @@ namespace Tomahawk
 				D3D11RenderTargetCube* Result = new D3D11RenderTargetCube(I);
 				unsigned int MipLevels = (I.MipLevels < 1 ? 1 : I.MipLevels);
 
-				D3D11_TEXTURE2D_DESC Information;
-				ZeroMemory(&Information, sizeof(Information));
-				Information.Width = I.Size;
-				Information.Height = I.Size;
-				Information.MipLevels = MipLevels;
-				Information.ArraySize = 6;
-				Information.SampleDesc.Count = 1;
-				Information.SampleDesc.Quality = 0;
-				Information.Format = (DXGI_FORMAT)I.FormatMode;
-				Information.Usage = (D3D11_USAGE)I.Usage;
-				Information.BindFlags = I.BindFlags;
-				Information.CPUAccessFlags = I.AccessFlags;
-				Information.MiscFlags = (unsigned int)I.MiscFlags;
+				D3D11_TEXTURE2D_DESC Description;
+				ZeroMemory(&Description, sizeof(Description));
+				Description.Width = I.Size;
+				Description.Height = I.Size;
+				Description.MipLevels = MipLevels;
+				Description.ArraySize = 6;
+				Description.SampleDesc.Count = 1;
+				Description.SampleDesc.Quality = 0;
+				Description.Format = (DXGI_FORMAT)I.FormatMode;
+				Description.Usage = (D3D11_USAGE)I.Usage;
+				Description.BindFlags = I.BindFlags;
+				Description.CPUAccessFlags = I.AccessFlags;
+				Description.MiscFlags = (unsigned int)I.MiscFlags;
 
-				if (D3DDevice->CreateTexture2D(&Information, nullptr, &Result->Cube) != S_OK)
+				if (D3DDevice->CreateTexture2D(&Description, nullptr, &Result->Cube) != S_OK)
 				{
 					THAWK_ERROR("couldn't create cube map texture 2d");
 					return Result;
@@ -2673,7 +2700,7 @@ namespace Tomahawk
 
 				D3D11_RENDER_TARGET_VIEW_DESC RTV;
 				ZeroMemory(&RTV, sizeof(RTV));
-				RTV.Format = Information.Format;
+				RTV.Format = Description.Format;
 				RTV.ViewDimension = D3D11_RTV_DIMENSION_TEXTURE2DARRAY;
 				RTV.Texture2DArray.FirstArraySlice = 0;
 				RTV.Texture2DArray.ArraySize = 6;
@@ -2685,15 +2712,13 @@ namespace Tomahawk
 					return Result;
 				}
 
-				D3D11_SHADER_RESOURCE_VIEW_DESC SRV;
-				ZeroMemory(&SRV, sizeof(SRV));
-				SRV.Format = Information.Format;
-				SRV.ViewDimension = D3D11_SRV_DIMENSION_TEXTURECUBE;
-				SRV.TextureCube.MostDetailedMip = 0;
-				SRV.TextureCube.MipLevels = MipLevels;
+				D3D11Texture2D* Target = (D3D11Texture2D*)CreateTexture2D();
+				Target->View = Result->Cube;
 
-				Result->Resource = CreateTexture2D();
-				if (D3DDevice->CreateShaderResourceView(Result->Cube, &SRV, &Result->Resource->As<D3D11Texture2D>()->Resource) != S_OK)
+				Result->Resource = Target;
+				Result->Cube->AddRef();
+
+				if (!GenerateTexture(Target))
 				{
 					THAWK_ERROR("couldn't create shader resource view");
 					return Result;
@@ -2713,23 +2738,23 @@ namespace Tomahawk
 				D3D11MultiRenderTargetCube* Result = new D3D11MultiRenderTargetCube(I);
 				unsigned int MipLevels = (I.MipLevels < 1 ? 1 : I.MipLevels);
 
-				D3D11_TEXTURE2D_DESC Information;
-				ZeroMemory(&Information, sizeof(Information));
-				Information.Width = I.Size;
-				Information.Height = I.Size;
-				Information.MipLevels = 1;
-				Information.ArraySize = 6;
-				Information.SampleDesc.Count = 1;
-				Information.SampleDesc.Quality = 0;
-				Information.Format = DXGI_FORMAT_D32_FLOAT;
-				Information.Usage = (D3D11_USAGE)I.Usage;
-				Information.BindFlags = D3D11_BIND_DEPTH_STENCIL;
-				Information.CPUAccessFlags = I.AccessFlags;
-				Information.MiscFlags = (unsigned int)I.MiscFlags;
+				D3D11_TEXTURE2D_DESC Description;
+				ZeroMemory(&Description, sizeof(Description));
+				Description.Width = I.Size;
+				Description.Height = I.Size;
+				Description.MipLevels = 1;
+				Description.ArraySize = 6;
+				Description.SampleDesc.Count = 1;
+				Description.SampleDesc.Quality = 0;
+				Description.Format = DXGI_FORMAT_D32_FLOAT;
+				Description.Usage = (D3D11_USAGE)I.Usage;
+				Description.BindFlags = D3D11_BIND_DEPTH_STENCIL;
+				Description.CPUAccessFlags = I.AccessFlags;
+				Description.MiscFlags = (unsigned int)I.MiscFlags;
 
 				for (int i = 0; i < Result->SVTarget; i++)
 				{
-					if (D3DDevice->CreateTexture2D(&Information, nullptr, &Result->Texture[i]) != S_OK)
+					if (D3DDevice->CreateTexture2D(&Description, nullptr, &Result->Texture[i]) != S_OK)
 					{
 						THAWK_ERROR("couldn't create texture 2d");
 						return Result;
@@ -2738,7 +2763,7 @@ namespace Tomahawk
 
 				D3D11_DEPTH_STENCIL_VIEW_DESC DSV;
 				ZeroMemory(&DSV, sizeof(DSV));
-				DSV.Format = Information.Format;
+				DSV.Format = Description.Format;
 				DSV.ViewDimension = D3D11_DSV_DIMENSION_TEXTURE2DARRAY;
 				DSV.Texture2DArray.FirstArraySlice = 0;
 				DSV.Texture2DArray.ArraySize = 6;
@@ -2750,13 +2775,14 @@ namespace Tomahawk
 					return Result;
 				}
 
-				Information.BindFlags = I.BindFlags;
-				Information.MiscFlags = (unsigned int)I.MiscFlags;
-				Information.MipLevels = MipLevels;
+				Description.BindFlags = I.BindFlags;
+				Description.MiscFlags = (unsigned int)I.MiscFlags;
+				Description.MipLevels = MipLevels;
+
 				for (int i = 0; i < Result->SVTarget; i++)
 				{
-					Information.Format = (DXGI_FORMAT)I.FormatMode[i];
-					if (D3DDevice->CreateTexture2D(&Information, nullptr, &Result->Cube[i]) != S_OK)
+					Description.Format = (DXGI_FORMAT)I.FormatMode[i];
+					if (D3DDevice->CreateTexture2D(&Description, nullptr, &Result->Cube[i]) != S_OK)
 					{
 						THAWK_ERROR("couldn't create cube map rexture 2d");
 						return Result;
@@ -2782,16 +2808,20 @@ namespace Tomahawk
 
 				D3D11_SHADER_RESOURCE_VIEW_DESC SRV;
 				ZeroMemory(&SRV, sizeof(SRV));
-				SRV.Format = Information.Format;
+				SRV.Format = Description.Format;
 				SRV.ViewDimension = D3D11_SRV_DIMENSION_TEXTURECUBE;
 				SRV.TextureCube.MostDetailedMip = 0;
 				SRV.TextureCube.MipLevels = MipLevels;
 
 				for (int i = 0; i < Result->SVTarget; i++)
 				{
-					SRV.Format = (DXGI_FORMAT)I.FormatMode[i];
-					Result->Resource[i] = CreateTexture2D();
-					if (D3DDevice->CreateShaderResourceView(Result->Cube[i], &SRV, &Result->Resource[i]->As<D3D11Texture2D>()->Resource) != S_OK)
+					D3D11Texture2D* Target = (D3D11Texture2D*)CreateTexture2D();
+					Target->View = Result->Cube[i];
+
+					Result->Resource[i] = Target;
+					Result->Cube[i]->AddRef();
+
+					if (!GenerateTexture(Target))
 					{
 						THAWK_ERROR("couldn't create shader resource view");
 						return Result;
@@ -3059,15 +3089,14 @@ namespace Tomahawk
 			}
 			int D3D11Device::CreateConstantBuffer(ID3D11Buffer** Buffer, size_t Size)
 			{
-				D3D11_BUFFER_DESC Information;
-				ZeroMemory(&Information, sizeof(Information));
+				D3D11_BUFFER_DESC Description;
+				ZeroMemory(&Description, sizeof(Description));
+				Description.Usage = D3D11_USAGE_DEFAULT;
+				Description.ByteWidth = Size;
+				Description.BindFlags = D3D11_BIND_CONSTANT_BUFFER;
+				Description.CPUAccessFlags = 0;
 
-				Information.Usage = D3D11_USAGE_DEFAULT;
-				Information.ByteWidth = Size;
-				Information.BindFlags = D3D11_BIND_CONSTANT_BUFFER;
-				Information.CPUAccessFlags = 0;
-
-				return D3DDevice->CreateBuffer(&Information, nullptr, Buffer);
+				return D3DDevice->CreateBuffer(&Description, nullptr, Buffer);
 			}
 			char* D3D11Device::GetCompileState(ID3DBlob* Error)
 			{

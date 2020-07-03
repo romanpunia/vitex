@@ -324,13 +324,15 @@ namespace Tomahawk
 			VMFeature_Rest = (1 << 13),
 			VMFeature_Compute = (1 << 14),
 			VMFeature_Audio = (1 << 15),
-			VMFeature_Network = (1 << 16),
-			VMFeature_HTTP = (1 << 17),
-			VMFeature_SMTP = (1 << 18),
-			VMFeature_BSON = (1 << 19),
-			VMFeature_MongoDB = (1 << 20),
-			VMFeature_Graphics = (1 << 21),
-			VMFeature_Engine = (1 << 22)
+			VMFeature_Effects = (1 << 16),
+			VMFeature_Filters = (1 << 17),
+			VMFeature_Network = (1 << 18),
+			VMFeature_HTTP = (1 << 19),
+			VMFeature_SMTP = (1 << 20),
+			VMFeature_BSON = (1 << 21),
+			VMFeature_MongoDB = (1 << 22),
+			VMFeature_Graphics = (1 << 23),
+			VMFeature_Engine = (1 << 24)
 		};
 
 		typedef CScriptArray VMCArray;
@@ -1713,6 +1715,15 @@ namespace Tomahawk
 			int SetDestructor(const char* Decl)
 			{
 				asSFuncPtr* Ptr = VMBind::BindFunction(&VMBind::BindDestructor<T>);
+				int Result = SetDestructorAddress(Decl, Ptr);
+				VMBind::ReleaseFunctor(&Ptr);
+
+				return Result;
+			}
+			template <typename R, typename... Args>
+			int SetDestructorStatic(const char* Decl, R(*Value)(Args...))
+			{
+				asSFuncPtr* Ptr = VMBind::BindFunction<R(*)(Args...)>(Value);
 				int Result = SetDestructorAddress(Decl, Ptr);
 				VMBind::ReleaseFunctor(&Ptr);
 

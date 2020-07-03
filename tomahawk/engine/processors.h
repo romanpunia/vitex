@@ -68,6 +68,13 @@ namespace Tomahawk
 				int64_t Index;
 			};
 
+			class THAWK_OUT AssetFileProcessor : public FileProcessor
+			{
+			public:
+				AssetFileProcessor(ContentManager* Manager);
+				void* Load(Rest::FileStream* Stream, uint64_t Length, uint64_t Offset, ContentArgs* Args) override;
+			};
+
 			class THAWK_OUT SceneGraphProcessor : public FileProcessor
 			{
 			public:
@@ -78,13 +85,6 @@ namespace Tomahawk
 				SceneGraphProcessor(ContentManager* Manager);
 				void* Load(Rest::FileStream* Stream, uint64_t Length, uint64_t Offset, ContentArgs* Args) override;
 				bool Save(Rest::FileStream* Stream, void* Object, ContentArgs* Args) override;
-			};
-
-			class THAWK_OUT FontProcessor : public FileProcessor
-			{
-			public:
-				FontProcessor(ContentManager* Manager);
-				void* Load(Rest::FileStream* Stream, uint64_t Length, uint64_t Offset, ContentArgs* Args) override;
 			};
 
 			class THAWK_OUT AudioClipProcessor : public FileProcessor

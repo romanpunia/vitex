@@ -493,6 +493,7 @@ namespace Tomahawk
 			std::basic_string<wchar_t> ToUnicode() const;
 			std::vector<std::string> Split(const std::string& With, uint64_t Start = 0U) const;
 			std::vector<std::string> Split(char With, uint64_t Start = 0U) const;
+			std::vector<std::string> SplitMax(char With, uint64_t MaxCount, uint64_t Start = 0U) const;
 			std::vector<std::string> SplitOf(const char* With, uint64_t Start = 0U) const;
 
 		public:
@@ -1265,6 +1266,7 @@ namespace Tomahawk
 		public:
 			Document();
 			virtual ~Document() override;
+			void Join(Document* Other);
 			void Clear();
 			void Save();
 			Document* GetIndex(int64_t Index);
@@ -1301,6 +1303,7 @@ namespace Tomahawk
 			unsigned char* GetId(const std::string& Name);
 			const char* GetString(const std::string& Name);
 			std::string& GetStringBlob(const std::string& Name);
+			std::string GetName();
 			std::string Serialize();
 			Document* Find(const std::string& Name, bool Here = false);
 			Document* FindPath(const std::string& Notation, bool Here = false);

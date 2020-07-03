@@ -53,8 +53,10 @@ bool RayMarch(float3 Position, inout float3 Direction, in float IterationCount, 
 bool RayBounce(in Fragment Frag, in Bounce Ray, in float2 TexCoord, out float Result)
 {
 	float3 D = GetPosition(TexCoord, GetDepth(TexCoord)) - Frag.Position;
-	float L = length(D) * Ray.Scale;
-    float C = dot(normalize(D), Frag.Normal) * Ray.Power - Ray.Bias;
+	float C = dot(normalize(D), Frag.Normal) * Ray.Power - Ray.Bias;
+    float L = length(D);
+    
+    L = Ray.Scale * max(L * (2.0 - L), 0.0);
 	Result = max(0.0, C) * Ray.Intensity / (1.0 + L * L);
 
 	return C >= Ray.Threshold;

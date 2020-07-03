@@ -1,4 +1,5 @@
 #include "standard/space-sv"
+#include "standard/cook-torrance"
 #include "standard/random-float"
 #include "standard/ray-march"
 
@@ -39,19 +40,19 @@ float4 PS(VertexResult V) : SV_TARGET0
 		[loop] for (float y = -IterationCount; y < IterationCount; y++)
 		{
 			float2 R = RandomFloat2(TexCoord) * Step - float2(y, x) * Offset;
-			float2 D = reflect(R, float2(x, y)) * O;
-            float3 F1 = float3(0, 0, 0);
-            float3 F2 = float3(0, 0, 0);
+			float2 H = reflect(R, float2(x, y)) * O;
+            float3 F1 = float3(TexCoord + H, 0);
+            float3 F2 = float3(TexCoord - H, 0);
 
-            [branch] if (RayBounce(Frag, Ray, TexCoord + D, F1.x))
+            [branch] if (RayBounce(Frag, Ray, F1.xy, F1.z))
             {
-                C += Mat.Occlusion * GetDiffuse(TexCoord + D).xyz * min(1.0, F1.x);
+                C += Mat.Occlusion * GetDiffuse(F1.xy).xyz * min(1.0, F1.z);
                 Count++;
             }
 
-            [branch] if (RayBounce(Frag, Ray, TexCoord - D, F2.x))
+            [branch] if (RayBounce(Frag, Ray, F2.xy, F2.z))
             {
-                C += Mat.Occlusion * GetDiffuse(TexCoord - D).xyz * min(1.0, F2.x);
+                C += Mat.Occlusion * GetDiffuse(F2.xy).xyz * min(1.0, F2.z);
                 Count++;
             }
 		}
@@ -60,5 +61,11 @@ float4 PS(VertexResult V) : SV_TARGET0
     [branch] if (Count <= 0.0)
         return float4(0.0, 0.0, 0.0, 0.0);
 
-    return float4(T * C * F / (Count + 1), 1);
+    float R = GetRoughnessFactor(Frag, Mat);
+	float3 M = GetMetallicFactor(Frag, Mat);
+	float3 E = normalize(Frag.Position - ViewPosition.xyz);
+	float3 D = normalize(reflect(E, Frag.Normal));
+    float3 G = GetLight(E, D, Frag.Normal, M, R);
+
+    return float4(saturate(G * T * C * F / (Count + 1)), 1);
 };

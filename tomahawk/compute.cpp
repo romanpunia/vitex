@@ -1279,6 +1279,22 @@ namespace Tomahawk
 
 			return IntersectsAABBAt(Min, Max);
 		}
+		bool Ray::IntersectsOBB(const Matrix4x4& World)
+		{
+			Matrix4x4 InvWorld = World.Invert();
+			Vector4 OldOrigin = Vector4(Origin.X, Origin.Y, Origin.Z, 1.0);
+			Vector4 OldDirection = Vector4(Direction.X, Direction.Y, Direction.Z, 0.0);
+
+			Origin = (OldOrigin * InvWorld).MtVector3();
+			Direction = (OldDirection * InvWorld).Normalize().MtVector3();
+			
+			bool Result = IntersectsAABB(0, World.Scale());
+
+			Origin = OldOrigin.MtVector3();
+			Direction = OldDirection.MtVector3();
+
+			return Result;
+		}
 
 		Matrix4x4::Matrix4x4()
 		{
@@ -4274,6 +4290,10 @@ namespace Tomahawk
 		bool MathCommon::CursorRayTest(const Ray& Cursor, const Vector3& Position, const Vector3& Scale)
 		{
 			return Cursor.IntersectsAABB(Position.InvertZ(), Scale);
+		}
+		bool MathCommon::CursorRayTest(Ray& Cursor, const Matrix4x4& World)
+		{
+			return Cursor.IntersectsOBB(World);
 		}
 
 		Preprocessor::Preprocessor() : Nested(false)

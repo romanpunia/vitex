@@ -15,10 +15,10 @@ float4 PS(VertexResult V) : SV_TARGET0
 {
     Fragment Frag = GetFragment(V.TexCoord.xy);
     Material Mat = GetMaterial(Frag.Material);
-    float3 Emission = Frag.Diffuse * Mat.Emission.xyz * Mat.Emission.w;
+    float3 Emission = Mat.Emission.xyz * Mat.Emission.w;
 	float4 Light = GetSample(LightMap, V.TexCoord.xy);
 	float3 Ambient = HemiAmbient(HighEmission, LowEmission, Frag.Normal.y);
     Emission = HemiAmbient(Emission, Emission * 0.5, Frag.Normal.y);
     
-	return float4(Frag.Diffuse * (Light.xyz + Ambient + Emission) + (Emission + 1.0) * Light.xyz * Light.a, 1.0);
+	return float4(Frag.Diffuse * (Light.xyz + Ambient + Emission) + (Emission + Frag.Diffuse) * Light.xyz * Light.a, 1.0);
 };

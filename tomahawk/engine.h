@@ -148,11 +148,11 @@ namespace Tomahawk
 			Graphics::Texture2D* EmissionMap = nullptr;
 			Compute::Vector3 Diffuse = 1;
 			Compute::Vector2 TexCoord = 1;
-			uint64_t Material = 0;
+			int64_t Material = -1;
 
-			static void UploadPhase(Graphics::GraphicsDevice* Device, Appearance* Surface);
-			static void UploadDepth(Graphics::GraphicsDevice* Device, Appearance* Surface);
-			static void UploadCubicDepth(Graphics::GraphicsDevice* Device, Appearance* Surface);
+			static bool UploadPhase(Graphics::GraphicsDevice* Device, Appearance* Surface);
+			static bool UploadDepth(Graphics::GraphicsDevice* Device, Appearance* Surface);
+			static bool UploadCubicDepth(Graphics::GraphicsDevice* Device, Appearance* Surface);
 		};
 
 		struct THAWK_OUT Viewer
@@ -186,6 +186,7 @@ namespace Tomahawk
 			static bool Pack(Rest::Document* V, const Compute::Vector3& Value);
 			static bool Pack(Rest::Document* V, const Compute::Vector4& Value);
 			static bool Pack(Rest::Document* V, const Compute::Matrix4x4& Value);
+			static bool Pack(Rest::Document* V, const Graphics::Material& Value);
 			static bool Pack(Rest::Document* V, const AnimatorState& Value);
 			static bool Pack(Rest::Document* V, const SpawnerProperties& Value);
 			static bool Pack(Rest::Document* V, const Appearance& Value, ContentManager* Content);
@@ -237,6 +238,7 @@ namespace Tomahawk
 			static bool Unpack(Rest::Document* V, Compute::Vector3* O);
 			static bool Unpack(Rest::Document* V, Compute::Vector4* O);
 			static bool Unpack(Rest::Document* V, Compute::Matrix4x4* O);
+			static bool Unpack(Rest::Document* V, Graphics::Material* O);
 			static bool Unpack(Rest::Document* V, AnimatorState* O);
 			static bool Unpack(Rest::Document* V, SpawnerProperties* O);
 			static bool Unpack(Rest::Document* V, Appearance* O, ContentManager* Content);
@@ -299,6 +301,19 @@ namespace Tomahawk
 			}
 		};
 
+		struct THAWK_OUT AssetFile : public Rest::Object
+		{
+		private:
+			char* Buffer;
+			size_t Size;
+
+		public:
+			AssetFile(char* SrcBuffer, size_t SrcSize);
+			virtual ~AssetFile() override;
+			char* GetBuffer();
+			size_t GetSize();
+		};
+
 		class THAWK_OUT FileProcessor : public Rest::Object
 		{
 			friend ContentManager;
@@ -337,13 +352,42 @@ namespace Tomahawk
 			virtual void OnSynchronize(Rest::Timer* Time);
 			virtual void OnUpdate(Rest::Timer* Time);
 			virtual void OnEvent(Event* Value);
-			virtual Component* OnClone(Entity* New);
+			virtual Component* OnClone(Entity* New) = 0;
 			Entity* GetEntity();
 			void SetActive(bool Enabled);
 			bool IsActive();
 
 		public:
 			THAWK_COMPONENT_BASIS(Component);
+		};
+
+		class THAWK_OUT Drawable : public Component
+		{
+		private:
+			bool Complex;
+
+		protected:
+			std::unordered_map<void*, Appearance> Surfaces;
+
+		public:
+			bool Visibility;
+
+		public:
+			Drawable(Entity* Ref, bool Complex);
+			virtual ~Drawable() = default;
+			virtual void OnEvent(Event* Value) override;
+			virtual void OnSynchronize(Rest::Timer* Time) = 0;
+			virtual Component* OnClone(Entity* New) = 0;
+			bool IsVisibleTo(const Viewer& View, Compute::Matrix4x4* World);
+			bool IsNearTo(const Viewer& View);
+			const std::unordered_map<void*, Appearance>& GetSurfaces();
+			Graphics::Material* GetMaterial(Appearance* Surface);
+			Graphics::Material* GetMaterial();
+			Appearance* GetSurface(void* Instance);
+			Appearance* GetSurface();
+
+		public:
+			THAWK_COMPONENT(Drawable);
 		};
 
 		class THAWK_OUT Entity : public Rest::Object
@@ -357,7 +401,7 @@ namespace Tomahawk
 		public:
 			Compute::Transform* Transform;
 			std::string Name;
-			int64_t Self, Tag;
+			int64_t Id, Tag;
 
 		public:
 			Entity(SceneGraph* Ref);
@@ -595,6 +639,7 @@ namespace Tomahawk
 			Compute::Simulator* Simulator = nullptr;
 			std::unordered_map<uint64_t, Rest::Pool<Component*>> Components;
 			std::vector<Graphics::Material> Materials;
+			std::vector<std::string> Names;
 			std::vector<Event*> Events;
 			Rest::Pool<Component*> Pending;
 			Rest::Pool<Entity*> Entities;
@@ -613,12 +658,10 @@ namespace Tomahawk
 			void Update(Rest::Timer* Time);
 			void Simulation(Rest::Timer* Time);
 			void Synchronize(Rest::Timer* Time);
-			void Rescale(const Compute::Vector3& Scale);
 			void RemoveMaterial(uint64_t MaterialId);
 			void RemoveEntity(Entity* Entity, bool Release);
 			void SetCamera(Entity* Camera);
 			void CloneEntities(Entity* Instance, std::vector<Entity*>* Array);
-			void AddMaterial(const Graphics::Material& Material);
 			void RestoreViewBuffer(Viewer* View);
 			void SortEntitiesBackToFront();
 			void Redistribute();
@@ -630,7 +673,9 @@ namespace Tomahawk
 			void SetSurface(Graphics::MultiRenderTarget2D* NewSurface);
 			void SetSurface();
 			void SetSurfaceCleared();
+			void SetMaterialName(uint64_t Material, const std::string& Name);
 			void ClearSurface();
+			Graphics::Material* AddMaterial(const std::string& Name, const Graphics::Material& Material);
 			Entity* CloneEntities(Entity* Value);
 			Entity* FindNamedEntity(const std::string& Name);
 			Entity* FindEntityAt(Compute::Vector3 Position, float Radius);
@@ -641,9 +686,9 @@ namespace Tomahawk
 			Component* GetCamera();
 			RenderSystem* GetRenderer();
 			Viewer GetCameraViewer();
-			Graphics::Material& CloneMaterial(uint64_t Material);
-			Graphics::Material& GetMaterial(uint64_t Material);
-			Graphics::Material& GetMaterialStandartLit();
+			std::string GetMaterialName(uint64_t Material);
+			Graphics::Material* GetMaterialByName(const std::string& Material);
+			Graphics::Material* GetMaterialById(uint64_t Material);
 			Rest::Pool<Component*>* GetComponents(uint64_t Section);
 			std::vector<Entity*> FindParentFreeEntities(Entity* Entity);
 			std::vector<Entity*> FindNamedEntities(const std::string& Name);
@@ -656,9 +701,8 @@ namespace Tomahawk
 			uint64_t GetMaterialCount();
 			uint64_t GetEntityCount();
 			uint64_t GetComponentCount(uint64_t Section);
-			uint64_t HasMaterial(uint64_t Material);
-			uint64_t HasEntity(Entity* Entity);
-			uint64_t HasEntity(uint64_t Entity);
+			bool HasEntity(Entity* Entity);
+			bool HasEntity(uint64_t Entity);
 			Graphics::MultiRenderTarget2D* GetSurface();
 			Graphics::StructureBuffer* GetStructure();
 			Graphics::GraphicsDevice* GetDevice();
@@ -920,19 +964,17 @@ namespace Tomahawk
 		public:
 			Application(Desc* I);
 			virtual ~Application() override;
-			virtual void OnKeyState(Graphics::KeyCode Key, Graphics::KeyMod Mod, int Virtual, int Repeat, bool Pressed);
+			virtual void OnKey(Graphics::KeyCode Key, Graphics::KeyMod Mod, int Virtual, int Repeat, bool Pressed);
 			virtual void OnInput(char* Buffer, int Length);
-			virtual void OnCursorWheelState(int X, int Y, bool Normal);
-			virtual void OnWindowState(Graphics::WindowState NewState, int X, int Y);
-			virtual void OnInteract(Engine::Renderer* GUI, Rest::Timer* Time);
+			virtual void OnWheel(int X, int Y, bool Normal);
+			virtual void OnWindow(Graphics::WindowState NewState, int X, int Y);
 			virtual void OnRender(Rest::Timer* Time);
 			virtual void OnUpdate(Rest::Timer* Time);
 			virtual void OnInitialize(Desc* I);
-			void Run(Desc* I);
+			virtual void* GetGUI();
 			void Restate(ApplicationState Value);
-			void Enqueue(const std::function<void(Rest::Timer * )>& Callback, double Limit = 0);
-			void* GetCurrentGUI();
-			void* GetAnyGUI();
+			void Enqueue(const std::function<void(Rest::Timer*)>& Callback, double Limit = 0);
+			void Run(Desc* I);
 
 		private:
 			static void Callee(Rest::EventQueue* Queue, Rest::EventArgs* Args);

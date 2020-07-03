@@ -308,7 +308,11 @@ namespace Tomahawk
 			KeyMod_NUM = 0x1000,
 			KeyMod_CAPS = 0x2000,
 			KeyMod_MODE = 0x4000,
-			KeyMod_RESERVED = 0x8000
+			KeyMod_RESERVED = 0x8000,
+			KeyMod_SHIFT = KeyMod_LSHIFT | KeyMod_RSHIFT,
+			KeyMod_CTRL = KeyMod_LCTRL | KeyMod_RCTRL,
+			KeyMod_ALT = KeyMod_LALT | KeyMod_RALT,
+			KeyMod_GUI = KeyMod_LGUI | KeyMod_RGUI
 		};
 
 		enum AlertType
@@ -921,7 +925,7 @@ namespace Tomahawk
 			float Environment = 0.0f;
 			float Occlusion = 1.0f;
 			float Radius = 0.0f;
-			float Self = 0.0f;
+			float Id = 0.0f;
 		};
 
 		class THAWK_OUT Surface
@@ -1806,8 +1810,11 @@ namespace Tomahawk
 		public:
 			Activity(const Desc& I);
 			~Activity();
+			void SetClipboardText(const std::string& Text);
 			void SetCursorPosition(const Compute::Vector2& Position);
 			void SetCursorPosition(float X, float Y);
+			void SetGlobalCursorPosition(const Compute::Vector2& Position);
+			void SetGlobalCursorPosition(float X, float Y);
 			void SetKey(KeyCode KeyCode, bool Value);
 			void SetCursor(DisplayCursor Style);
 			void Cursor(bool Enabled);
@@ -1838,14 +1845,16 @@ namespace Tomahawk
 			float GetWidth();
 			float GetHeight();
 			float GetAspectRatio();
+			KeyMod GetKeyModState();
 			Graphics::Viewport GetViewport();
 			Compute::Vector2 GetOffset();
 			Compute::Vector2 GetSize();
 			Compute::Vector2 GetClientSize();
-			Compute::Vector2 GetClientCursorPosition();
+			Compute::Vector2 GetGlobalCursorPosition();
 			Compute::Vector2 GetCursorPosition();
 			Compute::Vector2 GetCursorPosition(float ScreenWidth, float ScreenHeight);
 			Compute::Vector2 GetCursorPosition(Compute::Vector2 ScreenDimensions);
+			std::string GetClipboardText();
 			SDL_Window* GetHandle();
 			std::string GetError();
 

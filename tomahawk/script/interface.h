@@ -17,6 +17,8 @@ namespace Tomahawk
 			THAWK_OUT void EnableBSON(VMManager* Manager);
 			THAWK_OUT void EnableMongoDB(VMManager* Manager);
 			THAWK_OUT void EnableAudio(VMManager* Manager);
+			THAWK_OUT void EnableEffects(VMManager* Manager);
+			THAWK_OUT void EnableFilters(VMManager* Manager);
 			THAWK_OUT void EnableGraphics(VMManager* Manager);
 			THAWK_OUT void EnableEngine(VMManager* Manager);
 		}

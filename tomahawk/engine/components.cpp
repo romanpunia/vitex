@@ -301,13 +301,12 @@ namespace Tomahawk
 				return Instance;
 			}
 
-			SoftBody::SoftBody(Entity* Ref) : Component(Ref)
+			SoftBody::SoftBody(Entity* Ref) : Drawable(Ref, false)
 			{
 				Hull = nullptr;
 				Instance = nullptr;
 				Kinematic = false;
 				Synchronize = true;
-				Visibility = false;
 			}
 			SoftBody::~SoftBody()
 			{
@@ -319,7 +318,7 @@ namespace Tomahawk
 				NMake::Unpack(Node->Find("extended"), &Extended);
 				NMake::Unpack(Node->Find("kinematic"), &Kinematic);
 				NMake::Unpack(Node->Find("visibility"), &Visibility);
-				NMake::Unpack(Node->Get("surface"), &Surface, Content);
+				NMake::Unpack(Node->Find("surface"), &Surfaces.begin()->second, Content);
 
 				if (!Extended)
 					return;
@@ -481,7 +480,7 @@ namespace Tomahawk
 				NMake::Pack(Node->SetDocument("kinematic"), Kinematic);
 				NMake::Pack(Node->SetDocument("extended"), Instance != nullptr);
 				NMake::Pack(Node->SetDocument("visibility"), Visibility);
-				NMake::Pack(Node->SetDocument("surface"), Surface, Content);
+				NMake::Pack(Node->SetDocument("surface"), Surfaces.begin()->second, Content);
 
 				if (!Instance)
 					return;
@@ -775,13 +774,6 @@ namespace Tomahawk
 				if (Parent && Parent->GetScene())
 					Parent->GetScene()->Unlock();
 			}
-			Graphics::Material& SoftBody::GetMaterial()
-			{
-				if (Surface.Material >= Parent->GetScene()->GetMaterialCount())
-					return Parent->GetScene()->GetMaterialStandartLit();
-
-				return Parent->GetScene()->GetMaterial(Surface.Material);
-			}
 			Component* SoftBody::OnClone(Entity* New)
 			{
 				SoftBody* Target = new SoftBody(New);
@@ -795,7 +787,7 @@ namespace Tomahawk
 
 				return Target;
 			}
-			Compute::SoftBody* SoftBody::GetBody() const
+			Compute::SoftBody* SoftBody::GetBody()
 			{
 				return Instance;
 			}
@@ -929,7 +921,7 @@ namespace Tomahawk
 				uint64_t Index;
 				if (NMake::Unpack(Node->Find("connection"), &Index))
 				{
-					if (Parent->GetScene()->HasEntity(Index) != -1)
+					if (Parent->GetScene()->HasEntity(Index))
 						Connection = Parent->GetScene()->GetEntity(Index);
 				}
 
@@ -1065,7 +1057,7 @@ namespace Tomahawk
 
 				NMake::Pack(Node->SetDocument("collision-state"), Instance->GetInitialState().UseCollisions);
 				NMake::Pack(Node->SetDocument("linear-power-state"), Instance->GetInitialState().UseLinearPower);
-				NMake::Pack(Node->SetDocument("connection"), (uint64_t)(Connection ? Connection->Self : -1));
+				NMake::Pack(Node->SetDocument("connection"), (uint64_t)(Connection ? Connection->Id : -1));
 				NMake::Pack(Node->SetDocument("angular-motor-velocity"), Instance->GetAngularMotorVelocity());
 				NMake::Pack(Node->SetDocument("linear-motor-velocity"), Instance->GetLinearMotorVelocity());
 				NMake::Pack(Node->SetDocument("upper-linear-limit"), Instance->GetUpperLinearLimit());
@@ -1761,12 +1753,11 @@ namespace Tomahawk
 				return Target;
 			}
 
-			ElementSystem::ElementSystem(Entity* Ref) : Component(Ref)
+			ElementSystem::ElementSystem(Entity* Ref) : Drawable(Ref, false)
 			{
 				Instance = nullptr;
 				Connected = false;
 				QuadBased = false;
-				Visibility = 0.0f;
 				Volume = 3.0f;
 			}
 			ElementSystem::~ElementSystem()
@@ -1786,7 +1777,7 @@ namespace Tomahawk
 			}
 			void ElementSystem::OnLoad(ContentManager* Content, Rest::Document* Node)
 			{
-				NMake::Unpack(Node->Find("surface"), &Surface, Content);
+				NMake::Unpack(Node->Find("surface"), &Surfaces.begin()->second, Content);
 				NMake::Unpack(Node->Find("quad-based"), &QuadBased);
 				NMake::Unpack(Node->Find("connected"), &Connected);
 				NMake::Unpack(Node->Find("visibility"), &Visibility);
@@ -1810,7 +1801,7 @@ namespace Tomahawk
 			}
 			void ElementSystem::OnSave(ContentManager* Content, Rest::Document* Node)
 			{
-				NMake::Pack(Node->SetDocument("surface"), Surface, Content);
+				NMake::Pack(Node->SetDocument("surface"), Surfaces.begin()->second, Content);
 				NMake::Pack(Node->SetDocument("quad-based"), QuadBased);
 				NMake::Pack(Node->SetDocument("connected"), Connected);
 				NMake::Pack(Node->SetDocument("visibility"), Visibility);
@@ -1838,33 +1829,18 @@ namespace Tomahawk
 				else
 					Visibility = 0.0f;
 			}
-			void ElementSystem::OnEvent(Event* Value)
-			{
-				if (Value->Is<Graphics::Material>())
-				{
-					if (Value->Get<Graphics::Material>()->Self == (float)Surface.Material)
-						Surface.Material = 0;
-				}
-			}
-			Graphics::Material& ElementSystem::GetMaterial()
-			{
-				if (Surface.Material < 0 || Surface.Material >= (unsigned int)Parent->GetScene()->GetMaterialCount())
-					return Parent->GetScene()->GetMaterialStandartLit();
-
-				return Parent->GetScene()->GetMaterial((uint64_t)Surface.Material);
-			}
 			Component* ElementSystem::OnClone(Entity* New)
 			{
 				ElementSystem* Target = new ElementSystem(New);
 				Target->Visibility = Visibility;
 				Target->Volume = Volume;
 				Target->Connected = Connected;
-				Target->Surface = Surface;
+				Target->Surfaces = Surfaces;
 				Target->Instance->GetArray()->Copy(*Instance->GetArray());
 
 				return Target;
 			}
-			Graphics::InstanceBuffer* ElementSystem::GetBuffer() const
+			Graphics::InstanceBuffer* ElementSystem::GetBuffer()
 			{
 				return Instance;
 			}
@@ -2064,7 +2040,7 @@ namespace Tomahawk
 
 				if (Activity->IsKeyDown(Rotate))
 				{
-					Compute::Vector2 Cursor = Activity->GetCursorPosition();
+					Compute::Vector2 Cursor = Activity->GetGlobalCursorPosition();
 					if (!Activity->IsKeyDownHit(Rotate))
 					{
 						float X = (Cursor.Y - Position.Y) * Sensitivity;
@@ -2076,8 +2052,18 @@ namespace Tomahawk
 						Position = Cursor;
 
 					if ((int)Cursor.X != (int)Position.X || (int)Cursor.Y != (int)Position.Y)
-						Activity->SetCursorPosition(Position);
+						Activity->SetGlobalCursorPosition(Position);
 				}
+			}
+			Component* FreeLook::OnClone(Entity* New)
+			{
+				FreeLook* Target = new FreeLook(New);
+				Target->Activity = Activity;
+				Target->Position = Position;
+				Target->Rotate = Rotate;
+				Target->Sensitivity = Sensitivity;
+
+				return Target;
 			}
 			Graphics::Activity* FreeLook::GetActivity() const
 			{
@@ -2140,14 +2126,32 @@ namespace Tomahawk
 				if (Activity->IsKeyDown(Down))
 					Parent->Transform->Position -= Parent->Transform->Up() * Speed;
 			}
+			Component* Fly::OnClone(Entity* New)
+			{
+				Fly* Target = new Fly(New);
+				Target->Activity = Activity;
+				Target->Forward = Forward;
+				Target->Backward = Backward;
+				Target->Right = Right;
+				Target->Left = Left;
+				Target->Up = Up;
+				Target->Down = Down;
+				Target->Fast = Fast;
+				Target->Slow = Slow;
+				Target->Axis = Axis;
+				Target->SpeedNormal = SpeedNormal;
+				Target->SpeedUp = SpeedUp;
+				Target->SpeedDown = SpeedDown;
+
+				return Target;
+			}
 			Graphics::Activity* Fly::GetActivity() const
 			{
 				return Activity;
 			}
 
-			Model::Model(Entity* Ref) : Component(Ref)
+			Model::Model(Entity* Ref) : Drawable(Ref, true)
 			{
-				Visibility = false;
 				Instance = nullptr;
 			}
 			void Model::OnLoad(ContentManager* Content, Rest::Document* Node)
@@ -2185,7 +2189,7 @@ namespace Tomahawk
 					Rest::Document* Surface = Faces->SetDocument("surface");
 					if (It.first != nullptr)
 					{
-						NMake::Pack(Surface->SetDocument("name"), It.first->Name);
+						NMake::Pack(Surface->SetDocument("name"), ((Graphics::MeshBuffer*)It.first)->Name);
 						NMake::Pack(Surface, It.second, Content);
 					}
 				}
@@ -2194,55 +2198,14 @@ namespace Tomahawk
 			}
 			void Model::OnSynchronize(Rest::Timer* Time)
 			{
-				if (!Instance)
-				{
-					Visibility = false;
-					return;
-				}
-
-				Viewer View = Parent->GetScene()->GetCameraViewer();
-				if (Parent->Transform->Position.Distance(View.RawPosition) < View.ViewDistance + Parent->Transform->Scale.Length())
-					Visibility = Compute::MathCommon::IsClipping(View.ViewProjection, GetBoundingBox(), 1.5f) == -1;
+				if (Instance != nullptr)
+					Visibility = IsVisibleTo(Parent->GetScene()->GetCameraViewer(), &GetBoundingBox());
 				else
 					Visibility = false;
-			}
-			void Model::OnEvent(Event* Value)
-			{
-				if (!Value->Is<Graphics::Material>())
-					return;
-
-				uint64_t Material = (uint64_t)Value->Get<Graphics::Material>()->Self;
-				for (auto&& Surface : Surfaces)
-				{
-					if (Surface.second.Material == Material)
-						Surface.second.Material = 0;
-				}
 			}
 			void Model::SetDrawable(Graphics::Model* Drawable)
 			{
 				Instance = Drawable;
-			}
-			Graphics::Material& Model::GetMaterial(Graphics::MeshBuffer* Mesh)
-			{
-				return GetMaterial(GetSurface(Mesh));
-			}
-			Graphics::Material& Model::GetMaterial(Appearance* Surface)
-			{
-				if (!Surface || Surface->Material >= Parent->GetScene()->GetMaterialCount())
-					return Parent->GetScene()->GetMaterialStandartLit();
-
-				return Parent->GetScene()->GetMaterial(Surface->Material);
-			}
-			Appearance* Model::GetSurface(Graphics::MeshBuffer* Mesh)
-			{
-				auto It = Surfaces.find(Mesh);
-				if (It == Surfaces.end())
-				{
-					Surfaces[Mesh] = Appearance();
-					It = Surfaces.find(Mesh);
-				}
-
-				return &It->second;
 			}
 			Compute::Matrix4x4 Model::GetBoundingBox()
 			{
@@ -2260,14 +2223,13 @@ namespace Tomahawk
 
 				return Target;
 			}
-			Graphics::Model* Model::GetDrawable() const
+			Graphics::Model* Model::GetDrawable()
 			{
 				return Instance;
 			}
 
-			SkinModel::SkinModel(Entity* Ref) : Component(Ref)
+			SkinModel::SkinModel(Entity* Ref) : Drawable(Ref, true)
 			{
-				Visibility = false;
 				Instance = nullptr;
 			}
 			void SkinModel::OnLoad(ContentManager* Content, Rest::Document* Node)
@@ -2317,7 +2279,7 @@ namespace Tomahawk
 					Rest::Document* Surface = Faces->SetDocument("surface");
 					if (It.first != nullptr)
 					{
-						NMake::Pack(Surface->SetDocument("name"), It.first->Name);
+						NMake::Pack(Surface->SetDocument("name"), ((Graphics::SkinMeshBuffer*)It.first)->Name);
 						NMake::Pack(Surface, It.second, Content);
 					}
 				}
@@ -2334,57 +2296,18 @@ namespace Tomahawk
 			}
 			void SkinModel::OnSynchronize(Rest::Timer* Time)
 			{
-				if (!Instance)
+				if (Instance != nullptr)
 				{
-					Visibility = false;
-					return;
+					Visibility = IsVisibleTo(Parent->GetScene()->GetCameraViewer(), &GetBoundingBox());
+					if (Visibility)
+						Instance->BuildSkeleton(&Skeleton);
 				}
 				else
-					Instance->BuildSkeleton(&Skeleton);
-
-				Viewer View = Parent->GetScene()->GetCameraViewer();
-				if (Parent->Transform->Position.Distance(View.RawPosition) < View.ViewDistance + Parent->Transform->Scale.Length())
-					Visibility = Compute::MathCommon::IsClipping(View.ViewProjection, GetBoundingBox(), 1.5f) == -1;
-				else
 					Visibility = false;
-			}
-			void SkinModel::OnEvent(Event* Value)
-			{
-				if (!Value->Is<Graphics::Material>())
-					return;
-
-				uint64_t Material = (uint64_t)Value->Get<Graphics::Material>()->Self;
-				for (auto&& Surface : Surfaces)
-				{
-					if (Surface.second.Material == Material)
-						Surface.second.Material = 0;
-				}
 			}
 			void SkinModel::SetDrawable(Graphics::SkinModel* Drawable)
 			{
 				Instance = Drawable;
-			}
-			Graphics::Material& SkinModel::GetMaterial(Graphics::SkinMeshBuffer* Mesh)
-			{
-				return GetMaterial(GetSurface(Mesh));
-			}
-			Graphics::Material& SkinModel::GetMaterial(Appearance* Surface)
-			{
-				if (!Surface || Surface->Material >= Parent->GetScene()->GetMaterialCount())
-					return Parent->GetScene()->GetMaterialStandartLit();
-
-				return Parent->GetScene()->GetMaterial(Surface->Material);
-			}
-			Appearance* SkinModel::GetSurface(Graphics::SkinMeshBuffer* Mesh)
-			{
-				auto It = Surfaces.find(Mesh);
-				if (It == Surfaces.end())
-				{
-					Surfaces[Mesh] = Appearance();
-					It = Surfaces.find(Mesh);
-				}
-
-				return &It->second;
 			}
 			Compute::Matrix4x4 SkinModel::GetBoundingBox()
 			{
@@ -2402,7 +2325,7 @@ namespace Tomahawk
 
 				return Target;
 			}
-			Graphics::SkinModel* SkinModel::GetDrawable() const
+			Graphics::SkinModel* SkinModel::GetDrawable()
 			{
 				return Instance;
 			}

@@ -2,7 +2,6 @@
 #include "components.h"
 #include "renderers.h"
 #include "../network/http.h"
-#include <imgui.h>
 #include <stb_vorbis.h>
 #include <sstream>
 #ifdef THAWK_HAS_OPENAL
@@ -36,6 +35,22 @@ namespace Tomahawk
 				return Compute::Matrix4x4(Root.a1, Root.a2, Root.a3, Root.a4, Root.b1, Root.b2, Root.b3, Root.b4, Root.c1, Root.c2, Root.c3, Root.c4, Root.d1, Root.d2, Root.d3, Root.d4);
 			}
 #endif
+			AssetFileProcessor::AssetFileProcessor(ContentManager* Manager) : FileProcessor(Manager)
+			{
+			}
+			void* AssetFileProcessor::Load(Rest::FileStream* Stream, uint64_t Length, uint64_t Offset, ContentArgs* Args)
+			{
+				char* Binary = (char*)malloc(sizeof(char) * Length);
+				if (Stream->Read(Binary, Length) != Length)
+				{
+					THAWK_ERROR("cannot read %llu bytes from audio clip file", Length);
+					free(Binary);
+					return nullptr;
+				}
+
+				return new AssetFile(Binary, (size_t)Length);
+			}
+
 			SceneGraphProcessor::SceneGraphProcessor(ContentManager* Manager) : FileProcessor(Manager)
 			{
 				OnComponentCreation = nullptr;
@@ -79,7 +94,6 @@ namespace Tomahawk
 				}
 
 				SceneGraph* Object = new SceneGraph(I);
-				bool CopyMaterial = true;
 
 				Rest::Document* Materials = Document->Find("materials", true);
 				if (Materials != nullptr)
@@ -87,25 +101,13 @@ namespace Tomahawk
 					std::vector<Rest::Document*> Collection = Materials->FindCollection("material");
 					for (auto& It : Collection)
 					{
-						Graphics::Material New;
-						NMake::Unpack(It->Find("emission"), &New.Emission);
-						NMake::Unpack(It->Find("metallic"), &New.Metallic);
-						NMake::Unpack(It->Find("roughness"), &New.Roughness);
-						NMake::Unpack(It->Find("transparency"), &New.Transparency);
-						NMake::Unpack(It->Find("roughness"), &New.Roughness);
-						NMake::Unpack(It->Find("environment"), &New.Environment);
-						NMake::Unpack(It->Find("occlusion"), &New.Occlusion);
-						NMake::Unpack(It->Find("radius"), &New.Radius);
-						NMake::Unpack(It->Find("self"), &New.Self);
+						std::string Name;
+						NMake::Unpack(It->Find("name"), &Name);
 
-						if (CopyMaterial)
-						{
-							Graphics::Material& Material = Object->GetMaterialStandartLit();
-							memcpy(&Material, &New, sizeof(Graphics::Material));
-							CopyMaterial = false;
-						}
-						else
-							Object->AddMaterial(New);
+						Graphics::Material Value;
+						NMake::Unpack(It, &Value);
+
+						Object->AddMaterial(Name, Value);
 					}
 				}
 
@@ -138,7 +140,7 @@ namespace Tomahawk
 							Compute::Vector3* Scale = new Compute::Vector3();
 							Compute::Matrix4x4* World = new Compute::Matrix4x4();
 
-							NMake::Unpack(Parent->Find("id"), &Entity->Self);
+							NMake::Unpack(Parent->Find("id"), &Entity->Id);
 							NMake::Unpack(Parent->Find("position"), Position);
 							NMake::Unpack(Parent->Find("rotation"), Rotation);
 							NMake::Unpack(Parent->Find("scale"), Scale);
@@ -158,9 +160,7 @@ namespace Tomahawk
 									continue;
 
 								Component* Target = nullptr;
-								if (ComponentId == THAWK_COMPONENT_ID(Component))
-									Target = Entity->AddComponent<Engine::Component>();
-								else if (ComponentId == THAWK_COMPONENT_ID(FreeLook))
+								if (ComponentId == THAWK_COMPONENT_ID(FreeLook))
 									Target = Entity->AddComponent<Components::FreeLook>();
 								else if (ComponentId == THAWK_COMPONENT_ID(AudioListener))
 									Target = Entity->AddComponent<Components::AudioListener>();
@@ -225,8 +225,8 @@ namespace Tomahawk
 				for (int64_t i = 0; i < (int64_t)Object->GetEntityCount(); i++)
 				{
 					Entity* Entity = Object->GetEntity(i);
-					int64_t Index = Entity->Self;
-					Entity->Self = i;
+					int64_t Index = Entity->Id;
+					Entity->Id = i;
 
 					if (Index >= 0 && Index < (int64_t)Object->GetEntityCount() && Index != i)
 						Compute::MathCommon::SetRootUnsafe(Entity->Transform, Object->GetEntity(Index)->Transform);
@@ -265,18 +265,9 @@ namespace Tomahawk
 				Rest::Document* Materials = Document->SetArray("materials");
 				for (uint64_t i = 0; i < Object->GetMaterialCount(); i++)
 				{
-					Graphics::Material& It = Object->GetMaterial(i);
-
 					Rest::Document* Material = Materials->SetDocument("material");
-					NMake::Pack(Material->SetDocument("emission"), It.Emission);
-					NMake::Pack(Material->SetDocument("metallic"), It.Metallic);
-					NMake::Pack(Material->SetDocument("roughness"), It.Roughness);
-					NMake::Pack(Material->SetDocument("transparency"), It.Transparency);
-					NMake::Pack(Material->SetDocument("roughness"), It.Roughness);
-					NMake::Pack(Material->SetDocument("environment"), It.Environment);
-					NMake::Pack(Material->SetDocument("occlusion"), It.Occlusion);
-					NMake::Pack(Material->SetDocument("radius"), It.Radius);
-					NMake::Pack(Material->SetDocument("self"), It.Self);
+					NMake::Pack(Material->SetDocument("name"), Object->GetMaterialName(i));
+					NMake::Pack(Material, Object->GetMaterialById(i));
 				}
 
 				Rest::Document* Entities = Document->SetArray("entities");
@@ -298,7 +289,7 @@ namespace Tomahawk
 					{
 						Rest::Document* Parent = Entity->SetDocument("parent");
 						if (Ref->Transform->GetRoot()->UserPointer)
-							NMake::Pack(Parent->SetDocument("id"), ((Engine::Entity*)Ref->Transform->GetRoot()->UserPointer)->Self);
+							NMake::Pack(Parent->SetDocument("id"), ((Engine::Entity*)Ref->Transform->GetRoot()->UserPointer)->Id);
 
 						NMake::Pack(Parent->SetDocument("position"), *Ref->Transform->GetLocalPosition());
 						NMake::Pack(Parent->SetDocument("rotation"), *Ref->Transform->GetLocalRotation());
@@ -323,42 +314,6 @@ namespace Tomahawk
 				delete Document;
 
 				return true;
-			}
-
-			FontProcessor::FontProcessor(ContentManager* Manager) : FileProcessor(Manager)
-			{
-			}
-			void* FontProcessor::Load(Rest::FileStream* Stream, uint64_t Length, uint64_t Offset, ContentArgs* Args)
-			{
-				Renderers::GUIRenderer* Gui = nullptr;
-				if (Args->Get("GUI", ContentType_Pointer))
-					Gui = (Renderers::GUIRenderer*)Args->Get("GUI", ContentType_Pointer)->Pointer;
-
-				if (!Gui)
-				{
-					THAWK_ERROR("font processor args: req pointer Gui, opt number Size, opt pointer GlyphRange, opt pointer Config");
-					return nullptr;
-				}
-
-				float Size = 16.0f;
-				if (Args->Get("Size", ContentType_Number))
-					Size = (float)Args->Get("Size", ContentType_Number)->Number;
-
-				ImGuiIO* Settings = (ImGuiIO*)Gui->GetUi();
-				ImWchar* GlyphRange = (ImWchar*)Settings->Fonts->GetGlyphRangesDefault();
-
-				if (Args->Get("GlyphRange", ContentType_Pointer))
-					GlyphRange = (ImWchar*)Args->Get("GlyphRange", ContentType_Pointer)->Pointer;
-
-				ImFontConfig* Config = nullptr;
-				if (Args->Get("Config", ContentType_Pointer))
-					Config = (ImFontConfig*)Args->Get("Config", ContentType_Pointer)->Pointer;
-
-				void* Bytes = (void*)Rest::OS::ReadByteChunk(Stream, Length);
-				Settings->Fonts->AddFontFromMemoryTTF(Bytes, (int)Length, Size, nullptr, GlyphRange);
-				free(Bytes);
-
-				return Gui;
 			}
 
 			AudioClipProcessor::AudioClipProcessor(ContentManager* Manager) : FileProcessor(Manager)

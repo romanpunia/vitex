@@ -596,6 +596,7 @@ namespace Tomahawk
 			bool IntersectsSphere(const Vector3& Position, float Radius, bool DiscardInside = true) const;
 			bool IntersectsAABBAt(const Vector3& Min, const Vector3& Max) const;
 			bool IntersectsAABB(const Vector3& Position, const Vector3& Scale) const;
+			bool IntersectsOBB(const Matrix4x4& World);
 		};
 
 		struct THAWK_OUT Matrix4x4
@@ -1181,6 +1182,7 @@ namespace Tomahawk
 			static uint64_t Utf8(int code, char* Buffer);
 			static Ray CreateCursorRay(const Vector3& Origin, const Vector2& Cursor, const Vector2& Screen, const Matrix4x4& InvProjection, const Matrix4x4& InvView);
 			static bool CursorRayTest(const Ray& Cursor, const Vector3& Position, const Vector3& Scale);
+			static bool CursorRayTest(Ray& Cursor, const Matrix4x4& World);
 		};
 
 		class THAWK_OUT Regex

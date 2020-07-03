@@ -3,6 +3,7 @@
 
 using namespace Tomahawk::Rest;
 using namespace Tomahawk::Compute;
+using namespace Tomahawk::Network;
 
 namespace Tomahawk
 {
@@ -1646,6 +1647,196 @@ namespace Tomahawk
 				return Regex::MatchAll(&Value, &Result, Buffer);
 			}
 
+			static int Socket_AcceptAsync(Socket* Base, VMCAny* Any, VMCFunction* Callback)
+			{
+				VMWFunction(Callback).AddRef();
+				VMWAny(Any).AddRef();
+
+				return Base->AcceptAsync([Callback, Any](Socket* Base)
+				{
+					VMContext* Context = VMContext::Get();
+					if (!Context)
+					{
+						VMWFunction(Callback).Release();
+						VMWAny(Any).Release();
+						return false;
+					}
+
+					Context->PushState();
+					Context->Prepare(Callback);
+					Context->SetArgObject(0, Base);
+					Context->SetArgObject(1, Any);
+					Context->Execute();
+
+					bool Result = Context->GetReturnByte();
+					Context->PopState();
+
+					VMWFunction(Callback).Release();
+					VMWAny(Any).Release();
+
+					return Result;
+				});
+			}
+			static int Socket_Open(Socket* Base, const std::string& Host, int Port, SocketType Type, Address* Result)
+			{
+				return Base->Open(Host.c_str(), Port, Type, Result);
+			}
+			static int Socket_Write(Socket* Base, const std::string& Buffer)
+			{
+				return Base->Write(Buffer.c_str(), (int)Buffer.size());
+			}
+			static int Socket_WriteAsync(Socket* Base, const std::string& Buffer, VMCAny* Any, VMCFunction* Callback)
+			{
+				VMWFunction(Callback).AddRef();
+				VMWAny(Any).AddRef();
+
+				return Base->WriteAsync(Buffer.c_str(), (int)Buffer.size(), [Callback, Any](Socket* Base, int64_t Size)
+				{
+					VMContext* Context = VMContext::Get();
+					if (!Context)
+					{
+						VMWFunction(Callback).Release();
+						VMWAny(Any).Release();
+						return false;
+					}
+
+					Context->PushState();
+					Context->Prepare(Callback);
+					Context->SetArgObject(0, Base);
+					Context->SetArgObject(1, Any);
+					Context->SetArgObject(2, &Size);
+					Context->Execute();
+
+					bool Result = Context->GetReturnByte();
+					Context->PopState();
+
+					VMWFunction(Callback).Release();
+					VMWAny(Any).Release();
+
+					return Result;
+				});
+			}
+			static int Socket_Read(Socket* Base, std::string& Buffer, int Size)
+			{
+				if (Size <= 0)
+					return 0;
+
+				char* Data = (char*)malloc(sizeof(char) * Size);
+				int Result = Base->Read(Data, Size);
+				Buffer.assign(Data, (size_t)Size);
+				free(Data);
+
+				return Result;
+			}
+			static int Socket_ReadAsync(Socket* Base, int64_t Size, VMCAny* Any, VMCFunction* Callback)
+			{
+				VMWFunction(Callback).AddRef();
+				VMWAny(Any).AddRef();
+
+				return Base->ReadAsync(Size, [Callback, Any](Socket* Base, const char* Data, int64_t Size)
+				{
+					VMContext* Context = VMContext::Get();
+					if (!Context)
+					{
+						VMWFunction(Callback).Release();
+						VMWAny(Any).Release();
+						return false;
+					}
+
+					std::string Buffer;
+					if (Size > 0)
+						Buffer.assign(Data, Size);
+
+					Context->PushState();
+					Context->Prepare(Callback);
+					Context->SetArgObject(0, Base);
+					Context->SetArgObject(1, Any);
+					Context->SetArgObject(2, &Buffer);
+					Context->SetArgObject(3, &Size);
+					Context->Execute();
+
+					bool Result = Context->GetReturnByte();
+					Context->PopState();
+
+					VMWFunction(Callback).Release();
+					VMWAny(Any).Release();
+
+					return Result;
+				});
+			}
+			static int Socket_ReadUntil(Socket* Base, const std::string& Match, VMCAny* Any, VMCFunction* Callback)
+			{
+				VMWFunction(Callback).AddRef();
+				VMWAny(Any).AddRef();
+
+				return Base->ReadUntil(Match.c_str(), [Callback, Any](Socket* Base, const char* Data, int64_t Size)
+				{
+					VMContext* Context = VMContext::Get();
+					if (!Context)
+					{
+						VMWFunction(Callback).Release();
+						VMWAny(Any).Release();
+						return false;
+					}
+
+					std::string Buffer;
+					if (Size > 0)
+						Buffer.assign(Data, Size);
+
+					Context->PushState();
+					Context->Prepare(Callback);
+					Context->SetArgObject(0, Base);
+					Context->SetArgObject(1, Any);
+					Context->SetArgObject(2, &Buffer);
+					Context->SetArgObject(3, &Size);
+					Context->Execute();
+
+					bool Result = Context->GetReturnByte();
+					Context->PopState();
+
+					VMWFunction(Callback).Release();
+					VMWAny(Any).Release();
+
+					return Result;
+				});
+			}
+			static int Socket_ReadUntilAsync(Socket* Base, const std::string& Match, VMCAny* Any, VMCFunction* Callback)
+			{
+				VMWFunction(Callback).AddRef();
+				VMWAny(Any).AddRef();
+
+				return Base->ReadUntilAsync(Match.c_str(), [Callback, Any](Socket* Base, const char* Data, int64_t Size)
+				{
+					VMContext* Context = VMContext::Get();
+					if (!Context)
+					{
+						VMWFunction(Callback).Release();
+						VMWAny(Any).Release();
+						return false;
+					}
+
+					std::string Buffer;
+					if (Size > 0)
+						Buffer.assign(Data, Size);
+
+					Context->PushState();
+					Context->Prepare(Callback);
+					Context->SetArgObject(0, Base);
+					Context->SetArgObject(1, Any);
+					Context->SetArgObject(2, &Buffer);
+					Context->SetArgObject(3, &Size);
+					Context->Execute();
+
+					bool Result = Context->GetReturnByte();
+					Context->PopState();
+
+					VMWFunction(Callback).Release();
+					VMWAny(Any).Release();
+
+					return Result;
+				});
+			}
+
 			void EnableRest(VMManager* Manager)
 			{
 				Manager->Namespace("Rest", [](VMGlobal* Global)
@@ -1883,6 +2074,7 @@ namespace Tomahawk
 					VDocument.SetProperty<Document>("bool Boolean", &Document::Boolean);
 					VDocument.SetProperty<Document>("bool Saved", &Document::Saved);
 					VDocument.SetUnmanagedConstructor<Document>("Document@ f()");
+					VDocument.SetMethod("void Join(Document@+)", &Document::Join);
 					VDocument.SetMethod("void Clear()", &Document::Clear);
 					VDocument.SetMethod("void Save()", &Document::Save);
 					VDocument.SetMethod("Document@+ Copy()", &Document::Copy);
@@ -1896,6 +2088,7 @@ namespace Tomahawk
 					VDocument.SetMethod("uint64 GetInteger(const string &in)", &Document::GetInteger);
 					VDocument.SetMethod("double GetNumber(const string &in)", &Document::GetNumber);
 					VDocument.SetMethod("string GetString(const string &in)", &Document::GetStringBlob);
+					VDocument.SetMethod("string GetName()", &Document::GetName);
 					VDocument.SetMethod("string Serialize()", &Document::Serialize);
 					VDocument.SetMethod("Document@+ GetIndex(uint64)", &Document::GetIndex);
 					VDocument.SetMethod("Document@+ Get(const string &in)", &Document::Get);
@@ -2392,7 +2585,8 @@ namespace Tomahawk
 					VRay.SetMethod("bool IntersectsSphere(const Vector3 &in, float, bool) const", &Ray::IntersectsSphere);
 					VRay.SetMethod("bool IntersectsAABBAt(const Vector3 &in, const Vector3 &in) const", &Ray::IntersectsAABBAt);
 					VRay.SetMethod("bool IntersectsAABB(const Vector3 &in, const Vector3 &in) const", &Ray::IntersectsAABB);
-		
+					VRay.SetMethod("bool IntersectsOBB(const Matrix4x4 &in)", &Ray::IntersectsOBB);
+
 					VMatrix4x4.SetConstructor<Matrix4x4>("void f()");
 					VMatrix4x4.SetConstructor<Matrix4x4, const Vector4&, const Vector4&, const Vector4&, const Vector4&>("void f(const Vector4 &in, const Vector4 &in, const Vector4 &in, const Vector4 &in)");
 					VMatrix4x4.SetConstructor<Matrix4x4, float, float, float, float, float, float, float, float, float, float, float, float, float, float, float, float>("void f(float, float, float, float, float, float, float, float, float, float, float, float, float, float, float, float)");
@@ -3075,7 +3269,8 @@ namespace Tomahawk
 					Global->SetFunction("uint8 RandomUC()", &MathCommon::RandomUC);
 					Global->SetFunction("int RandomNumber(int, int)", &MathCommon::RandomNumber);
 					Global->SetFunction("Ray CreateCursorRay(const Vector3 &in, const Vector2 &in, const Vector2 &in, const Matrix4x4 &in, const Matrix4x4 &in)", &MathCommon::CreateCursorRay);
-					Global->SetFunction("bool CursorRayTest(const Ray &in, const Vector3 &in, const Vector3 &in)", &MathCommon::CursorRayTest);
+					Global->SetFunction<bool(const Ray&, const Vector3&, const Vector3&)>("bool CursorRayTest(const Ray &in, const Vector3 &in, const Vector3 &in)", &MathCommon::CursorRayTest);
+					Global->SetFunction<bool(Ray&, const Matrix4x4&)>("bool CursorRayTest(Ray &in, const Matrix4x4 &in)", &MathCommon::CursorRayTest);
 
 					return 0;
 				});
@@ -3084,16 +3279,87 @@ namespace Tomahawk
 			{
 				Manager->Namespace("Network", [](VMGlobal* Global)
 				{
+					Script::VMWEnum VSecure = Global->SetEnum("Secure");
+					Script::VMWEnum VServerState = Global->SetEnum("ServerState");
+					Script::VMWEnum VSocketEvent = Global->SetEnum("SocketEvent");
+					Script::VMWEnum VSocketType = Global->SetEnum("SocketType");
+					Script::VMWTypeClass VAddress = Global->SetStructUnmanaged<Address>("Address");
+					//Script::VMWTypeClass VSocket = Global->SetStructUnmanaged<Socket>("Socket");
+					Script::VMWTypeClass VHost = Global->SetStructUnmanaged<Host>("Host");
+
+					VSecure.SetValue("Any", Secure_Any);
+					VSecure.SetValue("SSLV2", Secure_SSL_V2);
+					VSecure.SetValue("SSLV3", Secure_SSL_V3);
+					VSecure.SetValue("TLSV1", Secure_TLS_V1);
+					VSecure.SetValue("TLSV11", Secure_TLS_V1_1);
+
+					VServerState.SetValue("Working", ServerState_Working);
+					VServerState.SetValue("Stopping", ServerState_Stopping);
+					VServerState.SetValue("Idle", ServerState_Idle);
+
+					VSocketEvent.SetValue("Read", SocketEvent_Read);
+					VSocketEvent.SetValue("Write", SocketEvent_Write);
+					VSocketEvent.SetValue("Close", SocketEvent_Close);
+					VSocketEvent.SetValue("Timeout", SocketEvent_Timeout);
+					VSocketEvent.SetValue("None", SocketEvent_None);
+
+					VSocketType.SetValue("Stream", SocketType_Stream);
+					VSocketType.SetValue("Datagram", SocketType_Datagram);
+					VSocketType.SetValue("Raw", SocketType_Raw);
+					VSocketType.SetValue("ReliablyDeliveredMessage", SocketType_Reliably_Delivered_Message);
+					VSocketType.SetValue("SequencePacketStream", SocketType_Sequence_Packet_Stream);
+
+					VAddress.SetProperty("bool Resolved", &Address::Resolved);
+					VAddress.SetConstructor<Address>("void f()");
+					VAddress.SetMethodStatic("bool Free(Network::Address@)", &Address::Free);
+					/*
+					VSocket.SetFunctionDef("bool AcceptCallback(Socket@, any@)");
+					VSocket.SetFunctionDef("bool WriteCallback(Socket@, any@, int64)");
+					VSocket.SetFunctionDef("bool ReadCallback(Socket@, any@, const string &in, int64)");
+					VSocket.SetProperty("int Income", &Socket::Income);
+					VSocket.SetProperty("int Outcome", &Socket::Outcome);
+					VSocket.SetConstructor<Socket>("void f()");
+					VSocket.SetMethod("int Bind(Address@)", &Socket::Bind);
+					VSocket.SetMethod("int Connect(Address@)", &Socket::Connect);
+					VSocket.SetMethod("int Listen(int)", &Socket::Listen);
+					VSocket.SetMethod("int Accept(Socket@, Address@)", &Socket::Accept);
+					VSocket.SetMethod("int Close(bool)", &Socket::Close);
+					VSocket.SetMethod("int CloseOnExec()", &Socket::CloseOnExec);
+					VSocket.SetMethod("int Skip(int, int)", &Socket::Skip);
+					VSocket.SetMethod("int Clear()", &Socket::Clear);
+					VSocket.SetMethod("int SetTimeWait(int)", &Socket::SetTimeWait);
+					VSocket.SetMethod("int SetBlocking(bool)", &Socket::SetBlocking);
+					VSocket.SetMethod("int SetNodelay(bool)", &Socket::SetNodelay);
+					VSocket.SetMethod("int SetKeepAlive(bool)", &Socket::SetKeepAlive);
+					VSocket.SetMethod("int SetTimeout(int)", &Socket::SetTimeout);
+					VSocket.SetMethod("int SetAsyncTimeout(int)", &Socket::SetAsyncTimeout);
+					VSocket.SetMethod("int GetError(int)", &Socket::GetError);
+					VSocket.SetMethod("int GetPort()", &Socket::GetPort);
+					VSocket.SetMethod("socket_t GetFd()", &Socket::GetFd);
+					VSocket.SetMethod("bool IsValid()", &Socket::IsValid);
+					VSocket.SetMethod("bool IsAwaiting()", &Socket::IsAwaiting);
+					VSocket.SetMethod("bool HasIncomingData()", &Socket::HasIncomingData);
+					VSocket.SetMethod("bool HasOutcomingData()", &Socket::HasOutcomingData);
+					VSocket.SetMethod("bool HasPendingData()", &Socket::HasPendingData);
+					VSocket.SetMethod("string GetRemoteAddress()", &Socket::GetRemoteAddress);
+					VSocket.SetMethod("int GetAsyncTimeout()", &Socket::GetAsyncTimeout);
+					VSocket.SetMethodEx("int AcceptAsync(any@, Socket::AcceptCallback@)", &Socket_AcceptAsync);
+					VSocket.SetMethodEx("int Open(const string &in, int, SocketType, Address@)", &Socket_Open);
+					VSocket.SetMethodEx("int Write(const string &in)", &Socket_Write);
+					VSocket.SetMethodEx("int WriteAsync(const string &in, any@, Socket::WriteCallback@)", &Socket_WriteAsync);
+					VSocket.SetMethodEx("int Read(string &out, int)", &Socket_Read);
+					VSocket.SetMethodEx("int ReadAsync(int, any@, Socket::ReadCallback@)", &Socket_ReadAsync);
+					VSocket.SetMethodEx("int ReadUntil(const string &in, any@, Socket::ReadCallback@)", &Socket_ReadUntil);
+					VSocket.SetMethodEx("int ReadUntilAsync(const string &in, any@, Socket::ReadCallback@)", &Socket_ReadUntilAsync);
+					VSocket.SetMethodStatic("string LocalIpAddress()", &Socket::LocalIpAddress);
+					*/
+					VHost.SetProperty("string Hostname", &Host::Hostname);
+					VHost.SetProperty("int Port", &Host::Port);
+					VHost.SetProperty("bool Secure", &Host::Secure);
+					VHost.SetConstructor<Host>("void f()");
+
 					/*
 						TODO: Register types for VM from Tomahawk::Network
-							enum Secure;
-							enum ServerState;
-							enum SocketEvent;
-							enum SocketType;
-							ref Address;
-							ref WriteEvent;
-							ref ReadEvent;
-							ref Socket;
 							ref Host;
 							ref Listener;
 							ref Certificate;
@@ -3240,6 +3506,28 @@ namespace Tomahawk
 							ref AudioClip;
 							ref AudioSource;
 							ref AudioDevice;
+					*/
+
+					return 0;
+				});
+			}
+			void EnableEffects(VMManager* Manager)
+			{
+				Manager->Namespace("Effects", [](VMGlobal* Global)
+				{
+					/*
+						TODO: Register types for VM from Tomahawk::Audio::Effects
+					*/
+
+					return 0;
+				});
+			}
+			void EnableFilters(VMManager* Manager)
+			{
+				Manager->Namespace("Filters", [](VMGlobal* Global)
+				{
+					/*
+						TODO: Register types for VM from Tomahawk::Audio::Filters
 					*/
 
 					return 0;

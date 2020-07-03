@@ -127,14 +127,14 @@ namespace resource_batch
 	{
 #define HAS_D3D11_PASS_INDIRECT_HLSL
 		extern const unsigned char data[];
-		const unsigned size = 1818;
+		const unsigned size = 2104;
 	}
 
 	namespace d3d11_pass_light_base_ambient_hlsl
 	{
 #define HAS_D3D11_PASS_LIGHT_BASE_AMBIENT_HLSL
 		extern const unsigned char data[];
-		const unsigned size = 763;
+		const unsigned size = 757;
 	}
 
 	namespace d3d11_pass_light_base_line_hlsl
@@ -190,7 +190,7 @@ namespace resource_batch
 	{
 #define HAS_D3D11_PASS_REFLECTION_HLSL
 		extern const unsigned char data[];
-		const unsigned size = 1202;
+		const unsigned size = 1160;
 	}
 
 	namespace d3d11_pass_tone_hlsl
@@ -358,7 +358,7 @@ namespace resource_batch
 	{
 #define HAS_D3D11_STANDARD_RAY_MARCH_HLSL
 		extern const unsigned char data[];
-		const unsigned size = 1488;
+		const unsigned size = 1528;
 	}
 
 	namespace d3d11_standard_space_sv_hlsl

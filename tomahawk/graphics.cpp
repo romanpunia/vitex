@@ -710,7 +710,7 @@ namespace Tomahawk
 			DepthStencil.DepthEnable = false;
 			DepthStencil.DepthWriteMask = Graphics::DepthWrite_All;
 			DepthStencil.DepthFunction = Graphics::Comparison_Less;
-			DepthStencil.StencilEnable = true;
+			DepthStencil.StencilEnable = false;
 			DepthStencil.StencilReadMask = 0xFF;
 			DepthStencil.StencilWriteMask = 0xFF;
 			DepthStencil.FrontFaceStencilFailOperation = Graphics::StencilOperation_Keep;
@@ -739,19 +739,6 @@ namespace Tomahawk
 			DepthStencil.BackFaceStencilPassOperation = Graphics::StencilOperation_Keep;
 			DepthStencil.BackFaceStencilFunction = Graphics::Comparison_Always;
 			DepthStencil.Name = "DEF_NONE_LESS";
-			DepthStencilStates[DepthStencil.Name] = CreateDepthStencilState(DepthStencil);
-
-			DepthStencil.DepthEnable = false;
-			DepthStencil.DepthWriteMask = Graphics::DepthWrite_All;
-			DepthStencil.DepthFunction = Graphics::Comparison_Always;
-			DepthStencil.StencilEnable = false;
-			DepthStencil.StencilReadMask = 0xFF;
-			DepthStencil.StencilWriteMask = 0xFF;
-			DepthStencil.FrontFaceStencilFailOperation = Graphics::StencilOperation_Keep;
-			DepthStencil.FrontFaceStencilDepthFailOperation = Graphics::StencilOperation_Keep;
-			DepthStencil.FrontFaceStencilPassOperation = Graphics::StencilOperation_Keep;
-			DepthStencil.FrontFaceStencilFunction = Graphics::Comparison_Always;
-			DepthStencil.Name = "DEF_NONE_ALWAYS";
 			DepthStencilStates[DepthStencil.Name] = CreateDepthStencilState(DepthStencil);
 
 			Graphics::RasterizerState::Desc Rasterizer;
@@ -872,13 +859,13 @@ namespace Tomahawk
 			SamplerStates[Sampler.Name] = CreateSamplerState(Sampler);
 
 			Sampler.Filter = Graphics::PixelFilter_Min_Mag_Mip_Linear;
-			Sampler.AddressU = Graphics::TextureAddress_Wrap;
-			Sampler.AddressV = Graphics::TextureAddress_Wrap;
-			Sampler.AddressW = Graphics::TextureAddress_Wrap;
+			Sampler.AddressU = Graphics::TextureAddress_Clamp;
+			Sampler.AddressV = Graphics::TextureAddress_Clamp;
+			Sampler.AddressW = Graphics::TextureAddress_Clamp;
 			Sampler.MipLODBias = 0.0f;
 			Sampler.ComparisonFunction = Graphics::Comparison_Always;
 			Sampler.MinLOD = 0.0f;
-			Sampler.MaxLOD = 0.0f;
+			Sampler.MaxLOD = std::numeric_limits<float>::max();
 			Sampler.Name = "DEF_LINEAR";
 			SamplerStates[Sampler.Name] = CreateSamplerState(Sampler);
 
@@ -1655,7 +1642,29 @@ namespace Tomahawk
 			}
 #endif
 		}
+		void Activity::SetClipboardText(const std::string& Text)
+		{
+#ifdef THAWK_HAS_SDL2
+			SDL_SetClipboardText(Text.c_str());
+#endif
+		}
 		void Activity::SetCursorPosition(const Compute::Vector2& Position)
+		{
+#ifdef THAWK_HAS_SDL2
+#if SDL_VERSION_ATLEAST(2, 0, 4)
+			SDL_WarpMouseInWindow(Handle, (int)Position.X, (int)Position.Y);
+#endif
+#endif
+		}
+		void Activity::SetCursorPosition(float X, float Y)
+		{
+#ifdef THAWK_HAS_SDL2
+#if SDL_VERSION_ATLEAST(2, 0, 4)
+			SDL_WarpMouseInWindow(Handle, (int)X, (int)Y);
+#endif
+#endif
+		}
+		void Activity::SetGlobalCursorPosition(const Compute::Vector2& Position)
 		{
 #ifdef THAWK_HAS_SDL2
 #if SDL_VERSION_ATLEAST(2, 0, 4)
@@ -1663,7 +1672,7 @@ namespace Tomahawk
 #endif
 #endif
 		}
-		void Activity::SetCursorPosition(float X, float Y)
+		void Activity::SetGlobalCursorPosition(float X, float Y)
 		{
 #ifdef THAWK_HAS_SDL2
 #if SDL_VERSION_ATLEAST(2, 0, 4)
@@ -2377,6 +2386,14 @@ namespace Tomahawk
 			return 0.0f;
 #endif
 		}
+		KeyMod Activity::GetKeyModState()
+		{
+#ifdef THAWK_HAS_SDL2
+			return (KeyMod)SDL_GetModState();
+#else
+			return KeyMod_NONE;
+#endif
+		}
 		Graphics::Viewport Activity::GetViewport()
 		{
 #ifdef THAWK_HAS_SDL2
@@ -2429,10 +2446,13 @@ namespace Tomahawk
 			return Compute::Vector2();
 #endif
 		}
-		Compute::Vector2 Activity::GetClientCursorPosition()
+		Compute::Vector2 Activity::GetGlobalCursorPosition()
 		{
-#ifdef THAWK_HAS_SDL2
-			return Compute::Vector2((float)CX, (float)CY);
+#if defined(THAWK_HAS_SDL2) && SDL_VERSION_ATLEAST(2, 0, 4)
+			int X, Y;
+			SDL_GetGlobalMouseState(&X, &Y);
+
+			return Compute::Vector2((float)X, (float)Y);
 #else
 			return Compute::Vector2();
 #endif
@@ -2441,7 +2461,7 @@ namespace Tomahawk
 		{
 #if defined(THAWK_HAS_SDL2) && SDL_VERSION_ATLEAST(2, 0, 4)
 			int X, Y;
-			SDL_GetGlobalMouseState(&X, &Y);
+			SDL_GetMouseState(&X, &Y);
 
 			return Compute::Vector2((float)X, (float)Y);
 #else
@@ -2464,6 +2484,20 @@ namespace Tomahawk
 			return GetCursorPosition() * Compute::Vector2(ScreenDimensions.X / Size.X, ScreenDimensions.Y / Size.Y);
 #else
 			return Compute::Vector2();
+#endif
+		}
+		std::string Activity::GetClipboardText()
+		{
+#ifdef THAWK_HAS_SDL2
+			char* Text = SDL_GetClipboardText();
+			std::string Result = (Text ? Text : "");
+
+			if (Text != nullptr)
+				SDL_free(Text);
+
+			return Result;
+#else
+			return nullptr;
 #endif
 		}
 		SDL_Window* Activity::GetHandle()

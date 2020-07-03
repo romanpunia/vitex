@@ -1265,6 +1265,9 @@ namespace Tomahawk
 		}
 		Stroke::Settle Stroke::ReverseFind(const std::string& Needle, uint64_t Offset) const
 		{
+			if (L->empty())
+				return { L->size() - 1, L->size(), false };
+
 			const char* Ptr = L->c_str() - Offset;
 			if (Needle.c_str() > Ptr)
 				return { L->size() - 1, L->size(), false };
@@ -1280,6 +1283,9 @@ namespace Tomahawk
 		}
 		Stroke::Settle Stroke::ReverseFind(const char* Needle, uint64_t Offset) const
 		{
+			if (L->empty())
+				return { L->size() - 1, L->size(), false };
+
 			if (!Needle)
 				return { L->size() - 1, L->size(), false };
 
@@ -1299,6 +1305,9 @@ namespace Tomahawk
 		}
 		Stroke::Settle Stroke::ReverseFind(const char& Needle, uint64_t Offset) const
 		{
+			if (L->empty())
+				return { L->size() - 1, L->size(), false };
+
 			for (uint64_t i = L->size() - 1 - Offset; i > 0; i--)
 			{
 				if (L->at(i) == Needle)
@@ -1309,6 +1318,9 @@ namespace Tomahawk
 		}
 		Stroke::Settle Stroke::ReverseFindUnescaped(const char& Needle, uint64_t Offset) const
 		{
+			if (L->empty())
+				return { L->size() - 1, L->size(), false };
+
 			for (uint64_t i = L->size() - 1 - Offset; i > 0; i--)
 			{
 				if (L->at(i) == Needle && ((int64_t)i - 1 < 0 || L->at(i - 1) != '\\'))
@@ -1319,6 +1331,9 @@ namespace Tomahawk
 		}
 		Stroke::Settle Stroke::ReverseFindOf(const std::string& Needle, uint64_t Offset) const
 		{
+			if (L->empty())
+				return { L->size() - 1, L->size(), false };
+
 			for (uint64_t i = L->size() - 1 - Offset; i > 0; i--)
 			{
 				for (char k : Needle)
@@ -1332,6 +1347,9 @@ namespace Tomahawk
 		}
 		Stroke::Settle Stroke::ReverseFindOf(const char* Needle, uint64_t Offset) const
 		{
+			if (L->empty())
+				return { L->size() - 1, L->size(), false };
+
 			if (!Needle)
 				return { L->size() - 1, L->size(), false };
 
@@ -1520,7 +1538,7 @@ namespace Tomahawk
 		}
 		bool Stroke::HasNumber() const
 		{
-			if (L->empty())
+			if (L->empty() || (L->size() == 1 && L->front() == '.'))
 				return false;
 
 			bool HadPoint = false, HadSign = false;
@@ -1786,6 +1804,23 @@ namespace Tomahawk
 			}
 
 			if (Offset < L->size())
+				Output.push_back(L->substr(Offset));
+
+			return Output;
+		}
+		std::vector<std::string> Stroke::SplitMax(char With, uint64_t Count, uint64_t Start) const
+		{
+			Stroke::Settle Result = Find(With, Start);
+			uint64_t Offset = Start;
+
+			std::vector<std::string> Output;
+			while (Result.Found && Output.size() < Count)
+			{
+				Output.push_back(L->substr(Offset, Result.Start - Offset));
+				Result = Find(With, Offset = Result.End);
+			}
+
+			if (Offset < L->size() && Output.size() < Count)
 				Output.push_back(L->substr(Offset));
 
 			return Output;
@@ -4337,6 +4372,41 @@ namespace Tomahawk
 
 			Clear();
 		}
+		void Document::Join(Document* Other)
+		{
+			if (!Other)
+				return;
+
+			for (auto& Node : Other->Nodes)
+			{
+				Document* Copy = Node->Copy();
+				Copy->Saved = false;
+				Copy->Parent = this;
+				Saved = false;
+
+				if (Type == NodeType_Array)
+				{
+					Nodes.push_back(Copy);
+					continue;
+				}
+
+				bool Exists = false;
+				for (auto It = Nodes.begin(); It != Nodes.end(); It++)
+				{
+					if (!*It || (*It)->Name != Copy->Name)
+						continue;
+
+					(*It)->Parent = nullptr;
+					delete *It;
+					*It = Copy;
+					Exists = true;
+					break;
+				}
+
+				if (!Exists)
+					Nodes.push_back(Copy);
+			}
+		}
 		void Document::Clear()
 		{
 			for (auto& Document : Nodes)
@@ -4848,12 +4918,27 @@ namespace Tomahawk
 
 			return Value->String;
 		}
+		std::string Document::GetName()
+		{
+			return IsAttribute() ? Name.substr(1, Name.size() - 2) : Name;
+		}
 		std::string Document::Serialize()
 		{
 			return Serialize(this);
 		}
 		Document* Document::Find(const std::string& Label, bool Here)
 		{
+			if (Type == NodeType_Array)
+			{
+				Rest::Stroke Number(&Label);
+				if (Number.HasInteger())
+				{
+					int64_t Index = Number.ToInt64();
+					if (Index >= 0 && Index < Nodes.size())
+						return Nodes[Index];
+				}
+			}
+
 			for (auto K : Nodes)
 			{
 				if (K->Name == Label)
@@ -5404,7 +5489,7 @@ namespace Tomahawk
 			Document* Result = new Document();
 			Result->Name = Base->name();
 			Result->String = Base->value();
-			Result->Type = NodeType_Object;
+			Result->Type = NodeType_Array;
 
 			if (!ProcessXMLRead((void*)Base, Result))
 			{
@@ -5666,9 +5751,9 @@ namespace Tomahawk
 				return Stroke();
 
 			va_list Args;
-					va_start(Args, Format);
+			va_start(Args, Format);
 			int Size = vsnprintf(Buffer, sizeof(Buffer), Format, Args);
-					va_end(Args);
+			va_end(Args);
 
 			return Stroke(Buffer, Size > 16384 ? 16384 : (size_t)Size);
 		}

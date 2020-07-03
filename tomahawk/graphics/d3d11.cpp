@@ -1,5 +1,4 @@
 #include "d3d11.h"
-#include <imgui.h>
 #ifdef THAWK_HAS_SDL2
 #include <SDL2/SDL_syswm.h>
 #endif

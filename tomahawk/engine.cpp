@@ -12,21 +12,10 @@ namespace Tomahawk
 {
 	namespace Engine
 	{
-		void Appearance::UploadPhase(Graphics::GraphicsDevice* Device, Appearance* Surface)
+		bool Appearance::UploadPhase(Graphics::GraphicsDevice* Device, Appearance* Surface)
 		{
-			if (!Device)
-				return;
-
-			if (!Surface)
-			{
-				Device->Render.HasDiffuse = 0.0f;
-				Device->Render.HasNormal = 0.0f;
-				Device->Render.MaterialId = 0.0f;
-				Device->Render.Diffuse = 1.0f;
-				Device->Render.TexCoord = 1.0f;
-
-				return Device->FlushTexture2D(1, 6);
-			}
+			if (!Device || !Surface || Surface->Material < 0)
+				return false;
 
 			Device->Render.HasDiffuse = (float)(Surface->DiffuseMap != nullptr);
 			Device->Render.HasNormal = (float)(Surface->NormalMap != nullptr);
@@ -39,46 +28,32 @@ namespace Tomahawk
 			Device->SetTexture2D(Surface->HeightMap, 4);
 			Device->SetTexture2D(Surface->OcclusionMap, 5);
 			Device->SetTexture2D(Surface->EmissionMap, 6);
+
+			return true;
 		}
-		void Appearance::UploadDepth(Graphics::GraphicsDevice* Device, Appearance* Surface)
+		bool Appearance::UploadDepth(Graphics::GraphicsDevice* Device, Appearance* Surface)
 		{
-			if (!Device)
-				return;
-
-			if (!Surface)
-			{
-				Device->Render.HasDiffuse = 0.0f;
-				Device->Render.Diffuse.X = 1.0f;
-				Device->Render.Diffuse.Y = 0.0f;
-				Device->Render.TexCoord = 1.0f;
-
-				return Device->FlushTexture2D(1, 1);
-			}
+			if (!Device || !Surface || Surface->Material < 0)
+				return false;
 
 			Device->Render.HasDiffuse = (float)(Surface->DiffuseMap != nullptr);
 			Device->Render.MaterialId = Surface->Material;
 			Device->Render.TexCoord = Surface->TexCoord;
 			Device->SetTexture2D(Surface->DiffuseMap, 1);
+
+			return true;
 		}
-		void Appearance::UploadCubicDepth(Graphics::GraphicsDevice* Device, Appearance* Surface)
+		bool Appearance::UploadCubicDepth(Graphics::GraphicsDevice* Device, Appearance* Surface)
 		{
-			if (!Device)
-				return;
-
-			if (!Surface)
-			{
-				Device->Render.HasDiffuse = 0.0f;
-				Device->Render.Diffuse.X = 1.0f;
-				Device->Render.Diffuse.Y = 0.0f;
-				Device->Render.TexCoord = 1.0f;
-
-				return Device->FlushTexture2D(1, 1);
-			}
+			if (!Device || !Surface || Surface->Material < 0)
+				return false;
 
 			Device->Render.HasDiffuse = (float)(Surface->DiffuseMap != nullptr);
 			Device->Render.MaterialId = Surface->Material;
 			Device->Render.TexCoord = Surface->TexCoord;
 			Device->SetTexture2D(Surface->DiffuseMap, 1);
+
+			return true;
 		}
 
 		bool NMake::Pack(Rest::Document* V, bool Value)
@@ -185,6 +160,22 @@ namespace Tomahawk
 				return false;
 
 			return V->SetNumber("[m11]", Value.Row[0]) != nullptr && V->SetNumber("[m12]", Value.Row[1]) != nullptr && V->SetNumber("[m13]", Value.Row[2]) != nullptr && V->SetNumber("[m14]", Value.Row[3]) != nullptr && V->SetNumber("[m21]", Value.Row[4]) != nullptr && V->SetNumber("[m22]", Value.Row[5]) != nullptr && V->SetNumber("[m23]", Value.Row[6]) != nullptr && V->SetNumber("[m24]", Value.Row[7]) != nullptr && V->SetNumber("[m31]", Value.Row[8]) != nullptr && V->SetNumber("[m32]", Value.Row[9]) != nullptr && V->SetNumber("[m33]", Value.Row[10]) != nullptr && V->SetNumber("[m34]", Value.Row[11]) != nullptr && V->SetNumber("[m41]", Value.Row[12]) != nullptr && V->SetNumber("[m42]", Value.Row[13]) != nullptr && V->SetNumber("[m43]", Value.Row[14]) != nullptr && V->SetNumber("[m44]", Value.Row[15]) != nullptr;
+		}
+		bool NMake::Pack(Rest::Document* V, const Graphics::Material& Value)
+		{
+			if (!V)
+				return false;
+
+			NMake::Pack(V->SetDocument("emission"), Value.Emission);
+			NMake::Pack(V->SetDocument("metallic"), Value.Metallic);
+			NMake::Pack(V->SetDocument("roughness"), Value.Roughness);
+			NMake::Pack(V->SetDocument("transparency"), Value.Transparency);
+			NMake::Pack(V->SetDocument("roughness"), Value.Roughness);
+			NMake::Pack(V->SetDocument("environment"), Value.Environment);
+			NMake::Pack(V->SetDocument("occlusion"), Value.Occlusion);
+			NMake::Pack(V->SetDocument("radius"), Value.Radius);
+			NMake::Pack(V->SetDocument("id"), Value.Id);
+			return true;
 		}
 		bool NMake::Pack(Rest::Document* V, const AnimatorState& Value)
 		{
@@ -853,6 +844,22 @@ namespace Tomahawk
 			O->Row[13] = V->GetNumber("[m42]");
 			O->Row[14] = V->GetNumber("[m43]");
 			O->Row[15] = V->GetNumber("[m44]");
+			return true;
+		}
+		bool NMake::Unpack(Rest::Document* V, Graphics::Material* O)
+		{
+			if (!V || !O)
+				return false;
+
+			NMake::Unpack(V->Find("emission"), &O->Emission);
+			NMake::Unpack(V->Find("metallic"), &O->Metallic);
+			NMake::Unpack(V->Find("roughness"), &O->Roughness);
+			NMake::Unpack(V->Find("transparency"), &O->Transparency);
+			NMake::Unpack(V->Find("roughness"), &O->Roughness);
+			NMake::Unpack(V->Find("environment"), &O->Environment);
+			NMake::Unpack(V->Find("occlusion"), &O->Occlusion);
+			NMake::Unpack(V->Find("radius"), &O->Radius);
+			NMake::Unpack(V->Find("id"), &O->Id);
 			return true;
 		}
 		bool NMake::Unpack(Rest::Document* V, AnimatorState* O)
@@ -1733,6 +1740,23 @@ namespace Tomahawk
 			return V;
 		}
 
+		AssetFile::AssetFile(char* SrcBuffer, size_t SrcSize) : Buffer(SrcBuffer), Size(SrcSize)
+		{
+		}
+		AssetFile::~AssetFile()
+		{
+			if (Buffer != nullptr)
+				free(Buffer);
+		}
+		char* AssetFile::GetBuffer()
+		{
+			return Buffer;
+		}
+		size_t AssetFile::GetSize()
+		{
+			return Size;
+		}
+
 		FileProcessor::FileProcessor(ContentManager* NewContent) : Content(NewContent)
 		{
 		}
@@ -1786,13 +1810,6 @@ namespace Tomahawk
 		void Component::OnEvent(Event* Value)
 		{
 		}
-		Component* Component::OnClone(Entity* New)
-		{
-			Component* Target = new Engine::Component(New);
-			Target->Active = Active;
-
-			return Target;
-		}
 		Entity* Component::GetEntity()
 		{
 			return Parent;
@@ -1826,7 +1843,70 @@ namespace Tomahawk
 			return Active;
 		}
 
-		Entity::Entity(SceneGraph* Ref) : Scene(Ref), Tag(-1), Self(-1)
+		Drawable::Drawable(Entity* Ref, bool _Complex) : Component(Ref), Visibility(false), Complex(_Complex)
+		{
+			if (!Complex)
+				Surfaces[nullptr] = Appearance();
+		}
+		void Drawable::OnEvent(Event* Value)
+		{
+			if (!Value || !Value->Is<Graphics::Material>())
+				return;
+
+			uint64_t Material = (uint64_t)Value->Get<Graphics::Material>()->Id;
+			for (auto&& Surface : Surfaces)
+			{
+				if (Surface.second.Material == Material)
+					Surface.second.Material = -1;
+			}
+		}
+		bool Drawable::IsVisibleTo(const Viewer& View, Compute::Matrix4x4* World)
+		{
+			if (Parent->Transform->Position.Distance(View.RawPosition) > View.ViewDistance + Parent->Transform->Scale.Length())
+				return false;
+
+			 return Compute::MathCommon::IsClipping(View.ViewProjection, World ? *World : Parent->Transform->GetWorld(), 1.5f) == -1;
+		}
+		bool Drawable::IsNearTo(const Viewer& View)
+		{
+			return Parent->Transform->Position.Distance(View.RawPosition) <= View.ViewDistance + Parent->Transform->Scale.Length();
+		}
+		const std::unordered_map<void*, Appearance>& Drawable::GetSurfaces()
+		{
+			return Surfaces;
+		}
+		Graphics::Material* Drawable::GetMaterial(Appearance* Surface)
+		{
+			if (!Surface || Surface->Material < 0)
+				return nullptr;
+
+			return Parent->GetScene()->GetMaterialById((uint64_t)Surface->Material);
+		}
+		Graphics::Material* Drawable::GetMaterial()
+		{
+			Appearance* Surface = GetSurface();
+			return GetMaterial(Surface);
+		}
+		Appearance* Drawable::GetSurface(void* Instance)
+		{
+			if (!Complex)
+				return nullptr;
+
+			auto It = Surfaces.find(Instance);
+			if (It == Surfaces.end())
+				return &Surfaces[Instance];
+
+			return &It->second;
+		}
+		Appearance* Drawable::GetSurface()
+		{
+			if (Complex || Surfaces.empty())
+				return nullptr;
+
+			return &Surfaces.begin()->second;
+		}
+
+		Entity::Entity(SceneGraph* Ref) : Scene(Ref), Tag(-1), Id(-1)
 		{
 			Transform = new Compute::Transform();
 			Transform->UserPointer = this;
@@ -2538,7 +2618,6 @@ namespace Tomahawk
 				Sync.Threads[i].State = 0;
 
 			Materials.reserve(16);
-			Materials.emplace_back();
 			Configure(I);
 
 			Simulator = new Compute::Simulator(I.Simulator);
@@ -2629,7 +2708,7 @@ namespace Tomahawk
 			{
 				Entity* V = *It;
 				V->Transform->Synchronize();
-				V->Self = Index;
+				V->Id = Index;
 				Index++;
 			}
 			EndThread(ThreadId_Synchronize);
@@ -2716,17 +2795,6 @@ namespace Tomahawk
 					(*It)->OnPhaseRender(Time);
 			}
 		}
-		void SceneGraph::Rescale(const Compute::Vector3& Scaling)
-		{
-			Lock();
-			for (auto It = Entities.Begin(); It != Entities.End(); It++)
-			{
-				Entity* V = *It;
-				if (V->Transform->GetRoot() == nullptr)
-					V->Transform->Scale *= Scaling;
-			}
-			Unlock();
-		}
 		void SceneGraph::Redistribute()
 		{
 			Lock();
@@ -2746,7 +2814,7 @@ namespace Tomahawk
 			int64_t Index = 0;
 			for (auto It = Entities.Begin(); It != Entities.End(); It++)
 			{
-				(*It)->Self = Index;
+				(*It)->Id = Index;
 				Index++;
 			}
 			Unlock();
@@ -2810,17 +2878,25 @@ namespace Tomahawk
 		}
 		void SceneGraph::RemoveMaterial(uint64_t Material)
 		{
-			if (Material < 1 || Material >= Materials.size())
+			if (Material >= Materials.size() || Material >= Names.size())
 				return;
 
-			NotifyEach<Graphics::Material>(nullptr, Materials[Material]);
+			if (!NotifyEach<Graphics::Material>(nullptr, Materials[Material]))
+				return;
+
+			Lock();
 			Materials[Material] = Materials.back();
+			Names[Material] = Names.back();
+
+			if (!Names.empty())
+				Names.resize(Names.size() - 1);
 
 			if (!Materials.empty())
 				Materials.resize(Materials.size() - 1);
 
 			for (uint64_t i = 0; i < Materials.size(); i++)
-				Materials[i].Self = (float)i;
+				Materials[i].Id = (float)i;
+			Unlock();
 		}
 		void SceneGraph::RegisterEntity(Entity* In)
 		{
@@ -2898,17 +2974,6 @@ namespace Tomahawk
 
 			Unlock();
 		}
-		void SceneGraph::AddMaterial(const Graphics::Material& From)
-		{
-			Graphics::Material Material = From;
-			Material.Self = (float)Materials.size();
-
-			if (Materials.size() + 1 < Materials.capacity())
-				return Materials.push_back(Material);
-
-			ExpandMaterialStructure();
-			Materials.push_back(Material);
-		}
 		void SceneGraph::RestoreViewBuffer(Viewer* iView)
 		{
 			if (&View != iView)
@@ -2933,9 +2998,10 @@ namespace Tomahawk
 		void SceneGraph::ExpandMaterialStructure()
 		{
 			Lock();
-			for (size_t i = 0; i < Materials.size(); i++)
-				Materials[i].Self = (float)i;
+
 			Materials.reserve(Materials.capacity() * 2);
+			for (size_t i = 0; i < Materials.size(); i++)
+				Materials[i].Id = (float)i;
 
 			Graphics::StructureBuffer::Desc F = Graphics::StructureBuffer::Desc();
 			F.ElementCount = (unsigned int)Materials.capacity();
@@ -3095,12 +3161,40 @@ namespace Tomahawk
 			Conf.Device->Clear(Surface, 2, 1, 0, 0);
 			Conf.Device->ClearDepth(Surface);
 		}
+		void SceneGraph::SetMaterialName(uint64_t Material, const std::string& Name)
+		{
+			if (Material >= Names.size())
+				return;
+
+			Names[Material] = Name;
+		}
 		void SceneGraph::ClearSurface()
 		{
 			Conf.Device->Clear(Surface, 0, 0, 0, 0);
 			Conf.Device->Clear(Surface, 1, 0, 0, 0);
 			Conf.Device->Clear(Surface, 2, 1, 0, 0);
 			Conf.Device->ClearDepth(Surface);
+		}
+		Graphics::Material* SceneGraph::AddMaterial(const std::string& Name, const Graphics::Material& From)
+		{
+			Graphics::Material Material = From;
+			Material.Id = (float)Materials.size();
+
+			Lock();
+			Names.push_back(Name);
+
+			if (Materials.size() + 1 < Materials.capacity())
+			{
+				Materials.push_back(Material);
+				Unlock();
+				return &Materials.back();
+			}
+
+			ExpandMaterialStructure();
+			Materials.push_back(Material);
+			Unlock();
+
+			return &Materials.back();
 		}
 		Component* SceneGraph::GetCamera()
 		{
@@ -3140,6 +3234,30 @@ namespace Tomahawk
 		Viewer SceneGraph::GetCameraViewer()
 		{
 			return GetCamera()->As<Components::Camera>()->GetViewer();
+		}
+		std::string SceneGraph::GetMaterialName(uint64_t Material)
+		{
+			if (Material >= Names.size())
+				return "";
+
+			return Names[Material];
+		}
+		Graphics::Material* SceneGraph::GetMaterialByName(const std::string& Name)
+		{
+			for (size_t i = 0; i < Names.size(); i++)
+			{
+				if (Names[i] == Name)
+					return i >= Materials.size() ? nullptr : &Materials[i];
+			}
+
+			return nullptr;
+		}
+		Graphics::Material* SceneGraph::GetMaterialById(uint64_t Material)
+		{
+			if (Material >= Materials.size())
+				return nullptr;
+
+			return &Materials[Material];
 		}
 		Entity* SceneGraph::GetEntity(uint64_t Entity)
 		{
@@ -3210,7 +3328,7 @@ namespace Tomahawk
 			Instance->Transform->UserPointer = Instance;
 			Instance->Tag = Entity->Tag;
 			Instance->Name = Entity->Name;
-			Instance->Self = Entity->Self;
+			Instance->Id = Entity->Id;
 			Instance->Components = Entity->Components;
 
 			for (auto& It : Instance->Components)
@@ -3233,25 +3351,6 @@ namespace Tomahawk
 			CloneEntities(Value, &Array);
 
 			return !Array.empty() ? Array.front() : nullptr;
-		}
-		Graphics::Material& SceneGraph::CloneMaterial(uint64_t Material)
-		{
-			if (Material < 0 || Material >= Materials.capacity())
-				return GetMaterialStandartLit();
-
-			AddMaterial(Materials[Material]);
-			return Materials.back();
-		}
-		Graphics::Material& SceneGraph::GetMaterial(uint64_t Material)
-		{
-			if (Material >= Materials.size())
-				return Materials.front();
-
-			return Materials[Material];
-		}
-		Graphics::Material& SceneGraph::GetMaterialStandartLit()
-		{
-			return Materials.front();
 		}
 		Rest::Pool<Component*>* SceneGraph::GetComponents(uint64_t Section)
 		{
@@ -3360,7 +3459,7 @@ namespace Tomahawk
 			while (Conf.Queue->Pull<Event>(Rest::EventType_Events));
 			return true;
 		}
-		uint64_t SceneGraph::HasEntity(Entity* Entity)
+		bool SceneGraph::HasEntity(Entity* Entity)
 		{
 			Lock();
 			for (uint64_t i = 0; i < Entities.Size(); i++)
@@ -3375,13 +3474,9 @@ namespace Tomahawk
 			Unlock();
 			return 0;
 		}
-		uint64_t SceneGraph::HasEntity(uint64_t Entity)
+		bool SceneGraph::HasEntity(uint64_t Entity)
 		{
 			return (Entity >= 0 && Entity < Entities.Size()) ? Entity : -1;
-		}
-		uint64_t SceneGraph::HasMaterial(uint64_t Material)
-		{
-			return (Material >= 0 && Material < Materials.size()) ? Material : -1;
 		}
 		uint64_t SceneGraph::GetEntityCount()
 		{
@@ -3477,6 +3572,9 @@ namespace Tomahawk
 		}
 		void* ContentManager::LoadForward(const std::string& Path, FileProcessor* Processor, ContentMap* Map)
 		{
+			if (Path.empty())
+				return nullptr;
+
 			ContentArgs Args(Map);
 			if (!Processor)
 			{
@@ -3516,6 +3614,9 @@ namespace Tomahawk
 		}
 		void* ContentManager::LoadStreaming(const std::string& Path, FileProcessor* Processor, ContentMap* Map)
 		{
+			if (Path.empty())
+				return nullptr;
+
 			auto Docker = Dockers.find(Rest::Stroke(Path).Replace('\\', '/').Replace("./", "").R());
 			if (Docker == Dockers.end() || !Docker->second || !Docker->second->Stream)
 				return nullptr;
@@ -3540,6 +3641,9 @@ namespace Tomahawk
 		}
 		bool ContentManager::SaveForward(const std::string& Path, FileProcessor* Processor, void* Object, ContentMap* Map)
 		{
+			if (Path.empty())
+				return false;
+
 			if (!Processor)
 			{
 				THAWK_ERROR("file processor for \"%s\" wasn't found", Path.c_str());
@@ -3812,31 +3916,31 @@ namespace Tomahawk
 					Activity->UserPointer = this;
 					Activity->Callbacks.KeyState = [this](Graphics::KeyCode Key, Graphics::KeyMod Mod, int Virtual, int Repeat, bool Pressed)
 					{
-						auto* GUI = (Renderers::GUI::Interface*)GetAnyGUI();
+						GUI::Context* GUI = (GUI::Context*)GetGUI();
 						if (GUI != nullptr)
-							GUI->ApplyKeyState(Key, Mod, Virtual, Repeat, Pressed);
+							GUI->EmitKey(Key, Mod, Virtual, Repeat, Pressed);
 
-						OnKeyState(Key, Mod, Virtual, Repeat, Pressed);
+						OnKey(Key, Mod, Virtual, Repeat, Pressed);
 					};
 					Activity->Callbacks.Input = [this](char* Buffer, int Length)
 					{
-						auto* GUI = (Renderers::GUI::Interface*)GetAnyGUI();
+						GUI::Context* GUI = (GUI::Context*)GetGUI();
 						if (GUI != nullptr)
-							GUI->ApplyInput(Buffer, Length);
+							GUI->EmitInput(Buffer, Length);
 
 						OnInput(Buffer, Length);
 					};
 					Activity->Callbacks.CursorWheelState = [this](int X, int Y, bool Normal)
 					{
-						auto* GUI = (Renderers::GUI::Interface*)GetAnyGUI();
+						GUI::Context* GUI = (GUI::Context*)GetGUI();
 						if (GUI != nullptr)
-							GUI->ApplyCursorWheelState(X, Y, Normal);
+							GUI->EmitWheel(X, Y, Normal);
 
-						OnCursorWheelState(X, Y, Normal);
+						OnWheel(X, Y, Normal);
 					};
 					Activity->Callbacks.WindowStateChange = [this](Graphics::WindowState NewState, int X, int Y)
 					{
-						OnWindowState(NewState, X, Y);
+						OnWindow(NewState, X, Y);
 					};
 
 					Activity->Cursor(!I->DisableCursor);
@@ -3885,8 +3989,8 @@ namespace Tomahawk
 			if (I->Usage & ApplicationUse_Content_Module)
 			{
 				Content = new ContentManager(Renderer, Queue);
+				Content->AddProcessor<FileProcessors::AssetFileProcessor, Engine::AssetFile>();
 				Content->AddProcessor<FileProcessors::SceneGraphProcessor, Engine::SceneGraph>();
-				Content->AddProcessor<FileProcessors::FontProcessor, Renderers::GUIRenderer>();
 				Content->AddProcessor<FileProcessors::AudioClipProcessor, Audio::AudioClip>();
 				Content->AddProcessor<FileProcessors::Texture2DProcessor, Graphics::Texture2D>();
 				Content->AddProcessor<FileProcessors::ShaderProcessor, Graphics::Shader>();
@@ -3918,19 +4022,16 @@ namespace Tomahawk
 			delete Activity;
 			Host = nullptr;
 		}
-		void Application::OnKeyState(Graphics::KeyCode Key, Graphics::KeyMod Mod, int Virtual, int Repeat, bool Pressed)
+		void Application::OnKey(Graphics::KeyCode Key, Graphics::KeyMod Mod, int Virtual, int Repeat, bool Pressed)
 		{
 		}
 		void Application::OnInput(char* Buffer, int Length)
 		{
 		}
-		void Application::OnCursorWheelState(int X, int Y, bool Normal)
+		void Application::OnWheel(int X, int Y, bool Normal)
 		{
 		}
-		void Application::OnWindowState(Graphics::WindowState NewState, int X, int Y)
-		{
-		}
-		void Application::OnInteract(Engine::Renderer* GUI, Rest::Timer* Time)
+		void Application::OnWindow(Graphics::WindowState NewState, int X, int Y)
 		{
 		}
 		void Application::OnRender(Rest::Timer* Time)
@@ -3941,6 +4042,26 @@ namespace Tomahawk
 		}
 		void Application::OnInitialize(Desc* I)
 		{
+		}
+		void Application::Restate(ApplicationState Value)
+		{
+			State = Value;
+		}
+		void Application::Enqueue(const std::function<void(Rest::Timer*)>& Callback, double Limit)
+		{
+			if (!Queue || !Callback)
+				return;
+
+			ThreadEvent* Call = new ThreadEvent();
+			Call->Callback = Callback;
+			Call->App = this;
+			Call->Timer = new Rest::Timer();
+			Call->Timer->FrameLimit = Limit;
+
+			if (State == ApplicationState_Staging)
+				Workers++;
+
+			Queue->Task<ThreadEvent>(Call, Callee);
 		}
 		void Application::Run(Desc* I)
 		{
@@ -4046,27 +4167,7 @@ namespace Tomahawk
 
 			delete Time;
 		}
-		void Application::Restate(ApplicationState Value)
-		{
-			State = Value;
-		}
-		void Application::Enqueue(const std::function<void(Rest::Timer*)>& Callback, double Limit)
-		{
-			if (!Queue || !Callback)
-				return;
-
-			ThreadEvent* Call = new ThreadEvent();
-			Call->Callback = Callback;
-			Call->App = this;
-			Call->Timer = new Rest::Timer();
-			Call->Timer->FrameLimit = Limit;
-
-			if (State == ApplicationState_Staging)
-				Workers++;
-
-			Queue->Task<ThreadEvent>(Call, Callee);
-		}
-		void* Application::GetCurrentGUI()
+		void* Application::GetGUI()
 		{
 			if (!Scene)
 				return nullptr;
@@ -4075,15 +4176,8 @@ namespace Tomahawk
 			if (!BaseCamera)
 				return nullptr;
 
-			Renderers::GUIRenderer* BaseGui = BaseCamera->GetRenderer()->GetRenderer<Renderers::GUIRenderer>();
-			if (!BaseGui || !BaseGui->IsTreeActive())
-				return nullptr;
-
-			return BaseGui->GetTree();
-		}
-		void* Application::GetAnyGUI()
-		{
-			return Renderers::GUIRenderer::GetCurrentTree();
+			Renderers::GUIRenderer* Renderer = BaseCamera->GetRenderer()->GetRenderer<Renderers::GUIRenderer>();
+			return Renderer != nullptr ? Renderer->GetContext() : nullptr;
 		}
 
 		void Application::Callee(Rest::EventQueue* Queue, Rest::EventArgs* Args)

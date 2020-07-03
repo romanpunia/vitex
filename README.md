@@ -86,6 +86,7 @@ Tomahawk is a cross-platform C++14 framework to create any type of application f
 + Built-in components for different simulations
 + Built-in renderers for different visualisations
 + Built-in shader code for every renderer
++ Retain mode dynamic GUI subsystem based on Nuklear
 #### Built-in renderers
 + Model renderer
 + Skinned model renderer
@@ -101,7 +102,7 @@ Tomahawk is a cross-platform C++14 framework to create any type of application f
 + Ambient occlusion renderer (simple screen-space AO)
 + Indirect occlusion renderer (simple GI)
 + Tone renderer (tone mapping)
-+ GUI renderer (ImGui-based ui renderer)
++ GUI renderer (Nuklear-based ui renderer)
 #### Built-in components
 + Rigid body
 + Acceleration (force applier for rigid bodies)
@@ -123,7 +124,6 @@ Tomahawk is a cross-platform C++14 framework to create any type of application f
 + Camera (with rendering system that holds renderers)
 #### Built-in file processor
 + Scene graph processor
-+ Font processor (ImGui-based)
 + Audio clip processor (WAVE, OGG)
 + Texture 2d processor (JPG, PNG, TGA, BMP, PSD, GIF, HDR, PIC)
 + Shader processor (render backend dependent, code preprocessor included)
@@ -183,7 +183,7 @@ Socket polling mechanism that emulates posix's epoll with windows' iocp used by 
 ##### Built-in because
 Windows offers too complicated polling system that is hard to combine with UNIX.
 
-#### [ImGui](https://github.com/ocornut/imgui)
+#### [Nuklear](https://github.com/Immediate-Mode-UI/Nuklear)
 ##### Usage
 User interface calculation for proper rendering by backend.
 ##### Built-in because

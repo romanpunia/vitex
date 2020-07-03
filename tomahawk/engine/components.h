@@ -43,7 +43,7 @@ namespace Tomahawk
 				THAWK_COMPONENT(RigidBody);
 			};
 
-			class THAWK_OUT SoftBody : public Component
+			class THAWK_OUT SoftBody : public Drawable
 			{
 			private:
 				Compute::UnmanagedShape* Hull;
@@ -52,10 +52,8 @@ namespace Tomahawk
 				std::vector<int> Indices;
 
 			public:
-				Appearance Surface;
 				bool Synchronize;
 				bool Kinematic;
-				bool Visibility;
 
 			public:
 				SoftBody(Entity* Ref);
@@ -74,8 +72,7 @@ namespace Tomahawk
 				void Clear();
 				void SetTransform(const Compute::Matrix4x4& World);
 				void SetTransform(bool Kinematic);
-				Graphics::Material& GetMaterial();
-				Compute::SoftBody* GetBody() const;
+				Compute::SoftBody* GetBody();
 				std::vector<Compute::Vertex>& GetVertices();
 				std::vector<int>& GetIndices();
 
@@ -239,14 +236,12 @@ namespace Tomahawk
 				THAWK_COMPONENT(KeyAnimator);
 			};
 
-			class THAWK_OUT ElementSystem : public Component
+			class THAWK_OUT ElementSystem : public Drawable
 			{
 			private:
 				Graphics::InstanceBuffer* Instance;
 
 			public:
-				Appearance Surface;
-				float Visibility;
 				float Volume;
 				bool Connected;
 				bool QuadBased;
@@ -258,10 +253,8 @@ namespace Tomahawk
 				virtual void OnLoad(ContentManager* Content, Rest::Document* Node) override;
 				virtual void OnSave(ContentManager* Content, Rest::Document* Node) override;
 				virtual void OnSynchronize(Rest::Timer* Time) override;
-				virtual void OnEvent(Event* Value) override;
 				virtual Component* OnClone(Entity* New) override;
-				Graphics::Material& GetMaterial();
-				Graphics::InstanceBuffer* GetBuffer() const;
+				Graphics::InstanceBuffer* GetBuffer();
 
 			public:
 				THAWK_COMPONENT(ElementSystem);
@@ -315,6 +308,7 @@ namespace Tomahawk
 				virtual ~FreeLook() = default;
 				virtual void OnAwake(Component* New) override;
 				virtual void OnUpdate(Rest::Timer* Time) override;
+				virtual Component* OnClone(Entity* New) override;
 				Graphics::Activity* GetActivity() const;
 
 			public:
@@ -345,20 +339,17 @@ namespace Tomahawk
 				virtual ~Fly() = default;
 				virtual void OnAwake(Component* New) override;
 				virtual void OnUpdate(Rest::Timer* Time) override;
+				virtual Component* OnClone(Entity* New) override;
 				Graphics::Activity* GetActivity() const;
 
 			public:
 				THAWK_COMPONENT(Fly);
 			};
 
-			class THAWK_OUT Model : public Component
+			class THAWK_OUT Model : public Drawable
 			{
 			private:
 				Graphics::Model* Instance = nullptr;
-
-			public:
-				std::unordered_map<Graphics::MeshBuffer*, Appearance> Surfaces;
-				bool Visibility;
 
 			public:
 				Model(Entity* Ref);
@@ -366,28 +357,22 @@ namespace Tomahawk
 				virtual void OnLoad(ContentManager* Content, Rest::Document* Node) override;
 				virtual void OnSave(ContentManager* Content, Rest::Document* Node) override;
 				virtual void OnSynchronize(Rest::Timer* Time) override;
-				virtual void OnEvent(Event* Value) override;
 				virtual Component* OnClone(Entity* New) override;
 				void SetDrawable(Graphics::Model* Drawable);
-				Graphics::Material& GetMaterial(Graphics::MeshBuffer* Mesh);
-				Graphics::Material& GetMaterial(Appearance* Surface);
-				Appearance* GetSurface(Graphics::MeshBuffer* Mesh);
 				Compute::Matrix4x4 GetBoundingBox();
-				Graphics::Model* GetDrawable() const;
+				Graphics::Model* GetDrawable();
 
 			public:
 				THAWK_COMPONENT(Model);
 			};
 
-			class THAWK_OUT SkinModel : public Component
+			class THAWK_OUT SkinModel : public Drawable
 			{
 			private:
 				Graphics::SkinModel* Instance = nullptr;
 
 			public:
-				std::unordered_map<Graphics::SkinMeshBuffer*, Appearance> Surfaces;
 				Graphics::PoseBuffer Skeleton;
-				bool Visibility;
 
 			public:
 				SkinModel(Entity* Ref);
@@ -395,14 +380,10 @@ namespace Tomahawk
 				virtual void OnLoad(ContentManager* Content, Rest::Document* Node) override;
 				virtual void OnSave(ContentManager* Content, Rest::Document* Node) override;
 				virtual void OnSynchronize(Rest::Timer* Time) override;
-				virtual void OnEvent(Event* Value) override;
 				virtual Component* OnClone(Entity* New) override;
 				void SetDrawable(Graphics::SkinModel* Drawable);
-				Graphics::Material& GetMaterial(Graphics::SkinMeshBuffer* Mesh);
-				Graphics::Material& GetMaterial(Appearance* Surface);
-				Appearance* GetSurface(Graphics::SkinMeshBuffer* Mesh);
 				Compute::Matrix4x4 GetBoundingBox();
-				Graphics::SkinModel* GetDrawable() const;
+				Graphics::SkinModel* GetDrawable();
 
 			public:
 				THAWK_COMPONENT(SkinModel);

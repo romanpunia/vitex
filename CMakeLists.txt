@@ -52,7 +52,7 @@ include(opts/windows/CMakeLists.txt)
 #Project's dependency resolvers
 include(refs/angelscript/CMakeLists.txt)
 include(refs/bullet3/CMakeLists.txt)
-include(refs/imgui/CMakeLists.txt)
+include(refs/nuklear/CMakeLists.txt)
 include(refs/rapidxml/CMakeLists.txt)
 include(refs/stb/CMakeLists.txt)
 include(refs/wepoll/CMakeLists.txt)

@@ -3811,6 +3811,26 @@ namespace Tomahawk
 						}
 					}
 
+					if (All || Name.Find("effects").Found)
+					{
+						Want |= VMFeature_Effects;
+						if (!(Features & VMFeature_Effects) && Features != VMFeature_All)
+						{
+							THAWK_ERROR("feature \"effects\" is not allowed");
+							return false;
+						}
+					}
+
+					if (All || Name.Find("filters").Found)
+					{
+						Want |= VMFeature_Filters;
+						if (!(Features & VMFeature_Filters) && Features != VMFeature_All)
+						{
+							THAWK_ERROR("feature \"filters\" is not allowed");
+							return false;
+						}
+					}
+
 					if (All || Name.Find("network").Found)
 					{
 						Want |= VMFeature_Network;
@@ -4863,6 +4883,24 @@ namespace Tomahawk
 
 				Features |= VMFeature_Audio;
 				Interface::EnableAudio(this);
+			}
+
+			if ((NewFeatures == VMFeature_All || NewFeatures & VMFeature_Effects) && !(Features & VMFeature_Effects))
+			{
+				if (!(NewFeatures & VMFeature_Audio) && NewFeatures != VMFeature_All)
+					return Setup(NewFeatures | VMFeature_Audio);
+
+				Features |= VMFeature_Effects;
+				Interface::EnableEffects(this);
+			}
+
+			if ((NewFeatures == VMFeature_All || NewFeatures & VMFeature_Filters) && !(Features & VMFeature_Filters))
+			{
+				if (!(NewFeatures & VMFeature_Audio) && NewFeatures != VMFeature_All)
+					return Setup(NewFeatures | VMFeature_Audio);
+
+				Features |= VMFeature_Filters;
+				Interface::EnableFilters(this);
 			}
 
 			if ((NewFeatures == VMFeature_All || NewFeatures & VMFeature_Graphics) && !(Features & VMFeature_Graphics))

@@ -25,3 +25,7 @@ install(FILES
         tomahawk/engine/renderers.h
         tomahawk/engine/gui.h
         DESTINATION include/tomahawk/engine)
+install(FILES
+        tomahawk/engine/gui/context.h
+        tomahawk/engine/gui/elements.h
+        DESTINATION include/tomahawk/engine/gui)

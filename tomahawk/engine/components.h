@@ -175,6 +175,7 @@ namespace Tomahawk
 			{
 			private:
 				SkinModel* Instance = nullptr;
+				std::string Reference;
 
 			public:
 				std::vector<Compute::SkinAnimatorClip> Clips;
@@ -191,6 +192,8 @@ namespace Tomahawk
 				virtual void OnAwake(Component* New) override;
 				virtual void OnSynchronize(Rest::Timer* Time) override;
 				virtual Component* OnClone(Entity* New) override;
+				bool SaveAnimation(ContentManager* Content, const std::string& Path);
+				bool LoadAnimation(ContentManager* Content, const std::string& Path);
 				void Play(int64_t Clip = -1, int64_t Frame = -1);
 				void Pause();
 				void Stop();
@@ -209,6 +212,9 @@ namespace Tomahawk
 
 			class THAWK_OUT KeyAnimator : public Component
 			{
+			private:
+				std::string Reference;
+
 			public:
 				std::vector<Compute::KeyAnimatorClip> Clips;
 				Compute::AnimatorKey Current, Bind;
@@ -221,6 +227,8 @@ namespace Tomahawk
 				virtual void OnSave(ContentManager* Content, Rest::Document* Node) override;
 				virtual void OnSynchronize(Rest::Timer* Time) override;
 				virtual Component* OnClone(Entity* New) override;
+				bool SaveAnimation(ContentManager* Content, const std::string& Path);
+				bool LoadAnimation(ContentManager* Content, const std::string& Path);
 				void Play(int64_t Clip = -1, int64_t Frame = -1);
 				void Pause();
 				void Stop();
@@ -561,6 +569,9 @@ namespace Tomahawk
 				Compute::Matrix4x4 GetViewProjection();
 				Compute::Matrix4x4 GetView();
 				Compute::Vector3 GetViewPosition();
+				Compute::Ray GetScreenRay(const Compute::Vector2& Position);
+				float GetDistance(Entity* Other);
+				bool RayTest(Compute::Ray& Ray, Entity* Other);
 
 			public:
 				THAWK_COMPONENT(Camera);

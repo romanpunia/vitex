@@ -867,7 +867,7 @@ namespace Tomahawk
 					Device->SetTarget(Target, 0, 0, 0);
 					Device->ClearDepth(Target);
 
-					RenderCubicDepth(Time, Light->Projection, Light->GetEntity()->Transform->Position.MtVector4().SetW(Light->ShadowDistance));
+					RenderCubicDepth(Time, Light->Projection, Light->GetEntity()->Transform->Position.XYZW().SetW(Light->ShadowDistance));
 					Light->SetShadowCache(Target->GetTarget()); Shadows++;
 				}
 
@@ -886,7 +886,7 @@ namespace Tomahawk
 					Device->SetTarget(Target, 0, 0, 0);
 					Device->ClearDepth(Target);
 
-					RenderDepth(Time, Light->View, Light->Projection, Light->GetEntity()->Transform->Position.MtVector4().SetW(Light->ShadowDistance));
+					RenderDepth(Time, Light->View, Light->Projection, Light->GetEntity()->Transform->Position.XYZW().SetW(Light->ShadowDistance));
 					Light->SetShadowCache(Target->GetTarget()); Shadows++;
 				}
 
@@ -964,7 +964,7 @@ namespace Tomahawk
 					for (int j = 0; j < 6; j++)
 					{
 						Light->View[j] = Compute::Matrix4x4::CreateCubeMapLookAt(j, Position);
-						RenderPhase(Time, Light->View[j], Light->Projection, Position.MtVector4().SetW(Light->CaptureRange));
+						RenderPhase(Time, Light->View[j], Light->Projection, Position.XYZW().SetW(Light->CaptureRange));
 						Device->CopyFace(Surface, 0, j);
 					}
 

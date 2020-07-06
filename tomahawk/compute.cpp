@@ -104,6 +104,16 @@ namespace Tomahawk
 			X = xy;
 			Y = xy;
 		}
+		Vector2::Vector2(const Vector3& Value)
+		{
+			X = Value.X;
+			Y = Value.Y;
+		}
+		Vector2::Vector2(const Vector4& Value)
+		{
+			X = Value.X;
+			Y = Value.Y;
+		}
 		float Vector2::Hypotenuse() const
 		{
 			return Math<float>::Sqrt(X * X + Y * Y);
@@ -204,7 +214,7 @@ namespace Tomahawk
 		}
 		Vector2 Vector2::SphericalLerp(const Vector2& B, float DeltaTime) const
 		{
-			return Quaternion(Vector3()).SphericalLerp(B.MtVector3(), DeltaTime).Euler().MtVector2();
+			return Quaternion(Vector3()).SphericalLerp(B.XYZ(), DeltaTime).Euler().XY();
 		}
 		Vector2 Vector2::AngularLerp(const Vector2& B, float DeltaTime) const
 		{
@@ -372,11 +382,15 @@ namespace Tomahawk
 
 			return X;
 		}
-		Vector3 Vector2::MtVector3() const
+		Vector2 Vector2::XY() const
+		{
+			return *this;
+		}
+		Vector3 Vector2::XYZ() const
 		{
 			return Vector3(X, Y, 0);
 		}
-		Vector4 Vector2::MtVector4() const
+		Vector4 Vector2::XYZW() const
 		{
 			return Vector4(X, Y, 0, 0);
 		}
@@ -418,6 +432,18 @@ namespace Tomahawk
 		Vector3::Vector3(float xyzw)
 		{
 			X = Y = Z = xyzw;
+		}
+		Vector3::Vector3(const Vector2& Value)
+		{
+			X = Value.X;
+			Y = Value.Y;
+			Z = 0;
+		}
+		Vector3::Vector3(const Vector4& Value)
+		{
+			X = Value.X;
+			Y = Value.Y;
+			Z = Value.Z;
 		}
 		float Vector3::Length() const
 		{
@@ -729,11 +755,15 @@ namespace Tomahawk
 
 			return X;
 		}
-		Vector2 Vector3::MtVector2() const
+		Vector2 Vector3::XY() const
 		{
 			return Vector2(X, Y);
 		}
-		Vector4 Vector3::MtVector4() const
+		Vector3 Vector3::XYZ() const
+		{
+			return *this;
+		}
+		Vector4 Vector3::XYZW() const
 		{
 			return Vector4(X, Y, Z, 0);
 		}
@@ -804,6 +834,20 @@ namespace Tomahawk
 		{
 			X = Y = Z = W = xyzw;
 		}
+		Vector4::Vector4(const Vector2& Value)
+		{
+			X = Value.X;
+			Y = Value.Y;
+			Z = 0;
+			W = 0;
+		}
+		Vector4::Vector4(const Vector3& Value)
+		{
+			X = Value.X;
+			Y = Value.Y;
+			Z = Value.Z;
+			W = 0;
+		}
 		float Vector4::Length() const
 		{
 			return Math<float>::Sqrt(X * X + Y * Y + Z * Z + W * W);
@@ -840,7 +884,7 @@ namespace Tomahawk
 		}
 		Vector4 Vector4::SphericalLerp(const Vector4& B, float DeltaTime) const
 		{
-			Vector3 Lerp = Quaternion(Vector3()).SphericalLerp(B.MtVector3(), DeltaTime).Euler();
+			Vector3 Lerp = Quaternion(Vector3()).SphericalLerp(B.XYZ(), DeltaTime).Euler();
 			return Vector4(Lerp.X, Lerp.Y, Lerp.Z, W + (B.W - W) * DeltaTime);
 		}
 		Vector4 Vector4::AngularLerp(const Vector4& B, float DeltaTime) const
@@ -894,7 +938,11 @@ namespace Tomahawk
 		}
 		Vector4 Vector4::Transform(const Matrix4x4& Matrix) const
 		{
-			return Vector4(X * Matrix.Row[0] + Y * Matrix.Row[4] + Z * Matrix.Row[8] + W * Matrix.Row[12], X * Matrix.Row[1] + Y * Matrix.Row[5] + Z * Matrix.Row[9] + W * Matrix.Row[13], X * Matrix.Row[2] + Y * Matrix.Row[6] + Z * Matrix.Row[10] + W * Matrix.Row[14], X * Matrix.Row[3] + Y * Matrix.Row[7] + Z * Matrix.Row[11] + W * Matrix.Row[15]);
+			return Vector4(
+				X * Matrix.Row[0] + Y * Matrix.Row[4] + Z * Matrix.Row[8] + W * Matrix.Row[12],
+				X * Matrix.Row[1] + Y * Matrix.Row[5] + Z * Matrix.Row[9] + W * Matrix.Row[13],
+				X * Matrix.Row[2] + Y * Matrix.Row[6] + Z * Matrix.Row[10] + W * Matrix.Row[14],
+				X * Matrix.Row[3] + Y * Matrix.Row[7] + Z * Matrix.Row[11] + W * Matrix.Row[15]);
 		}
 		Vector4 Vector4::SetX(float TexCoordX) const
 		{
@@ -1138,13 +1186,17 @@ namespace Tomahawk
 
 			return X;
 		}
-		Vector2 Vector4::MtVector2() const
+		Vector2 Vector4::XY() const
 		{
 			return Vector2(X, Y);
 		}
-		Vector3 Vector4::MtVector3() const
+		Vector3 Vector4::XYZ() const
 		{
 			return Vector3(X, Y, Z);
+		}
+		Vector4 Vector4::XYZW() const
+		{
+			return *this;
 		}
 		Vector4 Vector4::Random()
 		{
@@ -1281,17 +1333,17 @@ namespace Tomahawk
 		}
 		bool Ray::IntersectsOBB(const Matrix4x4& World)
 		{
-			Matrix4x4 InvWorld = World.Invert();
+			Matrix4x4 Offset = World.Invert();
 			Vector4 OldOrigin = Vector4(Origin.X, Origin.Y, Origin.Z, 1.0);
 			Vector4 OldDirection = Vector4(Direction.X, Direction.Y, Direction.Z, 0.0);
 
-			Origin = (OldOrigin * InvWorld).MtVector3();
-			Direction = (OldDirection * InvWorld).Normalize().MtVector3();
+			Origin = (OldOrigin * Offset).XYZ();
+			Direction = (OldDirection * Offset).NormalizeSafe().XYZ();
 			
-			bool Result = IntersectsAABB(0, World.Scale());
+			bool Result = IntersectsAABB(0, 1);
 
-			Origin = OldOrigin.MtVector3();
-			Direction = OldDirection.MtVector3();
+			Origin = OldOrigin.XYZ();
+			Direction = OldDirection.XYZ();
 
 			return Result;
 		}
@@ -1604,11 +1656,15 @@ namespace Tomahawk
 
 			return Result;
 		}
-		Vector3 Matrix4x4::MtVector3() const
+		Vector2 Matrix4x4::XY() const
+		{
+			return Vector2(Row[0] + Row[4] + Row[8] + Row[12], Row[1] + Row[5] + Row[9] + Row[13]);
+		}
+		Vector3 Matrix4x4::XYZ() const
 		{
 			return Vector3(Row[0] + Row[4] + Row[8] + Row[12], Row[1] + Row[5] + Row[9] + Row[13], Row[2] + Row[6] + Row[10] + Row[14]);
 		}
-		Vector4 Matrix4x4::MtVector4() const
+		Vector4 Matrix4x4::XYZW() const
 		{
 			return Vector4(Row[0] + Row[4] + Row[8] + Row[12], Row[1] + Row[5] + Row[9] + Row[13], Row[2] + Row[6] + Row[10] + Row[14], Row[3] + Row[7] + Row[11] + Row[15]);
 		}
@@ -3231,47 +3287,47 @@ namespace Tomahawk
 				return HasAABBIntersected(R0, R1);
 
 			Matrix4x4 Temp0 = Matrix4x4::Create(R0->Position - R1->Position, R0->Scale, R0->Rotation) * Matrix4x4::CreateRotation(R1->Rotation).Invert();
-			if (HasLineIntersectedCube(-R1->Scale, R1->Scale, Vector4(1, 1, 1, 1).Transform(Temp0.Row).MtVector3(), Vector4(-1, -1, -1, 1).Transform(Temp0.Row).MtVector3()))
+			if (HasLineIntersectedCube(-R1->Scale, R1->Scale, Vector4(1, 1, 1, 1).Transform(Temp0.Row).XYZ(), Vector4(-1, -1, -1, 1).Transform(Temp0.Row).XYZ()))
 				return true;
 
-			if (HasLineIntersectedCube(-R1->Scale, R1->Scale, Vector4(1, -1, 1, 1).Transform(Temp0.Row).MtVector3(), Vector4(-1, 1, -1, 1).Transform(Temp0.Row).MtVector3()))
+			if (HasLineIntersectedCube(-R1->Scale, R1->Scale, Vector4(1, -1, 1, 1).Transform(Temp0.Row).XYZ(), Vector4(-1, 1, -1, 1).Transform(Temp0.Row).XYZ()))
 				return true;
 
-			if (HasLineIntersectedCube(-R1->Scale, R1->Scale, Vector4(-1, -1, 1, 1).Transform(Temp0.Row).MtVector3(), Vector4(1, 1, -1, 1).Transform(Temp0.Row).MtVector3()))
+			if (HasLineIntersectedCube(-R1->Scale, R1->Scale, Vector4(-1, -1, 1, 1).Transform(Temp0.Row).XYZ(), Vector4(1, 1, -1, 1).Transform(Temp0.Row).XYZ()))
 				return true;
 
-			if (HasLineIntersectedCube(-R1->Scale, R1->Scale, Vector4(-1, 1, 1, 1).Transform(Temp0.Row).MtVector3(), Vector4(1, -1, -1, 1).Transform(Temp0.Row).MtVector3()))
+			if (HasLineIntersectedCube(-R1->Scale, R1->Scale, Vector4(-1, 1, 1, 1).Transform(Temp0.Row).XYZ(), Vector4(1, -1, -1, 1).Transform(Temp0.Row).XYZ()))
 				return true;
 
-			if (HasLineIntersectedCube(-R1->Scale, R1->Scale, Vector4(0, 1, 0, 1).Transform(Temp0.Row).MtVector3(), Vector4(0, -1, 0, 1).Transform(Temp0.Row).MtVector3()))
+			if (HasLineIntersectedCube(-R1->Scale, R1->Scale, Vector4(0, 1, 0, 1).Transform(Temp0.Row).XYZ(), Vector4(0, -1, 0, 1).Transform(Temp0.Row).XYZ()))
 				return true;
 
-			if (HasLineIntersectedCube(-R1->Scale, R1->Scale, Vector4(1, 0, 0, 1).Transform(Temp0.Row).MtVector3(), Vector4(-1, 0, 0, 1).Transform(Temp0.Row).MtVector3()))
+			if (HasLineIntersectedCube(-R1->Scale, R1->Scale, Vector4(1, 0, 0, 1).Transform(Temp0.Row).XYZ(), Vector4(-1, 0, 0, 1).Transform(Temp0.Row).XYZ()))
 				return true;
 
-			if (HasLineIntersectedCube(-R1->Scale, R1->Scale, Vector4(0, 0, 1, 1).Transform(Temp0.Row).MtVector3(), Vector4(0, 0, -1, 1).Transform(Temp0.Row).MtVector3()))
+			if (HasLineIntersectedCube(-R1->Scale, R1->Scale, Vector4(0, 0, 1, 1).Transform(Temp0.Row).XYZ(), Vector4(0, 0, -1, 1).Transform(Temp0.Row).XYZ()))
 				return true;
 
 			Temp0 = Matrix4x4::Create(R1->Position - R0->Position, R1->Scale, R1->Rotation) * Matrix4x4::CreateRotation(R0->Rotation).Invert();
-			if (HasLineIntersectedCube(-R0->Scale, R0->Scale, Vector4(1, 1, 1, 1).Transform(Temp0.Row).MtVector3(), Vector4(-1, -1, -1, 1).Transform(Temp0.Row).MtVector3()))
+			if (HasLineIntersectedCube(-R0->Scale, R0->Scale, Vector4(1, 1, 1, 1).Transform(Temp0.Row).XYZ(), Vector4(-1, -1, -1, 1).Transform(Temp0.Row).XYZ()))
 				return true;
 
-			if (HasLineIntersectedCube(-R0->Scale, R0->Scale, Vector4(1, -1, 1, 1).Transform(Temp0.Row).MtVector3(), Vector4(-1, 1, -1, 1).Transform(Temp0.Row).MtVector3()))
+			if (HasLineIntersectedCube(-R0->Scale, R0->Scale, Vector4(1, -1, 1, 1).Transform(Temp0.Row).XYZ(), Vector4(-1, 1, -1, 1).Transform(Temp0.Row).XYZ()))
 				return true;
 
-			if (HasLineIntersectedCube(-R0->Scale, R0->Scale, Vector4(-1, -1, 1, 1).Transform(Temp0.Row).MtVector3(), Vector4(1, 1, -1, 1).Transform(Temp0.Row).MtVector3()))
+			if (HasLineIntersectedCube(-R0->Scale, R0->Scale, Vector4(-1, -1, 1, 1).Transform(Temp0.Row).XYZ(), Vector4(1, 1, -1, 1).Transform(Temp0.Row).XYZ()))
 				return true;
 
-			if (HasLineIntersectedCube(-R0->Scale, R0->Scale, Vector4(-1, 1, 1, 1).Transform(Temp0.Row).MtVector3(), Vector4(1, -1, -1, 1).Transform(Temp0.Row).MtVector3()))
+			if (HasLineIntersectedCube(-R0->Scale, R0->Scale, Vector4(-1, 1, 1, 1).Transform(Temp0.Row).XYZ(), Vector4(1, -1, -1, 1).Transform(Temp0.Row).XYZ()))
 				return true;
 
-			if (HasLineIntersectedCube(-R0->Scale, R0->Scale, Vector4(0, 1, 0, 1).Transform(Temp0.Row).MtVector3(), Vector4(0, -1, 0, 1).Transform(Temp0.Row).MtVector3()))
+			if (HasLineIntersectedCube(-R0->Scale, R0->Scale, Vector4(0, 1, 0, 1).Transform(Temp0.Row).XYZ(), Vector4(0, -1, 0, 1).Transform(Temp0.Row).XYZ()))
 				return true;
 
-			if (HasLineIntersectedCube(-R0->Scale, R0->Scale, Vector4(1, 0, 0, 1).Transform(Temp0.Row).MtVector3(), Vector4(-1, 0, 0, 1).Transform(Temp0.Row).MtVector3()))
+			if (HasLineIntersectedCube(-R0->Scale, R0->Scale, Vector4(1, 0, 0, 1).Transform(Temp0.Row).XYZ(), Vector4(-1, 0, 0, 1).Transform(Temp0.Row).XYZ()))
 				return true;
 
-			if (HasLineIntersectedCube(-R0->Scale, R0->Scale, Vector4(0, 0, 1, 1).Transform(Temp0.Row).MtVector3(), Vector4(0, 0, -1, 1).Transform(Temp0.Row).MtVector3()))
+			if (HasLineIntersectedCube(-R0->Scale, R0->Scale, Vector4(0, 0, 1, 1).Transform(Temp0.Row).XYZ(), Vector4(0, 0, -1, 1).Transform(Temp0.Row).XYZ()))
 				return true;
 
 			return false;
@@ -4912,10 +4968,10 @@ namespace Tomahawk
 				return;
 			}
 
-			Matrix4x4 Local = Matrix4x4::Create(*LocalPosition, *LocalScale, *LocalRotation) * Root->GetWorldUnscaled();
+			Matrix4x4 Local = Matrix4x4::Create(*LocalPosition, *LocalRotation) * Root->GetWorldUnscaled();
 			_Position = Local.Position();
 			_Rotation = Local.Rotation();
-			_Scale = *LocalScale;
+			_Scale = (ConstantScale ? *LocalScale : *LocalScale * Root->Scale);
 		}
 		void Transform::SetRoot(Transform* Parent)
 		{
@@ -4976,18 +5032,17 @@ namespace Tomahawk
 			LocalTransform = new Matrix4x4(Matrix4x4::Create(Position, Rotation) * Root->GetWorldUnscaled().Invert());
 			LocalPosition = new Vector3(LocalTransform->Position());
 			LocalRotation = new Vector3(LocalTransform->Rotation());
-			LocalScale = new Vector3(Scale);
+			LocalScale = new Vector3(ConstantScale ? Scale : Scale / Root->Scale);
 		}
 		void Transform::Synchronize()
 		{
 			if (!Root)
 				return;
 
-			*LocalTransform = Matrix4x4::Create(*LocalPosition, *LocalScale, *LocalRotation) * (ConstantScale ? Root->GetWorldUnscaled() : Root->GetWorld());
-
+			*LocalTransform = Matrix4x4::Create(*LocalPosition, *LocalRotation) * Root->GetWorldUnscaled();
 			Position = LocalTransform->Position();
 			Rotation = LocalTransform->Rotation();
-			Scale = LocalTransform->Scale();
+			Scale = (ConstantScale ? *LocalScale : *LocalScale * Root->Scale);
 		}
 		void Transform::SetMatrix(const Matrix4x4& Matrix)
 		{
@@ -5183,14 +5238,14 @@ namespace Tomahawk
 		Matrix4x4 Transform::GetWorld()
 		{
 			if (Root)
-				return *LocalTransform;
+				return Matrix4x4::CreateScale(Scale) * *LocalTransform;
 
 			return Matrix4x4::Create(Position, Scale, Rotation);
 		}
 		Matrix4x4 Transform::GetWorld(const Vector3& Rescale)
 		{
 			if (Root)
-				return Matrix4x4::CreateScale(Rescale) * *LocalTransform;
+				return Matrix4x4::CreateScale(Scale * Rescale) * *LocalTransform;
 
 			return Matrix4x4::Create(Position, Scale * Rescale, Rotation);
 		}
@@ -5211,14 +5266,14 @@ namespace Tomahawk
 		Matrix4x4 Transform::GetLocal()
 		{
 			if (Root)
-				return Matrix4x4::CreateRotation(*LocalScale) * Matrix4x4::CreateRotation(*LocalRotation) * Matrix4x4::CreateTranslation(*LocalPosition);
+				return Matrix4x4::Create(*LocalPosition, Scale, *LocalRotation);
 
 			return Matrix4x4::Create(Position, Scale, Rotation);
 		}
 		Matrix4x4 Transform::GetLocal(const Vector3& Rescale)
 		{
 			if (Root)
-				return Matrix4x4::CreateRotation(*LocalScale * Rescale) * Matrix4x4::CreateRotation(*LocalRotation) * Matrix4x4::CreateTranslation(*LocalPosition);
+				return Matrix4x4::Create(*LocalPosition, Scale * Rescale, *LocalRotation);
 
 			return Matrix4x4::Create(Position, Scale * Rescale, Rotation);
 		}

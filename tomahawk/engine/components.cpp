@@ -1376,17 +1376,26 @@ namespace Tomahawk
 			}
 			void SkinAnimator::OnLoad(ContentManager* Content, Rest::Document* Node)
 			{
+				std::string Path;
+				if (!NMake::Unpack(Node->Find("path"), &Path))
+					NMake::Unpack(Node->Find("animation"), &Clips);
+				else
+					LoadAnimation(Content, Path);
+
 				NMake::Unpack(Node->Find("state"), &State);
 				NMake::Unpack(Node->Find("bind"), &Bind);
 				NMake::Unpack(Node->Find("current"), &Current);
-				NMake::Unpack(Node->Find("animation"), &Clips);
 			}
 			void SkinAnimator::OnSave(ContentManager* Content, Rest::Document* Node)
 			{
+				if (Reference.empty())
+					NMake::Pack(Node->SetDocument("animation"), Clips);
+				else
+					NMake::Pack(Node->SetDocument("path"), Reference);
+
 				NMake::Pack(Node->SetDocument("state"), State);
 				NMake::Pack(Node->SetDocument("bind"), Bind);
 				NMake::Pack(Node->SetDocument("current"), Current);
-				NMake::Pack(Node->SetDocument("animation"), Clips);
 			}
 			void SkinAnimator::OnAwake(Component* New)
 			{
@@ -1490,6 +1499,40 @@ namespace Tomahawk
 				}
 				else
 					State.Clip = -1;
+			}
+			bool SkinAnimator::LoadAnimation(ContentManager* Content, const std::string& Path)
+			{
+				if (!Content)
+					return false;
+
+				Rest::Document* Result = Content->Load<Rest::Document>(Path, nullptr);
+				if (!Result)
+					return false;
+
+				if (NMake::Unpack(Result, &Clips))
+					Reference = Path;
+
+				delete Result;
+				return true;
+			}
+			bool SkinAnimator::SaveAnimation(ContentManager* Content, const std::string& Path)
+			{
+				if (!Content)
+					return false;
+
+				Rest::Document* Result = new Rest::Document();
+				Result->Name = "animation";
+
+				if (!NMake::Pack(Result, &Clips))
+				{
+					delete Result;
+					return false;
+				}
+		
+				bool R = Content->Save<Rest::Document>(Path, Result, nullptr);
+				delete Result;
+				
+				return R;
 			}
 			void SkinAnimator::SavePose()
 			{
@@ -1596,17 +1639,26 @@ namespace Tomahawk
 			}
 			void KeyAnimator::OnLoad(ContentManager* Content, Rest::Document* Node)
 			{
+				std::string Path;
+				if (!NMake::Unpack(Node->Find("path"), &Path))
+					NMake::Unpack(Node->Find("animation"), &Clips);
+				else
+					LoadAnimation(Content, Path);
+
 				NMake::Unpack(Node->Find("state"), &State);
 				NMake::Unpack(Node->Find("bind"), &Bind);
 				NMake::Unpack(Node->Find("current"), &Current);
-				NMake::Unpack(Node->Find("animation"), &Clips);
 			}
 			void KeyAnimator::OnSave(ContentManager* Content, Rest::Document* Node)
 			{
+				if (Reference.empty())
+					NMake::Pack(Node->SetDocument("animation"), Clips);
+				else
+					NMake::Pack(Node->SetDocument("path"), Reference);
+
 				NMake::Pack(Node->SetDocument("state"), State);
 				NMake::Pack(Node->SetDocument("bind"), Bind);
 				NMake::Pack(Node->SetDocument("current"), Current);
-				NMake::Pack(Node->SetDocument("animation"), Clips);
 			}
 			void KeyAnimator::OnSynchronize(Rest::Timer* Time)
 			{
@@ -1662,6 +1714,40 @@ namespace Tomahawk
 					State.Blended = false;
 					State.Time = 0.0f;
 				}
+			}
+			bool KeyAnimator::LoadAnimation(ContentManager* Content, const std::string& Path)
+			{
+				if (!Content)
+					return false;
+
+				Rest::Document* Result = Content->Load<Rest::Document>(Path, nullptr);
+				if (!Result)
+					return false;
+
+				if (NMake::Unpack(Result, &Clips))
+					Reference = Path;
+
+				delete Result;
+				return true;
+			}
+			bool KeyAnimator::SaveAnimation(ContentManager* Content, const std::string& Path)
+			{
+				if (!Content)
+					return false;
+
+				Rest::Document* Result = new Rest::Document();
+				Result->Name = "key-animation";
+
+				if (!NMake::Pack(Result, &Clips))
+				{
+					delete Result;
+					return false;
+				}
+
+				bool R = Content->Save<Rest::Document>(Path, Result, nullptr);
+				delete Result;
+
+				return R;
 			}
 			void KeyAnimator::BlendAnimation(int64_t Clip, int64_t Frame_)
 			{
@@ -2937,6 +3023,31 @@ namespace Tomahawk
 			Compute::Matrix4x4 Camera::GetView()
 			{
 				return Compute::Matrix4x4::CreateCamera(GetViewPosition(), -Parent->Transform->Rotation);
+			}
+			Compute::Ray Camera::GetScreenRay(const Compute::Vector2& Position)
+			{
+				float W = Width, H = Height;
+				if (W <= 0 || H <= 0 && Renderer != nullptr)
+				{
+					Graphics::Viewport V = Renderer->GetDevice()->GetRenderTarget()->GetViewport();
+					W = V.Width; H = V.Height;
+				}
+
+				return Compute::MathCommon::CreateCursorRay(Parent->Transform->Position, Position, Compute::Vector2(W, H), Projection.Invert(), GetView().Invert());
+			}
+			float Camera::GetDistance(Entity* Other)
+			{
+				if (!Other)
+					return -1.0f;
+
+				return Other->Transform->Position.Distance(FieldView.RawPosition);
+			}
+			bool Camera::RayTest(Compute::Ray& Ray, Entity* Other)
+			{
+				if (!Other)
+					return false;
+
+				return Compute::MathCommon::CursorRayTest(Ray, Other->Transform->GetWorld());
 			}
 			Component* Camera::OnClone(Entity* New)
 			{

@@ -2,7 +2,7 @@
 #define THAWK_ENGINE_RENDERERS_H
 
 #include "../engine.h"
-#include "gui.h"
+#include "gui/context.h"
 
 namespace Tomahawk
 {

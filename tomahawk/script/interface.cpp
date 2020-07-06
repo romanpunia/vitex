@@ -2124,6 +2124,12 @@ namespace Tomahawk
 					VDocument.SetMethodStatic("Document@ FromXML(const string &in)", &Document_FromXML);
 
 					VOS.SetConstructor<OS>("void f()");
+					VOS.SetMethodStatic("bool WantTextInput(const string &in, const string &in, const string &in, string &out)", &OS::WantTextInput);
+					VOS.SetMethodStatic("bool WantPasswordInput(const string &in, const string &in, string &out)", &OS::WantPasswordInput);
+					VOS.SetMethodStatic("bool WantFileSave(const string &in, const string &in, const string &in, const string &in, string &out)", &OS::WantFileSave);
+					VOS.SetMethodStatic("bool WantFileOpen(const string &in, const string &in, const string &in, const string &in, bool, string &out)", &OS::WantFileOpen);
+					VOS.SetMethodStatic("bool WantFolder(const string &in, const string &in, string &out)", &OS::WantFolder);
+					VOS.SetMethodStatic("bool WantColor(const string &in, const string &in, string &out)", &OS::WantColor);
 					VOS.SetMethodStatic("int GetError()", &OS::GetError);
 					VOS.SetMethodStatic("string GetErrorName(int)", &OS::GetErrorName);
 					VOS.SetMethodStatic("string GetDirectory()", &OS::GetDirectory);
@@ -2378,6 +2384,8 @@ namespace Tomahawk
 					VVector2.SetProperty("float X", &Vector2::X);
 					VVector2.SetProperty("float Y", &Vector2::Y);
 					VVector2.SetConstructor<Vector2>("void f()");
+					VVector2.SetConstructor<Vector2, const Vector3&>("void f(const Vector3 &in)");
+					VVector2.SetConstructor<Vector2, const Vector4&>("void f(const Vector4 &in)");
 					VVector2.SetConstructor<Vector2, float>("void f(float)");
 					VVector2.SetConstructor<Vector2, float, float>("void f(float, float)");
 					VVector2.SetMethod("float Hypotenuse() const", &Vector2::Hypotenuse);
@@ -2406,6 +2414,10 @@ namespace Tomahawk
 					VVector2.SetMethod("Vector2 Abs() const", &Vector2::Abs);
 					VVector2.SetMethod("Vector2 Radians() const", &Vector2::Radians);
 					VVector2.SetMethod("Vector2 Degrees() const", &Vector2::Degrees);
+					VVector2.SetMethod("Vector2 Degrees() const", &Vector2::Degrees);
+					VVector2.SetMethod("Vector2 XY() const", &Vector2::XY);
+					VVector2.SetMethod("Vector3 XYZ() const", &Vector2::XYZ);
+					VVector2.SetMethod("Vector4 XYZW() const", &Vector2::XYZW);
 					VVector2.SetMethod("void Set(const Vector2 &in)", &Vector2::Set);
 					VVector2.SetMethodStatic("Vector2 Random()", &Vector2::Random);
 					VVector2.SetMethodStatic("Vector2 RandomAbs()", &Vector2::RandomAbs);
@@ -2441,6 +2453,8 @@ namespace Tomahawk
 					VVector3.SetProperty("float Y", &Vector3::Y);
 					VVector3.SetProperty("float Z", &Vector3::Z);
 					VVector3.SetConstructor<Vector3>("void f()");
+					VVector3.SetConstructor<Vector3, const Vector2&>("void f(const Vector2 &in)");
+					VVector3.SetConstructor<Vector3, const Vector4&>("void f(const Vector4 &in)");
 					VVector3.SetConstructor<Vector3, float>("void f(float)");
 					VVector3.SetConstructor<Vector3, float, float>("void f(float, float)");
 					VVector3.SetConstructor<Vector3, float, float, float>("void f(float, float, float)");
@@ -2474,6 +2488,9 @@ namespace Tomahawk
 					VVector3.SetMethod("Vector3 Abs() const", &Vector3::Abs);
 					VVector3.SetMethod("Vector3 Radians() const", &Vector3::Radians);
 					VVector3.SetMethod("Vector3 Degrees() const", &Vector3::Degrees);
+					VVector3.SetMethod("Vector2 XY() const", &Vector3::XY);
+					VVector3.SetMethod("Vector3 XYZ() const", &Vector3::XYZ);
+					VVector3.SetMethod("Vector4 XYZW() const", &Vector3::XYZW);
 					VVector3.SetMethod("void Set(const Vector3 &in)", &Vector3::Set);
 					VVector3.SetMethodStatic("Vector3 Random()", &Vector3::Random);
 					VVector3.SetMethodStatic("Vector3 RandomAbs()", &Vector3::RandomAbs);
@@ -2512,6 +2529,8 @@ namespace Tomahawk
 					VVector4.SetProperty("float Z", &Vector4::Z);
 					VVector4.SetProperty("float W", &Vector4::W);
 					VVector4.SetConstructor<Vector4>("void f()");
+					VVector4.SetConstructor<Vector4, const Vector2&>("void f(const Vector2 &in)");
+					VVector4.SetConstructor<Vector4, const Vector3&>("void f(const Vector3 &in)");
 					VVector4.SetConstructor<Vector4, float>("void f(float)");
 					VVector4.SetConstructor<Vector4, float, float>("void f(float, float)");
 					VVector4.SetConstructor<Vector4, float, float, float>("void f(float, float, float)");
@@ -2543,6 +2562,9 @@ namespace Tomahawk
 					VVector4.SetMethod("Vector4 Abs() const", &Vector4::Abs);
 					VVector4.SetMethod("Vector4 Radians() const", &Vector4::Radians);
 					VVector4.SetMethod("Vector4 Degrees() const", &Vector4::Degrees);
+					VVector4.SetMethod("Vector2 XY() const", &Vector4::XY);
+					VVector4.SetMethod("Vector3 XYZ() const", &Vector4::XYZ);
+					VVector4.SetMethod("Vector4 XYZW() const", &Vector4::XYZW);
 					VVector4.SetMethodStatic("Vector4 Random()", &Vector4::Random);
 					VVector4.SetMethodStatic("Vector4 RandomAbs()", &Vector4::RandomAbs);
 					VVector4.SetMethodStatic("Vector4 One()", &Vector4::One);
@@ -2604,8 +2626,9 @@ namespace Tomahawk
 					VMatrix4x4.SetMethod("Vector3 Rotation() const", &Matrix4x4::Rotation);
 					VMatrix4x4.SetMethod("Vector3 Position() const", &Matrix4x4::Position);
 					VMatrix4x4.SetMethod("Vector3 Scale() const", &Matrix4x4::Scale);
-					VMatrix4x4.SetMethod("Vector3 MtVector3() const", &Matrix4x4::MtVector3);
-					VMatrix4x4.SetMethod("Vector4 MtVector4() const", &Matrix4x4::MtVector4);
+					VMatrix4x4.SetMethod("Vector2 XY() const", &Matrix4x4::XY);
+					VMatrix4x4.SetMethod("Vector3 XYZ() const", &Matrix4x4::XYZ);
+					VMatrix4x4.SetMethod("Vector4 XYZW() const", &Matrix4x4::XYZW);
 					VMatrix4x4.SetMethod("void Identify()", &Matrix4x4::Identify);
 					VMatrix4x4.SetMethod("void Set(const Matrix4x4 &in)", &Matrix4x4::Set);
 					VMatrix4x4.SetMethodEx("array<float>@ GetRow()", &Matrix4x4_GetRow);

@@ -185,9 +185,15 @@ Windows offers too complicated polling system that is hard to combine with UNIX.
 
 #### [Nuklear](https://github.com/Immediate-Mode-UI/Nuklear)
 ##### Usage
-User interface calculation for proper rendering by backend.
+User interface calculation for proper rendering by backend. **Warn!** Original source code was changed in favor of Tomahawk needs.
 ##### Built-in because
 It is used in core parts of the engine, mostly in application callbacks.
+
+#### [Tiny File Dialogs](https://github.com/native-toolkit/tinyfiledialogs)
+##### Usage
+Cross platform file dialog invoker.
+##### Built-in because
+It is used for OS component.
 
 #### [RapidXML](https://github.com/discordapp/rapidxml)
 ##### Usage

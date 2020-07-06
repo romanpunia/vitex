@@ -914,7 +914,7 @@ namespace Tomahawk
 
 				return (void*)Object;
 			}
-			std::vector<Compute::SkinAnimatorClip> SkinModelProcessor::ImportAnimation(const std::string& Path, unsigned int Opts)
+			Rest::Document* SkinModelProcessor::ImportAnimation(const std::string& Path, unsigned int Opts)
 			{
 #ifdef THAWK_HAS_ASSIMP
 				Assimp::Importer Importer;
@@ -923,7 +923,7 @@ namespace Tomahawk
 				if (!Scene)
 				{
 					THAWK_ERROR("cannot import mesh animation because %s", Importer.GetErrorString());
-					return std::vector<Compute::SkinAnimatorClip>();
+					return nullptr;
 				}
 
 				std::unordered_map<std::string, MeshNode> Joints;
@@ -988,9 +988,13 @@ namespace Tomahawk
 					}
 				}
 
-				return Clips;
+				auto* Document = new Rest::Document();
+				Document->Name = "animation";
+
+				NMake::Pack(Document, Clips);
+				return Document;
 #else
-				return std::vector<Compute::SkinAnimatorClip>();
+				return nullptr
 #endif
 			}
 			void SkinModelProcessor::ProcessNode(void* Scene_, void* Node_, std::unordered_map<std::string, MeshNode>* Joints, int64_t& Id)
@@ -1083,7 +1087,7 @@ namespace Tomahawk
 			bool DocumentProcessor::Save(Rest::FileStream* Stream, void* Instance, ContentArgs* Args)
 			{
 				auto Document = (Rest::Document*)Instance;
-				bool Result = false;
+				bool Result = true;
 				std::string Offset;
 
 				if (Args->Is("XML", ContentKey(true)))
@@ -1152,6 +1156,8 @@ namespace Tomahawk
 							Stream->Write(Buffer, Length);
 					});
 				}
+				else
+					Result = false;
 
 				return Result;
 			}

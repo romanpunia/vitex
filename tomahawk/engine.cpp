@@ -2728,7 +2728,7 @@ namespace Tomahawk
 			View.ViewProjection.Identify();
 			View.Projection = iProjection;
 			View.InvViewProjection = View.ViewProjection.Invert();
-			View.RawPosition = iPosition.MtVector3();
+			View.RawPosition = iPosition.XYZ();
 			View.Position = View.RawPosition.InvertZ();
 			View.ViewDistance = (iPosition.W < 0 ? 999999999 : iPosition.W);
 			RestoreViewBuffer(&View);
@@ -2758,7 +2758,7 @@ namespace Tomahawk
 			View.ViewProjection = iView * iProjection;
 			View.InvViewProjection = View.ViewProjection.Invert();
 			View.Projection = iProjection;
-			View.RawPosition = iPosition.MtVector3();
+			View.RawPosition = iPosition.XYZ();
 			View.Position = View.RawPosition.InvertZ();
 			View.ViewDistance = (iPosition.W < 0 ? 999999999 : iPosition.W);
 			RestoreViewBuffer(&View);
@@ -2780,7 +2780,7 @@ namespace Tomahawk
 			View.Projection = iProjection;
 			View.ViewProjection = iView * iProjection;
 			View.InvViewProjection = View.ViewProjection.Invert();
-			View.RawPosition = iPosition.MtVector3();
+			View.RawPosition = iPosition.XYZ();
 			View.Position = View.RawPosition.InvertZ();
 			View.ViewDistance = (iPosition.W < 0 ? 999999999 : iPosition.W);
 			RestoreViewBuffer(&View);
@@ -2806,7 +2806,6 @@ namespace Tomahawk
 				RegisterEntity(*It);
 
 			Unlock();
-			GetCamera();
 		}
 		void SceneGraph::Reindex()
 		{
@@ -3229,11 +3228,17 @@ namespace Tomahawk
 		}
 		RenderSystem* SceneGraph::GetRenderer()
 		{
-			return GetCamera()->As<Components::Camera>()->GetRenderer();
+			if (!Camera)
+				return nullptr;
+
+			return Camera->As<Components::Camera>()->GetRenderer();
 		}
 		Viewer SceneGraph::GetCameraViewer()
 		{
-			return GetCamera()->As<Components::Camera>()->GetViewer();
+			if (!Camera)
+				return Viewer();
+
+			return Camera->As<Components::Camera>()->GetViewer();
 		}
 		std::string SceneGraph::GetMaterialName(uint64_t Material)
 		{

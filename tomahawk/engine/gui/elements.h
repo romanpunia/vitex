@@ -1,28 +1,7 @@
-#ifndef THAWK_ENGINE_GUI_H
-#define THAWK_ENGINE_GUI_H
+#ifndef THAWK_ENGINE_GUI_ELEMENTS_H
+#define THAWK_ENGINE_GUI_ELEMENTS_H
 
-#include "../engine.h"
-#include <unordered_set>
-
-struct nk_context;
-struct nk_font;
-struct nk_font_atlas;
-struct nk_user_font;
-struct nk_buffer;
-struct nk_draw_null_texture;
-struct nk_style;
-struct nk_style_window;
-struct nk_style_button;
-struct nk_style_text;
-struct nk_style_toggle;
-struct nk_style_selectable;
-struct nk_style_slider;
-struct nk_style_progress;
-struct nk_style_property;
-struct nk_style_edit;
-struct nk_style_combo;
-struct nk_style_tab;
-struct nk_style_scrollbar;
+#include "context.h"
 
 namespace Tomahawk
 {
@@ -30,29 +9,6 @@ namespace Tomahawk
 	{
 		namespace GUI
 		{
-			class Element;
-
-			class Context;
-
-			typedef std::function<bool(Element*, bool)> QueryCallback;
-			typedef std::unordered_map<std::string, std::string> ClassBase;
-
-			enum CursorButton
-			{
-				CursorButton_Left,
-				CursorButton_Middle,
-				CursorButton_Right,
-				CursorButton_Double,
-			};
-
-			enum GlyphRanges
-			{
-				GlyphRanges_Manual,
-				GlyphRanges_Chinese,
-				GlyphRanges_Cyrillic,
-				GlyphRanges_Korean
-			};
-
 			enum LayoutType
 			{
 				LayoutType_Dynamic,
@@ -125,181 +81,17 @@ namespace Tomahawk
 				TreeType_Tab
 			};
 
-			struct THAWK_OUT Actor
+			class THAWK_OUT Divide : public Element
 			{
-				std::unordered_set<Element*> Watchers;
-				std::string Value;
-			};
-
-			struct THAWK_OUT ClassProxy
-			{
-				std::unordered_set<Element*> Watchers;
-				std::string ClassName;
-				ClassBase Proxy;
-			};
-
-			struct THAWK_OUT FontConfig
-			{
-				std::vector<std::pair<uint32_t, uint32_t>> Ranges = { { 32, 255 } };
-				Compute::Vector2 Spacing;
-				char* Buffer = nullptr;
-				uint64_t BufferSize = 0;
-				uint32_t FallbackGlyph = '?';
-				uint32_t OversampleV = 1;
-				uint32_t OversampleH = 1;
-				GlyphRanges PredefRanges = GlyphRanges_Manual;
-				float Height = 13;
-				bool Snapping = false;
-			};
-
-			class THAWK_OUT Element : public Rest::Object
-			{
-			private:
-				QueryCallback Callback;
-				ClassProxy* Class;
-				bool Active;
-
-			protected:
-				std::unordered_map<std::string, std::function<void()>> Reactors;
-				std::unordered_set<std::string> Dynamics;
-				std::vector<Element*> Nodes;
-				ContentManager* Content;
-				Element* Parent;
-				Context* Base;
-				ClassBase Proxy;
-
 			public:
-				Element(Context* View);
-				virtual ~Element() override;
-				virtual bool BuildBegin(nk_context* C) = 0;
-				virtual void BuildEnd(nk_context* C) = 0;
-				virtual void BuildStyle(nk_context* C, nk_style* S) = 0;
-				virtual float GetWidth() = 0;
-				virtual float GetHeight() = 0;
-				virtual std::string GetType() = 0;
-				virtual bool Build();
-				void Recompute(const std::string& Name);
-				void Add(Element* Node);
-				void Remove(Element* Node);
-				void Copy(ContentManager* Content, Rest::Document* DOM);
-				void SetActive(bool Enabled);
-				void SetGlobal(const std::string& Name, const std::string& Value, bool Erase = false);
-				void SetLocal(const std::string& Name, const std::string& Value, bool Erase = false);
-				void SetClass(const std::string& Name);
-				bool IsActive();
-				float GetAreaWidth();
-				float GetAreaHeight();
-				bool GetBoolean(const std::string& Name, bool Default);
-				float GetFloat(const std::string& Name, float Default);
-				int GetInteger(const std::string& Name, int Default);
-				std::string GetModel(const std::string& Name);
-				std::string GetString(const std::string& Name, const std::string& Default);
-				std::string GetClass();
-				std::string GetId();
-				std::string* GetGlobal(const std::string& Name);
-				nk_font* GetFont(const std::string& Name, const std::string& Default);
-				Compute::Vector2 GetV2(const std::string& Name, const Compute::Vector2& Default);
-				Compute::Vector3 GetV3(const std::string& Name, const Compute::Vector3& Default);
-				Compute::Vector4 GetV4(const std::string& Name, const Compute::Vector4& Default);
-				std::vector<Element*>& GetNodes();
-				Element* GetUpperNode(const std::string& Name);
-				Element* GetLowerNode(const std::string& Name);
-				Element* GetNodeByPath(const std::string& Path);
-				Element* GetNodeById(const std::string& Id);
-				Element* GetNode(const std::string& Name);
-				Element* GetParent(const std::string& Type);
-				Context* GetContext();
-
-			protected:
-				virtual bool Assign(const std::string& Path, const QueryCallback& Function);
-				void Bind(const std::string& Name, const std::function<void()>& Callback);
-				void ResolveTable(Rest::Stroke* Name);
-				std::string ResolveValue(const std::string& Value);
-				Element* ResolveName(const std::string& Name);
-				std::string* GetStatic(const std::string& Name, int* Query);
-				std::string GetDynamic(int Query, const std::string& Value);
-				float GetFloatRelative(const std::string& Value);
-
-			public:
-				template <typename T>
-				bool QueryById(const std::string& Id, const std::function<bool(T*, bool)>& Callback)
-				{
-					auto It = Base->Uniques.find(Id);
-					if (It == Base->Uniques.end() || !It->second)
-						return false;
-
-					return It->second->Query<T>(Callback);
-				}
-				template <typename T>
-				bool QueryByPath(const std::string& Path, const std::function<bool(T*, bool)>& Callback)
-				{
-					if (!Callback)
-						return Assign(Path, nullptr);
-
-					return Assign(Path, [Callback](Element* Target, bool Continue)
-					{
-						return Callback(Target ? Target->As<T>() : nullptr, Continue);
-					});
-				}
-				template <typename T>
-				bool Query(const std::function<bool(T*, bool)>& Callback)
-				{
-					return QueryByPath<T>("", Callback);
-				}
-			};
-
-			class THAWK_OUT Widget : public Element
-			{
-			private:
-				std::function<void(Widget*)> Input;
-				nk_user_font* Cache;
-				nk_font* Font;
-
-			public:
-				Widget(Context* View);
-				virtual ~Widget() override;
-				virtual bool Build() override;
-				virtual bool BuildBegin(nk_context* C) = 0;
-				virtual void BuildEnd(nk_context* C) = 0;
-				virtual void BuildStyle(nk_context* C, nk_style* S) = 0;
-				virtual float GetWidth() = 0;
-				virtual float GetHeight() = 0;
-				virtual std::string GetType() = 0;
-				void SetInputEvents(const std::function<void(Widget*)>& Callback);
-				Compute::Vector2 GetWidgetPosition();
-				Compute::Vector2 GetWidgetSize();
-				float GetWidgetWidth();
-				float GetWidgetHeight();
-				bool IsWidgetHovered();
-				bool IsWidgetClicked(CursorButton Key);
-				bool IsWidgetClickedDown(CursorButton Key, bool Down);
-
-			protected:
-				void BuildFont(nk_context* C, nk_style* S);
-			};
-
-			class THAWK_OUT Stateful : public Widget
-			{
-			protected:
-				struct
-				{
-					std::string Text;
-					uint64_t Count;
-					uint64_t Id;
-				} Hash;
-
-			public:
-				Stateful(Context* View);
-				virtual ~Stateful() override;
-				virtual bool BuildBegin(nk_context* C) = 0;
-				virtual void BuildEnd(nk_context* C) = 0;
-				virtual void BuildStyle(nk_context* C, nk_style* S) = 0;
-				virtual float GetWidth() = 0;
-				virtual float GetHeight() = 0;
-				virtual std::string GetType() = 0;
-				std::string& GetHash();
-				void Push();
-				void Pop();
+				Divide(Context* View);
+				virtual ~Divide() = default;
+				virtual bool BuildBegin(nk_context* C) override;
+				virtual void BuildEnd(nk_context* C, bool Stated) override;
+				virtual void BuildStyle(nk_context* C, nk_style* S) override;
+				virtual float GetWidth() override;
+				virtual float GetHeight() override;
+				virtual std::string GetType() override;
 			};
 
 			class THAWK_OUT Restyle : public Element
@@ -323,7 +115,7 @@ namespace Tomahawk
 				Restyle(Context* View);
 				virtual ~Restyle() = default;
 				virtual bool BuildBegin(nk_context* C) override;
-				virtual void BuildEnd(nk_context* C) override;
+				virtual void BuildEnd(nk_context* C, bool Stated) override;
 				virtual void BuildStyle(nk_context* C, nk_style* S) override;
 				virtual float GetWidth() override;
 				virtual float GetHeight() override;
@@ -343,7 +135,7 @@ namespace Tomahawk
 				For(Context* View);
 				virtual ~For() = default;
 				virtual bool BuildBegin(nk_context* C) override;
-				virtual void BuildEnd(nk_context* C) override;
+				virtual void BuildEnd(nk_context* C, bool Stated) override;
 				virtual void BuildStyle(nk_context* C, nk_style* S) override;
 				virtual float GetWidth() override;
 				virtual float GetHeight() override;
@@ -369,7 +161,7 @@ namespace Tomahawk
 				Const(Context* View);
 				virtual ~Const() = default;
 				virtual bool BuildBegin(nk_context* C) override;
-				virtual void BuildEnd(nk_context* C) override;
+				virtual void BuildEnd(nk_context* C, bool Stated) override;
 				virtual void BuildStyle(nk_context* C, nk_style* S) override;
 				virtual float GetWidth() override;
 				virtual float GetHeight() override;
@@ -390,7 +182,7 @@ namespace Tomahawk
 				Set(Context* View);
 				virtual ~Set() = default;
 				virtual bool BuildBegin(nk_context* C) override;
-				virtual void BuildEnd(nk_context* C) override;
+				virtual void BuildEnd(nk_context* C, bool Stated) override;
 				virtual void BuildStyle(nk_context* C, nk_style* S) override;
 				virtual float GetWidth() override;
 				virtual float GetHeight() override;
@@ -417,7 +209,7 @@ namespace Tomahawk
 				LogIf(Context* View);
 				virtual ~LogIf() override;
 				virtual bool BuildBegin(nk_context* C) override;
-				virtual void BuildEnd(nk_context* C) override;
+				virtual void BuildEnd(nk_context* C, bool Stated) override;
 				virtual void BuildStyle(nk_context* C, nk_style* S) override;
 				virtual float GetWidth() override;
 				virtual float GetHeight() override;
@@ -455,7 +247,7 @@ namespace Tomahawk
 				LogElse(Context* View);
 				virtual ~LogElse() = default;
 				virtual bool BuildBegin(nk_context* C) override;
-				virtual void BuildEnd(nk_context* C) override;
+				virtual void BuildEnd(nk_context* C, bool Stated) override;
 				virtual void BuildStyle(nk_context* C, nk_style* S) override;
 				virtual float GetWidth() override;
 				virtual float GetHeight() override;
@@ -469,32 +261,11 @@ namespace Tomahawk
 				Escape(Context* View);
 				virtual ~Escape() = default;
 				virtual bool BuildBegin(nk_context* C) override;
-				virtual void BuildEnd(nk_context* C) override;
+				virtual void BuildEnd(nk_context* C, bool Stated) override;
 				virtual void BuildStyle(nk_context* C, nk_style* S) override;
 				virtual float GetWidth() override;
 				virtual float GetHeight() override;
 				virtual std::string GetType() override;
-			};
-
-			class THAWK_OUT Body : public Element
-			{
-			private:
-				struct
-				{
-					nk_style_scrollbar* ScrollH;
-					nk_style_scrollbar* ScrollV;
-				} Style;
-
-			public:
-				Body(Context* View);
-				virtual ~Body() override;
-				virtual bool BuildBegin(nk_context* C) override;
-				virtual void BuildEnd(nk_context* C) override;
-				virtual void BuildStyle(nk_context* C, nk_style* S) override;
-				virtual float GetWidth() override;
-				virtual float GetHeight() override;
-				virtual std::string GetType() override;
-				bool IsHovered();
 			};
 
 			class THAWK_OUT Panel : public Element
@@ -502,12 +273,6 @@ namespace Tomahawk
 			private:
 				nk_user_font* Cache;
 				nk_style_window* Style;
-
-			private:
-				struct
-				{
-					bool Opened;
-				} State;
 
 			public:
 				struct
@@ -524,7 +289,7 @@ namespace Tomahawk
 				Panel(Context* View);
 				virtual ~Panel() override;
 				virtual bool BuildBegin(nk_context* C) override;
-				virtual void BuildEnd(nk_context* C) override;
+				virtual void BuildEnd(nk_context* C, bool Stated) override;
 				virtual void BuildStyle(nk_context* C, nk_style* S) override;
 				virtual float GetWidth() override;
 				virtual float GetHeight() override;
@@ -543,7 +308,6 @@ namespace Tomahawk
 				bool IsCollapsed();
 				bool IsHidden();
 				bool IsFocusActive();
-				bool IsOpened();
 				Compute::Vector2 GetPosition();
 				Compute::Vector2 GetSize();
 				Compute::Vector2 GetContentRegionMin();
@@ -565,7 +329,7 @@ namespace Tomahawk
 				PreLayout(Context* View);
 				virtual ~PreLayout() = default;
 				virtual bool BuildBegin(nk_context* C) override;
-				virtual void BuildEnd(nk_context* C) override;
+				virtual void BuildEnd(nk_context* C, bool Stated) override;
 				virtual void BuildStyle(nk_context* C, nk_style* S) override;
 				virtual float GetWidth() override;
 				virtual float GetHeight() override;
@@ -593,7 +357,7 @@ namespace Tomahawk
 				PrePush(Context* View);
 				virtual ~PrePush() = default;
 				virtual bool BuildBegin(nk_context* C) override;
-				virtual void BuildEnd(nk_context* C) override;
+				virtual void BuildEnd(nk_context* C, bool Stated) override;
 				virtual void BuildStyle(nk_context* C, nk_style* S) override;
 				virtual float GetWidth() override;
 				virtual float GetHeight() override;
@@ -617,7 +381,7 @@ namespace Tomahawk
 				Layout(Context* View);
 				virtual ~Layout() = default;
 				virtual bool BuildBegin(nk_context* C) override;
-				virtual void BuildEnd(nk_context* C) override;
+				virtual void BuildEnd(nk_context* C, bool Stated) override;
 				virtual void BuildStyle(nk_context* C, nk_style* S) override;
 				virtual float GetWidth() override;
 				virtual float GetHeight() override;
@@ -645,7 +409,7 @@ namespace Tomahawk
 				Push(Context* View);
 				virtual ~Push() = default;
 				virtual bool BuildBegin(nk_context* C) override;
-				virtual void BuildEnd(nk_context* C) override;
+				virtual void BuildEnd(nk_context* C, bool Stated) override;
 				virtual void BuildStyle(nk_context* C, nk_style* S) override;
 				virtual float GetWidth() override;
 				virtual float GetHeight() override;
@@ -679,7 +443,7 @@ namespace Tomahawk
 				Button(Context* View);
 				virtual ~Button() override;
 				virtual bool BuildBegin(nk_context* C) override;
-				virtual void BuildEnd(nk_context* C) override;
+				virtual void BuildEnd(nk_context* C, bool Stated) override;
 				virtual void BuildStyle(nk_context* C, nk_style* S) override;
 				virtual float GetWidth() override;
 				virtual float GetHeight() override;
@@ -705,7 +469,7 @@ namespace Tomahawk
 				Text(Context* View);
 				virtual ~Text() override;
 				virtual bool BuildBegin(nk_context* C) override;
-				virtual void BuildEnd(nk_context* C) override;
+				virtual void BuildEnd(nk_context* C, bool Stated) override;
 				virtual void BuildStyle(nk_context* C, nk_style* S) override;
 				virtual float GetWidth() override;
 				virtual float GetHeight() override;
@@ -726,7 +490,7 @@ namespace Tomahawk
 				Image(Context* View);
 				virtual ~Image() override;
 				virtual bool BuildBegin(nk_context* C) override;
-				virtual void BuildEnd(nk_context* C) override;
+				virtual void BuildEnd(nk_context* C, bool Stated) override;
 				virtual void BuildStyle(nk_context* C, nk_style* S) override;
 				virtual float GetWidth() override;
 				virtual float GetHeight() override;
@@ -756,7 +520,7 @@ namespace Tomahawk
 				Checkbox(Context* View);
 				virtual ~Checkbox() override;
 				virtual bool BuildBegin(nk_context* C) override;
-				virtual void BuildEnd(nk_context* C) override;
+				virtual void BuildEnd(nk_context* C, bool Stated) override;
 				virtual void BuildStyle(nk_context* C, nk_style* S) override;
 				virtual float GetWidth() override;
 				virtual float GetHeight() override;
@@ -789,7 +553,7 @@ namespace Tomahawk
 				Radio(Context* View);
 				virtual ~Radio() override;
 				virtual bool BuildBegin(nk_context* C) override;
-				virtual void BuildEnd(nk_context* C) override;
+				virtual void BuildEnd(nk_context* C, bool Stated) override;
 				virtual void BuildStyle(nk_context* C, nk_style* S) override;
 				virtual float GetWidth() override;
 				virtual float GetHeight() override;
@@ -826,7 +590,7 @@ namespace Tomahawk
 				Selectable(Context* View);
 				virtual ~Selectable() override;
 				virtual bool BuildBegin(nk_context* C) override;
-				virtual void BuildEnd(nk_context* C) override;
+				virtual void BuildEnd(nk_context* C, bool Stated) override;
 				virtual void BuildStyle(nk_context* C, nk_style* S) override;
 				virtual float GetWidth() override;
 				virtual float GetHeight() override;
@@ -861,7 +625,7 @@ namespace Tomahawk
 				Slider(Context* View);
 				virtual ~Slider() override;
 				virtual bool BuildBegin(nk_context* C) override;
-				virtual void BuildEnd(nk_context* C) override;
+				virtual void BuildEnd(nk_context* C, bool Stated) override;
 				virtual void BuildStyle(nk_context* C, nk_style* S) override;
 				virtual float GetWidth() override;
 				virtual float GetHeight() override;
@@ -895,7 +659,7 @@ namespace Tomahawk
 				Progress(Context* View);
 				virtual ~Progress() override;
 				virtual bool BuildBegin(nk_context* C) override;
-				virtual void BuildEnd(nk_context* C) override;
+				virtual void BuildEnd(nk_context* C, bool Stated) override;
 				virtual void BuildStyle(nk_context* C, nk_style* S) override;
 				virtual float GetWidth() override;
 				virtual float GetHeight() override;
@@ -925,7 +689,7 @@ namespace Tomahawk
 				ColorPicker(Context* View);
 				virtual ~ColorPicker() override;
 				virtual bool BuildBegin(nk_context* C) override;
-				virtual void BuildEnd(nk_context* C) override;
+				virtual void BuildEnd(nk_context* C, bool Stated) override;
 				virtual void BuildStyle(nk_context* C, nk_style* S) override;
 				virtual float GetWidth() override;
 				virtual float GetHeight() override;
@@ -961,7 +725,7 @@ namespace Tomahawk
 				Property(Context* View);
 				virtual ~Property() override;
 				virtual bool BuildBegin(nk_context* C) override;
-				virtual void BuildEnd(nk_context* C) override;
+				virtual void BuildEnd(nk_context* C, bool Stated) override;
 				virtual void BuildStyle(nk_context* C, nk_style* S) override;
 				virtual float GetWidth() override;
 				virtual float GetHeight() override;
@@ -997,7 +761,7 @@ namespace Tomahawk
 				Edit(Context* View);
 				virtual ~Edit() override;
 				virtual bool BuildBegin(nk_context* C) override;
-				virtual void BuildEnd(nk_context* C) override;
+				virtual void BuildEnd(nk_context* C, bool Stated) override;
 				virtual void BuildStyle(nk_context* C, nk_style* S) override;
 				virtual float GetWidth() override;
 				virtual float GetHeight() override;
@@ -1021,7 +785,6 @@ namespace Tomahawk
 				struct
 				{
 					std::string Value;
-					bool Open;
 				} State;
 
 			public:
@@ -1030,6 +793,7 @@ namespace Tomahawk
 					Graphics::Texture2D* Image;
 					Compute::Vector4 Color;
 					std::string Bind;
+					std::string Text;
 					ButtonType Type;
 					uint8_t Symbol;
 					float Width;
@@ -1040,7 +804,7 @@ namespace Tomahawk
 				Combo(Context* View);
 				virtual ~Combo() override;
 				virtual bool BuildBegin(nk_context* C) override;
-				virtual void BuildEnd(nk_context* C) override;
+				virtual void BuildEnd(nk_context* C, bool Stated) override;
 				virtual void BuildStyle(nk_context* C, nk_style* S) override;
 				virtual float GetWidth() override;
 				virtual float GetHeight() override;
@@ -1072,7 +836,7 @@ namespace Tomahawk
 				ComboItem(Context* View);
 				virtual ~ComboItem() = default;
 				virtual bool BuildBegin(nk_context* C) override;
-				virtual void BuildEnd(nk_context* C) override;
+				virtual void BuildEnd(nk_context* C, bool Stated) override;
 				virtual void BuildStyle(nk_context* C, nk_style* S) override;
 				virtual float GetWidth() override;
 				virtual float GetHeight() override;
@@ -1080,16 +844,54 @@ namespace Tomahawk
 				bool IsClicked();
 			};
 
-			class THAWK_OUT Group : public Stateful
+			class THAWK_OUT Vector : public Widget
 			{
 			private:
-				nk_style_window* Style;
+				struct
+				{
+					nk_style_combo* Combo;
+					nk_style_property* Property;
+				} Style;
 
 			private:
 				struct
 				{
-					bool Opened;
+					Compute::Vector4 Value;
 				} State;
+
+			public:
+				struct
+				{
+					Graphics::Texture2D* Image;
+					Compute::Vector4 Color;
+					std::string Bind;
+					std::string Text;
+					ButtonType Type;
+					uint8_t Symbol;
+					uint32_t Count;
+					float Step;
+					float PPI;
+					float Width;
+					float Height;
+				} Source;
+
+			public:
+				Vector(Context* View);
+				virtual ~Vector() override;
+				virtual bool BuildBegin(nk_context* C) override;
+				virtual void BuildEnd(nk_context* C, bool Stated) override;
+				virtual void BuildStyle(nk_context* C, nk_style* S) override;
+				virtual float GetWidth() override;
+				virtual float GetHeight() override;
+				virtual std::string GetType() override;
+				void SetValue(const Compute::Vector4& Value);
+				Compute::Vector4 GetValue();
+			};
+
+			class THAWK_OUT Group : public Stateful
+			{
+			private:
+				nk_style_window* Style;
 
 			public:
 				struct
@@ -1105,16 +907,23 @@ namespace Tomahawk
 				Group(Context* View);
 				virtual ~Group() override;
 				virtual bool BuildBegin(nk_context* C) override;
-				virtual void BuildEnd(nk_context* C) override;
+				virtual void BuildEnd(nk_context* C, bool Stated) override;
 				virtual void BuildStyle(nk_context* C, nk_style* S) override;
 				virtual float GetWidth() override;
 				virtual float GetHeight() override;
 				virtual std::string GetType() override;
-				bool IsOpened();
 			};
 
 			class THAWK_OUT Tree : public Stateful
 			{
+			private:
+				struct Internal
+				{
+					int Value = 0;
+					int Selected = 0;
+					bool Hovered = false;
+				};
+
 			private:
 				struct
 				{
@@ -1125,9 +934,8 @@ namespace Tomahawk
 			protected:
 				struct
 				{
-					int Value;
-					int Selected;
-					bool Opened;
+					std::unordered_map<std::string, Internal> Data;
+					Internal Default;
 				} State;
 
 			public:
@@ -1145,7 +953,7 @@ namespace Tomahawk
 				Tree(Context* View);
 				virtual ~Tree() override;
 				virtual bool BuildBegin(nk_context* C) override;
-				virtual void BuildEnd(nk_context* C) override;
+				virtual void BuildEnd(nk_context* C, bool Stated) override;
 				virtual void BuildStyle(nk_context* C, nk_style* S) override;
 				virtual float GetWidth() override;
 				virtual float GetHeight() override;
@@ -1153,17 +961,14 @@ namespace Tomahawk
 				void SetValue(bool Value);
 				bool GetValue();
 				bool IsClicked();
-				bool IsOpened();
+				bool IsHovered();
+
+			private:
+				Internal* GetState();
 			};
 
 			class THAWK_OUT Popup : public Widget
 			{
-			private:
-				struct
-				{
-					bool Opened;
-				} State;
-
 			public:
 				struct
 				{
@@ -1178,7 +983,7 @@ namespace Tomahawk
 				Popup(Context* View);
 				virtual ~Popup() override;
 				virtual bool BuildBegin(nk_context* C) override;
-				virtual void BuildEnd(nk_context* C) override;
+				virtual void BuildEnd(nk_context* C, bool Stated) override;
 				virtual void BuildStyle(nk_context* C, nk_style* S) override;
 				virtual float GetWidth() override;
 				virtual float GetHeight() override;
@@ -1186,17 +991,10 @@ namespace Tomahawk
 				void Close();
 				void SetScrollOffset(const Compute::Vector2& Offset);
 				Compute::Vector2 GetScrollOffset();
-				bool IsOpened();
 			};
 
 			class THAWK_OUT Contextual : public Widget
 			{
-			private:
-				struct
-				{
-					bool Opened;
-				} State;
-
 			public:
 				struct
 				{
@@ -1206,19 +1004,19 @@ namespace Tomahawk
 					float TriggerX;
 					float TriggerY;
 					uint64_t Flags;
+					bool Relative;
 				} Source;
 
 			public:
 				Contextual(Context* View);
 				virtual ~Contextual() override;
 				virtual bool BuildBegin(nk_context* C) override;
-				virtual void BuildEnd(nk_context* C) override;
+				virtual void BuildEnd(nk_context* C, bool Stated) override;
 				virtual void BuildStyle(nk_context* C, nk_style* S) override;
 				virtual float GetWidth() override;
 				virtual float GetHeight() override;
 				virtual std::string GetType() override;
 				void Close();
-				bool IsOpened();
 			};
 
 			class THAWK_OUT ContextualItem : public Widget
@@ -1247,7 +1045,7 @@ namespace Tomahawk
 				ContextualItem(Context* View);
 				virtual ~ContextualItem() override;
 				virtual bool BuildBegin(nk_context* C) override;
-				virtual void BuildEnd(nk_context* C) override;
+				virtual void BuildEnd(nk_context* C, bool Stated) override;
 				virtual void BuildStyle(nk_context* C, nk_style* S) override;
 				virtual float GetWidth() override;
 				virtual float GetHeight() override;
@@ -1269,7 +1067,7 @@ namespace Tomahawk
 				Tooltip(Context* View);
 				virtual ~Tooltip() override;
 				virtual bool BuildBegin(nk_context* C) override;
-				virtual void BuildEnd(nk_context* C) override;
+				virtual void BuildEnd(nk_context* C, bool Stated) override;
 				virtual void BuildStyle(nk_context* C, nk_style* S) override;
 				virtual float GetWidth() override;
 				virtual float GetHeight() override;
@@ -1282,7 +1080,7 @@ namespace Tomahawk
 				Header(Context* View);
 				virtual ~Header() override;
 				virtual bool BuildBegin(nk_context* C) override;
-				virtual void BuildEnd(nk_context* C) override;
+				virtual void BuildEnd(nk_context* C, bool Stated) override;
 				virtual void BuildStyle(nk_context* C, nk_style* S) override;
 				virtual float GetWidth() override;
 				virtual float GetHeight() override;
@@ -1298,7 +1096,6 @@ namespace Tomahawk
 				struct
 				{
 					Header* Layer;
-					bool Opened;
 				} State;
 
 			public:
@@ -1317,12 +1114,11 @@ namespace Tomahawk
 				HeaderTab(Context* View);
 				virtual ~HeaderTab() override;
 				virtual bool BuildBegin(nk_context* C) override;
-				virtual void BuildEnd(nk_context* C) override;
+				virtual void BuildEnd(nk_context* C, bool Stated) override;
 				virtual void BuildStyle(nk_context* C, nk_style* S) override;
 				virtual float GetWidth() override;
 				virtual float GetHeight() override;
 				virtual std::string GetType() override;
-				bool IsOpened();
 			};
 
 			class THAWK_OUT HeaderItem : public Widget
@@ -1351,7 +1147,7 @@ namespace Tomahawk
 				HeaderItem(Context* View);
 				virtual ~HeaderItem() override;
 				virtual bool BuildBegin(nk_context* C) override;
-				virtual void BuildEnd(nk_context* C) override;
+				virtual void BuildEnd(nk_context* C, bool Stated) override;
 				virtual void BuildStyle(nk_context* C, nk_style* S) override;
 				virtual float GetWidth() override;
 				virtual float GetHeight() override;
@@ -1375,7 +1171,7 @@ namespace Tomahawk
 				DrawLine(Context* View);
 				virtual ~DrawLine() override;
 				virtual bool BuildBegin(nk_context* C) override;
-				virtual void BuildEnd(nk_context* C) override;
+				virtual void BuildEnd(nk_context* C, bool Stated) override;
 				virtual void BuildStyle(nk_context* C, nk_style* S) override;
 				virtual float GetWidth() override;
 				virtual float GetHeight() override;
@@ -1400,7 +1196,7 @@ namespace Tomahawk
 				DrawCurve(Context* View);
 				virtual ~DrawCurve() override;
 				virtual bool BuildBegin(nk_context* C) override;
-				virtual void BuildEnd(nk_context* C) override;
+				virtual void BuildEnd(nk_context* C, bool Stated) override;
 				virtual void BuildStyle(nk_context* C, nk_style* S) override;
 				virtual float GetWidth() override;
 				virtual float GetHeight() override;
@@ -1430,7 +1226,7 @@ namespace Tomahawk
 				DrawRect(Context* View);
 				virtual ~DrawRect() override;
 				virtual bool BuildBegin(nk_context* C) override;
-				virtual void BuildEnd(nk_context* C) override;
+				virtual void BuildEnd(nk_context* C, bool Stated) override;
 				virtual void BuildStyle(nk_context* C, nk_style* S) override;
 				virtual float GetWidth() override;
 				virtual float GetHeight() override;
@@ -1455,7 +1251,7 @@ namespace Tomahawk
 				DrawCircle(Context* View);
 				virtual ~DrawCircle() override;
 				virtual bool BuildBegin(nk_context* C) override;
-				virtual void BuildEnd(nk_context* C) override;
+				virtual void BuildEnd(nk_context* C, bool Stated) override;
 				virtual void BuildStyle(nk_context* C, nk_style* S) override;
 				virtual float GetWidth() override;
 				virtual float GetHeight() override;
@@ -1481,7 +1277,7 @@ namespace Tomahawk
 				DrawArc(Context* View);
 				virtual ~DrawArc() override;
 				virtual bool BuildBegin(nk_context* C) override;
-				virtual void BuildEnd(nk_context* C) override;
+				virtual void BuildEnd(nk_context* C, bool Stated) override;
 				virtual void BuildStyle(nk_context* C, nk_style* S) override;
 				virtual float GetWidth() override;
 				virtual float GetHeight() override;
@@ -1506,7 +1302,7 @@ namespace Tomahawk
 				DrawTriangle(Context* View);
 				virtual ~DrawTriangle() override;
 				virtual bool BuildBegin(nk_context* C) override;
-				virtual void BuildEnd(nk_context* C) override;
+				virtual void BuildEnd(nk_context* C, bool Stated) override;
 				virtual void BuildStyle(nk_context* C, nk_style* S) override;
 				virtual float GetWidth() override;
 				virtual float GetHeight() override;
@@ -1534,7 +1330,7 @@ namespace Tomahawk
 				DrawPolyline(Context* View);
 				virtual ~DrawPolyline() override;
 				virtual bool BuildBegin(nk_context* C) override;
-				virtual void BuildEnd(nk_context* C) override;
+				virtual void BuildEnd(nk_context* C, bool Stated) override;
 				virtual void BuildStyle(nk_context* C, nk_style* S) override;
 				virtual float GetWidth() override;
 				virtual float GetHeight() override;
@@ -1563,7 +1359,32 @@ namespace Tomahawk
 				DrawPolygon(Context* View);
 				virtual ~DrawPolygon() override;
 				virtual bool BuildBegin(nk_context* C) override;
-				virtual void BuildEnd(nk_context* C) override;
+				virtual void BuildEnd(nk_context* C, bool Stated) override;
+				virtual void BuildStyle(nk_context* C, nk_style* S) override;
+				virtual float GetWidth() override;
+				virtual float GetHeight() override;
+				virtual std::string GetType() override;
+			};
+
+			class THAWK_OUT DrawLabel : public Widget
+			{
+			public:
+				struct
+				{
+					Compute::Vector4 Background;
+					Compute::Vector4 Color;
+					std::string Text;
+					float Width;
+					float Height;
+					float X, Y;
+					bool Relative;
+				} Source;
+
+			public:
+				DrawLabel(Context* View);
+				virtual ~DrawLabel() override;
+				virtual bool BuildBegin(nk_context* C) override;
+				virtual void BuildEnd(nk_context* C, bool Stated) override;
 				virtual void BuildStyle(nk_context* C, nk_style* S) override;
 				virtual float GetWidth() override;
 				virtual float GetHeight() override;
@@ -1576,21 +1397,21 @@ namespace Tomahawk
 				struct
 				{
 					std::unordered_map<std::string, Element*> Cache;
-					std::vector<Stateful*> Statefuls;
+					std::unordered_set<Stateful*> States;
 				} State;
 
 			public:
 				Template(Context* View);
 				virtual ~Template() override;
 				virtual bool BuildBegin(nk_context* C) override;
-				virtual void BuildEnd(nk_context* C) override;
+				virtual void BuildEnd(nk_context* C, bool Stated) override;
 				virtual void BuildStyle(nk_context* C, nk_style* S) override;
 				virtual float GetWidth() override;
 				virtual float GetHeight() override;
 				virtual std::string GetType() override;
 				bool Compose(Element* Base, const std::function<bool(bool)>& Callback);
 				bool Compose(const std::string& Name, const std::function<bool(bool)>& Callback);
-				bool ComposeStateful(Stateful* Base, const std::function<bool(bool)>& Callback);
+				bool ComposeStateful(Stateful* Base, const std::function<void()>& Setup, const std::function<bool(bool)>& Callback);
 
 			public:
 				template <typename T>
@@ -1610,106 +1431,6 @@ namespace Tomahawk
 						THAWK_WARN("template has no needed composer elements");
 
 					return (T*)Result;
-				}
-			};
-
-			class THAWK_OUT Context : public Rest::Object
-			{
-				friend Element;
-
-			private:
-				std::unordered_map<std::string, std::function<Element*()>> Factories;
-				std::unordered_map<std::string, std::pair<nk_font*, void*>> Fonts;
-				std::unordered_map<std::string, ClassProxy*> Classes;
-				std::unordered_map<std::string, Actor*> Args;
-				std::unordered_map<std::string, Element*> Uniques;
-				Graphics::DepthStencilState* DepthStencil;
-				Graphics::RasterizerState* Rasterizer;
-				Graphics::BlendState* Blend;
-				Graphics::SamplerState* Sampler;
-				Graphics::ElementBuffer* VertexBuffer;
-				Graphics::ElementBuffer* IndexBuffer;
-				Graphics::Activity* Activity;
-				Graphics::Shader* Shader;
-				Graphics::Texture2D* Font;
-				Graphics::GraphicsDevice* Device;
-				Body* DOM;
-				nk_context* Engine;
-				nk_font_atlas* Atlas;
-				nk_buffer* Commands;
-				nk_draw_null_texture* Null;
-				nk_style* Style;
-				Compute::Matrix4x4 Projection;
-				uint64_t WidgetId;
-				float Width, Height;
-				bool FontBaking;
-				bool Overflowing;
-
-			public:
-				Context(Graphics::GraphicsDevice* NewDevice, Graphics::Activity* NewActivity);
-				virtual ~Context() override;
-				void ResizeBuffers(size_t MaxVertices, size_t MaxIndices);
-				void Prepare(unsigned int Width, unsigned int Height);
-				void Render(const Compute::Matrix4x4& Offset, bool AA);
-				void EmitKey(Graphics::KeyCode Key, Graphics::KeyMod Mod, int Virtual, int Repeat, bool Pressed);
-				void EmitInput(char* Buffer, int Length);
-				void EmitWheel(int X, int Y, bool Normal);
-				void EmitCursor(int X, int Y);
-				void EmitEscape();
-				void Restore();
-				void SetOverflow(bool Enabled);
-				void SetClass(const std::string& ClassName, const std::string& Name, const std::string& Value);
-				void ClearGlobals();
-				void ClearClasses();
-				void ClearFonts();
-				void LoadGlobals(Rest::Document* Document);
-				void LoadClasses(ContentManager* Content, Rest::Document* Document);
-				void LoadFonts(ContentManager* Content, Rest::Document* Document);
-				Body* Load(ContentManager* Content, Rest::Document* Document);
-				bool FontBakingBegin();
-				bool FontBake(const std::string& Name, FontConfig* Config);
-				bool FontBakingEnd();
-				bool HasOverflow();
-				nk_font* GetFont(const std::string& Name);
-				nk_context* GetContext();
-				const nk_style* GetDefaultStyle();
-				Body* GetLayout();
-				Graphics::Activity* GetActivity();
-				std::string GetClass(const std::string& ClassName, const std::string& Name);
-				uint64_t GetNextWidgetId();
-				float GetWidth();
-				float GetHeight();
-
-			public:
-				template <typename T>
-				void FactoryPush(const std::string& Name)
-				{
-					Factories[Name] = std::function<Element*()>([this]()
-					{
-						return (Element*)new T(this);
-					});
-				}
-				template <typename T>
-				bool QueryElementById(const std::string& Id, const std::function<bool(T*, bool)>& Callback)
-				{
-					auto It = Uniques.find(Id);
-					if (It == Uniques.end() || !It->second)
-						return false;
-
-					return It->second->Query<T>(Callback);
-				}
-				template <typename T>
-				bool QueryElementByPath(const std::string& Path, const std::function<bool(T*, bool)>& Callback)
-				{
-					if (!DOM)
-						return false;
-
-					return DOM->Query<T>(Path, Callback);
-				}
-				template <typename T>
-				bool QueryElement(const std::function<bool(T*, bool)>& Callback)
-				{
-					return QueryElementByPath("", Callback);
 				}
 			};
 		}

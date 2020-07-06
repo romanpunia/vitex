@@ -7,6 +7,7 @@
 #include <csignal>
 #include <sys/stat.h>
 #include <rapidxml.hpp>
+#include <tinyfiledialogs.h>
 #ifdef THAWK_MICROSOFT
 #include <Windows.h>
 #include <io.h>
@@ -3735,6 +3736,91 @@ namespace Tomahawk
 
 			Bytes[Length] = '\0';
 			return Bytes;
+		}
+		bool OS::WantTextInput(const std::string& Title, const std::string& Message, const std::string& DefaultInput, std::string* Result)
+		{
+			const char* Data = tinyfd_inputBox(Title.c_str(), Message.c_str(), DefaultInput.c_str());
+			if (!Data)
+				return false;
+
+			if (!Result)
+				*Result = Data;
+
+			return true;
+		}
+		bool OS::WantPasswordInput(const std::string& Title, const std::string& Message, std::string* Result)
+		{
+			const char* Data = tinyfd_inputBox(Title.c_str(), Message.c_str(), nullptr);
+			if (!Data)
+				return false;
+
+			if (Result != nullptr)
+				*Result = Data;
+
+			return true;
+		}
+		bool OS::WantFileSave(const std::string& Title, const std::string& DefaultPath, const std::string& Filter, const std::string& FilterDescription, std::string* Result)
+		{
+			std::vector<char*> Patterns;
+			for (auto& It : Stroke(&Filter).Split(','))
+				Patterns.push_back(strdup(It.c_str()));
+
+			const char* Data = tinyfd_saveFileDialog(Title.c_str(), DefaultPath.c_str(), Patterns.size(),
+				Patterns.empty() ? nullptr : Patterns.data(), FilterDescription.empty() ? nullptr : FilterDescription.c_str());
+
+			for (auto& It : Patterns)
+				free(It);
+
+			if (!Data)
+				return false;
+
+			if (Result != nullptr)
+				*Result = Data;
+
+			return true;
+		}
+		bool OS::WantFileOpen(const std::string& Title, const std::string& DefaultPath, const std::string& Filter, const std::string& FilterDescription, bool Multiple, std::string* Result)
+		{
+			std::vector<char*> Patterns;
+			for (auto& It : Stroke(&Filter).Split(','))
+				Patterns.push_back(strdup(It.c_str()));
+
+			const char* Data = tinyfd_openFileDialog(Title.c_str(), DefaultPath.c_str(), Patterns.size(),
+				Patterns.empty() ? nullptr : Patterns.data(), FilterDescription.empty() ? nullptr : FilterDescription.c_str(), Multiple);
+
+			for (auto& It : Patterns)
+				free(It);
+
+			if (!Data)
+				return false;
+
+			if (Result != nullptr)
+				*Result = Data;
+
+			return true;
+		}
+		bool OS::WantFolder(const std::string& Title, const std::string& DefaultPath, std::string* Result)
+		{
+			const char* Data = tinyfd_selectFolderDialog(Title.c_str(), DefaultPath.c_str());
+			if (!Data)
+				return false;
+
+			if (Result != nullptr)
+				*Result = Data;
+
+			return true;
+		}
+		bool OS::WantColor(const std::string& Title, const std::string& DefaultHexRGB, std::string* Result)
+		{
+			unsigned char RGB[3] = { 0, 0, 0 };
+			const char* Data = tinyfd_colorChooser(Title.c_str(), DefaultHexRGB.c_str(), RGB, RGB);
+			if (!Data)
+				return false;
+
+			if (Result != nullptr)
+				*Result = Data;
+
+			return true;
 		}
 
 		FileLogger::FileLogger(const std::string& Root) : Path(Root), Offset(-1)

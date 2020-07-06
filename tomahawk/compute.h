@@ -267,6 +267,8 @@ namespace Tomahawk
 			Vector2();
 			Vector2(float x, float y);
 			Vector2(float xy);
+			Vector2(const Vector3& Value);
+			Vector2(const Vector4& Value);
 			float Hypotenuse() const;
 			float DotProduct(const Vector2& B) const;
 			float Distance(const Vector2& Target) const;
@@ -294,8 +296,9 @@ namespace Tomahawk
 			Vector2 Abs() const;
 			Vector2 Radians() const;
 			Vector2 Degrees() const;
-			Vector3 MtVector3() const;
-			Vector4 MtVector4() const;
+			Vector2 XY() const;
+			Vector3 XYZ() const;
+			Vector4 XYZW() const;
 			Vector2 operator *(const Vector2& V) const;
 			Vector2 operator *(float V) const;
 			Vector2 operator /(const Vector2& V) const;
@@ -361,6 +364,8 @@ namespace Tomahawk
 			float Z;
 
 			Vector3();
+			Vector3(const Vector2& Value);
+			Vector3(const Vector4& Value);
 			Vector3(float x, float y);
 			Vector3(float x, float y, float z);
 			Vector3(float xyz);
@@ -395,8 +400,9 @@ namespace Tomahawk
 			Vector3 Abs() const;
 			Vector3 Radians() const;
 			Vector3 Degrees() const;
-			Vector2 MtVector2() const;
-			Vector4 MtVector4() const;
+			Vector2 XY() const;
+			Vector3 XYZ() const;
+			Vector4 XYZW() const;
 			Vector3 operator *(const Vector3& V) const;
 			Vector3 operator *(float V) const;
 			Vector3 operator /(const Vector3& V) const;
@@ -474,6 +480,8 @@ namespace Tomahawk
 			float W;
 
 			Vector4();
+			Vector4(const Vector2& Value);
+			Vector4(const Vector3& Value);
 			Vector4(float x, float y);
 			Vector4(float x, float y, float z);
 			Vector4(float x, float y, float z, float w);
@@ -507,8 +515,9 @@ namespace Tomahawk
 			Vector4 Abs() const;
 			Vector4 Radians() const;
 			Vector4 Degrees() const;
-			Vector2 MtVector2() const;
-			Vector3 MtVector3() const;
+			Vector2 XY() const;
+			Vector3 XYZ() const;
+			Vector4 XYZW() const;
 			Vector4 operator *(const Matrix4x4& V) const;
 			Vector4 operator *(const Vector4& V) const;
 			Vector4 operator *(float V) const;
@@ -630,8 +639,9 @@ namespace Tomahawk
 			Vector3 Rotation() const;
 			Vector3 Position() const;
 			Vector3 Scale() const;
-			Vector3 MtVector3() const;
-			Vector4 MtVector4() const;
+			Vector2 XY() const;
+			Vector3 XYZ() const;
+			Vector4 XYZW() const;
 			void Identify();
 			void Set(const Matrix4x4& Value);
 

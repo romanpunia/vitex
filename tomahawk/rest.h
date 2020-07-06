@@ -1038,6 +1038,12 @@ namespace Tomahawk
 			static unsigned char* ReadAllBytes(const char* Path, uint64_t* ByteLength);
 			static unsigned char* ReadAllBytes(FileStream* Stream, uint64_t* ByteLength);
 			static unsigned char* ReadByteChunk(FileStream* Stream, uint64_t Length);
+			static bool WantTextInput(const std::string& Title, const std::string& Message, const std::string& DefaultInput, std::string* Result);
+			static bool WantPasswordInput(const std::string& Title, const std::string& Message, std::string* Result);
+			static bool WantFileSave(const std::string& Title, const std::string& DefaultPath, const std::string& Filter, const std::string& FilterDescription, std::string* Result);
+			static bool WantFileOpen(const std::string& Title, const std::string& DefaultPath, const std::string& Filter, const std::string& FilterDescription, bool Multiple, std::string* Result);
+			static bool WantFolder(const std::string& Title, const std::string& DefaultPath, std::string* Result);
+			static bool WantColor(const std::string& Title, const std::string& DefaultHexRGB, std::string* Result);
 		};
 
 		class THAWK_OUT EventWorker : public Object

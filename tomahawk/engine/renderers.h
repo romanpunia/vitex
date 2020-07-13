@@ -37,6 +37,7 @@ namespace Tomahawk
 				ModelRenderer(RenderSystem* Lab);
 				virtual ~ModelRenderer();
 				void OnInitialize() override;
+				void OnCulling(const Viewer& View) override;
 				void OnRender(Rest::Timer* Time) override;
 				void OnPhaseRender(Rest::Timer* Time) override;
 				void OnDepthRender(Rest::Timer* Time) override;
@@ -73,6 +74,7 @@ namespace Tomahawk
 				SkinModelRenderer(RenderSystem* Lab);
 				virtual ~SkinModelRenderer();
 				void OnInitialize() override;
+				void OnCulling(const Viewer& View) override;
 				void OnRender(Rest::Timer* Time) override;
 				void OnPhaseRender(Rest::Timer* Time) override;
 				void OnDepthRender(Rest::Timer* Time) override;
@@ -111,6 +113,7 @@ namespace Tomahawk
 				SoftBodyRenderer(RenderSystem* Lab);
 				virtual ~SoftBodyRenderer();
 				void OnInitialize() override;
+				void OnCulling(const Viewer& View) override;
 				void OnRender(Rest::Timer* Time) override;
 				void OnPhaseRender(Rest::Timer* Time) override;
 				void OnDepthRender(Rest::Timer* Time) override;
@@ -149,6 +152,7 @@ namespace Tomahawk
 				ElementSystemRenderer(RenderSystem* Lab);
 				virtual ~ElementSystemRenderer() override;
 				void OnInitialize() override;
+				void OnCulling(const Viewer& View) override;
 				void OnRender(Rest::Timer* Time) override;
 				void OnPhaseRender(Rest::Timer* Time) override;
 				void OnDepthRender(Rest::Timer* Time) override;
@@ -323,6 +327,7 @@ namespace Tomahawk
 				void OnLoad(ContentManager* Content, Rest::Document* Node) override;
 				void OnSave(ContentManager* Content, Rest::Document* Node) override;
 				void OnInitialize() override;
+				void OnCulling(const Viewer& View) override;
 				void OnRender(Rest::Timer* Time) override;
 				void OnPhaseRender(Rest::Timer* Time) override;
 				void OnResizeBuffers() override;
@@ -521,7 +526,7 @@ namespace Tomahawk
 				THAWK_COMPONENT(AmbientOcclusionRenderer);
 			};
 
-			class THAWK_OUT IndirectOcclusionRenderer : public PostProcessRenderer
+			class THAWK_OUT DirectOcclusionRenderer : public PostProcessRenderer
 			{
 			private:
 				Graphics::Shader* Pass1;
@@ -556,14 +561,14 @@ namespace Tomahawk
 				} RenderPass2;
 
 			public:
-				IndirectOcclusionRenderer(RenderSystem* Lab);
-				virtual ~IndirectOcclusionRenderer() = default;
+				DirectOcclusionRenderer(RenderSystem* Lab);
+				virtual ~DirectOcclusionRenderer() = default;
 				void OnLoad(ContentManager* Content, Rest::Document* Node) override;
 				void OnSave(ContentManager* Content, Rest::Document* Node) override;
 				void OnRenderEffect(Rest::Timer* Time) override;
 
 			public:
-				THAWK_COMPONENT(IndirectOcclusionRenderer);
+				THAWK_COMPONENT(DirectOcclusionRenderer);
 			};
 
 			class THAWK_OUT ToneRenderer : public PostProcessRenderer

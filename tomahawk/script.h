@@ -321,18 +321,7 @@ namespace Tomahawk
 			VMFeature_Random = (1 << 10),
 			VMFeature_Thread = (1 << 11),
 			VMFeature_Async = (1 << 12),
-			VMFeature_Rest = (1 << 13),
-			VMFeature_Compute = (1 << 14),
-			VMFeature_Audio = (1 << 15),
-			VMFeature_Effects = (1 << 16),
-			VMFeature_Filters = (1 << 17),
-			VMFeature_Network = (1 << 18),
-			VMFeature_HTTP = (1 << 19),
-			VMFeature_SMTP = (1 << 20),
-			VMFeature_BSON = (1 << 21),
-			VMFeature_MongoDB = (1 << 22),
-			VMFeature_Graphics = (1 << 23),
-			VMFeature_Engine = (1 << 24)
+			VMFeature_Console = (1 << 13)
 		};
 
 		typedef CScriptArray VMCArray;

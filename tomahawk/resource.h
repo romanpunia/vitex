@@ -260,7 +260,7 @@ namespace resource_batch
 	{
 #define HAS_D3D11_RENDERER_INPUT_BASE_HLSL
 		extern const unsigned char data[];
-		const unsigned size = 352;
+		const unsigned size = 392;
 	}
 
 	namespace d3d11_renderer_input_element_hlsl
@@ -379,7 +379,7 @@ namespace resource_batch
 	{
 #define HAS_D3D11_WORKFLOW_GEOMETRY_HLSL
 		extern const unsigned char data[];
-		const unsigned size = 462;
+		const unsigned size = 443;
 	}
 
 	namespace d3d11_workflow_pass_hlsl
@@ -400,7 +400,7 @@ namespace resource_batch
 	{
 #define HAS_D3D11_WORKFLOW_RASTERIZER_HLSL
 		extern const unsigned char data[];
-		const unsigned size = 1017;
+		const unsigned size = 1095;
 	}
 
 	namespace ogl_deferred_element_system_depth_360_point_glsl

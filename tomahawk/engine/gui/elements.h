@@ -232,6 +232,7 @@ namespace Tomahawk
 				virtual bool BuildBegin(nk_context* C) override;
 				virtual std::string GetType() override;
 				virtual bool IsSatisfied() override;
+				void SetLayer(LogIf* New);
 			};
 
 			class THAWK_OUT LogElse : public Element
@@ -252,6 +253,7 @@ namespace Tomahawk
 				virtual float GetWidth() override;
 				virtual float GetHeight() override;
 				virtual std::string GetType() override;
+				void SetLayer(LogIf* New);
 				bool IsSatisfied();
 			};
 
@@ -362,6 +364,7 @@ namespace Tomahawk
 				virtual float GetWidth() override;
 				virtual float GetHeight() override;
 				virtual std::string GetType() override;
+				void SetLayer(PreLayout* New);
 			};
 
 			class THAWK_OUT Layout : public Element
@@ -414,6 +417,7 @@ namespace Tomahawk
 				virtual float GetWidth() override;
 				virtual float GetHeight() override;
 				virtual std::string GetType() override;
+				void SetLayer(Layout* New);
 			};
 
 			class THAWK_OUT Button : public Widget
@@ -716,8 +720,7 @@ namespace Tomahawk
 					std::string Text;
 					std::string Bind;
 					double Min, Max;
-					double Step;
-					float PPI;
+					double Range;
 					bool Decimal;
 				} Source;
 
@@ -798,6 +801,7 @@ namespace Tomahawk
 					uint8_t Symbol;
 					float Width;
 					float Height;
+					bool TextValue;
 				} Source;
 
 			public:
@@ -841,6 +845,7 @@ namespace Tomahawk
 				virtual float GetWidth() override;
 				virtual float GetHeight() override;
 				virtual std::string GetType() override;
+				void SetLayer(Combo* New);
 				bool IsClicked();
 			};
 
@@ -947,6 +952,7 @@ namespace Tomahawk
 					TreeType Type;
 					bool Minimized;
 					bool Selectable;
+					bool AutoToggle;
 				} Source;
 
 			public:
@@ -1050,6 +1056,7 @@ namespace Tomahawk
 				virtual float GetWidth() override;
 				virtual float GetHeight() override;
 				virtual std::string GetType() override;
+				void SetLayer(Contextual* New);
 				bool IsClicked();
 			};
 
@@ -1119,6 +1126,7 @@ namespace Tomahawk
 				virtual float GetWidth() override;
 				virtual float GetHeight() override;
 				virtual std::string GetType() override;
+				void SetLayer(Header* New);
 			};
 
 			class THAWK_OUT HeaderItem : public Widget
@@ -1152,6 +1160,7 @@ namespace Tomahawk
 				virtual float GetWidth() override;
 				virtual float GetHeight() override;
 				virtual std::string GetType() override;
+				void SetLayer(HeaderTab* New);
 				bool IsClicked();
 			};
 

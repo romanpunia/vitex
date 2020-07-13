@@ -11,9 +11,6 @@ install(FILES
         tomahawk/tomahawk.h
         DESTINATION include/tomahawk)
 install(FILES
-        tomahawk/script/interface.h
-        DESTINATION include/tomahawk/script)
-install(FILES
         tomahawk/network/bson.h
         tomahawk/network/http.h
         tomahawk/network/mongodb.h

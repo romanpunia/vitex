@@ -464,7 +464,7 @@ namespace Tomahawk
 				TextureCube* CreateTextureCube() override;
 				TextureCube* CreateTextureCube(const TextureCube::Desc& I) override;
 				TextureCube* CreateTextureCube(Texture2D* Resource[6]) override;
-				TextureCube* CreateTextureCubeInternal(void* Resource[6]) override;
+				TextureCube* CreateTextureCube(Texture2D* Resource) override;
 				RenderTarget2D* CreateRenderTarget2D(const RenderTarget2D::Desc& I) override;
 				MultiRenderTarget2D* CreateMultiRenderTarget2D(const MultiRenderTarget2D::Desc& I) override;
 				RenderTarget2DArray* CreateRenderTarget2DArray(const RenderTarget2DArray::Desc& I) override;
@@ -488,6 +488,9 @@ namespace Tomahawk
 				char* GetHSProfile();
 				char* GetCSProfile();
 				char* GetDSProfile();
+
+			protected:
+				TextureCube* CreateTextureCubeInternal(void* Resource[6]) override;
 			};
 		}
 	}

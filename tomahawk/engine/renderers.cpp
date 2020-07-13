@@ -35,6 +35,17 @@ namespace Tomahawk
 				System->FreeShader("MR_DEPTH90", Shaders.Depth90);
 				System->FreeShader("MR_DEPTH360", Shaders.Depth360);
 			}
+			void ModelRenderer::OnCulling(const Viewer& View)
+			{
+				for (auto It = Models->Begin(); It != Models->End(); ++It)
+				{
+					Engine::Components::Model* Model = (Engine::Components::Model*)*It;
+					if (Model->GetDrawable() != nullptr)
+						Model->Visibility = Model->IsVisibleTo(View, &Model->GetBoundingBox());
+					else
+						Model->Visibility = false;
+				}
+			}
 			void ModelRenderer::OnInitialize()
 			{
 				Models = System->GetScene()->GetComponents<Engine::Components::Model>();
@@ -58,7 +69,11 @@ namespace Tomahawk
 					if (!Model->Visibility)
 						continue;
 
-					for (auto&& Mesh : Model->GetDrawable()->Meshes)
+					auto* Drawable = Model->GetDrawable();
+					if (!Drawable)
+						continue;
+
+					for (auto&& Mesh : Drawable->Meshes)
 					{
 						if (!Appearance::UploadPhase(Device, Model->GetSurface(Mesh)))
 							continue;
@@ -86,10 +101,12 @@ namespace Tomahawk
 				for (auto It = Models->Begin(); It != Models->End(); ++It)
 				{
 					Engine::Components::Model* Model = (Engine::Components::Model*)*It;
-					if (!Model->GetDrawable() || !Model->IsVisibleTo(System->GetScene()->View, nullptr))
+					auto* Drawable = Model->GetDrawable();
+
+					if (!Drawable || !Model->IsVisibleTo(System->GetScene()->View, nullptr))
 						continue;
 
-					for (auto&& Mesh : Model->GetDrawable()->Meshes)
+					for (auto&& Mesh : Drawable->Meshes)
 					{
 						if (!Appearance::UploadPhase(Device, Model->GetSurface(Mesh)))
 							continue;
@@ -116,10 +133,12 @@ namespace Tomahawk
 				for (auto It = Models->Begin(); It != Models->End(); ++It)
 				{
 					Engine::Components::Model* Model = (Engine::Components::Model*)*It;
-					if (!Model->GetDrawable() || !Model->IsVisibleTo(System->GetScene()->View, nullptr))
+					auto* Drawable = Model->GetDrawable();
+
+					if (!Drawable || !Model->IsVisibleTo(System->GetScene()->View, nullptr))
 						continue;
 
-					for (auto&& Mesh : Model->GetDrawable()->Meshes)
+					for (auto&& Mesh : Drawable->Meshes)
 					{
 						if (!Appearance::UploadDepth(Device, Model->GetSurface(Mesh)))
 							continue;
@@ -149,10 +168,12 @@ namespace Tomahawk
 				for (auto It = Models->Begin(); It != Models->End(); ++It)
 				{
 					Engine::Components::Model* Model = (Engine::Components::Model*)*It;
-					if (!Model->GetDrawable() || !Model->IsNearTo(System->GetScene()->View))
+					auto* Drawable = Model->GetDrawable();
+
+					if (!Drawable || !Model->IsNearTo(System->GetScene()->View))
 						continue;
 
-					for (auto&& Mesh : Model->GetDrawable()->Meshes)
+					for (auto&& Mesh : Drawable->Meshes)
 					{
 						if (!Appearance::UploadCubicDepth(Device, Model->GetSurface(Mesh)))
 							continue;
@@ -198,6 +219,17 @@ namespace Tomahawk
 			{
 				SkinModels = System->GetScene()->GetComponents<Engine::Components::SkinModel>();
 			}
+			void SkinModelRenderer::OnCulling(const Viewer& View)
+			{
+				for (auto It = SkinModels->Begin(); It != SkinModels->End(); ++It)
+				{
+					Engine::Components::SkinModel* Model = (Engine::Components::SkinModel*)*It;
+					if (Model->GetDrawable() != nullptr)
+						Model->Visibility = Model->IsVisibleTo(View, &Model->GetBoundingBox());
+					else
+						Model->Visibility = false;
+				}
+			}
 			void SkinModelRenderer::OnRender(Rest::Timer* Time)
 			{
 				Graphics::GraphicsDevice* Device = System->GetDevice();
@@ -217,12 +249,16 @@ namespace Tomahawk
 					if (!SkinModel->Visibility)
 						continue;
 
+					auto* Drawable = SkinModel->GetDrawable();
+					if (!Drawable)
+						continue;
+
 					Device->Animation.HasAnimation = !SkinModel->GetDrawable()->Joints.empty();
 					if (Device->Animation.HasAnimation > 0)
 						memcpy(Device->Animation.Offsets, SkinModel->Skeleton.Transform, 96 * sizeof(Compute::Matrix4x4));
 
 					Device->UpdateBuffer(Graphics::RenderBufferType_Animation);
-					for (auto&& Mesh : SkinModel->GetDrawable()->Meshes)
+					for (auto&& Mesh : Drawable->Meshes)
 					{
 						if (!Appearance::UploadPhase(Device, SkinModel->GetSurface(Mesh)))
 							continue;
@@ -250,7 +286,9 @@ namespace Tomahawk
 				for (auto It = SkinModels->Begin(); It != SkinModels->End(); ++It)
 				{
 					Engine::Components::SkinModel* SkinModel = (Engine::Components::SkinModel*)*It;
-					if (!SkinModel->GetDrawable() || !SkinModel->IsVisibleTo(System->GetScene()->View, nullptr))
+					auto* Drawable = SkinModel->GetDrawable();
+
+					if (!Drawable || !SkinModel->IsVisibleTo(System->GetScene()->View, nullptr))
 						continue;
 
 					Device->Animation.HasAnimation = !SkinModel->GetDrawable()->Joints.empty();
@@ -258,7 +296,7 @@ namespace Tomahawk
 						memcpy(Device->Animation.Offsets, SkinModel->Skeleton.Transform, 96 * sizeof(Compute::Matrix4x4));
 
 					Device->UpdateBuffer(Graphics::RenderBufferType_Animation);
-					for (auto&& Mesh : SkinModel->GetDrawable()->Meshes)
+					for (auto&& Mesh : Drawable->Meshes)
 					{
 						if (!Appearance::UploadPhase(Device, SkinModel->GetSurface(Mesh)))
 							continue;
@@ -285,7 +323,9 @@ namespace Tomahawk
 				for (auto It = SkinModels->Begin(); It != SkinModels->End(); ++It)
 				{
 					Engine::Components::SkinModel* SkinModel = (Engine::Components::SkinModel*)*It;
-					if (!SkinModel->GetDrawable() || !SkinModel->IsVisibleTo(System->GetScene()->View, nullptr))
+					auto* Drawable = SkinModel->GetDrawable();
+
+					if (!Drawable || !SkinModel->IsVisibleTo(System->GetScene()->View, nullptr))
 						continue;
 
 					Device->Animation.HasAnimation = !SkinModel->GetDrawable()->Joints.empty();
@@ -293,7 +333,7 @@ namespace Tomahawk
 						memcpy(Device->Animation.Offsets, SkinModel->Skeleton.Transform, 96 * sizeof(Compute::Matrix4x4));
 
 					Device->UpdateBuffer(Graphics::RenderBufferType_Animation);
-					for (auto&& Mesh : SkinModel->GetDrawable()->Meshes)
+					for (auto&& Mesh : Drawable->Meshes)
 					{
 						if (!Appearance::UploadDepth(Device, SkinModel->GetSurface(Mesh)))
 							continue;
@@ -323,7 +363,9 @@ namespace Tomahawk
 				for (auto It = SkinModels->Begin(); It != SkinModels->End(); ++It)
 				{
 					Engine::Components::SkinModel* SkinModel = (Engine::Components::SkinModel*)*It;
-					if (!SkinModel->GetDrawable() || !SkinModel->IsNearTo(System->GetScene()->View))
+					auto* Drawable = SkinModel->GetDrawable();
+
+					if (!Drawable || !SkinModel->IsNearTo(System->GetScene()->View))
 						continue;
 
 					Device->Animation.HasAnimation = !SkinModel->GetDrawable()->Joints.empty();
@@ -331,7 +373,7 @@ namespace Tomahawk
 						memcpy(Device->Animation.Offsets, SkinModel->Skeleton.Transform, 96 * sizeof(Compute::Matrix4x4));
 
 					Device->UpdateBuffer(Graphics::RenderBufferType_Animation);
-					for (auto&& Mesh : SkinModel->GetDrawable()->Meshes)
+					for (auto&& Mesh : Drawable->Meshes)
 					{
 						if (!Appearance::UploadCubicDepth(Device, SkinModel->GetSurface(Mesh)))
 							continue;
@@ -398,6 +440,20 @@ namespace Tomahawk
 			void SoftBodyRenderer::OnInitialize()
 			{
 				SoftBodies = System->GetScene()->GetComponents<Engine::Components::SoftBody>();
+			}
+			void SoftBodyRenderer::OnCulling(const Viewer& View)
+			{
+				for (auto It = SoftBodies->Begin(); It != SoftBodies->End(); ++It)
+				{
+					Engine::Components::SoftBody* SoftBody = (Engine::Components::SoftBody*)*It;
+					if (SoftBody->GetBody() != nullptr)
+					{
+						Compute::Matrix4x4 World = SoftBody->GetEntity()->Transform->GetWorldUnscaled();
+						SoftBody->Visibility = SoftBody->IsVisibleTo(View, &World);
+					}
+					else
+						SoftBody->Visibility = false;
+				}
 			}
 			void SoftBodyRenderer::OnRender(Rest::Timer* Time)
 			{
@@ -566,6 +622,21 @@ namespace Tomahawk
 			void ElementSystemRenderer::OnInitialize()
 			{
 				ElementSystems = System->GetScene()->GetComponents<Engine::Components::ElementSystem>();
+			}
+			void ElementSystemRenderer::OnCulling(const Viewer& View)
+			{
+				float Hardness = 0.0f;
+				for (auto It = ElementSystems->Begin(); It != ElementSystems->End(); ++It)
+				{
+					Engine::Components::ElementSystem* ElementSystem = (Engine::Components::ElementSystem*)*It;
+					Entity* Base = ElementSystem->GetEntity();
+
+					Hardness = 1.0f - Base->Transform->Position.Distance(View.RawPosition) / (View.ViewDistance + ElementSystem->Volume);
+					if (Hardness > 0.0f)
+						ElementSystem->Visibility = Compute::MathCommon::IsClipping(View.ViewProjection, Base->Transform->GetWorld(), 1.5f) == -1 ? Hardness : 0.0f;
+					else
+						ElementSystem->Visibility = 0.0f;
+				}
 			}
 			void ElementSystemRenderer::OnRender(Rest::Timer* Time)
 			{
@@ -1096,6 +1167,45 @@ namespace Tomahawk
 				}
 
 				CreateRenderTargets();
+			}
+			void LightRenderer::OnCulling(const Viewer& View)
+			{
+				float Hardness = 0.0f;
+				for (auto It = PointLights->Begin(); It != PointLights->End(); ++It)
+				{
+					Engine::Components::PointLight* PointLight = (Engine::Components::PointLight*)*It;
+					Entity* Base = PointLight->GetEntity();
+
+					Hardness = 1.0f - Base->Transform->Position.Distance(View.RawPosition) / View.ViewDistance;
+					if (Hardness > 0.0f)
+						PointLight->Visibility = Compute::MathCommon::IsClipping(View.ViewProjection, Base->Transform->GetWorld(), PointLight->Range) == -1 ? Hardness : 0.0f;
+					else
+						PointLight->Visibility = 0.0f;
+				}
+
+				for (auto It = SpotLights->Begin(); It != SpotLights->End(); ++It)
+				{
+					Engine::Components::SpotLight* SpotLight = (Engine::Components::SpotLight*)*It;
+					Entity* Base = SpotLight->GetEntity();
+
+					Hardness = 1.0f - Base->Transform->Position.Distance(View.RawPosition) / View.ViewDistance;
+					if (Hardness > 0.0f)
+						SpotLight->Visibility = Compute::MathCommon::IsClipping(View.ViewProjection, Base->Transform->GetWorld(), SpotLight->Range) == -1 ? Hardness : 0.0f;
+					else
+						SpotLight->Visibility = 0.0f;
+				}
+
+				for (auto It = ProbeLights->Begin(); It != ProbeLights->End(); ++It)
+				{
+					Engine::Components::ProbeLight* ProbeLight = (Engine::Components::ProbeLight*)*It;
+					Entity* Base = ProbeLight->GetEntity();
+
+					Hardness = 1.0f - Base->Transform->Position.Distance(View.RawPosition) / View.ViewDistance;
+					if (Hardness > 0.0f)
+						ProbeLight->Visibility = Compute::MathCommon::IsClipping(View.ViewProjection, Base->Transform->GetWorld(), ProbeLight->Range) == -1 ? Hardness : 0.0f;
+					else
+						ProbeLight->Visibility = 0.0f;
+				}
 			}
 			void LightRenderer::OnRender(Rest::Timer* Time)
 			{
@@ -1719,7 +1829,7 @@ namespace Tomahawk
 				RenderResult(Pass2, &RenderPass2);
 			}
 
-			IndirectOcclusionRenderer::IndirectOcclusionRenderer(RenderSystem* Lab) : PostProcessRenderer(Lab), Pass1(nullptr), Pass2(nullptr)
+			DirectOcclusionRenderer::DirectOcclusionRenderer(RenderSystem* Lab) : PostProcessRenderer(Lab), Pass1(nullptr), Pass2(nullptr)
 			{
 				std::string Data;
 				if (System->GetDevice()->GetSection("pass/indirect", &Data))
@@ -1728,7 +1838,7 @@ namespace Tomahawk
 				if (System->GetDevice()->GetSection("pass/blur", &Data))
 					Pass2 = CompileEffect("AOR_BLUR", Data, sizeof(RenderPass2));
 			}
-			void IndirectOcclusionRenderer::OnLoad(ContentManager* Content, Rest::Document* Node)
+			void DirectOcclusionRenderer::OnLoad(ContentManager* Content, Rest::Document* Node)
 			{
 				NMake::Unpack(Node->Find("scale"), &RenderPass1.Scale);
 				NMake::Unpack(Node->Find("intensity"), &RenderPass1.Intensity);
@@ -1748,7 +1858,7 @@ namespace Tomahawk
 				NMake::Unpack(Node->Find("additive"), &RenderPass2.Additive);
 				NMake::Unpack(Node->Find("discard"), &RenderPass2.Discard);
 			}
-			void IndirectOcclusionRenderer::OnSave(ContentManager* Content, Rest::Document* Node)
+			void DirectOcclusionRenderer::OnSave(ContentManager* Content, Rest::Document* Node)
 			{
 				NMake::Pack(Node->SetDocument("scale"), RenderPass1.Scale);
 				NMake::Pack(Node->SetDocument("intensity"), RenderPass1.Intensity);
@@ -1768,7 +1878,7 @@ namespace Tomahawk
 				NMake::Pack(Node->SetDocument("additive"), RenderPass2.Additive);
 				NMake::Pack(Node->SetDocument("discard"), RenderPass2.Discard);
 			}
-			void IndirectOcclusionRenderer::OnRenderEffect(Rest::Timer* Time)
+			void DirectOcclusionRenderer::OnRenderEffect(Rest::Timer* Time)
 			{
 				RenderPass2.Texel[0] = 1.0f / Output->GetWidth();
 				RenderPass2.Texel[1] = 1.0f / Output->GetHeight();

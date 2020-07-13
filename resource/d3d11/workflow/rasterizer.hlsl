@@ -1,9 +1,13 @@
 #include "renderer/input/base"
 #include "renderer/buffer/viewer"
 
-float2 GetMetallicAndRoughness(in float2 TexCoord)
+float GetRoughness(in float2 TexCoord)
 {
-    return MetallicMap.SampleLevel(Sampler, TexCoord, 0).xy;
+    return RoughnessMap.Sample(Sampler, TexCoord).x;
+}
+float GetMetallic(in float2 TexCoord)
+{
+    return MetallicMap.Sample(Sampler, TexCoord).x;
 }
 float3 GetNormal(in float2 TexCoord, in float3 Normal, in float3 Tangent, in float3 Bitangent)
 {

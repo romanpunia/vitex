@@ -2296,6 +2296,88 @@ namespace Tomahawk
 
 				return CreateTextureCubeInternal(Resources);
 			}
+			TextureCube* D3D11Device::CreateTextureCube(Graphics::Texture2D* Resource)
+			{
+				if (!Resource || !Resource->As<D3D11Texture2D>()->View)
+				{
+					THAWK_ERROR("couldn't create texture cube without proper mapping");
+					return nullptr;
+				}
+
+				D3D11_TEXTURE2D_DESC Description;
+				Resource->As<D3D11Texture2D>()->View->GetDesc(&Description);
+				Description.ArraySize = 6;
+				Description.Usage = D3D11_USAGE_DEFAULT;
+				Description.BindFlags = D3D11_BIND_SHADER_RESOURCE | D3D11_BIND_RENDER_TARGET;
+				Description.CPUAccessFlags = 0;
+				Description.MiscFlags = D3D11_RESOURCE_MISC_TEXTURECUBE | D3D11_RESOURCE_MISC_GENERATE_MIPS;
+
+				unsigned int Width = Description.Width;
+				Description.Width = Description.Width / 4;
+
+				unsigned int Height = Description.Height;
+				Description.Height = Description.Width;
+
+				D3D11_BOX Region;
+				Region.front = 0;
+				Region.back = 1;
+
+				Description.MipLevels = GetMipLevel(Description.Width, Description.Height);
+				if (Width % 4 != 0 || Height % 3 != 0)
+				{
+					THAWK_ERROR("couldn't create texture cube because width or height cannot be not divided");
+					return nullptr;
+				}
+
+				D3D11TextureCube* Result = new D3D11TextureCube();
+				if (D3DDevice->CreateTexture2D(&Description, 0, &Result->View) != S_OK)
+				{
+					THAWK_ERROR("couldn't create texture 2d");
+					return Result;
+				}
+
+				Region.left = Description.Width * 2 - 1;
+				Region.top = Description.Height - 1;
+				Region.right = Region.left + Description.Width;
+				Region.bottom = Region.top + Description.Height;
+				ImmediateContext->CopySubresourceRegion(Result->View, D3D11CalcSubresource(0, 0, Description.MipLevels), 0, 0, 0, Resource->As<D3D11Texture2D>()->View, 0, &Region);
+
+				Region.left = 0;
+				Region.top = Description.Height;
+				Region.right = Region.left + Description.Width;
+				Region.bottom = Region.top + Description.Height;
+				ImmediateContext->CopySubresourceRegion(Result->View, D3D11CalcSubresource(0, 1, Description.MipLevels), 0, 0, 0, Resource->As<D3D11Texture2D>()->View, 0, &Region);
+
+				Region.left = Description.Width;
+				Region.top = 0;
+				Region.right = Region.left + Description.Width;
+				Region.bottom = Region.top + Description.Height;
+				ImmediateContext->CopySubresourceRegion(Result->View, D3D11CalcSubresource(0, 2, Description.MipLevels), 0, 0, 0, Resource->As<D3D11Texture2D>()->View, 0, &Region);
+
+				Region.left = Description.Width;
+				Region.top = Description.Height * 2;
+				Region.right = Region.left + Description.Width;
+				Region.bottom = Region.top + Description.Height;
+				ImmediateContext->CopySubresourceRegion(Result->View, D3D11CalcSubresource(0, 3, Description.MipLevels), 0, 0, 0, Resource->As<D3D11Texture2D>()->View, 0, &Region);
+
+				Region.left = Description.Width;
+				Region.top = Description.Height;
+				Region.right = Region.left + Description.Width;
+				Region.bottom = Region.top + Description.Height;
+				ImmediateContext->CopySubresourceRegion(Result->View, D3D11CalcSubresource(0, 4, Description.MipLevels), 0, 0, 0, Resource->As<D3D11Texture2D>()->View, 0, &Region);
+
+				Region.left = Description.Width * 3;
+				Region.top = Description.Height;
+				Region.right = Region.left + Description.Width;
+				Region.bottom = Region.top + Description.Height;
+				ImmediateContext->CopySubresourceRegion(Result->View, D3D11CalcSubresource(0, 5, Description.MipLevels), 0, 0, 0, Resource->As<D3D11Texture2D>()->View, 0, &Region);
+
+				GenerateTexture(Result);
+				if (Description.MipLevels > 0)
+					ImmediateContext->GenerateMips(Result->Resource);
+
+				return Result;
+			}
 			TextureCube* D3D11Device::CreateTextureCubeInternal(void* Resource[6])
 			{
 				if (!Resource[0] || !Resource[1] || !Resource[2] || !Resource[3] || !Resource[4] || !Resource[5])

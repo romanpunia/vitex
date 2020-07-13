@@ -178,7 +178,7 @@ namespace Tomahawk
 
 			class THAWK_OUT Widget : public Element
 			{
-			private:
+			protected:
 				std::function<void(Widget*)> Input;
 				nk_user_font* Cache;
 				nk_font* Font;
@@ -205,7 +205,7 @@ namespace Tomahawk
 				nk_font* GetFontHandle();
 
 			protected:
-				void BuildFont(nk_context* C, nk_style* S);
+				virtual void BuildFont(nk_context* C, nk_style* S);
 			};
 
 			class THAWK_OUT Stateful : public Widget
@@ -230,6 +230,9 @@ namespace Tomahawk
 				std::string& GetHash();
 				void Push();
 				void Pop(uint64_t Count = 0);
+
+			protected:
+				virtual void BuildFont(nk_context* C, nk_style* S);
 			};
 
 			class THAWK_OUT Body : public Element
@@ -313,6 +316,7 @@ namespace Tomahawk
 				bool FontBakingEnd();
 				bool HasOverflow();
 				bool IsCurrentWidgetHovered();
+				bool IsCurrentWidgetClicked();
 				nk_font* GetFont(const std::string& Name);
 				nk_context* GetContext();
 				const nk_style* GetDefaultStyle();

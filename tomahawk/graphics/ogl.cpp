@@ -1460,6 +1460,18 @@ namespace Tomahawk
 				/* TODO: IMPL */
 				return Result;
 			}
+			TextureCube* OGLDevice::CreateTextureCube(Texture2D* Resource)
+			{
+				if (!Resource)
+				{
+					THAWK_ERROR("couldn't create texture cube without proper mapping");
+					return nullptr;
+				}
+
+				OGLTextureCube* Result = new OGLTextureCube();
+				/* TODO: IMPL */
+				return Result;
+			}
 			TextureCube* OGLDevice::CreateTextureCubeInternal(void* Resources[6])
 			{
 				if (!Resources[0] || !Resources[1] || !Resources[2] || !Resources[3] || !Resources[4] || !Resources[5])

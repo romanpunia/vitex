@@ -34,7 +34,7 @@ namespace Tomahawk
 				void Initialize(btCollisionShape* Shape, float Mass, float Anticipation);
 				void Initialize(ContentManager* Content, const std::string& Path, float Mass, float Anticipation);
 				void Clear();
-				void SetTransform(const Compute::Matrix4x4& World);
+				void SetTransform(const Compute::Vector3& Position, const Compute::Vector3& Scale, const Compute::Vector3& Rotation);
 				void SetTransform(bool Kinematic);
 				void SetMass(float Mass);
 				Compute::RigidBody* GetBody() const;
@@ -70,7 +70,7 @@ namespace Tomahawk
 				void InitializeRope(const Compute::SoftBody::Desc::CV::SRope& Shape, float Anticipation);
 				void Fill(Graphics::GraphicsDevice* Device, Graphics::ElementBuffer* IndexBuffer, Graphics::ElementBuffer* VertexBuffer);
 				void Clear();
-				void SetTransform(const Compute::Matrix4x4& World);
+				void SetTransform(const Compute::Vector3& Position, const Compute::Vector3& Scale, const Compute::Vector3& Rotation);
 				void SetTransform(bool Kinematic);
 				Compute::SoftBody* GetBody();
 				std::vector<Compute::Vertex>& GetVertices();
@@ -119,7 +119,7 @@ namespace Tomahawk
 				virtual void OnLoad(ContentManager* Content, Rest::Document* Node) override;
 				virtual void OnSave(ContentManager* Content, Rest::Document* Node) override;
 				virtual Component* OnClone(Entity* New) override;
-				void Initialize(bool IsGhosted, bool IsLinear);
+				void Initialize(Entity* Other, bool IsGhosted, bool IsLinear);
 				void Clear();
 				Compute::SliderConstraint* GetConstraint() const;
 				Entity* GetConnection() const;
@@ -192,14 +192,15 @@ namespace Tomahawk
 				virtual void OnAwake(Component* New) override;
 				virtual void OnSynchronize(Rest::Timer* Time) override;
 				virtual Component* OnClone(Entity* New) override;
-				bool SaveAnimation(ContentManager* Content, const std::string& Path);
-				bool LoadAnimation(ContentManager* Content, const std::string& Path);
+				bool GetAnimation(ContentManager* Content, const std::string& Path);
+				void ClearAnimation();
 				void Play(int64_t Clip = -1, int64_t Frame = -1);
 				void Pause();
 				void Stop();
 				std::vector<Compute::AnimatorKey>* GetFrame(int64_t Clip, int64_t Frame);
 				std::vector<std::vector<Compute::AnimatorKey>>* GetClip(int64_t Clip);
 				SkinModel* GetAnimatedObject() const;
+				std::string GetPath();
 
 			private:
 				void BlendAnimation(int64_t Clip, int64_t Frame);
@@ -227,13 +228,14 @@ namespace Tomahawk
 				virtual void OnSave(ContentManager* Content, Rest::Document* Node) override;
 				virtual void OnSynchronize(Rest::Timer* Time) override;
 				virtual Component* OnClone(Entity* New) override;
-				bool SaveAnimation(ContentManager* Content, const std::string& Path);
-				bool LoadAnimation(ContentManager* Content, const std::string& Path);
+				bool GetAnimation(ContentManager* Content, const std::string& Path);
+				void ClearAnimation();
 				void Play(int64_t Clip = -1, int64_t Frame = -1);
 				void Pause();
 				void Stop();
 				Compute::AnimatorKey* GetFrame(int64_t Clip, int64_t Frame);
 				std::vector<Compute::AnimatorKey>* GetClip(int64_t Clip);
+				std::string GetPath();
 
 			private:
 				void BlendAnimation(int64_t Clip, int64_t Frame);
@@ -260,7 +262,6 @@ namespace Tomahawk
 				virtual void OnAwake(Component* New) override;
 				virtual void OnLoad(ContentManager* Content, Rest::Document* Node) override;
 				virtual void OnSave(ContentManager* Content, Rest::Document* Node) override;
-				virtual void OnSynchronize(Rest::Timer* Time) override;
 				virtual Component* OnClone(Entity* New) override;
 				Graphics::InstanceBuffer* GetBuffer();
 
@@ -364,7 +365,6 @@ namespace Tomahawk
 				virtual ~Model() = default;
 				virtual void OnLoad(ContentManager* Content, Rest::Document* Node) override;
 				virtual void OnSave(ContentManager* Content, Rest::Document* Node) override;
-				virtual void OnSynchronize(Rest::Timer* Time) override;
 				virtual Component* OnClone(Entity* New) override;
 				void SetDrawable(Graphics::Model* Drawable);
 				Compute::Matrix4x4 GetBoundingBox();
@@ -502,6 +502,7 @@ namespace Tomahawk
 				Graphics::Texture2D* DiffuseMapX[2];
 				Graphics::Texture2D* DiffuseMapY[2];
 				Graphics::Texture2D* DiffuseMapZ[2];
+				Graphics::Texture2D* DiffuseMap;
 				Graphics::TextureCube* ProbeCache;
 
 			public:
@@ -522,12 +523,19 @@ namespace Tomahawk
 				virtual ~ProbeLight() override;
 				virtual void OnLoad(ContentManager* Content, Rest::Document* Node) override;
 				virtual void OnSave(ContentManager* Content, Rest::Document* Node) override;
-				virtual void OnSynchronize(Rest::Timer* Time) override;
 				virtual Component* OnClone(Entity* New) override;
 				void SetProbeCache(Graphics::TextureCube* NewCache);
+				bool SetDiffuseMap(Graphics::Texture2D* Map);
 				bool SetDiffuseMap(Graphics::Texture2D* MapX[2], Graphics::Texture2D* MapY[2], Graphics::Texture2D* MapZ[2]);
 				bool IsImageBased() const;
 				Graphics::TextureCube* GetProbeCache() const;
+				Graphics::Texture2D* GetDiffuseMapXP();
+				Graphics::Texture2D* GetDiffuseMapXN();
+				Graphics::Texture2D* GetDiffuseMapYP();
+				Graphics::Texture2D* GetDiffuseMapYN();
+				Graphics::Texture2D* GetDiffuseMapZP();
+				Graphics::Texture2D* GetDiffuseMapZN();
+				Graphics::Texture2D* GetDiffuseMap();
 
 			public:
 				THAWK_COMPONENT(ProbeLight);
@@ -572,6 +580,7 @@ namespace Tomahawk
 				Compute::Ray GetScreenRay(const Compute::Vector2& Position);
 				float GetDistance(Entity* Other);
 				bool RayTest(Compute::Ray& Ray, Entity* Other);
+				bool RayTest(Compute::Ray& Ray, const Compute::Matrix4x4& World);
 
 			public:
 				THAWK_COMPONENT(Camera);

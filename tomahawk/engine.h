@@ -143,6 +143,7 @@ namespace Tomahawk
 			Graphics::Texture2D* DiffuseMap = nullptr;
 			Graphics::Texture2D* NormalMap = nullptr;
 			Graphics::Texture2D* MetallicMap = nullptr;
+			Graphics::Texture2D* RoughnessMap = nullptr;
 			Graphics::Texture2D* HeightMap = nullptr;
 			Graphics::Texture2D* OcclusionMap = nullptr;
 			Graphics::Texture2D* EmissionMap = nullptr;
@@ -376,7 +377,6 @@ namespace Tomahawk
 			Drawable(Entity* Ref, bool Complex);
 			virtual ~Drawable() = default;
 			virtual void OnEvent(Event* Value) override;
-			virtual void OnSynchronize(Rest::Timer* Time) = 0;
 			virtual Component* OnClone(Entity* New) = 0;
 			bool IsVisibleTo(const Viewer& View, Compute::Matrix4x4* World);
 			bool IsNearTo(const Viewer& View);
@@ -458,6 +458,7 @@ namespace Tomahawk
 			virtual void OnSave(ContentManager* Content, Rest::Document* Node);
 			virtual void OnResizeBuffers();
 			virtual void OnInitialize();
+			virtual void OnCulling(const Viewer& View);
 			virtual void OnRender(Rest::Timer* TimeStep);
 			virtual void OnDepthRender(Rest::Timer* TimeStep);
 			virtual void OnCubicDepthRender(Rest::Timer* TimeStep);
@@ -818,6 +819,7 @@ namespace Tomahawk
 			virtual ~ContentManager() override;
 			void InvalidateDockers();
 			void InvalidateCache();
+			void InvalidatePath(const std::string& Path);
 			void SetEnvironment(const std::string& Path);
 			bool Import(const std::string& Path);
 			bool Export(const std::string& Path, const std::string& Directory, const std::string& Name = "");

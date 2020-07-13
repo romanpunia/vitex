@@ -4958,20 +4958,108 @@ namespace Tomahawk
 			Scale = Target->Scale;
 			ConstantScale = Target->ConstantScale;
 		}
-		void Transform::GetRootBasis(Vector3& _Position, Vector3& _Scale, Vector3& _Rotation)
+		void Transform::Synchronize()
 		{
 			if (!Root)
-			{
-				_Position = Position;
-				_Rotation = Rotation;
-				_Scale = Scale;
 				return;
+
+			*LocalTransform = Matrix4x4::Create(*LocalPosition, *LocalRotation) * Root->GetWorldUnscaled();
+			Position = LocalTransform->Position();
+			Rotation = LocalTransform->Rotation();
+			Scale = (ConstantScale ? *LocalScale : *LocalScale * Root->Scale);
+		}
+		void Transform::AddChild(Transform* Child)
+		{
+			if (Childs != nullptr)
+			{
+				for (auto It = Childs->begin(); It != Childs->end(); It++)
+				{
+					if (*It == Child)
+						return;
+				}
+			}
+			else
+				Childs = new std::vector<Transform*>();
+
+			Childs->push_back(Child);
+		}
+		void Transform::RemoveChild(Transform* Child)
+		{
+			if (!Childs)
+				return;
+
+			if (Child->Root == this)
+				Child->SetRoot(nullptr);
+
+			if (Childs->empty())
+			{
+				delete Childs;
+				Childs = nullptr;
+			}
+		}
+		void Transform::RemoveChilds()
+		{
+			if (!Childs)
+				return;
+
+			std::vector<Transform*> Array = *Childs;
+			for (auto& Child : Array)
+			{
+				if (Child->Root == this)
+					Child->SetRoot(nullptr);
 			}
 
-			Matrix4x4 Local = Matrix4x4::Create(*LocalPosition, *LocalRotation) * Root->GetWorldUnscaled();
-			_Position = Local.Position();
-			_Rotation = Local.Rotation();
-			_Scale = (ConstantScale ? *LocalScale : *LocalScale * Root->Scale);
+			delete Childs;
+			Childs = nullptr;
+		}
+		void Transform::Localize(Vector3* _Position, Vector3* _Scale, Vector3* _Rotation)
+		{
+			if (!Root)
+				return;
+
+			Matrix4x4 Result = Matrix4x4::Create(_Position ? *_Position : 0, _Rotation ? *_Rotation : 0) * Root->GetWorldUnscaled().Invert();
+			if (_Position != nullptr)
+				*_Position = Result.Position();
+
+			if (_Rotation != nullptr)
+				*_Rotation = Result.Rotation();
+			
+			if (_Scale != nullptr)
+				*_Scale = (ConstantScale ? *_Scale : *_Scale / Root->Scale);
+		}
+		void Transform::Globalize(Vector3* _Position, Vector3* _Scale, Vector3* _Rotation)
+		{
+			if (!Root)
+				return;
+
+			Matrix4x4 Result = Matrix4x4::Create(_Position ? *_Position : 0, _Rotation ? *_Rotation : 0) * Root->GetWorldUnscaled();
+			if (_Position != nullptr)
+				*_Position = Result.Position();
+
+			if (_Rotation != nullptr)
+				*_Rotation = Result.Rotation();
+			
+			if (_Scale != nullptr)
+				*_Scale = (ConstantScale ? *_Scale : *_Scale * Root->Scale);
+		}
+		void Transform::SetTransform(TransformSpace Space, const Vector3& _Position, const Vector3& _Scale, const Vector3& _Rotation)
+		{
+			if (Root != nullptr && Space == TransformSpace_Global)
+			{
+				Vector3 P = _Position, R = _Rotation, S = _Scale;
+				Localize(&P, &S, &R);
+
+				*GetLocalPosition() = P;
+				*GetLocalRotation() = R;
+				*GetLocalScale() = S;
+				Synchronize();
+			}
+			else
+			{
+				*GetLocalPosition() = _Position;
+				*GetLocalRotation() = _Rotation;
+				*GetLocalScale() = _Scale;
+			}
 		}
 		void Transform::SetRoot(Transform* Parent)
 		{
@@ -4980,7 +5068,7 @@ namespace Tomahawk
 
 			if (Root != nullptr)
 			{
-				GetRootBasis(Position, Scale, Rotation);
+				GetRootBasis(&Position, &Scale, &Rotation);
 				if (LocalTransform != nullptr)
 				{
 					delete LocalTransform;
@@ -5034,93 +5122,31 @@ namespace Tomahawk
 			LocalRotation = new Vector3(LocalTransform->Rotation());
 			LocalScale = new Vector3(ConstantScale ? Scale : Scale / Root->Scale);
 		}
-		void Transform::Synchronize()
+		void Transform::GetRootBasis(Vector3* _Position, Vector3* _Scale, Vector3* _Rotation)
 		{
 			if (!Root)
-				return;
-
-			*LocalTransform = Matrix4x4::Create(*LocalPosition, *LocalRotation) * Root->GetWorldUnscaled();
-			Position = LocalTransform->Position();
-			Rotation = LocalTransform->Rotation();
-			Scale = (ConstantScale ? *LocalScale : *LocalScale * Root->Scale);
-		}
-		void Transform::SetMatrix(const Matrix4x4& Matrix)
-		{
-			Position = Matrix.Position();
-			Scale = Matrix.Scale();
-			Rotation = Matrix.Rotation();
-		}
-		void Transform::SetLocals(Transform* Target)
-		{
-			GetLocalPosition()->Set(Target->Position);
-			GetLocalRotation()->Set(Target->Rotation);
-			GetLocalScale()->Set(Target->Scale);
-		}
-		void Transform::AddChild(Transform* Child)
-		{
-			if (Childs != nullptr)
 			{
-				for (auto It = Childs->begin(); It != Childs->end(); It++)
-				{
-					if (*It == Child)
-						return;
-				}
+				Matrix4x4 Result = Matrix4x4::Create(*LocalPosition, *LocalRotation) * Root->GetWorldUnscaled();
+				if (_Position != nullptr)
+					*_Position = Result.Position();
+
+				if (_Rotation != nullptr)
+					*_Rotation = Result.Rotation();
+
+				if (_Scale != nullptr)
+					*_Scale = (ConstantScale ? *LocalScale : *LocalScale * Root->Scale);
 			}
 			else
-				Childs = new std::vector<Transform*>();
-
-			Childs->push_back(Child);
-		}
-		void Transform::RemoveChild(Transform* Child)
-		{
-			if (!Childs)
-				return;
-
-			if (Child->Root == this)
-				Child->SetRoot(nullptr);
-
-			if (Childs->empty())
 			{
-				delete Childs;
-				Childs = nullptr;
-			}
-		}
-		void Transform::RemoveChilds()
-		{
-			if (!Childs)
-				return;
+				if (_Position != nullptr)
+					*_Position = Position;
 
-			std::vector<Transform*> Array = *Childs;
-			for (auto& Child : Array)
-			{
-				if (Child->Root == this)
-					Child->SetRoot(nullptr);
-			}
+				if (_Rotation != nullptr)
+					*_Rotation = Rotation;
 
-			delete Childs;
-			Childs = nullptr;
-		}
-		void Transform::GetWorld(btTransform* Out)
-		{
-			if (Out != nullptr)
-			{
-				btQuaternion QRotation;
-				QRotation.setEulerZYX(Rotation.Z, Rotation.Y, Rotation.X);
-
-				*Out = btTransform(QRotation, btVector3(Position.X, Position.Y, -Position.Z));
+				if (_Scale != nullptr)
+					*_Scale = Scale;
 			}
-		}
-		void Transform::GetLocal(btTransform* Out)
-		{
-			if (Root != nullptr && Out != nullptr)
-			{
-				btQuaternion QRotation;
-				QRotation.setEulerZYX(LocalRotation->Z, LocalRotation->Y, LocalRotation->X);
-
-				*Out = btTransform(QRotation, btVector3(LocalPosition->X, LocalPosition->Y, -LocalPosition->Z));
-			}
-			else
-				GetWorld(Out);
 		}
 		bool Transform::HasRoot(Transform* Target)
 		{
@@ -5290,20 +5316,6 @@ namespace Tomahawk
 				return Matrix4x4::CreateScale(Rescale) * Matrix4x4::CreateRotation(*LocalRotation) * Matrix4x4::CreateTranslation(*LocalPosition);
 
 			return Matrix4x4::CreateScale(Rescale) * Matrix4x4::CreateRotation(Rotation) * Matrix4x4::CreateTranslation(Position);
-		}
-		Matrix4x4 Transform::Localize(const Matrix4x4& In)
-		{
-			if (!Root)
-				return In;
-
-			return In * (ConstantScale ? Root->GetWorldUnscaled() : Root->GetWorld()).Invert();
-		}
-		Matrix4x4 Transform::Globalize(const Matrix4x4& In)
-		{
-			if (!Root)
-				return In;
-
-			return In * (ConstantScale ? Root->GetWorldUnscaled() : Root->GetWorld());
 		}
 		uint64_t Transform::GetChildCount()
 		{
@@ -5484,32 +5496,26 @@ namespace Tomahawk
 			if (!Instance)
 				return;
 
+			btTransform& Base = Instance->getWorldTransform();
 			if (!Kinematic)
 			{
-				btTransform& Offset = Instance->getWorldTransform();
-				Transform->Rotation = Matrix4x4(&Offset).Rotation();
+				btVector3 Position = Base.getOrigin();
+				btVector3 Scale = Instance->getCollisionShape()->getLocalScaling();
+				Vector3 Rotation;
 
-				btVector3 Value = Offset.getOrigin();
-				Transform->Position.X = Value.getX();
-				Transform->Position.Y = Value.getY();
-				Transform->Position.Z = Value.getZ();
-
-				Value = Instance->getCollisionShape()->getLocalScaling();
-				Transform->Scale.X = Value.getX();
-				Transform->Scale.Y = Value.getY();
-				Transform->Scale.Z = Value.getZ();
+				Base.getRotation().getEulerZYX(Rotation.Z, Rotation.Y, Rotation.X);
+				Transform->SetTransform(TransformSpace_Global, V3Bt(Position), V3Bt(Scale), Rotation.InvertX());
 			}
 			else
 			{
-				btTransform& Offset = Instance->getWorldTransform();
-				Offset.setOrigin(btVector3(Transform->Position.X, Transform->Position.Y, Transform->Position.Z));
-				Offset.getBasis().setEulerZYX(Transform->Rotation.X, Transform->Rotation.Y, Transform->Rotation.Z);
+				Base.setOrigin(btVector3(Transform->Position.X, Transform->Position.Y, Transform->Position.Z));
+				Base.getBasis().setEulerZYX(Transform->Rotation.X, Transform->Rotation.Y, Transform->Rotation.Z);
 				Instance->getCollisionShape()->setLocalScaling(BtV3(Transform->Scale));
 			}
 		}
 		void RigidBody::SetActivity(bool Active)
 		{
-			if (!Instance)
+			if (!Instance || GetActivationState() == MotionState_Disable_Deactivation)
 				return;
 
 			if (Active)
@@ -6085,17 +6091,17 @@ namespace Tomahawk
 			Center /= (float)Instance->m_nodes.size();
 			Center = Center.InvertZ();
 
-			if (Kinematic)
+			if (!Kinematic)
+			{
+				Vector3 Rotation;
+				Instance->getWorldTransform().getRotation().getEulerZYX(Rotation.Z, Rotation.Y, Rotation.X);
+				Transform->SetTransform(TransformSpace_Global, Center, 1.0f, Rotation.InvertX());
+			}
+			else
 			{
 				Vector3 Position = Transform->Position.InvertZ() - Center.InvertZ();
 				if (Position.Length() > 0.005f)
 					Instance->translate(BtV3(Position));
-			}
-			else
-			{
-				btTransform& Offset = Instance->getWorldTransform();
-				Transform->Rotation = Matrix4x4(&Offset).Rotation();
-				Transform->Position = Center;
 			}
 		}
 		void SoftBody::Reindex(std::vector<int>* Indices)
@@ -6379,7 +6385,7 @@ namespace Tomahawk
 		}
 		void SoftBody::SetActivity(bool Active)
 		{
-			if (!Instance)
+			if (!Instance || GetActivationState() == MotionState_Disable_Deactivation)
 				return;
 
 			if (Active)
@@ -7353,33 +7359,33 @@ namespace Tomahawk
 		void Simulator::AddSoftBody(SoftBody* Body)
 		{
 			btSoftRigidDynamicsWorld* SoftWorld = (btSoftRigidDynamicsWorld*)World;
-			if (Body != nullptr && HasSoftBodySupport() && Body->Instance->getWorldArrayIndex() == -1)
+			if (Body != nullptr && Body->Instance != nullptr && HasSoftBodySupport() && Body->Instance->getWorldArrayIndex() == -1)
 				SoftWorld->addSoftBody(Body->Instance);
 		}
 		void Simulator::RemoveSoftBody(SoftBody* Body)
 		{
 			btSoftRigidDynamicsWorld* SoftWorld = (btSoftRigidDynamicsWorld*)World;
-			if (Body != nullptr && HasSoftBodySupport() && Body->Instance->getWorldArrayIndex() >= 0)
+			if (Body != nullptr && Body->Instance != nullptr && HasSoftBodySupport() && Body->Instance->getWorldArrayIndex() >= 0)
 				SoftWorld->removeSoftBody(Body->Instance);
 		}
 		void Simulator::AddRigidBody(RigidBody* Body)
 		{
-			if (Body != nullptr && Body->Instance->getWorldArrayIndex() == -1)
+			if (Body != nullptr && Body->Instance != nullptr && Body->Instance->getWorldArrayIndex() == -1)
 				World->addRigidBody(Body->Instance);
 		}
 		void Simulator::RemoveRigidBody(RigidBody* Body)
 		{
-			if (Body != nullptr && Body->Instance->getWorldArrayIndex() >= 0)
+			if (Body != nullptr && Body->Instance != nullptr && Body->Instance->getWorldArrayIndex() >= 0)
 				World->removeRigidBody(Body->Instance);
 		}
 		void Simulator::AddSliderConstraint(SliderConstraint* Constraint)
 		{
-			if (Constraint != nullptr)
+			if (Constraint != nullptr && Constraint->Instance != nullptr)
 				World->addConstraint(Constraint->Instance, !Constraint->Initial.UseCollisions);
 		}
 		void Simulator::RemoveSliderConstraint(SliderConstraint* Constraint)
 		{
-			if (Constraint != nullptr)
+			if (Constraint != nullptr && Constraint->Instance != nullptr)
 				World->removeConstraint(Constraint->Instance);
 		}
 		void Simulator::RemoveAll()

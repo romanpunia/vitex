@@ -470,6 +470,10 @@ namespace Tomahawk
 			{
 				return "else-if";
 			}
+			void LogElseIf::SetLayer(LogIf* New)
+			{
+				Cond.Layer = New;
+			}
 			bool LogElseIf::IsSatisfied()
 			{
 				return State.Satisfied || Cond.Satisfied;
@@ -511,6 +515,10 @@ namespace Tomahawk
 			std::string LogElse::GetType()
 			{
 				return "else";
+			}
+			void LogElse::SetLayer(LogIf* New)
+			{
+				State.Layer = New;
 			}
 
 			Escape::Escape(Context* View) : Element(View)
@@ -729,6 +737,8 @@ namespace Tomahawk
 			}
 			void Panel::BuildEnd(nk_context* C, bool Stated)
 			{
+				if (!Base->HasOverflow() && C->current && C->current->flags & NK_WINDOW_ROM)
+					C->current->flags &= ~NK_WINDOW_ROM;
 				nk_end(C);
 			}
 			void Panel::BuildStyle(nk_context* C, nk_style* S)
@@ -1903,8 +1913,7 @@ namespace Tomahawk
 				});
 				Bind("min", [this]() { Source.Min = (double)GetFloat("min", -std::numeric_limits<float>::max()); });
 				Bind("max", [this]() { Source.Max = (double)GetFloat("max", std::numeric_limits<float>::max()); });
-				Bind("step", [this]() { Source.Step = (double)GetFloat("step", 1.0f); });
-				Bind("ppi", [this]() { Source.PPI = GetFloat("ppi", 0.05f); });
+				Bind("range", [this]() { Source.Range = (double)GetFloat("range", 100.0f); });
 				Bind("decimal", [this]() { Source.Decimal = GetBoolean("decimal", false); });
 				Bind("normal", [this]() { Style->normal = CastV4Item(Content, GetString("normal", "38 38 38 255")); });
 				Bind("hover", [this]() { Style->hover = CastV4Item(Content, GetString("hover", "38 38 38 255")); });
@@ -1971,15 +1980,20 @@ namespace Tomahawk
 			}
 			bool Property::BuildBegin(nk_context* C)
 			{
+				double PPI = abs(Source.Min - Source.Max) / Source.Range;
 				double Last = State.Value;
+
 				if (Source.Decimal)
 				{
+					if ((int)PPI < 1)
+						PPI = 1.0;
+
 					int Value = (int)State.Value;
-					nk_property_int(C, Source.Text.c_str(), (int)Source.Min, &Value, (int)Source.Max, (int)Source.Step, Source.PPI);
+					nk_property_int(C, Source.Text.c_str(), (int)Source.Min, &Value, (int)Source.Max, (int)PPI, (float)PPI);
 					State.Value = (double)Value;
 				}
 				else
-					nk_property_double(C, Source.Text.c_str(), Source.Min, &State.Value, Source.Max, Source.Step, Source.PPI);
+					nk_property_double(C, Source.Text.c_str(), Source.Min, &State.Value, Source.Max, PPI, (float)PPI);
 
 				if (Last != State.Value && !Source.Bind.empty())
 					SetGlobal(Source.Bind, Source.Decimal ? std::to_string((int)State.Value) : std::to_string(State.Value));
@@ -2265,6 +2279,7 @@ namespace Tomahawk
 				Bind("color", [this]() { Source.Color = GetV4("color", { 50, 50, 50, 255 }); });
 				Bind("symbol", [this]() { Source.Symbol = CastSymbol(GetString("symbol", "none")); });
 				Bind("text", [this]() { Source.Text = GetString("text", ""); });
+				Bind("text-value", [this]() { Source.TextValue = GetBoolean("text-value", false); });
 				Bind("width", [this]() { Source.Width = GetFloat("width", 120); });
 				Bind("height", [this]() { Source.Height = GetFloat("height", 80); });
 				Bind("normal", [this]() { Style->normal = CastV4Item(Content, GetString("normal", "45 45 45 255")); });
@@ -2353,6 +2368,9 @@ namespace Tomahawk
 			}
 			void Combo::SetValue(const std::string& Value)
 			{
+				if (Source.TextValue)
+					Source.Text = Value;
+
 				State.Value = Value;
 				if (!Source.Bind.empty())
 					SetGlobal(Source.Bind, State.Value);
@@ -2434,6 +2452,10 @@ namespace Tomahawk
 			{
 				return "combo-item";
 			}
+			void ComboItem::SetLayer(Combo* New)
+			{
+				State.Layer = New;
+			}
 			bool ComboItem::IsClicked()
 			{
 				return State.Clicked;
@@ -2502,19 +2524,19 @@ namespace Tomahawk
 				Bind("combo-label-normal", [this]() { Style.Combo->label_normal = CastV4(GetV4("combo-label-normal", { 175, 175, 175, 255 })); });
 				Bind("combo-label-hover", [this]() { Style.Combo->label_hover = CastV4(GetV4("combo-label-hover", { 175, 175, 175, 255 })); });
 				Bind("combo-label-active", [this]() { Style.Combo->label_active = CastV4(GetV4("combo-label-active", { 175, 175, 175, 255 })); });
-				Bind("combo-normal-symbol", [this]() { Style.Combo->sym_normal = CastSymbol(GetString("combo-normal-symbol", "circle-solid")); });
-				Bind("combo-hover-symbol", [this]() { Style.Combo->sym_hover = CastSymbol(GetString("combo-hover-symbol", "circle-solid")); });
-				Bind("combo-active-symbol", [this]() { Style.Combo->sym_active = CastSymbol(GetString("combo-active-symbol", "circle-solid")); });
+				Bind("combo-normal-symbol", [this]() { Style.Combo->sym_normal = CastSymbol(GetString("combo-normal-symbol", "circle-outline")); });
+				Bind("combo-hover-symbol", [this]() { Style.Combo->sym_hover = CastSymbol(GetString("combo-hover-symbol", "circle-outline")); });
+				Bind("combo-active-symbol", [this]() { Style.Combo->sym_active = CastSymbol(GetString("combo-active-symbol", "circle-outline")); });
 				Bind("combo-content-padding", [this]() { Style.Combo->content_padding = CastV2(GetV2("combo-content-padding", { 4, 0 })); });
 				Bind("combo-button-padding", [this]() { Style.Combo->button_padding = CastV2(GetV2("combo-button-padding", { 0, 0 })); });
 				Bind("combo-spacing", [this]() { Style.Combo->spacing = CastV2(GetV2("combo-spacing", { 4, 0 })); });
 				Bind("combo-border-size", [this]() { Style.Combo->border = GetFloat("combo-border-size", 1); });
 				Bind("combo-border-radius", [this]() { Style.Combo->rounding = GetFloat("combo-border-radius", 0); });
-				Bind("combo-exp-normal", [this]() { Style.Combo->button.normal = CastV4Item(Content, GetString("combo-exp-normal", "0 0 0 0")); });
-				Bind("combo-exp-hover", [this]() { Style.Combo->button.hover = CastV4Item(Content, GetString("combo-exp-hover", "0 0 0 0")); });
-				Bind("combo-exp-active", [this]() { Style.Combo->button.active = CastV4Item(Content, GetString("combo-exp-active", "0 0 0 0")); });
+				Bind("combo-exp-normal", [this]() { Style.Combo->button.normal = CastV4Item(Content, GetString("combo-exp-normal", "45 45 45 255")); });
+				Bind("combo-exp-hover", [this]() { Style.Combo->button.hover = CastV4Item(Content, GetString("combo-exp-hover", "45 45 45 255")); });
+				Bind("combo-exp-active", [this]() { Style.Combo->button.active = CastV4Item(Content, GetString("combo-exp-active", "45 45 45 255")); });
 				Bind("combo-exp-border", [this]() { Style.Combo->button.border_color = CastV4(GetV4("combo-exp-border", { 65, 65, 65, 255 })); });
-				Bind("combo-exp-text-background", [this]() { Style.Combo->button.text_background = CastV4(GetV4("combo-exp-text-background", { 0, 0, 0, 0 })); });
+				Bind("combo-exp-text-background", [this]() { Style.Combo->button.text_background = CastV4(GetV4("combo-exp-text-background", { 45, 45, 45, 255 })); });
 				Bind("combo-exp-text-normal", [this]() { Style.Combo->button.text_normal = CastV4(GetV4("combo-exp-text-normal", { 175, 175, 175, 255 })); });
 				Bind("combo-exp-text-hover", [this]() { Style.Combo->button.text_hover = CastV4(GetV4("combo-exp-text-hover", { 175, 175, 175, 255 })); });
 				Bind("combo-exp-text-active", [this]() { Style.Combo->button.text_active = CastV4(GetV4("combo-exp-text-active", { 175, 175, 175, 255 })); });
@@ -2621,16 +2643,16 @@ namespace Tomahawk
 				{
 					nk_layout_row_dynamic(C, 24, 1);
 					if (Source.Count >= 1)
-						nk_property_float(C, "X", -Max, &State.Value.X, Max, Source.Step, Source.PPI);
+						nk_property_float(C, "#X", -Max, &State.Value.X, Max, Source.Step, Source.PPI);
 
 					if (Source.Count >= 2)
-						nk_property_float(C, "Y", -Max, &State.Value.Y, Max, Source.Step, Source.PPI);
+						nk_property_float(C, "#Y", -Max, &State.Value.Y, Max, Source.Step, Source.PPI);
 
 					if (Source.Count >= 3)
-						nk_property_float(C, "Z", -Max, &State.Value.Z, Max, Source.Step, Source.PPI);
+						nk_property_float(C, "#Z", -Max, &State.Value.Z, Max, Source.Step, Source.PPI);
 
 					if (Source.Count >= 4)
-						nk_property_float(C, "W", -Max, &State.Value.W, Max, Source.Step, Source.PPI);
+						nk_property_float(C, "#W", -Max, &State.Value.W, Max, Source.Step, Source.PPI);
 
 					if (!Source.Bind.empty() && Last != State.Value)
 					{
@@ -3055,6 +3077,7 @@ namespace Tomahawk
 				Bind("image", [this]() { Source.Image = Content->Load<Graphics::Texture2D>(GetString("image", ""), nullptr); });
 				Bind("selectable", [this]() { Source.Selectable = GetBoolean("selectable", false); });
 				Bind("minimized", [this]() { Source.Minimized = GetBoolean("minimized", true); });
+				Bind("auto-toggle", [this]() { Source.AutoToggle = GetBoolean("auto-toggle", true); });
 				Bind("background", [this]() { Style.Tab->background = CastV4Item(Content, GetString("background", "40 40 40 255")); });
 				Bind("border", [this]() { Style.Tab->border_color = CastV4(GetV4("border", { 65, 65, 65, 255 })); });
 				Bind("text-background", [this]() { Style.Tab->text = CastV4(GetV4("text-background", { 175, 175, 175, 255 })); });
@@ -3096,14 +3119,23 @@ namespace Tomahawk
 
 				if (Source.Selectable)
 				{
+					nk_collapse_states* Value = (Source.AutoToggle ? (nk_collapse_states*)nk_find_value(C->current, nk_murmur_hash(Hash.Text.c_str(), Hash.Text.size(), (nk_hash)Hash.Id)) : nullptr);
+					nk_collapse_states Old = (!Value ? NK_MINIMIZED : *Value);
+
 					It->Selected = It->Value;
 					if (Source.Image != nullptr)
 						Stated = nk_tree_element_image_push_hashed(C, (nk_tree_type)Source.Type, nk_image_auto(Source.Image), Source.Text.c_str(), Source.Minimized ? NK_MINIMIZED : NK_MAXIMIZED, &It->Value, Hash.Text.c_str(), Hash.Text.size(), Hash.Id);
 					else
 						Stated = nk_tree_element_push_hashed(C, (nk_tree_type)Source.Type, Source.Text.c_str(), Source.Minimized ? NK_MINIMIZED : NK_MAXIMIZED, &It->Value, Hash.Text.c_str(), Hash.Text.size(), Hash.Id);
 
-					if (It->Selected != It->Value && !Source.Bind.empty())
-						SetGlobal(Source.Bind, It->Value ? "1" : "0");
+					if (It->Selected != It->Value)
+					{
+						if (!Source.Bind.empty())
+							SetGlobal(Source.Bind, It->Value ? "1" : "0");
+
+						if (Source.AutoToggle && Value != nullptr && *Value == Old)
+							*Value = (*Value == NK_MINIMIZED ? NK_MAXIMIZED : NK_MINIMIZED);
+					}
 				}
 				else
 				{
@@ -3545,6 +3577,10 @@ namespace Tomahawk
 			{
 				return "contextual-item";
 			}
+			void ContextualItem::SetLayer(Contextual* New)
+			{
+				State.Layer = New;
+			}
 			bool ContextualItem::IsClicked()
 			{
 				return State.Clicked;
@@ -3726,6 +3762,10 @@ namespace Tomahawk
 			{
 				return 0;
 			}
+			void HeaderTab::SetLayer(Header* New)
+			{
+				State.Layer = New;
+			}
 			std::string HeaderTab::GetType()
 			{
 				return "header-tab";
@@ -3822,6 +3862,10 @@ namespace Tomahawk
 			std::string HeaderItem::GetType()
 			{
 				return "header-item";
+			}
+			void HeaderItem::SetLayer(HeaderTab* New)
+			{
+				State.Layer = New;
 			}
 			bool HeaderItem::IsClicked()
 			{
@@ -4336,6 +4380,9 @@ namespace Tomahawk
 			}
 			bool DrawLabel::BuildBegin(nk_context* C)
 			{
+				if (Source.Text.empty())
+					return false;
+
 				struct nk_rect Bounds = nk_rect(Source.X, Source.Y, Source.Width, Source.Height);
 				if (Source.Relative)
 				{

@@ -874,6 +874,12 @@ namespace Tomahawk
 			unsigned char RenderTargetWriteMask;
 		};
 
+		struct THAWK_OUT PoseNode
+		{	
+			Compute::Vector3 Position;
+			Compute::Vector3 Rotation;
+		};
+
 		struct THAWK_OUT AnimationBuffer
 		{
 			Compute::Matrix4x4 Offsets[96];
@@ -904,16 +910,17 @@ namespace Tomahawk
 
 		struct THAWK_OUT PoseBuffer
 		{
-			std::unordered_map<int64_t, Compute::Matrix4x4> Pose;
+			std::unordered_map<int64_t, PoseNode> Pose;
 			Compute::Matrix4x4 Transform[96];
 
-			bool Reset(class SkinModel* Model);
-			bool ResetKeys(class SkinModel* Model, std::vector<Compute::AnimatorKey>* Keys);
-			Compute::Matrix4x4 Offset(int64_t Index);
+			bool SetPose(class SkinModel* Model);
+			bool GetPose(class SkinModel* Model, std::vector<Compute::AnimatorKey>* Result);
+			Compute::Matrix4x4 GetOffset(PoseNode* Node);
+			PoseNode* GetNode(int64_t Index);
 
 		private:
-			void SetJoint(Compute::Joint* Root);
-			void SetJointKeys(Compute::Joint* Root, std::vector<Compute::AnimatorKey>* Keys);
+			void SetJointPose(Compute::Joint* Root);
+			void GetJointPose(Compute::Joint* Root, std::vector<Compute::AnimatorKey>* Result);
 		};
 
 		struct THAWK_OUT Material
@@ -1697,7 +1704,7 @@ namespace Tomahawk
 			virtual TextureCube* CreateTextureCube() = 0;
 			virtual TextureCube* CreateTextureCube(const TextureCube::Desc& I) = 0;
 			virtual TextureCube* CreateTextureCube(Texture2D* Resource[6]) = 0;
-			virtual TextureCube* CreateTextureCubeInternal(void* Resource[6]) = 0;
+			virtual TextureCube* CreateTextureCube(Texture2D* Resource) = 0;
 			virtual RenderTarget2D* CreateRenderTarget2D(const RenderTarget2D::Desc& I) = 0;
 			virtual MultiRenderTarget2D* CreateMultiRenderTarget2D(const MultiRenderTarget2D::Desc& I) = 0;
 			virtual RenderTarget2DArray* CreateRenderTarget2DArray(const RenderTarget2DArray::Desc& I) = 0;
@@ -1731,6 +1738,7 @@ namespace Tomahawk
 			bool IsDebug();
 
 		protected:
+			virtual TextureCube* CreateTextureCubeInternal(void* Resource[6]) = 0;
 			bool Preprocess(Shader::Desc& ShaderCode);
 			void InitStates();
 			void InitSections();
@@ -1860,6 +1868,9 @@ namespace Tomahawk
 
 		private:
 			bool* GetInputState();
+
+		public:
+			static const char* GetKeyName(KeyCode Code);
 		};
 
 		class THAWK_OUT Model : public Rest::Object
@@ -1888,13 +1899,13 @@ namespace Tomahawk
 		public:
 			SkinModel();
 			virtual ~SkinModel() override;
-			void BuildSkeleton(PoseBuffer* Map);
+			void ComputePose(PoseBuffer* Map);
 			SkinMeshBuffer* FindMesh(const std::string& Name);
 			Compute::Joint* FindJoint(const std::string& Name, Compute::Joint* Root = nullptr);
 			Compute::Joint* FindJoint(int64_t Index, Compute::Joint* Root = nullptr);
 
 		private:
-			void BuildSkeleton(PoseBuffer* Map, Compute::Joint* Root, const Compute::Matrix4x4& World);
+			void ComputePose(PoseBuffer* Map, Compute::Joint* Root, const Compute::Matrix4x4& World);
 		};
 
 		inline ResourceMap operator |(ResourceMap A, ResourceMap B)

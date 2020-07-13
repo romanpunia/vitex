@@ -267,7 +267,10 @@ namespace Tomahawk
 				{
 					Rest::Document* Material = Materials->SetDocument("material");
 					NMake::Pack(Material->SetDocument("name"), Object->GetMaterialName(i));
-					NMake::Pack(Material, Object->GetMaterialById(i));
+
+					Graphics::Material* Ref = Object->GetMaterialById(i);
+					if (Ref != nullptr)
+						NMake::Pack(Material, *Ref);
 				}
 
 				Rest::Document* Entities = Document->SetArray("entities");
@@ -974,6 +977,7 @@ namespace Tomahawk
 							Keys[It->second.Index].Rotation.X = Channel->mRotationKeys[k].mValue.x;
 							Keys[It->second.Index].Rotation.Y = Channel->mRotationKeys[k].mValue.y;
 							Keys[It->second.Index].Rotation.Z = Channel->mPositionKeys[k].mValue.z;
+							Keys[It->second.Index].Rotation = Keys[It->second.Index].Rotation.SaturateRotation();
 						}
 
 						for (int64_t k = 0; k < Channel->mNumScalingKeys; k++)

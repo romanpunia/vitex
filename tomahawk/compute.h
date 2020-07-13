@@ -167,6 +167,12 @@ namespace Tomahawk
 			SoftCollision_Default = SoftCollision_SDF_RS | SoftCollision_CL_SS
 		};
 
+		enum TransformSpace
+		{
+			TransformSpace_Local,
+			TransformSpace_Global
+		};
+
 		struct THAWK_OUT IncludeDesc
 		{
 			std::vector<std::string> Exts;
@@ -1294,17 +1300,16 @@ namespace Tomahawk
 		public:
 			Transform();
 			virtual ~Transform() override;
-			void GetRootBasis(Vector3& Position, Vector3& Scale, Vector3& Rotation);
-			void SetRoot(Transform* Root);
-			void SetMatrix(const Matrix4x4& Matrix);
-			void SetLocals(Transform* Target);
-			void Copy(Transform* Target);
 			void AddChild(Transform* Child);
 			void RemoveChild(Transform* Child);
 			void RemoveChilds();
 			void Synchronize();
-			void GetWorld(btTransform* Out);
-			void GetLocal(btTransform* Out);
+			void Copy(Transform* Target);
+			void Localize(Vector3* Position, Vector3* Scale, Vector3* Rotation);
+			void Globalize(Vector3* Position, Vector3* Scale, Vector3* Rotation);
+			void SetTransform(TransformSpace Space, const Vector3& Position, const Vector3& Scale, const Vector3& Rotation);
+			void SetRoot(Transform* Root);
+			void GetRootBasis(Vector3* Position, Vector3* Scale, Vector3* Rotation);
 			std::vector<Transform*>* GetChilds();
 			Transform* GetChild(uint64_t Child);
 			Vector3* GetLocalPosition();
@@ -1322,8 +1327,6 @@ namespace Tomahawk
 			Matrix4x4 GetLocal(const Vector3& Rescale);
 			Matrix4x4 GetLocalUnscaled();
 			Matrix4x4 GetLocalUnscaled(const Vector3& Rescale);
-			Matrix4x4 Localize(const Matrix4x4& In);
-			Matrix4x4 Globalize(const Matrix4x4& In);
 			Transform* GetUpperRoot();
 			Transform* GetRoot();
 			bool HasRoot(Transform* Target);

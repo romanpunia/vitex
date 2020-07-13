@@ -25,9 +25,10 @@ namespace Tomahawk
 			Device->SetTexture2D(Surface->DiffuseMap, 1);
 			Device->SetTexture2D(Surface->NormalMap, 2);
 			Device->SetTexture2D(Surface->MetallicMap, 3);
-			Device->SetTexture2D(Surface->HeightMap, 4);
-			Device->SetTexture2D(Surface->OcclusionMap, 5);
-			Device->SetTexture2D(Surface->EmissionMap, 6);
+			Device->SetTexture2D(Surface->RoughnessMap, 4);
+			Device->SetTexture2D(Surface->HeightMap, 5);
+			Device->SetTexture2D(Surface->OcclusionMap, 6);
+			Device->SetTexture2D(Surface->EmissionMap, 7);
 
 			return true;
 		}
@@ -249,6 +250,10 @@ namespace Tomahawk
 			Asset = Content->FindAsset(Value.MetallicMap);
 			if (Asset != nullptr)
 				NMake::Pack(V->SetDocument("metallic-map"), Asset->Path);
+
+			Asset = Content->FindAsset(Value.RoughnessMap);
+			if (Asset != nullptr)
+				NMake::Pack(V->SetDocument("roughness-map"), Asset->Path);
 
 			Asset = Content->FindAsset(Value.HeightMap);
 			if (Asset != nullptr)
@@ -558,7 +563,7 @@ namespace Tomahawk
 
 			Rest::Document* Array = V->SetArray("clips");
 			for (auto&& It : Value)
-				NMake::Pack(V->SetDocument("clip"), It);
+				NMake::Pack(Array->SetDocument("clip"), It);
 
 			return true;
 		}
@@ -569,7 +574,7 @@ namespace Tomahawk
 
 			Rest::Document* Array = V->SetArray("clips");
 			for (auto&& It : Value)
-				NMake::Pack(V->SetDocument("clip"), It);
+				NMake::Pack(Array->SetDocument("clip"), It);
 
 			return true;
 		}
@@ -941,6 +946,9 @@ namespace Tomahawk
 
 			if (NMake::Unpack(V->Find("metallic-map"), &Path))
 				O->MetallicMap = Content->Load<Graphics::Texture2D>(Path, nullptr);
+
+			if (NMake::Unpack(V->Find("roughness-map"), &Path))
+				O->RoughnessMap = Content->Load<Graphics::Texture2D>(Path, nullptr);
 
 			if (NMake::Unpack(V->Find("height-map"), &Path))
 				O->HeightMap = Content->Load<Graphics::Texture2D>(Path, nullptr);
@@ -2049,6 +2057,9 @@ namespace Tomahawk
 		void Renderer::OnInitialize()
 		{
 		}
+		void Renderer::OnCulling(const Viewer& View)
+		{
+		}
 		void Renderer::OnRender(Rest::Timer* TimeStep)
 		{
 		}
@@ -2677,11 +2688,11 @@ namespace Tomahawk
 				RestoreViewBuffer(nullptr);
 				SetSurfaceCleared();
 
-				auto* RenderStages = View.Renderer->GetRenderers();
-				for (auto It = RenderStages->begin(); It != RenderStages->end(); It++)
+				auto* States = View.Renderer->GetRenderers();
+				for (auto& Renderer : *States)
 				{
-					if ((*It)->Active)
-						(*It)->OnRender(Time);
+					if (Renderer->Active)
+						Renderer->OnRender(Time);
 				}
 
 				if (Callback)
@@ -2700,6 +2711,19 @@ namespace Tomahawk
 		void SceneGraph::Synchronize(Rest::Timer* Time)
 		{
 			BeginThread(ThreadId_Synchronize);
+			if (Camera != nullptr)
+			{
+				auto* Viewport = Camera->As<Components::Camera>();
+				auto* States = Viewport->GetRenderer()->GetRenderers();
+				Viewer View = Viewport->GetViewer();
+
+				for (auto& Renderer : *States)
+				{
+					if (Renderer->Active)
+						Renderer->OnCulling(View);
+				}
+			}
+
 			for (auto It = Pending.Begin(); It != Pending.End(); It++)
 				(*It)->OnSynchronize(Time);
 
@@ -3567,6 +3591,17 @@ namespace Tomahawk
 			}
 
 			Assets.clear();
+			Mutex.unlock();
+		}
+		void ContentManager::InvalidatePath(const std::string& Path)
+		{
+			std::string File = Rest::OS::Resolve(Path, Environment);
+			Mutex.lock();
+
+			auto It = Assets.find(Rest::Stroke(File).Replace(Environment, "./").Replace('\\', '/').R());
+			if (It != Assets.end())
+				Assets.erase(It);
+
 			Mutex.unlock();
 		}
 		void ContentManager::SetEnvironment(const std::string& Path)

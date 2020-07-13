@@ -1,5 +1,4 @@
 #include "script.h"
-#include "script/interface.h"
 #include <angelscript.h>
 #include <iostream>
 #include <scriptstdstring/scriptstdstring.h>
@@ -59,6 +58,393 @@ namespace Tomahawk
 			asUINT GetSize()
 			{
 				return (asUINT)Code.size();
+			}
+		};
+
+		class Format : public Rest::Object
+		{
+		public:
+			std::vector<std::string> Args;
+
+		public:
+			Format()
+			{
+			}
+			Format(unsigned char* Buffer)
+			{
+				VMContext* Context = VMContext::Get();
+				if (!Context || !Buffer)
+					return;
+
+				VMGlobal& Global = Context->GetManager()->Global();
+				unsigned int Length = *(unsigned int*)Buffer;
+				Buffer += 4;
+
+				while (Length--)
+				{
+					if (uintptr_t(Buffer) & 0x3)
+						Buffer += 4 - (uintptr_t(Buffer) & 0x3);
+
+					int TypeId = *(int*)Buffer;
+					Buffer += sizeof(int);
+
+					Rest::Stroke Result; std::string Offset;
+					FormatBuffer(Global, Result, Offset, (void*)Buffer, TypeId);
+					Args.push_back(Result.R()[0] == '\n' ? Result.Substring(1).R() : Result.R());
+
+					if (TypeId & VMTypeId_MASK_OBJECT)
+					{
+						VMWTypeInfo Type = Global.GetTypeInfoById(TypeId);
+						if (Type.IsValid() && Type.GetFlags() & VMObjType_VALUE)
+							Buffer += Type.GetSize();
+						else
+							Buffer += sizeof(void*);
+					}
+					else if (TypeId == 0)
+						Buffer += sizeof(void*);
+					else
+						Buffer += Global.GetSizeOfPrimitiveType(TypeId);
+				}
+			}
+
+		public:
+			static std::string JSON(void* Ref, int TypeId)
+			{
+				VMContext* Context = VMContext::Get();
+				if (!Context)
+					return "{}";
+
+				VMGlobal& Global = Context->GetManager()->Global();
+				Rest::Stroke Result;
+
+				FormatJSON(Global, Result, Ref, TypeId);
+				return Result.R();
+			}
+			static std::string Form(const std::string& F, const Format& Form)
+			{
+				Rest::Stroke Buffer = F;
+				uint64_t Offset = 0;
+
+				for (auto& Item : Form.Args)
+				{
+					auto R = Buffer.FindUnescaped('?', Offset);
+					if (!R.Found)
+						break;
+
+					Buffer.ReplacePart(R.Start, R.End, Item);
+					Offset = R.End;
+				}
+
+				return Buffer.R();
+			}
+			static void WriteLine(Rest::Console* Base, const std::string& F, Format* Form)
+			{
+				Rest::Stroke Buffer = F;
+				uint64_t Offset = 0;
+
+				if (Form != nullptr)
+				{
+					for (auto& Item : Form->Args)
+					{
+						auto R = Buffer.FindUnescaped('?', Offset);
+						if (!R.Found)
+							break;
+
+						Buffer.ReplacePart(R.Start, R.End, Item);
+						Offset = R.End;
+					}
+				}
+
+				Base->sWriteLine(Buffer.R());
+			}
+			static void Write(Rest::Console* Base, const std::string& F, Format* Form)
+			{
+				Rest::Stroke Buffer = F;
+				uint64_t Offset = 0;
+
+				if (Form != nullptr)
+				{
+					for (auto& Item : Form->Args)
+					{
+						auto R = Buffer.FindUnescaped('?', Offset);
+						if (!R.Found)
+							break;
+
+						Buffer.ReplacePart(R.Start, R.End, Item);
+						Offset = R.End;
+					}
+				}
+
+				Base->sWrite(Buffer.R());
+			}
+
+		private:
+			static void FormatBuffer(VMGlobal& Global, Rest::Stroke& Result, std::string& Offset, void* Ref, int TypeId)
+			{
+				if (TypeId < VMTypeId_BOOL || TypeId > VMTypeId_DOUBLE)
+				{
+					VMWTypeInfo Type = Global.GetTypeInfoById(TypeId);
+					if (!Ref)
+					{
+						Result.Append("null");
+						return;
+					}
+
+					if (VMWTypeInfo::IsScriptObject(TypeId))
+					{
+						VMWObject VObject = *(VMCObject**)Ref;
+						Rest::Stroke Decl;
+
+						Offset += '\t';
+						for (unsigned int i = 0; i < VObject.GetPropertiesCount(); i++)
+						{
+							const char* Name = VObject.GetPropertyName(i);
+							Decl.Append(Offset).fAppend("%s: ", Name ? Name : "");
+							FormatBuffer(Global, Decl, Offset, VObject.GetAddressOfProperty(i), VObject.GetPropertyTypeId(i));
+							Decl.Append(",\n");
+						}
+
+						Offset = Offset.substr(0, Offset.size() - 1);
+						if (!Decl.Empty())
+							Result.fAppend("\n%s{\n%s\n%s}", Offset.c_str(), Decl.Clip(Decl.Size() - 2).Get(), Offset.c_str());
+						else
+							Result.Append("{}");
+					}
+					else if (strcmp(Type.GetName(), "dictionary") == 0)
+					{
+						VMWDictionary Map = *(VMCDictionary**)Ref;
+						Rest::Stroke Decl; std::string Name;
+
+						Offset += '\t';
+						for (unsigned int i = 0; i < Map.GetSize(); i++)
+						{
+							void* ElementRef; int ElementTypeId;
+							if (!Map.GetIndex(i, &Name, &ElementRef, &ElementTypeId))
+								continue;
+
+							Decl.Append(Offset).fAppend("%s: ", Name.c_str());
+							FormatBuffer(Global, Decl, Offset, ElementRef, ElementTypeId);
+							Decl.Append(",\n");
+						}
+
+						Offset = Offset.substr(0, Offset.size() - 1);
+						if (!Decl.Empty())
+							Result.fAppend("\n%s{\n%s\n%s}", Offset.c_str(), Decl.Clip(Decl.Size() - 2).Get(), Offset.c_str());
+						else
+							Result.Append("{}");
+					}
+					else if (strcmp(Type.GetName(), "array") == 0)
+					{
+						VMWArray Array = *(VMCArray**)Ref;
+						int ArrayTypeId = Array.GetElementTypeId();
+						VMWTypeInfo ArrayType = Global.GetTypeInfoById(ArrayTypeId);
+						Rest::Stroke Decl;
+
+						Offset += '\t';
+						for (unsigned int i = 0; i < Array.GetSize(); i++)
+						{
+							Decl.Append(Offset);
+							FormatBuffer(Global, Decl, Offset, Array.At(i), ArrayTypeId);
+							Decl.Append(", ");
+						}
+
+						Offset = Offset.substr(0, Offset.size() - 1);
+						if (!Decl.Empty())
+							Result.fAppend("\n%s[\n%s\n%s]", Offset.c_str(), Decl.Clip(Decl.Size() - 2).Get(), Offset.c_str());
+						else
+							Result.Append("[]");
+					}
+					else if (strcmp(Type.GetName(), "string") != 0)
+					{
+						Rest::Stroke Decl;
+						Offset += '\t';
+
+						Type.ForEachProperty([&Decl, &Global, &Offset, Ref, TypeId](VMWTypeInfo* Base, VMFuncProperty* Prop)
+						{
+							Decl.Append(Offset).fAppend("%s: ", Prop->Name ? Prop->Name : "");
+							FormatBuffer(Global, Decl, Offset, Base->GetProperty<void>(Ref, Prop->Offset, TypeId), Prop->TypeId);
+							Decl.Append(",\n");
+						});
+
+						Offset = Offset.substr(0, Offset.size() - 1);
+						if (!Decl.Empty())
+							Result.fAppend("\n%s{\n%s\n%s}", Offset.c_str(), Decl.Clip(Decl.Size() - 2).Get(), Offset.c_str());
+						else
+							Result.fAppend("{}\n", Type.GetName());
+					}
+					else
+						Result.Append(*(std::string*)Ref);
+				}
+				else
+				{
+					switch (TypeId)
+					{
+						case VMTypeId_BOOL:
+							Result.fAppend("%s", *(bool*)Ref ? "true" : "false");
+							break;
+						case VMTypeId_INT8:
+							Result.fAppend("%i", *(char*)Ref);
+							break;
+						case VMTypeId_INT16:
+							Result.fAppend("%i", *(short*)Ref);
+							break;
+						case VMTypeId_INT32:
+							Result.fAppend("%i", *(int*)Ref);
+							break;
+						case VMTypeId_INT64:
+							Result.fAppend("%ll", *(int64_t*)Ref);
+							break;
+						case VMTypeId_UINT8:
+							Result.fAppend("%u", *(unsigned char*)Ref);
+							break;
+						case VMTypeId_UINT16:
+							Result.fAppend("%u", *(unsigned short*)Ref);
+							break;
+						case VMTypeId_UINT32:
+							Result.fAppend("%u", *(unsigned int*)Ref);
+							break;
+						case VMTypeId_UINT64:
+							Result.fAppend("%llu", *(uint64_t*)Ref);
+							break;
+						case VMTypeId_FLOAT:
+							Result.fAppend("%f", *(float*)Ref);
+							break;
+						case VMTypeId_DOUBLE:
+							Result.fAppend("%f", *(double*)Ref);
+							break;
+						default:
+							Result.Append("null");
+							break;
+					}
+				}
+			}
+			static void FormatJSON(VMGlobal& Global, Rest::Stroke& Result, void* Ref, int TypeId)
+			{
+				if (TypeId < VMTypeId_BOOL || TypeId > VMTypeId_DOUBLE)
+				{
+					VMWTypeInfo Type = Global.GetTypeInfoById(TypeId);
+					void* Object = Type.GetInstance<void>(Ref, TypeId);
+
+					if (!Object)
+					{
+						Result.Append("null");
+						return;
+					}
+
+					if (VMWTypeInfo::IsScriptObject(TypeId))
+					{
+						VMWObject VObject = (VMCObject*)Object;
+						Rest::Stroke Decl;
+
+						for (unsigned int i = 0; i < VObject.GetPropertiesCount(); i++)
+						{
+							const char* Name = VObject.GetPropertyName(i);
+							Decl.fAppend("\"%s\":", Name ? Name : "");
+							FormatJSON(Global, Decl, VObject.GetAddressOfProperty(i), VObject.GetPropertyTypeId(i));
+							Decl.Append(",");
+						}
+
+						if (!Decl.Empty())
+							Result.fAppend("{%s}", Decl.Clip(Decl.Size() - 1).Get());
+						else
+							Result.Append("{}");
+					}
+					else if (strcmp(Type.GetName(), "dictionary") == 0)
+					{
+						VMWDictionary Map = (VMCDictionary*)Object;
+						Rest::Stroke Decl; std::string Name;
+
+						for (unsigned int i = 0; i < Map.GetSize(); i++)
+						{
+							void* ElementRef; int ElementTypeId;
+							if (!Map.GetIndex(i, &Name, &ElementRef, &ElementTypeId))
+								continue;
+
+							Decl.fAppend("\"%s\":", Name.c_str());
+							FormatJSON(Global, Decl, ElementRef, ElementTypeId);
+							Decl.Append(",");
+						}
+
+						if (!Decl.Empty())
+							Result.fAppend("{%s}", Decl.Clip(Decl.Size() - 1).Get());
+						else
+							Result.Append("{}");
+					}
+					else if (strcmp(Type.GetName(), "array") == 0)
+					{
+						VMWArray Array = (VMCArray*)Object;
+						int ArrayTypeId = Array.GetElementTypeId();
+						VMWTypeInfo ArrayType = Global.GetTypeInfoById(ArrayTypeId);
+						Rest::Stroke Decl;
+
+						for (unsigned int i = 0; i < Array.GetSize(); i++)
+						{
+							FormatJSON(Global, Decl, Array.At(i), ArrayTypeId);
+							Decl.Append(",");
+						}
+
+						if (!Decl.Empty())
+							Result.fAppend("[%s]", Decl.Clip(Decl.Size() - 1).Get());
+						else
+							Result.Append("[]");
+					}
+					else if (strcmp(Type.GetName(), "string") != 0)
+					{
+						Rest::Stroke Decl;
+						Type.ForEachProperty([&Decl, &Global, Ref, TypeId](VMWTypeInfo* Base, VMFuncProperty* Prop)
+						{
+							Decl.fAppend("\"%s\":", Prop->Name ? Prop->Name : "");
+							FormatJSON(Global, Decl, Base->GetProperty<void>(Ref, Prop->Offset, TypeId), Prop->TypeId);
+							Decl.Append(",");
+						});
+
+						if (!Decl.Empty())
+							Result.fAppend("{%s}", Decl.Clip(Decl.Size() - 1).Get());
+						else
+							Result.fAppend("{}", Type.GetName());
+					}
+					else
+						Result.fAppend("\"%s\"", ((std::string*)Object)->c_str());
+				}
+				else
+				{
+					switch (TypeId)
+					{
+						case VMTypeId_BOOL:
+							Result.fAppend("%s", *(bool*)Ref ? "true" : "false");
+							break;
+						case VMTypeId_INT8:
+							Result.fAppend("%i", *(char*)Ref);
+							break;
+						case VMTypeId_INT16:
+							Result.fAppend("%i", *(short*)Ref);
+							break;
+						case VMTypeId_INT32:
+							Result.fAppend("%i", *(int*)Ref);
+							break;
+						case VMTypeId_INT64:
+							Result.fAppend("%ll", *(int64_t*)Ref);
+							break;
+						case VMTypeId_UINT8:
+							Result.fAppend("%u", *(unsigned char*)Ref);
+							break;
+						case VMTypeId_UINT16:
+							Result.fAppend("%u", *(unsigned short*)Ref);
+							break;
+						case VMTypeId_UINT32:
+							Result.fAppend("%u", *(unsigned int*)Ref);
+							break;
+						case VMTypeId_UINT64:
+							Result.fAppend("%llu", *(uint64_t*)Ref);
+							break;
+						case VMTypeId_FLOAT:
+							Result.fAppend("%f", *(float*)Ref);
+							break;
+						case VMTypeId_DOUBLE:
+							Result.fAppend("%f", *(double*)Ref);
+							break;
+					}
+				}
 			}
 		};
 
@@ -3781,122 +4167,12 @@ namespace Tomahawk
 						}
 					}
 
-					if (All || Name.Find("rest").Found)
+					if (All || Name.Find("console").Found)
 					{
-						Want |= VMFeature_Rest;
-						if (!(Features & VMFeature_Rest) && Features != VMFeature_All)
+						Want |= VMFeature_Console;
+						if (!(Features & VMFeature_Console) && Features != VMFeature_All)
 						{
-							THAWK_ERROR("feature \"rest\" is not allowed");
-							return false;
-						}
-					}
-
-					if (All || Name.Find("compute").Found)
-					{
-						Want |= VMFeature_Compute;
-						if (!(Features & VMFeature_Compute) && Features != VMFeature_All)
-						{
-							THAWK_ERROR("feature \"compute\" is not allowed");
-							return false;
-						}
-					}
-
-					if (All || Name.Find("audio").Found)
-					{
-						Want |= VMFeature_Audio;
-						if (!(Features & VMFeature_Audio) && Features != VMFeature_All)
-						{
-							THAWK_ERROR("feature \"audio\" is not allowed");
-							return false;
-						}
-					}
-
-					if (All || Name.Find("effects").Found)
-					{
-						Want |= VMFeature_Effects;
-						if (!(Features & VMFeature_Effects) && Features != VMFeature_All)
-						{
-							THAWK_ERROR("feature \"effects\" is not allowed");
-							return false;
-						}
-					}
-
-					if (All || Name.Find("filters").Found)
-					{
-						Want |= VMFeature_Filters;
-						if (!(Features & VMFeature_Filters) && Features != VMFeature_All)
-						{
-							THAWK_ERROR("feature \"filters\" is not allowed");
-							return false;
-						}
-					}
-
-					if (All || Name.Find("network").Found)
-					{
-						Want |= VMFeature_Network;
-						if (!(Features & VMFeature_Network) && Features != VMFeature_All)
-						{
-							THAWK_ERROR("feature \"network\" is not allowed");
-							return false;
-						}
-					}
-
-					if (All || Name.Find("http").Found)
-					{
-						Want |= VMFeature_HTTP;
-						if (!(Features & VMFeature_HTTP) && Features != VMFeature_All)
-						{
-							THAWK_ERROR("feature \"http\" is not allowed");
-							return false;
-						}
-					}
-
-					if (All || Name.Find("smtp").Found)
-					{
-						Want |= VMFeature_SMTP;
-						if (!(Features & VMFeature_SMTP) && Features != VMFeature_All)
-						{
-							THAWK_ERROR("feature \"smtp\" is not allowed");
-							return false;
-						}
-					}
-
-					if (All || Name.Find("bson").Found)
-					{
-						Want |= VMFeature_BSON;
-						if (!(Features & VMFeature_BSON) && Features != VMFeature_All)
-						{
-							THAWK_ERROR("feature \"bson\" is not allowed");
-							return false;
-						}
-					}
-
-					if (All || Name.Find("mongodb").Found)
-					{
-						Want |= VMFeature_MongoDB;
-						if (!(Features & VMFeature_MongoDB) && Features != VMFeature_All)
-						{
-							THAWK_ERROR("feature \"mongodb\" is not allowed");
-							return false;
-						}
-					}
-
-					if (All || Name.Find("graphics").Found)
-					{
-						Want |= VMFeature_Graphics;
-						if (!(Features & VMFeature_Graphics) && Features != VMFeature_All)
-						{
-							THAWK_ERROR("feature \"graphics\" is not allowed");
-							return false;
-						}
-					}
-
-					if (All || Name.Find("engine").Found)
-					{
-						Want |= VMFeature_Engine;
-						if (!(Features & VMFeature_Engine) && Features != VMFeature_All)
-						{
-							THAWK_ERROR("feature \"engine\" is not allowed");
+							THAWK_ERROR("feature \"console\" is not allowed");
 							return false;
 						}
 					}
@@ -4804,7 +5080,7 @@ namespace Tomahawk
 				EnableAsync();
 			}
 
-			if ((NewFeatures == VMFeature_All || NewFeatures & VMFeature_Rest) && !(Features & VMFeature_Rest))
+			if ((NewFeatures == VMFeature_All || NewFeatures & VMFeature_Console) && !(Features & VMFeature_Console))
 			{
 				if (!(NewFeatures & VMFeature_Any) && NewFeatures != VMFeature_All)
 					return Setup(NewFeatures | VMFeature_Any);
@@ -4818,107 +5094,29 @@ namespace Tomahawk
 				if (!(NewFeatures & VMFeature_Dictionary) && NewFeatures != VMFeature_All)
 					return Setup(NewFeatures | VMFeature_Dictionary);
 
-				Features |= VMFeature_Rest;
-				Interface::EnableRest(this);
-			}
+				VMGlobal& Register = Global();
+				Features |= VMFeature_Console;
 
-			if ((NewFeatures == VMFeature_All || NewFeatures & VMFeature_Compute) && !(Features & VMFeature_Compute))
-			{
-				if (!(NewFeatures & VMFeature_Rest) && NewFeatures != VMFeature_All)
-					return Setup(NewFeatures | VMFeature_Rest);
+				VMWRefClass VFormat = Register.SetClassUnmanaged<Format>("format");
+				VFormat.SetUnmanagedConstructor<Format>("format@ f()");
+				VFormat.SetUnmanagedConstructorList<Format>("format@ f(int &in) {repeat ?}");
+				VFormat.SetMethodStatic("string JSON(const ? &in)", &Format::JSON);
 
-				Features |= VMFeature_Compute;
-				Interface::EnableCompute(this);
-			}
-
-			if ((NewFeatures == VMFeature_All || NewFeatures & VMFeature_Network) && !(Features & VMFeature_Network))
-			{
-				if (!(NewFeatures & VMFeature_Compute) && NewFeatures != VMFeature_All)
-					return Setup(NewFeatures | VMFeature_Compute);
-
-				Features |= VMFeature_Network;
-				Interface::EnableNetwork(this);
-			}
-
-			if ((NewFeatures == VMFeature_All || NewFeatures & VMFeature_HTTP) && !(Features & VMFeature_HTTP))
-			{
-				if (!(NewFeatures & VMFeature_Network) && NewFeatures != VMFeature_All)
-					return Setup(NewFeatures | VMFeature_Network);
-
-				Features |= VMFeature_HTTP;
-				Interface::EnableHTTP(this);
-			}
-
-			if ((NewFeatures == VMFeature_All || NewFeatures & VMFeature_SMTP) && !(Features & VMFeature_SMTP))
-			{
-				if (!(NewFeatures & VMFeature_Network) && NewFeatures != VMFeature_All)
-					return Setup(NewFeatures | VMFeature_Network);
-
-				Features |= VMFeature_SMTP;
-				Interface::EnableSMTP(this);
-			}
-
-			if ((NewFeatures == VMFeature_All || NewFeatures & VMFeature_BSON) && !(Features & VMFeature_BSON))
-			{
-				if (!(NewFeatures & VMFeature_Network) && NewFeatures != VMFeature_All)
-					return Setup(NewFeatures | VMFeature_Network);
-
-				Features |= VMFeature_BSON;
-				Interface::EnableBSON(this);
-			}
-
-			if ((NewFeatures == VMFeature_All || NewFeatures & VMFeature_MongoDB) && !(Features & VMFeature_MongoDB))
-			{
-				if (!(NewFeatures & VMFeature_BSON) && NewFeatures != VMFeature_All)
-					return Setup(NewFeatures | VMFeature_BSON);
-
-				Features |= VMFeature_MongoDB;
-				Interface::EnableMongoDB(this);
-			}
-
-			if ((NewFeatures == VMFeature_All || NewFeatures & VMFeature_Audio) && !(Features & VMFeature_Audio))
-			{
-				if (!(NewFeatures & VMFeature_Compute) && NewFeatures != VMFeature_All)
-					return Setup(NewFeatures | VMFeature_Compute);
-
-				Features |= VMFeature_Audio;
-				Interface::EnableAudio(this);
-			}
-
-			if ((NewFeatures == VMFeature_All || NewFeatures & VMFeature_Effects) && !(Features & VMFeature_Effects))
-			{
-				if (!(NewFeatures & VMFeature_Audio) && NewFeatures != VMFeature_All)
-					return Setup(NewFeatures | VMFeature_Audio);
-
-				Features |= VMFeature_Effects;
-				Interface::EnableEffects(this);
-			}
-
-			if ((NewFeatures == VMFeature_All || NewFeatures & VMFeature_Filters) && !(Features & VMFeature_Filters))
-			{
-				if (!(NewFeatures & VMFeature_Audio) && NewFeatures != VMFeature_All)
-					return Setup(NewFeatures | VMFeature_Audio);
-
-				Features |= VMFeature_Filters;
-				Interface::EnableFilters(this);
-			}
-
-			if ((NewFeatures == VMFeature_All || NewFeatures & VMFeature_Graphics) && !(Features & VMFeature_Graphics))
-			{
-				if (!(NewFeatures & VMFeature_Compute) && NewFeatures != VMFeature_All)
-					return Setup(NewFeatures | VMFeature_Compute);
-
-				Features |= VMFeature_Graphics;
-				Interface::EnableGraphics(this);
-			}
-
-			if ((NewFeatures == VMFeature_All || NewFeatures & VMFeature_Engine) && !(Features & VMFeature_Engine))
-			{
-				if (!(NewFeatures & VMFeature_Graphics) && NewFeatures != VMFeature_All)
-					return Setup(NewFeatures | VMFeature_Graphics);
-
-				Features |= VMFeature_Engine;
-				Interface::EnableEngine(this);
+				VMWRefClass VConsole = Register.SetClassUnmanaged<Rest::Console>("console");
+				VConsole.SetUnmanagedConstructor<Rest::Console>("console@ f()");
+				VConsole.SetMethod("void hide()", &Rest::Console::Hide);
+				VConsole.SetMethod("void show()", &Rest::Console::Show);
+				VConsole.SetMethod("void clear()", &Rest::Console::Clear);
+				VConsole.SetMethod("void flush()", &Rest::Console::Flush);
+				VConsole.SetMethod("void flushWrite()", &Rest::Console::FlushWrite);
+				VConsole.SetMethod("void captureTime()", &Rest::Console::CaptureTime);
+				VConsole.SetMethod("void writeLine(const string &in)", &Rest::Console::sWriteLine);
+				VConsole.SetMethod("void write(const string &in)", &Rest::Console::sWrite);
+				VConsole.SetMethod("double getCapturedTime()", &Rest::Console::GetCapturedTime);
+				VConsole.SetMethod("string read(uint64)", &Rest::Console::Read);
+				VConsole.SetMethodStatic("console@+ get()", &Rest::Console::Get);
+				VConsole.SetMethodEx("void writeLine(const string &in, Format@+)", &Format::WriteLine);
+				VConsole.SetMethodEx("void write(const string &in, Format@+)", &Format::Write);
 			}
 		}
 		void VMManager::SetupJIT(unsigned int JITOpts)

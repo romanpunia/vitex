@@ -154,6 +154,7 @@ namespace Tomahawk
 
 			Element::Element(Context* View) : Base(View), Parent(nullptr), Content(nullptr), Class(nullptr), Active(true)
 			{
+				Bind("active", [this]() { Active = GetBoolean("active", true); });
 			}
 			Element::~Element()
 			{
@@ -934,6 +935,21 @@ namespace Tomahawk
 			}
 			Stateful::~Stateful()
 			{
+			}
+			void Stateful::BuildFont(nk_context* C, nk_style* S)
+			{
+				if (!Font)
+					return;
+
+				if (!S)
+				{
+					if (!Hash.Count || !Cache)
+						Cache = (nk_user_font*)C->style.font;
+
+					nk_style_set_font(C, &Font->handle);
+				}
+				else if (Cache != nullptr)
+					nk_style_set_font(C, Cache);
 			}
 			std::string& Stateful::GetHash()
 			{
@@ -1949,6 +1965,15 @@ namespace Tomahawk
 				Bounds.y = Engine->current->layout->at_y;
 
 				return (nk_input_is_mouse_hovering_rect(&Engine->input, Bounds) > 0);
+			}
+			bool Context::IsCurrentWidgetClicked()
+			{
+				struct nk_rect Bounds = Engine->current->layout->bounds;
+				Bounds.h = Engine->current->layout->row.height;
+				Bounds.x = Engine->current->layout->at_x;
+				Bounds.y = Engine->current->layout->at_y;
+	
+				return (nk_input_has_mouse_click_in_rect(&Engine->input, NK_BUTTON_LEFT, Bounds) > 0);
 			}
 			std::string Context::GetClass(const std::string& ClassName, const std::string& Name)
 			{

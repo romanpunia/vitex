@@ -245,7 +245,7 @@ namespace Tomahawk
 				Instance = nullptr;
 				Parent->GetScene()->Unlock();
 			}
-			void RigidBody::SetTransform(const Compute::Matrix4x4& World)
+			void RigidBody::SetTransform(const Compute::Vector3& Position, const Compute::Vector3& Scale, const Compute::Vector3& Rotation)
 			{
 				if (!Instance)
 					return;
@@ -253,7 +253,7 @@ namespace Tomahawk
 				if (Parent && Parent->GetScene())
 					Parent->GetScene()->Lock();
 
-				Parent->Transform->SetMatrix(World);
+				Parent->Transform->SetTransform(Compute::TransformSpace_Global, Position, Scale, Rotation);
 				Instance->Synchronize(Parent->Transform, true);
 				Instance->SetActivity(true);
 
@@ -584,19 +584,10 @@ namespace Tomahawk
 			void SoftBody::OnSynchronize(Rest::Timer* Time)
 			{
 				if (!Instance)
-				{
-					Visibility = false;
 					return;
-				}
 
 				if (Synchronize)
 					Instance->Synchronize(Parent->Transform, Kinematic);
-
-				Viewer View = Parent->GetScene()->GetCameraViewer();
-				if (Parent->Transform->Position.Distance(View.RawPosition) < View.ViewDistance + Parent->Transform->Scale.Length())
-					Visibility = Compute::MathCommon::IsClipping(View.ViewProjection, Parent->Transform->GetWorldUnscaled(), 1.5f) == -1;
-				else
-					Visibility = false;
 
 				if (!Visibility)
 					return;
@@ -745,7 +736,7 @@ namespace Tomahawk
 				Instance = nullptr;
 				Parent->GetScene()->Unlock();
 			}
-			void SoftBody::SetTransform(const Compute::Matrix4x4& World)
+			void SoftBody::SetTransform(const Compute::Vector3& Position, const Compute::Vector3& Scale, const Compute::Vector3& Rotation)
 			{
 				if (!Instance)
 					return;
@@ -753,7 +744,7 @@ namespace Tomahawk
 				if (Parent && Parent->GetScene())
 					Parent->GetScene()->Lock();
 
-				Parent->Transform->SetMatrix(World);
+				Parent->Transform->SetTransform(Compute::TransformSpace_Global, Position, Scale, Rotation);
 				Instance->Synchronize(Parent->Transform, true);
 				Instance->SetActivity(true);
 
@@ -928,7 +919,7 @@ namespace Tomahawk
 				bool CollisionState = false, LinearPowerState = false;
 				NMake::Unpack(Node->Find("collision-state"), &CollisionState);
 				NMake::Unpack(Node->Find("linear-power-state"), &CollisionState);
-				Initialize(CollisionState, LinearPowerState);
+				Initialize(Connection, CollisionState, LinearPowerState);
 
 				if (!Instance)
 					return;
@@ -1089,14 +1080,15 @@ namespace Tomahawk
 				NMake::Pack(Node->SetDocument("powered-linear-motor"), Instance->GetPoweredLinearMotor());
 				NMake::Pack(Node->SetDocument("enabled"), Instance->IsEnabled());
 			}
-			void SliderConstraint::Initialize(bool IsGhosted, bool IsLinear)
+			void SliderConstraint::Initialize(Entity* Other, bool IsGhosted, bool IsLinear)
 			{
-				if (!Parent || !Parent->GetScene())
+				if (Parent == Other || !Parent || !Parent->GetScene())
 					return;
 
 				Parent->GetScene()->Lock();
 				delete Instance;
 
+				Connection = Other;
 				if (!Connection)
 					return Parent->GetScene()->Unlock();
 
@@ -1111,6 +1103,9 @@ namespace Tomahawk
 				I.UseCollisions = !IsGhosted;
 				I.UseLinearPower = IsLinear;
 
+				if (!I.Target1 || !I.Target2)
+					return Parent->GetScene()->Unlock();
+
 				Instance = Parent->GetScene()->GetSimulator()->CreateSliderConstraint(I);
 				Parent->GetScene()->Unlock();
 			}
@@ -1122,6 +1117,7 @@ namespace Tomahawk
 				Parent->GetScene()->Lock();
 				delete Instance;
 				Instance = nullptr;
+				Connection = nullptr;
 				Parent->GetScene()->Unlock();
 			}
 			Component* SliderConstraint::OnClone(Entity* New)
@@ -1380,7 +1376,7 @@ namespace Tomahawk
 				if (!NMake::Unpack(Node->Find("path"), &Path))
 					NMake::Unpack(Node->Find("animation"), &Clips);
 				else
-					LoadAnimation(Content, Path);
+					GetAnimation(Content, Path);
 
 				NMake::Unpack(Node->Find("state"), &State);
 				NMake::Unpack(Node->Find("bind"), &Bind);
@@ -1403,7 +1399,7 @@ namespace Tomahawk
 				if (Model != nullptr && Model->GetDrawable() != nullptr)
 				{
 					Instance = Model;
-					Instance->Skeleton.ResetKeys(Instance->GetDrawable(), &Default);
+					Instance->Skeleton.GetPose(Instance->GetDrawable(), &Default);
 				}
 				else
 					Instance = nullptr;
@@ -1429,16 +1425,15 @@ namespace Tomahawk
 
 					for (auto&& Pose : Instance->Skeleton.Pose)
 					{
-						Compute::Vector3 PositionSet = Pose.second.Position();
-						Compute::Vector3 RotationSet = Pose.second.Rotation();
-						Compute::Vector3 ScaleSet = Pose.second.Scale();
 						Compute::AnimatorKey* Prev = &PrevKey[Pose.first];
 						Compute::AnimatorKey* Next = &NextKey[Pose.first];
 						Compute::AnimatorKey* Set = &Current[Pose.first];
 
-						PositionSet = Set->Position = Prev->Position.Lerp(Next->Position, Timing);
-						RotationSet = Set->Rotation = Prev->Rotation.AngularLerp(Next->Rotation, Timing);
-						Pose.second = Compute::Matrix4x4::Create(PositionSet, RotationSet);
+						Set->Position = Prev->Position.Lerp(Next->Position, Timing);
+						Pose.second.Position = Set->Position;
+
+						Set->Rotation = Prev->Rotation.AngularLerp(Next->Rotation, Timing);
+						Pose.second.Rotation = Set->Rotation;
 					}
 
 					if (State.Time >= State.Length)
@@ -1467,15 +1462,11 @@ namespace Tomahawk
 
 					for (auto&& Pose : Instance->Skeleton.Pose)
 					{
-						Compute::Vector3 PositionSet = Pose.second.Position();
-						Compute::Vector3 RotationSet = Pose.second.Rotation();
-						Compute::Vector3 ScaleSet = Pose.second.Scale();
 						Compute::AnimatorKey* Prev = &Current[Pose.first];
 						Compute::AnimatorKey* Next = &Key->at(Pose.first);
 
-						PositionSet = Prev->Position.Lerp(Next->Position, Timing);
-						RotationSet = Prev->Rotation.AngularLerp(Next->Rotation, Timing);
-						Pose.second = Compute::Matrix4x4::Create(PositionSet, RotationSet);
+						Pose.second.Position = Prev->Position.Lerp(Next->Position, Timing);
+						Pose.second.Rotation = Prev->Rotation.AngularLerp(Next->Rotation, Timing);
 					}
 				}
 				else
@@ -1500,7 +1491,7 @@ namespace Tomahawk
 				else
 					State.Clip = -1;
 			}
-			bool SkinAnimator::LoadAnimation(ContentManager* Content, const std::string& Path)
+			bool SkinAnimator::GetAnimation(ContentManager* Content, const std::string& Path)
 			{
 				if (!Content)
 					return false;
@@ -1509,42 +1500,25 @@ namespace Tomahawk
 				if (!Result)
 					return false;
 
+				ClearAnimation();
 				if (NMake::Unpack(Result, &Clips))
 					Reference = Path;
 
 				delete Result;
 				return true;
 			}
-			bool SkinAnimator::SaveAnimation(ContentManager* Content, const std::string& Path)
+			void SkinAnimator::ClearAnimation()
 			{
-				if (!Content)
-					return false;
-
-				Rest::Document* Result = new Rest::Document();
-				Result->Name = "animation";
-
-				if (!NMake::Pack(Result, &Clips))
-				{
-					delete Result;
-					return false;
-				}
-		
-				bool R = Content->Save<Rest::Document>(Path, Result, nullptr);
-				delete Result;
-				
-				return R;
+				Reference.clear();
+				Clips.clear();
 			}
 			void SkinAnimator::SavePose()
 			{
 				for (auto&& Pose : Instance->Skeleton.Pose)
 				{
-					Compute::Vector3 Position = Pose.second.Position();
-					Compute::Vector3 Rotation = Pose.second.Rotation();
-					Compute::Vector3 Scale = Pose.second.Scale();
 					Compute::AnimatorKey* Frame = &Bind[Pose.first];
-					Frame->Position = Position;
-					Frame->Rotation = Rotation;
-					Frame->Scale = Scale;
+					Frame->Position = Pose.second.Position;
+					Frame->Rotation = Pose.second.Rotation;
 				}
 			}
 			void SkinAnimator::Stop()
@@ -1591,12 +1565,8 @@ namespace Tomahawk
 
 				for (auto&& Pose : Instance->Skeleton.Pose)
 				{
-					Compute::Vector3 Position = Pose.second.Position();
-					Compute::Vector3 Rotation = Pose.second.Rotation();
-					Compute::Vector3 Scale = Pose.second.Scale();
 					Compute::AnimatorKey* Frame = &Key->at(Pose.first);
-
-					if (Position != Frame->Position || Rotation != Frame->Rotation || Scale != Frame->Scale)
+					if (Pose.second.Position != Frame->Position || Pose.second.Rotation != Frame->Rotation)
 						return false;
 				}
 
@@ -1615,6 +1585,10 @@ namespace Tomahawk
 					return nullptr;
 
 				return &Clips[Clip].Keys;
+			}
+			std::string SkinAnimator::GetPath()
+			{
+				return Reference;
 			}
 			Component* SkinAnimator::OnClone(Entity* New)
 			{
@@ -1643,7 +1617,7 @@ namespace Tomahawk
 				if (!NMake::Unpack(Node->Find("path"), &Path))
 					NMake::Unpack(Node->Find("animation"), &Clips);
 				else
-					LoadAnimation(Content, Path);
+					GetAnimation(Content, Path);
 
 				NMake::Unpack(Node->Find("state"), &State);
 				NMake::Unpack(Node->Find("bind"), &Bind);
@@ -1674,7 +1648,7 @@ namespace Tomahawk
 					Compute::KeyAnimatorClip* Clip = &Clips[State.Clip];
 					Compute::AnimatorKey& NextKey = Clip->Keys[State.Frame + 1 >= Clip->Keys.size() ? 0 : State.Frame + 1];
 					Compute::AnimatorKey& PrevKey = Clip->Keys[State.Frame];
-					State.Time = Compute::Math<float>::Min(State.Time + PrevKey.PlayingSpeed * (float)Time->GetDeltaTime() / State.Length, State.Length);
+					State.Time = Compute::Math<float>::Min(State.Time + State.Speed * PrevKey.PlayingSpeed * (float)Time->GetDeltaTime() / State.Length, State.Length);
 					float Timing = Compute::Math<float>::Min(State.Time / State.Length, 1.0f);
 
 					Position = Current.Position = PrevKey.Position.Lerp(NextKey.Position, Timing);
@@ -1702,6 +1676,9 @@ namespace Tomahawk
 					if (!Key)
 						Key = &Bind;
 
+					if (State.Paused)
+						return;
+
 					State.Time = Compute::Math<float>::Min(State.Time + State.Speed * (float)Time->GetDeltaTime() / State.Length, State.Length);
 					float Timing = Compute::Math<float>::Min(State.Time / State.Length, 1.0f);
 
@@ -1715,7 +1692,7 @@ namespace Tomahawk
 					State.Time = 0.0f;
 				}
 			}
-			bool KeyAnimator::LoadAnimation(ContentManager* Content, const std::string& Path)
+			bool KeyAnimator::GetAnimation(ContentManager* Content, const std::string& Path)
 			{
 				if (!Content)
 					return false;
@@ -1724,30 +1701,17 @@ namespace Tomahawk
 				if (!Result)
 					return false;
 
+				ClearAnimation();
 				if (NMake::Unpack(Result, &Clips))
 					Reference = Path;
 
 				delete Result;
 				return true;
 			}
-			bool KeyAnimator::SaveAnimation(ContentManager* Content, const std::string& Path)
+			void KeyAnimator::ClearAnimation()
 			{
-				if (!Content)
-					return false;
-
-				Rest::Document* Result = new Rest::Document();
-				Result->Name = "key-animation";
-
-				if (!NMake::Pack(Result, &Clips))
-				{
-					delete Result;
-					return false;
-				}
-
-				bool R = Content->Save<Rest::Document>(Path, Result, nullptr);
-				delete Result;
-
-				return R;
+				Reference.clear();
+				Clips.clear();
 			}
 			void KeyAnimator::BlendAnimation(int64_t Clip, int64_t Frame_)
 			{
@@ -1828,6 +1792,10 @@ namespace Tomahawk
 
 				return &Clips[Clip].Keys;
 			}
+			std::string KeyAnimator::GetPath()
+			{
+				return Reference;
+			}
 			Component* KeyAnimator::OnClone(Entity* New)
 			{
 				KeyAnimator* Target = new KeyAnimator(New);
@@ -1904,16 +1872,6 @@ namespace Tomahawk
 					NMake::Pack(Node->SetDocument("limit"), Instance->GetElementLimit());
 					NMake::Pack(Node->SetDocument("elements"), Vertices);
 				}
-			}
-			void ElementSystem::OnSynchronize(Rest::Timer* Time)
-			{
-				Viewer View = Parent->GetScene()->GetCameraViewer();
-				float Hardness = 1.0f - Parent->Transform->Position.Distance(Parent->GetScene()->GetCamera()->GetEntity()->Transform->Position) / (View.ViewDistance + Volume);
-
-				if (Hardness > 0.0f)
-					Visibility = Compute::MathCommon::IsClipping(View.ViewProjection, Parent->Transform->GetWorld(), 1.5f) == -1 ? Hardness : 0.0f;
-				else
-					Visibility = 0.0f;
 			}
 			Component* ElementSystem::OnClone(Entity* New)
 			{
@@ -2282,13 +2240,6 @@ namespace Tomahawk
 
 				NMake::Pack(Node->SetDocument("visibility"), Visibility);
 			}
-			void Model::OnSynchronize(Rest::Timer* Time)
-			{
-				if (Instance != nullptr)
-					Visibility = IsVisibleTo(Parent->GetScene()->GetCameraViewer(), &GetBoundingBox());
-				else
-					Visibility = false;
-			}
 			void Model::SetDrawable(Graphics::Model* Drawable)
 			{
 				Instance = Drawable;
@@ -2343,12 +2294,11 @@ namespace Tomahawk
 				for (auto&& Pose : Poses)
 				{
 					int64_t Index;
-					NMake::Unpack(Pose->Find("[index]"), &Index);
+					NMake::Unpack(Pose->Find("index"), &Index);
 
-					Compute::Matrix4x4 Matrix;
-					NMake::Unpack(Pose->Find("[matrix]"), &Matrix);
-
-					Skeleton.Pose[Index] = Matrix;
+					auto& Node = Skeleton.Pose[Index];
+					NMake::Unpack(Pose->Find("position"), &Node.Position);
+					NMake::Unpack(Pose->Find("rotation"), &Node.Rotation);
 				}
 
 				NMake::Unpack(Node->Find("visibility"), &Visibility);
@@ -2376,20 +2326,15 @@ namespace Tomahawk
 				for (auto&& Pose : Skeleton.Pose)
 				{
 					Rest::Document* Value = Poses->SetDocument("pose");
-					NMake::Pack(Value->SetDocument("[index]"), Pose.first);
-					NMake::Pack(Value->SetDocument("[matrix]"), Pose.second);
+					NMake::Pack(Value->SetDocument("index"), Pose.first);
+					NMake::Pack(Value->SetDocument("position"), Pose.second.Position);
+					NMake::Pack(Value->SetDocument("rotation"), Pose.second.Rotation);
 				}
 			}
 			void SkinModel::OnSynchronize(Rest::Timer* Time)
 			{
 				if (Instance != nullptr)
-				{
-					Visibility = IsVisibleTo(Parent->GetScene()->GetCameraViewer(), &GetBoundingBox());
-					if (Visibility)
-						Instance->BuildSkeleton(&Skeleton);
-				}
-				else
-					Visibility = false;
+					Instance->ComputePose(&Skeleton);
 			}
 			void SkinModel::SetDrawable(Graphics::SkinModel* Drawable)
 			{
@@ -2454,16 +2399,8 @@ namespace Tomahawk
 			}
 			void PointLight::OnSynchronize(Rest::Timer* Time)
 			{
-				Viewer IView = Parent->GetScene()->GetCameraViewer();
-				float Hardness = 1.0f - Parent->Transform->Position.Distance(Parent->GetScene()->GetCamera()->GetEntity()->Transform->Position) / IView.ViewDistance;
-
 				Projection = Compute::Matrix4x4::CreatePerspective(90.0f, 1.0f, 0.1f, ShadowDistance);
 				View = Compute::Matrix4x4::CreateCubeMapLookAt(0, Parent->Transform->Position.InvertZ());
-
-				if (Hardness > 0.0f)
-					Visibility = Compute::MathCommon::IsClipping(IView.ViewProjection, Parent->Transform->GetWorld(), Range) == -1 ? Hardness : 0.0f;
-				else
-					Visibility = 0.0f;
 			}
 			Component* PointLight::OnClone(Entity* New)
 			{
@@ -2545,16 +2482,8 @@ namespace Tomahawk
 			}
 			void SpotLight::OnSynchronize(Rest::Timer* Time)
 			{
-				Viewer IView = Parent->GetScene()->GetCameraViewer();
-				float Hardness = 1.0f - Parent->Transform->Position.Distance(Parent->GetScene()->GetCamera()->GetEntity()->Transform->Position) / IView.ViewDistance;
-
 				Projection = Compute::Matrix4x4::CreatePerspective(FieldOfView, 1, 0.1f, ShadowDistance);
 				View = Compute::Matrix4x4::CreateTranslation(-Parent->Transform->Position) * Compute::Matrix4x4::CreateCameraRotation(-Parent->Transform->Rotation);
-
-				if (Hardness > 0.0f)
-					Visibility = Compute::MathCommon::IsClipping(IView.ViewProjection, Parent->Transform->GetWorld(), Range) == -1 ? Hardness : 0.0f;
-				else
-					Visibility = 0.0f;
 			}
 			Component* SpotLight::OnClone(Entity* New)
 			{
@@ -2670,6 +2599,7 @@ namespace Tomahawk
 				DiffuseMapY[1] = nullptr;
 				DiffuseMapZ[0] = nullptr;
 				DiffuseMapZ[1] = nullptr;
+				DiffuseMap = nullptr;
 				ProbeCache = nullptr;
 				Emission = 1.0f;
 				Range = 5.0f;
@@ -2685,23 +2615,28 @@ namespace Tomahawk
 			void ProbeLight::OnLoad(ContentManager* Content, Rest::Document* Node)
 			{
 				std::string Path;
-				if (NMake::Unpack(Node->Find("diffuse-map-px"), &Path))
-					DiffuseMapX[0] = Content->Load<Graphics::Texture2D>(Path, nullptr);
+				if (!NMake::Unpack(Node->Find("diffuse-map"), &Path))
+				{
+					if (NMake::Unpack(Node->Find("diffuse-map-px"), &Path))
+						DiffuseMapX[0] = Content->Load<Graphics::Texture2D>(Path, nullptr);
 
-				if (NMake::Unpack(Node->Find("diffuse-map-nx"), &Path))
-					DiffuseMapX[1] = Content->Load<Graphics::Texture2D>(Path, nullptr);
+					if (NMake::Unpack(Node->Find("diffuse-map-nx"), &Path))
+						DiffuseMapX[1] = Content->Load<Graphics::Texture2D>(Path, nullptr);
 
-				if (NMake::Unpack(Node->Find("diffuse-map-py"), &Path))
-					DiffuseMapY[0] = Content->Load<Graphics::Texture2D>(Path, nullptr);
+					if (NMake::Unpack(Node->Find("diffuse-map-py"), &Path))
+						DiffuseMapY[0] = Content->Load<Graphics::Texture2D>(Path, nullptr);
 
-				if (NMake::Unpack(Node->Find("diffuse-map-ny"), &Path))
-					DiffuseMapY[1]= Content->Load<Graphics::Texture2D>(Path, nullptr);
+					if (NMake::Unpack(Node->Find("diffuse-map-ny"), &Path))
+						DiffuseMapY[1] = Content->Load<Graphics::Texture2D>(Path, nullptr);
 
-				if (NMake::Unpack(Node->Find("diffuse-map-pz"), &Path))
-					DiffuseMapZ[0] = Content->Load<Graphics::Texture2D>(Path, nullptr);
+					if (NMake::Unpack(Node->Find("diffuse-map-pz"), &Path))
+						DiffuseMapZ[0] = Content->Load<Graphics::Texture2D>(Path, nullptr);
 
-				if (NMake::Unpack(Node->Find("diffuse-map-nz"), &Path))
-					DiffuseMapZ[1] = Content->Load<Graphics::Texture2D>(Path, nullptr);
+					if (NMake::Unpack(Node->Find("diffuse-map-nz"), &Path))
+						DiffuseMapZ[1] = Content->Load<Graphics::Texture2D>(Path, nullptr);
+				}
+				else
+					DiffuseMap = Content->Load<Graphics::Texture2D>(Path, nullptr);
 
 				std::vector<Compute::Matrix4x4> Views;
 				NMake::Unpack(Node->Find("view"), &Views);
@@ -2718,33 +2653,46 @@ namespace Tomahawk
 				for (int64_t i = 0; i < Count; i++)
 					View[i] = Views[i];
 
-				SetDiffuseMap(DiffuseMapX, DiffuseMapY, DiffuseMapZ);
+				if (!DiffuseMap)
+					SetDiffuseMap(DiffuseMapX, DiffuseMapY, DiffuseMapZ);
+				else
+					SetDiffuseMap(DiffuseMap);
 			}
 			void ProbeLight::OnSave(ContentManager* Content, Rest::Document* Node)
 			{
-				AssetResource* Asset = Content->FindAsset(DiffuseMapX[0]);
-				if (Asset != nullptr)
-					NMake::Pack(Node->SetDocument("diffuse-map-px"), Asset->Path);
+				AssetResource* Asset = nullptr;
+				if (!DiffuseMap)
+				{
+					Asset = Content->FindAsset(DiffuseMapX[0]);
+					if (Asset != nullptr)
+						NMake::Pack(Node->SetDocument("diffuse-map-px"), Asset->Path);
 
-				Asset = Content->FindAsset(DiffuseMapX[1]);
-				if (Asset != nullptr)
-					NMake::Pack(Node->SetDocument("diffuse-map-nx"), Asset->Path);
+					Asset = Content->FindAsset(DiffuseMapX[1]);
+					if (Asset != nullptr)
+						NMake::Pack(Node->SetDocument("diffuse-map-nx"), Asset->Path);
 
-				Asset = Content->FindAsset(DiffuseMapY[0]);
-				if (Asset != nullptr)
-					NMake::Pack(Node->SetDocument("diffuse-map-py"), Asset->Path);
+					Asset = Content->FindAsset(DiffuseMapY[0]);
+					if (Asset != nullptr)
+						NMake::Pack(Node->SetDocument("diffuse-map-py"), Asset->Path);
 
-				Asset = Content->FindAsset(DiffuseMapY[1]);
-				if (Asset != nullptr)
-					NMake::Pack(Node->SetDocument("diffuse-map-ny"), Asset->Path);
+					Asset = Content->FindAsset(DiffuseMapY[1]);
+					if (Asset != nullptr)
+						NMake::Pack(Node->SetDocument("diffuse-map-ny"), Asset->Path);
 
-				Asset = Content->FindAsset(DiffuseMapZ[0]);
-				if (Asset != nullptr)
-					NMake::Pack(Node->SetDocument("diffuse-map-pz"), Asset->Path);
+					Asset = Content->FindAsset(DiffuseMapZ[0]);
+					if (Asset != nullptr)
+						NMake::Pack(Node->SetDocument("diffuse-map-pz"), Asset->Path);
 
-				Asset = Content->FindAsset(DiffuseMapZ[1]);
-				if (Asset != nullptr)
-					NMake::Pack(Node->SetDocument("diffuse-map-nz"), Asset->Path);
+					Asset = Content->FindAsset(DiffuseMapZ[1]);
+					if (Asset != nullptr)
+						NMake::Pack(Node->SetDocument("diffuse-map-nz"), Asset->Path);
+				}
+				else
+				{
+					Asset = Content->FindAsset(DiffuseMap);
+					if (Asset != nullptr)
+						NMake::Pack(Node->SetDocument("diffuse-map"), Asset->Path);
+				}
 
 				std::vector<Compute::Matrix4x4> Views;
 				for (int64_t i = 0; i < 6; i++)
@@ -2760,16 +2708,6 @@ namespace Tomahawk
 				NMake::Pack(Node->SetDocument("emission"), Emission);
 				NMake::Pack(Node->SetDocument("parallax-corrected"), ParallaxCorrected);
 			}
-			void ProbeLight::OnSynchronize(Rest::Timer* Time)
-			{
-				Viewer ViewPoint = Parent->GetScene()->GetCameraViewer();
-				float Hardness = 1.0f - Parent->Transform->Position.Distance(Parent->GetScene()->GetCamera()->GetEntity()->Transform->Position) / (ViewPoint.ViewDistance);
-
-				if (Hardness > 0.0f)
-					Visibility = Compute::MathCommon::IsClipping(ViewPoint.ViewProjection, Parent->Transform->GetWorld(), Range) == -1 ? Hardness : 0.0f;
-				else
-					Visibility = 0.0f;
-			}
 			Component* ProbeLight::OnClone(Entity* New)
 			{
 				ProbeLight* Target = new ProbeLight(New);
@@ -2780,14 +2718,38 @@ namespace Tomahawk
 				Target->Emission = Emission;
 				Target->CaptureRange = CaptureRange;
 				Target->Rebuild = Rebuild;
-				Target->SetDiffuseMap(DiffuseMapX, DiffuseMapY, DiffuseMapZ);
 				memcpy(Target->View, View, 6 * sizeof(Compute::Matrix4x4));
+
+				if (!DiffuseMap)
+					Target->SetDiffuseMap(DiffuseMapX, DiffuseMapY, DiffuseMapZ);
+				else
+					Target->SetDiffuseMap(DiffuseMap);
 
 				return Target;
 			}
 			void ProbeLight::SetProbeCache(Graphics::TextureCube* NewCache)
 			{
 				ProbeCache = NewCache;
+			}
+			bool ProbeLight::SetDiffuseMap(Graphics::Texture2D* Map)
+			{
+				if (!Map)
+				{
+					DiffuseMapX[0] = DiffuseMapX[1] = nullptr;
+					DiffuseMapY[0] = DiffuseMapY[1] = nullptr;
+					DiffuseMapZ[0] = DiffuseMapZ[1] = nullptr;
+					DiffuseMap = nullptr;
+					return false;
+				}
+
+				DiffuseMapX[0] = DiffuseMapX[1] = nullptr;
+				DiffuseMapY[0] = DiffuseMapY[1] = nullptr;
+				DiffuseMapZ[0] = DiffuseMapZ[1] = nullptr;
+				DiffuseMap = Map;
+
+				delete ProbeCache;
+				ProbeCache = Parent->GetScene()->GetDevice()->CreateTextureCube(DiffuseMap);
+				return ProbeCache != nullptr;
 			}
 			bool ProbeLight::SetDiffuseMap(Graphics::Texture2D* MapX[2], Graphics::Texture2D* MapY[2], Graphics::Texture2D* MapZ[2])
 			{
@@ -2796,6 +2758,7 @@ namespace Tomahawk
 					DiffuseMapX[0] = DiffuseMapX[1] = nullptr;
 					DiffuseMapY[0] = DiffuseMapY[1] = nullptr;
 					DiffuseMapZ[0] = DiffuseMapZ[1] = nullptr;
+					DiffuseMap = nullptr;
 					return false;
 				}
 
@@ -2806,6 +2769,7 @@ namespace Tomahawk
 				Resources[3] = DiffuseMapY[1] = MapY[1];
 				Resources[4] = DiffuseMapZ[0] = MapZ[0];
 				Resources[5] = DiffuseMapZ[1] = MapZ[1];
+				DiffuseMap = nullptr;
 
 				delete ProbeCache;
 				ProbeCache = Parent->GetScene()->GetDevice()->CreateTextureCube(Resources);
@@ -2813,11 +2777,39 @@ namespace Tomahawk
 			}
 			bool ProbeLight::IsImageBased() const
 			{
-				return DiffuseMapX[0] != nullptr;
+				return DiffuseMapX[0] != nullptr || DiffuseMap != nullptr;
 			}
 			Graphics::TextureCube* ProbeLight::GetProbeCache() const
 			{
 				return ProbeCache;
+			}
+			Graphics::Texture2D* ProbeLight::GetDiffuseMapXP()
+			{
+				return DiffuseMapX[0];
+			}
+			Graphics::Texture2D* ProbeLight::GetDiffuseMapXN()
+			{
+				return DiffuseMapX[1];
+			}
+			Graphics::Texture2D* ProbeLight::GetDiffuseMapYP()
+			{
+				return DiffuseMapY[0];
+			}
+			Graphics::Texture2D* ProbeLight::GetDiffuseMapYN()
+			{
+				return DiffuseMapY[1];
+			}
+			Graphics::Texture2D* ProbeLight::GetDiffuseMapZP()
+			{
+				return DiffuseMapZ[0];
+			}
+			Graphics::Texture2D* ProbeLight::GetDiffuseMapZN()
+			{
+				return DiffuseMapZ[1];
+			}
+			Graphics::Texture2D* ProbeLight::GetDiffuseMap()
+			{
+				return DiffuseMap;
 			}
 			
 			Camera::Camera(Entity* Ref) : Component(Ref), Mode(ProjectionMode_Perspective)
@@ -2916,8 +2908,8 @@ namespace Tomahawk
 						Target = new Engine::Renderers::GlitchRenderer(Renderer);
 					else if (RendererId == THAWK_COMPONENT_ID(AmbientOcclusionRenderer))
 						Target = new Engine::Renderers::AmbientOcclusionRenderer(Renderer);
-					else if (RendererId == THAWK_COMPONENT_ID(IndirectOcclusionRenderer))
-						Target = new Engine::Renderers::IndirectOcclusionRenderer(Renderer);
+					else if (RendererId == THAWK_COMPONENT_ID(DirectOcclusionRenderer))
+						Target = new Engine::Renderers::DirectOcclusionRenderer(Renderer);
 					else if (RendererId == THAWK_COMPONENT_ID(ToneRenderer))
 						Target = new Engine::Renderers::ToneRenderer(Renderer);
 					else if (RendererId == THAWK_COMPONENT_ID(GUIRenderer))
@@ -3048,6 +3040,10 @@ namespace Tomahawk
 					return false;
 
 				return Compute::MathCommon::CursorRayTest(Ray, Other->Transform->GetWorld());
+			}
+			bool Camera::RayTest(Compute::Ray& Ray, const Compute::Matrix4x4& World)
+			{
+				return Compute::MathCommon::CursorRayTest(Ray, World);
 			}
 			Component* Camera::OnClone(Entity* New)
 			{

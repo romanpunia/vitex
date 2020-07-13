@@ -97,51 +97,60 @@ namespace Tomahawk
 		{
 		}
 
-		void PoseBuffer::SetJoint(Compute::Joint* Root)
+		void PoseBuffer::SetJointPose(Compute::Joint* Root)
 		{
-			Pose[Root->Index] = Root->Transform;
+			auto& Node = Pose[Root->Index];
+			Node.Position = Root->Transform.Position();
+			Node.Rotation = Root->Transform.Rotation();
+
 			for (auto&& Child : Root->Childs)
-				SetJoint(&Child);
+				SetJointPose(&Child);
 		}
-		void PoseBuffer::SetJointKeys(Compute::Joint* Root, std::vector<Compute::AnimatorKey>* Keys)
+		void PoseBuffer::GetJointPose(Compute::Joint* Root, std::vector<Compute::AnimatorKey>* Result)
 		{
-			Compute::AnimatorKey* Key = &Keys->at(Root->Index);
+			Compute::AnimatorKey* Key = &Result->at(Root->Index);
 			Key->Position = Root->Transform.Position();
 			Key->Rotation = Root->Transform.Rotation();
-			Key->Scale = Root->Transform.Scale();
 
 			for (auto&& Child : Root->Childs)
-				SetJoint(&Child);
+				GetJointPose(&Child, Result);
 		}
-		bool PoseBuffer::ResetKeys(SkinModel* Model, std::vector<Compute::AnimatorKey>* Keys)
-		{
-			if (!Model || Model->Joints.empty() || !Keys)
-				return false;
-
-			for (auto&& Child : Model->Joints)
-				SetJointKeys(&Child, Keys);
-
-			return true;
-		}
-		bool PoseBuffer::Reset(SkinModel* Model)
+		bool PoseBuffer::SetPose(SkinModel* Model)
 		{
 			if (!Model || Model->Joints.empty())
 				return false;
 
 			for (auto&& Child : Model->Joints)
-				SetJoint(&Child);
+				SetJointPose(&Child);
 
 			return true;
 		}
-		Compute::Matrix4x4 PoseBuffer::Offset(int64_t Index)
+		bool PoseBuffer::GetPose(SkinModel* Model, std::vector<Compute::AnimatorKey>* Result)
+		{
+			if (!Model || Model->Joints.empty() || !Result)
+				return false;
+
+			for (auto&& Child : Model->Joints)
+				GetJointPose(&Child, Result);
+
+			return true;
+		}
+		Compute::Matrix4x4 PoseBuffer::GetOffset(PoseNode* Node)
+		{
+			if (!Node)
+				return Compute::Matrix4x4::Identity();
+
+			return Compute::Matrix4x4::Create(Node->Position, Node->Rotation);
+		}
+		PoseNode* PoseBuffer::GetNode(int64_t Index)
 		{
 			auto It = Pose.find(Index);
 			if (It != Pose.end())
-				return It->second;
+				return &It->second;
 
-			return Compute::Matrix4x4::Identity();
+			return nullptr;
 		}
-
+		
 		Surface::Surface() : Handle(nullptr)
 		{
 		}
@@ -2066,7 +2075,7 @@ namespace Tomahawk
 							if (Callbacks.KeyState && Id == Event.window.windowID)
 								Callbacks.KeyState(KeyCode_CURSORMIDDLE, (KeyMod)SDL_GetModState(), (int)KeyCode_CURSORMIDDLE, (int)Event.button.clicks, false);
 
-							if (Mapping.Enabled && Mapping.Mapped && Mapping.Key.Key == KeyCode_CURSORLEFT)
+							if (Mapping.Enabled && Mapping.Mapped && Mapping.Key.Key == KeyCode_CURSORMIDDLE)
 								Mapping.Captured = true;
 
 							return true;
@@ -2074,7 +2083,7 @@ namespace Tomahawk
 							if (Callbacks.KeyState && Id == Event.window.windowID)
 								Callbacks.KeyState(KeyCode_CURSORRIGHT, (KeyMod)SDL_GetModState(), (int)KeyCode_CURSORRIGHT, (int)Event.button.clicks, false);
 
-							if (Mapping.Enabled && Mapping.Mapped && Mapping.Key.Key == KeyCode_CURSORLEFT)
+							if (Mapping.Enabled && Mapping.Mapped && Mapping.Key.Key == KeyCode_CURSORRIGHT)
 								Mapping.Captured = true;
 
 							return true;
@@ -2082,7 +2091,7 @@ namespace Tomahawk
 							if (Callbacks.KeyState && Id == Event.window.windowID)
 								Callbacks.KeyState(KeyCode_CURSORX1, (KeyMod)SDL_GetModState(), (int)KeyCode_CURSORX1, (int)Event.button.clicks, false);
 
-							if (Mapping.Enabled && Mapping.Mapped && Mapping.Key.Key == KeyCode_CURSORLEFT)
+							if (Mapping.Enabled && Mapping.Mapped && Mapping.Key.Key == KeyCode_CURSORX1)
 								Mapping.Captured = true;
 
 							return true;
@@ -2090,7 +2099,7 @@ namespace Tomahawk
 							if (Callbacks.KeyState && Id == Event.window.windowID)
 								Callbacks.KeyState(KeyCode_CURSORX2, (KeyMod)SDL_GetModState(), (int)KeyCode_CURSORX2, (int)Event.button.clicks, false);
 
-							if (Mapping.Enabled && Mapping.Mapped && Mapping.Key.Key == KeyCode_CURSORLEFT)
+							if (Mapping.Enabled && Mapping.Mapped && Mapping.Key.Key == KeyCode_CURSORX2)
 								Mapping.Captured = true;
 
 							return true;
@@ -2242,7 +2251,12 @@ namespace Tomahawk
 		bool Activity::CaptureKeyMap(KeyMap* Value)
 		{
 			if (!Value)
+			{
+				Mapping.Mapped = false;
+				Mapping.Captured = false;
+				Mapping.Enabled = false;
 				return false;
+			}
 
 			if (!Mapping.Enabled)
 			{
@@ -2536,6 +2550,759 @@ namespace Tomahawk
 #endif
 			return Keys[0];
 		}
+		const char* Activity::GetKeyName(KeyCode Code)
+		{
+			const char* Name;
+			switch (Code)
+			{
+				case KeyCode_A:
+					Name = "A";
+					break;
+				case KeyCode_B:
+					Name = "B";
+					break;
+				case KeyCode_C:
+					Name = "C";
+					break;
+				case KeyCode_D:
+					Name = "D";
+					break;
+				case KeyCode_E:
+					Name = "E";
+					break;
+				case KeyCode_F:
+					Name = "F";
+					break;
+				case KeyCode_G:
+					Name = "G";
+					break;
+				case KeyCode_H:
+					Name = "H";
+					break;
+				case KeyCode_I:
+					Name = "I";
+					break;
+				case KeyCode_J:
+					Name = "J";
+					break;
+				case KeyCode_K:
+					Name = "K";
+					break;
+				case KeyCode_L:
+					Name = "L";
+					break;
+				case KeyCode_M:
+					Name = "M";
+					break;
+				case KeyCode_N:
+					Name = "N";
+					break;
+				case KeyCode_O:
+					Name = "O";
+					break;
+				case KeyCode_P:
+					Name = "P";
+					break;
+				case KeyCode_Q:
+					Name = "Q";
+					break;
+				case KeyCode_R:
+					Name = "R";
+					break;
+				case KeyCode_S:
+					Name = "S";
+					break;
+				case KeyCode_T:
+					Name = "T";
+					break;
+				case KeyCode_U:
+					Name = "U";
+					break;
+				case KeyCode_V:
+					Name = "V";
+					break;
+				case KeyCode_W:
+					Name = "W";
+					break;
+				case KeyCode_X:
+					Name = "X";
+					break;
+				case KeyCode_Y:
+					Name = "Y";
+					break;
+				case KeyCode_Z:
+					Name = "Z";
+					break;
+				case KeyCode_1:
+					Name = "1";
+					break;
+				case KeyCode_2:
+					Name = "2";
+					break;
+				case KeyCode_3:
+					Name = "3";
+					break;
+				case KeyCode_4:
+					Name = "4";
+					break;
+				case KeyCode_5:
+					Name = "5";
+					break;
+				case KeyCode_6:
+					Name = "6";
+					break;
+				case KeyCode_7:
+					Name = "7";
+					break;
+				case KeyCode_8:
+					Name = "8";
+					break;
+				case KeyCode_9:
+					Name = "9";
+					break;
+				case KeyCode_0:
+					Name = "0";
+					break;
+				case KeyCode_RETURN:
+					Name = "Return";
+					break;
+				case KeyCode_ESCAPE:
+					Name = "Escape";
+					break;
+				case KeyCode_BACKSPACE:
+					Name = "Backspace";
+					break;
+				case KeyCode_TAB:
+					Name = "Tab";
+					break;
+				case KeyCode_SPACE:
+					Name = "Space";
+					break;
+				case KeyCode_MINUS:
+					Name = "Minus";
+					break;
+				case KeyCode_EQUALS:
+					Name = "Equals";
+					break;
+				case KeyCode_LEFTBRACKET:
+					Name = "Left Bracket";
+					break;
+				case KeyCode_RIGHTBRACKET:
+					Name = "Rigth Bracket";
+					break;
+				case KeyCode_BACKSLASH:
+					Name = "Backslash";
+					break;
+				case KeyCode_NONUSHASH:
+					Name = "Nonuslash";
+					break;
+				case KeyCode_SEMICOLON:
+					Name = "Semicolon";
+					break;
+				case KeyCode_APOSTROPHE:
+					Name = "Apostrophe";
+					break;
+				case KeyCode_GRAVE:
+					Name = "Grave";
+					break;
+				case KeyCode_COMMA:
+					Name = "Comma";
+					break;
+				case KeyCode_PERIOD:
+					Name = "Period";
+					break;
+				case KeyCode_SLASH:
+					Name = "Slash";
+					break;
+				case KeyCode_CAPSLOCK:
+					Name = "Caps Lock";
+					break;
+				case KeyCode_F1:
+					Name = "F1";
+					break;
+				case KeyCode_F2:
+					Name = "F2";
+					break;
+				case KeyCode_F3:
+					Name = "F3";
+					break;
+				case KeyCode_F4:
+					Name = "F4";
+					break;
+				case KeyCode_F5:
+					Name = "F5";
+					break;
+				case KeyCode_F6:
+					Name = "F6";
+					break;
+				case KeyCode_F7:
+					Name = "F7";
+					break;
+				case KeyCode_F8:
+					Name = "F8";
+					break;
+				case KeyCode_F9:
+					Name = "F9";
+					break;
+				case KeyCode_F10:
+					Name = "F10";
+					break;
+				case KeyCode_F11:
+					Name = "F11";
+					break;
+				case KeyCode_F12:
+					Name = "F12";
+					break;
+				case KeyCode_PRINTSCREEN:
+					Name = "Print Screen";
+					break;
+				case KeyCode_SCROLLLOCK:
+					Name = "Scroll Lock";
+					break;
+				case KeyCode_PAUSE:
+					Name = "Pause";
+					break;
+				case KeyCode_INSERT:
+					Name = "Insert";
+					break;
+				case KeyCode_HOME:
+					Name = "Home";
+					break;
+				case KeyCode_PAGEUP:
+					Name = "Page Up";
+					break;
+				case KeyCode_DELETE:
+					Name = "Delete";
+					break;
+				case KeyCode_END:
+					Name = "End";
+					break;
+				case KeyCode_PAGEDOWN:
+					Name = "Page Down";
+					break;
+				case KeyCode_RIGHT:
+					Name = "Right";
+					break;
+				case KeyCode_LEFT:
+					Name = "Left";
+					break;
+				case KeyCode_DOWN:
+					Name = "Down";
+					break;
+				case KeyCode_UP:
+					Name = "Up";
+					break;
+				case KeyCode_NUMLOCKCLEAR:
+					Name = "Numlock Clear";
+					break;
+				case KeyCode_KP_DIVIDE:
+					Name = "Divide";
+					break;
+				case KeyCode_KP_MULTIPLY:
+					Name = "Multiply";
+					break;
+				case KeyCode_KP_MINUS:
+					Name = "Minus";
+					break;
+				case KeyCode_KP_PLUS:
+					Name = "Plus";
+					break;
+				case KeyCode_KP_ENTER:
+					Name = "Enter";
+					break;
+				case KeyCode_KP_1:
+					Name = "1";
+					break;
+				case KeyCode_KP_2:
+					Name = "2";
+					break;
+				case KeyCode_KP_3:
+					Name = "3";
+					break;
+				case KeyCode_KP_4:
+					Name = "4";
+					break;
+				case KeyCode_KP_5:
+					Name = "5";
+					break;
+				case KeyCode_KP_6:
+					Name = "6";
+					break;
+				case KeyCode_KP_7:
+					Name = "7";
+					break;
+				case KeyCode_KP_8:
+					Name = "8";
+					break;
+				case KeyCode_KP_9:
+					Name = "9";
+					break;
+				case KeyCode_KP_0:
+					Name = "0";
+					break;
+				case KeyCode_KP_PERIOD:
+					Name = "Period";
+					break;
+				case KeyCode_NONUSBACKSLASH:
+					Name = "Nonus Backslash";
+					break;
+				case KeyCode_APPLICATION:
+					Name = "Application";
+					break;
+				case KeyCode_POWER:
+					Name = "Power";
+					break;
+				case KeyCode_KP_EQUALS:
+					Name = "Equals";
+					break;
+				case KeyCode_F13:
+					Name = "F13";
+					break;
+				case KeyCode_F14:
+					Name = "F14";
+					break;
+				case KeyCode_F15:
+					Name = "F15";
+					break;
+				case KeyCode_F16:
+					Name = "F16";
+					break;
+				case KeyCode_F17:
+					Name = "F17";
+					break;
+				case KeyCode_F18:
+					Name = "F18";
+					break;
+				case KeyCode_F19:
+					Name = "F19";
+					break;
+				case KeyCode_F20:
+					Name = "F20";
+					break;
+				case KeyCode_F21:
+					Name = "F21";
+					break;
+				case KeyCode_F22:
+					Name = "F22";
+					break;
+				case KeyCode_F23:
+					Name = "F23";
+					break;
+				case KeyCode_F24:
+					Name = "F24";
+					break;
+				case KeyCode_EXECUTE:
+					Name = "Execute";
+					break;
+				case KeyCode_HELP:
+					Name = "Help";
+					break;
+				case KeyCode_MENU:
+					Name = "Menu";
+					break;
+				case KeyCode_SELECT:
+					Name = "Select";
+					break;
+				case KeyCode_STOP:
+					Name = "Stop";
+					break;
+				case KeyCode_AGAIN:
+					Name = "Again";
+					break;
+				case KeyCode_UNDO:
+					Name = "Undo";
+					break;
+				case KeyCode_CUT:
+					Name = "Cut";
+					break;
+				case KeyCode_COPY:
+					Name = "Copy";
+					break;
+				case KeyCode_PASTE:
+					Name = "Paste";
+					break;
+				case KeyCode_FIND:
+					Name = "Find";
+					break;
+				case KeyCode_MUTE:
+					Name = "Mute";
+					break;
+				case KeyCode_VOLUMEUP:
+					Name = "Volume Up";
+					break;
+				case KeyCode_VOLUMEDOWN:
+					Name = "Volume Down";
+					break;
+				case KeyCode_KP_COMMA:
+					Name = "Comma";
+					break;
+				case KeyCode_KP_EQUALSAS400:
+					Name = "Equals As 400";
+					break;
+				case KeyCode_INTERNATIONAL1:
+					Name = "International 1";
+					break;
+				case KeyCode_INTERNATIONAL2:
+					Name = "International 2";
+					break;
+				case KeyCode_INTERNATIONAL3:
+					Name = "International 3";
+					break;
+				case KeyCode_INTERNATIONAL4:
+					Name = "International 4";
+					break;
+				case KeyCode_INTERNATIONAL5:
+					Name = "International 5";
+					break;
+				case KeyCode_INTERNATIONAL6:
+					Name = "International 6";
+					break;
+				case KeyCode_INTERNATIONAL7:
+					Name = "International 7";
+					break;
+				case KeyCode_INTERNATIONAL8:
+					Name = "International 8";
+					break;
+				case KeyCode_INTERNATIONAL9:
+					Name = "International 9";
+					break;
+				case KeyCode_LANG1:
+					Name = "Lang 1";
+					break;
+				case KeyCode_LANG2:
+					Name = "Lang 2";
+					break;
+				case KeyCode_LANG3:
+					Name = "Lang 3";
+					break;
+				case KeyCode_LANG4:
+					Name = "Lang 4";
+					break;
+				case KeyCode_LANG5:
+					Name = "Lang 5";
+					break;
+				case KeyCode_LANG6:
+					Name = "Lang 6";
+					break;
+				case KeyCode_LANG7:
+					Name = "Lang 7";
+					break;
+				case KeyCode_LANG8:
+					Name = "Lang 8";
+					break;
+				case KeyCode_LANG9:
+					Name = "Lang 9";
+					break;
+				case KeyCode_ALTERASE:
+					Name = "Alter Rase";
+					break;
+				case KeyCode_SYSREQ:
+					Name = "Sys Req";
+					break;
+				case KeyCode_CANCEL:
+					Name = "Cancel";
+					break;
+				case KeyCode_CLEAR:
+					Name = "Clear";
+					break;
+				case KeyCode_PRIOR:
+					Name = "Prior";
+					break;
+				case KeyCode_RETURN2:
+					Name = "Return 2";
+					break;
+				case KeyCode_SEPARATOR:
+					Name = "Separator";
+					break;
+				case KeyCode_OUT:
+					Name = "Out";
+					break;
+				case KeyCode_OPER:
+					Name = "Oper";
+					break;
+				case KeyCode_CLEARAGAIN:
+					Name = "Clear Again";
+					break;
+				case KeyCode_CRSEL:
+					Name = "CR Sel";
+					break;
+				case KeyCode_EXSEL:
+					Name = "EX Sel";
+					break;
+				case KeyCode_KP_00:
+					Name = "00";
+					break;
+				case KeyCode_KP_000:
+					Name = "000";
+					break;
+				case KeyCode_THOUSANDSSEPARATOR:
+					Name = "Thousands Separator";
+					break;
+				case KeyCode_DECIMALSEPARATOR:
+					Name = "Decimal Separator";
+					break;
+				case KeyCode_CURRENCYUNIT:
+					Name = "Currency Unit";
+					break;
+				case KeyCode_CURRENCYSUBUNIT:
+					Name = "Currency Subunit";
+					break;
+				case KeyCode_KP_LEFTPAREN:
+					Name = "Left Parent";
+					break;
+				case KeyCode_KP_RIGHTPAREN:
+					Name = "Right Paren";
+					break;
+				case KeyCode_KP_LEFTBRACE:
+					Name = "Left Brace";
+					break;
+				case KeyCode_KP_RIGHTBRACE:
+					Name = "Right Brace";
+					break;
+				case KeyCode_KP_TAB:
+					Name = "Tab";
+					break;
+				case KeyCode_KP_BACKSPACE:
+					Name = "Backspace";
+					break;
+				case KeyCode_KP_A:
+					Name = "A";
+					break;
+				case KeyCode_KP_B:
+					Name = "B";
+					break;
+				case KeyCode_KP_C:
+					Name = "C";
+					break;
+				case KeyCode_KP_D:
+					Name = "D";
+					break;
+				case KeyCode_KP_E:
+					Name = "E";
+					break;
+				case KeyCode_KP_F:
+					Name = "F";
+					break;
+				case KeyCode_KP_XOR:
+					Name = "Xor";
+					break;
+				case KeyCode_KP_POWER:
+					Name = "Power";
+					break;
+				case KeyCode_KP_PERCENT:
+					Name = "Percent";
+					break;
+				case KeyCode_KP_LESS:
+					Name = "Less";
+					break;
+				case KeyCode_KP_GREATER:
+					Name = "Greater";
+					break;
+				case KeyCode_KP_AMPERSAND:
+					Name = "Ampersand";
+					break;
+				case KeyCode_KP_DBLAMPERSAND:
+					Name = "DBL Ampersand";
+					break;
+				case KeyCode_KP_VERTICALBAR:
+					Name = "Vertical Bar";
+					break;
+				case KeyCode_KP_DBLVERTICALBAR:
+					Name = "OBL Vertical Bar";
+					break;
+				case KeyCode_KP_COLON:
+					Name = "Colon";
+					break;
+				case KeyCode_KP_HASH:
+					Name = "Hash";
+					break;
+				case KeyCode_KP_SPACE:
+					Name = "Space";
+					break;
+				case KeyCode_KP_AT:
+					Name = "At";
+					break;
+				case KeyCode_KP_EXCLAM:
+					Name = "Exclam";
+					break;
+				case KeyCode_KP_MEMSTORE:
+					Name = "Mem Store";
+					break;
+				case KeyCode_KP_MEMRECALL:
+					Name = "Mem Recall";
+					break;
+				case KeyCode_KP_MEMCLEAR:
+					Name = "Mem Clear";
+					break;
+				case KeyCode_KP_MEMADD:
+					Name = "Mem Add";
+					break;
+				case KeyCode_KP_MEMSUBTRACT:
+					Name = "Mem Subtract";
+					break;
+				case KeyCode_KP_MEMMULTIPLY:
+					Name = "Mem Multiply";
+					break;
+				case KeyCode_KP_MEMDIVIDE:
+					Name = "Mem Divide";
+					break;
+				case KeyCode_KP_PLUSMINUS:
+					Name = "Plus-Minus";
+					break;
+				case KeyCode_KP_CLEAR:
+					Name = "Clear";
+					break;
+				case KeyCode_KP_CLEARENTRY:
+					Name = "Clear Entry";
+					break;
+				case KeyCode_KP_BINARY:
+					Name = "Binary";
+					break;
+				case KeyCode_KP_OCTAL:
+					Name = "Octal";
+					break;
+				case KeyCode_KP_DECIMAL:
+					Name = "Decima;";
+					break;
+				case KeyCode_KP_HEXADECIMAL:
+					Name = "Hexadecimal";
+					break;
+				case KeyCode_LCTRL:
+					Name = "Left CTRL";
+					break;
+				case KeyCode_LSHIFT:
+					Name = "Left Shift";
+					break;
+				case KeyCode_LALT:
+					Name = "Left Alt";
+					break;
+				case KeyCode_LGUI:
+					Name = "Left GUI";
+					break;
+				case KeyCode_RCTRL:
+					Name = "Right CTRL";
+					break;
+				case KeyCode_RSHIFT:
+					Name = "Right Shift";
+					break;
+				case KeyCode_RALT:
+					Name = "Right Alt";
+					break;
+				case KeyCode_RGUI:
+					Name = "Right GUI";
+					break;
+				case KeyCode_MODE:
+					Name = "Mode";
+					break;
+				case KeyCode_AUDIONEXT:
+					Name = "Audio Next";
+					break;
+				case KeyCode_AUDIOPREV:
+					Name = "Audio Prev";
+					break;
+				case KeyCode_AUDIOSTOP:
+					Name = "Audio Stop";
+					break;
+				case KeyCode_AUDIOPLAY:
+					Name = "Audio Play";
+					break;
+				case KeyCode_AUDIOMUTE:
+					Name = "Audio Mute";
+					break;
+				case KeyCode_MEDIASELECT:
+					Name = "Media Select";
+					break;
+				case KeyCode_WWW:
+					Name = "WWW";
+					break;
+				case KeyCode_MAIL:
+					Name = "Mail";
+					break;
+				case KeyCode_CALCULATOR:
+					Name = "Calculator";
+					break;
+				case KeyCode_COMPUTER:
+					Name = "Computer";
+					break;
+				case KeyCode_AC_SEARCH:
+					Name = "AC Search";
+					break;
+				case KeyCode_AC_HOME:
+					Name = "AC Home";
+					break;
+				case KeyCode_AC_BACK:
+					Name = "AC Back";
+					break;
+				case KeyCode_AC_FORWARD:
+					Name = "AC Forward";
+					break;
+				case KeyCode_AC_STOP:
+					Name = "AC Stop";
+					break;
+				case KeyCode_AC_REFRESH:
+					Name = "AC Refresh";
+					break;
+				case KeyCode_AC_BOOKMARKS:
+					Name = "AC Bookmarks";
+					break;
+				case KeyCode_BRIGHTNESSDOWN:
+					Name = "Brigthness Down";
+					break;
+				case KeyCode_BRIGHTNESSUP:
+					Name = "Brigthness Up";
+					break;
+				case KeyCode_DISPLAYSWITCH:
+					Name = "Display Switch";
+					break;
+				case KeyCode_KBDILLUMTOGGLE:
+					Name = "Dillum Toggle";
+					break;
+				case KeyCode_KBDILLUMDOWN:
+					Name = "Dillum Down";
+					break;
+				case KeyCode_KBDILLUMUP:
+					Name = "Dillum Up";
+					break;
+				case KeyCode_EJECT:
+					Name = "Eject";
+					break;
+				case KeyCode_SLEEP:
+					Name = "Sleep";
+					break;
+				case KeyCode_APP1:
+					Name = "App 1";
+					break;
+				case KeyCode_APP2:
+					Name = "App 2";
+					break;
+				case KeyCode_AUDIOREWIND:
+					Name = "Audio Rewind";
+					break;
+				case KeyCode_AUDIOFASTFORWARD:
+					Name = "Audio Fast Forward";
+					break;
+				case KeyCode_CURSORLEFT:
+					Name = "Cursor Left";
+					break;
+				case KeyCode_CURSORMIDDLE:
+					Name = "Cursor Middle";
+					break;
+				case KeyCode_CURSORRIGHT:
+					Name = "Cursor Right";
+					break;
+				case KeyCode_CURSORX1:
+					Name = "Cursor X1";
+					break;
+				case KeyCode_CURSORX2:
+					Name = "Cursor X2";
+					break;
+				default:
+					Name = nullptr;
+					break;
+			}
+
+			return Name;
+		}
 
 		Model::Model()
 		{
@@ -2564,24 +3331,27 @@ namespace Tomahawk
 			for (auto It = Meshes.begin(); It != Meshes.end(); It++)
 				delete (*It);
 		}
-		void SkinModel::BuildSkeleton(PoseBuffer* Map)
+		void SkinModel::ComputePose(PoseBuffer* Map)
 		{
 			if (Map != nullptr && !Joints.empty())
 			{
 				if (Map->Pose.empty())
-					Map->Reset(this);
+					Map->SetPose(this);
 
 				for (auto& Child : Joints)
-					BuildSkeleton(Map, &Child, Compute::Matrix4x4::Identity());
+					ComputePose(Map, &Child, Compute::Matrix4x4::Identity());
 			}
 		}
-		void SkinModel::BuildSkeleton(PoseBuffer* Map, Compute::Joint* Base, const Compute::Matrix4x4& World)
+		void SkinModel::ComputePose(PoseBuffer* Map, Compute::Joint* Base, const Compute::Matrix4x4& World)
 		{
-			Compute::Matrix4x4 Transform = Map->Offset(Base->Index) * World;
-			Map->Transform[Base->Index] = Base->BindShape * Transform * Root;
+			PoseNode* Node = Map->GetNode(Base->Index);
+			Compute::Matrix4x4 Offset = (Node ? Map->GetOffset(Node) * World : World);
+
+			if (Base->Index >= 0 && Base->Index < 96)
+				Map->Transform[Base->Index] = Base->BindShape * Offset * Root;
 
 			for (auto& Child : Base->Childs)
-				BuildSkeleton(Map, &Child, Transform);
+				ComputePose(Map, &Child, Offset);
 		}
 		SkinMeshBuffer* SkinModel::FindMesh(const std::string& Name)
 		{

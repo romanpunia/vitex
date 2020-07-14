@@ -515,6 +515,7 @@ namespace Tomahawk
 				float Emission;
 				float Range;
 				float Visibility;
+				float Infinity;
 				bool ParallaxCorrected;
 				bool RenderLocked;
 

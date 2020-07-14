@@ -58,7 +58,7 @@ float4 PS(VertexResult V) : SV_TARGET0
 
 	float3 M = GetMetallicFactor(Frag, Mat);
 	float R = GetRoughnessFactor(Frag, Mat);
-	float3 P = normalize(ViewPosition.xyz - Frag.Position);
+	float3 P = normalize(ViewPosition - Frag.Position);
 	float3 E = GetLight(P, normalize(D), Frag.Normal, M, R) * A;
 	float I = L.z / L.w - Bias, C = 0.0, B = 0.0;
 

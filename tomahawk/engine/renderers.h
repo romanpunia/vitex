@@ -235,6 +235,8 @@ namespace Tomahawk
 					float MipLevels;
 					Compute::Vector3 Scale;
 					float Parallax;
+					Compute::Vector3 Padding;
+					float Infinity;
 				} ProbeLight;
 
 				struct
@@ -280,9 +282,10 @@ namespace Tomahawk
 				struct
 				{
 					Compute::Vector3 HighEmission = 0.05;
-					float Padding1;
+					float SkyEmission = 0.0;
 					Compute::Vector3 LowEmission = 0.025;
-					float Padding2;
+					float Padding;
+					Compute::Matrix4x4 SkyOffset;
 				} AmbientLight;
 
 			protected:
@@ -317,6 +320,8 @@ namespace Tomahawk
 				Graphics::RenderTarget2D* Output2 = nullptr;
 				Graphics::RenderTarget2D* Input1 = nullptr;
 				Graphics::RenderTarget2D* Input2 = nullptr;
+				Graphics::Texture2D* SkyBase = nullptr;
+				Graphics::TextureCube* SkyMap = nullptr;
 
 			public:
 				bool RecursiveProbes;
@@ -332,6 +337,9 @@ namespace Tomahawk
 				void OnPhaseRender(Rest::Timer* Time) override;
 				void OnResizeBuffers() override;
 				void CreateRenderTargets();
+				void SetSkyMap(Graphics::Texture2D* Cubemap);
+				Graphics::TextureCube* GetSkyMap();
+				Graphics::Texture2D* GetSkyBase();
 
 			public:
 				THAWK_COMPONENT(LightRenderer);

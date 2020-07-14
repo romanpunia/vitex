@@ -165,6 +165,7 @@ namespace Tomahawk
 			Compute::Vector3 ViewPosition;
 			Compute::Vector3 Position;
 			Compute::Vector3 RawPosition;
+			Compute::Vector3 Rotation;
 			float ViewDistance = 0.0f;
 			RenderSystem* Renderer = nullptr;
 		};

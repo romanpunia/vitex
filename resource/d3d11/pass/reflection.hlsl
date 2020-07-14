@@ -17,7 +17,7 @@ float4 PS(VertexResult V) : SV_TARGET0
         return float4(0.0, 0.0, 0.0, 1.0);
 
 	Material Mat = GetMaterial(Frag.Material);
-	float3 E = normalize(Frag.Position - ViewPosition.xyz);
+	float3 E = normalize(Frag.Position - ViewPosition);
 	float3 D = reflect(E, Frag.Normal);
     float3 HitCoord;
 

@@ -11,6 +11,8 @@ cbuffer ProbeLight : register(b3)
 	float MipLevels;
 	float3 Scale;
 	float Parallax;
+    float3 Padding;
+    float Infinity;
 };
 
 TextureCube EnvironmentMap : register(t4);
@@ -33,10 +35,10 @@ float4 PS(VertexResult V) : SV_TARGET0
         return float4(0.0, 0.0, 0.0, 0.0);
 
 	float3 D = Position - Frag.Position;
-    float3 E = normalize(Frag.Position - ViewPosition.xyz);
+    float3 E = normalize(Frag.Position - ViewPosition);
 	float3 M = GetMetallicFactor(Frag, Mat);
 	float R = GetRoughnessFactor(Frag, Mat);
-	float A = (1.0 - length(D) / Range) * Mat.Environment;
+	float A = max(Infinity, (1.0 - length(D) / Range)) * Mat.Environment;
 
 	D = -normalize(reflect(-E, -Frag.Normal));
 	[branch] if (Parallax > 0)

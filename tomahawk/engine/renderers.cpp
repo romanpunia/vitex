@@ -1132,17 +1132,28 @@ namespace Tomahawk
 				delete Output1;
 				delete Input2;
 				delete Output2;
+				delete SkyMap;
 			}
 			void LightRenderer::OnLoad(ContentManager* Content, Rest::Document* Node)
 			{
+				std::string Path;
+				if (NMake::Unpack(Node->Find("sky-map"), &Path))
+					SetSkyMap(Content->Load<Graphics::Texture2D>(Path, nullptr));
+
 				NMake::Unpack(Node->Find("high-emission"), &AmbientLight.HighEmission);
 				NMake::Unpack(Node->Find("low-emission"), &AmbientLight.LowEmission);
+				NMake::Unpack(Node->Find("sky-emission"), &AmbientLight.SkyEmission);
 				NMake::Unpack(Node->Find("recursive-probes"), &RecursiveProbes);
 			}
 			void LightRenderer::OnSave(ContentManager* Content, Rest::Document* Node)
 			{
+				AssetResource* Asset = Content->FindAsset(SkyBase);
+				if (Asset != nullptr)
+					NMake::Pack(Node->SetDocument("sky-map"), Asset->Path);
+
 				NMake::Pack(Node->SetDocument("high-emission"), AmbientLight.HighEmission);
 				NMake::Pack(Node->SetDocument("low-emission"), AmbientLight.LowEmission);
+				NMake::Pack(Node->SetDocument("sky-emission"), AmbientLight.SkyEmission);
 				NMake::Pack(Node->SetDocument("recursive-probes"), RecursiveProbes);
 			}
 			void LightRenderer::OnInitialize()
@@ -1200,11 +1211,16 @@ namespace Tomahawk
 					Engine::Components::ProbeLight* ProbeLight = (Engine::Components::ProbeLight*)*It;
 					Entity* Base = ProbeLight->GetEntity();
 
-					Hardness = 1.0f - Base->Transform->Position.Distance(View.RawPosition) / View.ViewDistance;
-					if (Hardness > 0.0f)
-						ProbeLight->Visibility = Compute::MathCommon::IsClipping(View.ViewProjection, Base->Transform->GetWorld(), ProbeLight->Range) == -1 ? Hardness : 0.0f;
+					if (ProbeLight->Infinity <= 0.0f)
+					{
+						Hardness = 1.0f - Base->Transform->Position.Distance(View.RawPosition) / View.ViewDistance;
+						if (Hardness > 0.0f)
+							ProbeLight->Visibility = Compute::MathCommon::IsClipping(View.ViewProjection, Base->Transform->GetWorld(), ProbeLight->Range) == -1 ? Hardness : 0.0f;
+						else
+							ProbeLight->Visibility = 0.0f;
+					}
 					else
-						ProbeLight->Visibility = 0.0f;
+						ProbeLight->Visibility = 1.0f;
 				}
 			}
 			void LightRenderer::OnRender(Rest::Timer* Time)
@@ -1212,7 +1228,7 @@ namespace Tomahawk
 				Graphics::GraphicsDevice* Device = System->GetDevice();
 				Graphics::MultiRenderTarget2D* Surface = System->GetScene()->GetSurface();
 				Graphics::Shader* Active = nullptr;
-
+				
 				Device->SetDepthStencilState(DepthStencil);
 				Device->SetSamplerState(Sampler);
 				Device->SetBlendState(Blend);
@@ -1239,6 +1255,7 @@ namespace Tomahawk
 					ProbeLight.Scale = Light->GetEntity()->Transform->Scale;
 					ProbeLight.Parallax = (Light->ParallaxCorrected ? 1.0f : 0.0f);
 					ProbeLight.Range = Light->Range;
+					ProbeLight.Infinity = Light->Infinity;
 
 					Device->SetTextureCube(Light->GetProbeCache(), 4);
 					Device->UpdateBuffer(Shaders.Probe, &ProbeLight);
@@ -1346,9 +1363,11 @@ namespace Tomahawk
 					Device->Draw(6, 0);
 				}
 
+				AmbientLight.SkyOffset = System->GetScene()->View.Projection.Invert() * Compute::Matrix4x4::CreateRotation(System->GetScene()->View.Rotation);
 				Device->SetTarget(Surface, 0, 0, 0, 0);
 				Device->ClearDepth(Surface);
 				Device->SetTexture2D(Output1->GetTarget(), 4);
+				Device->SetTextureCube(SkyMap, 5);
 				Device->SetShader(Shaders.Ambient, Graphics::ShaderType_Vertex | Graphics::ShaderType_Pixel);
 				Device->SetBuffer(Shaders.Ambient, 3, Graphics::ShaderType_Vertex | Graphics::ShaderType_Pixel);
 				Device->UpdateBuffer(Shaders.Ambient, &AmbientLight);
@@ -1395,6 +1414,7 @@ namespace Tomahawk
 						ProbeLight.Scale = Light->GetEntity()->Transform->Scale;
 						ProbeLight.Parallax = (Light->ParallaxCorrected ? 1.0f : 0.0f);
 						ProbeLight.Range = Light->Range;
+						ProbeLight.Infinity = Light->Infinity;
 
 						Device->SetTextureCube(Light->GetProbeCache(), 4);
 						Device->UpdateBuffer(Shaders.Probe, &ProbeLight);
@@ -1515,9 +1535,11 @@ namespace Tomahawk
 					Device->Draw(6, 0);
 				}
 
+				AmbientLight.SkyOffset = System->GetScene()->View.Projection.Invert() * Compute::Matrix4x4::CreateRotation(System->GetScene()->View.Rotation);
 				Device->SetTarget(Surface, 0, 0, 0, 0);
 				Device->ClearDepth(Surface);
 				Device->SetTexture2D(Output2->GetTarget(), 4);
+				Device->SetTextureCube(SkyMap, 5);
 				Device->SetShader(Shaders.Ambient, Graphics::ShaderType_Vertex | Graphics::ShaderType_Pixel);
 				Device->SetBuffer(Shaders.Ambient, 3, Graphics::ShaderType_Vertex | Graphics::ShaderType_Pixel);
 				Device->UpdateBuffer(Shaders.Ambient, &AmbientLight);
@@ -1561,6 +1583,29 @@ namespace Tomahawk
 
 				delete Input2;
 				Input2 = System->GetDevice()->CreateRenderTarget2D(I);
+			}
+			void LightRenderer::SetSkyMap(Graphics::Texture2D* Cubemap)
+			{
+				SkyBase = Cubemap;
+				delete SkyMap;
+				SkyMap = nullptr;
+
+				if (SkyBase != nullptr)
+					SkyMap = System->GetDevice()->CreateTextureCube(SkyBase);
+			}
+			Graphics::TextureCube* LightRenderer::GetSkyMap()
+			{
+				if (!SkyBase)
+					return nullptr;
+
+				return SkyMap;
+			}
+			Graphics::Texture2D* LightRenderer::GetSkyBase()
+			{
+				if (!SkyMap)
+					return nullptr;
+
+				return SkyBase;
 			}
 
 			ImageRenderer::ImageRenderer(RenderSystem* Lab) : ImageRenderer(Lab, nullptr)

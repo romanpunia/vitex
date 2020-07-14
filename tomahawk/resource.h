@@ -78,7 +78,7 @@ namespace resource_batch
 	{
 #define HAS_D3D11_PASS_AMBIENT_HLSL
 		extern const unsigned char data[];
-		const unsigned size = 1593;
+		const unsigned size = 1589;
 	}
 
 	namespace d3d11_pass_bloom_hlsl
@@ -127,70 +127,70 @@ namespace resource_batch
 	{
 #define HAS_D3D11_PASS_INDIRECT_HLSL
 		extern const unsigned char data[];
-		const unsigned size = 2104;
+		const unsigned size = 2096;
 	}
 
 	namespace d3d11_pass_light_base_ambient_hlsl
 	{
 #define HAS_D3D11_PASS_LIGHT_BASE_AMBIENT_HLSL
 		extern const unsigned char data[];
-		const unsigned size = 757;
+		const unsigned size = 1566;
 	}
 
 	namespace d3d11_pass_light_base_line_hlsl
 	{
 #define HAS_D3D11_PASS_LIGHT_BASE_LINE_HLSL
 		extern const unsigned char data[];
-		const unsigned size = 631;
+		const unsigned size = 597;
 	}
 
 	namespace d3d11_pass_light_base_point_hlsl
 	{
 #define HAS_D3D11_PASS_LIGHT_BASE_POINT_HLSL
 		extern const unsigned char data[];
-		const unsigned size = 960;
+		const unsigned size = 956;
 	}
 
 	namespace d3d11_pass_light_base_probe_hlsl
 	{
 #define HAS_D3D11_PASS_LIGHT_BASE_PROBE_HLSL
 		extern const unsigned char data[];
-		const unsigned size = 1529;
+		const unsigned size = 1582;
 	}
 
 	namespace d3d11_pass_light_base_spot_hlsl
 	{
 #define HAS_D3D11_PASS_LIGHT_BASE_SPOT_HLSL
 		extern const unsigned char data[];
-		const unsigned size = 1344;
+		const unsigned size = 1340;
 	}
 
 	namespace d3d11_pass_light_shade_line_hlsl
 	{
 #define HAS_D3D11_PASS_LIGHT_SHADE_LINE_HLSL
 		extern const unsigned char data[];
-		const unsigned size = 1742;
+		const unsigned size = 1738;
 	}
 
 	namespace d3d11_pass_light_shade_point_hlsl
 	{
 #define HAS_D3D11_PASS_LIGHT_SHADE_POINT_HLSL
 		extern const unsigned char data[];
-		const unsigned size = 1743;
+		const unsigned size = 1739;
 	}
 
 	namespace d3d11_pass_light_shade_spot_hlsl
 	{
 #define HAS_D3D11_PASS_LIGHT_SHADE_SPOT_HLSL
 		extern const unsigned char data[];
-		const unsigned size = 2020;
+		const unsigned size = 2016;
 	}
 
 	namespace d3d11_pass_reflection_hlsl
 	{
 #define HAS_D3D11_PASS_REFLECTION_HLSL
 		extern const unsigned char data[];
-		const unsigned size = 1160;
+		const unsigned size = 1156;
 	}
 
 	namespace d3d11_pass_tone_hlsl
@@ -331,13 +331,6 @@ namespace resource_batch
 #define HAS_D3D11_STANDARD_COOK_TORRANCE_HLSL
 		extern const unsigned char data[];
 		const unsigned size = 1177;
-	}
-
-	namespace d3d11_standard_hemi_ambient_hlsl
-	{
-#define HAS_D3D11_STANDARD_HEMI_AMBIENT_HLSL
-		extern const unsigned char data[];
-		const unsigned size = 151;
 	}
 
 	namespace d3d11_standard_pow_hlsl
@@ -744,13 +737,6 @@ namespace resource_batch
 #define HAS_OGL_STANDARD_COOK_TORRANCE_GLSL
 		extern const unsigned char data[];
 		const unsigned size = 1180;
-	}
-
-	namespace ogl_standard_hemi_ambient_glsl
-	{
-#define HAS_OGL_STANDARD_HEMI_AMBIENT_GLSL
-		extern const unsigned char data[];
-		const unsigned size = 151;
 	}
 
 	namespace ogl_standard_pow_glsl

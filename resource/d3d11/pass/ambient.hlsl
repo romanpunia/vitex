@@ -28,7 +28,7 @@ float4 PS(VertexResult V) : SV_TARGET0
     [branch] if (Frag.Depth >= 1.0)
         return float4(1.0, 1.0, 1.0, 1.0);
 
-	float F = saturate(pow(abs(distance(ViewPosition.xyz, Frag.Position) / Distance), Fading));
+	float F = saturate(pow(abs(distance(ViewPosition, Frag.Position) / Distance), Fading));
 	float O = Radius + Mat.Radius, Count = 0.0;
     float3 C = 0.0;
 

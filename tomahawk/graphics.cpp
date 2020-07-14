@@ -1122,11 +1122,6 @@ namespace Tomahawk
 #else
 				THAWK_ERROR("standard/cook-torrance.hlsl was not compiled");
 #endif
-#ifdef HAS_D3D11_STANDARD_HEMI_AMBIENT_HLSL
-				AddSection("standard/hemi-ambient.hlsl", GET_RESOURCE_BATCH(d3d11_standard_hemi_ambient_hlsl));
-#else
-				THAWK_ERROR("standard/hemi-ambient.hlsl was not compiled");
-#endif
 #ifdef HAS_D3D11_STANDARD_POW_HLSL
 				AddSection("standard/pow.hlsl", GET_RESOURCE_BATCH(d3d11_standard_pow_hlsl));
 #else
@@ -1409,11 +1404,6 @@ namespace Tomahawk
 			AddSection("standard/cook-torrance.glsl", GET_RESOURCE_BATCH(ogl_standard_cook_torrance_glsl));
 #else
 			THAWK_ERROR("standard/cook-torrance.glsl was not compiled");
-#endif
-#ifdef HAS_OGL_STANDARD_HEMI_AMBIENT_GLSL
-			AddSection("standard/hemi-ambient.glsl", GET_RESOURCE_BATCH(ogl_standard_hemi_ambient_glsl));
-#else
-			THAWK_ERROR("standard/hemi-ambient.glsl was not compiled");
 #endif
 #ifdef HAS_OGL_STANDARD_POW_GLSL
 			AddSection("standard/pow.glsl", GET_RESOURCE_BATCH(ogl_standard_pow_glsl));

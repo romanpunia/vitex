@@ -2601,6 +2601,7 @@ namespace Tomahawk
 				DiffuseMapZ[1] = nullptr;
 				DiffuseMap = nullptr;
 				ProbeCache = nullptr;
+				Infinity = 0.0f;
 				Emission = 1.0f;
 				Range = 5.0f;
 				Visibility = 0.0f;
@@ -2647,6 +2648,7 @@ namespace Tomahawk
 				NMake::Unpack(Node->Find("range"), &Range);
 				NMake::Unpack(Node->Find("capture-range"), &CaptureRange);
 				NMake::Unpack(Node->Find("emission"), &Emission);
+				NMake::Unpack(Node->Find("infinity"), &Infinity);
 				NMake::Unpack(Node->Find("parallax-corrected"), &ParallaxCorrected);
 
 				int64_t Count = Compute::Math<int64_t>::Min((int64_t)Views.size(), 6);
@@ -2706,6 +2708,7 @@ namespace Tomahawk
 				NMake::Pack(Node->SetDocument("range"), Range);
 				NMake::Pack(Node->SetDocument("capture-range"), CaptureRange);
 				NMake::Pack(Node->SetDocument("emission"), Emission);
+				NMake::Pack(Node->SetDocument("infinity"), Infinity);
 				NMake::Pack(Node->SetDocument("parallax-corrected"), ParallaxCorrected);
 			}
 			Component* ProbeLight::OnClone(Entity* New)
@@ -2978,6 +2981,7 @@ namespace Tomahawk
 				View->InvViewProjection = View->ViewProjection.Invert();
 				View->Position = Parent->Transform->Position.InvertZ();
 				View->RawPosition = Parent->Transform->Position;
+				View->Rotation = Parent->Transform->Rotation;
 				View->ViewDistance = FarPlane;
 				View->Renderer = Renderer;
 				FieldView = *View;

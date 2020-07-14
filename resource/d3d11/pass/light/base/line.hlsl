@@ -1,6 +1,5 @@
 #include "standard/space-sv"
 #include "standard/cook-torrance"
-#include "standard/hemi-ambient"
 
 cbuffer LineLight : register(b3)
 {

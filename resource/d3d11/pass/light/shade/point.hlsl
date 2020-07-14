@@ -53,7 +53,7 @@ float4 PS(VertexResult V) : SV_TARGET0
 	float R = GetRoughnessFactor(Frag, Mat);
 	float L = length(D);
 	float A = 1.0 - L / Range;
-	float3 P = normalize(ViewPosition.xyz - Frag.Position);
+	float3 P = normalize(ViewPosition - Frag.Position);
 	float I = L / Distance - Bias, C = 0.0, B = 0.0;
 
 	float3 E = GetLight(P, K, Frag.Normal, M, R) * A;

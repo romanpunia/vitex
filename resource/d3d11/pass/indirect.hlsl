@@ -31,7 +31,7 @@ float4 PS(VertexResult V) : SV_TARGET0
 
     float Count = 0.0;
     float T = GetRoughnessLevel(Frag, Mat, 1.0);
-	float F = saturate(pow(abs(distance(ViewPosition.xyz, Frag.Position) / Distance), Fading));
+	float F = saturate(pow(abs(distance(ViewPosition, Frag.Position) / Distance), Fading));
 	float O = T * (Radius + Mat.Radius);
     float3 C = Frag.Diffuse;
 
@@ -63,7 +63,7 @@ float4 PS(VertexResult V) : SV_TARGET0
 
     float R = GetRoughnessFactor(Frag, Mat);
 	float3 M = GetMetallicFactor(Frag, Mat);
-	float3 E = normalize(Frag.Position - ViewPosition.xyz);
+	float3 E = normalize(Frag.Position - ViewPosition);
 	float3 D = normalize(reflect(E, Frag.Normal));
     float3 G = GetLight(E, D, Frag.Normal, M, R);
 

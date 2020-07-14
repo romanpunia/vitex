@@ -318,6 +318,7 @@ namespace Tomahawk
 				NMake::Unpack(Node->Find("extended"), &Extended);
 				NMake::Unpack(Node->Find("kinematic"), &Kinematic);
 				NMake::Unpack(Node->Find("visibility"), &Visibility);
+				NMake::Unpack(Node->Find("static"), &Static);
 				NMake::Unpack(Node->Find("surface"), &Surfaces.begin()->second, Content);
 
 				if (!Extended)
@@ -480,6 +481,7 @@ namespace Tomahawk
 				NMake::Pack(Node->SetDocument("kinematic"), Kinematic);
 				NMake::Pack(Node->SetDocument("extended"), Instance != nullptr);
 				NMake::Pack(Node->SetDocument("visibility"), Visibility);
+				NMake::Pack(Node->SetDocument("static"), Static);
 				NMake::Pack(Node->SetDocument("surface"), Surfaces.begin()->second, Content);
 
 				if (!Instance)
@@ -1835,6 +1837,7 @@ namespace Tomahawk
 				NMake::Unpack(Node->Find("quad-based"), &QuadBased);
 				NMake::Unpack(Node->Find("connected"), &Connected);
 				NMake::Unpack(Node->Find("visibility"), &Visibility);
+				NMake::Unpack(Node->Find("static"), &Static);
 				NMake::Unpack(Node->Find("volume"), &Volume);
 
 				uint64_t Limit;
@@ -1859,6 +1862,7 @@ namespace Tomahawk
 				NMake::Pack(Node->SetDocument("quad-based"), QuadBased);
 				NMake::Pack(Node->SetDocument("connected"), Connected);
 				NMake::Pack(Node->SetDocument("visibility"), Visibility);
+				NMake::Pack(Node->SetDocument("static"), Static);
 				NMake::Pack(Node->SetDocument("volume"), Volume);
 
 				if (Instance != nullptr)
@@ -2220,6 +2224,7 @@ namespace Tomahawk
 				}
 
 				NMake::Unpack(Node->Find("visibility"), &Visibility);
+				NMake::Unpack(Node->Find("static"), &Static);
 			}
 			void Model::OnSave(ContentManager* Content, Rest::Document* Node)
 			{
@@ -2239,6 +2244,7 @@ namespace Tomahawk
 				}
 
 				NMake::Pack(Node->SetDocument("visibility"), Visibility);
+				NMake::Pack(Node->SetDocument("static"), Static);
 			}
 			void Model::SetDrawable(Graphics::Model* Drawable)
 			{
@@ -2302,6 +2308,7 @@ namespace Tomahawk
 				}
 
 				NMake::Unpack(Node->Find("visibility"), &Visibility);
+				NMake::Unpack(Node->Find("static"), &Static);
 			}
 			void SkinModel::OnSave(ContentManager* Content, Rest::Document* Node)
 			{
@@ -2321,6 +2328,7 @@ namespace Tomahawk
 				}
 
 				NMake::Pack(Node->SetDocument("visibility"), Visibility);
+				NMake::Pack(Node->SetDocument("static"), Static);
 
 				Rest::Document* Poses = Node->SetArray("poses");
 				for (auto&& Pose : Skeleton.Pose)
@@ -2608,6 +2616,7 @@ namespace Tomahawk
 				CaptureRange = Range;
 				RenderLocked = false;
 				ParallaxCorrected = false;
+				StaticMask = false;
 			}
 			ProbeLight::~ProbeLight()
 			{
@@ -2650,6 +2659,7 @@ namespace Tomahawk
 				NMake::Unpack(Node->Find("emission"), &Emission);
 				NMake::Unpack(Node->Find("infinity"), &Infinity);
 				NMake::Unpack(Node->Find("parallax-corrected"), &ParallaxCorrected);
+				NMake::Unpack(Node->Find("static-mask"), &StaticMask);
 
 				int64_t Count = Compute::Math<int64_t>::Min((int64_t)Views.size(), 6);
 				for (int64_t i = 0; i < Count; i++)
@@ -2710,6 +2720,7 @@ namespace Tomahawk
 				NMake::Pack(Node->SetDocument("emission"), Emission);
 				NMake::Pack(Node->SetDocument("infinity"), Infinity);
 				NMake::Pack(Node->SetDocument("parallax-corrected"), ParallaxCorrected);
+				NMake::Pack(Node->SetDocument("static-mask"), StaticMask);
 			}
 			Component* ProbeLight::OnClone(Entity* New)
 			{

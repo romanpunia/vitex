@@ -39,7 +39,7 @@ namespace Tomahawk
 				void OnInitialize() override;
 				void OnCulling(const Viewer& View) override;
 				void OnRender(Rest::Timer* Time) override;
-				void OnPhaseRender(Rest::Timer* Time) override;
+				void OnPhaseRender(Rest::Timer* Time, uint64_t Mask) override;
 				void OnDepthRender(Rest::Timer* Time) override;
 				void OnCubicDepthRender(Rest::Timer* Time, Compute::Matrix4x4* ViewProjection) override;
 
@@ -76,7 +76,7 @@ namespace Tomahawk
 				void OnInitialize() override;
 				void OnCulling(const Viewer& View) override;
 				void OnRender(Rest::Timer* Time) override;
-				void OnPhaseRender(Rest::Timer* Time) override;
+				void OnPhaseRender(Rest::Timer* Time, uint64_t Mask) override;
 				void OnDepthRender(Rest::Timer* Time) override;
 				void OnCubicDepthRender(Rest::Timer* Time, Compute::Matrix4x4* ViewProjection) override;
 
@@ -115,7 +115,7 @@ namespace Tomahawk
 				void OnInitialize() override;
 				void OnCulling(const Viewer& View) override;
 				void OnRender(Rest::Timer* Time) override;
-				void OnPhaseRender(Rest::Timer* Time) override;
+				void OnPhaseRender(Rest::Timer* Time, uint64_t Mask) override;
 				void OnDepthRender(Rest::Timer* Time) override;
 				void OnCubicDepthRender(Rest::Timer* Time, Compute::Matrix4x4* ViewProjection) override;
 
@@ -154,7 +154,7 @@ namespace Tomahawk
 				void OnInitialize() override;
 				void OnCulling(const Viewer& View) override;
 				void OnRender(Rest::Timer* Time) override;
-				void OnPhaseRender(Rest::Timer* Time) override;
+				void OnPhaseRender(Rest::Timer* Time, uint64_t Mask) override;
 				void OnDepthRender(Rest::Timer* Time) override;
 				void OnCubicDepthRender(Rest::Timer* Time, Compute::Matrix4x4* ViewProjection) override;
 
@@ -334,7 +334,7 @@ namespace Tomahawk
 				void OnInitialize() override;
 				void OnCulling(const Viewer& View) override;
 				void OnRender(Rest::Timer* Time) override;
-				void OnPhaseRender(Rest::Timer* Time) override;
+				void OnPhaseRender(Rest::Timer* Time, uint64_t Mask) override;
 				void OnResizeBuffers() override;
 				void CreateRenderTargets();
 				void SetSkyMap(Graphics::Texture2D* Cubemap);

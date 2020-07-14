@@ -1851,7 +1851,7 @@ namespace Tomahawk
 			return Active;
 		}
 
-		Drawable::Drawable(Entity* Ref, bool _Complex) : Component(Ref), Visibility(false), Complex(_Complex)
+		Drawable::Drawable(Entity* Ref, bool _Complex) : Component(Ref), Visibility(false), Static(true), Complex(_Complex)
 		{
 			if (!Complex)
 				Surfaces[nullptr] = Appearance();
@@ -2072,7 +2072,7 @@ namespace Tomahawk
 		void Renderer::OnCubicDepthRender(Rest::Timer* TimeStep, Compute::Matrix4x4* ViewProjection)
 		{
 		}
-		void Renderer::OnPhaseRender(Rest::Timer* TimeStep)
+		void Renderer::OnPhaseRender(Rest::Timer* TimeStep, uint64_t Mask)
 		{
 		}
 		void Renderer::OnRelease()
@@ -2096,10 +2096,10 @@ namespace Tomahawk
 			if (System && System->GetScene())
 				System->GetScene()->RenderDepth(Time, iView, iProjection, iPosition);
 		}
-		void Renderer::RenderPhase(Rest::Timer* Time, const Compute::Matrix4x4& iView, const Compute::Matrix4x4& iProjection, const Compute::Vector4& iPosition)
+		void Renderer::RenderPhase(Rest::Timer* Time, const Compute::Matrix4x4& iView, const Compute::Matrix4x4& iProjection, const Compute::Vector4& iPosition, uint64_t Mask)
 		{
 			if (System && System->GetScene())
-				System->GetScene()->RenderPhase(Time, iView, iProjection, iPosition);
+				System->GetScene()->RenderPhase(Time, iView, iProjection, iPosition, Mask);
 		}
 		RenderSystem* Renderer::GetRenderer()
 		{
@@ -2130,10 +2130,10 @@ namespace Tomahawk
 		void IntervalRenderer::OnImmediateCubicDepthRender(Rest::Timer* Time, Compute::Matrix4x4* ViewProjection)
 		{
 		}
-		void IntervalRenderer::OnIntervalPhaseRender(Rest::Timer* Time)
+		void IntervalRenderer::OnIntervalPhaseRender(Rest::Timer* Time, uint64_t Mask)
 		{
 		}
-		void IntervalRenderer::OnImmediatePhaseRender(Rest::Timer* Time)
+		void IntervalRenderer::OnImmediatePhaseRender(Rest::Timer* Time, uint64_t Mask)
 		{
 		}
 		void IntervalRenderer::OnRender(Rest::Timer* Time)
@@ -2157,12 +2157,12 @@ namespace Tomahawk
 
 			OnImmediateCubicDepthRender(Time, ViewProjection);
 		}
-		void IntervalRenderer::OnPhaseRender(Rest::Timer* Time)
+		void IntervalRenderer::OnPhaseRender(Rest::Timer* Time, uint64_t Mask)
 		{
 			if (Timer.OnTickEvent(Time->GetElapsedTime()))
-				OnIntervalPhaseRender(Time);
+				OnIntervalPhaseRender(Time, Mask);
 
-			OnImmediatePhaseRender(Time);
+			OnImmediatePhaseRender(Time, Mask);
 		}
 
 		PostProcessRenderer::PostProcessRenderer(RenderSystem* Lab) : Renderer(Lab), Output(nullptr), Pass(nullptr)
@@ -2797,7 +2797,7 @@ namespace Tomahawk
 					(*It)->OnDepthRender(Time);
 			}
 		}
-		void SceneGraph::RenderPhase(Rest::Timer* Time, Compute::Matrix4x4 iView, Compute::Matrix4x4 iProjection, Compute::Vector4 iPosition)
+		void SceneGraph::RenderPhase(Rest::Timer* Time, Compute::Matrix4x4 iView, Compute::Matrix4x4 iProjection, Compute::Vector4 iPosition, uint64_t Mask)
 		{
 			View.ViewPosition = Compute::Vector3(-iPosition.X, -iPosition.Y, iPosition.Z);
 			View.View = iView;
@@ -2816,7 +2816,7 @@ namespace Tomahawk
 			for (auto It = RenderStages->begin(); It != RenderStages->end(); It++)
 			{
 				if ((*It)->Active && (*It)->Geometric)
-					(*It)->OnPhaseRender(Time);
+					(*It)->OnPhaseRender(Time, Mask);
 			}
 		}
 		void SceneGraph::Redistribute()

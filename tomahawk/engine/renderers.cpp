@@ -85,7 +85,7 @@ namespace Tomahawk
 					}
 				}
 			}
-			void ModelRenderer::OnPhaseRender(Rest::Timer* Time)
+			void ModelRenderer::OnPhaseRender(Rest::Timer* Time, uint64_t Mask)
 			{
 				Graphics::GraphicsDevice* Device = System->GetDevice();
 				if (!Models || Models->Empty())
@@ -98,12 +98,13 @@ namespace Tomahawk
 				Device->SetShader(Shaders.GBuffer, Graphics::ShaderType_Vertex | Graphics::ShaderType_Pixel);
 				System->GetScene()->SetSurface();
 
+				bool Static = (Mask & PhaseMask_Static);
 				for (auto It = Models->Begin(); It != Models->End(); ++It)
 				{
 					Engine::Components::Model* Model = (Engine::Components::Model*)*It;
 					auto* Drawable = Model->GetDrawable();
 
-					if (!Drawable || !Model->IsVisibleTo(System->GetScene()->View, nullptr))
+					if (!Drawable || (Static && !Model->Static) || !Model->IsVisibleTo(System->GetScene()->View, nullptr))
 						continue;
 
 					for (auto&& Mesh : Drawable->Meshes)
@@ -270,7 +271,7 @@ namespace Tomahawk
 					}
 				}
 			}
-			void SkinModelRenderer::OnPhaseRender(Rest::Timer* Time)
+			void SkinModelRenderer::OnPhaseRender(Rest::Timer* Time, uint64_t Mask)
 			{
 				Graphics::GraphicsDevice* Device = System->GetDevice();
 				if (!SkinModels || SkinModels->Empty())
@@ -283,12 +284,13 @@ namespace Tomahawk
 				Device->SetShader(Shaders.GBuffer, Graphics::ShaderType_Vertex | Graphics::ShaderType_Pixel);
 				System->GetScene()->SetSurface();
 
+				bool Static = (Mask & PhaseMask_Static);
 				for (auto It = SkinModels->Begin(); It != SkinModels->End(); ++It)
 				{
 					Engine::Components::SkinModel* SkinModel = (Engine::Components::SkinModel*)*It;
 					auto* Drawable = SkinModel->GetDrawable();
 
-					if (!Drawable || !SkinModel->IsVisibleTo(System->GetScene()->View, nullptr))
+					if (!Drawable || (Static && !SkinModel->Static) || !SkinModel->IsVisibleTo(System->GetScene()->View, nullptr))
 						continue;
 
 					Device->Animation.HasAnimation = !SkinModel->GetDrawable()->Joints.empty();
@@ -487,7 +489,7 @@ namespace Tomahawk
 					Device->DrawIndexed((unsigned int)SoftBody->GetIndices().size(), 0, 0);
 				}
 			}
-			void SoftBodyRenderer::OnPhaseRender(Rest::Timer* Time)
+			void SoftBodyRenderer::OnPhaseRender(Rest::Timer* Time, uint64_t Mask)
 			{
 				Graphics::GraphicsDevice* Device = System->GetDevice();
 				if (!SoftBodies || SoftBodies->Empty())
@@ -500,10 +502,11 @@ namespace Tomahawk
 				Device->SetShader(Shaders.GBuffer, Graphics::ShaderType_Vertex | Graphics::ShaderType_Pixel);
 				System->GetScene()->SetSurface();
 
+				bool Static = (Mask & PhaseMask_Static);
 				for (auto It = SoftBodies->Begin(); It != SoftBodies->End(); ++It)
 				{
 					Engine::Components::SoftBody* SoftBody = (Engine::Components::SoftBody*)*It;
-					if (!SoftBody->IsVisibleTo(System->GetScene()->View, nullptr) || SoftBody->GetIndices().empty())
+					if ((Static && !SoftBody->Static) || !SoftBody->IsVisibleTo(System->GetScene()->View, nullptr) || SoftBody->GetIndices().empty())
 						continue;
 
 					if (!Appearance::UploadPhase(Device, SoftBody->GetSurface()))
@@ -680,7 +683,7 @@ namespace Tomahawk
 				Device->SetPrimitiveTopology(T);
 				Device->SetShader(nullptr, Graphics::ShaderType_Geometry);
 			}
-			void ElementSystemRenderer::OnPhaseRender(Rest::Timer* Time)
+			void ElementSystemRenderer::OnPhaseRender(Rest::Timer* Time, uint64_t Mask)
 			{
 				Graphics::GraphicsDevice* Device = System->GetDevice();
 				if (!ElementSystems || ElementSystems->Empty())
@@ -696,11 +699,12 @@ namespace Tomahawk
 				Device->SetVertexBuffer(nullptr, 0, 0, 0);
 				System->GetScene()->SetSurface();
 
+				bool Static = (Mask & PhaseMask_Static);
 				Compute::Matrix4x4 View = System->GetScene()->View.ViewProjection * System->GetScene()->View.Projection.Invert();
 				for (auto It = ElementSystems->Begin(); It != ElementSystems->End(); ++It)
 				{
 					Engine::Components::ElementSystem* ElementSystem = (Engine::Components::ElementSystem*)*It;
-					if (!ElementSystem->GetBuffer())
+					if ((Static && !ElementSystem->Static) || !ElementSystem->GetBuffer())
 						continue;
 
 					if (!Appearance::UploadPhase(Device, ElementSystem->GetSurface()))
@@ -1035,7 +1039,7 @@ namespace Tomahawk
 					for (int j = 0; j < 6; j++)
 					{
 						Light->View[j] = Compute::Matrix4x4::CreateCubeMapLookAt(j, Position);
-						RenderPhase(Time, Light->View[j], Light->Projection, Position.XYZW().SetW(Light->CaptureRange));
+						RenderPhase(Time, Light->View[j], Light->Projection, Position.XYZW().SetW(Light->CaptureRange), Light->StaticMask ? PhaseMask_Static : PhaseMask_None);
 						Device->CopyFace(Surface, 0, j);
 					}
 
@@ -1374,7 +1378,7 @@ namespace Tomahawk
 				Device->Draw(6, 0);
 				Device->FlushTexture2D(1, 5);
 			}
-			void LightRenderer::OnPhaseRender(Rest::Timer* Time)
+			void LightRenderer::OnPhaseRender(Rest::Timer* Time, uint64_t Mask)
 			{
 				Graphics::GraphicsDevice* Device = System->GetDevice();
 				Graphics::MultiRenderTarget2D* Surface = System->GetScene()->GetSurface();

@@ -65,6 +65,12 @@ namespace Tomahawk
 			ContentType_Pointer,
 		};
 
+		enum PhaseMask
+		{
+			PhaseMask_None = 0,
+			PhaseMask_Static = 1
+		};
+
 		struct THAWK_OUT AssetResource
 		{
 			FileProcessor* Processor = nullptr;
@@ -373,6 +379,7 @@ namespace Tomahawk
 
 		public:
 			bool Visibility;
+			bool Static;
 
 		public:
 			Drawable(Entity* Ref, bool Complex);
@@ -464,13 +471,13 @@ namespace Tomahawk
 			virtual void OnDepthRender(Rest::Timer* TimeStep);
 			virtual void OnCubicDepthRender(Rest::Timer* TimeStep);
 			virtual void OnCubicDepthRender(Rest::Timer* TimeStep, Compute::Matrix4x4* ViewProjection);
-			virtual void OnPhaseRender(Rest::Timer* TimeStep);
+			virtual void OnPhaseRender(Rest::Timer* TimeStep, uint64_t Mask);
 			virtual void OnRelease();
 			bool IsGeometric();
 			void SetRenderer(RenderSystem* NewSystem);
 			void RenderCubicDepth(Rest::Timer* Time, const Compute::Matrix4x4& Projection, const Compute::Vector4& Position);
 			void RenderDepth(Rest::Timer* Time, const Compute::Matrix4x4& View, const Compute::Matrix4x4& Projection, const Compute::Vector4& Position);
-			void RenderPhase(Rest::Timer* Time, const Compute::Matrix4x4& View, const Compute::Matrix4x4& Projection, const Compute::Vector4& Position);
+			void RenderPhase(Rest::Timer* Time, const Compute::Matrix4x4& View, const Compute::Matrix4x4& Projection, const Compute::Vector4& Position, uint64_t Mask);
 			RenderSystem* GetRenderer();
 			
 		public:
@@ -491,12 +498,12 @@ namespace Tomahawk
 			virtual void OnImmediateDepthRender(Rest::Timer* Time);
 			virtual void OnIntervalCubicDepthRender(Rest::Timer* Time, Compute::Matrix4x4* ViewProjection);
 			virtual void OnImmediateCubicDepthRender(Rest::Timer* Time, Compute::Matrix4x4* ViewProjection);
-			virtual void OnIntervalPhaseRender(Rest::Timer* Time);
-			virtual void OnImmediatePhaseRender(Rest::Timer* Time);
+			virtual void OnIntervalPhaseRender(Rest::Timer* Time, uint64_t Mask);
+			virtual void OnImmediatePhaseRender(Rest::Timer* Time, uint64_t Mask);
 			void OnRender(Rest::Timer* Time) override;
 			void OnDepthRender(Rest::Timer* Time) override;
 			void OnCubicDepthRender(Rest::Timer* Time, Compute::Matrix4x4* ViewProjection) override;
-			void OnPhaseRender(Rest::Timer* Time) override;
+			void OnPhaseRender(Rest::Timer* Time, uint64_t Mask) override;
 
 		public:
 			THAWK_COMPONENT(IntervalRenderer);
@@ -716,7 +723,7 @@ namespace Tomahawk
 		protected:
 			void RenderCubicDepth(Rest::Timer* Time, Compute::Matrix4x4 Projection, Compute::Vector4 Position);
 			void RenderDepth(Rest::Timer* Time, Compute::Matrix4x4 View, Compute::Matrix4x4 Projection, Compute::Vector4 Position);
-			void RenderPhase(Rest::Timer* Time, Compute::Matrix4x4 View, Compute::Matrix4x4 Projection, Compute::Vector4 Position);
+			void RenderPhase(Rest::Timer* Time, Compute::Matrix4x4 View, Compute::Matrix4x4 Projection, Compute::Vector4 Position, uint64_t Mask);
 			void BeginThread(ThreadId Thread);
 			void EndThread(ThreadId Thread);
 			void DispatchEvents();

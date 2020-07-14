@@ -518,6 +518,7 @@ namespace Tomahawk
 				float Infinity;
 				bool ParallaxCorrected;
 				bool RenderLocked;
+				bool StaticMask;
 
 			public:
 				ProbeLight(Entity* Ref);

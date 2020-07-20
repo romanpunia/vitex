@@ -25,9 +25,9 @@ namespace Tomahawk
 				LowpassFilter();
 				virtual ~LowpassFilter() override;
 				void Synchronize() override;
-				void OnDeserialize(Rest::Document* Node) override;
-				void OnSerialize(Rest::Document* Node) override;
-				AudioFilter* OnCopy() override;
+				void Deserialize(Rest::Document* Node) override;
+				void Serialize(Rest::Document* Node) override;
+				AudioFilter* Copy() override;
 
 			public:
 				THAWK_COMPONENT(LowpassFilter);
@@ -43,9 +43,9 @@ namespace Tomahawk
 				HighpassFilter();
 				virtual ~HighpassFilter() override;
 				void Synchronize() override;
-				void OnDeserialize(Rest::Document* Node) override;
-				void OnSerialize(Rest::Document* Node) override;
-				AudioFilter* OnCopy() override;
+				void Deserialize(Rest::Document* Node) override;
+				void Serialize(Rest::Document* Node) override;
+				AudioFilter* Copy() override;
 
 			public:
 				THAWK_COMPONENT(HighpassFilter);
@@ -62,9 +62,9 @@ namespace Tomahawk
 				BandpassFilter();
 				virtual ~BandpassFilter() override;
 				void Synchronize() override;
-				void OnDeserialize(Rest::Document* Node) override;
-				void OnSerialize(Rest::Document* Node) override;
-				AudioFilter* OnCopy() override;
+				void Deserialize(Rest::Document* Node) override;
+				void Serialize(Rest::Document* Node) override;
+				AudioFilter* Copy() override;
 
 			public:
 				THAWK_COMPONENT(BandpassFilter);

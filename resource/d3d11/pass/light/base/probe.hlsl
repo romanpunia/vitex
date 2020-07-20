@@ -15,7 +15,7 @@ cbuffer ProbeLight : register(b3)
     float Infinity;
 };
 
-TextureCube EnvironmentMap : register(t4);
+TextureCube EnvironmentMap : register(t5);
 
 VertexResult VS(VertexBase V)
 {
@@ -29,8 +29,10 @@ VertexResult VS(VertexBase V)
 float4 PS(VertexResult V) : SV_TARGET0
 {
 	Fragment Frag = GetFragment(GetTexCoord(V.TexCoord));
-	Material Mat = GetMaterial(Frag.Material);
+    [branch] if (Frag.Depth >= 1.0)
+        return float4(0, 0, 0, 0);
 
+	Material Mat = GetMaterial(Frag.Material);
     [branch] if (Mat.Environment <= 0.0)
         return float4(0.0, 0.0, 0.0, 0.0);
 

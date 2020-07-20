@@ -108,17 +108,17 @@ namespace Tomahawk
 				AudioContext::Unlock();
 #endif
 			}
-			void LowpassFilter::OnDeserialize(Rest::Document* Node)
+			void LowpassFilter::Deserialize(Rest::Document* Node)
 			{
 				Engine::NMake::Unpack(Node->Find("gain"), &Gain);
 				Engine::NMake::Unpack(Node->Find("gain-hf"), &GainHF);
 			}
-			void LowpassFilter::OnSerialize(Rest::Document* Node)
+			void LowpassFilter::Serialize(Rest::Document* Node)
 			{
 				Engine::NMake::Pack(Node->SetDocument("gain"), Gain);
 				Engine::NMake::Pack(Node->SetDocument("gain-hf"), GainHF);
 			}
-			AudioFilter* LowpassFilter::OnCopy()
+			AudioFilter* LowpassFilter::Copy()
 			{
 				LowpassFilter* Target = new LowpassFilter();
 				Target->Gain = Gain;
@@ -149,17 +149,17 @@ namespace Tomahawk
 				AudioContext::Unlock();
 #endif
 			}
-			void HighpassFilter::OnDeserialize(Rest::Document* Node)
+			void HighpassFilter::Deserialize(Rest::Document* Node)
 			{
 				Engine::NMake::Unpack(Node->Find("gain"), &Gain);
 				Engine::NMake::Unpack(Node->Find("gain-lf"), &GainLF);
 			}
-			void HighpassFilter::OnSerialize(Rest::Document* Node)
+			void HighpassFilter::Serialize(Rest::Document* Node)
 			{
 				Engine::NMake::Pack(Node->SetDocument("gain"), Gain);
 				Engine::NMake::Pack(Node->SetDocument("gain-lf"), GainLF);
 			}
-			AudioFilter* HighpassFilter::OnCopy()
+			AudioFilter* HighpassFilter::Copy()
 			{
 				HighpassFilter* Target = new HighpassFilter();
 				Target->Gain = Gain;
@@ -191,19 +191,19 @@ namespace Tomahawk
 				AudioContext::Unlock();
 #endif
 			}
-			void BandpassFilter::OnDeserialize(Rest::Document* Node)
+			void BandpassFilter::Deserialize(Rest::Document* Node)
 			{
 				Engine::NMake::Unpack(Node->Find("gain"), &Gain);
 				Engine::NMake::Unpack(Node->Find("gain-lf"), &GainLF);
 				Engine::NMake::Unpack(Node->Find("gain-hf"), &GainHF);
 			}
-			void BandpassFilter::OnSerialize(Rest::Document* Node)
+			void BandpassFilter::Serialize(Rest::Document* Node)
 			{
 				Engine::NMake::Pack(Node->SetDocument("gain"), Gain);
 				Engine::NMake::Pack(Node->SetDocument("gain-lf"), GainLF);
 				Engine::NMake::Pack(Node->SetDocument("gain-hf"), GainHF);
 			}
-			AudioFilter* BandpassFilter::OnCopy()
+			AudioFilter* BandpassFilter::Copy()
 			{
 				BandpassFilter* Target = new BandpassFilter();
 				Target->Gain = Gain;

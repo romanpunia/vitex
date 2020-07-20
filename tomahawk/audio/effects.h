@@ -49,9 +49,9 @@ namespace Tomahawk
 				ReverbEffect();
 				virtual ~ReverbEffect() override;
 				void Synchronize() override;
-				void OnDeserialize(Rest::Document* Node) override;
-				void OnSerialize(Rest::Document* Node) override;
-				AudioEffect* OnCopy() override;
+				void Deserialize(Rest::Document* Node) override;
+				void Serialize(Rest::Document* Node) override;
+				AudioEffect* Copy() override;
 
 			public:
 				THAWK_COMPONENT(ReverbEffect);
@@ -71,9 +71,9 @@ namespace Tomahawk
 				ChorusEffect();
 				virtual ~ChorusEffect() override;
 				void Synchronize() override;
-				void OnDeserialize(Rest::Document* Node) override;
-				void OnSerialize(Rest::Document* Node) override;
-				AudioEffect* OnCopy() override;
+				void Deserialize(Rest::Document* Node) override;
+				void Serialize(Rest::Document* Node) override;
+				AudioEffect* Copy() override;
 
 			public:
 				THAWK_COMPONENT(ChorusEffect);
@@ -92,9 +92,9 @@ namespace Tomahawk
 				DistortionEffect();
 				virtual ~DistortionEffect() override;
 				void Synchronize() override;
-				void OnDeserialize(Rest::Document* Node) override;
-				void OnSerialize(Rest::Document* Node) override;
-				AudioEffect* OnCopy() override;
+				void Deserialize(Rest::Document* Node) override;
+				void Serialize(Rest::Document* Node) override;
+				AudioEffect* Copy() override;
 
 			public:
 				THAWK_COMPONENT(DistortionEffect);
@@ -113,9 +113,9 @@ namespace Tomahawk
 				EchoEffect();
 				virtual ~EchoEffect() override;
 				void Synchronize() override;
-				void OnDeserialize(Rest::Document* Node) override;
-				void OnSerialize(Rest::Document* Node) override;
-				AudioEffect* OnCopy() override;
+				void Deserialize(Rest::Document* Node) override;
+				void Serialize(Rest::Document* Node) override;
+				AudioEffect* Copy() override;
 
 			public:
 				THAWK_COMPONENT(EchoEffect);
@@ -135,9 +135,9 @@ namespace Tomahawk
 				FlangerEffect();
 				virtual ~FlangerEffect() override;
 				void Synchronize() override;
-				void OnDeserialize(Rest::Document* Node) override;
-				void OnSerialize(Rest::Document* Node) override;
-				AudioEffect* OnCopy() override;
+				void Deserialize(Rest::Document* Node) override;
+				void Serialize(Rest::Document* Node) override;
+				AudioEffect* Copy() override;
 
 			public:
 				THAWK_COMPONENT(FlangerEffect);
@@ -154,9 +154,9 @@ namespace Tomahawk
 				FrequencyShifterEffect();
 				virtual ~FrequencyShifterEffect() override;
 				void Synchronize() override;
-				void OnDeserialize(Rest::Document* Node) override;
-				void OnSerialize(Rest::Document* Node) override;
-				AudioEffect* OnCopy() override;
+				void Deserialize(Rest::Document* Node) override;
+				void Serialize(Rest::Document* Node) override;
+				AudioEffect* Copy() override;
 
 			public:
 				THAWK_COMPONENT(FrequencyShifterEffect);
@@ -176,9 +176,9 @@ namespace Tomahawk
 				VocalMorpherEffect();
 				virtual ~VocalMorpherEffect() override;
 				void Synchronize() override;
-				void OnDeserialize(Rest::Document* Node) override;
-				void OnSerialize(Rest::Document* Node) override;
-				AudioEffect* OnCopy() override;
+				void Deserialize(Rest::Document* Node) override;
+				void Serialize(Rest::Document* Node) override;
+				AudioEffect* Copy() override;
 
 			public:
 				THAWK_COMPONENT(VocalMorpherEffect);
@@ -194,9 +194,9 @@ namespace Tomahawk
 				PitchShifterEffect();
 				virtual ~PitchShifterEffect() override;
 				void Synchronize() override;
-				void OnDeserialize(Rest::Document* Node) override;
-				void OnSerialize(Rest::Document* Node) override;
-				AudioEffect* OnCopy() override;
+				void Deserialize(Rest::Document* Node) override;
+				void Serialize(Rest::Document* Node) override;
+				AudioEffect* Copy() override;
 
 			public:
 				THAWK_COMPONENT(PitchShifterEffect);
@@ -213,9 +213,9 @@ namespace Tomahawk
 				RingModulatorEffect();
 				virtual ~RingModulatorEffect() override;
 				void Synchronize() override;
-				void OnDeserialize(Rest::Document* Node) override;
-				void OnSerialize(Rest::Document* Node) override;
-				AudioEffect* OnCopy() override;
+				void Deserialize(Rest::Document* Node) override;
+				void Serialize(Rest::Document* Node) override;
+				AudioEffect* Copy() override;
 
 			public:
 				THAWK_COMPONENT(RingModulatorEffect);
@@ -233,9 +233,9 @@ namespace Tomahawk
 				AutowahEffect();
 				virtual ~AutowahEffect() override;
 				void Synchronize() override;
-				void OnDeserialize(Rest::Document* Node) override;
-				void OnSerialize(Rest::Document* Node) override;
-				AudioEffect* OnCopy() override;
+				void Deserialize(Rest::Document* Node) override;
+				void Serialize(Rest::Document* Node) override;
+				AudioEffect* Copy() override;
 
 			public:
 				THAWK_COMPONENT(AutowahEffect);
@@ -247,9 +247,9 @@ namespace Tomahawk
 				CompressorEffect();
 				virtual ~CompressorEffect() override;
 				void Synchronize() override;
-				void OnDeserialize(Rest::Document* Node) override;
-				void OnSerialize(Rest::Document* Node) override;
-				AudioEffect* OnCopy() override;
+				void Deserialize(Rest::Document* Node) override;
+				void Serialize(Rest::Document* Node) override;
+				AudioEffect* Copy() override;
 
 			public:
 				THAWK_COMPONENT(CompressorEffect);
@@ -273,9 +273,9 @@ namespace Tomahawk
 				EqualizerEffect();
 				virtual ~EqualizerEffect() override;
 				void Synchronize() override;
-				void OnDeserialize(Rest::Document* Node) override;
-				void OnSerialize(Rest::Document* Node) override;
-				AudioEffect* OnCopy() override;
+				void Deserialize(Rest::Document* Node) override;
+				void Serialize(Rest::Document* Node) override;
+				AudioEffect* Copy() override;
 
 			public:
 				THAWK_COMPONENT(EqualizerEffect);

@@ -513,7 +513,7 @@ namespace Tomahawk
 
 		public:
 			TickTimer();
-			bool OnTickEvent(double ElapsedTime);
+			bool TickEvent(double ElapsedTime);
 			double GetTime();
 		};
 

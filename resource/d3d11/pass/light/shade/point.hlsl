@@ -15,7 +15,7 @@ cbuffer PointLight : register(b3)
 	float Iterations;
 };
 
-TextureCube ShadowMap : register(t4);
+TextureCube ShadowMap : register(t5);
 
 void SampleShadow(in float3 D, in float L, out float C, out float B)
 {
@@ -46,6 +46,9 @@ VertexResult VS(VertexBase V)
 float4 PS(VertexResult V) : SV_TARGET0
 {
 	Fragment Frag = GetFragment(GetTexCoord(V.TexCoord));
+    [branch] if (Frag.Depth >= 1.0)
+        return float4(0, 0, 0, 0);
+
 	Material Mat = GetMaterial(Frag.Material);
 	float3 D = Position - Frag.Position;
 	float3 K = normalize(D);

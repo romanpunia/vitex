@@ -488,7 +488,7 @@ namespace Tomahawk
 				Shader::Desc F = Shader::Desc();
 				F.Layout = Shader::GetShapeVertexLayout();
 				F.LayoutSize = 2;
-				F.Filename = "BASIC";
+				F.Filename = "basic";
 				
 				if (GetSection("standard/basic", &F.Data))
 					BasicEffect = CreateShader(F);
@@ -1385,6 +1385,81 @@ namespace Tomahawk
 
 				ImmediateContext->CopyResource(Resource->As<D3D11MultiRenderTarget2D>()->Texture[Target], From->As<D3D11RenderTarget2D>()->Texture);
 			}
+			void D3D11Device::CopyTargetDepth(RenderTarget2D* From, RenderTarget2D* To)
+			{
+				D3D11RenderTarget2D* IResource1 = (D3D11RenderTarget2D*)From;
+				D3D11RenderTarget2D* IResource2 = (D3D11RenderTarget2D*)To;
+				if (!IResource1 || !IResource2)
+					return;
+
+				ID3D11Resource* Depth1 = nullptr;
+				IResource1->DepthStencilView->GetResource(&Depth1);
+
+				ID3D11Resource* Depth2 = nullptr;
+				IResource2->DepthStencilView->GetResource(&Depth2);
+
+				ImmediateContext->CopyResource(Depth2, Depth1);
+			}
+			void D3D11Device::CopyTargetDepth(MultiRenderTarget2D* From, MultiRenderTarget2D* To)
+			{
+				D3D11MultiRenderTarget2D* IResource1 = (D3D11MultiRenderTarget2D*)From;
+				D3D11MultiRenderTarget2D* IResource2 = (D3D11MultiRenderTarget2D*)To;
+				if (!IResource1 || !IResource2)
+					return;
+
+				ID3D11Resource* Depth1 = nullptr;
+				IResource1->DepthStencilView->GetResource(&Depth1);
+
+				ID3D11Resource* Depth2 = nullptr;
+				IResource2->DepthStencilView->GetResource(&Depth2);
+
+				ImmediateContext->CopyResource(Depth2, Depth1);
+			}
+			void D3D11Device::CopyTargetDepth(RenderTarget2DArray* From, RenderTarget2DArray* To)
+			{
+				D3D11RenderTarget2DArray* IResource1 = (D3D11RenderTarget2DArray*)From;
+				D3D11RenderTarget2DArray* IResource2 = (D3D11RenderTarget2DArray*)To;
+				if (!IResource1 || !IResource2)
+					return;
+
+				ID3D11Resource* Depth1 = nullptr;
+				IResource1->DepthStencilView->GetResource(&Depth1);
+
+				ID3D11Resource* Depth2 = nullptr;
+				IResource2->DepthStencilView->GetResource(&Depth2);
+
+				ImmediateContext->CopyResource(Depth2, Depth1);
+			}
+			void D3D11Device::CopyTargetDepth(RenderTargetCube* From, RenderTargetCube* To)
+			{
+				D3D11RenderTargetCube* IResource1 = (D3D11RenderTargetCube*)From;
+				D3D11RenderTargetCube* IResource2 = (D3D11RenderTargetCube*)To;
+				if (!IResource1 || !IResource2)
+					return;
+
+				ID3D11Resource* Depth1 = nullptr;
+				IResource1->DepthStencilView->GetResource(&Depth1);
+
+				ID3D11Resource* Depth2 = nullptr;
+				IResource2->DepthStencilView->GetResource(&Depth2);
+
+				ImmediateContext->CopyResource(Depth2, Depth1);
+			}
+			void D3D11Device::CopyTargetDepth(MultiRenderTargetCube* From, MultiRenderTargetCube* To)
+			{
+				D3D11MultiRenderTargetCube* IResource1 = (D3D11MultiRenderTargetCube*)From;
+				D3D11MultiRenderTargetCube* IResource2 = (D3D11MultiRenderTargetCube*)To;
+				if (!IResource1 || !IResource2)
+					return;
+
+				ID3D11Resource* Depth1 = nullptr;
+				IResource1->DepthStencilView->GetResource(&Depth1);
+
+				ID3D11Resource* Depth2 = nullptr;
+				IResource2->DepthStencilView->GetResource(&Depth2);
+
+				ImmediateContext->CopyResource(Depth2, Depth1);
+			}
 			void D3D11Device::CopyBegin(MultiRenderTarget2D* Resource, unsigned int Target, unsigned int MipLevels, unsigned int Size)
 			{
 				D3D11MultiRenderTarget2D* IResource = (D3D11MultiRenderTarget2D*)Resource;
@@ -1443,6 +1518,61 @@ namespace Tomahawk
 				ImmediateContext->GenerateMips(*Subresource);
 				ReleaseCom(IResource->View.Subresource);
 				ReleaseCom(IResource->View.Face);
+			}
+			void D3D11Device::SwapTargetDepth(RenderTarget2D* From, RenderTarget2D* To)
+			{
+				D3D11RenderTarget2D* IResource1 = (D3D11RenderTarget2D*)From;
+				D3D11RenderTarget2D* IResource2 = (D3D11RenderTarget2D*)To;
+				if (!IResource1 || !IResource2)
+					return;
+
+				ID3D11DepthStencilView* DSV = IResource1->DepthStencilView;
+				IResource1->DepthStencilView = IResource2->DepthStencilView;
+				IResource2->DepthStencilView = DSV;
+			}
+			void D3D11Device::SwapTargetDepth(MultiRenderTarget2D* From, MultiRenderTarget2D* To)
+			{
+				D3D11MultiRenderTarget2D* IResource1 = (D3D11MultiRenderTarget2D*)From;
+				D3D11MultiRenderTarget2D* IResource2 = (D3D11MultiRenderTarget2D*)To;
+				if (!IResource1 || !IResource2)
+					return;
+
+				ID3D11DepthStencilView* DSV = IResource1->DepthStencilView;
+				IResource1->DepthStencilView = IResource2->DepthStencilView;
+				IResource2->DepthStencilView = DSV;
+			}
+			void D3D11Device::SwapTargetDepth(RenderTarget2DArray* From, RenderTarget2DArray* To)
+			{
+				D3D11RenderTarget2DArray* IResource1 = (D3D11RenderTarget2DArray*)From;
+				D3D11RenderTarget2DArray* IResource2 = (D3D11RenderTarget2DArray*)To;
+				if (!IResource1 || !IResource2)
+					return;
+
+				ID3D11DepthStencilView* DSV = IResource1->DepthStencilView;
+				IResource1->DepthStencilView = IResource2->DepthStencilView;
+				IResource2->DepthStencilView = DSV;
+			}
+			void D3D11Device::SwapTargetDepth(RenderTargetCube* From, RenderTargetCube* To)
+			{
+				D3D11RenderTargetCube* IResource1 = (D3D11RenderTargetCube*)From;
+				D3D11RenderTargetCube* IResource2 = (D3D11RenderTargetCube*)To;
+				if (!IResource1 || !IResource2)
+					return;
+
+				ID3D11DepthStencilView* DSV = IResource1->DepthStencilView;
+				IResource1->DepthStencilView = IResource2->DepthStencilView;
+				IResource2->DepthStencilView = DSV;
+			}
+			void D3D11Device::SwapTargetDepth(MultiRenderTargetCube* From, MultiRenderTargetCube* To)
+			{
+				D3D11MultiRenderTargetCube* IResource1 = (D3D11MultiRenderTargetCube*)From;
+				D3D11MultiRenderTargetCube* IResource2 = (D3D11MultiRenderTargetCube*)To;
+				if (!IResource1 || !IResource2)
+					return;
+
+				ID3D11DepthStencilView* DSV = IResource1->DepthStencilView;	
+				IResource1->DepthStencilView = IResource2->DepthStencilView;
+				IResource2->DepthStencilView = DSV;
 			}
 			void D3D11Device::FetchViewports(unsigned int* Count, Viewport* Out)
 			{

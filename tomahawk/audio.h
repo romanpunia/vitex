@@ -154,9 +154,9 @@ namespace Tomahawk
 			AudioFilter();
 			virtual ~AudioFilter() override;
 			virtual void Synchronize() = 0;
-			virtual void OnDeserialize(Rest::Document* Node) = 0;
-			virtual void OnSerialize(Rest::Document* Node) = 0;
-			virtual AudioFilter* OnCopy() = 0;
+			virtual void Deserialize(Rest::Document* Node) = 0;
+			virtual void Serialize(Rest::Document* Node) = 0;
+			virtual AudioFilter* Copy() = 0;
 			AudioSource* GetSource();
 
 		protected:
@@ -183,9 +183,9 @@ namespace Tomahawk
 			AudioEffect();
 			virtual ~AudioEffect() override;
 			virtual void Synchronize() = 0;
-			virtual void OnDeserialize(Rest::Document* Node) = 0;
-			virtual void OnSerialize(Rest::Document* Node) = 0;
-			virtual AudioEffect* OnCopy() = 0;
+			virtual void Deserialize(Rest::Document* Node) = 0;
+			virtual void Serialize(Rest::Document* Node) = 0;
+			virtual AudioEffect* Copy() = 0;
 			bool SetFilter(AudioFilter** Filter);
 			AudioFilter* GetFilter();
 			AudioSource* GetSource();

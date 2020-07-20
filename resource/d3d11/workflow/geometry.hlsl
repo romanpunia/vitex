@@ -4,12 +4,25 @@
 GBuffer Compose(in float2 TexCoord, in float3 Diffuse, in float3 Normal, in float Depth, in float MaterialId)
 {
 	GBuffer Result;
-    Result.Diffuse.xyz = Diffuse;
-    Result.Diffuse.w = GetRoughness(TexCoord);
-    Result.Normal.xyz = Normal;
-    Result.Normal.w = MaterialId;
-    Result.Depth.x = Depth;
-    Result.Depth.y = GetMetallic(TexCoord);
+    Result.Channel0.xyz = Diffuse;
+    Result.Channel0.w = 1.0;
+    Result.Channel1.xyz = Normal;
+    Result.Channel1.w = MaterialId;
+    Result.Channel2.x = Depth;
+    Result.Channel2.y = GetMetallic(TexCoord);
+    Result.Channel3 = GetRoughness(TexCoord);
+
+    return Result;
+}
+GBuffer ComposeLimpid(in float2 TexCoord, in float4 Diffuse, in float3 Normal, in float Depth, in float MaterialId)
+{
+	GBuffer Result;
+    Result.Channel0 = Diffuse;
+    Result.Channel1.xyz = Normal;
+    Result.Channel1.w = MaterialId;
+    Result.Channel2.x = Depth;
+    Result.Channel2.y = GetMetallic(TexCoord);
+    Result.Channel3 = GetRoughness(TexCoord);
 
     return Result;
 }

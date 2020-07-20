@@ -737,8 +737,11 @@ namespace Tomahawk
 			}
 			void Panel::BuildEnd(nk_context* C, bool Stated)
 			{
-				if (!Base->HasOverflow() && C->current && C->current->flags & NK_WINDOW_ROM)
-					C->current->flags &= ~NK_WINDOW_ROM;
+				if (!Base->HasOverflow() && C->current && C->current->layout)
+				{
+					if (C->current->flags & NK_WINDOW_ROM || C->current->layout->flags & NK_WINDOW_ROM)
+						C->current->layout->flags |= NK_WINDOW_REMOVE_ROM;
+				}
 				nk_end(C);
 			}
 			void Panel::BuildStyle(nk_context* C, nk_style* S)

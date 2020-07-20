@@ -4,72 +4,93 @@
 
 namespace resource_batch
 {
-	namespace d3d11_geometry_element_system_depth_360_point_hlsl
+	namespace d3d11_geometry_emitter_depth_linear_hlsl
 	{
-#define HAS_D3D11_GEOMETRY_ELEMENT_SYSTEM_DEPTH_360_POINT_HLSL
+#define HAS_D3D11_GEOMETRY_EMITTER_DEPTH_LINEAR_HLSL
 		extern const unsigned char data[];
-		const unsigned size = 1755;
+		const unsigned size = 1553;
 	}
 
-	namespace d3d11_geometry_element_system_depth_360_quad_hlsl
+	namespace d3d11_geometry_emitter_depth_point_hlsl
 	{
-#define HAS_D3D11_GEOMETRY_ELEMENT_SYSTEM_DEPTH_360_QUAD_HLSL
+#define HAS_D3D11_GEOMETRY_EMITTER_DEPTH_POINT_HLSL
 		extern const unsigned char data[];
-		const unsigned size = 2004;
+		const unsigned size = 1707;
 	}
 
-	namespace d3d11_geometry_element_system_depth_hlsl
+	namespace d3d11_geometry_emitter_depth_quad_hlsl
 	{
-#define HAS_D3D11_GEOMETRY_ELEMENT_SYSTEM_DEPTH_HLSL
+#define HAS_D3D11_GEOMETRY_EMITTER_DEPTH_QUAD_HLSL
 		extern const unsigned char data[];
-		const unsigned size = 1601;
+		const unsigned size = 1956;
 	}
 
-	namespace d3d11_geometry_element_system_gbuffer_hlsl
+	namespace d3d11_geometry_emitter_limpid_hlsl
 	{
-#define HAS_D3D11_GEOMETRY_ELEMENT_SYSTEM_GBUFFER_HLSL
+#define HAS_D3D11_GEOMETRY_EMITTER_LIMPID_HLSL
 		extern const unsigned char data[];
 		const unsigned size = 1417;
 	}
 
-	namespace d3d11_geometry_model_depth_360_hlsl
+	namespace d3d11_geometry_emitter_opaque_hlsl
 	{
-#define HAS_D3D11_GEOMETRY_MODEL_DEPTH_360_HLSL
+#define HAS_D3D11_GEOMETRY_EMITTER_OPAQUE_HLSL
 		extern const unsigned char data[];
-		const unsigned size = 1457;
+		const unsigned size = 1417;
 	}
 
-	namespace d3d11_geometry_model_depth_hlsl
+	namespace d3d11_geometry_model_depth_cubic_hlsl
 	{
-#define HAS_D3D11_GEOMETRY_MODEL_DEPTH_HLSL
+#define HAS_D3D11_GEOMETRY_MODEL_DEPTH_CUBIC_HLSL
 		extern const unsigned char data[];
-		const unsigned size = 624;
+		const unsigned size = 1409;
 	}
 
-	namespace d3d11_geometry_model_gbuffer_hlsl
+	namespace d3d11_geometry_model_depth_linear_hlsl
 	{
-#define HAS_D3D11_GEOMETRY_MODEL_GBUFFER_HLSL
+#define HAS_D3D11_GEOMETRY_MODEL_DEPTH_LINEAR_HLSL
+		extern const unsigned char data[];
+		const unsigned size = 576;
+	}
+
+	namespace d3d11_geometry_model_limpid_hlsl
+	{
+#define HAS_D3D11_GEOMETRY_MODEL_LIMPID_HLSL
+		extern const unsigned char data[];
+		const unsigned size = 857;
+	}
+
+	namespace d3d11_geometry_model_opaque_hlsl
+	{
+#define HAS_D3D11_GEOMETRY_MODEL_OPAQUE_HLSL
 		extern const unsigned char data[];
 		const unsigned size = 842;
 	}
 
-	namespace d3d11_geometry_skin_model_depth_360_hlsl
+	namespace d3d11_geometry_skin_depth_cubic_hlsl
 	{
-#define HAS_D3D11_GEOMETRY_SKIN_MODEL_DEPTH_360_HLSL
+#define HAS_D3D11_GEOMETRY_SKIN_DEPTH_CUBIC_HLSL
 		extern const unsigned char data[];
-		const unsigned size = 1845;
+		const unsigned size = 1797;
 	}
 
-	namespace d3d11_geometry_skin_model_depth_hlsl
+	namespace d3d11_geometry_skin_depth_linear_hlsl
 	{
-#define HAS_D3D11_GEOMETRY_SKIN_MODEL_DEPTH_HLSL
+#define HAS_D3D11_GEOMETRY_SKIN_DEPTH_LINEAR_HLSL
 		extern const unsigned char data[];
-		const unsigned size = 1002;
+		const unsigned size = 954;
 	}
 
-	namespace d3d11_geometry_skin_model_gbuffer_hlsl
+	namespace d3d11_geometry_skin_limpid_hlsl
 	{
-#define HAS_D3D11_GEOMETRY_SKIN_MODEL_GBUFFER_HLSL
+#define HAS_D3D11_GEOMETRY_SKIN_LIMPID_HLSL
+		extern const unsigned char data[];
+		const unsigned size = 1524;
+	}
+
+	namespace d3d11_geometry_skin_opaque_hlsl
+	{
+#define HAS_D3D11_GEOMETRY_SKIN_OPAQUE_HLSL
 		extern const unsigned char data[];
 		const unsigned size = 1509;
 	}
@@ -92,7 +113,7 @@ namespace resource_batch
 	{
 #define HAS_D3D11_PASS_BLUR_HLSL
 		extern const unsigned char data[];
-		const unsigned size = 911;
+		const unsigned size = 969;
 	}
 
 	namespace d3d11_pass_focus_hlsl
@@ -113,7 +134,7 @@ namespace resource_batch
 	{
 #define HAS_D3D11_PASS_GLOSS_HLSL
 		extern const unsigned char data[];
-		const unsigned size = 987;
+		const unsigned size = 1048;
 	}
 
 	namespace d3d11_pass_gui_hlsl
@@ -134,56 +155,63 @@ namespace resource_batch
 	{
 #define HAS_D3D11_PASS_LIGHT_BASE_AMBIENT_HLSL
 		extern const unsigned char data[];
-		const unsigned size = 1566;
+		const unsigned size = 1671;
 	}
 
 	namespace d3d11_pass_light_base_line_hlsl
 	{
 #define HAS_D3D11_PASS_LIGHT_BASE_LINE_HLSL
 		extern const unsigned char data[];
-		const unsigned size = 597;
+		const unsigned size = 1367;
 	}
 
 	namespace d3d11_pass_light_base_point_hlsl
 	{
 #define HAS_D3D11_PASS_LIGHT_BASE_POINT_HLSL
 		extern const unsigned char data[];
-		const unsigned size = 956;
+		const unsigned size = 1031;
 	}
 
 	namespace d3d11_pass_light_base_probe_hlsl
 	{
 #define HAS_D3D11_PASS_LIGHT_BASE_PROBE_HLSL
 		extern const unsigned char data[];
-		const unsigned size = 1582;
+		const unsigned size = 1655;
 	}
 
 	namespace d3d11_pass_light_base_spot_hlsl
 	{
 #define HAS_D3D11_PASS_LIGHT_BASE_SPOT_HLSL
 		extern const unsigned char data[];
-		const unsigned size = 1340;
+		const unsigned size = 1415;
 	}
 
 	namespace d3d11_pass_light_shade_line_hlsl
 	{
 #define HAS_D3D11_PASS_LIGHT_SHADE_LINE_HLSL
 		extern const unsigned char data[];
-		const unsigned size = 1738;
+		const unsigned size = 2439;
 	}
 
 	namespace d3d11_pass_light_shade_point_hlsl
 	{
 #define HAS_D3D11_PASS_LIGHT_SHADE_POINT_HLSL
 		extern const unsigned char data[];
-		const unsigned size = 1739;
+		const unsigned size = 1814;
 	}
 
 	namespace d3d11_pass_light_shade_spot_hlsl
 	{
 #define HAS_D3D11_PASS_LIGHT_SHADE_SPOT_HLSL
 		extern const unsigned char data[];
-		const unsigned size = 2016;
+		const unsigned size = 2091;
+	}
+
+	namespace d3d11_pass_limpid_hlsl
+	{
+#define HAS_D3D11_PASS_LIMPID_HLSL
+		extern const unsigned char data[];
+		const unsigned size = 2029;
 	}
 
 	namespace d3d11_pass_reflection_hlsl
@@ -197,7 +225,7 @@ namespace resource_batch
 	{
 #define HAS_D3D11_PASS_TONE_HLSL
 		extern const unsigned char data[];
-		const unsigned size = 1407;
+		const unsigned size = 1866;
 	}
 
 	namespace d3d11_renderer_buffer_animation_hlsl
@@ -246,14 +274,14 @@ namespace resource_batch
 	{
 #define HAS_D3D11_RENDERER_FRAGMENT_HLSL
 		extern const unsigned char data[];
-		const unsigned size = 167;
+		const unsigned size = 185;
 	}
 
 	namespace d3d11_renderer_gbuffer_hlsl
 	{
 #define HAS_D3D11_RENDERER_GBUFFER_HLSL
 		extern const unsigned char data[];
-		const unsigned size = 120;
+		const unsigned size = 160;
 	}
 
 	namespace d3d11_renderer_input_base_hlsl
@@ -274,14 +302,14 @@ namespace resource_batch
 	{
 #define HAS_D3D11_RENDERER_INPUT_SV_HLSL
 		extern const unsigned char data[];
-		const unsigned size = 268;
+		const unsigned size = 266;
 	}
 
 	namespace d3d11_renderer_material_hlsl
 	{
 #define HAS_D3D11_RENDERER_MATERIAL_HLSL
 		extern const unsigned char data[];
-		const unsigned size = 197;
+		const unsigned size = 236;
 	}
 
 	namespace d3d11_renderer_vertex_hlsl
@@ -319,6 +347,13 @@ namespace resource_batch
 		const unsigned size = 770;
 	}
 
+	namespace d3d11_standard_atmosphere_hlsl
+	{
+#define HAS_D3D11_STANDARD_ATMOSPHERE_HLSL
+		extern const unsigned char data[];
+		const unsigned size = 2507;
+	}
+
 	namespace d3d11_standard_basic_hlsl
 	{
 #define HAS_D3D11_STANDARD_BASIC_HLSL
@@ -326,11 +361,18 @@ namespace resource_batch
 		const unsigned size = 436;
 	}
 
+	namespace d3d11_standard_compress_hlsl
+	{
+#define HAS_D3D11_STANDARD_COMPRESS_HLSL
+		extern const unsigned char data[];
+		const unsigned size = 663;
+	}
+
 	namespace d3d11_standard_cook_torrance_hlsl
 	{
 #define HAS_D3D11_STANDARD_COOK_TORRANCE_HLSL
 		extern const unsigned char data[];
-		const unsigned size = 1177;
+		const unsigned size = 1263;
 	}
 
 	namespace d3d11_standard_pow_hlsl
@@ -372,14 +414,14 @@ namespace resource_batch
 	{
 #define HAS_D3D11_WORKFLOW_GEOMETRY_HLSL
 		extern const unsigned char data[];
-		const unsigned size = 443;
+		const unsigned size = 877;
 	}
 
 	namespace d3d11_workflow_pass_hlsl
 	{
 #define HAS_D3D11_WORKFLOW_PASS_HLSL
 		extern const unsigned char data[];
-		const unsigned size = 3308;
+		const unsigned size = 3123;
 	}
 
 	namespace d3d11_workflow_primitive_hlsl
@@ -396,214 +438,221 @@ namespace resource_batch
 		const unsigned size = 1095;
 	}
 
-	namespace ogl_deferred_element_system_depth_360_point_glsl
+	namespace ogl_geometry_emitter_depth_linear_glsl
 	{
-#define HAS_OGL_DEFERRED_ELEMENT_SYSTEM_DEPTH_360_POINT_GLSL
+#define HAS_OGL_GEOMETRY_EMITTER_DEPTH_LINEAR_GLSL
 		extern const unsigned char data[];
-		const unsigned size = 1754;
+		const unsigned size = 1523;
 	}
 
-	namespace ogl_deferred_element_system_depth_360_quad_glsl
+	namespace ogl_geometry_emitter_depth_point_glsl
 	{
-#define HAS_OGL_DEFERRED_ELEMENT_SYSTEM_DEPTH_360_QUAD_GLSL
+#define HAS_OGL_GEOMETRY_EMITTER_DEPTH_POINT_GLSL
 		extern const unsigned char data[];
-		const unsigned size = 2003;
+		const unsigned size = 1677;
 	}
 
-	namespace ogl_deferred_element_system_depth_glsl
+	namespace ogl_geometry_emitter_depth_quad_glsl
 	{
-#define HAS_OGL_DEFERRED_ELEMENT_SYSTEM_DEPTH_GLSL
+#define HAS_OGL_GEOMETRY_EMITTER_DEPTH_QUAD_GLSL
 		extern const unsigned char data[];
-		const unsigned size = 1600;
+		const unsigned size = 1926;
 	}
 
-	namespace ogl_deferred_element_system_gbuffer_glsl
+	namespace ogl_geometry_emitter_limpid_glsl
 	{
-#define HAS_OGL_DEFERRED_ELEMENT_SYSTEM_GBUFFER_GLSL
+#define HAS_OGL_GEOMETRY_EMITTER_LIMPID_GLSL
 		extern const unsigned char data[];
-		const unsigned size = 1416;
+		const unsigned size = 1417;
 	}
 
-	namespace ogl_deferred_model_depth_360_glsl
+	namespace ogl_geometry_emitter_opaque_glsl
 	{
-#define HAS_OGL_DEFERRED_MODEL_DEPTH_360_GLSL
+#define HAS_OGL_GEOMETRY_EMITTER_OPAQUE_GLSL
 		extern const unsigned char data[];
-		const unsigned size = 1456;
+		const unsigned size = 1417;
 	}
 
-	namespace ogl_deferred_model_depth_glsl
+	namespace ogl_geometry_model_depth_cubic_glsl
 	{
-#define HAS_OGL_DEFERRED_MODEL_DEPTH_GLSL
+#define HAS_OGL_GEOMETRY_MODEL_DEPTH_CUBIC_GLSL
 		extern const unsigned char data[];
-		const unsigned size = 623;
+		const unsigned size = 1385;
 	}
 
-	namespace ogl_deferred_model_gbuffer_glsl
+	namespace ogl_geometry_model_depth_linear_glsl
 	{
-#define HAS_OGL_DEFERRED_MODEL_GBUFFER_GLSL
+#define HAS_OGL_GEOMETRY_MODEL_DEPTH_LINEAR_GLSL
+		extern const unsigned char data[];
+		const unsigned size = 552;
+	}
+
+	namespace ogl_geometry_model_limpid_glsl
+	{
+#define HAS_OGL_GEOMETRY_MODEL_LIMPID_GLSL
+		extern const unsigned char data[];
+		const unsigned size = 857;
+	}
+
+	namespace ogl_geometry_model_opaque_glsl
+	{
+#define HAS_OGL_GEOMETRY_MODEL_OPAQUE_GLSL
 		extern const unsigned char data[];
 		const unsigned size = 842;
 	}
 
-	namespace ogl_deferred_skin_model_depth_360_glsl
+	namespace ogl_geometry_skin_depth_cubic_glsl
 	{
-#define HAS_OGL_DEFERRED_SKIN_MODEL_DEPTH_360_GLSL
+#define HAS_OGL_GEOMETRY_SKIN_DEPTH_CUBIC_GLSL
 		extern const unsigned char data[];
-		const unsigned size = 1844;
+		const unsigned size = 1773;
 	}
 
-	namespace ogl_deferred_skin_model_depth_glsl
+	namespace ogl_geometry_skin_depth_linear_glsl
 	{
-#define HAS_OGL_DEFERRED_SKIN_MODEL_DEPTH_GLSL
+#define HAS_OGL_GEOMETRY_SKIN_DEPTH_LINEAR_GLSL
 		extern const unsigned char data[];
-		const unsigned size = 1001;
+		const unsigned size = 930;
 	}
 
-	namespace ogl_deferred_skin_model_gbuffer_glsl
+	namespace ogl_geometry_skin_limpid_glsl
 	{
-#define HAS_OGL_DEFERRED_SKIN_MODEL_GBUFFER_GLSL
+#define HAS_OGL_GEOMETRY_SKIN_LIMPID_GLSL
+		extern const unsigned char data[];
+		const unsigned size = 1524;
+	}
+
+	namespace ogl_geometry_skin_opaque_glsl
+	{
+#define HAS_OGL_GEOMETRY_SKIN_OPAQUE_GLSL
 		extern const unsigned char data[];
 		const unsigned size = 1509;
 	}
 
-	namespace ogl_forward_ambient_glsl
+	namespace ogl_pass_ambient_glsl
 	{
-#define HAS_OGL_FORWARD_AMBIENT_GLSL
+#define HAS_OGL_PASS_AMBIENT_GLSL
 		extern const unsigned char data[];
-		const unsigned size = 574;
+		const unsigned size = 1589;
 	}
 
-	namespace ogl_forward_bloom_glsl
+	namespace ogl_pass_bloom_glsl
 	{
-#define HAS_OGL_FORWARD_BLOOM_GLSL
+#define HAS_OGL_PASS_BLOOM_GLSL
 		extern const unsigned char data[];
-		const unsigned size = 708;
+		const unsigned size = 726;
 	}
 
-	namespace ogl_forward_dof_glsl
+	namespace ogl_pass_blur_glsl
 	{
-#define HAS_OGL_FORWARD_DOF_GLSL
+#define HAS_OGL_PASS_BLUR_GLSL
 		extern const unsigned char data[];
-		const unsigned size = 2126;
+		const unsigned size = 911;
 	}
 
-	namespace ogl_forward_glitch_glsl
+	namespace ogl_pass_focus_glsl
 	{
-#define HAS_OGL_FORWARD_GLITCH_GLSL
+#define HAS_OGL_PASS_FOCUS_GLSL
 		extern const unsigned char data[];
-		const unsigned size = 980;
+		const unsigned size = 2122;
 	}
 
-	namespace ogl_forward_gui_glsl
+	namespace ogl_pass_glitch_glsl
 	{
-#define HAS_OGL_FORWARD_GUI_GLSL
+#define HAS_OGL_PASS_GLITCH_GLSL
+		extern const unsigned char data[];
+		const unsigned size = 978;
+	}
+
+	namespace ogl_pass_gloss_glsl
+	{
+#define HAS_OGL_PASS_GLOSS_GLSL
+		extern const unsigned char data[];
+		const unsigned size = 987;
+	}
+
+	namespace ogl_pass_gui_glsl
+	{
+#define HAS_OGL_PASS_GUI_GLSL
 		extern const unsigned char data[];
 		const unsigned size = 403;
 	}
 
-	namespace ogl_forward_line_base_glsl
+	namespace ogl_pass_indirect_glsl
 	{
-#define HAS_OGL_FORWARD_LINE_BASE_GLSL
+#define HAS_OGL_PASS_INDIRECT_GLSL
 		extern const unsigned char data[];
-		const unsigned size = 598;
+		const unsigned size = 2096;
 	}
 
-	namespace ogl_forward_line_shade_glsl
+	namespace ogl_pass_light_base_ambient_glsl
 	{
-#define HAS_OGL_FORWARD_LINE_SHADE_GLSL
+#define HAS_OGL_PASS_LIGHT_BASE_AMBIENT_GLSL
 		extern const unsigned char data[];
-		const unsigned size = 1746;
+		const unsigned size = 1671;
 	}
 
-	namespace ogl_forward_point_base_glsl
+	namespace ogl_pass_light_base_line_glsl
 	{
-#define HAS_OGL_FORWARD_POINT_BASE_GLSL
+#define HAS_OGL_PASS_LIGHT_BASE_LINE_GLSL
 		extern const unsigned char data[];
-		const unsigned size = 959;
+		const unsigned size = 1367;
 	}
 
-	namespace ogl_forward_point_shade_glsl
+	namespace ogl_pass_light_base_point_glsl
 	{
-#define HAS_OGL_FORWARD_POINT_SHADE_GLSL
+#define HAS_OGL_PASS_LIGHT_BASE_POINT_GLSL
 		extern const unsigned char data[];
-		const unsigned size = 1742;
+		const unsigned size = 1031;
 	}
 
-	namespace ogl_forward_probe_glsl
+	namespace ogl_pass_light_base_probe_glsl
 	{
-#define HAS_OGL_FORWARD_PROBE_GLSL
+#define HAS_OGL_PASS_LIGHT_BASE_PROBE_GLSL
 		extern const unsigned char data[];
-		const unsigned size = 1230;
+		const unsigned size = 1655;
 	}
 
-	namespace ogl_forward_spot_base_glsl
+	namespace ogl_pass_light_base_spot_glsl
 	{
-#define HAS_OGL_FORWARD_SPOT_BASE_GLSL
+#define HAS_OGL_PASS_LIGHT_BASE_SPOT_GLSL
 		extern const unsigned char data[];
-		const unsigned size = 1346;
+		const unsigned size = 1415;
 	}
 
-	namespace ogl_forward_spot_shade_glsl
+	namespace ogl_pass_light_shade_line_glsl
 	{
-#define HAS_OGL_FORWARD_SPOT_SHADE_GLSL
+#define HAS_OGL_PASS_LIGHT_SHADE_LINE_GLSL
 		extern const unsigned char data[];
-		const unsigned size = 2021;
+		const unsigned size = 2439;
 	}
 
-	namespace ogl_forward_ssao_glsl
+	namespace ogl_pass_light_shade_point_glsl
 	{
-#define HAS_OGL_FORWARD_SSAO_GLSL
+#define HAS_OGL_PASS_LIGHT_SHADE_POINT_GLSL
 		extern const unsigned char data[];
-		const unsigned size = 1460;
+		const unsigned size = 1814;
 	}
 
-	namespace ogl_forward_ssio_glsl
+	namespace ogl_pass_light_shade_spot_glsl
 	{
-#define HAS_OGL_FORWARD_SSIO_GLSL
+#define HAS_OGL_PASS_LIGHT_SHADE_SPOT_GLSL
 		extern const unsigned char data[];
-		const unsigned size = 1525;
+		const unsigned size = 2091;
 	}
 
-	namespace ogl_forward_ssr_glsl
+	namespace ogl_pass_reflection_glsl
 	{
-#define HAS_OGL_FORWARD_SSR_GLSL
+#define HAS_OGL_PASS_REFLECTION_GLSL
 		extern const unsigned char data[];
-		const unsigned size = 942;
+		const unsigned size = 1156;
 	}
 
-	namespace ogl_forward_tone_glsl
+	namespace ogl_pass_tone_glsl
 	{
-#define HAS_OGL_FORWARD_TONE_GLSL
+#define HAS_OGL_PASS_TONE_GLSL
 		extern const unsigned char data[];
-		const unsigned size = 1407;
-	}
-
-	namespace ogl_geometry_deferred_glsl
-	{
-#define HAS_OGL_GEOMETRY_DEFERRED_GLSL
-		extern const unsigned char data[];
-		const unsigned size = 459;
-	}
-
-	namespace ogl_geometry_forward_glsl
-	{
-#define HAS_OGL_GEOMETRY_FORWARD_GLSL
-		extern const unsigned char data[];
-		const unsigned size = 1019;
-	}
-
-	namespace ogl_geometry_minimal_glsl
-	{
-#define HAS_OGL_GEOMETRY_MINIMAL_GLSL
-		extern const unsigned char data[];
-		const unsigned size = 171;
-	}
-
-	namespace ogl_geometry_sv_glsl
-	{
-#define HAS_OGL_GEOMETRY_SV_GLSL
-		extern const unsigned char data[];
-		const unsigned size = 2780;
+		const unsigned size = 1866;
 	}
 
 	namespace ogl_renderer_buffer_animation_glsl
@@ -652,7 +701,7 @@ namespace resource_batch
 	{
 #define HAS_OGL_RENDERER_FRAGMENT_GLSL
 		extern const unsigned char data[];
-		const unsigned size = 167;
+		const unsigned size = 185;
 	}
 
 	namespace ogl_renderer_gbuffer_glsl
@@ -666,7 +715,7 @@ namespace resource_batch
 	{
 #define HAS_OGL_RENDERER_INPUT_BASE_GLSL
 		extern const unsigned char data[];
-		const unsigned size = 352;
+		const unsigned size = 392;
 	}
 
 	namespace ogl_renderer_input_element_glsl
@@ -680,7 +729,7 @@ namespace resource_batch
 	{
 #define HAS_OGL_RENDERER_INPUT_SV_GLSL
 		extern const unsigned char data[];
-		const unsigned size = 233;
+		const unsigned size = 268;
 	}
 
 	namespace ogl_renderer_material_glsl
@@ -725,18 +774,32 @@ namespace resource_batch
 		const unsigned size = 770;
 	}
 
+	namespace ogl_standard_atmosphere_glsl
+	{
+#define HAS_OGL_STANDARD_ATMOSPHERE_GLSL
+		extern const unsigned char data[];
+		const unsigned size = 2507;
+	}
+
 	namespace ogl_standard_basic_glsl
 	{
 #define HAS_OGL_STANDARD_BASIC_GLSL
 		extern const unsigned char data[];
-		const unsigned size = 434;
+		const unsigned size = 436;
+	}
+
+	namespace ogl_standard_compress_glsl
+	{
+#define HAS_OGL_STANDARD_COMPRESS_GLSL
+		extern const unsigned char data[];
+		const unsigned size = 606;
 	}
 
 	namespace ogl_standard_cook_torrance_glsl
 	{
 #define HAS_OGL_STANDARD_COOK_TORRANCE_GLSL
 		extern const unsigned char data[];
-		const unsigned size = 1180;
+		const unsigned size = 1177;
 	}
 
 	namespace ogl_standard_pow_glsl
@@ -750,28 +813,56 @@ namespace resource_batch
 	{
 #define HAS_OGL_STANDARD_RANDOM_FLOAT_GLSL
 		extern const unsigned char data[];
-		const unsigned size = 527;
+		const unsigned size = 518;
 	}
 
 	namespace ogl_standard_ray_march_glsl
 	{
 #define HAS_OGL_STANDARD_RAY_MARCH_GLSL
 		extern const unsigned char data[];
-		const unsigned size = 891;
+		const unsigned size = 1528;
 	}
 
 	namespace ogl_standard_space_sv_glsl
 	{
 #define HAS_OGL_STANDARD_SPACE_SV_GLSL
 		extern const unsigned char data[];
-		const unsigned size = 224;
+		const unsigned size = 226;
 	}
 
 	namespace ogl_standard_space_uv_glsl
 	{
 #define HAS_OGL_STANDARD_SPACE_UV_GLSL
 		extern const unsigned char data[];
-		const unsigned size = 222;
+		const unsigned size = 224;
+	}
+
+	namespace ogl_workflow_geometry_glsl
+	{
+#define HAS_OGL_WORKFLOW_GEOMETRY_GLSL
+		extern const unsigned char data[];
+		const unsigned size = 902;
+	}
+
+	namespace ogl_workflow_pass_glsl
+	{
+#define HAS_OGL_WORKFLOW_PASS_GLSL
+		extern const unsigned char data[];
+		const unsigned size = 3386;
+	}
+
+	namespace ogl_workflow_primitive_glsl
+	{
+#define HAS_OGL_WORKFLOW_PRIMITIVE_GLSL
+		extern const unsigned char data[];
+		const unsigned size = 171;
+	}
+
+	namespace ogl_workflow_rasterizer_glsl
+	{
+#define HAS_OGL_WORKFLOW_RASTERIZER_GLSL
+		extern const unsigned char data[];
+		const unsigned size = 1095;
 	}
 }
 #endif

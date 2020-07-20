@@ -72,7 +72,7 @@ namespace Tomahawk
 			{
 			public:
 				AssetFileProcessor(ContentManager* Manager);
-				void* Load(Rest::FileStream* Stream, uint64_t Length, uint64_t Offset, ContentArgs* Args) override;
+				void* Deserialize(Rest::FileStream* Stream, uint64_t Length, uint64_t Offset, ContentArgs* Args) override;
 			};
 
 			class THAWK_OUT SceneGraphProcessor : public FileProcessor
@@ -83,8 +83,8 @@ namespace Tomahawk
 
 			public:
 				SceneGraphProcessor(ContentManager* Manager);
-				void* Load(Rest::FileStream* Stream, uint64_t Length, uint64_t Offset, ContentArgs* Args) override;
-				bool Save(Rest::FileStream* Stream, void* Object, ContentArgs* Args) override;
+				void* Deserialize(Rest::FileStream* Stream, uint64_t Length, uint64_t Offset, ContentArgs* Args) override;
+				bool Serialize(Rest::FileStream* Stream, void* Object, ContentArgs* Args) override;
 			};
 
 			class THAWK_OUT AudioClipProcessor : public FileProcessor
@@ -94,9 +94,9 @@ namespace Tomahawk
 				virtual ~AudioClipProcessor() override;
 				void Free(AssetResource* Asset) override;
 				void* Duplicate(AssetResource* Asset, ContentArgs* Args) override;
-				void* Load(Rest::FileStream* Stream, uint64_t Length, uint64_t Offset, ContentArgs* Args) override;
-				void* LoadWAVE(Rest::FileStream* Stream, uint64_t Length, uint64_t Offset, ContentArgs* Args);
-				void* LoadOGG(Rest::FileStream* Stream, uint64_t Length, uint64_t Offset, ContentArgs* Args);
+				void* Deserialize(Rest::FileStream* Stream, uint64_t Length, uint64_t Offset, ContentArgs* Args) override;
+				void* DeserializeWAVE(Rest::FileStream* Stream, uint64_t Length, uint64_t Offset, ContentArgs* Args);
+				void* DeserializeOGG(Rest::FileStream* Stream, uint64_t Length, uint64_t Offset, ContentArgs* Args);
 			};
 
 			class THAWK_OUT Texture2DProcessor : public FileProcessor
@@ -106,7 +106,7 @@ namespace Tomahawk
 				virtual ~Texture2DProcessor() override;
 				void Free(AssetResource* Asset) override;
 				void* Duplicate(AssetResource* Asset, ContentArgs* Args) override;
-				void* Load(Rest::FileStream* Stream, uint64_t Length, uint64_t Offset, ContentArgs* Args) override;
+				void* Deserialize(Rest::FileStream* Stream, uint64_t Length, uint64_t Offset, ContentArgs* Args) override;
 			};
 
 			class THAWK_OUT ShaderProcessor : public FileProcessor
@@ -116,7 +116,7 @@ namespace Tomahawk
 				virtual ~ShaderProcessor() override;
 				void Free(AssetResource* Asset) override;
 				void* Duplicate(AssetResource* Asset, ContentArgs* Args) override;
-				void* Load(Rest::FileStream* Stream, uint64_t Length, uint64_t Offset, ContentArgs* Args) override;
+				void* Deserialize(Rest::FileStream* Stream, uint64_t Length, uint64_t Offset, ContentArgs* Args) override;
 			};
 
 			class THAWK_OUT ModelProcessor : public FileProcessor
@@ -129,7 +129,7 @@ namespace Tomahawk
 				virtual ~ModelProcessor() override;
 				void Free(AssetResource* Asset) override;
 				void* Duplicate(AssetResource* Asset, ContentArgs* Args) override;
-				void* Load(Rest::FileStream* Stream, uint64_t Length, uint64_t Offset, ContentArgs* Args) override;
+				void* Deserialize(Rest::FileStream* Stream, uint64_t Length, uint64_t Offset, ContentArgs* Args) override;
 
 			public:
 				static Rest::Document* Import(const std::string& Path, unsigned int Opts = MeshOpt_CalcTangentSpace | MeshOpt_GenSmoothNormals | MeshOpt_JoinIdenticalVertices | MeshOpt_ImproveCacheLocality | MeshOpt_LimitBoneWeights | MeshOpt_RemoveRedundantMaterials | MeshOpt_SplitLargeMeshes | MeshOpt_Triangulate | MeshOpt_GenUVCoords | MeshOpt_SortByPType | MeshOpt_RemoveDegenerates | MeshOpt_RemoveInvalidData | MeshOpt_RemoveInstances | MeshOpt_ValidateDataStructure | MeshOpt_OptimizeMeshes | MeshOpt_TransformUVCoords | 0);
@@ -151,7 +151,7 @@ namespace Tomahawk
 				virtual ~SkinModelProcessor() override;
 				void Free(AssetResource* Asset) override;
 				void* Duplicate(AssetResource* Asset, ContentArgs* Args) override;
-				void* Load(Rest::FileStream* Stream, uint64_t Length, uint64_t Offset, ContentArgs* Args) override;
+				void* Deserialize(Rest::FileStream* Stream, uint64_t Length, uint64_t Offset, ContentArgs* Args) override;
 
 			public:
 				static Rest::Document* ImportAnimation(const std::string& Path, unsigned int Opts = MeshOpt_CalcTangentSpace | MeshOpt_GenSmoothNormals | MeshOpt_JoinIdenticalVertices | MeshOpt_ImproveCacheLocality | MeshOpt_LimitBoneWeights | MeshOpt_RemoveRedundantMaterials | MeshOpt_SplitLargeMeshes | MeshOpt_Triangulate | MeshOpt_GenUVCoords | MeshOpt_SortByPType | MeshOpt_RemoveDegenerates | MeshOpt_RemoveInvalidData | MeshOpt_RemoveInstances | MeshOpt_ValidateDataStructure | MeshOpt_OptimizeMeshes | MeshOpt_TransformUVCoords | 0);
@@ -166,8 +166,8 @@ namespace Tomahawk
 			{
 			public:
 				DocumentProcessor(ContentManager* Manager);
-				void* Load(Rest::FileStream* Stream, uint64_t Length, uint64_t Offset, ContentArgs* Args) override;
-				bool Save(Rest::FileStream* Stream, void* Object, ContentArgs* Args) override;
+				void* Deserialize(Rest::FileStream* Stream, uint64_t Length, uint64_t Offset, ContentArgs* Args) override;
+				bool Serialize(Rest::FileStream* Stream, void* Object, ContentArgs* Args) override;
 			};
 
 			class THAWK_OUT ServerProcessor : public FileProcessor
@@ -177,7 +177,7 @@ namespace Tomahawk
 
 			public:
 				ServerProcessor(ContentManager* Manager);
-				void* Load(Rest::FileStream* Stream, uint64_t Length, uint64_t Offset, ContentArgs* Args) override;
+				void* Deserialize(Rest::FileStream* Stream, uint64_t Length, uint64_t Offset, ContentArgs* Args) override;
 			};
 
 			class THAWK_OUT ShapeProcessor : public FileProcessor
@@ -187,7 +187,7 @@ namespace Tomahawk
 				virtual ~ShapeProcessor() override;
 				void Free(AssetResource* Asset) override;
 				void* Duplicate(AssetResource* Asset, ContentArgs* Args) override;
-				void* Load(Rest::FileStream* Stream, uint64_t Length, uint64_t Offset, ContentArgs* Args) override;
+				void* Deserialize(Rest::FileStream* Stream, uint64_t Length, uint64_t Offset, ContentArgs* Args) override;
 			};
 		}
 	}

@@ -36,3 +36,7 @@ float3 GetReflection(in float3 P, in float3 L, in float3 N, in float3 M, in floa
     float3 O = F * VT / VL * NV;
     return max(0.0, F + O);
 }
+float GetFresnel(in float3 E, in float3 N)
+{
+	return pow(1.0 + dot(E, N), 3.0);
+}

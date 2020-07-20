@@ -38,7 +38,7 @@ namespace Tomahawk
 			AssetFileProcessor::AssetFileProcessor(ContentManager* Manager) : FileProcessor(Manager)
 			{
 			}
-			void* AssetFileProcessor::Load(Rest::FileStream* Stream, uint64_t Length, uint64_t Offset, ContentArgs* Args)
+			void* AssetFileProcessor::Deserialize(Rest::FileStream* Stream, uint64_t Length, uint64_t Offset, ContentArgs* Args)
 			{
 				char* Binary = (char*)malloc(sizeof(char) * Length);
 				if (Stream->Read(Binary, Length) != Length)
@@ -56,7 +56,7 @@ namespace Tomahawk
 				OnComponentCreation = nullptr;
 				OnRendererCreation = nullptr;
 			}
-			void* SceneGraphProcessor::Load(Rest::FileStream* Stream, uint64_t Length, uint64_t Offset, ContentArgs* Args)
+			void* SceneGraphProcessor::Deserialize(Rest::FileStream* Stream, uint64_t Length, uint64_t Offset, ContentArgs* Args)
 			{
 				SceneGraph::Desc I = SceneGraph::Desc();
 				I.Device = Content->GetDevice();
@@ -174,16 +174,22 @@ namespace Tomahawk
 									Target = Entity->AddComponent<Components::RigidBody>();
 								else if (ComponentId == THAWK_COMPONENT_ID(SoftBody))
 									Target = Entity->AddComponent<Components::SoftBody>();
+								else if (ComponentId == THAWK_COMPONENT_ID(LimpidSoftBody))
+									Target = Entity->AddComponent<Components::LimpidSoftBody>();
 								else if (ComponentId == THAWK_COMPONENT_ID(SkinAnimator))
 									Target = Entity->AddComponent<Components::SkinAnimator>();
 								else if (ComponentId == THAWK_COMPONENT_ID(SliderConstraint))
 									Target = Entity->AddComponent<Components::SliderConstraint>();
-								else if (ComponentId == THAWK_COMPONENT_ID(ElementAnimator))
-									Target = Entity->AddComponent<Components::ElementAnimator>();
+								else if (ComponentId == THAWK_COMPONENT_ID(EmitterAnimator))
+									Target = Entity->AddComponent<Components::EmitterAnimator>();
 								else if (ComponentId == THAWK_COMPONENT_ID(Model))
 									Target = Entity->AddComponent<Components::Model>();
-								else if (ComponentId == THAWK_COMPONENT_ID(SkinModel))
-									Target = Entity->AddComponent<Components::SkinModel>();
+								else if (ComponentId == THAWK_COMPONENT_ID(LimpidModel))
+									Target = Entity->AddComponent<Components::LimpidModel>();
+								else if (ComponentId == THAWK_COMPONENT_ID(Skin))
+									Target = Entity->AddComponent<Components::Skin>();
+								else if (ComponentId == THAWK_COMPONENT_ID(LimpidSkin))
+									Target = Entity->AddComponent<Components::LimpidSkin>();
 								else if (ComponentId == THAWK_COMPONENT_ID(PointLight))
 									Target = Entity->AddComponent<Components::PointLight>();
 								else if (ComponentId == THAWK_COMPONENT_ID(SpotLight))
@@ -192,8 +198,10 @@ namespace Tomahawk
 									Target = Entity->AddComponent<Components::LineLight>();
 								else if (ComponentId == THAWK_COMPONENT_ID(ProbeLight))
 									Target = Entity->AddComponent<Components::ProbeLight>();
-								else if (ComponentId == THAWK_COMPONENT_ID(ElementSystem))
-									Target = Entity->AddComponent<Components::ElementSystem>();
+								else if (ComponentId == THAWK_COMPONENT_ID(Emitter))
+									Target = Entity->AddComponent<Components::Emitter>();
+								else if (ComponentId == THAWK_COMPONENT_ID(LimpidEmitter))
+									Target = Entity->AddComponent<Components::LimpidEmitter>();
 								else if (ComponentId == THAWK_COMPONENT_ID(Camera))
 									Target = Entity->AddComponent<Components::Camera>();
 								else if (ComponentId == THAWK_COMPONENT_ID(Fly))
@@ -216,7 +224,7 @@ namespace Tomahawk
 								if (!Meta)
 									Meta = Element->SetDocument("metadata");
 
-								Target->OnLoad(Content, Meta);
+								Target->Deserialize(Content, Meta);
 							}
 						}
 					}
@@ -238,7 +246,7 @@ namespace Tomahawk
 
 				return Object;
 			}
-			bool SceneGraphProcessor::Save(Rest::FileStream* Stream, void* Instance, ContentArgs* Args)
+			bool SceneGraphProcessor::Serialize(Rest::FileStream* Stream, void* Instance, ContentArgs* Args)
 			{
 				SceneGraph* Object = (SceneGraph*)Instance;
 				Object->Denotify();
@@ -309,7 +317,7 @@ namespace Tomahawk
 						Rest::Document* Component = Components->SetDocument("component");
 						NMake::Pack(Component->SetDocument("id"), It->second->Id());
 						NMake::Pack(Component->SetDocument("active"), It->second->IsActive());
-						It->second->OnSave(Content, Component->SetDocument("metadata"));
+						It->second->Serialize(Content, Component->SetDocument("metadata"));
 					}
 				}
 
@@ -334,16 +342,16 @@ namespace Tomahawk
 			{
 				return Asset->Resource;
 			}
-			void* AudioClipProcessor::Load(Rest::FileStream* Stream, uint64_t Length, uint64_t Offset, ContentArgs* Args)
+			void* AudioClipProcessor::Deserialize(Rest::FileStream* Stream, uint64_t Length, uint64_t Offset, ContentArgs* Args)
 			{
 				if (Rest::Stroke(&Stream->Filename()).EndsWith(".wav"))
-					return LoadWAVE(Stream, Length, Offset, Args);
+					return DeserializeWAVE(Stream, Length, Offset, Args);
 				else if (Rest::Stroke(&Stream->Filename()).EndsWith(".ogg"))
-					return LoadOGG(Stream, Length, Offset, Args);
+					return DeserializeOGG(Stream, Length, Offset, Args);
 
 				return nullptr;
 			}
-			void* AudioClipProcessor::LoadWAVE(Rest::FileStream* Stream, uint64_t Length, uint64_t Offset, ContentArgs* Args)
+			void* AudioClipProcessor::DeserializeWAVE(Rest::FileStream* Stream, uint64_t Length, uint64_t Offset, ContentArgs* Args)
 			{
 #ifdef THAWK_HAS_SDL2
 				void* Binary = malloc(sizeof(char) * Length);
@@ -394,7 +402,7 @@ namespace Tomahawk
 				return nullptr;
 #endif
 			}
-			void* AudioClipProcessor::LoadOGG(Rest::FileStream* Stream, uint64_t Length, uint64_t Offset, ContentArgs* Args)
+			void* AudioClipProcessor::DeserializeOGG(Rest::FileStream* Stream, uint64_t Length, uint64_t Offset, ContentArgs* Args)
 			{
 				void* Binary = malloc(sizeof(char) * Length);
 				if (Stream->Read((char*)Binary, Length) != Length)
@@ -445,7 +453,7 @@ namespace Tomahawk
 			{
 				return Asset->Resource;
 			}
-			void* Texture2DProcessor::Load(Rest::FileStream* Stream, uint64_t Length, uint64_t Offset, ContentArgs* Args)
+			void* Texture2DProcessor::Deserialize(Rest::FileStream* Stream, uint64_t Length, uint64_t Offset, ContentArgs* Args)
 			{
 				unsigned char* Binary = (unsigned char*)malloc(sizeof(unsigned char) * Length);
 				if (Stream->Read((char*)Binary, Length) != Length)
@@ -500,7 +508,7 @@ namespace Tomahawk
 			{
 				return Asset->Resource;
 			}
-			void* ShaderProcessor::Load(Rest::FileStream* Stream, uint64_t Length, uint64_t Offset, ContentArgs* Args)
+			void* ShaderProcessor::Deserialize(Rest::FileStream* Stream, uint64_t Length, uint64_t Offset, ContentArgs* Args)
 			{
 				if (!Args)
 				{
@@ -562,7 +570,7 @@ namespace Tomahawk
 			{
 				return Asset->Resource;
 			}
-			void* ModelProcessor::Load(Rest::FileStream* Stream, uint64_t Length, uint64_t Offset, ContentArgs* Args)
+			void* ModelProcessor::Deserialize(Rest::FileStream* Stream, uint64_t Length, uint64_t Offset, ContentArgs* Args)
 			{
 				auto* Document = Content->Load<Rest::Document>(Stream->Filename(), nullptr);
 				if (!Document)
@@ -873,7 +881,7 @@ namespace Tomahawk
 			{
 				return Asset->Resource;
 			}
-			void* SkinModelProcessor::Load(Rest::FileStream* Stream, uint64_t Length, uint64_t Offset, ContentArgs* Args)
+			void* SkinModelProcessor::Deserialize(Rest::FileStream* Stream, uint64_t Length, uint64_t Offset, ContentArgs* Args)
 			{
 				auto* Document = Content->Load<Rest::Document>(Stream->Filename(), nullptr);
 				if (!Document)
@@ -1066,7 +1074,7 @@ namespace Tomahawk
 			DocumentProcessor::DocumentProcessor(ContentManager* Manager) : FileProcessor(Manager)
 			{
 			}
-			void* DocumentProcessor::Load(Rest::FileStream* Stream, uint64_t Length, uint64_t Offset, ContentArgs* Args)
+			void* DocumentProcessor::Deserialize(Rest::FileStream* Stream, uint64_t Length, uint64_t Offset, ContentArgs* Args)
 			{
 				Rest::NReadCallback Callback = [Stream](char* Buffer, int64_t Size)
 				{
@@ -1088,7 +1096,7 @@ namespace Tomahawk
 				Stream->Seek(Rest::FileSeek_Begin, Offset);
 				return Rest::Document::ReadXML(Length, Callback);
 			}
-			bool DocumentProcessor::Save(Rest::FileStream* Stream, void* Instance, ContentArgs* Args)
+			bool DocumentProcessor::Serialize(Rest::FileStream* Stream, void* Instance, ContentArgs* Args)
 			{
 				auto Document = (Rest::Document*)Instance;
 				bool Result = true;
@@ -1169,7 +1177,7 @@ namespace Tomahawk
 			ServerProcessor::ServerProcessor(ContentManager* Manager) : FileProcessor(Manager)
 			{
 			}
-			void* ServerProcessor::Load(Rest::FileStream* Stream, uint64_t Length, uint64_t Offset, ContentArgs* Args)
+			void* ServerProcessor::Deserialize(Rest::FileStream* Stream, uint64_t Length, uint64_t Offset, ContentArgs* Args)
 			{
 				std::string N = Network::Socket::LocalIpAddress();
 				std::string D = Rest::OS::FileDirectory(Stream->Filename());
@@ -1530,7 +1538,7 @@ namespace Tomahawk
 			{
 				return Asset->Resource;
 			}
-			void* ShapeProcessor::Load(Rest::FileStream* Stream, uint64_t Length, uint64_t Offset, ContentArgs* Args)
+			void* ShapeProcessor::Deserialize(Rest::FileStream* Stream, uint64_t Length, uint64_t Offset, ContentArgs* Args)
 			{
 				auto* Document = Content->Load<Rest::Document>(Stream->Filename(), nullptr);
 				if (!Document)

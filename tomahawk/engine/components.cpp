@@ -8,297 +8,300 @@ namespace Tomahawk
 	{
 		namespace Components
 		{
-			RigidBody::RigidBody(Entity* Ref) : Component(Ref)
+			Model::Model(Entity* Ref) : Drawable(Ref, true)
 			{
-				Hull = nullptr;
 				Instance = nullptr;
-				Kinematic = false;
-				Synchronize = true;
 			}
-			RigidBody::~RigidBody()
+			void Model::Deserialize(ContentManager* Content, Rest::Document* Node)
 			{
-				delete Instance;
-			}
-			void RigidBody::OnLoad(ContentManager* Content, Rest::Document* Node)
-			{
-				bool Extended;
-				NMake::Unpack(Node->Find("extended"), &Extended);
-				NMake::Unpack(Node->Find("kinematic"), &Kinematic);
-				if (!Extended)
-					return;
+				std::string Path;
+				if (NMake::Unpack(Node->Find("model"), &Path))
+					Instance = Content->Load<Graphics::Model>(Path, nullptr);
 
-				float Mass = 0, CcdMotionThreshold = 0;
-				NMake::Unpack(Node->Find("mass"), &Mass);
-				NMake::Unpack(Node->Find("ccd-motion-threshold"), &CcdMotionThreshold);
-
-				Rest::Document* CV = nullptr;
-				if ((CV = Node->Find("shape")) != nullptr)
+				std::vector<Rest::Document*> Faces = Node->FindCollectionPath("surfaces.surface");
+				for (auto&& Surface : Faces)
 				{
-					std::string Path;
-					uint64_t Type;
-					if (NMake::Unpack(Node->Find("path"), &Path))
+					if (!Instance || !NMake::Unpack(Surface->Find("name"), &Path))
+						continue;
+
+					Graphics::MeshBuffer* Ref = Instance->Find(Path);
+					if (!Ref)
+						continue;
+
+					Appearance Face;
+					if (NMake::Unpack(Surface, &Face, Content))
+						Surfaces[Ref] = Face;
+				}
+
+				NMake::Unpack(Node->Find("visibility"), &Visibility);
+				NMake::Unpack(Node->Find("static"), &Static);
+			}
+			void Model::Serialize(ContentManager* Content, Rest::Document* Node)
+			{
+				AssetResource* Asset = Content->FindAsset(Instance);
+				if (Asset != nullptr)
+					NMake::Pack(Node->SetDocument("model"), Asset->Path);
+
+				Rest::Document* Faces = Node->SetArray("surfaces");
+				for (auto&& It : Surfaces)
+				{
+					Rest::Document* Surface = Faces->SetDocument("surface");
+					if (It.first != nullptr)
 					{
-						auto* Shape = Content->Load<Compute::UnmanagedShape>(Path, nullptr);
-						if (Shape != nullptr)
-							Initialize(Shape->Shape, Mass, CcdMotionThreshold);
-					}
-					else if (!NMake::Unpack(CV->Find("type"), &Type))
-					{
-						std::vector<Compute::Vector3> Vertices;
-						if (NMake::Unpack(CV->Find("data"), &Vertices))
-						{
-							btCollisionShape* Shape = Parent->GetScene()->GetSimulator()->CreateConvexHull(Vertices);
-							if (Shape != nullptr)
-								Initialize(Shape, Mass, CcdMotionThreshold);
-						}
-					}
-					else
-					{
-						btCollisionShape* Shape = Parent->GetScene()->GetSimulator()->CreateShape((Compute::Shape)Type);
-						if (Shape != nullptr)
-							Initialize(Shape, Mass, CcdMotionThreshold);
+						NMake::Pack(Surface->SetDocument("name"), ((Graphics::MeshBuffer*)It.first)->Name);
+						NMake::Pack(Surface, It.second, Content);
 					}
 				}
 
-				if (!Instance)
-					return;
-
-				uint64_t ActivationState;
-				if (NMake::Unpack(Node->Find("activation-state"), &ActivationState))
-					Instance->SetActivationState((Compute::MotionState)ActivationState);
-
-				float AngularDamping;
-				if (NMake::Unpack(Node->Find("angular-damping"), &AngularDamping))
-					Instance->SetAngularDamping(AngularDamping);
-
-				float AngularSleepingThreshold;
-				if (NMake::Unpack(Node->Find("angular-sleeping-threshold"), &AngularSleepingThreshold))
-					Instance->SetAngularSleepingThreshold(AngularSleepingThreshold);
-
-				float Friction;
-				if (NMake::Unpack(Node->Find("friction"), &Friction))
-					Instance->SetFriction(Friction);
-
-				float Restitution;
-				if (NMake::Unpack(Node->Find("restitution"), &Restitution))
-					Instance->SetRestitution(Restitution);
-
-				float HitFraction;
-				if (NMake::Unpack(Node->Find("hit-fraction"), &HitFraction))
-					Instance->SetHitFraction(HitFraction);
-
-				float LinearDamping;
-				if (NMake::Unpack(Node->Find("linear-damping"), &LinearDamping))
-					Instance->SetLinearDamping(LinearDamping);
-
-				float LinearSleepingThreshold;
-				if (NMake::Unpack(Node->Find("linear-sleeping-threshold"), &LinearSleepingThreshold))
-					Instance->SetLinearSleepingThreshold(LinearSleepingThreshold);
-
-				float CcdSweptSphereRadius;
-				if (NMake::Unpack(Node->Find("ccd-swept-sphere-radius"), &CcdSweptSphereRadius))
-					Instance->SetCcdSweptSphereRadius(CcdSweptSphereRadius);
-
-				float ContactProcessingThreshold;
-				if (NMake::Unpack(Node->Find("contact-processing-threshold"), &ContactProcessingThreshold))
-					Instance->SetContactProcessingThreshold(ContactProcessingThreshold);
-
-				float DeactivationTime;
-				if (NMake::Unpack(Node->Find("deactivation-time"), &DeactivationTime))
-					Instance->SetDeactivationTime(DeactivationTime);
-
-				float RollingFriction;
-				if (NMake::Unpack(Node->Find("rolling-friction"), &RollingFriction))
-					Instance->SetRollingFriction(RollingFriction);
-
-				float SpinningFriction;
-				if (NMake::Unpack(Node->Find("spinning-friction"), &SpinningFriction))
-					Instance->SetSpinningFriction(SpinningFriction);
-
-				float ContactStiffness;
-				if (NMake::Unpack(Node->Find("contact-stiffness"), &ContactStiffness))
-					Instance->SetContactStiffness(ContactStiffness);
-
-				float ContactDamping;
-				if (NMake::Unpack(Node->Find("contact-damping"), &ContactDamping))
-					Instance->SetContactDamping(ContactDamping);
-
-				Compute::Vector3 AngularFactor;
-				if (NMake::Unpack(Node->Find("angular-factor"), &AngularFactor))
-					Instance->SetAngularFactor(AngularFactor);
-
-				Compute::Vector3 AngularVelocity;
-				if (NMake::Unpack(Node->Find("angular-velocity"), &AngularVelocity))
-					Instance->SetAngularVelocity(AngularVelocity);
-
-				Compute::Vector3 AnisotropicFriction;
-				if (NMake::Unpack(Node->Find("anisotropic-friction"), &AnisotropicFriction))
-					Instance->SetAnisotropicFriction(AnisotropicFriction);
-
-				Compute::Vector3 Gravity;
-				if (NMake::Unpack(Node->Find("gravity"), &Gravity))
-					Instance->SetGravity(Gravity);
-
-				Compute::Vector3 LinearFactor;
-				if (NMake::Unpack(Node->Find("linear-factor"), &LinearFactor))
-					Instance->SetLinearFactor(LinearFactor);
-
-				Compute::Vector3 LinearVelocity;
-				if (NMake::Unpack(Node->Find("linear-velocity"), &LinearVelocity))
-					Instance->SetLinearVelocity(LinearVelocity);
-
-				uint64_t CollisionFlags;
-				if (NMake::Unpack(Node->Find("collision-flags"), &CollisionFlags))
-					Instance->SetCollisionFlags(CollisionFlags);
+				NMake::Pack(Node->SetDocument("visibility"), Visibility);
+				NMake::Pack(Node->SetDocument("static"), Static);
 			}
-			void RigidBody::OnSave(ContentManager* Content, Rest::Document* Node)
+			void Model::SetDrawable(Graphics::Model* Drawable)
 			{
-				NMake::Pack(Node->SetDocument("kinematic"), Kinematic);
-				NMake::Pack(Node->SetDocument("extended"), Instance != nullptr);
-				if (!Instance)
-					return;
-
-				Rest::Document* CV = Node->SetDocument("shape");
-				if (Instance->GetCollisionShapeType() == Compute::Shape_Convex_Hull)
-				{
-					AssetResource* Asset = Content->FindAsset(Hull);
-					if (!Asset || !Hull)
-					{
-						std::vector<Compute::Vector3> Vertices = Parent->GetScene()->GetSimulator()->GetShapeVertices(Instance->GetCollisionShape());
-						NMake::Pack(CV->SetDocument("data"), Vertices);
-					}
-					else
-						NMake::Pack(CV->SetDocument("path"), Asset->Path);
-				}
-				else
-					NMake::Pack(CV->SetDocument("type"), (uint64_t)Instance->GetCollisionShapeType());
-
-				NMake::Pack(Node->SetDocument("mass"), Instance->GetMass());
-				NMake::Pack(Node->SetDocument("ccd-motion-threshold"), Instance->GetCcdMotionThreshold());
-				NMake::Pack(Node->SetDocument("activation-state"), (uint64_t)Instance->GetActivationState());
-				NMake::Pack(Node->SetDocument("angular-damping"), Instance->GetAngularDamping());
-				NMake::Pack(Node->SetDocument("angular-sleeping-threshold"), Instance->GetAngularSleepingThreshold());
-				NMake::Pack(Node->SetDocument("friction"), Instance->GetFriction());
-				NMake::Pack(Node->SetDocument("restitution"), Instance->GetRestitution());
-				NMake::Pack(Node->SetDocument("hit-fraction"), Instance->GetHitFraction());
-				NMake::Pack(Node->SetDocument("linear-damping"), Instance->GetLinearDamping());
-				NMake::Pack(Node->SetDocument("linear-sleeping-threshold"), Instance->GetLinearSleepingThreshold());
-				NMake::Pack(Node->SetDocument("ccd-swept-sphere-radius"), Instance->GetCcdSweptSphereRadius());
-				NMake::Pack(Node->SetDocument("contact-processing-threshold"), Instance->GetContactProcessingThreshold());
-				NMake::Pack(Node->SetDocument("deactivation-time"), Instance->GetDeactivationTime());
-				NMake::Pack(Node->SetDocument("rolling-friction"), Instance->GetRollingFriction());
-				NMake::Pack(Node->SetDocument("spinning-friction"), Instance->GetSpinningFriction());
-				NMake::Pack(Node->SetDocument("contact-stiffness"), Instance->GetContactStiffness());
-				NMake::Pack(Node->SetDocument("contact-damping"), Instance->GetContactDamping());
-				NMake::Pack(Node->SetDocument("angular-factor"), Instance->GetAngularFactor());
-				NMake::Pack(Node->SetDocument("angular-velocity"), Instance->GetAngularVelocity());
-				NMake::Pack(Node->SetDocument("anisotropic-friction"), Instance->GetAnisotropicFriction());
-				NMake::Pack(Node->SetDocument("gravity"), Instance->GetGravity());
-				NMake::Pack(Node->SetDocument("linear-factor"), Instance->GetLinearFactor());
-				NMake::Pack(Node->SetDocument("linear-velocity"), Instance->GetLinearVelocity());
-				NMake::Pack(Node->SetDocument("collision-flags"), (uint64_t)Instance->GetCollisionFlags());
+				Instance = Drawable;
 			}
-			void RigidBody::OnSynchronize(Rest::Timer* Time)
-			{
-				if (Instance && Synchronize)
-					Instance->Synchronize(Parent->Transform, Kinematic);
-			}
-			void RigidBody::OnAsleep()
-			{
-				if (Instance != nullptr)
-					Instance->SetAsGhost();
-			}
-			void RigidBody::Initialize(btCollisionShape* Shape, float Mass, float Anticipation)
-			{
-				if (!Shape || !Parent || !Parent->GetScene() || !Parent->GetScene()->GetSimulator())
-					return;
-
-				Parent->GetScene()->Lock();
-				delete Instance;
-
-				Compute::RigidBody::Desc I;
-				I.Anticipation = Anticipation;
-				I.Mass = Mass;
-				I.Shape = Shape;
-
-				Instance = Parent->GetScene()->GetSimulator()->CreateRigidBody(I, Parent->Transform);
-				Instance->UserPointer = this;
-				Instance->SetActivity(true);
-				Parent->GetScene()->Unlock();
-			}
-			void RigidBody::Initialize(ContentManager* Content, const std::string& Path, float Mass, float Anticipation)
-			{
-				if (Content != nullptr)
-				{
-					Hull = Content->Load<Compute::UnmanagedShape>(Path, nullptr);
-					if (Hull != nullptr)
-						Initialize(Hull->Shape, Mass, Anticipation);
-				}
-			}
-			void RigidBody::Clear()
-			{
-				if (!Instance || !Parent || !Parent->GetScene() || !Parent->GetScene()->GetSimulator())
-					return;
-
-				Parent->GetScene()->Lock();
-				delete Instance;
-				Instance = nullptr;
-				Parent->GetScene()->Unlock();
-			}
-			void RigidBody::SetTransform(const Compute::Vector3& Position, const Compute::Vector3& Scale, const Compute::Vector3& Rotation)
+			Compute::Matrix4x4 Model::GetBoundingBox()
 			{
 				if (!Instance)
-					return;
+					return Parent->Transform->GetWorld();
 
-				if (Parent && Parent->GetScene())
-					Parent->GetScene()->Lock();
-
-				Parent->Transform->SetTransform(Compute::TransformSpace_Global, Position, Scale, Rotation);
-				Instance->Synchronize(Parent->Transform, true);
-				Instance->SetActivity(true);
-
-				if (Parent && Parent->GetScene())
-					Parent->GetScene()->Unlock();
+				return Compute::Matrix4x4::Create(Parent->Transform->Position, Parent->Transform->Scale * Compute::Vector3(Instance->Min.W - Instance->Max.W).Div(2.0f).Abs(), Parent->Transform->Rotation);
 			}
-			void RigidBody::SetTransform(bool Kinematics)
+			Component* Model::Copy(Entity* New)
 			{
-				if (!Instance)
-					return;
-
-				if (Parent && Parent->GetScene())
-					Parent->GetScene()->Lock();
-
-				Instance->Synchronize(Parent->Transform, Kinematics);
-				Instance->SetActivity(true);
-
-				if (Parent && Parent->GetScene())
-					Parent->GetScene()->Unlock();
-			}
-			void RigidBody::SetMass(float Mass)
-			{
-				if (!Parent || !Parent->GetScene() || !Instance)
-					return;
-
-				Parent->GetScene()->Lock();
-				Instance->SetMass(Mass);
-				Parent->GetScene()->Unlock();
-			}
-			Component* RigidBody::OnClone(Entity* New)
-			{
-				RigidBody* Target = new RigidBody(New);
-				Target->Kinematic = Kinematic;
-
-				if (Instance != nullptr)
-				{
-					Target->Instance = Instance->Copy();
-					Target->Instance->UserPointer = Target;
-				}
+				Model* Target = new Model(New);
+				Target->Visibility = Visibility;
+				Target->Instance = Instance;
+				Target->Surfaces = Surfaces;
 
 				return Target;
 			}
-			Compute::RigidBody* RigidBody::GetBody() const
+			Graphics::Model* Model::GetDrawable()
 			{
 				return Instance;
+			}
+
+			LimpidModel::LimpidModel(Entity* Ref) : Model(Ref)
+			{
+			}
+			Component* LimpidModel::Copy(Entity* New)
+			{
+				LimpidModel* Target = new LimpidModel(New);
+				Target->Visibility = Visibility;
+				Target->Instance = Instance;
+				Target->Surfaces = Surfaces;
+
+				return Target;
+			}
+
+			Skin::Skin(Entity* Ref) : Drawable(Ref, true)
+			{
+				Instance = nullptr;
+			}
+			void Skin::Deserialize(ContentManager* Content, Rest::Document* Node)
+			{
+				std::string Path;
+				if (NMake::Unpack(Node->Find("skin-model"), &Path))
+					Instance = Content->Load<Graphics::SkinModel>(Path, nullptr);
+
+				std::vector<Rest::Document*> Faces = Node->FindCollectionPath("surfaces.surface");
+				for (auto&& Surface : Faces)
+				{
+					if (!Instance || !NMake::Unpack(Surface->Find("name"), &Path))
+						continue;
+
+					Graphics::SkinMeshBuffer* Ref = Instance->FindMesh(Path);
+					if (!Ref)
+						continue;
+
+					Appearance Face;
+					if (NMake::Unpack(Surface, &Face, Content))
+						Surfaces[Ref] = Face;
+				}
+
+				std::vector<Rest::Document*> Poses = Node->FindCollectionPath("poses.pose");
+				for (auto&& Pose : Poses)
+				{
+					int64_t Index;
+					NMake::Unpack(Pose->Find("index"), &Index);
+
+					auto& Node = Skeleton.Pose[Index];
+					NMake::Unpack(Pose->Find("position"), &Node.Position);
+					NMake::Unpack(Pose->Find("rotation"), &Node.Rotation);
+				}
+
+				NMake::Unpack(Node->Find("visibility"), &Visibility);
+				NMake::Unpack(Node->Find("static"), &Static);
+			}
+			void Skin::Serialize(ContentManager* Content, Rest::Document* Node)
+			{
+				AssetResource* Asset = Content->FindAsset(Instance);
+				if (Asset != nullptr)
+					NMake::Pack(Node->SetDocument("skin-model"), Asset->Path);
+
+				Rest::Document* Faces = Node->SetArray("surfaces");
+				for (auto&& It : Surfaces)
+				{
+					Rest::Document* Surface = Faces->SetDocument("surface");
+					if (It.first != nullptr)
+					{
+						NMake::Pack(Surface->SetDocument("name"), ((Graphics::SkinMeshBuffer*)It.first)->Name);
+						NMake::Pack(Surface, It.second, Content);
+					}
+				}
+
+				NMake::Pack(Node->SetDocument("visibility"), Visibility);
+				NMake::Pack(Node->SetDocument("static"), Static);
+
+				Rest::Document* Poses = Node->SetArray("poses");
+				for (auto&& Pose : Skeleton.Pose)
+				{
+					Rest::Document* Value = Poses->SetDocument("pose");
+					NMake::Pack(Value->SetDocument("index"), Pose.first);
+					NMake::Pack(Value->SetDocument("position"), Pose.second.Position);
+					NMake::Pack(Value->SetDocument("rotation"), Pose.second.Rotation);
+				}
+			}
+			void Skin::Synchronize(Rest::Timer* Time)
+			{
+				if (Instance != nullptr)
+					Instance->ComputePose(&Skeleton);
+			}
+			void Skin::SetDrawable(Graphics::SkinModel* Drawable)
+			{
+				Instance = Drawable;
+			}
+			Compute::Matrix4x4 Skin::GetBoundingBox()
+			{
+				if (!Instance)
+					return Parent->Transform->GetWorld();
+
+				return Compute::Matrix4x4::Create(Parent->Transform->Position, Parent->Transform->Scale * Compute::Vector3(Instance->Min.W - Instance->Max.W).Div(2.0f).Abs(), Parent->Transform->Rotation);
+			}
+			Component* Skin::Copy(Entity* New)
+			{
+				Skin* Target = new Skin(New);
+				Target->Visibility = Visibility;
+				Target->Instance = Instance;
+				Target->Surfaces = Surfaces;
+
+				return Target;
+			}
+			Graphics::SkinModel* Skin::GetDrawable()
+			{
+				return Instance;
+			}
+
+			LimpidSkin::LimpidSkin(Entity* Ref) : Skin(Ref)
+			{
+			}
+			Component* LimpidSkin::Copy(Entity* New)
+			{
+				LimpidSkin* Target = new LimpidSkin(New);
+				Target->Visibility = Visibility;
+				Target->Instance = Instance;
+				Target->Surfaces = Surfaces;
+
+				return Target;
+			}
+
+			Emitter::Emitter(Entity* Ref) : Drawable(Ref, false)
+			{
+				Instance = nullptr;
+				Connected = false;
+				QuadBased = false;
+				Volume = 3.0f;
+			}
+			Emitter::~Emitter()
+			{
+				if (Instance != nullptr)
+					delete Instance;
+			}
+			void Emitter::Awake(Component* New)
+			{
+				if (Instance || !Parent || !Parent->GetScene())
+					return;
+
+				Graphics::InstanceBuffer::Desc I = Graphics::InstanceBuffer::Desc();
+				I.ElementLimit = 1 << 10;
+
+				Instance = Parent->GetScene()->GetDevice()->CreateInstanceBuffer(I);
+			}
+			void Emitter::Deserialize(ContentManager* Content, Rest::Document* Node)
+			{
+				NMake::Unpack(Node->Find("surface"), &Surfaces.begin()->second, Content);
+				NMake::Unpack(Node->Find("quad-based"), &QuadBased);
+				NMake::Unpack(Node->Find("connected"), &Connected);
+				NMake::Unpack(Node->Find("visibility"), &Visibility);
+				NMake::Unpack(Node->Find("static"), &Static);
+				NMake::Unpack(Node->Find("volume"), &Volume);
+
+				uint64_t Limit;
+				if (!NMake::Unpack(Node->Find("limit"), &Limit))
+				{
+					std::vector<Compute::ElementVertex> Vertices;
+					if (Instance != nullptr)
+					{
+						Parent->GetScene()->GetDevice()->UpdateBufferSize(Instance, Limit);
+						if (NMake::Unpack(Node->Find("elements"), &Vertices))
+						{
+							Instance->GetArray()->Reserve(Vertices.size());
+							for (auto&& Vertex : Vertices)
+								Instance->GetArray()->Add(Vertex);
+						}
+					}
+				}
+			}
+			void Emitter::Serialize(ContentManager* Content, Rest::Document* Node)
+			{
+				NMake::Pack(Node->SetDocument("surface"), Surfaces.begin()->second, Content);
+				NMake::Pack(Node->SetDocument("quad-based"), QuadBased);
+				NMake::Pack(Node->SetDocument("connected"), Connected);
+				NMake::Pack(Node->SetDocument("visibility"), Visibility);
+				NMake::Pack(Node->SetDocument("static"), Static);
+				NMake::Pack(Node->SetDocument("volume"), Volume);
+
+				if (Instance != nullptr)
+				{
+					std::vector<Compute::ElementVertex> Vertices;
+					Vertices.reserve(Instance->GetArray()->Size());
+
+					for (auto It = Instance->GetArray()->Begin(); It != Instance->GetArray()->End(); It++)
+						Vertices.emplace_back(*It);
+
+					NMake::Pack(Node->SetDocument("limit"), Instance->GetElementLimit());
+					NMake::Pack(Node->SetDocument("elements"), Vertices);
+				}
+			}
+			Component* Emitter::Copy(Entity* New)
+			{
+				Emitter* Target = new Emitter(New);
+				Target->Visibility = Visibility;
+				Target->Volume = Volume;
+				Target->Connected = Connected;
+				Target->Surfaces = Surfaces;
+				Target->Instance->GetArray()->Copy(*Instance->GetArray());
+
+				return Target;
+			}
+			Graphics::InstanceBuffer* Emitter::GetBuffer()
+			{
+				return Instance;
+			}
+
+			LimpidEmitter::LimpidEmitter(Entity* Ref) : Emitter(Ref)
+			{
+			}
+			Component* LimpidEmitter::Copy(Entity* New)
+			{
+				LimpidEmitter* Target = new LimpidEmitter(New);
+				Target->Visibility = Visibility;
+				Target->Volume = Volume;
+				Target->Connected = Connected;
+				Target->Surfaces = Surfaces;
+				Target->Instance->GetArray()->Copy(*Instance->GetArray());
+
+				return Target;
 			}
 
 			SoftBody::SoftBody(Entity* Ref) : Drawable(Ref, false)
@@ -306,17 +309,18 @@ namespace Tomahawk
 				Hull = nullptr;
 				Instance = nullptr;
 				Kinematic = false;
-				Synchronize = true;
+				Manage = true;
 			}
 			SoftBody::~SoftBody()
 			{
 				delete Instance;
 			}
-			void SoftBody::OnLoad(ContentManager* Content, Rest::Document* Node)
+			void SoftBody::Deserialize(ContentManager* Content, Rest::Document* Node)
 			{
 				std::string Path; bool Extended;
 				NMake::Unpack(Node->Find("extended"), &Extended);
 				NMake::Unpack(Node->Find("kinematic"), &Kinematic);
+				NMake::Unpack(Node->Find("manage"), &Manage);
 				NMake::Unpack(Node->Find("visibility"), &Visibility);
 				NMake::Unpack(Node->Find("static"), &Static);
 				NMake::Unpack(Node->Find("surface"), &Surfaces.begin()->second, Content);
@@ -476,9 +480,10 @@ namespace Tomahawk
 				if (NMake::Unpack(Node->Find("rest-length-scale"), &RestLengthScale))
 					Instance->SetRestLengthScale(RestLengthScale);
 			}
-			void SoftBody::OnSave(ContentManager* Content, Rest::Document* Node)
+			void SoftBody::Serialize(ContentManager* Content, Rest::Document* Node)
 			{
 				NMake::Pack(Node->SetDocument("kinematic"), Kinematic);
+				NMake::Pack(Node->SetDocument("manage"), Manage);
 				NMake::Pack(Node->SetDocument("extended"), Instance != nullptr);
 				NMake::Pack(Node->SetDocument("visibility"), Visibility);
 				NMake::Pack(Node->SetDocument("static"), Static);
@@ -583,12 +588,12 @@ namespace Tomahawk
 				NMake::Pack(Node->SetDocument("total-mass"), Instance->GetTotalMass());
 				NMake::Pack(Node->SetDocument("rest-length-scale"), Instance->GetRestLengthScale());
 			}
-			void SoftBody::OnSynchronize(Rest::Timer* Time)
+			void SoftBody::Synchronize(Rest::Timer* Time)
 			{
 				if (!Instance)
 					return;
 
-				if (Synchronize)
+				if (Manage)
 					Instance->Synchronize(Parent->Transform, Kinematic);
 
 				if (!Visibility)
@@ -598,7 +603,7 @@ namespace Tomahawk
 				if (Indices.empty())
 					Instance->Reindex(&Indices);
 			}
-			void SoftBody::OnAsleep()
+			void SoftBody::Asleep()
 			{
 				if (Instance != nullptr)
 					Instance->SetAsGhost();
@@ -767,7 +772,7 @@ namespace Tomahawk
 				if (Parent && Parent->GetScene())
 					Parent->GetScene()->Unlock();
 			}
-			Component* SoftBody::OnClone(Entity* New)
+			Component* SoftBody::Copy(Entity* New)
 			{
 				SoftBody* Target = new SoftBody(New);
 				Target->Kinematic = Kinematic;
@@ -793,6 +798,929 @@ namespace Tomahawk
 				return Indices;
 			}
 
+			LimpidSoftBody::LimpidSoftBody(Entity* Ref) : SoftBody(Ref)
+			{
+			}
+
+			SkinAnimator::SkinAnimator(Entity* Ref) : Component(Ref)
+			{
+				Current.resize(96);
+				Bind.resize(96);
+				Default.resize(96);
+			}
+			SkinAnimator::~SkinAnimator()
+			{
+			}
+			void SkinAnimator::Deserialize(ContentManager* Content, Rest::Document* Node)
+			{
+				std::string Path;
+				if (!NMake::Unpack(Node->Find("path"), &Path))
+					NMake::Unpack(Node->Find("animation"), &Clips);
+				else
+					GetAnimation(Content, Path);
+
+				NMake::Unpack(Node->Find("state"), &State);
+				NMake::Unpack(Node->Find("bind"), &Bind);
+				NMake::Unpack(Node->Find("current"), &Current);
+			}
+			void SkinAnimator::Serialize(ContentManager* Content, Rest::Document* Node)
+			{
+				if (Reference.empty())
+					NMake::Pack(Node->SetDocument("animation"), Clips);
+				else
+					NMake::Pack(Node->SetDocument("path"), Reference);
+
+				NMake::Pack(Node->SetDocument("state"), State);
+				NMake::Pack(Node->SetDocument("bind"), Bind);
+				NMake::Pack(Node->SetDocument("current"), Current);
+			}
+			void SkinAnimator::Awake(Component* New)
+			{
+				Components::Skin* Base = Parent->GetComponent<Components::Skin>();
+				if (Base != nullptr && Base->GetDrawable() != nullptr)
+				{
+					Instance = Base;
+					Instance->Skeleton.GetPose(Instance->GetDrawable(), &Default);
+				}
+				else
+					Instance = nullptr;
+
+				SetActive(Instance != nullptr);
+			}
+			void SkinAnimator::Synchronize(Rest::Timer* Time)
+			{
+				Compute::Vector3& Position = *Parent->Transform->GetLocalPosition();
+				Compute::Vector3& Rotation = *Parent->Transform->GetLocalRotation();
+				Compute::Vector3& Scale = *Parent->Transform->GetLocalScale();
+
+				if (!State.Blended)
+				{
+					if (State.Paused || State.Clip < 0 || State.Clip >= Clips.size() || State.Frame < 0 || State.Frame >= Clips[State.Clip].Keys.size())
+						return;
+
+					Compute::SkinAnimatorClip* Clip = &Clips[State.Clip];
+					std::vector<Compute::AnimatorKey>& NextKey = Clip->Keys[State.Frame + 1 >= Clip->Keys.size() ? 0 : State.Frame + 1];
+					std::vector<Compute::AnimatorKey>& PrevKey = Clip->Keys[State.Frame];
+					State.Time = Compute::Math<float>::Min(State.Time + State.Speed * (float)Time->GetDeltaTime() / State.Length, State.Length);
+					float Timing = Compute::Math<float>::Min(State.Time / State.Length, 1.0f);
+
+					for (auto&& Pose : Instance->Skeleton.Pose)
+					{
+						Compute::AnimatorKey* Prev = &PrevKey[Pose.first];
+						Compute::AnimatorKey* Next = &NextKey[Pose.first];
+						Compute::AnimatorKey* Set = &Current[Pose.first];
+
+						Set->Position = Prev->Position.Lerp(Next->Position, Timing);
+						Pose.second.Position = Set->Position;
+
+						Set->Rotation = Prev->Rotation.AngularLerp(Next->Rotation, Timing);
+						Pose.second.Rotation = Set->Rotation;
+					}
+
+					if (State.Time >= State.Length)
+					{
+						if (State.Frame + 1 >= Clip->Keys.size())
+						{
+							if (!State.Looped)
+								BlendAnimation(-1, -1);
+
+							State.Frame = -1;
+						}
+
+						State.Time = 0.0f;
+						if (State.Looped || State.Frame != -1)
+							State.Frame++;
+					}
+				}
+				else if (State.Time < State.Length)
+				{
+					std::vector<Compute::AnimatorKey>* Key = GetFrame(State.Clip, State.Frame);
+					if (!Key)
+						Key = &Bind;
+
+					State.Time = Compute::Math<float>::Min(State.Time + State.Speed * (float)Time->GetDeltaTime() / State.Length, State.Length);
+					float Timing = Compute::Math<float>::Min(State.Time / State.Length, 1.0f);
+
+					for (auto&& Pose : Instance->Skeleton.Pose)
+					{
+						Compute::AnimatorKey* Prev = &Current[Pose.first];
+						Compute::AnimatorKey* Next = &Key->at(Pose.first);
+
+						Pose.second.Position = Prev->Position.Lerp(Next->Position, Timing);
+						Pose.second.Rotation = Prev->Rotation.AngularLerp(Next->Rotation, Timing);
+					}
+				}
+				else
+				{
+					State.Blended = false;
+					State.Time = 0.0f;
+				}
+			}
+			void SkinAnimator::BlendAnimation(int64_t Clip, int64_t Frame_)
+			{
+				State.Blended = true;
+				State.Time = 0.0f;
+				State.Frame = Frame_;
+				State.Clip = Clip;
+
+				if (State.Clip >= 0 && State.Clip < Clips.size())
+				{
+					Compute::SkinAnimatorClip* CurrentClip = &Clips[State.Clip];
+					if (State.Frame < 0 || State.Frame >= CurrentClip->Keys.size())
+						State.Frame = -1;
+				}
+				else
+					State.Clip = -1;
+			}
+			bool SkinAnimator::GetAnimation(ContentManager* Content, const std::string& Path)
+			{
+				if (!Content)
+					return false;
+
+				Rest::Document* Result = Content->Load<Rest::Document>(Path, nullptr);
+				if (!Result)
+					return false;
+
+				ClearAnimation();
+				if (NMake::Unpack(Result, &Clips))
+					Reference = Path;
+
+				delete Result;
+				return true;
+			}
+			void SkinAnimator::ClearAnimation()
+			{
+				Reference.clear();
+				Clips.clear();
+			}
+			void SkinAnimator::RecordPose()
+			{
+				for (auto&& Pose : Instance->Skeleton.Pose)
+				{
+					Compute::AnimatorKey* Frame = &Bind[Pose.first];
+					Frame->Position = Pose.second.Position;
+					Frame->Rotation = Pose.second.Rotation;
+				}
+			}
+			void SkinAnimator::Stop()
+			{
+				Bind = Default;
+				State.Paused = false;
+				BlendAnimation(-1, -1);
+			}
+			void SkinAnimator::Pause()
+			{
+				State.Paused = true;
+			}
+			void SkinAnimator::Play(int64_t Clip, int64_t Frame_)
+			{
+				if (State.Paused)
+				{
+					State.Paused = false;
+					return;
+				}
+
+				State.Time = 0.0f;
+				State.Frame = (Frame_ == -1 ? 0 : Frame_);
+				State.Clip = (Clip == -1 ? 0 : Clip);
+
+				if (State.Clip >= 0 && State.Clip < Clips.size())
+				{
+					Compute::SkinAnimatorClip* CurrentClip = &Clips[State.Clip];
+					if (State.Frame < 0 || State.Frame >= CurrentClip->Keys.size())
+						State.Frame = -1;
+				}
+				else
+					State.Clip = -1;
+
+				RecordPose();
+				Current = Bind;
+
+				if (!IsPosed(State.Clip, State.Frame))
+					BlendAnimation(State.Clip, State.Frame);
+			}
+			bool SkinAnimator::IsPosed(int64_t Clip, int64_t Frame_)
+			{
+				std::vector<Compute::AnimatorKey>* Key = GetFrame(Clip, Frame_);
+				if (!Key)
+					Key = &Bind;
+
+				for (auto&& Pose : Instance->Skeleton.Pose)
+				{
+					Compute::AnimatorKey* Frame = &Key->at(Pose.first);
+					if (Pose.second.Position != Frame->Position || Pose.second.Rotation != Frame->Rotation)
+						return false;
+				}
+
+				return true;
+			}
+			std::vector<Compute::AnimatorKey>* SkinAnimator::GetFrame(int64_t Clip, int64_t Frame)
+			{
+				if (Clip < 0 || Clip >= Clips.size() || Frame < 0 || Frame >= Clips[Clip].Keys.size())
+					return nullptr;
+
+				return &Clips[Clip].Keys[Frame];
+			}
+			std::vector<std::vector<Compute::AnimatorKey>>* SkinAnimator::GetClip(int64_t Clip)
+			{
+				if (Clip < 0 || Clip >= Clips.size())
+					return nullptr;
+
+				return &Clips[Clip].Keys;
+			}
+			std::string SkinAnimator::GetPath()
+			{
+				return Reference;
+			}
+			Component* SkinAnimator::Copy(Entity* New)
+			{
+				SkinAnimator* Target = new SkinAnimator(New);
+				Target->Clips = Clips;
+				Target->State = State;
+				Target->Bind = Bind;
+				Target->Current = Current;
+
+				return Target;
+			}
+			Skin* SkinAnimator::GetSkin() const
+			{
+				return Instance;
+			}
+
+			KeyAnimator::KeyAnimator(Entity* Ref) : Component(Ref)
+			{
+			}
+			KeyAnimator::~KeyAnimator()
+			{
+			}
+			void KeyAnimator::Deserialize(ContentManager* Content, Rest::Document* Node)
+			{
+				std::string Path;
+				if (!NMake::Unpack(Node->Find("path"), &Path))
+					NMake::Unpack(Node->Find("animation"), &Clips);
+				else
+					GetAnimation(Content, Path);
+
+				NMake::Unpack(Node->Find("state"), &State);
+				NMake::Unpack(Node->Find("bind"), &Bind);
+				NMake::Unpack(Node->Find("current"), &Current);
+			}
+			void KeyAnimator::Serialize(ContentManager* Content, Rest::Document* Node)
+			{
+				if (Reference.empty())
+					NMake::Pack(Node->SetDocument("animation"), Clips);
+				else
+					NMake::Pack(Node->SetDocument("path"), Reference);
+
+				NMake::Pack(Node->SetDocument("state"), State);
+				NMake::Pack(Node->SetDocument("bind"), Bind);
+				NMake::Pack(Node->SetDocument("current"), Current);
+			}
+			void KeyAnimator::Synchronize(Rest::Timer* Time)
+			{
+				Compute::Vector3& Position = *Parent->Transform->GetLocalPosition();
+				Compute::Vector3& Rotation = *Parent->Transform->GetLocalRotation();
+				Compute::Vector3& Scale = *Parent->Transform->GetLocalScale();
+
+				if (!State.Blended)
+				{
+					if (State.Paused || State.Clip < 0 || State.Clip >= Clips.size() || State.Frame < 0 || State.Frame >= Clips[State.Clip].Keys.size())
+						return;
+
+					Compute::KeyAnimatorClip* Clip = &Clips[State.Clip];
+					Compute::AnimatorKey& NextKey = Clip->Keys[State.Frame + 1 >= Clip->Keys.size() ? 0 : State.Frame + 1];
+					Compute::AnimatorKey& PrevKey = Clip->Keys[State.Frame];
+					State.Time = Compute::Math<float>::Min(State.Time + State.Speed * PrevKey.PlayingSpeed * (float)Time->GetDeltaTime() / State.Length, State.Length);
+					float Timing = Compute::Math<float>::Min(State.Time / State.Length, 1.0f);
+
+					Position = Current.Position = PrevKey.Position.Lerp(NextKey.Position, Timing);
+					Rotation = Current.Rotation = PrevKey.Rotation.AngularLerp(NextKey.Rotation, Timing);
+					Scale = Current.Scale = PrevKey.Scale.Lerp(NextKey.Scale, Timing);
+
+					if (State.Time >= State.Length)
+					{
+						if (State.Frame + 1 >= Clip->Keys.size())
+						{
+							if (!State.Looped)
+								BlendAnimation(-1, -1);
+
+							State.Frame = -1;
+						}
+
+						State.Time = 0.0f;
+						if (State.Looped || State.Frame != -1)
+							State.Frame++;
+					}
+				}
+				else if (State.Time < State.Length)
+				{
+					Compute::AnimatorKey* Key = GetFrame(State.Clip, State.Frame);
+					if (!Key)
+						Key = &Bind;
+
+					if (State.Paused)
+						return;
+
+					State.Time = Compute::Math<float>::Min(State.Time + State.Speed * (float)Time->GetDeltaTime() / State.Length, State.Length);
+					float Timing = Compute::Math<float>::Min(State.Time / State.Length, 1.0f);
+
+					Position = Current.Position.Lerp(Key->Position, Timing);
+					Rotation = Current.Rotation.AngularLerp(Key->Rotation, Timing);
+					Scale = Current.Scale.Lerp(Key->Scale, Timing);
+				}
+				else
+				{
+					State.Blended = false;
+					State.Time = 0.0f;
+				}
+			}
+			bool KeyAnimator::GetAnimation(ContentManager* Content, const std::string& Path)
+			{
+				if (!Content)
+					return false;
+
+				Rest::Document* Result = Content->Load<Rest::Document>(Path, nullptr);
+				if (!Result)
+					return false;
+
+				ClearAnimation();
+				if (NMake::Unpack(Result, &Clips))
+					Reference = Path;
+
+				delete Result;
+				return true;
+			}
+			void KeyAnimator::ClearAnimation()
+			{
+				Reference.clear();
+				Clips.clear();
+			}
+			void KeyAnimator::BlendAnimation(int64_t Clip, int64_t Frame_)
+			{
+				State.Blended = true;
+				State.Time = 0.0f;
+				State.Frame = Frame_;
+				State.Clip = Clip;
+
+				if (State.Clip >= 0 && State.Clip < Clips.size())
+				{
+					Compute::KeyAnimatorClip* CurrentClip = &Clips[State.Clip];
+					if (State.Frame < 0 || State.Frame >= CurrentClip->Keys.size())
+						State.Frame = -1;
+				}
+				else
+					State.Clip = -1;
+			}
+			void KeyAnimator::RecordPose()
+			{
+				Bind.Position = *Parent->Transform->GetLocalPosition();
+				Bind.Rotation = *Parent->Transform->GetLocalRotation();
+				Bind.Scale = *Parent->Transform->GetLocalScale();
+			}
+			void KeyAnimator::Stop()
+			{
+				State.Paused = false;
+				BlendAnimation(-1, -1);
+			}
+			void KeyAnimator::Pause()
+			{
+				State.Paused = true;
+			}
+			void KeyAnimator::Play(int64_t Clip, int64_t Frame_)
+			{
+				if (State.Paused)
+				{
+					State.Paused = false;
+					return;
+				}
+
+				State.Time = 0.0f;
+				State.Frame = (Frame_ == -1 ? 0 : Frame_);
+				State.Clip = (Clip == -1 ? 0 : Clip);
+
+				if (State.Clip >= 0 && State.Clip < Clips.size())
+				{
+					Compute::KeyAnimatorClip* CurrentClip = &Clips[State.Clip];
+					if (State.Frame < 0 || State.Frame >= CurrentClip->Keys.size())
+						State.Frame = -1;
+				}
+				else
+					State.Clip = -1;
+
+				RecordPose();
+				Current = Bind;
+
+				if (!IsPosed(State.Clip, State.Frame))
+					BlendAnimation(State.Clip, State.Frame);
+			}
+			bool KeyAnimator::IsPosed(int64_t Clip, int64_t Frame_)
+			{
+				Compute::AnimatorKey* Key = GetFrame(Clip, Frame_);
+				if (!Key)
+					Key = &Bind;
+
+				return *Parent->Transform->GetLocalPosition() == Key->Position && *Parent->Transform->GetLocalRotation() == Key->Rotation && *Parent->Transform->GetLocalScale() == Key->Scale;
+			}
+			Compute::AnimatorKey* KeyAnimator::GetFrame(int64_t Clip, int64_t Frame)
+			{
+				if (Clip < 0 || Clip >= Clips.size() || Frame < 0 || Frame >= Clips[Clip].Keys.size())
+					return nullptr;
+
+				return &Clips[Clip].Keys[Frame];
+			}
+			std::vector<Compute::AnimatorKey>* KeyAnimator::GetClip(int64_t Clip)
+			{
+				if (Clip < 0 || Clip >= Clips.size())
+					return nullptr;
+
+				return &Clips[Clip].Keys;
+			}
+			std::string KeyAnimator::GetPath()
+			{
+				return Reference;
+			}
+			Component* KeyAnimator::Copy(Entity* New)
+			{
+				KeyAnimator* Target = new KeyAnimator(New);
+				Target->Clips = Clips;
+				Target->State = State;
+				Target->Bind = Bind;
+				Target->Current = Current;
+
+				return Target;
+			}
+
+			EmitterAnimator::EmitterAnimator(Entity* Ref) : Component(Ref)
+			{
+				Position = 0.0f;
+				Diffuse = 0.0f;
+				ScaleSpeed = 0.0f;
+				RotationSpeed = 0.0f;
+				Velocity = 0.0f;
+				Spawner.Scale.Max = 1;
+				Spawner.Scale.Min = 1;
+				Spawner.Rotation.Max = 0;
+				Spawner.Rotation.Min = 0;
+				Spawner.Angular.Max = 0;
+				Spawner.Angular.Min = 0;
+				Spawner.Diffusion.Min = 1;
+				Spawner.Diffusion.Max = 1;
+				Spawner.Velocity.Min = 0;
+				Spawner.Velocity.Max = 0;
+				Spawner.Position.Min = -1;
+				Spawner.Position.Max = 1;
+				Spawner.Noise.Min = -1;
+				Spawner.Noise.Max = 1;
+				Spawner.Iterations = 1;
+				Simulate = false;
+				Noisiness = 0.0f;
+				Base = nullptr;
+			}
+			void EmitterAnimator::Deserialize(ContentManager* Content, Rest::Document* Node)
+			{
+				NMake::Unpack(Node->Find("diffuse"), &Diffuse);
+				NMake::Unpack(Node->Find("position"), &Position);
+				NMake::Unpack(Node->Find("velocity"), &Velocity);
+				NMake::Unpack(Node->Find("spawner"), &Spawner);
+				NMake::Unpack(Node->Find("noisiness"), &Noisiness);
+				NMake::Unpack(Node->Find("rotation-speed"), &RotationSpeed);
+				NMake::Unpack(Node->Find("scale-speed"), &ScaleSpeed);
+				NMake::Unpack(Node->Find("simulate"), &Simulate);
+			}
+			void EmitterAnimator::Serialize(ContentManager* Content, Rest::Document* Node)
+			{
+				NMake::Pack(Node->SetDocument("diffuse"), Diffuse);
+				NMake::Pack(Node->SetDocument("position"), Position);
+				NMake::Pack(Node->SetDocument("velocity"), Velocity);
+				NMake::Pack(Node->SetDocument("spawner"), Spawner);
+				NMake::Pack(Node->SetDocument("noisiness"), Noisiness);
+				NMake::Pack(Node->SetDocument("rotation-speed"), RotationSpeed);
+				NMake::Pack(Node->SetDocument("scale-speed"), ScaleSpeed);
+				NMake::Pack(Node->SetDocument("simulate"), Simulate);
+			}
+			void EmitterAnimator::Awake(Component* New)
+			{
+				Base = Parent->GetComponent<Emitter>();
+				SetActive(Base != nullptr);
+			}
+			void EmitterAnimator::Synchronize(Rest::Timer* Time)
+			{
+				if (!Base || !Base->GetBuffer())
+					return;
+
+				Rest::Pool<Compute::ElementVertex>* Array = Base->GetBuffer()->GetArray();
+				for (int i = 0; i < Spawner.Iterations; i++)
+				{
+					if (Array->Size() >= Array->Capacity())
+						continue;
+
+					Compute::Vector3 FPosition = (Base->Connected ? Spawner.Position.Generate() : Spawner.Position.Generate() + Parent->Transform->Position.InvertZ());
+					Compute::Vector3 FVelocity = Spawner.Velocity.Generate();
+					Compute::Vector4 FDiffusion = Spawner.Diffusion.Generate();
+
+					Compute::ElementVertex Element;
+					Element.PositionX = FPosition.X;
+					Element.PositionY = FPosition.Y;
+					Element.PositionZ = FPosition.Z;
+					Element.VelocityX = FVelocity.X;
+					Element.VelocityY = FVelocity.Y;
+					Element.VelocityZ = FVelocity.Z;
+					Element.ColorX = FDiffusion.X;
+					Element.ColorY = FDiffusion.Y;
+					Element.ColorZ = FDiffusion.Z;
+					Element.ColorW = FDiffusion.W;
+					Element.Angular = Spawner.Angular.Generate();
+					Element.Rotation = Spawner.Rotation.Generate();
+					Element.Scale = Spawner.Scale.Generate();
+					Array->Add(Element);
+				}
+
+				if (!Simulate)
+					return;
+
+				float DeltaTime = (float)Time->GetDeltaTime();
+				if (Noisiness != 0.0f)
+					AccurateSynchronization(DeltaTime);
+				else
+					FastSynchronization(DeltaTime);
+			}
+			void EmitterAnimator::AccurateSynchronization(float DeltaTime)
+			{
+				Rest::Pool<Compute::ElementVertex>* Array = Base->GetBuffer()->GetArray();
+				float L = Velocity.Length();
+
+				for (auto It = Array->Begin(); It != Array->End(); It++)
+				{
+					Compute::Vector3 Noise = Spawner.Noise.Generate() / Noisiness;
+					It->PositionX += (It->VelocityX + Position.X + Noise.X) * DeltaTime;
+					It->PositionY += (It->VelocityY + Position.Y + Noise.Y) * DeltaTime;
+					It->PositionZ += (It->VelocityZ + Position.Z + Noise.Z) * DeltaTime;
+					It->ColorX += Diffuse.X * DeltaTime;
+					It->ColorY += Diffuse.Y * DeltaTime;
+					It->ColorZ += Diffuse.Z * DeltaTime;
+					It->ColorW += Diffuse.W * DeltaTime;
+					It->Scale += ScaleSpeed * DeltaTime;
+					It->Rotation += (It->Angular + RotationSpeed) * DeltaTime;
+
+					if (L > 0)
+					{
+						It->VelocityX -= (It->VelocityX / Velocity.X) * DeltaTime;
+						It->VelocityY -= (It->VelocityY / Velocity.Y) * DeltaTime;
+						It->VelocityZ -= (It->VelocityZ / Velocity.Z) * DeltaTime;
+					}
+
+					if (It->ColorW <= 0 || It->Scale <= 0)
+					{
+						Array->RemoveAt(It);
+						It--;
+					}
+				}
+			}
+			void EmitterAnimator::FastSynchronization(float DeltaTime)
+			{
+				Rest::Pool<Compute::ElementVertex>* Array = Base->GetBuffer()->GetArray();
+				float L = Velocity.Length();
+
+				for (auto It = Array->Begin(); It != Array->End(); It++)
+				{
+					It->PositionX += (It->VelocityX + Position.X) * DeltaTime;
+					It->PositionY += (It->VelocityY + Position.Y) * DeltaTime;
+					It->PositionZ += (It->VelocityZ + Position.Z) * DeltaTime;
+					It->ColorX += Diffuse.X * DeltaTime;
+					It->ColorY += Diffuse.Y * DeltaTime;
+					It->ColorZ += Diffuse.Z * DeltaTime;
+					It->ColorW += Diffuse.W * DeltaTime;
+					It->Scale += ScaleSpeed * DeltaTime;
+					It->Rotation += (It->Angular + RotationSpeed) * DeltaTime;
+
+					if (L > 0)
+					{
+						It->VelocityX -= (It->VelocityX / Velocity.X) * DeltaTime;
+						It->VelocityY -= (It->VelocityY / Velocity.Y) * DeltaTime;
+						It->VelocityZ -= (It->VelocityZ / Velocity.Z) * DeltaTime;
+					}
+
+					if (It->ColorW <= 0 || It->Scale <= 0)
+					{
+						Array->RemoveAt(It);
+						It--;
+					}
+				}
+			}
+			Component* EmitterAnimator::Copy(Entity* New)
+			{
+				EmitterAnimator* Target = new EmitterAnimator(New);
+				Target->Diffuse = Diffuse;
+				Target->Position = Position;
+				Target->Velocity = Velocity;
+				Target->ScaleSpeed = ScaleSpeed;
+				Target->RotationSpeed = RotationSpeed;
+				Target->Spawner = Spawner;
+				Target->Noisiness = Noisiness;
+				Target->Simulate = Simulate;
+
+				return Target;
+			}
+			Emitter* EmitterAnimator::GetEmitter() const
+			{
+				return Base;
+			}
+
+			RigidBody::RigidBody(Entity* Ref) : Component(Ref)
+			{
+				Hull = nullptr;
+				Instance = nullptr;
+				Kinematic = false;
+				Manage = true;
+			}
+			RigidBody::~RigidBody()
+			{
+				delete Instance;
+			}
+			void RigidBody::Deserialize(ContentManager* Content, Rest::Document* Node)
+			{
+				bool Extended;
+				NMake::Unpack(Node->Find("extended"), &Extended);
+				NMake::Unpack(Node->Find("kinematic"), &Kinematic);
+				NMake::Unpack(Node->Find("manage"), &Manage);
+				if (!Extended)
+					return;
+
+				float Mass = 0, CcdMotionThreshold = 0;
+				NMake::Unpack(Node->Find("mass"), &Mass);
+				NMake::Unpack(Node->Find("ccd-motion-threshold"), &CcdMotionThreshold);
+
+				Rest::Document* CV = nullptr;
+				if ((CV = Node->Find("shape")) != nullptr)
+				{
+					std::string Path;
+					uint64_t Type;
+					if (NMake::Unpack(Node->Find("path"), &Path))
+					{
+						auto* Shape = Content->Load<Compute::UnmanagedShape>(Path, nullptr);
+						if (Shape != nullptr)
+							Initialize(Shape->Shape, Mass, CcdMotionThreshold);
+					}
+					else if (!NMake::Unpack(CV->Find("type"), &Type))
+					{
+						std::vector<Compute::Vector3> Vertices;
+						if (NMake::Unpack(CV->Find("data"), &Vertices))
+						{
+							btCollisionShape* Shape = Parent->GetScene()->GetSimulator()->CreateConvexHull(Vertices);
+							if (Shape != nullptr)
+								Initialize(Shape, Mass, CcdMotionThreshold);
+						}
+					}
+					else
+					{
+						btCollisionShape* Shape = Parent->GetScene()->GetSimulator()->CreateShape((Compute::Shape)Type);
+						if (Shape != nullptr)
+							Initialize(Shape, Mass, CcdMotionThreshold);
+					}
+				}
+
+				if (!Instance)
+					return;
+
+				uint64_t ActivationState;
+				if (NMake::Unpack(Node->Find("activation-state"), &ActivationState))
+					Instance->SetActivationState((Compute::MotionState)ActivationState);
+
+				float AngularDamping;
+				if (NMake::Unpack(Node->Find("angular-damping"), &AngularDamping))
+					Instance->SetAngularDamping(AngularDamping);
+
+				float AngularSleepingThreshold;
+				if (NMake::Unpack(Node->Find("angular-sleeping-threshold"), &AngularSleepingThreshold))
+					Instance->SetAngularSleepingThreshold(AngularSleepingThreshold);
+
+				float Friction;
+				if (NMake::Unpack(Node->Find("friction"), &Friction))
+					Instance->SetFriction(Friction);
+
+				float Restitution;
+				if (NMake::Unpack(Node->Find("restitution"), &Restitution))
+					Instance->SetRestitution(Restitution);
+
+				float HitFraction;
+				if (NMake::Unpack(Node->Find("hit-fraction"), &HitFraction))
+					Instance->SetHitFraction(HitFraction);
+
+				float LinearDamping;
+				if (NMake::Unpack(Node->Find("linear-damping"), &LinearDamping))
+					Instance->SetLinearDamping(LinearDamping);
+
+				float LinearSleepingThreshold;
+				if (NMake::Unpack(Node->Find("linear-sleeping-threshold"), &LinearSleepingThreshold))
+					Instance->SetLinearSleepingThreshold(LinearSleepingThreshold);
+
+				float CcdSweptSphereRadius;
+				if (NMake::Unpack(Node->Find("ccd-swept-sphere-radius"), &CcdSweptSphereRadius))
+					Instance->SetCcdSweptSphereRadius(CcdSweptSphereRadius);
+
+				float ContactProcessingThreshold;
+				if (NMake::Unpack(Node->Find("contact-processing-threshold"), &ContactProcessingThreshold))
+					Instance->SetContactProcessingThreshold(ContactProcessingThreshold);
+
+				float DeactivationTime;
+				if (NMake::Unpack(Node->Find("deactivation-time"), &DeactivationTime))
+					Instance->SetDeactivationTime(DeactivationTime);
+
+				float RollingFriction;
+				if (NMake::Unpack(Node->Find("rolling-friction"), &RollingFriction))
+					Instance->SetRollingFriction(RollingFriction);
+
+				float SpinningFriction;
+				if (NMake::Unpack(Node->Find("spinning-friction"), &SpinningFriction))
+					Instance->SetSpinningFriction(SpinningFriction);
+
+				float ContactStiffness;
+				if (NMake::Unpack(Node->Find("contact-stiffness"), &ContactStiffness))
+					Instance->SetContactStiffness(ContactStiffness);
+
+				float ContactDamping;
+				if (NMake::Unpack(Node->Find("contact-damping"), &ContactDamping))
+					Instance->SetContactDamping(ContactDamping);
+
+				Compute::Vector3 AngularFactor;
+				if (NMake::Unpack(Node->Find("angular-factor"), &AngularFactor))
+					Instance->SetAngularFactor(AngularFactor);
+
+				Compute::Vector3 AngularVelocity;
+				if (NMake::Unpack(Node->Find("angular-velocity"), &AngularVelocity))
+					Instance->SetAngularVelocity(AngularVelocity);
+
+				Compute::Vector3 AnisotropicFriction;
+				if (NMake::Unpack(Node->Find("anisotropic-friction"), &AnisotropicFriction))
+					Instance->SetAnisotropicFriction(AnisotropicFriction);
+
+				Compute::Vector3 Gravity;
+				if (NMake::Unpack(Node->Find("gravity"), &Gravity))
+					Instance->SetGravity(Gravity);
+
+				Compute::Vector3 LinearFactor;
+				if (NMake::Unpack(Node->Find("linear-factor"), &LinearFactor))
+					Instance->SetLinearFactor(LinearFactor);
+
+				Compute::Vector3 LinearVelocity;
+				if (NMake::Unpack(Node->Find("linear-velocity"), &LinearVelocity))
+					Instance->SetLinearVelocity(LinearVelocity);
+
+				uint64_t CollisionFlags;
+				if (NMake::Unpack(Node->Find("collision-flags"), &CollisionFlags))
+					Instance->SetCollisionFlags(CollisionFlags);
+			}
+			void RigidBody::Serialize(ContentManager* Content, Rest::Document* Node)
+			{
+				NMake::Pack(Node->SetDocument("kinematic"), Kinematic);
+				NMake::Pack(Node->SetDocument("manage"), Manage);
+				NMake::Pack(Node->SetDocument("extended"), Instance != nullptr);
+				if (!Instance)
+					return;
+
+				Rest::Document* CV = Node->SetDocument("shape");
+				if (Instance->GetCollisionShapeType() == Compute::Shape_Convex_Hull)
+				{
+					AssetResource* Asset = Content->FindAsset(Hull);
+					if (!Asset || !Hull)
+					{
+						std::vector<Compute::Vector3> Vertices = Parent->GetScene()->GetSimulator()->GetShapeVertices(Instance->GetCollisionShape());
+						NMake::Pack(CV->SetDocument("data"), Vertices);
+					}
+					else
+						NMake::Pack(CV->SetDocument("path"), Asset->Path);
+				}
+				else
+					NMake::Pack(CV->SetDocument("type"), (uint64_t)Instance->GetCollisionShapeType());
+
+				NMake::Pack(Node->SetDocument("mass"), Instance->GetMass());
+				NMake::Pack(Node->SetDocument("ccd-motion-threshold"), Instance->GetCcdMotionThreshold());
+				NMake::Pack(Node->SetDocument("activation-state"), (uint64_t)Instance->GetActivationState());
+				NMake::Pack(Node->SetDocument("angular-damping"), Instance->GetAngularDamping());
+				NMake::Pack(Node->SetDocument("angular-sleeping-threshold"), Instance->GetAngularSleepingThreshold());
+				NMake::Pack(Node->SetDocument("friction"), Instance->GetFriction());
+				NMake::Pack(Node->SetDocument("restitution"), Instance->GetRestitution());
+				NMake::Pack(Node->SetDocument("hit-fraction"), Instance->GetHitFraction());
+				NMake::Pack(Node->SetDocument("linear-damping"), Instance->GetLinearDamping());
+				NMake::Pack(Node->SetDocument("linear-sleeping-threshold"), Instance->GetLinearSleepingThreshold());
+				NMake::Pack(Node->SetDocument("ccd-swept-sphere-radius"), Instance->GetCcdSweptSphereRadius());
+				NMake::Pack(Node->SetDocument("contact-processing-threshold"), Instance->GetContactProcessingThreshold());
+				NMake::Pack(Node->SetDocument("deactivation-time"), Instance->GetDeactivationTime());
+				NMake::Pack(Node->SetDocument("rolling-friction"), Instance->GetRollingFriction());
+				NMake::Pack(Node->SetDocument("spinning-friction"), Instance->GetSpinningFriction());
+				NMake::Pack(Node->SetDocument("contact-stiffness"), Instance->GetContactStiffness());
+				NMake::Pack(Node->SetDocument("contact-damping"), Instance->GetContactDamping());
+				NMake::Pack(Node->SetDocument("angular-factor"), Instance->GetAngularFactor());
+				NMake::Pack(Node->SetDocument("angular-velocity"), Instance->GetAngularVelocity());
+				NMake::Pack(Node->SetDocument("anisotropic-friction"), Instance->GetAnisotropicFriction());
+				NMake::Pack(Node->SetDocument("gravity"), Instance->GetGravity());
+				NMake::Pack(Node->SetDocument("linear-factor"), Instance->GetLinearFactor());
+				NMake::Pack(Node->SetDocument("linear-velocity"), Instance->GetLinearVelocity());
+				NMake::Pack(Node->SetDocument("collision-flags"), (uint64_t)Instance->GetCollisionFlags());
+			}
+			void RigidBody::Synchronize(Rest::Timer* Time)
+			{
+				if (Instance && Manage)
+					Instance->Synchronize(Parent->Transform, Kinematic);
+			}
+			void RigidBody::Asleep()
+			{
+				if (Instance != nullptr)
+					Instance->SetAsGhost();
+			}
+			void RigidBody::Initialize(btCollisionShape* Shape, float Mass, float Anticipation)
+			{
+				if (!Shape || !Parent || !Parent->GetScene() || !Parent->GetScene()->GetSimulator())
+					return;
+
+				Parent->GetScene()->Lock();
+				delete Instance;
+
+				Compute::RigidBody::Desc I;
+				I.Anticipation = Anticipation;
+				I.Mass = Mass;
+				I.Shape = Shape;
+
+				Instance = Parent->GetScene()->GetSimulator()->CreateRigidBody(I, Parent->Transform);
+				Instance->UserPointer = this;
+				Instance->SetActivity(true);
+				Parent->GetScene()->Unlock();
+			}
+			void RigidBody::Initialize(ContentManager* Content, const std::string& Path, float Mass, float Anticipation)
+			{
+				if (Content != nullptr)
+				{
+					Hull = Content->Load<Compute::UnmanagedShape>(Path, nullptr);
+					if (Hull != nullptr)
+						Initialize(Hull->Shape, Mass, Anticipation);
+				}
+			}
+			void RigidBody::Clear()
+			{
+				if (!Instance || !Parent || !Parent->GetScene() || !Parent->GetScene()->GetSimulator())
+					return;
+
+				Parent->GetScene()->Lock();
+				delete Instance;
+				Instance = nullptr;
+				Parent->GetScene()->Unlock();
+			}
+			void RigidBody::SetTransform(const Compute::Vector3& Position, const Compute::Vector3& Scale, const Compute::Vector3& Rotation)
+			{
+				if (!Instance)
+					return;
+
+				if (Parent && Parent->GetScene())
+					Parent->GetScene()->Lock();
+
+				Parent->Transform->SetTransform(Compute::TransformSpace_Global, Position, Scale, Rotation);
+				Instance->Synchronize(Parent->Transform, true);
+				Instance->SetActivity(true);
+
+				if (Parent && Parent->GetScene())
+					Parent->GetScene()->Unlock();
+			}
+			void RigidBody::SetTransform(bool Kinematics)
+			{
+				if (!Instance)
+					return;
+
+				if (Parent && Parent->GetScene())
+					Parent->GetScene()->Lock();
+
+				Instance->Synchronize(Parent->Transform, Kinematics);
+				Instance->SetActivity(true);
+
+				if (Parent && Parent->GetScene())
+					Parent->GetScene()->Unlock();
+			}
+			void RigidBody::SetMass(float Mass)
+			{
+				if (!Parent || !Parent->GetScene() || !Instance)
+					return;
+
+				Parent->GetScene()->Lock();
+				Instance->SetMass(Mass);
+				Parent->GetScene()->Unlock();
+			}
+			Component* RigidBody::Copy(Entity* New)
+			{
+				RigidBody* Target = new RigidBody(New);
+				Target->Kinematic = Kinematic;
+
+				if (Instance != nullptr)
+				{
+					Target->Instance = Instance->Copy();
+					Target->Instance->UserPointer = Target;
+				}
+
+				return Target;
+			}
+			Compute::RigidBody* RigidBody::GetBody() const
+			{
+				return Instance;
+			}
+
 			Acceleration::Acceleration(Entity* Ref) : Component(Ref)
 			{
 				AmplitudeVelocity = 0;
@@ -803,7 +1731,7 @@ namespace Tomahawk
 				RigidBody = nullptr;
 				Velocity = false;
 			}
-			void Acceleration::OnLoad(ContentManager* Content, Rest::Document* Node)
+			void Acceleration::Deserialize(ContentManager* Content, Rest::Document* Node)
 			{
 				NMake::Unpack(Node->Find("amplitude-velocity"), &AmplitudeVelocity);
 				NMake::Unpack(Node->Find("amplitude-torque"), &AmplitudeTorque);
@@ -812,7 +1740,7 @@ namespace Tomahawk
 				NMake::Unpack(Node->Find("constant-center"), &ConstantCenter);
 				NMake::Unpack(Node->Find("velocity"), &Velocity);
 			}
-			void Acceleration::OnSave(ContentManager* Content, Rest::Document* Node)
+			void Acceleration::Serialize(ContentManager* Content, Rest::Document* Node)
 			{
 				NMake::Pack(Node->SetDocument("amplitude-velocity"), AmplitudeVelocity);
 				NMake::Pack(Node->SetDocument("amplitude-torque"), AmplitudeTorque);
@@ -821,7 +1749,7 @@ namespace Tomahawk
 				NMake::Pack(Node->SetDocument("constant-center"), ConstantCenter);
 				NMake::Pack(Node->SetDocument("velocity"), Velocity);
 			}
-			void Acceleration::OnAwake(Component* New)
+			void Acceleration::Awake(Component* New)
 			{
 				if (RigidBody)
 					return;
@@ -830,7 +1758,7 @@ namespace Tomahawk
 				if (Component != nullptr)
 					RigidBody = Component->GetBody();
 			}
-			void Acceleration::OnSynchronize(Rest::Timer* Time)
+			void Acceleration::Synchronize(Rest::Timer* Time)
 			{
 				if (!RigidBody)
 					return;
@@ -879,7 +1807,7 @@ namespace Tomahawk
 				else if (AmplitudeTorque.Z > 0 && Torque.Z < -AmplitudeTorque.Z)
 					ConstantTorque.Z = ACT.Z;
 			}
-			Component* Acceleration::OnClone(Entity* New)
+			Component* Acceleration::Copy(Entity* New)
 			{
 				Acceleration* Target = new Acceleration(New);
 				Target->Velocity = Velocity;
@@ -904,7 +1832,7 @@ namespace Tomahawk
 			{
 				delete Instance;
 			}
-			void SliderConstraint::OnLoad(ContentManager* Content, Rest::Document* Node)
+			void SliderConstraint::Deserialize(ContentManager* Content, Rest::Document* Node)
 			{
 				bool Extended;
 				NMake::Unpack(Node->Find("extended"), &Extended);
@@ -1042,7 +1970,7 @@ namespace Tomahawk
 				if (NMake::Unpack(Node->Find("enabled"), &Enabled))
 					Instance->SetEnabled(Enabled);
 			}
-			void SliderConstraint::OnSave(ContentManager* Content, Rest::Document* Node)
+			void SliderConstraint::Serialize(ContentManager* Content, Rest::Document* Node)
 			{
 				NMake::Pack(Node->SetDocument("extended"), Instance != nullptr);
 				if (!Instance)
@@ -1122,7 +2050,7 @@ namespace Tomahawk
 				Connection = nullptr;
 				Parent->GetScene()->Unlock();
 			}
-			Component* SliderConstraint::OnClone(Entity* New)
+			Component* SliderConstraint::Copy(Entity* New)
 			{
 				SliderConstraint* Target = new SliderConstraint(New);
 				Target->Connection = Connection;
@@ -1153,6 +2081,135 @@ namespace Tomahawk
 				return Connection;
 			}
 
+			FreeLook::FreeLook(Entity* Ref) : Component(Ref), Activity(nullptr), Rotate(Graphics::KeyCode_CURSORRIGHT), Sensitivity(0.005f)
+			{
+			}
+			void FreeLook::Awake(Component* New)
+			{
+				Application* App = Application::Get();
+				if (App == nullptr)
+					return SetActive(false);
+
+				Activity = App->Activity;
+				SetActive(Activity != nullptr);
+			}
+			void FreeLook::Update(Rest::Timer* Time)
+			{
+				if (!Activity)
+					return;
+
+				if (Activity->IsKeyDown(Rotate))
+				{
+					Compute::Vector2 Cursor = Activity->GetGlobalCursorPosition();
+					if (!Activity->IsKeyDownHit(Rotate))
+					{
+						float X = (Cursor.Y - Position.Y) * Sensitivity;
+						float Y = (Cursor.X - Position.X) * Sensitivity;
+						Parent->Transform->Rotation += Compute::Vector3(X, Y);
+						Parent->Transform->Rotation.X = Compute::Math<float>::Clamp(Parent->Transform->Rotation.X, -1.57079632679f, 1.57079632679f);
+					}
+					else
+						Position = Cursor;
+
+					if ((int)Cursor.X != (int)Position.X || (int)Cursor.Y != (int)Position.Y)
+						Activity->SetGlobalCursorPosition(Position);
+				}
+			}
+			Component* FreeLook::Copy(Entity* New)
+			{
+				FreeLook* Target = new FreeLook(New);
+				Target->Activity = Activity;
+				Target->Position = Position;
+				Target->Rotate = Rotate;
+				Target->Sensitivity = Sensitivity;
+
+				return Target;
+			}
+			Graphics::Activity* FreeLook::GetActivity() const
+			{
+				return Activity;
+			}
+
+			Fly::Fly(Entity* Ref) : Component(Ref), Activity(nullptr)
+			{
+				SpeedNormal = 1.2f;
+				SpeedUp = 2.6f;
+				SpeedDown = 0.25f;
+				Forward = Graphics::KeyCode_W;
+				Backward = Graphics::KeyCode_S;
+				Right = Graphics::KeyCode_D;
+				Left = Graphics::KeyCode_A;
+				Up = Graphics::KeyCode_SPACE;
+				Down = Graphics::KeyCode_Z;
+				Fast = Graphics::KeyCode_LSHIFT;
+				Slow = Graphics::KeyCode_LCTRL;
+				Axis = Compute::Vector3(1, 1, -1);
+			}
+			void Fly::Awake(Component* New)
+			{
+				Application* App = Application::Get();
+				if (App == nullptr)
+					return SetActive(false);
+
+				Activity = App->Activity;
+				SetActive(Activity != nullptr);
+			}
+			void Fly::Update(Rest::Timer* Time)
+			{
+				if (!Activity)
+					return;
+
+				float DeltaTime = (float)Time->GetDeltaTime();
+				Compute::Vector3 Speed = Axis * DeltaTime * SpeedNormal;
+
+				if (Activity->IsKeyDown(Fast))
+					Speed = Axis * DeltaTime * SpeedUp;
+
+				if (Activity->IsKeyDown(Slow))
+					Speed = Axis * DeltaTime * SpeedDown;
+
+				if (Activity->IsKeyDown(Forward))
+					Parent->Transform->Position += Parent->Transform->Forward() * Speed;
+
+				if (Activity->IsKeyDown(Backward))
+					Parent->Transform->Position -= Parent->Transform->Forward() * Speed;
+
+				if (Activity->IsKeyDown(Right))
+					Parent->Transform->Position += Parent->Transform->Right() * Speed;
+
+				if (Activity->IsKeyDown(Left))
+					Parent->Transform->Position -= Parent->Transform->Right() * Speed;
+
+				if (Activity->IsKeyDown(Up))
+					Parent->Transform->Position += Parent->Transform->Up() * Speed;
+
+				if (Activity->IsKeyDown(Down))
+					Parent->Transform->Position -= Parent->Transform->Up() * Speed;
+			}
+			Component* Fly::Copy(Entity* New)
+			{
+				Fly* Target = new Fly(New);
+				Target->Activity = Activity;
+				Target->Forward = Forward;
+				Target->Backward = Backward;
+				Target->Right = Right;
+				Target->Left = Left;
+				Target->Up = Up;
+				Target->Down = Down;
+				Target->Fast = Fast;
+				Target->Slow = Slow;
+				Target->Axis = Axis;
+				Target->SpeedNormal = SpeedNormal;
+				Target->SpeedUp = SpeedUp;
+				Target->SpeedDown = SpeedDown;
+
+				return Target;
+			}
+			Graphics::Activity* Fly::GetActivity() const
+			{
+				return Activity;
+			}
+
 			AudioSource::AudioSource(Entity* Ref) : Component(Ref)
 			{
 				Source = new Audio::AudioSource();
@@ -1161,7 +2218,7 @@ namespace Tomahawk
 			{
 				delete Source;
 			}
-			void AudioSource::OnLoad(ContentManager* Content, Rest::Document* Node)
+			void AudioSource::Deserialize(ContentManager* Content, Rest::Document* Node)
 			{
 				std::string Path;
 				if (NMake::Unpack(Node->Find("audio-clip"), &Path))
@@ -1227,7 +2284,7 @@ namespace Tomahawk
 					if (!Meta)
 						Meta = Effect->SetDocument("metadata");
 
-					Target->OnDeserialize(Meta);
+					Target->Deserialize(Meta);
 					Source->AddEffect(Target);
 				}
 
@@ -1236,9 +2293,9 @@ namespace Tomahawk
 					Source->Play();
 
 				ApplyPlayingPosition();
-				OnSynchronize(nullptr);
+				Synchronize(nullptr);
 			}
-			void AudioSource::OnSave(ContentManager* Content, Rest::Document* Node)
+			void AudioSource::Serialize(ContentManager* Content, Rest::Document* Node)
 			{
 				AssetResource* Asset = Content->FindAsset(Source->GetClip());
 				if (Asset != nullptr)
@@ -1252,7 +2309,7 @@ namespace Tomahawk
 
 					Rest::Document* Element = Effects->SetDocument("effect");
 					NMake::Pack(Element->SetDocument("id"), Effect->Id());
-					Effect->OnSerialize(Element->SetDocument("metadata"));
+					Effect->Serialize(Element->SetDocument("metadata"));
 				}
 
 				NMake::Pack(Node->SetDocument("velocity"), Sync.Velocity);
@@ -1273,7 +2330,7 @@ namespace Tomahawk
 				NMake::Pack(Node->SetDocument("air-absorption"), Sync.AirAbsorption);
 				NMake::Pack(Node->SetDocument("room-roll-off"), Sync.RoomRollOff);
 			}
-			void AudioSource::OnSynchronize(Rest::Timer* Time)
+			void AudioSource::Synchronize(Rest::Timer* Time)
 			{
 				if (Time != nullptr && Time->GetDeltaTime() > 0.0)
 				{
@@ -1288,7 +2345,7 @@ namespace Tomahawk
 			{
 				Audio::AudioContext::SetSourceData1F(Source->GetInstance(), Audio::SoundEx_Seconds_Offset, Sync.Position);
 			}
-			Component* AudioSource::OnClone(Entity* New)
+			Component* AudioSource::Copy(Entity* New)
 			{
 				AudioSource* Target = new AudioSource(New);
 				Target->LastPosition = LastPosition;
@@ -1298,7 +2355,7 @@ namespace Tomahawk
 				for (auto* Effect : *Source->GetEffects())
 				{
 					if (Effect != nullptr)
-						Target->Source->AddEffect(Effect->OnCopy());
+						Target->Source->AddEffect(Effect->Copy());
 				}
 
 				return Target;
@@ -1318,17 +2375,17 @@ namespace Tomahawk
 			}
 			AudioListener::~AudioListener()
 			{
-				OnAsleep();
+				Asleep();
 			}
-			void AudioListener::OnLoad(ContentManager* Content, Rest::Document* Node)
+			void AudioListener::Deserialize(ContentManager* Content, Rest::Document* Node)
 			{
 				NMake::Unpack(Node->Find("gain"), &Gain);
 			}
-			void AudioListener::OnSave(ContentManager* Content, Rest::Document* Node)
+			void AudioListener::Serialize(ContentManager* Content, Rest::Document* Node)
 			{
 				NMake::Pack(Node->SetDocument("gain"), Gain);
 			}
-			void AudioListener::OnSynchronize(Rest::Timer* Time)
+			void AudioListener::Synchronize(Rest::Timer* Time)
 			{
 				Compute::Vector3 Velocity;
 				if (Time != nullptr && Time->GetDeltaTime() > 0.0)
@@ -1345,7 +2402,7 @@ namespace Tomahawk
 				Audio::AudioContext::SetListenerDataVF(Audio::SoundEx_Orientation, LookAt);
 				Audio::AudioContext::SetListenerData1F(Audio::SoundEx_Gain, Gain);
 			}
-			void AudioListener::OnAsleep()
+			void AudioListener::Asleep()
 			{
 				float LookAt[6] = { 0.0f, 0.0f, 0.0f, 0.0f, 1.0f, 0.0f };
 
@@ -1354,1019 +2411,13 @@ namespace Tomahawk
 				Audio::AudioContext::SetListenerDataVF(Audio::SoundEx_Orientation, LookAt);
 				Audio::AudioContext::SetListenerData1F(Audio::SoundEx_Gain, 0.0f);
 			}
-			Component* AudioListener::OnClone(Entity* New)
+			Component* AudioListener::Copy(Entity* New)
 			{
 				AudioListener* Target = new AudioListener(New);
 				Target->LastPosition = LastPosition;
 				Target->Gain = Gain;
 
 				return Target;
-			}
-
-			SkinAnimator::SkinAnimator(Entity* Ref) : Component(Ref)
-			{
-				Current.resize(96);
-				Bind.resize(96);
-				Default.resize(96);
-			}
-			SkinAnimator::~SkinAnimator()
-			{
-			}
-			void SkinAnimator::OnLoad(ContentManager* Content, Rest::Document* Node)
-			{
-				std::string Path;
-				if (!NMake::Unpack(Node->Find("path"), &Path))
-					NMake::Unpack(Node->Find("animation"), &Clips);
-				else
-					GetAnimation(Content, Path);
-
-				NMake::Unpack(Node->Find("state"), &State);
-				NMake::Unpack(Node->Find("bind"), &Bind);
-				NMake::Unpack(Node->Find("current"), &Current);
-			}
-			void SkinAnimator::OnSave(ContentManager* Content, Rest::Document* Node)
-			{
-				if (Reference.empty())
-					NMake::Pack(Node->SetDocument("animation"), Clips);
-				else
-					NMake::Pack(Node->SetDocument("path"), Reference);
-
-				NMake::Pack(Node->SetDocument("state"), State);
-				NMake::Pack(Node->SetDocument("bind"), Bind);
-				NMake::Pack(Node->SetDocument("current"), Current);
-			}
-			void SkinAnimator::OnAwake(Component* New)
-			{
-				Components::SkinModel* Model = Parent->GetComponent<Components::SkinModel>();
-				if (Model != nullptr && Model->GetDrawable() != nullptr)
-				{
-					Instance = Model;
-					Instance->Skeleton.GetPose(Instance->GetDrawable(), &Default);
-				}
-				else
-					Instance = nullptr;
-
-				SetActive(Instance != nullptr);
-			}
-			void SkinAnimator::OnSynchronize(Rest::Timer* Time)
-			{
-				Compute::Vector3& Position = *Parent->Transform->GetLocalPosition();
-				Compute::Vector3& Rotation = *Parent->Transform->GetLocalRotation();
-				Compute::Vector3& Scale = *Parent->Transform->GetLocalScale();
-
-				if (!State.Blended)
-				{
-					if (State.Paused || State.Clip < 0 || State.Clip >= Clips.size() || State.Frame < 0 || State.Frame >= Clips[State.Clip].Keys.size())
-						return;
-
-					Compute::SkinAnimatorClip* Clip = &Clips[State.Clip];
-					std::vector<Compute::AnimatorKey>& NextKey = Clip->Keys[State.Frame + 1 >= Clip->Keys.size() ? 0 : State.Frame + 1];
-					std::vector<Compute::AnimatorKey>& PrevKey = Clip->Keys[State.Frame];
-					State.Time = Compute::Math<float>::Min(State.Time + State.Speed * (float)Time->GetDeltaTime() / State.Length, State.Length);
-					float Timing = Compute::Math<float>::Min(State.Time / State.Length, 1.0f);
-
-					for (auto&& Pose : Instance->Skeleton.Pose)
-					{
-						Compute::AnimatorKey* Prev = &PrevKey[Pose.first];
-						Compute::AnimatorKey* Next = &NextKey[Pose.first];
-						Compute::AnimatorKey* Set = &Current[Pose.first];
-
-						Set->Position = Prev->Position.Lerp(Next->Position, Timing);
-						Pose.second.Position = Set->Position;
-
-						Set->Rotation = Prev->Rotation.AngularLerp(Next->Rotation, Timing);
-						Pose.second.Rotation = Set->Rotation;
-					}
-
-					if (State.Time >= State.Length)
-					{
-						if (State.Frame + 1 >= Clip->Keys.size())
-						{
-							if (!State.Looped)
-								BlendAnimation(-1, -1);
-
-							State.Frame = -1;
-						}
-
-						State.Time = 0.0f;
-						if (State.Looped || State.Frame != -1)
-							State.Frame++;
-					}
-				}
-				else if (State.Time < State.Length)
-				{
-					std::vector<Compute::AnimatorKey>* Key = GetFrame(State.Clip, State.Frame);
-					if (!Key)
-						Key = &Bind;
-
-					State.Time = Compute::Math<float>::Min(State.Time + State.Speed * (float)Time->GetDeltaTime() / State.Length, State.Length);
-					float Timing = Compute::Math<float>::Min(State.Time / State.Length, 1.0f);
-
-					for (auto&& Pose : Instance->Skeleton.Pose)
-					{
-						Compute::AnimatorKey* Prev = &Current[Pose.first];
-						Compute::AnimatorKey* Next = &Key->at(Pose.first);
-
-						Pose.second.Position = Prev->Position.Lerp(Next->Position, Timing);
-						Pose.second.Rotation = Prev->Rotation.AngularLerp(Next->Rotation, Timing);
-					}
-				}
-				else
-				{
-					State.Blended = false;
-					State.Time = 0.0f;
-				}
-			}
-			void SkinAnimator::BlendAnimation(int64_t Clip, int64_t Frame_)
-			{
-				State.Blended = true;
-				State.Time = 0.0f;
-				State.Frame = Frame_;
-				State.Clip = Clip;
-
-				if (State.Clip >= 0 && State.Clip < Clips.size())
-				{
-					Compute::SkinAnimatorClip* CurrentClip = &Clips[State.Clip];
-					if (State.Frame < 0 || State.Frame >= CurrentClip->Keys.size())
-						State.Frame = -1;
-				}
-				else
-					State.Clip = -1;
-			}
-			bool SkinAnimator::GetAnimation(ContentManager* Content, const std::string& Path)
-			{
-				if (!Content)
-					return false;
-
-				Rest::Document* Result = Content->Load<Rest::Document>(Path, nullptr);
-				if (!Result)
-					return false;
-
-				ClearAnimation();
-				if (NMake::Unpack(Result, &Clips))
-					Reference = Path;
-
-				delete Result;
-				return true;
-			}
-			void SkinAnimator::ClearAnimation()
-			{
-				Reference.clear();
-				Clips.clear();
-			}
-			void SkinAnimator::SavePose()
-			{
-				for (auto&& Pose : Instance->Skeleton.Pose)
-				{
-					Compute::AnimatorKey* Frame = &Bind[Pose.first];
-					Frame->Position = Pose.second.Position;
-					Frame->Rotation = Pose.second.Rotation;
-				}
-			}
-			void SkinAnimator::Stop()
-			{
-				Bind = Default;
-				State.Paused = false;
-				BlendAnimation(-1, -1);
-			}
-			void SkinAnimator::Pause()
-			{
-				State.Paused = true;
-			}
-			void SkinAnimator::Play(int64_t Clip, int64_t Frame_)
-			{
-				if (State.Paused)
-				{
-					State.Paused = false;
-					return;
-				}
-
-				State.Time = 0.0f;
-				State.Frame = (Frame_ == -1 ? 0 : Frame_);
-				State.Clip = (Clip == -1 ? 0 : Clip);
-
-				if (State.Clip >= 0 && State.Clip < Clips.size())
-				{
-					Compute::SkinAnimatorClip* CurrentClip = &Clips[State.Clip];
-					if (State.Frame < 0 || State.Frame >= CurrentClip->Keys.size())
-						State.Frame = -1;
-				}
-				else
-					State.Clip = -1;
-
-				SavePose();
-				Current = Bind;
-				if (!IsPosed(State.Clip, State.Frame))
-					BlendAnimation(State.Clip, State.Frame);
-			}
-			bool SkinAnimator::IsPosed(int64_t Clip, int64_t Frame_)
-			{
-				std::vector<Compute::AnimatorKey>* Key = GetFrame(Clip, Frame_);
-				if (!Key)
-					Key = &Bind;
-
-				for (auto&& Pose : Instance->Skeleton.Pose)
-				{
-					Compute::AnimatorKey* Frame = &Key->at(Pose.first);
-					if (Pose.second.Position != Frame->Position || Pose.second.Rotation != Frame->Rotation)
-						return false;
-				}
-
-				return true;
-			}
-			std::vector<Compute::AnimatorKey>* SkinAnimator::GetFrame(int64_t Clip, int64_t Frame)
-			{
-				if (Clip < 0 || Clip >= Clips.size() || Frame < 0 || Frame >= Clips[Clip].Keys.size())
-					return nullptr;
-
-				return &Clips[Clip].Keys[Frame];
-			}
-			std::vector<std::vector<Compute::AnimatorKey>>* SkinAnimator::GetClip(int64_t Clip)
-			{
-				if (Clip < 0 || Clip >= Clips.size())
-					return nullptr;
-
-				return &Clips[Clip].Keys;
-			}
-			std::string SkinAnimator::GetPath()
-			{
-				return Reference;
-			}
-			Component* SkinAnimator::OnClone(Entity* New)
-			{
-				SkinAnimator* Target = new SkinAnimator(New);
-				Target->Clips = Clips;
-				Target->State = State;
-				Target->Bind = Bind;
-				Target->Current = Current;
-
-				return Target;
-			}
-			SkinModel* SkinAnimator::GetAnimatedObject() const
-			{
-				return Instance;
-			}
-
-			KeyAnimator::KeyAnimator(Entity* Ref) : Component(Ref)
-			{
-			}
-			KeyAnimator::~KeyAnimator()
-			{
-			}
-			void KeyAnimator::OnLoad(ContentManager* Content, Rest::Document* Node)
-			{
-				std::string Path;
-				if (!NMake::Unpack(Node->Find("path"), &Path))
-					NMake::Unpack(Node->Find("animation"), &Clips);
-				else
-					GetAnimation(Content, Path);
-
-				NMake::Unpack(Node->Find("state"), &State);
-				NMake::Unpack(Node->Find("bind"), &Bind);
-				NMake::Unpack(Node->Find("current"), &Current);
-			}
-			void KeyAnimator::OnSave(ContentManager* Content, Rest::Document* Node)
-			{
-				if (Reference.empty())
-					NMake::Pack(Node->SetDocument("animation"), Clips);
-				else
-					NMake::Pack(Node->SetDocument("path"), Reference);
-
-				NMake::Pack(Node->SetDocument("state"), State);
-				NMake::Pack(Node->SetDocument("bind"), Bind);
-				NMake::Pack(Node->SetDocument("current"), Current);
-			}
-			void KeyAnimator::OnSynchronize(Rest::Timer* Time)
-			{
-				Compute::Vector3& Position = *Parent->Transform->GetLocalPosition();
-				Compute::Vector3& Rotation = *Parent->Transform->GetLocalRotation();
-				Compute::Vector3& Scale = *Parent->Transform->GetLocalScale();
-
-				if (!State.Blended)
-				{
-					if (State.Paused || State.Clip < 0 || State.Clip >= Clips.size() || State.Frame < 0 || State.Frame >= Clips[State.Clip].Keys.size())
-						return;
-
-					Compute::KeyAnimatorClip* Clip = &Clips[State.Clip];
-					Compute::AnimatorKey& NextKey = Clip->Keys[State.Frame + 1 >= Clip->Keys.size() ? 0 : State.Frame + 1];
-					Compute::AnimatorKey& PrevKey = Clip->Keys[State.Frame];
-					State.Time = Compute::Math<float>::Min(State.Time + State.Speed * PrevKey.PlayingSpeed * (float)Time->GetDeltaTime() / State.Length, State.Length);
-					float Timing = Compute::Math<float>::Min(State.Time / State.Length, 1.0f);
-
-					Position = Current.Position = PrevKey.Position.Lerp(NextKey.Position, Timing);
-					Rotation = Current.Rotation = PrevKey.Rotation.AngularLerp(NextKey.Rotation, Timing);
-					Scale = Current.Scale = PrevKey.Scale.Lerp(NextKey.Scale, Timing);
-
-					if (State.Time >= State.Length)
-					{
-						if (State.Frame + 1 >= Clip->Keys.size())
-						{
-							if (!State.Looped)
-								BlendAnimation(-1, -1);
-
-							State.Frame = -1;
-						}
-
-						State.Time = 0.0f;
-						if (State.Looped || State.Frame != -1)
-							State.Frame++;
-					}
-				}
-				else if (State.Time < State.Length)
-				{
-					Compute::AnimatorKey* Key = GetFrame(State.Clip, State.Frame);
-					if (!Key)
-						Key = &Bind;
-
-					if (State.Paused)
-						return;
-
-					State.Time = Compute::Math<float>::Min(State.Time + State.Speed * (float)Time->GetDeltaTime() / State.Length, State.Length);
-					float Timing = Compute::Math<float>::Min(State.Time / State.Length, 1.0f);
-
-					Position = Current.Position.Lerp(Key->Position, Timing);
-					Rotation = Current.Rotation.AngularLerp(Key->Rotation, Timing);
-					Scale = Current.Scale.Lerp(Key->Scale, Timing);
-				}
-				else
-				{
-					State.Blended = false;
-					State.Time = 0.0f;
-				}
-			}
-			bool KeyAnimator::GetAnimation(ContentManager* Content, const std::string& Path)
-			{
-				if (!Content)
-					return false;
-
-				Rest::Document* Result = Content->Load<Rest::Document>(Path, nullptr);
-				if (!Result)
-					return false;
-
-				ClearAnimation();
-				if (NMake::Unpack(Result, &Clips))
-					Reference = Path;
-
-				delete Result;
-				return true;
-			}
-			void KeyAnimator::ClearAnimation()
-			{
-				Reference.clear();
-				Clips.clear();
-			}
-			void KeyAnimator::BlendAnimation(int64_t Clip, int64_t Frame_)
-			{
-				State.Blended = true;
-				State.Time = 0.0f;
-				State.Frame = Frame_;
-				State.Clip = Clip;
-
-				if (State.Clip >= 0 && State.Clip < Clips.size())
-				{
-					Compute::KeyAnimatorClip* CurrentClip = &Clips[State.Clip];
-					if (State.Frame < 0 || State.Frame >= CurrentClip->Keys.size())
-						State.Frame = -1;
-				}
-				else
-					State.Clip = -1;
-			}
-			void KeyAnimator::SavePose()
-			{
-				Bind.Position = *Parent->Transform->GetLocalPosition();
-				Bind.Rotation = *Parent->Transform->GetLocalRotation();
-				Bind.Scale = *Parent->Transform->GetLocalScale();
-			}
-			void KeyAnimator::Stop()
-			{
-				State.Paused = false;
-				BlendAnimation(-1, -1);
-			}
-			void KeyAnimator::Pause()
-			{
-				State.Paused = true;
-			}
-			void KeyAnimator::Play(int64_t Clip, int64_t Frame_)
-			{
-				if (State.Paused)
-				{
-					State.Paused = false;
-					return;
-				}
-
-				State.Time = 0.0f;
-				State.Frame = (Frame_ == -1 ? 0 : Frame_);
-				State.Clip = (Clip == -1 ? 0 : Clip);
-
-				if (State.Clip >= 0 && State.Clip < Clips.size())
-				{
-					Compute::KeyAnimatorClip* CurrentClip = &Clips[State.Clip];
-					if (State.Frame < 0 || State.Frame >= CurrentClip->Keys.size())
-						State.Frame = -1;
-				}
-				else
-					State.Clip = -1;
-
-				SavePose();
-				Current = Bind;
-				if (!IsPosed(State.Clip, State.Frame))
-					BlendAnimation(State.Clip, State.Frame);
-			}
-			bool KeyAnimator::IsPosed(int64_t Clip, int64_t Frame_)
-			{
-				Compute::AnimatorKey* Key = GetFrame(Clip, Frame_);
-				if (!Key)
-					Key = &Bind;
-
-				return *Parent->Transform->GetLocalPosition() == Key->Position && *Parent->Transform->GetLocalRotation() == Key->Rotation && *Parent->Transform->GetLocalScale() == Key->Scale;
-			}
-			Compute::AnimatorKey* KeyAnimator::GetFrame(int64_t Clip, int64_t Frame)
-			{
-				if (Clip < 0 || Clip >= Clips.size() || Frame < 0 || Frame >= Clips[Clip].Keys.size())
-					return nullptr;
-
-				return &Clips[Clip].Keys[Frame];
-			}
-			std::vector<Compute::AnimatorKey>* KeyAnimator::GetClip(int64_t Clip)
-			{
-				if (Clip < 0 || Clip >= Clips.size())
-					return nullptr;
-
-				return &Clips[Clip].Keys;
-			}
-			std::string KeyAnimator::GetPath()
-			{
-				return Reference;
-			}
-			Component* KeyAnimator::OnClone(Entity* New)
-			{
-				KeyAnimator* Target = new KeyAnimator(New);
-				Target->Clips = Clips;
-				Target->State = State;
-				Target->Bind = Bind;
-				Target->Current = Current;
-
-				return Target;
-			}
-
-			ElementSystem::ElementSystem(Entity* Ref) : Drawable(Ref, false)
-			{
-				Instance = nullptr;
-				Connected = false;
-				QuadBased = false;
-				Volume = 3.0f;
-			}
-			ElementSystem::~ElementSystem()
-			{
-				if (Instance != nullptr)
-					delete Instance;
-			}
-			void ElementSystem::OnAwake(Component* New)
-			{
-				if (Instance || !Parent || !Parent->GetScene())
-					return;
-
-				Graphics::InstanceBuffer::Desc I = Graphics::InstanceBuffer::Desc();
-				I.ElementLimit = 1 << 10;
-
-				Instance = Parent->GetScene()->GetDevice()->CreateInstanceBuffer(I);
-			}
-			void ElementSystem::OnLoad(ContentManager* Content, Rest::Document* Node)
-			{
-				NMake::Unpack(Node->Find("surface"), &Surfaces.begin()->second, Content);
-				NMake::Unpack(Node->Find("quad-based"), &QuadBased);
-				NMake::Unpack(Node->Find("connected"), &Connected);
-				NMake::Unpack(Node->Find("visibility"), &Visibility);
-				NMake::Unpack(Node->Find("static"), &Static);
-				NMake::Unpack(Node->Find("volume"), &Volume);
-
-				uint64_t Limit;
-				if (!NMake::Unpack(Node->Find("limit"), &Limit))
-				{
-					std::vector<Compute::ElementVertex> Vertices;
-					if (Instance != nullptr)
-					{
-						Parent->GetScene()->GetDevice()->UpdateBufferSize(Instance, Limit);
-						if (NMake::Unpack(Node->Find("elements"), &Vertices))
-						{
-							Instance->GetArray()->Reserve(Vertices.size());
-							for (auto&& Vertex : Vertices)
-								Instance->GetArray()->Add(Vertex);
-						}
-					}
-				}
-			}
-			void ElementSystem::OnSave(ContentManager* Content, Rest::Document* Node)
-			{
-				NMake::Pack(Node->SetDocument("surface"), Surfaces.begin()->second, Content);
-				NMake::Pack(Node->SetDocument("quad-based"), QuadBased);
-				NMake::Pack(Node->SetDocument("connected"), Connected);
-				NMake::Pack(Node->SetDocument("visibility"), Visibility);
-				NMake::Pack(Node->SetDocument("static"), Static);
-				NMake::Pack(Node->SetDocument("volume"), Volume);
-
-				if (Instance != nullptr)
-				{
-					std::vector<Compute::ElementVertex> Vertices;
-					Vertices.reserve(Instance->GetArray()->Size());
-
-					for (auto It = Instance->GetArray()->Begin(); It != Instance->GetArray()->End(); It++)
-						Vertices.emplace_back(*It);
-
-					NMake::Pack(Node->SetDocument("limit"), Instance->GetElementLimit());
-					NMake::Pack(Node->SetDocument("elements"), Vertices);
-				}
-			}
-			Component* ElementSystem::OnClone(Entity* New)
-			{
-				ElementSystem* Target = new ElementSystem(New);
-				Target->Visibility = Visibility;
-				Target->Volume = Volume;
-				Target->Connected = Connected;
-				Target->Surfaces = Surfaces;
-				Target->Instance->GetArray()->Copy(*Instance->GetArray());
-
-				return Target;
-			}
-			Graphics::InstanceBuffer* ElementSystem::GetBuffer()
-			{
-				return Instance;
-			}
-
-			ElementAnimator::ElementAnimator(Entity* Ref) : Component(Ref)
-			{
-				Position = 0.0f;
-				Diffuse = 0.0f;
-				ScaleSpeed = 0.0f;
-				RotationSpeed = 0.0f;
-				Velocity = 0.0f;
-				Spawner.Scale.Max = 1;
-				Spawner.Scale.Min = 1;
-				Spawner.Rotation.Max = 0;
-				Spawner.Rotation.Min = 0;
-				Spawner.Angular.Max = 0;
-				Spawner.Angular.Min = 0;
-				Spawner.Diffusion.Min = 1;
-				Spawner.Diffusion.Max = 1;
-				Spawner.Velocity.Min = 0;
-				Spawner.Velocity.Max = 0;
-				Spawner.Position.Min = -1;
-				Spawner.Position.Max = 1;
-				Spawner.Noise.Min = -1;
-				Spawner.Noise.Max = 1;
-				Spawner.Iterations = 1;
-				Simulate = false;
-				Noisiness = 0.0f;
-				System = nullptr;
-			}
-			void ElementAnimator::OnLoad(ContentManager* Content, Rest::Document* Node)
-			{
-				NMake::Unpack(Node->Find("diffuse"), &Diffuse);
-				NMake::Unpack(Node->Find("position"), &Position);
-				NMake::Unpack(Node->Find("velocity"), &Velocity);
-				NMake::Unpack(Node->Find("spawner"), &Spawner);
-				NMake::Unpack(Node->Find("noisiness"), &Noisiness);
-				NMake::Unpack(Node->Find("rotation-speed"), &RotationSpeed);
-				NMake::Unpack(Node->Find("scale-speed"), &ScaleSpeed);
-				NMake::Unpack(Node->Find("simulate"), &Simulate);
-			}
-			void ElementAnimator::OnSave(ContentManager* Content, Rest::Document* Node)
-			{
-				NMake::Pack(Node->SetDocument("diffuse"), Diffuse);
-				NMake::Pack(Node->SetDocument("position"), Position);
-				NMake::Pack(Node->SetDocument("velocity"), Velocity);
-				NMake::Pack(Node->SetDocument("spawner"), Spawner);
-				NMake::Pack(Node->SetDocument("noisiness"), Noisiness);
-				NMake::Pack(Node->SetDocument("rotation-speed"), RotationSpeed);
-				NMake::Pack(Node->SetDocument("scale-speed"), ScaleSpeed);
-				NMake::Pack(Node->SetDocument("simulate"), Simulate);
-			}
-			void ElementAnimator::OnAwake(Component* New)
-			{
-				System = Parent->GetComponent<ElementSystem>();
-				SetActive(System != nullptr);
-			}
-			void ElementAnimator::OnSynchronize(Rest::Timer* Time)
-			{
-				if (!System || !System->GetBuffer())
-					return;
-
-				Rest::Pool<Compute::ElementVertex>* Array = System->GetBuffer()->GetArray();
-				for (int i = 0; i < Spawner.Iterations; i++)
-				{
-					if (Array->Size() >= Array->Capacity())
-						continue;
-
-					Compute::Vector3 FPosition = (System->Connected ? Spawner.Position.Generate() : Spawner.Position.Generate() + Parent->Transform->Position.InvertZ());
-					Compute::Vector3 FVelocity = Spawner.Velocity.Generate();
-					Compute::Vector4 FDiffusion = Spawner.Diffusion.Generate();
-
-					Compute::ElementVertex Element;
-					Element.PositionX = FPosition.X;
-					Element.PositionY = FPosition.Y;
-					Element.PositionZ = FPosition.Z;
-					Element.VelocityX = FVelocity.X;
-					Element.VelocityY = FVelocity.Y;
-					Element.VelocityZ = FVelocity.Z;
-					Element.ColorX = FDiffusion.X;
-					Element.ColorY = FDiffusion.Y;
-					Element.ColorZ = FDiffusion.Z;
-					Element.ColorW = FDiffusion.W;
-					Element.Angular = Spawner.Angular.Generate();
-					Element.Rotation = Spawner.Rotation.Generate();
-					Element.Scale = Spawner.Scale.Generate();
-					Array->Add(Element);
-				}
-
-				if (!Simulate)
-					return;
-
-				float DeltaTime = (float)Time->GetDeltaTime();
-				if (Noisiness != 0.0f)
-					AccurateSynchronization(DeltaTime);
-				else
-					FastSynchronization(DeltaTime);
-			}
-			void ElementAnimator::AccurateSynchronization(float DeltaTime)
-			{
-				Rest::Pool<Compute::ElementVertex>* Array = System->GetBuffer()->GetArray();
-				float L = Velocity.Length();
-
-				for (auto It = Array->Begin(); It != Array->End(); It++)
-				{
-					Compute::Vector3 Noise = Spawner.Noise.Generate() / Noisiness;
-					It->PositionX += (It->VelocityX + Position.X + Noise.X) * DeltaTime;
-					It->PositionY += (It->VelocityY + Position.Y + Noise.Y) * DeltaTime;
-					It->PositionZ += (It->VelocityZ + Position.Z + Noise.Z) * DeltaTime;
-					It->ColorX += Diffuse.X * DeltaTime;
-					It->ColorY += Diffuse.Y * DeltaTime;
-					It->ColorZ += Diffuse.Z * DeltaTime;
-					It->ColorW += Diffuse.W * DeltaTime;
-					It->Scale += ScaleSpeed * DeltaTime;
-					It->Rotation += (It->Angular + RotationSpeed) * DeltaTime;
-
-					if (L > 0)
-					{
-						It->VelocityX -= (It->VelocityX / Velocity.X) * DeltaTime;
-						It->VelocityY -= (It->VelocityY / Velocity.Y) * DeltaTime;
-						It->VelocityZ -= (It->VelocityZ / Velocity.Z) * DeltaTime;
-					}
-
-					if (It->ColorW <= 0 || It->Scale <= 0)
-					{
-						Array->RemoveAt(It);
-						It--;
-					}
-				}
-			}
-			void ElementAnimator::FastSynchronization(float DeltaTime)
-			{
-				Rest::Pool<Compute::ElementVertex>* Array = System->GetBuffer()->GetArray();
-				float L = Velocity.Length();
-
-				for (auto It = Array->Begin(); It != Array->End(); It++)
-				{
-					It->PositionX += (It->VelocityX + Position.X) * DeltaTime;
-					It->PositionY += (It->VelocityY + Position.Y) * DeltaTime;
-					It->PositionZ += (It->VelocityZ + Position.Z) * DeltaTime;
-					It->ColorX += Diffuse.X * DeltaTime;
-					It->ColorY += Diffuse.Y * DeltaTime;
-					It->ColorZ += Diffuse.Z * DeltaTime;
-					It->ColorW += Diffuse.W * DeltaTime;
-					It->Scale += ScaleSpeed * DeltaTime;
-					It->Rotation += (It->Angular + RotationSpeed) * DeltaTime;
-
-					if (L > 0)
-					{
-						It->VelocityX -= (It->VelocityX / Velocity.X) * DeltaTime;
-						It->VelocityY -= (It->VelocityY / Velocity.Y) * DeltaTime;
-						It->VelocityZ -= (It->VelocityZ / Velocity.Z) * DeltaTime;
-					}
-
-					if (It->ColorW <= 0 || It->Scale <= 0)
-					{
-						Array->RemoveAt(It);
-						It--;
-					}
-				}
-			}
-			Component* ElementAnimator::OnClone(Entity* New)
-			{
-				ElementAnimator* Target = new ElementAnimator(New);
-				Target->Diffuse = Diffuse;
-				Target->Position = Position;
-				Target->Velocity = Velocity;
-				Target->ScaleSpeed = ScaleSpeed;
-				Target->RotationSpeed = RotationSpeed;
-				Target->Spawner = Spawner;
-				Target->Noisiness = Noisiness;
-				Target->Simulate = Simulate;
-
-				return Target;
-			}
-			ElementSystem* ElementAnimator::GetSystem() const
-			{
-				return System;
-			}
-
-			FreeLook::FreeLook(Entity* Ref) : Component(Ref), Activity(nullptr), Rotate(Graphics::KeyCode_CURSORRIGHT), Sensitivity(0.005f)
-			{
-			}
-			void FreeLook::OnAwake(Component* New)
-			{
-				Application* App = Application::Get();
-				if (App == nullptr)
-					return SetActive(false);
-
-				Activity = App->Activity;
-				SetActive(Activity != nullptr);
-			}
-			void FreeLook::OnUpdate(Rest::Timer* Time)
-			{
-				if (!Activity)
-					return;
-
-				if (Activity->IsKeyDown(Rotate))
-				{
-					Compute::Vector2 Cursor = Activity->GetGlobalCursorPosition();
-					if (!Activity->IsKeyDownHit(Rotate))
-					{
-						float X = (Cursor.Y - Position.Y) * Sensitivity;
-						float Y = (Cursor.X - Position.X) * Sensitivity;
-						Parent->Transform->Rotation += Compute::Vector3(X, Y);
-						Parent->Transform->Rotation.X = Compute::Math<float>::Clamp(Parent->Transform->Rotation.X, -1.57079632679f, 1.57079632679f);
-					}
-					else
-						Position = Cursor;
-
-					if ((int)Cursor.X != (int)Position.X || (int)Cursor.Y != (int)Position.Y)
-						Activity->SetGlobalCursorPosition(Position);
-				}
-			}
-			Component* FreeLook::OnClone(Entity* New)
-			{
-				FreeLook* Target = new FreeLook(New);
-				Target->Activity = Activity;
-				Target->Position = Position;
-				Target->Rotate = Rotate;
-				Target->Sensitivity = Sensitivity;
-
-				return Target;
-			}
-			Graphics::Activity* FreeLook::GetActivity() const
-			{
-				return Activity;
-			}
-
-			Fly::Fly(Entity* Ref) : Component(Ref), Activity(nullptr)
-			{
-				SpeedNormal = 1.2f;
-				SpeedUp = 2.6f;
-				SpeedDown = 0.25f;
-				Forward = Graphics::KeyCode_W;
-				Backward = Graphics::KeyCode_S;
-				Right = Graphics::KeyCode_D;
-				Left = Graphics::KeyCode_A;
-				Up = Graphics::KeyCode_SPACE;
-				Down = Graphics::KeyCode_Z;
-				Fast = Graphics::KeyCode_LSHIFT;
-				Slow = Graphics::KeyCode_LCTRL;
-				Axis = Compute::Vector3(1, 1, -1);
-			}
-			void Fly::OnAwake(Component* New)
-			{
-				Application* App = Application::Get();
-				if (App == nullptr)
-					return SetActive(false);
-
-				Activity = App->Activity;
-				SetActive(Activity != nullptr);
-			}
-			void Fly::OnUpdate(Rest::Timer* Time)
-			{
-				if (!Activity)
-					return;
-
-				float DeltaTime = (float)Time->GetDeltaTime();
-				Compute::Vector3 Speed = Axis * DeltaTime * SpeedNormal;
-
-				if (Activity->IsKeyDown(Fast))
-					Speed = Axis * DeltaTime * SpeedUp;
-
-				if (Activity->IsKeyDown(Slow))
-					Speed = Axis * DeltaTime * SpeedDown;
-
-				if (Activity->IsKeyDown(Forward))
-					Parent->Transform->Position += Parent->Transform->Forward() * Speed;
-
-				if (Activity->IsKeyDown(Backward))
-					Parent->Transform->Position -= Parent->Transform->Forward() * Speed;
-
-				if (Activity->IsKeyDown(Right))
-					Parent->Transform->Position += Parent->Transform->Right() * Speed;
-
-				if (Activity->IsKeyDown(Left))
-					Parent->Transform->Position -= Parent->Transform->Right() * Speed;
-
-				if (Activity->IsKeyDown(Up))
-					Parent->Transform->Position += Parent->Transform->Up() * Speed;
-
-				if (Activity->IsKeyDown(Down))
-					Parent->Transform->Position -= Parent->Transform->Up() * Speed;
-			}
-			Component* Fly::OnClone(Entity* New)
-			{
-				Fly* Target = new Fly(New);
-				Target->Activity = Activity;
-				Target->Forward = Forward;
-				Target->Backward = Backward;
-				Target->Right = Right;
-				Target->Left = Left;
-				Target->Up = Up;
-				Target->Down = Down;
-				Target->Fast = Fast;
-				Target->Slow = Slow;
-				Target->Axis = Axis;
-				Target->SpeedNormal = SpeedNormal;
-				Target->SpeedUp = SpeedUp;
-				Target->SpeedDown = SpeedDown;
-
-				return Target;
-			}
-			Graphics::Activity* Fly::GetActivity() const
-			{
-				return Activity;
-			}
-
-			Model::Model(Entity* Ref) : Drawable(Ref, true)
-			{
-				Instance = nullptr;
-			}
-			void Model::OnLoad(ContentManager* Content, Rest::Document* Node)
-			{
-				std::string Path;
-				if (NMake::Unpack(Node->Find("model"), &Path))
-					Instance = Content->Load<Graphics::Model>(Path, nullptr);
-
-				std::vector<Rest::Document*> Faces = Node->FindCollectionPath("surfaces.surface");
-				for (auto&& Surface : Faces)
-				{
-					if (!Instance || !NMake::Unpack(Surface->Find("name"), &Path))
-						continue;
-
-					Graphics::MeshBuffer* Ref = Instance->Find(Path);
-					if (!Ref)
-						continue;
-
-					Appearance Face;
-					if (NMake::Unpack(Surface, &Face, Content))
-						Surfaces[Ref] = Face;
-				}
-
-				NMake::Unpack(Node->Find("visibility"), &Visibility);
-				NMake::Unpack(Node->Find("static"), &Static);
-			}
-			void Model::OnSave(ContentManager* Content, Rest::Document* Node)
-			{
-				AssetResource* Asset = Content->FindAsset(Instance);
-				if (Asset != nullptr)
-					NMake::Pack(Node->SetDocument("model"), Asset->Path);
-
-				Rest::Document* Faces = Node->SetArray("surfaces");
-				for (auto&& It : Surfaces)
-				{
-					Rest::Document* Surface = Faces->SetDocument("surface");
-					if (It.first != nullptr)
-					{
-						NMake::Pack(Surface->SetDocument("name"), ((Graphics::MeshBuffer*)It.first)->Name);
-						NMake::Pack(Surface, It.second, Content);
-					}
-				}
-
-				NMake::Pack(Node->SetDocument("visibility"), Visibility);
-				NMake::Pack(Node->SetDocument("static"), Static);
-			}
-			void Model::SetDrawable(Graphics::Model* Drawable)
-			{
-				Instance = Drawable;
-			}
-			Compute::Matrix4x4 Model::GetBoundingBox()
-			{
-				if (!Instance)
-					return Parent->Transform->GetWorld();
-
-				return Compute::Matrix4x4::Create(Parent->Transform->Position, Parent->Transform->Scale * Compute::Vector3(Instance->Min.W - Instance->Max.W).Div(2.0f).Abs(), Parent->Transform->Rotation);
-			}
-			Component* Model::OnClone(Entity* New)
-			{
-				Model* Target = new Model(New);
-				Target->Visibility = Visibility;
-				Target->Instance = Instance;
-				Target->Surfaces = Surfaces;
-
-				return Target;
-			}
-			Graphics::Model* Model::GetDrawable()
-			{
-				return Instance;
-			}
-
-			SkinModel::SkinModel(Entity* Ref) : Drawable(Ref, true)
-			{
-				Instance = nullptr;
-			}
-			void SkinModel::OnLoad(ContentManager* Content, Rest::Document* Node)
-			{
-				std::string Path;
-				if (NMake::Unpack(Node->Find("skin-model"), &Path))
-					Instance = Content->Load<Graphics::SkinModel>(Path, nullptr);
-
-				std::vector<Rest::Document*> Faces = Node->FindCollectionPath("surfaces.surface");
-				for (auto&& Surface : Faces)
-				{
-					if (!Instance || !NMake::Unpack(Surface->Find("name"), &Path))
-						continue;
-
-					Graphics::SkinMeshBuffer* Ref = Instance->FindMesh(Path);
-					if (!Ref)
-						continue;
-
-					Appearance Face;
-					if (NMake::Unpack(Surface, &Face, Content))
-						Surfaces[Ref] = Face;
-				}
-
-				std::vector<Rest::Document*> Poses = Node->FindCollectionPath("poses.pose");
-				for (auto&& Pose : Poses)
-				{
-					int64_t Index;
-					NMake::Unpack(Pose->Find("index"), &Index);
-
-					auto& Node = Skeleton.Pose[Index];
-					NMake::Unpack(Pose->Find("position"), &Node.Position);
-					NMake::Unpack(Pose->Find("rotation"), &Node.Rotation);
-				}
-
-				NMake::Unpack(Node->Find("visibility"), &Visibility);
-				NMake::Unpack(Node->Find("static"), &Static);
-			}
-			void SkinModel::OnSave(ContentManager* Content, Rest::Document* Node)
-			{
-				AssetResource* Asset = Content->FindAsset(Instance);
-				if (Asset != nullptr)
-					NMake::Pack(Node->SetDocument("skin-model"), Asset->Path);
-
-				Rest::Document* Faces = Node->SetArray("surfaces");
-				for (auto&& It : Surfaces)
-				{
-					Rest::Document* Surface = Faces->SetDocument("surface");
-					if (It.first != nullptr)
-					{
-						NMake::Pack(Surface->SetDocument("name"), ((Graphics::SkinMeshBuffer*)It.first)->Name);
-						NMake::Pack(Surface, It.second, Content);
-					}
-				}
-
-				NMake::Pack(Node->SetDocument("visibility"), Visibility);
-				NMake::Pack(Node->SetDocument("static"), Static);
-
-				Rest::Document* Poses = Node->SetArray("poses");
-				for (auto&& Pose : Skeleton.Pose)
-				{
-					Rest::Document* Value = Poses->SetDocument("pose");
-					NMake::Pack(Value->SetDocument("index"), Pose.first);
-					NMake::Pack(Value->SetDocument("position"), Pose.second.Position);
-					NMake::Pack(Value->SetDocument("rotation"), Pose.second.Rotation);
-				}
-			}
-			void SkinModel::OnSynchronize(Rest::Timer* Time)
-			{
-				if (Instance != nullptr)
-					Instance->ComputePose(&Skeleton);
-			}
-			void SkinModel::SetDrawable(Graphics::SkinModel* Drawable)
-			{
-				Instance = Drawable;
-			}
-			Compute::Matrix4x4 SkinModel::GetBoundingBox()
-			{
-				if (!Instance)
-					return Parent->Transform->GetWorld();
-
-				return Compute::Matrix4x4::Create(Parent->Transform->Position, Parent->Transform->Scale * Compute::Vector3(Instance->Min.W - Instance->Max.W).Div(2.0f).Abs(), Parent->Transform->Rotation);
-			}
-			Component* SkinModel::OnClone(Entity* New)
-			{
-				SkinModel* Target = new SkinModel(New);
-				Target->Visibility = Visibility;
-				Target->Instance = Instance;
-				Target->Surfaces = Surfaces;
-
-				return Target;
-			}
-			Graphics::SkinModel* SkinModel::GetDrawable()
-			{
-				return Instance;
 			}
 
 			PointLight::PointLight(Entity* Ref) : Component(Ref)
@@ -2377,7 +2428,7 @@ namespace Tomahawk
 				Emission = 1.0f;
 				Range = 5.0f;
 			}
-			void PointLight::OnLoad(ContentManager* Content, Rest::Document* Node)
+			void PointLight::Deserialize(ContentManager* Content, Rest::Document* Node)
 			{
 				NMake::Unpack(Node->Find("diffuse"), &Diffuse);
 				NMake::Unpack(Node->Find("visibility"), &Visibility);
@@ -2391,7 +2442,7 @@ namespace Tomahawk
 				NMake::Unpack(Node->Find("projection"), &Projection);
 				NMake::Unpack(Node->Find("view"), &View);
 			}
-			void PointLight::OnSave(ContentManager* Content, Rest::Document* Node)
+			void PointLight::Serialize(ContentManager* Content, Rest::Document* Node)
 			{
 				NMake::Pack(Node->SetDocument("diffuse"), Diffuse);
 				NMake::Pack(Node->SetDocument("visibility"), Visibility);
@@ -2405,12 +2456,12 @@ namespace Tomahawk
 				NMake::Pack(Node->SetDocument("projection"), Projection);
 				NMake::Pack(Node->SetDocument("view"), View);
 			}
-			void PointLight::OnSynchronize(Rest::Timer* Time)
+			void PointLight::Synchronize(Rest::Timer* Time)
 			{
 				Projection = Compute::Matrix4x4::CreatePerspective(90.0f, 1.0f, 0.1f, ShadowDistance);
 				View = Compute::Matrix4x4::CreateCubeMapLookAt(0, Parent->Transform->Position.InvertZ());
 			}
-			Component* PointLight::OnClone(Entity* New)
+			Component* PointLight::Copy(Entity* New)
 			{
 				PointLight* Target = new PointLight(New);
 				Target->Diffuse = Diffuse;
@@ -2450,7 +2501,7 @@ namespace Tomahawk
 				Emission = 1.0f;
 				Shadowed = false;
 			}
-			void SpotLight::OnLoad(ContentManager* Content, Rest::Document* Node)
+			void SpotLight::Deserialize(ContentManager* Content, Rest::Document* Node)
 			{
 				std::string Path;
 				if (NMake::Unpack(Node->Find("project-map"), &Path))
@@ -2469,7 +2520,7 @@ namespace Tomahawk
 				NMake::Unpack(Node->Find("emission"), &Emission);
 				NMake::Unpack(Node->Find("shadowed"), &Shadowed);
 			}
-			void SpotLight::OnSave(ContentManager* Content, Rest::Document* Node)
+			void SpotLight::Serialize(ContentManager* Content, Rest::Document* Node)
 			{
 				AssetResource* Asset = Content->FindAsset(ProjectMap);
 				if (Asset != nullptr)
@@ -2488,12 +2539,12 @@ namespace Tomahawk
 				NMake::Pack(Node->SetDocument("emission"), Emission);
 				NMake::Pack(Node->SetDocument("shadowed"), Shadowed);
 			}
-			void SpotLight::OnSynchronize(Rest::Timer* Time)
+			void SpotLight::Synchronize(Rest::Timer* Time)
 			{
 				Projection = Compute::Matrix4x4::CreatePerspective(FieldOfView, 1, 0.1f, ShadowDistance);
 				View = Compute::Matrix4x4::CreateTranslation(-Parent->Transform->Position) * Compute::Matrix4x4::CreateCameraRotation(-Parent->Transform->Rotation);
 			}
-			Component* SpotLight::OnClone(Entity* New)
+			Component* SpotLight::Copy(Entity* New)
 			{
 				SpotLight* Target = new SpotLight(New);
 				Target->Diffuse = Diffuse;
@@ -2522,7 +2573,15 @@ namespace Tomahawk
 
 			LineLight::LineLight(Entity* Ref) : Component(Ref)
 			{
-				Diffuse = Compute::Vector3(1.0, 0.8, 0.501961);
+				Diffuse = Compute::Vector3(1.0f, 1.0f, 1.0f);
+				RlhEmission = Compute::Vector3(0.0000055f, 0.000013f, 0.0000224f);
+				MieEmission = 0.000021f;
+				RlhHeight = 8000.0f;
+				MieHeight = 1200.0f;
+				ScatterIntensity = 7.0f;
+				PlanetRadius = 6371000.0f;
+				AtmosphereRadius = 6471000.0f;
+				MieDirection = 0.87f;
 				ShadowCache = nullptr;
 				Shadowed = false;
 				ShadowSoftness = 0.0f;
@@ -2534,8 +2593,16 @@ namespace Tomahawk
 				ShadowIterations = 2;
 				Emission = 1.0f;
 			}
-			void LineLight::OnLoad(ContentManager* Content, Rest::Document* Node)
+			void LineLight::Deserialize(ContentManager* Content, Rest::Document* Node)
 			{
+				NMake::Unpack(Node->Find("rlh-emission"), &RlhEmission);
+				NMake::Unpack(Node->Find("mie-emission"), &MieEmission);
+				NMake::Unpack(Node->Find("rlh-height"), &RlhHeight);
+				NMake::Unpack(Node->Find("mie-height"), &MieEmission);
+				NMake::Unpack(Node->Find("scatter-intensity"), &ScatterIntensity);
+				NMake::Unpack(Node->Find("planet-radius"), &PlanetRadius);
+				NMake::Unpack(Node->Find("atmosphere-radius"), &AtmosphereRadius);
+				NMake::Unpack(Node->Find("mie-direction"), &MieDirection);
 				NMake::Unpack(Node->Find("diffuse"), &Diffuse);
 				NMake::Unpack(Node->Find("projection"), &Projection);
 				NMake::Unpack(Node->Find("view"), &View);
@@ -2549,8 +2616,16 @@ namespace Tomahawk
 				NMake::Unpack(Node->Find("emission"), &Emission);
 				NMake::Unpack(Node->Find("shadowed"), &Shadowed);
 			}
-			void LineLight::OnSave(ContentManager* Content, Rest::Document* Node)
+			void LineLight::Serialize(ContentManager* Content, Rest::Document* Node)
 			{
+				NMake::Pack(Node->SetDocument("rlh-emission"), RlhEmission);
+				NMake::Pack(Node->SetDocument("mie-emission"), MieEmission);
+				NMake::Pack(Node->SetDocument("rlh-height"), RlhHeight);
+				NMake::Pack(Node->SetDocument("mie-height"), MieEmission);
+				NMake::Pack(Node->SetDocument("scatter-intensity"), ScatterIntensity);
+				NMake::Pack(Node->SetDocument("planet-radius"), PlanetRadius);
+				NMake::Pack(Node->SetDocument("atmosphere-radius"), AtmosphereRadius);
+				NMake::Pack(Node->SetDocument("mie-direction"), MieDirection);
 				NMake::Pack(Node->SetDocument("diffuse"), Diffuse);
 				NMake::Pack(Node->SetDocument("projection"), Projection);
 				NMake::Pack(Node->SetDocument("view"), View);
@@ -2564,12 +2639,12 @@ namespace Tomahawk
 				NMake::Pack(Node->SetDocument("emission"), Emission);
 				NMake::Pack(Node->SetDocument("shadowed"), Shadowed);
 			}
-			void LineLight::OnSynchronize(Rest::Timer* Time)
+			void LineLight::Synchronize(Rest::Timer* Time)
 			{
 				Projection = Compute::Matrix4x4::CreateOrthographic(ShadowDistance, ShadowDistance, -ShadowDistance / 2.0f - ShadowFarBias, ShadowDistance / 2.0f + ShadowFarBias);
 				View = Compute::Matrix4x4::CreateLineLightLookAt(Parent->Transform->Position, Parent->GetScene()->GetCamera()->GetEntity()->Transform->Position.SetY(ShadowHeight));
 			}
-			Component* LineLight::OnClone(Entity* New)
+			Component* LineLight::Copy(Entity* New)
 			{
 				LineLight* Target = new LineLight(New);
 				Target->Projection = Projection;
@@ -2622,7 +2697,7 @@ namespace Tomahawk
 			{
 				delete ProbeCache;
 			}
-			void ProbeLight::OnLoad(ContentManager* Content, Rest::Document* Node)
+			void ProbeLight::Deserialize(ContentManager* Content, Rest::Document* Node)
 			{
 				std::string Path;
 				if (!NMake::Unpack(Node->Find("diffuse-map"), &Path))
@@ -2670,7 +2745,7 @@ namespace Tomahawk
 				else
 					SetDiffuseMap(DiffuseMap);
 			}
-			void ProbeLight::OnSave(ContentManager* Content, Rest::Document* Node)
+			void ProbeLight::Serialize(ContentManager* Content, Rest::Document* Node)
 			{
 				AssetResource* Asset = nullptr;
 				if (!DiffuseMap)
@@ -2722,7 +2797,7 @@ namespace Tomahawk
 				NMake::Pack(Node->SetDocument("parallax-corrected"), ParallaxCorrected);
 				NMake::Pack(Node->SetDocument("static-mask"), StaticMask);
 			}
-			Component* ProbeLight::OnClone(Entity* New)
+			Component* ProbeLight::Copy(Entity* New)
 			{
 				ProbeLight* Target = new ProbeLight(New);
 				Target->Projection = Projection;
@@ -2838,7 +2913,7 @@ namespace Tomahawk
 			{
 				delete Renderer;
 			}
-			void Camera::OnAwake(Component* New)
+			void Camera::Awake(Component* New)
 			{
 				if (!Parent || !Parent->GetScene() || (New && New != this))
 					return;
@@ -2853,12 +2928,12 @@ namespace Tomahawk
 				auto* RenderStages = Renderer->GetRenderers();
 				for (auto It = RenderStages->begin(); It != RenderStages->end(); It++)
 				{
-					(*It)->OnRelease();
+					(*It)->Release();
 					(*It)->SetRenderer(Renderer);
-					(*It)->OnInitialize();
+					(*It)->Initialize();
 				}
 			}
-			void Camera::OnAsleep()
+			void Camera::Asleep()
 			{
 				if (!Renderer)
 					return;
@@ -2866,7 +2941,7 @@ namespace Tomahawk
 				if (Parent && Parent->GetScene() && Parent->GetScene()->GetCamera() == this)
 					Parent->GetScene()->SetCamera(nullptr);
 			}
-			void Camera::OnLoad(ContentManager* Content, Rest::Document* Node)
+			void Camera::Deserialize(ContentManager* Content, Rest::Document* Node)
 			{
 				int _Mode = 0;
 				if (NMake::Unpack(Node->Find("mode"), &_Mode))
@@ -2898,8 +2973,8 @@ namespace Tomahawk
 
 					if (RendererId == THAWK_COMPONENT_ID(ModelRenderer))
 						Target = new Engine::Renderers::ModelRenderer(Renderer);
-					else if (RendererId == THAWK_COMPONENT_ID(SkinModelRenderer))
-						Target = new Engine::Renderers::SkinModelRenderer(Renderer);
+					else if (RendererId == THAWK_COMPONENT_ID(SkinRenderer))
+						Target = new Engine::Renderers::SkinRenderer(Renderer);
 					else if (RendererId == THAWK_COMPONENT_ID(SoftBodyRenderer))
 						Target = new Engine::Renderers::SoftBodyRenderer(Renderer);
 					else if (RendererId == THAWK_COMPONENT_ID(DepthRenderer))
@@ -2910,8 +2985,10 @@ namespace Tomahawk
 						Target = new Engine::Renderers::ProbeRenderer(Renderer);
 					else if (RendererId == THAWK_COMPONENT_ID(ImageRenderer))
 						Target = new Engine::Renderers::ImageRenderer(Renderer);
-					else if (RendererId == THAWK_COMPONENT_ID(ElementSystemRenderer))
-						Target = new Engine::Renderers::ElementSystemRenderer(Renderer);
+					else if (RendererId == THAWK_COMPONENT_ID(LimpidRenderer))
+						Target = new Engine::Renderers::LimpidRenderer(Renderer);
+					else if (RendererId == THAWK_COMPONENT_ID(EmitterRenderer))
+						Target = new Engine::Renderers::EmitterRenderer(Renderer);
 					else if (RendererId == THAWK_COMPONENT_ID(ReflectionsRenderer))
 						Target = new Engine::Renderers::ReflectionsRenderer(Renderer);
 					else if (RendererId == THAWK_COMPONENT_ID(DepthOfFieldRenderer))
@@ -2939,15 +3016,15 @@ namespace Tomahawk
 					if (!Meta)
 						Meta = Render->SetDocument("metadata");
 
-					Target->OnRelease();
-					Target->OnLoad(Content, Meta);
-					Target->OnInitialize();
+					Target->Release();
+					Target->Deserialize(Content, Meta);
+					Target->Initialize();
 
 					Renderer->AddRenderer(Target);
 					NMake::Unpack(Render->Find("active"), &Target->Active);
 				}
 			}
-			void Camera::OnSave(ContentManager* Content, Rest::Document* Node)
+			void Camera::Serialize(ContentManager* Content, Rest::Document* Node)
 			{
 				NMake::Pack(Node->SetDocument("mode"), (int)Mode);
 				NMake::Pack(Node->SetDocument("projection"), Projection);
@@ -2963,10 +3040,10 @@ namespace Tomahawk
 					Rest::Document* Render = Renderers->SetDocument("renderer");
 					NMake::Pack(Render->SetDocument("id"), Ref->Id());
 					NMake::Pack(Render->SetDocument("active"), Ref->Active);
-					Ref->OnSave(Content, Render->SetDocument("metadata"));
+					Ref->Serialize(Content, Render->SetDocument("metadata"));
 				}
 			}
-			void Camera::OnSynchronize(Rest::Timer* Time)
+			void Camera::Synchronize(Rest::Timer* Time)
 			{
 				float W = Width, H = Height;
 				if (W <= 0 || H <= 0 && Renderer != nullptr)
@@ -2985,14 +3062,14 @@ namespace Tomahawk
 				if (!View)
 					return;
 
-				View->ViewPosition = Compute::Vector3(-Parent->Transform->Position.X, -Parent->Transform->Position.Y, Parent->Transform->Position.Z);
+				View->WorldPosition = Parent->Transform->Position;
+				View->WorldRotation = Parent->Transform->Rotation;
+				View->InvViewPosition = Parent->Transform->Position.InvertZ();
+				View->ViewPosition = View->InvViewPosition.Invert();
 				View->View = Compute::Matrix4x4::CreateCamera(View->ViewPosition, -Parent->Transform->Rotation);
 				View->Projection = Projection;
 				View->ViewProjection = View->View * Projection;
 				View->InvViewProjection = View->ViewProjection.Invert();
-				View->Position = Parent->Transform->Position.InvertZ();
-				View->RawPosition = Parent->Transform->Position;
-				View->Rotation = Parent->Transform->Rotation;
 				View->ViewDistance = FarPlane;
 				View->Renderer = Renderer;
 				FieldView = *View;
@@ -3005,7 +3082,7 @@ namespace Tomahawk
 				Renderer->SetScene(Parent->GetScene());
 				auto* RenderStages = Renderer->GetRenderers();
 				for (auto It = RenderStages->begin(); It != RenderStages->end(); It++)
-					(*It)->OnResizeBuffers();
+					(*It)->ResizeBuffers();
 			}
 			Viewer Camera::GetViewer()
 			{
@@ -3047,7 +3124,7 @@ namespace Tomahawk
 				if (!Other)
 					return -1.0f;
 
-				return Other->Transform->Position.Distance(FieldView.RawPosition);
+				return Other->Transform->Position.Distance(FieldView.WorldPosition);
 			}
 			bool Camera::RayTest(Compute::Ray& Ray, Entity* Other)
 			{
@@ -3060,7 +3137,7 @@ namespace Tomahawk
 			{
 				return Compute::MathCommon::CursorRayTest(Ray, World);
 			}
-			Component* Camera::OnClone(Entity* New)
+			Component* Camera::Copy(Entity* New)
 			{
 				Camera* Target = new Camera(New);
 				Target->FarPlane = FarPlane;

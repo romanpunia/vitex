@@ -7,4 +7,5 @@ struct Fragment
     float Metallic;
     float Material;
     float Depth;
+    float Alpha;
 };

@@ -390,7 +390,7 @@ namespace Tomahawk
 				Shader::Desc F = Shader::Desc();
 				F.Layout = Shader::GetShapeVertexLayout();
 				F.LayoutSize = 2;
-				F.Filename = "BASIC";
+				F.Filename = "basic";
 
 				if (GetSection("standard/basic", &F.Data))
 					BasicEffect = CreateShader(F);
@@ -1066,6 +1066,46 @@ namespace Tomahawk
 					return;
 				/* TODO: IMPL */
 			}
+			void OGLDevice::CopyTargetDepth(RenderTarget2D* From, RenderTarget2D* To)
+			{
+				OGLRenderTarget2D* IResource1 = (OGLRenderTarget2D*)From;
+				OGLRenderTarget2D* IResource2 = (OGLRenderTarget2D*)To;
+				if (!IResource1 || !IResource2)
+					return;
+				/* TODO: IMPL */
+			}
+			void OGLDevice::CopyTargetDepth(MultiRenderTarget2D* From, MultiRenderTarget2D* To)
+			{
+				OGLMultiRenderTarget2D* IResource1 = (OGLMultiRenderTarget2D*)From;
+				OGLMultiRenderTarget2D* IResource2 = (OGLMultiRenderTarget2D*)To;
+				if (!IResource1 || !IResource2)
+					return;
+				/* TODO: IMPL */
+			}
+			void OGLDevice::CopyTargetDepth(RenderTarget2DArray* From, RenderTarget2DArray* To)
+			{
+				OGLRenderTarget2DArray* IResource1 = (OGLRenderTarget2DArray*)From;
+				OGLRenderTarget2DArray* IResource2 = (OGLRenderTarget2DArray*)To;
+				if (!IResource1 || !IResource2)
+					return;
+				/* TODO: IMPL */
+			}
+			void OGLDevice::CopyTargetDepth(RenderTargetCube* From, RenderTargetCube* To)
+			{
+				OGLRenderTargetCube* IResource1 = (OGLRenderTargetCube*)From;
+				OGLRenderTargetCube* IResource2 = (OGLRenderTargetCube*)To;
+				if (!IResource1 || !IResource2)
+					return;
+				/* TODO: IMPL */
+			}
+			void OGLDevice::CopyTargetDepth(MultiRenderTargetCube* From, MultiRenderTargetCube* To)
+			{
+				OGLMultiRenderTargetCube* IResource1 = (OGLMultiRenderTargetCube*)From;
+				OGLMultiRenderTargetCube* IResource2 = (OGLMultiRenderTargetCube*)To;
+				if (!IResource1 || !IResource2)
+					return;
+				/* TODO: IMPL */
+			}
 			void OGLDevice::CopyBegin(MultiRenderTarget2D* Resource, unsigned int Target, unsigned int MipLevels, unsigned int Size)
 			{
 				OGLMultiRenderTarget2D* IResource = (OGLMultiRenderTarget2D*)Resource;
@@ -1084,6 +1124,46 @@ namespace Tomahawk
 			{
 				OGLMultiRenderTarget2D* IResource = (OGLMultiRenderTarget2D*)Resource;
 				if (!IResource || !Result)
+					return;
+				/* TODO: IMPL */
+			}
+			void OGLDevice::SwapTargetDepth(RenderTarget2D* From, RenderTarget2D* To)
+			{
+				OGLRenderTarget2D* IResource1 = (OGLRenderTarget2D*)From;
+				OGLRenderTarget2D* IResource2 = (OGLRenderTarget2D*)To;
+				if (!IResource1 || !IResource2)
+					return;
+				/* TODO: IMPL */
+			}
+			void OGLDevice::SwapTargetDepth(MultiRenderTarget2D* From, MultiRenderTarget2D* To)
+			{
+				OGLMultiRenderTarget2D* IResource1 = (OGLMultiRenderTarget2D*)From;
+				OGLMultiRenderTarget2D* IResource2 = (OGLMultiRenderTarget2D*)To;
+				if (!IResource1 || !IResource2)
+					return;
+				/* TODO: IMPL */
+			}
+			void OGLDevice::SwapTargetDepth(RenderTarget2DArray* From, RenderTarget2DArray* To)
+			{
+				OGLRenderTarget2DArray* IResource1 = (OGLRenderTarget2DArray*)From;
+				OGLRenderTarget2DArray* IResource2 = (OGLRenderTarget2DArray*)To;
+				if (!IResource1 || !IResource2)
+					return;
+				/* TODO: IMPL */
+			}
+			void OGLDevice::SwapTargetDepth(RenderTargetCube* From, RenderTargetCube* To)
+			{
+				OGLRenderTargetCube* IResource1 = (OGLRenderTargetCube*)From;
+				OGLRenderTargetCube* IResource2 = (OGLRenderTargetCube*)To;
+				if (!IResource1 || !IResource2)
+					return;
+				/* TODO: IMPL */
+			}
+			void OGLDevice::SwapTargetDepth(MultiRenderTargetCube* From, MultiRenderTargetCube* To)
+			{
+				OGLMultiRenderTargetCube* IResource1 = (OGLMultiRenderTargetCube*)From;
+				OGLMultiRenderTargetCube* IResource2 = (OGLMultiRenderTargetCube*)To;
+				if (!IResource1 || !IResource2)
 					return;
 				/* TODO: IMPL */
 			}

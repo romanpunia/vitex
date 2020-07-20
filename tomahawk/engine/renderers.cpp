@@ -20,24 +20,43 @@ namespace Tomahawk
 				I.Layout = Graphics::Shader::GetVertexLayout();
 				I.LayoutSize = 5;
 
-				if (System->GetDevice()->GetSection("geometry/model/gbuffer", &I.Data))
-					Shaders.GBuffer = System->CompileShader("MR_GBUFFER", I, 0);
+				if (System->GetDevice()->GetSection("geometry/model/opaque", &I.Data))
+					Shaders.Opaque = System->CompileShader("mr-opaque", I, 0);
 
-				if (System->GetDevice()->GetSection("geometry/model/depth", &I.Data))
-					Shaders.Depth90 = System->CompileShader("MR_DEPTH90", I, 0);
+				if (System->GetDevice()->GetSection("geometry/model/limpid", &I.Data))
+					Shaders.Limpid = System->CompileShader("mr-limpid", I, 0);
 
-				if (System->GetDevice()->GetSection("geometry/model/depth-360", &I.Data))
-					Shaders.Depth360 = System->CompileShader("MR_DEPTH360", I, sizeof(Depth360));
+				if (System->GetDevice()->GetSection("geometry/model/depth-linear", &I.Data))
+					Shaders.Linear = System->CompileShader("mr-depth-linear", I, 0);
+
+				if (System->GetDevice()->GetSection("geometry/model/depth-cubic", &I.Data))
+					Shaders.Cubic = System->CompileShader("mr-depth-cubic", I, sizeof(Depth));
 			}
 			ModelRenderer::~ModelRenderer()
 			{
-				System->FreeShader("MR_GBUFFER", Shaders.GBuffer);
-				System->FreeShader("MR_DEPTH90", Shaders.Depth90);
-				System->FreeShader("MR_DEPTH360", Shaders.Depth360);
+				System->FreeShader("mr-opaque", Shaders.Opaque);
+				System->FreeShader("mr-limpid", Shaders.Limpid);
+				System->FreeShader("mr-depth-linear", Shaders.Linear);
+				System->FreeShader("mr-depth-cubic", Shaders.Cubic);
 			}
-			void ModelRenderer::OnCulling(const Viewer& View)
+			void ModelRenderer::Initialize()
 			{
-				for (auto It = Models->Begin(); It != Models->End(); ++It)
+				Opaque = System->GetScene()->GetComponents<Engine::Components::Model>();
+				Limpid = System->GetScene()->GetComponents<Engine::Components::LimpidModel>();
+			}
+			void ModelRenderer::Cull(const Viewer& View)
+			{
+				System->GetScene()->SortEntitiesBackToFront(Limpid);
+				for (auto It = Opaque->Begin(); It != Opaque->End(); ++It)
+				{
+					Engine::Components::Model* Model = (Engine::Components::Model*)*It;
+					if (Model->GetDrawable() != nullptr)
+						Model->Visibility = Model->IsVisibleTo(View, &Model->GetBoundingBox());
+					else
+						Model->Visibility = false;
+				}
+
+				for (auto It = Limpid->Begin(); It != Limpid->End(); ++It)
 				{
 					Engine::Components::Model* Model = (Engine::Components::Model*)*It;
 					if (Model->GetDrawable() != nullptr)
@@ -46,24 +65,20 @@ namespace Tomahawk
 						Model->Visibility = false;
 				}
 			}
-			void ModelRenderer::OnInitialize()
-			{
-				Models = System->GetScene()->GetComponents<Engine::Components::Model>();
-			}
-			void ModelRenderer::OnRender(Rest::Timer* Time)
+			void ModelRenderer::RenderStep(Rest::Timer* Time)
 			{
 				Graphics::GraphicsDevice* Device = System->GetDevice();
-				if (!Models || Models->Empty())
+				if (!Opaque || Opaque->Empty())
 					return;
 
 				Device->SetDepthStencilState(DepthStencil);
 				Device->SetSamplerState(Sampler);
 				Device->SetBlendState(Blend);
 				Device->SetRasterizerState(BackRasterizer);
-				Device->SetShader(Shaders.GBuffer, Graphics::ShaderType_Vertex | Graphics::ShaderType_Pixel);
+				Device->SetShader(Shaders.Opaque, Graphics::ShaderType_Vertex | Graphics::ShaderType_Pixel);
 				System->GetScene()->SetSurface();
 
-				for (auto It = Models->Begin(); It != Models->End(); ++It)
+				for (auto It = Opaque->Begin(); It != Opaque->End(); ++It)
 				{
 					Engine::Components::Model* Model = (Engine::Components::Model*)*It;
 					if (!Model->Visibility)
@@ -85,21 +100,20 @@ namespace Tomahawk
 					}
 				}
 			}
-			void ModelRenderer::OnPhaseRender(Rest::Timer* Time, uint64_t Mask)
+			void ModelRenderer::RenderSubstep(Rest::Timer* Time, bool Static)
 			{
 				Graphics::GraphicsDevice* Device = System->GetDevice();
-				if (!Models || Models->Empty())
+				if (!Opaque || Opaque->Empty())
 					return;
 
 				Device->SetDepthStencilState(DepthStencil);
 				Device->SetSamplerState(Sampler);
 				Device->SetBlendState(Blend);
 				Device->SetRasterizerState(BackRasterizer);
-				Device->SetShader(Shaders.GBuffer, Graphics::ShaderType_Vertex | Graphics::ShaderType_Pixel);
+				Device->SetShader(Shaders.Opaque, Graphics::ShaderType_Vertex | Graphics::ShaderType_Pixel);
 				System->GetScene()->SetSurface();
 
-				bool Static = (Mask & PhaseMask_Static);
-				for (auto It = Models->Begin(); It != Models->End(); ++It)
+				for (auto It = Opaque->Begin(); It != Opaque->End(); ++It)
 				{
 					Engine::Components::Model* Model = (Engine::Components::Model*)*It;
 					auto* Drawable = Model->GetDrawable();
@@ -119,19 +133,107 @@ namespace Tomahawk
 					}
 				}
 			}
-			void ModelRenderer::OnDepthRender(Rest::Timer* Time)
+			void ModelRenderer::RenderLimpidStep(Rest::Timer* Time, uint64_t Layer)
 			{
 				Graphics::GraphicsDevice* Device = System->GetDevice();
-				if (!Models || Models->Empty())
+				if (!Limpid || Limpid->Empty())
+					return;
+
+				Device->SetDepthStencilState(DepthStencil);
+				Device->SetSamplerState(Sampler);
+				Device->SetBlendState(Blend);
+				Device->SetRasterizerState(BackRasterizer);
+				Device->SetShader(Shaders.Limpid, Graphics::ShaderType_Vertex | Graphics::ShaderType_Pixel);
+				System->GetScene()->SetSurface();
+
+				for (auto It = Limpid->Begin(); It != Limpid->End(); ++It)
+				{
+					Engine::Components::Model* Model = (Engine::Components::Model*)*It;
+					if (!Model->Visibility)
+						continue;
+
+					auto* Drawable = Model->GetDrawable();
+					if (!Drawable)
+						continue;
+
+					for (auto&& Mesh : Drawable->Meshes)
+					{
+						if (!Appearance::UploadPhase(Device, Model->GetSurface(Mesh)))
+							continue;
+
+						Device->Render.World = Mesh->World * Model->GetEntity()->Transform->GetWorld();
+						Device->Render.WorldViewProjection = Device->Render.World * System->GetScene()->View.ViewProjection;
+						Device->UpdateBuffer(Graphics::RenderBufferType_Render);
+						Device->DrawIndexed(Mesh);
+					}
+				}
+			}
+			void ModelRenderer::RenderLimpidSubstep(Rest::Timer* Time, uint64_t Layer, bool Static)
+			{
+				Graphics::GraphicsDevice* Device = System->GetDevice();
+				if (!Limpid || Limpid->Empty())
+					return;
+
+				Device->SetDepthStencilState(DepthStencil);
+				Device->SetSamplerState(Sampler);
+				Device->SetBlendState(Blend);
+				Device->SetRasterizerState(BackRasterizer);
+				Device->SetShader(Shaders.Limpid, Graphics::ShaderType_Vertex | Graphics::ShaderType_Pixel);
+				System->GetScene()->SetSurface();
+
+				for (auto It = Limpid->Begin(); It != Limpid->End(); ++It)
+				{
+					Engine::Components::Model* Model = (Engine::Components::Model*)*It;
+					auto* Drawable = Model->GetDrawable();
+
+					if (!Drawable || (Static && !Model->Static) || !Model->IsVisibleTo(System->GetScene()->View, nullptr))
+						continue;
+
+					for (auto&& Mesh : Drawable->Meshes)
+					{
+						if (!Appearance::UploadPhase(Device, Model->GetSurface(Mesh)))
+							continue;
+
+						Device->Render.World = Mesh->World * Model->GetEntity()->Transform->GetWorld();
+						Device->Render.WorldViewProjection = Device->Render.World * System->GetScene()->View.ViewProjection;
+						Device->UpdateBuffer(Graphics::RenderBufferType_Render);
+						Device->DrawIndexed(Mesh);
+					}
+				}
+			}
+			void ModelRenderer::RenderDepthLinear(Rest::Timer* Time)
+			{
+				Graphics::GraphicsDevice* Device = System->GetDevice();
+				if ((!Opaque || Opaque->Empty()) && (!Limpid || Limpid->Empty()))
 					return;
 
 				Device->SetDepthStencilState(DepthStencil);
 				Device->SetSamplerState(Sampler);
 				Device->SetBlendState(Blend);
 				Device->SetRasterizerState(FrontRasterizer);
-				Device->SetShader(Shaders.Depth90, Graphics::ShaderType_Vertex | Graphics::ShaderType_Pixel);
+				Device->SetShader(Shaders.Linear, Graphics::ShaderType_Vertex | Graphics::ShaderType_Pixel);
 
-				for (auto It = Models->Begin(); It != Models->End(); ++It)
+				for (auto It = Opaque->Begin(); It != Opaque->End(); ++It)
+				{
+					Engine::Components::Model* Model = (Engine::Components::Model*)*It;
+					auto* Drawable = Model->GetDrawable();
+
+					if (!Drawable || !Model->IsVisibleTo(System->GetScene()->View, nullptr))
+						continue;
+
+					for (auto&& Mesh : Drawable->Meshes)
+					{
+						if (!Appearance::UploadDepth(Device, Model->GetSurface(Mesh)))
+							continue;
+
+						Device->Render.World = Mesh->World * Model->GetEntity()->Transform->GetWorld();
+						Device->Render.WorldViewProjection = Device->Render.World * System->GetScene()->View.ViewProjection;
+						Device->UpdateBuffer(Graphics::RenderBufferType_Render);
+						Device->DrawIndexed(Mesh);
+					}
+				}
+
+				for (auto It = Limpid->Begin(); It != Limpid->End(); ++It)
 				{
 					Engine::Components::Model* Model = (Engine::Components::Model*)*It;
 					auto* Drawable = Model->GetDrawable();
@@ -151,22 +253,41 @@ namespace Tomahawk
 					}
 				}
 			}
-			void ModelRenderer::OnCubicDepthRender(Rest::Timer* Time, Compute::Matrix4x4* ViewProjection)
+			void ModelRenderer::RenderDepthCubic(Rest::Timer* Time, Compute::Matrix4x4* ViewProjection)
 			{
 				Graphics::GraphicsDevice* Device = System->GetDevice();
-				if (!Models || Models->Empty())
+				if ((!Opaque || Opaque->Empty()) && (!Limpid || Limpid->Empty()))
 					return;
 
-				memcpy(Depth360.FaceViewProjection, ViewProjection, sizeof(Compute::Matrix4x4) * 6);
+				memcpy(Depth.FaceViewProjection, ViewProjection, sizeof(Compute::Matrix4x4) * 6);
 				Device->SetDepthStencilState(DepthStencil);
 				Device->SetSamplerState(Sampler);
 				Device->SetBlendState(Blend);
 				Device->SetRasterizerState(FrontRasterizer);
-				Device->SetShader(Shaders.Depth360, Graphics::ShaderType_Vertex | Graphics::ShaderType_Pixel | Graphics::ShaderType_Geometry);
-				Device->SetBuffer(Shaders.Depth360, 3, Graphics::ShaderType_Vertex | Graphics::ShaderType_Pixel | Graphics::ShaderType_Geometry);
-				Device->UpdateBuffer(Shaders.Depth360, &Depth360);
+				Device->SetShader(Shaders.Cubic, Graphics::ShaderType_Vertex | Graphics::ShaderType_Pixel | Graphics::ShaderType_Geometry);
+				Device->SetBuffer(Shaders.Cubic, 3, Graphics::ShaderType_Vertex | Graphics::ShaderType_Pixel | Graphics::ShaderType_Geometry);
+				Device->UpdateBuffer(Shaders.Cubic, &Depth);
 
-				for (auto It = Models->Begin(); It != Models->End(); ++It)
+				for (auto It = Opaque->Begin(); It != Opaque->End(); ++It)
+				{
+					Engine::Components::Model* Model = (Engine::Components::Model*)*It;
+					auto* Drawable = Model->GetDrawable();
+
+					if (!Drawable || !Model->IsNearTo(System->GetScene()->View))
+						continue;
+
+					for (auto&& Mesh : Drawable->Meshes)
+					{
+						if (!Appearance::UploadCubicDepth(Device, Model->GetSurface(Mesh)))
+							continue;
+
+						Device->Render.World = Mesh->World * Model->GetEntity()->Transform->GetWorld();
+						Device->UpdateBuffer(Graphics::RenderBufferType_Render);
+						Device->DrawIndexed(Mesh);
+					}
+				}
+
+				for (auto It = Limpid->Begin(); It != Limpid->End(); ++It)
 				{
 					Engine::Components::Model* Model = (Engine::Components::Model*)*It;
 					auto* Drawable = Model->GetDrawable();
@@ -187,8 +308,16 @@ namespace Tomahawk
 
 				Device->SetShader(nullptr, Graphics::ShaderType_Geometry);
 			}
+			Rest::Pool<Component*>* ModelRenderer::GetGeometry(uint64_t Index)
+			{
+				return Opaque;
+			}
+			uint64_t ModelRenderer::GetGeometryCount()
+			{
+				return 1;
+			}
 
-			SkinModelRenderer::SkinModelRenderer(Engine::RenderSystem* Lab) : Renderer(Lab)
+			SkinRenderer::SkinRenderer(Engine::RenderSystem* Lab) : Renderer(Lab)
 			{
 				Geometric = true;
 				DepthStencil = Lab->GetDevice()->GetDepthStencilState("DEF_LESS");
@@ -201,192 +330,341 @@ namespace Tomahawk
 				I.Layout = Graphics::Shader::GetSkinVertexLayout();
 				I.LayoutSize = 7;
 
-				if (System->GetDevice()->GetSection("geometry/skin-model/gbuffer", &I.Data))
-					Shaders.GBuffer = System->CompileShader("SMR_GBUFFER", I, 0);
+				if (System->GetDevice()->GetSection("geometry/skin/opaque", &I.Data))
+					Shaders.Opaque = System->CompileShader("sr-opaque", I, 0);
 
-				if (System->GetDevice()->GetSection("geometry/skin-model/depth", &I.Data))
-					Shaders.Depth90 = System->CompileShader("SMR_DEPTH90", I, 0);
+				if (System->GetDevice()->GetSection("geometry/skin/limpid", &I.Data))
+					Shaders.Limpid = System->CompileShader("sr-limpid", I, 0);
 
-				if (System->GetDevice()->GetSection("geometry/skin-model/depth-360", &I.Data))
-					Shaders.Depth360 = System->CompileShader("SMR_DEPTH360", I, sizeof(Depth360));
+				if (System->GetDevice()->GetSection("geometry/skin/depth-linear", &I.Data))
+					Shaders.Linear = System->CompileShader("sr-depth-linear", I, 0);
+
+				if (System->GetDevice()->GetSection("geometry/skin/depth-cubic", &I.Data))
+					Shaders.Cubic = System->CompileShader("sr-depth-cubic", I, sizeof(Depth));
 			}
-			SkinModelRenderer::~SkinModelRenderer()
+			SkinRenderer::~SkinRenderer()
 			{
-				System->FreeShader("SMR_GBUFFER", Shaders.GBuffer);
-				System->FreeShader("SMR_DEPTH90", Shaders.Depth90);
-				System->FreeShader("SMR_DEPTH360", Shaders.Depth360);
+				System->FreeShader("sr-opaque", Shaders.Opaque);
+				System->FreeShader("sr-limpid", Shaders.Limpid);
+				System->FreeShader("sr-depth-linear", Shaders.Linear);
+				System->FreeShader("sr-depth-cubic", Shaders.Cubic);
 			}
-			void SkinModelRenderer::OnInitialize()
+			void SkinRenderer::Initialize()
 			{
-				SkinModels = System->GetScene()->GetComponents<Engine::Components::SkinModel>();
+				Opaque = System->GetScene()->GetComponents<Engine::Components::Skin>();
+				Limpid = System->GetScene()->GetComponents<Engine::Components::LimpidSkin>();
 			}
-			void SkinModelRenderer::OnCulling(const Viewer& View)
+			void SkinRenderer::Cull(const Viewer& View)
 			{
-				for (auto It = SkinModels->Begin(); It != SkinModels->End(); ++It)
+				System->GetScene()->SortEntitiesBackToFront(Limpid);
+				for (auto It = Opaque->Begin(); It != Opaque->End(); ++It)
 				{
-					Engine::Components::SkinModel* Model = (Engine::Components::SkinModel*)*It;
+					Engine::Components::Skin* Model = (Engine::Components::Skin*)*It;
+					if (Model->GetDrawable() != nullptr)
+						Model->Visibility = Model->IsVisibleTo(View, &Model->GetBoundingBox());
+					else
+						Model->Visibility = false;
+				}
+
+				for (auto It = Limpid->Begin(); It != Limpid->End(); ++It)
+				{
+					Engine::Components::Skin* Model = (Engine::Components::Skin*)*It;
 					if (Model->GetDrawable() != nullptr)
 						Model->Visibility = Model->IsVisibleTo(View, &Model->GetBoundingBox());
 					else
 						Model->Visibility = false;
 				}
 			}
-			void SkinModelRenderer::OnRender(Rest::Timer* Time)
+			void SkinRenderer::RenderStep(Rest::Timer* Time)
 			{
 				Graphics::GraphicsDevice* Device = System->GetDevice();
-				if (!SkinModels || SkinModels->Empty())
+				if (!Opaque || Opaque->Empty())
 					return;
 
 				Device->SetDepthStencilState(DepthStencil);
 				Device->SetSamplerState(Sampler);
 				Device->SetBlendState(Blend);
 				Device->SetRasterizerState(BackRasterizer);
-				Device->SetShader(Shaders.GBuffer, Graphics::ShaderType_Vertex | Graphics::ShaderType_Pixel);
+				Device->SetShader(Shaders.Opaque, Graphics::ShaderType_Vertex | Graphics::ShaderType_Pixel);
 				System->GetScene()->SetSurface();
 
-				for (auto It = SkinModels->Begin(); It != SkinModels->End(); ++It)
+				for (auto It = Opaque->Begin(); It != Opaque->End(); ++It)
 				{
-					Engine::Components::SkinModel* SkinModel = (Engine::Components::SkinModel*)*It;
-					if (!SkinModel->Visibility)
+					Engine::Components::Skin* Skin = (Engine::Components::Skin*)*It;
+					if (!Skin->Visibility)
 						continue;
 
-					auto* Drawable = SkinModel->GetDrawable();
+					auto* Drawable = Skin->GetDrawable();
 					if (!Drawable)
 						continue;
 
-					Device->Animation.HasAnimation = !SkinModel->GetDrawable()->Joints.empty();
+					Device->Animation.HasAnimation = !Skin->GetDrawable()->Joints.empty();
 					if (Device->Animation.HasAnimation > 0)
-						memcpy(Device->Animation.Offsets, SkinModel->Skeleton.Transform, 96 * sizeof(Compute::Matrix4x4));
+						memcpy(Device->Animation.Offsets, Skin->Skeleton.Transform, 96 * sizeof(Compute::Matrix4x4));
 
 					Device->UpdateBuffer(Graphics::RenderBufferType_Animation);
 					for (auto&& Mesh : Drawable->Meshes)
 					{
-						if (!Appearance::UploadPhase(Device, SkinModel->GetSurface(Mesh)))
+						if (!Appearance::UploadPhase(Device, Skin->GetSurface(Mesh)))
 							continue;
 
-						Device->Render.World = Mesh->World * SkinModel->GetEntity()->Transform->GetWorld();
+						Device->Render.World = Mesh->World * Skin->GetEntity()->Transform->GetWorld();
 						Device->Render.WorldViewProjection = Device->Render.World * System->GetScene()->View.ViewProjection;
 						Device->UpdateBuffer(Graphics::RenderBufferType_Render);
 						Device->DrawIndexed(Mesh);
 					}
 				}
 			}
-			void SkinModelRenderer::OnPhaseRender(Rest::Timer* Time, uint64_t Mask)
+			void SkinRenderer::RenderSubstep(Rest::Timer* Time, bool Static)
 			{
 				Graphics::GraphicsDevice* Device = System->GetDevice();
-				if (!SkinModels || SkinModels->Empty())
+				if (!Opaque || Opaque->Empty())
 					return;
 
 				Device->SetDepthStencilState(DepthStencil);
 				Device->SetSamplerState(Sampler);
 				Device->SetBlendState(Blend);
 				Device->SetRasterizerState(BackRasterizer);
-				Device->SetShader(Shaders.GBuffer, Graphics::ShaderType_Vertex | Graphics::ShaderType_Pixel);
+				Device->SetShader(Shaders.Opaque, Graphics::ShaderType_Vertex | Graphics::ShaderType_Pixel);
 				System->GetScene()->SetSurface();
 
-				bool Static = (Mask & PhaseMask_Static);
-				for (auto It = SkinModels->Begin(); It != SkinModels->End(); ++It)
+				for (auto It = Opaque->Begin(); It != Opaque->End(); ++It)
 				{
-					Engine::Components::SkinModel* SkinModel = (Engine::Components::SkinModel*)*It;
-					auto* Drawable = SkinModel->GetDrawable();
+					Engine::Components::Skin* Skin = (Engine::Components::Skin*)*It;
+					auto* Drawable = Skin->GetDrawable();
 
-					if (!Drawable || (Static && !SkinModel->Static) || !SkinModel->IsVisibleTo(System->GetScene()->View, nullptr))
+					if (!Drawable || (Static && !Skin->Static) || !Skin->IsVisibleTo(System->GetScene()->View, nullptr))
 						continue;
 
-					Device->Animation.HasAnimation = !SkinModel->GetDrawable()->Joints.empty();
+					Device->Animation.HasAnimation = !Skin->GetDrawable()->Joints.empty();
 					if (Device->Animation.HasAnimation > 0)
-						memcpy(Device->Animation.Offsets, SkinModel->Skeleton.Transform, 96 * sizeof(Compute::Matrix4x4));
+						memcpy(Device->Animation.Offsets, Skin->Skeleton.Transform, 96 * sizeof(Compute::Matrix4x4));
 
 					Device->UpdateBuffer(Graphics::RenderBufferType_Animation);
 					for (auto&& Mesh : Drawable->Meshes)
 					{
-						if (!Appearance::UploadPhase(Device, SkinModel->GetSurface(Mesh)))
+						if (!Appearance::UploadPhase(Device, Skin->GetSurface(Mesh)))
 							continue;
 
-						Device->Render.World = Mesh->World * SkinModel->GetEntity()->Transform->GetWorld();
+						Device->Render.World = Mesh->World * Skin->GetEntity()->Transform->GetWorld();
 						Device->Render.WorldViewProjection = Device->Render.World * System->GetScene()->View.ViewProjection;
 						Device->UpdateBuffer(Graphics::RenderBufferType_Render);
 						Device->DrawIndexed(Mesh);
 					}
 				}
 			}
-			void SkinModelRenderer::OnDepthRender(Rest::Timer* Time)
+			void SkinRenderer::RenderLimpidStep(Rest::Timer* Time, uint64_t Layer)
 			{
 				Graphics::GraphicsDevice* Device = System->GetDevice();
-				if (!SkinModels || SkinModels->Empty())
+				if (!Limpid || Limpid->Empty())
 					return;
 
 				Device->SetDepthStencilState(DepthStencil);
 				Device->SetSamplerState(Sampler);
 				Device->SetBlendState(Blend);
-				Device->SetRasterizerState(FrontRasterizer);
-				Device->SetShader(Shaders.Depth90, Graphics::ShaderType_Vertex | Graphics::ShaderType_Pixel);
+				Device->SetRasterizerState(BackRasterizer);
+				Device->SetShader(Shaders.Limpid, Graphics::ShaderType_Vertex | Graphics::ShaderType_Pixel);
+				System->GetScene()->SetSurface();
 
-				for (auto It = SkinModels->Begin(); It != SkinModels->End(); ++It)
+				for (auto It = Limpid->Begin(); It != Limpid->End(); ++It)
 				{
-					Engine::Components::SkinModel* SkinModel = (Engine::Components::SkinModel*)*It;
-					auto* Drawable = SkinModel->GetDrawable();
-
-					if (!Drawable || !SkinModel->IsVisibleTo(System->GetScene()->View, nullptr))
+					Engine::Components::Skin* Skin = (Engine::Components::Skin*)*It;
+					if (!Skin->Visibility)
 						continue;
 
-					Device->Animation.HasAnimation = !SkinModel->GetDrawable()->Joints.empty();
+					auto* Drawable = Skin->GetDrawable();
+					if (!Drawable)
+						continue;
+
+					Device->Animation.HasAnimation = !Skin->GetDrawable()->Joints.empty();
 					if (Device->Animation.HasAnimation > 0)
-						memcpy(Device->Animation.Offsets, SkinModel->Skeleton.Transform, 96 * sizeof(Compute::Matrix4x4));
+						memcpy(Device->Animation.Offsets, Skin->Skeleton.Transform, 96 * sizeof(Compute::Matrix4x4));
 
 					Device->UpdateBuffer(Graphics::RenderBufferType_Animation);
 					for (auto&& Mesh : Drawable->Meshes)
 					{
-						if (!Appearance::UploadDepth(Device, SkinModel->GetSurface(Mesh)))
+						if (!Appearance::UploadPhase(Device, Skin->GetSurface(Mesh)))
 							continue;
 
-						Device->Render.World = Mesh->World * SkinModel->GetEntity()->Transform->GetWorld();
+						Device->Render.World = Mesh->World * Skin->GetEntity()->Transform->GetWorld();
 						Device->Render.WorldViewProjection = Device->Render.World * System->GetScene()->View.ViewProjection;
 						Device->UpdateBuffer(Graphics::RenderBufferType_Render);
 						Device->DrawIndexed(Mesh);
 					}
 				}
 			}
-			void SkinModelRenderer::OnCubicDepthRender(Rest::Timer* Time, Compute::Matrix4x4* ViewProjection)
+			void SkinRenderer::RenderLimpidSubstep(Rest::Timer* Time, uint64_t Layer, bool Static)
 			{
 				Graphics::GraphicsDevice* Device = System->GetDevice();
-				if (!SkinModels || SkinModels->Empty())
+				if (!Limpid || Limpid->Empty())
 					return;
 
-				memcpy(Depth360.FaceViewProjection, ViewProjection, sizeof(Compute::Matrix4x4) * 6);
 				Device->SetDepthStencilState(DepthStencil);
 				Device->SetSamplerState(Sampler);
 				Device->SetBlendState(Blend);
-				Device->SetRasterizerState(FrontRasterizer);
-				Device->SetShader(Shaders.Depth360, Graphics::ShaderType_Vertex | Graphics::ShaderType_Pixel | Graphics::ShaderType_Geometry);
-				Device->SetBuffer(Shaders.Depth360, 3, Graphics::ShaderType_Vertex | Graphics::ShaderType_Pixel | Graphics::ShaderType_Geometry);
-				Device->UpdateBuffer(Shaders.Depth360, &Depth360);
+				Device->SetRasterizerState(BackRasterizer);
+				Device->SetShader(Shaders.Limpid, Graphics::ShaderType_Vertex | Graphics::ShaderType_Pixel);
+				System->GetScene()->SetSurface();
 
-				for (auto It = SkinModels->Begin(); It != SkinModels->End(); ++It)
+				for (auto It = Limpid->Begin(); It != Limpid->End(); ++It)
 				{
-					Engine::Components::SkinModel* SkinModel = (Engine::Components::SkinModel*)*It;
-					auto* Drawable = SkinModel->GetDrawable();
+					Engine::Components::Skin* Skin = (Engine::Components::Skin*)*It;
+					auto* Drawable = Skin->GetDrawable();
 
-					if (!Drawable || !SkinModel->IsNearTo(System->GetScene()->View))
+					if (!Drawable || (Static && !Skin->Static) || !Skin->IsVisibleTo(System->GetScene()->View, nullptr))
 						continue;
 
-					Device->Animation.HasAnimation = !SkinModel->GetDrawable()->Joints.empty();
+					Device->Animation.HasAnimation = !Skin->GetDrawable()->Joints.empty();
 					if (Device->Animation.HasAnimation > 0)
-						memcpy(Device->Animation.Offsets, SkinModel->Skeleton.Transform, 96 * sizeof(Compute::Matrix4x4));
+						memcpy(Device->Animation.Offsets, Skin->Skeleton.Transform, 96 * sizeof(Compute::Matrix4x4));
 
 					Device->UpdateBuffer(Graphics::RenderBufferType_Animation);
 					for (auto&& Mesh : Drawable->Meshes)
 					{
-						if (!Appearance::UploadCubicDepth(Device, SkinModel->GetSurface(Mesh)))
+						if (!Appearance::UploadPhase(Device, Skin->GetSurface(Mesh)))
 							continue;
 
-						Device->Render.World = Mesh->World * SkinModel->GetEntity()->Transform->GetWorld();
+						Device->Render.World = Mesh->World * Skin->GetEntity()->Transform->GetWorld();
+						Device->Render.WorldViewProjection = Device->Render.World * System->GetScene()->View.ViewProjection;
+						Device->UpdateBuffer(Graphics::RenderBufferType_Render);
+						Device->DrawIndexed(Mesh);
+					}
+				}
+			}
+			void SkinRenderer::RenderDepthLinear(Rest::Timer* Time)
+			{
+				Graphics::GraphicsDevice* Device = System->GetDevice();
+				if ((!Opaque || Opaque->Empty()) && (!Limpid || Limpid->Empty()))
+					return;
+
+				Device->SetDepthStencilState(DepthStencil);
+				Device->SetSamplerState(Sampler);
+				Device->SetBlendState(Blend);
+				Device->SetRasterizerState(FrontRasterizer);
+				Device->SetShader(Shaders.Linear, Graphics::ShaderType_Vertex | Graphics::ShaderType_Pixel);
+
+				for (auto It = Opaque->Begin(); It != Opaque->End(); ++It)
+				{
+					Engine::Components::Skin* Skin = (Engine::Components::Skin*)*It;
+					auto* Drawable = Skin->GetDrawable();
+
+					if (!Drawable || !Skin->IsVisibleTo(System->GetScene()->View, nullptr))
+						continue;
+
+					Device->Animation.HasAnimation = !Skin->GetDrawable()->Joints.empty();
+					if (Device->Animation.HasAnimation > 0)
+						memcpy(Device->Animation.Offsets, Skin->Skeleton.Transform, 96 * sizeof(Compute::Matrix4x4));
+
+					Device->UpdateBuffer(Graphics::RenderBufferType_Animation);
+					for (auto&& Mesh : Drawable->Meshes)
+					{
+						if (!Appearance::UploadDepth(Device, Skin->GetSurface(Mesh)))
+							continue;
+
+						Device->Render.World = Mesh->World * Skin->GetEntity()->Transform->GetWorld();
+						Device->Render.WorldViewProjection = Device->Render.World * System->GetScene()->View.ViewProjection;
+						Device->UpdateBuffer(Graphics::RenderBufferType_Render);
+						Device->DrawIndexed(Mesh);
+					}
+				}
+
+				for (auto It = Limpid->Begin(); It != Limpid->End(); ++It)
+				{
+					Engine::Components::Skin* Skin = (Engine::Components::Skin*)*It;
+					auto* Drawable = Skin->GetDrawable();
+
+					if (!Drawable || !Skin->IsVisibleTo(System->GetScene()->View, nullptr))
+						continue;
+
+					Device->Animation.HasAnimation = !Skin->GetDrawable()->Joints.empty();
+					if (Device->Animation.HasAnimation > 0)
+						memcpy(Device->Animation.Offsets, Skin->Skeleton.Transform, 96 * sizeof(Compute::Matrix4x4));
+
+					Device->UpdateBuffer(Graphics::RenderBufferType_Animation);
+					for (auto&& Mesh : Drawable->Meshes)
+					{
+						if (!Appearance::UploadDepth(Device, Skin->GetSurface(Mesh)))
+							continue;
+
+						Device->Render.World = Mesh->World * Skin->GetEntity()->Transform->GetWorld();
+						Device->Render.WorldViewProjection = Device->Render.World * System->GetScene()->View.ViewProjection;
+						Device->UpdateBuffer(Graphics::RenderBufferType_Render);
+						Device->DrawIndexed(Mesh);
+					}
+				}
+			}
+			void SkinRenderer::RenderDepthCubic(Rest::Timer* Time, Compute::Matrix4x4* ViewProjection)
+			{
+				Graphics::GraphicsDevice* Device = System->GetDevice();
+				if ((!Opaque || Opaque->Empty()) && (!Limpid || Limpid->Empty()))
+					return;
+
+				memcpy(Depth.FaceViewProjection, ViewProjection, sizeof(Compute::Matrix4x4) * 6);
+				Device->SetDepthStencilState(DepthStencil);
+				Device->SetSamplerState(Sampler);
+				Device->SetBlendState(Blend);
+				Device->SetRasterizerState(FrontRasterizer);
+				Device->SetShader(Shaders.Cubic, Graphics::ShaderType_Vertex | Graphics::ShaderType_Pixel | Graphics::ShaderType_Geometry);
+				Device->SetBuffer(Shaders.Cubic, 3, Graphics::ShaderType_Vertex | Graphics::ShaderType_Pixel | Graphics::ShaderType_Geometry);
+				Device->UpdateBuffer(Shaders.Cubic, &Depth);
+
+				for (auto It = Opaque->Begin(); It != Opaque->End(); ++It)
+				{
+					Engine::Components::Skin* Skin = (Engine::Components::Skin*)*It;
+					auto* Drawable = Skin->GetDrawable();
+
+					if (!Drawable || !Skin->IsNearTo(System->GetScene()->View))
+						continue;
+
+					Device->Animation.HasAnimation = !Skin->GetDrawable()->Joints.empty();
+					if (Device->Animation.HasAnimation > 0)
+						memcpy(Device->Animation.Offsets, Skin->Skeleton.Transform, 96 * sizeof(Compute::Matrix4x4));
+
+					Device->UpdateBuffer(Graphics::RenderBufferType_Animation);
+					for (auto&& Mesh : Drawable->Meshes)
+					{
+						if (!Appearance::UploadCubicDepth(Device, Skin->GetSurface(Mesh)))
+							continue;
+
+						Device->Render.World = Mesh->World * Skin->GetEntity()->Transform->GetWorld();
+						Device->UpdateBuffer(Graphics::RenderBufferType_Render);
+						Device->DrawIndexed(Mesh);
+					}
+				}
+
+				for (auto It = Limpid->Begin(); It != Limpid->End(); ++It)
+				{
+					Engine::Components::Skin* Skin = (Engine::Components::Skin*)*It;
+					auto* Drawable = Skin->GetDrawable();
+
+					if (!Drawable || !Skin->IsNearTo(System->GetScene()->View))
+						continue;
+
+					Device->Animation.HasAnimation = !Skin->GetDrawable()->Joints.empty();
+					if (Device->Animation.HasAnimation > 0)
+						memcpy(Device->Animation.Offsets, Skin->Skeleton.Transform, 96 * sizeof(Compute::Matrix4x4));
+
+					Device->UpdateBuffer(Graphics::RenderBufferType_Animation);
+					for (auto&& Mesh : Drawable->Meshes)
+					{
+						if (!Appearance::UploadCubicDepth(Device, Skin->GetSurface(Mesh)))
+							continue;
+
+						Device->Render.World = Mesh->World * Skin->GetEntity()->Transform->GetWorld();
 						Device->UpdateBuffer(Graphics::RenderBufferType_Render);
 						Device->DrawIndexed(Mesh);
 					}
 				}
 
 				Device->SetShader(nullptr, Graphics::ShaderType_Geometry);
+			}
+			Rest::Pool<Component*>* SkinRenderer::GetGeometry(uint64_t Index)
+			{
+				return Opaque;
+			}
+			uint64_t SkinRenderer::GetGeometryCount()
+			{
+				return 1;
 			}
 
 			SoftBodyRenderer::SoftBodyRenderer(Engine::RenderSystem* Lab) : Renderer(Lab)
@@ -422,30 +700,48 @@ namespace Tomahawk
 				I.Layout = Graphics::Shader::GetVertexLayout();
 				I.LayoutSize = 5;
 
-				if (System->GetDevice()->GetSection("geometry/model/gbuffer", &I.Data))
-					Shaders.GBuffer = System->CompileShader("MR_GBUFFER", I, 0);
+				if (System->GetDevice()->GetSection("geometry/model/opaque", &I.Data))
+					Shaders.Opaque = System->CompileShader("mr-opaque", I, 0);
 
-				if (System->GetDevice()->GetSection("geometry/model/depth", &I.Data))
-					Shaders.Depth90 = System->CompileShader("MR_DEPTH90", I, 0);
+				if (System->GetDevice()->GetSection("geometry/model/limpid", &I.Data))
+					Shaders.Limpid = System->CompileShader("mr-limpid", I, 0);
 
-				if (System->GetDevice()->GetSection("geometry/model/depth-360", &I.Data))
-					Shaders.Depth360 = System->CompileShader("MR_DEPTH360", I, sizeof(Depth360));
+				if (System->GetDevice()->GetSection("geometry/model/depth-linear", &I.Data))
+					Shaders.Linear = System->CompileShader("mr-depth-linear", I, 0);
+
+				if (System->GetDevice()->GetSection("geometry/model/depth-cubic", &I.Data))
+					Shaders.Cubic = System->CompileShader("mr-depth-cubic", I, sizeof(Depth));
 			}
 			SoftBodyRenderer::~SoftBodyRenderer()
 			{
-				System->FreeShader("MR_GBUFFER", Shaders.GBuffer);
-				System->FreeShader("MR_DEPTH90", Shaders.Depth90);
-				System->FreeShader("MR_DEPTH360", Shaders.Depth360);
+				System->FreeShader("mr-opaque", Shaders.Opaque);
+				System->FreeShader("mr-limpid", Shaders.Limpid);
+				System->FreeShader("mr-depth-linear", Shaders.Linear);
+				System->FreeShader("mr-depth-cubic", Shaders.Cubic);
 				delete VertexBuffer;
 				delete IndexBuffer;
 			}
-			void SoftBodyRenderer::OnInitialize()
+			void SoftBodyRenderer::Initialize()
 			{
-				SoftBodies = System->GetScene()->GetComponents<Engine::Components::SoftBody>();
+				Opaque = System->GetScene()->GetComponents<Engine::Components::SoftBody>();
+				Limpid = System->GetScene()->GetComponents<Engine::Components::LimpidSoftBody>();
 			}
-			void SoftBodyRenderer::OnCulling(const Viewer& View)
+			void SoftBodyRenderer::Cull(const Viewer& View)
 			{
-				for (auto It = SoftBodies->Begin(); It != SoftBodies->End(); ++It)
+				System->GetScene()->SortEntitiesBackToFront(Limpid);
+				for (auto It = Opaque->Begin(); It != Opaque->End(); ++It)
+				{
+					Engine::Components::SoftBody* SoftBody = (Engine::Components::SoftBody*)*It;
+					if (SoftBody->GetBody() != nullptr)
+					{
+						Compute::Matrix4x4 World = SoftBody->GetEntity()->Transform->GetWorldUnscaled();
+						SoftBody->Visibility = SoftBody->IsVisibleTo(View, &World);
+					}
+					else
+						SoftBody->Visibility = false;
+				}
+
+				for (auto It = Limpid->Begin(); It != Limpid->End(); ++It)
 				{
 					Engine::Components::SoftBody* SoftBody = (Engine::Components::SoftBody*)*It;
 					if (SoftBody->GetBody() != nullptr)
@@ -457,20 +753,20 @@ namespace Tomahawk
 						SoftBody->Visibility = false;
 				}
 			}
-			void SoftBodyRenderer::OnRender(Rest::Timer* Time)
+			void SoftBodyRenderer::RenderStep(Rest::Timer* Time)
 			{
 				Graphics::GraphicsDevice* Device = System->GetDevice();
-				if (!SoftBodies || SoftBodies->Empty())
+				if (!Opaque || Opaque->Empty())
 					return;
 
 				Device->SetDepthStencilState(DepthStencil);
 				Device->SetSamplerState(Sampler);
 				Device->SetBlendState(Blend);
 				Device->SetRasterizerState(BackRasterizer);
-				Device->SetShader(Shaders.GBuffer, Graphics::ShaderType_Vertex | Graphics::ShaderType_Pixel);
+				Device->SetShader(Shaders.Opaque, Graphics::ShaderType_Vertex | Graphics::ShaderType_Pixel);
 				System->GetScene()->SetSurface();
 
-				for (auto It = SoftBodies->Begin(); It != SoftBodies->End(); ++It)
+				for (auto It = Opaque->Begin(); It != Opaque->End(); ++It)
 				{
 					Engine::Components::SoftBody* SoftBody = (Engine::Components::SoftBody*)*It;
 					if (!SoftBody->Visibility || SoftBody->GetIndices().empty())
@@ -489,21 +785,20 @@ namespace Tomahawk
 					Device->DrawIndexed((unsigned int)SoftBody->GetIndices().size(), 0, 0);
 				}
 			}
-			void SoftBodyRenderer::OnPhaseRender(Rest::Timer* Time, uint64_t Mask)
+			void SoftBodyRenderer::RenderSubstep(Rest::Timer* Time, bool Static)
 			{
 				Graphics::GraphicsDevice* Device = System->GetDevice();
-				if (!SoftBodies || SoftBodies->Empty())
+				if (!Opaque || Opaque->Empty())
 					return;
 
 				Device->SetDepthStencilState(DepthStencil);
 				Device->SetSamplerState(Sampler);
 				Device->SetBlendState(Blend);
 				Device->SetRasterizerState(BackRasterizer);
-				Device->SetShader(Shaders.GBuffer, Graphics::ShaderType_Vertex | Graphics::ShaderType_Pixel);
+				Device->SetShader(Shaders.Opaque, Graphics::ShaderType_Vertex | Graphics::ShaderType_Pixel);
 				System->GetScene()->SetSurface();
 
-				bool Static = (Mask & PhaseMask_Static);
-				for (auto It = SoftBodies->Begin(); It != SoftBodies->End(); ++It)
+				for (auto It = Opaque->Begin(); It != Opaque->End(); ++It)
 				{
 					Engine::Components::SoftBody* SoftBody = (Engine::Components::SoftBody*)*It;
 					if ((Static && !SoftBody->Static) || !SoftBody->IsVisibleTo(System->GetScene()->View, nullptr) || SoftBody->GetIndices().empty())
@@ -522,19 +817,102 @@ namespace Tomahawk
 					Device->DrawIndexed((unsigned int)SoftBody->GetIndices().size(), 0, 0);
 				}
 			}
-			void SoftBodyRenderer::OnDepthRender(Rest::Timer* Time)
+			void SoftBodyRenderer::RenderLimpidStep(Rest::Timer* Time, uint64_t Layer)
 			{
 				Graphics::GraphicsDevice* Device = System->GetDevice();
-				if (!SoftBodies || SoftBodies->Empty())
+				if (!Limpid || Limpid->Empty())
+					return;
+
+				Device->SetDepthStencilState(DepthStencil);
+				Device->SetSamplerState(Sampler);
+				Device->SetBlendState(Blend);
+				Device->SetRasterizerState(BackRasterizer);
+				Device->SetShader(Shaders.Limpid, Graphics::ShaderType_Vertex | Graphics::ShaderType_Pixel);
+				System->GetScene()->SetSurface();
+
+				for (auto It = Limpid->Begin(); It != Limpid->End(); ++It)
+				{
+					Engine::Components::SoftBody* SoftBody = (Engine::Components::SoftBody*)*It;
+					if (!SoftBody->Visibility || SoftBody->GetIndices().empty())
+						continue;
+
+					if (!Appearance::UploadPhase(Device, SoftBody->GetSurface()))
+						continue;
+
+					SoftBody->Fill(Device, IndexBuffer, VertexBuffer);
+
+					Device->Render.World.Identify();
+					Device->Render.WorldViewProjection = System->GetScene()->View.ViewProjection;
+					Device->UpdateBuffer(Graphics::RenderBufferType_Render);
+					Device->SetVertexBuffer(VertexBuffer, 0, sizeof(Compute::Vertex), 0);
+					Device->SetIndexBuffer(IndexBuffer, Graphics::Format_R32_Uint, 0);
+					Device->DrawIndexed((unsigned int)SoftBody->GetIndices().size(), 0, 0);
+				}
+			}
+			void SoftBodyRenderer::RenderLimpidSubstep(Rest::Timer* Time, uint64_t Layer, bool Static)
+			{
+				Graphics::GraphicsDevice* Device = System->GetDevice();
+				if (!Limpid || Limpid->Empty())
+					return;
+
+				Device->SetDepthStencilState(DepthStencil);
+				Device->SetSamplerState(Sampler);
+				Device->SetBlendState(Blend);
+				Device->SetRasterizerState(BackRasterizer);
+				Device->SetShader(Shaders.Limpid, Graphics::ShaderType_Vertex | Graphics::ShaderType_Pixel);
+				System->GetScene()->SetSurface();
+
+				for (auto It = Limpid->Begin(); It != Limpid->End(); ++It)
+				{
+					Engine::Components::SoftBody* SoftBody = (Engine::Components::SoftBody*)*It;
+					if ((Static && !SoftBody->Static) || !SoftBody->IsVisibleTo(System->GetScene()->View, nullptr) || SoftBody->GetIndices().empty())
+						continue;
+
+					if (!Appearance::UploadPhase(Device, SoftBody->GetSurface()))
+						continue;
+
+					SoftBody->Fill(Device, IndexBuffer, VertexBuffer);
+
+					Device->Render.World.Identify();
+					Device->Render.WorldViewProjection = System->GetScene()->View.ViewProjection;
+					Device->UpdateBuffer(Graphics::RenderBufferType_Render);
+					Device->SetVertexBuffer(VertexBuffer, 0, sizeof(Compute::Vertex), 0);
+					Device->SetIndexBuffer(IndexBuffer, Graphics::Format_R32_Uint, 0);
+					Device->DrawIndexed((unsigned int)SoftBody->GetIndices().size(), 0, 0);
+				}
+			}
+			void SoftBodyRenderer::RenderDepthLinear(Rest::Timer* Time)
+			{
+				Graphics::GraphicsDevice* Device = System->GetDevice();
+				if ((!Opaque || Opaque->Empty()) && (!Limpid || Limpid->Empty()))
 					return;
 
 				Device->SetDepthStencilState(DepthStencil);
 				Device->SetSamplerState(Sampler);
 				Device->SetBlendState(Blend);
 				Device->SetRasterizerState(FrontRasterizer);
-				Device->SetShader(Shaders.Depth90, Graphics::ShaderType_Vertex | Graphics::ShaderType_Pixel);
+				Device->SetShader(Shaders.Linear, Graphics::ShaderType_Vertex | Graphics::ShaderType_Pixel);
 
-				for (auto It = SoftBodies->Begin(); It != SoftBodies->End(); ++It)
+				for (auto It = Opaque->Begin(); It != Opaque->End(); ++It)
+				{
+					Engine::Components::SoftBody* SoftBody = (Engine::Components::SoftBody*)*It;
+					if (!SoftBody->IsVisibleTo(System->GetScene()->View, nullptr) || SoftBody->GetIndices().empty())
+						continue;
+
+					if (!Appearance::UploadDepth(Device, SoftBody->GetSurface()))
+						continue;
+
+					SoftBody->Fill(Device, IndexBuffer, VertexBuffer);
+
+					Device->Render.World.Identify();
+					Device->Render.WorldViewProjection = System->GetScene()->View.ViewProjection;
+					Device->UpdateBuffer(Graphics::RenderBufferType_Render);
+					Device->SetVertexBuffer(VertexBuffer, 0, sizeof(Compute::Vertex), 0);
+					Device->SetIndexBuffer(IndexBuffer, Graphics::Format_R32_Uint, 0);
+					Device->DrawIndexed((unsigned int)SoftBody->GetIndices().size(), 0, 0);
+				}
+
+				for (auto It = Limpid->Begin(); It != Limpid->End(); ++It)
 				{
 					Engine::Components::SoftBody* SoftBody = (Engine::Components::SoftBody*)*It;
 					if (!SoftBody->IsVisibleTo(System->GetScene()->View, nullptr) || SoftBody->GetIndices().empty())
@@ -553,25 +931,43 @@ namespace Tomahawk
 					Device->DrawIndexed((unsigned int)SoftBody->GetIndices().size(), 0, 0);
 				}
 			}
-			void SoftBodyRenderer::OnCubicDepthRender(Rest::Timer* Time, Compute::Matrix4x4* ViewProjection)
+			void SoftBodyRenderer::RenderDepthCubic(Rest::Timer* Time, Compute::Matrix4x4* ViewProjection)
 			{
 				Graphics::GraphicsDevice* Device = System->GetDevice();
-				if (!SoftBodies || SoftBodies->Empty())
+				if ((!Opaque || Opaque->Empty()) && (!Limpid || Limpid->Empty()))
 					return;
 
-				memcpy(Depth360.FaceViewProjection, ViewProjection, sizeof(Compute::Matrix4x4) * 6);
+				memcpy(Depth.FaceViewProjection, ViewProjection, sizeof(Compute::Matrix4x4) * 6);
 				Device->SetDepthStencilState(DepthStencil);
 				Device->SetSamplerState(Sampler);
 				Device->SetBlendState(Blend);
 				Device->SetRasterizerState(FrontRasterizer);
-				Device->SetShader(Shaders.Depth360, Graphics::ShaderType_Vertex | Graphics::ShaderType_Pixel | Graphics::ShaderType_Geometry);
-				Device->SetBuffer(Shaders.Depth360, 3, Graphics::ShaderType_Vertex | Graphics::ShaderType_Pixel | Graphics::ShaderType_Geometry);
-				Device->UpdateBuffer(Shaders.Depth360, &Depth360);
+				Device->SetShader(Shaders.Cubic, Graphics::ShaderType_Vertex | Graphics::ShaderType_Pixel | Graphics::ShaderType_Geometry);
+				Device->SetBuffer(Shaders.Cubic, 3, Graphics::ShaderType_Vertex | Graphics::ShaderType_Pixel | Graphics::ShaderType_Geometry);
+				Device->UpdateBuffer(Shaders.Cubic, &Depth);
 
-				for (auto It = SoftBodies->Begin(); It != SoftBodies->End(); ++It)
+				for (auto It = Opaque->Begin(); It != Opaque->End(); ++It)
 				{
 					Engine::Components::SoftBody* SoftBody = (Engine::Components::SoftBody*)*It;
-					if (!SoftBody->GetBody() || SoftBody->GetEntity()->Transform->Position.Distance(System->GetScene()->View.RawPosition) >= System->GetScene()->View.ViewDistance + SoftBody->GetEntity()->Transform->Scale.Length())
+					if (!SoftBody->GetBody() || SoftBody->GetEntity()->Transform->Position.Distance(System->GetScene()->View.WorldPosition) >= System->GetScene()->View.ViewDistance + SoftBody->GetEntity()->Transform->Scale.Length())
+						continue;
+
+					if (!Appearance::UploadCubicDepth(Device, SoftBody->GetSurface()))
+						continue;
+
+					SoftBody->Fill(Device, IndexBuffer, VertexBuffer);
+
+					Device->Render.World.Identify();
+					Device->UpdateBuffer(Graphics::RenderBufferType_Render);
+					Device->SetVertexBuffer(VertexBuffer, 0, sizeof(Compute::Vertex), 0);
+					Device->SetIndexBuffer(IndexBuffer, Graphics::Format_R32_Uint, 0);
+					Device->DrawIndexed((unsigned int)SoftBody->GetIndices().size(), 0, 0);
+				}
+
+				for (auto It = Limpid->Begin(); It != Limpid->End(); ++It)
+				{
+					Engine::Components::SoftBody* SoftBody = (Engine::Components::SoftBody*)*It;
+					if (!SoftBody->GetBody() || SoftBody->GetEntity()->Transform->Position.Distance(System->GetScene()->View.WorldPosition) >= System->GetScene()->View.ViewDistance + SoftBody->GetEntity()->Transform->Scale.Length())
 						continue;
 
 					if (!Appearance::UploadCubicDepth(Device, SoftBody->GetSurface()))
@@ -588,8 +984,16 @@ namespace Tomahawk
 
 				Device->SetShader(nullptr, Graphics::ShaderType_Geometry);
 			}
+			Rest::Pool<Component*>* SoftBodyRenderer::GetGeometry(uint64_t Index)
+			{
+				return Opaque;
+			}
+			uint64_t SoftBodyRenderer::GetGeometryCount()
+			{
+				return 1;
+			}
 
-			ElementSystemRenderer::ElementSystemRenderer(RenderSystem* Lab) : Renderer(Lab)
+			EmitterRenderer::EmitterRenderer(RenderSystem* Lab) : Renderer(Lab)
 			{
 				Geometric = true;
 				DepthStencil = Lab->GetDevice()->GetDepthStencilState("DEF_NONE_LESS");
@@ -603,48 +1007,65 @@ namespace Tomahawk
 				I.Layout = nullptr;
 				I.LayoutSize = 0;
 
-				if (System->GetDevice()->GetSection("geometry/element-system/gbuffer", &I.Data))
-					Shaders.GBuffer = System->CompileShader("ESR_GBUFFER", I, 0);
+				if (System->GetDevice()->GetSection("geometry/emitter/opaque", &I.Data))
+					Shaders.Opaque = System->CompileShader("er-opaque", I, 0);
 
-				if (System->GetDevice()->GetSection("geometry/element-system/depth", &I.Data))
-					Shaders.Depth90 = System->CompileShader("ESR_DEPTH90", I, 0);
+				if (System->GetDevice()->GetSection("geometry/emitter/limpid", &I.Data))
+					Shaders.Limpid = System->CompileShader("er-limpid", I, 0);
 
-				if (System->GetDevice()->GetSection("geometry/element-system/depth-360-point", &I.Data))
-					Shaders.Depth360P = System->CompileShader("ESR_DEPTH360P", I, 0);
+				if (System->GetDevice()->GetSection("geometry/emitter/depth-linear", &I.Data))
+					Shaders.Linear = System->CompileShader("er-depth-linear", I, 0);
 
-				if (System->GetDevice()->GetSection("geometry/element-system/depth-360-quad", &I.Data))
-					Shaders.Depth360Q = System->CompileShader("ESR_DEPTH360Q", I, sizeof(Depth360));
+				if (System->GetDevice()->GetSection("geometry/emitter/depth-point", &I.Data))
+					Shaders.Point = System->CompileShader("er-depth-point", I, 0);
+
+				if (System->GetDevice()->GetSection("geometry/emitter/depth-quad", &I.Data))
+					Shaders.Quad = System->CompileShader("er-depth-quad", I, sizeof(Depth));
 			}
-			ElementSystemRenderer::~ElementSystemRenderer()
+			EmitterRenderer::~EmitterRenderer()
 			{
-				System->FreeShader("ESR_GBUFFER", Shaders.GBuffer);
-				System->FreeShader("ESR_DEPTH90", Shaders.Depth90);
-				System->FreeShader("ESR_DEPTH360P", Shaders.Depth360P);
-				System->FreeShader("ESR_DEPTH360Q", Shaders.Depth360Q);
+				System->FreeShader("er-opaque", Shaders.Opaque);
+				System->FreeShader("er-limpid", Shaders.Limpid);
+				System->FreeShader("er-depth-linear", Shaders.Linear);
+				System->FreeShader("er-depth-point", Shaders.Point);
+				System->FreeShader("er-depth-quad", Shaders.Quad);
 			}
-			void ElementSystemRenderer::OnInitialize()
+			void EmitterRenderer::Initialize()
 			{
-				ElementSystems = System->GetScene()->GetComponents<Engine::Components::ElementSystem>();
+				Opaque = System->GetScene()->GetComponents<Engine::Components::Emitter>();
+				Limpid = System->GetScene()->GetComponents<Engine::Components::LimpidEmitter>();
 			}
-			void ElementSystemRenderer::OnCulling(const Viewer& View)
+			void EmitterRenderer::Cull(const Viewer& View)
 			{
-				float Hardness = 0.0f;
-				for (auto It = ElementSystems->Begin(); It != ElementSystems->End(); ++It)
+				System->GetScene()->SortEntitiesBackToFront(Limpid);
+				for (auto It = Opaque->Begin(); It != Opaque->End(); ++It)
 				{
-					Engine::Components::ElementSystem* ElementSystem = (Engine::Components::ElementSystem*)*It;
-					Entity* Base = ElementSystem->GetEntity();
+					Engine::Components::Emitter* Emitter = (Engine::Components::Emitter*)*It;
+					Entity* Base = Emitter->GetEntity();
 
-					Hardness = 1.0f - Base->Transform->Position.Distance(View.RawPosition) / (View.ViewDistance + ElementSystem->Volume);
+					float Hardness = 1.0f - Base->Transform->Position.Distance(View.WorldPosition) / (View.ViewDistance + Emitter->Volume);
 					if (Hardness > 0.0f)
-						ElementSystem->Visibility = Compute::MathCommon::IsClipping(View.ViewProjection, Base->Transform->GetWorld(), 1.5f) == -1 ? Hardness : 0.0f;
+						Emitter->Visibility = Compute::MathCommon::IsClipping(View.ViewProjection, Base->Transform->GetWorld(), 1.5f) == -1 ? Hardness : 0.0f;
 					else
-						ElementSystem->Visibility = 0.0f;
+						Emitter->Visibility = 0.0f;
+				}
+
+				for (auto It = Limpid->Begin(); It != Limpid->End(); ++It)
+				{
+					Engine::Components::Emitter* Emitter = (Engine::Components::Emitter*)*It;
+					Entity* Base = Emitter->GetEntity();
+
+					float Hardness = 1.0f - Base->Transform->Position.Distance(View.WorldPosition) / (View.ViewDistance + Emitter->Volume);
+					if (Hardness > 0.0f)
+						Emitter->Visibility = Compute::MathCommon::IsClipping(View.ViewProjection, Base->Transform->GetWorld(), 1.5f) == -1 ? Hardness : 0.0f;
+					else
+						Emitter->Visibility = 0.0f;
 				}
 			}
-			void ElementSystemRenderer::OnRender(Rest::Timer* Time)
+			void EmitterRenderer::RenderStep(Rest::Timer* Time)
 			{
 				Graphics::GraphicsDevice* Device = System->GetDevice();
-				if (!ElementSystems || ElementSystems->Empty())
+				if (!Opaque || Opaque->Empty())
 					return;
 
 				Graphics::PrimitiveTopology T = Device->GetPrimitiveTopology();
@@ -653,40 +1074,40 @@ namespace Tomahawk
 				Device->SetBlendState(AdditiveBlend);
 				Device->SetRasterizerState(BackRasterizer);
 				Device->SetPrimitiveTopology(Graphics::PrimitiveTopology_Point_List);
-				Device->SetShader(Shaders.GBuffer, Graphics::ShaderType_Vertex | Graphics::ShaderType_Pixel);
+				Device->SetShader(Shaders.Opaque, Graphics::ShaderType_Vertex | Graphics::ShaderType_Pixel);
 				Device->SetVertexBuffer(nullptr, 0, 0, 0);
 				System->GetScene()->SetSurface();
 
 				Compute::Matrix4x4 View = System->GetScene()->View.ViewProjection * System->GetScene()->View.Projection.Invert();
-				for (auto It = ElementSystems->Begin(); It != ElementSystems->End(); ++It)
+				for (auto It = Opaque->Begin(); It != Opaque->End(); ++It)
 				{
-					Engine::Components::ElementSystem* ElementSystem = (Engine::Components::ElementSystem*)*It;
-					if (!ElementSystem->GetBuffer())
+					Engine::Components::Emitter* Emitter = (Engine::Components::Emitter*)*It;
+					if (!Emitter->GetBuffer())
 						continue;
 
-					if (!Appearance::UploadPhase(Device, ElementSystem->GetSurface()))
+					if (!Appearance::UploadPhase(Device, Emitter->GetSurface()))
 						continue;
 
 					Device->Render.World = System->GetScene()->View.Projection;
-					Device->Render.WorldViewProjection = (ElementSystem->QuadBased ? View : System->GetScene()->View.ViewProjection);
+					Device->Render.WorldViewProjection = (Emitter->QuadBased ? View : System->GetScene()->View.ViewProjection);
 					
-					if (ElementSystem->Connected)
-						Device->Render.WorldViewProjection = ElementSystem->GetEntity()->Transform->GetWorld() * Device->Render.WorldViewProjection;
+					if (Emitter->Connected)
+						Device->Render.WorldViewProjection = Emitter->GetEntity()->Transform->GetWorld() * Device->Render.WorldViewProjection;
 
-					Device->UpdateBuffer(ElementSystem->GetBuffer());
-					Device->SetBuffer(ElementSystem->GetBuffer(), 7);
-					Device->SetShader(ElementSystem->QuadBased ? Shaders.GBuffer : nullptr, Graphics::ShaderType_Geometry);
+					Device->UpdateBuffer(Emitter->GetBuffer());
+					Device->SetBuffer(Emitter->GetBuffer(), 8);
+					Device->SetShader(Emitter->QuadBased ? Shaders.Opaque : nullptr, Graphics::ShaderType_Geometry);
 					Device->UpdateBuffer(Graphics::RenderBufferType_Render);
-					Device->Draw((unsigned int)ElementSystem->GetBuffer()->GetArray()->Size(), 0);
+					Device->Draw((unsigned int)Emitter->GetBuffer()->GetArray()->Size(), 0);
 				}
 
 				Device->SetPrimitiveTopology(T);
 				Device->SetShader(nullptr, Graphics::ShaderType_Geometry);
 			}
-			void ElementSystemRenderer::OnPhaseRender(Rest::Timer* Time, uint64_t Mask)
+			void EmitterRenderer::RenderSubstep(Rest::Timer* Time, bool Static)
 			{
 				Graphics::GraphicsDevice* Device = System->GetDevice();
-				if (!ElementSystems || ElementSystems->Empty())
+				if (!Opaque || Opaque->Empty())
 					return;
 
 				Graphics::PrimitiveTopology T = Device->GetPrimitiveTopology();
@@ -695,91 +1116,196 @@ namespace Tomahawk
 				Device->SetBlendState(AdditiveBlend);
 				Device->SetRasterizerState(BackRasterizer);
 				Device->SetPrimitiveTopology(Graphics::PrimitiveTopology_Point_List);
-				Device->SetShader(Shaders.GBuffer, Graphics::ShaderType_Vertex | Graphics::ShaderType_Pixel);
+				Device->SetShader(Shaders.Opaque, Graphics::ShaderType_Vertex | Graphics::ShaderType_Pixel);
 				Device->SetVertexBuffer(nullptr, 0, 0, 0);
 				System->GetScene()->SetSurface();
 
-				bool Static = (Mask & PhaseMask_Static);
 				Compute::Matrix4x4 View = System->GetScene()->View.ViewProjection * System->GetScene()->View.Projection.Invert();
-				for (auto It = ElementSystems->Begin(); It != ElementSystems->End(); ++It)
+				for (auto It = Opaque->Begin(); It != Opaque->End(); ++It)
 				{
-					Engine::Components::ElementSystem* ElementSystem = (Engine::Components::ElementSystem*)*It;
-					if ((Static && !ElementSystem->Static) || !ElementSystem->GetBuffer())
+					Engine::Components::Emitter* Emitter = (Engine::Components::Emitter*)*It;
+					if ((Static && !Emitter->Static) || !Emitter->GetBuffer())
 						continue;
 
-					if (!Appearance::UploadPhase(Device, ElementSystem->GetSurface()))
+					if (!Appearance::UploadPhase(Device, Emitter->GetSurface()))
 						continue;
 
 					Device->Render.World = System->GetScene()->View.Projection;
-					Device->Render.WorldViewProjection = (ElementSystem->QuadBased ? View : System->GetScene()->View.ViewProjection);
+					Device->Render.WorldViewProjection = (Emitter->QuadBased ? View : System->GetScene()->View.ViewProjection);
 					
-					if (ElementSystem->Connected)
-						Device->Render.WorldViewProjection = ElementSystem->GetEntity()->Transform->GetWorld() * Device->Render.WorldViewProjection;
+					if (Emitter->Connected)
+						Device->Render.WorldViewProjection = Emitter->GetEntity()->Transform->GetWorld() * Device->Render.WorldViewProjection;
 
-					Device->UpdateBuffer(ElementSystem->GetBuffer());
-					Device->SetBuffer(ElementSystem->GetBuffer(), 7);
-					Device->SetShader(ElementSystem->QuadBased ? Shaders.GBuffer : nullptr, Graphics::ShaderType_Geometry);
+					Device->UpdateBuffer(Emitter->GetBuffer());
+					Device->SetBuffer(Emitter->GetBuffer(), 8);
+					Device->SetShader(Emitter->QuadBased ? Shaders.Opaque : nullptr, Graphics::ShaderType_Geometry);
 					Device->UpdateBuffer(Graphics::RenderBufferType_Render);
-					Device->Draw((unsigned int)ElementSystem->GetBuffer()->GetArray()->Size(), 0);
+					Device->Draw((unsigned int)Emitter->GetBuffer()->GetArray()->Size(), 0);
 				}
 
 				Device->SetPrimitiveTopology(T);
 				Device->SetShader(nullptr, Graphics::ShaderType_Geometry);
 			}
-			void ElementSystemRenderer::OnDepthRender(Rest::Timer* Time)
+			void EmitterRenderer::RenderLimpidStep(Rest::Timer* Time, uint64_t Layer)
 			{
 				Graphics::GraphicsDevice* Device = System->GetDevice();
-				if (!ElementSystems || ElementSystems->Empty())
+				if (!Limpid || Limpid->Empty())
 					return;
 
 				Graphics::PrimitiveTopology T = Device->GetPrimitiveTopology();
 				Device->SetDepthStencilState(DepthStencil);
 				Device->SetSamplerState(Sampler);
-				Device->SetBlendState(OverwriteBlend);
-				Device->SetRasterizerState(FrontRasterizer);
+				Device->SetBlendState(AdditiveBlend);
+				Device->SetRasterizerState(BackRasterizer);
 				Device->SetPrimitiveTopology(Graphics::PrimitiveTopology_Point_List);
-				Device->SetShader(Shaders.Depth90, Graphics::ShaderType_Vertex | Graphics::ShaderType_Pixel);
+				Device->SetShader(Shaders.Limpid, Graphics::ShaderType_Vertex | Graphics::ShaderType_Pixel);
 				Device->SetVertexBuffer(nullptr, 0, 0, 0);
 				System->GetScene()->SetSurface();
 
 				Compute::Matrix4x4 View = System->GetScene()->View.ViewProjection * System->GetScene()->View.Projection.Invert();
-				for (auto It = ElementSystems->Begin(); It != ElementSystems->End(); ++It)
+				for (auto It = Limpid->Begin(); It != Limpid->End(); ++It)
 				{
-					Engine::Components::ElementSystem* ElementSystem = (Engine::Components::ElementSystem*)*It;
-					if (!ElementSystem->GetBuffer())
+					Engine::Components::Emitter* Emitter = (Engine::Components::Emitter*)*It;
+					if (!Emitter->GetBuffer())
 						continue;
 
-					if (!Appearance::UploadDepth(Device, ElementSystem->GetSurface()))
+					if (!Appearance::UploadPhase(Device, Emitter->GetSurface()))
 						continue;
 
-					Device->Render.World = ElementSystem->QuadBased ? System->GetScene()->View.Projection : Compute::Matrix4x4::Identity();
-					Device->Render.WorldViewProjection = (ElementSystem->QuadBased ? View : System->GetScene()->View.ViewProjection);
-					
-					if (ElementSystem->Connected)
-						Device->Render.WorldViewProjection = ElementSystem->GetEntity()->Transform->GetWorld() * Device->Render.WorldViewProjection;
+					Device->Render.World = System->GetScene()->View.Projection;
+					Device->Render.WorldViewProjection = (Emitter->QuadBased ? View : System->GetScene()->View.ViewProjection);
 
-					Device->UpdateBuffer(ElementSystem->GetBuffer());
-					Device->SetBuffer(ElementSystem->GetBuffer(), 7);
-					Device->SetShader(ElementSystem->QuadBased ? Shaders.Depth90 : nullptr, Graphics::ShaderType_Geometry);
+					if (Emitter->Connected)
+						Device->Render.WorldViewProjection = Emitter->GetEntity()->Transform->GetWorld() * Device->Render.WorldViewProjection;
+
+					Device->UpdateBuffer(Emitter->GetBuffer());
+					Device->SetBuffer(Emitter->GetBuffer(), 8);
+					Device->SetShader(Emitter->QuadBased ? Shaders.Opaque : nullptr, Graphics::ShaderType_Geometry);
 					Device->UpdateBuffer(Graphics::RenderBufferType_Render);
-					Device->Draw((unsigned int)ElementSystem->GetBuffer()->GetArray()->Size(), 0);
+					Device->Draw((unsigned int)Emitter->GetBuffer()->GetArray()->Size(), 0);
 				}
 
 				Device->SetPrimitiveTopology(T);
 				Device->SetShader(nullptr, Graphics::ShaderType_Geometry);
 			}
-			void ElementSystemRenderer::OnCubicDepthRender(Rest::Timer* Time, Compute::Matrix4x4* ViewProjection)
+			void EmitterRenderer::RenderLimpidSubstep(Rest::Timer* Time, uint64_t Layer, bool Static)
 			{
 				Graphics::GraphicsDevice* Device = System->GetDevice();
-				if (!ElementSystems || ElementSystems->Empty())
+				if (!Limpid || Limpid->Empty())
 					return;
 
-				Depth360.FaceView[0] = Compute::Matrix4x4::CreateCubeMapLookAt(0, System->GetScene()->View.Position);
-				Depth360.FaceView[1] = Compute::Matrix4x4::CreateCubeMapLookAt(1, System->GetScene()->View.Position);
-				Depth360.FaceView[2] = Compute::Matrix4x4::CreateCubeMapLookAt(2, System->GetScene()->View.Position);
-				Depth360.FaceView[3] = Compute::Matrix4x4::CreateCubeMapLookAt(3, System->GetScene()->View.Position);
-				Depth360.FaceView[4] = Compute::Matrix4x4::CreateCubeMapLookAt(4, System->GetScene()->View.Position);
-				Depth360.FaceView[5] = Compute::Matrix4x4::CreateCubeMapLookAt(5, System->GetScene()->View.Position);
+				Graphics::PrimitiveTopology T = Device->GetPrimitiveTopology();
+				Device->SetDepthStencilState(DepthStencil);
+				Device->SetSamplerState(Sampler);
+				Device->SetBlendState(AdditiveBlend);
+				Device->SetRasterizerState(BackRasterizer);
+				Device->SetPrimitiveTopology(Graphics::PrimitiveTopology_Point_List);
+				Device->SetShader(Shaders.Limpid, Graphics::ShaderType_Vertex | Graphics::ShaderType_Pixel);
+				Device->SetVertexBuffer(nullptr, 0, 0, 0);
+				System->GetScene()->SetSurface();
+
+				Compute::Matrix4x4 View = System->GetScene()->View.ViewProjection * System->GetScene()->View.Projection.Invert();
+				for (auto It = Limpid->Begin(); It != Limpid->End(); ++It)
+				{
+					Engine::Components::Emitter* Emitter = (Engine::Components::Emitter*)*It;
+					if ((Static && !Emitter->Static) || !Emitter->GetBuffer())
+						continue;
+
+					if (!Appearance::UploadPhase(Device, Emitter->GetSurface()))
+						continue;
+
+					Device->Render.World = System->GetScene()->View.Projection;
+					Device->Render.WorldViewProjection = (Emitter->QuadBased ? View : System->GetScene()->View.ViewProjection);
+
+					if (Emitter->Connected)
+						Device->Render.WorldViewProjection = Emitter->GetEntity()->Transform->GetWorld() * Device->Render.WorldViewProjection;
+
+					Device->UpdateBuffer(Emitter->GetBuffer());
+					Device->SetBuffer(Emitter->GetBuffer(), 8);
+					Device->SetShader(Emitter->QuadBased ? Shaders.Opaque : nullptr, Graphics::ShaderType_Geometry);
+					Device->UpdateBuffer(Graphics::RenderBufferType_Render);
+					Device->Draw((unsigned int)Emitter->GetBuffer()->GetArray()->Size(), 0);
+				}
+
+				Device->SetPrimitiveTopology(T);
+				Device->SetShader(nullptr, Graphics::ShaderType_Geometry);
+			}
+			void EmitterRenderer::RenderDepthLinear(Rest::Timer* Time)
+			{
+				Graphics::GraphicsDevice* Device = System->GetDevice();
+				if ((!Opaque || Opaque->Empty()) && (!Limpid || Limpid->Empty()))
+					return;
+
+				Graphics::PrimitiveTopology T = Device->GetPrimitiveTopology();
+				Device->SetDepthStencilState(DepthStencil);
+				Device->SetSamplerState(Sampler);
+				Device->SetBlendState(OverwriteBlend);
+				Device->SetRasterizerState(FrontRasterizer);
+				Device->SetPrimitiveTopology(Graphics::PrimitiveTopology_Point_List);
+				Device->SetShader(Shaders.Linear, Graphics::ShaderType_Vertex | Graphics::ShaderType_Pixel);
+				Device->SetVertexBuffer(nullptr, 0, 0, 0);
+				System->GetScene()->SetSurface();
+
+				Compute::Matrix4x4 View = System->GetScene()->View.ViewProjection * System->GetScene()->View.Projection.Invert();
+				for (auto It = Opaque->Begin(); It != Opaque->End(); ++It)
+				{
+					Engine::Components::Emitter* Emitter = (Engine::Components::Emitter*)*It;
+					if (!Emitter->GetBuffer())
+						continue;
+
+					if (!Appearance::UploadDepth(Device, Emitter->GetSurface()))
+						continue;
+
+					Device->Render.World = Emitter->QuadBased ? System->GetScene()->View.Projection : Compute::Matrix4x4::Identity();
+					Device->Render.WorldViewProjection = (Emitter->QuadBased ? View : System->GetScene()->View.ViewProjection);
+					
+					if (Emitter->Connected)
+						Device->Render.WorldViewProjection = Emitter->GetEntity()->Transform->GetWorld() * Device->Render.WorldViewProjection;
+
+					Device->UpdateBuffer(Emitter->GetBuffer());
+					Device->SetBuffer(Emitter->GetBuffer(), 8);
+					Device->SetShader(Emitter->QuadBased ? Shaders.Linear : nullptr, Graphics::ShaderType_Geometry);
+					Device->UpdateBuffer(Graphics::RenderBufferType_Render);
+					Device->Draw((unsigned int)Emitter->GetBuffer()->GetArray()->Size(), 0);
+				}
+
+				for (auto It = Limpid->Begin(); It != Limpid->End(); ++It)
+				{
+					Engine::Components::Emitter* Emitter = (Engine::Components::Emitter*)*It;
+					if (!Emitter->GetBuffer())
+						continue;
+
+					if (!Appearance::UploadDepth(Device, Emitter->GetSurface()))
+						continue;
+
+					Device->Render.World = Emitter->QuadBased ? System->GetScene()->View.Projection : Compute::Matrix4x4::Identity();
+					Device->Render.WorldViewProjection = (Emitter->QuadBased ? View : System->GetScene()->View.ViewProjection);
+
+					if (Emitter->Connected)
+						Device->Render.WorldViewProjection = Emitter->GetEntity()->Transform->GetWorld() * Device->Render.WorldViewProjection;
+
+					Device->UpdateBuffer(Emitter->GetBuffer());
+					Device->SetBuffer(Emitter->GetBuffer(), 8);
+					Device->SetShader(Emitter->QuadBased ? Shaders.Linear : nullptr, Graphics::ShaderType_Geometry);
+					Device->UpdateBuffer(Graphics::RenderBufferType_Render);
+					Device->Draw((unsigned int)Emitter->GetBuffer()->GetArray()->Size(), 0);
+				}
+
+				Device->SetPrimitiveTopology(T);
+				Device->SetShader(nullptr, Graphics::ShaderType_Geometry);
+			}
+			void EmitterRenderer::RenderDepthCubic(Rest::Timer* Time, Compute::Matrix4x4* ViewProjection)
+			{
+				Graphics::GraphicsDevice* Device = System->GetDevice();
+				if ((!Opaque || Opaque->Empty()) && (!Limpid || Limpid->Empty()))
+					return;
+
+				Depth.FaceView[0] = Compute::Matrix4x4::CreateCubeMapLookAt(0, System->GetScene()->View.InvViewPosition);
+				Depth.FaceView[1] = Compute::Matrix4x4::CreateCubeMapLookAt(1, System->GetScene()->View.InvViewPosition);
+				Depth.FaceView[2] = Compute::Matrix4x4::CreateCubeMapLookAt(2, System->GetScene()->View.InvViewPosition);
+				Depth.FaceView[3] = Compute::Matrix4x4::CreateCubeMapLookAt(3, System->GetScene()->View.InvViewPosition);
+				Depth.FaceView[4] = Compute::Matrix4x4::CreateCubeMapLookAt(4, System->GetScene()->View.InvViewPosition);
+				Depth.FaceView[5] = Compute::Matrix4x4::CreateCubeMapLookAt(5, System->GetScene()->View.InvViewPosition);
 
 				Graphics::PrimitiveTopology T = Device->GetPrimitiveTopology();
 				Device->SetDepthStencilState(DepthStencil);
@@ -788,31 +1314,136 @@ namespace Tomahawk
 				Device->SetRasterizerState(FrontRasterizer);
 				Device->SetPrimitiveTopology(Graphics::PrimitiveTopology_Point_List);
 				Device->SetVertexBuffer(nullptr, 0, 0, 0);
-				Device->SetBuffer(Shaders.Depth360Q, 3, Graphics::ShaderType_Vertex | Graphics::ShaderType_Pixel | Graphics::ShaderType_Geometry);
-				Device->UpdateBuffer(Shaders.Depth360Q, &Depth360);
+				Device->SetBuffer(Shaders.Quad, 3, Graphics::ShaderType_Vertex | Graphics::ShaderType_Pixel | Graphics::ShaderType_Geometry);
+				Device->UpdateBuffer(Shaders.Quad, &Depth);
 				System->GetScene()->SetSurface();
 
-				for (auto It = ElementSystems->Begin(); It != ElementSystems->End(); ++It)
+				for (auto It = Opaque->Begin(); It != Opaque->End(); ++It)
 				{
-					Engine::Components::ElementSystem* ElementSystem = (Engine::Components::ElementSystem*)*It;
-					if (!ElementSystem->GetBuffer())
+					Engine::Components::Emitter* Emitter = (Engine::Components::Emitter*)*It;
+					if (!Emitter->GetBuffer())
 						continue;
 
-					if (!Appearance::UploadCubicDepth(Device, ElementSystem->GetSurface()))
+					if (!Appearance::UploadCubicDepth(Device, Emitter->GetSurface()))
 						continue;
 
-					Device->Render.World = (ElementSystem->Connected ? ElementSystem->GetEntity()->Transform->GetWorld() : Compute::Matrix4x4::Identity());			
-					Device->UpdateBuffer(ElementSystem->GetBuffer());
-					Device->SetBuffer(ElementSystem->GetBuffer(), 7);
-					Device->SetShader(ElementSystem->QuadBased ? Shaders.Depth360Q : Shaders.Depth360P, Graphics::ShaderType_Vertex | Graphics::ShaderType_Pixel | Graphics::ShaderType_Geometry);
+					Device->Render.World = (Emitter->Connected ? Emitter->GetEntity()->Transform->GetWorld() : Compute::Matrix4x4::Identity());			
+					Device->UpdateBuffer(Emitter->GetBuffer());
+					Device->SetBuffer(Emitter->GetBuffer(), 8);
+					Device->SetShader(Emitter->QuadBased ? Shaders.Quad : Shaders.Point, Graphics::ShaderType_Vertex | Graphics::ShaderType_Pixel | Graphics::ShaderType_Geometry);
 					Device->UpdateBuffer(Graphics::RenderBufferType_Render);
-					Device->Draw((unsigned int)ElementSystem->GetBuffer()->GetArray()->Size(), 0);
+					Device->Draw((unsigned int)Emitter->GetBuffer()->GetArray()->Size(), 0);
+				}
+
+				for (auto It = Limpid->Begin(); It != Limpid->End(); ++It)
+				{
+					Engine::Components::Emitter* Emitter = (Engine::Components::Emitter*)*It;
+					if (!Emitter->GetBuffer())
+						continue;
+
+					if (!Appearance::UploadCubicDepth(Device, Emitter->GetSurface()))
+						continue;
+
+					Device->Render.World = (Emitter->Connected ? Emitter->GetEntity()->Transform->GetWorld() : Compute::Matrix4x4::Identity());
+					Device->UpdateBuffer(Emitter->GetBuffer());
+					Device->SetBuffer(Emitter->GetBuffer(), 8);
+					Device->SetShader(Emitter->QuadBased ? Shaders.Quad : Shaders.Point, Graphics::ShaderType_Vertex | Graphics::ShaderType_Pixel | Graphics::ShaderType_Geometry);
+					Device->UpdateBuffer(Graphics::RenderBufferType_Render);
+					Device->Draw((unsigned int)Emitter->GetBuffer()->GetArray()->Size(), 0);
 				}
 
 				Device->SetPrimitiveTopology(T);
 				Device->SetShader(nullptr, Graphics::ShaderType_Geometry);
 			}
+			Rest::Pool<Component*>* EmitterRenderer::GetGeometry(uint64_t Index)
+			{
+				return Opaque;
+			}
+			uint64_t EmitterRenderer::GetGeometryCount()
+			{
+				return 1;
+			}
 
+			LimpidRenderer::LimpidRenderer(RenderSystem* Lab) : Renderer(Lab)
+			{
+				Geometric = true;
+				DepthStencil = Lab->GetDevice()->GetDepthStencilState("DEF_NONE");
+				Rasterizer = Lab->GetDevice()->GetRasterizerState("DEF_CULL_BACK");
+				Blend = Lab->GetDevice()->GetBlendState("DEF_OVERWRITE");
+				Sampler = Lab->GetDevice()->GetSamplerState("DEF_TRILINEAR_X16");
+
+				Graphics::Shader::Desc I = Graphics::Shader::Desc();
+				I.Layout = Graphics::Shader::GetShapeVertexLayout();
+				I.LayoutSize = 2;
+
+				if (System->GetDevice()->GetSection("pass/limpid", &I.Data))
+					Shader = System->CompileShader("lr-limpid", I, 0);
+			}
+			LimpidRenderer::~LimpidRenderer()
+			{
+				System->FreeShader("lr-limpid", Shader);
+				delete Surface;
+				delete Input;
+			}
+			void LimpidRenderer::Initialize()
+			{
+				ResizeBuffers();
+			}
+			void LimpidRenderer::RenderStep(Rest::Timer* Time)
+			{
+				SceneGraph* Scene = System->GetScene();
+				Graphics::MultiRenderTarget2D* S = Scene->GetSurface();
+				Graphics::GraphicsDevice* Device = System->GetDevice();
+
+				Scene->SetSurface(Surface);
+				Scene->ClearSurface();
+				Scene->RenderLimpid(Time, 0);
+				Scene->SetSurface(S);
+
+				Device->CopyTargetTo(S, 0, Input);
+				Device->SetTarget(S, 0);
+				Device->Clear(S, 0, 0, 0, 0);
+				Device->SetDepthStencilState(DepthStencil);
+				Device->SetSamplerState(Sampler);
+				Device->SetBlendState(Blend);
+				Device->SetRasterizerState(Rasterizer);
+				Device->SetShader(Shader, Graphics::ShaderType_Vertex | Graphics::ShaderType_Pixel);
+				Device->SetVertexBuffer(System->GetQuadVBuffer(), 0, sizeof(Compute::ShapeVertex), 0);
+				Device->SetTexture2D(Input->GetTarget(), 1);
+				Device->SetTexture2D(S->GetTarget(1), 2);
+				Device->SetTexture2D(S->GetTarget(2), 3);
+				Device->SetTexture2D(S->GetTarget(3), 4);
+				Device->SetTexture2D(Surface->GetTarget(0), 5);
+				Device->SetTexture2D(Surface->GetTarget(1), 6);
+				Device->SetTexture2D(Surface->GetTarget(2), 7);
+				Device->SetTexture2D(Surface->GetTarget(3), 8);
+				Device->UpdateBuffer(Graphics::RenderBufferType_Render);
+				Device->Draw(6, 0);
+				Device->FlushTexture2D(1, 8);
+			}
+			void LimpidRenderer::ResizeBuffers()
+			{
+				Graphics::MultiRenderTarget2D::Desc F1;
+				System->GetScene()->GetTargetDesc(&F1);
+
+				delete Surface;
+				Surface = System->GetDevice()->CreateMultiRenderTarget2D(F1);
+
+				Graphics::RenderTarget2D::Desc F2;
+				System->GetScene()->GetTargetDesc(&F2);
+
+				delete Input;
+				Input = System->GetDevice()->CreateRenderTarget2D(F2);
+			}
+			Rest::Pool<Component*>* LimpidRenderer::GetGeometry(uint64_t Index)
+			{
+				return nullptr;
+			}
+			uint64_t LimpidRenderer::GetGeometryCount()
+			{
+				return 0;
+			}
+			
 			DepthRenderer::DepthRenderer(RenderSystem* Lab) : IntervalRenderer(Lab), ShadowDistance(0.5f)
 			{
 				Geometric = false;
@@ -844,7 +1475,7 @@ namespace Tomahawk
 				for (auto It = Lights->Begin(); It != Lights->End(); It++)
 					(*It)->As<Components::LineLight>()->SetShadowCache(nullptr);
 			}
-			void DepthRenderer::OnLoad(ContentManager* Content, Rest::Document* Node)
+			void DepthRenderer::Deserialize(ContentManager* Content, Rest::Document* Node)
 			{
 				NMake::Unpack(Node->Find("point-light-resolution"), &Renderers.PointLightResolution);
 				NMake::Unpack(Node->Find("point-light-limits"), &Renderers.PointLightLimits);
@@ -854,7 +1485,7 @@ namespace Tomahawk
 				NMake::Unpack(Node->Find("line-light-limits"), &Renderers.LineLightLimits);
 				NMake::Unpack(Node->Find("shadow-distance"), &ShadowDistance);
 			}
-			void DepthRenderer::OnSave(ContentManager* Content, Rest::Document* Node)
+			void DepthRenderer::Serialize(ContentManager* Content, Rest::Document* Node)
 			{
 				NMake::Pack(Node->SetDocument("point-light-resolution"), Renderers.PointLightResolution);
 				NMake::Pack(Node->SetDocument("point-light-limits"), Renderers.PointLightLimits);
@@ -864,7 +1495,7 @@ namespace Tomahawk
 				NMake::Pack(Node->SetDocument("line-light-limits"), Renderers.LineLightLimits);
 				NMake::Pack(Node->SetDocument("shadow-distance"), ShadowDistance);
 			}
-			void DepthRenderer::OnInitialize()
+			void DepthRenderer::Initialize()
 			{
 				PointLights = System->GetScene()->GetComponents<Engine::Components::PointLight>();
 				SpotLights = System->GetScene()->GetComponents<Engine::Components::SpotLight>();
@@ -880,11 +1511,11 @@ namespace Tomahawk
 				Renderers.PointLight.resize(Renderers.PointLightLimits);
 				for (auto It = Renderers.PointLight.begin(); It != Renderers.PointLight.end(); It++)
 				{
-					Graphics::RenderTargetCube::Desc I = Graphics::RenderTargetCube::Desc();
-					I.Size = (unsigned int)Renderers.PointLightResolution;
-					I.FormatMode = Graphics::Format_R32G32_Float;
+					Graphics::RenderTargetCube::Desc F = Graphics::RenderTargetCube::Desc();
+					F.Size = (unsigned int)Renderers.PointLightResolution;
+					F.FormatMode = Graphics::Format_R32G32_Float;
 
-					*It = System->GetDevice()->CreateRenderTargetCube(I);
+					*It = System->GetDevice()->CreateRenderTargetCube(F);
 				}
 
 				Lights = System->GetScene()->GetComponents<Engine::Components::SpotLight>();
@@ -897,12 +1528,12 @@ namespace Tomahawk
 				Renderers.SpotLight.resize(Renderers.SpotLightLimits);
 				for (auto It = Renderers.SpotLight.begin(); It != Renderers.SpotLight.end(); It++)
 				{
-					Graphics::RenderTarget2D::Desc I = Graphics::RenderTarget2D::Desc();
-					I.Width = (unsigned int)Renderers.SpotLightResolution;
-					I.Height = (unsigned int)Renderers.SpotLightResolution;
-					I.FormatMode = Graphics::Format_R32G32_Float;
+					Graphics::RenderTarget2D::Desc F = Graphics::RenderTarget2D::Desc();
+					F.Width = (unsigned int)Renderers.SpotLightResolution;
+					F.Height = (unsigned int)Renderers.SpotLightResolution;
+					F.FormatMode = Graphics::Format_R32G32_Float;
 
-					*It = System->GetDevice()->CreateRenderTarget2D(I);
+					*It = System->GetDevice()->CreateRenderTarget2D(F);
 				}
 
 				Lights = System->GetScene()->GetComponents<Engine::Components::LineLight>();
@@ -915,17 +1546,18 @@ namespace Tomahawk
 				Renderers.LineLight.resize(Renderers.LineLightLimits);
 				for (auto It = Renderers.LineLight.begin(); It != Renderers.LineLight.end(); It++)
 				{
-					Graphics::RenderTarget2D::Desc I = Graphics::RenderTarget2D::Desc();
-					I.Width = (unsigned int)Renderers.LineLightResolution;
-					I.Height = (unsigned int)Renderers.LineLightResolution;
-					I.FormatMode = Graphics::Format_R32G32_Float;
+					Graphics::RenderTarget2D::Desc F = Graphics::RenderTarget2D::Desc();
+					F.Width = (unsigned int)Renderers.LineLightResolution;
+					F.Height = (unsigned int)Renderers.LineLightResolution;
+					F.FormatMode = Graphics::Format_R32G32_Float;
 
-					*It = System->GetDevice()->CreateRenderTarget2D(I);
+					*It = System->GetDevice()->CreateRenderTarget2D(F);
 				}
 			}
-			void DepthRenderer::OnIntervalRender(Rest::Timer* Time)
+			void DepthRenderer::IntervalRenderStep(Rest::Timer* Time)
 			{
 				Graphics::GraphicsDevice* Device = System->GetDevice();
+				SceneGraph* Scene = System->GetScene();
 
 				uint64_t Shadows = 0;
 				for (auto It = PointLights->Begin(); It != PointLights->End(); It++)
@@ -942,7 +1574,7 @@ namespace Tomahawk
 					Device->SetTarget(Target, 0, 0, 0);
 					Device->ClearDepth(Target);
 
-					RenderCubicDepth(Time, Light->Projection, Light->GetEntity()->Transform->Position.XYZW().SetW(Light->ShadowDistance));
+					Scene->RenderDepthCubic(Time, Light->Projection, Light->GetEntity()->Transform->Position.XYZW().SetW(Light->ShadowDistance));
 					Light->SetShadowCache(Target->GetTarget()); Shadows++;
 				}
 
@@ -961,7 +1593,7 @@ namespace Tomahawk
 					Device->SetTarget(Target, 0, 0, 0);
 					Device->ClearDepth(Target);
 
-					RenderDepth(Time, Light->View, Light->Projection, Light->GetEntity()->Transform->Position.XYZW().SetW(Light->ShadowDistance));
+					Scene->RenderDepthLinear(Time, Light->View, Light->Projection, Light->GetEntity()->Transform->Position.XYZW().SetW(Light->ShadowDistance));
 					Light->SetShadowCache(Target->GetTarget()); Shadows++;
 				}
 
@@ -980,11 +1612,11 @@ namespace Tomahawk
 					Device->SetTarget(Target, 0, 0, 0);
 					Device->ClearDepth(Target);
 
-					RenderDepth(Time, Light->View, Light->Projection, Compute::Vector4(0, 0, 0, -1));
+					Scene->RenderDepthLinear(Time, Light->View, Light->Projection, Compute::Vector4(0, 0, 0, -1));
 					Light->SetShadowCache(Target->GetTarget()); Shadows++;
 				}
 
-				System->GetScene()->RestoreViewBuffer(nullptr);
+				Scene->RestoreViewBuffer(nullptr);
 			}
 
 			ProbeRenderer::ProbeRenderer(RenderSystem* Lab) : Renderer(Lab), Surface(nullptr), Size(128), MipLevels(7)
@@ -995,26 +1627,27 @@ namespace Tomahawk
 			{
 				delete Surface;
 			}
-			void ProbeRenderer::OnLoad(ContentManager* Content, Rest::Document* Node)
+			void ProbeRenderer::Deserialize(ContentManager* Content, Rest::Document* Node)
 			{
 				NMake::Unpack(Node->Find("size"), &Size);
 				NMake::Unpack(Node->Find("mip-levels"), &MipLevels);
 			}
-			void ProbeRenderer::OnSave(ContentManager* Content, Rest::Document* Node)
+			void ProbeRenderer::Serialize(ContentManager* Content, Rest::Document* Node)
 			{
 				NMake::Pack(Node->SetDocument("size"), Size);
 				NMake::Pack(Node->SetDocument("mip-levels"), MipLevels);
 			}
-			void ProbeRenderer::OnInitialize()
+			void ProbeRenderer::Initialize()
 			{
 				CreateRenderTarget();
 				ProbeLights = System->GetScene()->GetComponents<Engine::Components::ProbeLight>();
 			}
-			void ProbeRenderer::OnRender(Rest::Timer* Time)
+			void ProbeRenderer::RenderStep(Rest::Timer* Time)
 			{
+				SceneGraph* Scene = System->GetScene();
 				Graphics::GraphicsDevice* Device = System->GetDevice();
-				Graphics::MultiRenderTarget2D* S = System->GetScene()->GetSurface();
-				System->GetScene()->SetSurface(Surface);
+				Graphics::MultiRenderTarget2D* S = Scene->GetSurface();
+				Scene->SetSurface(Surface);
 
 				double ElapsedTime = Time->GetElapsedTime();
 				for (auto It = ProbeLights->Begin(); It != ProbeLights->End(); It++)
@@ -1029,7 +1662,7 @@ namespace Tomahawk
 						Cache = Device->CreateTextureCube();
 						Light->SetProbeCache(Cache);
 					}
-					else if (!Light->Rebuild.OnTickEvent(ElapsedTime) || Light->Rebuild.Delay <= 0.0)
+					else if (!Light->Rebuild.TickEvent(ElapsedTime) || Light->Rebuild.Delay <= 0.0)
 						continue;
 
 					Device->CopyBegin(Surface, 0, MipLevels, Size);
@@ -1039,7 +1672,7 @@ namespace Tomahawk
 					for (int j = 0; j < 6; j++)
 					{
 						Light->View[j] = Compute::Matrix4x4::CreateCubeMapLookAt(j, Position);
-						RenderPhase(Time, Light->View[j], Light->Projection, Position.XYZW().SetW(Light->CaptureRange), Light->StaticMask ? PhaseMask_Static : PhaseMask_None);
+						Scene->RenderSubstep(Time, Light->View[j], Light->Projection, Position.XYZW().SetW(Light->CaptureRange), Light->StaticMask);
 						Device->CopyFace(Surface, 0, j);
 					}
 
@@ -1047,8 +1680,8 @@ namespace Tomahawk
 					Device->CopyEnd(Surface, Cache);
 				}
 
-				System->GetScene()->SetSurface(S);
-				System->GetScene()->RestoreViewBuffer(nullptr);
+				Scene->SetSurface(S);
+				Scene->RestoreViewBuffer(nullptr);
 			}
 			void ProbeRenderer::CreateRenderTarget()
 			{
@@ -1057,28 +1690,20 @@ namespace Tomahawk
 
 				Map = Size;
 
-				Graphics::MultiRenderTarget2D::Desc F1 = Graphics::MultiRenderTarget2D::Desc();
-				F1.FormatMode[0] = Graphics::Format_R8G8B8A8_Unorm;
-				F1.FormatMode[1] = Graphics::Format_R16G16B16A16_Float;
-				F1.FormatMode[2] = Graphics::Format_R32G32_Float;
-				F1.FormatMode[3] = Graphics::Format_Invalid;
-				F1.FormatMode[4] = Graphics::Format_Invalid;
-				F1.FormatMode[5] = Graphics::Format_Invalid;
-				F1.FormatMode[6] = Graphics::Format_Invalid;
-				F1.FormatMode[7] = Graphics::Format_Invalid;
-				F1.SVTarget = Graphics::SurfaceTarget2;
-				F1.MiscFlags = Graphics::ResourceMisc_Generate_Mips;
-				F1.MipLevels = System->GetDevice()->GetMipLevel((unsigned int)Size, (unsigned int)Size);
-				F1.Width = (unsigned int)Size;
-				F1.Height = (unsigned int)Size;
+				Graphics::MultiRenderTarget2D::Desc F;
+				System->GetScene()->GetTargetDesc(&F);
 
-				if (MipLevels > F1.MipLevels)
-					MipLevels = F1.MipLevels;
+				F.MipLevels = System->GetDevice()->GetMipLevel((unsigned int)Size, (unsigned int)Size);
+				F.Width = (unsigned int)Size;
+				F.Height = (unsigned int)Size;
+
+				if (MipLevels > F.MipLevels)
+					MipLevels = F.MipLevels;
 				else
-					F1.MipLevels = (unsigned int)MipLevels;
+					F.MipLevels = (unsigned int)MipLevels;
 
 				delete Surface;
-				Surface = System->GetDevice()->CreateMultiRenderTarget2D(F1);
+				Surface = System->GetDevice()->CreateMultiRenderTarget2D(F);
 			}
 			void ProbeRenderer::SetCaptureSize(size_t NewSize)
 			{
@@ -1099,46 +1724,46 @@ namespace Tomahawk
 				I.LayoutSize = 2;
 
 				if (System->GetDevice()->GetSection("pass/light/shade/point", &I.Data))
-					Shaders.PointShade = System->CompileShader("LR_POINT_SHADE", I, 0);
+					Shaders.PointShade = System->CompileShader("lr-point-shade", I, 0);
 
 				if (System->GetDevice()->GetSection("pass/light/shade/spot", &I.Data))
-					Shaders.SpotShade = System->CompileShader("LR_SPOT_SHADE", I, 0);
+					Shaders.SpotShade = System->CompileShader("lr-spot-shade", I, 0);
 
 				if (System->GetDevice()->GetSection("pass/light/shade/line", &I.Data))
-					Shaders.LineShade = System->CompileShader("LR_LINE_SHADE", I, 0);
+					Shaders.LineShade = System->CompileShader("lr-line-shade", I, 0);
 
 				if (System->GetDevice()->GetSection("pass/light/base/point", &I.Data))
-					Shaders.PointBase = System->CompileShader("LR_POINT_BASE", I, sizeof(PointLight));
+					Shaders.PointBase = System->CompileShader("lr-point-base", I, sizeof(PointLight));
 
 				if (System->GetDevice()->GetSection("pass/light/base/spot", &I.Data))
-					Shaders.SpotBase = System->CompileShader("LR_SPOT_BASE", I, sizeof(SpotLight));
+					Shaders.SpotBase = System->CompileShader("lr-spot-base", I, sizeof(SpotLight));
 
 				if (System->GetDevice()->GetSection("pass/light/base/line", &I.Data))
-					Shaders.LineBase = System->CompileShader("LR_LINE_BASE", I, sizeof(LineLight));
+					Shaders.LineBase = System->CompileShader("lr-line-base", I, sizeof(LineLight));
 
 				if (System->GetDevice()->GetSection("pass/light/base/probe", &I.Data))
-					Shaders.Probe = System->CompileShader("LR_PROBE", I, sizeof(ProbeLight));
+					Shaders.Probe = System->CompileShader("lr-probe", I, sizeof(ProbeLight));
 
 				if (System->GetDevice()->GetSection("pass/light/base/ambient", &I.Data))
-					Shaders.Ambient = System->CompileShader("LR_AMBIENT", I, sizeof(AmbientLight));
+					Shaders.Ambient = System->CompileShader("lr-ambient", I, sizeof(AmbientLight));
 			}
 			LightRenderer::~LightRenderer()
 			{
-				System->FreeShader("LR_POINT_BASE", Shaders.PointBase);
-				System->FreeShader("LR_POINT_SHADE", Shaders.PointShade);
-				System->FreeShader("LR_SPOT_BASE", Shaders.SpotBase);
-				System->FreeShader("LR_SPOT_SHADE", Shaders.SpotShade);
-				System->FreeShader("LR_LINE_BASE", Shaders.LineBase);
-				System->FreeShader("LR_LINE_SHADE", Shaders.LineShade);
-				System->FreeShader("LR_PROBE", Shaders.Probe);
-				System->FreeShader("LR_AMBIENT", Shaders.Ambient);
+				System->FreeShader("lr-point-base", Shaders.PointBase);
+				System->FreeShader("lr-point-shade", Shaders.PointShade);
+				System->FreeShader("lr-spot-base", Shaders.SpotBase);
+				System->FreeShader("lr-spot-shade", Shaders.SpotShade);
+				System->FreeShader("lr-line-base", Shaders.LineBase);
+				System->FreeShader("lr-line-shade", Shaders.LineShade);
+				System->FreeShader("lr-probe", Shaders.Probe);
+				System->FreeShader("lr-ambient", Shaders.Ambient);
 				delete Input1;
 				delete Output1;
 				delete Input2;
 				delete Output2;
 				delete SkyMap;
 			}
-			void LightRenderer::OnLoad(ContentManager* Content, Rest::Document* Node)
+			void LightRenderer::Deserialize(ContentManager* Content, Rest::Document* Node)
 			{
 				std::string Path;
 				if (NMake::Unpack(Node->Find("sky-map"), &Path))
@@ -1147,9 +1772,11 @@ namespace Tomahawk
 				NMake::Unpack(Node->Find("high-emission"), &AmbientLight.HighEmission);
 				NMake::Unpack(Node->Find("low-emission"), &AmbientLight.LowEmission);
 				NMake::Unpack(Node->Find("sky-emission"), &AmbientLight.SkyEmission);
+				NMake::Unpack(Node->Find("light-emission"), &AmbientLight.LightEmission);
+				NMake::Unpack(Node->Find("sky-color"), &AmbientLight.SkyColor);
 				NMake::Unpack(Node->Find("recursive-probes"), &RecursiveProbes);
 			}
-			void LightRenderer::OnSave(ContentManager* Content, Rest::Document* Node)
+			void LightRenderer::Serialize(ContentManager* Content, Rest::Document* Node)
 			{
 				AssetResource* Asset = Content->FindAsset(SkyBase);
 				if (Asset != nullptr)
@@ -1158,9 +1785,11 @@ namespace Tomahawk
 				NMake::Pack(Node->SetDocument("high-emission"), AmbientLight.HighEmission);
 				NMake::Pack(Node->SetDocument("low-emission"), AmbientLight.LowEmission);
 				NMake::Pack(Node->SetDocument("sky-emission"), AmbientLight.SkyEmission);
+				NMake::Pack(Node->SetDocument("light-emission"), AmbientLight.LightEmission);
+				NMake::Pack(Node->SetDocument("sky-color"), AmbientLight.SkyColor);
 				NMake::Pack(Node->SetDocument("recursive-probes"), RecursiveProbes);
 			}
-			void LightRenderer::OnInitialize()
+			void LightRenderer::Initialize()
 			{
 				PointLights = System->GetScene()->GetComponents<Engine::Components::PointLight>();
 				ProbeLights = System->GetScene()->GetComponents<Engine::Components::ProbeLight>();
@@ -1181,9 +1810,9 @@ namespace Tomahawk
 						ProbeLight.MipLevels = (float)(*It)->As<Engine::Renderers::ProbeRenderer>()->MipLevels;
 				}
 
-				CreateRenderTargets();
+				ResizeBuffers();
 			}
-			void LightRenderer::OnCulling(const Viewer& View)
+			void LightRenderer::Cull(const Viewer& View)
 			{
 				float Hardness = 0.0f;
 				for (auto It = PointLights->Begin(); It != PointLights->End(); ++It)
@@ -1191,7 +1820,7 @@ namespace Tomahawk
 					Engine::Components::PointLight* PointLight = (Engine::Components::PointLight*)*It;
 					Entity* Base = PointLight->GetEntity();
 
-					Hardness = 1.0f - Base->Transform->Position.Distance(View.RawPosition) / View.ViewDistance;
+					Hardness = 1.0f - Base->Transform->Position.Distance(View.WorldPosition) / View.ViewDistance;
 					if (Hardness > 0.0f)
 						PointLight->Visibility = Compute::MathCommon::IsClipping(View.ViewProjection, Base->Transform->GetWorld(), PointLight->Range) == -1 ? Hardness : 0.0f;
 					else
@@ -1203,7 +1832,7 @@ namespace Tomahawk
 					Engine::Components::SpotLight* SpotLight = (Engine::Components::SpotLight*)*It;
 					Entity* Base = SpotLight->GetEntity();
 
-					Hardness = 1.0f - Base->Transform->Position.Distance(View.RawPosition) / View.ViewDistance;
+					Hardness = 1.0f - Base->Transform->Position.Distance(View.WorldPosition) / View.ViewDistance;
 					if (Hardness > 0.0f)
 						SpotLight->Visibility = Compute::MathCommon::IsClipping(View.ViewProjection, Base->Transform->GetWorld(), SpotLight->Range) == -1 ? Hardness : 0.0f;
 					else
@@ -1217,7 +1846,7 @@ namespace Tomahawk
 
 					if (ProbeLight->Infinity <= 0.0f)
 					{
-						Hardness = 1.0f - Base->Transform->Position.Distance(View.RawPosition) / View.ViewDistance;
+						Hardness = 1.0f - Base->Transform->Position.Distance(View.WorldPosition) / View.ViewDistance;
 						if (Hardness > 0.0f)
 							ProbeLight->Visibility = Compute::MathCommon::IsClipping(View.ViewProjection, Base->Transform->GetWorld(), ProbeLight->Range) == -1 ? Hardness : 0.0f;
 						else
@@ -1227,7 +1856,7 @@ namespace Tomahawk
 						ProbeLight->Visibility = 1.0f;
 				}
 			}
-			void LightRenderer::OnRender(Rest::Timer* Time)
+			void LightRenderer::RenderStep(Rest::Timer* Time)
 			{
 				Graphics::GraphicsDevice* Device = System->GetDevice();
 				Graphics::MultiRenderTarget2D* Surface = System->GetScene()->GetSurface();
@@ -1239,9 +1868,10 @@ namespace Tomahawk
 				Device->SetRasterizerState(Rasterizer);
 				Device->CopyTargetTo(Surface, 0, Input1);
 				Device->SetTarget(Output1, 0, 0, 0);
-				Device->SetTexture2D(Surface->GetTarget(1), 1);
-				Device->SetTexture2D(Surface->GetTarget(2), 2);
-				Device->SetTexture2D(Input1->GetTarget(), 3);
+				Device->SetTexture2D(Input1->GetTarget(), 1);
+				Device->SetTexture2D(Surface->GetTarget(1), 2);
+				Device->SetTexture2D(Surface->GetTarget(2), 3);
+				Device->SetTexture2D(Surface->GetTarget(3), 4);
 				Device->SetShader(Shaders.Probe, Graphics::ShaderType_Vertex | Graphics::ShaderType_Pixel);
 				Device->SetBuffer(Shaders.Probe, 3, Graphics::ShaderType_Vertex | Graphics::ShaderType_Pixel);
 				Device->SetIndexBuffer(System->GetSphereIBuffer(), Graphics::Format_R32_Uint, 0);
@@ -1261,7 +1891,7 @@ namespace Tomahawk
 					ProbeLight.Range = Light->Range;
 					ProbeLight.Infinity = Light->Infinity;
 
-					Device->SetTextureCube(Light->GetProbeCache(), 4);
+					Device->SetTextureCube(Light->GetProbeCache(), 5);
 					Device->UpdateBuffer(Shaders.Probe, &ProbeLight);
 					Device->DrawIndexed((unsigned int)System->GetSphereIBuffer()->GetElements(), 0, 0);
 				}
@@ -1284,7 +1914,7 @@ namespace Tomahawk
 						PointLight.Iterations = (float)Light->ShadowIterations;
 
 						Active = Shaders.PointShade;
-						Device->SetTexture2D(Light->GetShadowCache(), 4);
+						Device->SetTexture2D(Light->GetShadowCache(), 5);
 					}
 					else
 						Active = Shaders.PointBase;
@@ -1317,7 +1947,7 @@ namespace Tomahawk
 						SpotLight.Iterations = (float)Light->ShadowIterations;
 
 						Active = Shaders.SpotShade;
-						Device->SetTexture2D(Light->GetShadowCache(), 5);
+						Device->SetTexture2D(Light->GetShadowCache(), 6);
 					}
 					else
 						Active = Shaders.SpotBase;
@@ -1329,7 +1959,7 @@ namespace Tomahawk
 					SpotLight.Range = Light->Range;
 					SpotLight.Diffuse = (Light->ProjectMap != nullptr);
 
-					Device->SetTexture2D(Light->ProjectMap, 4);
+					Device->SetTexture2D(Light->ProjectMap, 5);
 					Device->SetShader(Active, Graphics::ShaderType_Pixel);
 					Device->UpdateBuffer(Shaders.SpotBase, &SpotLight);
 					Device->DrawIndexed((unsigned int)System->GetSphereIBuffer()->GetElements(), 0, 0);
@@ -1354,31 +1984,39 @@ namespace Tomahawk
 						LineLight.Iterations = (float)Light->ShadowIterations;
 
 						Active = Shaders.LineShade;
-						Device->SetTexture2D(Light->GetShadowCache(), 4);
+						Device->SetTexture2D(Light->GetShadowCache(), 5);
 					}
 					else
 						Active = Shaders.LineBase;
 
 					LineLight.Position = Light->GetEntity()->Transform->Position.InvertZ().NormalizeSafe();
 					LineLight.Lighting = Light->Diffuse.Mul(Light->Emission);
+					LineLight.RlhEmission = Light->RlhEmission;
+					LineLight.RlhHeight = Light->RlhHeight;
+					LineLight.MieEmission = Light->MieEmission;
+					LineLight.MieHeight = Light->MieHeight;
+					LineLight.ScatterIntensity = Light->ScatterIntensity;
+					LineLight.PlanetRadius = Light->PlanetRadius;
+					LineLight.AtmosphereRadius = Light->AtmosphereRadius;
+					LineLight.MieDirection = Light->MieDirection;
 
 					Device->SetShader(Active, Graphics::ShaderType_Pixel);
 					Device->UpdateBuffer(Shaders.LineBase, &LineLight);
 					Device->Draw(6, 0);
 				}
 
-				AmbientLight.SkyOffset = System->GetScene()->View.Projection.Invert() * Compute::Matrix4x4::CreateRotation(System->GetScene()->View.Rotation);
+				AmbientLight.SkyOffset = System->GetScene()->View.Projection.Invert() * Compute::Matrix4x4::CreateRotation(System->GetScene()->View.WorldRotation);
 				Device->SetTarget(Surface, 0, 0, 0, 0);
 				Device->ClearDepth(Surface);
-				Device->SetTexture2D(Output1->GetTarget(), 4);
-				Device->SetTextureCube(SkyMap, 5);
+				Device->SetTexture2D(Output1->GetTarget(), 5);
+				Device->SetTextureCube(SkyMap, 6);
 				Device->SetShader(Shaders.Ambient, Graphics::ShaderType_Vertex | Graphics::ShaderType_Pixel);
 				Device->SetBuffer(Shaders.Ambient, 3, Graphics::ShaderType_Vertex | Graphics::ShaderType_Pixel);
 				Device->UpdateBuffer(Shaders.Ambient, &AmbientLight);
 				Device->Draw(6, 0);
-				Device->FlushTexture2D(1, 5);
+				Device->FlushTexture2D(1, 6);
 			}
-			void LightRenderer::OnPhaseRender(Rest::Timer* Time, uint64_t Mask)
+			void LightRenderer::RenderSubstep(Rest::Timer* Time, bool Static)
 			{
 				Graphics::GraphicsDevice* Device = System->GetDevice();
 				Graphics::MultiRenderTarget2D* Surface = System->GetScene()->GetSurface();
@@ -1391,9 +2029,10 @@ namespace Tomahawk
 				Device->SetRasterizerState(Rasterizer);
 				Device->CopyTargetTo(Surface, 0, Input2);
 				Device->SetTarget(Output2, 0, 0, 0);
-				Device->SetTexture2D(Surface->GetTarget(1), 1);
-				Device->SetTexture2D(Surface->GetTarget(2), 2);
-				Device->SetTexture2D(Input2->GetTarget(), 3);
+				Device->SetTexture2D(Input1->GetTarget(), 1);
+				Device->SetTexture2D(Surface->GetTarget(1), 2);
+				Device->SetTexture2D(Surface->GetTarget(2), 3);
+				Device->SetTexture2D(Surface->GetTarget(3), 4);
 				Device->SetIndexBuffer(System->GetSphereIBuffer(), Graphics::Format_R32_Uint, 0);
 				Device->SetVertexBuffer(System->GetSphereVBuffer(), 0, sizeof(Compute::ShapeVertex), 0);
 
@@ -1409,7 +2048,7 @@ namespace Tomahawk
 							continue;
 
 						float Visibility = Light->Visibility;
-						if (Light->Visibility <= 0 && (Visibility = 1.0f - Light->GetEntity()->Transform->Position.Distance(View.Position) / View.ViewDistance) <= 0.0f)
+						if (Light->Visibility <= 0 && (Visibility = 1.0f - Light->GetEntity()->Transform->Position.Distance(View.WorldPosition) / View.ViewDistance) <= 0.0f)
 							continue;
 
 						ProbeLight.OwnWorldViewProjection = Compute::Matrix4x4::CreateTranslatedScale(Light->GetEntity()->Transform->Position, Light->Range * 1.25f) * System->GetScene()->View.ViewProjection;
@@ -1420,7 +2059,7 @@ namespace Tomahawk
 						ProbeLight.Range = Light->Range;
 						ProbeLight.Infinity = Light->Infinity;
 
-						Device->SetTextureCube(Light->GetProbeCache(), 4);
+						Device->SetTextureCube(Light->GetProbeCache(), 5);
 						Device->UpdateBuffer(Shaders.Probe, &ProbeLight);
 						Device->DrawIndexed((unsigned int)System->GetSphereIBuffer()->GetElements(), 0, 0);
 					}
@@ -1433,7 +2072,7 @@ namespace Tomahawk
 				{
 					Engine::Components::PointLight* Light = (Engine::Components::PointLight*)*It;
 
-					float Visibility = 1.0f - Light->GetEntity()->Transform->Position.Distance(System->GetScene()->View.RawPosition) / System->GetScene()->View.ViewDistance;
+					float Visibility = 1.0f - Light->GetEntity()->Transform->Position.Distance(System->GetScene()->View.WorldPosition) / System->GetScene()->View.ViewDistance;
 					if (Visibility <= 0.0f)
 						continue;
 
@@ -1450,7 +2089,7 @@ namespace Tomahawk
 						PointLight.Iterations = (float)Light->ShadowIterations;
 
 						Active = Shaders.PointShade;
-						Device->SetTexture2D(Light->GetShadowCache(), 4);
+						Device->SetTexture2D(Light->GetShadowCache(), 5);
 					}
 					else
 						Active = Shaders.PointBase;
@@ -1473,7 +2112,7 @@ namespace Tomahawk
 				{
 					Engine::Components::SpotLight* Light = (Engine::Components::SpotLight*)*It;
 
-					float Visibility = 1.0f - Light->GetEntity()->Transform->Position.Distance(System->GetScene()->View.RawPosition) / System->GetScene()->View.ViewDistance;
+					float Visibility = 1.0f - Light->GetEntity()->Transform->Position.Distance(System->GetScene()->View.WorldPosition) / System->GetScene()->View.ViewDistance;
 					if (Visibility <= 0.0f)
 						continue;
 
@@ -1489,7 +2128,7 @@ namespace Tomahawk
 						SpotLight.Iterations = (float)Light->ShadowIterations;
 
 						Active = Shaders.SpotShade;
-						Device->SetTexture2D(Light->GetShadowCache(), 5);
+						Device->SetTexture2D(Light->GetShadowCache(), 6);
 					}
 					else
 						Active = Shaders.SpotBase;
@@ -1501,7 +2140,7 @@ namespace Tomahawk
 					SpotLight.Range = Light->Range;
 					SpotLight.Diffuse = (Light->ProjectMap != nullptr);
 
-					Device->SetTexture2D(Light->ProjectMap, 4);
+					Device->SetTexture2D(Light->ProjectMap, 5);
 					Device->SetShader(Active, Graphics::ShaderType_Pixel);
 					Device->UpdateBuffer(Shaders.SpotBase, &SpotLight);
 					Device->DrawIndexed((unsigned int)System->GetSphereIBuffer()->GetElements(), 0, 0);
@@ -1526,7 +2165,7 @@ namespace Tomahawk
 						LineLight.Iterations = (float)Light->ShadowIterations;
 
 						Active = Shaders.LineShade;
-						Device->SetTexture2D(Light->GetShadowCache(), 4);
+						Device->SetTexture2D(Light->GetShadowCache(), 5);
 					}
 					else
 						Active = Shaders.LineBase;
@@ -1539,35 +2178,35 @@ namespace Tomahawk
 					Device->Draw(6, 0);
 				}
 
-				AmbientLight.SkyOffset = System->GetScene()->View.Projection.Invert() * Compute::Matrix4x4::CreateRotation(System->GetScene()->View.Rotation);
+				AmbientLight.SkyOffset = System->GetScene()->View.Projection.Invert() * Compute::Matrix4x4::CreateRotation(System->GetScene()->View.WorldRotation);
 				Device->SetTarget(Surface, 0, 0, 0, 0);
 				Device->ClearDepth(Surface);
-				Device->SetTexture2D(Output2->GetTarget(), 4);
-				Device->SetTextureCube(SkyMap, 5);
+				Device->SetTexture2D(Output2->GetTarget(), 5);
+				Device->SetTextureCube(SkyMap, 6);
 				Device->SetShader(Shaders.Ambient, Graphics::ShaderType_Vertex | Graphics::ShaderType_Pixel);
 				Device->SetBuffer(Shaders.Ambient, 3, Graphics::ShaderType_Vertex | Graphics::ShaderType_Pixel);
 				Device->UpdateBuffer(Shaders.Ambient, &AmbientLight);
 				Device->Draw(6, 0);
 				Device->FlushTexture2D(1, 5);
 			}
-			void LightRenderer::OnResizeBuffers()
+			void LightRenderer::RenderLimpidStep(Rest::Timer* Time, uint64_t Layer)
 			{
-				CreateRenderTargets();
+				RenderStep(Time);
 			}
-			void LightRenderer::CreateRenderTargets()
+			void LightRenderer::RenderLimpidSubstep(Rest::Timer* Time, uint64_t Layer, bool Static)
 			{
-				Graphics::RenderTarget2D::Desc I = Graphics::RenderTarget2D::Desc();
-				I.FormatMode = Graphics::Format_R8G8B8A8_Unorm;
-				I.MiscFlags = Graphics::ResourceMisc_Generate_Mips;
-				I.Width = (unsigned int)System->GetScene()->GetSurface()->GetWidth();
-				I.Height = (unsigned int)System->GetScene()->GetSurface()->GetHeight();
-				I.MipLevels = System->GetDevice()->GetMipLevel(I.Width, I.Height);
+				RenderSubstep(Time, Static);
+			}
+			void LightRenderer::ResizeBuffers()
+			{
+				Graphics::RenderTarget2D::Desc F;
+				System->GetScene()->GetTargetDesc(&F);
 
 				delete Output1;
-				Output1 = System->GetDevice()->CreateRenderTarget2D(I);
+				Output1 = System->GetDevice()->CreateRenderTarget2D(F);
 
 				delete Input1;
-				Input1 = System->GetDevice()->CreateRenderTarget2D(I);
+				Input1 = System->GetDevice()->CreateRenderTarget2D(F);
 
 				auto* RenderStages = System->GetRenderers();
 				for (auto It = RenderStages->begin(); It != RenderStages->end(); It++)
@@ -1576,17 +2215,17 @@ namespace Tomahawk
 						continue;
 
 					Engine::Renderers::ProbeRenderer* ProbeRenderer = (*It)->As<Engine::Renderers::ProbeRenderer>();
-					I.Width = (unsigned int)ProbeRenderer->Size;
-					I.Height = (unsigned int)ProbeRenderer->Size;
-					I.MipLevels = (unsigned int)ProbeRenderer->MipLevels;
+					F.Width = (unsigned int)ProbeRenderer->Size;
+					F.Height = (unsigned int)ProbeRenderer->Size;
+					F.MipLevels = (unsigned int)ProbeRenderer->MipLevels;
 					break;
 				}
 
 				delete Output2;
-				Output2 = System->GetDevice()->CreateRenderTarget2D(I);
+				Output2 = System->GetDevice()->CreateRenderTarget2D(F);
 
 				delete Input2;
-				Input2 = System->GetDevice()->CreateRenderTarget2D(I);
+				Input2 = System->GetDevice()->CreateRenderTarget2D(F);
 			}
 			void LightRenderer::SetSkyMap(Graphics::Texture2D* Cubemap)
 			{
@@ -1626,13 +2265,13 @@ namespace Tomahawk
 			ImageRenderer::~ImageRenderer()
 			{
 			}
-			void ImageRenderer::OnLoad(ContentManager* Content, Rest::Document* Node)
+			void ImageRenderer::Deserialize(ContentManager* Content, Rest::Document* Node)
 			{
 			}
-			void ImageRenderer::OnSave(ContentManager* Content, Rest::Document* Node)
+			void ImageRenderer::Serialize(ContentManager* Content, Rest::Document* Node)
 			{
 			}
-			void ImageRenderer::OnRender(Rest::Timer* Time)
+			void ImageRenderer::RenderStep(Rest::Timer* Time)
 			{
 				Graphics::GraphicsDevice* Device = System->GetDevice();
 				if (!System->GetScene()->GetSurface()->GetTarget(0)->GetResource())
@@ -1661,26 +2300,26 @@ namespace Tomahawk
 			{
 				std::string Data;
 				if (System->GetDevice()->GetSection("pass/reflection", &Data))
-					Pass1 = CompileEffect("RR_REFLECTION", Data, sizeof(RenderPass1));
+					Pass1 = CompileEffect("rr-reflection", Data, sizeof(RenderPass1));
 
 				if (System->GetDevice()->GetSection("pass/gloss", &Data))
-					Pass2 = CompileEffect("RR_GLOSS", Data, sizeof(RenderPass2));
+					Pass2 = CompileEffect("rr-gloss", Data, sizeof(RenderPass2));
 			}
-			void ReflectionsRenderer::OnLoad(ContentManager* Content, Rest::Document* Node)
+			void ReflectionsRenderer::Deserialize(ContentManager* Content, Rest::Document* Node)
 			{
 				NMake::Unpack(Node->Find("iteration-count-1"), &RenderPass1.IterationCount);
 				NMake::Unpack(Node->Find("iteration-count-2"), &RenderPass2.IterationCount);
 				NMake::Unpack(Node->Find("intensity"), &RenderPass1.Intensity);
 				NMake::Unpack(Node->Find("blur"), &RenderPass2.Blur);
 			}
-			void ReflectionsRenderer::OnSave(ContentManager* Content, Rest::Document* Node)
+			void ReflectionsRenderer::Serialize(ContentManager* Content, Rest::Document* Node)
 			{
 				NMake::Pack(Node->SetDocument("iteration-count-1"), RenderPass1.IterationCount);
 				NMake::Pack(Node->SetDocument("iteration-count-2"), RenderPass2.IterationCount);
 				NMake::Pack(Node->SetDocument("intensity"), RenderPass1.Intensity);
 				NMake::Pack(Node->SetDocument("blur"), RenderPass2.Blur);
 			}
-			void ReflectionsRenderer::OnRenderEffect(Rest::Timer* Time)
+			void ReflectionsRenderer::RenderEffect(Rest::Timer* Time)
 			{
 				Graphics::MultiRenderTarget2D* Surface = System->GetScene()->GetSurface();
 				if (Surface != nullptr)
@@ -1698,9 +2337,9 @@ namespace Tomahawk
 			{
 				std::string Data;
 				if (System->GetDevice()->GetSection("pass/focus", &Data))
-					CompileEffect("DOFR_FOCUS", Data, sizeof(RenderPass));
+					CompileEffect("dfr-focus", Data, sizeof(RenderPass));
 			}
-			void DepthOfFieldRenderer::OnLoad(ContentManager* Content, Rest::Document* Node)
+			void DepthOfFieldRenderer::Deserialize(ContentManager* Content, Rest::Document* Node)
 			{
 				NMake::Unpack(Node->Find("threshold"), &RenderPass.Threshold);
 				NMake::Unpack(Node->Find("gain"), &RenderPass.Gain);
@@ -1717,7 +2356,7 @@ namespace Tomahawk
 				NMake::Unpack(Node->Find("intensity"), &RenderPass.Intensity);
 				NMake::Unpack(Node->Find("circular"), &RenderPass.Circular);
 			}
-			void DepthOfFieldRenderer::OnSave(ContentManager* Content, Rest::Document* Node)
+			void DepthOfFieldRenderer::Serialize(ContentManager* Content, Rest::Document* Node)
 			{
 				NMake::Pack(Node->SetDocument("threshold"), RenderPass.Threshold);
 				NMake::Pack(Node->SetDocument("gain"), RenderPass.Gain);
@@ -1734,7 +2373,7 @@ namespace Tomahawk
 				NMake::Pack(Node->SetDocument("intensity"), RenderPass.Intensity);
 				NMake::Pack(Node->SetDocument("circular"), RenderPass.Circular);
 			}
-			void DepthOfFieldRenderer::OnRenderEffect(Rest::Timer* Time)
+			void DepthOfFieldRenderer::RenderEffect(Rest::Timer* Time)
 			{
 				RenderPass.Texel[0] = 1.0f / Output->GetWidth();
 				RenderPass.Texel[1] = 1.0f / Output->GetHeight();
@@ -1745,23 +2384,23 @@ namespace Tomahawk
 			{
 				std::string Data;
 				if (System->GetDevice()->GetSection("pass/bloom", &Data))
-					CompileEffect("ER_BLOOM", Data, sizeof(RenderPass));
+					CompileEffect("br-bloom", Data, sizeof(RenderPass));
 			}
-			void EmissionRenderer::OnLoad(ContentManager* Content, Rest::Document* Node)
+			void EmissionRenderer::Deserialize(ContentManager* Content, Rest::Document* Node)
 			{
 				NMake::Unpack(Node->Find("iteration-count"), &RenderPass.IterationCount);
 				NMake::Unpack(Node->Find("intensity"), &RenderPass.Intensity);
 				NMake::Unpack(Node->Find("threshold"), &RenderPass.Threshold);
 				NMake::Unpack(Node->Find("scale"), &RenderPass.Scale);
 			}
-			void EmissionRenderer::OnSave(ContentManager* Content, Rest::Document* Node)
+			void EmissionRenderer::Serialize(ContentManager* Content, Rest::Document* Node)
 			{
 				NMake::Pack(Node->SetDocument("iteration-count"), RenderPass.IterationCount);
 				NMake::Pack(Node->SetDocument("intensity"), RenderPass.Intensity);
 				NMake::Pack(Node->SetDocument("threshold"), RenderPass.Threshold);
 				NMake::Pack(Node->SetDocument("scale"), RenderPass.Scale);
 			}
-			void EmissionRenderer::OnRenderEffect(Rest::Timer* Time)
+			void EmissionRenderer::RenderEffect(Rest::Timer* Time)
 			{
 				RenderPass.Texel[0] = 1.0f / Output->GetWidth();
 				RenderPass.Texel[1] = 1.0f / Output->GetHeight();
@@ -1772,9 +2411,9 @@ namespace Tomahawk
 			{
 				std::string Data;
 				if (System->GetDevice()->GetSection("pass/glitch", &Data))
-					CompileEffect("GR_GLITCH", Data, sizeof(RenderPass));
+					CompileEffect("gr-glitch", Data, sizeof(RenderPass));
 			}
-			void GlitchRenderer::OnLoad(ContentManager* Content, Rest::Document* Node)
+			void GlitchRenderer::Deserialize(ContentManager* Content, Rest::Document* Node)
 			{
 				NMake::Unpack(Node->Find("scanline-jitter"), &ScanLineJitter);
 				NMake::Unpack(Node->Find("vertical-jump"), &VerticalJump);
@@ -1789,7 +2428,7 @@ namespace Tomahawk
 				NMake::Unpack(Node->Find("color-drift-amount"), &RenderPass.ColorDriftAmount);
 				NMake::Unpack(Node->Find("color-drift-time"), &RenderPass.ColorDriftTime);
 			}
-			void GlitchRenderer::OnSave(ContentManager* Content, Rest::Document* Node)
+			void GlitchRenderer::Serialize(ContentManager* Content, Rest::Document* Node)
 			{
 				NMake::Pack(Node->SetDocument("scanline-jitter"), ScanLineJitter);
 				NMake::Pack(Node->SetDocument("vertical-jump"), VerticalJump);
@@ -1804,7 +2443,7 @@ namespace Tomahawk
 				NMake::Pack(Node->SetDocument("color-drift-amount"), RenderPass.ColorDriftAmount);
 				NMake::Pack(Node->SetDocument("color-drift-time"), RenderPass.ColorDriftTime);
 			}
-			void GlitchRenderer::OnRenderEffect(Rest::Timer* Time)
+			void GlitchRenderer::RenderEffect(Rest::Timer* Time)
 			{
 				if (RenderPass.ElapsedTime >= 32000.0f)
 					RenderPass.ElapsedTime = 0.0f;
@@ -1824,12 +2463,12 @@ namespace Tomahawk
 			{
 				std::string Data;
 				if (System->GetDevice()->GetSection("pass/ambient", &Data))
-					Pass1 = CompileEffect("AOR_AMBIENT", Data, sizeof(RenderPass1));
+					Pass1 = CompileEffect("aor-ambient", Data, sizeof(RenderPass1));
 
 				if (System->GetDevice()->GetSection("pass/blur", &Data))
-					Pass2 = CompileEffect("AOR_BLUR", Data, sizeof(RenderPass2));
+					Pass2 = CompileEffect("aor-blur", Data, sizeof(RenderPass2));
 			}
-			void AmbientOcclusionRenderer::OnLoad(ContentManager* Content, Rest::Document* Node)
+			void AmbientOcclusionRenderer::Deserialize(ContentManager* Content, Rest::Document* Node)
 			{
 				NMake::Unpack(Node->Find("scale"), &RenderPass1.Scale);
 				NMake::Unpack(Node->Find("intensity"), &RenderPass1.Intensity);
@@ -1849,7 +2488,7 @@ namespace Tomahawk
 				NMake::Unpack(Node->Find("additive"), &RenderPass2.Additive);
 				NMake::Unpack(Node->Find("discard"), &RenderPass2.Discard);
 			}
-			void AmbientOcclusionRenderer::OnSave(ContentManager* Content, Rest::Document* Node)
+			void AmbientOcclusionRenderer::Serialize(ContentManager* Content, Rest::Document* Node)
 			{
 				NMake::Pack(Node->SetDocument("scale"), RenderPass1.Scale);
 				NMake::Pack(Node->SetDocument("intensity"), RenderPass1.Intensity);
@@ -1869,7 +2508,7 @@ namespace Tomahawk
 				NMake::Pack(Node->SetDocument("additive"), RenderPass2.Additive);
 				NMake::Pack(Node->SetDocument("discard"), RenderPass2.Discard);
 			}
-			void AmbientOcclusionRenderer::OnRenderEffect(Rest::Timer* Time)
+			void AmbientOcclusionRenderer::RenderEffect(Rest::Timer* Time)
 			{
 				RenderPass2.Texel[0] = 1.0f / Output->GetWidth();
 				RenderPass2.Texel[1] = 1.0f / Output->GetHeight();
@@ -1882,12 +2521,12 @@ namespace Tomahawk
 			{
 				std::string Data;
 				if (System->GetDevice()->GetSection("pass/indirect", &Data))
-					Pass1 = CompileEffect("IOR_INDIRECT", Data, sizeof(RenderPass1));
+					Pass1 = CompileEffect("dor-indirect", Data, sizeof(RenderPass1));
 
 				if (System->GetDevice()->GetSection("pass/blur", &Data))
-					Pass2 = CompileEffect("AOR_BLUR", Data, sizeof(RenderPass2));
+					Pass2 = CompileEffect("dor-blur", Data, sizeof(RenderPass2));
 			}
-			void DirectOcclusionRenderer::OnLoad(ContentManager* Content, Rest::Document* Node)
+			void DirectOcclusionRenderer::Deserialize(ContentManager* Content, Rest::Document* Node)
 			{
 				NMake::Unpack(Node->Find("scale"), &RenderPass1.Scale);
 				NMake::Unpack(Node->Find("intensity"), &RenderPass1.Intensity);
@@ -1907,7 +2546,7 @@ namespace Tomahawk
 				NMake::Unpack(Node->Find("additive"), &RenderPass2.Additive);
 				NMake::Unpack(Node->Find("discard"), &RenderPass2.Discard);
 			}
-			void DirectOcclusionRenderer::OnSave(ContentManager* Content, Rest::Document* Node)
+			void DirectOcclusionRenderer::Serialize(ContentManager* Content, Rest::Document* Node)
 			{
 				NMake::Pack(Node->SetDocument("scale"), RenderPass1.Scale);
 				NMake::Pack(Node->SetDocument("intensity"), RenderPass1.Intensity);
@@ -1927,7 +2566,7 @@ namespace Tomahawk
 				NMake::Pack(Node->SetDocument("additive"), RenderPass2.Additive);
 				NMake::Pack(Node->SetDocument("discard"), RenderPass2.Discard);
 			}
-			void DirectOcclusionRenderer::OnRenderEffect(Rest::Timer* Time)
+			void DirectOcclusionRenderer::RenderEffect(Rest::Timer* Time)
 			{
 				RenderPass2.Texel[0] = 1.0f / Output->GetWidth();
 				RenderPass2.Texel[1] = 1.0f / Output->GetHeight();
@@ -1940,9 +2579,9 @@ namespace Tomahawk
 			{
 				std::string Data;
 				if (System->GetDevice()->GetSection("pass/tone", &Data))
-					CompileEffect("TR_TONE", Data, sizeof(RenderPass));
+					CompileEffect("tr-tone", Data, sizeof(RenderPass));
 			}
-			void ToneRenderer::OnLoad(ContentManager* Content, Rest::Document* Node)
+			void ToneRenderer::Deserialize(ContentManager* Content, Rest::Document* Node)
 			{
 				NMake::Unpack(Node->Find("blind-vision-r"), &RenderPass.BlindVisionR);
 				NMake::Unpack(Node->Find("blind-vision-g"), &RenderPass.BlindVisionG);
@@ -1956,8 +2595,15 @@ namespace Tomahawk
 				NMake::Unpack(Node->Find("linear-intensity"), &RenderPass.LinearIntensity);
 				NMake::Unpack(Node->Find("gamma-intensity"), &RenderPass.GammaIntensity);
 				NMake::Unpack(Node->Find("desaturation-intensity"), &RenderPass.DesaturationIntensity);
+				NMake::Unpack(Node->Find("tone-intensity"), &RenderPass.ToneIntensity);
+				NMake::Unpack(Node->Find("aces-intensity"), &RenderPass.AcesIntensity);
+				NMake::Unpack(Node->Find("aces-a"), &RenderPass.AcesA);
+				NMake::Unpack(Node->Find("aces-b"), &RenderPass.AcesB);
+				NMake::Unpack(Node->Find("aces-c"), &RenderPass.AcesC);
+				NMake::Unpack(Node->Find("aces-d"), &RenderPass.AcesD);
+				NMake::Unpack(Node->Find("aces-e"), &RenderPass.AcesE);
 			}
-			void ToneRenderer::OnSave(ContentManager* Content, Rest::Document* Node)
+			void ToneRenderer::Serialize(ContentManager* Content, Rest::Document* Node)
 			{
 				NMake::Pack(Node->SetDocument("blind-vision-r"), RenderPass.BlindVisionR);
 				NMake::Pack(Node->SetDocument("blind-vision-g"), RenderPass.BlindVisionG);
@@ -1971,8 +2617,15 @@ namespace Tomahawk
 				NMake::Pack(Node->SetDocument("linear-intensity"), RenderPass.LinearIntensity);
 				NMake::Pack(Node->SetDocument("gamma-intensity"), RenderPass.GammaIntensity);
 				NMake::Pack(Node->SetDocument("desaturation-intensity"), RenderPass.DesaturationIntensity);
+				NMake::Pack(Node->SetDocument("tone-intensity"), RenderPass.ToneIntensity);
+				NMake::Pack(Node->SetDocument("aces-intensity"), RenderPass.AcesIntensity);
+				NMake::Pack(Node->SetDocument("aces-a"), RenderPass.AcesA);
+				NMake::Pack(Node->SetDocument("aces-b"), RenderPass.AcesB);
+				NMake::Pack(Node->SetDocument("aces-c"), RenderPass.AcesC);
+				NMake::Pack(Node->SetDocument("aces-d"), RenderPass.AcesD);
+				NMake::Pack(Node->SetDocument("aces-e"), RenderPass.AcesE);
 			}
-			void ToneRenderer::OnRenderEffect(Rest::Timer* Time)
+			void ToneRenderer::RenderEffect(Rest::Timer* Time)
 			{
 				RenderResult(nullptr, &RenderPass);
 			}
@@ -1989,7 +2642,7 @@ namespace Tomahawk
 			{
 				delete Context;
 			}
-			void GUIRenderer::OnRender(Rest::Timer* Timer)
+			void GUIRenderer::RenderStep(Rest::Timer* Timer)
 			{
 				Graphics::MultiRenderTarget2D* Surface = System->GetScene()->GetSurface();
 				if (!Surface)

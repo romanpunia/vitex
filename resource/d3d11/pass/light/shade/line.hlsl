@@ -1,5 +1,6 @@
 #include "standard/space-sv"
 #include "standard/cook-torrance"
+#include "standard/atmosphere"
 #pragma warning(disable: 3595)
 
 cbuffer LineLight : register(b3)
@@ -13,9 +14,17 @@ cbuffer LineLight : register(b3)
 	float Recount;
 	float Bias;
 	float Iterations;
+    float3 RlhEmission;
+    float RlhHeight;
+    float3 MieEmission;
+    float MieHeight;
+    float ScatterIntensity;
+    float PlanetRadius;
+    float AtmosphereRadius;
+    float MieDirection;
 };
 
-Texture2D ShadowMap : register(t4);
+Texture2D ShadowMap : register(t5);
 
 void SampleShadow(in float2 D, in float L, out float C, out float B)
 {
@@ -34,6 +43,20 @@ void SampleShadow(in float2 D, in float L, out float C, out float B)
 float4 PS(VertexResult V) : SV_TARGET0
 {
 	Fragment Frag = GetFragment(GetTexCoord(V.TexCoord));
+    [branch] if (Frag.Depth >= 1.0)
+    {
+        Scatter A;
+        A.Sun = ScatterIntensity * length(Lighting);
+        A.Planet = PlanetRadius;
+        A.Atmos = AtmosphereRadius;
+        A.Rlh = Lighting * RlhEmission;
+        A.Mie = MieEmission;
+        A.RlhHeight = RlhHeight;
+        A.MieHeight = MieHeight;
+        A.MieG = MieDirection;
+        return float4(GetAtmosphere(Frag.Position, float3(0, 6372e3, 0), Position, A), 1.0);
+    }
+    
 	Material Mat = GetMaterial(Frag.Material);
 	float4 L = mul(float4(Frag.Position, 1), OwnViewProjection);
 	float2 T = float2(L.x / L.w / 2.0 + 0.5f, 1 - (L.y / L.w / 2.0 + 0.5f));

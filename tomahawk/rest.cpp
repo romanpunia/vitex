@@ -2313,7 +2313,7 @@ namespace Tomahawk
 			Time = 0.0;
 			Delay = 16.0;
 		}
-		bool TickTimer::OnTickEvent(double ElapsedTime)
+		bool TickTimer::TickEvent(double ElapsedTime)
 		{
 			if (ElapsedTime - Time > Delay)
 			{

@@ -14,7 +14,7 @@ cbuffer SpotLight : register(b3)
 	float Iterations;
 };
 
-Texture2D ProjectMap : register(t4);
+Texture2D ProjectMap : register(t5);
 
 VertexResult VS(VertexBase V)
 {
@@ -28,6 +28,9 @@ VertexResult VS(VertexBase V)
 float4 PS(VertexResult V) : SV_TARGET0
 {
 	Fragment Frag = GetFragment(GetTexCoord(V.TexCoord));
+    [branch] if (Frag.Depth >= 1.0)
+        return float4(0, 0, 0, 0);
+
 	float4 L = mul(float4(Frag.Position, 1), OwnViewProjection);
 	float2 T = float2(L.x / L.w / 2.0 + 0.5f, 1 - (L.y / L.w / 2.0 + 0.5f));
 	[branch] if (L.z <= 0 || saturate(T.x) != T.x || saturate(T.y) != T.y)

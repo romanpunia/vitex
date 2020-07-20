@@ -16,9 +16,9 @@ VertexResult VS(VertexBase V)
 
 GBuffer PS(VertexResult V)
 {
-	float3 Color = Diffuse;
+	float4 Color = float4(Diffuse, 1.0);
 	[branch] if (HasDiffuse > 0)
-		Color *= GetDiffuse(V.TexCoord).xyz;
+		Color *= GetDiffuse(V.TexCoord);
 
 	float3 Normal = V.Normal;
 	[branch] if (HasNormal > 0)

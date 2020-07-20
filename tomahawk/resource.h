@@ -25,16 +25,9 @@ namespace resource_batch
 		const unsigned size = 1956;
 	}
 
-	namespace d3d11_geometry_emitter_limpid_hlsl
+	namespace d3d11_geometry_emitter_main_hlsl
 	{
-#define HAS_D3D11_GEOMETRY_EMITTER_LIMPID_HLSL
-		extern const unsigned char data[];
-		const unsigned size = 1417;
-	}
-
-	namespace d3d11_geometry_emitter_opaque_hlsl
-	{
-#define HAS_D3D11_GEOMETRY_EMITTER_OPAQUE_HLSL
+#define HAS_D3D11_GEOMETRY_EMITTER_MAIN_HLSL
 		extern const unsigned char data[];
 		const unsigned size = 1417;
 	}
@@ -53,18 +46,11 @@ namespace resource_batch
 		const unsigned size = 576;
 	}
 
-	namespace d3d11_geometry_model_limpid_hlsl
+	namespace d3d11_geometry_model_main_hlsl
 	{
-#define HAS_D3D11_GEOMETRY_MODEL_LIMPID_HLSL
+#define HAS_D3D11_GEOMETRY_MODEL_MAIN_HLSL
 		extern const unsigned char data[];
-		const unsigned size = 857;
-	}
-
-	namespace d3d11_geometry_model_opaque_hlsl
-	{
-#define HAS_D3D11_GEOMETRY_MODEL_OPAQUE_HLSL
-		extern const unsigned char data[];
-		const unsigned size = 842;
+		const unsigned size = 851;
 	}
 
 	namespace d3d11_geometry_skin_depth_cubic_hlsl
@@ -81,18 +67,11 @@ namespace resource_batch
 		const unsigned size = 954;
 	}
 
-	namespace d3d11_geometry_skin_limpid_hlsl
+	namespace d3d11_geometry_skin_main_hlsl
 	{
-#define HAS_D3D11_GEOMETRY_SKIN_LIMPID_HLSL
+#define HAS_D3D11_GEOMETRY_SKIN_MAIN_HLSL
 		extern const unsigned char data[];
-		const unsigned size = 1524;
-	}
-
-	namespace d3d11_geometry_skin_opaque_hlsl
-	{
-#define HAS_D3D11_GEOMETRY_SKIN_OPAQUE_HLSL
-		extern const unsigned char data[];
-		const unsigned size = 1509;
+		const unsigned size = 1518;
 	}
 
 	namespace d3d11_pass_ambient_hlsl
@@ -211,7 +190,7 @@ namespace resource_batch
 	{
 #define HAS_D3D11_PASS_LIMPID_HLSL
 		extern const unsigned char data[];
-		const unsigned size = 2029;
+		const unsigned size = 2291;
 	}
 
 	namespace d3d11_pass_reflection_hlsl
@@ -414,7 +393,7 @@ namespace resource_batch
 	{
 #define HAS_D3D11_WORKFLOW_GEOMETRY_HLSL
 		extern const unsigned char data[];
-		const unsigned size = 877;
+		const unsigned size = 449;
 	}
 
 	namespace d3d11_workflow_pass_hlsl
@@ -459,16 +438,9 @@ namespace resource_batch
 		const unsigned size = 1926;
 	}
 
-	namespace ogl_geometry_emitter_limpid_glsl
+	namespace ogl_geometry_emitter_main_glsl
 	{
-#define HAS_OGL_GEOMETRY_EMITTER_LIMPID_GLSL
-		extern const unsigned char data[];
-		const unsigned size = 1417;
-	}
-
-	namespace ogl_geometry_emitter_opaque_glsl
-	{
-#define HAS_OGL_GEOMETRY_EMITTER_OPAQUE_GLSL
+#define HAS_OGL_GEOMETRY_EMITTER_MAIN_GLSL
 		extern const unsigned char data[];
 		const unsigned size = 1417;
 	}
@@ -487,18 +459,11 @@ namespace resource_batch
 		const unsigned size = 552;
 	}
 
-	namespace ogl_geometry_model_limpid_glsl
+	namespace ogl_geometry_model_main_glsl
 	{
-#define HAS_OGL_GEOMETRY_MODEL_LIMPID_GLSL
+#define HAS_OGL_GEOMETRY_MODEL_MAIN_GLSL
 		extern const unsigned char data[];
-		const unsigned size = 857;
-	}
-
-	namespace ogl_geometry_model_opaque_glsl
-	{
-#define HAS_OGL_GEOMETRY_MODEL_OPAQUE_GLSL
-		extern const unsigned char data[];
-		const unsigned size = 842;
+		const unsigned size = 851;
 	}
 
 	namespace ogl_geometry_skin_depth_cubic_glsl
@@ -515,18 +480,11 @@ namespace resource_batch
 		const unsigned size = 930;
 	}
 
-	namespace ogl_geometry_skin_limpid_glsl
+	namespace ogl_geometry_skin_main_glsl
 	{
-#define HAS_OGL_GEOMETRY_SKIN_LIMPID_GLSL
+#define HAS_OGL_GEOMETRY_SKIN_MAIN_GLSL
 		extern const unsigned char data[];
-		const unsigned size = 1524;
-	}
-
-	namespace ogl_geometry_skin_opaque_glsl
-	{
-#define HAS_OGL_GEOMETRY_SKIN_OPAQUE_GLSL
-		extern const unsigned char data[];
-		const unsigned size = 1509;
+		const unsigned size = 1518;
 	}
 
 	namespace ogl_pass_ambient_glsl
@@ -639,6 +597,13 @@ namespace resource_batch
 #define HAS_OGL_PASS_LIGHT_SHADE_SPOT_GLSL
 		extern const unsigned char data[];
 		const unsigned size = 2091;
+	}
+
+	namespace ogl_pass_limpid_glsl
+	{
+#define HAS_OGL_PASS_LIMPID_GLSL
+		extern const unsigned char data[];
+		const unsigned size = 2029;
 	}
 
 	namespace ogl_pass_reflection_glsl

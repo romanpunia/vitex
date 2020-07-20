@@ -15,8 +15,7 @@ namespace Tomahawk
 			private:
 				struct
 				{
-					Graphics::Shader* Opaque = nullptr;
-					Graphics::Shader* Limpid = nullptr;
+					Graphics::Shader* Main = nullptr;
 					Graphics::Shader* Linear = nullptr;
 					Graphics::Shader* Cubic = nullptr;
 				} Shaders;
@@ -40,10 +39,8 @@ namespace Tomahawk
 				virtual ~ModelRenderer();
 				void Initialize() override;
 				void Cull(const Viewer& View) override;
-				void RenderStep(Rest::Timer* Time) override;
-				void RenderSubstep(Rest::Timer* Time, bool Static) override;
-				void RenderLimpidStep(Rest::Timer* Time, uint64_t Layer) override;
-				void RenderLimpidSubstep(Rest::Timer* Time, uint64_t Layer, bool Static) override;
+				void RenderStep(Rest::Timer* Time, bool Limpid) override;
+				void RenderSubstep(Rest::Timer* Time, bool Limpid, bool Static) override;
 				void RenderDepthLinear(Rest::Timer* Time) override;
 				void RenderDepthCubic(Rest::Timer* Time, Compute::Matrix4x4* ViewProjection) override;
 				Rest::Pool<Component*>* GetGeometry(uint64_t Index) override;
@@ -58,8 +55,7 @@ namespace Tomahawk
 			private:
 				struct
 				{
-					Graphics::Shader* Opaque = nullptr;
-					Graphics::Shader* Limpid = nullptr;
+					Graphics::Shader* Main = nullptr;
 					Graphics::Shader* Linear = nullptr;
 					Graphics::Shader* Cubic = nullptr;
 				} Shaders;
@@ -83,10 +79,8 @@ namespace Tomahawk
 				virtual ~SkinRenderer();
 				void Initialize() override;
 				void Cull(const Viewer& View) override;
-				void RenderStep(Rest::Timer* Time) override;
-				void RenderSubstep(Rest::Timer* Time, bool Static) override;
-				void RenderLimpidStep(Rest::Timer* Time, uint64_t Layer) override;
-				void RenderLimpidSubstep(Rest::Timer* Time, uint64_t Layer, bool Static) override;
+				void RenderStep(Rest::Timer* Time, bool Limpid) override;
+				void RenderSubstep(Rest::Timer* Time, bool Limpid, bool Static) override;
 				void RenderDepthLinear(Rest::Timer* Time) override;
 				void RenderDepthCubic(Rest::Timer* Time, Compute::Matrix4x4* ViewProjection) override;
 				Rest::Pool<Component*>* GetGeometry(uint64_t Index) override;
@@ -101,8 +95,7 @@ namespace Tomahawk
 			private:
 				struct
 				{
-					Graphics::Shader* Opaque = nullptr;
-					Graphics::Shader* Limpid = nullptr;
+					Graphics::Shader* Main = nullptr;
 					Graphics::Shader* Linear = nullptr;
 					Graphics::Shader* Cubic = nullptr;
 				} Shaders;
@@ -128,10 +121,8 @@ namespace Tomahawk
 				virtual ~SoftBodyRenderer();
 				void Initialize() override;
 				void Cull(const Viewer& View) override;
-				void RenderStep(Rest::Timer* Time) override;
-				void RenderSubstep(Rest::Timer* Time, bool Static) override;
-				void RenderLimpidStep(Rest::Timer* Time, uint64_t Layer) override;
-				void RenderLimpidSubstep(Rest::Timer* Time, uint64_t Layer, bool Static) override;
+				void RenderStep(Rest::Timer* Time, bool Limpid) override;
+				void RenderSubstep(Rest::Timer* Time, bool Limpid, bool Static) override;
 				void RenderDepthLinear(Rest::Timer* Time) override;
 				void RenderDepthCubic(Rest::Timer* Time, Compute::Matrix4x4* ViewProjection) override;
 				Rest::Pool<Component*>* GetGeometry(uint64_t Index) override;
@@ -146,8 +137,7 @@ namespace Tomahawk
 			private:
 				struct
 				{
-					Graphics::Shader* Opaque = nullptr;
-					Graphics::Shader* Limpid = nullptr;
+					Graphics::Shader* Main = nullptr;
 					Graphics::Shader* Linear = nullptr;
 					Graphics::Shader* Quad = nullptr;
 					Graphics::Shader* Point = nullptr;
@@ -173,10 +163,8 @@ namespace Tomahawk
 				virtual ~EmitterRenderer() override;
 				void Initialize() override;
 				void Cull(const Viewer& View) override;
-				void RenderStep(Rest::Timer* Time) override;
-				void RenderSubstep(Rest::Timer* Time, bool Static) override;
-				void RenderLimpidStep(Rest::Timer* Time, uint64_t Layer) override;
-				void RenderLimpidSubstep(Rest::Timer* Time, uint64_t Layer, bool Static) override;
+				void RenderStep(Rest::Timer* Time, bool Limpid) override;
+				void RenderSubstep(Rest::Timer* Time, bool Limpid, bool Static) override;
 				void RenderDepthLinear(Rest::Timer* Time) override;
 				void RenderDepthCubic(Rest::Timer* Time, Compute::Matrix4x4* ViewProjection) override;
 				Rest::Pool<Component*>* GetGeometry(uint64_t Index) override;
@@ -189,19 +177,31 @@ namespace Tomahawk
 			class THAWK_OUT LimpidRenderer : public Renderer
 			{
 			private:
-				Graphics::MultiRenderTarget2D* Surface = nullptr;
-				Graphics::RenderTarget2D* Input = nullptr;
+				Graphics::MultiRenderTarget2D* Surface1 = nullptr;
+				Graphics::RenderTarget2D* Input1 = nullptr;
+				Graphics::MultiRenderTarget2D* Surface2 = nullptr;
+				Graphics::RenderTarget2D* Input2 = nullptr;
 				Graphics::DepthStencilState* DepthStencil = nullptr;
 				Graphics::RasterizerState* Rasterizer = nullptr;
 				Graphics::BlendState* Blend = nullptr;
 				Graphics::SamplerState* Sampler = nullptr;
 				Graphics::Shader* Shader = nullptr;
+				float MipLevels1 = 0.0f;
+				float MipLevels2 = 0.0f;
+
+			public:
+				struct RenderConstant
+				{
+					float MipLevels = 0.0f;
+					Compute::Vector3 Padding;
+				} RenderPass;
 
 			public:
 				LimpidRenderer(RenderSystem* Lab);
 				virtual ~LimpidRenderer();
 				void Initialize() override;
-				void RenderStep(Rest::Timer* Time) override;
+				void RenderStep(Rest::Timer* Time, bool Limpid) override;
+				void RenderSubstep(Rest::Timer* Time, bool Limpid, bool Static) override;
 				void ResizeBuffers() override;
 				Rest::Pool<Component*>* GetGeometry(uint64_t Index) override;
 				uint64_t GetGeometryCount() override;
@@ -240,7 +240,7 @@ namespace Tomahawk
 				void Deserialize(ContentManager* Content, Rest::Document* Node) override;
 				void Serialize(ContentManager* Content, Rest::Document* Node) override;
 				void Initialize() override;
-				void IntervalRenderStep(Rest::Timer* Time) override;
+				void IntervalRenderStep(Rest::Timer* Time, bool Limpid) override;
 
 			public:
 				THAWK_COMPONENT(DepthRenderer);
@@ -263,7 +263,7 @@ namespace Tomahawk
 				void Deserialize(ContentManager* Content, Rest::Document* Node) override;
 				void Serialize(ContentManager* Content, Rest::Document* Node) override;
 				void Initialize() override;
-				void RenderStep(Rest::Timer* Time) override;
+				void RenderStep(Rest::Timer* Time, bool Limpid) override;
 				void CreateRenderTarget();
 				void SetCaptureSize(size_t Size);
 
@@ -391,10 +391,8 @@ namespace Tomahawk
 				void Serialize(ContentManager* Content, Rest::Document* Node) override;
 				void Initialize() override;
 				void Cull(const Viewer& View) override;
-				void RenderStep(Rest::Timer* Time) override;
-				void RenderSubstep(Rest::Timer* Time, bool Static) override;
-				void RenderLimpidStep(Rest::Timer* Time, uint64_t Layer) override;
-				void RenderLimpidSubstep(Rest::Timer* Time, uint64_t Layer, bool Static) override;
+				void RenderStep(Rest::Timer* Time, bool Limpid) override;
+				void RenderSubstep(Rest::Timer* Time, bool Limpid, bool Static) override;
 				void ResizeBuffers() override;
 				void SetSkyMap(Graphics::Texture2D* Cubemap);
 				Graphics::TextureCube* GetSkyMap();
@@ -419,7 +417,7 @@ namespace Tomahawk
 				virtual ~ImageRenderer() override;
 				void Deserialize(ContentManager* Content, Rest::Document* Node) override;
 				void Serialize(ContentManager* Content, Rest::Document* Node) override;
-				void RenderStep(Rest::Timer* Time) override;
+				void RenderStep(Rest::Timer* Time, bool Limpid) override;
 
 			public:
 				THAWK_COMPONENT(ImageRenderer);
@@ -689,7 +687,7 @@ namespace Tomahawk
 				GUIRenderer(RenderSystem* Lab);
 				GUIRenderer(RenderSystem* Lab, Graphics::Activity* NewWindow);
 				virtual ~GUIRenderer() override;
-				void RenderStep(Rest::Timer* Time) override;
+				void RenderStep(Rest::Timer* Time, bool Limpid) override;
 				GUI::Context* GetContext();
 
 			public:

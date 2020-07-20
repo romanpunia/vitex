@@ -2074,16 +2074,10 @@ namespace Tomahawk
 		void Renderer::Cull(const Viewer& View)
 		{
 		}
-		void Renderer::RenderStep(Rest::Timer* TimeStep)
+		void Renderer::RenderStep(Rest::Timer* TimeStep, bool Limpid)
 		{
 		}
-		void Renderer::RenderSubstep(Rest::Timer* TimeStep, bool Static)
-		{
-		}
-		void Renderer::RenderLimpidStep(Rest::Timer* TimeStep, uint64_t Layer)
-		{
-		}
-		void Renderer::RenderLimpidSubstep(Rest::Timer* TimeStep, uint64_t Layer, bool Static)
+		void Renderer::RenderSubstep(Rest::Timer* TimeStep, bool Limpid, bool Static)
 		{
 		}
 		void Renderer::RenderDepthLinear(Rest::Timer* TimeStep)
@@ -2122,28 +2116,16 @@ namespace Tomahawk
 		IntervalRenderer::~IntervalRenderer()
 		{
 		}
-		void IntervalRenderer::IntervalRenderStep(Rest::Timer* TimeStep)
+		void IntervalRenderer::IntervalRenderStep(Rest::Timer* TimeStep, bool Limpid)
 		{
 		}
-		void IntervalRenderer::ImmediateRenderStep(Rest::Timer* TimeStep)
+		void IntervalRenderer::ImmediateRenderStep(Rest::Timer* TimeStep, bool Limpid)
 		{
 		}
-		void IntervalRenderer::IntervalRenderSubstep(Rest::Timer* TimeStep, bool Static)
+		void IntervalRenderer::IntervalRenderSubstep(Rest::Timer* TimeStep, bool Limpid, bool Static)
 		{
 		}
-		void IntervalRenderer::ImmediateRenderSubstep(Rest::Timer* TimeStep, bool Static)
-		{
-		}
-		void IntervalRenderer::IntervalRenderLimpidStep(Rest::Timer* TimeStep, uint64_t Layer)
-		{
-		}
-		void IntervalRenderer::ImmediateRenderLimpidStep(Rest::Timer* TimeStep, uint64_t Layer)
-		{
-		}
-		void IntervalRenderer::IntervalRenderLimpidSubstep(Rest::Timer* TimeStep, uint64_t Layer, bool Static)
-		{
-		}
-		void IntervalRenderer::ImmediateRenderLimpidSubstep(Rest::Timer* TimeStep, uint64_t Layer, bool Static)
+		void IntervalRenderer::ImmediateRenderSubstep(Rest::Timer* TimeStep, bool Limpid, bool Static)
 		{
 		}
 		void IntervalRenderer::IntervalRenderDepthLinear(Rest::Timer* TimeStep)
@@ -2158,33 +2140,19 @@ namespace Tomahawk
 		void IntervalRenderer::ImmediateRenderDepthCubic(Rest::Timer* TimeStep, Compute::Matrix4x4* ViewProjection)
 		{
 		}
-		void IntervalRenderer::RenderStep(Rest::Timer* Time)
+		void IntervalRenderer::RenderStep(Rest::Timer* Time, bool Limpid)
 		{
 			if (Timer.TickEvent(Time->GetElapsedTime()))
-				IntervalRenderStep(Time);
+				IntervalRenderStep(Time, Limpid);
 
-			ImmediateRenderStep(Time);
+			ImmediateRenderStep(Time, Limpid);
 		}
-		void IntervalRenderer::RenderSubstep(Rest::Timer* Time, bool Static)
+		void IntervalRenderer::RenderSubstep(Rest::Timer* Time, bool Limpid, bool Static)
 		{
 			if (Timer.TickEvent(Time->GetElapsedTime()))
-				IntervalRenderSubstep(Time, Static);
+				IntervalRenderSubstep(Time, Limpid, Static);
 
-			ImmediateRenderSubstep(Time, Static);
-		}
-		void IntervalRenderer::RenderLimpidStep(Rest::Timer* Time, uint64_t Layer)
-		{
-			if (Timer.TickEvent(Time->GetElapsedTime()))
-				IntervalRenderLimpidStep(Time, Layer);
-
-			ImmediateRenderLimpidStep(Time, Layer);
-		}
-		void IntervalRenderer::RenderLimpidSubstep(Rest::Timer* Time, uint64_t Layer, bool Static)
-		{
-			if (Timer.TickEvent(Time->GetElapsedTime()))
-				IntervalRenderLimpidSubstep(Time, Layer, Static);
-
-			ImmediateRenderLimpidSubstep(Time, Layer, Static);
+			ImmediateRenderSubstep(Time, Limpid, Static);
 		}
 		void IntervalRenderer::RenderDepthLinear(Rest::Timer* Time)
 		{
@@ -2260,7 +2228,7 @@ namespace Tomahawk
 		{
 			ResizeBuffers();
 		}
-		void PostProcessRenderer::RenderStep(Rest::Timer* Time)
+		void PostProcessRenderer::RenderStep(Rest::Timer* Time, bool Limpid)
 		{
 			Graphics::MultiRenderTarget2D* Surface = System->GetScene()->GetSurface();
 			if (!Surface || Shaders.empty())
@@ -2711,35 +2679,21 @@ namespace Tomahawk
 			});
 			Unlock();
 		}
-		void SceneGraph::Render(Rest::Timer* Time)
+		void SceneGraph::RenderAuto(Rest::Timer* Time)
 		{
 			BeginThread(ThreadId_Render);
 			if (Camera != nullptr)
 			{
 				Conf.Device->UpdateBuffer(Structure, Materials.data(), Materials.size() * sizeof(Graphics::Material));
 				Conf.Device->SetBuffer(Structure, 0);
+				
+				ClearSurface();
 				RestoreViewBuffer(nullptr);
-				SetSurfaceCleared();
-
-				auto* States = View.Renderer->GetRenderers();
-				for (auto& Renderer : *States)
-				{
-					if (Renderer->Active)
-						Renderer->RenderStep(Time);
-				}
+				RenderStep(Time, false);
 
 				Conf.Device->SetTarget();
 			}
 			EndThread(ThreadId_Render);
-		}
-		void SceneGraph::RenderLimpid(Rest::Timer* Time, uint64_t Layer)
-		{
-			auto* States = View.Renderer->GetRenderers();
-			for (auto& Renderer : *States)
-			{
-				if (Renderer->Active && Renderer->Geometric)
-					Renderer->RenderLimpidStep(Time, Layer);
-			}
 		}
 		void SceneGraph::RenderCustom(Rest::Timer* Time, const RenderCallback& Callback)
 		{
@@ -2748,15 +2702,10 @@ namespace Tomahawk
 			{
 				Conf.Device->UpdateBuffer(Structure, Materials.data(), Materials.size() * sizeof(Graphics::Material));
 				Conf.Device->SetBuffer(Structure, 0);
-				RestoreViewBuffer(nullptr);
-				SetSurfaceCleared();
 
-				auto* States = View.Renderer->GetRenderers();
-				for (auto& Renderer : *States)
-				{
-					if (Renderer->Active)
-						Renderer->RenderStep(Time);
-				}
+				ClearSurface();
+				RestoreViewBuffer(nullptr);
+				RenderStep(Time, false);
 
 				if (Callback)
 					Callback(Time, &View);
@@ -2765,62 +2714,32 @@ namespace Tomahawk
 			}
 			EndThread(ThreadId_Render);
 		}
-		void SceneGraph::RenderSubstep(Rest::Timer* Time, const Compute::Matrix4x4& iView, const Compute::Matrix4x4& iProjection, const Compute::Vector4& iPosition, bool Static)
+		void SceneGraph::RenderStep(Rest::Timer* Time, bool Limpid)
 		{
-			View.View = iView;
-			View.Projection = iProjection;
-			View.ViewProjection = iView * iProjection;
-			View.InvViewProjection = View.ViewProjection.Invert();
-			View.InvViewPosition = iPosition.InvertZ();
-			View.ViewPosition = View.InvViewPosition.Invert();
-			View.WorldPosition = iPosition;
-			View.ViewDistance = (iPosition.W < 0 ? 999999999 : iPosition.W);
-			RestoreViewBuffer(&View);
+			if (!View.Renderer)
+				return;
 
-			Conf.Device->SetTarget(Surface, 0, 0, 0);
-			Conf.Device->ClearDepth(Surface);
-
-			auto* RenderStages = View.Renderer->GetRenderers();
-			for (auto It = RenderStages->begin(); It != RenderStages->end(); It++)
+			auto* States = View.Renderer->GetRenderers();
+			for (auto& Renderer : *States)
 			{
-				if ((*It)->Active && (*It)->Geometric)
-					(*It)->RenderSubstep(Time, Static);
+				if (Renderer->Active)
+					Renderer->RenderStep(Time, Limpid);
 			}
 		}
-		void SceneGraph::RenderLimpidSubstep(Rest::Timer* Time, const Compute::Matrix4x4& iView, const Compute::Matrix4x4& iProjection, const Compute::Vector4& iPosition, uint64_t Layer, bool Static)
+		void SceneGraph::RenderSubstep(Rest::Timer* Time, bool Limpid, bool Static)
 		{
-			View.View = iView;
-			View.Projection = iProjection;
-			View.ViewProjection = iView * iProjection;
-			View.InvViewProjection = View.ViewProjection.Invert();
-			View.InvViewPosition = iPosition.InvertZ();
-			View.ViewPosition = View.InvViewPosition.Invert();
-			View.WorldPosition = iPosition;
-			View.ViewDistance = (iPosition.W < 0 ? 999999999 : iPosition.W);
-			RestoreViewBuffer(&View);
-
-			Conf.Device->SetTarget(Surface, 0, 0, 0);
-			Conf.Device->ClearDepth(Surface);
+			if (!View.Renderer)
+				return;
 
 			auto* States = View.Renderer->GetRenderers();
 			for (auto& Renderer : *States)
 			{
 				if (Renderer->Active && Renderer->Geometric)
-					Renderer->RenderLimpidSubstep(Time, Layer, Static);
+					Renderer->RenderSubstep(Time, Limpid, Static);
 			}
 		}
-		void SceneGraph::RenderDepthLinear(Rest::Timer* Time, const Compute::Matrix4x4& iView, const Compute::Matrix4x4& iProjection, const Compute::Vector4& iPosition)
+		void SceneGraph::RenderDepthLinear(Rest::Timer* Time)
 		{
-			View.View = iView;
-			View.Projection = iProjection;
-			View.ViewProjection = iView * iProjection;
-			View.InvViewProjection = View.ViewProjection.Invert();
-			View.InvViewPosition = iPosition.InvertZ();
-			View.ViewPosition = View.InvViewPosition.Invert();
-			View.WorldPosition = iPosition;
-			View.ViewDistance = (iPosition.W < 0 ? 999999999 : iPosition.W);
-			RestoreViewBuffer(&View);
-
 			if (!View.Renderer)
 				return;
 
@@ -2831,16 +2750,10 @@ namespace Tomahawk
 					Renderer->RenderDepthLinear(Time);
 			}
 		}
-		void SceneGraph::RenderDepthCubic(Rest::Timer* Time, const Compute::Matrix4x4& iProjection, const Compute::Vector4& iPosition)
+		void SceneGraph::RenderDepthCubic(Rest::Timer* Time)
 		{
-			View.Projection = iProjection;
-			View.ViewProjection = iProjection;
-			View.InvViewProjection = View.ViewProjection.Invert();
-			View.InvViewPosition = iPosition.InvertZ();
-			View.ViewPosition = View.InvViewPosition.Invert();
-			View.WorldPosition = iPosition;
-			View.ViewDistance = (iPosition.W < 0 ? 999999999 : iPosition.W);
-			RestoreViewBuffer(&View);
+			if (!View.Renderer)
+				return;
 
 			Compute::Matrix4x4 ViewProjection[6];
 			ViewProjection[0] = Compute::Matrix4x4::CreateCubeMapLookAt(0, View.InvViewPosition) * View.Projection;
@@ -2849,9 +2762,6 @@ namespace Tomahawk
 			ViewProjection[3] = Compute::Matrix4x4::CreateCubeMapLookAt(3, View.InvViewPosition) * View.Projection;
 			ViewProjection[4] = Compute::Matrix4x4::CreateCubeMapLookAt(4, View.InvViewPosition) * View.Projection;
 			ViewProjection[5] = Compute::Matrix4x4::CreateCubeMapLookAt(5, View.InvViewPosition) * View.Projection;
-
-			if (!View.Renderer)
-				return;
 
 			auto* States = View.Renderer->GetRenderers();
 			for (auto& Renderer : *States)
@@ -3293,9 +3203,22 @@ namespace Tomahawk
 				Surface = Conf.Device->CreateMultiRenderTarget2D(F);
 			}
 		}
-		void SceneGraph::SetSurface(Graphics::MultiRenderTarget2D* NewSurface)
+		void SceneGraph::SwapSurface(Graphics::MultiRenderTarget2D* NewSurface)
 		{
 			Surface = NewSurface;
+		}
+		void SceneGraph::SetView(const Compute::Matrix4x4& _View, const Compute::Matrix4x4& _Projection, const Compute::Vector3& _Position, float _Distance)
+		{
+			View.View = _View;
+			View.Projection = _Projection;
+			View.ViewProjection = _View * _Projection;
+			View.InvViewProjection = View.ViewProjection.Invert();
+			View.InvViewPosition = _Position.InvertZ();
+			View.ViewPosition = View.InvViewPosition.Invert();
+			View.WorldPosition = _Position;
+			View.WorldRotation = _View.Rotation();
+			View.ViewDistance = (_Distance < 0 ? 999999999 : _Distance);
+			RestoreViewBuffer(&View);
 		}
 		void SceneGraph::SetSurface()
 		{

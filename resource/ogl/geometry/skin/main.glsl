@@ -42,5 +42,5 @@ GBuffer PS(VertexResult V)
 	[branch] if (HasNormal > 0)
         Normal = GetNormal(V.TexCoord, V.Normal, V.Tangent, V.Bitangent);
 
-    return ComposeLimpid(V.TexCoord, Color, Normal, V.UV.z / V.UV.w, MaterialId);
+    return Compose(V.TexCoord, Color, Normal, V.UV.z / V.UV.w, MaterialId);
 };

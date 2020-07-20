@@ -463,10 +463,8 @@ namespace Tomahawk
 			virtual void ResizeBuffers();
 			virtual void Initialize();
 			virtual void Cull(const Viewer& View);
-			virtual void RenderStep(Rest::Timer* TimeStep);
-			virtual void RenderSubstep(Rest::Timer* TimeStep, bool Static);
-			virtual void RenderLimpidStep(Rest::Timer* TimeStep, uint64_t Layer);
-			virtual void RenderLimpidSubstep(Rest::Timer* TimeStep, uint64_t Layer, bool Static);
+			virtual void RenderStep(Rest::Timer* TimeStep, bool Limpid);
+			virtual void RenderSubstep(Rest::Timer* TimeStep, bool Limpid, bool Static);
 			virtual void RenderDepthLinear(Rest::Timer* TimeStep);
 			virtual void RenderDepthCubic(Rest::Timer* TimeStep, Compute::Matrix4x4* ViewProjection);
 			virtual void Release();
@@ -488,22 +486,16 @@ namespace Tomahawk
 		public:
 			IntervalRenderer(RenderSystem* Lab);
 			virtual ~IntervalRenderer() override;
-			virtual void IntervalRenderStep(Rest::Timer* TimeStep);
-			virtual void ImmediateRenderStep(Rest::Timer* TimeStep);
-			virtual void IntervalRenderSubstep(Rest::Timer* TimeStep, bool Static);
-			virtual void ImmediateRenderSubstep(Rest::Timer* TimeStep, bool Static);
-			virtual void IntervalRenderLimpidStep(Rest::Timer* TimeStep, uint64_t Layer);
-			virtual void ImmediateRenderLimpidStep(Rest::Timer* TimeStep, uint64_t Layer);
-			virtual void IntervalRenderLimpidSubstep(Rest::Timer* TimeStep, uint64_t Layer, bool Static);
-			virtual void ImmediateRenderLimpidSubstep(Rest::Timer* TimeStep, uint64_t Layer, bool Static);
+			virtual void IntervalRenderStep(Rest::Timer* TimeStep, bool Limpid);
+			virtual void ImmediateRenderStep(Rest::Timer* TimeStep, bool Limpid);
+			virtual void IntervalRenderSubstep(Rest::Timer* TimeStep, bool Limpid, bool Static);
+			virtual void ImmediateRenderSubstep(Rest::Timer* TimeStep, bool Limpid, bool Static);
 			virtual void IntervalRenderDepthLinear(Rest::Timer* TimeStep);
 			virtual void ImmediateRenderDepthLinear(Rest::Timer* TimeStep);
 			virtual void IntervalRenderDepthCubic(Rest::Timer* TimeStep, Compute::Matrix4x4* ViewProjection);
 			virtual void ImmediateRenderDepthCubic(Rest::Timer* TimeStep, Compute::Matrix4x4* ViewProjection);
-			void RenderStep(Rest::Timer* TimeStep) override;
-			void RenderSubstep(Rest::Timer* TimeStep, bool Static) override;
-			void RenderLimpidStep(Rest::Timer* TimeStep, uint64_t Layer) override;
-			void RenderLimpidSubstep(Rest::Timer* TimeStep, uint64_t Layer, bool Static) override;
+			void RenderStep(Rest::Timer* TimeStep, bool Limpid) override;
+			void RenderSubstep(Rest::Timer* TimeStep, bool Limpid, bool Static) override;
 			void RenderDepthLinear(Rest::Timer* TimeStep) override;
 			void RenderDepthCubic(Rest::Timer* TimeStep, Compute::Matrix4x4* ViewProjection) override;
 
@@ -526,7 +518,7 @@ namespace Tomahawk
 			PostProcessRenderer(RenderSystem* Lab);
 			virtual ~PostProcessRenderer() override;
 			virtual void RenderEffect(Rest::Timer* Time);
-			void RenderStep(Rest::Timer* Time) override;
+			void RenderStep(Rest::Timer* Time, bool Limpid) override;
 			void Initialize() override;
 			void ResizeBuffers() override;
 
@@ -672,13 +664,12 @@ namespace Tomahawk
 			SceneGraph(const Desc& I);
 			virtual ~SceneGraph() override;
 			void Configure(const Desc& Conf);
-			void Render(Rest::Timer* Time);
+			void RenderAuto(Rest::Timer* Time);
 			void RenderCustom(Rest::Timer* Time, const RenderCallback& Callback);
-			void RenderLimpid(Rest::Timer* Time, uint64_t Layer);
-			void RenderSubstep(Rest::Timer* Time, const Compute::Matrix4x4& View, const Compute::Matrix4x4& Projection, const Compute::Vector4& Position, bool Static);
-			void RenderLimpidSubstep(Rest::Timer* Time, const Compute::Matrix4x4& View, const Compute::Matrix4x4& Projection, const Compute::Vector4& Position, uint64_t Layer, bool Static);
-			void RenderDepthLinear(Rest::Timer* Time, const Compute::Matrix4x4& View, const Compute::Matrix4x4& Projection, const Compute::Vector4& Position);
-			void RenderDepthCubic(Rest::Timer* Time, const Compute::Matrix4x4& Projection, const Compute::Vector4& Position);
+			void RenderStep(Rest::Timer* Time, bool Limpid);
+			void RenderSubstep(Rest::Timer* Time, bool Limpid, bool Static);
+			void RenderDepthLinear(Rest::Timer* Time);
+			void RenderDepthCubic(Rest::Timer* Time);
 			void Update(Rest::Timer* Time);
 			void Simulation(Rest::Timer* Time);
 			void Synchronize(Rest::Timer* Time);
@@ -697,7 +688,8 @@ namespace Tomahawk
 			void Lock();
 			void Unlock();
 			void ResizeBuffers();
-			void SetSurface(Graphics::MultiRenderTarget2D* NewSurface);
+			void SwapSurface(Graphics::MultiRenderTarget2D* NewSurface);
+			void SetView(const Compute::Matrix4x4& View, const Compute::Matrix4x4& Projection, const Compute::Vector3& Position, float Distance);
 			void SetSurface();
 			void SetSurfaceCleared();
 			void SetMaterialName(uint64_t Material, const std::string& Name);

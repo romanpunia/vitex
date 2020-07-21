@@ -8,10 +8,6 @@ float GetMaterialId(in float2 TexCoord)
 {
     return Channel1.SampleLevel(Sampler, TexCoord, 0).w;
 }
-float3 GetMetallicFactor(in Fragment Frag, in Material Mat)
-{
-    return Mat.Metallic.xyz + Frag.Metallic * Mat.Metallic.w;
-}
 float GetRoughnessLevel(in Fragment Frag, in Material Mat, in float MaxLevels)
 {
     return MaxLevels * (Mat.Roughness.x + Frag.Roughness * Mat.Roughness.y);
@@ -20,13 +16,33 @@ float GetRoughnessFactor(in Fragment Frag, in Material Mat)
 {
     return Pow4(Mat.Roughness.x + Frag.Roughness * Mat.Roughness.y);
 }
-float GetMetallic(in float2 TexCoord)
+float3 GetMetallicFactor(in Fragment Frag, in Material Mat)
 {
-    return Channel2.SampleLevel(Sampler, TexCoord, 0).y;
+    return Mat.Metallic.xyz + Frag.Metallic * Mat.Metallic.w;
+}
+float GetOcclusionFactor(in Fragment Frag, in Material Mat)
+{
+    return Mat.Occlusion * (1.0 + Frag.Occlusion);
+}
+float3 GetEmissionFactor(in Fragment Frag, in Material Mat)
+{
+    return (Mat.Emission.xyz + Frag.Emission) * Mat.Emission.w;
 }
 float GetRoughness(in float2 TexCoord)
 {
     return Channel3.SampleLevel(Sampler, TexCoord, 0).x;
+}
+float GetMetallic(in float2 TexCoord)
+{
+    return Channel3.SampleLevel(Sampler, TexCoord, 0).y;
+}
+float GetOcclusion(in float2 TexCoord)
+{
+    return Channel3.SampleLevel(Sampler, TexCoord, 0).z;
+}
+float GetEmission(in float2 TexCoord)
+{
+    return Channel3.SampleLevel(Sampler, TexCoord, 0).w;
 }
 float GetDepth(in float2 TexCoord)
 {
@@ -93,8 +109,10 @@ Fragment GetFragment(in float2 TexCoord)
     Result.Normal = C1.xyz;
     Result.Material = C1.w;
     Result.Depth = C2.x;
-    Result.Metallic = C2.y;
     Result.Roughness = C3.x;
+    Result.Metallic = C3.y;
+    Result.Occlusion = C3.z;
+    Result.Emission = C3.w;
 
     return Result;
 }

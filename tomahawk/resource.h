@@ -78,7 +78,7 @@ namespace resource_batch
 	{
 #define HAS_D3D11_PASS_AMBIENT_HLSL
 		extern const unsigned char data[];
-		const unsigned size = 1589;
+		const unsigned size = 1607;
 	}
 
 	namespace d3d11_pass_bloom_hlsl
@@ -127,14 +127,14 @@ namespace resource_batch
 	{
 #define HAS_D3D11_PASS_INDIRECT_HLSL
 		extern const unsigned char data[];
-		const unsigned size = 2096;
+		const unsigned size = 2114;
 	}
 
 	namespace d3d11_pass_light_base_ambient_hlsl
 	{
 #define HAS_D3D11_PASS_LIGHT_BASE_AMBIENT_HLSL
 		extern const unsigned char data[];
-		const unsigned size = 1671;
+		const unsigned size = 1644;
 	}
 
 	namespace d3d11_pass_light_base_line_hlsl
@@ -253,7 +253,7 @@ namespace resource_batch
 	{
 #define HAS_D3D11_RENDERER_FRAGMENT_HLSL
 		extern const unsigned char data[];
-		const unsigned size = 185;
+		const unsigned size = 228;
 	}
 
 	namespace d3d11_renderer_gbuffer_hlsl
@@ -393,14 +393,14 @@ namespace resource_batch
 	{
 #define HAS_D3D11_WORKFLOW_GEOMETRY_HLSL
 		extern const unsigned char data[];
-		const unsigned size = 449;
+		const unsigned size = 546;
 	}
 
 	namespace d3d11_workflow_pass_hlsl
 	{
 #define HAS_D3D11_WORKFLOW_PASS_HLSL
 		extern const unsigned char data[];
-		const unsigned size = 3123;
+		const unsigned size = 3640;
 	}
 
 	namespace d3d11_workflow_primitive_hlsl
@@ -414,7 +414,7 @@ namespace resource_batch
 	{
 #define HAS_D3D11_WORKFLOW_RASTERIZER_HLSL
 		extern const unsigned char data[];
-		const unsigned size = 1095;
+		const unsigned size = 1293;
 	}
 
 	namespace ogl_geometry_emitter_depth_linear_glsl

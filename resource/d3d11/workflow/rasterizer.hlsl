@@ -9,6 +9,14 @@ float GetMetallic(in float2 TexCoord)
 {
     return MetallicMap.Sample(Sampler, TexCoord).x;
 }
+float GetOcclusion(in float2 TexCoord)
+{
+    return OcclusionMap.Sample(Sampler, TexCoord).x;
+}
+float GetEmission(in float2 TexCoord)
+{
+    return EmissionMap.Sample(Sampler, TexCoord).x;
+}
 float3 GetNormal(in float2 TexCoord, in float3 Normal, in float3 Tangent, in float3 Bitangent)
 {
     float3 Result = NormalMap.Sample(Sampler, TexCoord).xyz * 2.0 - 1.0;

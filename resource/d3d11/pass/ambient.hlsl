@@ -22,12 +22,13 @@ float4 PS(VertexResult V) : SV_TARGET0
 {
 	float2 TexCoord = GetTexCoord(V.TexCoord);
 	Fragment Frag = GetFragment(TexCoord);
-	Material Mat = GetMaterial(Frag.Material);
-    Bounce Ray = GetBounce(Scale, Intensity, Bias, Power, Threshold);
 
     [branch] if (Frag.Depth >= 1.0)
         return float4(1.0, 1.0, 1.0, 1.0);
 
+	Material Mat = GetMaterial(Frag.Material);
+    float Z = GetOcclusionFactor(Frag, Mat);
+    Bounce Ray = GetBounce(Scale, Intensity, Bias, Power * Z, Threshold);
 	float F = saturate(pow(abs(distance(ViewPosition, Frag.Position) / Distance), Fading));
 	float O = Radius + Mat.Radius, Count = 0.0;
     float3 C = 0.0;
@@ -42,13 +43,13 @@ float4 PS(VertexResult V) : SV_TARGET0
 
             [branch] if (RayBounce(Frag, Ray, TexCoord + D, F1))
             {
-                C += Mat.Occlusion * F1;
+                C += F1;
                 Count++;
             }
 
             [branch] if (RayBounce(Frag, Ray, TexCoord - D, F2))
             {
-                C += Mat.Occlusion * F2;
+                C += F2;
                 Count++;
             }
 		}

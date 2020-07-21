@@ -3314,10 +3314,10 @@ namespace Tomahawk
 				Result[1] = Graphics::Format_R16G16B16A16_Float;
 
 			if (Size >= 3)
-				Result[2] = Graphics::Format_R32G32_Float;
+				Result[2] = Graphics::Format_R32_Float;
 
 			if (Size >= 4)
-				Result[3] = Graphics::Format_R16_Float;
+				Result[3] = Graphics::Format_R8G8B8A8_Unorm;
 
 			for (uint64_t i = 4; i < Size; i++)
 				Result[i] = Graphics::Format_Invalid;

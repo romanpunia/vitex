@@ -1727,7 +1727,6 @@ namespace Tomahawk
 
 				Device->SetShader(Shaders.SpotBase, Graphics::ShaderType_Vertex);
 				Device->SetBuffer(Shaders.SpotBase, 3, Graphics::ShaderType_Vertex | Graphics::ShaderType_Pixel);
-				Device->SetTexture2D(nullptr, 4);
 
 				for (auto It = SpotLights->Begin(); It != SpotLights->End(); ++It)
 				{
@@ -1902,7 +1901,6 @@ namespace Tomahawk
 
 				Device->SetShader(Shaders.SpotBase, Graphics::ShaderType_Vertex);
 				Device->SetBuffer(Shaders.SpotBase, 3, Graphics::ShaderType_Vertex | Graphics::ShaderType_Pixel);
-				Device->SetTexture2D(nullptr, 4);
 
 				for (auto It = SpotLights->Begin(); It != SpotLights->End(); ++It)
 				{

@@ -593,6 +593,10 @@ namespace Tomahawk
 			return Resource[Target];
 		}
 
+		Query::Query()
+		{
+		}
+
 		GraphicsDevice::GraphicsDevice(const Desc& I) : MaxElements(1), ViewResource(nullptr), Primitives(PrimitiveTopology_Triangle_List)
 		{
 			ShaderModelType = Graphics::ShaderModel_Invalid;

@@ -66,6 +66,35 @@ namespace Tomahawk
 			ContentType_Pointer,
 		};
 
+		enum CullResult
+		{
+			CullResult_Always,
+			CullResult_Cache,
+			CullResult_Last
+		};
+
+		enum RenderOpt
+		{
+			RenderOpt_None = 0,
+			RenderOpt_Limpid = 1,
+			RenderOpt_Static = 2,
+			RenderOpt_Inner = 4
+		};
+
+		struct THAWK_OUT Material
+		{
+			Compute::Vector4 Emission;
+			Compute::Vector4 Metallic;
+			Compute::Vector2 Roughness = { 1, 0 };
+			float Fresnel = 0.0f;
+			float Limpidity = 0.0f;
+			float Refraction = 0.0f;
+			float Environment = 0.0f;
+			float Occlusion = 1.0f;
+			float Radius = 0.0f;
+			float Id = 0.0f;
+		};
+
 		struct THAWK_OUT AssetResource
 		{
 			FileProcessor* Processor = nullptr;
@@ -189,7 +218,7 @@ namespace Tomahawk
 			static bool Pack(Rest::Document* V, const Compute::Vector3& Value);
 			static bool Pack(Rest::Document* V, const Compute::Vector4& Value);
 			static bool Pack(Rest::Document* V, const Compute::Matrix4x4& Value);
-			static bool Pack(Rest::Document* V, const Graphics::Material& Value);
+			static bool Pack(Rest::Document* V, const Material& Value);
 			static bool Pack(Rest::Document* V, const AnimatorState& Value);
 			static bool Pack(Rest::Document* V, const SpawnerProperties& Value);
 			static bool Pack(Rest::Document* V, const Appearance& Value, ContentManager* Content);
@@ -241,7 +270,7 @@ namespace Tomahawk
 			static bool Unpack(Rest::Document* V, Compute::Vector3* O);
 			static bool Unpack(Rest::Document* V, Compute::Vector4* O);
 			static bool Unpack(Rest::Document* V, Compute::Matrix4x4* O);
-			static bool Unpack(Rest::Document* V, Graphics::Material* O);
+			static bool Unpack(Rest::Document* V, Material* O);
 			static bool Unpack(Rest::Document* V, AnimatorState* O);
 			static bool Unpack(Rest::Document* V, SpawnerProperties* O);
 			static bool Unpack(Rest::Document* V, Appearance* O, ContentManager* Content);
@@ -364,7 +393,26 @@ namespace Tomahawk
 			THAWK_COMPONENT_BASIS(Component);
 		};
 
-		class THAWK_OUT Drawable : public Component
+		class THAWK_OUT Cullable : public Component
+		{
+			friend RenderSystem;
+
+		protected:
+			float Visibility;
+
+		public:
+			Cullable(Entity* Ref);
+			virtual ~Cullable() = default;
+			virtual float Cull(const Viewer& View) = 0;
+			virtual Component* Copy(Entity* New) = 0;
+			bool IsVisible(const Viewer& View, Compute::Matrix4x4* World);
+			bool IsNear(const Viewer& View);
+
+		public:
+			THAWK_COMPONENT(Cullable);
+		};
+
+		class THAWK_OUT Drawable : public Cullable
 		{
 		private:
 			bool Complex;
@@ -373,7 +421,6 @@ namespace Tomahawk
 			std::unordered_map<void*, Appearance> Surfaces;
 
 		public:
-			bool Visibility;
 			bool Static;
 
 		public:
@@ -381,14 +428,12 @@ namespace Tomahawk
 			virtual ~Drawable() = default;
 			virtual void Pipe(Event* Value) override;
 			virtual Component* Copy(Entity* New) = 0;
-			bool IsVisibleTo(const Viewer& View, Compute::Matrix4x4* World);
-			bool IsNearTo(const Viewer& View);
-			bool IsLimpid();
 			const std::unordered_map<void*, Appearance>& GetSurfaces();
-			Graphics::Material* GetMaterial(Appearance* Surface);
-			Graphics::Material* GetMaterial();
+			Material* GetMaterial(Appearance* Surface);
+			Material* GetMaterial();
 			Appearance* GetSurface(void* Instance);
 			Appearance* GetSurface();
+			bool IsLimpid();
 
 		public:
 			THAWK_COMPONENT(Drawable);
@@ -461,13 +506,11 @@ namespace Tomahawk
 			virtual void Serialize(ContentManager* Content, Rest::Document* Node);
 			virtual void Deserialize(ContentManager* Content, Rest::Document* Node);
 			virtual void ResizeBuffers();
-			virtual void Initialize();
-			virtual void Cull(const Viewer& View);
-			virtual void RenderStep(Rest::Timer* TimeStep, bool Limpid);
-			virtual void RenderSubstep(Rest::Timer* TimeStep, bool Limpid, bool Static);
+			virtual void Activate();
+			virtual void Deactivate();
+			virtual void RenderMain(Rest::Timer* TimeStep, RenderOpt Options);
 			virtual void RenderDepthLinear(Rest::Timer* TimeStep);
 			virtual void RenderDepthCubic(Rest::Timer* TimeStep, Compute::Matrix4x4* ViewProjection);
-			virtual void Release();
 			virtual Rest::Pool<Component*>* GetGeometry(uint64_t Index);
 			virtual uint64_t GetGeometryCount();
 			bool IsGeometric();
@@ -478,32 +521,29 @@ namespace Tomahawk
 			THAWK_COMPONENT_BASIS(Renderer);
 		};
 
-		class THAWK_OUT IntervalRenderer : public Renderer
+		class THAWK_OUT TickRenderer : public Renderer
 		{
 		protected:
 			Rest::TickTimer Timer;
 
 		public:
-			IntervalRenderer(RenderSystem* Lab);
-			virtual ~IntervalRenderer() override;
-			virtual void IntervalRenderStep(Rest::Timer* TimeStep, bool Limpid);
-			virtual void ImmediateRenderStep(Rest::Timer* TimeStep, bool Limpid);
-			virtual void IntervalRenderSubstep(Rest::Timer* TimeStep, bool Limpid, bool Static);
-			virtual void ImmediateRenderSubstep(Rest::Timer* TimeStep, bool Limpid, bool Static);
-			virtual void IntervalRenderDepthLinear(Rest::Timer* TimeStep);
-			virtual void ImmediateRenderDepthLinear(Rest::Timer* TimeStep);
-			virtual void IntervalRenderDepthCubic(Rest::Timer* TimeStep, Compute::Matrix4x4* ViewProjection);
-			virtual void ImmediateRenderDepthCubic(Rest::Timer* TimeStep, Compute::Matrix4x4* ViewProjection);
-			void RenderStep(Rest::Timer* TimeStep, bool Limpid) override;
-			void RenderSubstep(Rest::Timer* TimeStep, bool Limpid, bool Static) override;
+			TickRenderer(RenderSystem* Lab);
+			virtual ~TickRenderer() override;
+			virtual void TickRenderMain(Rest::Timer* TimeStep, RenderOpt Options);
+			virtual void FrameRenderMain(Rest::Timer* TimeStep, RenderOpt Options);
+			virtual void TickRenderDepthLinear(Rest::Timer* TimeStep);
+			virtual void FrameRenderDepthLinear(Rest::Timer* TimeStep);
+			virtual void TickRenderDepthCubic(Rest::Timer* TimeStep, Compute::Matrix4x4* ViewProjection);
+			virtual void FrameRenderDepthCubic(Rest::Timer* TimeStep, Compute::Matrix4x4* ViewProjection);
+			void RenderMain(Rest::Timer* TimeStep, RenderOpt Options) override;
 			void RenderDepthLinear(Rest::Timer* TimeStep) override;
 			void RenderDepthCubic(Rest::Timer* TimeStep, Compute::Matrix4x4* ViewProjection) override;
 
 		public:
-			THAWK_COMPONENT(IntervalRenderer);
+			THAWK_COMPONENT(TickRenderer);
 		};
 
-		class THAWK_OUT PostProcessRenderer : public Renderer
+		class THAWK_OUT EffectRenderer : public Renderer
 		{
 		protected:
 			std::unordered_map<std::string, Graphics::Shader*> Shaders;
@@ -515,11 +555,11 @@ namespace Tomahawk
 			Graphics::Texture2D* Pass;
 
 		public:
-			PostProcessRenderer(RenderSystem* Lab);
-			virtual ~PostProcessRenderer() override;
+			EffectRenderer(RenderSystem* Lab);
+			virtual ~EffectRenderer() override;
 			virtual void RenderEffect(Rest::Timer* Time);
-			void RenderStep(Rest::Timer* Time, bool Limpid) override;
-			void Initialize() override;
+			void Activate() override;
+			void RenderMain(Rest::Timer* Time, RenderOpt Options) override;
 			void ResizeBuffers() override;
 
 		protected:
@@ -529,7 +569,7 @@ namespace Tomahawk
 			Graphics::Shader* CompileEffect(const std::string& Name, const std::string& Code, size_t BufferSize = 0);
 
 		public:
-			THAWK_COMPONENT(PostProcessRenderer);
+			THAWK_COMPONENT(EffectRenderer);
 		};
 
 		class THAWK_OUT ShaderCache : public Rest::Object
@@ -558,19 +598,25 @@ namespace Tomahawk
 		class THAWK_OUT RenderSystem : public Rest::Object
 		{
 		protected:
+			std::unordered_map<uint64_t, Rest::Pool<Component*>*> Cull;
+			std::vector<Renderer*> Renderers;
 			Graphics::ElementBuffer* QuadVertex;
 			Graphics::ElementBuffer* SphereVertex;
 			Graphics::ElementBuffer* SphereIndex;
-			std::vector<Renderer*> RenderStages;
 			Graphics::GraphicsDevice* Device;
 			SceneGraph* Scene;
+
+		public:
+			bool EnableCull;
 
 		public:
 			RenderSystem(Graphics::GraphicsDevice* Device);
 			virtual ~RenderSystem() override;
 			void SetScene(SceneGraph* NewScene);
+			void Synchronize(const Viewer& View);
 			void RemoveRenderer(uint64_t Id);
 			void FreeShader(const std::string& Name, Graphics::Shader* Shader);
+			bool Renderable(Cullable* Base, CullResult Mode, float* Result);
 			Graphics::Shader* CompileShader(const std::string& Name, Graphics::Shader::Desc& Desc, size_t BufferSize = 0);
 			Renderer* AddRenderer(Renderer* In);
 			Renderer* GetRenderer(uint64_t Id);
@@ -597,6 +643,28 @@ namespace Tomahawk
 			{
 				return (In*)GetRenderer(In::BaseId());
 			}
+			template <typename T>
+			Rest::Pool<Component*>* AddCull()
+			{
+				static_assert(std::is_base_of<Cullable, T>::value,
+					"component is not cullable");
+
+				auto* Result = Scene->GetComponents<T>();
+				Cull[T::BaseId()] = Result;
+				return Result;
+			}
+			template <typename T>
+			Rest::Pool<Component*>* RemoveCull()
+			{
+				static_assert(std::is_base_of<Cullable, T>::value,
+					"component is not cullable");
+
+				auto It = Cull.find(T::BaseId());
+				if (It != Cull.end())
+					Cull.erase(It);
+
+				return nullptr;
+			}
 		};
 
 		class THAWK_OUT SceneGraph : public Rest::Object
@@ -618,13 +686,13 @@ namespace Tomahawk
 				ShaderCache* Cache = nullptr;
 			};
 
-		private:
 			struct Thread
 			{
 				std::atomic<std::thread::id> Id;
 				std::atomic<int> State;
 			};
 
+		private:
 			struct
 			{
 				Thread Threads[ThreadId_Count];
@@ -644,12 +712,20 @@ namespace Tomahawk
 				bool Invoked;
 			} Mutation;
 
+			struct
+			{
+				Graphics::DepthStencilState* DepthStencil;
+				Graphics::RasterizerState* Rasterizer;
+				Graphics::BlendState* Blend;
+				Graphics::SamplerState* Sampler;
+			} Image;
+
 		protected:
 			Graphics::MultiRenderTarget2D* Surface = nullptr;
 			Graphics::StructureBuffer* Structure = nullptr;
 			Compute::Simulator* Simulator = nullptr;
 			std::unordered_map<uint64_t, Rest::Pool<Component*>> Components;
-			std::vector<Graphics::Material> Materials;
+			std::vector<Material> Materials;
 			std::vector<std::string> Names;
 			std::vector<Event*> Events;
 			Rest::Pool<Component*> Pending;
@@ -664,12 +740,11 @@ namespace Tomahawk
 			SceneGraph(const Desc& I);
 			virtual ~SceneGraph() override;
 			void Configure(const Desc& Conf);
-			void RenderAuto(Rest::Timer* Time);
-			void RenderCustom(Rest::Timer* Time, const RenderCallback& Callback);
-			void RenderStep(Rest::Timer* Time, bool Limpid);
-			void RenderSubstep(Rest::Timer* Time, bool Limpid, bool Static);
+			void Submit();
+			void RenderMain(Rest::Timer* Time, RenderOpt Options);
 			void RenderDepthLinear(Rest::Timer* Time);
 			void RenderDepthCubic(Rest::Timer* Time);
+			void Render(Rest::Timer* Time);
 			void Update(Rest::Timer* Time);
 			void Simulation(Rest::Timer* Time);
 			void Synchronize(Rest::Timer* Time);
@@ -699,7 +774,7 @@ namespace Tomahawk
 			void GetTargetDesc(Graphics::RenderTarget2D::Desc* Result);
 			void GetTargetDesc(Graphics::MultiRenderTarget2D::Desc* Result);
 			void GetTargetFormat(Graphics::Format* Result, uint64_t Size);
-			Graphics::Material* AddMaterial(const std::string& Name, const Graphics::Material& Material);
+			Material* AddMaterial(const std::string& Name, const Material& Material);
 			Entity* CloneEntities(Entity* Value);
 			Entity* FindNamedEntity(const std::string& Name);
 			Entity* FindEntityAt(Compute::Vector3 Position, float Radius);
@@ -711,8 +786,8 @@ namespace Tomahawk
 			RenderSystem* GetRenderer();
 			Viewer GetCameraViewer();
 			std::string GetMaterialName(uint64_t Material);
-			Graphics::Material* GetMaterialByName(const std::string& Material);
-			Graphics::Material* GetMaterialById(uint64_t Material);
+			Material* GetMaterialByName(const std::string& Material);
+			Material* GetMaterialById(uint64_t Material);
 			Rest::Pool<Component*>* GetComponents(uint64_t Section);
 			std::vector<Entity*> FindParentFreeEntities(Entity* Entity);
 			std::vector<Entity*> FindNamedEntities(const std::string& Name);
@@ -1010,6 +1085,11 @@ namespace Tomahawk
 		public:
 			static Application* Get();
 		};
+
+		inline RenderOpt operator |(RenderOpt A, RenderOpt B)
+		{
+			return static_cast<RenderOpt>(static_cast<uint64_t>(A) | static_cast<uint64_t>(B));
+		}
 	}
 }
 #endif

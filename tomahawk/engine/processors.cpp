@@ -104,7 +104,7 @@ namespace Tomahawk
 						std::string Name;
 						NMake::Unpack(It->Find("name"), &Name);
 
-						Graphics::Material Value;
+						Engine::Material Value;
 						NMake::Unpack(It, &Value);
 
 						Object->AddMaterial(Name, Value);
@@ -276,7 +276,7 @@ namespace Tomahawk
 					Rest::Document* Material = Materials->SetDocument("material");
 					NMake::Pack(Material->SetDocument("name"), Object->GetMaterialName(i));
 
-					Graphics::Material* Ref = Object->GetMaterialById(i);
+					Engine::Material* Ref = Object->GetMaterialById(i);
 					if (Ref != nullptr)
 						NMake::Pack(Material, *Ref);
 				}

@@ -248,6 +248,14 @@ namespace Tomahawk
 				void* GetResource(int Id) override;
 			};
 
+			class OGLQuery : public Query
+			{
+			public:
+				OGLQuery();
+				virtual ~OGLQuery() override;
+				void* GetResource() override;
+			};
+
 			class OGLDevice : public GraphicsDevice
 			{
 			private:
@@ -314,18 +322,18 @@ namespace Tomahawk
 				void FlushTexture3D(unsigned int Slot, unsigned int Count) override;
 				void FlushTextureCube(unsigned int Slot, unsigned int Count) override;
 				void FlushState() override;
-				void Map(ElementBuffer* Resource, ResourceMap Mode, MappedSubresource* Map) override;
-				void Map(StructureBuffer* Resource, ResourceMap Mode, MappedSubresource* Map) override;
-				void Unmap(ElementBuffer* Resource, MappedSubresource* Map) override;
-				void Unmap(StructureBuffer* Resource, MappedSubresource* Map) override;
-				void UpdateBuffer(StructureBuffer* Resource, void* Data, uint64_t Size) override;
-				void UpdateBuffer(Shader* Resource, const void* Data) override;
-				void UpdateBuffer(MeshBuffer* Resource, Compute::Vertex* Data) override;
-				void UpdateBuffer(SkinMeshBuffer* Resource, Compute::SkinVertex* Data) override;
-				void UpdateBuffer(InstanceBuffer* Resource) override;
-				void UpdateBuffer(RenderBufferType Buffer) override;
-				void UpdateBufferSize(Shader* Resource, size_t Size) override;
-				void UpdateBufferSize(InstanceBuffer* Resource, uint64_t Size) override;
+				bool Map(ElementBuffer* Resource, ResourceMap Mode, MappedSubresource* Map) override;
+				bool Map(StructureBuffer* Resource, ResourceMap Mode, MappedSubresource* Map) override;
+				bool Unmap(ElementBuffer* Resource, MappedSubresource* Map) override;
+				bool Unmap(StructureBuffer* Resource, MappedSubresource* Map) override;
+				bool UpdateBuffer(StructureBuffer* Resource, void* Data, uint64_t Size) override;
+				bool UpdateBuffer(Shader* Resource, const void* Data) override;
+				bool UpdateBuffer(MeshBuffer* Resource, Compute::Vertex* Data) override;
+				bool UpdateBuffer(SkinMeshBuffer* Resource, Compute::SkinVertex* Data) override;
+				bool UpdateBuffer(InstanceBuffer* Resource) override;
+				bool UpdateBuffer(RenderBufferType Buffer) override;
+				bool UpdateBufferSize(Shader* Resource, size_t Size) override;
+				bool UpdateBufferSize(InstanceBuffer* Resource, uint64_t Size) override;
 				void ClearBuffer(InstanceBuffer* Resource) override;
 				void Clear(float R, float G, float B) override;
 				void Clear(RenderTarget2D* Resource, float R, float G, float B) override;
@@ -343,23 +351,23 @@ namespace Tomahawk
 				void DrawIndexed(MeshBuffer* Resource) override;
 				void DrawIndexed(SkinMeshBuffer* Resource) override;
 				void Draw(unsigned int Count, unsigned int Location) override;
-				void CopyTexture2D(Texture2D** Result) override;
-				void CopyTexture2D(RenderTarget2D* Resource, Texture2D** Result) override;
-				void CopyTexture2D(MultiRenderTarget2D* Resource, unsigned int Target, Texture2D** Result) override;
-				void CopyTexture2D(RenderTargetCube* Resource, unsigned int Face, Texture2D** Result) override;
-				void CopyTexture2D(MultiRenderTargetCube* Resource, unsigned int Cube, unsigned int Face, Texture2D** Result) override;
-				void CopyTextureCube(RenderTargetCube* Resource, TextureCube** Result) override;
-				void CopyTextureCube(MultiRenderTargetCube* Resource, unsigned int Cube, TextureCube** Result) override;
-				void CopyTargetTo(MultiRenderTarget2D* Resource, unsigned int Target, RenderTarget2D* To) override;
-				void CopyTargetFrom(MultiRenderTarget2D* Resource, unsigned int Target, RenderTarget2D* From) override;
-				void CopyTargetDepth(RenderTarget2D* From, RenderTarget2D* To) override;
-				void CopyTargetDepth(MultiRenderTarget2D* From, MultiRenderTarget2D* To) override;
-				void CopyTargetDepth(RenderTarget2DArray* From, RenderTarget2DArray* To) override;
-				void CopyTargetDepth(RenderTargetCube* From, RenderTargetCube* To) override;
-				void CopyTargetDepth(MultiRenderTargetCube* From, MultiRenderTargetCube* To) override;
-				void CopyBegin(MultiRenderTarget2D* Resource, unsigned int Target, unsigned int MipLevels, unsigned int Size) override;
-				void CopyFace(MultiRenderTarget2D* Resource, unsigned int Target, unsigned int Face) override;
-				void CopyEnd(MultiRenderTarget2D* Resource, TextureCube* Result) override;
+				bool CopyTexture2D(Texture2D** Result) override;
+				bool CopyTexture2D(RenderTarget2D* Resource, Texture2D** Result) override;
+				bool CopyTexture2D(MultiRenderTarget2D* Resource, unsigned int Target, Texture2D** Result) override;
+				bool CopyTexture2D(RenderTargetCube* Resource, unsigned int Face, Texture2D** Result) override;
+				bool CopyTexture2D(MultiRenderTargetCube* Resource, unsigned int Cube, unsigned int Face, Texture2D** Result) override;
+				bool CopyTextureCube(RenderTargetCube* Resource, TextureCube** Result) override;
+				bool CopyTextureCube(MultiRenderTargetCube* Resource, unsigned int Cube, TextureCube** Result) override;
+				bool CopyTargetTo(MultiRenderTarget2D* Resource, unsigned int Target, RenderTarget2D* To) override;
+				bool CopyTargetFrom(MultiRenderTarget2D* Resource, unsigned int Target, RenderTarget2D* From) override;
+				bool CopyTargetDepth(RenderTarget2D* From, RenderTarget2D* To) override;
+				bool CopyTargetDepth(MultiRenderTarget2D* From, MultiRenderTarget2D* To) override;
+				bool CopyTargetDepth(RenderTarget2DArray* From, RenderTarget2DArray* To) override;
+				bool CopyTargetDepth(RenderTargetCube* From, RenderTargetCube* To) override;
+				bool CopyTargetDepth(MultiRenderTargetCube* From, MultiRenderTargetCube* To) override;
+				bool CopyBegin(MultiRenderTarget2D* Resource, unsigned int Target, unsigned int MipLevels, unsigned int Size) override;
+				bool CopyFace(MultiRenderTarget2D* Resource, unsigned int Target, unsigned int Face) override;
+				bool CopyEnd(MultiRenderTarget2D* Resource, TextureCube* Result) override;
 				void SwapTargetDepth(RenderTarget2D* From, RenderTarget2D* To) override;
 				void SwapTargetDepth(MultiRenderTarget2D* From, MultiRenderTarget2D* To) override;
 				void SwapTargetDepth(RenderTarget2DArray* From, RenderTarget2DArray* To) override;
@@ -367,14 +375,18 @@ namespace Tomahawk
 				void SwapTargetDepth(MultiRenderTargetCube* From, MultiRenderTargetCube* To) override;
 				void FetchViewports(unsigned int* Count, Viewport* Out) override;
 				void FetchScissorRects(unsigned int* Count, Rectangle* Out) override;
-				void ResizeBuffers(unsigned int Width, unsigned int Height) override;
+				bool ResizeBuffers(unsigned int Width, unsigned int Height) override;
 				bool GenerateTexture(Texture2D* Resource) override;
 				bool GenerateTexture(Texture3D* Resource) override;
 				bool GenerateTexture(TextureCube* Resource) override;
+				bool GetQueryData(Query* Resource, uint64_t* Result, bool Flush) override;
+				bool GetQueryData(Query* Resource, bool* Result, bool Flush) override;
+				void QueryBegin(Query* Resource) override;
+				void QueryEnd(Query* Resource) override;
 				void GenerateMips(Texture2D* Resource) override;
 				void GenerateMips(Texture3D* Resource) override;
 				void GenerateMips(TextureCube* Resource) override;
-				void DirectBegin() override;
+				bool DirectBegin() override;
 				void DirectTransform(const Compute::Matrix4x4& Transform) override;
 				void DirectTopology(PrimitiveTopology Topology) override;
 				void DirectEmit() override;
@@ -384,8 +396,8 @@ namespace Tomahawk
 				void DirectTexCoord(float X, float Y) override;
 				void DirectTexCoordOffset(float X, float Y) override;
 				void DirectPosition(float X, float Y, float Z) override;
-				void DirectEnd() override;
-				void Submit() override;
+				bool DirectEnd() override;
+				bool Submit() override;
 				DepthStencilState* CreateDepthStencilState(const DepthStencilState::Desc& I) override;
 				BlendState* CreateBlendState(const BlendState::Desc& I) override;
 				RasterizerState* CreateRasterizerState(const RasterizerState::Desc& I) override;
@@ -409,6 +421,7 @@ namespace Tomahawk
 				RenderTarget2DArray* CreateRenderTarget2DArray(const RenderTarget2DArray::Desc& I) override;
 				RenderTargetCube* CreateRenderTargetCube(const RenderTargetCube::Desc& I) override;
 				MultiRenderTargetCube* CreateMultiRenderTargetCube(const MultiRenderTargetCube::Desc& I) override;
+				Query* CreateQuery(const Query::Desc& I) override;
 				PrimitiveTopology GetPrimitiveTopology() override;
 				ShaderModel GetSupportedShaderModel() override;
 				void* GetBackBuffer() override;

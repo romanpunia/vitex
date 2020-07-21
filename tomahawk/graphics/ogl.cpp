@@ -319,6 +319,17 @@ namespace Tomahawk
 				return (void*)nullptr;
 			}
 
+			OGLQuery::OGLQuery() : Query()
+			{
+			}
+			OGLQuery::~OGLQuery()
+			{
+			}
+			void* OGLQuery::GetResource()
+			{
+				return (void*)nullptr;
+			}
+
 			OGLDevice::OGLDevice(const Desc& I) : GraphicsDevice(I), Window(I.Window), Context(nullptr)
 			{
 				if (!Window)
@@ -793,11 +804,11 @@ namespace Tomahawk
 			void OGLDevice::FlushState()
 			{
 			}
-			void OGLDevice::Map(ElementBuffer* Resource, ResourceMap Mode, MappedSubresource* Map)
+			bool OGLDevice::Map(ElementBuffer* Resource, ResourceMap Mode, MappedSubresource* Map)
 			{
 				OGLElementBuffer* IResource = (OGLElementBuffer*)Resource;
 				if (!IResource)
-					return;
+					return false;
 
 				GLint Size;
 				glBindBuffer(IResource->Flags, IResource->Resource);
@@ -805,12 +816,14 @@ namespace Tomahawk
 				Map->Pointer = glMapBuffer(IResource->Flags, OGLDevice::GetResourceMap(Mode));
 				Map->RowPitch = Size;
 				Map->DepthPitch = 1;
+
+				return Map->Pointer != nullptr;
 			}
-			void OGLDevice::Map(StructureBuffer* Resource, ResourceMap Mode, MappedSubresource* Map)
+			bool OGLDevice::Map(StructureBuffer* Resource, ResourceMap Mode, MappedSubresource* Map)
 			{
 				OGLStructureBuffer* IResource = (OGLStructureBuffer*)Resource;
 				if (!IResource)
-					return;
+					return false;
 
 				GLint Size;
 				glBindBuffer(IResource->Flags, IResource->Resource);
@@ -818,89 +831,103 @@ namespace Tomahawk
 				Map->Pointer = glMapBuffer(IResource->Flags, OGLDevice::GetResourceMap(Mode));
 				Map->RowPitch = Size;
 				Map->DepthPitch = 1;
+
+				return Map->Pointer != nullptr;
 			}
-			void OGLDevice::Unmap(ElementBuffer* Resource, MappedSubresource* Map)
+			bool OGLDevice::Unmap(ElementBuffer* Resource, MappedSubresource* Map)
 			{
 				OGLElementBuffer* IResource = (OGLElementBuffer*)Resource;
 				if (!IResource)
-					return;
+					return false;
 
 				glBindBuffer(IResource->Flags, IResource->Resource);
 				glUnmapBuffer(IResource->Flags);
+				return true;
 			}
-			void OGLDevice::Unmap(StructureBuffer* Resource, MappedSubresource* Map)
+			bool OGLDevice::Unmap(StructureBuffer* Resource, MappedSubresource* Map)
 			{
 				OGLStructureBuffer* IResource = (OGLStructureBuffer*)Resource;
 				if (!IResource)
-					return;
+					return false;
 
 				glBindBuffer(IResource->Flags, IResource->Resource);
 				glUnmapBuffer(IResource->Flags);
+				return true;
 			}
-			void OGLDevice::UpdateBuffer(StructureBuffer* Resource, void* Data, uint64_t Size)
+			bool OGLDevice::UpdateBuffer(StructureBuffer* Resource, void* Data, uint64_t Size)
 			{
 				OGLStructureBuffer* IResource = (OGLStructureBuffer*)Resource;
 				if (!IResource)
-					return;
+					return false;
 
 				glBindBuffer(IResource->Flags, IResource->Resource);
 				glBufferData(GL_ARRAY_BUFFER, (GLsizeiptr)Size, Data, GL_DYNAMIC_DRAW);
+				return true;
 			}
-			void OGLDevice::UpdateBuffer(Shader* Resource, const void* Data)
+			bool OGLDevice::UpdateBuffer(Shader* Resource, const void* Data)
 			{
 				OGLShader* IResource = (OGLShader*)Resource;
 				if (!IResource)
-					return;
+					return false;
 				/* TODO: IMPL */
+				return true;
 			}
-			void OGLDevice::UpdateBuffer(MeshBuffer* Resource, Compute::Vertex* Data)
+			bool OGLDevice::UpdateBuffer(MeshBuffer* Resource, Compute::Vertex* Data)
 			{
 				OGLMeshBuffer* IResource = (OGLMeshBuffer*)Resource;
 				if (!IResource)
-					return;
+					return false;
 
 				MappedSubresource MappedResource;
-				Map(IResource->VertexBuffer, ResourceMap_Write, &MappedResource);
+				if (!Map(IResource->VertexBuffer, ResourceMap_Write, &MappedResource))
+					return false;
+
 				memcpy(MappedResource.Pointer, Data, (size_t)IResource->VertexBuffer->GetElements() * sizeof(Compute::Vertex));
-				Unmap(IResource->VertexBuffer, &MappedResource);
+				return Unmap(IResource->VertexBuffer, &MappedResource);
 			}
-			void OGLDevice::UpdateBuffer(SkinMeshBuffer* Resource, Compute::SkinVertex* Data)
+			bool OGLDevice::UpdateBuffer(SkinMeshBuffer* Resource, Compute::SkinVertex* Data)
 			{
 				OGLSkinMeshBuffer* IResource = (OGLSkinMeshBuffer*)Resource;
 				if (!IResource)
-					return;
+					return false;
 
 				MappedSubresource MappedResource;
-				Map(IResource->VertexBuffer, ResourceMap_Write, &MappedResource);
+				if (!Map(IResource->VertexBuffer, ResourceMap_Write, &MappedResource))
+					return false;
+
 				memcpy(MappedResource.Pointer, Data, (size_t)IResource->VertexBuffer->GetElements() * sizeof(Compute::SkinVertex));
-				Unmap(IResource->VertexBuffer, &MappedResource);
+				return Unmap(IResource->VertexBuffer, &MappedResource);
 			}
-			void OGLDevice::UpdateBuffer(InstanceBuffer* Resource)
+			bool OGLDevice::UpdateBuffer(InstanceBuffer* Resource)
 			{
 				OGLInstanceBuffer* IResource = (OGLInstanceBuffer*)Resource;
 				if (!IResource || IResource->Array.Size() <= 0 || IResource->Array.Size() > IResource->ElementLimit)
-					return;
+					return false;
 
 				OGLElementBuffer* Element = IResource->Elements->As<OGLElementBuffer>();
 				/* TODO: IMPL */
+				return true;
 			}
-			void OGLDevice::UpdateBuffer(RenderBufferType Buffer)
+			bool OGLDevice::UpdateBuffer(RenderBufferType Buffer)
 			{
 				glBindBufferBase(GL_UNIFORM_BUFFER, (int)Buffer, ConstantBuffer[Buffer]);
+				return true;
 			}
-			void OGLDevice::UpdateBufferSize(Shader* Resource, size_t Size)
+			bool OGLDevice::UpdateBufferSize(Shader* Resource, size_t Size)
 			{
 				OGLShader* IResource = (OGLShader*)Resource;
 				if (!IResource || !Size)
-					return;
+					return false;
 				/* TODO: IMPL */
+				return true;
 			}
-			void OGLDevice::UpdateBufferSize(InstanceBuffer* Resource, uint64_t Size)
+			bool OGLDevice::UpdateBufferSize(InstanceBuffer* Resource, uint64_t Size)
 			{
 				OGLInstanceBuffer* IResource = (OGLInstanceBuffer*)Resource;
 				if (!IResource)
-					return;
+					return false;
 				/* TODO: IMPL */
+				return true;
 			}
 			void OGLDevice::ClearBuffer(InstanceBuffer* Resource)
 			{
@@ -1008,124 +1035,140 @@ namespace Tomahawk
 			{
 				glDrawArrays(GetPrimitiveTopologyDraw(Topology), (GLint)Location, (GLint)Count);
 			}
-			void OGLDevice::CopyTexture2D(Texture2D** Result)
+			bool OGLDevice::CopyTexture2D(Texture2D** Result)
 			{
-				CopyTexture2D(RenderTarget, Result);
+				return CopyTexture2D(RenderTarget, Result);
 			}
-			void OGLDevice::CopyTexture2D(RenderTarget2D* Resource, Texture2D** Result)
+			bool OGLDevice::CopyTexture2D(RenderTarget2D* Resource, Texture2D** Result)
 			{
 				OGLRenderTarget2D* IResource = (OGLRenderTarget2D*)Resource;
 				if (!IResource || !IResource->Texture || !Result)
-					return;
+					return false;
 				/* TODO: IMPL */
+				return true;
 			}
-			void OGLDevice::CopyTexture2D(MultiRenderTarget2D* Resource, unsigned int Target, Texture2D** Result)
+			bool OGLDevice::CopyTexture2D(MultiRenderTarget2D* Resource, unsigned int Target, Texture2D** Result)
 			{
 				OGLMultiRenderTarget2D* IResource = (OGLMultiRenderTarget2D*)Resource;
 				if (!IResource || Target >= IResource->SVTarget || !Result)
-					return;
+					return false;
 				/* TODO: IMPL */
+				return true;
 			}
-			void OGLDevice::CopyTexture2D(RenderTargetCube* Resource, unsigned int Face, Texture2D** Result)
+			bool OGLDevice::CopyTexture2D(RenderTargetCube* Resource, unsigned int Face, Texture2D** Result)
 			{
 				OGLRenderTargetCube* IResource = (OGLRenderTargetCube*)Resource;
 				if (!IResource || Face >= 6 || !Result)
-					return;
+					return false;
 				/* TODO: IMPL */
+				return true;
 			}
-			void OGLDevice::CopyTexture2D(MultiRenderTargetCube* Resource, unsigned int Cube, unsigned int Face, Texture2D** Result)
+			bool OGLDevice::CopyTexture2D(MultiRenderTargetCube* Resource, unsigned int Cube, unsigned int Face, Texture2D** Result)
 			{
 				OGLMultiRenderTargetCube* IResource = (OGLMultiRenderTargetCube*)Resource;
 				if (!IResource || Cube >= IResource->SVTarget || Face >= 6 || !Result)
-					return;
+					return false;
 				/* TODO: IMPL */
+				return true;
 			}
-			void OGLDevice::CopyTextureCube(RenderTargetCube* Resource, TextureCube** Result)
+			bool OGLDevice::CopyTextureCube(RenderTargetCube* Resource, TextureCube** Result)
 			{
 				OGLRenderTargetCube* IResource = (OGLRenderTargetCube*)Resource;
 				if (!IResource || !Result)
-					return;
+					return false;
 				/* TODO: IMPL */
+				return true;
 			}
-			void OGLDevice::CopyTextureCube(MultiRenderTargetCube* Resource, unsigned int Cube, TextureCube** Result)
+			bool OGLDevice::CopyTextureCube(MultiRenderTargetCube* Resource, unsigned int Cube, TextureCube** Result)
 			{
 				OGLMultiRenderTargetCube* IResource = (OGLMultiRenderTargetCube*)Resource;
 				if (!IResource || Cube >= IResource->SVTarget || !Result)
-					return;
+					return false;
 				/* TODO: IMPL */
+				return true;
 			}
-			void OGLDevice::CopyTargetTo(MultiRenderTarget2D* Resource, unsigned int Target, RenderTarget2D* To)
+			bool OGLDevice::CopyTargetTo(MultiRenderTarget2D* Resource, unsigned int Target, RenderTarget2D* To)
 			{
 				if (!Resource || Target >= Resource->GetSVTarget() || !To)
-					return;
+					return false;
 				/* TODO: IMPL */
+				return true;
 			}
-			void OGLDevice::CopyTargetFrom(MultiRenderTarget2D* Resource, unsigned int Target, RenderTarget2D* From)
+			bool OGLDevice::CopyTargetFrom(MultiRenderTarget2D* Resource, unsigned int Target, RenderTarget2D* From)
 			{
 				if (!Resource || Target >= Resource->GetSVTarget() || !From)
-					return;
+					return false;
 				/* TODO: IMPL */
+				return true;
 			}
-			void OGLDevice::CopyTargetDepth(RenderTarget2D* From, RenderTarget2D* To)
+			bool OGLDevice::CopyTargetDepth(RenderTarget2D* From, RenderTarget2D* To)
 			{
 				OGLRenderTarget2D* IResource1 = (OGLRenderTarget2D*)From;
 				OGLRenderTarget2D* IResource2 = (OGLRenderTarget2D*)To;
 				if (!IResource1 || !IResource2)
-					return;
+					return false;
 				/* TODO: IMPL */
+				return true;
 			}
-			void OGLDevice::CopyTargetDepth(MultiRenderTarget2D* From, MultiRenderTarget2D* To)
+			bool OGLDevice::CopyTargetDepth(MultiRenderTarget2D* From, MultiRenderTarget2D* To)
 			{
 				OGLMultiRenderTarget2D* IResource1 = (OGLMultiRenderTarget2D*)From;
 				OGLMultiRenderTarget2D* IResource2 = (OGLMultiRenderTarget2D*)To;
 				if (!IResource1 || !IResource2)
-					return;
+					return false;
 				/* TODO: IMPL */
+				return true;
 			}
-			void OGLDevice::CopyTargetDepth(RenderTarget2DArray* From, RenderTarget2DArray* To)
+			bool OGLDevice::CopyTargetDepth(RenderTarget2DArray* From, RenderTarget2DArray* To)
 			{
 				OGLRenderTarget2DArray* IResource1 = (OGLRenderTarget2DArray*)From;
 				OGLRenderTarget2DArray* IResource2 = (OGLRenderTarget2DArray*)To;
 				if (!IResource1 || !IResource2)
-					return;
+					return false;
 				/* TODO: IMPL */
+				return true;
 			}
-			void OGLDevice::CopyTargetDepth(RenderTargetCube* From, RenderTargetCube* To)
+			bool OGLDevice::CopyTargetDepth(RenderTargetCube* From, RenderTargetCube* To)
 			{
 				OGLRenderTargetCube* IResource1 = (OGLRenderTargetCube*)From;
 				OGLRenderTargetCube* IResource2 = (OGLRenderTargetCube*)To;
 				if (!IResource1 || !IResource2)
-					return;
+					return false;
 				/* TODO: IMPL */
+				return true;
 			}
-			void OGLDevice::CopyTargetDepth(MultiRenderTargetCube* From, MultiRenderTargetCube* To)
+			bool OGLDevice::CopyTargetDepth(MultiRenderTargetCube* From, MultiRenderTargetCube* To)
 			{
 				OGLMultiRenderTargetCube* IResource1 = (OGLMultiRenderTargetCube*)From;
 				OGLMultiRenderTargetCube* IResource2 = (OGLMultiRenderTargetCube*)To;
 				if (!IResource1 || !IResource2)
-					return;
+					return false;
 				/* TODO: IMPL */
+				return true;
 			}
-			void OGLDevice::CopyBegin(MultiRenderTarget2D* Resource, unsigned int Target, unsigned int MipLevels, unsigned int Size)
+			bool OGLDevice::CopyBegin(MultiRenderTarget2D* Resource, unsigned int Target, unsigned int MipLevels, unsigned int Size)
 			{
 				OGLMultiRenderTarget2D* IResource = (OGLMultiRenderTarget2D*)Resource;
 				if (!IResource || Target >= IResource->SVTarget)
-					return;
+					return false;
 				/* TODO: IMPL */
+				return true;
 			}
-			void OGLDevice::CopyFace(MultiRenderTarget2D* Resource, unsigned int Target, unsigned int Face)
+			bool OGLDevice::CopyFace(MultiRenderTarget2D* Resource, unsigned int Target, unsigned int Face)
 			{
 				OGLMultiRenderTarget2D* IResource = (OGLMultiRenderTarget2D*)Resource;
 				if (!IResource || Target >= IResource->SVTarget || Face >= 6)
-					return;
+					return false;
 				/* TODO: IMPL */
+				return true;
 			}
-			void OGLDevice::CopyEnd(MultiRenderTarget2D* Resource, TextureCube* Result)
+			bool OGLDevice::CopyEnd(MultiRenderTarget2D* Resource, TextureCube* Result)
 			{
 				OGLMultiRenderTarget2D* IResource = (OGLMultiRenderTarget2D*)Resource;
 				if (!IResource || !Result)
-					return;
+					return false;
 				/* TODO: IMPL */
+				return true;
 			}
 			void OGLDevice::SwapTargetDepth(RenderTarget2D* From, RenderTarget2D* To)
 			{
@@ -1197,7 +1240,7 @@ namespace Tomahawk
 				Out[0].Top = Rect[1];
 				Out[0].Bottom = Rect[1] - Rect[3];
 			}
-			void OGLDevice::ResizeBuffers(unsigned int Width, unsigned int Height)
+			bool OGLDevice::ResizeBuffers(unsigned int Width, unsigned int Height)
 			{
 				RenderTarget2D::Desc F = RenderTarget2D::Desc();
 				F.Width = Width;
@@ -1213,6 +1256,8 @@ namespace Tomahawk
 				delete RenderTarget;
 				RenderTarget = CreateRenderTarget2D(F);
 				SetTarget();
+
+				return true;
 			}
 			bool OGLDevice::GenerateTexture(Texture2D* Resource)
 			{
@@ -1238,6 +1283,36 @@ namespace Tomahawk
 				/* TODO: IMPL */
 				return false;
 			}
+			bool OGLDevice::GetQueryData(Query* Resource, uint64_t* Result, bool Flush)
+			{
+				OGLQuery* IResource = (OGLQuery*)Resource;
+				if (!Result || !IResource)
+					return false;
+				/* TODO: IMPL */
+				return true;
+			}
+			bool OGLDevice::GetQueryData(Query* Resource, bool* Result, bool Flush)
+			{
+				OGLQuery* IResource = (OGLQuery*)Resource;
+				if (!Result || !IResource)
+					return false;
+				/* TODO: IMPL */
+				return true;
+			}
+			void OGLDevice::QueryBegin(Query* Resource)
+			{
+				OGLQuery* IResource = (OGLQuery*)Resource;
+				if (!IResource)
+					return;
+				/* TODO: IMPL */
+			}
+			void OGLDevice::QueryEnd(Query* Resource)
+			{
+				OGLQuery* IResource = (OGLQuery*)Resource;
+				if (!IResource)
+					return;
+				/* TODO: IMPL */
+			}
 			void OGLDevice::GenerateMips(Texture2D* Resource)
 			{
 				OGLTexture2D* IResource = (OGLTexture2D*)Resource;
@@ -1260,15 +1335,17 @@ namespace Tomahawk
 					return;
 				/* TODO: IMPL */
 			}
-			void OGLDevice::DirectBegin()
+			bool OGLDevice::DirectBegin()
 			{
+				/* TODO: IMPL */
+
 				Primitives = PrimitiveTopology_Triangle_List;
 				Direct.WorldViewProjection = Compute::Matrix4x4::Identity();
 				Direct.Padding = { 0, 0, 0, 1 };
 				ViewResource = nullptr;
 
 				Elements.clear();
-				/* TODO: IMPL */
+				return true;
 			}
 			void OGLDevice::DirectTransform(const Compute::Matrix4x4& Transform)
 			{
@@ -1326,17 +1403,19 @@ namespace Tomahawk
 				Element.PY = Y;
 				Element.PZ = Z;
 			}
-			void OGLDevice::DirectEnd()
+			bool OGLDevice::DirectEnd()
 			{
 				if (Elements.empty())
-					return;
+					return false;
 				/* TODO: IMPL */
+				return true;
 			}
-			void OGLDevice::Submit()
+			bool OGLDevice::Submit()
 			{
 #ifdef THAWK_HAS_SDL2
 				SDL_GL_SwapWindow(Window->GetHandle());
 #endif
+				return true;
 			}
 			DepthStencilState* OGLDevice::CreateDepthStencilState(const DepthStencilState::Desc& I)
 			{
@@ -1629,6 +1708,12 @@ namespace Tomahawk
 			MultiRenderTargetCube* OGLDevice::CreateMultiRenderTargetCube(const MultiRenderTargetCube::Desc& I)
 			{
 				OGLMultiRenderTargetCube* Result = new OGLMultiRenderTargetCube(I);
+				/* TODO: IMPL */
+				return Result;
+			}
+			Query* OGLDevice::CreateQuery(const Query::Desc& I)
+			{
+				OGLQuery* Result = new OGLQuery();
 				/* TODO: IMPL */
 				return Result;
 			}

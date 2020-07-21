@@ -33,7 +33,6 @@ namespace Tomahawk
 						Surfaces[Ref] = Face;
 				}
 
-				NMake::Unpack(Node->Find("visibility"), &Visibility);
 				NMake::Unpack(Node->Find("static"), &Static);
 			}
 			void Model::Serialize(ContentManager* Content, Rest::Document* Node)
@@ -53,12 +52,19 @@ namespace Tomahawk
 					}
 				}
 
-				NMake::Pack(Node->SetDocument("visibility"), Visibility);
 				NMake::Pack(Node->SetDocument("static"), Static);
 			}
 			void Model::SetDrawable(Graphics::Model* Drawable)
 			{
 				Instance = Drawable;
+			}
+			float Model::Cull(const Viewer& View)
+			{
+				float Result = 0.0f;
+				if (Instance != nullptr)
+					Result = IsVisible(View, &GetBoundingBox());
+
+				return Result;
 			}
 			Compute::Matrix4x4 Model::GetBoundingBox()
 			{
@@ -130,7 +136,6 @@ namespace Tomahawk
 					NMake::Unpack(Pose->Find("rotation"), &Node.Rotation);
 				}
 
-				NMake::Unpack(Node->Find("visibility"), &Visibility);
 				NMake::Unpack(Node->Find("static"), &Static);
 			}
 			void Skin::Serialize(ContentManager* Content, Rest::Document* Node)
@@ -150,7 +155,6 @@ namespace Tomahawk
 					}
 				}
 
-				NMake::Pack(Node->SetDocument("visibility"), Visibility);
 				NMake::Pack(Node->SetDocument("static"), Static);
 
 				Rest::Document* Poses = Node->SetArray("poses");
@@ -170,6 +174,14 @@ namespace Tomahawk
 			void Skin::SetDrawable(Graphics::SkinModel* Drawable)
 			{
 				Instance = Drawable;
+			}
+			float Skin::Cull(const Viewer& View)
+			{
+				float Result = 0.0f;
+				if (Instance != nullptr)
+					Result = IsVisible(View, &GetBoundingBox());
+
+				return Result;
 			}
 			Compute::Matrix4x4 Skin::GetBoundingBox()
 			{
@@ -232,7 +244,6 @@ namespace Tomahawk
 				NMake::Unpack(Node->Find("surface"), &Surfaces.begin()->second, Content);
 				NMake::Unpack(Node->Find("quad-based"), &QuadBased);
 				NMake::Unpack(Node->Find("connected"), &Connected);
-				NMake::Unpack(Node->Find("visibility"), &Visibility);
 				NMake::Unpack(Node->Find("static"), &Static);
 				NMake::Unpack(Node->Find("volume"), &Volume);
 
@@ -257,7 +268,6 @@ namespace Tomahawk
 				NMake::Pack(Node->SetDocument("surface"), Surfaces.begin()->second, Content);
 				NMake::Pack(Node->SetDocument("quad-based"), QuadBased);
 				NMake::Pack(Node->SetDocument("connected"), Connected);
-				NMake::Pack(Node->SetDocument("visibility"), Visibility);
 				NMake::Pack(Node->SetDocument("static"), Static);
 				NMake::Pack(Node->SetDocument("volume"), Volume);
 
@@ -272,6 +282,14 @@ namespace Tomahawk
 					NMake::Pack(Node->SetDocument("limit"), Instance->GetElementLimit());
 					NMake::Pack(Node->SetDocument("elements"), Vertices);
 				}
+			}
+			float Emitter::Cull(const Viewer& View)
+			{
+				float Result = 1.0f - Parent->Transform->Position.Distance(View.WorldPosition) / (View.ViewDistance + Volume);
+				if (Result > 0.0f)
+					Result = Compute::MathCommon::IsClipping(View.ViewProjection, Parent->Transform->GetWorld(), 1.5f) == -1 ? Result : 0.0f;
+
+				return Result;
 			}
 			Component* Emitter::Copy(Entity* New)
 			{
@@ -321,7 +339,6 @@ namespace Tomahawk
 				NMake::Unpack(Node->Find("extended"), &Extended);
 				NMake::Unpack(Node->Find("kinematic"), &Kinematic);
 				NMake::Unpack(Node->Find("manage"), &Manage);
-				NMake::Unpack(Node->Find("visibility"), &Visibility);
 				NMake::Unpack(Node->Find("static"), &Static);
 				NMake::Unpack(Node->Find("surface"), &Surfaces.begin()->second, Content);
 
@@ -485,7 +502,6 @@ namespace Tomahawk
 				NMake::Pack(Node->SetDocument("kinematic"), Kinematic);
 				NMake::Pack(Node->SetDocument("manage"), Manage);
 				NMake::Pack(Node->SetDocument("extended"), Instance != nullptr);
-				NMake::Pack(Node->SetDocument("visibility"), Visibility);
 				NMake::Pack(Node->SetDocument("static"), Static);
 				NMake::Pack(Node->SetDocument("surface"), Surfaces.begin()->second, Content);
 
@@ -771,6 +787,14 @@ namespace Tomahawk
 
 				if (Parent && Parent->GetScene())
 					Parent->GetScene()->Unlock();
+			}
+			float SoftBody::Cull(const Viewer& View)
+			{
+				float Result = 0.0f;
+				if (Instance != nullptr)
+					Result = IsVisible(View, &Parent->Transform->GetWorldUnscaled());
+
+				return Result;
 			}
 			Component* SoftBody::Copy(Entity* New)
 			{
@@ -2420,18 +2444,16 @@ namespace Tomahawk
 				return Target;
 			}
 
-			PointLight::PointLight(Entity* Ref) : Component(Ref)
+			PointLight::PointLight(Entity* Ref) : Cullable(Ref)
 			{
 				ShadowCache = nullptr;
 				Diffuse = Compute::Vector3::One();
-				Visibility = 0.0f;
 				Emission = 1.0f;
 				Range = 5.0f;
 			}
 			void PointLight::Deserialize(ContentManager* Content, Rest::Document* Node)
 			{
 				NMake::Unpack(Node->Find("diffuse"), &Diffuse);
-				NMake::Unpack(Node->Find("visibility"), &Visibility);
 				NMake::Unpack(Node->Find("emission"), &Emission);
 				NMake::Unpack(Node->Find("range"), &Range);
 				NMake::Unpack(Node->Find("shadow-softness"), &ShadowSoftness);
@@ -2445,7 +2467,6 @@ namespace Tomahawk
 			void PointLight::Serialize(ContentManager* Content, Rest::Document* Node)
 			{
 				NMake::Pack(Node->SetDocument("diffuse"), Diffuse);
-				NMake::Pack(Node->SetDocument("visibility"), Visibility);
 				NMake::Pack(Node->SetDocument("emission"), Emission);
 				NMake::Pack(Node->SetDocument("range"), Range);
 				NMake::Pack(Node->SetDocument("shadow-softness"), ShadowSoftness);
@@ -2460,6 +2481,14 @@ namespace Tomahawk
 			{
 				Projection = Compute::Matrix4x4::CreatePerspective(90.0f, 1.0f, 0.1f, ShadowDistance);
 				View = Compute::Matrix4x4::CreateCubeMapLookAt(0, Parent->Transform->Position.InvertZ());
+			}
+			float PointLight::Cull(const Viewer& View)
+			{
+				float Result = 1.0f - Parent->Transform->Position.Distance(View.WorldPosition) / View.ViewDistance;
+				if (Result > 0.0f)
+					Result = Compute::MathCommon::IsClipping(View.ViewProjection, Parent->Transform->GetWorld(), Range) == -1 ? Result : 0.0f;
+
+				return Result;
 			}
 			Component* PointLight::Copy(Entity* New)
 			{
@@ -2487,7 +2516,7 @@ namespace Tomahawk
 				return ShadowCache;
 			}
 
-			SpotLight::SpotLight(Entity* Ref) : Component(Ref)
+			SpotLight::SpotLight(Entity* Ref) : Cullable(Ref)
 			{
 				Diffuse = Compute::Vector3::One();
 				ShadowCache = nullptr;
@@ -2508,7 +2537,6 @@ namespace Tomahawk
 					ProjectMap = Content->Load<Graphics::Texture2D>(Path, nullptr);
 
 				NMake::Unpack(Node->Find("diffuse"), &Diffuse);
-				NMake::Unpack(Node->Find("visibility"), &Visibility);
 				NMake::Unpack(Node->Find("projection"), &Projection);
 				NMake::Unpack(Node->Find("view"), &View);
 				NMake::Unpack(Node->Find("shadow-bias"), &ShadowBias);
@@ -2527,7 +2555,6 @@ namespace Tomahawk
 					NMake::Pack(Node->SetDocument("project-map"), Asset->Path);
 
 				NMake::Pack(Node->SetDocument("diffuse"), Diffuse);
-				NMake::Pack(Node->SetDocument("visibility"), Visibility);
 				NMake::Pack(Node->SetDocument("projection"), Projection);
 				NMake::Pack(Node->SetDocument("view"), View);
 				NMake::Pack(Node->SetDocument("shadow-bias"), ShadowBias);
@@ -2543,6 +2570,14 @@ namespace Tomahawk
 			{
 				Projection = Compute::Matrix4x4::CreatePerspective(FieldOfView, 1, 0.1f, ShadowDistance);
 				View = Compute::Matrix4x4::CreateTranslation(-Parent->Transform->Position) * Compute::Matrix4x4::CreateCameraRotation(-Parent->Transform->Rotation);
+			}
+			float SpotLight::Cull(const Viewer& View)
+			{
+				float Result = 1.0f - Parent->Transform->Position.Distance(View.WorldPosition) / View.ViewDistance;
+				if (Result > 0.0f)
+					Result = Compute::MathCommon::IsClipping(View.ViewProjection, Parent->Transform->GetWorld(), Range) == -1 ? Result : 0.0f;
+
+				return Result;
 			}
 			Component* SpotLight::Copy(Entity* New)
 			{
@@ -2671,7 +2706,7 @@ namespace Tomahawk
 				return ShadowCache;
 			}
 
-			ProbeLight::ProbeLight(Entity* Ref) : Component(Ref)
+			ProbeLight::ProbeLight(Entity* Ref) : Cullable(Ref)
 			{
 				Projection = Compute::Matrix4x4::CreatePerspectiveRad(1.57079632679f, 1, 0.01f, 100.0f);
 				Diffuse = Compute::Vector3::One();
@@ -2687,7 +2722,6 @@ namespace Tomahawk
 				Infinity = 0.0f;
 				Emission = 1.0f;
 				Range = 5.0f;
-				Visibility = 0.0f;
 				CaptureRange = Range;
 				RenderLocked = false;
 				ParallaxCorrected = false;
@@ -2728,7 +2762,6 @@ namespace Tomahawk
 				NMake::Unpack(Node->Find("rebuild"), &Rebuild);
 				NMake::Unpack(Node->Find("projection"), &Projection);
 				NMake::Unpack(Node->Find("diffuse"), &Diffuse);
-				NMake::Unpack(Node->Find("visibility"), &Visibility);
 				NMake::Unpack(Node->Find("range"), &Range);
 				NMake::Unpack(Node->Find("capture-range"), &CaptureRange);
 				NMake::Unpack(Node->Find("emission"), &Emission);
@@ -2789,13 +2822,24 @@ namespace Tomahawk
 				NMake::Pack(Node->SetDocument("rebuild"), Rebuild);
 				NMake::Pack(Node->SetDocument("projection"), Projection);
 				NMake::Pack(Node->SetDocument("diffuse"), Diffuse);
-				NMake::Pack(Node->SetDocument("visibility"), Visibility);
 				NMake::Pack(Node->SetDocument("range"), Range);
 				NMake::Pack(Node->SetDocument("capture-range"), CaptureRange);
 				NMake::Pack(Node->SetDocument("emission"), Emission);
 				NMake::Pack(Node->SetDocument("infinity"), Infinity);
 				NMake::Pack(Node->SetDocument("parallax-corrected"), ParallaxCorrected);
 				NMake::Pack(Node->SetDocument("static-mask"), StaticMask);
+			}
+			float ProbeLight::Cull(const Viewer& View)
+			{
+				float Result = 1.0f;
+				if (Infinity <= 0.0f)
+				{
+					Result = 1.0f - Parent->Transform->Position.Distance(View.WorldPosition) / View.ViewDistance;
+					if (Result > 0.0f)
+						Result = Compute::MathCommon::IsClipping(View.ViewProjection, Parent->Transform->GetWorld(), Range) == -1 ? Result : 0.0f;
+				}
+
+				return Result;
 			}
 			Component* ProbeLight::Copy(Entity* New)
 			{
@@ -2925,12 +2969,11 @@ namespace Tomahawk
 					return;
 
 				Renderer->SetScene(Parent->GetScene());
-				auto* RenderStages = Renderer->GetRenderers();
-				for (auto It = RenderStages->begin(); It != RenderStages->end(); It++)
+				for (auto& Render : *Renderer->GetRenderers())
 				{
-					(*It)->Release();
-					(*It)->SetRenderer(Renderer);
-					(*It)->Initialize();
+					Render->Deactivate();
+					Render->SetRenderer(Renderer);
+					Render->Activate();
 				}
 			}
 			void Camera::Asleep()
@@ -2983,8 +3026,6 @@ namespace Tomahawk
 						Target = new Engine::Renderers::LightRenderer(Renderer);
 					else if (RendererId == THAWK_COMPONENT_ID(ProbeRenderer))
 						Target = new Engine::Renderers::ProbeRenderer(Renderer);
-					else if (RendererId == THAWK_COMPONENT_ID(ImageRenderer))
-						Target = new Engine::Renderers::ImageRenderer(Renderer);
 					else if (RendererId == THAWK_COMPONENT_ID(LimpidRenderer))
 						Target = new Engine::Renderers::LimpidRenderer(Renderer);
 					else if (RendererId == THAWK_COMPONENT_ID(EmitterRenderer))
@@ -3016,9 +3057,9 @@ namespace Tomahawk
 					if (!Meta)
 						Meta = Render->SetDocument("metadata");
 
-					Target->Release();
+					Target->Deactivate();
 					Target->Deserialize(Content, Meta);
-					Target->Initialize();
+					Target->Activate();
 
 					Renderer->AddRenderer(Target);
 					NMake::Unpack(Render->Find("active"), &Target->Active);

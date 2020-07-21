@@ -413,6 +413,19 @@ namespace Tomahawk
 				return (void*)Resource[Id]->GetResource();
 			}
 
+			D3D11Query::D3D11Query() : Query(), Async(nullptr)
+			{
+			}
+			D3D11Query::~D3D11Query()
+			{
+				if (Async != nullptr)
+					Async->Release();
+			}
+			void* D3D11Query::GetResource()
+			{
+				return (void*)Async;
+			}
+
 			D3D11Device::D3D11Device(const Desc& I) : GraphicsDevice(I), ImmediateContext(nullptr), SwapChain(nullptr), D3DDevice(nullptr)
 			{
 				unsigned int CreationFlags = I.CreationFlags;
@@ -969,123 +982,141 @@ namespace Tomahawk
 			{
 				ImmediateContext->ClearState();
 			}
-			void D3D11Device::Map(ElementBuffer* Resource, ResourceMap Mode, MappedSubresource* Map)
+			bool D3D11Device::Map(ElementBuffer* Resource, ResourceMap Mode, MappedSubresource* Map)
 			{
 				D3D11ElementBuffer* IResource = (D3D11ElementBuffer*)Resource;
 				if (!IResource)
-					return;
+					return false;
 
 				D3D11_MAPPED_SUBRESOURCE MappedResource;
-				ImmediateContext->Map(IResource->Element, 0, (D3D11_MAP)Mode, 0, &MappedResource);
+				if (ImmediateContext->Map(IResource->Element, 0, (D3D11_MAP)Mode, 0, &MappedResource) != S_OK)
+					return false;
 
 				Map->Pointer = MappedResource.pData;
 				Map->RowPitch = MappedResource.RowPitch;
 				Map->DepthPitch = MappedResource.DepthPitch;
+				return true;
 			}
-			void D3D11Device::Map(StructureBuffer* Resource, ResourceMap Mode, MappedSubresource* Map)
+			bool D3D11Device::Map(StructureBuffer* Resource, ResourceMap Mode, MappedSubresource* Map)
 			{
 				D3D11StructureBuffer* IResource = (D3D11StructureBuffer*)Resource;
 				if (!IResource)
-					return;
+					return false;
 
 				D3D11_MAPPED_SUBRESOURCE MappedResource;
-				ImmediateContext->Map(IResource->Element, 0, (D3D11_MAP)Mode, 0, &MappedResource);
+				if (ImmediateContext->Map(IResource->Element, 0, (D3D11_MAP)Mode, 0, &MappedResource) != S_OK)
+					return false;
 
 				Map->Pointer = MappedResource.pData;
 				Map->RowPitch = MappedResource.RowPitch;
 				Map->DepthPitch = MappedResource.DepthPitch;
+				return true;
 			}
-			void D3D11Device::Unmap(ElementBuffer* Resource, MappedSubresource* Map)
+			bool D3D11Device::Unmap(ElementBuffer* Resource, MappedSubresource* Map)
 			{
 				D3D11ElementBuffer* IResource = (D3D11ElementBuffer*)Resource;
 				if (!IResource)
-					return;
+					return false;
 
 				ImmediateContext->Unmap(IResource->Element, 0);
+				return true;
 			}
-			void D3D11Device::Unmap(StructureBuffer* Resource, MappedSubresource* Map)
+			bool D3D11Device::Unmap(StructureBuffer* Resource, MappedSubresource* Map)
 			{
 				D3D11StructureBuffer* IResource = (D3D11StructureBuffer*)Resource;
 				if (!IResource)
-					return;
+					return false;
 
 				ImmediateContext->Unmap(IResource->Element, 0);
+				return true;
 			}
-			void D3D11Device::UpdateBuffer(StructureBuffer* Resource, void* Data, uint64_t Size)
+			bool D3D11Device::UpdateBuffer(StructureBuffer* Resource, void* Data, uint64_t Size)
 			{
 				D3D11StructureBuffer* IResource = (D3D11StructureBuffer*)Resource;
 				if (!IResource)
-					return;
+					return false;
 
 				D3D11_MAPPED_SUBRESOURCE MappedResource;
-				ImmediateContext->Map(IResource->Element, 0, D3D11_MAP_WRITE_DISCARD, 0, &MappedResource);
+				if (ImmediateContext->Map(IResource->Element, 0, D3D11_MAP_WRITE_DISCARD, 0, &MappedResource) != S_OK)
+					return false;
+
 				memcpy(MappedResource.pData, Data, (size_t)Size);
 				ImmediateContext->Unmap(IResource->Element, 0);
+				return true;
 			}
-			void D3D11Device::UpdateBuffer(Shader* Resource, const void* Data)
+			bool D3D11Device::UpdateBuffer(Shader* Resource, const void* Data)
 			{
 				D3D11Shader* IResource = (D3D11Shader*)Resource;
 				if (!IResource)
-					return;
+					return false;
 
 				ImmediateContext->UpdateSubresource(IResource->ConstantBuffer, 0, nullptr, Data, 0, 0);
+				return true;
 			}
-			void D3D11Device::UpdateBuffer(MeshBuffer* Resource, Compute::Vertex* Data)
+			bool D3D11Device::UpdateBuffer(MeshBuffer* Resource, Compute::Vertex* Data)
 			{
 				D3D11MeshBuffer* IResource = (D3D11MeshBuffer*)Resource;
 				if (!IResource)
-					return;
+					return false;
 
 				MappedSubresource MappedResource;
-				Map(IResource->VertexBuffer, ResourceMap_Write, &MappedResource);
+				if (!Map(IResource->VertexBuffer, ResourceMap_Write, &MappedResource))
+					return false;
+
 				memcpy(MappedResource.Pointer, Data, (size_t)IResource->VertexBuffer->GetElements() * sizeof(Compute::Vertex));
-				Unmap(IResource->VertexBuffer, &MappedResource);
+				return Unmap(IResource->VertexBuffer, &MappedResource);
 			}
-			void D3D11Device::UpdateBuffer(SkinMeshBuffer* Resource, Compute::SkinVertex* Data)
+			bool D3D11Device::UpdateBuffer(SkinMeshBuffer* Resource, Compute::SkinVertex* Data)
 			{
 				D3D11SkinMeshBuffer* IResource = (D3D11SkinMeshBuffer*)Resource;
 				if (!IResource)
-					return;
+					return false;
 
 				MappedSubresource MappedResource;
-				Map(IResource->VertexBuffer, ResourceMap_Write, &MappedResource);
+				if (!Map(IResource->VertexBuffer, ResourceMap_Write, &MappedResource))
+					return false;
+
 				memcpy(MappedResource.Pointer, Data, (size_t)IResource->VertexBuffer->GetElements() * sizeof(Compute::SkinVertex));
-				Unmap(IResource->VertexBuffer, &MappedResource);
+				return Unmap(IResource->VertexBuffer, &MappedResource);
 			}
-			void D3D11Device::UpdateBuffer(InstanceBuffer* Resource)
+			bool D3D11Device::UpdateBuffer(InstanceBuffer* Resource)
 			{
 				D3D11InstanceBuffer* IResource = (D3D11InstanceBuffer*)Resource;
 				if (!IResource || IResource->Array.Size() <= 0 || IResource->Array.Size() > IResource->ElementLimit)
-					return;
+					return false;
 
 				D3D11ElementBuffer* Element = IResource->Elements->As<D3D11ElementBuffer>();
 				IResource->Sync = true;
 
 				D3D11_MAPPED_SUBRESOURCE MappedResource;
-				ImmediateContext->Map(Element->Element, 0, D3D11_MAP_WRITE_DISCARD, 0, &MappedResource);
+				if (ImmediateContext->Map(Element->Element, 0, D3D11_MAP_WRITE_DISCARD, 0, &MappedResource) != S_OK)
+					return false;
+
 				memcpy(MappedResource.pData, IResource->Array.Get(), (size_t)IResource->Array.Size() * sizeof(Compute::ElementVertex));
 				ImmediateContext->Unmap(Element->Element, 0);
+				return true;
 			}
-			void D3D11Device::UpdateBuffer(RenderBufferType Buffer)
+			bool D3D11Device::UpdateBuffer(RenderBufferType Buffer)
 			{
 				ImmediateContext->UpdateSubresource(ConstantBuffer[Buffer], 0, nullptr, Constants[Buffer], 0, 0);
+				return true;
 			}
-			void D3D11Device::UpdateBufferSize(Shader* Resource, size_t Size)
+			bool D3D11Device::UpdateBufferSize(Shader* Resource, size_t Size)
 			{
 				D3D11Shader* IResource = (D3D11Shader*)Resource;
 				if (!IResource || !Size)
-					return;
+					return false;
 
 				if (IResource->ConstantBuffer != nullptr)
 					ReleaseCom(IResource->ConstantBuffer);
 
-				CreateConstantBuffer(&IResource->ConstantBuffer, Size);
+				return CreateConstantBuffer(&IResource->ConstantBuffer, Size) == S_OK;
 			}
-			void D3D11Device::UpdateBufferSize(InstanceBuffer* Resource, uint64_t Size)
+			bool D3D11Device::UpdateBufferSize(InstanceBuffer* Resource, uint64_t Size)
 			{
 				D3D11InstanceBuffer* IResource = (D3D11InstanceBuffer*)Resource;
 				if (!IResource)
-					return;
+					return false;
 
 				ClearBuffer(IResource);
 				delete IResource->Elements;
@@ -1116,11 +1147,7 @@ namespace Tomahawk
 				SRV.ViewDimension = D3D11_SRV_DIMENSION_BUFFER;
 				SRV.Buffer.ElementWidth = (unsigned int)IResource->ElementLimit;
 
-				if (D3DDevice->CreateShaderResourceView(IResource->Elements->As<D3D11ElementBuffer>()->Element, &SRV, &IResource->Resource) != S_OK)
-				{
-					THAWK_ERROR("couldn't create shader resource view");
-					return;
-				}
+				return D3DDevice->CreateShaderResourceView(IResource->Elements->As<D3D11ElementBuffer>()->Element, &SRV, &IResource->Resource) == S_OK;
 			}
 			void D3D11Device::ClearBuffer(InstanceBuffer* Resource)
 			{
@@ -1263,79 +1290,99 @@ namespace Tomahawk
 			{
 				ImmediateContext->Draw(Count, Location);
 			}
-			void D3D11Device::CopyTexture2D(Texture2D** Result)
+			bool D3D11Device::CopyTexture2D(Texture2D** Result)
 			{
-				CopyTexture2D(RenderTarget, Result);
+				return CopyTexture2D(RenderTarget, Result);
 			}
-			void D3D11Device::CopyTexture2D(RenderTarget2D* Resource, Texture2D** Result)
+			bool D3D11Device::CopyTexture2D(RenderTarget2D* Resource, Texture2D** Result)
 			{
 				D3D11RenderTarget2D* IResource = (D3D11RenderTarget2D*)Resource;
 				if (!IResource || !IResource->Texture || !Result)
-					return;
+					return false;
 
 				D3D11_TEXTURE2D_DESC Information;
 				IResource->Texture->GetDesc(&Information);
 
 				D3D11Texture2D* Texture = (D3D11Texture2D*)(*Result ? *Result : CreateTexture2D());
 				if (!*Result)
-					D3DDevice->CreateTexture2D(&Information, nullptr, &Texture->View);
+				{
+					if (D3DDevice->CreateTexture2D(&Information, nullptr, &Texture->View) != S_OK)
+						return false;
+				}
 
 				ImmediateContext->CopyResource(Texture->View, IResource->Texture);
 				*Result = Texture;
+
+				return true;
 			}
-			void D3D11Device::CopyTexture2D(MultiRenderTarget2D* Resource, unsigned int Target, Texture2D** Result)
+			bool D3D11Device::CopyTexture2D(MultiRenderTarget2D* Resource, unsigned int Target, Texture2D** Result)
 			{
 				D3D11MultiRenderTarget2D* IResource = (D3D11MultiRenderTarget2D*)Resource;
 				if (!IResource || Target >= IResource->SVTarget || !IResource->Texture[Target] || !Result)
-					return;
+					return false;
 
 				D3D11_TEXTURE2D_DESC Information;
 				IResource->Texture[Target]->GetDesc(&Information);
 
 				D3D11Texture2D* Texture = (D3D11Texture2D*)(*Result ? *Result : CreateTexture2D());
 				if (!*Result)
-					D3DDevice->CreateTexture2D(&Information, nullptr, &Texture->View);
+				{
+					if (D3DDevice->CreateTexture2D(&Information, nullptr, &Texture->View) != S_OK)
+						return false;
+				}
 
 				ImmediateContext->CopyResource(Texture->View, IResource->Texture[Target]);
 				*Result = Texture;
+
+				return true;
 			}
-			void D3D11Device::CopyTexture2D(RenderTargetCube* Resource, unsigned int Face, Texture2D** Result)
+			bool D3D11Device::CopyTexture2D(RenderTargetCube* Resource, unsigned int Face, Texture2D** Result)
 			{
 				D3D11RenderTargetCube* IResource = (D3D11RenderTargetCube*)Resource;
 				if (!IResource || Face >= 6 || !IResource->Cube || !Result)
-					return;
+					return false;
 
 				D3D11_TEXTURE2D_DESC Information;
 				IResource->Cube->GetDesc(&Information);
 
 				D3D11Texture2D* Texture = (D3D11Texture2D*)(*Result ? *Result : CreateTexture2D());
 				if (!*Result)
-					D3DDevice->CreateTexture2D(&Information, nullptr, &Texture->View);
+				{
+					if (D3DDevice->CreateTexture2D(&Information, nullptr, &Texture->View) != S_OK)
+						return false;
+				}
 
 				ImmediateContext->CopySubresourceRegion(Texture->View, Face * Information.MipLevels, 0, 0, 0, IResource->Cube, 0, 0);
 				*Result = Texture;
+
+				return true;
 			}
-			void D3D11Device::CopyTexture2D(MultiRenderTargetCube* Resource, unsigned int Cube, unsigned int Face, Texture2D** Result)
+			bool D3D11Device::CopyTexture2D(MultiRenderTargetCube* Resource, unsigned int Cube, unsigned int Face, Texture2D** Result)
 			{
 				D3D11MultiRenderTargetCube* IResource = (D3D11MultiRenderTargetCube*)Resource;
 				if (!IResource || Cube >= IResource->SVTarget || Face >= 6 || !IResource->Cube[Cube] || !Result)
-					return;
+					return false;
 
 				D3D11_TEXTURE2D_DESC Information;
 				IResource->Cube[Cube]->GetDesc(&Information);
 
 				D3D11Texture2D* Texture = (D3D11Texture2D*)(*Result ? *Result : CreateTexture2D());
 				if (!*Result)
-					D3DDevice->CreateTexture2D(&Information, nullptr, &Texture->View);
+				{
+					if (D3DDevice->CreateTexture2D(&Information, nullptr, &Texture->View) != S_OK)
+						return false;
+				}
 
 				ImmediateContext->CopySubresourceRegion(Texture->View, Face * Information.MipLevels, 0, 0, 0, IResource->Cube[Cube], 0, 0);
 				*Result = Texture;
+
+				return true;
 			}
-			void D3D11Device::CopyTextureCube(RenderTargetCube* Resource, TextureCube** Result)
+			bool D3D11Device::CopyTextureCube(RenderTargetCube* Resource, TextureCube** Result)
 			{
 				D3D11RenderTargetCube* IResource = (D3D11RenderTargetCube*)Resource;
 				if (!IResource || !IResource->Cube || !Result)
-					return;
+					return false;
 
 				D3D11_TEXTURE2D_DESC Information;
 				IResource->Cube->GetDesc(&Information);
@@ -1344,18 +1391,26 @@ namespace Tomahawk
 				for (unsigned int i = 0; i < 6; i++)
 				{
 					ID3D11Texture2D* Subresource;
-					D3DDevice->CreateTexture2D(&Information, nullptr, &Subresource);
+					if (D3DDevice->CreateTexture2D(&Information, nullptr, &Subresource) != S_OK)
+					{
+						for (unsigned int j = 0; j <= i; j++)
+							((ID3D11Texture2D*)Resources[j])->Release();
+
+						return false;
+					}
+
 					ImmediateContext->CopySubresourceRegion(Subresource, i, 0, 0, 0, IResource->Cube, 0, 0);
-					Resources[i] = (void*)Subresource;
+					Resources[i] = (bool*)Subresource;
 				}
 
 				*Result = CreateTextureCubeInternal(Resources);
+				return false;
 			}
-			void D3D11Device::CopyTextureCube(MultiRenderTargetCube* Resource, unsigned int Cube, TextureCube** Result)
+			bool D3D11Device::CopyTextureCube(MultiRenderTargetCube* Resource, unsigned int Cube, TextureCube** Result)
 			{
 				D3D11MultiRenderTargetCube* IResource = (D3D11MultiRenderTargetCube*)Resource;
 				if (!IResource || Cube >= IResource->SVTarget || !IResource->Cube[Cube] || !Result)
-					return;
+					return false;
 
 				D3D11_TEXTURE2D_DESC Information;
 				IResource->Cube[Cube]->GetDesc(&Information);
@@ -1364,33 +1419,43 @@ namespace Tomahawk
 				for (unsigned int i = 0; i < 6; i++)
 				{
 					ID3D11Texture2D* Subresource;
-					D3DDevice->CreateTexture2D(&Information, nullptr, &Subresource);
+					if (D3DDevice->CreateTexture2D(&Information, nullptr, &Subresource) != S_OK)
+					{
+						for (unsigned int j = 0; j <= i; j++)
+							((ID3D11Texture2D*)Resources[j])->Release();
+
+						return false;
+					}
+
 					ImmediateContext->CopySubresourceRegion(Subresource, i, 0, 0, 0, IResource->Cube[Cube], 0, 0);
-					Resources[i] = (void*)Subresource;
+					Resources[i] = (bool*)Subresource;
 				}
 
 				*Result = CreateTextureCubeInternal(Resources);
+				return true;
 			}
-			void D3D11Device::CopyTargetTo(MultiRenderTarget2D* Resource, unsigned int Target, RenderTarget2D* To)
+			bool D3D11Device::CopyTargetTo(MultiRenderTarget2D* Resource, unsigned int Target, RenderTarget2D* To)
 			{
 				if (!Resource || Target >= Resource->GetSVTarget() || !To)
-					return;
+					return false;
 
 				ImmediateContext->CopyResource(To->As<D3D11RenderTarget2D>()->Texture, Resource->As<D3D11MultiRenderTarget2D>()->Texture[Target]);
+				return true;
 			}
-			void D3D11Device::CopyTargetFrom(MultiRenderTarget2D* Resource, unsigned int Target, RenderTarget2D* From)
+			bool D3D11Device::CopyTargetFrom(MultiRenderTarget2D* Resource, unsigned int Target, RenderTarget2D* From)
 			{
 				if (!Resource || Target >= Resource->GetSVTarget() || !From)
-					return;
+					return false;
 
 				ImmediateContext->CopyResource(Resource->As<D3D11MultiRenderTarget2D>()->Texture[Target], From->As<D3D11RenderTarget2D>()->Texture);
+				return true;
 			}
-			void D3D11Device::CopyTargetDepth(RenderTarget2D* From, RenderTarget2D* To)
+			bool D3D11Device::CopyTargetDepth(RenderTarget2D* From, RenderTarget2D* To)
 			{
 				D3D11RenderTarget2D* IResource1 = (D3D11RenderTarget2D*)From;
 				D3D11RenderTarget2D* IResource2 = (D3D11RenderTarget2D*)To;
 				if (!IResource1 || !IResource2)
-					return;
+					return false;
 
 				ID3D11Resource* Depth1 = nullptr;
 				IResource1->DepthStencilView->GetResource(&Depth1);
@@ -1399,13 +1464,14 @@ namespace Tomahawk
 				IResource2->DepthStencilView->GetResource(&Depth2);
 
 				ImmediateContext->CopyResource(Depth2, Depth1);
+				return true;
 			}
-			void D3D11Device::CopyTargetDepth(MultiRenderTarget2D* From, MultiRenderTarget2D* To)
+			bool D3D11Device::CopyTargetDepth(MultiRenderTarget2D* From, MultiRenderTarget2D* To)
 			{
 				D3D11MultiRenderTarget2D* IResource1 = (D3D11MultiRenderTarget2D*)From;
 				D3D11MultiRenderTarget2D* IResource2 = (D3D11MultiRenderTarget2D*)To;
 				if (!IResource1 || !IResource2)
-					return;
+					return false;
 
 				ID3D11Resource* Depth1 = nullptr;
 				IResource1->DepthStencilView->GetResource(&Depth1);
@@ -1414,13 +1480,14 @@ namespace Tomahawk
 				IResource2->DepthStencilView->GetResource(&Depth2);
 
 				ImmediateContext->CopyResource(Depth2, Depth1);
+				return true;
 			}
-			void D3D11Device::CopyTargetDepth(RenderTarget2DArray* From, RenderTarget2DArray* To)
+			bool D3D11Device::CopyTargetDepth(RenderTarget2DArray* From, RenderTarget2DArray* To)
 			{
 				D3D11RenderTarget2DArray* IResource1 = (D3D11RenderTarget2DArray*)From;
 				D3D11RenderTarget2DArray* IResource2 = (D3D11RenderTarget2DArray*)To;
 				if (!IResource1 || !IResource2)
-					return;
+					return false;
 
 				ID3D11Resource* Depth1 = nullptr;
 				IResource1->DepthStencilView->GetResource(&Depth1);
@@ -1429,13 +1496,14 @@ namespace Tomahawk
 				IResource2->DepthStencilView->GetResource(&Depth2);
 
 				ImmediateContext->CopyResource(Depth2, Depth1);
+				return true;
 			}
-			void D3D11Device::CopyTargetDepth(RenderTargetCube* From, RenderTargetCube* To)
+			bool D3D11Device::CopyTargetDepth(RenderTargetCube* From, RenderTargetCube* To)
 			{
 				D3D11RenderTargetCube* IResource1 = (D3D11RenderTargetCube*)From;
 				D3D11RenderTargetCube* IResource2 = (D3D11RenderTargetCube*)To;
 				if (!IResource1 || !IResource2)
-					return;
+					return false;
 
 				ID3D11Resource* Depth1 = nullptr;
 				IResource1->DepthStencilView->GetResource(&Depth1);
@@ -1444,13 +1512,14 @@ namespace Tomahawk
 				IResource2->DepthStencilView->GetResource(&Depth2);
 
 				ImmediateContext->CopyResource(Depth2, Depth1);
+				return true;
 			}
-			void D3D11Device::CopyTargetDepth(MultiRenderTargetCube* From, MultiRenderTargetCube* To)
+			bool D3D11Device::CopyTargetDepth(MultiRenderTargetCube* From, MultiRenderTargetCube* To)
 			{
 				D3D11MultiRenderTargetCube* IResource1 = (D3D11MultiRenderTargetCube*)From;
 				D3D11MultiRenderTargetCube* IResource2 = (D3D11MultiRenderTargetCube*)To;
 				if (!IResource1 || !IResource2)
-					return;
+					return false;
 
 				ID3D11Resource* Depth1 = nullptr;
 				IResource1->DepthStencilView->GetResource(&Depth1);
@@ -1459,12 +1528,13 @@ namespace Tomahawk
 				IResource2->DepthStencilView->GetResource(&Depth2);
 
 				ImmediateContext->CopyResource(Depth2, Depth1);
+				return true;
 			}
-			void D3D11Device::CopyBegin(MultiRenderTarget2D* Resource, unsigned int Target, unsigned int MipLevels, unsigned int Size)
+			bool D3D11Device::CopyBegin(MultiRenderTarget2D* Resource, unsigned int Target, unsigned int MipLevels, unsigned int Size)
 			{
 				D3D11MultiRenderTarget2D* IResource = (D3D11MultiRenderTarget2D*)Resource;
 				if (!IResource || Target >= IResource->SVTarget)
-					return;
+					return false;
 
 				if (IResource->View.Target != Target)
 				{
@@ -1493,31 +1563,37 @@ namespace Tomahawk
 				ReleaseCom(IResource->View.Subresource);
 				ReleaseCom(IResource->View.Face);
 
-				D3DDevice->CreateTexture2D(&IResource->View.Texture, nullptr, &IResource->View.Subresource);
-				D3DDevice->CreateTexture2D(&IResource->View.CubeMap, nullptr, &IResource->View.Face);
+				if (D3DDevice->CreateTexture2D(&IResource->View.Texture, nullptr, &IResource->View.Subresource) != S_OK)
+					return false;
+
+				return D3DDevice->CreateTexture2D(&IResource->View.CubeMap, nullptr, &IResource->View.Face) == S_OK;
 			}
-			void D3D11Device::CopyFace(MultiRenderTarget2D* Resource, unsigned int Target, unsigned int Face)
+			bool D3D11Device::CopyFace(MultiRenderTarget2D* Resource, unsigned int Target, unsigned int Face)
 			{
 				D3D11MultiRenderTarget2D* IResource = (D3D11MultiRenderTarget2D*)Resource;
 				if (!IResource || Target >= IResource->SVTarget || Face >= 6)
-					return;
+					return false;
 
 				ImmediateContext->CopyResource(IResource->View.Subresource, IResource->Texture[Target]);
 				ImmediateContext->CopySubresourceRegion(IResource->View.Face, Face * IResource->View.CubeMap.MipLevels, 0, 0, 0, IResource->View.Subresource, 0, &IResource->View.Region);
+				return true;
 			}
-			void D3D11Device::CopyEnd(MultiRenderTarget2D* Resource, TextureCube* Result)
+			bool D3D11Device::CopyEnd(MultiRenderTarget2D* Resource, TextureCube* Result)
 			{
 				D3D11MultiRenderTarget2D* IResource = (D3D11MultiRenderTarget2D*)Resource;
 				if (!IResource || !Result)
-					return;
+					return false;
 
 				ID3D11ShaderResourceView** Subresource = &Result->As<D3D11TextureCube>()->Resource;
 				ReleaseCom((*Subresource));
 
-				D3DDevice->CreateShaderResourceView(IResource->View.Face, &IResource->View.Resource, Subresource);
+				if (D3DDevice->CreateShaderResourceView(IResource->View.Face, &IResource->View.Resource, Subresource) != S_OK)
+					return false;
+
 				ImmediateContext->GenerateMips(*Subresource);
 				ReleaseCom(IResource->View.Subresource);
 				ReleaseCom(IResource->View.Face);
+				return true;
 			}
 			void D3D11Device::SwapTargetDepth(RenderTarget2D* From, RenderTarget2D* To)
 			{
@@ -1601,7 +1677,7 @@ namespace Tomahawk
 				for (UINT i = 0; i < RectCount; i++)
 					memcpy(&Out[i], &Rects[i], sizeof(D3D11_RECT));
 			}
-			void D3D11Device::ResizeBuffers(unsigned int Width, unsigned int Height)
+			bool D3D11Device::ResizeBuffers(unsigned int Width, unsigned int Height)
 			{
 				if (RenderTarget != nullptr)
 				{
@@ -1609,16 +1685,16 @@ namespace Tomahawk
 					delete RenderTarget;
 
 					DXGI_SWAP_CHAIN_DESC Info;
-					SwapChain->GetDesc(&Info);
-					SwapChain->ResizeBuffers(2, Width, Height, Info.BufferDesc.Format, Info.Flags);
+					if (SwapChain->GetDesc(&Info) != S_OK)
+						return false;
+
+					if (SwapChain->ResizeBuffers(2, Width, Height, Info.BufferDesc.Format, Info.Flags) != S_OK)
+						return false;
 				}
 
 				ID3D11Texture2D* BackBuffer = nullptr;
 				if (SwapChain->GetBuffer(0, __uuidof(ID3D11Texture2D), (LPVOID*)&BackBuffer) != S_OK)
-				{
-					THAWK_ERROR("couldn't create back buffer resource");
-					return;
-				}
+					return false;
 
 				RenderTarget2D::Desc F = RenderTarget2D::Desc();
 				F.Width = Width;
@@ -1634,6 +1710,8 @@ namespace Tomahawk
 				RenderTarget = CreateRenderTarget2D(F);
 				SetTarget(RenderTarget);
 				ReleaseCom(BackBuffer);
+
+				return true;
 			}
 			bool D3D11Device::GenerateTexture(Texture2D* Resource)
 			{
@@ -1751,6 +1829,38 @@ namespace Tomahawk
 				THAWK_ERROR("could not generate texture cube resource");
 				return false;
 			}
+			bool D3D11Device::GetQueryData(Query* Resource, uint64_t* Result, bool Flush)
+			{
+				D3D11Query* IResource = (D3D11Query*)Resource;
+				if (!Result || !IResource || !IResource->Async)
+					return false;
+
+				return ImmediateContext->GetData(IResource->Async, Result, sizeof(uint64_t), !Flush ? D3D11_ASYNC_GETDATA_DONOTFLUSH : 0) == S_OK;
+			}
+			bool D3D11Device::GetQueryData(Query* Resource, bool* Result, bool Flush)
+			{
+				D3D11Query* IResource = (D3D11Query*)Resource;
+				if (!Result || !IResource || !IResource->Async)
+					return false;
+
+				return ImmediateContext->GetData(IResource->Async, Result, sizeof(bool), !Flush ? D3D11_ASYNC_GETDATA_DONOTFLUSH : 0) == S_OK;
+			}
+			void D3D11Device::QueryBegin(Query* Resource)
+			{
+				D3D11Query* IResource = (D3D11Query*)Resource;
+				if (!IResource || !IResource->Async)
+					return;
+
+				ImmediateContext->Begin(IResource->Async);
+			}
+			void D3D11Device::QueryEnd(Query* Resource)
+			{
+				D3D11Query* IResource = (D3D11Query*)Resource;
+				if (!IResource || !IResource->Async)
+					return;
+
+				ImmediateContext->End(IResource->Async);
+			}
 			void D3D11Device::GenerateMips(Texture2D* Resource)
 			{
 				D3D11Texture2D* IResource = (D3D11Texture2D*)Resource;
@@ -1775,10 +1885,10 @@ namespace Tomahawk
 
 				ImmediateContext->GenerateMips(IResource->Resource);
 			}
-			void D3D11Device::DirectBegin()
+			bool D3D11Device::DirectBegin()
 			{
-				if (!DirectBuffer)
-					CreateDirectBuffer();
+				if (!DirectBuffer && !CreateDirectBuffer())
+					return false;
 
 				ImmediateContext->IASetInputLayout(InputLayout);
 				ImmediateContext->VSSetShader(VertexShader, nullptr, 0);
@@ -1790,6 +1900,7 @@ namespace Tomahawk
 				ViewResource = nullptr;
 
 				Elements.clear();
+				return true;
 			}
 			void D3D11Device::DirectTransform(const Compute::Matrix4x4& Transform)
 			{
@@ -1847,13 +1958,13 @@ namespace Tomahawk
 				Element.PY = Y;
 				Element.PZ = Z;
 			}
-			void D3D11Device::DirectEnd()
+			bool D3D11Device::DirectEnd()
 			{
 				if (!VertexConstantBuffer || !DirectBuffer || Elements.empty())
-					return;
+					return false;
 
-				if (Elements.size() > MaxElements)
-					CreateVertexBuffer(Elements.size());
+				if (Elements.size() > MaxElements && !CreateVertexBuffer(Elements.size()))
+					return false;
 
 				D3D11_PRIMITIVE_TOPOLOGY LastTopology;
 				ImmediateContext->IAGetPrimitiveTopology(&LastTopology);
@@ -1881,10 +1992,12 @@ namespace Tomahawk
 				ImmediateContext->PSSetConstantBuffers(0, 1, &Second);
 				ReleaseCom(First);
 				ReleaseCom(Second);
+
+				return true;
 			}
-			void D3D11Device::Submit()
+			bool D3D11Device::Submit()
 			{
-				SwapChain->Present(VSyncMode, PresentFlags);
+				return SwapChain->Present(VSyncMode, PresentFlags) == S_OK;
 			}
 			DepthStencilState* D3D11Device::CreateDepthStencilState(const DepthStencilState::Desc& I)
 			{
@@ -3045,6 +3158,17 @@ namespace Tomahawk
 				Result->Viewport.MaxDepth = 1.0f;
 				Result->Viewport.TopLeftX = 0.0f;
 				Result->Viewport.TopLeftY = 0.0f;
+
+				return Result;
+			}
+			Query* D3D11Device::CreateQuery(const Query::Desc& I)
+			{
+				D3D11_QUERY_DESC Desc;
+				Desc.Query = (I.Predicate ? D3D11_QUERY_OCCLUSION_PREDICATE : D3D11_QUERY_OCCLUSION);
+				Desc.MiscFlags = (I.AutoPass ? D3D11_QUERY_MISC_PREDICATEHINT : 0);
+
+				D3D11Query* Result = new D3D11Query();
+				D3DDevice->CreateQuery(&Desc, &Result->Async);
 
 				return Result;
 			}

@@ -36,11 +36,10 @@ namespace Tomahawk
 
 			public:
 				ModelRenderer(RenderSystem* Lab);
-				virtual ~ModelRenderer();
-				void Initialize() override;
-				void Cull(const Viewer& View) override;
-				void RenderStep(Rest::Timer* Time, bool Limpid) override;
-				void RenderSubstep(Rest::Timer* Time, bool Limpid, bool Static) override;
+				virtual ~ModelRenderer() override;
+				void Activate() override;
+				void Deactivate() override;
+				void RenderMain(Rest::Timer* Time, RenderOpt Options) override;
 				void RenderDepthLinear(Rest::Timer* Time) override;
 				void RenderDepthCubic(Rest::Timer* Time, Compute::Matrix4x4* ViewProjection) override;
 				Rest::Pool<Component*>* GetGeometry(uint64_t Index) override;
@@ -77,10 +76,9 @@ namespace Tomahawk
 			public:
 				SkinRenderer(RenderSystem* Lab);
 				virtual ~SkinRenderer();
-				void Initialize() override;
-				void Cull(const Viewer& View) override;
-				void RenderStep(Rest::Timer* Time, bool Limpid) override;
-				void RenderSubstep(Rest::Timer* Time, bool Limpid, bool Static) override;
+				void Activate() override;
+				void Deactivate() override;
+				void RenderMain(Rest::Timer* Time, RenderOpt Options) override;
 				void RenderDepthLinear(Rest::Timer* Time) override;
 				void RenderDepthCubic(Rest::Timer* Time, Compute::Matrix4x4* ViewProjection) override;
 				Rest::Pool<Component*>* GetGeometry(uint64_t Index) override;
@@ -119,10 +117,9 @@ namespace Tomahawk
 			public:
 				SoftBodyRenderer(RenderSystem* Lab);
 				virtual ~SoftBodyRenderer();
-				void Initialize() override;
-				void Cull(const Viewer& View) override;
-				void RenderStep(Rest::Timer* Time, bool Limpid) override;
-				void RenderSubstep(Rest::Timer* Time, bool Limpid, bool Static) override;
+				void Activate() override;
+				void Deactivate() override;
+				void RenderMain(Rest::Timer* Time, RenderOpt Options) override;
 				void RenderDepthLinear(Rest::Timer* Time) override;
 				void RenderDepthCubic(Rest::Timer* Time, Compute::Matrix4x4* ViewProjection) override;
 				Rest::Pool<Component*>* GetGeometry(uint64_t Index) override;
@@ -161,10 +158,9 @@ namespace Tomahawk
 			public:
 				EmitterRenderer(RenderSystem* Lab);
 				virtual ~EmitterRenderer() override;
-				void Initialize() override;
-				void Cull(const Viewer& View) override;
-				void RenderStep(Rest::Timer* Time, bool Limpid) override;
-				void RenderSubstep(Rest::Timer* Time, bool Limpid, bool Static) override;
+				void Activate() override;
+				void Deactivate() override;
+				void RenderMain(Rest::Timer* Time, RenderOpt Options) override;
 				void RenderDepthLinear(Rest::Timer* Time) override;
 				void RenderDepthCubic(Rest::Timer* Time, Compute::Matrix4x4* ViewProjection) override;
 				Rest::Pool<Component*>* GetGeometry(uint64_t Index) override;
@@ -199,9 +195,8 @@ namespace Tomahawk
 			public:
 				LimpidRenderer(RenderSystem* Lab);
 				virtual ~LimpidRenderer();
-				void Initialize() override;
-				void RenderStep(Rest::Timer* Time, bool Limpid) override;
-				void RenderSubstep(Rest::Timer* Time, bool Limpid, bool Static) override;
+				void Activate() override;
+				void RenderMain(Rest::Timer* Time, RenderOpt Options) override;
 				void ResizeBuffers() override;
 				Rest::Pool<Component*>* GetGeometry(uint64_t Index) override;
 				uint64_t GetGeometryCount() override;
@@ -210,7 +205,7 @@ namespace Tomahawk
 				THAWK_COMPONENT(LimpidRenderer);
 			};
 
-			class THAWK_OUT DepthRenderer : public IntervalRenderer
+			class THAWK_OUT DepthRenderer : public TickRenderer
 			{
 			public:
 				struct
@@ -239,8 +234,9 @@ namespace Tomahawk
 				virtual ~DepthRenderer();
 				void Deserialize(ContentManager* Content, Rest::Document* Node) override;
 				void Serialize(ContentManager* Content, Rest::Document* Node) override;
-				void Initialize() override;
-				void IntervalRenderStep(Rest::Timer* Time, bool Limpid) override;
+				void Activate() override;
+				void Deactivate() override;
+				void TickRenderMain(Rest::Timer* Time, RenderOpt Options) override;
 
 			public:
 				THAWK_COMPONENT(DepthRenderer);
@@ -262,8 +258,9 @@ namespace Tomahawk
 				virtual ~ProbeRenderer();
 				void Deserialize(ContentManager* Content, Rest::Document* Node) override;
 				void Serialize(ContentManager* Content, Rest::Document* Node) override;
-				void Initialize() override;
-				void RenderStep(Rest::Timer* Time, bool Limpid) override;
+				void Activate() override;
+				void Deactivate() override;
+				void RenderMain(Rest::Timer* Time, RenderOpt Options) override;
 				void CreateRenderTarget();
 				void SetCaptureSize(size_t Size);
 
@@ -389,10 +386,9 @@ namespace Tomahawk
 				virtual ~LightRenderer();
 				void Deserialize(ContentManager* Content, Rest::Document* Node) override;
 				void Serialize(ContentManager* Content, Rest::Document* Node) override;
-				void Initialize() override;
-				void Cull(const Viewer& View) override;
-				void RenderStep(Rest::Timer* Time, bool Limpid) override;
-				void RenderSubstep(Rest::Timer* Time, bool Limpid, bool Static) override;
+				void Activate() override;
+				void Deactivate() override;
+				void RenderMain(Rest::Timer* Time, RenderOpt Options) override;
 				void ResizeBuffers() override;
 				void SetSkyMap(Graphics::Texture2D* Cubemap);
 				Graphics::TextureCube* GetSkyMap();
@@ -402,28 +398,7 @@ namespace Tomahawk
 				THAWK_COMPONENT(LightRenderer);
 			};
 
-			class THAWK_OUT ImageRenderer : public Renderer
-			{
-			public:
-				Graphics::RenderTarget2D* RenderTarget = nullptr;
-				Graphics::DepthStencilState* DepthStencil = nullptr;
-				Graphics::RasterizerState* Rasterizer = nullptr;
-				Graphics::BlendState* Blend = nullptr;
-				Graphics::SamplerState* Sampler = nullptr;
-
-			public:
-				ImageRenderer(RenderSystem* Lab);
-				ImageRenderer(RenderSystem* Lab, Graphics::RenderTarget2D* Target);
-				virtual ~ImageRenderer() override;
-				void Deserialize(ContentManager* Content, Rest::Document* Node) override;
-				void Serialize(ContentManager* Content, Rest::Document* Node) override;
-				void RenderStep(Rest::Timer* Time, bool Limpid) override;
-
-			public:
-				THAWK_COMPONENT(ImageRenderer);
-			};
-
-			class THAWK_OUT ReflectionsRenderer : public PostProcessRenderer
+			class THAWK_OUT ReflectionsRenderer : public EffectRenderer
 			{
 			private:
 				Graphics::Shader* Pass1;
@@ -456,7 +431,7 @@ namespace Tomahawk
 				THAWK_COMPONENT(ReflectionsRenderer);
 			};
 
-			class THAWK_OUT DepthOfFieldRenderer : public PostProcessRenderer
+			class THAWK_OUT DepthOfFieldRenderer : public EffectRenderer
 			{
 			public:
 				struct RenderConstant
@@ -489,7 +464,7 @@ namespace Tomahawk
 				THAWK_COMPONENT(DepthOfFieldRenderer);
 			};
 
-			class THAWK_OUT EmissionRenderer : public PostProcessRenderer
+			class THAWK_OUT EmissionRenderer : public EffectRenderer
 			{
 			public:
 				struct RenderConstant
@@ -514,7 +489,7 @@ namespace Tomahawk
 				THAWK_COMPONENT(EmissionRenderer);
 			};
 
-			class THAWK_OUT GlitchRenderer : public PostProcessRenderer
+			class THAWK_OUT GlitchRenderer : public EffectRenderer
 			{
 			public:
 				struct RenderConstant
@@ -546,7 +521,7 @@ namespace Tomahawk
 				THAWK_COMPONENT(GlitchRenderer);
 			};
 
-			class THAWK_OUT AmbientOcclusionRenderer : public PostProcessRenderer
+			class THAWK_OUT AmbientOcclusionRenderer : public EffectRenderer
 			{
 			private:
 				Graphics::Shader* Pass1;
@@ -591,7 +566,7 @@ namespace Tomahawk
 				THAWK_COMPONENT(AmbientOcclusionRenderer);
 			};
 
-			class THAWK_OUT DirectOcclusionRenderer : public PostProcessRenderer
+			class THAWK_OUT DirectOcclusionRenderer : public EffectRenderer
 			{
 			private:
 				Graphics::Shader* Pass1;
@@ -636,7 +611,7 @@ namespace Tomahawk
 				THAWK_COMPONENT(DirectOcclusionRenderer);
 			};
 
-			class THAWK_OUT ToneRenderer : public PostProcessRenderer
+			class THAWK_OUT ToneRenderer : public EffectRenderer
 			{
 			public:
 				struct RenderConstant
@@ -687,7 +662,7 @@ namespace Tomahawk
 				GUIRenderer(RenderSystem* Lab);
 				GUIRenderer(RenderSystem* Lab, Graphics::Activity* NewWindow);
 				virtual ~GUIRenderer() override;
-				void RenderStep(Rest::Timer* Time, bool Limpid) override;
+				void RenderMain(Rest::Timer* Time, RenderOpt Options) override;
 				GUI::Context* GetContext();
 
 			public:

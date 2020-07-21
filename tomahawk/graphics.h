@@ -923,20 +923,6 @@ namespace Tomahawk
 			void GetJointPose(Compute::Joint* Root, std::vector<Compute::AnimatorKey>* Result);
 		};
 
-		struct THAWK_OUT Material
-		{
-			Compute::Vector4 Emission;
-			Compute::Vector4 Metallic;
-			Compute::Vector2 Roughness = { 1, 0 };
-			float Fresnel = 0.0f;
-			float Limpidity = 0.0f;
-			float Refraction = 0.0f;
-			float Environment = 0.0f;
-			float Occlusion = 1.0f;
-			float Radius = 0.0f;
-			float Id = 0.0f;
-		};
-
 		class THAWK_OUT Surface
 		{
 		private:
@@ -1519,6 +1505,23 @@ namespace Tomahawk
 			Texture2D* GetTarget(unsigned int Target);
 		};
 
+		class THAWK_OUT Query : public Rest::Object
+		{
+		public:
+			struct Desc
+			{
+				bool Predicate = true;
+				bool AutoPass = false;
+			};
+
+		protected:
+			Query();
+
+		public:
+			virtual ~Query() = default;
+			virtual void* GetResource() = 0;
+		};
+
 		class THAWK_OUT GraphicsDevice : public Rest::Object
 		{
 		protected:
@@ -1627,18 +1630,18 @@ namespace Tomahawk
 			virtual void FlushTexture3D(unsigned int Slot, unsigned int Count) = 0;
 			virtual void FlushTextureCube(unsigned int Slot, unsigned int Count) = 0;
 			virtual void FlushState() = 0;
-			virtual void Map(ElementBuffer* Resource, ResourceMap Mode, MappedSubresource* Map) = 0;
-			virtual void Map(StructureBuffer* Resource, ResourceMap Mode, MappedSubresource* Map) = 0;
-			virtual void Unmap(ElementBuffer* Resource, MappedSubresource* Map) = 0;
-			virtual void Unmap(StructureBuffer* Resource, MappedSubresource* Map) = 0;
-			virtual void UpdateBuffer(StructureBuffer* Resource, void* Data, uint64_t Size) = 0;
-			virtual void UpdateBuffer(Shader* Resource, const void* Data) = 0;
-			virtual void UpdateBuffer(MeshBuffer* Resource, Compute::Vertex* Data) = 0;
-			virtual void UpdateBuffer(SkinMeshBuffer* Resource, Compute::SkinVertex* Data) = 0;
-			virtual void UpdateBuffer(InstanceBuffer* Resource) = 0;
-			virtual void UpdateBuffer(RenderBufferType Buffer) = 0;
-			virtual void UpdateBufferSize(Shader* Resource, size_t Size) = 0;
-			virtual void UpdateBufferSize(InstanceBuffer* Resource, uint64_t Size) = 0;
+			virtual bool Map(ElementBuffer* Resource, ResourceMap Mode, MappedSubresource* Map) = 0;
+			virtual bool Map(StructureBuffer* Resource, ResourceMap Mode, MappedSubresource* Map) = 0;
+			virtual bool Unmap(ElementBuffer* Resource, MappedSubresource* Map) = 0;
+			virtual bool Unmap(StructureBuffer* Resource, MappedSubresource* Map) = 0;
+			virtual bool UpdateBuffer(StructureBuffer* Resource, void* Data, uint64_t Size) = 0;
+			virtual bool UpdateBuffer(Shader* Resource, const void* Data) = 0;
+			virtual bool UpdateBuffer(MeshBuffer* Resource, Compute::Vertex* Data) = 0;
+			virtual bool UpdateBuffer(SkinMeshBuffer* Resource, Compute::SkinVertex* Data) = 0;
+			virtual bool UpdateBuffer(InstanceBuffer* Resource) = 0;
+			virtual bool UpdateBuffer(RenderBufferType Buffer) = 0;
+			virtual bool UpdateBufferSize(Shader* Resource, size_t Size) = 0;
+			virtual bool UpdateBufferSize(InstanceBuffer* Resource, uint64_t Size) = 0;
 			virtual void ClearBuffer(InstanceBuffer* Resource) = 0;
 			virtual void Clear(float R, float G, float B) = 0;
 			virtual void Clear(RenderTarget2D* Resource, float R, float G, float B) = 0;
@@ -1656,23 +1659,23 @@ namespace Tomahawk
 			virtual void DrawIndexed(MeshBuffer* Resource) = 0;
 			virtual void DrawIndexed(SkinMeshBuffer* Resource) = 0;
 			virtual void Draw(unsigned int Count, unsigned int Location) = 0;
-			virtual void CopyTexture2D(Texture2D** Result) = 0;
-			virtual void CopyTexture2D(RenderTarget2D* Resource, Texture2D** Result) = 0;
-			virtual void CopyTexture2D(MultiRenderTarget2D* Resource, unsigned int Target, Texture2D** Result) = 0;
-			virtual void CopyTexture2D(RenderTargetCube* Resource, unsigned int Face, Texture2D** Result) = 0;
-			virtual void CopyTexture2D(MultiRenderTargetCube* Resource, unsigned int Cube, unsigned int Face, Texture2D** Result) = 0;
-			virtual void CopyTextureCube(RenderTargetCube* Resource, TextureCube** Result) = 0;
-			virtual void CopyTextureCube(MultiRenderTargetCube* Resource, unsigned int Cube, TextureCube** Result) = 0;
-			virtual void CopyTargetTo(MultiRenderTarget2D* Resource, unsigned int Target, RenderTarget2D* To) = 0;
-			virtual void CopyTargetFrom(MultiRenderTarget2D* Resource, unsigned int Target, RenderTarget2D* From) = 0;
-			virtual void CopyTargetDepth(RenderTarget2D* From, RenderTarget2D* To) = 0;
-			virtual void CopyTargetDepth(MultiRenderTarget2D* From, MultiRenderTarget2D* To) = 0;
-			virtual void CopyTargetDepth(RenderTarget2DArray* From, RenderTarget2DArray* To) = 0;
-			virtual void CopyTargetDepth(RenderTargetCube* From, RenderTargetCube* To) = 0;
-			virtual void CopyTargetDepth(MultiRenderTargetCube* From, MultiRenderTargetCube* To) = 0;
-			virtual void CopyBegin(MultiRenderTarget2D* Resource, unsigned int Target, unsigned int MipLevels, unsigned int Size) = 0;
-			virtual void CopyFace(MultiRenderTarget2D* Resource, unsigned int Target, unsigned int Face) = 0;
-			virtual void CopyEnd(MultiRenderTarget2D* Resource, TextureCube* Result) = 0;
+			virtual bool CopyTexture2D(Texture2D** Result) = 0;
+			virtual bool CopyTexture2D(RenderTarget2D* Resource, Texture2D** Result) = 0;
+			virtual bool CopyTexture2D(MultiRenderTarget2D* Resource, unsigned int Target, Texture2D** Result) = 0;
+			virtual bool CopyTexture2D(RenderTargetCube* Resource, unsigned int Face, Texture2D** Result) = 0;
+			virtual bool CopyTexture2D(MultiRenderTargetCube* Resource, unsigned int Cube, unsigned int Face, Texture2D** Result) = 0;
+			virtual bool CopyTextureCube(RenderTargetCube* Resource, TextureCube** Result) = 0;
+			virtual bool CopyTextureCube(MultiRenderTargetCube* Resource, unsigned int Cube, TextureCube** Result) = 0;
+			virtual bool CopyTargetTo(MultiRenderTarget2D* Resource, unsigned int Target, RenderTarget2D* To) = 0;
+			virtual bool CopyTargetFrom(MultiRenderTarget2D* Resource, unsigned int Target, RenderTarget2D* From) = 0;
+			virtual bool CopyTargetDepth(RenderTarget2D* From, RenderTarget2D* To) = 0;
+			virtual bool CopyTargetDepth(MultiRenderTarget2D* From, MultiRenderTarget2D* To) = 0;
+			virtual bool CopyTargetDepth(RenderTarget2DArray* From, RenderTarget2DArray* To) = 0;
+			virtual bool CopyTargetDepth(RenderTargetCube* From, RenderTargetCube* To) = 0;
+			virtual bool CopyTargetDepth(MultiRenderTargetCube* From, MultiRenderTargetCube* To) = 0;
+			virtual bool CopyBegin(MultiRenderTarget2D* Resource, unsigned int Target, unsigned int MipLevels, unsigned int Size) = 0;
+			virtual bool CopyFace(MultiRenderTarget2D* Resource, unsigned int Target, unsigned int Face) = 0;
+			virtual bool CopyEnd(MultiRenderTarget2D* Resource, TextureCube* Result) = 0;
 			virtual void SwapTargetDepth(RenderTarget2D* From, RenderTarget2D* To) = 0;
 			virtual void SwapTargetDepth(MultiRenderTarget2D* From, MultiRenderTarget2D* To) = 0;
 			virtual void SwapTargetDepth(RenderTarget2DArray* From, RenderTarget2DArray* To) = 0;
@@ -1680,14 +1683,18 @@ namespace Tomahawk
 			virtual void SwapTargetDepth(MultiRenderTargetCube* From, MultiRenderTargetCube* To) = 0;
 			virtual void FetchViewports(unsigned int* Count, Viewport* Out) = 0;
 			virtual void FetchScissorRects(unsigned int* Count, Rectangle* Out) = 0;
-			virtual void ResizeBuffers(unsigned int Width, unsigned int Height) = 0;
+			virtual bool ResizeBuffers(unsigned int Width, unsigned int Height) = 0;
 			virtual bool GenerateTexture(Texture2D* Resource) = 0;
 			virtual bool GenerateTexture(Texture3D* Resource) = 0;
 			virtual bool GenerateTexture(TextureCube* Resource) = 0;
+			virtual bool GetQueryData(Query* Resource, uint64_t* Result, bool Flush = true) = 0;
+			virtual bool GetQueryData(Query* Resource, bool* Result, bool Flush = true) = 0;
+			virtual void QueryBegin(Query* Resource) = 0;
+			virtual void QueryEnd(Query* Resource) = 0;
 			virtual void GenerateMips(Texture2D* Resource) = 0;
 			virtual void GenerateMips(Texture3D* Resource) = 0;
 			virtual void GenerateMips(TextureCube* Resource) = 0;
-			virtual void DirectBegin() = 0;
+			virtual bool DirectBegin() = 0;
 			virtual void DirectTransform(const Compute::Matrix4x4& Transform) = 0;
 			virtual void DirectTopology(PrimitiveTopology Topology) = 0;
 			virtual void DirectEmit() = 0;
@@ -1697,8 +1704,8 @@ namespace Tomahawk
 			virtual void DirectTexCoord(float X, float Y) = 0;
 			virtual void DirectTexCoordOffset(float X, float Y) = 0;
 			virtual void DirectPosition(float X, float Y, float Z) = 0;
-			virtual void DirectEnd() = 0;
-			virtual void Submit() = 0;
+			virtual bool DirectEnd() = 0;
+			virtual bool Submit() = 0;
 			virtual DepthStencilState* CreateDepthStencilState(const DepthStencilState::Desc& I) = 0;
 			virtual BlendState* CreateBlendState(const BlendState::Desc& I) = 0;
 			virtual RasterizerState* CreateRasterizerState(const RasterizerState::Desc& I) = 0;
@@ -1722,6 +1729,7 @@ namespace Tomahawk
 			virtual RenderTarget2DArray* CreateRenderTarget2DArray(const RenderTarget2DArray::Desc& I) = 0;
 			virtual RenderTargetCube* CreateRenderTargetCube(const RenderTargetCube::Desc& I) = 0;
 			virtual MultiRenderTargetCube* CreateMultiRenderTargetCube(const MultiRenderTargetCube::Desc& I) = 0;
+			virtual Query* CreateQuery(const Query::Desc& I) = 0;
 			virtual PrimitiveTopology GetPrimitiveTopology() = 0;
 			virtual ShaderModel GetSupportedShaderModel() = 0;
 			virtual void* GetBackBuffer() = 0;

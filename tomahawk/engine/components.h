@@ -19,6 +19,7 @@ namespace Tomahawk
 				virtual ~Model() = default;
 				virtual void Deserialize(ContentManager* Content, Rest::Document* Node) override;
 				virtual void Serialize(ContentManager* Content, Rest::Document* Node) override;
+				virtual float Cull(const Viewer& View) override;
 				virtual Component* Copy(Entity* New) override;
 				void SetDrawable(Graphics::Model* Drawable);
 				Compute::Matrix4x4 GetBoundingBox();
@@ -53,6 +54,7 @@ namespace Tomahawk
 				virtual void Deserialize(ContentManager* Content, Rest::Document* Node) override;
 				virtual void Serialize(ContentManager* Content, Rest::Document* Node) override;
 				virtual void Synchronize(Rest::Timer* Time) override;
+				virtual float Cull(const Viewer& View) override;
 				virtual Component* Copy(Entity* New) override;
 				void SetDrawable(Graphics::SkinModel* Drawable);
 				Compute::Matrix4x4 GetBoundingBox();
@@ -89,6 +91,7 @@ namespace Tomahawk
 				virtual void Awake(Component* New) override;
 				virtual void Deserialize(ContentManager* Content, Rest::Document* Node) override;
 				virtual void Serialize(ContentManager* Content, Rest::Document* Node) override;
+				virtual float Cull(const Viewer& View) override;
 				virtual Component* Copy(Entity* New) override;
 				Graphics::InstanceBuffer* GetBuffer();
 
@@ -126,6 +129,7 @@ namespace Tomahawk
 				virtual void Serialize(ContentManager* Content, Rest::Document* Node) override;
 				virtual void Synchronize(Rest::Timer* Time) override;
 				virtual void Asleep() override;
+				virtual float Cull(const Viewer& View) override;
 				virtual Component* Copy(Entity* New) override;
 				void InitializeShape(Compute::UnmanagedShape* Shape, float Anticipation);
 				void InitializeShape(ContentManager* Content, const std::string& Path, float Anticipation);
@@ -436,7 +440,7 @@ namespace Tomahawk
 				THAWK_COMPONENT(AudioListener);
 			};
 
-			class THAWK_OUT PointLight : public Component
+			class THAWK_OUT PointLight : public Cullable
 			{
 			private:
 				Graphics::Texture2D* ShadowCache;
@@ -445,7 +449,6 @@ namespace Tomahawk
 				Compute::Matrix4x4 View;
 				Compute::Matrix4x4 Projection;
 				Compute::Vector3 Diffuse;
-				float Visibility = 0.0f;
 				float Emission = 1.0f;
 				float Range = 5.0f;
 				float ShadowSoftness = 0.0f;
@@ -460,6 +463,7 @@ namespace Tomahawk
 				virtual void Deserialize(ContentManager* Content, Rest::Document* Node) override;
 				virtual void Serialize(ContentManager* Content, Rest::Document* Node) override;
 				virtual void Synchronize(Rest::Timer* Time) override;
+				virtual float Cull(const Viewer& View) override;
 				virtual Component* Copy(Entity* New) override;
 				void SetShadowCache(Graphics::Texture2D* NewCache);
 				Graphics::Texture2D* GetShadowCache() const;
@@ -468,7 +472,7 @@ namespace Tomahawk
 				THAWK_COMPONENT(PointLight);
 			};
 
-			class THAWK_OUT SpotLight : public Component
+			class THAWK_OUT SpotLight : public Cullable
 			{
 			private:
 				Graphics::Texture2D* ShadowCache;
@@ -484,7 +488,6 @@ namespace Tomahawk
 				float FieldOfView;
 				float Emission;
 				float Range;
-				float Visibility;
 				int ShadowIterations;
 				bool Shadowed;
 
@@ -494,6 +497,7 @@ namespace Tomahawk
 				virtual void Deserialize(ContentManager* Content, Rest::Document* Node) override;
 				virtual void Serialize(ContentManager* Content, Rest::Document* Node) override;
 				virtual void Synchronize(Rest::Timer* Time) override;
+				virtual float Cull(const Viewer& View) override;
 				virtual Component* Copy(Entity* New) override;
 				void SetShadowCache(Graphics::Texture2D* NewCache);
 				Graphics::Texture2D* GetShadowCache() const;
@@ -543,7 +547,7 @@ namespace Tomahawk
 				THAWK_COMPONENT(LineLight);
 			};
 
-			class THAWK_OUT ProbeLight : public Component
+			class THAWK_OUT ProbeLight : public Cullable
 			{
 			private:
 				Graphics::Texture2D* DiffuseMapX[2];
@@ -561,7 +565,6 @@ namespace Tomahawk
 				float CaptureRange;
 				float Emission;
 				float Range;
-				float Visibility;
 				float Infinity;
 				bool ParallaxCorrected;
 				bool RenderLocked;
@@ -572,6 +575,7 @@ namespace Tomahawk
 				virtual ~ProbeLight() override;
 				virtual void Deserialize(ContentManager* Content, Rest::Document* Node) override;
 				virtual void Serialize(ContentManager* Content, Rest::Document* Node) override;
+				virtual float Cull(const Viewer& View) override;
 				virtual Component* Copy(Entity* New) override;
 				void SetProbeCache(Graphics::TextureCube* NewCache);
 				bool SetDiffuseMap(Graphics::Texture2D* Map);

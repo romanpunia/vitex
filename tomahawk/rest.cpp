@@ -2034,6 +2034,34 @@ namespace Tomahawk
 		std::mutex* LT::Safe = nullptr;
 		uint64_t LT::Memory = 0;
 #endif
+		bool Composer::Clear()
+		{
+			if (!Factory)
+				return false;
+
+			delete Factory;
+			Factory = nullptr;
+			return true;
+		}
+		bool Composer::Pop(const std::string& Hash)
+		{
+			if (!Factory)
+				return false;
+
+			auto It = Factory->find(THAWK_COMPONENT_HASH(Hash));
+			if (It == Factory->end())
+				return false;
+
+			Factory->erase(It);
+			if (!Factory->empty())
+				return true;
+
+			delete Factory;
+			Factory = nullptr;
+			return true;
+		}
+		std::unordered_map<uint64_t, void*>* Composer::Factory = nullptr;
+
 		void Factory::AddRef(Object* Value)
 		{
 			if (Value != nullptr)

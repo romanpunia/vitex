@@ -3,6 +3,8 @@
 #include "engine/processors.h"
 #include "engine/renderers.h"
 #include "network/http.h"
+#include "audio/effects.h"
+#include "audio/filters.h"
 #include <sstream>
 #ifdef THAWK_HAS_SDL2
 #include <SDL2/SDL_syswm.h>
@@ -2572,6 +2574,9 @@ namespace Tomahawk
 			{
 				if (*It && (*It)->Id() == In->Id())
 				{
+					if (*It == In)
+						return In;
+
 					(*It)->Deactivate();
 					delete (*It);
 					Renderers.erase(It);
@@ -3195,7 +3200,7 @@ namespace Tomahawk
 				delete Surface;
 				Surface = Conf.Device->CreateMultiRenderTarget2D(F);
 
-				auto* Array = GetComponents(THAWK_COMPONENT_ID(Camera));
+				auto* Array = GetComponents<Components::Camera>();
 				for (auto It = Array->Begin(); It != Array->End(); It++)
 					(*It)->As<Components::Camera>()->ResizeBuffers();
 
@@ -4067,6 +4072,8 @@ namespace Tomahawk
 				return;
 
 			Host = this;
+			Compose();
+
 #ifdef THAWK_HAS_SDL2
 			if (I->Usage & ApplicationUse_Activity_Module)
 			{
@@ -4347,7 +4354,6 @@ namespace Tomahawk
 			Renderers::GUIRenderer* Renderer = BaseCamera->GetRenderer()->GetRenderer<Renderers::GUIRenderer>();
 			return Renderer != nullptr ? Renderer->GetContext() : nullptr;
 		}
-
 		void Application::Callee(Rest::EventQueue* Queue, Rest::EventArgs* Args)
 		{
 			ThreadEvent* Data = Args->Get<ThreadEvent>();
@@ -4364,6 +4370,66 @@ namespace Tomahawk
 			}
 			else
 				Queue->Task<ThreadEvent>(Data, Callee);
+		}
+		void Application::Compose()
+		{
+			Rest::Composer::Push<Components::Model, Entity*>("Model");
+			Rest::Composer::Push<Components::LimpidModel, Entity*>("LimpidModel");
+			Rest::Composer::Push<Components::Skin, Entity*>("Skin");
+			Rest::Composer::Push<Components::LimpidSkin, Entity*>("LimpidSkin");
+			Rest::Composer::Push<Components::Emitter, Entity*>("Emitter");
+			Rest::Composer::Push<Components::LimpidEmitter, Entity*>("LimpidEmitter");
+			Rest::Composer::Push<Components::SoftBody, Entity*>("SoftBody");
+			Rest::Composer::Push<Components::LimpidSoftBody, Entity*>("LimpidSoftBody");
+			Rest::Composer::Push<Components::Decal, Entity*>("Decal");
+			Rest::Composer::Push<Components::LimpidDecal, Entity*>("LimpidDecal");
+			Rest::Composer::Push<Components::SkinAnimator, Entity*>("SkinAnimator");
+			Rest::Composer::Push<Components::KeyAnimator, Entity*>("KeyAnimator");
+			Rest::Composer::Push<Components::EmitterAnimator, Entity*>("EmitterAnimator");
+			Rest::Composer::Push<Components::RigidBody, Entity*>("RigidBody");
+			Rest::Composer::Push<Components::Acceleration, Entity*>("Acceleration");
+			Rest::Composer::Push<Components::SliderConstraint, Entity*>("SliderConstraint");
+			Rest::Composer::Push<Components::FreeLook, Entity*>("FreeLook");
+			Rest::Composer::Push<Components::Fly, Entity*>("Fly");
+			Rest::Composer::Push<Components::AudioSource, Entity*>("AudioSource");
+			Rest::Composer::Push<Components::AudioListener, Entity*>("AudioListener");
+			Rest::Composer::Push<Components::PointLight, Entity*>("PointLight");
+			Rest::Composer::Push<Components::SpotLight, Entity*>("SpotLight");
+			Rest::Composer::Push<Components::LineLight, Entity*>("LineLight");
+			Rest::Composer::Push<Components::ProbeLight, Entity*>("ProbeLight");
+			Rest::Composer::Push<Components::Camera, Entity*>("Camera");
+			Rest::Composer::Push<Renderers::ModelRenderer, RenderSystem*>("ModelRenderer");
+			Rest::Composer::Push<Renderers::SkinRenderer, RenderSystem*>("SkinRenderer");
+			Rest::Composer::Push<Renderers::SoftBodyRenderer, RenderSystem*>("SoftBodyRenderer");
+			Rest::Composer::Push<Renderers::EmitterRenderer, RenderSystem*>("EmitterRenderer");
+			Rest::Composer::Push<Renderers::DecalRenderer, RenderSystem*>("DecalRenderer");
+			Rest::Composer::Push<Renderers::LimpidRenderer, RenderSystem*>("LimpidRenderer");
+			Rest::Composer::Push<Renderers::DepthRenderer, RenderSystem*>("DepthRenderer");
+			Rest::Composer::Push<Renderers::ProbeRenderer, RenderSystem*>("ProbeRenderer");
+			Rest::Composer::Push<Renderers::LightRenderer, RenderSystem*>("LightRenderer");
+			Rest::Composer::Push<Renderers::ReflectionsRenderer, RenderSystem*>("ReflectionsRenderer");
+			Rest::Composer::Push<Renderers::DepthOfFieldRenderer, RenderSystem*>("DepthOfFieldRenderer");
+			Rest::Composer::Push<Renderers::EmissionRenderer, RenderSystem*>("EmissionRenderer");
+			Rest::Composer::Push<Renderers::GlitchRenderer, RenderSystem*>("GlitchRenderer");
+			Rest::Composer::Push<Renderers::AmbientOcclusionRenderer, RenderSystem*>("AmbientOcclusionRenderer");
+			Rest::Composer::Push<Renderers::DirectOcclusionRenderer, RenderSystem*>("DirectOcclusionRenderer");
+			Rest::Composer::Push<Renderers::ToneRenderer, RenderSystem*>("ToneRenderer");
+			Rest::Composer::Push<Renderers::GUIRenderer, RenderSystem*>("GUIRenderer");
+			Rest::Composer::Push<Audio::Effects::ReverbEffect>("ReverbEffect");
+			Rest::Composer::Push<Audio::Effects::ChorusEffect>("ChorusEffect");
+			Rest::Composer::Push<Audio::Effects::DistortionEffect>("DistortionEffect");
+			Rest::Composer::Push<Audio::Effects::EchoEffect>("EchoEffect");
+			Rest::Composer::Push<Audio::Effects::FlangerEffect>("FlangerEffect");
+			Rest::Composer::Push<Audio::Effects::FrequencyShifterEffect>("FrequencyShifterEffect");
+			Rest::Composer::Push<Audio::Effects::VocalMorpherEffect>("VocalMorpherEffect");
+			Rest::Composer::Push<Audio::Effects::PitchShifterEffect>("PitchShifterEffect");
+			Rest::Composer::Push<Audio::Effects::RingModulatorEffect>("RingModulatorEffect");
+			Rest::Composer::Push<Audio::Effects::AutowahEffect>("AutowahEffect");
+			Rest::Composer::Push<Audio::Effects::CompressorEffect>("CompressorEffect");
+			Rest::Composer::Push<Audio::Effects::EqualizerEffect>("EqualizerEffect");
+			Rest::Composer::Push<Audio::Filters::LowpassFilter>("LowpassFilter");
+			Rest::Composer::Push<Audio::Filters::BandpassFilter>("BandpassFilter");
+			Rest::Composer::Push<Audio::Filters::HighpassFilter>("HighpassFilter");
 		}
 		Application* Application::Get()
 		{

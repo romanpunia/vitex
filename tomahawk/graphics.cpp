@@ -941,6 +941,11 @@ namespace Tomahawk
 #else
 				THAWK_ERROR("geometry/skin/main.hlsl was not compiled");
 #endif
+#ifdef HAS_D3D11_GEOMETRY_DECAL_MAIN_HLSL
+				AddSection("geometry/decal/main.hlsl", GET_RESOURCE_BATCH(d3d11_geometry_decal_main_hlsl));
+#else
+				THAWK_ERROR("geometry/decal/main.hlsl was not compiled");
+#endif
 #ifdef HAS_D3D11_PASS_LIGHT_BASE_AMBIENT_HLSL
 				AddSection("pass/light/base/ambient.hlsl", GET_RESOURCE_BATCH(d3d11_pass_light_base_ambient_hlsl));
 #else
@@ -1238,6 +1243,11 @@ namespace Tomahawk
 			AddSection("geometry/skin/main.glsl", GET_RESOURCE_BATCH(ogl_geometry_skin_main_glsl));
 #else
 			THAWK_ERROR("geometry/skin/main.glsl was not compiled");
+#endif
+#ifdef HAS_OGL_GEOMETRY_DECAL_MAIN_GLSL
+			AddSection("geometry/decal/main.glsl", GET_RESOURCE_BATCH(ogl_geometry_decal_main_glsl));
+#else
+			THAWK_ERROR("geometry/decal/main.glsl was not compiled");
 #endif
 #ifdef HAS_OGL_PASS_LIGHT_BASE_AMBIENT_GLSL
 			AddSection("pass/light/base/ambient.glsl", GET_RESOURCE_BATCH(ogl_pass_light_base_ambient_glsl));

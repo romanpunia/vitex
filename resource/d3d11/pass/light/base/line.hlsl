@@ -2,7 +2,7 @@
 #include "standard/cook-torrance"
 #include "standard/atmosphere"
 
-cbuffer LineLight : register(b3)
+cbuffer RenderConstant : register(b3)
 {
 	matrix OwnViewProjection;
 	float3 Position;

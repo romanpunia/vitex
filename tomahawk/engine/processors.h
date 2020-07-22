@@ -78,10 +78,6 @@ namespace Tomahawk
 			class THAWK_OUT SceneGraphProcessor : public FileProcessor
 			{
 			public:
-				void (* OnComponentCreation)(Entity*, Component**, uint64_t);
-				void (* OnRendererCreation)(Renderer**, uint64_t);
-
-			public:
 				SceneGraphProcessor(ContentManager* Manager);
 				void* Deserialize(Rest::FileStream* Stream, uint64_t Length, uint64_t Offset, ContentArgs* Args) override;
 				bool Serialize(Rest::FileStream* Stream, void* Object, ContentArgs* Args) override;

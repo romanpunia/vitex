@@ -112,7 +112,7 @@ namespace Tomahawk
 
 			class THAWK_OUT SoftBody : public Drawable
 			{
-			private:
+			protected:
 				Compute::UnmanagedShape* Hull;
 				Compute::SoftBody* Instance;
 				std::vector<Compute::Vertex> Vertices;
@@ -153,9 +153,43 @@ namespace Tomahawk
 			public:
 				LimpidSoftBody(Entity* Ref);
 				virtual ~LimpidSoftBody() = default;
+				virtual Component* Copy(Entity* New) override;
 
 			public:
 				THAWK_COMPONENT(LimpidSoftBody);
+			};
+
+			class THAWK_OUT Decal : public Drawable
+			{
+			public:
+				Compute::Matrix4x4 Projection;
+				Compute::Matrix4x4 View;
+				float FieldOfView;
+				float Distance;
+				float Range;
+
+			public:
+				Decal(Entity* Ref);
+				virtual ~Decal() = default;
+				virtual void Deserialize(ContentManager* Content, Rest::Document* Node) override;
+				virtual void Serialize(ContentManager* Content, Rest::Document* Node) override;
+				virtual void Synchronize(Rest::Timer* Time) override;
+				virtual float Cull(const Viewer& View) override;
+				virtual Component* Copy(Entity* New) override;
+
+			public:
+				THAWK_COMPONENT(Decal);
+			};
+
+			class THAWK_OUT LimpidDecal : public Decal
+			{
+			public:
+				LimpidDecal(Entity* Ref);
+				virtual ~LimpidDecal() = default;
+				virtual Component* Copy(Entity* New) override;
+
+			public:
+				THAWK_COMPONENT(LimpidDecal);
 			};
 
 			class THAWK_OUT SkinAnimator : public Component

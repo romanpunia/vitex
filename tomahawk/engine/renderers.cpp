@@ -198,11 +198,17 @@ namespace Tomahawk
 			}
 			Rest::Pool<Component*>* ModelRenderer::GetGeometry(uint64_t Index)
 			{
-				return Opaque;
+				if (Index == 0)
+					return Opaque;
+
+				if (Index == 1)
+					return Limpid;
+
+				return nullptr;
 			}
 			uint64_t ModelRenderer::GetGeometryCount()
 			{
-				return 1;
+				return 2;
 			}
 
 			SkinRenderer::SkinRenderer(Engine::RenderSystem* Lab) : Renderer(Lab)
@@ -421,11 +427,17 @@ namespace Tomahawk
 			}
 			Rest::Pool<Component*>* SkinRenderer::GetGeometry(uint64_t Index)
 			{
-				return Opaque;
+				if (Index == 0)
+					return Opaque;
+
+				if (Index == 1)
+					return Limpid;
+
+				return nullptr;
 			}
 			uint64_t SkinRenderer::GetGeometryCount()
 			{
-				return 1;
+				return 2;
 			}
 
 			SoftBodyRenderer::SoftBodyRenderer(Engine::RenderSystem* Lab) : Renderer(Lab)
@@ -643,11 +655,17 @@ namespace Tomahawk
 			}
 			Rest::Pool<Component*>* SoftBodyRenderer::GetGeometry(uint64_t Index)
 			{
-				return Opaque;
+				if (Index == 0)
+					return Opaque;
+
+				if (Index == 1)
+					return Limpid;
+
+				return nullptr;
 			}
 			uint64_t SoftBodyRenderer::GetGeometryCount()
 			{
-				return 1;
+				return 2;
 			}
 
 			EmitterRenderer::EmitterRenderer(RenderSystem* Lab) : Renderer(Lab)
@@ -872,11 +890,134 @@ namespace Tomahawk
 			}
 			Rest::Pool<Component*>* EmitterRenderer::GetGeometry(uint64_t Index)
 			{
-				return Opaque;
+				if (Index == 0)
+					return Opaque;
+
+				if (Index == 1)
+					return Limpid;
+
+				return nullptr;
 			}
 			uint64_t EmitterRenderer::GetGeometryCount()
 			{
-				return 1;
+				return 2;
+			}
+
+			DecalRenderer::DecalRenderer(RenderSystem* Lab) : Renderer(Lab)
+			{
+				Geometric = true;
+				DepthStencil = Lab->GetDevice()->GetDepthStencilState("DEF_NONE_LESS");
+				Rasterizer = Lab->GetDevice()->GetRasterizerState("DEF_CULL_BACK");
+				Blend = Lab->GetDevice()->GetBlendState("DEF_OVERWRITE");
+				Sampler = Lab->GetDevice()->GetSamplerState("DEF_TRILINEAR_X16");
+
+				Graphics::Shader::Desc I = Graphics::Shader::Desc();
+				I.Layout = Graphics::Shader::GetVertexLayout();
+				I.LayoutSize = 5;
+
+				if (System->GetDevice()->GetSection("geometry/decal/main", &I.Data))
+					Shader = System->CompileShader("dr-main", I, sizeof(RenderPass));
+			}
+			DecalRenderer::~DecalRenderer()
+			{
+				System->FreeShader("dr-main", Shader);
+				delete Surface1;
+				delete Surface2;
+			}
+			void DecalRenderer::Activate()
+			{
+				Opaque = System->AddCull<Engine::Components::Decal>();
+				Limpid = System->AddCull<Engine::Components::LimpidDecal>();
+				ResizeBuffers();
+			}
+			void DecalRenderer::Deactivate()
+			{
+				Opaque = System->RemoveCull<Engine::Components::Decal>();
+				Limpid = System->RemoveCull<Engine::Components::LimpidDecal>();
+			}
+			void DecalRenderer::RenderMain(Rest::Timer* Time, RenderOpt Options)
+			{
+				SceneGraph* Scene = System->GetScene();
+				Graphics::GraphicsDevice* Device = System->GetDevice();
+				Graphics::MultiRenderTarget2D* S = Scene->GetSurface();
+				Rest::Pool<Component*>* Array = (Options & RenderOpt_Limpid ? Limpid : Opaque);
+				CullResult Cull = (Options & RenderOpt_Inner ? CullResult_Always : CullResult_Last);
+				bool Static = (Options & RenderOpt_Static);
+				bool Inner = (Options & RenderOpt_Inner);
+
+				if (!Array || Array->Empty())
+					return;
+
+				Scene->SwapSurface(Inner ? Surface2 : Surface1);
+				Scene->SetSurfaceCleared();
+
+				Device->SetDepthStencilState(DepthStencil);
+				Device->SetSamplerState(Sampler);
+				Device->SetBlendState(Blend);
+				Device->SetRasterizerState(Rasterizer);
+				Device->SetTexture2D(S->GetTarget(0), 1);
+				Device->SetTexture2D(S->GetTarget(1), 2);
+				Device->SetTexture2D(S->GetTarget(2), 3);
+				Device->SetTexture2D(S->GetTarget(3), 4);
+				Device->SetShader(Shader, Graphics::ShaderType_Vertex | Graphics::ShaderType_Pixel);
+				Device->SetBuffer(Shader, 3, Graphics::ShaderType_Vertex | Graphics::ShaderType_Pixel);
+				Device->SetIndexBuffer(System->GetSphereIBuffer(), Graphics::Format_R32_Uint, 0);
+				Device->SetVertexBuffer(System->GetSphereVBuffer(), 0, sizeof(Compute::ShapeVertex), 0);
+				
+				/* TODO: Decal rendering, geometry dispatch, gbuffer merge */
+
+				for (auto It = Array->Begin(); It != Array->End(); ++It)
+				{
+					Engine::Components::Decal* Base = (Engine::Components::Decal*)*It;
+					if (Static && !Base->Static || !System->Renderable(Base, Cull, nullptr))
+						continue;
+
+					if (!Appearance::UploadPhase(Device, Base->GetSurface()))
+						continue;
+
+					RenderPass.OwnViewProjection = Base->View * System->GetScene()->View.ViewProjection;
+					Device->Render.World = Compute::Matrix4x4::CreateScale(Base->Range * 1.25f) * Compute::Matrix4x4::CreateTranslation(Base->GetEntity()->Transform->Position);
+					Device->Render.WorldViewProjection = Device->Render.World * System->GetScene()->View.ViewProjection;
+					Device->UpdateBuffer(Graphics::RenderBufferType_Render);
+					Device->UpdateBuffer(Shader, &RenderPass);
+					Device->DrawIndexed((unsigned int)System->GetSphereIBuffer()->GetElements(), 0, 0);
+				}
+
+				Device->FlushTexture2D(1, 7);
+				Scene->SwapSurface(S);
+			}
+			void DecalRenderer::ResizeBuffers()
+			{
+				Graphics::MultiRenderTarget2D::Desc F1;
+				System->GetScene()->GetTargetDesc(&F1);
+
+				delete Surface1;
+				Surface1 = System->GetDevice()->CreateMultiRenderTarget2D(F1);
+
+				auto* Renderer = System->GetRenderer<Renderers::ProbeRenderer>();
+				if (Renderer != nullptr)
+				{
+					F1.Width = (unsigned int)Renderer->Size;
+					F1.Height = (unsigned int)Renderer->Size;
+					F1.MipLevels = (unsigned int)Renderer->MipLevels;
+				}
+
+				delete Surface2;
+				Surface2 = System->GetDevice()->CreateMultiRenderTarget2D(F1);
+			}
+			Rest::Pool<Component*>* DecalRenderer::GetGeometry(uint64_t Index)
+			{
+				if (Index == 0)
+					return Opaque;
+
+				if (Index == 1)
+					return Limpid;
+
+				return nullptr;
+			}
+			uint64_t DecalRenderer::GetGeometryCount()
+			{
+				return 2;
 			}
 
 			LimpidRenderer::LimpidRenderer(RenderSystem* Lab) : Renderer(Lab)
@@ -979,15 +1120,7 @@ namespace Tomahawk
 				delete Input2;
 				Input2 = System->GetDevice()->CreateRenderTarget2D(F2);
 			}
-			Rest::Pool<Component*>* LimpidRenderer::GetGeometry(uint64_t Index)
-			{
-				return nullptr;
-			}
-			uint64_t LimpidRenderer::GetGeometryCount()
-			{
-				return 0;
-			}
-			
+		
 			DepthRenderer::DepthRenderer(RenderSystem* Lab) : TickRenderer(Lab), ShadowDistance(0.5f)
 			{
 				Geometric = false;
@@ -1359,19 +1492,16 @@ namespace Tomahawk
 				SpotLights = System->AddCull<Engine::Components::SpotLight>();
 				LineLights = System->GetScene()->GetComponents<Engine::Components::LineLight>();
 
-				auto* RenderStages = System->GetRenderers();
-				for (auto It = RenderStages->begin(); It != RenderStages->end(); It++)
+				DepthRenderer* Depth = System->GetRenderer<DepthRenderer>();
+				if (Depth != nullptr)
 				{
-					if ((*It)->Id() == THAWK_COMPONENT_ID(DepthRenderer))
-					{
-						Engine::Renderers::DepthRenderer* DepthRenderer = (*It)->As<Engine::Renderers::DepthRenderer>();
-						Quality.SpotLight = (float)DepthRenderer->Renderers.SpotLightResolution;
-						Quality.LineLight = (float)DepthRenderer->Renderers.LineLightResolution;
-					}
-
-					if ((*It)->Id() == THAWK_COMPONENT_ID(ProbeRenderer))
-						ProbeLight.MipLevels = (float)(*It)->As<Engine::Renderers::ProbeRenderer>()->MipLevels;
+					Quality.SpotLight = (float)Depth->Renderers.SpotLightResolution;
+					Quality.LineLight = (float)Depth->Renderers.LineLightResolution;
 				}
+
+				ProbeRenderer* Probe = System->GetRenderer<ProbeRenderer>();
+				if (Probe != nullptr)
+					ProbeLight.MipLevels = (float)Probe->MipLevels;
 
 				ResizeBuffers();
 			}

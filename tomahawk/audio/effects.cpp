@@ -93,21 +93,14 @@ namespace Tomahawk
 				if (!Filter)
 					return nullptr;
 
-				uint64_t FilterId;
-				if (!Engine::NMake::Unpack(Filter->Find("id"), &FilterId))
+				uint64_t Id;
+				if (!Engine::NMake::Unpack(Filter->Find("id"), &Id))
 					return nullptr;
 
-				AudioFilter* Target = nullptr;
-				if (FilterId == THAWK_COMPONENT_ID(LowpassFilter))
-					Target = new Audio::Filters::LowpassFilter();
-				else if (FilterId == THAWK_COMPONENT_ID(BandpassFilter))
-					Target = new Audio::Filters::BandpassFilter();
-				else if (FilterId == THAWK_COMPONENT_ID(HighpassFilter))
-					Target = new Audio::Filters::HighpassFilter();
-
+				AudioFilter* Target = Rest::Composer::Create<AudioFilter>(Id);
 				if (!Target)
 				{
-					THAWK_WARN("audio filter with id %llu cannot be created", FilterId);
+					THAWK_WARN("audio filter with id %llu cannot be created", Id);
 					return nullptr;
 				}
 

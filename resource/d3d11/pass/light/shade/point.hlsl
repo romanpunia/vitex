@@ -2,7 +2,7 @@
 #include "workflow/pass"
 #include "standard/cook-torrance"
 
-cbuffer PointLight : register(b3)
+cbuffer RenderConstant : register(b3)
 {
 	matrix OwnWorldViewProjection;
 	float3 Position;

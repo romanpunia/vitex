@@ -2,7 +2,7 @@
 #include "workflow/pass"
 #include "standard/cook-torrance"
 
-cbuffer SpotLight : register(b3)
+cbuffer RenderConstant : register(b3)
 {
 	matrix OwnWorldViewProjection;
 	matrix OwnViewProjection;

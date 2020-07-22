@@ -53,8 +53,6 @@ namespace Tomahawk
 
 			SceneGraphProcessor::SceneGraphProcessor(ContentManager* Manager) : FileProcessor(Manager)
 			{
-				OnComponentCreation = nullptr;
-				OnRendererCreation = nullptr;
 			}
 			void* SceneGraphProcessor::Deserialize(Rest::FileStream* Stream, uint64_t Length, uint64_t Offset, ContentArgs* Args)
 			{
@@ -155,68 +153,18 @@ namespace Tomahawk
 							std::vector<Rest::Document*> Elements = It->FindCollection("component");
 							for (auto& Element : Elements)
 							{
-								uint64_t ComponentId;
-								if (!NMake::Unpack(Element->Find("id"), &ComponentId))
+								uint64_t Id;
+								if (!NMake::Unpack(Element->Find("id"), &Id))
 									continue;
 
-								Component* Target = nullptr;
-								if (ComponentId == THAWK_COMPONENT_ID(FreeLook))
-									Target = Entity->AddComponent<Components::FreeLook>();
-								else if (ComponentId == THAWK_COMPONENT_ID(AudioListener))
-									Target = Entity->AddComponent<Components::AudioListener>();
-								else if (ComponentId == THAWK_COMPONENT_ID(AudioSource))
-									Target = Entity->AddComponent<Components::AudioSource>();
-								else if (ComponentId == THAWK_COMPONENT_ID(Acceleration))
-									Target = Entity->AddComponent<Components::Acceleration>();
-								else if (ComponentId == THAWK_COMPONENT_ID(KeyAnimator))
-									Target = Entity->AddComponent<Components::KeyAnimator>();
-								else if (ComponentId == THAWK_COMPONENT_ID(RigidBody))
-									Target = Entity->AddComponent<Components::RigidBody>();
-								else if (ComponentId == THAWK_COMPONENT_ID(SoftBody))
-									Target = Entity->AddComponent<Components::SoftBody>();
-								else if (ComponentId == THAWK_COMPONENT_ID(LimpidSoftBody))
-									Target = Entity->AddComponent<Components::LimpidSoftBody>();
-								else if (ComponentId == THAWK_COMPONENT_ID(SkinAnimator))
-									Target = Entity->AddComponent<Components::SkinAnimator>();
-								else if (ComponentId == THAWK_COMPONENT_ID(SliderConstraint))
-									Target = Entity->AddComponent<Components::SliderConstraint>();
-								else if (ComponentId == THAWK_COMPONENT_ID(EmitterAnimator))
-									Target = Entity->AddComponent<Components::EmitterAnimator>();
-								else if (ComponentId == THAWK_COMPONENT_ID(Model))
-									Target = Entity->AddComponent<Components::Model>();
-								else if (ComponentId == THAWK_COMPONENT_ID(LimpidModel))
-									Target = Entity->AddComponent<Components::LimpidModel>();
-								else if (ComponentId == THAWK_COMPONENT_ID(Skin))
-									Target = Entity->AddComponent<Components::Skin>();
-								else if (ComponentId == THAWK_COMPONENT_ID(LimpidSkin))
-									Target = Entity->AddComponent<Components::LimpidSkin>();
-								else if (ComponentId == THAWK_COMPONENT_ID(PointLight))
-									Target = Entity->AddComponent<Components::PointLight>();
-								else if (ComponentId == THAWK_COMPONENT_ID(SpotLight))
-									Target = Entity->AddComponent<Components::SpotLight>();
-								else if (ComponentId == THAWK_COMPONENT_ID(LineLight))
-									Target = Entity->AddComponent<Components::LineLight>();
-								else if (ComponentId == THAWK_COMPONENT_ID(ProbeLight))
-									Target = Entity->AddComponent<Components::ProbeLight>();
-								else if (ComponentId == THAWK_COMPONENT_ID(Emitter))
-									Target = Entity->AddComponent<Components::Emitter>();
-								else if (ComponentId == THAWK_COMPONENT_ID(LimpidEmitter))
-									Target = Entity->AddComponent<Components::LimpidEmitter>();
-								else if (ComponentId == THAWK_COMPONENT_ID(Camera))
-									Target = Entity->AddComponent<Components::Camera>();
-								else if (ComponentId == THAWK_COMPONENT_ID(Fly))
-									Target = Entity->AddComponent<Components::Fly>();
-
-								if (!Target && OnComponentCreation)
-									OnComponentCreation(Entity, &Target, ComponentId);
-
-								if (!Target)
+								Component* Target = Rest::Composer::Create<Component>(Id, Entity);
+								if (!Entity->AddComponent(Target))
 								{
-									THAWK_WARN("component with id %llu cannot be created", ComponentId);
+									THAWK_WARN("component with id %llu cannot be created", Id);
 									continue;
 								}
 
-								bool Active;
+								bool Active = true;
 								if (NMake::Unpack(Element->Find("active"), &Active))
 									Target->SetActive(Active);
 

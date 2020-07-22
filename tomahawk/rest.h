@@ -102,6 +102,7 @@ typedef socklen_t socket_size_t;
 #endif
 #define THAWK_LOG(Format, ...) Tomahawk::Rest::LT::Inform(0, THAWK_FUNCTION, Format THAWK_VA_ARGS(__VA_ARGS__))
 #define THAWK_COMPONENT_ID(ClassName) (uint64_t)std::hash<std::string>()(#ClassName)
+#define THAWK_COMPONENT_HASH(ClassName) (uint64_t)std::hash<std::string>()(ClassName)
 #define THAWK_COMPONENT(ClassName) \
 virtual const char* Name() override { static const char* V = #ClassName; return V; } \
 virtual uint64_t Id() override { static uint64_t V = THAWK_COMPONENT_ID(ClassName); return V; } \
@@ -807,6 +808,58 @@ namespace Tomahawk
 			static uint64_t GetMemory();
 			static void Free(void* Ptr);
 			static void* Alloc(uint64_t Size);
+		};
+
+		class THAWK_OUT Composer
+		{
+		private:
+			static std::unordered_map<uint64_t, void*>* Factory;
+
+		public:
+			static bool Clear();
+			static bool Pop(const std::string& Hash);
+
+		public:
+			template <typename T, typename... Args>
+			static T* Create(const std::string& Hash, Args... Data)
+			{
+				return Create<T, Args...>(THAWK_COMPONENT_HASH(Hash), Data...);
+			}
+			template <typename T, typename... Args>
+			static T* Create(uint64_t Id, Args... Data)
+			{
+				if (!Factory)
+					return nullptr;
+
+				auto It = Factory->find(Id);
+				if (It == Factory->end() || !It->second)
+					return nullptr;
+
+				void*(*Callable)(Args...) = nullptr;
+				reinterpret_cast<void*&>(Callable) = It->second;
+
+				if (!Callable)
+					return nullptr;
+
+				return (T*)Callable(Data...);
+			}
+			template <typename T, typename... Args>
+			static void Push(const std::string& Hash)
+			{
+				if (!Factory)
+					Factory = new std::unordered_map<uint64_t, void*>();
+
+				auto Callable = &Composer::Callee<T, Args...>;
+				void* Result = reinterpret_cast<void*&>(Callable);
+				(*Factory)[THAWK_COMPONENT_HASH(Hash)] = Result;
+			}
+
+		private:
+			template <typename T, typename... Args>
+			static void* Callee(Args... Data)
+			{
+				return (void*)new T(Data...);
+			}
 		};
 
 		class THAWK_OUT Factory

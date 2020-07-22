@@ -4,6 +4,13 @@
 
 namespace resource_batch
 {
+	namespace d3d11_geometry_decal_main_hlsl
+	{
+#define HAS_D3D11_GEOMETRY_DECAL_MAIN_HLSL
+		extern const unsigned char data[];
+		const unsigned size = 1131;
+	}
+
 	namespace d3d11_geometry_emitter_depth_linear_hlsl
 	{
 #define HAS_D3D11_GEOMETRY_EMITTER_DEPTH_LINEAR_HLSL
@@ -141,49 +148,49 @@ namespace resource_batch
 	{
 #define HAS_D3D11_PASS_LIGHT_BASE_LINE_HLSL
 		extern const unsigned char data[];
-		const unsigned size = 1367;
+		const unsigned size = 1372;
 	}
 
 	namespace d3d11_pass_light_base_point_hlsl
 	{
 #define HAS_D3D11_PASS_LIGHT_BASE_POINT_HLSL
 		extern const unsigned char data[];
-		const unsigned size = 1031;
+		const unsigned size = 1035;
 	}
 
 	namespace d3d11_pass_light_base_probe_hlsl
 	{
 #define HAS_D3D11_PASS_LIGHT_BASE_PROBE_HLSL
 		extern const unsigned char data[];
-		const unsigned size = 1655;
+		const unsigned size = 1659;
 	}
 
 	namespace d3d11_pass_light_base_spot_hlsl
 	{
 #define HAS_D3D11_PASS_LIGHT_BASE_SPOT_HLSL
 		extern const unsigned char data[];
-		const unsigned size = 1415;
+		const unsigned size = 1420;
 	}
 
 	namespace d3d11_pass_light_shade_line_hlsl
 	{
 #define HAS_D3D11_PASS_LIGHT_SHADE_LINE_HLSL
 		extern const unsigned char data[];
-		const unsigned size = 2439;
+		const unsigned size = 2444;
 	}
 
 	namespace d3d11_pass_light_shade_point_hlsl
 	{
 #define HAS_D3D11_PASS_LIGHT_SHADE_POINT_HLSL
 		extern const unsigned char data[];
-		const unsigned size = 1814;
+		const unsigned size = 1818;
 	}
 
 	namespace d3d11_pass_light_shade_spot_hlsl
 	{
 #define HAS_D3D11_PASS_LIGHT_SHADE_SPOT_HLSL
 		extern const unsigned char data[];
-		const unsigned size = 2091;
+		const unsigned size = 2096;
 	}
 
 	namespace d3d11_pass_limpid_hlsl
@@ -260,7 +267,7 @@ namespace resource_batch
 	{
 #define HAS_D3D11_RENDERER_GBUFFER_HLSL
 		extern const unsigned char data[];
-		const unsigned size = 160;
+		const unsigned size = 293;
 	}
 
 	namespace d3d11_renderer_input_base_hlsl
@@ -393,7 +400,7 @@ namespace resource_batch
 	{
 #define HAS_D3D11_WORKFLOW_GEOMETRY_HLSL
 		extern const unsigned char data[];
-		const unsigned size = 546;
+		const unsigned size = 1000;
 	}
 
 	namespace d3d11_workflow_pass_hlsl

@@ -3,7 +3,7 @@
 #include "standard/atmosphere"
 #pragma warning(disable: 3595)
 
-cbuffer LineLight : register(b3)
+cbuffer RenderConstant : register(b3)
 {
 	matrix OwnViewProjection;
 	float3 Position;

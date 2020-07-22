@@ -825,6 +825,79 @@ namespace Tomahawk
 			LimpidSoftBody::LimpidSoftBody(Entity* Ref) : SoftBody(Ref)
 			{
 			}
+			Component* LimpidSoftBody::Copy(Entity* New)
+			{
+				LimpidSoftBody* Target = new LimpidSoftBody(New);
+				Target->Kinematic = Kinematic;
+
+				if (Instance != nullptr)
+				{
+					Target->Instance = Instance->Copy();
+					Target->Instance->UserPointer = Target;
+				}
+
+				return Target;
+			}
+
+			Decal::Decal(Entity* Ref) : Drawable(Ref, false)
+			{
+				FieldOfView = 90.0f;
+				Range = 10.0f;
+				Distance = 15.0f;
+			}
+			void Decal::Deserialize(ContentManager* Content, Rest::Document* Node)
+			{
+				NMake::Unpack(Node->Find("projection"), &Projection);
+				NMake::Unpack(Node->Find("view"), &View);
+				NMake::Unpack(Node->Find("field-of-view"), &FieldOfView);
+				NMake::Unpack(Node->Find("distance"), &Distance);
+				NMake::Unpack(Node->Find("range"), &Range);
+				NMake::Unpack(Node->Find("static"), &Static);
+				NMake::Unpack(Node->Find("surface"), &Surfaces.begin()->second, Content);
+			}
+			void Decal::Serialize(ContentManager* Content, Rest::Document* Node)
+			{
+				NMake::Pack(Node->SetDocument("projection"), Projection);
+				NMake::Pack(Node->SetDocument("view"), View);
+				NMake::Pack(Node->SetDocument("field-of-view"), FieldOfView);
+				NMake::Pack(Node->SetDocument("distance"), Distance);
+				NMake::Pack(Node->SetDocument("range"), Range);
+				NMake::Pack(Node->SetDocument("static"), Static);
+				NMake::Pack(Node->SetDocument("surface"), Surfaces.begin()->second, Content);
+			}
+			void Decal::Synchronize(Rest::Timer* Time)
+			{
+				Projection = Compute::Matrix4x4::CreatePerspective(FieldOfView, 1, 0.1f, Distance);
+				View = Compute::Matrix4x4::CreateTranslation(-Parent->Transform->Position) * Compute::Matrix4x4::CreateCameraRotation(-Parent->Transform->Rotation);
+			}
+			float Decal::Cull(const Viewer& View)
+			{
+				float Result = 1.0f - Parent->Transform->Position.Distance(View.WorldPosition) / View.ViewDistance;
+				if (Result > 0.0f)
+					Result = Compute::MathCommon::IsClipping(View.ViewProjection, Parent->Transform->GetWorld(), Range) == -1 ? Result : 0.0f;
+
+				return Result;
+			}
+			Component* Decal::Copy(Entity* New)
+			{
+				Decal* Target = new Decal(New);
+				Target->Visibility = Visibility;
+				Target->Surfaces = Surfaces;
+
+				return Target;
+			}
+
+			LimpidDecal::LimpidDecal(Entity* Ref) : Decal(Ref)
+			{
+			}
+			Component* LimpidDecal::Copy(Entity* New)
+			{
+				LimpidDecal* Target = new LimpidDecal(New);
+				Target->Visibility = Visibility;
+				Target->Surfaces = Surfaces;
+
+				return Target;
+			}
 
 			SkinAnimator::SkinAnimator(Entity* Ref) : Component(Ref)
 			{
@@ -2268,39 +2341,14 @@ namespace Tomahawk
 				std::vector<Rest::Document*> Effects = Node->FindCollectionPath("effects.effect");
 				for (auto& Effect : Effects)
 				{
-					uint64_t EffectId;
-					if (!NMake::Unpack(Effect->Find("id"), &EffectId))
+					uint64_t Id;
+					if (!NMake::Unpack(Effect->Find("id"), &Id))
 						continue;
 
-					Audio::AudioEffect* Target = nullptr;
-					if (EffectId == THAWK_COMPONENT_ID(ReverbEffect))
-						Target = new Audio::Effects::ReverbEffect();
-					else if (EffectId == THAWK_COMPONENT_ID(ChorusEffect))
-						Target = new Audio::Effects::ChorusEffect();
-					else if (EffectId == THAWK_COMPONENT_ID(DistortionEffect))
-						Target = new Audio::Effects::DistortionEffect();
-					else if (EffectId == THAWK_COMPONENT_ID(EchoEffect))
-						Target = new Audio::Effects::EchoEffect();
-					else if (EffectId == THAWK_COMPONENT_ID(FlangerEffect))
-						Target = new Audio::Effects::FlangerEffect();
-					else if (EffectId == THAWK_COMPONENT_ID(FrequencyShifterEffect))
-						Target = new Audio::Effects::FrequencyShifterEffect();
-					else if (EffectId == THAWK_COMPONENT_ID(VocalMorpherEffect))
-						Target = new Audio::Effects::VocalMorpherEffect();
-					else if (EffectId == THAWK_COMPONENT_ID(PitchShifterEffect))
-						Target = new Audio::Effects::PitchShifterEffect();
-					else if (EffectId == THAWK_COMPONENT_ID(RingModulatorEffect))
-						Target = new Audio::Effects::RingModulatorEffect();
-					else if (EffectId == THAWK_COMPONENT_ID(AutowahEffect))
-						Target = new Audio::Effects::AutowahEffect();
-					else if (EffectId == THAWK_COMPONENT_ID(CompressorEffect))
-						Target = new Audio::Effects::CompressorEffect();
-					else if (EffectId == THAWK_COMPONENT_ID(EqualizerEffect))
-						Target = new Audio::Effects::EqualizerEffect();
-
+					Audio::AudioEffect* Target = Rest::Composer::Create<Audio::AudioEffect>(Id);
 					if (!Target)
 					{
-						THAWK_WARN("audio effect with id %llu cannot be created", EffectId);
+						THAWK_WARN("audio effect with id %llu cannot be created", Id);
 						continue;
 					}
 
@@ -3010,46 +3058,14 @@ namespace Tomahawk
 
 				for (auto& Render : Renderers)
 				{
-					uint64_t RendererId;
-					NMake::Unpack(Render->Find("id"), &RendererId);
-					Engine::Renderer* Target = nullptr;
+					uint64_t Id;
+					if (!NMake::Unpack(Render->Find("id"), &Id))
+						continue;
 
-					if (RendererId == THAWK_COMPONENT_ID(ModelRenderer))
-						Target = new Engine::Renderers::ModelRenderer(Renderer);
-					else if (RendererId == THAWK_COMPONENT_ID(SkinRenderer))
-						Target = new Engine::Renderers::SkinRenderer(Renderer);
-					else if (RendererId == THAWK_COMPONENT_ID(SoftBodyRenderer))
-						Target = new Engine::Renderers::SoftBodyRenderer(Renderer);
-					else if (RendererId == THAWK_COMPONENT_ID(DepthRenderer))
-						Target = new Engine::Renderers::DepthRenderer(Renderer);
-					else if (RendererId == THAWK_COMPONENT_ID(LightRenderer))
-						Target = new Engine::Renderers::LightRenderer(Renderer);
-					else if (RendererId == THAWK_COMPONENT_ID(ProbeRenderer))
-						Target = new Engine::Renderers::ProbeRenderer(Renderer);
-					else if (RendererId == THAWK_COMPONENT_ID(LimpidRenderer))
-						Target = new Engine::Renderers::LimpidRenderer(Renderer);
-					else if (RendererId == THAWK_COMPONENT_ID(EmitterRenderer))
-						Target = new Engine::Renderers::EmitterRenderer(Renderer);
-					else if (RendererId == THAWK_COMPONENT_ID(ReflectionsRenderer))
-						Target = new Engine::Renderers::ReflectionsRenderer(Renderer);
-					else if (RendererId == THAWK_COMPONENT_ID(DepthOfFieldRenderer))
-						Target = new Engine::Renderers::DepthOfFieldRenderer(Renderer);
-					else if (RendererId == THAWK_COMPONENT_ID(EmissionRenderer))
-						Target = new Engine::Renderers::EmissionRenderer(Renderer);
-					else if (RendererId == THAWK_COMPONENT_ID(GlitchRenderer))
-						Target = new Engine::Renderers::GlitchRenderer(Renderer);
-					else if (RendererId == THAWK_COMPONENT_ID(AmbientOcclusionRenderer))
-						Target = new Engine::Renderers::AmbientOcclusionRenderer(Renderer);
-					else if (RendererId == THAWK_COMPONENT_ID(DirectOcclusionRenderer))
-						Target = new Engine::Renderers::DirectOcclusionRenderer(Renderer);
-					else if (RendererId == THAWK_COMPONENT_ID(ToneRenderer))
-						Target = new Engine::Renderers::ToneRenderer(Renderer);
-					else if (RendererId == THAWK_COMPONENT_ID(GUIRenderer))
-						Target = new Engine::Renderers::GUIRenderer(Renderer);
-
-					if (!Renderer || !Target)
+					Engine::Renderer* Target = Rest::Composer::Create<Engine::Renderer>(Id, Renderer);
+					if (!Renderer || !Renderer->AddRenderer(Target))
 					{
-						THAWK_WARN("cannot create renderer with id %llu", RendererId);
+						THAWK_WARN("cannot create renderer with id %llu", Id);
 						continue;
 					}
 
@@ -3061,7 +3077,6 @@ namespace Tomahawk
 					Target->Deserialize(Content, Meta);
 					Target->Activate();
 
-					Renderer->AddRenderer(Target);
 					NMake::Unpack(Render->Find("active"), &Target->Active);
 				}
 			}

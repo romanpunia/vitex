@@ -1081,6 +1081,7 @@ namespace Tomahawk
 
 		private:
 			static void Callee(Rest::EventQueue* Queue, Rest::EventArgs* Args);
+			static void Compose();
 
 		public:
 			static Application* Get();

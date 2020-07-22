@@ -429,6 +429,7 @@ namespace Tomahawk
 		}
 
 		Script::VMManager::FreeProxy();
+		Rest::Composer::Clear();
 		return true;
 	}
 }

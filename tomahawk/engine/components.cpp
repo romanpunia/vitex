@@ -3106,6 +3106,7 @@ namespace Tomahawk
 				Compute::Vector3 Position = Parent->Transform->Position.InvertX().InvertY();
 				Compute::Matrix4x4 World = Compute::Matrix4x4::CreateCamera(Position, -Parent->Transform->Rotation);
 				View->Set(World, Projection, Parent->Transform->Position, FarPlane);
+				View->WorldRotation = Parent->Transform->Rotation;
 				View->Renderer = Renderer;
 				FieldView = *View;
 			}

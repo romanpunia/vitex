@@ -1804,7 +1804,7 @@ namespace Tomahawk
 			InvViewPosition = _Position.InvertZ();
 			ViewPosition = InvViewPosition.Invert();
 			WorldPosition = _Position;
-			WorldRotation = _View.Rotation();
+			WorldRotation = -_View.Rotation();
 			ViewDistance = (_Distance < 0 ? 999999999 : _Distance);
 			CubicViewProjection[0] = Compute::Matrix4x4::CreateCubeMapLookAt(0, InvViewPosition) * Projection;
 			CubicViewProjection[1] = Compute::Matrix4x4::CreateCubeMapLookAt(1, InvViewPosition) * Projection;
@@ -2448,6 +2448,14 @@ namespace Tomahawk
 		{
 			Scene = NewScene;
 		}
+		void RenderSystem::Remount()
+		{
+			for (auto& Renderer : Renderers)
+			{
+				Renderer->Deactivate();
+				Renderer->Activate();
+			}
+		}
 		void RenderSystem::Synchronize(const Viewer& View)
 		{
 			if (!EnableCull)
@@ -2893,6 +2901,16 @@ namespace Tomahawk
 			ResizeBuffers();
 			if (Camera != nullptr)
 				Camera->Awake(Camera);
+
+			Rest::Pool<Component*>* Cameras = GetComponents<Components::Camera>();
+			if (Cameras != nullptr)
+			{
+				for (auto It = Cameras->Begin(); It != Cameras->End(); It++)
+				{
+					Components::Camera* Base = (*It)->As<Components::Camera>();
+					Base->GetRenderer()->Remount();
+				}
+			}
 
 			Conf.Queue->Subscribe<Event>([this](Rest::EventQueue*, Rest::EventArgs* Args)
 			{

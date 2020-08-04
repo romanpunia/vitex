@@ -630,6 +630,7 @@ namespace Tomahawk
 			RenderSystem(Graphics::GraphicsDevice* Device);
 			virtual ~RenderSystem() override;
 			void SetScene(SceneGraph* NewScene);
+			void Remount();
 			void Synchronize(const Viewer& View);
 			void MoveRenderer(uint64_t Id, int64_t Offset);
 			void RemoveRenderer(uint64_t Id);

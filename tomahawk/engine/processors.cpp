@@ -89,6 +89,7 @@ namespace Tomahawk
 					NMake::Unpack(Metadata->Find("components"), &I.ComponentCount);
 					NMake::Unpack(Metadata->Find("entities"), &I.EntityCount);
 					NMake::Unpack(Metadata->Find("render-quality"), &I.RenderQuality);
+					NMake::Unpack(Metadata->Find("enable-hdr"), &I.EnableHDR);
 				}
 
 				SceneGraph* Object = new SceneGraph(I);
@@ -208,6 +209,7 @@ namespace Tomahawk
 				NMake::Pack(Metadata->SetDocument("components"), Object->GetConf().ComponentCount);
 				NMake::Pack(Metadata->SetDocument("entities"), Object->GetConf().EntityCount);
 				NMake::Pack(Metadata->SetDocument("render-quality"), Object->GetConf().RenderQuality);
+				NMake::Pack(Metadata->SetDocument("enable-hdr"), Object->GetConf().EnableHDR);
 
 				Rest::Document* Simulator = Metadata->SetDocument("simulator");
 				NMake::Pack(Simulator->SetDocument("enable-soft-body"), Object->GetSimulator()->HasSoftBodySupport());

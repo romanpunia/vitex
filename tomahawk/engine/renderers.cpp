@@ -1118,9 +1118,6 @@ namespace Tomahawk
 			}
 			void ProbeRenderer::CreateRenderTarget()
 			{
-				if (Map == Size)
-					return;
-
 				Map = Size;
 
 				Graphics::MultiRenderTarget2D::Desc F;

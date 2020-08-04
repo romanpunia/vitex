@@ -344,7 +344,7 @@ namespace resource_batch
 	{
 #define HAS_D3D11_STANDARD_BASIC_HLSL
 		extern const unsigned char data[];
-		const unsigned size = 436;
+		const unsigned size = 444;
 	}
 
 	namespace d3d11_standard_compress_hlsl
@@ -414,7 +414,7 @@ namespace resource_batch
 	{
 #define HAS_D3D11_WORKFLOW_PRIMITIVE_HLSL
 		extern const unsigned char data[];
-		const unsigned size = 171;
+		const unsigned size = 299;
 	}
 
 	namespace d3d11_workflow_rasterizer_hlsl

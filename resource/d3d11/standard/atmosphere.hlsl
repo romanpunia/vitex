@@ -26,7 +26,6 @@ float2 GetRSI(in float3 O, in float3 D, in float L)
 }
 float3 GetAtmosphere(in float3 V, in float3 O, in float3 P, in Scatter A)
 {
-    P = normalize(P);
     V = normalize(V);
 
     float2 Offset = GetRSI(O, V, A.Atmos);

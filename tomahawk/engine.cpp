@@ -1794,6 +1794,25 @@ namespace Tomahawk
 		{
 			return Content;
 		}
+		
+		void Viewer::Set(const Compute::Matrix4x4& _View, const Compute::Matrix4x4& _Projection, const Compute::Vector3& _Position, float _Distance)
+		{
+			View = _View;
+			Projection = _Projection;
+			ViewProjection = _View * _Projection;
+			InvViewProjection = ViewProjection.Invert();
+			InvViewPosition = _Position.InvertZ();
+			ViewPosition = InvViewPosition.Invert();
+			WorldPosition = _Position;
+			WorldRotation = _View.Rotation();
+			ViewDistance = (_Distance < 0 ? 999999999 : _Distance);
+			CubicViewProjection[0] = Compute::Matrix4x4::CreateCubeMapLookAt(0, InvViewPosition) * Projection;
+			CubicViewProjection[1] = Compute::Matrix4x4::CreateCubeMapLookAt(1, InvViewPosition) * Projection;
+			CubicViewProjection[2] = Compute::Matrix4x4::CreateCubeMapLookAt(2, InvViewPosition) * Projection;
+			CubicViewProjection[3] = Compute::Matrix4x4::CreateCubeMapLookAt(3, InvViewPosition) * Projection;
+			CubicViewProjection[4] = Compute::Matrix4x4::CreateCubeMapLookAt(4, InvViewPosition) * Projection;
+			CubicViewProjection[5] = Compute::Matrix4x4::CreateCubeMapLookAt(5, InvViewPosition) * Projection;
+		}
 
 		Component::Component(Entity* Reference) : Parent(Reference), Active(true)
 		{
@@ -2070,7 +2089,7 @@ namespace Tomahawk
 			return Scene;
 		}
 
-		Renderer::Renderer(RenderSystem* Lab) : System(Lab), Active(true), Geometric(true)
+		Renderer::Renderer(RenderSystem* Lab) : System(Lab), Active(true)
 		{
 		}
 		Renderer::~Renderer()
@@ -2091,26 +2110,8 @@ namespace Tomahawk
 		void Renderer::Deactivate()
 		{
 		}
-		void Renderer::RenderMain(Rest::Timer* TimeStep, RenderOpt Options)
+		void Renderer::Render(Rest::Timer* TimeStep, RenderState State, RenderOpt Options)
 		{
-		}
-		void Renderer::RenderDepthLinear(Rest::Timer* TimeStep)
-		{
-		}
-		void Renderer::RenderDepthCubic(Rest::Timer* TimeStep, Compute::Matrix4x4* ViewProjection)
-		{
-		}
-		Rest::Pool<Engine::Component*>* Renderer::GetGeometry(uint64_t Index)
-		{
-			return nullptr;
-		}
-		uint64_t Renderer::GetGeometryCount()
-		{
-			return 0;
-		}
-		bool Renderer::IsGeometric()
-		{
-			return Geometric;
 		}
 		void Renderer::SetRenderer(RenderSystem* NewSystem)
 		{
@@ -2121,55 +2122,93 @@ namespace Tomahawk
 			return System;
 		}
 
+		GeoRenderer::GeoRenderer(RenderSystem* Lab) : Renderer(Lab)
+		{
+		}
+		GeoRenderer::~GeoRenderer()
+		{
+		}
+		void GeoRenderer::RenderGBuffer(Rest::Timer* TimeStep, Rest::Pool<Component*>* Geometry, RenderOpt Options)
+		{
+		}
+		void GeoRenderer::RenderDepthLinear(Rest::Timer* TimeStep, Rest::Pool<Component*>* Geometry)
+		{
+		}
+		void GeoRenderer::RenderDepthCubic(Rest::Timer* TimeStep, Rest::Pool<Component*>* Geometry, Compute::Matrix4x4* ViewProjection)
+		{
+		}
+		void GeoRenderer::Render(Rest::Timer* TimeStep, RenderState State, RenderOpt Options)
+		{
+			if (State == RenderState_GBuffer)
+			{
+				Rest::Pool<Component*>* Geometry;
+				if (Options & RenderOpt_Limpid)
+					Geometry = GetLimpid(0);
+				else
+					Geometry = GetOpaque();
+
+				if (Geometry != nullptr && Geometry->Size() > 0)
+					RenderGBuffer(TimeStep, Geometry, Options);
+			}
+			else if (State == RenderState_Depth_Linear)
+			{
+				if (!(Options & RenderOpt_Inner))
+					return;
+
+				Rest::Pool<Component*>* Opaque = GetOpaque();
+				if (Opaque != nullptr && Opaque->Size() > 0)
+					RenderDepthLinear(TimeStep, Opaque);
+
+				Rest::Pool<Component*>* Limpid = GetLimpid(0);
+				if (Limpid != nullptr && Limpid->Size() > 0)
+					RenderDepthLinear(TimeStep, Limpid);
+			}
+			else if (State == RenderState_Depth_Cubic)
+			{
+				Viewer& View = System->GetScene()->View;
+				if (!(Options & RenderOpt_Inner))
+					return;
+
+				Rest::Pool<Component*>* Opaque = GetOpaque();
+				if (Opaque != nullptr && Opaque->Size() > 0)
+					RenderDepthCubic(TimeStep, Opaque, View.CubicViewProjection);
+
+				Rest::Pool<Component*>* Limpid = GetLimpid(0);
+				if (Limpid != nullptr && Limpid->Size() > 0)
+					RenderDepthCubic(TimeStep, Limpid, View.CubicViewProjection);
+			}
+		}
+		Rest::Pool<Component*>* GeoRenderer::GetOpaque()
+		{
+			return nullptr;
+		}
+		Rest::Pool<Component*>* GeoRenderer::GetLimpid(uint64_t Layer)
+		{
+			return nullptr;
+		}
+
 		TickRenderer::TickRenderer(RenderSystem* Lab) : Renderer(Lab)
 		{
 		}
 		TickRenderer::~TickRenderer()
 		{
 		}
-		void TickRenderer::TickRenderMain(Rest::Timer* TimeStep, RenderOpt Options)
+		void TickRenderer::TickRender(Rest::Timer* TimeStep, RenderState State, RenderOpt Options)
 		{
 		}
-		void TickRenderer::FrameRenderMain(Rest::Timer* TimeStep, RenderOpt Options)
+		void TickRenderer::FrameRender(Rest::Timer* TimeStep, RenderState State, RenderOpt Options)
 		{
 		}
-		void TickRenderer::TickRenderDepthLinear(Rest::Timer* TimeStep)
+		void TickRenderer::Render(Rest::Timer* Time, RenderState State, RenderOpt Options)
 		{
-		}
-		void TickRenderer::FrameRenderDepthLinear(Rest::Timer* TimeStep)
-		{
-		}
-		void TickRenderer::TickRenderDepthCubic(Rest::Timer* TimeStep, Compute::Matrix4x4* ViewProjection)
-		{
-		}
-		void TickRenderer::FrameRenderDepthCubic(Rest::Timer* TimeStep, Compute::Matrix4x4* ViewProjection)
-		{
-		}
-		void TickRenderer::RenderMain(Rest::Timer* Time, RenderOpt Options)
-		{
-			if (Timer.TickEvent(Time->GetElapsedTime()))
-				TickRenderMain(Time, Options);
+			if (Tick.TickEvent(Time->GetElapsedTime()))
+				TickRender(Time, State, Options);
 
-			FrameRenderMain(Time, Options);
-		}
-		void TickRenderer::RenderDepthLinear(Rest::Timer* Time)
-		{
-			if (Timer.TickEvent(Time->GetElapsedTime()))
-				TickRenderDepthLinear(Time);
-
-			FrameRenderDepthLinear(Time);
-		}
-		void TickRenderer::RenderDepthCubic(Rest::Timer* Time, Compute::Matrix4x4* ViewProjection)
-		{
-			if (Timer.TickEvent(Time->GetElapsedTime()))
-				TickRenderDepthCubic(Time, ViewProjection);
-
-			FrameRenderDepthCubic(Time, ViewProjection);
+			FrameRender(Time, State, Options);
 		}
 		
 		EffectRenderer::EffectRenderer(RenderSystem* Lab) : Renderer(Lab), Output(nullptr), Pass(nullptr)
 		{
-			Geometric = false;
 			DepthStencil = Lab->GetDevice()->GetDepthStencilState("DEF_NONE");
 			Rasterizer = Lab->GetDevice()->GetRasterizerState("DEF_CULL_BACK");
 			Blend = Lab->GetDevice()->GetBlendState("DEF_OVERWRITE");
@@ -2226,8 +2265,11 @@ namespace Tomahawk
 		{
 			ResizeBuffers();
 		}
-		void EffectRenderer::RenderMain(Rest::Timer* Time, RenderOpt Options)
+		void EffectRenderer::Render(Rest::Timer* Time, RenderState State, RenderOpt Options)
 		{
+			if (State != RenderState_GBuffer || Options & RenderOpt_Inner)
+				return;
+
 			Graphics::MultiRenderTarget2D* Surface = System->GetScene()->GetSurface();
 			if (!Surface || Shaders.empty())
 				return;
@@ -2418,6 +2460,25 @@ namespace Tomahawk
 					Cullable* Data = (Cullable*)*It;
 					Data->Visibility = Data->Cull(View);
 				}
+			}
+		}
+		void RenderSystem::MoveRenderer(uint64_t Id, int64_t Offset)
+		{
+			if (Offset == 0)
+				return;
+
+			for (int64_t i = 0; i < Renderers.size(); i++)
+			{
+				if (Renderers[i]->Id() != Id)
+					continue;
+
+				if (i + Offset < 0 || i + Offset >= Renderers.size())
+					return;
+
+				Renderer* Swap = Renderers[i + Offset];
+				Renderers[i + Offset] = Renderers[i];
+				Renderers[i] = Swap;
+				return;
 			}
 		}
 		void RenderSystem::RemoveRenderer(uint64_t Id)
@@ -2864,18 +2925,16 @@ namespace Tomahawk
 			Conf.Device->Draw(6, 0);
 			Conf.Device->SetTexture2D(nullptr, 0);
 		}
-		void SceneGraph::RenderMain(Rest::Timer* Time, RenderOpt Options)
+		void SceneGraph::RenderGBuffer(Rest::Timer* Time, RenderOpt Options)
 		{
 			if (!View.Renderer)
 				return;
 
 			auto* States = View.Renderer->GetRenderers();
-			bool Inner = (Options & RenderOpt_Inner);
-
 			for (auto& Renderer : *States)
 			{
-				if (Renderer->Active && (!Inner || Renderer->Geometric))
-					Renderer->RenderMain(Time, Options);
+				if (Renderer->Active)
+					Renderer->Render(Time, RenderState_GBuffer, Options);
 			}
 		}
 		void SceneGraph::RenderDepthLinear(Rest::Timer* Time)
@@ -2886,8 +2945,8 @@ namespace Tomahawk
 			auto* States = View.Renderer->GetRenderers();
 			for (auto& Renderer : *States)
 			{
-				if (Renderer->Active && Renderer->Geometric)
-					Renderer->RenderDepthLinear(Time);
+				if (Renderer->Active)
+					Renderer->Render(Time, RenderState_Depth_Linear, RenderOpt_Inner);
 			}
 		}
 		void SceneGraph::RenderDepthCubic(Rest::Timer* Time)
@@ -2895,19 +2954,11 @@ namespace Tomahawk
 			if (!View.Renderer)
 				return;
 
-			Compute::Matrix4x4 ViewProjection[6];
-			ViewProjection[0] = Compute::Matrix4x4::CreateCubeMapLookAt(0, View.InvViewPosition) * View.Projection;
-			ViewProjection[1] = Compute::Matrix4x4::CreateCubeMapLookAt(1, View.InvViewPosition) * View.Projection;
-			ViewProjection[2] = Compute::Matrix4x4::CreateCubeMapLookAt(2, View.InvViewPosition) * View.Projection;
-			ViewProjection[3] = Compute::Matrix4x4::CreateCubeMapLookAt(3, View.InvViewPosition) * View.Projection;
-			ViewProjection[4] = Compute::Matrix4x4::CreateCubeMapLookAt(4, View.InvViewPosition) * View.Projection;
-			ViewProjection[5] = Compute::Matrix4x4::CreateCubeMapLookAt(5, View.InvViewPosition) * View.Projection;
-
 			auto* States = View.Renderer->GetRenderers();
 			for (auto& Renderer : *States)
 			{
-				if (Renderer->Active && Renderer->Geometric)
-					Renderer->RenderDepthCubic(Time, ViewProjection);
+				if (Renderer->Active)
+					Renderer->Render(Time, RenderState_Depth_Cubic, RenderOpt_Inner);
 			}
 		}
 		void SceneGraph::Render(Rest::Timer* Time)
@@ -2920,7 +2971,7 @@ namespace Tomahawk
 				
 				ClearSurface();
 				RestoreViewBuffer(nullptr);
-				RenderMain(Time, RenderOpt_None);
+				RenderGBuffer(Time, RenderOpt_None);
 			}
 			EndThread(ThreadId_Render);
 		}
@@ -3198,7 +3249,7 @@ namespace Tomahawk
 				if (iView == nullptr)
 				{
 					if (Camera != nullptr)
-						Camera->As<Components::Camera>()->FillViewer(&View);
+						Camera->As<Components::Camera>()->GetViewer(&View);
 				}
 				else
 					View = *iView;
@@ -3354,18 +3405,11 @@ namespace Tomahawk
 		{
 			Surface = NewSurface;
 		}
-		void SceneGraph::SetView(const Compute::Matrix4x4& _View, const Compute::Matrix4x4& _Projection, const Compute::Vector3& _Position, float _Distance)
+		void SceneGraph::SetView(const Compute::Matrix4x4& _View, const Compute::Matrix4x4& _Projection, const Compute::Vector3& _Position, float _Distance, bool Upload)
 		{
-			View.View = _View;
-			View.Projection = _Projection;
-			View.ViewProjection = _View * _Projection;
-			View.InvViewProjection = View.ViewProjection.Invert();
-			View.InvViewPosition = _Position.InvertZ();
-			View.ViewPosition = View.InvViewPosition.Invert();
-			View.WorldPosition = _Position;
-			View.WorldRotation = _View.Rotation();
-			View.ViewDistance = (_Distance < 0 ? 999999999 : _Distance);
-			RestoreViewBuffer(&View);
+			View.Set(_View, _Projection, _Position, _Distance);
+			if (Upload)
+				RestoreViewBuffer(&View);
 		}
 		void SceneGraph::SetSurface()
 		{

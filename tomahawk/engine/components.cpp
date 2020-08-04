@@ -3098,20 +3098,14 @@ namespace Tomahawk
 				else if (Mode == ProjectionMode_Orthographic)
 					Projection = Compute::Matrix4x4::CreateOrthographic(W, H, NearPlane, FarPlane);
 			}
-			void Camera::FillViewer(Viewer* View)
+			void Camera::GetViewer(Viewer* View)
 			{
 				if (!View)
 					return;
 
-				View->WorldPosition = Parent->Transform->Position;
-				View->WorldRotation = Parent->Transform->Rotation;
-				View->InvViewPosition = Parent->Transform->Position.InvertZ();
-				View->ViewPosition = View->InvViewPosition.Invert();
-				View->View = Compute::Matrix4x4::CreateCamera(View->ViewPosition, -Parent->Transform->Rotation);
-				View->Projection = Projection;
-				View->ViewProjection = View->View * Projection;
-				View->InvViewProjection = View->ViewProjection.Invert();
-				View->ViewDistance = FarPlane;
+				Compute::Vector3 Position = Parent->Transform->Position.InvertX().InvertY();
+				Compute::Matrix4x4 World = Compute::Matrix4x4::CreateCamera(Position, -Parent->Transform->Rotation);
+				View->Set(World, Projection, Parent->Transform->Position, FarPlane);
 				View->Renderer = Renderer;
 				FieldView = *View;
 			}

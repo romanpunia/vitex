@@ -81,6 +81,13 @@ namespace Tomahawk
 			RenderOpt_Inner = 4
 		};
 
+		enum RenderState
+		{
+			RenderState_GBuffer,
+			RenderState_Depth_Linear,
+			RenderState_Depth_Cubic
+		};
+
 		struct THAWK_OUT Material
 		{
 			Compute::Vector4 Emission;
@@ -188,6 +195,7 @@ namespace Tomahawk
 
 		struct THAWK_OUT Viewer
 		{
+			Compute::Matrix4x4 CubicViewProjection[6];
 			Compute::Matrix4x4 InvViewProjection;
 			Compute::Matrix4x4 ViewProjection;
 			Compute::Matrix4x4 Projection;
@@ -198,6 +206,8 @@ namespace Tomahawk
 			Compute::Vector3 WorldRotation;
 			float ViewDistance = 0.0f;
 			RenderSystem* Renderer = nullptr;
+
+			void Set(const Compute::Matrix4x4& View, const Compute::Matrix4x4& Projection, const Compute::Vector3& Position, float Distance);
 		};
 
 		class THAWK_OUT NMake
@@ -496,7 +506,6 @@ namespace Tomahawk
 
 		protected:
 			RenderSystem* System;
-			bool Geometric;
 
 		public:
 			bool Active;
@@ -509,12 +518,7 @@ namespace Tomahawk
 			virtual void ResizeBuffers();
 			virtual void Activate();
 			virtual void Deactivate();
-			virtual void RenderMain(Rest::Timer* TimeStep, RenderOpt Options);
-			virtual void RenderDepthLinear(Rest::Timer* TimeStep);
-			virtual void RenderDepthCubic(Rest::Timer* TimeStep, Compute::Matrix4x4* ViewProjection);
-			virtual Rest::Pool<Component*>* GetGeometry(uint64_t Index);
-			virtual uint64_t GetGeometryCount();
-			bool IsGeometric();
+			virtual void Render(Rest::Timer* TimeStep, RenderState State, RenderOpt Options);
 			void SetRenderer(RenderSystem* NewSystem);
 			RenderSystem* GetRenderer();
 			
@@ -522,23 +526,33 @@ namespace Tomahawk
 			THAWK_COMPONENT_BASIS(Renderer);
 		};
 
+		class THAWK_OUT GeoRenderer : public Renderer
+		{
+		public:
+			GeoRenderer(RenderSystem* Lab);
+			virtual ~GeoRenderer() override;
+			virtual void RenderGBuffer(Rest::Timer* TimeStep, Rest::Pool<Component*>* Geometry, RenderOpt Options) = 0;
+			virtual void RenderDepthLinear(Rest::Timer* TimeStep, Rest::Pool<Component*>* Geometry) = 0;
+			virtual void RenderDepthCubic(Rest::Timer* TimeStep, Rest::Pool<Component*>* Geometry, Compute::Matrix4x4* ViewProjection) = 0;
+			virtual Rest::Pool<Component*>* GetOpaque() = 0;
+			virtual Rest::Pool<Component*>* GetLimpid(uint64_t Layer) = 0;
+			void Render(Rest::Timer* TimeStep, RenderState State, RenderOpt Options) override;
+
+		public:
+			THAWK_COMPONENT(GeoRenderer);
+		};
+
 		class THAWK_OUT TickRenderer : public Renderer
 		{
 		protected:
-			Rest::TickTimer Timer;
+			Rest::TickTimer Tick;
 
 		public:
 			TickRenderer(RenderSystem* Lab);
 			virtual ~TickRenderer() override;
-			virtual void TickRenderMain(Rest::Timer* TimeStep, RenderOpt Options);
-			virtual void FrameRenderMain(Rest::Timer* TimeStep, RenderOpt Options);
-			virtual void TickRenderDepthLinear(Rest::Timer* TimeStep);
-			virtual void FrameRenderDepthLinear(Rest::Timer* TimeStep);
-			virtual void TickRenderDepthCubic(Rest::Timer* TimeStep, Compute::Matrix4x4* ViewProjection);
-			virtual void FrameRenderDepthCubic(Rest::Timer* TimeStep, Compute::Matrix4x4* ViewProjection);
-			void RenderMain(Rest::Timer* TimeStep, RenderOpt Options) override;
-			void RenderDepthLinear(Rest::Timer* TimeStep) override;
-			void RenderDepthCubic(Rest::Timer* TimeStep, Compute::Matrix4x4* ViewProjection) override;
+			virtual void TickRender(Rest::Timer* TimeStep, RenderState State, RenderOpt Options);
+			virtual void FrameRender(Rest::Timer* TimeStep, RenderState State, RenderOpt Options);
+			void Render(Rest::Timer* TimeStep, RenderState State, RenderOpt Options) override;
 
 		public:
 			THAWK_COMPONENT(TickRenderer);
@@ -560,8 +574,8 @@ namespace Tomahawk
 			virtual ~EffectRenderer() override;
 			virtual void RenderEffect(Rest::Timer* Time);
 			void Activate() override;
-			void RenderMain(Rest::Timer* Time, RenderOpt Options) override;
 			void ResizeBuffers() override;
+			void Render(Rest::Timer* Time, RenderState State, RenderOpt Options) override;
 
 		protected:
 			void RenderMerge(Graphics::Shader* Effect, void* Buffer = nullptr);
@@ -617,6 +631,7 @@ namespace Tomahawk
 			virtual ~RenderSystem() override;
 			void SetScene(SceneGraph* NewScene);
 			void Synchronize(const Viewer& View);
+			void MoveRenderer(uint64_t Id, int64_t Offset);
 			void RemoveRenderer(uint64_t Id);
 			void FreeShader(const std::string& Name, Graphics::Shader* Shader);
 			bool Renderable(Cullable* Base, CullResult Mode, float* Result);
@@ -751,7 +766,7 @@ namespace Tomahawk
 			virtual ~SceneGraph() override;
 			void Configure(const Desc& Conf);
 			void Submit();
-			void RenderMain(Rest::Timer* Time, RenderOpt Options);
+			void RenderGBuffer(Rest::Timer* Time, RenderOpt Options);
 			void RenderDepthLinear(Rest::Timer* Time);
 			void RenderDepthCubic(Rest::Timer* Time);
 			void Render(Rest::Timer* Time);
@@ -774,7 +789,7 @@ namespace Tomahawk
 			void Unlock();
 			void ResizeBuffers();
 			void SwapSurface(Graphics::MultiRenderTarget2D* NewSurface);
-			void SetView(const Compute::Matrix4x4& View, const Compute::Matrix4x4& Projection, const Compute::Vector3& Position, float Distance);
+			void SetView(const Compute::Matrix4x4& View, const Compute::Matrix4x4& Projection, const Compute::Vector3& Position, float Distance, bool Upload);
 			void SetSurface();
 			void SetSurfaceCleared();
 			void SetMaterialName(uint64_t Material, const std::string& Name);

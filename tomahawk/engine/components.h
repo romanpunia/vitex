@@ -652,7 +652,7 @@ namespace Tomahawk
 				virtual void Synchronize(Rest::Timer* Time) override;
 				virtual void Asleep() override;
 				virtual Component* Copy(Entity* New) override;
-				void FillViewer(Viewer* View);
+				void GetViewer(Viewer* View);
 				void ResizeBuffers();
 				Viewer GetViewer();
 				RenderSystem* GetRenderer();

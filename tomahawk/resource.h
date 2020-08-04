@@ -43,7 +43,7 @@ namespace resource_batch
 	{
 #define HAS_D3D11_GEOMETRY_LIGHT_BASE_AMBIENT_HLSL
 		extern const unsigned char data[];
-		const unsigned size = 1644;
+		const unsigned size = 1833;
 	}
 
 	namespace d3d11_geometry_light_base_line_hlsl
@@ -197,7 +197,7 @@ namespace resource_batch
 	{
 #define HAS_D3D11_PASS_LIMPID_HLSL
 		extern const unsigned char data[];
-		const unsigned size = 2291;
+		const unsigned size = 2056;
 	}
 
 	namespace d3d11_pass_reflection_hlsl
@@ -337,7 +337,7 @@ namespace resource_batch
 	{
 #define HAS_D3D11_STANDARD_ATMOSPHERE_HLSL
 		extern const unsigned char data[];
-		const unsigned size = 2507;
+		const unsigned size = 2484;
 	}
 
 	namespace d3d11_standard_basic_hlsl

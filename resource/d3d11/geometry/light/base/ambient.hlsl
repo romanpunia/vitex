@@ -1,5 +1,6 @@
 #include "renderer/vertex/shape"
 #include "workflow/pass"
+#include "standard/cook-torrance"
 
 Texture2D LightMap : register(t5);
 TextureCube SkyMap : register(t6);
@@ -50,7 +51,10 @@ float4 PS(AmbientVertexResult V) : SV_TARGET0
     Material Mat = GetMaterial(Frag.Material);
     float3 Emission = GetEmissionFactor(Frag, Mat);
 	float3 Ambient = GetHemiAmbient(HighEmission, LowEmission, Frag.Normal.y);
-    
-    Emission = GetHemiAmbient(Emission, Emission * 0.5, Frag.Normal.y);   
+    float Fresnel = GetFresnel(normalize(Frag.Position - ViewPosition), Frag.Normal);
+
+    Emission = GetHemiAmbient(Emission, Emission * 0.5, Frag.Normal.y);
+    Frag.Diffuse = lerp(Frag.Diffuse.xyz, 1.0, Fresnel * Mat.Fresnel);
+
 	return float4(Frag.Diffuse * (Light.xyz + Ambient + Emission) + (Emission + Frag.Diffuse) * Light.xyz * Light.a, 1.0);
 };

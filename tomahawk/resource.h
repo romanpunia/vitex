@@ -50,14 +50,14 @@ namespace resource_batch
 	{
 #define HAS_D3D11_GEOMETRY_LIGHT_BASE_LINE_HLSL
 		extern const unsigned char data[];
-		const unsigned size = 1387;
+		const unsigned size = 1418;
 	}
 
 	namespace d3d11_geometry_light_base_point_hlsl
 	{
 #define HAS_D3D11_GEOMETRY_LIGHT_BASE_POINT_HLSL
 		extern const unsigned char data[];
-		const unsigned size = 1050;
+		const unsigned size = 1081;
 	}
 
 	namespace d3d11_geometry_light_base_probe_hlsl
@@ -71,28 +71,28 @@ namespace resource_batch
 	{
 #define HAS_D3D11_GEOMETRY_LIGHT_BASE_SPOT_HLSL
 		extern const unsigned char data[];
-		const unsigned size = 1435;
+		const unsigned size = 1462;
 	}
 
 	namespace d3d11_geometry_light_shade_line_hlsl
 	{
 #define HAS_D3D11_GEOMETRY_LIGHT_SHADE_LINE_HLSL
 		extern const unsigned char data[];
-		const unsigned size = 2459;
+		const unsigned size = 2483;
 	}
 
 	namespace d3d11_geometry_light_shade_point_hlsl
 	{
 #define HAS_D3D11_GEOMETRY_LIGHT_SHADE_POINT_HLSL
 		extern const unsigned char data[];
-		const unsigned size = 1833;
+		const unsigned size = 1857;
 	}
 
 	namespace d3d11_geometry_light_shade_spot_hlsl
 	{
 #define HAS_D3D11_GEOMETRY_LIGHT_SHADE_SPOT_HLSL
 		extern const unsigned char data[];
-		const unsigned size = 2111;
+		const unsigned size = 2135;
 	}
 
 	namespace d3d11_geometry_model_depth_cubic_hlsl
@@ -190,7 +190,7 @@ namespace resource_batch
 	{
 #define HAS_D3D11_PASS_INDIRECT_HLSL
 		extern const unsigned char data[];
-		const unsigned size = 2114;
+		const unsigned size = 2126;
 	}
 
 	namespace d3d11_pass_limpid_hlsl
@@ -358,7 +358,7 @@ namespace resource_batch
 	{
 #define HAS_D3D11_STANDARD_COOK_TORRANCE_HLSL
 		extern const unsigned char data[];
-		const unsigned size = 1263;
+		const unsigned size = 1304;
 	}
 
 	namespace d3d11_standard_pow_hlsl

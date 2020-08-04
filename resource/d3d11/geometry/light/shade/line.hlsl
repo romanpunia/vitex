@@ -63,8 +63,9 @@ float4 PS(VertexResult V) : SV_TARGET0
 	float3 D = Position;
 	float3 M = GetMetallicFactor(Frag, Mat);
 	float R = GetRoughnessFactor(Frag, Mat);
-	float3 P = normalize(ViewPosition - Frag.Position);
-	float3 E = GetLight(P, D, Frag.Normal, M, R);
+	float3 P = normalize(ViewPosition - Frag.Position), O;
+	float3 E = GetLight(P, D, Frag.Normal, M, R, O);
+    E = Lighting * (Frag.Diffuse * E + O);
 
 	[branch] if (saturate(T.x) == T.x && saturate(T.y) == T.y)
 	{
@@ -83,5 +84,5 @@ float4 PS(VertexResult V) : SV_TARGET0
 		E *= C + B * (1.0 - C);
 	}
 
-	return float4(Frag.Diffuse * Lighting * E, 1.0);
+	return float4(E, 1.0);
 };

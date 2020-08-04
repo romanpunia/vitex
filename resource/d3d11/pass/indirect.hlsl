@@ -65,8 +65,8 @@ float4 PS(VertexResult V) : SV_TARGET0
     float R = GetRoughnessFactor(Frag, Mat);
 	float3 M = GetMetallicFactor(Frag, Mat);
 	float3 E = normalize(Frag.Position - ViewPosition);
-	float3 D = normalize(reflect(E, Frag.Normal));
-    float3 G = GetLight(E, D, Frag.Normal, M, R);
+	float3 D = normalize(reflect(E, Frag.Normal)), O;
+    float3 G = GetLight(E, D, Frag.Normal, M, R, O);
 
-    return float4(saturate(G * T * C * F / (Count + 1)), 1);
+    return float4(saturate((G + O) * T * C * F / (Count + 1)), 1);
 };

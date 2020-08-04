@@ -383,6 +383,7 @@ namespace Tomahawk
 				void SetTarget(MultiRenderTargetCube* Resource, unsigned int Target) override;
 				void SetTarget(MultiRenderTargetCube* Resource, float R, float G, float B) override;
 				void SetTarget(MultiRenderTargetCube* Resource) override;
+				void SetTargetMap(MultiRenderTarget2D* Resource, bool Enabled[8]) override;
 				void SetViewport(const Viewport& In) override;
 				void SetViewport(RenderTarget2D* Resource, const Viewport& In) override;
 				void SetViewport(MultiRenderTarget2D* Resource, const Viewport& In) override;

@@ -1858,6 +1858,17 @@ namespace Tomahawk
 		Cullable::Cullable(Entity* Ref) : Component(Ref), Visibility(1.0f)
 		{
 		}
+		float Cullable::GetRange()
+		{
+			float Max = Parent->Transform->Scale.X;
+			if (Max < Parent->Transform->Scale.Y)
+				Max = Parent->Transform->Scale.Y;
+
+			if (Max < Parent->Transform->Scale.Z)
+				return Parent->Transform->Scale.Z;
+
+			return Max;
+		}
 		bool Cullable::IsVisible(const Viewer& View, Compute::Matrix4x4* World)
 		{
 			if (Parent->Transform->Position.Distance(View.WorldPosition) > View.ViewDistance + Parent->Transform->Scale.Length())
@@ -2371,128 +2382,8 @@ namespace Tomahawk
 			Safe.unlock();
 		}
 
-		RenderSystem::RenderSystem(Graphics::GraphicsDevice* Ref) : Device(Ref), Scene(nullptr), QuadVertex(nullptr), SphereVertex(nullptr), SphereIndex(nullptr), EnableCull(true)
+		RenderSystem::RenderSystem(Graphics::GraphicsDevice* Ref) : Device(Ref), Scene(nullptr), QuadVertex(nullptr), SphereVertex(nullptr), SphereIndex(nullptr), CubeVertex(nullptr), CubeIndex(nullptr), EnableCull(true)
 		{
-			const float X = 0.525731112119133606;
-			const float Z = 0.850650808352039932;
-			const float N = 0.0f;
-
-			std::vector<Compute::ShapeVertex> Elements;
-			Elements.push_back({ -X, N, Z });
-			Elements.push_back({ X, N, Z });
-			Elements.push_back({ -X, N, -Z });
-			Elements.push_back({ X, N, -Z });
-			Elements.push_back({ N, Z, X });
-			Elements.push_back({ N, Z, -X });
-			Elements.push_back({ N, -Z, X });
-			Elements.push_back({ N, -Z, -X });
-			Elements.push_back({ Z, X, N });
-			Elements.push_back({ -Z, X, N });
-			Elements.push_back({ Z, -X, N });
-			Elements.push_back({ -Z, -X, N });
-
-			std::vector<int> Indices;
-			Indices.push_back(0);
-			Indices.push_back(4);
-			Indices.push_back(1);
-			Indices.push_back(0);
-			Indices.push_back(9);
-			Indices.push_back(4);
-			Indices.push_back(9);
-			Indices.push_back(5);
-			Indices.push_back(4);
-			Indices.push_back(4);
-			Indices.push_back(5);
-			Indices.push_back(8);
-			Indices.push_back(4);
-			Indices.push_back(8);
-			Indices.push_back(1);
-			Indices.push_back(8);
-			Indices.push_back(10);
-			Indices.push_back(1);
-			Indices.push_back(8);
-			Indices.push_back(3);
-			Indices.push_back(10);
-			Indices.push_back(5);
-			Indices.push_back(3);
-			Indices.push_back(8);
-			Indices.push_back(5);
-			Indices.push_back(2);
-			Indices.push_back(3);
-			Indices.push_back(2);
-			Indices.push_back(7);
-			Indices.push_back(3);
-			Indices.push_back(7);
-			Indices.push_back(10);
-			Indices.push_back(3);
-			Indices.push_back(7);
-			Indices.push_back(6);
-			Indices.push_back(10);
-			Indices.push_back(7);
-			Indices.push_back(11);
-			Indices.push_back(6);
-			Indices.push_back(11);
-			Indices.push_back(0);
-			Indices.push_back(6);
-			Indices.push_back(0);
-			Indices.push_back(1);
-			Indices.push_back(6);
-			Indices.push_back(6);
-			Indices.push_back(1);
-			Indices.push_back(10);
-			Indices.push_back(9);
-			Indices.push_back(0);
-			Indices.push_back(11);
-			Indices.push_back(9);
-			Indices.push_back(11);
-			Indices.push_back(2);
-			Indices.push_back(9);
-			Indices.push_back(2);
-			Indices.push_back(5);
-			Indices.push_back(7);
-			Indices.push_back(2);
-			Indices.push_back(11);
-
-			Graphics::ElementBuffer::Desc F = Graphics::ElementBuffer::Desc();
-			F.AccessFlags = Graphics::CPUAccess_Invalid;
-			F.Usage = Graphics::ResourceUsage_Default;
-			F.BindFlags = Graphics::ResourceBind_Vertex_Buffer;
-			F.ElementCount = (unsigned int)Elements.size();
-			F.ElementWidth = sizeof(Compute::ShapeVertex);
-			F.Elements = &Elements[0];
-			F.UseSubresource = true;
-
-			SphereVertex = Device->CreateElementBuffer(F);
-
-			F = Graphics::ElementBuffer::Desc();
-			F.AccessFlags = Graphics::CPUAccess_Invalid;
-			F.Usage = Graphics::ResourceUsage_Default;
-			F.BindFlags = Graphics::ResourceBind_Index_Buffer;
-			F.ElementCount = (unsigned int)Indices.size();
-			F.ElementWidth = sizeof(int);
-			F.Elements = &Indices[0];
-			F.UseSubresource = true;
-
-			SphereIndex = Device->CreateElementBuffer(F);
-
-			Elements.resize(6);
-			Elements[0] = { -1.0f, -1.0f, 0, -1, 0 };
-			Elements[1] = { -1.0f, 1.0f, 0, -1, -1 };
-			Elements[2] = { 1.0f, 1.0f, 0, 0, -1 };
-			Elements[3] = { -1.0f, -1.0f, 0, -1, 0 };
-			Elements[4] = { 1.0f, 1.0f, 0, 0, -1 };
-			Elements[5] = { 1.0f, -1.0f, 0, 0, 0 };
-
-			F = Graphics::ElementBuffer::Desc();
-			F.AccessFlags = Graphics::CPUAccess_Invalid;
-			F.Usage = Graphics::ResourceUsage_Default;
-			F.BindFlags = Graphics::ResourceBind_Vertex_Buffer;
-			F.ElementCount = 6;
-			F.ElementWidth = sizeof(Compute::ShapeVertex);
-			F.Elements = &Elements[0];
-			F.UseSubresource = true;
-
-			QuadVertex = Device->CreateElementBuffer(F);
 		}
 		RenderSystem::~RenderSystem()
 		{
@@ -2508,6 +2399,8 @@ namespace Tomahawk
 			delete QuadVertex;
 			delete SphereVertex;
 			delete SphereIndex;
+			delete CubeVertex;
+			delete CubeIndex;
 		}
 		void RenderSystem::SetScene(SceneGraph* NewScene)
 		{
@@ -2600,17 +2493,262 @@ namespace Tomahawk
 
 			return nullptr;
 		}
+		size_t RenderSystem::GetQuadVSize()
+		{
+			return sizeof(Compute::ShapeVertex);
+		}
+		size_t RenderSystem::GetSphereVSize()
+		{
+			return sizeof(Compute::ShapeVertex);
+		}
+		size_t RenderSystem::GetSphereISize()
+		{
+			return sizeof(int);
+		}
+		size_t RenderSystem::GetCubeVSize()
+		{
+			return sizeof(Compute::Vertex);
+		}
+		size_t RenderSystem::GetCubeISize()
+		{
+			return sizeof(int);
+		}
 		Graphics::ElementBuffer* RenderSystem::GetQuadVBuffer()
 		{
+			if (QuadVertex != nullptr)
+				return QuadVertex;
+
+			std::vector<Compute::ShapeVertex> Elements;
+			Elements.push_back({ -1.0f, -1.0f, 0, -1, 0 });
+			Elements.push_back({ -1.0f, 1.0f, 0, -1, -1 });
+			Elements.push_back({ 1.0f, 1.0f, 0, 0, -1 });
+			Elements.push_back({ -1.0f, -1.0f, 0, -1, 0 });
+			Elements.push_back({ 1.0f, 1.0f, 0, 0, -1 });
+			Elements.push_back({ 1.0f, -1.0f, 0, 0, 0 });
+
+			Graphics::ElementBuffer::Desc F = Graphics::ElementBuffer::Desc();
+			F.AccessFlags = Graphics::CPUAccess_Invalid;
+			F.Usage = Graphics::ResourceUsage_Default;
+			F.BindFlags = Graphics::ResourceBind_Vertex_Buffer;
+			F.ElementCount = 6;
+			F.ElementWidth = sizeof(Compute::ShapeVertex);
+			F.Elements = &Elements[0];
+			F.UseSubresource = true;
+
+			QuadVertex = Device->CreateElementBuffer(F);
 			return QuadVertex;
 		}
 		Graphics::ElementBuffer* RenderSystem::GetSphereVBuffer()
 		{
+			if (SphereVertex != nullptr)
+				return SphereVertex;
+
+			const float X = 0.525731112119133606;
+			const float Z = 0.850650808352039932;
+			const float N = 0.0f;
+
+			std::vector<Compute::ShapeVertex> Elements;
+			Elements.push_back({ -X, N, Z });
+			Elements.push_back({ X, N, Z });
+			Elements.push_back({ -X, N, -Z });
+			Elements.push_back({ X, N, -Z });
+			Elements.push_back({ N, Z, X });
+			Elements.push_back({ N, Z, -X });
+			Elements.push_back({ N, -Z, X });
+			Elements.push_back({ N, -Z, -X });
+			Elements.push_back({ Z, X, N });
+			Elements.push_back({ -Z, X, N });
+			Elements.push_back({ Z, -X, N });
+			Elements.push_back({ -Z, -X, N });
+
+			Graphics::ElementBuffer::Desc F = Graphics::ElementBuffer::Desc();
+			F.AccessFlags = Graphics::CPUAccess_Invalid;
+			F.Usage = Graphics::ResourceUsage_Default;
+			F.BindFlags = Graphics::ResourceBind_Vertex_Buffer;
+			F.ElementCount = (unsigned int)Elements.size();
+			F.ElementWidth = sizeof(Compute::ShapeVertex);
+			F.Elements = &Elements[0];
+			F.UseSubresource = true;
+
+			SphereVertex = Device->CreateElementBuffer(F);
 			return SphereVertex;
 		}
 		Graphics::ElementBuffer* RenderSystem::GetSphereIBuffer()
 		{
+			if (SphereIndex != nullptr)
+				return SphereIndex;
+
+			std::vector<int> Indices;
+			Indices.push_back(0);
+			Indices.push_back(4);
+			Indices.push_back(1);
+			Indices.push_back(0);
+			Indices.push_back(9);
+			Indices.push_back(4);
+			Indices.push_back(9);
+			Indices.push_back(5);
+			Indices.push_back(4);
+			Indices.push_back(4);
+			Indices.push_back(5);
+			Indices.push_back(8);
+			Indices.push_back(4);
+			Indices.push_back(8);
+			Indices.push_back(1);
+			Indices.push_back(8);
+			Indices.push_back(10);
+			Indices.push_back(1);
+			Indices.push_back(8);
+			Indices.push_back(3);
+			Indices.push_back(10);
+			Indices.push_back(5);
+			Indices.push_back(3);
+			Indices.push_back(8);
+			Indices.push_back(5);
+			Indices.push_back(2);
+			Indices.push_back(3);
+			Indices.push_back(2);
+			Indices.push_back(7);
+			Indices.push_back(3);
+			Indices.push_back(7);
+			Indices.push_back(10);
+			Indices.push_back(3);
+			Indices.push_back(7);
+			Indices.push_back(6);
+			Indices.push_back(10);
+			Indices.push_back(7);
+			Indices.push_back(11);
+			Indices.push_back(6);
+			Indices.push_back(11);
+			Indices.push_back(0);
+			Indices.push_back(6);
+			Indices.push_back(0);
+			Indices.push_back(1);
+			Indices.push_back(6);
+			Indices.push_back(6);
+			Indices.push_back(1);
+			Indices.push_back(10);
+			Indices.push_back(9);
+			Indices.push_back(0);
+			Indices.push_back(11);
+			Indices.push_back(9);
+			Indices.push_back(11);
+			Indices.push_back(2);
+			Indices.push_back(9);
+			Indices.push_back(2);
+			Indices.push_back(5);
+			Indices.push_back(7);
+			Indices.push_back(2);
+			Indices.push_back(11);
+
+			Graphics::ElementBuffer::Desc F = Graphics::ElementBuffer::Desc();
+			F.AccessFlags = Graphics::CPUAccess_Invalid;
+			F.Usage = Graphics::ResourceUsage_Default;
+			F.BindFlags = Graphics::ResourceBind_Index_Buffer;
+			F.ElementCount = (unsigned int)Indices.size();
+			F.ElementWidth = sizeof(int);
+			F.Elements = &Indices[0];
+			F.UseSubresource = true;
+
+			SphereIndex = Device->CreateElementBuffer(F);
 			return SphereIndex;
+		}
+		Graphics::ElementBuffer* RenderSystem::GetCubeVBuffer()
+		{
+			if (CubeVertex != nullptr)
+				return CubeVertex;
+
+			std::vector<Compute::Vertex> Elements;
+			Elements.push_back({ -1, 1, 1, 0.875, -0.5, 0, 0, 1, -1, 0, 0, 0, 1, 0 });
+			Elements.push_back({ 1, -1, 1, 0.625, -0.75, 0, 0, 1, -1, 0, 0, 0, 1, 0 });
+			Elements.push_back({ 1, 1, 1, 0.625, -0.5, 0, 0, 1, -1, 0, 0, 0, 1, 0 });
+			Elements.push_back({ 1, -1, 1, 0.625, -0.75, 0, -1, 0, 0, 0, 1, 1, 0, 0 });
+			Elements.push_back({ -1, -1, -1, 0.375, -1, 0, -1, 0, 0, 0, 1, 1, 0, 0 });
+			Elements.push_back({ 1, -1, -1, 0.375, -0.75, 0, -1, 0, 0, 0, 1, 1, 0, 0 });
+			Elements.push_back({ -1, -1, 1, 0.625, -0, -1, 0, 0, 0, 0, 1, 0, -1, 0 });
+			Elements.push_back({ -1, 1, -1, 0.375, -0.25, -1, 0, 0, 0, 0, 1, 0, -1, 0 });
+			Elements.push_back({ -1, -1, -1, 0.375, -0, -1, 0, 0, 0, 0, 1, 0, -1, 0 });
+			Elements.push_back({ 1, 1, -1, 0.375, -0.5, 0, 0, -1, 1, 0, 0, 0, 1, 0 });
+			Elements.push_back({ -1, -1, -1, 0.125, -0.75, 0, 0, -1, 1, 0, 0, 0, 1, 0 });
+			Elements.push_back({ -1, 1, -1, 0.125, -0.5, 0, 0, -1, 1, 0, 0, 0, 1, 0 });
+			Elements.push_back({ 1, 1, 1, 0.625, -0.5, 1, 0, 0, 0, 0, 1, 0, 1, 0 });
+			Elements.push_back({ 1, -1, -1, 0.375, -0.75, 1, 0, 0, 0, 0, 1, 0, 1, 0 });
+			Elements.push_back({ 1, 1, -1, 0.375, -0.5, 1, 0, 0, 0, 0, 1, 0, 1, 0 });
+			Elements.push_back({ -1, 1, 1, 0.625, -0.25, 0, 1, 0, 0, 0, 1, -1, 0, 0 });
+			Elements.push_back({ 1, 1, -1, 0.375, -0.5, 0, 1, 0, 0, 0, 1, -1, 0, 0 });
+			Elements.push_back({ -1, 1, -1, 0.375, -0.25, 0, 1, 0, 0, 0, 1, -1, 0, 0 });
+			Elements.push_back({ -1, -1, 1, 0.875, -0.75, 0, 0, 1, -1, 0, 0, 0, 1, 0 });
+			Elements.push_back({ -1, -1, 1, 0.625, -1, 0, -1, 0, 0, 0, 1, 1, 0, 0 });
+			Elements.push_back({ -1, 1, 1, 0.625, -0.25, -1, 0, 0, 0, 0, 1, 0, -1, 0 });
+			Elements.push_back({ 1, -1, -1, 0.375, -0.75, 0, 0, -1, 1, 0, 0, 0, 1, 0 });
+			Elements.push_back({ 1, -1, 1, 0.625, -0.75, 1, 0, 0, 0, 0, 1, 0, 1, 0 });
+			Elements.push_back({ 1, 1, 1, 0.625, -0.5, 0, 1, 0, 0, 0, 1, -1, 0, 0 });
+
+			Graphics::ElementBuffer::Desc F = Graphics::ElementBuffer::Desc();
+			F.AccessFlags = Graphics::CPUAccess_Invalid;
+			F.Usage = Graphics::ResourceUsage_Default;
+			F.BindFlags = Graphics::ResourceBind_Vertex_Buffer;
+			F.ElementCount = (unsigned int)Elements.size();
+			F.ElementWidth = sizeof(Compute::Vertex);
+			F.Elements = &Elements[0];
+			F.UseSubresource = true;
+
+			CubeVertex = Device->CreateElementBuffer(F);
+			return CubeVertex;
+		}
+		Graphics::ElementBuffer* RenderSystem::GetCubeIBuffer()
+		{
+			if (CubeIndex != nullptr)
+				return CubeIndex;
+
+			std::vector<int> Indices;
+			Indices.push_back(0);
+			Indices.push_back(1);
+			Indices.push_back(2);
+			Indices.push_back(0);
+			Indices.push_back(18);
+			Indices.push_back(1);
+			Indices.push_back(3);
+			Indices.push_back(4);
+			Indices.push_back(5);
+			Indices.push_back(3);
+			Indices.push_back(19);
+			Indices.push_back(4);
+			Indices.push_back(6);
+			Indices.push_back(7);
+			Indices.push_back(8);
+			Indices.push_back(6);
+			Indices.push_back(20);
+			Indices.push_back(7);
+			Indices.push_back(9);
+			Indices.push_back(10);
+			Indices.push_back(11);
+			Indices.push_back(9);
+			Indices.push_back(21);
+			Indices.push_back(10);
+			Indices.push_back(12);
+			Indices.push_back(13);
+			Indices.push_back(14);
+			Indices.push_back(12);
+			Indices.push_back(22);
+			Indices.push_back(13);
+			Indices.push_back(15);
+			Indices.push_back(16);
+			Indices.push_back(17);
+			Indices.push_back(15);
+			Indices.push_back(23);
+			Indices.push_back(16);
+
+			Graphics::ElementBuffer::Desc F = Graphics::ElementBuffer::Desc();
+			F.AccessFlags = Graphics::CPUAccess_Invalid;
+			F.Usage = Graphics::ResourceUsage_Default;
+			F.BindFlags = Graphics::ResourceBind_Index_Buffer;
+			F.ElementCount = (unsigned int)Indices.size();
+			F.ElementWidth = sizeof(int);
+			F.Elements = &Indices[0];
+			F.UseSubresource = true;
+
+			CubeIndex = Device->CreateElementBuffer(F);
+			return CubeIndex;
 		}
 		std::vector<Renderer*>* RenderSystem::GetRenderers()
 		{

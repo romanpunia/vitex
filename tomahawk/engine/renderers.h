@@ -181,8 +181,6 @@ namespace Tomahawk
 			private:
 				Rest::Pool<Engine::Component*>* Opaque = nullptr;
 				Rest::Pool<Engine::Component*>* Limpid = nullptr;
-				Graphics::MultiRenderTarget2D* Surface1 = nullptr;
-				Graphics::MultiRenderTarget2D* Surface2 = nullptr;
 				Graphics::DepthStencilState* DepthStencil = nullptr;
 				Graphics::RasterizerState* Rasterizer = nullptr;
 				Graphics::BlendState* Blend = nullptr;
@@ -195,7 +193,6 @@ namespace Tomahawk
 				void Activate() override;
 				void Deactivate() override;
 				void RenderMain(Rest::Timer* Time, RenderOpt Options) override;
-				void ResizeBuffers() override;
 				Rest::Pool<Component*>* GetGeometry(uint64_t Index) override;
 				uint64_t GetGeometryCount() override;
 

@@ -842,7 +842,6 @@ namespace Tomahawk
 			Decal::Decal(Entity* Ref) : Drawable(Ref, false)
 			{
 				FieldOfView = 90.0f;
-				Range = 10.0f;
 				Distance = 15.0f;
 			}
 			void Decal::Deserialize(ContentManager* Content, Rest::Document* Node)
@@ -851,7 +850,6 @@ namespace Tomahawk
 				NMake::Unpack(Node->Find("view"), &View);
 				NMake::Unpack(Node->Find("field-of-view"), &FieldOfView);
 				NMake::Unpack(Node->Find("distance"), &Distance);
-				NMake::Unpack(Node->Find("range"), &Range);
 				NMake::Unpack(Node->Find("static"), &Static);
 				NMake::Unpack(Node->Find("surface"), &Surfaces.begin()->second, Content);
 			}
@@ -861,7 +859,6 @@ namespace Tomahawk
 				NMake::Pack(Node->SetDocument("view"), View);
 				NMake::Pack(Node->SetDocument("field-of-view"), FieldOfView);
 				NMake::Pack(Node->SetDocument("distance"), Distance);
-				NMake::Pack(Node->SetDocument("range"), Range);
 				NMake::Pack(Node->SetDocument("static"), Static);
 				NMake::Pack(Node->SetDocument("surface"), Surfaces.begin()->second, Content);
 			}
@@ -874,7 +871,7 @@ namespace Tomahawk
 			{
 				float Result = 1.0f - Parent->Transform->Position.Distance(View.WorldPosition) / View.ViewDistance;
 				if (Result > 0.0f)
-					Result = Compute::MathCommon::IsClipping(View.ViewProjection, Parent->Transform->GetWorld(), Range) == -1 ? Result : 0.0f;
+					Result = Compute::MathCommon::IsClipping(View.ViewProjection, Parent->Transform->GetWorld(), GetRange()) == -1 ? Result : 0.0f;
 
 				return Result;
 			}
@@ -2497,13 +2494,11 @@ namespace Tomahawk
 				ShadowCache = nullptr;
 				Diffuse = Compute::Vector3::One();
 				Emission = 1.0f;
-				Range = 5.0f;
 			}
 			void PointLight::Deserialize(ContentManager* Content, Rest::Document* Node)
 			{
 				NMake::Unpack(Node->Find("diffuse"), &Diffuse);
 				NMake::Unpack(Node->Find("emission"), &Emission);
-				NMake::Unpack(Node->Find("range"), &Range);
 				NMake::Unpack(Node->Find("shadow-softness"), &ShadowSoftness);
 				NMake::Unpack(Node->Find("shadow-distance"), &ShadowDistance);
 				NMake::Unpack(Node->Find("shadow-bias"), &ShadowBias);
@@ -2516,7 +2511,6 @@ namespace Tomahawk
 			{
 				NMake::Pack(Node->SetDocument("diffuse"), Diffuse);
 				NMake::Pack(Node->SetDocument("emission"), Emission);
-				NMake::Pack(Node->SetDocument("range"), Range);
 				NMake::Pack(Node->SetDocument("shadow-softness"), ShadowSoftness);
 				NMake::Pack(Node->SetDocument("shadow-distance"), ShadowDistance);
 				NMake::Pack(Node->SetDocument("shadow-bias"), ShadowBias);
@@ -2534,7 +2528,7 @@ namespace Tomahawk
 			{
 				float Result = 1.0f - Parent->Transform->Position.Distance(View.WorldPosition) / View.ViewDistance;
 				if (Result > 0.0f)
-					Result = Compute::MathCommon::IsClipping(View.ViewProjection, Parent->Transform->GetWorld(), Range) == -1 ? Result : 0.0f;
+					Result = Compute::MathCommon::IsClipping(View.ViewProjection, Parent->Transform->GetWorld(), GetRange()) == -1 ? Result : 0.0f;
 
 				return Result;
 			}
@@ -2544,7 +2538,6 @@ namespace Tomahawk
 				Target->Diffuse = Diffuse;
 				Target->Emission = Emission;
 				Target->Visibility = Visibility;
-				Target->Range = Range;
 				Target->Projection = Projection;
 				Target->ShadowBias = ShadowBias;
 				Target->ShadowDistance = ShadowDistance;
@@ -2574,7 +2567,6 @@ namespace Tomahawk
 				ShadowDistance = 100;
 				ShadowBias = 0.0f;
 				FieldOfView = 90.0f;
-				Range = 10.0f;
 				Emission = 1.0f;
 				Shadowed = false;
 			}
@@ -2592,7 +2584,6 @@ namespace Tomahawk
 				NMake::Unpack(Node->Find("shadow-softness"), &ShadowSoftness);
 				NMake::Unpack(Node->Find("shadow-iterations"), &ShadowIterations);
 				NMake::Unpack(Node->Find("field-of-view"), &FieldOfView);
-				NMake::Unpack(Node->Find("range"), &Range);
 				NMake::Unpack(Node->Find("emission"), &Emission);
 				NMake::Unpack(Node->Find("shadowed"), &Shadowed);
 			}
@@ -2610,7 +2601,6 @@ namespace Tomahawk
 				NMake::Pack(Node->SetDocument("shadow-softness"), ShadowSoftness);
 				NMake::Pack(Node->SetDocument("shadow-iterations"), ShadowIterations);
 				NMake::Pack(Node->SetDocument("field-of-view"), FieldOfView);
-				NMake::Pack(Node->SetDocument("range"), Range);
 				NMake::Pack(Node->SetDocument("emission"), Emission);
 				NMake::Pack(Node->SetDocument("shadowed"), Shadowed);
 			}
@@ -2623,7 +2613,7 @@ namespace Tomahawk
 			{
 				float Result = 1.0f - Parent->Transform->Position.Distance(View.WorldPosition) / View.ViewDistance;
 				if (Result > 0.0f)
-					Result = Compute::MathCommon::IsClipping(View.ViewProjection, Parent->Transform->GetWorld(), Range) == -1 ? Result : 0.0f;
+					Result = Compute::MathCommon::IsClipping(View.ViewProjection, Parent->Transform->GetWorld(), GetRange()) == -1 ? Result : 0.0f;
 
 				return Result;
 			}
@@ -2635,7 +2625,6 @@ namespace Tomahawk
 				Target->View = View;
 				Target->ProjectMap = ProjectMap;
 				Target->FieldOfView = FieldOfView;
-				Target->Range = Range;
 				Target->Emission = Emission;
 				Target->Shadowed = Shadowed;
 				Target->ShadowBias = ShadowBias;
@@ -2769,8 +2758,7 @@ namespace Tomahawk
 				ProbeCache = nullptr;
 				Infinity = 0.0f;
 				Emission = 1.0f;
-				Range = 5.0f;
-				CaptureRange = Range;
+				CaptureRange = 10.0f;
 				RenderLocked = false;
 				ParallaxCorrected = false;
 				StaticMask = false;
@@ -2810,7 +2798,6 @@ namespace Tomahawk
 				NMake::Unpack(Node->Find("rebuild"), &Rebuild);
 				NMake::Unpack(Node->Find("projection"), &Projection);
 				NMake::Unpack(Node->Find("diffuse"), &Diffuse);
-				NMake::Unpack(Node->Find("range"), &Range);
 				NMake::Unpack(Node->Find("capture-range"), &CaptureRange);
 				NMake::Unpack(Node->Find("emission"), &Emission);
 				NMake::Unpack(Node->Find("infinity"), &Infinity);
@@ -2870,7 +2857,6 @@ namespace Tomahawk
 				NMake::Pack(Node->SetDocument("rebuild"), Rebuild);
 				NMake::Pack(Node->SetDocument("projection"), Projection);
 				NMake::Pack(Node->SetDocument("diffuse"), Diffuse);
-				NMake::Pack(Node->SetDocument("range"), Range);
 				NMake::Pack(Node->SetDocument("capture-range"), CaptureRange);
 				NMake::Pack(Node->SetDocument("emission"), Emission);
 				NMake::Pack(Node->SetDocument("infinity"), Infinity);
@@ -2884,7 +2870,7 @@ namespace Tomahawk
 				{
 					Result = 1.0f - Parent->Transform->Position.Distance(View.WorldPosition) / View.ViewDistance;
 					if (Result > 0.0f)
-						Result = Compute::MathCommon::IsClipping(View.ViewProjection, Parent->Transform->GetWorld(), Range) == -1 ? Result : 0.0f;
+						Result = Compute::MathCommon::IsClipping(View.ViewProjection, Parent->Transform->GetWorld(), GetRange()) == -1 ? Result : 0.0f;
 				}
 
 				return Result;
@@ -2893,7 +2879,6 @@ namespace Tomahawk
 			{
 				ProbeLight* Target = new ProbeLight(New);
 				Target->Projection = Projection;
-				Target->Range = Range;
 				Target->Diffuse = Diffuse;
 				Target->Visibility = Visibility;
 				Target->Emission = Emission;

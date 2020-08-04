@@ -69,5 +69,5 @@ float4 PS(VertexResult V) : SV_TARGET0
 		SampleShadow(-K, I, C, B);
 
 	E *= C + B * (1.0 - C);
-	return float4(Lighting * E, A);
+	return float4(Frag.Diffuse * Lighting * E, A);
 };

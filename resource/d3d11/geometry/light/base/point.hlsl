@@ -37,5 +37,5 @@ float4 PS(VertexResult V) : SV_TARGET0
 	float A = 1.0 - length(D) / Range;
 	float3 P = normalize(ViewPosition - Frag.Position);
 
-	return float4(Lighting * GetLight(P, normalize(D), Frag.Normal, M, R) * A, A);
+	return float4(Frag.Diffuse * Lighting * GetLight(P, normalize(D), Frag.Normal, M, R) * A, A);
 };

@@ -906,14 +906,14 @@ namespace Tomahawk
 			DecalRenderer::DecalRenderer(RenderSystem* Lab) : Renderer(Lab)
 			{
 				Geometric = true;
-				DepthStencil = Lab->GetDevice()->GetDepthStencilState("DEF_NONE_LESS");
+				DepthStencil = Lab->GetDevice()->GetDepthStencilState("DEF_NONE");
 				Rasterizer = Lab->GetDevice()->GetRasterizerState("DEF_CULL_BACK");
-				Blend = Lab->GetDevice()->GetBlendState("DEF_OVERWRITE");
+				Blend = Lab->GetDevice()->GetBlendState("DEF_ADDITIVE");
 				Sampler = Lab->GetDevice()->GetSamplerState("DEF_TRILINEAR_X16");
 
 				Graphics::Shader::Desc I = Graphics::Shader::Desc();
-				I.Layout = Graphics::Shader::GetVertexLayout();
-				I.LayoutSize = 5;
+				I.Layout = Graphics::Shader::GetShapeVertexLayout();
+				I.LayoutSize = 2;
 
 				if (System->GetDevice()->GetSection("geometry/decal/main", &I.Data))
 					Shader = System->CompileShader("dr-main", I, sizeof(RenderPass));
@@ -921,14 +921,11 @@ namespace Tomahawk
 			DecalRenderer::~DecalRenderer()
 			{
 				System->FreeShader("dr-main", Shader);
-				delete Surface1;
-				delete Surface2;
 			}
 			void DecalRenderer::Activate()
 			{
 				Opaque = System->AddCull<Engine::Components::Decal>();
 				Limpid = System->AddCull<Engine::Components::LimpidDecal>();
-				ResizeBuffers();
 			}
 			void DecalRenderer::Deactivate()
 			{
@@ -937,34 +934,26 @@ namespace Tomahawk
 			}
 			void DecalRenderer::RenderMain(Rest::Timer* Time, RenderOpt Options)
 			{
-				SceneGraph* Scene = System->GetScene();
 				Graphics::GraphicsDevice* Device = System->GetDevice();
-				Graphics::MultiRenderTarget2D* S = Scene->GetSurface();
 				Rest::Pool<Component*>* Array = (Options & RenderOpt_Limpid ? Limpid : Opaque);
 				CullResult Cull = (Options & RenderOpt_Inner ? CullResult_Always : CullResult_Last);
+				bool Map[8] = { true, true, false, true, false, false, false, false };
 				bool Static = (Options & RenderOpt_Static);
 				bool Inner = (Options & RenderOpt_Inner);
 
 				if (!Array || Array->Empty())
 					return;
 
-				Scene->SwapSurface(Inner ? Surface2 : Surface1);
-				Scene->SetSurfaceCleared();
-
 				Device->SetDepthStencilState(DepthStencil);
 				Device->SetSamplerState(Sampler);
 				Device->SetBlendState(Blend);
 				Device->SetRasterizerState(Rasterizer);
-				Device->SetTexture2D(S->GetTarget(0), 1);
-				Device->SetTexture2D(S->GetTarget(1), 2);
-				Device->SetTexture2D(S->GetTarget(2), 3);
-				Device->SetTexture2D(S->GetTarget(3), 4);
 				Device->SetShader(Shader, Graphics::ShaderType_Vertex | Graphics::ShaderType_Pixel);
 				Device->SetBuffer(Shader, 3, Graphics::ShaderType_Vertex | Graphics::ShaderType_Pixel);
 				Device->SetIndexBuffer(System->GetSphereIBuffer(), Graphics::Format_R32_Uint, 0);
-				Device->SetVertexBuffer(System->GetSphereVBuffer(), 0, sizeof(Compute::ShapeVertex), 0);
-				
-				/* TODO: Decal rendering, geometry dispatch, gbuffer merge */
+				Device->SetVertexBuffer(System->GetSphereVBuffer(), 0, System->GetSphereVSize(), 0);
+				Device->SetTargetMap(System->GetScene()->GetSurface(), Map);
+				Device->SetTexture2D(System->GetScene()->GetSurface()->GetTarget(2), 8);
 
 				for (auto It = Array->Begin(); It != Array->End(); ++It)
 				{
@@ -975,35 +964,15 @@ namespace Tomahawk
 					if (!Appearance::UploadPhase(Device, Base->GetSurface()))
 						continue;
 
-					RenderPass.OwnViewProjection = Base->View * System->GetScene()->View.ViewProjection;
-					Device->Render.World = Compute::Matrix4x4::CreateScale(Base->Range * 1.25f) * Compute::Matrix4x4::CreateTranslation(Base->GetEntity()->Transform->Position);
+					RenderPass.OwnViewProjection = Base->View * Base->Projection;
+					Device->Render.World = Compute::Matrix4x4::CreateScale(Base->GetRange()) * Compute::Matrix4x4::CreateTranslation(Base->GetEntity()->Transform->Position);
 					Device->Render.WorldViewProjection = Device->Render.World * System->GetScene()->View.ViewProjection;
 					Device->UpdateBuffer(Graphics::RenderBufferType_Render);
 					Device->UpdateBuffer(Shader, &RenderPass);
 					Device->DrawIndexed((unsigned int)System->GetSphereIBuffer()->GetElements(), 0, 0);
 				}
 
-				Device->FlushTexture2D(1, 7);
-				Scene->SwapSurface(S);
-			}
-			void DecalRenderer::ResizeBuffers()
-			{
-				Graphics::MultiRenderTarget2D::Desc F1;
-				System->GetScene()->GetTargetDesc(&F1);
-
-				delete Surface1;
-				Surface1 = System->GetDevice()->CreateMultiRenderTarget2D(F1);
-
-				auto* Renderer = System->GetRenderer<Renderers::ProbeRenderer>();
-				if (Renderer != nullptr)
-				{
-					F1.Width = (unsigned int)Renderer->Size;
-					F1.Height = (unsigned int)Renderer->Size;
-					F1.MipLevels = (unsigned int)Renderer->MipLevels;
-				}
-
-				delete Surface2;
-				Surface2 = System->GetDevice()->CreateMultiRenderTarget2D(F1);
+				Device->FlushTexture2D(1, 8);
 			}
 			Rest::Pool<Component*>* DecalRenderer::GetGeometry(uint64_t Index)
 			{
@@ -1074,7 +1043,7 @@ namespace Tomahawk
 				Device->SetRasterizerState(Rasterizer);
 				Device->SetShader(Shader, Graphics::ShaderType_Vertex | Graphics::ShaderType_Pixel);
 				Device->SetBuffer(Shader, 3, Graphics::ShaderType_Vertex | Graphics::ShaderType_Pixel);
-				Device->SetVertexBuffer(System->GetQuadVBuffer(), 0, sizeof(Compute::ShapeVertex), 0);
+				Device->SetVertexBuffer(System->GetQuadVBuffer(), 0, System->GetQuadVSize(), 0);
 				Device->SetTexture2D(Inner ? Input2->GetTarget() : Input1->GetTarget(), 1);
 				Device->SetTexture2D(S->GetTarget(1), 2);
 				Device->SetTexture2D(S->GetTarget(2), 3);
@@ -1419,28 +1388,28 @@ namespace Tomahawk
 				I.Layout = Graphics::Shader::GetShapeVertexLayout();
 				I.LayoutSize = 2;
 
-				if (System->GetDevice()->GetSection("pass/light/shade/point", &I.Data))
+				if (System->GetDevice()->GetSection("geometry/light/shade/point", &I.Data))
 					Shaders.PointShade = System->CompileShader("lr-point-shade", I, 0);
 
-				if (System->GetDevice()->GetSection("pass/light/shade/spot", &I.Data))
+				if (System->GetDevice()->GetSection("geometry/light/shade/spot", &I.Data))
 					Shaders.SpotShade = System->CompileShader("lr-spot-shade", I, 0);
 
-				if (System->GetDevice()->GetSection("pass/light/shade/line", &I.Data))
+				if (System->GetDevice()->GetSection("geometry/light/shade/line", &I.Data))
 					Shaders.LineShade = System->CompileShader("lr-line-shade", I, 0);
 
-				if (System->GetDevice()->GetSection("pass/light/base/point", &I.Data))
+				if (System->GetDevice()->GetSection("geometry/light/base/point", &I.Data))
 					Shaders.PointBase = System->CompileShader("lr-point-base", I, sizeof(PointLight));
 
-				if (System->GetDevice()->GetSection("pass/light/base/spot", &I.Data))
+				if (System->GetDevice()->GetSection("geometry/light/base/spot", &I.Data))
 					Shaders.SpotBase = System->CompileShader("lr-spot-base", I, sizeof(SpotLight));
 
-				if (System->GetDevice()->GetSection("pass/light/base/line", &I.Data))
+				if (System->GetDevice()->GetSection("geometry/light/base/line", &I.Data))
 					Shaders.LineBase = System->CompileShader("lr-line-base", I, sizeof(LineLight));
 
-				if (System->GetDevice()->GetSection("pass/light/base/probe", &I.Data))
+				if (System->GetDevice()->GetSection("geometry/light/base/probe", &I.Data))
 					Shaders.Probe = System->CompileShader("lr-probe", I, sizeof(ProbeLight));
 
-				if (System->GetDevice()->GetSection("pass/light/base/ambient", &I.Data))
+				if (System->GetDevice()->GetSection("geometry/light/base/ambient", &I.Data))
 					Shaders.Ambient = System->CompileShader("lr-ambient", I, sizeof(AmbientLight));
 			}
 			LightRenderer::~LightRenderer()
@@ -1530,7 +1499,7 @@ namespace Tomahawk
 				Device->SetTexture2D(Surface->GetTarget(2), 3);
 				Device->SetTexture2D(Surface->GetTarget(3), 4);
 				Device->SetIndexBuffer(System->GetSphereIBuffer(), Graphics::Format_R32_Uint, 0);
-				Device->SetVertexBuffer(System->GetSphereVBuffer(), 0, sizeof(Compute::ShapeVertex), 0);
+				Device->SetVertexBuffer(System->GetSphereVBuffer(), 0, System->GetSphereVSize(), 0);
 
 				if (!Inner)
 				{
@@ -1543,12 +1512,12 @@ namespace Tomahawk
 						if (!Light->GetProbeCache() || !System->Renderable(Light, CullResult_Always, &D))
 							continue;
 
-						ProbeLight.OwnWorldViewProjection = Compute::Matrix4x4::CreateTranslatedScale(Light->GetEntity()->Transform->Position, Light->Range * 1.25f) * System->GetScene()->View.ViewProjection;
+						ProbeLight.Range = Light->GetRange();
+						ProbeLight.OwnWorldViewProjection = Compute::Matrix4x4::CreateTranslatedScale(Light->GetEntity()->Transform->Position, ProbeLight.Range * 1.25f) * System->GetScene()->View.ViewProjection;
 						ProbeLight.Position = Light->GetEntity()->Transform->Position.InvertZ();
 						ProbeLight.Lighting = Light->Diffuse.Mul(Light->Emission * D);
 						ProbeLight.Scale = Light->GetEntity()->Transform->Scale;
 						ProbeLight.Parallax = (Light->ParallaxCorrected ? 1.0f : 0.0f);
-						ProbeLight.Range = Light->Range;
 						ProbeLight.Infinity = Light->Infinity;
 
 						Device->SetTextureCube(Light->GetProbeCache(), 5);
@@ -1567,12 +1536,12 @@ namespace Tomahawk
 						if (Light->RenderLocked || !Light->GetProbeCache() || !System->Renderable(Light, CullResult_Always, &D))
 							continue;
 
-						ProbeLight.OwnWorldViewProjection = Compute::Matrix4x4::CreateTranslatedScale(Light->GetEntity()->Transform->Position, Light->Range * 1.25f) * System->GetScene()->View.ViewProjection;
+						ProbeLight.Range = Light->GetRange();
+						ProbeLight.OwnWorldViewProjection = Compute::Matrix4x4::CreateTranslatedScale(Light->GetEntity()->Transform->Position, ProbeLight.Range * 1.25f) * System->GetScene()->View.ViewProjection;
 						ProbeLight.Position = Light->GetEntity()->Transform->Position.InvertZ();
 						ProbeLight.Lighting = Light->Diffuse.Mul(Light->Emission * D);
 						ProbeLight.Scale = Light->GetEntity()->Transform->Scale;
 						ProbeLight.Parallax = (Light->ParallaxCorrected ? 1.0f : 0.0f);
-						ProbeLight.Range = Light->Range;
 						ProbeLight.Infinity = Light->Infinity;
 
 						Device->SetTextureCube(Light->GetProbeCache(), 5);
@@ -1604,11 +1573,11 @@ namespace Tomahawk
 					else
 						Active = Shaders.PointBase;
 
-					PointLight.OwnWorldViewProjection = Compute::Matrix4x4::CreateTranslatedScale(Light->GetEntity()->Transform->Position, Light->Range * 1.25f) * System->GetScene()->View.ViewProjection;
+					PointLight.Range = Light->GetRange();
+					PointLight.OwnWorldViewProjection = Compute::Matrix4x4::CreateTranslatedScale(Light->GetEntity()->Transform->Position, PointLight.Range * 1.25f) * System->GetScene()->View.ViewProjection;
 					PointLight.Position = Light->GetEntity()->Transform->Position.InvertZ();
 					PointLight.Lighting = Light->Diffuse.Mul(Light->Emission * D);
-					PointLight.Range = Light->Range;
-
+					
 					Device->SetShader(Active, Graphics::ShaderType_Pixel);
 					Device->UpdateBuffer(Shaders.PointBase, &PointLight);
 					Device->DrawIndexed((unsigned int)System->GetSphereIBuffer()->GetElements(), 0, 0);
@@ -1636,11 +1605,11 @@ namespace Tomahawk
 					else
 						Active = Shaders.SpotBase;
 
-					SpotLight.OwnWorldViewProjection = Compute::Matrix4x4::CreateScale(Light->Range * 1.25f) * Compute::Matrix4x4::CreateTranslation(Light->GetEntity()->Transform->Position) * System->GetScene()->View.ViewProjection;
+					SpotLight.Range = Light->GetRange();
+					SpotLight.OwnWorldViewProjection = Compute::Matrix4x4::CreateScale(SpotLight.Range * 1.25f) * Compute::Matrix4x4::CreateTranslation(Light->GetEntity()->Transform->Position) * System->GetScene()->View.ViewProjection;
 					SpotLight.OwnViewProjection = Light->View * Light->Projection;
 					SpotLight.Position = Light->GetEntity()->Transform->Position.InvertZ();
 					SpotLight.Lighting = Light->Diffuse.Mul(Light->Emission * D);
-					SpotLight.Range = Light->Range;
 					SpotLight.Diffuse = (Light->ProjectMap != nullptr);
 
 					Device->SetTexture2D(Light->ProjectMap, 5);
@@ -1651,7 +1620,7 @@ namespace Tomahawk
 
 				Device->SetShader(Shaders.LineBase, Graphics::ShaderType_Vertex);
 				Device->SetBuffer(Shaders.LineBase, 3, Graphics::ShaderType_Vertex | Graphics::ShaderType_Pixel);
-				Device->SetVertexBuffer(System->GetQuadVBuffer(), 0, sizeof(Compute::ShapeVertex), 0);
+				Device->SetVertexBuffer(System->GetQuadVBuffer(), 0, System->GetQuadVSize(), 0);
 
 				for (auto It = LineLights->Begin(); It != LineLights->End(); ++It)
 				{

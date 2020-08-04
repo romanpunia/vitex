@@ -709,6 +709,13 @@ namespace Tomahawk
 					return;
 				/* TODO: IMPL */
 			}
+			void OGLDevice::SetTargetMap(MultiRenderTarget2D* Resource, bool Enabled[8])
+			{
+				OGLMultiRenderTarget2D* IResource = (OGLMultiRenderTarget2D*)Resource;
+				if (!IResource)
+					return;
+				/* TODO: IMPL */
+			}
 			void OGLDevice::SetViewport(const Viewport& In)
 			{
 				SetViewport(RenderTarget, In);

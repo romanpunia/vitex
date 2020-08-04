@@ -1616,7 +1616,8 @@ namespace Tomahawk
 			virtual void SetTarget(MultiRenderTargetCube* Resource, unsigned int Target, float R, float G, float B) = 0;
 			virtual void SetTarget(MultiRenderTargetCube* Resource, unsigned int Target) = 0;
 			virtual void SetTarget(MultiRenderTargetCube* Resource, float R, float G, float B) = 0;
-			virtual void SetTarget(MultiRenderTargetCube* Resource) = 0;
+			virtual void SetTarget(MultiRenderTargetCube* Resource) = 0;;
+			virtual void SetTargetMap(MultiRenderTarget2D* Resource, bool Enabled[8]) = 0;
 			virtual void SetViewport(const Viewport& In) = 0;
 			virtual void SetViewport(RenderTarget2D* Resource, const Viewport& In) = 0;
 			virtual void SetViewport(MultiRenderTarget2D* Resource, const Viewport& In) = 0;

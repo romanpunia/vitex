@@ -166,7 +166,6 @@ namespace Tomahawk
 				Compute::Matrix4x4 View;
 				float FieldOfView;
 				float Distance;
-				float Range;
 
 			public:
 				Decal(Entity* Ref);
@@ -484,7 +483,6 @@ namespace Tomahawk
 				Compute::Matrix4x4 Projection;
 				Compute::Vector3 Diffuse;
 				float Emission = 1.0f;
-				float Range = 5.0f;
 				float ShadowSoftness = 0.0f;
 				float ShadowDistance = 10.0f;
 				float ShadowBias = 0.0f;
@@ -521,7 +519,6 @@ namespace Tomahawk
 				float ShadowBias;
 				float FieldOfView;
 				float Emission;
-				float Range;
 				int ShadowIterations;
 				bool Shadowed;
 
@@ -598,7 +595,6 @@ namespace Tomahawk
 				Rest::TickTimer Rebuild;
 				float CaptureRange;
 				float Emission;
-				float Range;
 				float Infinity;
 				bool ParallaxCorrected;
 				bool RenderLocked;

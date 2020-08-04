@@ -8,7 +8,7 @@ namespace resource_batch
 	{
 #define HAS_D3D11_GEOMETRY_DECAL_MAIN_HLSL
 		extern const unsigned char data[];
-		const unsigned size = 1131;
+		const unsigned size = 1194;
 	}
 
 	namespace d3d11_geometry_emitter_depth_linear_hlsl
@@ -37,6 +37,62 @@ namespace resource_batch
 #define HAS_D3D11_GEOMETRY_EMITTER_MAIN_HLSL
 		extern const unsigned char data[];
 		const unsigned size = 1417;
+	}
+
+	namespace d3d11_geometry_light_base_ambient_hlsl
+	{
+#define HAS_D3D11_GEOMETRY_LIGHT_BASE_AMBIENT_HLSL
+		extern const unsigned char data[];
+		const unsigned size = 1644;
+	}
+
+	namespace d3d11_geometry_light_base_line_hlsl
+	{
+#define HAS_D3D11_GEOMETRY_LIGHT_BASE_LINE_HLSL
+		extern const unsigned char data[];
+		const unsigned size = 1387;
+	}
+
+	namespace d3d11_geometry_light_base_point_hlsl
+	{
+#define HAS_D3D11_GEOMETRY_LIGHT_BASE_POINT_HLSL
+		extern const unsigned char data[];
+		const unsigned size = 1050;
+	}
+
+	namespace d3d11_geometry_light_base_probe_hlsl
+	{
+#define HAS_D3D11_GEOMETRY_LIGHT_BASE_PROBE_HLSL
+		extern const unsigned char data[];
+		const unsigned size = 1659;
+	}
+
+	namespace d3d11_geometry_light_base_spot_hlsl
+	{
+#define HAS_D3D11_GEOMETRY_LIGHT_BASE_SPOT_HLSL
+		extern const unsigned char data[];
+		const unsigned size = 1435;
+	}
+
+	namespace d3d11_geometry_light_shade_line_hlsl
+	{
+#define HAS_D3D11_GEOMETRY_LIGHT_SHADE_LINE_HLSL
+		extern const unsigned char data[];
+		const unsigned size = 2459;
+	}
+
+	namespace d3d11_geometry_light_shade_point_hlsl
+	{
+#define HAS_D3D11_GEOMETRY_LIGHT_SHADE_POINT_HLSL
+		extern const unsigned char data[];
+		const unsigned size = 1833;
+	}
+
+	namespace d3d11_geometry_light_shade_spot_hlsl
+	{
+#define HAS_D3D11_GEOMETRY_LIGHT_SHADE_SPOT_HLSL
+		extern const unsigned char data[];
+		const unsigned size = 2111;
 	}
 
 	namespace d3d11_geometry_model_depth_cubic_hlsl
@@ -135,62 +191,6 @@ namespace resource_batch
 #define HAS_D3D11_PASS_INDIRECT_HLSL
 		extern const unsigned char data[];
 		const unsigned size = 2114;
-	}
-
-	namespace d3d11_pass_light_base_ambient_hlsl
-	{
-#define HAS_D3D11_PASS_LIGHT_BASE_AMBIENT_HLSL
-		extern const unsigned char data[];
-		const unsigned size = 1644;
-	}
-
-	namespace d3d11_pass_light_base_line_hlsl
-	{
-#define HAS_D3D11_PASS_LIGHT_BASE_LINE_HLSL
-		extern const unsigned char data[];
-		const unsigned size = 1372;
-	}
-
-	namespace d3d11_pass_light_base_point_hlsl
-	{
-#define HAS_D3D11_PASS_LIGHT_BASE_POINT_HLSL
-		extern const unsigned char data[];
-		const unsigned size = 1035;
-	}
-
-	namespace d3d11_pass_light_base_probe_hlsl
-	{
-#define HAS_D3D11_PASS_LIGHT_BASE_PROBE_HLSL
-		extern const unsigned char data[];
-		const unsigned size = 1659;
-	}
-
-	namespace d3d11_pass_light_base_spot_hlsl
-	{
-#define HAS_D3D11_PASS_LIGHT_BASE_SPOT_HLSL
-		extern const unsigned char data[];
-		const unsigned size = 1420;
-	}
-
-	namespace d3d11_pass_light_shade_line_hlsl
-	{
-#define HAS_D3D11_PASS_LIGHT_SHADE_LINE_HLSL
-		extern const unsigned char data[];
-		const unsigned size = 2444;
-	}
-
-	namespace d3d11_pass_light_shade_point_hlsl
-	{
-#define HAS_D3D11_PASS_LIGHT_SHADE_POINT_HLSL
-		extern const unsigned char data[];
-		const unsigned size = 1818;
-	}
-
-	namespace d3d11_pass_light_shade_spot_hlsl
-	{
-#define HAS_D3D11_PASS_LIGHT_SHADE_SPOT_HLSL
-		extern const unsigned char data[];
-		const unsigned size = 2096;
 	}
 
 	namespace d3d11_pass_limpid_hlsl
@@ -452,6 +452,62 @@ namespace resource_batch
 		const unsigned size = 1417;
 	}
 
+	namespace ogl_geometry_light_base_ambient_glsl
+	{
+#define HAS_OGL_GEOMETRY_LIGHT_BASE_AMBIENT_GLSL
+		extern const unsigned char data[];
+		const unsigned size = 1671;
+	}
+
+	namespace ogl_geometry_light_base_line_glsl
+	{
+#define HAS_OGL_GEOMETRY_LIGHT_BASE_LINE_GLSL
+		extern const unsigned char data[];
+		const unsigned size = 1367;
+	}
+
+	namespace ogl_geometry_light_base_point_glsl
+	{
+#define HAS_OGL_GEOMETRY_LIGHT_BASE_POINT_GLSL
+		extern const unsigned char data[];
+		const unsigned size = 1031;
+	}
+
+	namespace ogl_geometry_light_base_probe_glsl
+	{
+#define HAS_OGL_GEOMETRY_LIGHT_BASE_PROBE_GLSL
+		extern const unsigned char data[];
+		const unsigned size = 1655;
+	}
+
+	namespace ogl_geometry_light_base_spot_glsl
+	{
+#define HAS_OGL_GEOMETRY_LIGHT_BASE_SPOT_GLSL
+		extern const unsigned char data[];
+		const unsigned size = 1415;
+	}
+
+	namespace ogl_geometry_light_shade_line_glsl
+	{
+#define HAS_OGL_GEOMETRY_LIGHT_SHADE_LINE_GLSL
+		extern const unsigned char data[];
+		const unsigned size = 2439;
+	}
+
+	namespace ogl_geometry_light_shade_point_glsl
+	{
+#define HAS_OGL_GEOMETRY_LIGHT_SHADE_POINT_GLSL
+		extern const unsigned char data[];
+		const unsigned size = 1814;
+	}
+
+	namespace ogl_geometry_light_shade_spot_glsl
+	{
+#define HAS_OGL_GEOMETRY_LIGHT_SHADE_SPOT_GLSL
+		extern const unsigned char data[];
+		const unsigned size = 2091;
+	}
+
 	namespace ogl_geometry_model_depth_cubic_glsl
 	{
 #define HAS_OGL_GEOMETRY_MODEL_DEPTH_CUBIC_GLSL
@@ -548,62 +604,6 @@ namespace resource_batch
 #define HAS_OGL_PASS_INDIRECT_GLSL
 		extern const unsigned char data[];
 		const unsigned size = 2096;
-	}
-
-	namespace ogl_pass_light_base_ambient_glsl
-	{
-#define HAS_OGL_PASS_LIGHT_BASE_AMBIENT_GLSL
-		extern const unsigned char data[];
-		const unsigned size = 1671;
-	}
-
-	namespace ogl_pass_light_base_line_glsl
-	{
-#define HAS_OGL_PASS_LIGHT_BASE_LINE_GLSL
-		extern const unsigned char data[];
-		const unsigned size = 1367;
-	}
-
-	namespace ogl_pass_light_base_point_glsl
-	{
-#define HAS_OGL_PASS_LIGHT_BASE_POINT_GLSL
-		extern const unsigned char data[];
-		const unsigned size = 1031;
-	}
-
-	namespace ogl_pass_light_base_probe_glsl
-	{
-#define HAS_OGL_PASS_LIGHT_BASE_PROBE_GLSL
-		extern const unsigned char data[];
-		const unsigned size = 1655;
-	}
-
-	namespace ogl_pass_light_base_spot_glsl
-	{
-#define HAS_OGL_PASS_LIGHT_BASE_SPOT_GLSL
-		extern const unsigned char data[];
-		const unsigned size = 1415;
-	}
-
-	namespace ogl_pass_light_shade_line_glsl
-	{
-#define HAS_OGL_PASS_LIGHT_SHADE_LINE_GLSL
-		extern const unsigned char data[];
-		const unsigned size = 2439;
-	}
-
-	namespace ogl_pass_light_shade_point_glsl
-	{
-#define HAS_OGL_PASS_LIGHT_SHADE_POINT_GLSL
-		extern const unsigned char data[];
-		const unsigned size = 1814;
-	}
-
-	namespace ogl_pass_light_shade_spot_glsl
-	{
-#define HAS_OGL_PASS_LIGHT_SHADE_SPOT_GLSL
-		extern const unsigned char data[];
-		const unsigned size = 2091;
 	}
 
 	namespace ogl_pass_limpid_glsl

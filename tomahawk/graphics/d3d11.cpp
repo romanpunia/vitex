@@ -870,6 +870,19 @@ namespace Tomahawk
 				ImmediateContext->OMSetRenderTargets(IResource->SVTarget, IResource->RenderTargetView, IResource->DepthStencilView);
 				ImmediateContext->RSSetViewports(1, &IResource->Viewport);
 			}
+			void D3D11Device::SetTargetMap(MultiRenderTarget2D* Resource, bool Enabled[8])
+			{
+				D3D11MultiRenderTarget2D* IResource = (D3D11MultiRenderTarget2D*)Resource;
+				if (!IResource)
+					return;
+
+				ID3D11RenderTargetView* Targets[8];
+				for (unsigned int i = 0; i < 8; i++)
+					Targets[i] = (Enabled[i] ? IResource->RenderTargetView[i] : nullptr);
+
+				ImmediateContext->OMSetRenderTargets(IResource->SVTarget, Targets, IResource->DepthStencilView);
+				ImmediateContext->RSSetViewports(1, &IResource->Viewport);
+			}
 			void D3D11Device::SetViewport(const Viewport& In)
 			{
 				SetViewport(RenderTarget, In);

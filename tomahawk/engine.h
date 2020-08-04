@@ -405,6 +405,7 @@ namespace Tomahawk
 			virtual ~Cullable() = default;
 			virtual float Cull(const Viewer& View) = 0;
 			virtual Component* Copy(Entity* New) = 0;
+			float GetRange();
 			bool IsVisible(const Viewer& View, Compute::Matrix4x4* World);
 			bool IsNear(const Viewer& View);
 
@@ -603,6 +604,8 @@ namespace Tomahawk
 			Graphics::ElementBuffer* QuadVertex;
 			Graphics::ElementBuffer* SphereVertex;
 			Graphics::ElementBuffer* SphereIndex;
+			Graphics::ElementBuffer* CubeVertex;
+			Graphics::ElementBuffer* CubeIndex;
 			Graphics::GraphicsDevice* Device;
 			SceneGraph* Scene;
 
@@ -620,9 +623,16 @@ namespace Tomahawk
 			Graphics::Shader* CompileShader(const std::string& Name, Graphics::Shader::Desc& Desc, size_t BufferSize = 0);
 			Renderer* AddRenderer(Renderer* In);
 			Renderer* GetRenderer(uint64_t Id);
+			size_t GetQuadVSize();
+			size_t GetSphereVSize();
+			size_t GetSphereISize();
+			size_t GetCubeVSize();
+			size_t GetCubeISize();
 			Graphics::ElementBuffer* GetQuadVBuffer();
 			Graphics::ElementBuffer* GetSphereVBuffer();
 			Graphics::ElementBuffer* GetSphereIBuffer();
+			Graphics::ElementBuffer* GetCubeVBuffer();
+			Graphics::ElementBuffer* GetCubeIBuffer();
 			std::vector<Renderer*>* GetRenderers();
 			Graphics::GraphicsDevice* GetDevice();
 			SceneGraph* GetScene();

@@ -14,13 +14,16 @@ namespace Tomahawk
 {
 	namespace Engine
 	{
-		bool Appearance::UploadPhase(Graphics::GraphicsDevice* Device, Appearance* Surface)
+		bool Appearance::UploadGBuffer(Graphics::GraphicsDevice* Device, Appearance* Surface)
 		{
 			if (!Device || !Surface || Surface->Material < 0)
 				return false;
 
 			Device->Render.HasDiffuse = (float)(Surface->DiffuseMap != nullptr);
 			Device->Render.HasNormal = (float)(Surface->NormalMap != nullptr);
+			Device->Render.HasHeight = (float)(Surface->HeightMap != nullptr);
+			Device->Render.HeightAmount = Surface->HeightAmount;
+			Device->Render.HeightBias = Surface->HeightBias;
 			Device->Render.MaterialId = (float)Surface->Material;
 			Device->Render.Diffuse = Surface->Diffuse;
 			Device->Render.TexCoord = Surface->TexCoord;
@@ -34,7 +37,7 @@ namespace Tomahawk
 
 			return true;
 		}
-		bool Appearance::UploadDepth(Graphics::GraphicsDevice* Device, Appearance* Surface)
+		bool Appearance::UploadLinearDepth(Graphics::GraphicsDevice* Device, Appearance* Surface)
 		{
 			if (!Device || !Surface || Surface->Material < 0)
 				return false;
@@ -272,6 +275,8 @@ namespace Tomahawk
 
 			NMake::Pack(V->SetDocument("diffuse"), Value.Diffuse);
 			NMake::Pack(V->SetDocument("texcoord"), Value.TexCoord);
+			NMake::Pack(V->SetDocument("height-amount"), Value.HeightAmount);
+			NMake::Pack(V->SetDocument("height-bias"), Value.HeightBias);
 			NMake::Pack(V->SetDocument("material"), Value.Material);
 			return true;
 		}
@@ -965,6 +970,8 @@ namespace Tomahawk
 
 			NMake::Unpack(V->Find("diffuse"), &O->Diffuse);
 			NMake::Unpack(V->Find("texcoord"), &O->TexCoord);
+			NMake::Unpack(V->Find("height-amount"), &O->HeightAmount);
+			NMake::Unpack(V->Find("height-bias"), &O->HeightBias);
 			NMake::Unpack(V->Find("material"), &O->Material);
 			return true;
 		}

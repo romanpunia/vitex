@@ -7,4 +7,8 @@ cbuffer Object : register(b1)
     float2 TexCoord;
     float HasNormal;
     float MaterialId;
+    float HasHeight;
+    float HeightAmount;
+    float HeightBias;
+    float Alignment;
 };

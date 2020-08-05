@@ -896,6 +896,10 @@ namespace Tomahawk
 			Compute::Vector2 TexCoord;
 			float HasNormal = 0.0f;
 			float MaterialId = 0.0f;
+			float HasHeight = 0.0f;
+			float HeightAmount = 0.0f;
+			float HeightBias = 0.0f;
+			float Alignment = 0.0f;
 		};
 
 		struct THAWK_OUT ViewBuffer

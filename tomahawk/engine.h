@@ -186,10 +186,12 @@ namespace Tomahawk
 			Graphics::Texture2D* EmissionMap = nullptr;
 			Compute::Vector3 Diffuse = 1;
 			Compute::Vector2 TexCoord = 1;
+			float HeightAmount = 0.0f;
+			float HeightBias = 0.0f;
 			int64_t Material = -1;
 
-			static bool UploadPhase(Graphics::GraphicsDevice* Device, Appearance* Surface);
-			static bool UploadDepth(Graphics::GraphicsDevice* Device, Appearance* Surface);
+			static bool UploadGBuffer(Graphics::GraphicsDevice* Device, Appearance* Surface);
+			static bool UploadLinearDepth(Graphics::GraphicsDevice* Device, Appearance* Surface);
 			static bool UploadCubicDepth(Graphics::GraphicsDevice* Device, Appearance* Surface);
 		};
 

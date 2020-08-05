@@ -17,6 +17,11 @@ float GetEmission(in float2 TexCoord)
 {
     return EmissionMap.Sample(Sampler, TexCoord).x;
 }
+float2 GetParallax(in float2 TexCoord, in float2 Direction, in float Amount, in float Bias)
+{ 
+    float Height = HeightMap.Sample(Sampler, TexCoord).r;
+    return TexCoord + Direction * (Height * Amount + Bias);
+}
 float3 GetNormal(in float2 TexCoord, in float3 Normal, in float3 Tangent, in float3 Bitangent)
 {
     float3 Result = NormalMap.Sample(Sampler, TexCoord).xyz * 2.0 - 1.0;

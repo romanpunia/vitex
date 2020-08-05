@@ -69,7 +69,7 @@ namespace Tomahawk
 
 					for (auto&& Mesh : Drawable->Meshes)
 					{
-						if (!Appearance::UploadPhase(Device, Base->GetSurface(Mesh)))
+						if (!Appearance::UploadGBuffer(Device, Base->GetSurface(Mesh)))
 							continue;
 
 						Device->Render.World = Mesh->World * Base->GetEntity()->Transform->GetWorld();
@@ -100,7 +100,7 @@ namespace Tomahawk
 
 					for (auto&& Mesh : Drawable->Meshes)
 					{
-						if (!Appearance::UploadDepth(Device, Base->GetSurface(Mesh)))
+						if (!Appearance::UploadLinearDepth(Device, Base->GetSurface(Mesh)))
 							continue;
 
 						Device->Render.World = Mesh->World * Base->GetEntity()->Transform->GetWorld();
@@ -222,7 +222,7 @@ namespace Tomahawk
 					Device->UpdateBuffer(Graphics::RenderBufferType_Animation);
 					for (auto&& Mesh : Drawable->Meshes)
 					{
-						if (!Appearance::UploadPhase(Device, Base->GetSurface(Mesh)))
+						if (!Appearance::UploadGBuffer(Device, Base->GetSurface(Mesh)))
 							continue;
 
 						Device->Render.World = Mesh->World * Base->GetEntity()->Transform->GetWorld();
@@ -258,7 +258,7 @@ namespace Tomahawk
 					Device->UpdateBuffer(Graphics::RenderBufferType_Animation);
 					for (auto&& Mesh : Drawable->Meshes)
 					{
-						if (!Appearance::UploadDepth(Device, Base->GetSurface(Mesh)))
+						if (!Appearance::UploadLinearDepth(Device, Base->GetSurface(Mesh)))
 							continue;
 
 						Device->Render.World = Mesh->World * Base->GetEntity()->Transform->GetWorld();
@@ -399,7 +399,7 @@ namespace Tomahawk
 					if (!System->Renderable(Base, Cull, nullptr))
 						continue;
 
-					if (!Appearance::UploadPhase(Device, Base->GetSurface()))
+					if (!Appearance::UploadGBuffer(Device, Base->GetSurface()))
 						continue;
 
 					Base->Fill(Device, IndexBuffer, VertexBuffer);
@@ -432,7 +432,7 @@ namespace Tomahawk
 					if (!System->Renderable(Base, CullResult_Always, nullptr))
 						continue;
 
-					if (!Appearance::UploadDepth(Device, Base->GetSurface()))
+					if (!Appearance::UploadLinearDepth(Device, Base->GetSurface()))
 						continue;
 
 					Base->Fill(Device, IndexBuffer, VertexBuffer);
@@ -564,7 +564,7 @@ namespace Tomahawk
 					if (!System->Renderable(Base, Cull, nullptr))
 						continue;
 
-					if (!Appearance::UploadPhase(Device, Base->GetSurface()))
+					if (!Appearance::UploadGBuffer(Device, Base->GetSurface()))
 						continue;
 
 					Device->Render.World = System->GetScene()->View.Projection;
@@ -592,7 +592,7 @@ namespace Tomahawk
 					if (!System->Renderable(Base, Cull, nullptr))
 						continue;
 
-					if (!Appearance::UploadPhase(Device, Base->GetSurface()))
+					if (!Appearance::UploadGBuffer(Device, Base->GetSurface()))
 						continue;
 
 					Device->Render.World = System->GetScene()->View.Projection;
@@ -632,7 +632,7 @@ namespace Tomahawk
 					if (!Base->GetBuffer())
 						continue;
 
-					if (!Appearance::UploadDepth(Device, Base->GetSurface()))
+					if (!Appearance::UploadLinearDepth(Device, Base->GetSurface()))
 						continue;
 
 					Device->Render.World = Base->QuadBased ? System->GetScene()->View.Projection : Compute::Matrix4x4::Identity();
@@ -757,7 +757,7 @@ namespace Tomahawk
 					if (Static && !Base->Static || !System->Renderable(Base, Cull, nullptr))
 						continue;
 
-					if (!Appearance::UploadPhase(Device, Base->GetSurface()))
+					if (!Appearance::UploadGBuffer(Device, Base->GetSurface()))
 						continue;
 
 					RenderPass.OwnViewProjection = Base->View * Base->Projection;

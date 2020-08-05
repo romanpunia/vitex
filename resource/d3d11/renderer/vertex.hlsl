@@ -15,6 +15,7 @@ struct VertexResult
     float3 Tangent : TANGENT0;
     float3 Bitangent : BINORMAL0;
     float4 UV : TEXCOORD1;
+    float2 Direction : TEXCOORD2;
 };
 
 struct VertexResult360

@@ -19,8 +19,8 @@ namespace Tomahawk
 				I.Layout = Graphics::Shader::GetVertexLayout();
 				I.LayoutSize = 5;
 
-				if (System->GetDevice()->GetSection("geometry/model/main", &I.Data))
-					Shaders.Main = System->CompileShader("mr-main", I, 0);
+				if (System->GetDevice()->GetSection("geometry/model/gbuffer", &I.Data))
+					Shaders.GBuffer = System->CompileShader("mr-gbuffer", I, 0);
 
 				if (System->GetDevice()->GetSection("geometry/model/depth-linear", &I.Data))
 					Shaders.Linear = System->CompileShader("mr-depth-linear", I, 0);
@@ -30,7 +30,7 @@ namespace Tomahawk
 			}
 			ModelRenderer::~ModelRenderer()
 			{
-				System->FreeShader("mr-main", Shaders.Main);
+				System->FreeShader("mr-gbuffer", Shaders.GBuffer);
 				System->FreeShader("mr-depth-linear", Shaders.Linear);
 				System->FreeShader("mr-depth-cubic", Shaders.Cubic);
 			}
@@ -54,7 +54,7 @@ namespace Tomahawk
 				Device->SetSamplerState(Sampler);
 				Device->SetBlendState(Blend);
 				Device->SetRasterizerState(BackRasterizer);
-				Device->SetShader(Shaders.Main, Graphics::ShaderType_Vertex | Graphics::ShaderType_Pixel);
+				Device->SetShader(Shaders.GBuffer, Graphics::ShaderType_Vertex | Graphics::ShaderType_Pixel);
 				System->GetScene()->SetSurface();
 
 				for (auto It = Geometry->Begin(); It != Geometry->End(); ++It)
@@ -167,8 +167,8 @@ namespace Tomahawk
 				I.Layout = Graphics::Shader::GetSkinVertexLayout();
 				I.LayoutSize = 7;
 
-				if (System->GetDevice()->GetSection("geometry/skin/main", &I.Data))
-					Shaders.Main = System->CompileShader("sr-main", I, 0);
+				if (System->GetDevice()->GetSection("geometry/skin/gbuffer", &I.Data))
+					Shaders.GBuffer = System->CompileShader("sr-gbuffer", I, 0);
 
 				if (System->GetDevice()->GetSection("geometry/skin/depth-linear", &I.Data))
 					Shaders.Linear = System->CompileShader("sr-depth-linear", I, 0);
@@ -178,7 +178,7 @@ namespace Tomahawk
 			}
 			SkinRenderer::~SkinRenderer()
 			{
-				System->FreeShader("sr-main", Shaders.Main);
+				System->FreeShader("sr-gbuffer", Shaders.GBuffer);
 				System->FreeShader("sr-depth-linear", Shaders.Linear);
 				System->FreeShader("sr-depth-cubic", Shaders.Cubic);
 			}
@@ -202,7 +202,7 @@ namespace Tomahawk
 				Device->SetSamplerState(Sampler);
 				Device->SetBlendState(Blend);
 				Device->SetRasterizerState(BackRasterizer);
-				Device->SetShader(Shaders.Main, Graphics::ShaderType_Vertex | Graphics::ShaderType_Pixel);
+				Device->SetShader(Shaders.GBuffer, Graphics::ShaderType_Vertex | Graphics::ShaderType_Pixel);
 				System->GetScene()->SetSurface();
 
 				for (auto It = Geometry->Begin(); It != Geometry->End(); ++It)
@@ -350,8 +350,8 @@ namespace Tomahawk
 				I.Layout = Graphics::Shader::GetVertexLayout();
 				I.LayoutSize = 5;
 
-				if (System->GetDevice()->GetSection("geometry/model/main", &I.Data))
-					Shaders.Main = System->CompileShader("mr-main", I, 0);
+				if (System->GetDevice()->GetSection("geometry/model/gbuffer", &I.Data))
+					Shaders.GBuffer = System->CompileShader("mr-gbuffer", I, 0);
 
 				if (System->GetDevice()->GetSection("geometry/model/depth-linear", &I.Data))
 					Shaders.Linear = System->CompileShader("mr-depth-linear", I, 0);
@@ -361,7 +361,7 @@ namespace Tomahawk
 			}
 			SoftBodyRenderer::~SoftBodyRenderer()
 			{
-				System->FreeShader("mr-main", Shaders.Main);
+				System->FreeShader("mr-gbuffer", Shaders.GBuffer);
 				System->FreeShader("mr-depth-linear", Shaders.Linear);
 				System->FreeShader("mr-depth-cubic", Shaders.Cubic);
 				delete VertexBuffer;
@@ -387,7 +387,7 @@ namespace Tomahawk
 				Device->SetSamplerState(Sampler);
 				Device->SetBlendState(Blend);
 				Device->SetRasterizerState(BackRasterizer);
-				Device->SetShader(Shaders.Main, Graphics::ShaderType_Vertex | Graphics::ShaderType_Pixel);
+				Device->SetShader(Shaders.GBuffer, Graphics::ShaderType_Vertex | Graphics::ShaderType_Pixel);
 				System->GetScene()->SetSurface();
 
 				for (auto It = Geometry->Begin(); It != Geometry->End(); ++It)
@@ -491,7 +491,7 @@ namespace Tomahawk
 
 			EmitterRenderer::EmitterRenderer(RenderSystem* Lab) : GeoRenderer(Lab)
 			{
-				DepthStencil = Lab->GetDevice()->GetDepthStencilState("DEF_NONE_LESS");
+				DepthStencil = Lab->GetDevice()->GetDepthStencilState("DEF_LESS");
 				BackRasterizer = Lab->GetDevice()->GetRasterizerState("DEF_CULL_BACK");
 				FrontRasterizer = Lab->GetDevice()->GetRasterizerState("DEF_CULL_FRONT");
 				AdditiveBlend = Lab->GetDevice()->GetBlendState("DEF_ADDITIVE_ALPHA");
@@ -502,8 +502,11 @@ namespace Tomahawk
 				I.Layout = nullptr;
 				I.LayoutSize = 0;
 
-				if (System->GetDevice()->GetSection("geometry/emitter/main", &I.Data))
-					Shaders.Main = System->CompileShader("er-main", I, 0);
+				if (System->GetDevice()->GetSection("geometry/emitter/gbuffer-opaque", &I.Data))
+					Shaders.Opaque = System->CompileShader("er-gbuffer-opaque", I, 0);
+
+				if (System->GetDevice()->GetSection("geometry/emitter/gbuffer-limpid", &I.Data))
+					Shaders.Limpid = System->CompileShader("er-gbuffer-limpid", I, 0);
 
 				if (System->GetDevice()->GetSection("geometry/emitter/depth-linear", &I.Data))
 					Shaders.Linear = System->CompileShader("er-depth-linear", I, 0);
@@ -516,39 +519,43 @@ namespace Tomahawk
 			}
 			EmitterRenderer::~EmitterRenderer()
 			{
-				System->FreeShader("er-main", Shaders.Main);
+				System->FreeShader("er-gbuffer-opaque", Shaders.Opaque);
+				System->FreeShader("er-gbuffer-limpid", Shaders.Limpid);
 				System->FreeShader("er-depth-linear", Shaders.Linear);
 				System->FreeShader("er-depth-point", Shaders.Point);
 				System->FreeShader("er-depth-quad", Shaders.Quad);
 			}
 			void EmitterRenderer::Activate()
 			{
-				System->AddCull<Engine::Components::Emitter>();
-				System->AddCull<Engine::Components::LimpidEmitter>();
+				Opaque = System->AddCull<Engine::Components::Emitter>();
+				Limpid = System->AddCull<Engine::Components::LimpidEmitter>();
 			}
 			void EmitterRenderer::Deactivate()
 			{
-				System->RemoveCull<Engine::Components::Emitter>();
-				System->RemoveCull<Engine::Components::LimpidEmitter>();
+				Opaque = System->RemoveCull<Engine::Components::Emitter>();
+				Limpid = System->RemoveCull<Engine::Components::LimpidEmitter>();
 			}
 			void EmitterRenderer::RenderGBuffer(Rest::Timer* Time, Rest::Pool<Component*>* Geometry, RenderOpt Options)
 			{
+				if (Options & RenderOpt_Limpid || !Opaque || !Limpid)
+					return;
+
 				Graphics::GraphicsDevice* Device = System->GetDevice();
 				Graphics::PrimitiveTopology T = Device->GetPrimitiveTopology();
+				Compute::Matrix4x4& View = System->GetScene()->View.View;
 				CullResult Cull = (Options & RenderOpt_Inner ? CullResult_Always : CullResult_Last);
 				bool Static = (Options & RenderOpt_Static);
 
 				Device->SetDepthStencilState(DepthStencil);
 				Device->SetSamplerState(Sampler);
-				Device->SetBlendState(AdditiveBlend);
+				Device->SetBlendState(OverwriteBlend);
 				Device->SetRasterizerState(BackRasterizer);
 				Device->SetPrimitiveTopology(Graphics::PrimitiveTopology_Point_List);
-				Device->SetShader(Shaders.Main, Graphics::ShaderType_Vertex | Graphics::ShaderType_Pixel);
+				Device->SetShader(Shaders.Opaque, Graphics::ShaderType_Vertex | Graphics::ShaderType_Pixel);
 				Device->SetVertexBuffer(nullptr, 0, 0, 0);
 				System->GetScene()->SetSurface();
 
-				Compute::Matrix4x4 View = System->GetScene()->View.ViewProjection * System->GetScene()->View.Projection.Invert();
-				for (auto It = Geometry->Begin(); It != Geometry->End(); ++It)
+				for (auto It = Opaque->Begin(); It != Opaque->End(); ++It)
 				{
 					Engine::Components::Emitter* Base = (Engine::Components::Emitter*)*It;
 					if ((Static && !Base->Static) && !Base->GetBuffer())
@@ -568,7 +575,35 @@ namespace Tomahawk
 
 					Device->UpdateBuffer(Base->GetBuffer());
 					Device->SetBuffer(Base->GetBuffer(), 8);
-					Device->SetShader(Base->QuadBased ? Shaders.Main : nullptr, Graphics::ShaderType_Geometry);
+					Device->SetShader(Base->QuadBased ? Shaders.Opaque : nullptr, Graphics::ShaderType_Geometry);
+					Device->UpdateBuffer(Graphics::RenderBufferType_Render);
+					Device->Draw((unsigned int)Base->GetBuffer()->GetArray()->Size(), 0);
+				}
+
+				Device->SetBlendState(AdditiveBlend);
+				Device->SetShader(Shaders.Limpid, Graphics::ShaderType_Vertex | Graphics::ShaderType_Pixel);
+				
+				for (auto It = Limpid->Begin(); It != Limpid->End(); ++It)
+				{
+					Engine::Components::Emitter* Base = (Engine::Components::Emitter*)*It;
+					if ((Static && !Base->Static) && !Base->GetBuffer())
+						continue;
+
+					if (!System->Renderable(Base, Cull, nullptr))
+						continue;
+
+					if (!Appearance::UploadPhase(Device, Base->GetSurface()))
+						continue;
+
+					Device->Render.World = System->GetScene()->View.Projection;
+					Device->Render.WorldViewProjection = (Base->QuadBased ? View : System->GetScene()->View.ViewProjection);
+
+					if (Base->Connected)
+						Device->Render.WorldViewProjection = Base->GetEntity()->Transform->GetWorld() * Device->Render.WorldViewProjection;
+
+					Device->UpdateBuffer(Base->GetBuffer());
+					Device->SetBuffer(Base->GetBuffer(), 8);
+					Device->SetShader(Base->QuadBased ? Shaders.Limpid : nullptr, Graphics::ShaderType_Geometry);
 					Device->UpdateBuffer(Graphics::RenderBufferType_Render);
 					Device->Draw((unsigned int)Base->GetBuffer()->GetArray()->Size(), 0);
 				}
@@ -581,6 +616,7 @@ namespace Tomahawk
 			{
 				Graphics::GraphicsDevice* Device = System->GetDevice();
 				Graphics::PrimitiveTopology T = Device->GetPrimitiveTopology();
+				Compute::Matrix4x4& View = System->GetScene()->View.View;
 
 				Device->SetDepthStencilState(DepthStencil);
 				Device->SetSamplerState(Sampler);
@@ -589,9 +625,7 @@ namespace Tomahawk
 				Device->SetPrimitiveTopology(Graphics::PrimitiveTopology_Point_List);
 				Device->SetShader(Shaders.Linear, Graphics::ShaderType_Vertex | Graphics::ShaderType_Pixel);
 				Device->SetVertexBuffer(nullptr, 0, 0, 0);
-				System->GetScene()->SetSurface();
 
-				Compute::Matrix4x4 View = System->GetScene()->View.ViewProjection * System->GetScene()->View.Projection.Invert();
 				for (auto It = Geometry->Begin(); It != Geometry->End(); ++It)
 				{
 					Engine::Components::Emitter* Base = (Engine::Components::Emitter*)*It;
@@ -607,7 +641,6 @@ namespace Tomahawk
 					if (Base->Connected)
 						Device->Render.WorldViewProjection = Base->GetEntity()->Transform->GetWorld() * Device->Render.WorldViewProjection;
 
-					Device->UpdateBuffer(Base->GetBuffer());
 					Device->SetBuffer(Base->GetBuffer(), 8);
 					Device->SetShader(Base->QuadBased ? Shaders.Linear : nullptr, Graphics::ShaderType_Geometry);
 					Device->UpdateBuffer(Graphics::RenderBufferType_Render);
@@ -637,7 +670,6 @@ namespace Tomahawk
 				Device->SetVertexBuffer(nullptr, 0, 0, 0);
 				Device->SetBuffer(Shaders.Quad, 3, Graphics::ShaderType_Vertex | Graphics::ShaderType_Pixel | Graphics::ShaderType_Geometry);
 				Device->UpdateBuffer(Shaders.Quad, &Depth);
-				System->GetScene()->SetSurface();
 
 				for (auto It = Geometry->Begin(); It != Geometry->End(); ++It)
 				{
@@ -649,7 +681,6 @@ namespace Tomahawk
 						continue;
 
 					Device->Render.World = (Base->Connected ? Base->GetEntity()->Transform->GetWorld() : Compute::Matrix4x4::Identity());			
-					Device->UpdateBuffer(Base->GetBuffer());
 					Device->SetBuffer(Base->GetBuffer(), 8);
 					Device->SetShader(Base->QuadBased ? Shaders.Quad : Shaders.Point, Graphics::ShaderType_Vertex | Graphics::ShaderType_Pixel | Graphics::ShaderType_Geometry);
 					Device->UpdateBuffer(Graphics::RenderBufferType_Render);
@@ -662,11 +693,11 @@ namespace Tomahawk
 			}
 			Rest::Pool<Component*>* EmitterRenderer::GetOpaque()
 			{
-				return System->GetScene()->GetComponents<Components::Emitter>();
+				return Opaque;
 			}
 			Rest::Pool<Component*>* EmitterRenderer::GetLimpid(uint64_t Layer)
 			{
-				return System->GetScene()->GetComponents<Components::LimpidEmitter>();
+				return Limpid;
 			}
 
 			DecalRenderer::DecalRenderer(RenderSystem* Lab) : GeoRenderer(Lab)
@@ -680,12 +711,12 @@ namespace Tomahawk
 				I.Layout = Graphics::Shader::GetShapeVertexLayout();
 				I.LayoutSize = 2;
 
-				if (System->GetDevice()->GetSection("geometry/decal/main", &I.Data))
-					Shader = System->CompileShader("dr-main", I, sizeof(RenderPass));
+				if (System->GetDevice()->GetSection("geometry/decal/gbuffer", &I.Data))
+					Shader = System->CompileShader("dr-gbuffer", I, sizeof(RenderPass));
 			}
 			DecalRenderer::~DecalRenderer()
 			{
-				System->FreeShader("dr-main", Shader);
+				System->FreeShader("dr-gbuffer", Shader);
 			}
 			void DecalRenderer::Activate()
 			{

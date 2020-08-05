@@ -1395,6 +1395,9 @@ namespace Tomahawk
 			void EmitterAnimator::Awake(Component* New)
 			{
 				Base = Parent->GetComponent<Emitter>();
+				if (!Base)
+					Base = Parent->GetComponent<LimpidEmitter>();
+
 				SetActive(Base != nullptr);
 			}
 			void EmitterAnimator::Synchronize(Rest::Timer* Time)

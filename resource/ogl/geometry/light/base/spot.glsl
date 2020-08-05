@@ -2,7 +2,7 @@
 #include "workflow/pass"
 #include "standard/cook-torrance"
 
-cbuffer SpotLight : register(b3)
+cbuffer RenderConstant : register(b3)
 {
 	matrix OwnWorldViewProjection;
 	matrix OwnViewProjection;
@@ -14,7 +14,7 @@ cbuffer SpotLight : register(b3)
 	float Iterations;
 };
 
-Texture2D ProjectMap : register(t4);
+Texture2D ProjectMap : register(t5);
 
 VertexResult VS(VertexBase V)
 {
@@ -42,10 +42,11 @@ float4 PS(VertexResult V) : SV_TARGET0
 	[branch] if (Diffuse > 0)
 		A *= GetSampleLevel(ProjectMap, T, 0).xyz;
 
+    float3 O;
 	float3 P = normalize(ViewPosition - Frag.Position);
 	float3 M = GetMetallicFactor(Frag, Mat);
 	float R = GetRoughnessFactor(Frag, Mat);
-	float3 E = GetLight(P, normalize(D), Frag.Normal, M, R) * A;
+    float3 E = GetLight(P, normalize(D), Frag.Normal, M, R, O);
 
-	return float4(Lighting * E, length(A) / 3.0);
+	return float4(Lighting * (Frag.Diffuse * E + O) * A, length(A) / 3.0);
 };

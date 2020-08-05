@@ -4,7 +4,7 @@
 #include "renderer/input/element"
 #include "workflow/geometry"
 
-VertexResult Make(in VertexResult V, in float2 Offset, in float2 TexCoord2)
+VertexResult Make(VertexResult V, in float2 Offset, in float2 TexCoord2)
 {
 	float Sin = sin(V.Rotation), Cos = cos(V.Rotation);
 	V.Position.xy += float2(Offset.x * Cos - Offset.y * Sin, Offset.x * Sin + Offset.y * Cos);
@@ -36,7 +36,7 @@ VertexResult VS(VertexBase V)
 
 float4 PS(VertexResult V) : SV_TARGET0
 {
-    float4 Color = float4(V.Color.xyz * Diffuse, V.Color.w);
+    float4 Color = float4(Diffuse * V.Color.xyz, V.Color.w);
 	[branch] if (HasDiffuse > 0)
 		Color *= GetDiffuse(V.TexCoord);
 

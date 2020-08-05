@@ -4,7 +4,7 @@
 #include "renderer/input/element"
 #include "workflow/rasterizer"
 
-VertexResult90 Make(in VertexResult90 V, in float2 Offset, in float2 TexCoord2)
+VertexResult90 Make(VertexResult90 V, in float2 Offset, in float2 TexCoord2)
 {
 	float Sin = sin(V.Rotation), Cos = cos(V.Rotation);
 	V.Position.xy += float2(Offset.x * Cos - Offset.y * Sin, Offset.x * Sin + Offset.y * Cos);

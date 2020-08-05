@@ -1,8 +1,9 @@
 #include "renderer/vertex/shape"
 #include "workflow/pass"
+#include "standard/cook-torrance"
 
-Texture2D LightMap : register(t4);
-TextureCube SkyMap : register(t5);
+Texture2D LightMap : register(t5);
+TextureCube SkyMap : register(t6);
 
 cbuffer RenderConstant : register(b3)
 {
@@ -42,15 +43,18 @@ AmbientVertexResult VS(VertexBase V)
 float4 PS(AmbientVertexResult V) : SV_TARGET0
 {
     Fragment Frag = GetFragment(V.TexCoord.xy);
-    Material Mat = GetMaterial(Frag.Material);
-    float3 Emission = Mat.Emission.xyz * Mat.Emission.w;
 	float4 Light = GetSample(LightMap, V.TexCoord.xy) * LightEmission;
-	float3 Ambient = GetHemiAmbient(HighEmission, LowEmission, Frag.Normal.y);
-    float3 Sky = float3(0, 0, 0);
-    Emission = GetHemiAmbient(Emission, Emission * 0.5, Frag.Normal.y);
-    
-    [branch] if (Frag.Depth >= 1.0)
-        Sky = Light.xyz * SkyColor * (1.0 - SkyEmission) + SkyMap.Sample(Sampler, V.View.xyz).xyz * SkyEmission;
 
-	return float4(Frag.Diffuse * (Light.xyz + Ambient + Emission) + (Emission + Frag.Diffuse) * Light.xyz * Light.a + Sky, 1.0);
+    [branch] if (Frag.Depth >= 1.0)
+        return float4(Light.xyz * SkyColor * (1.0 - SkyEmission) + SkyMap.Sample(Sampler, V.View.xyz).xyz * SkyEmission, 1.0);
+
+    Material Mat = GetMaterial(Frag.Material);
+    float3 Emission = GetEmissionFactor(Frag, Mat);
+	float3 Ambient = GetHemiAmbient(HighEmission, LowEmission, Frag.Normal.y);
+    float Fresnel = GetFresnel(normalize(Frag.Position - ViewPosition), Frag.Normal);
+
+    Emission = GetHemiAmbient(Emission, Emission * 0.5, Frag.Normal.y);
+    Frag.Diffuse = lerp(Frag.Diffuse.xyz, 1.0, Fresnel * Mat.Fresnel);
+
+	return float4(Frag.Diffuse * (Light.xyz + Ambient + Emission) + (Emission + Frag.Diffuse) * Light.xyz * Light.a, 1.0);
 };

@@ -4,9 +4,9 @@
 
 namespace resource_batch
 {
-	namespace d3d11_geometry_decal_main_hlsl
+	namespace d3d11_geometry_decal_gbuffer_hlsl
 	{
-#define HAS_D3D11_GEOMETRY_DECAL_MAIN_HLSL
+#define HAS_D3D11_GEOMETRY_DECAL_GBUFFER_HLSL
 		extern const unsigned char data[];
 		const unsigned size = 1194;
 	}
@@ -15,28 +15,35 @@ namespace resource_batch
 	{
 #define HAS_D3D11_GEOMETRY_EMITTER_DEPTH_LINEAR_HLSL
 		extern const unsigned char data[];
-		const unsigned size = 1553;
+		const unsigned size = 1550;
 	}
 
 	namespace d3d11_geometry_emitter_depth_point_hlsl
 	{
 #define HAS_D3D11_GEOMETRY_EMITTER_DEPTH_POINT_HLSL
 		extern const unsigned char data[];
-		const unsigned size = 1707;
+		const unsigned size = 1704;
 	}
 
 	namespace d3d11_geometry_emitter_depth_quad_hlsl
 	{
 #define HAS_D3D11_GEOMETRY_EMITTER_DEPTH_QUAD_HLSL
 		extern const unsigned char data[];
-		const unsigned size = 1956;
+		const unsigned size = 1953;
 	}
 
-	namespace d3d11_geometry_emitter_main_hlsl
+	namespace d3d11_geometry_emitter_gbuffer_limpid_hlsl
 	{
-#define HAS_D3D11_GEOMETRY_EMITTER_MAIN_HLSL
+#define HAS_D3D11_GEOMETRY_EMITTER_GBUFFER_LIMPID_HLSL
 		extern const unsigned char data[];
-		const unsigned size = 1417;
+		const unsigned size = 1414;
+	}
+
+	namespace d3d11_geometry_emitter_gbuffer_opaque_hlsl
+	{
+#define HAS_D3D11_GEOMETRY_EMITTER_GBUFFER_OPAQUE_HLSL
+		extern const unsigned char data[];
+		const unsigned size = 1796;
 	}
 
 	namespace d3d11_geometry_light_base_ambient_hlsl
@@ -109,9 +116,9 @@ namespace resource_batch
 		const unsigned size = 576;
 	}
 
-	namespace d3d11_geometry_model_main_hlsl
+	namespace d3d11_geometry_model_gbuffer_hlsl
 	{
-#define HAS_D3D11_GEOMETRY_MODEL_MAIN_HLSL
+#define HAS_D3D11_GEOMETRY_MODEL_GBUFFER_HLSL
 		extern const unsigned char data[];
 		const unsigned size = 851;
 	}
@@ -130,9 +137,9 @@ namespace resource_batch
 		const unsigned size = 954;
 	}
 
-	namespace d3d11_geometry_skin_main_hlsl
+	namespace d3d11_geometry_skin_gbuffer_hlsl
 	{
-#define HAS_D3D11_GEOMETRY_SKIN_MAIN_HLSL
+#define HAS_D3D11_GEOMETRY_SKIN_GBUFFER_HLSL
 		extern const unsigned char data[];
 		const unsigned size = 1518;
 	}
@@ -309,7 +316,7 @@ namespace resource_batch
 	{
 #define HAS_D3D11_RENDERER_VERTEX_ELEMENT_HLSL
 		extern const unsigned char data[];
-		const unsigned size = 694;
+		const unsigned size = 1001;
 	}
 
 	namespace d3d11_renderer_vertex_gui_hlsl

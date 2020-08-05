@@ -9,7 +9,7 @@ cbuffer RenderConstant : register(b3)
 	matrix FaceView[6];
 };
 
-VertexResult360 Make(in VertexResult90 V, in float2 Offset, in float2 TexCoord2, in uint i)
+VertexResult360 Make(VertexResult90 V, in float2 Offset, in float2 TexCoord2, in uint i)
 {
 	float Sin = sin(V.Rotation), Cos = cos(V.Rotation);
 	V.Position = mul(V.Position, FaceView[i]);
@@ -55,10 +55,10 @@ VertexResult90 VS(VertexBase V)
 float4 PS(VertexResult90 V) : SV_TARGET0
 {
     Material Mat = GetMaterial(MaterialId);
-	float Alpha = V.Alpha;
+	float Alpha = V.Alpha * (1.0 - Mat.Limpidity);
 
 	[branch] if (HasDiffuse > 0)
 		Alpha *= GetDiffuse(V.TexCoord).w;
 
-	return float4(length(V.UV.xyz - ViewPosition) / FarPlane, Alpha, 1.0, 1.0);
+	return float4(length(V.UV.xyz - ViewPosition) / FarPlane, 1.0 - Alpha, 1.0, 1.0);
 };

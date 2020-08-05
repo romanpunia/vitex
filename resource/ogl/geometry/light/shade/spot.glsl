@@ -2,7 +2,7 @@
 #include "workflow/pass"
 #include "standard/cook-torrance"
 
-cbuffer SpotLight : register(b3)
+cbuffer RenderConstant : register(b3)
 {
 	matrix OwnWorldViewProjection;
 	matrix OwnViewProjection;
@@ -16,8 +16,8 @@ cbuffer SpotLight : register(b3)
 	float Iterations;
 };
 
-Texture2D ProjectMap : register(t4);
-Texture2D ShadowMap : register(t5);
+Texture2D ProjectMap : register(t5);
+Texture2D ShadowMap : register(t6);
 
 void SampleShadow(float2 D, float L, out float C, out float B)
 {
@@ -61,8 +61,8 @@ float4 PS(VertexResult V) : SV_TARGET0
 
 	float3 M = GetMetallicFactor(Frag, Mat);
 	float R = GetRoughnessFactor(Frag, Mat);
-	float3 P = normalize(ViewPosition - Frag.Position);
-	float3 E = GetLight(P, normalize(D), Frag.Normal, M, R) * A;
+	float3 P = normalize(ViewPosition - Frag.Position), O;
+	float3 E = GetLight(P, normalize(D), Frag.Normal, M, R, O);
 	float I = L.z / L.w - Bias, C = 0.0, B = 0.0;
 
 	[branch] if (Softness <= 0.0)
@@ -73,6 +73,7 @@ float4 PS(VertexResult V) : SV_TARGET0
 	else
 		SampleShadow(T, I, C, B);
 
+    E = Lighting * (Frag.Diffuse * E + O);
 	E *= C + B * (1.0 - C);
-	return float4(Lighting * E, length(A) / 3.0);
+	return float4(E * A, length(A) / 3.0);
 };

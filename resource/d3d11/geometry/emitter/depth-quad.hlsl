@@ -9,7 +9,7 @@ cbuffer RenderConstant : register(b3)
 	matrix FaceView[6];
 };
 
-VertexResult360 Make(in VertexResult90 V, in float2 Offset, in float2 TexCoord2, in uint i)
+VertexResult360 Make(VertexResult90 V, in float2 Offset, in float2 TexCoord2, in uint i)
 {
 	float Sin = sin(V.Rotation), Cos = cos(V.Rotation);
 	V.Position = mul(V.Position, FaceView[i]);

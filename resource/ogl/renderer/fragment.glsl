@@ -5,6 +5,8 @@ struct Fragment
     float3 Normal;
     float Roughness;
     float Metallic;
+    float Occlusion;
+    float Emission;
     float Material;
     float Depth;
     float Alpha;

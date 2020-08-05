@@ -4,7 +4,7 @@
 #include "renderer/input/element"
 #include "workflow/rasterizer"
 
-VertexResult90 Make(in VertexResult90 V, in float2 Offset, in float2 TexCoord2)
+VertexResult90 Make(VertexResult90 V, in float2 Offset, in float2 TexCoord2)
 {
 	float Sin = sin(V.Rotation), Cos = cos(V.Rotation);
 	V.Position.xy += float2(Offset.x * Cos - Offset.y * Sin, Offset.x * Sin + Offset.y * Cos);
@@ -38,10 +38,10 @@ VertexResult90 VS(VertexBase V)
 float4 PS(VertexResult90 V) : SV_TARGET0
 {
     Material Mat = GetMaterial(MaterialId);
-	float Alpha = V.Alpha;
+	float Alpha = V.Alpha * (1.0 - Mat.Limpidity);
 
 	[branch] if (HasDiffuse > 0)
 		Alpha *= GetDiffuse(V.TexCoord).w;
 
-	return float4(V.UV.z / V.UV.w, Alpha, 1.0, 1.0);
+	return float4(V.UV.z / V.UV.w, 1.0 - Alpha, 1.0, 1.0);
 };

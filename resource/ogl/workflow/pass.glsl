@@ -3,15 +3,10 @@
 #include "renderer/buffer/viewer"
 #include "renderer/input/sv"
 #include "standard/pow"
-#include "standard/compress"
 
 float GetMaterialId(in float2 TexCoord)
 {
-    return NormalMap.SampleLevel(Sampler, TexCoord, 0).w;
-}
-float3 GetMetallicFactor(in Fragment Frag, in Material Mat)
-{
-    return Mat.Metallic.xyz + Frag.Metallic * Mat.Metallic.w;
+    return Channel1.SampleLevel(Sampler, TexCoord, 0).w;
 }
 float GetRoughnessLevel(in Fragment Frag, in Material Mat, in float MaxLevels)
 {
@@ -21,17 +16,37 @@ float GetRoughnessFactor(in Fragment Frag, in Material Mat)
 {
     return Pow4(Mat.Roughness.x + Frag.Roughness * Mat.Roughness.y);
 }
-float GetMetallic(in float2 TexCoord)
+float3 GetMetallicFactor(in Fragment Frag, in Material Mat)
 {
-    return DepthMap.SampleLevel(Sampler, TexCoord, 0).y;
+    return Mat.Metallic.xyz + Frag.Metallic * Mat.Metallic.w;
+}
+float GetOcclusionFactor(in Fragment Frag, in Material Mat)
+{
+    return Mat.Occlusion * (1.0 + Frag.Occlusion);
+}
+float3 GetEmissionFactor(in Fragment Frag, in Material Mat)
+{
+    return (Mat.Emission.xyz + Frag.Emission) * Mat.Emission.w;
 }
 float GetRoughness(in float2 TexCoord)
 {
-    return DiffuseMap.SampleLevel(Sampler, TexCoord, 0).w;
+    return Channel3.SampleLevel(Sampler, TexCoord, 0).x;
+}
+float GetMetallic(in float2 TexCoord)
+{
+    return Channel3.SampleLevel(Sampler, TexCoord, 0).y;
+}
+float GetOcclusion(in float2 TexCoord)
+{
+    return Channel3.SampleLevel(Sampler, TexCoord, 0).z;
+}
+float GetEmission(in float2 TexCoord)
+{
+    return Channel3.SampleLevel(Sampler, TexCoord, 0).w;
 }
 float GetDepth(in float2 TexCoord)
 {
-    return DepthMap.SampleLevel(Sampler, TexCoord, 0).x;
+    return Channel2.SampleLevel(Sampler, TexCoord, 0).x;
 }
 float2 GetTexCoord(in float4 UV)
 {
@@ -54,23 +69,15 @@ float3 GetPositionUV(in float3 Position)
 }
 float3 GetNormal(in float2 TexCoord)
 {
-    return DecodeSM(NormalMap.SampleLevel(Sampler, TexCoord, 0).xy);
+    return Channel1.SampleLevel(Sampler, TexCoord, 0).xyz;
 }
 float4 GetDiffuse(in float2 TexCoord)
 {
-    return DiffuseMap.SampleLevel(Sampler, TexCoord, 0);
+    return Channel0.SampleLevel(Sampler, TexCoord, 0);
 }
 float4 GetDiffuseLevel(in float2 TexCoord, in float Level)
 {
-    return DiffuseMap.SampleLevel(Sampler, TexCoord, Level);
-}
-float4 GetPass(in float2 TexCoord)
-{
-    return PassMap.SampleLevel(Sampler, TexCoord, 0);
-}
-float4 GetPassLevel(in float2 TexCoord, in float Level)
-{
-    return PassMap.SampleLevel(Sampler, TexCoord, Level);
+    return Channel0.SampleLevel(Sampler, TexCoord, Level);
 }
 float4 GetSample(in Texture2D Texture, in float2 TexCoord)
 {
@@ -90,19 +97,22 @@ float4 GetSample3Level(in TextureCube Texture, in float3 TexCoord, in float Leve
 }
 Fragment GetFragment(in float2 TexCoord)
 {
-    float2 Depth = DepthMap.SampleLevel(Sampler, TexCoord, 0).xy;
-    float4 Diffuse = DiffuseMap.SampleLevel(Sampler, TexCoord, 0);
-    float4 Normal = NormalMap.SampleLevel(Sampler, TexCoord, 0);
+    float4 C0 = Channel0.SampleLevel(Sampler, TexCoord, 0);
+    float4 C1 = Channel1.SampleLevel(Sampler, TexCoord, 0);
+    float4 C2 = Channel2.SampleLevel(Sampler, TexCoord, 0);
+    float4 C3 = Channel3.SampleLevel(Sampler, TexCoord, 0);
 
     Fragment Result;
-    Result.Position = GetPosition(TexCoord, Depth.x);
-    Result.Diffuse = Diffuse.xyz;
-    Result.Normal = DecodeSM(Normal.xy);
-    Result.Material = Normal.w;
-    Result.Roughness = Normal.z;
-    Result.Metallic = Depth.y;
-    Result.Depth = Depth.x;
-    Result.Alpha = Diffuse.w;
+    Result.Position = GetPosition(TexCoord, C2.x);
+    Result.Diffuse = C0.xyz;
+    Result.Alpha = C0.w;
+    Result.Normal = C1.xyz;
+    Result.Material = C1.w;
+    Result.Depth = C2.x;
+    Result.Roughness = C3.x;
+    Result.Metallic = C3.y;
+    Result.Occlusion = C3.z;
+    Result.Emission = C3.w;
 
     return Result;
 }

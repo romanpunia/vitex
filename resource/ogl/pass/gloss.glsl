@@ -1,5 +1,7 @@
 #include "standard/space-uv"
 
+Texture2D Image : register(t5);
+
 cbuffer RenderConstant : register(b3)
 {
     float2 Texel;
@@ -19,7 +21,7 @@ float4 PS(VertexResult V) : SV_TARGET0
     float I = 0.0;
 
     [branch] if (G <= 0.0)
-        return float4(C + GetPass(V.TexCoord.xy).xyz, 1.0);
+        return float4(C + GetSample(Image, V.TexCoord.xy).xyz, 1.0);
 
 	[loop] for (float x = -G; x < G; x++)
 	{
@@ -29,7 +31,7 @@ float4 PS(VertexResult V) : SV_TARGET0
 		    [branch] if (dot(GetNormal(T), N) < 0.0)
                 continue;
 
-            B += GetPass(T).xyz; I++;
+            B += GetSampleLevel(Image, T, 0).xyz; I++;
 		}
 	}
 

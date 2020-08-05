@@ -2,7 +2,7 @@
 #include "standard/cook-torrance"
 #include "workflow/pass"
 
-cbuffer ProbeLight : register(b3)
+cbuffer RenderConstant : register(b3)
 {
 	matrix OwnWorldViewProjection;
 	float3 Position;
@@ -15,7 +15,7 @@ cbuffer ProbeLight : register(b3)
     float Infinity;
 };
 
-TextureCube EnvironmentMap : register(t4);
+TextureCube EnvironmentMap : register(t5);
 
 VertexResult VS(VertexBase V)
 {

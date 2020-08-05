@@ -13,6 +13,6 @@ VertexResult VS(VertexBase V)
 
 float4 PS(VertexResult V) : SV_TARGET0
 {
-    float4 Color = GetDiffuse(V.TexCoord.xy);
+    float4 Color = GetDiffuseLevel(V.TexCoord.xy, 0);
     return float4(Color.xyz * Diffuse, Color.w);
 };

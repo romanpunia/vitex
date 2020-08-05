@@ -15,7 +15,7 @@ namespace Tomahawk
 			private:
 				struct
 				{
-					Graphics::Shader* Main = nullptr;
+					Graphics::Shader* GBuffer = nullptr;
 					Graphics::Shader* Linear = nullptr;
 					Graphics::Shader* Cubic = nullptr;
 				} Shaders;
@@ -52,7 +52,7 @@ namespace Tomahawk
 			private:
 				struct
 				{
-					Graphics::Shader* Main = nullptr;
+					Graphics::Shader* GBuffer = nullptr;
 					Graphics::Shader* Linear = nullptr;
 					Graphics::Shader* Cubic = nullptr;
 				} Shaders;
@@ -89,7 +89,7 @@ namespace Tomahawk
 			private:
 				struct
 				{
-					Graphics::Shader* Main = nullptr;
+					Graphics::Shader* GBuffer = nullptr;
 					Graphics::Shader* Linear = nullptr;
 					Graphics::Shader* Cubic = nullptr;
 				} Shaders;
@@ -128,7 +128,8 @@ namespace Tomahawk
 			private:
 				struct
 				{
-					Graphics::Shader* Main = nullptr;
+					Graphics::Shader* Opaque = nullptr;
+					Graphics::Shader* Limpid = nullptr;
 					Graphics::Shader* Linear = nullptr;
 					Graphics::Shader* Quad = nullptr;
 					Graphics::Shader* Point = nullptr;
@@ -140,6 +141,8 @@ namespace Tomahawk
 				} Depth;
 
 			private:
+				Rest::Pool<Engine::Component*>* Opaque = nullptr;
+				Rest::Pool<Engine::Component*>* Limpid = nullptr;
 				Graphics::DepthStencilState* DepthStencil = nullptr;
 				Graphics::RasterizerState* BackRasterizer = nullptr;
 				Graphics::RasterizerState* FrontRasterizer = nullptr;

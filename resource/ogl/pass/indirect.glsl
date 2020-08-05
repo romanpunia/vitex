@@ -23,17 +23,18 @@ float4 PS(VertexResult V) : SV_TARGET0
 {
 	float2 TexCoord = GetTexCoord(V.TexCoord);
 	Fragment Frag = GetFragment(TexCoord);
-	Material Mat = GetMaterial(Frag.Material);
-    Bounce Ray = GetBounce(Scale, Intensity, Bias, Power, Threshold);
 
     [branch] if (Frag.Depth >= 1.0)
         return float4(0.0, 0.0, 0.0, 0.0);
 
-    float Count = 0.0;
+	Material Mat = GetMaterial(Frag.Material);
+    float Z = GetOcclusionFactor(Frag, Mat);
+    Bounce Ray = GetBounce(Scale, Intensity, Bias, Power * Z, Threshold);
     float T = GetRoughnessLevel(Frag, Mat, 1.0);
 	float F = saturate(pow(abs(distance(ViewPosition, Frag.Position) / Distance), Fading));
 	float O = T * (Radius + Mat.Radius);
     float3 C = Frag.Diffuse;
+    float Count = 0.0;
 
 	[loop] for (float x = -IterationCount; x < IterationCount; x++)
 	{
@@ -46,13 +47,13 @@ float4 PS(VertexResult V) : SV_TARGET0
 
             [branch] if (RayBounce(Frag, Ray, F1.xy, F1.z))
             {
-                C += Mat.Occlusion * GetDiffuse(F1.xy).xyz * min(1.0, F1.z);
+                C += GetDiffuse(F1.xy).xyz * min(1.0, F1.z);
                 Count++;
             }
 
             [branch] if (RayBounce(Frag, Ray, F2.xy, F2.z))
             {
-                C += Mat.Occlusion * GetDiffuse(F2.xy).xyz * min(1.0, F2.z);
+                C += GetDiffuse(F2.xy).xyz * min(1.0, F2.z);
                 Count++;
             }
 		}
@@ -64,8 +65,8 @@ float4 PS(VertexResult V) : SV_TARGET0
     float R = GetRoughnessFactor(Frag, Mat);
 	float3 M = GetMetallicFactor(Frag, Mat);
 	float3 E = normalize(Frag.Position - ViewPosition);
-	float3 D = normalize(reflect(E, Frag.Normal));
-    float3 G = GetLight(E, D, Frag.Normal, M, R);
+	float3 D = normalize(reflect(E, Frag.Normal)), O;
+    float3 G = GetLight(E, D, Frag.Normal, M, R, O);
 
-    return float4(saturate(G * T * C * F / (Count + 1)), 1);
+    return float4(saturate((G + O) * T * C * F / (Count + 1)), 1);
 };

@@ -17,6 +17,7 @@ VertexResult VS(VertexBase V)
         TangentSpace[0] = Result.Tangent;
         TangentSpace[1] = Result.Bitangent;
         TangentSpace[2] = Result.Normal;
+        TangentSpace = transpose(TangentSpace);
 
         float3 Direction = normalize(ViewPosition - mul(V.Position, World).xyz);
         Result.Direction = mul(Direction, TangentSpace).xy;

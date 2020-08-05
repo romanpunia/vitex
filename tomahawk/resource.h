@@ -120,7 +120,7 @@ namespace resource_batch
 	{
 #define HAS_D3D11_GEOMETRY_MODEL_GBUFFER_HLSL
 		extern const unsigned char data[];
-		const unsigned size = 1357;
+		const unsigned size = 1406;
 	}
 
 	namespace d3d11_geometry_skin_depth_cubic_hlsl
@@ -141,7 +141,7 @@ namespace resource_batch
 	{
 #define HAS_D3D11_GEOMETRY_SKIN_GBUFFER_HLSL
 		extern const unsigned char data[];
-		const unsigned size = 2093;
+		const unsigned size = 2142;
 	}
 
 	namespace d3d11_pass_ambient_hlsl
@@ -428,7 +428,7 @@ namespace resource_batch
 	{
 #define HAS_D3D11_WORKFLOW_RASTERIZER_HLSL
 		extern const unsigned char data[];
-		const unsigned size = 1513;
+		const unsigned size = 1520;
 	}
 
 	namespace ogl_geometry_decal_gbuffer_glsl

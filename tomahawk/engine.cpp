@@ -1900,7 +1900,7 @@ namespace Tomahawk
 			if (Parent->Transform->Position.Distance(View.WorldPosition) > View.ViewDistance + Parent->Transform->Scale.Length())
 				return false;
 
-			return Compute::MathCommon::IsClipping(View.ViewProjection, World ? *World : Parent->Transform->GetWorld(), 1.5f) == -1;
+			return Compute::MathCommon::IsCubeInFrustum((World ? *World : Parent->Transform->GetWorld()) * View.ViewProjection, 1.5f) == -1;
 		}
 		bool Cullable::IsNear(const Viewer& View)
 		{
@@ -2583,7 +2583,7 @@ namespace Tomahawk
 		}
 		size_t RenderSystem::GetCubeVSize()
 		{
-			return sizeof(Compute::Vertex);
+			return sizeof(Compute::ShapeVertex);
 		}
 		size_t RenderSystem::GetCubeISize()
 		{
@@ -2733,38 +2733,38 @@ namespace Tomahawk
 			if (CubeVertex != nullptr)
 				return CubeVertex;
 
-			std::vector<Compute::Vertex> Elements;
-			Elements.push_back({ -1, 1, 1, 0.875, -0.5, 0, 0, 1, -1, 0, 0, 0, 1, 0 });
-			Elements.push_back({ 1, -1, 1, 0.625, -0.75, 0, 0, 1, -1, 0, 0, 0, 1, 0 });
-			Elements.push_back({ 1, 1, 1, 0.625, -0.5, 0, 0, 1, -1, 0, 0, 0, 1, 0 });
-			Elements.push_back({ 1, -1, 1, 0.625, -0.75, 0, -1, 0, 0, 0, 1, 1, 0, 0 });
-			Elements.push_back({ -1, -1, -1, 0.375, -1, 0, -1, 0, 0, 0, 1, 1, 0, 0 });
-			Elements.push_back({ 1, -1, -1, 0.375, -0.75, 0, -1, 0, 0, 0, 1, 1, 0, 0 });
-			Elements.push_back({ -1, -1, 1, 0.625, -0, -1, 0, 0, 0, 0, 1, 0, -1, 0 });
-			Elements.push_back({ -1, 1, -1, 0.375, -0.25, -1, 0, 0, 0, 0, 1, 0, -1, 0 });
-			Elements.push_back({ -1, -1, -1, 0.375, -0, -1, 0, 0, 0, 0, 1, 0, -1, 0 });
-			Elements.push_back({ 1, 1, -1, 0.375, -0.5, 0, 0, -1, 1, 0, 0, 0, 1, 0 });
-			Elements.push_back({ -1, -1, -1, 0.125, -0.75, 0, 0, -1, 1, 0, 0, 0, 1, 0 });
-			Elements.push_back({ -1, 1, -1, 0.125, -0.5, 0, 0, -1, 1, 0, 0, 0, 1, 0 });
-			Elements.push_back({ 1, 1, 1, 0.625, -0.5, 1, 0, 0, 0, 0, 1, 0, 1, 0 });
-			Elements.push_back({ 1, -1, -1, 0.375, -0.75, 1, 0, 0, 0, 0, 1, 0, 1, 0 });
-			Elements.push_back({ 1, 1, -1, 0.375, -0.5, 1, 0, 0, 0, 0, 1, 0, 1, 0 });
-			Elements.push_back({ -1, 1, 1, 0.625, -0.25, 0, 1, 0, 0, 0, 1, -1, 0, 0 });
-			Elements.push_back({ 1, 1, -1, 0.375, -0.5, 0, 1, 0, 0, 0, 1, -1, 0, 0 });
-			Elements.push_back({ -1, 1, -1, 0.375, -0.25, 0, 1, 0, 0, 0, 1, -1, 0, 0 });
-			Elements.push_back({ -1, -1, 1, 0.875, -0.75, 0, 0, 1, -1, 0, 0, 0, 1, 0 });
-			Elements.push_back({ -1, -1, 1, 0.625, -1, 0, -1, 0, 0, 0, 1, 1, 0, 0 });
-			Elements.push_back({ -1, 1, 1, 0.625, -0.25, -1, 0, 0, 0, 0, 1, 0, -1, 0 });
-			Elements.push_back({ 1, -1, -1, 0.375, -0.75, 0, 0, -1, 1, 0, 0, 0, 1, 0 });
-			Elements.push_back({ 1, -1, 1, 0.625, -0.75, 1, 0, 0, 0, 0, 1, 0, 1, 0 });
-			Elements.push_back({ 1, 1, 1, 0.625, -0.5, 0, 1, 0, 0, 0, 1, -1, 0, 0 });
+			std::vector<Compute::ShapeVertex> Elements;
+			Elements.push_back({ -1, 1, 1, 0.875, -0.5 });
+			Elements.push_back({ 1, -1, 1, 0.625, -0.75 });
+			Elements.push_back({ 1, 1, 1, 0.625, -0.5 });
+			Elements.push_back({ 1, -1, 1, 0.625, -0.75 });
+			Elements.push_back({ -1, -1, -1, 0.375, -1 });
+			Elements.push_back({ 1, -1, -1, 0.375, -0.75 });
+			Elements.push_back({ -1, -1, 1, 0.625, -0 });
+			Elements.push_back({ -1, 1, -1, 0.375, -0.25 });
+			Elements.push_back({ -1, -1, -1, 0.375, -0 });
+			Elements.push_back({ 1, 1, -1, 0.375, -0.5 });
+			Elements.push_back({ -1, -1, -1, 0.125, -0.75 });
+			Elements.push_back({ -1, 1, -1, 0.125, -0.5 });
+			Elements.push_back({ 1, 1, 1, 0.625, -0.5 });
+			Elements.push_back({ 1, -1, -1, 0.375, -0.75 });
+			Elements.push_back({ 1, 1, -1, 0.375, -0.5 });
+			Elements.push_back({ -1, 1, 1, 0.625, -0.25 });
+			Elements.push_back({ 1, 1, -1, 0.375, -0.5 });
+			Elements.push_back({ -1, 1, -1, 0.375, -0.25 });
+			Elements.push_back({ -1, -1, 1, 0.875, -0.75 });
+			Elements.push_back({ -1, -1, 1, 0.625, -1 });
+			Elements.push_back({ -1, 1, 1, 0.625, -0.25 });
+			Elements.push_back({ 1, -1, -1, 0.375, -0.75 });
+			Elements.push_back({ 1, -1, 1, 0.625, -0.75 });
+			Elements.push_back({ 1, 1, 1, 0.625, -0.5 });
 
 			Graphics::ElementBuffer::Desc F = Graphics::ElementBuffer::Desc();
 			F.AccessFlags = Graphics::CPUAccess_Invalid;
 			F.Usage = Graphics::ResourceUsage_Default;
 			F.BindFlags = Graphics::ResourceBind_Vertex_Buffer;
 			F.ElementCount = (unsigned int)Elements.size();
-			F.ElementWidth = sizeof(Compute::Vertex);
+			F.ElementWidth = sizeof(Compute::ShapeVertex);
 			F.Elements = &Elements[0];
 			F.UseSubresource = true;
 
@@ -2858,7 +2858,7 @@ namespace Tomahawk
 			return Scene;
 		}
 
-		SceneGraph::SceneGraph(const Desc& I) : Conf(I)
+		SceneGraph::SceneGraph(const Desc& I) : Conf(I), Active(true)
 		{
 			Image.DepthStencil = nullptr;
 			Image.Rasterizer = nullptr;
@@ -3002,6 +3002,9 @@ namespace Tomahawk
 		}
 		void SceneGraph::Simulation(Rest::Timer* Time)
 		{
+			if (!Active)
+				return;
+
 			BeginThread(ThreadId_Simulation);
 			Simulator->Simulate((float)Time->GetTimeStep());
 			EndThread(ThreadId_Simulation);
@@ -3030,6 +3033,9 @@ namespace Tomahawk
 		}
 		void SceneGraph::Update(Rest::Timer* Time)
 		{
+			if (!Active)
+				return;
+
 			BeginThread(ThreadId_Update);
 			for (auto It = Pending.Begin(); It != Pending.End(); It++)
 				(*It)->Update(Time);
@@ -3430,6 +3436,14 @@ namespace Tomahawk
 		{
 			Surface = NewSurface;
 		}
+		void SceneGraph::SetScriptHook(const ScriptHookCallback& Callback)
+		{
+			ScriptHook = Callback;
+		}
+		void SceneGraph::SetActive(bool Enabled)
+		{
+			Active = Enabled;
+		}
 		void SceneGraph::SetView(const Compute::Matrix4x4& _View, const Compute::Matrix4x4& _Projection, const Compute::Vector3& _Position, float _Distance, bool Upload)
 		{
 			View.Set(_View, _Projection, _Position, _Distance);
@@ -3657,7 +3671,7 @@ namespace Tomahawk
 			Unlock();
 			return nullptr;
 		}
-		Entity* SceneGraph::FindEntityAt(Compute::Vector3 Position, float Radius)
+		Entity* SceneGraph::FindEntityAt(const Compute::Vector3& Position, float Radius)
 		{
 			Lock();
 			for (auto It = Entities.Begin(); It != Entities.End(); It++)
@@ -3766,7 +3780,7 @@ namespace Tomahawk
 			Unlock();
 			return Array;
 		}
-		std::vector<Entity*> SceneGraph::FindEntitiesAt(Compute::Vector3 Position, float Radius)
+		std::vector<Entity*> SceneGraph::FindEntitiesAt(const Compute::Vector3& Position, float Radius)
 		{
 			std::vector<Entity*> Array;
 			Lock();
@@ -3794,19 +3808,19 @@ namespace Tomahawk
 			Unlock();
 			return Array;
 		}
-		bool SceneGraph::IsEntityVisible(Entity* Entity, Compute::Matrix4x4 ViewProjection)
+		bool SceneGraph::IsEntityVisible(Entity* Entity, const Compute::Matrix4x4& ViewProjection)
 		{
 			if (!Camera || !Entity || Entity->Transform->Position.Distance(Camera->Parent->Transform->Position) > View.ViewDistance + Entity->Transform->Scale.Length())
 				return false;
 
-			return (Compute::MathCommon::IsClipping(ViewProjection, Entity->Transform->GetWorld(), 2) == -1);
+			return (Compute::MathCommon::IsCubeInFrustum(Entity->Transform->GetWorld() * ViewProjection, 2) == -1);
 		}
-		bool SceneGraph::IsEntityVisible(Entity* Entity, Compute::Matrix4x4 ViewProjection, Compute::Vector3 ViewPosition, float DrawDistance)
+		bool SceneGraph::IsEntityVisible(Entity* Entity, const Compute::Matrix4x4& ViewProjection, const Compute::Vector3& ViewPosition, float DrawDistance)
 		{
 			if (!Entity || Entity->Transform->Position.Distance(ViewPosition) > DrawDistance + Entity->Transform->Scale.Length())
 				return false;
 
-			return (Compute::MathCommon::IsClipping(ViewProjection, Entity->Transform->GetWorld(), 2) == -1);
+			return (Compute::MathCommon::IsCubeInFrustum(Entity->Transform->GetWorld() * ViewProjection, 2) == -1);
 		}
 		bool SceneGraph::AddEntity(Entity* Entity)
 		{
@@ -3847,6 +3861,10 @@ namespace Tomahawk
 		{
 			return (Entity >= 0 && Entity < Entities.Size()) ? Entity : -1;
 		}
+		bool SceneGraph::IsActive()
+		{
+			return Active;
+		}
 		uint64_t SceneGraph::GetEntityCount()
 		{
 			return Entities.Size();
@@ -3882,6 +3900,10 @@ namespace Tomahawk
 		Compute::Simulator* SceneGraph::GetSimulator()
 		{
 			return Simulator;
+		}
+		ScriptHookCallback& SceneGraph::GetScriptHook()
+		{
+			return ScriptHook;
 		}
 		SceneGraph::Desc& SceneGraph::GetConf()
 		{
@@ -4279,8 +4301,6 @@ namespace Tomahawk
 				return;
 
 			Host = this;
-			Compose();
-
 #ifdef THAWK_HAS_SDL2
 			if (I->Usage & ApplicationUse_Activity_Module)
 			{
@@ -4416,6 +4436,10 @@ namespace Tomahawk
 		void Application::WindowEvent(Graphics::WindowState NewState, int X, int Y)
 		{
 		}
+		bool Application::ComposeEvent()
+		{
+			return false;
+		}
 		void Application::Render(Rest::Timer* Time)
 		{
 		}
@@ -4452,6 +4476,9 @@ namespace Tomahawk
 				THAWK_ERROR("(CONF): event queue was not found");
 				return;
 			}
+
+			if (!ComposeEvent())
+				Compose();
 
 			if (I->Usage & ApplicationUse_Activity_Module && !Activity)
 			{
@@ -4603,8 +4630,9 @@ namespace Tomahawk
 			Rest::Composer::Push<Components::PointLight, Entity*>("PointLight");
 			Rest::Composer::Push<Components::SpotLight, Entity*>("SpotLight");
 			Rest::Composer::Push<Components::LineLight, Entity*>("LineLight");
-			Rest::Composer::Push<Components::ProbeLight, Entity*>("ProbeLight");
+			Rest::Composer::Push<Components::ReflectionProbe, Entity*>("ReflectionProbe");
 			Rest::Composer::Push<Components::Camera, Entity*>("Camera");
+			Rest::Composer::Push<Components::Scriptable, Entity*>("Scriptable");
 			Rest::Composer::Push<Renderers::ModelRenderer, RenderSystem*>("ModelRenderer");
 			Rest::Composer::Push<Renderers::SkinRenderer, RenderSystem*>("SkinRenderer");
 			Rest::Composer::Push<Renderers::SoftBodyRenderer, RenderSystem*>("SoftBodyRenderer");

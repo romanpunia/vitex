@@ -15,6 +15,7 @@ namespace Tomahawk
 		typedef std::function<void(Rest::Timer*, struct Viewer*)> RenderCallback;
 		typedef std::function<void(class ContentManager*, bool)> SaveCallback;
 		typedef std::function<void(class Entity*, class Component*, bool)> MutationCallback;
+		typedef std::function<void(class Component*, Script::VMGlobal*)> ScriptHookCallback;
 
 		class SceneGraph;
 
@@ -708,8 +709,10 @@ namespace Tomahawk
 				float RenderQuality = 1.0f;
 				uint64_t EntityCount = 1ll << 15;
 				uint64_t ComponentCount = 1ll << 16;
+				uint64_t ScriptFeatures = Script::VMFeature_All;
 				Compute::Simulator::Desc Simulator;
 				Graphics::GraphicsDevice* Device = nullptr;
+				Script::VMManager* Manager = nullptr;
 				Rest::EventQueue* Queue = nullptr;
 				ShaderCache* Cache = nullptr;
 			};
@@ -758,8 +761,10 @@ namespace Tomahawk
 			std::vector<Event*> Events;
 			Rest::Pool<Component*> Pending;
 			Rest::Pool<Entity*> Entities;
+			ScriptHookCallback ScriptHook;
 			Component* Camera = nullptr;
 			Desc Conf;
+			bool Active;
 
 		public:
 			Viewer View;
@@ -792,6 +797,8 @@ namespace Tomahawk
 			void Unlock();
 			void ResizeBuffers();
 			void SwapSurface(Graphics::MultiRenderTarget2D* NewSurface);
+			void SetScriptHook(const ScriptHookCallback& Callback);
+			void SetActive(bool Enabled);
 			void SetView(const Compute::Matrix4x4& View, const Compute::Matrix4x4& Projection, const Compute::Vector3& Position, float Distance, bool Upload);
 			void SetSurface();
 			void SetSurfaceCleared();
@@ -805,7 +812,7 @@ namespace Tomahawk
 			Material* AddMaterial(const std::string& Name, const Material& Material);
 			Entity* CloneEntities(Entity* Value);
 			Entity* FindNamedEntity(const std::string& Name);
-			Entity* FindEntityAt(Compute::Vector3 Position, float Radius);
+			Entity* FindEntityAt(const Compute::Vector3& Position, float Radius);
 			Entity* FindTaggedEntity(uint64_t Tag);
 			Entity* GetEntity(uint64_t Entity);
 			Entity* GetLastEntity();
@@ -819,12 +826,13 @@ namespace Tomahawk
 			Rest::Pool<Component*>* GetComponents(uint64_t Section);
 			std::vector<Entity*> FindParentFreeEntities(Entity* Entity);
 			std::vector<Entity*> FindNamedEntities(const std::string& Name);
-			std::vector<Entity*> FindEntitiesAt(Compute::Vector3 Position, float Radius);
+			std::vector<Entity*> FindEntitiesAt(const Compute::Vector3& Position, float Radius);
 			std::vector<Entity*> FindTaggedEntities(uint64_t Tag);
-			bool IsEntityVisible(Entity* Entity, Compute::Matrix4x4 ViewProjection);
-			bool IsEntityVisible(Entity* Entity, Compute::Matrix4x4 ViewProjection, Compute::Vector3 ViewPosition, float DrawDistance);
+			bool IsEntityVisible(Entity* Entity, const Compute::Matrix4x4& ViewProjection);
+			bool IsEntityVisible(Entity* Entity, const Compute::Matrix4x4& ViewProjection, const Compute::Vector3& ViewPosition, float DrawDistance);
 			bool AddEntity(Entity* Entity);
 			bool Denotify();
+			bool IsActive();
 			uint64_t GetMaterialCount();
 			uint64_t GetEntityCount();
 			uint64_t GetComponentCount(uint64_t Section);
@@ -836,6 +844,7 @@ namespace Tomahawk
 			Rest::EventQueue* GetQueue();
 			Compute::Simulator* GetSimulator();
 			ShaderCache* GetCache();
+			ScriptHookCallback& GetScriptHook();
 			Desc& GetConf();
 
 		protected:
@@ -1099,6 +1108,7 @@ namespace Tomahawk
 			virtual void InputEvent(char* Buffer, int Length);
 			virtual void WheelEvent(int X, int Y, bool Normal);
 			virtual void WindowEvent(Graphics::WindowState NewState, int X, int Y);
+			virtual bool ComposeEvent();
 			virtual void Render(Rest::Timer* Time);
 			virtual void Update(Rest::Timer* Time);
 			virtual void Initialize(Desc* I);

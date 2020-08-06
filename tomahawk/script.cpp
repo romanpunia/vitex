@@ -177,6 +177,10 @@ namespace Tomahawk
 
 				Base->sWrite(Buffer.R());
 			}
+			static char ToChar(const std::string& Symbol)
+			{
+				return Symbol.empty() ? '\0' : Symbol[0];
+			}
 
 		private:
 			static void FormatBuffer(VMGlobal& Global, Rest::Stroke& Result, std::string& Offset, void* Ref, int TypeId)
@@ -2878,7 +2882,7 @@ namespace Tomahawk
 			const char* Namespace = Engine->GetDefaultNamespace();
 			const char* Scope = Info->GetNamespace();
 
-			Engine->SetDefaultNamespace(std::string(Scope).append("::").append(Object).c_str());
+			Engine->SetDefaultNamespace(Scope[0] == '\0' ? Object.c_str() : std::string(Scope).append("::").append(Object).c_str());
 			int R = Engine->RegisterGlobalProperty(Decl, Value);
 			Engine->SetDefaultNamespace(Namespace);
 
@@ -2912,7 +2916,7 @@ namespace Tomahawk
 			const char* Namespace = Engine->GetDefaultNamespace();
 			const char* Scope = Info->GetNamespace();
 
-			Engine->SetDefaultNamespace(std::string(Scope).append("::").append(Object).c_str());
+			Engine->SetDefaultNamespace(Scope[0] == '\0' ? Object.c_str() : std::string(Scope).append("::").append(Object).c_str());
 			int R = Engine->RegisterGlobalFunction(Decl, *Value, (asECallConvTypes)Type);
 			Engine->SetDefaultNamespace(Namespace);
 
@@ -3410,7 +3414,7 @@ namespace Tomahawk
 				Info->TypeId = TypeId;
 				Info->IsConst = IsConst;
 				Info->ConfigGroup = nullptr;
-				Info->Pointer = nullptr;
+				Info->Pointer = Mod->GetAddressOfGlobalVar(Index);
 				Info->AccessMask = GetAccessMask();
 			}
 
@@ -4216,6 +4220,9 @@ namespace Tomahawk
 		}
 		void VMCompiler::Clear()
 		{
+			if (Module != nullptr)
+				Module->Discard();
+
 			Processor->Clear();
 			Module = nullptr;
 			BuiltOK = false;
@@ -4240,6 +4247,9 @@ namespace Tomahawk
 			VMCManager* Engine = Manager->GetEngine();
 			if (!Engine)
 				return -1;
+
+			if (Module != nullptr)
+				Module->Discard();
 
 			Module = Engine->GetModule(ModuleName.c_str(), asGM_ALWAYS_CREATE);
 			if (!Module)
@@ -4266,6 +4276,20 @@ namespace Tomahawk
 			}
 
 			return Result;
+		}
+		int VMCompiler::PrepareScope(const std::string& ModuleName)
+		{
+			if (!Manager)
+				return -1;
+
+			return Prepare(Manager->GetScopedName(ModuleName));
+		}
+		int VMCompiler::PrepareScope(const std::string& ModuleName, const std::string& Name, bool Debug)
+		{
+			if (!Manager)
+				return -1;
+
+			return Prepare(Manager->GetScopedName(ModuleName), Name, Debug);
 		}
 		int VMCompiler::Compile(bool Await)
 		{
@@ -4358,10 +4382,43 @@ namespace Tomahawk
 
 			return Module->AddScriptSection(Name.c_str(), Buffer.c_str(), Buffer.size());
 		}
-		int VMCompiler::LoadCodeScoped(const std::string& Value)
+		int VMCompiler::InterpretFile(const char* Name, const char* ModuleName, const char* EntryName, void* Return, int ReturnTypeId)
 		{
-			int64_t Rand = Compute::MathCommon::RandomNumber(1111111111111111, 9999999999999999);
-			return LoadCode(std::to_string(Rand), Value);
+			if (!Name || !ModuleName || !EntryName)
+				return VMResult_INVALID_ARG;
+
+			int R = Prepare(ModuleName, Name);
+			if (R < 0)
+				return R;
+
+			R = LoadFile(Name);
+			if (R < 0)
+				return R;
+
+			R = Compile(true);
+			if (R < 0)
+				return R;
+
+			return InterpretEntry(EntryName, Return, ReturnTypeId);
+		}
+		int VMCompiler::InterpretMemory(const std::string& Buffer, const char* ModuleName, const char* EntryName, void* Return, int ReturnTypeId)
+		{
+			if (Buffer.empty() || !ModuleName || !EntryName)
+				return VMResult_INVALID_ARG;
+
+			int R = Prepare(ModuleName, "anonymous");
+			if (R < 0)
+				return R;
+
+			R = LoadCode("anonymous", Buffer);
+			if (R < 0)
+				return R;
+
+			R = Compile(true);
+			if (R < 0)
+				return R;
+
+			return InterpretEntry(EntryName, Return, ReturnTypeId);
 		}
 		int VMCompiler::InterpretEntry(const char* Name, void* Return, int ReturnTypeId)
 		{
@@ -5115,8 +5172,8 @@ namespace Tomahawk
 				VConsole.SetMethod("double getCapturedTime()", &Rest::Console::GetCapturedTime);
 				VConsole.SetMethod("string read(uint64)", &Rest::Console::Read);
 				VConsole.SetMethodStatic("console@+ get()", &Rest::Console::Get);
-				VConsole.SetMethodEx("void writeLine(const string &in, Format@+)", &Format::WriteLine);
-				VConsole.SetMethodEx("void write(const string &in, Format@+)", &Format::Write);
+				VConsole.SetMethodEx("void writeLine(const string &in, format@+)", &Format::WriteLine);
+				VConsole.SetMethodEx("void write(const string &in, format@+)", &Format::Write);
 			}
 		}
 		void VMManager::SetupJIT(unsigned int JITOpts)
@@ -5476,6 +5533,23 @@ namespace Tomahawk
 			}
 			Safe.unlock();
 		}
+		std::string VMManager::GetScopedName(const std::string& Name)
+		{
+			if (!Engine || Name.empty())
+				return Name;
+
+			if (!Engine->GetModule(Name.c_str()))
+				return Name;
+
+			while (true)
+			{
+				std::string Result = Name + std::to_string(Compute::MathCommon::RandomNumber(11111111, 99999999));
+				if (!Engine->GetModule(Result.c_str()))
+					return Result;
+			}
+
+			return nullptr;
+		}
 		std::string VMManager::GetDocumentRoot() const
 		{
 			return Include.Root;
@@ -5495,6 +5569,7 @@ namespace Tomahawk
 		{
 			RegisterStdString(Engine);
 			RegisterStdStringUtils(Engine);
+			Engine->RegisterGlobalFunction("uint8 to_char(const string &in)", asFUNCTION(Format::ToChar), asCALL_CDECL);
 		}
 		void VMManager::EnableArray(bool Default)
 		{

@@ -287,7 +287,7 @@ namespace Tomahawk
 			{
 				float Result = 1.0f - Parent->Transform->Position.Distance(View.WorldPosition) / (View.ViewDistance + Volume);
 				if (Result > 0.0f)
-					Result = Compute::MathCommon::IsClipping(View.ViewProjection, Parent->Transform->GetWorld(), 1.5f) == -1 ? Result : 0.0f;
+					Result = Compute::MathCommon::IsCubeInFrustum(Parent->Transform->GetWorld() * View.ViewProjection, 1.5f) == -1 ? Result : 0.0f;
 
 				return Result;
 			}
@@ -871,7 +871,7 @@ namespace Tomahawk
 			{
 				float Result = 1.0f - Parent->Transform->Position.Distance(View.WorldPosition) / View.ViewDistance;
 				if (Result > 0.0f)
-					Result = Compute::MathCommon::IsClipping(View.ViewProjection, Parent->Transform->GetWorld(), GetRange()) == -1 ? Result : 0.0f;
+					Result = Compute::MathCommon::IsCubeInFrustum(Parent->Transform->GetWorld() * View.ViewProjection, GetRange()) == -1 ? Result : 0.0f;
 
 				return Result;
 			}
@@ -943,6 +943,9 @@ namespace Tomahawk
 			}
 			void SkinAnimator::Synchronize(Rest::Timer* Time)
 			{
+				if (!Parent->GetScene()->IsActive())
+					return;
+
 				Compute::Vector3& Position = *Parent->Transform->GetLocalPosition();
 				Compute::Vector3& Rotation = *Parent->Transform->GetLocalRotation();
 				Compute::Vector3& Scale = *Parent->Transform->GetLocalScale();
@@ -1172,6 +1175,9 @@ namespace Tomahawk
 			}
 			void KeyAnimator::Synchronize(Rest::Timer* Time)
 			{
+				if (!Parent->GetScene()->IsActive())
+					return;
+
 				Compute::Vector3& Position = *Parent->Transform->GetLocalPosition();
 				Compute::Vector3& Rotation = *Parent->Transform->GetLocalRotation();
 				Compute::Vector3& Scale = *Parent->Transform->GetLocalScale();
@@ -1402,6 +1408,9 @@ namespace Tomahawk
 			}
 			void EmitterAnimator::Synchronize(Rest::Timer* Time)
 			{
+				if (!Parent->GetScene()->IsActive())
+					return;
+
 				if (!Base || !Base->GetBuffer())
 					return;
 
@@ -1855,7 +1864,7 @@ namespace Tomahawk
 				if (Component != nullptr)
 					RigidBody = Component->GetBody();
 			}
-			void Acceleration::Synchronize(Rest::Timer* Time)
+			void Acceleration::Update(Rest::Timer* Time)
 			{
 				if (!RigidBody)
 					return;
@@ -2404,6 +2413,9 @@ namespace Tomahawk
 			}
 			void AudioSource::Synchronize(Rest::Timer* Time)
 			{
+				if (!Parent->GetScene()->IsActive())
+					return;
+
 				if (Time != nullptr && Time->GetDeltaTime() > 0.0)
 				{
 					Sync.Velocity = (Parent->Transform->Position - LastPosition) * Time->GetDeltaTime();
@@ -2531,7 +2543,7 @@ namespace Tomahawk
 			{
 				float Result = 1.0f - Parent->Transform->Position.Distance(View.WorldPosition) / View.ViewDistance;
 				if (Result > 0.0f)
-					Result = Compute::MathCommon::IsClipping(View.ViewProjection, Parent->Transform->GetWorld(), GetRange()) == -1 ? Result : 0.0f;
+					Result = Compute::MathCommon::IsCubeInFrustum(Parent->Transform->GetWorldUnscaled() * View.ViewProjection, GetRange()) == -1 ? Result : 0.0f;
 
 				return Result;
 			}
@@ -2616,7 +2628,7 @@ namespace Tomahawk
 			{
 				float Result = 1.0f - Parent->Transform->Position.Distance(View.WorldPosition) / View.ViewDistance;
 				if (Result > 0.0f)
-					Result = Compute::MathCommon::IsClipping(View.ViewProjection, Parent->Transform->GetWorld(), GetRange()) == -1 ? Result : 0.0f;
+					Result = Compute::MathCommon::IsCubeInFrustum(Parent->Transform->GetWorldUnscaled() * View.ViewProjection, GetRange()) == -1 ? Result : 0.0f;
 
 				return Result;
 			}
@@ -2746,7 +2758,7 @@ namespace Tomahawk
 				return ShadowCache;
 			}
 
-			ProbeLight::ProbeLight(Entity* Ref) : Cullable(Ref)
+			ReflectionProbe::ReflectionProbe(Entity* Ref) : Cullable(Ref)
 			{
 				Projection = Compute::Matrix4x4::CreatePerspectiveRad(1.57079632679f, 1, 0.01f, 100.0f);
 				Diffuse = Compute::Vector3::One();
@@ -2766,11 +2778,11 @@ namespace Tomahawk
 				ParallaxCorrected = false;
 				StaticMask = false;
 			}
-			ProbeLight::~ProbeLight()
+			ReflectionProbe::~ReflectionProbe()
 			{
 				delete ProbeCache;
 			}
-			void ProbeLight::Deserialize(ContentManager* Content, Rest::Document* Node)
+			void ReflectionProbe::Deserialize(ContentManager* Content, Rest::Document* Node)
 			{
 				std::string Path;
 				if (!NMake::Unpack(Node->Find("diffuse-map"), &Path))
@@ -2816,7 +2828,7 @@ namespace Tomahawk
 				else
 					SetDiffuseMap(DiffuseMap);
 			}
-			void ProbeLight::Serialize(ContentManager* Content, Rest::Document* Node)
+			void ReflectionProbe::Serialize(ContentManager* Content, Rest::Document* Node)
 			{
 				AssetResource* Asset = nullptr;
 				if (!DiffuseMap)
@@ -2866,21 +2878,21 @@ namespace Tomahawk
 				NMake::Pack(Node->SetDocument("parallax-corrected"), ParallaxCorrected);
 				NMake::Pack(Node->SetDocument("static-mask"), StaticMask);
 			}
-			float ProbeLight::Cull(const Viewer& View)
+			float ReflectionProbe::Cull(const Viewer& View)
 			{
 				float Result = 1.0f;
 				if (Infinity <= 0.0f)
 				{
 					Result = 1.0f - Parent->Transform->Position.Distance(View.WorldPosition) / View.ViewDistance;
 					if (Result > 0.0f)
-						Result = Compute::MathCommon::IsClipping(View.ViewProjection, Parent->Transform->GetWorld(), GetRange()) == -1 ? Result : 0.0f;
+						Result = Compute::MathCommon::IsCubeInFrustum(Parent->Transform->GetWorldUnscaled() * View.ViewProjection, GetRange()) == -1 ? Result : 0.0f;
 				}
 
 				return Result;
 			}
-			Component* ProbeLight::Copy(Entity* New)
+			Component* ReflectionProbe::Copy(Entity* New)
 			{
-				ProbeLight* Target = new ProbeLight(New);
+				ReflectionProbe* Target = new ReflectionProbe(New);
 				Target->Projection = Projection;
 				Target->Diffuse = Diffuse;
 				Target->Visibility = Visibility;
@@ -2896,11 +2908,11 @@ namespace Tomahawk
 
 				return Target;
 			}
-			void ProbeLight::SetProbeCache(Graphics::TextureCube* NewCache)
+			void ReflectionProbe::SetProbeCache(Graphics::TextureCube* NewCache)
 			{
 				ProbeCache = NewCache;
 			}
-			bool ProbeLight::SetDiffuseMap(Graphics::Texture2D* Map)
+			bool ReflectionProbe::SetDiffuseMap(Graphics::Texture2D* Map)
 			{
 				if (!Map)
 				{
@@ -2920,7 +2932,7 @@ namespace Tomahawk
 				ProbeCache = Parent->GetScene()->GetDevice()->CreateTextureCube(DiffuseMap);
 				return ProbeCache != nullptr;
 			}
-			bool ProbeLight::SetDiffuseMap(Graphics::Texture2D* MapX[2], Graphics::Texture2D* MapY[2], Graphics::Texture2D* MapZ[2])
+			bool ReflectionProbe::SetDiffuseMap(Graphics::Texture2D* MapX[2], Graphics::Texture2D* MapY[2], Graphics::Texture2D* MapZ[2])
 			{
 				if (!MapX[0] || !MapX[1] || !MapY[0] || !MapY[1] || !MapZ[0] || !MapZ[1])
 				{
@@ -2944,39 +2956,39 @@ namespace Tomahawk
 				ProbeCache = Parent->GetScene()->GetDevice()->CreateTextureCube(Resources);
 				return ProbeCache != nullptr;
 			}
-			bool ProbeLight::IsImageBased() const
+			bool ReflectionProbe::IsImageBased() const
 			{
 				return DiffuseMapX[0] != nullptr || DiffuseMap != nullptr;
 			}
-			Graphics::TextureCube* ProbeLight::GetProbeCache() const
+			Graphics::TextureCube* ReflectionProbe::GetProbeCache() const
 			{
 				return ProbeCache;
 			}
-			Graphics::Texture2D* ProbeLight::GetDiffuseMapXP()
+			Graphics::Texture2D* ReflectionProbe::GetDiffuseMapXP()
 			{
 				return DiffuseMapX[0];
 			}
-			Graphics::Texture2D* ProbeLight::GetDiffuseMapXN()
+			Graphics::Texture2D* ReflectionProbe::GetDiffuseMapXN()
 			{
 				return DiffuseMapX[1];
 			}
-			Graphics::Texture2D* ProbeLight::GetDiffuseMapYP()
+			Graphics::Texture2D* ReflectionProbe::GetDiffuseMapYP()
 			{
 				return DiffuseMapY[0];
 			}
-			Graphics::Texture2D* ProbeLight::GetDiffuseMapYN()
+			Graphics::Texture2D* ReflectionProbe::GetDiffuseMapYN()
 			{
 				return DiffuseMapY[1];
 			}
-			Graphics::Texture2D* ProbeLight::GetDiffuseMapZP()
+			Graphics::Texture2D* ReflectionProbe::GetDiffuseMapZP()
 			{
 				return DiffuseMapZ[0];
 			}
-			Graphics::Texture2D* ProbeLight::GetDiffuseMapZN()
+			Graphics::Texture2D* ReflectionProbe::GetDiffuseMapZN()
 			{
 				return DiffuseMapZ[1];
 			}
-			Graphics::Texture2D* ProbeLight::GetDiffuseMap()
+			Graphics::Texture2D* ReflectionProbe::GetDiffuseMap()
 			{
 				return DiffuseMap;
 			}
@@ -3188,6 +3200,664 @@ namespace Tomahawk
 				Target->Projection = Projection;
 
 				return Target;
+			}
+
+			Scriptable::Scriptable(Entity* Ref) : Component(Ref), Compiler(nullptr), Source(SourceType_Resource), Invoke(InvokeType_Typeless)
+			{
+			}
+			Scriptable::~Scriptable()
+			{
+				delete Compiler;
+			}
+			void Scriptable::Deserialize(ContentManager* Content, Rest::Document* Node)
+			{
+				std::string Type;
+				if (NMake::Unpack(Node->Find("source"), &Type))
+				{
+					if (Type == "memory")
+						Source = SourceType_Memory;
+					else if (Type == "resource")
+						Source = SourceType_Resource;
+				}
+
+				if (NMake::Unpack(Node->Find("invoke"), &Type))
+				{
+					if (Type == "typeless")
+						Invoke = InvokeType_Typeless;
+					else if (Type == "normal")
+						Invoke = InvokeType_Normal;
+				}
+
+				if (!NMake::Unpack(Node->Find("resource"), &Type))
+					return;
+
+				Resource = Rest::OS::Resolve(Type.c_str(), Content->GetEnvironment());
+				if (Resource.empty())
+					Resource = Type;
+
+				if (SetSource() < 0)
+					return;
+
+				Rest::Document* Cache = Node->Find("cache");
+				if (Cache != nullptr)
+				{
+					for (auto& Var : *Cache->GetNodes())
+					{
+						int TypeId = -1;
+						if (!NMake::Unpack(Var->Find("type"), &TypeId))
+							continue;
+
+						switch (TypeId)
+						{
+							case Script::VMTypeId_BOOL:
+							{
+								bool Result = false;
+								if (NMake::Unpack(Var->Find("data"), &Result))
+									SetTypePropertyByName(Var->Name.c_str(), Result);
+								break;
+							}
+							case Script::VMTypeId_INT8:
+							{
+								int64_t Result = 0;
+								if (NMake::Unpack(Var->Find("data"), &Result))
+									SetTypePropertyByName(Var->Name.c_str(), (char)Result);
+								break;
+							}
+							case Script::VMTypeId_INT16:
+							{
+								int64_t Result = 0;
+								if (NMake::Unpack(Var->Find("data"), &Result))
+									SetTypePropertyByName(Var->Name.c_str(), (short)Result);
+								break;
+							}
+							case Script::VMTypeId_INT32:
+							{
+								int64_t Result = 0;
+								if (NMake::Unpack(Var->Find("data"), &Result))
+									SetTypePropertyByName(Var->Name.c_str(), (int)Result);
+								break;
+							}
+							case Script::VMTypeId_INT64:
+							{
+								int64_t Result = 0;
+								if (NMake::Unpack(Var->Find("data"), &Result))
+									SetTypePropertyByName(Var->Name.c_str(), Result);
+								break;
+							}
+							case Script::VMTypeId_UINT8:
+							{
+								int64_t Result = 0;
+								if (NMake::Unpack(Var->Find("data"), &Result))
+									SetTypePropertyByName(Var->Name.c_str(), (unsigned char)Result);
+								break;
+							}
+							case Script::VMTypeId_UINT16:
+							{
+								int64_t Result = 0;
+								if (NMake::Unpack(Var->Find("data"), &Result))
+									SetTypePropertyByName(Var->Name.c_str(), (unsigned short)Result);
+								break;
+							}
+							case Script::VMTypeId_UINT32:
+							{
+								int64_t Result = 0;
+								if (NMake::Unpack(Var->Find("data"), &Result))
+									SetTypePropertyByName(Var->Name.c_str(), (unsigned int)Result);
+								break;
+							}
+							case Script::VMTypeId_UINT64:
+							{
+								int64_t Result = 0;
+								if (NMake::Unpack(Var->Find("data"), &Result))
+									SetTypePropertyByName(Var->Name.c_str(), (uint64_t)Result);
+								break;
+							}
+							case Script::VMTypeId_FLOAT:
+							{
+								float Result = 0.0f;
+								if (NMake::Unpack(Var->Find("data"), &Result))
+									SetTypePropertyByName(Var->Name.c_str(), Result);
+								break;
+							}
+							case Script::VMTypeId_DOUBLE:
+							{
+								double Result = 0.0;
+								if (NMake::Unpack(Var->Find("data"), &Result))
+									SetTypePropertyByName(Var->Name.c_str(), Result);
+								break;
+							}
+							default:
+							{
+								std::string Result;
+								if (NMake::Unpack(Var->Find("data"), &Result))
+									SetTypePropertyByName(Var->Name.c_str(), Result);
+								break;
+							}
+						}
+					}
+				}
+
+				Call(Entry.Deserialize, [this, Content, Node](Script::VMContext* Context)
+				{
+					if (Invoke == InvokeType_Typeless)
+						return;
+
+					Context->SetArgObject<Component>(0, this);
+					Context->SetArgObject<ContentManager>(1, Content);
+					Context->SetArgObject<Rest::Document>(2, Node);
+				});
+			}
+			void Scriptable::Serialize(ContentManager* Content, Rest::Document* Node)
+			{
+				if (Source == SourceType_Memory)
+					NMake::Pack(Node->SetDocument("source"), "memory");
+				else if (Source == SourceType_Resource)
+					NMake::Pack(Node->SetDocument("source"), "resource");
+
+				if (Invoke == InvokeType_Typeless)
+					NMake::Pack(Node->SetDocument("invoke"), "typeless");
+				else if (Invoke == InvokeType_Normal)
+					NMake::Pack(Node->SetDocument("invoke"), "normal");
+
+				int Count = GetPropertiesCount();
+				if (!NMake::Pack(Node->SetDocument("resource"), Rest::Stroke(Resource).Replace(Content->GetEnvironment(), "./").Replace('\\', '/').R()))
+					return;
+
+				Rest::Document* Cache = Node->SetDocument("cache");
+				for (int i = 0; i < Count; i++)
+				{
+					Script::VMProperty Result;
+					if (!GetPropertyByIndex(i, &Result) || !Result.Name || !Result.Pointer)
+						continue;
+
+					Rest::Document* Var = new Rest::Document();
+					NMake::Pack(Var->SetDocument("type"), Result.TypeId);
+
+					switch (Result.TypeId)
+					{
+						case Script::VMTypeId_BOOL:
+							NMake::Pack(Var->SetDocument("data"), *(bool*)Result.Pointer);
+							break;
+						case Script::VMTypeId_INT8:
+							NMake::Pack(Var->SetDocument("data"), (int64_t)*(char*)Result.Pointer);
+							break;
+						case Script::VMTypeId_INT16:
+							NMake::Pack(Var->SetDocument("data"), (int64_t)*(short*)Result.Pointer);
+							break;
+						case Script::VMTypeId_INT32:
+							NMake::Pack(Var->SetDocument("data"), (int64_t)*(int*)Result.Pointer);
+							break;
+						case Script::VMTypeId_INT64:
+							NMake::Pack(Var->SetDocument("data"), *(int64_t*)Result.Pointer);
+							break;
+						case Script::VMTypeId_UINT8:
+							NMake::Pack(Var->SetDocument("data"), (int64_t)*(unsigned char*)Result.Pointer);
+							break;
+						case Script::VMTypeId_UINT16:
+							NMake::Pack(Var->SetDocument("data"), (int64_t)*(unsigned short*)Result.Pointer);
+							break;
+						case Script::VMTypeId_UINT32:
+							NMake::Pack(Var->SetDocument("data"), (int64_t)*(unsigned int*)Result.Pointer);
+							break;
+						case Script::VMTypeId_UINT64:
+							NMake::Pack(Var->SetDocument("data"), (int64_t)*(uint64_t*)Result.Pointer);
+							break;
+						case Script::VMTypeId_FLOAT:
+							NMake::Pack(Var->SetDocument("data"), (double)*(float*)Result.Pointer);
+							break;
+						case Script::VMTypeId_DOUBLE:
+							NMake::Pack(Var->SetDocument("data"), *(double*)Result.Pointer);
+							break;
+						default:
+						{
+							Script::VMWTypeInfo Type = GetCompiler()->GetManager()->Global().GetTypeInfoById(Result.TypeId);
+							if (!Type.IsValid() || strcmp(Type.GetName(), "string") != 0)
+							{
+								delete Var;
+								Var = nullptr;
+							}
+							else
+								NMake::Pack(Var->SetDocument("data"), *(std::string*)Result.Pointer);
+							break;
+						}
+					}
+
+					if (Var != nullptr)
+						Cache->SetDocument(Result.Name, Var);
+				}
+				
+				Call(Entry.Serialize, [this, Content, Node](Script::VMContext* Context)
+				{
+					if (Invoke == InvokeType_Typeless)
+						return;
+
+					Context->SetArgObject<Component>(0, this);
+					Context->SetArgObject<ContentManager>(1, Content);
+					Context->SetArgObject<Rest::Document>(2, Node);
+				});
+			}
+			void Scriptable::Awake(Component* New)
+			{
+				Call(Entry.Awake, [this, New](Script::VMContext* Context)
+				{
+					if (Invoke == InvokeType_Typeless)
+						return;
+
+					Context->SetArgObject<Component>(0, this);
+					Context->SetArgObject<Component>(1, New);
+				});
+			}
+			void Scriptable::Synchronize(Rest::Timer* Time)
+			{
+				Call(Entry.Synchronize, [this, Time](Script::VMContext* Context)
+				{
+					if (Invoke == InvokeType_Typeless)
+						return;
+
+					Context->SetArgObject<Component>(0, this);
+					Context->SetArgObject<Rest::Timer>(1, Time);
+				});
+			}
+			void Scriptable::Asleep()
+			{
+				Call(Entry.Asleep, [this](Script::VMContext* Context)
+				{
+					if (Invoke == InvokeType_Typeless)
+						return;
+
+					Context->SetArgObject<Component>(0, this);
+				});
+			}
+			void Scriptable::Update(Rest::Timer* Time)
+			{
+				Call(Entry.Update, [this, Time](Script::VMContext* Context)
+				{
+					if (Invoke == InvokeType_Typeless)
+						return;
+
+					Context->SetArgObject<Component>(0, this);
+					Context->SetArgObject<Rest::Timer>(1, Time);
+				});
+			}
+			void Scriptable::Pipe(Event* Value)
+			{
+				Call(Entry.Pipe, [this, Value](Script::VMContext* Context)
+				{
+					if (Invoke == InvokeType_Typeless)
+						return;
+
+					Context->SetArgObject<Component>(0, this);
+					Context->SetArgObject<Event>(1, Value);
+				});
+			}
+			Component* Scriptable::Copy(Entity* New)
+			{
+				Scriptable* Target = new Scriptable(New);
+				Target->Invoke = Invoke;
+				Target->SetSource(Source, Resource);
+
+				if (!Compiler || !Target->Compiler)
+					return Target;
+
+				if (Compiler->GetContext()->GetState() == Tomahawk::Script::VMExecState_ACTIVE)
+					return Target;
+
+				if (Target->Compiler->GetContext()->GetState() == Tomahawk::Script::VMExecState_ACTIVE)
+					return Target;
+
+				Script::VMWModule From = Compiler->GetModule();
+				Script::VMWModule To = Target->Compiler->GetModule();
+				Script::VMManager* Manager = Compiler->GetManager();
+
+				if (!From.IsValid() || !To.IsValid())
+					return Target;
+
+				Safe.lock();
+				int Count = From.GetPropertiesCount();
+				for (int i = 0; i < Count; i++)
+				{
+					Script::VMProperty Source;
+					if (From.GetProperty(i, &Source) < 0)
+						continue;
+
+					Script::VMProperty Dest;
+					if (To.GetProperty(i, &Dest) < 0)
+						continue;
+
+					if (Source.TypeId != Dest.TypeId)
+						continue;
+
+					if (Source.TypeId < Script::VMTypeId_BOOL || Source.TypeId > Script::VMTypeId_DOUBLE)
+					{
+						Script::VMWTypeInfo Type = Manager->Global().GetTypeInfoById(Source.TypeId);
+						if (Source.Pointer != nullptr && Type.IsValid())
+						{
+							void* Object = Manager->CreateObjectCopy(Source.Pointer, Type);
+							if (Object != nullptr)
+								Manager->AssignObject(Dest.Pointer, Object, Type);
+						}
+					}
+					else
+					{
+						int Size = Manager->Global().GetSizeOfPrimitiveType(Source.TypeId);
+						if (Size > 0)
+							memcpy(Dest.Pointer, Source.Pointer, (size_t)Size);
+					}
+				}
+
+				Safe.unlock();
+				return Target;
+			}
+			int Scriptable::Call(const std::string& Name, unsigned int Args, const InvocationCallback& ArgCallback)
+			{
+				if (!Compiler)
+					return Script::VMResult_INVALID_CONFIGURATION;
+
+				return Call(GetFunctionByName(Name, Args).GetFunction(), ArgCallback);
+			}
+			int Scriptable::Call(Script::VMCFunction* Function, const InvocationCallback& ArgCallback)
+			{
+				if (!Compiler)
+					return Script::VMResult_INVALID_CONFIGURATION;
+
+				if (!Function)
+					return Script::VMResult_INVALID_ARG;
+
+				auto* VM = Compiler->GetContext();
+				if (VM->GetState() == Script::VMExecState_ACTIVE)
+					return Script::VMResult_MODULE_IS_IN_USE;
+
+				Safe.lock();
+				int Result = VM->Prepare(Function);
+				if (Result < 0)
+				{
+					Safe.unlock();
+					return Result;
+				}
+
+				if (ArgCallback)
+					ArgCallback(VM);
+
+				Result = VM->Execute();
+				Safe.unlock();
+
+				return Result;
+			}
+			int Scriptable::SetSource()
+			{
+				return SetSource(Source, Resource);
+			}
+			int Scriptable::SetSource(SourceType Type, const std::string& Data)
+			{
+				SceneGraph* Scene = Parent->GetScene();
+				if (!Scene)
+					return Script::VMResult_INVALID_CONFIGURATION;
+
+				auto* Manager = Scene->GetConf().Manager;
+				if (!Manager)
+					return Script::VMResult_INVALID_CONFIGURATION;
+
+				if (Compiler != nullptr)
+				{
+					auto* VM = Compiler->GetContext();
+					if (VM->GetState() == Script::VMExecState_ACTIVE)
+						return Script::VMResult_MODULE_IS_IN_USE;
+				}
+				else
+				{
+					Compiler = Manager->CreateCompiler();
+					Compiler->SetAllowedFeatures(Scene->GetConf().ScriptFeatures);
+					Compiler->SetPragmaCallback([this](Compute::Preprocessor*, const std::string& Pragma)
+					{
+						Rest::Stroke Comment(&Pragma);
+						Comment.Trim();
+
+						auto Start = Comment.Find('(');
+						if (!Start.Found)
+							return false;
+
+						auto End = Comment.ReverseFind(')');
+						if (!End.Found)
+							return false;
+
+						if (!Comment.StartsWith("name"))
+							return false;
+
+						Rest::Stroke Name(Comment);
+						Name.Substring(Start.End, End.Start - Start.End).Trim();
+						if (Name.Get()[0] == '\"' && Name.Get()[Name.Size() - 1] == '\"')
+							Name.Substring(1, Name.Size() - 2);
+
+						if (!Name.Empty())
+							Module = Name.R();
+
+						return true;
+					});
+				}
+
+				Safe.lock();
+				Source = Type;
+				Resource = Data;
+
+				if (Resource.empty())
+				{
+					Entry.Serialize = nullptr;
+					Entry.Deserialize = nullptr;
+					Entry.Awake = nullptr;
+					Entry.Asleep = nullptr;
+					Entry.Synchronize = nullptr;
+					Entry.Update = nullptr;
+					Entry.Pipe = nullptr;
+					Compiler->Clear();
+					Safe.unlock();
+
+					return Script::VMResult_SUCCESS;
+				}
+
+				int R = Compiler->PrepareScope("base", Source == SourceType_Resource ? Resource : "anonymous");
+				if (R < 0)
+				{
+					Safe.unlock();
+					return R;
+				}
+
+				R = (Source == SourceType_Resource ? Compiler->LoadFile(Resource) : Compiler->LoadCode("anonymous", Resource));
+				if (R < 0)
+				{
+					Safe.unlock();
+					return R;
+				}
+
+				R = Compiler->Compile(true);
+				if (R < 0)
+				{
+					Safe.unlock();
+					return R;
+				}
+
+				Safe.unlock();
+				Entry.Serialize = GetFunctionByName("serialize", Invoke == InvokeType_Typeless ? 0 : 3).GetFunction();
+				Entry.Deserialize = GetFunctionByName("deserialize", Invoke == InvokeType_Typeless ? 0 : 3).GetFunction();
+				Entry.Awake = GetFunctionByName("awake", Invoke == InvokeType_Typeless ? 0 : 2).GetFunction();
+				Entry.Asleep = GetFunctionByName("asleep", Invoke == InvokeType_Typeless ? 0 : 1).GetFunction();
+				Entry.Synchronize = GetFunctionByName("synchronize", Invoke == InvokeType_Typeless ? 0 : 2).GetFunction();
+				Entry.Update = GetFunctionByName("update", Invoke == InvokeType_Typeless ? 0 : 2).GetFunction();
+				Entry.Pipe = GetFunctionByName("pipe", Invoke == InvokeType_Typeless ? 0 : 2).GetFunction();
+
+				Call("main", Invoke == InvokeType_Typeless ? 0 : 1, [this](Script::VMContext* Context)
+				{
+					if (Invoke == InvokeType_Typeless)
+						return;
+
+					Context->SetArgObject<Component>(0, this);
+				});
+
+				return R;
+			}
+			void Scriptable::SetInvocation(InvokeType Type)
+			{
+				Invoke = Type;
+			}
+			void Scriptable::UnsetSource()
+			{
+				SetSource(Source, "");
+			}
+			Script::VMCompiler* Scriptable::GetCompiler()
+			{
+				return Compiler;
+			}
+			Script::VMWFunction Scriptable::GetFunctionByName(const std::string& Name, unsigned int Args)
+			{
+				if (Name.empty() || !Compiler)
+					return nullptr;
+
+				auto* VM = Compiler->GetContext();
+				if (VM->GetState() == Script::VMExecState_ACTIVE)
+					return nullptr;
+
+				Safe.lock();
+				auto Result = Compiler->GetModule().GetFunctionByName(Name.c_str());
+				if (Result.IsValid() && Result.GetArgsCount() != Args)
+					return nullptr;
+
+				Safe.unlock();
+				return Result;
+			}
+			Script::VMWFunction Scriptable::GetFunctionByIndex(int Index, unsigned int Args)
+			{
+				if (Index < 0 || !Compiler)
+					return nullptr;
+
+				auto* VM = Compiler->GetContext();
+				if (VM->GetState() == Script::VMExecState_ACTIVE)
+					return nullptr;
+
+				Safe.lock();
+				auto Result = Compiler->GetModule().GetFunctionByIndex(Index);
+				if (Result.IsValid() && Result.GetArgsCount() != Args)
+					return nullptr;
+
+				Safe.unlock();
+				return Result;
+			}
+			bool Scriptable::GetPropertyByName(const char* Name, Script::VMProperty* Result)
+			{
+				if (!Name || !Compiler)
+					return false;
+
+				auto* VM = Compiler->GetContext();
+				if (VM->GetState() == Tomahawk::Script::VMExecState_ACTIVE)
+					return false;
+
+				Safe.lock();
+				Script::VMWModule Module = Compiler->GetModule();
+				if (!Module.IsValid())
+				{
+					Safe.unlock();
+					return false;
+				}
+
+				int Index = Module.GetPropertyIndexByName(Name);
+				if (Index < 0)
+				{
+					Safe.unlock();
+					return false;
+				}
+
+				if (Module.GetProperty(Index, Result) < 0)
+				{
+					Safe.unlock();
+					return false;
+				}
+
+				Safe.unlock();
+				return true;
+			}
+			bool Scriptable::GetPropertyByIndex(int Index, Script::VMProperty* Result)
+			{
+				if (Index < 0 || !Compiler)
+					return false;
+
+				auto* VM = Compiler->GetContext();
+				if (VM->GetState() == Tomahawk::Script::VMExecState_ACTIVE)
+					return false;
+
+				Safe.lock();
+				Script::VMWModule Module = Compiler->GetModule();
+				if (!Module.IsValid())
+				{
+					Safe.unlock();
+					return false;
+				}
+
+				if (Module.GetProperty(Index, Result) < 0)
+				{
+					Safe.unlock();
+					return false;
+				}
+
+				Safe.unlock();
+				return true;
+			}
+			Scriptable::SourceType Scriptable::GetSourceType()
+			{
+				return Source;
+			}
+			Scriptable::InvokeType Scriptable::GetInvokeType()
+			{
+				return Invoke;
+			}
+			int Scriptable::GetPropertiesCount()
+			{
+				if (!Compiler)
+					return Script::VMResult_INVALID_ARG;
+
+				auto* VM = Compiler->GetContext();
+				if (VM->GetState() == Tomahawk::Script::VMExecState_ACTIVE)
+					return Script::VMResult_MODULE_IS_IN_USE;
+
+				Safe.lock();
+				Script::VMWModule Module = Compiler->GetModule();
+				if (!Module.IsValid())
+				{
+					Safe.unlock();
+					return 0;
+				}
+
+				int Result = Module.GetPropertiesCount();
+				Safe.unlock();
+
+				return Result;
+			}
+			int Scriptable::GetFunctionsCount()
+			{
+				if (!Compiler)
+					return Script::VMResult_INVALID_ARG;
+
+				auto* VM = Compiler->GetContext();
+				if (VM->GetState() == Tomahawk::Script::VMExecState_ACTIVE)
+					return Script::VMResult_MODULE_IS_IN_USE;
+
+				Safe.lock();
+				Script::VMWModule Module = Compiler->GetModule();
+				if (!Module.IsValid())
+				{
+					Safe.unlock();
+					return 0;
+				}
+
+				int Result = Module.GetFunctionCount();
+				Safe.unlock();
+
+				return Result;
+			}
+			const std::string& Scriptable::GetSource()
+			{
+				return Resource;
+			}
+			const std::string& Scriptable::GetName()
+			{
+				return Module;
 			}
 		}
 	}

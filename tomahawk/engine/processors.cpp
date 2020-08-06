@@ -64,6 +64,7 @@ namespace Tomahawk
 				{
 					I.Queue = App->Queue;
 					I.Cache = App->Shaders;
+					I.Manager = App->VM;
 				}
 
 				std::string Environment = Content->GetEnvironment();

@@ -2001,12 +2001,15 @@ namespace Tomahawk
 			bool IsBuilt();
 			int Prepare(const std::string& ModuleName);
 			int Prepare(const std::string& ModuleName, const std::string& Cache, bool Debug = true);
+			int PrepareScope(const std::string& ModuleName);
+			int PrepareScope(const std::string& ModuleName, const std::string& Cache, bool Debug = true);
 			int Compile(bool Await);
 			int SaveByteCode(VMByteCode* Info);
 			int LoadByteCode(VMByteCode* Info);
 			int LoadFile(const std::string& Path);
 			int LoadCode(const std::string& Name, const std::string& Buffer);
-			int LoadCodeScoped(const std::string& Value);
+			int InterpretFile(const char* Name, const char* ModuleName, const char* EntryName, void* Return = nullptr, int ReturnTypeId = VMTypeId_VOID);
+			int InterpretMemory(const std::string& Buffer, const char* ModuleName, const char* EntryName, void* Return = nullptr, int ReturnTypeId = VMTypeId_VOID);
 			int InterpretEntry(const char* Name, void* Return = nullptr, int ReturnTypeId = VMTypeId_VOID);
 			int InterpretScoped(const std::string& Code, void* Return = nullptr, int ReturnTypeId = VMTypeId_VOID);
 			int InterpretScoped(const char* Buffer, uint64_t Length, void* Return = nullptr, int ReturnTypeId = VMTypeId_VOID);
@@ -2187,6 +2190,7 @@ namespace Tomahawk
 			size_t GetProperty(VMProp Property) const;
 			VMCManager* GetEngine() const;
 			std::string GetDocumentRoot() const;
+			std::string GetScopedName(const std::string& Name);
 
 		private:
 			void EnableString();

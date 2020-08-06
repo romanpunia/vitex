@@ -1872,9 +1872,9 @@ namespace Tomahawk
 #if defined(THAWK_MICROSOFT)
 			if (gmtime_s(&DateTime, &TimeStamp) != 0)
 #elif defined(THAWK_UNIX)
-																																		if (gmtime_r(&TimeStamp, &DateTime) == 0)
+			if (gmtime_r(&TimeStamp, &DateTime) == 0)																											if (gmtime_r(&TimeStamp, &DateTime) == 0)
 #else
-                if (true)
+            if (true)
 #endif
 				strncpy(Date, "01-01-1970 00:00:00", sizeof(Date));
 			else

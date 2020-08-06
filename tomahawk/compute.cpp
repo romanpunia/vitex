@@ -3145,11 +3145,9 @@ namespace Tomahawk
 			A = L(A + I(B, C, D) + X + AC, S) + B;
 		}
 
-		float MathCommon::IsClipping(Matrix4x4 ViewProjection, Matrix4x4 World, float Radius)
+		float MathCommon::IsCubeInFrustum(const Matrix4x4& WVP, float Radius)
 		{
-			Matrix4x4 WVP = World * ViewProjection;
 			float Plane[4];
-
 			Plane[0] = WVP.Row[3] + WVP.Row[0];
 			Plane[1] = WVP.Row[7] + WVP.Row[4];
 			Plane[2] = WVP.Row[11] + WVP.Row[8];
@@ -3206,14 +3204,14 @@ namespace Tomahawk
 
 			return -1;
 		}
-		bool MathCommon::HasSphereIntersected(Vector3 PositionR0, float RadiusR0, Vector3 PositionR1, float RadiusR1)
+		bool MathCommon::HasSphereIntersected(const Vector3& PositionR0, float RadiusR0, const Vector3& PositionR1, float RadiusR1)
 		{
 			if (PositionR0.Distance(PositionR1) < RadiusR0 + RadiusR1)
 				return true;
 
 			return false;
 		}
-		bool MathCommon::HasLineIntersected(float Distance0, float Distance1, Vector3 Point0, Vector3 Point1, Vector3& Hit)
+		bool MathCommon::HasLineIntersected(float Distance0, float Distance1, const Vector3& Point0, const Vector3& Point1, Vector3& Hit)
 		{
 			if ((Distance0 * Distance1) >= 0)
 				return false;
@@ -3224,7 +3222,7 @@ namespace Tomahawk
 			Hit = Point0 + (Point1 - Point0) * (-Distance0 / (Distance1 - Distance0));
 			return true;
 		}
-		bool MathCommon::HasLineIntersectedCube(Vector3 Min, Vector3 Max, Vector3 Start, Vector3 End)
+		bool MathCommon::HasLineIntersectedCube(const Vector3& Min, const Vector3& Max, const Vector3& Start, const Vector3& End)
 		{
 			if (End.X < Min.X && Start.X < Min.X)
 				return false;
@@ -3247,13 +3245,13 @@ namespace Tomahawk
 			if (Start.X > Min.X && Start.X < Max.X && Start.Y > Min.Y && Start.Y < Max.Y && Start.Z > Min.Z && Start.Z < Max.Z)
 				return true;
 
-			Vector3 LastHit = Vector3::Zero();
+			Vector3 LastHit;
 			if ((HasLineIntersected(Start.X - Min.X, End.X - Min.X, Start, End, LastHit) && HasPointIntersectedCube(LastHit, Min, Max, 1)) || (HasLineIntersected(Start.Y - Min.Y, End.Y - Min.Y, Start, End, LastHit) && HasPointIntersectedCube(LastHit, Min, Max, 2)) || (HasLineIntersected(Start.Z - Min.Z, End.Z - Min.Z, Start, End, LastHit) && HasPointIntersectedCube(LastHit, Min, Max, 3)) || (HasLineIntersected(Start.X - Max.X, End.X - Max.X, Start, End, LastHit) && HasPointIntersectedCube(LastHit, Min, Max, 1)) || (HasLineIntersected(Start.Y - Max.Y, End.Y - Max.Y, Start, End, LastHit) && HasPointIntersectedCube(LastHit, Min, Max, 2)) || (HasLineIntersected(Start.Z - Max.Z, End.Z - Max.Z, Start, End, LastHit) && HasPointIntersectedCube(LastHit, Min, Max, 3)))
 				return true;
 
 			return false;
 		}
-		bool MathCommon::HasPointIntersectedCube(Vector3 LastHit, Vector3 Min, Vector3 Max, int Axis)
+		bool MathCommon::HasPointIntersectedCube(const Vector3& LastHit, const Vector3& Min, const Vector3& Max, int Axis)
 		{
 			if (Axis == 1 && LastHit.Z > Min.Z && LastHit.Z < Max.Z && LastHit.Y > Min.Y && LastHit.Y < Max.Y)
 				return true;
@@ -3266,11 +3264,11 @@ namespace Tomahawk
 
 			return false;
 		}
-		bool MathCommon::HasPointIntersectedCube(Vector3 Position, Vector3 Scale, Vector3 P0)
+		bool MathCommon::HasPointIntersectedCube(const Vector3& Position, const Vector3& Scale, const Vector3& P0)
 		{
 			return (P0.X) <= (Position.X + Scale.X) && (Position.X - Scale.X) <= (P0.X) && (P0.Y) <= (Position.Y + Scale.Y) && (Position.Y - Scale.Y) <= (P0.Y) && (P0.Z) <= (Position.Z + Scale.Z) && (Position.Z - Scale.Z) <= (P0.Z);
 		}
-		bool MathCommon::HasPointIntersectedRectangle(Vector3 Position, Vector3 Scale, Vector3 P0)
+		bool MathCommon::HasPointIntersectedRectangle(const Vector3& Position, const Vector3& Scale, const Vector3& P0)
 		{
 			return P0.X >= Position.X - Scale.X && P0.X < Position.X + Scale.X && P0.Y >= Position.Y - Scale.Y && P0.Y < Position.Y + Scale.Y;
 		}
@@ -5501,10 +5499,10 @@ namespace Tomahawk
 			{
 				btVector3 Position = Base.getOrigin();
 				btVector3 Scale = Instance->getCollisionShape()->getLocalScaling();
-				Vector3 Rotation;
+				btScalar X, Y, Z;
 
-				Base.getRotation().getEulerZYX(Rotation.Z, Rotation.Y, Rotation.X);
-				Transform->SetTransform(TransformSpace_Global, V3Bt(Position), V3Bt(Scale), Rotation.InvertX());
+				Base.getRotation().getEulerZYX(Z, Y, X);
+				Transform->SetTransform(TransformSpace_Global, V3Bt(Position), V3Bt(Scale), Vector3(-X, -Y, Z));
 			}
 			else
 			{
@@ -5768,10 +5766,10 @@ namespace Tomahawk
 		}
 		Vector3 RigidBody::GetRotation()
 		{
-			Vector3 Rotation = 0;
-			Instance->getWorldTransform().getBasis().getEulerZYX(Rotation.Z, Rotation.Y, Rotation.X);
+			btScalar X, Y, Z;
+			Instance->getWorldTransform().getBasis().getEulerZYX(Z, Y, X);
 
-			return Rotation;
+			return Vector3(-X, -Y, Z);
 		}
 		btTransform* RigidBody::GetWorldTransform()
 		{
@@ -6093,9 +6091,9 @@ namespace Tomahawk
 
 			if (!Kinematic)
 			{
-				Vector3 Rotation;
-				Instance->getWorldTransform().getRotation().getEulerZYX(Rotation.Z, Rotation.Y, Rotation.X);
-				Transform->SetTransform(TransformSpace_Global, Center, 1.0f, Rotation.InvertX());
+				btScalar X, Y, Z;
+				Instance->getWorldTransform().getRotation().getEulerZYX(Z, Y, X);
+				Transform->SetTransform(TransformSpace_Global, Center, 1.0f, Vector3(-X, -Y, Z));
 			}
 			else
 			{
@@ -6551,10 +6549,10 @@ namespace Tomahawk
 		}
 		Vector3 SoftBody::GetRotation()
 		{
-			Vector3 Rotation = 0;
-			Instance->getWorldTransform().getBasis().getEulerZYX(Rotation.Z, Rotation.Y, Rotation.X);
+			btScalar X, Y, Z;
+			Instance->getWorldTransform().getBasis().getEulerZYX(Z, Y, X);
 
-			return Rotation;
+			return Vector3(-X, -Y, Z);
 		}
 		btTransform* SoftBody::GetWorldTransform()
 		{

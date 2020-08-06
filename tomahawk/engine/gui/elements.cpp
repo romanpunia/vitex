@@ -2867,6 +2867,7 @@ namespace Tomahawk
 			}
 			Group::~Group()
 			{
+				free(Style);
 			}
 			bool Group::BuildBegin(nk_context* C)
 			{

@@ -270,7 +270,7 @@ namespace Tomahawk
 			class THAWK_OUT ProbeRenderer : public Renderer
 			{
 			private:
-				Rest::Pool<Engine::Component*>* ProbeLights = nullptr;
+				Rest::Pool<Engine::Component*>* ReflectionProbes = nullptr;
 				uint64_t Map;
 
 			public:
@@ -307,7 +307,7 @@ namespace Tomahawk
 					float Parallax;
 					Compute::Vector3 Padding;
 					float Infinity;
-				} ProbeLight;
+				} ReflectionProbe;
 
 				struct
 				{
@@ -389,11 +389,12 @@ namespace Tomahawk
 
 			private:
 				Rest::Pool<Engine::Component*>* PointLights = nullptr;
-				Rest::Pool<Engine::Component*>* ProbeLights = nullptr;
+				Rest::Pool<Engine::Component*>* ReflectionProbes = nullptr;
 				Rest::Pool<Engine::Component*>* SpotLights = nullptr;
 				Rest::Pool<Engine::Component*>* LineLights = nullptr;
 				Graphics::DepthStencilState* DepthStencil = nullptr;
-				Graphics::RasterizerState* Rasterizer = nullptr;
+				Graphics::RasterizerState* FrontRasterizer = nullptr;
+				Graphics::RasterizerState* BackRasterizer = nullptr;
 				Graphics::BlendState* Blend = nullptr;
 				Graphics::SamplerState* Sampler = nullptr;
 				Graphics::RenderTarget2D* Output1 = nullptr;

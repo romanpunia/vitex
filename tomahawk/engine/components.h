@@ -9,6 +9,8 @@ namespace Tomahawk
 	{
 		namespace Components
 		{
+			typedef std::function<void(Script::VMContext*)> InvocationCallback;
+
 			class THAWK_OUT Model : public Drawable
 			{
 			protected:
@@ -348,7 +350,7 @@ namespace Tomahawk
 				virtual void Deserialize(ContentManager* Content, Rest::Document* Node) override;
 				virtual void Serialize(ContentManager* Content, Rest::Document* Node) override;
 				virtual void Awake(Component* New) override;
-				virtual void Synchronize(Rest::Timer* Time) override;
+				virtual void Update(Rest::Timer* Time) override;
 				virtual Component* Copy(Entity* New) override;
 				Compute::RigidBody* GetBody() const;
 
@@ -578,7 +580,7 @@ namespace Tomahawk
 				THAWK_COMPONENT(LineLight);
 			};
 
-			class THAWK_OUT ProbeLight : public Cullable
+			class THAWK_OUT ReflectionProbe : public Cullable
 			{
 			private:
 				Graphics::Texture2D* DiffuseMapX[2];
@@ -601,8 +603,8 @@ namespace Tomahawk
 				bool StaticMask;
 
 			public:
-				ProbeLight(Entity* Ref);
-				virtual ~ProbeLight() override;
+				ReflectionProbe(Entity* Ref);
+				virtual ~ReflectionProbe() override;
 				virtual void Deserialize(ContentManager* Content, Rest::Document* Node) override;
 				virtual void Serialize(ContentManager* Content, Rest::Document* Node) override;
 				virtual float Cull(const Viewer& View) override;
@@ -621,7 +623,7 @@ namespace Tomahawk
 				Graphics::Texture2D* GetDiffuseMap();
 
 			public:
-				THAWK_COMPONENT(ProbeLight);
+				THAWK_COMPONENT(ReflectionProbe);
 			};
 
 			class THAWK_OUT Camera : public Component
@@ -667,6 +669,220 @@ namespace Tomahawk
 
 			public:
 				THAWK_COMPONENT(Camera);
+			};
+
+			class THAWK_OUT Scriptable : public Component
+			{
+			public:
+				enum SourceType
+				{
+					SourceType_Resource,
+					SourceType_Memory
+				};
+
+				enum InvokeType
+				{
+					InvokeType_Typeless,
+					InvokeType_Normal
+				};
+
+			protected:
+				struct
+				{
+					Script::VMCFunction* Serialize = nullptr;
+					Script::VMCFunction* Deserialize = nullptr;
+					Script::VMCFunction* Awake = nullptr;
+					Script::VMCFunction* Asleep = nullptr;
+					Script::VMCFunction* Synchronize = nullptr;
+					Script::VMCFunction* Update = nullptr;
+					Script::VMCFunction* Pipe = nullptr;
+				} Entry;
+
+			protected:
+				Script::VMCompiler* Compiler;
+				std::string Resource;
+				std::string Module;
+				std::mutex Safe;
+				SourceType Source;
+				InvokeType Invoke;
+
+			public:
+				Scriptable(Entity* Ref);
+				virtual ~Scriptable() override;
+				virtual void Deserialize(ContentManager* Content, Rest::Document* Node) override;
+				virtual void Serialize(ContentManager* Content, Rest::Document* Node) override;
+				virtual void Awake(Component* New) override;
+				virtual void Synchronize(Rest::Timer* Time) override;
+				virtual void Asleep() override;
+				virtual void Update(Rest::Timer* Time) override;
+				virtual void Pipe(Event* Value) override;
+				virtual Component* Copy(Entity* New) override;
+				int Call(const std::string& Name, unsigned int Args, const InvocationCallback& ArgCallback);
+				int Call(Tomahawk::Script::VMCFunction* Entry, const InvocationCallback& ArgCallback);
+				int SetSource();
+				int SetSource(SourceType Type, const std::string& Source);
+				void SetInvocation(InvokeType Type);
+				void UnsetSource();
+				Script::VMCompiler* GetCompiler();
+				bool GetPropertyByName(const char* Name, Script::VMProperty* Result);
+				bool GetPropertyByIndex(int Index, Script::VMProperty* Result);
+				Script::VMWFunction GetFunctionByName(const std::string& Name, unsigned int Args);
+				Script::VMWFunction GetFunctionByIndex(int Index, unsigned int Args);
+				SourceType GetSourceType();
+				InvokeType GetInvokeType();
+				int GetPropertiesCount();
+				int GetFunctionsCount();
+				const std::string& GetSource();
+				const std::string& GetName();
+
+			public:
+				template <typename T>
+				int SetTypePropertyByName(const char* Name, const T& Value)
+				{
+					if (!Name || !Compiler)
+						return Script::VMResult_INVALID_ARG;
+
+					auto* VM = Compiler->GetContext();
+					if (VM->GetState() == Tomahawk::Script::VMExecState_ACTIVE)
+						return Script::VMResult_MODULE_IS_IN_USE;
+
+					Safe.lock();
+					Script::VMWModule Module = Compiler->GetModule();
+					if (!Module.IsValid())
+					{
+						Safe.unlock();
+						return 0;
+					}
+
+					int Index = Module.GetPropertyIndexByName(Name);
+					if (Index < 0)
+					{
+						Safe.unlock();
+						return Index;
+					}
+
+					T* Address = (T*)Module.GetAddressOfProperty(Index);
+					if (!Address)
+					{
+						Safe.unlock();
+						return -1;
+					}
+
+					*Address = Value;
+					Safe.unlock();
+
+					return 0;
+				}
+				template <typename T>
+				int SetRefPropertyByName(const char* Name, T* Value)
+				{
+					if (!Name || !Compiler)
+						return Script::VMResult_INVALID_ARG;
+
+					auto* VM = Compiler->GetContext();
+					if (VM->GetState() == Tomahawk::Script::VMExecState_ACTIVE)
+						return Script::VMResult_MODULE_IS_IN_USE;
+
+					Safe.lock();
+					Script::VMWModule Module = Compiler->GetModule();
+					if (!Module.IsValid())
+					{
+						Safe.unlock();
+						return Script::VMResult_INVALID_CONFIGURATION;
+					}
+
+					int Index = Module.GetPropertyIndexByName(Name);
+					if (Index < 0)
+					{
+						Safe.unlock();
+						return Index;
+					}
+
+					T** Address = (T**)Module.GetAddressOfProperty(Index);
+					if (!Address)
+					{
+						Safe.unlock();
+						return -1;
+					}
+
+					if (*Address != nullptr)
+						(*Address)->Release();
+
+					*Address = Value;
+					if (*Address != nullptr)
+						(*Address)->AddRef();
+
+					Safe.unlock();
+					return 0;
+				}
+				template <typename T>
+				int SetTypePropertyByIndex(int Index, const T& Value)
+				{
+					if (Index < 0 || !Compiler)
+						return Script::VMResult_INVALID_ARG;
+
+					auto* VM = Compiler->GetContext();
+					if (VM->GetState() == Tomahawk::Script::VMExecState_ACTIVE)
+						return Script::VMResult_MODULE_IS_IN_USE;
+
+					Safe.lock();
+					Script::VMWModule Module = Compiler->GetModule();
+					if (!Module.IsValid())
+					{
+						Safe.unlock();
+						return 0;
+					}
+
+					T* Address = (T*)Module.GetAddressOfProperty(Index);
+					if (!Address)
+					{
+						Safe.unlock();
+						return -1;
+					}
+
+					*Address = Value;
+					Safe.unlock();
+
+					return 0;
+				}
+				template <typename T>
+				int SetRefPropertyByIndex(int Index, T* Value)
+				{
+					if (Index < 0 || !Compiler)
+						return Script::VMResult_INVALID_ARG;
+
+					auto* VM = Compiler->GetContext();
+					if (VM->GetState() == Tomahawk::Script::VMExecState_ACTIVE)
+						return Script::VMResult_MODULE_IS_IN_USE;
+
+					Safe.lock();
+					Script::VMWModule Module = Compiler->GetModule();
+					if (!Module.IsValid())
+					{
+						Safe.unlock();
+						return Script::VMResult_INVALID_CONFIGURATION;
+					}
+
+					T** Address = (T**)Module.GetAddressOfProperty(Index);
+					if (!Address)
+					{
+						Safe.unlock();
+						return -1;
+					}
+
+					if (*Address != nullptr)
+						(*Address)->Release();
+
+					*Address = Value;
+					if (*Address != nullptr)
+						(*Address)->AddRef();
+
+					Safe.unlock();
+					return 0;
+				}
+
+			public:
+				THAWK_COMPONENT(Scriptable);
 			};
 		}
 	}

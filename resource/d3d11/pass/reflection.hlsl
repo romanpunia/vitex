@@ -4,7 +4,7 @@
 
 cbuffer RenderConstant : register(b3)
 {
-	float IterationCount;
+	float Samples;
 	float MipLevels;
 	float Intensity;
 	float Padding;
@@ -21,7 +21,7 @@ float4 PS(VertexResult V) : SV_TARGET0
 	float3 D = reflect(E, Frag.Normal);
     float3 HitCoord;
 
-    [branch] if (!RayMarch(Frag.Position, D, IterationCount, HitCoord))
+    [branch] if (!RayMarch(Frag.Position, D, Samples, HitCoord))
         return float4(0.0, 0.0, 0.0, 1.0);
 
     float T = GetRoughnessLevel(Frag, Mat, 1.0);

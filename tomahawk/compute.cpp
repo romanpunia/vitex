@@ -116,22 +116,22 @@ namespace Tomahawk
 		}
 		float Vector2::Hypotenuse() const
 		{
-			return Math<float>::Sqrt(X * X + Y * Y);
+			return Mathf::Sqrt(X * X + Y * Y);
 		}
 		float Vector2::LookAt(const Vector2& At) const
 		{
-			return Math<float>::ATan2(At.X - X, At.Y - Y);
+			return Mathf::Atan2(At.X - X, At.Y - Y);
 		}
 		float Vector2::Distance(const Vector2& Point) const
 		{
 			float x = X - Point.X;
 			float y = Y - Point.Y;
 
-			return Math<float>::Sqrt(x * x + y * y);
+			return Mathf::Sqrt(x * x + y * y);
 		}
 		float Vector2::Length() const
 		{
-			return Math<float>::Sqrt(X * X + Y * Y);
+			return Mathf::Sqrt(X * X + Y * Y);
 		}
 		float Vector2::ModLength() const
 		{
@@ -151,8 +151,8 @@ namespace Tomahawk
 		}
 		Vector2 Vector2::SaturateRotation() const
 		{
-			float Ax = Math<float>::SaturateAngle(X);
-			float Ay = Math<float>::SaturateAngle(Y);
+			float Ax = Mathf::SaturateAngle(X);
+			float Ay = Mathf::SaturateAngle(Y);
 
 			return Vector2(Ax, Ay);
 		}
@@ -214,12 +214,12 @@ namespace Tomahawk
 		}
 		Vector2 Vector2::SphericalLerp(const Vector2& B, float DeltaTime) const
 		{
-			return Quaternion(Vector3()).SphericalLerp(B.XYZ(), DeltaTime).Euler().XY();
+			return Quaternion(Vector3()).SphericalLerp(B.XYZ(), DeltaTime).GetEuler().XY();
 		}
 		Vector2 Vector2::AngularLerp(const Vector2& B, float DeltaTime) const
 		{
-			float Ax = Math<float>::AngluarLerp(X, B.X, DeltaTime);
-			float Ay = Math<float>::AngluarLerp(Y, B.Y, DeltaTime);
+			float Ax = Mathf::AngluarLerp(X, B.X, DeltaTime);
+			float Ay = Mathf::AngluarLerp(Y, B.Y, DeltaTime);
 
 			return Vector2(Ax, Ay);
 		}
@@ -396,19 +396,19 @@ namespace Tomahawk
 		}
 		Vector2 Vector2::Random()
 		{
-			return Vector2(Math<float>::RandomMag(), Math<float>::RandomMag());
+			return Vector2(Mathf::RandomMag(), Mathf::RandomMag());
 		}
 		Vector2 Vector2::RandomAbs()
 		{
-			return Vector2(Math<float>::Random(), Math<float>::Random());
+			return Vector2(Mathf::Random(), Mathf::Random());
 		}
 		Vector2 Vector2::Radians() const
 		{
-			return (*this) * Math<float>::Deg2Rad();
+			return (*this) * Mathf::Deg2Rad();
 		}
 		Vector2 Vector2::Degrees() const
 		{
-			return (*this) * Math<float>::Rad2Deg();
+			return (*this) * Mathf::Rad2Deg();
 		}
 
 		Vector3::Vector3()
@@ -447,7 +447,7 @@ namespace Tomahawk
 		}
 		float Vector3::Length() const
 		{
-			return Math<float>::Sqrt(X * X + Y * Y + Z * Z);
+			return Mathf::Sqrt(X * X + Y * Y + Z * Z);
 		}
 		float Vector3::ModLength() const
 		{
@@ -463,20 +463,20 @@ namespace Tomahawk
 			float y = Y - Point.Y;
 			float z = Z - Point.Z;
 
-			return Math<float>::Sqrt(x * x + y * y + z * z);
+			return Mathf::Sqrt(x * x + y * y + z * z);
 		}
 		float Vector3::Hypotenuse() const
 		{
-			float R = Math<float>::Sqrt(X * X + Z * Z);
-			return Math<float>::Sqrt(R * R + Y * Y);
+			float R = Mathf::Sqrt(X * X + Z * Z);
+			return Mathf::Sqrt(R * R + Y * Y);
 		}
 		float Vector3::LookAtXY(const Vector3& At) const
 		{
-			return Math<float>::ATan2(At.X - X, At.Y - Y);
+			return Mathf::Atan2(At.X - X, At.Y - Y);
 		}
 		float Vector3::LookAtXZ(const Vector3& At) const
 		{
-			return Math<float>::ATan2(At.X - X, At.Z - Z);
+			return Mathf::Atan2(At.X - X, At.Z - Z);
 		}
 		Vector3 Vector3::Transform(const Matrix4x4& Matrix) const
 		{
@@ -561,21 +561,21 @@ namespace Tomahawk
 		}
 		Vector3 Vector3::SphericalLerp(const Vector3& B, float DeltaTime) const
 		{
-			return Quaternion(*this).SphericalLerp(B, DeltaTime).Euler();
+			return Quaternion(*this).SphericalLerp(B, DeltaTime).GetEuler();
 		}
 		Vector3 Vector3::AngularLerp(const Vector3& B, float DeltaTime) const
 		{
-			float Ax = Math<float>::AngluarLerp(X, B.X, DeltaTime);
-			float Ay = Math<float>::AngluarLerp(Y, B.Y, DeltaTime);
-			float Az = Math<float>::AngluarLerp(Z, B.Z, DeltaTime);
+			float Ax = Mathf::AngluarLerp(X, B.X, DeltaTime);
+			float Ay = Mathf::AngluarLerp(Y, B.Y, DeltaTime);
+			float Az = Mathf::AngluarLerp(Z, B.Z, DeltaTime);
 
 			return Vector3(Ax, Ay, Az);
 		}
 		Vector3 Vector3::SaturateRotation() const
 		{
-			float Ax = Math<float>::SaturateAngle(X);
-			float Ay = Math<float>::SaturateAngle(Y);
-			float Az = Math<float>::SaturateAngle(Z);
+			float Ax = Mathf::SaturateAngle(X);
+			float Ay = Mathf::SaturateAngle(Y);
+			float Az = Mathf::SaturateAngle(Z);
 
 			return Vector3(Ax, Ay, Az);
 		}
@@ -769,19 +769,19 @@ namespace Tomahawk
 		}
 		Vector3 Vector3::Random()
 		{
-			return Vector3(Math<float>::RandomMag(), Math<float>::RandomMag(), Math<float>::RandomMag());
+			return Vector3(Mathf::RandomMag(), Mathf::RandomMag(), Mathf::RandomMag());
 		}
 		Vector3 Vector3::Radians() const
 		{
-			return (*this) * Math<float>::Deg2Rad();
+			return (*this) * Mathf::Deg2Rad();
 		}
 		Vector3 Vector3::RandomAbs()
 		{
-			return Vector3(Math<float>::Random(), Math<float>::Random(), Math<float>::Random());
+			return Vector3(Mathf::Random(), Mathf::Random(), Mathf::Random());
 		}
 		Vector3 Vector3::Degrees() const
 		{
-			return (*this) * Math<float>::Rad2Deg();
+			return (*this) * Mathf::Rad2Deg();
 		}
 		void Vector3::ToBtVector3(const Vector3& In, btVector3* Out)
 		{
@@ -850,7 +850,7 @@ namespace Tomahawk
 		}
 		float Vector4::Length() const
 		{
-			return Math<float>::Sqrt(X * X + Y * Y + Z * Z + W * W);
+			return Mathf::Sqrt(X * X + Y * Y + Z * Z + W * W);
 		}
 		float Vector4::ModLength() const
 		{
@@ -867,14 +867,14 @@ namespace Tomahawk
 			float z = Z - Point.Z;
 			float w = W - Point.W;
 
-			return Math<float>::Sqrt(x * x + y * y + z * z + w * w);
+			return Mathf::Sqrt(x * x + y * y + z * z + w * w);
 		}
 		Vector4 Vector4::SaturateRotation() const
 		{
-			float Ax = Math<float>::SaturateAngle(X);
-			float Ay = Math<float>::SaturateAngle(Y);
-			float Az = Math<float>::SaturateAngle(Z);
-			float Aw = Math<float>::SaturateAngle(W);
+			float Ax = Mathf::SaturateAngle(X);
+			float Ay = Mathf::SaturateAngle(Y);
+			float Az = Mathf::SaturateAngle(Z);
+			float Aw = Mathf::SaturateAngle(W);
 
 			return Vector4(Ax, Ay, Az, Aw);
 		}
@@ -884,15 +884,15 @@ namespace Tomahawk
 		}
 		Vector4 Vector4::SphericalLerp(const Vector4& B, float DeltaTime) const
 		{
-			Vector3 Lerp = Quaternion(Vector3()).SphericalLerp(B.XYZ(), DeltaTime).Euler();
+			Vector3 Lerp = Quaternion(Vector3()).SphericalLerp(B.XYZ(), DeltaTime).GetEuler();
 			return Vector4(Lerp.X, Lerp.Y, Lerp.Z, W + (B.W - W) * DeltaTime);
 		}
 		Vector4 Vector4::AngularLerp(const Vector4& B, float DeltaTime) const
 		{
-			float Ax = Math<float>::AngluarLerp(X, B.X, DeltaTime);
-			float Ay = Math<float>::AngluarLerp(Y, B.Y, DeltaTime);
-			float Az = Math<float>::AngluarLerp(Z, B.Z, DeltaTime);
-			float Aw = Math<float>::AngluarLerp(W, B.W, DeltaTime);
+			float Ax = Mathf::AngluarLerp(X, B.X, DeltaTime);
+			float Ay = Mathf::AngluarLerp(Y, B.Y, DeltaTime);
+			float Az = Mathf::AngluarLerp(Z, B.Z, DeltaTime);
+			float Aw = Mathf::AngluarLerp(W, B.W, DeltaTime);
 
 			return Vector4(Ax, Ay, Az, Aw);
 		}
@@ -1200,19 +1200,19 @@ namespace Tomahawk
 		}
 		Vector4 Vector4::Random()
 		{
-			return Vector4(Math<float>::RandomMag(), Math<float>::RandomMag(), Math<float>::RandomMag(), Math<float>::RandomMag());
+			return Vector4(Mathf::RandomMag(), Mathf::RandomMag(), Mathf::RandomMag(), Mathf::RandomMag());
 		}
 		Vector4 Vector4::RandomAbs()
 		{
-			return Vector4(Math<float>::Random(), Math<float>::Random(), Math<float>::Random(), Math<float>::Random());
+			return Vector4(Mathf::Random(), Mathf::Random(), Mathf::Random(), Mathf::Random());
 		}
 		Vector4 Vector4::Radians() const
 		{
-			return (*this) * Math<float>::Deg2Rad();
+			return (*this) * Mathf::Deg2Rad();
 		}
 		Vector4 Vector4::Degrees() const
 		{
-			return (*this) * Math<float>::Rad2Deg();
+			return (*this) * Mathf::Rad2Deg();
 		}
 
 		Ray::Ray() : Direction(0, 0, 1)
@@ -1232,7 +1232,7 @@ namespace Tomahawk
 		bool Ray::IntersectsPlane(const Vector3& Normal, float Diameter) const
 		{
 			float D = Normal.DotProduct(Direction);
-			if (Math<float>::Abs(D) < std::numeric_limits<float>::epsilon())
+			if (Mathf::Abs(D) < std::numeric_limits<float>::epsilon())
 				return false;
 
 			float N = Normal.DotProduct(Origin) + Diameter;
@@ -1255,9 +1255,9 @@ namespace Tomahawk
 			if (D < 0)
 				return false;
 
-			float T = (-B - Math<float>::Sqrt(D)) / (2 * A);
+			float T = (-B - Mathf::Sqrt(D)) / (2 * A);
 			if (T < 0)
-				T = (-B + Math<float>::Sqrt(D)) / (2 * A);
+				T = (-B + Mathf::Sqrt(D)) / (2 * A);
 
 			return true;
 		}
@@ -1707,8 +1707,8 @@ namespace Tomahawk
 		{
 			Matrix4x4 X = Identity();
 
-			float Cos = Math<float>::Cos(Rotation);
-			float Sin = Math<float>::Sin(Rotation);
+			float Cos = Mathf::Cos(Rotation);
+			float Sin = Mathf::Sin(Rotation);
 
 			X.Row[5] = Cos;
 			X.Row[6] = Sin;
@@ -1721,8 +1721,8 @@ namespace Tomahawk
 		{
 			Matrix4x4 Y = Identity();
 
-			float Cos = Math<float>::Cos(Rotation);
-			float Sin = Math<float>::Sin(Rotation);
+			float Cos = Mathf::Cos(Rotation);
+			float Sin = Mathf::Sin(Rotation);
 
 			Y.Row[0] = Cos;
 			Y.Row[2] = -Sin;
@@ -1735,8 +1735,8 @@ namespace Tomahawk
 		{
 			Matrix4x4 Z = Identity();
 
-			float Cos = Math<float>::Cos(Rotation);
-			float Sin = Math<float>::Sin(Rotation);
+			float Cos = Mathf::Cos(Rotation);
+			float Sin = Mathf::Sin(Rotation);
 
 			Z.Row[0] = Cos;
 			Z.Row[1] = Sin;
@@ -1773,14 +1773,14 @@ namespace Tomahawk
 		}
 		Matrix4x4 Matrix4x4::CreatePerspectiveRad(float FieldOfView, float AspectRatio, float NearClip, float FarClip)
 		{
-			float Y = Math<float>::Cotan(FieldOfView / 2.0f);
+			float Y = Mathf::Cotan(FieldOfView / 2.0f);
 			float X = Y / AspectRatio;
 
 			return Matrix4x4(Vector4(X, 0, 0, 0), Vector4(0, Y, 0, 0), Vector4(0, 0, FarClip / (FarClip - NearClip), 1), Vector4(0, 0, -NearClip * FarClip / (FarClip - NearClip), 0));
 		}
 		Matrix4x4 Matrix4x4::CreatePerspective(float FieldOfView, float AspectRatio, float NearClip, float FarClip)
 		{
-			float Y = Math<float>::Cotan(Math<float>::Deg2Rad() * FieldOfView / 2.0f);
+			float Y = Mathf::Cotan(Mathf::Deg2Rad() * FieldOfView / 2.0f);
 			float X = Y / AspectRatio;
 
 			return Matrix4x4(Vector4(X, 0, 0, 0), Vector4(0, Y, 0, 0), Vector4(0, 0, FarClip / (FarClip - NearClip), 1), Vector4(0, 0, -NearClip * FarClip / (FarClip - NearClip), 0));
@@ -1936,9 +1936,9 @@ namespace Tomahawk
 		{
 			Set(Axis, Angle);
 		}
-		Quaternion::Quaternion(const Vector3& Euler)
+		Quaternion::Quaternion(const Vector3& GetEuler)
 		{
-			Set(Euler);
+			Set(GetEuler);
 		}
 		Quaternion::Quaternion(const Matrix4x4& Value)
 		{
@@ -1953,14 +1953,14 @@ namespace Tomahawk
 			Z = Axis.Z * Sin;
 			W = std::cos(Angle / 2);
 		}
-		void Quaternion::Set(const Vector3& Euler)
+		void Quaternion::Set(const Vector3& GetEuler)
 		{
-			float SinX = std::sin(Euler.X / 2);
-			float CosX = std::cos(Euler.X / 2);
-			float SinY = std::sin(Euler.Y / 2);
-			float CosY = std::cos(Euler.Y / 2);
-			float SinZ = std::sin(Euler.Z / 2);
-			float CosZ = std::cos(Euler.Z / 2);
+			float SinX = std::sin(GetEuler.X / 2);
+			float CosX = std::cos(GetEuler.X / 2);
+			float SinY = std::sin(GetEuler.Y / 2);
+			float CosY = std::cos(GetEuler.Y / 2);
+			float SinZ = std::sin(GetEuler.Z / 2);
+			float CosZ = std::cos(GetEuler.Z / 2);
 
 			W = CosX * CosY;
 			X = SinX * CosY;
@@ -2140,14 +2140,14 @@ namespace Tomahawk
 
 			return Mul(Source).Add(Correction.Mul(Destination));
 		}
-		Quaternion Quaternion::CreateEulerRotation(const Vector3& Euler)
+		Quaternion Quaternion::CreateEulerRotation(const Vector3& GetEuler)
 		{
-			float SinX = std::sin(Euler.X / 2);
-			float CosX = std::cos(Euler.X / 2);
-			float SinY = std::sin(Euler.Y / 2);
-			float CosY = std::cos(Euler.Y / 2);
-			float SinZ = std::sin(Euler.Z / 2);
-			float CosZ = std::cos(Euler.Z / 2);
+			float SinX = std::sin(GetEuler.X / 2);
+			float CosX = std::cos(GetEuler.X / 2);
+			float SinY = std::sin(GetEuler.Y / 2);
+			float CosY = std::cos(GetEuler.Y / 2);
+			float SinZ = std::sin(GetEuler.Z / 2);
+			float CosZ = std::cos(GetEuler.Z / 2);
 
 			Quaternion Q;
 			Q.W = CosX * CosY;
@@ -2215,7 +2215,7 @@ namespace Tomahawk
 
 			return Q;
 		}
-		Matrix4x4 Quaternion::Rotation() const
+		Matrix4x4 Quaternion::GetMatrix() const
 		{
 			Vector3 Forward = Vector3(2.0f * (X * Z - W * Y), 2.0f * (Y * Z + W * X), 1.0f - 2.0f * (X * X + Y * Y));
 			Vector3 Up = Vector3(2.0f * (X * Y + W * Z), 1.0f - 2.0f * (X * X + Z * Z), 2.0f * (Y * Z - W * X));
@@ -2223,9 +2223,23 @@ namespace Tomahawk
 
 			return Matrix4x4::CreateRotation(Forward, Up, Right);
 		}
-		Vector3 Quaternion::Euler() const
+		Vector3 Quaternion::GetEuler() const
 		{
-			return Rotation().Rotation().Invert();
+			float Y2 = Y * Y;
+			float T0 = +2.0f * (W * X + Y * Z);
+			float T1 = +1.0f - 2.0f * (X * X + Y2);
+			float Roll = Mathf::Atan2(T0, T1);
+
+			float T2 = +2.0f * (W * Y - Z * X);
+			T2 = ((T2 > 1.0f) ? 1.0f : T2);
+			T2 = ((T2 < -1.0f) ? -1.0f : T2);
+			float Pitch = Mathf::Asin(T2);
+
+			float T3 = +2.0f * (W * Z + X * Y);
+			float T4 = +1.0f - 2.0f * (Y2 + Z * Z);
+			float Yaw = Mathf::Atan2(T3, T4);
+
+			return Vector3(Roll, Pitch, Yaw);
 		}
 		float Quaternion::DotProduct(const Quaternion& r) const
 		{
@@ -2252,7 +2266,7 @@ namespace Tomahawk
 		}
 		Vector2 RandomVector2::Generate()
 		{
-			return Vector2(Math<float>::Random(Min.X * Accuracy, Max.X * Accuracy) / Accuracy, Math<float>::Random(Min.Y * Accuracy, Max.Y * Accuracy) / Accuracy) * (Intensity ? Math<float>::Random() : 1);
+			return Vector2(Mathf::Random(Min.X * Accuracy, Max.X * Accuracy) / Accuracy, Mathf::Random(Min.Y * Accuracy, Max.Y * Accuracy) / Accuracy) * (Intensity ? Mathf::Random() : 1);
 		}
 
 		RandomVector3::RandomVector3()
@@ -2271,7 +2285,7 @@ namespace Tomahawk
 		}
 		Vector3 RandomVector3::Generate()
 		{
-			return Vector3(Math<float>::Random(Min.X * Accuracy, Max.X * Accuracy) / Accuracy, Math<float>::Random(Min.Y * Accuracy, Max.Y * Accuracy) / Accuracy, Math<float>::Random(Min.Z * Accuracy, Max.Z * Accuracy) / Accuracy) * (Intensity ? Math<float>::Random() : 1);
+			return Vector3(Mathf::Random(Min.X * Accuracy, Max.X * Accuracy) / Accuracy, Mathf::Random(Min.Y * Accuracy, Max.Y * Accuracy) / Accuracy, Mathf::Random(Min.Z * Accuracy, Max.Z * Accuracy) / Accuracy) * (Intensity ? Mathf::Random() : 1);
 		}
 
 		RandomVector4::RandomVector4()
@@ -2290,7 +2304,7 @@ namespace Tomahawk
 		}
 		Vector4 RandomVector4::Generate()
 		{
-			return Vector4(Math<float>::Random(Min.X * Accuracy, Max.X * Accuracy) / Accuracy, Math<float>::Random(Min.Y * Accuracy, Max.Y * Accuracy) / Accuracy, Math<float>::Random(Min.Z * Accuracy, Max.Z * Accuracy) / Accuracy, Math<float>::Random(Min.W * Accuracy, Max.W * Accuracy) / Accuracy) * (Intensity ? Math<float>::Random() : 1);
+			return Vector4(Mathf::Random(Min.X * Accuracy, Max.X * Accuracy) / Accuracy, Mathf::Random(Min.Y * Accuracy, Max.Y * Accuracy) / Accuracy, Mathf::Random(Min.Z * Accuracy, Max.Z * Accuracy) / Accuracy, Mathf::Random(Min.W * Accuracy, Max.W * Accuracy) / Accuracy) * (Intensity ? Mathf::Random() : 1);
 		}
 
 		RandomFloat::RandomFloat()
@@ -2309,7 +2323,7 @@ namespace Tomahawk
 		}
 		float RandomFloat::Generate()
 		{
-			return (Math<float>::Random(Min * Accuracy, Max * Accuracy) / Accuracy) * (Intensity ? Math<float>::Random() : 1);
+			return (Mathf::Random(Min * Accuracy, Max * Accuracy) / Accuracy) * (Intensity ? Mathf::Random() : 1);
 		}
 
 		Hybi10Request::Hybi10Request()
@@ -4466,8 +4480,12 @@ namespace Tomahawk
 				if (!Result.Found)
 					return true;
 
-				if (Result.Start > 0 && (Buffer.R()[Result.Start - 1] != '\n' && Buffer.R()[Result.Start - 1] != '\r'))
-					continue;
+				if (Result.Start > 0)
+				{
+					char P = Buffer.R()[Result.Start - 1];
+					if (P != '\n' && P != '\r' && P != '\t' && P != ' ')
+						continue;
+				}
 
 				uint64_t Start = Result.End;
 				while (Start + 1 < Buffer.Size() && Buffer.R()[Start] != '\"')
@@ -4905,7 +4923,7 @@ namespace Tomahawk
 		}
 		void Transform::Copy(Transform* Target)
 		{
-			if (!Root)
+			if (!Target->Root)
 			{
 				if (LocalTransform != nullptr)
 				{
@@ -7306,9 +7324,9 @@ namespace Tomahawk
 			{
 				btRigidBody* Body = btRigidBody::upcast(World->getCollisionObjectArray()[i]);
 				btVector3 Velocity = Body->getLinearVelocity();
-				Velocity.setX(Velocity.getX() + Impulse.X * (RandomFactor ? Math<float>::Random() : 1));
-				Velocity.setY(Velocity.getY() + Impulse.Y * (RandomFactor ? Math<float>::Random() : 1));
-				Velocity.setZ(Velocity.getZ() + Impulse.Z * (RandomFactor ? Math<float>::Random() : 1));
+				Velocity.setX(Velocity.getX() + Impulse.X * (RandomFactor ? Mathf::Random() : 1));
+				Velocity.setY(Velocity.getY() + Impulse.Y * (RandomFactor ? Mathf::Random() : 1));
+				Velocity.setZ(Velocity.getZ() + Impulse.Z * (RandomFactor ? Mathf::Random() : 1));
 				btRigidBody::upcast(World->getCollisionObjectArray()[i])->setLinearVelocity(Velocity);
 			}
 		}
@@ -7320,9 +7338,9 @@ namespace Tomahawk
 				{
 					btRigidBody* Body = btRigidBody::upcast(World->getCollisionObjectArray()[i]);
 					btVector3 Velocity = Body->getLinearVelocity();
-					Velocity.setX(Velocity.getX() + Impulse.X * (RandomFactor ? Math<float>::Random() : 1));
-					Velocity.setY(Velocity.getY() + Impulse.Y * (RandomFactor ? Math<float>::Random() : 1));
-					Velocity.setZ(Velocity.getZ() + Impulse.Z * (RandomFactor ? Math<float>::Random() : 1));
+					Velocity.setX(Velocity.getX() + Impulse.X * (RandomFactor ? Mathf::Random() : 1));
+					Velocity.setY(Velocity.getY() + Impulse.Y * (RandomFactor ? Mathf::Random() : 1));
+					Velocity.setZ(Velocity.getZ() + Impulse.Z * (RandomFactor ? Mathf::Random() : 1));
 					btRigidBody::upcast(World->getCollisionObjectArray()[i])->setLinearVelocity(Velocity);
 				}
 			}
@@ -7333,9 +7351,9 @@ namespace Tomahawk
 			{
 				btRigidBody* Body = btRigidBody::upcast(World->getCollisionObjectArray()[i]);
 				btVector3 Velocity = Body->getAngularVelocity();
-				Velocity.setX(Velocity.getX() + Impulse.X * (RandomFactor ? Math<float>::Random() : 1));
-				Velocity.setY(Velocity.getY() + Impulse.Y * (RandomFactor ? Math<float>::Random() : 1));
-				Velocity.setZ(Velocity.getZ() + Impulse.Z * (RandomFactor ? Math<float>::Random() : 1));
+				Velocity.setX(Velocity.getX() + Impulse.X * (RandomFactor ? Mathf::Random() : 1));
+				Velocity.setY(Velocity.getY() + Impulse.Y * (RandomFactor ? Mathf::Random() : 1));
+				Velocity.setZ(Velocity.getZ() + Impulse.Z * (RandomFactor ? Mathf::Random() : 1));
 				btRigidBody::upcast(World->getCollisionObjectArray()[i])->setAngularVelocity(Velocity);
 			}
 		}
@@ -7347,9 +7365,9 @@ namespace Tomahawk
 				{
 					btRigidBody* Body = btRigidBody::upcast(World->getCollisionObjectArray()[i]);
 					btVector3 Velocity = Body->getAngularVelocity();
-					Velocity.setX(Velocity.getX() + Impulse.X * (RandomFactor ? Math<float>::Random() : 1));
-					Velocity.setY(Velocity.getY() + Impulse.Y * (RandomFactor ? Math<float>::Random() : 1));
-					Velocity.setZ(Velocity.getZ() + Impulse.Z * (RandomFactor ? Math<float>::Random() : 1));
+					Velocity.setX(Velocity.getX() + Impulse.X * (RandomFactor ? Mathf::Random() : 1));
+					Velocity.setY(Velocity.getY() + Impulse.Y * (RandomFactor ? Mathf::Random() : 1));
+					Velocity.setZ(Velocity.getZ() + Impulse.Z * (RandomFactor ? Mathf::Random() : 1));
 					btRigidBody::upcast(World->getCollisionObjectArray()[i])->setAngularVelocity(Velocity);
 				}
 			}

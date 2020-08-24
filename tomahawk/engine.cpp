@@ -189,7 +189,7 @@ namespace Tomahawk
 			if (!V)
 				return false;
 
-			return V->SetBoolean("[looped]", Value.Looped) != nullptr && V->SetBoolean("[paused]", Value.Paused) != nullptr && V->SetBoolean("[blended]", Value.Blended) != nullptr && V->SetInteger("[clip]", Value.Clip) != nullptr && V->SetInteger("[frame]", Value.Frame) != nullptr && V->SetNumber("[speed]", Value.Speed) != nullptr && V->SetNumber("[length]", Value.Length) != nullptr && V->SetNumber("[time]", Value.Time) != nullptr;
+			return V->SetBoolean("[looped]", Value.Looped) != nullptr && V->SetBoolean("[paused]", Value.Paused) != nullptr && V->SetBoolean("[blended]", Value.Blended) != nullptr && V->SetInteger("[clip]", Value.Clip) != nullptr && V->SetInteger("[frame]", Value.Frame) != nullptr && V->SetNumber("[rate]", Value.Rate) != nullptr && V->SetNumber("[duration]", Value.Duration) != nullptr && V->SetNumber("[time]", Value.Time) != nullptr;
 		}
 		bool NMake::Pack(Rest::Document* V, const SpawnerProperties& Value)
 		{
@@ -280,13 +280,24 @@ namespace Tomahawk
 			NMake::Pack(V->SetDocument("material"), Value.Material);
 			return true;
 		}
+		bool NMake::Pack(Rest::Document* V, const Compute::SkinAnimatorKey& Value)
+		{
+			if (!V)
+				return false;
+
+			NMake::Pack(V->SetDocument("pose"), Value.Pose);
+			NMake::Pack(V->SetDocument("time"), Value.Time);
+
+			return true;
+		}
 		bool NMake::Pack(Rest::Document* V, const Compute::SkinAnimatorClip& Value)
 		{
 			if (!V)
 				return false;
 
 			NMake::Pack(V->SetDocument("name"), Value.Name);
-			NMake::Pack(V->SetDocument("playing-speed"), Value.PlayingSpeed);
+			NMake::Pack(V->SetDocument("duration"), Value.Duration);
+			NMake::Pack(V->SetDocument("rate"), Value.Rate);
 
 			Rest::Document* Array = V->SetArray("frames");
 			for (auto&& It : Value.Keys)
@@ -299,14 +310,14 @@ namespace Tomahawk
 			if (!V)
 				return false;
 
-			return NMake::Pack(V->SetDocument("name"), Value.Name) && NMake::Pack(V->SetDocument("playing-speed"), Value.PlayingSpeed) && NMake::Pack(V->SetDocument("frames"), Value.Keys);
+			return NMake::Pack(V->SetDocument("name"), Value.Name) && NMake::Pack(V->SetDocument("rate"), Value.Rate) && NMake::Pack(V->SetDocument("duration"), Value.Duration) && NMake::Pack(V->SetDocument("frames"), Value.Keys);
 		}
 		bool NMake::Pack(Rest::Document* V, const Compute::AnimatorKey& Value)
 		{
 			if (!V)
 				return false;
 
-			return NMake::Pack(V->SetDocument("position"), Value.Position) && NMake::Pack(V->SetDocument("rotation"), Value.Rotation) && NMake::Pack(V->SetDocument("scale"), Value.Scale) && NMake::Pack(V->SetDocument("playing-speed"), Value.PlayingSpeed);
+			return NMake::Pack(V->SetDocument("position"), Value.Position) && NMake::Pack(V->SetDocument("rotation"), Value.Rotation) && NMake::Pack(V->SetDocument("scale"), Value.Scale) && NMake::Pack(V->SetDocument("time"), Value.Time);
 		}
 		bool NMake::Pack(Rest::Document* V, const Compute::ElementVertex& Value)
 		{
@@ -527,8 +538,8 @@ namespace Tomahawk
 				Stream << It.Paused << " ";
 				Stream << It.Looped << " ";
 				Stream << It.Blended << " ";
-				Stream << It.Length << " ";
-				Stream << It.Speed << " ";
+				Stream << It.Duration << " ";
+				Stream << It.Rate << " ";
 				Stream << It.Time << " ";
 				Stream << It.Frame << " ";
 				Stream << It.Clip << " ";
@@ -603,7 +614,7 @@ namespace Tomahawk
 				Stream << It.Scale.X << " ";
 				Stream << It.Scale.Y << " ";
 				Stream << It.Scale.Z << " ";
-				Stream << It.PlayingSpeed << " ";
+				Stream << It.Time << " ";
 			}
 
 			return V->SetString("ak-array", Stream.str().substr(0, Stream.str().size() - 1)) && V->SetInteger("[size]", Value.size());
@@ -886,8 +897,8 @@ namespace Tomahawk
 			O->Blended = V->GetBoolean("[blended]");
 			O->Clip = V->GetInteger("[clip]");
 			O->Frame = V->GetInteger("[frame]");
-			O->Speed = V->GetNumber("[speed]");
-			O->Length = V->GetNumber("[length]");
+			O->Rate = V->GetNumber("[rate]");
+			O->Duration = V->GetNumber("[duration]");
 			O->Time = V->GetNumber("[time]");
 			return true;
 		}
@@ -975,13 +986,24 @@ namespace Tomahawk
 			NMake::Unpack(V->Find("material"), &O->Material);
 			return true;
 		}
+		bool NMake::Unpack(Rest::Document* V, Compute::SkinAnimatorKey* O)
+		{
+			if (!V)
+				return false;
+
+			NMake::Unpack(V->Find("pose"), &O->Pose);
+			NMake::Unpack(V->Find("time"), &O->Time);
+
+			return true;
+		}
 		bool NMake::Unpack(Rest::Document* V, Compute::SkinAnimatorClip* O)
 		{
 			if (!V || !O)
 				return false;
 
 			NMake::Unpack(V->Find("name"), &O->Name);
-			NMake::Unpack(V->Find("playing-speed"), &O->PlayingSpeed);
+			NMake::Unpack(V->Find("duration"), &O->Duration);
+			NMake::Unpack(V->Find("rate"), &O->Rate);
 
 			std::vector<Rest::Document*> Frames = V->FindCollectionPath("frames.frame", true);
 			for (auto&& It : Frames)
@@ -998,7 +1020,8 @@ namespace Tomahawk
 				return false;
 
 			NMake::Unpack(V->Find("name"), &O->Name);
-			NMake::Unpack(V->Find("playing-speed"), &O->PlayingSpeed);
+			NMake::Unpack(V->Find("duration"), &O->Duration);
+			NMake::Unpack(V->Find("rate"), &O->Rate);
 			NMake::Unpack(V->Find("frames"), &O->Keys);
 			return true;
 		}
@@ -1010,7 +1033,7 @@ namespace Tomahawk
 			NMake::Unpack(V->Get("position"), &O->Position);
 			NMake::Unpack(V->Get("rotation"), &O->Rotation);
 			NMake::Unpack(V->Get("scale"), &O->Scale);
-			NMake::Unpack(V->Get("playing-speed"), &O->PlayingSpeed);
+			NMake::Unpack(V->Get("time"), &O->Time);
 			return true;
 		}
 		bool NMake::Unpack(Rest::Document* V, Compute::Joint* O)
@@ -1431,8 +1454,8 @@ namespace Tomahawk
 				Stream >> It.Paused;
 				Stream >> It.Looped;
 				Stream >> It.Blended;
-				Stream >> It.Length;
-				Stream >> It.Speed;
+				Stream >> It.Duration;
+				Stream >> It.Rate;
 				Stream >> It.Time;
 				Stream >> It.Frame;
 				Stream >> It.Clip;
@@ -1519,7 +1542,7 @@ namespace Tomahawk
 			for (auto& It : *O)
 			{
 				Stream >> It.Position.X >> It.Position.Y >> It.Position.Z >> It.Rotation.X >> It.Rotation.Y >> It.Rotation.Z;
-				Stream >> It.Scale.X >> It.Scale.Y >> It.Scale.Z >> It.PlayingSpeed;
+				Stream >> It.Scale.X >> It.Scale.Y >> It.Scale.Z >> It.Time;
 			}
 
 			return true;
@@ -1884,6 +1907,9 @@ namespace Tomahawk
 		Cullable::Cullable(Entity* Ref) : Component(Ref), Visibility(1.0f)
 		{
 		}
+		void Cullable::ClearCull()
+		{
+		}
 		float Cullable::GetRange()
 		{
 			float Max = Parent->Transform->Scale.X;
@@ -1907,10 +1933,14 @@ namespace Tomahawk
 			return Parent->Transform->Position.Distance(View.WorldPosition) <= View.ViewDistance + Parent->Transform->Scale.Length();
 		}
 
-		Drawable::Drawable(Entity* Ref, bool _Complex) : Cullable(Ref), Static(true), Complex(_Complex)
+		Drawable::Drawable(Entity* Ref, bool _Complex) : Cullable(Ref), Fragments(1), Satisfied(1), Static(true), Complex(_Complex), Query(nullptr)
 		{
 			if (!Complex)
 				Surfaces[nullptr] = Appearance();
+		}
+		Drawable::~Drawable()
+		{
+			delete Query;
 		}
 		void Drawable::Pipe(Event* Value)
 		{
@@ -1923,6 +1953,59 @@ namespace Tomahawk
 				if (Surface.second.Material == Material)
 					Surface.second.Material = -1;
 			}
+		}
+		void Drawable::ClearCull()
+		{
+			Fragments = 1;
+		}
+		bool Drawable::FragmentBegin(Graphics::GraphicsDevice* Device)
+		{
+			if (!Device)
+				return false;
+
+			if (!Query)
+			{
+				Graphics::Query::Desc I;
+				I.Predicate = false;
+				I.AutoPass = false;
+
+				Query = Device->CreateQuery(I);
+			}
+
+			if (Satisfied == 1)
+			{
+				Satisfied = 0;
+				Device->QueryBegin(Query);
+				return true;
+			}
+
+			if (Satisfied > 1)
+				Satisfied--;
+
+			return Fragments > 0;
+		}
+		void Drawable::FragmentEnd(Graphics::GraphicsDevice* Device)
+		{
+			if (Device && Satisfied == 0)
+			{
+				Satisfied = -1;
+				Device->QueryEnd(Query);
+			}
+		}
+		int Drawable::FetchFragments(RenderSystem* System)
+		{
+			if (!System || !Query || Satisfied != -1)
+				return -1;
+			
+			if (!System->GetDevice()->GetQueryData(Query, &Fragments))
+				return -1;
+
+			Satisfied = 1 + System->StallFrames;
+			return Fragments > 0;
+		}
+		uint64_t Drawable::GetFragmentsCount()
+		{
+			return Fragments;
 		}
 		const std::unordered_map<void*, Appearance>& Drawable::GetSurfaces()
 		{
@@ -1971,7 +2054,7 @@ namespace Tomahawk
 			return false;
 		}
 
-		Entity::Entity(SceneGraph* Ref) : Scene(Ref), Tag(-1), Id(-1)
+		Entity::Entity(SceneGraph* Ref) : Scene(Ref), Tag(-1), Id(-1), Distance(0)
 		{
 			Transform = new Compute::Transform();
 			Transform->UserPointer = this;
@@ -2108,6 +2191,9 @@ namespace Tomahawk
 		void Renderer::Serialize(ContentManager* Content, Rest::Document* Node)
 		{
 		}
+		void Renderer::CullGeometry(const Viewer& View)
+		{
+		}
 		void Renderer::ResizeBuffers()
 		{
 		}
@@ -2135,6 +2221,9 @@ namespace Tomahawk
 		GeoRenderer::~GeoRenderer()
 		{
 		}
+		void GeoRenderer::CullGeometry(const Viewer& View, Rest::Pool<Component*>* Geometry)
+		{
+		}
 		void GeoRenderer::RenderGBuffer(Rest::Timer* TimeStep, Rest::Pool<Component*>* Geometry, RenderOpt Options)
 		{
 		}
@@ -2143,6 +2232,16 @@ namespace Tomahawk
 		}
 		void GeoRenderer::RenderDepthCubic(Rest::Timer* TimeStep, Rest::Pool<Component*>* Geometry, Compute::Matrix4x4* ViewProjection)
 		{
+		}
+		void GeoRenderer::CullGeometry(const Viewer& View)
+		{
+			Rest::Pool<Component*>* Opaque = GetOpaque();
+			if (Opaque != nullptr && Opaque->Size() > 0)
+				CullGeometry(View, Opaque);
+
+			Rest::Pool<Component*>* Limpid = GetLimpid(0);
+			if (Limpid != nullptr && Limpid->Size() > 0)
+				CullGeometry(View, Limpid);
 		}
 		void GeoRenderer::Render(Rest::Timer* TimeStep, RenderState State, RenderOpt Options)
 		{
@@ -2431,8 +2530,13 @@ namespace Tomahawk
 			Safe.unlock();
 		}
 
-		RenderSystem::RenderSystem(Graphics::GraphicsDevice* Ref) : Device(Ref), Scene(nullptr), QuadVertex(nullptr), SphereVertex(nullptr), SphereIndex(nullptr), CubeVertex(nullptr), CubeIndex(nullptr), EnableCull(true)
+		RenderSystem::RenderSystem(Graphics::GraphicsDevice* Ref) : Device(Ref), Scene(nullptr), Target(nullptr), BoxIndex(nullptr), BoxVertex(nullptr), QuadVertex(nullptr), SphereVertex(nullptr), SphereIndex(nullptr), CubeVertex(nullptr), CubeIndex(nullptr), SkinBoxVertex(nullptr), SkinBoxIndex(nullptr), EnableFrustumCull(true), EnableOcclusionCull(false)
 		{
+			Occlusion.Delay = 5;
+			Sorting.Delay = 5;
+			StallFrames = 1;
+			DepthSize = 256;
+			Satisfied = true;
 		}
 		RenderSystem::~RenderSystem()
 		{
@@ -2445,27 +2549,62 @@ namespace Tomahawk
 				delete Renderer;
 			}
 
+			delete Target;
 			delete QuadVertex;
 			delete SphereVertex;
 			delete SphereIndex;
 			delete CubeVertex;
 			delete CubeIndex;
+			delete BoxVertex;
+			delete BoxIndex;
+			delete SkinBoxVertex;
+			delete SkinBoxIndex;
+		}
+		void RenderSystem::SetDepthSize(size_t Size)
+		{
+			if (!Scene || !Device)
+				return;
+
+			DepthStencil = Device->GetDepthStencilState("DEF_LESS_NO_STENCIL");
+			Blend = Device->GetBlendState("DEF_OVERWRITE_COLORLESS");
+			Sampler = Device->GetSamplerState("DEF_POINT");
+			DepthSize = Size;
+
+			Graphics::MultiRenderTarget2D* Surface = Scene->GetSurface();
+			float Aspect = Surface->GetWidth() / Surface->GetHeight();
+
+			Graphics::DepthBuffer::Desc I;
+			I.Width = (size_t)((float)Size * Aspect);
+			I.Height = Size;
+
+			delete Target;
+			Target = Device->CreateDepthBuffer(I);
 		}
 		void RenderSystem::SetScene(SceneGraph* NewScene)
 		{
 			Scene = NewScene;
+			SetDepthSize(DepthSize);
 		}
 		void RenderSystem::Remount()
 		{
+			ClearCull();
 			for (auto& Renderer : Renderers)
 			{
 				Renderer->Deactivate();
 				Renderer->Activate();
 			}
 		}
-		void RenderSystem::Synchronize(const Viewer& View)
+		void RenderSystem::ClearCull()
 		{
-			if (!EnableCull)
+			for (auto& Base : Cull)
+			{
+				for (auto It = Base.second->Begin(); It != Base.second->End(); ++It)
+					(*It)->As<Cullable>()->ClearCull();
+			}
+		}
+		void RenderSystem::Synchronize(Rest::Timer* Time, const Viewer& View)
+		{
+			if (!EnableFrustumCull)
 				return;
 
 			for (auto& Base : Cull)
@@ -2475,6 +2614,33 @@ namespace Tomahawk
 					Cullable* Data = (Cullable*)*It;
 					Data->Visibility = Data->Cull(View);
 				}
+			}
+		}
+		void RenderSystem::CullGeometry(Rest::Timer* Time, const Viewer& View)
+		{
+			if (!EnableOcclusionCull || !Target)
+				return;
+
+			double ElapsedTime = Time->GetElapsedTime();
+			if (Sorting.TickEvent(ElapsedTime))
+			{
+				for (auto& Base : Cull)
+					Scene->SortEntitiesFrontToBack(Base.second);
+			}
+
+			if (!Occlusion.TickEvent(ElapsedTime))
+				return;
+
+			Device->SetDepthStencilState(DepthStencil);
+			Device->SetBlendState(Blend);
+			Device->SetSamplerState(Sampler);
+			Device->SetTarget(Target);
+			Device->ClearDepth(Target);
+
+			for (auto& Renderer : Renderers)
+			{
+				if (Renderer->Active)
+					Renderer->CullGeometry(View);
 			}
 		}
 		void RenderSystem::MoveRenderer(uint64_t Id, int64_t Offset)
@@ -2520,7 +2686,7 @@ namespace Tomahawk
 
 			delete Shader;
 		}
-		bool RenderSystem::Renderable(Cullable* Base, CullResult Mode, float* Result)
+		bool RenderSystem::PassCullable(Cullable* Base, CullResult Mode, float* Result)
 		{
 			if (Mode == CullResult_Last)
 				return Base->Visibility;
@@ -2533,6 +2699,23 @@ namespace Tomahawk
 				*Result = D;
 
 			return D > 0.0f;
+		}
+		bool RenderSystem::PassDrawable(Drawable* Base, CullResult Mode, float* Result)
+		{
+			if (Mode == CullResult_Last)
+			{
+				if (EnableOcclusionCull)
+				{
+					int R = Base->FetchFragments(this);
+					if (R != -1)
+						return R > 0;
+				}
+
+				if (!Base->GetFragmentsCount())
+					return false;
+			}
+
+			return PassCullable(Base, Mode, Result);
 		}
 		Renderer* RenderSystem::AddRenderer(Renderer* In)
 		{
@@ -2569,6 +2752,10 @@ namespace Tomahawk
 
 			return nullptr;
 		}
+		size_t RenderSystem::GetDepthSize()
+		{
+			return DepthSize;
+		}
 		size_t RenderSystem::GetQuadVSize()
 		{
 			return sizeof(Compute::ShapeVertex);
@@ -2586,6 +2773,22 @@ namespace Tomahawk
 			return sizeof(Compute::ShapeVertex);
 		}
 		size_t RenderSystem::GetCubeISize()
+		{
+			return sizeof(int);
+		}
+		size_t RenderSystem::GetBoxVSize()
+		{
+			return sizeof(Compute::Vertex);
+		}
+		size_t RenderSystem::GetBoxISize()
+		{
+			return sizeof(int);
+		}
+		size_t RenderSystem::GetSkinBoxVSize()
+		{
+			return sizeof(Compute::SkinVertex);
+		}
+		size_t RenderSystem::GetSkinBoxISize()
 		{
 			return sizeof(int);
 		}
@@ -2826,6 +3029,204 @@ namespace Tomahawk
 			CubeIndex = Device->CreateElementBuffer(F);
 			return CubeIndex;
 		}
+		Graphics::ElementBuffer* RenderSystem::GetBoxVBuffer()
+		{
+			if (BoxVertex != nullptr)
+				return BoxVertex;
+
+			std::vector<Compute::Vertex> Elements;
+			Elements.push_back({ -1, 1, 1, 0.875, -0.5, 0, 0, 1, -1, 0, 0, 0, 1, 0 });
+			Elements.push_back({ 1, -1, 1, 0.625, -0.75, 0, 0, 1, -1, 0, 0, 0, 1, 0 });
+			Elements.push_back({ 1, 1, 1, 0.625, -0.5, 0, 0, 1, -1, 0, 0, 0, 1, 0 });
+			Elements.push_back({ 1, -1, 1, 0.625, -0.75, 0, -1, 0, 0, 0, 1, 1, 0, 0 });
+			Elements.push_back({ -1, -1, -1, 0.375, -1, 0, -1, 0, 0, 0, 1, 1, 0, 0 });
+			Elements.push_back({ 1, -1, -1, 0.375, -0.75, 0, -1, 0, 0, 0, 1, 1, 0, 0 });
+			Elements.push_back({ -1, -1, 1, 0.625, -0, -1, 0, 0, 0, 0, 1, 0, -1, 0 });
+			Elements.push_back({ -1, 1, -1, 0.375, -0.25, -1, 0, 0, 0, 0, 1, 0, -1, 0 });
+			Elements.push_back({ -1, -1, -1, 0.375, -0, -1, 0, 0, 0, 0, 1, 0, -1, 0 });
+			Elements.push_back({ 1, 1, -1, 0.375, -0.5, 0, 0, -1, 1, 0, 0, 0, 1, 0 });
+			Elements.push_back({ -1, -1, -1, 0.125, -0.75, 0, 0, -1, 1, 0, 0, 0, 1, 0 });
+			Elements.push_back({ -1, 1, -1, 0.125, -0.5, 0, 0, -1, 1, 0, 0, 0, 1, 0 });
+			Elements.push_back({ 1, 1, 1, 0.625, -0.5, 1, 0, 0, 0, 0, 1, 0, 1, 0 });
+			Elements.push_back({ 1, -1, -1, 0.375, -0.75, 1, 0, 0, 0, 0, 1, 0, 1, 0 });
+			Elements.push_back({ 1, 1, -1, 0.375, -0.5, 1, 0, 0, 0, 0, 1, 0, 1, 0 });
+			Elements.push_back({ -1, 1, 1, 0.625, -0.25, 0, 1, 0, 0, 0, 1, -1, 0, 0 });
+			Elements.push_back({ 1, 1, -1, 0.375, -0.5, 0, 1, 0, 0, 0, 1, -1, 0, 0 });
+			Elements.push_back({ -1, 1, -1, 0.375, -0.25, 0, 1, 0, 0, 0, 1, -1, 0, 0 });
+			Elements.push_back({ -1, -1, 1, 0.875, -0.75, 0, 0, 1, -1, 0, 0, 0, 1, 0 });
+			Elements.push_back({ -1, -1, 1, 0.625, -1, 0, -1, 0, 0, 0, 1, 1, 0, 0 });
+			Elements.push_back({ -1, 1, 1, 0.625, -0.25, -1, 0, 0, 0, 0, 1, 0, -1, 0 });
+			Elements.push_back({ 1, -1, -1, 0.375, -0.75, 0, 0, -1, 1, 0, 0, 0, 1, 0 });
+			Elements.push_back({ 1, -1, 1, 0.625, -0.75, 1, 0, 0, 0, 0, 1, 0, 1, 0 });
+			Elements.push_back({ 1, 1, 1, 0.625, -0.5, 0, 1, 0, 0, 0, 1, -1, 0, 0 });
+
+			Graphics::ElementBuffer::Desc F = Graphics::ElementBuffer::Desc();
+			F.AccessFlags = Graphics::CPUAccess_Invalid;
+			F.Usage = Graphics::ResourceUsage_Default;
+			F.BindFlags = Graphics::ResourceBind_Vertex_Buffer;
+			F.ElementCount = (unsigned int)Elements.size();
+			F.ElementWidth = sizeof(Compute::Vertex);
+			F.Elements = &Elements[0];
+			F.UseSubresource = true;
+
+			BoxVertex = Device->CreateElementBuffer(F);
+			return BoxVertex;
+		}
+		Graphics::ElementBuffer* RenderSystem::GetBoxIBuffer()
+		{
+			if (BoxIndex != nullptr)
+				return BoxIndex;
+
+			std::vector<int> Indices;
+			Indices.push_back(0);
+			Indices.push_back(1);
+			Indices.push_back(2);
+			Indices.push_back(0);
+			Indices.push_back(18);
+			Indices.push_back(1);
+			Indices.push_back(3);
+			Indices.push_back(4);
+			Indices.push_back(5);
+			Indices.push_back(3);
+			Indices.push_back(19);
+			Indices.push_back(4);
+			Indices.push_back(6);
+			Indices.push_back(7);
+			Indices.push_back(8);
+			Indices.push_back(6);
+			Indices.push_back(20);
+			Indices.push_back(7);
+			Indices.push_back(9);
+			Indices.push_back(10);
+			Indices.push_back(11);
+			Indices.push_back(9);
+			Indices.push_back(21);
+			Indices.push_back(10);
+			Indices.push_back(12);
+			Indices.push_back(13);
+			Indices.push_back(14);
+			Indices.push_back(12);
+			Indices.push_back(22);
+			Indices.push_back(13);
+			Indices.push_back(15);
+			Indices.push_back(16);
+			Indices.push_back(17);
+			Indices.push_back(15);
+			Indices.push_back(23);
+			Indices.push_back(16);
+			Compute::MathCommon::ComputeIndexWindingOrderFlip(Indices);
+
+			Graphics::ElementBuffer::Desc F = Graphics::ElementBuffer::Desc();
+			F.AccessFlags = Graphics::CPUAccess_Invalid;
+			F.Usage = Graphics::ResourceUsage_Default;
+			F.BindFlags = Graphics::ResourceBind_Index_Buffer;
+			F.ElementCount = (unsigned int)Indices.size();
+			F.ElementWidth = sizeof(int);
+			F.Elements = &Indices[0];
+			F.UseSubresource = true;
+
+			BoxIndex = Device->CreateElementBuffer(F);
+			return BoxIndex;
+		}
+		Graphics::ElementBuffer* RenderSystem::GetSkinBoxVBuffer()
+		{
+			if (SkinBoxVertex != nullptr)
+				return SkinBoxVertex;
+
+			std::vector<Compute::SkinVertex> Elements;
+			Elements.push_back({ -1, 1, 1, 0.875, -0.5, 0, 0, 1, -1, 0, 0, 0, 1, 0, -1, -1, -1, -1, 0, 0, 0, 0 });
+			Elements.push_back({ 1, -1, 1, 0.625, -0.75, 0, 0, 1, -1, 0, 0, 0, 1, 0, -1, -1, -1, -1, 0, 0, 0, 0 });
+			Elements.push_back({ 1, 1, 1, 0.625, -0.5, 0, 0, 1, -1, 0, 0, 0, 1, 0, -1, -1, -1, -1, 0, 0, 0, 0 });
+			Elements.push_back({ 1, -1, 1, 0.625, -0.75, 0, -1, 0, 0, 0, 1, 1, 0, 0, -1, -1, -1, -1, 0, 0, 0, 0 });
+			Elements.push_back({ -1, -1, -1, 0.375, -1, 0, -1, 0, 0, 0, 1, 1, 0, 0, -1, -1, -1, -1, 0, 0, 0, 0 });
+			Elements.push_back({ 1, -1, -1, 0.375, -0.75, 0, -1, 0, 0, 0, 1, 1, 0, 0, -1, -1, -1, -1, 0, 0, 0, 0 });
+			Elements.push_back({ -1, -1, 1, 0.625, -0, -1, 0, 0, 0, 0, 1, 0, -1, 0, -1, -1, -1, -1, 0, 0, 0, 0 });
+			Elements.push_back({ -1, 1, -1, 0.375, -0.25, -1, 0, 0, 0, 0, 1, 0, -1, 0, -1, -1, -1, -1, 0, 0, 0, 0 });
+			Elements.push_back({ -1, -1, -1, 0.375, -0, -1, 0, 0, 0, 0, 1, 0, -1, 0, -1, -1, -1, -1, 0, 0, 0, 0 });
+			Elements.push_back({ 1, 1, -1, 0.375, -0.5, 0, 0, -1, 1, 0, 0, 0, 1, 0, -1, -1, -1, -1, 0, 0, 0, 0 });
+			Elements.push_back({ -1, -1, -1, 0.125, -0.75, 0, 0, -1, 1, 0, 0, 0, 1, 0, -1, -1, -1, -1, 0, 0, 0, 0 });
+			Elements.push_back({ -1, 1, -1, 0.125, -0.5, 0, 0, -1, 1, 0, 0, 0, 1, 0, -1, -1, -1, -1, 0, 0, 0, 0 });
+			Elements.push_back({ 1, 1, 1, 0.625, -0.5, 1, 0, 0, 0, 0, 1, 0, 1, 0, -1, -1, -1, -1, 0, 0, 0, 0 });
+			Elements.push_back({ 1, -1, -1, 0.375, -0.75, 1, 0, 0, 0, 0, 1, 0, 1, 0, -1, -1, -1, -1, 0, 0, 0, 0 });
+			Elements.push_back({ 1, 1, -1, 0.375, -0.5, 1, 0, 0, 0, 0, 1, 0, 1, 0, -1, -1, -1, -1, 0, 0, 0, 0 });
+			Elements.push_back({ -1, 1, 1, 0.625, -0.25, 0, 1, 0, 0, 0, 1, -1, 0, 0, -1, -1, -1, -1, 0, 0, 0, 0 });
+			Elements.push_back({ 1, 1, -1, 0.375, -0.5, 0, 1, 0, 0, 0, 1, -1, 0, 0, -1, -1, -1, -1, 0, 0, 0, 0 });
+			Elements.push_back({ -1, 1, -1, 0.375, -0.25, 0, 1, 0, 0, 0, 1, -1, 0, 0, -1, -1, -1, -1, 0, 0, 0, 0 });
+			Elements.push_back({ -1, -1, 1, 0.875, -0.75, 0, 0, 1, -1, 0, 0, 0, 1, 0, -1, -1, -1, -1, 0, 0, 0, 0 });
+			Elements.push_back({ -1, -1, 1, 0.625, -1, 0, -1, 0, 0, 0, 1, 1, 0, 0, -1, -1, -1, -1, 0, 0, 0, 0 });
+			Elements.push_back({ -1, 1, 1, 0.625, -0.25, -1, 0, 0, 0, 0, 1, 0, -1, 0, -1, -1, -1, -1, 0, 0, 0, 0 });
+			Elements.push_back({ 1, -1, -1, 0.375, -0.75, 0, 0, -1, 1, 0, 0, 0, 1, 0, -1, -1, -1, -1, 0, 0, 0, 0 });
+			Elements.push_back({ 1, -1, 1, 0.625, -0.75, 1, 0, 0, 0, 0, 1, 0, 1, 0, -1, -1, -1, -1, 0, 0, 0, 0 });
+			Elements.push_back({ 1, 1, 1, 0.625, -0.5, 0, 1, 0, 0, 0, 1, -1, 0, 0, -1, -1, -1, -1, 0, 0, 0, 0 });
+
+			Graphics::ElementBuffer::Desc F = Graphics::ElementBuffer::Desc();
+			F.AccessFlags = Graphics::CPUAccess_Invalid;
+			F.Usage = Graphics::ResourceUsage_Default;
+			F.BindFlags = Graphics::ResourceBind_Vertex_Buffer;
+			F.ElementCount = (unsigned int)Elements.size();
+			F.ElementWidth = sizeof(Compute::SkinVertex);
+			F.Elements = &Elements[0];
+			F.UseSubresource = true;
+
+			SkinBoxVertex = Device->CreateElementBuffer(F);
+			return SkinBoxVertex;
+		}
+		Graphics::ElementBuffer* RenderSystem::GetSkinBoxIBuffer()
+		{
+			if (SkinBoxIndex != nullptr)
+				return SkinBoxIndex;
+
+			std::vector<int> Indices;
+			Indices.push_back(0);
+			Indices.push_back(1);
+			Indices.push_back(2);
+			Indices.push_back(0);
+			Indices.push_back(18);
+			Indices.push_back(1);
+			Indices.push_back(3);
+			Indices.push_back(4);
+			Indices.push_back(5);
+			Indices.push_back(3);
+			Indices.push_back(19);
+			Indices.push_back(4);
+			Indices.push_back(6);
+			Indices.push_back(7);
+			Indices.push_back(8);
+			Indices.push_back(6);
+			Indices.push_back(20);
+			Indices.push_back(7);
+			Indices.push_back(9);
+			Indices.push_back(10);
+			Indices.push_back(11);
+			Indices.push_back(9);
+			Indices.push_back(21);
+			Indices.push_back(10);
+			Indices.push_back(12);
+			Indices.push_back(13);
+			Indices.push_back(14);
+			Indices.push_back(12);
+			Indices.push_back(22);
+			Indices.push_back(13);
+			Indices.push_back(15);
+			Indices.push_back(16);
+			Indices.push_back(17);
+			Indices.push_back(15);
+			Indices.push_back(23);
+			Indices.push_back(16);
+			Compute::MathCommon::ComputeIndexWindingOrderFlip(Indices);
+
+			Graphics::ElementBuffer::Desc F = Graphics::ElementBuffer::Desc();
+			F.AccessFlags = Graphics::CPUAccess_Invalid;
+			F.Usage = Graphics::ResourceUsage_Default;
+			F.BindFlags = Graphics::ResourceBind_Index_Buffer;
+			F.ElementCount = (unsigned int)Indices.size();
+			F.ElementWidth = sizeof(int);
+			F.Elements = &Indices[0];
+			F.UseSubresource = true;
+
+			SkinBoxIndex = Device->CreateElementBuffer(F);
+			return SkinBoxIndex;
+		}
 		std::vector<Renderer*>* RenderSystem::GetRenderers()
 		{
 			return &Renderers;
@@ -2991,12 +3392,13 @@ namespace Tomahawk
 			BeginThread(ThreadId_Render);
 			if (Camera != nullptr)
 			{
+				RestoreViewBuffer(nullptr);
 				Conf.Device->UpdateBuffer(Structure, Materials.data(), Materials.size() * sizeof(Material));
 				Conf.Device->SetBuffer(Structure, 0);
 				
 				ClearSurface();
-				RestoreViewBuffer(nullptr);
 				RenderGBuffer(Time, RenderOpt_None);
+				View.Renderer->CullGeometry(Time, View);
 			}
 			EndThread(ThreadId_Render);
 		}
@@ -3012,22 +3414,15 @@ namespace Tomahawk
 		void SceneGraph::Synchronize(Rest::Timer* Time)
 		{
 			BeginThread(ThreadId_Synchronize);
-			if (Camera != nullptr)
-			{
-				auto* Viewport = Camera->As<Components::Camera>();
-				Viewport->GetRenderer()->Synchronize(Viewport->GetViewer());
-			}
-
 			for (auto It = Pending.Begin(); It != Pending.End(); It++)
 				(*It)->Synchronize(Time);
 
 			uint64_t Index = 0;
 			for (auto It = Entities.Begin(); It != Entities.End(); It++)
 			{
-				Entity* V = *It;
-				V->Transform->Synchronize();
-				V->Id = Index;
-				Index++;
+				Entity* Base = *It;
+				Base->Transform->Synchronize();
+				Base->Id = Index; Index++;
 			}
 			EndThread(ThreadId_Synchronize);
 		}
@@ -3039,6 +3434,13 @@ namespace Tomahawk
 			BeginThread(ThreadId_Update);
 			for (auto It = Pending.Begin(); It != Pending.End(); It++)
 				(*It)->Update(Time);
+
+			Compute::Vector3& Far = View.WorldPosition;
+			if (Camera != nullptr)
+				Far = Camera->Parent->Transform->Position;
+
+			for (auto It = Entities.Begin(); It != Entities.End(); It++)
+				(*It)->Distance = (*It)->Transform->Position.Distance(Far);
 
 			DispatchEvents();
 			EndThread(ThreadId_Update);
@@ -3053,6 +3455,7 @@ namespace Tomahawk
 			for (auto It = Entities.Begin(); It != Entities.End(); It++)
 				RegisterEntity(*It);
 
+			GetCamera();
 			Unlock();
 		}
 		void SceneGraph::Reindex()
@@ -3068,25 +3471,10 @@ namespace Tomahawk
 		}
 		void SceneGraph::SortEntitiesBackToFront()
 		{
-			Lock();
-			for (size_t i = 0; i < Entities.Size(); i++)
+			std::sort(Entities.Begin(), Entities.End(), [](Entity* A, Entity* B)
 			{
-				if (i + 1 >= Entities.Size())
-					break;
-
-				Entity* Entity1 = Entities[i], * Entity2 = Entities[i + 1];
-				float Distance1 = Entity1->Transform->Position.Distance(View.WorldPosition);
-				float Distance2 = Entity2->Transform->Position.Distance(View.WorldPosition);
-
-				if (Distance1 < Distance2)
-				{
-					Entity* Value = Entities[i];
-					Entities[i] = Entities[i + 1];
-					Entities[i + 1] = Value;
-					i++;
-				}
-			}
-			Unlock();
+				return A->Distance > B->Distance;
+			});
 		}
 		void SceneGraph::SortEntitiesBackToFront(uint64_t Section)
 		{
@@ -3097,25 +3485,31 @@ namespace Tomahawk
 			if (!Array)
 				return;
 
-			Lock();
-			for (size_t i = 0; i < Array->Size(); i++)
+			std::sort(Array->Begin(), Array->End(), [](Component* A, Component* B)
 			{
-				if (i + 1 >= Array->Size())
-					break;
+				return A->Parent->Distance > B->Parent->Distance;
+			});
+		}
+		void SceneGraph::SortEntitiesFrontToBack()
+		{
+			std::sort(Entities.Begin(), Entities.End(), [](Entity* A, Entity* B)
+			{
+				return A->Distance < B->Distance;
+			});
+		}
+		void SceneGraph::SortEntitiesFrontToBack(uint64_t Section)
+		{
+			SortEntitiesFrontToBack(GetComponents(Section));
+		}
+		void SceneGraph::SortEntitiesFrontToBack(Rest::Pool<Component*>* Array)
+		{
+			if (!Array)
+				return;
 
-				Component* Entity1 = (*Array)[i], *Entity2 = (*Array)[i + 1];
-				float Distance1 = Entity1->Parent->Transform->Position.Distance(View.WorldPosition);
-				float Distance2 = Entity2->Parent->Transform->Position.Distance(View.WorldPosition);
-
-				if (Distance1 < Distance2)
-				{
-					Component* Value = (*Array)[i];
-					(*Array)[i] = (*Array)[i + 1];
-					(*Array)[i + 1] = Value;
-					i++;
-				}
-			}
-			Unlock();
+			std::sort(Array->Begin(), Array->End(), [](Component* A, Component* B)
+			{
+				return A->Parent->Distance < B->Parent->Distance;
+			});
 		}
 		void SceneGraph::SetMutation(const std::string& Name, const MutationCallback& Callback)
 		{
@@ -3341,11 +3735,16 @@ namespace Tomahawk
 		void SceneGraph::Unlock()
 		{
 			auto Id = std::this_thread::get_id();
-			if (Sync.Id == Id && Sync.Count > 0)
+			if (Sync.Id == Id)
 			{
-				Sync.Count--;
-				return;
+				if (Sync.Count > 0)
+				{
+					Sync.Count--;
+					return;
+				}
 			}
+			else if (Sync.Locked)
+				return;
 
 			Sync.Locked = false;
 			Sync.Id = std::thread::id();
@@ -3432,17 +3831,34 @@ namespace Tomahawk
 				Surface = Conf.Device->CreateMultiRenderTarget2D(F);
 			}
 		}
+		void SceneGraph::ScriptHook(const std::string& Name)
+		{
+			auto* Array = GetComponents<Components::Scriptable>();
+			for (auto It = Array->Begin(); It != Array->End(); It++)
+			{
+				Components::Scriptable* Base = (Components::Scriptable*)*It;
+				Base->CallEntry(Name);
+			}
+		}
 		void SceneGraph::SwapSurface(Graphics::MultiRenderTarget2D* NewSurface)
 		{
 			Surface = NewSurface;
 		}
-		void SceneGraph::SetScriptHook(const ScriptHookCallback& Callback)
-		{
-			ScriptHook = Callback;
-		}
 		void SceneGraph::SetActive(bool Enabled)
 		{
 			Active = Enabled;
+			if (!Active)
+				return;
+
+			for (auto It = Entities.Begin(); It != Entities.End(); It++)
+			{
+				Entity* V = *It;
+				for (auto& Base : V->Components)
+				{
+					if (Base.second->Active)
+						Base.second->Awake(nullptr);
+				}
+			}
 		}
 		void SceneGraph::SetView(const Compute::Matrix4x4& _View, const Compute::Matrix4x4& _Projection, const Compute::Vector3& _Position, float _Distance, bool Upload)
 		{
@@ -3581,8 +3997,8 @@ namespace Tomahawk
 			auto Viewer = GetComponent<Components::Camera>();
 			if (Viewer != nullptr && Viewer->Active)
 			{
-				Viewer->Awake(Viewer);
 				Lock();
+				Viewer->Awake(Viewer);
 				Camera = Viewer;
 				Unlock();
 			}
@@ -3900,10 +4316,6 @@ namespace Tomahawk
 		Compute::Simulator* SceneGraph::GetSimulator()
 		{
 			return Simulator;
-		}
-		ScriptHookCallback& SceneGraph::GetScriptHook()
-		{
-			return ScriptHook;
 		}
 		SceneGraph::Desc& SceneGraph::GetConf()
 		{
@@ -4436,6 +4848,9 @@ namespace Tomahawk
 		void Application::WindowEvent(Graphics::WindowState NewState, int X, int Y)
 		{
 		}
+		void Application::ScriptHook(Script::VMGlobal* Global)
+		{
+		}
 		bool Application::ComposeEvent()
 		{
 			return false;
@@ -4498,10 +4913,15 @@ namespace Tomahawk
 				return;
 			}
 
-			if (I->Usage & ApplicationUse_AngelScript_Module && !VM)
+			if (I->Usage & ApplicationUse_AngelScript_Module)
 			{
-				THAWK_ERROR("(CONF): VM was not found");
-				return;
+				if (!VM)
+				{
+					THAWK_ERROR("(CONF): VM was not found");
+					return;
+				}
+				else
+					ScriptHook(&VM->Global());
 			}
 
 			Initialize(I);
@@ -4530,8 +4950,8 @@ namespace Tomahawk
 				{
 					while (State == ApplicationState_Multithreaded)
 					{
-						Activity->Dispatch();
 						Time->Synchronize();
+						Activity->Dispatch();
 						Update(Time);
 						Render(Time);
 					}

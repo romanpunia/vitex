@@ -5,36 +5,27 @@ Texture2D Image : register(t5);
 cbuffer RenderConstant : register(b3)
 {
     float2 Texel;
-    float IterationCount;
+    float Samples;
     float Blur;
-    float Threshold;
     float Power;
-    float Discard;
     float Additive;
+    float2 Padding;
 }
 
 float4 PS(VertexResult V) : SV_TARGET0
-{
+{    
     float3 C = GetDiffuse(V.TexCoord.xy).xyz;
-    float3 N = GetNormal(V.TexCoord.xy);
     float3 B = float3(0, 0, 0);
-    float I = 0.0;
 
-	[loop] for (float x = -IterationCount; x < IterationCount; x++)
+	[loop] for (float x = -Samples; x < Samples; x++)
 	{
-		[loop] for (float y = -IterationCount; y < IterationCount; y++)
+		[loop] for (float y = -Samples; y < Samples; y++)
 		{
 			float2 T = V.TexCoord.xy + float2(x, y) * Texel * Blur;
-            [branch] if (dot(GetNormal(T), N) < Discard)
-                continue;
-
-            B += GetSampleLevel(Image, T, 0).xyz; I++;
+            B += GetSampleLevel(Image, T, 0).xyz;
 		}
 	}
 
-    [branch] if (I <= 0.0)
-        return float4(C, 1.0);
-    
-    float3 R = Threshold + B * Power / I;
+    float3 R = B * Power / (4.0 * Samples * Samples);
     return float4(Additive > 0.0 ? C + R : C * R, 1.0);
 };

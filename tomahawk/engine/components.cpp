@@ -222,7 +222,7 @@ namespace Tomahawk
 				Instance = nullptr;
 				Connected = false;
 				QuadBased = false;
-				Volume = 3.0f;
+				Volume = 1.0f;
 			}
 			Emitter::~Emitter()
 			{
@@ -285,9 +285,9 @@ namespace Tomahawk
 			}
 			float Emitter::Cull(const Viewer& View)
 			{
-				float Result = 1.0f - Parent->Transform->Position.Distance(View.WorldPosition) / (View.ViewDistance + Volume);
+				float Result = 1.0f - Parent->Transform->Position.Distance(View.WorldPosition) / (View.ViewDistance);
 				if (Result > 0.0f)
-					Result = Compute::MathCommon::IsCubeInFrustum(Parent->Transform->GetWorld() * View.ViewProjection, 1.5f) == -1 ? Result : 0.0f;
+					Result = Compute::MathCommon::IsCubeInFrustum(Compute::Matrix4x4::CreateScale(Volume) * Parent->Transform->GetWorldUnscaled() * View.ViewProjection, 1.5f) == -1 ? Result : 0.0f;
 
 				return Result;
 			}
@@ -898,9 +898,9 @@ namespace Tomahawk
 
 			SkinAnimator::SkinAnimator(Entity* Ref) : Component(Ref)
 			{
-				Current.resize(96);
-				Bind.resize(96);
-				Default.resize(96);
+				Current.Pose.resize(96);
+				Bind.Pose.resize(96);
+				Default.Pose.resize(96);
 			}
 			SkinAnimator::~SkinAnimator()
 			{
@@ -919,10 +919,10 @@ namespace Tomahawk
 			}
 			void SkinAnimator::Serialize(ContentManager* Content, Rest::Document* Node)
 			{
-				if (Reference.empty())
-					NMake::Pack(Node->SetDocument("animation"), Clips);
-				else
+				if (!Reference.empty())
 					NMake::Pack(Node->SetDocument("path"), Reference);
+				else
+					NMake::Pack(Node->SetDocument("animation"), Clips);
 
 				NMake::Pack(Node->SetDocument("state"), State);
 				NMake::Pack(Node->SetDocument("bind"), Bind);
@@ -934,7 +934,7 @@ namespace Tomahawk
 				if (Base != nullptr && Base->GetDrawable() != nullptr)
 				{
 					Instance = Base;
-					Instance->Skeleton.GetPose(Instance->GetDrawable(), &Default);
+					Instance->Skeleton.GetPose(Instance->GetDrawable(), &Default.Pose);
 				}
 				else
 					Instance = nullptr;
@@ -946,35 +946,34 @@ namespace Tomahawk
 				if (!Parent->GetScene()->IsActive())
 					return;
 
-				Compute::Vector3& Position = *Parent->Transform->GetLocalPosition();
-				Compute::Vector3& Rotation = *Parent->Transform->GetLocalRotation();
-				Compute::Vector3& Scale = *Parent->Transform->GetLocalScale();
-
 				if (!State.Blended)
 				{
 					if (State.Paused || State.Clip < 0 || State.Clip >= Clips.size() || State.Frame < 0 || State.Frame >= Clips[State.Clip].Keys.size())
 						return;
 
 					Compute::SkinAnimatorClip* Clip = &Clips[State.Clip];
-					std::vector<Compute::AnimatorKey>& NextKey = Clip->Keys[State.Frame + 1 >= Clip->Keys.size() ? 0 : State.Frame + 1];
-					std::vector<Compute::AnimatorKey>& PrevKey = Clip->Keys[State.Frame];
-					State.Time = Compute::Math<float>::Min(State.Time + State.Speed * (float)Time->GetDeltaTime() / State.Length, State.Length);
-					float Timing = Compute::Math<float>::Min(State.Time / State.Length, 1.0f);
+					auto& NextKey = Clip->Keys[State.Frame + 1 >= Clip->Keys.size() ? 0 : State.Frame + 1];
+					auto& PrevKey = Clip->Keys[State.Frame];
+
+					State.Duration = Clip->Duration;
+					State.Rate = Clip->Rate * NextKey.Time;
+					State.Time = Compute::Mathf::Min(State.Time + State.Rate * (float)Time->GetDeltaTime() / State.Duration, State.Duration);
 
 					for (auto&& Pose : Instance->Skeleton.Pose)
 					{
-						Compute::AnimatorKey* Prev = &PrevKey[Pose.first];
-						Compute::AnimatorKey* Next = &NextKey[Pose.first];
-						Compute::AnimatorKey* Set = &Current[Pose.first];
+						Compute::AnimatorKey* Prev = &PrevKey.Pose[Pose.first];
+						Compute::AnimatorKey* Next = &NextKey.Pose[Pose.first];
+						Compute::AnimatorKey* Set = &Current.Pose[Pose.first];
+						float T = Compute::Mathf::Min(State.Time / State.Duration, 1.0f);
 
-						Set->Position = Prev->Position.Lerp(Next->Position, Timing);
+						Set->Position = Prev->Position.Lerp(Next->Position, T);
 						Pose.second.Position = Set->Position;
 
-						Set->Rotation = Prev->Rotation.AngularLerp(Next->Rotation, Timing);
+						Set->Rotation = Prev->Rotation.AngularLerp(Next->Rotation, T);
 						Pose.second.Rotation = Set->Rotation;
 					}
 
-					if (State.Time >= State.Length)
+					if (State.Time >= State.Duration)
 					{
 						if (State.Frame + 1 >= Clip->Keys.size())
 						{
@@ -989,22 +988,22 @@ namespace Tomahawk
 							State.Frame++;
 					}
 				}
-				else if (State.Time < State.Length)
+				else if (State.Time < State.Duration)
 				{
-					std::vector<Compute::AnimatorKey>* Key = GetFrame(State.Clip, State.Frame);
+					Compute::SkinAnimatorKey* Key = GetFrame(State.Clip, State.Frame);
 					if (!Key)
 						Key = &Bind;
 
-					State.Time = Compute::Math<float>::Min(State.Time + State.Speed * (float)Time->GetDeltaTime() / State.Length, State.Length);
-					float Timing = Compute::Math<float>::Min(State.Time / State.Length, 1.0f);
+					State.Time = Compute::Mathf::Min(State.Time + State.Rate * (float)Time->GetDeltaTime() / State.Duration, State.Duration);
+					float T = Compute::Mathf::Min(State.Time / State.Duration, 1.0f);
 
 					for (auto&& Pose : Instance->Skeleton.Pose)
 					{
-						Compute::AnimatorKey* Prev = &Current[Pose.first];
-						Compute::AnimatorKey* Next = &Key->at(Pose.first);
+						Compute::AnimatorKey* Prev = &Current.Pose[Pose.first];
+						Compute::AnimatorKey* Next = &Key->Pose[Pose.first];
 
-						Pose.second.Position = Prev->Position.Lerp(Next->Position, Timing);
-						Pose.second.Rotation = Prev->Rotation.AngularLerp(Next->Rotation, Timing);
+						Pose.second.Position = Prev->Position.Lerp(Next->Position, T);
+						Pose.second.Rotation = Prev->Rotation.AngularLerp(Next->Rotation, T);
 					}
 				}
 				else
@@ -1025,6 +1024,12 @@ namespace Tomahawk
 					Compute::SkinAnimatorClip* CurrentClip = &Clips[State.Clip];
 					if (State.Frame < 0 || State.Frame >= CurrentClip->Keys.size())
 						State.Frame = -1;
+
+					if (State.Duration <= 0.0f)
+					{
+						State.Duration = CurrentClip->Duration;
+						State.Rate = CurrentClip->Rate;
+					}
 				}
 				else
 					State.Clip = -1;
@@ -1040,24 +1045,30 @@ namespace Tomahawk
 
 				ClearAnimation();
 				if (NMake::Unpack(Result, &Clips))
-					Reference = Path;
+					Reference = Rest::Stroke(Path).Replace(Content->GetEnvironment(), "./").Replace('\\', '/').R();
 
 				delete Result;
 				return true;
+			}
+			void SkinAnimator::GetPose(Compute::SkinAnimatorKey* Result)
+			{
+				if (!Result)
+					return;
+
+				Result->Pose.resize(Default.Pose.size());
+				Result->Time = Default.Time;
+
+				for (auto&& Pose : Instance->Skeleton.Pose)
+				{
+					Compute::AnimatorKey* Frame = &Result->Pose[Pose.first];
+					Frame->Position = Pose.second.Position;
+					Frame->Rotation = Pose.second.Rotation;
+				}
 			}
 			void SkinAnimator::ClearAnimation()
 			{
 				Reference.clear();
 				Clips.clear();
-			}
-			void SkinAnimator::RecordPose()
-			{
-				for (auto&& Pose : Instance->Skeleton.Pose)
-				{
-					Compute::AnimatorKey* Frame = &Bind[Pose.first];
-					Frame->Position = Pose.second.Position;
-					Frame->Rotation = Pose.second.Rotation;
-				}
 			}
 			void SkinAnimator::Stop()
 			{
@@ -1090,7 +1101,7 @@ namespace Tomahawk
 				else
 					State.Clip = -1;
 
-				RecordPose();
+				GetPose(&Bind);
 				Current = Bind;
 
 				if (!IsPosed(State.Clip, State.Frame))
@@ -1098,27 +1109,27 @@ namespace Tomahawk
 			}
 			bool SkinAnimator::IsPosed(int64_t Clip, int64_t Frame_)
 			{
-				std::vector<Compute::AnimatorKey>* Key = GetFrame(Clip, Frame_);
+				Compute::SkinAnimatorKey* Key = GetFrame(Clip, Frame_);
 				if (!Key)
 					Key = &Bind;
 
 				for (auto&& Pose : Instance->Skeleton.Pose)
 				{
-					Compute::AnimatorKey* Frame = &Key->at(Pose.first);
+					Compute::AnimatorKey* Frame = &Key->Pose[Pose.first];
 					if (Pose.second.Position != Frame->Position || Pose.second.Rotation != Frame->Rotation)
 						return false;
 				}
 
 				return true;
 			}
-			std::vector<Compute::AnimatorKey>* SkinAnimator::GetFrame(int64_t Clip, int64_t Frame)
+			Compute::SkinAnimatorKey* SkinAnimator::GetFrame(int64_t Clip, int64_t Frame)
 			{
 				if (Clip < 0 || Clip >= Clips.size() || Frame < 0 || Frame >= Clips[Clip].Keys.size())
 					return nullptr;
 
 				return &Clips[Clip].Keys[Frame];
 			}
-			std::vector<std::vector<Compute::AnimatorKey>>* SkinAnimator::GetClip(int64_t Clip)
+			std::vector<Compute::SkinAnimatorKey>* SkinAnimator::GetClip(int64_t Clip)
 			{
 				if (Clip < 0 || Clip >= Clips.size())
 					return nullptr;
@@ -1190,14 +1201,17 @@ namespace Tomahawk
 					Compute::KeyAnimatorClip* Clip = &Clips[State.Clip];
 					Compute::AnimatorKey& NextKey = Clip->Keys[State.Frame + 1 >= Clip->Keys.size() ? 0 : State.Frame + 1];
 					Compute::AnimatorKey& PrevKey = Clip->Keys[State.Frame];
-					State.Time = Compute::Math<float>::Min(State.Time + State.Speed * PrevKey.PlayingSpeed * (float)Time->GetDeltaTime() / State.Length, State.Length);
-					float Timing = Compute::Math<float>::Min(State.Time / State.Length, 1.0f);
 
-					Position = Current.Position = PrevKey.Position.Lerp(NextKey.Position, Timing);
-					Rotation = Current.Rotation = PrevKey.Rotation.AngularLerp(NextKey.Rotation, Timing);
-					Scale = Current.Scale = PrevKey.Scale.Lerp(NextKey.Scale, Timing);
+					State.Duration = Clip->Duration;
+					State.Rate = Clip->Rate * NextKey.Time;
+					State.Time = Compute::Mathf::Min(State.Time + State.Rate * (float)Time->GetDeltaTime() / State.Duration, State.Duration);
+					
+					float T = Compute::Mathf::Min(State.Time / State.Duration, 1.0f);
+					Position = Current.Position = PrevKey.Position.Lerp(NextKey.Position, T);
+					Rotation = Current.Rotation = PrevKey.Rotation.AngularLerp(NextKey.Rotation, T);
+					Scale = Current.Scale = PrevKey.Scale.Lerp(NextKey.Scale, T);
 
-					if (State.Time >= State.Length)
+					if (State.Time >= State.Duration)
 					{
 						if (State.Frame + 1 >= Clip->Keys.size())
 						{
@@ -1212,7 +1226,7 @@ namespace Tomahawk
 							State.Frame++;
 					}
 				}
-				else if (State.Time < State.Length)
+				else if (State.Time < State.Duration)
 				{
 					Compute::AnimatorKey* Key = GetFrame(State.Clip, State.Frame);
 					if (!Key)
@@ -1221,12 +1235,12 @@ namespace Tomahawk
 					if (State.Paused)
 						return;
 
-					State.Time = Compute::Math<float>::Min(State.Time + State.Speed * (float)Time->GetDeltaTime() / State.Length, State.Length);
-					float Timing = Compute::Math<float>::Min(State.Time / State.Length, 1.0f);
+					State.Time = Compute::Mathf::Min(State.Time + State.Rate * (float)Time->GetDeltaTime() / State.Duration, State.Duration);
+					float T = Compute::Mathf::Min(State.Time / State.Duration, 1.0f);
 
-					Position = Current.Position.Lerp(Key->Position, Timing);
-					Rotation = Current.Rotation.AngularLerp(Key->Rotation, Timing);
-					Scale = Current.Scale.Lerp(Key->Scale, Timing);
+					Position = Current.Position.Lerp(Key->Position, T);
+					Rotation = Current.Rotation.AngularLerp(Key->Rotation, T);
+					Scale = Current.Scale.Lerp(Key->Scale, T);
 				}
 				else
 				{
@@ -1245,10 +1259,19 @@ namespace Tomahawk
 
 				ClearAnimation();
 				if (NMake::Unpack(Result, &Clips))
-					Reference = Path;
+					Reference = Rest::Stroke(Path).Replace(Content->GetEnvironment(), "./").Replace('\\', '/').R();
 
 				delete Result;
 				return true;
+			}
+			void KeyAnimator::GetPose(Compute::AnimatorKey* Result)
+			{
+				if (!Result)
+					return;
+
+				Result->Position = *Parent->Transform->GetLocalPosition();
+				Result->Rotation = *Parent->Transform->GetLocalRotation();
+				Result->Scale = *Parent->Transform->GetLocalScale();
 			}
 			void KeyAnimator::ClearAnimation()
 			{
@@ -1270,12 +1293,6 @@ namespace Tomahawk
 				}
 				else
 					State.Clip = -1;
-			}
-			void KeyAnimator::RecordPose()
-			{
-				Bind.Position = *Parent->Transform->GetLocalPosition();
-				Bind.Rotation = *Parent->Transform->GetLocalRotation();
-				Bind.Scale = *Parent->Transform->GetLocalScale();
 			}
 			void KeyAnimator::Stop()
 			{
@@ -1303,11 +1320,17 @@ namespace Tomahawk
 					Compute::KeyAnimatorClip* CurrentClip = &Clips[State.Clip];
 					if (State.Frame < 0 || State.Frame >= CurrentClip->Keys.size())
 						State.Frame = -1;
+
+					if (State.Duration <= 0.0f)
+					{
+						State.Duration = CurrentClip->Duration;
+						State.Rate = CurrentClip->Rate;
+					}
 				}
 				else
 					State.Clip = -1;
 
-				RecordPose();
+				GetPose(&Bind);
 				Current = Bind;
 
 				if (!IsPosed(State.Clip, State.Frame))
@@ -2212,7 +2235,7 @@ namespace Tomahawk
 						float X = (Cursor.Y - Position.Y) * Sensitivity;
 						float Y = (Cursor.X - Position.X) * Sensitivity;
 						Parent->Transform->Rotation += Compute::Vector3(X, Y);
-						Parent->Transform->Rotation.X = Compute::Math<float>::Clamp(Parent->Transform->Rotation.X, -1.57079632679f, 1.57079632679f);
+						Parent->Transform->Rotation.X = Compute::Mathf::Clamp(Parent->Transform->Rotation.X, -1.57079632679f, 1.57079632679f);
 					}
 					else
 						Position = Cursor;
@@ -3007,7 +3030,11 @@ namespace Tomahawk
 			}
 			void Camera::Awake(Component* New)
 			{
-				if (!Parent || !Parent->GetScene() || (New && New != this))
+				if (!Parent || !Parent->GetScene())
+					return;
+
+				Viewport = Parent->GetScene()->GetDevice()->GetRenderTarget()->GetViewport();
+				if (New && New != this)
 					return;
 
 				if (!Renderer)
@@ -3053,8 +3080,17 @@ namespace Tomahawk
 						Renderer = new RenderSystem(Content->GetDevice());
 				}
 
+				size_t Size = Renderer->GetDepthSize();
+				NMake::Unpack(Node->Find("occlusion-delay"), &Renderer->Occlusion.Delay);
+				NMake::Unpack(Node->Find("occlusion-stall"), &Renderer->StallFrames);
+				NMake::Unpack(Node->Find("occlusion-size"), &Size);
+				NMake::Unpack(Node->Find("sorting-delay"), &Renderer->Sorting.Delay);
+				NMake::Unpack(Node->Find("frustum-cull"), &Renderer->EnableFrustumCull);
+				NMake::Unpack(Node->Find("occlusion-cull"), &Renderer->EnableOcclusionCull);
+
 				std::vector<Rest::Document*> Renderers = Node->FindCollectionPath("renderers.renderer");
 				Renderer->SetScene(Parent->GetScene());
+				Renderer->SetDepthSize(Size);
 
 				for (auto& Render : Renderers)
 				{
@@ -3089,6 +3125,12 @@ namespace Tomahawk
 				NMake::Pack(Node->SetDocument("near-plane"), NearPlane);
 				NMake::Pack(Node->SetDocument("width"), Width);
 				NMake::Pack(Node->SetDocument("height"), Height);
+				NMake::Pack(Node->SetDocument("occlusion-delay"), Renderer->Occlusion.Delay);
+				NMake::Pack(Node->SetDocument("occlusion-stall"), Renderer->StallFrames);
+				NMake::Pack(Node->SetDocument("occlusion-size"), Renderer->GetDepthSize());
+				NMake::Pack(Node->SetDocument("sorting-delay"), Renderer->Sorting.Delay);
+				NMake::Pack(Node->SetDocument("frustum-cull"), Renderer->EnableFrustumCull);
+				NMake::Pack(Node->SetDocument("occlusion-cull"), Renderer->EnableOcclusionCull);
 
 				Rest::Document* Renderers = Node->SetArray("renderers");
 				for (auto& Ref : *Renderer->GetRenderers())
@@ -3102,16 +3144,19 @@ namespace Tomahawk
 			void Camera::Synchronize(Rest::Timer* Time)
 			{
 				float W = Width, H = Height;
-				if (W <= 0 || H <= 0 && Renderer != nullptr)
+				if (W <= 0 || H <= 0)
 				{
-					Graphics::Viewport V = Renderer->GetDevice()->GetRenderTarget()->GetViewport();
-					W = V.Width; H = V.Height;
+					W = Viewport.Width;
+					H = Viewport.Height;
 				}
-				
+
 				if (Mode == ProjectionMode_Perspective)
 					Projection = Compute::Matrix4x4::CreatePerspective(FieldOfView, W / H, NearPlane, FarPlane);
 				else if (Mode == ProjectionMode_Orthographic)
 					Projection = Compute::Matrix4x4::CreateOrthographic(W, H, NearPlane, FarPlane);
+
+				if (Parent->GetScene()->GetCamera() == this)
+					Renderer->Synchronize(Time, FieldView);
 			}
 			void Camera::GetViewer(Viewer* View)
 			{
@@ -3337,14 +3382,15 @@ namespace Tomahawk
 					}
 				}
 
-				Call(Entry.Deserialize, [this, Content, Node](Script::VMContext* Context)
+				Call(Entry.Deserialize, [this, &Content, &Node](Script::VMContext* Context)
 				{
 					if (Invoke == InvokeType_Typeless)
 						return;
 
-					Context->SetArgObject<Component>(0, this);
-					Context->SetArgObject<ContentManager>(1, Content);
-					Context->SetArgObject<Rest::Document>(2, Node);
+					Component* Current = this;
+					Context->SetArgObject(0, Current);
+					Context->SetArgObject(1, Content);
+					Context->SetArgObject(2, Node);
 				});
 			}
 			void Scriptable::Serialize(ContentManager* Content, Rest::Document* Node)
@@ -3426,36 +3472,42 @@ namespace Tomahawk
 						Cache->SetDocument(Result.Name, Var);
 				}
 				
-				Call(Entry.Serialize, [this, Content, Node](Script::VMContext* Context)
+				Call(Entry.Serialize, [this, &Content, &Node](Script::VMContext* Context)
 				{
 					if (Invoke == InvokeType_Typeless)
 						return;
 
-					Context->SetArgObject<Component>(0, this);
-					Context->SetArgObject<ContentManager>(1, Content);
-					Context->SetArgObject<Rest::Document>(2, Node);
+					Component* Current = this;
+					Context->SetArgObject(0, Current);
+					Context->SetArgObject(1, Content);
+					Context->SetArgObject(2, Node);
 				});
 			}
 			void Scriptable::Awake(Component* New)
 			{
-				Call(Entry.Awake, [this, New](Script::VMContext* Context)
+				if (!Parent->GetScene()->IsActive())
+					return;
+
+				Call(Entry.Awake, [this, &New](Script::VMContext* Context)
 				{
 					if (Invoke == InvokeType_Typeless)
 						return;
 
-					Context->SetArgObject<Component>(0, this);
-					Context->SetArgObject<Component>(1, New);
+					Component* Current = this;
+					Context->SetArgObject(0, Current);
+					Context->SetArgObject(1, New);
 				});
 			}
 			void Scriptable::Synchronize(Rest::Timer* Time)
 			{
-				Call(Entry.Synchronize, [this, Time](Script::VMContext* Context)
+				Call(Entry.Synchronize, [this, &Time](Script::VMContext* Context)
 				{
 					if (Invoke == InvokeType_Typeless)
 						return;
 
-					Context->SetArgObject<Component>(0, this);
-					Context->SetArgObject<Rest::Timer>(1, Time);
+					Component* Current = this;
+					Context->SetArgObject(0, Current);
+					Context->SetArgObject(1, Time);
 				});
 			}
 			void Scriptable::Asleep()
@@ -3465,29 +3517,32 @@ namespace Tomahawk
 					if (Invoke == InvokeType_Typeless)
 						return;
 
-					Context->SetArgObject<Component>(0, this);
+					Component* Current = this;
+					Context->SetArgObject(0, Current);
 				});
 			}
 			void Scriptable::Update(Rest::Timer* Time)
 			{
-				Call(Entry.Update, [this, Time](Script::VMContext* Context)
+				Call(Entry.Update, [this, &Time](Script::VMContext* Context)
 				{
 					if (Invoke == InvokeType_Typeless)
 						return;
 
-					Context->SetArgObject<Component>(0, this);
-					Context->SetArgObject<Rest::Timer>(1, Time);
+					Component* Current = this;
+					Context->SetArgObject(0, Current);
+					Context->SetArgObject(1, Time);
 				});
 			}
 			void Scriptable::Pipe(Event* Value)
 			{
-				Call(Entry.Pipe, [this, Value](Script::VMContext* Context)
+				Call(Entry.Pipe, [this, &Value](Script::VMContext* Context)
 				{
 					if (Invoke == InvokeType_Typeless)
 						return;
 
-					Context->SetArgObject<Component>(0, this);
-					Context->SetArgObject<Event>(1, Value);
+					Component* Current = this;
+					Context->SetArgObject(0, Current);
+					Context->SetArgObject(1, Value);
 				});
 			}
 			Component* Scriptable::Copy(Entity* New)
@@ -3583,6 +3638,17 @@ namespace Tomahawk
 
 				return Result;
 			}
+			int Scriptable::CallEntry(const std::string& Name)
+			{
+				return Call(GetFunctionByName(Name, Invoke == InvokeType_Typeless ? 0 : 1).GetFunction(), [this](Script::VMContext* Context)
+				{
+					if (Invoke == InvokeType_Typeless)
+						return;
+
+					Component* Current = this;
+					Context->SetArgObject(0, Current);
+				});
+			}
 			int Scriptable::SetSource()
 			{
 				return SetSource(Source, Resource);
@@ -3593,10 +3659,6 @@ namespace Tomahawk
 				if (!Scene)
 					return Script::VMResult_INVALID_CONFIGURATION;
 
-				auto* Manager = Scene->GetConf().Manager;
-				if (!Manager)
-					return Script::VMResult_INVALID_CONFIGURATION;
-
 				if (Compiler != nullptr)
 				{
 					auto* VM = Compiler->GetContext();
@@ -3605,6 +3667,10 @@ namespace Tomahawk
 				}
 				else
 				{
+					auto* Manager = Scene->GetConf().Manager;
+					if (!Manager)
+						return Script::VMResult_INVALID_CONFIGURATION;
+
 					Compiler = Manager->CreateCompiler();
 					Compiler->SetAllowedFeatures(Scene->GetConf().ScriptFeatures);
 					Compiler->SetPragmaCallback([this](Compute::Preprocessor*, const std::string& Pragma)
@@ -3683,14 +3749,6 @@ namespace Tomahawk
 				Entry.Synchronize = GetFunctionByName("synchronize", Invoke == InvokeType_Typeless ? 0 : 2).GetFunction();
 				Entry.Update = GetFunctionByName("update", Invoke == InvokeType_Typeless ? 0 : 2).GetFunction();
 				Entry.Pipe = GetFunctionByName("pipe", Invoke == InvokeType_Typeless ? 0 : 2).GetFunction();
-
-				Call("main", Invoke == InvokeType_Typeless ? 0 : 1, [this](Script::VMContext* Context)
-				{
-					if (Invoke == InvokeType_Typeless)
-						return;
-
-					Context->SetArgObject<Component>(0, this);
-				});
 
 				return R;
 			}

@@ -18,6 +18,7 @@ namespace Tomahawk
 					Graphics::Shader* GBuffer = nullptr;
 					Graphics::Shader* Linear = nullptr;
 					Graphics::Shader* Cubic = nullptr;
+					Graphics::Shader* Occlusion = nullptr;
 				} Shaders;
 
 				struct
@@ -37,6 +38,7 @@ namespace Tomahawk
 				virtual ~ModelRenderer() override;
 				void Activate() override;
 				void Deactivate() override;
+				void CullGeometry(const Viewer& View, Rest::Pool<Component*>* Geometry) override;
 				void RenderGBuffer(Rest::Timer* Time, Rest::Pool<Component*>* Geometry, RenderOpt Options) override;
 				void RenderDepthLinear(Rest::Timer* Time, Rest::Pool<Component*>* Geometry) override;
 				void RenderDepthCubic(Rest::Timer* Time, Rest::Pool<Component*>* Geometry, Compute::Matrix4x4* ViewProjection) override;
@@ -55,6 +57,7 @@ namespace Tomahawk
 					Graphics::Shader* GBuffer = nullptr;
 					Graphics::Shader* Linear = nullptr;
 					Graphics::Shader* Cubic = nullptr;
+					Graphics::Shader* Occlusion = nullptr;
 				} Shaders;
 
 				struct
@@ -74,6 +77,7 @@ namespace Tomahawk
 				virtual ~SkinRenderer();
 				void Activate() override;
 				void Deactivate() override;
+				void CullGeometry(const Viewer& View, Rest::Pool<Component*>* Geometry) override;
 				void RenderGBuffer(Rest::Timer* Time, Rest::Pool<Component*>* Geometry, RenderOpt Options) override;
 				void RenderDepthLinear(Rest::Timer* Time, Rest::Pool<Component*>* Geometry) override;
 				void RenderDepthCubic(Rest::Timer* Time, Rest::Pool<Component*>* Geometry, Compute::Matrix4x4* ViewProjection) override;
@@ -92,6 +96,7 @@ namespace Tomahawk
 					Graphics::Shader* GBuffer = nullptr;
 					Graphics::Shader* Linear = nullptr;
 					Graphics::Shader* Cubic = nullptr;
+					Graphics::Shader* Occlusion = nullptr;
 				} Shaders;
 
 				struct
@@ -113,6 +118,7 @@ namespace Tomahawk
 				virtual ~SoftBodyRenderer();
 				void Activate() override;
 				void Deactivate() override;
+				void CullGeometry(const Viewer& View, Rest::Pool<Component*>* Geometry) override;
 				void RenderGBuffer(Rest::Timer* Time, Rest::Pool<Component*>* Geometry, RenderOpt Options) override;
 				void RenderDepthLinear(Rest::Timer* Time, Rest::Pool<Component*>* Geometry) override;
 				void RenderDepthCubic(Rest::Timer* Time, Rest::Pool<Component*>* Geometry, Compute::Matrix4x4* ViewProjection) override;
@@ -143,7 +149,8 @@ namespace Tomahawk
 			private:
 				Rest::Pool<Engine::Component*>* Opaque = nullptr;
 				Rest::Pool<Engine::Component*>* Limpid = nullptr;
-				Graphics::DepthStencilState* DepthStencil = nullptr;
+				Graphics::DepthStencilState* DepthStencilOpaque = nullptr;
+				Graphics::DepthStencilState* DepthStencilLimpid = nullptr;
 				Graphics::RasterizerState* BackRasterizer = nullptr;
 				Graphics::RasterizerState* FrontRasterizer = nullptr;
 				Graphics::BlendState* AdditiveBlend = nullptr;
@@ -360,9 +367,9 @@ namespace Tomahawk
 				struct
 				{
 					Compute::Matrix4x4 SkyOffset;
-					Compute::Vector3 HighEmission = 0.05;
+					Compute::Vector3 HighEmission = 0.05f;
 					float SkyEmission = 0.0f;
-					Compute::Vector3 LowEmission = 0.025;
+					Compute::Vector3 LowEmission = 0.025f;
 					float LightEmission = 1.0f;
 					Compute::Vector3 SkyColor = 1.0;
 					float Padding = 0.0f;
@@ -453,7 +460,7 @@ namespace Tomahawk
 			public:
 				struct RenderConstant1
 				{
-					float IterationCount = 24.0f;
+					float Samples = 24.0f;
 					float MipLevels = 0.0f;
 					float Intensity = 1.0f;
 					float Padding = 0.0f;
@@ -462,7 +469,7 @@ namespace Tomahawk
 				struct RenderConstant2
 				{
 					float Texel[2] = { 1.0f, 1.0f };
-					float IterationCount = 4.000f;
+					float Samples = 4.000f;
 					float Blur = 4.000f;
 				} RenderPass2;
 
@@ -516,7 +523,7 @@ namespace Tomahawk
 				struct RenderConstant
 				{
 					float Texel[2] = { 1.0f, 1.0f };
-					float IterationCount = 24.0f;
+					float Samples = 24.0f;
 					float Intensity = 1.736f;
 					float Threshold = 0.38f;
 					float Scale = 0.1f;
@@ -576,29 +583,24 @@ namespace Tomahawk
 			public:
 				struct RenderConstant1
 				{
-					float Scale = 0.000f;
-					float Intensity = 4.700f;
-					float Bias = 0.500f;
-					float Radius = 0.010f;
-					float Step = 0.012f;
-					float Offset = 0.000f;
-					float Distance = 3.000f;
-					float Fading = 1.965f;
-					float Power = 1.200f;
-					float IterationCount = 4.000f;
-					float Threshold = 0.071f;
+					float Samples = 4.0f;
+					float Intensity = 2.25f;
+					float Scale = 1.0f;
+					float Bias = 0.11f;
+					float Radius = 0.0275f;
+					float Distance = 3.83f;
+					float Fade = 1.96f;
 					float Padding = 0.0f;
 				} RenderPass1;
 
 				struct RenderConstant2
 				{
 					float Texel[2] = { 1.0f, 1.0f };
-					float IterationCount = 4.000f;
+					float Samples = 4.000f;
 					float Blur = 2.000f;
-					float Threshold = 0.000f;
 					float Power = 1.000f;
-					float Discard = 0.000f;
 					float Additive = 0.000f;
+					float Padding[2];
 				} RenderPass2;
 
 			public:
@@ -621,29 +623,24 @@ namespace Tomahawk
 			public:
 				struct RenderConstant1
 				{
-					float Scale = 0.000f;
-					float Intensity = 2.000f;
-					float Bias = 0.550f;
-					float Radius = 0.055556f;
-					float Step = 0.092f;
-					float Offset = 0.000f;
-					float Distance = 3.839f;
-					float Fading = 1.965f;
-					float Power = 2.000f;
-					float IterationCount = 4.000f;
-					float Threshold = 1.000f;
+					float Samples = 3.1f;
+					float Intensity = 1.35f;
+					float Scale = 0.0f;
+					float Bias = -0.55f;
+					float Radius = 0.34f;
+					float Distance = 4.5f;
+					float Fade = 2.54f;
 					float Padding = 0.0f;
 				} RenderPass1;
 
 				struct RenderConstant2
 				{
 					float Texel[2] = { 1.0f, 1.0f };
-					float IterationCount = 6.000f;
-					float Blur = 3.000f;
-					float Threshold = 0.000f;
-					float Power = 0.600f;
-					float Discard = 0.800f;
+					float Samples = 4.000f;
+					float Blur = 2.000f;
+					float Power = 1.000f;
 					float Additive = 1.000f;
+					float Padding[2];
 				} RenderPass2;
 
 			public:

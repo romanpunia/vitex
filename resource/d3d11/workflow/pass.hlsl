@@ -22,7 +22,7 @@ float3 GetMetallicFactor(in Fragment Frag, in Material Mat)
 }
 float GetOcclusionFactor(in Fragment Frag, in Material Mat)
 {
-    return Mat.Occlusion * (1.0 + Frag.Occlusion);
+    return Mat.Occlusion.x + Frag.Occlusion * Mat.Occlusion.y;
 }
 float3 GetEmissionFactor(in Fragment Frag, in Material Mat)
 {

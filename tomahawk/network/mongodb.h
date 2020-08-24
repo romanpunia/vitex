@@ -39,6 +39,7 @@ namespace Tomahawk
 			typedef _mongoc_uri_t TURI;
 			typedef _mongoc_client_t TConnection;
 			typedef _mongoc_change_stream_t TChangeStream;
+			typedef std::unordered_map<std::string, Rest::Document*> QueryMap;
 
 			class Client;
 
@@ -229,14 +230,45 @@ namespace Tomahawk
 				void (* OnServerHeartbeatFailed)(Client* Client, APMServerHeartbeatFailed* Command) = nullptr;
 			};
 
+			class THAWK_OUT QueryCache : public Rest::Object
+			{
+			private:
+				struct Sequence
+				{
+					BSON::TDocument* Cache = nullptr;
+					std::unordered_map<std::string, std::vector<size_t>> Args;
+					std::string Request;
+				};
+
+			private:
+				std::unordered_map<std::string, Sequence> Queries;
+				std::mutex Safe;
+
+			public:
+				QueryCache();
+				virtual ~QueryCache() override;
+				bool AddQuery(const std::string& Name, const char* Buffer, size_t Size);
+				bool AddDirectory(const std::string& Directory, const std::string& Origin = "");
+				bool RemoveQuery(const std::string& Name);
+				BSON::TDocument* GetQuery(const std::string& Name, QueryMap* Map, bool Once = true);
+
+			private:
+				std::string GetJSON(Rest::Document* Source, bool Root);
+			};
+
 			class THAWK_OUT Connector
 			{
 			private:
+				static QueryCache* Cache;
 				static int State;
 
 			public:
 				static void Create();
 				static void Release();
+				static bool AddQuery(const std::string& Name, const char* Buffer, size_t Size);
+				static bool AddDirectory(const std::string& Directory);
+				static bool RemoveQuery(const std::string& Name);
+				static BSON::TDocument* GetQuery(const std::string& Name, QueryMap* Map, bool Once = true);
 			};
 
 			class THAWK_OUT URI

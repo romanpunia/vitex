@@ -5,7 +5,7 @@ Texture2D Image : register(t5);
 cbuffer RenderConstant : register(b3)
 {
     float2 Texel;
-    float IterationCount;
+    float Samples;
     float Blur;
 }
 
@@ -17,7 +17,7 @@ float4 PS(VertexResult V) : SV_TARGET0
     float3 N = GetNormal(V.TexCoord.xy);
     float3 B = float3(0, 0, 0);
     float R = GetRoughnessLevel(Frag, Mat, 1.0);
-    float G = IterationCount * R;
+    float G = Samples * R;
     float I = 0.0;
 
     [branch] if (G <= 0.0)

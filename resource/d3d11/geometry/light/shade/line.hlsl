@@ -45,6 +45,9 @@ float4 PS(VertexResult V) : SV_TARGET0
 	Fragment Frag = GetFragment(GetTexCoord(V.TexCoord));
     [branch] if (Frag.Depth >= 1.0)
     {
+        [branch] if (ScatterIntensity <= 0.0)
+            discard;
+            
         Scatter A;
         A.Sun = ScatterIntensity * length(Lighting);
         A.Planet = PlanetRadius;

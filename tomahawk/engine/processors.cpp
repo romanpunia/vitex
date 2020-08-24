@@ -94,6 +94,10 @@ namespace Tomahawk
 				}
 
 				SceneGraph* Object = new SceneGraph(I);
+				ContentKey* Key = Args->Get("active");
+
+				if (Key != nullptr)
+					Object->SetActive(Key->Boolean);
 
 				Rest::Document* Materials = Document->Find("materials", true);
 				if (Materials != nullptr)
@@ -863,12 +867,21 @@ namespace Tomahawk
 						return nullptr;
 					}
 
+					if (Content->GetDevice()->GetBackend() == Graphics::RenderBackend_D3D11)
+					{
+						Compute::MathCommon::ComputeIndexWindingOrderFlip(F.Indices);
+						Compute::MathCommon::ComputeInfluenceOrientation(F.Elements, true);
+					}
+
 					Content->GetDevice()->Lock();
 					Object->Meshes.push_back(Content->GetDevice()->CreateSkinMeshBuffer(F));
 					Content->GetDevice()->Unlock();
 
 					NMake::Unpack(Mesh->Find("name"), &Object->Meshes.back()->Name);
 					NMake::Unpack(Mesh->Find("world"), &Object->Meshes.back()->World);
+
+					if (Content->GetDevice()->GetBackend() == Graphics::RenderBackend_D3D11)
+						Compute::MathCommon::ComputeMatrixOrientation(&Object->Meshes.back()->World, true);
 				}
 
 				Content->Cache(this, Stream->Filename(), Object);
@@ -901,6 +914,10 @@ namespace Tomahawk
 					aiAnimation* Animation = Scene->mAnimations[i];
 					Compute::SkinAnimatorClip* Clip = &Clips[i];
 					Clip->Name = Animation->mName.C_Str();
+					Clip->Duration = Animation->mDuration;
+					
+					if (Animation->mTicksPerSecond != 0.0f)
+						Clip->Rate = Animation->mTicksPerSecond;
 
 					for (int64_t j = 0; j < Animation->mNumChannels; j++)
 					{
@@ -908,7 +925,7 @@ namespace Tomahawk
 						auto It = Joints.find(Channel->mNodeName.C_Str());
 						if (It == Joints.end())
 							continue;
-
+						
 						if (Clip->Keys.size() < Channel->mNumPositionKeys)
 							Clip->Keys.resize(Channel->mNumPositionKeys);
 
@@ -920,33 +937,35 @@ namespace Tomahawk
 
 						for (int64_t k = 0; k < Channel->mNumPositionKeys; k++)
 						{
-							auto& Keys = Clip->Keys[k];
+							auto& Keys = Clip->Keys[k].Pose;
 							ProcessKeys(&Keys, &Joints);
 
-							Keys[It->second.Index].Position.X = Channel->mPositionKeys[k].mValue.x;
-							Keys[It->second.Index].Position.Y = Channel->mPositionKeys[k].mValue.y;
-							Keys[It->second.Index].Position.Z = Channel->mPositionKeys[k].mValue.z;
+							aiVector3D& V = Channel->mPositionKeys[k].mValue;
+							Keys[It->second.Index].Position.X = V.x;
+							Keys[It->second.Index].Position.Y = V.y;
+							Keys[It->second.Index].Position.Z = V.z;
 						}
 
 						for (int64_t k = 0; k < Channel->mNumRotationKeys; k++)
 						{
-							auto& Keys = Clip->Keys[k];
+							auto& Keys = Clip->Keys[k].Pose;
 							ProcessKeys(&Keys, &Joints);
 
-							Keys[It->second.Index].Rotation.X = Channel->mRotationKeys[k].mValue.x;
-							Keys[It->second.Index].Rotation.Y = Channel->mRotationKeys[k].mValue.y;
-							Keys[It->second.Index].Rotation.Z = Channel->mPositionKeys[k].mValue.z;
-							Keys[It->second.Index].Rotation = Keys[It->second.Index].Rotation.SaturateRotation();
+							aiQuaternion Q1 = Channel->mRotationKeys[k].mValue;
+							Compute::Quaternion Q2(Q1.x, Q1.y, Q1.z, Q1.w);
+			
+							Keys[It->second.Index].Rotation = Q2.GetEuler().SaturateRotation();
 						}
 
 						for (int64_t k = 0; k < Channel->mNumScalingKeys; k++)
 						{
-							auto& Keys = Clip->Keys[k];
+							auto& Keys = Clip->Keys[k].Pose;
 							ProcessKeys(&Keys, &Joints);
 
-							Keys[It->second.Index].Scale.X = Channel->mScalingKeys[k].mValue.x;
-							Keys[It->second.Index].Scale.Y = Channel->mScalingKeys[k].mValue.y;
-							Keys[It->second.Index].Scale.Z = Channel->mScalingKeys[k].mValue.z;
+							aiVector3D& V = Channel->mScalingKeys[k].mValue;
+							Keys[It->second.Index].Scale.X = V.x;
+							Keys[It->second.Index].Scale.Y = V.y;
+							Keys[It->second.Index].Scale.Z = V.z;
 						}
 					}
 				}
@@ -1017,7 +1036,6 @@ namespace Tomahawk
 						Key->Position = It->second.Transform.Position();
 						Key->Rotation = It->second.Transform.Rotation();
 						Key->Scale = It->second.Transform.Scale();
-						Key->PlayingSpeed = 1.0f;
 					}
 				}
 			}
@@ -1136,6 +1154,10 @@ namespace Tomahawk
 				auto* Document = Content->Load<Rest::Document>(Stream->Filename(), nullptr);
 				auto* Object = new Network::HTTP::Server();
 				auto* Router = new Network::HTTP::MapRouter();
+				
+				Application* App = Application::Get();
+				if (App != nullptr)
+					Router->VM = App->VM;
 
 				if (Document == nullptr)
 				{
@@ -1144,6 +1166,9 @@ namespace Tomahawk
 				}
 				else if (Callback)
 					Callback((void*)Object, Document);
+
+				if (!NMake::Unpack(Document->FindPath("module-root"), &Router->ModuleRoot))
+					Router->ModuleRoot.clear();
 
 				if (!NMake::Unpack(Document->Find("keep-alive"), &Router->KeepAliveMaxCount))
 					Router->KeepAliveMaxCount = 10;
@@ -1171,6 +1196,8 @@ namespace Tomahawk
 
 				if (!NMake::Unpack(Document->Find("enable-no-delay"), &Router->EnableNoDelay))
 					Router->EnableNoDelay = false;
+
+				Rest::Stroke(&Router->ModuleRoot).Path(N, D);
 
 				std::vector<Rest::Document*> Certificates = Document->FindCollection("certificate", true);
 				for (auto&& It : Certificates)
@@ -1266,9 +1293,6 @@ namespace Tomahawk
 					if (!NMake::Unpack(It->FindPath("gateway.session.cookie-expires"), &Site->Gateway.Session.CookieExpires))
 						Site->Gateway.Session.CookieExpires = 31536000;
 
-					if (!NMake::Unpack(It->FindPath("gateway.module-root"), &Site->Gateway.ModuleRoot))
-						Site->Gateway.ModuleRoot.clear();
-
 					if (!NMake::Unpack(It->FindPath("gateway.enabled"), &Site->Gateway.Enabled))
 						Site->Gateway.Enabled = false;
 
@@ -1279,7 +1303,6 @@ namespace Tomahawk
 						Site->MaxResources = 5;
 
 					Rest::Stroke(&Site->Gateway.Session.DocumentRoot).Path(N, D);
-					Rest::Stroke(&Site->Gateway.ModuleRoot).Path(N, D);
 					Rest::Stroke(&Site->ResourceRoot).Path(N, D);
 
 					std::vector<Rest::Document*> Hosts = It->FindCollection("host", true);
@@ -1304,15 +1327,9 @@ namespace Tomahawk
 						std::vector<Rest::Document*> GatewayFiles = Base->FindCollectionPath("gateway.files.file");
 						for (auto& File : GatewayFiles)
 						{
-							Network::HTTP::GatewayFile Gate;
-							if (!NMake::Unpack(File->Find("core"), &Gate.Core))
-								Gate.Core = false;
-
 							std::string Pattern;
-							if (NMake::Unpack(File->Find("pattern"), &Pattern))
-								Gate.Value = Compute::Regex::Create(Pattern, Compute::RegexFlags_IgnoreCase);
-
-							Route->Gateway.Files.push_back(Gate);
+							if (NMake::Unpack(File, &Pattern))
+								Route->Gateway.Files.push_back(Compute::Regex::Create(Pattern, Compute::RegexFlags_IgnoreCase));
 						}
 
 						std::vector<Rest::Document*> GatewayMethods = Base->FindCollectionPath("gateway.methods.method");
@@ -1406,10 +1423,10 @@ namespace Tomahawk
 						}
 
 						if (NMake::Unpack(Base->FindPath("compression.quality-level"), &Route->Compression.QualityLevel))
-							Route->Compression.QualityLevel = Compute::Math<int>::Clamp(Route->Compression.QualityLevel, 0, 9);
+							Route->Compression.QualityLevel = Compute::Mathi::Clamp(Route->Compression.QualityLevel, 0, 9);
 
 						if (NMake::Unpack(Base->FindPath("compression.memory-level"), &Route->Compression.MemoryLevel))
-							Route->Compression.MemoryLevel = Compute::Math<int>::Clamp(Route->Compression.MemoryLevel, 1, 9);
+							Route->Compression.MemoryLevel = Compute::Mathi::Clamp(Route->Compression.MemoryLevel, 1, 9);
 
 						if (!NMake::Unpack(Base->FindPath("auth.type"), &Route->Auth.Type))
 							Route->Auth.Type.clear();

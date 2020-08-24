@@ -706,8 +706,8 @@ namespace Tomahawk
 			Quaternion Add(const Quaternion& r) const;
 			Quaternion Lerp(const Quaternion& B, float DeltaTime) const;
 			Quaternion SphericalLerp(const Quaternion& B, float DeltaTime) const;
-			Matrix4x4 Rotation() const;
-			Vector3 Euler() const;
+			Matrix4x4 GetMatrix() const;
+			Vector3 GetEuler() const;
 			float DotProduct(const Quaternion& r) const;
 			float Length() const;
 
@@ -720,21 +720,29 @@ namespace Tomahawk
 			Compute::Vector3 Position = 0.0f;
 			Compute::Vector3 Rotation = 0.0f;
 			Compute::Vector3 Scale = 1.0f;
-			float PlayingSpeed = 1.0f;
+			float Time = 1.0f;
+		};
+
+		struct THAWK_OUT SkinAnimatorKey
+		{
+			std::vector<AnimatorKey> Pose;
+			float Time = 1.0f;
 		};
 
 		struct THAWK_OUT SkinAnimatorClip
 		{
-			std::vector<std::vector<AnimatorKey>> Keys;
+			std::vector<SkinAnimatorKey> Keys;
 			std::string Name;
-			float PlayingSpeed = 1.0f;
+			float Duration = 1.0f;
+			float Rate = 1.0f;
 		};
 
 		struct THAWK_OUT KeyAnimatorClip
 		{
 			std::vector<AnimatorKey> Keys;
 			std::string Name;
-			float PlayingSpeed = 1.0f;
+			float Duration = 1.0f;
+			float Rate = 1.0f;
 		};
 
 		struct THAWK_OUT Joint
@@ -981,87 +989,87 @@ namespace Tomahawk
 			static UInt4 L(UInt4 X, int n);
 		};
 
-		template <typename Precision>
+		template <typename T>
 		class THAWK_OUT Math
 		{
 		public:
-			static Precision Rad2Deg()
+			static T Rad2Deg()
 			{
-				return (Precision)57.2957795130f;
+				return (T)57.2957795130f;
 			}
-			static Precision Deg2Rad()
+			static T Deg2Rad()
 			{
-				return (Precision)0.01745329251f;
+				return (T)0.01745329251f;
 			}
-			static Precision Pi()
+			static T Pi()
 			{
-				return (Precision)3.14159265359f;
+				return (T)3.14159265359f;
 			}
-			static Precision Sqrt(Precision Value)
+			static T Sqrt(T Value)
 			{
-				return (Precision)std::sqrt((double)Value);
+				return (T)std::sqrt((double)Value);
 			}
-			static Precision Abs(Precision Value)
+			static T Abs(T Value)
 			{
 				return Value < 0 ? -Value : Value;
 			}
-			static Precision ATan(Precision Angle)
+			static T Atan(T Angle)
 			{
-				return (Precision)std::atan((double)Angle);
+				return (T)std::atan((double)Angle);
 			}
-			static Precision ATan2(Precision Angle0, Precision Angle1)
+			static T Atan2(T Angle0, T Angle1)
 			{
-				return (Precision)std::atan2((double)Angle0, (double)Angle1);
+				return (T)std::atan2((double)Angle0, (double)Angle1);
 			}
-			static Precision ACos(Precision Angle)
+			static T Acos(T Angle)
 			{
-				return (Precision)std::acos((double)Angle);
+				return (T)std::acos((double)Angle);
 			}
-			static Precision ASin(Precision Angle)
+			static T Asin(T Angle)
 			{
-				return (Precision)std::asin((double)Angle);
+				return (T)std::asin((double)Angle);
 			}
-			static Precision Cos(Precision Angle)
+			static T Cos(T Angle)
 			{
-				return (Precision)std::cos((double)Angle);
+				return (T)std::cos((double)Angle);
 			}
-			static Precision Sin(Precision Angle)
+			static T Sin(T Angle)
 			{
-				return (Precision)std::sin((double)Angle);
+				return (T)std::sin((double)Angle);
 			}
-			static Precision Tan(Precision Angle)
+			static T Tan(T Angle)
 			{
-				return (Precision)std::tan((double)Angle);
+				return (T)std::tan((double)Angle);
 			}
-			static Precision ACotan(Precision Angle)
+			static T Acotan(T Angle)
 			{
-				return (Precision)std::atan(1.0 / (double)Angle);
+				return (T)std::atan(1.0 / (double)Angle);
 			}
-			static Precision Max(Precision Value1, Precision Value2)
+			static T Max(T Value1, T Value2)
 			{
 				return Value1 > Value2 ? Value1 : Value2;
 			}
-			static Precision Min(Precision Value1, Precision Value2)
+			static T Min(T Value1, T Value2)
 			{
 				return Value1 < Value2 ? Value1 : Value2;
 			}
-			static Precision Floor(Precision Value)
+			static T Floor(T Value)
 			{
-				return (Precision)std::floor((double)Value);
+				return (T)std::floor((double)Value);
 			}
-			static Precision Lerp(Precision A, Precision B, Precision DeltaTime)
+			static T Lerp(T A, T B, T DeltaTime)
 			{
 				return A + DeltaTime * (B - A);
 			}
-			static Precision StrongLerp(Precision A, Precision B, Precision Time)
+			static T StrongLerp(T A, T B, T Time)
 			{
-				return ((Precision)1.0 - Time) * A + Time * B;
+				return ((T)1.0 - Time) * A + Time * B;
 			}
-			static Precision SaturateAngle(Precision Angle)
+			static T SaturateAngle(T Angle)
 			{
-				return (Precision)std::atan2(std::sin((double)Angle), std::cos((double)Angle));
+				return (T)std::atan2(std::sin((double)Angle), std::cos((double)Angle));
 			}
-			static Precision AngluarLerp(Precision A, Precision B, Precision DeltaTime)
+			static T AngluarLerp(T A, T B, T DeltaTime)
 			{
 				if (A == B)
 					return A;
@@ -1070,70 +1078,70 @@ namespace Tomahawk
 				Vector2 BCircle = Vector2(cosf((float)B), sinf((float)B));
 				Vector2 Interpolation = ACircle.Lerp(BCircle, DeltaTime);
 
-				return (Precision)std::atan2(Interpolation.Y, Interpolation.X);
+				return (T)std::atan2(Interpolation.Y, Interpolation.X);
 			}
-			static Precision AngleDistance(Precision A, Precision B)
+			static T AngleDistance(T A, T B)
 			{
-				return (Precision)Vector2(std::cos((float)A), std::sin((float)A)).Distance(Vector2(std::cos((float)B), std::sin((float)B)));
+				return (T)Vector2(std::cos((float)A), std::sin((float)A)).Distance(Vector2(std::cos((float)B), std::sin((float)B)));
 			}
-			static Precision Saturate(Precision Value)
+			static T Saturate(T Value)
 			{
 				return Min(Max(Value, 0.0), 1.0);
 			}
-			static Precision Random(Precision Number0, Precision Number1)
+			static T Random(T Number0, T Number1)
 			{
 				if (Number0 == Number1)
 					return Number0;
 
-				return (Precision)((double)Number0 + ((double)Number1 - (double)Number0) / RAND_MAX * rand());
+				return (T)((double)Number0 + ((double)Number1 - (double)Number0) / RAND_MAX * rand());
 			}
-			static Precision Round(Precision Value)
+			static T Round(T Value)
 			{
-				return (Precision)std::round((double)Value);
+				return (T)std::round((double)Value);
 			}
-			static Precision Random()
+			static T Random()
 			{
-				return (Precision)rand() / ((Precision)RAND_MAX + 1.0f);
+				return (T)rand() / ((T)RAND_MAX + 1.0f);
 			}
-			static Precision RandomMag()
+			static T RandomMag()
 			{
-				return (Precision)2.0 / RAND_MAX * rand() - (Precision)1.0;
+				return (T)2.0 / RAND_MAX * rand() - (T)1.0;
 			}
-			static Precision Pow(Precision Value0, Precision Value1)
+			static T Pow(T Value0, T Value1)
 			{
-				return (Precision)std::pow((double)Value0, (double)Value1);
+				return (T)std::pow((double)Value0, (double)Value1);
 			}
-			static Precision Pow2(Precision Value0)
+			static T Pow2(T Value0)
 			{
 				return Value0 * Value0;
 			}
-			static Precision Pow3(Precision Value0)
+			static T Pow3(T Value0)
 			{
 				return Value0 * Value0 * Value0;
 			}
-			static Precision Pow4(Precision Value0)
+			static T Pow4(T Value0)
 			{
-				Precision Value = Value0 * Value0;
+				T Value = Value0 * Value0;
 				return Value * Value;
 			}
-			static Precision Clamp(Precision Value, Precision pMin, Precision pMax)
+			static T Clamp(T Value, T pMin, T pMax)
 			{
 				return Min(Max(Value, pMin), pMax);
 			}
-			static Precision Select(Precision A, Precision B)
+			static T Select(T A, T B)
 			{
 				if (rand() < RAND_MAX / 2)
 					return B;
 
 				return A;
 			}
-			static Precision Cotan(Precision Value)
+			static T Cotan(T Value)
 			{
-				return (Precision)(1.0 / std::tan((double)Value));
+				return (T)(1.0 / std::tan((double)Value));
 			}
-			static void Swap(Precision& Value0, Precision& Value1)
+			static void Swap(T& Value0, T& Value1)
 			{
-				Precision Value2 = Value0;
+				T Value2 = Value0;
 				Value0 = Value1;
 				Value1 = Value2;
 			}
@@ -1517,7 +1525,7 @@ namespace Tomahawk
 					float KHR = 0.1f;
 					float SHR = 1;
 					float AHR = 0.7f;
-					float SRHR_CL = 0.1;
+					float SRHR_CL = 0.1f;
 					float SKHR_CL = 1;
 					float SSHR_CL = 0.5f;
 					float SR_SPLT_CL = 0.5f;
@@ -1852,6 +1860,10 @@ namespace Tomahawk
 			static btCollisionShape* CreateUnmanagedShape(std::vector<Vertex>& Mesh);
 			static btCollisionShape* CreateUnmanagedShape(btCollisionShape* From);
 		};
+
+		typedef Math<float> Mathf;
+		typedef Math<double> Mathd;
+		typedef Math<int> Mathi;
 	}
 }
 #endif

@@ -83,7 +83,7 @@ namespace Tomahawk
 				Graphics::InstanceBuffer* Instance;
 
 			public:
-				float Volume;
+				Compute::Vector3 Volume;
 				bool Connected;
 				bool QuadBased;
 
@@ -201,9 +201,9 @@ namespace Tomahawk
 
 			public:
 				std::vector<Compute::SkinAnimatorClip> Clips;
-				std::vector<Compute::AnimatorKey> Current;
-				std::vector<Compute::AnimatorKey> Bind;
-				std::vector<Compute::AnimatorKey> Default;
+				Compute::SkinAnimatorKey Current;
+				Compute::SkinAnimatorKey Bind;
+				Compute::SkinAnimatorKey Default;
 				AnimatorState State;
 
 			public:
@@ -215,18 +215,18 @@ namespace Tomahawk
 				virtual void Synchronize(Rest::Timer* Time) override;
 				virtual Component* Copy(Entity* New) override;
 				bool GetAnimation(ContentManager* Content, const std::string& Path);
+				void GetPose(Compute::SkinAnimatorKey* Result);
 				void ClearAnimation();
 				void Play(int64_t Clip = -1, int64_t Frame = -1);
 				void Pause();
 				void Stop();
-				std::vector<Compute::AnimatorKey>* GetFrame(int64_t Clip, int64_t Frame);
-				std::vector<std::vector<Compute::AnimatorKey>>* GetClip(int64_t Clip);
+				Compute::SkinAnimatorKey* GetFrame(int64_t Clip, int64_t Frame);
+				std::vector<Compute::SkinAnimatorKey>* GetClip(int64_t Clip);
 				Skin* GetSkin() const;
 				std::string GetPath();
 
 			private:
 				void BlendAnimation(int64_t Clip, int64_t Frame);
-				void RecordPose();
 				bool IsPosed(int64_t Clip, int64_t Frame);
 
 			public:
@@ -251,6 +251,7 @@ namespace Tomahawk
 				virtual void Synchronize(Rest::Timer* Time) override;
 				virtual Component* Copy(Entity* New) override;
 				bool GetAnimation(ContentManager* Content, const std::string& Path);
+				void GetPose(Compute::AnimatorKey* Result);
 				void ClearAnimation();
 				void Play(int64_t Clip = -1, int64_t Frame = -1);
 				void Pause();
@@ -261,7 +262,6 @@ namespace Tomahawk
 
 			private:
 				void BlendAnimation(int64_t Clip, int64_t Frame);
-				void RecordPose();
 				bool IsPosed(int64_t Clip, int64_t Frame);
 
 			public:
@@ -638,6 +638,7 @@ namespace Tomahawk
 			protected:
 				RenderSystem* Renderer = nullptr;
 				Compute::Matrix4x4 Projection;
+				Graphics::Viewport Viewport;
 				Viewer FieldView;
 
 			public:
@@ -719,6 +720,7 @@ namespace Tomahawk
 				virtual Component* Copy(Entity* New) override;
 				int Call(const std::string& Name, unsigned int Args, const InvocationCallback& ArgCallback);
 				int Call(Tomahawk::Script::VMCFunction* Entry, const InvocationCallback& ArgCallback);
+				int CallEntry(const std::string& Name);
 				int SetSource();
 				int SetSource(SourceType Type, const std::string& Source);
 				void SetInvocation(InvokeType Type);

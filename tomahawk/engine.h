@@ -15,7 +15,6 @@ namespace Tomahawk
 		typedef std::function<void(Rest::Timer*, struct Viewer*)> RenderCallback;
 		typedef std::function<void(class ContentManager*, bool)> SaveCallback;
 		typedef std::function<void(class Entity*, class Component*, bool)> MutationCallback;
-		typedef std::function<void(class Component*, Script::VMGlobal*)> ScriptHookCallback;
 
 		class SceneGraph;
 
@@ -94,11 +93,11 @@ namespace Tomahawk
 			Compute::Vector4 Emission;
 			Compute::Vector4 Metallic;
 			Compute::Vector2 Roughness = { 1, 0 };
+			Compute::Vector2 Occlusion = { 1, 0 };
 			float Fresnel = 0.0f;
 			float Limpidity = 0.0f;
 			float Refraction = 0.0f;
 			float Environment = 0.0f;
-			float Occlusion = 1.0f;
 			float Radius = 0.0f;
 			float Id = 0.0f;
 		};
@@ -157,8 +156,8 @@ namespace Tomahawk
 			bool Paused = false;
 			bool Looped = false;
 			bool Blended = false;
-			float Length = 15.0f;
-			float Speed = 1.0f;
+			float Duration = -1.0f;
+			float Rate = 1.0f;
 			float Time = 0.0f;
 			int64_t Frame = -1;
 			int64_t Clip = -1;
@@ -235,6 +234,7 @@ namespace Tomahawk
 			static bool Pack(Rest::Document* V, const AnimatorState& Value);
 			static bool Pack(Rest::Document* V, const SpawnerProperties& Value);
 			static bool Pack(Rest::Document* V, const Appearance& Value, ContentManager* Content);
+			static bool Pack(Rest::Document* V, const Compute::SkinAnimatorKey& Value);
 			static bool Pack(Rest::Document* V, const Compute::SkinAnimatorClip& Value);
 			static bool Pack(Rest::Document* V, const Compute::KeyAnimatorClip& Value);
 			static bool Pack(Rest::Document* V, const Compute::AnimatorKey& Value);
@@ -287,6 +287,7 @@ namespace Tomahawk
 			static bool Unpack(Rest::Document* V, AnimatorState* O);
 			static bool Unpack(Rest::Document* V, SpawnerProperties* O);
 			static bool Unpack(Rest::Document* V, Appearance* O, ContentManager* Content);
+			static bool Unpack(Rest::Document* V, Compute::SkinAnimatorKey* O);
 			static bool Unpack(Rest::Document* V, Compute::SkinAnimatorClip* O);
 			static bool Unpack(Rest::Document* V, Compute::KeyAnimatorClip* O);
 			static bool Unpack(Rest::Document* V, Compute::AnimatorKey* O);
@@ -418,6 +419,7 @@ namespace Tomahawk
 			virtual ~Cullable() = default;
 			virtual float Cull(const Viewer& View) = 0;
 			virtual Component* Copy(Entity* New) = 0;
+			virtual void ClearCull();
 			float GetRange();
 			bool IsVisible(const Viewer& View, Compute::Matrix4x4* World);
 			bool IsNear(const Viewer& View);
@@ -433,15 +435,23 @@ namespace Tomahawk
 
 		protected:
 			std::unordered_map<void*, Appearance> Surfaces;
+			Graphics::Query* Query;
+			uint64_t Fragments;
+			int Satisfied;
 
 		public:
 			bool Static;
 
 		public:
 			Drawable(Entity* Ref, bool Complex);
-			virtual ~Drawable() = default;
+			virtual ~Drawable();
 			virtual void Pipe(Event* Value) override;
 			virtual Component* Copy(Entity* New) = 0;
+			virtual void ClearCull() override;
+			bool FragmentBegin(Graphics::GraphicsDevice* Device);
+			void FragmentEnd(Graphics::GraphicsDevice* Device);
+			int FetchFragments(RenderSystem* System);
+			uint64_t GetFragmentsCount();
 			const std::unordered_map<void*, Appearance>& GetSurfaces();
 			Material* GetMaterial(Appearance* Surface);
 			Material* GetMaterial();
@@ -465,6 +475,7 @@ namespace Tomahawk
 			Compute::Transform* Transform;
 			std::string Name;
 			int64_t Id, Tag;
+			float Distance;
 
 		public:
 			Entity(SceneGraph* Ref);
@@ -518,6 +529,7 @@ namespace Tomahawk
 			virtual ~Renderer() override;
 			virtual void Serialize(ContentManager* Content, Rest::Document* Node);
 			virtual void Deserialize(ContentManager* Content, Rest::Document* Node);
+			virtual void CullGeometry(const Viewer& View);
 			virtual void ResizeBuffers();
 			virtual void Activate();
 			virtual void Deactivate();
@@ -534,11 +546,13 @@ namespace Tomahawk
 		public:
 			GeoRenderer(RenderSystem* Lab);
 			virtual ~GeoRenderer() override;
+			virtual void CullGeometry(const Viewer& View, Rest::Pool<Component*>* Geometry);
 			virtual void RenderGBuffer(Rest::Timer* TimeStep, Rest::Pool<Component*>* Geometry, RenderOpt Options) = 0;
 			virtual void RenderDepthLinear(Rest::Timer* TimeStep, Rest::Pool<Component*>* Geometry) = 0;
 			virtual void RenderDepthCubic(Rest::Timer* TimeStep, Rest::Pool<Component*>* Geometry, Compute::Matrix4x4* ViewProjection) = 0;
 			virtual Rest::Pool<Component*>* GetOpaque() = 0;
 			virtual Rest::Pool<Component*>* GetLimpid(uint64_t Layer) = 0;
+			void CullGeometry(const Viewer& View) override;
 			void Render(Rest::Timer* TimeStep, RenderState State, RenderOpt Options) override;
 
 		public:
@@ -618,40 +632,67 @@ namespace Tomahawk
 		protected:
 			std::unordered_map<uint64_t, Rest::Pool<Component*>*> Cull;
 			std::vector<Renderer*> Renderers;
+			Graphics::DepthStencilState* DepthStencil;
+			Graphics::BlendState* Blend;
+			Graphics::SamplerState* Sampler;
+			Graphics::DepthBuffer* Target;
 			Graphics::ElementBuffer* QuadVertex;
 			Graphics::ElementBuffer* SphereVertex;
 			Graphics::ElementBuffer* SphereIndex;
 			Graphics::ElementBuffer* CubeVertex;
 			Graphics::ElementBuffer* CubeIndex;
+			Graphics::ElementBuffer* BoxVertex;
+			Graphics::ElementBuffer* BoxIndex;
+			Graphics::ElementBuffer* SkinBoxVertex;
+			Graphics::ElementBuffer* SkinBoxIndex;
 			Graphics::GraphicsDevice* Device;
 			SceneGraph* Scene;
+			size_t DepthSize;
+			bool Satisfied;
 
 		public:
-			bool EnableCull;
+			Rest::TickTimer Occlusion;
+			Rest::TickTimer Sorting;
+			size_t StallFrames;
+			bool EnableOcclusionCull;
+			bool EnableFrustumCull;
 
 		public:
 			RenderSystem(Graphics::GraphicsDevice* Device);
 			virtual ~RenderSystem() override;
+			void SetDepthSize(size_t Size);
 			void SetScene(SceneGraph* NewScene);
 			void Remount();
-			void Synchronize(const Viewer& View);
+			void ClearCull();
+			void CullGeometry(Rest::Timer* Time, const Viewer& View);
+			void Synchronize(Rest::Timer* Time, const Viewer& View);
 			void MoveRenderer(uint64_t Id, int64_t Offset);
 			void RemoveRenderer(uint64_t Id);
 			void FreeShader(const std::string& Name, Graphics::Shader* Shader);
-			bool Renderable(Cullable* Base, CullResult Mode, float* Result);
+			bool PassCullable(Cullable* Base, CullResult Mode, float* Result);
+			bool PassDrawable(Drawable* Base, CullResult Mode, float* Result);
 			Graphics::Shader* CompileShader(const std::string& Name, Graphics::Shader::Desc& Desc, size_t BufferSize = 0);
 			Renderer* AddRenderer(Renderer* In);
 			Renderer* GetRenderer(uint64_t Id);
+			size_t GetDepthSize();
 			size_t GetQuadVSize();
 			size_t GetSphereVSize();
 			size_t GetSphereISize();
 			size_t GetCubeVSize();
 			size_t GetCubeISize();
+			size_t GetBoxVSize();
+			size_t GetBoxISize();
+			size_t GetSkinBoxVSize();
+			size_t GetSkinBoxISize();
 			Graphics::ElementBuffer* GetQuadVBuffer();
 			Graphics::ElementBuffer* GetSphereVBuffer();
 			Graphics::ElementBuffer* GetSphereIBuffer();
 			Graphics::ElementBuffer* GetCubeVBuffer();
 			Graphics::ElementBuffer* GetCubeIBuffer();
+			Graphics::ElementBuffer* GetBoxVBuffer();
+			Graphics::ElementBuffer* GetBoxIBuffer();
+			Graphics::ElementBuffer* GetSkinBoxVBuffer();
+			Graphics::ElementBuffer* GetSkinBoxIBuffer();
 			std::vector<Renderer*>* GetRenderers();
 			Graphics::GraphicsDevice* GetDevice();
 			SceneGraph* GetScene();
@@ -761,7 +802,6 @@ namespace Tomahawk
 			std::vector<Event*> Events;
 			Rest::Pool<Component*> Pending;
 			Rest::Pool<Entity*> Entities;
-			ScriptHookCallback ScriptHook;
 			Component* Camera = nullptr;
 			Desc Conf;
 			bool Active;
@@ -790,14 +830,17 @@ namespace Tomahawk
 			void SortEntitiesBackToFront();
 			void SortEntitiesBackToFront(uint64_t Section);
 			void SortEntitiesBackToFront(Rest::Pool<Component*>* Array);
+			void SortEntitiesFrontToBack();
+			void SortEntitiesFrontToBack(uint64_t Section);
+			void SortEntitiesFrontToBack(Rest::Pool<Component*>* Array);
 			void Redistribute();
 			void Reindex();
 			void ExpandMaterialStructure();
 			void Lock();
 			void Unlock();
 			void ResizeBuffers();
+			void ScriptHook(const std::string& Name = "main");
 			void SwapSurface(Graphics::MultiRenderTarget2D* NewSurface);
-			void SetScriptHook(const ScriptHookCallback& Callback);
 			void SetActive(bool Enabled);
 			void SetView(const Compute::Matrix4x4& View, const Compute::Matrix4x4& Projection, const Compute::Vector3& Position, float Distance, bool Upload);
 			void SetSurface();
@@ -844,7 +887,6 @@ namespace Tomahawk
 			Rest::EventQueue* GetQueue();
 			Compute::Simulator* GetSimulator();
 			ShaderCache* GetCache();
-			ScriptHookCallback& GetScriptHook();
 			Desc& GetConf();
 
 		protected:
@@ -1108,6 +1150,7 @@ namespace Tomahawk
 			virtual void InputEvent(char* Buffer, int Length);
 			virtual void WheelEvent(int X, int Y, bool Normal);
 			virtual void WindowEvent(Graphics::WindowState NewState, int X, int Y);
+			virtual void ScriptHook(Script::VMGlobal* Global);
 			virtual bool ComposeEvent();
 			virtual void Render(Rest::Timer* Time);
 			virtual void Update(Rest::Timer* Time);

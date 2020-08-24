@@ -5,7 +5,7 @@
 #include <io.h>
 #include <wepoll.h>
 #else
-																														#include <arpa/inet.h>
+#include <arpa/inet.h>
 #include <cstring>
 #include <netdb.h>
 #include <netinet/in.h>
@@ -125,6 +125,13 @@ namespace Tomahawk
 				else
 					Util::ProcessWebSocketPass(Base);
 			}
+			void WebSocketFrame::Resolve(Script::VMExecState Result)
+			{
+				if (Result == Script::VMExecState_ERROR || Result == Script::VMExecState_EXCEPTION)
+					Finish();
+				else if (Result != Script::VMExecState_SUSPENDED)
+					Next();
+			}
 			void WebSocketFrame::Notify()
 			{
 				Notified = true;
@@ -135,19 +142,28 @@ namespace Tomahawk
 				return Save;
 			}
 
+			GatewayFrame::GatewayFrame(char* Data, uint64_t DataSize) : Buffer(Data), Size(DataSize), Compiler(nullptr), Base(nullptr), Save(false)
+			{
+			}
 			bool GatewayFrame::Done(bool Normal)
 			{
 				Base->Unlock();
-				if (Destroy && !Destroy(this, Device))
+				if (!Save)
 				{
+					if (Compiler != nullptr)
+					{
+						Compiler->Clear();
+						delete Compiler;
+						Compiler = nullptr;
+					}
+
+					Save = true;
 					return Base->Root->GetQueue()->Task<GatewayFrame>(nullptr, [this, Normal](Rest::EventQueue*, Rest::EventArgs*)
 					{
 						Done(Normal);
 					}) || true;
 				}
 
-				Save = true;
-				Device = nullptr;
 				if (Base->WebSocket != nullptr)
 				{
 					Base->Response.Buffer.clear();
@@ -170,109 +186,92 @@ namespace Tomahawk
 
 				return Base->Finish() && false;
 			}
-			bool GatewayFrame::Finish(const GatewayFreeCallback& Function)
+			bool GatewayFrame::Finish()
 			{
 				Base->Unlock();
-				if (Buffer)
+				if (Buffer != nullptr)
 				{
 					free(Buffer);
 					Buffer = nullptr;
 				}
 
-				Destroy = Function;
 				if (!Base->WebSocket)
 					return Done(true);
 
 				Base->WebSocket->Next();
 				return true;
 			}
-			bool GatewayFrame::Error(const GatewayFreeCallback& Function)
+			bool GatewayFrame::Error()
 			{
 				Base->Unlock();
-				if (Buffer)
+				if (Buffer != nullptr)
 				{
 					free(Buffer);
 					Buffer = nullptr;
 				}
 
-				Destroy = Function;
 				if (!Base->WebSocket)
 					return Done(false);
 
 				Base->WebSocket->Finish();
 				return true;
 			}
-			bool GatewayFrame::Next()
+			bool GatewayFrame::Start()
 			{
-				if (!Base || !Buffer || !Callback)
-					return false;
+				if (!Base || !Buffer || !Size)
+				{
+					if (!Compiler && Base->Response.StatusCode <= 0)
+						Base->Response.StatusCode = 200;
+
+					return Finish();
+				}
 
 				Base->Lock();
-				if (Core)
-				{
-					return Base->Root->GetQueue()->Task<GatewayFrame>(nullptr, [this](Rest::EventQueue*, Rest::EventArgs*)
-					{
-						if (!EoF)
-						{
-							EoF = true;
-							Callback(this, Buffer, Size, Type);
-						}
-						else
-							Callback(this, nullptr, 0, Type);
-					});
-				}
-
-				if (!EoF)
-				{
-					for (; i < Size; i++)
-					{
-						if (i + 3 >= Size || Buffer[i] != '<' || (Buffer[i + 1] != '?' && Buffer[i + 1] != '!'))
-							continue;
-
-						if (i > 0)
-							Base->Response.Buffer.append(std::string(Buffer + Offset, i - Offset));
-
-						i += 2;
-						Offset = i;
-						EoF = true;
-
-						while (i + 1 < Size)
-						{
-							if ((Buffer[i] == '!' || Buffer[i] == '?') && Buffer[i + 1] == '>')
-							{
-								EoF = false;
-								break;
-							}
-							i++;
-						}
-
-						const char* Data = Buffer + Offset;
-						uint64_t SSize = i - Offset;
-						Type = Buffer[i];
-						i += 2;
-						Offset = i;
-
-						if (SSize <= 2)
-							continue;
-
-						return Base->Root->GetQueue()->Task<GatewayFrame>(nullptr, [this, Data, SSize](Rest::EventQueue*, Rest::EventArgs*)
-						{
-							Callback(this, Data, SSize, Type);
-						});
-					}
-				}
-
-				if (!EoF && Offset != i && !(i - Offset == 1 && Buffer[Offset] == '\0'))
-					Base->Response.Buffer.append(std::string(Buffer + Offset, i - Offset));
-
 				return Base->Root->GetQueue()->Task<GatewayFrame>(nullptr, [this](Rest::EventQueue*, Rest::EventArgs*)
 				{
-					Callback(this, nullptr, 0, Type);
+					std::string SectionName = Base->Request.Path;
+					SectionName += std::to_string(Compute::MathCommon::RandomNumber(111111111111111, 999999999999999));
+
+					int Result = Compiler->LoadCode(SectionName.c_str(), Buffer, Size);
+					if (Result < 0)
+						return Finish();
+
+					Result = Compiler->Compile(true);
+					if (Result < 0)
+						return Finish();
+
+					Script::VMWFunction Main = Compiler->GetModule().GetFunctionByName("main");
+					if (Main.IsValid())
+					{
+						Script::VMContext* Context = Compiler->GetContext();
+
+						Result = Context->Prepare(Main);
+						if (Result < 0)
+							return Finish();
+
+						Result = Context->Execute();
+					}
+
+					return Resolve((Script::VMExecState)Result);
 				});
+			}
+			bool GatewayFrame::Resolve(Script::VMExecState Result)
+			{
+				if (Result == Script::VMExecState_ERROR || Result == Script::VMExecState_EXCEPTION)
+					return Finish();
+				
+				if (Result != Script::VMExecState_SUSPENDED)
+					return Finish();
+
+				return true;
 			}
 			bool GatewayFrame::IsDone()
 			{
 				return Save;
+			}
+			Script::VMContext* GatewayFrame::GetContext()
+			{
+				return (Compiler ? Compiler->GetContext() : nullptr);
 			}
 
 			SiteEntry::SiteEntry()
@@ -422,7 +421,7 @@ namespace Tomahawk
 				return true;
 			}
 
-			MapRouter::MapRouter()
+			MapRouter::MapRouter() : VM(nullptr)
 			{
 			}
 			MapRouter::~MapRouter()
@@ -1156,7 +1155,7 @@ namespace Tomahawk
 				{
 					if (!Gateway->IsDone())
 					{
-						Gateway->Finish(nullptr);
+						Gateway->Finish();
 						return true;
 					}
 
@@ -3754,7 +3753,7 @@ namespace Tomahawk
 
 				for (auto It = Base->Route->Gateway.Files.begin(); It != Base->Route->Gateway.Files.end(); It++)
 				{
-					if (!Compute::Regex::Match(&It->Value, nullptr, Base->Request.Path))
+					if (!Compute::Regex::Match(&(*It), nullptr, Base->Request.Path))
 						continue;
 
 					return Resource->Size > 0;
@@ -4715,43 +4714,52 @@ namespace Tomahawk
 				if (!Base || !Base->Route || !Base->Route->Callbacks.Gateway)
 					return false;
 
-				bool IsCore = false;
+				Script::VMManager* VM = ((MapRouter*)Base->Root->GetRouter())->VM;
+				if (!VM)
+					return Base->Error(500, "Gateway cannot be issued.") && false;
+
 				for (auto It = Base->Route->Gateway.Files.begin(); It != Base->Route->Gateway.Files.end(); It++)
 				{
-					if (!Compute::Regex::Match(&It->Value, nullptr, Base->Request.Path))
+					if (!Compute::Regex::Match(&(*It), nullptr, Base->Request.Path))
 						continue;
 
-					IsCore = It->Core;
 					break;
 				}
 
-				Base->Gateway = new GatewayFrame();
-				Base->Gateway->Manager = Base->Route->Site->Gateway.Manager;
-				Base->Gateway->Size = Base->Resource.Size;
-				Base->Gateway->Base = Base;
-				Base->Gateway->Core = IsCore;
-				Base->Gateway->Callback = Base->Route->Callbacks.Gateway;
-
-				return Base->Root->Queue->Task<GatewayFrame>(Base->Gateway, [](Rest::EventQueue* Queue, Rest::EventArgs* Args)
+				return Base->Root->Queue->Task<GatewayFrame>(nullptr, [=](Rest::EventQueue* Queue, Rest::EventArgs* Args)
 				{
-					GatewayFrame* Frame = Args->Get<GatewayFrame>();
-					if (!Frame || !Frame->Base)
-						return;
-
-					FILE* Stream = (FILE*)Rest::OS::Open(Frame->Base->Request.Path.c_str(), "rb");
+					FILE* Stream = (FILE*)Rest::OS::Open(Base->Request.Path.c_str(), "rb");
 					if (!Stream)
-						return (void)Frame->Base->Error(404, "Gateway resource was not found.");
+						return (void)Base->Error(404, "Gateway resource was not found.");
 
-					Frame->Buffer = (char*)malloc((size_t)(Frame->Size + 1) * sizeof(char));
-					if (fread(Frame->Buffer, 1, (size_t)Frame->Size, Stream) != (size_t)Frame->Size)
+					uint64_t Size = Base->Resource.Size;
+					char* Buffer = (char*)malloc((size_t)(Size + 1) * sizeof(char));
+					if (fread(Buffer, 1, (size_t)Size, Stream) != (size_t)Size)
 					{
 						fclose(Stream);
-						return (void)Frame->Base->Error(500, "Gateway resource stream exception.");
+						free(Buffer);
+						return (void)Base->Error(500, "Gateway resource stream exception.");
 					}
 
+					Buffer[Size] = '\0';
 					fclose(Stream);
-					Frame->Buffer[Frame->Size] = '\0';
-					Frame->Next();
+
+					Script::VMCompiler* Compiler = VM->CreateCompiler();
+					Compiler->PrepareScope(Base->Request.Path);
+
+					if (Base->Route->Callbacks.Gateway)
+					{
+						if (!Base->Route->Callbacks.Gateway(Base, Compiler))
+						{
+							delete Compiler;
+							return (void)Base->Error(500, "Gateway creation exception.");
+						}
+					}
+
+					Base->Gateway = new GatewayFrame(Buffer, Size);
+					Base->Gateway->Base = Base;
+					Base->Gateway->Compiler = Compiler;
+					Base->Gateway->Start();
 				});
 			}
 			bool Util::ProcessWebSocket(Connection* Base, const char* Key)
@@ -4972,10 +4980,10 @@ namespace Tomahawk
 				std::string Directory = Rest::OS::GetDirectory();
 				auto* Root = (MapRouter*)NewRouter;
 
+				Root->ModuleRoot = Rest::OS::ResolveDir(Root->ModuleRoot.c_str());
 				for (auto K = Root->Sites.begin(); K != Root->Sites.end(); K++)
 				{
 					SiteEntry* Entry = *K;
-					Entry->Gateway.ModuleRoot = Rest::OS::ResolveDir(Entry->Gateway.ModuleRoot.c_str());
 					Entry->Gateway.Session.DocumentRoot = Rest::OS::ResolveDir(Entry->Gateway.Session.DocumentRoot.c_str());
 					Entry->ResourceRoot = Rest::OS::ResolveDir(Entry->ResourceRoot.c_str());
 					Entry->Base->URI.Regex = "/";
@@ -5219,17 +5227,6 @@ namespace Tomahawk
 			}
 			bool Server::OnListen(Rest::EventQueue* Loop)
 			{
-				MapRouter* Root = (MapRouter*)Router;
-				for (auto K = Root->Sites.begin(); K != Root->Sites.end(); K++)
-				{
-					SiteEntry* Entry = *K;
-					if (Entry->Callbacks.OnGatewayRelease)
-						Entry->Callbacks.OnGatewayRelease(&Entry->Gateway.Manager, Entry);
-
-					if (Entry->Callbacks.OnGatewayCreate)
-						Entry->Callbacks.OnGatewayCreate(&Entry->Gateway.Manager, Entry);
-				}
-
 				return true;
 			}
 			bool Server::OnUnlisten()
@@ -5238,9 +5235,6 @@ namespace Tomahawk
 				for (auto K = Root->Sites.begin(); K != Root->Sites.end(); K++)
 				{
 					SiteEntry* Entry = *K;
-					if (Entry->Callbacks.OnGatewayRelease)
-						Entry->Callbacks.OnGatewayRelease(&Entry->Gateway.Manager, Entry);
-
 					if (!Entry->ResourceRoot.empty())
 					{
 						if (!Rest::OS::RemoveDir(Entry->ResourceRoot.c_str()))

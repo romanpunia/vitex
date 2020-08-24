@@ -5,13 +5,13 @@
 #include <type_traits>
 #include <random>
 
-class CScriptArray;
-class CScriptAny;
-class CScriptDictionary;
-class CScriptGrid;
-class CScriptWeakRef;
-class CScriptHandle;
-class asCJITCompiler;
+class VMCArray;
+class VMCAny;
+class VMCDictionary;
+class VMCGrid;
+class VMCWeakRef;
+class VMCRef;
+class VMCJITCompiler;
 class asIScriptEngine;
 class asIScriptContext;
 class asIScriptModule;
@@ -321,15 +321,10 @@ namespace Tomahawk
 			VMFeature_Random = (1 << 10),
 			VMFeature_Thread = (1 << 11),
 			VMFeature_Async = (1 << 12),
-			VMFeature_Console = (1 << 13)
+			VMFeature_Complex = (1 << 13),
+			VMFeature_Rest = (1 << 14)
 		};
 
-		typedef CScriptArray VMCArray;
-		typedef CScriptAny VMCAny;
-		typedef CScriptDictionary VMCDictionary;
-		typedef CScriptGrid VMCGrid;
-		typedef CScriptWeakRef VMCWeakRef;
-		typedef CScriptHandle VMCRef;
 		typedef asIScriptEngine VMCManager;
 		typedef asIScriptContext VMCContext;
 		typedef asIScriptModule VMCModule;
@@ -581,7 +576,7 @@ namespace Tomahawk
 				((T*)Memory)->~T();
 			}
 			template <typename T, const char* TypeName, typename... Args>
-			static T* BindManaged(Args&& ... Data)
+			static T* BindManaged(Args... Data)
 			{
 				auto* Result = new T(Data...);
 				VMCThread::AtomicNotifyGC(TypeName, (void*)Result);
@@ -597,7 +592,7 @@ namespace Tomahawk
 				VMCThread::AtomicNotifyGC(TypeName, (void*)Result);
 			}
 			template <typename T, typename... Args>
-			static T* BindUnmanaged(Args&& ... Data)
+			static T* BindUnmanaged(Args... Data)
 			{
 				return new T(Data...);
 			}
@@ -637,7 +632,7 @@ namespace Tomahawk
 			friend class VMCThread;
 
 		private:
-			std::vector<CScriptAny*> Queue;
+			std::vector<VMCAny*> Queue;
 			std::condition_variable CV;
 			std::mutex Mutex;
 			int Debug;
@@ -731,6 +726,7 @@ namespace Tomahawk
 			int Set(const struct VMWAny& Value);
 			int Set(void* Ref, int TypeId);
 			int Set(void* Ref, const char* TypeName);
+			bool GetAny(void* Ref, int TypeId) const;
 			VMCAny* Get() const;
 			VMCAsync* Await();
 
@@ -1581,6 +1577,15 @@ namespace Tomahawk
 				return Result;
 			}
 			template <typename T>
+			int SetUnmanagedConstructorListEx(const char* Decl, void(*Value)(VMCGeneric*))
+			{
+				asSFuncPtr* Functor = VMBind::BindFunctionGeneric(Value);
+				int Result = SetBehaviourAddress(Decl, VMBehave_LIST_FACTORY, Functor, VMCall_GENERIC);
+				VMBind::ReleaseFunctor(&Functor);
+
+				return Result;
+			}
+			template <typename T>
 			int SetAddRef()
 			{
 				asSFuncPtr* AddRef = VMBind::BindFunction(&Rest::Factory::AddRef);
@@ -2008,11 +2013,12 @@ namespace Tomahawk
 			int LoadByteCode(VMByteCode* Info);
 			int LoadFile(const std::string& Path);
 			int LoadCode(const std::string& Name, const std::string& Buffer);
-			int InterpretFile(const char* Name, const char* ModuleName, const char* EntryName, void* Return = nullptr, int ReturnTypeId = VMTypeId_VOID);
-			int InterpretMemory(const std::string& Buffer, const char* ModuleName, const char* EntryName, void* Return = nullptr, int ReturnTypeId = VMTypeId_VOID);
-			int InterpretEntry(const char* Name, void* Return = nullptr, int ReturnTypeId = VMTypeId_VOID);
-			int InterpretScoped(const std::string& Code, void* Return = nullptr, int ReturnTypeId = VMTypeId_VOID);
-			int InterpretScoped(const char* Buffer, uint64_t Length, void* Return = nullptr, int ReturnTypeId = VMTypeId_VOID);
+			int LoadCode(const std::string& Name, const char* Buffer, uint64_t Length);
+			int ExecuteFile(const char* Name, const char* ModuleName, const char* EntryName, void* Return = nullptr, int ReturnTypeId = VMTypeId_VOID);
+			int ExecuteMemory(const std::string& Buffer, const char* ModuleName, const char* EntryName, void* Return = nullptr, int ReturnTypeId = VMTypeId_VOID);
+			int ExecuteEntry(const char* Name, void* Return = nullptr, int ReturnTypeId = VMTypeId_VOID);
+			int ExecuteScoped(const std::string& Code, void* Return = nullptr, int ReturnTypeId = VMTypeId_VOID);
+			int ExecuteScoped(const char* Buffer, uint64_t Length, void* Return = nullptr, int ReturnTypeId = VMTypeId_VOID);
 			VMWModule GetModule() const;
 			VMManager* GetManager() const;
 			VMContext* GetContext() const;
@@ -2125,21 +2131,26 @@ namespace Tomahawk
 			static int ManagerUD;
 
 		private:
-			std::unordered_map<std::string, VMByteCode> Cache;
+			std::unordered_map<std::string, std::string> Files;
+			std::unordered_map<std::string, Rest::Document*> Datas;
+			std::unordered_map<std::string, VMByteCode> Opcodes;
 			std::vector<VMCContext*> Contexts;
 			Compute::Preprocessor::Desc Proc;
 			Compute::IncludeDesc Include;
 			std::mutex Safe;
 			uint64_t Features;
-			asCJITCompiler* JIT;
+			uint64_t Scope;
+			VMCJITCompiler* JIT;
 			VMCManager* Engine;
 			VMGlobal Globals;
+			bool Cached;
 
 		public:
 			VMManager();
 			~VMManager();
 			void Setup(uint64_t NewFeatures);
 			void SetupJIT(unsigned int JITOpts);
+			void SetCache(bool Enabled);
 			void ClearCache();
 			void Lock();
 			void Unlock();
@@ -2191,22 +2202,8 @@ namespace Tomahawk
 			VMCManager* GetEngine() const;
 			std::string GetDocumentRoot() const;
 			std::string GetScopedName(const std::string& Name);
-
-		private:
-			void EnableString();
-			void EnableArray(bool Default);
-			void EnableAny();
-			void EnableDictionary();
-			void EnableGrid();
-			void EnableMath();
-			void EnableDateTime();
-			void EnableException();
-			void EnableReference();
-			void EnableWeakReference();
-			void EnableRandom();
-			void EnableThread();
-			void EnableAsync();
-			void EnableLibrary();
+			Rest::Document* ImportJSON(const std::string& Path);
+			bool ImportFile(const std::string& Path, std::string* Out);
 
 		public:
 			static VMManager* Get(VMCManager* Engine);

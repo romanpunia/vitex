@@ -190,12 +190,38 @@ namespace Tomahawk
 				return (void*)nullptr;
 			}
 
+			OGLDepthBuffer::OGLDepthBuffer(const Desc& I) : Graphics::DepthBuffer(I)
+			{
+			}
+			OGLDepthBuffer::~OGLDepthBuffer()
+			{
+				glDeleteFramebuffers(1, &FrameBuffer);
+				glDeleteRenderbuffers(1, &DepthBuffer);
+			}
+			Viewport OGLDepthBuffer::GetViewport()
+			{
+				return Viewport;
+			}
+			float OGLDepthBuffer::GetWidth()
+			{
+				return Viewport.Width;
+			}
+			float OGLDepthBuffer::GetHeight()
+			{
+				return Viewport.Height;
+			}
+			void* OGLDepthBuffer::GetResource()
+			{
+				return (void*)(intptr_t)DepthBuffer;
+			}
+
 			OGLRenderTarget2D::OGLRenderTarget2D(const Desc& I) : RenderTarget2D(I)
 			{
 			}
 			OGLRenderTarget2D::~OGLRenderTarget2D()
 			{
 				glDeleteFramebuffers(1, &FrameBuffer);
+				glDeleteRenderbuffers(1, &DepthBuffer);
 			}
 			Viewport OGLRenderTarget2D::GetViewport()
 			{
@@ -605,6 +631,15 @@ namespace Tomahawk
 			{
 				SetTarget(RenderTarget);
 			}
+			void OGLDevice::SetTarget(DepthBuffer* Resource)
+			{
+				OGLDepthBuffer* IResource = (OGLDepthBuffer*)Resource;
+				if (!IResource)
+					return;
+
+				glBindFramebuffer(GL_FRAMEBUFFER, IResource->FrameBuffer != GL_INVALID_VALUE ? IResource->FrameBuffer : 0);
+				glViewport((GLuint)IResource->Viewport.TopLeftX, (GLuint)IResource->Viewport.TopLeftY, (GLuint)IResource->Viewport.Width, (GLuint)IResource->Viewport.Height);
+			}
 			void OGLDevice::SetTarget(RenderTarget2D* Resource, float R, float G, float B)
 			{
 				OGLRenderTarget2D* IResource = (OGLRenderTarget2D*)Resource;
@@ -989,6 +1024,10 @@ namespace Tomahawk
 			void OGLDevice::ClearDepth()
 			{
 				ClearDepth(RenderTarget);
+			}
+			void OGLDevice::ClearDepth(DepthBuffer* Resource)
+			{
+				glClear(GL_DEPTH_BUFFER_BIT | GL_STENCIL_BUFFER_BIT);
 			}
 			void OGLDevice::ClearDepth(RenderTarget2D* Resource)
 			{
@@ -1648,6 +1687,26 @@ namespace Tomahawk
 
 				OGLTextureCube* Result = new OGLTextureCube();
 				/* TODO: IMPL */
+				return Result;
+			}
+			DepthBuffer* OGLDevice::CreateDepthBuffer(const DepthBuffer::Desc& I)
+			{
+				OGLDepthBuffer* Result = new OGLDepthBuffer(I);
+				glGenFramebuffers(1, &Result->FrameBuffer);
+				glGenRenderbuffers(1, &Result->DepthBuffer);
+				glBindRenderbuffer(GL_RENDERBUFFER, Result->DepthBuffer);
+				glRenderbufferStorage(GL_RENDERBUFFER, GL_DEPTH24_STENCIL8, I.Width, I.Height);
+				glBindRenderbuffer(GL_RENDERBUFFER, 0);
+				glFramebufferRenderbuffer(GL_FRAMEBUFFER, GL_DEPTH_STENCIL_ATTACHMENT, GL_RENDERBUFFER, Result->DepthBuffer);
+				glBindFramebuffer(GL_FRAMEBUFFER, 0);
+			
+				Result->Viewport.Width = (float)I.Width;
+				Result->Viewport.Height = (float)I.Height;
+				Result->Viewport.TopLeftX = 0.0f;
+				Result->Viewport.TopLeftY = 0.0f;
+				Result->Viewport.MinDepth = 0.0f;
+				Result->Viewport.MaxDepth = 1.0f;
+
 				return Result;
 			}
 			RenderTarget2D* OGLDevice::CreateRenderTarget2D(const RenderTarget2D::Desc& I)

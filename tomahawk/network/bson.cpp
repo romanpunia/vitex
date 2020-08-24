@@ -82,7 +82,7 @@ namespace Tomahawk
 			TDocument* Document::Create(Rest::Document* Document)
 			{
 #ifdef THAWK_HAS_MONGOC
-				if (!Document)
+				if (!Document || !Document->IsObject())
 					return nullptr;
 
 				TDocument* New = bson_new();
@@ -665,6 +665,34 @@ namespace Tomahawk
 				return bson_count_keys(Document);
 #else
 				return 0;
+#endif
+			}
+			std::string Document::OIdToString(unsigned char* Id12)
+			{
+#ifdef THAWK_HAS_MONGOC
+				if (!Id12)
+					return 0;
+
+				bson_oid_t Id;
+				memcpy(Id.bytes, Id12, sizeof(unsigned char) * 12);
+
+				char Result[25];
+				bson_oid_to_string(&Id, Result);
+
+				return std::string(Result, 24);
+#else
+				return "";
+#endif
+			}
+			std::string Document::StringToOId(const std::string& Id24)
+			{
+#ifdef THAWK_HAS_MONGOC
+				bson_oid_t Id;
+				bson_oid_init_from_string(&Id, Id24.c_str());
+
+				return std::string((const char*)Id.bytes, 12);
+#else
+				return "";
 #endif
 			}
 			std::string Document::ToExtendedJSON(TDocument* Document)

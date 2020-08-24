@@ -75,10 +75,7 @@ namespace Tomahawk
 			typedef std::function<bool(struct Connection*, Rest::Stroke*)> HeaderCallback;
 			typedef std::function<void(struct WebSocketFrame*)> WebSocketCallback;
 			typedef std::function<void(struct WebSocketFrame*, const char*, int64_t, enum WebSocketOp)> WebSocketReadCallback;
-			typedef std::function<bool(struct GatewayFrame*, const char*, uint64_t, char)> GatewayNextCallback;
-			typedef std::function<bool(struct GatewayFrame*, void*)> GatewayFreeCallback;
-			typedef std::function<bool(void**, struct SiteEntry*)> GatewayCreateCallback;
-			typedef std::function<bool(void**, struct SiteEntry*)> GatewayReleaseCallback;
+			typedef std::function<bool(struct Connection*, Script::VMCompiler*)> GatewayCallback;
 			typedef std::function<bool(class Parser*, int64_t)> ParserCodeCallback;
 			typedef std::function<bool(class Parser*, const char*, int64_t)> ParserDataCallback;
 			typedef std::function<bool(class Parser*)> ParserNotifyCallback;
@@ -95,12 +92,6 @@ namespace Tomahawk
 			class Server;
 
 			class Query;
-
-			struct THAWK_OUT GatewayFile
-			{
-				Compute::RegExp Value;
-				bool Core = false;
-			};
 
 			struct THAWK_OUT ErrorFile
 			{
@@ -230,6 +221,7 @@ namespace Tomahawk
 				void Write(const char* Buffer, int64_t Length, WebSocketOp OpCode, const SuccessCallback& Callback);
 				void Finish();
 				void Next();
+				void Resolve(Script::VMExecState Result);
 				void Notify();
 				bool IsFinished();
 			};
@@ -241,26 +233,22 @@ namespace Tomahawk
 				friend class Util;
 
 			private:
-				GatewayNextCallback Callback;
-				GatewayFreeCallback Destroy;
-				char* Buffer = nullptr;
-				uint64_t Size = 0, i = 0;
-				uint64_t Offset = 0;
-				bool EoF = false;
-				bool Core = false;
-				bool Save = false;
-				char Type = '?';
+				char* Buffer;
+				size_t Size;
+				bool Save;
 
 			public:
-				Connection* Base = nullptr;
-				void* Manager = nullptr;
-				void* Device = nullptr;
+				Script::VMCompiler* Compiler;
+				Connection* Base;
 
 			public:
-				bool Next();
-				bool Finish(const GatewayFreeCallback& Callback);
-				bool Error(const GatewayFreeCallback& Callback);
+				GatewayFrame(char* Data, uint64_t DataSize);
+				bool Finish();
+				bool Error();
+				bool Start();
+				bool Resolve(Script::VMExecState Result);
 				bool IsDone();
+				Script::VMContext* GetContext();
 
 			private:
 				bool Done(bool Normal);
@@ -304,12 +292,12 @@ namespace Tomahawk
 					SuccessCallback Access;
 					SuccessCallback Proxy;
 					HeaderCallback Headers;
-					GatewayNextCallback Gateway;
+					GatewayCallback Gateway;
 					AuthorizeCallback Authorize;
 				} Callbacks;
 				struct
 				{
-					std::vector<GatewayFile> Files;
+					std::vector<Compute::RegExp> Files;
 					std::vector<std::string> Methods;
 				} Gateway;
 				struct
@@ -365,15 +353,11 @@ namespace Tomahawk
 						uint64_t CookieExpires = 31536000;
 					} Session;
 
-					void* Manager = nullptr;
-					std::string ModuleRoot;
 					bool Enabled = false;
 				} Gateway;
 				struct
 				{
 					SuccessCallback OnRewriteURL;
-					GatewayCreateCallback OnGatewayCreate;
-					GatewayReleaseCallback OnGatewayRelease;
 				} Callbacks;
 
 				std::unordered_set<std::string> Hosts;
@@ -402,6 +386,8 @@ namespace Tomahawk
 			struct THAWK_OUT MapRouter : public SocketRouter
 			{
 				std::vector<SiteEntry*> Sites;
+				std::string ModuleRoot;
+				Script::VMManager* VM;
 
 				MapRouter();
 				virtual ~MapRouter() override;

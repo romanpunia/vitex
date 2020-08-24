@@ -27,12 +27,16 @@ namespace Tomahawk
 
 				if (System->GetDevice()->GetSection("geometry/model/depth-cubic", &I.Data))
 					Shaders.Cubic = System->CompileShader("mr-depth-cubic", I, sizeof(Depth));
+
+				if (System->GetDevice()->GetSection("geometry/model/occlusion", &I.Data))
+					Shaders.Occlusion = System->CompileShader("mr-occlusion", I, 0);
 			}
 			ModelRenderer::~ModelRenderer()
 			{
 				System->FreeShader("mr-gbuffer", Shaders.GBuffer);
 				System->FreeShader("mr-depth-linear", Shaders.Linear);
 				System->FreeShader("mr-depth-cubic", Shaders.Cubic);
+				System->FreeShader("mr-occlusion", Shaders.Occlusion);
 			}
 			void ModelRenderer::Activate()
 			{
@@ -43,6 +47,48 @@ namespace Tomahawk
 			{
 				System->RemoveCull<Engine::Components::Model>();
 				System->RemoveCull<Engine::Components::LimpidModel>();
+			}
+			void ModelRenderer::CullGeometry(const Viewer& View, Rest::Pool<Component*>* Geometry)
+			{
+				Graphics::GraphicsDevice* Device = System->GetDevice();
+				Device->SetRasterizerState(BackRasterizer);
+				Device->SetShader(nullptr, Graphics::ShaderType_Pixel);
+				Device->SetShader(Shaders.Occlusion, Graphics::ShaderType_Vertex);
+
+				for (auto It = Geometry->Begin(); It != Geometry->End(); It++)
+				{
+					Components::Model* Base = (Components::Model*)*It;
+					if (!System->PassCullable(Base, CullResult_Last, nullptr))
+						continue;
+
+					auto* Drawable = Base->GetDrawable();
+					if (!Drawable || Drawable->Meshes.empty())
+						continue;
+
+					if (!Base->FragmentBegin(Device))
+						continue;
+
+					if (Base->GetFragmentsCount() > 0)
+					{
+						for (auto&& Mesh : Drawable->Meshes)
+						{
+							Device->Render.World = Mesh->World * Base->GetEntity()->Transform->GetWorld();
+							Device->Render.WorldViewProjection = Device->Render.World * View.ViewProjection;
+							Device->UpdateBuffer(Graphics::RenderBufferType_Render);
+							Device->DrawIndexed(Mesh);
+						}
+					}
+					else
+					{
+						Device->Render.World = Base->GetBoundingBox();
+						Device->Render.WorldViewProjection = Device->Render.World * View.ViewProjection;
+						Device->UpdateBuffer(Graphics::RenderBufferType_Render);
+						Device->SetIndexBuffer(System->GetBoxIBuffer(), Graphics::Format_R32_Uint, 0);
+						Device->SetVertexBuffer(System->GetBoxVBuffer(), 0, System->GetBoxVSize(), 0);
+						Device->DrawIndexed(System->GetBoxIBuffer()->GetElements(), 0, 0);
+					}
+					Base->FragmentEnd(Device);
+				}
 			}
 			void ModelRenderer::RenderGBuffer(Rest::Timer* Time, Rest::Pool<Component*>* Geometry, RenderOpt Options)
 			{
@@ -64,7 +110,7 @@ namespace Tomahawk
 						continue;
 
 					auto* Drawable = Base->GetDrawable();
-					if (!Drawable || !System->Renderable(Base, Cull, nullptr))
+					if (!Drawable || !System->PassDrawable(Base, Cull, nullptr))
 						continue;
 
 					for (auto&& Mesh : Drawable->Meshes)
@@ -95,7 +141,7 @@ namespace Tomahawk
 					Engine::Components::Model* Base = (Engine::Components::Model*)*It;
 					auto* Drawable = Base->GetDrawable();
 
-					if (!Drawable || !System->Renderable(Base, CullResult_Always, nullptr))
+					if (!Drawable || !System->PassDrawable(Base, CullResult_Always, nullptr))
 						continue;
 
 					for (auto&& Mesh : Drawable->Meshes)
@@ -175,12 +221,16 @@ namespace Tomahawk
 
 				if (System->GetDevice()->GetSection("geometry/skin/depth-cubic", &I.Data))
 					Shaders.Cubic = System->CompileShader("sr-depth-cubic", I, sizeof(Depth));
+
+				if (System->GetDevice()->GetSection("geometry/skin/occlusion", &I.Data))
+					Shaders.Occlusion = System->CompileShader("sr-occlusion", I, 0);
 			}
 			SkinRenderer::~SkinRenderer()
 			{
 				System->FreeShader("sr-gbuffer", Shaders.GBuffer);
 				System->FreeShader("sr-depth-linear", Shaders.Linear);
 				System->FreeShader("sr-depth-cubic", Shaders.Cubic);
+				System->FreeShader("sr-occlusion", Shaders.Occlusion);
 			}
 			void SkinRenderer::Activate()
 			{
@@ -191,6 +241,55 @@ namespace Tomahawk
 			{
 				System->RemoveCull<Engine::Components::Skin>();
 				System->RemoveCull<Engine::Components::LimpidSkin>();
+			}
+			void SkinRenderer::CullGeometry(const Viewer& View, Rest::Pool<Component*>* Geometry)
+			{
+				Graphics::GraphicsDevice* Device = System->GetDevice();
+				Device->SetRasterizerState(BackRasterizer);
+				Device->SetShader(nullptr, Graphics::ShaderType_Pixel);
+				Device->SetShader(Shaders.Occlusion, Graphics::ShaderType_Vertex);
+
+				for (auto It = Geometry->Begin(); It != Geometry->End(); It++)
+				{
+					Components::Skin* Base = (Components::Skin*)*It;
+					if (!System->PassCullable(Base, CullResult_Last, nullptr))
+						continue;
+
+					auto* Drawable = Base->GetDrawable();
+					if (!Drawable || Drawable->Meshes.empty())
+						continue;
+
+					if (!Base->FragmentBegin(Device))
+						continue;
+
+					if (Base->GetFragmentsCount() > 0)
+					{
+						Device->Animation.HasAnimation = !Base->GetDrawable()->Joints.empty();
+						if (Device->Animation.HasAnimation > 0)
+							memcpy(Device->Animation.Offsets, Base->Skeleton.Transform, 96 * sizeof(Compute::Matrix4x4));
+
+						Device->UpdateBuffer(Graphics::RenderBufferType_Animation);
+						for (auto&& Mesh : Drawable->Meshes)
+						{
+							Device->Render.World = Mesh->World * Base->GetEntity()->Transform->GetWorld();
+							Device->Render.WorldViewProjection = Device->Render.World * View.ViewProjection;
+							Device->UpdateBuffer(Graphics::RenderBufferType_Render);
+							Device->DrawIndexed(Mesh);
+						}
+					}
+					else
+					{
+						Device->Animation.HasAnimation = false;
+						Device->Render.World = Base->GetBoundingBox();
+						Device->Render.WorldViewProjection = Device->Render.World * View.ViewProjection;
+						Device->UpdateBuffer(Graphics::RenderBufferType_Animation);
+						Device->UpdateBuffer(Graphics::RenderBufferType_Render);
+						Device->SetIndexBuffer(System->GetSkinBoxIBuffer(), Graphics::Format_R32_Uint, 0);
+						Device->SetVertexBuffer(System->GetSkinBoxVBuffer(), 0, System->GetSkinBoxVSize(), 0);
+						Device->DrawIndexed(System->GetSkinBoxIBuffer()->GetElements(), 0, 0);
+					}
+					Base->FragmentEnd(Device);
+				}
 			}
 			void SkinRenderer::RenderGBuffer(Rest::Timer* Time, Rest::Pool<Component*>* Geometry, RenderOpt Options)
 			{
@@ -212,7 +311,7 @@ namespace Tomahawk
 						continue;
 
 					auto* Drawable = Base->GetDrawable();
-					if (!Drawable || !System->Renderable(Base, Cull, nullptr))
+					if (!Drawable || !System->PassDrawable(Base, Cull, nullptr))
 						continue;
 
 					Device->Animation.HasAnimation = !Base->GetDrawable()->Joints.empty();
@@ -248,7 +347,7 @@ namespace Tomahawk
 					Engine::Components::Skin* Base = (Engine::Components::Skin*)*It;
 					auto* Drawable = Base->GetDrawable();
 
-					if (!Drawable || !System->Renderable(Base, CullResult_Always, nullptr))
+					if (!Drawable || !System->PassDrawable(Base, CullResult_Always, nullptr))
 						continue;
 
 					Device->Animation.HasAnimation = !Base->GetDrawable()->Joints.empty();
@@ -358,12 +457,16 @@ namespace Tomahawk
 
 				if (System->GetDevice()->GetSection("geometry/model/depth-cubic", &I.Data))
 					Shaders.Cubic = System->CompileShader("mr-depth-cubic", I, sizeof(Depth));
+
+				if (System->GetDevice()->GetSection("geometry/model/occlusion", &I.Data))
+					Shaders.Occlusion = System->CompileShader("mr-occlusion", I, 0);
 			}
 			SoftBodyRenderer::~SoftBodyRenderer()
 			{
 				System->FreeShader("mr-gbuffer", Shaders.GBuffer);
 				System->FreeShader("mr-depth-linear", Shaders.Linear);
 				System->FreeShader("mr-depth-cubic", Shaders.Cubic);
+				System->FreeShader("mr-occlusion", Shaders.Occlusion);
 				delete VertexBuffer;
 				delete IndexBuffer;
 			}
@@ -376,6 +479,47 @@ namespace Tomahawk
 			{
 				System->RemoveCull<Engine::Components::SoftBody>();
 				System->RemoveCull<Engine::Components::LimpidSoftBody>();
+			}
+			void SoftBodyRenderer::CullGeometry(const Viewer& View, Rest::Pool<Component*>* Geometry)
+			{
+				Graphics::GraphicsDevice* Device = System->GetDevice();
+				Device->SetRasterizerState(BackRasterizer);
+				Device->SetShader(nullptr, Graphics::ShaderType_Pixel);
+				Device->SetShader(Shaders.Occlusion, Graphics::ShaderType_Vertex);
+
+				for (auto It = Geometry->Begin(); It != Geometry->End(); It++)
+				{
+					Components::SoftBody* Base = (Components::SoftBody*)*It;
+					if (!System->PassCullable(Base, CullResult_Last, nullptr))
+						continue;
+
+					if (Base->GetIndices().empty())
+						continue;
+
+					if (!Base->FragmentBegin(Device))
+						continue;
+
+					if (Base->GetFragmentsCount() > 0)
+					{
+						Base->Fill(Device, IndexBuffer, VertexBuffer);
+						Device->Render.World.Identify();
+						Device->Render.WorldViewProjection = Device->Render.World * View.ViewProjection;
+						Device->UpdateBuffer(Graphics::RenderBufferType_Render);
+						Device->SetVertexBuffer(VertexBuffer, 0, sizeof(Compute::Vertex), 0);
+						Device->SetIndexBuffer(IndexBuffer, Graphics::Format_R32_Uint, 0);
+						Device->DrawIndexed(System->GetBoxIBuffer()->GetElements(), 0, 0);
+					}
+					else
+					{
+						Device->Render.World = Base->GetEntity()->Transform->GetWorld();
+						Device->Render.WorldViewProjection = Device->Render.World * View.ViewProjection;
+						Device->UpdateBuffer(Graphics::RenderBufferType_Render);
+						Device->SetIndexBuffer(System->GetBoxIBuffer(), Graphics::Format_R32_Uint, 0);
+						Device->SetVertexBuffer(System->GetBoxVBuffer(), 0, System->GetBoxVSize(), 0);
+						Device->DrawIndexed((unsigned int)Base->GetIndices().size(), 0, 0);
+					}
+					Base->FragmentEnd(Device);
+				}
 			}
 			void SoftBodyRenderer::RenderGBuffer(Rest::Timer* Time, Rest::Pool<Component*>* Geometry, RenderOpt Options)
 			{
@@ -396,7 +540,7 @@ namespace Tomahawk
 					if ((Static && !Base->Static) || Base->GetIndices().empty())
 						continue;
 
-					if (!System->Renderable(Base, Cull, nullptr))
+					if (!System->PassDrawable(Base, Cull, nullptr))
 						continue;
 
 					if (!Appearance::UploadGBuffer(Device, Base->GetSurface()))
@@ -429,7 +573,7 @@ namespace Tomahawk
 					if (Base->GetIndices().empty())
 						continue;
 
-					if (!System->Renderable(Base, CullResult_Always, nullptr))
+					if (!System->PassDrawable(Base, CullResult_Always, nullptr))
 						continue;
 
 					if (!Appearance::UploadLinearDepth(Device, Base->GetSurface()))
@@ -491,7 +635,8 @@ namespace Tomahawk
 
 			EmitterRenderer::EmitterRenderer(RenderSystem* Lab) : GeoRenderer(Lab)
 			{
-				DepthStencil = Lab->GetDevice()->GetDepthStencilState("DEF_LESS");
+				DepthStencilOpaque = Lab->GetDevice()->GetDepthStencilState("DEF_LESS");
+				DepthStencilLimpid = Lab->GetDevice()->GetDepthStencilState("DEF_NONE_LESS");
 				BackRasterizer = Lab->GetDevice()->GetRasterizerState("DEF_CULL_BACK");
 				FrontRasterizer = Lab->GetDevice()->GetRasterizerState("DEF_CULL_FRONT");
 				AdditiveBlend = Lab->GetDevice()->GetBlendState("DEF_ADDITIVE_ALPHA");
@@ -546,7 +691,7 @@ namespace Tomahawk
 				CullResult Cull = (Options & RenderOpt_Inner ? CullResult_Always : CullResult_Last);
 				bool Static = (Options & RenderOpt_Static);
 
-				Device->SetDepthStencilState(DepthStencil);
+				Device->SetDepthStencilState(DepthStencilOpaque);
 				Device->SetSamplerState(Sampler);
 				Device->SetBlendState(OverwriteBlend);
 				Device->SetRasterizerState(BackRasterizer);
@@ -561,7 +706,7 @@ namespace Tomahawk
 					if ((Static && !Base->Static) && !Base->GetBuffer())
 						continue;
 
-					if (!System->Renderable(Base, Cull, nullptr))
+					if (!System->PassDrawable(Base, Cull, nullptr))
 						continue;
 
 					if (!Appearance::UploadGBuffer(Device, Base->GetSurface()))
@@ -580,6 +725,7 @@ namespace Tomahawk
 					Device->Draw((unsigned int)Base->GetBuffer()->GetArray()->Size(), 0);
 				}
 
+				Device->SetDepthStencilState(DepthStencilLimpid);
 				Device->SetBlendState(AdditiveBlend);
 				Device->SetShader(Shaders.Limpid, Graphics::ShaderType_Vertex | Graphics::ShaderType_Pixel);
 				
@@ -589,7 +735,7 @@ namespace Tomahawk
 					if ((Static && !Base->Static) && !Base->GetBuffer())
 						continue;
 
-					if (!System->Renderable(Base, Cull, nullptr))
+					if (!System->PassDrawable(Base, Cull, nullptr))
 						continue;
 
 					if (!Appearance::UploadGBuffer(Device, Base->GetSurface()))
@@ -618,7 +764,7 @@ namespace Tomahawk
 				Graphics::PrimitiveTopology T = Device->GetPrimitiveTopology();
 				Compute::Matrix4x4& View = System->GetScene()->View.View;
 
-				Device->SetDepthStencilState(DepthStencil);
+				Device->SetDepthStencilState(DepthStencilLimpid);
 				Device->SetSamplerState(Sampler);
 				Device->SetBlendState(OverwriteBlend);
 				Device->SetRasterizerState(FrontRasterizer);
@@ -662,7 +808,7 @@ namespace Tomahawk
 				Depth.FaceView[5] = Compute::Matrix4x4::CreateCubeMapLookAt(5, System->GetScene()->View.InvViewPosition);
 
 				Graphics::PrimitiveTopology T = Device->GetPrimitiveTopology();
-				Device->SetDepthStencilState(DepthStencil);
+				Device->SetDepthStencilState(DepthStencilLimpid);
 				Device->SetSamplerState(Sampler);
 				Device->SetBlendState(OverwriteBlend);
 				Device->SetRasterizerState(FrontRasterizer);
@@ -693,11 +839,11 @@ namespace Tomahawk
 			}
 			Rest::Pool<Component*>* EmitterRenderer::GetOpaque()
 			{
-				return Opaque;
+				return Opaque->Empty() ? Limpid : Opaque;
 			}
 			Rest::Pool<Component*>* EmitterRenderer::GetLimpid(uint64_t Layer)
 			{
-				return Limpid;
+				return Limpid->Empty() ? Opaque : Limpid;
 			}
 
 			DecalRenderer::DecalRenderer(RenderSystem* Lab) : GeoRenderer(Lab)
@@ -754,7 +900,7 @@ namespace Tomahawk
 				for (auto It = Geometry->Begin(); It != Geometry->End(); ++It)
 				{
 					Engine::Components::Decal* Base = (Engine::Components::Decal*)*It;
-					if (Static && !Base->Static || !System->Renderable(Base, Cull, nullptr))
+					if (Static && !Base->Static || !System->PassDrawable(Base, Cull, nullptr))
 						continue;
 
 					if (!Appearance::UploadGBuffer(Device, Base->GetSurface()))
@@ -998,7 +1144,7 @@ namespace Tomahawk
 			}
 			void DepthRenderer::TickRender(Rest::Timer* Time, RenderState State, RenderOpt Options)
 			{
-				if (State != RenderState_GBuffer || Options & RenderOpt_Inner)
+				if (State != RenderState_GBuffer || Options & RenderOpt_Inner || Options & RenderOpt_Limpid)
 					return;
 
 				Graphics::GraphicsDevice* Device = System->GetDevice();
@@ -1016,7 +1162,7 @@ namespace Tomahawk
 					if (!Light->Shadowed)
 						continue;
 					
-					if (!System->Renderable(Light, CullResult_Always, &D) || D < ShadowDistance)
+					if (!System->PassCullable(Light, CullResult_Always, &D) || D < ShadowDistance)
 						continue;
 
 					Graphics::RenderTargetCube* Target = Renderers.PointLight[Shadows];
@@ -1039,7 +1185,7 @@ namespace Tomahawk
 					if (!Light->Shadowed)
 						continue;
 
-					if (!System->Renderable(Light, CullResult_Always, &D) || D < ShadowDistance)
+					if (!System->PassCullable(Light, CullResult_Always, &D) || D < ShadowDistance)
 						continue;
 
 					Graphics::RenderTarget2D* Target = Renderers.SpotLight[Shadows];
@@ -1102,7 +1248,7 @@ namespace Tomahawk
 			}
 			void ProbeRenderer::Render(Rest::Timer* Time, RenderState State, RenderOpt Options)
 			{
-				if (State != RenderState_GBuffer || Options & RenderOpt_Inner)
+				if (State != RenderState_GBuffer || Options & RenderOpt_Inner || Options & RenderOpt_Limpid)
 					return;
 
 				SceneGraph* Scene = System->GetScene();
@@ -1115,7 +1261,7 @@ namespace Tomahawk
 				for (auto It = ReflectionProbes->Begin(); It != ReflectionProbes->End(); It++)
 				{
 					Engine::Components::ReflectionProbe* Light = (Engine::Components::ReflectionProbe*)*It;
-					if (Light->IsImageBased() || !System->Renderable(Light, CullResult_Always, nullptr))
+					if (Light->IsImageBased() || !System->PassCullable(Light, CullResult_Always, nullptr))
 						continue;
 
 					Graphics::TextureCube* Cache = Light->GetProbeCache();
@@ -1308,7 +1454,7 @@ namespace Tomahawk
 					for (auto It = ReflectionProbes->Begin(); It != ReflectionProbes->End(); ++It)
 					{
 						Engine::Components::ReflectionProbe* Light = (Engine::Components::ReflectionProbe*)*It;
-						if (!Light->GetProbeCache() || !System->Renderable(Light, CullResult_Always, &D))
+						if (!Light->GetProbeCache() || !System->PassCullable(Light, CullResult_Always, &D))
 							continue;
 
 						ReflectionProbe.Range = Light->GetRange();
@@ -1332,7 +1478,7 @@ namespace Tomahawk
 					for (auto It = ReflectionProbes->Begin(); It != ReflectionProbes->End(); ++It)
 					{
 						Engine::Components::ReflectionProbe* Light = (Engine::Components::ReflectionProbe*)*It;
-						if (Light->RenderLocked || !Light->GetProbeCache() || !System->Renderable(Light, CullResult_Always, &D))
+						if (Light->RenderLocked || !Light->GetProbeCache() || !System->PassCullable(Light, CullResult_Always, &D))
 							continue;
 
 						ReflectionProbe.Range = Light->GetRange();
@@ -1355,7 +1501,7 @@ namespace Tomahawk
 				for (auto It = PointLights->Begin(); It != PointLights->End(); ++It)
 				{
 					Engine::Components::PointLight* Light = (Engine::Components::PointLight*)*It;
-					if (!System->Renderable(Light, CullResult_Always, &D))
+					if (!System->PassCullable(Light, CullResult_Always, &D))
 						continue;
 
 					if (Light->Shadowed && Light->GetShadowCache())
@@ -1388,7 +1534,7 @@ namespace Tomahawk
 				for (auto It = SpotLights->Begin(); It != SpotLights->End(); ++It)
 				{
 					Engine::Components::SpotLight* Light = (Engine::Components::SpotLight*)*It;
-					if (!System->Renderable(Light, CullResult_Always, &D))
+					if (!System->PassCullable(Light, CullResult_Always, &D))
 						continue;
 
 					if (Light->Shadowed && Light->GetShadowCache())
@@ -1530,7 +1676,7 @@ namespace Tomahawk
 			}
 			void GUIRenderer::Render(Rest::Timer* Timer, RenderState State, RenderOpt Options)
 			{
-				if (State != RenderState_GBuffer || Options & RenderOpt_Inner)
+				if (State != RenderState_GBuffer || Options & RenderOpt_Inner || Options & RenderOpt_Limpid)
 					return;
 
 				Graphics::MultiRenderTarget2D* Surface = System->GetScene()->GetSurface();
@@ -1557,15 +1703,15 @@ namespace Tomahawk
 			}
 			void ReflectionsRenderer::Deserialize(ContentManager* Content, Rest::Document* Node)
 			{
-				NMake::Unpack(Node->Find("iteration-count-1"), &RenderPass1.IterationCount);
-				NMake::Unpack(Node->Find("iteration-count-2"), &RenderPass2.IterationCount);
+				NMake::Unpack(Node->Find("samples-1"), &RenderPass1.Samples);
+				NMake::Unpack(Node->Find("samples-2"), &RenderPass2.Samples);
 				NMake::Unpack(Node->Find("intensity"), &RenderPass1.Intensity);
 				NMake::Unpack(Node->Find("blur"), &RenderPass2.Blur);
 			}
 			void ReflectionsRenderer::Serialize(ContentManager* Content, Rest::Document* Node)
 			{
-				NMake::Pack(Node->SetDocument("iteration-count-1"), RenderPass1.IterationCount);
-				NMake::Pack(Node->SetDocument("iteration-count-2"), RenderPass2.IterationCount);
+				NMake::Pack(Node->SetDocument("samples-1"), RenderPass1.Samples);
+				NMake::Pack(Node->SetDocument("samples-2"), RenderPass2.Samples);
 				NMake::Pack(Node->SetDocument("intensity"), RenderPass1.Intensity);
 				NMake::Pack(Node->SetDocument("blur"), RenderPass2.Blur);
 			}
@@ -1638,14 +1784,14 @@ namespace Tomahawk
 			}
 			void EmissionRenderer::Deserialize(ContentManager* Content, Rest::Document* Node)
 			{
-				NMake::Unpack(Node->Find("iteration-count"), &RenderPass.IterationCount);
+				NMake::Unpack(Node->Find("samples"), &RenderPass.Samples);
 				NMake::Unpack(Node->Find("intensity"), &RenderPass.Intensity);
 				NMake::Unpack(Node->Find("threshold"), &RenderPass.Threshold);
 				NMake::Unpack(Node->Find("scale"), &RenderPass.Scale);
 			}
 			void EmissionRenderer::Serialize(ContentManager* Content, Rest::Document* Node)
 			{
-				NMake::Pack(Node->SetDocument("iteration-count"), RenderPass.IterationCount);
+				NMake::Pack(Node->SetDocument("samples"), RenderPass.Samples);
 				NMake::Pack(Node->SetDocument("intensity"), RenderPass.Intensity);
 				NMake::Pack(Node->SetDocument("threshold"), RenderPass.Threshold);
 				NMake::Pack(Node->SetDocument("scale"), RenderPass.Scale);
@@ -1701,8 +1847,8 @@ namespace Tomahawk
 				RenderPass.ElapsedTime += (float)Time->GetDeltaTime() * 10.0f;
 				RenderPass.VerticalJumpAmount = VerticalJump;
 				RenderPass.VerticalJumpTime += (float)Time->GetDeltaTime() * VerticalJump * 11.3f;
-				RenderPass.ScanLineJitterThreshold = Compute::Math<float>::Saturate(1.0f - ScanLineJitter * 1.2f);
-				RenderPass.ScanLineJitterDisplacement = 0.002f + Compute::Math<float>::Pow(ScanLineJitter, 3) * 0.05f;
+				RenderPass.ScanLineJitterThreshold = Compute::Mathf::Saturate(1.0f - ScanLineJitter * 1.2f);
+				RenderPass.ScanLineJitterDisplacement = 0.002f + Compute::Mathf::Pow(ScanLineJitter, 3) * 0.05f;
 				RenderPass.HorizontalShake = HorizontalShake * 0.2f;
 				RenderPass.ColorDriftAmount = ColorDrift * 0.04f;
 				RenderPass.ColorDriftTime = RenderPass.ElapsedTime * 606.11f;
@@ -1724,19 +1870,13 @@ namespace Tomahawk
 				NMake::Unpack(Node->Find("intensity"), &RenderPass1.Intensity);
 				NMake::Unpack(Node->Find("bias"), &RenderPass1.Bias);
 				NMake::Unpack(Node->Find("radius"), &RenderPass1.Radius);
-				NMake::Unpack(Node->Find("step"), &RenderPass1.Step);
-				NMake::Unpack(Node->Find("offset"), &RenderPass1.Offset);
 				NMake::Unpack(Node->Find("distance"), &RenderPass1.Distance);
-				NMake::Unpack(Node->Find("fading"), &RenderPass1.Fading);
-				NMake::Unpack(Node->Find("power-1"), &RenderPass1.Power);
-				NMake::Unpack(Node->Find("power-2"), &RenderPass2.Power);
-				NMake::Unpack(Node->Find("threshold-1"), &RenderPass1.Threshold);
-				NMake::Unpack(Node->Find("threshold-2"), &RenderPass2.Threshold);
-				NMake::Unpack(Node->Find("iteration-count-1"), &RenderPass1.IterationCount);
-				NMake::Unpack(Node->Find("iteration-count-2"), &RenderPass2.IterationCount);
+				NMake::Unpack(Node->Find("fade"), &RenderPass1.Fade);
+				NMake::Unpack(Node->Find("power"), &RenderPass2.Power);
+				NMake::Unpack(Node->Find("samples-1"), &RenderPass1.Samples);
+				NMake::Unpack(Node->Find("samples-2"), &RenderPass2.Samples);
 				NMake::Unpack(Node->Find("blur"), &RenderPass2.Blur);
 				NMake::Unpack(Node->Find("additive"), &RenderPass2.Additive);
-				NMake::Unpack(Node->Find("discard"), &RenderPass2.Discard);
 			}
 			void AmbientOcclusionRenderer::Serialize(ContentManager* Content, Rest::Document* Node)
 			{
@@ -1744,19 +1884,13 @@ namespace Tomahawk
 				NMake::Pack(Node->SetDocument("intensity"), RenderPass1.Intensity);
 				NMake::Pack(Node->SetDocument("bias"), RenderPass1.Bias);
 				NMake::Pack(Node->SetDocument("radius"), RenderPass1.Radius);
-				NMake::Pack(Node->SetDocument("step"), RenderPass1.Step);
-				NMake::Pack(Node->SetDocument("offset"), RenderPass1.Offset);
 				NMake::Pack(Node->SetDocument("distance"), RenderPass1.Distance);
-				NMake::Pack(Node->SetDocument("fading"), RenderPass1.Fading);
-				NMake::Pack(Node->SetDocument("power-1"), RenderPass1.Power);
-				NMake::Pack(Node->SetDocument("power-2"), RenderPass2.Power);
-				NMake::Pack(Node->SetDocument("threshold-1"), RenderPass1.Threshold);
-				NMake::Pack(Node->SetDocument("threshold-2"), RenderPass2.Threshold);
-				NMake::Pack(Node->SetDocument("iteration-count-1"), RenderPass1.IterationCount);
-				NMake::Pack(Node->SetDocument("iteration-count-2"), RenderPass2.IterationCount);
+				NMake::Pack(Node->SetDocument("fade"), RenderPass1.Fade);
+				NMake::Pack(Node->SetDocument("power"), RenderPass2.Power);
+				NMake::Pack(Node->SetDocument("samples-1"), RenderPass1.Samples);
+				NMake::Pack(Node->SetDocument("samples-2"), RenderPass2.Samples);
 				NMake::Pack(Node->SetDocument("blur"), RenderPass2.Blur);
 				NMake::Pack(Node->SetDocument("additive"), RenderPass2.Additive);
-				NMake::Pack(Node->SetDocument("discard"), RenderPass2.Discard);
 			}
 			void AmbientOcclusionRenderer::RenderEffect(Rest::Timer* Time)
 			{
@@ -1782,19 +1916,13 @@ namespace Tomahawk
 				NMake::Unpack(Node->Find("intensity"), &RenderPass1.Intensity);
 				NMake::Unpack(Node->Find("bias"), &RenderPass1.Bias);
 				NMake::Unpack(Node->Find("radius"), &RenderPass1.Radius);
-				NMake::Unpack(Node->Find("step"), &RenderPass1.Step);
-				NMake::Unpack(Node->Find("offset"), &RenderPass1.Offset);
 				NMake::Unpack(Node->Find("distance"), &RenderPass1.Distance);
-				NMake::Unpack(Node->Find("fading"), &RenderPass1.Fading);
-				NMake::Unpack(Node->Find("power-1"), &RenderPass1.Power);
-				NMake::Unpack(Node->Find("power-2"), &RenderPass2.Power);
-				NMake::Unpack(Node->Find("threshold-1"), &RenderPass1.Threshold);
-				NMake::Unpack(Node->Find("threshold-2"), &RenderPass2.Threshold);
-				NMake::Unpack(Node->Find("iteration-count-1"), &RenderPass1.IterationCount);
-				NMake::Unpack(Node->Find("iteration-count-2"), &RenderPass2.IterationCount);
+				NMake::Unpack(Node->Find("fade"), &RenderPass1.Fade);
+				NMake::Unpack(Node->Find("power"), &RenderPass2.Power);
+				NMake::Unpack(Node->Find("samples-1"), &RenderPass1.Samples);
+				NMake::Unpack(Node->Find("samples-2"), &RenderPass2.Samples);
 				NMake::Unpack(Node->Find("blur"), &RenderPass2.Blur);
 				NMake::Unpack(Node->Find("additive"), &RenderPass2.Additive);
-				NMake::Unpack(Node->Find("discard"), &RenderPass2.Discard);
 			}
 			void DirectOcclusionRenderer::Serialize(ContentManager* Content, Rest::Document* Node)
 			{
@@ -1802,19 +1930,13 @@ namespace Tomahawk
 				NMake::Pack(Node->SetDocument("intensity"), RenderPass1.Intensity);
 				NMake::Pack(Node->SetDocument("bias"), RenderPass1.Bias);
 				NMake::Pack(Node->SetDocument("radius"), RenderPass1.Radius);
-				NMake::Pack(Node->SetDocument("step"), RenderPass1.Step);
-				NMake::Pack(Node->SetDocument("offset"), RenderPass1.Offset);
 				NMake::Pack(Node->SetDocument("distance"), RenderPass1.Distance);
-				NMake::Pack(Node->SetDocument("fading"), RenderPass1.Fading);
-				NMake::Pack(Node->SetDocument("power-1"), RenderPass1.Power);
-				NMake::Pack(Node->SetDocument("power-2"), RenderPass2.Power);
-				NMake::Pack(Node->SetDocument("threshold-1"), RenderPass1.Threshold);
-				NMake::Pack(Node->SetDocument("threshold-2"), RenderPass2.Threshold);
-				NMake::Pack(Node->SetDocument("iteration-count-1"), RenderPass1.IterationCount);
-				NMake::Pack(Node->SetDocument("iteration-count-2"), RenderPass2.IterationCount);
+				NMake::Pack(Node->SetDocument("fade"), RenderPass1.Fade);
+				NMake::Pack(Node->SetDocument("power"), RenderPass2.Power);
+				NMake::Pack(Node->SetDocument("samples-1"), RenderPass1.Samples);
+				NMake::Pack(Node->SetDocument("samples-2"), RenderPass2.Samples);
 				NMake::Pack(Node->SetDocument("blur"), RenderPass2.Blur);
 				NMake::Pack(Node->SetDocument("additive"), RenderPass2.Additive);
-				NMake::Pack(Node->SetDocument("discard"), RenderPass2.Discard);
 			}
 			void DirectOcclusionRenderer::RenderEffect(Rest::Timer* Time)
 			{

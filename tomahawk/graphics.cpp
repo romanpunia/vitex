@@ -511,6 +511,13 @@ namespace Tomahawk
 			return MipLevels;
 		}
 
+		DepthBuffer::DepthBuffer(const Desc& I)
+		{
+		}
+		DepthBuffer::~DepthBuffer()
+		{
+		}
+
 		RenderTarget2D::RenderTarget2D(const Desc& I) : Resource(nullptr)
 		{
 		}
@@ -754,6 +761,23 @@ namespace Tomahawk
 			DepthStencil.Name = "DEF_NONE_LESS";
 			DepthStencilStates[DepthStencil.Name] = CreateDepthStencilState(DepthStencil);
 
+			DepthStencil.DepthEnable = true;
+			DepthStencil.DepthWriteMask = Graphics::DepthWrite_All;
+			DepthStencil.DepthFunction = Graphics::Comparison_Less;
+			DepthStencil.StencilEnable = false;
+			DepthStencil.StencilReadMask = 0xFF;
+			DepthStencil.StencilWriteMask = 0xFF;
+			DepthStencil.FrontFaceStencilFailOperation = Graphics::StencilOperation_Keep;
+			DepthStencil.FrontFaceStencilDepthFailOperation = Graphics::StencilOperation_Add;
+			DepthStencil.FrontFaceStencilPassOperation = Graphics::StencilOperation_Keep;
+			DepthStencil.FrontFaceStencilFunction = Graphics::Comparison_Always;
+			DepthStencil.BackFaceStencilFailOperation = Graphics::StencilOperation_Keep;
+			DepthStencil.BackFaceStencilDepthFailOperation = Graphics::StencilOperation_Subtract;
+			DepthStencil.BackFaceStencilPassOperation = Graphics::StencilOperation_Keep;
+			DepthStencil.BackFaceStencilFunction = Graphics::Comparison_Always;
+			DepthStencil.Name = "DEF_LESS_NO_STENCIL";
+			DepthStencilStates[DepthStencil.Name] = CreateDepthStencilState(DepthStencil);
+
 			Graphics::RasterizerState::Desc Rasterizer;
 			Rasterizer.AntialiasedLineEnable = false;
 			Rasterizer.CullMode = Graphics::VertexCull_Back;
@@ -813,6 +837,13 @@ namespace Tomahawk
 			Blend.RenderTarget[0].BlendEnable = false;
 			Blend.RenderTarget[0].RenderTargetWriteMask = Graphics::ColorWriteEnable_All;
 			Blend.Name = "DEF_OVERWRITE";
+			BlendStates[Blend.Name] = CreateBlendState(Blend);
+
+			Blend.AlphaToCoverageEnable = false;
+			Blend.IndependentBlendEnable = false;
+			Blend.RenderTarget[0].BlendEnable = false;
+			Blend.RenderTarget[0].RenderTargetWriteMask = 0;
+			Blend.Name = "DEF_OVERWRITE_COLORLESS";
 			BlendStates[Blend.Name] = CreateBlendState(Blend);
 
 			Blend.AlphaToCoverageEnable = false;
@@ -900,6 +931,17 @@ namespace Tomahawk
 			Sampler.Name = "DEF_LINEAR";
 			SamplerStates[Sampler.Name] = CreateSamplerState(Sampler);
 
+			Sampler.Filter = Graphics::PixelFilter_Min_Mag_Mip_Point;
+			Sampler.AddressU = Graphics::TextureAddress_Clamp;
+			Sampler.AddressV = Graphics::TextureAddress_Clamp;
+			Sampler.AddressW = Graphics::TextureAddress_Clamp;
+			Sampler.MipLODBias = 0.0f;
+			Sampler.ComparisonFunction = Graphics::Comparison_Never;
+			Sampler.MinLOD = 0.0f;
+			Sampler.MaxLOD = std::numeric_limits<float>::max();
+			Sampler.Name = "DEF_POINT";
+			SamplerStates[Sampler.Name] = CreateSamplerState(Sampler);
+
 			SetDepthStencilState(GetDepthStencilState("DEF_LESS"));
 			SetRasterizerState(GetRasterizerState("DEF_CULL_BACK"));
 			SetBlendState(GetBlendState("DEF_OVERWRITE"));
@@ -934,6 +976,11 @@ namespace Tomahawk
 #else
 				THAWK_ERROR("geometry/emitter/gbuffer-limpid.hlsl was not compiled");
 #endif
+#ifdef HAS_D3D11_GEOMETRY_MODEL_OCCLUSION_HLSL
+				AddSection("geometry/model/occlusion.hlsl", GET_RESOURCE_BATCH(d3d11_geometry_model_occlusion_hlsl));
+#else
+				THAWK_ERROR("geometry/model/occlusion.hlsl was not compiled");
+#endif
 #ifdef HAS_D3D11_GEOMETRY_MODEL_DEPTH_CUBIC_HLSL
 				AddSection("geometry/model/depth-cubic.hlsl", GET_RESOURCE_BATCH(d3d11_geometry_model_depth_cubic_hlsl));
 #else
@@ -948,6 +995,11 @@ namespace Tomahawk
 				AddSection("geometry/model/gbuffer.hlsl", GET_RESOURCE_BATCH(d3d11_geometry_model_gbuffer_hlsl));
 #else
 				THAWK_ERROR("geometry/model/gbuffer.hlsl was not compiled");
+#endif
+#ifdef HAS_D3D11_GEOMETRY_SKIN_OCCLUSION_HLSL
+				AddSection("geometry/skin/occlusion.hlsl", GET_RESOURCE_BATCH(d3d11_geometry_skin_occlusion_hlsl));
+#else
+				THAWK_ERROR("geometry/skin/occlusion.hlsl was not compiled");
 #endif
 #ifdef HAS_D3D11_GEOMETRY_SKIN_DEPTH_CUBIC_HLSL
 				AddSection("geometry/skin/depth-cubic.hlsl", GET_RESOURCE_BATCH(d3d11_geometry_skin_depth_cubic_hlsl));
@@ -1242,6 +1294,11 @@ namespace Tomahawk
 #else
 			THAWK_ERROR("geometry/emitter/gbuffer-limpid.glsl was not compiled");
 #endif
+#ifdef HAS_OGL_GEOMETRY_MODEL_OCCLUSION_GLSL
+			AddSection("geometry/model/occlusion.glsl", GET_RESOURCE_BATCH(ogl_geometry_model_occlusion_glsl));
+#else
+			THAWK_ERROR("geometry/model/occlusion.glsl was not compiled");
+#endif
 #ifdef HAS_OGL_GEOMETRY_MODEL_DEPTH_CUBIC_GLSL
 			AddSection("geometry/model/depth-cubic.glsl", GET_RESOURCE_BATCH(ogl_geometry_model_depth_cubic_glsl));
 #else
@@ -1256,6 +1313,11 @@ namespace Tomahawk
 			AddSection("geometry/model/gbuffer.glsl", GET_RESOURCE_BATCH(ogl_geometry_model_gbuffer_glsl));
 #else
 			THAWK_ERROR("geometry/model/gbuffer.glsl was not compiled");
+#endif
+#ifdef HAS_OGL_GEOMETRY_SKIN_OCCLUSION_GLSL
+			AddSection("geometry/skin/occlusion.glsl", GET_RESOURCE_BATCH(ogl_geometry_skin_occlusion_glsl));
+#else
+			THAWK_ERROR("geometry/skin/occlusion.glsl was not compiled");
 #endif
 #ifdef HAS_OGL_GEOMETRY_SKIN_DEPTH_CUBIC_GLSL
 			AddSection("geometry/skin/depth-cubic.glsl", GET_RESOURCE_BATCH(ogl_geometry_skin_depth_cubic_glsl));
@@ -1530,8 +1592,8 @@ namespace Tomahawk
 
 			while (Width > 1 && Height > 1)
 			{
-				Width = (unsigned int)Compute::Math<float>::Max((float)Width / 2.0f, 1.0f);
-				Height = (unsigned int)Compute::Math<float>::Max((float)Height / 2.0f, 1.0f);
+				Width = (unsigned int)Compute::Mathf::Max((float)Width / 2.0f, 1.0f);
+				Height = (unsigned int)Compute::Mathf::Max((float)Height / 2.0f, 1.0f);
 				MipLevels++;
 			}
 

@@ -417,6 +417,7 @@ namespace Tomahawk
 		if (Modes & TInit_Network)
 		{
 			Network::Multiplexer::Release();
+			Network::MongoDB::Connector::Release();
 #ifdef THAWK_MICROSOFT
 			WSACleanup();
 #endif

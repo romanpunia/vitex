@@ -1,5 +1,6 @@
 #include "renderer/input/base"
 #include "renderer/buffer/viewer"
+#pragma warning(disable: 4000)
 
 float GetRoughness(in float2 TexCoord)
 {
@@ -17,10 +18,31 @@ float GetEmission(in float2 TexCoord)
 {
     return EmissionMap.Sample(Sampler, TexCoord).x;
 }
-float2 GetParallax(in float2 TexCoord, in float2 Direction, in float Amount, in float Bias)
+float2 GetParallax(in float2 TexCoord, in float3 Direction, in float Amount, in float Bias)
 {
-    float Height = HeightMap.SampleLevel(Sampler, TexCoord, 0).x;
-    return TexCoord + Direction * (Height * Amount + Bias);
+    float Steps = lerp(24.0, 4.0, abs(dot(float3(0.0, 0.0, 1.0), Direction)));
+    float Step = 1.0 / Steps;
+    float Depth = 0.0;
+    float2 Delta = Direction.xy * Amount / Steps;
+    float2 Result = TexCoord;
+    float Sample = HeightMap.SampleLevel(Sampler, Result, 0).x + Bias;
+    
+    [loop] for (float i = 0; i < Steps; i++)
+    {
+        [branch] if (Depth >= Sample)
+            break;
+
+        Result -= Delta;
+        Sample = HeightMap.SampleLevel(Sampler, Result, 0).x + Bias;  
+        Depth += Step;
+    }
+
+    float2 Origin = Result + Delta;
+    float Depth1 = Sample - Depth;
+    float Depth2 = HeightMap.SampleLevel(Sampler, Origin, 0).x + Bias - Depth + Step;
+    float Weight = Depth1 / (Depth1 - Depth2);
+    
+    return Origin * Weight + Result * (1.0 - Weight);
 }
 float3 GetNormal(in float2 TexCoord, in float3 Normal, in float3 Tangent, in float3 Bitangent)
 {

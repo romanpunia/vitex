@@ -11,8 +11,7 @@
 #ifdef THAWK_MICROSOFT
 #include <Windows.h>
 #include <io.h>
-#elif defined THAWK_UNIX
-																														#include <string.h>
+#elif defined THAWK_UNIX																										#include <string.h>
 #include <unistd.h>
 #include <dirent.h>
 #include <sys/types.h>
@@ -1843,6 +1842,22 @@ namespace Tomahawk
 
 			return Output;
 		}
+		Stroke& Stroke::operator= (const Stroke& Value)
+		{
+			if (&Value == this)
+				return *this;
+
+			if (Safe)
+				delete L;
+
+			Safe = true;
+			if (Value.L != nullptr)
+				L = new std::string(*Value.L);
+			else
+				L = new std::string();
+
+			return *this;
+		}
 
 		void LT::AttachCallback(const std::function<void(const char*, int)>& _Callback)
 		{
@@ -1937,6 +1952,10 @@ namespace Tomahawk
 				return;
 			}
 
+			Object* Ref = (Object*)Ptr;
+			if (Ref != nullptr && --Ref->__vcnt > 0)
+				return Safe->unlock();
+
 			Memory -= It->second;
 			Objects->erase(It);
 
@@ -1952,6 +1971,10 @@ namespace Tomahawk
 				delete Safe;
 				Safe = nullptr;
 			}
+#else
+			Object* Ref = (Object*)Ptr;
+			if (Ref != nullptr && --Ref->__vcnt > 0)
+				return;
 #endif
 			free(Ptr);
 		}
@@ -2104,7 +2127,30 @@ namespace Tomahawk
 		{
 			return LT::Alloc((uint64_t)Size);
 		}
-
+#ifdef THAWK_REFCOUNT
+		void Object::SetFlag()
+		{
+			return Factory::SetFlag(this);
+		}
+		bool Object::GetFlag()
+		{
+			return Factory::GetFlag(this);
+		}
+		int Object::GetRefCount()
+		{
+			return Factory::GetRefCount(this);
+		}
+		Object* Object::AddRef()
+		{
+			Factory::AddRef(this);
+			return this;
+		}
+		Object* Object::Release()
+		{
+			Factory::Release(this);
+			return this;
+		}
+#endif
 		Console::Console() : Handle(false), Time(0)
 		{
 		}
@@ -5649,6 +5695,109 @@ namespace Tomahawk
 																																	THAWK_ERROR("json parse is unsupported for this build");
             return false;
 #endif
+		}
+		Document* Document::NewArray()
+		{
+			Document* Result = new Document();
+			Result->Type = NodeType_Array;
+
+			return Result;
+		}
+		Document* Document::NewUndefined()
+		{
+			Document* Result = new Document();
+			Result->Type = NodeType_Undefined;
+
+			return Result;
+		}
+		Document* Document::NewNull()
+		{
+			Document* Result = new Document();
+			Result->Type = NodeType_Null;
+
+			return Result;
+		}
+		Document* Document::NewId(unsigned char Value[12])
+		{
+			if (!Value)
+				return nullptr;
+
+			Document* Result = new Document();
+			Result->Type = NodeType_Id;
+			Result->String.assign((const char*)Value, 12);
+
+			return Result;
+		}
+		Document* Document::NewString(const char* Value, int64_t Size)
+		{
+			if (!Value)
+				return nullptr;
+
+			Document* Result = new Document();
+			Result->Type = NodeType_String;
+			Result->String.assign(Value, Size);
+
+			return Result;
+		}
+		Document* Document::NewString(const std::string& Value)
+		{
+			Document* Result = new Document();
+			Result->Type = NodeType_String;
+			Result->String.assign(Value);
+
+			return Result;
+		}
+		Document* Document::NewInteger(int64_t Value)
+		{
+			Document* Result = new Document();
+			Result->Type = NodeType_Integer;
+			Result->Integer = Value;
+			Result->Number = (double)Value;
+
+			return Result;
+		}
+		Document* Document::NewNumber(double Value)
+		{
+			Document* Result = new Document();
+			Result->Type = NodeType_Number;
+			Result->Integer = (int64_t)Value;
+			Result->Number = Value;
+
+			return Result;
+		}
+		Document* Document::NewDecimal(int64_t High, int64_t Low)
+		{
+			Document* Result = new Document();
+			Result->Type = NodeType_Decimal;
+			Result->Integer = High;
+			Result->Low = Low;
+
+			return Result;
+		}
+		Document* Document::NewDecimal(const std::string& Value)
+		{
+#ifdef THAWK_HAS_MONGOC
+			int64_t fHigh, fLow;
+			if (!Network::BSON::Document::ParseDecimal(Value.c_str(), &fHigh, &fLow))
+				return nullptr;
+
+			Document* Result = new Document();
+			Result->Type = NodeType_Decimal;
+			Result->Integer = fHigh;
+			Result->Low = fLow;
+
+			return Result;
+#else
+			return nullptr;
+#endif
+		}
+		Document* Document::NewBoolean(bool Value)
+		{
+			Document* Result = new Document();
+			Result->Type = NodeType_Boolean;
+			Result->Boolean = Value;
+
+			return Result;
 		}
 		void Document::ProcessBINWrite(Document* Current, std::unordered_map<std::string, uint64_t>* Map, const NWriteCallback& Callback)
 		{

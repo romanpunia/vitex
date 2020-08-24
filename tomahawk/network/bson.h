@@ -81,6 +81,8 @@ namespace Tomahawk
 				static unsigned int GetHashId(unsigned char* Id12);
 				static int64_t GetTimeId(unsigned char* Id12);
 				static uint64_t CountKeys(TDocument* Document);
+				static std::string OIdToString(unsigned char* Id12);
+				static std::string StringToOId(const std::string& Id24);
 				static std::string ToExtendedJSON(TDocument* Document);
 				static std::string ToRelaxedAndExtendedJSON(TDocument* Document);
 				static std::string ToClassicJSON(TDocument* Document);

@@ -13,11 +13,290 @@ namespace Tomahawk
 	{
 		namespace MongoDB
 		{
+			QueryCache::QueryCache()
+			{
+			}
+			QueryCache::~QueryCache()
+			{
+				Safe.lock();
+				for (auto& Query : Queries)
+					BSON::Document::Release(&Query.second.Cache);
+				Safe.unlock();
+			}
+			bool QueryCache::AddQuery(const std::string& Name, const char* Buffer, size_t Size)
+			{
+				Rest::Stroke Base(Buffer);
+				if (Name.empty() || !Buffer || !Size)
+					return false;
+
+				Rest::Stroke::Settle Start = Base.Find("query(");
+				if (!Start.Found)
+					return false;
+
+				Rest::Stroke::Settle End = Base.Find("):", Start.End);
+				if (!End.Found)
+					return false;
+
+				Sequence Result;
+				Result.Request.assign(Buffer + End.End, Size - End.End);
+
+				auto Args = Base.Substring(Start.End, End.Start - Start.End).Split(',');
+				Base = Result.Request;
+				Base.Trim();
+
+				uint64_t Index = 0;
+				bool Spec = false;
+				bool Lock = false;
+
+				while (Index < Base.Size())
+				{
+					char V = Base.R()[Index];
+					if (V == '"')
+					{
+						if (Lock)
+						{
+							if (Spec)
+								Spec = false;
+							else
+								Lock = false;
+						}
+						else
+							Lock = true;
+						Index++;
+					}
+					else if (Lock && V == '\\')
+					{
+						Spec = true;
+						Index++;
+					}
+					else if (!Lock && (V == '\n' || V == '\r' || V == '\t' || V == ' '))
+						Base.Erase(Index, 1);
+					else
+						Index++;
+				}
+
+				for (auto& Sub : Args)
+				{
+					Rest::Stroke Field(&Sub);
+					Field.Trim();
+					Field.Insert('<', 0);
+					Field.Append('>');
+
+					Rest::Stroke::Settle Data;
+					uint64_t Offset = 0;
+
+					auto& Offsets = Result.Args[Field.R()];
+					while ((Data = Base.Find(Field.R(), Offset)).Found)
+					{
+						Base.EraseOffsets(Data.Start, Data.End);
+						Offsets.push_back(Data.Start);
+						Offset = Data.Start;
+					}
+				}
+
+				Result.Request = Base.R();
+				if (Result.Args.empty())
+					Result.Cache = BSON::Document::Create(Result.Request);
+
+				Safe.lock();
+				Queries[Name] = Result;
+				Safe.unlock();
+
+				return true;
+			}
+			bool QueryCache::AddDirectory(const std::string& Directory, const std::string& Origin)
+			{
+				std::vector<Rest::ResourceEntry> Entries;
+				if (!Rest::OS::ScanDir(Directory, &Entries))
+					return false;
+
+				std::string Path = Directory;
+				if (Path.back() != '/' && Path.back() != '\\')
+					Path.append(1, '/');
+
+				uint64_t Size = 0;
+				for (auto& File : Entries)
+				{
+					if (File.Source.IsDirectory)
+					{
+						AddDirectory(Path + File.Path, Path);
+						continue;
+					}
+
+					Rest::Stroke Base(&File.Path);
+					if (!Base.EndsWith(".json"))
+						continue;
+
+					char* Buffer = (char*)Rest::OS::ReadAllBytes((Path + File.Path).c_str(), &Size);
+					if (!Buffer)
+						continue;
+
+					AddQuery(Base.Replace(Origin.empty() ? Directory : Origin, "").Replace("\\", "/").Replace(".json", "").Substring(1).R(), Buffer, Size);
+					free(Buffer);
+				}
+
+				return true;
+			}
+			bool QueryCache::RemoveQuery(const std::string& Name)
+			{
+				Safe.lock();
+				auto It = Queries.find(Name);
+				if (It == Queries.end())
+				{
+					Safe.unlock();
+					return false;
+				}
+
+				BSON::Document::Release(&It->second.Cache);
+				Queries.erase(It);
+				Safe.unlock();
+				return true;
+			}
+			BSON::TDocument* QueryCache::GetQuery(const std::string& Name, QueryMap* Map, bool Once)
+			{
+				Safe.lock();
+				auto It = Queries.find(Name);
+				if (It == Queries.end())
+				{
+					Safe.unlock();
+					return nullptr;
+				}
+
+				if (It->second.Cache != nullptr)
+				{
+					BSON::TDocument* Result = BSON::Document::Copy(It->second.Cache);
+					Safe.unlock();
+
+					return Result;
+				}
+
+				if (!Map)
+				{
+					BSON::TDocument* Result = BSON::Document::Create(It->second.Request);
+					Safe.unlock();
+
+					return Result;
+				}
+
+				Sequence Origin = It->second;
+				Safe.unlock();
+
+				Rest::Stroke Result(&Origin.Request);
+				uint64_t Basis = 0;
+
+				for (auto& Sub : *Map)
+				{
+					auto Field = Origin.Args.find('<' + Sub.first + '>');
+					if (Field == Origin.Args.end())
+					{
+						if (Once)
+							delete Sub.second;
+						continue;
+					}
+
+					std::string Value;
+					if (Sub.second != nullptr)
+					{
+						switch (Sub.second->Type)
+						{
+							case Rest::NodeType_Object:
+							case Rest::NodeType_Array:
+								Rest::Document::WriteJSON(Sub.second, [&Value](Rest::DocumentPretty Type, const char* Buffer, int64_t Size)
+								{
+									if (Buffer != nullptr && Size > 0)
+										Value.append(Buffer, Size);
+								});
+								break;
+							case Rest::NodeType_String:
+								Value.assign("\"" + Sub.second->String + "\"");
+								break;
+							case Rest::NodeType_Integer:
+								Value.assign(std::to_string(Sub.second->Integer));
+								break;
+							case Rest::NodeType_Number:
+								Value.assign(std::to_string(Sub.second->Number));
+								break;
+							case Rest::NodeType_Boolean:
+								Value.assign(Sub.second->Boolean ? "true" : "false");
+								break;
+							case Rest::NodeType_Decimal:
+							{
+#ifdef THAWK_HAS_MONGOC
+								Network::BSON::KeyPair Pair;
+								Pair.Mod = Network::BSON::Type_Decimal;
+								Pair.High = Sub.second->Integer;
+								Pair.Low = Sub.second->Low;
+								Value.assign("{\"$numberDouble\":\"" + Pair.ToString() + "\"}");
+#endif
+								break;
+							}
+							case Rest::NodeType_Id:
+								Value.assign("{\"$oid\":\"" + BSON::Document::OIdToString((unsigned char*)Sub.second->String.c_str()) + "\"}");
+								break;
+							case Rest::NodeType_Null:
+								Value.assign("null");
+								break;
+							case Rest::NodeType_Undefined:
+								Value.assign("undefined");
+								break;
+							default:
+								break;
+						}
+					}
+
+					if (!Value.empty())
+					{
+						for (auto& Offset : Field->second)
+						{
+							Result.Insert(Value, Basis + Offset);
+							Basis += Value.size();
+						}
+					}
+
+					if (Once)
+						delete Sub.second;
+				}
+
+				if (Once)
+					Map->clear();
+
+				return BSON::Document::Create(Origin.Request);
+			}
+
+			bool Connector::AddQuery(const std::string& Name, const char* Buffer, size_t Size)
+			{
+				if (!Cache)
+					return false;
+
+				return Cache->AddQuery(Name, Buffer, Size);
+			}
+			bool Connector::AddDirectory(const std::string& Directory)
+			{
+				if (!Cache)
+					return false;
+
+				return Cache->AddDirectory(Directory);
+			}
+			bool Connector::RemoveQuery(const std::string& Name)
+			{
+				if (!Cache)
+					return false;
+
+				return Cache->RemoveQuery(Name);
+			}
+			BSON::TDocument* Connector::GetQuery(const std::string& Name, QueryMap* Map, bool Once)
+			{
+				if (!Cache)
+					return nullptr;
+
+				return Cache->GetQuery(Name, Map, Once);
+			}
 			void Connector::Create()
 			{
 #ifdef THAWK_HAS_MONGOC
 				if (State <= 0)
 				{
+					Cache = new QueryCache();
 					mongoc_init();
 					State = 1;
 				}
@@ -30,6 +309,8 @@ namespace Tomahawk
 #ifdef THAWK_HAS_MONGOC
 				if (State == 1)
 				{
+					delete Cache;
+					Cache = nullptr;
 					mongoc_cleanup();
 					State = 0;
 				}
@@ -37,6 +318,7 @@ namespace Tomahawk
 					State--;
 #endif
 			}
+			QueryCache* Connector::Cache = nullptr;
 			int Connector::State = 0;
 
 			TURI* URI::Create(const char* Uri)

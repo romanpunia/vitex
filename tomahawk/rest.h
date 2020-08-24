@@ -496,6 +496,7 @@ namespace Tomahawk
 			std::vector<std::string> Split(char With, uint64_t Start = 0U) const;
 			std::vector<std::string> SplitMax(char With, uint64_t MaxCount, uint64_t Start = 0U) const;
 			std::vector<std::string> SplitOf(const char* With, uint64_t Start = 0U) const;
+			Stroke& operator = (const Stroke& New);
 
 		public:
 			static bool IsDigit(char Char);
@@ -888,6 +889,7 @@ namespace Tomahawk
 
 		class THAWK_OUT Object
 		{
+			friend class LT;
 			friend class Factory;
 
 		private:
@@ -899,7 +901,13 @@ namespace Tomahawk
 			virtual ~Object() = default;
 			void* operator new(size_t Size);
 			void operator delete(void* Data);
-
+#ifdef THAWK_REFCOUNT
+			void SetFlag();
+			bool GetFlag();
+			int GetRefCount();
+			Object* AddRef();
+			Object* Release();
+#endif
 		public:
 			template <typename T>
 			T* As()
@@ -1379,6 +1387,17 @@ namespace Tomahawk
 			static Document* ReadBIN(const NReadCallback& Callback);
 			static Document* ReadXML(int64_t Size, const NReadCallback& Callback);
 			static Document* ReadJSON(int64_t Size, const NReadCallback& Callback);
+			static Document* NewArray();
+			static Document* NewUndefined();
+			static Document* NewNull();
+			static Document* NewId(unsigned char Value[12]);
+			static Document* NewString(const char* Value, int64_t Size);
+			static Document* NewString(const std::string& Value);
+			static Document* NewInteger(int64_t Value);
+			static Document* NewNumber(double Value);
+			static Document* NewDecimal(int64_t High, int64_t Low);
+			static Document* NewDecimal(const std::string& Value);
+			static Document* NewBoolean(bool Value);
 
 		private:
 			static void ProcessBINWrite(Document* Current, std::unordered_map<std::string, uint64_t>* Map, const NWriteCallback& Callback);

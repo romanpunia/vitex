@@ -1353,6 +1353,28 @@ namespace Tomahawk
 			unsigned int GetMipLevels();
 		};
 
+		class THAWK_OUT DepthBuffer : public Rest::Object
+		{
+		public:
+			struct Desc
+			{
+				CPUAccess AccessFlags = CPUAccess_Invalid;
+				ResourceUsage Usage = ResourceUsage_Default;
+				unsigned int Width = 512;
+				unsigned int Height = 512;
+			};
+
+		protected:
+			DepthBuffer(const Desc& I);
+
+		public:
+			virtual ~DepthBuffer();
+			virtual void* GetResource() = 0;
+			virtual Viewport GetViewport() = 0;
+			virtual float GetWidth() = 0;
+			virtual float GetHeight() = 0;
+		};
+
 		class THAWK_OUT RenderTarget2D : public Rest::Object
 		{
 		public:
@@ -1607,6 +1629,7 @@ namespace Tomahawk
 			virtual void SetTextureCube(TextureCube* Resource, unsigned int Slot) = 0;
 			virtual void SetTarget(float R, float G, float B) = 0;
 			virtual void SetTarget() = 0;
+			virtual void SetTarget(DepthBuffer* Resource) = 0;
 			virtual void SetTarget(RenderTarget2D* Resource, float R, float G, float B) = 0;
 			virtual void SetTarget(RenderTarget2D* Resource) = 0;
 			virtual void SetTarget(MultiRenderTarget2D* Resource, unsigned int Target, float R, float G, float B) = 0;
@@ -1655,6 +1678,7 @@ namespace Tomahawk
 			virtual void Clear(RenderTargetCube* Resource, float R, float G, float B) = 0;
 			virtual void Clear(MultiRenderTargetCube* Resource, unsigned int Target, float R, float G, float B) = 0;
 			virtual void ClearDepth() = 0;
+			virtual void ClearDepth(DepthBuffer* Resource) = 0;
 			virtual void ClearDepth(RenderTarget2D* Resource) = 0;
 			virtual void ClearDepth(MultiRenderTarget2D* Resource) = 0;
 			virtual void ClearDepth(RenderTarget2DArray* Resource) = 0;
@@ -1729,6 +1753,7 @@ namespace Tomahawk
 			virtual TextureCube* CreateTextureCube(const TextureCube::Desc& I) = 0;
 			virtual TextureCube* CreateTextureCube(Texture2D* Resource[6]) = 0;
 			virtual TextureCube* CreateTextureCube(Texture2D* Resource) = 0;
+			virtual DepthBuffer* CreateDepthBuffer(const DepthBuffer::Desc& I) = 0;
 			virtual RenderTarget2D* CreateRenderTarget2D(const RenderTarget2D::Desc& I) = 0;
 			virtual MultiRenderTarget2D* CreateMultiRenderTarget2D(const MultiRenderTarget2D::Desc& I) = 0;
 			virtual RenderTarget2DArray* CreateRenderTarget2DArray(const RenderTarget2DArray::Desc& I) = 0;

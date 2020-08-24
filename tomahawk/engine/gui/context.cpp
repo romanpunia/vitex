@@ -1,5 +1,8 @@
 #include "context.h"
 #include "elements.h"
+#include "layout.h"
+#include "logical.h"
+#include "shapes.h"
 #ifndef NK_IMPLEMENTATION
 #define NK_INCLUDE_FIXED_TYPES
 #define NK_INCLUDE_STANDARD_IO

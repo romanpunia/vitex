@@ -1,62 +1,54 @@
 #include "standard/space-sv"
 #include "standard/random-float"
-#include "standard/ray-march"
 
 cbuffer RenderConstant : register(b3)
 {
-	float Scale;
+	float Samples;
 	float Intensity;
+	float Scale;
 	float Bias;
 	float Radius;
-	float Step;
-	float Offset;
 	float Distance;
-	float Fading;
-	float Power;
-	float IterationCount;
-	float Threshold;
-	float Padding;
+	float Fade;
+    float Padding;
+}
+
+float GetFactor(in float2 TexCoord, in float3 Position, in float3 Normal, in float Power) 
+{
+    float3 D = GetPosition(TexCoord, GetDepth(TexCoord)) - Position; 
+    float3 V = normalize(D); 
+    float T = length(D) * Scale; 
+
+    return max(0.0, dot(Normal, V) - Bias) * (1.0 / (1.0 + T)) * Power;
 }
 
 float4 PS(VertexResult V) : SV_TARGET0
 {
+    const float2 Disk[4] = { float2(1, 0), float2(-1, 0), float2(0, 1), float2(0, -1) };
 	float2 TexCoord = GetTexCoord(V.TexCoord);
 	Fragment Frag = GetFragment(TexCoord);
 
     [branch] if (Frag.Depth >= 1.0)
         return float4(1.0, 1.0, 1.0, 1.0);
 
-	Material Mat = GetMaterial(Frag.Material);
-    float Z = GetOcclusionFactor(Frag, Mat);
-    Bounce Ray = GetBounce(Scale, Intensity, Bias, Power * Z, Threshold);
-	float F = saturate(pow(abs(distance(ViewPosition, Frag.Position) / Distance), Fading));
-	float O = Radius + Mat.Radius, Count = 0.0;
-    float3 C = 0.0;
+    Material Mat = GetMaterial(Frag.Material);
+    float2 Random = RandomFloat2(TexCoord);
+	float Vision = saturate(pow(abs(distance(ViewPosition, Frag.Position) / Distance), Fade));
+    float Power = Intensity * GetOcclusionFactor(Frag, Mat);
+    float Size = (Radius + Mat.Radius) / Frag.Depth;
+    float Factor = 0.0;
+    
+    [loop] for (int j = 0; j < Samples; ++j) 
+    {
+        float2 C1 = reflect(Disk[j], Random) * Size; 
+        float2 C2 = float2(C1.x * 0.707 - C1.y * 0.707, C1.x * 0.707 + C1.y * 0.707); 
 
-	[loop] for (float x = -IterationCount; x < IterationCount; x++)
-	{
-		[loop] for (float y = -IterationCount; y < IterationCount; y++)
-		{
-			float2 R = RandomFloat2(TexCoord) * Step - float2(y, x) * Offset;
-			float2 D = reflect(R, float2(x, y)) * O;
-            float F1 = 0, F2 = 0;
+        Factor += GetFactor(TexCoord + C1 * 0.25, Frag.Position, Frag.Normal, Power); 
+        Factor += GetFactor(TexCoord + C2 * 0.5, Frag.Position, Frag.Normal, Power);
+        Factor += GetFactor(TexCoord + C1 * 0.75, Frag.Position, Frag.Normal, Power);
+        Factor += GetFactor(TexCoord + C2, Frag.Position, Frag.Normal, Power);
+    }
 
-            [branch] if (RayBounce(Frag, Ray, TexCoord + D, F1))
-            {
-                C += F1;
-                Count++;
-            }
-
-            [branch] if (RayBounce(Frag, Ray, TexCoord - D, F2))
-            {
-                C += F2;
-                Count++;
-            }
-		}
-	}
-
-    [branch] if (Count <= 0.0)
-        return float4(1.0, 1.0, 1.0, 1.0);
-
-    return float4(C * F / Count, 1);
+    Factor /= Samples * Samples; 
+    return 1.0 - Factor * Vision;
 };

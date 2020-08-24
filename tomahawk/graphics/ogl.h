@@ -163,17 +163,34 @@ namespace Tomahawk
 				void* GetResource() override;
 			};
 
-			class OGLRenderTarget2D : public RenderTarget2D
+			class OGLDepthBuffer : public DepthBuffer
 			{
 				friend OGLDevice;
-
-			public:
-				Viewport Viewport;
 
 			public:
 				GLuint FrameBuffer = GL_INVALID_VALUE;
 				GLuint DepthBuffer = GL_INVALID_VALUE;
 				GLuint Texture = GL_INVALID_VALUE;
+				Viewport Viewport;
+
+			public:
+				OGLDepthBuffer(const Desc& I);
+				virtual ~OGLDepthBuffer() override;
+				Graphics::Viewport GetViewport() override;
+				float GetWidth() override;
+				float GetHeight() override;
+				void* GetResource() override;
+			};
+			
+			class OGLRenderTarget2D : public RenderTarget2D
+			{
+				friend OGLDevice;
+
+			public:
+				GLuint FrameBuffer = GL_INVALID_VALUE;
+				GLuint DepthBuffer = GL_INVALID_VALUE;
+				GLuint Texture = GL_INVALID_VALUE;
+				Viewport Viewport;
 
 			public:
 				OGLRenderTarget2D(const Desc& I);
@@ -295,6 +312,7 @@ namespace Tomahawk
 				void SetTextureCube(TextureCube* Resource, unsigned int Slot) override;
 				void SetTarget(float R, float G, float B) override;
 				void SetTarget() override;
+				void SetTarget(DepthBuffer* Resource) override;
 				void SetTarget(RenderTarget2D* Resource, float R, float G, float B) override;
 				void SetTarget(RenderTarget2D* Resource) override;
 				void SetTarget(MultiRenderTarget2D* Resource, unsigned int Target, float R, float G, float B) override;
@@ -343,6 +361,7 @@ namespace Tomahawk
 				void Clear(RenderTargetCube* Resource, float R, float G, float B) override;
 				void Clear(MultiRenderTargetCube* Resource, unsigned int Target, float R, float G, float B) override;
 				void ClearDepth() override;
+				void ClearDepth(DepthBuffer* Resource) override;
 				void ClearDepth(RenderTarget2D* Resource) override;
 				void ClearDepth(MultiRenderTarget2D* Resource) override;
 				void ClearDepth(RenderTarget2DArray* Resource) override;
@@ -417,6 +436,7 @@ namespace Tomahawk
 				TextureCube* CreateTextureCube(const TextureCube::Desc& I) override;
 				TextureCube* CreateTextureCube(Texture2D* Resource[6]) override;
 				TextureCube* CreateTextureCube(Texture2D* Resource) override;
+				DepthBuffer* CreateDepthBuffer(const DepthBuffer::Desc& I) override;
 				RenderTarget2D* CreateRenderTarget2D(const RenderTarget2D::Desc& I) override;
 				MultiRenderTarget2D* CreateMultiRenderTarget2D(const MultiRenderTarget2D::Desc& I) override;
 				RenderTarget2DArray* CreateRenderTarget2DArray(const RenderTarget2DArray::Desc& I) override;

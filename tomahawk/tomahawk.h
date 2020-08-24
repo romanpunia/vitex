@@ -23,6 +23,9 @@
 #include "engine/renderers.h"
 #include "engine/gui/context.h"
 #include "engine/gui/elements.h"
+#include "engine/gui/layout.h"
+#include "engine/gui/logical.h"
+#include "engine/gui/shapes.h"
 
 namespace Tomahawk
 {

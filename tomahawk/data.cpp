@@ -1,4 +1,4 @@
-#include "resource.h"
+#include "data.h"
 
 namespace resource_batch
 {

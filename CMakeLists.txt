@@ -2,7 +2,7 @@ cmake_minimum_required(VERSION 3.1)
 cmake_policy(SET CMP0054 NEW)
 
 #Project's package support for non-UNIX platforms
-include(opts/package/CMakeLists.txt)
+include(opt/package/CMakeLists.txt)
 
 #Project's metadata
 project(tomahawk)
@@ -17,7 +17,7 @@ if (NOT DEFINED CMAKE_LIBRARY_OUTPUT_DIRECTORY)
 endif()
 
 #Project's source resolver
-include(opts/source/CMakeLists.txt)
+include(opt/source/CMakeLists.txt)
 
 #Project's compile options
 add_library(tomahawk SHARED ${SOURCE})
@@ -47,25 +47,25 @@ else()
 endif()
 
 #Project's compiler support for non-UNIX platforms
-include(opts/windows/CMakeLists.txt)
+include(opt/windows/CMakeLists.txt)
 
 #Project's dependency resolvers
-include(refs/angelscript/CMakeLists.txt)
-include(refs/bullet3/CMakeLists.txt)
-include(refs/nuklear/CMakeLists.txt)
-include(refs/tinyfiledialogs/CMakeLists.txt)
-include(refs/rapidxml/CMakeLists.txt)
-include(refs/stb/CMakeLists.txt)
-include(refs/wepoll/CMakeLists.txt)
-include(refs/openssl/CMakeLists.txt)
-include(refs/openal/CMakeLists.txt)
-include(refs/opengl/CMakeLists.txt)
-include(refs/d3d11/CMakeLists.txt)
-include(refs/glew/CMakeLists.txt)
-include(refs/zlib/CMakeLists.txt)
-include(refs/sdl2/CMakeLists.txt)
-include(refs/assimp/CMakeLists.txt)
-include(refs/mongoc/CMakeLists.txt)
+include(ref/angelscript/CMakeLists.txt)
+include(ref/bullet3/CMakeLists.txt)
+include(ref/nuklear/CMakeLists.txt)
+include(ref/tinyfiledialogs/CMakeLists.txt)
+include(ref/rapidxml/CMakeLists.txt)
+include(ref/stb/CMakeLists.txt)
+include(ref/wepoll/CMakeLists.txt)
+include(ref/openssl/CMakeLists.txt)
+include(ref/openal/CMakeLists.txt)
+include(ref/opengl/CMakeLists.txt)
+include(ref/d3d11/CMakeLists.txt)
+include(ref/glew/CMakeLists.txt)
+include(ref/zlib/CMakeLists.txt)
+include(ref/sdl2/CMakeLists.txt)
+include(ref/assimp/CMakeLists.txt)
+include(ref/mongoc/CMakeLists.txt)
 
 #Project's target installation
-include(opts/install/CMakeLists.txt)
+include(opt/install/CMakeLists.txt)

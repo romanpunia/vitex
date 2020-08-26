@@ -1,13 +1,13 @@
 #Loading sources for project
 file(GLOB_RECURSE SOURCE
-        ${PROJECT_SOURCE_DIR}/refs/*.inl*
-        ${PROJECT_SOURCE_DIR}/refs/*.h*
-        ${PROJECT_SOURCE_DIR}/refs/*.c*
-        ${PROJECT_SOURCE_DIR}/refs/*.cc*
-        ${PROJECT_SOURCE_DIR}/refs/*.hpp*
-        ${PROJECT_SOURCE_DIR}/refs/*.cpp*
-        ${PROJECT_SOURCE_DIR}/refs/*.hxx*
-        ${PROJECT_SOURCE_DIR}/refs/*.cxx*
+        ${PROJECT_SOURCE_DIR}/ref/*.inl*
+        ${PROJECT_SOURCE_DIR}/ref/*.h*
+        ${PROJECT_SOURCE_DIR}/ref/*.c*
+        ${PROJECT_SOURCE_DIR}/ref/*.cc*
+        ${PROJECT_SOURCE_DIR}/ref/*.hpp*
+        ${PROJECT_SOURCE_DIR}/ref/*.cpp*
+        ${PROJECT_SOURCE_DIR}/ref/*.hxx*
+        ${PROJECT_SOURCE_DIR}/ref/*.cxx*
         ${PROJECT_SOURCE_DIR}/tomahawk/*.inl*
         ${PROJECT_SOURCE_DIR}/tomahawk/*.h*
         ${PROJECT_SOURCE_DIR}/tomahawk/*.c*
@@ -16,7 +16,7 @@ file(GLOB_RECURSE SOURCE
         ${PROJECT_SOURCE_DIR}/tomahawk/*.cpp*
         ${PROJECT_SOURCE_DIR}/tomahawk/*.hxx*
         ${PROJECT_SOURCE_DIR}/tomahawk/*.cxx*)
-file(GLOB_RECURSE RESOURCE ${PROJECT_SOURCE_DIR}/resource/*)
+file(GLOB_RECURSE RESOURCE ${PROJECT_SOURCE_DIR}/data/*)
 
 #Resolving default source groups
 foreach(ITEM IN ITEMS ${SOURCE})
@@ -31,14 +31,14 @@ set(THAWK_RESOURCES true CACHE BOOL "allow to compile embedded resources")
 
 #Compiling resources
 if (THAWK_RESOURCES)
-    add_resource_batch("${PROJECT_SOURCE_DIR}/resource" "${PROJECT_SOURCE_DIR}/tomahawk/resource")
-    list(APPEND SOURCE "${PROJECT_SOURCE_DIR}/tomahawk/resource.h")
-    list(APPEND SOURCE "${PROJECT_SOURCE_DIR}/tomahawk/resource.cpp")
+    add_resource_batch("${PROJECT_SOURCE_DIR}/data" "${PROJECT_SOURCE_DIR}/tomahawk/data")
+    list(APPEND SOURCE "${PROJECT_SOURCE_DIR}/tomahawk/data.h")
+    list(APPEND SOURCE "${PROJECT_SOURCE_DIR}/tomahawk/data.cpp")
 	source_group("tomahawk" FILES
-		"${PROJECT_SOURCE_DIR}/tomahawk/resource.h"
-		"${PROJECT_SOURCE_DIR}/tomahawk/resource.cpp")
+		"${PROJECT_SOURCE_DIR}/tomahawk/data.h"
+		"${PROJECT_SOURCE_DIR}/tomahawk/data.cpp")
 else()
-    file(WRITE "${PROJECT_SOURCE_DIR}/tomahawk/resource.h" "")
-    file(WRITE "${PROJECT_SOURCE_DIR}/tomahawk/resource.cpp" "")
+    file(WRITE "${PROJECT_SOURCE_DIR}/tomahawk/data.h" "")
+    file(WRITE "${PROJECT_SOURCE_DIR}/tomahawk/data.cpp" "")
 	message(STATUS "Resource file has been cleared")
 endif()

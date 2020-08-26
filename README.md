@@ -154,13 +154,13 @@ There are several build options for this project.
 + **THAWK_INFO** to allow informational logs, defaults to true
 + **THAWK_WARN** to allow warning logs, defaults to true
 + **THAWK_ERROR** to allow error logs, defaults to true
-+ **THAWK_RESOURCE** to embed resources from **/resource** to this project, defaults to true 
++ **THAWK_RESOURCE** to embed resources from **/data** to this project, defaults to true 
 
 ## Linking
 Tomahawk has support for CMake's install command, to link it with your project you can use CMake as usual.
 
 ## Resources
-Tomahawk has embedded resources. They are located at **/resource**. Resources will be packed to **/tomahawk/resource.h** at CMake's configuration stage. If you want to disable resource embedding then shaders must not use standard library otherwise error will be raised.
+Tomahawk has embedded resources. They are located at **/data**. Resources will be packed to **/tomahawk/data.h** at CMake's configuration stage. If you want to disable resource embedding then shaders must not use standard library otherwise error will be raised.
 
 ## Core built-in dependencies from **/refs**
 *These are used widely and presents useful features*

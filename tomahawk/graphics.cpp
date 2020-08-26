@@ -1,7 +1,7 @@
 #include "graphics.h"
 #include "graphics/d3d11.h"
 #include "graphics/ogl.h"
-#include "resource.h"
+#include "data.h"
 #ifdef THAWK_HAS_SDL2
 #include <SDL2/SDL.h>
 #include <SDL2/SDL_syswm.h>

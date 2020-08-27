@@ -20,9 +20,11 @@ install(FILES
         tomahawk/engine/components.h
         tomahawk/engine/processors.h
         tomahawk/engine/renderers.h
-        tomahawk/engine/gui.h
         DESTINATION include/tomahawk/engine)
 install(FILES
         tomahawk/engine/gui/context.h
         tomahawk/engine/gui/elements.h
+        tomahawk/engine/gui/layout.h
+        tomahawk/engine/gui/logical.h
+        tomahawk/engine/gui/shapes.h
         DESTINATION include/tomahawk/engine/gui)

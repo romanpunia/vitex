@@ -1,6 +1,6 @@
 #ifndef HAS_RESOURCE_BATCH
 #define HAS_RESOURCE_BATCH
-#define GET_RESOURCE_BATCH(V) std::string((const char*)resource_batch::##V::data, resource_batch::##V::size)
+#define GET_RESOURCE_BATCH(V) std::string((const char*)resource_batch::V::data, resource_batch::V::size)
 
 namespace resource_batch
 {

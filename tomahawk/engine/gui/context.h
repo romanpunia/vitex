@@ -148,31 +148,38 @@ namespace Tomahawk
 				std::string GetDynamic(int Query, const std::string& Value);
 				float GetFloatRelative(const std::string& Value);
 
+			private:
+                std::unordered_map<std::string, Element*>* GetContextUniques();
+
 			public:
 				template <typename T>
-				bool QueryById(const std::string& Id, const std::function<bool(T*, bool)>& Callback)
+				bool QueryById(const std::string& Id, const std::function<bool(T*, bool)>& vCallback)
 				{
-					auto It = Base->Uniques.find(Id);
-					if (It == Base->Uniques.end() || !It->second)
+				    auto* Uniques = GetContextUniques();
+				    if (!Uniques)
+				        return false;
+
+					auto It = Uniques->find(Id);
+					if (It == Uniques->end() || !It->second)
 						return false;
 
-					return It->second->Query<T>(Callback);
+					return It->second->Query<T>(vCallback);
 				}
 				template <typename T>
-				bool QueryByPath(const std::string& Path, const std::function<bool(T*, bool)>& Callback)
+				bool QueryByPath(const std::string& Path, const std::function<bool(T*, bool)>& vCallback)
 				{
-					if (!Callback)
+					if (!vCallback)
 						return Assign(Path, nullptr);
 
-					return Assign(Path, [Callback](Element* Target, bool Continue)
+					return Assign(Path, [vCallback](Element* Target, bool Continue)
 					{
-						return Callback(Target ? Target->As<T>() : nullptr, Continue);
+						return vCallback(Target ? Target->As<T>() : nullptr, Continue);
 					});
 				}
 				template <typename T>
-				bool Query(const std::function<bool(T*, bool)>& Callback)
+				bool Query(const std::function<bool(T*, bool)>& vCallback)
 				{
-					return QueryByPath<T>("", Callback);
+					return QueryByPath<T>("", vCallback);
 				}
 			};
 
@@ -187,12 +194,12 @@ namespace Tomahawk
 				Widget(Context* View);
 				virtual ~Widget() override;
 				virtual bool Build() override;
-				virtual bool BuildBegin(nk_context* C) = 0;
-				virtual void BuildEnd(nk_context* C, bool Stated) = 0;
-				virtual void BuildStyle(nk_context* C, nk_style* S) = 0;
-				virtual float GetWidth() = 0;
-				virtual float GetHeight() = 0;
-				virtual std::string GetType() = 0;
+				virtual bool BuildBegin(nk_context* C) override = 0;
+				virtual void BuildEnd(nk_context* C, bool Stated) override = 0;
+				virtual void BuildStyle(nk_context* C, nk_style* S) override = 0;
+				virtual float GetWidth() override = 0;
+				virtual float GetHeight() override = 0;
+				virtual std::string GetType() override = 0;
 				void SetInputEvents(const std::function<void(Widget*)>& Callback);
 				void GetWidgetBounds(float* X, float* Y, float* W, float* H);
 				Compute::Vector2 GetWidgetPosition();
@@ -221,18 +228,18 @@ namespace Tomahawk
 			public:
 				Stateful(Context* View);
 				virtual ~Stateful() override;
-				virtual bool BuildBegin(nk_context* C) = 0;
-				virtual void BuildEnd(nk_context* C, bool Stated) = 0;
-				virtual void BuildStyle(nk_context* C, nk_style* S) = 0;
-				virtual float GetWidth() = 0;
-				virtual float GetHeight() = 0;
-				virtual std::string GetType() = 0;
+				virtual bool BuildBegin(nk_context* C) override = 0;
+				virtual void BuildEnd(nk_context* C, bool Stated) override = 0;
+				virtual void BuildStyle(nk_context* C, nk_style* S) override = 0;
+				virtual float GetWidth() override = 0;
+				virtual float GetHeight() override = 0;
+				virtual std::string GetType() override = 0;
 				std::string& GetHash();
 				void Push();
 				void Pop(uint64_t Count = 0);
 
 			protected:
-				virtual void BuildFont(nk_context* C, nk_style* S);
+				virtual void BuildFont(nk_context* C, nk_style* S) override;
 			};
 
 			class THAWK_OUT Body : public Element

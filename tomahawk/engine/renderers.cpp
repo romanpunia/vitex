@@ -881,7 +881,6 @@ namespace Tomahawk
 				CullResult Cull = (Options & RenderOpt_Inner ? CullResult_Always : CullResult_Last);
 				bool Map[8] = { true, true, false, true, false, false, false, false };
 				bool Static = (Options & RenderOpt_Static);
-				bool Inner = (Options & RenderOpt_Inner);
 
 				if (!Array || Geometry->Empty())
 					return;
@@ -900,7 +899,7 @@ namespace Tomahawk
 				for (auto It = Geometry->Begin(); It != Geometry->End(); ++It)
 				{
 					Engine::Components::Decal* Base = (Engine::Components::Decal*)*It;
-					if (Static && !Base->Static || !System->PassDrawable(Base, Cull, nullptr))
+					if ((Static && !Base->Static) || !System->PassDrawable(Base, Cull, nullptr))
 						continue;
 
 					if (!Appearance::UploadGBuffer(Device, Base->GetSurface()))

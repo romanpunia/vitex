@@ -1717,7 +1717,7 @@ namespace Tomahawk
 		ContentKey::ContentKey() : Type(ContentType_Null), Integer(0), Number(0), Boolean(false), Pointer(nullptr)
 		{
 		}
-		ContentKey::ContentKey(const std::string& Value) : Type(ContentType_String), Integer(0), Number(0), Boolean(false), Pointer(nullptr), String(Value)
+		ContentKey::ContentKey(const std::string& Value) : Type(ContentType_String), Integer(0), Number(0), Boolean(false), String(Value), Pointer(nullptr)
 		{
 		}
 		ContentKey::ContentKey(int64_t Value) : Type(ContentType_Integer), Integer(Value), Number((double)Value), Boolean(false), Pointer(nullptr)
@@ -1844,7 +1844,7 @@ namespace Tomahawk
 			CubicViewProjection[5] = Compute::Matrix4x4::CreateCubeMapLookAt(5, InvViewPosition) * Projection;
 		}
 
-		Component::Component(Entity* Reference) : Parent(Reference), Active(true)
+		Component::Component(Entity* Reference) : Active(true), Parent(Reference)
 		{
 		}
 		Component::~Component()
@@ -1933,7 +1933,7 @@ namespace Tomahawk
 			return Parent->Transform->Position.Distance(View.WorldPosition) <= View.ViewDistance + Parent->Transform->Scale.Length();
 		}
 
-		Drawable::Drawable(Entity* Ref, bool _Complex) : Cullable(Ref), Fragments(1), Satisfied(1), Static(true), Complex(_Complex), Query(nullptr)
+		Drawable::Drawable(Entity* Ref, bool vComplex) : Cullable(Ref), Fragments(1), Satisfied(1), Complex(vComplex), Static(true), Query(nullptr)
 		{
 			if (!Complex)
 				Surfaces[nullptr] = Appearance();
@@ -2054,7 +2054,7 @@ namespace Tomahawk
 			return false;
 		}
 
-		Entity::Entity(SceneGraph* Ref) : Scene(Ref), Tag(-1), Id(-1), Distance(0)
+		Entity::Entity(SceneGraph* Ref) : Scene(Ref), Id(-1), Tag(-1), Distance(0)
 		{
 			Transform = new Compute::Transform();
 			Transform->UserPointer = this;
@@ -2530,7 +2530,7 @@ namespace Tomahawk
 			Safe.unlock();
 		}
 
-		RenderSystem::RenderSystem(Graphics::GraphicsDevice* Ref) : Device(Ref), Scene(nullptr), Target(nullptr), BoxIndex(nullptr), BoxVertex(nullptr), QuadVertex(nullptr), SphereVertex(nullptr), SphereIndex(nullptr), CubeVertex(nullptr), CubeIndex(nullptr), SkinBoxVertex(nullptr), SkinBoxIndex(nullptr), EnableFrustumCull(true), EnableOcclusionCull(false)
+		RenderSystem::RenderSystem(Graphics::GraphicsDevice* Ref) : Device(Ref), Target(nullptr), Scene(nullptr), BoxIndex(nullptr), BoxVertex(nullptr), QuadVertex(nullptr), SphereVertex(nullptr), SphereIndex(nullptr), CubeVertex(nullptr), CubeIndex(nullptr), SkinBoxVertex(nullptr), SkinBoxIndex(nullptr), EnableFrustumCull(true), EnableOcclusionCull(false)
 		{
 			Occlusion.Delay = 5;
 			Sorting.Delay = 5;
@@ -2752,6 +2752,10 @@ namespace Tomahawk
 
 			return nullptr;
 		}
+		Rest::Pool<Component*>* RenderSystem::GetSceneComponents(uint64_t Section)
+        {
+		    return Scene ? Scene->GetComponents(Section) : nullptr;
+        }
 		size_t RenderSystem::GetDepthSize()
 		{
 			return DepthSize;

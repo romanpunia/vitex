@@ -2,6 +2,8 @@
 #define THAWK_GRAPHICS_H
 
 #include "compute.h"
+#include <iostream>
+#include <functional>
 #include <limits>
 
 struct SDL_SysWMinfo;
@@ -761,9 +763,9 @@ namespace Tomahawk
 			ShaderType_All = ShaderType_Vertex | ShaderType_Pixel | ShaderType_Geometry | ShaderType_Hull | ShaderType_Domain | ShaderType_Compute
 		};
 
-		typedef std::function<void(enum AppState)> AppStateChangeCallback;
-		typedef std::function<void(enum WindowState, int, int)> WindowStateChangeCallback;
-		typedef std::function<void(enum KeyCode, enum KeyMod, int, int, bool)> KeyStateCallback;
+		typedef std::function<void(AppState)> AppStateChangeCallback;
+		typedef std::function<void(WindowState, int, int)> WindowStateChangeCallback;
+		typedef std::function<void(KeyCode, KeyMod, int, int, bool)> KeyStateCallback;
 		typedef std::function<void(char*, int, int)> InputEditCallback;
 		typedef std::function<void(char*, int)> InputCallback;
 		typedef std::function<void(int, int, int, int)> CursorMoveCallback;
@@ -1822,27 +1824,27 @@ namespace Tomahawk
 
 			struct
 			{
-				AppStateChangeCallback AppStateChange;
-				WindowStateChangeCallback WindowStateChange;
-				KeyStateCallback KeyState;
-				InputEditCallback InputEdit;
-				InputCallback Input;
-				CursorMoveCallback CursorMove;
-				CursorWheelStateCallback CursorWheelState;
-				JoyStickAxisMoveCallback JoyStickAxisMove;
-				JoyStickBallMoveCallback JoyStickBallMove;
-				JoyStickHatMoveCallback JoyStickHatMove;
-				JoyStickKeyStateCallback JoyStickKeyState;
-				JoyStickStateCallback JoyStickState;
-				ControllerAxisMoveCallback ControllerAxisMove;
-				ControllerKeyStateCallback ControllerKeyState;
-				ControllerStateCallback ControllerState;
-				TouchMoveCallback TouchMove;
-				TouchStateCallback TouchState;
-				GestureStateCallback GestureState;
-				MultiGestureStateCallback MultiGestureState;
-				DropFileCallback DropFile;
-				DropTextCallback DropText;
+				AppStateChangeCallback AppStateChange = nullptr;
+				WindowStateChangeCallback WindowStateChange = nullptr;
+				KeyStateCallback KeyState = nullptr;
+				InputEditCallback InputEdit = nullptr;
+				InputCallback Input = nullptr;
+				CursorMoveCallback CursorMove = nullptr;
+				CursorWheelStateCallback CursorWheelState = nullptr;
+				JoyStickAxisMoveCallback JoyStickAxisMove = nullptr;
+				JoyStickBallMoveCallback JoyStickBallMove = nullptr;
+				JoyStickHatMoveCallback JoyStickHatMove = nullptr;
+				JoyStickKeyStateCallback JoyStickKeyState = nullptr;
+				JoyStickStateCallback JoyStickState = nullptr;
+				ControllerAxisMoveCallback ControllerAxisMove = nullptr;
+				ControllerKeyStateCallback ControllerKeyState = nullptr;
+				ControllerStateCallback ControllerState = nullptr;
+				TouchMoveCallback TouchMove = nullptr;
+				TouchStateCallback TouchState = nullptr;
+				GestureStateCallback GestureState = nullptr;
+				MultiGestureStateCallback MultiGestureState = nullptr;
+				DropFileCallback DropFile = nullptr;
+				DropTextCallback DropText = nullptr;
 			} Callbacks;
 
 		private:

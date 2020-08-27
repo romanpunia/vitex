@@ -1,9 +1,22 @@
 #ifndef THAWK_SCRIPT_H
 #define THAWK_SCRIPT_H
-
 #include "compute.h"
 #include <type_traits>
 #include <random>
+#ifdef __LP64__
+typedef unsigned int as_uint32_t;
+typedef unsigned long as_uint64_t;
+typedef long as_int64_t;
+#else
+typedef unsigned long as_uint32_t;
+#if !defined(_MSC_VER) && (defined(__GNUC__) || defined(__MWERKS__) || defined(__SUNPRO_CC) || defined(__psp2__))
+typedef uint64_t as_uint64_t;
+typedef int64_t as_int64_t;
+#else
+typedef unsigned __int64 as_uint64_t;
+typedef __int64 as_int64_t;
+#endif
+#endif
 
 class VMCArray;
 class VMCAny;
@@ -376,9 +389,9 @@ namespace Tomahawk
 
 		public:
 			template <typename T>
-			int SetReturnObject(unsigned int Arg, T* Object)
+			int SetReturnObject(T* Object)
 			{
-				return SetReturnObjectAddress(Arg, (void*)Object);
+				return SetReturnObjectAddress((void*)Object);
 			}
 			template <typename T>
 			T* GetArgObject(unsigned int Arg)
@@ -386,6 +399,79 @@ namespace Tomahawk
 				return (T*)GetArgObjectAddress(Arg);
 			}
 		};
+
+        class THAWK_OUT VMCReceiver
+        {
+            friend class VMCThread;
+
+        private:
+            std::vector<VMCAny*> Queue;
+            std::condition_variable CV;
+            std::mutex Mutex;
+            int Debug;
+
+        public:
+            VMCReceiver();
+            void Send(VMCAny* Any);
+            void Release();
+            int GetQueueSize();
+            VMCAny* ReceiveWait();
+            VMCAny* Receive(uint64_t Timeout);
+
+        private:
+            void EnumReferences(VMCManager* Engine);
+        };
+
+        class THAWK_OUT VMCThread
+        {
+        private:
+            static int ContextUD;
+            static int EngineListUD;
+
+        private:
+            VMCFunction* Function;
+            VMManager* Manager;
+            VMContext* Context;
+            std::condition_variable CV;
+            std::thread Thread;
+            std::mutex Mutex;
+            VMCReceiver Incoming;
+            VMCReceiver Outgoing;
+            bool Active;
+            int Ref;
+            bool GCFlag;
+
+        public:
+            VMCThread(VMCManager* Engine, VMCFunction* Function);
+            void AddRef();
+            void Release();
+            void Suspend();
+            void Send(VMCAny* Any);
+            int Wait(uint64_t Timeout);
+            int Join();
+            bool IsActive();
+            bool Start();
+            VMCAny* ReceiveWait();
+            VMCAny* Receive(uint64_t Timeout);
+            void EnumReferences(VMCManager* Engine);
+            void SetGCFlag();
+            void ReleaseReferences(VMCManager* Engine);
+            void StartRoutineThread();
+            bool GetGCFlag();
+            int GetRefCount();
+
+        public:
+            static int AtomicNotifyGC(const char* TypeName, void* Object);
+            static void StartRoutine(VMCThread* Thread);
+            static void SendInThread(VMCAny* Any);
+            static void SleepInThread(uint64_t Timeout);
+            static VMCThread* GetThisThread();
+            static VMCThread* GetThisThreadSafe();
+            static VMCAny* ReceiveWaitInThread();
+            static VMCAny* ReceiveInThread(uint64_t Timeout);
+            static VMCThread* StartThread(VMCFunction* Func);
+            static uint64_t GetIdInThread();
+        };
 
 		class THAWK_OUT VMBind
 		{
@@ -625,79 +711,6 @@ namespace Tomahawk
 
 		public:
 			static VMCRandom* Create();
-		};
-
-		class THAWK_OUT VMCReceiver
-		{
-			friend class VMCThread;
-
-		private:
-			std::vector<VMCAny*> Queue;
-			std::condition_variable CV;
-			std::mutex Mutex;
-			int Debug;
-
-		public:
-			VMCReceiver();
-			void Send(VMCAny* Any);
-			void Release();
-			int GetQueueSize();
-			VMCAny* ReceiveWait();
-			VMCAny* Receive(uint64_t Timeout);
-
-		private:
-			void EnumReferences(VMCManager* Engine);
-		};
-
-		class THAWK_OUT VMCThread
-		{
-		private:
-			static int ContextUD;
-			static int EngineListUD;
-
-		private:
-			VMCFunction* Function;
-			VMManager* Manager;
-			VMContext* Context;
-			std::condition_variable CV;
-			std::thread Thread;
-			std::mutex Mutex;
-			VMCReceiver Incoming;
-			VMCReceiver Outgoing;
-			bool Active;
-			int Ref;
-			bool GCFlag;
-
-		public:
-			VMCThread(VMCManager* Engine, VMCFunction* Function);
-			void AddRef();
-			void Release();
-			void Suspend();
-			void Send(VMCAny* Any);
-			int Wait(uint64_t Timeout);
-			int Join();
-			bool IsActive();
-			bool Start();
-			VMCAny* ReceiveWait();
-			VMCAny* Receive(uint64_t Timeout);
-			void EnumReferences(VMCManager* Engine);
-			void SetGCFlag();
-			void ReleaseReferences(VMCManager* Engine);
-			void StartRoutineThread();
-			bool GetGCFlag();
-			int GetRefCount();
-
-		public:
-			static int AtomicNotifyGC(const char* TypeName, void* Object);
-			static void StartRoutine(VMCThread* Thread);
-			static void SendInThread(VMCAny* Any);
-			static void SleepInThread(uint64_t Timeout);
-			static VMCThread* GetThisThread();
-			static VMCThread* GetThisThreadSafe();
-			static VMCAny* ReceiveWaitInThread();
-			static VMCAny* ReceiveInThread(uint64_t Timeout);
-			static VMCThread* StartThread(VMCFunction* Func);
-			static uint64_t GetIdInThread();
 		};
 
 		class THAWK_OUT VMCAsync
@@ -1047,11 +1060,11 @@ namespace Tomahawk
 			int Release();
 			int CopyFrom(const VMWAny& Other);
 			void Store(void* Ref, int RefTypeId);
-			void Store(int64_t& Value);
+			void Store(as_int64_t& Value);
 			void Store(double& Value);
 			bool RetrieveAny(void** Ref, int* RefTypeId) const;
 			bool Retrieve(void* Ref, int RefTypeId) const;
-			bool Retrieve(int64_t& Value) const;
+			bool Retrieve(as_int64_t& Value) const;
 			bool Retrieve(double& Value) const;
 			int GetTypeId() const;
 			bool IsValid() const;
@@ -1095,11 +1108,11 @@ namespace Tomahawk
 			void AddRef() const;
 			void Release();
 			void Set(const std::string& Key, void* Value, int TypeId);
-			void Set(const std::string& Key, int64_t& Value);
+			void Set(const std::string& Key, as_int64_t& Value);
 			void Set(const std::string& Key, double& Value);
 			bool GetIndex(size_t Index, std::string* Key, void** Value, int* TypeId) const;
 			bool Get(const std::string& Key, void** Value, int* TypeId) const;
-			bool Get(const std::string& Key, int64_t& Value) const;
+			bool Get(const std::string& Key, as_int64_t& Value) const;
 			bool Get(const std::string& Key, double& Value) const;
 			int GetTypeId(const std::string& Key) const;
 			bool Exists(const std::string& Key) const;
@@ -1952,7 +1965,7 @@ namespace Tomahawk
 				return Class;
 			}
 			template <typename T>
-			VMWTypeClass SetStructManaged(const char* Name, void(T::*EnumRefs)(VMCManager*), void(* ReleaseRefs)(VMCManager*))
+			VMWTypeClass SetStructManaged(const char* Name, void(T::*EnumRefs)(VMCManager*), void(T::* ReleaseRefs)(VMCManager*))
 			{
 				VMWTypeClass Struct = SetStructAddress(Name, sizeof(T), VMObjType_VALUE | VMObjType_GC | VMBind::GetTypeTraits<T>());
 				Struct.SetEnumRefs(EnumRefs);
@@ -2102,9 +2115,9 @@ namespace Tomahawk
 
 		public:
 			template <typename T>
-			T* GetReturnObject(unsigned int Arg)
+			T* GetReturnObject()
 			{
-				return (T*)GetReturnObjectAddress(Arg);
+				return (T*)GetReturnObjectAddress();
 			}
 
 		public:
@@ -2130,7 +2143,9 @@ namespace Tomahawk
 			std::mutex Safe;
 			uint64_t Features;
 			uint64_t Scope;
+#ifdef HAS_AS_JIT
 			VMCJITCompiler* JIT;
+#endif
 			VMCManager* Engine;
 			VMGlobal Globals;
 			bool Cached;
@@ -2148,7 +2163,7 @@ namespace Tomahawk
 			void SetCompilerFeatures(const Compute::Preprocessor::Desc& NewDesc);
 			void SetProcessorOptions(Compute::Preprocessor* Processor);
 			int Collect(size_t NumIterations = 1);
-			void GetStatistics(size_t* CurrentSize, size_t* TotalDestroyed, size_t* TotalDetected, size_t* NewObjects, size_t* TotalNewDestroyed) const;
+			void GetStatistics(unsigned int* CurrentSize, unsigned int* TotalDestroyed, unsigned int* TotalDetected, unsigned int* NewObjects, unsigned int* TotalNewDestroyed) const;
 			int NotifyOfNewObject(void* Object, const VMWTypeInfo& Type);
 			int GetObjectAddress(size_t Index, size_t* SequenceNumber = nullptr, void** Object = nullptr, VMWTypeInfo* Type = nullptr);
 			void ForwardEnumReferences(void* Reference, const VMWTypeInfo& Type);
@@ -2228,7 +2243,7 @@ namespace Tomahawk
 				bool Function;
 				int Line;
 
-				BreakPoint(const std::string& N, int L, bool F) : Name(N), Line(L), Function(F), NeedsAdjusting(true)
+				BreakPoint(const std::string& N, int L, bool F) : Name(N), NeedsAdjusting(true), Function(F), Line(L)
 				{
 				}
 			};

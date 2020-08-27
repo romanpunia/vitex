@@ -845,6 +845,10 @@ namespace Tomahawk
 
 				return Result;
 			}
+            std::unordered_map<std::string, Element*>* Element::GetContextUniques()
+            {
+			    return &Base->Uniques;
+            }
 
 			Widget::Widget(Context* View) : Element(View), Cache(nullptr), Font(nullptr)
 			{
@@ -1090,9 +1094,9 @@ namespace Tomahawk
 
 				static Graphics::InputLayout Layout[3] =
 				{
-					{ "POSITION", Graphics::Format_R32G32_Float, (size_t)(&((Vertex*)0)->Position) },
-					{ "TEXCOORD", Graphics::Format_R32G32_Float, (size_t)(&((Vertex*)0)->TexCoord) },
-					{ "COLOR", Graphics::Format_R8G8B8A8_Unorm, (size_t)(&((Vertex*)0)->Color) }
+					{ "POSITION", Graphics::Format_R32G32_Float, (unsigned int)(size_t)(&((Vertex*)0)->Position) },
+					{ "TEXCOORD", Graphics::Format_R32G32_Float, (unsigned int)(size_t)(&((Vertex*)0)->TexCoord) },
+					{ "COLOR", Graphics::Format_R8G8B8A8_Unorm, (unsigned int)(size_t)(&((Vertex*)0)->Color) }
 				};
 
 				Graphics::Shader::Desc I = Graphics::Shader::Desc();

@@ -47,7 +47,7 @@ else()
 endif()
 
 #Project's compiler support for non-UNIX platforms
-include(opt/windows/CMakeLists.txt)
+include(opt/compiler/CMakeLists.txt)
 
 #Project's dependency resolvers
 include(ref/angelscript/CMakeLists.txt)

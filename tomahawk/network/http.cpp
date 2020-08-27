@@ -5529,7 +5529,7 @@ namespace Tomahawk
 					return false;
 				}
 
-				return Stream.ReadAsync(Length, [this, Callback, MaxSize, Length](Network::Socket* Socket, const char* Buffer, int64_t Size)
+				return Stream.ReadAsync(Length, [this, Callback, MaxSize](Network::Socket* Socket, const char* Buffer, int64_t Size)
 				{
 					if (Size <= 0)
 					{

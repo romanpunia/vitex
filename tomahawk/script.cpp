@@ -1636,7 +1636,7 @@ namespace Tomahawk
 
 			return Any->Store(Ref, RefTypeId);
 		}
-		void VMWAny::Store(int64_t& Value)
+		void VMWAny::Store(as_int64_t& Value)
 		{
 			if (!IsValid())
 				return;
@@ -1668,7 +1668,7 @@ namespace Tomahawk
 
 			return Any->Retrieve(Ref, RefTypeId);
 		}
-		bool VMWAny::Retrieve(int64_t& Value) const
+		bool VMWAny::Retrieve(as_int64_t& Value) const
 		{
 			if (!IsValid())
 				return -1;
@@ -1836,7 +1836,7 @@ namespace Tomahawk
 
 			return Dictionary->Set(Key, Value, TypeId);
 		}
-		void VMWDictionary::Set(const std::string& Key, int64_t& Value)
+		void VMWDictionary::Set(const std::string& Key, as_int64_t& Value)
 		{
 			if (!IsValid())
 				return;
@@ -1892,7 +1892,7 @@ namespace Tomahawk
 
 			return true;
 		}
-		bool VMWDictionary::Get(const std::string& Key, int64_t& Value) const
+		bool VMWDictionary::Get(const std::string& Key, as_int64_t& Value) const
 		{
 			if (!IsValid())
 				return false;
@@ -2098,7 +2098,7 @@ namespace Tomahawk
 		bool VMWWeakRef::Equals(void* Ref) const
 		{
 			if (!IsValid())
-				return nullptr;
+				return false;
 
 			return WeakRef->Equals(Ref);
 		}
@@ -4089,7 +4089,7 @@ namespace Tomahawk
 			{
 				if (ReturnTypeId & asTYPEID_OBJHANDLE)
 				{
-					if ((*reinterpret_cast<void**>(Return) == 0))
+					if (*reinterpret_cast<void**>(Return) == nullptr)
 					{
 						*reinterpret_cast<void**>(Return) = *reinterpret_cast<void**>(Context->GetAddressOfReturnValue());
 						Engine->AddRefScriptObject(*reinterpret_cast<void**>(Return), Engine->GetTypeInfoById(ReturnTypeId));
@@ -4148,7 +4148,7 @@ namespace Tomahawk
 			{
 				if (ReturnTypeId & asTYPEID_OBJHANDLE)
 				{
-					if ((*reinterpret_cast<void**>(Return) == 0))
+					if (*reinterpret_cast<void**>(Return) == 0)
 					{
 						*reinterpret_cast<void**>(Return) = *reinterpret_cast<void**>(Context->GetAddressOfReturnValue());
 						Engine->AddRefScriptObject(*reinterpret_cast<void**>(Return), Engine->GetTypeInfoById(ReturnTypeId));
@@ -4683,8 +4683,11 @@ namespace Tomahawk
 		}
 		int VMContext::ContextUD = 152;
 
-		VMManager::VMManager() : Engine(asCreateScriptEngine()), Globals(this), JIT(nullptr), Features(0), Cached(true), Scope(0)
+		VMManager::VMManager() : Engine(asCreateScriptEngine()), Globals(this), Features(0), Cached(true), Scope(0)
 		{
+#ifdef HAS_AS_JIT
+            JIT = nullptr;
+#endif
 			Include.Exts.push_back(".as");
 			Include.Root = Rest::OS::GetDirectory();
 
@@ -4998,9 +5001,9 @@ namespace Tomahawk
 		{
 			return Engine->GarbageCollect(asGC_FULL_CYCLE, NumIterations);
 		}
-		void VMManager::GetStatistics(size_t* CurrentSize, size_t* TotalDestroyed, size_t* TotalDetected, size_t* NewObjects, size_t* TotalNewDestroyed) const
+		void VMManager::GetStatistics(unsigned int* CurrentSize, unsigned int* TotalDestroyed, unsigned int* TotalDetected, unsigned int* NewObjects, unsigned int* TotalNewDestroyed) const
 		{
-			size_t asCurrentSize, asTotalDestroyed, asTotalDetected, asNewObjects, asTotalNewDestroyed;
+            unsigned int asCurrentSize, asTotalDestroyed, asTotalDetected, asNewObjects, asTotalNewDestroyed;
 			Engine->GetGCStatistics(&asCurrentSize, &asTotalDestroyed, &asTotalDetected, &asNewObjects, &asTotalNewDestroyed);
 
 			if (CurrentSize != nullptr)
@@ -5212,7 +5215,7 @@ namespace Tomahawk
 #ifdef THAWK_MICROSOFT
 				Include.Root.append(1, '\\');
 #else
-				DocumentRoot.append(1, '/');
+				Include.Root.append(1, '/');
 #endif
 			}
 			Safe.unlock();

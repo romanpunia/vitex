@@ -564,9 +564,9 @@ namespace Tomahawk
 				if (Filter != nullptr)
 					Filter->Serialize(Node->SetDocument("filter"));
 
-				Engine::NMake::Pack(Node->SetDocument("frequency"), &Frequency);
-				Engine::NMake::Pack(Node->SetDocument("left-direction"), &LeftDirection);
-				Engine::NMake::Pack(Node->SetDocument("right-direction"), &RightDirection);
+				Engine::NMake::Pack(Node->SetDocument("frequency"), Frequency);
+				Engine::NMake::Pack(Node->SetDocument("left-direction"), LeftDirection);
+				Engine::NMake::Pack(Node->SetDocument("right-direction"), RightDirection);
 			}
 			AudioEffect* FrequencyShifterEffect::Copy()
 			{
@@ -895,7 +895,7 @@ namespace Tomahawk
 				Engine::NMake::Pack(Node->Find("mid2-gain"), Mid2Gain);
 				Engine::NMake::Pack(Node->Find("mid2-center"), Mid2Center);
 				Engine::NMake::Pack(Node->Find("mid2-width"), Mid2Width);
-				Engine::NMake::Pack(Node->Find("high-gain"),&HighGain);
+				Engine::NMake::Pack(Node->Find("high-gain"),HighGain);
 				Engine::NMake::Pack(Node->Find("high-cut-off"), HighCutOff);
 			}
 			AudioEffect* EqualizerEffect::Copy()

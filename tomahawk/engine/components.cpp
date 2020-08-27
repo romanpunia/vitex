@@ -62,7 +62,10 @@ namespace Tomahawk
 			{
 				float Result = 0.0f;
 				if (Instance != nullptr)
-					Result = IsVisible(View, &GetBoundingBox());
+				{
+				    Compute::Matrix4x4 Box = GetBoundingBox();
+                    Result = IsVisible(View, &Box);
+                }
 
 				return Result;
 			}
@@ -179,7 +182,10 @@ namespace Tomahawk
 			{
 				float Result = 0.0f;
 				if (Instance != nullptr)
-					Result = IsVisible(View, &GetBoundingBox());
+                {
+                    Compute::Matrix4x4 Box = GetBoundingBox();
+                    Result = IsVisible(View, &Box);
+                }
 
 				return Result;
 			}
@@ -792,7 +798,10 @@ namespace Tomahawk
 			{
 				float Result = 0.0f;
 				if (Instance != nullptr)
-					Result = IsVisible(View, &Parent->Transform->GetWorldUnscaled());
+                {
+                    Compute::Matrix4x4 Box = Parent->Transform->GetWorldUnscaled();
+                    Result = IsVisible(View, &Box);
+                }
 
 				return Result;
 			}
@@ -3207,7 +3216,7 @@ namespace Tomahawk
 			Compute::Ray Camera::GetScreenRay(const Compute::Vector2& Position)
 			{
 				float W = Width, H = Height;
-				if (W <= 0 || H <= 0 && Renderer != nullptr)
+				if ((W <= 0 || H <= 0) && Renderer != nullptr)
 				{
 					Graphics::Viewport V = Renderer->GetDevice()->GetRenderTarget()->GetViewport();
 					W = V.Width; H = V.Height;

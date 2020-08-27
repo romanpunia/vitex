@@ -1049,8 +1049,8 @@ namespace Tomahawk
 		}
 		Stroke& Stroke::Trim()
 		{
-			L->erase(L->begin(), std::find_if(L->begin(), L->end(), std::not1(std::ptr_fun<int, int>(std::isspace))));
-			L->erase(std::find_if(L->rbegin(), L->rend(), std::not1(std::ptr_fun<int, int>(std::isspace))).base(), L->end());
+			L->erase(L->begin(), std::find_if(L->begin(), L->end(), [](int C) -> int { return !std::isspace(C); }));
+			L->erase(std::find_if(L->rbegin(), L->rend(), [](int C) -> int { return !std::isspace(C); }).base(), L->end());
 
 			return *this;
 		}
@@ -1911,13 +1911,13 @@ namespace Tomahawk
 #if defined(THAWK_MICROSOFT)
 			if (gmtime_s(&DateTime, &TimeStamp) != 0)
 #elif defined(THAWK_UNIX)
-			if (gmtime_r(&TimeStamp, &DateTime) == 0)																											if (gmtime_r(&TimeStamp, &DateTime) == 0)
+			if (gmtime_r(&TimeStamp, &DateTime) == 0)
 #else
             if (true)
 #endif
 				strncpy(Date, "01-01-1970 00:00:00", sizeof(Date));
 			else
-				strftime(Date, sizeof(Date), "%Y-%m-%d %H:%M:%S", &DateTime);
+                strftime(Date, sizeof(Date), "%Y-%m-%d %H:%M:%S", &DateTime);
 
 			char Buffer[8192];
 			if (Level == 1)
@@ -2112,6 +2112,9 @@ namespace Tomahawk
 		Object::Object() : __vcnt(1), __vflg(false)
 		{
 		}
+        Object::~Object()
+        {
+        }
 		void Object::operator delete(void* Data)
 		{
 			LT::Free(Data);
@@ -2342,7 +2345,8 @@ namespace Tomahawk
 			va_end(Args);
 
 			OutputDebugString(Buffer);
-#elif defined THAWK_UNIX																														vsnprintf(Buffer, sizeof(Buffer), Format, Args);
+#elif defined THAWK_UNIX
+			vsnprintf(Buffer, sizeof(Buffer), Format, Args);
             va_end(Args);
 
             std::cout << Buffer;
@@ -2708,7 +2712,11 @@ namespace Tomahawk
 			if (!Buffer)
 				return -1;
 
+#ifdef THAWK_MICROSOFT
 			return _fileno(Buffer);
+#else
+			return fileno(Buffer);
+#endif
 		}
 		unsigned char FileStream::Get()
 		{

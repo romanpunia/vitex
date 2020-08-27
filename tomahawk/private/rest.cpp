@@ -170,7 +170,6 @@ void VMCFormat::FormatBuffer(VMGlobal& Global, Rest::Stroke& Result, std::string
 		{
 			VMWArray Array = *(VMCArray**)Ref;
 			int ArrayTypeId = Array.GetElementTypeId();
-			VMWTypeInfo ArrayType = Global.GetTypeInfoById(ArrayTypeId);
 			Rest::Stroke Decl;
 
 			Offset += '\t';
@@ -307,7 +306,6 @@ void VMCFormat::FormatJSON(VMGlobal& Global, Rest::Stroke& Result, void* Ref, in
 			{
 				VMWArray Array = (VMCArray*)Object;
 				int ArrayTypeId = Array.GetElementTypeId();
-				VMWTypeInfo ArrayType = Global.GetTypeInfoById(ArrayTypeId);
 				Rest::Stroke Decl;
 
 				for (unsigned int i = 0; i < Array.GetSize(); i++)
@@ -616,7 +614,7 @@ VMCDictionary* VMCDocument::CreateMapping(Rest::Document* Base)
 
 	for (auto& Item : Mapping)
 	{
-		int64_t V = Item.second;
+		as_int64_t V = Item.second;
 		Map.Set(Item.first, V);
 	}
 

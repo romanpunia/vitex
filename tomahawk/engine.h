@@ -418,7 +418,7 @@ namespace Tomahawk
 			Cullable(Entity* Ref);
 			virtual ~Cullable() = default;
 			virtual float Cull(const Viewer& View) = 0;
-			virtual Component* Copy(Entity* New) = 0;
+			virtual Component* Copy(Entity* New) override = 0;
 			virtual void ClearCull();
 			float GetRange();
 			bool IsVisible(const Viewer& View, Compute::Matrix4x4* World);
@@ -446,7 +446,7 @@ namespace Tomahawk
 			Drawable(Entity* Ref, bool Complex);
 			virtual ~Drawable();
 			virtual void Pipe(Event* Value) override;
-			virtual Component* Copy(Entity* New) = 0;
+			virtual Component* Copy(Entity* New) override = 0;
 			virtual void ClearCull() override;
 			bool FragmentBegin(Graphics::GraphicsDevice* Device);
 			void FragmentEnd(Graphics::GraphicsDevice* Device);
@@ -697,6 +697,9 @@ namespace Tomahawk
 			Graphics::GraphicsDevice* GetDevice();
 			SceneGraph* GetScene();
 
+		private:
+		    Rest::Pool<Component*>* GetSceneComponents(uint64_t Section);
+
 		public:
 			template <typename In>
 			void RemoveRenderer()
@@ -719,7 +722,7 @@ namespace Tomahawk
 				static_assert(std::is_base_of<Cullable, T>::value,
 					"component is not cullable");
 
-				auto* Result = Scene->GetComponents<T>();
+				auto* Result = GetSceneComponents(T::BaseId());
 				Cull[T::BaseId()] = Result;
 				return Result;
 			}
@@ -907,7 +910,7 @@ namespace Tomahawk
 			template <typename T>
 			bool Notify(Component* To, const T& Value)
 			{
-				if (!Queue)
+				if (!Conf.Queue)
 					return false;
 
 				Event* Message = new Event();
@@ -917,7 +920,7 @@ namespace Tomahawk
 				Message->Context = malloc(sizeof(T));
 				memcpy(Message->Context, &Value, sizeof(T));
 
-				return Queue->Event<Event>(Message);
+				return Conf.Queue->Event<Event>(Message);
 			}
 			template <typename T>
 			bool NotifyEach(Component* To, const T& Value)
@@ -948,7 +951,7 @@ namespace Tomahawk
 
 				Component* Value = GetComponent(Array->Count() - 1, T::BaseId());
 				if (Value != nullptr)
-					return Value->Root;
+					return Value->Parent;
 
 				return nullptr;
 			}
@@ -957,7 +960,7 @@ namespace Tomahawk
 			{
 				Component* Value = GetComponent(0, T::BaseId());
 				if (Value != nullptr)
-					return Value->Root;
+					return Value->Parent;
 
 				return nullptr;
 			}

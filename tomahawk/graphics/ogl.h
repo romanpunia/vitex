@@ -9,6 +9,9 @@
 #ifdef THAWK_HAS_GLEW
 #include <gl/glew.h>
 #define THAWK_HAS_GL
+#ifndef APIENTRY
+#define APIENTRY
+#endif
 
 namespace Tomahawk
 {

@@ -4598,7 +4598,7 @@ namespace Tomahawk
 		}
 		int Preprocessor::FindDefineDirective(Rest::Stroke& Buffer, uint64_t& Offset, uint64_t* Size)
 		{
-			uint64_t Base, Start, End, Set = Offset;
+			uint64_t Base, Start, End;
 			Offset--;
 			int R = FindDirective(Buffer, "#define", &Offset, &Base, &Start, &End);
 			if (R < 0)
@@ -5354,7 +5354,7 @@ namespace Tomahawk
 			return true;
 		}
 
-		RigidBody::RigidBody(Simulator* Refer, const Desc& I) : UserPointer(nullptr), Instance(nullptr), Engine(Refer), Initial(I)
+		RigidBody::RigidBody(Simulator* Refer, const Desc& I) : Instance(nullptr), Engine(Refer), Initial(I), UserPointer(nullptr)
 		{
 			if (!Initial.Shape || !Engine)
 				return;
@@ -5967,7 +5967,7 @@ namespace Tomahawk
 			return (RigidBody*)From->getUserPointer();
 		}
 
-		SoftBody::SoftBody(Simulator* Refer, const Desc& I) : UserPointer(nullptr), Instance(nullptr), Engine(Refer), Initial(I)
+		SoftBody::SoftBody(Simulator* Refer, const Desc& I) : Instance(nullptr), Engine(Refer), Initial(I), UserPointer(nullptr)
 		{
 			if (!Engine || !Engine->HasSoftBodySupport())
 				return;
@@ -6715,7 +6715,7 @@ namespace Tomahawk
 			return (SoftBody*)From->getUserPointer();
 		}
 
-		SliderConstraint::SliderConstraint(Simulator* Refer, const Desc& I) : First(nullptr), Second(nullptr), Instance(nullptr), UserPointer(nullptr), Engine(Refer), Initial(I)
+		SliderConstraint::SliderConstraint(Simulator* Refer, const Desc& I) : First(nullptr), Second(nullptr), Instance(nullptr), Engine(Refer), Initial(I), UserPointer(nullptr)
 		{
 			if (!I.Target1 || !I.Target2 || !Engine)
 				return;
@@ -7179,7 +7179,7 @@ namespace Tomahawk
 			return Engine;
 		}
 
-		Simulator::Simulator(const Desc& I) : Active(true), Interpolate(1), TimeSpeed(1), SoftSolver(nullptr)
+		Simulator::Simulator(const Desc& I) : SoftSolver(nullptr), TimeSpeed(1), Interpolate(1), Active(true)
 		{
 			Broadphase = new btDbvtBroadphase();
 			Solver = new btSequentialImpulseConstraintSolver();

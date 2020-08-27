@@ -543,7 +543,7 @@ namespace Tomahawk
 			Pool(uint64_t _Capacity) : Count(0), Volume(0), Data(nullptr)
 			{
 				if (_Capacity > 0)
-					Reserve(Capacity);
+					Reserve(_Capacity);
 				else
 					Reserve(1);
 			}
@@ -877,7 +877,7 @@ namespace Tomahawk
 
 		public:
 			Object();
-			virtual ~Object() = default;
+			virtual ~Object();
 			void* operator new(size_t Size);
 			void operator delete(void* Data);
 			void SetFlag();

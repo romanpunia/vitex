@@ -1588,7 +1588,7 @@ namespace Tomahawk
 			template <typename T>
 			int SetAddRef()
 			{
-				asSFuncPtr* AddRef = VMBind::BindFunction(&Rest::Factory::AddRef);
+				asSFuncPtr* AddRef = VMBind::BindFunction(&Rest::LT::AddRef);
 				int Result = SetBehaviourAddress("void f()", VMBehave_ADDREF, AddRef, VMCall_CDECL_OBJFIRST);
 				VMBind::ReleaseFunctor(&AddRef);
 
@@ -1597,7 +1597,7 @@ namespace Tomahawk
 			template <typename T>
 			int SetRelease()
 			{
-				asSFuncPtr* Release = VMBind::BindFunction(&Rest::Factory::Release);
+				asSFuncPtr* Release = VMBind::BindFunction(&Rest::LT::Release);
 				int Result = SetBehaviourAddress("void f()", VMBehave_RELEASE, Release, VMCall_CDECL_OBJFIRST);
 				VMBind::ReleaseFunctor(&Release);
 
@@ -1606,7 +1606,7 @@ namespace Tomahawk
 			template <typename T>
 			int SetGetRefCount()
 			{
-				asSFuncPtr* GetRefCount = VMBind::BindFunction(&Rest::Factory::GetRefCount);
+				asSFuncPtr* GetRefCount = VMBind::BindFunction(&Rest::LT::GetRefCount);
 				int Result = SetBehaviourAddress("int f()", VMBehave_GETREFCOUNT, GetRefCount, VMCall_CDECL_OBJFIRST);
 				VMBind::ReleaseFunctor(&GetRefCount);
 
@@ -1615,7 +1615,7 @@ namespace Tomahawk
 			template <typename T>
 			int SetSetGCFlag()
 			{
-				asSFuncPtr* SetGCFlag = VMBind::BindFunction(&Rest::Factory::SetFlag);
+				asSFuncPtr* SetGCFlag = VMBind::BindFunction(&Rest::LT::SetFlag);
 				int Result = SetBehaviourAddress("void f()", VMBehave_SETGCFLAG, SetGCFlag, VMCall_CDECL_OBJFIRST);
 				VMBind::ReleaseFunctor(&SetGCFlag);
 
@@ -1624,7 +1624,7 @@ namespace Tomahawk
 			template <typename T>
 			int SetGetGCFlag()
 			{
-				asSFuncPtr* GetGCFlag = VMBind::BindFunction(&Rest::Factory::GetFlag);
+				asSFuncPtr* GetGCFlag = VMBind::BindFunction(&Rest::LT::GetFlag);
 				int Result = SetBehaviourAddress("bool f()", VMBehave_GETGCFLAG, GetGCFlag, VMCall_CDECL_OBJFIRST);
 				VMBind::ReleaseFunctor(&GetGCFlag);
 
@@ -2055,15 +2055,15 @@ namespace Tomahawk
 			int PopState();
 			bool IsNested(unsigned int* NestCount = 0) const;
 			int SetObject(void* Object);
-			int SetArgByte(unsigned int Arg, unsigned char Value);
-			int SetArgWord(unsigned int Arg, unsigned short Value);
-			int SetArgDWord(unsigned int Arg, size_t Value);
-			int SetArgQWord(unsigned int Arg, uint64_t Value);
+			int SetArg8(unsigned int Arg, unsigned char Value);
+			int SetArg16(unsigned int Arg, unsigned short Value);
+			int SetArg32(unsigned int Arg, int Value);
+			int SetArg64(unsigned int Arg, int64_t Value);
 			int SetArgFloat(unsigned int Arg, float Value);
 			int SetArgDouble(unsigned int Arg, double Value);
 			int SetArgAddress(unsigned int Arg, void* Address);
-			int SetArgObjectAddress(unsigned int Arg, void* Object);
-			int SetArgAnyAddress(unsigned int Arg, void* Ptr, int TypeId);
+			int SetArgObject(unsigned int Arg, void* Object);
+			int SetArgAny(unsigned int Arg, void* Ptr, int TypeId);
 			void* GetAddressOfArg(unsigned int Arg);
 			unsigned char GetReturnByte();
 			unsigned short GetReturnWord();
@@ -2101,16 +2101,6 @@ namespace Tomahawk
 			VMManager* GetManager();
 
 		public:
-			template <typename T>
-			int SetArgObject(unsigned int Arg, T* Object)
-			{
-				return SetArgObjectAddress(Arg, (void*)Object);
-			}
-			template <typename T>
-			int SetArgAny(unsigned int Arg, T* Object, int TypeId)
-			{
-				return SetArgAnyAddress(Arg, (void*)Object, TypeId);
-			}
 			template <typename T>
 			T* GetReturnObject(unsigned int Arg)
 			{

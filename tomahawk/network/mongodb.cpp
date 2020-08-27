@@ -117,21 +117,22 @@ namespace Tomahawk
 				uint64_t Size = 0;
 				for (auto& File : Entries)
 				{
+					Rest::Stroke Base(Path + File.Path);
 					if (File.Source.IsDirectory)
 					{
-						AddDirectory(Path + File.Path, Path);
+						AddDirectory(Base.R(), Origin.empty() ? Directory : Origin);
 						continue;
 					}
 
-					Rest::Stroke Base(&File.Path);
 					if (!Base.EndsWith(".json"))
 						continue;
 
-					char* Buffer = (char*)Rest::OS::ReadAllBytes((Path + File.Path).c_str(), &Size);
+					char* Buffer = (char*)Rest::OS::ReadAllBytes(Base.Get(), &Size);
 					if (!Buffer)
 						continue;
 
-					AddQuery(Base.Replace(Origin.empty() ? Directory : Origin, "").Replace("\\", "/").Replace(".json", "").Substring(1).R(), Buffer, Size);
+					Base.Replace(Origin.empty() ? Directory : Origin, "").Replace("\\", "/").Replace(".json", "");
+					AddQuery(Base.Substring(1).R(), Buffer, Size);
 					free(Buffer);
 				}
 
@@ -194,56 +195,7 @@ namespace Tomahawk
 						continue;
 					}
 
-					std::string Value;
-					if (Sub.second != nullptr)
-					{
-						switch (Sub.second->Type)
-						{
-							case Rest::NodeType_Object:
-							case Rest::NodeType_Array:
-								Rest::Document::WriteJSON(Sub.second, [&Value](Rest::DocumentPretty Type, const char* Buffer, int64_t Size)
-								{
-									if (Buffer != nullptr && Size > 0)
-										Value.append(Buffer, Size);
-								});
-								break;
-							case Rest::NodeType_String:
-								Value.assign("\"" + Sub.second->String + "\"");
-								break;
-							case Rest::NodeType_Integer:
-								Value.assign(std::to_string(Sub.second->Integer));
-								break;
-							case Rest::NodeType_Number:
-								Value.assign(std::to_string(Sub.second->Number));
-								break;
-							case Rest::NodeType_Boolean:
-								Value.assign(Sub.second->Boolean ? "true" : "false");
-								break;
-							case Rest::NodeType_Decimal:
-							{
-#ifdef THAWK_HAS_MONGOC
-								Network::BSON::KeyPair Pair;
-								Pair.Mod = Network::BSON::Type_Decimal;
-								Pair.High = Sub.second->Integer;
-								Pair.Low = Sub.second->Low;
-								Value.assign("{\"$numberDouble\":\"" + Pair.ToString() + "\"}");
-#endif
-								break;
-							}
-							case Rest::NodeType_Id:
-								Value.assign("{\"$oid\":\"" + BSON::Document::OIdToString((unsigned char*)Sub.second->String.c_str()) + "\"}");
-								break;
-							case Rest::NodeType_Null:
-								Value.assign("null");
-								break;
-							case Rest::NodeType_Undefined:
-								Value.assign("undefined");
-								break;
-							default:
-								break;
-						}
-					}
-
+					std::string Value = GetJSON(Sub.second);
 					if (!Value.empty())
 					{
 						for (auto& Offset : Field->second)
@@ -261,6 +213,68 @@ namespace Tomahawk
 					Map->clear();
 
 				return BSON::Document::Create(Origin.Request);
+			}
+			std::string QueryCache::GetJSON(Rest::Document* Source)
+			{
+				if (!Source)
+					return "";
+
+				switch (Source->Type)
+				{
+					case Rest::NodeType_Object:
+					{
+						std::string Result = "{";
+						for (auto* Node : *Source->GetNodes())
+						{
+							Result.append(1, '\"').append(Node->Name).append("\":");
+							Result.append(GetJSON(Node)).append(1, ',');
+						}
+
+						if (!Source->GetNodes()->empty())
+							Result = Result.substr(0, Result.size() - 1);
+
+						return Result + "}";
+					}
+					case Rest::NodeType_Array:
+					{
+						std::string Result = "[";
+						for (auto* Node : *Source->GetNodes())
+							Result.append(GetJSON(Node)).append(1, ',');
+
+						if (!Source->GetNodes()->empty())
+							Result = Result.substr(0, Result.size() - 1);
+
+						return Result + "]";
+					}
+					case Rest::NodeType_String:
+						return "\"" + Source->String + "\"";
+					case Rest::NodeType_Integer:
+						return std::to_string(Source->Integer);
+					case Rest::NodeType_Number:
+						return std::to_string(Source->Number);
+					case Rest::NodeType_Boolean:
+						return Source->Boolean ? "true" : "false";
+					case Rest::NodeType_Decimal:
+					{
+#ifdef THAWK_HAS_MONGOC
+						Network::BSON::KeyPair Pair;
+						Pair.Mod = Network::BSON::Type_Decimal;
+						Pair.High = Source->Integer;
+						Pair.Low = Source->Low;
+						return "{\"$numberDouble\":\"" + Pair.ToString() + "\"}";
+#endif
+					}
+					case Rest::NodeType_Id:
+						return "{\"$oid\":\"" + BSON::Document::OIdToString((unsigned char*)Source->String.c_str()) + "\"}";
+					case Rest::NodeType_Null:
+						return "null";
+					case Rest::NodeType_Undefined:
+						return "undefined";
+					default:
+						break;
+				}
+
+				return "";
 			}
 
 			bool Connector::AddQuery(const std::string& Name, const char* Buffer, size_t Size)

@@ -11,7 +11,8 @@
 #ifdef THAWK_MICROSOFT
 #include <Windows.h>
 #include <io.h>
-#elif defined THAWK_UNIX																										#include <string.h>
+#elif defined THAWK_UNIX
+#include <string.h>
 #include <unistd.h>
 #include <dirent.h>
 #include <sys/types.h>
@@ -1859,6 +1860,29 @@ namespace Tomahawk
 			return *this;
 		}
 
+		void LT::AddRef(Object* Value)
+		{
+			if (Value != nullptr)
+				Value->AddRef();
+		}
+		void LT::SetFlag(Object* Value)
+		{
+			if (Value != nullptr)
+				Value->SetFlag();
+		}
+		bool LT::GetFlag(Object* Value)
+		{
+			return Value ? Value->GetFlag() : false;
+		}
+		int LT::GetRefCount(Object* Value)
+		{
+			return Value ? Value->GetRefCount() : 1;
+		}
+		void LT::Release(Object* Value)
+		{
+			if (Value != nullptr)
+				Value->Release();
+		}
 		void LT::AttachCallback(const std::function<void(const char*, int)>& _Callback)
 		{
 			Callback = _Callback;
@@ -2085,37 +2109,6 @@ namespace Tomahawk
 		}
 		std::unordered_map<uint64_t, void*>* Composer::Factory = nullptr;
 
-		void Factory::AddRef(Object* Value)
-		{
-			if (Value != nullptr)
-			{
-				Value->__vcnt++;
-				Value->__vflg = false;
-			}
-		}
-		void Factory::SetFlag(Object* Value)
-		{
-			if (Value != nullptr)
-				Value->__vflg = true;
-		}
-		bool Factory::GetFlag(Object* Value)
-		{
-			return Value ? Value->__vflg.load() : false;
-		}
-		int Factory::GetRefCount(Object* Value)
-		{
-			return Value ? Value->__vcnt.load() : 1;
-		}
-		void Factory::Release(Object* Value)
-		{
-			if (!Value)
-				return;
-
-			Value->__vflg = false;
-			if (!--Value->__vcnt)
-				delete Value;
-		}
-
 		Object::Object() : __vcnt(1), __vflg(false)
 		{
 		}
@@ -2127,30 +2120,34 @@ namespace Tomahawk
 		{
 			return LT::Alloc((uint64_t)Size);
 		}
-#ifdef THAWK_REFCOUNT
 		void Object::SetFlag()
 		{
-			return Factory::SetFlag(this);
+			__vflg = true;
 		}
 		bool Object::GetFlag()
 		{
-			return Factory::GetFlag(this);
+			return __vflg.load();
 		}
 		int Object::GetRefCount()
 		{
-			return Factory::GetRefCount(this);
+			return __vcnt.load();
 		}
 		Object* Object::AddRef()
 		{
-			Factory::AddRef(this);
+			__vcnt++;
+			__vflg = false;
 			return this;
 		}
 		Object* Object::Release()
 		{
-			Factory::Release(this);
-			return this;
+			__vflg = false;
+			if (--__vcnt)
+				return this;
+
+			delete this;
+			return nullptr;
 		}
-#endif
+
 		Console::Console() : Handle(false), Time(0)
 		{
 		}

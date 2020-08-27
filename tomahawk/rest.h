@@ -67,7 +67,6 @@
 #ifdef max
 #undef max
 #endif
-
 #define THAWK_VA_ARGS(...) , ##__VA_ARGS__
 #ifdef THAWK_MICROSOFT
 #ifdef THAWK_64
@@ -798,6 +797,11 @@ namespace Tomahawk
 			static bool Enabled;
 
 		public:
+			static void AddRef(Object* Value);
+			static void SetFlag(Object* Value);
+			static void Release(Object* Value);
+			static bool GetFlag(Object* Value);
+			static int GetRefCount(Object* Value);
 			static void AttachCallback(const std::function<void(const char*, int)>& Callback);
 			static void AttachStream();
 			static void DetachCallback();
@@ -863,34 +867,9 @@ namespace Tomahawk
 			}
 		};
 
-		class THAWK_OUT Factory
-		{
-		public:
-			static void AddRef(Object* Value);
-			static void SetFlag(Object* Value);
-			static void Release(Object* Value);
-			static bool GetFlag(Object* Value);
-			static int GetRefCount(Object* Value);
-
-		public:
-			template <typename T>
-			static T* MakeAddRef(T* Value)
-			{
-				AddRef((Object*)Value);
-				return Value;
-			}
-			template <typename T>
-			static T* MakeRelease(Object* Value)
-			{
-				Release((Object*)Value);
-				return Value;
-			}
-		};
-
 		class THAWK_OUT Object
 		{
 			friend class LT;
-			friend class Factory;
 
 		private:
 			std::atomic<int> __vcnt;
@@ -901,14 +880,23 @@ namespace Tomahawk
 			virtual ~Object() = default;
 			void* operator new(size_t Size);
 			void operator delete(void* Data);
-#ifdef THAWK_REFCOUNT
 			void SetFlag();
 			bool GetFlag();
 			int GetRefCount();
 			Object* AddRef();
 			Object* Release();
-#endif
+
 		public:
+			template <typename T>
+			T* AddRefAs()
+			{
+				return (T*)AddRef();
+			}
+			template <typename T>
+			T* ReleaseAs()
+			{
+				return (T*)Release();
+			}
 			template <typename T>
 			T* As()
 			{

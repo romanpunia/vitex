@@ -1273,11 +1273,7 @@ namespace Tomahawk
 			if (!Engine)
 				return -1;
 
-			VMWTypeInfo TypeInfo = Engine->Global().GetTypeInfoByName(TypeName);
-			if (!TypeInfo.IsValid())
-				return -1;
-
-			return Set(Ref, TypeInfo.GetTypeId());
+			return Set(Ref, Engine->Global().GetTypeIdByDecl(TypeName));
 		}
 		bool VMCAsync::GetAny(void* Ref, int TypeId) const
 		{
@@ -4344,28 +4340,28 @@ namespace Tomahawk
 
 			return Context->SetObject(Object);
 		}
-		int VMContext::SetArgByte(unsigned int Arg, unsigned char Value)
+		int VMContext::SetArg8(unsigned int Arg, unsigned char Value)
 		{
 			if (!Context)
 				return -1;
 
 			return Context->SetArgByte(Arg, Value);
 		}
-		int VMContext::SetArgWord(unsigned int Arg, unsigned short Value)
+		int VMContext::SetArg16(unsigned int Arg, unsigned short Value)
 		{
 			if (!Context)
 				return -1;
 
 			return Context->SetArgWord(Arg, Value);
 		}
-		int VMContext::SetArgDWord(unsigned int Arg, size_t Value)
+		int VMContext::SetArg32(unsigned int Arg, int Value)
 		{
 			if (!Context)
 				return -1;
 
 			return Context->SetArgDWord(Arg, Value);
 		}
-		int VMContext::SetArgQWord(unsigned int Arg, uint64_t Value)
+		int VMContext::SetArg64(unsigned int Arg, int64_t Value)
 		{
 			if (!Context)
 				return -1;
@@ -4393,14 +4389,14 @@ namespace Tomahawk
 
 			return Context->SetArgAddress(Arg, Address);
 		}
-		int VMContext::SetArgObjectAddress(unsigned int Arg, void* Object)
+		int VMContext::SetArgObject(unsigned int Arg, void* Object)
 		{
 			if (!Context)
 				return -1;
 
 			return Context->SetArgObject(Arg, Object);
 		}
-		int VMContext::SetArgAnyAddress(unsigned int Arg, void* Ptr, int TypeId)
+		int VMContext::SetArgAny(unsigned int Arg, void* Ptr, int TypeId)
 		{
 			if (!Context)
 				return -1;

@@ -122,7 +122,7 @@ Tomahawk is a cross-platform C++14 framework to create any type of application f
 + Line light (sun)
 + Probe light (can cast reflections to entities)
 + Camera (with rendering system that holds renderers)
-#### Built-in file processor
+#### Built-in file processors
 + Scene graph processor
 + Audio clip processor (WAVE, OGG)
 + Texture 2d processor (JPG, PNG, TGA, BMP, PSD, GIF, HDR, PIC)
@@ -162,7 +162,7 @@ Tomahawk has support for CMake's install command, to link it with your project y
 ## Resources
 Tomahawk has embedded resources. They are located at **/data**. Resources will be packed to **/tomahawk/data.h** at CMake's configuration stage. If you want to disable resource embedding then shaders must not use standard library otherwise error will be raised.
 
-## Core built-in dependencies from **/refs**
+## Core built-in dependencies from **/ref**
 *These are used widely and presents useful features*
 
 #### [Bullet Physics](https://github.com/bulletphysics/bullet3)

@@ -253,7 +253,7 @@ namespace Tomahawk
 				BSON::TDocument* GetQuery(const std::string& Name, QueryMap* Map, bool Once = true);
 
 			private:
-				std::string GetJSON(Rest::Document* Source, bool Root);
+				std::string GetJSON(Rest::Document* Source);
 			};
 
 			class THAWK_OUT Connector

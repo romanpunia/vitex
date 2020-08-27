@@ -469,7 +469,7 @@ Rest::Document* VMCDocument::ConstructBuffer(asBYTE* Buffer)
 		else
 		{
 			VMCTypeInfo* Type = Manager->GetTypeInfoById(TypeId);
-			if ((TypeId & asTYPEID_MASK_OBJECT) && !(TypeId & asTYPEID_OBJHANDLE) && (Type->GetFlags() & asOBJ_REF))
+			if ((TypeId & asTYPEID_MASK_OBJECT) && !(TypeId & asTYPEID_OBJHANDLE) && (Type && Type->GetFlags() & asOBJ_REF))
 				Ref = *(void**)Ref;
 
 			if (TypeId & asTYPEID_OBJHANDLE)
@@ -477,12 +477,9 @@ Rest::Document* VMCDocument::ConstructBuffer(asBYTE* Buffer)
 
 			if (!Ref)
 				Result->SetNull(Name);
-			else if (!strcmp("document", Type->GetName()))
-			{
-				Result->SetDocument(Name, (Rest::Document*)Ref);
-				Rest::Factory::AddRef((Rest::Document*)Ref);
-			}
-			else if (!strcmp("string", Type->GetName()))
+			else if (Type && !strcmp("document", Type->GetName()))
+				Result->SetDocument(Name, ((Rest::Document*)Ref)->AddRefAs<Rest::Document>());
+			else if (Type && !strcmp("string", Type->GetName()))
 				Result->SetString(Name, *(std::string*)Ref);
 		}
 
@@ -548,7 +545,7 @@ VMCArray* VMCDocument::FindCollection(Rest::Document* Base, const std::string& N
 
 	std::vector<Rest::Document*> Nodes = Base->FindCollection(Name, Here);
 	for (auto& Node : Nodes)
-		Rest::Factory::AddRef(Node);
+		Node->AddRef();
 
 	VMWTypeInfo Type = Manager->Global().GetTypeInfoByDecl("array<document>");
 	return VMWArray::ComposeFromPointers(Type, Nodes).GetArray();
@@ -565,7 +562,7 @@ VMCArray* VMCDocument::FindCollectionPath(Rest::Document* Base, const std::strin
 
 	std::vector<Rest::Document*> Nodes = Base->FindCollectionPath(Name, Here);
 	for (auto& Node : Nodes)
-		Rest::Factory::AddRef(Node);
+		Node->AddRef();
 
 	VMWTypeInfo Type = Manager->Global().GetTypeInfoByDecl("array<document>");
 	return VMWArray::ComposeFromPointers(Type, Nodes).GetArray();
@@ -582,7 +579,7 @@ VMCArray* VMCDocument::GetNodes(Rest::Document* Base)
 
 	std::vector<Rest::Document*> Nodes = *Base->GetNodes();
 	for (auto& Node : Nodes)
-		Rest::Factory::AddRef(Node);
+		Node->AddRef();
 
 	VMWTypeInfo Type = Manager->Global().GetTypeInfoByDecl("array<document>");
 	return VMWArray::ComposeFromPointers(Type, Nodes).GetArray();
@@ -599,7 +596,7 @@ VMCArray* VMCDocument::GetAttributes(Rest::Document* Base)
 
 	std::vector<Rest::Document*> Nodes = Base->GetAttributes();
 	for (auto& Node : Nodes)
-		Rest::Factory::AddRef(Node);
+		Node->AddRef();
 
 	VMWTypeInfo Type = Manager->Global().GetTypeInfoByDecl("array<document>");
 	return VMWArray::ComposeFromPointers(Type, Nodes).GetArray();
@@ -628,14 +625,14 @@ VMCDictionary* VMCDocument::CreateMapping(Rest::Document* Base)
 Rest::Document* VMCDocument::SetDocument(Rest::Document* Base, const std::string& Name, Rest::Document* New)
 {
 	if (New != nullptr)
-		Rest::Factory::AddRef(New);
+		New->AddRef();
 
 	return Base->SetDocument(Name, New);
 }
 Rest::Document* VMCDocument::SetArray(Rest::Document* Base, const std::string& Name, Rest::Document* New)
 {
 	if (New != nullptr)
-		Rest::Factory::AddRef(New);
+		New->AddRef();
 
 	return Base->SetArray(Name, New);
 }

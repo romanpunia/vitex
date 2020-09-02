@@ -1138,7 +1138,7 @@ namespace Tomahawk
 			if (!V || !O)
 				return false;
 
-			*O = V->GetString("[s]");
+			*O = V->GetStringBlob("[s]");
 			return true;
 		}
 		bool NMake::Unpack(Rest::Document* V, std::vector<bool>* O)

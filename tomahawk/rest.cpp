@@ -4620,7 +4620,7 @@ namespace Tomahawk
 		Document* Document::SetCast(const std::string& Label, const std::string& Prop)
 		{
 			Document* Value = new Document();
-			if (!Deserialize(Prop, Value))
+			if (!Value->Deserialize(Prop))
 			{
 				delete Value;
 				return SetNull(Label);
@@ -4983,10 +4983,6 @@ namespace Tomahawk
 		{
 			return Get("[" + Label + "]");
 		}
-		bool Document::Deserialize(const std::string& Value)
-		{
-			return Deserialize(Value, this);
-		}
 		bool Document::IsAttribute()
 		{
 			if (Name.empty())
@@ -5086,10 +5082,6 @@ namespace Tomahawk
 		std::string Document::GetName()
 		{
 			return IsAttribute() ? Name.substr(1, Name.size() - 2) : Name;
-		}
-		std::string Document::Serialize()
-		{
-			return Serialize(this);
 		}
 		Document* Document::Find(const std::string& Label, bool Here)
 		{
@@ -5201,27 +5193,27 @@ namespace Tomahawk
 			ProcessMAPRead(this, &Mapping, Index);
 			return Mapping;
 		}
-		std::string Document::Serialize(Document* Value)
+		std::string Document::Serialize()
 		{
-			switch (Value->Type)
+			switch (Type)
 			{
 				case NodeType_Object:
 				case NodeType_Array:
 				case NodeType_String:
-					return Value->String;
+					return String;
 				case NodeType_Integer:
-					return std::to_string(Value->Integer);
+					return std::to_string(Integer);
 				case NodeType_Number:
-					return std::to_string(Value->Number);
+					return std::to_string(Number);
 				case NodeType_Boolean:
-					return Value->Boolean ? "true" : "false";
+					return Boolean ? "true" : "false";
 				case NodeType_Decimal:
 				{
 #ifdef THAWK_HAS_MONGOC
 					Network::BSON::KeyPair Pair;
 					Pair.Mod = Network::BSON::Type_Decimal;
-					Pair.High = Value->Integer;
-					Pair.Low = Value->Low;
+					Pair.High = Integer;
+					Pair.Low = Low;
 
 					return Pair.ToString();
 #else
@@ -5229,7 +5221,11 @@ namespace Tomahawk
 #endif
 				}
 				case NodeType_Id:
-					return "\xFF" + Compute::MathCommon::Base64Encode(Value->String);
+#ifdef THAWK_HAS_MONGOC
+					return "\xFF" + Network::BSON::Document::OIdToString((unsigned char*)String.c_str());
+#else
+					return "\xFF" + Compute::MathCommon::Base64Encode(String);
+#endif
 				case NodeType_Null:
 					return "\xFF" "null";
 				case NodeType_Undefined:
@@ -5240,83 +5236,90 @@ namespace Tomahawk
 
 			return "";
 		}
-		bool Document::Deserialize(const std::string& Value, Document* Output)
+		bool Document::Deserialize(const std::string& Value)
 		{
-			if (!Output)
-				return false;
-
 			if (Value == "\xFF" "undefined")
 			{
-				Output->Type = NodeType_Undefined;
+				Type = NodeType_Undefined;
 				return true;
 			}
 
 			if (Value == "\xFF" "object")
 			{
-				Output->Type = NodeType_Object;
+				Type = NodeType_Object;
 				return true;
 			}
 
 			if (Value == "\xFF" "array")
 			{
-				Output->Type = NodeType_Array;
+				Type = NodeType_Array;
 				return true;
 			}
 
 			if (Value == "\xFF" "null")
 			{
-				Output->Type = NodeType_Null;
-				return true;
-			}
-
-			if (!Value.empty() && Value.front() == '\xFF')
-			{
-				Output->Type = NodeType_Id;
-				Output->String = Compute::MathCommon::Base64Decode(Value.substr(1));
+				Type = NodeType_Null;
 				return true;
 			}
 
 			if (Value == "true")
 			{
-				Output->Type = NodeType_Boolean;
-				Output->Boolean = true;
+				Type = NodeType_Boolean;
+				Boolean = true;
 				return true;
 			}
 
 			if (Value == "false")
 			{
-				Output->Type = NodeType_Boolean;
-				Output->Boolean = false;
+				Type = NodeType_Boolean;
+				Boolean = false;
 				return true;
+			}
+
+			if (!Value.empty() && Value.front() == '\xFF')
+			{
+#ifdef THAWK_HAS_MONGOC
+				std::string OId = Network::BSON::Document::StringToOId(Value.substr(1));
+				if (OId.size() == 12)
+				{
+					Type = NodeType_Id;
+					String = OId;
+					return true;
+				}
+#else
+				Type = NodeType_Id;
+				String = Compute::MathCommon::Base64Decode(Value.substr(1));
+				return true;
+#endif
 			}
 
 			Stroke Man(&Value);
 			if (Man.HasNumber())
 			{
-				if (Man.HasDecimal() && Network::BSON::Document::ParseDecimal(Value.c_str(), &Output->Integer, &Output->Low))
+				if (Man.HasDecimal() && Network::BSON::Document::ParseDecimal(Value.c_str(), &Integer, &Low))
 				{
-					Output->Type = NodeType_Decimal;
+					Type = NodeType_Decimal;
 					return true;
 				}
 
 				if (Man.HasInteger())
 				{
-					Output->Type = NodeType_Integer;
-					Output->Integer = Man.ToInt64();
-					Output->Number = (double)Output->Integer;
+					Type = NodeType_Integer;
+					Integer = Man.ToInt64();
+					Number = (double)Integer;
 				}
 				else
 				{
-					Output->Type = NodeType_Number;
-					Output->Integer = (int64_t)Output->Number;
-					Output->Number = Man.ToFloat64();
+					Type = NodeType_Number;
+					Integer = (int64_t)Number;
+					Number = Man.ToFloat64();
 				}
 
 				return true;
 			}
 
-			Output->Type = NodeType_String;
-			Output->String = Value;
+			Type = NodeType_String;
+			String = Value;
 
 			return true;
 		}
@@ -5436,6 +5439,7 @@ namespace Tomahawk
 			auto Size = Value->Nodes.size();
 			size_t Offset = 0;
 			bool Array = (Value->Type == NodeType_Array);
+
 			if (Array)
 			{
 				for (auto&& Document : Value->Nodes)

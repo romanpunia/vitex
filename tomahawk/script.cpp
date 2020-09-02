@@ -4683,11 +4683,8 @@ namespace Tomahawk
 		}
 		int VMContext::ContextUD = 152;
 
-		VMManager::VMManager() : Engine(asCreateScriptEngine()), Globals(this), Features(0), Cached(true), Scope(0)
+		VMManager::VMManager() : Engine(asCreateScriptEngine()), Globals(this), Features(0), Cached(true), Scope(0), JIT(nullptr)
 		{
-#ifdef HAS_AS_JIT
-            JIT = nullptr;
-#endif
 			Include.Exts.push_back(".as");
 			Include.Root = Rest::OS::GetDirectory();
 

@@ -2143,9 +2143,7 @@ namespace Tomahawk
 			std::mutex Safe;
 			uint64_t Features;
 			uint64_t Scope;
-#ifdef HAS_AS_JIT
 			VMCJITCompiler* JIT;
-#endif
 			VMCManager* Engine;
 			VMGlobal Globals;
 			bool Cached;

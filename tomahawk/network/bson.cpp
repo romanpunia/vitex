@@ -686,6 +686,9 @@ namespace Tomahawk
 			}
 			std::string Document::StringToOId(const std::string& Id24)
 			{
+				if (Id24.size() != 24)
+					return "";
+
 #ifdef THAWK_HAS_MONGOC
 				bson_oid_t Id;
 				bson_oid_init_from_string(&Id, Id24.c_str());

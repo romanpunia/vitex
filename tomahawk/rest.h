@@ -1393,8 +1393,6 @@ namespace Tomahawk
 			static bool ProcessMAPRead(Document* Current, std::unordered_map<std::string, uint64_t>* Map, uint64_t& Index);
 			static bool ProcessXMLRead(void* Base, Document* Current);
 			static bool ProcessJSONRead(Document* Current);
-			static bool Deserialize(const std::string& Value, Document* Output);
-			static std::string Serialize(Document* Value);
 		};
 
 		THAWK_OUT Stroke Form(const char* Format, ...);

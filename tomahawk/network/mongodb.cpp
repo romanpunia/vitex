@@ -25,26 +25,17 @@ namespace Tomahawk
 			}
 			bool QueryCache::AddQuery(const std::string& Name, const char* Buffer, size_t Size)
 			{
-				Rest::Stroke Base(Buffer);
 				if (Name.empty() || !Buffer || !Size)
 					return false;
 
-				Rest::Stroke::Settle Start = Base.Find("query(");
-				if (!Start.Found)
-					return false;
-
-				Rest::Stroke::Settle End = Base.Find("):", Start.End);
-				if (!End.Found)
-					return false;
-
 				Sequence Result;
-				Result.Request.assign(Buffer + End.End, Size - End.End);
+				Result.Request.assign(Buffer, Size);
 
-				auto Args = Base.Substring(Start.End, End.Start - Start.End).Split(',');
-				Base = Result.Request;
+				Rest::Stroke Base(&Result.Request);
 				Base.Trim();
 
 				uint64_t Index = 0;
+				int64_t Arg = -1;
 				bool Spec = false;
 				bool Lock = false;
 
@@ -60,9 +51,49 @@ namespace Tomahawk
 							else
 								Lock = false;
 						}
+						else if (Spec)
+							Spec = false;
 						else
 							Lock = true;
 						Index++;
+					}
+					else if (V == '>')
+					{
+						if (!Spec && Arg >= 0)
+						{
+							if (Arg < Base.Size())
+							{
+								auto& Offsets = Result.Args[Base.R().substr(Arg, (Index - Arg) + 1)];
+								Base.EraseOffsets(Arg, Index + 1);
+								Offsets.push_back(Arg);
+							}
+
+							Spec = false;
+							Index = Arg;
+							Arg = -1;
+						}
+						else if (Spec)
+						{
+							Spec = false;
+							Base.Erase(Index - 1, 1);
+						}
+						else
+							Index++;
+					}
+					else if (V == '<')
+					{
+						if (!Spec && Arg < 0)
+						{
+							Arg = Index;
+							Index++;
+						}
+						else if (Spec)
+						{
+							Spec = false;
+							Base.Erase(Index - 1, 1);
+						}
+						else
+							Index++;
 					}
 					else if (Lock && V == '\\')
 					{
@@ -70,31 +101,16 @@ namespace Tomahawk
 						Index++;
 					}
 					else if (!Lock && (V == '\n' || V == '\r' || V == '\t' || V == ' '))
-						Base.Erase(Index, 1);
-					else
-						Index++;
-				}
-
-				for (auto& Sub : Args)
-				{
-					Rest::Stroke Field(&Sub);
-					Field.Trim();
-					Field.Insert('<', 0);
-					Field.Append('>');
-
-					Rest::Stroke::Settle Data;
-					uint64_t Offset = 0;
-
-					auto& Offsets = Result.Args[Field.R()];
-					while ((Data = Base.Find(Field.R(), Offset)).Found)
 					{
-						Base.EraseOffsets(Data.Start, Data.End);
-						Offsets.push_back(Data.Start);
-						Offset = Data.Start;
+						Base.Erase(Index, 1);
+					}
+					else
+					{
+						Spec = false;
+						Index++;
 					}
 				}
 
-				Result.Request = Base.R();
 				if (Result.Args.empty())
 					Result.Cache = BSON::Document::Create(Result.Request);
 

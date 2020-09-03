@@ -32,6 +32,8 @@
 #define THAWK_STRINGIFY(X) #X
 #define THAWK_FUNCTION __FUNCTION__
 #define THAWK_CDECL __cdecl
+#define THAWK_FILE (strrchr(__FILE__, '\\') ? strrchr(__FILE__, '\\') + 1 : __FILE__)
+#define THAWK_LINE __LINE__
 #undef THAWK_UNIX
 #elif defined __linux__ && defined __GNUC__
 #define THAWK_OUT
@@ -40,6 +42,8 @@
 #define THAWK_STRINGIFY(X) #X
 #define THAWK_FUNCTION __FUNCTION__
 #define THAWK_CDECL
+#define THAWK_FILE (strrchr(__FILE__, '/') ? strrchr(__FILE__, '/') + 1 : __FILE__)
+#define THAWK_LINE __LINE__
 #undef THAWK_MICROSOFT
 #if __x86_64__ || __ppc64__
 #define THAWK_64
@@ -53,6 +57,8 @@
 #define THAWK_STRINGIFY(X) #X
 #define THAWK_FUNCTION __FUNCTION__
 #define THAWK_CDECL
+#define THAWK_FILE (strrchr(__FILE__, '/') ? strrchr(__FILE__, '/') + 1 : __FILE__)
+#define THAWK_LINE __LINE__
 #define THAWK_APPLE
 #undef THAWK_MICROSOFT
 #if __x86_64__ || __ppc64__
@@ -83,23 +89,23 @@ typedef int socket_t;
 typedef socklen_t socket_size_t;
 #endif
 #if THAWK_DLEVEL >= 3
-#define THAWK_INFO(Format, ...) Tomahawk::Rest::LT::Inform(3, THAWK_FUNCTION, Format THAWK_VA_ARGS(__VA_ARGS__))
-#define THAWK_WARN(Format, ...) Tomahawk::Rest::LT::Inform(2, THAWK_FUNCTION, Format THAWK_VA_ARGS(__VA_ARGS__))
-#define THAWK_ERROR(Format, ...) Tomahawk::Rest::LT::Inform(1, THAWK_FUNCTION, Format THAWK_VA_ARGS(__VA_ARGS__))
+#define THAWK_INFO(Format, ...) Tomahawk::Rest::LT::Log(3, THAWK_LINE, THAWK_FILE, Format THAWK_VA_ARGS(__VA_ARGS__))
+#define THAWK_WARN(Format, ...) Tomahawk::Rest::LT::Log(2, THAWK_LINE, THAWK_FILE, Format THAWK_VA_ARGS(__VA_ARGS__))
+#define THAWK_ERROR(Format, ...) Tomahawk::Rest::LT::Log(1, THAWK_LINE, THAWK_FILE, Format THAWK_VA_ARGS(__VA_ARGS__))
 #elif THAWK_DLEVEL >= 2
 #define THAWK_INFO(Format, ...)
-#define THAWK_WARN(Format, ...) Tomahawk::Rest::LT::Inform(2, THAWK_FUNCTION, Format THAWK_VA_ARGS(__VA_ARGS__))
-#define THAWK_ERROR(Format, ...) Tomahawk::Rest::LT::Inform(1, THAWK_FUNCTION, Format THAWK_VA_ARGS(__VA_ARGS__))
+#define THAWK_WARN(Format, ...) Tomahawk::Rest::LT::Log(2, THAWK_LINE, THAWK_FILE, Format THAWK_VA_ARGS(__VA_ARGS__))
+#define THAWK_ERROR(Format, ...) Tomahawk::Rest::LT::Log(1, THAWK_LINE, THAWK_FILE, Format THAWK_VA_ARGS(__VA_ARGS__))
 #elif THAWK_DLEVEL >= 1
 #define THAWK_INFO(Format, ...)
 #define THAWK_WARN(Format, ...)
-#define THAWK_ERROR(Format, ...) Tomahawk::Rest::LT::Inform(1, THAWK_FUNCTION, Format THAWK_VA_ARGS(__VA_ARGS__))
+#define THAWK_ERROR(Format, ...) Tomahawk::Rest::LT::Log(1, THAWK_LINE, THAWK_FILE, Format THAWK_VA_ARGS(__VA_ARGS__))
 #else
 #define THAWK_INFO(...)
 #define THAWK_WARN(...)
 #define THAWK_ERROR(...)
 #endif
-#define THAWK_LOG(Format, ...) Tomahawk::Rest::LT::Inform(0, THAWK_FUNCTION, Format THAWK_VA_ARGS(__VA_ARGS__))
+#define THAWK_LOG(Format, ...) Tomahawk::Rest::LT::Log(0, THAWK_LINE, THAWK_FILE, Format THAWK_VA_ARGS(__VA_ARGS__))
 #define THAWK_COMPONENT_ID(ClassName) (uint64_t)std::hash<std::string>()(#ClassName)
 #define THAWK_COMPONENT_HASH(ClassName) (uint64_t)std::hash<std::string>()(ClassName)
 #define THAWK_COMPONENT(ClassName) \
@@ -806,7 +812,7 @@ namespace Tomahawk
 			static void AttachStream();
 			static void DetachCallback();
 			static void DetachStream();
-			static void Inform(int Level, const char* Source, const char* Format, ...);
+			static void Log(int Level, int Line, const char* Source, const char* Format, ...);
 			static void* GetPtr(void* Ptr);
 			static uint64_t GetSize(void* Ptr);
 			static uint64_t GetCount();
@@ -1080,6 +1086,7 @@ namespace Tomahawk
 			static std::string GetDirectory();
 			static std::string Read(const char* Path);
 			static std::string FileDirectory(const std::string& Path, int Level = 0);
+			static std::string GetFilename(const std::string& Path);
 			static FileState GetState(const char* Path);
 			static std::vector<std::string> ReadAllLines(const char* Path);
 			static std::vector<std::string> GetDiskDrives();

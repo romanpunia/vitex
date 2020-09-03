@@ -251,6 +251,7 @@ namespace Tomahawk
 				bool AddDirectory(const std::string& Directory, const std::string& Origin = "");
 				bool RemoveQuery(const std::string& Name);
 				BSON::TDocument* GetQuery(const std::string& Name, QueryMap* Map, bool Once = true);
+				std::vector<std::string> GetQueries();
 
 			private:
 				std::string GetJSON(Rest::Document* Source);
@@ -269,6 +270,7 @@ namespace Tomahawk
 				static bool AddDirectory(const std::string& Directory);
 				static bool RemoveQuery(const std::string& Name);
 				static BSON::TDocument* GetQuery(const std::string& Name, QueryMap* Map, bool Once = true);
+				static std::vector<std::string> GetQueries();
 			};
 
 			class THAWK_OUT URI

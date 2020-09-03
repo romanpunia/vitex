@@ -142,7 +142,7 @@ namespace Tomahawk
 				return Save;
 			}
 
-			GatewayFrame::GatewayFrame(char* Data, uint64_t DataSize) : Buffer(Data), Size(DataSize), Compiler(nullptr), Base(nullptr), Save(false)
+			GatewayFrame::GatewayFrame(char* Data, int64_t DataSize) : Buffer(Data), Size(DataSize), Compiler(nullptr), Base(nullptr), Save(false)
 			{
 			}
 			bool GatewayFrame::Done(bool Normal)
@@ -193,6 +193,7 @@ namespace Tomahawk
 				{
 					free(Buffer);
 					Buffer = nullptr;
+					Size = 0;
 				}
 
 				if (!Base->WebSocket)
@@ -208,6 +209,7 @@ namespace Tomahawk
 				{
 					free(Buffer);
 					Buffer = nullptr;
+					Size = 0;
 				}
 
 				if (!Base->WebSocket)
@@ -218,7 +220,7 @@ namespace Tomahawk
 			}
 			bool GatewayFrame::Start()
 			{
-				if (!Base || !Buffer || !Size)
+				if (!Base || (Size != -1 && (!Buffer || Size == 0)))
 				{
 					if (!Compiler && Base->Response.StatusCode <= 0)
 						Base->Response.StatusCode = 200;
@@ -229,10 +231,7 @@ namespace Tomahawk
 				Base->Lock();
 				return Base->Root->GetQueue()->Task<GatewayFrame>(nullptr, [this](Rest::EventQueue*, Rest::EventArgs*)
 				{
-					std::string SectionName = Base->Request.Path;
-					SectionName += std::to_string(Compute::MathCommon::RandomNumber(111111111111111, 999999999999999));
-
-					int Result = Compiler->LoadCode(SectionName.c_str(), Buffer, Size);
+					int Result = Compiler->LoadCode(Base->Request.Path, Buffer, Size);
 					if (Result < 0)
 						return Finish();
 
@@ -4718,35 +4717,16 @@ namespace Tomahawk
 				if (!VM)
 					return Base->Error(500, "Gateway cannot be issued.") && false;
 
-				for (auto It = Base->Route->Gateway.Files.begin(); It != Base->Route->Gateway.Files.end(); It++)
-				{
-					if (!Compute::Regex::Match(&(*It), nullptr, Base->Request.Path))
-						continue;
-
-					break;
-				}
-
 				return Base->Root->Queue->Task<GatewayFrame>(nullptr, [=](Rest::EventQueue* Queue, Rest::EventArgs* Args)
 				{
-					FILE* Stream = (FILE*)Rest::OS::Open(Base->Request.Path.c_str(), "rb");
-					if (!Stream)
-						return (void)Base->Error(404, "Gateway resource was not found.");
-
-					uint64_t Size = Base->Resource.Size;
-					char* Buffer = (char*)malloc((size_t)(Size + 1) * sizeof(char));
-					if (fread(Buffer, 1, (size_t)Size, Stream) != (size_t)Size)
+					Script::VMCompiler* Compiler = VM->CreateCompiler();
+					if (Compiler->PrepareScope(Rest::OS::GetFilename(Base->Request.Path), Base->Request.Path) < 0)
 					{
-						fclose(Stream);
-						free(Buffer);
-						return (void)Base->Error(500, "Gateway resource stream exception.");
+						delete Compiler;
+						return (void)Base->Error(500, "Gateway module cannot be prepared.");
 					}
 
-					Buffer[Size] = '\0';
-					fclose(Stream);
-
-					Script::VMCompiler* Compiler = VM->CreateCompiler();
-					Compiler->PrepareScope(Base->Request.Path);
-
+					char* Buffer = nullptr;
 					if (Base->Route->Callbacks.Gateway)
 					{
 						if (!Base->Route->Callbacks.Gateway(Base, Compiler))
@@ -4754,6 +4734,27 @@ namespace Tomahawk
 							delete Compiler;
 							return (void)Base->Error(500, "Gateway creation exception.");
 						}
+					}
+
+					int64_t Size = -1;
+					if (!Compiler->IsCached())
+					{
+						FILE* Stream = (FILE*)Rest::OS::Open(Base->Request.Path.c_str(), "rb");
+						if (!Stream)
+							return (void)Base->Error(404, "Gateway resource was not found.");
+
+						Size = Base->Resource.Size;
+						Buffer = (char*)malloc((size_t)(Size + 1) * sizeof(char));
+
+						if (fread(Buffer, 1, (size_t)Size, Stream) != (size_t)Size)
+						{
+							fclose(Stream);
+							free(Buffer);
+							return (void)Base->Error(500, "Gateway resource stream exception.");
+						}
+
+						Buffer[Size] = '\0';
+						fclose(Stream);
 					}
 
 					Base->Gateway = new GatewayFrame(Buffer, Size);

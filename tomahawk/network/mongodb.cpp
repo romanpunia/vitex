@@ -230,6 +230,16 @@ namespace Tomahawk
 
 				return BSON::Document::Create(Origin.Request);
 			}
+			std::vector<std::string> QueryCache::GetQueries()
+			{
+				std::vector<std::string> Result;
+				Result.reserve(Queries.size());
+
+				for (auto& Item : Queries)
+					Result.push_back(Item.first);
+
+				return Result;
+			}
 			std::string QueryCache::GetJSON(Rest::Document* Source)
 			{
 				if (!Source)
@@ -320,6 +330,13 @@ namespace Tomahawk
 					return nullptr;
 
 				return Cache->GetQuery(Name, Map, Once);
+			}
+			std::vector<std::string> Connector::GetQueries()
+			{
+				if (!Cache)
+					return std::vector<std::string>();
+
+				return Cache->GetQueries();
 			}
 			void Connector::Create()
 			{

@@ -3862,6 +3862,10 @@ namespace Tomahawk
 		{
 			return BuiltOK;
 		}
+		bool VMCompiler::IsCached()
+		{
+			return VCache.Valid;
+		}
 		int VMCompiler::Prepare(const std::string& ModuleName)
 		{
 			if (!Manager || ModuleName.empty())
@@ -4008,6 +4012,9 @@ namespace Tomahawk
 				return -1;
 			}
 
+			if (VCache.Valid)
+				return 0;
+
 			std::string Buffer(Data);
 			if (!Processor->Process("", Buffer))
 				return asINVALID_DECLARATION;
@@ -4021,6 +4028,9 @@ namespace Tomahawk
 				THAWK_ERROR("module was not created");
 				return -1;
 			}
+
+			if (VCache.Valid)
+				return 0;
 
 			std::string Buffer(Data, Size);
 			if (!Processor->Process("", Buffer))
@@ -4703,6 +4713,7 @@ namespace Tomahawk
 #ifdef HAS_AS_JIT
 			delete JIT;
 #endif
+			ClearCache();
 		}
 		void VMManager::Setup(uint64_t NewFeatures)
 		{
@@ -4871,6 +4882,9 @@ namespace Tomahawk
 		void VMManager::ClearCache()
 		{
 			Safe.lock();
+			for (auto Data : Datas)
+				delete Data.second;
+
 			Opcodes.clear();
 			Datas.clear();
 			Files.clear();
@@ -5285,7 +5299,7 @@ namespace Tomahawk
 
 			if (!Cached)
 			{
-				std::string Data = Rest::OS::Read(Path.c_str());
+				std::string Data = Rest::OS::Read(File.c_str());
 				uint64_t Offset = 0;
 
 				return Rest::Document::ReadJSON(Data.size(), [&Data, &Offset](char* Buffer, int64_t Size)

@@ -1899,7 +1899,7 @@ namespace Tomahawk
 		{
 			Enabled = false;
 		}
-		void LT::Inform(int Level, const char* Source, const char* Format, ...)
+		void LT::Log(int Level, int Line, const char* Source, const char* Format, ...)
 		{
 			if (!Source || !Format || (!Enabled && !Callback))
 				return;
@@ -1907,6 +1907,9 @@ namespace Tomahawk
 			auto TimeStamp = (time_t)time(nullptr);
 			tm DateTime{ };
 			char Date[64];
+
+			if (Line < 0)
+				Line = 0;
 
 #if defined(THAWK_MICROSOFT)
 			if (gmtime_s(&DateTime, &TimeStamp) != 0)
@@ -1925,23 +1928,23 @@ namespace Tomahawk
 				int ErrorCode = OS::GetError();
 #ifdef THAWK_MICROSOFT
 				if (ErrorCode != ERROR_SUCCESS)
-					snprintf(Buffer, sizeof(Buffer), "%s %s() Error: %s\n\tsystem cause: %s\n", Date, Source, Format, OS::GetErrorName(ErrorCode).c_str());
+					snprintf(Buffer, sizeof(Buffer), "%s %s:%d [err] %s\n\tsystem: %s\n", Date, Source, Line, Format, OS::GetErrorName(ErrorCode).c_str());
 				else
-					snprintf(Buffer, sizeof(Buffer), "%s %s() Error: %s\n", Date, Source, Format);
+					snprintf(Buffer, sizeof(Buffer), "%s %s:%d [err] %s\n", Date, Source, Line, Format);
 #else
 																																		if (ErrorCode > 0)
-                    snprintf(Buffer, sizeof(Buffer), "%s %s() Error: %s\n\tsystem cause: %s\n", Date, Source, Format, OS::GetErrorName(ErrorCode).c_str());
+                    snprintf(Buffer, sizeof(Buffer), "%s %s:%d [err] %s\n\tsystem: %s\n", Date, Source, Line, Format, OS::GetErrorName(ErrorCode).c_str());
                 else
-                    snprintf(Buffer, sizeof(Buffer), "%s %s() Error: %s\n", Date, Source, Format);
+                    snprintf(Buffer, sizeof(Buffer), "%s %s:%d [err] %s\n", Date, Source, Line, Format);
 #endif
 			}
 			else if (Level == 2)
-				snprintf(Buffer, sizeof(Buffer), "%s %s() Warn: %s\n", Date, Source, Format);
+				snprintf(Buffer, sizeof(Buffer), "%s %s:%d [warn] %s\n", Date, Source, Line, Format);
 			else
-				snprintf(Buffer, sizeof(Buffer), "%s %s() Info: %s\n", Date, Source, Format);
+				snprintf(Buffer, sizeof(Buffer), "%s %s:%d [info] %s\n", Date, Source, Line, Format);
 
 			va_list Args;
-					va_start(Args, Format);
+			va_start(Args, Format);
 
 			char Storage[8192];
 			vsnprintf(Storage, sizeof(Storage), Buffer, Args);
@@ -1956,7 +1959,7 @@ namespace Tomahawk
 				printf("%s", Storage);
 			}
 
-					va_end(Args);
+			va_end(Args);
 		}
 		void LT::Free(void* Ptr)
 		{
@@ -3532,7 +3535,7 @@ namespace Tomahawk
 
 			return (void*)_wfopen(WBuffer, WMode);
 #else
-																																	FILE* Stream = fopen(Path, Mode);
+			FILE* Stream = fopen(Path, Mode);
             if (Stream != nullptr)
                 fcntl(fileno(Stream), F_SETFD, FD_CLOEXEC);
 
@@ -3547,7 +3550,7 @@ namespace Tomahawk
 #ifdef THAWK_MICROSOFT
 			return TransmitFile((SOCKET)Socket, (HANDLE)_get_osfhandle(_fileno(Stream)), (DWORD)Size, 16384, nullptr, nullptr, 0) > 0;
 #elif defined(THAWK_APPLE)
-																																	return sendfile(fileno(Stream), Socket, 0, (off_t*)&Size, nullptr, 0);
+			return sendfile(fileno(Stream), Socket, 0, (off_t*)&Size, nullptr, 0);
 #elif defined(THAWK_UNIX)
             return sendfile(Socket, fileno(Stream), nullptr, (size_t)Size) > 0;
 #else
@@ -3579,6 +3582,15 @@ namespace Tomahawk
 				return "/";
 
 			return RV.R();
+		}
+		std::string OS::GetFilename(const std::string& Path)
+		{
+			Stroke RV(Path);
+			Stroke::Settle Result = RV.ReverseFindOf("/\\");
+			if (!Result.Found)
+				return Path;
+
+			return RV.Substring(Result.End).R();
 		}
 		std::string OS::Read(const char* Path)
 		{
@@ -5701,7 +5713,7 @@ namespace Tomahawk
 
 			return Result;
 #else
-																																	THAWK_ERROR("json parse is unsupported for this build");
+			THAWK_ERROR("json parse is unsupported for this build");
             return false;
 #endif
 		}

@@ -503,11 +503,10 @@ Rest::Document* VMCDocument::GetIndex(Rest::Document* Base, const std::string& N
 }
 Rest::Document* VMCDocument::SetId(Rest::Document* Base, const std::string& Name, const std::string& Value)
 {
-	std::string Result = Network::BSON::Document::StringToOId(Value);
-	if (Result.size() != 12)
+	if (Value.size() != 12)
 		return nullptr;
 
-	return Base->SetId(Name, (unsigned char*)Result.c_str());
+	return Base->SetId(Name, (unsigned char*)Value.c_str());
 }
 std::string VMCDocument::GetDecimal(Rest::Document* Base, const std::string& Name)
 {
@@ -530,7 +529,7 @@ std::string VMCDocument::GetId(Rest::Document* Base, const std::string& Name)
 	if (Result->Type != Rest::NodeType_Id || Result->String.size() != 12)
 		return "";
 
-	return Network::BSON::Document::OIdToString((unsigned char*)Result->String.c_str());
+	return Result->String.c_str();
 }
 VMCArray* VMCDocument::FindCollection(Rest::Document* Base, const std::string& Name, bool Here)
 {

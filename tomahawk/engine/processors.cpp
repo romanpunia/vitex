@@ -915,7 +915,7 @@ namespace Tomahawk
 					Compute::SkinAnimatorClip* Clip = &Clips[i];
 					Clip->Name = Animation->mName.C_Str();
 					Clip->Duration = Animation->mDuration;
-					
+
 					if (Animation->mTicksPerSecond != 0.0f)
 						Clip->Rate = Animation->mTicksPerSecond;
 
@@ -925,7 +925,7 @@ namespace Tomahawk
 						auto It = Joints.find(Channel->mNodeName.C_Str());
 						if (It == Joints.end())
 							continue;
-						
+
 						if (Clip->Keys.size() < Channel->mNumPositionKeys)
 							Clip->Keys.resize(Channel->mNumPositionKeys);
 
@@ -953,7 +953,7 @@ namespace Tomahawk
 
 							aiQuaternion Q1 = Channel->mRotationKeys[k].mValue;
 							Compute::Quaternion Q2(Q1.x, Q1.y, Q1.z, Q1.w);
-			
+
 							Keys[It->second.Index].Rotation = Q2.GetEuler().SaturateRotation();
 						}
 
@@ -1154,7 +1154,7 @@ namespace Tomahawk
 				auto* Document = Content->Load<Rest::Document>(Stream->Filename(), nullptr);
 				auto* Object = new Network::HTTP::Server();
 				auto* Router = new Network::HTTP::MapRouter();
-				
+
 				Application* App = Application::Get();
 				if (App != nullptr)
 					Router->VM = App->VM;
@@ -1428,56 +1428,27 @@ namespace Tomahawk
 						if (NMake::Unpack(Base->FindPath("compression.memory-level"), &Route->Compression.MemoryLevel))
 							Route->Compression.MemoryLevel = Compute::Mathi::Clamp(Route->Compression.MemoryLevel, 1, 9);
 
-						if (!NMake::Unpack(Base->FindPath("auth.type"), &Route->Auth.Type))
-							Route->Auth.Type.clear();
-
-						if (!NMake::Unpack(Base->FindPath("auth.realm"), &Route->Auth.Realm))
-							Route->Auth.Type.clear();
-
-						if (!NMake::Unpack(Base->FindPath("compression.min-length"), &Route->Compression.MinLength))
-							Route->Compression.MinLength = 16384;
-
-						if (!NMake::Unpack(Base->FindPath("compression.enabled"), &Route->Compression.Enabled))
-							Route->Compression.Enabled = false;
-
 						if (NMake::Unpack(Base->Find("document-root"), &Route->DocumentRoot))
 							Rest::Stroke(&Route->DocumentRoot).Path(N, D);
 
 						if (NMake::Unpack(Base->Find("default"), &Route->Default))
 							Rest::Stroke(&Route->Default).Path(N, D);
 
-						if (!NMake::Unpack(Base->Find("char-set"), &Route->CharSet))
-							Route->CharSet = "utf-8";
-
-						if (!NMake::Unpack(Base->Find("access-control-allow-origin"), &Route->AccessControlAllowOrigin))
-							Route->AccessControlAllowOrigin.clear();
-
-						if (!NMake::Unpack(Base->Find("refer"), &Route->Refer))
-							Route->Refer.clear();
-
-						if (!NMake::Unpack(Base->Find("web-socket-timeout"), &Route->WebSocketTimeout))
-							Route->WebSocketTimeout = 30000;
-
-						if (!NMake::Unpack(Base->Find("static-file-max-age"), &Route->StaticFileMaxAge))
-							Route->StaticFileMaxAge = 604800;
-
-						if (!NMake::Unpack(Base->Find("graceful-time-wait"), &Route->GracefulTimeWait))
-							Route->GracefulTimeWait = 1;
-
-						if (!NMake::Unpack(Base->Find("max-cache-length"), &Route->MaxCacheLength))
-							Route->MaxCacheLength = 16384;
-
-						if (!NMake::Unpack(Base->Find("allow-directory-listing"), &Route->AllowDirectoryListing))
-							Route->AllowDirectoryListing = false;
-
-						if (!NMake::Unpack(Base->Find("allow-web-socket"), &Route->AllowWebSocket))
-							Route->AllowWebSocket = false;
-
-						if (!NMake::Unpack(Base->Find("allow-send-file"), &Route->AllowSendFile))
-							Route->AllowSendFile = false;
-
-						if (!NMake::Unpack(Base->Find("proxy-ip-address"), &Route->ProxyIpAddress))
-							Route->ProxyIpAddress.clear();
+						NMake::Unpack(Base->FindPath("auth.type"), &Route->Auth.Type);
+						NMake::Unpack(Base->FindPath("auth.realm"), &Route->Auth.Realm);
+						NMake::Unpack(Base->FindPath("compression.min-length"), &Route->Compression.MinLength);
+						NMake::Unpack(Base->FindPath("compression.enabled"), &Route->Compression.Enabled);
+						NMake::Unpack(Base->Find("char-set"), &Route->CharSet);
+						NMake::Unpack(Base->Find("access-control-allow-origin"), &Route->AccessControlAllowOrigin);
+						NMake::Unpack(Base->Find("refer"), &Route->Refer);
+						NMake::Unpack(Base->Find("web-socket-timeout"), &Route->WebSocketTimeout);
+						NMake::Unpack(Base->Find("static-file-max-age"), &Route->StaticFileMaxAge);
+						NMake::Unpack(Base->Find("graceful-time-wait"), &Route->GracefulTimeWait);
+						NMake::Unpack(Base->Find("max-cache-length"), &Route->MaxCacheLength);
+						NMake::Unpack(Base->Find("allow-directory-listing"), &Route->AllowDirectoryListing);
+						NMake::Unpack(Base->Find("allow-web-socket"), &Route->AllowWebSocket);
+						NMake::Unpack(Base->Find("allow-send-file"), &Route->AllowSendFile);
+						NMake::Unpack(Base->Find("proxy-ip-address"), &Route->ProxyIpAddress);
 					}
 				}
 

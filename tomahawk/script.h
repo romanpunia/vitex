@@ -2017,6 +2017,7 @@ namespace Tomahawk
 			void Clear();
 			bool IsDefined(const std::string& Word);
 			bool IsBuilt();
+			bool IsCached();
 			int Prepare(const std::string& ModuleName);
 			int Prepare(const std::string& ModuleName, const std::string& Cache, bool Debug = true);
 			int PrepareScope(const std::string& ModuleName);

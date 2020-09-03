@@ -234,7 +234,7 @@ namespace Tomahawk
 
 			private:
 				char* Buffer;
-				size_t Size;
+				int64_t Size;
 				bool Save;
 
 			public:
@@ -242,7 +242,7 @@ namespace Tomahawk
 				Connection* Base;
 
 			public:
-				GatewayFrame(char* Data, uint64_t DataSize);
+				GatewayFrame(char* Data, int64_t DataSize);
 				bool Finish();
 				bool Error();
 				bool Start();

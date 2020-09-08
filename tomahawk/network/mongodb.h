@@ -236,7 +236,6 @@ namespace Tomahawk
 				struct Sequence
 				{
 					BSON::TDocument* Cache = nullptr;
-					std::unordered_map<std::string, std::vector<size_t>> Args;
 					std::string Request;
 				};
 

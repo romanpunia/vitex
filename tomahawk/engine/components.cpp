@@ -3465,8 +3465,8 @@ namespace Tomahawk
 							break;
 						default:
 						{
-							Script::VMWTypeInfo Type = GetCompiler()->GetManager()->Global().GetTypeInfoById(Result.TypeId);
-							if (!Type.IsValid() || strcmp(Type.GetName(), "string") != 0)
+							Script::VMTypeInfo Type = GetCompiler()->GetManager()->Global().GetTypeInfoById(Result.TypeId);
+							if (!Type.IsValid() || strcmp(Type.GetName(), "String") != 0)
 							{
 								delete Var;
 								Var = nullptr;
@@ -3569,8 +3569,8 @@ namespace Tomahawk
 				if (Target->Compiler->GetContext()->GetState() == Tomahawk::Script::VMExecState_ACTIVE)
 					return Target;
 
-				Script::VMWModule From = Compiler->GetModule();
-				Script::VMWModule To = Target->Compiler->GetModule();
+				Script::VMModule From = Compiler->GetModule();
+				Script::VMModule To = Target->Compiler->GetModule();
 				Script::VMManager* Manager = Compiler->GetManager();
 
 				if (!From.IsValid() || !To.IsValid())
@@ -3593,7 +3593,7 @@ namespace Tomahawk
 
 					if (Source.TypeId < Script::VMTypeId_BOOL || Source.TypeId > Script::VMTypeId_DOUBLE)
 					{
-						Script::VMWTypeInfo Type = Manager->Global().GetTypeInfoById(Source.TypeId);
+						Script::VMTypeInfo Type = Manager->Global().GetTypeInfoById(Source.TypeId);
 						if (Source.Pointer != nullptr && Type.IsValid())
 						{
 							void* Object = Manager->CreateObjectCopy(Source.Pointer, Type);
@@ -3681,7 +3681,6 @@ namespace Tomahawk
 						return Script::VMResult_INVALID_CONFIGURATION;
 
 					Compiler = Manager->CreateCompiler();
-					Compiler->SetAllowedFeatures(Scene->GetConf().ScriptFeatures);
 					Compiler->SetPragmaCallback([this](Compute::Preprocessor*, const std::string& Pragma)
 					{
 						Rest::Stroke Comment(&Pragma);
@@ -3751,13 +3750,13 @@ namespace Tomahawk
 				}
 
 				Safe.unlock();
-				Entry.Serialize = GetFunctionByName("serialize", Invoke == InvokeType_Typeless ? 0 : 3).GetFunction();
-				Entry.Deserialize = GetFunctionByName("deserialize", Invoke == InvokeType_Typeless ? 0 : 3).GetFunction();
-				Entry.Awake = GetFunctionByName("awake", Invoke == InvokeType_Typeless ? 0 : 2).GetFunction();
-				Entry.Asleep = GetFunctionByName("asleep", Invoke == InvokeType_Typeless ? 0 : 1).GetFunction();
-				Entry.Synchronize = GetFunctionByName("synchronize", Invoke == InvokeType_Typeless ? 0 : 2).GetFunction();
-				Entry.Update = GetFunctionByName("update", Invoke == InvokeType_Typeless ? 0 : 2).GetFunction();
-				Entry.Pipe = GetFunctionByName("pipe", Invoke == InvokeType_Typeless ? 0 : 2).GetFunction();
+				Entry.Serialize = GetFunctionByName("Serialize", Invoke == InvokeType_Typeless ? 0 : 3).GetFunction();
+				Entry.Deserialize = GetFunctionByName("Deserialize", Invoke == InvokeType_Typeless ? 0 : 3).GetFunction();
+				Entry.Awake = GetFunctionByName("Awake", Invoke == InvokeType_Typeless ? 0 : 2).GetFunction();
+				Entry.Asleep = GetFunctionByName("Asleep", Invoke == InvokeType_Typeless ? 0 : 1).GetFunction();
+				Entry.Synchronize = GetFunctionByName("Synchronize", Invoke == InvokeType_Typeless ? 0 : 2).GetFunction();
+				Entry.Update = GetFunctionByName("Update", Invoke == InvokeType_Typeless ? 0 : 2).GetFunction();
+				Entry.Pipe = GetFunctionByName("Pipe", Invoke == InvokeType_Typeless ? 0 : 2).GetFunction();
 
 				return R;
 			}
@@ -3773,7 +3772,7 @@ namespace Tomahawk
 			{
 				return Compiler;
 			}
-			Script::VMWFunction Scriptable::GetFunctionByName(const std::string& Name, unsigned int Args)
+			Script::VMFunction Scriptable::GetFunctionByName(const std::string& Name, unsigned int Args)
 			{
 				if (Name.empty() || !Compiler)
 					return nullptr;
@@ -3790,7 +3789,7 @@ namespace Tomahawk
 				Safe.unlock();
 				return Result;
 			}
-			Script::VMWFunction Scriptable::GetFunctionByIndex(int Index, unsigned int Args)
+			Script::VMFunction Scriptable::GetFunctionByIndex(int Index, unsigned int Args)
 			{
 				if (Index < 0 || !Compiler)
 					return nullptr;
@@ -3817,7 +3816,7 @@ namespace Tomahawk
 					return false;
 
 				Safe.lock();
-				Script::VMWModule Module = Compiler->GetModule();
+				Script::VMModule Module = Compiler->GetModule();
 				if (!Module.IsValid())
 				{
 					Safe.unlock();
@@ -3850,7 +3849,7 @@ namespace Tomahawk
 					return false;
 
 				Safe.lock();
-				Script::VMWModule Module = Compiler->GetModule();
+				Script::VMModule Module = Compiler->GetModule();
 				if (!Module.IsValid())
 				{
 					Safe.unlock();
@@ -3884,7 +3883,7 @@ namespace Tomahawk
 					return Script::VMResult_MODULE_IS_IN_USE;
 
 				Safe.lock();
-				Script::VMWModule Module = Compiler->GetModule();
+				Script::VMModule Module = Compiler->GetModule();
 				if (!Module.IsValid())
 				{
 					Safe.unlock();
@@ -3906,7 +3905,7 @@ namespace Tomahawk
 					return Script::VMResult_MODULE_IS_IN_USE;
 
 				Safe.lock();
-				Script::VMWModule Module = Compiler->GetModule();
+				Script::VMModule Module = Compiler->GetModule();
 				if (!Module.IsValid())
 				{
 					Safe.unlock();

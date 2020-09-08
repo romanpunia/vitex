@@ -34,6 +34,7 @@ namespace Tomahawk
 				Rest::Stroke Base(&Result.Request);
 				Base.Trim();
 
+				uint64_t Args = 0;
 				uint64_t Index = 0;
 				int64_t Arg = -1;
 				bool Spec = false;
@@ -63,13 +64,12 @@ namespace Tomahawk
 						{
 							if (Arg < Base.Size())
 							{
-								auto& Offsets = Result.Args[Base.R().substr(Arg, (Index - Arg) + 1)];
-								Base.EraseOffsets(Arg, Index + 1);
-								Offsets.push_back(Arg);
+								Base.Insert('\xFF', Arg);
+								Args++; Index++;
 							}
 
 							Spec = false;
-							Index = Arg;
+							Index++;
 							Arg = -1;
 						}
 						else if (Spec)
@@ -111,7 +111,7 @@ namespace Tomahawk
 					}
 				}
 
-				if (Result.Args.empty())
+				if (Args < 1)
 					Result.Cache = BSON::Document::Create(Result.Request);
 
 				Safe.lock();
@@ -199,27 +199,11 @@ namespace Tomahawk
 				Safe.unlock();
 
 				Rest::Stroke Result(&Origin.Request);
-				uint64_t Basis = 0;
-
 				for (auto& Sub : *Map)
 				{
-					auto Field = Origin.Args.find('<' + Sub.first + '>');
-					if (Field == Origin.Args.end())
-					{
-						if (Once)
-							delete Sub.second;
-						continue;
-					}
-
 					std::string Value = GetJSON(Sub.second);
 					if (!Value.empty())
-					{
-						for (auto& Offset : Field->second)
-						{
-							Result.Insert(Value, Basis + Offset);
-							Basis += Value.size();
-						}
-					}
+						Result.Replace("\xFF<" + Sub.first + '>', Value);
 
 					if (Once)
 						delete Sub.second;

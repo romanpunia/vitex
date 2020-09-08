@@ -17,6 +17,8 @@
 #include "network/bson.h"
 #include "network/mongodb.h"
 #include "script.h"
+#include "script/core.h"
+#include "script/rest.h"
 #include "engine.h"
 #include "engine/components.h"
 #include "engine/processors.h"

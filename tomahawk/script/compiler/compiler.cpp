@@ -1,4 +1,4 @@
-#include "jit.h"
+#include "compiler.h"
 #ifdef HAS_AS_JIT
 #include <math.h>
 #include <string.h>
@@ -14,7 +14,7 @@
 #include "../source/as_scriptobject.h"
 #include "../source/as_texts.h"
 #include "../source/as_context.h"
-#include "compiler/asm.h"
+#include "asm.h"
 
 using namespace assembler;
 

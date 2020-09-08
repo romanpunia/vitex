@@ -728,8 +728,8 @@ namespace Tomahawk
 				Script::VMCompiler* GetCompiler();
 				bool GetPropertyByName(const char* Name, Script::VMProperty* Result);
 				bool GetPropertyByIndex(int Index, Script::VMProperty* Result);
-				Script::VMWFunction GetFunctionByName(const std::string& Name, unsigned int Args);
-				Script::VMWFunction GetFunctionByIndex(int Index, unsigned int Args);
+				Script::VMFunction GetFunctionByName(const std::string& Name, unsigned int Args);
+				Script::VMFunction GetFunctionByIndex(int Index, unsigned int Args);
 				SourceType GetSourceType();
 				InvokeType GetInvokeType();
 				int GetPropertiesCount();
@@ -749,7 +749,7 @@ namespace Tomahawk
 						return Script::VMResult_MODULE_IS_IN_USE;
 
 					Safe.lock();
-					Script::VMWModule Module = Compiler->GetModule();
+					Script::VMModule Module = Compiler->GetModule();
 					if (!Module.IsValid())
 					{
 						Safe.unlock();
@@ -786,7 +786,7 @@ namespace Tomahawk
 						return Script::VMResult_MODULE_IS_IN_USE;
 
 					Safe.lock();
-					Script::VMWModule Module = Compiler->GetModule();
+					Script::VMModule Module = Compiler->GetModule();
 					if (!Module.IsValid())
 					{
 						Safe.unlock();
@@ -828,7 +828,7 @@ namespace Tomahawk
 						return Script::VMResult_MODULE_IS_IN_USE;
 
 					Safe.lock();
-					Script::VMWModule Module = Compiler->GetModule();
+					Script::VMModule Module = Compiler->GetModule();
 					if (!Module.IsValid())
 					{
 						Safe.unlock();
@@ -858,7 +858,7 @@ namespace Tomahawk
 						return Script::VMResult_MODULE_IS_IN_USE;
 
 					Safe.lock();
-					Script::VMWModule Module = Compiler->GetModule();
+					Script::VMModule Module = Compiler->GetModule();
 					if (!Module.IsValid())
 					{
 						Safe.unlock();

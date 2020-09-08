@@ -1,34 +1,25 @@
 #include "script.h"
-#include "private/string.h"
-#include "private/array.h"
-#include "private/any.h"
-#include "private/dictionary.h"
-#include "private/grid.h"
-#include "private/math.h"
-#include "private/complex.h"
-#include "private/handle.h"
-#include "private/datetime.h"
-#include "private/weakref.h"
-#include "private/rest.h"
-#include "private/library.h"
-#include "private/jit.h"
+#include "script/compiler/compiler.h"
+#include "script/core.h"
+#include "script/rest.h"
 #include <iostream>
+#include <sstream>
 
 namespace Tomahawk
 {
 	namespace Script
 	{
-		class ByteCodeStream : public asIBinaryStream
+		class CByteCodeStream : public asIBinaryStream
 		{
 		private:
 			std::vector<asBYTE> Code;
 			int ReadPos, WritePos;
 
 		public:
-			ByteCodeStream() : ReadPos(0), WritePos(0)
+			CByteCodeStream() : ReadPos(0), WritePos(0)
 			{
 			}
-			ByteCodeStream(const std::vector<asBYTE>& Data) : Code(Data), ReadPos(0), WritePos(0)
+			CByteCodeStream(const std::vector<asBYTE>& Data) : Code(Data), ReadPos(0), WritePos(0)
 			{
 			}
 			int Read(void* Ptr, asUINT Size)
@@ -62,6 +53,22 @@ namespace Tomahawk
 			}
 		};
 
+		int VMBind::AtomicNotifyGC(const char* TypeName, void* Object)
+		{
+			if (!TypeName || !Object)
+				return -1;
+
+			VMCContext* Context = asGetActiveContext();
+			if (!Context)
+				return -1;
+
+			VMManager* Engine = VMManager::Get(Context->GetEngine());
+			if (!Engine)
+				return -1;
+
+			VMTypeInfo Type = Engine->Global().GetTypeInfoByName(TypeName);
+			return Engine->NotifyOfNewObject(Object, Type.GetTypeInfo());
+		}
 		asSFuncPtr* VMBind::CreateFunctionBase(void(* Base)(), int Type)
 		{
 			asSFuncPtr* Ptr = new asSFuncPtr(Type);
@@ -87,58 +94,58 @@ namespace Tomahawk
 			*Ptr = nullptr;
 		}
 
-		VMWMessage::VMWMessage(asSMessageInfo* Msg) : Info(Msg)
+		VMMessage::VMMessage(asSMessageInfo* Msg) : Info(Msg)
 		{
 		}
-		const char* VMWMessage::GetSection() const
+		const char* VMMessage::GetSection() const
 		{
 			if (!IsValid())
 				return nullptr;
 
 			return Info->section;
 		}
-		const char* VMWMessage::GetMessage() const
+		const char* VMMessage::GetMessage() const
 		{
 			if (!IsValid())
 				return nullptr;
 
 			return Info->message;
 		}
-		VMLogType VMWMessage::GetType() const
+		VMLogType VMMessage::GetType() const
 		{
 			if (!IsValid())
 				return VMLogType_INFORMATION;
 
 			return (VMLogType)Info->type;
 		}
-		int VMWMessage::GetRow() const
+		int VMMessage::GetRow() const
 		{
 			if (!IsValid())
 				return -1;
 
 			return Info->row;
 		}
-		int VMWMessage::GetColumn() const
+		int VMMessage::GetColumn() const
 		{
 			if (!IsValid())
 				return -1;
 
 			return Info->col;
 		}
-		asSMessageInfo* VMWMessage::GetMessageInfo() const
+		asSMessageInfo* VMMessage::GetMessageInfo() const
 		{
 			return Info;
 		}
-		bool VMWMessage::IsValid() const
+		bool VMMessage::IsValid() const
 		{
 			return Info != nullptr;
 		}
 
-		VMWTypeInfo::VMWTypeInfo(VMCTypeInfo* TypeInfo) : Info(TypeInfo)
+		VMTypeInfo::VMTypeInfo(VMCTypeInfo* TypeInfo) : Info(TypeInfo)
 		{
 			Manager = (Info ? VMManager::Get(Info->GetEngine()) : nullptr);
 		}
-		void VMWTypeInfo::ForEachProperty(const PropertyCallback& Callback)
+		void VMTypeInfo::ForEachProperty(const PropertyCallback& Callback)
 		{
 			if (!Callback || !IsValid())
 				return;
@@ -151,7 +158,7 @@ namespace Tomahawk
 					Callback(this, &Prop);
 			}
 		}
-		void VMWTypeInfo::ForEachMethod(const MethodCallback& Callback)
+		void VMTypeInfo::ForEachMethod(const MethodCallback& Callback)
 		{
 			if (!Callback || !IsValid())
 				return;
@@ -159,40 +166,40 @@ namespace Tomahawk
 			unsigned int Count = Info->GetMethodCount();
 			for (unsigned int i = 0; i < Count; i++)
 			{
-				VMWFunction Method = Info->GetMethodByIndex(i);
+				VMFunction Method = Info->GetMethodByIndex(i);
 				if (Method.IsValid())
 					Callback(this, &Method);
 			}
 		}
-		const char* VMWTypeInfo::GetGroup() const
+		const char* VMTypeInfo::GetGroup() const
 		{
 			if (!IsValid())
 				return nullptr;
 
 			return Info->GetConfigGroup();
 		}
-		size_t VMWTypeInfo::GetAccessMask() const
+		size_t VMTypeInfo::GetAccessMask() const
 		{
 			if (!IsValid())
 				return 0;
 
 			return Info->GetAccessMask();
 		}
-		VMWModule VMWTypeInfo::GetModule() const
+		VMModule VMTypeInfo::GetModule() const
 		{
 			if (!IsValid())
 				return nullptr;
 
 			return Info->GetModule();
 		}
-		int VMWTypeInfo::AddRef() const
+		int VMTypeInfo::AddRef() const
 		{
 			if (!IsValid())
 				return -1;
 
 			return Info->AddRef();
 		}
-		int VMWTypeInfo::Release()
+		int VMTypeInfo::Release()
 		{
 			if (!IsValid())
 				return -1;
@@ -203,154 +210,154 @@ namespace Tomahawk
 
 			return R;
 		}
-		const char* VMWTypeInfo::GetName() const
+		const char* VMTypeInfo::GetName() const
 		{
 			if (!IsValid())
 				return nullptr;
 
 			return Info->GetName();
 		}
-		const char* VMWTypeInfo::GetNamespace() const
+		const char* VMTypeInfo::GetNamespace() const
 		{
 			if (!IsValid())
 				return nullptr;
 
 			return Info->GetNamespace();
 		}
-		VMWTypeInfo VMWTypeInfo::GetBaseType() const
+		VMTypeInfo VMTypeInfo::GetBaseType() const
 		{
 			if (!IsValid())
 				return nullptr;
 
 			return Info->GetBaseType();
 		}
-		bool VMWTypeInfo::DerivesFrom(const VMWTypeInfo& Type) const
+		bool VMTypeInfo::DerivesFrom(const VMTypeInfo& Type) const
 		{
 			if (!IsValid())
 				return false;
 
 			return Info->DerivesFrom(Type.GetTypeInfo());
 		}
-		size_t VMWTypeInfo::GetFlags() const
+		size_t VMTypeInfo::GetFlags() const
 		{
 			if (!IsValid())
 				return 0;
 
 			return Info->GetFlags();
 		}
-		unsigned int VMWTypeInfo::GetSize() const
+		unsigned int VMTypeInfo::GetSize() const
 		{
 			if (!IsValid())
 				return 0;
 
 			return Info->GetSize();
 		}
-		int VMWTypeInfo::GetTypeId() const
+		int VMTypeInfo::GetTypeId() const
 		{
 			if (!IsValid())
 				return -1;
 
 			return Info->GetTypeId();
 		}
-		int VMWTypeInfo::GetSubTypeId(unsigned int SubTypeIndex) const
+		int VMTypeInfo::GetSubTypeId(unsigned int SubTypeIndex) const
 		{
 			if (!IsValid())
 				return -1;
 
 			return Info->GetSubTypeId(SubTypeIndex);
 		}
-		VMWTypeInfo VMWTypeInfo::GetSubType(unsigned int SubTypeIndex) const
+		VMTypeInfo VMTypeInfo::GetSubType(unsigned int SubTypeIndex) const
 		{
 			if (!IsValid())
 				return nullptr;
 
 			return Info->GetSubType(SubTypeIndex);
 		}
-		unsigned int VMWTypeInfo::GetSubTypeCount() const
+		unsigned int VMTypeInfo::GetSubTypeCount() const
 		{
 			if (!IsValid())
 				return 0;
 
 			return Info->GetSubTypeCount();
 		}
-		unsigned int VMWTypeInfo::GetInterfaceCount() const
+		unsigned int VMTypeInfo::GetInterfaceCount() const
 		{
 			if (!IsValid())
 				return 0;
 
 			return Info->GetInterfaceCount();
 		}
-		VMWTypeInfo VMWTypeInfo::GetInterface(unsigned int Index) const
+		VMTypeInfo VMTypeInfo::GetInterface(unsigned int Index) const
 		{
 			if (!IsValid())
 				return nullptr;
 
 			return Info->GetInterface(Index);
 		}
-		bool VMWTypeInfo::Implements(const VMWTypeInfo& Type) const
+		bool VMTypeInfo::Implements(const VMTypeInfo& Type) const
 		{
 			if (!IsValid())
 				return false;
 
 			return Info->Implements(Type.GetTypeInfo());
 		}
-		unsigned int VMWTypeInfo::GetFactoriesCount() const
+		unsigned int VMTypeInfo::GetFactoriesCount() const
 		{
 			if (!IsValid())
 				return 0;
 
 			return Info->GetFactoryCount();
 		}
-		VMWFunction VMWTypeInfo::GetFactoryByIndex(unsigned int Index) const
+		VMFunction VMTypeInfo::GetFactoryByIndex(unsigned int Index) const
 		{
 			if (!IsValid())
 				return nullptr;
 
 			return Info->GetFactoryByIndex(Index);
 		}
-		VMWFunction VMWTypeInfo::GetFactoryByDecl(const char* Decl) const
+		VMFunction VMTypeInfo::GetFactoryByDecl(const char* Decl) const
 		{
 			if (!IsValid())
 				return nullptr;
 
 			return Info->GetFactoryByDecl(Decl);
 		}
-		unsigned int VMWTypeInfo::GetMethodsCount() const
+		unsigned int VMTypeInfo::GetMethodsCount() const
 		{
 			if (!IsValid())
 				return 0;
 
 			return Info->GetMethodCount();
 		}
-		VMWFunction VMWTypeInfo::GetMethodByIndex(unsigned int Index, bool GetVirtual) const
+		VMFunction VMTypeInfo::GetMethodByIndex(unsigned int Index, bool GetVirtual) const
 		{
 			if (!IsValid())
 				return nullptr;
 
 			return Info->GetMethodByIndex(Index, GetVirtual);
 		}
-		VMWFunction VMWTypeInfo::GetMethodByName(const char* Name, bool GetVirtual) const
+		VMFunction VMTypeInfo::GetMethodByName(const char* Name, bool GetVirtual) const
 		{
 			if (!IsValid())
 				return nullptr;
 
 			return Info->GetMethodByName(Name, GetVirtual);
 		}
-		VMWFunction VMWTypeInfo::GetMethodByDecl(const char* Decl, bool GetVirtual) const
+		VMFunction VMTypeInfo::GetMethodByDecl(const char* Decl, bool GetVirtual) const
 		{
 			if (!IsValid())
 				return nullptr;
 
 			return Info->GetMethodByDecl(Decl, GetVirtual);
 		}
-		unsigned int VMWTypeInfo::GetPropertiesCount() const
+		unsigned int VMTypeInfo::GetPropertiesCount() const
 		{
 			if (!IsValid())
 				return 0;
 
 			return Info->GetPropertyCount();
 		}
-		int VMWTypeInfo::GetProperty(unsigned int Index, VMFuncProperty* Out) const
+		int VMTypeInfo::GetProperty(unsigned int Index, VMFuncProperty* Out) const
 		{
 			if (!IsValid())
 				return -1;
@@ -376,21 +383,21 @@ namespace Tomahawk
 
 			return Result;
 		}
-		const char* VMWTypeInfo::GetPropertyDeclaration(unsigned int Index, bool IncludeNamespace) const
+		const char* VMTypeInfo::GetPropertyDeclaration(unsigned int Index, bool IncludeNamespace) const
 		{
 			if (!IsValid())
 				return nullptr;
 
 			return Info->GetPropertyDeclaration(Index, IncludeNamespace);
 		}
-		unsigned int VMWTypeInfo::GetBehaviourCount() const
+		unsigned int VMTypeInfo::GetBehaviourCount() const
 		{
 			if (!IsValid())
 				return 0;
 
 			return Info->GetBehaviourCount();
 		}
-		VMWFunction VMWTypeInfo::GetBehaviourByIndex(unsigned int Index, VMBehave* OutBehaviour) const
+		VMFunction VMTypeInfo::GetBehaviourByIndex(unsigned int Index, VMBehave* OutBehaviour) const
 		{
 			if (!IsValid())
 				return nullptr;
@@ -402,102 +409,102 @@ namespace Tomahawk
 
 			return Result;
 		}
-		unsigned int VMWTypeInfo::GetChildFunctionDefCount() const
+		unsigned int VMTypeInfo::GetChildFunctionDefCount() const
 		{
 			if (!IsValid())
 				return 0;
 
 			return Info->GetChildFuncdefCount();
 		}
-		VMWTypeInfo VMWTypeInfo::GetChildFunctionDef(unsigned int Index) const
+		VMTypeInfo VMTypeInfo::GetChildFunctionDef(unsigned int Index) const
 		{
 			if (!IsValid())
 				return nullptr;
 
 			return Info->GetChildFuncdef(Index);
 		}
-		VMWTypeInfo VMWTypeInfo::GetParentType() const
+		VMTypeInfo VMTypeInfo::GetParentType() const
 		{
 			if (!IsValid())
 				return nullptr;
 
 			return Info->GetParentType();
 		}
-		unsigned int VMWTypeInfo::GetEnumValueCount() const
+		unsigned int VMTypeInfo::GetEnumValueCount() const
 		{
 			if (!IsValid())
 				return 0;
 
 			return Info->GetEnumValueCount();
 		}
-		const char* VMWTypeInfo::GetEnumValueByIndex(unsigned int Index, int* OutValue) const
+		const char* VMTypeInfo::GetEnumValueByIndex(unsigned int Index, int* OutValue) const
 		{
 			if (!IsValid())
 				return nullptr;
 
 			return Info->GetEnumValueByIndex(Index, OutValue);
 		}
-		VMWFunction VMWTypeInfo::GetFunctionDefSignature() const
+		VMFunction VMTypeInfo::GetFunctionDefSignature() const
 		{
 			if (!IsValid())
 				return nullptr;
 
 			return Info->GetFuncdefSignature();
 		}
-		void* VMWTypeInfo::SetUserData(void* Data, uint64_t Type)
+		void* VMTypeInfo::SetUserData(void* Data, uint64_t Type)
 		{
 			if (!IsValid())
 				return nullptr;
 
 			return Info->SetUserData(Data, Type);
 		}
-		void* VMWTypeInfo::GetUserData(uint64_t Type) const
+		void* VMTypeInfo::GetUserData(uint64_t Type) const
 		{
 			if (!IsValid())
 				return nullptr;
 
 			return Info->GetUserData(Type);
 		}
-		bool VMWTypeInfo::IsHandle() const
+		bool VMTypeInfo::IsHandle() const
 		{
 			if (!IsValid())
 				return false;
 
 			return IsHandle(Info->GetTypeId());
 		}
-		bool VMWTypeInfo::IsValid() const
+		bool VMTypeInfo::IsValid() const
 		{
 			return Manager != nullptr && Info != nullptr;
 		}
-		VMCTypeInfo* VMWTypeInfo::GetTypeInfo() const
+		VMCTypeInfo* VMTypeInfo::GetTypeInfo() const
 		{
 			return Info;
 		}
-		VMManager* VMWTypeInfo::GetManager() const
+		VMManager* VMTypeInfo::GetManager() const
 		{
 			return Manager;
 		}
-		bool VMWTypeInfo::IsHandle(int TypeId)
+		bool VMTypeInfo::IsHandle(int TypeId)
 		{
 			return (TypeId & asTYPEID_OBJHANDLE || TypeId & asTYPEID_HANDLETOCONST);
 		}
-		bool VMWTypeInfo::IsScriptObject(int TypeId)
+		bool VMTypeInfo::IsScriptObject(int TypeId)
 		{
 			return (TypeId & asTYPEID_SCRIPTOBJECT);
 		}
 
-		VMWFunction::VMWFunction(VMCFunction* Base) : Function(Base)
+		VMFunction::VMFunction(VMCFunction* Base) : Function(Base)
 		{
 			Manager = (Base ? VMManager::Get(Base->GetEngine()) : nullptr);
 		}
-		int VMWFunction::AddRef() const
+		int VMFunction::AddRef() const
 		{
 			if (!IsValid())
 				return -1;
 
 			return Function->AddRef();
 		}
-		int VMWFunction::Release()
+		int VMFunction::Release()
 		{
 			if (!IsValid())
 				return -1;
@@ -508,154 +515,154 @@ namespace Tomahawk
 
 			return R;
 		}
-		int VMWFunction::GetId() const
+		int VMFunction::GetId() const
 		{
 			if (!IsValid())
 				return -1;
 
 			return Function->GetId();
 		}
-		VMFuncType VMWFunction::GetType() const
+		VMFuncType VMFunction::GetType() const
 		{
 			if (!IsValid())
 				return VMFuncType_DUMMY;
 
 			return (VMFuncType)Function->GetFuncType();
 		}
-		const char* VMWFunction::GetModuleName() const
+		const char* VMFunction::GetModuleName() const
 		{
 			if (!IsValid())
 				return nullptr;
 
 			return Function->GetModuleName();
 		}
-		VMWModule VMWFunction::GetModule() const
+		VMModule VMFunction::GetModule() const
 		{
 			if (!IsValid())
 				return nullptr;
 
 			return Function->GetModule();
 		}
-		const char* VMWFunction::GetSectionName() const
+		const char* VMFunction::GetSectionName() const
 		{
 			if (!IsValid())
 				return nullptr;
 
 			return Function->GetScriptSectionName();
 		}
-		const char* VMWFunction::GetGroup() const
+		const char* VMFunction::GetGroup() const
 		{
 			if (!IsValid())
 				return nullptr;
 
 			return Function->GetConfigGroup();
 		}
-		size_t VMWFunction::GetAccessMask() const
+		size_t VMFunction::GetAccessMask() const
 		{
 			if (!IsValid())
 				return -1;
 
 			return Function->GetAccessMask();
 		}
-		VMWTypeInfo VMWFunction::GetObjectType() const
+		VMTypeInfo VMFunction::GetObjectType() const
 		{
 			if (!IsValid())
 				return nullptr;
 
 			return Function->GetObjectType();
 		}
-		const char* VMWFunction::GetObjectName() const
+		const char* VMFunction::GetObjectName() const
 		{
 			if (!IsValid())
 				return nullptr;
 
 			return Function->GetObjectName();
 		}
-		const char* VMWFunction::GetName() const
+		const char* VMFunction::GetName() const
 		{
 			if (!IsValid())
 				return nullptr;
 
 			return Function->GetName();
 		}
-		const char* VMWFunction::GetNamespace() const
+		const char* VMFunction::GetNamespace() const
 		{
 			if (!IsValid())
 				return nullptr;
 
 			return Function->GetNamespace();
 		}
-		const char* VMWFunction::GetDecl(bool IncludeObjectName, bool IncludeNamespace, bool IncludeArgNames) const
+		const char* VMFunction::GetDecl(bool IncludeObjectName, bool IncludeNamespace, bool IncludeArgNames) const
 		{
 			if (!IsValid())
 				return nullptr;
 
 			return Function->GetDeclaration(IncludeObjectName, IncludeNamespace, IncludeArgNames);
 		}
-		bool VMWFunction::IsReadOnly() const
+		bool VMFunction::IsReadOnly() const
 		{
 			if (!IsValid())
 				return false;
 
 			return Function->IsPrivate();
 		}
-		bool VMWFunction::IsPrivate() const
+		bool VMFunction::IsPrivate() const
 		{
 			if (!IsValid())
 				return false;
 
 			return Function->IsPrivate();
 		}
-		bool VMWFunction::IsProtected() const
+		bool VMFunction::IsProtected() const
 		{
 			if (!IsValid())
 				return false;
 
 			return Function->IsProtected();
 		}
-		bool VMWFunction::IsFinal() const
+		bool VMFunction::IsFinal() const
 		{
 			if (!IsValid())
 				return false;
 
 			return Function->IsFinal();
 		}
-		bool VMWFunction::IsOverride() const
+		bool VMFunction::IsOverride() const
 		{
 			if (!IsValid())
 				return false;
 
 			return Function->IsOverride();
 		}
-		bool VMWFunction::IsShared() const
+		bool VMFunction::IsShared() const
 		{
 			if (!IsValid())
 				return false;
 
 			return Function->IsShared();
 		}
-		bool VMWFunction::IsExplicit() const
+		bool VMFunction::IsExplicit() const
 		{
 			if (!IsValid())
 				return false;
 
 			return Function->IsExplicit();
 		}
-		bool VMWFunction::IsProperty() const
+		bool VMFunction::IsProperty() const
 		{
 			if (!IsValid())
 				return false;
 
 			return Function->IsProperty();
 		}
-		unsigned int VMWFunction::GetArgsCount() const
+		unsigned int VMFunction::GetArgsCount() const
 		{
 			if (!IsValid())
 				return 0;
 
 			return Function->GetParamCount();
 		}
-		int VMWFunction::GetArg(unsigned int Index, int* TypeId, size_t* Flags, const char** Name, const char** DefaultArg) const
+		int VMFunction::GetArg(unsigned int Index, int* TypeId, size_t* Flags, const char** Name, const char** DefaultArg) const
 		{
 			if (!IsValid())
 				return -1;
@@ -667,7 +674,7 @@ namespace Tomahawk
 
 			return R;
 		}
-		int VMWFunction::GetReturnTypeId(size_t* Flags) const
+		int VMFunction::GetReturnTypeId(size_t* Flags) const
 		{
 			if (!IsValid())
 				return -1;
@@ -679,1043 +686,107 @@ namespace Tomahawk
 
 			return R;
 		}
-		int VMWFunction::GetTypeId() const
+		int VMFunction::GetTypeId() const
 		{
 			if (!IsValid())
 				return -1;
 
 			return Function->GetTypeId();
 		}
-		bool VMWFunction::IsCompatibleWithTypeId(int TypeId) const
+		bool VMFunction::IsCompatibleWithTypeId(int TypeId) const
 		{
 			if (!IsValid())
 				return false;
 
 			return Function->IsCompatibleWithTypeId(TypeId);
 		}
-		void* VMWFunction::GetDelegateObject() const
+		void* VMFunction::GetDelegateObject() const
 		{
 			if (!IsValid())
 				return nullptr;
 
 			return Function->GetDelegateObject();
 		}
-		VMWTypeInfo VMWFunction::GetDelegateObjectType() const
+		VMTypeInfo VMFunction::GetDelegateObjectType() const
 		{
 			if (!IsValid())
 				return nullptr;
 
 			return Function->GetDelegateObjectType();
 		}
-		VMWFunction VMWFunction::GetDelegateFunction() const
+		VMFunction VMFunction::GetDelegateFunction() const
 		{
 			if (!IsValid())
 				return nullptr;
 
 			return Function->GetDelegateFunction();
 		}
-		unsigned int VMWFunction::GetPropertiesCount() const
+		unsigned int VMFunction::GetPropertiesCount() const
 		{
 			if (!IsValid())
 				return 0;
 
 			return Function->GetVarCount();
 		}
-		int VMWFunction::GetProperty(unsigned int Index, const char** Name, int* TypeId) const
+		int VMFunction::GetProperty(unsigned int Index, const char** Name, int* TypeId) const
 		{
 			if (!IsValid())
 				return -1;
 
 			return Function->GetVar(Index, Name, TypeId);
 		}
-		const char* VMWFunction::GetPropertyDecl(unsigned int Index, bool IncludeNamespace) const
+		const char* VMFunction::GetPropertyDecl(unsigned int Index, bool IncludeNamespace) const
 		{
 			if (!IsValid())
 				return nullptr;
 
 			return Function->GetVarDecl(Index, IncludeNamespace);
 		}
-		int VMWFunction::FindNextLineWithCode(int Line) const
+		int VMFunction::FindNextLineWithCode(int Line) const
 		{
 			if (!IsValid())
 				return -1;
 
 			return Function->FindNextLineWithCode(Line);
 		}
-		void* VMWFunction::SetUserData(void* UserData, uint64_t Type)
+		void* VMFunction::SetUserData(void* UserData, uint64_t Type)
 		{
 			if (!IsValid())
 				return nullptr;
 
 			return Function->SetUserData(UserData, Type);
 		}
-		void* VMWFunction::GetUserData(uint64_t Type) const
+		void* VMFunction::GetUserData(uint64_t Type) const
 		{
 			if (!IsValid())
 				return nullptr;
 
 			return Function->GetUserData(Type);
 		}
-		bool VMWFunction::IsValid() const
+		bool VMFunction::IsValid() const
 		{
 			return Manager != nullptr && Function != nullptr;
 		}
-		VMCFunction* VMWFunction::GetFunction() const
+		VMCFunction* VMFunction::GetFunction() const
 		{
 			return Function;
 		}
-		VMManager* VMWFunction::GetManager() const
+		VMManager* VMFunction::GetManager() const
 		{
 			return Manager;
 		}
 
-		VMCRandom::VMCRandom()
+		VMObject::VMObject(VMCObject* Base) : Object(Base)
 		{
-			SeedFromTime();
 		}
-		void VMCRandom::AddRef()
-		{
-			asAtomicInc(Ref);
-		}
-		void VMCRandom::Release()
-		{
-			if (asAtomicDec(Ref) <= 0)
-				delete this;
-		}
-		void VMCRandom::SeedFromTime()
-		{
-			Seed(static_cast<uint32_t>(std::chrono::high_resolution_clock::now().time_since_epoch().count()));
-		}
-		uint32_t VMCRandom::GetU()
-		{
-			return Twister();
-		}
-		int32_t VMCRandom::GetI()
-		{
-			return Twister();
-		}
-		double VMCRandom::GetD()
-		{
-			return DDist(Twister);
-		}
-		void VMCRandom::Seed(uint32_t Seed)
-		{
-			Twister.seed(Seed);
-		}
-		void VMCRandom::Seed(VMCArray* Array)
-		{
-			if (!Array || Array->GetElementTypeId() != asTYPEID_UINT32)
-			{
-				VMCContext* Context = asGetActiveContext();
-				if (Context != nullptr)
-					Context->SetException("random::seed array element type not uint32");
-
-				return;
-			}
-
-			std::vector<uint32_t> Vector;
-			Vector.reserve(Array->GetSize());
-
-			for (unsigned int i = 0; i < Array->GetSize(); i++)
-				Vector.push_back(static_cast<uint32_t*>(Array->GetBuffer())[i]);
-
-			std::seed_seq Sq(Vector.begin(), Vector.end());
-			Twister.seed(Sq);
-		}
-		void VMCRandom::Assign(VMCRandom* From)
-		{
-			if (From != nullptr)
-				Twister = From->Twister;
-		}
-		VMCRandom* VMCRandom::Create()
-		{
-			return new VMCRandom();
-		}
-
-		VMCReceiver::VMCReceiver() : Debug(0)
-		{
-		}
-		void VMCReceiver::Send(VMCAny* Any)
-		{
-			if (!Any)
-				return;
-
-			Any->AddRef();
-			Debug += 1;
-
-			{
-				std::lock_guard<std::mutex> Guard(Mutex);
-				Queue.push_back(Any);
-			}
-
-			CV.notify_one();
-		}
-		void VMCReceiver::Release()
-		{
-			std::lock_guard<std::mutex> Guard(Mutex);
-			for (auto Any : Queue)
-			{
-				if (Any != nullptr)
-					Any->Release();
-			}
-			Queue.clear();
-		}
-		void VMCReceiver::EnumReferences(VMCManager* Engine)
-		{
-			if (!Engine)
-				return;
-
-			for (auto Any : Queue)
-			{
-				if (Any != nullptr)
-					Engine->GCEnumCallback(Any);
-			}
-		}
-		int VMCReceiver::GetQueueSize()
-		{
-			return Queue.size();
-		}
-		VMCAny* VMCReceiver::ReceiveWait()
-		{
-			VMCAny* Value = nullptr;
-			while (!Value)
-				Value = Receive(10000);
-
-			return Value;
-		}
-		VMCAny* VMCReceiver::Receive(uint64_t Timeout)
-		{
-			std::unique_lock<std::mutex> Guard(Mutex);
-			auto Duration = std::chrono::milliseconds(Timeout);
-
-			if (!CV.wait_for(Guard, Duration, [&]
-			{
-				return Queue.size() != 0;
-			}))
-				return nullptr;
-
-			VMCAny* Result = Queue.front();
-			Queue.erase(Queue.begin());
-
-			return Result;
-		}
-
-		VMCThread::VMCThread(VMCManager* Engine, VMCFunction* Func) : Manager(VMManager::Get(Engine)), Function(Func), Context(nullptr), Ref(1), Active(false), GCFlag(false)
-		{
-		}
-		void VMCThread::StartRoutine(VMCThread* Thread)
-		{
-			if (Thread != nullptr)
-				Thread->StartRoutineThread();
-		}
-		void VMCThread::StartRoutineThread()
-		{
-			{
-				std::lock_guard<std::mutex> Guard(Mutex);
-				if (!Function)
-				{
-					Active = false;
-					Release();
-					return;
-				}
-
-				if (Context == nullptr)
-					Context = Manager->CreateContext();
-
-				if (Context == nullptr)
-				{
-					Manager->GetEngine()->WriteMessage("", 0, 0, asMSGTYPE_ERROR, "failed to start a thread: no available context");
-					Active = false;
-					Release();
-					return;
-				}
-
-				Context->Prepare(Function);
-				Context->SetUserData(this, ContextUD);
-			}
-
-			Context->Execute();
-			{
-				std::lock_guard<std::mutex> Guard(Mutex);
-				Active = false;
-				Context->SetUserData(nullptr, ContextUD);
-				delete Context;
-				Context = nullptr;
-				CV.notify_all();
-			}
-			Release();
-			asThreadCleanup();
-		}
-		void VMCThread::AddRef()
-		{
-			GCFlag = false;
-			asAtomicInc(Ref);
-		}
-		void VMCThread::Suspend()
-		{
-			std::lock_guard<std::mutex> Guard(Mutex);
-			if (Context)
-				Context->Suspend();
-		}
-		void VMCThread::Release()
-		{
-			GCFlag = false;
-			if (asAtomicDec(Ref) <= 0)
-			{
-				if (Thread.joinable())
-					Thread.join();
-
-				ReleaseReferences(nullptr);
-				delete this;
-			}
-		}
-		void VMCThread::SetGCFlag()
-		{
-			GCFlag = true;
-		}
-		bool VMCThread::GetGCFlag()
-		{
-			return GCFlag;
-		}
-		int VMCThread::GetRefCount()
-		{
-			return Ref;
-		}
-		void VMCThread::EnumReferences(VMCManager* Engine)
-		{
-			Incoming.EnumReferences(Engine);
-			Outgoing.EnumReferences(Engine);
-			Engine->GCEnumCallback(Engine);
-
-			if (Context != nullptr)
-				Engine->GCEnumCallback(Context);
-
-			if (Function != nullptr)
-				Engine->GCEnumCallback(Function);
-		}
-		int VMCThread::Wait(uint64_t Timeout)
-		{
-			{
-				std::lock_guard<std::mutex> Guard(Mutex);
-				if (!Thread.joinable())
-					return -1;
-			}
-			{
-				std::unique_lock<std::mutex> Guard(Mutex);
-				auto Duration = std::chrono::milliseconds(Timeout);
-				if (CV.wait_for(Guard, Duration, [&]
-				{
-					return !Active;
-				}))
-				{
-					Thread.join();
-					return 1;
-				}
-			}
-
-			return 0;
-		}
-		int VMCThread::Join()
-		{
-			while (true)
-			{
-				int R = Wait(1000);
-				if (R == -1 || R == 1)
-					return R;
-			}
-
-			return 0;
-		}
-		void VMCThread::Send(VMCAny* Any)
-		{
-			Incoming.Send(Any);
-		}
-		VMCAny* VMCThread::ReceiveWait()
-		{
-			return Outgoing.ReceiveWait();
-		}
-		VMCAny* VMCThread::Receive(uint64_t Timeout)
-		{
-			return Outgoing.Receive(Timeout);
-		}
-		bool VMCThread::IsActive()
-		{
-			std::lock_guard<std::mutex> Guard(Mutex);
-			return !Active;
-		}
-		bool VMCThread::Start()
-		{
-			std::lock_guard<std::mutex> Guard(Mutex);
-			if (!Function)
-				return false;
-
-			if (Active)
-				return false;
-
-			Active = true;
-			AddRef();
-			Thread = std::thread(&VMCThread::StartRoutineThread, this);
-			return true;
-		}
-		void VMCThread::ReleaseReferences(VMCManager*)
-		{
-			Outgoing.Release();
-			Incoming.Release();
-
-			std::lock_guard<std::mutex> Guard(Mutex);
-			if (Function)
-				Function->Release();
-
-			delete Context;
-			Context = nullptr;
-			Manager = nullptr;
-			Function = nullptr;
-		}
-		VMCThread* VMCThread::GetThisThread()
-		{
-			VMCContext* Context = asGetActiveContext();
-			if (!Context)
-				return nullptr;
-
-			VMCThread* Thread = static_cast<VMCThread*>(Context->GetUserData(ContextUD));
-			if (Thread != nullptr)
-				return Thread;
-
-			Context->SetException("cannot call global thread messaging in the main thread");
-			return nullptr;
-		}
-		VMCThread* VMCThread::GetThisThreadSafe()
-		{
-			VMCContext* Context = asGetActiveContext();
-			if (!Context)
-				return nullptr;
-
-			return static_cast<VMCThread*>(Context->GetUserData(ContextUD));
-		}
-		int VMCThread::AtomicNotifyGC(const char* TypeName, void* Object)
-		{
-			if (!TypeName || !Object)
-				return -1;
-
-			VMCContext* Context = asGetActiveContext();
-			if (!Context)
-				return -1;
-
-			VMManager* Engine = VMManager::Get(Context->GetEngine());
-			if (!Engine)
-				return -1;
-
-			VMWTypeInfo Type = Engine->Global().GetTypeInfoByName(TypeName);
-			return Engine->NotifyOfNewObject(Object, Type.GetTypeInfo());
-		}
-		void VMCThread::SendInThread(VMCAny* Any)
-		{
-			auto* Thread = GetThisThread();
-			if (Thread != nullptr)
-				Thread->Outgoing.Send(Any);
-		}
-		void VMCThread::SleepInThread(uint64_t Timeout)
-		{
-			std::this_thread::sleep_for(std::chrono::milliseconds(Timeout));
-		}
-		VMCAny* VMCThread::ReceiveWaitInThread()
-		{
-			auto* Thread = GetThisThread();
-			if (!Thread)
-				return nullptr;
-
-			return Thread->Incoming.ReceiveWait();
-		}
-		VMCAny* VMCThread::ReceiveInThread(uint64_t Timeout)
-		{
-			auto* Thread = GetThisThread();
-			if (!Thread)
-				return nullptr;
-
-			return Thread->Incoming.Receive(Timeout);
-		}
-		VMCThread* VMCThread::StartThread(VMCFunction* Func)
-		{
-			VMCContext* Context = asGetActiveContext();
-			if (!Context)
-			{
-				if (Func)
-					Func->Release();
-
-				return nullptr;
-			}
-
-			VMCManager* Engine = Context->GetEngine();
-			if (!Engine)
-			{
-				if (Func)
-					Func->Release();
-
-				return nullptr;
-			}
-
-			VMCThread* Thread = new VMCThread(Engine, Func);
-			Engine->NotifyGarbageCollectorOfNewObject(Thread, Engine->GetTypeInfoByName("thread"));
-
-			return Thread;
-		}
-		uint64_t VMCThread::GetIdInThread()
-		{
-			auto* Thread = GetThisThreadSafe();
-			if (!Thread)
-				return 0;
-
-			return (uint64_t)std::hash<std::thread::id>()(std::this_thread::get_id());
-		}
-		int VMCThread::ContextUD = 550;
-		int VMCThread::EngineListUD = 551;
-
-		VMCAsync::VMCAsync(VMCContext* Base) : Context(Base), Any(nullptr), Rejected(false), Ref(1), GCFlag(false)
-		{
-			if (Context != nullptr)
-				Context->AddRef();
-		}
-		void VMCAsync::Release()
-		{
-			GCFlag = false;
-			if (asAtomicDec(Ref) <= 0)
-			{
-				ReleaseReferences(nullptr);
-				delete this;
-			}
-		}
-		void VMCAsync::AddRef()
-		{
-			GCFlag = false;
-			asAtomicInc(Ref);
-		}
-		void VMCAsync::EnumReferences(VMCManager* Engine)
-		{
-			Mutex.lock();
-			if (Context != nullptr)
-				Engine->GCEnumCallback(Context);
-
-			if (Any != nullptr)
-				Engine->GCEnumCallback(Any);
-			Mutex.unlock();
-		}
-		void VMCAsync::ReleaseReferences(VMCManager*)
-		{
-			Mutex.lock();
-			if (Any != nullptr)
-			{
-				Any->Release();
-				Any = nullptr;
-			}
-
-			if (Context != nullptr)
-			{
-				Context->Release();
-				Context = nullptr;
-			}
-			Mutex.unlock();
-		}
-		void VMCAsync::SetGCFlag()
-		{
-			GCFlag = true;
-		}
-		bool VMCAsync::GetGCFlag()
-		{
-			return GCFlag;
-		}
-		int VMCAsync::GetRefCount()
-		{
-			return Ref;
-		}
-		int VMCAsync::Set(VMCAny* Value)
-		{
-			if (!Context)
-				return -1;
-
-			Mutex.lock();
-			if (Any != nullptr)
-				Any->Release();
-
-			if (Value != nullptr)
-				Value->AddRef();
-			else
-				Rejected = true;
-
-			Any = Value;
-			Mutex.unlock();
-
-			if (Context->GetState() != asEXECUTION_SUSPENDED)
-				return asEXECUTION_FINISHED;
-
-			int R = Context->Execute();
-			if (Done)
-				Done((VMExecState)R);
-
-			return R;
-		}
-		int VMCAsync::Set(const VMWAny& Value)
-		{
-			return Set(Value.GetAny());
-		}
-		int VMCAsync::Set(void* Ref, int TypeId)
-		{
-			if (!Context)
-				return -1;
-
-			return Set(new VMCAny(Ref, TypeId, Context->GetEngine()));
-		}
-		int VMCAsync::Set(void* Ref, const char* TypeName)
-		{
-			if (!Context)
-				return -1;
-
-			VMManager* Engine = VMManager::Get(Context->GetEngine());
-			if (!Engine)
-				return -1;
-
-			return Set(Ref, Engine->Global().GetTypeIdByDecl(TypeName));
-		}
-		bool VMCAsync::GetAny(void* Ref, int TypeId) const
-		{
-			if (!Any)
-				return false;
-
-			return Any->Retrieve(Ref, TypeId);
-		}
-		VMCAny* VMCAsync::Get() const
-		{
-			return Any;
-		}
-		VMCAsync* VMCAsync::Await()
-		{
-			if (!Context)
-				return this;
-
-			if (!Any && !Rejected)
-				Context->Suspend();
-
-			return this;
-		}
-		VMCAsync* VMCAsync::Create(const AsyncWorkCallback& WorkCallback, const AsyncDoneCallback& DoneCallback)
-		{
-			VMCContext* Context = asGetActiveContext();
-			if (!Context)
-				return nullptr;
-
-			VMCManager* Engine = Context->GetEngine();
-			if (!Engine)
-				return nullptr;
-
-			VMCAsync* Async = new VMCAsync(Context);
-			Engine->NotifyGarbageCollectorOfNewObject(Async, Engine->GetTypeInfoByName("async"));
-
-			Async->Done = DoneCallback;
-			if (WorkCallback)
-				WorkCallback(Async);
-
-			return Async;
-		}
-		VMCAsync* VMCAsync::CreateFilled(void* Ref, int TypeId)
-		{
-			VMCContext* Context = asGetActiveContext();
-			if (!Context)
-				return nullptr;
-
-			VMCManager* Engine = Context->GetEngine();
-			if (!Engine)
-				return nullptr;
-
-			VMCAsync* Async = new VMCAsync(Context);
-			Engine->NotifyGarbageCollectorOfNewObject(Async, Engine->GetTypeInfoByName("async"));
-			Async->Set(Ref, TypeId);
-
-			return Async;
-		}
-		VMCAsync* VMCAsync::CreateFilled(void* Ref, const char* TypeName)
-		{
-			VMCContext* Context = asGetActiveContext();
-			if (!Context)
-				return nullptr;
-
-			VMCManager* Engine = Context->GetEngine();
-			if (!Engine)
-				return nullptr;
-
-			VMCAsync* Async = new VMCAsync(Context);
-			Engine->NotifyGarbageCollectorOfNewObject(Async, Engine->GetTypeInfoByName("async"));
-			Async->Set(Ref, TypeName);
-
-			return Async;
-		}
-		VMCAsync* VMCAsync::CreateFilled(bool Value)
-		{
-			return CreateFilled(&Value, VMTypeId_BOOL);
-		}
-		VMCAsync* VMCAsync::CreateFilled(int64_t Value)
-		{
-			return CreateFilled(&Value, VMTypeId_INT64);
-		}
-		VMCAsync* VMCAsync::CreateFilled(double Value)
-		{
-			return CreateFilled(&Value, VMTypeId_DOUBLE);
-		}
-		VMCAsync* VMCAsync::CreateEmpty()
-		{
-			VMCContext* Context = asGetActiveContext();
-			if (!Context)
-				return nullptr;
-
-			VMCManager* Engine = Context->GetEngine();
-			if (!Engine)
-				return nullptr;
-
-			VMCAsync* Async = new VMCAsync(Context);
-			Engine->NotifyGarbageCollectorOfNewObject(Async, Engine->GetTypeInfoByName("async"));
-			Async->Set(nullptr);
-
-			return Async;
-		}
-
-		VMWArray::VMWArray(VMCArray* Base) : Array(Base)
-		{
-		}
-		void VMWArray::AddRef() const
-		{
-			if (!IsValid())
-				return;
-
-			return Array->AddRef();
-		}
-		void VMWArray::Release()
-		{
-			if (!IsValid())
-				return;
-
-			Array->Release();
-			Array = nullptr;
-		}
-		VMWTypeInfo VMWArray::GetArrayObjectType() const
-		{
-			if (!IsValid())
-				return nullptr;
-
-			return Array->GetArrayObjectType();
-		}
-		int VMWArray::GetArrayTypeId() const
-		{
-			if (!IsValid())
-				return -1;
-
-			return Array->GetArrayTypeId();
-		}
-		int VMWArray::GetElementTypeId() const
-		{
-			if (!IsValid())
-				return -1;
-
-			return Array->GetElementTypeId();
-		}
-		unsigned int VMWArray::GetSize() const
-		{
-			if (!IsValid())
-				return 0;
-
-			return Array->GetSize();
-		}
-		bool VMWArray::IsEmpty() const
-		{
-			if (!IsValid())
-				return true;
-
-			return Array->IsEmpty();
-		}
-		void VMWArray::Reserve(unsigned int NumElements)
-		{
-			if (!IsValid())
-				return;
-
-			return Array->Reserve(NumElements);
-		}
-		void VMWArray::Resize(unsigned int NumElements)
-		{
-			if (!IsValid())
-				return;
-
-			return Array->Resize(NumElements);
-		}
-		void* VMWArray::At(unsigned int Index)
-		{
-			if (!IsValid())
-				return nullptr;
-
-			return Array->At(Index);
-		}
-		const void* VMWArray::At(unsigned int Index) const
-		{
-			if (!IsValid())
-				return nullptr;
-
-			return Array->At(Index);
-		}
-		void VMWArray::SetValue(unsigned int Index, void* Value)
-		{
-			if (!IsValid())
-				return;
-
-			return Array->SetValue(Index, Value);
-		}
-		void VMWArray::InsertAt(unsigned int Index, void* Value)
-		{
-			if (!IsValid())
-				return;
-
-			return Array->InsertAt(Index, Value);
-		}
-		void VMWArray::RemoveAt(unsigned int Index)
-		{
-			if (!IsValid())
-				return;
-
-			return Array->RemoveAt(Index);
-		}
-		void VMWArray::InsertLast(void* Value)
-		{
-			if (!IsValid())
-				return;
-
-			return Array->InsertLast(Value);
-		}
-		void VMWArray::RemoveLast()
-		{
-			if (!IsValid())
-				return;
-
-			return Array->RemoveLast();
-		}
-		void VMWArray::SortAsc()
-		{
-			if (!IsValid())
-				return;
-
-			return Array->SortAsc();
-		}
-		void VMWArray::SortAsc(unsigned int StartAt, unsigned int Count)
-		{
-			if (!IsValid())
-				return;
-
-			return Array->SortAsc(StartAt, Count);
-		}
-		void VMWArray::SortDesc()
-		{
-			if (!IsValid())
-				return;
-
-			return Array->SortDesc();
-		}
-		void VMWArray::SortDesc(unsigned int StartAt, unsigned int Count)
-		{
-			if (!IsValid())
-				return;
-
-			return Array->SortDesc(StartAt, Count);
-		}
-		void VMWArray::Sort(unsigned int StartAt, unsigned int Count, bool Asc)
-		{
-			if (!IsValid())
-				return;
-
-			return Array->Sort(StartAt, Count, Asc);
-		}
-		void VMWArray::Sort(const VMWFunction& Less, unsigned int StartAt, unsigned int Count)
-		{
-			if (!IsValid())
-				return;
-
-			return Array->Sort(Less.GetFunction(), StartAt, Count);
-		}
-		void VMWArray::Reverse()
-		{
-			if (!IsValid())
-				return;
-
-			return Array->Reverse();
-		}
-		int VMWArray::Find(void* Value) const
-		{
-			if (!IsValid())
-				return -1;
-
-			return Array->Find(Value);
-		}
-		int VMWArray::Find(unsigned int StartAt, void* Value) const
-		{
-			if (!IsValid())
-				return -1;
-
-			return Array->Find(StartAt, Value);
-		}
-		int VMWArray::FindByRef(void* Ref) const
-		{
-			if (!IsValid())
-				return -1;
-
-			return Array->FindByRef(Ref);
-		}
-		int VMWArray::FindByRef(unsigned int StartAt, void* Ref) const
-		{
-			if (!IsValid())
-				return -1;
-
-			return Array->FindByRef(StartAt, Ref);
-		}
-		void* VMWArray::GetBuffer()
-		{
-			if (!IsValid())
-				return nullptr;
-
-			return Array->GetBuffer();
-		}
-		bool VMWArray::IsValid() const
-		{
-			return Array != nullptr;
-		}
-		VMCArray* VMWArray::GetArray() const
-		{
-			return Array;
-		}
-		VMWArray VMWArray::Create(const VMWTypeInfo& ArrayType)
-		{
-			return VMCArray::Create(ArrayType.GetTypeInfo());
-		}
-		VMWArray VMWArray::Create(const VMWTypeInfo& ArrayType, unsigned int Length)
-		{
-			return VMCArray::Create(ArrayType.GetTypeInfo(), Length);
-		}
-		VMWArray VMWArray::Create(const VMWTypeInfo& ArrayType, unsigned int Length, void* DefaultValue)
-		{
-			return VMCArray::Create(ArrayType.GetTypeInfo(), Length, DefaultValue);
-		}
-		VMWArray VMWArray::Create(const VMWTypeInfo& ArrayType, void* ListBuffer)
-		{
-			return VMCArray::Create(ArrayType.GetTypeInfo(), ListBuffer);
-		}
-
-		VMWAny::VMWAny(VMCAny* Base) : Any(Base)
-		{
-		}
-		int VMWAny::AddRef() const
-		{
-			if (!IsValid())
-				return -1;
-
-			return Any->AddRef();
-		}
-		int VMWAny::Release()
-		{
-			if (!IsValid())
-				return -1;
-
-			int R = Any->Release();
-			if (R <= 0)
-				Any = nullptr;
-
-			return R;
-		}
-		int VMWAny::CopyFrom(const VMWAny& Other)
-		{
-			if (!IsValid())
-				return -1;
-
-			return Any->CopyFrom(Other.GetAny());
-		}
-		void VMWAny::Store(void* Ref, int RefTypeId)
-		{
-			if (!IsValid())
-				return;
-
-			return Any->Store(Ref, RefTypeId);
-		}
-		void VMWAny::Store(as_int64_t& Value)
-		{
-			if (!IsValid())
-				return;
-
-			return Any->Store(Value);
-		}
-		void VMWAny::Store(double& Value)
-		{
-			if (!IsValid())
-				return;
-
-			return Any->Store(Value);
-		}
-		bool VMWAny::RetrieveAny(void** Ref, int* RefTypeId) const
-		{
-			if (!IsValid() || !Ref)
-				return false;
-
-			if (RefTypeId != nullptr)
-				*RefTypeId = Any->GetTypeId();
-
-			*Ref = nullptr;
-			return Any->Retrieve((void*)Ref, Any->GetTypeId());
-		}
-		bool VMWAny::Retrieve(void* Ref, int RefTypeId) const
-		{
-			if (!IsValid())
-				return false;
-
-			return Any->Retrieve(Ref, RefTypeId);
-		}
-		bool VMWAny::Retrieve(as_int64_t& Value) const
-		{
-			if (!IsValid())
-				return -1;
-
-			return Any->Retrieve(Value);
-		}
-		bool VMWAny::Retrieve(double& Value) const
-		{
-			if (!IsValid())
-				return -1;
-
-			return Any->Retrieve(Value);
-		}
-		int VMWAny::GetTypeId() const
-		{
-			if (!IsValid())
-				return -1;
-
-			return Any->GetTypeId();
-		}
-		bool VMWAny::IsValid() const
-		{
-			return Any != nullptr;
-		}
-		VMCAny* VMWAny::GetAny() const
-		{
-			return Any;
-		}
-		VMWAny VMWAny::Create(VMManager* Manager, void* Ref, int TypeId)
-		{
-			if (!Manager)
-				return nullptr;
-
-			return new VMCAny(Ref, TypeId, Manager->GetEngine());
-		}
-
-		VMWObject::VMWObject(VMCObject* Base) : Object(Base)
-		{
-		}
-		int VMWObject::AddRef() const
+		int VMObject::AddRef() const
 		{
 			if (!IsValid())
 				return 0;
 
 			return Object->AddRef();
 		}
-		int VMWObject::Release()
+		int VMObject::Release()
 		{
 			if (!IsValid())
 				return 0;
@@ -1725,487 +796,111 @@ namespace Tomahawk
 
 			return R;
 		}
-		VMCLockableSharedBool* VMWObject::GetWeakRefFlag()
-		{
-			if (!IsValid())
-				return nullptr;
-
-			return Object->GetWeakRefFlag();
-		}
-		VMWTypeInfo VMWObject::GetObjectType()
+		VMTypeInfo VMObject::GetObjectType()
 		{
 			if (!IsValid())
 				return nullptr;
 
 			return Object->GetObjectType();
 		}
-		int VMWObject::GetTypeId()
+		int VMObject::GetTypeId()
 		{
 			if (!IsValid())
 				return 0;
 
 			return Object->GetTypeId();
 		}
-		int VMWObject::GetPropertyTypeId(unsigned int Id) const
+		int VMObject::GetPropertyTypeId(unsigned int Id) const
 		{
 			if (!IsValid())
 				return 0;
 
 			return Object->GetPropertyTypeId(Id);
 		}
-		unsigned int VMWObject::GetPropertiesCount() const
+		unsigned int VMObject::GetPropertiesCount() const
 		{
 			if (!IsValid())
 				return 0;
 
 			return Object->GetPropertyCount();
 		}
-		const char* VMWObject::GetPropertyName(unsigned int Id) const
+		const char* VMObject::GetPropertyName(unsigned int Id) const
 		{
 			if (!IsValid())
 				return 0;
 
 			return Object->GetPropertyName(Id);
 		}
-		void* VMWObject::GetAddressOfProperty(unsigned int Id)
+		void* VMObject::GetAddressOfProperty(unsigned int Id)
 		{
 			if (!IsValid())
 				return nullptr;
 
 			return Object->GetAddressOfProperty(Id);
 		}
-		VMManager* VMWObject::GetManager() const
+		VMManager* VMObject::GetManager() const
 		{
 			if (!IsValid())
 				return nullptr;
 
 			return VMManager::Get(Object->GetEngine());
 		}
-		int VMWObject::CopyFrom(const VMWObject& Other)
+		int VMObject::CopyFrom(const VMObject& Other)
 		{
 			if (!IsValid())
 				return -1;
 
 			return Object->CopyFrom(Other.GetObject());
 		}
-		void* VMWObject::SetUserData(void* Data, uint64_t Type)
+		void* VMObject::SetUserData(void* Data, uint64_t Type)
 		{
 			if (!IsValid())
 				return nullptr;
 
 			return Object->SetUserData(Data, (asPWORD)Type);
 		}
-		void* VMWObject::GetUserData(uint64_t Type) const
+		void* VMObject::GetUserData(uint64_t Type) const
 		{
 			if (!IsValid())
 				return nullptr;
 
 			return Object->GetUserData((asPWORD)Type);
 		}
-		bool VMWObject::IsValid() const
+		bool VMObject::IsValid() const
 		{
 			return Object != nullptr;
 		}
-		VMCObject* VMWObject::GetObject() const
+		VMCObject* VMObject::GetObject() const
 		{
 			return Object;
 		}
 
-		VMWDictionary::VMWDictionary(VMCDictionary* Base) : Dictionary(Base)
-		{
-		}
-		void VMWDictionary::AddRef() const
-		{
-			if (!IsValid())
-				return;
-
-			return Dictionary->AddRef();
-		}
-		void VMWDictionary::Release()
-		{
-			if (!IsValid())
-				return;
-
-			Dictionary->Release();
-			Dictionary = nullptr;
-		}
-		void VMWDictionary::Set(const std::string& Key, void* Value, int TypeId)
-		{
-			if (!IsValid())
-				return;
-
-			return Dictionary->Set(Key, Value, TypeId);
-		}
-		void VMWDictionary::Set(const std::string& Key, as_int64_t& Value)
-		{
-			if (!IsValid())
-				return;
-
-			return Dictionary->Set(Key, Value);
-		}
-		void VMWDictionary::Set(const std::string& Key, double& Value)
-		{
-			if (!IsValid())
-				return;
-
-			return Dictionary->Set(Key, Value);
-		}
-		bool VMWDictionary::GetIndex(size_t Index, std::string* Key, void** Value, int* TypeId) const
-		{
-			if (!IsValid() || Index >= Dictionary->GetSize())
-				return false;
-
-			auto It = Dictionary->begin();
-			size_t Offset = 0;
-
-			while (Offset != Index)
-			{
-				Offset++;
-				It++;
-			}
-
-			if (Key != nullptr)
-				*Key = It.GetKey();
-
-			if (Value != nullptr)
-				*Value = (void*)It.GetAddressOfValue();
-
-			if (TypeId != nullptr)
-				*TypeId = It.GetTypeId();
-
-			return true;
-		}
-		bool VMWDictionary::Get(const std::string& Key, void** Value, int* TypeId) const
-		{
-			if (!IsValid())
-				return false;
-
-			auto It = Dictionary->find(Key);
-			if (It == Dictionary->end())
-				return false;
-
-			if (Value != nullptr)
-				*Value = (void*)It.GetAddressOfValue();
-
-			if (TypeId != nullptr)
-				*TypeId = It.GetTypeId();
-
-			return true;
-		}
-		bool VMWDictionary::Get(const std::string& Key, as_int64_t& Value) const
-		{
-			if (!IsValid())
-				return false;
-
-			return Dictionary->Get(Key, Value);
-		}
-		bool VMWDictionary::Get(const std::string& Key, double& Value) const
-		{
-			if (!IsValid())
-				return false;
-
-			return Dictionary->Get(Key, Value);
-		}
-		int VMWDictionary::GetTypeId(const std::string& Key) const
-		{
-			if (!IsValid())
-				return -1;
-
-			return Dictionary->GetTypeId(Key);
-		}
-		bool VMWDictionary::Exists(const std::string& Key) const
-		{
-			if (!IsValid())
-				return false;
-
-			return Dictionary->Exists(Key);
-		}
-		bool VMWDictionary::IsEmpty() const
-		{
-			if (!IsValid())
-				return false;
-
-			return Dictionary->IsEmpty();
-		}
-		unsigned int VMWDictionary::GetSize() const
-		{
-			if (!IsValid())
-				return 0;
-
-			return Dictionary->GetSize();
-		}
-		bool VMWDictionary::Delete(const std::string& Key)
-		{
-			if (!IsValid())
-				return false;
-
-			return Dictionary->Delete(Key);
-		}
-		void VMWDictionary::DeleteAll()
-		{
-			if (!IsValid())
-				return;
-
-			return Dictionary->DeleteAll();
-		}
-		VMWArray VMWDictionary::GetKeys() const
-		{
-			if (!IsValid())
-				return nullptr;
-
-			return Dictionary->GetKeys();
-		}
-		bool VMWDictionary::IsValid() const
-		{
-			return Dictionary != nullptr;
-		}
-		VMCDictionary* VMWDictionary::GetDictionary() const
-		{
-			return Dictionary;
-		}
-		VMWDictionary VMWDictionary::Create(VMManager* Engine)
-		{
-			if (!Engine)
-				return nullptr;
-
-			return VMCDictionary::Create(Engine->GetEngine());
-		}
-
-		VMWGrid::VMWGrid(VMCGrid* Base) : Grid(Base)
-		{
-		}
-		void VMWGrid::AddRef() const
-		{
-			if (!IsValid())
-				return;
-
-			return Grid->AddRef();
-		}
-		void VMWGrid::Release()
-		{
-			if (!IsValid())
-				return;
-
-			Grid->Release();
-			Grid = nullptr;
-		}
-		VMWTypeInfo VMWGrid::GetGridObjectType() const
-		{
-			if (!IsValid())
-				return nullptr;
-
-			return Grid->GetGridObjectType();
-		}
-		int VMWGrid::GetGridTypeId() const
-		{
-			if (!IsValid())
-				return -1;
-
-			return Grid->GetGridTypeId();
-		}
-		int VMWGrid::GetElementTypeId() const
-		{
-			if (!IsValid())
-				return -1;
-
-			return Grid->GetElementTypeId();
-		}
-		unsigned int VMWGrid::GetWidth() const
-		{
-			if (!IsValid())
-				return 0;
-
-			return Grid->GetWidth();
-		}
-		unsigned int VMWGrid::GetHeight() const
-		{
-			if (!IsValid())
-				return 0;
-
-			return Grid->GetHeight();
-		}
-		void VMWGrid::Resize(unsigned int Width, unsigned int Height)
-		{
-			if (!IsValid())
-				return;
-
-			return Grid->Resize(Width, Height);
-		}
-		void* VMWGrid::At(unsigned int X, unsigned int Y)
-		{
-			if (!IsValid())
-				return nullptr;
-
-			return Grid->At(X, Y);
-		}
-		const void* VMWGrid::At(unsigned int X, unsigned int Y) const
-		{
-			if (!IsValid())
-				return nullptr;
-
-			return Grid->At(X, Y);
-		}
-		void VMWGrid::SetValue(unsigned int X, unsigned int Y, void* Value)
-		{
-			if (!IsValid())
-				return;
-
-			return Grid->SetValue(X, Y, Value);
-		}
-		bool VMWGrid::IsValid() const
-		{
-			return Grid != nullptr;
-		}
-		VMCGrid* VMWGrid::GetGrid() const
-		{
-			return Grid;
-		}
-		VMWGrid VMWGrid::Create(const VMWTypeInfo& GridType)
-		{
-			return VMCGrid::Create(GridType.GetTypeInfo());
-		}
-		VMWGrid VMWGrid::Create(const VMWTypeInfo& GridType, unsigned int Width, unsigned int Height)
-		{
-			return VMCGrid::Create(GridType.GetTypeInfo(), Width, Height);
-		}
-		VMWGrid VMWGrid::Create(const VMWTypeInfo& GridType, unsigned int Width, unsigned int Height, void* DefaultValue)
-		{
-			return VMCGrid::Create(GridType.GetTypeInfo(), Width, Height, DefaultValue);
-		}
-		VMWGrid VMWGrid::Create(const VMWTypeInfo& GridType, void* ListBuffer)
-		{
-			return VMCGrid::Create(GridType.GetTypeInfo(), ListBuffer);
-		}
-
-		VMWWeakRef::VMWWeakRef(VMCWeakRef* Base) : WeakRef(Base)
-		{
-		}
-		VMWWeakRef& VMWWeakRef::Set(void* NewRef)
-		{
-			if (!IsValid())
-				return *this;
-
-			WeakRef->Set(NewRef);
-			return *this;
-		}
-		void* VMWWeakRef::Get() const
-		{
-			if (!IsValid())
-				return nullptr;
-
-			return WeakRef->Get();
-		}
-		bool VMWWeakRef::Equals(void* Ref) const
-		{
-			if (!IsValid())
-				return false;
-
-			return WeakRef->Equals(Ref);
-		}
-		VMWTypeInfo VMWWeakRef::GetRefType() const
-		{
-			if (!IsValid())
-				return nullptr;
-
-			return WeakRef->GetRefType();
-		}
-		bool VMWWeakRef::IsValid() const
-		{
-			return WeakRef != nullptr;
-		}
-		VMCWeakRef* VMWWeakRef::GetWeakRef() const
-		{
-			return WeakRef;
-		}
-		VMWWeakRef VMWWeakRef::Create(void* Ref, const VMWTypeInfo& TypeInfo)
-		{
-			return new VMCWeakRef(Ref, TypeInfo.GetTypeInfo());
-		}
-
-		VMWRef::VMWRef(VMCRef* Base) : Ref(Base)
-		{
-		}
-		void VMWRef::Set(void* Ref1, const VMWTypeInfo& Type)
-		{
-			if (!IsValid())
-				return;
-
-			return Ref->Set(Ref1, Type.GetTypeInfo());
-		}
-		bool VMWRef::Equals(void* Ref1, int TypeId) const
-		{
-			if (!IsValid())
-				return false;
-
-			return Ref->Equals(Ref1, TypeId);
-		}
-		void VMWRef::Cast(void** OutRef, int TypeId)
-		{
-			if (!IsValid())
-				return;
-
-			return Ref->Cast(OutRef, TypeId);
-		}
-		VMWTypeInfo VMWRef::GetType() const
-		{
-			if (!IsValid())
-				return nullptr;
-
-			return Ref->GetType();
-		}
-		int VMWRef::GetTypeId() const
-		{
-			if (!IsValid())
-				return -1;
-
-			return Ref->GetTypeId();
-		}
-		void* VMWRef::GetHandle()
-		{
-			if (!IsValid())
-				return nullptr;
-
-			return Ref->GetRef();
-		}
-		bool VMWRef::IsValid() const
-		{
-			return Ref != nullptr;
-		}
-		VMCRef* VMWRef::GetRef() const
-		{
-			return Ref;
-		}
-		VMWRef VMWRef::Create(void* Ref, const VMWTypeInfo& TypeInfo)
-		{
-			return new VMCRef(Ref, TypeInfo.GetTypeInfo());
-		}
-
-		VMWGeneric::VMWGeneric(VMCGeneric* Base) : Generic(Base)
+		VMGeneric::VMGeneric(VMCGeneric* Base) : Generic(Base)
 		{
 			Manager = (Generic ? VMManager::Get(Generic->GetEngine()) : nullptr);
 		}
-		void* VMWGeneric::GetObjectAddress()
+		void* VMGeneric::GetObjectAddress()
 		{
 			if (!IsValid())
 				return nullptr;
 
 			return Generic->GetObject();
 		}
-		int VMWGeneric::GetObjectTypeId() const
+		int VMGeneric::GetObjectTypeId() const
 		{
 			if (!IsValid())
 				return -1;
 
 			return Generic->GetObjectTypeId();
 		}
-		int VMWGeneric::GetArgsCount() const
+		int VMGeneric::GetArgsCount() const
 		{
 			if (!IsValid())
 				return -1;
 
 			return Generic->GetArgCount();
 		}
-		int VMWGeneric::GetArgTypeId(unsigned int Argument, size_t* Flags) const
+		int VMGeneric::GetArgTypeId(unsigned int Argument, size_t* Flags) const
 		{
 			if (!IsValid())
 				return -1;
@@ -2217,70 +912,70 @@ namespace Tomahawk
 
 			return R;
 		}
-		unsigned char VMWGeneric::GetArgByte(unsigned int Argument)
+		unsigned char VMGeneric::GetArgByte(unsigned int Argument)
 		{
 			if (!IsValid())
 				return 0;
 
 			return Generic->GetArgByte(Argument);
 		}
-		unsigned short VMWGeneric::GetArgWord(unsigned int Argument)
+		unsigned short VMGeneric::GetArgWord(unsigned int Argument)
 		{
 			if (!IsValid())
 				return 0;
 
 			return Generic->GetArgWord(Argument);
 		}
-		size_t VMWGeneric::GetArgDWord(unsigned int Argument)
+		size_t VMGeneric::GetArgDWord(unsigned int Argument)
 		{
 			if (!IsValid())
 				return 0;
 
 			return Generic->GetArgDWord(Argument);
 		}
-		uint64_t VMWGeneric::GetArgQWord(unsigned int Argument)
+		uint64_t VMGeneric::GetArgQWord(unsigned int Argument)
 		{
 			if (!IsValid())
 				return 0;
 
 			return Generic->GetArgQWord(Argument);
 		}
-		float VMWGeneric::GetArgFloat(unsigned int Argument)
+		float VMGeneric::GetArgFloat(unsigned int Argument)
 		{
 			if (!IsValid())
 				return 0.0f;
 
 			return Generic->GetArgFloat(Argument);
 		}
-		double VMWGeneric::GetArgDouble(unsigned int Argument)
+		double VMGeneric::GetArgDouble(unsigned int Argument)
 		{
 			if (!IsValid())
 				return 0.0;
 
 			return Generic->GetArgDouble(Argument);
 		}
-		void* VMWGeneric::GetArgAddress(unsigned int Argument)
+		void* VMGeneric::GetArgAddress(unsigned int Argument)
 		{
 			if (!IsValid())
 				return nullptr;
 
 			return Generic->GetArgAddress(Argument);
 		}
-		void* VMWGeneric::GetArgObjectAddress(unsigned int Argument)
+		void* VMGeneric::GetArgObjectAddress(unsigned int Argument)
 		{
 			if (!IsValid())
 				return nullptr;
 
 			return Generic->GetArgObject(Argument);
 		}
-		void* VMWGeneric::GetAddressOfArg(unsigned int Argument)
+		void* VMGeneric::GetAddressOfArg(unsigned int Argument)
 		{
 			if (!IsValid())
 				return nullptr;
 
 			return Generic->GetAddressOfArg(Argument);
 		}
-		int VMWGeneric::GetReturnTypeId(size_t* Flags) const
+		int VMGeneric::GetReturnTypeId(size_t* Flags) const
 		{
 			if (!IsValid())
 				return -1;
@@ -2292,144 +987,86 @@ namespace Tomahawk
 
 			return R;
 		}
-		int VMWGeneric::SetReturnByte(unsigned char Value)
+		int VMGeneric::SetReturnByte(unsigned char Value)
 		{
 			if (!IsValid())
 				return -1;
 
 			return Generic->SetReturnByte(Value);
 		}
-		int VMWGeneric::SetReturnWord(unsigned short Value)
+		int VMGeneric::SetReturnWord(unsigned short Value)
 		{
 			if (!IsValid())
 				return -1;
 
 			return Generic->SetReturnWord(Value);
 		}
-		int VMWGeneric::SetReturnDWord(size_t Value)
+		int VMGeneric::SetReturnDWord(size_t Value)
 		{
 			if (!IsValid())
 				return -1;
 
 			return Generic->SetReturnDWord(Value);
 		}
-		int VMWGeneric::SetReturnQWord(uint64_t Value)
+		int VMGeneric::SetReturnQWord(uint64_t Value)
 		{
 			if (!IsValid())
 				return -1;
 
 			return Generic->SetReturnQWord(Value);
 		}
-		int VMWGeneric::SetReturnFloat(float Value)
+		int VMGeneric::SetReturnFloat(float Value)
 		{
 			if (!IsValid())
 				return -1;
 
 			return Generic->SetReturnFloat(Value);
 		}
-		int VMWGeneric::SetReturnDouble(double Value)
+		int VMGeneric::SetReturnDouble(double Value)
 		{
 			if (!IsValid())
 				return -1;
 
 			return Generic->SetReturnDouble(Value);
 		}
-		int VMWGeneric::SetReturnAddress(void* Address)
+		int VMGeneric::SetReturnAddress(void* Address)
 		{
 			if (!IsValid())
 				return -1;
 
 			return Generic->SetReturnAddress(Address);
 		}
-		int VMWGeneric::SetReturnObjectAddress(void* Object)
+		int VMGeneric::SetReturnObjectAddress(void* Object)
 		{
 			if (!IsValid())
 				return -1;
 
 			return Generic->SetReturnObject(Object);
 		}
-		void* VMWGeneric::GetAddressOfReturnLocation()
+		void* VMGeneric::GetAddressOfReturnLocation()
 		{
 			if (!IsValid())
 				return nullptr;
 
 			return Generic->GetAddressOfReturnLocation();
 		}
-		bool VMWGeneric::IsValid() const
+		bool VMGeneric::IsValid() const
 		{
 			return Manager != nullptr && Generic != nullptr;
 		}
-		VMCGeneric* VMWGeneric::GetGeneric() const
+		VMCGeneric* VMGeneric::GetGeneric() const
 		{
 			return Generic;
 		}
-		VMManager* VMWGeneric::GetManager() const
+		VMManager* VMGeneric::GetManager() const
 		{
 			return Manager;
 		}
 
-		VMWLockableSharedBool::VMWLockableSharedBool(VMCLockableSharedBool* Base) : Bool(Base)
+		VMClass::VMClass(VMManager* Engine, const std::string& Name, int Type) : Manager(Engine), Object(Name), TypeId(Type)
 		{
 		}
-		int VMWLockableSharedBool::AddRef() const
-		{
-			if (!IsValid())
-				return -1;
-
-			return Bool->AddRef();
-		}
-		int VMWLockableSharedBool::Release()
-		{
-			if (!IsValid())
-				return -1;
-
-			int R = Bool->Release();
-			if (R <= 0)
-				Bool = nullptr;
-
-			return R;
-		}
-		bool VMWLockableSharedBool::Get() const
-		{
-			if (!IsValid())
-				return false;
-
-			return Bool->Get();
-		}
-		void VMWLockableSharedBool::Set(bool Value)
-		{
-			if (!IsValid())
-				return;
-
-			return Bool->Set(Value);
-		}
-		void VMWLockableSharedBool::Lock() const
-		{
-			if (!IsValid())
-				return;
-
-			return Bool->Lock();
-		}
-		void VMWLockableSharedBool::Unlock() const
-		{
-			if (!IsValid())
-				return;
-
-			return Bool->Unlock();
-		}
-		bool VMWLockableSharedBool::IsValid() const
-		{
-			return Bool != nullptr;
-		}
-		VMCLockableSharedBool* VMWLockableSharedBool::GetSharedBool() const
-		{
-			return Bool;
-		}
-
-		VMWClass::VMWClass(VMManager* Engine, const std::string& Name, int Type) : Manager(Engine), Object(Name), TypeId(Type)
-		{
-		}
-		int VMWClass::SetFunctionDef(const char* Decl)
+		int VMClass::SetFunctionDef(const char* Decl)
 		{
 			if (!IsValid() || !Decl)
 				return -1;
@@ -2448,7 +1085,7 @@ namespace Tomahawk
 
 			return R;
 		}
-		int VMWClass::SetOperatorCopyAddress(asSFuncPtr* Value)
+		int VMClass::SetOperatorCopyAddress(asSFuncPtr* Value)
 		{
 			if (!IsValid() || !Value)
 				return -1;
@@ -2460,7 +1097,7 @@ namespace Tomahawk
 			Rest::Stroke Decl = Rest::Form("%s& opAssign(const %s &in)", Object.c_str(), Object.c_str());
 			return Engine->RegisterObjectMethod(Object.c_str(), Decl.Get(), *Value, asCALL_THISCALL);
 		}
-		int VMWClass::SetBehaviourAddress(const char* Decl, VMBehave Behave, asSFuncPtr* Value, VMCall Type)
+		int VMClass::SetBehaviourAddress(const char* Decl, VMBehave Behave, asSFuncPtr* Value, VMCall Type)
 		{
 			if (!IsValid() || !Decl || !Value)
 				return -1;
@@ -2471,7 +1108,7 @@ namespace Tomahawk
 
 			return Engine->RegisterObjectBehaviour(Object.c_str(), (asEBehaviours)Behave, Decl, *Value, (asECallConvTypes)Type);
 		}
-		int VMWClass::SetPropertyAddress(const char* Decl, int Offset)
+		int VMClass::SetPropertyAddress(const char* Decl, int Offset)
 		{
 			if (!IsValid() || !Decl)
 				return -1;
@@ -2482,7 +1119,7 @@ namespace Tomahawk
 
 			return Engine->RegisterObjectProperty(Object.c_str(), Decl, Offset);
 		}
-		int VMWClass::SetPropertyStaticAddress(const char* Decl, void* Value)
+		int VMClass::SetPropertyStaticAddress(const char* Decl, void* Value)
 		{
 			if (!IsValid() || !Decl || !Value)
 				return -1;
@@ -2501,11 +1138,11 @@ namespace Tomahawk
 
 			return R;
 		}
-		int VMWClass::SetOperatorAddress(const char* Decl, asSFuncPtr* Value, VMCall Type)
+		int VMClass::SetOperatorAddress(const char* Decl, asSFuncPtr* Value, VMCall Type)
 		{
 			return SetMethodAddress(Decl, Value, Type);
 		}
-		int VMWClass::SetMethodAddress(const char* Decl, asSFuncPtr* Value, VMCall Type)
+		int VMClass::SetMethodAddress(const char* Decl, asSFuncPtr* Value, VMCall Type)
 		{
 			if (!IsValid() || !Decl)
 				return -1;
@@ -2516,7 +1153,7 @@ namespace Tomahawk
 
 			return Engine->RegisterObjectMethod(Object.c_str(), Decl, *Value, (asECallConvTypes)Type);
 		}
-		int VMWClass::SetMethodStaticAddress(const char* Decl, asSFuncPtr* Value, VMCall Type)
+		int VMClass::SetMethodStaticAddress(const char* Decl, asSFuncPtr* Value, VMCall Type)
 		{
 			if (!IsValid() || !Decl)
 				return -1;
@@ -2536,7 +1173,7 @@ namespace Tomahawk
 			return R;
 
 		}
-		int VMWClass::SetConstructorAddress(const char* Decl, asSFuncPtr* Value, VMCall Type)
+		int VMClass::SetConstructorAddress(const char* Decl, asSFuncPtr* Value, VMCall Type)
 		{
 			if (!IsValid() || !Decl)
 				return -1;
@@ -2547,7 +1184,7 @@ namespace Tomahawk
 
 			return Engine->RegisterObjectBehaviour(Object.c_str(), asBEHAVE_CONSTRUCT, Decl, *Value, (asECallConvTypes)Type);
 		}
-		int VMWClass::SetConstructorListAddress(const char* Decl, asSFuncPtr* Value, VMCall Type)
+		int VMClass::SetConstructorListAddress(const char* Decl, asSFuncPtr* Value, VMCall Type)
 		{
 			if (!IsValid() || !Decl)
 				return -1;
@@ -2558,7 +1195,7 @@ namespace Tomahawk
 
 			return Engine->RegisterObjectBehaviour(Object.c_str(), asBEHAVE_LIST_CONSTRUCT, Decl, *Value, (asECallConvTypes)Type);
 		}
-		int VMWClass::SetDestructorAddress(const char* Decl, asSFuncPtr* Value)
+		int VMClass::SetDestructorAddress(const char* Decl, asSFuncPtr* Value)
 		{
 			if (!IsValid() || !Decl)
 				return -1;
@@ -2569,23 +1206,23 @@ namespace Tomahawk
 
 			return Engine->RegisterObjectBehaviour(Object.c_str(), asBEHAVE_DESTRUCT, Decl, *Value, asCALL_CDECL_OBJFIRST);
 		}
-		int VMWClass::GetTypeId() const
+		int VMClass::GetTypeId() const
 		{
 			return TypeId;
 		}
-		bool VMWClass::IsValid() const
+		bool VMClass::IsValid() const
 		{
 			return Manager != nullptr && TypeId >= 0;
 		}
-		std::string VMWClass::GetName() const
+		std::string VMClass::GetName() const
 		{
 			return Object;
 		}
-		VMManager* VMWClass::GetManager() const
+		VMManager* VMClass::GetManager() const
 		{
 			return Manager;
 		}
-		Rest::Stroke VMWClass::GetOperator(VMOpFunc Op, const char* Out, const char* Args, bool Const, bool Right)
+		Rest::Stroke VMClass::GetOperator(VMOpFunc Op, const char* Out, const char* Args, bool Const, bool Right)
 		{
 			switch (Op)
 			{
@@ -2743,10 +1380,10 @@ namespace Tomahawk
 			}
 		}
 
-		VMWInterface::VMWInterface(VMManager* Engine, const std::string& Name, int Type) : Manager(Engine), Object(Name), TypeId(Type)
+		VMInterface::VMInterface(VMManager* Engine, const std::string& Name, int Type) : Manager(Engine), Object(Name), TypeId(Type)
 		{
 		}
-		int VMWInterface::SetMethod(const char* Decl)
+		int VMInterface::SetMethod(const char* Decl)
 		{
 			if (!IsValid() || !Decl)
 				return -1;
@@ -2757,27 +1394,27 @@ namespace Tomahawk
 
 			return Engine->RegisterInterfaceMethod(Object.c_str(), Decl);
 		}
-		int VMWInterface::GetTypeId() const
+		int VMInterface::GetTypeId() const
 		{
 			return TypeId;
 		}
-		bool VMWInterface::IsValid() const
+		bool VMInterface::IsValid() const
 		{
 			return Manager != nullptr && TypeId >= 0;
 		}
-		std::string VMWInterface::GetName() const
+		std::string VMInterface::GetName() const
 		{
 			return Object;
 		}
-		VMManager* VMWInterface::GetManager() const
+		VMManager* VMInterface::GetManager() const
 		{
 			return Manager;
 		}
 
-		VMWEnum::VMWEnum(VMManager* Engine, const std::string& Name, int Type) : Manager(Engine), Object(Name), TypeId(Type)
+		VMEnum::VMEnum(VMManager* Engine, const std::string& Name, int Type) : Manager(Engine), Object(Name), TypeId(Type)
 		{
 		}
-		int VMWEnum::SetValue(const char* Name, int Value)
+		int VMEnum::SetValue(const char* Name, int Value)
 		{
 			if (!IsValid() || !Name)
 				return -1;
@@ -2788,74 +1425,74 @@ namespace Tomahawk
 
 			return Engine->RegisterEnumValue(Object.c_str(), Name, Value);
 		}
-		int VMWEnum::GetTypeId() const
+		int VMEnum::GetTypeId() const
 		{
 			return TypeId;
 		}
-		bool VMWEnum::IsValid() const
+		bool VMEnum::IsValid() const
 		{
 			return Manager != nullptr && TypeId >= 0;
 		}
-		std::string VMWEnum::GetName() const
+		std::string VMEnum::GetName() const
 		{
 			return Object;
 		}
-		VMManager* VMWEnum::GetManager() const
+		VMManager* VMEnum::GetManager() const
 		{
 			return Manager;
 		}
 
-		VMWModule::VMWModule(VMCModule* Type) : Mod(Type)
+		VMModule::VMModule(VMCModule* Type) : Mod(Type)
 		{
 			Manager = (Mod ? VMManager::Get(Mod->GetEngine()) : nullptr);
 		}
-		void VMWModule::SetName(const char* Name)
+		void VMModule::SetName(const char* Name)
 		{
 			if (!IsValid())
 				return;
 
 			return Mod->SetName(Name);
 		}
-		int VMWModule::AddSection(const char* Name, const char* Code, size_t CodeLength, int LineOffset)
+		int VMModule::AddSection(const char* Name, const char* Code, size_t CodeLength, int LineOffset)
 		{
 			if (!IsValid())
 				return -1;
 
 			return Mod->AddScriptSection(Name, Code, CodeLength, LineOffset);
 		}
-		int VMWModule::RemoveFunction(const VMWFunction& Function)
+		int VMModule::RemoveFunction(const VMFunction& Function)
 		{
 			if (!IsValid())
 				return -1;
 
 			return Mod->RemoveFunction(Function.GetFunction());
 		}
-		int VMWModule::ResetProperties(VMCContext* Context)
+		int VMModule::ResetProperties(VMCContext* Context)
 		{
 			if (!IsValid())
 				return -1;
 
 			return Mod->ResetGlobalVars(Context);
 		}
-		int VMWModule::Build()
+		int VMModule::Build()
 		{
 			if (!IsValid())
 				return -1;
 
 			return Mod->Build();
 		}
-		int VMWModule::LoadByteCode(VMByteCode* Info)
+		int VMModule::LoadByteCode(VMByteCode* Info)
 		{
 			if (!Info || !IsValid())
 				return -1;
 
-			ByteCodeStream* Stream = new ByteCodeStream(Info->Data);
+			CByteCodeStream* Stream = new CByteCodeStream(Info->Data);
 			int R = Mod->LoadByteCode(Stream, &Info->Debug);
 			delete Stream;
 
 			return R;
 		}
-		int VMWModule::Discard()
+		int VMModule::Discard()
 		{
 			if (!IsValid())
 				return -1;
@@ -2865,35 +1502,35 @@ namespace Tomahawk
 
 			return 0;
 		}
-		int VMWModule::BindImportedFunction(size_t ImportIndex, const VMWFunction& Function)
+		int VMModule::BindImportedFunction(size_t ImportIndex, const VMFunction& Function)
 		{
 			if (!IsValid())
 				return -1;
 
 			return Mod->BindImportedFunction((asUINT)ImportIndex, Function.GetFunction());
 		}
-		int VMWModule::UnbindImportedFunction(size_t ImportIndex)
+		int VMModule::UnbindImportedFunction(size_t ImportIndex)
 		{
 			if (!IsValid())
 				return -1;
 
 			return Mod->UnbindImportedFunction((asUINT)ImportIndex);
 		}
-		int VMWModule::BindAllImportedFunctions()
+		int VMModule::BindAllImportedFunctions()
 		{
 			if (!IsValid())
 				return -1;
 
 			return Mod->BindAllImportedFunctions();
 		}
-		int VMWModule::UnbindAllImportedFunctions()
+		int VMModule::UnbindAllImportedFunctions()
 		{
 			if (!IsValid())
 				return -1;
 
 			return Mod->UnbindAllImportedFunctions();
 		}
-		int VMWModule::CompileFunction(const char* SectionName, const char* Code, int LineOffset, size_t CompileFlags, VMWFunction* OutFunction)
+		int VMModule::CompileFunction(const char* SectionName, const char* Code, int LineOffset, size_t CompileFlags, VMFunction* OutFunction)
 		{
 			if (!IsValid())
 				return -1;
@@ -2902,114 +1539,114 @@ namespace Tomahawk
 			int R = Mod->CompileFunction(SectionName, Code, LineOffset, (asDWORD)CompileFlags, &OutFunc);
 
 			if (OutFunction != nullptr)
-				*OutFunction = VMWFunction(OutFunc);
+				*OutFunction = VMFunction(OutFunc);
 
 			return R;
 		}
-		int VMWModule::CompileProperty(const char* SectionName, const char* Code, int LineOffset)
+		int VMModule::CompileProperty(const char* SectionName, const char* Code, int LineOffset)
 		{
 			if (!IsValid())
 				return -1;
 
 			return Mod->CompileGlobalVar(SectionName, Code, LineOffset);
 		}
-		int VMWModule::SetDefaultNamespace(const char* NameSpace)
+		int VMModule::SetDefaultNamespace(const char* NameSpace)
 		{
 			if (!IsValid())
 				return -1;
 
 			return Mod->SetDefaultNamespace(NameSpace);
 		}
-		void* VMWModule::GetAddressOfProperty(size_t Index)
+		void* VMModule::GetAddressOfProperty(size_t Index)
 		{
 			if (!IsValid())
 				return nullptr;
 
 			return Mod->GetAddressOfGlobalVar(Index);
 		}
-		int VMWModule::RemoveProperty(size_t Index)
+		int VMModule::RemoveProperty(size_t Index)
 		{
 			if (!IsValid())
 				return -1;
 
 			return Mod->RemoveGlobalVar(Index);
 		}
-		size_t VMWModule::SetAccessMask(size_t AccessMask)
+		size_t VMModule::SetAccessMask(size_t AccessMask)
 		{
 			if (!IsValid())
 				return 0;
 
 			return Mod->SetAccessMask((asDWORD)AccessMask);
 		}
-		size_t VMWModule::GetFunctionCount() const
+		size_t VMModule::GetFunctionCount() const
 		{
 			if (!IsValid())
 				return 0;
 
 			return Mod->GetFunctionCount();
 		}
-		VMWFunction VMWModule::GetFunctionByIndex(size_t Index) const
+		VMFunction VMModule::GetFunctionByIndex(size_t Index) const
 		{
 			if (!IsValid())
 				return nullptr;
 
 			return Mod->GetFunctionByIndex((asUINT)Index);
 		}
-		VMWFunction VMWModule::GetFunctionByDecl(const char* Decl) const
+		VMFunction VMModule::GetFunctionByDecl(const char* Decl) const
 		{
 			if (!IsValid())
 				return nullptr;
 
 			return Mod->GetFunctionByDecl(Decl);
 		}
-		VMWFunction VMWModule::GetFunctionByName(const char* Name) const
+		VMFunction VMModule::GetFunctionByName(const char* Name) const
 		{
 			if (!IsValid())
 				return nullptr;
 
 			return Mod->GetFunctionByName(Name);
 		}
-		int VMWModule::GetTypeIdByDecl(const char* Decl) const
+		int VMModule::GetTypeIdByDecl(const char* Decl) const
 		{
 			if (!IsValid())
 				return -1;
 
 			return Mod->GetTypeIdByDecl(Decl);
 		}
-		int VMWModule::GetImportedFunctionIndexByDecl(const char* Decl) const
+		int VMModule::GetImportedFunctionIndexByDecl(const char* Decl) const
 		{
 			if (!IsValid())
 				return -1;
 
 			return Mod->GetImportedFunctionIndexByDecl(Decl);
 		}
-		int VMWModule::SaveByteCode(VMByteCode* Info) const
+		int VMModule::SaveByteCode(VMByteCode* Info) const
 		{
 			if (!Info || !IsValid())
 				return -1;
 
-			ByteCodeStream* Stream = new ByteCodeStream();
+			CByteCodeStream* Stream = new CByteCodeStream();
 			int R = Mod->SaveByteCode(Stream, Info->Debug);
 			Info->Data = Stream->GetCode();
 			delete Stream;
 
 			return R;
 		}
-		int VMWModule::GetPropertyIndexByName(const char* Name) const
+		int VMModule::GetPropertyIndexByName(const char* Name) const
 		{
 			if (!IsValid())
 				return -1;
 
 			return Mod->GetGlobalVarIndexByName(Name);
 		}
-		int VMWModule::GetPropertyIndexByDecl(const char* Decl) const
+		int VMModule::GetPropertyIndexByDecl(const char* Decl) const
 		{
 			if (!IsValid())
 				return -1;
 
 			return Mod->GetGlobalVarIndexByDecl(Decl);
 		}
-		int VMWModule::GetProperty(size_t Index, VMProperty* Info) const
+		int VMModule::GetProperty(size_t Index, VMProperty* Info) const
 		{
 			if (!Manager)
 				return -1;
@@ -3033,7 +1670,7 @@ namespace Tomahawk
 
 			return Result;
 		}
-		size_t VMWModule::GetAccessMask() const
+		size_t VMModule::GetAccessMask() const
 		{
 			if (!Mod)
 				return 0;
@@ -3042,42 +1679,42 @@ namespace Tomahawk
 			Mod->SetAccessMask(AccessMask);
 			return (size_t)AccessMask;
 		}
-		size_t VMWModule::GetObjectsCount() const
+		size_t VMModule::GetObjectsCount() const
 		{
 			if (!IsValid())
 				return 0;
 
 			return Mod->GetObjectTypeCount();
 		}
-		size_t VMWModule::GetPropertiesCount() const
+		size_t VMModule::GetPropertiesCount() const
 		{
 			if (!IsValid())
 				return 0;
 
 			return Mod->GetGlobalVarCount();
 		}
-		size_t VMWModule::GetEnumsCount() const
+		size_t VMModule::GetEnumsCount() const
 		{
 			if (!IsValid())
 				return 0;
 
 			return Mod->GetEnumCount();
 		}
-		size_t VMWModule::GetImportedFunctionCount() const
+		size_t VMModule::GetImportedFunctionCount() const
 		{
 			if (!IsValid())
 				return 0;
 
 			return Mod->GetImportedFunctionCount();
 		}
-		VMWTypeInfo VMWModule::GetObjectByIndex(size_t Index) const
+		VMTypeInfo VMModule::GetObjectByIndex(size_t Index) const
 		{
 			if (!IsValid())
 				return nullptr;
 
 			return Mod->GetObjectTypeByIndex(Index);
 		}
-		VMWTypeInfo VMWModule::GetTypeInfoByName(const char* Name) const
+		VMTypeInfo VMModule::GetTypeInfoByName(const char* Name) const
 		{
 			if (!IsValid())
 				return nullptr;
@@ -3095,64 +1732,64 @@ namespace Tomahawk
 
 			return Info;
 		}
-		VMWTypeInfo VMWModule::GetTypeInfoByDecl(const char* Decl) const
+		VMTypeInfo VMModule::GetTypeInfoByDecl(const char* Decl) const
 		{
 			if (!IsValid())
 				return nullptr;
 
 			return Mod->GetTypeInfoByDecl(Decl);
 		}
-		VMWTypeInfo VMWModule::GetEnumByIndex(size_t Index) const
+		VMTypeInfo VMModule::GetEnumByIndex(size_t Index) const
 		{
 			if (!IsValid())
 				return nullptr;
 
 			return Mod->GetEnumByIndex(Index);
 		}
-		const char* VMWModule::GetPropertyDecl(size_t Index, bool IncludeNamespace) const
+		const char* VMModule::GetPropertyDecl(size_t Index, bool IncludeNamespace) const
 		{
 			if (!IsValid())
 				return nullptr;
 
 			return Mod->GetGlobalVarDeclaration(Index, IncludeNamespace);
 		}
-		const char* VMWModule::GetDefaultNamespace() const
+		const char* VMModule::GetDefaultNamespace() const
 		{
 			if (!IsValid())
 				return nullptr;
 
 			return Mod->GetDefaultNamespace();
 		}
-		const char* VMWModule::GetImportedFunctionDecl(size_t ImportIndex) const
+		const char* VMModule::GetImportedFunctionDecl(size_t ImportIndex) const
 		{
 			if (!IsValid())
 				return nullptr;
 
 			return Mod->GetImportedFunctionDeclaration(ImportIndex);
 		}
-		const char* VMWModule::GetImportedFunctionModule(size_t ImportIndex) const
+		const char* VMModule::GetImportedFunctionModule(size_t ImportIndex) const
 		{
 			if (!IsValid())
 				return nullptr;
 
 			return Mod->GetImportedFunctionSourceModule(ImportIndex);
 		}
-		const char* VMWModule::GetName() const
+		const char* VMModule::GetName() const
 		{
 			if (!IsValid())
 				return nullptr;
 
 			return Mod->GetName();
 		}
-		bool VMWModule::IsValid() const
+		bool VMModule::IsValid() const
 		{
 			return Manager != nullptr && Mod != nullptr;
 		}
-		VMCModule* VMWModule::GetModule() const
+		VMCModule* VMModule::GetModule() const
 		{
 			return Mod;
 		}
-		VMManager* VMWModule::GetManager() const
+		VMManager* VMModule::GetManager() const
 		{
 			return Manager;
 		}
@@ -3193,60 +1830,60 @@ namespace Tomahawk
 
 			return Engine->RegisterGlobalProperty(Decl, Value);
 		}
-		VMWInterface VMGlobal::SetInterface(const char* Name)
+		VMInterface VMGlobal::SetInterface(const char* Name)
 		{
 			if (!Manager || !Name)
-				return VMWInterface(Manager, "", -1);
+				return VMInterface(Manager, "", -1);
 
 			VMCManager* Engine = Manager->GetEngine();
 			if (!Engine)
-				return VMWInterface(Manager, Name, -1);
+				return VMInterface(Manager, Name, -1);
 
-			return VMWInterface(Manager, Name, Engine->RegisterInterface(Name));
+			return VMInterface(Manager, Name, Engine->RegisterInterface(Name));
 		}
-		VMWTypeClass VMGlobal::SetStructAddress(const char* Name, size_t Size, uint64_t Flags)
+		VMTypeClass VMGlobal::SetStructAddress(const char* Name, size_t Size, uint64_t Flags)
 		{
 			if (!Manager || !Name)
-				return VMWTypeClass(Manager, "", -1);
+				return VMTypeClass(Manager, "", -1);
 
 			VMCManager* Engine = Manager->GetEngine();
 			if (!Engine)
-				return VMWTypeClass(Manager, Name, -1);
+				return VMTypeClass(Manager, Name, -1);
 
-			return VMWTypeClass(Manager, Name, Engine->RegisterObjectType(Name, Size, (asDWORD)Flags));
+			return VMTypeClass(Manager, Name, Engine->RegisterObjectType(Name, Size, (asDWORD)Flags));
 		}
-		VMWTypeClass VMGlobal::SetPodAddress(const char* Name, size_t Size, uint64_t Flags)
+		VMTypeClass VMGlobal::SetPodAddress(const char* Name, size_t Size, uint64_t Flags)
 		{
 			if (!Manager || !Name)
-				return VMWTypeClass(Manager, "", -1);
+				return VMTypeClass(Manager, "", -1);
 
 			VMCManager* Engine = Manager->GetEngine();
 			if (!Engine)
-				return VMWTypeClass(Manager, Name, -1);
+				return VMTypeClass(Manager, Name, -1);
 
-			return VMWTypeClass(Manager, Name, Engine->RegisterObjectType(Name, Size, (asDWORD)Flags));
+			return VMTypeClass(Manager, Name, Engine->RegisterObjectType(Name, Size, (asDWORD)Flags));
 		}
-		VMWRefClass VMGlobal::SetClassAddress(const char* Name, uint64_t Flags)
+		VMRefClass VMGlobal::SetClassAddress(const char* Name, uint64_t Flags)
 		{
 			if (!Manager || !Name)
-				return VMWRefClass(Manager, "", -1);
+				return VMRefClass(Manager, "", -1);
 
 			VMCManager* Engine = Manager->GetEngine();
 			if (!Engine)
-				return VMWRefClass(Manager, Name, -1);
+				return VMRefClass(Manager, Name, -1);
 
-			return VMWRefClass(Manager, Name, Engine->RegisterObjectType(Name, 0, (asDWORD)Flags));
+			return VMRefClass(Manager, Name, Engine->RegisterObjectType(Name, 0, (asDWORD)Flags));
 		}
-		VMWEnum VMGlobal::SetEnum(const char* Name)
+		VMEnum VMGlobal::SetEnum(const char* Name)
 		{
 			if (!Manager || !Name)
-				return VMWEnum(Manager, "", -1);
+				return VMEnum(Manager, "", -1);
 
 			VMCManager* Engine = Manager->GetEngine();
 			if (!Engine)
-				return VMWEnum(Manager, Name, -1);
+				return VMEnum(Manager, Name, -1);
 
-			return VMWEnum(Manager, Name, Engine->RegisterEnum(Name));
+			return VMEnum(Manager, Name, Engine->RegisterEnum(Name));
 		}
 		size_t VMGlobal::GetFunctionsCount() const
 		{
@@ -3255,21 +1892,21 @@ namespace Tomahawk
 
 			return Manager->GetEngine()->GetGlobalFunctionCount();
 		}
-		VMWFunction VMGlobal::GetFunctionById(int Id) const
+		VMFunction VMGlobal::GetFunctionById(int Id) const
 		{
 			if (!Manager)
 				return nullptr;
 
 			return Manager->GetEngine()->GetFunctionById(Id);
 		}
-		VMWFunction VMGlobal::GetFunctionByIndex(int Index) const
+		VMFunction VMGlobal::GetFunctionByIndex(int Index) const
 		{
 			if (!Manager)
 				return nullptr;
 
 			return Manager->GetEngine()->GetGlobalFunctionByIndex(Index);
 		}
-		VMWFunction VMGlobal::GetFunctionByDecl(const char* Decl) const
+		VMFunction VMGlobal::GetFunctionByDecl(const char* Decl) const
 		{
 			if (!Manager || !Decl)
 				return nullptr;
@@ -3330,7 +1967,7 @@ namespace Tomahawk
 
 			return Manager->GetEngine()->GetObjectTypeCount();
 		}
-		VMWTypeInfo VMGlobal::GetObjectByTypeId(int TypeId) const
+		VMTypeInfo VMGlobal::GetObjectByTypeId(int TypeId) const
 		{
 			if (!Manager)
 				return nullptr;
@@ -3344,7 +1981,7 @@ namespace Tomahawk
 
 			return Manager->GetEngine()->GetEnumCount();
 		}
-		VMWTypeInfo VMGlobal::GetEnumByTypeId(int TypeId) const
+		VMTypeInfo VMGlobal::GetEnumByTypeId(int TypeId) const
 		{
 			if (!Manager)
 				return nullptr;
@@ -3358,7 +1995,7 @@ namespace Tomahawk
 
 			return Manager->GetEngine()->GetFuncdefCount();
 		}
-		VMWTypeInfo VMGlobal::GetFunctionDefByIndex(int Index) const
+		VMTypeInfo VMGlobal::GetFunctionDefByIndex(int Index) const
 		{
 			if (!Manager)
 				return nullptr;
@@ -3431,24 +2068,14 @@ namespace Tomahawk
 
 			return Rest::Form("%s(%d)", Object, Name ? Name : "any").R();
 		}
-		std::string VMGlobal::GetObjectView(const VMWAny& Any)
-		{
-			if (!Any.IsValid())
-				return GetObjectView(nullptr, -1);
-
-			void* Object = nullptr;
-			int TypeId = 0;
-			Any.RetrieveAny(&Object, &TypeId);
-			return GetObjectView(Object, TypeId);
-		}
-		VMWTypeInfo VMGlobal::GetTypeInfoById(int TypeId) const
+		VMTypeInfo VMGlobal::GetTypeInfoById(int TypeId) const
 		{
 			if (!Manager)
 				return nullptr;
 
 			return Manager->GetEngine()->GetTypeInfoById(TypeId);
 		}
-		VMWTypeInfo VMGlobal::GetTypeInfoByName(const char* Name) const
+		VMTypeInfo VMGlobal::GetTypeInfoByName(const char* Name) const
 		{
 			if (!Manager || !Name)
 				return nullptr;
@@ -3466,7 +2093,7 @@ namespace Tomahawk
 
 			return Info;
 		}
-		VMWTypeInfo VMGlobal::GetTypeInfoByDecl(const char* Decl) const
+		VMTypeInfo VMGlobal::GetTypeInfoByDecl(const char* Decl) const
 		{
 			if (!Manager || !Decl)
 				return nullptr;
@@ -3478,7 +2105,7 @@ namespace Tomahawk
 			return Manager;
 		}
 
-		VMCompiler::VMCompiler(VMManager* Engine) : Manager(Engine), Context(nullptr), Module(nullptr), Features(0), BuiltOK(false)
+		VMCompiler::VMCompiler(VMManager* Engine) : Manager(Engine), Context(nullptr), Module(nullptr), BuiltOK(false)
 		{
 			Processor = new Compute::Preprocessor();
 			Processor->SetIncludeCallback([this](Compute::Preprocessor* C, const Compute::IncludeResult& File, std::string* Out)
@@ -3654,7 +2281,7 @@ namespace Tomahawk
 					else if (Name.R() == "ACCESS_MASK")
 						Module->SetAccessMask(Result);
 				}
-				else if (Comment.StartsWith("enable"))
+				else if (Comment.StartsWith("using"))
 				{
 					Rest::Stroke Name(Comment);
 					Name.Substring(Start.End, End.Start - Start.End).Trim();
@@ -3664,150 +2291,11 @@ namespace Tomahawk
 					if (Name.Empty())
 						return false;
 
-					bool All = Name.Find("all").Found;
-					uint64_t Want = 0;
-
-					if (All || Name.Find("string").Found)
+					if (!Manager->UseSubmodule(Name.R()))
 					{
-						Want |= VMFeature_String;
-						if (!(Features & VMFeature_String) && Features != VMFeature_All)
-						{
-							THAWK_ERROR("feature \"string\" is not allowed");
-							return false;
-						}
+						THAWK_ERROR("system module \"%s\" was not found", Name.Get());
+						return false;
 					}
-
-					if (All || Name.Find("array").Found)
-					{
-						Want |= VMFeature_Array;
-						if (!(Features & VMFeature_Array) && Features != VMFeature_All)
-						{
-							THAWK_ERROR("feature \"array\" is not allowed");
-							return false;
-						}
-					}
-
-					if (All || Name.Find("any").Found)
-					{
-						Want |= VMFeature_Any;
-						if (!(Features & VMFeature_Any) && Features != VMFeature_All)
-						{
-							THAWK_ERROR("feature \"any\" is not allowed");
-							return false;
-						}
-					}
-
-					if (All || Name.Find("dictionary").Found)
-					{
-						Want |= VMFeature_Dictionary;
-						if (!(Features & VMFeature_Dictionary) && Features != VMFeature_All)
-						{
-							THAWK_ERROR("feature \"dictionary\" is not allowed");
-							return false;
-						}
-					}
-
-					if (All || Name.Find("grid").Found)
-					{
-						Want |= VMFeature_Grid;
-						if (!(Features & VMFeature_Grid) && Features != VMFeature_All)
-						{
-							THAWK_ERROR("feature \"grid\" is not allowed");
-							return false;
-						}
-					}
-
-					if (All || Name.Find("math").Found)
-					{
-						Want |= VMFeature_Math;
-						if (!(Features & VMFeature_Math) && Features != VMFeature_All)
-						{
-							THAWK_ERROR("feature \"math\" is not allowed");
-							return false;
-						}
-					}
-
-					if (All || Name.Find("exception").Found)
-					{
-						Want |= VMFeature_Exception;
-						if (!(Features & VMFeature_Exception) && Features != VMFeature_All)
-						{
-							THAWK_ERROR("feature \"exception\" is not allowed");
-							return false;
-						}
-					}
-
-					if (All || Name.Find("type-reference").Found)
-					{
-						Want |= VMFeature_Reference;
-						if (!(Features & VMFeature_Reference) && Features != VMFeature_All)
-						{
-							THAWK_ERROR("feature \"type-reference\" is not allowed");
-							return false;
-						}
-					}
-
-					if (All || Name.Find("weak-reference").Found)
-					{
-						Want |= VMFeature_WeakReference;
-						if (!(Features & VMFeature_WeakReference) && Features != VMFeature_All)
-						{
-							THAWK_ERROR("feature \"weak-reference\" is not allowed");
-							return false;
-						}
-					}
-
-					if (All || Name.Find("random").Found)
-					{
-						Want |= VMFeature_Random;
-						if (!(Features & VMFeature_Random) && Features != VMFeature_All)
-						{
-							THAWK_ERROR("feature \"random\" is not allowed");
-							return false;
-						}
-					}
-
-					if (All || Name.Find("thread").Found)
-					{
-						Want |= VMFeature_Thread;
-						if (!(Features & VMFeature_Thread) && Features != VMFeature_All)
-						{
-							THAWK_ERROR("feature \"thread\" is not allowed");
-							return false;
-						}
-					}
-
-					if (All || Name.Find("async").Found)
-					{
-						Want |= VMFeature_Async;
-						if (!(Features & VMFeature_Async) && Features != VMFeature_All)
-						{
-							THAWK_ERROR("feature \"async\" is not allowed");
-							return false;
-						}
-					}
-
-					if (All || Name.Find("complex").Found)
-					{
-						Want |= VMFeature_Complex;
-						if (!(Features & VMFeature_Complex) && Features != VMFeature_All)
-						{
-							THAWK_ERROR("feature \"complex\" is not allowed");
-							return false;
-						}
-					}
-
-					if (All || Name.Find("rest").Found)
-					{
-						Want |= VMFeature_Rest;
-						if (!(Features & VMFeature_Rest) && Features != VMFeature_All)
-						{
-							THAWK_ERROR("feature \"rest\" is not allowed");
-							return false;
-						}
-					}
-
-					Manager->Setup(All ? VMFeature_All : Want);
 				}
 
 				return true;
@@ -3832,10 +2320,6 @@ namespace Tomahawk
 		void VMCompiler::SetPragmaCallback(const Compute::ProcPragmaCallback& Callback)
 		{
 			Pragma = Callback;
-		}
-		void VMCompiler::SetAllowedFeatures(uint64_t NewFeatures)
-		{
-			Features = NewFeatures;
 		}
 		void VMCompiler::Define(const std::string& Word)
 		{
@@ -3938,6 +2422,9 @@ namespace Tomahawk
 				}
 
 				BuiltOK = (R >= 0);
+				if (BuiltOK)
+					Module->ResetGlobalVars(Context->GetContext());
+
 				return R;
 			}
 
@@ -3952,14 +2439,20 @@ namespace Tomahawk
 			if (!BuiltOK)
 				return R;
 
-			Module->ResetGlobalVars(Context->GetContext());
 			if (VCache.Name.empty())
+			{
+				Module->ResetGlobalVars(Context->GetContext());
 				return R;
+			}
 
 			R = SaveByteCode(&VCache);
 			if (R < 0)
+			{
+				Module->ResetGlobalVars(Context->GetContext());
 				return R;
+			}
 
+			Module->ResetGlobalVars(Context->GetContext());
 			Manager->SetByteCodeCache(&VCache);
 			return 0;
 		}
@@ -3971,14 +2464,14 @@ namespace Tomahawk
 				return -1;
 			}
 
-			return VMWModule(Module).SaveByteCode(Info);
+			return VMModule(Module).SaveByteCode(Info);
 		}
 		int VMCompiler::LoadByteCode(VMByteCode* Info)
 		{
 			if (!Info || !Module)
 				return -1;
 
-			return VMWModule(Module).LoadByteCode(Info);
+			return VMModule(Module).LoadByteCode(Info);
 		}
 		int VMCompiler::LoadFile(const std::string& Path)
 		{
@@ -4181,7 +2674,7 @@ namespace Tomahawk
 		{
 			return Context;
 		}
-		VMWModule VMCompiler::GetModule() const
+		VMModule VMCompiler::GetModule() const
 		{
 			return Module;
 		}
@@ -4242,7 +2735,7 @@ namespace Tomahawk
 
 			return R;
 		}
-		int VMContext::Prepare(const VMWFunction& Function)
+		int VMContext::Prepare(const VMFunction& Function)
 		{
 			if (!Context)
 				return -1;
@@ -4317,7 +2810,7 @@ namespace Tomahawk
 			if (Id > 0)
 				Result << "\t{...thread-" << Id << "...}\n";
 			else
-				Result << "\t{...main-thread...}\n";
+				Result << "\t{...thread-main...}\n";
 
 			std::string Out(Result.str());
 			return Out.substr(0, Out.size() - 1);
@@ -4497,7 +2990,7 @@ namespace Tomahawk
 
 			return Context->GetExceptionLineNumber(Column, SectionName);
 		}
-		VMWFunction VMContext::GetExceptionFunction()
+		VMFunction VMContext::GetExceptionFunction()
 		{
 			if (!Context)
 				return nullptr;
@@ -4546,7 +3039,7 @@ namespace Tomahawk
 
 			return Context->GetCallstackSize();
 		}
-		VMWFunction VMContext::GetFunction(unsigned int StackLevel)
+		VMFunction VMContext::GetFunction(unsigned int StackLevel)
 		{
 			if (!Context)
 				return nullptr;
@@ -4616,7 +3109,7 @@ namespace Tomahawk
 
 			return Context->GetThisPointer(StackLevel);
 		}
-		VMWFunction VMContext::GetSystemFunction()
+		VMFunction VMContext::GetSystemFunction()
 		{
 			if (!Context)
 				return nullptr;
@@ -4693,7 +3186,7 @@ namespace Tomahawk
 		}
 		int VMContext::ContextUD = 152;
 
-		VMManager::VMManager() : Engine(asCreateScriptEngine()), Globals(this), Features(0), Cached(true), Scope(0), JIT(nullptr)
+		VMManager::VMManager() : Engine(asCreateScriptEngine()), Globals(this), Cached(true), Scope(0), JIT(nullptr)
 		{
 			Include.Exts.push_back(".as");
 			Include.Root = Rest::OS::GetDirectory();
@@ -4702,6 +3195,12 @@ namespace Tomahawk
 			Engine->SetContextCallbacks(RequestContext, ReturnContext, nullptr);
 			Engine->SetMessageCallback(asFUNCTION(CompileLogger), this, asCALL_CDECL);
 			Engine->SetEngineProperty(asEP_INIT_GLOBAL_VARS_AFTER_BUILD, false);
+			Engine->SetEngineProperty(asEP_USE_CHARACTER_LITERALS, true);
+			Engine->SetEngineProperty(asEP_DISALLOW_EMPTY_LIST_ELEMENTS, true);
+			Engine->SetEngineProperty(asEP_COMPILER_WARNINGS, 1);
+			Engine->RegisterObjectType("Nullable", 0, asOBJ_REF | asOBJ_NOCOUNT);
+			Engine->RegisterGlobalFunction("Nullable@ get_nullptr() property", asFUNCTION(VMManager::GetNullable), asCALL_CDECL);
+			Nullable = Engine->GetTypeIdByDecl("Nullable@");
 		}
 		VMManager::~VMManager()
 		{
@@ -4715,162 +3214,16 @@ namespace Tomahawk
 #endif
 			ClearCache();
 		}
-		void VMManager::Setup(uint64_t NewFeatures)
-		{
-			if ((NewFeatures == VMFeature_All || NewFeatures & VMFeature_Any) && !(Features & VMFeature_Any))
-			{
-				Features |= VMFeature_Any;
-				VM_RegisterAny(Engine);
-			}
-
-			if ((NewFeatures == VMFeature_All || NewFeatures & VMFeature_Reference) && !(Features & VMFeature_Reference))
-			{
-				Features |= VMFeature_Reference;
-				VM_RegisterHandle(Engine);
-			}
-
-			if ((NewFeatures == VMFeature_All || NewFeatures & VMFeature_WeakReference) && !(Features & VMFeature_WeakReference))
-			{
-				Features |= VMFeature_WeakReference;
-				VM_RegisterWeakRef(Engine);
-			}
-
-			if ((NewFeatures == VMFeature_All || NewFeatures & VMFeature_Array) && !(Features & VMFeature_Array))
-			{
-				Features |= VMFeature_Array;
-				VM_RegisterArray(Engine, true);
-			}
-
-			if ((NewFeatures == VMFeature_All || NewFeatures & VMFeature_String) && !(Features & VMFeature_String))
-			{
-				Features |= VMFeature_String;
-				VM_RegisterString(Engine);
-			}
-
-			if ((NewFeatures == VMFeature_All || NewFeatures & VMFeature_Dictionary) && !(Features & VMFeature_Dictionary))
-			{
-				Features |= VMFeature_Dictionary;
-				VM_RegisterDictionary(Engine);
-			}
-
-			if ((NewFeatures == VMFeature_All || NewFeatures & VMFeature_Grid) && !(Features & VMFeature_Grid))
-			{
-				Features |= VMFeature_Grid;
-				VM_RegisterGrid(Engine);
-			}
-
-			if ((NewFeatures == VMFeature_All || NewFeatures & VMFeature_Math) && !(Features & VMFeature_Math))
-			{
-				Features |= VMFeature_Math;
-				VM_RegisterMath(Engine);
-			}
-
-			if ((NewFeatures == VMFeature_All || NewFeatures & VMFeature_Complex) && !(Features & VMFeature_Complex))
-			{
-				Features |= VMFeature_Complex;
-				VM_RegisterComplex(Engine);
-			}
-
-			if ((NewFeatures == VMFeature_All || NewFeatures & VMFeature_DateTime) && !(Features & VMFeature_DateTime))
-			{
-				Features |= VMFeature_DateTime;
-				VM_RegisterDateTime(Engine);
-			}
-
-			if ((NewFeatures == VMFeature_All || NewFeatures & VMFeature_Exception) && !(Features & VMFeature_Exception))
-			{
-				Features |= VMFeature_Exception;
-				VM_RegisterExceptionRoutines(Engine);
-			}
-
-			if ((NewFeatures == VMFeature_All || NewFeatures & VMFeature_Random) && !(Features & VMFeature_Random))
-			{
-				Features |= VMFeature_Random;
-				Engine->RegisterObjectType("random", 0, asOBJ_REF);
-				Engine->RegisterObjectBehaviour("random", asBEHAVE_FACTORY, "random@ f()", asFUNCTION(VMCRandom::Create), asCALL_CDECL);
-				Engine->RegisterObjectBehaviour("random", asBEHAVE_ADDREF, "void f()", asMETHOD(VMCRandom, AddRef), asCALL_THISCALL);
-				Engine->RegisterObjectBehaviour("random", asBEHAVE_RELEASE, "void f()", asMETHOD(VMCRandom, Release), asCALL_THISCALL);
-				Engine->RegisterObjectMethod("random", "void opAssign(const random&)", asMETHODPR(VMCRandom, Assign, (VMCRandom *), void), asCALL_THISCALL);
-				Engine->RegisterObjectMethod("random", "void seed(uint)", asMETHODPR(VMCRandom, Seed, (uint32_t), void), asCALL_THISCALL);
-				Engine->RegisterObjectMethod("random", "void seed(uint[]&)", asMETHODPR(VMCRandom, Seed, (VMCArray *), void), asCALL_THISCALL);
-				Engine->RegisterObjectMethod("random", "int getI()", asMETHOD(VMCRandom, GetI), asCALL_THISCALL);
-				Engine->RegisterObjectMethod("random", "uint getU()", asMETHOD(VMCRandom, GetU), asCALL_THISCALL);
-				Engine->RegisterObjectMethod("random", "double getD()", asMETHOD(VMCRandom, GetD), asCALL_THISCALL);
-				Engine->RegisterObjectMethod("random", "void seedFromTime()", asMETHOD(VMCRandom, SeedFromTime), asCALL_THISCALL);
-			}
-
-			if ((NewFeatures == VMFeature_All || NewFeatures & VMFeature_Thread) && !(Features & VMFeature_Thread))
-			{
-				Features |= VMFeature_Thread;
-				Engine->RegisterFuncdef("void thread_callback()");
-				Engine->RegisterObjectType("thread", 0, asOBJ_REF | asOBJ_GC);
-				Engine->RegisterObjectBehaviour("thread", asBEHAVE_ADDREF, "void f()", asMETHOD(VMCThread, AddRef), asCALL_THISCALL);
-				Engine->RegisterObjectBehaviour("thread", asBEHAVE_RELEASE, "void f()", asMETHOD(VMCThread, Release), asCALL_THISCALL);
-				Engine->RegisterObjectBehaviour("thread", asBEHAVE_SETGCFLAG, "void f()", asMETHOD(VMCThread, SetGCFlag), asCALL_THISCALL);
-				Engine->RegisterObjectBehaviour("thread", asBEHAVE_GETGCFLAG, "bool f()", asMETHOD(VMCThread, GetGCFlag), asCALL_THISCALL);
-				Engine->RegisterObjectBehaviour("thread", asBEHAVE_GETREFCOUNT, "int f()", asMETHOD(VMCThread, GetRefCount), asCALL_THISCALL);
-				Engine->RegisterObjectBehaviour("thread", asBEHAVE_ENUMREFS, "void f(int&in)", asMETHOD(VMCThread, EnumReferences), asCALL_THISCALL);
-				Engine->RegisterObjectBehaviour("thread", asBEHAVE_RELEASEREFS, "void f(int&in)", asMETHOD(VMCThread, ReleaseReferences), asCALL_THISCALL);
-				Engine->RegisterObjectMethod("thread", "bool start()", asMETHOD(VMCThread, Start), asCALL_THISCALL);
-				Engine->RegisterObjectMethod("thread", "bool isActive()", asMETHOD(VMCThread, IsActive), asCALL_THISCALL);
-				Engine->RegisterObjectMethod("thread", "void suspend()", asMETHOD(VMCThread, Suspend), asCALL_THISCALL);
-				Engine->RegisterObjectMethod("thread", "void send(any &in)", asMETHOD(VMCThread, Send), asCALL_THISCALL);
-				Engine->RegisterObjectMethod("thread", "any@ receiveWait()", asMETHOD(VMCThread, ReceiveWait), asCALL_THISCALL);
-				Engine->RegisterObjectMethod("thread", "any@ receive(uint64)", asMETHOD(VMCThread, Receive), asCALL_THISCALL);
-				Engine->RegisterObjectMethod("thread", "int wait(uint64)", asMETHOD(VMCThread, Wait), asCALL_THISCALL);
-				Engine->RegisterObjectMethod("thread", "int join()", asMETHOD(VMCThread, Join), asCALL_THISCALL);
-				Engine->RegisterGlobalFunction("any@ receiveFrom(uint64 timeout)", asFUNCTION(VMCThread::ReceiveInThread), asCALL_CDECL);
-				Engine->RegisterGlobalFunction("any@ receiveFromWait()", asFUNCTION(VMCThread::ReceiveWaitInThread), asCALL_CDECL);
-				Engine->RegisterGlobalFunction("void sleep(uint64 timeout)", asFUNCTION(VMCThread::SleepInThread), asCALL_CDECL);
-				Engine->RegisterGlobalFunction("void sendTo(any&)", asFUNCTION(VMCThread::SendInThread), asCALL_CDECL);
-				Engine->RegisterGlobalFunction("thread@ create_thread(thread_callback @func)", asFUNCTION(VMCThread::StartThread), asCALL_CDECL);
-				Engine->RegisterGlobalFunction("uint64 id()", asFUNCTION(VMCThread::GetIdInThread), asCALL_CDECL);
-			}
-
-			if ((NewFeatures == VMFeature_All || NewFeatures & VMFeature_Async) && !(Features & VMFeature_Async))
-			{
-				Features |= VMFeature_Async;
-				Engine->RegisterObjectType("async", 0, asOBJ_REF | asOBJ_GC);
-				Engine->RegisterObjectBehaviour("async", asBEHAVE_ADDREF, "void f()", asMETHOD(VMCAsync, AddRef), asCALL_THISCALL);
-				Engine->RegisterObjectBehaviour("async", asBEHAVE_RELEASE, "void f()", asMETHOD(VMCAsync, Release), asCALL_THISCALL);
-				Engine->RegisterObjectBehaviour("async", asBEHAVE_SETGCFLAG, "void f()", asMETHOD(VMCAsync, SetGCFlag), asCALL_THISCALL);
-				Engine->RegisterObjectBehaviour("async", asBEHAVE_GETGCFLAG, "bool f()", asMETHOD(VMCAsync, GetGCFlag), asCALL_THISCALL);
-				Engine->RegisterObjectBehaviour("async", asBEHAVE_GETREFCOUNT, "int f()", asMETHOD(VMCAsync, GetRefCount), asCALL_THISCALL);
-				Engine->RegisterObjectBehaviour("async", asBEHAVE_ENUMREFS, "void f(int&in)", asMETHOD(VMCAsync, EnumReferences), asCALL_THISCALL);
-				Engine->RegisterObjectBehaviour("async", asBEHAVE_RELEASEREFS, "void f(int&in)", asMETHOD(VMCAsync, ReleaseReferences), asCALL_THISCALL);
-				Engine->RegisterObjectMethod("async", "any@ get()", asMETHOD(VMCAsync, Get), asCALL_THISCALL);
-				Engine->RegisterObjectMethod("async", "bool get(?&out)", asMETHODPR(VMCAsync, GetAny, (void*, int) const, bool), asCALL_THISCALL);
-				Engine->RegisterObjectMethod("async", "async@ await()", asMETHOD(VMCAsync, Await), asCALL_THISCALL);
-			}
-
-			if ((NewFeatures == VMFeature_All || NewFeatures & VMFeature_Rest) && !(Features & VMFeature_Rest))
-			{
-				if (!(NewFeatures & VMFeature_Any) && NewFeatures != VMFeature_All)
-					return Setup(NewFeatures | VMFeature_Any);
-
-				if (!(NewFeatures & VMFeature_Array) && NewFeatures != VMFeature_All)
-					return Setup(NewFeatures | VMFeature_Array);
-
-				if (!(NewFeatures & VMFeature_String) && NewFeatures != VMFeature_All)
-					return Setup(NewFeatures | VMFeature_String);
-
-				if (!(NewFeatures & VMFeature_Dictionary) && NewFeatures != VMFeature_All)
-					return Setup(NewFeatures | VMFeature_Dictionary);
-
-				Features |= VMFeature_Rest;
-				VM_RegisterRest(this);
-			}
-		}
-		void VMManager::SetupJIT(unsigned int JITOpts)
+		void VMManager::SetJIT(unsigned int JITOpts)
 		{
 #ifdef HAS_AS_JIT
 			if (!JIT)
 				Engine->SetEngineProperty(asEP_INCLUDE_JIT_INSTRUCTIONS, 1);
 			else
-				delete JIT;
+				delete (VMCJITCompiler*)JIT;
 
 			JIT = new VMCJITCompiler(JITOpts);
-			Engine->SetJITCompiler(JIT);
+			Engine->SetJITCompiler((VMCJITCompiler*)JIT);
 #else
 			THAWK_ERROR("JIT compiler is not supported on this platform");
 #endif
@@ -4972,41 +3325,37 @@ namespace Tomahawk
 		{
 			return new VMCompiler(this);
 		}
-		void* VMManager::CreateObject(const VMWTypeInfo& Type)
+		void* VMManager::CreateObject(const VMTypeInfo& Type)
 		{
 			return Engine->CreateScriptObject(Type.GetTypeInfo());
 		}
-		void* VMManager::CreateObjectCopy(void* Object, const VMWTypeInfo& Type)
+		void* VMManager::CreateObjectCopy(void* Object, const VMTypeInfo& Type)
 		{
 			return Engine->CreateScriptObjectCopy(Object, Type.GetTypeInfo());
 		}
-		void* VMManager::CreateEmptyObject(const VMWTypeInfo& Type)
+		void* VMManager::CreateEmptyObject(const VMTypeInfo& Type)
 		{
 			return Engine->CreateUninitializedScriptObject(Type.GetTypeInfo());
 		}
-		VMWFunction VMManager::CreateDelegate(const VMWFunction& Function, void* Object)
+		VMFunction VMManager::CreateDelegate(const VMFunction& Function, void* Object)
 		{
 			return Engine->CreateDelegate(Function.GetFunction(), Object);
 		}
-		int VMManager::AssignObject(void* DestObject, void* SrcObject, const VMWTypeInfo& Type)
+		int VMManager::AssignObject(void* DestObject, void* SrcObject, const VMTypeInfo& Type)
 		{
 			return Engine->AssignScriptObject(DestObject, SrcObject, Type.GetTypeInfo());
 		}
-		void VMManager::ReleaseObject(void* Object, const VMWTypeInfo& Type)
+		void VMManager::ReleaseObject(void* Object, const VMTypeInfo& Type)
 		{
 			return Engine->ReleaseScriptObject(Object, Type.GetTypeInfo());
 		}
-		void VMManager::AddRefObject(void* Object, const VMWTypeInfo& Type)
+		void VMManager::AddRefObject(void* Object, const VMTypeInfo& Type)
 		{
 			return Engine->AddRefScriptObject(Object, Type.GetTypeInfo());
 		}
-		int VMManager::RefCastObject(void* Object, const VMWTypeInfo& FromType, const VMWTypeInfo& ToType, void** NewPtr, bool UseOnlyImplicitCast)
+		int VMManager::RefCastObject(void* Object, const VMTypeInfo& FromType, const VMTypeInfo& ToType, void** NewPtr, bool UseOnlyImplicitCast)
 		{
 			return Engine->RefCastObject(Object, FromType.GetTypeInfo(), ToType.GetTypeInfo(), NewPtr, UseOnlyImplicitCast);
-		}
-		VMWLockableSharedBool VMManager::GetWeakRefFlagOfObject(void* Object, const VMWTypeInfo& Type) const
-		{
-			return Engine->GetWeakRefFlagOfScriptObject(Object, Type.GetTypeInfo());
 		}
 		int VMManager::Collect(size_t NumIterations)
 		{
@@ -5032,11 +3381,11 @@ namespace Tomahawk
 			if (TotalNewDestroyed != nullptr)
 				*TotalNewDestroyed = (size_t)asTotalNewDestroyed;
 		}
-		int VMManager::NotifyOfNewObject(void* Object, const VMWTypeInfo& Type)
+		int VMManager::NotifyOfNewObject(void* Object, const VMTypeInfo& Type)
 		{
 			return Engine->NotifyGarbageCollectorOfNewObject(Object, Type.GetTypeInfo());
 		}
-		int VMManager::GetObjectAddress(size_t Index, size_t* SequenceNumber, void** Object, VMWTypeInfo* Type)
+		int VMManager::GetObjectAddress(size_t Index, size_t* SequenceNumber, void** Object, VMTypeInfo* Type)
 		{
 			asUINT asSequenceNumber;
 			VMCTypeInfo* OutType = nullptr;
@@ -5046,15 +3395,15 @@ namespace Tomahawk
 				*SequenceNumber = (size_t)asSequenceNumber;
 
 			if (Type != nullptr)
-				*Type = VMWTypeInfo(OutType);
+				*Type = VMTypeInfo(OutType);
 
 			return Result;
 		}
-		void VMManager::ForwardEnumReferences(void* Reference, const VMWTypeInfo& Type)
+		void VMManager::ForwardEnumReferences(void* Reference, const VMTypeInfo& Type)
 		{
 			return Engine->ForwardGCEnumReferences(Reference, Type.GetTypeInfo());
 		}
-		void VMManager::ForwardReleaseReferences(void* Reference, const VMWTypeInfo& Type)
+		void VMManager::ForwardReleaseReferences(void* Reference, const VMTypeInfo& Type)
 		{
 			return Engine->ForwardGCReleaseReferences(Reference, Type.GetTypeInfo());
 		}
@@ -5182,12 +3531,12 @@ namespace Tomahawk
 		{
 			return Globals;
 		}
-		VMWModule VMManager::Module(const char* Name)
+		VMModule VMManager::Module(const char* Name)
 		{
 			if (!Engine || !Name)
-				return VMWModule(nullptr);
+				return VMModule(nullptr);
 
-			return VMWModule(Engine->GetModule(Name, asGM_CREATE_IF_NOT_EXISTS));
+			return VMModule(Engine->GetModule(Name, asGM_CREATE_IF_NOT_EXISTS));
 		}
 		int VMManager::AddRefVM() const
 		{
@@ -5254,6 +3603,10 @@ namespace Tomahawk
 		std::string VMManager::GetDocumentRoot() const
 		{
 			return Include.Root;
+		}
+		bool VMManager::IsNullable(int TypeId)
+		{
+			return TypeId == 0 || TypeId == Nullable;
 		}
 		bool VMManager::ImportFile(const std::string& Path, std::string* Out)
 		{
@@ -5352,6 +3705,136 @@ namespace Tomahawk
 			Safe.unlock();
 			return Copy;
 		}
+		bool VMManager::HasSubmodule(const std::string& Name)
+		{
+			auto It = Features.find(Name);
+			if (It != Features.end())
+				return It->second;
+			
+			return false;
+		}
+		bool VMManager::UseSubmodule(const std::string& Name)
+		{
+			if (HasSubmodule(Name))
+				return true;
+
+			Features[Name] = true;
+			if (Name == "System")
+			{
+				UseSubmodule("System.Any");
+				UseSubmodule("System.Array");
+				UseSubmodule("System.String");
+				UseSubmodule("System.Map");
+				UseSubmodule("System.Grid");
+				UseSubmodule("System.Math");
+				UseSubmodule("System.Complex");
+				UseSubmodule("System.Ref");
+				UseSubmodule("System.WeakRef");
+				UseSubmodule("System.Exception");
+				UseSubmodule("System.Thread");
+				UseSubmodule("System.Random");
+				UseSubmodule("System.Async");
+
+				return true;
+			}
+
+			if (Name == "Rest")
+			{
+				UseSubmodule("Rest.Format");
+				UseSubmodule("Rest.Console");
+				UseSubmodule("Rest.Document");
+
+				return true;
+			}
+
+			if (Name == "System.Any")
+				return RegisterAnyAPI(this);
+
+			if (Name == "System.Array")
+				return RegisterArrayAPI(this);
+
+			if (Name == "System.Complex")
+				return RegisterComplexAPI(this);
+
+			if (Name == "System.Grid")
+				return RegisterGridAPI(this);
+
+			if (Name == "System.Ref")
+				return RegisterRefAPI(this);
+
+			if (Name == "System.WeakRef")
+				return RegisterWeakRefAPI(this);
+
+			if (Name == "System.Math")
+				return RegisterMathAPI(this);
+
+			if (Name == "System.Random")
+				return RegisterRandomAPI(this);
+
+			if (Name == "System.String")
+			{
+				UseSubmodule("System.Array");
+				return RegisterStringAPI(this);
+			}
+
+			if (Name == "System.Map")
+			{
+				UseSubmodule("System.Array");
+				UseSubmodule("System.String");
+				return RegisterMapAPI(this);
+			}
+
+			if (Name == "System.Exception")
+			{
+				UseSubmodule("System.String");
+				return RegisterExceptionAPI(this);
+			}
+
+			if (Name == "System.Thread")
+			{
+				UseSubmodule("System.Any");
+				return RegisterThreadAPI(this);
+			}
+
+			if (Name == "System.Async")
+			{
+				UseSubmodule("System.Any");
+				return RegisterAsyncAPI(this);
+			}
+
+			if (Name == "Rest.Format")
+			{
+				UseSubmodule("System.String");
+				return RegisterFormatAPI(this);
+			}
+
+			if (Name == "Rest.Console")
+			{
+				UseSubmodule("Rest.Format");
+				return RegisterConsoleAPI(this);
+			}
+
+			if (Name == "Rest.Document")
+			{
+				UseSubmodule("System.String");
+				UseSubmodule("System.Array");
+				UseSubmodule("System.Map");
+				return RegisterDocumentAPI(this);
+			}
+
+			Features[Name] = false;
+			return false;
+		}
+		std::vector<std::string> VMManager::GetSubmodules()
+		{
+			std::vector<std::string> Result;
+			Result.reserve(Features.size());
+
+			for (auto& Item : Features)
+				Result.push_back(Item.first);
+
+			return Result;
+		}
 		size_t VMManager::GetProperty(VMProp Property) const
 		{
 			if (!Engine)
@@ -5365,7 +3848,7 @@ namespace Tomahawk
 		}
 		void VMManager::FreeProxy()
 		{
-			VM_FreeStringProxy();
+			FreeCoreAPI();
 		}
 		VMManager* VMManager::Get(VMCManager* Engine)
 		{
@@ -5426,6 +3909,10 @@ namespace Tomahawk
 		{
 			return 0xFFFFFFFF;
 		}
+		void* VMManager::GetNullable()
+		{
+			return nullptr;
+		}
 		int VMManager::ManagerUD = 553;
 
 		VMDebugger::VMDebugger() : Action(CONTINUE), LastFunction(nullptr), Manager(nullptr)
@@ -5436,7 +3923,7 @@ namespace Tomahawk
 		{
 			SetEngine(0);
 		}
-		void VMDebugger::RegisterToStringCallback(const VMWTypeInfo& Type, ToStringCallback Callback)
+		void VMDebugger::RegisterToStringCallback(const VMTypeInfo& Type, ToStringCallback Callback)
 		{
 			if (ToStringCallbacks.find(Type.GetTypeInfo()) == ToStringCallbacks.end())
 				ToStringCallbacks.insert(std::unordered_map<const VMCTypeInfo*, ToStringCallback>::value_type(Type.GetTypeInfo(), Callback));

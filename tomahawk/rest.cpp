@@ -1049,8 +1049,20 @@ namespace Tomahawk
 		}
 		Stroke& Stroke::Trim()
 		{
-			L->erase(L->begin(), std::find_if(L->begin(), L->end(), [](int C) -> int { return !std::isspace(C); }));
-			L->erase(std::find_if(L->rbegin(), L->rend(), [](int C) -> int { return !std::isspace(C); }).base(), L->end());
+			L->erase(L->begin(), std::find_if(L->begin(), L->end(), [](int C) -> int
+			{
+				if (C < -1 || C > 255)
+					return true;
+
+				return !std::isspace(C);
+			}));
+			L->erase(std::find_if(L->rbegin(), L->rend(), [](int C) -> int
+			{
+				if (C < -1 || C > 255)
+					return true;
+
+				return !std::isspace(C);
+			}).base(), L->end());
 
 			return *this;
 		}
@@ -2194,7 +2206,7 @@ namespace Tomahawk
 			freopen("conout$", "w", stderr);
 			SetConsoleCtrlHandler(ConsoleEventHandler, true);
 #else
-																																	if (Handle)
+			if (Handle)
                 return;
 #endif
 			Handle = true;

@@ -239,7 +239,7 @@ namespace Tomahawk
 					if (Result < 0)
 						return Finish();
 
-					Script::VMWFunction Main = Compiler->GetModule().GetFunctionByName("main");
+					Script::VMFunction Main = Compiler->GetModule().GetFunctionByName("Main");
 					if (Main.IsValid())
 					{
 						Script::VMContext* Context = Compiler->GetContext();

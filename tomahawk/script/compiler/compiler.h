@@ -1,6 +1,6 @@
-#ifndef SCRIPT_JIT_H
-#define SCRIPT_JIT_H
-#include "compiler/base.h"
+#ifndef SCRIPT_COMPILER_H
+#define SCRIPT_COMPILER_H
+#include "core.h"
 #ifdef HAS_AS_JIT
 #ifndef ANGELSCRIPT_H
 #include <angelscript.h>

@@ -3822,7 +3822,7 @@ namespace Tomahawk
 
 			return Result;
 		}
-		std::string MathCommon::BinToHex(const char* Value)
+		std::string MathCommon::BinToHex(const char* Value, size_t Size)
 		{
 			const char Hex[] = "0123456789abcdef";
 			std::string Output;
@@ -3830,8 +3830,7 @@ namespace Tomahawk
 			if (!Value)
 				return Output;
 
-			uint64_t Length = strlen(Value);
-			for (uint64_t i = 0; i < Length; i++)
+			for (size_t i = 0; i < Size; i++)
 			{
 				unsigned char C = static_cast<unsigned char>(Value[i]);
 				Output += Hex[C >> 4];

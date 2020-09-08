@@ -1,5 +1,5 @@
-#ifndef COMPILER_BASE_H
-#define COMPILER_BASE_H
+#ifndef COMPILER_CORE_H
+#define COMPILER_CORE_H
 #if defined(_WIN32) || defined(_WIN64)
 #ifndef _M_ARM
 #define HAS_AS_JIT

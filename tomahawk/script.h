@@ -17,14 +17,8 @@ typedef unsigned __int64 as_uint64_t;
 typedef __int64 as_int64_t;
 #endif
 #endif
+typedef unsigned int as_size_t;
 
-class VMCArray;
-class VMCAny;
-class VMCDictionary;
-class VMCGrid;
-class VMCWeakRef;
-class VMCRef;
-class VMCJITCompiler;
 class asIScriptEngine;
 class asIScriptContext;
 class asIScriptModule;
@@ -40,9 +34,9 @@ namespace Tomahawk
 {
 	namespace Script
 	{
-		struct VMWModule;
+		struct VMModule;
 
-		struct VMWFunction;
+		struct VMFunction;
 
 		class VMCompiler;
 
@@ -54,16 +48,16 @@ namespace Tomahawk
 		{
 		};
 
-		enum VMOptJIT
+		enum VMJIT
 		{
-			VMOptJIT_No_Suspend = 0x01,
-			VMOptJIT_Syscall_FPU_No_Reset = 0x02,
-			VMOptJIT_Syscall_No_Errors = 0x04,
-			VMOptJIT_Alloc_Simple = 0x08,
-			VMOptJIT_No_Switches = 0x10,
-			VMOptJIT_No_Script_Calls = 0x20,
-			VMOptJIT_Fast_Ref_Counter = 0x40,
-			VMOptJIT_Optimal = VMOptJIT_Alloc_Simple | VMOptJIT_Fast_Ref_Counter
+			VMJIT_No_Suspend = 0x01,
+			VMJIT_Syscall_FPU_No_Reset = 0x02,
+			VMJIT_Syscall_No_Errors = 0x04,
+			VMJIT_Alloc_Simple = 0x08,
+			VMJIT_No_Switches = 0x10,
+			VMJIT_No_Script_Calls = 0x20,
+			VMJIT_Fast_Ref_Counter = 0x40,
+			VMJIT_Optimal = VMJIT_Alloc_Simple | VMJIT_Fast_Ref_Counter
 		};
 
 		enum VMLogType
@@ -318,26 +312,6 @@ namespace Tomahawk
 			VMOpFunc_ImplCast
 		};
 
-		enum VMFeature
-		{
-			VMFeature_All = 0,
-			VMFeature_String = (1 << 0),
-			VMFeature_Array = (1 << 1),
-			VMFeature_Any = (1 << 2),
-			VMFeature_Dictionary = (1 << 3),
-			VMFeature_Grid = (1 << 4),
-			VMFeature_Math = (1 << 5),
-			VMFeature_DateTime = (1 << 6),
-			VMFeature_Exception = (1 << 7),
-			VMFeature_Reference = (1 << 8),
-			VMFeature_WeakReference = (1 << 9),
-			VMFeature_Random = (1 << 10),
-			VMFeature_Thread = (1 << 11),
-			VMFeature_Async = (1 << 12),
-			VMFeature_Complex = (1 << 13),
-			VMFeature_Rest = (1 << 14)
-		};
-
 		typedef asIScriptEngine VMCManager;
 		typedef asIScriptContext VMCContext;
 		typedef asIScriptModule VMCModule;
@@ -347,19 +321,17 @@ namespace Tomahawk
 		typedef asIScriptObject VMCObject;
 		typedef asILockableSharedBool VMCLockableSharedBool;
 		typedef void (VMDummy::*VMMethodPtr)();
-		typedef std::function<void(class VMCAsync*)> AsyncWorkCallback;
-		typedef std::function<void(enum VMExecState)> AsyncDoneCallback;
-		typedef std::function<void(struct VMWTypeInfo*, struct VMFuncProperty*)> PropertyCallback;
-		typedef std::function<void(struct VMWTypeInfo*, struct VMWFunction*)> MethodCallback;
+		typedef std::function<void(struct VMTypeInfo*, struct VMFuncProperty*)> PropertyCallback;
+		typedef std::function<void(struct VMTypeInfo*, struct VMFunction*)> MethodCallback;
 
-		class THAWK_OUT VMWGeneric
+		class THAWK_OUT VMGeneric
 		{
 		private:
 			VMManager* Manager;
 			VMCGeneric* Generic;
 
 		public:
-			VMWGeneric(VMCGeneric* Base);
+			VMGeneric(VMCGeneric* Base);
 			void* GetObjectAddress();
 			int GetObjectTypeId() const;
 			int GetArgsCount() const;
@@ -399,79 +371,6 @@ namespace Tomahawk
 				return (T*)GetArgObjectAddress(Arg);
 			}
 		};
-
-        class THAWK_OUT VMCReceiver
-        {
-            friend class VMCThread;
-
-        private:
-            std::vector<VMCAny*> Queue;
-            std::condition_variable CV;
-            std::mutex Mutex;
-            int Debug;
-
-        public:
-            VMCReceiver();
-            void Send(VMCAny* Any);
-            void Release();
-            int GetQueueSize();
-            VMCAny* ReceiveWait();
-            VMCAny* Receive(uint64_t Timeout);
-
-        private:
-            void EnumReferences(VMCManager* Engine);
-        };
-
-        class THAWK_OUT VMCThread
-        {
-        private:
-            static int ContextUD;
-            static int EngineListUD;
-
-        private:
-            VMCFunction* Function;
-            VMManager* Manager;
-            VMContext* Context;
-            std::condition_variable CV;
-            std::thread Thread;
-            std::mutex Mutex;
-            VMCReceiver Incoming;
-            VMCReceiver Outgoing;
-            bool Active;
-            int Ref;
-            bool GCFlag;
-
-        public:
-            VMCThread(VMCManager* Engine, VMCFunction* Function);
-            void AddRef();
-            void Release();
-            void Suspend();
-            void Send(VMCAny* Any);
-            int Wait(uint64_t Timeout);
-            int Join();
-            bool IsActive();
-            bool Start();
-            VMCAny* ReceiveWait();
-            VMCAny* Receive(uint64_t Timeout);
-            void EnumReferences(VMCManager* Engine);
-            void SetGCFlag();
-            void ReleaseReferences(VMCManager* Engine);
-            void StartRoutineThread();
-            bool GetGCFlag();
-            int GetRefCount();
-
-        public:
-            static int AtomicNotifyGC(const char* TypeName, void* Object);
-            static void StartRoutine(VMCThread* Thread);
-            static void SendInThread(VMCAny* Any);
-            static void SleepInThread(uint64_t Timeout);
-            static VMCThread* GetThisThread();
-            static VMCThread* GetThisThreadSafe();
-            static VMCAny* ReceiveWaitInThread();
-            static VMCAny* ReceiveInThread(uint64_t Timeout);
-            static VMCThread* StartThread(VMCFunction* Func);
-            static uint64_t GetIdInThread();
-        };
 
 		class THAWK_OUT VMBind
 		{
@@ -653,7 +552,7 @@ namespace Tomahawk
 			template <typename T>
 			static void BindConstructorList(VMCGeneric* Generic)
 			{
-				VMWGeneric Args(Generic);
+				VMGeneric Args(Generic);
 				*reinterpret_cast<T**>(Args.GetAddressOfReturnLocation()) = new T((unsigned char*)Args.GetArgAddress(0));
 			}
 			template <typename T>
@@ -665,17 +564,17 @@ namespace Tomahawk
 			static T* BindManaged(Args... Data)
 			{
 				auto* Result = new T(Data...);
-				VMCThread::AtomicNotifyGC(TypeName, (void*)Result);
+				AtomicNotifyGC(TypeName, (void*)Result);
 
 				return Result;
 			}
 			template <typename T, const char* TypeName>
 			static void BindManagedList(VMCGeneric* Generic)
 			{
-				VMWGeneric Args(Generic);
+				VMGeneric Args(Generic);
 				T* Result = new T((unsigned char*)Args.GetArgAddress(0));
 				*reinterpret_cast<T**>(Args.GetAddressOfReturnLocation()) = Result;
-				VMCThread::AtomicNotifyGC(TypeName, (void*)Result);
+				AtomicNotifyGC(TypeName, (void*)Result);
 			}
 			template <typename T, typename... Args>
 			static T* BindUnmanaged(Args... Data)
@@ -685,72 +584,12 @@ namespace Tomahawk
 			template <typename T>
 			static void BindUnmanagedList(VMCGeneric* Generic)
 			{
-				VMWGeneric Args(Generic);
+				VMGeneric Args(Generic);
 				*reinterpret_cast<T**>(Args.GetAddressOfReturnLocation()) = new T((unsigned char*)Args.GetArgAddress(0));
 			}
-		};
-
-		class THAWK_OUT VMCRandom
-		{
-		private:
-			std::mt19937 Twister;
-			std::uniform_real_distribution<double> DDist = std::uniform_real_distribution<double>(0.0, 1.0);
-			int Ref = 1;
-
-		public:
-			VMCRandom();
-			void AddRef();
-			void Release();
-			void SeedFromTime();
-			uint32_t GetU();
-			int32_t GetI();
-			double GetD();
-			void Seed(uint32_t Seed);
-			void Seed(VMCArray* Array);
-			void Assign(VMCRandom* From);
-
-		public:
-			static VMCRandom* Create();
-		};
-
-		class THAWK_OUT VMCAsync
-		{
-		private:
-			AsyncDoneCallback Done;
-			VMCContext* Context;
-			VMCAny* Any;
-			std::mutex Mutex;
-			bool Rejected;
-			bool GCFlag;
-			int Ref;
 
 		private:
-			VMCAsync(VMCContext* Base);
-
-		public:
-			void EnumReferences(VMCManager* Engine);
-			void ReleaseReferences(VMCManager* Engine);
-			void AddRef();
-			void Release();
-			void SetGCFlag();
-			bool GetGCFlag();
-			int GetRefCount();
-			int Set(VMCAny* Value);
-			int Set(const struct VMWAny& Value);
-			int Set(void* Ref, int TypeId);
-			int Set(void* Ref, const char* TypeName);
-			bool GetAny(void* Ref, int TypeId) const;
-			VMCAny* Get() const;
-			VMCAsync* Await();
-
-		public:
-			static VMCAsync* Create(const AsyncWorkCallback& WorkCallback, const AsyncDoneCallback& DoneCallback);
-			static VMCAsync* CreateFilled(void* Ref, int TypeId);
-			static VMCAsync* CreateFilled(void* Ref, const char* TypeName);
-			static VMCAsync* CreateFilled(bool Value);
-			static VMCAsync* CreateFilled(int64_t Value);
-			static VMCAsync* CreateFilled(double Value);
-			static VMCAsync* CreateEmpty();
+			static int AtomicNotifyGC(const char* TypeName, void* Object);
 		};
 
 		struct THAWK_OUT VMByteCode
@@ -783,13 +622,13 @@ namespace Tomahawk
 			bool IsReference;
 		};
 
-		struct THAWK_OUT VMWMessage
+		struct THAWK_OUT VMMessage
 		{
 		private:
 			asSMessageInfo* Info;
 
 		public:
-			VMWMessage(asSMessageInfo* Info);
+			VMMessage(asSMessageInfo* Info);
 			const char* GetSection() const;
 			const char* GetMessage() const;
 			VMLogType GetType() const;
@@ -799,52 +638,52 @@ namespace Tomahawk
 			bool IsValid() const;
 		};
 
-		struct THAWK_OUT VMWTypeInfo
+		struct THAWK_OUT VMTypeInfo
 		{
 		private:
 			VMManager* Manager;
 			VMCTypeInfo* Info;
 
 		public:
-			VMWTypeInfo(VMCTypeInfo* TypeInfo);
+			VMTypeInfo(VMCTypeInfo* TypeInfo);
 			void ForEachProperty(const PropertyCallback& Callback);
 			void ForEachMethod(const MethodCallback& Callback);
 			const char* GetGroup() const;
 			size_t GetAccessMask() const;
-			VMWModule GetModule() const;
+			VMModule GetModule() const;
 			int AddRef() const;
 			int Release();
 			const char* GetName() const;
 			const char* GetNamespace() const;
-			VMWTypeInfo GetBaseType() const;
-			bool DerivesFrom(const VMWTypeInfo& Type) const;
+			VMTypeInfo GetBaseType() const;
+			bool DerivesFrom(const VMTypeInfo& Type) const;
 			size_t GetFlags() const;
 			unsigned int GetSize() const;
 			int GetTypeId() const;
 			int GetSubTypeId(unsigned int SubTypeIndex = 0) const;
-			VMWTypeInfo GetSubType(unsigned int SubTypeIndex = 0) const;
+			VMTypeInfo GetSubType(unsigned int SubTypeIndex = 0) const;
 			unsigned int GetSubTypeCount() const;
 			unsigned int GetInterfaceCount() const;
-			VMWTypeInfo GetInterface(unsigned int Index) const;
-			bool Implements(const VMWTypeInfo& Type) const;
+			VMTypeInfo GetInterface(unsigned int Index) const;
+			bool Implements(const VMTypeInfo& Type) const;
 			unsigned int GetFactoriesCount() const;
-			VMWFunction GetFactoryByIndex(unsigned int Index) const;
-			VMWFunction GetFactoryByDecl(const char* Decl) const;
+			VMFunction GetFactoryByIndex(unsigned int Index) const;
+			VMFunction GetFactoryByDecl(const char* Decl) const;
 			unsigned int GetMethodsCount() const;
-			VMWFunction GetMethodByIndex(unsigned int Index, bool GetVirtual = true) const;
-			VMWFunction GetMethodByName(const char* Name, bool GetVirtual = true) const;
-			VMWFunction GetMethodByDecl(const char* Decl, bool GetVirtual = true) const;
+			VMFunction GetMethodByIndex(unsigned int Index, bool GetVirtual = true) const;
+			VMFunction GetMethodByName(const char* Name, bool GetVirtual = true) const;
+			VMFunction GetMethodByDecl(const char* Decl, bool GetVirtual = true) const;
 			unsigned int GetPropertiesCount() const;
 			int GetProperty(unsigned int Index, VMFuncProperty* Out) const;
 			const char* GetPropertyDeclaration(unsigned int Index, bool IncludeNamespace = false) const;
 			unsigned int GetBehaviourCount() const;
-			VMWFunction GetBehaviourByIndex(unsigned int Index, VMBehave* OutBehaviour) const;
+			VMFunction GetBehaviourByIndex(unsigned int Index, VMBehave* OutBehaviour) const;
 			unsigned int GetChildFunctionDefCount() const;
-			VMWTypeInfo GetChildFunctionDef(unsigned int Index) const;
-			VMWTypeInfo GetParentType() const;
+			VMTypeInfo GetChildFunctionDef(unsigned int Index) const;
+			VMTypeInfo GetParentType() const;
 			unsigned int GetEnumValueCount() const;
 			const char* GetEnumValueByIndex(unsigned int Index, int* OutValue) const;
-			VMWFunction GetFunctionDefSignature() const;
+			VMFunction GetFunctionDefSignature() const;
 			void* SetUserData(void* Data, uint64_t Type = 0);
 			void* GetUserData(uint64_t Type = 0) const;
 			bool IsHandle() const;
@@ -905,24 +744,24 @@ namespace Tomahawk
 			static bool IsScriptObject(int TypeId);
 		};
 
-		struct THAWK_OUT VMWFunction
+		struct THAWK_OUT VMFunction
 		{
 		private:
 			VMManager* Manager;
 			VMCFunction* Function;
 
 		public:
-			VMWFunction(VMCFunction* Base);
+			VMFunction(VMCFunction* Base);
 			int AddRef() const;
 			int Release();
 			int GetId() const;
 			VMFuncType GetType() const;
 			const char* GetModuleName() const;
-			VMWModule GetModule() const;
+			VMModule GetModule() const;
 			const char* GetSectionName() const;
 			const char* GetGroup() const;
 			size_t GetAccessMask() const;
-			VMWTypeInfo GetObjectType() const;
+			VMTypeInfo GetObjectType() const;
 			const char* GetObjectName() const;
 			const char* GetName() const;
 			const char* GetNamespace() const;
@@ -941,8 +780,8 @@ namespace Tomahawk
 			int GetTypeId() const;
 			bool IsCompatibleWithTypeId(int TypeId) const;
 			void* GetDelegateObject() const;
-			VMWTypeInfo GetDelegateObjectType() const;
-			VMWFunction GetDelegateFunction() const;
+			VMTypeInfo GetDelegateObjectType() const;
+			VMFunction GetDelegateFunction() const;
 			unsigned int GetPropertiesCount() const;
 			int GetProperty(unsigned int Index, const char** Name, int* TypeId = nullptr) const;
 			const char* GetPropertyDecl(unsigned int Index, bool IncludeNamespace = false) const;
@@ -954,264 +793,30 @@ namespace Tomahawk
 			VMManager* GetManager() const;
 		};
 
-		struct THAWK_OUT VMWArray
-		{
-		private:
-			VMCArray* Array;
-
-		public:
-			VMWArray(VMCArray* Base);
-			void AddRef() const;
-			void Release();
-			VMWTypeInfo GetArrayObjectType() const;
-			int GetArrayTypeId() const;
-			int GetElementTypeId() const;
-			unsigned int GetSize() const;
-			bool IsEmpty() const;
-			void Reserve(unsigned int NumElements);
-			void Resize(unsigned int NumElements);
-			void* At(unsigned int Index);
-			const void* At(unsigned int Index) const;
-			void SetValue(unsigned int Index, void* Value);
-			void InsertAt(unsigned int Index, void* Value);
-			void RemoveAt(unsigned int Index);
-			void InsertLast(void* Value);
-			void RemoveLast();
-			void SortAsc();
-			void SortAsc(unsigned int StartAt, unsigned int Count);
-			void SortDesc();
-			void SortDesc(unsigned int StartAt, unsigned int Count);
-			void Sort(unsigned int StartAt, unsigned int Count, bool Asc);
-			void Sort(const VMWFunction& Less, unsigned int StartAt, unsigned int Count);
-			void Reverse();
-			int Find(void* Value) const;
-			int Find(unsigned int StartAt, void* Value) const;
-			int FindByRef(void* Ref) const;
-			int FindByRef(unsigned int StartAt, void* Ref) const;
-			void* GetBuffer();
-			bool IsValid() const;
-			VMCArray* GetArray() const;
-
-		public:
-			static VMWArray Create(const VMWTypeInfo& ArrayType);
-			static VMWArray Create(const VMWTypeInfo& ArrayType, unsigned int Length);
-			static VMWArray Create(const VMWTypeInfo& ArrayType, unsigned int Length, void* DefaultValue);
-			static VMWArray Create(const VMWTypeInfo& ArrayType, void* ListBuffer);
-
-		public:
-			template <typename T>
-			static VMWArray ComposeFromObjects(const VMWTypeInfo& ArrayType, const std::vector<T>& Objects)
-			{
-				VMWArray Array = Create(ArrayType, (unsigned int)Objects.size());
-				for (size_t i = 0; i < Objects.size(); i++)
-					Array.SetValue(i, (void*)&Objects[i]);
-
-				return Array;
-			}
-			template <typename T>
-			static VMWArray ComposeFromPointers(const VMWTypeInfo& ArrayType, const std::vector<T*>& Objects)
-			{
-				VMWArray Array = Create(ArrayType, (unsigned int)Objects.size());
-				for (size_t i = 0; i < Objects.size(); i++)
-					Array.SetValue(i, (void*)Objects[i]);
-
-				return Array;
-			}
-			template <typename T>
-			static void DecomposeToObjects(const VMWArray& Array, std::vector<T>* Objects)
-			{
-				if (!Objects)
-					return;
-
-				unsigned int Size = Array.GetSize();
-				Objects->reserve(Size);
-
-				for (unsigned int i = 0; i < Size; i++)
-				{
-					T* Object = (T*)Array.At(i);
-					Objects->push_back(*Object);
-				}
-			}
-			template <typename T>
-			static void DecomposeToPointers(const VMWArray& Array, std::vector<T*>* Objects)
-			{
-				if (!Objects)
-					return;
-
-				unsigned int Size = Array.GetSize();
-				Objects->reserve(Size);
-
-				for (unsigned int i = 0; i < Size; i++)
-				{
-					T* Object = (T*)Array.At(i);
-					Objects->push_back(Object);
-				}
-			}
-		};
-
-		struct THAWK_OUT VMWAny
-		{
-		private:
-			VMCAny* Any;
-
-		public:
-			VMWAny(VMCAny* Base);
-			int AddRef() const;
-			int Release();
-			int CopyFrom(const VMWAny& Other);
-			void Store(void* Ref, int RefTypeId);
-			void Store(as_int64_t& Value);
-			void Store(double& Value);
-			bool RetrieveAny(void** Ref, int* RefTypeId) const;
-			bool Retrieve(void* Ref, int RefTypeId) const;
-			bool Retrieve(as_int64_t& Value) const;
-			bool Retrieve(double& Value) const;
-			int GetTypeId() const;
-			bool IsValid() const;
-			VMCAny* GetAny() const;
-
-		public:
-			static VMWAny Create(VMManager* Manager, void* Ref, int TypeId);
-		};
-
-		struct THAWK_OUT VMWObject
+		struct THAWK_OUT VMObject
 		{
 		private:
 			VMCObject* Object;
 
 		public:
-			VMWObject(VMCObject* Base);
+			VMObject(VMCObject* Base);
 			int AddRef() const;
 			int Release();
-			VMCLockableSharedBool* GetWeakRefFlag();
-			VMWTypeInfo GetObjectType();
+			VMTypeInfo GetObjectType();
 			int GetTypeId();
 			int GetPropertyTypeId(unsigned int Id) const;
 			unsigned int GetPropertiesCount() const;
 			const char* GetPropertyName(unsigned int Id) const;
 			void* GetAddressOfProperty(unsigned int Id);
 			VMManager* GetManager() const;
-			int CopyFrom(const VMWObject& Other);
+			int CopyFrom(const VMObject& Other);
 			void* SetUserData(void* Data, uint64_t Type = 0);
 			void* GetUserData(uint64_t Type = 0) const;
 			bool IsValid() const;
 			VMCObject* GetObject() const;
 		};
 
-		struct THAWK_OUT VMWDictionary
-		{
-		private:
-			VMCDictionary* Dictionary;
-
-		public:
-			VMWDictionary(VMCDictionary* Base);
-			void AddRef() const;
-			void Release();
-			void Set(const std::string& Key, void* Value, int TypeId);
-			void Set(const std::string& Key, as_int64_t& Value);
-			void Set(const std::string& Key, double& Value);
-			bool GetIndex(size_t Index, std::string* Key, void** Value, int* TypeId) const;
-			bool Get(const std::string& Key, void** Value, int* TypeId) const;
-			bool Get(const std::string& Key, as_int64_t& Value) const;
-			bool Get(const std::string& Key, double& Value) const;
-			int GetTypeId(const std::string& Key) const;
-			bool Exists(const std::string& Key) const;
-			bool IsEmpty() const;
-			unsigned int GetSize() const;
-			bool Delete(const std::string& Key);
-			void DeleteAll();
-			VMWArray GetKeys() const;
-			bool IsValid() const;
-			VMCDictionary* GetDictionary() const;
-
-		public:
-			static VMWDictionary Create(VMManager* Engine);
-		};
-
-		struct THAWK_OUT VMWGrid
-		{
-		private:
-			VMCGrid* Grid;
-
-		public:
-			VMWGrid(VMCGrid* Base);
-			void AddRef() const;
-			void Release();
-			VMWTypeInfo GetGridObjectType() const;
-			int GetGridTypeId() const;
-			int GetElementTypeId() const;
-			unsigned int GetWidth() const;
-			unsigned int GetHeight() const;
-			void Resize(unsigned int Width, unsigned int Height);
-			void* At(unsigned int X, unsigned int Y);
-			const void* At(unsigned int X, unsigned int Y) const;
-			void SetValue(unsigned int X, unsigned int Y, void* Value);
-			bool IsValid() const;
-			VMCGrid* GetGrid() const;
-
-		public:
-			static VMWGrid Create(const VMWTypeInfo& GridType);
-			static VMWGrid Create(const VMWTypeInfo& GridType, unsigned int Width, unsigned int Height);
-			static VMWGrid Create(const VMWTypeInfo& GridType, unsigned int Width, unsigned int Height, void* DefaultValue);
-			static VMWGrid Create(const VMWTypeInfo& GridType, void* ListBuffer);
-		};
-
-		struct THAWK_OUT VMWWeakRef
-		{
-		private:
-			VMCWeakRef* WeakRef;
-
-		public:
-			VMWWeakRef(VMCWeakRef* Base);
-			VMWWeakRef& Set(void* NewRef);
-			void* Get() const;
-			bool Equals(void* Ref) const;
-			VMWTypeInfo GetRefType() const;
-			bool IsValid() const;
-			VMCWeakRef* GetWeakRef() const;
-
-		public:
-			static VMWWeakRef Create(void* Ref, const VMWTypeInfo& TypeInfo);
-		};
-
-		struct THAWK_OUT VMWRef
-		{
-		private:
-			VMCRef* Ref;
-
-		public:
-			VMWRef(VMCRef* Base);
-			void Set(void* Ref, const VMWTypeInfo& Type);
-			bool Equals(void* Ref, int TypeId) const;
-			void Cast(void** OutRef, int TypeId);
-			VMWTypeInfo GetType() const;
-			int GetTypeId() const;
-			void* GetHandle();
-			bool IsValid() const;
-			VMCRef* GetRef() const;
-
-		public:
-			static VMWRef Create(void* Ref, const VMWTypeInfo& TypeInfo);
-		};
-
-		struct THAWK_OUT VMWLockableSharedBool
-		{
-		private:
-			VMCLockableSharedBool* Bool;
-
-		public:
-			VMWLockableSharedBool(VMCLockableSharedBool* Base);
-			int AddRef() const;
-			int Release();
-			bool Get() const;
-			void Set(bool Value);
-			void Lock() const;
-			void Unlock() const;
-			bool IsValid() const;
-			VMCLockableSharedBool* GetSharedBool() const;
-		};
-
-		struct THAWK_OUT VMWClass
+		struct THAWK_OUT VMClass
 		{
 		protected:
 			VMManager* Manager;
@@ -1219,7 +824,7 @@ namespace Tomahawk
 			int TypeId;
 
 		public:
-			VMWClass(VMManager* Engine, const std::string& Name, int Type);
+			VMClass(VMManager* Engine, const std::string& Name, int Type);
 			int SetFunctionDef(const char* Decl);
 			int SetOperatorCopyAddress(asSFuncPtr* Value);
 			int SetBehaviourAddress(const char* Decl, VMBehave Behave, asSFuncPtr* Value, VMCall = VMCall_THISCALL);
@@ -1515,10 +1120,10 @@ namespace Tomahawk
 			}
 		};
 
-		struct THAWK_OUT VMWRefClass : public VMWClass
+		struct THAWK_OUT VMRefClass : public VMClass
 		{
 		public:
-			VMWRefClass(VMManager* Engine, const std::string& Name, int Type) : VMWClass(Engine, Name, Type)
+			VMRefClass(VMManager* Engine, const std::string& Name, int Type) : VMClass(Engine, Name, Type)
 			{
 			}
 
@@ -1683,10 +1288,10 @@ namespace Tomahawk
 			}
 		};
 
-		struct THAWK_OUT VMWTypeClass : public VMWClass
+		struct THAWK_OUT VMTypeClass : public VMClass
 		{
 		public:
-			VMWTypeClass(VMManager* Engine, const std::string& Name, int Type) : VMWClass(Engine, Name, Type)
+			VMTypeClass(VMManager* Engine, const std::string& Name, int Type) : VMClass(Engine, Name, Type)
 			{
 			}
 
@@ -1738,7 +1343,7 @@ namespace Tomahawk
 			}
 		};
 
-		struct THAWK_OUT VMWInterface
+		struct THAWK_OUT VMInterface
 		{
 		private:
 			VMManager* Manager;
@@ -1746,7 +1351,7 @@ namespace Tomahawk
 			int TypeId;
 
 		public:
-			VMWInterface(VMManager* Engine, const std::string& Name, int Type);
+			VMInterface(VMManager* Engine, const std::string& Name, int Type);
 			int SetMethod(const char* Decl);
 			int GetTypeId() const;
 			bool IsValid() const;
@@ -1754,7 +1359,7 @@ namespace Tomahawk
 			VMManager* GetManager() const;
 		};
 
-		struct THAWK_OUT VMWEnum
+		struct THAWK_OUT VMEnum
 		{
 		private:
 			VMManager* Manager;
@@ -1762,7 +1367,7 @@ namespace Tomahawk
 			int TypeId;
 
 		public:
-			VMWEnum(VMManager* Engine, const std::string& Name, int Type);
+			VMEnum(VMManager* Engine, const std::string& Name, int Type);
 			int SetValue(const char* Name, int Value);
 			int GetTypeId() const;
 			bool IsValid() const;
@@ -1770,35 +1375,35 @@ namespace Tomahawk
 			VMManager* GetManager() const;
 		};
 
-		struct THAWK_OUT VMWModule
+		struct THAWK_OUT VMModule
 		{
 		private:
 			VMManager* Manager;
 			VMCModule* Mod;
 
 		public:
-			VMWModule(VMCModule* Type);
+			VMModule(VMCModule* Type);
 			void SetName(const char* Name);
 			int AddSection(const char* Name, const char* Code, size_t CodeLength = 0, int LineOffset = 0);
-			int RemoveFunction(const VMWFunction& Function);
+			int RemoveFunction(const VMFunction& Function);
 			int ResetProperties(VMCContext* Context = nullptr);
 			int Build();
 			int LoadByteCode(VMByteCode* Info);
 			int Discard();
-			int BindImportedFunction(size_t ImportIndex, const VMWFunction& Function);
+			int BindImportedFunction(size_t ImportIndex, const VMFunction& Function);
 			int UnbindImportedFunction(size_t ImportIndex);
 			int BindAllImportedFunctions();
 			int UnbindAllImportedFunctions();
-			int CompileFunction(const char* SectionName, const char* Code, int LineOffset, size_t CompileFlags, VMWFunction* OutFunction);
+			int CompileFunction(const char* SectionName, const char* Code, int LineOffset, size_t CompileFlags, VMFunction* OutFunction);
 			int CompileProperty(const char* SectionName, const char* Code, int LineOffset);
 			int SetDefaultNamespace(const char* NameSpace);
 			void* GetAddressOfProperty(size_t Index);
 			int RemoveProperty(size_t Index);
 			size_t SetAccessMask(size_t AccessMask);
 			size_t GetFunctionCount() const;
-			VMWFunction GetFunctionByIndex(size_t Index) const;
-			VMWFunction GetFunctionByDecl(const char* Decl) const;
-			VMWFunction GetFunctionByName(const char* Name) const;
+			VMFunction GetFunctionByIndex(size_t Index) const;
+			VMFunction GetFunctionByDecl(const char* Decl) const;
+			VMFunction GetFunctionByName(const char* Name) const;
 			int GetTypeIdByDecl(const char* Decl) const;
 			int GetImportedFunctionIndexByDecl(const char* Decl) const;
 			int SaveByteCode(VMByteCode* Info) const;
@@ -1810,10 +1415,10 @@ namespace Tomahawk
 			size_t GetPropertiesCount() const;
 			size_t GetEnumsCount() const;
 			size_t GetImportedFunctionCount() const;
-			VMWTypeInfo GetObjectByIndex(size_t Index) const;
-			VMWTypeInfo GetTypeInfoByName(const char* Name) const;
-			VMWTypeInfo GetTypeInfoByDecl(const char* Decl) const;
-			VMWTypeInfo GetEnumByIndex(size_t Index) const;
+			VMTypeInfo GetObjectByIndex(size_t Index) const;
+			VMTypeInfo GetTypeInfoByName(const char* Name) const;
+			VMTypeInfo GetTypeInfoByDecl(const char* Decl) const;
+			VMTypeInfo GetEnumByIndex(size_t Index) const;
 			const char* GetPropertyDecl(size_t Index, bool IncludeNamespace = false) const;
 			const char* GetDefaultNamespace() const;
 			const char* GetImportedFunctionDecl(size_t ImportIndex) const;
@@ -1893,35 +1498,34 @@ namespace Tomahawk
 			int SetFunctionDef(const char* Decl);
 			int SetFunctionAddress(const char* Decl, asSFuncPtr* Value, VMCall Type = VMCall_CDECL);
 			int SetPropertyAddress(const char* Decl, void* Value);
-			VMWTypeClass SetStructAddress(const char* Name, size_t Size, uint64_t Flags = VMObjType_VALUE);
-			VMWTypeClass SetPodAddress(const char* Name, size_t Size, uint64_t Flags = VMObjType_VALUE | VMObjType_POD);
-			VMWRefClass SetClassAddress(const char* Name, uint64_t Flags = VMObjType_REF);
-			VMWInterface SetInterface(const char* Name);
-			VMWEnum SetEnum(const char* Name);
+			VMTypeClass SetStructAddress(const char* Name, size_t Size, uint64_t Flags = VMObjType_VALUE);
+			VMTypeClass SetPodAddress(const char* Name, size_t Size, uint64_t Flags = VMObjType_VALUE | VMObjType_POD);
+			VMRefClass SetClassAddress(const char* Name, uint64_t Flags = VMObjType_REF);
+			VMInterface SetInterface(const char* Name);
+			VMEnum SetEnum(const char* Name);
 			size_t GetFunctionsCount() const;
-			VMWFunction GetFunctionById(int Id) const;
-			VMWFunction GetFunctionByIndex(int Index) const;
-			VMWFunction GetFunctionByDecl(const char* Decl) const;
+			VMFunction GetFunctionById(int Id) const;
+			VMFunction GetFunctionByIndex(int Index) const;
+			VMFunction GetFunctionByDecl(const char* Decl) const;
 			size_t GetPropertiesCount() const;
 			int GetPropertyByIndex(int Index, VMProperty* Info) const;
 			int GetPropertyIndexByName(const char* Name) const;
 			int GetPropertyIndexByDecl(const char* Decl) const;
 			size_t GetObjectsCount() const;
-			VMWTypeInfo GetObjectByTypeId(int TypeId) const;
+			VMTypeInfo GetObjectByTypeId(int TypeId) const;
 			size_t GetEnumCount() const;
-			VMWTypeInfo GetEnumByTypeId(int TypeId) const;
+			VMTypeInfo GetEnumByTypeId(int TypeId) const;
 			size_t GetFunctionDefsCount() const;
-			VMWTypeInfo GetFunctionDefByIndex(int Index) const;
+			VMTypeInfo GetFunctionDefByIndex(int Index) const;
 			size_t GetModulesCount() const;
 			VMCModule* GetModuleById(int Id) const;
 			int GetTypeIdByDecl(const char* Decl) const;
 			const char* GetTypeIdDecl(int TypeId, bool IncludeNamespace = false) const;
 			int GetSizeOfPrimitiveType(int TypeId) const;
 			std::string GetObjectView(void* Object, int TypeId);
-			std::string GetObjectView(const VMWAny& Any);
-			VMWTypeInfo GetTypeInfoById(int TypeId) const;
-			VMWTypeInfo GetTypeInfoByName(const char* Name) const;
-			VMWTypeInfo GetTypeInfoByDecl(const char* Decl) const;
+			VMTypeInfo GetTypeInfoById(int TypeId) const;
+			VMTypeInfo GetTypeInfoByName(const char* Name) const;
+			VMTypeInfo GetTypeInfoByDecl(const char* Decl) const;
 			VMManager* GetManager() const;
 
 		public:
@@ -1949,25 +1553,25 @@ namespace Tomahawk
 				return SetPropertyAddress(Decl, (void*)Value);
 			}
 			template <typename T>
-			VMWRefClass SetClassManaged(const char* Name, void(T::*EnumRefs)(VMCManager*), void(T::*ReleaseRefs)(VMCManager*))
+			VMRefClass SetClassManaged(const char* Name, void(T::*EnumRefs)(VMCManager*), void(T::*ReleaseRefs)(VMCManager*))
 			{
-				VMWRefClass Class = SetClassAddress(Name, VMObjType_REF | VMObjType_GC);
+				VMRefClass Class = SetClassAddress(Name, VMObjType_REF | VMObjType_GC);
 				Class.SetManaged<T>(EnumRefs, ReleaseRefs);
 
 				return Class;
 			}
 			template <typename T>
-			VMWRefClass SetClassUnmanaged(const char* Name)
+			VMRefClass SetClassUnmanaged(const char* Name)
 			{
-				VMWRefClass Class = SetClassAddress(Name, VMObjType_REF);
+				VMRefClass Class = SetClassAddress(Name, VMObjType_REF);
 				Class.SetUnmanaged<T>();
 
 				return Class;
 			}
 			template <typename T>
-			VMWTypeClass SetStructManaged(const char* Name, void(T::*EnumRefs)(VMCManager*), void(T::* ReleaseRefs)(VMCManager*))
+			VMTypeClass SetStructManaged(const char* Name, void(T::*EnumRefs)(VMCManager*), void(T::* ReleaseRefs)(VMCManager*))
 			{
-				VMWTypeClass Struct = SetStructAddress(Name, sizeof(T), VMObjType_VALUE | VMObjType_GC | VMBind::GetTypeTraits<T>());
+				VMTypeClass Struct = SetStructAddress(Name, sizeof(T), VMObjType_VALUE | VMObjType_GC | VMBind::GetTypeTraits<T>());
 				Struct.SetEnumRefs(EnumRefs);
 				Struct.SetReleaseRefs(ReleaseRefs);
 				Struct.SetDestructor<T>("void f()");
@@ -1975,16 +1579,16 @@ namespace Tomahawk
 				return Struct;
 			}
 			template <typename T>
-			VMWTypeClass SetStructUnmanaged(const char* Name)
+			VMTypeClass SetStructUnmanaged(const char* Name)
 			{
-				VMWTypeClass Struct = SetStructAddress(Name, sizeof(T), VMObjType_VALUE | VMBind::GetTypeTraits<T>());
+				VMTypeClass Struct = SetStructAddress(Name, sizeof(T), VMObjType_VALUE | VMBind::GetTypeTraits<T>());
 				Struct.SetOperatorCopy<T>();
 				Struct.SetDestructor<T>("void f()");
 
 				return Struct;
 			}
 			template <typename T>
-			VMWTypeClass SetPod(const char* Name)
+			VMTypeClass SetPod(const char* Name)
 			{
 				return SetPodAddress(Name, sizeof(T), VMObjType_VALUE | VMObjType_POD | VMBind::GetTypeTraits<T>());
 			}
@@ -2002,7 +1606,6 @@ namespace Tomahawk
 			asIScriptModule* Module;
 			VMManager* Manager;
 			VMContext* Context;
-			uint64_t Features;
 			VMByteCode VCache;
 			bool BuiltOK;
 
@@ -2011,7 +1614,6 @@ namespace Tomahawk
 			~VMCompiler();
 			void SetIncludeCallback(const Compute::ProcIncludeCallback& Callback);
 			void SetPragmaCallback(const Compute::ProcPragmaCallback& Callback);
-			void SetAllowedFeatures(uint64_t Features);
 			void Define(const std::string& Word);
 			void Undefine(const std::string& Word);
 			void Clear();
@@ -2033,7 +1635,7 @@ namespace Tomahawk
 			int ExecuteEntry(const char* Name, void* Return = nullptr, int ReturnTypeId = VMTypeId_VOID);
 			int ExecuteScoped(const std::string& Code, void* Return = nullptr, int ReturnTypeId = VMTypeId_VOID);
 			int ExecuteScoped(const char* Buffer, uint64_t Length, void* Return = nullptr, int ReturnTypeId = VMTypeId_VOID);
-			VMWModule GetModule() const;
+			VMModule GetModule() const;
 			VMManager* GetManager() const;
 			VMContext* GetContext() const;
 			Compute::Preprocessor* GetProcessor() const;
@@ -2057,7 +1659,7 @@ namespace Tomahawk
 			int SetExceptionCallback(void(* Callback)(VMCContext* Context, void* Object), void* Object);
 			int AddRefVM() const;
 			int ReleaseVM();
-			int Prepare(const VMWFunction& Function);
+			int Prepare(const VMFunction& Function);
 			int Unprepare();
 			int Execute();
 			int Resume();
@@ -2090,14 +1692,14 @@ namespace Tomahawk
 			void* GetAddressOfReturnValue();
 			int SetException(const char* Info, bool AllowCatch = true);
 			int GetExceptionLineNumber(int* Column = 0, const char** SectionName = 0);
-			VMWFunction GetExceptionFunction();
+			VMFunction GetExceptionFunction();
 			const char* GetExceptionString();
 			bool WillExceptionBeCaught();
 			void ClearExceptionCallback();
 			int SetLineCallback(void(* Callback)(VMCContext* Context, void* Object), void* Object);
 			void ClearLineCallback();
 			unsigned int GetCallstackSize() const;
-			VMWFunction GetFunction(unsigned int StackLevel = 0);
+			VMFunction GetFunction(unsigned int StackLevel = 0);
 			int GetLineNumber(unsigned int StackLevel = 0, int* Column = 0, const char** SectionName = 0);
 			int GetPropertiesCount(unsigned int StackLevel = 0);
 			const char* GetPropertyName(unsigned int Index, unsigned int StackLevel = 0);
@@ -2107,7 +1709,7 @@ namespace Tomahawk
 			bool IsPropertyInScope(unsigned int Index, unsigned int StackLevel = 0);
 			int GetThisTypeId(unsigned int StackLevel = 0);
 			void* GetThisPointer(unsigned int StackLevel = 0);
-			VMWFunction GetSystemFunction();
+			VMFunction GetSystemFunction();
 			bool IsSuspended() const;
 			void* SetUserData(void* Data, uint64_t Type = 0);
 			void* GetUserData(uint64_t Type = 0) const;
@@ -2138,22 +1740,22 @@ namespace Tomahawk
 			std::unordered_map<std::string, std::string> Files;
 			std::unordered_map<std::string, Rest::Document*> Datas;
 			std::unordered_map<std::string, VMByteCode> Opcodes;
+			std::unordered_map<std::string, bool> Features;
 			std::vector<VMCContext*> Contexts;
 			Compute::Preprocessor::Desc Proc;
 			Compute::IncludeDesc Include;
 			std::mutex Safe;
-			uint64_t Features;
 			uint64_t Scope;
-			VMCJITCompiler* JIT;
 			VMCManager* Engine;
 			VMGlobal Globals;
+			int Nullable;
+			void* JIT;
 			bool Cached;
 
 		public:
 			VMManager();
 			~VMManager();
-			void Setup(uint64_t NewFeatures);
-			void SetupJIT(unsigned int JITOpts);
+			void SetJIT(unsigned int Opts);
 			void SetCache(bool Enabled);
 			void ClearCache();
 			void Lock();
@@ -2163,24 +1765,23 @@ namespace Tomahawk
 			void SetProcessorOptions(Compute::Preprocessor* Processor);
 			int Collect(size_t NumIterations = 1);
 			void GetStatistics(unsigned int* CurrentSize, unsigned int* TotalDestroyed, unsigned int* TotalDetected, unsigned int* NewObjects, unsigned int* TotalNewDestroyed) const;
-			int NotifyOfNewObject(void* Object, const VMWTypeInfo& Type);
-			int GetObjectAddress(size_t Index, size_t* SequenceNumber = nullptr, void** Object = nullptr, VMWTypeInfo* Type = nullptr);
-			void ForwardEnumReferences(void* Reference, const VMWTypeInfo& Type);
-			void ForwardReleaseReferences(void* Reference, const VMWTypeInfo& Type);
+			int NotifyOfNewObject(void* Object, const VMTypeInfo& Type);
+			int GetObjectAddress(size_t Index, size_t* SequenceNumber = nullptr, void** Object = nullptr, VMTypeInfo* Type = nullptr);
+			void ForwardEnumReferences(void* Reference, const VMTypeInfo& Type);
+			void ForwardReleaseReferences(void* Reference, const VMTypeInfo& Type);
 			void GCEnumCallback(void* Reference);
 			bool GetByteCodeCache(VMByteCode* Info);
 			void SetByteCodeCache(VMByteCode* Info);
 			VMContext* CreateContext();
 			VMCompiler* CreateCompiler();
-			void* CreateObject(const VMWTypeInfo& Type);
-			void* CreateObjectCopy(void* Object, const VMWTypeInfo& Type);
-			void* CreateEmptyObject(const VMWTypeInfo& Type);
-			VMWFunction CreateDelegate(const VMWFunction& Function, void* Object);
-			int AssignObject(void* DestObject, void* SrcObject, const VMWTypeInfo& Type);
-			void ReleaseObject(void* Object, const VMWTypeInfo& Type);
-			void AddRefObject(void* Object, const VMWTypeInfo& Type);
-			int RefCastObject(void* Object, const VMWTypeInfo& FromType, const VMWTypeInfo& ToType, void** NewPtr, bool UseOnlyImplicitCast = false);
-			VMWLockableSharedBool GetWeakRefFlagOfObject(void* Object, const VMWTypeInfo& Type) const;
+			void* CreateObject(const VMTypeInfo& Type);
+			void* CreateObjectCopy(void* Object, const VMTypeInfo& Type);
+			void* CreateEmptyObject(const VMTypeInfo& Type);
+			VMFunction CreateDelegate(const VMFunction& Function, void* Object);
+			int AssignObject(void* DestObject, void* SrcObject, const VMTypeInfo& Type);
+			void ReleaseObject(void* Object, const VMTypeInfo& Type);
+			void AddRefObject(void* Object, const VMTypeInfo& Type);
+			int RefCastObject(void* Object, const VMTypeInfo& FromType, const VMTypeInfo& ToType, void** NewPtr, bool UseOnlyImplicitCast = false);
 			int BeginGroup(const char* GroupName);
 			int EndGroup();
 			int RemoveGroup(const char* GroupName);
@@ -2195,7 +1796,7 @@ namespace Tomahawk
 			size_t EndAccessMask();
 			const char* GetNamespace() const;
 			VMGlobal& Global();
-			VMWModule Module(const char* Name);
+			VMModule Module(const char* Name);
 			int SetLogCallback(void(* Callback)(const asSMessageInfo* Message, void* Object), void* Object);
 			int Log(const char* Section, int Row, int Column, VMLogType Type, const char* Message);
 			int AddRefVM() const;
@@ -2207,7 +1808,11 @@ namespace Tomahawk
 			std::string GetDocumentRoot() const;
 			std::string GetScopedName(const std::string& Name);
 			Rest::Document* ImportJSON(const std::string& Path);
+			bool IsNullable(int TypeId);
 			bool ImportFile(const std::string& Path, std::string* Out);
+			bool HasSubmodule(const std::string& Name);
+			bool UseSubmodule(const std::string& Name);
+			std::vector<std::string> GetSubmodules();
 
 		public:
 			static VMManager* Get(VMCManager* Engine);
@@ -2219,6 +1824,7 @@ namespace Tomahawk
 			static VMCContext* RequestContext(VMCManager* Engine, void* Data);
 			static void ReturnContext(VMCManager* Engine, VMCContext* Context, void* Data);
 			static void CompileLogger(asSMessageInfo* Info, void* Object);
+			static void* GetNullable();
 		};
 
 		class THAWK_OUT VMDebugger : public Rest::Object
@@ -2258,7 +1864,7 @@ namespace Tomahawk
 		public:
 			VMDebugger();
 			~VMDebugger();
-			void RegisterToStringCallback(const VMWTypeInfo& Type, ToStringCallback Callback);
+			void RegisterToStringCallback(const VMTypeInfo& Type, ToStringCallback Callback);
 			void TakeCommands(VMContext* Context);
 			void Output(const std::string& Data);
 			void LineCallback(VMContext* Context);

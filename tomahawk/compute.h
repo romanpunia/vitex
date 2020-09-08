@@ -1188,7 +1188,7 @@ namespace Tomahawk
 			static void Sha1ComputeHashBlock(unsigned int* Result, unsigned int* W);
 			static void Sha1Compute(const void* Value, int Length, unsigned char* Hash20);
 			static void Sha1Hash20ToHex(const unsigned char* Hash20, char* HexString);
-			static std::string BinToHex(const char* Value);
+			static std::string BinToHex(const char* Value, size_t Size);
 			static std::string RandomBytes(uint64_t Length);
 			static std::string MD5Hash(const std::string& Value);
 			static std::string Sha256Encode(const char* Value, const char* Key, const char* IV);

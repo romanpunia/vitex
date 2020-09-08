@@ -753,7 +753,6 @@ namespace Tomahawk
 				float RenderQuality = 1.0f;
 				uint64_t EntityCount = 1ll << 15;
 				uint64_t ComponentCount = 1ll << 16;
-				uint64_t ScriptFeatures = Script::VMFeature_All;
 				Compute::Simulator::Desc Simulator;
 				Graphics::GraphicsDevice* Device = nullptr;
 				Script::VMManager* Manager = nullptr;

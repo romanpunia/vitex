@@ -105,6 +105,8 @@ typedef socklen_t socket_size_t;
 #define THAWK_WARN(...)
 #define THAWK_ERROR(...)
 #endif
+#define THAWK_PREFIX_CHAR '$'
+#define THAWK_PREFIX_STR "$"
 #define THAWK_LOG(Format, ...) Tomahawk::Rest::LT::Log(0, THAWK_LINE, THAWK_FILE, Format THAWK_VA_ARGS(__VA_ARGS__))
 #define THAWK_COMPONENT_ID(ClassName) (uint64_t)std::hash<std::string>()(#ClassName)
 #define THAWK_COMPONENT_HASH(ClassName) (uint64_t)std::hash<std::string>()(ClassName)
@@ -819,6 +821,8 @@ namespace Tomahawk
 			static uint64_t GetMemory();
 			static void Free(void* Ptr);
 			static void* Alloc(uint64_t Size);
+			static void Report();
+			static void Interrupt();
 		};
 
 		class THAWK_OUT Composer

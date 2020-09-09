@@ -1497,8 +1497,10 @@ namespace Tomahawk
 			if (!IsValid())
 				return -1;
 
+			Manager->Lock();
 			Mod->Discard();
 			Mod = nullptr;
+			Manager->Unlock();
 
 			return 0;
 		}
@@ -2331,8 +2333,10 @@ namespace Tomahawk
 		}
 		void VMCompiler::Clear()
 		{
+			Manager->Lock();
 			if (Module != nullptr)
 				Module->Discard();
+			Manager->Unlock();
 
 			Processor->Clear();
 			Module = nullptr;
@@ -2363,8 +2367,10 @@ namespace Tomahawk
 			if (!Engine)
 				return -1;
 
+			Manager->Lock();
 			if (Module != nullptr)
 				Module->Discard();
+			Manager->Unlock();
 
 			Module = Engine->GetModule(ModuleName.c_str(), asGM_ALWAYS_CREATE);
 			if (!Module)
@@ -3210,7 +3216,7 @@ namespace Tomahawk
 			if (Engine != nullptr)
 				Engine->ShutDownAndRelease();
 #ifdef HAS_AS_JIT
-			delete JIT;
+			delete (VMCJITCompiler*)JIT;
 #endif
 			ClearCache();
 		}
@@ -3359,7 +3365,11 @@ namespace Tomahawk
 		}
 		int VMManager::Collect(size_t NumIterations)
 		{
-			return Engine->GarbageCollect(asGC_FULL_CYCLE, NumIterations);
+			Safe.lock();
+			int R = Engine->GarbageCollect(asGC_FULL_CYCLE, NumIterations);
+			Safe.unlock();
+
+			return R;
 		}
 		void VMManager::GetStatistics(unsigned int* CurrentSize, unsigned int* TotalDestroyed, unsigned int* TotalDetected, unsigned int* NewObjects, unsigned int* TotalNewDestroyed) const
 		{

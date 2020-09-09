@@ -64,14 +64,14 @@ short offset(asDWORD* op, unsigned n)
 }
 bool clearsTemporary(asEBCInstr op)
 {
-	switch (op) {
+	switch (op)
+	{
 		case asBC_TZ:
 		case asBC_TNZ:
 		case asBC_TS:
 		case asBC_TNS:
 		case asBC_TP:
 		case asBC_TNP:
-
 		case asBC_CMPd:
 		case asBC_CMPu:
 		case asBC_CMPf:
@@ -79,12 +79,9 @@ bool clearsTemporary(asEBCInstr op)
 		case asBC_CMPIi:
 		case asBC_CMPIf:
 		case asBC_CMPIu:
-
 		case asBC_CmpPtr:
-
 		case asBC_CpyVtoR4:
 		case asBC_CpyVtoR8:
-
 		case asBC_CMPi64:
 		case asBC_CMPu64:
 			return true;

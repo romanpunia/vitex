@@ -5009,9 +5009,9 @@ namespace Tomahawk
 			Engine->RegisterObjectBehaviour("Async", asBEHAVE_GETREFCOUNT, "int f()", asMETHOD(VMCAsync, GetRefCount), asCALL_THISCALL);
 			Engine->RegisterObjectBehaviour("Async", asBEHAVE_ENUMREFS, "void f(int&in)", asMETHOD(VMCAsync, EnumReferences), asCALL_THISCALL);
 			Engine->RegisterObjectBehaviour("Async", asBEHAVE_RELEASEREFS, "void f(int&in)", asMETHOD(VMCAsync, ReleaseReferences), asCALL_THISCALL);
-			Engine->RegisterObjectMethod("Async", "Any@ Get()", asMETHOD(VMCAsync, Get), asCALL_THISCALL);
+			Engine->RegisterObjectMethod("Async", "Any@+ Get()", asMETHOD(VMCAsync, Get), asCALL_THISCALL);
 			Engine->RegisterObjectMethod("Async", "bool Get(?&out)", asMETHODPR(VMCAsync, GetAny, (void*, int) const, bool), asCALL_THISCALL);
-			Engine->RegisterObjectMethod("Async", "Async@ Await()", asMETHOD(VMCAsync, Await), asCALL_THISCALL);
+			Engine->RegisterObjectMethod("Async", "Async@+ Await()", asMETHOD(VMCAsync, Await), asCALL_THISCALL);
 			return true;
 		}
 		bool FreeCoreAPI()

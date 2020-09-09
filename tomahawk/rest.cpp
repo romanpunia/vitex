@@ -1978,8 +1978,8 @@ namespace Tomahawk
 #ifndef NDEBUG
 			if (!Objects || !Safe)
 			{
-				THAWK_ERROR("segfault (%p): object delete", Ptr);
-				return;
+				THAWK_ERROR("[segfault] object at 0x%p is suspended", Ptr);
+				return Interrupt();
 			}
 
 			Safe->lock();
@@ -1987,8 +1987,8 @@ namespace Tomahawk
 			if (It == Objects->end())
 			{
 				Safe->unlock();
-				THAWK_ERROR("segfault (%p): object delete", Ptr);
-				return;
+				THAWK_ERROR("[segfault] object at 0x%p is suspended", Ptr);	
+				return Interrupt();
 			}
 
 			Object* Ref = (Object*)Ptr;
@@ -2087,6 +2087,42 @@ namespace Tomahawk
 			return Memory;
 #else
 			return 0;
+#endif
+		}
+		void LT::Report()
+		{
+#ifndef NDEBUG
+			if (!Objects || !Safe || Objects->empty())
+				return;
+
+			Safe->lock();
+			uint64_t Size = 0;
+			for (auto& Item : *Objects)
+			{
+				THAWK_WARN("[memerr] object of size %llu at 0x%p", Item.second, Item.first);
+				Size += Item.second;
+			}
+			THAWK_WARN("[memerr] at least %llu bytes of memory in %i blocks were not released", Size, (int)Objects->size());
+			Safe->unlock();
+			Interrupt();
+#endif
+		}
+		void LT::Interrupt()
+		{
+#ifndef NDEBUG
+#ifndef THAWK_MICROSOFT
+#ifndef SIGTRAP
+			__debugbreak();
+#else
+			raise(SIGTRAP);
+#endif
+#else
+			if (!IsDebuggerPresent())
+				THAWK_ERROR("[dbg] cannot interrupt");
+			else
+				DebugBreak();
+#endif
+			THAWK_INFO("[dbg] process interruption called");
 #endif
 		}
 		std::function<void(const char*, int)> LT::Callback;
@@ -5246,14 +5282,14 @@ namespace Tomahawk
 				}
 				case NodeType_Id:
 #ifdef THAWK_HAS_MONGOC
-					return "\xFF" + Network::BSON::Document::OIdToString((unsigned char*)String.c_str());
+					return THAWK_PREFIX_STR + Network::BSON::Document::OIdToString((unsigned char*)String.c_str());
 #else
-					return "\xFF" + Compute::MathCommon::Base64Encode(String);
+					return THAWK_PREFIX_STR + Compute::MathCommon::Base64Encode(String);
 #endif
 				case NodeType_Null:
-					return "\xFF" "null";
+					return THAWK_PREFIX_STR "null";
 				case NodeType_Undefined:
-					return "\xFF" "undefined";
+					return THAWK_PREFIX_STR "undefined";
 				default:
 					break;
 			}
@@ -5262,25 +5298,25 @@ namespace Tomahawk
 		}
 		bool Document::Deserialize(const std::string& Value)
 		{
-			if (Value == "\xFF" "undefined")
+			if (Value == THAWK_PREFIX_STR "undefined")
 			{
 				Type = NodeType_Undefined;
 				return true;
 			}
 
-			if (Value == "\xFF" "object")
+			if (Value == THAWK_PREFIX_STR "object")
 			{
 				Type = NodeType_Object;
 				return true;
 			}
 
-			if (Value == "\xFF" "array")
+			if (Value == THAWK_PREFIX_STR "array")
 			{
 				Type = NodeType_Array;
 				return true;
 			}
 
-			if (Value == "\xFF" "null")
+			if (Value == THAWK_PREFIX_STR "null")
 			{
 				Type = NodeType_Null;
 				return true;
@@ -5300,7 +5336,7 @@ namespace Tomahawk
 				return true;
 			}
 
-			if (!Value.empty() && Value.front() == '\xFF')
+			if (Value.size() == 25 && Value.front() == THAWK_PREFIX_CHAR)
 			{
 #ifdef THAWK_HAS_MONGOC
 				std::string OId = Network::BSON::Document::StringToOId(Value.substr(1));
@@ -5533,7 +5569,7 @@ namespace Tomahawk
 
 					if (!Document->IsObject() && Document->Type != NodeType_String && Document->Type != NodeType_Id)
 					{
-						if (!Key.empty() && Key.front() == '\xFF')
+						if (!Key.empty() && Key.front() == THAWK_PREFIX_CHAR)
 							Callback(DocumentPretty_Dummy, Key.c_str() + 1, (int64_t)Key.size() - 1);
 						else
 							Callback(DocumentPretty_Dummy, Key.c_str(), (int64_t)Key.size());

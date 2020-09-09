@@ -168,7 +168,7 @@ namespace Tomahawk
 			{
 				VMCArray* Array = Create(ArrayType, (unsigned int)Objects.size());
 				for (size_t i = 0; i < Objects.size(); i++)
-					Array->SetValue(i, (void*)Objects[i]);
+					Array->SetValue(i, (void*)&Objects[i]);
 
 				return Array;
 			}
@@ -587,6 +587,7 @@ namespace Tomahawk
 
 		public:
 			static VMCAsync* Create(const AsyncWorkCallback& WorkCallback, const AsyncDoneCallback& DoneCallback);
+			static VMCAsync* CreatePending();
 			static VMCAsync* CreateFilled(void* Ref, int TypeId);
 			static VMCAsync* CreateFilled(void* Ref, const char* TypeName);
 			static VMCAsync* CreateFilled(bool Value);

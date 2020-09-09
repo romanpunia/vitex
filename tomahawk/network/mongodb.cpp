@@ -64,7 +64,7 @@ namespace Tomahawk
 						{
 							if (Arg < Base.Size())
 							{
-								Base.Insert('\xFF', Arg);
+								Base.Insert(THAWK_PREFIX_CHAR, Arg);
 								Args++; Index++;
 							}
 
@@ -203,7 +203,7 @@ namespace Tomahawk
 				{
 					std::string Value = GetJSON(Sub.second);
 					if (!Value.empty())
-						Result.Replace("\xFF<" + Sub.first + '>', Value);
+						Result.Replace(THAWK_PREFIX_STR "<" + Sub.first + '>', Value);
 
 					if (Once)
 						delete Sub.second;
@@ -212,7 +212,11 @@ namespace Tomahawk
 				if (Once)
 					Map->clear();
 
-				return BSON::Document::Create(Origin.Request);
+				BSON::TDocument* Data = BSON::Document::Create(Origin.Request);
+				if (!Data)
+					THAWK_ERROR("could not construct query: \"%s\"", Name.c_str());
+
+				return Data;
 			}
 			std::vector<std::string> QueryCache::GetQueries()
 			{
@@ -277,9 +281,8 @@ namespace Tomahawk
 					case Rest::NodeType_Id:
 						return "{\"$oid\":\"" + BSON::Document::OIdToString((unsigned char*)Source->String.c_str()) + "\"}";
 					case Rest::NodeType_Null:
-						return "null";
 					case Rest::NodeType_Undefined:
-						return "undefined";
+						return "null";
 					default:
 						break;
 				}
@@ -1405,6 +1408,12 @@ namespace Tomahawk
 				if (!Cursor || !*Cursor)
 					return;
 
+				bson_error_t Error;
+				memset(&Error, 0, sizeof(bson_error_t));
+
+				if (mongoc_cursor_error(*Cursor, &Error))
+					THAWK_ERROR("[mongoc] %s", Error.message);
+
 				mongoc_cursor_destroy(*Cursor);
 				*Cursor = nullptr;
 #endif
@@ -1625,7 +1634,7 @@ namespace Tomahawk
 				{
 					BSON::Document::Release(Selector);
 					BSON::Document::Release(Update);
-					THAWK_ERROR(Error.message);
+					THAWK_ERROR("[mongoc] %s", Error.message);
 					return false;
 				}
 
@@ -1685,7 +1694,7 @@ namespace Tomahawk
 					BSON::Document::Release(Selector);
 					BSON::Document::Release(Update);
 					BSON::Document::Release(Options);
-					THAWK_ERROR(Error.message);
+					THAWK_ERROR("[mongoc] %s", Error.message);
 					return false;
 				}
 
@@ -1708,7 +1717,7 @@ namespace Tomahawk
 
 				if (!mongoc_collection_rename(Collection, NewDatabaseName, NewCollectionName, false, &Error))
 				{
-					THAWK_ERROR(Error.message);
+					THAWK_ERROR("[mongoc] %s", Error.message);
 					return false;
 				}
 
@@ -1732,7 +1741,7 @@ namespace Tomahawk
 				if (!mongoc_collection_rename_with_opts(Collection, NewDatabaseName, NewCollectionName, false, BS(Options), &Error))
 				{
 					BSON::Document::Release(Options);
-					THAWK_ERROR(Error.message);
+					THAWK_ERROR("[mongoc] %s", Error.message);
 					return false;
 				}
 
@@ -1753,7 +1762,7 @@ namespace Tomahawk
 
 				if (!mongoc_collection_rename(Collection, NewDatabaseName, NewCollectionName, true, &Error))
 				{
-					THAWK_ERROR(Error.message);
+					THAWK_ERROR("[mongoc] %s", Error.message);
 					return false;
 				}
 
@@ -1777,7 +1786,7 @@ namespace Tomahawk
 				if (!mongoc_collection_rename_with_opts(Collection, NewDatabaseName, NewCollectionName, true, BS(Options), &Error))
 				{
 					BSON::Document::Release(Options);
-					THAWK_ERROR(Error.message);
+					THAWK_ERROR("[mongoc] %s", Error.message);
 					return false;
 				}
 
@@ -1802,7 +1811,7 @@ namespace Tomahawk
 				if (!mongoc_collection_drop_with_opts(Collection, BS(Options), &Error))
 				{
 					BSON::Document::Release(Options);
-					THAWK_ERROR(Error.message);
+					THAWK_ERROR("[mongoc] %s", Error.message);
 					return false;
 				}
 
@@ -1827,7 +1836,7 @@ namespace Tomahawk
 				if (!mongoc_collection_remove(Collection, (mongoc_remove_flags_t)Flags, BS(Selector), Concern, &Error))
 				{
 					BSON::Document::Release(Selector);
-					THAWK_ERROR(Error.message);
+					THAWK_ERROR("[mongoc] %s", Error.message);
 					return false;
 				}
 
@@ -1854,7 +1863,7 @@ namespace Tomahawk
 				{
 					BSON::Document::Release(Selector);
 					BSON::Document::Release(Options);
-					THAWK_ERROR(Error.message);
+					THAWK_ERROR("[mongoc] %s", Error.message);
 					return false;
 				}
 
@@ -1882,7 +1891,7 @@ namespace Tomahawk
 				{
 					BSON::Document::Release(Selector);
 					BSON::Document::Release(Options);
-					THAWK_ERROR(Error.message);
+					THAWK_ERROR("[mongoc] %s", Error.message);
 					return false;
 				}
 
@@ -1908,7 +1917,7 @@ namespace Tomahawk
 				if (!mongoc_collection_drop_index_with_opts(Collection, Name, BS(Options), &Error))
 				{
 					BSON::Document::Release(Options);
-					THAWK_ERROR(Error.message);
+					THAWK_ERROR("[mongoc] %s", Error.message);
 					return false;
 				}
 
@@ -1937,7 +1946,7 @@ namespace Tomahawk
 					BSON::Document::Release(Selector);
 					BSON::Document::Release(Replacement);
 					BSON::Document::Release(Options);
-					THAWK_ERROR(Error.message);
+					THAWK_ERROR("[mongoc] %s", Error.message);
 					return false;
 				}
 
@@ -1964,7 +1973,7 @@ namespace Tomahawk
 				if (!mongoc_collection_insert(Collection, (mongoc_insert_flags_t)Flags, BS(Document), Concern, &Error))
 				{
 					BSON::Document::Release(Document);
-					THAWK_ERROR(Error.message);
+					THAWK_ERROR("[mongoc] %s", Error.message);
 					return false;
 				}
 
@@ -1989,7 +1998,7 @@ namespace Tomahawk
 				if (!mongoc_collection_insert_many(Collection, (const BSON::TDocument**)Documents, (size_t)Length, BS(Options), BS(Reply), &Error))
 				{
 					BSON::Document::Release(Options);
-					THAWK_ERROR(Error.message);
+					THAWK_ERROR("[mongoc] %s", Error.message);
 					return false;
 				}
 
@@ -2014,7 +2023,7 @@ namespace Tomahawk
 				if (!mongoc_collection_insert_many(Collection, (const BSON::TDocument**)Documents.data(), (size_t)Documents.size(), BS(Options), BS(Reply), &Error))
 				{
 					BSON::Document::Release(Options);
-					THAWK_ERROR(Error.message);
+					THAWK_ERROR("[mongoc] %s", Error.message);
 					return false;
 				}
 
@@ -2041,7 +2050,7 @@ namespace Tomahawk
 				{
 					BSON::Document::Release(Options);
 					BSON::Document::Release(Document);
-					THAWK_ERROR(Error.message);
+					THAWK_ERROR("[mongoc] %s", Error.message);
 					return false;
 				}
 
@@ -2067,7 +2076,7 @@ namespace Tomahawk
 				if (!mongoc_collection_command_simple(Collection, BS(Command), Preferences, BS(Reply), &Error))
 				{
 					BSON::Document::Release(Command);
-					THAWK_ERROR(Error.message);
+					THAWK_ERROR("[mongoc] %s", Error.message);
 					return false;
 				}
 
@@ -2094,7 +2103,7 @@ namespace Tomahawk
 				{
 					BSON::Document::Release(Options);
 					BSON::Document::Release(Command);
-					THAWK_ERROR(Error.message);
+					THAWK_ERROR("[mongoc] %s", Error.message);
 					return false;
 				}
 
@@ -2122,7 +2131,7 @@ namespace Tomahawk
 				{
 					BSON::Document::Release(Command);
 					BSON::Document::Release(Options);
-					THAWK_ERROR(Error.message);
+					THAWK_ERROR("[mongoc] %s", Error.message);
 					return false;
 				}
 
@@ -2150,7 +2159,7 @@ namespace Tomahawk
 				{
 					BSON::Document::Release(Command);
 					BSON::Document::Release(Options);
-					THAWK_ERROR(Error.message);
+					THAWK_ERROR("[mongoc] %s", Error.message);
 					return false;
 				}
 
@@ -2178,7 +2187,7 @@ namespace Tomahawk
 				{
 					BSON::Document::Release(Command);
 					BSON::Document::Release(Options);
-					THAWK_ERROR(Error.message);
+					THAWK_ERROR("[mongoc] %s", Error.message);
 					return false;
 				}
 
@@ -2210,7 +2219,7 @@ namespace Tomahawk
 					BSON::Document::Release(Sort);
 					BSON::Document::Release(Update);
 					BSON::Document::Release(Fields);
-					THAWK_ERROR(Error.message);
+					THAWK_ERROR("[mongoc] %s", Error.message);
 					return false;
 				}
 
@@ -2240,7 +2249,7 @@ namespace Tomahawk
 				{
 					BSON::Document::Release(Query);
 					FindAndModifyOptions::Release(Options);
-					THAWK_ERROR(Error.message);
+					THAWK_ERROR("[mongoc] %s", Error.message);
 					return false;
 				}
 
@@ -2317,7 +2326,7 @@ namespace Tomahawk
 				{
 					BSON::Document::Release(Filter);
 					BSON::Document::Release(Options);
-					THAWK_ERROR(Error.message);
+					THAWK_ERROR("[mongoc] %s", Error.message);
 					return false;
 				}
 
@@ -2344,7 +2353,7 @@ namespace Tomahawk
 				if (Error.code != 0)
 				{
 					BSON::Document::Release(Options);
-					THAWK_ERROR(Error.message);
+					THAWK_ERROR("[mongoc] %s", Error.message);
 					return false;
 				}
 
@@ -2592,7 +2601,7 @@ namespace Tomahawk
 
 				if (!mongoc_database_has_collection(Database, Name, &Error))
 				{
-					THAWK_ERROR(Error.message);
+					THAWK_ERROR("[mongoc] %s", Error.message);
 					return false;
 				}
 
@@ -2612,7 +2621,7 @@ namespace Tomahawk
 
 				if (!mongoc_database_remove_all_users(Database, &Error))
 				{
-					THAWK_ERROR(Error.message);
+					THAWK_ERROR("[mongoc] %s", Error.message);
 					return false;
 				}
 
@@ -2632,7 +2641,7 @@ namespace Tomahawk
 
 				if (!mongoc_database_remove_user(Database, Name, &Error))
 				{
-					THAWK_ERROR(Error.message);
+					THAWK_ERROR("[mongoc] %s", Error.message);
 					return false;
 				}
 
@@ -2652,7 +2661,7 @@ namespace Tomahawk
 
 				if (!mongoc_database_drop(Database, &Error))
 				{
-					THAWK_ERROR(Error.message);
+					THAWK_ERROR("[mongoc] %s", Error.message);
 					return false;
 				}
 
@@ -2679,7 +2688,7 @@ namespace Tomahawk
 				if (!mongoc_database_drop_with_opts(Database, BS(Options), &Error))
 				{
 					BSON::Document::Release(Options);
-					THAWK_ERROR(Error.message);
+					THAWK_ERROR("[mongoc] %s", Error.message);
 					return false;
 				}
 
@@ -2706,7 +2715,7 @@ namespace Tomahawk
 				{
 					BSON::Document::Release(Roles);
 					BSON::Document::Release(Custom);
-					THAWK_ERROR(Error.message);
+					THAWK_ERROR("[mongoc] %s", Error.message);
 					return false;
 				}
 
@@ -2732,7 +2741,7 @@ namespace Tomahawk
 				if (!mongoc_database_command_simple(Database, BS(Command), Preferences, BS(Reply), &Error))
 				{
 					BSON::Document::Release(Command);
-					THAWK_ERROR(Error.message);
+					THAWK_ERROR("[mongoc] %s", Error.message);
 					return false;
 				}
 
@@ -2759,7 +2768,7 @@ namespace Tomahawk
 				{
 					BSON::Document::Release(Command);
 					BSON::Document::Release(Options);
-					THAWK_ERROR(Error.message);
+					THAWK_ERROR("[mongoc] %s", Error.message);
 					return false;
 				}
 
@@ -2787,7 +2796,7 @@ namespace Tomahawk
 				{
 					BSON::Document::Release(Command);
 					BSON::Document::Release(Options);
-					THAWK_ERROR(Error.message);
+					THAWK_ERROR("[mongoc] %s", Error.message);
 					return false;
 				}
 
@@ -2815,7 +2824,7 @@ namespace Tomahawk
 				{
 					BSON::Document::Release(Command);
 					BSON::Document::Release(Options);
-					THAWK_ERROR(Error.message);
+					THAWK_ERROR("[mongoc] %s", Error.message);
 					return false;
 				}
 
@@ -2843,7 +2852,7 @@ namespace Tomahawk
 				{
 					BSON::Document::Release(Command);
 					BSON::Document::Release(Options);
-					THAWK_ERROR(Error.message);
+					THAWK_ERROR("[mongoc] %s", Error.message);
 					return false;
 				}
 
@@ -2868,7 +2877,7 @@ namespace Tomahawk
 
 				if (Names == nullptr)
 				{
-					THAWK_ERROR(Error.message);
+					THAWK_ERROR("[mongoc] %s", Error.message);
 					return std::vector<std::string>();
 				}
 
@@ -2947,7 +2956,7 @@ namespace Tomahawk
 				BSON::Document::Release(Options);
 
 				if (Collection == nullptr)
-					THAWK_ERROR(Error.message);
+					THAWK_ERROR("[mongoc] %s", Error.message);
 
 				return Collection;
 #else
@@ -3521,7 +3530,7 @@ namespace Tomahawk
 				if (!mongoc_client_command_simple(Connection, DatabaseName, BS(Query), Preferences, Reference, &Error))
 				{
 					BSON::Document::Release(Query);
-					THAWK_ERROR(Error.message);
+					THAWK_ERROR("[mongoc] %s", Error.message);
 					return nullptr;
 				}
 
@@ -3549,7 +3558,7 @@ namespace Tomahawk
 				{
 					BSON::Document::Release(Query);
 					BSON::Document::Release(Options);
-					THAWK_ERROR(Error.message);
+					THAWK_ERROR("[mongoc] %s", Error.message);
 					return nullptr;
 				}
 
@@ -3578,7 +3587,7 @@ namespace Tomahawk
 				{
 					BSON::Document::Release(Query);
 					BSON::Document::Release(Options);
-					THAWK_ERROR(Error.message);
+					THAWK_ERROR("[mongoc] %s", Error.message);
 					return nullptr;
 				}
 
@@ -3607,7 +3616,7 @@ namespace Tomahawk
 				{
 					BSON::Document::Release(Query);
 					BSON::Document::Release(Options);
-					THAWK_ERROR(Error.message);
+					THAWK_ERROR("[mongoc] %s", Error.message);
 					return nullptr;
 				}
 
@@ -3712,7 +3721,7 @@ namespace Tomahawk
 
 				if (Names == nullptr)
 				{
-					THAWK_ERROR(Error.message);
+					THAWK_ERROR("[mongoc] %s", Error.message);
 					return std::vector<std::string>();
 				}
 

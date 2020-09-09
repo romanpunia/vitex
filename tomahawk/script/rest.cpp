@@ -553,7 +553,7 @@ namespace Tomahawk
 			if (Result->Type != Rest::NodeType_Id || Result->String.size() != 12)
 				return "";
 
-			return Result->String.c_str();
+			return Result->String;
 		}
 		VMCArray* VMCDocument::FindCollection(Rest::Document* Base, const std::string& Name, bool Here)
 		{
@@ -565,12 +565,8 @@ namespace Tomahawk
 			if (!Manager)
 				return nullptr;
 
-			std::vector<Rest::Document*> Nodes = Base->FindCollection(Name, Here);
-			for (auto& Node : Nodes)
-				Node->AddRef();
-
-			VMTypeInfo Type = Manager->Global().GetTypeInfoByDecl("Array<Document@>");
-			return VMCArray::ComposeFromPointers(Type.GetTypeInfo(), Nodes);
+			VMTypeInfo Type = Manager->Global().GetTypeInfoByDecl("Array<Document@>@");
+			return VMCArray::ComposeFromPointers(Type.GetTypeInfo(), Base->FindCollection(Name, Here));
 		}
 		VMCArray* VMCDocument::FindCollectionPath(Rest::Document* Base, const std::string& Name, bool Here)
 		{
@@ -586,7 +582,7 @@ namespace Tomahawk
 			for (auto& Node : Nodes)
 				Node->AddRef();
 
-			VMTypeInfo Type = Manager->Global().GetTypeInfoByDecl("Array<Document@>");
+			VMTypeInfo Type = Manager->Global().GetTypeInfoByDecl("Array<Document@>@");
 			return VMCArray::ComposeFromPointers(Type.GetTypeInfo(), Nodes);
 		}
 		VMCArray* VMCDocument::GetNodes(Rest::Document* Base)
@@ -599,12 +595,8 @@ namespace Tomahawk
 			if (!Manager)
 				return nullptr;
 
-			std::vector<Rest::Document*> Nodes = *Base->GetNodes();
-			for (auto& Node : Nodes)
-				Node->AddRef();
-
-			VMTypeInfo Type = Manager->Global().GetTypeInfoByDecl("Array<Document@>");
-			return VMCArray::ComposeFromPointers(Type.GetTypeInfo(), Nodes);
+			VMTypeInfo Type = Manager->Global().GetTypeInfoByDecl("Array<Document@>@");
+			return VMCArray::ComposeFromPointers(Type.GetTypeInfo(), *Base->GetNodes());
 		}
 		VMCArray* VMCDocument::GetAttributes(Rest::Document* Base)
 		{
@@ -616,12 +608,8 @@ namespace Tomahawk
 			if (!Manager)
 				return nullptr;
 
-			std::vector<Rest::Document*> Nodes = Base->GetAttributes();
-			for (auto& Node : Nodes)
-				Node->AddRef();
-
-			VMTypeInfo Type = Manager->Global().GetTypeInfoByDecl("Array<Document@>");
-			return VMCArray::ComposeFromPointers(Type.GetTypeInfo(), Nodes);
+			VMTypeInfo Type = Manager->Global().GetTypeInfoByDecl("Array<Document@>@");
+			return VMCArray::ComposeFromPointers(Type.GetTypeInfo(), Base->GetAttributes());
 		}
 		VMCMap* VMCDocument::CreateMapping(Rest::Document* Base)
 		{
@@ -859,7 +847,7 @@ namespace Tomahawk
 			VDocument.SetMethod("void Join(Document@+)", &Rest::Document::Join);
 			VDocument.SetMethod("void Clear()", &Rest::Document::Clear);
 			VDocument.SetMethod("void Save()", &Rest::Document::Save);
-			VDocument.SetMethod("Document@+ Copy()", &Rest::Document::Copy);
+			VDocument.SetMethod("Document@ Copy()", &Rest::Document::Copy);
 			VDocument.SetMethod("bool IsAttribute()", &Rest::Document::IsAttribute);
 			VDocument.SetMethod("bool IsObject()", &Rest::Document::IsObject);
 			VDocument.SetMethod("bool Deserialize(const String &in)", &Rest::Document::Deserialize);
@@ -905,7 +893,7 @@ namespace Tomahawk
 			VDocument.SetMethodEx("String ToXML()", &VMCDocument::ToXML);
 			VDocument.SetMethodStatic("Document@ FromJSON(const String &in)", &VMCDocument::FromJSON);
 			VDocument.SetMethodStatic("Document@ FromXML(const String &in)", &VMCDocument::FromXML);
-			VDocument.SetMethodStatic("Document@ Load(const String &in)", &VMCDocument::Import);
+			VDocument.SetMethodStatic("Document@ Import(const String &in)", &VMCDocument::Import);
 
 			return true;
 		}

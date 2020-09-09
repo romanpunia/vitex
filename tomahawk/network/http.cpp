@@ -1600,6 +1600,9 @@ namespace Tomahawk
 					Offset = i + 1;
 				}
 
+				if (!Value.Value || !Value.Length)
+					return;
+
 				QueryParameter* Parameter = nullptr;
 				for (auto It = Tokens->begin(); It != Tokens->end(); It++)
 				{
@@ -1609,13 +1612,8 @@ namespace Tomahawk
 						Parameter = GetParameter(&(*It));
 				}
 
-				if (Parameter == nullptr)
-					return;
-
-				if (Value.Value != nullptr && Value.Length > 0)
+				if (Parameter != nullptr)
 					Parameter->Deserialize(Compute::MathCommon::URIDecode(Value.Value, Value.Length));
-				else
-					Parameter->Type = Rest::NodeType_Undefined;
 			}
 			void Query::Decode(const char* Type, const std::string& URI)
 			{
@@ -1623,10 +1621,9 @@ namespace Tomahawk
 					return;
 
 				if (!Rest::Stroke::CaseCompare(Type, "application/x-www-form-urlencoded"))
-					return DecodeAXWFD(URI);
-
-				if (!Rest::Stroke::CaseCompare(Type, "application/json"))
-					return DecodeAJSON(URI);
+					DecodeAXWFD(URI);
+				else if (!Rest::Stroke::CaseCompare(Type, "application/json"))
+					DecodeAJSON(URI);
 			}
 			void Query::DecodeAXWFD(const std::string& URI)
 			{

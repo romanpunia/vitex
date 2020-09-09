@@ -423,14 +423,16 @@ namespace Tomahawk
 #endif
 		}
 
+		Script::VMManager::FreeProxy();
+		Rest::Composer::Clear();
+		Rest::LT::Report();
+
 		if (Modes & TInit_Rest)
 		{
 			if (Modes & TInit_Logger)
 				Rest::LT::DetachStream();
 		}
 
-		Script::VMManager::FreeProxy();
-		Rest::Composer::Clear();
 		return true;
 	}
 }

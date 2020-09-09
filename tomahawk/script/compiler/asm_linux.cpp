@@ -3,27 +3,32 @@
 #include <sys/mman.h>
 #include <unistd.h>
 #include <pthread.h>
-
 #ifndef MAP_ANONYMOUS
 #define MAP_ANONYMOUS MAP_ANON
 #endif
 
 namespace assembler
 {
-	unsigned Processor::maxIntArgs64() {
+	unsigned Processor::maxIntArgs64()
+	{
 		return 6;
 	}
-	unsigned Processor::maxFloatArgs64() {
+	unsigned Processor::maxFloatArgs64()
+	{
 		return 8;
 	}
-	bool Processor::isIntArg64Register(unsigned char number, unsigned char arg) {
+	bool Processor::isIntArg64Register(unsigned char number, unsigned char arg)
+	{
 		return number < 6;
 	}
-	bool Processor::isFloatArg64Register(unsigned char number, unsigned char arg) {
+	bool Processor::isFloatArg64Register(unsigned char number, unsigned char arg)
+	{
 		return number < 8;
 	}
-	Register Processor::intArg64(unsigned char number, unsigned char arg) {
-		switch (number) {
+	Register Processor::intArg64(unsigned char number, unsigned char arg)
+	{
+		switch (number)
+		{
 			case 0:
 				return Register(*this, EDI);
 			case 1:
@@ -40,8 +45,10 @@ namespace assembler
 				throw "Integer64 argument index out of bounds";
 		}
 	}
-	Register Processor::floatArg64(unsigned char number, unsigned char arg) {
-		switch (number) {
+	Register Processor::floatArg64(unsigned char number, unsigned char arg)
+	{
+		switch (number)
+		{
 			case 0:
 				return Register(*this, XMM0);
 			case 1:
@@ -62,24 +69,29 @@ namespace assembler
 				throw "Float64 argument index out of bounds";
 		}
 	}
-	Register Processor::intArg64(unsigned char number, unsigned char arg, Register defaultReg) {
+	Register Processor::intArg64(unsigned char number, unsigned char arg, Register defaultReg)
+	{
 		if (isIntArg64Register(number, arg))
 			return intArg64(number, arg);
 		return defaultReg;
 	}
-	Register Processor::floatArg64(unsigned char number, unsigned char arg, Register defaultReg) {
+	Register Processor::floatArg64(unsigned char number, unsigned char arg, Register defaultReg)
+	{
 		if (isFloatArg64Register(number, arg))
 			return floatArg64(number, arg);
 		return defaultReg;
 	}
-	Register Processor::intReturn64() {
+	Register Processor::intReturn64()
+	{
 		return Register(*this, EAX);
 	}
-	Register Processor::floatReturn64() {
+	Register Processor::floatReturn64()
+	{
 		return Register(*this, XMM0);
 	}
 
-	CodePage::CodePage(unsigned int Size, void* requestedStart) : used(0), final(false), references(1) {
+	CodePage::CodePage(unsigned int Size, void* requestedStart) : used(0), final(false), references(1)
+	{
 		unsigned minPageSize = getMinimumPageSize();
 		unsigned pages = Size / minPageSize;
 
@@ -100,37 +112,46 @@ namespace assembler
 
 		size = pages * minPageSize;
 	}
-	void CodePage::grab() {
+	void CodePage::grab()
+	{
 		++references;
 	}
-	void CodePage::drop() {
+	void CodePage::drop()
+	{
 		if (--references == 0)
 			delete this;
 	}
-	CodePage::~CodePage() {
+	CodePage::~CodePage()
+	{
 		munmap(page, size);
 	}
-	void CodePage::finalize() {
+	void CodePage::finalize()
+	{
 		mprotect(page, size, PROT_READ | PROT_EXEC);
 		final = true;
 	}
-	unsigned int CodePage::getMinimumPageSize() {
+	unsigned int CodePage::getMinimumPageSize()
+	{
 		return getpagesize();
 	}
 
-	void CriticalSection::enter() {
+	void CriticalSection::enter()
+	{
 		pthread_mutex_lock((pthread_mutex_t*)pLock);
 	}
-	void CriticalSection::leave() {
+	void CriticalSection::leave()
+	{
 		pthread_mutex_unlock((pthread_mutex_t*)pLock);
 	}
-	CriticalSection::CriticalSection() {
+	CriticalSection::CriticalSection()
+	{
 		pthread_mutex_t* mutex = new pthread_mutex_t();
 		pthread_mutex_init(mutex, 0);
 
 		pLock = mutex;
 	}
-	CriticalSection::~CriticalSection() {
+	CriticalSection::~CriticalSection()
+	{
 		pthread_mutex_t* mutex = (pthread_mutex_t*)pLock;
 		pthread_mutex_destroy(mutex);
 		delete mutex;

@@ -49,7 +49,8 @@ namespace assembler
 		NONE = 0,
 	};
 
-	enum FloatReg : byte {
+	enum FloatReg : byte
+	{
 		FPU_0 = 0,
 		FPU_1 = 1,
 		FPU_2 = 2,
@@ -60,7 +61,8 @@ namespace assembler
 		FPU_7 = 7,
 	};
 
-	enum JumpType {
+	enum JumpType
+	{
 		Overflow,
 		NotOverflow,
 		Below, Carry = Below,
@@ -82,7 +84,8 @@ namespace assembler
 		JumpTypeCount
 	};
 
-	struct CriticalSection {
+	struct CriticalSection
+	{
 		void* pLock;
 
 		void enter();
@@ -92,27 +95,32 @@ namespace assembler
 		~CriticalSection();
 	};
 
-	struct AddrPrefix {
+	struct AddrPrefix
+	{
 		MemAddress& adr;
 		bool defLong;
 		unsigned char further;
 
 		AddrPrefix(MemAddress& Adr, bool DefLong, unsigned char Further)
-			: adr(Adr), defLong(DefLong), further(Further) {
+			: adr(Adr), defLong(DefLong), further(Further)
+		{
 		}
 	};
 
-	struct RegPrefix {
+	struct RegPrefix
+	{
 		Register& reg;
 		unsigned short other;
 		bool defLong;
 
 		RegPrefix(Register& Reg, unsigned short Other, bool DefLong)
-			: reg(Reg), other(Other), defLong(DefLong) {
+			: reg(Reg), other(Other), defLong(DefLong)
+		{
 		}
 	};
 
-	struct CodePage {
+	struct CodePage
+	{
 		void* page;
 		unsigned int size, used, references;
 		bool final;
@@ -129,29 +137,34 @@ namespace assembler
 
 		//Returns the pointer to the first currently unused chunk of the page
 		template<class T>
-		T getFunctionPointer() {
+		T getFunctionPointer()
+		{
 			return reinterpret_cast<T>((byte*)page + used);
 		}
 
-		byte* getActivePage() const {
+		byte* getActivePage() const
+		{
 			return (byte*)page + used;
 		}
 
 		//Marks bytes as used;
 		//future calls to getFunctionPointer() will not reference the location that is being marked as used
-		void markBytesUsed(unsigned int count) {
+		void markBytesUsed(unsigned int count)
+		{
 			used += count;
 		}
 
 		//Marks bytes up to <address> as used
-		void markUsedAddress(void* address) {
+		void markUsedAddress(void* address)
+		{
 			unsigned newUsed = (unsigned)((byte*)address - (byte*)page);
 			if (newUsed > used && newUsed <= size)
 				used = newUsed;
 		}
 
 		//Returns the number of bytes not yet allocated to a function
-		unsigned int getFreeSize() const {
+		unsigned int getFreeSize() const
+		{
 			return size - used;
 		}
 
@@ -159,10 +172,13 @@ namespace assembler
 		static unsigned int getMinimumPageSize();
 
 	private:
-		CodePage() {}
+		CodePage()
+		{
+		}
 	};
 
-	struct Processor {
+	struct Processor
+	{
 		//Pointer to the location for the next opcode
 		byte* op;
 		byte* pageStart;
@@ -184,13 +200,15 @@ namespace assembler
 		void migrate(CodePage& prevPage, CodePage& newPage);
 
 		//Changes the current bitMode, and stores the previous bitMode
-		void setBitMode(unsigned bits) {
+		void setBitMode(unsigned bits)
+		{
 			lastBitMode = bitMode;
 			bitMode = bits;
 		}
 
 		//Restores the previous bitMode
-		void resetBitMode() {
+		void resetBitMode()
+		{
 			bitMode = lastBitMode;
 		}
 
@@ -199,7 +217,8 @@ namespace assembler
 
 		//Pushes data to the opcode output
 		template<class T>
-		Processor& operator<<(T b) {
+		Processor& operator<<(T b)
+		{
 			*(T*)op = b; op += sizeof(T);
 			return *this;
 		}
@@ -317,10 +336,13 @@ namespace assembler
 		void debug_interrupt();
 
 	private:
-		Processor() {}
+		Processor()
+		{
+		}
 	};
 
-	struct FloatingPointUnit {
+	struct FloatingPointUnit
+	{
 		Processor& cpu;
 
 		FloatingPointUnit(Processor& CPU);
@@ -389,14 +411,18 @@ namespace assembler
 		void div_double(FloatReg reg, bool reversed = false, bool pop = true);
 	};
 
-	struct ScaledIndex {
+	struct ScaledIndex
+	{
 		RegCode reg;
 		unsigned char scaleFactor;
 
-		ScaledIndex(RegCode Reg, unsigned char Scale) : reg(Reg), scaleFactor(Scale) {}
+		ScaledIndex(RegCode Reg, unsigned char Scale) : reg(Reg), scaleFactor(Scale)
+		{
+		}
 	};
 
-	struct MemAddress {
+	struct MemAddress
+	{
 		Processor& cpu;
 		void* absolute_address;
 		int offset;
@@ -437,7 +463,8 @@ namespace assembler
 	};
 
 	template<class T>
-	MemAddress as(MemAddress addr) {
+	MemAddress as(MemAddress addr)
+	{
 		addr.bitMode = sizeof(T) * 8;
 		addr.Signed = (T)-1 < (T)0;
 		return addr;
@@ -449,7 +476,8 @@ namespace assembler
 	template<>
 	MemAddress as<double>(MemAddress addr);
 
-	struct Register {
+	struct Register
+	{
 		Processor& cpu;
 		RegCode code;
 		unsigned bitMode;
@@ -457,7 +485,8 @@ namespace assembler
 		Register(Processor& CPU, RegCode Code);
 		Register(Processor& CPU, RegCode Code, unsigned BitModeOverride);
 
-		void set_regCode(Register& other) {
+		void set_regCode(Register& other)
+		{
 			code = other.code;
 			bitMode = other.bitMode;
 		}
@@ -539,7 +568,8 @@ namespace assembler
 	};
 
 	template<class T>
-	Register as(Register reg) {
+	Register as(Register reg)
+	{
 		reg.bitMode = sizeof(T) * 8;
 		return reg;
 	}

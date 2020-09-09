@@ -461,28 +461,6 @@ namespace Tomahawk
 			VMCComplex operator/ (const VMCComplex& Other) const;
 		};
 
-		class THAWK_OUT VMCReceiver
-		{
-			friend class VMCThread;
-
-		private:
-			std::vector<VMCAny*> Queue;
-			std::condition_variable CV;
-			std::mutex Mutex;
-			int Debug;
-
-		public:
-			VMCReceiver();
-			void Send(VMCAny* Any);
-			void Release();
-			int GetQueueSize();
-			VMCAny* ReceiveWait();
-			VMCAny* Receive(uint64_t Timeout);
-
-		private:
-			void EnumReferences(VMCManager* Engine);
-		};
-
 		class THAWK_OUT VMCThread
 		{
 		private:
@@ -490,47 +468,50 @@ namespace Tomahawk
 			static int EngineListUD;
 
 		private:
-			VMCFunction * Function;
-			VMManager* Manager;
-			VMContext* Context;
+			struct
+			{
+				std::vector<VMCAny*> Queue;
+				std::condition_variable CV;
+				std::mutex Mutex;
+			} Pipe[2];
+
+		private:
 			std::condition_variable CV;
 			std::thread Thread;
 			std::mutex Mutex;
-			VMCReceiver Incoming;
-			VMCReceiver Outgoing;
-			bool Active;
-			int Ref;
+			VMCFunction* Function;
+			VMManager* Manager;
+			VMContext* Context;
 			bool GCFlag;
+			int Ref;
 
 		public:
 			VMCThread(VMCManager* Engine, VMCFunction* Function);
-			void AddRef();
-			void Release();
-			void Suspend();
-			void Send(VMCAny* Any);
-			int Wait(uint64_t Timeout);
-			int Join();
-			bool IsActive();
-			bool Start();
-			VMCAny* ReceiveWait();
-			VMCAny* Receive(uint64_t Timeout);
 			void EnumReferences(VMCManager* Engine);
 			void SetGCFlag();
 			void ReleaseReferences(VMCManager* Engine);
-			void StartRoutineThread();
+			void AddRef();
+			void Release();
+			void Suspend();
+			void Resume();
+			void Push(void* Ref, int TypeId);
+			bool Pop(void* Ref, int TypeId);
+			bool Pop(void* Ref, int TypeId, uint64_t Timeout);
+			bool IsActive();
+			bool Start();
 			bool GetGCFlag();
 			int GetRefCount();
+			int Join(uint64_t Timeout);
+			int Join();
+
+		private:
+			void Routine();
 
 		public:
-			static void StartRoutine(VMCThread* Thread);
-			static void SendInThread(VMCAny* Any);
-			static void SleepInThread(uint64_t Timeout);
-			static VMCThread* GetThisThread();
-			static VMCThread* GetThisThreadSafe();
-			static VMCAny* ReceiveWaitInThread();
-			static VMCAny* ReceiveInThread(uint64_t Timeout);
-			static VMCThread* StartThread(VMCFunction* Func);
-			static uint64_t GetIdInThread();
+			static void Create(VMCGeneric* Generic);
+			static VMCThread* GetThread();
+			static uint64_t GetThreadId();
+			static void ThreadSleep(uint64_t Timeout);
 		};
 
 		class THAWK_OUT VMCRandom

@@ -6,7 +6,8 @@
 
 namespace assembler
 {
-	enum OpExtension : byte {
+	enum OpExtension : byte
+	{
 		EX_0 = 0,
 		EX_1 = 1,
 		EX_2 = 2,
@@ -17,27 +18,32 @@ namespace assembler
 		EX_7 = 7,
 	};
 
-	enum ModBits : byte {
+	enum ModBits : byte
+	{
 		ADR = 0,
 		ADR8 = 1,
 		ADR32 = 2,
 		REG = 3
 	};
 
-	enum IndexScale : byte {
+	enum IndexScale : byte
+	{
 		Scale1 = 0,
 		Scale2 = 1,
 		Scale4 = 2,
 		Scale8 = 3
 	};
 
-	unsigned char mod_rm(unsigned char Reg, unsigned char Mod, unsigned char RM) {
+	unsigned char mod_rm(unsigned char Reg, unsigned char Mod, unsigned char RM)
+	{
 		return (Mod << 6) | (Reg << 3) | RM;
 	}
-	unsigned char sib(unsigned char ScaledIndex, unsigned char Mode, unsigned char BaseReg) {
+	unsigned char sib(unsigned char ScaledIndex, unsigned char Mode, unsigned char BaseReg)
+	{
 		return (Mode << 6) | (ScaledIndex << 3) | BaseReg;
 	}
-	void moveToUpperDWORD(MemAddress& address) {
+	void moveToUpperDWORD(MemAddress& address)
+	{
 		if (address.absolute_address == 0)
 			address.offset += 4;
 		else
@@ -45,67 +51,84 @@ namespace assembler
 	}
 
 	template<>
-	MemAddress as<float>(MemAddress addr) {
+	MemAddress as<float>(MemAddress addr)
+	{
 		addr.bitMode = sizeof(float) * 8;
 		addr.Signed = true;
 		addr.Float = true;
 		return addr;
 	}
 	template<>
-	MemAddress as<double>(MemAddress addr) {
+	MemAddress as<double>(MemAddress addr)
+	{
 		addr.bitMode = sizeof(double) * 8;
 		addr.Signed = true;
 		addr.Float = true;
 		return addr;
 	}
 
-	struct Argument {
+	struct Argument
+	{
 		Register* reg;
 		MemAddress* mem;
 		unsigned int constant;
-		Argument(Register* r) : reg(r), mem(0) {}
-		Argument(MemAddress* m) : reg(0), mem(m) {}
-		Argument(unsigned int Constant) : reg(0), mem(0), constant(Constant) {}
+		Argument(Register* r) : reg(r), mem(0)
+		{
+		}
+		Argument(MemAddress* m) : reg(0), mem(m)
+		{
+		}
+		Argument(unsigned int Constant) : reg(0), mem(0), constant(Constant)
+		{
+		}
 	};
 
-	unsigned Processor::pushSize() {
+	unsigned Processor::pushSize()
+	{
 		return sizeof(void*);
 	}
-	void Processor::call_thiscall_prep(unsigned argBytes) {
+	void Processor::call_thiscall_prep(unsigned argBytes)
+	{
 #ifndef _MSC_VER
 		//THISCALL on GCC passes the this pointer on the stack, and is mostly identical to cdecl
 		call_cdecl_prep(argBytes + 4);
 #endif
 	}
-	void Processor::call_thiscall_this(MemAddress address) {
+	void Processor::call_thiscall_this(MemAddress address)
+	{
 #ifdef _MSC_VER
 		Register(*this, ECX) = as<void*>(address);
 #else
 		push(as<void*>(address));
 #endif
 	}
-	void Processor::call_thiscall_this(Register& reg) {
+	void Processor::call_thiscall_this(Register& reg)
+	{
 #ifdef _MSC_VER
 		Register(*this, ECX) = reg;
 #else
 		push(reg);
 #endif
 	}
-	void Processor::call_thiscall_this_mem(MemAddress address, Register& memreg) {
+	void Processor::call_thiscall_this_mem(MemAddress address, Register& memreg)
+	{
 		call_thiscall_this(address);
 		push(memreg);
 	}
-	void Processor::call_thiscall_this_mem(Register& reg, Register& memreg) {
+	void Processor::call_thiscall_this_mem(Register& reg, Register& memreg)
+	{
 		call_thiscall_this(reg);
 		push(memreg);
 	}
-	void Processor::call_thiscall_end(unsigned argBytes, bool returnPointer) {
+	void Processor::call_thiscall_end(unsigned argBytes, bool returnPointer)
+	{
 #ifndef _MSC_VER
 		//THISCALL callers on GCC pops arguments and pointers
 		call_cdecl_end(argBytes + 4, returnPointer);
 #endif
 	}
-	void Processor::call_cdecl_prep(unsigned argBytes) {
+	void Processor::call_cdecl_prep(unsigned argBytes)
+	{
 #ifndef _MSC_VER
 		//Align to 16 byte boundary if not on MSVC
 		unsigned stackOffset = (stackDepth + argBytes) % 16;
@@ -115,7 +138,8 @@ namespace assembler
 			esp -= 16 - stackOffset;
 #endif
 	}
-	void Processor::call_cdecl_end(unsigned argBytes, bool returnPointer) {
+	void Processor::call_cdecl_end(unsigned argBytes, bool returnPointer)
+	{
 		Register esp(*this, ESP);
 #ifdef _MSC_VER
 		esp += argBytes;
@@ -129,17 +153,20 @@ namespace assembler
 			esp += argBytes;
 #endif
 	}
-	unsigned Processor::call_cdecl_args(const char* args, va_list ap) {
+	unsigned Processor::call_cdecl_args(const char* args, va_list ap)
+	{
 		return call_thiscall_args(0, args, ap);
 	}
-	unsigned Processor::call_cdecl_args(const char* args, ...) {
+	unsigned Processor::call_cdecl_args(const char* args, ...)
+	{
 		va_list ap;
 		va_start(ap, args);
 		unsigned r = call_cdecl_args(args, ap);
 		va_end(ap);
 		return r;
 	}
-	unsigned Processor::call_thiscall_args(Register* obj, const char* args, va_list ap) {
+	unsigned Processor::call_thiscall_args(Register* obj, const char* args, va_list ap)
+	{
 		std::stack<Argument> arg_stack;
 
 		unsigned argCount = 0;
@@ -148,13 +175,15 @@ namespace assembler
 		if (obj)
 			throw "Implement this.";
 #else
-		if (obj) {
+		if (obj)
+		{
 			arg_stack.push(obj);
 			++argCount;
 		}
 #endif
 		//Read the arguments in...
-		while (args, *args != '\0') {
+		while (args, *args != '\0')
+		{
 			++argCount;
 			if (*args == 'r')
 				arg_stack.push(va_arg(ap, Register*));
@@ -170,7 +199,8 @@ namespace assembler
 		call_cdecl_prep(argCount * 4);
 
 		//Then push them in reverse order
-		while (!arg_stack.empty()) {
+		while (!arg_stack.empty())
+		{
 			auto& arg = arg_stack.top();
 			if (arg.reg)
 				push(*arg.reg);
@@ -182,25 +212,30 @@ namespace assembler
 		}
 		return argCount * 4;
 	}
-	void Processor::call_cdecl(void* func, const char* args, va_list ap) {
+	void Processor::call_cdecl(void* func, const char* args, va_list ap)
+	{
 		unsigned stackBytes = call_cdecl_args(args, ap);
 		call(func);
 		call_cdecl_end(stackBytes);
 	}
-	void Processor::call_cdecl(void* func, const char* args, ...) {
+	void Processor::call_cdecl(void* func, const char* args, ...)
+	{
 		va_list ap;
 		va_start(ap, args);
 		call_cdecl(func, args, ap);
 		va_end(ap);
 	}
-	void Processor::call_stdcall(void* func, const char* args, ...) {
+	void Processor::call_stdcall(void* func, const char* args, ...)
+	{
 		std::stack<Argument> arg_stack;
 
 		unsigned argCount = 0;
-		if (args && *args != '\0') {
+		if (args && *args != '\0')
+		{
 			//Read the arguments in...
 			va_list list; va_start(list, args);
-			while (*args != '\0') {
+			while (*args != '\0')
+			{
 				++argCount;
 				if (*args == 'r')
 					arg_stack.push(va_arg(list, Register*));
@@ -225,7 +260,8 @@ namespace assembler
 #endif
 
 		//Then push them in reverse order
-		while (!arg_stack.empty()) {
+		while (!arg_stack.empty())
+		{
 			auto& arg = arg_stack.top();
 			if (arg.reg)
 				push(*arg.reg);
@@ -243,7 +279,8 @@ namespace assembler
 			esp += 16 - stackOffset;
 #endif
 	}
-	Processor::Processor(CodePage& codePage, unsigned defaultBitMode) {
+	Processor::Processor(CodePage& codePage, unsigned defaultBitMode)
+	{
 		op = codePage.getActivePage();
 		pageStart = op;
 		bitMode = defaultBitMode;
@@ -251,13 +288,16 @@ namespace assembler
 		stackDepth = 4;
 		jumpSpace = 0;
 	}
-	void Processor::migrate(CodePage& prevPage, CodePage& newPage) {
+	void Processor::migrate(CodePage& prevPage, CodePage& newPage)
+	{
 		jump(Jump, newPage.getActivePage());
 		prevPage.markUsedAddress((void*)op);
 		op = newPage.getActivePage();
 	}
-	IndexScale factorToScale(unsigned char scale) {
-		switch (scale) {
+	IndexScale factorToScale(unsigned char scale)
+	{
+		switch (scale)
+		{
 			case 1:
 				return Scale1; break;
 			case 2:
@@ -270,11 +310,14 @@ namespace assembler
 		}
 	}
 	template<>
-	Processor& Processor::operator<<(MemAddress addr) {
-		if (addr.absolute_address != 0) {
+	Processor& Processor::operator<<(MemAddress addr)
+	{
+		if (addr.absolute_address != 0)
+		{
 			if (addr.scaleFactor == 0)
 				return *this << mod_rm(addr.other, ADR, ADDR) << addr.absolute_address;
-			else {
+			else
+			{
 				if (addr.scaleReg == ESP)
 					throw 0;
 				IndexScale scale = factorToScale(addr.scaleFactor);
@@ -282,7 +325,8 @@ namespace assembler
 			}
 		}
 
-		if (addr.scaleFactor != 0) {
+		if (addr.scaleFactor != 0)
+		{
 			IndexScale scale = factorToScale(addr.scaleFactor);
 
 			//EBP can't accept a scaled index, and ESP doesn't perform scaling
@@ -297,18 +341,21 @@ namespace assembler
 				return *this << mod_rm(addr.other, ADR32, SIB) << sib(addr.scaleReg, scale, addr.code) << addr.offset;
 		}
 
-		if (addr.offset == 0 && addr.code != EBP) { //[EBP] means absolute address, so we use [EBP+0] instead
+		if (addr.offset == 0 && addr.code != EBP)
+		{ //[EBP] means absolute address, so we use [EBP+0] instead
 			*this << mod_rm(addr.other, ADR, addr.code);
 			if (addr.code == ESP)
 				*this << '\x24'; //SIB byte indicating [ESP]
 		}
-		else if (addr.offset >= CHAR_MIN && addr.offset <= CHAR_MAX) {
+		else if (addr.offset >= CHAR_MIN && addr.offset <= CHAR_MAX)
+		{
 			*this << mod_rm(addr.other, ADR8, addr.code);
 			if (addr.code == ESP)
 				*this << '\x24'; //SIB byte indicating [ESP]
 			*this << (char)addr.offset;
 		}
-		else {
+		else
+		{
 			*this << mod_rm(addr.other, ADR32, addr.code);
 			if (addr.code == ESP)
 				*this << '\x24'; //SIB byte indicating [ESP]
@@ -316,15 +363,19 @@ namespace assembler
 		}
 		return *this;
 	}
-	void Processor::push(Register& reg) {
+	void Processor::push(Register& reg)
+	{
 		*this << byte(0x50u + reg.code);
 	}
-	void Processor::pop(Register& reg) {
+	void Processor::pop(Register& reg)
+	{
 		*this << byte(0x58u + reg.code);
 	}
-	void Processor::push(MemAddress address) {
+	void Processor::push(MemAddress address)
+	{
 		address.other = EX_6;
-		switch (address.bitMode) {
+		switch (address.bitMode)
+		{
 			case 8:
 			case 16:
 			case 32:
@@ -335,9 +386,11 @@ namespace assembler
 				*this << '\xFF' << address; break;
 		}
 	}
-	void Processor::pop(MemAddress address) {
+	void Processor::pop(MemAddress address)
+	{
 		address.other = EX_0;
-		switch (address.bitMode) {
+		switch (address.bitMode)
+		{
 			case 8:
 			case 16:
 			case 32:
@@ -349,20 +402,24 @@ namespace assembler
 				break;
 		}
 	}
-	void Processor::push(size_t value) {
+	void Processor::push(size_t value)
+	{
 		if (value <= CHAR_MAX)
 			*this << '\x6A' << (byte)value;
 		else
 			*this << '\x68' << (unsigned int)value;
 	}
-	void Processor::pop(unsigned int count) {
+	void Processor::pop(unsigned int count)
+	{
 		Register esp(*this, ESP);
 		esp += count * pushSize();
 	}
-	void Processor::call(Register& reg) {
+	void Processor::call(Register& reg)
+	{
 		*this << '\xFF' << mod_rm(EX_2, REG, reg.code);
 	}
-	void Processor::call(void* func) {
+	void Processor::call(void* func)
+	{
 		int offset = ((byte*)func - op) - 5;
 		*this << '\xE8' << offset;
 	}
@@ -370,20 +427,23 @@ namespace assembler
 	unsigned char shortJumpCodes[JumpTypeCount] = { 0x70, 0x71, 0x72, 0x73, 0x74, 0x75, 0x76, 0x77, 0x78, 0x79, 0x7A, 0x7B, 0x7C, 0x7D, 0x7E, 0x7F, 0xEB };
 	unsigned char longJumpCodes[JumpTypeCount] = { 0x80, 0x81, 0x82, 0x83, 0x84, 0x85, 0x86, 0x87, 0x88, 0x89, 0x8A, 0x8B, 0x8C, 0x8D, 0x8E, 0x8F, 0xE9 };
 
-	void* Processor::prep_short_jump(JumpType type) {
+	void* Processor::prep_short_jump(JumpType type)
+	{
 		*this << shortJumpCodes[type];
 		void* ret = (void*)op;
 		*this << (char)0;
 		return ret;
 	}
-	void Processor::end_short_jump(void* p) {
+	void Processor::end_short_jump(void* p)
+	{
 		volatile byte* jumpFrom = (volatile byte*)p;
 		int offset = (op - jumpFrom) - 1;
 		if (offset < CHAR_MIN || offset > CHAR_MAX)
 			throw 0;
 		*jumpFrom = (char)offset;
 	}
-	void* Processor::prep_long_jump(JumpType type) {
+	void* Processor::prep_long_jump(JumpType type)
+	{
 		if (type != Jump)
 			*this << '\x0F';
 		*this << longJumpCodes[type];
@@ -391,11 +451,13 @@ namespace assembler
 		*this << (int)0;
 		return ret;
 	}
-	void Processor::end_long_jump(void* p) {
+	void Processor::end_long_jump(void* p)
+	{
 		volatile byte* jumpFrom = (volatile byte*)p;
 		*(volatile int*)jumpFrom = (op - jumpFrom) - 4;
 	}
-	void Processor::jump(JumpType type, volatile byte* dest) {
+	void Processor::jump(JumpType type, volatile byte* dest)
+	{
 		int offset = (dest - op) - 2;
 		if (offset >= CHAR_MIN && offset <= CHAR_MAX)
 			*this << shortJumpCodes[type] << (char)offset;
@@ -404,10 +466,12 @@ namespace assembler
 		else
 			*this << '\x0F' << longJumpCodes[type] << offset - 4; //Conditional long jump is 4 bytes larger, jump is from the end of the full opcode
 	}
-	void Processor::jump(Register& reg) {
+	void Processor::jump(Register& reg)
+	{
 		*this << '\xFF' << mod_rm(EX_4, REG, reg.code);
 	}
-	void Processor::loop(volatile byte* dest, JumpType type) {
+	void Processor::loop(volatile byte* dest, JumpType type)
+	{
 		int off = dest - op - 2;
 		if (off < CHAR_MIN || off > CHAR_MAX)
 			throw "Loop offset too far.";
@@ -421,7 +485,8 @@ namespace assembler
 		else
 			throw "Unsupported loop type.";
 	}
-	void Processor::string_copy(unsigned size) {
+	void Processor::string_copy(unsigned size)
+	{
 		if (size == 1)
 			*this << '\xA4';
 		else if (size == 2)
@@ -433,43 +498,57 @@ namespace assembler
 		else
 			throw "Invalid string copy step size.";
 	}
-	void Processor::setDirFlag(bool forward) {
+	void Processor::setDirFlag(bool forward)
+	{
 		if (forward)
 			*this << '\xFC';
 		else
 			*this << '\xFD';
 	}
-	void Processor::ret() {
+	void Processor::ret()
+	{
 		*this << '\xC3';
 	}
-	void Processor::debug_interrupt() {
+	void Processor::debug_interrupt()
+	{
 		*this << '\xCC';
 	}
 
 	MemAddress::MemAddress(Processor& CPU, void* address)
 		: cpu(CPU), code(ESP), absolute_address(address), other(NONE),
-		offset(0), bitMode(cpu.bitMode), Signed(false), scaleFactor(0) {}
+		offset(0), bitMode(cpu.bitMode), Signed(false), scaleFactor(0)
+	{
+	}
 	MemAddress::MemAddress(Processor& CPU, RegCode Code)
 		: cpu(CPU), code(Code), absolute_address(0), other(NONE),
-		offset(0), bitMode(cpu.bitMode), Signed(false), scaleFactor(0) {}
+		offset(0), bitMode(cpu.bitMode), Signed(false), scaleFactor(0)
+	{
+	}
 	MemAddress::MemAddress(Processor& CPU, RegCode Code, int Offset)
 		: cpu(CPU), code(Code), absolute_address(0), other(NONE),
-		offset(Offset), bitMode(cpu.bitMode), Signed(false), scaleFactor(0) {}
-	MemAddress MemAddress::operator+(ScaledIndex scale) {
+		offset(Offset), bitMode(cpu.bitMode), Signed(false), scaleFactor(0)
+	{
+	}
+	MemAddress MemAddress::operator+(ScaledIndex scale)
+	{
 		scaleReg = scale.reg;
 		scaleFactor = scale.scaleFactor;
 		return *this;
 	}
-	MemAddress MemAddress::operator+(int Offset) {
+	MemAddress MemAddress::operator+(int Offset)
+	{
 		offset += Offset;
 		return *this;
 	}
-	MemAddress MemAddress::operator-(int Offset) {
+	MemAddress MemAddress::operator-(int Offset)
+	{
 		offset -= Offset;
 		return *this;
 	}
-	void MemAddress::operator++() {
-		switch (bitMode) {
+	void MemAddress::operator++()
+	{
+		switch (bitMode)
+		{
 			case 8:
 				cpu << '\xFE' << *this; break;
 			case 16:
@@ -484,9 +563,11 @@ namespace assembler
 				cpu.end_short_jump(p);
 		}
 	}
-	void MemAddress::operator--() {
+	void MemAddress::operator--()
+	{
 		other = EX_1;
-		switch (bitMode) {
+		switch (bitMode)
+		{
 			case 8:
 				cpu << '\xFE' << *this; break;
 			case 16:
@@ -501,9 +582,11 @@ namespace assembler
 				cpu.end_short_jump(p);
 		}
 	}
-	void MemAddress::operator-() {
+	void MemAddress::operator-()
+	{
 		other = EX_3;
-		switch (bitMode) {
+		switch (bitMode)
+		{
 			case 8:
 				cpu << '\xF6' << *this; break;
 			case 16:
@@ -515,9 +598,11 @@ namespace assembler
 				++MemAddress(*this); break;
 		}
 	}
-	void MemAddress::operator~() {
+	void MemAddress::operator~()
+	{
 		other = EX_2;
-		switch (bitMode) {
+		switch (bitMode)
+		{
 			case 8:
 				cpu << '\xF6' << *this; break;
 			case 16:
@@ -530,7 +615,8 @@ namespace assembler
 				cpu << '\xF7' << *this; break;
 		}
 	}
-	void MemAddress::operator+=(unsigned int amount) {
+	void MemAddress::operator+=(unsigned int amount)
+	{
 		if (amount == 0) return;
 
 		if (code == EAX)
@@ -540,7 +626,8 @@ namespace assembler
 		else
 			cpu << '\x81' << *this << amount;
 	}
-	void MemAddress::operator-=(unsigned int amount) {
+	void MemAddress::operator-=(unsigned int amount)
+	{
 		if (amount == 0) return;
 
 		other = (RegCode)EX_5;
@@ -551,8 +638,10 @@ namespace assembler
 		else
 			cpu << '\x81' << *this << amount;
 	}
-	void MemAddress::operator=(unsigned int value) {
-		switch (bitMode) {
+	void MemAddress::operator=(unsigned int value)
+	{
+		switch (bitMode)
+		{
 			case 8:
 				cpu << '\xC6' << *this << (byte)value; break;
 			case 16:
@@ -561,13 +650,16 @@ namespace assembler
 				cpu << '\xC7' << *this << value; break;
 		}
 	}
-	void MemAddress::operator&=(unsigned int value) {
+	void MemAddress::operator&=(unsigned int value)
+	{
 		other = EX_4;
 		cpu << '\x81' << *this << value;
 	}
-	void MemAddress::operator|=(unsigned int value) {
+	void MemAddress::operator|=(unsigned int value)
+	{
 		other = EX_7;
-		switch (bitMode) {
+		switch (bitMode)
+		{
 			case 8:
 				cpu << '\x80' << *this << (byte)value; break;
 			case 16:
@@ -576,12 +668,15 @@ namespace assembler
 				cpu << '\x81' << *this << value; break;
 		}
 	}
-	void MemAddress::operator=(void* value) {
+	void MemAddress::operator=(void* value)
+	{
 		cpu << '\xC7' << *this << value;
 	}
-	void MemAddress::operator=(Register fromReg) {
+	void MemAddress::operator=(Register fromReg)
+	{
 		other = fromReg.code;
-		switch (bitMode) {
+		switch (bitMode)
+		{
 			case 8:
 				cpu << '\x88' << *this; break;
 			case 16:
@@ -592,11 +687,13 @@ namespace assembler
 				throw 0;
 		}
 	}
-	void MemAddress::direct_copy(MemAddress address, Register& intermediate) {
+	void MemAddress::direct_copy(MemAddress address, Register& intermediate)
+	{
 		if (bitMode != address.bitMode)
 			throw 0;
 		other = intermediate.code; address.other = other;
-		switch (bitMode) {
+		switch (bitMode)
+		{
 			case 8:
 			case 16:
 			case 32:
@@ -615,17 +712,22 @@ namespace assembler
 		}
 	}
 
-	Register::Register(Processor& CPU, RegCode Code) : cpu(CPU), code(Code), bitMode(0) {}
-	Register::Register(Processor& CPU, RegCode Code, unsigned BitModeOverride)
-		: cpu(CPU), code(Code), bitMode(BitModeOverride) {
+	Register::Register(Processor& CPU, RegCode Code) : cpu(CPU), code(Code), bitMode(0)
+	{
 	}
-	unsigned Register::getBitMode() const {
+	Register::Register(Processor& CPU, RegCode Code, unsigned BitModeOverride)
+		: cpu(CPU), code(Code), bitMode(BitModeOverride)
+	{
+	}
+	unsigned Register::getBitMode() const
+	{
 		if (bitMode)
 			return bitMode;
 		else
 			return cpu.bitMode;
 	}
-	unsigned Register::getBitMode(const MemAddress& addr) const {
+	unsigned Register::getBitMode(const MemAddress& addr) const
+	{
 		if (bitMode == 0)
 			return addr.bitMode;
 		else if (bitMode <= addr.bitMode)
@@ -633,15 +735,19 @@ namespace assembler
 		else
 			throw 0;
 	}
-	MemAddress Register::operator*() const {
+	MemAddress Register::operator*() const
+	{
 		return MemAddress(cpu, code);
 	}
-	ScaledIndex Register::operator*(unsigned char scale) const {
+	ScaledIndex Register::operator*(unsigned char scale) const
+	{
 		return ScaledIndex(code, scale);
 	}
-	void Register::swap(MemAddress address) {
+	void Register::swap(MemAddress address)
+	{
 		address.other = code;
-		switch (getBitMode(address)) {
+		switch (getBitMode(address))
+		{
 			case 8:
 				cpu << '\x86' << address; break;
 			case 16:
@@ -652,7 +758,8 @@ namespace assembler
 				throw 0;
 		}
 	}
-	void Register::swap(Register& other) {
+	void Register::swap(Register& other)
+	{
 		if (code == other.code)
 			return;
 		if (code == EAX)
@@ -662,28 +769,34 @@ namespace assembler
 		else
 			cpu << '\x87' << mod_rm(code, REG, other.code);
 	}
-	void Register::copy_address(MemAddress address) {
+	void Register::copy_address(MemAddress address)
+	{
 		address.other = code;
 		cpu << '\x8D' << address;
 	}
-	void Register::operator<<=(Register& other) {
+	void Register::operator<<=(Register& other)
+	{
 		if (other.code != ECX)
 			throw 0;
 		cpu << '\xD3' << mod_rm(EX_4, REG, code);
 	}
-	void Register::operator>>=(Register& other) {
+	void Register::operator>>=(Register& other)
+	{
 		if (other.code != ECX)
 			throw 0;
 		cpu << '\xD3' << mod_rm(EX_7, REG, code);
 	}
-	void Register::rightshift_logical(Register& other) {
+	void Register::rightshift_logical(Register& other)
+	{
 		if (other.code != ECX)
 			throw 0;
 		cpu << '\xD3' << mod_rm(EX_5, REG, code);
 	}
-	void Register::operator+=(unsigned int amount) {
+	void Register::operator+=(unsigned int amount)
+	{
 		if (amount == 0) return;
-		if (amount == 1) {
+		if (amount == 1)
+		{
 			++*this;
 			return;
 		}
@@ -695,16 +808,20 @@ namespace assembler
 		else
 			cpu << '\x81' << mod_rm(EX_0, REG, code) << amount;
 	}
-	void Register::operator+=(MemAddress address) {
+	void Register::operator+=(MemAddress address)
+	{
 		address.other = code;
 		cpu << '\x03' << address;
 	}
-	void Register::operator+=(Register& other) {
+	void Register::operator+=(Register& other)
+	{
 		cpu << '\x03' << mod_rm(code, REG, other.code);
 	}
-	void Register::operator-=(unsigned int amount) {
+	void Register::operator-=(unsigned int amount)
+	{
 		if (amount == 0) return;
-		if (amount == 1) {
+		if (amount == 1)
+		{
 			--*this;
 			return;
 		}
@@ -716,37 +833,46 @@ namespace assembler
 		else
 			cpu << '\x81' << mod_rm(EX_5, REG, code) << amount;
 	}
-	void Register::operator-=(Register& other) {
+	void Register::operator-=(Register& other)
+	{
 		cpu << '\x2B' << mod_rm(code, REG, other.code);
 	}
-	void Register::operator-=(MemAddress address) {
+	void Register::operator-=(MemAddress address)
+	{
 		address.other = code;
 		cpu << '\x2B' << address;
 	}
-	void Register::operator*=(MemAddress address) {
+	void Register::operator*=(MemAddress address)
+	{
 		address.other = code;
 		cpu << '\x0F' << '\xAF' << address;
 	}
-	void Register::multiply_signed(MemAddress address, int value) {
+	void Register::multiply_signed(MemAddress address, int value)
+	{
 		address.other = code;
-		if (cpu.bitMode == 32) {
+		if (cpu.bitMode == 32)
+		{
 			if (value >= CHAR_MIN && value <= CHAR_MAX)
 				cpu << '\x6B' << address << (char)value;
 			else
 				cpu << '\x69' << address << value;
 		}
-		else if (cpu.bitMode == 16) {
+		else if (cpu.bitMode == 16)
+		{
 			if (value >= CHAR_MIN && value <= CHAR_MAX)
 				cpu << '\x66' << '\x6B' << address << (char)value;
 			else
 				cpu << '\x66' << '\x69' << address << (short)value;
 		}
 	}
-	void Register::operator-() {
+	void Register::operator-()
+	{
 		cpu << '\xF7' << mod_rm(EX_3, REG, code);
 	}
-	void Register::operator--() {
-		switch (getBitMode()) {
+	void Register::operator--()
+	{
+		switch (getBitMode())
+		{
 			case 8:
 				cpu << '\xFE' << mod_rm(EX_1, REG, code); break;
 			case 16:
@@ -757,8 +883,10 @@ namespace assembler
 				throw 0;
 		}
 	}
-	void Register::operator++() {
-		switch (getBitMode()) {
+	void Register::operator++()
+	{
+		switch (getBitMode())
+		{
 			case 8:
 				cpu << '\xFE' << mod_rm(EX_0, REG, code); break;
 			case 16:
@@ -769,20 +897,26 @@ namespace assembler
 				throw 0;
 		}
 	}
-	void Register::operator~() {
-		if (getBitMode() == 8) {
+	void Register::operator~()
+	{
+		if (getBitMode() == 8)
+		{
 			cpu << '\xF6' << mod_rm(EX_2, REG, code);
 		}
-		else {
+		else
+		{
 			cpu << '\xF7' << mod_rm(EX_2, REG, code);
 		}
 	}
-	void Register::operator&=(MemAddress address) {
+	void Register::operator&=(MemAddress address)
+	{
 		address.other = code;
 		cpu << '\x23' << address;
 	}
-	void Register::operator&=(unsigned long long mask) {
-		switch (getBitMode()) {
+	void Register::operator&=(unsigned long long mask)
+	{
+		switch (getBitMode())
+		{
 			case 8:
 				cpu << '\x80' << mod_rm(EX_4, REG, code) << (byte)mask; break;
 			case 16:
@@ -795,8 +929,10 @@ namespace assembler
 					cpu << '\x81' << mod_rm(EX_4, REG, code) << (unsigned)mask;
 		}
 	}
-	void Register::operator&=(Register other) {
-		switch (getBitMode()) {
+	void Register::operator&=(Register other)
+	{
+		switch (getBitMode())
+		{
 			case 8:
 				cpu << '\x20' << mod_rm(other.code, REG, code); break;
 			case 16:
@@ -806,19 +942,24 @@ namespace assembler
 				cpu << '\x21' << mod_rm(other.code, REG, code); break;
 		}
 	}
-	void Register::operator^=(MemAddress address) {
+	void Register::operator^=(MemAddress address)
+	{
 		address.other = code;
 		cpu << '\x33' << address;
 	}
-	void Register::operator^=(Register& other) {
+	void Register::operator^=(Register& other)
+	{
 		cpu << '\x31' << mod_rm(other.code, REG, code);
 	}
-	void Register::operator|=(MemAddress address) {
+	void Register::operator|=(MemAddress address)
+	{
 		address.other = code;
 		cpu << '\x0B' << address;
 	}
-	void Register::operator|=(unsigned long long mask) {
-		switch (getBitMode()) {
+	void Register::operator|=(unsigned long long mask)
+	{
+		switch (getBitMode())
+		{
 			case 8:
 				cpu << '\x80' << mod_rm(EX_1, REG, code) << (byte)mask; break;
 			case 16:
@@ -831,11 +972,14 @@ namespace assembler
 					cpu << '\x81' << mod_rm(EX_1, REG, code) << (unsigned)mask;
 		}
 	}
-	void Register::operator=(void* pointer) {
+	void Register::operator=(void* pointer)
+	{
 		cpu << (byte)('\xB8' + code) << pointer;
 	}
-	void Register::operator=(unsigned long long value) {
-		switch (getBitMode()) {
+	void Register::operator=(unsigned long long value)
+	{
+		switch (getBitMode())
+		{
 			case 8:
 				cpu << (byte)('\xB0' + code) << (byte)value; break;
 			case 16:
@@ -846,9 +990,11 @@ namespace assembler
 				throw 0;
 		}
 	}
-	void* Register::setDeferred(unsigned long long value) {
+	void* Register::setDeferred(unsigned long long value)
+	{
 		void* ptr = 0;
-		switch (getBitMode()) {
+		switch (getBitMode())
+		{
 			case 8:
 				cpu << (byte)('\xB0' + code);
 				ptr = (void*)cpu.op;
@@ -866,13 +1012,16 @@ namespace assembler
 		}
 		return ptr;
 	}
-	void Register::operator=(Register other) {
+	void Register::operator=(Register other)
+	{
 		if (code != other.code)
 			cpu << '\x89' << mod_rm(other.code, REG, code);
 	}
-	void Register::copy_expanding(MemAddress address) {
+	void Register::copy_expanding(MemAddress address)
+	{
 		address.other = code;
-		switch (getBitMode(address)) {
+		switch (getBitMode(address))
+		{
 			case 8:
 				cpu << '\x0F' << '\xBE' << address; break;
 			case 16:
@@ -883,8 +1032,10 @@ namespace assembler
 				throw 0;
 		}
 	}
-	void Register::copy_zeroing(Register& other) {
-		switch (getBitMode()) {
+	void Register::copy_zeroing(Register& other)
+	{
+		switch (getBitMode())
+		{
 			case 8:
 			case 16:
 				throw 0;
@@ -894,9 +1045,11 @@ namespace assembler
 				throw 0;
 		}
 	}
-	void Register::operator=(MemAddress addr) {
+	void Register::operator=(MemAddress addr)
+	{
 		addr.other = code;
-		switch (getBitMode(addr)) {
+		switch (getBitMode(addr))
+		{
 			case 8:
 				cpu << '\x8A' << addr; break;
 			case 16:
@@ -907,8 +1060,10 @@ namespace assembler
 				throw 0;
 		}
 	}
-	void Register::operator==(Register other) {
-		switch (getBitMode()) {
+	void Register::operator==(Register other)
+	{
+		switch (getBitMode())
+		{
 			case 8:
 				cpu << '\x3A' << mod_rm(code, REG, other.code); break;
 			case 16:
@@ -919,9 +1074,11 @@ namespace assembler
 				throw 0;
 		}
 	}
-	void Register::operator==(MemAddress addr) {
+	void Register::operator==(MemAddress addr)
+	{
 		addr.other = code;
-		switch (getBitMode(addr)) {
+		switch (getBitMode(addr))
+		{
 			case 8:
 				cpu << '\x3A' << addr; break;
 			case 16:
@@ -932,8 +1089,10 @@ namespace assembler
 				throw 0;
 		}
 	}
-	void Register::operator==(unsigned int test) {
-		switch (getBitMode()) {
+	void Register::operator==(unsigned int test)
+	{
+		switch (getBitMode())
+		{
 			case 8:
 				cpu << '\x80' << mod_rm(EX_7, REG, code) << (byte)test; break;
 			case 16:
@@ -947,136 +1106,170 @@ namespace assembler
 
 	unsigned char setConditions[JumpTypeCount - 1] = { 0x90,0x91,0x92,0x93,0x94,0x95,0x96,0x97,0x98,0x99,0x9A,0x9B,0x9C,0x9D,0x9E,0x9F };
 
-	void Register::setIf(JumpType condition) {
+	void Register::setIf(JumpType condition)
+	{
 		if (condition >= Jump)
 			throw 0;
 		cpu << '\x0F' << setConditions[condition] << mod_rm(EX_0, REG, code);
 	}
-	void Register::divide() {
+	void Register::divide()
+	{
 		cpu << '\xF7' << mod_rm(EX_6, REG, code);
 	}
-	void Register::divide_signed() {
+	void Register::divide_signed()
+	{
 		cpu << '\xF7' << mod_rm(EX_7, REG, code);
 	}
 
-	FloatingPointUnit::FloatingPointUnit(Processor& CPU) : cpu(CPU) {}
-	void FloatingPointUnit::pop() {
+	FloatingPointUnit::FloatingPointUnit(Processor& CPU) : cpu(CPU)
+	{
+	}
+	void FloatingPointUnit::pop()
+	{
 		//FSTP ST0
 		cpu << '\xDD' << '\xD8';
 	}
-	void FloatingPointUnit::init() {
+	void FloatingPointUnit::init()
+	{
 		cpu << '\xDB' << '\xE3';
 	}
-	void FloatingPointUnit::negate() {
+	void FloatingPointUnit::negate()
+	{
 		cpu << '\xD9' << '\xE0';
 	}
-	void FloatingPointUnit::exchange(FloatReg reg) {
+	void FloatingPointUnit::exchange(FloatReg reg)
+	{
 		cpu << '\xD9' << mod_rm(EX_1, REG, reg);
 	}
-	void FloatingPointUnit::load_const_0() {
+	void FloatingPointUnit::load_const_0()
+	{
 		cpu << '\xD9' << '\xEE';
 	}
-	void FloatingPointUnit::load_const_1() {
+	void FloatingPointUnit::load_const_1()
+	{
 		cpu << '\xD9' << '\xE8';
 	}
-	void FloatingPointUnit::operator-=(FloatReg reg) {
+	void FloatingPointUnit::operator-=(FloatReg reg)
+	{
 		cpu << '\xDC' << mod_rm(EX_4, REG, reg);
 	}
-	void FloatingPointUnit::load_double(MemAddress address) {
+	void FloatingPointUnit::load_double(MemAddress address)
+	{
 		address.other = EX_0;
 		cpu << '\xDD' << address;
 	}
-	void FloatingPointUnit::add_double(MemAddress address) {
+	void FloatingPointUnit::add_double(MemAddress address)
+	{
 		address.other = EX_0;
 		cpu << '\xDC' << address;
 	}
-	void FloatingPointUnit::add_double(FloatReg reg, bool pop) {
+	void FloatingPointUnit::add_double(FloatReg reg, bool pop)
+	{
 		if (pop)
 			cpu << '\xDE' << mod_rm(EX_0, REG, reg);
 		else
 			cpu << '\xDC' << mod_rm(EX_0, REG, reg);
 	}
-	void FloatingPointUnit::sub_double(MemAddress address, bool reversed) {
+	void FloatingPointUnit::sub_double(MemAddress address, bool reversed)
+	{
 		address.other = reversed ? EX_5 : EX_4;
 		cpu << '\xDC' << address;
 	}
-	void FloatingPointUnit::sub_double(FloatReg reg, bool reversed, bool pop) {
+	void FloatingPointUnit::sub_double(FloatReg reg, bool reversed, bool pop)
+	{
 		if (pop)
 			cpu << '\xDE' << mod_rm(reversed ? EX_5 : EX_4, REG, reg);
 		else
 			cpu << '\xDC' << mod_rm(reversed ? EX_5 : EX_4, REG, reg);
 	}
-	void FloatingPointUnit::mult_double(MemAddress address) {
+	void FloatingPointUnit::mult_double(MemAddress address)
+	{
 		address.other = EX_1;
 		cpu << '\xDC' << address;
 	}
-	void FloatingPointUnit::mult_double(FloatReg reg, bool pop) {
+	void FloatingPointUnit::mult_double(FloatReg reg, bool pop)
+	{
 		if (pop)
 			cpu << '\xDE' << mod_rm(EX_1, REG, reg);
 		else
 			cpu << '\xDC' << mod_rm(EX_1, REG, reg);
 	}
-	void FloatingPointUnit::div_double(MemAddress address, bool reversed) {
+	void FloatingPointUnit::div_double(MemAddress address, bool reversed)
+	{
 		address.other = reversed ? EX_7 : EX_6;
 		cpu << '\xDC' << address;
 	}
-	void FloatingPointUnit::div_double(FloatReg reg, bool reversed, bool pop) {
+	void FloatingPointUnit::div_double(FloatReg reg, bool reversed, bool pop)
+	{
 		if (pop)
 			cpu << '\xDE' << mod_rm(reversed ? EX_7 : EX_6, REG, reg);
 		else
 			cpu << '\xDC' << mod_rm(reversed ? EX_7 : EX_6, REG, reg);
 	}
-	void FloatingPointUnit::add_float(MemAddress address) {
+	void FloatingPointUnit::add_float(MemAddress address)
+	{
 		address.other = EX_0;
 		cpu << '\xD8' << address;
 	}
-	void FloatingPointUnit::sub_float(MemAddress address) {
+	void FloatingPointUnit::sub_float(MemAddress address)
+	{
 		address.other = EX_4;
 		cpu << '\xD8' << address;
 	}
-	void FloatingPointUnit::mult_float(MemAddress address) {
+	void FloatingPointUnit::mult_float(MemAddress address)
+	{
 		address.other = EX_1;
 		cpu << '\xD8' << address;
 	}
-	void FloatingPointUnit::div_float(MemAddress address) {
+	void FloatingPointUnit::div_float(MemAddress address)
+	{
 		address.other = EX_6;
 		cpu << '\xD8' << address;
 	}
-	void FloatingPointUnit::store_double(MemAddress address, bool pop) {
+	void FloatingPointUnit::store_double(MemAddress address, bool pop)
+	{
 		address.other = pop ? EX_3 : EX_2;
 		cpu << '\xDD' << address;
 	}
-	void FloatingPointUnit::load_float(MemAddress address) {
+	void FloatingPointUnit::load_float(MemAddress address)
+	{
 		address.other = EX_0;
 		cpu << '\xD9' << address;
 	}
-	void FloatingPointUnit::store_float(MemAddress address, bool pop) {
+	void FloatingPointUnit::store_float(MemAddress address, bool pop)
+	{
 		address.other = pop ? EX_3 : EX_2;
 		cpu << '\xD9' << address;
 	}
-	void FloatingPointUnit::load_dword(MemAddress address) {
+	void FloatingPointUnit::load_dword(MemAddress address)
+	{
 		address.other = EX_0;
 		cpu << '\xDB' << address;
 	}
-	void FloatingPointUnit::store_dword(MemAddress address, bool pop) {
+	void FloatingPointUnit::store_dword(MemAddress address, bool pop)
+	{
 		address.other = pop ? EX_3 : EX_2;
 		cpu << '\xDB' << address;
 	}
-	void FloatingPointUnit::load_qword(MemAddress address) {
+	void FloatingPointUnit::load_qword(MemAddress address)
+	{
 		address.other = EX_5;
 		cpu << '\xDF' << address;
 	}
-	void FloatingPointUnit::compare_toCPU(FloatReg floatReg, bool pop) {
+	void FloatingPointUnit::compare_toCPU(FloatReg floatReg, bool pop)
+	{
 		if (pop)
 			cpu << '\xDF' << mod_rm(EX_5, REG, floatReg);
 		else
 			cpu << '\xDB' << mod_rm(EX_5, REG, floatReg);
 	}
-	void FloatingPointUnit::store_control_word(MemAddress address) {
+	void FloatingPointUnit::store_control_word(MemAddress address)
+	{
 		address.other = EX_7;
 		cpu << '\xD9' << address;
 	}
-	void FloatingPointUnit::load_control_word(MemAddress address) {
+	void FloatingPointUnit::load_control_word(MemAddress address)
+	{
 		address.other = EX_5;
 		cpu << '\xD9' << address;
 	}

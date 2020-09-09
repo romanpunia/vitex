@@ -4047,117 +4047,50 @@ namespace Tomahawk
 			return new VMCRandom();
 		}
 
-		VMCReceiver::VMCReceiver() : Debug(0)
+		VMCThread::VMCThread(VMCManager* Engine, VMCFunction* Func) : Manager(VMManager::Get(Engine)), Function(Func), Context(nullptr), Ref(1), GCFlag(false)
 		{
+			Engine->NotifyGarbageCollectorOfNewObject(this, Engine->GetTypeInfoByName("Thread"));
 		}
-		void VMCReceiver::Send(VMCAny* Any)
+		void VMCThread::Routine()
 		{
-			if (!Any)
-				return;
-
-			Any->AddRef();
-			Debug += 1;
-
+			Mutex.lock();
+			if (!Function)
 			{
-				std::lock_guard<std::mutex> Guard(Mutex);
-				Queue.push_back(Any);
+				Release();
+				return Mutex.unlock();
 			}
 
-			CV.notify_one();
-		}
-		void VMCReceiver::Release()
-		{
-			std::lock_guard<std::mutex> Guard(Mutex);
-			for (auto Any : Queue)
+			if (Context == nullptr)
+				Context = Manager->CreateContext();
+
+			if (Context == nullptr)
 			{
-				if (Any != nullptr)
-					Any->Release();
+				Manager->GetEngine()->WriteMessage("", 0, 0, asMSGTYPE_ERROR, "failed to start a thread: no available context");
+				Release();
+
+				return Mutex.unlock();
 			}
-			Queue.clear();
-		}
-		void VMCReceiver::EnumReferences(VMCManager* Engine)
-		{
-			if (!Engine)
-				return;
 
-			for (auto Any : Queue)
+			if (Context->GetState() != VMExecState_SUSPENDED)
 			{
-				if (Any != nullptr)
-					Engine->GCEnumCallback(Any);
-			}
-		}
-		int VMCReceiver::GetQueueSize()
-		{
-			return Queue.size();
-		}
-		VMCAny* VMCReceiver::ReceiveWait()
-		{
-			VMCAny* Value = nullptr;
-			while (!Value)
-				Value = Receive(10000);
-
-			return Value;
-		}
-		VMCAny* VMCReceiver::Receive(uint64_t Timeout)
-		{
-			std::unique_lock<std::mutex> Guard(Mutex);
-			auto Duration = std::chrono::milliseconds(Timeout);
-
-			if (!CV.wait_for(Guard, Duration, [&]
-			{
-				return Queue.size() != 0;
-			}))
-				return nullptr;
-
-			VMCAny* Result = Queue.front();
-			Queue.erase(Queue.begin());
-
-			return Result;
-		}
-
-		VMCThread::VMCThread(VMCManager* Engine, VMCFunction* Func) : Manager(VMManager::Get(Engine)), Function(Func), Context(nullptr), Ref(1), Active(false), GCFlag(false)
-		{
-		}
-		void VMCThread::StartRoutine(VMCThread* Thread)
-		{
-			if (Thread != nullptr)
-				Thread->StartRoutineThread();
-		}
-		void VMCThread::StartRoutineThread()
-		{
-			{
-				std::lock_guard<std::mutex> Guard(Mutex);
-				if (!Function)
-				{
-					Active = false;
-					Release();
-					return;
-				}
-
-				if (Context == nullptr)
-					Context = Manager->CreateContext();
-
-				if (Context == nullptr)
-				{
-					Manager->GetEngine()->WriteMessage("", 0, 0, asMSGTYPE_ERROR, "failed to start a thread: no available context");
-					Active = false;
-					Release();
-					return;
-				}
-
 				Context->Prepare(Function);
+				Context->SetArgObject(0, this);
 				Context->SetUserData(this, ContextUD);
 			}
+			Mutex.unlock();
 
-			Context->Execute();
+			int Result = Context->Execute();
+			Mutex.lock();
+
+			if (Result != VMExecState_SUSPENDED)
 			{
-				std::lock_guard<std::mutex> Guard(Mutex);
-				Active = false;
 				Context->SetUserData(nullptr, ContextUD);
 				delete Context;
 				Context = nullptr;
-				CV.notify_all();
 			}
+
+			CV.notify_all();
+			Mutex.unlock();
 			Release();
 			asThreadCleanup();
 		}
@@ -4168,9 +4101,10 @@ namespace Tomahawk
 		}
 		void VMCThread::Suspend()
 		{
-			std::lock_guard<std::mutex> Guard(Mutex);
-			if (Context)
+			Mutex.lock();
+			if (Context && Context->GetState() != VMExecState_SUSPENDED)
 				Context->Suspend();
+			Mutex.unlock();
 		}
 		void VMCThread::Release()
 		{
@@ -4198,29 +4132,37 @@ namespace Tomahawk
 		}
 		void VMCThread::EnumReferences(VMCManager* Engine)
 		{
-			Incoming.EnumReferences(Engine);
-			Outgoing.EnumReferences(Engine);
-			Engine->GCEnumCallback(Engine);
+			for (int i = 0; i < 2; i++)
+			{
+				for (auto Any : Pipe[i].Queue)
+				{
+					if (Any != nullptr)
+						Engine->GCEnumCallback(Any);
+				}
+			}
 
+			Engine->GCEnumCallback(Engine);
 			if (Context != nullptr)
 				Engine->GCEnumCallback(Context);
 
 			if (Function != nullptr)
 				Engine->GCEnumCallback(Function);
 		}
-		int VMCThread::Wait(uint64_t Timeout)
+		int VMCThread::Join(uint64_t Timeout)
 		{
 			{
 				std::lock_guard<std::mutex> Guard(Mutex);
+				if (std::this_thread::get_id() == Thread.get_id())
+					return -1;
+
 				if (!Thread.joinable())
 					return -1;
 			}
 			{
 				std::unique_lock<std::mutex> Guard(Mutex);
-				auto Duration = std::chrono::milliseconds(Timeout);
-				if (CV.wait_for(Guard, Duration, [&]
+				if (CV.wait_for(Guard, std::chrono::milliseconds(Timeout), [&]
 				{
-					return !Active;
+					return !((Context && Context->GetState() != VMExecState_SUSPENDED));
 				}))
 				{
 					Thread.join();
@@ -4232,52 +4174,124 @@ namespace Tomahawk
 		}
 		int VMCThread::Join()
 		{
+			if (std::this_thread::get_id() == Thread.get_id())
+				return -1;
+
 			while (true)
 			{
-				int R = Wait(1000);
+				int R = Join(1000);
 				if (R == -1 || R == 1)
 					return R;
 			}
 
 			return 0;
 		}
-		void VMCThread::Send(VMCAny* Any)
+		void VMCThread::Push(void* Ref, int TypeId)
 		{
-			Incoming.Send(Any);
+			auto* Thread = GetThread();
+			int Id = (Thread == this ? 1 : 0);
+
+			VMCAny* Any = new VMCAny(Ref, TypeId, VMManager::Get()->GetEngine());
+			Pipe[Id].Mutex.lock();
+			Pipe[Id].Queue.push_back(Any);
+			Pipe[Id].Mutex.unlock();
+			Pipe[Id].CV.notify_one();
 		}
-		VMCAny* VMCThread::ReceiveWait()
+		bool VMCThread::Pop(void* Ref, int TypeId)
 		{
-			return Outgoing.ReceiveWait();
+			bool Resolved = false;
+			while (!Resolved)
+				Resolved = Pop(Ref, TypeId, 1000);
+
+			return true;
 		}
-		VMCAny* VMCThread::Receive(uint64_t Timeout)
+		bool VMCThread::Pop(void* Ref, int TypeId, uint64_t Timeout)
 		{
-			return Outgoing.Receive(Timeout);
+			auto* Thread = GetThread();
+			int Id = (Thread == this ? 0 : 1);
+
+			std::unique_lock<std::mutex> Guard(Pipe[Id].Mutex);
+			if (!CV.wait_for(Guard, std::chrono::milliseconds(Timeout), [&]
+			{
+				return Pipe[Id].Queue.size() != 0;
+			}))
+				return false;
+
+			VMCAny* Result = Pipe[Id].Queue.front();
+			if (!Result->Retrieve(Ref, TypeId))
+				return false;
+
+			Pipe[Id].Queue.erase(Pipe[Id].Queue.begin());
+			Result->Release();
+
+			return true;
 		}
 		bool VMCThread::IsActive()
 		{
-			std::lock_guard<std::mutex> Guard(Mutex);
-			return !Active;
+			Mutex.lock();
+			bool State = (Context && Context->GetState() != VMExecState_SUSPENDED);
+			Mutex.unlock();
+
+			return State;
 		}
 		bool VMCThread::Start()
 		{
-			std::lock_guard<std::mutex> Guard(Mutex);
+			Mutex.lock();
 			if (!Function)
+			{
+				Mutex.unlock();
 				return false;
+			}
 
-			if (Active)
-				return false;
+			if (Context != nullptr)
+			{
+				if (Context->GetState() != VMExecState_SUSPENDED)
+				{
+					Mutex.unlock();
+					return false;
+				}
+				else
+				{
+					Mutex.unlock();
+					Join();
+					Mutex.lock();
+				}
+			}
+			else if (Thread.joinable())
+			{
+				if (std::this_thread::get_id() == Thread.get_id())
+				{
+					Mutex.unlock();
+					return false;
+				}
 
-			Active = true;
+				Thread.join();
+			}
+
 			AddRef();
-			Thread = std::thread(&VMCThread::StartRoutineThread, this);
+			Thread = std::thread(&VMCThread::Routine, this);
+			Mutex.unlock();
+
 			return true;
 		}
 		void VMCThread::ReleaseReferences(VMCManager*)
 		{
-			Outgoing.Release();
-			Incoming.Release();
+			if (Join() >= 0)
+				THAWK_ERROR("[memerr] thread was forced to join");
 
-			std::lock_guard<std::mutex> Guard(Mutex);
+			for (int i = 0; i < 2; i++)
+			{
+				Pipe[i].Mutex.lock();
+				for (auto Any : Pipe[i].Queue)
+				{
+					if (Any != nullptr)
+						Any->Release();
+				}
+				Pipe[i].Queue.clear();
+				Pipe[i].Mutex.unlock();
+			}
+
+			Mutex.lock();
 			if (Function)
 				Function->Release();
 
@@ -4285,21 +4299,15 @@ namespace Tomahawk
 			Context = nullptr;
 			Manager = nullptr;
 			Function = nullptr;
+			Mutex.unlock();
 		}
-		VMCThread* VMCThread::GetThisThread()
+		void VMCThread::Create(VMCGeneric* Generic)
 		{
-			VMCContext* Context = asGetActiveContext();
-			if (!Context)
-				return nullptr;
-
-			VMCThread* Thread = static_cast<VMCThread*>(Context->GetUserData(ContextUD));
-			if (Thread != nullptr)
-				return Thread;
-
-			Context->SetException("cannot call global thread messaging in the main thread");
-			return nullptr;
+			VMCManager* Engine = Generic->GetEngine();
+			VMCFunction* Function = *(VMCFunction**)Generic->GetAddressOfArg(0);
+			*(VMCThread**)Generic->GetAddressOfReturnLocation() = new VMCThread(Engine, Function);
 		}
-		VMCThread* VMCThread::GetThisThreadSafe()
+		VMCThread* VMCThread::GetThread()
 		{
 			VMCContext* Context = asGetActiveContext();
 			if (!Context)
@@ -4307,63 +4315,12 @@ namespace Tomahawk
 
 			return static_cast<VMCThread*>(Context->GetUserData(ContextUD));
 		}
-		void VMCThread::SendInThread(VMCAny* Any)
-		{
-			auto* Thread = GetThisThread();
-			if (Thread != nullptr)
-				Thread->Outgoing.Send(Any);
-		}
-		void VMCThread::SleepInThread(uint64_t Timeout)
+		void VMCThread::ThreadSleep(uint64_t Timeout)
 		{
 			std::this_thread::sleep_for(std::chrono::milliseconds(Timeout));
 		}
-		VMCAny* VMCThread::ReceiveWaitInThread()
+		uint64_t VMCThread::GetThreadId()
 		{
-			auto* Thread = GetThisThread();
-			if (!Thread)
-				return nullptr;
-
-			return Thread->Incoming.ReceiveWait();
-		}
-		VMCAny* VMCThread::ReceiveInThread(uint64_t Timeout)
-		{
-			auto* Thread = GetThisThread();
-			if (!Thread)
-				return nullptr;
-
-			return Thread->Incoming.Receive(Timeout);
-		}
-		VMCThread* VMCThread::StartThread(VMCFunction* Func)
-		{
-			VMCContext* Context = asGetActiveContext();
-			if (!Context)
-			{
-				if (Func)
-					Func->Release();
-
-				return nullptr;
-			}
-
-			VMCManager* Engine = Context->GetEngine();
-			if (!Engine)
-			{
-				if (Func)
-					Func->Release();
-
-				return nullptr;
-			}
-
-			VMCThread* Thread = new VMCThread(Engine, Func);
-			Engine->NotifyGarbageCollectorOfNewObject(Thread, Engine->GetTypeInfoByName("Thread"));
-
-			return Thread;
-		}
-		uint64_t VMCThread::GetIdInThread()
-		{
-			auto* Thread = GetThisThreadSafe();
-			if (!Thread)
-				return 0;
-
 			return (uint64_t)std::hash<std::thread::id>()(std::this_thread::get_id());
 		}
 		int VMCThread::ContextUD = 550;
@@ -4509,6 +4466,21 @@ namespace Tomahawk
 			Async->Done = DoneCallback;
 			if (WorkCallback)
 				WorkCallback(Async);
+
+			return Async;
+		}
+		VMCAsync* VMCAsync::CreatePending()
+		{
+			VMCContext* Context = asGetActiveContext();
+			if (!Context)
+				return nullptr;
+
+			VMCManager* Engine = Context->GetEngine();
+			if (!Engine)
+				return nullptr;
+
+			VMCAsync* Async = new VMCAsync(Context);
+			Engine->NotifyGarbageCollectorOfNewObject(Async, Engine->GetTypeInfoByName("Async"));
 
 			return Async;
 		}
@@ -4951,8 +4923,9 @@ namespace Tomahawk
 			if (!Engine)
 				return false;
 
-			Engine->RegisterFuncdef("void ThreadEvent()");
 			Engine->RegisterObjectType("Thread", 0, asOBJ_REF | asOBJ_GC);
+			Engine->RegisterFuncdef("void ThreadEvent(Thread@+)");
+			Engine->RegisterObjectBehaviour("Thread", asBEHAVE_FACTORY, "Thread@ f(ThreadEvent@)", asFUNCTION(VMCThread::Create), asCALL_GENERIC);
 			Engine->RegisterObjectBehaviour("Thread", asBEHAVE_ADDREF, "void f()", asMETHOD(VMCThread, AddRef), asCALL_THISCALL);
 			Engine->RegisterObjectBehaviour("Thread", asBEHAVE_RELEASE, "void f()", asMETHOD(VMCThread, Release), asCALL_THISCALL);
 			Engine->RegisterObjectBehaviour("Thread", asBEHAVE_SETGCFLAG, "void f()", asMETHOD(VMCThread, SetGCFlag), asCALL_THISCALL);
@@ -4960,20 +4933,17 @@ namespace Tomahawk
 			Engine->RegisterObjectBehaviour("Thread", asBEHAVE_GETREFCOUNT, "int f()", asMETHOD(VMCThread, GetRefCount), asCALL_THISCALL);
 			Engine->RegisterObjectBehaviour("Thread", asBEHAVE_ENUMREFS, "void f(int&in)", asMETHOD(VMCThread, EnumReferences), asCALL_THISCALL);
 			Engine->RegisterObjectBehaviour("Thread", asBEHAVE_RELEASEREFS, "void f(int&in)", asMETHOD(VMCThread, ReleaseReferences), asCALL_THISCALL);
-			Engine->RegisterObjectMethod("Thread", "bool Start()", asMETHOD(VMCThread, Start), asCALL_THISCALL);
 			Engine->RegisterObjectMethod("Thread", "bool IsActive()", asMETHOD(VMCThread, IsActive), asCALL_THISCALL);
+			Engine->RegisterObjectMethod("Thread", "bool Invoke()", asMETHOD(VMCThread, Start), asCALL_THISCALL);
 			Engine->RegisterObjectMethod("Thread", "void Suspend()", asMETHOD(VMCThread, Suspend), asCALL_THISCALL);
-			Engine->RegisterObjectMethod("Thread", "void Send(Any &in)", asMETHOD(VMCThread, Send), asCALL_THISCALL);
-			Engine->RegisterObjectMethod("Thread", "Any@ ReceiveWait()", asMETHOD(VMCThread, ReceiveWait), asCALL_THISCALL);
-			Engine->RegisterObjectMethod("Thread", "Any@ Receive(uint64)", asMETHOD(VMCThread, Receive), asCALL_THISCALL);
-			Engine->RegisterObjectMethod("Thread", "int Wait(uint64)", asMETHOD(VMCThread, Wait), asCALL_THISCALL);
-			Engine->RegisterObjectMethod("Thread", "int Join()", asMETHOD(VMCThread, Join), asCALL_THISCALL);
-			Engine->RegisterGlobalFunction("Any@ ReceiveFrom(uint64)", asFUNCTION(VMCThread::ReceiveInThread), asCALL_CDECL);
-			Engine->RegisterGlobalFunction("Any@ ReceiveFromWait()", asFUNCTION(VMCThread::ReceiveWaitInThread), asCALL_CDECL);
-			Engine->RegisterGlobalFunction("void Sleep(uint64)", asFUNCTION(VMCThread::SleepInThread), asCALL_CDECL);
-			Engine->RegisterGlobalFunction("void SendTo(Any&)", asFUNCTION(VMCThread::SendInThread), asCALL_CDECL);
-			Engine->RegisterGlobalFunction("Thread@ CreateThread(ThreadEvent@)", asFUNCTION(VMCThread::StartThread), asCALL_CDECL);
-			Engine->RegisterGlobalFunction("uint64 Id()", asFUNCTION(VMCThread::GetIdInThread), asCALL_CDECL);
+			Engine->RegisterObjectMethod("Thread", "void Push(const ?&in)", asMETHOD(VMCThread, Push), asCALL_THISCALL);
+			Engine->RegisterObjectMethod("Thread", "bool Pop(?&out)", asMETHODPR(VMCThread, Pop, (void*, int), bool), asCALL_THISCALL);
+			Engine->RegisterObjectMethod("Thread", "bool Pop(?&out, uint64)", asMETHODPR(VMCThread, Pop, (void*, int, uint64_t), bool), asCALL_THISCALL);
+			Engine->RegisterObjectMethod("Thread", "int Join(uint64)", asMETHODPR(VMCThread, Join, (uint64_t), int), asCALL_THISCALL);
+			Engine->RegisterObjectMethod("Thread", "int Join()", asMETHODPR(VMCThread, Join, (), int), asCALL_THISCALL);
+			Engine->RegisterGlobalFunction("Thread@+ GetThread()", asFUNCTION(VMCThread::GetThread), asCALL_CDECL);
+			Engine->RegisterGlobalFunction("uint64 GetThreadId()", asFUNCTION(VMCThread::GetThreadId), asCALL_CDECL);
+			Engine->RegisterGlobalFunction("void Sleep(uint64)", asFUNCTION(VMCThread::ThreadSleep), asCALL_CDECL);
 			return true;
 		}
 		bool RegisterRandomAPI(VMManager* Manager)
@@ -5002,6 +4972,7 @@ namespace Tomahawk
 				return false;
 
 			Engine->RegisterObjectType("Async", 0, asOBJ_REF | asOBJ_GC);
+			Engine->RegisterObjectBehaviour("Async", asBEHAVE_FACTORY, "Async@ f()", asFUNCTION(VMCAsync::CreatePending), asCALL_CDECL);
 			Engine->RegisterObjectBehaviour("Async", asBEHAVE_ADDREF, "void f()", asMETHOD(VMCAsync, AddRef), asCALL_THISCALL);
 			Engine->RegisterObjectBehaviour("Async", asBEHAVE_RELEASE, "void f()", asMETHOD(VMCAsync, Release), asCALL_THISCALL);
 			Engine->RegisterObjectBehaviour("Async", asBEHAVE_SETGCFLAG, "void f()", asMETHOD(VMCAsync, SetGCFlag), asCALL_THISCALL);
@@ -5009,6 +4980,7 @@ namespace Tomahawk
 			Engine->RegisterObjectBehaviour("Async", asBEHAVE_GETREFCOUNT, "int f()", asMETHOD(VMCAsync, GetRefCount), asCALL_THISCALL);
 			Engine->RegisterObjectBehaviour("Async", asBEHAVE_ENUMREFS, "void f(int&in)", asMETHOD(VMCAsync, EnumReferences), asCALL_THISCALL);
 			Engine->RegisterObjectBehaviour("Async", asBEHAVE_RELEASEREFS, "void f(int&in)", asMETHOD(VMCAsync, ReleaseReferences), asCALL_THISCALL);
+			Engine->RegisterObjectMethod("Async", "void Set(const ?&in)", asMETHODPR(VMCAsync, Set, (void*, int), int), asCALL_THISCALL);
 			Engine->RegisterObjectMethod("Async", "Any@+ Get()", asMETHOD(VMCAsync, Get), asCALL_THISCALL);
 			Engine->RegisterObjectMethod("Async", "bool Get(?&out)", asMETHODPR(VMCAsync, GetAny, (void*, int) const, bool), asCALL_THISCALL);
 			Engine->RegisterObjectMethod("Async", "Async@+ Await()", asMETHOD(VMCAsync, Await), asCALL_THISCALL);

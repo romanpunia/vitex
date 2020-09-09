@@ -2812,7 +2812,7 @@ namespace Tomahawk
 					Result << "\t{...engine...}\n";
 			}
 
-			uint64_t Id = VMCThread::GetIdInThread();
+			uint64_t Id = VMCThread::GetThreadId();
 			if (Id > 0)
 				Result << "\t{...thread-" << Id << "...}\n";
 			else

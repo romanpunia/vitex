@@ -2,7 +2,7 @@ cmake_minimum_required(VERSION 3.1)
 cmake_policy(SET CMP0054 NEW)
 
 #Project's package support for non-UNIX platforms
-include(opt/package/CMakeLists.txt)
+include(lib/package/CMakeLists.txt)
 
 #Project's metadata
 project(tomahawk)
@@ -23,7 +23,7 @@ if (NOT DEFINED CMAKE_LIBRARY_OUTPUT_DIRECTORY)
 endif()
 
 #Project's source resolver
-include(opt/source/CMakeLists.txt)
+include(lib/source/CMakeLists.txt)
 
 #Project's compile options
 add_library(tomahawk SHARED ${SOURCE})
@@ -53,25 +53,28 @@ else()
 endif()
 
 #Project's compiler support for non-UNIX platforms
-include(opt/compiler/CMakeLists.txt)
+include(lib/compiler/CMakeLists.txt)
 
-#Project's dependency resolvers
-include(ref/angelscript/CMakeLists.txt)
-include(ref/bullet3/CMakeLists.txt)
-include(ref/nuklear/CMakeLists.txt)
-include(ref/tinyfiledialogs/CMakeLists.txt)
-include(ref/rapidxml/CMakeLists.txt)
-include(ref/stb/CMakeLists.txt)
-include(ref/wepoll/CMakeLists.txt)
-include(ref/openssl/CMakeLists.txt)
-include(ref/openal/CMakeLists.txt)
-include(ref/opengl/CMakeLists.txt)
-include(ref/d3d11/CMakeLists.txt)
-include(ref/glew/CMakeLists.txt)
-include(ref/zlib/CMakeLists.txt)
-include(ref/sdl2/CMakeLists.txt)
-include(ref/assimp/CMakeLists.txt)
-include(ref/mongoc/CMakeLists.txt)
+#Project's internal dependency resolvers
+include(src/internal/angelscript/CMakeLists.txt)
+include(src/internal/bullet3/CMakeLists.txt)
+include(src/internal/nuklear/CMakeLists.txt)
+include(src/internal/tinyfiledialogs/CMakeLists.txt)
+include(src/internal/rapidxml/CMakeLists.txt)
+include(src/internal/stb/CMakeLists.txt)
+include(src/internal/wepoll/CMakeLists.txt)
 
-#Project's target installation
-include(opt/install/CMakeLists.txt)
+#Project's external dependency resolvers
+include(lib/external/openssl/CMakeLists.txt)
+include(lib/external/openal/CMakeLists.txt)
+include(lib/external/opengl/CMakeLists.txt)
+include(lib/external/d3d11/CMakeLists.txt)
+include(lib/external/glew/CMakeLists.txt)
+include(lib/external/zlib/CMakeLists.txt)
+include(lib/external/sdl2/CMakeLists.txt)
+include(lib/external/assimp/CMakeLists.txt)
+include(lib/external/mongoc/CMakeLists.txt)
+
+#Project's target and installation
+include(src/tomahawk/CMakeLists.txt)
+include(lib/install/CMakeLists.txt)

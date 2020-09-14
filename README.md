@@ -154,166 +154,38 @@ There are several build options for this project.
 + **THAWK_INFO** to allow informational logs, defaults to true
 + **THAWK_WARN** to allow warning logs, defaults to true
 + **THAWK_ERROR** to allow error logs, defaults to true
-+ **THAWK_RESOURCE** to embed resources from **/data** to this project, defaults to true 
++ **THAWK_RESOURCE** to embed resources from **/lib/shaders** to this project, defaults to true 
 
 ## Linking
 Tomahawk has support for CMake's install command, to link it with your project you can use CMake as usual.
 
 ## Resources
-Tomahawk has embedded resources. They are located at **/data**. Resources will be packed to **/tomahawk/data.h** at CMake's configuration stage. If you want to disable resource embedding then shaders must not use standard library otherwise error will be raised.
+Tomahawk has embedded resources. They are located at **/lib/shaders**. Resources will be packed to **/src/core/shaders.h** and **/src/core/shaders.cpp** at CMake's configuration stage. If you want to disable resource embedding then shaders must not use standard library otherwise error will be raised.
 
-## Core built-in dependencies from **/ref**
-*These are used widely and presents useful features*
+## Core built-in dependencies from **/lib/internal**
+These are used widely and presents useful features
+* [Bullet Physics](https://github.com/bulletphysics/bullet3)
+* [AngelScript](https://sourceforge.net/projects/angelscript/)
+* [Wepoll](https://github.com/piscisaureus/wepoll)
+* [Nuklear](https://github.com/Immediate-Mode-UI/Nuklear)
+* [Tiny File Dialogs](https://github.com/native-toolkit/tinyfiledialogs)
+* [RapidXML](https://github.com/discordapp/rapidxml)
+* [STB](https://github.com/nothings/stb)
 
-#### [Bullet Physics](https://github.com/bulletphysics/bullet3)
-##### Usage
-Physics simulation support mostly for games, it needs only "BulletCollision", "BulletDynamics", "BulletInverseDynamics", "BulletSoftBody", "LinearMath" and headers from directory where all of this lies.
-##### Built-in because
-It is used in core parts of the engine, mostly in scene graph and in components.
+## Optional dependencies from **/lib/external**
+These are recommended to be installed, but are not required to. Every entry has **install.sh** script.
+* [OpenSSL](https://github.com/openssl/openssl)
+* [GLEW](https://github.com/nigels-com/glew)
+* [Zlib](https://github.com/madler/zlib)
+* [Assimp](https://github.com/assimp/assimp)
+* [MongoC](https://github.com/mongodb/mongo-c-driver)
+* [OpenAL Soft](https://github.com/kcat/openal-soft)
+* [SDL2](https://www.libsdl.org/download-2.0.php)
 
-#### [AngelScript](https://sourceforge.net/projects/angelscript/)
-##### Usage
-Angel Script support for scripting module.
-##### Built-in because
-Script module built on top of it, so it can't be compiled without the library.
-
-#### [Wepoll](https://github.com/piscisaureus/wepoll)
-##### Usage
-Socket polling mechanism that emulates posix's epoll with windows' iocp used by networking module.
-##### Built-in because
-Windows offers too complicated polling system that is hard to combine with UNIX.
-
-#### [Nuklear](https://github.com/Immediate-Mode-UI/Nuklear)
-##### Usage
-User interface calculation for proper rendering by backend. **Warn!** Original source code was changed in favor of Tomahawk needs.
-##### Built-in because
-It is used in core parts of the engine, mostly in application callbacks.
-
-#### [Tiny File Dialogs](https://github.com/native-toolkit/tinyfiledialogs)
-##### Usage
-Cross platform file dialog invoker.
-##### Built-in because
-It is used for OS component.
-
-#### [RapidXML](https://github.com/discordapp/rapidxml)
-##### Usage
-Fast parser of xml documents used by many internal systems to discover needed data and mostly used to read raw xml data.
-#### Built-in because
-It cannot be built as library and is used widely in content managment.
-
-#### [STB](https://github.com/nothings/stb)
-##### Usage
-Media processing library mostly used to load images and process them.
-##### Built-in because
-It is used in core parts of the engine, mostly in content managment.
-
-## Optional dependencies from **/refs**
-*These are recommended to be installed, but are not required to.*
-
-#### [OpenSSL](https://github.com/openssl/openssl)
-##### Usage
-Adds an ability to accept/connect/read/write/close socket data using selected security protocol under the hood and it is also used by other libraries.
-##### Install
-vcpkg:
-> vcpkg install openssl:%TRIPLET%
-
-apt:
-> sudo apt-get install libssl-dev
-
-brew:
-> brew install openssl@1.1 && ln -s /usr/local/opt/openssl@1.1/include/openssl /usr/local/include && ln -s /usr/local/opt/openssl@1.1/lib/*.dylib /usr/local/lib && ln -s /usr/local/opt/openssl@1.1/lib/*.a /usr/local/lib
-
-#### [GLEW](https://github.com/nigels-com/glew)
-##### Usage
-Extention loading system for OpenGL rendering backend.
-##### Install
-vcpkg:
-> vcpkg install glew:%TRIPLET%
-
-apt:
-> sudo apt-get install libglew-dev
-
-brew:
-> brew install glew && brew link glew --force
-
-#### [Zlib](https://github.com/madler/zlib)
-##### Usage
-Makes possible to compress/decompress any type of data by using several compressing algorithms and it is also used by other libraries.
-##### Install
-vcpkg:
-> vcpkg install zlib:%TRIPLET%
-
-apt:
-> sudo apt-get install zlib1g-dev
-
-brew:
-> brew install zlib && ln -s /usr/local/opt/zlib/include/* /usr/local/include && ln -s /usr/local/opt/zlib/lib/*.dylib /usr/local/lib && ln -s /usr/local/opt/zlib/lib/*.a /usr/local/lib
-
-#### [Assimp](https://github.com/assimp/assimp)
-##### Usage
-Makes possible to import multiple types of assets from modelling software.
-##### Install
-vcpkg:
-> vcpkg install assimp:%TRIPLET%
-
-apt:
-> sudo git clone https://github.com/assimp/assimp && mkdir make && cd make && sudo cmake .. && sudo make && sudo make install
-
-brew:
-> git clone https://github.com/assimp/assimp && cd assimp && mkdir make && cd make && cmake .. && make && make install
-
-#### [MongoC](https://github.com/mongodb/mongo-c-driver)
-##### Usage
-MongoDB database driver for data storage, also BSON that is used for data transfer.
-##### Install
-vcpkg:
-> vcpkg install mongo-c-driver:%TRIPLET%
-
-apt:
-> sudo git clone https://github.com/mongodb/mongo-c-driver mongodb && cd mongodb && mkdir make && cd make && sudo cmake -DENABLE_AUTOMATIC_INIT_AND_CLEANUP=OFF .. && sudo make && sudo make install
-
-brew:
-> git clone https://github.com/mongodb/mongo-c-driver mongodb && cd mongodb && mkdir make && cd make && cmake -DENABLE_AUTOMATIC_INIT_AND_CLEANUP=OFF .. && make && make install
-
-#### [OpenAL Soft](https://github.com/kcat/openal-soft)
-##### Usage
-Creates an ability to play mono/positional sounds with effects and other stuff mostly used for games.
-##### Install
-vcpkg:
-> vcpkg install openal-soft:%TRIPLET%
-
-apt:
-> sudo apt-get install libopenal-dev
-
-brew:
-> brew install openal-soft && ln -s /usr/local/opt/openal-soft/include/AL /usr/local/include && ln -s /usr/local/opt/openal-soft/lib/*.dylib /usr/local/lib && ln -s /usr/local/opt/openal-soft/lib/*.a /usr/local/lib
-
-#### [SDL2](https://www.libsdl.org/download-2.0.php)
-##### Usage
-Cross platform window managment system with input/output controllers.
-##### Install
-vcpkg:
-> vcpkg install sdl2:%TRIPLET%
-
-apt:
-> sudo apt-get install libsdl2-dev
-
-brew:
-> brew install sdl2 && brew link sdl2 --force
-	
-## Platform dependencies from **/refs**
-*These are resolved automatically.*
-
-#### [OpenGL](https://github.com/KhronosGroup/OpenGL-Registry)
-##### Usage
-Rendering backend used for non-Microsoft platforms.
-##### Install
-apt:
-> sudo apt-get install libglu1-mesa-dev mesa-common-dev`
-
-#### [D3D11](https://www.microsoft.com/en-us/download/details.aspx?id=6812)
-##### Usage
-Rendering backend used for Microsoft platforms.
+## Platform dependencies from **/lib/external**
+These are resolved automatically.
+* [OpenGL](https://github.com/KhronosGroup/OpenGL-Registry)
+* [D3D11](https://www.microsoft.com/en-us/download/details.aspx?id=6812)
 
 ## License
 Tomahawk is licensed under the MIT license

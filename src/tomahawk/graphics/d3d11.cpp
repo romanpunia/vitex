@@ -561,7 +561,7 @@ namespace Tomahawk
 
 					if (Debugger != nullptr)
 					{
-						Debugger->ReportLiveDeviceObjects(D3D11_RLDO_DETAIL | D3D11_RLDO_IGNORE_INTERNAL);
+						Debugger->ReportLiveDeviceObjects(D3D11_RLDO_DETAIL);
 						Debugger->Release();
 					}
 				}

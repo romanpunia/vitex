@@ -1,6 +1,7 @@
 #include "ogl.h"
 #ifdef THAWK_HAS_SDL2
 #include <SDL2/SDL_syswm.h>
+#undef DirectColor
 #endif
 #ifdef THAWK_HAS_GL
 
@@ -200,15 +201,15 @@ namespace Tomahawk
 			}
 			Viewport OGLDepthBuffer::GetViewport()
 			{
-				return Viewport;
+				return View;
 			}
 			float OGLDepthBuffer::GetWidth()
 			{
-				return Viewport.Width;
+				return View.Width;
 			}
 			float OGLDepthBuffer::GetHeight()
 			{
-				return Viewport.Height;
+				return View.Height;
 			}
 			void* OGLDepthBuffer::GetResource()
 			{
@@ -225,15 +226,15 @@ namespace Tomahawk
 			}
 			Viewport OGLRenderTarget2D::GetViewport()
 			{
-				return Viewport;
+				return View;
 			}
 			float OGLRenderTarget2D::GetWidth()
 			{
-				return Viewport.Width;
+				return View.Width;
 			}
 			float OGLRenderTarget2D::GetHeight()
 			{
-				return Viewport.Height;
+				return View.Height;
 			}
 			void* OGLRenderTarget2D::GetResource()
 			{
@@ -250,15 +251,15 @@ namespace Tomahawk
 			}
 			Viewport OGLMultiRenderTarget2D::GetViewport()
 			{
-				return Viewport;
+				return View;
 			}
 			float OGLMultiRenderTarget2D::GetWidth()
 			{
-				return Viewport.Width;
+				return View.Width;
 			}
 			float OGLMultiRenderTarget2D::GetHeight()
 			{
-				return Viewport.Height;
+				return View.Height;
 			}
 			void* OGLMultiRenderTarget2D::GetResource(int Id)
 			{
@@ -277,15 +278,15 @@ namespace Tomahawk
 			}
 			Viewport OGLRenderTarget2DArray::GetViewport()
 			{
-				return Viewport;
+				return View;
 			}
 			float OGLRenderTarget2DArray::GetWidth()
 			{
-				return Viewport.Width;
+				return View.Width;
 			}
 			float OGLRenderTarget2DArray::GetHeight()
 			{
-				return Viewport.Height;
+				return View.Height;
 			}
 			void* OGLRenderTarget2DArray::GetResource()
 			{
@@ -303,15 +304,15 @@ namespace Tomahawk
 			}
 			Viewport OGLRenderTargetCube::GetViewport()
 			{
-				return Viewport;
+				return View;
 			}
 			float OGLRenderTargetCube::GetWidth()
 			{
-				return Viewport.Width;
+				return View.Width;
 			}
 			float OGLRenderTargetCube::GetHeight()
 			{
-				return Viewport.Height;
+				return View.Height;
 			}
 			void* OGLRenderTargetCube::GetResource()
 			{
@@ -329,7 +330,7 @@ namespace Tomahawk
 			}
 			Graphics::Viewport OGLMultiRenderTargetCube::GetViewport()
 			{
-				return Viewport;
+				return View;
 			}
 			float OGLMultiRenderTargetCube::GetWidth()
 			{
@@ -435,12 +436,13 @@ namespace Tomahawk
 			OGLDevice::~OGLDevice()
 			{
 				FreeProxy();
+#ifdef THAWK_HAS_SDL2
 				if (Context != nullptr)
 				{
 					SDL_GL_DeleteContext(Context);
 					Context = nullptr;
 				}
-
+#endif
 				glDeleteBuffers(3, ConstantBuffer);
 			}
 			void OGLDevice::SetConstantBuffers()
@@ -638,7 +640,7 @@ namespace Tomahawk
 					return;
 
 				glBindFramebuffer(GL_FRAMEBUFFER, IResource->FrameBuffer != GL_INVALID_VALUE ? IResource->FrameBuffer : 0);
-				glViewport((GLuint)IResource->Viewport.TopLeftX, (GLuint)IResource->Viewport.TopLeftY, (GLuint)IResource->Viewport.Width, (GLuint)IResource->Viewport.Height);
+				glViewport((GLuint)IResource->View.TopLeftX, (GLuint)IResource->View.TopLeftY, (GLuint)IResource->View.Width, (GLuint)IResource->View.Height);
 			}
 			void OGLDevice::SetTarget(RenderTarget2D* Resource, float R, float G, float B)
 			{
@@ -647,7 +649,7 @@ namespace Tomahawk
 					return;
 
 				glBindFramebuffer(GL_FRAMEBUFFER, IResource->FrameBuffer != GL_INVALID_VALUE ? IResource->FrameBuffer : 0);
-				glViewport((GLuint)IResource->Viewport.TopLeftX, (GLuint)IResource->Viewport.TopLeftY, (GLuint)IResource->Viewport.Width, (GLuint)IResource->Viewport.Height);
+				glViewport((GLuint)IResource->View.TopLeftX, (GLuint)IResource->View.TopLeftY, (GLuint)IResource->View.Width, (GLuint)IResource->View.Height);
 				glClearColor(R, G, B, 1.0f);
 				glClear(GL_COLOR_BUFFER_BIT);
 			}
@@ -658,7 +660,7 @@ namespace Tomahawk
 					return;
 
 				glBindFramebuffer(GL_FRAMEBUFFER, IResource->FrameBuffer != GL_INVALID_VALUE ? IResource->FrameBuffer : 0);
-				glViewport((GLuint)IResource->Viewport.TopLeftX, (GLuint)IResource->Viewport.TopLeftY, (GLuint)IResource->Viewport.Width, (GLuint)IResource->Viewport.Height);
+				glViewport((GLuint)IResource->View.TopLeftX, (GLuint)IResource->View.TopLeftY, (GLuint)IResource->View.Width, (GLuint)IResource->View.Height);
 			}
 			void OGLDevice::SetTarget(MultiRenderTarget2D* Resource, unsigned int Target, float R, float G, float B)
 			{
@@ -761,8 +763,8 @@ namespace Tomahawk
 				if (!IResource)
 					return;
 
-				IResource->Viewport = In;
-				glViewport((GLuint)IResource->Viewport.TopLeftX, (GLuint)IResource->Viewport.TopLeftY, (GLuint)IResource->Viewport.Width, (GLuint)IResource->Viewport.Height);
+				IResource->View = In;
+				glViewport((GLuint)IResource->View.TopLeftX, (GLuint)IResource->View.TopLeftY, (GLuint)IResource->View.Width, (GLuint)IResource->View.Height);
 			}
 			void OGLDevice::SetViewport(MultiRenderTarget2D* Resource, const Viewport& In)
 			{
@@ -989,7 +991,7 @@ namespace Tomahawk
 					return;
 
 				glBindFramebuffer(GL_FRAMEBUFFER, IResource->FrameBuffer != GL_INVALID_VALUE ? IResource->FrameBuffer : 0);
-				glViewport((GLuint)IResource->Viewport.TopLeftX, (GLuint)IResource->Viewport.TopLeftY, (GLuint)IResource->Viewport.Width, (GLuint)IResource->Viewport.Height);
+				glViewport((GLuint)IResource->View.TopLeftX, (GLuint)IResource->View.TopLeftY, (GLuint)IResource->View.Width, (GLuint)IResource->View.Height);
 				glClearColor(R, G, B, 1.0f);
 				glClear(GL_COLOR_BUFFER_BIT);
 			}
@@ -1365,7 +1367,9 @@ namespace Tomahawk
 				if (!IResource || IResource->Resource != GL_INVALID_VALUE)
 					return;
 
+#ifdef glGenerateTextureMipmap
 				glGenerateTextureMipmap(IResource->Resource);
+#endif
 			}
 			void OGLDevice::GenerateMips(Texture3D* Resource)
 			{
@@ -1700,12 +1704,12 @@ namespace Tomahawk
 				glFramebufferRenderbuffer(GL_FRAMEBUFFER, GL_DEPTH_STENCIL_ATTACHMENT, GL_RENDERBUFFER, Result->DepthBuffer);
 				glBindFramebuffer(GL_FRAMEBUFFER, 0);
 			
-				Result->Viewport.Width = (float)I.Width;
-				Result->Viewport.Height = (float)I.Height;
-				Result->Viewport.TopLeftX = 0.0f;
-				Result->Viewport.TopLeftY = 0.0f;
-				Result->Viewport.MinDepth = 0.0f;
-				Result->Viewport.MaxDepth = 1.0f;
+				Result->View.Width = (float)I.Width;
+				Result->View.Height = (float)I.Height;
+				Result->View.TopLeftX = 0.0f;
+				Result->View.TopLeftY = 0.0f;
+				Result->View.MinDepth = 0.0f;
+				Result->View.MaxDepth = 1.0f;
 
 				return Result;
 			}
@@ -1744,12 +1748,12 @@ namespace Tomahawk
 					glBindFramebuffer(GL_FRAMEBUFFER, 0);
 				}
 
-				Result->Viewport.Width = (float)I.Width;
-				Result->Viewport.Height = (float)I.Height;
-				Result->Viewport.TopLeftX = 0.0f;
-				Result->Viewport.TopLeftY = 0.0f;
-				Result->Viewport.MinDepth = 0.0f;
-				Result->Viewport.MaxDepth = 1.0f;
+				Result->View.Width = (float)I.Width;
+				Result->View.Height = (float)I.Height;
+				Result->View.TopLeftX = 0.0f;
+				Result->View.TopLeftY = 0.0f;
+				Result->View.MinDepth = 0.0f;
+				Result->View.MaxDepth = 1.0f;
 
 				return Result;
 			}

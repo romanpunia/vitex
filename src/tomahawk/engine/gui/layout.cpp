@@ -1,4 +1,5 @@
 #include "layout.h"
+#include <limits.h>
 #ifndef NK_IMPLEMENTATION
 #define NK_INCLUDE_FIXED_TYPES
 #define NK_INCLUDE_STANDARD_IO

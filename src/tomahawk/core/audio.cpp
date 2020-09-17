@@ -758,7 +758,7 @@ namespace Tomahawk
 			Device = (void*)alcOpenDevice(nullptr);
 			if (!Device)
 			{
-				THAWK_ERROR("couldn't create alc device");
+			    THAWK_ERROR("couldn't create alc device");
 				return;
 			}
 

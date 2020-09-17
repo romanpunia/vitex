@@ -4402,12 +4402,12 @@ namespace Tomahawk
 
 			if (Context->GetState() != asEXECUTION_SUSPENDED)
 				return asEXECUTION_FINISHED;
+			
+			AsyncDoneCallback Callback = Done;
+			if (Callback)
+				Callback(VMContext::Get(Context));
 
-			int R = Context->Execute();
-			if (Done)
-				Done((VMExecState)R);
-
-			return R;
+			return 0;
 		}
 		int VMCAsync::Set(void* Ref, int TypeId)
 		{

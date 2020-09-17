@@ -976,7 +976,7 @@ namespace Tomahawk
 				NMake::Pack(Document, Clips);
 				return Document;
 #else
-				return nullptr
+				return nullptr;
 #endif
 			}
 			void SkinModelProcessor::ProcessNode(void* Scene_, void* Node_, std::unordered_map<std::string, MeshNode>* Joints, int64_t& Id)
@@ -1256,7 +1256,8 @@ namespace Tomahawk
 
 					if (!NMake::Unpack(It->Find("hostname"), &Host->Hostname))
 						Host->Hostname = N;
-
+					
+					Rest::Stroke(&Host->Hostname).Path(N, D).R();
 					if (!NMake::Unpack(It->Find("port"), &Host->Port))
 						Host->Port = 80;
 

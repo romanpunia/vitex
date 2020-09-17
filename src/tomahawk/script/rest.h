@@ -34,6 +34,7 @@ namespace Tomahawk
 			static Rest::Document* GetAny(Rest::Document* Base, const std::string& Name, bool Here);
 			static Rest::Document* ConstructBuffer(unsigned char* Buffer);
 			static Rest::Document* GetIndex(Rest::Document* Base, const std::string& Name);
+			static Rest::Document* GetIndexOffset(Rest::Document* Base, uint64_t Offset);
 			static Rest::Document* SetId(Rest::Document* Base, const std::string& Name, const std::string& Value);
 			static std::string GetDecimal(Rest::Document* Base, const std::string& Name);
 			static std::string GetId(Rest::Document* Base, const std::string& Name);

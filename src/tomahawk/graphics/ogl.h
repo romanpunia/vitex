@@ -7,7 +7,7 @@
 #endif
 #ifdef THAWK_HAS_OPENGL
 #ifdef THAWK_HAS_GLEW
-#include <gl/glew.h>
+#include <GL/glew.h>
 #define THAWK_HAS_GL
 #ifndef APIENTRY
 #define APIENTRY
@@ -174,7 +174,7 @@ namespace Tomahawk
 				GLuint FrameBuffer = GL_INVALID_VALUE;
 				GLuint DepthBuffer = GL_INVALID_VALUE;
 				GLuint Texture = GL_INVALID_VALUE;
-				Viewport Viewport;
+				Viewport View;
 
 			public:
 				OGLDepthBuffer(const Desc& I);
@@ -193,7 +193,7 @@ namespace Tomahawk
 				GLuint FrameBuffer = GL_INVALID_VALUE;
 				GLuint DepthBuffer = GL_INVALID_VALUE;
 				GLuint Texture = GL_INVALID_VALUE;
-				Viewport Viewport;
+				Viewport View;
 
 			public:
 				OGLRenderTarget2D(const Desc& I);
@@ -209,7 +209,7 @@ namespace Tomahawk
 				friend OGLDevice;
 
 			public:
-				Viewport Viewport;
+				Viewport View;
 
 			public:
 				OGLMultiRenderTarget2D(const Desc& I);
@@ -225,7 +225,7 @@ namespace Tomahawk
 				friend OGLDevice;
 
 			public:
-				Viewport Viewport;
+				Viewport View;
 
 			public:
 				OGLRenderTarget2DArray(const Desc& I);
@@ -241,7 +241,7 @@ namespace Tomahawk
 				friend OGLDevice;
 
 			public:
-				Viewport Viewport;
+				Viewport View;
 
 			public:
 				OGLRenderTargetCube(const Desc& I);
@@ -257,7 +257,7 @@ namespace Tomahawk
 				friend OGLDevice;
 
 			public:
-				Viewport Viewport;
+				Viewport View;
 
 			public:
 				OGLMultiRenderTargetCube(const Desc& I);

@@ -221,7 +221,7 @@ namespace Tomahawk
 				void Write(const char* Buffer, int64_t Length, WebSocketOp OpCode, const SuccessCallback& Callback);
 				void Finish();
 				void Next();
-				void Resolve(Script::VMExecState Result);
+				void Execute(Script::VMContext* Context);
 				void Notify();
 				bool IsFinished();
 			};
@@ -246,7 +246,7 @@ namespace Tomahawk
 				bool Finish();
 				bool Error();
 				bool Start();
-				bool Resolve(Script::VMExecState Result);
+				bool Execute(Script::VMContext* Context);
 				bool IsDone();
 				Script::VMContext* GetContext();
 

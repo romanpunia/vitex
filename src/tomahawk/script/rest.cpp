@@ -525,6 +525,10 @@ namespace Tomahawk
 		{
 			return Base->FindPath(Name, true);
 		}
+		Rest::Document* VMCDocument::GetIndexOffset(Rest::Document* Base, uint64_t Offset)
+		{
+			return Base->GetIndex(Offset);
+		}
 		Rest::Document* VMCDocument::SetId(Rest::Document* Base, const std::string& Name, const std::string& Value)
 		{
 			if (Value.size() != 12)
@@ -844,6 +848,7 @@ namespace Tomahawk
 			VDocument.SetUnmanagedConstructor<Rest::Document>("Document@ f()");
 			VDocument.SetUnmanagedConstructorListEx<Rest::Document>("Document@ f(int &in) {repeat {String, ?}}", &VMCDocument::Construct);
 			VDocument.SetLOperatorEx(VMOpFunc_Index, "const Document@+", "const String &in", &VMCDocument::GetIndex);
+			VDocument.SetLOperatorEx(VMOpFunc_Index, "const Document@+", "uint64", &VMCDocument::GetIndexOffset);
 			VDocument.SetMethod("void Join(Document@+)", &Rest::Document::Join);
 			VDocument.SetMethod("void Clear()", &Rest::Document::Clear);
 			VDocument.SetMethod("void Save()", &Rest::Document::Save);

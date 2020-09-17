@@ -218,8 +218,6 @@ namespace Tomahawk
 			static bool Pack(Rest::Document* V, bool Value);
 			static bool Pack(Rest::Document* V, int Value);
 			static bool Pack(Rest::Document* V, unsigned int Value);
-			static bool Pack(Rest::Document* V, long O);
-			static bool Pack(Rest::Document* V, unsigned long O);
 			static bool Pack(Rest::Document* V, float Value);
 			static bool Pack(Rest::Document* V, double Value);
 			static bool Pack(Rest::Document* V, int64_t Value);
@@ -247,8 +245,6 @@ namespace Tomahawk
 			static bool Pack(Rest::Document* V, const std::vector<bool>& Value);
 			static bool Pack(Rest::Document* V, const std::vector<int>& Value);
 			static bool Pack(Rest::Document* V, const std::vector<unsigned int>& Value);
-			static bool Pack(Rest::Document* V, const std::vector<long>& Value);
-			static bool Pack(Rest::Document* V, const std::vector<unsigned long>& Value);
 			static bool Pack(Rest::Document* V, const std::vector<float>& Value);
 			static bool Pack(Rest::Document* V, const std::vector<double>& Value);
 			static bool Pack(Rest::Document* V, const std::vector<int64_t>& Value);
@@ -272,8 +268,6 @@ namespace Tomahawk
 			static bool Unpack(Rest::Document* V, bool* O);
 			static bool Unpack(Rest::Document* V, int* O);
 			static bool Unpack(Rest::Document* V, unsigned int* O);
-			static bool Unpack(Rest::Document* V, long* O);
-			static bool Unpack(Rest::Document* V, unsigned long* O);
 			static bool Unpack(Rest::Document* V, float* O);
 			static bool Unpack(Rest::Document* V, double* O);
 			static bool Unpack(Rest::Document* V, int64_t* O);
@@ -300,8 +294,6 @@ namespace Tomahawk
 			static bool Unpack(Rest::Document* V, std::vector<bool>* O);
 			static bool Unpack(Rest::Document* V, std::vector<int>* O);
 			static bool Unpack(Rest::Document* V, std::vector<unsigned int>* O);
-			static bool Unpack(Rest::Document* V, std::vector<long>* O);
-			static bool Unpack(Rest::Document* V, std::vector<unsigned long>* O);
 			static bool Unpack(Rest::Document* V, std::vector<float>* O);
 			static bool Unpack(Rest::Document* V, std::vector<double>* O);
 			static bool Unpack(Rest::Document* V, std::vector<int64_t>* O);

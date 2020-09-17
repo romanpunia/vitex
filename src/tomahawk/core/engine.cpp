@@ -8,6 +8,7 @@
 #include <sstream>
 #ifdef THAWK_HAS_SDL2
 #include <SDL2/SDL_syswm.h>
+#undef Complex
 #endif
 
 namespace Tomahawk
@@ -77,20 +78,6 @@ namespace Tomahawk
 			return V->SetInteger("[i]", Value) != nullptr;
 		}
 		bool NMake::Pack(Rest::Document* V, unsigned int Value)
-		{
-			if (!V)
-				return false;
-
-			return V->SetInteger("[i]", Value) != nullptr;
-		}
-		bool NMake::Pack(Rest::Document* V, long Value)
-		{
-			if (!V)
-				return false;
-
-			return V->SetInteger("[i]", Value) != nullptr;
-		}
-		bool NMake::Pack(Rest::Document* V, unsigned long Value)
 		{
 			if (!V)
 				return false;
@@ -393,28 +380,6 @@ namespace Tomahawk
 			return V->SetString("i-array", Stream.str().substr(0, Stream.str().size() - 1)) && V->SetInteger("[size]", Value.size());
 		}
 		bool NMake::Pack(Rest::Document* V, const std::vector<unsigned int>& Value)
-		{
-			if (!V)
-				return false;
-
-			std::stringstream Stream;
-			for (auto&& It : Value)
-				Stream << It << " ";
-
-			return V->SetString("i-array", Stream.str().substr(0, Stream.str().size() - 1)) && V->SetInteger("[size]", Value.size());
-		}
-		bool NMake::Pack(Rest::Document* V, const std::vector<long>& Value)
-		{
-			if (!V)
-				return false;
-
-			std::stringstream Stream;
-			for (auto&& It : Value)
-				Stream << It << " ";
-
-			return V->SetString("i-array", Stream.str().substr(0, Stream.str().size() - 1)) && V->SetInteger("[size]", Value.size());
-		}
-		bool NMake::Pack(Rest::Document* V, const std::vector<unsigned long>& Value)
 		{
 			if (!V)
 				return false;
@@ -754,22 +719,6 @@ namespace Tomahawk
 			return true;
 		}
 		bool NMake::Unpack(Rest::Document* V, unsigned int* O)
-		{
-			if (!V || !O)
-				return false;
-
-			*O = V->GetInteger("[i]");
-			return true;
-		}
-		bool NMake::Unpack(Rest::Document* V, long* O)
-		{
-			if (!V || !O)
-				return false;
-
-			*O = V->GetInteger("[i]");
-			return true;
-		}
-		bool NMake::Unpack(Rest::Document* V, unsigned long* O)
 		{
 			if (!V || !O)
 				return false;
@@ -1201,50 +1150,6 @@ namespace Tomahawk
 			for (auto It = O->begin(); It != O->end(); It++)
 			{
 				unsigned int Item;
-				Stream >> Item;
-				*It = Item;
-			}
-
-			return true;
-		}
-		bool NMake::Unpack(Rest::Document* V, std::vector<long>* O)
-		{
-			if (!V || !O)
-				return false;
-
-			std::string& Array = V->GetStringBlob("i-array");
-			int64_t Size = V->GetInteger("[size]");
-			if (Array.empty() || !Size)
-				return false;
-
-			std::stringstream Stream(Array);
-			O->resize((size_t)Size);
-
-			for (auto It = O->begin(); It != O->end(); It++)
-			{
-				long Item;
-				Stream >> Item;
-				*It = Item;
-			}
-
-			return true;
-		}
-		bool NMake::Unpack(Rest::Document* V, std::vector<unsigned long>* O)
-		{
-			if (!V || !O)
-				return false;
-
-			std::string& Array = V->GetStringBlob("i-array");
-			int64_t Size = V->GetInteger("[size]");
-			if (Array.empty() || !Size)
-				return false;
-
-			std::stringstream Stream(Array);
-			O->resize((size_t)Size);
-
-			for (auto It = O->begin(); It != O->end(); It++)
-			{
-				unsigned long Item;
 				Stream >> Item;
 				*It = Item;
 			}

@@ -74,7 +74,7 @@ namespace Tomahawk
 				Difference = tolower(*Value1) - tolower(*Value2);
 				Value1++;
 				Value2++;
-			}while (Difference == 0 && Value1[-1] != '\0');
+			} while (Difference == 0 && Value1[-1] != '\0');
 
 			return Difference;
 		}
@@ -777,6 +777,64 @@ namespace Tomahawk
 
 			return *this;
 		}
+		Stroke& Stroke::Escape()
+		{
+			for (size_t i = 0; i < L->size(); i++)
+			{
+				char& V = L->at(i);
+				if (V == '\n')
+					V = 'n';
+				else if (V == '\t')
+					V = 't';
+				else if (V == '\v')
+					V = 'v';
+				else if (V == '\b')
+					V = 'b';
+				else if (V == '\r')
+					V = 'r';
+				else if (V == '\f')
+					V = 'f';
+				else if (V == '\a')
+					V = 'a';
+				else
+					continue;
+
+				L->insert(L->begin() + i, '\\');
+				i++;
+			}
+
+			return *this;
+		}
+		Stroke& Stroke::Unescape()
+		{
+			for (size_t i = 0; i < L->size(); i++)
+			{
+				if (L->at(i) != '\\' || i + 1 >= L->size())
+					continue;
+
+				char& V = L->at(i + 1);
+				if (V == 'n')
+					V = '\n';
+				else if (V == 't')
+					V = '\t';
+				else if (V == 'v')
+					V = '\v';
+				else if (V == 'b')
+					V = '\b';
+				else if (V == 'r')
+					V = '\r';
+				else if (V == 'f')
+					V = '\f';
+				else if (V == 'a')
+					V = '\a';
+				else
+					continue;
+
+				L->erase(L->begin() + i);
+			}
+
+			return *this;
+		}
 		Stroke& Stroke::Reserve(uint64_t Count)
 		{
 			L->reserve(L->capacity() + Count);
@@ -1272,7 +1330,7 @@ namespace Tomahawk
 					Assign(Result);
 			}
 			else
-				Replace("[Subnet]", Net);
+				Replace("[subnet]", Net);
 
 			return *this;
 		}
@@ -2799,12 +2857,12 @@ namespace Tomahawk
 #endif
 			va_list Args;
 			uint64_t R = 0;
-					va_start(Args, Format);
+			va_start(Args, Format);
 
 			if (Buffer != nullptr)
 				R = (uint64_t)vfscanf(Buffer, Format, Args);
 
-					va_end(Args);
+			va_end(Args);
 
 			return R;
 		}
@@ -2812,7 +2870,7 @@ namespace Tomahawk
 		{
 #ifdef THAWK_HAS_ZLIB
 			if (Compress != nullptr)
-				return gzfread(Data, 1, (size_t)Length, (gzFile)Compress);
+				return gzread((gzFile)Compress, Data, Length);
 #endif
 			if (!Buffer)
 				return 0;
@@ -2823,17 +2881,17 @@ namespace Tomahawk
 		{
 			va_list Args;
 			uint64_t R = 0;
-					va_start(Args, Format);
+			va_start(Args, Format);
 #ifdef THAWK_HAS_ZLIB
 			if (Compress != nullptr)
 				R = (uint64_t)gzvprintf((gzFile)Compress, Format, Args);
 			else if (Buffer != nullptr)
 				R = (uint64_t)vfprintf(Buffer, Format, Args);
 #else
-																																		if (Buffer != nullptr)
+			if (Buffer != nullptr)
 				R = (uint64_t)vfprintf(Buffer, Format, Args);
 #endif
-					va_end(Args);
+			va_end(Args);
 
 			return R;
 		}
@@ -2841,7 +2899,7 @@ namespace Tomahawk
 		{
 #ifdef THAWK_HAS_ZLIB
 			if (Compress != nullptr)
-				return gzfwrite(Data, 1, (size_t)Length, (gzFile)Compress);
+				return gzwrite((gzFile)Compress, Data, Length);
 #endif
 			if (!Buffer)
 				return 0;
@@ -3712,25 +3770,20 @@ namespace Tomahawk
 		std::string OS::GetDirectory()
 		{
 #ifndef THAWK_HAS_SDL2
-																																	char Buffer[THAWK_MAX_PATH] = { 0 };
+			char Buffer[THAWK_MAX_PATH + 1] = { 0 };
 #ifdef THAWK_MICROSOFT
             GetModuleFileNameA(nullptr, Buffer, THAWK_MAX_PATH);
 #elif defined THAWK_UNIX
             getcwd(Buffer, THAWK_MAX_PATH);
 #endif
-            int64_t Length = 0;
-            for (int64_t i = 0; i < THAWK_MAX_PATH; i++)
-            {
-                if (Buffer[i] == '\0')
-                    break;
+            int64_t Length = strlen(Buffer);
+			if (Length > 0 && Buffer[Length - 1] != '/' && Buffer[Length - 1] != '\\')
+			{
+				Buffer[Length] = '/';
+				Length++;
+			}
 
-                if (Buffer[i] != '\\')
-                    continue;
-
-                Buffer[Length = i] = '/';
-            }
-
-            return std::string(Buffer, Length + 1);
+            return std::string(Buffer, Length);
 #else
 			char* Base = SDL_GetBasePath();
 			std::string Result = Base;
@@ -3960,6 +4013,19 @@ namespace Tomahawk
 				*Result = Data;
 
 			return true;
+		}
+		uint64_t OS::ConstHash(const std::string& Data)
+		{
+			uint64_t Hash = 0x811c9dc5;
+			uint64_t Prime = 0x1000193;
+
+			for (size_t i = 0; i < Data.size(); i++)
+			{
+				Hash = Hash ^ (char)Data[i];
+				Hash *= Prime;
+			}
+
+			return Hash;
 		}
 
 		FileLogger::FileLogger(const std::string& Root) : Path(Root), Offset(-1)
@@ -5521,11 +5587,14 @@ namespace Tomahawk
 
 			if (!Array && !Value->String.empty())
 			{
+				Rest::Stroke Safe(Value->String);
+				Safe.Escape();
+
 				Callback(DocumentPretty_Write_Line, "", 0);
 				Callback(DocumentPretty_Write_Tab, "", 0);
 				Callback(DocumentPretty_Write_Space, "\"@text@\":", 9);
 				Callback(DocumentPretty_Dummy, "\"", 1);
-				Callback(DocumentPretty_Dummy, Value->String.c_str(), (int64_t)Value->String.size());
+				Callback(DocumentPretty_Dummy, Safe.Get(), (int64_t)Safe.Size());
 				Callback(DocumentPretty_Dummy, "\"", 1);
 			}
 
@@ -5561,6 +5630,9 @@ namespace Tomahawk
 				if (!Blob)
 				{
 					std::string Key = Document->Serialize();
+					Rest::Stroke Safe(&Key);
+					Safe.Escape();
+
 					if (Array)
 					{
 						Callback(DocumentPretty_Write_Line, "", 0);

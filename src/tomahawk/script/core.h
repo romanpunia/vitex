@@ -8,7 +8,7 @@ namespace Tomahawk
 	namespace Script
 	{
 		typedef std::function<void(class VMCAsync*)> AsyncWorkCallback;
-		typedef std::function<void(enum VMExecState)> AsyncDoneCallback;
+		typedef std::function<void(VMContext*)> AsyncDoneCallback;
 
 		class THAWK_OUT VMCException
 		{
@@ -173,32 +173,32 @@ namespace Tomahawk
 				return Array;
 			}
 			template <typename T>
-			static void DecomposeToObjects(const VMCArray*& Array, std::vector<T>* Objects)
+			static void DecomposeToObjects(VMCArray* Array, std::vector<T>* Objects)
 			{
 				if (!Objects)
 					return;
 
-				unsigned int Size = Array.GetSize();
+				unsigned int Size = Array->GetSize();
 				Objects->reserve(Size);
 
 				for (unsigned int i = 0; i < Size; i++)
 				{
-					T* Object = (T*)Array.At(i);
+					T* Object = (T*)Array->At(i);
 					Objects->push_back(*Object);
 				}
 			}
 			template <typename T>
-			static void DecomposeToPointers(const VMCArray*& Array, std::vector<T*>* Objects)
+			static void DecomposeToPointers(VMCArray* Array, std::vector<T*>* Objects)
 			{
 				if (!Objects)
 					return;
 
-				unsigned int Size = Array.GetSize();
+				unsigned int Size = Array->GetSize();
 				Objects->reserve(Size);
 
 				for (unsigned int i = 0; i < Size; i++)
 				{
-					T* Object = (T*)Array.At(i);
+					T* Object = (T*)Array->At(i);
 					Objects->push_back(Object);
 				}
 			}

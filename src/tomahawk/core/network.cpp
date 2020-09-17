@@ -1,7 +1,9 @@
 #include "network.h"
 #include "../network/http.h"
 #ifdef THAWK_MICROSOFT
-#include <WS2tcpip.h>
+#include <winsock2.h>
+#include <windows.h>
+#include <ws2tcpip.h>
 #include <io.h>
 #include <wepoll.h>
 #define ERRNO WSAGetLastError()

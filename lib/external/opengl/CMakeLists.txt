@@ -1,3 +1,6 @@
+#Set preferred OpenGL libraries
+set(OpenGL_GL_PREFERENCE "GLVND")
+
 #Resolve headers, refs and linkage
 find_path(OPENGL_LOCATION GL/gl.h OpenGL/OpenGL.h PATHS ${OPENGL_INCLUDE_DIR})
 if (OPENGL_LOCATION)
@@ -32,3 +35,4 @@ endif()
 unset(OPENGL_LOCATION CACHE)
 unset(OpenGL_FOUND CACHE)
 unset(OPENGL_LIBRARIES CACHE)
+unset(OpenGL_GL_PREFERENCE CACHE)

@@ -669,8 +669,8 @@ int VMCJITCompiler::CompileFunction(asIScriptFunction *function, asJITFunction *
 		//Read the first pointer from where byteCode is, which is the
 		//array pointer from asCArray, skip the asBC_JitEntry byte and
 		//then read the first entry pointer
-		pax = as<void*>(*pax + offsetof(asCScriptFunction, scriptData));
-		arg1 = as<void*>(*pax + offsetof(asCScriptFunction::ScriptFunctionData, byteCode));
+		pax = as<void*>(*pax + offsetof_class(asCScriptFunction, scriptData));
+		arg1 = as<void*>(*pax + offsetof_class(asCScriptFunction::ScriptFunctionData, byteCode));
 		arg1 = as<void*>(*arg1 + sizeof(asDWORD));
 
 		//Read the jit function pointer from the asCScriptFunction
@@ -737,7 +737,7 @@ int VMCJITCompiler::CompileFunction(asIScriptFunction *function, asJITFunction *
 		// If execution is finished, return to the vm as well so it can clean up
 		as<asEContextState>(ecx) = asEXECUTION_FINISHED;
 		pax = as<void*>(*ebp + offsetof(asSVMRegisters, ctx));
-		as<asEContextState>(ecx) == as<asEContextState>(*pax + offsetof(asCContext, m_status));
+		as<asEContextState>(ecx) == as<asEContextState>(*pax + offsetof_class(asCContext, m_status));
 
 		auto skip_finish = cpu.prep_short_jump(NotEqual);
 		ReturnFromScriptCall();
@@ -2864,7 +2864,7 @@ int VMCJITCompiler::CompileFunction(asIScriptFunction *function, asJITFunction *
 				arg1 &= arg1;
 				auto nullFunc = cpu.prep_short_jump(NotZero);
 
-				temp = *arg1 + offsetof(asCScriptFunction, funcType);
+				temp = *arg1 + offsetof_class(asCScriptFunction, funcType);
 				temp == asFUNC_SCRIPT;
 				auto isScript = cpu.prep_short_jump(Zero);
 
@@ -3516,7 +3516,7 @@ void SystemCall::call_entry(asSSystemFunctionInterface* func, asCScriptFunction*
 	if (!callIsSafe)
 	{
 		pax = as<void*>(*ebp + offsetof(asSVMRegisters, ctx));
-		pax += offsetof(asCContext, m_callingSystemFunction); //&callingSystemFunction
+		pax += offsetof_class(asCContext, m_callingSystemFunction); //&callingSystemFunction
 		as<void*>(*pax) = sFunc;
 
 		as<void*>(*esp + local::pIsSystem) = pax;
@@ -3555,7 +3555,7 @@ void SystemCall::call_exit(asSSystemFunctionInterface* func)
 
 		if (!callIsSafe)
 		{
-			edx = as<int>(*pax + offsetof(asCContext, m_status));
+			edx = as<int>(*pax + offsetof_class(asCContext, m_status));
 			edx == (int)asEXECUTION_ACTIVE;
 			auto* activeContext = cpu.prep_short_jump(Equal);
 			returnHandler(Jump, true);
@@ -3564,11 +3564,11 @@ void SystemCall::call_exit(asSSystemFunctionInterface* func)
 
 		if (handleSuspend)
 		{
-			cl = as<bool>(*pax + offsetof(asCContext, m_doSuspend));
+			cl = as<bool>(*pax + offsetof_class(asCContext, m_doSuspend));
 			cl &= cl;
 			auto* noSuspend = cpu.prep_short_jump(Zero);
 
-			as<int>(*pax + offsetof(asCContext, m_status)) = (int)asEXECUTION_SUSPENDED;
+			as<int>(*pax + offsetof_class(asCContext, m_status)) = (int)asEXECUTION_SUSPENDED;
 			returnHandler(Jump, true);
 
 			cpu.end_short_jump(noSuspend);
@@ -4109,7 +4109,7 @@ void SystemCall::call_64conv(asSSystemFunctionInterface* func, asCScriptFunction
 
 					Register arg0 = as<void*>(cpu.intArg64(0, 0));
 					arg0 = as<void*>(*ebp + offsetof(asSVMRegisters, ctx));
-					eax = as<int>(*arg0 + offsetof(asCContext, m_status));
+					eax = as<int>(*arg0 + offsetof_class(asCContext, m_status));
 					eax == (int)asEXECUTION_EXCEPTION;
 					auto noError = cpu.prep_short_jump(NotEqual);
 
@@ -4227,7 +4227,7 @@ void SystemCall::call_getReturn(asSSystemFunctionInterface* func, asCScriptFunct
 					asCScriptFunction* destructFunc = (asCScriptFunction*)sFunc->GetEngine()->GetFunctionById(destruct);
 
 					edx = as<void*>(*ebp + offsetof(asSVMRegisters, ctx));
-					eax = as<int>(*edx + offsetof(asCContext, m_status));
+					eax = as<int>(*edx + offsetof_class(asCContext, m_status));
 					eax == (int)asEXECUTION_EXCEPTION;
 					auto noError = cpu.prep_short_jump(NotEqual);
 

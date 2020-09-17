@@ -53,7 +53,7 @@ namespace Tomahawk
 			}
 		};
 
-		int VMBind::AtomicNotifyGC(const char* TypeName, void* Object)
+		int VMFuncStore::AtomicNotifyGC(const char* TypeName, void* Object)
 		{
 			if (!TypeName || !Object)
 				return -1;
@@ -69,23 +69,23 @@ namespace Tomahawk
 			VMTypeInfo Type = Engine->Global().GetTypeInfoByName(TypeName);
 			return Engine->NotifyOfNewObject(Object, Type.GetTypeInfo());
 		}
-		asSFuncPtr* VMBind::CreateFunctionBase(void(* Base)(), int Type)
+		asSFuncPtr* VMFuncStore::CreateFunctionBase(void(* Base)(), int Type)
 		{
 			asSFuncPtr* Ptr = new asSFuncPtr(Type);
 			Ptr->ptr.f.func = reinterpret_cast<asFUNCTION_t>(Base);
 			return Ptr;
 		}
-		asSFuncPtr* VMBind::CreateMethodBase(const void* Base, size_t Size, int Type)
+		asSFuncPtr* VMFuncStore::CreateMethodBase(const void* Base, size_t Size, int Type)
 		{
 			asSFuncPtr* Ptr = new asSFuncPtr(Type);
 			Ptr->CopyMethodPtr(Base, Size);
 			return Ptr;
 		}
-		asSFuncPtr* VMBind::CreateDummyBase()
+		asSFuncPtr* VMFuncStore::CreateDummyBase()
 		{
 			return new asSFuncPtr(0);
 		}
-		void VMBind::ReleaseFunctor(asSFuncPtr** Ptr)
+		void VMFuncStore::ReleaseFunctor(asSFuncPtr** Ptr)
 		{
 			if (!Ptr || !*Ptr)
 				return;

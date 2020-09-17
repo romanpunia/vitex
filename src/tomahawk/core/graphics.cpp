@@ -2586,7 +2586,8 @@ namespace Tomahawk
 		}
 		Compute::Vector2 Activity::GetGlobalCursorPosition()
 		{
-#if defined(THAWK_HAS_SDL2) && SDL_VERSION_ATLEAST(2, 0, 4)
+#ifdef THAWK_HAS_SDL2
+#if SDL_VERSION_ATLEAST(2, 0, 4)
 			int X, Y;
 			SDL_GetGlobalMouseState(&X, &Y);
 
@@ -2594,14 +2595,21 @@ namespace Tomahawk
 #else
 			return Compute::Vector2();
 #endif
+#else
+			return Compute::Vector2();
+#endif
 		}
 		Compute::Vector2 Activity::GetCursorPosition()
 		{
-#if defined(THAWK_HAS_SDL2) && SDL_VERSION_ATLEAST(2, 0, 4)
+#ifdef THAWK_HAS_SDL2
+#if SDL_VERSION_ATLEAST(2, 0, 4)
 			int X, Y;
 			SDL_GetMouseState(&X, &Y);
 
 			return Compute::Vector2((float)X, (float)Y);
+#else
+			return Compute::Vector2();
+#endif
 #else
 			return Compute::Vector2();
 #endif

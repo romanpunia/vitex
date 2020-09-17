@@ -1,5 +1,6 @@
 #ifndef COMPILER_CORE_H
 #define COMPILER_CORE_H
+#define offsetof_class(T, M) ((unsigned long)(((char*)&((T*)0)->M) - (char*)0))
 #if defined(_WIN32) || defined(_WIN64)
 #ifndef _M_ARM
 #define HAS_AS_JIT

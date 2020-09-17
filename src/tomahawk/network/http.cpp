@@ -125,12 +125,17 @@ namespace Tomahawk
 				else
 					Util::ProcessWebSocketPass(Base);
 			}
-			void WebSocketFrame::Resolve(Script::VMExecState Result)
+			void WebSocketFrame::Execute(Script::VMContext* Context)
 			{
-				if (Result == Script::VMExecState_ERROR || Result == Script::VMExecState_EXCEPTION)
-					Finish();
-				else if (Result != Script::VMExecState_SUSPENDED)
-					Next();
+				if (!Context || Context->GetState() == Script::VMExecState_ACTIVE)
+					return;
+
+				int R = Context->Execute();
+				if (R == Script::VMExecState_ERROR || R == Script::VMExecState_EXCEPTION)
+					return Finish();
+
+				if (R != Script::VMExecState_SUSPENDED)
+					return Next();
 			}
 			void WebSocketFrame::Notify()
 			{
@@ -248,18 +253,22 @@ namespace Tomahawk
 						if (Result < 0)
 							return Finish();
 
-						Result = Context->Execute();
+						return Execute(Context);
 					}
 
-					return Resolve((Script::VMExecState)Result);
+					return Finish();
 				});
 			}
-			bool GatewayFrame::Resolve(Script::VMExecState Result)
+			bool GatewayFrame::Execute(Script::VMContext* Context)
 			{
-				if (Result == Script::VMExecState_ERROR || Result == Script::VMExecState_EXCEPTION)
+				if (!Context || Context->GetState() == Script::VMExecState_ACTIVE)
+					return false;
+
+				int R = Context->Execute();
+				if (R == Script::VMExecState_ERROR || R == Script::VMExecState_EXCEPTION)
 					return Finish();
-				
-				if (Result != Script::VMExecState_SUSPENDED)
+
+				if (R != Script::VMExecState_SUSPENDED)
 					return Finish();
 
 				return true;
@@ -3001,12 +3010,12 @@ namespace Tomahawk
 					if (Hostname == Entry->Hosts.end())
 						return false;
 
-					for (auto Entry : Entry->Routes)
+					for (auto Basis : Entry->Routes)
 					{
-						if (!Compute::Regex::Match(&Entry->URI, &Base->Request.Match, Base->Request.URI))
+						if (!Compute::Regex::Match(&Basis->URI, &Base->Request.Match, Base->Request.URI))
 							continue;
 
-						Base->Route = Entry;
+						Base->Route = Basis;
 						return true;
 					}
 

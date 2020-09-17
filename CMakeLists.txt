@@ -1,4 +1,4 @@
-cmake_minimum_required(VERSION 3.1)
+cmake_minimum_required(VERSION 3.6)
 cmake_policy(SET CMP0054 NEW)
 
 #Project's package support for non-UNIX platforms

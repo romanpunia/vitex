@@ -1,10 +1,10 @@
 #ifndef SCRIPT_COMPILER_H
 #define SCRIPT_COMPILER_H
 #include "core.h"
-#ifdef HAS_AS_JIT
 #ifndef ANGELSCRIPT_H
 #include <angelscript.h>
 #endif
+#ifdef HAS_AS_JIT
 #include <vector>
 #include <map>
 

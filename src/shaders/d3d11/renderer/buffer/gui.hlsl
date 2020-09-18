@@ -1,4 +1,4 @@
-cbuffer GUI : register(b3)
+cbuffer RenderConstant : register(b3)
 {
 	matrix WorldViewProjection;
 };

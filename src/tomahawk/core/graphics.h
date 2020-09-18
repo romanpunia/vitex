@@ -1218,6 +1218,7 @@ namespace Tomahawk
 			struct Desc
 			{
 				GraphicsDevice* Device = nullptr;
+				unsigned int ElementWidth = sizeof(Compute::ElementVertex);
 				unsigned int ElementLimit = 100;
 			};
 
@@ -1226,6 +1227,7 @@ namespace Tomahawk
 			ElementBuffer* Elements;
 			GraphicsDevice* Device;
 			uint64_t ElementLimit;
+			uint64_t ElementWidth;
 			bool Sync;
 
 		protected:
@@ -1441,37 +1443,6 @@ namespace Tomahawk
 			Texture2D* GetTarget(unsigned int Target);
 		};
 
-		class THAWK_OUT RenderTarget2DArray : public Rest::Object
-		{
-		public:
-			struct Desc
-			{
-				CPUAccess AccessFlags = CPUAccess_Invalid;
-				Format FormatMode = Format_R8G8B8A8_Unorm;
-				ResourceUsage Usage = ResourceUsage_Default;
-				ResourceBind BindFlags = (ResourceBind)(ResourceBind_Render_Target | ResourceBind_Shader_Input);
-				ResourceMisc MiscFlags = ResourceMisc_None;
-				unsigned int MipLevels = 1;
-				unsigned int Width = 512;
-				unsigned int Height = 512;
-				unsigned int ArraySize = 1;
-			};
-
-		protected:
-			Texture2D* Resource;
-
-		protected:
-			RenderTarget2DArray(const Desc& I);
-
-		public:
-			virtual ~RenderTarget2DArray();
-			virtual Viewport GetViewport() = 0;
-			virtual float GetWidth() = 0;
-			virtual float GetHeight() = 0;
-			virtual void* GetResource() = 0;
-			Texture2D* GetTarget();
-		};
-
 		class THAWK_OUT RenderTargetCube : public Rest::Object
 		{
 		public:
@@ -1638,8 +1609,6 @@ namespace Tomahawk
 			virtual void SetTarget(MultiRenderTarget2D* Resource, unsigned int Target) = 0;
 			virtual void SetTarget(MultiRenderTarget2D* Resource, float R, float G, float B) = 0;
 			virtual void SetTarget(MultiRenderTarget2D* Resource) = 0;
-			virtual void SetTarget(RenderTarget2DArray* Resource, unsigned int Target, float R, float G, float B) = 0;
-			virtual void SetTarget(RenderTarget2DArray* Resource, unsigned int Target) = 0;
 			virtual void SetTarget(RenderTargetCube* Resource, float R, float G, float B) = 0;
 			virtual void SetTarget(RenderTargetCube* Resource) = 0;
 			virtual void SetTarget(MultiRenderTargetCube* Resource, unsigned int Target, float R, float G, float B) = 0;
@@ -1650,7 +1619,6 @@ namespace Tomahawk
 			virtual void SetViewport(const Viewport& In) = 0;
 			virtual void SetViewport(RenderTarget2D* Resource, const Viewport& In) = 0;
 			virtual void SetViewport(MultiRenderTarget2D* Resource, const Viewport& In) = 0;
-			virtual void SetViewport(RenderTarget2DArray* Resource, const Viewport& In) = 0;
 			virtual void SetViewport(RenderTargetCube* Resource, const Viewport& In) = 0;
 			virtual void SetViewport(MultiRenderTargetCube* Resource, const Viewport& In) = 0;
 			virtual void SetViewports(unsigned int Count, Viewport* Viewports) = 0;
@@ -1676,14 +1644,12 @@ namespace Tomahawk
 			virtual void Clear(float R, float G, float B) = 0;
 			virtual void Clear(RenderTarget2D* Resource, float R, float G, float B) = 0;
 			virtual void Clear(MultiRenderTarget2D* Resource, unsigned int Target, float R, float G, float B) = 0;
-			virtual void Clear(RenderTarget2DArray* Resource, unsigned int Target, float R, float G, float B) = 0;
 			virtual void Clear(RenderTargetCube* Resource, float R, float G, float B) = 0;
 			virtual void Clear(MultiRenderTargetCube* Resource, unsigned int Target, float R, float G, float B) = 0;
 			virtual void ClearDepth() = 0;
 			virtual void ClearDepth(DepthBuffer* Resource) = 0;
 			virtual void ClearDepth(RenderTarget2D* Resource) = 0;
 			virtual void ClearDepth(MultiRenderTarget2D* Resource) = 0;
-			virtual void ClearDepth(RenderTarget2DArray* Resource) = 0;
 			virtual void ClearDepth(RenderTargetCube* Resource) = 0;
 			virtual void ClearDepth(MultiRenderTargetCube* Resource) = 0;
 			virtual void DrawIndexed(unsigned int Count, unsigned int IndexLocation, unsigned int BaseLocation) = 0;
@@ -1701,7 +1667,6 @@ namespace Tomahawk
 			virtual bool CopyTargetFrom(MultiRenderTarget2D* Resource, unsigned int Target, RenderTarget2D* From) = 0;
 			virtual bool CopyTargetDepth(RenderTarget2D* From, RenderTarget2D* To) = 0;
 			virtual bool CopyTargetDepth(MultiRenderTarget2D* From, MultiRenderTarget2D* To) = 0;
-			virtual bool CopyTargetDepth(RenderTarget2DArray* From, RenderTarget2DArray* To) = 0;
 			virtual bool CopyTargetDepth(RenderTargetCube* From, RenderTargetCube* To) = 0;
 			virtual bool CopyTargetDepth(MultiRenderTargetCube* From, MultiRenderTargetCube* To) = 0;
 			virtual bool CopyBegin(MultiRenderTarget2D* Resource, unsigned int Target, unsigned int MipLevels, unsigned int Size) = 0;
@@ -1709,7 +1674,6 @@ namespace Tomahawk
 			virtual bool CopyEnd(MultiRenderTarget2D* Resource, TextureCube* Result) = 0;
 			virtual void SwapTargetDepth(RenderTarget2D* From, RenderTarget2D* To) = 0;
 			virtual void SwapTargetDepth(MultiRenderTarget2D* From, MultiRenderTarget2D* To) = 0;
-			virtual void SwapTargetDepth(RenderTarget2DArray* From, RenderTarget2DArray* To) = 0;
 			virtual void SwapTargetDepth(RenderTargetCube* From, RenderTargetCube* To) = 0;
 			virtual void SwapTargetDepth(MultiRenderTargetCube* From, MultiRenderTargetCube* To) = 0;
 			virtual void FetchViewports(unsigned int* Count, Viewport* Out) = 0;
@@ -1758,7 +1722,6 @@ namespace Tomahawk
 			virtual DepthBuffer* CreateDepthBuffer(const DepthBuffer::Desc& I) = 0;
 			virtual RenderTarget2D* CreateRenderTarget2D(const RenderTarget2D::Desc& I) = 0;
 			virtual MultiRenderTarget2D* CreateMultiRenderTarget2D(const MultiRenderTarget2D::Desc& I) = 0;
-			virtual RenderTarget2DArray* CreateRenderTarget2DArray(const RenderTarget2DArray::Desc& I) = 0;
 			virtual RenderTargetCube* CreateRenderTargetCube(const RenderTargetCube::Desc& I) = 0;
 			virtual MultiRenderTargetCube* CreateMultiRenderTargetCube(const MultiRenderTargetCube::Desc& I) = 0;
 			virtual Query* CreateQuery(const Query::Desc& I) = 0;

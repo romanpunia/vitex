@@ -56,18 +56,515 @@ namespace Tomahawk
 				return (void*)(intptr_t)Resource;
 			}
 
-			OGLShader::OGLShader(const Desc& I) : Shader(I)
+			OGLShader::OGLShader(const Desc& I) : Shader(I), Compiled(false)
 			{
-				/* TODO: IMPL */
+				GLsizei Stride = 0;
+				if (I.LayoutSize > 0)
+				{
+					switch (I.Layout[I.LayoutSize - 1].FormatMode)
+					{
+						case Format_R32G32B32A32_Typeless:
+							Stride += sizeof(int) * 4;
+							break;
+						case Format_R32G32B32A32_Float:
+							Stride += sizeof(float) * 4;
+							break;
+						case Format_R32G32B32A32_Uint:
+							Stride += sizeof(int) * 4;
+							break;
+						case Format_R32G32B32A32_Sint:
+							Stride += sizeof(int) * 4;
+							break;
+						case Format_R32G32B32_Typeless:
+							Stride += sizeof(int) * 3;
+							break;
+						case Format_R32G32B32_Float:
+							Stride += sizeof(float) * 3;
+							break;
+						case Format_R32G32B32_Uint:
+							Stride += sizeof(int) * 3;
+							break;
+						case Format_R32G32B32_Sint:
+							Stride += sizeof(int) * 3;
+							break;
+						case Format_R16G16B16A16_Typeless:
+							Stride += sizeof(int) * 4;
+							break;
+						case Format_R16G16B16A16_Float:
+							Stride += sizeof(float) * 4;
+							break;
+						case Format_R16G16B16A16_Unorm:
+							Stride += sizeof(int) * 4;
+							break;
+						case Format_R16G16B16A16_Uint:
+							Stride += sizeof(int) * 4;
+							break;
+						case Format_R16G16B16A16_Snorm:
+							Stride += sizeof(int) * 4;
+							break;
+						case Format_R16G16B16A16_Sint:
+							Stride += sizeof(int) * 4;
+							break;
+						case Format_R32G32_Typeless:
+							Stride += sizeof(int) * 2;
+							break;
+						case Format_R32G32_Float:
+							Stride += sizeof(float) * 2;
+							break;
+						case Format_R32G32_Uint:
+							Stride += sizeof(int) * 2;
+							break;
+						case Format_R32G32_Sint:
+							Stride += sizeof(int) * 2;
+							break;
+						case Format_R10G10B10A2_Typeless:
+							Stride += sizeof(int) * 4;
+							break;
+						case Format_R10G10B10A2_Unorm:
+							Stride += sizeof(int) * 4;
+							break;
+						case Format_R10G10B10A2_Uint:
+							Stride += sizeof(int) * 4;
+							break;
+						case Format_R11G11B10_Float:
+							Stride += sizeof(float) * 3;
+							break;
+						case Format_R8G8B8A8_Typeless:
+							Stride += sizeof(int) * 4;
+							break;
+						case Format_R8G8B8A8_Unorm:
+							Stride += sizeof(int) * 4;
+							break;
+						case Format_R8G8B8A8_Unorm_SRGB:
+							Stride += sizeof(int) * 4;
+							break;
+						case Format_R8G8B8A8_Uint:
+							Stride += sizeof(int) * 4;
+							break;
+						case Format_R8G8B8A8_Snorm:
+							Stride += sizeof(int) * 4;
+							break;
+						case Format_R8G8B8A8_Sint:
+							Stride += sizeof(int) * 4;
+							break;
+						case Format_R16G16_Typeless:
+							Stride += sizeof(int) * 2;
+							break;
+						case Format_R16G16_Float:
+							Stride += sizeof(float) * 2;
+							break;
+						case Format_R16G16_Unorm:
+							Stride += sizeof(int) * 2;
+							break;
+						case Format_R16G16_Uint:
+							Stride += sizeof(int) * 2;
+							break;
+						case Format_R16G16_Snorm:
+							Stride += sizeof(int) * 2;
+							break;
+						case Format_R16G16_Sint:
+							Stride += sizeof(int) * 2;
+							break;
+						case Format_R32_Typeless:
+							Stride += sizeof(int) * 1;
+							break;
+						case Format_D32_Float:
+							Stride += sizeof(float) * 1;
+							break;
+						case Format_R32_Float:
+							Stride += sizeof(float) * 1;
+							break;
+						case Format_R32_Uint:
+							Stride += sizeof(int) * 1;
+							break;
+						case Format_R32_Sint:
+							Stride += sizeof(int) * 1;
+							break;
+						case Format_R8G8_Typeless:
+							Stride += sizeof(int) * 2;
+							break;
+						case Format_R8G8_Unorm:
+							Stride += sizeof(int) * 2;
+							break;
+						case Format_R8G8_Uint:
+							Stride += sizeof(int) * 2;
+							break;
+						case Format_R8G8_Snorm:
+							Stride += sizeof(int) * 2;
+							break;
+						case Format_R8G8_Sint:
+							Stride += sizeof(int) * 2;
+							break;
+						case Format_R16_Typeless:
+							Stride += sizeof(int) * 1;
+							break;
+						case Format_R16_Float:
+							Stride += sizeof(float) * 1;
+							break;
+						case Format_D16_Unorm:
+							Stride += sizeof(int) * 1;
+							break;
+						case Format_R16_Unorm:
+							Stride += sizeof(int) * 1;
+							break;
+						case Format_R16_Uint:
+							Stride += sizeof(int) * 1;
+							break;
+						case Format_R16_Snorm:
+							Stride += sizeof(int) * 1;
+							break;
+						case Format_R16_Sint:
+							Stride += sizeof(int) * 1;
+							break;
+						case Format_R8_Typeless:
+							Stride += sizeof(int) * 1;
+							break;
+						case Format_R8_Unorm:
+							Stride += sizeof(int) * 1;
+							break;
+						case Format_R8_Uint:
+							Stride += sizeof(int) * 1;
+							break;
+						case Format_R8_Snorm:
+							Stride += sizeof(int) * 1;
+							break;
+						case Format_R8_Sint:
+							Stride += sizeof(int) * 1;
+							break;
+						default:
+							break;
+					}
+				}
+
+				for (size_t i = 0; i < I.LayoutSize; i++)
+					Stride += I.Layout[i].AlignedByteOffset;
+
+				for (size_t i = 0; i < I.LayoutSize; i++)
+				{
+					InputLayout* Item = I.Layout + i;
+					if (!Item)
+						continue;
+
+					bool Decimal = false;
+					GLenum Format = GL_INVALID_ENUM;
+					GLint Size = 0;
+
+					switch (Item->FormatMode)
+					{
+						case Format_R32G32B32A32_Typeless:
+							Format = GL_INT;
+							Size = 4;
+							Decimal = true;
+							break;
+						case Format_R32G32B32A32_Float:
+							Format = GL_FLOAT;
+							Size = 4;
+							Decimal = false;
+							break;
+						case Format_R32G32B32A32_Uint:
+							Format = GL_UNSIGNED_INT;
+							Size = 4;
+							Decimal = true;
+							break;
+						case Format_R32G32B32A32_Sint:
+							Format = GL_INT;
+							Size = 4;
+							Decimal = true;
+							break;
+						case Format_R32G32B32_Typeless:
+							Format = GL_INT;
+							Size = 3;
+							Decimal = true;
+							break;
+						case Format_R32G32B32_Float:
+							Format = GL_FLOAT;
+							Size = 3;
+							Decimal = false;
+							break;
+						case Format_R32G32B32_Uint:
+							Format = GL_UNSIGNED_INT;
+							Size = 3;
+							Decimal = true;
+							break;
+						case Format_R32G32B32_Sint:
+							Format = GL_INT;
+							Size = 3;
+							Decimal = true;
+							break;
+						case Format_R16G16B16A16_Typeless:
+							Format = GL_INT;
+							Size = 4;
+							Decimal = true;
+							break;
+						case Format_R16G16B16A16_Float:
+							Format = GL_FLOAT;
+							Size = 4;
+							Decimal = false;
+							break;
+						case Format_R16G16B16A16_Unorm:
+							Format = GL_UNSIGNED_INT;
+							Size = 4;
+							Decimal = true;
+							break;
+						case Format_R16G16B16A16_Uint:
+							Format = GL_UNSIGNED_INT;
+							Size = 4;
+							Decimal = true;
+							break;
+						case Format_R16G16B16A16_Snorm:
+							Format = GL_INT;
+							Size = 4;
+							Decimal = true;
+							break;
+						case Format_R16G16B16A16_Sint:
+							Format = GL_INT;
+							Size = 4;
+							Decimal = true;
+							break;
+						case Format_R32G32_Typeless:
+							Format = GL_INT;
+							Size = 2;
+							Decimal = true;
+							break;
+						case Format_R32G32_Float:
+							Format = GL_FLOAT;
+							Size = 2;
+							Decimal = false;
+							break;
+						case Format_R32G32_Uint:
+							Format = GL_UNSIGNED_INT;
+							Size = 2;
+							Decimal = true;
+							break;
+						case Format_R32G32_Sint:
+							Format = GL_INT;
+							Size = 2;
+							Decimal = true;
+							break;
+						case Format_R10G10B10A2_Typeless:
+							Format = GL_INT;
+							Size = 4;
+							Decimal = true;
+							break;
+						case Format_R10G10B10A2_Unorm:
+							Format = GL_UNSIGNED_INT;
+							Size = 4;
+							Decimal = true;
+							break;
+						case Format_R10G10B10A2_Uint:
+							Format = GL_UNSIGNED_INT;
+							Size = 4;
+							Decimal = true;
+							break;
+						case Format_R11G11B10_Float:
+							Format = GL_FLOAT;
+							Size = 3;
+							Decimal = false;
+							break;
+						case Format_R8G8B8A8_Typeless:
+							Format = GL_INT;
+							Size = 4;
+							Decimal = true;
+							break;
+						case Format_R8G8B8A8_Unorm:
+							Format = GL_UNSIGNED_INT;
+							Size = 4;
+							Decimal = true;
+							break;
+						case Format_R8G8B8A8_Unorm_SRGB:
+							Format = GL_UNSIGNED_INT;
+							Size = 4;
+							Decimal = true;
+							break;
+						case Format_R8G8B8A8_Uint:
+							Format = GL_UNSIGNED_INT;
+							Size = 4;
+							Decimal = true;
+							break;
+						case Format_R8G8B8A8_Snorm:
+							Format = GL_INT;
+							Size = 4;
+							Decimal = true;
+							break;
+						case Format_R8G8B8A8_Sint:
+							Format = GL_INT;
+							Size = 4;
+							Decimal = true;
+							break;
+						case Format_R16G16_Typeless:
+							Format = GL_INT;
+							Size = 2;
+							Decimal = true;
+							break;
+						case Format_R16G16_Float:
+							Format = GL_FLOAT;
+							Size = 2;
+							Decimal = false;
+							break;
+						case Format_R16G16_Unorm:
+							Format = GL_UNSIGNED_INT;
+							Size = 2;
+							Decimal = true;
+							break;
+						case Format_R16G16_Uint:
+							Format = GL_UNSIGNED_INT;
+							Size = 2;
+							Decimal = true;
+							break;
+						case Format_R16G16_Snorm:
+							Format = GL_INT;
+							Size = 2;
+							Decimal = true;
+							break;
+						case Format_R16G16_Sint:
+							Format = GL_INT;
+							Size = 2;
+							Decimal = true;
+							break;
+						case Format_R32_Typeless:
+							Format = GL_INT;
+							Size = 1;
+							Decimal = true;
+							break;
+						case Format_D32_Float:
+							Format = GL_FLOAT;
+							Size = 1;
+							Decimal = false;
+							break;
+						case Format_R32_Float:
+							Format = GL_FLOAT;
+							Size = 1;
+							Decimal = false;
+							break;
+						case Format_R32_Uint:
+							Format = GL_UNSIGNED_INT;
+							Size = 1;
+							Decimal = true;
+							break;
+						case Format_R32_Sint:
+							Format = GL_INT;
+							Size = 1;
+							Decimal = true;
+							break;
+						case Format_R8G8_Typeless:
+							Format = GL_INT;
+							Size = 2;
+							Decimal = true;
+							break;
+						case Format_R8G8_Unorm:
+							Format = GL_UNSIGNED_INT;
+							Size = 2;
+							Decimal = true;
+							break;
+						case Format_R8G8_Uint:
+							Format = GL_UNSIGNED_INT;
+							Size = 2;
+							Decimal = true;
+							break;
+						case Format_R8G8_Snorm:
+							Format = GL_INT;
+							Size = 2;
+							Decimal = true;
+							break;
+						case Format_R8G8_Sint:
+							Format = GL_INT;
+							Size = 2;
+							Decimal = true;
+							break;
+						case Format_R16_Typeless:
+							Format = GL_INT;
+							Size = 1;
+							Decimal = true;
+							break;
+						case Format_R16_Float:
+							Format = GL_FLOAT;
+							Size = 1;
+							Decimal = false;
+							break;
+						case Format_D16_Unorm:
+							Format = GL_UNSIGNED_INT;
+							Size = 1;
+							Decimal = true;
+							break;
+						case Format_R16_Unorm:
+							Format = GL_UNSIGNED_INT;
+							Size = 1;
+							Decimal = true;
+							break;
+						case Format_R16_Uint:
+							Format = GL_UNSIGNED_INT;
+							Size = 1;
+							Decimal = true;
+							break;
+						case Format_R16_Snorm:
+							Format = GL_INT;
+							Size = 1;
+							Decimal = true;
+							break;
+						case Format_R16_Sint:
+							Format = GL_INT;
+							Size = 1;
+							Decimal = true;
+							break;
+						case Format_R8_Typeless:
+							Format = GL_INT;
+							Size = 1;
+							Decimal = true;
+							break;
+						case Format_R8_Unorm:
+							Format = GL_UNSIGNED_INT;
+							Size = 1;
+							Decimal = true;
+							break;
+						case Format_R8_Uint:
+							Format = GL_UNSIGNED_INT;
+							Size = 1;
+							Decimal = true;
+							break;
+						case Format_R8_Snorm:
+							Format = GL_INT;
+							Size = 1;
+							Decimal = true;
+							break;
+						case Format_R8_Sint:
+							Format = GL_INT;
+							Size = 1;
+							Decimal = true;
+							break;
+						default:
+							break;
+					}
+
+					GLsizei Stride = Item->AlignedByteOffset;
+					if (Decimal)
+					{
+						VertexLayout.push_back([i, Size, Format, Stride]()
+						{
+							glVertexAttribIPointer(i, Size, Format, 0, (void*)(Stride));
+						});
+					}
+					else
+					{
+						VertexLayout.push_back([i, Size, Format, Stride]()
+						{
+							glVertexAttribPointerARB(i, Size, Format, GL_FALSE, 0, (void*)(Stride));
+						});
+					}
+				}
 			}
 			OGLShader::~OGLShader()
 			{
-				/* TODO: IMPL */
+				glDeleteProgram(Program);
+				glDeleteShader(VertexShader);
+				glDeleteShader(PixelShader);
+				glDeleteShader(GeometryShader);
+				glDeleteShader(DomainShader);
+				glDeleteShader(HullShader);
+				glDeleteShader(ComputeShader);
 			}
 			bool OGLShader::IsValid()
 			{
-				/* TODO: IMPL */
-				return false;
+				return Compiled;
 			}
 
 			OGLElementBuffer::OGLElementBuffer(const Desc& I) : ElementBuffer(I)
@@ -130,14 +627,13 @@ namespace Tomahawk
 
 			OGLInstanceBuffer::OGLInstanceBuffer(const Desc& I) : InstanceBuffer(I)
 			{
-				/* TODO: IMPL */
 			}
 			OGLInstanceBuffer::~OGLInstanceBuffer()
 			{
 				if (Device != nullptr && Sync)
 					Device->ClearBuffer(this);
 
-				/* TODO: IMPL */
+				glDeleteBuffers(1, &Resource);
 			}
 
 			OGLTexture2D::OGLTexture2D() : Texture2D()
@@ -150,10 +646,6 @@ namespace Tomahawk
 			{
 				glDeleteTextures(1, &Resource);
 			}
-			void OGLTexture2D::Fill(OGLDevice* Device)
-			{
-				/* TODO: IMPL */
-			}
 			void* OGLTexture2D::GetResource()
 			{
 				return (void*)(intptr_t)Resource;
@@ -161,34 +653,29 @@ namespace Tomahawk
 
 			OGLTexture3D::OGLTexture3D() : Texture3D()
 			{
-				/* TODO: IMPL */
 			}
 			OGLTexture3D::~OGLTexture3D()
 			{
-				/* TODO: IMPL */
+				glDeleteTextures(1, &Resource);
 			}
 			void* OGLTexture3D::GetResource()
 			{
-				/* TODO: IMPL */
-				return (void*)nullptr;
+				return (void*)(intptr_t)Resource;
 			}
 
 			OGLTextureCube::OGLTextureCube() : TextureCube()
 			{
-				/* TODO: IMPL */
 			}
 			OGLTextureCube::OGLTextureCube(const Desc& I) : TextureCube(I)
 			{
-				/* TODO: IMPL */
 			}
 			OGLTextureCube::~OGLTextureCube()
 			{
-				/* TODO: IMPL */
+				glDeleteTextures(1, &Resource);
 			}
 			void* OGLTextureCube::GetResource()
 			{
-				/* TODO: IMPL */
-				return (void*)nullptr;
+				return (void*)(intptr_t)Resource;
 			}
 
 			OGLDepthBuffer::OGLDepthBuffer(const Desc& I) : Graphics::DepthBuffer(I)
@@ -222,6 +709,7 @@ namespace Tomahawk
 			OGLRenderTarget2D::~OGLRenderTarget2D()
 			{
 				glDeleteFramebuffers(1, &FrameBuffer);
+				glDeleteTextures(1, &Texture);
 				glDeleteRenderbuffers(1, &DepthBuffer);
 			}
 			Viewport OGLRenderTarget2D::GetViewport()
@@ -238,16 +726,17 @@ namespace Tomahawk
 			}
 			void* OGLRenderTarget2D::GetResource()
 			{
-				return (void*)(intptr_t)FrameBuffer;
+				return (void*)(intptr_t)Texture;
 			}
 
 			OGLMultiRenderTarget2D::OGLMultiRenderTarget2D(const Desc& I) : MultiRenderTarget2D(I)
 			{
-				/* TODO: IMPL */
 			}
 			OGLMultiRenderTarget2D::~OGLMultiRenderTarget2D()
 			{
-				/* TODO: IMPL */
+				glDeleteFramebuffers(1, &FrameBuffer);
+				glDeleteRenderbuffers(1, &DepthBuffer);
+				glDeleteTextures(8, Texture);
 			}
 			Viewport OGLMultiRenderTarget2D::GetViewport()
 			{
@@ -263,44 +752,20 @@ namespace Tomahawk
 			}
 			void* OGLMultiRenderTarget2D::GetResource(int Id)
 			{
-				/* TODO: IMPL */
-				return nullptr;
-			}
+				if (Id < 0 || Id >= 8)
+					return nullptr;
 
-			OGLRenderTarget2DArray::OGLRenderTarget2DArray(const Desc& I) : RenderTarget2DArray(I)
-			{
-				/* TODO: IMPL */
-			}
-			OGLRenderTarget2DArray::~OGLRenderTarget2DArray()
-			{
-				/* TODO: IMPL */
-				delete Resource;
-			}
-			Viewport OGLRenderTarget2DArray::GetViewport()
-			{
-				return View;
-			}
-			float OGLRenderTarget2DArray::GetWidth()
-			{
-				return View.Width;
-			}
-			float OGLRenderTarget2DArray::GetHeight()
-			{
-				return View.Height;
-			}
-			void* OGLRenderTarget2DArray::GetResource()
-			{
-				/* TODO: IMPL */
-				return nullptr;
+				return (void*)(intptr_t)Texture[Id];
 			}
 
 			OGLRenderTargetCube::OGLRenderTargetCube(const Desc& I) : RenderTargetCube(I)
 			{
-				/* TODO: IMPL */
 			}
 			OGLRenderTargetCube::~OGLRenderTargetCube()
 			{
-				/* TODO: IMPL */
+				glDeleteFramebuffers(1, &FrameBuffer);
+				glDeleteTextures(1, &Texture);
+				glDeleteTextures(1, &DepthTexture);
 			}
 			Viewport OGLRenderTargetCube::GetViewport()
 			{
@@ -316,17 +781,17 @@ namespace Tomahawk
 			}
 			void* OGLRenderTargetCube::GetResource()
 			{
-				/* TODO: IMPL */
-				return (void*)nullptr;
+				return (void*)(intptr_t)Texture;
 			}
 
 			OGLMultiRenderTargetCube::OGLMultiRenderTargetCube(const Desc& I) : MultiRenderTargetCube(I)
 			{
-				/* TODO: IMPL */
 			}
 			OGLMultiRenderTargetCube::~OGLMultiRenderTargetCube()
 			{
-				/* TODO: IMPL */
+				glDeleteFramebuffers(1, &FrameBuffer);
+				glDeleteTextures(8, Texture);
+				glDeleteTextures(1, &DepthTexture);
 			}
 			Graphics::Viewport OGLMultiRenderTargetCube::GetViewport()
 			{
@@ -334,16 +799,15 @@ namespace Tomahawk
 			}
 			float OGLMultiRenderTargetCube::GetWidth()
 			{
-				return 0.0f;
+				return View.Width;
 			}
 			float OGLMultiRenderTargetCube::GetHeight()
 			{
-				return 0.0f;
+				return View.Height;
 			}
 			void* OGLMultiRenderTargetCube::GetResource(int Id)
 			{
-				/* TODO: IMPL */
-				return (void*)nullptr;
+				return (void*)(intptr_t)Texture[Id];
 			}
 
 			OGLQuery::OGLQuery() : Query()
@@ -351,10 +815,11 @@ namespace Tomahawk
 			}
 			OGLQuery::~OGLQuery()
 			{
+				glDeleteQueries(1, &Async);
 			}
 			void* OGLQuery::GetResource()
 			{
-				return (void*)nullptr;
+				return (void*)(intptr_t)Async;
 			}
 
 			OGLDevice::OGLDevice(const Desc& I) : GraphicsDevice(I), Window(I.Window), Context(nullptr)
@@ -602,7 +1067,7 @@ namespace Tomahawk
 			}
 			void OGLDevice::SetBuffer(InstanceBuffer* Resource, unsigned int Slot)
 			{
-				/* TODO: IMPL */
+				glBindBuffer(GL_ARRAY_BUFFER, Resource ? Resource->As<OGLInstanceBuffer>()->Resource : GL_INVALID_VALUE);
 			}
 			void OGLDevice::SetIndexBuffer(ElementBuffer* Resource, Format FormatMode, unsigned int Offset)
 			{
@@ -619,7 +1084,8 @@ namespace Tomahawk
 			}
 			void OGLDevice::SetTexture3D(Texture3D* Resource, unsigned int Slot)
 			{
-				/* TODO: IMPL */
+				glActiveTexture(GL_TEXTURE0 + Slot);
+				glBindTexture(GL_TEXTURE_3D, Resource ? Resource->As<OGLTexture3D>()->Resource : GL_INVALID_VALUE);
 			}
 			void OGLDevice::SetTextureCube(TextureCube* Resource, unsigned int Slot)
 			{
@@ -690,20 +1156,6 @@ namespace Tomahawk
 					return;
 				/* TODO: IMPL */
 			}
-			void OGLDevice::SetTarget(RenderTarget2DArray* Resource, unsigned int Target, float R, float G, float B)
-			{
-				OGLRenderTarget2DArray* IResource = (OGLRenderTarget2DArray*)Resource;
-				if (!IResource)
-					return;
-				/* TODO: IMPL */
-			}
-			void OGLDevice::SetTarget(RenderTarget2DArray* Resource, unsigned int Target)
-			{
-				OGLRenderTarget2DArray* IResource = (OGLRenderTarget2DArray*)Resource;
-				if (!IResource)
-					return;
-				/* TODO: IMPL */
-			}
 			void OGLDevice::SetTarget(RenderTargetCube* Resource, float R, float G, float B)
 			{
 				OGLRenderTargetCube* IResource = (OGLRenderTargetCube*)Resource;
@@ -769,13 +1221,6 @@ namespace Tomahawk
 			void OGLDevice::SetViewport(MultiRenderTarget2D* Resource, const Viewport& In)
 			{
 				OGLMultiRenderTarget2D* IResource = (OGLMultiRenderTarget2D*)Resource;
-				if (!IResource)
-					return;
-				/* TODO: IMPL */
-			}
-			void OGLDevice::SetViewport(RenderTarget2DArray* Resource, const Viewport& In)
-			{
-				OGLRenderTarget2DArray* IResource = (OGLRenderTarget2DArray*)Resource;
 				if (!IResource)
 					return;
 				/* TODO: IMPL */
@@ -962,8 +1407,11 @@ namespace Tomahawk
 				OGLShader* IResource = (OGLShader*)Resource;
 				if (!IResource || !Size)
 					return false;
-				/* TODO: IMPL */
-				return true;
+
+				if (IResource->ConstantBuffer != GL_INVALID_VALUE)
+					glDeleteBuffers(1, &IResource->ConstantBuffer);
+
+				return CreateConstantBuffer(&IResource->ConstantBuffer, Size) >= 0;
 			}
 			bool OGLDevice::UpdateBufferSize(InstanceBuffer* Resource, uint64_t Size)
 			{
@@ -1002,13 +1450,6 @@ namespace Tomahawk
 					return;
 				/* TODO: IMPL */
 			}
-			void OGLDevice::Clear(RenderTarget2DArray* Resource, unsigned int Target, float R, float G, float B)
-			{
-				OGLRenderTarget2DArray* IResource = (OGLRenderTarget2DArray*)Resource;
-				if (!IResource)
-					return;
-				/* TODO: IMPL */
-			}
 			void OGLDevice::Clear(RenderTargetCube* Resource, float R, float G, float B)
 			{
 				OGLRenderTargetCube* IResource = (OGLRenderTargetCube*)Resource;
@@ -1038,13 +1479,6 @@ namespace Tomahawk
 			void OGLDevice::ClearDepth(MultiRenderTarget2D* Resource)
 			{
 				OGLMultiRenderTarget2D* IResource = (OGLMultiRenderTarget2D*)Resource;
-				if (!IResource)
-					return;
-				/* TODO: IMPL */
-			}
-			void OGLDevice::ClearDepth(RenderTarget2DArray* Resource)
-			{
-				OGLRenderTarget2DArray* IResource = (OGLRenderTarget2DArray*)Resource;
 				if (!IResource)
 					return;
 				/* TODO: IMPL */
@@ -1167,15 +1601,6 @@ namespace Tomahawk
 				/* TODO: IMPL */
 				return true;
 			}
-			bool OGLDevice::CopyTargetDepth(RenderTarget2DArray* From, RenderTarget2DArray* To)
-			{
-				OGLRenderTarget2DArray* IResource1 = (OGLRenderTarget2DArray*)From;
-				OGLRenderTarget2DArray* IResource2 = (OGLRenderTarget2DArray*)To;
-				if (!IResource1 || !IResource2)
-					return false;
-				/* TODO: IMPL */
-				return true;
-			}
 			bool OGLDevice::CopyTargetDepth(RenderTargetCube* From, RenderTargetCube* To)
 			{
 				OGLRenderTargetCube* IResource1 = (OGLRenderTargetCube*)From;
@@ -1230,14 +1655,6 @@ namespace Tomahawk
 			{
 				OGLMultiRenderTarget2D* IResource1 = (OGLMultiRenderTarget2D*)From;
 				OGLMultiRenderTarget2D* IResource2 = (OGLMultiRenderTarget2D*)To;
-				if (!IResource1 || !IResource2)
-					return;
-				/* TODO: IMPL */
-			}
-			void OGLDevice::SwapTargetDepth(RenderTarget2DArray* From, RenderTarget2DArray* To)
-			{
-				OGLRenderTarget2DArray* IResource1 = (OGLRenderTarget2DArray*)From;
-				OGLRenderTarget2DArray* IResource2 = (OGLRenderTarget2DArray*)To;
 				if (!IResource1 || !IResource2)
 					return;
 				/* TODO: IMPL */
@@ -1310,33 +1727,33 @@ namespace Tomahawk
 			bool OGLDevice::GenerateTexture(Texture2D* Resource)
 			{
 				OGLTexture2D* IResource = (OGLTexture2D*)Resource;
-				if (!IResource || IResource->Resource == GL_INVALID_VALUE)
-					return false;
-				/* TODO: IMPL */
-				return false;
+				return (IResource && IResource->Resource != GL_INVALID_VALUE);
 			}
 			bool OGLDevice::GenerateTexture(Texture3D* Resource)
 			{
 				OGLTexture3D* IResource = (OGLTexture3D*)Resource;
-				if (!IResource)
-					return false;
-				/* TODO: IMPL */
-				return false;
+				return (IResource && IResource->Resource != GL_INVALID_VALUE);
 			}
 			bool OGLDevice::GenerateTexture(TextureCube* Resource)
 			{
 				OGLTextureCube* IResource = (OGLTextureCube*)Resource;
-				if (!IResource)
-					return false;
-				/* TODO: IMPL */
-				return false;
+				return (IResource && IResource->Resource != GL_INVALID_VALUE);
 			}
 			bool OGLDevice::GetQueryData(Query* Resource, uint64_t* Result, bool Flush)
 			{
 				OGLQuery* IResource = (OGLQuery*)Resource;
 				if (!Result || !IResource)
 					return false;
-				/* TODO: IMPL */
+
+				GLint Available = 0;
+				glGetQueryObjectiv(IResource->Async, GL_QUERY_RESULT_AVAILABLE, &Available);
+				if (Available == GL_FALSE)
+					return false;
+
+				GLint64 Data = 0;
+				glGetQueryObjecti64v(IResource->Async, GL_QUERY_RESULT, &Data);
+				*Result = (uint64_t)Data;
+
 				return true;
 			}
 			bool OGLDevice::GetQueryData(Query* Resource, bool* Result, bool Flush)
@@ -1344,7 +1761,16 @@ namespace Tomahawk
 				OGLQuery* IResource = (OGLQuery*)Resource;
 				if (!Result || !IResource)
 					return false;
-				/* TODO: IMPL */
+
+				GLint Available = 0;
+				glGetQueryObjectiv(IResource->Async, GL_QUERY_RESULT_AVAILABLE, &Available);
+				if (Available == GL_FALSE)
+					return false;
+
+				GLint Data = 0;
+				glGetQueryObjectiv(IResource->Async, GL_QUERY_RESULT, &Data);
+				*Result = (Data == GL_TRUE);
+
 				return true;
 			}
 			void OGLDevice::QueryBegin(Query* Resource)
@@ -1352,14 +1778,16 @@ namespace Tomahawk
 				OGLQuery* IResource = (OGLQuery*)Resource;
 				if (!IResource)
 					return;
-				/* TODO: IMPL */
+
+				glBeginQuery(IResource->Predicate ? GL_ANY_SAMPLES_PASSED : GL_SAMPLES_PASSED, IResource->Async);
 			}
 			void OGLDevice::QueryEnd(Query* Resource)
 			{
 				OGLQuery* IResource = (OGLQuery*)Resource;
 				if (!IResource)
 					return;
-				/* TODO: IMPL */
+
+				glEndQuery(IResource->Predicate ? GL_ANY_SAMPLES_PASSED : GL_SAMPLES_PASSED);
 			}
 			void OGLDevice::GenerateMips(Texture2D* Resource)
 			{
@@ -1517,16 +1945,224 @@ namespace Tomahawk
 					return Result;
 				}
 
+				Rest::Stroke::Settle Start;
 				Rest::Stroke Code(&F.Data);
 				uint64_t Length = Code.Size();
-				bool VS = Code.Find("VS_Main").Found;
-				bool PS = Code.Find("PS_Main").Found;
-				bool GS = Code.Find("GS_Main").Found;
-				bool DS = Code.Find("DS_Main").Found;
-				bool HS = Code.Find("HS_Main").Found;
-				bool CS = Code.Find("CS_Main").Found;
+				GLint Status = 0;
 
-				/* TODO: IMPL */
+				if ((Start = Code.Find("VS_Main")).Found)
+				{
+					Rest::Stroke::Settle End = Code.Find("#program", Start.End);
+					if (!End.Found)
+						End.Start = Code.Size() - 1;
+
+					Rest::Stroke Sub(F.Data);
+					Sub.Splice(Start.End, End.Start);
+
+					char* Buffer = Sub.Value();
+					GLint Size = Sub.Size();
+
+					Result->VertexShader = glCreateShader(GL_VERTEX_SHADER);
+					glShaderSourceARB(Result->VertexShader, 1, &Buffer, &Size);
+					glCompileShaderARB(Result->VertexShader);
+					glGetShaderiv(Result->VertexShader, GL_COMPILE_STATUS, &Status);
+
+					if (Status == GL_FALSE)
+					{
+						glGetShaderiv(Result->VertexShader, GL_INFO_LOG_LENGTH, &Size);
+						Buffer = (char*)malloc(sizeof(char) * (Size + 1));
+						glGetShaderInfoLog(Result->VertexShader, Size, &Size, Buffer);
+						THAWK_ERROR("couldn't compile vertex shader\n\t%.*s", Size, Buffer);
+						free(Buffer);
+					}
+				}
+
+				if ((Start = Code.Find("PS_Main")).Found)
+				{
+					Rest::Stroke::Settle End = Code.Find("#program", Start.End);
+					if (!End.Found)
+						End.Start = Code.Size() - 1;
+
+					Rest::Stroke Sub(F.Data);
+					Sub.Splice(Start.End, End.Start);
+
+					char* Buffer = Sub.Value();
+					GLint Size = Sub.Size();
+
+					Result->PixelShader = glCreateShader(GL_FRAGMENT_SHADER);
+					glShaderSourceARB(Result->PixelShader, 1, &Buffer, &Size);
+					glCompileShaderARB(Result->PixelShader);
+					glGetShaderiv(Result->PixelShader, GL_COMPILE_STATUS, &Status);
+
+					if (Status == GL_FALSE)
+					{
+						glGetShaderiv(Result->PixelShader, GL_INFO_LOG_LENGTH, &Size);
+						Buffer = (char*)malloc(sizeof(char) * (Size + 1));
+						glGetShaderInfoLog(Result->PixelShader, Size, &Size, Buffer);
+						THAWK_ERROR("couldn't compile pixel shader\n\t%.*s", Size, Buffer);
+						free(Buffer);
+					}
+				}
+
+				if ((Start = Code.Find("GS_Main")).Found)
+				{
+					Rest::Stroke::Settle End = Code.Find("#program", Start.End);
+					if (!End.Found)
+						End.Start = Code.Size() - 1;
+
+					Rest::Stroke Sub(F.Data);
+					Sub.Splice(Start.End, End.Start);
+
+					char* Buffer = Sub.Value();
+					GLint Size = Sub.Size();
+
+					Result->GeometryShader = glCreateShader(GL_GEOMETRY_SHADER);
+					glShaderSourceARB(Result->GeometryShader, 1, &Buffer, &Size);
+					glCompileShaderARB(Result->GeometryShader);
+					glGetShaderiv(Result->GeometryShader, GL_COMPILE_STATUS, &Status);
+
+					if (Status == GL_FALSE)
+					{
+						glGetShaderiv(Result->GeometryShader, GL_INFO_LOG_LENGTH, &Size);
+						Buffer = (char*)malloc(sizeof(char) * (Size + 1));
+						glGetShaderInfoLog(Result->GeometryShader, Size, &Size, Buffer);
+						THAWK_ERROR("couldn't compile geometry shader\n\t%.*s", Size, Buffer);
+						free(Buffer);
+					}
+				}
+
+				if ((Start = Code.Find("DS_Main")).Found)
+				{
+					Rest::Stroke::Settle End = Code.Find("#program", Start.End);
+					if (!End.Found)
+						End.Start = Code.Size() - 1;
+
+					Rest::Stroke Sub(F.Data);
+					Sub.Splice(Start.End, End.Start);
+
+					char* Buffer = Sub.Value();
+					GLint Size = Sub.Size();
+
+					Result->DomainShader = glCreateShader(GL_TESS_EVALUATION_SHADER);
+					glShaderSourceARB(Result->DomainShader, 1, &Buffer, &Size);
+					glCompileShaderARB(Result->DomainShader);
+					glGetShaderiv(Result->DomainShader, GL_COMPILE_STATUS, &Status);
+
+					if (Status == GL_FALSE)
+					{
+						glGetShaderiv(Result->DomainShader, GL_INFO_LOG_LENGTH, &Size);
+						Buffer = (char*)malloc(sizeof(char) * (Size + 1));
+						glGetShaderInfoLog(Result->DomainShader, Size, &Size, Buffer);
+						THAWK_ERROR("couldn't compile domain shader\n\t%.*s", Size, Buffer);
+						free(Buffer);
+					}
+				}
+
+				if ((Start = Code.Find("HS_Main")).Found)
+				{
+					Rest::Stroke::Settle End = Code.Find("#program", Start.End);
+					if (!End.Found)
+						End.Start = Code.Size() - 1;
+
+					Rest::Stroke Sub(F.Data);
+					Sub.Splice(Start.End, End.Start);
+
+					char* Buffer = Sub.Value();
+					GLint Size = Sub.Size();
+
+					Result->HullShader = glCreateShader(GL_TESS_CONTROL_SHADER);
+					glShaderSourceARB(Result->HullShader, 1, &Buffer, &Size);
+					glCompileShaderARB(Result->HullShader);
+					glGetShaderiv(Result->HullShader, GL_COMPILE_STATUS, &Status);
+
+					if (Status == GL_FALSE)
+					{
+						glGetShaderiv(Result->HullShader, GL_INFO_LOG_LENGTH, &Size);
+						Buffer = (char*)malloc(sizeof(char) * (Size + 1));
+						glGetShaderInfoLog(Result->HullShader, Size, &Size, Buffer);
+						THAWK_ERROR("couldn't compile hull shader\n\t%.*s", Size, Buffer);
+						free(Buffer);
+					}
+				}
+
+				if ((Start = Code.Find("CS_Main")).Found)
+				{
+					Rest::Stroke::Settle End = Code.Find("#program", Start.End);
+					if (!End.Found)
+						End.Start = Code.Size() - 1;
+
+					Rest::Stroke Sub(F.Data);
+					Sub.Splice(Start.End, End.Start);
+
+					char* Buffer = Sub.Value();
+					GLint Size = Sub.Size();
+
+					Result->ComputeShader = glCreateShader(GL_COMPUTE_SHADER);
+					glShaderSourceARB(Result->ComputeShader, 1, &Buffer, &Size);
+					glCompileShaderARB(Result->ComputeShader);
+					glGetShaderiv(Result->ComputeShader, GL_COMPILE_STATUS, &Status);
+
+					if (Status == GL_FALSE)
+					{
+						glGetShaderiv(Result->ComputeShader, GL_INFO_LOG_LENGTH, &Size);
+						Buffer = (char*)malloc(sizeof(char) * (Size + 1));
+						glGetShaderInfoLog(Result->ComputeShader, Size, &Size, Buffer);
+						THAWK_ERROR("couldn't compile compute shader\n\t%.*s", Size, Buffer);
+						free(Buffer);
+					}
+				}
+
+				Result->Program = glCreateProgram();
+				if (Result->VertexShader != GL_INVALID_VALUE)
+					glAttachShader(Result->Program, Result->VertexShader);
+
+				if (Result->PixelShader != GL_INVALID_VALUE)
+					glAttachShader(Result->Program, Result->PixelShader);
+
+				if (Result->GeometryShader != GL_INVALID_VALUE)
+					glAttachShader(Result->Program, Result->GeometryShader);
+
+				if (Result->DomainShader != GL_INVALID_VALUE)
+					glAttachShader(Result->Program, Result->DomainShader);
+
+				if (Result->HullShader != GL_INVALID_VALUE)
+					glAttachShader(Result->Program, Result->HullShader);
+
+				if (Result->ComputeShader != GL_INVALID_VALUE)
+					glAttachShader(Result->Program, Result->ComputeShader);
+
+				glLinkProgramARB(Result->Program);
+				glGetProgramiv(Result->Program, GL_LINK_STATUS, &Status);
+
+				if (Status == GL_TRUE)
+				{
+					GLuint AnimationId = glGetUniformBlockIndex(Result->Program, "Animation");
+					if (AnimationId != GL_INVALID_INDEX)
+						glUniformBlockBinding(Result->Program, AnimationId, 0);
+
+					GLuint ObjectId = glGetUniformBlockIndex(Result->Program, "Object");
+					if (ObjectId != GL_INVALID_INDEX)
+						glUniformBlockBinding(Result->Program, ObjectId, 1);
+
+					GLuint ViewerId = glGetUniformBlockIndex(Result->Program, "Viewer");
+					if (ViewerId != GL_INVALID_INDEX)
+						glUniformBlockBinding(Result->Program, ViewerId, 2);
+
+					GLuint RenderConstantId = glGetUniformBlockIndex(Result->Program, "RenderConstant");
+					if (RenderConstantId != GL_INVALID_INDEX)
+						glUniformBlockBinding(Result->Program, RenderConstantId, 3);
+
+					return Result;
+				}
+
+				GLint Size = 0;
+				glGetProgramiv(Result->Program, GL_INFO_LOG_LENGTH, &Size);
+
+				char* Buffer = (char*)malloc(sizeof(char) * (Size + 1));
+				glGetProgramInfoLog(Result->Program, Size, &Size, Buffer);
+				THAWK_ERROR("couldn't link shaders\n\t%.*s", Size, Buffer);
+				free(Buffer);
+
 				return Result;
 			}
 			ElementBuffer* OGLDevice::CreateElementBuffer(const ElementBuffer::Desc& I)
@@ -1609,7 +2245,10 @@ namespace Tomahawk
 			InstanceBuffer* OGLDevice::CreateInstanceBuffer(const InstanceBuffer::Desc& I)
 			{
 				OGLInstanceBuffer* Result = new OGLInstanceBuffer(I);
-				/* TODO: IMPL */
+				glGenBuffers(1, &Result->Resource);
+				glBindBufferBase(GL_SHADER_STORAGE_BUFFER, 2, Result->Resource);
+				glBufferData(GL_SHADER_STORAGE_BUFFER, I.ElementLimit * I.ElementWidth, nullptr, GL_DYNAMIC_DRAW);
+
 				return Result;
 			}
 			Texture2D* OGLDevice::CreateTexture2D()
@@ -1618,10 +2257,16 @@ namespace Tomahawk
 			}
 			Texture2D* OGLDevice::CreateTexture2D(const Texture2D::Desc& I)
 			{
-				OGLTexture2D* Result = new OGLTexture2D();
+				OGLTexture2D* Result = new OGLTexture2D(I);
 				glGenTextures(1, &Result->Resource);
 				glBindTexture(GL_TEXTURE_2D, Result->Resource);
+				glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_S, GL_REPEAT);
+				glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_T, GL_REPEAT);
+				glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_R, GL_REPEAT);
 				glTexImage2D(GL_TEXTURE_2D, 0, OGLDevice::GetFormat(Result->FormatMode), Result->Width, Result->Height, 0, OGLDevice::GetFormat(Result->FormatMode), GL_UNSIGNED_BYTE, I.Data);
+
+				if (!GenerateTexture(Result))
+					return Result;
 
 				if (Result->MipLevels != 0)
 				{
@@ -1644,7 +2289,25 @@ namespace Tomahawk
 			Texture3D* OGLDevice::CreateTexture3D(const Texture3D::Desc& I)
 			{
 				OGLTexture3D* Result = new OGLTexture3D();
-				/* TODO: IMPL */
+				glGenTextures(1, &Result->Resource);
+				glBindTexture(GL_TEXTURE_3D, Result->Resource);
+				glTexParameteri(GL_TEXTURE_3D, GL_TEXTURE_WRAP_S, GL_REPEAT);
+				glTexParameteri(GL_TEXTURE_3D, GL_TEXTURE_WRAP_T, GL_REPEAT);
+				glTexParameteri(GL_TEXTURE_3D, GL_TEXTURE_WRAP_R, GL_REPEAT);
+				glTexImage3D(GL_TEXTURE_3D, 0, OGLDevice::GetFormat(Result->FormatMode), Result->Width, Result->Height, Result->Depth, 0, OGLDevice::GetFormat(Result->FormatMode), GL_UNSIGNED_BYTE, nullptr);
+
+				if (Result->MipLevels != 0)
+				{
+					glTexParameteri(GL_TEXTURE_3D, GL_TEXTURE_MAG_FILTER, GL_LINEAR);
+					glTexParameteri(GL_TEXTURE_3D, GL_TEXTURE_MIN_FILTER, GL_LINEAR_MIPMAP_LINEAR);
+					glGenerateMipmap(GL_TEXTURE_3D);
+				}
+				else
+				{
+					glTexParameteri(GL_TEXTURE_3D, GL_TEXTURE_MAG_FILTER, GL_NEAREST);
+					glTexParameteri(GL_TEXTURE_3D, GL_TEXTURE_MIN_FILTER, GL_NEAREST);
+				}
+
 				return Result;
 			}
 			TextureCube* OGLDevice::CreateTextureCube()
@@ -1654,7 +2317,32 @@ namespace Tomahawk
 			TextureCube* OGLDevice::CreateTextureCube(const TextureCube::Desc& I)
 			{
 				OGLTextureCube* Result = new OGLTextureCube(I);
-				/* TODO: IMPL */
+				glGenTextures(1, &Result->Resource);
+				glBindTexture(GL_TEXTURE_CUBE_MAP, Result->Resource);
+				glTexParameteri(GL_TEXTURE_CUBE_MAP, GL_TEXTURE_WRAP_S, GL_CLAMP_TO_EDGE);
+				glTexParameteri(GL_TEXTURE_CUBE_MAP, GL_TEXTURE_WRAP_T, GL_CLAMP_TO_EDGE);
+				glTexParameteri(GL_TEXTURE_CUBE_MAP, GL_TEXTURE_WRAP_R, GL_CLAMP_TO_EDGE);
+
+				GLint Format = OGLDevice::GetFormat(Result->FormatMode);
+				glTexImage2D(GL_TEXTURE_CUBE_MAP_POSITIVE_X, 0, Format, Result->Width, Result->Height, 0, Format, GL_UNSIGNED_BYTE, nullptr);
+				glTexImage2D(GL_TEXTURE_CUBE_MAP_POSITIVE_Y, 0, Format, Result->Width, Result->Height, 0, Format, GL_UNSIGNED_BYTE, nullptr);
+				glTexImage2D(GL_TEXTURE_CUBE_MAP_POSITIVE_Z, 0, Format, Result->Width, Result->Height, 0, Format, GL_UNSIGNED_BYTE, nullptr);
+				glTexImage2D(GL_TEXTURE_CUBE_MAP_NEGATIVE_X, 0, Format, Result->Width, Result->Height, 0, Format, GL_UNSIGNED_BYTE, nullptr);
+				glTexImage2D(GL_TEXTURE_CUBE_MAP_NEGATIVE_Y, 0, Format, Result->Width, Result->Height, 0, Format, GL_UNSIGNED_BYTE, nullptr);
+				glTexImage2D(GL_TEXTURE_CUBE_MAP_NEGATIVE_Z, 0, Format, Result->Width, Result->Height, 0, Format, GL_UNSIGNED_BYTE, nullptr);
+
+				if (Result->MipLevels != 0)
+				{
+					glTexParameteri(GL_TEXTURE_CUBE_MAP, GL_TEXTURE_MAG_FILTER, GL_LINEAR);
+					glTexParameteri(GL_TEXTURE_CUBE_MAP, GL_TEXTURE_MIN_FILTER, GL_LINEAR_MIPMAP_LINEAR);
+					glGenerateMipmap(GL_TEXTURE_CUBE_MAP);
+				}
+				else
+				{
+					glTexParameteri(GL_TEXTURE_CUBE_MAP, GL_TEXTURE_MAG_FILTER, GL_NEAREST);
+					glTexParameteri(GL_TEXTURE_CUBE_MAP, GL_TEXTURE_MIN_FILTER, GL_NEAREST);
+				}
+
 				return Result;
 			}
 			TextureCube* OGLDevice::CreateTextureCube(Texture2D* Resource[6])
@@ -1665,32 +2353,139 @@ namespace Tomahawk
 					return nullptr;
 				}
 
-				OGLTextureCube* Result = new OGLTextureCube();
-				/* TODO: IMPL */
-				return Result;
+				void* Resources[6];
+				for (unsigned int i = 0; i < 6; i++)
+					Resources[i] = (void*)Resource[i]->As<OGLTexture2D>();
+
+				return CreateTextureCubeInternal(Resources);
 			}
 			TextureCube* OGLDevice::CreateTextureCube(Texture2D* Resource)
 			{
-				if (!Resource)
+				OGLTexture2D* IResource = (OGLTexture2D*)Resource;
+				if (!IResource)
 				{
 					THAWK_ERROR("couldn't create texture cube without proper mapping");
 					return nullptr;
 				}
 
+				unsigned int Width = IResource->Width / 4;
+				unsigned int Height = Width;
+				unsigned int MipLevels = GetMipLevel(Width, Height);
+
+				if (IResource->Width % 4 != 0 || IResource->Height % 3 != 0)
+				{
+					THAWK_ERROR("couldn't create texture cube because width or height cannot be not divided");
+					return nullptr;
+				}
+
 				OGLTextureCube* Result = new OGLTextureCube();
-				/* TODO: IMPL */
+				glGenTextures(1, &Result->Resource);
+				glBindTexture(GL_TEXTURE_CUBE_MAP, Result->Resource);
+				glTexParameteri(GL_TEXTURE_CUBE_MAP, GL_TEXTURE_WRAP_S, GL_CLAMP_TO_EDGE);
+				glTexParameteri(GL_TEXTURE_CUBE_MAP, GL_TEXTURE_WRAP_T, GL_CLAMP_TO_EDGE);
+				glTexParameteri(GL_TEXTURE_CUBE_MAP, GL_TEXTURE_WRAP_R, GL_CLAMP_TO_EDGE);
+
+				GLint Format = OGLDevice::GetFormat(Result->FormatMode);
+				GLsizei Size = sizeof(GLubyte) * Width * Height;
+				GLubyte* Pixels = (GLubyte*)malloc(Size);
+				Result->FormatMode = IResource->FormatMode;
+				Result->Width = IResource->Width;
+				Result->Height = IResource->Height;
+				Result->MipLevels = IResource->MipLevels;
+
+				glBindTexture(GL_TEXTURE_CUBE_MAP, IResource->Resource);
+				glGetTextureSubImage(GL_TEXTURE_2D, 0, Width * 2, Height, 0, Width, Height, 0, Format, GL_UNSIGNED_BYTE, Size, Pixels);
+				glBindTexture(GL_TEXTURE_CUBE_MAP, Result->Resource);
+				glTexImage2D(GL_TEXTURE_CUBE_MAP_POSITIVE_X, IResource->MipLevels, Format, IResource->Width, IResource->Height, 0, Format, GL_UNSIGNED_BYTE, Pixels);
+
+				glBindTexture(GL_TEXTURE_CUBE_MAP, IResource->Resource);
+				glGetTextureSubImage(GL_TEXTURE_2D, 0, Width, Height * 2, 0, Width, Height, 0, Format, GL_UNSIGNED_BYTE, Size, Pixels);
+				glBindTexture(GL_TEXTURE_CUBE_MAP, Result->Resource);
+				glTexImage2D(GL_TEXTURE_CUBE_MAP_POSITIVE_Y, IResource->MipLevels, Format, IResource->Width, IResource->Height, 0, Format, GL_UNSIGNED_BYTE, Pixels);
+
+				glBindTexture(GL_TEXTURE_CUBE_MAP, IResource->Resource);
+				glGetTextureSubImage(GL_TEXTURE_2D, 0, Width * 4, Height, 0, Width, Height, 0, Format, GL_UNSIGNED_BYTE, Size, Pixels);
+				glBindTexture(GL_TEXTURE_CUBE_MAP, Result->Resource);
+				glTexImage2D(GL_TEXTURE_CUBE_MAP_POSITIVE_Z, IResource->MipLevels, Format, IResource->Width, IResource->Height, 0, Format, GL_UNSIGNED_BYTE, Pixels);
+
+				glBindTexture(GL_TEXTURE_CUBE_MAP, IResource->Resource);
+				glGetTextureSubImage(GL_TEXTURE_2D, 0, 0, Height, 0, Width, Height, 0, Format, GL_UNSIGNED_BYTE, Size, Pixels);
+				glBindTexture(GL_TEXTURE_CUBE_MAP, Result->Resource);
+				glTexImage2D(GL_TEXTURE_CUBE_MAP_NEGATIVE_X, IResource->MipLevels, Format, IResource->Width, IResource->Height, 0, Format, GL_UNSIGNED_BYTE, Pixels);
+
+				glBindTexture(GL_TEXTURE_CUBE_MAP, IResource->Resource);
+				glGetTextureSubImage(GL_TEXTURE_2D, 0, Width, 0, 0, Width, Height, 0, Format, GL_UNSIGNED_BYTE, Size, Pixels);
+				glBindTexture(GL_TEXTURE_CUBE_MAP, Result->Resource);
+				glTexImage2D(GL_TEXTURE_CUBE_MAP_NEGATIVE_Y, IResource->MipLevels, Format, IResource->Width, IResource->Height, 0, Format, GL_UNSIGNED_BYTE, Pixels);
+
+				glBindTexture(GL_TEXTURE_CUBE_MAP, IResource->Resource);
+				glGetTextureSubImage(GL_TEXTURE_2D, 0, Width, Height, 0, Width, Height, 0, Format, GL_UNSIGNED_BYTE, Size, Pixels);
+				glBindTexture(GL_TEXTURE_CUBE_MAP, Result->Resource);
+				glTexImage2D(GL_TEXTURE_CUBE_MAP_NEGATIVE_Z, IResource->MipLevels, Format, IResource->Width, IResource->Height, 0, Format, GL_UNSIGNED_BYTE, Pixels);
+
+				free(Pixels);
+				if (IResource->MipLevels != 0)
+				{
+					glTexParameteri(GL_TEXTURE_CUBE_MAP, GL_TEXTURE_MAG_FILTER, GL_LINEAR);
+					glTexParameteri(GL_TEXTURE_CUBE_MAP, GL_TEXTURE_MIN_FILTER, GL_LINEAR_MIPMAP_LINEAR);
+					glGenerateMipmap(GL_TEXTURE_CUBE_MAP);
+				}
+				else
+				{
+					glTexParameteri(GL_TEXTURE_CUBE_MAP, GL_TEXTURE_MAG_FILTER, GL_NEAREST);
+					glTexParameteri(GL_TEXTURE_CUBE_MAP, GL_TEXTURE_MIN_FILTER, GL_NEAREST);
+				}
+
 				return Result;
 			}
-			TextureCube* OGLDevice::CreateTextureCubeInternal(void* Resources[6])
+			TextureCube* OGLDevice::CreateTextureCubeInternal(void* Basis[6])
 			{
-				if (!Resources[0] || !Resources[1] || !Resources[2] || !Resources[3] || !Resources[4] || !Resources[5])
+				if (!Basis[0] || !Basis[1] || !Basis[2] || !Basis[3] || !Basis[4] || !Basis[5])
 				{
 					THAWK_ERROR("couldn't create texture cube without proper mapping");
 					return nullptr;
 				}
 
+				OGLTexture2D* Resources[6];
+				for (unsigned int i = 0; i < 6; i++)
+					Resources[i] = (OGLTexture2D*)Basis[i];
+
 				OGLTextureCube* Result = new OGLTextureCube();
-				/* TODO: IMPL */
+				glGenTextures(1, &Result->Resource);
+				glBindTexture(GL_TEXTURE_CUBE_MAP, Result->Resource);
+				glTexParameteri(GL_TEXTURE_CUBE_MAP, GL_TEXTURE_WRAP_S, GL_CLAMP_TO_EDGE);
+				glTexParameteri(GL_TEXTURE_CUBE_MAP, GL_TEXTURE_WRAP_T, GL_CLAMP_TO_EDGE);
+				glTexParameteri(GL_TEXTURE_CUBE_MAP, GL_TEXTURE_WRAP_R, GL_CLAMP_TO_EDGE);
+
+				GLint Format = OGLDevice::GetFormat(Result->FormatMode);
+				GLubyte* Pixels = (GLubyte*)malloc(sizeof(GLubyte) * Resources[0]->Width * Resources[0]->Height);
+				Result->FormatMode = Resources[0]->FormatMode;
+				Result->Width = Resources[0]->Width;
+				Result->Height = Resources[0]->Height;
+				Result->MipLevels = Resources[0]->MipLevels;
+
+				for (unsigned int i = 0; i < 6; i++)
+				{
+					OGLTexture2D* Ref = Resources[i];
+					glBindTexture(GL_TEXTURE_CUBE_MAP, Ref->Resource);
+					glGetTexImage(GL_TEXTURE_2D, 0, Format, GL_UNSIGNED_BYTE, Pixels);
+					glBindTexture(GL_TEXTURE_CUBE_MAP, Result->Resource);
+					glTexImage2D(GL_TEXTURE_CUBE_MAP_POSITIVE_X + i, Ref->MipLevels, Format, Ref->Width, Ref->Height, 0, Format, GL_UNSIGNED_BYTE, Pixels);
+				}
+
+				free(Pixels);
+				if (Resources[0]->MipLevels != 0)
+				{
+					glTexParameteri(GL_TEXTURE_CUBE_MAP, GL_TEXTURE_MAG_FILTER, GL_LINEAR);
+					glTexParameteri(GL_TEXTURE_CUBE_MAP, GL_TEXTURE_MIN_FILTER, GL_LINEAR_MIPMAP_LINEAR);
+					glGenerateMipmap(GL_TEXTURE_CUBE_MAP);
+				}
+				else
+				{
+					glTexParameteri(GL_TEXTURE_CUBE_MAP, GL_TEXTURE_MAG_FILTER, GL_NEAREST);
+					glTexParameteri(GL_TEXTURE_CUBE_MAP, GL_TEXTURE_MIN_FILTER, GL_NEAREST);
+				}
+
 				return Result;
 			}
 			DepthBuffer* OGLDevice::CreateDepthBuffer(const DepthBuffer::Desc& I)
@@ -1716,13 +2511,15 @@ namespace Tomahawk
 			RenderTarget2D* OGLDevice::CreateRenderTarget2D(const RenderTarget2D::Desc& I)
 			{
 				OGLRenderTarget2D* Result = new OGLRenderTarget2D(I);
+				GLenum DrawBuffers = GL_COLOR_ATTACHMENT0;
+
 				if (!I.RenderSurface)
 				{
 					GLenum Format = OGLDevice::GetFormat(I.FormatMode);
 					glGenFramebuffers(1, &Result->FrameBuffer);
 					glGenTextures(1, &Result->Texture);
 					glBindTexture(GL_TEXTURE_2D, Result->Texture);
-					glTexImage2D(GL_TEXTURE_2D, 0, Format, I.Width, I.Height, 0, Format, GL_UNSIGNED_BYTE, NULL);
+					glTexImage2D(GL_TEXTURE_2D, I.MipLevels, Format, I.Width, I.Height, 0, Format, GL_UNSIGNED_BYTE, nullptr);
 					glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_LINEAR);
 					glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_LINEAR);
 					glBindFramebuffer(GL_FRAMEBUFFER, Result->FrameBuffer);
@@ -1732,6 +2529,7 @@ namespace Tomahawk
 					glRenderbufferStorage(GL_RENDERBUFFER, GL_DEPTH24_STENCIL8, I.Width, I.Height);
 					glBindRenderbuffer(GL_RENDERBUFFER, 0);
 					glFramebufferRenderbuffer(GL_FRAMEBUFFER, GL_DEPTH_STENCIL_ATTACHMENT, GL_RENDERBUFFER, Result->DepthBuffer);
+					glDrawBuffers(1, &DrawBuffers);
 					glBindFramebuffer(GL_FRAMEBUFFER, 0);
 				}
 				else if (I.RenderSurface != (void*)this)
@@ -1745,6 +2543,7 @@ namespace Tomahawk
 					glRenderbufferStorage(GL_RENDERBUFFER, GL_DEPTH24_STENCIL8, I.Width, I.Height);
 					glBindRenderbuffer(GL_RENDERBUFFER, 0);
 					glFramebufferRenderbuffer(GL_FRAMEBUFFER, GL_DEPTH_STENCIL_ATTACHMENT, GL_RENDERBUFFER, Result->DepthBuffer);
+					glDrawBuffers(1, &DrawBuffers);
 					glBindFramebuffer(GL_FRAMEBUFFER, 0);
 				}
 
@@ -1760,31 +2559,138 @@ namespace Tomahawk
 			MultiRenderTarget2D* OGLDevice::CreateMultiRenderTarget2D(const MultiRenderTarget2D::Desc& I)
 			{
 				OGLMultiRenderTarget2D* Result = new OGLMultiRenderTarget2D(I);
-				/* TODO: IMPL */
-				return Result;
-			}
-			RenderTarget2DArray* OGLDevice::CreateRenderTarget2DArray(const RenderTarget2DArray::Desc& I)
-			{
-				OGLRenderTarget2DArray* Result = new OGLRenderTarget2DArray(I);
-				/* TODO: IMPL */
+				glGenFramebuffers(1, &Result->FrameBuffer);
+				glBindFramebuffer(GL_FRAMEBUFFER, Result->FrameBuffer);
+				glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_LINEAR);
+				glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_LINEAR);
+				glGenRenderbuffers(1, &Result->DepthBuffer);
+				glBindRenderbuffer(GL_RENDERBUFFER, Result->DepthBuffer);
+				glRenderbufferStorage(GL_RENDERBUFFER, GL_DEPTH24_STENCIL8, I.Width, I.Height);
+				glBindRenderbuffer(GL_RENDERBUFFER, 0);
+				glFramebufferRenderbuffer(GL_FRAMEBUFFER, GL_DEPTH_STENCIL_ATTACHMENT, GL_RENDERBUFFER, Result->DepthBuffer);
+
+				GLenum DrawBuffers[8] = { GL_INVALID_VALUE };
+				for (unsigned int i = 0; i < (unsigned int)I.SVTarget; i++)
+				{
+					GLenum Format = OGLDevice::GetFormat(I.FormatMode[i]);
+					glGenTextures(1, &Result->Texture[i]);
+					glBindTexture(GL_TEXTURE_2D, Result->Texture[i]);
+					glTexImage2D(GL_TEXTURE_2D, I.MipLevels, Format, I.Width, I.Height, 0, Format, GL_UNSIGNED_BYTE, nullptr);
+					glFramebufferTexture2D(GL_FRAMEBUFFER, GL_COLOR_ATTACHMENT0 + i, GL_TEXTURE_2D, Result->Texture[i], 0);
+					DrawBuffers[i] = GL_COLOR_ATTACHMENT0 + i;
+				}
+
+				glDrawBuffers(I.SVTarget, DrawBuffers);
+				glBindFramebuffer(GL_FRAMEBUFFER, 0);
+
+				Result->View.Width = (float)I.Width;
+				Result->View.Height = (float)I.Height;
+				Result->View.TopLeftX = 0.0f;
+				Result->View.TopLeftY = 0.0f;
+				Result->View.MinDepth = 0.0f;
+				Result->View.MaxDepth = 1.0f;
+
 				return Result;
 			}
 			RenderTargetCube* OGLDevice::CreateRenderTargetCube(const RenderTargetCube::Desc& I)
 			{
 				OGLRenderTargetCube* Result = new OGLRenderTargetCube(I);
-				/* TODO: IMPL */
+				glGenFramebuffers(1, &Result->FrameBuffer);
+				glGenTextures(1, &Result->DepthTexture);
+				glBindTexture(GL_TEXTURE_CUBE_MAP, Result->DepthTexture);
+				glTexParameteri(GL_TEXTURE_CUBE_MAP, GL_TEXTURE_MAG_FILTER, GL_NEAREST);
+				glTexParameteri(GL_TEXTURE_CUBE_MAP, GL_TEXTURE_MIN_FILTER, GL_NEAREST);
+				glTexParameteri(GL_TEXTURE_CUBE_MAP, GL_TEXTURE_WRAP_S, GL_CLAMP_TO_EDGE);
+				glTexParameteri(GL_TEXTURE_CUBE_MAP, GL_TEXTURE_WRAP_T, GL_CLAMP_TO_EDGE);
+				glTexParameteri(GL_TEXTURE_CUBE_MAP, GL_TEXTURE_WRAP_R, GL_CLAMP_TO_EDGE);
+				glTexParameteri(GL_TEXTURE_CUBE_MAP, GL_TEXTURE_COMPARE_MODE, GL_COMPARE_REF_TO_TEXTURE);
+				glTexParameteri(GL_TEXTURE_CUBE_MAP, GL_TEXTURE_COMPARE_FUNC, GL_GREATER);
+
+				GLenum DrawBuffers = GL_COLOR_ATTACHMENT0;
+				for (unsigned int i = 0; i < 6; i++)
+					glTexImage2D(GL_TEXTURE_CUBE_MAP_POSITIVE_X + i, 0, GL_DEPTH_COMPONENT24, I.Size, I.Size, 0, GL_DEPTH_COMPONENT, GL_FLOAT, 0);
+
+				glFramebufferTexture(GL_FRAMEBUFFER, GL_DEPTH_ATTACHMENT, Result->DepthTexture, 0);
+				glGenTextures(1, &Result->Texture);
+				glBindTexture(GL_TEXTURE_CUBE_MAP, Result->Texture);
+				glTexParameteri(GL_TEXTURE_CUBE_MAP, GL_TEXTURE_MAG_FILTER, GL_NEAREST);
+				glTexParameteri(GL_TEXTURE_CUBE_MAP, GL_TEXTURE_MIN_FILTER, GL_NEAREST);
+				glTexParameteri(GL_TEXTURE_CUBE_MAP, GL_TEXTURE_WRAP_S, GL_CLAMP_TO_EDGE);
+				glTexParameteri(GL_TEXTURE_CUBE_MAP, GL_TEXTURE_WRAP_T, GL_CLAMP_TO_EDGE);
+				glTexParameteri(GL_TEXTURE_CUBE_MAP, GL_TEXTURE_WRAP_R, GL_CLAMP_TO_EDGE);
+
+				GLenum Format = OGLDevice::GetFormat(I.FormatMode);
+				for (unsigned int i = 0; i < 6; i++)
+					glTexImage2D(GL_TEXTURE_CUBE_MAP_POSITIVE_X + i, 0, Format, I.Size, I.Size, 0, Format, GL_UNSIGNED_BYTE, 0);
+
+				glFramebufferTexture(GL_FRAMEBUFFER, GL_COLOR_ATTACHMENT0, Result->Texture, 0);
+				glDrawBuffers(1, &DrawBuffers);
+				glBindFramebuffer(GL_FRAMEBUFFER, 0);
+
+				Result->View.Width = (float)I.Size;
+				Result->View.Height = (float)I.Size;
+				Result->View.TopLeftX = 0.0f;
+				Result->View.TopLeftY = 0.0f;
+				Result->View.MinDepth = 0.0f;
+				Result->View.MaxDepth = 1.0f;
+
 				return Result;
 			}
 			MultiRenderTargetCube* OGLDevice::CreateMultiRenderTargetCube(const MultiRenderTargetCube::Desc& I)
 			{
 				OGLMultiRenderTargetCube* Result = new OGLMultiRenderTargetCube(I);
-				/* TODO: IMPL */
+				glGenFramebuffers(1, &Result->FrameBuffer);
+				glGenTextures(1, &Result->DepthTexture);
+				glBindTexture(GL_TEXTURE_CUBE_MAP, Result->DepthTexture);
+				glTexParameteri(GL_TEXTURE_CUBE_MAP, GL_TEXTURE_MAG_FILTER, GL_NEAREST);
+				glTexParameteri(GL_TEXTURE_CUBE_MAP, GL_TEXTURE_MIN_FILTER, GL_NEAREST);
+				glTexParameteri(GL_TEXTURE_CUBE_MAP, GL_TEXTURE_WRAP_S, GL_CLAMP_TO_EDGE);
+				glTexParameteri(GL_TEXTURE_CUBE_MAP, GL_TEXTURE_WRAP_T, GL_CLAMP_TO_EDGE);
+				glTexParameteri(GL_TEXTURE_CUBE_MAP, GL_TEXTURE_WRAP_R, GL_CLAMP_TO_EDGE);
+				glTexParameteri(GL_TEXTURE_CUBE_MAP, GL_TEXTURE_COMPARE_MODE, GL_COMPARE_REF_TO_TEXTURE);
+				glTexParameteri(GL_TEXTURE_CUBE_MAP, GL_TEXTURE_COMPARE_FUNC, GL_GREATER);
+
+				GLenum DrawBuffers[8] = { GL_INVALID_VALUE };
+				for (unsigned int i = 0; i < 6; i++)
+					glTexImage2D(GL_TEXTURE_CUBE_MAP_POSITIVE_X + i, 0, GL_DEPTH_COMPONENT24, I.Size, I.Size, 0, GL_DEPTH_COMPONENT, GL_FLOAT, 0);
+
+				glFramebufferTexture(GL_FRAMEBUFFER, GL_DEPTH_ATTACHMENT, Result->DepthTexture, 0);
+				for (unsigned int j = 0; j < (unsigned int)I.Target; j++)
+				{
+					glGenTextures(1, &Result->Texture[j]);
+					glBindTexture(GL_TEXTURE_CUBE_MAP, Result->Texture[j]);
+					glTexParameteri(GL_TEXTURE_CUBE_MAP, GL_TEXTURE_MAG_FILTER, GL_NEAREST);
+					glTexParameteri(GL_TEXTURE_CUBE_MAP, GL_TEXTURE_MIN_FILTER, GL_NEAREST);
+					glTexParameteri(GL_TEXTURE_CUBE_MAP, GL_TEXTURE_WRAP_S, GL_CLAMP_TO_EDGE);
+					glTexParameteri(GL_TEXTURE_CUBE_MAP, GL_TEXTURE_WRAP_T, GL_CLAMP_TO_EDGE);
+					glTexParameteri(GL_TEXTURE_CUBE_MAP, GL_TEXTURE_WRAP_R, GL_CLAMP_TO_EDGE);
+
+					GLenum Format = OGLDevice::GetFormat(I.FormatMode[j]);
+					for (unsigned int i = 0; i < 6; i++)
+						glTexImage2D(GL_TEXTURE_CUBE_MAP_POSITIVE_X + i, 0, Format, I.Size, I.Size, 0, Format, GL_UNSIGNED_BYTE, 0);
+
+					glFramebufferTexture(GL_FRAMEBUFFER, GL_COLOR_ATTACHMENT0 + j, Result->Texture[j], 0);
+					DrawBuffers[j] = GL_COLOR_ATTACHMENT0 + j;
+				}
+				
+				glDrawBuffers(I.Target, DrawBuffers);
+				glBindFramebuffer(GL_FRAMEBUFFER, 0);
+
+				Result->View.Width = (float)I.Size;
+				Result->View.Height = (float)I.Size;
+				Result->View.TopLeftX = 0.0f;
+				Result->View.TopLeftY = 0.0f;
+				Result->View.MinDepth = 0.0f;
+				Result->View.MaxDepth = 1.0f;
+
 				return Result;
 			}
 			Query* OGLDevice::CreateQuery(const Query::Desc& I)
 			{
 				OGLQuery* Result = new OGLQuery();
-				/* TODO: IMPL */
+				Result->Predicate = I.Predicate;
+				glGenQueries(1, &Result->Async);
+				
 				return Result;
 			}
 			PrimitiveTopology OGLDevice::GetPrimitiveTopology()

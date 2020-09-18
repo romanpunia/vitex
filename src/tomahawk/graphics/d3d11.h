@@ -266,26 +266,6 @@ namespace Tomahawk
 				void FillView(unsigned int Target, unsigned int MipLevels, unsigned int Size);
 			};
 
-			class D3D11RenderTarget2DArray : public RenderTarget2DArray
-			{
-				friend D3D11Device;
-
-			public:
-				std::vector<ID3D11RenderTargetView*> RenderTargetView;
-				ID3D11DepthStencilView* DepthStencilView;
-				ID3D11Texture2D* Texture;
-				D3D11_TEXTURE2D_DESC Information;
-				D3D11_VIEWPORT Viewport;
-
-			public:
-				D3D11RenderTarget2DArray(const Desc& I);
-				virtual ~D3D11RenderTarget2DArray() override;
-				Graphics::Viewport GetViewport() override;
-				float GetWidth() override;
-				float GetHeight() override;
-				void* GetResource() override;
-			};
-
 			class D3D11RenderTargetCube : public RenderTargetCube
 			{
 				friend D3D11Device;
@@ -393,8 +373,6 @@ namespace Tomahawk
 				void SetTarget(MultiRenderTarget2D* Resource, unsigned int Target) override;
 				void SetTarget(MultiRenderTarget2D* Resource, float R, float G, float B) override;
 				void SetTarget(MultiRenderTarget2D* Resource) override;
-				void SetTarget(RenderTarget2DArray* Resource, unsigned int Target, float R, float G, float B) override;
-				void SetTarget(RenderTarget2DArray* Resource, unsigned int Target) override;
 				void SetTarget(RenderTargetCube* Resource, float R, float G, float B) override;
 				void SetTarget(RenderTargetCube* Resource) override;
 				void SetTarget(MultiRenderTargetCube* Resource, unsigned int Target, float R, float G, float B) override;
@@ -405,7 +383,6 @@ namespace Tomahawk
 				void SetViewport(const Viewport& In) override;
 				void SetViewport(RenderTarget2D* Resource, const Viewport& In) override;
 				void SetViewport(MultiRenderTarget2D* Resource, const Viewport& In) override;
-				void SetViewport(RenderTarget2DArray* Resource, const Viewport& In) override;
 				void SetViewport(RenderTargetCube* Resource, const Viewport& In) override;
 				void SetViewport(MultiRenderTargetCube* Resource, const Viewport& In) override;
 				void SetViewports(unsigned int Count, Viewport* Viewports) override;
@@ -431,14 +408,12 @@ namespace Tomahawk
 				void Clear(float R, float G, float B) override;
 				void Clear(RenderTarget2D* Resource, float R, float G, float B) override;
 				void Clear(MultiRenderTarget2D* Resource, unsigned int Target, float R, float G, float B) override;
-				void Clear(RenderTarget2DArray* Resource, unsigned int Target, float R, float G, float B) override;
 				void Clear(RenderTargetCube* Resource, float R, float G, float B) override;
 				void Clear(MultiRenderTargetCube* Resource, unsigned int Target, float R, float G, float B) override;
 				void ClearDepth() override;
 				void ClearDepth(DepthBuffer* Resource) override;
 				void ClearDepth(RenderTarget2D* Resource) override;
 				void ClearDepth(MultiRenderTarget2D* Resource) override;
-				void ClearDepth(RenderTarget2DArray* Resource) override;
 				void ClearDepth(RenderTargetCube* Resource) override;
 				void ClearDepth(MultiRenderTargetCube* Resource) override;
 				void DrawIndexed(unsigned int Count, unsigned int IndexLocation, unsigned int BaseLocation) override;
@@ -456,7 +431,6 @@ namespace Tomahawk
 				bool CopyTargetFrom(MultiRenderTarget2D* Resource, unsigned int Target, RenderTarget2D* From) override;
 				bool CopyTargetDepth(RenderTarget2D* From, RenderTarget2D* To) override;
 				bool CopyTargetDepth(MultiRenderTarget2D* From, MultiRenderTarget2D* To) override;
-				bool CopyTargetDepth(RenderTarget2DArray* From, RenderTarget2DArray* To) override;
 				bool CopyTargetDepth(RenderTargetCube* From, RenderTargetCube* To) override;
 				bool CopyTargetDepth(MultiRenderTargetCube* From, MultiRenderTargetCube* To) override;
 				bool CopyBegin(MultiRenderTarget2D* Resource, unsigned int Target, unsigned int MipLevels, unsigned int Size) override;
@@ -464,7 +438,6 @@ namespace Tomahawk
 				bool CopyEnd(MultiRenderTarget2D* Resource, TextureCube* Result) override;
 				void SwapTargetDepth(RenderTarget2D* From, RenderTarget2D* To) override;
 				void SwapTargetDepth(MultiRenderTarget2D* From, MultiRenderTarget2D* To) override;
-				void SwapTargetDepth(RenderTarget2DArray* From, RenderTarget2DArray* To) override;
 				void SwapTargetDepth(RenderTargetCube* From, RenderTargetCube* To) override;
 				void SwapTargetDepth(MultiRenderTargetCube* From, MultiRenderTargetCube* To) override;
 				void FetchViewports(unsigned int* Count, Viewport* Out) override;
@@ -513,7 +486,6 @@ namespace Tomahawk
 				DepthBuffer* CreateDepthBuffer(const DepthBuffer::Desc& I) override;
 				RenderTarget2D* CreateRenderTarget2D(const RenderTarget2D::Desc& I) override;
 				MultiRenderTarget2D* CreateMultiRenderTarget2D(const MultiRenderTarget2D::Desc& I) override;
-				RenderTarget2DArray* CreateRenderTarget2DArray(const RenderTarget2DArray::Desc& I) override;
 				RenderTargetCube* CreateRenderTargetCube(const RenderTargetCube::Desc& I) override;
 				MultiRenderTargetCube* CreateMultiRenderTargetCube(const MultiRenderTargetCube::Desc& I) override;
 				Query* CreateQuery(const Query::Desc& I) override;

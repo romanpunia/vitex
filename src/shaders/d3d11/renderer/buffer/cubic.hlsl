@@ -1,4 +1,4 @@
-cbuffer CubicBuffer : register(b3)
+cbuffer RenderConstant : register(b3)
 {
 	matrix FaceViewProjection[6];
 };

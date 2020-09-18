@@ -379,6 +379,8 @@ namespace Tomahawk
 		InstanceBuffer::InstanceBuffer(const Desc& I) : Device(I.Device), Elements(nullptr), Sync(false)
 		{
 			ElementLimit = I.ElementLimit;
+			ElementWidth = I.ElementWidth;
+
 			if (ElementLimit < 1)
 				ElementLimit = 1;
 
@@ -551,18 +553,6 @@ namespace Tomahawk
 				return nullptr;
 
 			return Resource[Target];
-		}
-
-		RenderTarget2DArray::RenderTarget2DArray(const Desc& I) : Resource(nullptr)
-		{
-		}
-		RenderTarget2DArray::~RenderTarget2DArray()
-		{
-			delete Resource;
-		}
-		Texture2D* RenderTarget2DArray::GetTarget()
-		{
-			return Resource;
 		}
 
 		RenderTargetCube::RenderTargetCube(const Desc& I) : Resource(nullptr)

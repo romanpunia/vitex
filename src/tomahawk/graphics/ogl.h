@@ -68,6 +68,20 @@ namespace Tomahawk
 			{
 				friend OGLDevice;
 
+			private:
+				std::vector<std::function<void()>> VertexLayout;
+				bool Compiled;
+
+			public:
+				GLuint Program = GL_INVALID_VALUE;
+				GLuint VertexShader = GL_INVALID_VALUE;
+				GLuint PixelShader = GL_INVALID_VALUE;
+				GLuint GeometryShader = GL_INVALID_VALUE;
+				GLuint DomainShader = GL_INVALID_VALUE;
+				GLuint HullShader = GL_INVALID_VALUE;
+				GLuint ComputeShader = GL_INVALID_VALUE;
+				GLuint ConstantBuffer = GL_INVALID_VALUE;
+
 			public:
 				OGLShader(const Desc& I);
 				virtual ~OGLShader() override;
@@ -126,6 +140,9 @@ namespace Tomahawk
 				friend OGLDevice;
 
 			public:
+				GLuint Resource = GL_INVALID_VALUE;
+
+			public:
 				OGLInstanceBuffer(const Desc& I);
 				virtual ~OGLInstanceBuffer() override;
 			};
@@ -134,7 +151,7 @@ namespace Tomahawk
 			{
 				friend OGLDevice;
 
-			private:
+			public:
 				GLuint Resource = GL_INVALID_VALUE;
 
 			public:
@@ -142,12 +159,14 @@ namespace Tomahawk
 				OGLTexture2D(const Desc& I);
 				virtual ~OGLTexture2D() override;
 				void* GetResource() override;
-				void Fill(OGLDevice* Device);
 			};
 
 			class OGLTexture3D : public Texture3D
 			{
 				friend OGLDevice;
+
+			public:
+				GLuint Resource = GL_INVALID_VALUE;
 
 			public:
 				OGLTexture3D();
@@ -158,6 +177,9 @@ namespace Tomahawk
 			class OGLTextureCube : public TextureCube
 			{
 				friend OGLDevice;
+
+			public:
+				GLuint Resource = GL_INVALID_VALUE;
 
 			public:
 				OGLTextureCube();
@@ -209,6 +231,9 @@ namespace Tomahawk
 				friend OGLDevice;
 
 			public:
+				GLuint Texture[8] = { GL_INVALID_VALUE };
+				GLuint FrameBuffer = GL_INVALID_VALUE;
+				GLuint DepthBuffer = GL_INVALID_VALUE;
 				Viewport View;
 
 			public:
@@ -220,27 +245,14 @@ namespace Tomahawk
 				void* GetResource(int Id) override;
 			};
 
-			class OGLRenderTarget2DArray : public RenderTarget2DArray
-			{
-				friend OGLDevice;
-
-			public:
-				Viewport View;
-
-			public:
-				OGLRenderTarget2DArray(const Desc& I);
-				virtual ~OGLRenderTarget2DArray() override;
-				Graphics::Viewport GetViewport() override;
-				float GetWidth() override;
-				float GetHeight() override;
-				void* GetResource() override;
-			};
-
 			class OGLRenderTargetCube : public RenderTargetCube
 			{
 				friend OGLDevice;
 
 			public:
+				GLuint FrameBuffer = GL_INVALID_VALUE;
+				GLuint DepthTexture = GL_INVALID_VALUE;
+				GLuint Texture = GL_INVALID_VALUE;
 				Viewport View;
 
 			public:
@@ -257,6 +269,9 @@ namespace Tomahawk
 				friend OGLDevice;
 
 			public:
+				GLuint Texture[8] = { GL_INVALID_VALUE };
+				GLuint FrameBuffer = GL_INVALID_VALUE;
+				GLuint DepthTexture = GL_INVALID_VALUE;
 				Viewport View;
 
 			public:
@@ -270,6 +285,10 @@ namespace Tomahawk
 
 			class OGLQuery : public Query
 			{
+			public:
+				GLuint Async = GL_INVALID_VALUE;
+				bool Predicate = false;
+
 			public:
 				OGLQuery();
 				virtual ~OGLQuery() override;
@@ -322,8 +341,6 @@ namespace Tomahawk
 				void SetTarget(MultiRenderTarget2D* Resource, unsigned int Target) override;
 				void SetTarget(MultiRenderTarget2D* Resource, float R, float G, float B) override;
 				void SetTarget(MultiRenderTarget2D* Resource) override;
-				void SetTarget(RenderTarget2DArray* Resource, unsigned int Target, float R, float G, float B) override;
-				void SetTarget(RenderTarget2DArray* Resource, unsigned int Target) override;
 				void SetTarget(RenderTargetCube* Resource, float R, float G, float B) override;
 				void SetTarget(RenderTargetCube* Resource) override;
 				void SetTarget(MultiRenderTargetCube* Resource, unsigned int Target, float R, float G, float B) override;
@@ -334,7 +351,6 @@ namespace Tomahawk
 				void SetViewport(const Viewport& In) override;
 				void SetViewport(RenderTarget2D* Resource, const Viewport& In) override;
 				void SetViewport(MultiRenderTarget2D* Resource, const Viewport& In) override;
-				void SetViewport(RenderTarget2DArray* Resource, const Viewport& In) override;
 				void SetViewport(RenderTargetCube* Resource, const Viewport& In) override;
 				void SetViewport(MultiRenderTargetCube* Resource, const Viewport& In) override;
 				void SetViewports(unsigned int Count, Viewport* Viewports) override;
@@ -360,14 +376,12 @@ namespace Tomahawk
 				void Clear(float R, float G, float B) override;
 				void Clear(RenderTarget2D* Resource, float R, float G, float B) override;
 				void Clear(MultiRenderTarget2D* Resource, unsigned int Target, float R, float G, float B) override;
-				void Clear(RenderTarget2DArray* Resource, unsigned int Target, float R, float G, float B) override;
 				void Clear(RenderTargetCube* Resource, float R, float G, float B) override;
 				void Clear(MultiRenderTargetCube* Resource, unsigned int Target, float R, float G, float B) override;
 				void ClearDepth() override;
 				void ClearDepth(DepthBuffer* Resource) override;
 				void ClearDepth(RenderTarget2D* Resource) override;
 				void ClearDepth(MultiRenderTarget2D* Resource) override;
-				void ClearDepth(RenderTarget2DArray* Resource) override;
 				void ClearDepth(RenderTargetCube* Resource) override;
 				void ClearDepth(MultiRenderTargetCube* Resource) override;
 				void DrawIndexed(unsigned int Count, unsigned int IndexLocation, unsigned int BaseLocation) override;
@@ -385,7 +399,6 @@ namespace Tomahawk
 				bool CopyTargetFrom(MultiRenderTarget2D* Resource, unsigned int Target, RenderTarget2D* From) override;
 				bool CopyTargetDepth(RenderTarget2D* From, RenderTarget2D* To) override;
 				bool CopyTargetDepth(MultiRenderTarget2D* From, MultiRenderTarget2D* To) override;
-				bool CopyTargetDepth(RenderTarget2DArray* From, RenderTarget2DArray* To) override;
 				bool CopyTargetDepth(RenderTargetCube* From, RenderTargetCube* To) override;
 				bool CopyTargetDepth(MultiRenderTargetCube* From, MultiRenderTargetCube* To) override;
 				bool CopyBegin(MultiRenderTarget2D* Resource, unsigned int Target, unsigned int MipLevels, unsigned int Size) override;
@@ -393,7 +406,6 @@ namespace Tomahawk
 				bool CopyEnd(MultiRenderTarget2D* Resource, TextureCube* Result) override;
 				void SwapTargetDepth(RenderTarget2D* From, RenderTarget2D* To) override;
 				void SwapTargetDepth(MultiRenderTarget2D* From, MultiRenderTarget2D* To) override;
-				void SwapTargetDepth(RenderTarget2DArray* From, RenderTarget2DArray* To) override;
 				void SwapTargetDepth(RenderTargetCube* From, RenderTargetCube* To) override;
 				void SwapTargetDepth(MultiRenderTargetCube* From, MultiRenderTargetCube* To) override;
 				void FetchViewports(unsigned int* Count, Viewport* Out) override;
@@ -442,7 +454,6 @@ namespace Tomahawk
 				DepthBuffer* CreateDepthBuffer(const DepthBuffer::Desc& I) override;
 				RenderTarget2D* CreateRenderTarget2D(const RenderTarget2D::Desc& I) override;
 				MultiRenderTarget2D* CreateMultiRenderTarget2D(const MultiRenderTarget2D::Desc& I) override;
-				RenderTarget2DArray* CreateRenderTarget2DArray(const RenderTarget2DArray::Desc& I) override;
 				RenderTargetCube* CreateRenderTargetCube(const RenderTargetCube::Desc& I) override;
 				MultiRenderTargetCube* CreateMultiRenderTargetCube(const MultiRenderTargetCube::Desc& I) override;
 				Query* CreateQuery(const Query::Desc& I) override;

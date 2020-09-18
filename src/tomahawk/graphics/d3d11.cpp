@@ -321,45 +321,6 @@ namespace Tomahawk
 				return Resource[Id]->GetResource();
 			}
 
-			D3D11RenderTarget2DArray::D3D11RenderTarget2DArray(const Desc& I) : RenderTarget2DArray(I)
-			{
-				Viewport = { 0, 0, 512, 512, 0, 1 };
-				DepthStencilView = nullptr;
-				Texture = nullptr;
-			}
-			D3D11RenderTarget2DArray::~D3D11RenderTarget2DArray()
-			{
-				ReleaseCom(Texture);
-				ReleaseCom(DepthStencilView);
-
-				for (int i = 0; i < RenderTargetView.size(); i++)
-				ReleaseCom(RenderTargetView[i]);
-			}
-			Viewport D3D11RenderTarget2DArray::GetViewport()
-			{
-				Graphics::Viewport Output;
-				Output.TopLeftX = Viewport.TopLeftX;
-				Output.TopLeftY = Viewport.TopLeftY;
-				Output.Width = Viewport.Width;
-				Output.Height = Viewport.Height;
-				Output.MinDepth = Viewport.MinDepth;
-				Output.MaxDepth = Viewport.MaxDepth;
-
-				return Output;
-			}
-			float D3D11RenderTarget2DArray::GetWidth()
-			{
-				return Viewport.Width;
-			}
-			float D3D11RenderTarget2DArray::GetHeight()
-			{
-				return Viewport.Height;
-			}
-			void* D3D11RenderTarget2DArray::GetResource()
-			{
-				return Resource->GetResource();
-			}
-
 			D3D11RenderTargetCube::D3D11RenderTargetCube(const Desc& I) : RenderTargetCube(I)
 			{
 				Viewport = { 0, 0, 512, 512, 0, 1 };
@@ -825,27 +786,6 @@ namespace Tomahawk
 				ImmediateContext->OMSetRenderTargets(IResource->SVTarget, IResource->RenderTargetView, IResource->DepthStencilView);
 				ImmediateContext->RSSetViewports(1, &IResource->Viewport);
 			}
-			void D3D11Device::SetTarget(RenderTarget2DArray* Resource, unsigned int Target, float R, float G, float B)
-			{
-				D3D11RenderTarget2DArray* IResource = (D3D11RenderTarget2DArray*)Resource;
-				if (!IResource)
-					return;
-
-				float ClearColor[4] = { R, G, B, 0.0f };
-				ImmediateContext->OMSetRenderTargets(1, &IResource->RenderTargetView[Target], IResource->DepthStencilView);
-				ImmediateContext->RSSetViewports(1, &IResource->Viewport);
-				ImmediateContext->ClearRenderTargetView(IResource->RenderTargetView[Target], ClearColor);
-				ImmediateContext->ClearDepthStencilView(IResource->DepthStencilView, D3D11_CLEAR_DEPTH, 1.0f, 0);
-			}
-			void D3D11Device::SetTarget(RenderTarget2DArray* Resource, unsigned int Target)
-			{
-				D3D11RenderTarget2DArray* IResource = (D3D11RenderTarget2DArray*)Resource;
-				if (!IResource)
-					return;
-
-				ImmediateContext->OMSetRenderTargets(1, &IResource->RenderTargetView[Target], IResource->DepthStencilView);
-				ImmediateContext->RSSetViewports(1, &IResource->Viewport);
-			}
 			void D3D11Device::SetTarget(RenderTargetCube* Resource, float R, float G, float B)
 			{
 				D3D11RenderTargetCube* IResource = (D3D11RenderTargetCube*)Resource;
@@ -944,19 +884,6 @@ namespace Tomahawk
 			void D3D11Device::SetViewport(MultiRenderTarget2D* Resource, const Viewport& In)
 			{
 				D3D11MultiRenderTarget2D* IResource = (D3D11MultiRenderTarget2D*)Resource;
-				if (!IResource)
-					return;
-
-				IResource->Viewport.Height = In.Height;
-				IResource->Viewport.TopLeftX = In.TopLeftX;
-				IResource->Viewport.TopLeftY = In.TopLeftY;
-				IResource->Viewport.Width = In.Width;
-				IResource->Viewport.MinDepth = In.MinDepth;
-				IResource->Viewport.MaxDepth = In.MaxDepth;
-			}
-			void D3D11Device::SetViewport(RenderTarget2DArray* Resource, const Viewport& In)
-			{
-				D3D11RenderTarget2DArray* IResource = (D3D11RenderTarget2DArray*)Resource;
 				if (!IResource)
 					return;
 
@@ -1146,7 +1073,7 @@ namespace Tomahawk
 				if (ImmediateContext->Map(Element->Element, 0, D3D11_MAP_WRITE_DISCARD, 0, &MappedResource) != S_OK)
 					return false;
 
-				memcpy(MappedResource.pData, IResource->Array.Get(), (size_t)IResource->Array.Size() * sizeof(Compute::ElementVertex));
+				memcpy(MappedResource.pData, IResource->Array.Get(), (size_t)IResource->Array.Size() * IResource->ElementWidth);
 				ImmediateContext->Unmap(Element->Element, 0);
 				return true;
 			}
@@ -1189,7 +1116,7 @@ namespace Tomahawk
 				F.Usage = ResourceUsage_Dynamic;
 				F.BindFlags = ResourceBind_Shader_Input;
 				F.ElementCount = (unsigned int)IResource->ElementLimit;
-				F.ElementWidth = sizeof(Compute::ElementVertex);
+				F.ElementWidth = (unsigned int)IResource->ElementWidth;
 				F.StructureByteStride = F.ElementWidth;
 				F.UseSubresource = false;
 
@@ -1239,15 +1166,6 @@ namespace Tomahawk
 				float ClearColor[4] = { R, G, B, 0.0f };
 				ImmediateContext->ClearRenderTargetView(IResource->RenderTargetView[Target], ClearColor);
 			}
-			void D3D11Device::Clear(RenderTarget2DArray* Resource, unsigned int Target, float R, float G, float B)
-			{
-				D3D11RenderTarget2DArray* IResource = (D3D11RenderTarget2DArray*)Resource;
-				if (!IResource)
-					return;
-
-				float ClearColor[4] = { R, G, B, 0.0f };
-				ImmediateContext->ClearRenderTargetView(IResource->RenderTargetView[Target], ClearColor);
-			}
 			void D3D11Device::Clear(RenderTargetCube* Resource, float R, float G, float B)
 			{
 				D3D11RenderTargetCube* IResource = (D3D11RenderTargetCube*)Resource;
@@ -1289,14 +1207,6 @@ namespace Tomahawk
 			void D3D11Device::ClearDepth(MultiRenderTarget2D* Resource)
 			{
 				D3D11MultiRenderTarget2D* IResource = (D3D11MultiRenderTarget2D*)Resource;
-				if (!IResource)
-					return;
-
-				ImmediateContext->ClearDepthStencilView(IResource->DepthStencilView, D3D11_CLEAR_DEPTH, 1.0f, 0);
-			}
-			void D3D11Device::ClearDepth(RenderTarget2DArray* Resource)
-			{
-				D3D11RenderTarget2DArray* IResource = (D3D11RenderTarget2DArray*)Resource;
 				if (!IResource)
 					return;
 
@@ -1544,22 +1454,6 @@ namespace Tomahawk
 				ImmediateContext->CopyResource(Depth2, Depth1);
 				return true;
 			}
-			bool D3D11Device::CopyTargetDepth(RenderTarget2DArray* From, RenderTarget2DArray* To)
-			{
-				D3D11RenderTarget2DArray* IResource1 = (D3D11RenderTarget2DArray*)From;
-				D3D11RenderTarget2DArray* IResource2 = (D3D11RenderTarget2DArray*)To;
-				if (!IResource1 || !IResource2)
-					return false;
-
-				ID3D11Resource* Depth1 = nullptr;
-				IResource1->DepthStencilView->GetResource(&Depth1);
-
-				ID3D11Resource* Depth2 = nullptr;
-				IResource2->DepthStencilView->GetResource(&Depth2);
-
-				ImmediateContext->CopyResource(Depth2, Depth1);
-				return true;
-			}
 			bool D3D11Device::CopyTargetDepth(RenderTargetCube* From, RenderTargetCube* To)
 			{
 				D3D11RenderTargetCube* IResource1 = (D3D11RenderTargetCube*)From;
@@ -1672,17 +1566,6 @@ namespace Tomahawk
 			{
 				D3D11MultiRenderTarget2D* IResource1 = (D3D11MultiRenderTarget2D*)From;
 				D3D11MultiRenderTarget2D* IResource2 = (D3D11MultiRenderTarget2D*)To;
-				if (!IResource1 || !IResource2)
-					return;
-
-				ID3D11DepthStencilView* DSV = IResource1->DepthStencilView;
-				IResource1->DepthStencilView = IResource2->DepthStencilView;
-				IResource2->DepthStencilView = DSV;
-			}
-			void D3D11Device::SwapTargetDepth(RenderTarget2DArray* From, RenderTarget2DArray* To)
-			{
-				D3D11RenderTarget2DArray* IResource1 = (D3D11RenderTarget2DArray*)From;
-				D3D11RenderTarget2DArray* IResource2 = (D3D11RenderTarget2DArray*)To;
 				if (!IResource1 || !IResource2)
 					return;
 
@@ -2448,8 +2331,8 @@ namespace Tomahawk
 				F.MiscFlags = ResourceMisc_Buffer_Structured;
 				F.Usage = ResourceUsage_Dynamic;
 				F.BindFlags = ResourceBind_Shader_Input;
-				F.ElementCount = (unsigned int)I.ElementLimit;
-				F.ElementWidth = sizeof(Compute::ElementVertex);
+				F.ElementCount = I.ElementLimit;
+				F.ElementWidth = I.ElementWidth;
 				F.StructureByteStride = F.ElementWidth;
 				F.UseSubresource = false;
 
@@ -2460,7 +2343,7 @@ namespace Tomahawk
 				ZeroMemory(&SRV, sizeof(SRV));
 				SRV.Format = DXGI_FORMAT_UNKNOWN;
 				SRV.ViewDimension = D3D11_SRV_DIMENSION_BUFFER;
-				SRV.Buffer.ElementWidth = (unsigned int)I.ElementLimit;
+				SRV.Buffer.ElementWidth = I.ElementLimit;
 
 				if (D3DDevice->CreateShaderResourceView(Result->Elements->As<D3D11ElementBuffer>()->Element, &SRV, &Result->Resource) != S_OK)
 				{
@@ -2945,113 +2828,6 @@ namespace Tomahawk
 				D3D11_DEPTH_STENCIL_VIEW_DESC DSV;
 				ZeroMemory(&DSV, sizeof(DSV));
 				DSV.Format = DXGI_FORMAT_D24_UNORM_S8_UINT;
-				DSV.Texture2D.MipSlice = 0;
-				DSV.ViewDimension = (Result->Information.SampleDesc.Count > 1 ? D3D11_DSV_DIMENSION_TEXTURE2DMS : D3D11_DSV_DIMENSION_TEXTURE2D);
-
-				if (D3DDevice->CreateDepthStencilView(DepthTexture, &DSV, &Result->DepthStencilView) != S_OK)
-				{
-					THAWK_ERROR("couldn't create depth stencil view");
-					return Result;
-				}
-
-				ReleaseCom(DepthTexture);
-				Result->Viewport.Width = (FLOAT)I.Width;
-				Result->Viewport.Height = (FLOAT)I.Height;
-				Result->Viewport.MinDepth = 0.0f;
-				Result->Viewport.MaxDepth = 1.0f;
-				Result->Viewport.TopLeftX = 0.0f;
-				Result->Viewport.TopLeftY = 0.0f;
-
-				return Result;
-			}
-			RenderTarget2DArray* D3D11Device::CreateRenderTarget2DArray(const RenderTarget2DArray::Desc& I)
-			{
-				D3D11RenderTarget2DArray* Result = new D3D11RenderTarget2DArray(I);
-				unsigned int MipLevels = (I.MipLevels < 1 ? 1 : I.MipLevels);
-
-				ZeroMemory(&Result->Information, sizeof(Result->Information));
-				Result->Information.Width = I.Width;
-				Result->Information.Height = I.Height;
-				Result->Information.MipLevels = MipLevels;
-				Result->Information.ArraySize = I.ArraySize;
-				Result->Information.SampleDesc.Count = 1;
-				Result->Information.SampleDesc.Quality = 0;
-				Result->Information.Usage = (D3D11_USAGE)I.Usage;
-				Result->Information.BindFlags = I.BindFlags;
-				Result->Information.CPUAccessFlags = I.AccessFlags;
-				Result->Information.MiscFlags = (unsigned int)I.MiscFlags;
-				Result->Information.Format = (DXGI_FORMAT)I.FormatMode;
-
-				if (D3DDevice->CreateTexture2D(&Result->Information, nullptr, &Result->Texture) != S_OK)
-				{
-					THAWK_ERROR("couldn't create surface texture 2d");
-					return Result;
-				}
-
-				D3D11_RENDER_TARGET_VIEW_DESC RTV;
-				RTV.Format = (DXGI_FORMAT)I.FormatMode;
-				RTV.ViewDimension = D3D11_RTV_DIMENSION_TEXTURE2DARRAY;
-				RTV.Texture2DArray.MipSlice = 0;
-				RTV.Texture2DArray.ArraySize = 1;
-
-				if (Result->Information.SampleDesc.Count > 1)
-				{
-					RTV.ViewDimension = D3D11_RTV_DIMENSION_TEXTURE2DMSARRAY;
-					RTV.Texture2DMSArray.ArraySize = RTV.Texture2DArray.ArraySize;
-					RTV.Texture2DArray.ArraySize = 0;
-				}
-
-				for (int i = 0; i < (int)I.ArraySize; i++)
-				{
-					if (Result->Information.SampleDesc.Count > 1)
-						RTV.Texture2DMSArray.FirstArraySlice = i;
-					else
-						RTV.Texture2DArray.FirstArraySlice = i;
-
-					Result->RenderTargetView.push_back(nullptr);
-					if (D3DDevice->CreateRenderTargetView(Result->Texture, &RTV, &Result->RenderTargetView[i]) == S_OK)
-						continue;
-
-					THAWK_ERROR("couldn't create render target view #%i", i);
-					return Result;
-				}
-
-				D3D11Texture2D* Target = (D3D11Texture2D*)CreateTexture2D();
-				Target->View = Result->Texture;
-
-				Result->Resource = Target;
-				Result->Texture->AddRef();
-
-				if (!GenerateTexture(Target))
-				{
-					THAWK_ERROR("couldn't create shader resource view");
-					return Result;
-				}
-
-				D3D11_TEXTURE2D_DESC DepthBuffer;
-				ZeroMemory(&DepthBuffer, sizeof(DepthBuffer));
-				DepthBuffer.Width = I.Width;
-				DepthBuffer.Height = I.Height;
-				DepthBuffer.MipLevels = MipLevels;
-				DepthBuffer.ArraySize = 1;
-				DepthBuffer.Format = DXGI_FORMAT_D24_UNORM_S8_UINT;
-				DepthBuffer.SampleDesc.Count = 1;
-				DepthBuffer.SampleDesc.Quality = 0;
-				DepthBuffer.Usage = (D3D11_USAGE)I.Usage;
-				DepthBuffer.BindFlags = D3D11_BIND_DEPTH_STENCIL;
-				DepthBuffer.CPUAccessFlags = I.AccessFlags;
-				DepthBuffer.MiscFlags = 0;
-
-				ID3D11Texture2D* DepthTexture = nullptr;
-				if (D3DDevice->CreateTexture2D(&DepthBuffer, nullptr, &DepthTexture) != S_OK)
-				{
-					THAWK_ERROR("couldn't create depth buffer texture 2d");
-					return Result;
-				}
-
-				D3D11_DEPTH_STENCIL_VIEW_DESC DSV;
-				ZeroMemory(&DSV, sizeof(DSV));
-				DSV.Format = DepthBuffer.Format;
 				DSV.Texture2D.MipSlice = 0;
 				DSV.ViewDimension = (Result->Information.SampleDesc.Count > 1 ? D3D11_DSV_DIMENSION_TEXTURE2DMS : D3D11_DSV_DIMENSION_TEXTURE2D);
 

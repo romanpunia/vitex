@@ -20,7 +20,7 @@ float GetEmission(in float2 TexCoord)
 }
 float2 GetParallax(in float2 TexCoord, in float3 Direction, in float Amount, in float Bias)
 {
-    float Steps = lerp(24.0, 4.0, abs(dot(float3(0.0, 0.0, 1.0), Direction)));
+    float Steps = lerp(24.0, 2.0, pow(1.0 - abs(dot(float3(0.0, 0.0, 1.0), Direction)), 4));
     float Step = 1.0 / Steps;
     float Depth = 0.0;
     float2 Delta = Direction.xy * Amount / Steps;

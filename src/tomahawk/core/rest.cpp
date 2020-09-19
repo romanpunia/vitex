@@ -4014,18 +4014,29 @@ namespace Tomahawk
 
 			return true;
 		}
-		uint64_t OS::ConstHash(const std::string& Data)
+		uint64_t OS::CheckSum(const std::string& Data)
 		{
-			uint64_t Hash = 0x811c9dc5;
-			uint64_t Prime = 0x1000193;
+			int64_t Result = 0xFFFFFFFF;
+			int64_t Index = 0;
+			int64_t Byte = 0;
+			int64_t Mask = 0;
+			int64_t It = 0;
 
-			for (size_t i = 0; i < Data.size(); i++)
+			while (Data[Index] != 0)
 			{
-				Hash = Hash ^ (char)Data[i];
-				Hash *= Prime;
+				Byte = Data[Index];
+				Result = Result ^ Byte;
+
+				for (It = 7; It >= 0; It--)
+				{
+					Mask = -(Result & 1);
+					Result = (Result >> 1) ^ (0xEDB88320 & Mask);
+				}
+
+				Index++;
 			}
 
-			return Hash;
+			return (uint64_t)~Result;
 		}
 
 		FileLogger::FileLogger(const std::string& Root) : Path(Root), Offset(-1)

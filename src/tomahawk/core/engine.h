@@ -15,6 +15,7 @@ namespace Tomahawk
 		typedef std::function<void(Rest::Timer*, struct Viewer*)> RenderCallback;
 		typedef std::function<void(class ContentManager*, bool)> SaveCallback;
 		typedef std::function<void(class Entity*, class Component*, bool)> MutationCallback;
+		typedef std::function<bool(class Component*)> RayCallback;
 
 		class SceneGraph;
 
@@ -391,6 +392,7 @@ namespace Tomahawk
 			virtual void Update(Rest::Timer* Time);
 			virtual void Pipe(Event* Value);
 			virtual Component* Copy(Entity* New) = 0;
+			virtual Compute::Matrix4x4 GetBoundingBox();
 			Entity* GetEntity();
 			void SetActive(bool Enabled);
 			bool IsActive();
@@ -486,7 +488,7 @@ namespace Tomahawk
 			template <typename In>
 			void RemoveComponent()
 			{
-				RemoveComponent(In::BaseId());
+				RemoveComponent(In::GetTypeId());
 			}
 			template <typename In>
 			In* AddComponent()
@@ -498,7 +500,7 @@ namespace Tomahawk
 			template <typename In>
 			In* GetComponent()
 			{
-				auto It = Components.find(In::BaseId());
+				auto It = Components.find(In::GetTypeId());
 				if (It != Components.end())
 					return (In*)It->second;
 
@@ -696,7 +698,7 @@ namespace Tomahawk
 			template <typename In>
 			void RemoveRenderer()
 			{
-				RemoveRenderer(In::BaseId());
+				RemoveRenderer(In::GetTypeId());
 			}
 			template <typename In, typename... Args>
 			In* AddRenderer(Args&& ... Data)
@@ -706,7 +708,7 @@ namespace Tomahawk
 			template <typename In>
 			In* GetRenderer()
 			{
-				return (In*)GetRenderer(In::BaseId());
+				return (In*)GetRenderer(In::GetTypeId());
 			}
 			template <typename T>
 			Rest::Pool<Component*>* AddCull()
@@ -714,8 +716,8 @@ namespace Tomahawk
 				static_assert(std::is_base_of<Cullable, T>::value,
 					"component is not cullable");
 
-				auto* Result = GetSceneComponents(T::BaseId());
-				Cull[T::BaseId()] = Result;
+				auto* Result = GetSceneComponents(T::GetTypeId());
+				Cull[T::GetTypeId()] = Result;
 				return Result;
 			}
 			template <typename T>
@@ -724,7 +726,7 @@ namespace Tomahawk
 				static_assert(std::is_base_of<Cullable, T>::value,
 					"component is not cullable");
 
-				auto It = Cull.find(T::BaseId());
+				auto It = Cull.find(T::GetTypeId());
 				if (It != Cull.end())
 					Cull.erase(It);
 
@@ -833,7 +835,8 @@ namespace Tomahawk
 			void Lock();
 			void Unlock();
 			void ResizeBuffers();
-			void ScriptHook(const std::string& Name = "main");
+			void RayTest(uint64_t Section, const Compute::Ray& Origin, float MaxDistance, const RayCallback& Callback);
+			void ScriptHook(const std::string& Name = "Main");
 			void SwapSurface(Graphics::MultiRenderTarget2D* NewSurface);
 			void SetActive(bool Enabled);
 			void SetView(const Compute::Matrix4x4& View, const Compute::Matrix4x4& Projection, const Compute::Vector3& Position, float Distance, bool Upload);
@@ -894,9 +897,14 @@ namespace Tomahawk
 
 		public:
 			template <typename T>
+			void RayTest(const Compute::Ray& Origin, float MaxDistance, const RayCallback& Callback)
+			{
+				RayTest(T::GetTypeId(), Origin, MaxDistance, Callback);
+			}
+			template <typename T>
 			void SortEntitiesBackToFront()
 			{
-				SortEntitiesBackToFront(T::BaseId());
+				SortEntitiesBackToFront(T::GetTypeId());
 			}
 			template <typename T>
 			bool Notify(Component* To, const T& Value)
@@ -931,16 +939,16 @@ namespace Tomahawk
 			template <typename T>
 			uint64_t GetEntityCount()
 			{
-				return GetComponents(T::BaseId())->Count();
+				return GetComponents(T::GetTypeId())->Count();
 			}
 			template <typename T>
 			Entity* GetLastEntity()
 			{
-				auto* Array = GetComponents(T::BaseId());
+				auto* Array = GetComponents(T::GetTypeId());
 				if (Array->Empty())
 					return nullptr;
 
-				Component* Value = GetComponent(Array->Count() - 1, T::BaseId());
+				Component* Value = GetComponent(Array->Count() - 1, T::GetTypeId());
 				if (Value != nullptr)
 					return Value->Parent;
 
@@ -949,7 +957,7 @@ namespace Tomahawk
 			template <typename T>
 			Entity* GetEntity()
 			{
-				Component* Value = GetComponent(0, T::BaseId());
+				Component* Value = GetComponent(0, T::GetTypeId());
 				if (Value != nullptr)
 					return Value->Parent;
 
@@ -958,21 +966,21 @@ namespace Tomahawk
 			template <typename T>
 			Rest::Pool<Component*>* GetComponents()
 			{
-				return GetComponents(T::BaseId());
+				return GetComponents(T::GetTypeId());
 			}
 			template <typename T>
 			T* GetComponent()
 			{
-				return (T*)GetComponent(0, T::BaseId());
+				return (T*)GetComponent(0, T::GetTypeId());
 			}
 			template <typename T>
 			T* GetLastComponent()
 			{
-				auto* Array = GetComponents(T::BaseId());
+				auto* Array = GetComponents(T::GetTypeId());
 				if (Array->Empty())
 					return nullptr;
 
-				return (T*)GetComponent(Array->Count() - 1, T::BaseId());
+				return (T*)GetComponent(Array->Count() - 1, T::GetTypeId());
 			}
 		};
 

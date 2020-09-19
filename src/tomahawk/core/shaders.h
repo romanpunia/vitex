@@ -120,7 +120,7 @@ namespace resource_batch
 	{
 #define HAS_D3D11_GEOMETRY_MODEL_GBUFFER_HLSL
 		extern const unsigned char data[];
-		const unsigned size = 1410;
+		const unsigned size = 1414;
 	}
 
 	namespace d3d11_geometry_model_occlusion_hlsl
@@ -183,7 +183,7 @@ namespace resource_batch
 	{
 #define HAS_D3D11_PASS_FOCUS_HLSL
 		extern const unsigned char data[];
-		const unsigned size = 2122;
+		const unsigned size = 2235;
 	}
 
 	namespace d3d11_pass_glitch_hlsl
@@ -225,7 +225,7 @@ namespace resource_batch
 	{
 #define HAS_D3D11_PASS_REFLECTION_HLSL
 		extern const unsigned char data[];
-		const unsigned size = 1142;
+		const unsigned size = 1136;
 	}
 
 	namespace d3d11_pass_tone_hlsl
@@ -246,14 +246,14 @@ namespace resource_batch
 	{
 #define HAS_D3D11_RENDERER_BUFFER_CUBIC_HLSL
 		extern const unsigned char data[];
-		const unsigned size = 75;
+		const unsigned size = 78;
 	}
 
 	namespace d3d11_renderer_buffer_gui_hlsl
 	{
 #define HAS_D3D11_RENDERER_BUFFER_GUI_HLSL
 		extern const unsigned char data[];
-		const unsigned size = 63;
+		const unsigned size = 74;
 	}
 
 	namespace d3d11_renderer_buffer_object_hlsl
@@ -393,14 +393,14 @@ namespace resource_batch
 	{
 #define HAS_D3D11_STANDARD_RANDOM_FLOAT_HLSL
 		extern const unsigned char data[];
-		const unsigned size = 518;
+		const unsigned size = 678;
 	}
 
 	namespace d3d11_standard_ray_march_hlsl
 	{
 #define HAS_D3D11_STANDARD_RAY_MARCH_HLSL
 		extern const unsigned char data[];
-		const unsigned size = 766;
+		const unsigned size = 960;
 	}
 
 	namespace d3d11_standard_space_sv_hlsl
@@ -442,7 +442,7 @@ namespace resource_batch
 	{
 #define HAS_D3D11_WORKFLOW_RASTERIZER_HLSL
 		extern const unsigned char data[];
-		const unsigned size = 2233;
+		const unsigned size = 2247;
 	}
 
 	namespace ogl_geometry_decal_gbuffer_glsl

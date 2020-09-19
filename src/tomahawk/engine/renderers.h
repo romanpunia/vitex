@@ -486,25 +486,35 @@ namespace Tomahawk
 
 			class THAWK_OUT DepthOfFieldRenderer : public EffectRenderer
 			{
+			private:
+				struct
+				{
+					Component* Target = nullptr;
+					float Radius = 0.0f;
+					float Factor = 0.0f;
+					float Distance = -1.0f;
+					float Range = 0.0f;
+				} State;
+
 			public:
 				struct RenderConstant
 				{
 					float Texel[2] = { 1.0f / 512.0f };
-					float Threshold = 0.5f;
-					float Gain = 2.0f;
-					float Fringe = 0.7f;
-					float Bias = 0.5f;
-					float Dither = 0.0001f;
-					float Samples = 3.0f;
-					float Rings = 3.0f;
-					float FarDistance = 100.0f;
-					float FarRange = 10.0f;
-					float NearDistance = 1.0f;
-					float NearRange = 1.0f;
+					float Radius = 1.0f;
+					float Bokeh = 8.0f;
+					float Scale = 1.0f;
 					float FocalDepth = 1.0f;
-					float Intensity = 1.0f;
-					float Circular = 1.0f;
+					float NearDistance = 0.0f;
+					float NearRange = 0.0f;
+					float FarDistance = 32.0f;
+					float FarRange = 2.0f;
+					float Padding[2] = { 0.0f };
 				} RenderPass;
+
+			public:
+				float FocusDistance = -1.0f;
+				float FocusRadius = 1.5f;
+				float FocusTime = 0.1f;
 
 			public:
 				DepthOfFieldRenderer(RenderSystem* Lab);
@@ -512,6 +522,7 @@ namespace Tomahawk
 				void Deserialize(ContentManager* Content, Rest::Document* Node) override;
 				void Serialize(ContentManager* Content, Rest::Document* Node) override;
 				void RenderEffect(Rest::Timer* Time) override;
+				void FocusAtNearestTarget(float DeltaTime);
 
 			public:
 				THAWK_COMPONENT(DepthOfFieldRenderer);

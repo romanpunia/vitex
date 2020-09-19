@@ -270,7 +270,7 @@ namespace Tomahawk
 					for (auto It = Ref->First(); It != Ref->Last(); It++)
 					{
 						Rest::Document* Component = Components->SetDocument("component");
-						NMake::Pack(Component->SetDocument("id"), It->second->Id());
+						NMake::Pack(Component->SetDocument("id"), It->second->GetId());
 						NMake::Pack(Component->SetDocument("active"), It->second->IsActive());
 						It->second->Serialize(Content, Component->SetDocument("metadata"));
 					}

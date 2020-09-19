@@ -1780,6 +1780,10 @@ namespace Tomahawk
 		{
 			return Parent;
 		}
+		Compute::Matrix4x4 Component::GetBoundingBox()
+		{
+			return Parent->Transform->GetWorld();
+		}
 		void Component::SetActive(bool Enabled)
 		{
 			if (Active == Enabled)
@@ -1793,7 +1797,7 @@ namespace Tomahawk
 			if (!Parent || !Parent->GetScene())
 				return;
 
-			auto Components = Parent->GetScene()->GetComponents(Id());
+			auto Components = Parent->GetScene()->GetComponents(GetId());
 			if (Active)
 				Components->AddIfNotExists(this);
 			else
@@ -2053,14 +2057,14 @@ namespace Tomahawk
 		}
 		Component* Entity::AddComponent(Component* In)
 		{
-			if (!In || In == GetComponent(In->Id()))
+			if (!In || In == GetComponent(In->GetId()))
 				return In;
 
-			RemoveComponent(In->Id());
+			RemoveComponent(In->GetId());
 			In->Active = false;
 			In->Parent = this;
 
-			Components.insert({ In->Id(), In });
+			Components.insert({ In->GetId(), In });
 			for (auto& Component : Components)
 				Component.second->Awake(In == Component.second ? nullptr : In);
 
@@ -2555,7 +2559,7 @@ namespace Tomahawk
 
 			for (int64_t i = 0; i < Renderers.size(); i++)
 			{
-				if (Renderers[i]->Id() != Id)
+				if (Renderers[i]->GetId() != Id)
 					continue;
 
 				if (i + Offset < 0 || i + Offset >= Renderers.size())
@@ -2571,7 +2575,7 @@ namespace Tomahawk
 		{
 			for (auto It = Renderers.begin(); It != Renderers.end(); It++)
 			{
-				if (*It && (*It)->Id() == Id)
+				if (*It && (*It)->GetId() == Id)
 				{
 					(*It)->Deactivate();
 					delete *It;
@@ -2629,7 +2633,7 @@ namespace Tomahawk
 
 			for (auto It = Renderers.begin(); It != Renderers.end(); It++)
 			{
-				if (*It && (*It)->Id() == In->Id())
+				if (*It && (*It)->GetId() == In->GetId())
 				{
 					if (*It == In)
 						return In;
@@ -2651,7 +2655,7 @@ namespace Tomahawk
 		{
 			for (auto& RenderStage : Renderers)
 			{
-				if (RenderStage->Id() == Id)
+				if (RenderStage->GetId() == Id)
 					return RenderStage;
 			}
 
@@ -3508,7 +3512,7 @@ namespace Tomahawk
 				Component.second->Awake(Component.second);
 				InvokeMutation(In, Component.second, true);
 
-				auto Storage = GetComponents(Component.second->Id());
+				auto Storage = GetComponents(Component.second->GetId());
 				if (Component.second->Active)
 					Storage->AddIfNotExists(Component.second);
 				else
@@ -3538,7 +3542,7 @@ namespace Tomahawk
 				Component.second->Asleep();
 				InvokeMutation(In, Component.second, false);
 
-				auto Storage = &Components[Component.second->Id()];
+				auto Storage = &Components[Component.second->GetId()];
 				Storage->Remove(Component.second);
 				Pending.Remove(Component.second);
 			}
@@ -3738,6 +3742,24 @@ namespace Tomahawk
 			{
 				delete Surface;
 				Surface = Conf.Device->CreateMultiRenderTarget2D(F);
+			}
+		}
+		void SceneGraph::RayTest(uint64_t Section, const Compute::Ray& Origin, float MaxDistance, const RayCallback& Callback)
+		{
+			if (!Callback)
+				return;
+
+			Rest::Pool<Component*>* Array = GetComponents(Section);
+			Compute::Ray Base = Origin;
+
+			for (auto It = Array->Begin(); It != Array->End(); It++)
+			{
+				Component* Current = *It;
+				if (MaxDistance > 0.0f && Current->Parent->Distance > MaxDistance)
+					continue;
+
+				if (Compute::MathCommon::CursorRayTest(Base, Current->GetBoundingBox()) && !Callback(Current))
+					break;
 			}
 		}
 		void SceneGraph::ScriptHook(const std::string& Name)

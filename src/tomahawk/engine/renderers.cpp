@@ -1736,43 +1736,96 @@ namespace Tomahawk
 			}
 			void DepthOfFieldRenderer::Deserialize(ContentManager* Content, Rest::Document* Node)
 			{
-				NMake::Unpack(Node->Find("threshold"), &RenderPass.Threshold);
-				NMake::Unpack(Node->Find("gain"), &RenderPass.Gain);
-				NMake::Unpack(Node->Find("fringe"), &RenderPass.Fringe);
-				NMake::Unpack(Node->Find("bias"), &RenderPass.Bias);
-				NMake::Unpack(Node->Find("dither"), &RenderPass.Dither);
-				NMake::Unpack(Node->Find("samples"), &RenderPass.Samples);
-				NMake::Unpack(Node->Find("rings"), &RenderPass.Rings);
-				NMake::Unpack(Node->Find("far-distance"), &RenderPass.FarDistance);
-				NMake::Unpack(Node->Find("far-range"), &RenderPass.FarRange);
+				NMake::Unpack(Node->Find("focus-distance"), &FocusDistance);
+				NMake::Unpack(Node->Find("focus-time"), &FocusTime);
+				NMake::Unpack(Node->Find("focus-radius"), &FocusRadius);
+				NMake::Unpack(Node->Find("radius"), &RenderPass.Radius);
+				NMake::Unpack(Node->Find("bokeh"), &RenderPass.Bokeh);
+				NMake::Unpack(Node->Find("scale"), &RenderPass.Scale);
+				NMake::Unpack(Node->Find("focal-depth"), &RenderPass.FocalDepth);
 				NMake::Unpack(Node->Find("near-distance"), &RenderPass.NearDistance);
 				NMake::Unpack(Node->Find("near-range"), &RenderPass.NearRange);
-				NMake::Unpack(Node->Find("focal-depth"), &RenderPass.FocalDepth);
-				NMake::Unpack(Node->Find("intensity"), &RenderPass.Intensity);
-				NMake::Unpack(Node->Find("circular"), &RenderPass.Circular);
+				NMake::Unpack(Node->Find("far-distance"), &RenderPass.FarDistance);
+				NMake::Unpack(Node->Find("far-range"), &RenderPass.FarRange);
 			}
 			void DepthOfFieldRenderer::Serialize(ContentManager* Content, Rest::Document* Node)
 			{
-				NMake::Pack(Node->SetDocument("threshold"), RenderPass.Threshold);
-				NMake::Pack(Node->SetDocument("gain"), RenderPass.Gain);
-				NMake::Pack(Node->SetDocument("fringe"), RenderPass.Fringe);
-				NMake::Pack(Node->SetDocument("bias"), RenderPass.Bias);
-				NMake::Pack(Node->SetDocument("dither"), RenderPass.Dither);
-				NMake::Pack(Node->SetDocument("samples"), RenderPass.Samples);
-				NMake::Pack(Node->SetDocument("rings"), RenderPass.Rings);
-				NMake::Pack(Node->SetDocument("far-distance"), RenderPass.FarDistance);
-				NMake::Pack(Node->SetDocument("far-range"), RenderPass.FarRange);
+				NMake::Pack(Node->SetDocument("focus-distance"), FocusDistance);
+				NMake::Pack(Node->SetDocument("focus-time"), FocusTime);
+				NMake::Pack(Node->SetDocument("focus-radius"), FocusRadius);
+				NMake::Pack(Node->SetDocument("radius"), RenderPass.Radius);
+				NMake::Pack(Node->SetDocument("bokeh"), RenderPass.Bokeh);
+				NMake::Pack(Node->SetDocument("scale"), RenderPass.Scale);
+				NMake::Pack(Node->SetDocument("focal-depth"), RenderPass.FocalDepth);
 				NMake::Pack(Node->SetDocument("near-distance"), RenderPass.NearDistance);
 				NMake::Pack(Node->SetDocument("near-range"), RenderPass.NearRange);
-				NMake::Pack(Node->SetDocument("focal-depth"), RenderPass.FocalDepth);
-				NMake::Pack(Node->SetDocument("intensity"), RenderPass.Intensity);
-				NMake::Pack(Node->SetDocument("circular"), RenderPass.Circular);
+				NMake::Pack(Node->SetDocument("far-distance"), RenderPass.FarDistance);
+				NMake::Pack(Node->SetDocument("far-range"), RenderPass.FarRange);
 			}
 			void DepthOfFieldRenderer::RenderEffect(Rest::Timer* Time)
 			{
+				if (FocusDistance > 0.0f)
+					FocusAtNearestTarget(Time->GetDeltaTime());
+
 				RenderPass.Texel[0] = 1.0f / Output->GetWidth();
 				RenderPass.Texel[1] = 1.0f / Output->GetHeight();
 				RenderResult(nullptr, &RenderPass);
+			}
+			void DepthOfFieldRenderer::FocusAtNearestTarget(float DeltaTime)
+			{
+				Compute::Ray Origin;
+				Origin.Origin = System->GetScene()->View.WorldPosition.InvertZ();
+				Origin.Direction = System->GetScene()->View.WorldRotation.DepthDirection();
+
+				Component* Target = nullptr;
+				System->GetScene()->RayTest<Components::Model>(Origin, FocusDistance, [this, &Target](Component* Result)
+				{
+					float NextRange = Result->As<Components::Model>()->GetRange();
+					float NextDistance = Result->GetEntity()->Distance + NextRange / 2.0f;
+
+					if (NextDistance <= RenderPass.NearRange || NextDistance + NextRange / 2.0f >= FocusDistance)
+						return true;
+
+					if (NextDistance >= State.Distance && State.Distance > 0.0f)
+						return true;
+
+					State.Distance = NextDistance;
+					State.Range = NextRange;
+					Target = Result;
+
+					return true;
+				});
+
+				if (State.Target != Target)
+				{
+					State.Target = Target;
+					State.Radius = RenderPass.Radius;
+					State.Factor = 0.0f;
+				}
+				else if (!State.Target)
+					State.Distance = 0.0f;
+
+				State.Factor += FocusTime * DeltaTime;
+				if (State.Factor > 1.0f)
+					State.Factor = 1.0f;
+
+				if (State.Distance > 0.0f)
+				{
+					State.Distance += State.Range / 2.0f + RenderPass.FarRange;
+					RenderPass.FarDistance = State.Distance;
+					RenderPass.Radius = Compute::Math<float>::Lerp(State.Radius, FocusRadius, State.Factor);
+				}
+				else
+				{
+					State.Distance = 0.0f;
+					if (State.Factor >= 1.0f)
+						RenderPass.FarDistance = State.Distance;
+
+					RenderPass.Radius = Compute::Math<float>::Lerp(State.Radius, 0.0f, State.Factor);
+				}
+
+				if (RenderPass.Radius < 0.0f)
+					RenderPass.Radius = 0.0f;
 			}
 			
 			EmissionRenderer::EmissionRenderer(RenderSystem* Lab) : EffectRenderer(Lab)

@@ -12,3 +12,9 @@ float2 RandomFloat2(in float2 Value)
 	float Y = saturate(frac(sin(dot(Value, float2(12.9898f, 78.233f) * 2.0)) * 43758.5453f)) * 2.0 - 1.0;
 	return float2(X, Y);
 }
+float Hash12(float2 V)
+{
+	V = frac(V * float2(5.3987, 5.4421));
+    V += dot(V.yx, V.xy + float2(21.5351, 14.3137));
+	return frac(V.x * V.y * 95.4307);
+}

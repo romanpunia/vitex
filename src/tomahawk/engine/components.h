@@ -23,8 +23,8 @@ namespace Tomahawk
 				virtual void Serialize(ContentManager* Content, Rest::Document* Node) override;
 				virtual float Cull(const Viewer& View) override;
 				virtual Component* Copy(Entity* New) override;
+				virtual Compute::Matrix4x4 GetBoundingBox() override;
 				void SetDrawable(Graphics::Model* Drawable);
-				Compute::Matrix4x4 GetBoundingBox();
 				Graphics::Model* GetDrawable();
 
 			public:
@@ -58,8 +58,8 @@ namespace Tomahawk
 				virtual void Synchronize(Rest::Timer* Time) override;
 				virtual float Cull(const Viewer& View) override;
 				virtual Component* Copy(Entity* New) override;
+				virtual Compute::Matrix4x4 GetBoundingBox() override;
 				void SetDrawable(Graphics::SkinModel* Drawable);
-				Compute::Matrix4x4 GetBoundingBox();
 				Graphics::SkinModel* GetDrawable();
 
 			public:
@@ -735,7 +735,7 @@ namespace Tomahawk
 				int GetPropertiesCount();
 				int GetFunctionsCount();
 				const std::string& GetSource();
-				const std::string& GetName();
+				const std::string& GetModuleName();
 
 			public:
 				template <typename T>

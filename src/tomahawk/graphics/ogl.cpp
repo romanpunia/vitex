@@ -1963,7 +1963,7 @@ namespace Tomahawk
 					GLint Size = Sub.Size();
 
 					Result->VertexShader = glCreateShader(GL_VERTEX_SHADER);
-					glShaderSourceARB(Result->VertexShader, 1, &Buffer, &Size);
+					glShaderSourceARB(Result->VertexShader, 1, (const char**)&Buffer, &Size);
 					glCompileShaderARB(Result->VertexShader);
 					glGetShaderiv(Result->VertexShader, GL_COMPILE_STATUS, &Status);
 
@@ -1990,7 +1990,7 @@ namespace Tomahawk
 					GLint Size = Sub.Size();
 
 					Result->PixelShader = glCreateShader(GL_FRAGMENT_SHADER);
-					glShaderSourceARB(Result->PixelShader, 1, &Buffer, &Size);
+					glShaderSourceARB(Result->PixelShader, 1, (const char**)&Buffer, &Size);
 					glCompileShaderARB(Result->PixelShader);
 					glGetShaderiv(Result->PixelShader, GL_COMPILE_STATUS, &Status);
 
@@ -2017,7 +2017,7 @@ namespace Tomahawk
 					GLint Size = Sub.Size();
 
 					Result->GeometryShader = glCreateShader(GL_GEOMETRY_SHADER);
-					glShaderSourceARB(Result->GeometryShader, 1, &Buffer, &Size);
+					glShaderSourceARB(Result->GeometryShader, 1, (const char**)&Buffer, &Size);
 					glCompileShaderARB(Result->GeometryShader);
 					glGetShaderiv(Result->GeometryShader, GL_COMPILE_STATUS, &Status);
 
@@ -2044,7 +2044,7 @@ namespace Tomahawk
 					GLint Size = Sub.Size();
 
 					Result->DomainShader = glCreateShader(GL_TESS_EVALUATION_SHADER);
-					glShaderSourceARB(Result->DomainShader, 1, &Buffer, &Size);
+					glShaderSourceARB(Result->DomainShader, 1, (const char**)&Buffer, &Size);
 					glCompileShaderARB(Result->DomainShader);
 					glGetShaderiv(Result->DomainShader, GL_COMPILE_STATUS, &Status);
 
@@ -2071,7 +2071,7 @@ namespace Tomahawk
 					GLint Size = Sub.Size();
 
 					Result->HullShader = glCreateShader(GL_TESS_CONTROL_SHADER);
-					glShaderSourceARB(Result->HullShader, 1, &Buffer, &Size);
+					glShaderSourceARB(Result->HullShader, 1, (const char**)&Buffer, &Size);
 					glCompileShaderARB(Result->HullShader);
 					glGetShaderiv(Result->HullShader, GL_COMPILE_STATUS, &Status);
 
@@ -2098,7 +2098,7 @@ namespace Tomahawk
 					GLint Size = Sub.Size();
 
 					Result->ComputeShader = glCreateShader(GL_COMPUTE_SHADER);
-					glShaderSourceARB(Result->ComputeShader, 1, &Buffer, &Size);
+					glShaderSourceARB(Result->ComputeShader, 1, (const char**)&Buffer, &Size);
 					glCompileShaderARB(Result->ComputeShader);
 					glGetShaderiv(Result->ComputeShader, GL_COMPILE_STATUS, &Status);
 

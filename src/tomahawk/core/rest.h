@@ -107,18 +107,19 @@ typedef socklen_t socket_size_t;
 #define THAWK_PREFIX_CHAR '$'
 #define THAWK_PREFIX_STR "$"
 #define THAWK_LOG(Format, ...) Tomahawk::Rest::LT::Log(0, THAWK_LINE, THAWK_FILE, Format, ##__VA_ARGS__)
-#define THAWK_COMPONENT_ID(ClassName) Tomahawk::Rest::OS::ConstHash(#ClassName)
-#define THAWK_COMPONENT_HASH(ClassName) Tomahawk::Rest::OS::ConstHash(ClassName)
+#define THAWK_COMPONENT_ID(ClassName) Tomahawk::Rest::OS::CheckSum(#ClassName)
+#define THAWK_COMPONENT_HASH(ClassName) Tomahawk::Rest::OS::CheckSum(ClassName)
+#define THAWK_COMPONENT_IS(Source, ClassName) (Source->GetId() == THAWK_COMPONENT_ID(ClassName))
 #define THAWK_COMPONENT(ClassName) \
-virtual const char* Name() override { static const char* V = #ClassName; return V; } \
-virtual uint64_t Id() override { static uint64_t V = THAWK_COMPONENT_ID(ClassName); return V; } \
-static const char* BaseName() { static const char* V = #ClassName; return V; } \
-static uint64_t BaseId() { static uint64_t V = THAWK_COMPONENT_ID(ClassName); return V; }
+virtual const char* GetName() override { static const char* V = #ClassName; return V; } \
+virtual uint64_t GetId() override { static uint64_t V = THAWK_COMPONENT_ID(ClassName); return V; } \
+static const char* GetTypeName() { static const char* V = #ClassName; return V; } \
+static uint64_t GetTypeId() { static uint64_t V = THAWK_COMPONENT_ID(ClassName); return V; }
 #define THAWK_COMPONENT_BASIS(ClassName) \
-virtual const char* Name() { static const char* V = #ClassName; return V; } \
-virtual uint64_t Id() { static uint64_t V = THAWK_COMPONENT_ID(ClassName); return V; } \
-static const char* BaseName() { static const char* V = #ClassName; return V; } \
-static uint64_t BaseId() { static uint64_t V = THAWK_COMPONENT_ID(ClassName); return V; }
+virtual const char* GetName() { static const char* V = #ClassName; return V; } \
+virtual uint64_t GetId() { static uint64_t V = THAWK_COMPONENT_ID(ClassName); return V; } \
+static const char* GetTypeName() { static const char* V = #ClassName; return V; } \
+static uint64_t GetTypeId() { static uint64_t V = THAWK_COMPONENT_ID(ClassName); return V; }
 
 namespace Tomahawk
 {
@@ -846,7 +847,7 @@ namespace Tomahawk
 			static bool WantFileOpen(const std::string& Title, const std::string& DefaultPath, const std::string& Filter, const std::string& FilterDescription, bool Multiple, std::string* Result);
 			static bool WantFolder(const std::string& Title, const std::string& DefaultPath, std::string* Result);
 			static bool WantColor(const std::string& Title, const std::string& DefaultHexRGB, std::string* Result);
-			static uint64_t ConstHash(const std::string& Data);
+			static uint64_t CheckSum(const std::string& Data);
 		};
 
 		class THAWK_OUT LT

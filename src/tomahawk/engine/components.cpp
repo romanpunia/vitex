@@ -2421,7 +2421,7 @@ namespace Tomahawk
 						continue;
 
 					Rest::Document* Element = Effects->SetDocument("effect");
-					NMake::Pack(Element->SetDocument("id"), Effect->Id());
+					NMake::Pack(Element->SetDocument("id"), Effect->GetId());
 					Effect->Serialize(Element->SetDocument("metadata"));
 				}
 
@@ -3145,7 +3145,7 @@ namespace Tomahawk
 				for (auto& Ref : *Renderer->GetRenderers())
 				{
 					Rest::Document* Render = Renderers->SetDocument("renderer");
-					NMake::Pack(Render->SetDocument("id"), Ref->Id());
+					NMake::Pack(Render->SetDocument("id"), Ref->GetId());
 					NMake::Pack(Render->SetDocument("active"), Ref->Active);
 					Ref->Serialize(Content, Render->SetDocument("metadata"));
 				}
@@ -3921,7 +3921,7 @@ namespace Tomahawk
 			{
 				return Resource;
 			}
-			const std::string& Scriptable::GetName()
+			const std::string& Scriptable::GetModuleName()
 			{
 				return Module;
 			}

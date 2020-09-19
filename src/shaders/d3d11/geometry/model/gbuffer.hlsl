@@ -39,6 +39,6 @@ GBuffer PS(VertexResult V)
 	float3 Normal = V.Normal;
 	[branch] if (HasNormal > 0)
         Normal = GetNormal(TexCoord, V.Normal, V.Tangent, V.Bitangent);
-
+    
     return Compose(TexCoord, Color, Normal, V.UV.z / V.UV.w, MaterialId);
 };

@@ -1263,8 +1263,7 @@ namespace Tomahawk
 		}
 		bool Ray::IntersectsAABBAt(const Vector3& Min, const Vector3& Max) const
 		{
-			Vector3 HitPoint;
-			float T;
+			Vector3 HitPoint; float T;
 			if (Origin > Min && Origin < Max)
 				return true;
 
@@ -1331,21 +1330,72 @@ namespace Tomahawk
 
 			return IntersectsAABBAt(Min, Max);
 		}
-		bool Ray::IntersectsOBB(const Matrix4x4& World)
+		bool Ray::IntersectsOBB(const Matrix4x4& World) const
 		{
 			Matrix4x4 Offset = World.Invert();
-			Vector4 OldOrigin = Vector4(Origin.X, Origin.Y, Origin.Z, 1.0);
-			Vector4 OldDirection = Vector4(Direction.X, Direction.Y, Direction.Z, 0.0);
+			Vector3 Min = -1.0f, Max = 1.0f;
+			Vector3 O = (Vector4(Origin.X, Origin.Y, Origin.Z, 1.0f)  * Offset).XYZ();
+			if (O > Min && O < Max)
+				return true;
 
-			Origin = (OldOrigin * Offset).XYZ();
-			Direction = (OldDirection * Offset).NormalizeSafe().XYZ();
-			
-			bool Result = IntersectsAABB(0, 1);
+			Vector3 D = (Direction.XYZW() * Offset).NormalizeSafe().XYZ();
+			Vector3 HitPoint; float T;
 
-			Origin = OldOrigin.XYZ();
-			Direction = OldDirection.XYZ();
+			if (O.X <= Min.X && D.X > 0)
+			{
+				T = (Min.X - O.X) / D.X;
+				HitPoint = O + D * T;
 
-			return Result;
+				if (HitPoint.Y >= Min.Y && HitPoint.Y <= Max.Y && HitPoint.Z >= Min.Z && HitPoint.Z <= Max.Z)
+					return true;
+			}
+
+			if (O.X >= Max.X && D.X < 0)
+			{
+				T = (Max.X - O.X) / D.X;
+				HitPoint = O + D * T;
+
+				if (HitPoint.Y >= Min.Y && HitPoint.Y <= Max.Y && HitPoint.Z >= Min.Z && HitPoint.Z <= Max.Z)
+					return true;
+			}
+
+			if (O.Y <= Min.Y && D.Y > 0)
+			{
+				T = (Min.Y - O.Y) / D.Y;
+				HitPoint = O + D * T;
+
+				if (HitPoint.X >= Min.X && HitPoint.X <= Max.X && HitPoint.Z >= Min.Z && HitPoint.Z <= Max.Z)
+					return true;
+			}
+
+			if (O.Y >= Max.Y && D.Y < 0)
+			{
+				T = (Max.Y - O.Y) / D.Y;
+				HitPoint = O + D * T;
+
+				if (HitPoint.X >= Min.X && HitPoint.X <= Max.X && HitPoint.Z >= Min.Z && HitPoint.Z <= Max.Z)
+					return true;
+			}
+
+			if (O.Z <= Min.Z && D.Z > 0)
+			{
+				T = (Min.Z - O.Z) / D.Z;
+				HitPoint = O + D * T;
+
+				if (HitPoint.X >= Min.X && HitPoint.X <= Max.X && HitPoint.Y >= Min.Y && HitPoint.Y <= Max.Y)
+					return true;
+			}
+
+			if (O.Z >= Max.Z && D.Z < 0)
+			{
+				T = (Max.Z - O.Z) / D.Z;
+				HitPoint = O + D * T;
+
+				if (HitPoint.X >= Min.X && HitPoint.X <= Max.X && HitPoint.Y >= Min.Y && HitPoint.Y <= Max.Y)
+					return true;
+			}
+
+			return false;
 		}
 
 		Matrix4x4::Matrix4x4()
@@ -4358,9 +4408,13 @@ namespace Tomahawk
 		{
 			return Cursor.IntersectsAABB(Position.InvertZ(), Scale);
 		}
-		bool MathCommon::CursorRayTest(Ray& Cursor, const Matrix4x4& World)
+		bool MathCommon::CursorRayTest(const Ray& Cursor, const Matrix4x4& World)
 		{
 			return Cursor.IntersectsOBB(World);
+		}
+		uint64_t MathCommon::CRC32(const std::string& Data)
+		{
+			return Rest::OS::CheckSum(Data);
 		}
 
 		Preprocessor::Preprocessor() : Nested(false)

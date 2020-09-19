@@ -1,8 +1,13 @@
 #include "workflow/pass"
 
-float RayEdgeSample(in float2 TexCoord)
+float RayEdge(in float2 TexCoord)
 {
     float2 Coord = smoothstep(0.2, 0.6, abs(float2(0.5, 0.5) - TexCoord));
+    return clamp(1.0 - (Coord.x + Coord.y), 0.0, 1.0);
+}
+float RayEdgeRange(in float2 TexCoord, float Min, float Max)
+{
+    float2 Coord = smoothstep(Min, Max, abs(float2(0.5, 0.5) - TexCoord));
     return clamp(1.0 - (Coord.x + Coord.y), 0.0, 1.0);
 }
 bool RayMarch(float3 Position, inout float3 Direction, in float Iterations, out float3 HitCoord)

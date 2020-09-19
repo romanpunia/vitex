@@ -24,9 +24,8 @@ cbuffer RenderConstant : register(b3)
     float Padding;
 }
 
-float3 GetToneMapping(float3 Pixel)
+float3 GetToneMapping(float3 Color)
 {
-	float3 Color = Pixel / (Pixel + LinearIntensity) * GammaIntensity;
 	return float3(dot(Color, BlindVisionR.xyz), dot(Color, BlindVisionG.xyz), dot(Color, BlindVisionB.xyz)) * ColorGamma;
 }
 float3 GetAcesFilm(float3 Color)
@@ -49,11 +48,13 @@ float3 GetDesaturation(float3 Pixel)
 float4 PS(VertexResult V) : SV_TARGET0
 {
 	float3 Color = GetDiffuse(V.TexCoord.xy).xyz;
+    Color = pow(abs(Color), 1.0 / GammaIntensity) * LinearIntensity + Color * (1.0 - LinearIntensity);
+    
 	float Vignette = saturate(distance((V.TexCoord.xy + 0.5) / VignetteRadius - 0.5, -float2(0.5, 0.5)));
 	Color = lerp(Color, VignetteColor.xyz, pow(Vignette, VignetteCurve) * VignetteAmount);
     Color = GetToneMapping(Color) * ToneIntensity + Color * (1.0 - ToneIntensity);
     Color = GetAcesFilm(Color) * AcesIntensity + Color * (1.0 - AcesIntensity);
     Color = GetDesaturation(Color);
-   
+
 	return float4(Color, 1);
 };

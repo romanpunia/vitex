@@ -4,7 +4,7 @@
 
 cbuffer RenderConstant : register(b3)
 {
-	float IterationCount;
+	float Samples;
 	float MipLevels;
 	float Intensity;
 	float Padding;
@@ -21,7 +21,7 @@ float4 PS(VertexResult V) : SV_TARGET0
 	float3 D = reflect(E, Frag.Normal);
     float3 HitCoord;
 
-    [branch] if (!RayMarch(Frag.Position, D, IterationCount, HitCoord))
+    [branch] if (!RayMarch(Frag.Position, D, Samples, HitCoord))
         return float4(0.0, 0.0, 0.0, 1.0);
 
     float T = GetRoughnessLevel(Frag, Mat, 1.0);
@@ -30,7 +30,7 @@ float4 PS(VertexResult V) : SV_TARGET0
     float3 C = GetReflection(E, normalize(D), Frag.Normal, M, R);
     float3 L = GetDiffuseLevel(HitCoord.xy, T * MipLevels).xyz * Intensity;
     float P = length(GetPosition(HitCoord.xy, HitCoord.z) - Frag.Position) * T;
-    float A = RayEdgeSample(HitCoord.xy) / (1.0 + 6.0 * P * P);
+    float A = RayEdge(HitCoord.xy) / (1.0 + 6.0 * P * P);
     
 	return float4(L * C * A, 1.0);
 };

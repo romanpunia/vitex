@@ -33,7 +33,7 @@ float3 GetAtmosphere(in float3 V, in float3 O, in float3 P, in Scatter A)
         return float3(0, 0, 0);
 
     Offset.y = min(Offset.y, GetRSI(O, V, A.Planet).x);
-    float StepSize = (Offset.y - Offset.x) / float(16);
+    float StepSize = (Offset.y - Offset.x) / float(10);
     float Time = 0.0;
     float3 TotalRlh = float3(0,0,0);
     float3 TotalMie = float3(0,0,0);
@@ -42,10 +42,10 @@ float3 GetAtmosphere(in float3 V, in float3 O, in float3 P, in Scatter A)
     float MU = dot(V, P);
     float MU2 = MU * MU;
     float MieG2 = A.MieG * A.MieG;
-    float ResRlh = 3.0 / (16.0 * 3.141592) * (1.0 + MU2);
-    float ResMie = 3.0 / (8.0 * 3.141592) * ((1.0 - MieG2) * (MU2 + 1.0)) / (pow(abs(1.0 + MieG2 - 2.0 * MU * A.MieG), 1.5) * (2.0 + MieG2));
+    float ResRlh = 3.0 / (10 * 3.141592) * (1.0 + MU2);
+    float ResMie = 3.0 / (8 * 3.141592) * ((1.0 - MieG2) * (MU2 + 1.0)) / (pow(abs(1.0 + MieG2 - 2.0 * MU * A.MieG), 1.5) * (2.0 + MieG2));
 
-    for (int i = 0; i < 16; i++)
+    for (int i = 0; i < 10; i++)
     {
         float3 Next = O + V * (Time + StepSize * 0.5);
         float Height = length(Next) - A.Planet;

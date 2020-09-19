@@ -1,72 +1,60 @@
 #include "standard/space-sv"
-#include "standard/cook-torrance"
 #include "standard/random-float"
-#include "standard/ray-march"
+#include "standard/cook-torrance"
 
 cbuffer RenderConstant : register(b3)
 {
-	float Scale;
+	float Samples;
 	float Intensity;
+	float Scale;
 	float Bias;
 	float Radius;
-	float Step;
-	float Offset;
 	float Distance;
-	float Fading;
-	float Power;
-	float IterationCount;
-	float Threshold;
-	float Padding;
+	float Fade;
+    float Padding;
+}
+
+float3 GetFactor(in float2 TexCoord, in float3 Position, in float3 Normal, in float Power, in float R, in float3 M, in float3 P) 
+{
+    float3 D = GetPosition(TexCoord, GetDepth(TexCoord)) - Position;
+    float3 V = normalize(D), O;
+    float3 E = GetLight(P, V, Normal, M, R, O);
+    float T = length(D) * Scale;
+
+    T = max(0.0, dot(Normal, V) - Bias) * (1.0 / (1.0 + T)) * Power;
+    return GetDiffuseLevel(TexCoord, 0).xyz * (E + O) * T;
 }
 
 float4 PS(VertexResult V) : SV_TARGET0
 {
+    const float2 Disk[4] = { float2(1, 0), float2(-1, 0), float2(0, 1), float2(0, -1) };
 	float2 TexCoord = GetTexCoord(V.TexCoord);
 	Fragment Frag = GetFragment(TexCoord);
 
     [branch] if (Frag.Depth >= 1.0)
         return float4(0.0, 0.0, 0.0, 0.0);
 
-	Material Mat = GetMaterial(Frag.Material);
-    float Z = GetOcclusionFactor(Frag, Mat);
-    Bounce Ray = GetBounce(Scale, Intensity, Bias, Power * Z, Threshold);
-    float T = GetRoughnessLevel(Frag, Mat, 1.0);
-	float F = saturate(pow(abs(distance(ViewPosition, Frag.Position) / Distance), Fading));
-	float O = T * (Radius + Mat.Radius);
-    float3 C = Frag.Diffuse;
-    float Count = 0.0;
-
-	[loop] for (float x = -IterationCount; x < IterationCount; x++)
-	{
-		[loop] for (float y = -IterationCount; y < IterationCount; y++)
-		{
-			float2 R = RandomFloat2(TexCoord) * Step - float2(y, x) * Offset;
-			float2 H = reflect(R, float2(x, y)) * O;
-            float3 F1 = float3(TexCoord + H, 0);
-            float3 F2 = float3(TexCoord - H, 0);
-
-            [branch] if (RayBounce(Frag, Ray, F1.xy, F1.z))
-            {
-                C += GetDiffuse(F1.xy).xyz * min(1.0, F1.z);
-                Count++;
-            }
-
-            [branch] if (RayBounce(Frag, Ray, F2.xy, F2.z))
-            {
-                C += GetDiffuse(F2.xy).xyz * min(1.0, F2.z);
-                Count++;
-            }
-		}
-	}
-
-    [branch] if (Count <= 0.0)
-        return float4(0.0, 0.0, 0.0, 0.0);
-
+    Material Mat = GetMaterial(Frag.Material);
+    float2 Random = RandomFloat2(TexCoord);
+	float Vision = saturate(pow(abs(distance(ViewPosition, Frag.Position) / Distance), Fade));
+    float Power = Intensity * GetOcclusionFactor(Frag, Mat);
+    float Size = Radius + Mat.Radius;
     float R = GetRoughnessFactor(Frag, Mat);
 	float3 M = GetMetallicFactor(Frag, Mat);
-	float3 E = normalize(Frag.Position - ViewPosition);
-	float3 D = normalize(reflect(E, Frag.Normal)), O;
-    float3 G = GetLight(E, D, Frag.Normal, M, R, O);
+	float3 P = normalize(ViewPosition - Frag.Position);
+    float3 Factor = 0.0;
+    
+    [loop] for (int j = 0; j < Samples; ++j) 
+    {
+        float2 C1 = reflect(Disk[j], Random) * Size; 
+        float2 C2 = float2(C1.x * 0.707 - C1.y * 0.707, C1.x * 0.707 + C1.y * 0.707); 
 
-    return float4(saturate((G + O) * T * C * F / (Count + 1)), 1);
+        Factor += GetFactor(TexCoord + C1 * 0.25, Frag.Position, Frag.Normal, Power, R, M, P); 
+        Factor += GetFactor(TexCoord + C2 * 0.5, Frag.Position, Frag.Normal, Power, R, M, P);
+        Factor += GetFactor(TexCoord + C1 * 0.75, Frag.Position, Frag.Normal, Power, R, M, P);
+        Factor += GetFactor(TexCoord + C2, Frag.Position, Frag.Normal, Power, R, M, P);
+    }
+
+    Factor /= Samples * Samples; 
+    return float4(Factor * Vision, 1.0);
 };

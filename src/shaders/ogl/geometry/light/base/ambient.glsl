@@ -46,7 +46,7 @@ float4 PS(AmbientVertexResult V) : SV_TARGET0
 	float4 Light = GetSample(LightMap, V.TexCoord.xy) * LightEmission;
 
     [branch] if (Frag.Depth >= 1.0)
-        return float4(Light.xyz * SkyColor * (1.0 - SkyEmission) + SkyMap.Sample(Sampler, V.View.xyz).xyz * SkyEmission, 1.0);
+        return float4(Frag.Diffuse + Light.xyz * SkyColor * (1.0 - SkyEmission) + SkyMap.Sample(Sampler, V.View.xyz).xyz * SkyEmission, 1.0);
 
     Material Mat = GetMaterial(Frag.Material);
     float3 Emission = GetEmissionFactor(Frag, Mat);

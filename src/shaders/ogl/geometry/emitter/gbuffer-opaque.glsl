@@ -35,7 +35,7 @@ VertexResultOPQ VS(VertexBase V)
     Result.Normal = float3(0, 0, 1);
     Result.Tangent = float3(1, 0, 0);
     Result.Bitangent = float3(0, -1, 0);
-    
+
 	return Result;
 }
 

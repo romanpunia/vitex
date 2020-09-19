@@ -1697,8 +1697,11 @@ namespace Tomahawk
 				if (System->GetDevice()->GetSection("pass/reflection", &Data))
 					Pass1 = CompileEffect("rr-reflection", Data, sizeof(RenderPass1));
 
-				if (System->GetDevice()->GetSection("pass/gloss", &Data))
-					Pass2 = CompileEffect("rr-gloss", Data, sizeof(RenderPass2));
+				if (System->GetDevice()->GetSection("pass/gloss-x", &Data))
+					Pass2 = CompileEffect("rr-gloss-x", Data, sizeof(RenderPass2));
+
+				if (System->GetDevice()->GetSection("pass/gloss-y", &Data))
+					Pass3 = CompileEffect("rr-gloss-y", Data, sizeof(RenderPass2));
 			}
 			void ReflectionsRenderer::Deserialize(ContentManager* Content, Rest::Document* Node)
 			{
@@ -1725,7 +1728,8 @@ namespace Tomahawk
 				RenderPass2.Texel[1] = 1.0f / Output->GetHeight();
 				
 				RenderMerge(Pass1, &RenderPass1);
-				RenderResult(Pass2, &RenderPass2);
+				RenderMerge(Pass2, &RenderPass2);
+				RenderResult(Pass3, &RenderPass2);
 			}
 
 			DepthOfFieldRenderer::DepthOfFieldRenderer(RenderSystem* Lab) : EffectRenderer(Lab)
@@ -1742,7 +1746,6 @@ namespace Tomahawk
 				NMake::Unpack(Node->Find("radius"), &RenderPass.Radius);
 				NMake::Unpack(Node->Find("bokeh"), &RenderPass.Bokeh);
 				NMake::Unpack(Node->Find("scale"), &RenderPass.Scale);
-				NMake::Unpack(Node->Find("focal-depth"), &RenderPass.FocalDepth);
 				NMake::Unpack(Node->Find("near-distance"), &RenderPass.NearDistance);
 				NMake::Unpack(Node->Find("near-range"), &RenderPass.NearRange);
 				NMake::Unpack(Node->Find("far-distance"), &RenderPass.FarDistance);
@@ -1756,7 +1759,6 @@ namespace Tomahawk
 				NMake::Pack(Node->SetDocument("radius"), RenderPass.Radius);
 				NMake::Pack(Node->SetDocument("bokeh"), RenderPass.Bokeh);
 				NMake::Pack(Node->SetDocument("scale"), RenderPass.Scale);
-				NMake::Pack(Node->SetDocument("focal-depth"), RenderPass.FocalDepth);
 				NMake::Pack(Node->SetDocument("near-distance"), RenderPass.NearDistance);
 				NMake::Pack(Node->SetDocument("near-range"), RenderPass.NearRange);
 				NMake::Pack(Node->SetDocument("far-distance"), RenderPass.FarDistance);
@@ -1831,8 +1833,11 @@ namespace Tomahawk
 			EmissionRenderer::EmissionRenderer(RenderSystem* Lab) : EffectRenderer(Lab)
 			{
 				std::string Data;
-				if (System->GetDevice()->GetSection("pass/bloom", &Data))
-					CompileEffect("br-bloom", Data, sizeof(RenderPass));
+				if (System->GetDevice()->GetSection("pass/bloom-x", &Data))
+					Pass1 = CompileEffect("br-bloom-x", Data, sizeof(RenderPass));
+
+				if (System->GetDevice()->GetSection("pass/bloom-y", &Data))
+					Pass2 = CompileEffect("br-bloom-y", Data, sizeof(RenderPass));
 			}
 			void EmissionRenderer::Deserialize(ContentManager* Content, Rest::Document* Node)
 			{
@@ -1852,7 +1857,8 @@ namespace Tomahawk
 			{
 				RenderPass.Texel[0] = 1.0f / Output->GetWidth();
 				RenderPass.Texel[1] = 1.0f / Output->GetHeight();
-				RenderResult(nullptr, &RenderPass);
+				RenderMerge(Pass1, &RenderPass);
+				RenderResult(Pass2, &RenderPass);
 			}
 			
 			GlitchRenderer::GlitchRenderer(RenderSystem* Lab) : EffectRenderer(Lab), ScanLineJitter(0), VerticalJump(0), HorizontalShake(0), ColorDrift(0)
@@ -1913,8 +1919,11 @@ namespace Tomahawk
 				if (System->GetDevice()->GetSection("pass/ambient", &Data))
 					Pass1 = CompileEffect("aor-ambient", Data, sizeof(RenderPass1));
 
-				if (System->GetDevice()->GetSection("pass/blur", &Data))
-					Pass2 = CompileEffect("aor-blur", Data, sizeof(RenderPass2));
+				if (System->GetDevice()->GetSection("pass/blur-x", &Data))
+					Pass2 = CompileEffect("aor-blur-x", Data, sizeof(RenderPass2));
+
+				if (System->GetDevice()->GetSection("pass/blur-y", &Data))
+					Pass3 = CompileEffect("aor-blur-y", Data, sizeof(RenderPass2));
 			}
 			void AmbientOcclusionRenderer::Deserialize(ContentManager* Content, Rest::Document* Node)
 			{
@@ -1950,7 +1959,8 @@ namespace Tomahawk
 				RenderPass2.Texel[1] = 1.0f / Output->GetHeight();
 
 				RenderMerge(Pass1, &RenderPass1);
-				RenderResult(Pass2, &RenderPass2);
+				RenderMerge(Pass2, &RenderPass2);
+				RenderResult(Pass3, &RenderPass2);
 			}
 
 			DirectOcclusionRenderer::DirectOcclusionRenderer(RenderSystem* Lab) : EffectRenderer(Lab), Pass1(nullptr), Pass2(nullptr)
@@ -1959,8 +1969,11 @@ namespace Tomahawk
 				if (System->GetDevice()->GetSection("pass/indirect", &Data))
 					Pass1 = CompileEffect("dor-indirect", Data, sizeof(RenderPass1));
 
-				if (System->GetDevice()->GetSection("pass/blur", &Data))
-					Pass2 = CompileEffect("dor-blur", Data, sizeof(RenderPass2));
+				if (System->GetDevice()->GetSection("pass/blur-x", &Data))
+					Pass2 = CompileEffect("dor-blur-x", Data, sizeof(RenderPass2));
+
+				if (System->GetDevice()->GetSection("pass/blur-y", &Data))
+					Pass3 = CompileEffect("dor-blur-y", Data, sizeof(RenderPass2));
 			}
 			void DirectOcclusionRenderer::Deserialize(ContentManager* Content, Rest::Document* Node)
 			{
@@ -1996,7 +2009,8 @@ namespace Tomahawk
 				RenderPass2.Texel[1] = 1.0f / Output->GetHeight();
 
 				RenderMerge(Pass1, &RenderPass1);
-				RenderResult(Pass2, &RenderPass2);
+				RenderMerge(Pass2, &RenderPass2);
+				RenderResult(Pass3, &RenderPass2);
 			}
 			
 			ToneRenderer::ToneRenderer(RenderSystem* Lab) : EffectRenderer(Lab)

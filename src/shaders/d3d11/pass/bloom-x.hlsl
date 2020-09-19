@@ -13,18 +13,13 @@ cbuffer RenderConstant : register(b3)
 
 float4 PS(VertexResult V) : SV_TARGET0
 {
-    float3 Diffuse = GetDiffuse(V.TexCoord.xy).xyz;
     float3 B = float3(0, 0, 0);
-
 	[loop] for (int x = -Samples; x < Samples; x++)
 	{
-		[loop] for (int y = -Samples; y < Samples; y++)
-		{
-			float2 Offset = float2(x, y) * Texel * Scale;
-			B += saturate(GetDiffuse(V.TexCoord.xy + Offset).xyz - Threshold);
-		}
+        float2 Offset = float2(x, 0) * Texel * Scale;
+        B += saturate(GetDiffuseLevel(V.TexCoord.xy + Offset, 0).xyz - Threshold);
 	}
 
-    B /= 4 * Samples * Samples;
-	return float4(Diffuse + B * Intensity, 1.0);
+    B /= 2 * Samples;
+	return float4(B * Intensity, 1.0);
 };

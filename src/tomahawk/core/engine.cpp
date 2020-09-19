@@ -2317,6 +2317,9 @@ namespace Tomahawk
 
 			delete Output;
 			Output = System->GetDevice()->CreateRenderTarget2D(I);
+
+			delete Pass;
+			Pass = nullptr;
 		}
 		Graphics::Shader* EffectRenderer::GetEffect(const std::string& Name)
 		{

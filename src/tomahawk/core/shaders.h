@@ -165,25 +165,39 @@ namespace resource_batch
 		const unsigned size = 1816;
 	}
 
-	namespace d3d11_pass_bloom_hlsl
+	namespace d3d11_pass_bloom_x_hlsl
 	{
-#define HAS_D3D11_PASS_BLOOM_HLSL
+#define HAS_D3D11_PASS_BLOOM_X_HLSL
 		extern const unsigned char data[];
-		const unsigned size = 677;
+		const unsigned size = 559;
 	}
 
-	namespace d3d11_pass_blur_hlsl
+	namespace d3d11_pass_bloom_y_hlsl
 	{
-#define HAS_D3D11_PASS_BLUR_HLSL
+#define HAS_D3D11_PASS_BLOOM_Y_HLSL
 		extern const unsigned char data[];
-		const unsigned size = 709;
+		const unsigned size = 641;
+	}
+
+	namespace d3d11_pass_blur_x_hlsl
+	{
+#define HAS_D3D11_PASS_BLUR_X_HLSL
+		extern const unsigned char data[];
+		const unsigned size = 540;
+	}
+
+	namespace d3d11_pass_blur_y_hlsl
+	{
+#define HAS_D3D11_PASS_BLUR_Y_HLSL
+		extern const unsigned char data[];
+		const unsigned size = 646;
 	}
 
 	namespace d3d11_pass_focus_hlsl
 	{
 #define HAS_D3D11_PASS_FOCUS_HLSL
 		extern const unsigned char data[];
-		const unsigned size = 2235;
+		const unsigned size = 2315;
 	}
 
 	namespace d3d11_pass_glitch_hlsl
@@ -193,11 +207,18 @@ namespace resource_batch
 		const unsigned size = 978;
 	}
 
-	namespace d3d11_pass_gloss_hlsl
+	namespace d3d11_pass_gloss_x_hlsl
 	{
-#define HAS_D3D11_PASS_GLOSS_HLSL
+#define HAS_D3D11_PASS_GLOSS_X_HLSL
 		extern const unsigned char data[];
-		const unsigned size = 1034;
+		const unsigned size = 843;
+	}
+
+	namespace d3d11_pass_gloss_y_hlsl
+	{
+#define HAS_D3D11_PASS_GLOSS_Y_HLSL
+		extern const unsigned char data[];
+		const unsigned size = 891;
 	}
 
 	namespace d3d11_pass_gui_hlsl
@@ -232,7 +253,7 @@ namespace resource_batch
 	{
 #define HAS_D3D11_PASS_TONE_HLSL
 		extern const unsigned char data[];
-		const unsigned size = 1866;
+		const unsigned size = 1904;
 	}
 
 	namespace d3d11_renderer_buffer_animation_hlsl

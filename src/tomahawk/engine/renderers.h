@@ -456,6 +456,7 @@ namespace Tomahawk
 			private:
 				Graphics::Shader* Pass1;
 				Graphics::Shader* Pass2;
+				Graphics::Shader* Pass3;
 
 			public:
 				struct RenderConstant1
@@ -503,12 +504,11 @@ namespace Tomahawk
 					float Radius = 1.0f;
 					float Bokeh = 8.0f;
 					float Scale = 1.0f;
-					float FocalDepth = 1.0f;
 					float NearDistance = 0.0f;
 					float NearRange = 0.0f;
 					float FarDistance = 32.0f;
 					float FarRange = 2.0f;
-					float Padding[2] = { 0.0f };
+					float Padding[3] = { 0.0f };
 				} RenderPass;
 
 			public:
@@ -530,6 +530,10 @@ namespace Tomahawk
 
 			class THAWK_OUT EmissionRenderer : public EffectRenderer
 			{
+			private:
+				Graphics::Shader* Pass1;
+				Graphics::Shader* Pass2;
+
 			public:
 				struct RenderConstant
 				{
@@ -590,6 +594,7 @@ namespace Tomahawk
 			private:
 				Graphics::Shader* Pass1;
 				Graphics::Shader* Pass2;
+				Graphics::Shader* Pass3;
 
 			public:
 				struct RenderConstant1
@@ -630,6 +635,7 @@ namespace Tomahawk
 			private:
 				Graphics::Shader* Pass1;
 				Graphics::Shader* Pass2;
+				Graphics::Shader* Pass3;
 
 			public:
 				struct RenderConstant1
@@ -677,14 +683,14 @@ namespace Tomahawk
 					Compute::Vector3 BlindVisionB = Compute::Vector3(0, 0, 1);
 					float VignetteRadius = 1.0f;
 					Compute::Vector3 VignetteColor;
-					float LinearIntensity = 3.0f;
+					float LinearIntensity = 0.0f;
 					Compute::Vector3 ColorGamma = Compute::Vector3(1, 1, 1);
-					float GammaIntensity = 2.0f;
+					float GammaIntensity = 2.2f;
 					Compute::Vector3 DesaturationGamma = Compute::Vector3(0.3f, 0.59f, 0.11f);
 					float DesaturationIntensity = 0.0f;
 					float ToneIntensity = 1.0f;
 					float AcesIntensity = 1.0f;
-					float AcesA = 2.51f;
+					float AcesA = 3.01f;
 					float AcesB = 0.03f;
 					float AcesC = 2.43f;
 					float AcesD = 0.59f;

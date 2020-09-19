@@ -1061,15 +1061,25 @@ namespace Tomahawk
 #else
 				THAWK_ERROR("pass/ambient.hlsl was not compiled");
 #endif
-#ifdef HAS_D3D11_PASS_BLOOM_HLSL
-				AddSection("pass/bloom.hlsl", GET_RESOURCE_BATCH(d3d11_pass_bloom_hlsl));
+#ifdef HAS_D3D11_PASS_BLOOM_X_HLSL
+				AddSection("pass/bloom-x.hlsl", GET_RESOURCE_BATCH(d3d11_pass_bloom_x_hlsl));
 #else
-				THAWK_ERROR("pass/bloom.hlsl was not compiled");
+				THAWK_ERROR("pass/bloom-x.hlsl was not compiled");
 #endif
-#ifdef HAS_D3D11_PASS_BLUR_HLSL
-				AddSection("pass/blur.hlsl", GET_RESOURCE_BATCH(d3d11_pass_blur_hlsl));
+#ifdef HAS_D3D11_PASS_BLOOM_Y_HLSL
+				AddSection("pass/bloom-y.hlsl", GET_RESOURCE_BATCH(d3d11_pass_bloom_y_hlsl));
 #else
-				THAWK_ERROR("pass/blur.hlsl was not compiled");
+				THAWK_ERROR("pass/bloom-y.hlsl was not compiled");
+#endif
+#ifdef HAS_D3D11_PASS_BLUR_X_HLSL
+				AddSection("pass/blur-x.hlsl", GET_RESOURCE_BATCH(d3d11_pass_blur_x_hlsl));
+#else
+				THAWK_ERROR("pass/blur-x.hlsl was not compiled");
+#endif
+#ifdef HAS_D3D11_PASS_BLUR_Y_HLSL
+				AddSection("pass/blur-y.hlsl", GET_RESOURCE_BATCH(d3d11_pass_blur_y_hlsl));
+#else
+				THAWK_ERROR("pass/blur-y.hlsl was not compiled");
 #endif
 #ifdef HAS_D3D11_PASS_FOCUS_HLSL
 				AddSection("pass/focus.hlsl", GET_RESOURCE_BATCH(d3d11_pass_focus_hlsl));
@@ -1091,10 +1101,15 @@ namespace Tomahawk
 #else
 				THAWK_ERROR("pass/indirect.hlsl was not compiled");
 #endif
-#ifdef HAS_D3D11_PASS_GLOSS_HLSL
-				AddSection("pass/gloss.hlsl", GET_RESOURCE_BATCH(d3d11_pass_gloss_hlsl));
+#ifdef HAS_D3D11_PASS_GLOSS_X_HLSL
+				AddSection("pass/gloss-x.hlsl", GET_RESOURCE_BATCH(d3d11_pass_gloss_x_hlsl));
 #else
-				THAWK_ERROR("pass/gloss.hlsl was not compiled");
+				THAWK_ERROR("pass/gloss-x.hlsl was not compiled");
+#endif
+#ifdef HAS_D3D11_PASS_GLOSS_Y_HLSL
+				AddSection("pass/gloss-y.hlsl", GET_RESOURCE_BATCH(d3d11_pass_gloss_y_hlsl));
+#else
+				THAWK_ERROR("pass/gloss-y.hlsl was not compiled");
 #endif
 #ifdef HAS_D3D11_PASS_REFLECTION_HLSL
 				AddSection("pass/reflection.hlsl", GET_RESOURCE_BATCH(d3d11_pass_reflection_hlsl));
@@ -1379,15 +1394,25 @@ namespace Tomahawk
 #else
 			THAWK_ERROR("pass/ambient.glsl was not compiled");
 #endif
-#ifdef HAS_OGL_PASS_BLOOM_GLSL
-			AddSection("pass/bloom.glsl", GET_RESOURCE_BATCH(ogl_pass_bloom_glsl));
+#ifdef HAS_OGL_PASS_BLOOM_X_GLSL
+			AddSection("pass/bloom-x.glsl", GET_RESOURCE_BATCH(ogl_pass_bloom_x_glsl));
 #else
-			THAWK_ERROR("pass/bloom.glsl was not compiled");
+			THAWK_ERROR("pass/bloom-x.glsl was not compiled");
 #endif
-#ifdef HAS_OGL_PASS_BLUR_GLSL
-			AddSection("pass/blur.glsl", GET_RESOURCE_BATCH(ogl_pass_blur_glsl));
+#ifdef HAS_OGL_PASS_BLOOM_Y_GLSL
+			AddSection("pass/bloom-y.glsl", GET_RESOURCE_BATCH(ogl_pass_bloom_y_glsl));
 #else
-			THAWK_ERROR("pass/blur.glsl was not compiled");
+			THAWK_ERROR("pass/bloom-y.glsl was not compiled");
+#endif
+#ifdef HAS_OGL_PASS_BLUR_X_GLSL
+			AddSection("pass/blur-x.glsl", GET_RESOURCE_BATCH(ogl_pass_blur_x_glsl));
+#else
+			THAWK_ERROR("pass/blur-x.glsl was not compiled");
+#endif
+#ifdef HAS_OGL_PASS_BLUR_Y_GLSL
+			AddSection("pass/blur-y.glsl", GET_RESOURCE_BATCH(ogl_pass_blur_y_glsl));
+#else
+			THAWK_ERROR("pass/blur-y.glsl was not compiled");
 #endif
 #ifdef HAS_OGL_PASS_FOCUS_GLSL
 			AddSection("pass/focus.glsl", GET_RESOURCE_BATCH(ogl_pass_focus_glsl));
@@ -1409,10 +1434,15 @@ namespace Tomahawk
 #else
 			THAWK_ERROR("pass/indirect.glsl was not compiled");
 #endif
-#ifdef HAS_OGL_PASS_GLOSS_GLSL
-			AddSection("pass/gloss.glsl", GET_RESOURCE_BATCH(ogl_pass_gloss_glsl));
+#ifdef HAS_OGL_PASS_GLOSS_X_GLSL
+			AddSection("pass/gloss-x.glsl", GET_RESOURCE_BATCH(ogl_pass_gloss_x_glsl));
 #else
-			THAWK_ERROR("pass/gloss.glsl was not compiled");
+			THAWK_ERROR("pass/gloss-x.glsl was not compiled");
+#endif
+#ifdef HAS_OGL_PASS_GLOSS_Y_GLSL
+			AddSection("pass/gloss-y.glsl", GET_RESOURCE_BATCH(ogl_pass_gloss_y_glsl));
+#else
+			THAWK_ERROR("pass/gloss-y.glsl was not compiled");
 #endif
 #ifdef HAS_OGL_PASS_REFLECTION_GLSL
 			AddSection("pass/reflection.glsl", GET_RESOURCE_BATCH(ogl_pass_reflection_glsl));

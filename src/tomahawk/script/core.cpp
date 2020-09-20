@@ -604,6 +604,12 @@ namespace Tomahawk
 		{
 			return str.empty();
 		}
+		static std::string StringReverse(const std::string& Value)
+		{
+			Rest::Stroke Result(Value);
+			Result.Reverse();
+			return Result.R();
+		}
 		static std::string &AssignUInt64ToString(as_uint64_t i, std::string &dest)
 		{
 			std::ostringstream stream;
@@ -4326,10 +4332,16 @@ namespace Tomahawk
 		int VMCThread::ContextUD = 550;
 		int VMCThread::EngineListUD = 551;
 
-		VMCAsync::VMCAsync(VMCContext* Base) : Context(Base), Any(nullptr), Rejected(false), Ref(1), GCFlag(false)
+		VMCAsync::VMCAsync(VMCContext* Base) : Context(Base), Any(nullptr), Rejected(false), Ref(2), GCFlag(false)
 		{
 			if (Context != nullptr)
+			{
+				VMContext* Base = VMContext::Get(Context);
+				if (Base != nullptr)
+					Base->PushAsync();
+
 				Context->AddRef();
+			}
 		}
 		void VMCAsync::Release()
 		{
@@ -4400,9 +4412,10 @@ namespace Tomahawk
 			Any = Value;
 			Mutex.unlock();
 
-			if (Context->GetState() != asEXECUTION_SUSPENDED)
+			Finish();
+			if (Context->GetState() == asEXECUTION_ACTIVE)
 				return asEXECUTION_FINISHED;
-			
+
 			AsyncDoneCallback Callback = Done;
 			if (Callback)
 				Callback(VMContext::Get(Context));
@@ -4436,6 +4449,16 @@ namespace Tomahawk
 
 			return Any->Retrieve(Ref, TypeId);
 		}
+		void VMCAsync::Finish()
+		{
+			Mutex.lock();
+			VMContext* Base = VMContext::Get(Context);
+			if (Base != nullptr)
+				Base->PopAsync();
+
+			Mutex.unlock();
+			Release();
+		}
 		VMCAny* VMCAsync::Get() const
 		{
 			return Any;
@@ -4450,7 +4473,7 @@ namespace Tomahawk
 
 			return this;
 		}
-		VMCAsync* VMCAsync::Create(const AsyncWorkCallback& WorkCallback, const AsyncDoneCallback& DoneCallback)
+		VMCAsync* VMCAsync::Promise(const AsyncWorkCallback& WorkCallback, const AsyncDoneCallback& DoneCallback)
 		{
 			VMCContext* Context = asGetActiveContext();
 			if (!Context)
@@ -4469,7 +4492,7 @@ namespace Tomahawk
 
 			return Async;
 		}
-		VMCAsync* VMCAsync::CreatePending()
+		VMCAsync* VMCAsync::Promise()
 		{
 			VMCContext* Context = asGetActiveContext();
 			if (!Context)
@@ -4484,7 +4507,7 @@ namespace Tomahawk
 
 			return Async;
 		}
-		VMCAsync* VMCAsync::CreateFilled(void* Ref, int TypeId)
+		VMCAsync* VMCAsync::Fulfill(void* Ref, int TypeId)
 		{
 			VMCContext* Context = asGetActiveContext();
 			if (!Context)
@@ -4500,7 +4523,7 @@ namespace Tomahawk
 
 			return Async;
 		}
-		VMCAsync* VMCAsync::CreateFilled(void* Ref, const char* TypeName)
+		VMCAsync* VMCAsync::Fulfill(void* Ref, const char* TypeName)
 		{
 			VMCContext* Context = asGetActiveContext();
 			if (!Context)
@@ -4516,19 +4539,19 @@ namespace Tomahawk
 
 			return Async;
 		}
-		VMCAsync* VMCAsync::CreateFilled(bool Value)
+		VMCAsync* VMCAsync::Fulfill(bool Value)
 		{
-			return CreateFilled(&Value, VMTypeId_BOOL);
+			return Fulfill(&Value, VMTypeId_BOOL);
 		}
-		VMCAsync* VMCAsync::CreateFilled(int64_t Value)
+		VMCAsync* VMCAsync::Fulfill(int64_t Value)
 		{
-			return CreateFilled(&Value, VMTypeId_INT64);
+			return Fulfill(&Value, VMTypeId_INT64);
 		}
-		VMCAsync* VMCAsync::CreateFilled(double Value)
+		VMCAsync* VMCAsync::Fulfill(double Value)
 		{
-			return CreateFilled(&Value, VMTypeId_DOUBLE);
+			return Fulfill(&Value, VMTypeId_DOUBLE);
 		}
-		VMCAsync* VMCAsync::CreateEmpty()
+		VMCAsync* VMCAsync::Reject()
 		{
 			VMCContext* Context = asGetActiveContext();
 			if (!Context)
@@ -4887,8 +4910,9 @@ namespace Tomahawk
 			Engine->RegisterObjectMethod("String", "void Erase(uint pos, int count = -1)", asFUNCTION(StringErase), asCALL_CDECL_OBJLAST);
 			Engine->RegisterObjectMethod("String", "String Replace(const String &in, const String &in, uint64 o = 0)", asFUNCTION(StringReplace), asCALL_CDECL_OBJLAST);
 			Engine->RegisterObjectMethod("String", "Array<String>@ Split(const String &in) const", asFUNCTION(StringSplit), asCALL_CDECL_OBJLAST);
-			Engine->RegisterObjectMethod("String", "String ToLower()", asFUNCTION(StringToLower), asCALL_CDECL_OBJLAST);
-			Engine->RegisterObjectMethod("String", "String ToUpper()", asFUNCTION(StringToUpper), asCALL_CDECL_OBJLAST);
+			Engine->RegisterObjectMethod("String", "String ToLower() const", asFUNCTION(StringToLower), asCALL_CDECL_OBJLAST);
+			Engine->RegisterObjectMethod("String", "String ToUpper() const", asFUNCTION(StringToUpper), asCALL_CDECL_OBJLAST);
+			Engine->RegisterObjectMethod("String", "String Reverse() const", asFUNCTION(StringReverse), asCALL_CDECL_OBJLAST);
 			Engine->RegisterGlobalFunction("int64 ToInt(const String &in, uint base = 10, uint &out byteCount = 0)", asFUNCTION(StringToInt), asCALL_CDECL);
 			Engine->RegisterGlobalFunction("uint64 ToUInt(const String &in, uint base = 10, uint &out byteCount = 0)", asFUNCTION(StringToUInt), asCALL_CDECL);
 			Engine->RegisterGlobalFunction("double ToFloat(const String &in, uint &out byteCount = 0)", asFUNCTION(StringToFloat), asCALL_CDECL);
@@ -4972,7 +4996,7 @@ namespace Tomahawk
 				return false;
 
 			Engine->RegisterObjectType("Async", 0, asOBJ_REF | asOBJ_GC);
-			Engine->RegisterObjectBehaviour("Async", asBEHAVE_FACTORY, "Async@ f()", asFUNCTION(VMCAsync::CreatePending), asCALL_CDECL);
+			Engine->RegisterObjectBehaviour("Async", asBEHAVE_FACTORY, "Async@ f()", asFUNCTIONPR(VMCAsync::Promise, (), VMCAsync*), asCALL_CDECL);
 			Engine->RegisterObjectBehaviour("Async", asBEHAVE_ADDREF, "void f()", asMETHOD(VMCAsync, AddRef), asCALL_THISCALL);
 			Engine->RegisterObjectBehaviour("Async", asBEHAVE_RELEASE, "void f()", asMETHOD(VMCAsync, Release), asCALL_THISCALL);
 			Engine->RegisterObjectBehaviour("Async", asBEHAVE_SETGCFLAG, "void f()", asMETHOD(VMCAsync, SetGCFlag), asCALL_THISCALL);

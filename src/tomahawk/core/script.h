@@ -1612,7 +1612,8 @@ namespace Tomahawk
 			void SetPragmaCallback(const Compute::ProcPragmaCallback& Callback);
 			void Define(const std::string& Word);
 			void Undefine(const std::string& Word);
-			void Clear();
+			bool Clear();
+			bool IsPending();
 			bool IsDefined(const std::string& Word);
 			bool IsBuilt();
 			bool IsCached();
@@ -1646,6 +1647,7 @@ namespace Tomahawk
 			static int ContextUD;
 
 		private:
+			std::atomic<uint64_t> Async;
 			VMCContext* Context;
 			VMManager* Manager;
 
@@ -1665,6 +1667,9 @@ namespace Tomahawk
 			std::string GetStackTrace() const;
 			int PushState();
 			int PopState();
+			int PushAsync();
+			int PopAsync();
+			bool IsPending();
 			bool IsNested(unsigned int* NestCount = 0) const;
 			int SetObject(void* Object);
 			int SetArg8(unsigned int Arg, unsigned char Value);

@@ -18,6 +18,9 @@
 #ifdef THAWK_HAS_SDL2
 #include <SDL2/SDL.h>
 #endif
+#ifdef THAWK_HAS_ASSIMP
+#include <assimp/DefaultLogger.hpp>
+#endif
 #ifdef THAWK_HAS_OPENSSL
 extern "C"
 {
@@ -432,7 +435,9 @@ namespace Tomahawk
 			if (Modes & TInit_Logger)
 				Rest::LT::DetachStream();
 		}
-
+#ifdef THAWK_HAS_ASSIMP
+		Assimp::DefaultLogger::kill();
+#endif
 		return true;
 	}
 }

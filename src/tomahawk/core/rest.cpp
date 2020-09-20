@@ -1041,15 +1041,7 @@ namespace Tomahawk
 			if (Start == End || L->size() < 2 || End > (L->size() - 1) || Start > (L->size() - 1))
 				return *this;
 
-			while (Start < End)
-			{
-				char Temp = L->at(Start);
-				L[Start] = L[End];
-				L[End] = Temp;
-				++Start;
-				--End;
-			}
-
+			std::reverse(L->begin() + Start, L->begin() + End + 1);
 			return *this;
 		}
 		Stroke& Stroke::Substring(uint64_t Start)
@@ -1425,7 +1417,7 @@ namespace Tomahawk
 				return { L->size() - 1, L->size(), false };
 
 			uint64_t Length = strlen(Needle);
-			for (uint64_t i = L->size() - 1 - Offset; i > 0; i--)
+			for (uint64_t i = L->size() - 1 - Offset; i >= 0; i--)
 			{
 				for (uint64_t k = 0; k < Length; k++)
 				{
@@ -3719,7 +3711,7 @@ namespace Tomahawk
 			char Buffer[2048] = { 0 };
 			GetFullPathNameA(Path, sizeof(Buffer), Buffer, nullptr);
 #elif defined THAWK_UNIX
-																																	char* Data = realpath(Path, nullptr);
+			char* Data = realpath(Path, nullptr);
             if (!Data)
                 return Path;
 
@@ -3773,6 +3765,12 @@ namespace Tomahawk
 			char Buffer[THAWK_MAX_PATH + 1] = { 0 };
 #ifdef THAWK_MICROSOFT
             GetModuleFileNameA(nullptr, Buffer, THAWK_MAX_PATH);
+
+			std::string Result = FileDirectory(Buffer);
+			memcpy(Buffer, Result.c_str(), sizeof(char) * Result.size());
+
+			if (Result.size() < THAWK_MAX_PATH)
+				Buffer[Result.size()] = '\0';
 #elif defined THAWK_UNIX
             getcwd(Buffer, THAWK_MAX_PATH);
 #endif

@@ -130,12 +130,17 @@ namespace Tomahawk
 				if (!Context || Context->GetState() == Script::VMExecState_ACTIVE)
 					return;
 
-				int R = Context->Execute();
-				if (R == Script::VMExecState_ERROR || R == Script::VMExecState_EXCEPTION)
+				if (Context->GetState() == Script::VMExecState_FINISHED)
 					return Finish();
 
-				if (R != Script::VMExecState_SUSPENDED)
-					return Next();
+				int R = Context->Execute();
+				if (R != Script::VMExecState_FINISHED)
+				{
+					if (R != Script::VMExecState_SUSPENDED)
+						return Finish();
+				}
+
+				Next();
 			}
 			void WebSocketFrame::Notify()
 			{
@@ -152,21 +157,19 @@ namespace Tomahawk
 			}
 			bool GatewayFrame::Done(bool Normal)
 			{
-				Base->Unlock();
 				if (!Save)
 				{
 					if (Compiler != nullptr)
 					{
-						Compiler->Clear();
+						if (!Compiler->Clear())
+							return false;
+
 						delete Compiler;
 						Compiler = nullptr;
+						Save = true;
 					}
-
-					Save = true;
-					return Base->Root->GetQueue()->Task<GatewayFrame>(nullptr, [this, Normal](Rest::EventQueue*, Rest::EventArgs*)
-					{
-						Done(Normal);
-					}) || true;
+					else
+						Save = true;
 				}
 
 				if (Base->WebSocket != nullptr)
@@ -264,10 +267,10 @@ namespace Tomahawk
 				if (!Context || Context->GetState() == Script::VMExecState_ACTIVE)
 					return false;
 
-				int R = Context->Execute();
-				if (R == Script::VMExecState_ERROR || R == Script::VMExecState_EXCEPTION)
+				if (Context->GetState() == Script::VMExecState_FINISHED)
 					return Finish();
 
+				int R = Context->Execute();
 				if (R != Script::VMExecState_SUSPENDED)
 					return Finish();
 
@@ -4174,15 +4177,16 @@ namespace Tomahawk
 				if (Base->Request.URI.size() > 1)
 					Parent = Rest::OS::FileDirectory(Base->Request.URI.substr(0, Base->Request.URI.size() - 1));
 
-				Base->Response.Buffer = "<html><head><title>Index of " + Name + "</title>"
-																				"<style>th {text-align: left;}</style></head>"
-																				"<body><h1>Index of " + Name + "</h1><pre><table cellpadding=\"0\">"
-																											   "<tr><th><a href=\"?n" + Direction + "\">Name</a></th>"
-																																					"<th><a href=\"?d" + Direction + "\">Modified</a></th>"
-																																													 "<th><a href=\"?s" + Direction + "\">Size</a></th></tr>"
-																																																					  "<tr><td colspan=\"3\"><hr></td></tr>"
-																																																					  "<tr><td><a href=\"" + Parent + "\">Parent directory</a></td>"
-																																																													  "<td>&nbsp;-</td><td>&nbsp;&nbsp;-</td></tr>";
+				Base->Response.Buffer =
+					"<html><head><title>Index of " + Name + "</title>"
+					"<style>th {text-align: left;}</style></head>"
+					"<body><h1>Index of " + Name + "</h1><pre><table cellpadding=\"0\">"
+					"<tr><th><a href=\"?n" + Direction + "\">Name</a></th>"
+					"<th><a href=\"?d" + Direction + "\">Modified</a></th>"
+					"<th><a href=\"?s" + Direction + "\">Size</a></th></tr>"
+					"<tr><td colspan=\"3\"><hr></td></tr>"
+					"<tr><td><a href=\"" + Parent + "\">Parent directory</a></td>"
+					"<td>&nbsp;-</td><td>&nbsp;&nbsp;-</td></tr>";
 
 				for (auto It = Entries.begin(); It != Entries.end(); It++)
 					It->UserData = Base;
@@ -5445,9 +5449,6 @@ namespace Tomahawk
 							{
 								if (Response.Buffer.size() < MaxSize)
 									Response.Buffer.append(Buffer, Size);
-
-								if (Callback)
-									Callback(this, &Request, &Response);
 							}
 
 							return Result == -2;

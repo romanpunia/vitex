@@ -2331,8 +2331,11 @@ namespace Tomahawk
 		{
 			Processor->Undefine(Word);
 		}
-		void VMCompiler::Clear()
+		bool VMCompiler::Clear()
 		{
+			if (Context != nullptr && Context->IsPending())
+				return false;
+
 			Manager->Lock();
 			if (Module != nullptr)
 				Module->Discard();
@@ -2341,6 +2344,11 @@ namespace Tomahawk
 			Processor->Clear();
 			Module = nullptr;
 			BuiltOK = false;
+			return true;
+		}
+		bool VMCompiler::IsPending()
+		{
+			return Context && Context->IsPending();
 		}
 		bool VMCompiler::IsDefined(const std::string& Word)
 		{
@@ -2697,7 +2705,7 @@ namespace Tomahawk
 		}
 		int VMCompiler::CompilerUD = 154;
 
-		VMContext::VMContext(VMCContext* Base) : Manager(nullptr), Context(Base)
+		VMContext::VMContext(VMCContext* Base) : Manager(nullptr), Context(Base), Async(0)
 		{
 			if (Context != nullptr)
 			{
@@ -2708,6 +2716,9 @@ namespace Tomahawk
 		}
 		VMContext::~VMContext()
 		{
+			if (IsPending())
+				THAWK_ERROR("[asyncerr] %llu operations are still pending", Async.load());
+
 			if (Context != nullptr)
 			{
 				if (Manager != nullptr)
@@ -2834,6 +2845,23 @@ namespace Tomahawk
 				return -1;
 
 			return Context->PopState();
+		}
+		int VMContext::PushAsync()
+		{
+			Async++;
+			return 0;
+		}
+		int VMContext::PopAsync()
+		{
+			if (!Async)
+				return VMResult_INVALID_ARG;
+
+			Async--;
+			return 0;
+		}
+		bool VMContext::IsPending()
+		{
+			return Async > 0;
 		}
 		bool VMContext::IsNested(unsigned int* NestCount) const
 		{

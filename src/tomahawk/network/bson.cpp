@@ -55,6 +55,7 @@ namespace Tomahawk
 						return String.assign("undefined");
 					case BSON::Type_Decimal:
 					{
+#ifdef THAWK_HAS_MONGOC
 						bson_decimal128_t Decimal;
 						Decimal.high = (uint64_t)High;
 						Decimal.low = (uint64_t)Low;
@@ -62,6 +63,9 @@ namespace Tomahawk
 						char Buffer[BSON_DECIMAL128_STRING];
 						bson_decimal128_to_string(&Decimal, Buffer);
 						return String.assign(Buffer);
+#else
+						break;
+#endif
 					}
 				}
 
@@ -523,6 +527,7 @@ namespace Tomahawk
 				if (!Value || !High || !Low)
 					return false;
 
+#ifdef THAWK_HAS_MONGOC
 				bson_decimal128_t Decimal;
 				if (!bson_decimal128_from_string(Value, &Decimal))
 					return false;
@@ -530,6 +535,9 @@ namespace Tomahawk
 				*High = Decimal.high;
 				*Low = Decimal.low;
 				return true;
+#else
+				return false;
+#endif
 			}
 			bool Document::Clone(void* It, KeyPair* Output)
 			{

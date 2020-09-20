@@ -4316,6 +4316,7 @@ namespace Tomahawk
 		{
 			Mutex.lock();
 			Environment = Rest::OS::ResolveDir(Path.c_str());
+			Rest::OS::SetDirectory(Environment.c_str());
 			Mutex.unlock();
 		}
 		void* ContentManager::LoadForward(const std::string& Path, FileProcessor* Processor, ContentMap* Map)

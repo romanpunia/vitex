@@ -566,15 +566,18 @@ namespace Tomahawk
 			VMCAny* Get() const;
 			VMCAsync* Await();
 
+		private:
+			void Finish();
+
 		public:
-			static VMCAsync* Create(const AsyncWorkCallback& WorkCallback, const AsyncDoneCallback& DoneCallback);
-			static VMCAsync* CreatePending();
-			static VMCAsync* CreateFilled(void* Ref, int TypeId);
-			static VMCAsync* CreateFilled(void* Ref, const char* TypeName);
-			static VMCAsync* CreateFilled(bool Value);
-			static VMCAsync* CreateFilled(int64_t Value);
-			static VMCAsync* CreateFilled(double Value);
-			static VMCAsync* CreateEmpty();
+			static VMCAsync* Promise(const AsyncWorkCallback& WorkCallback, const AsyncDoneCallback& DoneCallback);
+			static VMCAsync* Promise();
+			static VMCAsync* Reject();
+			static VMCAsync* Fulfill(void* Ref, int TypeId);
+			static VMCAsync* Fulfill(void* Ref, const char* TypeName);
+			static VMCAsync* Fulfill(bool Value);
+			static VMCAsync* Fulfill(int64_t Value);
+			static VMCAsync* Fulfill(double Value);
 		};
 
 		THAWK_OUT bool RegisterAnyAPI(VMManager* Manager);

@@ -39,9 +39,9 @@ namespace Tomahawk
 {
 #ifdef THAWK_HAS_OPENSSL
 	static std::vector<std::shared_ptr<std::mutex>>* CryptoLocks = nullptr;
-	static int State = 0;
 #endif
 	static unsigned int Modes = 0;
+	static int State = 0;
 
 	void Library::Describe()
 	{

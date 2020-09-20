@@ -535,19 +535,19 @@ namespace Tomahawk
 							break;
 					}
 
-					GLsizei Stride = Item->AlignedByteOffset;
+					size_t Stride = Item->AlignedByteOffset;
 					if (Decimal)
 					{
 						VertexLayout.push_back([i, Size, Format, Stride]()
 						{
-							glVertexAttribIPointer(i, Size, Format, 0, (void*)(Stride));
+							glVertexAttribIPointer(i, Size, Format, 0, (GLvoid*)Stride);
 						});
 					}
 					else
 					{
 						VertexLayout.push_back([i, Size, Format, Stride]()
 						{
-							glVertexAttribPointerARB(i, Size, Format, GL_FALSE, 0, (void*)(Stride));
+							glVertexAttribPointerARB(i, Size, Format, GL_FALSE, 0, (GLvoid*)Stride);
 						});
 					}
 				}

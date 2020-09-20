@@ -1970,6 +1970,7 @@ namespace Tomahawk
 		}
 		bool SocketClient::Certify()
 		{
+#ifdef THAWK_HAS_OPENSSL
 			Stage("ssl handshake");
 			if (Stream.GetDevice() || !Context)
 				return Error("client does not use ssl");
@@ -2008,6 +2009,9 @@ namespace Tomahawk
 			}
 
 			return Result != 1 ? Error("%s", ERR_error_string(ERR_get_error(), nullptr)) : true;
+#else
+			return Error("ssl is not supported for clients");
+#endif
 		}
 		bool SocketClient::Stage(const std::string& Name)
 		{

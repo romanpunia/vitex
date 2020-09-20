@@ -1371,10 +1371,13 @@ namespace Tomahawk
 			if (L->empty())
 				return { L->size() - 1, L->size(), false };
 
-			for (uint64_t i = L->size() - 1 - Offset; i > 0; i--)
+			for (uint64_t i = L->size() - 1 - Offset; i >= 0; i--)
 			{
 				if (L->at(i) == Needle)
 					return { i, i + 1, true };
+
+				if (i == 0)
+					break;
 			}
 
 			return { L->size() - 1, L->size(), false };
@@ -1384,10 +1387,13 @@ namespace Tomahawk
 			if (L->empty())
 				return { L->size() - 1, L->size(), false };
 
-			for (uint64_t i = L->size() - 1 - Offset; i > 0; i--)
+			for (uint64_t i = L->size() - 1 - Offset; i >= 0; i--)
 			{
 				if (L->at(i) == Needle && ((int64_t)i - 1 < 0 || L->at(i - 1) != '\\'))
 					return { i, i + 1, true };
+
+				if (i == 0)
+					break;
 			}
 
 			return { L->size() - 1, L->size(), false };
@@ -1397,13 +1403,16 @@ namespace Tomahawk
 			if (L->empty())
 				return { L->size() - 1, L->size(), false };
 
-			for (uint64_t i = L->size() - 1 - Offset; i > 0; i--)
+			for (uint64_t i = L->size() - 1 - Offset; i >= 0; i--)
 			{
 				for (char k : Needle)
 				{
 					if (L->at(i) == k)
 						return { i, i + 1, true };
 				}
+
+				if (i == 0)
+					break;
 			}
 
 			return { L->size() - 1, L->size(), false };
@@ -1424,6 +1433,9 @@ namespace Tomahawk
 					if (L->at(i) == Needle[k])
 						return { i, i + 1, true };
 				}
+
+				if (i == 0)
+					break;
 			}
 
 			return { L->size() - 1, L->size(), false };

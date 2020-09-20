@@ -16,7 +16,7 @@
 #include <condition_variable>
 #include <atomic>
 #if defined(_WIN32) || defined(_WIN64)
-#ifdef THAWK_LIBRARY
+#ifndef THAWK_EXPORT
 #define THAWK_OUT __declspec(dllimport)
 #else
 #define THAWK_OUT __declspec(dllexport)

@@ -763,6 +763,14 @@ namespace Tomahawk
 			ShaderType_All = ShaderType_Vertex | ShaderType_Pixel | ShaderType_Geometry | ShaderType_Hull | ShaderType_Domain | ShaderType_Compute
 		};
 
+		enum AttributeType
+		{
+			AttributeType_Uint,
+			AttributeType_Int,
+			AttributeType_Half,
+			AttributeType_Float
+		};
+
 		typedef std::function<void(AppState)> AppStateChangeCallback;
 		typedef std::function<void(WindowState, int, int)> WindowStateChangeCallback;
 		typedef std::function<void(KeyCode, KeyMod, int, int, bool)> KeyStateCallback;
@@ -784,6 +792,8 @@ namespace Tomahawk
 		typedef std::function<void(int, int, float, float, float, float)> MultiGestureStateCallback;
 		typedef std::function<void(const std::string&)> DropFileCallback;
 		typedef std::function<void(const std::string&)> DropTextCallback;
+
+		class Shader;
 
 		class GraphicsDevice;
 
@@ -854,14 +864,6 @@ namespace Tomahawk
 			long Top;
 			long Right;
 			long Bottom;
-		};
-
-		struct THAWK_OUT InputLayout
-		{
-			const char* SemanticName;
-			Format FormatMode;
-			unsigned int AlignedByteOffset;
-			unsigned int SemanticIndex;
 		};
 
 		struct THAWK_OUT RenderTargetBlendState
@@ -967,7 +969,6 @@ namespace Tomahawk
 				unsigned char StencilWriteMask;
 				bool DepthEnable;
 				bool StencilEnable;
-				std::string Name;
 			};
 
 		protected:
@@ -997,7 +998,6 @@ namespace Tomahawk
 				bool ScissorEnable;
 				bool MultisampleEnable;
 				bool AntialiasedLineEnable;
-				std::string Name;
 			};
 
 		protected:
@@ -1020,7 +1020,6 @@ namespace Tomahawk
 				RenderTargetBlendState RenderTarget[8];
 				bool AlphaToCoverageEnable;
 				bool IndependentBlendEnable;
-				std::string Name;
 			};
 
 		protected:
@@ -1050,7 +1049,6 @@ namespace Tomahawk
 				float BorderColor[4];
 				float MinLOD;
 				float MaxLOD;
-				std::string Name;
 			};
 
 		protected:
@@ -1065,6 +1063,37 @@ namespace Tomahawk
 			Desc GetState();
 		};
 
+		class THAWK_OUT InputLayout : public Rest::Object
+		{
+		public:
+			struct Attribute
+			{
+				const char* SemanticName;
+				unsigned int SemanticIndex;
+				AttributeType Format;
+				unsigned int Components;
+				unsigned int AlignedByteOffset;
+			};
+
+		public:
+			struct Desc
+			{
+				std::vector<Attribute> Attributes;
+				Shader* Source = nullptr;
+			};
+
+		protected:
+			std::vector<Attribute> Layout;
+
+		protected:
+			InputLayout(const Desc& I);
+
+		public:
+			virtual ~InputLayout() override;
+			virtual void* GetResource() = 0;
+			const std::vector<Attribute>& GetAttributes();
+		};
+
 		class THAWK_OUT Shader : public Rest::Object
 		{
 		public:
@@ -1073,14 +1102,9 @@ namespace Tomahawk
 				Compute::ProcIncludeCallback Include = nullptr;
 				Compute::Preprocessor::Desc Features;
 				std::vector<std::string> Defines;
-				InputLayout* Layout = nullptr;
-				uint64_t LayoutSize = 0;
 				std::string Filename;
 				std::string Data;
 			};
-
-		public:
-			std::vector<InputLayout> Layout;
 
 		protected:
 			Shader(const Desc& I);
@@ -1088,16 +1112,6 @@ namespace Tomahawk
 		public:
 			virtual ~Shader() = default;
 			virtual bool IsValid() = 0;
-
-		public:
-			static InputLayout* GetShapeVertexLayout();
-			static InputLayout* GetElementVertexLayout();
-			static InputLayout* GetSkinVertexLayout();
-			static InputLayout* GetVertexLayout();
-			static unsigned int GetShapeVertexLayoutStride();
-			static unsigned int GetElementVertexLayoutStride();
-			static unsigned int GetSkinVertexLayoutStride();
-			static unsigned int GetVertexLayoutStride();
 		};
 
 		class THAWK_OUT ElementBuffer : public Rest::Object
@@ -1113,11 +1127,11 @@ namespace Tomahawk
 				unsigned int ElementWidth = 0;
 				unsigned int ElementCount = 0;
 				void* Elements = nullptr;
-				bool UseSubresource = true;
 			};
 
 		protected:
 			uint64_t Elements;
+			uint64_t Stride;
 
 		protected:
 			ElementBuffer(const Desc& I);
@@ -1126,32 +1140,7 @@ namespace Tomahawk
 			virtual ~ElementBuffer() = default;
 			virtual void* GetResource() = 0;
 			uint64_t GetElements();
-		};
-
-		class THAWK_OUT StructureBuffer : public Rest::Object
-		{
-		public:
-			struct Desc
-			{
-				CPUAccess AccessFlags = CPUAccess_Write;
-				ResourceUsage Usage = ResourceUsage_Dynamic;
-				ResourceBind BindFlags = ResourceBind_Shader_Input;
-				unsigned int ElementWidth = 0;
-				unsigned int ElementCount = 0;
-				void* Elements = nullptr;
-			};
-
-		protected:
-			uint64_t Elements;
-
-		protected:
-			StructureBuffer(const Desc& I);
-
-		public:
-			virtual ~StructureBuffer() = default;
-			virtual void* GetElement() = 0;
-			virtual void* GetResource() = 0;
-			uint64_t GetElements();
+			uint64_t GetStride();
 		};
 
 		class THAWK_OUT MeshBuffer : public Rest::Object
@@ -1524,6 +1513,12 @@ namespace Tomahawk
 		class THAWK_OUT GraphicsDevice : public Rest::Object
 		{
 		protected:
+			struct DirectBuffer
+			{
+				Compute::Matrix4x4 WorldViewProjection;
+				Compute::Vector4 Padding;
+			};
+
 			struct Vertex
 			{
 				float PX, PY, PZ;
@@ -1559,6 +1554,7 @@ namespace Tomahawk
 			std::unordered_map<std::string, RasterizerState*> RasterizerStates;
 			std::unordered_map<std::string, BlendState*> BlendStates;
 			std::unordered_map<std::string, SamplerState*> SamplerStates;
+			std::unordered_map<std::string, InputLayout*> InputLayouts;
 			std::unordered_map<std::string, Section*> Sections;
 			PrimitiveTopology Primitives;
 			ShaderModel ShaderModelType;
@@ -1572,6 +1568,7 @@ namespace Tomahawk
 			const void* Constants[4];
 			uint64_t MaxElements;
 			RenderBackend Backend;
+			DirectBuffer Direct;
 			std::mutex Mutex;
 			bool Debug;
 
@@ -1591,12 +1588,13 @@ namespace Tomahawk
 			virtual void SetBlendState(BlendState* State) = 0;
 			virtual void SetRasterizerState(RasterizerState* State) = 0;
 			virtual void SetDepthStencilState(DepthStencilState* State) = 0;
+			virtual void SetInputLayout(InputLayout* State) = 0;
 			virtual void SetShader(Shader* Resource, unsigned int Type) = 0;
 			virtual void SetBuffer(Shader* Resource, unsigned int Slot, unsigned int Type) = 0;
-			virtual void SetBuffer(StructureBuffer* Resource, unsigned int Slot) = 0;
 			virtual void SetBuffer(InstanceBuffer* Resource, unsigned int Slot) = 0;
-			virtual void SetIndexBuffer(ElementBuffer* Resource, Format FormatMode, unsigned int Offset) = 0;
-			virtual void SetVertexBuffer(ElementBuffer* Resource, unsigned int Slot, unsigned int Stride, unsigned int Offset) = 0;
+			virtual void SetStructureBuffer(ElementBuffer* Resource, unsigned int Slot) = 0;
+			virtual void SetIndexBuffer(ElementBuffer* Resource, Format FormatMode) = 0;
+			virtual void SetVertexBuffer(ElementBuffer* Resource, unsigned int Slot) = 0;
 			virtual void SetTexture2D(Texture2D* Resource, unsigned int Slot) = 0;
 			virtual void SetTexture3D(Texture3D* Resource, unsigned int Slot) = 0;
 			virtual void SetTextureCube(TextureCube* Resource, unsigned int Slot) = 0;
@@ -1616,6 +1614,7 @@ namespace Tomahawk
 			virtual void SetTarget(MultiRenderTargetCube* Resource, float R, float G, float B) = 0;
 			virtual void SetTarget(MultiRenderTargetCube* Resource) = 0;;
 			virtual void SetTargetMap(MultiRenderTarget2D* Resource, bool Enabled[8]) = 0;
+			virtual void SetTargetMap(MultiRenderTargetCube* Resource, bool Enabled[8]) = 0;
 			virtual void SetViewport(const Viewport& In) = 0;
 			virtual void SetViewport(RenderTarget2D* Resource, const Viewport& In) = 0;
 			virtual void SetViewport(MultiRenderTarget2D* Resource, const Viewport& In) = 0;
@@ -1629,10 +1628,8 @@ namespace Tomahawk
 			virtual void FlushTextureCube(unsigned int Slot, unsigned int Count) = 0;
 			virtual void FlushState() = 0;
 			virtual bool Map(ElementBuffer* Resource, ResourceMap Mode, MappedSubresource* Map) = 0;
-			virtual bool Map(StructureBuffer* Resource, ResourceMap Mode, MappedSubresource* Map) = 0;
 			virtual bool Unmap(ElementBuffer* Resource, MappedSubresource* Map) = 0;
-			virtual bool Unmap(StructureBuffer* Resource, MappedSubresource* Map) = 0;
-			virtual bool UpdateBuffer(StructureBuffer* Resource, void* Data, uint64_t Size) = 0;
+			virtual bool UpdateBuffer(ElementBuffer* Resource, void* Data, uint64_t Size) = 0;
 			virtual bool UpdateBuffer(Shader* Resource, const void* Data) = 0;
 			virtual bool UpdateBuffer(MeshBuffer* Resource, Compute::Vertex* Data) = 0;
 			virtual bool UpdateBuffer(SkinMeshBuffer* Resource, Compute::SkinVertex* Data) = 0;
@@ -1689,25 +1686,25 @@ namespace Tomahawk
 			virtual void GenerateMips(Texture2D* Resource) = 0;
 			virtual void GenerateMips(Texture3D* Resource) = 0;
 			virtual void GenerateMips(TextureCube* Resource) = 0;
-			virtual bool DirectBegin() = 0;
-			virtual void DirectTransform(const Compute::Matrix4x4& Transform) = 0;
-			virtual void DirectTopology(PrimitiveTopology Topology) = 0;
-			virtual void DirectEmit() = 0;
-			virtual void DirectTexture(Texture2D* In) = 0;
-			virtual void DirectColor(float X, float Y, float Z, float W) = 0;
-			virtual void DirectIntensity(float Intensity) = 0;
-			virtual void DirectTexCoord(float X, float Y) = 0;
-			virtual void DirectTexCoordOffset(float X, float Y) = 0;
-			virtual void DirectPosition(float X, float Y, float Z) = 0;
-			virtual bool DirectEnd() = 0;
+			virtual bool Begin() = 0;
+			virtual void Transform(const Compute::Matrix4x4& Transform) = 0;
+			virtual void Topology(PrimitiveTopology Topology) = 0;
+			virtual void Emit() = 0;
+			virtual void Texture(Texture2D* In) = 0;
+			virtual void Color(float X, float Y, float Z, float W) = 0;
+			virtual void Intensity(float Intensity) = 0;
+			virtual void TexCoord(float X, float Y) = 0;
+			virtual void TexCoordOffset(float X, float Y) = 0;
+			virtual void Position(float X, float Y, float Z) = 0;
+			virtual bool End() = 0;
 			virtual bool Submit() = 0;
 			virtual DepthStencilState* CreateDepthStencilState(const DepthStencilState::Desc& I) = 0;
 			virtual BlendState* CreateBlendState(const BlendState::Desc& I) = 0;
 			virtual RasterizerState* CreateRasterizerState(const RasterizerState::Desc& I) = 0;
 			virtual SamplerState* CreateSamplerState(const SamplerState::Desc& I) = 0;
+			virtual InputLayout* CreateInputLayout(const InputLayout::Desc& I) = 0;
 			virtual Shader* CreateShader(const Shader::Desc& I) = 0;
 			virtual ElementBuffer* CreateElementBuffer(const ElementBuffer::Desc& I) = 0;
-			virtual StructureBuffer* CreateStructureBuffer(const StructureBuffer::Desc& I) = 0;
 			virtual MeshBuffer* CreateMeshBuffer(const MeshBuffer::Desc& I) = 0;
 			virtual SkinMeshBuffer* CreateSkinMeshBuffer(const SkinMeshBuffer::Desc& I) = 0;
 			virtual InstanceBuffer* CreateInstanceBuffer(const InstanceBuffer::Desc& I) = 0;
@@ -1741,6 +1738,7 @@ namespace Tomahawk
 			BlendState* GetBlendState(const std::string& Name);
 			RasterizerState* GetRasterizerState(const std::string& Name);
 			SamplerState* GetSamplerState(const std::string& Name);
+			InputLayout* GetInputLayout(const std::string& Name);
 			ShaderModel GetShaderModel();
 			RenderTarget2D* GetRenderTarget();
 			Shader* GetBasicEffect();

@@ -32,6 +32,7 @@ namespace Tomahawk
 				Graphics::RasterizerState* FrontRasterizer = nullptr;
 				Graphics::BlendState* Blend = nullptr;
 				Graphics::SamplerState* Sampler = nullptr;
+				Graphics::InputLayout* Layout = nullptr;
 
 			public:
 				ModelRenderer(RenderSystem* Lab);
@@ -71,6 +72,7 @@ namespace Tomahawk
 				Graphics::RasterizerState* FrontRasterizer = nullptr;
 				Graphics::BlendState* Blend = nullptr;
 				Graphics::SamplerState* Sampler = nullptr;
+				Graphics::InputLayout* Layout = nullptr;
 
 			public:
 				SkinRenderer(RenderSystem* Lab);
@@ -110,6 +112,7 @@ namespace Tomahawk
 				Graphics::RasterizerState* FrontRasterizer = nullptr;
 				Graphics::BlendState* Blend = nullptr;
 				Graphics::SamplerState* Sampler = nullptr;
+				Graphics::InputLayout* Layout = nullptr;
 				Graphics::ElementBuffer* VertexBuffer = nullptr;
 				Graphics::ElementBuffer* IndexBuffer = nullptr;
 
@@ -156,6 +159,7 @@ namespace Tomahawk
 				Graphics::BlendState* AdditiveBlend = nullptr;
 				Graphics::BlendState* OverwriteBlend = nullptr;
 				Graphics::SamplerState* Sampler = nullptr;
+				Graphics::InputLayout* Layout = nullptr;
 
 			public:
 				EmitterRenderer(RenderSystem* Lab);
@@ -187,6 +191,7 @@ namespace Tomahawk
 				Graphics::RasterizerState* Rasterizer = nullptr;
 				Graphics::BlendState* Blend = nullptr;
 				Graphics::SamplerState* Sampler = nullptr;
+				Graphics::InputLayout* Layout = nullptr;
 				Graphics::Shader* Shader = nullptr;
 
 			public:
@@ -215,6 +220,7 @@ namespace Tomahawk
 				Graphics::RasterizerState* Rasterizer = nullptr;
 				Graphics::BlendState* Blend = nullptr;
 				Graphics::SamplerState* Sampler = nullptr;
+				Graphics::InputLayout* Layout = nullptr;
 				Graphics::Shader* Shader = nullptr;
 				float MipLevels1 = 0.0f;
 				float MipLevels2 = 0.0f;
@@ -404,6 +410,7 @@ namespace Tomahawk
 				Graphics::RasterizerState* BackRasterizer = nullptr;
 				Graphics::BlendState* Blend = nullptr;
 				Graphics::SamplerState* Sampler = nullptr;
+				Graphics::InputLayout* Layout = nullptr;
 				Graphics::RenderTarget2D* Output1 = nullptr;
 				Graphics::RenderTarget2D* Output2 = nullptr;
 				Graphics::RenderTarget2D* Input1 = nullptr;

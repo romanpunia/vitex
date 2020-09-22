@@ -2224,10 +2224,11 @@ namespace Tomahawk
 		
 		EffectRenderer::EffectRenderer(RenderSystem* Lab) : Renderer(Lab), Output(nullptr), Pass(nullptr)
 		{
-			DepthStencil = Lab->GetDevice()->GetDepthStencilState("DEF_NONE");
-			Rasterizer = Lab->GetDevice()->GetRasterizerState("DEF_CULL_BACK");
-			Blend = Lab->GetDevice()->GetBlendState("DEF_OVERWRITE");
-			Sampler = Lab->GetDevice()->GetSamplerState("DEF_TRILINEAR_X16");
+			DepthStencil = Lab->GetDevice()->GetDepthStencilState("none");
+			Rasterizer = Lab->GetDevice()->GetRasterizerState("cull-back");
+			Blend = Lab->GetDevice()->GetBlendState("overwrite");
+			Sampler = Lab->GetDevice()->GetSamplerState("trilinear-x16");
+			Layout = Lab->GetDevice()->GetInputLayout("shape-vertex");
 		}
 		EffectRenderer::~EffectRenderer()
 		{
@@ -2294,12 +2295,13 @@ namespace Tomahawk
 			Device->SetSamplerState(Sampler);
 			Device->SetBlendState(Blend);
 			Device->SetRasterizerState(Rasterizer);
+			Device->SetInputLayout(Layout);
 			Device->SetTarget(Output, 0, 0, 0);
 			Device->SetTexture2D(Surface->GetTarget(0), 1);
 			Device->SetTexture2D(Surface->GetTarget(1), 2);
 			Device->SetTexture2D(Surface->GetTarget(2), 3);
 			Device->SetTexture2D(Surface->GetTarget(3), 4);
-			Device->SetVertexBuffer(System->GetQuadVBuffer(), 0, sizeof(Compute::ShapeVertex), 0);
+			Device->SetVertexBuffer(System->GetQuadVBuffer(), 0);
 
 			RenderEffect(Time);
 
@@ -2338,8 +2340,6 @@ namespace Tomahawk
 			}
 
 			Graphics::Shader::Desc Desc = Graphics::Shader::Desc();
-			Desc.Layout = Graphics::Shader::GetShapeVertexLayout();
-			Desc.LayoutSize = 2;
 			Desc.Data = Code;
 
 			Graphics::Shader* Shader = System->CompileShader(Name, Desc, BufferSize);
@@ -2477,9 +2477,9 @@ namespace Tomahawk
 			if (!Scene || !Device)
 				return;
 
-			DepthStencil = Device->GetDepthStencilState("DEF_LESS_NO_STENCIL");
-			Blend = Device->GetBlendState("DEF_OVERWRITE_COLORLESS");
-			Sampler = Device->GetSamplerState("DEF_POINT");
+			DepthStencil = Device->GetDepthStencilState("less-no-stencil");
+			Blend = Device->GetBlendState("overwrite-colorless");
+			Sampler = Device->GetSamplerState("point");
 			DepthSize = Size;
 
 			Graphics::MultiRenderTarget2D* Surface = Scene->GetSurface();
@@ -2672,42 +2672,6 @@ namespace Tomahawk
 		{
 			return DepthSize;
 		}
-		size_t RenderSystem::GetQuadVSize()
-		{
-			return sizeof(Compute::ShapeVertex);
-		}
-		size_t RenderSystem::GetSphereVSize()
-		{
-			return sizeof(Compute::ShapeVertex);
-		}
-		size_t RenderSystem::GetSphereISize()
-		{
-			return sizeof(int);
-		}
-		size_t RenderSystem::GetCubeVSize()
-		{
-			return sizeof(Compute::ShapeVertex);
-		}
-		size_t RenderSystem::GetCubeISize()
-		{
-			return sizeof(int);
-		}
-		size_t RenderSystem::GetBoxVSize()
-		{
-			return sizeof(Compute::Vertex);
-		}
-		size_t RenderSystem::GetBoxISize()
-		{
-			return sizeof(int);
-		}
-		size_t RenderSystem::GetSkinBoxVSize()
-		{
-			return sizeof(Compute::SkinVertex);
-		}
-		size_t RenderSystem::GetSkinBoxISize()
-		{
-			return sizeof(int);
-		}
 		Graphics::ElementBuffer* RenderSystem::GetQuadVBuffer()
 		{
 			if (QuadVertex != nullptr)
@@ -2728,7 +2692,6 @@ namespace Tomahawk
 			F.ElementCount = 6;
 			F.ElementWidth = sizeof(Compute::ShapeVertex);
 			F.Elements = &Elements[0];
-			F.UseSubresource = true;
 
 			QuadVertex = Device->CreateElementBuffer(F);
 			return QuadVertex;
@@ -2763,7 +2726,6 @@ namespace Tomahawk
 			F.ElementCount = (unsigned int)Elements.size();
 			F.ElementWidth = sizeof(Compute::ShapeVertex);
 			F.Elements = &Elements[0];
-			F.UseSubresource = true;
 
 			SphereVertex = Device->CreateElementBuffer(F);
 			return SphereVertex;
@@ -2842,7 +2804,6 @@ namespace Tomahawk
 			F.ElementCount = (unsigned int)Indices.size();
 			F.ElementWidth = sizeof(int);
 			F.Elements = &Indices[0];
-			F.UseSubresource = true;
 
 			SphereIndex = Device->CreateElementBuffer(F);
 			return SphereIndex;
@@ -2885,7 +2846,6 @@ namespace Tomahawk
 			F.ElementCount = (unsigned int)Elements.size();
 			F.ElementWidth = sizeof(Compute::ShapeVertex);
 			F.Elements = &Elements[0];
-			F.UseSubresource = true;
 
 			CubeVertex = Device->CreateElementBuffer(F);
 			return CubeVertex;
@@ -2940,7 +2900,6 @@ namespace Tomahawk
 			F.ElementCount = (unsigned int)Indices.size();
 			F.ElementWidth = sizeof(int);
 			F.Elements = &Indices[0];
-			F.UseSubresource = true;
 
 			CubeIndex = Device->CreateElementBuffer(F);
 			return CubeIndex;
@@ -2983,7 +2942,6 @@ namespace Tomahawk
 			F.ElementCount = (unsigned int)Elements.size();
 			F.ElementWidth = sizeof(Compute::Vertex);
 			F.Elements = &Elements[0];
-			F.UseSubresource = true;
 
 			BoxVertex = Device->CreateElementBuffer(F);
 			return BoxVertex;
@@ -3039,7 +2997,6 @@ namespace Tomahawk
 			F.ElementCount = (unsigned int)Indices.size();
 			F.ElementWidth = sizeof(int);
 			F.Elements = &Indices[0];
-			F.UseSubresource = true;
 
 			BoxIndex = Device->CreateElementBuffer(F);
 			return BoxIndex;
@@ -3082,7 +3039,6 @@ namespace Tomahawk
 			F.ElementCount = (unsigned int)Elements.size();
 			F.ElementWidth = sizeof(Compute::SkinVertex);
 			F.Elements = &Elements[0];
-			F.UseSubresource = true;
 
 			SkinBoxVertex = Device->CreateElementBuffer(F);
 			return SkinBoxVertex;
@@ -3138,7 +3094,6 @@ namespace Tomahawk
 			F.ElementCount = (unsigned int)Indices.size();
 			F.ElementWidth = sizeof(int);
 			F.Elements = &Indices[0];
-			F.UseSubresource = true;
 
 			SkinBoxIndex = Device->CreateElementBuffer(F);
 			return SkinBoxIndex;
@@ -3212,10 +3167,11 @@ namespace Tomahawk
 			if (!Conf.Queue || !Conf.Device)
 				return;
 
-			Image.DepthStencil = Conf.Device->GetDepthStencilState("DEF_NONE");
-			Image.Rasterizer = Conf.Device->GetRasterizerState("DEF_CULL_BACK");
-			Image.Blend = Conf.Device->GetBlendState("DEF_OVERWRITE");
-			Image.Sampler = Conf.Device->GetSamplerState("DEF_TRILINEAR_X16");
+			Image.DepthStencil = Conf.Device->GetDepthStencilState("none");
+			Image.Rasterizer = Conf.Device->GetRasterizerState("cull-back");
+			Image.Blend = Conf.Device->GetBlendState("overwrite");
+			Image.Sampler = Conf.Device->GetSamplerState("trilinear-x16");
+			Image.Layout = Conf.Device->GetInputLayout("shape-vertex");
 
 			Lock();
 			Conf = NewConf;
@@ -3260,8 +3216,9 @@ namespace Tomahawk
 			Conf.Device->SetSamplerState(Image.Sampler);
 			Conf.Device->SetBlendState(Image.Blend);
 			Conf.Device->SetRasterizerState(Image.Rasterizer);
+			Conf.Device->SetInputLayout(Image.Layout);
 			Conf.Device->SetShader(Conf.Device->GetBasicEffect(), Graphics::ShaderType_Vertex | Graphics::ShaderType_Pixel);
-			Conf.Device->SetVertexBuffer(View.Renderer->GetQuadVBuffer(), 0, sizeof(Compute::ShapeVertex), 0);
+			Conf.Device->SetVertexBuffer(View.Renderer->GetQuadVBuffer(), 0);
 			Conf.Device->SetTexture2D(Surface->GetTarget(0), 0);
 			Conf.Device->UpdateBuffer(Graphics::RenderBufferType_Render);
 			Conf.Device->Draw(6, 0);
@@ -3310,7 +3267,7 @@ namespace Tomahawk
 			{
 				RestoreViewBuffer(nullptr);
 				Conf.Device->UpdateBuffer(Structure, Materials.data(), Materials.size() * sizeof(Material));
-				Conf.Device->SetBuffer(Structure, 0);
+				Conf.Device->SetStructureBuffer(Structure, 0);
 				
 				ClearSurface();
 				RenderGBuffer(Time, RenderOpt_None);
@@ -3612,13 +3569,18 @@ namespace Tomahawk
 			for (size_t i = 0; i < Materials.size(); i++)
 				Materials[i].Id = (float)i;
 
-			Graphics::StructureBuffer::Desc F = Graphics::StructureBuffer::Desc();
+			Graphics::ElementBuffer::Desc F = Graphics::ElementBuffer::Desc();
+			F.AccessFlags = Graphics::CPUAccess_Write;
+			F.MiscFlags = Graphics::ResourceMisc_Buffer_Structured;
+			F.Usage = Graphics::ResourceUsage_Dynamic;
+			F.BindFlags = Graphics::ResourceBind_Shader_Input;
 			F.ElementCount = (unsigned int)Materials.capacity();
 			F.ElementWidth = sizeof(Material);
 			F.Elements = Materials.data();
+			F.StructureByteStride = F.ElementWidth;
 
 			delete Structure;
-			Structure = Conf.Device->CreateStructureBuffer(F);
+			Structure = Conf.Device->CreateElementBuffer(F);
 			Unlock();
 		}
 		void SceneGraph::Lock()
@@ -4231,7 +4193,7 @@ namespace Tomahawk
 		{
 			return Surface;
 		}
-		Graphics::StructureBuffer* SceneGraph::GetStructure()
+		Graphics::ElementBuffer* SceneGraph::GetStructure()
 		{
 			return Structure;
 		}

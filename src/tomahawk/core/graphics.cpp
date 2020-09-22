@@ -280,66 +280,33 @@ namespace Tomahawk
 			return State;
 		}
 
+		InputLayout::InputLayout(const Desc& I) : Layout(I.Attributes)
+		{
+		}
+		InputLayout::~InputLayout()
+		{
+		}
+		const std::vector<InputLayout::Attribute>& InputLayout::GetAttributes()
+		{
+			return Layout;
+		}
+
 		Shader::Shader(const Desc& I)
 		{
-		}
-		InputLayout* Shader::GetShapeVertexLayout()
-		{
-			static InputLayout ShapeVertexLayout[2] = {{ "POSITION", Format_R32G32B32_Float, 0, 0 }, { "TEXCOORD", Format_R32G32_Float, 3 * sizeof(float), 0 }};
-
-			return ShapeVertexLayout;
-		}
-		InputLayout* Shader::GetElementVertexLayout()
-		{
-			static InputLayout ElementVertexLayout[4] = {{ "POSITION", Format_R32G32B32_Float, 0, 0 }, { "TEXCOORD", Format_R32G32B32A32_Float, 3 * sizeof(float), 0 }, { "TEXCOORD", Format_R32G32B32A32_Float, 7 * sizeof(float), 1 }, { "TEXCOORD", Format_R32G32B32_Float, 11 * sizeof(float), 2 }};
-
-			return ElementVertexLayout;
-		}
-		InputLayout* Shader::GetSkinVertexLayout()
-		{
-			static InputLayout SkinVertexLayout[7] = {{ "POSITION", Format_R32G32B32_Float, 0, 0 }, { "TEXCOORD", Format_R32G32_Float, 3 * sizeof(float), 0 }, { "NORMAL", Format_R32G32B32_Float, 5 * sizeof(float), 0 }, { "TANGENT", Format_R32G32B32_Float, 8 * sizeof(float), 0 }, { "BINORMAL", Format_R32G32B32_Float, 11 * sizeof(float), 0 }, { "JOINTBIAS", Format_R32G32B32A32_Float, 14 * sizeof(float), 0 }, { "JOINTBIAS", Format_R32G32B32A32_Float, 18 * sizeof(float), 1 }};
-
-			return SkinVertexLayout;
-		}
-		InputLayout* Shader::GetVertexLayout()
-		{
-			static InputLayout VertexLayout[5] = {{ "POSITION", Format_R32G32B32_Float, 0, 0 }, { "TEXCOORD", Format_R32G32_Float, 3 * sizeof(float), 0 }, { "NORMAL", Format_R32G32B32_Float, 5 * sizeof(float), 0 }, { "TANGENT", Format_R32G32B32_Float, 8 * sizeof(float), 0 }, { "BINORMAL", Format_R32G32B32_Float, 11 * sizeof(float), 0 }};
-
-			return VertexLayout;
-		}
-		unsigned int Shader::GetShapeVertexLayoutStride()
-		{
-			return sizeof(Compute::ShapeVertex);
-		}
-		unsigned int Shader::GetElementVertexLayoutStride()
-		{
-			return sizeof(Compute::ElementVertex);
-		}
-		unsigned int Shader::GetSkinVertexLayoutStride()
-		{
-			return sizeof(Compute::SkinVertex);
-		}
-		unsigned int Shader::GetVertexLayoutStride()
-		{
-			return sizeof(Compute::Vertex);
 		}
 
 		ElementBuffer::ElementBuffer(const Desc& I)
 		{
 			Elements = I.ElementCount;
+			Stride = I.ElementWidth;
 		}
 		uint64_t ElementBuffer::GetElements()
 		{
 			return Elements;
 		}
-
-		StructureBuffer::StructureBuffer(const Desc& I)
+		uint64_t ElementBuffer::GetStride()
 		{
-			Elements = I.ElementCount;
-		}
-		uint64_t StructureBuffer::GetElements()
-		{
-			return Elements;
+			return Stride;
 		}
 
 		MeshBuffer::MeshBuffer(const Desc& I) : VertexBuffer(nullptr), IndexBuffer(nullptr)
@@ -697,8 +664,7 @@ namespace Tomahawk
 			DepthStencil.BackFaceStencilDepthFailOperation = Graphics::StencilOperation_Subtract;
 			DepthStencil.BackFaceStencilPassOperation = Graphics::StencilOperation_Keep;
 			DepthStencil.BackFaceStencilFunction = Graphics::Comparison_Always;
-			DepthStencil.Name = "DEF_LESS";
-			DepthStencilStates[DepthStencil.Name] = CreateDepthStencilState(DepthStencil);
+			DepthStencilStates["less"] = CreateDepthStencilState(DepthStencil);
 
 			DepthStencil.DepthEnable = true;
 			DepthStencil.DepthWriteMask = Graphics::DepthWrite_Zero;
@@ -714,8 +680,7 @@ namespace Tomahawk
 			DepthStencil.BackFaceStencilDepthFailOperation = Graphics::StencilOperation_Subtract;
 			DepthStencil.BackFaceStencilPassOperation = Graphics::StencilOperation_Keep;
 			DepthStencil.BackFaceStencilFunction = Graphics::Comparison_Always;
-			DepthStencil.Name = "DEF_GREATER_EQUAL";
-			DepthStencilStates[DepthStencil.Name] = CreateDepthStencilState(DepthStencil);
+			DepthStencilStates["greater-equal"] = CreateDepthStencilState(DepthStencil);
 
 			DepthStencil.DepthEnable = false;
 			DepthStencil.DepthWriteMask = Graphics::DepthWrite_All;
@@ -731,8 +696,7 @@ namespace Tomahawk
 			DepthStencil.BackFaceStencilDepthFailOperation = Graphics::StencilOperation_Subtract;
 			DepthStencil.BackFaceStencilPassOperation = Graphics::StencilOperation_Keep;
 			DepthStencil.BackFaceStencilFunction = Graphics::Comparison_Always;
-			DepthStencil.Name = "DEF_NONE";
-			DepthStencilStates[DepthStencil.Name] = CreateDepthStencilState(DepthStencil);
+			DepthStencilStates["none"] = CreateDepthStencilState(DepthStencil);
 
 			DepthStencil.DepthEnable = true;
 			DepthStencil.DepthWriteMask = Graphics::DepthWrite_Zero;
@@ -748,8 +712,7 @@ namespace Tomahawk
 			DepthStencil.BackFaceStencilDepthFailOperation = Graphics::StencilOperation_Subtract;
 			DepthStencil.BackFaceStencilPassOperation = Graphics::StencilOperation_Keep;
 			DepthStencil.BackFaceStencilFunction = Graphics::Comparison_Always;
-			DepthStencil.Name = "DEF_NONE_LESS";
-			DepthStencilStates[DepthStencil.Name] = CreateDepthStencilState(DepthStencil);
+			DepthStencilStates["less-none"] = CreateDepthStencilState(DepthStencil);
 
 			DepthStencil.DepthEnable = true;
 			DepthStencil.DepthWriteMask = Graphics::DepthWrite_All;
@@ -765,8 +728,7 @@ namespace Tomahawk
 			DepthStencil.BackFaceStencilDepthFailOperation = Graphics::StencilOperation_Subtract;
 			DepthStencil.BackFaceStencilPassOperation = Graphics::StencilOperation_Keep;
 			DepthStencil.BackFaceStencilFunction = Graphics::Comparison_Always;
-			DepthStencil.Name = "DEF_LESS_NO_STENCIL";
-			DepthStencilStates[DepthStencil.Name] = CreateDepthStencilState(DepthStencil);
+			DepthStencilStates["less-no-stencil"] = CreateDepthStencilState(DepthStencil);
 
 			Graphics::RasterizerState::Desc Rasterizer;
 			Rasterizer.AntialiasedLineEnable = false;
@@ -779,8 +741,7 @@ namespace Tomahawk
 			Rasterizer.MultisampleEnable = false;
 			Rasterizer.ScissorEnable = false;
 			Rasterizer.SlopeScaledDepthBias = 0.0f;
-			Rasterizer.Name = "DEF_CULL_BACK";
-			RasterizerStates[Rasterizer.Name] = CreateRasterizerState(Rasterizer);
+			RasterizerStates["cull-back"] = CreateRasterizerState(Rasterizer);
 
 			Rasterizer.AntialiasedLineEnable = false;
 			Rasterizer.CullMode = Graphics::VertexCull_Front;
@@ -792,8 +753,7 @@ namespace Tomahawk
 			Rasterizer.MultisampleEnable = false;
 			Rasterizer.ScissorEnable = false;
 			Rasterizer.SlopeScaledDepthBias = 0.0f;
-			Rasterizer.Name = "DEF_CULL_FRONT";
-			RasterizerStates[Rasterizer.Name] = CreateRasterizerState(Rasterizer);
+			RasterizerStates["cull-front"] = CreateRasterizerState(Rasterizer);
 
 			Rasterizer.AntialiasedLineEnable = false;
 			Rasterizer.CullMode = Graphics::VertexCull_Disabled;
@@ -805,8 +765,7 @@ namespace Tomahawk
 			Rasterizer.MultisampleEnable = false;
 			Rasterizer.ScissorEnable = false;
 			Rasterizer.SlopeScaledDepthBias = 0.0f;
-			Rasterizer.Name = "DEF_CULL_NONE";
-			RasterizerStates[Rasterizer.Name] = CreateRasterizerState(Rasterizer);
+			RasterizerStates["cull-none"] = CreateRasterizerState(Rasterizer);
 
 			Rasterizer.AntialiasedLineEnable = false;
 			Rasterizer.CullMode = Graphics::VertexCull_Disabled;
@@ -818,23 +777,20 @@ namespace Tomahawk
 			Rasterizer.MultisampleEnable = false;
 			Rasterizer.ScissorEnable = true;
 			Rasterizer.SlopeScaledDepthBias = 0.0f;
-			Rasterizer.Name = "DEF_CULL_NONE_SCISSOR";
-			RasterizerStates[Rasterizer.Name] = CreateRasterizerState(Rasterizer);
+			RasterizerStates["cull-none-scissor"] = CreateRasterizerState(Rasterizer);
 
 			Graphics::BlendState::Desc Blend;
 			Blend.AlphaToCoverageEnable = false;
 			Blend.IndependentBlendEnable = false;
 			Blend.RenderTarget[0].BlendEnable = false;
 			Blend.RenderTarget[0].RenderTargetWriteMask = Graphics::ColorWriteEnable_All;
-			Blend.Name = "DEF_OVERWRITE";
-			BlendStates[Blend.Name] = CreateBlendState(Blend);
+			BlendStates["overwrite"] = CreateBlendState(Blend);
 
 			Blend.AlphaToCoverageEnable = false;
 			Blend.IndependentBlendEnable = false;
 			Blend.RenderTarget[0].BlendEnable = false;
 			Blend.RenderTarget[0].RenderTargetWriteMask = 0;
-			Blend.Name = "DEF_OVERWRITE_COLORLESS";
-			BlendStates[Blend.Name] = CreateBlendState(Blend);
+			BlendStates["overwrite-colorless"] = CreateBlendState(Blend);
 
 			Blend.AlphaToCoverageEnable = false;
 			Blend.IndependentBlendEnable = false;
@@ -846,8 +802,7 @@ namespace Tomahawk
 			Blend.RenderTarget[0].DestBlendAlpha = Graphics::Blend_One;
 			Blend.RenderTarget[0].BlendOperationAlpha = Graphics::BlendOperation_Add;
 			Blend.RenderTarget[0].RenderTargetWriteMask = Graphics::ColorWriteEnable_All;
-			Blend.Name = "DEF_ADDITIVE";
-			BlendStates[Blend.Name] = CreateBlendState(Blend);
+			BlendStates["additive"] = CreateBlendState(Blend);
 
 			Blend.AlphaToCoverageEnable = false;
 			Blend.IndependentBlendEnable = true;
@@ -864,8 +819,7 @@ namespace Tomahawk
 			}
 			Blend.RenderTarget[1].BlendEnable = false;
 			Blend.RenderTarget[2].BlendEnable = false;
-			Blend.Name = "DEF_GB_ADDITIVE";
-			BlendStates[Blend.Name] = CreateBlendState(Blend);
+			BlendStates["additive-gbuffer"] = CreateBlendState(Blend);
 
 			Blend.AlphaToCoverageEnable = false;
 			Blend.IndependentBlendEnable = false;
@@ -877,8 +831,7 @@ namespace Tomahawk
 			Blend.RenderTarget[0].DestBlendAlpha = Graphics::Blend_One;
 			Blend.RenderTarget[0].BlendOperationAlpha = Graphics::BlendOperation_Add;
 			Blend.RenderTarget[0].RenderTargetWriteMask = Graphics::ColorWriteEnable_All;
-			Blend.Name = "DEF_ADDITIVE_ALPHA";
-			BlendStates[Blend.Name] = CreateBlendState(Blend);
+			BlendStates["additive-alpha"] = CreateBlendState(Blend);
 
 			Blend.AlphaToCoverageEnable = false;
 			Blend.IndependentBlendEnable = false;
@@ -890,8 +843,7 @@ namespace Tomahawk
 			Blend.RenderTarget[0].DestBlendAlpha = Graphics::Blend_Zero;
 			Blend.RenderTarget[0].BlendOperationAlpha = Graphics::BlendOperation_Add;
 			Blend.RenderTarget[0].RenderTargetWriteMask = Graphics::ColorWriteEnable_All;
-			Blend.Name = "DEF_ADDITIVE_SOURCE";
-			BlendStates[Blend.Name] = CreateBlendState(Blend);
+			BlendStates["additive-source"] = CreateBlendState(Blend);
 
 			Graphics::SamplerState::Desc Sampler;
 			Sampler.Filter = Graphics::PixelFilter_Anistropic;
@@ -907,8 +859,7 @@ namespace Tomahawk
 			Sampler.BorderColor[3] = 0.0f;
 			Sampler.MinLOD = 0.0f;
 			Sampler.MaxLOD = std::numeric_limits<float>::max();
-			Sampler.Name = "DEF_TRILINEAR_X16";
-			SamplerStates[Sampler.Name] = CreateSamplerState(Sampler);
+			SamplerStates["trilinear-x16"] = CreateSamplerState(Sampler);
 
 			Sampler.Filter = Graphics::PixelFilter_Min_Mag_Mip_Linear;
 			Sampler.AddressU = Graphics::TextureAddress_Clamp;
@@ -918,8 +869,7 @@ namespace Tomahawk
 			Sampler.ComparisonFunction = Graphics::Comparison_Always;
 			Sampler.MinLOD = 0.0f;
 			Sampler.MaxLOD = std::numeric_limits<float>::max();
-			Sampler.Name = "DEF_LINEAR";
-			SamplerStates[Sampler.Name] = CreateSamplerState(Sampler);
+			SamplerStates["linear"] = CreateSamplerState(Sampler);
 
 			Sampler.Filter = Graphics::PixelFilter_Min_Mag_Mip_Point;
 			Sampler.AddressU = Graphics::TextureAddress_Clamp;
@@ -929,13 +879,51 @@ namespace Tomahawk
 			Sampler.ComparisonFunction = Graphics::Comparison_Never;
 			Sampler.MinLOD = 0.0f;
 			Sampler.MaxLOD = std::numeric_limits<float>::max();
-			Sampler.Name = "DEF_POINT";
-			SamplerStates[Sampler.Name] = CreateSamplerState(Sampler);
+			SamplerStates["point"] = CreateSamplerState(Sampler);
 
-			SetDepthStencilState(GetDepthStencilState("DEF_LESS"));
-			SetRasterizerState(GetRasterizerState("DEF_CULL_BACK"));
-			SetBlendState(GetBlendState("DEF_OVERWRITE"));
-			SetSamplerState(GetSamplerState("DEF_TRILINEAR_X16"));
+			InputLayout::Desc Layout;
+			Layout.Attributes =
+			{
+				{ "POSITION", 0, AttributeType_Float, 3, 0 },
+				{ "TEXCOORD", 0, AttributeType_Float, 2, 3 * sizeof(float) }
+			};
+			InputLayouts["shape-vertex"] = CreateInputLayout(Layout);
+
+			Layout.Attributes =
+			{
+				{ "POSITION", 0, AttributeType_Float, 3, 0 },
+				{ "TEXCOORD", 0, AttributeType_Float, 4, 3 * sizeof(float) },
+				{ "TEXCOORD", 1, AttributeType_Float, 4, 7 * sizeof(float) },
+				{ "TEXCOORD", 2, AttributeType_Float, 3, 11 * sizeof(float) }
+			};
+			InputLayouts["element-vertex"] = CreateInputLayout(Layout);
+
+			Layout.Attributes =
+			{
+				{ "POSITION", 0, AttributeType_Float, 3, 0 },
+				{ "TEXCOORD", 0, AttributeType_Float, 2, 3 * sizeof(float) },
+				{ "NORMAL", 0, AttributeType_Float, 3, 5 * sizeof(float) },
+				{ "TANGENT", 0, AttributeType_Float, 3, 8 * sizeof(float) },
+				{ "BINORMAL", 0, AttributeType_Float, 3, 11 * sizeof(float) }
+			};
+			InputLayouts["vertex"] = CreateInputLayout(Layout);
+
+			Layout.Attributes =
+			{
+				{ "POSITION", 0, AttributeType_Float, 3, 0 },
+				{ "TEXCOORD", 0, AttributeType_Float, 2, 3 * sizeof(float) },
+				{ "NORMAL", 0, AttributeType_Float, 3, 5 * sizeof(float) },
+				{ "TANGENT", 0, AttributeType_Float, 3, 8 * sizeof(float) },
+				{ "BINORMAL", 0, AttributeType_Float, 3, 11 * sizeof(float) },
+				{ "JOINTBIAS", 0, AttributeType_Float, 4, 14 * sizeof(float) },
+				{ "JOINTBIAS", 1, AttributeType_Float, 4, 18 * sizeof(float) }
+			};
+			InputLayouts["skin-vertex"] = CreateInputLayout(Layout);
+
+			SetDepthStencilState(GetDepthStencilState("less"));
+			SetRasterizerState(GetRasterizerState("cull-back"));
+			SetBlendState(GetBlendState("overwrite"));
+			SetSamplerState(GetSamplerState("trilinear-x16"));
 		}
 		void GraphicsDevice::InitSections()
 		{
@@ -1655,6 +1643,14 @@ namespace Tomahawk
 
 			return nullptr;
 		}
+		InputLayout* GraphicsDevice::GetInputLayout(const std::string& Name)
+		{
+			auto It = InputLayouts.find(Name);
+			if (It != InputLayouts.end())
+				return It->second;
+
+			return nullptr;
+		}
 		RenderTarget2D* GraphicsDevice::GetRenderTarget()
 		{
 			return RenderTarget;
@@ -1744,6 +1740,10 @@ namespace Tomahawk
 			for (auto It = SamplerStates.begin(); It != SamplerStates.end(); It++)
 				delete It->second;
 			SamplerStates.clear();
+
+			for (auto It = InputLayouts.begin(); It != InputLayouts.end(); It++)
+				delete It->second;
+			InputLayouts.clear();
 
 			delete RenderTarget;
 			RenderTarget = nullptr;

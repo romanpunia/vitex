@@ -471,29 +471,10 @@ namespace Tomahawk
 					return nullptr;
 				}
 
-				Graphics::InputLayout* Layout = nullptr;
-				if (Args->Get("Layout", ContentType_Pointer))
-					Layout = (Graphics::InputLayout*)Args->Get("Layout", ContentType_Pointer)->Pointer;
-
-				int64_t LayoutSize = 0;
-				if (Args->Get("LayoutSize", ContentType_Integer))
-					LayoutSize = Args->Get("LayoutSize", ContentType_Integer)->Integer;
-
-				if (!Layout || !LayoutSize)
-				{
-					THAWK_ERROR("shader processor args expected: req pointer Layout and req integer LayoutSize");
-					return nullptr;
-				}
-
-				Graphics::Shader::Desc I = Graphics::Shader::Desc();
-				if (Layout && LayoutSize != -1)
-				{
-					I.Layout = Layout;
-					I.LayoutSize = (int)LayoutSize;
-				}
-
 				char* Code = new char[(unsigned int)Length];
 				Stream->Read(Code, Length);
+
+				Graphics::Shader::Desc I = Graphics::Shader::Desc();
 				I.Filename = Stream->Filename();
 				I.Data = Code;
 

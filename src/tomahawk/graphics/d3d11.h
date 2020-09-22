@@ -67,6 +67,16 @@ namespace Tomahawk
 				void* GetResource() override;
 			};
 
+			class D3D11InputLayout : public InputLayout
+			{
+				friend D3D11Device;
+
+			public:
+				D3D11InputLayout(const Desc& I);
+				virtual ~D3D11InputLayout() override;
+				void* GetResource() override;
+			};
+
 			class D3D11Shader : public Shader
 			{
 				friend D3D11Device;
@@ -81,8 +91,9 @@ namespace Tomahawk
 				ID3D11DomainShader* DomainShader;
 				ID3D11HullShader* HullShader;
 				ID3D11ComputeShader* ComputeShader;
-				ID3D11InputLayout* VertexLayout;
 				ID3D11Buffer* ConstantBuffer;
+				ID3D11InputLayout* VertexLayout;
+				ID3DBlob* Signature;
 
 			public:
 				D3D11Shader(const Desc& I);
@@ -95,26 +106,12 @@ namespace Tomahawk
 				friend D3D11Device;
 
 			public:
+				ID3D11ShaderResourceView* Resource;
 				ID3D11Buffer* Element;
 
 			public:
 				D3D11ElementBuffer(const Desc& I);
 				virtual ~D3D11ElementBuffer() override;
-				void* GetResource() override;
-			};
-
-			class D3D11StructureBuffer : public StructureBuffer
-			{
-				friend D3D11Device;
-
-			public:
-				ID3D11Buffer* Element;
-				ID3D11ShaderResourceView* Resource;
-
-			public:
-				D3D11StructureBuffer(const Desc& I);
-				virtual ~D3D11StructureBuffer() override;
-				void* GetElement() override;
 				void* GetResource() override;
 			};
 
@@ -320,22 +317,16 @@ namespace Tomahawk
 			class D3D11Device : public GraphicsDevice
 			{
 			private:
-				struct ConstantBuffer
-				{
-					Compute::Matrix4x4 WorldViewProjection;
-					Compute::Vector4 Padding;
-				};
-
-			private:
 				const char* VSP, *PSP, *GSP, *HSP, *DSP, *CSP;
 				ID3DBlob* VertexShaderBlob;
 				ID3D11VertexShader* VertexShader;
-				ID3D11InputLayout* InputLayout;
+				ID3D11InputLayout* VertexLayout;
 				ID3D11Buffer* VertexConstantBuffer;
 				ID3DBlob* PixelShaderBlob;
 				ID3D11PixelShader* PixelShader;
 				ID3D11Buffer* DirectBuffer;
-				ConstantBuffer Direct;
+				ID3D11Buffer* Buffer;
+				D3D11InputLayout* Layout;
 
 			public:
 				ID3D11DeviceContext* ImmediateContext;
@@ -355,12 +346,13 @@ namespace Tomahawk
 				void SetBlendState(BlendState* State) override;
 				void SetRasterizerState(RasterizerState* State) override;
 				void SetDepthStencilState(DepthStencilState* State) override;
+				void SetInputLayout(InputLayout* State) override;
 				void SetShader(Shader* Resource, unsigned int Type) override;
 				void SetBuffer(Shader* Resource, unsigned int Slot, unsigned int Type) override;
-				void SetBuffer(StructureBuffer* Resource, unsigned int Slot) override;
 				void SetBuffer(InstanceBuffer* Resource, unsigned int Slot) override;
-				void SetIndexBuffer(ElementBuffer* Resource, Format FormatMode, unsigned int Offset) override;
-				void SetVertexBuffer(ElementBuffer* Resource, unsigned int Slot, unsigned int Stride, unsigned int Offset) override;
+				void SetStructureBuffer(ElementBuffer* Resource, unsigned int Slot) override;
+				void SetIndexBuffer(ElementBuffer* Resource, Format FormatMode) override;
+				void SetVertexBuffer(ElementBuffer* Resource, unsigned int Slot) override;
 				void SetTexture2D(Texture2D* Resource, unsigned int Slot) override;
 				void SetTexture3D(Texture3D* Resource, unsigned int Slot) override;
 				void SetTextureCube(TextureCube* Resource, unsigned int Slot) override;
@@ -380,6 +372,7 @@ namespace Tomahawk
 				void SetTarget(MultiRenderTargetCube* Resource, float R, float G, float B) override;
 				void SetTarget(MultiRenderTargetCube* Resource) override;
 				void SetTargetMap(MultiRenderTarget2D* Resource, bool Enabled[8]) override;
+				void SetTargetMap(MultiRenderTargetCube* Resource, bool Enabled[8]) override;
 				void SetViewport(const Viewport& In) override;
 				void SetViewport(RenderTarget2D* Resource, const Viewport& In) override;
 				void SetViewport(MultiRenderTarget2D* Resource, const Viewport& In) override;
@@ -393,10 +386,8 @@ namespace Tomahawk
 				void FlushTextureCube(unsigned int Slot, unsigned int Count) override;
 				void FlushState() override;
 				bool Map(ElementBuffer* Resource, ResourceMap Mode, MappedSubresource* Map) override;
-				bool Map(StructureBuffer* Resource, ResourceMap Mode, MappedSubresource* Map) override;
 				bool Unmap(ElementBuffer* Resource, MappedSubresource* Map) override;
-				bool Unmap(StructureBuffer* Resource, MappedSubresource* Map) override;
-				bool UpdateBuffer(StructureBuffer* Resource, void* Data, uint64_t Size) override;
+				bool UpdateBuffer(ElementBuffer* Resource, void* Data, uint64_t Size) override;
 				bool UpdateBuffer(Shader* Resource, const void* Data) override;
 				bool UpdateBuffer(MeshBuffer* Resource, Compute::Vertex* Data) override;
 				bool UpdateBuffer(SkinMeshBuffer* Resource, Compute::SkinVertex* Data) override;
@@ -453,25 +444,25 @@ namespace Tomahawk
 				void GenerateMips(Texture2D* Resource) override;
 				void GenerateMips(Texture3D* Resource) override;
 				void GenerateMips(TextureCube* Resource) override;
-				bool DirectBegin() override;
-				void DirectTransform(const Compute::Matrix4x4& Transform) override;
-				void DirectTopology(PrimitiveTopology Topology) override;
-				void DirectEmit() override;
-				void DirectTexture(Texture2D* In) override;
-				void DirectColor(float X, float Y, float Z, float W) override;
-				void DirectIntensity(float Intensity) override;
-				void DirectTexCoord(float X, float Y) override;
-				void DirectTexCoordOffset(float X, float Y) override;
-				void DirectPosition(float X, float Y, float Z) override;
-				bool DirectEnd() override;
+				bool Begin() override;
+				void Transform(const Compute::Matrix4x4& Transform) override;
+				void Topology(PrimitiveTopology Topology) override;
+				void Emit() override;
+				void Texture(Texture2D* In) override;
+				void Color(float X, float Y, float Z, float W) override;
+				void Intensity(float Intensity) override;
+				void TexCoord(float X, float Y) override;
+				void TexCoordOffset(float X, float Y) override;
+				void Position(float X, float Y, float Z) override;
+				bool End() override;
 				bool Submit() override;
 				DepthStencilState* CreateDepthStencilState(const DepthStencilState::Desc& I) override;
 				BlendState* CreateBlendState(const BlendState::Desc& I) override;
 				RasterizerState* CreateRasterizerState(const RasterizerState::Desc& I) override;
 				SamplerState* CreateSamplerState(const SamplerState::Desc& I) override;
+				InputLayout* CreateInputLayout(const InputLayout::Desc& I) override;
 				Shader* CreateShader(const Shader::Desc& I) override;
 				ElementBuffer* CreateElementBuffer(const ElementBuffer::Desc& I) override;
-				StructureBuffer* CreateStructureBuffer(const StructureBuffer::Desc& I) override;
 				MeshBuffer* CreateMeshBuffer(const MeshBuffer::Desc& I) override;
 				SkinMeshBuffer* CreateSkinMeshBuffer(const SkinMeshBuffer::Desc& I) override;
 				InstanceBuffer* CreateInstanceBuffer(const InstanceBuffer::Desc& I) override;
@@ -499,6 +490,7 @@ namespace Tomahawk
 				bool IsValid() override;
 				bool CreateDirectBuffer();
 				bool CreateVertexBuffer(uint64_t Size);
+				ID3D11InputLayout* GenerateInputLayout(D3D11Shader* Shader);
 				int CreateConstantBuffer(ID3D11Buffer** Buffer, size_t Size);
 				char* GetCompileState(ID3DBlob* Error);
 				char* GetVSProfile();

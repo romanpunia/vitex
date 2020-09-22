@@ -277,6 +277,7 @@ namespace Tomahawk
 				Graphics::RasterizerState* Rasterizer;
 				Graphics::BlendState* Blend;
 				Graphics::SamplerState* Sampler;
+				Graphics::InputLayout* Layout;
 				Graphics::ElementBuffer* VertexBuffer;
 				Graphics::ElementBuffer* IndexBuffer;
 				Graphics::Activity* Activity;

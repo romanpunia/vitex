@@ -64,16 +64,28 @@ namespace Tomahawk
 				void* GetResource() override;
 			};
 
+			class OGLInputLayout : public InputLayout
+			{
+				friend OGLDevice;
+
+			public:
+				std::vector<std::function<void(uint64_t)>> VertexLayout;
+
+			public:
+				OGLInputLayout(const Desc& I);
+				virtual ~OGLInputLayout() override;
+				void* GetResource() override;
+			};
+
 			class OGLShader : public Shader
 			{
 				friend OGLDevice;
 
 			private:
-				std::vector<std::function<void()>> VertexLayout;
 				bool Compiled;
 
 			public:
-				GLuint Program = GL_INVALID_VALUE;
+				std::unordered_map<unsigned int, GLuint> Programs;
 				GLuint VertexShader = GL_INVALID_VALUE;
 				GLuint PixelShader = GL_INVALID_VALUE;
 				GLuint GeometryShader = GL_INVALID_VALUE;
@@ -81,6 +93,7 @@ namespace Tomahawk
 				GLuint HullShader = GL_INVALID_VALUE;
 				GLuint ComputeShader = GL_INVALID_VALUE;
 				GLuint ConstantBuffer = GL_INVALID_VALUE;
+				size_t ConstantSize = 0;
 
 			public:
 				OGLShader(const Desc& I);
@@ -93,27 +106,13 @@ namespace Tomahawk
 				friend OGLDevice;
 
 			private:
+				InputLayout* Layout = nullptr;
 				GLuint Resource = GL_INVALID_VALUE;
 				GLenum Flags = GL_INVALID_VALUE;
 
 			public:
 				OGLElementBuffer(const Desc& I);
 				virtual ~OGLElementBuffer() override;
-				void* GetResource() override;
-			};
-
-			class OGLStructureBuffer : public StructureBuffer
-			{
-				friend OGLDevice;
-
-			private:
-				GLuint Resource = GL_INVALID_VALUE;
-				GLenum Flags = GL_INVALID_VALUE;
-
-			public:
-				OGLStructureBuffer(const Desc& I);
-				virtual ~OGLStructureBuffer() override;
-				void* GetElement() override;
 				void* GetResource() override;
 			};
 
@@ -138,9 +137,6 @@ namespace Tomahawk
 			class OGLInstanceBuffer : public InstanceBuffer
 			{
 				friend OGLDevice;
-
-			public:
-				GLuint Resource = GL_INVALID_VALUE;
 
 			public:
 				OGLInstanceBuffer(const Desc& I);
@@ -231,6 +227,7 @@ namespace Tomahawk
 				friend OGLDevice;
 
 			public:
+				std::vector<GLenum> Formats;
 				GLuint Texture[8] = { GL_INVALID_VALUE };
 				GLuint FrameBuffer = GL_INVALID_VALUE;
 				GLuint DepthBuffer = GL_INVALID_VALUE;
@@ -269,6 +266,7 @@ namespace Tomahawk
 				friend OGLDevice;
 
 			public:
+				std::vector<GLenum> Formats;
 				GLuint Texture[8] = { GL_INVALID_VALUE };
 				GLuint FrameBuffer = GL_INVALID_VALUE;
 				GLuint DepthTexture = GL_INVALID_VALUE;
@@ -306,12 +304,18 @@ namespace Tomahawk
 
 			private:
 				const char* ShaderVersion;
-				ConstantBuffer Direct;
+				OGLInputLayout* Layout;
+				PrimitiveTopology Primitive;
+				GLuint DirectVertexShader;
+				GLuint DirectPixelShader;
+				GLuint DirectProgram;
+				GLuint DirectBuffer;
+				GLenum IndexType;
 
 			public:
 				GLuint ConstantBuffer[3];
+				size_t ConstantSize[3];
 				Activity* Window;
-				PrimitiveTopology Topology;
 				void* Context;
 
 			public:
@@ -323,12 +327,13 @@ namespace Tomahawk
 				void SetBlendState(BlendState* State) override;
 				void SetRasterizerState(RasterizerState* State) override;
 				void SetDepthStencilState(DepthStencilState* State) override;
+				void SetInputLayout(InputLayout* State) override;
 				void SetShader(Shader* Resource, unsigned int Type) override;
 				void SetBuffer(Shader* Resource, unsigned int Slot, unsigned int Type) override;
-				void SetBuffer(StructureBuffer* Resource, unsigned int Slot) override;
 				void SetBuffer(InstanceBuffer* Resource, unsigned int Slot) override;
-				void SetIndexBuffer(ElementBuffer* Resource, Format FormatMode, unsigned int Offset) override;
-				void SetVertexBuffer(ElementBuffer* Resource, unsigned int Slot, unsigned int Stride, unsigned int Offset) override;
+				void SetStructureBuffer(ElementBuffer* Resource, unsigned int Slot) override;
+				void SetIndexBuffer(ElementBuffer* Resource, Format FormatMode) override;
+				void SetVertexBuffer(ElementBuffer* Resource, unsigned int Slot) override;
 				void SetTexture2D(Texture2D* Resource, unsigned int Slot) override;
 				void SetTexture3D(Texture3D* Resource, unsigned int Slot) override;
 				void SetTextureCube(TextureCube* Resource, unsigned int Slot) override;
@@ -348,6 +353,7 @@ namespace Tomahawk
 				void SetTarget(MultiRenderTargetCube* Resource, float R, float G, float B) override;
 				void SetTarget(MultiRenderTargetCube* Resource) override;
 				void SetTargetMap(MultiRenderTarget2D* Resource, bool Enabled[8]) override;
+				void SetTargetMap(MultiRenderTargetCube* Resource, bool Enabled[8]) override;
 				void SetViewport(const Viewport& In) override;
 				void SetViewport(RenderTarget2D* Resource, const Viewport& In) override;
 				void SetViewport(MultiRenderTarget2D* Resource, const Viewport& In) override;
@@ -361,10 +367,8 @@ namespace Tomahawk
 				void FlushTextureCube(unsigned int Slot, unsigned int Count) override;
 				void FlushState() override;
 				bool Map(ElementBuffer* Resource, ResourceMap Mode, MappedSubresource* Map) override;
-				bool Map(StructureBuffer* Resource, ResourceMap Mode, MappedSubresource* Map) override;
 				bool Unmap(ElementBuffer* Resource, MappedSubresource* Map) override;
-				bool Unmap(StructureBuffer* Resource, MappedSubresource* Map) override;
-				bool UpdateBuffer(StructureBuffer* Resource, void* Data, uint64_t Size) override;
+				bool UpdateBuffer(ElementBuffer* Resource, void* Data, uint64_t Size) override;
 				bool UpdateBuffer(Shader* Resource, const void* Data) override;
 				bool UpdateBuffer(MeshBuffer* Resource, Compute::Vertex* Data) override;
 				bool UpdateBuffer(SkinMeshBuffer* Resource, Compute::SkinVertex* Data) override;
@@ -421,25 +425,25 @@ namespace Tomahawk
 				void GenerateMips(Texture2D* Resource) override;
 				void GenerateMips(Texture3D* Resource) override;
 				void GenerateMips(TextureCube* Resource) override;
-				bool DirectBegin() override;
-				void DirectTransform(const Compute::Matrix4x4& Transform) override;
-				void DirectTopology(PrimitiveTopology Topology) override;
-				void DirectEmit() override;
-				void DirectTexture(Texture2D* In) override;
-				void DirectColor(float X, float Y, float Z, float W) override;
-				void DirectIntensity(float Intensity) override;
-				void DirectTexCoord(float X, float Y) override;
-				void DirectTexCoordOffset(float X, float Y) override;
-				void DirectPosition(float X, float Y, float Z) override;
-				bool DirectEnd() override;
+				bool Begin() override;
+				void Transform(const Compute::Matrix4x4& Transform) override;
+				void Topology(PrimitiveTopology Topology) override;
+				void Emit() override;
+				void Texture(Texture2D* In) override;
+				void Color(float X, float Y, float Z, float W) override;
+				void Intensity(float Intensity) override;
+				void TexCoord(float X, float Y) override;
+				void TexCoordOffset(float X, float Y) override;
+				void Position(float X, float Y, float Z) override;
+				bool End() override;
 				bool Submit() override;
 				DepthStencilState* CreateDepthStencilState(const DepthStencilState::Desc& I) override;
 				BlendState* CreateBlendState(const BlendState::Desc& I) override;
 				RasterizerState* CreateRasterizerState(const RasterizerState::Desc& I) override;
 				SamplerState* CreateSamplerState(const SamplerState::Desc& I) override;
+				InputLayout* CreateInputLayout(const InputLayout::Desc& I) override;
 				Shader* CreateShader(const Shader::Desc& I) override;
 				ElementBuffer* CreateElementBuffer(const ElementBuffer::Desc& I) override;
-				StructureBuffer* CreateStructureBuffer(const StructureBuffer::Desc& I) override;
 				MeshBuffer* CreateMeshBuffer(const MeshBuffer::Desc& I) override;
 				SkinMeshBuffer* CreateSkinMeshBuffer(const SkinMeshBuffer::Desc& I) override;
 				InstanceBuffer* CreateInstanceBuffer(const InstanceBuffer::Desc& I) override;
@@ -472,6 +476,7 @@ namespace Tomahawk
 
 			protected:
 				TextureCube* CreateTextureCubeInternal(void* Resources[6]) override;
+				bool CreateDirectBuffer();
 
 			public:
 				static GLenum GetFormat(Format Value);

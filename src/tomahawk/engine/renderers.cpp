@@ -9,16 +9,14 @@ namespace Tomahawk
 		{
 			ModelRenderer::ModelRenderer(Engine::RenderSystem* Lab) : GeoRenderer(Lab)
 			{
-				DepthStencil = Lab->GetDevice()->GetDepthStencilState("DEF_LESS");
-				BackRasterizer = Lab->GetDevice()->GetRasterizerState("DEF_CULL_BACK");
-				FrontRasterizer = Lab->GetDevice()->GetRasterizerState("DEF_CULL_FRONT");
-				Blend = Lab->GetDevice()->GetBlendState("DEF_OVERWRITE");
-				Sampler = Lab->GetDevice()->GetSamplerState("DEF_TRILINEAR_X16");
+				DepthStencil = Lab->GetDevice()->GetDepthStencilState("less");
+				BackRasterizer = Lab->GetDevice()->GetRasterizerState("cull-back");
+				FrontRasterizer = Lab->GetDevice()->GetRasterizerState("cull-front");
+				Blend = Lab->GetDevice()->GetBlendState("overwrite");
+				Sampler = Lab->GetDevice()->GetSamplerState("trilinear-x16");
+				Layout = Lab->GetDevice()->GetInputLayout("vertex");
 
 				Graphics::Shader::Desc I = Graphics::Shader::Desc();
-				I.Layout = Graphics::Shader::GetVertexLayout();
-				I.LayoutSize = 5;
-
 				if (System->GetDevice()->GetSection("geometry/model/gbuffer", &I.Data))
 					Shaders.GBuffer = System->CompileShader("mr-gbuffer", I, 0);
 
@@ -52,6 +50,7 @@ namespace Tomahawk
 			{
 				Graphics::GraphicsDevice* Device = System->GetDevice();
 				Device->SetRasterizerState(BackRasterizer);
+				Device->SetInputLayout(Layout);
 				Device->SetShader(nullptr, Graphics::ShaderType_Pixel);
 				Device->SetShader(Shaders.Occlusion, Graphics::ShaderType_Vertex);
 
@@ -83,8 +82,8 @@ namespace Tomahawk
 						Device->Render.World = Base->GetBoundingBox();
 						Device->Render.WorldViewProjection = Device->Render.World * View.ViewProjection;
 						Device->UpdateBuffer(Graphics::RenderBufferType_Render);
-						Device->SetIndexBuffer(System->GetBoxIBuffer(), Graphics::Format_R32_Uint, 0);
-						Device->SetVertexBuffer(System->GetBoxVBuffer(), 0, System->GetBoxVSize(), 0);
+						Device->SetIndexBuffer(System->GetBoxIBuffer(), Graphics::Format_R32_Uint);
+						Device->SetVertexBuffer(System->GetBoxVBuffer(), 0);
 						Device->DrawIndexed(System->GetBoxIBuffer()->GetElements(), 0, 0);
 					}
 					Base->FragmentEnd(Device);
@@ -100,6 +99,7 @@ namespace Tomahawk
 				Device->SetSamplerState(Sampler);
 				Device->SetBlendState(Blend);
 				Device->SetRasterizerState(BackRasterizer);
+				Device->SetInputLayout(Layout);
 				Device->SetShader(Shaders.GBuffer, Graphics::ShaderType_Vertex | Graphics::ShaderType_Pixel);
 				System->GetScene()->SetSurface();
 
@@ -134,6 +134,7 @@ namespace Tomahawk
 				Device->SetSamplerState(Sampler);
 				Device->SetBlendState(Blend);
 				Device->SetRasterizerState(FrontRasterizer);
+				Device->SetInputLayout(Layout);
 				Device->SetShader(Shaders.Linear, Graphics::ShaderType_Vertex | Graphics::ShaderType_Pixel);
 
 				for (auto It = Geometry->Begin(); It != Geometry->End(); ++It)
@@ -166,6 +167,7 @@ namespace Tomahawk
 				Device->SetSamplerState(Sampler);
 				Device->SetBlendState(Blend);
 				Device->SetRasterizerState(FrontRasterizer);
+				Device->SetInputLayout(Layout);
 				Device->SetShader(Shaders.Cubic, Graphics::ShaderType_Vertex | Graphics::ShaderType_Pixel | Graphics::ShaderType_Geometry);
 				Device->SetBuffer(Shaders.Cubic, 3, Graphics::ShaderType_Vertex | Graphics::ShaderType_Pixel | Graphics::ShaderType_Geometry);
 				Device->UpdateBuffer(Shaders.Cubic, &Depth);
@@ -203,16 +205,14 @@ namespace Tomahawk
 
 			SkinRenderer::SkinRenderer(Engine::RenderSystem* Lab) : GeoRenderer(Lab)
 			{
-				DepthStencil = Lab->GetDevice()->GetDepthStencilState("DEF_LESS");
-				BackRasterizer = Lab->GetDevice()->GetRasterizerState("DEF_CULL_BACK");
-				FrontRasterizer = Lab->GetDevice()->GetRasterizerState("DEF_CULL_FRONT");
-				Blend = Lab->GetDevice()->GetBlendState("DEF_OVERWRITE");
-				Sampler = Lab->GetDevice()->GetSamplerState("DEF_TRILINEAR_X16");
+				DepthStencil = Lab->GetDevice()->GetDepthStencilState("less");
+				BackRasterizer = Lab->GetDevice()->GetRasterizerState("cull-back");
+				FrontRasterizer = Lab->GetDevice()->GetRasterizerState("cull-front");
+				Blend = Lab->GetDevice()->GetBlendState("overwrite");
+				Sampler = Lab->GetDevice()->GetSamplerState("trilinear-x16");
+				Layout = Lab->GetDevice()->GetInputLayout("skin-vertex");
 
 				Graphics::Shader::Desc I = Graphics::Shader::Desc();
-				I.Layout = Graphics::Shader::GetSkinVertexLayout();
-				I.LayoutSize = 7;
-
 				if (System->GetDevice()->GetSection("geometry/skin/gbuffer", &I.Data))
 					Shaders.GBuffer = System->CompileShader("sr-gbuffer", I, 0);
 
@@ -246,6 +246,7 @@ namespace Tomahawk
 			{
 				Graphics::GraphicsDevice* Device = System->GetDevice();
 				Device->SetRasterizerState(BackRasterizer);
+				Device->SetInputLayout(Layout);
 				Device->SetShader(nullptr, Graphics::ShaderType_Pixel);
 				Device->SetShader(Shaders.Occlusion, Graphics::ShaderType_Vertex);
 
@@ -284,8 +285,8 @@ namespace Tomahawk
 						Device->Render.WorldViewProjection = Device->Render.World * View.ViewProjection;
 						Device->UpdateBuffer(Graphics::RenderBufferType_Animation);
 						Device->UpdateBuffer(Graphics::RenderBufferType_Render);
-						Device->SetIndexBuffer(System->GetSkinBoxIBuffer(), Graphics::Format_R32_Uint, 0);
-						Device->SetVertexBuffer(System->GetSkinBoxVBuffer(), 0, System->GetSkinBoxVSize(), 0);
+						Device->SetIndexBuffer(System->GetSkinBoxIBuffer(), Graphics::Format_R32_Uint);
+						Device->SetVertexBuffer(System->GetSkinBoxVBuffer(), 0);
 						Device->DrawIndexed(System->GetSkinBoxIBuffer()->GetElements(), 0, 0);
 					}
 					Base->FragmentEnd(Device);
@@ -301,6 +302,7 @@ namespace Tomahawk
 				Device->SetSamplerState(Sampler);
 				Device->SetBlendState(Blend);
 				Device->SetRasterizerState(BackRasterizer);
+				Device->SetInputLayout(Layout);
 				Device->SetShader(Shaders.GBuffer, Graphics::ShaderType_Vertex | Graphics::ShaderType_Pixel);
 				System->GetScene()->SetSurface();
 
@@ -340,6 +342,7 @@ namespace Tomahawk
 				Device->SetSamplerState(Sampler);
 				Device->SetBlendState(Blend);
 				Device->SetRasterizerState(FrontRasterizer);
+				Device->SetInputLayout(Layout);
 				Device->SetShader(Shaders.Linear, Graphics::ShaderType_Vertex | Graphics::ShaderType_Pixel);
 
 				for (auto It = Geometry->Begin(); It != Geometry->End(); ++It)
@@ -377,6 +380,7 @@ namespace Tomahawk
 				Device->SetSamplerState(Sampler);
 				Device->SetBlendState(Blend);
 				Device->SetRasterizerState(FrontRasterizer);
+				Device->SetInputLayout(Layout);
 				Device->SetShader(Shaders.Cubic, Graphics::ShaderType_Vertex | Graphics::ShaderType_Pixel | Graphics::ShaderType_Geometry);
 				Device->SetBuffer(Shaders.Cubic, 3, Graphics::ShaderType_Vertex | Graphics::ShaderType_Pixel | Graphics::ShaderType_Geometry);
 				Device->UpdateBuffer(Shaders.Cubic, &Depth);
@@ -419,11 +423,12 @@ namespace Tomahawk
 
 			SoftBodyRenderer::SoftBodyRenderer(Engine::RenderSystem* Lab) : GeoRenderer(Lab)
 			{
-				DepthStencil = Lab->GetDevice()->GetDepthStencilState("DEF_LESS");
-				BackRasterizer = Lab->GetDevice()->GetRasterizerState("DEF_CULL_BACK");
-				FrontRasterizer = Lab->GetDevice()->GetRasterizerState("DEF_CULL_FRONT");
-				Blend = Lab->GetDevice()->GetBlendState("DEF_OVERWRITE");
-				Sampler = Lab->GetDevice()->GetSamplerState("DEF_TRILINEAR_X16");
+				DepthStencil = Lab->GetDevice()->GetDepthStencilState("less");
+				BackRasterizer = Lab->GetDevice()->GetRasterizerState("cull-back");
+				FrontRasterizer = Lab->GetDevice()->GetRasterizerState("cull-front");
+				Blend = Lab->GetDevice()->GetBlendState("overwrite");
+				Sampler = Lab->GetDevice()->GetSamplerState("trilinear-x16");
+				Layout = Lab->GetDevice()->GetInputLayout("vertex");
 
 				Graphics::ElementBuffer::Desc F = Graphics::ElementBuffer::Desc();
 				F.AccessFlags = Graphics::CPUAccess_Write;
@@ -431,7 +436,6 @@ namespace Tomahawk
 				F.BindFlags = Graphics::ResourceBind_Vertex_Buffer;
 				F.ElementWidth = sizeof(Compute::Vertex);
 				F.ElementCount = 16384;
-				F.UseSubresource = false;
 
 				VertexBuffer = Lab->GetDevice()->CreateElementBuffer(F);
 
@@ -441,14 +445,10 @@ namespace Tomahawk
 				F.BindFlags = Graphics::ResourceBind_Index_Buffer;
 				F.ElementWidth = sizeof(int);
 				F.ElementCount = 49152;
-				F.UseSubresource = false;
 
 				IndexBuffer = Lab->GetDevice()->CreateElementBuffer(F);
 
 				Graphics::Shader::Desc I = Graphics::Shader::Desc();
-				I.Layout = Graphics::Shader::GetVertexLayout();
-				I.LayoutSize = 5;
-
 				if (System->GetDevice()->GetSection("geometry/model/gbuffer", &I.Data))
 					Shaders.GBuffer = System->CompileShader("mr-gbuffer", I, 0);
 
@@ -484,6 +484,7 @@ namespace Tomahawk
 			{
 				Graphics::GraphicsDevice* Device = System->GetDevice();
 				Device->SetRasterizerState(BackRasterizer);
+				Device->SetInputLayout(Layout);
 				Device->SetShader(nullptr, Graphics::ShaderType_Pixel);
 				Device->SetShader(Shaders.Occlusion, Graphics::ShaderType_Vertex);
 
@@ -505,8 +506,8 @@ namespace Tomahawk
 						Device->Render.World.Identify();
 						Device->Render.WorldViewProjection = Device->Render.World * View.ViewProjection;
 						Device->UpdateBuffer(Graphics::RenderBufferType_Render);
-						Device->SetVertexBuffer(VertexBuffer, 0, sizeof(Compute::Vertex), 0);
-						Device->SetIndexBuffer(IndexBuffer, Graphics::Format_R32_Uint, 0);
+						Device->SetVertexBuffer(VertexBuffer, 0);
+						Device->SetIndexBuffer(IndexBuffer, Graphics::Format_R32_Uint);
 						Device->DrawIndexed(System->GetBoxIBuffer()->GetElements(), 0, 0);
 					}
 					else
@@ -514,8 +515,8 @@ namespace Tomahawk
 						Device->Render.World = Base->GetEntity()->Transform->GetWorld();
 						Device->Render.WorldViewProjection = Device->Render.World * View.ViewProjection;
 						Device->UpdateBuffer(Graphics::RenderBufferType_Render);
-						Device->SetIndexBuffer(System->GetBoxIBuffer(), Graphics::Format_R32_Uint, 0);
-						Device->SetVertexBuffer(System->GetBoxVBuffer(), 0, System->GetBoxVSize(), 0);
+						Device->SetIndexBuffer(System->GetBoxIBuffer(), Graphics::Format_R32_Uint);
+						Device->SetVertexBuffer(System->GetBoxVBuffer(), 0);
 						Device->DrawIndexed((unsigned int)Base->GetIndices().size(), 0, 0);
 					}
 					Base->FragmentEnd(Device);
@@ -531,6 +532,7 @@ namespace Tomahawk
 				Device->SetSamplerState(Sampler);
 				Device->SetBlendState(Blend);
 				Device->SetRasterizerState(BackRasterizer);
+				Device->SetInputLayout(Layout);
 				Device->SetShader(Shaders.GBuffer, Graphics::ShaderType_Vertex | Graphics::ShaderType_Pixel);
 				System->GetScene()->SetSurface();
 
@@ -551,8 +553,8 @@ namespace Tomahawk
 					Device->Render.World.Identify();
 					Device->Render.WorldViewProjection = System->GetScene()->View.ViewProjection;
 					Device->UpdateBuffer(Graphics::RenderBufferType_Render);
-					Device->SetVertexBuffer(VertexBuffer, 0, sizeof(Compute::Vertex), 0);
-					Device->SetIndexBuffer(IndexBuffer, Graphics::Format_R32_Uint, 0);
+					Device->SetVertexBuffer(VertexBuffer, 0);
+					Device->SetIndexBuffer(IndexBuffer, Graphics::Format_R32_Uint);
 					Device->DrawIndexed((unsigned int)Base->GetIndices().size(), 0, 0);
 				}
 
@@ -565,6 +567,7 @@ namespace Tomahawk
 				Device->SetSamplerState(Sampler);
 				Device->SetBlendState(Blend);
 				Device->SetRasterizerState(FrontRasterizer);
+				Device->SetInputLayout(Layout);
 				Device->SetShader(Shaders.Linear, Graphics::ShaderType_Vertex | Graphics::ShaderType_Pixel);
 
 				for (auto It = Geometry->Begin(); It != Geometry->End(); ++It)
@@ -584,8 +587,8 @@ namespace Tomahawk
 					Device->Render.World.Identify();
 					Device->Render.WorldViewProjection = System->GetScene()->View.ViewProjection;
 					Device->UpdateBuffer(Graphics::RenderBufferType_Render);
-					Device->SetVertexBuffer(VertexBuffer, 0, sizeof(Compute::Vertex), 0);
-					Device->SetIndexBuffer(IndexBuffer, Graphics::Format_R32_Uint, 0);
+					Device->SetVertexBuffer(VertexBuffer, 0);
+					Device->SetIndexBuffer(IndexBuffer, Graphics::Format_R32_Uint);
 					Device->DrawIndexed((unsigned int)Base->GetIndices().size(), 0, 0);
 				}
 
@@ -599,6 +602,7 @@ namespace Tomahawk
 				Device->SetSamplerState(Sampler);
 				Device->SetBlendState(Blend);
 				Device->SetRasterizerState(FrontRasterizer);
+				Device->SetInputLayout(Layout);
 				Device->SetShader(Shaders.Cubic, Graphics::ShaderType_Vertex | Graphics::ShaderType_Pixel | Graphics::ShaderType_Geometry);
 				Device->SetBuffer(Shaders.Cubic, 3, Graphics::ShaderType_Vertex | Graphics::ShaderType_Pixel | Graphics::ShaderType_Geometry);
 				Device->UpdateBuffer(Shaders.Cubic, &Depth);
@@ -616,8 +620,8 @@ namespace Tomahawk
 
 					Device->Render.World.Identify();
 					Device->UpdateBuffer(Graphics::RenderBufferType_Render);
-					Device->SetVertexBuffer(VertexBuffer, 0, sizeof(Compute::Vertex), 0);
-					Device->SetIndexBuffer(IndexBuffer, Graphics::Format_R32_Uint, 0);
+					Device->SetVertexBuffer(VertexBuffer, 0);
+					Device->SetIndexBuffer(IndexBuffer, Graphics::Format_R32_Uint);
 					Device->DrawIndexed((unsigned int)Base->GetIndices().size(), 0, 0);
 				}
 
@@ -635,18 +639,15 @@ namespace Tomahawk
 
 			EmitterRenderer::EmitterRenderer(RenderSystem* Lab) : GeoRenderer(Lab)
 			{
-				DepthStencilOpaque = Lab->GetDevice()->GetDepthStencilState("DEF_LESS");
-				DepthStencilLimpid = Lab->GetDevice()->GetDepthStencilState("DEF_NONE_LESS");
-				BackRasterizer = Lab->GetDevice()->GetRasterizerState("DEF_CULL_BACK");
-				FrontRasterizer = Lab->GetDevice()->GetRasterizerState("DEF_CULL_FRONT");
-				AdditiveBlend = Lab->GetDevice()->GetBlendState("DEF_ADDITIVE_ALPHA");
-				OverwriteBlend = Lab->GetDevice()->GetBlendState("DEF_OVERWRITE");
-				Sampler = Lab->GetDevice()->GetSamplerState("DEF_TRILINEAR_X16");
+				DepthStencilOpaque = Lab->GetDevice()->GetDepthStencilState("less");
+				DepthStencilLimpid = Lab->GetDevice()->GetDepthStencilState("less-none");
+				BackRasterizer = Lab->GetDevice()->GetRasterizerState("cull-back");
+				FrontRasterizer = Lab->GetDevice()->GetRasterizerState("cull-front");
+				AdditiveBlend = Lab->GetDevice()->GetBlendState("additive-alpha");
+				OverwriteBlend = Lab->GetDevice()->GetBlendState("overwrite");
+				Sampler = Lab->GetDevice()->GetSamplerState("trilinear-x16");
 
 				Graphics::Shader::Desc I = Graphics::Shader::Desc();
-				I.Layout = nullptr;
-				I.LayoutSize = 0;
-
 				if (System->GetDevice()->GetSection("geometry/emitter/gbuffer-opaque", &I.Data))
 					Shaders.Opaque = System->CompileShader("er-gbuffer-opaque", I, 0);
 
@@ -695,9 +696,10 @@ namespace Tomahawk
 				Device->SetSamplerState(Sampler);
 				Device->SetBlendState(OverwriteBlend);
 				Device->SetRasterizerState(BackRasterizer);
+				Device->SetInputLayout(Layout);
 				Device->SetPrimitiveTopology(Graphics::PrimitiveTopology_Point_List);
 				Device->SetShader(Shaders.Opaque, Graphics::ShaderType_Vertex | Graphics::ShaderType_Pixel);
-				Device->SetVertexBuffer(nullptr, 0, 0, 0);
+				Device->SetVertexBuffer(nullptr, 0);
 				System->GetScene()->SetSurface();
 
 				for (auto It = Opaque->Begin(); It != Opaque->End(); ++It)
@@ -768,9 +770,10 @@ namespace Tomahawk
 				Device->SetSamplerState(Sampler);
 				Device->SetBlendState(OverwriteBlend);
 				Device->SetRasterizerState(FrontRasterizer);
+				Device->SetInputLayout(Layout);
 				Device->SetPrimitiveTopology(Graphics::PrimitiveTopology_Point_List);
 				Device->SetShader(Shaders.Linear, Graphics::ShaderType_Vertex | Graphics::ShaderType_Pixel);
-				Device->SetVertexBuffer(nullptr, 0, 0, 0);
+				Device->SetVertexBuffer(nullptr, 0);
 
 				for (auto It = Geometry->Begin(); It != Geometry->End(); ++It)
 				{
@@ -812,8 +815,9 @@ namespace Tomahawk
 				Device->SetSamplerState(Sampler);
 				Device->SetBlendState(OverwriteBlend);
 				Device->SetRasterizerState(FrontRasterizer);
+				Device->SetInputLayout(Layout);
 				Device->SetPrimitiveTopology(Graphics::PrimitiveTopology_Point_List);
-				Device->SetVertexBuffer(nullptr, 0, 0, 0);
+				Device->SetVertexBuffer(nullptr, 0);
 				Device->SetBuffer(Shaders.Quad, 3, Graphics::ShaderType_Vertex | Graphics::ShaderType_Pixel | Graphics::ShaderType_Geometry);
 				Device->UpdateBuffer(Shaders.Quad, &Depth);
 
@@ -848,15 +852,13 @@ namespace Tomahawk
 
 			DecalRenderer::DecalRenderer(RenderSystem* Lab) : GeoRenderer(Lab)
 			{
-				DepthStencil = Lab->GetDevice()->GetDepthStencilState("DEF_NONE");
-				Rasterizer = Lab->GetDevice()->GetRasterizerState("DEF_CULL_BACK");
-				Blend = Lab->GetDevice()->GetBlendState("DEF_ADDITIVE");
-				Sampler = Lab->GetDevice()->GetSamplerState("DEF_TRILINEAR_X16");
+				DepthStencil = Lab->GetDevice()->GetDepthStencilState("none");
+				Rasterizer = Lab->GetDevice()->GetRasterizerState("cull-back");
+				Blend = Lab->GetDevice()->GetBlendState("additive");
+				Sampler = Lab->GetDevice()->GetSamplerState("trilinear-x16");
+				Layout = Lab->GetDevice()->GetInputLayout("shape-vertex");
 
 				Graphics::Shader::Desc I = Graphics::Shader::Desc();
-				I.Layout = Graphics::Shader::GetShapeVertexLayout();
-				I.LayoutSize = 2;
-
 				if (System->GetDevice()->GetSection("geometry/decal/gbuffer", &I.Data))
 					Shader = System->CompileShader("dr-gbuffer", I, sizeof(RenderPass));
 			}
@@ -889,10 +891,11 @@ namespace Tomahawk
 				Device->SetSamplerState(Sampler);
 				Device->SetBlendState(Blend);
 				Device->SetRasterizerState(Rasterizer);
+				Device->SetInputLayout(Layout);
 				Device->SetShader(Shader, Graphics::ShaderType_Vertex | Graphics::ShaderType_Pixel);
 				Device->SetBuffer(Shader, 3, Graphics::ShaderType_Vertex | Graphics::ShaderType_Pixel);
-				Device->SetIndexBuffer(System->GetSphereIBuffer(), Graphics::Format_R32_Uint, 0);
-				Device->SetVertexBuffer(System->GetSphereVBuffer(), 0, System->GetSphereVSize(), 0);
+				Device->SetIndexBuffer(System->GetSphereIBuffer(), Graphics::Format_R32_Uint);
+				Device->SetVertexBuffer(System->GetSphereVBuffer(), 0);
 				Device->SetTargetMap(System->GetScene()->GetSurface(), Map);
 				Device->SetTexture2D(System->GetScene()->GetSurface()->GetTarget(2), 8);
 
@@ -932,15 +935,13 @@ namespace Tomahawk
 
 			LimpidRenderer::LimpidRenderer(RenderSystem* Lab) : Renderer(Lab)
 			{
-				DepthStencil = Lab->GetDevice()->GetDepthStencilState("DEF_NONE");
-				Rasterizer = Lab->GetDevice()->GetRasterizerState("DEF_CULL_BACK");
-				Blend = Lab->GetDevice()->GetBlendState("DEF_OVERWRITE");
-				Sampler = Lab->GetDevice()->GetSamplerState("DEF_TRILINEAR_X16");
+				DepthStencil = Lab->GetDevice()->GetDepthStencilState("none");
+				Rasterizer = Lab->GetDevice()->GetRasterizerState("cull-back");
+				Blend = Lab->GetDevice()->GetBlendState("overwrite");
+				Sampler = Lab->GetDevice()->GetSamplerState("trilinear-x16");
+				Layout = Lab->GetDevice()->GetInputLayout("shape-vertex");
 
 				Graphics::Shader::Desc I = Graphics::Shader::Desc();
-				I.Layout = Graphics::Shader::GetShapeVertexLayout();
-				I.LayoutSize = 2;
-
 				if (System->GetDevice()->GetSection("pass/limpid", &I.Data))
 					Shader = System->CompileShader("lr-limpid", I, sizeof(RenderPass));
 			}
@@ -981,9 +982,10 @@ namespace Tomahawk
 				Device->SetSamplerState(Sampler);
 				Device->SetBlendState(Blend);
 				Device->SetRasterizerState(Rasterizer);
+				Device->SetInputLayout(Layout);
 				Device->SetShader(Shader, Graphics::ShaderType_Vertex | Graphics::ShaderType_Pixel);
 				Device->SetBuffer(Shader, 3, Graphics::ShaderType_Vertex | Graphics::ShaderType_Pixel);
-				Device->SetVertexBuffer(System->GetQuadVBuffer(), 0, System->GetQuadVSize(), 0);
+				Device->SetVertexBuffer(System->GetQuadVBuffer(), 0);
 				Device->SetTexture2D(Inner ? Input2->GetTarget() : Input1->GetTarget(), 1);
 				Device->SetTexture2D(S->GetTarget(1), 2);
 				Device->SetTexture2D(S->GetTarget(2), 3);
@@ -1319,16 +1321,14 @@ namespace Tomahawk
 
 			LightRenderer::LightRenderer(RenderSystem* Lab) : Renderer(Lab), RecursiveProbes(true), Input1(nullptr), Input2(nullptr), Output1(nullptr), Output2(nullptr)
 			{
-				DepthStencil = Lab->GetDevice()->GetDepthStencilState("DEF_NONE");
-				FrontRasterizer = Lab->GetDevice()->GetRasterizerState("DEF_CULL_FRONT");
-				BackRasterizer = Lab->GetDevice()->GetRasterizerState("DEF_CULL_BACK");
-				Blend = Lab->GetDevice()->GetBlendState("DEF_ADDITIVE");
-				Sampler = Lab->GetDevice()->GetSamplerState("DEF_TRILINEAR_X16");
+				DepthStencil = Lab->GetDevice()->GetDepthStencilState("none");
+				FrontRasterizer = Lab->GetDevice()->GetRasterizerState("cull-front");
+				BackRasterizer = Lab->GetDevice()->GetRasterizerState("cull-back");
+				Blend = Lab->GetDevice()->GetBlendState("additive");
+				Sampler = Lab->GetDevice()->GetSamplerState("trilinear-x16");
+				Layout = Lab->GetDevice()->GetInputLayout("shape-vertex");
 
 				Graphics::Shader::Desc I = Graphics::Shader::Desc();
-				I.Layout = Graphics::Shader::GetShapeVertexLayout();
-				I.LayoutSize = 2;
-
 				if (System->GetDevice()->GetSection("geometry/light/shade/point", &I.Data))
 					Shaders.PointShade = System->CompileShader("lr-point-shade", I, 0);
 
@@ -1436,14 +1436,15 @@ namespace Tomahawk
 				Device->SetSamplerState(Sampler);
 				Device->SetBlendState(Blend);
 				Device->SetRasterizerState(FrontRasterizer);
+				Device->SetInputLayout(Layout);
 				Device->CopyTargetTo(Surface, 0, Inner ? Input2 : Input1);
 				Device->SetTarget(Inner ? Output2 : Output1, 0, 0, 0);
 				Device->SetTexture2D(Inner ? Input2->GetTarget() : Input1->GetTarget(), 1);
 				Device->SetTexture2D(Surface->GetTarget(1), 2);
 				Device->SetTexture2D(Surface->GetTarget(2), 3);
 				Device->SetTexture2D(Surface->GetTarget(3), 4);
-				Device->SetIndexBuffer(System->GetCubeIBuffer(), Graphics::Format_R32_Uint, 0);
-				Device->SetVertexBuffer(System->GetCubeVBuffer(), 0, System->GetCubeVSize(), 0);
+				Device->SetIndexBuffer(System->GetCubeIBuffer(), Graphics::Format_R32_Uint);
+				Device->SetVertexBuffer(System->GetCubeVBuffer(), 0);
 
 				if (!Inner)
 				{
@@ -1565,7 +1566,7 @@ namespace Tomahawk
 				Device->SetRasterizerState(BackRasterizer);
 				Device->SetShader(Shaders.LineBase, Graphics::ShaderType_Vertex);
 				Device->SetBuffer(Shaders.LineBase, 3, Graphics::ShaderType_Vertex | Graphics::ShaderType_Pixel);
-				Device->SetVertexBuffer(System->GetQuadVBuffer(), 0, System->GetQuadVSize(), 0);
+				Device->SetVertexBuffer(System->GetQuadVBuffer(), 0);
 
 				for (auto It = LineLights->Begin(); It != LineLights->End(); ++It)
 				{

@@ -59,6 +59,17 @@ namespace Tomahawk
 				return Resource;
 			}
 
+			D3D11InputLayout::D3D11InputLayout(const Desc& I) : InputLayout(I)
+			{
+			}
+			D3D11InputLayout::~D3D11InputLayout()
+			{
+			}
+			void* D3D11InputLayout::GetResource()
+			{
+				return (void*)this;
+			}
+
 			D3D11Shader::D3D11Shader(const Desc& I) : Shader(I), Compiled(false)
 			{
 				VertexShader = nullptr;
@@ -67,8 +78,9 @@ namespace Tomahawk
 				HullShader = nullptr;
 				DomainShader = nullptr;
 				ComputeShader = nullptr;
-				VertexLayout = nullptr;
 				ConstantBuffer = nullptr;
+				VertexLayout = nullptr;
+				Signature = nullptr;
 			}
 			D3D11Shader::~D3D11Shader()
 			{
@@ -80,6 +92,7 @@ namespace Tomahawk
 				ReleaseCom(HullShader);
 				ReleaseCom(ComputeShader);
 				ReleaseCom(VertexLayout);
+				ReleaseCom(Signature);
 			}
 			bool D3D11Shader::IsValid()
 			{
@@ -88,34 +101,17 @@ namespace Tomahawk
 
 			D3D11ElementBuffer::D3D11ElementBuffer(const Desc& I) : ElementBuffer(I)
 			{
+				Resource = nullptr;
 				Element = nullptr;
 			}
 			D3D11ElementBuffer::~D3D11ElementBuffer()
 			{
+				ReleaseCom(Resource);
 				ReleaseCom(Element);
 			}
 			void* D3D11ElementBuffer::GetResource()
 			{
 				return (void*)Element;
-			}
-
-			D3D11StructureBuffer::D3D11StructureBuffer(const Desc& I) : StructureBuffer(I)
-			{
-				Element = nullptr;
-				Resource = nullptr;
-			}
-			D3D11StructureBuffer::~D3D11StructureBuffer()
-			{
-				ReleaseCom(Element);
-				ReleaseCom(Resource);
-			}
-			void* D3D11StructureBuffer::GetElement()
-			{
-				return (void*)Element;
-			}
-			void* D3D11StructureBuffer::GetResource()
-			{
-				return (void*)Resource;
 			}
 
 			D3D11MeshBuffer::D3D11MeshBuffer(const Desc& I) : MeshBuffer(I)
@@ -426,7 +422,7 @@ namespace Tomahawk
 				CreationFlags |= D3D11_CREATE_DEVICE_DISABLE_GPU_TIMEOUT;
 				VertexShaderBlob = nullptr;
 				VertexShader = nullptr;
-				InputLayout = nullptr;
+				VertexLayout = nullptr;
 				VertexConstantBuffer = nullptr;
 				PixelShaderBlob = nullptr;
 				PixelShader = nullptr;
@@ -492,8 +488,6 @@ namespace Tomahawk
 				InitStates();
 
 				Shader::Desc F = Shader::Desc();
-				F.Layout = Shader::GetShapeVertexLayout();
-				F.LayoutSize = 2;
 				F.Filename = "basic";
 				
 				if (GetSection("standard/basic", &F.Data))
@@ -507,7 +501,7 @@ namespace Tomahawk
 				ReleaseCom(ConstantBuffer[2]);
 				ReleaseCom(VertexShaderBlob);
 				ReleaseCom(VertexShader);
-				ReleaseCom(InputLayout);
+				ReleaseCom(VertexLayout);
 				ReleaseCom(VertexConstantBuffer);
 				ReleaseCom(PixelShaderBlob);
 				ReleaseCom(PixelShader);
@@ -522,7 +516,7 @@ namespace Tomahawk
 
 					if (Debugger != nullptr)
 					{
-						Debugger->ReportLiveDeviceObjects(D3D11_RLDO_DETAIL);
+						Debugger->ReportLiveDeviceObjects(D3D11_RLDO_DETAIL | (D3D11_RLDO_FLAGS)0x4);
 						Debugger->Release();
 					}
 				}
@@ -625,6 +619,10 @@ namespace Tomahawk
 				ID3D11DepthStencilState* NewState = (ID3D11DepthStencilState*)(State ? State->GetResource() : nullptr);
 				ImmediateContext->OMSetDepthStencilState(NewState, 1);
 			}
+			void D3D11Device::SetInputLayout(InputLayout* Resource)
+			{
+				Layout = (D3D11InputLayout*)Resource;
+			}
 			void D3D11Device::SetShader(Shader* Resource, unsigned int Type)
 			{
 				D3D11Shader* IResource = Resource->As<D3D11Shader>();
@@ -646,7 +644,7 @@ namespace Tomahawk
 				if (Type & ShaderType_Compute)
 					ImmediateContext->CSSetShader(IResource ? IResource->ComputeShader : nullptr, nullptr, 0);
 
-				ImmediateContext->IASetInputLayout(IResource ? IResource->VertexLayout : nullptr);
+				ImmediateContext->IASetInputLayout(GenerateInputLayout(IResource));
 			}
 			void D3D11Device::SetBuffer(Shader* Resource, unsigned int Slot, unsigned int Type)
 			{
@@ -669,24 +667,26 @@ namespace Tomahawk
 				if (Type & ShaderType_Compute)
 					ImmediateContext->CSSetConstantBuffers(Slot, 1, &Buffer);
 			}
-			void D3D11Device::SetBuffer(StructureBuffer* Resource, unsigned int Slot)
-			{
-				ID3D11ShaderResourceView* NewState = (Resource ? Resource->As<D3D11StructureBuffer>()->Resource : nullptr);
-				ImmediateContext->PSSetShaderResources(Slot, 1, &NewState);
-			}
 			void D3D11Device::SetBuffer(InstanceBuffer* Resource, unsigned int Slot)
 			{
 				ID3D11ShaderResourceView* NewState = (Resource ? Resource->As<D3D11InstanceBuffer>()->Resource : nullptr);
 				ImmediateContext->PSSetShaderResources(Slot, 1, &NewState);
 				ImmediateContext->VSSetShaderResources(Slot, 1, &NewState);
 			}
-			void D3D11Device::SetIndexBuffer(ElementBuffer* Resource, Format FormatMode, unsigned int Offset)
+			void D3D11Device::SetStructureBuffer(ElementBuffer* Resource, unsigned int Slot)
 			{
-				ImmediateContext->IASetIndexBuffer(Resource ? Resource->As<D3D11ElementBuffer>()->Element : nullptr, (DXGI_FORMAT)FormatMode, Offset);
+				ID3D11ShaderResourceView* NewState = (Resource ? Resource->As<D3D11ElementBuffer>()->Resource : nullptr);
+				ImmediateContext->PSSetShaderResources(Slot, 1, &NewState);
 			}
-			void D3D11Device::SetVertexBuffer(ElementBuffer* Resource, unsigned int Slot, unsigned int Stride, unsigned int Offset)
+			void D3D11Device::SetIndexBuffer(ElementBuffer* Resource, Format FormatMode)
 			{
-				ID3D11Buffer* Buffer = (Resource ? Resource->As<D3D11ElementBuffer>()->Element : nullptr);
+				ImmediateContext->IASetIndexBuffer(Resource ? Resource->As<D3D11ElementBuffer>()->Element : nullptr, (DXGI_FORMAT)FormatMode, 0);
+			}
+			void D3D11Device::SetVertexBuffer(ElementBuffer* Resource, unsigned int Slot)
+			{
+				D3D11ElementBuffer* IResource = (D3D11ElementBuffer*)Resource;
+				ID3D11Buffer* Buffer = (IResource ? IResource->Element : nullptr);
+				unsigned int Stride = (IResource ? IResource->Stride : 0), Offset = 0;
 				ImmediateContext->IASetVertexBuffers(Slot, 1, &Buffer, &Stride, &Offset);
 			}
 			void D3D11Device::SetTexture2D(Texture2D* Resource, unsigned int Slot)
@@ -864,6 +864,19 @@ namespace Tomahawk
 				ImmediateContext->OMSetRenderTargets(IResource->SVTarget, Targets, IResource->DepthStencilView);
 				ImmediateContext->RSSetViewports(1, &IResource->Viewport);
 			}
+			void D3D11Device::SetTargetMap(MultiRenderTargetCube* Resource, bool Enabled[8])
+			{
+				D3D11MultiRenderTargetCube* IResource = (D3D11MultiRenderTargetCube*)Resource;
+				if (!IResource)
+					return;
+
+				ID3D11RenderTargetView* Targets[8];
+				for (unsigned int i = 0; i < 8; i++)
+					Targets[i] = (Enabled[i] ? IResource->RenderTargetView[i] : nullptr);
+
+				ImmediateContext->OMSetRenderTargets(IResource->SVTarget, Targets, IResource->DepthStencilView);
+				ImmediateContext->RSSetViewports(1, &IResource->Viewport);
+			}
 			void D3D11Device::SetViewport(const Viewport& In)
 			{
 				SetViewport(RenderTarget, In);
@@ -978,21 +991,6 @@ namespace Tomahawk
 				Map->DepthPitch = MappedResource.DepthPitch;
 				return true;
 			}
-			bool D3D11Device::Map(StructureBuffer* Resource, ResourceMap Mode, MappedSubresource* Map)
-			{
-				D3D11StructureBuffer* IResource = (D3D11StructureBuffer*)Resource;
-				if (!IResource)
-					return false;
-
-				D3D11_MAPPED_SUBRESOURCE MappedResource;
-				if (ImmediateContext->Map(IResource->Element, 0, (D3D11_MAP)Mode, 0, &MappedResource) != S_OK)
-					return false;
-
-				Map->Pointer = MappedResource.pData;
-				Map->RowPitch = MappedResource.RowPitch;
-				Map->DepthPitch = MappedResource.DepthPitch;
-				return true;
-			}
 			bool D3D11Device::Unmap(ElementBuffer* Resource, MappedSubresource* Map)
 			{
 				D3D11ElementBuffer* IResource = (D3D11ElementBuffer*)Resource;
@@ -1002,18 +1000,9 @@ namespace Tomahawk
 				ImmediateContext->Unmap(IResource->Element, 0);
 				return true;
 			}
-			bool D3D11Device::Unmap(StructureBuffer* Resource, MappedSubresource* Map)
+			bool D3D11Device::UpdateBuffer(ElementBuffer* Resource, void* Data, uint64_t Size)
 			{
-				D3D11StructureBuffer* IResource = (D3D11StructureBuffer*)Resource;
-				if (!IResource)
-					return false;
-
-				ImmediateContext->Unmap(IResource->Element, 0);
-				return true;
-			}
-			bool D3D11Device::UpdateBuffer(StructureBuffer* Resource, void* Data, uint64_t Size)
-			{
-				D3D11StructureBuffer* IResource = (D3D11StructureBuffer*)Resource;
+				D3D11ElementBuffer* IResource = (D3D11ElementBuffer*)Resource;
 				if (!IResource)
 					return false;
 
@@ -1118,7 +1107,6 @@ namespace Tomahawk
 				F.ElementCount = (unsigned int)IResource->ElementLimit;
 				F.ElementWidth = (unsigned int)IResource->ElementWidth;
 				F.StructureByteStride = F.ElementWidth;
-				F.UseSubresource = false;
 
 				IResource->Elements = CreateElementBuffer(F);
 
@@ -1239,7 +1227,7 @@ namespace Tomahawk
 
 				D3D11ElementBuffer* VertexBuffer = (D3D11ElementBuffer*)Resource->GetVertexBuffer();
 				D3D11ElementBuffer* IndexBuffer = (D3D11ElementBuffer*)Resource->GetIndexBuffer();
-				unsigned int Stride = Shader::GetVertexLayoutStride(), Offset = 0;
+				unsigned int Stride = VertexBuffer->Stride, Offset = 0;
 
 				ImmediateContext->IASetVertexBuffers(0, 1, &VertexBuffer->Element, &Stride, &Offset);
 				ImmediateContext->IASetIndexBuffer(IndexBuffer->Element, DXGI_FORMAT_R32_UINT, 0);
@@ -1252,7 +1240,7 @@ namespace Tomahawk
 
 				D3D11ElementBuffer* VertexBuffer = (D3D11ElementBuffer*)Resource->GetVertexBuffer();
 				D3D11ElementBuffer* IndexBuffer = (D3D11ElementBuffer*)Resource->GetIndexBuffer();
-				unsigned int Stride = Shader::GetSkinVertexLayoutStride(), Offset = 0;
+				unsigned int Stride = VertexBuffer->Stride, Offset = 0;
 
 				ImmediateContext->IASetVertexBuffers(0, 1, &VertexBuffer->Element, &Stride, &Offset);
 				ImmediateContext->IASetIndexBuffer(IndexBuffer->Element, DXGI_FORMAT_R32_UINT, 0);
@@ -1831,14 +1819,10 @@ namespace Tomahawk
 
 				ImmediateContext->GenerateMips(IResource->Resource);
 			}
-			bool D3D11Device::DirectBegin()
+			bool D3D11Device::Begin()
 			{
 				if (!DirectBuffer && !CreateDirectBuffer())
 					return false;
-
-				ImmediateContext->IASetInputLayout(InputLayout);
-				ImmediateContext->VSSetShader(VertexShader, nullptr, 0);
-				ImmediateContext->PSSetShader(PixelShader, nullptr, 0);
 
 				Primitives = PrimitiveTopology_Triangle_List;
 				Direct.WorldViewProjection = Compute::Matrix4x4::Identity();
@@ -1848,24 +1832,24 @@ namespace Tomahawk
 				Elements.clear();
 				return true;
 			}
-			void D3D11Device::DirectTransform(const Compute::Matrix4x4& Transform)
+			void D3D11Device::Transform(const Compute::Matrix4x4& Transform)
 			{
 				Direct.WorldViewProjection = Direct.WorldViewProjection * Transform;
 			}
-			void D3D11Device::DirectTopology(PrimitiveTopology Topology)
+			void D3D11Device::Topology(PrimitiveTopology Topology)
 			{
 				Primitives = Topology;
 			}
-			void D3D11Device::DirectEmit()
+			void D3D11Device::Emit()
 			{
 				Elements.push_back({ 0, 0, 0, 0, 0, 1, 1, 1, 1 });
 			}
-			void D3D11Device::DirectTexture(Texture2D* In)
+			void D3D11Device::Texture(Texture2D* In)
 			{
 				ViewResource = In;
 				Direct.Padding.Z = 1;
 			}
-			void D3D11Device::DirectColor(float X, float Y, float Z, float W)
+			void D3D11Device::Color(float X, float Y, float Z, float W)
 			{
 				if (Elements.empty())
 					return;
@@ -1876,11 +1860,11 @@ namespace Tomahawk
 				Element.CZ = Z;
 				Element.CW = W;
 			}
-			void D3D11Device::DirectIntensity(float Intensity)
+			void D3D11Device::Intensity(float Intensity)
 			{
 				Direct.Padding.W = Intensity;
 			}
-			void D3D11Device::DirectTexCoord(float X, float Y)
+			void D3D11Device::TexCoord(float X, float Y)
 			{
 				if (Elements.empty())
 					return;
@@ -1889,12 +1873,12 @@ namespace Tomahawk
 				Element.TX = X;
 				Element.TY = Y;
 			}
-			void D3D11Device::DirectTexCoordOffset(float X, float Y)
+			void D3D11Device::TexCoordOffset(float X, float Y)
 			{
 				Direct.Padding.X = X;
 				Direct.Padding.Y = Y;
 			}
-			void D3D11Device::DirectPosition(float X, float Y, float Z)
+			void D3D11Device::Position(float X, float Y, float Z)
 			{
 				if (Elements.empty())
 					return;
@@ -1904,7 +1888,7 @@ namespace Tomahawk
 				Element.PY = Y;
 				Element.PZ = Z;
 			}
-			bool D3D11Device::DirectEnd()
+			bool D3D11Device::End()
 			{
 				if (!VertexConstantBuffer || !DirectBuffer || Elements.empty())
 					return false;
@@ -1916,28 +1900,50 @@ namespace Tomahawk
 				ImmediateContext->IAGetPrimitiveTopology(&LastTopology);
 				ImmediateContext->IASetPrimitiveTopology((D3D11_PRIMITIVE_TOPOLOGY)Primitives);
 
-				ID3D11Buffer* First, *Second;
-				ImmediateContext->VSGetConstantBuffers(0, 1, &First);
-				ImmediateContext->PSGetConstantBuffers(0, 1, &Second);
+				ID3D11InputLayout* LastLayout;
+				ImmediateContext->IAGetInputLayout(&LastLayout);
+				ImmediateContext->IASetInputLayout(VertexLayout);
+
+				ID3D11VertexShader* LastVertexShader;
+				ImmediateContext->VSGetShader(&LastVertexShader, nullptr, nullptr);
+				ImmediateContext->VSSetShader(VertexShader, nullptr, 0);
+
+				ID3D11PixelShader* LastPixelShader;
+				ImmediateContext->PSGetShader(&LastPixelShader, nullptr, nullptr);
+				ImmediateContext->PSSetShader(PixelShader, nullptr, 0);
+
+				ID3D11Buffer* LastBuffer1, *LastBuffer2;
+				ImmediateContext->VSGetConstantBuffers(0, 1, &LastBuffer1);
+				ImmediateContext->VSSetConstantBuffers(0, 1, &VertexConstantBuffer);
+				ImmediateContext->PSGetConstantBuffers(0, 1, &LastBuffer2);
+				ImmediateContext->PSSetConstantBuffers(0, 1, &VertexConstantBuffer);
+
+				ID3D11ShaderResourceView* LastTexture, *NullTexture = nullptr;
+				ImmediateContext->PSGetShaderResources(0, 1, &LastTexture);
+				ImmediateContext->PSSetShaderResources(0, 1, ViewResource ? &ViewResource->As<D3D11Texture2D>()->Resource : &NullTexture);
 
 				D3D11_MAPPED_SUBRESOURCE MappedResource;
 				ImmediateContext->Map(DirectBuffer, 0, D3D11_MAP_WRITE_DISCARD, 0, &MappedResource);
 				memcpy(MappedResource.pData, Elements.data(), (size_t)Elements.size() * sizeof(Vertex));
 				ImmediateContext->Unmap(DirectBuffer, 0);
 
-				SetTexture2D(ViewResource, 0);
-
 				unsigned int Stride = sizeof(Vertex), Offset = 0;
-				ImmediateContext->VSSetConstantBuffers(0, 1, &VertexConstantBuffer);
-				ImmediateContext->PSSetConstantBuffers(0, 1, &VertexConstantBuffer);
 				ImmediateContext->IASetVertexBuffers(0, 1, &DirectBuffer, &Stride, &Offset);
 				ImmediateContext->UpdateSubresource(VertexConstantBuffer, 0, nullptr, &Direct, 0, 0);
 				ImmediateContext->Draw((unsigned int)Elements.size(), 0);
 				ImmediateContext->IASetPrimitiveTopology(LastTopology);
-				ImmediateContext->VSSetConstantBuffers(0, 1, &First);
-				ImmediateContext->PSSetConstantBuffers(0, 1, &Second);
-				ReleaseCom(First);
-				ReleaseCom(Second);
+				ImmediateContext->IASetInputLayout(LastLayout);
+				ImmediateContext->VSSetShader(LastVertexShader, nullptr, 0);
+				ImmediateContext->VSSetConstantBuffers(0, 1, &LastBuffer1);
+				ImmediateContext->PSSetShader(LastPixelShader, nullptr, 0);
+				ImmediateContext->PSSetConstantBuffers(0, 1, &LastBuffer2);
+				ImmediateContext->PSSetShaderResources(0, 1, &LastTexture);
+				ReleaseCom(LastLayout);
+				ReleaseCom(LastVertexShader);
+				ReleaseCom(LastPixelShader);
+				ReleaseCom(LastTexture);
+				ReleaseCom(LastBuffer1);
+				ReleaseCom(LastBuffer2);
 
 				return true;
 			}
@@ -2064,6 +2070,10 @@ namespace Tomahawk
 
 				return Result;
 			}
+			InputLayout* D3D11Device::CreateInputLayout(const InputLayout::Desc& I)
+			{
+				return new D3D11InputLayout(I);
+			}
 			Shader* D3D11Device::CreateShader(const Shader::Desc& I)
 			{
 				D3D11Shader* Result = new D3D11Shader(I);
@@ -2086,27 +2096,11 @@ namespace Tomahawk
 				bool HS = Code.Find("HS").Found;
 				bool CS = Code.Find("CS").Found;
 
-				D3D11_INPUT_ELEMENT_DESC* ShaderLayout = F.LayoutSize <= 0 ? nullptr : new D3D11_INPUT_ELEMENT_DESC[F.LayoutSize];
-				for (int64_t i = 0; i < F.LayoutSize; i++)
-				{
-					ShaderLayout[i].SemanticName = F.Layout[i].SemanticName;
-					ShaderLayout[i].Format = (DXGI_FORMAT)F.Layout[i].FormatMode;
-					ShaderLayout[i].AlignedByteOffset = F.Layout[i].AlignedByteOffset;
-					ShaderLayout[i].SemanticIndex = F.Layout[i].SemanticIndex;
-					ShaderLayout[i].InputSlot = ShaderLayout[i].InstanceDataStepRate = 0;
-					ShaderLayout[i].InputSlotClass = D3D11_INPUT_PER_VERTEX_DATA;
-					Result->Layout.push_back(F.Layout[i]);
-				}
-
 				if (VS)
 				{
-					ShaderBlob = nullptr;
-					D3DCompile(Code.Get(), (SIZE_T)Length * sizeof(char), F.Filename.empty() ? nullptr : F.Filename.c_str(), nullptr, nullptr, "VS", GetVSProfile(), CompileFlags, 0, &ShaderBlob, &ErrorBlob);
+					D3DCompile(Code.Get(), (SIZE_T)Length * sizeof(char), F.Filename.empty() ? nullptr : F.Filename.c_str(), nullptr, nullptr, "VS", GetVSProfile(), CompileFlags, 0, &Result->Signature, &ErrorBlob);
 					if (GetCompileState(ErrorBlob))
 					{
-						if (ShaderLayout != nullptr)
-							delete[] ShaderLayout;
-
 						std::string Message = GetCompileState(ErrorBlob);
 						ReleaseCom(ErrorBlob);
 
@@ -2114,14 +2108,7 @@ namespace Tomahawk
 						return Result;
 					}
 
-					D3DDevice->CreateVertexShader(ShaderBlob->GetBufferPointer(), ShaderBlob->GetBufferSize(), nullptr, &Result->VertexShader);
-					if (ShaderLayout != nullptr && F.LayoutSize != 0)
-					{
-						D3DDevice->CreateInputLayout(ShaderLayout, F.LayoutSize, ShaderBlob->GetBufferPointer(), ShaderBlob->GetBufferSize(), &Result->VertexLayout);
-						delete[] ShaderLayout;
-						ShaderLayout = nullptr;
-					}
-					ReleaseCom(ShaderBlob);
+					D3DDevice->CreateVertexShader(Result->Signature->GetBufferPointer(), Result->Signature->GetBufferSize(), nullptr, &Result->VertexShader);
 				}
 
 				if (PS)
@@ -2210,9 +2197,6 @@ namespace Tomahawk
 				}
 
 				Result->Compiled = true;
-				if (ShaderLayout)
-					delete[] ShaderLayout;
-
 				return Result;
 			}
 			ElementBuffer* D3D11Device::CreateElementBuffer(const ElementBuffer::Desc& I)
@@ -2227,7 +2211,7 @@ namespace Tomahawk
 				Buffer.StructureByteStride = I.StructureByteStride;
 
 				D3D11ElementBuffer* Result = new D3D11ElementBuffer(I);
-				if (I.UseSubresource)
+				if (I.Elements != nullptr)
 				{
 					D3D11_SUBRESOURCE_DATA Subresource;
 					ZeroMemory(&Subresource, sizeof(Subresource));
@@ -2238,25 +2222,8 @@ namespace Tomahawk
 				else
 					D3DDevice->CreateBuffer(&Buffer, nullptr, &Result->Element);
 
-				return Result;
-			}
-			StructureBuffer* D3D11Device::CreateStructureBuffer(const StructureBuffer::Desc& I)
-			{
-				D3D11_BUFFER_DESC Buffer;
-				ZeroMemory(&Buffer, sizeof(Buffer));
-				Buffer.Usage = (D3D11_USAGE)I.Usage;
-				Buffer.ByteWidth = (unsigned int)I.ElementCount * I.ElementWidth;
-				Buffer.BindFlags = I.BindFlags;
-				Buffer.CPUAccessFlags = I.AccessFlags;
-				Buffer.MiscFlags = D3D11_RESOURCE_MISC_BUFFER_STRUCTURED;
-				Buffer.StructureByteStride = I.ElementWidth;
-
-				D3D11StructureBuffer* Result = new D3D11StructureBuffer(I);
-				if (D3DDevice->CreateBuffer(&Buffer, nullptr, &Result->Element) != 0)
-				{
-					THAWK_ERROR("couldn't create structure buffer");
+				if (!(I.MiscFlags & ResourceMisc_Buffer_Structured))
 					return Result;
-				}
 
 				D3D11_SHADER_RESOURCE_VIEW_DESC SRV;
 				ZeroMemory(&SRV, sizeof(SRV));
@@ -2279,7 +2246,6 @@ namespace Tomahawk
 				F.Usage = I.Usage;
 				F.BindFlags = ResourceBind_Vertex_Buffer;
 				F.ElementCount = (unsigned int)I.Elements.size();
-				F.UseSubresource = true;
 				F.Elements = (void*)I.Elements.data();
 				F.ElementWidth = sizeof(Compute::Vertex);
 
@@ -2293,7 +2259,6 @@ namespace Tomahawk
 				F.ElementCount = (unsigned int)I.Indices.size();
 				F.ElementWidth = sizeof(int);
 				F.Elements = (void*)I.Indices.data();
-				F.UseSubresource = true;
 
 				Result->IndexBuffer = CreateElementBuffer(F);
 				return Result;
@@ -2305,7 +2270,6 @@ namespace Tomahawk
 				F.Usage = I.Usage;
 				F.BindFlags = ResourceBind_Vertex_Buffer;
 				F.ElementCount = (unsigned int)I.Elements.size();
-				F.UseSubresource = true;
 				F.Elements = (void*)I.Elements.data();
 				F.ElementWidth = sizeof(Compute::SkinVertex);
 
@@ -2319,7 +2283,6 @@ namespace Tomahawk
 				F.ElementCount = (unsigned int)I.Indices.size();
 				F.ElementWidth = sizeof(int);
 				F.Elements = (void*)I.Indices.data();
-				F.UseSubresource = true;
 
 				Result->IndexBuffer = CreateElementBuffer(F);
 				return Result;
@@ -2334,7 +2297,6 @@ namespace Tomahawk
 				F.ElementCount = I.ElementLimit;
 				F.ElementWidth = I.ElementWidth;
 				F.StructureByteStride = F.ElementWidth;
-				F.UseSubresource = false;
 
 				D3D11InstanceBuffer* Result = new D3D11InstanceBuffer(I);
 				Result->Elements = CreateElementBuffer(F);
@@ -3266,7 +3228,7 @@ namespace Tomahawk
 				}
 
 				D3D11_INPUT_ELEMENT_DESC Layout[] = { { "POSITION", 0, DXGI_FORMAT_R32G32B32_FLOAT, 0, 0, D3D11_INPUT_PER_VERTEX_DATA, 0 }, { "TEXCOORD", 0, DXGI_FORMAT_R32G32_FLOAT, 0, 3 * sizeof(float), D3D11_INPUT_PER_VERTEX_DATA, 0 }, { "COLOR", 0, DXGI_FORMAT_R32G32B32A32_FLOAT, 0, 5 * sizeof(float), D3D11_INPUT_PER_VERTEX_DATA, 0 }, };
-				if (D3DDevice->CreateInputLayout(Layout, 3, VertexShaderBlob->GetBufferPointer(), VertexShaderBlob->GetBufferSize(), &InputLayout) != S_OK)
+				if (D3DDevice->CreateInputLayout(Layout, 3, VertexShaderBlob->GetBufferPointer(), VertexShaderBlob->GetBufferSize(), &VertexLayout) != S_OK)
 				{
 					THAWK_ERROR("couldn't create input layout");
 					return false;
@@ -3307,6 +3269,81 @@ namespace Tomahawk
 				Buffer.CPUAccessFlags = D3D11_CPU_ACCESS_WRITE;
 
 				return D3DDevice->CreateBuffer(&Buffer, nullptr, &DirectBuffer) == S_OK;
+			}
+			ID3D11InputLayout* D3D11Device::GenerateInputLayout(D3D11Shader* Shader)
+			{
+				if (!Shader)
+					return nullptr;
+
+				if (Shader->VertexLayout != nullptr)
+					return Shader->VertexLayout;
+
+				if (!Shader->Signature || !Layout || Layout->Layout.empty())
+					return nullptr;
+
+				D3D11_INPUT_ELEMENT_DESC* Result = new D3D11_INPUT_ELEMENT_DESC[Layout->Layout.size()];
+				for (size_t i = 0; i < Layout->Layout.size(); i++)
+				{
+					const InputLayout::Attribute& It = Layout->Layout[i];
+					Result[i].SemanticName = It.SemanticName;
+					Result[i].AlignedByteOffset = It.AlignedByteOffset;
+					Result[i].Format = DXGI_FORMAT_R32_FLOAT;
+					Result[i].SemanticIndex = It.SemanticIndex;
+					Result[i].InputSlot = Result[i].InstanceDataStepRate = 0;
+					Result[i].InputSlotClass = D3D11_INPUT_PER_VERTEX_DATA;
+
+					switch (It.Format)
+					{
+						case Tomahawk::Graphics::AttributeType_Uint:
+							if (It.Components == 1)
+								Result[i].Format = DXGI_FORMAT_R32_UINT;
+							else if (It.Components == 2)
+								Result[i].Format = DXGI_FORMAT_R32G32_UINT;
+							else if (It.Components == 3)
+								Result[i].Format = DXGI_FORMAT_R32G32B32_UINT;
+							else if (It.Components == 4)
+								Result[i].Format = DXGI_FORMAT_R32G32B32A32_UINT;
+							break;
+						case Tomahawk::Graphics::AttributeType_Int:
+							if (It.Components == 1)
+								Result[i].Format = DXGI_FORMAT_R32_SINT;
+							else if (It.Components == 2)
+								Result[i].Format = DXGI_FORMAT_R32G32_SINT;
+							else if (It.Components == 3)
+								Result[i].Format = DXGI_FORMAT_R32G32B32_SINT;
+							else if (It.Components == 4)
+								Result[i].Format = DXGI_FORMAT_R32G32B32A32_SINT;
+							break;
+						case Tomahawk::Graphics::AttributeType_Half:
+							if (It.Components == 1)
+								Result[i].Format = DXGI_FORMAT_R16_FLOAT;
+							else if (It.Components == 2)
+								Result[i].Format = DXGI_FORMAT_R16G16_FLOAT;
+							else if (It.Components == 3)
+								Result[i].Format = DXGI_FORMAT_R11G11B10_FLOAT;
+							else if (It.Components == 4)
+								Result[i].Format = DXGI_FORMAT_R16G16B16A16_FLOAT;
+							break;
+						case Tomahawk::Graphics::AttributeType_Float:
+							if (It.Components == 1)
+								Result[i].Format = DXGI_FORMAT_R32_FLOAT;
+							else if (It.Components == 2)
+								Result[i].Format = DXGI_FORMAT_R32G32_FLOAT;
+							else if (It.Components == 3)
+								Result[i].Format = DXGI_FORMAT_R32G32B32_FLOAT;
+							else if (It.Components == 4)
+								Result[i].Format = DXGI_FORMAT_R32G32B32A32_FLOAT;
+							break;
+						default:
+							break;
+					}
+				}
+
+				if (D3DDevice->CreateInputLayout(Result, Layout->Layout.size(), Shader->Signature->GetBufferPointer(), Shader->Signature->GetBufferSize(), &Shader->VertexLayout) != S_OK)
+					THAWK_ERROR("couldn't generate input layout for specified shader");
+				
+				delete[] Result;
+				return Shader->VertexLayout;
 			}
 			int D3D11Device::CreateConstantBuffer(ID3D11Buffer** Buffer, size_t Size)
 			{

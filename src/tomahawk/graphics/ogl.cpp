@@ -56,505 +56,55 @@ namespace Tomahawk
 				return (void*)(intptr_t)Resource;
 			}
 
+			OGLInputLayout::OGLInputLayout(const Desc& I) : InputLayout(I)
+			{
+				for (size_t i = 0; i < I.Attributes.size(); i++)
+				{
+					const Attribute& It = I.Attributes[i];
+					GLenum Format = GL_INVALID_ENUM;
+					size_t Stride = It.AlignedByteOffset;
+					GLint Size = It.Components;
+					bool Decimal = false;
+
+					switch (It.Format)
+					{
+						case Tomahawk::Graphics::AttributeType_Uint:
+							Format = GL_UNSIGNED_INT;
+							break;
+						case Tomahawk::Graphics::AttributeType_Int:
+							Format = GL_INT;
+							break;
+						case Tomahawk::Graphics::AttributeType_Half:
+							Format = GL_HALF_FLOAT;
+							break;
+						case Tomahawk::Graphics::AttributeType_Float:
+							Format = GL_FLOAT;
+							break;
+						default:
+							break;
+					}
+
+					if (Decimal)
+						VertexLayout.push_back([i, Format, Stride, Size](uint64_t Width) { glVertexAttribIPointer(i, Size, Format, Width, (GLvoid*)Stride); });
+					else
+						VertexLayout.push_back([i, Format, Stride, Size](uint64_t Width) { glVertexAttribPointer(i, Size, Format, GL_FALSE, Width, (GLvoid*)Stride); });
+				}
+			}
+			OGLInputLayout::~OGLInputLayout()
+			{
+			}
+			void* OGLInputLayout::GetResource()
+			{
+				return (void*)this;
+			}
+
 			OGLShader::OGLShader(const Desc& I) : Shader(I), Compiled(false)
 			{
-				GLsizei Stride = 0;
-				if (I.LayoutSize > 0)
-				{
-					switch (I.Layout[I.LayoutSize - 1].FormatMode)
-					{
-						case Format_R32G32B32A32_Typeless:
-							Stride += sizeof(int) * 4;
-							break;
-						case Format_R32G32B32A32_Float:
-							Stride += sizeof(float) * 4;
-							break;
-						case Format_R32G32B32A32_Uint:
-							Stride += sizeof(int) * 4;
-							break;
-						case Format_R32G32B32A32_Sint:
-							Stride += sizeof(int) * 4;
-							break;
-						case Format_R32G32B32_Typeless:
-							Stride += sizeof(int) * 3;
-							break;
-						case Format_R32G32B32_Float:
-							Stride += sizeof(float) * 3;
-							break;
-						case Format_R32G32B32_Uint:
-							Stride += sizeof(int) * 3;
-							break;
-						case Format_R32G32B32_Sint:
-							Stride += sizeof(int) * 3;
-							break;
-						case Format_R16G16B16A16_Typeless:
-							Stride += sizeof(int) * 4;
-							break;
-						case Format_R16G16B16A16_Float:
-							Stride += sizeof(float) * 4;
-							break;
-						case Format_R16G16B16A16_Unorm:
-							Stride += sizeof(int) * 4;
-							break;
-						case Format_R16G16B16A16_Uint:
-							Stride += sizeof(int) * 4;
-							break;
-						case Format_R16G16B16A16_Snorm:
-							Stride += sizeof(int) * 4;
-							break;
-						case Format_R16G16B16A16_Sint:
-							Stride += sizeof(int) * 4;
-							break;
-						case Format_R32G32_Typeless:
-							Stride += sizeof(int) * 2;
-							break;
-						case Format_R32G32_Float:
-							Stride += sizeof(float) * 2;
-							break;
-						case Format_R32G32_Uint:
-							Stride += sizeof(int) * 2;
-							break;
-						case Format_R32G32_Sint:
-							Stride += sizeof(int) * 2;
-							break;
-						case Format_R10G10B10A2_Typeless:
-							Stride += sizeof(int) * 4;
-							break;
-						case Format_R10G10B10A2_Unorm:
-							Stride += sizeof(int) * 4;
-							break;
-						case Format_R10G10B10A2_Uint:
-							Stride += sizeof(int) * 4;
-							break;
-						case Format_R11G11B10_Float:
-							Stride += sizeof(float) * 3;
-							break;
-						case Format_R8G8B8A8_Typeless:
-							Stride += sizeof(int) * 4;
-							break;
-						case Format_R8G8B8A8_Unorm:
-							Stride += sizeof(int) * 4;
-							break;
-						case Format_R8G8B8A8_Unorm_SRGB:
-							Stride += sizeof(int) * 4;
-							break;
-						case Format_R8G8B8A8_Uint:
-							Stride += sizeof(int) * 4;
-							break;
-						case Format_R8G8B8A8_Snorm:
-							Stride += sizeof(int) * 4;
-							break;
-						case Format_R8G8B8A8_Sint:
-							Stride += sizeof(int) * 4;
-							break;
-						case Format_R16G16_Typeless:
-							Stride += sizeof(int) * 2;
-							break;
-						case Format_R16G16_Float:
-							Stride += sizeof(float) * 2;
-							break;
-						case Format_R16G16_Unorm:
-							Stride += sizeof(int) * 2;
-							break;
-						case Format_R16G16_Uint:
-							Stride += sizeof(int) * 2;
-							break;
-						case Format_R16G16_Snorm:
-							Stride += sizeof(int) * 2;
-							break;
-						case Format_R16G16_Sint:
-							Stride += sizeof(int) * 2;
-							break;
-						case Format_R32_Typeless:
-							Stride += sizeof(int) * 1;
-							break;
-						case Format_D32_Float:
-							Stride += sizeof(float) * 1;
-							break;
-						case Format_R32_Float:
-							Stride += sizeof(float) * 1;
-							break;
-						case Format_R32_Uint:
-							Stride += sizeof(int) * 1;
-							break;
-						case Format_R32_Sint:
-							Stride += sizeof(int) * 1;
-							break;
-						case Format_R8G8_Typeless:
-							Stride += sizeof(int) * 2;
-							break;
-						case Format_R8G8_Unorm:
-							Stride += sizeof(int) * 2;
-							break;
-						case Format_R8G8_Uint:
-							Stride += sizeof(int) * 2;
-							break;
-						case Format_R8G8_Snorm:
-							Stride += sizeof(int) * 2;
-							break;
-						case Format_R8G8_Sint:
-							Stride += sizeof(int) * 2;
-							break;
-						case Format_R16_Typeless:
-							Stride += sizeof(int) * 1;
-							break;
-						case Format_R16_Float:
-							Stride += sizeof(float) * 1;
-							break;
-						case Format_D16_Unorm:
-							Stride += sizeof(int) * 1;
-							break;
-						case Format_R16_Unorm:
-							Stride += sizeof(int) * 1;
-							break;
-						case Format_R16_Uint:
-							Stride += sizeof(int) * 1;
-							break;
-						case Format_R16_Snorm:
-							Stride += sizeof(int) * 1;
-							break;
-						case Format_R16_Sint:
-							Stride += sizeof(int) * 1;
-							break;
-						case Format_R8_Typeless:
-							Stride += sizeof(int) * 1;
-							break;
-						case Format_R8_Unorm:
-							Stride += sizeof(int) * 1;
-							break;
-						case Format_R8_Uint:
-							Stride += sizeof(int) * 1;
-							break;
-						case Format_R8_Snorm:
-							Stride += sizeof(int) * 1;
-							break;
-						case Format_R8_Sint:
-							Stride += sizeof(int) * 1;
-							break;
-						default:
-							break;
-					}
-				}
-
-				for (size_t i = 0; i < I.LayoutSize; i++)
-					Stride += I.Layout[i].AlignedByteOffset;
-
-				for (size_t i = 0; i < I.LayoutSize; i++)
-				{
-					InputLayout* Item = I.Layout + i;
-					if (!Item)
-						continue;
-
-					bool Decimal = false;
-					GLenum Format = GL_INVALID_ENUM;
-					GLint Size = 0;
-
-					switch (Item->FormatMode)
-					{
-						case Format_R32G32B32A32_Typeless:
-							Format = GL_INT;
-							Size = 4;
-							Decimal = true;
-							break;
-						case Format_R32G32B32A32_Float:
-							Format = GL_FLOAT;
-							Size = 4;
-							Decimal = false;
-							break;
-						case Format_R32G32B32A32_Uint:
-							Format = GL_UNSIGNED_INT;
-							Size = 4;
-							Decimal = true;
-							break;
-						case Format_R32G32B32A32_Sint:
-							Format = GL_INT;
-							Size = 4;
-							Decimal = true;
-							break;
-						case Format_R32G32B32_Typeless:
-							Format = GL_INT;
-							Size = 3;
-							Decimal = true;
-							break;
-						case Format_R32G32B32_Float:
-							Format = GL_FLOAT;
-							Size = 3;
-							Decimal = false;
-							break;
-						case Format_R32G32B32_Uint:
-							Format = GL_UNSIGNED_INT;
-							Size = 3;
-							Decimal = true;
-							break;
-						case Format_R32G32B32_Sint:
-							Format = GL_INT;
-							Size = 3;
-							Decimal = true;
-							break;
-						case Format_R16G16B16A16_Typeless:
-							Format = GL_INT;
-							Size = 4;
-							Decimal = true;
-							break;
-						case Format_R16G16B16A16_Float:
-							Format = GL_FLOAT;
-							Size = 4;
-							Decimal = false;
-							break;
-						case Format_R16G16B16A16_Unorm:
-							Format = GL_UNSIGNED_INT;
-							Size = 4;
-							Decimal = true;
-							break;
-						case Format_R16G16B16A16_Uint:
-							Format = GL_UNSIGNED_INT;
-							Size = 4;
-							Decimal = true;
-							break;
-						case Format_R16G16B16A16_Snorm:
-							Format = GL_INT;
-							Size = 4;
-							Decimal = true;
-							break;
-						case Format_R16G16B16A16_Sint:
-							Format = GL_INT;
-							Size = 4;
-							Decimal = true;
-							break;
-						case Format_R32G32_Typeless:
-							Format = GL_INT;
-							Size = 2;
-							Decimal = true;
-							break;
-						case Format_R32G32_Float:
-							Format = GL_FLOAT;
-							Size = 2;
-							Decimal = false;
-							break;
-						case Format_R32G32_Uint:
-							Format = GL_UNSIGNED_INT;
-							Size = 2;
-							Decimal = true;
-							break;
-						case Format_R32G32_Sint:
-							Format = GL_INT;
-							Size = 2;
-							Decimal = true;
-							break;
-						case Format_R10G10B10A2_Typeless:
-							Format = GL_INT;
-							Size = 4;
-							Decimal = true;
-							break;
-						case Format_R10G10B10A2_Unorm:
-							Format = GL_UNSIGNED_INT;
-							Size = 4;
-							Decimal = true;
-							break;
-						case Format_R10G10B10A2_Uint:
-							Format = GL_UNSIGNED_INT;
-							Size = 4;
-							Decimal = true;
-							break;
-						case Format_R11G11B10_Float:
-							Format = GL_FLOAT;
-							Size = 3;
-							Decimal = false;
-							break;
-						case Format_R8G8B8A8_Typeless:
-							Format = GL_INT;
-							Size = 4;
-							Decimal = true;
-							break;
-						case Format_R8G8B8A8_Unorm:
-							Format = GL_UNSIGNED_INT;
-							Size = 4;
-							Decimal = true;
-							break;
-						case Format_R8G8B8A8_Unorm_SRGB:
-							Format = GL_UNSIGNED_INT;
-							Size = 4;
-							Decimal = true;
-							break;
-						case Format_R8G8B8A8_Uint:
-							Format = GL_UNSIGNED_INT;
-							Size = 4;
-							Decimal = true;
-							break;
-						case Format_R8G8B8A8_Snorm:
-							Format = GL_INT;
-							Size = 4;
-							Decimal = true;
-							break;
-						case Format_R8G8B8A8_Sint:
-							Format = GL_INT;
-							Size = 4;
-							Decimal = true;
-							break;
-						case Format_R16G16_Typeless:
-							Format = GL_INT;
-							Size = 2;
-							Decimal = true;
-							break;
-						case Format_R16G16_Float:
-							Format = GL_FLOAT;
-							Size = 2;
-							Decimal = false;
-							break;
-						case Format_R16G16_Unorm:
-							Format = GL_UNSIGNED_INT;
-							Size = 2;
-							Decimal = true;
-							break;
-						case Format_R16G16_Uint:
-							Format = GL_UNSIGNED_INT;
-							Size = 2;
-							Decimal = true;
-							break;
-						case Format_R16G16_Snorm:
-							Format = GL_INT;
-							Size = 2;
-							Decimal = true;
-							break;
-						case Format_R16G16_Sint:
-							Format = GL_INT;
-							Size = 2;
-							Decimal = true;
-							break;
-						case Format_R32_Typeless:
-							Format = GL_INT;
-							Size = 1;
-							Decimal = true;
-							break;
-						case Format_D32_Float:
-							Format = GL_FLOAT;
-							Size = 1;
-							Decimal = false;
-							break;
-						case Format_R32_Float:
-							Format = GL_FLOAT;
-							Size = 1;
-							Decimal = false;
-							break;
-						case Format_R32_Uint:
-							Format = GL_UNSIGNED_INT;
-							Size = 1;
-							Decimal = true;
-							break;
-						case Format_R32_Sint:
-							Format = GL_INT;
-							Size = 1;
-							Decimal = true;
-							break;
-						case Format_R8G8_Typeless:
-							Format = GL_INT;
-							Size = 2;
-							Decimal = true;
-							break;
-						case Format_R8G8_Unorm:
-							Format = GL_UNSIGNED_INT;
-							Size = 2;
-							Decimal = true;
-							break;
-						case Format_R8G8_Uint:
-							Format = GL_UNSIGNED_INT;
-							Size = 2;
-							Decimal = true;
-							break;
-						case Format_R8G8_Snorm:
-							Format = GL_INT;
-							Size = 2;
-							Decimal = true;
-							break;
-						case Format_R8G8_Sint:
-							Format = GL_INT;
-							Size = 2;
-							Decimal = true;
-							break;
-						case Format_R16_Typeless:
-							Format = GL_INT;
-							Size = 1;
-							Decimal = true;
-							break;
-						case Format_R16_Float:
-							Format = GL_FLOAT;
-							Size = 1;
-							Decimal = false;
-							break;
-						case Format_D16_Unorm:
-							Format = GL_UNSIGNED_INT;
-							Size = 1;
-							Decimal = true;
-							break;
-						case Format_R16_Unorm:
-							Format = GL_UNSIGNED_INT;
-							Size = 1;
-							Decimal = true;
-							break;
-						case Format_R16_Uint:
-							Format = GL_UNSIGNED_INT;
-							Size = 1;
-							Decimal = true;
-							break;
-						case Format_R16_Snorm:
-							Format = GL_INT;
-							Size = 1;
-							Decimal = true;
-							break;
-						case Format_R16_Sint:
-							Format = GL_INT;
-							Size = 1;
-							Decimal = true;
-							break;
-						case Format_R8_Typeless:
-							Format = GL_INT;
-							Size = 1;
-							Decimal = true;
-							break;
-						case Format_R8_Unorm:
-							Format = GL_UNSIGNED_INT;
-							Size = 1;
-							Decimal = true;
-							break;
-						case Format_R8_Uint:
-							Format = GL_UNSIGNED_INT;
-							Size = 1;
-							Decimal = true;
-							break;
-						case Format_R8_Snorm:
-							Format = GL_INT;
-							Size = 1;
-							Decimal = true;
-							break;
-						case Format_R8_Sint:
-							Format = GL_INT;
-							Size = 1;
-							Decimal = true;
-							break;
-						default:
-							break;
-					}
-
-					size_t Stride = Item->AlignedByteOffset;
-					if (Decimal)
-					{
-						VertexLayout.push_back([i, Size, Format, Stride]()
-						{
-							glVertexAttribIPointer(i, Size, Format, 0, (GLvoid*)Stride);
-						});
-					}
-					else
-					{
-						VertexLayout.push_back([i, Size, Format, Stride]()
-						{
-							glVertexAttribPointerARB(i, Size, Format, GL_FALSE, 0, (GLvoid*)Stride);
-						});
-					}
-				}
 			}
 			OGLShader::~OGLShader()
 			{
-				glDeleteProgram(Program);
+				for (auto& It : Programs)
+					glDeleteProgram(It.second);
 				glDeleteShader(VertexShader);
 				glDeleteShader(PixelShader);
 				glDeleteShader(GeometryShader);
@@ -575,22 +125,6 @@ namespace Tomahawk
 				glDeleteBuffers(1, &Resource);
 			}
 			void* OGLElementBuffer::GetResource()
-			{
-				return (void*)(intptr_t)Resource;
-			}
-
-			OGLStructureBuffer::OGLStructureBuffer(const Desc& I) : StructureBuffer(I)
-			{
-			}
-			OGLStructureBuffer::~OGLStructureBuffer()
-			{
-				glDeleteBuffers(1, &Resource);
-			}
-			void* OGLStructureBuffer::GetElement()
-			{
-				return (void*)(intptr_t)Resource;
-			}
-			void* OGLStructureBuffer::GetResource()
 			{
 				return (void*)(intptr_t)Resource;
 			}
@@ -632,8 +166,6 @@ namespace Tomahawk
 			{
 				if (Device != nullptr && Sync)
 					Device->ClearBuffer(this);
-
-				glDeleteBuffers(1, &Resource);
 			}
 
 			OGLTexture2D::OGLTexture2D() : Texture2D()
@@ -822,8 +354,13 @@ namespace Tomahawk
 				return (void*)(intptr_t)Async;
 			}
 
-			OGLDevice::OGLDevice(const Desc& I) : GraphicsDevice(I), Window(I.Window), Context(nullptr)
+			OGLDevice::OGLDevice(const Desc& I) : GraphicsDevice(I), Window(I.Window), Context(nullptr), Layout(nullptr), ShaderVersion(nullptr)
 			{
+				DirectVertexShader = GL_INVALID_VALUE;
+				DirectPixelShader = GL_INVALID_VALUE;
+				DirectProgram = GL_INVALID_VALUE;
+				DirectBuffer = GL_INVALID_VALUE;
+				IndexType = GL_UNSIGNED_INT;
 				if (!Window)
 				{
 					THAWK_ERROR("OpenGL cannot be created without a window");
@@ -875,12 +412,15 @@ namespace Tomahawk
 
 				CreateConstantBuffer(&ConstantBuffer[0], sizeof(AnimationBuffer));
 				Constants[0] = &Animation;
+				ConstantSize[0] = sizeof(Animation);
 
-				CreateConstantBuffer(&ConstantBuffer[0], sizeof(RenderBuffer));
+				CreateConstantBuffer(&ConstantBuffer[1], sizeof(RenderBuffer));
 				Constants[1] = &Render;
+				ConstantSize[0] = sizeof(RenderBuffer);
 
-				CreateConstantBuffer(&ConstantBuffer[0], sizeof(ViewBuffer));
+				CreateConstantBuffer(&ConstantBuffer[2], sizeof(ViewBuffer));
 				Constants[2] = &View;
+				ConstantSize[0] = sizeof(ViewBuffer);
 
 				glBindBuffer(GL_UNIFORM_BUFFER, ConstantBuffer[0]);
 				glBindBuffer(GL_UNIFORM_BUFFER, ConstantBuffer[1]);
@@ -891,8 +431,6 @@ namespace Tomahawk
 				InitStates();
 
 				Shader::Desc F = Shader::Desc();
-				F.Layout = Shader::GetShapeVertexLayout();
-				F.LayoutSize = 2;
 				F.Filename = "basic";
 
 				if (GetSection("standard/basic", &F.Data))
@@ -901,14 +439,15 @@ namespace Tomahawk
 			OGLDevice::~OGLDevice()
 			{
 				FreeProxy();
+				glDeleteBuffers(3, ConstantBuffer);
+				glDeleteShader(DirectVertexShader);
+				glDeleteShader(DirectPixelShader);
+				glDeleteProgram(DirectProgram);
+				glDeleteBuffers(1, &DirectBuffer);
 #ifdef THAWK_HAS_SDL2
 				if (Context != nullptr)
-				{
 					SDL_GL_DeleteContext(Context);
-					Context = nullptr;
-				}
 #endif
-				glDeleteBuffers(3, ConstantBuffer);
 			}
 			void OGLDevice::SetConstantBuffers()
 			{
@@ -1051,31 +590,125 @@ namespace Tomahawk
 				glStencilFuncSeparate(GL_BACK, GetComparison(V->State.BackFaceStencilFunction), 0, 1);
 				glStencilOpSeparate(GL_BACK, GetStencilOperation(V->State.BackFaceStencilFailOperation), GetStencilOperation(V->State.BackFaceStencilDepthFailOperation), GetStencilOperation(V->State.BackFaceStencilPassOperation));
 			}
+			void OGLDevice::SetInputLayout(InputLayout* State)
+			{
+				if (Layout != nullptr)
+				{
+					for (size_t i = 0; i < Layout->VertexLayout.size(); i++)
+						glDisableVertexAttribArray(i);
+				}
+
+				Layout = (OGLInputLayout*)State;
+				if (Layout != nullptr)
+				{
+					for (size_t i = 0; i < Layout->VertexLayout.size(); i++)
+						glEnableVertexAttribArray(i);
+				}
+			}
 			void OGLDevice::SetShader(Shader* Resource, unsigned int Type)
 			{
 				OGLShader* IResource = Resource->As<OGLShader>();
-				/* TODO: IMPL */
+				if (!IResource || !IResource->IsValid())
+					return;
+
+				auto& It = IResource->Programs.find(Type);
+				if (It != IResource->Programs.end())
+					return (void)glUseProgramObjectARB(It->second);
+
+				GLuint Program = glCreateProgram();
+				if (Type & ShaderType_Vertex && IResource->VertexShader != GL_INVALID_VALUE)
+					glAttachShader(Program, IResource->VertexShader);
+
+				if (Type & ShaderType_Pixel && IResource->PixelShader != GL_INVALID_VALUE)
+					glAttachShader(Program, IResource->PixelShader);
+
+				if (Type & ShaderType_Geometry && IResource->GeometryShader != GL_INVALID_VALUE)
+					glAttachShader(Program, IResource->GeometryShader);
+
+				if (Type & ShaderType_Domain && IResource->DomainShader != GL_INVALID_VALUE)
+					glAttachShader(Program, IResource->DomainShader);
+
+				if (Type & ShaderType_Hull && IResource->HullShader != GL_INVALID_VALUE)
+					glAttachShader(Program, IResource->HullShader);
+
+				if (Type & ShaderType_Compute && IResource->ComputeShader != GL_INVALID_VALUE)
+					glAttachShader(Program, IResource->ComputeShader);
+
+				GLint Status = 0;
+				glLinkProgramARB(Program);
+				glGetProgramiv(Program, GL_LINK_STATUS, &Status);
+
+				if (Status == GL_TRUE)
+				{
+					GLuint AnimationId = glGetUniformBlockIndex(Program, "Animation");
+					if (AnimationId != GL_INVALID_INDEX)
+						glUniformBlockBinding(Program, AnimationId, 0);
+
+					GLuint ObjectId = glGetUniformBlockIndex(Program, "Object");
+					if (ObjectId != GL_INVALID_INDEX)
+						glUniformBlockBinding(Program, ObjectId, 1);
+
+					GLuint ViewerId = glGetUniformBlockIndex(Program, "Viewer");
+					if (ViewerId != GL_INVALID_INDEX)
+						glUniformBlockBinding(Program, ViewerId, 2);
+
+					GLuint RenderConstantId = glGetUniformBlockIndex(Program, "RenderConstant");
+					if (RenderConstantId != GL_INVALID_INDEX)
+						glUniformBlockBinding(Program, RenderConstantId, 3);
+				}
+				else
+				{
+					GLint Size = 0;
+					glGetProgramiv(Program, GL_INFO_LOG_LENGTH, &Size);
+
+					char* Buffer = (char*)malloc(sizeof(char) * (Size + 1));
+					glGetProgramInfoLog(Program, Size, &Size, Buffer);
+					THAWK_ERROR("couldn't link shaders\n\t%.*s", Size, Buffer);
+					free(Buffer);
+
+					glDeleteProgram(Program);
+					Program = GL_INVALID_VALUE;
+				}
+
+				IResource->Programs[Type] = Program;
+				glUseProgramObjectARB(Program);
 			}
 			void OGLDevice::SetBuffer(Shader* Resource, unsigned int Slot, unsigned int Type)
 			{
-				OGLShader* IResource = Resource->As<OGLShader>();
-				/* TODO: IMPL */
-			}
-			void OGLDevice::SetBuffer(StructureBuffer* Resource, unsigned int Slot)
-			{
-				glBindBuffer(GL_SHADER_STORAGE_BUFFER, Resource ? Resource->As<OGLStructureBuffer>()->Resource : GL_INVALID_VALUE);
+				OGLShader* IResource = (OGLShader*)Resource;
+				glBindBufferBase(GL_UNIFORM_BUFFER, Slot, IResource ? IResource->ConstantBuffer : GL_INVALID_VALUE);
 			}
 			void OGLDevice::SetBuffer(InstanceBuffer* Resource, unsigned int Slot)
 			{
-				glBindBuffer(GL_ARRAY_BUFFER, Resource ? Resource->As<OGLInstanceBuffer>()->Resource : GL_INVALID_VALUE);
+				OGLInstanceBuffer* IResource = (OGLInstanceBuffer*)Resource;
+				SetStructureBuffer(IResource ? IResource->Elements : nullptr, Slot);
 			}
-			void OGLDevice::SetIndexBuffer(ElementBuffer* Resource, Format FormatMode, unsigned int Offset)
+			void OGLDevice::SetStructureBuffer(ElementBuffer* Resource, unsigned int Slot)
+			{
+				glBindBufferBase(GL_SHADER_STORAGE_BUFFER, Slot, Resource ? Resource->As<OGLElementBuffer>()->Resource : GL_INVALID_VALUE);
+			}
+			void OGLDevice::SetIndexBuffer(ElementBuffer* Resource, Format FormatMode)
 			{
 				glBindBuffer(GL_ELEMENT_ARRAY_BUFFER, Resource ? Resource->As<OGLElementBuffer>()->Resource : GL_INVALID_VALUE);
+				if (FormatMode == Format::Format_R32_Uint)
+					IndexType = GL_UNSIGNED_INT;
+				else if (FormatMode == Format::Format_R16_Uint)
+					IndexType = GL_UNSIGNED_SHORT;
+				if (FormatMode == Format::Format_R8_Uint)
+					IndexType = GL_UNSIGNED_BYTE;
+				else
+					IndexType = GL_UNSIGNED_INT;
 			}
-			void OGLDevice::SetVertexBuffer(ElementBuffer* Resource, unsigned int Slot, unsigned int Stride, unsigned int Offset)
+			void OGLDevice::SetVertexBuffer(ElementBuffer* Resource, unsigned int Slot)
 			{
-				glBindBuffer(GL_ARRAY_BUFFER, Resource ? Resource->As<OGLElementBuffer>()->Resource : GL_INVALID_VALUE);
+				OGLElementBuffer* IResource = (OGLElementBuffer*)Resource;
+				glBindBuffer(GL_ARRAY_BUFFER, IResource ? IResource->Resource : GL_INVALID_VALUE);
+				if (!IResource || IResource->Layout == Layout)
+					return;
+
+				IResource->Layout = Layout;
+				for (auto& Attribute : Layout->VertexLayout)
+					Attribute(IResource->Stride);
 			}
 			void OGLDevice::SetTexture2D(Texture2D* Resource, unsigned int Slot)
 			{
@@ -1089,7 +722,8 @@ namespace Tomahawk
 			}
 			void OGLDevice::SetTextureCube(TextureCube* Resource, unsigned int Slot)
 			{
-				/* TODO: IMPL */
+				glActiveTexture(GL_TEXTURE0 + Slot);
+				glBindTexture(GL_TEXTURE_CUBE_MAP, Resource ? Resource->As<OGLTextureCube>()->Resource : GL_INVALID_VALUE);
 			}
 			void OGLDevice::SetTarget(float R, float G, float B)
 			{
@@ -1105,7 +739,9 @@ namespace Tomahawk
 				if (!IResource)
 					return;
 
+				GLenum Target = GL_NONE;
 				glBindFramebuffer(GL_FRAMEBUFFER, IResource->FrameBuffer != GL_INVALID_VALUE ? IResource->FrameBuffer : 0);
+				glDrawBuffers(1, &Target);
 				glViewport((GLuint)IResource->View.TopLeftX, (GLuint)IResource->View.TopLeftY, (GLuint)IResource->View.Width, (GLuint)IResource->View.Height);
 			}
 			void OGLDevice::SetTarget(RenderTarget2D* Resource, float R, float G, float B)
@@ -1114,7 +750,9 @@ namespace Tomahawk
 				if (!IResource)
 					return;
 
+				GLenum Target = GL_COLOR_ATTACHMENT0;
 				glBindFramebuffer(GL_FRAMEBUFFER, IResource->FrameBuffer != GL_INVALID_VALUE ? IResource->FrameBuffer : 0);
+				glDrawBuffers(1, &Target);
 				glViewport((GLuint)IResource->View.TopLeftX, (GLuint)IResource->View.TopLeftY, (GLuint)IResource->View.Width, (GLuint)IResource->View.Height);
 				glClearColor(R, G, B, 1.0f);
 				glClear(GL_COLOR_BUFFER_BIT);
@@ -1125,85 +763,162 @@ namespace Tomahawk
 				if (!IResource)
 					return;
 
+				GLenum Target = GL_COLOR_ATTACHMENT0;
 				glBindFramebuffer(GL_FRAMEBUFFER, IResource->FrameBuffer != GL_INVALID_VALUE ? IResource->FrameBuffer : 0);
+				glDrawBuffers(1, &Target);
 				glViewport((GLuint)IResource->View.TopLeftX, (GLuint)IResource->View.TopLeftY, (GLuint)IResource->View.Width, (GLuint)IResource->View.Height);
 			}
 			void OGLDevice::SetTarget(MultiRenderTarget2D* Resource, unsigned int Target, float R, float G, float B)
 			{
 				OGLMultiRenderTarget2D* IResource = (OGLMultiRenderTarget2D*)Resource;
-				if (!IResource)
+				if (!IResource || Target < IResource->SVTarget)
 					return;
-				/* TODO: IMPL */
+
+				GLenum Targets[8] = { GL_NONE };
+				Targets[Target] = IResource->Formats[Target];
+
+				glBindFramebuffer(GL_FRAMEBUFFER, IResource->FrameBuffer != GL_INVALID_VALUE ? IResource->FrameBuffer : 0);
+				glDrawBuffers(IResource->Formats.size(), Targets);
+				glViewport((GLuint)IResource->View.TopLeftX, (GLuint)IResource->View.TopLeftY, (GLuint)IResource->View.Width, (GLuint)IResource->View.Height);
+				glClearColor(R, G, B, 1.0f);
+				glClear(GL_COLOR_BUFFER_BIT);
 			}
 			void OGLDevice::SetTarget(MultiRenderTarget2D* Resource, unsigned int Target)
 			{
 				OGLMultiRenderTarget2D* IResource = (OGLMultiRenderTarget2D*)Resource;
 				if (!IResource)
 					return;
-				/* TODO: IMPL */
+
+				GLenum Targets[8] = { GL_NONE };
+				Targets[Target] = IResource->Formats[Target];
+
+				glBindFramebuffer(GL_FRAMEBUFFER, IResource->FrameBuffer != GL_INVALID_VALUE ? IResource->FrameBuffer : 0);
+				glDrawBuffers(IResource->Formats.size(), Targets);
+				glViewport((GLuint)IResource->View.TopLeftX, (GLuint)IResource->View.TopLeftY, (GLuint)IResource->View.Width, (GLuint)IResource->View.Height);
 			}
 			void OGLDevice::SetTarget(MultiRenderTarget2D* Resource, float R, float G, float B)
 			{
 				OGLMultiRenderTarget2D* IResource = (OGLMultiRenderTarget2D*)Resource;
 				if (!IResource)
 					return;
-				/* TODO: IMPL */
+
+				glBindFramebuffer(GL_FRAMEBUFFER, IResource->FrameBuffer != GL_INVALID_VALUE ? IResource->FrameBuffer : 0);
+				glDrawBuffers(IResource->Formats.size(), IResource->Formats.data());
+				glViewport((GLuint)IResource->View.TopLeftX, (GLuint)IResource->View.TopLeftY, (GLuint)IResource->View.Width, (GLuint)IResource->View.Height);
+				glClearColor(R, G, B, 1.0f);
+				glClear(GL_COLOR_BUFFER_BIT);
 			}
 			void OGLDevice::SetTarget(MultiRenderTarget2D* Resource)
 			{
 				OGLMultiRenderTarget2D* IResource = (OGLMultiRenderTarget2D*)Resource;
 				if (!IResource)
 					return;
-				/* TODO: IMPL */
+
+				glBindFramebuffer(GL_FRAMEBUFFER, IResource->FrameBuffer != GL_INVALID_VALUE ? IResource->FrameBuffer : 0);
+				glDrawBuffers(IResource->Formats.size(), IResource->Formats.data());
+				glViewport((GLuint)IResource->View.TopLeftX, (GLuint)IResource->View.TopLeftY, (GLuint)IResource->View.Width, (GLuint)IResource->View.Height);
 			}
 			void OGLDevice::SetTarget(RenderTargetCube* Resource, float R, float G, float B)
 			{
 				OGLRenderTargetCube* IResource = (OGLRenderTargetCube*)Resource;
 				if (!IResource)
 					return;
-				/* TODO: IMPL */
+
+				GLenum Target = GL_COLOR_ATTACHMENT0;
+				glBindFramebuffer(GL_FRAMEBUFFER, IResource->FrameBuffer != GL_INVALID_VALUE ? IResource->FrameBuffer : 0);
+				glDrawBuffers(1, &Target);
+				glViewport((GLuint)IResource->View.TopLeftX, (GLuint)IResource->View.TopLeftY, (GLuint)IResource->View.Width, (GLuint)IResource->View.Height);
+				glClearColor(R, G, B, 1.0f);
+				glClear(GL_COLOR_BUFFER_BIT);
 			}
 			void OGLDevice::SetTarget(RenderTargetCube* Resource)
 			{
 				OGLRenderTargetCube* IResource = (OGLRenderTargetCube*)Resource;
 				if (!IResource)
 					return;
-				/* TODO: IMPL */
+
+				GLenum Target = GL_COLOR_ATTACHMENT0;
+				glBindFramebuffer(GL_FRAMEBUFFER, IResource->FrameBuffer != GL_INVALID_VALUE ? IResource->FrameBuffer : 0);
+				glDrawBuffers(1, &Target);
+				glViewport((GLuint)IResource->View.TopLeftX, (GLuint)IResource->View.TopLeftY, (GLuint)IResource->View.Width, (GLuint)IResource->View.Height);
 			}
 			void OGLDevice::SetTarget(MultiRenderTargetCube* Resource, unsigned int Target, float R, float G, float B)
 			{
 				OGLMultiRenderTargetCube* IResource = (OGLMultiRenderTargetCube*)Resource;
 				if (!IResource)
 					return;
-				/* TODO: IMPL */
+
+				GLenum Targets[8] = { GL_NONE };
+				Targets[Target] = IResource->Formats[Target];
+
+				glBindFramebuffer(GL_FRAMEBUFFER, IResource->FrameBuffer != GL_INVALID_VALUE ? IResource->FrameBuffer : 0);
+				glDrawBuffers(IResource->Formats.size(), Targets);
+				glViewport((GLuint)IResource->View.TopLeftX, (GLuint)IResource->View.TopLeftY, (GLuint)IResource->View.Width, (GLuint)IResource->View.Height);
+				glClearColor(R, G, B, 1.0f);
+				glClear(GL_COLOR_BUFFER_BIT);
 			}
 			void OGLDevice::SetTarget(MultiRenderTargetCube* Resource, unsigned int Target)
 			{
 				OGLMultiRenderTargetCube* IResource = (OGLMultiRenderTargetCube*)Resource;
 				if (!IResource)
 					return;
-				/* TODO: IMPL */
+
+				GLenum Targets[8] = { GL_NONE };
+				Targets[Target] = IResource->Formats[Target];
+
+				glBindFramebuffer(GL_FRAMEBUFFER, IResource->FrameBuffer != GL_INVALID_VALUE ? IResource->FrameBuffer : 0);
+				glDrawBuffers(IResource->Formats.size(), Targets);
+				glViewport((GLuint)IResource->View.TopLeftX, (GLuint)IResource->View.TopLeftY, (GLuint)IResource->View.Width, (GLuint)IResource->View.Height);
 			}
 			void OGLDevice::SetTarget(MultiRenderTargetCube* Resource, float R, float G, float B)
 			{
 				OGLMultiRenderTargetCube* IResource = (OGLMultiRenderTargetCube*)Resource;
 				if (!IResource)
 					return;
-				/* TODO: IMPL */
+				
+				glBindFramebuffer(GL_FRAMEBUFFER, IResource->FrameBuffer != GL_INVALID_VALUE ? IResource->FrameBuffer : 0);
+				glDrawBuffers(IResource->Formats.size(), IResource->Formats.data());
+				glViewport((GLuint)IResource->View.TopLeftX, (GLuint)IResource->View.TopLeftY, (GLuint)IResource->View.Width, (GLuint)IResource->View.Height);
+				glClearColor(R, G, B, 1.0f);
+				glClear(GL_COLOR_BUFFER_BIT);
 			}
 			void OGLDevice::SetTarget(MultiRenderTargetCube* Resource)
 			{
 				OGLMultiRenderTargetCube* IResource = (OGLMultiRenderTargetCube*)Resource;
 				if (!IResource)
 					return;
-				/* TODO: IMPL */
+
+				glBindFramebuffer(GL_FRAMEBUFFER, IResource->FrameBuffer != GL_INVALID_VALUE ? IResource->FrameBuffer : 0);
+				glDrawBuffers(IResource->Formats.size(), IResource->Formats.data());
+				glViewport((GLuint)IResource->View.TopLeftX, (GLuint)IResource->View.TopLeftY, (GLuint)IResource->View.Width, (GLuint)IResource->View.Height);
 			}
 			void OGLDevice::SetTargetMap(MultiRenderTarget2D* Resource, bool Enabled[8])
 			{
 				OGLMultiRenderTarget2D* IResource = (OGLMultiRenderTarget2D*)Resource;
 				if (!IResource)
 					return;
-				/* TODO: IMPL */
+
+				GLenum Targets[8] = { GL_NONE };
+				for (unsigned int i = 0; i < IResource->Formats.size(); i++)
+					Targets[i] = (Enabled[i] ? IResource->Formats[i] : GL_NONE);
+
+				glBindFramebuffer(GL_FRAMEBUFFER, IResource->FrameBuffer != GL_INVALID_VALUE ? IResource->FrameBuffer : 0);
+				glDrawBuffers(IResource->Formats.size(), Targets);
+				glViewport((GLuint)IResource->View.TopLeftX, (GLuint)IResource->View.TopLeftY, (GLuint)IResource->View.Width, (GLuint)IResource->View.Height);
+			}
+			void OGLDevice::SetTargetMap(MultiRenderTargetCube* Resource, bool Enabled[8])
+			{
+				OGLMultiRenderTargetCube* IResource = (OGLMultiRenderTargetCube*)Resource;
+				if (!IResource)
+					return;
+
+				GLenum Targets[8] = { GL_NONE };
+				for (unsigned int i = 0; i < IResource->Formats.size(); i++)
+					Targets[i] = (Enabled[i] ? IResource->Formats[i] : GL_NONE);
+
+				glBindFramebuffer(GL_FRAMEBUFFER, IResource->FrameBuffer != GL_INVALID_VALUE ? IResource->FrameBuffer : 0);
+				glDrawBuffers(IResource->Formats.size(), Targets);
+				glViewport((GLuint)IResource->View.TopLeftX, (GLuint)IResource->View.TopLeftY, (GLuint)IResource->View.Width, (GLuint)IResource->View.Height);
 			}
 			void OGLDevice::SetViewport(const Viewport& In)
 			{
@@ -1223,21 +938,27 @@ namespace Tomahawk
 				OGLMultiRenderTarget2D* IResource = (OGLMultiRenderTarget2D*)Resource;
 				if (!IResource)
 					return;
-				/* TODO: IMPL */
+
+				IResource->View = In;
+				glViewport((GLuint)IResource->View.TopLeftX, (GLuint)IResource->View.TopLeftY, (GLuint)IResource->View.Width, (GLuint)IResource->View.Height);
 			}
 			void OGLDevice::SetViewport(RenderTargetCube* Resource, const Viewport& In)
 			{
 				OGLRenderTargetCube* IResource = (OGLRenderTargetCube*)Resource;
 				if (!IResource)
 					return;
-				/* TODO: IMPL */
+
+				IResource->View = In;
+				glViewport((GLuint)IResource->View.TopLeftX, (GLuint)IResource->View.TopLeftY, (GLuint)IResource->View.Width, (GLuint)IResource->View.Height);
 			}
 			void OGLDevice::SetViewport(MultiRenderTargetCube* Resource, const Viewport& In)
 			{
 				OGLMultiRenderTargetCube* IResource = (OGLMultiRenderTargetCube*)Resource;
 				if (!IResource)
 					return;
-				/* TODO: IMPL */
+
+				IResource->View = In;
+				glViewport((GLuint)IResource->View.TopLeftX, (GLuint)IResource->View.TopLeftY, (GLuint)IResource->View.Width, (GLuint)IResource->View.Height);
 			}
 			void OGLDevice::SetViewports(unsigned int Count, Viewport* Value)
 			{
@@ -1252,7 +973,7 @@ namespace Tomahawk
 			void OGLDevice::SetPrimitiveTopology(PrimitiveTopology _Topology)
 			{
 				glPolygonMode(GL_FRONT_AND_BACK, GetPrimitiveTopology(_Topology));
-				Topology = _Topology;
+				Primitive = _Topology;
 			}
 			void OGLDevice::FlushTexture2D(unsigned int Slot, unsigned int Count)
 			{
@@ -1308,21 +1029,6 @@ namespace Tomahawk
 
 				return Map->Pointer != nullptr;
 			}
-			bool OGLDevice::Map(StructureBuffer* Resource, ResourceMap Mode, MappedSubresource* Map)
-			{
-				OGLStructureBuffer* IResource = (OGLStructureBuffer*)Resource;
-				if (!IResource)
-					return false;
-
-				GLint Size;
-				glBindBuffer(IResource->Flags, IResource->Resource);
-				glGetBufferParameteriv(IResource->Flags, GL_BUFFER_SIZE, &Size);
-				Map->Pointer = glMapBuffer(IResource->Flags, OGLDevice::GetResourceMap(Mode));
-				Map->RowPitch = Size;
-				Map->DepthPitch = 1;
-
-				return Map->Pointer != nullptr;
-			}
 			bool OGLDevice::Unmap(ElementBuffer* Resource, MappedSubresource* Map)
 			{
 				OGLElementBuffer* IResource = (OGLElementBuffer*)Resource;
@@ -1333,24 +1039,14 @@ namespace Tomahawk
 				glUnmapBuffer(IResource->Flags);
 				return true;
 			}
-			bool OGLDevice::Unmap(StructureBuffer* Resource, MappedSubresource* Map)
+			bool OGLDevice::UpdateBuffer(ElementBuffer* Resource, void* Data, uint64_t Size)
 			{
-				OGLStructureBuffer* IResource = (OGLStructureBuffer*)Resource;
+				OGLElementBuffer* IResource = (OGLElementBuffer*)Resource;
 				if (!IResource)
 					return false;
 
 				glBindBuffer(IResource->Flags, IResource->Resource);
-				glUnmapBuffer(IResource->Flags);
-				return true;
-			}
-			bool OGLDevice::UpdateBuffer(StructureBuffer* Resource, void* Data, uint64_t Size)
-			{
-				OGLStructureBuffer* IResource = (OGLStructureBuffer*)Resource;
-				if (!IResource)
-					return false;
-
-				glBindBuffer(IResource->Flags, IResource->Resource);
-				glBufferData(GL_ARRAY_BUFFER, (GLsizeiptr)Size, Data, GL_DYNAMIC_DRAW);
+				glBufferData(IResource->Flags, (GLsizeiptr)Size, Data, GL_DYNAMIC_DRAW);
 				return true;
 			}
 			bool OGLDevice::UpdateBuffer(Shader* Resource, const void* Data)
@@ -1358,7 +1054,8 @@ namespace Tomahawk
 				OGLShader* IResource = (OGLShader*)Resource;
 				if (!IResource)
 					return false;
-				/* TODO: IMPL */
+
+				CopyConstantBuffer(IResource->ConstantBuffer, (void*)Data, IResource->ConstantSize);
 				return true;
 			}
 			bool OGLDevice::UpdateBuffer(MeshBuffer* Resource, Compute::Vertex* Data)
@@ -1394,12 +1091,15 @@ namespace Tomahawk
 					return false;
 
 				OGLElementBuffer* Element = IResource->Elements->As<OGLElementBuffer>();
-				/* TODO: IMPL */
+				glBindBuffer(Element->Flags, Element->Resource);
+				GLvoid* Data = glMapBuffer(Element->Flags, GL_WRITE_ONLY);
+				memcpy(Data, IResource->Array.Get(), (size_t)IResource->Array.Size() * IResource->ElementWidth);
+				glUnmapBuffer(Element->Flags);
 				return true;
 			}
 			bool OGLDevice::UpdateBuffer(RenderBufferType Buffer)
 			{
-				glBindBufferBase(GL_UNIFORM_BUFFER, (int)Buffer, ConstantBuffer[Buffer]);
+				CopyConstantBuffer(ConstantBuffer[Buffer], &Constants[Buffer], ConstantSize[Buffer]);
 				return true;
 			}
 			bool OGLDevice::UpdateBufferSize(Shader* Resource, size_t Size)
@@ -1418,7 +1118,27 @@ namespace Tomahawk
 				OGLInstanceBuffer* IResource = (OGLInstanceBuffer*)Resource;
 				if (!IResource)
 					return false;
-				/* TODO: IMPL */
+
+				ClearBuffer(IResource);
+				delete IResource->Elements;
+
+				IResource->ElementLimit = Size;
+				if (IResource->ElementLimit < 1)
+					IResource->ElementLimit = 1;
+
+				IResource->Array.Clear();
+				IResource->Array.Reserve(IResource->ElementLimit);
+
+				ElementBuffer::Desc F = ElementBuffer::Desc();
+				F.AccessFlags = CPUAccess_Write;
+				F.MiscFlags = ResourceMisc_Buffer_Structured;
+				F.Usage = ResourceUsage_Dynamic;
+				F.BindFlags = ResourceBind_Shader_Input;
+				F.ElementCount = (unsigned int)IResource->ElementLimit;
+				F.ElementWidth = (unsigned int)IResource->ElementWidth;
+				F.StructureByteStride = F.ElementWidth;
+
+				IResource->Elements = CreateElementBuffer(F);
 				return true;
 			}
 			void OGLDevice::ClearBuffer(InstanceBuffer* Resource)
@@ -1426,7 +1146,12 @@ namespace Tomahawk
 				OGLInstanceBuffer* IResource = (OGLInstanceBuffer*)Resource;
 				if (!IResource || !IResource->Sync)
 					return;
-				/* TODO: IMPL */
+
+				OGLElementBuffer* Element = IResource->Elements->As<OGLElementBuffer>();
+				glBindBuffer(Element->Flags, Element->Resource);
+				GLvoid* Data = glMapBuffer(Element->Flags, GL_WRITE_ONLY);
+				memset(Data, 0, IResource->ElementWidth * IResource->ElementLimit);
+				glUnmapBuffer(Element->Flags);
 			}
 			void OGLDevice::Clear(float R, float G, float B)
 			{
@@ -1438,8 +1163,6 @@ namespace Tomahawk
 				if (!IResource)
 					return;
 
-				glBindFramebuffer(GL_FRAMEBUFFER, IResource->FrameBuffer != GL_INVALID_VALUE ? IResource->FrameBuffer : 0);
-				glViewport((GLuint)IResource->View.TopLeftX, (GLuint)IResource->View.TopLeftY, (GLuint)IResource->View.Width, (GLuint)IResource->View.Height);
 				glClearColor(R, G, B, 1.0f);
 				glClear(GL_COLOR_BUFFER_BIT);
 			}
@@ -1448,21 +1171,27 @@ namespace Tomahawk
 				OGLMultiRenderTarget2D* IResource = (OGLMultiRenderTarget2D*)Resource;
 				if (!IResource)
 					return;
-				/* TODO: IMPL */
+
+				glClearColor(R, G, B, 1.0f);
+				glClear(GL_COLOR_BUFFER_BIT);
 			}
 			void OGLDevice::Clear(RenderTargetCube* Resource, float R, float G, float B)
 			{
 				OGLRenderTargetCube* IResource = (OGLRenderTargetCube*)Resource;
 				if (!IResource)
 					return;
-				/* TODO: IMPL */
+
+				glClearColor(R, G, B, 1.0f);
+				glClear(GL_COLOR_BUFFER_BIT);
 			}
 			void OGLDevice::Clear(MultiRenderTargetCube* Resource, unsigned int Target, float R, float G, float B)
 			{
 				OGLMultiRenderTargetCube* IResource = (OGLMultiRenderTargetCube*)Resource;
 				if (!IResource)
 					return;
-				/* TODO: IMPL */
+
+				glClearColor(R, G, B, 1.0f);
+				glClear(GL_COLOR_BUFFER_BIT);
 			}
 			void OGLDevice::ClearDepth()
 			{
@@ -1481,41 +1210,54 @@ namespace Tomahawk
 				OGLMultiRenderTarget2D* IResource = (OGLMultiRenderTarget2D*)Resource;
 				if (!IResource)
 					return;
-				/* TODO: IMPL */
+
+				glClear(GL_DEPTH_BUFFER_BIT | GL_STENCIL_BUFFER_BIT);
 			}
 			void OGLDevice::ClearDepth(RenderTargetCube* Resource)
 			{
 				OGLRenderTargetCube* IResource = (OGLRenderTargetCube*)Resource;
 				if (!IResource)
 					return;
-				/* TODO: IMPL */
+
+				glClear(GL_DEPTH_BUFFER_BIT | GL_STENCIL_BUFFER_BIT);
 			}
 			void OGLDevice::ClearDepth(MultiRenderTargetCube* Resource)
 			{
 				OGLMultiRenderTargetCube* IResource = (OGLMultiRenderTargetCube*)Resource;
 				if (!IResource)
 					return;
-				/* TODO: IMPL */
+
+				glClear(GL_DEPTH_BUFFER_BIT | GL_STENCIL_BUFFER_BIT);
 			}
 			void OGLDevice::DrawIndexed(unsigned int Count, unsigned int IndexLocation, unsigned int BaseLocation)
 			{
-				glDrawElements(GetPrimitiveTopologyDraw(Topology), Count, GL_UNSIGNED_INT, &IndexLocation);
+				glDrawElements(GetPrimitiveTopologyDraw(Primitive), Count, IndexType, &IndexLocation);
 			}
 			void OGLDevice::DrawIndexed(MeshBuffer* Resource)
 			{
 				if (!Resource)
 					return;
-				/* TODO: IMPL */
+
+				ElementBuffer* IndexBuffer = Resource->GetIndexBuffer();
+				SetVertexBuffer(Resource->GetVertexBuffer(), 0);
+				SetIndexBuffer(IndexBuffer, Format_R32_Uint);
+
+				glDrawElements(GetPrimitiveTopologyDraw(Primitive), IndexBuffer->GetElements(), GL_UNSIGNED_INT, nullptr);
 			}
 			void OGLDevice::DrawIndexed(SkinMeshBuffer* Resource)
 			{
 				if (!Resource)
 					return;
-				/* TODO: IMPL */
+
+				ElementBuffer* IndexBuffer = Resource->GetIndexBuffer();
+				SetVertexBuffer(Resource->GetVertexBuffer(), 0);
+				SetIndexBuffer(IndexBuffer, Format_R32_Uint);
+
+				glDrawElements(GetPrimitiveTopologyDraw(Primitive), IndexBuffer->GetElements(), GL_UNSIGNED_INT, nullptr);
 			}
 			void OGLDevice::Draw(unsigned int Count, unsigned int Location)
 			{
-				glDrawArrays(GetPrimitiveTopologyDraw(Topology), (GLint)Location, (GLint)Count);
+				glDrawArrays(GetPrimitiveTopologyDraw(Primitive), (GLint)Location, (GLint)Count);
 			}
 			bool OGLDevice::CopyTexture2D(Texture2D** Result)
 			{
@@ -1794,7 +1536,6 @@ namespace Tomahawk
 				OGLTexture2D* IResource = (OGLTexture2D*)Resource;
 				if (!IResource || IResource->Resource != GL_INVALID_VALUE)
 					return;
-
 #ifdef glGenerateTextureMipmap
 				glGenerateTextureMipmap(IResource->Resource);
 #endif
@@ -1804,18 +1545,23 @@ namespace Tomahawk
 				OGLTexture3D* IResource = (OGLTexture3D*)Resource;
 				if (!IResource)
 					return;
-				/* TODO: IMPL */
+#ifdef glGenerateTextureMipmap
+				glGenerateTextureMipmap(IResource->Resource);
+#endif
 			}
 			void OGLDevice::GenerateMips(TextureCube* Resource)
 			{
 				OGLTextureCube* IResource = (OGLTextureCube*)Resource;
 				if (!IResource)
 					return;
-				/* TODO: IMPL */
+#ifdef glGenerateTextureMipmap
+				glGenerateTextureMipmap(IResource->Resource);
+#endif
 			}
-			bool OGLDevice::DirectBegin()
+			bool OGLDevice::Begin()
 			{
-				/* TODO: IMPL */
+				if (DirectBuffer == GL_INVALID_VALUE && !CreateDirectBuffer())
+					return false;
 
 				Primitives = PrimitiveTopology_Triangle_List;
 				Direct.WorldViewProjection = Compute::Matrix4x4::Identity();
@@ -1825,24 +1571,24 @@ namespace Tomahawk
 				Elements.clear();
 				return true;
 			}
-			void OGLDevice::DirectTransform(const Compute::Matrix4x4& Transform)
+			void OGLDevice::Transform(const Compute::Matrix4x4& Transform)
 			{
 				Direct.WorldViewProjection = Direct.WorldViewProjection * Transform;
 			}
-			void OGLDevice::DirectTopology(PrimitiveTopology Topology)
+			void OGLDevice::Topology(PrimitiveTopology Topology)
 			{
 				Primitives = Topology;
 			}
-			void OGLDevice::DirectEmit()
+			void OGLDevice::Emit()
 			{
 				Elements.push_back({ 0, 0, 0, 0, 0, 1, 1, 1, 1 });
 			}
-			void OGLDevice::DirectTexture(Texture2D* In)
+			void OGLDevice::Texture(Texture2D* In)
 			{
 				ViewResource = In;
 				Direct.Padding.Z = 1;
 			}
-			void OGLDevice::DirectColor(float X, float Y, float Z, float W)
+			void OGLDevice::Color(float X, float Y, float Z, float W)
 			{
 				if (Elements.empty())
 					return;
@@ -1853,11 +1599,11 @@ namespace Tomahawk
 				Element.CZ = Z;
 				Element.CW = W;
 			}
-			void OGLDevice::DirectIntensity(float Intensity)
+			void OGLDevice::Intensity(float Intensity)
 			{
 				Direct.Padding.W = Intensity;
 			}
-			void OGLDevice::DirectTexCoord(float X, float Y)
+			void OGLDevice::TexCoord(float X, float Y)
 			{
 				if (Elements.empty())
 					return;
@@ -1866,12 +1612,12 @@ namespace Tomahawk
 				Element.TX = X;
 				Element.TY = Y;
 			}
-			void OGLDevice::DirectTexCoordOffset(float X, float Y)
+			void OGLDevice::TexCoordOffset(float X, float Y)
 			{
 				Direct.Padding.X = X;
 				Direct.Padding.Y = Y;
 			}
-			void OGLDevice::DirectPosition(float X, float Y, float Z)
+			void OGLDevice::Position(float X, float Y, float Z)
 			{
 				if (Elements.empty())
 					return;
@@ -1881,7 +1627,7 @@ namespace Tomahawk
 				Element.PY = Y;
 				Element.PZ = Z;
 			}
-			bool OGLDevice::DirectEnd()
+			bool OGLDevice::End()
 			{
 				if (Elements.empty())
 					return false;
@@ -1934,6 +1680,10 @@ namespace Tomahawk
 
 				return Result;
 			}
+			InputLayout* OGLDevice::CreateInputLayout(const InputLayout::Desc& I)
+			{
+				return new OGLInputLayout(I);
+			}
 			Shader* OGLDevice::CreateShader(const Shader::Desc& I)
 			{
 				OGLShader* Result = new OGLShader(I);
@@ -1958,6 +1708,7 @@ namespace Tomahawk
 
 					Rest::Stroke Sub(F.Data);
 					Sub.Splice(Start.End, End.Start);
+					Sub.Insert(ShaderVersion, 0);
 
 					char* Buffer = Sub.Value();
 					GLint Size = Sub.Size();
@@ -1985,6 +1736,7 @@ namespace Tomahawk
 
 					Rest::Stroke Sub(F.Data);
 					Sub.Splice(Start.End, End.Start);
+					Sub.Insert(ShaderVersion, 0);
 
 					char* Buffer = Sub.Value();
 					GLint Size = Sub.Size();
@@ -2012,6 +1764,7 @@ namespace Tomahawk
 
 					Rest::Stroke Sub(F.Data);
 					Sub.Splice(Start.End, End.Start);
+					Sub.Insert(ShaderVersion, 0);
 
 					char* Buffer = Sub.Value();
 					GLint Size = Sub.Size();
@@ -2039,6 +1792,7 @@ namespace Tomahawk
 
 					Rest::Stroke Sub(F.Data);
 					Sub.Splice(Start.End, End.Start);
+					Sub.Insert(ShaderVersion, 0);
 
 					char* Buffer = Sub.Value();
 					GLint Size = Sub.Size();
@@ -2066,6 +1820,7 @@ namespace Tomahawk
 
 					Rest::Stroke Sub(F.Data);
 					Sub.Splice(Start.End, End.Start);
+					Sub.Insert(ShaderVersion, 0);
 
 					char* Buffer = Sub.Value();
 					GLint Size = Sub.Size();
@@ -2093,6 +1848,7 @@ namespace Tomahawk
 
 					Rest::Stroke Sub(F.Data);
 					Sub.Splice(Start.End, End.Start);
+					Sub.Insert(ShaderVersion, 0);
 
 					char* Buffer = Sub.Value();
 					GLint Size = Sub.Size();
@@ -2112,82 +1868,19 @@ namespace Tomahawk
 					}
 				}
 
-				Result->Program = glCreateProgram();
-				if (Result->VertexShader != GL_INVALID_VALUE)
-					glAttachShader(Result->Program, Result->VertexShader);
-
-				if (Result->PixelShader != GL_INVALID_VALUE)
-					glAttachShader(Result->Program, Result->PixelShader);
-
-				if (Result->GeometryShader != GL_INVALID_VALUE)
-					glAttachShader(Result->Program, Result->GeometryShader);
-
-				if (Result->DomainShader != GL_INVALID_VALUE)
-					glAttachShader(Result->Program, Result->DomainShader);
-
-				if (Result->HullShader != GL_INVALID_VALUE)
-					glAttachShader(Result->Program, Result->HullShader);
-
-				if (Result->ComputeShader != GL_INVALID_VALUE)
-					glAttachShader(Result->Program, Result->ComputeShader);
-
-				glLinkProgramARB(Result->Program);
-				glGetProgramiv(Result->Program, GL_LINK_STATUS, &Status);
-
-				if (Status == GL_TRUE)
-				{
-					GLuint AnimationId = glGetUniformBlockIndex(Result->Program, "Animation");
-					if (AnimationId != GL_INVALID_INDEX)
-						glUniformBlockBinding(Result->Program, AnimationId, 0);
-
-					GLuint ObjectId = glGetUniformBlockIndex(Result->Program, "Object");
-					if (ObjectId != GL_INVALID_INDEX)
-						glUniformBlockBinding(Result->Program, ObjectId, 1);
-
-					GLuint ViewerId = glGetUniformBlockIndex(Result->Program, "Viewer");
-					if (ViewerId != GL_INVALID_INDEX)
-						glUniformBlockBinding(Result->Program, ViewerId, 2);
-
-					GLuint RenderConstantId = glGetUniformBlockIndex(Result->Program, "RenderConstant");
-					if (RenderConstantId != GL_INVALID_INDEX)
-						glUniformBlockBinding(Result->Program, RenderConstantId, 3);
-
-					return Result;
-				}
-
-				GLint Size = 0;
-				glGetProgramiv(Result->Program, GL_INFO_LOG_LENGTH, &Size);
-
-				char* Buffer = (char*)malloc(sizeof(char) * (Size + 1));
-				glGetProgramInfoLog(Result->Program, Size, &Size, Buffer);
-				THAWK_ERROR("couldn't link shaders\n\t%.*s", Size, Buffer);
-				free(Buffer);
-
 				return Result;
 			}
 			ElementBuffer* OGLDevice::CreateElementBuffer(const ElementBuffer::Desc& I)
 			{
 				OGLElementBuffer* Result = new OGLElementBuffer(I);
 				Result->Flags = OGLDevice::GetResourceBind(I.BindFlags);
+				if (I.MiscFlags & ResourceMisc_Buffer_Structured)
+					Result->Flags = GL_SHADER_STORAGE_BUFFER;
 
 				glGenBuffers(1, &Result->Resource);
 				glBindBuffer(Result->Flags, Result->Resource);
+				glBufferData(Result->Flags, I.ElementCount * I.ElementWidth, I.Elements, GL_STATIC_DRAW);
 
-				if (I.UseSubresource)
-					glBufferData(Result->Flags, I.ElementCount * I.ElementWidth, I.Elements, GL_STATIC_DRAW);
-
-				return Result;
-			}
-			StructureBuffer* OGLDevice::CreateStructureBuffer(const StructureBuffer::Desc& I)
-			{
-				OGLStructureBuffer* Result = new OGLStructureBuffer(I);
-				Result->Flags = OGLDevice::GetResourceBind(I.BindFlags);
-
-				glGenBuffers(1, &Result->Resource);
-				glBindBuffer(GL_SHADER_STORAGE_BUFFER, Result->Resource);
-				glBufferData(GL_SHADER_STORAGE_BUFFER, I.ElementWidth * I.ElementCount, I.Elements, GL_DYNAMIC_DRAW);
-				glBindBufferBase(GL_SHADER_STORAGE_BUFFER, 3, Result->Resource);
-				glBindBuffer(GL_SHADER_STORAGE_BUFFER, 0);
 				return Result;
 			}
 			MeshBuffer* OGLDevice::CreateMeshBuffer(const MeshBuffer::Desc& I)
@@ -2197,7 +1890,6 @@ namespace Tomahawk
 				F.Usage = I.Usage;
 				F.BindFlags = ResourceBind_Vertex_Buffer;
 				F.ElementCount = (unsigned int)I.Elements.size();
-				F.UseSubresource = true;
 				F.Elements = (void*)I.Elements.data();
 				F.ElementWidth = sizeof(Compute::Vertex);
 
@@ -2211,7 +1903,6 @@ namespace Tomahawk
 				F.ElementCount = (unsigned int)I.Indices.size();
 				F.ElementWidth = sizeof(int);
 				F.Elements = (void*)I.Indices.data();
-				F.UseSubresource = true;
 
 				Result->IndexBuffer = CreateElementBuffer(F);
 				return Result;
@@ -2223,7 +1914,6 @@ namespace Tomahawk
 				F.Usage = I.Usage;
 				F.BindFlags = ResourceBind_Vertex_Buffer;
 				F.ElementCount = (unsigned int)I.Elements.size();
-				F.UseSubresource = true;
 				F.Elements = (void*)I.Elements.data();
 				F.ElementWidth = sizeof(Compute::SkinVertex);
 
@@ -2237,17 +1927,23 @@ namespace Tomahawk
 				F.ElementCount = (unsigned int)I.Indices.size();
 				F.ElementWidth = sizeof(int);
 				F.Elements = (void*)I.Indices.data();
-				F.UseSubresource = true;
 
 				Result->IndexBuffer = CreateElementBuffer(F);
 				return Result;
 			}
 			InstanceBuffer* OGLDevice::CreateInstanceBuffer(const InstanceBuffer::Desc& I)
 			{
+				ElementBuffer::Desc F = ElementBuffer::Desc();
+				F.AccessFlags = CPUAccess_Write;
+				F.MiscFlags = ResourceMisc_Buffer_Structured;
+				F.Usage = ResourceUsage_Dynamic;
+				F.BindFlags = ResourceBind_Shader_Input;
+				F.ElementCount = I.ElementLimit;
+				F.ElementWidth = I.ElementWidth;
+				F.StructureByteStride = F.ElementWidth;
+
 				OGLInstanceBuffer* Result = new OGLInstanceBuffer(I);
-				glGenBuffers(1, &Result->Resource);
-				glBindBufferBase(GL_SHADER_STORAGE_BUFFER, 2, Result->Resource);
-				glBufferData(GL_SHADER_STORAGE_BUFFER, I.ElementLimit * I.ElementWidth, nullptr, GL_DYNAMIC_DRAW);
+				Result->Elements = CreateElementBuffer(F);
 
 				return Result;
 			}
@@ -2511,8 +2207,6 @@ namespace Tomahawk
 			RenderTarget2D* OGLDevice::CreateRenderTarget2D(const RenderTarget2D::Desc& I)
 			{
 				OGLRenderTarget2D* Result = new OGLRenderTarget2D(I);
-				GLenum DrawBuffers = GL_COLOR_ATTACHMENT0;
-
 				if (!I.RenderSurface)
 				{
 					GLenum Format = OGLDevice::GetFormat(I.FormatMode);
@@ -2529,7 +2223,6 @@ namespace Tomahawk
 					glRenderbufferStorage(GL_RENDERBUFFER, GL_DEPTH24_STENCIL8, I.Width, I.Height);
 					glBindRenderbuffer(GL_RENDERBUFFER, 0);
 					glFramebufferRenderbuffer(GL_FRAMEBUFFER, GL_DEPTH_STENCIL_ATTACHMENT, GL_RENDERBUFFER, Result->DepthBuffer);
-					glDrawBuffers(1, &DrawBuffers);
 					glBindFramebuffer(GL_FRAMEBUFFER, 0);
 				}
 				else if (I.RenderSurface != (void*)this)
@@ -2543,7 +2236,6 @@ namespace Tomahawk
 					glRenderbufferStorage(GL_RENDERBUFFER, GL_DEPTH24_STENCIL8, I.Width, I.Height);
 					glBindRenderbuffer(GL_RENDERBUFFER, 0);
 					glFramebufferRenderbuffer(GL_FRAMEBUFFER, GL_DEPTH_STENCIL_ATTACHMENT, GL_RENDERBUFFER, Result->DepthBuffer);
-					glDrawBuffers(1, &DrawBuffers);
 					glBindFramebuffer(GL_FRAMEBUFFER, 0);
 				}
 
@@ -2569,7 +2261,6 @@ namespace Tomahawk
 				glBindRenderbuffer(GL_RENDERBUFFER, 0);
 				glFramebufferRenderbuffer(GL_FRAMEBUFFER, GL_DEPTH_STENCIL_ATTACHMENT, GL_RENDERBUFFER, Result->DepthBuffer);
 
-				GLenum DrawBuffers[8] = { GL_INVALID_VALUE };
 				for (unsigned int i = 0; i < (unsigned int)I.SVTarget; i++)
 				{
 					GLenum Format = OGLDevice::GetFormat(I.FormatMode[i]);
@@ -2577,12 +2268,10 @@ namespace Tomahawk
 					glBindTexture(GL_TEXTURE_2D, Result->Texture[i]);
 					glTexImage2D(GL_TEXTURE_2D, I.MipLevels, Format, I.Width, I.Height, 0, Format, GL_UNSIGNED_BYTE, nullptr);
 					glFramebufferTexture2D(GL_FRAMEBUFFER, GL_COLOR_ATTACHMENT0 + i, GL_TEXTURE_2D, Result->Texture[i], 0);
-					DrawBuffers[i] = GL_COLOR_ATTACHMENT0 + i;
+					Result->Formats.push_back(GL_COLOR_ATTACHMENT0 + i);
 				}
 
-				glDrawBuffers(I.SVTarget, DrawBuffers);
 				glBindFramebuffer(GL_FRAMEBUFFER, 0);
-
 				Result->View.Width = (float)I.Width;
 				Result->View.Height = (float)I.Height;
 				Result->View.TopLeftX = 0.0f;
@@ -2606,7 +2295,6 @@ namespace Tomahawk
 				glTexParameteri(GL_TEXTURE_CUBE_MAP, GL_TEXTURE_COMPARE_MODE, GL_COMPARE_REF_TO_TEXTURE);
 				glTexParameteri(GL_TEXTURE_CUBE_MAP, GL_TEXTURE_COMPARE_FUNC, GL_GREATER);
 
-				GLenum DrawBuffers = GL_COLOR_ATTACHMENT0;
 				for (unsigned int i = 0; i < 6; i++)
 					glTexImage2D(GL_TEXTURE_CUBE_MAP_POSITIVE_X + i, 0, GL_DEPTH_COMPONENT24, I.Size, I.Size, 0, GL_DEPTH_COMPONENT, GL_FLOAT, 0);
 
@@ -2624,7 +2312,6 @@ namespace Tomahawk
 					glTexImage2D(GL_TEXTURE_CUBE_MAP_POSITIVE_X + i, 0, Format, I.Size, I.Size, 0, Format, GL_UNSIGNED_BYTE, 0);
 
 				glFramebufferTexture(GL_FRAMEBUFFER, GL_COLOR_ATTACHMENT0, Result->Texture, 0);
-				glDrawBuffers(1, &DrawBuffers);
 				glBindFramebuffer(GL_FRAMEBUFFER, 0);
 
 				Result->View.Width = (float)I.Size;
@@ -2650,7 +2337,6 @@ namespace Tomahawk
 				glTexParameteri(GL_TEXTURE_CUBE_MAP, GL_TEXTURE_COMPARE_MODE, GL_COMPARE_REF_TO_TEXTURE);
 				glTexParameteri(GL_TEXTURE_CUBE_MAP, GL_TEXTURE_COMPARE_FUNC, GL_GREATER);
 
-				GLenum DrawBuffers[8] = { GL_INVALID_VALUE };
 				for (unsigned int i = 0; i < 6; i++)
 					glTexImage2D(GL_TEXTURE_CUBE_MAP_POSITIVE_X + i, 0, GL_DEPTH_COMPONENT24, I.Size, I.Size, 0, GL_DEPTH_COMPONENT, GL_FLOAT, 0);
 
@@ -2670,12 +2356,10 @@ namespace Tomahawk
 						glTexImage2D(GL_TEXTURE_CUBE_MAP_POSITIVE_X + i, 0, Format, I.Size, I.Size, 0, Format, GL_UNSIGNED_BYTE, 0);
 
 					glFramebufferTexture(GL_FRAMEBUFFER, GL_COLOR_ATTACHMENT0 + j, Result->Texture[j], 0);
-					DrawBuffers[j] = GL_COLOR_ATTACHMENT0 + j;
+					Result->Formats.push_back(GL_COLOR_ATTACHMENT0 + j);
 				}
 				
-				glDrawBuffers(I.Target, DrawBuffers);
 				glBindFramebuffer(GL_FRAMEBUFFER, 0);
-
 				Result->View.Width = (float)I.Size;
 				Result->View.Height = (float)I.Size;
 				Result->View.TopLeftX = 0.0f;
@@ -2695,7 +2379,7 @@ namespace Tomahawk
 			}
 			PrimitiveTopology OGLDevice::GetPrimitiveTopology()
 			{
-				return Topology;
+				return Primitive;
 			}
 			ShaderModel OGLDevice::GetSupportedShaderModel()
 			{
@@ -2786,6 +2470,11 @@ namespace Tomahawk
 			bool OGLDevice::IsValid()
 			{
 				return BasicEffect != nullptr;
+			}
+			bool OGLDevice::CreateDirectBuffer()
+			{
+				/* TODO: IMPL */
+				return false;
 			}
 			const char* OGLDevice::GetShaderVersion()
 			{

@@ -25,7 +25,7 @@ namespace Tomahawk
 			{
 				float Position[2];
 				float TexCoord[2];
-				nk_byte Color[4];
+				float Color[4];
 			};
 
 			static void ClipboardPaste(nk_handle UserData, struct nk_text_edit* Buffer)
@@ -1087,22 +1087,21 @@ namespace Tomahawk
 				nk_input_begin(Engine);
 				nk_input_end(Engine);
 
-				DepthStencil = Device->GetDepthStencilState("DEF_NONE");
-				Rasterizer = Device->GetRasterizerState("DEF_CULL_NONE_SCISSOR");
-				Blend = Device->GetBlendState("DEF_ADDITIVE_SOURCE");
-				Sampler = Device->GetSamplerState("DEF_LINEAR");
+				DepthStencil = Device->GetDepthStencilState("none");
+				Rasterizer = Device->GetRasterizerState("cull-none-scissor");
+				Blend = Device->GetBlendState("additive-source");
+				Sampler = Device->GetSamplerState("linear");
 
-				static Graphics::InputLayout Layout[3] =
+				Graphics::InputLayout::Desc Desc;
+				Desc.Attributes =
 				{
-					{ "POSITION", Graphics::Format_R32G32_Float, (unsigned int)(size_t)(&((Vertex*)0)->Position) },
-					{ "TEXCOORD", Graphics::Format_R32G32_Float, (unsigned int)(size_t)(&((Vertex*)0)->TexCoord) },
-					{ "COLOR", Graphics::Format_R8G8B8A8_Unorm, (unsigned int)(size_t)(&((Vertex*)0)->Color) }
+					{ "POSITION", 0, Graphics::AttributeType_Float, 2, (unsigned int)(size_t)(&((Vertex*)0)->Position) },
+					{ "TEXCOORD", 0, Graphics::AttributeType_Float, 2, (unsigned int)(size_t)(&((Vertex*)0)->TexCoord) },
+					{ "COLOR", 0, Graphics::AttributeType_Float, 4, (unsigned int)(size_t)(&((Vertex*)0)->Color) }
 				};
+				Layout = Device->CreateInputLayout(Desc);
 
 				Graphics::Shader::Desc I = Graphics::Shader::Desc();
-				I.Layout = Layout;
-				I.LayoutSize = 3;
-
 				if (Device->GetSection("pass/gui", &I.Data))
 				{
 					Shader = Device->CreateShader(I);
@@ -1169,6 +1168,7 @@ namespace Tomahawk
 				free(Commands);
 				free(Atlas);
 				free(Engine);
+				delete Layout;
 				delete Shader;
 				delete Font;
 				delete VertexBuffer;
@@ -1182,7 +1182,6 @@ namespace Tomahawk
 				F.BindFlags = Graphics::ResourceBind_Vertex_Buffer;
 				F.ElementCount = (unsigned int)MaxVertices;
 				F.ElementWidth = sizeof(Vertex);
-				F.UseSubresource = false;
 
 				delete VertexBuffer;
 				VertexBuffer = Device->CreateElementBuffer(F);
@@ -1232,18 +1231,18 @@ namespace Tomahawk
 			}
 			void Context::Render(const Compute::Matrix4x4& Offset, bool AA)
 			{
-				static const struct nk_draw_vertex_layout_element Layout[] =
+				static const struct nk_draw_vertex_layout_element VertexLayout[] =
 				{
 					{ NK_VERTEX_POSITION, NK_FORMAT_FLOAT, NK_OFFSETOF(Vertex, Position) },
 					{ NK_VERTEX_TEXCOORD, NK_FORMAT_FLOAT, NK_OFFSETOF(Vertex, TexCoord) },
-					{ NK_VERTEX_COLOR, NK_FORMAT_R8G8B8A8, NK_OFFSETOF(Vertex, Color) },
+					{ NK_VERTEX_COLOR, NK_FORMAT_R32G32B32A32_FLOAT, NK_OFFSETOF(Vertex, Color) },
 					{ NK_VERTEX_LAYOUT_END }
 				};
 				Projection = Offset * Projection;
 
 				struct nk_convert_config Converter;
 				memset(&Converter, 0, sizeof(Converter));
-				Converter.vertex_layout = Layout;
+				Converter.vertex_layout = VertexLayout;
 				Converter.vertex_size = sizeof(Vertex);
 				Converter.vertex_alignment = NK_ALIGNOF(Vertex);
 				Converter.circle_segment_count = 24;
@@ -1270,10 +1269,11 @@ namespace Tomahawk
 				Device->SetSamplerState(Sampler);
 				Device->SetBlendState(Blend);
 				Device->SetRasterizerState(Rasterizer);
+				Device->SetInputLayout(Layout);
 				Device->SetShader(Shader, Graphics::ShaderType_Vertex | Graphics::ShaderType_Pixel);
 				Device->SetBuffer(Shader, 3, Graphics::ShaderType_Vertex | Graphics::ShaderType_Pixel);
-				Device->SetVertexBuffer(VertexBuffer, 0, sizeof(Vertex), 0);
-				Device->SetIndexBuffer(IndexBuffer, Graphics::Format_R16_Uint, 0);
+				Device->SetVertexBuffer(VertexBuffer, 0);
+				Device->SetIndexBuffer(IndexBuffer, Graphics::Format_R16_Uint);
 				Device->UpdateBuffer(Shader, &Projection);
 
 				const nk_draw_command* Command = nullptr;

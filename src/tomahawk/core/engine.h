@@ -577,6 +577,7 @@ namespace Tomahawk
 			Graphics::RasterizerState* Rasterizer;
 			Graphics::BlendState* Blend;
 			Graphics::SamplerState* Sampler;
+			Graphics::InputLayout* Layout;
 			Graphics::RenderTarget2D* Output;
 			Graphics::Texture2D* Pass;
 
@@ -669,15 +670,6 @@ namespace Tomahawk
 			Renderer* AddRenderer(Renderer* In);
 			Renderer* GetRenderer(uint64_t Id);
 			size_t GetDepthSize();
-			size_t GetQuadVSize();
-			size_t GetSphereVSize();
-			size_t GetSphereISize();
-			size_t GetCubeVSize();
-			size_t GetCubeISize();
-			size_t GetBoxVSize();
-			size_t GetBoxISize();
-			size_t GetSkinBoxVSize();
-			size_t GetSkinBoxISize();
 			Graphics::ElementBuffer* GetQuadVBuffer();
 			Graphics::ElementBuffer* GetSphereVBuffer();
 			Graphics::ElementBuffer* GetSphereIBuffer();
@@ -786,11 +778,12 @@ namespace Tomahawk
 				Graphics::RasterizerState* Rasterizer;
 				Graphics::BlendState* Blend;
 				Graphics::SamplerState* Sampler;
+				Graphics::InputLayout* Layout;
 			} Image;
 
 		protected:
 			Graphics::MultiRenderTarget2D* Surface = nullptr;
-			Graphics::StructureBuffer* Structure = nullptr;
+			Graphics::ElementBuffer* Structure = nullptr;
 			Compute::Simulator* Simulator = nullptr;
 			std::unordered_map<uint64_t, Rest::Pool<Component*>> Components;
 			std::vector<Material> Materials;
@@ -879,7 +872,7 @@ namespace Tomahawk
 			bool HasEntity(Entity* Entity);
 			bool HasEntity(uint64_t Entity);
 			Graphics::MultiRenderTarget2D* GetSurface();
-			Graphics::StructureBuffer* GetStructure();
+			Graphics::ElementBuffer* GetStructure();
 			Graphics::GraphicsDevice* GetDevice();
 			Rest::EventQueue* GetQueue();
 			Compute::Simulator* GetSimulator();

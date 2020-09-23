@@ -3874,11 +3874,8 @@ namespace Tomahawk
 
 			return Stroke(&Result).Replace("\r", "").Replace("\n", "").R();
 #else
-			char Buffer[1024];
-			if (strerror_r(Code, Buffer, sizeof(Buffer)) == -1)
-				return "undefined";
-
-			return Buffer;
+			char* Buffer = strerror(Code);
+			return Buffer ? Buffer : "";
 #endif
 		}
 		void OS::Run(const char* Format, ...)

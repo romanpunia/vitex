@@ -2350,7 +2350,7 @@ namespace Tomahawk
 			uint64_t BlockSize = Block->Size;
 
 			Block->Allocated = false;
-			if (!((char*)Next + HeadSize < (char*)Base && (char*)Next + HeadSize >= 0))
+			if (!((char*)Next + HeadSize < (char*)Base && (char*)Next + HeadSize >= (char*)nullptr))
 				return;
 
 			if (!((char*)Next + sizeof(MemoryPage) < (char*)Heap + HeapSize && (char*)Next + sizeof(MemoryPage) >= (char*)Heap))
@@ -3291,9 +3291,11 @@ namespace Tomahawk
 				return;
 
 #ifdef TH_MICROSOFT
-			SetCurrentDirectoryA(Path);
+			if (!SetCurrentDirectoryA(Path))
+				TH_ERROR("[dir] couldn't set current directory");
 #elif defined(TH_UNIX)
-			chdir(Path);
+			if (chdir(Path) != 0)
+				TH_ERROR("[dir] couldn't set current directory");
 #endif
 		}
 		void OS::SaveBitmap(const char* Path, int Width, int Height, unsigned char* Ptr)
@@ -3873,7 +3875,8 @@ namespace Tomahawk
 			return Stroke(&Result).Replace("\r", "").Replace("\n", "").R();
 #else
 			char Buffer[1024];
-			strerror_r(Code, Buffer, sizeof(Buffer));
+			if (strerror_r(Code, Buffer, sizeof(Buffer)) == -1)
+				return "undefined";
 
 			return Buffer;
 #endif
@@ -3890,7 +3893,8 @@ namespace Tomahawk
 			vsnprintf(Buffer, sizeof(Buffer), Format, Args);
 #endif
 			va_end(Args);
-			system(Buffer);
+			if (system(Buffer) == 0)
+				TH_ERROR("[sys] couldn't execute command");
 		}
 		void* OS::LoadObject(const char* Path)
 		{
@@ -4065,7 +4069,8 @@ namespace Tomahawk
 			if (Result.size() < TH_MAX_PATH)
 				Buffer[Result.size()] = '\0';
 #elif defined TH_UNIX
-			getcwd(Buffer, TH_MAX_PATH);
+			if (!getcwd(Buffer, TH_MAX_PATH))
+				return "";
 #endif
 			int64_t Length = strlen(Buffer);
 			if (Length > 0 && Buffer[Length - 1] != '/' && Buffer[Length - 1] != '\\')
@@ -6136,7 +6141,7 @@ namespace Tomahawk
 			return Result;
 #else
 			TH_ERROR("json parse is unsupported for this build");
-			return false;
+			return nullptr;
 #endif
 		}
 		Document* Document::NewArray()

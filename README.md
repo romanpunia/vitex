@@ -170,7 +170,6 @@ Tomahawk is a cross-platform C++14 framework to create any type of application f
 + Ubuntu 16.04+ x64/x86
 + MacOS Catalina 10.15+ x64
 
-*Those were tested*
 ![C/C++ CI](https://github.com/romanpunia/tomahawk/workflows/C/C++%20CI/badge.svg)
 
 ## Building

@@ -2,7 +2,7 @@
 Tomahawk is a cross-platform C++14 framework to create any type of application from a unified interface. It provides a set of common tools, so that users can focus on making apps without having to reinvent the wheel.
 
 ## Features
-#### Base
+#### Core
 + Thread-safe event queue
 + File system
 + Process management
@@ -13,6 +13,8 @@ Tomahawk is a cross-platform C++14 framework to create any type of application f
 + XML/JSON/Binary abstraction
 + Switchable logging system
 + Adaptable dependency system
++ Fast spinlock mutex without CPU time wasting
++ Switchable thread-safe fixed-size memory pool (malloc, realloc, free)
 #### Math
 + Vertices
 + Vectors
@@ -38,6 +40,23 @@ Tomahawk is a cross-platform C++14 framework to create any type of application f
 + Configurable audio playback
 + Positional sound with optional velocity
 + Multiple playback
++ Stream filtering
++ Lowpass filter
++ Bandpass filter
++ Highpass filter
++ Effects system is available
++ Reverb effect
++ Chorus effect
++ Distortion effect
++ Echo effect
++ Flanger effect
++ Frequency-shifter effect
++ Vocal morpher effect
++ Pitch-shifter effect
++ Ring modulator effect
++ Autowah effect
++ Equalizer effect
++ Compressor
 #### Network
 + Socket abstraction
 + Async/sync sockets with IO queue
@@ -62,11 +81,11 @@ Tomahawk is a cross-platform C++14 framework to create any type of application f
 + Promise-like async data type support
 + Simple debugger support
 + Wrapper over most of the functionality
-+ JIT compiler support for Windows and Linux (non-ARM)
++ JIT compiler support for non-ARM platforms
 #### Graphics
 + Configurable windowing (activity) system
 + Input detection (keyboard, cursor, controller, joystick, multi-touch)
-+ Render backend abstraction over DirectX 11 and OpenGL
++ Render backend abstraction over DirectX 11 and OpenGL (WIP)
 + Shader materials
 + Structured shading system
 + Standard library for shaders
@@ -75,6 +94,17 @@ Tomahawk is a cross-platform C++14 framework to create any type of application f
 + Renderer without shaders
 + Simple shader preprocessor for include/pragma directives
 + Switchable render backend
+#### GUI
++ Serializable GUI system
++ CSS paradigm-based styling system with overriding support
++ HTML-like GUI declarations
++ Logical nodes for conditional rendering
++ Read/write dynamic properties
++ Various widgets from Nuklear
++ Layouting system
++ Font system
++ Callbacks for every widget
++ Fully changeable GUI tree
 #### Engine
 + Thread-safe scene graph
 + Async/sync content management with file processors
@@ -94,13 +124,12 @@ Tomahawk is a cross-platform C++14 framework to create any type of application f
 + Probe renderer (probes for reflections and illumination lights)
 + Light renderer (to render point, spot, line and probe lights with shadowing)
 + Element system renderer (for particles)
-+ Image renderer (to render current image to the screen or elsewhere)
 + Reflection renderer (for screen-space reflections)
 + Depth of field renderer
 + Emission renderer (to render glowing materials)
 + Glitch renderer (to render different glitches on the screen)
 + Ambient occlusion renderer (simple screen-space AO)
-+ Indirect occlusion renderer (simple GI)
++ Direction occlusion renderer (simple GI)
 + Tone renderer (tone mapping)
 + GUI renderer (Nuklear-based ui renderer)
 #### Built-in components

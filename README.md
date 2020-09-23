@@ -171,6 +171,7 @@ Tomahawk is a cross-platform C++14 framework to create any type of application f
 + MacOS Catalina 10.15+ x64
 
 *Those were tested*
+![C/C++ CI](https://github.com/romanpunia/tomahawk/workflows/C/C++%20CI/badge.svg)
 
 ## Building
 *Tomahawk uses CMake as building system. Because windows doesn't have default include/src folders [Microsoft's Vcpkg](https://github.com/Microsoft/vcpkg) is suggested but not required.*
@@ -220,4 +221,4 @@ These are resolved automatically.
 Tomahawk is licensed under the MIT license
 
 ## Known Issues
-This project is under development, bugs aren't the rare thing. Also dependency installation process can by quite tricky on some platforms like MacOS. OpenGL is not working properly, sooner or later it will be fully implemented, but it requires too much work for one person. There is about 60 shaders written in HLSL, they must be also implemented in GLSL for OpenGL to work properly. Script interface covers less than 5% of Tomahawk's abilities, bindings are wasting to much time to write, sorrt :)
+This project is under development, bugs aren't the rare thing. Also dependency installation process can by quite tricky on some platforms like MacOS. OpenGL is not working properly, sooner or later it will be fully implemented, but it requires too much work for one person. There is about 60 shaders written in HLSL, they must be also implemented in GLSL for OpenGL to work properly. Script interface covers less than 5% of Tomahawk's abilities, bindings are wasting to much time to write, sorry :)

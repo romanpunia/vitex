@@ -544,6 +544,54 @@ namespace Tomahawk
 			void Release();
 		};
 
+		class TH_OUT Mem
+		{
+		private:
+			struct MemoryPage
+			{
+				uint64_t Size;
+				bool Allocated;
+				char Data;
+			};
+#ifndef NDEBUG
+			struct MemoryInfo
+			{
+				uint64_t Alloc;
+				uint64_t Size;
+			};
+#endif
+		private:
+			static MemoryPage* Heap;
+			static std::mutex* Mutex;
+			static SpinLock Atom;
+			static uint64_t HeadSize;
+			static uint64_t HeapSize;
+#ifndef NDEBUG
+			static std::unordered_map<void*, MemoryInfo>* Blocks;
+			static uint64_t BlockCount;
+#endif
+
+		public:
+			static void Create(size_t InitialSize);
+			static void Release();
+			static void* GetPtr(void* Ptr);
+			static uint64_t GetSize(void* Ptr);
+			static uint64_t GetCount();
+			static uint64_t GetUsedMemory();
+			static uint64_t GetAvailableMemory();
+			static uint64_t GetTotalMemory();
+			static void* Malloc(size_t Size);
+			static void* Realloc(void* Ptr, size_t Size);
+			static void Free(void* Ptr);
+			static void Report();
+			static void Interrupt();
+
+		private:
+			static void ConcatSequentialPages(MemoryPage* Block, bool IsAllocated);
+			static MemoryPage* FindFirstPage(uint64_t MinSize);
+			static void SplitPage(MemoryPage* Block, uint64_t Size);
+		};
+
 		template <class T>
 		class Pool
 		{
@@ -809,52 +857,59 @@ namespace Tomahawk
 			}
 		};
 
-		class TH_OUT Mem
+		class TH_OUT OS
 		{
-		private:
-			struct MemoryPage
-			{
-				uint64_t Size;
-				bool Allocated;
-				char Data;
-			};
-#ifndef NDEBUG
-			struct MemoryInfo
-			{
-				uint64_t Alloc;
-				uint64_t Size;
-			};
-#endif
-		private:
-			static MemoryPage* Heap;
-			static std::mutex* Mutex;
-			static SpinLock Atom;
-			static uint64_t HeadSize;
-			static uint64_t HeapSize;
-#ifndef NDEBUG
-			static std::unordered_map<void*, MemoryInfo>* Blocks;
-			static uint64_t BlockCount;
-#endif
-
 		public:
-			static void Create(size_t InitialSize);
-			static void Release();
-			static void* GetPtr(void* Ptr);
-			static uint64_t GetSize(void* Ptr);
-			static uint64_t GetCount();
-			static uint64_t GetUsedMemory();
-			static uint64_t GetAvailableMemory();
-			static uint64_t GetTotalMemory();
-			static void* Malloc(size_t Size);
-			static void* Realloc(void* Ptr, size_t Size);
-			static void Free(void* Ptr);
-			static void Report();
-			static void Interrupt();
-
-		private:
-			static void ConcatSequentialPages(MemoryPage* Block, bool IsAllocated);
-			static MemoryPage* FindFirstPage(uint64_t MinSize);
-			static void SplitPage(MemoryPage* Block, uint64_t Size);
+			static void SetDirectory(const char* Path);
+			static void SaveBitmap(const char* Path, int Width, int Height, unsigned char* Ptr);
+			static bool Iterate(const char* Path, const std::function<bool(DirectoryEntry*)>& Callback);
+			static bool FileExists(const char* Path);
+			static bool ExecExists(const char* Path);
+			static bool DirExists(const char* Path);
+			static bool Write(const char* Path, const char* Data, uint64_t Length);
+			static bool Write(const char* Path, const std::string& Data);
+			static bool RemoveFile(const char* Path);
+			static bool RemoveDir(const char* Path);
+			static bool Move(const char* From, const char* To);
+			static bool StateResource(const std::string& Path, Resource* Resource);
+			static bool ScanDir(const std::string& Path, std::vector<ResourceEntry>* Entries);
+			static bool ConstructETag(char* Buffer, uint64_t Length, Resource* Resource);
+			static bool ConstructETagManually(char* Buffer, uint64_t Length, int64_t LastModified, uint64_t ContentLength);
+			static bool SpawnProcess(const std::string& Path, const std::vector<std::string>& Params, ChildProcess* Result);
+			static bool FreeProcess(ChildProcess* Process);
+			static bool AwaitProcess(ChildProcess* Process, int* ExitCode);
+			static bool UnloadObject(void* Handle);
+			static bool SendFile(FILE* Stream, socket_t Socket, int64_t Size);
+			static bool CreateDir(const char* Path);
+			static socket_t GetFD(FILE* Stream);
+			static int GetError();
+			static std::string GetErrorName(int Code);
+			static void Run(const char* Format, ...);
+			static void* LoadObject(const char* Path);
+			static void* LoadObjectFunction(void* Handle, const char* Name);
+			static void* Open(const char* Path, const char* Mode);
+			static std::string Resolve(const char* Path);
+			static std::string Resolve(const std::string& Path, const std::string& Directory);
+			static std::string ResolveDir(const char* Path);
+			static std::string ResolveDir(const std::string& Path, const std::string& Directory);
+			static std::string GetDirectory();
+			static std::string Read(const char* Path);
+			static std::string FileDirectory(const std::string& Path, int Level = 0);
+			static std::string GetFilename(const std::string& Path);
+			static FileState GetState(const char* Path);
+			static std::vector<std::string> ReadAllLines(const char* Path);
+			static std::vector<std::string> GetDiskDrives();
+			static const char* FileExtention(const char* Path);
+			static unsigned char* ReadAllBytes(const char* Path, uint64_t* ByteLength);
+			static unsigned char* ReadAllBytes(FileStream* Stream, uint64_t* ByteLength);
+			static unsigned char* ReadByteChunk(FileStream* Stream, uint64_t Length);
+			static bool WantTextInput(const std::string& Title, const std::string& Message, const std::string& DefaultInput, std::string* Result);
+			static bool WantPasswordInput(const std::string& Title, const std::string& Message, std::string* Result);
+			static bool WantFileSave(const std::string& Title, const std::string& DefaultPath, const std::string& Filter, const std::string& FilterDescription, std::string* Result);
+			static bool WantFileOpen(const std::string& Title, const std::string& DefaultPath, const std::string& Filter, const std::string& FilterDescription, bool Multiple, std::string* Result);
+			static bool WantFolder(const std::string& Title, const std::string& DefaultPath, std::string* Result);
+			static bool WantColor(const std::string& Title, const std::string& DefaultHexRGB, std::string* Result);
+			static uint64_t CheckSum(const std::string& Data);
 		};
 
 		class TH_OUT Debug
@@ -926,61 +981,6 @@ namespace Tomahawk
 			{
 				return (void*)new T(Data...);
 			}
-		};
-
-		class TH_OUT OS
-		{
-		public:
-			static void SetDirectory(const char* Path);
-			static void SaveBitmap(const char* Path, int Width, int Height, unsigned char* Ptr);
-			static bool Iterate(const char* Path, const std::function<bool(DirectoryEntry*)>& Callback);
-			static bool FileExists(const char* Path);
-			static bool ExecExists(const char* Path);
-			static bool DirExists(const char* Path);
-			static bool Write(const char* Path, const char* Data, uint64_t Length);
-			static bool Write(const char* Path, const std::string& Data);
-			static bool RemoveFile(const char* Path);
-			static bool RemoveDir(const char* Path);
-			static bool Move(const char* From, const char* To);
-			static bool StateResource(const std::string& Path, Resource* Resource);
-			static bool ScanDir(const std::string& Path, std::vector<ResourceEntry>* Entries);
-			static bool ConstructETag(char* Buffer, uint64_t Length, Resource* Resource);
-			static bool ConstructETagManually(char* Buffer, uint64_t Length, int64_t LastModified, uint64_t ContentLength);
-			static bool SpawnProcess(const std::string& Path, const std::vector<std::string>& Params, ChildProcess* Result);
-			static bool FreeProcess(ChildProcess* Process);
-			static bool AwaitProcess(ChildProcess* Process, int* ExitCode);
-			static bool UnloadObject(void* Handle);
-			static bool SendFile(FILE* Stream, socket_t Socket, int64_t Size);
-			static bool CreateDir(const char* Path);
-			static socket_t GetFD(FILE* Stream);
-			static int GetError();
-			static std::string GetErrorName(int Code);
-			static void Run(const char* Format, ...);
-			static void* LoadObject(const char* Path);
-			static void* LoadObjectFunction(void* Handle, const char* Name);
-			static void* Open(const char* Path, const char* Mode);
-			static std::string Resolve(const char* Path);
-			static std::string Resolve(const std::string& Path, const std::string& Directory);
-			static std::string ResolveDir(const char* Path);
-			static std::string ResolveDir(const std::string& Path, const std::string& Directory);
-			static std::string GetDirectory();
-			static std::string Read(const char* Path);
-			static std::string FileDirectory(const std::string& Path, int Level = 0);
-			static std::string GetFilename(const std::string& Path);
-			static FileState GetState(const char* Path);
-			static std::vector<std::string> ReadAllLines(const char* Path);
-			static std::vector<std::string> GetDiskDrives();
-			static const char* FileExtention(const char* Path);
-			static unsigned char* ReadAllBytes(const char* Path, uint64_t* ByteLength);
-			static unsigned char* ReadAllBytes(FileStream* Stream, uint64_t* ByteLength);
-			static unsigned char* ReadByteChunk(FileStream* Stream, uint64_t Length);
-			static bool WantTextInput(const std::string& Title, const std::string& Message, const std::string& DefaultInput, std::string* Result);
-			static bool WantPasswordInput(const std::string& Title, const std::string& Message, std::string* Result);
-			static bool WantFileSave(const std::string& Title, const std::string& DefaultPath, const std::string& Filter, const std::string& FilterDescription, std::string* Result);
-			static bool WantFileOpen(const std::string& Title, const std::string& DefaultPath, const std::string& Filter, const std::string& FilterDescription, bool Multiple, std::string* Result);
-			static bool WantFolder(const std::string& Title, const std::string& DefaultPath, std::string* Result);
-			static bool WantColor(const std::string& Title, const std::string& DefaultHexRGB, std::string* Result);
-			static uint64_t CheckSum(const std::string& Data);
 		};
 
 		class TH_OUT Object

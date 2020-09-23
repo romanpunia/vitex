@@ -220,7 +220,4 @@ These are resolved automatically.
 Tomahawk is licensed under the MIT license
 
 ## Known Issues
-This project is under development, bugs aren't the rare thing. Also dependency installation process can by quite tricky on some platforms like MacOS.
-
-## Doubtful moments
-Coding style isn't standard, because i like C# and it's readability. It means that project uses Pascal Case almost everywhere. Be ready for that.
+This project is under development, bugs aren't the rare thing. Also dependency installation process can by quite tricky on some platforms like MacOS. OpenGL is not working properly, sooner or later it will be fully implemented, but it requires too much work for one person. There is about 60 shaders written in HLSL, they must be also implemented in GLSL for OpenGL to work properly.

@@ -1,5 +1,5 @@
-#ifndef THAWK_ENGINE_H
-#define THAWK_ENGINE_H
+#ifndef TH_ENGINE_H
+#define TH_ENGINE_H
 
 #include "graphics.h"
 #include "audio.h"
@@ -89,7 +89,7 @@ namespace Tomahawk
 			RenderState_Depth_Cubic
 		};
 
-		struct THAWK_OUT Material
+		struct TH_OUT Material
 		{
 			Compute::Vector4 Emission;
 			Compute::Vector4 Metallic;
@@ -103,14 +103,14 @@ namespace Tomahawk
 			float Id = 0.0f;
 		};
 
-		struct THAWK_OUT AssetResource
+		struct TH_OUT AssetResource
 		{
 			FileProcessor* Processor = nullptr;
 			void* Resource = nullptr;
 			std::string Path;
 		};
 
-		struct THAWK_OUT AssetDocker
+		struct TH_OUT AssetDocker
 		{
 			Rest::FileStream* Stream = nullptr;
 			std::string Path;
@@ -118,7 +118,7 @@ namespace Tomahawk
 			uint64_t Offset = 0;
 		};
 
-		struct THAWK_OUT ContentKey
+		struct TH_OUT ContentKey
 		{
 			ContentType Type;
 			std::string String;
@@ -135,7 +135,7 @@ namespace Tomahawk
 			explicit ContentKey(void* Value);
 		};
 
-		struct THAWK_OUT ContentArgs
+		struct TH_OUT ContentArgs
 		{
 			ContentMap* Args;
 
@@ -145,14 +145,14 @@ namespace Tomahawk
 			ContentKey* Get(const std::string& Name, ContentType Type);
 		};
 
-		struct THAWK_OUT ThreadEvent
+		struct TH_OUT ThreadEvent
 		{
 			std::function<void(Rest::Timer * )> Callback;
 			Rest::Timer* Timer = nullptr;
 			Application* App = nullptr;
 		};
 
-		struct THAWK_OUT AnimatorState
+		struct TH_OUT AnimatorState
 		{
 			bool Paused = false;
 			bool Looped = false;
@@ -164,7 +164,7 @@ namespace Tomahawk
 			int64_t Clip = -1;
 		};
 
-		struct THAWK_OUT SpawnerProperties
+		struct TH_OUT SpawnerProperties
 		{
 			Compute::RandomVector4 Diffusion;
 			Compute::RandomVector3 Position;
@@ -176,7 +176,7 @@ namespace Tomahawk
 			int Iterations = 1;
 		};
 
-		struct THAWK_OUT Appearance
+		struct TH_OUT Appearance
 		{
 			Graphics::Texture2D* DiffuseMap = nullptr;
 			Graphics::Texture2D* NormalMap = nullptr;
@@ -196,7 +196,7 @@ namespace Tomahawk
 			static bool UploadCubicDepth(Graphics::GraphicsDevice* Device, Appearance* Surface);
 		};
 
-		struct THAWK_OUT Viewer
+		struct TH_OUT Viewer
 		{
 			Compute::Matrix4x4 CubicViewProjection[6];
 			Compute::Matrix4x4 InvViewProjection;
@@ -213,7 +213,7 @@ namespace Tomahawk
 			void Set(const Compute::Matrix4x4& View, const Compute::Matrix4x4& Projection, const Compute::Vector3& Position, float Distance);
 		};
 
-		class THAWK_OUT NMake
+		class TH_OUT NMake
 		{
 		public:
 			static bool Pack(Rest::Document* V, bool Value);
@@ -317,7 +317,7 @@ namespace Tomahawk
 			static bool Unpack(Rest::Document* V, std::vector<std::string>* O);
 		};
 
-		class THAWK_OUT Event
+		class TH_OUT Event
 		{
 			friend SceneGraph;
 
@@ -340,7 +340,7 @@ namespace Tomahawk
 			}
 		};
 
-		struct THAWK_OUT AssetFile : public Rest::Object
+		struct TH_OUT AssetFile : public Rest::Object
 		{
 		private:
 			char* Buffer;
@@ -353,7 +353,7 @@ namespace Tomahawk
 			size_t GetSize();
 		};
 
-		class THAWK_OUT FileProcessor : public Rest::Object
+		class TH_OUT FileProcessor : public Rest::Object
 		{
 			friend ContentManager;
 
@@ -370,7 +370,7 @@ namespace Tomahawk
 			ContentManager* GetContent();
 		};
 
-		class THAWK_OUT Component : public Rest::Object
+		class TH_OUT Component : public Rest::Object
 		{
 			friend SceneGraph;
 			friend Entity;
@@ -398,10 +398,10 @@ namespace Tomahawk
 			bool IsActive();
 
 		public:
-			THAWK_COMPONENT_BASIS(Component);
+			TH_COMPONENT_BASIS(Component);
 		};
 
-		class THAWK_OUT Cullable : public Component
+		class TH_OUT Cullable : public Component
 		{
 			friend RenderSystem;
 
@@ -419,10 +419,10 @@ namespace Tomahawk
 			bool IsNear(const Viewer& View);
 
 		public:
-			THAWK_COMPONENT(Cullable);
+			TH_COMPONENT(Cullable);
 		};
 
-		class THAWK_OUT Drawable : public Cullable
+		class TH_OUT Drawable : public Cullable
 		{
 		private:
 			bool Complex;
@@ -454,10 +454,10 @@ namespace Tomahawk
 			bool IsLimpid();
 
 		public:
-			THAWK_COMPONENT(Drawable);
+			TH_COMPONENT(Drawable);
 		};
 
-		class THAWK_OUT Entity : public Rest::Object
+		class TH_OUT Entity : public Rest::Object
 		{
 			friend SceneGraph;
 
@@ -508,7 +508,7 @@ namespace Tomahawk
 			}
 		};
 
-		class THAWK_OUT Renderer : public Rest::Object
+		class TH_OUT Renderer : public Rest::Object
 		{
 			friend SceneGraph;
 
@@ -532,10 +532,10 @@ namespace Tomahawk
 			RenderSystem* GetRenderer();
 			
 		public:
-			THAWK_COMPONENT_BASIS(Renderer);
+			TH_COMPONENT_BASIS(Renderer);
 		};
 
-		class THAWK_OUT GeoRenderer : public Renderer
+		class TH_OUT GeoRenderer : public Renderer
 		{
 		public:
 			GeoRenderer(RenderSystem* Lab);
@@ -550,10 +550,10 @@ namespace Tomahawk
 			void Render(Rest::Timer* TimeStep, RenderState State, RenderOpt Options) override;
 
 		public:
-			THAWK_COMPONENT(GeoRenderer);
+			TH_COMPONENT(GeoRenderer);
 		};
 
-		class THAWK_OUT TickRenderer : public Renderer
+		class TH_OUT TickRenderer : public Renderer
 		{
 		protected:
 			Rest::TickTimer Tick;
@@ -566,10 +566,10 @@ namespace Tomahawk
 			void Render(Rest::Timer* TimeStep, RenderState State, RenderOpt Options) override;
 
 		public:
-			THAWK_COMPONENT(TickRenderer);
+			TH_COMPONENT(TickRenderer);
 		};
 
-		class THAWK_OUT EffectRenderer : public Renderer
+		class TH_OUT EffectRenderer : public Renderer
 		{
 		protected:
 			std::unordered_map<std::string, Graphics::Shader*> Shaders;
@@ -596,10 +596,10 @@ namespace Tomahawk
 			Graphics::Shader* CompileEffect(const std::string& Name, const std::string& Code, size_t BufferSize = 0);
 
 		public:
-			THAWK_COMPONENT(EffectRenderer);
+			TH_COMPONENT(EffectRenderer);
 		};
 
-		class THAWK_OUT ShaderCache : public Rest::Object
+		class TH_OUT ShaderCache : public Rest::Object
 		{
 		private:
 			struct SCache
@@ -622,7 +622,7 @@ namespace Tomahawk
 			void ClearCache();
 		};
 
-		class THAWK_OUT RenderSystem : public Rest::Object
+		class TH_OUT RenderSystem : public Rest::Object
 		{
 		protected:
 			std::unordered_map<uint64_t, Rest::Pool<Component*>*> Cull;
@@ -726,7 +726,7 @@ namespace Tomahawk
 			}
 		};
 
-		class THAWK_OUT SceneGraph : public Rest::Object
+		class TH_OUT SceneGraph : public Rest::Object
 		{
 			friend Renderer;
 			friend Component;
@@ -909,7 +909,7 @@ namespace Tomahawk
 				Message->Type = typeid(T).hash_code();
 				Message->Foreach = false;
 				Message->Root = To;
-				Message->Context = malloc(sizeof(T));
+				Message->Context = TH_MALLOC(sizeof(T));
 				memcpy(Message->Context, &Value, sizeof(T));
 
 				return Conf.Queue->Event<Event>(Message);
@@ -924,7 +924,7 @@ namespace Tomahawk
 				Message->Type = typeid(T).hash_code();
 				Message->Foreach = true;
 				Message->Root = To;
-				Message->Context = malloc(sizeof(T));
+				Message->Context = TH_MALLOC(sizeof(T));
 				memcpy(Message->Context, &Value, sizeof(T));
 
 				return Conf.Queue->Event<Event>(Message);
@@ -977,7 +977,7 @@ namespace Tomahawk
 			}
 		};
 
-		class THAWK_OUT ContentManager : public Rest::Object
+		class TH_OUT ContentManager : public Rest::Object
 		{
 		private:
 			std::unordered_map<std::string, AssetDocker*> Dockers;
@@ -1103,7 +1103,7 @@ namespace Tomahawk
 			bool SaveForward(const std::string& Path, FileProcessor* Processor, void* Object, ContentMap* Keys);
 		};
 
-		class THAWK_OUT Application : public Rest::Object
+		class TH_OUT Application : public Rest::Object
 		{
 		public:
 			struct Desc

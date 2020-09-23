@@ -1,7 +1,7 @@
 #include "mongodb.h"
 extern "C"
 {
-#ifdef THAWK_HAS_MONGOC
+#ifdef TH_HAS_MONGOC
 #include <mongoc.h>
 #define BS(X) (X != nullptr ? *X : nullptr)
 #endif
@@ -64,7 +64,7 @@ namespace Tomahawk
 						{
 							if (Arg < Base.Size())
 							{
-								Base.Insert(THAWK_PREFIX_CHAR, Arg);
+								Base.Insert(TH_PREFIX_CHAR, Arg);
 								Args++; Index++;
 							}
 
@@ -149,7 +149,7 @@ namespace Tomahawk
 
 					Base.Replace(Origin.empty() ? Directory : Origin, "").Replace("\\", "/").Replace(".json", "");
 					AddQuery(Base.Substring(1).R(), Buffer, Size);
-					free(Buffer);
+					TH_FREE(Buffer);
 				}
 
 				return true;
@@ -203,7 +203,7 @@ namespace Tomahawk
 				{
 					std::string Value = GetJSON(Sub.second);
 					if (!Value.empty())
-						Result.Replace(THAWK_PREFIX_STR "<" + Sub.first + '>', Value);
+						Result.Replace(TH_PREFIX_STR "<" + Sub.first + '>', Value);
 
 					if (Once)
 						delete Sub.second;
@@ -214,7 +214,7 @@ namespace Tomahawk
 
 				BSON::TDocument* Data = BSON::Document::Create(Origin.Request);
 				if (!Data)
-					THAWK_ERROR("could not construct query: \"%s\"", Name.c_str());
+					TH_ERROR("could not construct query: \"%s\"", Name.c_str());
 
 				return Data;
 			}
@@ -270,7 +270,7 @@ namespace Tomahawk
 						return Source->Boolean ? "true" : "false";
 					case Rest::NodeType_Decimal:
 					{
-#ifdef THAWK_HAS_MONGOC
+#ifdef TH_HAS_MONGOC
 						Network::BSON::KeyPair Pair;
 						Pair.Mod = Network::BSON::Type_Decimal;
 						Pair.High = Source->Integer;
@@ -327,7 +327,7 @@ namespace Tomahawk
 			}
 			void Connector::Create()
 			{
-#ifdef THAWK_HAS_MONGOC
+#ifdef TH_HAS_MONGOC
 				if (State <= 0)
 				{
 					Cache = new QueryCache();
@@ -340,7 +340,7 @@ namespace Tomahawk
 			}
 			void Connector::Release()
 			{
-#ifdef THAWK_HAS_MONGOC
+#ifdef TH_HAS_MONGOC
 				if (State == 1)
 				{
 					delete Cache;
@@ -357,7 +357,7 @@ namespace Tomahawk
 
 			TURI* URI::Create(const char* Uri)
 			{
-#ifdef THAWK_HAS_MONGOC
+#ifdef TH_HAS_MONGOC
 				return mongoc_uri_new(Uri);
 #else
 				return nullptr;
@@ -365,7 +365,7 @@ namespace Tomahawk
 			}
 			void URI::Release(TURI** URI)
 			{
-#ifdef THAWK_HAS_MONGOC
+#ifdef TH_HAS_MONGOC
 				if (!URI || !*URI)
 					return;
 
@@ -375,63 +375,63 @@ namespace Tomahawk
 			}
 			void URI::SetOption(TURI* URI, const char* Name, int64_t Value)
 			{
-#ifdef THAWK_HAS_MONGOC
+#ifdef TH_HAS_MONGOC
 				if (URI != nullptr)
 					mongoc_uri_set_option_as_int32(URI, Name, (int32_t)Value);
 #endif
 			}
 			void URI::SetOption(TURI* URI, const char* Name, bool Value)
 			{
-#ifdef THAWK_HAS_MONGOC
+#ifdef TH_HAS_MONGOC
 				if (URI != nullptr)
 					mongoc_uri_set_option_as_bool(URI, Name, Value);
 #endif
 			}
 			void URI::SetOption(TURI* URI, const char* Name, const char* Value)
 			{
-#ifdef THAWK_HAS_MONGOC
+#ifdef TH_HAS_MONGOC
 				if (URI != nullptr)
 					mongoc_uri_set_option_as_utf8(URI, Name, Value);
 #endif
 			}
 			void URI::SetAuthMechanism(TURI* URI, const char* Value)
 			{
-#ifdef THAWK_HAS_MONGOC
+#ifdef TH_HAS_MONGOC
 				if (URI != nullptr)
 					mongoc_uri_set_auth_mechanism(URI, Value);
 #endif
 			}
 			void URI::SetAuthSource(TURI* URI, const char* Value)
 			{
-#ifdef THAWK_HAS_MONGOC
+#ifdef TH_HAS_MONGOC
 				if (URI != nullptr)
 					mongoc_uri_set_auth_source(URI, Value);
 #endif
 			}
 			void URI::SetCompressors(TURI* URI, const char* Value)
 			{
-#ifdef THAWK_HAS_MONGOC
+#ifdef TH_HAS_MONGOC
 				if (URI != nullptr)
 					mongoc_uri_set_compressors(URI, Value);
 #endif
 			}
 			void URI::SetDatabase(TURI* URI, const char* Value)
 			{
-#ifdef THAWK_HAS_MONGOC
+#ifdef TH_HAS_MONGOC
 				if (URI != nullptr)
 					mongoc_uri_set_database(URI, Value);
 #endif
 			}
 			void URI::SetUsername(TURI* URI, const char* Value)
 			{
-#ifdef THAWK_HAS_MONGOC
+#ifdef TH_HAS_MONGOC
 				if (URI != nullptr)
 					mongoc_uri_set_username(URI, Value);
 #endif
 			}
 			void URI::SetPassword(TURI* URI, const char* Value)
 			{
-#ifdef THAWK_HAS_MONGOC
+#ifdef TH_HAS_MONGOC
 				if (URI != nullptr)
 					mongoc_uri_set_password(URI, Value);
 #endif
@@ -439,7 +439,7 @@ namespace Tomahawk
 
 			TFindAndModifyOptions* FindAndModifyOptions::Create()
 			{
-#ifdef THAWK_HAS_MONGOC
+#ifdef TH_HAS_MONGOC
 				return mongoc_find_and_modify_opts_new();
 #else
 				return nullptr;
@@ -447,7 +447,7 @@ namespace Tomahawk
 			}
 			void FindAndModifyOptions::Release(TFindAndModifyOptions** Options)
 			{
-#ifdef THAWK_HAS_MONGOC
+#ifdef TH_HAS_MONGOC
 				if (!Options || !*Options)
 					return;
 
@@ -457,7 +457,7 @@ namespace Tomahawk
 			}
 			bool FindAndModifyOptions::SetFlags(TFindAndModifyOptions* Options, FindAndModifyMode Flags)
 			{
-#ifdef THAWK_HAS_MONGOC
+#ifdef TH_HAS_MONGOC
 				if (!Options)
 					return false;
 
@@ -468,7 +468,7 @@ namespace Tomahawk
 			}
 			bool FindAndModifyOptions::SetMaxTimeMs(TFindAndModifyOptions* Options, uint64_t Time)
 			{
-#ifdef THAWK_HAS_MONGOC
+#ifdef TH_HAS_MONGOC
 				if (!Options)
 					return false;
 
@@ -479,7 +479,7 @@ namespace Tomahawk
 			}
 			bool FindAndModifyOptions::SetFields(TFindAndModifyOptions* Options, BSON::TDocument** Fields)
 			{
-#ifdef THAWK_HAS_MONGOC
+#ifdef TH_HAS_MONGOC
 				if (!Fields || !Options)
 				{
 					BSON::Document::Release(Fields);
@@ -496,7 +496,7 @@ namespace Tomahawk
 			}
 			bool FindAndModifyOptions::SetSort(TFindAndModifyOptions* Options, BSON::TDocument** Sort)
 			{
-#ifdef THAWK_HAS_MONGOC
+#ifdef TH_HAS_MONGOC
 				if (!Sort || !Options)
 				{
 					BSON::Document::Release(Sort);
@@ -513,7 +513,7 @@ namespace Tomahawk
 			}
 			bool FindAndModifyOptions::SetUpdate(TFindAndModifyOptions* Options, BSON::TDocument** Update)
 			{
-#ifdef THAWK_HAS_MONGOC
+#ifdef TH_HAS_MONGOC
 				if (!Update || !Options)
 				{
 					BSON::Document::Release(Update);
@@ -530,7 +530,7 @@ namespace Tomahawk
 			}
 			bool FindAndModifyOptions::SetBypassDocumentValidation(TFindAndModifyOptions* Options, bool Bypass)
 			{
-#ifdef THAWK_HAS_MONGOC
+#ifdef TH_HAS_MONGOC
 				return mongoc_find_and_modify_opts_set_bypass_document_validation(Options, Bypass);
 #else
 				return false;
@@ -538,7 +538,7 @@ namespace Tomahawk
 			}
 			bool FindAndModifyOptions::Append(TFindAndModifyOptions* Options, BSON::TDocument** Opts)
 			{
-#ifdef THAWK_HAS_MONGOC
+#ifdef TH_HAS_MONGOC
 				if (!Opts || !Options)
 				{
 					BSON::Document::Release(Opts);
@@ -555,7 +555,7 @@ namespace Tomahawk
 			}
 			bool FindAndModifyOptions::WillBypassDocumentValidation(TFindAndModifyOptions* Options)
 			{
-#ifdef THAWK_HAS_MONGOC
+#ifdef TH_HAS_MONGOC
 				if (!Options)
 					return false;
 
@@ -566,7 +566,7 @@ namespace Tomahawk
 			}
 			uint64_t FindAndModifyOptions::GetMaxTimeMs(TFindAndModifyOptions* Options)
 			{
-#ifdef THAWK_HAS_MONGOC
+#ifdef TH_HAS_MONGOC
 				if (!Options)
 					return 0;
 
@@ -577,7 +577,7 @@ namespace Tomahawk
 			}
 			FindAndModifyMode FindAndModifyOptions::GetFlags(TFindAndModifyOptions* Options)
 			{
-#ifdef THAWK_HAS_MONGOC
+#ifdef TH_HAS_MONGOC
 				if (!Options)
 					return FindAndModifyMode_None;
 
@@ -588,7 +588,7 @@ namespace Tomahawk
 			}
 			BSON::TDocument* FindAndModifyOptions::GetFields(TFindAndModifyOptions* Options)
 			{
-#ifdef THAWK_HAS_MONGOC
+#ifdef TH_HAS_MONGOC
 				if (!Options)
 					return nullptr;
 
@@ -601,7 +601,7 @@ namespace Tomahawk
 			}
 			BSON::TDocument* FindAndModifyOptions::GetSort(TFindAndModifyOptions* Options)
 			{
-#ifdef THAWK_HAS_MONGOC
+#ifdef TH_HAS_MONGOC
 				if (!Options)
 					return nullptr;
 
@@ -614,7 +614,7 @@ namespace Tomahawk
 			}
 			BSON::TDocument* FindAndModifyOptions::GetUpdate(TFindAndModifyOptions* Options)
 			{
-#ifdef THAWK_HAS_MONGOC
+#ifdef TH_HAS_MONGOC
 				if (!Options)
 					return nullptr;
 
@@ -628,7 +628,7 @@ namespace Tomahawk
 
 			TBulkOperation* BulkOperation::Create(bool IsOrdered)
 			{
-#ifdef THAWK_HAS_MONGOC
+#ifdef TH_HAS_MONGOC
 				return mongoc_bulk_operation_new(IsOrdered);
 #else
 				return nullptr;
@@ -636,7 +636,7 @@ namespace Tomahawk
 			}
 			void BulkOperation::Release(TBulkOperation** Operation)
 			{
-#ifdef THAWK_HAS_MONGOC
+#ifdef TH_HAS_MONGOC
 				if (!Operation || !*Operation)
 					return;
 
@@ -646,7 +646,7 @@ namespace Tomahawk
 			}
 			bool BulkOperation::RemoveMany(TBulkOperation* Operation, BSON::TDocument** Selector, BSON::TDocument** Options)
 			{
-#ifdef THAWK_HAS_MONGOC
+#ifdef TH_HAS_MONGOC
 				if (!Operation)
 				{
 					BSON::Document::Release(Selector);
@@ -661,7 +661,7 @@ namespace Tomahawk
 				{
 					BSON::Document::Release(Selector);
 					BSON::Document::Release(Options);
-					THAWK_ERROR("couldn't build command -> %s", Error.message);
+					TH_ERROR("couldn't build command -> %s", Error.message);
 					return false;
 				}
 
@@ -674,7 +674,7 @@ namespace Tomahawk
 			}
 			bool BulkOperation::RemoveOne(TBulkOperation* Operation, BSON::TDocument** Selector, BSON::TDocument** Options)
 			{
-#ifdef THAWK_HAS_MONGOC
+#ifdef TH_HAS_MONGOC
 				if (!Operation)
 				{
 					BSON::Document::Release(Selector);
@@ -689,7 +689,7 @@ namespace Tomahawk
 				{
 					BSON::Document::Release(Selector);
 					BSON::Document::Release(Options);
-					THAWK_ERROR("couldn't build command -> %s", Error.message);
+					TH_ERROR("couldn't build command -> %s", Error.message);
 					return false;
 				}
 
@@ -702,7 +702,7 @@ namespace Tomahawk
 			}
 			bool BulkOperation::ReplaceOne(TBulkOperation* Operation, BSON::TDocument** Selector, BSON::TDocument** Replacement, BSON::TDocument** Options)
 			{
-#ifdef THAWK_HAS_MONGOC
+#ifdef TH_HAS_MONGOC
 				if (!Operation)
 				{
 					BSON::Document::Release(Selector);
@@ -719,7 +719,7 @@ namespace Tomahawk
 					BSON::Document::Release(Selector);
 					BSON::Document::Release(Replacement);
 					BSON::Document::Release(Options);
-					THAWK_ERROR("couldn't build command -> %s", Error.message);
+					TH_ERROR("couldn't build command -> %s", Error.message);
 					return false;
 				}
 
@@ -733,7 +733,7 @@ namespace Tomahawk
 			}
 			bool BulkOperation::Insert(TBulkOperation* Operation, BSON::TDocument** Document, BSON::TDocument** Options)
 			{
-#ifdef THAWK_HAS_MONGOC
+#ifdef TH_HAS_MONGOC
 				if (!Operation)
 				{
 					BSON::Document::Release(Document);
@@ -748,7 +748,7 @@ namespace Tomahawk
 				{
 					BSON::Document::Release(Document);
 					BSON::Document::Release(Options);
-					THAWK_ERROR("couldn't build command -> %s", Error.message);
+					TH_ERROR("couldn't build command -> %s", Error.message);
 					return false;
 				}
 
@@ -761,7 +761,7 @@ namespace Tomahawk
 			}
 			bool BulkOperation::UpdateOne(TBulkOperation* Operation, BSON::TDocument** Selector, BSON::TDocument** Document, BSON::TDocument** Options)
 			{
-#ifdef THAWK_HAS_MONGOC
+#ifdef TH_HAS_MONGOC
 				if (!Operation)
 				{
 					BSON::Document::Release(Selector);
@@ -778,7 +778,7 @@ namespace Tomahawk
 					BSON::Document::Release(Selector);
 					BSON::Document::Release(Document);
 					BSON::Document::Release(Options);
-					THAWK_ERROR("couldn't build command -> %s", Error.message);
+					TH_ERROR("couldn't build command -> %s", Error.message);
 					return false;
 				}
 
@@ -792,7 +792,7 @@ namespace Tomahawk
 			}
 			bool BulkOperation::UpdateMany(TBulkOperation* Operation, BSON::TDocument** Selector, BSON::TDocument** Document, BSON::TDocument** Options)
 			{
-#ifdef THAWK_HAS_MONGOC
+#ifdef TH_HAS_MONGOC
 				if (!Operation)
 				{
 					BSON::Document::Release(Selector);
@@ -809,7 +809,7 @@ namespace Tomahawk
 					BSON::Document::Release(Selector);
 					BSON::Document::Release(Document);
 					BSON::Document::Release(Options);
-					THAWK_ERROR("couldn't build command -> %s", Error.message);
+					TH_ERROR("couldn't build command -> %s", Error.message);
 					return false;
 				}
 
@@ -823,7 +823,7 @@ namespace Tomahawk
 			}
 			bool BulkOperation::RemoveMany(TBulkOperation* Operation, BSON::TDocument* Selector, BSON::TDocument* Options)
 			{
-#ifdef THAWK_HAS_MONGOC
+#ifdef TH_HAS_MONGOC
 				if (!Operation)
 					return false;
 
@@ -832,7 +832,7 @@ namespace Tomahawk
 
 				if (!mongoc_bulk_operation_remove_many_with_opts(Operation, Selector, Options, &Error))
 				{
-					THAWK_ERROR("couldn't build command -> %s", Error.message);
+					TH_ERROR("couldn't build command -> %s", Error.message);
 					return false;
 				}
 
@@ -843,7 +843,7 @@ namespace Tomahawk
 			}
 			bool BulkOperation::RemoveOne(TBulkOperation* Operation, BSON::TDocument* Selector, BSON::TDocument* Options)
 			{
-#ifdef THAWK_HAS_MONGOC
+#ifdef TH_HAS_MONGOC
 				if (!Operation)
 					return false;
 
@@ -852,7 +852,7 @@ namespace Tomahawk
 
 				if (!mongoc_bulk_operation_remove_one_with_opts(Operation, Selector, Options, &Error))
 				{
-					THAWK_ERROR("couldn't build command -> %s", Error.message);
+					TH_ERROR("couldn't build command -> %s", Error.message);
 					return false;
 				}
 
@@ -863,7 +863,7 @@ namespace Tomahawk
 			}
 			bool BulkOperation::ReplaceOne(TBulkOperation* Operation, BSON::TDocument* Selector, BSON::TDocument* Replacement, BSON::TDocument* Options)
 			{
-#ifdef THAWK_HAS_MONGOC
+#ifdef TH_HAS_MONGOC
 				if (!Operation)
 					return false;
 
@@ -872,7 +872,7 @@ namespace Tomahawk
 
 				if (!mongoc_bulk_operation_replace_one_with_opts(Operation, Selector, Replacement, Options, &Error))
 				{
-					THAWK_ERROR("couldn't build command -> %s", Error.message);
+					TH_ERROR("couldn't build command -> %s", Error.message);
 					return false;
 				}
 
@@ -883,7 +883,7 @@ namespace Tomahawk
 			}
 			bool BulkOperation::Insert(TBulkOperation* Operation, BSON::TDocument* Document, BSON::TDocument* Options)
 			{
-#ifdef THAWK_HAS_MONGOC
+#ifdef TH_HAS_MONGOC
 				if (!Operation)
 					return false;
 
@@ -892,7 +892,7 @@ namespace Tomahawk
 
 				if (!mongoc_bulk_operation_insert_with_opts(Operation, Document, Options, &Error))
 				{
-					THAWK_ERROR("couldn't build command -> %s", Error.message);
+					TH_ERROR("couldn't build command -> %s", Error.message);
 					return false;
 				}
 
@@ -903,7 +903,7 @@ namespace Tomahawk
 			}
 			bool BulkOperation::UpdateOne(TBulkOperation* Operation, BSON::TDocument* Selector, BSON::TDocument* Document, BSON::TDocument* Options)
 			{
-#ifdef THAWK_HAS_MONGOC
+#ifdef TH_HAS_MONGOC
 				if (!Operation)
 					return false;
 
@@ -912,7 +912,7 @@ namespace Tomahawk
 
 				if (!mongoc_bulk_operation_update_one_with_opts(Operation, Selector, Document, Options, &Error))
 				{
-					THAWK_ERROR("couldn't build command -> %s", Error.message);
+					TH_ERROR("couldn't build command -> %s", Error.message);
 					return false;
 				}
 
@@ -923,7 +923,7 @@ namespace Tomahawk
 			}
 			bool BulkOperation::UpdateMany(TBulkOperation* Operation, BSON::TDocument* Selector, BSON::TDocument* Document, BSON::TDocument* Options)
 			{
-#ifdef THAWK_HAS_MONGOC
+#ifdef TH_HAS_MONGOC
 				if (!Operation)
 					return false;
 
@@ -932,7 +932,7 @@ namespace Tomahawk
 
 				if (!mongoc_bulk_operation_update_many_with_opts(Operation, Selector, Document, Options, &Error))
 				{
-					THAWK_ERROR("couldn't build command -> %s", Error.message);
+					TH_ERROR("couldn't build command -> %s", Error.message);
 					return false;
 				}
 
@@ -943,7 +943,7 @@ namespace Tomahawk
 			}
 			bool BulkOperation::Execute(TBulkOperation** Operation)
 			{
-#ifdef THAWK_HAS_MONGOC
+#ifdef TH_HAS_MONGOC
 				if (!Operation || !*Operation)
 					return false;
 
@@ -967,7 +967,7 @@ namespace Tomahawk
 			}
 			bool BulkOperation::Execute(TBulkOperation** Operation, BSON::TDocument** Reply)
 			{
-#ifdef THAWK_HAS_MONGOC
+#ifdef TH_HAS_MONGOC
 				if (Reply == nullptr || *Reply == nullptr)
 					return Execute(Operation);
 
@@ -991,7 +991,7 @@ namespace Tomahawk
 			}
 			uint64_t BulkOperation::GetHint(TBulkOperation* Operation)
 			{
-#ifdef THAWK_HAS_MONGOC
+#ifdef TH_HAS_MONGOC
 				if (!Operation)
 					return 0;
 
@@ -1002,7 +1002,7 @@ namespace Tomahawk
 			}
 			TWriteConcern* BulkOperation::GetWriteConcern(TBulkOperation* Operation)
 			{
-#ifdef THAWK_HAS_MONGOC
+#ifdef TH_HAS_MONGOC
 				if (!Operation)
 					return nullptr;
 
@@ -1014,7 +1014,7 @@ namespace Tomahawk
 
 			TChangeStream* ChangeStream::Create(TConnection* Connection, BSON::TDocument** Pipeline, BSON::TDocument** Options)
 			{
-#ifdef THAWK_HAS_MONGOC
+#ifdef TH_HAS_MONGOC
 				if (!Connection)
 				{
 					BSON::Document::Release(Pipeline);
@@ -1033,7 +1033,7 @@ namespace Tomahawk
 			}
 			TChangeStream* ChangeStream::Create(TDatabase* Database, BSON::TDocument** Pipeline, BSON::TDocument** Options)
 			{
-#ifdef THAWK_HAS_MONGOC
+#ifdef TH_HAS_MONGOC
 				if (!Database)
 				{
 					BSON::Document::Release(Pipeline);
@@ -1052,7 +1052,7 @@ namespace Tomahawk
 			}
 			TChangeStream* ChangeStream::Create(TCollection* Collection, BSON::TDocument** Pipeline, BSON::TDocument** Options)
 			{
-#ifdef THAWK_HAS_MONGOC
+#ifdef TH_HAS_MONGOC
 				if (!Collection)
 				{
 					BSON::Document::Release(Pipeline);
@@ -1071,7 +1071,7 @@ namespace Tomahawk
 			}
 			void ChangeStream::Release(TChangeStream** Stream)
 			{
-#ifdef THAWK_HAS_MONGOC
+#ifdef TH_HAS_MONGOC
 				if (!Stream || !*Stream)
 					return;
 
@@ -1081,7 +1081,7 @@ namespace Tomahawk
 			}
 			bool ChangeStream::Next(TChangeStream* Stream, BSON::TDocument** Result)
 			{
-#ifdef THAWK_HAS_MONGOC
+#ifdef TH_HAS_MONGOC
 				if (!Stream)
 				{
 					BSON::Document::Release(Result);
@@ -1095,7 +1095,7 @@ namespace Tomahawk
 			}
 			bool ChangeStream::Error(TChangeStream* Stream, BSON::TDocument** Result)
 			{
-#ifdef THAWK_HAS_MONGOC
+#ifdef TH_HAS_MONGOC
 				if (!Stream)
 				{
 					BSON::Document::Release(Result);
@@ -1110,7 +1110,7 @@ namespace Tomahawk
 
 			TReadConcern* ReadConcern::Create()
 			{
-#ifdef THAWK_HAS_MONGOC
+#ifdef TH_HAS_MONGOC
 				return mongoc_read_concern_new();
 #else
 				return nullptr;
@@ -1118,7 +1118,7 @@ namespace Tomahawk
 			}
 			void ReadConcern::Release(TReadConcern** ReadConcern)
 			{
-#ifdef THAWK_HAS_MONGOC
+#ifdef TH_HAS_MONGOC
 				if (!ReadConcern || !*ReadConcern)
 					return;
 
@@ -1128,21 +1128,21 @@ namespace Tomahawk
 			}
 			void ReadConcern::Append(TReadConcern* ReadConcern, BSON::TDocument* Options)
 			{
-#ifdef THAWK_HAS_MONGOC
+#ifdef TH_HAS_MONGOC
 				if (ReadConcern != nullptr)
 					mongoc_read_concern_append(ReadConcern, Options);
 #endif
 			}
 			void ReadConcern::SetLevel(TReadConcern* ReadConcern, const char* Level)
 			{
-#ifdef THAWK_HAS_MONGOC
+#ifdef TH_HAS_MONGOC
 				if (ReadConcern != nullptr)
 					mongoc_read_concern_set_level(ReadConcern, Level);
 #endif
 			}
 			bool ReadConcern::IsDefault(TReadConcern* ReadConcern)
 			{
-#ifdef THAWK_HAS_MONGOC
+#ifdef TH_HAS_MONGOC
 				if (!ReadConcern)
 					return false;
 
@@ -1153,7 +1153,7 @@ namespace Tomahawk
 			}
 			const char* ReadConcern::GetLevel(TReadConcern* ReadConcern)
 			{
-#ifdef THAWK_HAS_MONGOC
+#ifdef TH_HAS_MONGOC
 				if (!ReadConcern)
 					return nullptr;
 
@@ -1165,7 +1165,7 @@ namespace Tomahawk
 
 			TWriteConcern* WriteConcern::Create()
 			{
-#ifdef THAWK_HAS_MONGOC
+#ifdef TH_HAS_MONGOC
 				return mongoc_write_concern_new();
 #else
 				return nullptr;
@@ -1173,7 +1173,7 @@ namespace Tomahawk
 			}
 			void WriteConcern::Release(TWriteConcern** WriteConcern)
 			{
-#ifdef THAWK_HAS_MONGOC
+#ifdef TH_HAS_MONGOC
 				if (!WriteConcern || !*WriteConcern)
 					return;
 
@@ -1183,49 +1183,49 @@ namespace Tomahawk
 			}
 			void WriteConcern::Append(TWriteConcern* WriteConcern, BSON::TDocument* Options)
 			{
-#ifdef THAWK_HAS_MONGOC
+#ifdef TH_HAS_MONGOC
 				if (WriteConcern != nullptr)
 					mongoc_write_concern_append(WriteConcern, Options);
 #endif
 			}
 			void WriteConcern::SetToken(TWriteConcern* WriteConcern, uint64_t W)
 			{
-#ifdef THAWK_HAS_MONGOC
+#ifdef TH_HAS_MONGOC
 				if (WriteConcern != nullptr)
 					mongoc_write_concern_set_w(WriteConcern, (int32_t)W);
 #endif
 			}
 			void WriteConcern::SetMajority(TWriteConcern* WriteConcern, uint64_t Timeout)
 			{
-#ifdef THAWK_HAS_MONGOC
+#ifdef TH_HAS_MONGOC
 				if (WriteConcern != nullptr)
 					mongoc_write_concern_set_wmajority(WriteConcern, (int32_t)Timeout);
 #endif
 			}
 			void WriteConcern::SetTimeout(TWriteConcern* WriteConcern, uint64_t Timeout)
 			{
-#ifdef THAWK_HAS_MONGOC
+#ifdef TH_HAS_MONGOC
 				if (WriteConcern != nullptr)
 					mongoc_write_concern_set_wtimeout(WriteConcern, (int32_t)Timeout);
 #endif
 			}
 			void WriteConcern::SetTag(TWriteConcern* WriteConcern, const char* Tag)
 			{
-#ifdef THAWK_HAS_MONGOC
+#ifdef TH_HAS_MONGOC
 				if (WriteConcern != nullptr)
 					mongoc_write_concern_set_wtag(WriteConcern, Tag);
 #endif
 			}
 			void WriteConcern::SetJournaled(TWriteConcern* WriteConcern, bool Enabled)
 			{
-#ifdef THAWK_HAS_MONGOC
+#ifdef TH_HAS_MONGOC
 				if (WriteConcern != nullptr)
 					mongoc_write_concern_set_journal(WriteConcern, Enabled);
 #endif
 			}
 			bool WriteConcern::ShouldBeJournaled(TWriteConcern* WriteConcern)
 			{
-#ifdef THAWK_HAS_MONGOC
+#ifdef TH_HAS_MONGOC
 				if (!WriteConcern)
 					return false;
 
@@ -1236,7 +1236,7 @@ namespace Tomahawk
 			}
 			bool WriteConcern::HasJournal(TWriteConcern* WriteConcern)
 			{
-#ifdef THAWK_HAS_MONGOC
+#ifdef TH_HAS_MONGOC
 				if (!WriteConcern)
 					return false;
 
@@ -1247,7 +1247,7 @@ namespace Tomahawk
 			}
 			bool WriteConcern::HasMajority(TWriteConcern* WriteConcern)
 			{
-#ifdef THAWK_HAS_MONGOC
+#ifdef TH_HAS_MONGOC
 				if (!WriteConcern)
 					return false;
 
@@ -1258,7 +1258,7 @@ namespace Tomahawk
 			}
 			bool WriteConcern::IsAcknowledged(TWriteConcern* WriteConcern)
 			{
-#ifdef THAWK_HAS_MONGOC
+#ifdef TH_HAS_MONGOC
 				if (!WriteConcern)
 					return false;
 
@@ -1269,7 +1269,7 @@ namespace Tomahawk
 			}
 			bool WriteConcern::IsDefault(TWriteConcern* WriteConcern)
 			{
-#ifdef THAWK_HAS_MONGOC
+#ifdef TH_HAS_MONGOC
 				if (!WriteConcern)
 					return false;
 
@@ -1280,7 +1280,7 @@ namespace Tomahawk
 			}
 			bool WriteConcern::IsValid(TWriteConcern* WriteConcern)
 			{
-#ifdef THAWK_HAS_MONGOC
+#ifdef TH_HAS_MONGOC
 				if (!WriteConcern)
 					return false;
 
@@ -1291,7 +1291,7 @@ namespace Tomahawk
 			}
 			int64_t WriteConcern::GetToken(TWriteConcern* WriteConcern)
 			{
-#ifdef THAWK_HAS_MONGOC
+#ifdef TH_HAS_MONGOC
 				if (!WriteConcern)
 					return 0;
 
@@ -1302,7 +1302,7 @@ namespace Tomahawk
 			}
 			int64_t WriteConcern::GetTimeout(TWriteConcern* WriteConcern)
 			{
-#ifdef THAWK_HAS_MONGOC
+#ifdef TH_HAS_MONGOC
 				if (!WriteConcern)
 					return 0;
 
@@ -1313,7 +1313,7 @@ namespace Tomahawk
 			}
 			const char* WriteConcern::GetTag(TWriteConcern* WriteConcern)
 			{
-#ifdef THAWK_HAS_MONGOC
+#ifdef TH_HAS_MONGOC
 				if (!WriteConcern)
 					return nullptr;
 
@@ -1325,7 +1325,7 @@ namespace Tomahawk
 
 			TReadPreferences* ReadPreferences::Create()
 			{
-#ifdef THAWK_HAS_MONGOC
+#ifdef TH_HAS_MONGOC
 				return mongoc_read_prefs_new(MONGOC_READ_PRIMARY);
 #else
 				return nullptr;
@@ -1333,7 +1333,7 @@ namespace Tomahawk
 			}
 			void ReadPreferences::Release(TReadPreferences** ReadPreferences)
 			{
-#ifdef THAWK_HAS_MONGOC
+#ifdef TH_HAS_MONGOC
 				if (!ReadPreferences || !*ReadPreferences)
 					return;
 
@@ -1343,7 +1343,7 @@ namespace Tomahawk
 			}
 			void ReadPreferences::SetTags(TReadPreferences* ReadPreferences, BSON::TDocument** Tags)
 			{
-#ifdef THAWK_HAS_MONGOC
+#ifdef TH_HAS_MONGOC
 				if (!ReadPreferences)
 				{
 					BSON::Document::Release(Tags);
@@ -1356,21 +1356,21 @@ namespace Tomahawk
 			}
 			void ReadPreferences::SetMode(TReadPreferences* ReadPreferences, ReadMode Mode)
 			{
-#ifdef THAWK_HAS_MONGOC
+#ifdef TH_HAS_MONGOC
 				if (ReadPreferences != nullptr)
 					mongoc_read_prefs_set_mode(ReadPreferences, (mongoc_read_mode_t)Mode);
 #endif
 			}
 			void ReadPreferences::SetMaxStalenessSeconds(TReadPreferences* ReadPreferences, uint64_t MaxStalenessSeconds)
 			{
-#ifdef THAWK_HAS_MONGOC
+#ifdef TH_HAS_MONGOC
 				if (ReadPreferences != nullptr)
 					mongoc_read_prefs_set_max_staleness_seconds(ReadPreferences, (int64_t)MaxStalenessSeconds);
 #endif
 			}
 			bool ReadPreferences::IsValid(TReadPreferences* ReadPreferences)
 			{
-#ifdef THAWK_HAS_MONGOC
+#ifdef TH_HAS_MONGOC
 				if (!ReadPreferences)
 					return false;
 
@@ -1381,7 +1381,7 @@ namespace Tomahawk
 			}
 			ReadMode ReadPreferences::GetMode(TReadPreferences* ReadPreferences)
 			{
-#ifdef THAWK_HAS_MONGOC
+#ifdef TH_HAS_MONGOC
 				if (!ReadPreferences)
 					return ReadMode_Primary;
 
@@ -1392,7 +1392,7 @@ namespace Tomahawk
 			}
 			uint64_t ReadPreferences::GetMaxStalenessSeconds(TReadPreferences* ReadPreferences)
 			{
-#ifdef THAWK_HAS_MONGOC
+#ifdef TH_HAS_MONGOC
 				if (!ReadPreferences)
 					return 0;
 
@@ -1404,7 +1404,7 @@ namespace Tomahawk
 
 			void Cursor::Release(TCursor** Cursor)
 			{
-#ifdef THAWK_HAS_MONGOC
+#ifdef TH_HAS_MONGOC
 				if (!Cursor || !*Cursor)
 					return;
 
@@ -1412,7 +1412,7 @@ namespace Tomahawk
 				memset(&Error, 0, sizeof(bson_error_t));
 
 				if (mongoc_cursor_error(*Cursor, &Error))
-					THAWK_ERROR("[mongoc] %s", Error.message);
+					TH_ERROR("[mongoc] %s", Error.message);
 
 				mongoc_cursor_destroy(*Cursor);
 				*Cursor = nullptr;
@@ -1420,7 +1420,7 @@ namespace Tomahawk
 			}
 			void Cursor::Receive(TCursor* Cursor, void* Context, bool(* Next)(TCursor*, BSON::TDocument*, void*))
 			{
-#ifdef THAWK_HAS_MONGOC
+#ifdef TH_HAS_MONGOC
 				if (!Next || !Cursor)
 					return;
 
@@ -1434,21 +1434,21 @@ namespace Tomahawk
 			}
 			void Cursor::SetMaxAwaitTime(TCursor* Cursor, uint64_t MaxAwaitTime)
 			{
-#ifdef THAWK_HAS_MONGOC
+#ifdef TH_HAS_MONGOC
 				if (Cursor != nullptr)
 					mongoc_cursor_set_max_await_time_ms(Cursor, (uint32_t)MaxAwaitTime);
 #endif
 			}
 			void Cursor::SetBatchSize(TCursor* Cursor, uint64_t BatchSize)
 			{
-#ifdef THAWK_HAS_MONGOC
+#ifdef TH_HAS_MONGOC
 				if (Cursor != nullptr)
 					mongoc_cursor_set_batch_size(Cursor, (uint32_t)BatchSize);
 #endif
 			}
 			bool Cursor::Next(TCursor* Cursor)
 			{
-#ifdef THAWK_HAS_MONGOC
+#ifdef TH_HAS_MONGOC
 				if (!Cursor)
 					return false;
 
@@ -1460,7 +1460,7 @@ namespace Tomahawk
 			}
 			bool Cursor::SetLimit(TCursor* Cursor, int64_t Limit)
 			{
-#ifdef THAWK_HAS_MONGOC
+#ifdef TH_HAS_MONGOC
 				if (!Cursor)
 					return false;
 
@@ -1471,7 +1471,7 @@ namespace Tomahawk
 			}
 			bool Cursor::SetHint(TCursor* Cursor, uint64_t Hint)
 			{
-#ifdef THAWK_HAS_MONGOC
+#ifdef TH_HAS_MONGOC
 				if (!Cursor)
 					return false;
 
@@ -1482,7 +1482,7 @@ namespace Tomahawk
 			}
 			bool Cursor::HasError(TCursor* Cursor)
 			{
-#ifdef THAWK_HAS_MONGOC
+#ifdef TH_HAS_MONGOC
 				if (!Cursor)
 					return false;
 
@@ -1493,7 +1493,7 @@ namespace Tomahawk
 			}
 			bool Cursor::HasMoreData(TCursor* Cursor)
 			{
-#ifdef THAWK_HAS_MONGOC
+#ifdef TH_HAS_MONGOC
 				if (!Cursor)
 					return false;
 
@@ -1504,7 +1504,7 @@ namespace Tomahawk
 			}
 			int64_t Cursor::GetId(TCursor* Cursor)
 			{
-#ifdef THAWK_HAS_MONGOC
+#ifdef TH_HAS_MONGOC
 				if (!Cursor)
 					return 0;
 
@@ -1515,7 +1515,7 @@ namespace Tomahawk
 			}
 			int64_t Cursor::GetLimit(TCursor* Cursor)
 			{
-#ifdef THAWK_HAS_MONGOC
+#ifdef TH_HAS_MONGOC
 				if (!Cursor)
 					return 0;
 
@@ -1526,7 +1526,7 @@ namespace Tomahawk
 			}
 			uint64_t Cursor::GetMaxAwaitTime(TCursor* Cursor)
 			{
-#ifdef THAWK_HAS_MONGOC
+#ifdef TH_HAS_MONGOC
 				if (!Cursor)
 					return 0;
 
@@ -1537,7 +1537,7 @@ namespace Tomahawk
 			}
 			uint64_t Cursor::GetBatchSize(TCursor* Cursor)
 			{
-#ifdef THAWK_HAS_MONGOC
+#ifdef TH_HAS_MONGOC
 				if (!Cursor)
 					return 0;
 
@@ -1548,7 +1548,7 @@ namespace Tomahawk
 			}
 			uint64_t Cursor::GetHint(TCursor* Cursor)
 			{
-#ifdef THAWK_HAS_MONGOC
+#ifdef TH_HAS_MONGOC
 				if (!Cursor)
 					return 0;
 
@@ -1563,14 +1563,14 @@ namespace Tomahawk
 				if (!Cursor)
 					return Hosts;
 
-#ifdef THAWK_HAS_MONGOC
+#ifdef TH_HAS_MONGOC
 				mongoc_cursor_get_host(Cursor, (mongoc_host_list_t*)&Hosts);
 #endif
 				return Hosts;
 			}
 			BSON::TDocument* Cursor::GetCurrent(TCursor* Cursor)
 			{
-#ifdef THAWK_HAS_MONGOC
+#ifdef TH_HAS_MONGOC
 				if (!Cursor)
 					return nullptr;
 
@@ -1582,7 +1582,7 @@ namespace Tomahawk
 
 			void Collection::Release(TCollection** Collection)
 			{
-#ifdef THAWK_HAS_MONGOC
+#ifdef TH_HAS_MONGOC
 				if (!Collection || !*Collection)
 					return;
 
@@ -1592,7 +1592,7 @@ namespace Tomahawk
 			}
 			void Collection::SetReadConcern(TCollection* Collection, TReadConcern* Concern)
 			{
-#ifdef THAWK_HAS_MONGOC
+#ifdef TH_HAS_MONGOC
 				if (!Collection || !Concern)
 					return;
 
@@ -1601,7 +1601,7 @@ namespace Tomahawk
 			}
 			void Collection::SetWriteConcern(TCollection* Collection, TWriteConcern* Concern)
 			{
-#ifdef THAWK_HAS_MONGOC
+#ifdef TH_HAS_MONGOC
 				if (!Collection || !Concern)
 					return;
 
@@ -1610,7 +1610,7 @@ namespace Tomahawk
 			}
 			void Collection::SetReadPreferences(TCollection* Collection, TReadPreferences* Preferences)
 			{
-#ifdef THAWK_HAS_MONGOC
+#ifdef TH_HAS_MONGOC
 				if (!Collection || !Preferences)
 					return;
 
@@ -1619,7 +1619,7 @@ namespace Tomahawk
 			}
 			bool Collection::UpdateDocument(TCollection* Collection, UpdateMode Flags, BSON::TDocument** Selector, BSON::TDocument** Update, TWriteConcern* Concern)
 			{
-#ifdef THAWK_HAS_MONGOC
+#ifdef TH_HAS_MONGOC
 				if (!Collection)
 				{
 					BSON::Document::Release(Selector);
@@ -1634,7 +1634,7 @@ namespace Tomahawk
 				{
 					BSON::Document::Release(Selector);
 					BSON::Document::Release(Update);
-					THAWK_ERROR("[mongoc] %s", Error.message);
+					TH_ERROR("[mongoc] %s", Error.message);
 					return false;
 				}
 
@@ -1647,7 +1647,7 @@ namespace Tomahawk
 			}
 			bool Collection::UpdateMany(TCollection* Collection, BSON::TDocument** Selector, BSON::TDocument** Update, BSON::TDocument** Options, BSON::TDocument** Reply)
 			{
-#ifdef THAWK_HAS_MONGOC
+#ifdef TH_HAS_MONGOC
 				if (!Collection)
 				{
 					BSON::Document::Release(Selector);
@@ -1677,7 +1677,7 @@ namespace Tomahawk
 			}
 			bool Collection::UpdateOne(TCollection* Collection, BSON::TDocument** Selector, BSON::TDocument** Update, BSON::TDocument** Options, BSON::TDocument** Reply)
 			{
-#ifdef THAWK_HAS_MONGOC
+#ifdef TH_HAS_MONGOC
 				if (!Collection)
 				{
 					BSON::Document::Release(Selector);
@@ -1694,7 +1694,7 @@ namespace Tomahawk
 					BSON::Document::Release(Selector);
 					BSON::Document::Release(Update);
 					BSON::Document::Release(Options);
-					THAWK_ERROR("[mongoc] %s", Error.message);
+					TH_ERROR("[mongoc] %s", Error.message);
 					return false;
 				}
 
@@ -1708,7 +1708,7 @@ namespace Tomahawk
 			}
 			bool Collection::Rename(TCollection* Collection, const char* NewDatabaseName, const char* NewCollectionName)
 			{
-#ifdef THAWK_HAS_MONGOC
+#ifdef TH_HAS_MONGOC
 				if (!Collection)
 					return false;
 
@@ -1717,7 +1717,7 @@ namespace Tomahawk
 
 				if (!mongoc_collection_rename(Collection, NewDatabaseName, NewCollectionName, false, &Error))
 				{
-					THAWK_ERROR("[mongoc] %s", Error.message);
+					TH_ERROR("[mongoc] %s", Error.message);
 					return false;
 				}
 
@@ -1728,7 +1728,7 @@ namespace Tomahawk
 			}
 			bool Collection::RenameWithOptions(TCollection* Collection, const char* NewDatabaseName, const char* NewCollectionName, BSON::TDocument** Options)
 			{
-#ifdef THAWK_HAS_MONGOC
+#ifdef TH_HAS_MONGOC
 				if (!Collection)
 				{
 					BSON::Document::Release(Options);
@@ -1741,7 +1741,7 @@ namespace Tomahawk
 				if (!mongoc_collection_rename_with_opts(Collection, NewDatabaseName, NewCollectionName, false, BS(Options), &Error))
 				{
 					BSON::Document::Release(Options);
-					THAWK_ERROR("[mongoc] %s", Error.message);
+					TH_ERROR("[mongoc] %s", Error.message);
 					return false;
 				}
 
@@ -1753,7 +1753,7 @@ namespace Tomahawk
 			}
 			bool Collection::RenameWithRemove(TCollection* Collection, const char* NewDatabaseName, const char* NewCollectionName)
 			{
-#ifdef THAWK_HAS_MONGOC
+#ifdef TH_HAS_MONGOC
 				if (!Collection)
 					return false;
 
@@ -1762,7 +1762,7 @@ namespace Tomahawk
 
 				if (!mongoc_collection_rename(Collection, NewDatabaseName, NewCollectionName, true, &Error))
 				{
-					THAWK_ERROR("[mongoc] %s", Error.message);
+					TH_ERROR("[mongoc] %s", Error.message);
 					return false;
 				}
 
@@ -1773,7 +1773,7 @@ namespace Tomahawk
 			}
 			bool Collection::RenameWithOptionsAndRemove(TCollection* Collection, const char* NewDatabaseName, const char* NewCollectionName, BSON::TDocument** Options)
 			{
-#ifdef THAWK_HAS_MONGOC
+#ifdef TH_HAS_MONGOC
 				if (!Collection)
 				{
 					BSON::Document::Release(Options);
@@ -1786,7 +1786,7 @@ namespace Tomahawk
 				if (!mongoc_collection_rename_with_opts(Collection, NewDatabaseName, NewCollectionName, true, BS(Options), &Error))
 				{
 					BSON::Document::Release(Options);
-					THAWK_ERROR("[mongoc] %s", Error.message);
+					TH_ERROR("[mongoc] %s", Error.message);
 					return false;
 				}
 
@@ -1798,7 +1798,7 @@ namespace Tomahawk
 			}
 			bool Collection::Remove(TCollection* Collection, BSON::TDocument** Options)
 			{
-#ifdef THAWK_HAS_MONGOC
+#ifdef TH_HAS_MONGOC
 				if (!Collection)
 				{
 					BSON::Document::Release(Options);
@@ -1811,7 +1811,7 @@ namespace Tomahawk
 				if (!mongoc_collection_drop_with_opts(Collection, BS(Options), &Error))
 				{
 					BSON::Document::Release(Options);
-					THAWK_ERROR("[mongoc] %s", Error.message);
+					TH_ERROR("[mongoc] %s", Error.message);
 					return false;
 				}
 
@@ -1823,7 +1823,7 @@ namespace Tomahawk
 			}
 			bool Collection::RemoveDocument(TCollection* Collection, RemoveMode Flags, BSON::TDocument** Selector, TWriteConcern* Concern)
 			{
-#ifdef THAWK_HAS_MONGOC
+#ifdef TH_HAS_MONGOC
 				if (!Collection)
 				{
 					BSON::Document::Release(Selector);
@@ -1836,7 +1836,7 @@ namespace Tomahawk
 				if (!mongoc_collection_remove(Collection, (mongoc_remove_flags_t)Flags, BS(Selector), Concern, &Error))
 				{
 					BSON::Document::Release(Selector);
-					THAWK_ERROR("[mongoc] %s", Error.message);
+					TH_ERROR("[mongoc] %s", Error.message);
 					return false;
 				}
 
@@ -1848,7 +1848,7 @@ namespace Tomahawk
 			}
 			bool Collection::RemoveMany(TCollection* Collection, BSON::TDocument** Selector, BSON::TDocument** Options, BSON::TDocument** Reply)
 			{
-#ifdef THAWK_HAS_MONGOC
+#ifdef TH_HAS_MONGOC
 				if (!Collection)
 				{
 					BSON::Document::Release(Selector);
@@ -1863,7 +1863,7 @@ namespace Tomahawk
 				{
 					BSON::Document::Release(Selector);
 					BSON::Document::Release(Options);
-					THAWK_ERROR("[mongoc] %s", Error.message);
+					TH_ERROR("[mongoc] %s", Error.message);
 					return false;
 				}
 
@@ -1876,7 +1876,7 @@ namespace Tomahawk
 			}
 			bool Collection::RemoveOne(TCollection* Collection, BSON::TDocument** Selector, BSON::TDocument** Options, BSON::TDocument** Reply)
 			{
-#ifdef THAWK_HAS_MONGOC
+#ifdef TH_HAS_MONGOC
 				if (!Collection)
 				{
 					BSON::Document::Release(Selector);
@@ -1891,7 +1891,7 @@ namespace Tomahawk
 				{
 					BSON::Document::Release(Selector);
 					BSON::Document::Release(Options);
-					THAWK_ERROR("[mongoc] %s", Error.message);
+					TH_ERROR("[mongoc] %s", Error.message);
 					return false;
 				}
 
@@ -1904,7 +1904,7 @@ namespace Tomahawk
 			}
 			bool Collection::RemoveIndex(TCollection* Collection, const char* Name, BSON::TDocument** Options)
 			{
-#ifdef THAWK_HAS_MONGOC
+#ifdef TH_HAS_MONGOC
 				if (!Collection)
 				{
 					BSON::Document::Release(Options);
@@ -1917,7 +1917,7 @@ namespace Tomahawk
 				if (!mongoc_collection_drop_index_with_opts(Collection, Name, BS(Options), &Error))
 				{
 					BSON::Document::Release(Options);
-					THAWK_ERROR("[mongoc] %s", Error.message);
+					TH_ERROR("[mongoc] %s", Error.message);
 					return false;
 				}
 
@@ -1929,7 +1929,7 @@ namespace Tomahawk
 			}
 			bool Collection::ReplaceOne(TCollection* Collection, BSON::TDocument** Selector, BSON::TDocument** Replacement, BSON::TDocument** Options, BSON::TDocument** Reply)
 			{
-#ifdef THAWK_HAS_MONGOC
+#ifdef TH_HAS_MONGOC
 				if (!Collection)
 				{
 					BSON::Document::Release(Selector);
@@ -1946,7 +1946,7 @@ namespace Tomahawk
 					BSON::Document::Release(Selector);
 					BSON::Document::Release(Replacement);
 					BSON::Document::Release(Options);
-					THAWK_ERROR("[mongoc] %s", Error.message);
+					TH_ERROR("[mongoc] %s", Error.message);
 					return false;
 				}
 
@@ -1960,7 +1960,7 @@ namespace Tomahawk
 			}
 			bool Collection::InsertDocument(TCollection* Collection, InsertMode Flags, BSON::TDocument** Document, TWriteConcern* Concern)
 			{
-#ifdef THAWK_HAS_MONGOC
+#ifdef TH_HAS_MONGOC
 				if (!Collection)
 				{
 					BSON::Document::Release(Document);
@@ -1973,7 +1973,7 @@ namespace Tomahawk
 				if (!mongoc_collection_insert(Collection, (mongoc_insert_flags_t)Flags, BS(Document), Concern, &Error))
 				{
 					BSON::Document::Release(Document);
-					THAWK_ERROR("[mongoc] %s", Error.message);
+					TH_ERROR("[mongoc] %s", Error.message);
 					return false;
 				}
 
@@ -1985,7 +1985,7 @@ namespace Tomahawk
 			}
 			bool Collection::InsertMany(TCollection* Collection, BSON::TDocument** Documents, uint64_t Length, BSON::TDocument** Options, BSON::TDocument** Reply)
 			{
-#ifdef THAWK_HAS_MONGOC
+#ifdef TH_HAS_MONGOC
 				if (!Collection || !Documents || !Length)
 				{
 					BSON::Document::Release(Options);
@@ -1998,7 +1998,7 @@ namespace Tomahawk
 				if (!mongoc_collection_insert_many(Collection, (const BSON::TDocument**)Documents, (size_t)Length, BS(Options), BS(Reply), &Error))
 				{
 					BSON::Document::Release(Options);
-					THAWK_ERROR("[mongoc] %s", Error.message);
+					TH_ERROR("[mongoc] %s", Error.message);
 					return false;
 				}
 
@@ -2010,7 +2010,7 @@ namespace Tomahawk
 			}
 			bool Collection::InsertMany(TCollection* Collection, const std::vector<BSON::TDocument*>& Documents, BSON::TDocument** Options, BSON::TDocument** Reply)
 			{
-#ifdef THAWK_HAS_MONGOC
+#ifdef TH_HAS_MONGOC
 				if (!Collection || !Documents.size())
 				{
 					BSON::Document::Release(Options);
@@ -2023,7 +2023,7 @@ namespace Tomahawk
 				if (!mongoc_collection_insert_many(Collection, (const BSON::TDocument**)Documents.data(), (size_t)Documents.size(), BS(Options), BS(Reply), &Error))
 				{
 					BSON::Document::Release(Options);
-					THAWK_ERROR("[mongoc] %s", Error.message);
+					TH_ERROR("[mongoc] %s", Error.message);
 					return false;
 				}
 
@@ -2035,7 +2035,7 @@ namespace Tomahawk
 			}
 			bool Collection::InsertOne(TCollection* Collection, BSON::TDocument** Document, BSON::TDocument** Options, BSON::TDocument** Reply)
 			{
-#ifdef THAWK_HAS_MONGOC
+#ifdef TH_HAS_MONGOC
 				if (!Collection)
 				{
 					BSON::Document::Release(Options);
@@ -2050,7 +2050,7 @@ namespace Tomahawk
 				{
 					BSON::Document::Release(Options);
 					BSON::Document::Release(Document);
-					THAWK_ERROR("[mongoc] %s", Error.message);
+					TH_ERROR("[mongoc] %s", Error.message);
 					return false;
 				}
 
@@ -2063,7 +2063,7 @@ namespace Tomahawk
 			}
 			bool Collection::ExecuteCommandWithReply(TCollection* Collection, BSON::TDocument** Command, BSON::TDocument** Reply, TReadPreferences* Preferences)
 			{
-#ifdef THAWK_HAS_MONGOC
+#ifdef TH_HAS_MONGOC
 				if (!Collection)
 				{
 					BSON::Document::Release(Command);
@@ -2076,7 +2076,7 @@ namespace Tomahawk
 				if (!mongoc_collection_command_simple(Collection, BS(Command), Preferences, BS(Reply), &Error))
 				{
 					BSON::Document::Release(Command);
-					THAWK_ERROR("[mongoc] %s", Error.message);
+					TH_ERROR("[mongoc] %s", Error.message);
 					return false;
 				}
 
@@ -2088,7 +2088,7 @@ namespace Tomahawk
 			}
 			bool Collection::ExecuteCommandWithOptions(TCollection* Collection, BSON::TDocument** Command, BSON::TDocument** Options, BSON::TDocument** Reply, TReadPreferences* Preferences)
 			{
-#ifdef THAWK_HAS_MONGOC
+#ifdef TH_HAS_MONGOC
 				if (!Collection)
 				{
 					BSON::Document::Release(Options);
@@ -2103,7 +2103,7 @@ namespace Tomahawk
 				{
 					BSON::Document::Release(Options);
 					BSON::Document::Release(Command);
-					THAWK_ERROR("[mongoc] %s", Error.message);
+					TH_ERROR("[mongoc] %s", Error.message);
 					return false;
 				}
 
@@ -2116,7 +2116,7 @@ namespace Tomahawk
 			}
 			bool Collection::ExecuteReadCommandWithOptions(TCollection* Collection, BSON::TDocument** Command, BSON::TDocument** Options, BSON::TDocument** Reply, TReadPreferences* Preferences)
 			{
-#ifdef THAWK_HAS_MONGOC
+#ifdef TH_HAS_MONGOC
 				if (!Collection)
 				{
 					BSON::Document::Release(Command);
@@ -2131,7 +2131,7 @@ namespace Tomahawk
 				{
 					BSON::Document::Release(Command);
 					BSON::Document::Release(Options);
-					THAWK_ERROR("[mongoc] %s", Error.message);
+					TH_ERROR("[mongoc] %s", Error.message);
 					return false;
 				}
 
@@ -2144,7 +2144,7 @@ namespace Tomahawk
 			}
 			bool Collection::ExecuteReadWriteCommandWithOptions(TCollection* Collection, BSON::TDocument** Command, BSON::TDocument** Options, BSON::TDocument** Reply)
 			{
-#ifdef THAWK_HAS_MONGOC
+#ifdef TH_HAS_MONGOC
 				if (!Collection)
 				{
 					BSON::Document::Release(Command);
@@ -2159,7 +2159,7 @@ namespace Tomahawk
 				{
 					BSON::Document::Release(Command);
 					BSON::Document::Release(Options);
-					THAWK_ERROR("[mongoc] %s", Error.message);
+					TH_ERROR("[mongoc] %s", Error.message);
 					return false;
 				}
 
@@ -2172,7 +2172,7 @@ namespace Tomahawk
 			}
 			bool Collection::ExecuteWriteCommandWithOptions(TCollection* Collection, BSON::TDocument** Command, BSON::TDocument** Options, BSON::TDocument** Reply)
 			{
-#ifdef THAWK_HAS_MONGOC
+#ifdef TH_HAS_MONGOC
 				if (!Collection)
 				{
 					BSON::Document::Release(Command);
@@ -2187,7 +2187,7 @@ namespace Tomahawk
 				{
 					BSON::Document::Release(Command);
 					BSON::Document::Release(Options);
-					THAWK_ERROR("[mongoc] %s", Error.message);
+					TH_ERROR("[mongoc] %s", Error.message);
 					return false;
 				}
 
@@ -2200,7 +2200,7 @@ namespace Tomahawk
 			}
 			bool Collection::FindAndModify(TCollection* Collection, BSON::TDocument** Query, BSON::TDocument** Sort, BSON::TDocument** Update, BSON::TDocument** Fields, BSON::TDocument** Reply, bool RemoveAt, bool Upsert, bool New)
 			{
-#ifdef THAWK_HAS_MONGOC
+#ifdef TH_HAS_MONGOC
 				bson_error_t Error;
 				memset(&Error, 0, sizeof(bson_error_t));
 
@@ -2219,7 +2219,7 @@ namespace Tomahawk
 					BSON::Document::Release(Sort);
 					BSON::Document::Release(Update);
 					BSON::Document::Release(Fields);
-					THAWK_ERROR("[mongoc] %s", Error.message);
+					TH_ERROR("[mongoc] %s", Error.message);
 					return false;
 				}
 
@@ -2234,7 +2234,7 @@ namespace Tomahawk
 			}
 			bool Collection::FindAndModifyWithOptions(TCollection* Collection, BSON::TDocument** Query, BSON::TDocument** Reply, TFindAndModifyOptions** Options)
 			{
-#ifdef THAWK_HAS_MONGOC
+#ifdef TH_HAS_MONGOC
 				if (!Collection)
 				{
 					BSON::Document::Release(Query);
@@ -2249,7 +2249,7 @@ namespace Tomahawk
 				{
 					BSON::Document::Release(Query);
 					FindAndModifyOptions::Release(Options);
-					THAWK_ERROR("[mongoc] %s", Error.message);
+					TH_ERROR("[mongoc] %s", Error.message);
 					return false;
 				}
 
@@ -2262,7 +2262,7 @@ namespace Tomahawk
 			}
 			uint64_t Collection::CountElementsInArray(TCollection* Collection, BSON::TDocument** Match, BSON::TDocument** Filter, BSON::TDocument** Options, TReadPreferences* Preferences)
 			{
-#ifdef THAWK_HAS_MONGOC
+#ifdef TH_HAS_MONGOC
 				if (!Collection || !Filter || !*Filter || !Match || !*Match)
 				{
 					BSON::Document::Release(Filter);
@@ -2310,7 +2310,7 @@ namespace Tomahawk
 			}
 			uint64_t Collection::CountDocuments(TCollection* Collection, BSON::TDocument** Filter, BSON::TDocument** Options, BSON::TDocument** Reply, TReadPreferences* Preferences)
 			{
-#ifdef THAWK_HAS_MONGOC
+#ifdef TH_HAS_MONGOC
 				bson_error_t Error;
 				memset(&Error, 0, sizeof(bson_error_t));
 
@@ -2326,7 +2326,7 @@ namespace Tomahawk
 				{
 					BSON::Document::Release(Filter);
 					BSON::Document::Release(Options);
-					THAWK_ERROR("[mongoc] %s", Error.message);
+					TH_ERROR("[mongoc] %s", Error.message);
 					return false;
 				}
 
@@ -2339,7 +2339,7 @@ namespace Tomahawk
 			}
 			uint64_t Collection::CountDocumentsEstimated(TCollection* Collection, BSON::TDocument** Options, BSON::TDocument** Reply, TReadPreferences* Preferences)
 			{
-#ifdef THAWK_HAS_MONGOC
+#ifdef TH_HAS_MONGOC
 				bson_error_t Error;
 				memset(&Error, 0, sizeof(bson_error_t));
 
@@ -2353,7 +2353,7 @@ namespace Tomahawk
 				if (Error.code != 0)
 				{
 					BSON::Document::Release(Options);
-					THAWK_ERROR("[mongoc] %s", Error.message);
+					TH_ERROR("[mongoc] %s", Error.message);
 					return false;
 				}
 
@@ -2365,7 +2365,7 @@ namespace Tomahawk
 			}
 			std::string Collection::StringifyKeyIndexes(TCollection* Collection, BSON::TDocument** Keys)
 			{
-#ifdef THAWK_HAS_MONGOC
+#ifdef TH_HAS_MONGOC
 				if (!Collection || !*Keys)
 					return std::string();
 
@@ -2381,7 +2381,7 @@ namespace Tomahawk
 			}
 			const char* Collection::GetName(TCollection* Collection)
 			{
-#ifdef THAWK_HAS_MONGOC
+#ifdef TH_HAS_MONGOC
 				if (!Collection)
 					return nullptr;
 
@@ -2392,7 +2392,7 @@ namespace Tomahawk
 			}
 			TReadConcern* Collection::GetReadConcern(TCollection* Collection)
 			{
-#ifdef THAWK_HAS_MONGOC
+#ifdef TH_HAS_MONGOC
 				if (!Collection)
 					return nullptr;
 
@@ -2403,7 +2403,7 @@ namespace Tomahawk
 			}
 			TReadPreferences* Collection::GetReadPreferences(TCollection* Collection)
 			{
-#ifdef THAWK_HAS_MONGOC
+#ifdef TH_HAS_MONGOC
 				if (!Collection)
 					return nullptr;
 
@@ -2414,7 +2414,7 @@ namespace Tomahawk
 			}
 			TWriteConcern* Collection::GetWriteConcern(TCollection* Collection)
 			{
-#ifdef THAWK_HAS_MONGOC
+#ifdef TH_HAS_MONGOC
 				if (!Collection)
 					return nullptr;
 
@@ -2425,7 +2425,7 @@ namespace Tomahawk
 			}
 			TCursor* Collection::FindIndexes(TCollection* Collection, BSON::TDocument** Options)
 			{
-#ifdef THAWK_HAS_MONGOC
+#ifdef TH_HAS_MONGOC
 				if (!Collection)
 				{
 					BSON::Document::Release(Options);
@@ -2439,7 +2439,7 @@ namespace Tomahawk
 				if (Cursor == nullptr || Error.code != 0)
 				{
 					BSON::Document::Release(Options);
-					THAWK_ERROR("couldn't fetch the cursor -> %s", Error.message);
+					TH_ERROR("couldn't fetch the cursor -> %s", Error.message);
 					return nullptr;
 				}
 
@@ -2451,7 +2451,7 @@ namespace Tomahawk
 			}
 			TCursor* Collection::FindMany(TCollection* Collection, BSON::TDocument** Filter, BSON::TDocument** Options, TReadPreferences* Preferences)
 			{
-#ifdef THAWK_HAS_MONGOC
+#ifdef TH_HAS_MONGOC
 				if (!Collection)
 				{
 					BSON::Document::Release(Options);
@@ -2469,7 +2469,7 @@ namespace Tomahawk
 			}
 			TCursor* Collection::FindOne(TCollection* Collection, BSON::TDocument** Filter, BSON::TDocument** Options, TReadPreferences* Preferences)
 			{
-#ifdef THAWK_HAS_MONGOC
+#ifdef TH_HAS_MONGOC
 				if (!Collection)
 				{
 					BSON::Document::Release(Filter);
@@ -2497,7 +2497,7 @@ namespace Tomahawk
 			}
 			TCursor* Collection::Aggregate(TCollection* Collection, QueryMode Flags, BSON::TDocument** Pipeline, BSON::TDocument** Options, TReadPreferences* Preferences)
 			{
-#ifdef THAWK_HAS_MONGOC
+#ifdef TH_HAS_MONGOC
 				if (!Collection)
 				{
 					BSON::Document::Release(Pipeline);
@@ -2517,7 +2517,7 @@ namespace Tomahawk
 			}
 			TCursor* Collection::ExecuteCommand(TCollection* Collection, QueryMode Flags, uint64_t Skip, uint64_t Limit, uint64_t BatchSize, BSON::TDocument** Command, BSON::TDocument** Fields, TReadPreferences* Preferences)
 			{
-#ifdef THAWK_HAS_MONGOC
+#ifdef TH_HAS_MONGOC
 				if (!Collection)
 				{
 					BSON::Document::Release(Command);
@@ -2537,7 +2537,7 @@ namespace Tomahawk
 			}
 			TBulkOperation* Collection::CreateBulkOperation(TCollection* Collection, BSON::TDocument** Options)
 			{
-#ifdef THAWK_HAS_MONGOC
+#ifdef TH_HAS_MONGOC
 				if (!Collection)
 				{
 					BSON::Document::Release(Options);
@@ -2555,7 +2555,7 @@ namespace Tomahawk
 
 			void Database::Release(TDatabase** Database)
 			{
-#ifdef THAWK_HAS_MONGOC
+#ifdef TH_HAS_MONGOC
 				if (!Database || !*Database)
 					return;
 
@@ -2565,7 +2565,7 @@ namespace Tomahawk
 			}
 			void Database::SetReadConcern(TDatabase* Database, TReadConcern* Concern)
 			{
-#ifdef THAWK_HAS_MONGOC
+#ifdef TH_HAS_MONGOC
 				if (!Database || !Concern)
 					return;
 
@@ -2574,7 +2574,7 @@ namespace Tomahawk
 			}
 			void Database::SetWriteConcern(TDatabase* Database, TWriteConcern* Concern)
 			{
-#ifdef THAWK_HAS_MONGOC
+#ifdef TH_HAS_MONGOC
 				if (!Database || !Concern)
 					return;
 
@@ -2583,7 +2583,7 @@ namespace Tomahawk
 			}
 			void Database::SetReadPreferences(TDatabase* Database, TReadPreferences* Preferences)
 			{
-#ifdef THAWK_HAS_MONGOC
+#ifdef TH_HAS_MONGOC
 				if (!Database || !Preferences)
 					return;
 
@@ -2592,7 +2592,7 @@ namespace Tomahawk
 			}
 			bool Database::HasCollection(TDatabase* Database, const char* Name)
 			{
-#ifdef THAWK_HAS_MONGOC
+#ifdef TH_HAS_MONGOC
 				if (!Database)
 					return false;
 
@@ -2601,7 +2601,7 @@ namespace Tomahawk
 
 				if (!mongoc_database_has_collection(Database, Name, &Error))
 				{
-					THAWK_ERROR("[mongoc] %s", Error.message);
+					TH_ERROR("[mongoc] %s", Error.message);
 					return false;
 				}
 
@@ -2612,7 +2612,7 @@ namespace Tomahawk
 			}
 			bool Database::RemoveAllUsers(TDatabase* Database)
 			{
-#ifdef THAWK_HAS_MONGOC
+#ifdef TH_HAS_MONGOC
 				if (!Database)
 					return false;
 
@@ -2621,7 +2621,7 @@ namespace Tomahawk
 
 				if (!mongoc_database_remove_all_users(Database, &Error))
 				{
-					THAWK_ERROR("[mongoc] %s", Error.message);
+					TH_ERROR("[mongoc] %s", Error.message);
 					return false;
 				}
 
@@ -2632,7 +2632,7 @@ namespace Tomahawk
 			}
 			bool Database::RemoveUser(TDatabase* Database, const char* Name)
 			{
-#ifdef THAWK_HAS_MONGOC
+#ifdef TH_HAS_MONGOC
 				if (!Database)
 					return false;
 
@@ -2641,7 +2641,7 @@ namespace Tomahawk
 
 				if (!mongoc_database_remove_user(Database, Name, &Error))
 				{
-					THAWK_ERROR("[mongoc] %s", Error.message);
+					TH_ERROR("[mongoc] %s", Error.message);
 					return false;
 				}
 
@@ -2652,7 +2652,7 @@ namespace Tomahawk
 			}
 			bool Database::Remove(TDatabase* Database)
 			{
-#ifdef THAWK_HAS_MONGOC
+#ifdef TH_HAS_MONGOC
 				if (!Database)
 					return false;
 
@@ -2661,7 +2661,7 @@ namespace Tomahawk
 
 				if (!mongoc_database_drop(Database, &Error))
 				{
-					THAWK_ERROR("[mongoc] %s", Error.message);
+					TH_ERROR("[mongoc] %s", Error.message);
 					return false;
 				}
 
@@ -2672,7 +2672,7 @@ namespace Tomahawk
 			}
 			bool Database::RemoveWithOptions(TDatabase* Database, BSON::TDocument** Options)
 			{
-#ifdef THAWK_HAS_MONGOC
+#ifdef TH_HAS_MONGOC
 				if (!Database)
 				{
 					BSON::Document::Release(Options);
@@ -2688,7 +2688,7 @@ namespace Tomahawk
 				if (!mongoc_database_drop_with_opts(Database, BS(Options), &Error))
 				{
 					BSON::Document::Release(Options);
-					THAWK_ERROR("[mongoc] %s", Error.message);
+					TH_ERROR("[mongoc] %s", Error.message);
 					return false;
 				}
 
@@ -2700,7 +2700,7 @@ namespace Tomahawk
 			}
 			bool Database::AddUser(TDatabase* Database, const char* Username, const char* Password, BSON::TDocument** Roles, BSON::TDocument** Custom)
 			{
-#ifdef THAWK_HAS_MONGOC
+#ifdef TH_HAS_MONGOC
 				if (!Database)
 				{
 					BSON::Document::Release(Roles);
@@ -2715,7 +2715,7 @@ namespace Tomahawk
 				{
 					BSON::Document::Release(Roles);
 					BSON::Document::Release(Custom);
-					THAWK_ERROR("[mongoc] %s", Error.message);
+					TH_ERROR("[mongoc] %s", Error.message);
 					return false;
 				}
 
@@ -2728,7 +2728,7 @@ namespace Tomahawk
 			}
 			bool Database::ExecuteCommandWithReply(TDatabase* Database, BSON::TDocument** Command, BSON::TDocument** Reply, TReadPreferences* Preferences)
 			{
-#ifdef THAWK_HAS_MONGOC
+#ifdef TH_HAS_MONGOC
 				if (!Database)
 				{
 					BSON::Document::Release(Command);
@@ -2741,7 +2741,7 @@ namespace Tomahawk
 				if (!mongoc_database_command_simple(Database, BS(Command), Preferences, BS(Reply), &Error))
 				{
 					BSON::Document::Release(Command);
-					THAWK_ERROR("[mongoc] %s", Error.message);
+					TH_ERROR("[mongoc] %s", Error.message);
 					return false;
 				}
 
@@ -2753,7 +2753,7 @@ namespace Tomahawk
 			}
 			bool Database::ExecuteCommandWithOptions(TDatabase* Database, BSON::TDocument** Command, BSON::TDocument** Options, BSON::TDocument** Reply, TReadPreferences* Preferences)
 			{
-#ifdef THAWK_HAS_MONGOC
+#ifdef TH_HAS_MONGOC
 				if (!Database)
 				{
 					BSON::Document::Release(Command);
@@ -2768,7 +2768,7 @@ namespace Tomahawk
 				{
 					BSON::Document::Release(Command);
 					BSON::Document::Release(Options);
-					THAWK_ERROR("[mongoc] %s", Error.message);
+					TH_ERROR("[mongoc] %s", Error.message);
 					return false;
 				}
 
@@ -2781,7 +2781,7 @@ namespace Tomahawk
 			}
 			bool Database::ExecuteReadCommandWithOptions(TDatabase* Database, BSON::TDocument** Command, BSON::TDocument** Options, BSON::TDocument** Reply, TReadPreferences* Preferences)
 			{
-#ifdef THAWK_HAS_MONGOC
+#ifdef TH_HAS_MONGOC
 				if (!Database)
 				{
 					BSON::Document::Release(Command);
@@ -2796,7 +2796,7 @@ namespace Tomahawk
 				{
 					BSON::Document::Release(Command);
 					BSON::Document::Release(Options);
-					THAWK_ERROR("[mongoc] %s", Error.message);
+					TH_ERROR("[mongoc] %s", Error.message);
 					return false;
 				}
 
@@ -2809,7 +2809,7 @@ namespace Tomahawk
 			}
 			bool Database::ExecuteReadWriteCommandWithOptions(TDatabase* Database, BSON::TDocument** Command, BSON::TDocument** Options, BSON::TDocument** Reply)
 			{
-#ifdef THAWK_HAS_MONGOC
+#ifdef TH_HAS_MONGOC
 				if (!Database)
 				{
 					BSON::Document::Release(Command);
@@ -2824,7 +2824,7 @@ namespace Tomahawk
 				{
 					BSON::Document::Release(Command);
 					BSON::Document::Release(Options);
-					THAWK_ERROR("[mongoc] %s", Error.message);
+					TH_ERROR("[mongoc] %s", Error.message);
 					return false;
 				}
 
@@ -2837,7 +2837,7 @@ namespace Tomahawk
 			}
 			bool Database::ExecuteWriteCommandWithOptions(TDatabase* Database, BSON::TDocument** Command, BSON::TDocument** Options, BSON::TDocument** Reply)
 			{
-#ifdef THAWK_HAS_MONGOC
+#ifdef TH_HAS_MONGOC
 				if (!Database)
 				{
 					BSON::Document::Release(Command);
@@ -2852,7 +2852,7 @@ namespace Tomahawk
 				{
 					BSON::Document::Release(Command);
 					BSON::Document::Release(Options);
-					THAWK_ERROR("[mongoc] %s", Error.message);
+					TH_ERROR("[mongoc] %s", Error.message);
 					return false;
 				}
 
@@ -2865,7 +2865,7 @@ namespace Tomahawk
 			}
 			std::vector<std::string> Database::GetCollectionNames(TDatabase* Database, BSON::TDocument** Options)
 			{
-#ifdef THAWK_HAS_MONGOC
+#ifdef TH_HAS_MONGOC
 				bson_error_t Error;
 				memset(&Error, 0, sizeof(bson_error_t));
 
@@ -2877,7 +2877,7 @@ namespace Tomahawk
 
 				if (Names == nullptr)
 				{
-					THAWK_ERROR("[mongoc] %s", Error.message);
+					TH_ERROR("[mongoc] %s", Error.message);
 					return std::vector<std::string>();
 				}
 
@@ -2893,7 +2893,7 @@ namespace Tomahawk
 			}
 			const char* Database::GetName(TDatabase* Database)
 			{
-#ifdef THAWK_HAS_MONGOC
+#ifdef TH_HAS_MONGOC
 				if (!Database)
 					return nullptr;
 
@@ -2904,7 +2904,7 @@ namespace Tomahawk
 			}
 			TCursor* Database::ExecuteCommand(TDatabase* Database, QueryMode Flags, uint64_t Skip, uint64_t Limit, uint64_t BatchSize, BSON::TDocument** Command, BSON::TDocument** Fields, TReadPreferences* Preferences)
 			{
-#ifdef THAWK_HAS_MONGOC
+#ifdef TH_HAS_MONGOC
 				if (!Database)
 				{
 					BSON::Document::Release(Command);
@@ -2925,7 +2925,7 @@ namespace Tomahawk
 			}
 			TCursor* Database::FindCollections(TDatabase* Database, BSON::TDocument** Options)
 			{
-#ifdef THAWK_HAS_MONGOC
+#ifdef TH_HAS_MONGOC
 				if (!Database)
 				{
 					BSON::Document::Release(Options);
@@ -2942,7 +2942,7 @@ namespace Tomahawk
 			}
 			TCollection* Database::CreateCollection(TDatabase* Database, const char* Name, BSON::TDocument** Options)
 			{
-#ifdef THAWK_HAS_MONGOC
+#ifdef TH_HAS_MONGOC
 				bson_error_t Error;
 				memset(&Error, 0, sizeof(bson_error_t));
 
@@ -2956,7 +2956,7 @@ namespace Tomahawk
 				BSON::Document::Release(Options);
 
 				if (Collection == nullptr)
-					THAWK_ERROR("[mongoc] %s", Error.message);
+					TH_ERROR("[mongoc] %s", Error.message);
 
 				return Collection;
 #else
@@ -2965,7 +2965,7 @@ namespace Tomahawk
 			}
 			TCollection* Database::GetCollection(TDatabase* Database, const char* Name)
 			{
-#ifdef THAWK_HAS_MONGOC
+#ifdef TH_HAS_MONGOC
 				if (!Database)
 					return nullptr;
 
@@ -2976,7 +2976,7 @@ namespace Tomahawk
 			}
 			TReadConcern* Database::GetReadConcern(TDatabase* Database)
 			{
-#ifdef THAWK_HAS_MONGOC
+#ifdef TH_HAS_MONGOC
 				if (!Database)
 					return nullptr;
 
@@ -2987,7 +2987,7 @@ namespace Tomahawk
 			}
 			TReadPreferences* Database::GetReadPreferences(TDatabase* Database)
 			{
-#ifdef THAWK_HAS_MONGOC
+#ifdef TH_HAS_MONGOC
 				if (!Database)
 					return nullptr;
 
@@ -2998,7 +2998,7 @@ namespace Tomahawk
 			}
 			TWriteConcern* Database::GetWriteConcern(TDatabase* Database)
 			{
-#ifdef THAWK_HAS_MONGOC
+#ifdef TH_HAS_MONGOC
 				if (!Database)
 					return nullptr;
 
@@ -3010,7 +3010,7 @@ namespace Tomahawk
 
 			void ServerDescription::Release(TServerDescription** Description)
 			{
-#ifdef THAWK_HAS_MONGOC
+#ifdef TH_HAS_MONGOC
 				if (!Description || !*Description)
 					return;
 
@@ -3020,7 +3020,7 @@ namespace Tomahawk
 			}
 			uint64_t ServerDescription::GetId(TServerDescription* Description)
 			{
-#ifdef THAWK_HAS_MONGOC
+#ifdef TH_HAS_MONGOC
 				if (!Description)
 					return 0;
 
@@ -3031,7 +3031,7 @@ namespace Tomahawk
 			}
 			int64_t ServerDescription::GetTripTime(TServerDescription* Description)
 			{
-#ifdef THAWK_HAS_MONGOC
+#ifdef TH_HAS_MONGOC
 				if (!Description)
 					return 0;
 
@@ -3042,7 +3042,7 @@ namespace Tomahawk
 			}
 			const char* ServerDescription::GetType(TServerDescription* Description)
 			{
-#ifdef THAWK_HAS_MONGOC
+#ifdef TH_HAS_MONGOC
 				if (!Description)
 					return nullptr;
 
@@ -3053,7 +3053,7 @@ namespace Tomahawk
 			}
 			BSON::TDocument* ServerDescription::IsMaster(TServerDescription* Description)
 			{
-#ifdef THAWK_HAS_MONGOC
+#ifdef TH_HAS_MONGOC
 				if (!Description)
 					return nullptr;
 
@@ -3064,7 +3064,7 @@ namespace Tomahawk
 			}
 			HostList* ServerDescription::GetHosts(TServerDescription* Description)
 			{
-#ifdef THAWK_HAS_MONGOC
+#ifdef TH_HAS_MONGOC
 				if (!Description)
 					return nullptr;
 
@@ -3076,7 +3076,7 @@ namespace Tomahawk
 
 			bool TopologyDescription::HasReadableServer(TTopologyDescription* Description, TReadPreferences* Preferences)
 			{
-#ifdef THAWK_HAS_MONGOC
+#ifdef TH_HAS_MONGOC
 				if (!Description)
 					return false;
 
@@ -3087,7 +3087,7 @@ namespace Tomahawk
 			}
 			bool TopologyDescription::HasWritableServer(TTopologyDescription* Description)
 			{
-#ifdef THAWK_HAS_MONGOC
+#ifdef TH_HAS_MONGOC
 				if (!Description)
 					return false;
 
@@ -3098,7 +3098,7 @@ namespace Tomahawk
 			}
 			std::vector<TServerDescription*> TopologyDescription::GetServers(TTopologyDescription* Description)
 			{
-#ifdef THAWK_HAS_MONGOC
+#ifdef TH_HAS_MONGOC
 				size_t Length = 0;
 				if (!Description)
 					return std::vector<TServerDescription*>();
@@ -3127,7 +3127,7 @@ namespace Tomahawk
 			}
 			const char* TopologyDescription::GetType(TTopologyDescription* Description)
 			{
-#ifdef THAWK_HAS_MONGOC
+#ifdef TH_HAS_MONGOC
 				if (!Description)
 					return nullptr;
 
@@ -3148,7 +3148,7 @@ namespace Tomahawk
 			}
 			bool Client::Connect(const char* Address)
 			{
-#ifdef THAWK_HAS_MONGOC
+#ifdef TH_HAS_MONGOC
 				if (Master != nullptr)
 					return false;
 
@@ -3161,14 +3161,14 @@ namespace Tomahawk
 				TURI* URI = mongoc_uri_new_with_error(Address, &Error);
 				if (URI == nullptr)
 				{
-					THAWK_ERROR("couldn't parse URI -> %s", Error.message);
+					TH_ERROR("couldn't parse URI -> %s", Error.message);
 					return false;
 				}
 
 				Connection = mongoc_client_new_from_uri(URI);
 				if (Connection == nullptr)
 				{
-					THAWK_ERROR("couldn't connect to requested URI");
+					TH_ERROR("couldn't connect to requested URI");
 					return false;
 				}
 
@@ -3180,7 +3180,7 @@ namespace Tomahawk
 			}
 			bool Client::ConnectWithURI(TURI* URI)
 			{
-#ifdef THAWK_HAS_MONGOC
+#ifdef TH_HAS_MONGOC
 				if (Master != nullptr)
 					return false;
 
@@ -3193,7 +3193,7 @@ namespace Tomahawk
 				Connection = mongoc_client_new_from_uri(URI);
 				if (Connection == nullptr)
 				{
-					THAWK_ERROR("couldn't connect to requested URI");
+					TH_ERROR("couldn't connect to requested URI");
 					return false;
 				}
 
@@ -3205,7 +3205,7 @@ namespace Tomahawk
 			}
 			bool Client::Disconnect()
 			{
-#ifdef THAWK_HAS_MONGOC
+#ifdef TH_HAS_MONGOC
 				Connected = false;
 				if (Master != nullptr)
 				{
@@ -3230,14 +3230,14 @@ namespace Tomahawk
 			}
 			bool Client::SelectServer(bool ForWrites)
 			{
-#ifdef THAWK_HAS_MONGOC
+#ifdef TH_HAS_MONGOC
 				bson_error_t Error;
 				memset(&Error, 0, sizeof(bson_error_t));
 
 				TServerDescription* Server = mongoc_client_select_server(Connection, ForWrites, nullptr, &Error);
 				if (Server == nullptr)
 				{
-					THAWK_ERROR("command fail: %s", Error.message);
+					TH_ERROR("command fail: %s", Error.message);
 					return false;
 				}
 
@@ -3249,37 +3249,37 @@ namespace Tomahawk
 			}
 			void Client::SetAppName(const char* Name)
 			{
-#ifdef THAWK_HAS_MONGOC
+#ifdef TH_HAS_MONGOC
 				mongoc_client_set_appname(Connection, Name);
 #endif
 			}
 			void Client::SetReadConcern(TReadConcern* Concern)
 			{
-#ifdef THAWK_HAS_MONGOC
+#ifdef TH_HAS_MONGOC
 				mongoc_client_set_read_concern(Connection, Concern);
 #endif
 			}
 			void Client::SetReadPreferences(TReadPreferences* Preferences)
 			{
-#ifdef THAWK_HAS_MONGOC
+#ifdef TH_HAS_MONGOC
 				mongoc_client_set_read_prefs(Connection, Preferences);
 #endif
 			}
 			void Client::SetWriteConcern(TWriteConcern* Concern)
 			{
-#ifdef THAWK_HAS_MONGOC
+#ifdef TH_HAS_MONGOC
 				mongoc_client_set_write_concern(Connection, Concern);
 #endif
 			}
 			void Client::SetSSLOptions(const SSLOptions& Options)
 			{
-#ifdef THAWK_HAS_MONGOC
+#ifdef TH_HAS_MONGOC
 				mongoc_client_set_ssl_opts(Connection, (const mongoc_ssl_opt_t*)&Options);
 #endif
 			}
 			void Client::SetAPMCallbacks(const APMCallbacks& Options)
 			{
-#ifdef THAWK_HAS_MONGOC
+#ifdef TH_HAS_MONGOC
 				mongoc_apm_callbacks_t* Callbacks = mongoc_apm_callbacks_new();
 				if (Options.OnCommandStarted != nullptr)
 				{
@@ -3499,7 +3499,7 @@ namespace Tomahawk
 			}
 			TCursor* Client::ExecuteCommand(const char* DatabaseName, BSON::TDocument** Query, TReadPreferences* Preferences)
 			{
-#ifdef THAWK_HAS_MONGOC
+#ifdef TH_HAS_MONGOC
 				if (!DatabaseName || !Query)
 				{
 					BSON::Document::Release(Query);
@@ -3516,7 +3516,7 @@ namespace Tomahawk
 			}
 			BSON::TDocument* Client::ExecuteCommandResult(const char* DatabaseName, BSON::TDocument** Query, TReadPreferences* Preferences)
 			{
-#ifdef THAWK_HAS_MONGOC
+#ifdef TH_HAS_MONGOC
 				bson_error_t Error;
 				memset(&Error, 0, sizeof(bson_error_t));
 
@@ -3530,7 +3530,7 @@ namespace Tomahawk
 				if (!mongoc_client_command_simple(Connection, DatabaseName, BS(Query), Preferences, Reference, &Error))
 				{
 					BSON::Document::Release(Query);
-					THAWK_ERROR("[mongoc] %s", Error.message);
+					TH_ERROR("[mongoc] %s", Error.message);
 					return nullptr;
 				}
 
@@ -3542,7 +3542,7 @@ namespace Tomahawk
 			}
 			BSON::TDocument* Client::ExecuteCommandResult(const char* DatabaseName, BSON::TDocument** Query, BSON::TDocument** Options, TReadPreferences* Preferences)
 			{
-#ifdef THAWK_HAS_MONGOC
+#ifdef TH_HAS_MONGOC
 				bson_error_t Error;
 				memset(&Error, 0, sizeof(bson_error_t));
 
@@ -3558,7 +3558,7 @@ namespace Tomahawk
 				{
 					BSON::Document::Release(Query);
 					BSON::Document::Release(Options);
-					THAWK_ERROR("[mongoc] %s", Error.message);
+					TH_ERROR("[mongoc] %s", Error.message);
 					return nullptr;
 				}
 
@@ -3571,7 +3571,7 @@ namespace Tomahawk
 			}
 			BSON::TDocument* Client::ExecuteReadCommandResult(const char* DatabaseName, BSON::TDocument** Query, BSON::TDocument** Options, TReadPreferences* Preferences)
 			{
-#ifdef THAWK_HAS_MONGOC
+#ifdef TH_HAS_MONGOC
 				bson_error_t Error;
 				memset(&Error, 0, sizeof(bson_error_t));
 
@@ -3587,7 +3587,7 @@ namespace Tomahawk
 				{
 					BSON::Document::Release(Query);
 					BSON::Document::Release(Options);
-					THAWK_ERROR("[mongoc] %s", Error.message);
+					TH_ERROR("[mongoc] %s", Error.message);
 					return nullptr;
 				}
 
@@ -3600,7 +3600,7 @@ namespace Tomahawk
 			}
 			BSON::TDocument* Client::ExecuteWriteCommandResult(const char* DatabaseName, BSON::TDocument** Query, BSON::TDocument** Options)
 			{
-#ifdef THAWK_HAS_MONGOC
+#ifdef TH_HAS_MONGOC
 				bson_error_t Error;
 				memset(&Error, 0, sizeof(bson_error_t));
 
@@ -3616,7 +3616,7 @@ namespace Tomahawk
 				{
 					BSON::Document::Release(Query);
 					BSON::Document::Release(Options);
-					THAWK_ERROR("[mongoc] %s", Error.message);
+					TH_ERROR("[mongoc] %s", Error.message);
 					return nullptr;
 				}
 
@@ -3629,7 +3629,7 @@ namespace Tomahawk
 			}
 			TCursor* Client::FindDatabases(BSON::TDocument** Options)
 			{
-#ifdef THAWK_HAS_MONGOC
+#ifdef TH_HAS_MONGOC
 				TCursor* Reference = mongoc_client_find_databases_with_opts(Connection, BS(Options));
 				BSON::Document::Release(Options);
 
@@ -3640,7 +3640,7 @@ namespace Tomahawk
 			}
 			TServerDescription* Client::GetServerDescription(unsigned int ServerId)
 			{
-#ifdef THAWK_HAS_MONGOC
+#ifdef TH_HAS_MONGOC
 				return mongoc_client_get_server_description(Connection, ServerId);
 #else
 				return nullptr;
@@ -3648,7 +3648,7 @@ namespace Tomahawk
 			}
 			TDatabase* Client::GetDatabase(const char* Name)
 			{
-#ifdef THAWK_HAS_MONGOC
+#ifdef TH_HAS_MONGOC
 				return mongoc_client_get_database(Connection, Name);
 #else
 				return nullptr;
@@ -3656,7 +3656,7 @@ namespace Tomahawk
 			}
 			TDatabase* Client::GetDefaultDatabase()
 			{
-#ifdef THAWK_HAS_MONGOC
+#ifdef TH_HAS_MONGOC
 				return mongoc_client_get_default_database(Connection);
 #else
 				return nullptr;
@@ -3664,7 +3664,7 @@ namespace Tomahawk
 			}
 			TCollection* Client::GetCollection(const char* DatabaseName, const char* Name)
 			{
-#ifdef THAWK_HAS_MONGOC
+#ifdef TH_HAS_MONGOC
 				return mongoc_client_get_collection(Connection, DatabaseName, Name);
 #else
 				return nullptr;
@@ -3672,7 +3672,7 @@ namespace Tomahawk
 			}
 			TReadConcern* Client::GetReadConcern()
 			{
-#ifdef THAWK_HAS_MONGOC
+#ifdef TH_HAS_MONGOC
 				return (TReadConcern*)mongoc_client_get_read_concern(Connection);
 #else
 				return nullptr;
@@ -3680,7 +3680,7 @@ namespace Tomahawk
 			}
 			TReadPreferences* Client::GetReadPreferences()
 			{
-#ifdef THAWK_HAS_MONGOC
+#ifdef TH_HAS_MONGOC
 				return (TReadPreferences*)mongoc_client_get_read_prefs(Connection);
 #else
 				return nullptr;
@@ -3688,7 +3688,7 @@ namespace Tomahawk
 			}
 			TWriteConcern* Client::GetWriteConcern()
 			{
-#ifdef THAWK_HAS_MONGOC
+#ifdef TH_HAS_MONGOC
 				return (TWriteConcern*)mongoc_client_get_write_concern(Connection);
 #else
 				return nullptr;
@@ -3700,7 +3700,7 @@ namespace Tomahawk
 			}
 			TURI* Client::GetURI()
 			{
-#ifdef THAWK_HAS_MONGOC
+#ifdef TH_HAS_MONGOC
 				return (TURI*)mongoc_client_get_uri(Connection);
 #else
 				return nullptr;
@@ -3712,7 +3712,7 @@ namespace Tomahawk
 			}
 			std::vector<std::string> Client::GetDatabaseNames(BSON::TDocument** Options)
 			{
-#ifdef THAWK_HAS_MONGOC
+#ifdef TH_HAS_MONGOC
 				bson_error_t Error;
 				memset(&Error, 0, sizeof(bson_error_t));
 
@@ -3721,7 +3721,7 @@ namespace Tomahawk
 
 				if (Names == nullptr)
 				{
-					THAWK_ERROR("[mongoc] %s", Error.message);
+					TH_ERROR("[mongoc] %s", Error.message);
 					return std::vector<std::string>();
 				}
 
@@ -3751,7 +3751,7 @@ namespace Tomahawk
 			}
 			bool ClientPool::Connect(const char* URI)
 			{
-#ifdef THAWK_HAS_MONGOC
+#ifdef TH_HAS_MONGOC
 				bson_error_t Error;
 				memset(&Error, 0, sizeof(bson_error_t));
 
@@ -3761,14 +3761,14 @@ namespace Tomahawk
 				Address = mongoc_uri_new_with_error(URI, &Error);
 				if (Address == nullptr)
 				{
-					THAWK_ERROR("couldn't parse URI -> %s", Error.message);
+					TH_ERROR("couldn't parse URI -> %s", Error.message);
 					return false;
 				}
 
 				Clients = mongoc_client_pool_new(Address);
 				if (Clients == nullptr)
 				{
-					THAWK_ERROR("couldn't connect to requested URI");
+					TH_ERROR("couldn't connect to requested URI");
 					return false;
 				}
 
@@ -3780,7 +3780,7 @@ namespace Tomahawk
 			}
 			bool ClientPool::ConnectWithURI(TURI* URI)
 			{
-#ifdef THAWK_HAS_MONGOC
+#ifdef TH_HAS_MONGOC
 				if (!URI)
 					return false;
 
@@ -3790,7 +3790,7 @@ namespace Tomahawk
 				Clients = mongoc_client_pool_new(Address = URI);
 				if (Clients == nullptr)
 				{
-					THAWK_ERROR("couldn't connect to requested URI");
+					TH_ERROR("couldn't connect to requested URI");
 					return false;
 				}
 
@@ -3802,7 +3802,7 @@ namespace Tomahawk
 			}
 			bool ClientPool::Disconnect()
 			{
-#ifdef THAWK_HAS_MONGOC
+#ifdef TH_HAS_MONGOC
 				if (Clients != nullptr)
 				{
 					mongoc_client_pool_destroy(Clients);
@@ -3823,19 +3823,19 @@ namespace Tomahawk
 			}
 			void ClientPool::SetAppName(const char* Name)
 			{
-#ifdef THAWK_HAS_MONGOC
+#ifdef TH_HAS_MONGOC
 				mongoc_client_pool_set_appname(Clients, Name);
 #endif
 			}
 			void ClientPool::SetSSLOptions(const SSLOptions& Options)
 			{
-#ifdef THAWK_HAS_MONGOC
+#ifdef TH_HAS_MONGOC
 				mongoc_client_pool_set_ssl_opts(Clients, (const mongoc_ssl_opt_t*)&Options);
 #endif
 			}
 			void ClientPool::SetAPMCallbacks(const APMCallbacks& Options)
 			{
-#ifdef THAWK_HAS_MONGOC
+#ifdef TH_HAS_MONGOC
 				mongoc_apm_callbacks_t* Callbacks = mongoc_apm_callbacks_new();
 				if (Options.OnCommandStarted != nullptr)
 				{
@@ -4055,7 +4055,7 @@ namespace Tomahawk
 			}
 			void ClientPool::Push(Client** Client)
 			{
-#ifdef THAWK_HAS_MONGOC
+#ifdef TH_HAS_MONGOC
 				if (!Client || !*Client)
 					return;
 
@@ -4070,7 +4070,7 @@ namespace Tomahawk
 			}
 			Client* ClientPool::Pop()
 			{
-#ifdef THAWK_HAS_MONGOC
+#ifdef TH_HAS_MONGOC
 				TConnection* Connection = mongoc_client_pool_pop(Clients);
 				if (!Connection)
 					return nullptr;

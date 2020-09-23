@@ -649,7 +649,7 @@ namespace Tomahawk
 				Instance = Parent->GetScene()->GetSimulator()->CreateSoftBody(I, Parent->Transform);
 				if (!Instance)
 				{
-					THAWK_ERROR("cannot create soft body");
+					TH_ERROR("cannot create soft body");
 					return;
 				}
 
@@ -682,7 +682,7 @@ namespace Tomahawk
 				Instance = Parent->GetScene()->GetSimulator()->CreateSoftBody(I, Parent->Transform);
 				if (!Instance)
 				{
-					THAWK_ERROR("cannot create soft body");
+					TH_ERROR("cannot create soft body");
 					return;
 				}
 
@@ -706,7 +706,7 @@ namespace Tomahawk
 				Instance = Parent->GetScene()->GetSimulator()->CreateSoftBody(I, Parent->Transform);
 				if (!Instance)
 				{
-					THAWK_ERROR("cannot create soft body");
+					TH_ERROR("cannot create soft body");
 					return;
 				}
 
@@ -730,7 +730,7 @@ namespace Tomahawk
 				Instance = Parent->GetScene()->GetSimulator()->CreateSoftBody(I, Parent->Transform);
 				if (!Instance)
 				{
-					THAWK_ERROR("cannot create soft body");
+					TH_ERROR("cannot create soft body");
 					return;
 				}
 
@@ -2389,7 +2389,7 @@ namespace Tomahawk
 					Audio::AudioEffect* Target = Rest::Composer::Create<Audio::AudioEffect>(Id);
 					if (!Target)
 					{
-						THAWK_WARN("audio effect with id %llu cannot be created", Id);
+						TH_WARN("audio effect with id %llu cannot be created", Id);
 						continue;
 					}
 
@@ -3110,7 +3110,7 @@ namespace Tomahawk
 					Engine::Renderer* Target = Rest::Composer::Create<Engine::Renderer>(Id, Renderer);
 					if (!Renderer || !Renderer->AddRenderer(Target))
 					{
-						THAWK_WARN("cannot create renderer with id %llu", Id);
+						TH_WARN("cannot create renderer with id %llu", Id);
 						continue;
 					}
 

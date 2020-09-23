@@ -1,6 +1,6 @@
 #include "network.h"
 #include "../network/http.h"
-#ifdef THAWK_MICROSOFT
+#ifdef TH_MICROSOFT
 #include <winsock2.h>
 #include <windows.h>
 #include <ws2tcpip.h>
@@ -21,7 +21,7 @@
 #include <sys/select.h>
 #include <sys/socket.h>
 #include <sys/types.h>
-#ifndef THAWK_APPLE
+#ifndef TH_APPLE
 #include <sys/epoll.h>
 #else
 #include <sys/event.h>
@@ -40,7 +40,7 @@
 
 extern "C"
 {
-#ifdef THAWK_HAS_OPENSSL
+#ifdef TH_HAS_OPENSSL
 #include <openssl/ssl.h>
 #include <openssl/err.h>
 #include <openssl/crypto.h>
@@ -159,7 +159,7 @@ namespace Tomahawk
 		}
 		int Socket::Secure(ssl_ctx_st* Context)
 		{
-#ifdef THAWK_HAS_OPENSSL
+#ifdef TH_HAS_OPENSSL
 			Sync.Device.lock();
 			if (Device != nullptr)
 				SSL_free(Device);
@@ -246,7 +246,7 @@ namespace Tomahawk
 			if (Fd == INVALID_SOCKET)
 				return -1;
 
-#ifdef THAWK_HAS_OPENSSL
+#ifdef TH_HAS_OPENSSL
 			if (Device != nullptr)
 			{
 				Sync.Device.lock();
@@ -282,7 +282,7 @@ namespace Tomahawk
 			if (Fd == INVALID_SOCKET)
 				return -1;
 
-#ifdef THAWK_HAS_OPENSSL
+#ifdef TH_HAS_OPENSSL
 			if (Device != nullptr)
 			{
 				Sync.Device.lock();
@@ -407,7 +407,7 @@ namespace Tomahawk
 			if (Fd == INVALID_SOCKET)
 				return -1;
 
-#ifdef THAWK_HAS_OPENSSL
+#ifdef TH_HAS_OPENSSL
 			if (Device != nullptr)
 			{
 				Sync.Device.lock();
@@ -643,7 +643,7 @@ namespace Tomahawk
 		}
 		int Socket::SetBlocking(bool Enabled)
 		{
-#ifdef THAWK_MICROSOFT
+#ifdef TH_MICROSOFT
 			unsigned long Mode = (Enabled ? 0 : 1);
 			return ioctlsocket(Fd, (long)FIONBIO, &Mode);
 #else
@@ -665,7 +665,7 @@ namespace Tomahawk
 		}
 		int Socket::SetTimeout(int Timeout)
 		{
-#ifdef THAWK_MICROSOFT
+#ifdef TH_MICROSOFT
 			DWORD Time = (DWORD)Timeout;
 #else
 			struct timeval Time;
@@ -684,7 +684,7 @@ namespace Tomahawk
 		}
 		int Socket::GetError(int Result)
 		{
-#ifdef THAWK_HAS_OPENSSL
+#ifdef TH_HAS_OPENSSL
 			if (!Device)
 				return ERRNO;
 
@@ -810,7 +810,7 @@ namespace Tomahawk
 			WriteEvent* Event = new WriteEvent();
 			Event->Callback = Callback;
 			Event->Size = Size;
-			Event->Buffer = (char*)malloc((size_t)Size);
+			Event->Buffer = (char*)TH_MALLOC((size_t)Size);
 			memcpy(Event->Buffer, Buffer, (size_t)Size);
 
 			if (Output != nullptr)
@@ -844,7 +844,7 @@ namespace Tomahawk
 				Input->Prev = nullptr;
 
 			if (It->Buffer)
-				free((void*)It->Buffer);
+				TH_FREE((void*)It->Buffer);
 
 			delete It;
 		}
@@ -872,7 +872,7 @@ namespace Tomahawk
 			if (Host == nullptr)
 				return std::string();
 
-#ifdef THAWK_MICROSOFT
+#ifdef TH_MICROSOFT
 			return Rest::Form("%i.%i.%i.%i", (int)((struct in_addr*)(Host->h_addr))->S_un.S_un_b.s_b1, (int)((struct in_addr*)(Host->h_addr))->S_un.S_un_b.s_b2, (int)((struct in_addr*)(Host->h_addr))->S_un.S_un_b.s_b3, (int)((struct in_addr*)(Host->h_addr))->S_un.S_un_b.s_b4).R();
 #else
 			return inet_ntoa(*(struct in_addr *)Host->h_addr_list[0]);
@@ -927,7 +927,7 @@ namespace Tomahawk
 		}
 		bool SocketConnection::Certify(Certificate* Output)
 		{
-#ifdef THAWK_HAS_OPENSSL
+#ifdef TH_HAS_OPENSSL
 			if (!Output)
 				return false;
 
@@ -985,7 +985,7 @@ namespace Tomahawk
 
 		SocketRouter::~SocketRouter()
 		{
-#ifdef THAWK_HAS_OPENSSL
+#ifdef TH_HAS_OPENSSL
 			for (auto It = Certificates.begin(); It != Certificates.end(); It++)
 			{
 				if (!It->second.Context)
@@ -1003,12 +1003,12 @@ namespace Tomahawk
 				return;
 
 			ArraySize = Length;
-#ifdef THAWK_APPLE
+#ifdef TH_APPLE
 			Handle = kqueue();
-			Array = (struct kevent*)malloc(sizeof(struct kevent) * ArraySize);
+			Array = (struct kevent*)TH_MALLOC(sizeof(struct kevent) * ArraySize);
 #else
 			Handle = epoll_create(1);
-			Array = (epoll_event*)malloc(sizeof(epoll_event) * ArraySize);
+			Array = (epoll_event*)TH_MALLOC(sizeof(epoll_event) * ArraySize);
 #endif
 		}
 		void Multiplexer::Release()
@@ -1021,7 +1021,7 @@ namespace Tomahawk
 
 			if (Array != nullptr)
 			{
-				free(Array);
+				TH_FREE(Array);
 				Array = nullptr;
 			}
 
@@ -1035,7 +1035,7 @@ namespace Tomahawk
 		}
 		void Multiplexer::Worker(Rest::EventQueue* Queue, Rest::EventArgs* Args)
 		{
-#ifdef THAWK_APPLE
+#ifdef TH_APPLE
 			struct kevent* Events = (struct kevent*)Array;
 #else
 			epoll_event* Events = (epoll_event*)Array;
@@ -1045,7 +1045,7 @@ namespace Tomahawk
 
 			do
 			{
-#ifdef THAWK_APPLE
+#ifdef TH_APPLE
 				struct timespec Wait;
 				Wait.tv_sec = (int)PipeTimeout / 1000;
 				Wait.tv_nsec = ((int)PipeTimeout % 1000) * 1000000;
@@ -1062,7 +1062,7 @@ namespace Tomahawk
 				for (auto It = Events; It != Events + Count; It++)
 				{
 					int Flags = 0;
-#ifdef THAWK_APPLE
+#ifdef TH_APPLE
 					if (It->filter == EVFILT_READ)
 						Flags |= SocketEvent_Read;
 
@@ -1123,7 +1123,7 @@ namespace Tomahawk
 			Value->Sync.Time = Clock();
 			Value->Sync.Await = true;
 
-#ifdef THAWK_APPLE
+#ifdef TH_APPLE
 			struct kevent Event;
 			EV_SET(&Event, Value->Fd, EVFILT_READ, EV_ADD, 0, 0, (void*)Value);
 			kevent(Handle, &Event, 1, nullptr, 0, nullptr);
@@ -1148,7 +1148,7 @@ namespace Tomahawk
 
 			Value->Sync.Await = false;
 
-#ifdef THAWK_APPLE
+#ifdef TH_APPLE
 			struct kevent Event;
 			EV_SET(&Event, Value->Fd, EVFILT_READ, EV_DELETE, 0, 0, nullptr);
 			kevent(Handle, &Event, 1, nullptr, 0, nullptr);
@@ -1352,7 +1352,7 @@ namespace Tomahawk
 		}
 		int Multiplexer::Poll(pollfd* Fd, int FdCount, int Timeout)
 		{
-#if defined(THAWK_MICROSOFT)
+#if defined(TH_MICROSOFT)
 			return WSAPoll(Fd, FdCount, Timeout);
 #else
 			return poll(Fd, FdCount, Timeout);
@@ -1366,7 +1366,7 @@ namespace Tomahawk
 		{
 			return std::chrono::duration_cast<std::chrono::milliseconds>(std::chrono::system_clock::now().time_since_epoch()).count();
 		}
-#ifdef THAWK_APPLE
+#ifdef TH_APPLE
 		struct kevent* Multiplexer::Array = nullptr;
 #else
 		epoll_event* Multiplexer::Array = nullptr;
@@ -1378,7 +1378,7 @@ namespace Tomahawk
 
 		SocketServer::SocketServer()
 		{
-#ifndef THAWK_MICROSOFT
+#ifndef TH_MICROSOFT
 			signal(SIGPIPE, SIG_IGN);
 #endif
 		}
@@ -1404,7 +1404,7 @@ namespace Tomahawk
 		{
 			if (State != ServerState_Idle)
 			{
-				THAWK_ERROR("cannot configure while running");
+				TH_ERROR("cannot configure while running");
 				return false;
 			}
 
@@ -1415,7 +1415,7 @@ namespace Tomahawk
 			}
 			else if (!(Router = OnAllocateRouter()))
 			{
-				THAWK_ERROR("cannot allocate router");
+				TH_ERROR("cannot allocate router");
 				return false;
 			}
 
@@ -1427,7 +1427,7 @@ namespace Tomahawk
 
 			if (Router->Listeners.empty())
 			{
-				THAWK_ERROR("there are no listeners provided");
+				TH_ERROR("there are no listeners provided");
 				return false;
 			}
 
@@ -1444,18 +1444,18 @@ namespace Tomahawk
 
 				if (Value->Base->Open(It.second.Hostname.c_str(), It.second.Port, &Value->Source))
 				{
-					THAWK_ERROR("cannot open %s:%i", It.second.Hostname.c_str(), (int)It.second.Port);
+					TH_ERROR("cannot open %s:%i", It.second.Hostname.c_str(), (int)It.second.Port);
 					return false;
 				}
 
 				if (Value->Base->Bind(&Value->Source))
 				{
-					THAWK_ERROR("cannot bind %s:%i", It.second.Hostname.c_str(), (int)It.second.Port);
+					TH_ERROR("cannot bind %s:%i", It.second.Hostname.c_str(), (int)It.second.Port);
 					return false;
 				}
 				if (Value->Base->Listen((int)Router->BacklogQueue))
 				{
-					THAWK_ERROR("cannot listen %s:%i", It.second.Hostname.c_str(), (int)It.second.Port);
+					TH_ERROR("cannot listen %s:%i", It.second.Hostname.c_str(), (int)It.second.Port);
 					return false;
 				}
 
@@ -1465,12 +1465,12 @@ namespace Tomahawk
 
 				if (It.second.Port <= 0 && (It.second.Port = Value->Base->GetPort()) < 0)
 				{
-					THAWK_ERROR("cannot determine listener's port number");
+					TH_ERROR("cannot determine listener's port number");
 					return false;
 				}
 			}
 
-#ifdef THAWK_HAS_OPENSSL
+#ifdef TH_HAS_OPENSSL
 			for (auto&& It : Router->Certificates)
 			{
 				long Protocol = SSL_OP_ALL;
@@ -1492,7 +1492,7 @@ namespace Tomahawk
 
 				if (!(It.second.Context = SSL_CTX_new(SSLv23_server_method())))
 				{
-					THAWK_ERROR("cannot create server's SSL context");
+					TH_ERROR("cannot create server's SSL context");
 					return false;
 				}
 
@@ -1510,31 +1510,31 @@ namespace Tomahawk
 				{
 					if (SSL_CTX_load_verify_locations(It.second.Context, It.second.Chain.c_str(), It.second.Key.c_str()) != 1)
 					{
-						THAWK_ERROR("SSL_CTX_load_verify_locations(): %s", ERR_error_string(ERR_get_error(), nullptr));
+						TH_ERROR("SSL_CTX_load_verify_locations(): %s", ERR_error_string(ERR_get_error(), nullptr));
 						return false;
 					}
 
 					if (SSL_CTX_set_default_verify_paths(It.second.Context) != 1)
 					{
-						THAWK_ERROR("SSL_CTX_set_default_verify_paths(): %s", ERR_error_string(ERR_get_error(), nullptr));
+						TH_ERROR("SSL_CTX_set_default_verify_paths(): %s", ERR_error_string(ERR_get_error(), nullptr));
 						return false;
 					}
 
 					if (SSL_CTX_use_certificate_file(It.second.Context, It.second.Chain.c_str(), SSL_FILETYPE_PEM) <= 0)
 					{
-						THAWK_ERROR("SSL_CTX_use_certificate_file(): %s", ERR_error_string(ERR_get_error(), nullptr));
+						TH_ERROR("SSL_CTX_use_certificate_file(): %s", ERR_error_string(ERR_get_error(), nullptr));
 						return false;
 					}
 
 					if (SSL_CTX_use_PrivateKey_file(It.second.Context, It.second.Key.c_str(), SSL_FILETYPE_PEM) <= 0)
 					{
-						THAWK_ERROR("SSL_CTX_use_PrivateKey_file(): %s", ERR_error_string(ERR_get_error(), nullptr));
+						TH_ERROR("SSL_CTX_use_PrivateKey_file(): %s", ERR_error_string(ERR_get_error(), nullptr));
 						return false;
 					}
 
 					if (!SSL_CTX_check_private_key(It.second.Context))
 					{
-						THAWK_ERROR("SSL_CTX_check_private_key(): %s", ERR_error_string(ERR_get_error(), nullptr));
+						TH_ERROR("SSL_CTX_check_private_key(): %s", ERR_error_string(ERR_get_error(), nullptr));
 						return false;
 					}
 
@@ -1549,7 +1549,7 @@ namespace Tomahawk
 				{
 					if (SSL_CTX_set_cipher_list(It.second.Context, It.second.Ciphers.c_str()) != 1)
 					{
-						THAWK_ERROR("SSL_CTX_set_cipher_list(): %s", ERR_error_string(ERR_get_error(), nullptr));
+						TH_ERROR("SSL_CTX_set_cipher_list(): %s", ERR_error_string(ERR_get_error(), nullptr));
 						return false;
 					}
 				}
@@ -1725,7 +1725,7 @@ namespace Tomahawk
 			if (!Fd || Fd->Secure(Context) == -1)
 				return false;
 
-#ifdef THAWK_HAS_OPENSSL
+#ifdef TH_HAS_OPENSSL
 			int Result = SSL_set_fd(Fd->GetDevice(), (int)Fd->GetFd());
 			if (Result != 1)
 				return false;
@@ -1885,7 +1885,7 @@ namespace Tomahawk
 				OnClose();
 			}
 
-#ifdef THAWK_HAS_OPENSSL
+#ifdef TH_HAS_OPENSSL
 			if (Context != nullptr)
 			{
 				SSL_CTX_free(Context);
@@ -1928,7 +1928,7 @@ namespace Tomahawk
 			Stream.SetBlocking(false);
 			Stream.SetAsyncTimeout(Timeout);
 
-#ifdef THAWK_HAS_OPENSSL
+#ifdef TH_HAS_OPENSSL
 			if (Hostname.Secure)
 			{
 				Stage("socket ssl handshake");
@@ -1970,7 +1970,7 @@ namespace Tomahawk
 		}
 		bool SocketClient::Certify()
 		{
-#ifdef THAWK_HAS_OPENSSL
+#ifdef TH_HAS_OPENSSL
 			Stage("ssl handshake");
 			if (Stream.GetDevice() || !Context)
 				return Error("client does not use ssl");
@@ -2026,7 +2026,7 @@ namespace Tomahawk
 			int Size = vsnprintf(Buffer, sizeof(Buffer), Format, Args);
 					va_end(Args);
 
-			THAWK_ERROR("%.*s (at %s)", Size, Buffer, Action.empty() ? "request" : Action.c_str());
+			TH_ERROR("%.*s (at %s)", Size, Buffer, Action.empty() ? "request" : Action.c_str());
 			Stream.Close(true);
 
 			return !Success(-1);

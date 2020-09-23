@@ -2,22 +2,23 @@
 #include "../network/bson.h"
 #include <cctype>
 #include <ctime>
+#include <thread>
 #include <functional>
 #include <iostream>
 #include <csignal>
 #include <sys/stat.h>
 #include <rapidxml.hpp>
 #include <tinyfiledialogs.h>
-#ifdef THAWK_MICROSOFT
+#ifdef TH_MICROSOFT
 #include <Windows.h>
 #include <io.h>
-#elif defined THAWK_UNIX
+#elif defined TH_UNIX
 #include <string.h>
 #include <unistd.h>
 #include <dirent.h>
 #include <sys/types.h>
 #include <sys/wait.h>
-#ifndef THAWK_APPLE
+#ifndef TH_APPLE
 #include <sys/sendfile.h>
 #else
 #include <sys/types.h>
@@ -27,10 +28,10 @@
 #include <stdio.h>
 #include <fcntl.h>
 #endif
-#ifdef THAWK_HAS_SDL2
+#ifdef TH_HAS_SDL2
 #include <SDL2/SDL.h>
 #endif
-#ifdef THAWK_HAS_ZLIB
+#ifdef TH_HAS_ZLIB
 extern "C"
 {
 #include <zlib.h>
@@ -46,7 +47,7 @@ namespace Tomahawk
 {
 	namespace Rest
 	{
-#ifdef THAWK_MICROSOFT
+#ifdef TH_MICROSOFT
 		BOOL WINAPI ConsoleEventHandler(DWORD Event)
 		{
 			switch (Event)
@@ -538,12 +539,12 @@ namespace Tomahawk
 		std::string DateTime::GetGMTBasedString(int64_t TimeStamp)
 		{
 			auto Time = (time_t)TimeStamp;
-			struct tm GTMTimeStamp{ };
+			struct tm GTMTimeStamp { };
 
-#ifdef THAWK_MICROSOFT
+#ifdef TH_MICROSOFT
 			if (gmtime_s(&GTMTimeStamp, &Time) != 0)
-#elif defined(THAWK_UNIX)
-				if (gmtime_r(&Time, &GTMTimeStamp) == nullptr)
+#elif defined(TH_UNIX)
+			if (gmtime_r(&Time, &GTMTimeStamp) == nullptr)
 #endif
 				return "Thu, 01 Jan 1970 00:00:00 GMT";
 
@@ -557,92 +558,92 @@ namespace Tomahawk
 				return false;
 
 			auto TimeStamp = (time_t)Time;
-			struct tm Date{ };
+			struct tm Date { };
 
 #if defined(_WIN32_CE)
-																																	static const int DaysPerMonth[] = { 31, 28, 31, 30, 31, 30, 31, 31, 30, 31, 30, 31 };
+			static const int DaysPerMonth[] = { 31, 28, 31, 30, 31, 30, 31, 31, 30, 31, 30, 31 };
 
-            FILETIME FileTime;
-            *(int64_t)&FileTime = ((int64_t)*clk) * RATE_DIFF * EPOCH_DIFF;
+			FILETIME FileTime;
+			*(int64_t)&FileTime = ((int64_t)*clk) * RATE_DIFF * EPOCH_DIFF;
 
-            SYSTEMTIME SystemTime;
-            FileTimeToSystemTime(&FileTime, &SystemTime);
+			SYSTEMTIME SystemTime;
+			FileTimeToSystemTime(&FileTime, &SystemTime);
 
-            Date.tm_year = SystemTime.wYear - 1900;
-            Date.tm_mon = SystemTime.wMonth - 1;
-            Date.tm_wday = SystemTime.wDayOfWeek;
-            Date.tm_mday = SystemTime.wDay;
-            Date.tm_hour = SystemTime.wHour;
-            Date.tm_min = SystemTime.wMinute;
-            Date.tm_sec = SystemTime.wSecond;
-            Date.tm_isdst = false;
+			Date.tm_year = SystemTime.wYear - 1900;
+			Date.tm_mon = SystemTime.wMonth - 1;
+			Date.tm_wday = SystemTime.wDayOfWeek;
+			Date.tm_mday = SystemTime.wDay;
+			Date.tm_hour = SystemTime.wHour;
+			Date.tm_min = SystemTime.wMinute;
+			Date.tm_sec = SystemTime.wSecond;
+			Date.tm_isdst = false;
 
-            int Day = Date.tm_mday;
-            for (int i = 0; i < Date.tm_mon; i++)
-                Day += DaysPerMonth[i];
+			int Day = Date.tm_mday;
+			for (int i = 0; i < Date.tm_mon; i++)
+				Day += DaysPerMonth[i];
 
-            if (Date.tm_mon >= 2 && LEAP_YEAR(Date.tm_year + 1900))
-                Day++;
+			if (Date.tm_mon >= 2 && LEAP_YEAR(Date.tm_year + 1900))
+				Day++;
 
-            Date.tm_yday = Day;
-            strftime(Buffer, Length, "%a, %d %b %Y %H:%M:%S GMT", &Date);
-#elif defined(THAWK_MICROSOFT)
+			Date.tm_yday = Day;
+			strftime(Buffer, Length, "%a, %d %b %Y %H:%M:%S GMT", &Date);
+#elif defined(TH_MICROSOFT)
 			if (gmtime_s(&Date, &TimeStamp) != 0)
 				strncpy(Buffer, "Thu, 01 Jan 1970 00:00:00 GMT", (size_t)Length);
 			else
 				strftime(Buffer, (size_t)Length, "%a, %d %b %Y %H:%M:%S GMT", &Date);
 #else
-																																	if (gmtime_r(&TimeStamp, &Date) == nullptr)
-                strncpy(Buffer, "Thu, 01 Jan 1970 00:00:00 GMT", Length);
-            else
-                strftime(Buffer, Length, "%a, %d %b %Y %H:%M:%S GMT", &Date);
+			if (gmtime_r(&TimeStamp, &Date) == nullptr)
+				strncpy(Buffer, "Thu, 01 Jan 1970 00:00:00 GMT", Length);
+			else
+				strftime(Buffer, Length, "%a, %d %b %Y %H:%M:%S GMT", &Date);
 #endif
 			return true;
 		}
 		bool DateTime::TimeFormatLCL(char* Buffer, uint64_t Length, int64_t Time)
 		{
 			auto TimeStamp = (time_t)Time;
-			struct tm Date{ };
+			struct tm Date { };
 
 #if defined(_WIN32_WCE)
-																																	static const int DaysPerMonth[] = { 31, 28, 31, 30, 31, 30, 31, 31, 30, 31, 30, 31 };
+			static const int DaysPerMonth[] = { 31, 28, 31, 30, 31, 30, 31, 31, 30, 31, 30, 31 };
 
-            FILETIME FileTime, LocalFileTime;
-            *(int64_t)&FileTime = ((int64_t)*clk) * RATE_DIFF * EPOCH_DIFF;
-            FileTimeToLocalFileTime(&FileTime, &LocalFileTime);
+			FILETIME FileTime, LocalFileTime;
+			*(int64_t)&FileTime = ((int64_t)*clk) * RATE_DIFF * EPOCH_DIFF;
+			FileTimeToLocalFileTime(&FileTime, &LocalFileTime);
 
-            SYSTEMTIME SystemTime;
-            FileTimeToSystemTime(&LocalFileTime, &SystemTime);
+			SYSTEMTIME SystemTime;
+			FileTimeToSystemTime(&LocalFileTime, &SystemTime);
 
-            TIME_ZONE_INFORMATION TimeZone;
-            Date.tm_year = st.wYear - 1900;
-            Date.tm_mon = st.wMonth - 1;
-            Date.tm_wday = st.wDayOfWeek;
-            Date.tm_mday = st.wDay;
-            Date.tm_hour = st.wHour;
-            Date.tm_min = st.wMinute;
-            Date.tm_sec = st.wSecond;
-            Date.tm_isdst = (GetTimeZoneInformation(&TimeZone) == TIME_ZONE_ID_DAYLIGHT) ? 1 : 0;
+			TIME_ZONE_INFORMATION TimeZone;
+			Date.tm_year = st.wYear - 1900;
+			Date.tm_mon = st.wMonth - 1;
+			Date.tm_wday = st.wDayOfWeek;
+			Date.tm_mday = st.wDay;
+			Date.tm_hour = st.wHour;
+			Date.tm_min = st.wMinute;
+			Date.tm_sec = st.wSecond;
+			Date.tm_isdst = (GetTimeZoneInformation(&TimeZone) == TIME_ZONE_ID_DAYLIGHT) ? 1 : 0;
 
-            int Day = Date.tm_mday;
-            for (int i = 0; i < Date.tm_mon; i++)
-                Day += DaysPerMonth[i];
+			int Day = Date.tm_mday;
+			for (int i = 0; i < Date.tm_mon; i++)
+				Day += DaysPerMonth[i];
 
-            if (Date.tm_mon >= 2 && LEAP_YEAR(Date.tm_year + 1900))
-                Day++;
+			if (Date.tm_mon >= 2 && LEAP_YEAR(Date.tm_year + 1900))
+				Day++;
 
-            Date.tm_yday = doy;
-            strftime(Buffer, Length, "%d-%b-%Y %H:%M", &Date);
+			Date.tm_yday = doy;
+			strftime(Buffer, Length, "%d-%b-%Y %H:%M", &Date);
 #elif defined(_WIN32)
 			if (localtime_s(&Date, &TimeStamp) != 0)
 				strncpy(Buffer, "01-Jan-1970 00:00", (size_t)Length);
 			else
 				strftime(Buffer, (size_t)Length, "%d-%b-%Y %H:%M", &Date);
 #else
-																																	if (localtime_r(&TimeStamp, &Date) == nullptr)
-                strncpy(Buffer, "01-Jan-1970 00:00", Length);
-            else
-                strftime(Buffer, Length, "%d-%b-%Y %H:%M", &Date);
+			if (localtime_r(&TimeStamp, &Date) == nullptr)
+				strncpy(Buffer, "01-Jan-1970 00:00", Length);
+			else
+				strftime(Buffer, Length, "%d-%b-%Y %H:%M", &Date);
 #endif
 			return true;
 		}
@@ -663,7 +664,7 @@ namespace Tomahawk
 				if (strcmp(Name, MonthNames[i]) != 0)
 					continue;
 
-				struct tm Time{ };
+				struct tm Time { };
 				Time.tm_year = Year - 1900;
 				Time.tm_mon = (int)i;
 				Time.tm_mday = Day;
@@ -671,7 +672,7 @@ namespace Tomahawk
 				Time.tm_min = Minute;
 				Time.tm_sec = Second;
 
-#ifdef THAWK_MICROSOFT
+#ifdef TH_MICROSOFT
 				return _mkgmtime(&Time);
 #else
 				return mktime(&Time);
@@ -1242,9 +1243,9 @@ namespace Tomahawk
 
 			char Buffer[16384];
 			va_list Args;
-					va_start(Args, Format);
+			va_start(Args, Format);
 			int Count = vsnprintf(Buffer, sizeof(Buffer), Format, Args);
-					va_end(Args);
+			va_end(Args);
 
 			return Append(Buffer, Count);
 		}
@@ -1670,7 +1671,7 @@ namespace Tomahawk
 			do
 			{
 				Result = tolower(*(const unsigned char*)(Value1++)) - tolower(*(const unsigned char*)(Value2++));
-			}while (Result == 0 && Value1[-1] != '\0');
+			} while (Result == 0 && Value1[-1] != '\0');
 
 			return Result;
 		}
@@ -1718,7 +1719,7 @@ namespace Tomahawk
 					do
 					{
 						Result = Match(Pattern + i, Length - i, Text + j + Offset);
-					}while (Result == -1 && Offset-- > 0);
+					} while (Result == -1 && Offset-- > 0);
 
 					return (Result == -1) ? -1 : j + Result + Offset;
 				}
@@ -1934,46 +1935,457 @@ namespace Tomahawk
 			return *this;
 		}
 
-		void LT::AddRef(Object* Value)
+		SpinLock::SpinLock()
 		{
-			if (Value != nullptr)
-				Value->AddRef();
 		}
-		void LT::SetFlag(Object* Value)
+		void SpinLock::Acquire()
 		{
-			if (Value != nullptr)
-				Value->SetFlag();
+			while (Atom.test_and_set(std::memory_order_acquire))
+				std::this_thread::yield();
 		}
-		bool LT::GetFlag(Object* Value)
+		void SpinLock::Release()
 		{
-			return Value ? Value->GetFlag() : false;
+			Atom.clear(std::memory_order_release);
 		}
-		int LT::GetRefCount(Object* Value)
+
+		void Mem::Create(size_t InitialSize)
 		{
-			return Value ? Value->GetRefCount() : 1;
+			if (!InitialSize)
+				return;
+
+			if (!Mutex)
+				Mutex = new std::mutex();
+#if !defined(NDEBUG) && !defined(TH_TRACKLESS)
+			if (!Blocks)
+				Blocks = new std::unordered_map<void*, MemoryInfo>();
+#endif
+			Heap = (MemoryPage*)malloc(InitialSize);
+			if (Heap != nullptr)
+			{
+				Heap->Size = InitialSize - HeadSize;
+				Heap->Allocated = false;
+				HeapSize = InitialSize;
+			}
+			else
+				TH_ERROR("[memerr] couldn't allocate page of size %llu", (uint64_t)InitialSize);
 		}
-		void LT::Release(Object* Value)
+		void Mem::Release()
 		{
-			if (Value != nullptr)
-				Value->Release();
+			if (Mutex != nullptr)
+				Mutex->lock();
+
+			HeapSize = 0;
+			if (Heap != nullptr)
+			{
+				free(Heap);
+				Heap = nullptr;
+			}
+#if !defined(NDEBUG) && !defined(TH_TRACKLESS)
+			if (Blocks != nullptr)
+			{
+				delete Blocks;
+				Blocks = nullptr;
+			}
+#endif
+			if (Mutex != nullptr)
+			{
+				Mutex->unlock();
+				delete Mutex;
+				Mutex = nullptr;
+			}
 		}
-		void LT::AttachCallback(const std::function<void(const char*, int)>& _Callback)
+		void* Mem::Malloc(size_t Size)
+		{
+			if (!Heap)
+			{
+#if !defined(NDEBUG) && !defined(TH_TRACKLESS)
+				void* Result = malloc(Size);
+				if (!Mutex)
+					Mutex = new std::mutex();
+
+				if (!Blocks)
+					Blocks = new std::unordered_map<void*, MemoryInfo>();
+
+				Mutex->lock();
+				Blocks->insert({ Result, { BlockCount++, Size } });
+				Mutex->unlock();
+
+				return Result;
+#else
+				return malloc(Size);
+#endif
+			}
+
+			Atom.Acquire();
+			MemoryPage* Result = FindFirstPage(Size);
+			if (!Result)
+			{
+				Atom.Release();
+				TH_ERROR("[memerr] out of memory");
+				return nullptr;
+			}
+
+			SplitPage(Result, Size);
+			Result->Allocated = true;
+#if !defined(NDEBUG) && !defined(TH_TRACKLESS)
+			void* Data = (void*)&(Result->Data);
+
+			Mutex->lock();
+			Blocks->insert({ Data, { BlockCount++, Size } });
+			Mutex->unlock();
+
+			Atom.Release();
+			return Data;
+#else
+			Atom.Release();
+			return (void*)&(Result->Data);
+#endif
+		}
+		void* Mem::Realloc(void* Ptr, size_t Size)
+		{
+			if (!Ptr)
+				return Malloc(Size);
+
+			if (!Heap)
+			{
+#if !defined(NDEBUG) && !defined(TH_TRACKLESS)
+				void* Result = realloc(Ptr, Size);
+				if (!Mutex)
+					Mutex = new std::mutex();
+
+				if (!Blocks)
+					Blocks = new std::unordered_map<void*, MemoryInfo>();
+
+				Mutex->lock();
+				auto It = Blocks->find(Ptr);
+				if (It != Blocks->end())
+					Blocks->erase(It);
+
+				Blocks->insert({ Result, { BlockCount++, Size } });
+				Mutex->unlock();
+
+				return Result;
+#else
+				return realloc(Ptr, Size);
+#endif
+			}
+
+			Atom.Acquire();
+			MemoryPage* Block = (MemoryPage*)(static_cast<char*>(Ptr) - HeadSize);
+			uint64_t BlockSize = Block->Size;
+
+			Block->Allocated = false;
+			ConcatSequentialPages(Block, Block->Allocated);
+			Block->Allocated = true;
+
+			if (Block->Size >= Size)
+			{
+				SplitPage(Block, Size);
+				Block->Allocated = true;
+				Atom.Release();
+				return (void*)&(Block->Data);
+			}
+
+			SplitPage(Block, BlockSize);
+			Block->Allocated = true;
+
+			MemoryPage* NewBlock = FindFirstPage(Size);
+			if (!NewBlock)
+			{
+				Atom.Release();
+				TH_ERROR("[memerr] out of memory");
+				return nullptr;
+			}
+
+			SplitPage(NewBlock, Size);
+			NewBlock->Allocated = true;
+			Block->Allocated = false;
+#if !defined(NDEBUG) && !defined(TH_TRACKLESS)
+			void* Data1 = (void*)&(Block->Data);
+			void* Data2 = (void*)&(NewBlock->Data);
+			memcpy(Data2, Data1, Block->Size);
+
+			Mutex->lock();
+			auto It = Blocks->find(Data1);
+			if (It != Blocks->end())
+				Blocks->erase(It);
+
+			Blocks->insert({ Data2, { BlockCount++, Size } });
+			Mutex->unlock();
+			Atom.Release();
+
+			return Data2;
+#else
+			memcpy(&(NewBlock->Data), &(Block->Data), Block->Size);
+			Atom.Release();
+			return (void*)&(NewBlock->Data);
+#endif
+		}
+		void Mem::Free(void* Ptr)
+		{
+			if (!Ptr)
+				return;
+
+			if (!Heap)
+			{
+#if !defined(NDEBUG) && !defined(TH_TRACKLESS)
+				if (!Blocks || !Mutex)
+				{
+					TH_ERROR("[segfault] object at 0x%p is suspended", Ptr);
+					return Interrupt();
+				}
+
+				Mutex->lock();
+				auto It = Blocks->find(Ptr);
+				if (It == Blocks->end())
+				{
+					Mutex->unlock();
+					TH_ERROR("[segfault] object at 0x%p is suspended", Ptr);
+					return Interrupt();
+				}
+
+				BlockCount--;
+				Blocks->erase(It);
+				if (Blocks->empty())
+				{
+					delete Blocks;
+					Blocks = nullptr;
+				}
+				
+				Mutex->unlock();
+				if (!Blocks)
+				{
+					delete Mutex;
+					Mutex = nullptr;
+				}
+#endif
+				return free(Ptr);
+			}
+
+			Atom.Acquire();
+			MemoryPage* Block = (MemoryPage*)(static_cast<char*>(Ptr) - HeadSize);
+			Block->Allocated = false;
+#if !defined(NDEBUG) && !defined(TH_TRACKLESS)
+			Mutex->lock();
+			auto It = Blocks->find(Ptr);
+			if (It == Blocks->end())
+			{
+				Mutex->unlock();
+				Atom.Release();
+				TH_ERROR("[segfault] object at 0x%p is suspended", Ptr);
+				return Interrupt();
+			}
+
+			BlockCount--;
+			Blocks->erase(It);
+			Mutex->unlock();
+			Atom.Release();
+#else
+			Atom.Release();
+#endif
+		}
+		void* Mem::GetPtr(void* Ptr)
+		{
+#if !defined(NDEBUG) && !defined(TH_TRACKLESS)
+			if (!Blocks)
+				return nullptr;
+
+			auto It = Blocks->find((Object*)Ptr);
+			if (It == Blocks->end())
+				return nullptr;
+
+			return It->first;
+#else
+			return (Object*)Ptr;
+#endif
+		}
+		uint64_t Mem::GetSize(void* Ptr)
+		{
+#if !defined(NDEBUG) && !defined(TH_TRACKLESS)
+			if (!Blocks)
+				return 0;
+
+			auto It = Blocks->find((Object*)Ptr);
+			if (It == Blocks->end())
+				return 0;
+
+			return It->second.Size;
+#else
+			return 0;
+#endif
+		}
+		uint64_t Mem::GetCount()
+		{
+#if !defined(NDEBUG) && !defined(TH_TRACKLESS)
+			if (!Blocks || !Mutex)
+				return 0;
+
+			Mutex->lock();
+			uint64_t Count = (uint64_t)Blocks->size();
+			Mutex->unlock();
+
+			return Count;
+#else
+			return 0;
+#endif
+		}
+		uint64_t Mem::GetUsedMemory()
+		{
+#if !defined(NDEBUG) && !defined(TH_TRACKLESS)
+			if (!Blocks || !Mutex)
+				return 0;
+
+			Mutex->lock();
+			uint64_t Size = 0;
+			for (auto& Item : *Blocks)
+				Size += Item.second.Size;
+			Mutex->unlock();
+
+			return Size;
+#else
+			return 0;
+#endif
+		}
+		uint64_t Mem::GetAvailableMemory()
+		{
+#if !defined(NDEBUG) && !defined(TH_TRACKLESS)
+			if (!Blocks || !Mutex)
+				return 0;
+
+			Mutex->lock();
+			uint64_t Size = 0;
+			for (auto& Item : *Blocks)
+				Size += Item.second.Size;
+			Mutex->unlock();
+
+			return HeapSize - Size;
+#else
+			return HeapSize;
+#endif
+		}
+		uint64_t Mem::GetTotalMemory()
+		{
+			return HeapSize;
+		}
+		void Mem::Report()
+		{
+#if !defined(NDEBUG) && !defined(TH_TRACKLESS)
+			uint64_t Size = 0;
+			if (!Blocks || !Mutex || Blocks->empty())
+				return;
+
+			Mutex->lock();
+			for (auto& Item : *Blocks)
+			{
+				TH_WARN("[memerr] object #%llu of size %llu at 0x%p", Item.second.Alloc, Item.second.Size, Item.first);
+				Size += Item.second.Size;
+			}
+
+			TH_WARN("[memerr] at least %llu bytes of memory in %i blocks were not released", Size, (int)Blocks->size());
+			Mutex->unlock();
+			Interrupt();
+#endif
+		}
+		void Mem::Interrupt()
+		{
+#ifndef NDEBUG
+#ifndef TH_MICROSOFT
+#ifndef SIGTRAP
+			__debugbreak();
+#else
+			raise(SIGTRAP);
+#endif
+#else
+			if (!IsDebuggerPresent())
+				TH_ERROR("[dbg] cannot interrupt");
+			else
+				DebugBreak();
+#endif
+			TH_INFO("[dbg] process interruption called");
+#endif
+		}
+		void Mem::ConcatSequentialPages(MemoryPage* Block, bool IsAllocated)
+		{
+			MemoryPage* Next = nullptr;
+			while ((Next = (MemoryPage*)((char*)Block + Block->Size + HeadSize)))
+			{
+				if (!((char*)Next + HeadSize < (char*)Heap + HeapSize && (char*)Next + HeadSize >= (char*)Heap) || Next->Allocated != IsAllocated)
+					break;
+
+				Block->Size += Next->Size + HeadSize;
+			}
+		}
+		Mem::MemoryPage* Mem::FindFirstPage(uint64_t MinSize)
+		{
+			static MemoryPage* Offset = nullptr;
+			bool Repeated = false;
+
+		Iterate:
+			if (!Offset)
+				Offset = Heap;
+
+			while ((char*)Offset + sizeof(MemoryPage) < (char*)Heap + HeapSize && (char*)Offset + sizeof(MemoryPage) >= (char*)Heap)
+			{
+				if (!Offset->Allocated)
+				{
+					ConcatSequentialPages(Offset, false);
+					if (Offset->Size >= MinSize)
+						return Offset;
+				}
+
+				Offset = (MemoryPage*)((char*)Offset + Offset->Size + HeadSize);
+			}
+
+			Offset = nullptr;
+			if (Repeated)
+				return nullptr;
+
+			Repeated = true;
+			goto Iterate;
+		}
+		void Mem::SplitPage(MemoryPage* Block, uint64_t Size)
+		{
+			MemoryPage* Next = (MemoryPage*)((char*)Block + Size + HeadSize);
+			MemoryPage* Base = (MemoryPage*)((char*)Block + Block->Size + HeadSize);
+			uint64_t BlockSize = Block->Size;
+
+			Block->Allocated = false;
+			if (!((char*)Next + HeadSize < (char*)Base && (char*)Next + HeadSize >= 0))
+				return;
+
+			if (!((char*)Next + sizeof(MemoryPage) < (char*)Heap + HeapSize && (char*)Next + sizeof(MemoryPage) >= (char*)Heap))
+				return;
+
+			Block->Size = Size;
+			Next->Size = BlockSize - (Size + HeadSize);
+			Next->Allocated = false;
+		}
+		Mem::MemoryPage* Mem::Heap = nullptr;
+		SpinLock Mem::Atom;
+		uint64_t Mem::HeadSize = offsetof(Mem::MemoryPage, Data);
+		uint64_t Mem::HeapSize = 0;
+		std::mutex* Mem::Mutex = nullptr;
+#ifndef NDEBUG
+		std::unordered_map<void*, Mem::MemoryInfo>* Mem::Blocks = nullptr;
+		uint64_t Mem::BlockCount = 0;
+#endif
+		void Debug::AttachCallback(const std::function<void(const char*, int)>& _Callback)
 		{
 			Callback = _Callback;
 		}
-		void LT::AttachStream()
+		void Debug::AttachStream()
 		{
 			Enabled = true;
 		}
-		void LT::DetachCallback()
+		void Debug::DetachCallback()
 		{
 			Callback = nullptr;
 		}
-		void LT::DetachStream()
+		void Debug::DetachStream()
 		{
 			Enabled = false;
 		}
-		void LT::Log(int Level, int Line, const char* Source, const char* Format, ...)
+		void Debug::Log(int Level, int Line, const char* Source, const char* Format, ...)
 		{
 			if (!Source || !Format || (!Enabled && !Callback))
 				return;
@@ -1985,31 +2397,31 @@ namespace Tomahawk
 			if (Line < 0)
 				Line = 0;
 
-#if defined(THAWK_MICROSOFT)
+#if defined(TH_MICROSOFT)
 			if (gmtime_s(&DateTime, &TimeStamp) != 0)
-#elif defined(THAWK_UNIX)
+#elif defined(TH_UNIX)
 			if (gmtime_r(&TimeStamp, &DateTime) == 0)
 #else
-            if (true)
+			if (true)
 #endif
 				strncpy(Date, "01-01-1970 00:00:00", sizeof(Date));
 			else
-                strftime(Date, sizeof(Date), "%Y-%m-%d %H:%M:%S", &DateTime);
+				strftime(Date, sizeof(Date), "%Y-%m-%d %H:%M:%S", &DateTime);
 
 			char Buffer[8192];
 			if (Level == 1)
 			{
 				int ErrorCode = OS::GetError();
-#ifdef THAWK_MICROSOFT
+#ifdef TH_MICROSOFT
 				if (ErrorCode != ERROR_SUCCESS)
 					snprintf(Buffer, sizeof(Buffer), "%s %s:%d [err] %s\n\tsystem: %s\n", Date, Source, Line, Format, OS::GetErrorName(ErrorCode).c_str());
 				else
 					snprintf(Buffer, sizeof(Buffer), "%s %s:%d [err] %s\n", Date, Source, Line, Format);
 #else
-																																		if (ErrorCode > 0)
-                    snprintf(Buffer, sizeof(Buffer), "%s %s:%d [err] %s\n\tsystem: %s\n", Date, Source, Line, Format, OS::GetErrorName(ErrorCode).c_str());
-                else
-                    snprintf(Buffer, sizeof(Buffer), "%s %s:%d [err] %s\n", Date, Source, Line, Format);
+				if (ErrorCode > 0)
+					snprintf(Buffer, sizeof(Buffer), "%s %s:%d [err] %s\n\tsystem: %s\n", Date, Source, Line, Format, OS::GetErrorName(ErrorCode).c_str());
+				else
+					snprintf(Buffer, sizeof(Buffer), "%s %s:%d [err] %s\n", Date, Source, Line, Format);
 #endif
 			}
 			else if (Level == 2)
@@ -2027,7 +2439,7 @@ namespace Tomahawk
 
 			if (Enabled)
 			{
-#if defined(THAWK_MICROSOFT) && defined(_DEBUG)
+#if defined(TH_MICROSOFT) && defined(_DEBUG)
 				OutputDebugStringA(Storage);
 #endif
 				printf("%s", Storage);
@@ -2035,165 +2447,32 @@ namespace Tomahawk
 
 			va_end(Args);
 		}
-		void LT::Free(void* Ptr)
+		std::function<void(const char*, int)> Debug::Callback;
+		bool Debug::Enabled = false;
+
+		void Composer::AddRef(Object* Value)
 		{
-#ifndef NDEBUG
-			if (!Objects || !Safe)
-			{
-				THAWK_ERROR("[segfault] object at 0x%p is suspended", Ptr);
-				return Interrupt();
-			}
-
-			Safe->lock();
-			auto It = Objects->find((Object*)Ptr);
-			if (It == Objects->end())
-			{
-				Safe->unlock();
-				THAWK_ERROR("[segfault] object at 0x%p is suspended", Ptr);	
-				return Interrupt();
-			}
-
-			Object* Ref = (Object*)Ptr;
-			if (Ref != nullptr && --Ref->__vcnt > 0)
-				return Safe->unlock();
-
-			Memory -= It->second;
-			Objects->erase(It);
-
-			if (Objects->empty())
-			{
-				delete Objects;
-				Objects = nullptr;
-			}
-
-			Safe->unlock();
-			if (!Objects)
-			{
-				delete Safe;
-				Safe = nullptr;
-			}
-#else
-			Object* Ref = (Object*)Ptr;
-			if (Ref != nullptr && --Ref->__vcnt > 0)
-				return;
-#endif
-			free(Ptr);
+			if (Value != nullptr)
+				Value->AddRef();
 		}
-		void* LT::Alloc(uint64_t Size)
+		void Composer::SetFlag(Object* Value)
 		{
-#ifndef NDEBUG
-			if (!Objects)
-				Objects = new std::unordered_map<void*, uint64_t>();
-
-			if (!Safe)
-				Safe = new std::mutex();
-
-			Safe->lock();
-			void* Ptr = malloc((size_t)Size);
-			Objects->insert({ Ptr, Size });
-			Safe->unlock();
-
-			return Ptr;
-#else
-			return malloc((size_t)Size);
-#endif
+			if (Value != nullptr)
+				Value->SetFlag();
 		}
-		void* LT::GetPtr(void* Ptr)
+		bool Composer::GetFlag(Object* Value)
 		{
-#ifndef NDEBUG
-			if (!Objects)
-				return nullptr;
-
-			auto It = Objects->find((Object*)Ptr);
-			if (It == Objects->end())
-				return nullptr;
-
-			return It->first;
-#else
-			return (Object*)Ptr;
-#endif
+			return Value ? Value->GetFlag() : false;
 		}
-		uint64_t LT::GetSize(void* Ptr)
+		int Composer::GetRefCount(Object* Value)
 		{
-#ifndef NDEBUG
-			if (!Objects)
-				return 0;
-
-			auto It = Objects->find((Object*)Ptr);
-			if (It == Objects->end())
-				return 0;
-
-			return It->second;
-#else
-			return 0;
-#endif
+			return Value ? Value->GetRefCount() : 1;
 		}
-		uint64_t LT::GetCount()
+		void Composer::Release(Object* Value)
 		{
-#ifndef NDEBUG
-			if (!Objects || !Safe)
-				return 0;
-
-			Safe->lock();
-			uint64_t Count = (uint64_t)Objects->size();
-			Safe->unlock();
-
-			return Count;
-#else
-			return 0;
-#endif
+			if (Value != nullptr)
+				Value->Release();
 		}
-		uint64_t LT::GetMemory()
-		{
-#ifndef NDEBUG
-			return Memory;
-#else
-			return 0;
-#endif
-		}
-		void LT::Report()
-		{
-#ifndef NDEBUG
-			if (!Objects || !Safe || Objects->empty())
-				return;
-
-			Safe->lock();
-			uint64_t Size = 0;
-			for (auto& Item : *Objects)
-			{
-				THAWK_WARN("[memerr] object of size %llu at 0x%p", Item.second, Item.first);
-				Size += Item.second;
-			}
-			THAWK_WARN("[memerr] at least %llu bytes of memory in %i blocks were not released", Size, (int)Objects->size());
-			Safe->unlock();
-			Interrupt();
-#endif
-		}
-		void LT::Interrupt()
-		{
-#ifndef NDEBUG
-#ifndef THAWK_MICROSOFT
-#ifndef SIGTRAP
-			__debugbreak();
-#else
-			raise(SIGTRAP);
-#endif
-#else
-			if (!IsDebuggerPresent())
-				THAWK_ERROR("[dbg] cannot interrupt");
-			else
-				DebugBreak();
-#endif
-			THAWK_INFO("[dbg] process interruption called");
-#endif
-		}
-		std::function<void(const char*, int)> LT::Callback;
-		bool LT::Enabled = false;
-#ifndef NDEBUG
-		std::unordered_map<void*, uint64_t>* LT::Objects = nullptr;
-		std::mutex* LT::Safe = nullptr;
-		uint64_t LT::Memory = 0;
-#endif
 		bool Composer::Clear()
 		{
 			if (!Factory)
@@ -2208,7 +2487,7 @@ namespace Tomahawk
 			if (!Factory)
 				return false;
 
-			auto It = Factory->find(THAWK_COMPONENT_HASH(Hash));
+			auto It = Factory->find(TH_COMPONENT_HASH(Hash));
 			if (It == Factory->end())
 				return false;
 
@@ -2225,16 +2504,18 @@ namespace Tomahawk
 		Object::Object() : __vcnt(1), __vflg(false)
 		{
 		}
-        Object::~Object()
-        {
-        }
+		Object::~Object()
+		{
+		}
 		void Object::operator delete(void* Data)
 		{
-			LT::Free(Data);
+			Object* Ref = (Object*)Data;
+			if (Ref != nullptr && --Ref->__vcnt <= 0)
+				Mem::Free(Data);
 		}
 		void* Object::operator new(size_t Size)
 		{
-			return LT::Alloc((uint64_t)Size);
+			return Mem::Malloc((size_t)Size);
 		}
 		void Object::SetFlag()
 		{
@@ -2272,7 +2553,7 @@ namespace Tomahawk
 			if (Singleton == this)
 				Singleton = nullptr;
 
-#ifdef THAWK_MICROSOFT
+#ifdef TH_MICROSOFT
 			if (!Handle)
 				return;
 
@@ -2282,14 +2563,14 @@ namespace Tomahawk
 		}
 		void Console::Hide()
 		{
-#ifdef THAWK_MICROSOFT
+#ifdef TH_MICROSOFT
 			if (Handle)
 				::ShowWindow(::GetConsoleWindow(), SW_HIDE);
 #endif
 		}
 		void Console::Show()
 		{
-#ifdef THAWK_MICROSOFT
+#ifdef TH_MICROSOFT
 			if (Handle)
 			{
 				::ShowWindow(::GetConsoleWindow(), SW_SHOW);
@@ -2305,13 +2586,13 @@ namespace Tomahawk
 			SetConsoleCtrlHandler(ConsoleEventHandler, true);
 #else
 			if (Handle)
-                return;
+				return;
 #endif
 			Handle = true;
 		}
 		void Console::Clear()
 		{
-#ifdef THAWK_MICROSOFT
+#ifdef TH_MICROSOFT
 			if (!Handle)
 				return;
 
@@ -2325,7 +2606,7 @@ namespace Tomahawk
 			FillConsoleOutputCharacterA((HANDLE)Wnd, ' ', Info.dwSize.X * Info.dwSize.Y, TopLeft, &Written);
 			FillConsoleOutputAttribute((HANDLE)Wnd, FOREGROUND_GREEN | FOREGROUND_RED | FOREGROUND_BLUE, Info.dwSize.X * Info.dwSize.Y, TopLeft, &Written);
 			SetConsoleCursorPosition((HANDLE)Wnd, TopLeft);
-#elif defined THAWK_UNIX
+#elif defined TH_UNIX
 			std::cout << "\033[2J";
 #endif
 		}
@@ -2362,7 +2643,7 @@ namespace Tomahawk
 
 			va_list Args;
 			va_start(Args, Format);
-#ifdef THAWK_MICROSOFT
+#ifdef TH_MICROSOFT
 			_vsnprintf(Buffer, sizeof(Buffer), Format, Args);
 #else
 			vsnprintf(Buffer, sizeof(Buffer), Format, Args);
@@ -2380,7 +2661,7 @@ namespace Tomahawk
 
 			va_list Args;
 			va_start(Args, Format);
-#ifdef THAWK_MICROSOFT
+#ifdef TH_MICROSOFT
 			_vsnprintf(Buffer, sizeof(Buffer), Format, Args);
 #else
 			vsnprintf(Buffer, sizeof(Buffer), Format, Args);
@@ -2416,7 +2697,7 @@ namespace Tomahawk
 
 			va_list Args;
 			va_start(Args, Format);
-#ifdef THAWK_MICROSOFT
+#ifdef TH_MICROSOFT
 			_vsnprintf(Buffer, sizeof(Buffer), Format, Args);
 #else
 			vsnprintf(Buffer, sizeof(Buffer), Format, Args);
@@ -2436,7 +2717,7 @@ namespace Tomahawk
 
 			va_list Args;
 			va_start(Args, Format);
-#ifdef THAWK_MICROSOFT
+#ifdef TH_MICROSOFT
 			_vsnprintf(Buffer, sizeof(Buffer), Format, Args);
 #else
 			vsnprintf(Buffer, sizeof(Buffer), Format, Args);
@@ -2453,16 +2734,16 @@ namespace Tomahawk
 
 			va_list Args;
 			va_start(Args, Format);
-#ifdef THAWK_MICROSOFT
+#ifdef TH_MICROSOFT
 			_vsnprintf(Buffer, sizeof(Buffer), Format, Args);
 			va_end(Args);
 
 			OutputDebugString(Buffer);
-#elif defined THAWK_UNIX
+#elif defined TH_UNIX
 			vsnprintf(Buffer, sizeof(Buffer), Format, Args);
-            va_end(Args);
+			va_end(Args);
 
-            std::cout << Buffer;
+			std::cout << Buffer;
 #endif
 		}
 		double Console::GetCapturedTime()
@@ -2518,7 +2799,7 @@ namespace Tomahawk
 
 		Timer::Timer() : FrameLimit(0), TickCounter(16), TimeIncrement(0.0), CapturedTime(0.0)
 		{
-#ifdef THAWK_MICROSOFT
+#ifdef TH_MICROSOFT
 			Frequency = new LARGE_INTEGER();
 			QueryPerformanceFrequency((LARGE_INTEGER*)Frequency);
 
@@ -2527,21 +2808,21 @@ namespace Tomahawk
 
 			PastTime = new LARGE_INTEGER();
 			QueryPerformanceCounter((LARGE_INTEGER*)PastTime);
-#elif defined THAWK_UNIX
-																																	Frequency = new timespec();
-            clock_gettime(CLOCK_REALTIME, (timespec*)Frequency);
+#elif defined TH_UNIX
+			Frequency = new timespec();
+			clock_gettime(CLOCK_REALTIME, (timespec*)Frequency);
 
-            TimeLimit = new timespec();
-            clock_gettime(CLOCK_REALTIME, (timespec*)TimeLimit);
+			TimeLimit = new timespec();
+			clock_gettime(CLOCK_REALTIME, (timespec*)TimeLimit);
 
-            PastTime = new timespec();
-            clock_gettime(CLOCK_REALTIME, (timespec*)PastTime);
+			PastTime = new timespec();
+			clock_gettime(CLOCK_REALTIME, (timespec*)PastTime);
 #endif
 			SetStepLimitation(60.0f, 10.0f);
 		}
 		Timer::~Timer()
 		{
-#ifdef THAWK_MICROSOFT
+#ifdef TH_MICROSOFT
 			if (PastTime != nullptr)
 				delete (LARGE_INTEGER*)PastTime;
 			PastTime = nullptr;
@@ -2553,17 +2834,17 @@ namespace Tomahawk
 			if (Frequency != nullptr)
 				delete (LARGE_INTEGER*)Frequency;
 			Frequency = nullptr;
-#elif defined THAWK_UNIX
-																																	if (PastTime != nullptr)
-                delete (timespec*)PastTime;
-            PastTime = nullptr;
+#elif defined TH_UNIX
+			if (PastTime != nullptr)
+				delete (timespec*)PastTime;
+			PastTime = nullptr;
 
-            if (TimeLimit != nullptr)
-                delete (timespec*)TimeLimit;
-            TimeLimit = nullptr;
+			if (TimeLimit != nullptr)
+				delete (timespec*)TimeLimit;
+			TimeLimit = nullptr;
 
-            if (Frequency != nullptr)
-                delete (timespec*)Frequency;
+			if (Frequency != nullptr)
+				delete (timespec*)Frequency;
 #endif
 		}
 		double Timer::GetTimeIncrement()
@@ -2580,12 +2861,12 @@ namespace Tomahawk
 		}
 		double Timer::GetElapsedTime()
 		{
-#ifdef THAWK_MICROSOFT
+#ifdef TH_MICROSOFT
 			QueryPerformanceCounter((LARGE_INTEGER*)PastTime);
 			return (((LARGE_INTEGER*)PastTime)->QuadPart - ((LARGE_INTEGER*)TimeLimit)->QuadPart) * 1000.0 / ((LARGE_INTEGER*)Frequency)->QuadPart;
-#elif defined THAWK_UNIX
-																																	clock_gettime(CLOCK_REALTIME, (timespec*)PastTime);
-            return (((timespec*)PastTime)->tv_nsec - ((timespec*)TimeLimit)->tv_nsec) * 1000.0 / ((timespec*)Frequency)->tv_nsec;
+#elif defined TH_UNIX
+			clock_gettime(CLOCK_REALTIME, (timespec*)PastTime);
+			return (((timespec*)PastTime)->tv_nsec - ((timespec*)TimeLimit)->tv_nsec) * 1000.0 / ((timespec*)Frequency)->tv_nsec;
 #endif
 		}
 		double Timer::GetCapturedTime()
@@ -2706,7 +2987,7 @@ namespace Tomahawk
 			if (!File || !Close())
 				return false;
 
-#ifdef THAWK_HAS_ZLIB
+#ifdef TH_HAS_ZLIB
 			Path = OS::Resolve(File).c_str();
 			switch (Mode)
 			{
@@ -2737,7 +3018,7 @@ namespace Tomahawk
 		}
 		bool FileStream::Close()
 		{
-#ifdef THAWK_HAS_ZLIB
+#ifdef TH_HAS_ZLIB
 			if (Compress != nullptr)
 			{
 				gzclose((gzFile)Compress);
@@ -2757,7 +3038,7 @@ namespace Tomahawk
 			switch (Mode)
 			{
 				case FileSeek_Begin:
-#ifdef THAWK_HAS_ZLIB
+#ifdef TH_HAS_ZLIB
 					if (Compress != nullptr)
 						return gzseek((gzFile)Compress, (long)Offset, SEEK_SET) == 0;
 #endif
@@ -2765,7 +3046,7 @@ namespace Tomahawk
 						return fseek(Buffer, (long)Offset, SEEK_SET) == 0;
 					break;
 				case FileSeek_Current:
-#ifdef THAWK_HAS_ZLIB
+#ifdef TH_HAS_ZLIB
 					if (Compress != nullptr)
 						return gzseek((gzFile)Compress, (long)Offset, SEEK_CUR) == 0;
 #endif
@@ -2773,7 +3054,7 @@ namespace Tomahawk
 						return fseek(Buffer, (long)Offset, SEEK_CUR) == 0;
 					break;
 				case FileSeek_End:
-#ifdef THAWK_HAS_ZLIB
+#ifdef TH_HAS_ZLIB
 					if (Compress != nullptr)
 						return gzseek((gzFile)Compress, (long)Offset, SEEK_END) == 0;
 #endif
@@ -2786,7 +3067,7 @@ namespace Tomahawk
 		}
 		bool FileStream::Move(int64_t Offset)
 		{
-#ifdef THAWK_HAS_ZLIB
+#ifdef TH_HAS_ZLIB
 			if (Compress != nullptr)
 				return gzseek((gzFile)Compress, (long)Offset, SEEK_CUR) == 0;
 #endif
@@ -2797,13 +3078,13 @@ namespace Tomahawk
 		}
 		int FileStream::Error()
 		{
-#ifdef THAWK_HAS_ZLIB
+#ifdef TH_HAS_ZLIB
 			if (Compress != nullptr)
 			{
 				int Error;
 				const char* M = gzerror((gzFile)Compress, &Error);
 				if (M != nullptr && M[0] != '\0')
-					THAWK_ERROR("gz stream error -> %s", M);
+					TH_ERROR("gz stream error -> %s", M);
 
 				return Error;
 			}
@@ -2825,7 +3106,7 @@ namespace Tomahawk
 			if (!Buffer)
 				return -1;
 
-#ifdef THAWK_MICROSOFT
+#ifdef TH_MICROSOFT
 			return _fileno(Buffer);
 #else
 			return fileno(Buffer);
@@ -2833,7 +3114,7 @@ namespace Tomahawk
 		}
 		unsigned char FileStream::Get()
 		{
-#ifdef THAWK_HAS_ZLIB
+#ifdef TH_HAS_ZLIB
 			if (Compress != nullptr)
 				return (unsigned char)gzgetc((gzFile)Compress);
 #endif
@@ -2844,7 +3125,7 @@ namespace Tomahawk
 		}
 		unsigned char FileStream::Put(unsigned char Value)
 		{
-#ifdef THAWK_HAS_ZLIB
+#ifdef TH_HAS_ZLIB
 			if (Compress != nullptr)
 				return (unsigned char)gzputc((gzFile)Compress, Value);
 #endif
@@ -2855,7 +3136,7 @@ namespace Tomahawk
 		}
 		uint64_t FileStream::ReadAny(const char* Format, ...)
 		{
-#ifdef THAWK_HAS_ZLIB
+#ifdef TH_HAS_ZLIB
 			if (Compress != nullptr)
 				return 0;
 #endif
@@ -2872,7 +3153,7 @@ namespace Tomahawk
 		}
 		uint64_t FileStream::Read(char* Data, uint64_t Length)
 		{
-#ifdef THAWK_HAS_ZLIB
+#ifdef TH_HAS_ZLIB
 			if (Compress != nullptr)
 				return gzread((gzFile)Compress, Data, Length);
 #endif
@@ -2886,7 +3167,7 @@ namespace Tomahawk
 			va_list Args;
 			uint64_t R = 0;
 			va_start(Args, Format);
-#ifdef THAWK_HAS_ZLIB
+#ifdef TH_HAS_ZLIB
 			if (Compress != nullptr)
 				R = (uint64_t)gzvprintf((gzFile)Compress, Format, Args);
 			else if (Buffer != nullptr)
@@ -2901,7 +3182,7 @@ namespace Tomahawk
 		}
 		uint64_t FileStream::Write(const char* Data, uint64_t Length)
 		{
-#ifdef THAWK_HAS_ZLIB
+#ifdef TH_HAS_ZLIB
 			if (Compress != nullptr)
 				return gzwrite((gzFile)Compress, Data, Length);
 #endif
@@ -2912,7 +3193,7 @@ namespace Tomahawk
 		}
 		uint64_t FileStream::Tell()
 		{
-#ifdef THAWK_HAS_ZLIB
+#ifdef TH_HAS_ZLIB
 			if (Compress != nullptr)
 				return gztell((gzFile)Compress);
 #endif
@@ -3009,9 +3290,9 @@ namespace Tomahawk
 			if (!Path)
 				return;
 
-#ifdef THAWK_MICROSOFT
+#ifdef TH_MICROSOFT
 			SetCurrentDirectoryA(Path);
-#elif defined(THAWK_UNIX)
+#elif defined(TH_UNIX)
 			chdir(Path);
 #endif
 		}
@@ -3099,12 +3380,12 @@ namespace Tomahawk
 		}
 		bool OS::FileExists(const char* Path)
 		{
-			struct stat Buffer{ };
+			struct stat Buffer { };
 			return (stat(Resolve(Path).c_str(), &Buffer) == 0);
 		}
 		bool OS::ExecExists(const char* Path)
 		{
-#ifdef THAWK_MICROSOFT
+#ifdef TH_MICROSOFT
 			Stroke File = Path;
 			if (!File.EndsWith(".exe"))
 				File.Append(".exe");
@@ -3116,7 +3397,7 @@ namespace Tomahawk
 		}
 		bool OS::DirExists(const char* Path)
 		{
-			struct stat Buffer{ };
+			struct stat Buffer { };
 			if (stat(Resolve(Path).c_str(), &Buffer) != 0)
 				return false;
 
@@ -3146,16 +3427,16 @@ namespace Tomahawk
 		}
 		bool OS::RemoveFile(const char* Path)
 		{
-#ifdef THAWK_MICROSOFT
+#ifdef TH_MICROSOFT
 			SetFileAttributesA(Path, 0);
 			return DeleteFileA(Path) != 0;
-#elif defined THAWK_UNIX
+#elif defined TH_UNIX
 			return unlink(Path) == 0;
 #endif
 		}
 		bool OS::RemoveDir(const char* Path)
 		{
-#ifdef THAWK_MICROSOFT
+#ifdef TH_MICROSOFT
 			WIN32_FIND_DATA FileInformation;
 			std::string FilePath, Pattern = std::string(Path) + "\\*.*";
 			HANDLE Handle = ::FindFirstFile(Pattern.c_str(), &FileInformation);
@@ -3177,7 +3458,7 @@ namespace Tomahawk
 
 				if (::DeleteFile(FilePath.c_str()) == FALSE)
 					return false;
-			}while (::FindNextFile(Handle, &FileInformation) == TRUE);
+			} while (::FindNextFile(Handle, &FileInformation) == TRUE);
 			::FindClose(Handle);
 
 			if (::GetLastError() != ERROR_NO_MORE_FILES)
@@ -3187,44 +3468,44 @@ namespace Tomahawk
 				return false;
 
 			return ::RemoveDirectory(Path) != FALSE;
-#elif defined THAWK_UNIX
-																																	DIR* Root = opendir(Path);
-            size_t Size = strlen(Path);
+#elif defined TH_UNIX
+			DIR* Root = opendir(Path);
+			size_t Size = strlen(Path);
 
-            if (!Root)
-                return (rmdir(Path) == 0);
+			if (!Root)
+				return (rmdir(Path) == 0);
 
-            struct dirent* It;
-            while ((It = readdir(Root)))
-            {
-                char* Buffer; bool Next = false; size_t Length;
-                if (!strcmp(It->d_name, ".") || !strcmp(It->d_name, ".."))
-                    continue;
+			struct dirent* It;
+			while ((It = readdir(Root)))
+			{
+				char* Buffer; bool Next = false; size_t Length;
+				if (!strcmp(It->d_name, ".") || !strcmp(It->d_name, ".."))
+					continue;
 
-                Length = Size + strlen(It->d_name) + 2;
-                Buffer = (char*)malloc(Length);
+				Length = Size + strlen(It->d_name) + 2;
+				Buffer = (char*)TH_MALLOC(Length);
 
-                if (!Buffer)
-                    continue;
+				if (!Buffer)
+					continue;
 
-                struct stat State;
-                snprintf(Buffer, Length, "%s/%s", Path, It->d_name);
+				struct stat State;
+				snprintf(Buffer, Length, "%s/%s", Path, It->d_name);
 
-                if (!stat(Buffer, &State))
-                {
-                    if (S_ISDIR(State.st_mode))
-                        Next = RemoveDir(Buffer);
-                    else
-                        Next = (unlink(Buffer) == 0);
-                }
+				if (!stat(Buffer, &State))
+				{
+					if (S_ISDIR(State.st_mode))
+						Next = RemoveDir(Buffer);
+					else
+						Next = (unlink(Buffer) == 0);
+				}
 
-                free(Buffer);
-                if (!Next)
-                    break;
-            }
+				TH_FREE(Buffer);
+				if (!Next)
+					break;
+			}
 
-            closedir(Root);
-            return (rmdir(Path) == 0);
+			closedir(Root);
+			return (rmdir(Path) == 0);
 #endif
 		}
 		bool OS::CreateDir(const char* Path)
@@ -3232,7 +3513,7 @@ namespace Tomahawk
 			if (!Path || Path[0] == '\0')
 				return false;
 
-#ifdef THAWK_MICROSOFT
+#ifdef TH_MICROSOFT
 			wchar_t Buffer[1024];
 			UnicodePath(Path, Buffer, 1024);
 			if (::CreateDirectoryW(Buffer, nullptr) == TRUE || GetLastError() == ERROR_ALREADY_EXISTS)
@@ -3247,24 +3528,24 @@ namespace Tomahawk
 
 			return ::CreateDirectoryW(Buffer, nullptr) == TRUE || GetLastError() == ERROR_ALREADY_EXISTS;
 #else
-																																	if (mkdir(Path, S_IRWXU | S_IRWXG | S_IROTH | S_IXOTH) != -1 || errno == EEXIST)
-                return true;
+			if (mkdir(Path, S_IRWXU | S_IRWXG | S_IROTH | S_IXOTH) != -1 || errno == EEXIST)
+				return true;
 
-            size_t Index = strlen(Path) - 1;
-            while (Index > 0 && Path[Index] != '/' && Path[Index] != '\\')
-                Index--;
+			size_t Index = strlen(Path) - 1;
+			while (Index > 0 && Path[Index] != '/' && Path[Index] != '\\')
+				Index--;
 
-            if (Index > 0 && !CreateDir(std::string(Path).substr(0, Index).c_str()))
-                return false;
+			if (Index > 0 && !CreateDir(std::string(Path).substr(0, Index).c_str()))
+				return false;
 
-            return mkdir(Path, S_IRWXU | S_IRWXG | S_IROTH | S_IXOTH) != -1 || errno == EEXIST;
+			return mkdir(Path, S_IRWXU | S_IRWXG | S_IROTH | S_IXOTH) != -1 || errno == EEXIST;
 #endif
 		}
 		bool OS::Move(const char* From, const char* To)
 		{
-#ifdef THAWK_MICROSOFT
+#ifdef TH_MICROSOFT
 			return MoveFileA(From, To) != 0;
-#elif defined THAWK_UNIX
+#elif defined TH_UNIX
 			return !rename(From, To);
 #endif
 		}
@@ -3275,7 +3556,7 @@ namespace Tomahawk
 
 			ResourceEntry Entry;
 
-#if defined(THAWK_MICROSOFT)
+#if defined(TH_MICROSOFT)
 			struct Dirent
 			{
 				char Directory[1024];
@@ -3291,7 +3572,7 @@ namespace Tomahawk
 			wchar_t WPath[1024];
 			UnicodePath(Path.c_str(), WPath, sizeof(WPath) / sizeof(WPath[0]));
 
-			auto* Value = (Directory*)malloc(sizeof(Directory));
+			auto* Value = (Directory*)TH_MALLOC(sizeof(Directory));
 			DWORD Attributes = GetFileAttributesW(WPath);
 			if (Attributes != 0xFFFFFFFF && ((Attributes & FILE_ATTRIBUTE_DIRECTORY) == FILE_ATTRIBUTE_DIRECTORY))
 			{
@@ -3301,7 +3582,7 @@ namespace Tomahawk
 			}
 			else
 			{
-				free(Value);
+				TH_FREE(Value);
 				return false;
 			}
 
@@ -3326,24 +3607,24 @@ namespace Tomahawk
 			if (Value->Handle != INVALID_HANDLE_VALUE)
 				FindClose(Value->Handle);
 
-			free(Value);
+			TH_FREE(Value);
 			return true;
 #else
-																																	DIR* Value = opendir(Path.c_str());
-            if (!Value)
-                return false;
+			DIR* Value = opendir(Path.c_str());
+			if (!Value)
+				return false;
 
-            dirent* Dirent = nullptr;
-            while ((Dirent = readdir(Value)) != nullptr)
-            {
-                if (strcmp(Dirent->d_name, ".") && strcmp(Dirent->d_name, "..") && StateResource(Path + '/' + Dirent->d_name, &Entry.Source))
-                {
-                    Entry.Path = Dirent->d_name;
-                    Entries->push_back(Entry);
-                }
-            }
+			dirent* Dirent = nullptr;
+			while ((Dirent = readdir(Value)) != nullptr)
+			{
+				if (strcmp(Dirent->d_name, ".") && strcmp(Dirent->d_name, "..") && StateResource(Path + '/' + Dirent->d_name, &Entry.Source))
+				{
+					Entry.Path = Dirent->d_name;
+					Entries->push_back(Entry);
+				}
+			}
 
-            closedir(Value);
+			closedir(Value);
 #endif
 			return true;
 		}
@@ -3353,7 +3634,7 @@ namespace Tomahawk
 				return false;
 
 			memset(Resource, 0, sizeof(*Resource));
-#if defined(THAWK_MICROSOFT)
+#if defined(TH_MICROSOFT)
 
 			wchar_t WBuffer[1024];
 			UnicodePath(Path.c_str(), WBuffer, sizeof(WBuffer) / sizeof(WBuffer[0]));
@@ -3383,17 +3664,17 @@ namespace Tomahawk
 			memset(Resource, 0, sizeof(*Resource));
 			return false;
 #else
-																																	struct stat State{};
-            if (stat(Path.c_str(), &State) != 0)
-                return false;
+			struct stat State {};
+			if (stat(Path.c_str(), &State) != 0)
+				return false;
 
-            struct tm* Time = localtime(&State.st_ctime);
-            Resource->CreationTime = mktime(Time);
-            Resource->Size = (uint64_t)(State.st_size);
-            Resource->LastModified = State.st_mtime;
-            Resource->IsDirectory = S_ISDIR(State.st_mode);
+			struct tm* Time = localtime(&State.st_ctime);
+			Resource->CreationTime = mktime(Time);
+			Resource->Size = (uint64_t)(State.st_size);
+			Resource->LastModified = State.st_mtime;
+			Resource->IsDirectory = S_ISDIR(State.st_mode);
 
-            return true;
+			return true;
 #endif
 		}
 		bool OS::ConstructETag(char* Buffer, uint64_t Length, Resource* Resource)
@@ -3412,7 +3693,7 @@ namespace Tomahawk
 		}
 		bool OS::UnloadObject(void* Handle)
 		{
-#ifdef THAWK_HAS_SDL2
+#ifdef TH_HAS_SDL2
 			if (!Handle)
 				return false;
 
@@ -3424,11 +3705,11 @@ namespace Tomahawk
 		}
 		bool OS::SpawnProcess(const std::string& Path, const std::vector<std::string>& Params, ChildProcess* Child)
 		{
-#ifdef THAWK_MICROSOFT
+#ifdef TH_MICROSOFT
 			HANDLE Job = CreateJobObject(nullptr, nullptr);
 			if (Job == nullptr)
 			{
-				THAWK_ERROR("cannot create job object for process");
+				TH_ERROR("cannot create job object for process");
 				return false;
 			}
 
@@ -3436,7 +3717,7 @@ namespace Tomahawk
 			Info.BasicLimitInformation.LimitFlags = JOB_OBJECT_LIMIT_KILL_ON_JOB_CLOSE;
 			if (SetInformationJobObject(Job, JobObjectExtendedLimitInformation, &Info, sizeof(Info)) == 0)
 			{
-				THAWK_ERROR("cannot set job object for process");
+				TH_ERROR("cannot set job object for process");
 				return false;
 			}
 
@@ -3457,9 +3738,9 @@ namespace Tomahawk
 			for (const auto& Param : Params)
 				Args.Append(' ').Append(Param);
 
-			if (!CreateProcessA(Exe.Get(), Args.Value(), nullptr, nullptr, TRUE, CREATE_BREAKAWAY_FROM_JOB | HIGH_PRIORITY_CLASS, NULL, NULL, &StartupInfo, &Process))
+			if (!CreateProcessA(Exe.Get(), Args.Value(), nullptr, nullptr, TRUE, CREATE_BREAKAWAY_FROM_JOB | HIGH_PRIORITY_CLASS, nullptr, nullptr, &StartupInfo, &Process))
 			{
-				THAWK_ERROR("cannot spawn process %s", Exe.Get());
+				TH_ERROR("cannot spawn process %s", Exe.Get());
 				return false;
 			}
 
@@ -3474,30 +3755,30 @@ namespace Tomahawk
 
 			return true;
 #else
-																																	if (!FileExists(Path.c_str()))
-            {
-                THAWK_ERROR("cannot spawn process %s (file does not exists)", Path.c_str());
-                return false;
-            }
+			if (!FileExists(Path.c_str()))
+			{
+				TH_ERROR("cannot spawn process %s (file does not exists)", Path.c_str());
+				return false;
+			}
 
-            pid_t ProcessId = fork();
-            if (ProcessId == 0)
-            {
-                std::vector<char*> Args;
-                for (auto It = Params.begin(); It != Params.end(); It++)
-                    Args.push_back((char*)It->c_str());
-                Args.push_back(nullptr);
+			pid_t ProcessId = fork();
+			if (ProcessId == 0)
+			{
+				std::vector<char*> Args;
+				for (auto It = Params.begin(); It != Params.end(); It++)
+					Args.push_back((char*)It->c_str());
+				Args.push_back(nullptr);
 
-                execve(Path.c_str(), Args.data(), nullptr);
-                exit(0);
-            }
-            else if (Child != nullptr)
-            {
-                Child->Process = ProcessId;
-                Child->Valid = (ProcessId > 0);
-            }
+				execve(Path.c_str(), Args.data(), nullptr);
+				exit(0);
+			}
+			else if (Child != nullptr)
+			{
+				Child->Process = ProcessId;
+				Child->Valid = (ProcessId > 0);
+			}
 
-            return (ProcessId > 0);
+			return (ProcessId > 0);
 #endif
 		}
 		bool OS::FreeProcess(ChildProcess* Child)
@@ -3505,7 +3786,7 @@ namespace Tomahawk
 			if (!Child || !Child->Valid)
 				return false;
 
-#ifdef THAWK_MICROSOFT
+#ifdef TH_MICROSOFT
 			if (Child->Process != nullptr)
 			{
 				CloseHandle((HANDLE)Child->Process);
@@ -3532,7 +3813,7 @@ namespace Tomahawk
 			if (!Process || !Process->Valid)
 				return false;
 
-#ifdef THAWK_MICROSOFT
+#ifdef TH_MICROSOFT
 			WaitForSingleObject(Process->Process, INFINITE);
 			if (ExitCode != nullptr)
 			{
@@ -3546,11 +3827,11 @@ namespace Tomahawk
 				*ExitCode = (int)Result;
 			}
 #else
-																																	int Status;
-            waitpid(Process->Process, &Status, 0);
+			int Status;
+			waitpid(Process->Process, &Status, 0);
 
-            if (ExitCode != nullptr)
-                *ExitCode = WEXITSTATUS(Status);
+			if (ExitCode != nullptr)
+				*ExitCode = WEXITSTATUS(Status);
 #endif
 
 			FreeProcess(Process);
@@ -3561,7 +3842,7 @@ namespace Tomahawk
 			if (!Stream)
 				return -1;
 
-#ifdef THAWK_MICROSOFT
+#ifdef TH_MICROSOFT
 			return _fileno(Stream);
 #else
 			return fileno(Stream);
@@ -3569,21 +3850,21 @@ namespace Tomahawk
 		}
 		int OS::GetError()
 		{
-#ifdef THAWK_MICROSOFT
+#ifdef TH_MICROSOFT
 			int ErrorCode = WSAGetLastError();
 			WSASetLastError(0);
 
 			return ErrorCode;
 #else
-																																	int ErrorCode = errno;
-            errno = 0;
+			int ErrorCode = errno;
+			errno = 0;
 
-            return ErrorCode;
+			return ErrorCode;
 #endif
 		}
 		std::string OS::GetErrorName(int Code)
 		{
-#ifdef THAWK_MICROSOFT
+#ifdef TH_MICROSOFT
 			LPSTR Buffer = nullptr;
 			size_t Size = FormatMessageA(FORMAT_MESSAGE_ALLOCATE_BUFFER | FORMAT_MESSAGE_FROM_SYSTEM | FORMAT_MESSAGE_IGNORE_INSERTS, nullptr, Code, MAKELANGID(LANG_ENGLISH, SUBLANG_ENGLISH_US), (LPSTR)&Buffer, 0, nullptr);
 			std::string Result(Buffer, Size);
@@ -3591,10 +3872,10 @@ namespace Tomahawk
 
 			return Stroke(&Result).Replace("\r", "").Replace("\n", "").R();
 #else
-																																	char Buffer[1024];
-            strerror_r(Code, Buffer, sizeof(Buffer));
+			char Buffer[1024];
+			strerror_r(Code, Buffer, sizeof(Buffer));
 
-            return Buffer;
+			return Buffer;
 #endif
 		}
 		void OS::Run(const char* Format, ...)
@@ -3602,18 +3883,18 @@ namespace Tomahawk
 			char Buffer[16384];
 
 			va_list Args;
-					va_start(Args, Format);
-#ifdef THAWK_MICROSOFT
+			va_start(Args, Format);
+#ifdef TH_MICROSOFT
 			_vsnprintf(Buffer, sizeof(Buffer), Format, Args);
 #else
 			vsnprintf(Buffer, sizeof(Buffer), Format, Args);
 #endif
-					va_end(Args);
+			va_end(Args);
 			system(Buffer);
 		}
 		void* OS::LoadObject(const char* Path)
 		{
-#ifdef THAWK_HAS_SDL2
+#ifdef TH_HAS_SDL2
 			if (!Path)
 				return nullptr;
 
@@ -3624,7 +3905,7 @@ namespace Tomahawk
 		}
 		void* OS::LoadObjectFunction(void* Handle, const char* Name)
 		{
-#ifdef THAWK_HAS_SDL2
+#ifdef TH_HAS_SDL2
 			if (!Handle || !Name)
 				return nullptr;
 
@@ -3638,7 +3919,7 @@ namespace Tomahawk
 			if (!Path || !Mode)
 				return nullptr;
 
-#ifdef THAWK_MICROSOFT
+#ifdef TH_MICROSOFT
 			wchar_t WBuffer[1024], WMode[20];
 			UnicodePath(Path, WBuffer, sizeof(WBuffer) / sizeof(WBuffer[0]));
 			MultiByteToWideChar(CP_UTF8, 0, Mode, -1, WMode, sizeof(WMode) / sizeof(WMode[0]));
@@ -3646,10 +3927,10 @@ namespace Tomahawk
 			return (void*)_wfopen(WBuffer, WMode);
 #else
 			FILE* Stream = fopen(Path, Mode);
-            if (Stream != nullptr)
-                fcntl(fileno(Stream), F_SETFD, FD_CLOEXEC);
+			if (Stream != nullptr)
+				fcntl(fileno(Stream), F_SETFD, FD_CLOEXEC);
 
-            return (void*)Stream;
+			return (void*)Stream;
 #endif
 		}
 		bool OS::SendFile(FILE* Stream, socket_t Socket, int64_t Size)
@@ -3657,14 +3938,14 @@ namespace Tomahawk
 			if (!Stream || !Size)
 				return false;
 
-#ifdef THAWK_MICROSOFT
+#ifdef TH_MICROSOFT
 			return TransmitFile((SOCKET)Socket, (HANDLE)_get_osfhandle(_fileno(Stream)), (DWORD)Size, 16384, nullptr, nullptr, 0) > 0;
-#elif defined(THAWK_APPLE)
+#elif defined(TH_APPLE)
 			return sendfile(fileno(Stream), Socket, 0, (off_t*)&Size, nullptr, 0);
-#elif defined(THAWK_UNIX)
-            return sendfile(Socket, fileno(Stream), nullptr, (size_t)Size) > 0;
+#elif defined(TH_UNIX)
+			return sendfile(Socket, fileno(Stream), nullptr, (size_t)Size) > 0;
 #else
-            return false;
+			return false;
 #endif
 		}
 		std::string OS::FileDirectory(const std::string& Path, int Level)
@@ -3710,7 +3991,7 @@ namespace Tomahawk
 				return std::string();
 
 			std::string Output = std::string(Data, Length);
-			delete[] Data;
+			TH_FREE(Data);
 
 			return Output;
 		}
@@ -3719,16 +4000,16 @@ namespace Tomahawk
 			if (!Path || Path[0] == '\0')
 				return "";
 
-#ifdef THAWK_MICROSOFT
+#ifdef TH_MICROSOFT
 			char Buffer[2048] = { 0 };
 			GetFullPathNameA(Path, sizeof(Buffer), Buffer, nullptr);
-#elif defined THAWK_UNIX
+#elif defined TH_UNIX
 			char* Data = realpath(Path, nullptr);
-            if (!Data)
-                return Path;
+			if (!Data)
+				return Path;
 
-            std::string Buffer = Data;
-            free(Data);
+			std::string Buffer = Data;
+			TH_FREE(Data);
 #endif
 			return Buffer;
 		}
@@ -3743,7 +4024,7 @@ namespace Tomahawk
 			if (Stroke(&Directory).EndsOf("/\\"))
 				return Resolve((Directory + Path).c_str());
 
-#ifdef THAWK_MICROSOFT
+#ifdef TH_MICROSOFT
 			return Resolve((Directory + "\\" + Path).c_str());
 #else
 			return Resolve((Directory + "/" + Path).c_str());
@@ -3754,7 +4035,7 @@ namespace Tomahawk
 			std::string Result = Resolve(Path);
 			if (!Result.empty() && !Stroke(&Result).EndsOf("/\\"))
 			{
-#ifdef THAWK_MICROSOFT
+#ifdef TH_MICROSOFT
 				Result += '\\';
 #else
 				Result += '/';
@@ -3773,27 +4054,27 @@ namespace Tomahawk
 		}
 		std::string OS::GetDirectory()
 		{
-#ifndef THAWK_HAS_SDL2
-			char Buffer[THAWK_MAX_PATH + 1] = { 0 };
-#ifdef THAWK_MICROSOFT
-            GetModuleFileNameA(nullptr, Buffer, THAWK_MAX_PATH);
+#ifndef TH_HAS_SDL2
+			char Buffer[TH_MAX_PATH + 1] = { 0 };
+#ifdef TH_MICROSOFT
+			GetModuleFileNameA(nullptr, Buffer, TH_MAX_PATH);
 
 			std::string Result = FileDirectory(Buffer);
 			memcpy(Buffer, Result.c_str(), sizeof(char) * Result.size());
 
-			if (Result.size() < THAWK_MAX_PATH)
+			if (Result.size() < TH_MAX_PATH)
 				Buffer[Result.size()] = '\0';
-#elif defined THAWK_UNIX
-            getcwd(Buffer, THAWK_MAX_PATH);
+#elif defined TH_UNIX
+			getcwd(Buffer, TH_MAX_PATH);
 #endif
-            int64_t Length = strlen(Buffer);
+			int64_t Length = strlen(Buffer);
 			if (Length > 0 && Buffer[Length - 1] != '/' && Buffer[Length - 1] != '\\')
 			{
 				Buffer[Length] = '/';
 				Length++;
 			}
 
-            return std::string(Buffer, Length);
+			return std::string(Buffer, Length);
 #else
 			char* Base = SDL_GetBasePath();
 			std::string Result = Base;
@@ -3805,7 +4086,7 @@ namespace Tomahawk
 		FileState OS::GetState(const char* Path)
 		{
 			FileState State{ };
-			struct stat Buffer{ };
+			struct stat Buffer { };
 
 			if (stat(Path, &Buffer) != 0)
 				return State;
@@ -3834,24 +4115,24 @@ namespace Tomahawk
 			uint64_t Length = ftell(Stream);
 			fseek(Stream, 0, SEEK_SET);
 
-			char* Buffer = (char*)malloc(sizeof(char) * Length);
+			char* Buffer = (char*)TH_MALLOC(sizeof(char) * Length);
 			if (fread(Buffer, sizeof(char), (size_t)Length, Stream) != (size_t)Length)
 			{
 				fclose(Stream);
-				free(Buffer);
+				TH_FREE(Buffer);
 				return std::vector<std::string>();
 			}
 
 			std::string Result(Buffer, Length);
 			fclose(Stream);
-			free(Buffer);
+			TH_FREE(Buffer);
 
 			return Stroke(&Result).Split('\n');
 		}
 		std::vector<std::string> OS::GetDiskDrives()
 		{
 			std::vector<std::string> Output;
-#ifdef THAWK_MICROSOFT
+#ifdef TH_MICROSOFT
 			DWORD DriveMask = GetLogicalDrives();
 			int Offset = (int)'A';
 
@@ -3865,8 +4146,8 @@ namespace Tomahawk
 
 			return Output;
 #else
-																																	Output.push_back("/");
-            return Output;
+			Output.push_back("/");
+			return Output;
 #endif
 		}
 		const char* OS::FileExtention(const char* Path)
@@ -3896,11 +4177,11 @@ namespace Tomahawk
 			uint64_t Size = ftell(Stream);
 			fseek(Stream, 0, SEEK_SET);
 
-			auto* Bytes = (unsigned char*)malloc(sizeof(unsigned char) * (size_t)(Size + 1));
+			auto* Bytes = (unsigned char*)TH_MALLOC(sizeof(unsigned char) * (size_t)(Size + 1));
 			if (fread((char*)Bytes, sizeof(unsigned char), (size_t)Size, Stream) != (size_t)Size)
 			{
 				fclose(Stream);
-				free(Bytes);
+				TH_FREE(Bytes);
 
 				if (Length != nullptr)
 					*Length = 0;
@@ -3933,7 +4214,7 @@ namespace Tomahawk
 		}
 		unsigned char* OS::ReadByteChunk(FileStream* Stream, uint64_t Length)
 		{
-			auto* Bytes = (unsigned char*)malloc((size_t)(Length + 1));
+			auto* Bytes = (unsigned char*)TH_MALLOC((size_t)(Length + 1));
 			Stream->Read((char*)Bytes, Length);
 
 			Bytes[Length] = '\0';
@@ -4074,7 +4355,7 @@ namespace Tomahawk
 			int64_t Delta = Length - Offset;
 			Stream->Seek(FileSeek_Begin, Length - Delta);
 
-			char* Data = (char*)malloc(sizeof(char) * ((size_t)Delta + 1));
+			char* Data = (char*)TH_MALLOC(sizeof(char) * ((size_t)Delta + 1));
 			Stream->Read(Data, sizeof(char) * Delta);
 
 			std::string Value = Data;
@@ -4092,7 +4373,7 @@ namespace Tomahawk
 				ValueLength = Value.size();
 
 			auto V = Stroke(&Value).Substring(0, ValueLength).Replace("\t", "\n").Replace("\n\n", "\n").Replace("\r", "");
-			delete[] Data;
+			TH_FREE(Data);
 
 			if (Value == LastValue)
 				return;
@@ -4150,7 +4431,7 @@ namespace Tomahawk
 					std::unique_lock<std::mutex> Lock(Queue->Async.Safe[0]);
 					Condition->wait(Lock);
 				}
-			}while (Queue->State == EventState_Working);
+			} while (Queue->State == EventState_Working);
 
 			return true;
 		}
@@ -4173,7 +4454,7 @@ namespace Tomahawk
 					std::unique_lock<std::mutex> Lock(Queue->Async.Safe[1]);
 					Condition->wait(Lock);
 				}
-			}while (Queue->State == EventState_Working);
+			} while (Queue->State == EventState_Working);
 
 			return true;
 		}
@@ -5065,7 +5346,7 @@ namespace Tomahawk
 		}
 		Document* Document::SetDecimal(const std::string& Label, const std::string& Value)
 		{
-#ifdef THAWK_HAS_MONGOC
+#ifdef TH_HAS_MONGOC
 			int64_t fHigh, fLow;
 			if (!Network::BSON::Document::ParseDecimal(Value.c_str(), &fHigh, &fLow))
 				return nullptr;
@@ -5356,7 +5637,7 @@ namespace Tomahawk
 					return Boolean ? "true" : "false";
 				case NodeType_Decimal:
 				{
-#ifdef THAWK_HAS_MONGOC
+#ifdef TH_HAS_MONGOC
 					Network::BSON::KeyPair Pair;
 					Pair.Mod = Network::BSON::Type_Decimal;
 					Pair.High = Integer;
@@ -5368,15 +5649,15 @@ namespace Tomahawk
 #endif
 				}
 				case NodeType_Id:
-#ifdef THAWK_HAS_MONGOC
-					return THAWK_PREFIX_STR + Network::BSON::Document::OIdToString((unsigned char*)String.c_str());
+#ifdef TH_HAS_MONGOC
+					return TH_PREFIX_STR + Network::BSON::Document::OIdToString((unsigned char*)String.c_str());
 #else
-					return THAWK_PREFIX_STR + Compute::MathCommon::Base64Encode(String);
+					return TH_PREFIX_STR + Compute::MathCommon::Base64Encode(String);
 #endif
 				case NodeType_Null:
-					return THAWK_PREFIX_STR "null";
+					return TH_PREFIX_STR "null";
 				case NodeType_Undefined:
-					return THAWK_PREFIX_STR "undefined";
+					return TH_PREFIX_STR "undefined";
 				default:
 					break;
 			}
@@ -5385,25 +5666,25 @@ namespace Tomahawk
 		}
 		bool Document::Deserialize(const std::string& Value)
 		{
-			if (Value == THAWK_PREFIX_STR "undefined")
+			if (Value == TH_PREFIX_STR "undefined")
 			{
 				Type = NodeType_Undefined;
 				return true;
 			}
 
-			if (Value == THAWK_PREFIX_STR "object")
+			if (Value == TH_PREFIX_STR "object")
 			{
 				Type = NodeType_Object;
 				return true;
 			}
 
-			if (Value == THAWK_PREFIX_STR "array")
+			if (Value == TH_PREFIX_STR "array")
 			{
 				Type = NodeType_Array;
 				return true;
 			}
 
-			if (Value == THAWK_PREFIX_STR "null")
+			if (Value == TH_PREFIX_STR "null")
 			{
 				Type = NodeType_Null;
 				return true;
@@ -5423,9 +5704,9 @@ namespace Tomahawk
 				return true;
 			}
 
-			if (Value.size() == 25 && Value.front() == THAWK_PREFIX_CHAR)
+			if (Value.size() == 25 && Value.front() == TH_PREFIX_CHAR)
 			{
-#ifdef THAWK_HAS_MONGOC
+#ifdef TH_HAS_MONGOC
 				std::string OId = Network::BSON::Document::StringToOId(Value.substr(1));
 				if (OId.size() == 12)
 				{
@@ -5662,7 +5943,7 @@ namespace Tomahawk
 
 					if (!Document->IsObject() && Document->Type != NodeType_String && Document->Type != NodeType_Id)
 					{
-						if (!Key.empty() && Key.front() == THAWK_PREFIX_CHAR)
+						if (!Key.empty() && Key.front() == TH_PREFIX_CHAR)
 							Callback(DocumentPretty_Dummy, Key.c_str() + 1, (int64_t)Key.size() - 1);
 						else
 							Callback(DocumentPretty_Dummy, Key.c_str(), (int64_t)Key.size());
@@ -5699,20 +5980,20 @@ namespace Tomahawk
 			char Hello[18];
 			if (!Callback((char*)Hello, sizeof(char) * 16))
 			{
-				THAWK_ERROR("form cannot be defined");
+				TH_ERROR("form cannot be defined");
 				return nullptr;
 			}
 
 			if (memcmp((void*)Hello, (void*)"\0b\0i\0n\0h\0e\0a\0d\r\n", sizeof(char) * 16) != 0)
 			{
-				THAWK_ERROR("version is undefined");
+				TH_ERROR("version is undefined");
 				return nullptr;
 			}
 
 			uint64_t Set = 0;
 			if (!Callback((char*)&Set, sizeof(uint64_t)))
 			{
-				THAWK_ERROR("name map is undefined");
+				TH_ERROR("name map is undefined");
 				return nullptr;
 			}
 
@@ -5722,14 +6003,14 @@ namespace Tomahawk
 				uint64_t Index = 0;
 				if (!Callback((char*)&Index, sizeof(uint64_t)))
 				{
-					THAWK_ERROR("name index is undefined");
+					TH_ERROR("name index is undefined");
 					return nullptr;
 				}
 
 				uint64_t Size = 0;
 				if (!Callback((char*)&Size, sizeof(uint64_t)))
 				{
-					THAWK_ERROR("name size is undefined");
+					TH_ERROR("name size is undefined");
 					return nullptr;
 				}
 
@@ -5740,7 +6021,7 @@ namespace Tomahawk
 				Name.resize(Size);
 				if (!Callback((char*)Name.c_str(), sizeof(char) * Size))
 				{
-					THAWK_ERROR("name data is undefined");
+					TH_ERROR("name data is undefined");
 					return nullptr;
 				}
 
@@ -5765,7 +6046,7 @@ namespace Tomahawk
 			Buffer.resize(Size);
 			if (!Callback((char*)Buffer.c_str(), sizeof(char) * Size))
 			{
-				THAWK_ERROR("cannot read xml document");
+				TH_ERROR("cannot read xml document");
 				return nullptr;
 			}
 
@@ -5777,25 +6058,25 @@ namespace Tomahawk
 			catch (const std::runtime_error& e)
 			{
 				delete iDocument;
-				THAWK_ERROR("xml runtime error caused because %s", e.what());
+				TH_ERROR("xml runtime error caused because %s", e.what());
 				return nullptr;
 			}
 			catch (const rapidxml::parse_error& e)
 			{
 				delete iDocument;
-				THAWK_ERROR("xml parse error caused because %s", e.what());
+				TH_ERROR("xml parse error caused because %s", e.what());
 				return nullptr;
 			}
 			catch (const std::exception& e)
 			{
 				delete iDocument;
-				THAWK_ERROR("xml parse exception caused because %s", e.what());
+				TH_ERROR("xml parse exception caused because %s", e.what());
 				return nullptr;
 			}
 			catch (...)
 			{
 				delete iDocument;
-				THAWK_ERROR("undefined xml parse error");
+				TH_ERROR("undefined xml parse error");
 				return nullptr;
 			}
 
@@ -5829,19 +6110,19 @@ namespace Tomahawk
 			if (!Callback || !Size)
 				return nullptr;
 
-#ifdef THAWK_HAS_MONGOC
+#ifdef TH_HAS_MONGOC
 			std::string Buffer;
 			Buffer.resize(Size);
 			if (!Callback((char*)Buffer.c_str(), sizeof(char) * Size))
 			{
-				THAWK_ERROR("cannot read json document");
+				TH_ERROR("cannot read json document");
 				return nullptr;
 			}
 
 			Network::BSON::TDocument* Document = Network::BSON::Document::Create(Buffer);
 			if (!Document)
 			{
-				THAWK_ERROR("cannot parse json document");
+				TH_ERROR("cannot parse json document");
 				return nullptr;
 			}
 
@@ -5854,8 +6135,8 @@ namespace Tomahawk
 
 			return Result;
 #else
-			THAWK_ERROR("json parse is unsupported for this build");
-            return false;
+			TH_ERROR("json parse is unsupported for this build");
+			return false;
 #endif
 		}
 		Document* Document::NewArray()
@@ -5938,7 +6219,7 @@ namespace Tomahawk
 		}
 		Document* Document::NewDecimal(const std::string& Value)
 		{
-#ifdef THAWK_HAS_MONGOC
+#ifdef TH_HAS_MONGOC
 			int64_t fHigh, fLow;
 			if (!Network::BSON::Document::ParseDecimal(Value.c_str(), &fHigh, &fLow))
 				return nullptr;
@@ -6001,7 +6282,7 @@ namespace Tomahawk
 			uint64_t Id = 0;
 			if (!Callback((char*)&Id, sizeof(uint64_t)))
 			{
-				THAWK_ERROR("key name index is undefined");
+				TH_ERROR("key name index is undefined");
 				return false;
 			}
 
@@ -6011,14 +6292,14 @@ namespace Tomahawk
 
 			if (!Callback((char*)&Current->Type, sizeof(NodeType)))
 			{
-				THAWK_ERROR("key type is undefined");
+				TH_ERROR("key type is undefined");
 				return false;
 			}
 
 			uint64_t Count = 0;
 			if (!Callback((char*)&Count, sizeof(uint64_t)))
 			{
-				THAWK_ERROR("key value size is undefined");
+				TH_ERROR("key value size is undefined");
 				return false;
 			}
 
@@ -6027,7 +6308,7 @@ namespace Tomahawk
 				Current->String.resize(Count);
 				if (!Callback((char*)Current->String.c_str(), sizeof(char) * Count))
 				{
-					THAWK_ERROR("key value data is undefined");
+					TH_ERROR("key value data is undefined");
 					return false;
 				}
 			}
@@ -6037,7 +6318,7 @@ namespace Tomahawk
 				case NodeType_Integer:
 					if (!Callback((char*)&Current->Integer, sizeof(int64_t)))
 					{
-						THAWK_ERROR("key value is undefined");
+						TH_ERROR("key value is undefined");
 						return false;
 					}
 
@@ -6046,7 +6327,7 @@ namespace Tomahawk
 				case NodeType_Number:
 					if (!Callback((char*)&Current->Number, sizeof(double)))
 					{
-						THAWK_ERROR("key value is undefined");
+						TH_ERROR("key value is undefined");
 						return false;
 					}
 
@@ -6055,20 +6336,20 @@ namespace Tomahawk
 				case NodeType_Decimal:
 					if (!Callback((char*)&Current->Integer, sizeof(int64_t)))
 					{
-						THAWK_ERROR("key value is undefined");
+						TH_ERROR("key value is undefined");
 						return false;
 					}
 
 					if (!Callback((char*)&Current->Low, sizeof(int64_t)))
 					{
-						THAWK_ERROR("key value is undefined");
+						TH_ERROR("key value is undefined");
 						return false;
 					}
 					break;
 				case NodeType_Boolean:
 					if (!Callback((char*)&Current->Boolean, sizeof(bool)))
 					{
-						THAWK_ERROR("key value is undefined");
+						TH_ERROR("key value is undefined");
 						return false;
 					}
 					break;
@@ -6076,7 +6357,7 @@ namespace Tomahawk
 				case NodeType_Object:
 					if (!Callback((char*)&Count, sizeof(uint64_t)))
 					{
-						THAWK_ERROR("key value size is undefined");
+						TH_ERROR("key value size is undefined");
 						return false;
 					}
 

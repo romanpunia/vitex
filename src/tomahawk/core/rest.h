@@ -1,5 +1,5 @@
-#ifndef THAWK_REST_H
-#define THAWK_REST_H
+#ifndef TH_REST_H
+#define TH_REST_H
 #pragma warning(disable: 4251)
 #pragma warning(disable: 4996)
 #include <thread>
@@ -16,67 +16,67 @@
 #include <condition_variable>
 #include <atomic>
 #if defined(_WIN32) || defined(_WIN64)
-#ifndef THAWK_EXPORT
-#define THAWK_OUT __declspec(dllimport)
+#ifndef TH_EXPORT
+#define TH_OUT __declspec(dllimport)
 #else
-#define THAWK_OUT __declspec(dllexport)
+#define TH_OUT __declspec(dllexport)
 #endif
-#define THAWK_MICROSOFT
-#define THAWK_FUNCTION __FUNCTION__
+#define TH_MICROSOFT
+#define TH_FUNCTION __FUNCTION__
 #ifdef _WIN64
-#define THAWK_64
+#define TH_64
 #else
-#define THAWK_32
+#define TH_32
 #endif
-#define THAWK_MAX_PATH MAX_PATH
-#define THAWK_STRINGIFY(X) #X
-#define THAWK_FUNCTION __FUNCTION__
-#define THAWK_CDECL __cdecl
-#define THAWK_FILE (strrchr(__FILE__, '\\') ? strrchr(__FILE__, '\\') + 1 : __FILE__)
-#define THAWK_LINE __LINE__
-#undef THAWK_UNIX
+#define TH_MAX_PATH MAX_PATH
+#define TH_STRINGIFY(X) #X
+#define TH_FUNCTION __FUNCTION__
+#define TH_CDECL __cdecl
+#define TH_FILE (strrchr(__FILE__, '\\') ? strrchr(__FILE__, '\\') + 1 : __FILE__)
+#define TH_LINE __LINE__
+#undef TH_UNIX
 #elif defined __linux__ && defined __GNUC__
-#define THAWK_OUT
-#define THAWK_UNIX
-#define THAWK_MAX_PATH _POSIX_PATH_MAX
-#define THAWK_STRINGIFY(X) #X
-#define THAWK_FUNCTION __FUNCTION__
-#define THAWK_CDECL
-#define THAWK_FILE (strrchr(__FILE__, '/') ? strrchr(__FILE__, '/') + 1 : __FILE__)
-#define THAWK_LINE __LINE__
-#undef THAWK_MICROSOFT
+#define TH_OUT
+#define TH_UNIX
+#define TH_MAX_PATH _POSIX_PATH_MAX
+#define TH_STRINGIFY(X) #X
+#define TH_FUNCTION __FUNCTION__
+#define TH_CDECL
+#define TH_FILE (strrchr(__FILE__, '/') ? strrchr(__FILE__, '/') + 1 : __FILE__)
+#define TH_LINE __LINE__
+#undef TH_MICROSOFT
 #if __x86_64__ || __ppc64__
-#define THAWK_64
+#define TH_64
 #else
-#define THAWK_32
+#define TH_32
 #endif
 #elif __APPLE__
-#define THAWK_OUT
-#define THAWK_UNIX
-#define THAWK_MAX_PATH _POSIX_PATH_MAX
-#define THAWK_STRINGIFY(X) #X
-#define THAWK_FUNCTION __FUNCTION__
-#define THAWK_CDECL
-#define THAWK_FILE (strrchr(__FILE__, '/') ? strrchr(__FILE__, '/') + 1 : __FILE__)
-#define THAWK_LINE __LINE__
-#define THAWK_APPLE
-#undef THAWK_MICROSOFT
+#define TH_OUT
+#define TH_UNIX
+#define TH_MAX_PATH _POSIX_PATH_MAX
+#define TH_STRINGIFY(X) #X
+#define TH_FUNCTION __FUNCTION__
+#define TH_CDECL
+#define TH_FILE (strrchr(__FILE__, '/') ? strrchr(__FILE__, '/') + 1 : __FILE__)
+#define TH_LINE __LINE__
+#define TH_APPLE
+#undef TH_MICROSOFT
 #if __x86_64__ || __ppc64__
-#define THAWK_64
+#define TH_64
 #else
-#define THAWK_32
+#define TH_32
 #endif
 #endif
-#ifndef THAWK_MICROSOFT
+#ifndef TH_MICROSOFT
 #include <sys/types.h>
 #endif
 #ifdef max
 #undef max
 #endif
-#ifdef THAWK_MICROSOFT
-#ifdef THAWK_64
+#ifdef TH_MICROSOFT
+#ifdef TH_64
 typedef uint64_t socket_t;
-#elif defined(THAWK_32)
+#elif defined(TH_32)
 typedef int socket_t;
 #endif
 typedef int socket_size_t;
@@ -87,39 +87,42 @@ typedef int epoll_handle;
 typedef int socket_t;
 typedef socklen_t socket_size_t;
 #endif
-#if THAWK_DLEVEL >= 3
-#define THAWK_INFO(Format, ...) Tomahawk::Rest::LT::Log(3, THAWK_LINE, THAWK_FILE, Format, ##__VA_ARGS__)
-#define THAWK_WARN(Format, ...) Tomahawk::Rest::LT::Log(2, THAWK_LINE, THAWK_FILE, Format, ##__VA_ARGS__)
-#define THAWK_ERROR(Format, ...) Tomahawk::Rest::LT::Log(1, THAWK_LINE, THAWK_FILE, Format, ##__VA_ARGS__)
-#elif THAWK_DLEVEL >= 2
-#define THAWK_INFO(Format, ...)
-#define THAWK_WARN(Format, ...) Tomahawk::Rest::LT::Log(2, THAWK_LINE, THAWK_FILE, Format, ##__VA_ARGS__)
-#define THAWK_ERROR(Format, ...) Tomahawk::Rest::LT::Log(1, THAWK_LINE, THAWK_FILE, Format, ##__VA_ARGS__)
-#elif THAWK_DLEVEL >= 1
-#define THAWK_INFO(Format, ...)
-#define THAWK_WARN(Format, ...)
-#define THAWK_ERROR(Format, ...) Tomahawk::Rest::LT::Log(1, THAWK_LINE, THAWK_FILE, Format, ##__VA_ARGS__)
+#if TH_DLEVEL >= 3
+#define TH_INFO(Format, ...) Tomahawk::Rest::Debug::Log(3, TH_LINE, TH_FILE, Format, ##__VA_ARGS__)
+#define TH_WARN(Format, ...) Tomahawk::Rest::Debug::Log(2, TH_LINE, TH_FILE, Format, ##__VA_ARGS__)
+#define TH_ERROR(Format, ...) Tomahawk::Rest::Debug::Log(1, TH_LINE, TH_FILE, Format, ##__VA_ARGS__)
+#elif TH_DLEVEL >= 2
+#define TH_INFO(Format, ...)
+#define TH_WARN(Format, ...) Tomahawk::Rest::Debug::Log(2, TH_LINE, TH_FILE, Format, ##__VA_ARGS__)
+#define TH_ERROR(Format, ...) Tomahawk::Rest::Debug::Log(1, TH_LINE, TH_FILE, Format, ##__VA_ARGS__)
+#elif TH_DLEVEL >= 1
+#define TH_INFO(Format, ...)
+#define TH_WARN(Format, ...)
+#define TH_ERROR(Format, ...) Tomahawk::Rest::Debug::Log(1, TH_LINE, TH_FILE, Format, ##__VA_ARGS__)
 #else
-#define THAWK_INFO(...)
-#define THAWK_WARN(...)
-#define THAWK_ERROR(...)
+#define TH_INFO(...)
+#define TH_WARN(...)
+#define TH_ERROR(...)
 #endif
-#define THAWK_PREFIX_CHAR '$'
-#define THAWK_PREFIX_STR "$"
-#define THAWK_LOG(Format, ...) Tomahawk::Rest::LT::Log(0, THAWK_LINE, THAWK_FILE, Format, ##__VA_ARGS__)
-#define THAWK_COMPONENT_ID(ClassName) Tomahawk::Rest::OS::CheckSum(#ClassName)
-#define THAWK_COMPONENT_HASH(ClassName) Tomahawk::Rest::OS::CheckSum(ClassName)
-#define THAWK_COMPONENT_IS(Source, ClassName) (Source->GetId() == THAWK_COMPONENT_ID(ClassName))
-#define THAWK_COMPONENT(ClassName) \
+#define TH_MALLOC(Size) Tomahawk::Rest::Mem::Malloc(Size)
+#define TH_REALLOC(Ptr, Size) Tomahawk::Rest::Mem::Realloc(Ptr, Size)
+#define TH_FREE(Ptr) Tomahawk::Rest::Mem::Free(Ptr)
+#define TH_PREFIX_CHAR '$'
+#define TH_PREFIX_STR "$"
+#define TH_LOG(Format, ...) Tomahawk::Rest::Debug::Log(0, TH_LINE, TH_FILE, Format, ##__VA_ARGS__)
+#define TH_COMPONENT_ID(ClassName) Tomahawk::Rest::OS::CheckSum(#ClassName)
+#define TH_COMPONENT_HASH(ClassName) Tomahawk::Rest::OS::CheckSum(ClassName)
+#define TH_COMPONENT_IS(Source, ClassName) (Source->GetId() == TH_COMPONENT_ID(ClassName))
+#define TH_COMPONENT(ClassName) \
 virtual const char* GetName() override { static const char* V = #ClassName; return V; } \
-virtual uint64_t GetId() override { static uint64_t V = THAWK_COMPONENT_ID(ClassName); return V; } \
+virtual uint64_t GetId() override { static uint64_t V = TH_COMPONENT_ID(ClassName); return V; } \
 static const char* GetTypeName() { static const char* V = #ClassName; return V; } \
-static uint64_t GetTypeId() { static uint64_t V = THAWK_COMPONENT_ID(ClassName); return V; }
-#define THAWK_COMPONENT_BASIS(ClassName) \
+static uint64_t GetTypeId() { static uint64_t V = TH_COMPONENT_ID(ClassName); return V; }
+#define TH_COMPONENT_BASIS(ClassName) \
 virtual const char* GetName() { static const char* V = #ClassName; return V; } \
-virtual uint64_t GetId() { static uint64_t V = THAWK_COMPONENT_ID(ClassName); return V; } \
+virtual uint64_t GetId() { static uint64_t V = TH_COMPONENT_ID(ClassName); return V; } \
 static const char* GetTypeName() { static const char* V = #ClassName; return V; } \
-static uint64_t GetTypeId() { static uint64_t V = THAWK_COMPONENT_ID(ClassName); return V; }
+static uint64_t GetTypeId() { static uint64_t V = TH_COMPONENT_ID(ClassName); return V; }
 
 namespace Tomahawk
 {
@@ -211,7 +214,7 @@ namespace Tomahawk
 		typedef std::function<void(DocumentPretty, const char*, int64_t)> NWriteCallback;
 		typedef std::function<bool(char*, int64_t)> NReadCallback;
 
-		struct THAWK_OUT FileState
+		struct TH_OUT FileState
 		{
 			uint64_t Size = 0;
 			uint64_t Links = 0;
@@ -226,7 +229,7 @@ namespace Tomahawk
 			bool Exists = false;
 		};
 
-		struct THAWK_OUT EventArgs
+		struct TH_OUT EventArgs
 		{
 			friend EventQueue;
 
@@ -261,14 +264,14 @@ namespace Tomahawk
 			}
 		};
 
-		struct THAWK_OUT EventBase
+		struct TH_OUT EventBase
 		{
 			uint64_t Type = 0;
 			EventArgs Args;
 			BaseCallback Callback;
 		};
 
-		struct THAWK_OUT EventTimer
+		struct TH_OUT EventTimer
 		{
 			BaseCallback Callback;
 			EventArgs Args;
@@ -277,13 +280,13 @@ namespace Tomahawk
 			int64_t Time = 0;
 		};
 
-		struct THAWK_OUT EventListener
+		struct TH_OUT EventListener
 		{
 			uint64_t Type = 0;
 			BaseCallback Callback;
 		};
 
-		struct THAWK_OUT Resource
+		struct TH_OUT Resource
 		{
 			uint64_t Size = 0;
 			int64_t LastModified = 0;
@@ -292,14 +295,14 @@ namespace Tomahawk
 			bool IsDirectory = false;
 		};
 
-		struct THAWK_OUT ResourceEntry
+		struct TH_OUT ResourceEntry
 		{
 			std::string Path;
 			Resource Source;
 			void* UserData = nullptr;
 		};
 
-		struct THAWK_OUT DirectoryEntry
+		struct TH_OUT DirectoryEntry
 		{
 			std::string Path;
 			bool IsDirectory = false;
@@ -307,7 +310,7 @@ namespace Tomahawk
 			uint64_t Length = 0;
 		};
 
-		struct THAWK_OUT ChildProcess
+		struct TH_OUT ChildProcess
 		{
 			friend class OS;
 
@@ -315,7 +318,7 @@ namespace Tomahawk
 			bool Valid = false;
 
 		public:
-#ifdef THAWK_MICROSOFT
+#ifdef TH_MICROSOFT
 			void* Process = nullptr;
 			void* Thread = nullptr;
 			void* Job = nullptr;
@@ -324,7 +327,7 @@ namespace Tomahawk
 #endif
 		};
 
-		struct THAWK_OUT DateTime
+		struct TH_OUT DateTime
 		{
 		private:
 			std::chrono::system_clock::duration Time;
@@ -383,7 +386,7 @@ namespace Tomahawk
 			static int64_t ReadGMTBasedString(const char* Date);
 		};
 
-		struct THAWK_OUT Stroke
+		struct TH_OUT Stroke
 		{
 		public:
 			struct Settle
@@ -516,7 +519,7 @@ namespace Tomahawk
 			static int Match(const char* Pattern, uint64_t Length, const char* Text);
 		};
 
-		struct THAWK_OUT TickTimer
+		struct TH_OUT TickTimer
 		{
 		private:
 			double Time;
@@ -528,6 +531,17 @@ namespace Tomahawk
 			TickTimer();
 			bool TickEvent(double ElapsedTime);
 			double GetTime();
+		};
+
+		struct TH_OUT SpinLock
+		{
+		private:
+			std::atomic_flag Atom;
+
+		public:
+			SpinLock();
+			void Acquire();
+			void Release();
 		};
 
 		template <class T>
@@ -595,7 +609,7 @@ namespace Tomahawk
 					return;
 
 				Volume = NewCount;
-				T* Raw = (T*)malloc((size_t)(Volume * SizeOf(Data)));
+				T* Raw = (T*)TH_MALLOC((size_t)(Volume * SizeOf(Data)));
 				memset(Raw, 0, (size_t)(Volume * SizeOf(Data)));
 
 				if (!Assign(Begin(), End(), Raw))
@@ -606,7 +620,7 @@ namespace Tomahawk
 					for (auto It = Begin(); It != End(); It++)
 						Dispose(It);
 
-					free(Data);
+					TH_FREE(Data);
 				}
 				Data = Raw;
 			}
@@ -617,7 +631,7 @@ namespace Tomahawk
 					for (auto It = Begin(); It != End(); It++)
 						Dispose(It);
 
-					free(Data);
+					TH_FREE(Data);
 					Data = nullptr;
 				}
 
@@ -634,11 +648,11 @@ namespace Tomahawk
 			{
 				if (Data == nullptr || (Data != nullptr && Volume >= Raw.Volume))
 				{
-					Data = (T*)malloc((size_t)(Raw.Count * SizeOf(Data)));
+					Data = (T*)TH_MALLOC((size_t)(Raw.Count * SizeOf(Data)));
 					memset(Data, 0, (size_t)(Raw.Count * SizeOf(Data)));
 				}
 				else
-					Data = (T*)realloc(Data, (size_t)(Raw.Volume * SizeOf(Data)));
+					Data = (T*)TH_REALLOC(Data, (size_t)(Raw.Volume * SizeOf(Data)));
 
 				Count = Raw.Count;
 				Volume = Raw.Volume;
@@ -795,7 +809,126 @@ namespace Tomahawk
 			}
 		};
 
-		class THAWK_OUT OS
+		class TH_OUT Mem
+		{
+		private:
+			struct MemoryPage
+			{
+				uint64_t Size;
+				bool Allocated;
+				char Data;
+			};
+#ifndef NDEBUG
+			struct MemoryInfo
+			{
+				uint64_t Alloc;
+				uint64_t Size;
+			};
+#endif
+		private:
+			static MemoryPage* Heap;
+			static std::mutex* Mutex;
+			static SpinLock Atom;
+			static uint64_t HeadSize;
+			static uint64_t HeapSize;
+#ifndef NDEBUG
+			static std::unordered_map<void*, MemoryInfo>* Blocks;
+			static uint64_t BlockCount;
+#endif
+
+		public:
+			static void Create(size_t InitialSize);
+			static void Release();
+			static void* GetPtr(void* Ptr);
+			static uint64_t GetSize(void* Ptr);
+			static uint64_t GetCount();
+			static uint64_t GetUsedMemory();
+			static uint64_t GetAvailableMemory();
+			static uint64_t GetTotalMemory();
+			static void* Malloc(size_t Size);
+			static void* Realloc(void* Ptr, size_t Size);
+			static void Free(void* Ptr);
+			static void Report();
+			static void Interrupt();
+
+		private:
+			static void ConcatSequentialPages(MemoryPage* Block, bool IsAllocated);
+			static MemoryPage* FindFirstPage(uint64_t MinSize);
+			static void SplitPage(MemoryPage* Block, uint64_t Size);
+		};
+
+		class TH_OUT Debug
+		{
+		private:
+			static std::function<void(const char*, int)> Callback;
+			static bool Enabled;
+
+		public:
+			static void Log(int Level, int Line, const char* Source, const char* Format, ...);
+			static void AttachCallback(const std::function<void(const char*, int)>& Callback);
+			static void AttachStream();
+			static void DetachCallback();
+			static void DetachStream();
+		};
+
+		class TH_OUT Composer
+		{
+		private:
+			static std::unordered_map<uint64_t, void*>* Factory;
+
+		public:
+			static void AddRef(Object* Value);
+			static void SetFlag(Object* Value);
+			static void Release(Object* Value);
+			static int GetRefCount(Object* Value);
+			static bool GetFlag(Object* Value);
+			static bool Clear();
+			static bool Pop(const std::string& Hash);
+
+		public:
+			template <typename T, typename... Args>
+			static T* Create(const std::string& Hash, Args... Data)
+			{
+				return Create<T, Args...>(TH_COMPONENT_HASH(Hash), Data...);
+			}
+			template <typename T, typename... Args>
+			static T* Create(uint64_t Id, Args... Data)
+			{
+				if (!Factory)
+					return nullptr;
+
+				auto It = Factory->find(Id);
+				if (It == Factory->end() || !It->second)
+					return nullptr;
+
+				void*(*Callable)(Args...) = nullptr;
+				reinterpret_cast<void*&>(Callable) = It->second;
+
+				if (!Callable)
+					return nullptr;
+
+				return (T*)Callable(Data...);
+			}
+			template <typename T, typename... Args>
+			static void Push(const std::string& Hash)
+			{
+				if (!Factory)
+					Factory = new std::unordered_map<uint64_t, void*>();
+
+				auto Callable = &Composer::Callee<T, Args...>;
+				void* Result = reinterpret_cast<void*&>(Callable);
+				(*Factory)[TH_COMPONENT_HASH(Hash)] = Result;
+			}
+
+		private:
+			template <typename T, typename... Args>
+			static void* Callee(Args... Data)
+			{
+				return (void*)new T(Data...);
+			}
+		};
+
+		class TH_OUT OS
 		{
 		public:
 			static void SetDirectory(const char* Path);
@@ -850,95 +983,9 @@ namespace Tomahawk
 			static uint64_t CheckSum(const std::string& Data);
 		};
 
-		class THAWK_OUT LT
+		class TH_OUT Object
 		{
-			friend class Object;
-
-		private:
-#ifndef NDEBUG
-			static uint64_t Memory;
-			static std::unordered_map<void*, uint64_t>* Objects;
-			static std::mutex* Safe;
-#endif
-			static std::function<void(const char*, int)> Callback;
-			static bool Enabled;
-
-		public:
-			static void AddRef(Object* Value);
-			static void SetFlag(Object* Value);
-			static void Release(Object* Value);
-			static bool GetFlag(Object* Value);
-			static int GetRefCount(Object* Value);
-			static void AttachCallback(const std::function<void(const char*, int)>& Callback);
-			static void AttachStream();
-			static void DetachCallback();
-			static void DetachStream();
-			static void Log(int Level, int Line, const char* Source, const char* Format, ...);
-			static void* GetPtr(void* Ptr);
-			static uint64_t GetSize(void* Ptr);
-			static uint64_t GetCount();
-			static uint64_t GetMemory();
-			static void Free(void* Ptr);
-			static void* Alloc(uint64_t Size);
-			static void Report();
-			static void Interrupt();
-		};
-
-		class THAWK_OUT Composer
-		{
-		private:
-			static std::unordered_map<uint64_t, void*>* Factory;
-
-		public:
-			static bool Clear();
-			static bool Pop(const std::string& Hash);
-
-		public:
-			template <typename T, typename... Args>
-			static T* Create(const std::string& Hash, Args... Data)
-			{
-				return Create<T, Args...>(THAWK_COMPONENT_HASH(Hash), Data...);
-			}
-			template <typename T, typename... Args>
-			static T* Create(uint64_t Id, Args... Data)
-			{
-				if (!Factory)
-					return nullptr;
-
-				auto It = Factory->find(Id);
-				if (It == Factory->end() || !It->second)
-					return nullptr;
-
-				void*(*Callable)(Args...) = nullptr;
-				reinterpret_cast<void*&>(Callable) = It->second;
-
-				if (!Callable)
-					return nullptr;
-
-				return (T*)Callable(Data...);
-			}
-			template <typename T, typename... Args>
-			static void Push(const std::string& Hash)
-			{
-				if (!Factory)
-					Factory = new std::unordered_map<uint64_t, void*>();
-
-				auto Callable = &Composer::Callee<T, Args...>;
-				void* Result = reinterpret_cast<void*&>(Callable);
-				(*Factory)[THAWK_COMPONENT_HASH(Hash)] = Result;
-			}
-
-		private:
-			template <typename T, typename... Args>
-			static void* Callee(Args... Data)
-			{
-				return (void*)new T(Data...);
-			}
-		};
-
-		class THAWK_OUT Object
-		{
-			friend class LT;
+			friend class Mem;
 
 		private:
 			std::atomic<int> __vcnt;
@@ -973,7 +1020,7 @@ namespace Tomahawk
 			}
 		};
 
-		class THAWK_OUT Console : public Object
+		class TH_OUT Console : public Object
 		{
 		protected:
 			bool Handle;
@@ -1015,7 +1062,7 @@ namespace Tomahawk
 			static Console* Singleton;
 		};
 
-		class THAWK_OUT Timer : public Object
+		class TH_OUT Timer : public Object
 		{
 		private:
 			double TimeIncrement;
@@ -1048,7 +1095,7 @@ namespace Tomahawk
 			double GetTimeStep();
 		};
 
-		class THAWK_OUT FileStream : public Object
+		class TH_OUT FileStream : public Object
 		{
 		protected:
 			void* Compress = nullptr;
@@ -1080,7 +1127,7 @@ namespace Tomahawk
 			void* StreamZ();
 		};
 
-		class THAWK_OUT FileLogger : public Object
+		class TH_OUT FileLogger : public Object
 		{
 		private:
 			std::string LastValue;
@@ -1096,7 +1143,7 @@ namespace Tomahawk
 			void Process(const std::function<bool(FileLogger*, const char*, int64_t)>& Callback);
 		};
 
-		class THAWK_OUT FileTree : public Object
+		class TH_OUT FileTree : public Object
 		{
 		public:
 			std::vector<FileTree*> Directories;
@@ -1111,7 +1158,7 @@ namespace Tomahawk
 			uint64_t GetFiles();
 		};
 
-		class THAWK_OUT EventWorker : public Object
+		class TH_OUT EventWorker : public Object
 		{
 			friend EventArgs;
 
@@ -1129,7 +1176,7 @@ namespace Tomahawk
 			bool QueueEvent();
 		};
 
-		class THAWK_OUT EventQueue : public Object
+		class TH_OUT EventQueue : public Object
 		{
 			friend EventArgs;
 			friend EventWorker;
@@ -1318,7 +1365,7 @@ namespace Tomahawk
 			}
 		};
 
-		class THAWK_OUT Document : public Object
+		class TH_OUT Document : public Object
 		{
 		protected:
 			std::vector<Document*> Nodes;
@@ -1411,7 +1458,7 @@ namespace Tomahawk
 			static bool ProcessJSONRead(Document* Current);
 		};
 
-		THAWK_OUT Stroke Form(const char* Format, ...);
+		TH_OUT Stroke Form(const char* Format, ...);
 	}
 }
 #endif

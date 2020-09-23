@@ -28,7 +28,7 @@ namespace Tomahawk
 
 			Panel::Panel(Context* View) : Element(View), Cache(nullptr)
 			{
-				Style = (nk_style_window*)malloc(sizeof(nk_style_window));
+				Style = (nk_style_window*)TH_MALLOC(sizeof(nk_style_window));
 				memset(Style, 0, sizeof(nk_style_window));
 
 				Source.Font = nullptr;
@@ -193,7 +193,7 @@ namespace Tomahawk
 			}
 			Panel::~Panel()
 			{
-				free(Style);
+				TH_FREE(Style);
 			}
 			bool Panel::BuildBegin(nk_context* C)
 			{
@@ -338,7 +338,7 @@ namespace Tomahawk
 
 			Button::Button(Context* View) : Widget(View)
 			{
-				Style = (nk_style_button*)malloc(sizeof(nk_style_button));
+				Style = (nk_style_button*)TH_MALLOC(sizeof(nk_style_button));
 				memset(Style, 0, sizeof(nk_style_button));
 
 				Source.Image = nullptr;
@@ -386,7 +386,7 @@ namespace Tomahawk
 			}
 			Button::~Button()
 			{
-				free(Style);
+				TH_FREE(Style);
 			}
 			bool Button::BuildBegin(nk_context* C)
 			{
@@ -448,7 +448,7 @@ namespace Tomahawk
 
 			Text::Text(Context* View) : Widget(View)
 			{
-				Style = (nk_style_text*)malloc(sizeof(nk_style_text));
+				Style = (nk_style_text*)TH_MALLOC(sizeof(nk_style_text));
 				memset(Style, 0, sizeof(nk_style_text));
 
 				Bind("type", [this]()
@@ -475,7 +475,7 @@ namespace Tomahawk
 			}
 			Text::~Text()
 			{
-				free(Style);
+				TH_FREE(Style);
 			}
 			bool Text::BuildBegin(nk_context* C)
 			{
@@ -573,7 +573,7 @@ namespace Tomahawk
 
 			Checkbox::Checkbox(Context* View) : Widget(View)
 			{
-				Style = (nk_style_toggle*)malloc(sizeof(nk_style_toggle));
+				Style = (nk_style_toggle*)TH_MALLOC(sizeof(nk_style_toggle));
 				memset(Style, 0, sizeof(nk_style_toggle));
 
 				State.Value = 0;
@@ -611,7 +611,7 @@ namespace Tomahawk
 			}
 			Checkbox::~Checkbox()
 			{
-				free(Style);
+				TH_FREE(Style);
 			}
 			bool Checkbox::BuildBegin(nk_context* C)
 			{
@@ -656,7 +656,7 @@ namespace Tomahawk
 
 			Radio::Radio(Context* View) : Widget(View)
 			{
-				Style = (nk_style_toggle*)malloc(sizeof(nk_style_toggle));
+				Style = (nk_style_toggle*)TH_MALLOC(sizeof(nk_style_toggle));
 				memset(Style, 0, sizeof(nk_style_toggle));
 
 				State.Value = 0;
@@ -694,7 +694,7 @@ namespace Tomahawk
 			}
 			Radio::~Radio()
 			{
-				free(Style);
+				TH_FREE(Style);
 			}
 			bool Radio::BuildBegin(nk_context* C)
 			{
@@ -739,7 +739,7 @@ namespace Tomahawk
 
 			Selectable::Selectable(Context* View) : Widget(View)
 			{
-				Style = (nk_style_selectable*)malloc(sizeof(nk_style_selectable));
+				Style = (nk_style_selectable*)TH_MALLOC(sizeof(nk_style_selectable));
 				memset(Style, 0, sizeof(nk_style_selectable));
 
 				State.Value = 0;
@@ -794,7 +794,7 @@ namespace Tomahawk
 			}
 			Selectable::~Selectable()
 			{
-				free(Style);
+				TH_FREE(Style);
 			}
 			bool Selectable::BuildBegin(nk_context* C)
 			{
@@ -855,7 +855,7 @@ namespace Tomahawk
 
 			Slider::Slider(Context* View) : Widget(View)
 			{
-				Style = (nk_style_slider*)malloc(sizeof(nk_style_slider));
+				Style = (nk_style_slider*)TH_MALLOC(sizeof(nk_style_slider));
 				memset(Style, 0, sizeof(nk_style_slider));
 
 				State.Value = 0.0f;
@@ -928,7 +928,7 @@ namespace Tomahawk
 			}
 			Slider::~Slider()
 			{
-				free(Style);
+				TH_FREE(Style);
 			}
 			bool Slider::BuildBegin(nk_context* C)
 			{
@@ -981,7 +981,7 @@ namespace Tomahawk
 
 			Progress::Progress(Context* View) : Widget(View)
 			{
-				Style = (nk_style_progress*)malloc(sizeof(nk_style_progress));
+				Style = (nk_style_progress*)TH_MALLOC(sizeof(nk_style_progress));
 				memset(Style, 0, sizeof(nk_style_progress));
 
 				State.Value = 0.0f;
@@ -1018,7 +1018,7 @@ namespace Tomahawk
 			}
 			Progress::~Progress()
 			{
-				free(Style);
+				TH_FREE(Style);
 			}
 			bool Progress::BuildBegin(nk_context* C)
 			{
@@ -1147,7 +1147,7 @@ namespace Tomahawk
 
 			Property::Property(Context* View) : Widget(View)
 			{
-				Style = (nk_style_property*)malloc(sizeof(nk_style_property));
+				Style = (nk_style_property*)TH_MALLOC(sizeof(nk_style_property));
 				memset(Style, 0, sizeof(nk_style_property));
 
 				State.Value = 0.0f;
@@ -1236,7 +1236,7 @@ namespace Tomahawk
 			}
 			Property::~Property()
 			{
-				free(Style);
+				TH_FREE(Style);
 			}
 			bool Property::BuildBegin(nk_context* C)
 			{
@@ -1291,7 +1291,7 @@ namespace Tomahawk
 
 			Edit::Edit(Context* View) : Widget(View)
 			{
-				Style = (nk_style_edit*)malloc(sizeof(nk_style_edit));
+				Style = (nk_style_edit*)TH_MALLOC(sizeof(nk_style_edit));
 				memset(Style, 0, sizeof(nk_style_edit));
 
 				Bind("bind", [this]()
@@ -1387,7 +1387,7 @@ namespace Tomahawk
 			}
 			Edit::~Edit()
 			{
-				free(Style);
+				TH_FREE(Style);
 			}
 			bool Edit::BuildBegin(nk_context* C)
 			{
@@ -1502,7 +1502,7 @@ namespace Tomahawk
 
 			Combo::Combo(Context* View) : Widget(View)
 			{
-				Style = (nk_style_combo*)malloc(sizeof(nk_style_combo));
+				Style = (nk_style_combo*)TH_MALLOC(sizeof(nk_style_combo));
 				memset(Style, 0, sizeof(nk_style_combo));
 
 				Bind("bind", [this]()
@@ -1574,7 +1574,7 @@ namespace Tomahawk
 			}
 			Combo::~Combo()
 			{
-				free(Style);
+				TH_FREE(Style);
 			}
 			bool Combo::BuildBegin(nk_context* C)
 			{
@@ -1723,10 +1723,10 @@ namespace Tomahawk
 
 			Vector::Vector(Context* View) : Widget(View)
 			{
-				Style.Combo = (nk_style_combo*)malloc(sizeof(nk_style_combo));
+				Style.Combo = (nk_style_combo*)TH_MALLOC(sizeof(nk_style_combo));
 				memset(Style.Combo, 0, sizeof(nk_style_combo));
 
-				Style.Property = (nk_style_property*)malloc(sizeof(nk_style_property));
+				Style.Property = (nk_style_property*)TH_MALLOC(sizeof(nk_style_property));
 				memset(Style.Property, 0, sizeof(nk_style_property));
 
 				Bind("bind", [this]()
@@ -1867,8 +1867,8 @@ namespace Tomahawk
 			}
 			Vector::~Vector()
 			{
-				free(Style.Combo);
-				free(Style.Property);
+				TH_FREE(Style.Combo);
+				TH_FREE(Style.Property);
 			}
 			bool Vector::BuildBegin(nk_context* C)
 			{
@@ -1963,7 +1963,7 @@ namespace Tomahawk
 
 			Group::Group(Context* View) : Stateful(View)
 			{
-				Style = (nk_style_window*)malloc(sizeof(nk_style_window));
+				Style = (nk_style_window*)TH_MALLOC(sizeof(nk_style_window));
 				memset(Style, 0, sizeof(nk_style_window));
 
 				Source.Flags = 0;
@@ -2124,7 +2124,7 @@ namespace Tomahawk
 			}
 			Group::~Group()
 			{
-				free(Style);
+				TH_FREE(Style);
 			}
 			bool Group::BuildBegin(nk_context* C)
 			{
@@ -2166,10 +2166,10 @@ namespace Tomahawk
 
 			Tree::Tree(Context* View) : Stateful(View)
 			{
-				Style.Tab = (nk_style_tab*)malloc(sizeof(nk_style_tab));
+				Style.Tab = (nk_style_tab*)TH_MALLOC(sizeof(nk_style_tab));
 				memset(Style.Tab, 0, sizeof(nk_style_tab));
 
-				Style.Selectable = (nk_style_selectable*)malloc(sizeof(nk_style_selectable));
+				Style.Selectable = (nk_style_selectable*)TH_MALLOC(sizeof(nk_style_selectable));
 				memset(Style.Selectable, 0, sizeof(nk_style_selectable));
 
 				Bind("minimize-normal", [this]()
@@ -2370,8 +2370,8 @@ namespace Tomahawk
 			}
 			Tree::~Tree()
 			{
-				free(Style.Tab);
-				free(Style.Selectable);
+				TH_FREE(Style.Tab);
+				TH_FREE(Style.Selectable);
 			}
 			bool Tree::BuildBegin(nk_context* C)
 			{
@@ -2748,7 +2748,7 @@ namespace Tomahawk
 
 			ContextualItem::ContextualItem(Context* View) : Widget(View)
 			{
-				Style = (nk_style_button*)malloc(sizeof(nk_style_button));
+				Style = (nk_style_button*)TH_MALLOC(sizeof(nk_style_button));
 				memset(Style, 0, sizeof(nk_style_button));
 
 				Source.Image = nullptr;
@@ -2788,7 +2788,7 @@ namespace Tomahawk
 			}
 			ContextualItem::~ContextualItem()
 			{
-				free(Style);
+				TH_FREE(Style);
 			}
 			bool ContextualItem::BuildBegin(nk_context* C)
 			{
@@ -2925,7 +2925,7 @@ namespace Tomahawk
 
 			HeaderTab::HeaderTab(Context* View) : Widget(View)
 			{
-				Style = (nk_style_button*)malloc(sizeof(nk_style_button));
+				Style = (nk_style_button*)TH_MALLOC(sizeof(nk_style_button));
 				memset(Style, 0, sizeof(nk_style_button));
 
 				Source.Image = nullptr;
@@ -2971,7 +2971,7 @@ namespace Tomahawk
 			}
 			HeaderTab::~HeaderTab()
 			{
-				free(Style);
+				TH_FREE(Style);
 			}
 			bool HeaderTab::BuildBegin(nk_context* C)
 			{
@@ -3034,7 +3034,7 @@ namespace Tomahawk
 
 			HeaderItem::HeaderItem(Context* View) : Widget(View)
 			{
-				Style = (nk_style_button*)malloc(sizeof(nk_style_button));
+				Style = (nk_style_button*)TH_MALLOC(sizeof(nk_style_button));
 				memset(Style, 0, sizeof(nk_style_button));
 
 				Source.Image = nullptr;
@@ -3074,7 +3074,7 @@ namespace Tomahawk
 			}
 			HeaderItem::~HeaderItem()
 			{
-				free(Style);
+				TH_FREE(Style);
 			}
 			bool HeaderItem::BuildBegin(nk_context* C)
 			{

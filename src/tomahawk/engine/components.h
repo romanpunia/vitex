@@ -1,5 +1,5 @@
-#ifndef THAWK_ENGINE_COMPONENTS_H
-#define THAWK_ENGINE_COMPONENTS_H
+#ifndef TH_ENGINE_COMPONENTS_H
+#define TH_ENGINE_COMPONENTS_H
 
 #include "../core/engine.h"
 
@@ -11,7 +11,7 @@ namespace Tomahawk
 		{
 			typedef std::function<void(Script::VMContext*)> InvocationCallback;
 
-			class THAWK_OUT Model : public Drawable
+			class TH_OUT Model : public Drawable
 			{
 			protected:
 				Graphics::Model* Instance = nullptr;
@@ -28,10 +28,10 @@ namespace Tomahawk
 				Graphics::Model* GetDrawable();
 
 			public:
-				THAWK_COMPONENT(Model);
+				TH_COMPONENT(Model);
 			};
 
-			class THAWK_OUT LimpidModel : public Model
+			class TH_OUT LimpidModel : public Model
 			{
 			public:
 				LimpidModel(Entity* Ref);
@@ -39,10 +39,10 @@ namespace Tomahawk
 				virtual Component* Copy(Entity* New) override;
 
 			public:
-				THAWK_COMPONENT(LimpidModel);
+				TH_COMPONENT(LimpidModel);
 			};
 
-			class THAWK_OUT Skin : public Drawable
+			class TH_OUT Skin : public Drawable
 			{
 			protected:
 				Graphics::SkinModel* Instance = nullptr;
@@ -63,10 +63,10 @@ namespace Tomahawk
 				Graphics::SkinModel* GetDrawable();
 
 			public:
-				THAWK_COMPONENT(Skin);
+				TH_COMPONENT(Skin);
 			};
 
-			class THAWK_OUT LimpidSkin : public Skin
+			class TH_OUT LimpidSkin : public Skin
 			{
 			public:
 				LimpidSkin(Entity* Ref);
@@ -74,10 +74,10 @@ namespace Tomahawk
 				virtual Component* Copy(Entity* New) override;
 
 			public:
-				THAWK_COMPONENT(LimpidSkin);
+				TH_COMPONENT(LimpidSkin);
 			};
 
-			class THAWK_OUT Emitter : public Drawable
+			class TH_OUT Emitter : public Drawable
 			{
 			protected:
 				Graphics::InstanceBuffer* Instance;
@@ -98,10 +98,10 @@ namespace Tomahawk
 				Graphics::InstanceBuffer* GetBuffer();
 
 			public:
-				THAWK_COMPONENT(Emitter);
+				TH_COMPONENT(Emitter);
 			};
 
-			class THAWK_OUT LimpidEmitter : public Emitter
+			class TH_OUT LimpidEmitter : public Emitter
 			{
 			public:
 				LimpidEmitter(Entity* Ref);
@@ -109,10 +109,10 @@ namespace Tomahawk
 				virtual Component* Copy(Entity* New) override;
 
 			public:
-				THAWK_COMPONENT(LimpidEmitter);
+				TH_COMPONENT(LimpidEmitter);
 			};
 
-			class THAWK_OUT SoftBody : public Drawable
+			class TH_OUT SoftBody : public Drawable
 			{
 			protected:
 				Compute::UnmanagedShape* Hull;
@@ -147,10 +147,10 @@ namespace Tomahawk
 				std::vector<int>& GetIndices();
 
 			public:
-				THAWK_COMPONENT(SoftBody);
+				TH_COMPONENT(SoftBody);
 			};
 
-			class THAWK_OUT LimpidSoftBody : public SoftBody
+			class TH_OUT LimpidSoftBody : public SoftBody
 			{
 			public:
 				LimpidSoftBody(Entity* Ref);
@@ -158,10 +158,10 @@ namespace Tomahawk
 				virtual Component* Copy(Entity* New) override;
 
 			public:
-				THAWK_COMPONENT(LimpidSoftBody);
+				TH_COMPONENT(LimpidSoftBody);
 			};
 
-			class THAWK_OUT Decal : public Drawable
+			class TH_OUT Decal : public Drawable
 			{
 			public:
 				Compute::Matrix4x4 Projection;
@@ -179,10 +179,10 @@ namespace Tomahawk
 				virtual Component* Copy(Entity* New) override;
 
 			public:
-				THAWK_COMPONENT(Decal);
+				TH_COMPONENT(Decal);
 			};
 
-			class THAWK_OUT LimpidDecal : public Decal
+			class TH_OUT LimpidDecal : public Decal
 			{
 			public:
 				LimpidDecal(Entity* Ref);
@@ -190,10 +190,10 @@ namespace Tomahawk
 				virtual Component* Copy(Entity* New) override;
 
 			public:
-				THAWK_COMPONENT(LimpidDecal);
+				TH_COMPONENT(LimpidDecal);
 			};
 
-			class THAWK_OUT SkinAnimator : public Component
+			class TH_OUT SkinAnimator : public Component
 			{
 			private:
 				Skin* Instance = nullptr;
@@ -230,10 +230,10 @@ namespace Tomahawk
 				bool IsPosed(int64_t Clip, int64_t Frame);
 
 			public:
-				THAWK_COMPONENT(SkinAnimator);
+				TH_COMPONENT(SkinAnimator);
 			};
 
-			class THAWK_OUT KeyAnimator : public Component
+			class TH_OUT KeyAnimator : public Component
 			{
 			private:
 				std::string Reference;
@@ -265,10 +265,10 @@ namespace Tomahawk
 				bool IsPosed(int64_t Clip, int64_t Frame);
 
 			public:
-				THAWK_COMPONENT(KeyAnimator);
+				TH_COMPONENT(KeyAnimator);
 			};
 
-			class THAWK_OUT EmitterAnimator : public Component
+			class TH_OUT EmitterAnimator : public Component
 			{
 			private:
 				Emitter* Base;
@@ -298,10 +298,10 @@ namespace Tomahawk
 				void FastSynchronization(float DeltaTime);
 
 			public:
-				THAWK_COMPONENT(EmitterAnimator);
+				TH_COMPONENT(EmitterAnimator);
 			};
 
-			class THAWK_OUT RigidBody : public Component
+			class TH_OUT RigidBody : public Component
 			{
 			private:
 				Compute::UnmanagedShape* Hull;
@@ -328,10 +328,10 @@ namespace Tomahawk
 				Compute::RigidBody* GetBody() const;
 
 			public:
-				THAWK_COMPONENT(RigidBody);
+				TH_COMPONENT(RigidBody);
 			};
 
-			class THAWK_OUT Acceleration : public Component
+			class TH_OUT Acceleration : public Component
 			{
 			private:
 				Compute::RigidBody* RigidBody;
@@ -355,10 +355,10 @@ namespace Tomahawk
 				Compute::RigidBody* GetBody() const;
 
 			public:
-				THAWK_COMPONENT(Acceleration);
+				TH_COMPONENT(Acceleration);
 			};
 
-			class THAWK_OUT SliderConstraint : public Component
+			class TH_OUT SliderConstraint : public Component
 			{
 			private:
 				Compute::SliderConstraint* Instance;
@@ -376,10 +376,10 @@ namespace Tomahawk
 				Entity* GetConnection() const;
 
 			public:
-				THAWK_COMPONENT(SliderConstraint);
+				TH_COMPONENT(SliderConstraint);
 			};
 
-			class THAWK_OUT FreeLook : public Component
+			class TH_OUT FreeLook : public Component
 			{
 			private:
 				Graphics::Activity* Activity;
@@ -398,10 +398,10 @@ namespace Tomahawk
 				Graphics::Activity* GetActivity() const;
 
 			public:
-				THAWK_COMPONENT(FreeLook);
+				TH_COMPONENT(FreeLook);
 			};
 
-			class THAWK_OUT Fly : public Component
+			class TH_OUT Fly : public Component
 			{
 			private:
 				Graphics::Activity* Activity;
@@ -429,10 +429,10 @@ namespace Tomahawk
 				Graphics::Activity* GetActivity() const;
 
 			public:
-				THAWK_COMPONENT(Fly);
+				TH_COMPONENT(Fly);
 			};
 
-			class THAWK_OUT AudioSource : public Component
+			class TH_OUT AudioSource : public Component
 			{
 			private:
 				Compute::Vector3 LastPosition;
@@ -451,10 +451,10 @@ namespace Tomahawk
 				Audio::AudioSync& GetSync();
 
 			public:
-				THAWK_COMPONENT(AudioSource);
+				TH_COMPONENT(AudioSource);
 			};
 
-			class THAWK_OUT AudioListener : public Component
+			class TH_OUT AudioListener : public Component
 			{
 			private:
 				Compute::Vector3 LastPosition;
@@ -472,10 +472,10 @@ namespace Tomahawk
 				virtual Component* Copy(Entity* New) override;
 
 			public:
-				THAWK_COMPONENT(AudioListener);
+				TH_COMPONENT(AudioListener);
 			};
 
-			class THAWK_OUT PointLight : public Cullable
+			class TH_OUT PointLight : public Cullable
 			{
 			private:
 				Graphics::Texture2D* ShadowCache;
@@ -503,10 +503,10 @@ namespace Tomahawk
 				Graphics::Texture2D* GetShadowCache() const;
 
 			public:
-				THAWK_COMPONENT(PointLight);
+				TH_COMPONENT(PointLight);
 			};
 
-			class THAWK_OUT SpotLight : public Cullable
+			class TH_OUT SpotLight : public Cullable
 			{
 			private:
 				Graphics::Texture2D* ShadowCache;
@@ -536,10 +536,10 @@ namespace Tomahawk
 				Graphics::Texture2D* GetShadowCache() const;
 
 			public:
-				THAWK_COMPONENT(SpotLight);
+				TH_COMPONENT(SpotLight);
 			};
 
-			class THAWK_OUT LineLight : public Component
+			class TH_OUT LineLight : public Component
 			{
 			private:
 				Graphics::Texture2D* ShadowCache;
@@ -577,10 +577,10 @@ namespace Tomahawk
 				Graphics::Texture2D* GetShadowCache() const;
 
 			public:
-				THAWK_COMPONENT(LineLight);
+				TH_COMPONENT(LineLight);
 			};
 
-			class THAWK_OUT ReflectionProbe : public Cullable
+			class TH_OUT ReflectionProbe : public Cullable
 			{
 			private:
 				Graphics::Texture2D* DiffuseMapX[2];
@@ -623,10 +623,10 @@ namespace Tomahawk
 				Graphics::Texture2D* GetDiffuseMap();
 
 			public:
-				THAWK_COMPONENT(ReflectionProbe);
+				TH_COMPONENT(ReflectionProbe);
 			};
 
-			class THAWK_OUT Camera : public Component
+			class TH_OUT Camera : public Component
 			{
 			public:
 				enum ProjectionMode
@@ -669,10 +669,10 @@ namespace Tomahawk
 				bool RayTest(Compute::Ray& Ray, const Compute::Matrix4x4& World);
 
 			public:
-				THAWK_COMPONENT(Camera);
+				TH_COMPONENT(Camera);
 			};
 
-			class THAWK_OUT Scriptable : public Component
+			class TH_OUT Scriptable : public Component
 			{
 			public:
 				enum SourceType
@@ -884,7 +884,7 @@ namespace Tomahawk
 				}
 
 			public:
-				THAWK_COMPONENT(Scriptable);
+				TH_COMPONENT(Scriptable);
 			};
 		}
 	}

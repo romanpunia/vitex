@@ -130,7 +130,7 @@ namespace Tomahawk
 				if (Global.GetManager()->IsNullable(TypeId))
 				{
 					if (TypeId == 0)
-						THAWK_WARN("[memerr] use nullptr instead of null for initialization lists");
+						TH_WARN("[memerr] use nullptr instead of null for initialization lists");
 
 					Result.Append("null");
 				}
@@ -512,7 +512,7 @@ namespace Tomahawk
 				}
 				else if (TypeId == 0)
 				{
-					THAWK_WARN("[memerr] use nullptr instead of null for initialization lists");
+					TH_WARN("[memerr] use nullptr instead of null for initialization lists");
 					Buffer += sizeof(void*);
 				}
 				else

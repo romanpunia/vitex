@@ -4,14 +4,14 @@
 #include "../network/http.h"
 #include <stb_vorbis.h>
 #include <sstream>
-#ifdef THAWK_HAS_OPENAL
+#ifdef TH_HAS_OPENAL
 #include <AL/al.h>
 #endif
-#ifdef THAWK_HAS_SDL2
+#ifdef TH_HAS_SDL2
 #include <SDL2/SDL.h>
 #include <SDL2/SDL_syswm.h>
 #endif
-#ifdef THAWK_HAS_ASSIMP
+#ifdef TH_HAS_ASSIMP
 #include <assimp/Importer.hpp>
 #include <assimp/scene.h>
 #include <assimp/matrix4x4.h>
@@ -29,7 +29,7 @@ namespace Tomahawk
 	{
 		namespace FileProcessors
 		{
-#ifdef THAWK_HAS_ASSIMP
+#ifdef TH_HAS_ASSIMP
 			Compute::Matrix4x4 ToMatrix(const aiMatrix4x4& Root)
 			{
 				return Compute::Matrix4x4(Root.a1, Root.a2, Root.a3, Root.a4, Root.b1, Root.b2, Root.b3, Root.b4, Root.c1, Root.c2, Root.c3, Root.c4, Root.d1, Root.d2, Root.d3, Root.d4);
@@ -40,11 +40,11 @@ namespace Tomahawk
 			}
 			void* AssetFileProcessor::Deserialize(Rest::FileStream* Stream, uint64_t Length, uint64_t Offset, ContentArgs* Args)
 			{
-				char* Binary = (char*)malloc(sizeof(char) * Length);
+				char* Binary = (char*)TH_MALLOC(sizeof(char) * Length);
 				if (Stream->Read(Binary, Length) != Length)
 				{
-					THAWK_ERROR("cannot read %llu bytes from audio clip file", Length);
-					free(Binary);
+					TH_ERROR("cannot read %llu bytes from audio clip file", Length);
+					TH_FREE(Binary);
 					return nullptr;
 				}
 
@@ -166,7 +166,7 @@ namespace Tomahawk
 								Component* Target = Rest::Composer::Create<Component>(Id, Entity);
 								if (!Entity->AddComponent(Target))
 								{
-									THAWK_WARN("component with id %llu cannot be created", Id);
+									TH_WARN("component with id %llu cannot be created", Id);
 									continue;
 								}
 
@@ -308,12 +308,12 @@ namespace Tomahawk
 			}
 			void* AudioClipProcessor::DeserializeWAVE(Rest::FileStream* Stream, uint64_t Length, uint64_t Offset, ContentArgs* Args)
 			{
-#ifdef THAWK_HAS_SDL2
-				void* Binary = malloc(sizeof(char) * Length);
+#ifdef TH_HAS_SDL2
+				void* Binary = TH_MALLOC(sizeof(char) * Length);
 				if (Stream->Read((char*)Binary, Length) != Length)
 				{
-					THAWK_ERROR("cannot read %llu bytes from audio clip file", Length);
-					free(Binary);
+					TH_ERROR("cannot read %llu bytes from audio clip file", Length);
+					TH_FREE(Binary);
 					return nullptr;
 				}
 
@@ -324,12 +324,12 @@ namespace Tomahawk
 
 				if (!SDL_LoadWAV_RW(WavData, 1, &WavInfo, &WavSamples, &WavCount))
 				{
-					free(Binary);
+					TH_FREE(Binary);
 					return nullptr;
 				}
 
 				int Format = 0;
-#ifdef THAWK_HAS_OPENAL
+#ifdef TH_HAS_OPENAL
 				switch (WavInfo.format)
 				{
 					case AUDIO_U8:
@@ -342,14 +342,14 @@ namespace Tomahawk
 						break;
 					default:
 						SDL_FreeWAV(WavSamples);
-						free(Binary);
+						TH_FREE(Binary);
 						return nullptr;
 				}
 #endif
 				Audio::AudioClip* Object = new Audio::AudioClip(1, Format);
 				Audio::AudioContext::SetBufferData(Object->GetBuffer(), (int)Format, (const void*)WavSamples, (int)WavCount, (int)WavInfo.freq);
 				SDL_FreeWAV(WavSamples);
-				free(Binary);
+				TH_FREE(Binary);
 
 				Content->Cache(this, Stream->Filename(), Object);
 				return Object;
@@ -359,11 +359,11 @@ namespace Tomahawk
 			}
 			void* AudioClipProcessor::DeserializeOGG(Rest::FileStream* Stream, uint64_t Length, uint64_t Offset, ContentArgs* Args)
 			{
-				void* Binary = malloc(sizeof(char) * Length);
+				void* Binary = TH_MALLOC(sizeof(char) * Length);
 				if (Stream->Read((char*)Binary, Length) != Length)
 				{
-					THAWK_ERROR("cannot read %llu bytes from audio clip file", Length);
-					free(Binary);
+					TH_ERROR("cannot read %llu bytes from audio clip file", Length);
+					TH_FREE(Binary);
 					return nullptr;
 				}
 
@@ -372,13 +372,13 @@ namespace Tomahawk
 				int Samples = stb_vorbis_decode_memory((const unsigned char*)Binary, (int)Length, &Channels, &SampleRate, &Buffer);
 				if (Samples <= 0)
 				{
-					THAWK_ERROR("cannot interpret OGG stream");
-					free(Binary);
+					TH_ERROR("cannot interpret OGG stream");
+					TH_FREE(Binary);
 					return nullptr;
 				}
 
 				int Format = 0;
-#ifdef THAWK_HAS_OPENAL
+#ifdef TH_HAS_OPENAL
 				if (Channels == 2)
 					Format = AL_FORMAT_STEREO16;
 				else
@@ -386,8 +386,8 @@ namespace Tomahawk
 #endif
 				Audio::AudioClip* Object = new Audio::AudioClip(1, Format);
 				Audio::AudioContext::SetBufferData(Object->GetBuffer(), (int)Format, (const void*)Buffer, Samples * sizeof(short) * Channels, (int)SampleRate);
-				free(Buffer);
-				free(Binary);
+				TH_FREE(Buffer);
+				TH_FREE(Binary);
 
 				Content->Cache(this, Stream->Filename(), Object);
 				return Object;
@@ -410,11 +410,11 @@ namespace Tomahawk
 			}
 			void* Texture2DProcessor::Deserialize(Rest::FileStream* Stream, uint64_t Length, uint64_t Offset, ContentArgs* Args)
 			{
-				unsigned char* Binary = (unsigned char*)malloc(sizeof(unsigned char) * Length);
+				unsigned char* Binary = (unsigned char*)TH_MALLOC(sizeof(unsigned char) * Length);
 				if (Stream->Read((char*)Binary, Length) != Length)
 				{
-					THAWK_ERROR("cannot read %llu bytes from texture 2d file", Length);
-					free(Binary);
+					TH_ERROR("cannot read %llu bytes from texture 2d file", Length);
+					TH_FREE(Binary);
 					return nullptr;
 				}
 
@@ -422,7 +422,7 @@ namespace Tomahawk
 				unsigned char* Resource = stbi_load_from_memory(Binary, (int)Length, &Width, &Height, &Channels, STBI_rgb_alpha);
 				if (!Resource)
 				{
-					free(Binary);
+					TH_FREE(Binary);
 					return nullptr;
 				}
 
@@ -439,7 +439,7 @@ namespace Tomahawk
 				Content->GetDevice()->Unlock();
 
 				stbi_image_free(Resource);
-				free(Binary);
+				TH_FREE(Binary);
 
 				if (!Object)
 					return nullptr;
@@ -467,7 +467,7 @@ namespace Tomahawk
 			{
 				if (!Args)
 				{
-					THAWK_ERROR("shader processor args: req pointer Layout and req integer LayoutSize");
+					TH_ERROR("shader processor args: req pointer Layout and req integer LayoutSize");
 					return nullptr;
 				}
 
@@ -560,13 +560,13 @@ namespace Tomahawk
 			}
 			Rest::Document* ModelProcessor::Import(const std::string& Path, unsigned int Opts)
 			{
-#ifdef THAWK_HAS_ASSIMP
+#ifdef TH_HAS_ASSIMP
 				Assimp::Importer Importer;
 
 				auto* Scene = Importer.ReadFile(Path, Opts);
 				if (!Scene)
 				{
-					THAWK_ERROR("cannot import mesh because %s", Importer.GetErrorString());
+					TH_ERROR("cannot import mesh because %s", Importer.GetErrorString());
 					return nullptr;
 				}
 
@@ -626,7 +626,7 @@ namespace Tomahawk
 			}
 			void ModelProcessor::ProcessNode(void* Scene_, void* Node_, MeshInfo* Info, const Compute::Matrix4x4& Global)
 			{
-#ifdef THAWK_HAS_ASSIMP
+#ifdef TH_HAS_ASSIMP
 				auto* Scene = (aiScene*)Scene_;
 				auto* Node = (aiNode*)Node_;
 				Compute::Matrix4x4 World = ToMatrix(Node->mTransformation).Transpose() * Global;
@@ -640,7 +640,7 @@ namespace Tomahawk
 			}
 			void ModelProcessor::ProcessMesh(void* Scene_, void* Mesh_, MeshInfo* Info, const Compute::Matrix4x4& Global)
 			{
-#ifdef THAWK_HAS_ASSIMP
+#ifdef TH_HAS_ASSIMP
 				auto* Scene = (aiScene*)Scene_;
 				auto* Mesh = (aiMesh*)Mesh_;
 
@@ -770,7 +770,7 @@ namespace Tomahawk
 			}
 			void ModelProcessor::ProcessHeirarchy(void* Scene_, void* Node_, MeshInfo* Info, Compute::Joint* Parent)
 			{
-#ifdef THAWK_HAS_ASSIMP
+#ifdef TH_HAS_ASSIMP
 				auto* Scene = (aiScene*)Scene_;
 				auto* Node = (aiNode*)Node_;
 				auto It = FindJoint(Info->Joints, Node->mName.C_Str());
@@ -872,13 +872,13 @@ namespace Tomahawk
 			}
 			Rest::Document* SkinModelProcessor::ImportAnimation(const std::string& Path, unsigned int Opts)
 			{
-#ifdef THAWK_HAS_ASSIMP
+#ifdef TH_HAS_ASSIMP
 				Assimp::Importer Importer;
 
 				auto* Scene = Importer.ReadFile(Path, Opts);
 				if (!Scene)
 				{
-					THAWK_ERROR("cannot import mesh animation because %s", Importer.GetErrorString());
+					TH_ERROR("cannot import mesh animation because %s", Importer.GetErrorString());
 					return nullptr;
 				}
 
@@ -962,7 +962,7 @@ namespace Tomahawk
 			}
 			void SkinModelProcessor::ProcessNode(void* Scene_, void* Node_, std::unordered_map<std::string, MeshNode>* Joints, int64_t& Id)
 			{
-#ifdef THAWK_HAS_ASSIMP
+#ifdef TH_HAS_ASSIMP
 				auto* Scene = (aiScene*)Scene_;
 				auto* Node = (aiNode*)Node_;
 
@@ -994,7 +994,7 @@ namespace Tomahawk
 			}
 			void SkinModelProcessor::ProcessHeirarchy(void* Scene_, void* Node_, std::unordered_map<std::string, MeshNode>* Joints)
 			{
-#ifdef THAWK_HAS_ASSIMP
+#ifdef TH_HAS_ASSIMP
 				auto* Scene = (aiScene*)Scene_;
 				auto* Node = (aiNode*)Node_;
 				auto It = Joints->find(Node->mName.C_Str());

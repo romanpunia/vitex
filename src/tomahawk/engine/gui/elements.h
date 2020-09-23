@@ -1,5 +1,5 @@
-#ifndef THAWK_ENGINE_GUI_ELEMENTS_H
-#define THAWK_ENGINE_GUI_ELEMENTS_H
+#ifndef TH_ENGINE_GUI_ELEMENTS_H
+#define TH_ENGINE_GUI_ELEMENTS_H
 
 #include "context.h"
 
@@ -45,7 +45,7 @@ namespace Tomahawk
 				TreeType_Tab
 			};
 
-			class THAWK_OUT Panel : public Element
+			class TH_OUT Panel : public Element
 			{
 			private:
 				nk_user_font* Cache;
@@ -93,7 +93,7 @@ namespace Tomahawk
 				Compute::Vector2 GetScroll();
 			};
 
-			class THAWK_OUT Button : public Widget
+			class TH_OUT Button : public Widget
 			{
 			private:
 				nk_style_button* Style;
@@ -128,7 +128,7 @@ namespace Tomahawk
 				bool IsClicked();
 			};
 
-			class THAWK_OUT Text : public Widget
+			class TH_OUT Text : public Widget
 			{
 			private:
 				nk_style_text* Style;
@@ -153,7 +153,7 @@ namespace Tomahawk
 				virtual std::string GetType() override;
 			};
 
-			class THAWK_OUT Image : public Widget
+			class TH_OUT Image : public Widget
 			{
 			public:
 				struct
@@ -174,7 +174,7 @@ namespace Tomahawk
 				virtual std::string GetType() override;
 			};
 
-			class THAWK_OUT Checkbox : public Widget
+			class TH_OUT Checkbox : public Widget
 			{
 			private:
 				nk_style_toggle* Style;
@@ -207,7 +207,7 @@ namespace Tomahawk
 				bool IsToggled();
 			};
 
-			class THAWK_OUT Radio : public Widget
+			class TH_OUT Radio : public Widget
 			{
 			private:
 				nk_style_toggle* Style;
@@ -240,7 +240,7 @@ namespace Tomahawk
 				bool IsToggled();
 			};
 
-			class THAWK_OUT Selectable : public Widget
+			class TH_OUT Selectable : public Widget
 			{
 			private:
 				nk_style_selectable* Style;
@@ -277,7 +277,7 @@ namespace Tomahawk
 				bool IsClicked();
 			};
 
-			class THAWK_OUT Slider : public Widget
+			class TH_OUT Slider : public Widget
 			{
 			private:
 				nk_style_slider* Style;
@@ -312,7 +312,7 @@ namespace Tomahawk
 				bool IsClicked();
 			};
 
-			class THAWK_OUT Progress : public Widget
+			class TH_OUT Progress : public Widget
 			{
 			private:
 				nk_style_progress* Style;
@@ -346,7 +346,7 @@ namespace Tomahawk
 				bool IsClicked();
 			};
 
-			class THAWK_OUT ColorPicker : public Widget
+			class TH_OUT ColorPicker : public Widget
 			{
 			private:
 				struct
@@ -376,7 +376,7 @@ namespace Tomahawk
 				bool IsClicked();
 			};
 
-			class THAWK_OUT Property : public Widget
+			class TH_OUT Property : public Widget
 			{
 			private:
 				nk_style_property* Style;
@@ -410,7 +410,7 @@ namespace Tomahawk
 				double GetValue();
 			};
 
-			class THAWK_OUT Edit : public Widget
+			class TH_OUT Edit : public Widget
 			{
 			private:
 				nk_style_edit* Style;
@@ -452,7 +452,7 @@ namespace Tomahawk
 				void Unfocus();
 			};
 
-			class THAWK_OUT Combo : public Widget
+			class TH_OUT Combo : public Widget
 			{
 			private:
 				nk_style_combo* Style;
@@ -490,7 +490,7 @@ namespace Tomahawk
 				std::string GetValue();
 			};
 
-			class THAWK_OUT ComboItem : public Element
+			class TH_OUT ComboItem : public Element
 			{
 			private:
 				struct
@@ -522,7 +522,7 @@ namespace Tomahawk
 				bool IsClicked();
 			};
 
-			class THAWK_OUT Vector : public Widget
+			class TH_OUT Vector : public Widget
 			{
 			private:
 				struct
@@ -566,7 +566,7 @@ namespace Tomahawk
 				Compute::Vector4 GetValue();
 			};
 
-			class THAWK_OUT Group : public Stateful
+			class TH_OUT Group : public Stateful
 			{
 			private:
 				nk_style_window* Style;
@@ -592,7 +592,7 @@ namespace Tomahawk
 				virtual std::string GetType() override;
 			};
 
-			class THAWK_OUT Tree : public Stateful
+			class TH_OUT Tree : public Stateful
 			{
 			private:
 				struct Internal
@@ -646,7 +646,7 @@ namespace Tomahawk
 				Internal* GetState();
 			};
 
-			class THAWK_OUT Popup : public Widget
+			class TH_OUT Popup : public Widget
 			{
 			public:
 				struct
@@ -672,7 +672,7 @@ namespace Tomahawk
 				Compute::Vector2 GetScrollOffset();
 			};
 
-			class THAWK_OUT Contextual : public Widget
+			class TH_OUT Contextual : public Widget
 			{
 			public:
 				struct
@@ -698,7 +698,7 @@ namespace Tomahawk
 				void Close();
 			};
 
-			class THAWK_OUT ContextualItem : public Widget
+			class TH_OUT ContextualItem : public Widget
 			{
 			private:
 				nk_style_button* Style;
@@ -733,7 +733,7 @@ namespace Tomahawk
 				bool IsClicked();
 			};
 
-			class THAWK_OUT Tooltip : public Widget
+			class TH_OUT Tooltip : public Widget
 			{
 			public:
 				struct
@@ -754,7 +754,7 @@ namespace Tomahawk
 				virtual std::string GetType() override;
 			};
 
-			class THAWK_OUT Header : public Widget
+			class TH_OUT Header : public Widget
 			{
 			public:
 				Header(Context* View);
@@ -767,7 +767,7 @@ namespace Tomahawk
 				virtual std::string GetType() override;
 			};
 
-			class THAWK_OUT HeaderTab : public Widget
+			class TH_OUT HeaderTab : public Widget
 			{
 			private:
 				nk_style_button* Style;
@@ -802,7 +802,7 @@ namespace Tomahawk
 				void SetLayer(Header* New);
 			};
 
-			class THAWK_OUT HeaderItem : public Widget
+			class TH_OUT HeaderItem : public Widget
 			{
 			private:
 				nk_style_button* Style;

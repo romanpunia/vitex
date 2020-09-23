@@ -1,5 +1,5 @@
-#ifndef THAWK_SCRIPT_H
-#define THAWK_SCRIPT_H
+#ifndef TH_SCRIPT_H
+#define TH_SCRIPT_H
 #include "compute.h"
 #include <type_traits>
 #include <random>
@@ -324,7 +324,7 @@ namespace Tomahawk
 		typedef std::function<void(struct VMTypeInfo*, struct VMFuncProperty*)> PropertyCallback;
 		typedef std::function<void(struct VMTypeInfo*, struct VMFunction*)> MethodCallback;
 
-        class THAWK_OUT VMFuncStore
+        class TH_OUT VMFuncStore
         {
         public:
             static asSFuncPtr* CreateFunctionBase(void(*Base)(), int Type);
@@ -335,7 +335,7 @@ namespace Tomahawk
         };
         
         template <int N>
-        struct THAWK_OUT VMFuncCall
+        struct TH_OUT VMFuncCall
         {
             template <class M>
             static asSFuncPtr* Bind(M Value)
@@ -346,7 +346,7 @@ namespace Tomahawk
         };
 
         template <>
-        struct THAWK_OUT VMFuncCall<sizeof(VMMethodPtr)>
+        struct TH_OUT VMFuncCall<sizeof(VMMethodPtr)>
         {
             template <class M>
             static asSFuncPtr* Bind(M Value)
@@ -356,7 +356,7 @@ namespace Tomahawk
         };
 #if defined(_MSC_VER) && !defined(__MWERKS__)
         template <>
-        struct THAWK_OUT VMFuncCall<sizeof(VMMethodPtr) + 1 * sizeof(int)>
+        struct TH_OUT VMFuncCall<sizeof(VMMethodPtr) + 1 * sizeof(int)>
         {
             template <class M>
             static asSFuncPtr* Bind(M Value)
@@ -366,13 +366,13 @@ namespace Tomahawk
         };
 
         template <>
-        struct THAWK_OUT VMFuncCall<sizeof(VMMethodPtr) + 2 * sizeof(int)>
+        struct TH_OUT VMFuncCall<sizeof(VMMethodPtr) + 2 * sizeof(int)>
         {
             template <class M>
             static asSFuncPtr* Bind(M Value)
             {
                 asSFuncPtr* Ptr = VMFuncStore::CreateMethodBase(&Value, sizeof(VMMethodPtr) + 2 * sizeof(int), 3);
-#if defined(_MSC_VER) && !defined(THAWK_64)
+#if defined(_MSC_VER) && !defined(TH_64)
                 *(reinterpret_cast<unsigned long*>(Ptr) + 3) = *(reinterpret_cast<unsigned long*>(Ptr) + 2);
 #endif
                 return Ptr;
@@ -380,7 +380,7 @@ namespace Tomahawk
         };
 
         template <>
-        struct THAWK_OUT VMFuncCall<sizeof(VMMethodPtr) + 3 * sizeof(int)>
+        struct TH_OUT VMFuncCall<sizeof(VMMethodPtr) + 3 * sizeof(int)>
         {
             template <class M>
             static asSFuncPtr* Bind(M Value)
@@ -390,7 +390,7 @@ namespace Tomahawk
         };
 
         template <>
-        struct THAWK_OUT VMFuncCall<sizeof(VMMethodPtr) + 4 * sizeof(int)>
+        struct TH_OUT VMFuncCall<sizeof(VMMethodPtr) + 4 * sizeof(int)>
         {
             template <class M>
             static asSFuncPtr* Bind(M Value)
@@ -399,7 +399,7 @@ namespace Tomahawk
             }
         };
 #endif
-        class THAWK_OUT VMGeneric
+        class TH_OUT VMGeneric
 		{
 		private:
 			VMManager* Manager;
@@ -447,13 +447,13 @@ namespace Tomahawk
 			}
 		};
 
-		class THAWK_OUT VMBridge
+		class TH_OUT VMBridge
 		{
 		public:
 			template <typename T>
 			static asSFuncPtr* Function(T Value)
 			{
-#ifdef THAWK_64
+#ifdef TH_64
 				void(*Address)() = reinterpret_cast<void(*)()>(size_t(Value));
 #else
 				void (* Address)() = reinterpret_cast<void (*)()>(Value);
@@ -463,7 +463,7 @@ namespace Tomahawk
 			template <typename T>
 			static asSFuncPtr* FunctionGeneric(T Value)
 			{
-#ifdef THAWK_64
+#ifdef TH_64
 				void(*Address)() = reinterpret_cast<void(*)()>(size_t(Value));
 #else
 				void(*Address)() = reinterpret_cast<void(*)()>(Value);
@@ -588,7 +588,7 @@ namespace Tomahawk
             }
 		};
 
-		struct THAWK_OUT VMByteCode
+		struct TH_OUT VMByteCode
 		{
 			std::vector<unsigned char> Data;
 			std::string Name;
@@ -596,7 +596,7 @@ namespace Tomahawk
 			bool Debug = true;
 		};
 
-		struct THAWK_OUT VMProperty
+		struct TH_OUT VMProperty
 		{
 			const char* Name;
 			const char* NameSpace;
@@ -607,7 +607,7 @@ namespace Tomahawk
 			size_t AccessMask;
 		};
 
-		struct THAWK_OUT VMFuncProperty
+		struct TH_OUT VMFuncProperty
 		{
 			const char* Name;
 			size_t AccessMask;
@@ -618,7 +618,7 @@ namespace Tomahawk
 			bool IsReference;
 		};
 
-		struct THAWK_OUT VMMessage
+		struct TH_OUT VMMessage
 		{
 		private:
 			asSMessageInfo* Info;
@@ -634,7 +634,7 @@ namespace Tomahawk
 			bool IsValid() const;
 		};
 
-		struct THAWK_OUT VMTypeInfo
+		struct TH_OUT VMTypeInfo
 		{
 		private:
 			VMManager* Manager;
@@ -740,7 +740,7 @@ namespace Tomahawk
 			static bool IsScriptObject(int TypeId);
 		};
 
-		struct THAWK_OUT VMFunction
+		struct TH_OUT VMFunction
 		{
 		private:
 			VMManager* Manager;
@@ -789,7 +789,7 @@ namespace Tomahawk
 			VMManager* GetManager() const;
 		};
 
-		struct THAWK_OUT VMObject
+		struct TH_OUT VMObject
 		{
 		private:
 			VMCObject* Object;
@@ -812,7 +812,7 @@ namespace Tomahawk
 			VMCObject* GetObject() const;
 		};
 
-		struct THAWK_OUT VMClass
+		struct TH_OUT VMClass
 		{
 		protected:
 			VMManager* Manager;
@@ -1116,7 +1116,7 @@ namespace Tomahawk
 			}
 		};
 
-		struct THAWK_OUT VMRefClass : public VMClass
+		struct TH_OUT VMRefClass : public VMClass
 		{
 		public:
 			VMRefClass(VMManager* Engine, const std::string& Name, int Type) : VMClass(Engine, Name, Type)
@@ -1202,7 +1202,7 @@ namespace Tomahawk
 			template <typename T>
 			int SetAddRef()
 			{
-				asSFuncPtr* AddRef = VMBridge::Function(&Rest::LT::AddRef);
+				asSFuncPtr* AddRef = VMBridge::Function(&Rest::Composer::AddRef);
 				int Result = SetBehaviourAddress("void f()", VMBehave_ADDREF, AddRef, VMCall_CDECL_OBJFIRST);
 				VMFuncStore::ReleaseFunctor(&AddRef);
 
@@ -1211,7 +1211,7 @@ namespace Tomahawk
 			template <typename T>
 			int SetRelease()
 			{
-				asSFuncPtr* Release = VMBridge::Function(&Rest::LT::Release);
+				asSFuncPtr* Release = VMBridge::Function(&Rest::Composer::Release);
 				int Result = SetBehaviourAddress("void f()", VMBehave_RELEASE, Release, VMCall_CDECL_OBJFIRST);
 				VMFuncStore::ReleaseFunctor(&Release);
 
@@ -1220,7 +1220,7 @@ namespace Tomahawk
 			template <typename T>
 			int SetGetRefCount()
 			{
-				asSFuncPtr* GetRefCount = VMBridge::Function(&Rest::LT::GetRefCount);
+				asSFuncPtr* GetRefCount = VMBridge::Function(&Rest::Composer::GetRefCount);
 				int Result = SetBehaviourAddress("int f()", VMBehave_GETREFCOUNT, GetRefCount, VMCall_CDECL_OBJFIRST);
 				VMFuncStore::ReleaseFunctor(&GetRefCount);
 
@@ -1229,7 +1229,7 @@ namespace Tomahawk
 			template <typename T>
 			int SetSetGCFlag()
 			{
-				asSFuncPtr* SetGCFlag = VMBridge::Function(&Rest::LT::SetFlag);
+				asSFuncPtr* SetGCFlag = VMBridge::Function(&Rest::Composer::SetFlag);
 				int Result = SetBehaviourAddress("void f()", VMBehave_SETGCFLAG, SetGCFlag, VMCall_CDECL_OBJFIRST);
 				VMFuncStore::ReleaseFunctor(&SetGCFlag);
 
@@ -1238,7 +1238,7 @@ namespace Tomahawk
 			template <typename T>
 			int SetGetGCFlag()
 			{
-				asSFuncPtr* GetGCFlag = VMBridge::Function(&Rest::LT::GetFlag);
+				asSFuncPtr* GetGCFlag = VMBridge::Function(&Rest::Composer::GetFlag);
 				int Result = SetBehaviourAddress("bool f()", VMBehave_GETGCFLAG, GetGCFlag, VMCall_CDECL_OBJFIRST);
 				VMFuncStore::ReleaseFunctor(&GetGCFlag);
 
@@ -1284,7 +1284,7 @@ namespace Tomahawk
 			}
 		};
 
-		struct THAWK_OUT VMTypeClass : public VMClass
+		struct TH_OUT VMTypeClass : public VMClass
 		{
 		public:
 			VMTypeClass(VMManager* Engine, const std::string& Name, int Type) : VMClass(Engine, Name, Type)
@@ -1339,7 +1339,7 @@ namespace Tomahawk
 			}
 		};
 
-		struct THAWK_OUT VMInterface
+		struct TH_OUT VMInterface
 		{
 		private:
 			VMManager* Manager;
@@ -1355,7 +1355,7 @@ namespace Tomahawk
 			VMManager* GetManager() const;
 		};
 
-		struct THAWK_OUT VMEnum
+		struct TH_OUT VMEnum
 		{
 		private:
 			VMManager* Manager;
@@ -1371,7 +1371,7 @@ namespace Tomahawk
 			VMManager* GetManager() const;
 		};
 
-		struct THAWK_OUT VMModule
+		struct TH_OUT VMModule
 		{
 		private:
 			VMManager* Manager;
@@ -1484,7 +1484,7 @@ namespace Tomahawk
 			}
 		};
 
-		struct THAWK_OUT VMGlobal
+		struct TH_OUT VMGlobal
 		{
 		private:
 			VMManager* Manager;
@@ -1590,7 +1590,7 @@ namespace Tomahawk
 			}
 		};
 
-		class THAWK_OUT VMCompiler : public Rest::Object
+		class TH_OUT VMCompiler : public Rest::Object
 		{
 		private:
 			static int CompilerUD;
@@ -1641,7 +1641,7 @@ namespace Tomahawk
 			static VMCompiler* Get(VMContext* Context);
 		};
 
-		class THAWK_OUT VMContext : public Rest::Object
+		class TH_OUT VMContext : public Rest::Object
 		{
 		private:
 			static int ContextUD;
@@ -1732,7 +1732,7 @@ namespace Tomahawk
 			static void ExceptionLogger(VMCContext* Context, void* Object);
 		};
 
-		class THAWK_OUT VMManager : public Rest::Object
+		class TH_OUT VMManager : public Rest::Object
 		{
 		private:
 			static int ManagerUD;
@@ -1816,6 +1816,7 @@ namespace Tomahawk
 			std::vector<std::string> GetSubmodules();
 
 		public:
+			static void SetMemoryFunctions(void*(*Alloc)(size_t), void(*Free)(void*));
 			static VMManager* Get(VMCManager* Engine);
 			static VMManager* Get();
 			static size_t GetDefaultAccessMask();
@@ -1828,7 +1829,7 @@ namespace Tomahawk
 			static void* GetNullable();
 		};
 
-		class THAWK_OUT VMDebugger : public Rest::Object
+		class TH_OUT VMDebugger : public Rest::Object
 		{
 		public:
 			typedef std::string(* ToStringCallback)(void* Object, int ExpandLevel, VMDebugger* Dbg);

@@ -1,5 +1,5 @@
-#ifndef THAWK_NETWORK_BSON_H
-#define THAWK_NETWORK_BSON_H
+#ifndef TH_NETWORK_BSON_H
+#define TH_NETWORK_BSON_H
 
 #include "../core/network.h"
 
@@ -30,7 +30,7 @@ namespace Tomahawk
 				Type_Decimal
 			};
 
-			struct THAWK_OUT KeyPair
+			struct TH_OUT KeyPair
 			{
 				std::string Name;
 				std::string String;
@@ -50,7 +50,7 @@ namespace Tomahawk
 				std::string& ToString();
 			};
 
-			class THAWK_OUT Document
+			class TH_OUT Document
 			{
 			public:
 				static TDocument* Create(bool Array = false);

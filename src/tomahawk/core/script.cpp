@@ -2253,11 +2253,11 @@ namespace Tomahawk
 						Value.Substring(1, Value.Size() - 2);
 
 					if (Name.R() == "INFO")
-						THAWK_INFO("%s", Value.Get());
+						TH_INFO("%s", Value.Get());
 					else if (Name.R() == "WARN")
-						THAWK_WARN("%s", Value.Get());
+						TH_WARN("%s", Value.Get());
 					else if (Name.R() == "ERROR")
-						THAWK_ERROR("%s", Value.Get());
+						TH_ERROR("%s", Value.Get());
 				}
 				else if (Comment.StartsWith("modify"))
 				{
@@ -2295,7 +2295,7 @@ namespace Tomahawk
 
 					if (!Manager->UseSubmodule(Name.R()))
 					{
-						THAWK_ERROR("system module \"%s\" was not found", Name.Get());
+						TH_ERROR("system module \"%s\" was not found", Name.Get());
 						return false;
 					}
 				}
@@ -2474,7 +2474,7 @@ namespace Tomahawk
 		{
 			if (!Info || !Module || !BuiltOK)
 			{
-				THAWK_ERROR("module was not built");
+				TH_ERROR("module was not built");
 				return -1;
 			}
 
@@ -2491,7 +2491,7 @@ namespace Tomahawk
 		{
 			if (!Module || !Manager)
 			{
-				THAWK_ERROR("module was not created");
+				TH_ERROR("module was not created");
 				return -1;
 			}
 
@@ -2501,7 +2501,7 @@ namespace Tomahawk
 			std::string Source = Rest::OS::Resolve(Path.c_str());
 			if (!Rest::OS::FileExists(Source.c_str()))
 			{
-				THAWK_ERROR("file not found");
+				TH_ERROR("file not found");
 				return -1;
 			}
 
@@ -2515,7 +2515,7 @@ namespace Tomahawk
 		{
 			if (!Module)
 			{
-				THAWK_ERROR("module was not created");
+				TH_ERROR("module was not created");
 				return -1;
 			}
 
@@ -2532,7 +2532,7 @@ namespace Tomahawk
 		{
 			if (!Module)
 			{
-				THAWK_ERROR("module was not created");
+				TH_ERROR("module was not created");
 				return -1;
 			}
 
@@ -2717,7 +2717,7 @@ namespace Tomahawk
 		VMContext::~VMContext()
 		{
 			if (IsPending())
-				THAWK_ERROR("[asyncerr] %llu operations are still pending", Async.load());
+				TH_ERROR("[asyncerr] %llu operations are still pending", Async.load());
 
 			if (Context != nullptr)
 			{
@@ -2726,6 +2726,7 @@ namespace Tomahawk
 				else
 					Context->Release();
 			}
+			asThreadCleanup();
 		}
 		int VMContext::SetExceptionCallback(void(* Callback)(VMCContext* Context, void* Object), void* Object)
 		{
@@ -3203,7 +3204,7 @@ namespace Tomahawk
 				return;
 
 			if (Context->WillExceptionBeCaught())
-				return THAWK_WARN("exception raised");
+				return TH_WARN("exception raised");
 
 			const char* Decl = Function->GetDeclaration();
 			const char* Mod = Function->GetModuleName();
@@ -3211,7 +3212,7 @@ namespace Tomahawk
 			int Line = Context->GetExceptionLineNumber();
 			std::string Stack = Api ? Api->GetStackTrace() : "";
 
-			THAWK_ERROR("uncaught exception raised"
+			TH_ERROR("uncaught exception raised"
 						"\n\tdescription: %s"
 						"\n\tfunction: %s"
 						"\n\tmodule: %s"
@@ -3259,7 +3260,7 @@ namespace Tomahawk
 			JIT = new VMCJITCompiler(JITOpts);
 			Engine->SetJITCompiler((VMCJITCompiler*)JIT);
 #else
-			THAWK_ERROR("JIT compiler is not supported on this platform");
+			TH_ERROR("JIT compiler is not supported on this platform");
 #endif
 		}
 		void VMManager::SetCache(bool Enabled)
@@ -3610,7 +3611,7 @@ namespace Tomahawk
 
 			if (!Rest::Stroke(&Include.Root).EndsOf("/\\"))
 			{
-#ifdef THAWK_MICROSOFT
+#ifdef TH_MICROSOFT
 				Include.Root.append(1, '\\');
 #else
 				Include.Root.append(1, '/');
@@ -3887,6 +3888,7 @@ namespace Tomahawk
 		void VMManager::FreeProxy()
 		{
 			FreeCoreAPI();
+			asThreadCleanup();
 		}
 		VMManager* VMManager::Get(VMCManager* Engine)
 		{
@@ -3923,6 +3925,10 @@ namespace Tomahawk
 
 			return Context;
 		}
+		void VMManager::SetMemoryFunctions(void*(*Alloc)(size_t), void(*Free)(void*))
+		{
+			asSetGlobalMemoryFunctions(Alloc, Free);
+		}
 		void VMManager::ReturnContext(VMCManager* Engine, VMCContext* Context, void* Data)
 		{
 			VMManager* Manager = VMManager::Get(Engine);
@@ -3937,11 +3943,11 @@ namespace Tomahawk
 		void VMManager::CompileLogger(asSMessageInfo* Info, void*)
 		{
 			if (Info->type == asMSGTYPE_WARNING)
-				THAWK_WARN("\n\t%s (%i, %i): %s", Info->section && Info->section[0] != '\0' ? Info->section : "any", Info->row, Info->col, Info->message);
+				TH_WARN("\n\t%s (%i, %i): %s", Info->section && Info->section[0] != '\0' ? Info->section : "any", Info->row, Info->col, Info->message);
 			else if (Info->type == asMSGTYPE_INFORMATION)
-				THAWK_INFO("\n\t%s (%i, %i): %s", Info->section && Info->section[0] != '\0' ? Info->section : "any", Info->row, Info->col, Info->message);
+				TH_INFO("\n\t%s (%i, %i): %s", Info->section && Info->section[0] != '\0' ? Info->section : "any", Info->row, Info->col, Info->message);
 			else if (Info->type == asMSGTYPE_ERROR)
-				THAWK_ERROR("\n\t%s (%i, %i): %s", Info->section && Info->section[0] != '\0' ? Info->section : "any", Info->row, Info->col, Info->message);
+				TH_ERROR("\n\t%s (%i, %i): %s", Info->section && Info->section[0] != '\0' ? Info->section : "any", Info->row, Info->col, Info->message);
 		}
 		size_t VMManager::GetDefaultAccessMask()
 		{

@@ -1,5 +1,5 @@
-#ifndef THAWK_AUDIO_H
-#define THAWK_AUDIO_H
+#ifndef TH_AUDIO_H
+#define TH_AUDIO_H
 
 #include "compute.h"
 
@@ -83,7 +83,7 @@ namespace Tomahawk
 			SoundEx_Speed_Of_Sound = 0xC003
 		};
 
-		struct THAWK_OUT AudioSync
+		struct TH_OUT AudioSync
 		{
 			Compute::Vector3 Direction;
 			Compute::Vector3 Velocity;
@@ -102,7 +102,7 @@ namespace Tomahawk
 			bool IsLooped = false;
 		};
 
-		class THAWK_OUT AudioContext
+		class TH_OUT AudioContext
 		{
 		private:
 			static std::mutex* Mutex;
@@ -141,7 +141,7 @@ namespace Tomahawk
 			static void GetListenerData1I(unsigned int Listener, int* F1);
 		};
 
-		class THAWK_OUT AudioFilter : public Rest::Object
+		class TH_OUT AudioFilter : public Rest::Object
 		{
 			friend AudioEffect;
 			friend AudioSource;
@@ -163,10 +163,10 @@ namespace Tomahawk
 			bool CreateLocked(const std::function<bool()>& Callback);
 
 		public:
-			THAWK_COMPONENT_BASIS(AudioFilter);
+			TH_COMPONENT_BASIS(AudioFilter);
 		};
 
-		class THAWK_OUT AudioEffect : public Rest::Object
+		class TH_OUT AudioEffect : public Rest::Object
 		{
 			friend AudioSource;
 
@@ -198,10 +198,10 @@ namespace Tomahawk
 			bool Unbind();
 
 		public:
-			THAWK_COMPONENT_BASIS(AudioEffect);
+			TH_COMPONENT_BASIS(AudioEffect);
 		};
 
-		class THAWK_OUT AudioClip : public Rest::Object
+		class TH_OUT AudioClip : public Rest::Object
 		{
 		private:
 			unsigned int Buffer = 0;
@@ -216,7 +216,7 @@ namespace Tomahawk
 			int GetFormat();
 		};
 
-		class THAWK_OUT AudioSource : public Rest::Object
+		class TH_OUT AudioSource : public Rest::Object
 		{
 			friend class AudioDevice;
 
@@ -242,7 +242,7 @@ namespace Tomahawk
 			std::vector<AudioEffect*>* GetEffects();
 		};
 
-		class THAWK_OUT AudioDevice : public Rest::Object
+		class TH_OUT AudioDevice : public Rest::Object
 		{
 		public:
 			void* Context = nullptr;

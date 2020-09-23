@@ -2888,7 +2888,7 @@ namespace Tomahawk
 				}
 				else if (typeId == 0)
 				{
-					THAWK_WARN("[memerr] use nullptr instead of null for initialization lists");
+					TH_WARN("[memerr] use nullptr instead of null for initialization lists");
 					buffer += sizeof(void*);
 				}
 				else
@@ -4283,7 +4283,7 @@ namespace Tomahawk
 		void VMCThread::ReleaseReferences(VMCManager*)
 		{
 			if (Join() >= 0)
-				THAWK_ERROR("[memerr] thread was forced to join");
+				TH_ERROR("[memerr] thread was forced to join");
 
 			for (int i = 0; i < 2; i++)
 			{

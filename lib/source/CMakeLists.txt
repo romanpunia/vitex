@@ -18,7 +18,7 @@ file(GLOB_RECURSE SOURCE
 		${PROJECT_SOURCE_DIR}/src/tomahawk/*.cxx*)
 
 #Resources compile switch option
-set(THAWK_RESOURCES true CACHE BOOL "allow to compile embedded resources")
+set(TH_RESOURCES true CACHE BOOL "allow to compile embedded resources")
 
 #ASM support for script compiler
 if (NOT MSVC)
@@ -42,7 +42,7 @@ else()
 endif()
 
 #Compiling resources
-if (THAWK_RESOURCES)
+if (TH_RESOURCES)
     add_resource_batch("${PROJECT_SOURCE_DIR}/src/shaders" "${PROJECT_SOURCE_DIR}/src/tomahawk/core/shaders")
     list(APPEND SOURCE "${PROJECT_SOURCE_DIR}/src/tomahawk/core/shaders.h")
     list(APPEND SOURCE "${PROJECT_SOURCE_DIR}/src/tomahawk/core/shaders.cpp")

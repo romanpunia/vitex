@@ -5,7 +5,7 @@
 #include <BulletSoftBody/btDefaultSoftBodySolver.h>
 #include <BulletSoftBody/btSoftBodyHelpers.h>
 #include <BulletSoftBody/btSoftBodyRigidBodyCollisionConfiguration.h>
-#ifdef THAWK_HAS_OPENSSL
+#ifdef TH_HAS_OPENSSL
 extern "C"
 {
 #include <openssl/evp.h>
@@ -3129,7 +3129,7 @@ namespace Tomahawk
 			if (!Finalized)
 				return nullptr;
 
-			char* Output = (char*)malloc(sizeof(char) * 33);
+			char* Output = (char*)TH_MALLOC(sizeof(char) * 33);
 			memset((void*)Output, 0, 33);
 
 			for (int i = 0; i < 16; i++)
@@ -3143,7 +3143,7 @@ namespace Tomahawk
 			if (!Finalized)
 				return nullptr;
 
-			UInt1* Output = (UInt1*)malloc(sizeof(UInt1) * 17);
+			UInt1* Output = (UInt1*)TH_MALLOC(sizeof(UInt1) * 17);
 			memcpy(Output, Digest, 17);
 			Output[16] = '\0';
 
@@ -3629,7 +3629,7 @@ namespace Tomahawk
 		void MathCommon::Randomize()
 		{
 			srand((unsigned int)time(nullptr));
-#ifdef THAWK_HAS_OPENSSL
+#ifdef TH_HAS_OPENSSL
 			RAND_poll();
 #endif
 		}
@@ -3776,7 +3776,7 @@ namespace Tomahawk
 		int64_t MathCommon::RandomNumber(int64_t Min, int64_t Max)
 		{
 			int64_t Raw = 0;
-#ifdef THAWK_HAS_OPENSSL
+#ifdef TH_HAS_OPENSSL
 			RAND_bytes((unsigned char*)&Raw, sizeof(int64_t));
 #else
 			Raw = (int64_t)rand();
@@ -3891,12 +3891,12 @@ namespace Tomahawk
 		}
 		std::string MathCommon::RandomBytes(uint64_t Length)
 		{
-#ifdef THAWK_HAS_OPENSSL
-			unsigned char* Buffer = (unsigned char*)malloc(sizeof(unsigned char) * Length);
+#ifdef TH_HAS_OPENSSL
+			unsigned char* Buffer = (unsigned char*)TH_MALLOC(sizeof(unsigned char) * Length);
 			RAND_bytes(Buffer, (int)Length);
 
 			std::string Output((const char*)Buffer, Length);
-			free(Buffer);
+			TH_FREE(Buffer);
 
 			return Output;
 #else
@@ -3913,7 +3913,7 @@ namespace Tomahawk
 		}
 		std::string MathCommon::Sha256Encode(const char* Value, const char* Key, const char* IV)
 		{
-#ifdef THAWK_HAS_OPENSSL
+#ifdef TH_HAS_OPENSSL
 			EVP_CIPHER_CTX* Context;
 			if (!Value || !Key || !IV || !(Context = EVP_CIPHER_CTX_new()))
 				return "";
@@ -3952,7 +3952,7 @@ namespace Tomahawk
 		}
 		std::string MathCommon::Sha256Decode(const char* Value, const char* Key, const char* IV)
 		{
-#ifdef THAWK_HAS_OPENSSL
+#ifdef TH_HAS_OPENSSL
 			EVP_CIPHER_CTX* Context;
 			if (!Value || !Key || !IV || !(Context = EVP_CIPHER_CTX_new()))
 				return "";
@@ -4026,7 +4026,7 @@ namespace Tomahawk
 		}
 		std::string MathCommon::Aes256Decode(const std::string& Value, const char* Key, const char* IV)
 		{
-#ifdef THAWK_HAS_OPENSSL
+#ifdef TH_HAS_OPENSSL
 			EVP_CIPHER_CTX* Context;
 			if (Value.empty() || !Key || !IV || !(Context = EVP_CIPHER_CTX_new()))
 				return "";
@@ -4551,7 +4551,7 @@ namespace Tomahawk
 				Start++;
 				if (Start == End)
 				{
-					THAWK_ERROR("%s: cannot process include directive", Path.c_str());
+					TH_ERROR("%s: cannot process include directive", Path.c_str());
 					return false;
 				}
 
@@ -4569,7 +4569,7 @@ namespace Tomahawk
 				{
 					if (!Include || !Include(this, File, &Output))
 					{
-						THAWK_ERROR("%s: cannot find \"%s\"", Path.c_str(), Section.Get());
+						TH_ERROR("%s: cannot find \"%s\"", Path.c_str(), Section.Get());
 						return false;
 					}
 
@@ -4593,7 +4593,7 @@ namespace Tomahawk
 				int R = FindDirective(Buffer, "#pragma", &Offset, &Base, &Start, &End);
 				if (R < 0)
 				{
-					THAWK_ERROR("cannot process pragma directive");
+					TH_ERROR("cannot process pragma directive");
 					return false;
 				}
 				else if (R == 0)
@@ -4602,7 +4602,7 @@ namespace Tomahawk
 				Rest::Stroke Value(Buffer.Get() + Start, End - Start);
 				if (Pragma && !Pragma(this, Value.Trim().Replace("  ", " ").R()))
 				{
-					THAWK_ERROR("cannot process pragma \"%s\" directive", Value.Get());
+					TH_ERROR("cannot process pragma \"%s\" directive", Value.Get());
 					return false;
 				}
 
@@ -4620,7 +4620,7 @@ namespace Tomahawk
 				int R = FindBlockDirective(Buffer, Offset, false);
 				if (R < 0)
 				{
-					THAWK_ERROR("cannot process ifdef/endif directive");
+					TH_ERROR("cannot process ifdef/endif directive");
 					return false;
 				}
 				else if (R == 0)
@@ -4638,7 +4638,7 @@ namespace Tomahawk
 				int R = FindDefineDirective(Buffer, Base, &Size);
 				if (R < 0)
 				{
-					THAWK_ERROR("cannot process define directive");
+					TH_ERROR("cannot process define directive");
 					return false;
 				}
 				else if (R == 0)
@@ -4656,7 +4656,7 @@ namespace Tomahawk
 			int R = FindDirective(Buffer, "#define", &Offset, &Base, &Start, &End);
 			if (R < 0)
 			{
-				THAWK_ERROR("cannot process define directive");
+				TH_ERROR("cannot process define directive");
 				return -1;
 			}
 			else if (R == 0)
@@ -4682,7 +4682,7 @@ namespace Tomahawk
 			int R = FindDirective(Buffer, "#ifdef", &Offset, nullptr, &Start, &End);
 			if (R < 0)
 			{
-				THAWK_ERROR("cannot parse ifdef block directive");
+				TH_ERROR("cannot parse ifdef block directive");
 				return -1;
 			}
 			else if (R == 0)
@@ -4711,7 +4711,7 @@ namespace Tomahawk
 			R = FindBlockNesting(Buffer, Cond, Offset, B1Start + B1End == 0 ? Resolved : !Resolved);
 			if (R < 0)
 			{
-				THAWK_ERROR("cannot find endif directive of %s", Name.Get());
+				TH_ERROR("cannot find endif directive of %s", Name.Get());
 				return -1;
 			}
 			else if (R == 1)
@@ -4719,7 +4719,7 @@ namespace Tomahawk
 				int C = FindBlockDirective(Buffer, Offset, true);
 				if (C == 0)
 				{
-					THAWK_ERROR("cannot process nested ifdef/endif directive of %s", Name.Get());
+					TH_ERROR("cannot process nested ifdef/endif directive of %s", Name.Get());
 					return -1;
 				}
 				else if (C < 0)

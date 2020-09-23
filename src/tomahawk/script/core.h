@@ -1,5 +1,5 @@
-#ifndef THAWK_SCRIPT_CORE_H
-#define THAWK_SCRIPT_CORE_H
+#ifndef TH_SCRIPT_CORE_H
+#define TH_SCRIPT_CORE_H
 
 #include "../core/script.h"
 
@@ -10,14 +10,14 @@ namespace Tomahawk
 		typedef std::function<void(class VMCAsync*)> AsyncWorkCallback;
 		typedef std::function<void(VMContext*)> AsyncDoneCallback;
 
-		class THAWK_OUT VMCException
+		class TH_OUT VMCException
 		{
 		public:
 			static void Throw(const std::string& In);
 			static std::string GetException();
 		};
 
-		class THAWK_OUT VMCAny
+		class TH_OUT VMCAny
 		{
 		protected:
 			struct ValueStruct
@@ -62,7 +62,7 @@ namespace Tomahawk
 			void FreeObject();
 		};
 
-		class THAWK_OUT VMCArray
+		class TH_OUT VMCArray
 		{
 		public:
 			struct SBuffer
@@ -204,7 +204,7 @@ namespace Tomahawk
 			}
 		};
 
-		class THAWK_OUT VMCMapKey
+		class TH_OUT VMCMapKey
 		{
 		protected:
 			friend class VMCMap;
@@ -235,7 +235,7 @@ namespace Tomahawk
 			void EnumReferences(VMCManager* Engine);
 		};
 
-		class THAWK_OUT VMCMap
+		class TH_OUT VMCMap
 		{
 		public:
 			typedef std::unordered_map<std::string, VMCMapKey> Map;
@@ -325,7 +325,7 @@ namespace Tomahawk
 			static VMCMap* Create(unsigned char* Buffer);
 		};
 
-		class THAWK_OUT VMCGrid
+		class TH_OUT VMCGrid
 		{
 		public:
 			struct SBuffer
@@ -381,7 +381,7 @@ namespace Tomahawk
 			static VMCGrid* Create(VMCTypeInfo* T, void* ListBuffer);
 		};
 
-		class THAWK_OUT VMCRef
+		class TH_OUT VMCRef
 		{
 		protected:
 			VMCTypeInfo* Type;
@@ -411,7 +411,7 @@ namespace Tomahawk
 			void AddRefHandle();
 		};
 
-		class THAWK_OUT VMCWeakRef
+		class TH_OUT VMCWeakRef
 		{
 		protected:
 			VMCLockableSharedBool* WeakRefFlag;
@@ -432,7 +432,7 @@ namespace Tomahawk
 			VMCTypeInfo* GetRefType() const;
 		};
 
-		class THAWK_OUT VMCComplex
+		class TH_OUT VMCComplex
 		{
 		public:
 			float R;
@@ -461,7 +461,7 @@ namespace Tomahawk
 			VMCComplex operator/ (const VMCComplex& Other) const;
 		};
 
-		class THAWK_OUT VMCThread
+		class TH_OUT VMCThread
 		{
 		private:
 			static int ContextUD;
@@ -514,7 +514,7 @@ namespace Tomahawk
 			static void ThreadSleep(uint64_t Timeout);
 		};
 
-		class THAWK_OUT VMCRandom
+		class TH_OUT VMCRandom
 		{
 		private:
 			std::mt19937 Twister;
@@ -537,7 +537,7 @@ namespace Tomahawk
 			static VMCRandom* Create();
 		};
 
-		class THAWK_OUT VMCAsync
+		class TH_OUT VMCAsync
 		{
 		private:
 			AsyncDoneCallback Done;
@@ -580,20 +580,20 @@ namespace Tomahawk
 			static VMCAsync* Fulfill(double Value);
 		};
 
-		THAWK_OUT bool RegisterAnyAPI(VMManager* Manager);
-		THAWK_OUT bool RegisterArrayAPI(VMManager* Manager);
-		THAWK_OUT bool RegisterComplexAPI(VMManager* Manager);
-		THAWK_OUT bool RegisterMapAPI(VMManager* Manager);
-		THAWK_OUT bool RegisterGridAPI(VMManager* Manager);
-		THAWK_OUT bool RegisterRefAPI(VMManager* Manager);
-		THAWK_OUT bool RegisterWeakRefAPI(VMManager* Manager);
-		THAWK_OUT bool RegisterMathAPI(VMManager* Manager);
-		THAWK_OUT bool RegisterStringAPI(VMManager* Manager);
-		THAWK_OUT bool RegisterExceptionAPI(VMManager* Manager);
-		THAWK_OUT bool RegisterThreadAPI(VMManager* Manager);
-		THAWK_OUT bool RegisterRandomAPI(VMManager* Manager);
-		THAWK_OUT bool RegisterAsyncAPI(VMManager* Manager);
-		THAWK_OUT bool FreeCoreAPI();
+		TH_OUT bool RegisterAnyAPI(VMManager* Manager);
+		TH_OUT bool RegisterArrayAPI(VMManager* Manager);
+		TH_OUT bool RegisterComplexAPI(VMManager* Manager);
+		TH_OUT bool RegisterMapAPI(VMManager* Manager);
+		TH_OUT bool RegisterGridAPI(VMManager* Manager);
+		TH_OUT bool RegisterRefAPI(VMManager* Manager);
+		TH_OUT bool RegisterWeakRefAPI(VMManager* Manager);
+		TH_OUT bool RegisterMathAPI(VMManager* Manager);
+		TH_OUT bool RegisterStringAPI(VMManager* Manager);
+		TH_OUT bool RegisterExceptionAPI(VMManager* Manager);
+		TH_OUT bool RegisterThreadAPI(VMManager* Manager);
+		TH_OUT bool RegisterRandomAPI(VMManager* Manager);
+		TH_OUT bool RegisterAsyncAPI(VMManager* Manager);
+		TH_OUT bool FreeCoreAPI();
 	}
 }
 #endif

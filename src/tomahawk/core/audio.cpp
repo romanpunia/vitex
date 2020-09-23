@@ -1,7 +1,7 @@
 #include "audio.h"
 #include "../audio/effects.h"
 #include "../audio/filters.h"
-#ifdef THAWK_HAS_OPENAL
+#ifdef TH_HAS_OPENAL
 #include <AL/al.h>
 #include <AL/alc.h>
 #include <AL/efx.h>
@@ -13,7 +13,7 @@ namespace Tomahawk
 {
 	namespace Audio
 	{
-#ifdef THAWK_HAS_OPENAL
+#ifdef TH_HAS_OPENAL
 		LPALGENFILTERS alGenFilters = nullptr;
 		LPALDELETEFILTERS alDeleteFilters = nullptr;
 		LPALISFILTER alIsFilter = nullptr;
@@ -53,7 +53,7 @@ namespace Tomahawk
 			if (!Mutex)
 				Mutex = new std::mutex();
 
-#ifdef THAWK_HAS_OPENAL
+#ifdef TH_HAS_OPENAL
 			LOAD_PROC(LPALGENFILTERS, alGenFilters);
 			LOAD_PROC(LPALDELETEFILTERS, alDeleteFilters);
 			LOAD_PROC(LPALISFILTER, alIsFilter);
@@ -110,7 +110,7 @@ namespace Tomahawk
 		{
 			if (Mutex != nullptr)
 				Mutex->lock();
-#ifdef THAWK_HAS_OPENAL
+#ifdef TH_HAS_OPENAL
 			alGenBuffers(Count, Buffers);
 #endif
 			if (Mutex != nullptr)
@@ -120,7 +120,7 @@ namespace Tomahawk
 		{
 			if (Mutex != nullptr)
 				Mutex->lock();
-#ifdef THAWK_HAS_OPENAL
+#ifdef TH_HAS_OPENAL
 			alBufferData(Buffer, Format, Data, Size, Frequency);
 #endif
 			if (Mutex != nullptr)
@@ -130,7 +130,7 @@ namespace Tomahawk
 		{
 			if (Mutex != nullptr)
 				Mutex->lock();
-#ifdef THAWK_HAS_OPENAL
+#ifdef TH_HAS_OPENAL
 			alSource3f(Source, Value, F1, F2, F3);
 #endif
 			if (Mutex != nullptr)
@@ -140,7 +140,7 @@ namespace Tomahawk
 		{
 			if (Mutex != nullptr)
 				Mutex->lock();
-#ifdef THAWK_HAS_OPENAL
+#ifdef TH_HAS_OPENAL
 			alGetSource3f(Source, Value, F1, F2, F3);
 #endif
 			if (Mutex != nullptr)
@@ -150,7 +150,7 @@ namespace Tomahawk
 		{
 			if (Mutex != nullptr)
 				Mutex->lock();
-#ifdef THAWK_HAS_OPENAL
+#ifdef TH_HAS_OPENAL
 			alSourcefv(Source, Value, FS);
 #endif
 			if (Mutex != nullptr)
@@ -160,7 +160,7 @@ namespace Tomahawk
 		{
 			if (Mutex != nullptr)
 				Mutex->lock();
-#ifdef THAWK_HAS_OPENAL
+#ifdef TH_HAS_OPENAL
 			alGetSourcefv(Source, Value, FS);
 #endif
 			if (Mutex != nullptr)
@@ -170,7 +170,7 @@ namespace Tomahawk
 		{
 			if (Mutex != nullptr)
 				Mutex->lock();
-#ifdef THAWK_HAS_OPENAL
+#ifdef TH_HAS_OPENAL
 			alSourcef(Source, Value, F1);
 #endif
 			if (Mutex != nullptr)
@@ -180,7 +180,7 @@ namespace Tomahawk
 		{
 			if (Mutex != nullptr)
 				Mutex->lock();
-#ifdef THAWK_HAS_OPENAL
+#ifdef TH_HAS_OPENAL
 			alGetSourcef(Source, Value, F1);
 #endif
 			if (Mutex != nullptr)
@@ -190,7 +190,7 @@ namespace Tomahawk
 		{
 			if (Mutex != nullptr)
 				Mutex->lock();
-#ifdef THAWK_HAS_OPENAL
+#ifdef TH_HAS_OPENAL
 			alSource3i(Source, Value, F1, F2, F3);
 #endif
 			if (Mutex != nullptr)
@@ -200,7 +200,7 @@ namespace Tomahawk
 		{
 			if (Mutex != nullptr)
 				Mutex->lock();
-#ifdef THAWK_HAS_OPENAL
+#ifdef TH_HAS_OPENAL
 			alGetSource3i(Source, Value, F1, F2, F3);
 #endif
 			if (Mutex != nullptr)
@@ -210,7 +210,7 @@ namespace Tomahawk
 		{
 			if (Mutex != nullptr)
 				Mutex->lock();
-#ifdef THAWK_HAS_OPENAL
+#ifdef TH_HAS_OPENAL
 			alGetSourceiv(Source, Value, FS);
 #endif
 			if (Mutex != nullptr)
@@ -220,7 +220,7 @@ namespace Tomahawk
 		{
 			if (Mutex != nullptr)
 				Mutex->lock();
-#ifdef THAWK_HAS_OPENAL
+#ifdef TH_HAS_OPENAL
 			alGetSourceiv(Source, Value, FS);
 #endif
 			if (Mutex != nullptr)
@@ -230,7 +230,7 @@ namespace Tomahawk
 		{
 			if (Mutex != nullptr)
 				Mutex->lock();
-#ifdef THAWK_HAS_OPENAL
+#ifdef TH_HAS_OPENAL
 			alSourcei(Source, Value, F1);
 #endif
 			if (Mutex != nullptr)
@@ -240,7 +240,7 @@ namespace Tomahawk
 		{
 			if (Mutex != nullptr)
 				Mutex->lock();
-#ifdef THAWK_HAS_OPENAL
+#ifdef TH_HAS_OPENAL
 			alGetSourcei(Source, Value, F1);
 #endif
 			if (Mutex != nullptr)
@@ -250,7 +250,7 @@ namespace Tomahawk
 		{
 			if (Mutex != nullptr)
 				Mutex->lock();
-#ifdef THAWK_HAS_OPENAL
+#ifdef TH_HAS_OPENAL
 			alListener3f(Listener, F1, F2, F3);
 #endif
 			if (Mutex != nullptr)
@@ -260,7 +260,7 @@ namespace Tomahawk
 		{
 			if (Mutex != nullptr)
 				Mutex->lock();
-#ifdef THAWK_HAS_OPENAL
+#ifdef TH_HAS_OPENAL
 			alGetListener3f(Listener, F1, F2, F3);
 #endif
 			if (Mutex != nullptr)
@@ -270,7 +270,7 @@ namespace Tomahawk
 		{
 			if (Mutex != nullptr)
 				Mutex->lock();
-#ifdef THAWK_HAS_OPENAL
+#ifdef TH_HAS_OPENAL
 			alListenerfv(Listener, FS);
 #endif
 			if (Mutex != nullptr)
@@ -280,7 +280,7 @@ namespace Tomahawk
 		{
 			if (Mutex != nullptr)
 				Mutex->lock();
-#ifdef THAWK_HAS_OPENAL
+#ifdef TH_HAS_OPENAL
 			alGetListenerfv(Listener, FS);
 #endif
 			if (Mutex != nullptr)
@@ -290,7 +290,7 @@ namespace Tomahawk
 		{
 			if (Mutex != nullptr)
 				Mutex->lock();
-#ifdef THAWK_HAS_OPENAL
+#ifdef TH_HAS_OPENAL
 			alListenerf(Listener, F1);
 #endif
 			if (Mutex != nullptr)
@@ -300,7 +300,7 @@ namespace Tomahawk
 		{
 			if (Mutex != nullptr)
 				Mutex->lock();
-#ifdef THAWK_HAS_OPENAL
+#ifdef TH_HAS_OPENAL
 			alGetListenerf(Listener, F1);
 #endif
 			if (Mutex != nullptr)
@@ -310,7 +310,7 @@ namespace Tomahawk
 		{
 			if (Mutex != nullptr)
 				Mutex->lock();
-#ifdef THAWK_HAS_OPENAL
+#ifdef TH_HAS_OPENAL
 			alListener3i(Listener, F1, F2, F3);
 #endif
 			if (Mutex != nullptr)
@@ -320,7 +320,7 @@ namespace Tomahawk
 		{
 			if (Mutex != nullptr)
 				Mutex->lock();
-#ifdef THAWK_HAS_OPENAL
+#ifdef TH_HAS_OPENAL
 			alGetListener3i(Listener, F1, F2, F3);
 #endif
 			if (Mutex != nullptr)
@@ -330,7 +330,7 @@ namespace Tomahawk
 		{
 			if (Mutex != nullptr)
 				Mutex->lock();
-#ifdef THAWK_HAS_OPENAL
+#ifdef TH_HAS_OPENAL
 			alGetListeneriv(Listener, FS);
 #endif
 			if (Mutex != nullptr)
@@ -340,7 +340,7 @@ namespace Tomahawk
 		{
 			if (Mutex != nullptr)
 				Mutex->lock();
-#ifdef THAWK_HAS_OPENAL
+#ifdef TH_HAS_OPENAL
 			alGetListeneriv(Listener, FS);
 #endif
 			if (Mutex != nullptr)
@@ -350,7 +350,7 @@ namespace Tomahawk
 		{
 			if (Mutex != nullptr)
 				Mutex->lock();
-#ifdef THAWK_HAS_OPENAL
+#ifdef TH_HAS_OPENAL
 			alListeneri(Listener, F1);
 #endif
 			if (Mutex != nullptr)
@@ -360,7 +360,7 @@ namespace Tomahawk
 		{
 			if (Mutex != nullptr)
 				Mutex->lock();
-#ifdef THAWK_HAS_OPENAL
+#ifdef TH_HAS_OPENAL
 			alGetListeneri(Listener, F1);
 #endif
 			if (Mutex != nullptr)
@@ -371,13 +371,13 @@ namespace Tomahawk
 
 		AudioFilter::AudioFilter()
 		{
-#ifdef THAWK_HAS_OPENAL
+#ifdef TH_HAS_OPENAL
 			Filter = AL_FILTER_NULL;
 #endif
 		}
 		AudioFilter::~AudioFilter()
 		{
-#ifdef THAWK_HAS_OPENAL
+#ifdef TH_HAS_OPENAL
 			AudioContext::Lock();
 			if (alDeleteFilters != nullptr && Filter != AL_FILTER_NULL)
 				alDeleteFilters(1, &Filter);
@@ -386,7 +386,7 @@ namespace Tomahawk
 		}
 		bool AudioFilter::CreateLocked(const std::function<bool()>& Callback)
 		{
-#ifdef THAWK_HAS_OPENAL
+#ifdef TH_HAS_OPENAL
 			AudioContext::Lock();
 			if (alDeleteFilters != nullptr && Filter != AL_FILTER_NULL)
 				alDeleteFilters(1, &Filter);
@@ -407,7 +407,7 @@ namespace Tomahawk
 
 		AudioEffect::AudioEffect()
 		{
-#ifdef THAWK_HAS_OPENAL
+#ifdef TH_HAS_OPENAL
 			Effect = AL_EFFECT_NULL;
 			Slot = AL_EFFECTSLOT_NULL;
 #endif
@@ -415,7 +415,7 @@ namespace Tomahawk
 		AudioEffect::~AudioEffect()
 		{
 			Unbind();
-#ifdef THAWK_HAS_OPENAL
+#ifdef TH_HAS_OPENAL
 			AudioContext::Lock();
 			if (alDeleteEffects != nullptr && Effect != AL_EFFECT_NULL)
 				alDeleteEffects(1, &Effect);
@@ -428,7 +428,7 @@ namespace Tomahawk
 		}
 		bool AudioEffect::CreateLocked(const std::function<bool()>& Callback)
 		{
-#ifdef THAWK_HAS_OPENAL
+#ifdef TH_HAS_OPENAL
 			AudioContext::Lock();
 			if (alDeleteAuxiliaryEffectSlots != nullptr && Slot != AL_EFFECTSLOT_NULL)
 				alDeleteAuxiliaryEffectSlots(1, &Slot);
@@ -472,7 +472,7 @@ namespace Tomahawk
 
 			if (!Source)
 				return false;
-#ifdef THAWK_HAS_OPENAL
+#ifdef TH_HAS_OPENAL
 			AudioContext::Lock();
 			alSource3i(Source->GetInstance(), AL_AUXILIARY_SEND_FILTER, (ALint)Slot, Zone, (ALint)(Filter ? Filter->Filter : AL_FILTER_NULL));
 			AudioContext::Unlock();
@@ -484,7 +484,7 @@ namespace Tomahawk
 			if (!Source)
 				return false;
 
-#ifdef THAWK_HAS_OPENAL
+#ifdef TH_HAS_OPENAL
 			AudioContext::Lock();
 			alSource3i(Source->GetInstance(), AL_AUXILIARY_SEND_FILTER, AL_EFFECTSLOT_NULL, Zone, AL_FILTER_NULL);
 			AudioContext::Unlock();
@@ -507,7 +507,7 @@ namespace Tomahawk
 		}
 		AudioClip::~AudioClip()
 		{
-#ifdef THAWK_HAS_OPENAL
+#ifdef TH_HAS_OPENAL
 			AudioContext::Lock();
 			alDeleteBuffers(1, &Buffer);
 			AudioContext::Unlock();
@@ -516,7 +516,7 @@ namespace Tomahawk
 		}
 		float AudioClip::Length()
 		{
-#ifdef THAWK_HAS_OPENAL
+#ifdef TH_HAS_OPENAL
 			AudioContext::Lock();
 			int ByteSize = 0, ChannelCount = 0, Bits = 0, Frequency = 0;
 			alGetBufferi(Buffer, AL_SIZE, &ByteSize);
@@ -535,7 +535,7 @@ namespace Tomahawk
 		}
 		bool AudioClip::IsMono()
 		{
-#ifdef THAWK_HAS_OPENAL
+#ifdef TH_HAS_OPENAL
 			if (Format == AL_FORMAT_MONO8 || Format == AL_FORMAT_MONO16)
 				return true;
 #endif
@@ -552,7 +552,7 @@ namespace Tomahawk
 
 		AudioSource::AudioSource()
 		{
-#ifdef THAWK_HAS_OPENAL
+#ifdef TH_HAS_OPENAL
 			AudioContext::Lock();
 			if (alIsSource(Instance))
 			{
@@ -582,7 +582,7 @@ namespace Tomahawk
 			for (auto* Effect : Effects)
 				delete Effect;
 
-#ifdef THAWK_HAS_OPENAL
+#ifdef TH_HAS_OPENAL
 			AudioContext::Lock();
 			alSourceStop(Instance);
 			alSourcei(Instance, AL_BUFFER, 0);
@@ -622,7 +622,7 @@ namespace Tomahawk
 		}
 		void AudioSource::SetClip(AudioClip* NewClip)
 		{
-#ifdef THAWK_HAS_OPENAL
+#ifdef TH_HAS_OPENAL
 			AudioContext::Lock();
 			alSourceStop(Instance);
 
@@ -646,13 +646,13 @@ namespace Tomahawk
 				Effect->Synchronize();
 				if (Effect->Filter != nullptr)
 					Effect->Filter->Synchronize();
-#ifdef THAWK_HAS_OPENAL
+#ifdef TH_HAS_OPENAL
 				if (alAuxiliaryEffectSloti != nullptr && Effect->Effect != AL_EFFECT_NULL && Effect->Slot != AL_EFFECTSLOT_NULL)
 					alAuxiliaryEffectSloti(Effect->Slot, AL_EFFECTSLOT_EFFECT, (ALint)Effect->Effect);
 #endif
 			}
 
-#ifdef THAWK_HAS_OPENAL
+#ifdef TH_HAS_OPENAL
 			AudioContext::Lock();
 			if (!Sync->IsRelative)
 				alSource3f(Instance, AL_POSITION, 0, 0, 0);
@@ -682,7 +682,7 @@ namespace Tomahawk
 		}
 		void AudioSource::Reset()
 		{
-#ifdef THAWK_HAS_OPENAL
+#ifdef TH_HAS_OPENAL
 			AudioContext::Lock();
 			alSource3f(Instance, AL_DIRECTION, 0, 0, 0);
 			alSourcei(Instance, AL_SOURCE_RELATIVE, 0);
@@ -702,7 +702,7 @@ namespace Tomahawk
 		}
 		void AudioSource::Pause()
 		{
-#ifdef THAWK_HAS_OPENAL
+#ifdef TH_HAS_OPENAL
 			AudioContext::Lock();
 			alSourcePause(Instance);
 			AudioContext::Unlock();
@@ -710,7 +710,7 @@ namespace Tomahawk
 		}
 		void AudioSource::Play()
 		{
-#ifdef THAWK_HAS_OPENAL
+#ifdef TH_HAS_OPENAL
 			AudioContext::Lock();
 			alSourcePlay(Instance);
 			AudioContext::Unlock();
@@ -718,7 +718,7 @@ namespace Tomahawk
 		}
 		void AudioSource::Stop()
 		{
-#ifdef THAWK_HAS_OPENAL
+#ifdef TH_HAS_OPENAL
 			AudioContext::Lock();
 			alSourceStop(Instance);
 			AudioContext::Unlock();
@@ -726,7 +726,7 @@ namespace Tomahawk
 		}
 		bool AudioSource::IsPlaying() const
 		{
-#ifdef THAWK_HAS_OPENAL
+#ifdef TH_HAS_OPENAL
 			int State = 0;
 
 			AudioContext::Lock();
@@ -753,19 +753,19 @@ namespace Tomahawk
 
 		AudioDevice::AudioDevice()
 		{
-#ifdef THAWK_HAS_OPENAL
+#ifdef TH_HAS_OPENAL
 			AudioContext::Lock();
 			Device = (void*)alcOpenDevice(nullptr);
 			if (!Device)
 			{
-			    THAWK_ERROR("couldn't create alc device");
+			    TH_ERROR("couldn't create alc device");
 				return;
 			}
 
 			Context = (void*)alcCreateContext((ALCdevice*)Device, nullptr);
 			if (!Context)
 			{
-				THAWK_ERROR("couldn't create alc device context");
+				TH_ERROR("couldn't create alc device context");
 				return;
 			}
 
@@ -777,7 +777,7 @@ namespace Tomahawk
 		}
 		AudioDevice::~AudioDevice()
 		{
-#ifdef THAWK_HAS_OPENAL
+#ifdef TH_HAS_OPENAL
 			AudioContext::Lock();
 			if (Context != nullptr)
 			{
@@ -796,7 +796,7 @@ namespace Tomahawk
 		}
 		void AudioDevice::Offset(AudioSource* Source, float& Seconds, bool Get)
 		{
-#ifdef THAWK_HAS_OPENAL
+#ifdef TH_HAS_OPENAL
 			AudioContext::Lock();
 			if (!Get)
 				alSourcef(Source->Instance, AL_SEC_OFFSET, Seconds);
@@ -807,7 +807,7 @@ namespace Tomahawk
 		}
 		void AudioDevice::Relative(AudioSource* Source, int& Value, bool Get)
 		{
-#ifdef THAWK_HAS_OPENAL
+#ifdef TH_HAS_OPENAL
 			AudioContext::Lock();
 			if (!Get)
 				alSourcei(Source->Instance, AL_SOURCE_RELATIVE, Value);
@@ -818,7 +818,7 @@ namespace Tomahawk
 		}
 		void AudioDevice::Position(AudioSource* Source, Compute::Vector3& Position, bool Get)
 		{
-#ifdef THAWK_HAS_OPENAL
+#ifdef TH_HAS_OPENAL
 			AudioContext::Lock();
 			if (!Get)
 			{
@@ -832,7 +832,7 @@ namespace Tomahawk
 		}
 		void AudioDevice::Direction(AudioSource* Source, Compute::Vector3& Direction, bool Get)
 		{
-#ifdef THAWK_HAS_OPENAL
+#ifdef TH_HAS_OPENAL
 			AudioContext::Lock();
 			if (!Get)
 				alSource3f(Source->Instance, AL_DIRECTION, Direction.X, Direction.Y, Direction.Z);
@@ -843,7 +843,7 @@ namespace Tomahawk
 		}
 		void AudioDevice::Velocity(AudioSource* Source, Compute::Vector3& Velocity, bool Get)
 		{
-#ifdef THAWK_HAS_OPENAL
+#ifdef TH_HAS_OPENAL
 			AudioContext::Lock();
 			if (!Get)
 				alSource3f(Source->Instance, AL_VELOCITY, Velocity.X, Velocity.Y, Velocity.Z);
@@ -854,7 +854,7 @@ namespace Tomahawk
 		}
 		void AudioDevice::Pitch(AudioSource* Source, float& Value, bool Get)
 		{
-#ifdef THAWK_HAS_OPENAL
+#ifdef TH_HAS_OPENAL
 			AudioContext::Lock();
 			if (!Get)
 				alSourcef(Source->Instance, AL_PITCH, Value);
@@ -865,7 +865,7 @@ namespace Tomahawk
 		}
 		void AudioDevice::Gain(AudioSource* Source, float& Value, bool Get)
 		{
-#ifdef THAWK_HAS_OPENAL
+#ifdef TH_HAS_OPENAL
 			AudioContext::Lock();
 			if (!Get)
 				alSourcef(Source->Instance, AL_GAIN, Value);
@@ -876,7 +876,7 @@ namespace Tomahawk
 		}
 		void AudioDevice::ConeInnerAngle(AudioSource* Source, float& Value, bool Get)
 		{
-#ifdef THAWK_HAS_OPENAL
+#ifdef TH_HAS_OPENAL
 			AudioContext::Lock();
 			if (!Get)
 				alSourcef(Source->Instance, AL_CONE_INNER_ANGLE, Value);
@@ -887,7 +887,7 @@ namespace Tomahawk
 		}
 		void AudioDevice::ConeOuterAngle(AudioSource* Source, float& Value, bool Get)
 		{
-#ifdef THAWK_HAS_OPENAL
+#ifdef TH_HAS_OPENAL
 			AudioContext::Lock();
 			if (!Get)
 				alSourcef(Source->Instance, AL_CONE_OUTER_ANGLE, Value);
@@ -898,7 +898,7 @@ namespace Tomahawk
 		}
 		void AudioDevice::ConeOuterGain(AudioSource* Source, float& Value, bool Get)
 		{
-#ifdef THAWK_HAS_OPENAL
+#ifdef TH_HAS_OPENAL
 			AudioContext::Lock();
 			if (!Get)
 				alSourcef(Source->Instance, AL_CONE_OUTER_GAIN, Value);
@@ -909,7 +909,7 @@ namespace Tomahawk
 		}
 		void AudioDevice::Distance(AudioSource* Source, float& Value, bool Get)
 		{
-#ifdef THAWK_HAS_OPENAL
+#ifdef TH_HAS_OPENAL
 			AudioContext::Lock();
 			if (!Get)
 				alSourcef(Source->Instance, AL_MAX_DISTANCE, Value);
@@ -920,7 +920,7 @@ namespace Tomahawk
 		}
 		void AudioDevice::RefDistance(AudioSource* Source, float& Value, bool Get)
 		{
-#ifdef THAWK_HAS_OPENAL
+#ifdef TH_HAS_OPENAL
 			AudioContext::Lock();
 			if (!Get)
 				alSourcef(Source->Instance, AL_REFERENCE_DISTANCE, Value);
@@ -931,7 +931,7 @@ namespace Tomahawk
 		}
 		void AudioDevice::Loop(AudioSource* Source, int& IsLoop, bool Get)
 		{
-#ifdef THAWK_HAS_OPENAL
+#ifdef TH_HAS_OPENAL
 			AudioContext::Lock();
 			if (!Get)
 				alSourcei(Source->Instance, AL_LOOPING, IsLoop);
@@ -942,7 +942,7 @@ namespace Tomahawk
 		}
 		void AudioDevice::SetDistanceModel(SoundDistanceModel Model)
 		{
-#ifdef THAWK_HAS_OPENAL
+#ifdef TH_HAS_OPENAL
 			AudioContext::Lock();
 			alDistanceModel((int)Model);
 			AudioContext::Unlock();
@@ -950,19 +950,19 @@ namespace Tomahawk
 		}
 		void AudioDevice::GetExceptionCodes(int& ALCCode, int& ALCode)
 		{
-#ifdef THAWK_HAS_OPENAL
+#ifdef TH_HAS_OPENAL
 			AudioContext::Lock();
 			if ((ALCCode = alcGetError((ALCdevice*)Device)) != ALC_NO_ERROR)
 			{
 				AudioContext::Unlock();
-				THAWK_ERROR(alcGetString((ALCdevice*)Device, ALCCode));
+				TH_ERROR(alcGetString((ALCdevice*)Device, ALCCode));
 				AudioContext::Lock();
 			}
 
 			if ((ALCode = alGetError()) != AL_NO_ERROR)
 			{
 				AudioContext::Unlock();
-				THAWK_ERROR(alGetString(ALCode));
+				TH_ERROR(alGetString(ALCode));
 				AudioContext::Lock();
 			}
 			AudioContext::Unlock();

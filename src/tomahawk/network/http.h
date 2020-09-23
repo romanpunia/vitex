@@ -1,5 +1,5 @@
-#ifndef THAWK_NETWORK_HTTP_H
-#define THAWK_NETWORK_HTTP_H
+#ifndef TH_NETWORK_HTTP_H
+#define TH_NETWORK_HTTP_H
 
 #include "../core/network.h"
 #include "../core/script.h"
@@ -93,19 +93,19 @@ namespace Tomahawk
 
 			class Query;
 
-			struct THAWK_OUT ErrorFile
+			struct TH_OUT ErrorFile
 			{
 				std::string Pattern;
 				int StatusCode = 0;
 			};
 
-			struct THAWK_OUT MimeType
+			struct TH_OUT MimeType
 			{
 				std::string Extension;
 				std::string Type;
 			};
 
-			struct THAWK_OUT MimeStatic
+			struct TH_OUT MimeStatic
 			{
 				const char* Extension = nullptr;
 				const char* Type = nullptr;
@@ -113,20 +113,20 @@ namespace Tomahawk
 				MimeStatic(const char* Ext, const char* T);
 			};
 
-			struct THAWK_OUT Credentials
+			struct TH_OUT Credentials
 			{
 				std::string Username;
 				std::string Password;
 				Auth Type = Auth_Unverified;
 			};
 
-			struct THAWK_OUT Header
+			struct TH_OUT Header
 			{
 				std::string Key;
 				std::string Value;
 			};
 
-			struct THAWK_OUT Resource
+			struct TH_OUT Resource
 			{
 				std::vector<Header> Headers;
 				std::string Path;
@@ -141,7 +141,7 @@ namespace Tomahawk
 				const char* GetHeader(const char* Key);
 			};
 
-			struct THAWK_OUT Cookie
+			struct TH_OUT Cookie
 			{
 				std::string Name;
 				std::string Value;
@@ -151,7 +151,7 @@ namespace Tomahawk
 				bool Secure = false;
 			};
 
-			struct THAWK_OUT RequestFrame
+			struct TH_OUT RequestFrame
 			{
 				std::vector<Resource> Resources;
 				std::vector<Header> Cookies;
@@ -176,7 +176,7 @@ namespace Tomahawk
 				std::pair<uint64_t, uint64_t> GetRange(std::vector<std::pair<int64_t, int64_t>>::iterator Range, uint64_t ContentLength);
 			};
 
-			struct THAWK_OUT ResponseFrame
+			struct TH_OUT ResponseFrame
 			{
 				std::vector<Cookie> Cookies;
 				std::vector<Header> Headers;
@@ -190,7 +190,7 @@ namespace Tomahawk
 				Cookie* GetCookie(const char* Key);
 			};
 
-			struct THAWK_OUT WebSocketFrame
+			struct TH_OUT WebSocketFrame
 			{
 				friend struct GatewayFrame;
 
@@ -226,7 +226,7 @@ namespace Tomahawk
 				bool IsFinished();
 			};
 
-			struct THAWK_OUT GatewayFrame
+			struct TH_OUT GatewayFrame
 			{
 				friend WebSocketFrame;
 
@@ -254,7 +254,7 @@ namespace Tomahawk
 				bool Done(bool Normal);
 			};
 
-			struct THAWK_OUT ParserFrame
+			struct TH_OUT ParserFrame
 			{
 				RequestFrame* Request = nullptr;
 				ResponseFrame* Response = nullptr;
@@ -266,13 +266,13 @@ namespace Tomahawk
 				bool Close = false;
 			};
 
-			struct THAWK_OUT QueryToken
+			struct TH_OUT QueryToken
 			{
 				char* Value = nullptr;
 				uint64_t Length = 0;
 			};
 
-			struct THAWK_OUT RouteEntry
+			struct TH_OUT RouteEntry
 			{
 				struct
 				{
@@ -339,7 +339,7 @@ namespace Tomahawk
 				SiteEntry* Site = nullptr;
 			};
 
-			struct THAWK_OUT SiteEntry
+			struct TH_OUT SiteEntry
 			{
 				struct
 				{
@@ -383,7 +383,7 @@ namespace Tomahawk
 				bool WebSocketReceive(const char* Pattern, WebSocketReadCallback Callback);
 			};
 
-			struct THAWK_OUT MapRouter : public SocketRouter
+			struct TH_OUT MapRouter : public SocketRouter
 			{
 				std::vector<SiteEntry*> Sites;
 				std::string ModuleRoot;
@@ -394,7 +394,7 @@ namespace Tomahawk
 				SiteEntry* Site(const char* Host);
 			};
 
-			struct THAWK_OUT Connection : public SocketConnection
+			struct TH_OUT Connection : public SocketConnection
 			{
 				Rest::Resource Resource;
 				WebSocketFrame* WebSocket = nullptr;
@@ -412,7 +412,7 @@ namespace Tomahawk
 				bool Store(const ResourceCallback& Callback = nullptr);
 			};
 
-			class THAWK_OUT QueryParameter : public Rest::Document
+			class TH_OUT QueryParameter : public Rest::Document
 			{
 			public:
 				std::string Build();
@@ -420,7 +420,7 @@ namespace Tomahawk
 				QueryParameter* Find(QueryToken* Name);
 			};
 
-			class THAWK_OUT Query : public Rest::Object
+			class TH_OUT Query : public Rest::Object
 			{
 			public:
 				QueryParameter* Object;
@@ -444,7 +444,7 @@ namespace Tomahawk
 				QueryParameter* GetParameter(QueryToken* Name);
 			};
 
-			class THAWK_OUT Session : public Rest::Object
+			class TH_OUT Session : public Rest::Object
 			{
 			public:
 				Rest::Document* Query = nullptr;
@@ -467,7 +467,7 @@ namespace Tomahawk
 				static bool InvalidateCache(const std::string& Path);
 			};
 
-			class THAWK_OUT Parser : public Rest::Object
+			class TH_OUT Parser : public Rest::Object
 			{
 			private:
 				enum MultipartState
@@ -549,7 +549,7 @@ namespace Tomahawk
 				const char* ProcessResponse(const char* Buffer, const char* BufferEnd, int* Out);
 			};
 
-			class THAWK_OUT Util
+			class TH_OUT Util
 			{
 			public:
 				static void ConstructPath(Connection* Base);
@@ -614,7 +614,7 @@ namespace Tomahawk
 				static bool ProcessWebSocketPass(Connection* Base);
 			};
 
-			class THAWK_OUT Server : public SocketServer
+			class TH_OUT Server : public SocketServer
 			{
 				friend Connection;
 				friend Util;
@@ -635,7 +635,7 @@ namespace Tomahawk
 				SocketRouter* OnAllocateRouter() override;
 			};
 
-			class THAWK_OUT Client : public SocketClient
+			class TH_OUT Client : public SocketClient
 			{
 			private:
 				RequestFrame Request;

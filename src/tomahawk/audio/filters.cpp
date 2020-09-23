@@ -1,6 +1,6 @@
 #include "filters.h"
 #include "../core/engine.h"
-#ifdef THAWK_HAS_OPENAL
+#ifdef TH_HAS_OPENAL
 #include <AL/al.h>
 #include <AL/efx.h>
 #endif
@@ -12,7 +12,7 @@ namespace Tomahawk
 	{
 		namespace Filters
 		{
-#ifdef THAWK_HAS_OPENAL
+#ifdef TH_HAS_OPENAL
 			LPALGENFILTERS alGenFilters = nullptr;
 			LPALDELETEFILTERS alDeleteFilters = nullptr;
 			LPALISFILTER alIsFilter = nullptr;
@@ -49,7 +49,7 @@ namespace Tomahawk
 #endif
 			void FilterContext::Initialize()
 			{
-#ifdef THAWK_HAS_OPENAL
+#ifdef TH_HAS_OPENAL
 				LOAD_PROC(LPALGENFILTERS, alGenFilters);
 				LOAD_PROC(LPALDELETEFILTERS, alDeleteFilters);
 				LOAD_PROC(LPALISFILTER, alIsFilter);
@@ -88,7 +88,7 @@ namespace Tomahawk
 
 			LowpassFilter::LowpassFilter()
 			{
-#ifdef THAWK_HAS_OPENAL
+#ifdef TH_HAS_OPENAL
 				CreateLocked([this]()
 				{
 					alFilteri(Filter, AL_FILTER_TYPE, AL_FILTER_LOWPASS);
@@ -101,7 +101,7 @@ namespace Tomahawk
 			}
 			void LowpassFilter::Synchronize()
 			{
-#ifdef THAWK_HAS_OPENAL
+#ifdef TH_HAS_OPENAL
 				AudioContext::Lock();
 				alFilterf(Filter, AL_LOWPASS_GAIN, Gain);
 				alFilterf(Filter, AL_LOWPASS_GAINHF, GainHF);
@@ -129,7 +129,7 @@ namespace Tomahawk
 
 			HighpassFilter::HighpassFilter()
 			{
-#ifdef THAWK_HAS_OPENAL
+#ifdef TH_HAS_OPENAL
 				CreateLocked([this]()
 				{
 					alFilteri(Filter, AL_FILTER_TYPE, AL_FILTER_HIGHPASS);
@@ -142,7 +142,7 @@ namespace Tomahawk
 			}
 			void HighpassFilter::Synchronize()
 			{
-#ifdef THAWK_HAS_OPENAL
+#ifdef TH_HAS_OPENAL
 				AudioContext::Lock();
 				alFilterf(Filter, AL_HIGHPASS_GAIN, Gain);
 				alFilterf(Filter, AL_HIGHPASS_GAINLF, GainLF);
@@ -170,7 +170,7 @@ namespace Tomahawk
 
 			BandpassFilter::BandpassFilter()
 			{
-#ifdef THAWK_HAS_OPENAL
+#ifdef TH_HAS_OPENAL
 				CreateLocked([this]()
 				{
 					alFilteri(Filter, AL_FILTER_TYPE, AL_FILTER_BANDPASS);
@@ -183,7 +183,7 @@ namespace Tomahawk
 			}
 			void BandpassFilter::Synchronize()
 			{
-#ifdef THAWK_HAS_OPENAL
+#ifdef TH_HAS_OPENAL
 				AudioContext::Lock();
 				alFilterf(Filter, AL_BANDPASS_GAIN, Gain);
 				alFilterf(Filter, AL_BANDPASS_GAINLF, GainLF);

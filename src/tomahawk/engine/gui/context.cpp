@@ -302,14 +302,14 @@ namespace Tomahawk
 					auto Factory = Base->Factories.find(It->Name);
 					if (Factory == Base->Factories.end() || !Factory->second)
 					{
-						THAWK_WARN("element \"%s\" has no factory", It->Name.c_str());
+						TH_WARN("element \"%s\" has no factory", It->Name.c_str());
 						continue;
 					}
 
 					Element* Node = Factory->second();
 					if (!Node)
 					{
-						THAWK_WARN("cannot find \"%s\" element type", It->Name.c_str());
+						TH_WARN("cannot find \"%s\" element type", It->Name.c_str());
 						continue;
 					}
 
@@ -984,10 +984,10 @@ namespace Tomahawk
 
 			Body::Body(Context* View) : Element(View)
 			{
-				Style.ScrollH = (nk_style_scrollbar*)malloc(sizeof(nk_style_scrollbar));
+				Style.ScrollH = (nk_style_scrollbar*)TH_MALLOC(sizeof(nk_style_scrollbar));
 				memset(Style.ScrollH, 0, sizeof(nk_style_scrollbar));
 
-				Style.ScrollV = (nk_style_scrollbar*)malloc(sizeof(nk_style_scrollbar));
+				Style.ScrollV = (nk_style_scrollbar*)TH_MALLOC(sizeof(nk_style_scrollbar));
 				memset(Style.ScrollV, 0, sizeof(nk_style_scrollbar));
 
 				Bind("scroll-h-normal", [this]() { Style.ScrollH->normal = CastV4Item(Content, GetString("scroll-h-normal", "40 40 40 255")); });
@@ -1025,8 +1025,8 @@ namespace Tomahawk
 			}
 			Body::~Body()
 			{
-				free(Style.ScrollH);
-				free(Style.ScrollV);
+				TH_FREE(Style.ScrollH);
+				TH_FREE(Style.ScrollV);
 			}
 			bool Body::BuildBegin(nk_context* C)
 			{
@@ -1062,7 +1062,7 @@ namespace Tomahawk
 				if (!Device)
 					return;
 
-				Engine = (nk_context*)malloc(sizeof(nk_context));
+				Engine = (nk_context*)TH_MALLOC(sizeof(nk_context));
 				if (nk_init_default(Engine, nullptr) > 0)
 				{
 					Engine->clip.copy = ClipboardCopy;
@@ -1070,16 +1070,16 @@ namespace Tomahawk
 					Engine->clip.userdata = nk_handle_ptr(this);
 				}
 
-				Commands = (nk_buffer*)malloc(sizeof(nk_buffer));
+				Commands = (nk_buffer*)TH_MALLOC(sizeof(nk_buffer));
 				nk_buffer_init_default(Commands);
 
-				Atlas = (nk_font_atlas*)malloc(sizeof(nk_font_atlas));
+				Atlas = (nk_font_atlas*)TH_MALLOC(sizeof(nk_font_atlas));
 				nk_font_atlas_init_default(Atlas);
 
-				Style = (nk_style*)malloc(sizeof(nk_style));
+				Style = (nk_style*)TH_MALLOC(sizeof(nk_style));
 				memcpy(Style, &Engine->style, sizeof(nk_style));
 
-				Null = (nk_draw_null_texture*)malloc(sizeof(nk_draw_null_texture));
+				Null = (nk_draw_null_texture*)TH_MALLOC(sizeof(nk_draw_null_texture));
 				if (!FontBakingBegin() || !FontBakingEnd())
 					return;
 
@@ -1163,11 +1163,11 @@ namespace Tomahawk
 				nk_buffer_free(Commands);
 				nk_free(Engine);
 
-				free(Style);
-				free(Null);
-				free(Commands);
-				free(Atlas);
-				free(Engine);
+				TH_FREE(Style);
+				TH_FREE(Null);
+				TH_FREE(Commands);
+				TH_FREE(Atlas);
+				TH_FREE(Engine);
 				delete Layout;
 				delete Shader;
 				delete Font;
@@ -1469,7 +1469,7 @@ namespace Tomahawk
 				for (auto& Font : Fonts)
 				{
 					if (Font.second.second != nullptr)
-						free(Font.second.second);
+						TH_FREE(Font.second.second);
 				}
 				Fonts.clear();
 
@@ -1592,7 +1592,7 @@ namespace Tomahawk
 					AssetFile* TTF = (HasPath ? Content->Load<AssetFile>(Path->String, nullptr) : nullptr);
 					if (!TTF && HasPath)
 					{
-						THAWK_ERROR("couldn't bake font \"%s\" from path:\n\t%s", Basis->String.c_str(), Path->String.c_str());
+						TH_ERROR("couldn't bake font \"%s\" from path:\n\t%s", Basis->String.c_str(), Path->String.c_str());
 						continue;
 					}
 
@@ -1704,12 +1704,12 @@ namespace Tomahawk
 					if (HasPath)
 					{
 						if (!FontBake(Basis->String, &Desc))
-							THAWK_ERROR("couldn't bake font \"%s\" from path:\n\t%s", Basis->String.c_str(), Path->String.c_str());
+							TH_ERROR("couldn't bake font \"%s\" from path:\n\t%s", Basis->String.c_str(), Path->String.c_str());
 
 						delete TTF;
 					}
 					else if (!FontBakeDefault(Basis->String, &Desc))
-						THAWK_ERROR("couldn't bake default font \"%s\"", Basis->String.c_str());
+						TH_ERROR("couldn't bake default font \"%s\"", Basis->String.c_str());
 				}
 
 				FontBakingEnd();
@@ -1761,11 +1761,11 @@ namespace Tomahawk
 
 				if (Fonts.find(Name) != Fonts.end())
 				{
-					THAWK_ERROR("font \"%s\" is already presented", Name.c_str());
+					TH_ERROR("font \"%s\" is already presented", Name.c_str());
 					return false;
 				}
 
-				nk_rune* Ranges = (nk_rune*)malloc(sizeof(nk_rune) * (Config->Ranges.size() * 2 + 1));
+				nk_rune* Ranges = (nk_rune*)TH_MALLOC(sizeof(nk_rune) * (Config->Ranges.size() * 2 + 1));
 				size_t Offset = 0;
 
 				for (auto& Range : Config->Ranges)
@@ -1832,7 +1832,7 @@ namespace Tomahawk
 				nk_font* Font = nk_font_atlas_add_from_memory(Atlas, (void*)Config->Buffer, Config->BufferSize, Config->Height, &Desc);
 				if (!Font)
 				{
-					THAWK_ERROR("font \"%s\" cannot be loaded", Name.c_str());
+					TH_ERROR("font \"%s\" cannot be loaded", Name.c_str());
 					return false;
 				}
 
@@ -1846,11 +1846,11 @@ namespace Tomahawk
 
 				if (Fonts.find(Name) != Fonts.end())
 				{
-					THAWK_ERROR("font \"%s\" is already presented", Name.c_str());
+					TH_ERROR("font \"%s\" is already presented", Name.c_str());
 					return false;
 				}
 
-				nk_rune* Ranges = (nk_rune*)malloc(sizeof(nk_rune) * (Config->Ranges.size() * 2 + 1));
+				nk_rune* Ranges = (nk_rune*)TH_MALLOC(sizeof(nk_rune) * (Config->Ranges.size() * 2 + 1));
 				size_t Offset = 0;
 
 				for (auto& Range : Config->Ranges)
@@ -1917,7 +1917,7 @@ namespace Tomahawk
 				nk_font* Font = nk_font_atlas_add_default(Atlas, Config->Height, &Desc);
 				if (!Font)
 				{
-					THAWK_ERROR("font \"%s\" cannot be loaded", Name.c_str());
+					TH_ERROR("font \"%s\" cannot be loaded", Name.c_str());
 					return false;
 				}
 
@@ -1934,7 +1934,7 @@ namespace Tomahawk
 
 				if (!Pixels || Width <= 0 || Height <= 0)
 				{
-					THAWK_ERROR("cannot bake font atlas");
+					TH_ERROR("cannot bake font atlas");
 					FontBaking = false;
 					return false;
 				}

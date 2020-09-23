@@ -1,14 +1,14 @@
-#ifndef THAWK_GRAPHICS_OPENGL45_H
-#define THAWK_GRAPHICS_OPENGL45_H
+#ifndef TH_GRAPHICS_OPENGL45_H
+#define TH_GRAPHICS_OPENGL45_H
 
 #include "../core/graphics.h"
-#ifdef THAWK_MICROSOFT
+#ifdef TH_MICROSOFT
 #include <Windows.h>
 #endif
-#ifdef THAWK_HAS_OPENGL
-#ifdef THAWK_HAS_GLEW
+#ifdef TH_HAS_OPENGL
+#ifdef TH_HAS_GLEW
 #include <GL/glew.h>
-#define THAWK_HAS_GL
+#define TH_HAS_GL
 #ifndef APIENTRY
 #define APIENTRY
 #endif

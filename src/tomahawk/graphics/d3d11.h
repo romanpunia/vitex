@@ -1,9 +1,9 @@
-#ifndef THAWK_GRAPHICS_DIRECTX11_H
-#define THAWK_GRAPHICS_DIRECTX11_H
+#ifndef TH_GRAPHICS_DIRECTX11_H
+#define TH_GRAPHICS_DIRECTX11_H
 
 #include "../core/graphics.h"
 
-#ifdef THAWK_MICROSOFT
+#ifdef TH_MICROSOFT
 #include <d3d11.h>
 #include <d3dcompiler.h>
 

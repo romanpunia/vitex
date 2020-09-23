@@ -1,5 +1,5 @@
-#ifndef THAWK_SCRIPT_REST_H
-#define THAWK_SCRIPT_REST_H
+#ifndef TH_SCRIPT_REST_H
+#define TH_SCRIPT_REST_H
 
 #include "core.h"
 
@@ -60,9 +60,9 @@ namespace Tomahawk
 			static Rest::Document* Import(const std::string& Value);
 		};
 
-		THAWK_OUT bool RegisterFormatAPI(VMManager* Engine);
-		THAWK_OUT bool RegisterConsoleAPI(VMManager* Engine);
-		THAWK_OUT bool RegisterDocumentAPI(VMManager* Engine);
+		TH_OUT bool RegisterFormatAPI(VMManager* Engine);
+		TH_OUT bool RegisterConsoleAPI(VMManager* Engine);
+		TH_OUT bool RegisterDocumentAPI(VMManager* Engine);
 	}
 }
 #endif

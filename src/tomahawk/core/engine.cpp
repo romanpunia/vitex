@@ -6,7 +6,7 @@
 #include "../audio/effects.h"
 #include "../audio/filters.h"
 #include <sstream>
-#ifdef THAWK_HAS_SDL2
+#ifdef TH_HAS_SDL2
 #include <SDL2/SDL_syswm.h>
 #undef Complex
 #endif
@@ -1693,7 +1693,7 @@ namespace Tomahawk
 		AssetFile::~AssetFile()
 		{
 			if (Buffer != nullptr)
-				free(Buffer);
+				TH_FREE(Buffer);
 		}
 		char* AssetFile::GetBuffer()
 		{
@@ -2335,7 +2335,7 @@ namespace Tomahawk
 		{
 			if (Name.empty())
 			{
-				THAWK_ERROR("cannot compile unnamed shader source");
+				TH_ERROR("cannot compile unnamed shader source");
 				return nullptr;
 			}
 
@@ -3110,7 +3110,7 @@ namespace Tomahawk
 		{
 			if (Name.empty() && Desc.Filename.empty())
 			{
-				THAWK_ERROR("shader must have name or filename");
+				TH_ERROR("shader must have name or filename");
 				return nullptr;
 			}
 
@@ -3682,7 +3682,7 @@ namespace Tomahawk
 				Message->Root->Pipe(Message);
 
 			if (Message->Context != nullptr)
-				free(Message->Context);
+				TH_FREE(Message->Context);
 
 			delete Message;
 		}
@@ -4289,7 +4289,7 @@ namespace Tomahawk
 			ContentArgs Args(Map);
 			if (!Processor)
 			{
-				THAWK_ERROR("file processor for \"%s\" wasn't found", Path.c_str());
+				TH_ERROR("file processor for \"%s\" wasn't found", Path.c_str());
 				return nullptr;
 			}
 
@@ -4304,7 +4304,7 @@ namespace Tomahawk
 				if (!Rest::OS::FileExists(Path.c_str()))
 				{
 					Mutex.unlock();
-					THAWK_ERROR("file \"%s\" wasn't found", File.c_str());
+					TH_ERROR("file \"%s\" wasn't found", File.c_str());
 					return nullptr;
 				}
 
@@ -4340,7 +4340,7 @@ namespace Tomahawk
 			auto It = Streams.find(Docker->second->Stream);
 			if (It == Streams.end())
 			{
-				THAWK_ERROR("cannot resolve stream offset for \"%s\"", Path.c_str());
+				TH_ERROR("cannot resolve stream offset for \"%s\"", Path.c_str());
 				return nullptr;
 			}
 
@@ -4357,13 +4357,13 @@ namespace Tomahawk
 
 			if (!Processor)
 			{
-				THAWK_ERROR("file processor for \"%s\" wasn't found", Path.c_str());
+				TH_ERROR("file processor for \"%s\" wasn't found", Path.c_str());
 				return false;
 			}
 
 			if (!Object)
 			{
-				THAWK_ERROR("cannot save null object to \"%s\"", Path.c_str());
+				TH_ERROR("cannot save null object to \"%s\"", Path.c_str());
 				return false;
 			}
 
@@ -4379,7 +4379,7 @@ namespace Tomahawk
 			{
 				if (!Stream->Open(Path.c_str(), Rest::FileMode_Binary_Write_Only))
 				{
-					THAWK_ERROR("cannot open stream for writing at \"%s\" or \"%s\"", File.c_str(), Path.c_str());
+					TH_ERROR("cannot open stream for writing at \"%s\" or \"%s\"", File.c_str(), Path.c_str());
 					delete Stream;
 					return false;
 				}
@@ -4397,7 +4397,7 @@ namespace Tomahawk
 			{
 				if (!Rest::OS::FileExists(Path.c_str()))
 				{
-					THAWK_ERROR("file \"%s\" wasn't found", Path.c_str());
+					TH_ERROR("file \"%s\" wasn't found", Path.c_str());
 					return false;
 				}
 
@@ -4408,7 +4408,7 @@ namespace Tomahawk
 			Rest::FileStream* Stream = new Rest::FileStream();
 			if (!Stream->OpenZ(File.c_str(), Rest::FileMode::FileMode_Binary_Read_Only))
 			{
-				THAWK_ERROR("cannot open \"%s\" for reading", File.c_str());
+				TH_ERROR("cannot open \"%s\" for reading", File.c_str());
 				delete Stream;
 				return false;
 			}
@@ -4416,14 +4416,14 @@ namespace Tomahawk
 			char Buffer[16];
 			if (Stream->Read(Buffer, 16) != 16)
 			{
-				THAWK_ERROR("file \"%s\" has corrupted header", File.c_str());
+				TH_ERROR("file \"%s\" has corrupted header", File.c_str());
 				delete Stream;
 				return false;
 			}
 
 			if (memcmp(Buffer, "\0d\0o\0c\0k\0h\0e\0a\0d", sizeof(char) * 16) != 0)
 			{
-				THAWK_ERROR("file \"%s\" header version is corrupted", File.c_str());
+				TH_ERROR("file \"%s\" header version is corrupted", File.c_str());
 				delete Stream;
 				return false;
 			}
@@ -4431,7 +4431,7 @@ namespace Tomahawk
 			uint64_t Size = 0;
 			if (Stream->Read((char*)&Size, sizeof(uint64_t)) != sizeof(uint64_t))
 			{
-				THAWK_ERROR("file \"%s\" has corrupted dock size", File.c_str());
+				TH_ERROR("file \"%s\" has corrupted dock size", File.c_str());
 				delete Stream;
 				return false;
 			}
@@ -4467,14 +4467,14 @@ namespace Tomahawk
 		{
 			if (Path.empty() || Directory.empty())
 			{
-				THAWK_ERROR("cannot export to/from unknown location");
+				TH_ERROR("cannot export to/from unknown location");
 				return false;
 			}
 
 			auto Stream = new Rest::FileStream();
 			if (!Stream->OpenZ(Rest::OS::Resolve(Path, Environment).c_str(), Rest::FileMode_Write_Only))
 			{
-				THAWK_ERROR("cannot open \"%s\" for writing", Path.c_str());
+				TH_ERROR("cannot open \"%s\" for writing", Path.c_str());
 				delete Stream;
 				return false;
 			}
@@ -4610,7 +4610,7 @@ namespace Tomahawk
 				return;
 
 			Host = this;
-#ifdef THAWK_HAS_SDL2
+#ifdef TH_HAS_SDL2
 			if (I->Usage & ApplicationUse_Activity_Module)
 			{
 				if (I->Activity.Width <= 0 || I->Activity.Height <= 0)
@@ -4671,7 +4671,7 @@ namespace Tomahawk
 							delete Renderer;
 							Renderer = nullptr;
 
-							THAWK_ERROR("graphics device cannot be created");
+							TH_ERROR("graphics device cannot be created");
 							return;
 						}
 
@@ -4680,7 +4680,7 @@ namespace Tomahawk
 					}
 				}
 				else
-					THAWK_ERROR("cannot detect display to create activity");
+					TH_ERROR("cannot detect display to create activity");
 			}
 #endif
 			Queue = new Rest::EventQueue();
@@ -4692,7 +4692,7 @@ namespace Tomahawk
 					delete Audio;
 					Audio = nullptr;
 
-					THAWK_ERROR("audio device cannot be created");
+					TH_ERROR("audio device cannot be created");
 					return;
 				}
 			}
@@ -4785,7 +4785,7 @@ namespace Tomahawk
 		{
 			if (!I || !Queue)
 			{
-				THAWK_ERROR("(CONF): event queue was not found");
+				TH_ERROR("(CONF): event queue was not found");
 				return;
 			}
 
@@ -4794,19 +4794,19 @@ namespace Tomahawk
 
 			if (I->Usage & ApplicationUse_Activity_Module && !Activity)
 			{
-				THAWK_ERROR("(CONF): activity was not found");
+				TH_ERROR("(CONF): activity was not found");
 				return;
 			}
 
 			if (I->Usage & ApplicationUse_Graphics_Module && !Renderer)
 			{
-				THAWK_ERROR("(CONF): graphics device was not found");
+				TH_ERROR("(CONF): graphics device was not found");
 				return;
 			}
 
 			if (I->Usage & ApplicationUse_Audio_Module && !Audio)
 			{
-				THAWK_ERROR("(CONF): audio device was not found");
+				TH_ERROR("(CONF): audio device was not found");
 				return;
 			}
 
@@ -4814,7 +4814,7 @@ namespace Tomahawk
 			{
 				if (!VM)
 				{
-					THAWK_ERROR("(CONF): VM was not found");
+					TH_ERROR("(CONF): VM was not found");
 					return;
 				}
 				else
@@ -4838,7 +4838,7 @@ namespace Tomahawk
 			if (I->Threading != Rest::EventWorkflow_Singlethreaded)
 			{
 				if (!I->TaskWorkersCount)
-					THAWK_WARN("tasks will not be processed (no workers)");
+					TH_WARN("tasks will not be processed (no workers)");
 
 				State = ApplicationState_Multithreaded;
 				Queue->Start(I->Threading, I->TaskWorkersCount, I->EventWorkersCount);

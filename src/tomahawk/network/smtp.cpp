@@ -1,5 +1,5 @@
 #include "smtp.h"
-#ifdef THAWK_MICROSOFT
+#ifdef TH_MICROSOFT
 #include <WS2tcpip.h>
 #include <io.h>
 #define ERRNO WSAGetLastError()
@@ -25,7 +25,7 @@
 #endif
 extern "C"
 {
-#ifdef THAWK_HAS_OPENSSL
+#ifdef TH_HAS_OPENSSL
 #include <openssl/ssl.h>
 #include <openssl/err.h>
 #include <openssl/crypto.h>
@@ -365,7 +365,7 @@ namespace Tomahawk
 
 				for (uint64_t i = 0; i < L1 - L2 + 1; i++)
 				{
-#ifdef THAWK_MICROSOFT
+#ifdef TH_MICROSOFT
 					if (_strnicmp(Keyword, Buffer.c_str() + i, (size_t)L2) || !i)
 						continue;
 #else
@@ -724,7 +724,7 @@ namespace Tomahawk
 			unsigned char* Client::Unicode(const char* String)
 			{
 				uint64_t Length = strlen(String);
-				auto Output = (unsigned char*)malloc(sizeof(unsigned char) * (size_t)(Length + 1));
+				auto Output = (unsigned char*)TH_MALLOC(sizeof(unsigned char) * (size_t)(Length + 1));
 
 				for (uint64_t i = 0; i < Length; i++)
 					Output[i] = (unsigned char)String[i];

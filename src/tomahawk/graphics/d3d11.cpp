@@ -1,8 +1,8 @@
 #include "d3d11.h"
-#ifdef THAWK_HAS_SDL2
+#ifdef TH_HAS_SDL2
 #include <SDL2/SDL_syswm.h>
 #endif
-#ifdef THAWK_MICROSOFT
+#ifdef TH_MICROSOFT
 #define ReleaseCom(Value) { if (Value != nullptr) { Value->Release(); Value = nullptr; } }
 
 namespace Tomahawk
@@ -452,7 +452,7 @@ namespace Tomahawk
 				SwapChainResource.BufferDesc.ScanlineOrdering = DXGI_MODE_SCANLINE_ORDER_UNSPECIFIED;
 				SwapChainResource.BufferDesc.Scaling = DXGI_MODE_SCALING_UNSPECIFIED;
 				SwapChainResource.SwapEffect = DXGI_SWAP_EFFECT_FLIP_SEQUENTIAL;
-#if defined(THAWK_MICROSOFT) && defined(THAWK_HAS_SDL2)
+#if defined(TH_MICROSOFT) && defined(TH_HAS_SDL2)
 				if (I.Window != nullptr)
 				{
 					SDL_SysWMinfo Info;
@@ -462,7 +462,7 @@ namespace Tomahawk
 #endif
 				if (D3D11CreateDeviceAndSwapChain(nullptr, DriverType, nullptr, CreationFlags, FeatureLevels, ARRAYSIZE(FeatureLevels), D3D11_SDK_VERSION, &SwapChainResource, &SwapChain, &D3DDevice, &FeatureLevel, &ImmediateContext) != S_OK)
 				{
-					THAWK_ERROR("couldn't create swap chain, device or immediate context");
+					TH_ERROR("couldn't create swap chain, device or immediate context");
 					return;
 				}
 
@@ -1702,7 +1702,7 @@ namespace Tomahawk
 				if (D3DDevice->CreateShaderResourceView(IResource->View, &SRV, &IResource->Resource) == S_OK)
 					return true;
 
-				THAWK_ERROR("could not generate texture 2d resource");
+				TH_ERROR("could not generate texture 2d resource");
 				return false;
 			}
 			bool D3D11Device::GenerateTexture(Texture3D* Resource)
@@ -1731,7 +1731,7 @@ namespace Tomahawk
 				if (D3DDevice->CreateShaderResourceView(IResource->View, &SRV, &IResource->Resource) == S_OK)
 					return true;
 
-				THAWK_ERROR("could not generate texture 3d resource");
+				TH_ERROR("could not generate texture 3d resource");
 				return false;
 			}
 			bool D3D11Device::GenerateTexture(TextureCube* Resource)
@@ -1760,7 +1760,7 @@ namespace Tomahawk
 				if (D3DDevice->CreateShaderResourceView(IResource->View, &SRV, &IResource->Resource) == S_OK)
 					return true;
 
-				THAWK_ERROR("could not generate texture cube resource");
+				TH_ERROR("could not generate texture cube resource");
 				return false;
 			}
 			bool D3D11Device::GetQueryData(Query* Resource, uint64_t* Result, bool Flush)
@@ -1973,7 +1973,7 @@ namespace Tomahawk
 				if (D3DDevice->CreateDepthStencilState(&State, &DeviceState) != S_OK)
 				{
 					ReleaseCom(DeviceState);
-					THAWK_ERROR("couldn't create depth stencil state");
+					TH_ERROR("couldn't create depth stencil state");
 					return nullptr;
 				}
 
@@ -2004,7 +2004,7 @@ namespace Tomahawk
 				if (D3DDevice->CreateBlendState(&State, &DeviceState) != S_OK)
 				{
 					ReleaseCom(DeviceState);
-					THAWK_ERROR("couldn't create blend state");
+					TH_ERROR("couldn't create blend state");
 					return nullptr;
 				}
 
@@ -2031,7 +2031,7 @@ namespace Tomahawk
 				if (D3DDevice->CreateRasterizerState(&State, &DeviceState) != S_OK)
 				{
 					ReleaseCom(DeviceState);
-					THAWK_ERROR("couldn't create Rasterizer state");
+					TH_ERROR("couldn't create Rasterizer state");
 					return nullptr;
 				}
 
@@ -2061,7 +2061,7 @@ namespace Tomahawk
 				if (D3DDevice->CreateSamplerState(&State, &DeviceState) != S_OK)
 				{
 					ReleaseCom(DeviceState);
-					THAWK_ERROR("couldn't create sampler state");
+					TH_ERROR("couldn't create sampler state");
 					return nullptr;
 				}
 
@@ -2083,7 +2083,7 @@ namespace Tomahawk
 
 				if (!Preprocess(F))
 				{
-					THAWK_ERROR("shader preprocessing failed");
+					TH_ERROR("shader preprocessing failed");
 					return Result;
 				}
 
@@ -2104,7 +2104,7 @@ namespace Tomahawk
 						std::string Message = GetCompileState(ErrorBlob);
 						ReleaseCom(ErrorBlob);
 
-						THAWK_ERROR("couldn't compile vertex shader\n\t%s", Message.c_str());
+						TH_ERROR("couldn't compile vertex shader\n\t%s", Message.c_str());
 						return Result;
 					}
 
@@ -2120,7 +2120,7 @@ namespace Tomahawk
 						std::string Message = GetCompileState(ErrorBlob);
 						ReleaseCom(ErrorBlob);
 
-						THAWK_ERROR("couldn't compile pixel shader\n\t%s", Message.c_str());
+						TH_ERROR("couldn't compile pixel shader\n\t%s", Message.c_str());
 						return Result;
 					}
 
@@ -2137,7 +2137,7 @@ namespace Tomahawk
 						std::string Message = GetCompileState(ErrorBlob);
 						ReleaseCom(ErrorBlob);
 
-						THAWK_ERROR("couldn't compile geometry shader\n\t%s", Message.c_str());
+						TH_ERROR("couldn't compile geometry shader\n\t%s", Message.c_str());
 						return Result;
 					}
 
@@ -2154,7 +2154,7 @@ namespace Tomahawk
 						std::string Message = GetCompileState(ErrorBlob);
 						ReleaseCom(ErrorBlob);
 
-						THAWK_ERROR("couldn't compile compute shader\n\t%s", Message.c_str());
+						TH_ERROR("couldn't compile compute shader\n\t%s", Message.c_str());
 						return Result;
 					}
 
@@ -2171,7 +2171,7 @@ namespace Tomahawk
 						std::string Message = GetCompileState(ErrorBlob);
 						ReleaseCom(ErrorBlob);
 
-						THAWK_ERROR("couldn't compile hull shader\n\t%s", Message.c_str());
+						TH_ERROR("couldn't compile hull shader\n\t%s", Message.c_str());
 						return Result;
 					}
 
@@ -2188,7 +2188,7 @@ namespace Tomahawk
 						std::string Message = GetCompileState(ErrorBlob);
 						ReleaseCom(ErrorBlob);
 
-						THAWK_ERROR("couldn't compile domain shader\n\t%s", Message.c_str());
+						TH_ERROR("couldn't compile domain shader\n\t%s", Message.c_str());
 						return Result;
 					}
 
@@ -2233,7 +2233,7 @@ namespace Tomahawk
 
 				if (D3DDevice->CreateShaderResourceView(Result->Element, &SRV, &Result->Resource) != S_OK)
 				{
-					THAWK_ERROR("couldn't create shader resource view");
+					TH_ERROR("couldn't create shader resource view");
 					return Result;
 				}
 
@@ -2309,7 +2309,7 @@ namespace Tomahawk
 
 				if (D3DDevice->CreateShaderResourceView(Result->Elements->As<D3D11ElementBuffer>()->Element, &SRV, &Result->Resource) != S_OK)
 				{
-					THAWK_ERROR("couldn't create shader resource view");
+					TH_ERROR("couldn't create shader resource view");
 					return Result;
 				}
 
@@ -2349,13 +2349,13 @@ namespace Tomahawk
 				D3D11Texture2D* Result = new D3D11Texture2D();
 				if (D3DDevice->CreateTexture2D(&Description, I.Data && I.MipLevels <= 0 ? &Data : nullptr, &Result->View) != S_OK)
 				{
-					THAWK_ERROR("couldn't create 2d texture");
+					TH_ERROR("couldn't create 2d texture");
 					return Result;
 				}
 
 				if (!GenerateTexture(Result))
 				{
-					THAWK_ERROR("couldn't create 2d resource");
+					TH_ERROR("couldn't create 2d resource");
 					return Result;
 				}
 
@@ -2388,7 +2388,7 @@ namespace Tomahawk
 				D3D11Texture3D* Result = new D3D11Texture3D();
 				if (D3DDevice->CreateTexture3D(&Description, nullptr, &Result->View) != S_OK)
 				{
-					THAWK_ERROR("couldn't create 2d resource");
+					TH_ERROR("couldn't create 2d resource");
 					return Result;
 				}
 
@@ -2418,7 +2418,7 @@ namespace Tomahawk
 				D3D11TextureCube* Result = new D3D11TextureCube();
 				if (D3DDevice->CreateTexture2D(&Description, 0, &Result->View) != S_OK)
 				{
-					THAWK_ERROR("couldn't create texture 2d");
+					TH_ERROR("couldn't create texture 2d");
 					return Result;
 				}
 
@@ -2437,7 +2437,7 @@ namespace Tomahawk
 			{
 				if (!Resource[0] || !Resource[1] || !Resource[2] || !Resource[3] || !Resource[4] || !Resource[5])
 				{
-					THAWK_ERROR("couldn't create texture cube without proper mapping");
+					TH_ERROR("couldn't create texture cube without proper mapping");
 					return nullptr;
 				}
 
@@ -2451,7 +2451,7 @@ namespace Tomahawk
 			{
 				if (!Resource || !Resource->As<D3D11Texture2D>()->View)
 				{
-					THAWK_ERROR("couldn't create texture cube without proper mapping");
+					TH_ERROR("couldn't create texture cube without proper mapping");
 					return nullptr;
 				}
 
@@ -2476,14 +2476,14 @@ namespace Tomahawk
 				Description.MipLevels = GetMipLevel(Description.Width, Description.Height);
 				if (Width % 4 != 0 || Height % 3 != 0)
 				{
-					THAWK_ERROR("couldn't create texture cube because width or height cannot be not divided");
+					TH_ERROR("couldn't create texture cube because width or height cannot be not divided");
 					return nullptr;
 				}
 
 				D3D11TextureCube* Result = new D3D11TextureCube();
 				if (D3DDevice->CreateTexture2D(&Description, 0, &Result->View) != S_OK)
 				{
-					THAWK_ERROR("couldn't create texture 2d");
+					TH_ERROR("couldn't create texture 2d");
 					return Result;
 				}
 
@@ -2533,7 +2533,7 @@ namespace Tomahawk
 			{
 				if (!Resource[0] || !Resource[1] || !Resource[2] || !Resource[3] || !Resource[4] || !Resource[5])
 				{
-					THAWK_ERROR("couldn't create texture cube without proper mapping");
+					TH_ERROR("couldn't create texture cube without proper mapping");
 					return nullptr;
 				}
 
@@ -2549,7 +2549,7 @@ namespace Tomahawk
 				D3D11TextureCube* Result = new D3D11TextureCube();
 				if (D3DDevice->CreateTexture2D(&Description, 0, &Result->View) != S_OK)
 				{
-					THAWK_ERROR("couldn't create texture 2d");
+					TH_ERROR("couldn't create texture 2d");
 					return Result;
 				}
 
@@ -2588,7 +2588,7 @@ namespace Tomahawk
 				ID3D11Texture2D* DepthTexture = nullptr;
 				if (D3DDevice->CreateTexture2D(&DepthBuffer, nullptr, &DepthTexture) != S_OK)
 				{
-					THAWK_ERROR("couldn't create depth buffer texture 2d");
+					TH_ERROR("couldn't create depth buffer texture 2d");
 					return Result;
 				}
 
@@ -2600,7 +2600,7 @@ namespace Tomahawk
 
 				if (D3DDevice->CreateDepthStencilView(DepthTexture, &DSV, &Result->DepthStencilView) != S_OK)
 				{
-					THAWK_ERROR("couldn't create depth stencil view");
+					TH_ERROR("couldn't create depth stencil view");
 					return Result;
 				}
 
@@ -2635,7 +2635,7 @@ namespace Tomahawk
 
 					if (D3DDevice->CreateTexture2D(&Description, nullptr, &Result->Texture) != S_OK)
 					{
-						THAWK_ERROR("couldn't create surface texture view");
+						TH_ERROR("couldn't create surface texture view");
 						return Result;
 					}
 
@@ -2647,7 +2647,7 @@ namespace Tomahawk
 
 					if (!GenerateTexture(Target))
 					{
-						THAWK_ERROR("couldn't create shader resource view");
+						TH_ERROR("couldn't create shader resource view");
 						return Result;
 					}
 				}
@@ -2660,7 +2660,7 @@ namespace Tomahawk
 
 				if (D3DDevice->CreateRenderTargetView(I.RenderSurface ? (ID3D11Texture2D*)I.RenderSurface : Result->Texture, &RTV, &Result->RenderTargetView) != S_OK)
 				{
-					THAWK_ERROR("couldn't create render target view");
+					TH_ERROR("couldn't create render target view");
 					return Result;
 				}
 
@@ -2681,7 +2681,7 @@ namespace Tomahawk
 				ID3D11Texture2D* DepthTexture = nullptr;
 				if (D3DDevice->CreateTexture2D(&DepthBuffer, nullptr, &DepthTexture) != S_OK)
 				{
-					THAWK_ERROR("couldn't create depth buffer texture 2d");
+					TH_ERROR("couldn't create depth buffer texture 2d");
 					return Result;
 				}
 
@@ -2693,7 +2693,7 @@ namespace Tomahawk
 
 				if (D3DDevice->CreateDepthStencilView(DepthTexture, &DSV, &Result->DepthStencilView) != S_OK)
 				{
-					THAWK_ERROR("couldn't create depth stencil view");
+					TH_ERROR("couldn't create depth stencil view");
 					return Result;
 				}
 
@@ -2742,14 +2742,14 @@ namespace Tomahawk
 					Result->Information.Format = (DXGI_FORMAT)I.FormatMode[i];
 					if (D3DDevice->CreateTexture2D(&Result->Information, nullptr, &Result->Texture[i]) != S_OK)
 					{
-						THAWK_ERROR("couldn't create surface texture 2d #%i", i);
+						TH_ERROR("couldn't create surface texture 2d #%i", i);
 						return Result;
 					}
 
 					RTV.Format = (DXGI_FORMAT)I.FormatMode[i];
 					if (D3DDevice->CreateRenderTargetView(Result->Texture[i], &RTV, &Result->RenderTargetView[i]) != S_OK)
 					{
-						THAWK_ERROR("couldn't create render target view #%i", i);
+						TH_ERROR("couldn't create render target view #%i", i);
 						return Result;
 					}
 
@@ -2761,7 +2761,7 @@ namespace Tomahawk
 					
 					if (!GenerateTexture(Subtarget))
 					{
-						THAWK_ERROR("couldn't create shader resource view #%i", i);
+						TH_ERROR("couldn't create shader resource view #%i", i);
 						return Result;
 					}
 				}
@@ -2783,7 +2783,7 @@ namespace Tomahawk
 				ID3D11Texture2D* DepthTexture = nullptr;
 				if (D3DDevice->CreateTexture2D(&DepthBuffer, nullptr, &DepthTexture) != S_OK)
 				{
-					THAWK_ERROR("couldn't create depth buffer 2d");
+					TH_ERROR("couldn't create depth buffer 2d");
 					return Result;
 				}
 
@@ -2795,7 +2795,7 @@ namespace Tomahawk
 
 				if (D3DDevice->CreateDepthStencilView(DepthTexture, &DSV, &Result->DepthStencilView) != S_OK)
 				{
-					THAWK_ERROR("couldn't create depth stencil view");
+					TH_ERROR("couldn't create depth stencil view");
 					return Result;
 				}
 
@@ -2830,7 +2830,7 @@ namespace Tomahawk
 
 				if (D3DDevice->CreateTexture2D(&Description, nullptr, &Result->Cube) != S_OK)
 				{
-					THAWK_ERROR("couldn't create cube map texture 2d");
+					TH_ERROR("couldn't create cube map texture 2d");
 					return Result;
 				}
 
@@ -2851,7 +2851,7 @@ namespace Tomahawk
 				ID3D11Texture2D* DepthTexture = nullptr;
 				if (D3DDevice->CreateTexture2D(&DepthBuffer, nullptr, &DepthTexture) != S_OK)
 				{
-					THAWK_ERROR("couldn't create depth buffer texture 2d");
+					TH_ERROR("couldn't create depth buffer texture 2d");
 					return Result;
 				}
 
@@ -2865,7 +2865,7 @@ namespace Tomahawk
 
 				if (D3DDevice->CreateDepthStencilView(DepthTexture, &DSV, &Result->DepthStencilView) != S_OK)
 				{
-					THAWK_ERROR("couldn't create depth stencil view");
+					TH_ERROR("couldn't create depth stencil view");
 					return Result;
 				}
 				ReleaseCom(DepthTexture);
@@ -2880,7 +2880,7 @@ namespace Tomahawk
 
 				if (D3DDevice->CreateRenderTargetView(Result->Cube, &RTV, &Result->RenderTargetView) != S_OK)
 				{
-					THAWK_ERROR("couldn't create render target view");
+					TH_ERROR("couldn't create render target view");
 					return Result;
 				}
 
@@ -2892,7 +2892,7 @@ namespace Tomahawk
 
 				if (!GenerateTexture(Target))
 				{
-					THAWK_ERROR("couldn't create shader resource view");
+					TH_ERROR("couldn't create shader resource view");
 					return Result;
 				}
 
@@ -2928,7 +2928,7 @@ namespace Tomahawk
 				{
 					if (D3DDevice->CreateTexture2D(&Description, nullptr, &Result->Texture[i]) != S_OK)
 					{
-						THAWK_ERROR("couldn't create texture 2d");
+						TH_ERROR("couldn't create texture 2d");
 						return Result;
 					}
 				}
@@ -2943,7 +2943,7 @@ namespace Tomahawk
 
 				if (D3DDevice->CreateDepthStencilView(Result->Texture[0], &DSV, &Result->DepthStencilView) != S_OK)
 				{
-					THAWK_ERROR("couldn't create depth stencil view");
+					TH_ERROR("couldn't create depth stencil view");
 					return Result;
 				}
 
@@ -2956,7 +2956,7 @@ namespace Tomahawk
 					Description.Format = (DXGI_FORMAT)I.FormatMode[i];
 					if (D3DDevice->CreateTexture2D(&Description, nullptr, &Result->Cube[i]) != S_OK)
 					{
-						THAWK_ERROR("couldn't create cube map rexture 2d");
+						TH_ERROR("couldn't create cube map rexture 2d");
 						return Result;
 					}
 				}
@@ -2973,7 +2973,7 @@ namespace Tomahawk
 					RTV.Format = (DXGI_FORMAT)I.FormatMode[i];
 					if (D3DDevice->CreateRenderTargetView(Result->Cube[i], &RTV, &Result->RenderTargetView[i]) != S_OK)
 					{
-						THAWK_ERROR("couldn't create render target view");
+						TH_ERROR("couldn't create render target view");
 						return Result;
 					}
 				}
@@ -2995,7 +2995,7 @@ namespace Tomahawk
 
 					if (!GenerateTexture(Target))
 					{
-						THAWK_ERROR("couldn't create shader resource view");
+						TH_ERROR("couldn't create shader resource view");
 						return Result;
 					}
 				}
@@ -3162,7 +3162,7 @@ namespace Tomahawk
 
 				if (D3DDevice->CreateBuffer(&Buffer, nullptr, &DirectBuffer) != S_OK)
 				{
-					THAWK_ERROR("couldn't create vertex buffer");
+					TH_ERROR("couldn't create vertex buffer");
 					return false;
 				}
 
@@ -3217,40 +3217,40 @@ namespace Tomahawk
 				D3DCompile(VertexShaderCode, strlen(VertexShaderCode), nullptr, nullptr, nullptr, "VS", GetVSProfile(), 0, 0, &VertexShaderBlob, nullptr);
 				if (VertexShaderBlob == nullptr)
 				{
-					THAWK_ERROR("couldn't compile vertex shader");
+					TH_ERROR("couldn't compile vertex shader");
 					return false;
 				}
 
 				if (D3DDevice->CreateVertexShader((DWORD*)VertexShaderBlob->GetBufferPointer(), VertexShaderBlob->GetBufferSize(), nullptr, &VertexShader) != S_OK)
 				{
-					THAWK_ERROR("couldn't create vertex shader");
+					TH_ERROR("couldn't create vertex shader");
 					return false;
 				}
 
 				D3D11_INPUT_ELEMENT_DESC Layout[] = { { "POSITION", 0, DXGI_FORMAT_R32G32B32_FLOAT, 0, 0, D3D11_INPUT_PER_VERTEX_DATA, 0 }, { "TEXCOORD", 0, DXGI_FORMAT_R32G32_FLOAT, 0, 3 * sizeof(float), D3D11_INPUT_PER_VERTEX_DATA, 0 }, { "COLOR", 0, DXGI_FORMAT_R32G32B32A32_FLOAT, 0, 5 * sizeof(float), D3D11_INPUT_PER_VERTEX_DATA, 0 }, };
 				if (D3DDevice->CreateInputLayout(Layout, 3, VertexShaderBlob->GetBufferPointer(), VertexShaderBlob->GetBufferSize(), &VertexLayout) != S_OK)
 				{
-					THAWK_ERROR("couldn't create input layout");
+					TH_ERROR("couldn't create input layout");
 					return false;
 				}
 
 				CreateConstantBuffer(&VertexConstantBuffer, sizeof(Direct));
 				if (!VertexConstantBuffer)
 				{
-					THAWK_ERROR("couldn't create vertex constant buffer");
+					TH_ERROR("couldn't create vertex constant buffer");
 					return false;
 				}
 
 				D3DCompile(PixelShaderCode, strlen(PixelShaderCode), nullptr, nullptr, nullptr, "PS", GetPSProfile(), 0, 0, &PixelShaderBlob, nullptr);
 				if (PixelShaderBlob == nullptr)
 				{
-					THAWK_ERROR("couldn't compile pixel shader");
+					TH_ERROR("couldn't compile pixel shader");
 					return false;
 				}
 
 				if (D3DDevice->CreatePixelShader((DWORD*)PixelShaderBlob->GetBufferPointer(), PixelShaderBlob->GetBufferSize(), nullptr, &PixelShader) != S_OK)
 				{
-					THAWK_ERROR("couldn't create pixel shader");
+					TH_ERROR("couldn't create pixel shader");
 					return false;
 				}
 
@@ -3340,7 +3340,7 @@ namespace Tomahawk
 				}
 
 				if (D3DDevice->CreateInputLayout(Result, Layout->Layout.size(), Shader->Signature->GetBufferPointer(), Shader->Signature->GetBufferSize(), &Shader->VertexLayout) != S_OK)
-					THAWK_ERROR("couldn't generate input layout for specified shader");
+					TH_ERROR("couldn't generate input layout for specified shader");
 				
 				delete[] Result;
 				return Shader->VertexLayout;

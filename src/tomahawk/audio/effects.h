@@ -1,5 +1,5 @@
-#ifndef THAWK_AUDIO_EFFECTS_H
-#define THAWK_AUDIO_EFFECTS_H
+#ifndef TH_AUDIO_EFFECTS_H
+#define TH_AUDIO_EFFECTS_H
 
 #include "../core/audio.h"
 
@@ -9,13 +9,13 @@ namespace Tomahawk
 	{
 		namespace Effects
 		{
-			class THAWK_OUT EffectContext
+			class TH_OUT EffectContext
 			{
 			public:
 				static void Initialize();
 			};
 
-			class THAWK_OUT ReverbEffect : public AudioEffect
+			class TH_OUT ReverbEffect : public AudioEffect
 			{
 			private:
 				bool EAX;
@@ -54,10 +54,10 @@ namespace Tomahawk
 				AudioEffect* Copy() override;
 
 			public:
-				THAWK_COMPONENT(ReverbEffect);
+				TH_COMPONENT(ReverbEffect);
 			};
 
-			class THAWK_OUT ChorusEffect : public AudioEffect
+			class TH_OUT ChorusEffect : public AudioEffect
 			{
 			public:
 				float Rate = 1.1f;
@@ -76,10 +76,10 @@ namespace Tomahawk
 				AudioEffect* Copy() override;
 
 			public:
-				THAWK_COMPONENT(ChorusEffect);
+				TH_COMPONENT(ChorusEffect);
 			};
 
-			class THAWK_OUT DistortionEffect : public AudioEffect
+			class TH_OUT DistortionEffect : public AudioEffect
 			{
 			public:
 				float Edge = 0.2f;
@@ -97,10 +97,10 @@ namespace Tomahawk
 				AudioEffect* Copy() override;
 
 			public:
-				THAWK_COMPONENT(DistortionEffect);
+				TH_COMPONENT(DistortionEffect);
 			};
 
-			class THAWK_OUT EchoEffect : public AudioEffect
+			class TH_OUT EchoEffect : public AudioEffect
 			{
 			public:
 				float Delay = 0.1f;
@@ -118,10 +118,10 @@ namespace Tomahawk
 				AudioEffect* Copy() override;
 
 			public:
-				THAWK_COMPONENT(EchoEffect);
+				TH_COMPONENT(EchoEffect);
 			};
 
-			class THAWK_OUT FlangerEffect : public AudioEffect
+			class TH_OUT FlangerEffect : public AudioEffect
 			{
 			public:
 				float Rate = 0.27f;
@@ -140,10 +140,10 @@ namespace Tomahawk
 				AudioEffect* Copy() override;
 
 			public:
-				THAWK_COMPONENT(FlangerEffect);
+				TH_COMPONENT(FlangerEffect);
 			};
 
-			class THAWK_OUT FrequencyShifterEffect : public AudioEffect
+			class TH_OUT FrequencyShifterEffect : public AudioEffect
 			{
 			public:
 				float Frequency = 0.0f;
@@ -159,10 +159,10 @@ namespace Tomahawk
 				AudioEffect* Copy() override;
 
 			public:
-				THAWK_COMPONENT(FrequencyShifterEffect);
+				TH_COMPONENT(FrequencyShifterEffect);
 			};
 
-			class THAWK_OUT VocalMorpherEffect : public AudioEffect
+			class TH_OUT VocalMorpherEffect : public AudioEffect
 			{
 			public:
 				float Rate = 1.41f;
@@ -181,10 +181,10 @@ namespace Tomahawk
 				AudioEffect* Copy() override;
 
 			public:
-				THAWK_COMPONENT(VocalMorpherEffect);
+				TH_COMPONENT(VocalMorpherEffect);
 			};
 
-			class THAWK_OUT PitchShifterEffect : public AudioEffect
+			class TH_OUT PitchShifterEffect : public AudioEffect
 			{
 			public:
 				int CoarseTune = 12;
@@ -199,10 +199,10 @@ namespace Tomahawk
 				AudioEffect* Copy() override;
 
 			public:
-				THAWK_COMPONENT(PitchShifterEffect);
+				TH_COMPONENT(PitchShifterEffect);
 			};
 
-			class THAWK_OUT RingModulatorEffect : public AudioEffect
+			class TH_OUT RingModulatorEffect : public AudioEffect
 			{
 			public:
 				float Frequency = 440.0f;
@@ -218,10 +218,10 @@ namespace Tomahawk
 				AudioEffect* Copy() override;
 
 			public:
-				THAWK_COMPONENT(RingModulatorEffect);
+				TH_COMPONENT(RingModulatorEffect);
 			};
 
-			class THAWK_OUT AutowahEffect : public AudioEffect
+			class TH_OUT AutowahEffect : public AudioEffect
 			{
 			public:
 				float AttackTime = 0.06f;
@@ -238,10 +238,10 @@ namespace Tomahawk
 				AudioEffect* Copy() override;
 
 			public:
-				THAWK_COMPONENT(AutowahEffect);
+				TH_COMPONENT(AutowahEffect);
 			};
 
-			class THAWK_OUT CompressorEffect : public AudioEffect
+			class TH_OUT CompressorEffect : public AudioEffect
 			{
 			public:
 				CompressorEffect();
@@ -252,10 +252,10 @@ namespace Tomahawk
 				AudioEffect* Copy() override;
 
 			public:
-				THAWK_COMPONENT(CompressorEffect);
+				TH_COMPONENT(CompressorEffect);
 			};
 
-			class THAWK_OUT EqualizerEffect : public AudioEffect
+			class TH_OUT EqualizerEffect : public AudioEffect
 			{
 			public:
 				float LowGain = 1.0f;
@@ -278,7 +278,7 @@ namespace Tomahawk
 				AudioEffect* Copy() override;
 
 			public:
-				THAWK_COMPONENT(EqualizerEffect);
+				TH_COMPONENT(EqualizerEffect);
 			};
 		}
 	}

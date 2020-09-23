@@ -1,5 +1,5 @@
-#ifndef THAWK_AUDIO_FILTERS_H
-#define THAWK_AUDIO_FILTERS_H
+#ifndef TH_AUDIO_FILTERS_H
+#define TH_AUDIO_FILTERS_H
 
 #include "../core/audio.h"
 
@@ -9,13 +9,13 @@ namespace Tomahawk
 	{
 		namespace Filters
 		{
-			class THAWK_OUT FilterContext
+			class TH_OUT FilterContext
 			{
 			public:
 				static void Initialize();
 			};
 
-			class THAWK_OUT LowpassFilter : public AudioFilter
+			class TH_OUT LowpassFilter : public AudioFilter
 			{
 			public:
 				float GainHF = 1.0f;
@@ -30,10 +30,10 @@ namespace Tomahawk
 				AudioFilter* Copy() override;
 
 			public:
-				THAWK_COMPONENT(LowpassFilter);
+				TH_COMPONENT(LowpassFilter);
 			};
 
-			class THAWK_OUT HighpassFilter : public AudioFilter
+			class TH_OUT HighpassFilter : public AudioFilter
 			{
 			public:
 				float GainLF = 1.0f;
@@ -48,10 +48,10 @@ namespace Tomahawk
 				AudioFilter* Copy() override;
 
 			public:
-				THAWK_COMPONENT(HighpassFilter);
+				TH_COMPONENT(HighpassFilter);
 			};
 
-			class THAWK_OUT BandpassFilter : public AudioFilter
+			class TH_OUT BandpassFilter : public AudioFilter
 			{
 			public:
 				float GainHF = 1.0f;
@@ -67,7 +67,7 @@ namespace Tomahawk
 				AudioFilter* Copy() override;
 
 			public:
-				THAWK_COMPONENT(BandpassFilter);
+				TH_COMPONENT(BandpassFilter);
 			};
 		}
 	}

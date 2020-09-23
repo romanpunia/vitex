@@ -1,5 +1,5 @@
-#ifndef THAWK_ENGINE_GUI_CONTEXT_H
-#define THAWK_ENGINE_GUI_CONTEXT_H
+#ifndef TH_ENGINE_GUI_CONTEXT_H
+#define TH_ENGINE_GUI_CONTEXT_H
 
 #include "../../core/engine.h"
 #include <unordered_set>
@@ -53,20 +53,20 @@ namespace Tomahawk
 				GlyphRanges_Korean
 			};
 
-			struct THAWK_OUT Actor
+			struct TH_OUT Actor
 			{
 				std::unordered_set<Element*> Watchers;
 				std::string Value;
 			};
 
-			struct THAWK_OUT ClassProxy
+			struct TH_OUT ClassProxy
 			{
 				std::unordered_set<Element*> Watchers;
 				std::string ClassName;
 				ClassBase Proxy;
 			};
 
-			struct THAWK_OUT FontConfig
+			struct TH_OUT FontConfig
 			{
 				std::vector<std::pair<uint32_t, uint32_t>> Ranges = { { 32, 255 } };
 				Compute::Vector2 Spacing;
@@ -80,7 +80,7 @@ namespace Tomahawk
 				bool Snapping = false;
 			};
 
-			class THAWK_OUT Element : public Rest::Object
+			class TH_OUT Element : public Rest::Object
 			{
 			private:
 				QueryCallback Callback;
@@ -183,7 +183,7 @@ namespace Tomahawk
 				}
 			};
 
-			class THAWK_OUT Widget : public Element
+			class TH_OUT Widget : public Element
 			{
 			protected:
 				std::function<void(Widget*)> Input;
@@ -215,7 +215,7 @@ namespace Tomahawk
 				virtual void BuildFont(nk_context* C, nk_style* S);
 			};
 
-			class THAWK_OUT Stateful : public Widget
+			class TH_OUT Stateful : public Widget
 			{
 			protected:
 				struct
@@ -242,7 +242,7 @@ namespace Tomahawk
 				virtual void BuildFont(nk_context* C, nk_style* S) override;
 			};
 
-			class THAWK_OUT Body : public Element
+			class TH_OUT Body : public Element
 			{
 			private:
 				struct
@@ -263,7 +263,7 @@ namespace Tomahawk
 				bool IsHovered();
 			};
 
-			class THAWK_OUT Context : public Rest::Object
+			class TH_OUT Context : public Rest::Object
 			{
 				friend Element;
 

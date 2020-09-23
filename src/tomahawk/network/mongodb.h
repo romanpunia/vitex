@@ -1,5 +1,5 @@
-#ifndef THAWK_NETWORK_MONGODB_H
-#define THAWK_NETWORK_MONGODB_H
+#ifndef TH_NETWORK_MONGODB_H
+#define TH_NETWORK_MONGODB_H
 
 #include "../core/network.h"
 #include "bson.h"
@@ -93,7 +93,7 @@ namespace Tomahawk
 				FindAndModifyMode_Return_New = 1 << 2,
 			};
 
-			struct THAWK_OUT HostList
+			struct TH_OUT HostList
 			{
 				HostList* Next = nullptr;
 				char Hostname[256] = { 0 };
@@ -103,7 +103,7 @@ namespace Tomahawk
 				void* Padding[4] = { nullptr };
 			};
 
-			struct THAWK_OUT SSLOptions
+			struct TH_OUT SSLOptions
 			{
 				const char* PEMFile = nullptr;
 				const char* PEMPassword = nullptr;
@@ -115,7 +115,7 @@ namespace Tomahawk
 				void* Unused[7] = { nullptr };
 			};
 
-			struct THAWK_OUT APMCommandStarted
+			struct TH_OUT APMCommandStarted
 			{
 				BSON::TDocument* Command = nullptr;
 				const char* CommandName = nullptr;
@@ -127,7 +127,7 @@ namespace Tomahawk
 				void* Event = nullptr;
 			};
 
-			struct THAWK_OUT APMCommandSucceeded
+			struct TH_OUT APMCommandSucceeded
 			{
 				BSON::TDocument* Reply = nullptr;
 				const char* CommandName = nullptr;
@@ -140,7 +140,7 @@ namespace Tomahawk
 				void* Event = nullptr;
 			};
 
-			struct THAWK_OUT APMCommandFailed
+			struct TH_OUT APMCommandFailed
 			{
 				BSON::TDocument* Reply = nullptr;
 				const char* CommandName = nullptr;
@@ -153,7 +153,7 @@ namespace Tomahawk
 				void* Event = nullptr;
 			};
 
-			struct THAWK_OUT APMServerChanged
+			struct TH_OUT APMServerChanged
 			{
 				TServerDescription* New = nullptr;
 				TServerDescription* Previous = nullptr;
@@ -161,42 +161,42 @@ namespace Tomahawk
 				void* Event = nullptr;
 			};
 
-			struct THAWK_OUT APMServerOpened
+			struct TH_OUT APMServerOpened
 			{
 				HostList* Hosts = nullptr;
 				void* Event = nullptr;
 			};
 
-			struct THAWK_OUT APMServerClosed
+			struct TH_OUT APMServerClosed
 			{
 				HostList* Hosts = nullptr;
 				void* Event = nullptr;
 			};
 
-			struct THAWK_OUT APMTopologyChanged
+			struct TH_OUT APMTopologyChanged
 			{
 				TTopologyDescription* New = nullptr;
 				TTopologyDescription* Previous = nullptr;
 				void* Event = nullptr;
 			};
 
-			struct THAWK_OUT APMTopologyOpened
+			struct TH_OUT APMTopologyOpened
 			{
 				void* Event = nullptr;
 			};
 
-			struct THAWK_OUT APMTopologyClosed
+			struct TH_OUT APMTopologyClosed
 			{
 				void* Event = nullptr;
 			};
 
-			struct THAWK_OUT APMServerHeartbeatStarted
+			struct TH_OUT APMServerHeartbeatStarted
 			{
 				HostList* Hosts = nullptr;
 				void* Event = nullptr;
 			};
 
-			struct THAWK_OUT APMServerHeartbeatSucceeded
+			struct TH_OUT APMServerHeartbeatSucceeded
 			{
 				BSON::TDocument* Reply = nullptr;
 				int64_t Duration = 0;
@@ -204,7 +204,7 @@ namespace Tomahawk
 				void* Event = nullptr;
 			};
 
-			struct THAWK_OUT APMServerHeartbeatFailed
+			struct TH_OUT APMServerHeartbeatFailed
 			{
 				int64_t Duration = 0;
 				const char* Message = nullptr;
@@ -214,7 +214,7 @@ namespace Tomahawk
 				void* Event = nullptr;
 			};
 
-			struct THAWK_OUT APMCallbacks
+			struct TH_OUT APMCallbacks
 			{
 				void (* OnCommandStarted)(Client* Client, APMCommandStarted* Command) = nullptr;
 				void (* OnCommandSucceeded)(Client* Client, APMCommandSucceeded* Command) = nullptr;
@@ -230,7 +230,7 @@ namespace Tomahawk
 				void (* OnServerHeartbeatFailed)(Client* Client, APMServerHeartbeatFailed* Command) = nullptr;
 			};
 
-			class THAWK_OUT QueryCache : public Rest::Object
+			class TH_OUT QueryCache : public Rest::Object
 			{
 			private:
 				struct Sequence
@@ -256,7 +256,7 @@ namespace Tomahawk
 				std::string GetJSON(Rest::Document* Source);
 			};
 
-			class THAWK_OUT Connector
+			class TH_OUT Connector
 			{
 			private:
 				static QueryCache* Cache;
@@ -272,7 +272,7 @@ namespace Tomahawk
 				static std::vector<std::string> GetQueries();
 			};
 
-			class THAWK_OUT URI
+			class TH_OUT URI
 			{
 			public:
 				static TURI* Create(const char* Uri);
@@ -288,7 +288,7 @@ namespace Tomahawk
 				static void SetPassword(TURI* URI, const char* Value);
 			};
 
-			class THAWK_OUT FindAndModifyOptions
+			class TH_OUT FindAndModifyOptions
 			{
 			public:
 				static TFindAndModifyOptions* Create();
@@ -308,7 +308,7 @@ namespace Tomahawk
 				static BSON::TDocument* GetUpdate(TFindAndModifyOptions* Options);
 			};
 
-			class THAWK_OUT ReadConcern
+			class TH_OUT ReadConcern
 			{
 			public:
 				static TReadConcern* Create();
@@ -319,7 +319,7 @@ namespace Tomahawk
 				static const char* GetLevel(TReadConcern* ReadConcern);
 			};
 
-			class THAWK_OUT WriteConcern
+			class TH_OUT WriteConcern
 			{
 			public:
 				static TWriteConcern* Create();
@@ -341,7 +341,7 @@ namespace Tomahawk
 				static const char* GetTag(TWriteConcern* WriteConcern);
 			};
 
-			class THAWK_OUT ReadPreferences
+			class TH_OUT ReadPreferences
 			{
 			public:
 				static TReadPreferences* Create();
@@ -354,7 +354,7 @@ namespace Tomahawk
 				static uint64_t GetMaxStalenessSeconds(TReadPreferences* ReadPreferences);
 			};
 
-			class THAWK_OUT BulkOperation
+			class TH_OUT BulkOperation
 			{
 			public:
 				static TBulkOperation* Create(bool IsOrdered);
@@ -377,7 +377,7 @@ namespace Tomahawk
 				static TWriteConcern* GetWriteConcern(TBulkOperation* Operation);
 			};
 
-			class THAWK_OUT ChangeStream
+			class TH_OUT ChangeStream
 			{
 			public:
 				static TChangeStream* Create(TConnection* Connection, BSON::TDocument** Pipeline, BSON::TDocument** Options);
@@ -388,7 +388,7 @@ namespace Tomahawk
 				static bool Error(TChangeStream* Stream, BSON::TDocument** Result);
 			};
 
-			class THAWK_OUT Cursor
+			class TH_OUT Cursor
 			{
 			public:
 				static void Release(TCursor** Cursor);
@@ -409,7 +409,7 @@ namespace Tomahawk
 				static BSON::TDocument* GetCurrent(TCursor* Cursor);
 			};
 
-			class THAWK_OUT Collection
+			class TH_OUT Collection
 			{
 			public:
 				static void Release(TCollection** Collection);
@@ -456,7 +456,7 @@ namespace Tomahawk
 				static TBulkOperation* CreateBulkOperation(TCollection* Collection, BSON::TDocument** Options);
 			};
 
-			class THAWK_OUT Database
+			class TH_OUT Database
 			{
 			public:
 				static void Release(TDatabase** Database);
@@ -485,7 +485,7 @@ namespace Tomahawk
 				static TWriteConcern* GetWriteConcern(TDatabase* Database);
 			};
 
-			class THAWK_OUT ServerDescription
+			class TH_OUT ServerDescription
 			{
 			public:
 				static void Release(TServerDescription** Description);
@@ -496,7 +496,7 @@ namespace Tomahawk
 				static HostList* GetHosts(TServerDescription* Description);
 			};
 
-			class THAWK_OUT TopologyDescription
+			class TH_OUT TopologyDescription
 			{
 			public:
 				static bool HasReadableServer(TTopologyDescription* Description, TReadPreferences* Preferences);
@@ -505,7 +505,7 @@ namespace Tomahawk
 				static const char* GetType(TTopologyDescription* Description);
 			};
 
-			class THAWK_OUT Client : public Rest::Object
+			class TH_OUT Client : public Rest::Object
 			{
 				friend ClientPool;
 
@@ -550,7 +550,7 @@ namespace Tomahawk
 				bool IsConnected();
 			};
 
-			class THAWK_OUT ClientPool : public Rest::Object
+			class TH_OUT ClientPool : public Rest::Object
 			{
 			private:
 				TConnectionPool* Clients = nullptr;

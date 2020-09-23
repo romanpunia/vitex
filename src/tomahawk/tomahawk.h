@@ -1,10 +1,10 @@
 #ifndef TOMAHAWK_H
 #define TOMAHAWK_H
-#define THAWK_MAJOR_VERSION 1
-#define THAWK_MINOR_VERSION 8
-#define THAWK_PATCH_LEVEL 3
-#define THAWK_VERSION(X, Y, Z) ((X) * 1000 + (Y) * 100 + (Z))
-#define THAWK_AT_LEAST(X, Y, Z) (THAWK_VERSION(THAWK_MAJOR_VERSION, THAWK_MINOR_VERSION, THAWK_PATCH_LEVEL) >= THAWK_VERSION(X, Y, Z))
+#define TH_MAJOR_VERSION 1
+#define TH_MINOR_VERSION 8
+#define TH_PATCH_LEVEL 3
+#define TH_VERSION(X, Y, Z) ((X) * 1000 + (Y) * 100 + (Z))
+#define TH_AT_LEAST(X, Y, Z) (TH_VERSION(TH_MAJOR_VERSION, TH_MINOR_VERSION, TH_PATCH_LEVEL) >= TH_VERSION(X, Y, Z))
 #include "core/rest.h"
 #include "core/compute.h"
 #include "core/graphics.h"
@@ -45,7 +45,23 @@ namespace Tomahawk
 		TInit_All = (TInit_Rest | TInit_Logger | TInit_Network | TInit_Crypto | TInit_SSL | TInit_SDL2 | TInit_Compute | TInit_Locale | TInit_Audio)
 	};
 
-	class THAWK_OUT Library
+	enum TMem
+	{
+		TMem_Heap = 0,
+		TMem_1MB = 1024 * 1024 * 1,
+		TMem_2MB = 1024 * 1024 * 2,
+		TMem_4MB = 1024 * 1024 * 4,
+		TMem_8MB = 1024 * 1024 * 8,
+		TMem_16MB = 1024 * 1024 * 16,
+		TMem_32MB = 1024 * 1024 * 32,
+		TMem_64MB = 1024 * 1024 * 64,
+		TMem_128MB = 1024 * 1024 * 128,
+		TMem_256MB = 1024 * 1024 * 256,
+		TMem_512MB = 1024 * 1024 * 512,
+		TMem_1GB = 1024 * 1024 * 1024
+	};
+
+	class TH_OUT Library
 	{
 	public:
 		static void Describe();
@@ -66,7 +82,7 @@ namespace Tomahawk
 		static const char* Platform();
 	};
 
-	THAWK_OUT bool Initialize(unsigned int Modules = TInit_All);
-	THAWK_OUT bool Uninitialize();
+	TH_OUT bool Initialize(unsigned int Modules = TInit_All, size_t HeapSize = TMem_Heap);
+	TH_OUT bool Uninitialize();
 }
 #endif

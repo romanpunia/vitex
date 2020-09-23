@@ -1,6 +1,6 @@
 #include "http.h"
 #include "bson.h"
-#ifdef THAWK_MICROSOFT
+#ifdef TH_MICROSOFT
 #include <WS2tcpip.h>
 #include <io.h>
 #include <wepoll.h>
@@ -24,10 +24,10 @@
 #include <string>
 extern "C"
 {
-#ifdef THAWK_HAS_ZLIB
+#ifdef TH_HAS_ZLIB
 #include <zlib.h>
 #endif
-#ifdef THAWK_HAS_OPENSSL
+#ifdef TH_HAS_OPENSSL
 #include <openssl/ssl.h>
 #include <openssl/err.h>
 #include <openssl/crypto.h>
@@ -199,7 +199,7 @@ namespace Tomahawk
 				Base->Unlock();
 				if (Buffer != nullptr)
 				{
-					free(Buffer);
+					TH_FREE(Buffer);
 					Buffer = nullptr;
 					Size = 0;
 				}
@@ -215,7 +215,7 @@ namespace Tomahawk
 				Base->Unlock();
 				if (Buffer != nullptr)
 				{
-					free(Buffer);
+					TH_FREE(Buffer);
 					Buffer = nullptr;
 					Size = 0;
 				}
@@ -1276,7 +1276,7 @@ namespace Tomahawk
 
 				if (!Response.Buffer.empty())
 				{
-#ifdef THAWK_HAS_ZLIB
+#ifdef TH_HAS_ZLIB
 					bool Deflate = false, Gzip = false;
 					if (Util::ResourceCompressed(this, Response.Buffer.size()))
 					{
@@ -1422,7 +1422,7 @@ namespace Tomahawk
 			}
 			bool Connection::Certify(Certificate* Output)
 			{
-#ifdef THAWK_HAS_OPENSSL
+#ifdef TH_HAS_OPENSSL
 				if (!Output)
 					return false;
 
@@ -1830,7 +1830,7 @@ namespace Tomahawk
 					fclose(Stream);
 
 					if (!Rest::OS::RemoveFile(Document.c_str()))
-						THAWK_ERROR("session file %s cannot be deleted", Document.c_str());
+						TH_ERROR("session file %s cannot be deleted", Document.c_str());
 
 					return false;
 				}
@@ -1918,7 +1918,7 @@ namespace Tomahawk
 						delete Multipart.Boundary;
 
 					Multipart.Length = strlen(Boundary);
-					Multipart.Boundary = (char*)malloc(sizeof(char) * (size_t)(Multipart.Length * 2 + 9));
+					Multipart.Boundary = (char*)TH_MALLOC(sizeof(char) * (size_t)(Multipart.Length * 2 + 9));
 					memcpy(Multipart.Boundary, Boundary, sizeof(char) * (size_t)Multipart.Length);
 					Multipart.Boundary[Multipart.Length] = '\0';
 					Multipart.LookBehind = (Multipart.Boundary + Multipart.Length + 1);
@@ -3724,7 +3724,7 @@ namespace Tomahawk
 				std::string Path = Base->Request.Path;
 				if (!Rest::Stroke(&Path).EndsOf("/\\"))
 				{
-#ifdef THAWK_MICROSOFT
+#ifdef TH_MICROSOFT
 					Path.append(1, '\\');
 #else
 					Path.append(1, '/');
@@ -3790,7 +3790,7 @@ namespace Tomahawk
 			}
 			bool Util::ResourceCompressed(Connection* Base, uint64_t Size)
 			{
-#ifdef THAWK_HAS_ZLIB
+#ifdef TH_HAS_ZLIB
 				if (!Base || !Base->Route)
 					return false;
 
@@ -3981,10 +3981,10 @@ namespace Tomahawk
 				if (Range != nullptr && HTTP::Util::ParseContentRange(Range, &Range1, &Range2))
 				{
 					Base->Response.StatusCode = 206;
-#ifdef THAWK_MICROSOFT
+#ifdef TH_MICROSOFT
 					if (_lseeki64(_fileno(Stream), Range1, SEEK_SET) != 0)
 						return Base->Error(416, "Invalid content range offset (%lld) was specified.", Range1);
-#elif defined(THAWK_APPLE)
+#elif defined(TH_APPLE)
 																																			if (fseek(Stream, Range1, SEEK_SET) != 0)
                         return Base->Error(416, "Invalid content range offset (%lld) was specified.", Range1);
 #else
@@ -4224,7 +4224,7 @@ namespace Tomahawk
 				}
 				Base->Response.Buffer.append("</table></pre></body></html>");
 
-#ifdef THAWK_HAS_ZLIB
+#ifdef TH_HAS_ZLIB
 				bool Deflate = false, Gzip = false;
 				if (Util::ResourceCompressed(Base, Base->Response.Buffer.size()))
 				{
@@ -4304,7 +4304,7 @@ namespace Tomahawk
 					StatusMessage = Util::StatusMessage(Base->Response.StatusCode = 206);
 				}
 
-#ifdef THAWK_HAS_ZLIB
+#ifdef TH_HAS_ZLIB
 				if (Util::ResourceCompressed(Base, (uint64_t)ContentLength))
 				{
 					const char* AcceptEncoding = Base->Request.GetHeader("Accept-Encoding");
@@ -4510,13 +4510,13 @@ namespace Tomahawk
 				}
 
 				char Buffer[8192];
-#ifdef THAWK_MICROSOFT
+#ifdef TH_MICROSOFT
 				if (Range > 0 && _lseeki64(_fileno(Stream), Range, SEEK_SET) == -1)
 				{
 					fclose(Stream);
 					return Base->Error(400, "Provided content range offset (%llu) is invalid", Range);
 				}
-#elif defined(THAWK_APPLE)
+#elif defined(TH_APPLE)
 																																		if (Range > 0 && fseek(Stream, Range, SEEK_SET) == -1)
                 {
                     fclose(Stream);
@@ -4597,7 +4597,7 @@ namespace Tomahawk
 				{
 					if (Base->Response.Buffer.size() >= ContentLength)
 					{
-#ifdef THAWK_HAS_ZLIB
+#ifdef TH_HAS_ZLIB
 						z_stream ZStream;
 						ZStream.zalloc = Z_NULL;
 						ZStream.zfree = Z_NULL;
@@ -4628,13 +4628,13 @@ namespace Tomahawk
 					}
 				}
 
-#ifdef THAWK_MICROSOFT
+#ifdef TH_MICROSOFT
 				if (Range > 0 && _lseeki64(_fileno(Stream), Range, SEEK_SET) == -1)
 				{
 					fclose(Stream);
 					return Base->Error(400, "Provided content range offset (%llu) is invalid", Range);
 				}
-#elif defined(THAWK_APPLE)
+#elif defined(TH_APPLE)
 																																		if (Range > 0 && fseek(Stream, Range, SEEK_SET) == -1)
                 {
                     fclose(Stream);
@@ -4647,7 +4647,7 @@ namespace Tomahawk
                     return Base->Error(400, "Provided content range offset (%llu) is invalid", Range);
                 }
 #endif
-#ifdef THAWK_HAS_ZLIB
+#ifdef TH_HAS_ZLIB
 				Server* Server = Base->Root;
 				Base->Stream->SetBlocking(true);
 				Base->Stream->SetTimeout((int)Base->Root->Router->SocketTimeout);
@@ -4754,12 +4754,12 @@ namespace Tomahawk
 							return (void)Base->Error(404, "Gateway resource was not found.");
 
 						Size = Base->Resource.Size;
-						Buffer = (char*)malloc((size_t)(Size + 1) * sizeof(char));
+						Buffer = (char*)TH_MALLOC((size_t)(Size + 1) * sizeof(char));
 
 						if (fread(Buffer, 1, (size_t)Size, Stream) != (size_t)Size)
 						{
 							fclose(Stream);
-							free(Buffer);
+							TH_FREE(Buffer);
 							return (void)Base->Error(500, "Gateway resource stream exception.");
 						}
 
@@ -5003,7 +5003,7 @@ namespace Tomahawk
 					Entry->Router = Root;
 
 					if (Entry->Hosts.empty())
-						THAWK_WARN("site \"%s\" has no hosts", Entry->SiteName.c_str());
+						TH_WARN("site \"%s\" has no hosts", Entry->SiteName.c_str());
 
 					if (!Entry->Base->Default.empty())
 						Entry->Base->Default = Rest::OS::Resolve((Entry->Base->DocumentRoot + Entry->Base->Default).c_str());
@@ -5249,10 +5249,10 @@ namespace Tomahawk
 					if (!Entry->ResourceRoot.empty())
 					{
 						if (!Rest::OS::RemoveDir(Entry->ResourceRoot.c_str()))
-							THAWK_ERROR("resource directory %s cannot be deleted", Entry->ResourceRoot.c_str());
+							TH_ERROR("resource directory %s cannot be deleted", Entry->ResourceRoot.c_str());
 
 						if (!Rest::OS::CreateDir(Entry->ResourceRoot.c_str()))
-							THAWK_ERROR("resource directory %s cannot be created", Entry->ResourceRoot.c_str());
+							TH_ERROR("resource directory %s cannot be created", Entry->ResourceRoot.c_str());
 					}
 
 					if (!Entry->Gateway.Session.DocumentRoot.empty())

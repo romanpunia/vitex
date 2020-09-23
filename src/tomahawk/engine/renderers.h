@@ -1,5 +1,5 @@
-#ifndef THAWK_ENGINE_RENDERERS_H
-#define THAWK_ENGINE_RENDERERS_H
+#ifndef TH_ENGINE_RENDERERS_H
+#define TH_ENGINE_RENDERERS_H
 
 #include "../core/engine.h"
 #include "gui/context.h"
@@ -10,7 +10,7 @@ namespace Tomahawk
 	{
 		namespace Renderers
 		{
-			class THAWK_OUT ModelRenderer : public GeoRenderer
+			class TH_OUT ModelRenderer : public GeoRenderer
 			{
 			private:
 				struct
@@ -47,10 +47,10 @@ namespace Tomahawk
 				Rest::Pool<Component*>* GetLimpid(uint64_t Index) override;
 				
 			public:
-				THAWK_COMPONENT(ModelRenderer);
+				TH_COMPONENT(ModelRenderer);
 			};
 
-			class THAWK_OUT SkinRenderer : public GeoRenderer
+			class TH_OUT SkinRenderer : public GeoRenderer
 			{
 			private:
 				struct
@@ -87,10 +87,10 @@ namespace Tomahawk
 				Rest::Pool<Component*>* GetLimpid(uint64_t Index) override;
 
 			public:
-				THAWK_COMPONENT(SkinRenderer);
+				TH_COMPONENT(SkinRenderer);
 			};
 
-			class THAWK_OUT SoftBodyRenderer : public GeoRenderer
+			class TH_OUT SoftBodyRenderer : public GeoRenderer
 			{
 			private:
 				struct
@@ -129,10 +129,10 @@ namespace Tomahawk
 				Rest::Pool<Component*>* GetLimpid(uint64_t Index) override;
 
 			public:
-				THAWK_COMPONENT(SoftBodyRenderer);
+				TH_COMPONENT(SoftBodyRenderer);
 			};
 
-			class THAWK_OUT EmitterRenderer : public GeoRenderer
+			class TH_OUT EmitterRenderer : public GeoRenderer
 			{
 			private:
 				struct
@@ -173,10 +173,10 @@ namespace Tomahawk
 				Rest::Pool<Component*>* GetLimpid(uint64_t Index) override;
 
 			public:
-				THAWK_COMPONENT(EmitterRenderer);
+				TH_COMPONENT(EmitterRenderer);
 			};
 
-			class THAWK_OUT DecalRenderer : public GeoRenderer
+			class TH_OUT DecalRenderer : public GeoRenderer
 			{
 			public:
 				struct RenderConstant
@@ -206,10 +206,10 @@ namespace Tomahawk
 				Rest::Pool<Component*>* GetLimpid(uint64_t Index) override;
 
 			public:
-				THAWK_COMPONENT(DecalRenderer);
+				TH_COMPONENT(DecalRenderer);
 			};
 
-			class THAWK_OUT LimpidRenderer : public Renderer
+			class TH_OUT LimpidRenderer : public Renderer
 			{
 			private:
 				Graphics::MultiRenderTarget2D* Surface1 = nullptr;
@@ -240,10 +240,10 @@ namespace Tomahawk
 				void ResizeBuffers() override;
 
 			public:
-				THAWK_COMPONENT(LimpidRenderer);
+				TH_COMPONENT(LimpidRenderer);
 			};
 
-			class THAWK_OUT DepthRenderer : public TickRenderer
+			class TH_OUT DepthRenderer : public TickRenderer
 			{
 			public:
 				struct
@@ -277,10 +277,10 @@ namespace Tomahawk
 				void TickRender(Rest::Timer* Time, RenderState State, RenderOpt Options) override;
 
 			public:
-				THAWK_COMPONENT(DepthRenderer);
+				TH_COMPONENT(DepthRenderer);
 			};
 
-			class THAWK_OUT ProbeRenderer : public Renderer
+			class TH_OUT ProbeRenderer : public Renderer
 			{
 			private:
 				Rest::Pool<Engine::Component*>* ReflectionProbes = nullptr;
@@ -303,10 +303,10 @@ namespace Tomahawk
 				void SetCaptureSize(size_t Size);
 
 			public:
-				THAWK_COMPONENT(ProbeRenderer);
+				TH_COMPONENT(ProbeRenderer);
 			};
 
-			class THAWK_OUT LightRenderer : public Renderer
+			class TH_OUT LightRenderer : public Renderer
 			{
 			public:
 				struct
@@ -435,10 +435,10 @@ namespace Tomahawk
 				Graphics::Texture2D* GetSkyBase();
 
 			public:
-				THAWK_COMPONENT(LightRenderer);
+				TH_COMPONENT(LightRenderer);
 			};
 
-			class THAWK_OUT GUIRenderer : public Renderer
+			class TH_OUT GUIRenderer : public Renderer
 			{
 			private:
 				GUI::Context* Context;
@@ -455,10 +455,10 @@ namespace Tomahawk
 				GUI::Context* GetContext();
 
 			public:
-				THAWK_COMPONENT(GUIRenderer);
+				TH_COMPONENT(GUIRenderer);
 			};
 
-			class THAWK_OUT ReflectionsRenderer : public EffectRenderer
+			class TH_OUT ReflectionsRenderer : public EffectRenderer
 			{
 			private:
 				Graphics::Shader* Pass1;
@@ -489,10 +489,10 @@ namespace Tomahawk
 				void RenderEffect(Rest::Timer* Time) override;
 
 			public:
-				THAWK_COMPONENT(ReflectionsRenderer);
+				TH_COMPONENT(ReflectionsRenderer);
 			};
 
-			class THAWK_OUT DepthOfFieldRenderer : public EffectRenderer
+			class TH_OUT DepthOfFieldRenderer : public EffectRenderer
 			{
 			private:
 				struct
@@ -532,10 +532,10 @@ namespace Tomahawk
 				void FocusAtNearestTarget(float DeltaTime);
 
 			public:
-				THAWK_COMPONENT(DepthOfFieldRenderer);
+				TH_COMPONENT(DepthOfFieldRenderer);
 			};
 
-			class THAWK_OUT EmissionRenderer : public EffectRenderer
+			class TH_OUT EmissionRenderer : public EffectRenderer
 			{
 			private:
 				Graphics::Shader* Pass1;
@@ -561,10 +561,10 @@ namespace Tomahawk
 				void RenderEffect(Rest::Timer* Time) override;
 
 			public:
-				THAWK_COMPONENT(EmissionRenderer);
+				TH_COMPONENT(EmissionRenderer);
 			};
 
-			class THAWK_OUT GlitchRenderer : public EffectRenderer
+			class TH_OUT GlitchRenderer : public EffectRenderer
 			{
 			public:
 				struct RenderConstant
@@ -593,10 +593,10 @@ namespace Tomahawk
 				void RenderEffect(Rest::Timer* Time) override;
 
 			public:
-				THAWK_COMPONENT(GlitchRenderer);
+				TH_COMPONENT(GlitchRenderer);
 			};
 
-			class THAWK_OUT AmbientOcclusionRenderer : public EffectRenderer
+			class TH_OUT AmbientOcclusionRenderer : public EffectRenderer
 			{
 			private:
 				Graphics::Shader* Pass1;
@@ -634,10 +634,10 @@ namespace Tomahawk
 				void RenderEffect(Rest::Timer* Time) override;
 
 			public:
-				THAWK_COMPONENT(AmbientOcclusionRenderer);
+				TH_COMPONENT(AmbientOcclusionRenderer);
 			};
 
-			class THAWK_OUT DirectOcclusionRenderer : public EffectRenderer
+			class TH_OUT DirectOcclusionRenderer : public EffectRenderer
 			{
 			private:
 				Graphics::Shader* Pass1;
@@ -675,10 +675,10 @@ namespace Tomahawk
 				void RenderEffect(Rest::Timer* Time) override;
 
 			public:
-				THAWK_COMPONENT(DirectOcclusionRenderer);
+				TH_COMPONENT(DirectOcclusionRenderer);
 			};
 
-			class THAWK_OUT ToneRenderer : public EffectRenderer
+			class TH_OUT ToneRenderer : public EffectRenderer
 			{
 			public:
 				struct RenderConstant
@@ -713,7 +713,7 @@ namespace Tomahawk
 				void RenderEffect(Rest::Timer* Time) override;
 
 			public:
-				THAWK_COMPONENT(ToneRenderer);
+				TH_COMPONENT(ToneRenderer);
 			};
 		}
 	}

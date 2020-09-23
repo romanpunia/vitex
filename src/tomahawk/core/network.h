@@ -1,5 +1,5 @@
-#ifndef THAWK_NETWORK_H
-#define THAWK_NETWORK_H
+#ifndef TH_NETWORK_H
+#define TH_NETWORK_H
 
 #include "compute.h"
 #include <atomic>
@@ -8,7 +8,7 @@ struct ssl_ctx_st;
 struct ssl_st;
 struct addrinfo;
 struct pollfd;
-#ifdef THAWK_APPLE
+#ifdef TH_APPLE
 struct kevent;
 #else
 struct epoll_event;
@@ -59,7 +59,7 @@ namespace Tomahawk
 			SocketType_Sequence_Packet_Stream
 		};
 
-		struct THAWK_OUT Address
+		struct TH_OUT Address
 		{
 			addrinfo* Host = nullptr;
 			addrinfo* Active = nullptr;
@@ -68,7 +68,7 @@ namespace Tomahawk
 			static bool Free(Network::Address* Address);
 		};
 
-		struct THAWK_OUT WriteEvent
+		struct TH_OUT WriteEvent
 		{
 			WriteEvent* Prev = nullptr;
 			WriteEvent* Next = nullptr;
@@ -77,7 +77,7 @@ namespace Tomahawk
 			SocketWriteCallback Callback;
 		};
 
-		struct THAWK_OUT ReadEvent
+		struct TH_OUT ReadEvent
 		{
 			ReadEvent* Prev = nullptr;
 			ReadEvent* Next = nullptr;
@@ -86,7 +86,7 @@ namespace Tomahawk
 			SocketReadCallback Callback;
 		};
 
-		struct THAWK_OUT Socket
+		struct TH_OUT Socket
 		{
 			friend Multiplexer;
 
@@ -180,14 +180,14 @@ namespace Tomahawk
 			static std::string LocalIpAddress();
 		};
 
-		struct THAWK_OUT Host
+		struct TH_OUT Host
 		{
 			std::string Hostname;
 			int Port = 0;
 			bool Secure = false;
 		};
 
-		struct THAWK_OUT Listener
+		struct TH_OUT Listener
 		{
 			Address Source;
 			std::string Name;
@@ -195,7 +195,7 @@ namespace Tomahawk
 			Socket* Base = nullptr;
 		};
 
-		struct THAWK_OUT Certificate
+		struct TH_OUT Certificate
 		{
 			std::string Subject;
 			std::string Issuer;
@@ -203,7 +203,7 @@ namespace Tomahawk
 			std::string Finger;
 		};
 
-		struct THAWK_OUT DataFrame
+		struct TH_OUT DataFrame
 		{
 			std::string Message;
 			std::mutex Sync;
@@ -215,7 +215,7 @@ namespace Tomahawk
 			bool Await = false;
 		};
 
-		struct THAWK_OUT SocketCertificate
+		struct TH_OUT SocketCertificate
 		{
 			ssl_ctx_st* Context = nullptr;
 			std::string Key;
@@ -226,7 +226,7 @@ namespace Tomahawk
 			uint64_t Depth = 9;
 		};
 
-		struct THAWK_OUT SocketConnection
+		struct TH_OUT SocketConnection
 		{
 			Socket* Stream = nullptr;
 			Listener* Host = nullptr;
@@ -242,7 +242,7 @@ namespace Tomahawk
 			virtual bool Break();
 		};
 
-		struct THAWK_OUT SocketRouter
+		struct TH_OUT SocketRouter
 		{
 			std::unordered_map<std::string, SocketCertificate> Certificates;
 			std::unordered_map<std::string, Host> Listeners;
@@ -259,12 +259,12 @@ namespace Tomahawk
 			virtual ~SocketRouter();
 		};
 
-		class THAWK_OUT Multiplexer
+		class TH_OUT Multiplexer
 		{
 			friend struct Socket;
 
 		private:
-#ifdef THAWK_APPLE
+#ifdef TH_APPLE
 			static kevent* Array;
 #else
 			static epoll_event* Array;
@@ -291,7 +291,7 @@ namespace Tomahawk
 			static void Worker(Rest::EventQueue* Queue, Rest::EventArgs* Args);
 		};
 
-		class THAWK_OUT SocketServer : public Rest::Object
+		class TH_OUT SocketServer : public Rest::Object
 		{
 			friend SocketConnection;
 
@@ -337,7 +337,7 @@ namespace Tomahawk
 			bool Manage(SocketConnection* Base);
 		};
 
-		class THAWK_OUT SocketClient : public Rest::Object
+		class TH_OUT SocketClient : public Rest::Object
 		{
 		protected:
 			SocketClientCallback Done;

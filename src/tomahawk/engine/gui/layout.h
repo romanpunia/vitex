@@ -1,5 +1,5 @@
-#ifndef THAWK_ENGINE_GUI_LAYOUT_H
-#define THAWK_ENGINE_GUI_LAYOUT_H
+#ifndef TH_ENGINE_GUI_LAYOUT_H
+#define TH_ENGINE_GUI_LAYOUT_H
 
 #include "context.h"
 
@@ -24,7 +24,7 @@ namespace Tomahawk
 				PushType_Variable
 			};
 
-			class THAWK_OUT PreLayout : public Element
+			class TH_OUT PreLayout : public Element
 			{
 			public:
 				struct
@@ -44,7 +44,7 @@ namespace Tomahawk
 				virtual std::string GetType() override;
 			};
 
-			class THAWK_OUT PrePush : public Element
+			class TH_OUT PrePush : public Element
 			{
 			private:
 				struct
@@ -73,7 +73,7 @@ namespace Tomahawk
 				void SetLayer(PreLayout* New);
 			};
 
-			class THAWK_OUT Layout : public Element
+			class TH_OUT Layout : public Element
 			{
 			public:
 				struct
@@ -97,7 +97,7 @@ namespace Tomahawk
 				virtual std::string GetType() override;
 			};
 
-			class THAWK_OUT Push : public Element
+			class TH_OUT Push : public Element
 			{
 			private:
 				struct

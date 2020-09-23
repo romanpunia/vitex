@@ -1,5 +1,5 @@
-#ifndef THAWK_ENGINE_GUI_LOGICAL_H
-#define THAWK_ENGINE_GUI_LOGICAL_H
+#ifndef TH_ENGINE_GUI_LOGICAL_H
+#define TH_ENGINE_GUI_LOGICAL_H
 
 #include "context.h"
 
@@ -30,7 +30,7 @@ namespace Tomahawk
 				IfType_LessEquals
 			};
 
-			class THAWK_OUT Divide : public Element
+			class TH_OUT Divide : public Element
 			{
 			public:
 				Divide(Context* View);
@@ -43,7 +43,7 @@ namespace Tomahawk
 				virtual std::string GetType() override;
 			};
 
-			class THAWK_OUT Restyle : public Element
+			class TH_OUT Restyle : public Element
 			{
 			private:
 				struct
@@ -71,7 +71,7 @@ namespace Tomahawk
 				virtual std::string GetType() override;
 			};
 
-			class THAWK_OUT For : public Element
+			class TH_OUT For : public Element
 			{
 			public:
 				struct
@@ -91,7 +91,7 @@ namespace Tomahawk
 				virtual std::string GetType() override;
 			};
 
-			class THAWK_OUT Const : public Element
+			class TH_OUT Const : public Element
 			{
 			private:
 				struct
@@ -117,7 +117,7 @@ namespace Tomahawk
 				virtual std::string GetType() override;
 			};
 
-			class THAWK_OUT Set : public Element
+			class TH_OUT Set : public Element
 			{
 			public:
 				struct
@@ -138,7 +138,7 @@ namespace Tomahawk
 				virtual std::string GetType() override;
 			};
 
-			class THAWK_OUT LogIf : public Element
+			class TH_OUT LogIf : public Element
 			{
 			protected:
 				struct
@@ -166,7 +166,7 @@ namespace Tomahawk
 				virtual bool IsSatisfied();
 			};
 
-			class THAWK_OUT LogElseIf : public LogIf
+			class TH_OUT LogElseIf : public LogIf
 			{
 			private:
 				struct
@@ -184,7 +184,7 @@ namespace Tomahawk
 				void SetLayer(LogIf* New);
 			};
 
-			class THAWK_OUT LogElse : public Element
+			class TH_OUT LogElse : public Element
 			{
 			private:
 				struct
@@ -206,7 +206,7 @@ namespace Tomahawk
 				bool IsSatisfied();
 			};
 
-			class THAWK_OUT Escape : public Element
+			class TH_OUT Escape : public Element
 			{
 			public:
 				Escape(Context* View);
@@ -219,7 +219,7 @@ namespace Tomahawk
 				virtual std::string GetType() override;
 			};
 
-			class THAWK_OUT Template : public Element
+			class TH_OUT Template : public Element
 			{
 			private:
 				struct
@@ -256,7 +256,7 @@ namespace Tomahawk
 					State.Cache[Name] = Result;
 
 					if (!Result)
-						THAWK_WARN("template has no needed composer elements");
+						TH_WARN("template has no needed composer elements");
 
 					return (T*)Result;
 				}

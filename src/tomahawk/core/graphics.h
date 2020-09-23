@@ -1,5 +1,5 @@
-#ifndef THAWK_GRAPHICS_H
-#define THAWK_GRAPHICS_H
+#ifndef TH_GRAPHICS_H
+#define TH_GRAPHICS_H
 
 #include "compute.h"
 #include <iostream>
@@ -799,7 +799,7 @@ namespace Tomahawk
 
 		class Activity;
 
-		struct THAWK_OUT Alert
+		struct TH_OUT Alert
 		{
 			friend Activity;
 
@@ -829,7 +829,7 @@ namespace Tomahawk
 			void Dispatch();
 		};
 
-		struct THAWK_OUT KeyMap
+		struct TH_OUT KeyMap
 		{
 			KeyCode Key;
 			KeyMod Mod;
@@ -841,14 +841,14 @@ namespace Tomahawk
 			KeyMap(const KeyCode& Value, const KeyMod& Control);
 		};
 
-		struct THAWK_OUT MappedSubresource
+		struct TH_OUT MappedSubresource
 		{
 			void* Pointer;
 			unsigned int RowPitch;
 			unsigned int DepthPitch;
 		};
 
-		struct THAWK_OUT Viewport
+		struct TH_OUT Viewport
 		{
 			float TopLeftX;
 			float TopLeftY;
@@ -858,7 +858,7 @@ namespace Tomahawk
 			float MaxDepth;
 		};
 
-		struct THAWK_OUT Rectangle
+		struct TH_OUT Rectangle
 		{
 			long Left;
 			long Top;
@@ -866,7 +866,7 @@ namespace Tomahawk
 			long Bottom;
 		};
 
-		struct THAWK_OUT RenderTargetBlendState
+		struct TH_OUT RenderTargetBlendState
 		{
 			bool BlendEnable;
 			Blend SrcBlend;
@@ -878,20 +878,20 @@ namespace Tomahawk
 			unsigned char RenderTargetWriteMask;
 		};
 
-		struct THAWK_OUT PoseNode
+		struct TH_OUT PoseNode
 		{	
 			Compute::Vector3 Position;
 			Compute::Vector3 Rotation;
 		};
 
-		struct THAWK_OUT AnimationBuffer
+		struct TH_OUT AnimationBuffer
 		{
 			Compute::Matrix4x4 Offsets[96];
 			float HasAnimation;
 			Compute::Vector3 Padding;
 		};
 
-		struct THAWK_OUT RenderBuffer
+		struct TH_OUT RenderBuffer
 		{
 			Compute::Matrix4x4 WorldViewProjection;
 			Compute::Matrix4x4 World;
@@ -906,7 +906,7 @@ namespace Tomahawk
 			float Alignment = 0.0f;
 		};
 
-		struct THAWK_OUT ViewBuffer
+		struct TH_OUT ViewBuffer
 		{
 			Compute::Matrix4x4 InvViewProjection;
 			Compute::Matrix4x4 ViewProjection;
@@ -916,7 +916,7 @@ namespace Tomahawk
 			float FarPlane;
 		};
 
-		struct THAWK_OUT PoseBuffer
+		struct TH_OUT PoseBuffer
 		{
 			std::unordered_map<int64_t, PoseNode> Pose;
 			Compute::Matrix4x4 Transform[96];
@@ -931,7 +931,7 @@ namespace Tomahawk
 			void GetJointPose(Compute::Joint* Root, std::vector<Compute::AnimatorKey>* Result);
 		};
 
-		class THAWK_OUT Surface
+		class TH_OUT Surface
 		{
 		private:
 			SDL_Surface* Handle;
@@ -950,7 +950,7 @@ namespace Tomahawk
 			void* GetResource();
 		};
 
-		class THAWK_OUT DepthStencilState : public Rest::Object
+		class TH_OUT DepthStencilState : public Rest::Object
 		{
 		public:
 			struct Desc
@@ -983,7 +983,7 @@ namespace Tomahawk
 			Desc GetState();
 		};
 
-		class THAWK_OUT RasterizerState : public Rest::Object
+		class TH_OUT RasterizerState : public Rest::Object
 		{
 		public:
 			struct Desc
@@ -1012,7 +1012,7 @@ namespace Tomahawk
 			Desc GetState();
 		};
 
-		class THAWK_OUT BlendState : public Rest::Object
+		class TH_OUT BlendState : public Rest::Object
 		{
 		public:
 			struct Desc
@@ -1034,7 +1034,7 @@ namespace Tomahawk
 			Desc GetState();
 		};
 
-		class THAWK_OUT SamplerState : public Rest::Object
+		class TH_OUT SamplerState : public Rest::Object
 		{
 		public:
 			struct Desc
@@ -1063,7 +1063,7 @@ namespace Tomahawk
 			Desc GetState();
 		};
 
-		class THAWK_OUT InputLayout : public Rest::Object
+		class TH_OUT InputLayout : public Rest::Object
 		{
 		public:
 			struct Attribute
@@ -1094,7 +1094,7 @@ namespace Tomahawk
 			const std::vector<Attribute>& GetAttributes();
 		};
 
-		class THAWK_OUT Shader : public Rest::Object
+		class TH_OUT Shader : public Rest::Object
 		{
 		public:
 			struct Desc
@@ -1114,7 +1114,7 @@ namespace Tomahawk
 			virtual bool IsValid() = 0;
 		};
 
-		class THAWK_OUT ElementBuffer : public Rest::Object
+		class TH_OUT ElementBuffer : public Rest::Object
 		{
 		public:
 			struct Desc
@@ -1143,7 +1143,7 @@ namespace Tomahawk
 			uint64_t GetStride();
 		};
 
-		class THAWK_OUT MeshBuffer : public Rest::Object
+		class TH_OUT MeshBuffer : public Rest::Object
 		{
 		public:
 			struct Desc
@@ -1172,7 +1172,7 @@ namespace Tomahawk
 			ElementBuffer* GetIndexBuffer();
 		};
 
-		class THAWK_OUT SkinMeshBuffer : public Rest::Object
+		class TH_OUT SkinMeshBuffer : public Rest::Object
 		{
 		public:
 			struct Desc
@@ -1201,7 +1201,7 @@ namespace Tomahawk
 			ElementBuffer* GetIndexBuffer();
 		};
 
-		class THAWK_OUT InstanceBuffer : public Rest::Object
+		class TH_OUT InstanceBuffer : public Rest::Object
 		{
 		public:
 			struct Desc
@@ -1230,7 +1230,7 @@ namespace Tomahawk
 			uint64_t GetElementLimit();
 		};
 
-		class THAWK_OUT Texture2D : public Rest::Object
+		class TH_OUT Texture2D : public Rest::Object
 		{
 		public:
 			struct Desc
@@ -1270,7 +1270,7 @@ namespace Tomahawk
 			unsigned int GetMipLevels();
 		};
 
-		class THAWK_OUT Texture3D : public Rest::Object
+		class TH_OUT Texture3D : public Rest::Object
 		{
 		public:
 			struct Desc
@@ -1309,7 +1309,7 @@ namespace Tomahawk
 			unsigned int GetMipLevels();
 		};
 
-		class THAWK_OUT TextureCube : public Rest::Object
+		class TH_OUT TextureCube : public Rest::Object
 		{
 		public:
 			struct Desc
@@ -1346,7 +1346,7 @@ namespace Tomahawk
 			unsigned int GetMipLevels();
 		};
 
-		class THAWK_OUT DepthBuffer : public Rest::Object
+		class TH_OUT DepthBuffer : public Rest::Object
 		{
 		public:
 			struct Desc
@@ -1368,7 +1368,7 @@ namespace Tomahawk
 			virtual float GetHeight() = 0;
 		};
 
-		class THAWK_OUT RenderTarget2D : public Rest::Object
+		class TH_OUT RenderTarget2D : public Rest::Object
 		{
 		public:
 			struct Desc
@@ -1399,7 +1399,7 @@ namespace Tomahawk
 			Texture2D* GetTarget();
 		};
 
-		class THAWK_OUT MultiRenderTarget2D : public Rest::Object
+		class TH_OUT MultiRenderTarget2D : public Rest::Object
 		{
 		public:
 			struct Desc
@@ -1432,7 +1432,7 @@ namespace Tomahawk
 			Texture2D* GetTarget(unsigned int Target);
 		};
 
-		class THAWK_OUT RenderTargetCube : public Rest::Object
+		class TH_OUT RenderTargetCube : public Rest::Object
 		{
 		public:
 			struct Desc
@@ -1461,7 +1461,7 @@ namespace Tomahawk
 			Texture2D* GetTarget();
 		};
 
-		class THAWK_OUT MultiRenderTargetCube : public Rest::Object
+		class TH_OUT MultiRenderTargetCube : public Rest::Object
 		{
 		public:
 			struct Desc
@@ -1493,7 +1493,7 @@ namespace Tomahawk
 			Texture2D* GetTarget(unsigned int Target);
 		};
 
-		class THAWK_OUT Query : public Rest::Object
+		class TH_OUT Query : public Rest::Object
 		{
 		public:
 			struct Desc
@@ -1510,7 +1510,7 @@ namespace Tomahawk
 			virtual void* GetResource() = 0;
 		};
 
-		class THAWK_OUT GraphicsDevice : public Rest::Object
+		class TH_OUT GraphicsDevice : public Rest::Object
 		{
 		protected:
 			struct DirectBuffer
@@ -1761,7 +1761,7 @@ namespace Tomahawk
 			static GraphicsDevice* Create(const Desc& I);
 		};
 
-		class THAWK_OUT Activity : public Rest::Object
+		class TH_OUT Activity : public Rest::Object
 		{
 		public:
 			struct Desc
@@ -1886,7 +1886,7 @@ namespace Tomahawk
 			static const char* GetKeyName(KeyCode Code);
 		};
 
-		class THAWK_OUT Model : public Rest::Object
+		class TH_OUT Model : public Rest::Object
 		{
 		public:
 			std::vector<MeshBuffer*> Meshes;
@@ -1900,7 +1900,7 @@ namespace Tomahawk
 			MeshBuffer* Find(const std::string& Name);
 		};
 
-		class THAWK_OUT SkinModel : public Rest::Object
+		class TH_OUT SkinModel : public Rest::Object
 		{
 		public:
 			std::vector<SkinMeshBuffer*> Meshes;

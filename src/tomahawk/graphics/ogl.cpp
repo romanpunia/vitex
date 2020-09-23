@@ -1,9 +1,9 @@
 #include "ogl.h"
-#ifdef THAWK_HAS_SDL2
+#ifdef TH_HAS_SDL2
 #include <SDL2/SDL_syswm.h>
 #undef DirectColor
 #endif
-#ifdef THAWK_HAS_GL
+#ifdef TH_HAS_GL
 
 namespace Tomahawk
 {
@@ -363,11 +363,11 @@ namespace Tomahawk
 				IndexType = GL_UNSIGNED_INT;
 				if (!Window)
 				{
-					THAWK_ERROR("OpenGL cannot be created without a window");
+					TH_ERROR("OpenGL cannot be created without a window");
 					return;
 				}
 
-#ifdef THAWK_HAS_SDL2
+#ifdef TH_HAS_SDL2
 				SDL_GL_SetAttribute(SDL_GL_DOUBLEBUFFER, 1);
 				SDL_GL_SetAttribute(SDL_GL_RED_SIZE, 5);
 				SDL_GL_SetAttribute(SDL_GL_GREEN_SIZE, 6);
@@ -382,7 +382,7 @@ namespace Tomahawk
 				Context = SDL_GL_CreateContext(Window->GetHandle());
 				if (!Context)
 				{
-					THAWK_ERROR("OpenGL creation conflict -> %s", Window->GetError().c_str());
+					TH_ERROR("OpenGL creation conflict -> %s", Window->GetError().c_str());
 					return;
 				}
 
@@ -406,7 +406,7 @@ namespace Tomahawk
 				const GLenum ErrorCode = glewInit();
 				if (ErrorCode != GLEW_OK)
 				{
-					THAWK_ERROR("OpenGL extentions cannot be loaded -> %s", (const char*)glewGetErrorString(ErrorCode));
+					TH_ERROR("OpenGL extentions cannot be loaded -> %s", (const char*)glewGetErrorString(ErrorCode));
 					return;
 				}
 
@@ -444,7 +444,7 @@ namespace Tomahawk
 				glDeleteShader(DirectPixelShader);
 				glDeleteProgram(DirectProgram);
 				glDeleteBuffers(1, &DirectBuffer);
-#ifdef THAWK_HAS_SDL2
+#ifdef TH_HAS_SDL2
 				if (Context != nullptr)
 					SDL_GL_DeleteContext(Context);
 #endif
@@ -661,10 +661,10 @@ namespace Tomahawk
 					GLint Size = 0;
 					glGetProgramiv(Program, GL_INFO_LOG_LENGTH, &Size);
 
-					char* Buffer = (char*)malloc(sizeof(char) * (Size + 1));
+					char* Buffer = (char*)TH_MALLOC(sizeof(char) * (Size + 1));
 					glGetProgramInfoLog(Program, Size, &Size, Buffer);
-					THAWK_ERROR("couldn't link shaders\n\t%.*s", Size, Buffer);
-					free(Buffer);
+					TH_ERROR("couldn't link shaders\n\t%.*s", Size, Buffer);
+					TH_FREE(Buffer);
 
 					glDeleteProgram(Program);
 					Program = GL_INVALID_VALUE;
@@ -1636,7 +1636,7 @@ namespace Tomahawk
 			}
 			bool OGLDevice::Submit()
 			{
-#ifdef THAWK_HAS_SDL2
+#ifdef TH_HAS_SDL2
 				SDL_GL_SwapWindow(Window->GetHandle());
 #endif
 				return true;
@@ -1691,7 +1691,7 @@ namespace Tomahawk
 
 				if (!Preprocess(F))
 				{
-					THAWK_ERROR("shader preprocessing failed");
+					TH_ERROR("shader preprocessing failed");
 					return Result;
 				}
 
@@ -1721,10 +1721,10 @@ namespace Tomahawk
 					if (Status == GL_FALSE)
 					{
 						glGetShaderiv(Result->VertexShader, GL_INFO_LOG_LENGTH, &Size);
-						Buffer = (char*)malloc(sizeof(char) * (Size + 1));
+						Buffer = (char*)TH_MALLOC(sizeof(char) * (Size + 1));
 						glGetShaderInfoLog(Result->VertexShader, Size, &Size, Buffer);
-						THAWK_ERROR("couldn't compile vertex shader\n\t%.*s", Size, Buffer);
-						free(Buffer);
+						TH_ERROR("couldn't compile vertex shader\n\t%.*s", Size, Buffer);
+						TH_FREE(Buffer);
 					}
 				}
 
@@ -1749,10 +1749,10 @@ namespace Tomahawk
 					if (Status == GL_FALSE)
 					{
 						glGetShaderiv(Result->PixelShader, GL_INFO_LOG_LENGTH, &Size);
-						Buffer = (char*)malloc(sizeof(char) * (Size + 1));
+						Buffer = (char*)TH_MALLOC(sizeof(char) * (Size + 1));
 						glGetShaderInfoLog(Result->PixelShader, Size, &Size, Buffer);
-						THAWK_ERROR("couldn't compile pixel shader\n\t%.*s", Size, Buffer);
-						free(Buffer);
+						TH_ERROR("couldn't compile pixel shader\n\t%.*s", Size, Buffer);
+						TH_FREE(Buffer);
 					}
 				}
 
@@ -1777,10 +1777,10 @@ namespace Tomahawk
 					if (Status == GL_FALSE)
 					{
 						glGetShaderiv(Result->GeometryShader, GL_INFO_LOG_LENGTH, &Size);
-						Buffer = (char*)malloc(sizeof(char) * (Size + 1));
+						Buffer = (char*)TH_MALLOC(sizeof(char) * (Size + 1));
 						glGetShaderInfoLog(Result->GeometryShader, Size, &Size, Buffer);
-						THAWK_ERROR("couldn't compile geometry shader\n\t%.*s", Size, Buffer);
-						free(Buffer);
+						TH_ERROR("couldn't compile geometry shader\n\t%.*s", Size, Buffer);
+						TH_FREE(Buffer);
 					}
 				}
 
@@ -1805,10 +1805,10 @@ namespace Tomahawk
 					if (Status == GL_FALSE)
 					{
 						glGetShaderiv(Result->DomainShader, GL_INFO_LOG_LENGTH, &Size);
-						Buffer = (char*)malloc(sizeof(char) * (Size + 1));
+						Buffer = (char*)TH_MALLOC(sizeof(char) * (Size + 1));
 						glGetShaderInfoLog(Result->DomainShader, Size, &Size, Buffer);
-						THAWK_ERROR("couldn't compile domain shader\n\t%.*s", Size, Buffer);
-						free(Buffer);
+						TH_ERROR("couldn't compile domain shader\n\t%.*s", Size, Buffer);
+						TH_FREE(Buffer);
 					}
 				}
 
@@ -1833,10 +1833,10 @@ namespace Tomahawk
 					if (Status == GL_FALSE)
 					{
 						glGetShaderiv(Result->HullShader, GL_INFO_LOG_LENGTH, &Size);
-						Buffer = (char*)malloc(sizeof(char) * (Size + 1));
+						Buffer = (char*)TH_MALLOC(sizeof(char) * (Size + 1));
 						glGetShaderInfoLog(Result->HullShader, Size, &Size, Buffer);
-						THAWK_ERROR("couldn't compile hull shader\n\t%.*s", Size, Buffer);
-						free(Buffer);
+						TH_ERROR("couldn't compile hull shader\n\t%.*s", Size, Buffer);
+						TH_FREE(Buffer);
 					}
 				}
 
@@ -1861,10 +1861,10 @@ namespace Tomahawk
 					if (Status == GL_FALSE)
 					{
 						glGetShaderiv(Result->ComputeShader, GL_INFO_LOG_LENGTH, &Size);
-						Buffer = (char*)malloc(sizeof(char) * (Size + 1));
+						Buffer = (char*)TH_MALLOC(sizeof(char) * (Size + 1));
 						glGetShaderInfoLog(Result->ComputeShader, Size, &Size, Buffer);
-						THAWK_ERROR("couldn't compile compute shader\n\t%.*s", Size, Buffer);
-						free(Buffer);
+						TH_ERROR("couldn't compile compute shader\n\t%.*s", Size, Buffer);
+						TH_FREE(Buffer);
 					}
 				}
 
@@ -2045,7 +2045,7 @@ namespace Tomahawk
 			{
 				if (!Resource[0] || !Resource[1] || !Resource[2] || !Resource[3] || !Resource[4] || !Resource[5])
 				{
-					THAWK_ERROR("couldn't create texture cube without proper mapping");
+					TH_ERROR("couldn't create texture cube without proper mapping");
 					return nullptr;
 				}
 
@@ -2060,7 +2060,7 @@ namespace Tomahawk
 				OGLTexture2D* IResource = (OGLTexture2D*)Resource;
 				if (!IResource)
 				{
-					THAWK_ERROR("couldn't create texture cube without proper mapping");
+					TH_ERROR("couldn't create texture cube without proper mapping");
 					return nullptr;
 				}
 
@@ -2070,7 +2070,7 @@ namespace Tomahawk
 
 				if (IResource->Width % 4 != 0 || IResource->Height % 3 != 0)
 				{
-					THAWK_ERROR("couldn't create texture cube because width or height cannot be not divided");
+					TH_ERROR("couldn't create texture cube because width or height cannot be not divided");
 					return nullptr;
 				}
 
@@ -2083,7 +2083,7 @@ namespace Tomahawk
 
 				GLint Format = OGLDevice::GetFormat(Result->FormatMode);
 				GLsizei Size = sizeof(GLubyte) * Width * Height;
-				GLubyte* Pixels = (GLubyte*)malloc(Size);
+				GLubyte* Pixels = (GLubyte*)TH_MALLOC(Size);
 				Result->FormatMode = IResource->FormatMode;
 				Result->Width = IResource->Width;
 				Result->Height = IResource->Height;
@@ -2119,7 +2119,7 @@ namespace Tomahawk
 				glBindTexture(GL_TEXTURE_CUBE_MAP, Result->Resource);
 				glTexImage2D(GL_TEXTURE_CUBE_MAP_NEGATIVE_Z, IResource->MipLevels, Format, IResource->Width, IResource->Height, 0, Format, GL_UNSIGNED_BYTE, Pixels);
 
-				free(Pixels);
+				TH_FREE(Pixels);
 				if (IResource->MipLevels != 0)
 				{
 					glTexParameteri(GL_TEXTURE_CUBE_MAP, GL_TEXTURE_MAG_FILTER, GL_LINEAR);
@@ -2138,7 +2138,7 @@ namespace Tomahawk
 			{
 				if (!Basis[0] || !Basis[1] || !Basis[2] || !Basis[3] || !Basis[4] || !Basis[5])
 				{
-					THAWK_ERROR("couldn't create texture cube without proper mapping");
+					TH_ERROR("couldn't create texture cube without proper mapping");
 					return nullptr;
 				}
 
@@ -2154,7 +2154,7 @@ namespace Tomahawk
 				glTexParameteri(GL_TEXTURE_CUBE_MAP, GL_TEXTURE_WRAP_R, GL_CLAMP_TO_EDGE);
 
 				GLint Format = OGLDevice::GetFormat(Result->FormatMode);
-				GLubyte* Pixels = (GLubyte*)malloc(sizeof(GLubyte) * Resources[0]->Width * Resources[0]->Height);
+				GLubyte* Pixels = (GLubyte*)TH_MALLOC(sizeof(GLubyte) * Resources[0]->Width * Resources[0]->Height);
 				Result->FormatMode = Resources[0]->FormatMode;
 				Result->Width = Resources[0]->Width;
 				Result->Height = Resources[0]->Height;
@@ -2169,7 +2169,7 @@ namespace Tomahawk
 					glTexImage2D(GL_TEXTURE_CUBE_MAP_POSITIVE_X + i, Ref->MipLevels, Format, Ref->Width, Ref->Height, 0, Format, GL_UNSIGNED_BYTE, Pixels);
 				}
 
-				free(Pixels);
+				TH_FREE(Pixels);
 				if (Resources[0]->MipLevels != 0)
 				{
 					glTexParameteri(GL_TEXTURE_CUBE_MAP, GL_TEXTURE_MAG_FILTER, GL_LINEAR);
@@ -2511,11 +2511,11 @@ namespace Tomahawk
 				if ((GLboolean)Stat == GL_TRUE || !Size)
 					return "";
 
-				GLchar* Buffer = (GLchar*)malloc(sizeof(GLchar) * Size);
+				GLchar* Buffer = (GLchar*)TH_MALLOC(sizeof(GLchar) * Size);
 				glGetShaderInfoLog(Handle, Size, NULL, Buffer);
 
 				std::string Result((char*)Buffer, Size);
-				free(Buffer);
+				TH_FREE(Buffer);
 
 				return Result;
 			}
@@ -2974,13 +2974,13 @@ namespace Tomahawk
 				switch (Severity)
 				{
 					case GL_DEBUG_SEVERITY_HIGH:
-						THAWK_ERROR("%s (%s:%d): %s %s", _Source, _Type, Id, Message);
+						TH_ERROR("%s (%s:%d): %s %s", _Source, _Type, Id, Message);
 						break;
 					case GL_DEBUG_SEVERITY_MEDIUM:
-						THAWK_WARN("%s (%s:%d): %s %s", _Source, _Type, Id, Message);
+						TH_WARN("%s (%s:%d): %s %s", _Source, _Type, Id, Message);
 						break;
 					default:
-						THAWK_INFO("%s (%s:%d): %s %s", _Source, _Type, Id, Message);
+						TH_INFO("%s (%s:%d): %s %s", _Source, _Type, Id, Message);
 						break;
 				}
 			}

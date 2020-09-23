@@ -1,6 +1,6 @@
 #include "tomahawk.h"
 #include <clocale>
-#ifdef THAWK_MICROSOFT
+#ifdef TH_MICROSOFT
 #include <WS2tcpip.h>
 #include <io.h>
 #else
@@ -15,13 +15,13 @@
 #include <unistd.h>
 #include <sys/syscall.h>
 #endif
-#ifdef THAWK_HAS_SDL2
+#ifdef TH_HAS_SDL2
 #include <SDL2/SDL.h>
 #endif
-#ifdef THAWK_HAS_ASSIMP
+#ifdef TH_HAS_ASSIMP
 #include <assimp/DefaultLogger.hpp>
 #endif
-#ifdef THAWK_HAS_OPENSSL
+#ifdef TH_HAS_OPENSSL
 extern "C"
 {
 #include <openssl/ssl.h>
@@ -37,7 +37,7 @@ extern "C"
 
 namespace Tomahawk
 {
-#ifdef THAWK_HAS_OPENSSL
+#ifdef TH_HAS_OPENSSL
 	static std::vector<std::shared_ptr<std::mutex>>* CryptoLocks = nullptr;
 #endif
 	static unsigned int Modes = 0;
@@ -45,7 +45,7 @@ namespace Tomahawk
 
 	void Library::Describe()
 	{
-		THAWK_INFO("Tomahawk info"
+		TH_INFO("tomahawk info"
 				   "\n\tbuild version"
 				   "\n\t\t%i.%i.%i on %s (%s)"
 				   "\n\tfeatured with"
@@ -57,11 +57,11 @@ namespace Tomahawk
 				   "\n\t\tAssimp: %s"
 				   "\n\t\tMongoDB: %s"
 				   "\n\t\tOpenAL: %s"
-				   "\n\t\tSDL2: %s", THAWK_MAJOR_VERSION, THAWK_MINOR_VERSION, THAWK_PATCH_LEVEL, Platform(), Compiler(), HasDirectX() ? "ON" : "OFF", HasOpenGL() ? "ON" : "OFF", HasOpenSSL() ? "ON" : "OFF", HasGLEW() ? "ON" : "OFF", HasZLib() ? "ON" : "OFF", HasAssimp() ? "ON" : "OFF", HasMongoDB() ? "ON" : "OFF", HasOpenAL() ? "ON" : "OFF", HasSDL2() ? "ON" : "OFF");
+				   "\n\t\tSDL2: %s", TH_MAJOR_VERSION, TH_MINOR_VERSION, TH_PATCH_LEVEL, Platform(), Compiler(), HasDirectX() ? "ON" : "OFF", HasOpenGL() ? "ON" : "OFF", HasOpenSSL() ? "ON" : "OFF", HasGLEW() ? "ON" : "OFF", HasZLib() ? "ON" : "OFF", HasAssimp() ? "ON" : "OFF", HasMongoDB() ? "ON" : "OFF", HasOpenAL() ? "ON" : "OFF", HasSDL2() ? "ON" : "OFF");
 	}
 	bool Library::HasDirectX()
 	{
-#ifdef THAWK_MICROSOFT
+#ifdef TH_MICROSOFT
 		return true;
 #else
 		return false;
@@ -69,7 +69,7 @@ namespace Tomahawk
 	}
 	bool Library::HasOpenGL()
 	{
-#ifdef THAWK_HAS_OPENGL
+#ifdef TH_HAS_OPENGL
 		return true;
 #else
 		return false;
@@ -77,7 +77,7 @@ namespace Tomahawk
 	}
 	bool Library::HasOpenSSL()
 	{
-#ifdef THAWK_HAS_OPENSSL
+#ifdef TH_HAS_OPENSSL
 		return true;
 #else
 		return false;
@@ -85,7 +85,7 @@ namespace Tomahawk
 	}
 	bool Library::HasGLEW()
 	{
-#ifdef THAWK_HAS_GLEW
+#ifdef TH_HAS_GLEW
 		return true;
 #else
 		return false;
@@ -93,7 +93,7 @@ namespace Tomahawk
 	}
 	bool Library::HasZLib()
 	{
-#ifdef THAWK_HAS_ZLIB
+#ifdef TH_HAS_ZLIB
 		return true;
 #else
 		return false;
@@ -101,7 +101,7 @@ namespace Tomahawk
 	}
 	bool Library::HasAssimp()
 	{
-#ifdef THAWK_HAS_ASSIMP
+#ifdef TH_HAS_ASSIMP
 		return true;
 #else
 		return false;
@@ -109,7 +109,7 @@ namespace Tomahawk
 	}
 	bool Library::HasMongoDB()
 	{
-#ifdef THAWK_HAS_MONGOC
+#ifdef TH_HAS_MONGOC
 		return true;
 #else
 		return false;
@@ -117,7 +117,7 @@ namespace Tomahawk
 	}
 	bool Library::HasOpenAL()
 	{
-#ifdef THAWK_HAS_OPENAL
+#ifdef TH_HAS_OPENAL
 		return true;
 #else
 		return false;
@@ -125,7 +125,7 @@ namespace Tomahawk
 	}
 	bool Library::HasSDL2()
 	{
-#ifdef THAWK_HAS_SDL2
+#ifdef TH_HAS_SDL2
 		return true;
 #else
 		return false;
@@ -133,15 +133,15 @@ namespace Tomahawk
 	}
 	int Library::Version()
 	{
-		return THAWK_VERSION(THAWK_MAJOR_VERSION, THAWK_MINOR_VERSION, THAWK_PATCH_LEVEL);
+		return TH_VERSION(TH_MAJOR_VERSION, TH_MINOR_VERSION, TH_PATCH_LEVEL);
 	}
 	int Library::DebugLevel()
 	{
-		return THAWK_DLEVEL;
+		return TH_DLEVEL;
 	}
 	int Library::Architecture()
 	{
-#ifdef THAWK_32
+#ifdef TH_32
 		return 4;
 #else
 		return 8;
@@ -158,21 +158,21 @@ namespace Tomahawk
 	const char* Library::Compiler()
 	{
 #ifdef _MSC_VER
-#ifdef THAWK_32
+#ifdef TH_32
 		return "Visual C++ 32-bit";
 #else
 		return "Visual C++ 64-bit";
 #endif
 #endif
 #ifdef __clang__
-#ifdef THAWK_32
+#ifdef TH_32
 		return "Clang 32-bit";
 #else
 		return "Clang 64-bit";
 #endif
 #endif
 #ifdef __EMSCRIPTEN__
-#ifdef THAWK_32
+#ifdef TH_32
 		return "Emscripten 32-bit";
 #else
 		return "Emscripten 64-bit";
@@ -185,7 +185,7 @@ namespace Tomahawk
 		return "MinGW 64-bit";
 #endif
 #ifdef __GNUC__
-#ifdef THAWK_32
+#ifdef TH_32
 		return "GCC 32-bit";
 #else
 		return "GCC 64-bit";
@@ -225,32 +225,35 @@ namespace Tomahawk
 		return "OS with C/C++ support";
 	}
 
-	bool Initialize(unsigned int Modules)
+	bool Initialize(unsigned int Modules, size_t HeapSize)
 	{
 		State++;
 		if (State > 1)
 			return State >= 0;
 
+		if (HeapSize > 0)
+			Rest::Mem::Create(HeapSize);
+
 		Modes = Modules;
 		if (Modes & TInit_Rest)
 		{
 			if (Modes & TInit_Logger)
-				Rest::LT::AttachStream();
+				Rest::Debug::AttachStream();
 		}
 
 		if (Modes & TInit_Network)
 		{
-#ifdef THAWK_MICROSOFT
+#ifdef TH_MICROSOFT
 			WSADATA WSAData;
 			WORD VersionRequested = MAKEWORD(2, 2);
 			if (WSAStartup(VersionRequested, &WSAData) != 0)
-				THAWK_ERROR("windows socket refs cannot be initialized");
+				TH_ERROR("windows socket refs cannot be initialized");
 #endif
 		}
 
 		if (Modes & TInit_Crypto)
 		{
-#ifdef THAWK_HAS_OPENSSL
+#ifdef TH_HAS_OPENSSL
 			int Count = CRYPTO_num_locks();
 			if (Count < 0)
 				Count = 0;
@@ -269,30 +272,30 @@ namespace Tomahawk
 			});
 			CRYPTO_set_id_callback([]() -> long unsigned int
 			{
-#ifdef THAWK_MICROSOFT
+#ifdef TH_MICROSOFT
 				return (unsigned long)GetCurrentThreadId();
 #else
 				return (unsigned long)syscall(SYS_gettid);
 #endif
 			});
 #else
-			THAWK_WARN("openssl crypto cannot be initialized");
+			TH_WARN("openssl crypto cannot be initialized");
 #endif
 		}
 
 		if (Modes & TInit_SSL)
 		{
-#ifdef THAWK_HAS_OPENSSL
+#ifdef TH_HAS_OPENSSL
 			SSL_library_init();
 			SSL_load_error_strings();
 #else
-			THAWK_WARN("openssl ssl cannot be initialized");
+			TH_WARN("openssl ssl cannot be initialized");
 #endif
 		}
 
 		if (Modes & TInit_SDL2)
 		{
-#ifdef THAWK_HAS_SDL2
+#ifdef TH_HAS_SDL2
 			SDL_SetMainReady();
 			SDL_Init(SDL_INIT_VIDEO | SDL_INIT_GAMECONTROLLER | SDL_INIT_HAPTIC);
 			SDL_EventState(SDL_QUIT, SDL_ENABLE);
@@ -349,7 +352,7 @@ namespace Tomahawk
 #endif
 			SDL_EventState(SDL_RENDER_TARGETS_RESET, SDL_DISABLE);
 #else
-			THAWK_WARN("sdl2 cannot be initialized");
+			TH_WARN("sdl2 cannot be initialized");
 #endif
 		}
 
@@ -359,13 +362,14 @@ namespace Tomahawk
 		if (Modes & TInit_Locale)
 		{
 			if (!setlocale(LC_TIME, "C"))
-				THAWK_WARN("en-US locale cannot be initialized");
+				TH_WARN("en-US locale cannot be initialized");
 		}
 
 		if (Modes & TInit_Audio)
 			Audio::AudioContext::Create();
 
-#ifndef THAWK_MICROSOFT
+		Script::VMManager::SetMemoryFunctions(Rest::Mem::Malloc, Rest::Mem::Free);
+#ifndef TH_MICROSOFT
 		signal(SIGPIPE, SIG_IGN);
 #endif
 		return true;
@@ -381,7 +385,7 @@ namespace Tomahawk
 
 		if (Modes & TInit_Crypto)
 		{
-#ifdef THAWK_HAS_OPENSSL
+#ifdef TH_HAS_OPENSSL
 			CRYPTO_set_locking_callback(nullptr);
 			CRYPTO_set_id_callback(nullptr);
 			CRYPTO_cleanup_all_ex_data();
@@ -392,28 +396,28 @@ namespace Tomahawk
 				CryptoLocks = nullptr;
 			}
 #else
-			THAWK_WARN("openssl ssl cannot be uninitialized");
+			TH_WARN("openssl ssl cannot be uninitialized");
 #endif
 		}
 
 		if (Modes & TInit_SSL)
 		{
-#ifdef THAWK_HAS_OPENSSL
+#ifdef TH_HAS_OPENSSL
 			ENGINE_cleanup();
 			CONF_modules_unload(1);
 			ERR_free_strings();
 			EVP_cleanup();
 #else
-			THAWK_WARN("openssl ssl cannot be uninitialized");
+			TH_WARN("openssl ssl cannot be uninitialized");
 #endif
 		}
 
 		if (Modes & TInit_SDL2)
 		{
-#ifdef THAWK_HAS_SDL2
+#ifdef TH_HAS_SDL2
 			SDL_Quit();
 #else
-			THAWK_WARN("sdl2 cannot be uninitialized");
+			TH_WARN("sdl2 cannot be uninitialized");
 #endif
 		}
 
@@ -421,21 +425,22 @@ namespace Tomahawk
 		{
 			Network::Multiplexer::Release();
 			Network::MongoDB::Connector::Release();
-#ifdef THAWK_MICROSOFT
+#ifdef TH_MICROSOFT
 			WSACleanup();
 #endif
 		}
 
 		Script::VMManager::FreeProxy();
 		Rest::Composer::Clear();
-		Rest::LT::Report();
+		Rest::Mem::Report();
+		Rest::Mem::Release();
 
 		if (Modes & TInit_Rest)
 		{
 			if (Modes & TInit_Logger)
-				Rest::LT::DetachStream();
+				Rest::Debug::DetachStream();
 		}
-#ifdef THAWK_HAS_ASSIMP
+#ifdef TH_HAS_ASSIMP
 		Assimp::DefaultLogger::kill();
 #endif
 		return true;

@@ -35,22 +35,22 @@ set_target_properties(tomahawk PROPERTIES
 target_compile_definitions(tomahawk PRIVATE
 		-DNOMINMAX
 		-D_GNU_SOURCE
-		-DTHAWK_EXPORT)
+		-DTH_EXPORT)
 
 #Project's options
-set(THAWK_INFO true CACHE BOOL "allow to log info messages")
-set(THAWK_WARN true CACHE BOOL "allow to log warning messages")
-set(THAWK_ERROR true CACHE BOOL "allow to log error messages")
+set(TH_INFO true CACHE BOOL "allow to log info messages")
+set(TH_WARN true CACHE BOOL "allow to log warning messages")
+set(TH_ERROR true CACHE BOOL "allow to log error messages")
 
 #Project's log level
-if (THAWK_INFO AND THAWK_WARN AND THAWK_ERROR)
-    target_compile_definitions(tomahawk PUBLIC -DTHAWK_DLEVEL=3)
-elseif (THAWK_WARN AND THAWK_ERROR)
-    target_compile_definitions(tomahawk PUBLIC -DTHAWK_DLEVEL=2)
-elseif (THAWK_ERROR)
-    target_compile_definitions(tomahawk PUBLIC -DTHAWK_DLEVEL=1)
+if (TH_INFO AND TH_WARN AND TH_ERROR)
+    target_compile_definitions(tomahawk PUBLIC -DTH_DLEVEL=3)
+elseif (TH_WARN AND TH_ERROR)
+    target_compile_definitions(tomahawk PUBLIC -DTH_DLEVEL=2)
+elseif (TH_ERROR)
+    target_compile_definitions(tomahawk PUBLIC -DTH_DLEVEL=1)
 else()
-    target_compile_definitions(tomahawk PUBLIC -DTHAWK_DLEVEL=0)
+    target_compile_definitions(tomahawk PUBLIC -DTH_DLEVEL=0)
 endif()
 
 #Project's compiler support for non-UNIX platforms

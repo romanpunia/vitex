@@ -2,7 +2,7 @@
 #include "../core/compute.h"
 extern "C"
 {
-#ifdef THAWK_HAS_MONGOC
+#ifdef TH_HAS_MONGOC
 #include <mongoc.h>
 #endif
 }
@@ -55,7 +55,7 @@ namespace Tomahawk
 						return String.assign("undefined");
 					case BSON::Type_Decimal:
 					{
-#ifdef THAWK_HAS_MONGOC
+#ifdef TH_HAS_MONGOC
 						bson_decimal128_t Decimal;
 						Decimal.high = (uint64_t)High;
 						Decimal.low = (uint64_t)Low;
@@ -74,7 +74,7 @@ namespace Tomahawk
 
 			TDocument* Document::Create(bool Array)
 			{
-#ifdef THAWK_HAS_MONGOC
+#ifdef TH_HAS_MONGOC
 				if (!Array)
 					return bson_new();
 
@@ -85,7 +85,7 @@ namespace Tomahawk
 			}
 			TDocument* Document::Create(Rest::Document* Document)
 			{
-#ifdef THAWK_HAS_MONGOC
+#ifdef TH_HAS_MONGOC
 				if (!Document || !Document->IsObject())
 					return nullptr;
 
@@ -139,7 +139,7 @@ namespace Tomahawk
 			}
 			TDocument* Document::Create(const std::string& JSON)
 			{
-#ifdef THAWK_HAS_MONGOC
+#ifdef TH_HAS_MONGOC
 				bson_error_t Error;
 				memset(&Error, 0, sizeof(bson_error_t));
 
@@ -149,7 +149,7 @@ namespace Tomahawk
 					if (Document != nullptr)
 						bson_destroy(Document);
 
-					THAWK_ERROR("couldn't parse JSON data -> %s", Error.message);
+					TH_ERROR("couldn't parse JSON data -> %s", Error.message);
 					return nullptr;
 				}
 
@@ -160,7 +160,7 @@ namespace Tomahawk
 			}
 			TDocument* Document::Create(const unsigned char* Buffer, uint64_t Length)
 			{
-#ifdef THAWK_HAS_MONGOC
+#ifdef TH_HAS_MONGOC
 				return bson_new_from_data(Buffer, (size_t)Length);
 #else
 				return nullptr;
@@ -168,7 +168,7 @@ namespace Tomahawk
 			}
 			void Document::Release(TDocument** Document)
 			{
-#ifdef THAWK_HAS_MONGOC
+#ifdef TH_HAS_MONGOC
 				if (Document == nullptr || *Document == nullptr)
 					return;
 
@@ -187,7 +187,7 @@ namespace Tomahawk
 				if (!Callback || !Document)
 					return;
 
-#ifdef THAWK_HAS_MONGOC
+#ifdef TH_HAS_MONGOC
 				bson_iter_t It;
 				if (!bson_iter_init(&It, Document))
 					return;
@@ -206,7 +206,7 @@ namespace Tomahawk
 			}
 			bool Document::GenerateId(unsigned char* Id12)
 			{
-#ifdef THAWK_HAS_MONGOC
+#ifdef TH_HAS_MONGOC
 				if (Id12 == nullptr)
 					return false;
 
@@ -221,7 +221,7 @@ namespace Tomahawk
 			}
 			bool Document::AddKeyDocument(TDocument* Document, const char* Key, TDocument** Value, uint64_t ArrayId)
 			{
-#ifdef THAWK_HAS_MONGOC
+#ifdef TH_HAS_MONGOC
 				if (!Value || !*Value || !Document)
 					return false;
 
@@ -240,7 +240,7 @@ namespace Tomahawk
 			}
 			bool Document::AddKeyArray(TDocument* Document, const char* Key, TDocument** Value, uint64_t ArrayId)
 			{
-#ifdef THAWK_HAS_MONGOC
+#ifdef TH_HAS_MONGOC
 				if (!Value || !*Value || !Document)
 					return false;
 
@@ -259,7 +259,7 @@ namespace Tomahawk
 			}
 			bool Document::AddKeyString(TDocument* Document, const char* Key, const char* Value, uint64_t ArrayId)
 			{
-#ifdef THAWK_HAS_MONGOC
+#ifdef TH_HAS_MONGOC
 				if (!Document)
 					return false;
 
@@ -274,7 +274,7 @@ namespace Tomahawk
 			}
 			bool Document::AddKeyStringBuffer(TDocument* Document, const char* Key, const char* Value, uint64_t Length, uint64_t ArrayId)
 			{
-#ifdef THAWK_HAS_MONGOC
+#ifdef TH_HAS_MONGOC
 				if (!Document)
 					return false;
 
@@ -289,7 +289,7 @@ namespace Tomahawk
 			}
 			bool Document::AddKeyInteger(TDocument* Document, const char* Key, int64_t Value, uint64_t ArrayId)
 			{
-#ifdef THAWK_HAS_MONGOC
+#ifdef TH_HAS_MONGOC
 				if (!Document)
 					return false;
 
@@ -304,7 +304,7 @@ namespace Tomahawk
 			}
 			bool Document::AddKeyNumber(TDocument* Document, const char* Key, double Value, uint64_t ArrayId)
 			{
-#ifdef THAWK_HAS_MONGOC
+#ifdef TH_HAS_MONGOC
 				if (!Document)
 					return false;
 
@@ -319,7 +319,7 @@ namespace Tomahawk
 			}
 			bool Document::AddKeyDecimal(TDocument* Document, const char* Key, uint64_t High, uint64_t Low, uint64_t ArrayId)
 			{
-#ifdef THAWK_HAS_MONGOC
+#ifdef TH_HAS_MONGOC
 				if (!Document)
 					return false;
 
@@ -338,7 +338,7 @@ namespace Tomahawk
 			}
 			bool Document::AddKeyDecimalString(TDocument* Document, const char* Key, const std::string& Value, uint64_t ArrayId)
 			{
-#ifdef THAWK_HAS_MONGOC
+#ifdef TH_HAS_MONGOC
 				if (!Document)
 					return false;
 
@@ -356,7 +356,7 @@ namespace Tomahawk
 			}
 			bool Document::AddKeyDecimalInteger(TDocument* Document, const char* Key, int64_t Value, uint64_t ArrayId)
 			{
-#ifdef THAWK_HAS_MONGOC
+#ifdef TH_HAS_MONGOC
 				if (!Document)
 					return false;
 
@@ -377,7 +377,7 @@ namespace Tomahawk
 			}
 			bool Document::AddKeyDecimalNumber(TDocument* Document, const char* Key, double Value, uint64_t ArrayId)
 			{
-#ifdef THAWK_HAS_MONGOC
+#ifdef TH_HAS_MONGOC
 				if (!Document)
 					return false;
 
@@ -401,7 +401,7 @@ namespace Tomahawk
 			}
 			bool Document::AddKeyBoolean(TDocument* Document, const char* Key, bool Value, uint64_t ArrayId)
 			{
-#ifdef THAWK_HAS_MONGOC
+#ifdef TH_HAS_MONGOC
 				if (!Document)
 					return false;
 
@@ -416,7 +416,7 @@ namespace Tomahawk
 			}
 			bool Document::AddKeyObjectId(TDocument* Document, const char* Key, unsigned char Value[12], uint64_t ArrayId)
 			{
-#ifdef THAWK_HAS_MONGOC
+#ifdef TH_HAS_MONGOC
 				if (!Document)
 					return false;
 
@@ -434,7 +434,7 @@ namespace Tomahawk
 			}
 			bool Document::AddKeyNull(TDocument* Document, const char* Key, uint64_t ArrayId)
 			{
-#ifdef THAWK_HAS_MONGOC
+#ifdef TH_HAS_MONGOC
 				if (!Document)
 					return false;
 
@@ -449,7 +449,7 @@ namespace Tomahawk
 			}
 			bool Document::AddKey(TDocument* Document, const char* Key, KeyPair* Value, uint64_t ArrayId)
 			{
-#ifdef THAWK_HAS_MONGOC
+#ifdef TH_HAS_MONGOC
 				if (!Document || !Value)
 					return false;
 
@@ -489,7 +489,7 @@ namespace Tomahawk
 			}
 			bool Document::HasKey(TDocument* Document, const char* Key)
 			{
-#ifdef THAWK_HAS_MONGOC
+#ifdef TH_HAS_MONGOC
 				if (!Document)
 					return false;
 
@@ -500,7 +500,7 @@ namespace Tomahawk
 			}
 			bool Document::GetKey(TDocument* Document, const char* Key, KeyPair* Output)
 			{
-#ifdef THAWK_HAS_MONGOC
+#ifdef TH_HAS_MONGOC
 				bson_iter_t It;
 				if (!Document || !bson_iter_init_find(&It, Document, Key))
 					return false;
@@ -512,7 +512,7 @@ namespace Tomahawk
 			}
 			bool Document::GetKeyWithNotation(TDocument* Document, const char* Key, KeyPair* Output)
 			{
-#ifdef THAWK_HAS_MONGOC
+#ifdef TH_HAS_MONGOC
 				bson_iter_t It, Value;
 				if (!Document || !bson_iter_init(&It, Document) || !bson_iter_find_descendant(&It, Key, &Value))
 					return false;
@@ -527,7 +527,7 @@ namespace Tomahawk
 				if (!Value || !High || !Low)
 					return false;
 
-#ifdef THAWK_HAS_MONGOC
+#ifdef TH_HAS_MONGOC
 				bson_decimal128_t Decimal;
 				if (!bson_decimal128_from_string(Value, &Decimal))
 					return false;
@@ -541,7 +541,7 @@ namespace Tomahawk
 			}
 			bool Document::Clone(void* It, KeyPair* Output)
 			{
-#ifdef THAWK_HAS_MONGOC
+#ifdef TH_HAS_MONGOC
 				const bson_value_t* Value = bson_iter_value((bson_iter_t*)It);
 				if (!Value || !Output)
 					return false;
@@ -638,7 +638,7 @@ namespace Tomahawk
 			}
 			unsigned int Document::GetHashId(unsigned char* Id12)
 			{
-#ifdef THAWK_HAS_MONGOC
+#ifdef TH_HAS_MONGOC
 				if (!Id12 || strlen((const char*)Id12) != 12)
 					return 0;
 
@@ -652,7 +652,7 @@ namespace Tomahawk
 			}
 			int64_t Document::GetTimeId(unsigned char* Id12)
 			{
-#ifdef THAWK_HAS_MONGOC
+#ifdef TH_HAS_MONGOC
 				if (!Id12 || strlen((const char*)Id12) != 12)
 					return 0;
 
@@ -666,7 +666,7 @@ namespace Tomahawk
 			}
 			uint64_t Document::CountKeys(TDocument* Document)
 			{
-#ifdef THAWK_HAS_MONGOC
+#ifdef TH_HAS_MONGOC
 				if (!Document)
 					return 0;
 
@@ -677,7 +677,7 @@ namespace Tomahawk
 			}
 			std::string Document::OIdToString(unsigned char* Id12)
 			{
-#ifdef THAWK_HAS_MONGOC
+#ifdef TH_HAS_MONGOC
 				if (!Id12)
 					return 0;
 
@@ -697,7 +697,7 @@ namespace Tomahawk
 				if (Id24.size() != 24)
 					return "";
 
-#ifdef THAWK_HAS_MONGOC
+#ifdef TH_HAS_MONGOC
 				bson_oid_t Id;
 				bson_oid_init_from_string(&Id, Id24.c_str());
 
@@ -708,7 +708,7 @@ namespace Tomahawk
 			}
 			std::string Document::ToExtendedJSON(TDocument* Document)
 			{
-#ifdef THAWK_HAS_MONGOC
+#ifdef TH_HAS_MONGOC
 				if (!Document)
 					return std::string();
 
@@ -726,7 +726,7 @@ namespace Tomahawk
 			}
 			std::string Document::ToRelaxedAndExtendedJSON(TDocument* Document)
 			{
-#ifdef THAWK_HAS_MONGOC
+#ifdef TH_HAS_MONGOC
 				if (!Document)
 					return std::string();
 
@@ -744,7 +744,7 @@ namespace Tomahawk
 			}
 			std::string Document::ToClassicJSON(TDocument* Document)
 			{
-#ifdef THAWK_HAS_MONGOC
+#ifdef TH_HAS_MONGOC
 				if (!Document)
 					return std::string();
 
@@ -762,7 +762,7 @@ namespace Tomahawk
 			}
 			Rest::Document* Document::ToDocument(TDocument* Document, bool IsArray)
 			{
-#ifdef THAWK_HAS_MONGOC
+#ifdef TH_HAS_MONGOC
 				if (!Document)
 					return nullptr;
 
@@ -827,7 +827,7 @@ namespace Tomahawk
 			}
 			TDocument* Document::Copy(TDocument* Document)
 			{
-#ifdef THAWK_HAS_MONGOC
+#ifdef TH_HAS_MONGOC
 				if (!Document)
 					return nullptr;
 

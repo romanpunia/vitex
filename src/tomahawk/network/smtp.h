@@ -1,5 +1,5 @@
-#ifndef THAWK_NETWORK_SMTP_H
-#define THAWK_NETWORK_SMTP_H
+#ifndef TH_NETWORK_SMTP_H
+#define TH_NETWORK_SMTP_H
 
 #include "../core/network.h"
 
@@ -19,19 +19,19 @@ namespace Tomahawk
 				Priority_Low = 4
 			};
 
-			struct THAWK_OUT Recipient
+			struct TH_OUT Recipient
 			{
 				std::string Name;
 				std::string Address;
 			};
 
-			struct THAWK_OUT Attachment
+			struct TH_OUT Attachment
 			{
 				std::string Path;
 				uint64_t Length = 0;
 			};
 
-			struct THAWK_OUT RequestFrame
+			struct TH_OUT RequestFrame
 			{
 				std::vector<Recipient> Recipients;
 				std::vector<Recipient> CCRecipients;
@@ -54,7 +54,7 @@ namespace Tomahawk
 				char RemoteAddress[48] = { 0 };
 			};
 
-			class THAWK_OUT Client : public SocketClient
+			class TH_OUT Client : public SocketClient
 			{
 			private:
 				FILE* AttachmentFile;

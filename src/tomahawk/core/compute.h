@@ -1,5 +1,5 @@
-#ifndef THAWK_COMPUTE_H
-#define THAWK_COMPUTE_H
+#ifndef TH_COMPUTE_H
+#define TH_COMPUTE_H
 
 #include "rest.h"
 #include <cmath>
@@ -173,7 +173,7 @@ namespace Tomahawk
 			TransformSpace_Global
 		};
 
-		struct THAWK_OUT IncludeDesc
+		struct TH_OUT IncludeDesc
 		{
 			std::vector<std::string> Exts;
 			std::string From;
@@ -181,14 +181,14 @@ namespace Tomahawk
 			std::string Root;
 		};
 
-		struct THAWK_OUT IncludeResult
+		struct TH_OUT IncludeResult
 		{
 			std::string Module;
 			bool IsSystem = false;
 			bool IsFile = false;
 		};
 
-		struct THAWK_OUT Vertex
+		struct TH_OUT Vertex
 		{
 			float PositionX;
 			float PositionY;
@@ -206,7 +206,7 @@ namespace Tomahawk
 			float BitangentZ;
 		};
 
-		struct THAWK_OUT SkinVertex
+		struct TH_OUT SkinVertex
 		{
 			float PositionX;
 			float PositionY;
@@ -232,7 +232,7 @@ namespace Tomahawk
 			float JointBias3;
 		};
 
-		struct THAWK_OUT ShapeVertex
+		struct TH_OUT ShapeVertex
 		{
 			float PositionX;
 			float PositionY;
@@ -241,7 +241,7 @@ namespace Tomahawk
 			float TexCoordY;
 		};
 
-		struct THAWK_OUT ElementVertex
+		struct TH_OUT ElementVertex
 		{
 			float PositionX;
 			float PositionY;
@@ -258,14 +258,14 @@ namespace Tomahawk
 			float Angular;
 		};
 
-		struct THAWK_OUT UnmanagedShape
+		struct TH_OUT UnmanagedShape
 		{
 			std::vector<Vertex> Vertices;
 			std::vector<int> Indices;
 			btCollisionShape* Shape;
 		};
 
-		struct THAWK_OUT Vector2
+		struct TH_OUT Vector2
 		{
 			float X;
 			float Y;
@@ -363,7 +363,7 @@ namespace Tomahawk
 			}
 		};
 
-		struct THAWK_OUT Vector3
+		struct TH_OUT Vector3
 		{
 			float X;
 			float Y;
@@ -478,7 +478,7 @@ namespace Tomahawk
 			}
 		};
 
-		struct THAWK_OUT Vector4
+		struct TH_OUT Vector4
 		{
 			float X;
 			float Y;
@@ -598,7 +598,7 @@ namespace Tomahawk
 			};
 		};
 
-		struct THAWK_OUT Ray
+		struct TH_OUT Ray
 		{
 			Vector3 Origin;
 			Vector3 Direction;
@@ -614,7 +614,7 @@ namespace Tomahawk
 			bool IntersectsOBB(const Matrix4x4& World) const;
 		};
 
-		struct THAWK_OUT Matrix4x4
+		struct TH_OUT Matrix4x4
 		{
 			float Row[16];
 
@@ -677,7 +677,7 @@ namespace Tomahawk
 			};
 		};
 
-		struct THAWK_OUT Quaternion
+		struct TH_OUT Quaternion
 		{
 			float X, Y, Z, W;
 
@@ -715,7 +715,7 @@ namespace Tomahawk
 			static Quaternion CreateRotation(const Matrix4x4& Transform);
 		};
 
-		struct THAWK_OUT AnimatorKey
+		struct TH_OUT AnimatorKey
 		{
 			Compute::Vector3 Position = 0.0f;
 			Compute::Vector3 Rotation = 0.0f;
@@ -723,13 +723,13 @@ namespace Tomahawk
 			float Time = 1.0f;
 		};
 
-		struct THAWK_OUT SkinAnimatorKey
+		struct TH_OUT SkinAnimatorKey
 		{
 			std::vector<AnimatorKey> Pose;
 			float Time = 1.0f;
 		};
 
-		struct THAWK_OUT SkinAnimatorClip
+		struct TH_OUT SkinAnimatorClip
 		{
 			std::vector<SkinAnimatorKey> Keys;
 			std::string Name;
@@ -737,7 +737,7 @@ namespace Tomahawk
 			float Rate = 1.0f;
 		};
 
-		struct THAWK_OUT KeyAnimatorClip
+		struct TH_OUT KeyAnimatorClip
 		{
 			std::vector<AnimatorKey> Keys;
 			std::string Name;
@@ -745,7 +745,7 @@ namespace Tomahawk
 			float Rate = 1.0f;
 		};
 
-		struct THAWK_OUT Joint
+		struct TH_OUT Joint
 		{
 			std::vector<Joint> Childs;
 			std::string Name;
@@ -754,7 +754,7 @@ namespace Tomahawk
 			int64_t Index = -1;
 		};
 
-		struct THAWK_OUT RandomVector2
+		struct TH_OUT RandomVector2
 		{
 			Vector2 Min, Max;
 			bool Intensity;
@@ -765,7 +765,7 @@ namespace Tomahawk
 			Vector2 Generate();
 		};
 
-		struct THAWK_OUT RandomVector3
+		struct TH_OUT RandomVector3
 		{
 			Vector3 Min, Max;
 			bool Intensity;
@@ -776,7 +776,7 @@ namespace Tomahawk
 			Vector3 Generate();
 		};
 
-		struct THAWK_OUT RandomVector4
+		struct TH_OUT RandomVector4
 		{
 			Vector4 Min, Max;
 			bool Intensity;
@@ -787,7 +787,7 @@ namespace Tomahawk
 			Vector4 Generate();
 		};
 
-		struct THAWK_OUT RandomFloat
+		struct TH_OUT RandomFloat
 		{
 			float Min, Max;
 			bool Intensity;
@@ -798,7 +798,7 @@ namespace Tomahawk
 			float Generate();
 		};
 
-		struct THAWK_OUT Hybi10PayloadHeader
+		struct TH_OUT Hybi10PayloadHeader
 		{
 			unsigned short Opcode : 4;
 			unsigned short Rsv1 : 1;
@@ -809,7 +809,7 @@ namespace Tomahawk
 			unsigned short Mask : 1;
 		};
 
-		struct THAWK_OUT Hybi10Request
+		struct TH_OUT Hybi10Request
 		{
 			std::string Payload;
 			int ExitCode, Type;
@@ -819,7 +819,7 @@ namespace Tomahawk
 			Hybi10_Opcode GetEnumType();
 		};
 
-		struct THAWK_OUT ShapeContact
+		struct TH_OUT ShapeContact
 		{
 			Vector3 LocalPoint1;
 			Vector3 LocalPoint2;
@@ -851,7 +851,7 @@ namespace Tomahawk
 			int LifeTime = 0;
 		};
 
-		struct THAWK_OUT RayContact
+		struct TH_OUT RayContact
 		{
 			Vector3 HitNormalLocal;
 			Vector3 HitNormalWorld;
@@ -863,7 +863,7 @@ namespace Tomahawk
 			bool NormalInWorldSpace = false;
 		};
 
-		struct THAWK_OUT RegexBracket
+		struct TH_OUT RegexBracket
 		{
 			const char* Pointer = nullptr;
 			int64_t Length = 0;
@@ -871,13 +871,13 @@ namespace Tomahawk
 			int64_t BranchesCount = 0;
 		};
 
-		struct THAWK_OUT RegexBranch
+		struct TH_OUT RegexBranch
 		{
 			int64_t BracketIndex;
 			const char* Pointer;
 		};
 
-		struct THAWK_OUT RegexMatch
+		struct TH_OUT RegexMatch
 		{
 			const char* Pointer;
 			int64_t Start;
@@ -886,7 +886,7 @@ namespace Tomahawk
 			int64_t Steps;
 		};
 
-		struct THAWK_OUT RegExp
+		struct TH_OUT RegExp
 		{
 			std::string Regex;
 			int64_t MaxBranches = 128;
@@ -895,7 +895,7 @@ namespace Tomahawk
 			RegexFlags Flags = RegexFlags_None;
 		};
 
-		struct THAWK_OUT RegexResult
+		struct TH_OUT RegexResult
 		{
 			friend class Regex;
 
@@ -924,7 +924,7 @@ namespace Tomahawk
 			const char* Pointer();
 		};
 
-		struct THAWK_OUT CollisionBody
+		struct TH_OUT CollisionBody
 		{
 			RigidBody* Rigid = nullptr;
 			SoftBody* Soft = nullptr;
@@ -932,7 +932,7 @@ namespace Tomahawk
 			CollisionBody(btCollisionObject* Object);
 		};
 
-		class THAWK_OUT MD5Hasher
+		class TH_OUT MD5Hasher
 		{
 		private:
 			typedef unsigned char UInt1;
@@ -990,7 +990,7 @@ namespace Tomahawk
 		};
 
 		template <typename T>
-		class THAWK_OUT Math
+		class TH_OUT Math
 		{
 		public:
 			static T Rad2Deg()
@@ -1147,7 +1147,7 @@ namespace Tomahawk
 			}
 		};
 
-		class THAWK_OUT MathCommon
+		class TH_OUT MathCommon
 		{
 		public:
 			static std::string Base10ToBaseN(uint64_t Value, unsigned int BaseLessThan65);
@@ -1210,7 +1210,7 @@ namespace Tomahawk
 			static uint64_t CRC32(const std::string& Data);
 		};
 
-		class THAWK_OUT Regex
+		class TH_OUT Regex
 		{
 		private:
 			static void Setup(RegexResult* Info);
@@ -1237,7 +1237,7 @@ namespace Tomahawk
 			static const char* Syntax();
 		};
 
-		class THAWK_OUT Preprocessor : public Rest::Object
+		class TH_OUT Preprocessor : public Rest::Object
 		{
 		public:
 			struct Desc
@@ -1287,7 +1287,7 @@ namespace Tomahawk
 			static IncludeResult ResolveInclude(const IncludeDesc& Desc);
 		};
 
-		class THAWK_OUT Transform : public Rest::Object
+		class TH_OUT Transform : public Rest::Object
 		{
 			friend MathCommon;
 
@@ -1353,7 +1353,7 @@ namespace Tomahawk
 			}
 		};
 
-		class THAWK_OUT RigidBody : public Rest::Object
+		class TH_OUT RigidBody : public Rest::Object
 		{
 			friend Simulator;
 
@@ -1461,7 +1461,7 @@ namespace Tomahawk
 			static RigidBody* Get(btRigidBody* From);
 		};
 
-		class THAWK_OUT SoftBody : public Rest::Object
+		class TH_OUT SoftBody : public Rest::Object
 		{
 			friend Simulator;
 
@@ -1667,7 +1667,7 @@ namespace Tomahawk
 			static SoftBody* Get(btSoftBody* From);
 		};
 
-		class THAWK_OUT SliderConstraint : public Rest::Object
+		class TH_OUT SliderConstraint : public Rest::Object
 		{
 			friend Simulator;
 
@@ -1763,7 +1763,7 @@ namespace Tomahawk
 			Simulator* GetSimulator();
 		};
 
-		class THAWK_OUT Simulator : public Rest::Object
+		class TH_OUT Simulator : public Rest::Object
 		{
 		public:
 			struct Desc

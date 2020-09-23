@@ -1,5 +1,5 @@
-#ifndef THAWK_ENGINE_GUI_SHAPES_H
-#define THAWK_ENGINE_GUI_SHAPES_H
+#ifndef TH_ENGINE_GUI_SHAPES_H
+#define TH_ENGINE_GUI_SHAPES_H
 
 #include "context.h"
 
@@ -9,7 +9,7 @@ namespace Tomahawk
 	{
 		namespace GUI
 		{
-			class THAWK_OUT DrawLine : public Element
+			class TH_OUT DrawLine : public Element
 			{
 			public:
 				struct
@@ -32,7 +32,7 @@ namespace Tomahawk
 				virtual std::string GetType() override;
 			};
 
-			class THAWK_OUT DrawCurve : public Element
+			class TH_OUT DrawCurve : public Element
 			{
 			public:
 				struct
@@ -57,7 +57,7 @@ namespace Tomahawk
 				virtual std::string GetType() override;
 			};
 
-			class THAWK_OUT DrawRect : public Element
+			class TH_OUT DrawRect : public Element
 			{
 			public:
 				struct
@@ -87,7 +87,7 @@ namespace Tomahawk
 				virtual std::string GetType() override;
 			};
 
-			class THAWK_OUT DrawCircle : public Element
+			class TH_OUT DrawCircle : public Element
 			{
 			public:
 				struct
@@ -112,7 +112,7 @@ namespace Tomahawk
 				virtual std::string GetType() override;
 			};
 
-			class THAWK_OUT DrawArc : public Element
+			class TH_OUT DrawArc : public Element
 			{
 			public:
 				struct
@@ -138,7 +138,7 @@ namespace Tomahawk
 				virtual std::string GetType() override;
 			};
 
-			class THAWK_OUT DrawTriangle : public Element
+			class TH_OUT DrawTriangle : public Element
 			{
 			public:
 				struct
@@ -163,7 +163,7 @@ namespace Tomahawk
 				virtual std::string GetType() override;
 			};
 
-			class THAWK_OUT DrawPolyline : public Element
+			class TH_OUT DrawPolyline : public Element
 			{
 			private:
 				struct
@@ -191,7 +191,7 @@ namespace Tomahawk
 				virtual std::string GetType() override;
 			};
 
-			class THAWK_OUT DrawPolygon : public Element
+			class TH_OUT DrawPolygon : public Element
 			{
 			private:
 				struct
@@ -220,7 +220,7 @@ namespace Tomahawk
 				virtual std::string GetType() override;
 			};
 
-			class THAWK_OUT DrawLabel : public Widget
+			class TH_OUT DrawLabel : public Widget
 			{
 			public:
 				struct

@@ -1,5 +1,5 @@
-#ifndef THAWK_ENGINE_PROCESSORS_H
-#define THAWK_ENGINE_PROCESSORS_H
+#ifndef TH_ENGINE_PROCESSORS_H
+#define TH_ENGINE_PROCESSORS_H
 
 #include "../core/engine.h"
 
@@ -44,7 +44,7 @@ namespace Tomahawk
 				MeshOpt_GenBoundingBoxes = 0x80000000l
 			};
 
-			struct THAWK_OUT MeshBlob
+			struct TH_OUT MeshBlob
 			{
 				std::vector<Compute::SkinVertex> Vertices;
 				std::vector<int> Indices;
@@ -52,7 +52,7 @@ namespace Tomahawk
 				Compute::Matrix4x4 World;
 			};
 
-			struct THAWK_OUT MeshInfo
+			struct TH_OUT MeshInfo
 			{
 				std::vector<std::pair<int64_t, Compute::Joint>> Joints;
 				std::vector<MeshBlob> Meshes;
@@ -62,20 +62,20 @@ namespace Tomahawk
 				bool Flip, Invert;
 			};
 
-			struct THAWK_OUT MeshNode
+			struct TH_OUT MeshNode
 			{
 				Compute::Matrix4x4 Transform;
 				int64_t Index;
 			};
 
-			class THAWK_OUT AssetFileProcessor : public FileProcessor
+			class TH_OUT AssetFileProcessor : public FileProcessor
 			{
 			public:
 				AssetFileProcessor(ContentManager* Manager);
 				void* Deserialize(Rest::FileStream* Stream, uint64_t Length, uint64_t Offset, ContentArgs* Args) override;
 			};
 
-			class THAWK_OUT SceneGraphProcessor : public FileProcessor
+			class TH_OUT SceneGraphProcessor : public FileProcessor
 			{
 			public:
 				SceneGraphProcessor(ContentManager* Manager);
@@ -83,7 +83,7 @@ namespace Tomahawk
 				bool Serialize(Rest::FileStream* Stream, void* Object, ContentArgs* Args) override;
 			};
 
-			class THAWK_OUT AudioClipProcessor : public FileProcessor
+			class TH_OUT AudioClipProcessor : public FileProcessor
 			{
 			public:
 				AudioClipProcessor(ContentManager* Manager);
@@ -95,7 +95,7 @@ namespace Tomahawk
 				void* DeserializeOGG(Rest::FileStream* Stream, uint64_t Length, uint64_t Offset, ContentArgs* Args);
 			};
 
-			class THAWK_OUT Texture2DProcessor : public FileProcessor
+			class TH_OUT Texture2DProcessor : public FileProcessor
 			{
 			public:
 				Texture2DProcessor(ContentManager* Manager);
@@ -105,7 +105,7 @@ namespace Tomahawk
 				void* Deserialize(Rest::FileStream* Stream, uint64_t Length, uint64_t Offset, ContentArgs* Args) override;
 			};
 
-			class THAWK_OUT ShaderProcessor : public FileProcessor
+			class TH_OUT ShaderProcessor : public FileProcessor
 			{
 			public:
 				ShaderProcessor(ContentManager* Manager);
@@ -115,7 +115,7 @@ namespace Tomahawk
 				void* Deserialize(Rest::FileStream* Stream, uint64_t Length, uint64_t Offset, ContentArgs* Args) override;
 			};
 
-			class THAWK_OUT ModelProcessor : public FileProcessor
+			class TH_OUT ModelProcessor : public FileProcessor
 			{
 			public:
 				Graphics::MeshBuffer::Desc Options;
@@ -137,7 +137,7 @@ namespace Tomahawk
 				static std::vector<std::pair<int64_t, Compute::Joint>>::iterator FindJoint(std::vector<std::pair<int64_t, Compute::Joint>>& Joints, const std::string& Name);
 			};
 
-			class THAWK_OUT SkinModelProcessor : public FileProcessor
+			class TH_OUT SkinModelProcessor : public FileProcessor
 			{
 			public:
 				Graphics::SkinMeshBuffer::Desc Options;
@@ -158,7 +158,7 @@ namespace Tomahawk
 				static void ProcessKeys(std::vector<Compute::AnimatorKey>* Keys, std::unordered_map<std::string, MeshNode>* Joints);
 			};
 
-			class THAWK_OUT DocumentProcessor : public FileProcessor
+			class TH_OUT DocumentProcessor : public FileProcessor
 			{
 			public:
 				DocumentProcessor(ContentManager* Manager);
@@ -166,7 +166,7 @@ namespace Tomahawk
 				bool Serialize(Rest::FileStream* Stream, void* Object, ContentArgs* Args) override;
 			};
 
-			class THAWK_OUT ServerProcessor : public FileProcessor
+			class TH_OUT ServerProcessor : public FileProcessor
 			{
 			public:
 				std::function<void(void*, Rest::Document*)> Callback;
@@ -176,7 +176,7 @@ namespace Tomahawk
 				void* Deserialize(Rest::FileStream* Stream, uint64_t Length, uint64_t Offset, ContentArgs* Args) override;
 			};
 
-			class THAWK_OUT ShapeProcessor : public FileProcessor
+			class TH_OUT ShapeProcessor : public FileProcessor
 			{
 			public:
 				ShapeProcessor(ContentManager* Manager);

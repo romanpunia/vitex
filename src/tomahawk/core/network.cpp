@@ -157,7 +157,7 @@ namespace Tomahawk
 
 			return -1;
 		}
-		int Socket::Secure(ssl_ctx_st* Context)
+		int Socket::Secure(ssl_ctx_st* Context, const char* Hostname)
 		{
 #ifdef TH_HAS_OPENSSL
 			Sync.Device.lock();
@@ -165,6 +165,10 @@ namespace Tomahawk
 				SSL_free(Device);
 
 			Device = SSL_new(Context);
+#ifndef OPENSSL_NO_TLSEXT
+			if (Hostname != nullptr)
+				SSL_set_tlsext_host_name(Device, Hostname);
+#endif
 			Sync.Device.unlock();
 #endif
 			if (!Device)
@@ -1096,8 +1100,8 @@ namespace Tomahawk
 				}
 
 				if (!Size)
-					std::this_thread::sleep_for(std::chrono::milliseconds(1));
-			}while (Queue == Loop && Args);
+					std::this_thread::yield();
+			} while (Queue == Loop && Args);
 		}
 		bool Multiplexer::Create(int Length, int64_t Timeout, Rest::EventQueue* Queue)
 		{
@@ -1137,7 +1141,7 @@ namespace Tomahawk
 				Event.events = EPOLLRDHUP | EPOLLIN | EPOLLOUT;
 			else
 				Event.events = EPOLLIN;
-
+			
 			return epoll_ctl(Handle, EPOLL_CTL_ADD, Value->Fd, &Event);
 #endif
 		}
@@ -1147,7 +1151,6 @@ namespace Tomahawk
 				return -1;
 
 			Value->Sync.Await = false;
-
 #ifdef TH_APPLE
 			struct kevent Event;
 			EV_SET(&Event, Value->Fd, EVFILT_READ, EV_DELETE, 0, 0, nullptr);
@@ -1157,7 +1160,8 @@ namespace Tomahawk
 
 			return 0;
 #else
-			return epoll_ctl(Handle, EPOLL_CTL_DEL, Value->Fd, nullptr);
+			epoll_event Event;
+			return epoll_ctl(Handle, EPOLL_CTL_DEL, Value->Fd, &Event);
 #endif
 		}
 		int Multiplexer::Dispatch(Socket* Fd, int* Events, int64_t Time)
@@ -1722,7 +1726,7 @@ namespace Tomahawk
 			if (!OnProtect(Fd, Host, &Context) || !Context)
 				return false;
 
-			if (!Fd || Fd->Secure(Context) == -1)
+			if (!Fd || Fd->Secure(Context, nullptr) == -1)
 				return false;
 
 #ifdef TH_HAS_OPENSSL
@@ -1893,7 +1897,7 @@ namespace Tomahawk
 			}
 #endif
 		}
-		bool SocketClient::Connect(Host* Address, const SocketClientCallback& Callback)
+		bool SocketClient::Connect(Host* Address, bool Async, const SocketClientCallback& Callback)
 		{
 			if (!Address || Address->Hostname.empty() || Stream.IsValid())
 			{
@@ -1925,7 +1929,7 @@ namespace Tomahawk
 
 			Address::Free(&Host);
 			Stream.CloseOnExec();
-			Stream.SetBlocking(false);
+			Stream.SetBlocking(!Async);
 			Stream.SetAsyncTimeout(Timeout);
 
 #ifdef TH_HAS_OPENSSL
@@ -1975,7 +1979,7 @@ namespace Tomahawk
 			if (Stream.GetDevice() || !Context)
 				return Error("client does not use ssl");
 
-			if (Stream.Secure(Context) == -1)
+			if (Stream.Secure(Context, Hostname.Hostname.c_str()) == -1)
 				return Error("cannot establish handshake");
 
 			int Result = SSL_set_fd(Stream.GetDevice(), (int)Stream.GetFd());

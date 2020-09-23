@@ -643,7 +643,7 @@ namespace Tomahawk
 
 			public:
 				Client(int64_t ReadTimeout);
-				~Client() override;
+				virtual ~Client() override;
 				bool Send(HTTP::RequestFrame* Root, const ResponseCallback& Callback);
 				bool Consume(int64_t MaxSize, const ResponseCallback& Callback);
 				RequestFrame* GetRequest();

@@ -1,6 +1,8 @@
 ## About
 Tomahawk is a cross-platform C++14 framework to create any type of application from a unified interface. It provides a set of common tools, so that users can focus on making apps without having to reinvent the wheel.
 
+![CMake](https://github.com/romanpunia/tomahawk/workflows/CMake/badge.svg)
+
 ## Features
 #### Core
 + Thread-safe event queue
@@ -170,8 +172,6 @@ Tomahawk is a cross-platform C++14 framework to create any type of application f
 + Ubuntu 16.04+ x64/x86
 + MacOS Catalina 10.15+ x64
 
-![Ubuntu](https://github.com/romanpunia/tomahawk/workflows/CMake/badge.svg)
-
 ## Building
 *Tomahawk uses CMake as building system. Because windows doesn't have default include/src folders [Microsoft's Vcpkg](https://github.com/Microsoft/vcpkg) is suggested but not required.*
 1. Install [CMake](https://cmake.org/install/).
@@ -180,10 +180,10 @@ Tomahawk is a cross-platform C++14 framework to create any type of application f
 > cmake [params] [tomahawk's directory]
 
 There are several build options for this project.
-+ **THAWK_INFO** to allow informational logs, defaults to true
-+ **THAWK_WARN** to allow warning logs, defaults to true
-+ **THAWK_ERROR** to allow error logs, defaults to true
-+ **THAWK_RESOURCE** to embed resources from **/lib/shaders** to this project, defaults to true 
++ **TH_INFO** to allow informational logs, defaults to true
++ **TH_WARN** to allow warning logs, defaults to true
++ **TH_ERROR** to allow error logs, defaults to true
++ **TH_RESOURCE** to embed resources from **/lib/shaders** to this project, defaults to true 
 
 ## Linking
 Tomahawk has support for CMake's install command, to link it with your project you can use CMake as usual.

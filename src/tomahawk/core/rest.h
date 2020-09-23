@@ -553,37 +553,20 @@ namespace Tomahawk
 				bool Allocated;
 				char Data;
 			};
-#ifndef NDEBUG
-			struct MemoryInfo
-			{
-				uint64_t Alloc;
-				uint64_t Size;
-			};
-#endif
+
 		private:
 			static MemoryPage* Heap;
 			static std::mutex* Mutex;
 			static SpinLock Atom;
 			static uint64_t HeadSize;
 			static uint64_t HeapSize;
-#ifndef NDEBUG
-			static std::unordered_map<void*, MemoryInfo>* Blocks;
-			static uint64_t BlockCount;
-#endif
 
 		public:
 			static void Create(size_t InitialSize);
 			static void Release();
-			static void* GetPtr(void* Ptr);
-			static uint64_t GetSize(void* Ptr);
-			static uint64_t GetCount();
-			static uint64_t GetUsedMemory();
-			static uint64_t GetAvailableMemory();
-			static uint64_t GetTotalMemory();
 			static void* Malloc(size_t Size);
 			static void* Realloc(void* Ptr, size_t Size);
 			static void Free(void* Ptr);
-			static void Report();
 			static void Interrupt();
 
 		private:

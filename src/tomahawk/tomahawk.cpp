@@ -432,7 +432,6 @@ namespace Tomahawk
 
 		Script::VMManager::FreeProxy();
 		Rest::Composer::Clear();
-		Rest::Mem::Report();
 		Rest::Mem::Release();
 
 		if (Modes & TInit_Rest)

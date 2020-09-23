@@ -116,7 +116,7 @@ namespace Tomahawk
 			int Open(const char* Host, int Port, SocketType Type, Address* Result);
 			int Open(const char* Host, int Port, Address* Result);
 			int Open(addrinfo* Info, Address* Result);
-			int Secure(ssl_ctx_st* Context);
+			int Secure(ssl_ctx_st* Context, const char* Hostname);
 			int Bind(Address* Address);
 			int Connect(Address* Address);
 			int Listen(int Backlog);
@@ -351,7 +351,7 @@ namespace Tomahawk
 		public:
 			SocketClient(int64_t RequestTimeout);
 			virtual ~SocketClient() override;
-			bool Connect(Host* Address, const SocketClientCallback& Callback);
+			bool Connect(Host* Address, bool Async, const SocketClientCallback& Callback);
 			bool Close(const SocketClientCallback& Callback);
 			Socket* GetStream();
 

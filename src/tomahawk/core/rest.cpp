@@ -1955,10 +1955,7 @@ namespace Tomahawk
 
 			if (!Mutex)
 				Mutex = new std::mutex();
-#if !defined(NDEBUG) && !defined(TH_TRACKLESS)
-			if (!Blocks)
-				Blocks = new std::unordered_map<void*, MemoryInfo>();
-#endif
+
 			Heap = (MemoryPage*)malloc(InitialSize);
 			if (Heap != nullptr)
 			{
@@ -1980,13 +1977,7 @@ namespace Tomahawk
 				free(Heap);
 				Heap = nullptr;
 			}
-#if !defined(NDEBUG) && !defined(TH_TRACKLESS)
-			if (Blocks != nullptr)
-			{
-				delete Blocks;
-				Blocks = nullptr;
-			}
-#endif
+
 			if (Mutex != nullptr)
 			{
 				Mutex->unlock();
@@ -1997,24 +1988,7 @@ namespace Tomahawk
 		void* Mem::Malloc(size_t Size)
 		{
 			if (!Heap)
-			{
-#if !defined(NDEBUG) && !defined(TH_TRACKLESS)
-				void* Result = malloc(Size);
-				if (!Mutex)
-					Mutex = new std::mutex();
-
-				if (!Blocks)
-					Blocks = new std::unordered_map<void*, MemoryInfo>();
-
-				Mutex->lock();
-				Blocks->insert({ Result, { BlockCount++, Size } });
-				Mutex->unlock();
-
-				return Result;
-#else
 				return malloc(Size);
-#endif
-			}
 
 			Atom.Acquire();
 			MemoryPage* Result = FindFirstPage(Size);
@@ -2027,19 +2001,9 @@ namespace Tomahawk
 
 			SplitPage(Result, Size);
 			Result->Allocated = true;
-#if !defined(NDEBUG) && !defined(TH_TRACKLESS)
-			void* Data = (void*)&(Result->Data);
-
-			Mutex->lock();
-			Blocks->insert({ Data, { BlockCount++, Size } });
-			Mutex->unlock();
-
 			Atom.Release();
-			return Data;
-#else
-			Atom.Release();
+
 			return (void*)&(Result->Data);
-#endif
 		}
 		void* Mem::Realloc(void* Ptr, size_t Size)
 		{
@@ -2047,28 +2011,7 @@ namespace Tomahawk
 				return Malloc(Size);
 
 			if (!Heap)
-			{
-#if !defined(NDEBUG) && !defined(TH_TRACKLESS)
-				void* Result = realloc(Ptr, Size);
-				if (!Mutex)
-					Mutex = new std::mutex();
-
-				if (!Blocks)
-					Blocks = new std::unordered_map<void*, MemoryInfo>();
-
-				Mutex->lock();
-				auto It = Blocks->find(Ptr);
-				if (It != Blocks->end())
-					Blocks->erase(It);
-
-				Blocks->insert({ Result, { BlockCount++, Size } });
-				Mutex->unlock();
-
-				return Result;
-#else
 				return realloc(Ptr, Size);
-#endif
-			}
 
 			Atom.Acquire();
 			MemoryPage* Block = (MemoryPage*)(static_cast<char*>(Ptr) - HeadSize);
@@ -2098,28 +2041,12 @@ namespace Tomahawk
 			}
 
 			SplitPage(NewBlock, Size);
+			memcpy(&(NewBlock->Data), &(Block->Data), Block->Size);
 			NewBlock->Allocated = true;
 			Block->Allocated = false;
-#if !defined(NDEBUG) && !defined(TH_TRACKLESS)
-			void* Data1 = (void*)&(Block->Data);
-			void* Data2 = (void*)&(NewBlock->Data);
-			memcpy(Data2, Data1, Block->Size);
-
-			Mutex->lock();
-			auto It = Blocks->find(Data1);
-			if (It != Blocks->end())
-				Blocks->erase(It);
-
-			Blocks->insert({ Data2, { BlockCount++, Size } });
-			Mutex->unlock();
 			Atom.Release();
 
-			return Data2;
-#else
-			memcpy(&(NewBlock->Data), &(Block->Data), Block->Size);
-			Atom.Release();
 			return (void*)&(NewBlock->Data);
-#endif
 		}
 		void Mem::Free(void* Ptr)
 		{
@@ -2127,164 +2054,12 @@ namespace Tomahawk
 				return;
 
 			if (!Heap)
-			{
-#if !defined(NDEBUG) && !defined(TH_TRACKLESS)
-				if (!Blocks || !Mutex)
-				{
-					TH_ERROR("[segfault] object at 0x%p is suspended", Ptr);
-					return Interrupt();
-				}
-
-				Mutex->lock();
-				auto It = Blocks->find(Ptr);
-				if (It == Blocks->end())
-				{
-					Mutex->unlock();
-					TH_ERROR("[segfault] object at 0x%p is suspended", Ptr);
-					return Interrupt();
-				}
-
-				BlockCount--;
-				Blocks->erase(It);
-				if (Blocks->empty())
-				{
-					delete Blocks;
-					Blocks = nullptr;
-				}
-				
-				Mutex->unlock();
-				if (!Blocks)
-				{
-					delete Mutex;
-					Mutex = nullptr;
-				}
-#endif
 				return free(Ptr);
-			}
 
 			Atom.Acquire();
 			MemoryPage* Block = (MemoryPage*)(static_cast<char*>(Ptr) - HeadSize);
 			Block->Allocated = false;
-#if !defined(NDEBUG) && !defined(TH_TRACKLESS)
-			Mutex->lock();
-			auto It = Blocks->find(Ptr);
-			if (It == Blocks->end())
-			{
-				Mutex->unlock();
-				Atom.Release();
-				TH_ERROR("[segfault] object at 0x%p is suspended", Ptr);
-				return Interrupt();
-			}
-
-			BlockCount--;
-			Blocks->erase(It);
-			Mutex->unlock();
 			Atom.Release();
-#else
-			Atom.Release();
-#endif
-		}
-		void* Mem::GetPtr(void* Ptr)
-		{
-#if !defined(NDEBUG) && !defined(TH_TRACKLESS)
-			if (!Blocks)
-				return nullptr;
-
-			auto It = Blocks->find((Object*)Ptr);
-			if (It == Blocks->end())
-				return nullptr;
-
-			return It->first;
-#else
-			return (Object*)Ptr;
-#endif
-		}
-		uint64_t Mem::GetSize(void* Ptr)
-		{
-#if !defined(NDEBUG) && !defined(TH_TRACKLESS)
-			if (!Blocks)
-				return 0;
-
-			auto It = Blocks->find((Object*)Ptr);
-			if (It == Blocks->end())
-				return 0;
-
-			return It->second.Size;
-#else
-			return 0;
-#endif
-		}
-		uint64_t Mem::GetCount()
-		{
-#if !defined(NDEBUG) && !defined(TH_TRACKLESS)
-			if (!Blocks || !Mutex)
-				return 0;
-
-			Mutex->lock();
-			uint64_t Count = (uint64_t)Blocks->size();
-			Mutex->unlock();
-
-			return Count;
-#else
-			return 0;
-#endif
-		}
-		uint64_t Mem::GetUsedMemory()
-		{
-#if !defined(NDEBUG) && !defined(TH_TRACKLESS)
-			if (!Blocks || !Mutex)
-				return 0;
-
-			Mutex->lock();
-			uint64_t Size = 0;
-			for (auto& Item : *Blocks)
-				Size += Item.second.Size;
-			Mutex->unlock();
-
-			return Size;
-#else
-			return 0;
-#endif
-		}
-		uint64_t Mem::GetAvailableMemory()
-		{
-#if !defined(NDEBUG) && !defined(TH_TRACKLESS)
-			if (!Blocks || !Mutex)
-				return 0;
-
-			Mutex->lock();
-			uint64_t Size = 0;
-			for (auto& Item : *Blocks)
-				Size += Item.second.Size;
-			Mutex->unlock();
-
-			return HeapSize - Size;
-#else
-			return HeapSize;
-#endif
-		}
-		uint64_t Mem::GetTotalMemory()
-		{
-			return HeapSize;
-		}
-		void Mem::Report()
-		{
-#if !defined(NDEBUG) && !defined(TH_TRACKLESS)
-			uint64_t Size = 0;
-			if (!Blocks || !Mutex || Blocks->empty())
-				return;
-
-			Mutex->lock();
-			for (auto& Item : *Blocks)
-			{
-				TH_WARN("[memerr] object #%llu of size %llu at 0x%p", Item.second.Alloc, Item.second.Size, Item.first);
-				Size += Item.second.Size;
-			}
-
-			TH_WARN("[memerr] at least %llu bytes of memory in %i blocks were not released", Size, (int)Blocks->size());
-			Mutex->unlock();
-			Interrupt();
-#endif
 		}
 		void Mem::Interrupt()
 		{
@@ -2365,10 +2140,7 @@ namespace Tomahawk
 		uint64_t Mem::HeadSize = offsetof(Mem::MemoryPage, Data);
 		uint64_t Mem::HeapSize = 0;
 		std::mutex* Mem::Mutex = nullptr;
-#ifndef NDEBUG
-		std::unordered_map<void*, Mem::MemoryInfo>* Mem::Blocks = nullptr;
-		uint64_t Mem::BlockCount = 0;
-#endif
+
 		void Debug::AttachCallback(const std::function<void(const char*, int)>& _Callback)
 		{
 			Callback = _Callback;

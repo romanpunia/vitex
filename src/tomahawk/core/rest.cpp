@@ -4236,7 +4236,6 @@ namespace Tomahawk
 		EventQueue::EventQueue()
 		{
 			State = EventState_Terminated;
-			Idle = 1;
 		}
 		EventQueue::~EventQueue()
 		{
@@ -4251,10 +4250,6 @@ namespace Tomahawk
 				if (Async.Thread[1].get_id() != std::this_thread::get_id() && Async.Thread[1].joinable())
 					Async.Thread[1].join();
 			}
-		}
-		void EventQueue::SetIdleTime(uint64_t IdleTime)
-		{
-			Idle = IdleTime;
 		}
 		void EventQueue::SetState(EventState NewState)
 		{
@@ -4401,8 +4396,8 @@ namespace Tomahawk
 				if (!Timers.empty())
 					Overhead = (QueueTimer(Clock()) ? false : Overhead);
 
-				if (Overhead && Idle > 0)
-					std::this_thread::sleep_for(std::chrono::milliseconds(Idle));
+				if (Overhead)
+					std::this_thread::sleep_for(std::chrono::microseconds(100));
 			}
 
 			return true;
@@ -4424,8 +4419,8 @@ namespace Tomahawk
 				if (!Events.empty())
 					Overhead = (QueueEvent(nullptr) ? false : Overhead);
 
-				if (Overhead && Idle > 0)
-					std::this_thread::sleep_for(std::chrono::milliseconds(Idle));
+				if (Overhead)
+					std::this_thread::yield();
 			}
 
 			return true;
@@ -4438,8 +4433,8 @@ namespace Tomahawk
 				if (!Timers.empty())
 					Overhead = !QueueTimer(Clock());
 
-				if (Overhead && Idle > 0)
-					std::this_thread::sleep_for(std::chrono::milliseconds(Idle));
+				if (Overhead)
+					std::this_thread::sleep_for(std::chrono::microseconds(100));
 			}
 
 			return true;

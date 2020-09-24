@@ -1187,7 +1187,7 @@ namespace Tomahawk
 			std::deque<EventBase*> Tasks;
 			std::vector<EventTimer*> Timers;
 			EventState State = EventState_Terminated;
-			uint64_t Timer = 0, Idle = 1;
+			uint64_t Timer = 0;
 			int Synchronize = 0;
 
 		public:
@@ -1196,7 +1196,6 @@ namespace Tomahawk
 		public:
 			EventQueue();
 			virtual ~EventQueue() override;
-			void SetIdleTime(uint64_t IdleTime);
 			void SetState(EventState NewState);
 			bool Tick();
 			bool Start(EventWorkflow Workflow, uint64_t TaskWorkers, uint64_t EventWorkers);

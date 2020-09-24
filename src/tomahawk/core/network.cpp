@@ -1100,7 +1100,7 @@ namespace Tomahawk
 				}
 
 				if (!Size)
-					std::this_thread::yield();
+					std::this_thread::sleep_for(std::chrono::microseconds(100));
 			} while (Queue == Loop && Args);
 		}
 		bool Multiplexer::Create(int Length, int64_t Timeout, Rest::EventQueue* Queue)

@@ -2431,7 +2431,7 @@ namespace Tomahawk
 				int R = LoadByteCode(&VCache);
 				while (Await && R == asBUILD_IN_PROGRESS)
 				{
-					std::this_thread::sleep_for(std::chrono::milliseconds(1));
+					std::this_thread::sleep_for(std::chrono::microseconds(100));
 					R = LoadByteCode(&VCache);
 				}
 
@@ -2445,7 +2445,7 @@ namespace Tomahawk
 			int R = Module->Build();
 			while (Await && R == asBUILD_IN_PROGRESS)
 			{
-				std::this_thread::sleep_for(std::chrono::milliseconds(1));
+				std::this_thread::sleep_for(std::chrono::microseconds(100));
 				R = Module->Build();
 			}
 

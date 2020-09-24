@@ -2,7 +2,7 @@
 #define TOMAHAWK_H
 #define TH_MAJOR_VERSION 1
 #define TH_MINOR_VERSION 8
-#define TH_PATCH_LEVEL 4
+#define TH_PATCH_LEVEL 5
 #define TH_VERSION(X, Y, Z) ((X) * 1000 + (Y) * 100 + (Z))
 #define TH_AT_LEAST(X, Y, Z) (TH_VERSION(TH_MAJOR_VERSION, TH_MINOR_VERSION, TH_PATCH_LEVEL) >= TH_VERSION(X, Y, Z))
 #include "core/rest.h"
@@ -42,7 +42,8 @@ namespace Tomahawk
 		TInit_Compute = 64,
 		TInit_Locale = 128,
 		TInit_Audio = 256,
-		TInit_All = (TInit_Rest | TInit_Logger | TInit_Network | TInit_Crypto | TInit_SSL | TInit_SDL2 | TInit_Compute | TInit_Locale | TInit_Audio)
+		TInit_GLEW = 512,
+		TInit_All = (TInit_Rest | TInit_Logger | TInit_Network | TInit_Crypto | TInit_SSL | TInit_SDL2 | TInit_Compute | TInit_Locale | TInit_Audio | TInit_GLEW)
 	};
 
 	enum TMem

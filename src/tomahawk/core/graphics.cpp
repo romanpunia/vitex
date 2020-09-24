@@ -1858,7 +1858,7 @@ namespace Tomahawk
 				Handle = nullptr;
 			}
 
-			Uint32 Flags = 0;
+			Uint32 Flags = SDL_WINDOW_OPENGL;
 			if (Rest.Fullscreen)
 				Flags |= SDL_WINDOW_FULLSCREEN;
 
@@ -1882,14 +1882,6 @@ namespace Tomahawk
 
 			if (Rest.AllowHighDPI)
 				Flags |= SDL_WINDOW_ALLOW_HIGHDPI;
-
-			if (Rest.Backend == RenderBackend_OGL)
-			{
-				SDL_GL_SetAttribute(SDL_GL_DOUBLEBUFFER, 1);
-				SDL_GL_SetAttribute(SDL_GL_DEPTH_SIZE, 24);
-				SDL_GL_SetAttribute(SDL_GL_STENCIL_SIZE, 8);
-				Flags |= SDL_WINDOW_OPENGL;
-			}
 
 			if (Rest.Centered)
 			{

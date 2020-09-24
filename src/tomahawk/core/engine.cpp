@@ -4613,7 +4613,6 @@ namespace Tomahawk
 #ifdef TH_HAS_SDL2
 			if (I->Usage & ApplicationUse_Activity_Module)
 			{
-				I->Activity.Backend = I->GraphicsDevice.Backend;
 				if (I->Activity.Width <= 0 || I->Activity.Height <= 0)
 				{
 					SDL_DisplayMode Display;

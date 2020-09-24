@@ -302,14 +302,18 @@ namespace Tomahawk
 					Compute::Vector4 Padding;
 				};
 
+				struct
+				{
+					GLuint VertexShader;
+					GLuint PixelShader;
+					GLuint Program;
+					GLuint VertexBuffer;
+				} DirectRenderer;
+
 			private:
 				const char* ShaderVersion;
 				OGLInputLayout* Layout;
 				PrimitiveTopology Primitive;
-				GLuint DirectVertexShader;
-				GLuint DirectPixelShader;
-				GLuint DirectProgram;
-				GLuint DirectBuffer;
 				GLenum IndexType;
 
 			public:
@@ -472,11 +476,11 @@ namespace Tomahawk
 				const char* GetShaderVersion();
 				void CopyConstantBuffer(GLuint Buffer, void* Data, size_t Size);
 				int CreateConstantBuffer(GLuint* Buffer, size_t Size);
+				bool CreateDirectBuffer(uint64_t Size);
 				std::string CompileState(GLuint Handle);
 
 			protected:
 				TextureCube* CreateTextureCubeInternal(void* Resources[6]) override;
-				bool CreateDirectBuffer();
 
 			public:
 				static GLenum GetFormat(Format Value);

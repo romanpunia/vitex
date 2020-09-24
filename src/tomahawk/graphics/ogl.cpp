@@ -4,6 +4,8 @@
 #undef DirectColor
 #endif
 #ifdef TH_HAS_GL
+#define GLSL_INLINE(Code) #Code
+#define BUFFER_OFFSET(i) ((char*)NULL + (i))
 
 namespace Tomahawk
 {
@@ -356,11 +358,12 @@ namespace Tomahawk
 
 			OGLDevice::OGLDevice(const Desc& I) : GraphicsDevice(I), Window(I.Window), Context(nullptr), Layout(nullptr), ShaderVersion(nullptr)
 			{
-				DirectVertexShader = GL_INVALID_VALUE;
-				DirectPixelShader = GL_INVALID_VALUE;
-				DirectProgram = GL_INVALID_VALUE;
-				DirectBuffer = GL_INVALID_VALUE;
+				DirectRenderer.VertexShader = GL_INVALID_VALUE;
+				DirectRenderer.PixelShader = GL_INVALID_VALUE;
+				DirectRenderer.Program = GL_INVALID_VALUE;
+				DirectRenderer.VertexBuffer = GL_INVALID_VALUE;
 				IndexType = GL_UNSIGNED_INT;
+
 				if (!Window)
 				{
 					TH_ERROR("OpenGL cannot be created without a window");
@@ -368,17 +371,11 @@ namespace Tomahawk
 				}
 
 #ifdef TH_HAS_SDL2
-				SDL_GL_SetAttribute(SDL_GL_DOUBLEBUFFER, 1);
-				SDL_GL_SetAttribute(SDL_GL_RED_SIZE, 5);
-				SDL_GL_SetAttribute(SDL_GL_GREEN_SIZE, 6);
-				SDL_GL_SetAttribute(SDL_GL_BLUE_SIZE, 5);
-
 				if (I.Debug)
-				{
-					glEnable(GL_DEBUG_OUTPUT);
-					glDebugMessageCallback(DebugMessage, nullptr);
-				}
-
+					SDL_GL_SetAttribute(SDL_GL_CONTEXT_FLAGS, SDL_GL_CONTEXT_DEBUG_FLAG);
+				else
+					SDL_GL_SetAttribute(SDL_GL_CONTEXT_FLAGS, 0);
+				
 				Context = SDL_GL_CreateContext(Window->GetHandle());
 				if (!Context)
 				{
@@ -406,8 +403,14 @@ namespace Tomahawk
 				const GLenum ErrorCode = glewInit();
 				if (ErrorCode != GLEW_OK)
 				{
-					TH_ERROR("OpenGL extentions cannot be loaded -> %s", (const char*)glewGetErrorString(ErrorCode));
+					TH_ERROR("[glew] %s", (const char*)glewGetErrorString(ErrorCode));
 					return;
+				}
+
+				if (I.Debug)
+				{
+					glEnable(GL_DEBUG_OUTPUT);
+					glDebugMessageCallback(DebugMessage, nullptr);
 				}
 
 				CreateConstantBuffer(&ConstantBuffer[0], sizeof(AnimationBuffer));
@@ -422,10 +425,11 @@ namespace Tomahawk
 				Constants[2] = &View;
 				ConstantSize[0] = sizeof(ViewBuffer);
 
-				glBindBuffer(GL_UNIFORM_BUFFER, ConstantBuffer[0]);
-				glBindBuffer(GL_UNIFORM_BUFFER, ConstantBuffer[1]);
-				glBindBuffer(GL_UNIFORM_BUFFER, ConstantBuffer[2]);
+				glBindBufferBase(GL_UNIFORM_BUFFER, 0, ConstantBuffer[0]);
+				glBindBufferBase(GL_UNIFORM_BUFFER, 1, ConstantBuffer[1]);
+				glBindBufferBase(GL_UNIFORM_BUFFER, 2, ConstantBuffer[2]);
 				glEnable(GL_TEXTURE_2D);
+
 				SetShaderModel(I.ShaderMode == ShaderModel_Auto ? GetSupportedShaderModel() : I.ShaderMode);
 				ResizeBuffers(I.BufferWidth, I.BufferHeight);
 				InitStates();
@@ -439,11 +443,11 @@ namespace Tomahawk
 			OGLDevice::~OGLDevice()
 			{
 				FreeProxy();
+				glDeleteShader(DirectRenderer.VertexShader);
+				glDeleteShader(DirectRenderer.PixelShader);
+				glDeleteProgram(DirectRenderer.Program);
+				glDeleteBuffers(1, &DirectRenderer.VertexBuffer);
 				glDeleteBuffers(3, ConstantBuffer);
-				glDeleteShader(DirectVertexShader);
-				glDeleteShader(DirectPixelShader);
-				glDeleteProgram(DirectProgram);
-				glDeleteBuffers(1, &DirectBuffer);
 #ifdef TH_HAS_SDL2
 				if (Context != nullptr)
 					SDL_GL_DeleteContext(Context);
@@ -459,31 +463,31 @@ namespace Tomahawk
 			{
 				ShaderModelType = Model;
 				if (ShaderModelType == ShaderModel_GLSL_1_1_0)
-					ShaderVersion = "#version 110\n";
+					ShaderVersion = "#version 110 core\n";
 				else if (ShaderModelType == ShaderModel_GLSL_1_2_0)
-					ShaderVersion = "#version 120\n";
+					ShaderVersion = "#version 120 core\n";
 				else if (ShaderModelType == ShaderModel_GLSL_1_3_0)
-					ShaderVersion = "#version 130\n";
+					ShaderVersion = "#version 130 core\n";
 				else if (ShaderModelType == ShaderModel_GLSL_1_4_0)
-					ShaderVersion = "#version 140\n";
+					ShaderVersion = "#version 140 core\n";
 				else if (ShaderModelType == ShaderModel_GLSL_1_5_0)
-					ShaderVersion = "#version 150\n";
+					ShaderVersion = "#version 150 core\n";
 				else if (ShaderModelType == ShaderModel_GLSL_3_3_0)
-					ShaderVersion = "#version 330\n";
+					ShaderVersion = "#version 330 core\n";
 				else if (ShaderModelType == ShaderModel_GLSL_4_0_0)
-					ShaderVersion = "#version 400\n";
+					ShaderVersion = "#version 400 core\n";
 				else if (ShaderModelType == ShaderModel_GLSL_4_1_0)
-					ShaderVersion = "#version 410\n";
+					ShaderVersion = "#version 410 core\n";
 				else if (ShaderModelType == ShaderModel_GLSL_4_2_0)
-					ShaderVersion = "#version 420\n";
+					ShaderVersion = "#version 420 core\n";
 				else if (ShaderModelType == ShaderModel_GLSL_4_3_0)
-					ShaderVersion = "#version 430\n";
+					ShaderVersion = "#version 430 core\n";
 				else if (ShaderModelType == ShaderModel_GLSL_4_4_0)
-					ShaderVersion = "#version 440\n";
+					ShaderVersion = "#version 440 core\n";
 				else if (ShaderModelType == ShaderModel_GLSL_4_5_0)
-					ShaderVersion = "#version 450\n";
+					ShaderVersion = "#version 450 core\n";
 				else if (ShaderModelType == ShaderModel_GLSL_4_6_0)
-					ShaderVersion = "#version 460\n";
+					ShaderVersion = "#version 460 core\n";
 				else
 					SetShaderModel(ShaderModel_GLSL_1_1_0);
 			}
@@ -545,13 +549,13 @@ namespace Tomahawk
 
 				if (V->State.CullMode == VertexCull_Back)
 				{
+					glCullFace(GL_FRONT);
 					glEnable(GL_CULL_FACE);
-					glCullFace(GL_BACK);
 				}
 				else if (V->State.CullMode == VertexCull_Front)
 				{
+					glCullFace(GL_BACK);
 					glEnable(GL_CULL_FACE);
-					glCullFace(GL_FRONT);
 				}
 				else
 					glDisable(GL_CULL_FACE);
@@ -655,6 +659,19 @@ namespace Tomahawk
 					GLuint RenderConstantId = glGetUniformBlockIndex(Program, "RenderConstant");
 					if (RenderConstantId != GL_INVALID_INDEX)
 						glUniformBlockBinding(Program, RenderConstantId, 3);
+
+					GLint Uniforms = 0;
+					glGetProgramiv(Program, GL_ACTIVE_UNIFORMS, &Uniforms);
+					for (GLint i = 0; i < Uniforms; i++)
+					{
+						GLchar Name[64]; GLsizei Length; GLint Size; GLenum Type;
+						glGetActiveUniform(Program, (GLuint)i, 64, &Length, &Size, &Type, Name);
+						if (Type != GL_SAMPLER_1D && Type != GL_SAMPLER_2D && Type != GL_SAMPLER_3D && Type != GL_SAMPLER_CUBE)
+							continue;
+
+						GLint Location = glGetUniformLocationARB(Program, Name);
+						glUniform1iARB(Location, Location);
+					}
 				}
 				else
 				{
@@ -1560,7 +1577,7 @@ namespace Tomahawk
 			}
 			bool OGLDevice::Begin()
 			{
-				if (DirectBuffer == GL_INVALID_VALUE && !CreateDirectBuffer())
+				if (DirectRenderer.VertexBuffer == GL_INVALID_VALUE && !CreateDirectBuffer(0))
 					return false;
 
 				Primitives = PrimitiveTopology_Triangle_List;
@@ -1629,9 +1646,51 @@ namespace Tomahawk
 			}
 			bool OGLDevice::End()
 			{
-				if (Elements.empty())
+				if (DirectRenderer.VertexBuffer == GL_INVALID_VALUE || Elements.empty())
 					return false;
-				/* TODO: IMPL */
+
+				if (Elements.size() > MaxElements && !CreateDirectBuffer(Elements.size()))
+					return false;
+				
+				GLint LastVAO = 0;
+				glGetIntegerv(GL_VERTEX_ARRAY_BINDING, &LastVAO);
+
+				GLint LastVBO = 0;
+				glGetIntegerv(GL_ARRAY_BUFFER_BINDING, &LastVBO);
+
+				GLint LastProgram = 0;
+				glGetIntegerv(GL_CURRENT_PROGRAM, &LastProgram);
+
+				glBindBuffer(GL_ARRAY_BUFFER, DirectRenderer.VertexBuffer);
+				void* Data = glMapBuffer(GL_ARRAY_BUFFER, GL_WRITE_ONLY);
+				memcpy(Data, Elements.data(), (size_t)Elements.size() * sizeof(Vertex));
+				glUnmapBuffer(GL_ARRAY_BUFFER);
+
+				glUseProgram(DirectRenderer.Program);
+				glUniformMatrix4fv(0, 1, GL_FALSE, (const GLfloat*)&Direct.WorldViewProjection.Row);
+				glUniform4fARB(1, Direct.Padding.X, Direct.Padding.Y, Direct.Padding.Z, Direct.Padding.W);
+
+				GLint LastTexture = 0;
+				if (ViewResource != nullptr)
+				{
+					OGLTexture2D* IResource = (OGLTexture2D*)ViewResource;
+					glActiveTexture(GL_TEXTURE0);
+					glGetIntegerv(GL_TEXTURE_BINDING_2D, &LastTexture);
+					glBindTexture(GL_TEXTURE_2D, IResource->Resource);
+				}
+
+				glBindVertexArray(DirectRenderer.VertexBuffer);
+				glDrawArrays(GL_TRIANGLES, 0, (GLsizei)Elements.size());
+				glBindVertexArray(LastVAO);
+				glBindBuffer(GL_ARRAY_BUFFER, LastVBO);
+				glUseProgram(LastProgram);
+
+				if (ViewResource != nullptr)
+				{
+					glActiveTexture(GL_TEXTURE0);
+					glBindTexture(GL_TEXTURE_2D, LastTexture);
+				}
+				
 				return true;
 			}
 			bool OGLDevice::Submit()
@@ -2471,10 +2530,138 @@ namespace Tomahawk
 			{
 				return BasicEffect != nullptr;
 			}
-			bool OGLDevice::CreateDirectBuffer()
+			bool OGLDevice::CreateDirectBuffer(uint64_t Size)
 			{
-				/* TODO: IMPL */
-				return false;
+				MaxElements = Size;
+				if (DirectRenderer.VertexBuffer != GL_INVALID_VALUE)
+					glDeleteVertexArrays(1, &DirectRenderer.VertexBuffer);
+
+				GLint Status;
+				glGenVertexArrays(1, &DirectRenderer.VertexBuffer);
+				glBindVertexArray(DirectRenderer.VertexBuffer);
+				glBindBuffer(GL_ARRAY_BUFFER, DirectRenderer.VertexBuffer);
+				glBufferData(GL_ARRAY_BUFFER, sizeof(Vertex) * (MaxElements + 1), Elements.empty() ? nullptr : &Elements[0], GL_STREAM_DRAW_ARB);
+				glVertexAttribPointer(0, 3, GL_FLOAT, GL_FALSE, sizeof(Vertex), BUFFER_OFFSET(0));
+				glEnableVertexAttribArray(0);
+				glVertexAttribPointer(1, 2, GL_FLOAT, GL_FALSE, sizeof(Vertex), BUFFER_OFFSET(sizeof(float) * 3));
+				glEnableVertexAttribArray(1);
+				glVertexAttribPointer(2, 4, GL_FLOAT, GL_FALSE, sizeof(Vertex), BUFFER_OFFSET(sizeof(float) * 5));
+				glEnableVertexAttribArray(2);
+				
+				if (DirectRenderer.VertexShader == GL_INVALID_VALUE)
+				{
+					static const char* VertexShaderCode = GLSL_INLINE(
+						layout(location = 0) uniform mat4 WorldViewProjection;
+
+						layout(location = 0) in vec3 iPosition;
+						layout(location = 1) in vec2 iTexCoord;
+						layout(location = 2) in vec4 iColor;
+
+						out vec2 oTexCoord;
+						out vec4 oColor;
+
+						void main()
+						{
+							gl_Position = WorldViewProjection * vec4(iPosition.xyz, 1.0);
+							oTexCoord = iTexCoord;
+							oColor = iColor;
+						}
+					);
+
+					std::string Result = ShaderVersion;
+					Result.append(VertexShaderCode);
+
+					const char* Subbuffer = Result.data();
+					GLint BufferSize = Result.size();
+					DirectRenderer.VertexShader = glCreateShader(GL_VERTEX_SHADER);
+					glShaderSourceARB(DirectRenderer.VertexShader, 1, &Subbuffer, &BufferSize);
+					glCompileShaderARB(DirectRenderer.VertexShader);
+					glGetShaderiv(DirectRenderer.VertexShader, GL_COMPILE_STATUS, &Status);
+					
+					if (Status == GL_FALSE)
+					{
+						glGetShaderiv(DirectRenderer.VertexShader, GL_INFO_LOG_LENGTH, &BufferSize);
+						char* Buffer = (char*)TH_MALLOC(sizeof(char) * (BufferSize + 1));
+						glGetShaderInfoLog(DirectRenderer.VertexShader, BufferSize, &BufferSize, Buffer);
+						TH_ERROR("couldn't compile vertex shader\n\t%.*s", BufferSize, Buffer);
+						TH_FREE(Buffer);
+
+						return false;
+					}
+				}
+
+				if (DirectRenderer.PixelShader == GL_INVALID_VALUE)
+				{
+					static const char* PixelShaderCode = GLSL_INLINE(
+						layout(location = 2) uniform sampler2D Diffuse;
+						layout(location = 1) uniform vec4 Padding;
+
+						in vec2 oTexCoord;
+						in vec4 oColor;
+						
+						out vec4 oResult;
+
+						void main()
+						{
+							if (Padding.z > 0)
+								oResult = oColor * texture2D(Diffuse, oTexCoord + Padding.xy) * Padding.w;
+							else
+								oResult = oColor * Padding.w;
+						}
+					);
+
+					std::string Result = ShaderVersion;
+					Result.append(PixelShaderCode);
+
+					const char* Subbuffer = Result.data();
+					GLint BufferSize = Result.size();
+					DirectRenderer.PixelShader = glCreateShader(GL_FRAGMENT_SHADER);
+					glShaderSourceARB(DirectRenderer.PixelShader, 1, &Subbuffer, &BufferSize);
+					glCompileShaderARB(DirectRenderer.PixelShader);
+					glGetShaderiv(DirectRenderer.PixelShader, GL_COMPILE_STATUS, &Status);
+
+					if (Status == GL_FALSE)
+					{
+						glGetShaderiv(DirectRenderer.PixelShader, GL_INFO_LOG_LENGTH, &BufferSize);
+						char* Buffer = (char*)TH_MALLOC(sizeof(char) * (BufferSize + 1));
+						glGetShaderInfoLog(DirectRenderer.PixelShader, BufferSize, &BufferSize, Buffer);
+						TH_ERROR("couldn't compile pixel shader\n\t%.*s", BufferSize, Buffer);
+						TH_FREE(Buffer);
+
+						return false;
+					}
+				}
+
+				if (DirectRenderer.Program == GL_INVALID_VALUE)
+				{
+					DirectRenderer.Program = glCreateProgram();
+					glAttachShader(DirectRenderer.Program, DirectRenderer.VertexShader);
+					glAttachShader(DirectRenderer.Program, DirectRenderer.PixelShader);
+					glLinkProgramARB(DirectRenderer.Program);
+					glGetProgramiv(DirectRenderer.Program, GL_LINK_STATUS, &Status);
+
+					if (Status == GL_FALSE)
+					{
+						GLint Size = 0;
+						glGetProgramiv(DirectRenderer.Program, GL_INFO_LOG_LENGTH, &Size);
+
+						char* Buffer = (char*)TH_MALLOC(sizeof(char) * (Size + 1));
+						glGetProgramInfoLog(DirectRenderer.Program, Size, &Size, Buffer);
+						TH_ERROR("couldn't link shaders\n\t%.*s", Size, Buffer);
+						TH_FREE(Buffer);
+
+						glDeleteProgram(DirectRenderer.Program);
+						DirectRenderer.Program = GL_INVALID_VALUE;
+
+						return false;
+					}
+
+					glUseProgram(DirectRenderer.Program);
+					glUniform1iARB(2, 0);
+					glUseProgram(0);
+				}
+
+				return true;
 			}
 			const char* OGLDevice::GetShaderVersion()
 			{
@@ -2911,7 +3098,7 @@ namespace Tomahawk
 					case ResourceMap_Read_Write:
 						return GL_READ_WRITE;
 					case ResourceMap_Write_Discard:
-						return GL_WRITE_DISCARD_NV;
+						return GL_WRITE_ONLY;
 					case ResourceMap_Write_No_Overwrite:
 						return GL_WRITE_ONLY;
 				}
@@ -2974,13 +3161,13 @@ namespace Tomahawk
 				switch (Severity)
 				{
 					case GL_DEBUG_SEVERITY_HIGH:
-						TH_ERROR("%s (%s:%d): %s %s", _Source, _Type, Id, Message);
+						TH_ERROR("%s (%s:%d): %s", _Source, _Type, Id, Message);
 						break;
 					case GL_DEBUG_SEVERITY_MEDIUM:
-						TH_WARN("%s (%s:%d): %s %s", _Source, _Type, Id, Message);
+						TH_WARN("%s (%s:%d): %s", _Source, _Type, Id, Message);
 						break;
 					default:
-						TH_INFO("%s (%s:%d): %s %s", _Source, _Type, Id, Message);
+						//TH_INFO("%s (%s:%d): %s", _Source, _Type, Id, Message);
 						break;
 				}
 			}

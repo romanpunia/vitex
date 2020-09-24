@@ -1766,7 +1766,6 @@ namespace Tomahawk
 		public:
 			struct Desc
 			{
-				RenderBackend Backend = RenderBackend_NONE;
 				const char* Title = "Activity";
 				unsigned int Width = 0;
 				unsigned int Height = 0;

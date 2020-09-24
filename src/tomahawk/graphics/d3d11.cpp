@@ -4,6 +4,7 @@
 #endif
 #ifdef TH_MICROSOFT
 #define ReleaseCom(Value) { if (Value != nullptr) { Value->Release(); Value = nullptr; } }
+#define HLSL_INLINE(Code) #Code
 
 namespace Tomahawk
 {
@@ -419,14 +420,12 @@ namespace Tomahawk
 			D3D11Device::D3D11Device(const Desc& I) : GraphicsDevice(I), ImmediateContext(nullptr), SwapChain(nullptr), D3DDevice(nullptr)
 			{
 				unsigned int CreationFlags = I.CreationFlags;
+				DirectRenderer.VertexShader = nullptr;
+				DirectRenderer.VertexLayout = nullptr;
+				DirectRenderer.ConstantBuffer = nullptr;
+				DirectRenderer.PixelShader = nullptr;
+				DirectRenderer.VertexBuffer = nullptr;
 				CreationFlags |= D3D11_CREATE_DEVICE_DISABLE_GPU_TIMEOUT;
-				VertexShaderBlob = nullptr;
-				VertexShader = nullptr;
-				VertexLayout = nullptr;
-				VertexConstantBuffer = nullptr;
-				PixelShaderBlob = nullptr;
-				PixelShader = nullptr;
-				DirectBuffer = nullptr;
 				DriverType = D3D_DRIVER_TYPE_HARDWARE;
 				FeatureLevel = D3D_FEATURE_LEVEL_11_0;
 				ConstantBuffer[0] = nullptr;
@@ -451,7 +450,7 @@ namespace Tomahawk
 				SwapChainResource.Flags = 0;
 				SwapChainResource.BufferDesc.ScanlineOrdering = DXGI_MODE_SCANLINE_ORDER_UNSPECIFIED;
 				SwapChainResource.BufferDesc.Scaling = DXGI_MODE_SCALING_UNSPECIFIED;
-				SwapChainResource.SwapEffect = DXGI_SWAP_EFFECT_FLIP_SEQUENTIAL;
+				SwapChainResource.SwapEffect = DXGI_SWAP_EFFECT_DISCARD;
 #if defined(TH_MICROSOFT) && defined(TH_HAS_SDL2)
 				if (I.Window != nullptr)
 				{
@@ -496,16 +495,14 @@ namespace Tomahawk
 			D3D11Device::~D3D11Device()
 			{
 				FreeProxy();
+				ReleaseCom(DirectRenderer.VertexShader);
+				ReleaseCom(DirectRenderer.VertexLayout);
+				ReleaseCom(DirectRenderer.ConstantBuffer);
+				ReleaseCom(DirectRenderer.PixelShader);
+				ReleaseCom(DirectRenderer.VertexBuffer);
 				ReleaseCom(ConstantBuffer[0]);
 				ReleaseCom(ConstantBuffer[1]);
 				ReleaseCom(ConstantBuffer[2]);
-				ReleaseCom(VertexShaderBlob);
-				ReleaseCom(VertexShader);
-				ReleaseCom(VertexLayout);
-				ReleaseCom(VertexConstantBuffer);
-				ReleaseCom(PixelShaderBlob);
-				ReleaseCom(PixelShader);
-				ReleaseCom(DirectBuffer);
 				ReleaseCom(ImmediateContext);
 				ReleaseCom(SwapChain);
 
@@ -1821,7 +1818,7 @@ namespace Tomahawk
 			}
 			bool D3D11Device::Begin()
 			{
-				if (!DirectBuffer && !CreateDirectBuffer())
+				if (!DirectRenderer.VertexBuffer && !CreateDirectBuffer(0))
 					return false;
 
 				Primitives = PrimitiveTopology_Triangle_List;
@@ -1890,10 +1887,10 @@ namespace Tomahawk
 			}
 			bool D3D11Device::End()
 			{
-				if (!VertexConstantBuffer || !DirectBuffer || Elements.empty())
+				if (!DirectRenderer.VertexBuffer || Elements.empty())
 					return false;
 
-				if (Elements.size() > MaxElements && !CreateVertexBuffer(Elements.size()))
+				if (Elements.size() > MaxElements && !CreateDirectBuffer(Elements.size()))
 					return false;
 
 				D3D11_PRIMITIVE_TOPOLOGY LastTopology;
@@ -1902,34 +1899,34 @@ namespace Tomahawk
 
 				ID3D11InputLayout* LastLayout;
 				ImmediateContext->IAGetInputLayout(&LastLayout);
-				ImmediateContext->IASetInputLayout(VertexLayout);
+				ImmediateContext->IASetInputLayout(DirectRenderer.VertexLayout);
 
 				ID3D11VertexShader* LastVertexShader;
 				ImmediateContext->VSGetShader(&LastVertexShader, nullptr, nullptr);
-				ImmediateContext->VSSetShader(VertexShader, nullptr, 0);
+				ImmediateContext->VSSetShader(DirectRenderer.VertexShader, nullptr, 0);
 
 				ID3D11PixelShader* LastPixelShader;
 				ImmediateContext->PSGetShader(&LastPixelShader, nullptr, nullptr);
-				ImmediateContext->PSSetShader(PixelShader, nullptr, 0);
+				ImmediateContext->PSSetShader(DirectRenderer.PixelShader, nullptr, 0);
 
 				ID3D11Buffer* LastBuffer1, *LastBuffer2;
 				ImmediateContext->VSGetConstantBuffers(0, 1, &LastBuffer1);
-				ImmediateContext->VSSetConstantBuffers(0, 1, &VertexConstantBuffer);
+				ImmediateContext->VSSetConstantBuffers(0, 1, &DirectRenderer.ConstantBuffer);
 				ImmediateContext->PSGetConstantBuffers(0, 1, &LastBuffer2);
-				ImmediateContext->PSSetConstantBuffers(0, 1, &VertexConstantBuffer);
+				ImmediateContext->PSSetConstantBuffers(0, 1, &DirectRenderer.ConstantBuffer);
 
 				ID3D11ShaderResourceView* LastTexture, *NullTexture = nullptr;
 				ImmediateContext->PSGetShaderResources(0, 1, &LastTexture);
 				ImmediateContext->PSSetShaderResources(0, 1, ViewResource ? &ViewResource->As<D3D11Texture2D>()->Resource : &NullTexture);
 
 				D3D11_MAPPED_SUBRESOURCE MappedResource;
-				ImmediateContext->Map(DirectBuffer, 0, D3D11_MAP_WRITE_DISCARD, 0, &MappedResource);
+				ImmediateContext->Map(DirectRenderer.VertexBuffer, 0, D3D11_MAP_WRITE_DISCARD, 0, &MappedResource);
 				memcpy(MappedResource.pData, Elements.data(), (size_t)Elements.size() * sizeof(Vertex));
-				ImmediateContext->Unmap(DirectBuffer, 0);
+				ImmediateContext->Unmap(DirectRenderer.VertexBuffer, 0);
 
 				unsigned int Stride = sizeof(Vertex), Offset = 0;
-				ImmediateContext->IASetVertexBuffers(0, 1, &DirectBuffer, &Stride, &Offset);
-				ImmediateContext->UpdateSubresource(VertexConstantBuffer, 0, nullptr, &Direct, 0, 0);
+				ImmediateContext->IASetVertexBuffers(0, 1, &DirectRenderer.VertexBuffer, &Stride, &Offset);
+				ImmediateContext->UpdateSubresource(DirectRenderer.ConstantBuffer, 0, nullptr, &Direct, 0, 0);
 				ImmediateContext->Draw((unsigned int)Elements.size(), 0);
 				ImmediateContext->IASetPrimitiveTopology(LastTopology);
 				ImmediateContext->IASetInputLayout(LastLayout);
@@ -3151,124 +3148,147 @@ namespace Tomahawk
 			{
 				return BasicEffect != nullptr;
 			}
-			bool D3D11Device::CreateDirectBuffer()
+			bool D3D11Device::CreateDirectBuffer(uint64_t Size)
 			{
+				MaxElements = Size + 1;
+				ReleaseCom(DirectRenderer.VertexBuffer);
+
 				D3D11_BUFFER_DESC Buffer;
 				ZeroMemory(&Buffer, sizeof(Buffer));
 				Buffer.Usage = D3D11_USAGE_DYNAMIC;
-				Buffer.ByteWidth = sizeof(Vertex);
+				Buffer.ByteWidth = (unsigned int)MaxElements * sizeof(Vertex);
 				Buffer.BindFlags = D3D11_BIND_VERTEX_BUFFER;
 				Buffer.CPUAccessFlags = D3D11_CPU_ACCESS_WRITE;
 
-				if (D3DDevice->CreateBuffer(&Buffer, nullptr, &DirectBuffer) != S_OK)
+				if (D3DDevice->CreateBuffer(&Buffer, nullptr, &DirectRenderer.VertexBuffer) != S_OK)
 				{
 					TH_ERROR("couldn't create vertex buffer");
 					return false;
 				}
 
-				static const char* VertexShaderCode =
-					"cbuffer VertexBuffer : register(b0)"
-					"{"
-					"   matrix WorldViewProjection;"
-					"   float4 Padding;"
-					"}; "
-					"struct VS_INPUT"
-					"{"
-					"   float4 Position : POSITION0;"
-					"   float2 TexCoord : TEXCOORD0;"
-					"   float4 Color : COLOR0;"
-					"};"
-					"struct PS_INPUT"
-					"{"
-					"   float4 Position : SV_POSITION;"
-					"   float2 TexCoord : TEXCOORD0;"
-					"   float4 Color : COLOR0;"
-					"};"
-					"PS_INPUT VS (VS_INPUT Input)"
-					"{"
-					"   PS_INPUT Output;"
-					"   Output.Position = mul(WorldViewProjection, float4(Input.Position.xyz, 1));"
-					"   Output.Color = Input.Color;"
-					"   Output.TexCoord = Input.TexCoord;"
-					"   return Output;"
-					"}";
-
-				static const char* PixelShaderCode =
-					"cbuffer VertexBuffer : register(b0)"
-					"{"
-					"   matrix WorldViewProjection;"
-					"   float4 Padding;"
-					"};"
-					"struct PS_INPUT"
-					"{"
-					"   float4 Position : SV_POSITION;"
-					"   float2 TexCoord : TEXCOORD0;"
-					"   float4 Color : COLOR0;"
-					"};"
-					"sampler State;"
-					"Texture2D Diffuse;"
-					"float4 PS (PS_INPUT Input) : SV_TARGET0"
-					"{"
-					"   if (Padding.z > 0)"
-					"       return Input.Color * Diffuse.Sample(State, Input.TexCoord + Padding.xy) * Padding.w;"
-					"   return Input.Color * Padding.w;"
-					"}";
-
-				D3DCompile(VertexShaderCode, strlen(VertexShaderCode), nullptr, nullptr, nullptr, "VS", GetVSProfile(), 0, 0, &VertexShaderBlob, nullptr);
-				if (VertexShaderBlob == nullptr)
+				if (!DirectRenderer.VertexShader)
 				{
-					TH_ERROR("couldn't compile vertex shader");
-					return false;
+					static const char* VertexShaderCode = HLSL_INLINE(
+						cbuffer VertexBuffer : register(b0)
+						{
+							matrix WorldViewProjection;
+							float4 Padding;
+						};
+
+						struct VS_INPUT
+						{
+							float4 Position : POSITION0;
+							float2 TexCoord : TEXCOORD0;
+							float4 Color : COLOR0;
+						};
+
+						struct PS_INPUT
+						{
+							float4 Position : SV_POSITION;
+							float2 TexCoord : TEXCOORD0;
+							float4 Color : COLOR0;
+						};
+
+						PS_INPUT VS(VS_INPUT Input)
+						{
+							PS_INPUT Output;
+							Output.Position = mul(WorldViewProjection, float4(Input.Position.xyz, 1));
+							Output.Color = Input.Color;
+							Output.TexCoord = Input.TexCoord;
+
+							return Output;
+						};
+					);
+
+					ID3DBlob* Blob = nullptr, *Error = nullptr;
+					D3DCompile(VertexShaderCode, strlen(VertexShaderCode), nullptr, nullptr, nullptr, "VS", GetVSProfile(), 0, 0, &Blob, nullptr);
+					if (GetCompileState(Error))
+					{
+						std::string Message = GetCompileState(Error);
+						ReleaseCom(Error);
+
+						TH_ERROR("couldn't compile vertex shader\n\t%s", Message.c_str());
+						return false;
+					}
+
+					if (D3DDevice->CreateVertexShader((DWORD*)Blob->GetBufferPointer(), Blob->GetBufferSize(), nullptr, &DirectRenderer.VertexShader) != S_OK)
+					{
+						ReleaseCom(Blob);
+						TH_ERROR("couldn't create vertex shader");
+						return false;
+					}
+
+					D3D11_INPUT_ELEMENT_DESC Layout[] = { { "POSITION", 0, DXGI_FORMAT_R32G32B32_FLOAT, 0, 0, D3D11_INPUT_PER_VERTEX_DATA, 0 }, { "TEXCOORD", 0, DXGI_FORMAT_R32G32_FLOAT, 0, 3 * sizeof(float), D3D11_INPUT_PER_VERTEX_DATA, 0 }, { "COLOR", 0, DXGI_FORMAT_R32G32B32A32_FLOAT, 0, 5 * sizeof(float), D3D11_INPUT_PER_VERTEX_DATA, 0 }, };
+					if (D3DDevice->CreateInputLayout(Layout, 3, Blob->GetBufferPointer(), Blob->GetBufferSize(), &DirectRenderer.VertexLayout) != S_OK)
+					{
+						ReleaseCom(Blob);
+						TH_ERROR("couldn't create input layout");
+						return false;
+					}
+
+					ReleaseCom(Blob);
 				}
 
-				if (D3DDevice->CreateVertexShader((DWORD*)VertexShaderBlob->GetBufferPointer(), VertexShaderBlob->GetBufferSize(), nullptr, &VertexShader) != S_OK)
+				if (!DirectRenderer.PixelShader)
 				{
-					TH_ERROR("couldn't create vertex shader");
-					return false;
+					static const char* PixelShaderCode = HLSL_INLINE(
+						cbuffer VertexBuffer : register(b0)
+						{
+							matrix WorldViewProjection;
+							float4 Padding;
+						};
+
+						struct PS_INPUT
+						{
+							float4 Position : SV_POSITION;
+							float2 TexCoord : TEXCOORD0;
+							float4 Color : COLOR0;
+						};
+
+						Texture2D Diffuse : register(t0);
+						SamplerState State : register(s0);
+
+						float4 PS(PS_INPUT Input) : SV_TARGET0
+						{
+						   if (Padding.z > 0)
+							   return Input.Color * Diffuse.Sample(State, Input.TexCoord + Padding.xy) * Padding.w;
+
+						   return Input.Color * Padding.w;
+						};
+					);
+
+					ID3DBlob* Blob = nullptr, *Error = nullptr;
+					D3DCompile(PixelShaderCode, strlen(PixelShaderCode), nullptr, nullptr, nullptr, "PS", GetPSProfile(), 0, 0, &Blob, &Error);
+					if (GetCompileState(Error))
+					{
+						std::string Message = GetCompileState(Error);
+						ReleaseCom(Error);
+
+						TH_ERROR("couldn't compile pixel shader\n\t%s", Message.c_str());
+						return false;
+					}
+
+					if (D3DDevice->CreatePixelShader((DWORD*)Blob->GetBufferPointer(), Blob->GetBufferSize(), nullptr, &DirectRenderer.PixelShader) != S_OK)
+					{
+						ReleaseCom(Blob);
+						TH_ERROR("couldn't create pixel shader");
+						return false;
+					}
+
+					ReleaseCom(Blob);
 				}
 
-				D3D11_INPUT_ELEMENT_DESC Layout[] = { { "POSITION", 0, DXGI_FORMAT_R32G32B32_FLOAT, 0, 0, D3D11_INPUT_PER_VERTEX_DATA, 0 }, { "TEXCOORD", 0, DXGI_FORMAT_R32G32_FLOAT, 0, 3 * sizeof(float), D3D11_INPUT_PER_VERTEX_DATA, 0 }, { "COLOR", 0, DXGI_FORMAT_R32G32B32A32_FLOAT, 0, 5 * sizeof(float), D3D11_INPUT_PER_VERTEX_DATA, 0 }, };
-				if (D3DDevice->CreateInputLayout(Layout, 3, VertexShaderBlob->GetBufferPointer(), VertexShaderBlob->GetBufferSize(), &VertexLayout) != S_OK)
+				if (!DirectRenderer.ConstantBuffer)
 				{
-					TH_ERROR("couldn't create input layout");
-					return false;
-				}
-
-				CreateConstantBuffer(&VertexConstantBuffer, sizeof(Direct));
-				if (!VertexConstantBuffer)
-				{
-					TH_ERROR("couldn't create vertex constant buffer");
-					return false;
-				}
-
-				D3DCompile(PixelShaderCode, strlen(PixelShaderCode), nullptr, nullptr, nullptr, "PS", GetPSProfile(), 0, 0, &PixelShaderBlob, nullptr);
-				if (PixelShaderBlob == nullptr)
-				{
-					TH_ERROR("couldn't compile pixel shader");
-					return false;
-				}
-
-				if (D3DDevice->CreatePixelShader((DWORD*)PixelShaderBlob->GetBufferPointer(), PixelShaderBlob->GetBufferSize(), nullptr, &PixelShader) != S_OK)
-				{
-					TH_ERROR("couldn't create pixel shader");
-					return false;
+					CreateConstantBuffer(&DirectRenderer.ConstantBuffer, sizeof(Direct));
+					if (!DirectRenderer.ConstantBuffer)
+					{
+						TH_ERROR("couldn't create vertex constant buffer");
+						return false;
+					}
 				}
 
 				return true;
-			}
-			bool D3D11Device::CreateVertexBuffer(uint64_t Size)
-			{
-				ReleaseCom(DirectBuffer);
-				MaxElements = Size;
-
-				D3D11_BUFFER_DESC Buffer;
-				ZeroMemory(&Buffer, sizeof(Buffer));
-				Buffer.Usage = D3D11_USAGE_DYNAMIC;
-				Buffer.ByteWidth = (unsigned int)Size * sizeof(Vertex);
-				Buffer.BindFlags = D3D11_BIND_VERTEX_BUFFER;
-				Buffer.CPUAccessFlags = D3D11_CPU_ACCESS_WRITE;
-
-				return D3DDevice->CreateBuffer(&Buffer, nullptr, &DirectBuffer) == S_OK;
 			}
 			ID3D11InputLayout* D3D11Device::GenerateInputLayout(D3D11Shader* Shader)
 			{

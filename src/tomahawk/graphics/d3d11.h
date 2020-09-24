@@ -317,16 +317,19 @@ namespace Tomahawk
 			class D3D11Device : public GraphicsDevice
 			{
 			private:
+				struct
+				{
+					ID3D11VertexShader* VertexShader;
+					ID3D11PixelShader* PixelShader;
+					ID3D11InputLayout* VertexLayout;
+					ID3D11Buffer* ConstantBuffer;
+					ID3D11Buffer* VertexBuffer;
+				} DirectRenderer;
+
+			private:
 				const char* VSP, *PSP, *GSP, *HSP, *DSP, *CSP;
-				ID3DBlob* VertexShaderBlob;
-				ID3D11VertexShader* VertexShader;
-				ID3D11InputLayout* VertexLayout;
-				ID3D11Buffer* VertexConstantBuffer;
-				ID3DBlob* PixelShaderBlob;
-				ID3D11PixelShader* PixelShader;
-				ID3D11Buffer* DirectBuffer;
-				ID3D11Buffer* Buffer;
 				D3D11InputLayout* Layout;
+				ID3D11Buffer* Buffer;
 
 			public:
 				ID3D11DeviceContext* ImmediateContext;
@@ -488,8 +491,7 @@ namespace Tomahawk
 				void* GetDevice() override;
 				void* GetContext() override;
 				bool IsValid() override;
-				bool CreateDirectBuffer();
-				bool CreateVertexBuffer(uint64_t Size);
+				bool CreateDirectBuffer(uint64_t Size);
 				ID3D11InputLayout* GenerateInputLayout(D3D11Shader* Shader);
 				int CreateConstantBuffer(ID3D11Buffer** Buffer, size_t Size);
 				char* GetCompileState(ID3DBlob* Error);

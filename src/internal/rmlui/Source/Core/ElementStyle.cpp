@@ -254,7 +254,6 @@ void ElementStyle::SetClass(const String& class_name, bool activate)
 	{
 		if (class_location == classes.end())
 		{
-			class_set.insert(class_name);
 			classes.push_back(class_name);
 			DirtyDefinition();
 		}
@@ -263,7 +262,6 @@ void ElementStyle::SetClass(const String& class_name, bool activate)
 	{
 		if (class_location != classes.end())
 		{
-			class_set.erase(class_name);
 			classes.erase(class_location);
 			DirtyDefinition();
 		}
@@ -273,8 +271,7 @@ void ElementStyle::SetClass(const String& class_name, bool activate)
 // Checks if a class is set on the element.
 bool ElementStyle::IsClassSet(const String& class_name) const
 {
-	return class_set.find(class_name) != class_set.end();
-	//return std::find(classes.begin(), classes.end(), class_name) != classes.end();
+	return std::find(classes.begin(), classes.end(), class_name) != classes.end();
 }
 
 // Specifies the entire list of classes for this element. This will replace any others specified.
@@ -283,10 +280,6 @@ void ElementStyle::SetClassNames(const String& class_names)
 	classes.clear();
 	StringUtilities::ExpandString(classes, class_names, ' ');
 	DirtyDefinition();
-
-	class_set.clear();
-	for (auto& item : classes)
-		class_set.insert(item);
 }
 
 // Returns the list of classes specified for this element.

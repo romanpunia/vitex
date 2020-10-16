@@ -153,8 +153,6 @@ private:
 
 	// The list of classes applicable to this object.
 	StringList classes;
-	UnorderedSet<String> class_set;
-
 	// This element's current pseudo-classes.
 	PseudoClassList pseudo_classes;
 

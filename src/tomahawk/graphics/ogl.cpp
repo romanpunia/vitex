@@ -650,11 +650,11 @@ namespace Tomahawk
 				if (Type & ShaderType_Compute && IResource->ComputeShader != GL_INVALID_VALUE)
 					glAttachShader(Program, IResource->ComputeShader);
 
-				GLint Status = 0;
+				GLint StatusCode = 0;
 				glLinkProgramARB(Program);
-				glGetProgramiv(Program, GL_LINK_STATUS, &Status);
+				glGetProgramiv(Program, GL_LINK_STATUS, &StatusCode);
 
-				if (Status == GL_TRUE)
+				if (StatusCode == GL_TRUE)
 				{
 					GLuint AnimationId = glGetUniformBlockIndex(Program, "Animation");
 					if (AnimationId != GL_INVALID_INDEX)
@@ -1800,7 +1800,7 @@ namespace Tomahawk
 				Rest::Stroke::Settle Start;
 				Rest::Stroke Code(&F.Data);
 				uint64_t Length = Code.Size();
-				GLint Status = 0;
+				GLint StatusCode = 0;
 
 				if ((Start = Code.Find("VS_Main")).Found)
 				{
@@ -1818,9 +1818,9 @@ namespace Tomahawk
 					Result->VertexShader = glCreateShader(GL_VERTEX_SHADER);
 					glShaderSourceARB(Result->VertexShader, 1, (const char**)&Buffer, &Size);
 					glCompileShaderARB(Result->VertexShader);
-					glGetShaderiv(Result->VertexShader, GL_COMPILE_STATUS, &Status);
+					glGetShaderiv(Result->VertexShader, GL_COMPILE_STATUS, &StatusCode);
 
-					if (Status == GL_FALSE)
+					if (StatusCode == GL_FALSE)
 					{
 						glGetShaderiv(Result->VertexShader, GL_INFO_LOG_LENGTH, &Size);
 						Buffer = (char*)TH_MALLOC(sizeof(char) * (Size + 1));
@@ -1846,9 +1846,9 @@ namespace Tomahawk
 					Result->PixelShader = glCreateShader(GL_FRAGMENT_SHADER);
 					glShaderSourceARB(Result->PixelShader, 1, (const char**)&Buffer, &Size);
 					glCompileShaderARB(Result->PixelShader);
-					glGetShaderiv(Result->PixelShader, GL_COMPILE_STATUS, &Status);
+					glGetShaderiv(Result->PixelShader, GL_COMPILE_STATUS, &StatusCode);
 
-					if (Status == GL_FALSE)
+					if (StatusCode == GL_FALSE)
 					{
 						glGetShaderiv(Result->PixelShader, GL_INFO_LOG_LENGTH, &Size);
 						Buffer = (char*)TH_MALLOC(sizeof(char) * (Size + 1));
@@ -1874,9 +1874,9 @@ namespace Tomahawk
 					Result->GeometryShader = glCreateShader(GL_GEOMETRY_SHADER);
 					glShaderSourceARB(Result->GeometryShader, 1, (const char**)&Buffer, &Size);
 					glCompileShaderARB(Result->GeometryShader);
-					glGetShaderiv(Result->GeometryShader, GL_COMPILE_STATUS, &Status);
+					glGetShaderiv(Result->GeometryShader, GL_COMPILE_STATUS, &StatusCode);
 
-					if (Status == GL_FALSE)
+					if (StatusCode == GL_FALSE)
 					{
 						glGetShaderiv(Result->GeometryShader, GL_INFO_LOG_LENGTH, &Size);
 						Buffer = (char*)TH_MALLOC(sizeof(char) * (Size + 1));
@@ -1902,9 +1902,9 @@ namespace Tomahawk
 					Result->DomainShader = glCreateShader(GL_TESS_EVALUATION_SHADER);
 					glShaderSourceARB(Result->DomainShader, 1, (const char**)&Buffer, &Size);
 					glCompileShaderARB(Result->DomainShader);
-					glGetShaderiv(Result->DomainShader, GL_COMPILE_STATUS, &Status);
+					glGetShaderiv(Result->DomainShader, GL_COMPILE_STATUS, &StatusCode);
 
-					if (Status == GL_FALSE)
+					if (StatusCode == GL_FALSE)
 					{
 						glGetShaderiv(Result->DomainShader, GL_INFO_LOG_LENGTH, &Size);
 						Buffer = (char*)TH_MALLOC(sizeof(char) * (Size + 1));
@@ -1930,9 +1930,9 @@ namespace Tomahawk
 					Result->HullShader = glCreateShader(GL_TESS_CONTROL_SHADER);
 					glShaderSourceARB(Result->HullShader, 1, (const char**)&Buffer, &Size);
 					glCompileShaderARB(Result->HullShader);
-					glGetShaderiv(Result->HullShader, GL_COMPILE_STATUS, &Status);
+					glGetShaderiv(Result->HullShader, GL_COMPILE_STATUS, &StatusCode);
 
-					if (Status == GL_FALSE)
+					if (StatusCode == GL_FALSE)
 					{
 						glGetShaderiv(Result->HullShader, GL_INFO_LOG_LENGTH, &Size);
 						Buffer = (char*)TH_MALLOC(sizeof(char) * (Size + 1));
@@ -1958,9 +1958,9 @@ namespace Tomahawk
 					Result->ComputeShader = glCreateShader(GL_COMPUTE_SHADER);
 					glShaderSourceARB(Result->ComputeShader, 1, (const char**)&Buffer, &Size);
 					glCompileShaderARB(Result->ComputeShader);
-					glGetShaderiv(Result->ComputeShader, GL_COMPILE_STATUS, &Status);
+					glGetShaderiv(Result->ComputeShader, GL_COMPILE_STATUS, &StatusCode);
 
-					if (Status == GL_FALSE)
+					if (StatusCode == GL_FALSE)
 					{
 						glGetShaderiv(Result->ComputeShader, GL_INFO_LOG_LENGTH, &Size);
 						Buffer = (char*)TH_MALLOC(sizeof(char) * (Size + 1));
@@ -2602,7 +2602,7 @@ namespace Tomahawk
 				if (DirectRenderer.VertexBuffer != GL_INVALID_VALUE)
 					glDeleteVertexArrays(1, &DirectRenderer.VertexBuffer);
 
-				GLint Status;
+				GLint StatusCode;
 				glGenVertexArrays(1, &DirectRenderer.VertexBuffer);
 				glBindVertexArray(DirectRenderer.VertexBuffer);
 				glBindBuffer(GL_ARRAY_BUFFER, DirectRenderer.VertexBuffer);
@@ -2642,9 +2642,9 @@ namespace Tomahawk
 					DirectRenderer.VertexShader = glCreateShader(GL_VERTEX_SHADER);
 					glShaderSourceARB(DirectRenderer.VertexShader, 1, &Subbuffer, &BufferSize);
 					glCompileShaderARB(DirectRenderer.VertexShader);
-					glGetShaderiv(DirectRenderer.VertexShader, GL_COMPILE_STATUS, &Status);
+					glGetShaderiv(DirectRenderer.VertexShader, GL_COMPILE_STATUS, &StatusCode);
 					
-					if (Status == GL_FALSE)
+					if (StatusCode == GL_FALSE)
 					{
 						glGetShaderiv(DirectRenderer.VertexShader, GL_INFO_LOG_LENGTH, &BufferSize);
 						char* Buffer = (char*)TH_MALLOC(sizeof(char) * (BufferSize + 1));
@@ -2684,9 +2684,9 @@ namespace Tomahawk
 					DirectRenderer.PixelShader = glCreateShader(GL_FRAGMENT_SHADER);
 					glShaderSourceARB(DirectRenderer.PixelShader, 1, &Subbuffer, &BufferSize);
 					glCompileShaderARB(DirectRenderer.PixelShader);
-					glGetShaderiv(DirectRenderer.PixelShader, GL_COMPILE_STATUS, &Status);
+					glGetShaderiv(DirectRenderer.PixelShader, GL_COMPILE_STATUS, &StatusCode);
 
-					if (Status == GL_FALSE)
+					if (StatusCode == GL_FALSE)
 					{
 						glGetShaderiv(DirectRenderer.PixelShader, GL_INFO_LOG_LENGTH, &BufferSize);
 						char* Buffer = (char*)TH_MALLOC(sizeof(char) * (BufferSize + 1));
@@ -2704,9 +2704,9 @@ namespace Tomahawk
 					glAttachShader(DirectRenderer.Program, DirectRenderer.VertexShader);
 					glAttachShader(DirectRenderer.Program, DirectRenderer.PixelShader);
 					glLinkProgramARB(DirectRenderer.Program);
-					glGetProgramiv(DirectRenderer.Program, GL_LINK_STATUS, &Status);
+					glGetProgramiv(DirectRenderer.Program, GL_LINK_STATUS, &StatusCode);
 
-					if (Status == GL_FALSE)
+					if (StatusCode == GL_FALSE)
 					{
 						GLint Size = 0;
 						glGetProgramiv(DirectRenderer.Program, GL_INFO_LOG_LENGTH, &Size);

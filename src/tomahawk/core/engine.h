@@ -104,7 +104,7 @@ namespace Tomahawk
 
 		struct TH_OUT AssetResource
 		{
-			Processor* Processor = nullptr;
+			Processor* Source = nullptr;
 			void* Resource = nullptr;
 			std::string Path;
 		};

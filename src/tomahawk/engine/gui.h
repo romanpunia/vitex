@@ -358,9 +358,9 @@ namespace Tomahawk
 			private:
 				static std::unordered_map<std::string, DataSource*>* Sources;
 				static Script::VMManager* ScriptInterface;
-				static ContextInstancer* Context;
-				static DocumentInstancer* Document;
-				static ListenerInstancer* Listener;
+				static ContextInstancer* ContextFactory;
+				static DocumentInstancer* DocumentFactory;
+				static ListenerInstancer* ListenerFactory;
 				static RenderSubsystem* RenderInterface;
 				static FileSubsystem* FileInterface;
 				static MainSubsystem* SystemInterface;

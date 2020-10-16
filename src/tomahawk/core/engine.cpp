@@ -3108,14 +3108,14 @@ namespace Tomahawk
 		Rest::Pool<Drawable*>* GeometryDraw::GetOpaque()
 		{
 			if (!System || !System->GetScene())
-				return false;
+				return nullptr;
 
 			return System->GetScene()->GetOpaque(Source);
 		}
 		Rest::Pool<Drawable*>* GeometryDraw::GetTransparent()
 		{
 			if (!System || !System->GetScene())
-				return false;
+				return nullptr;
 
 			return System->GetScene()->GetTransparent(Source);
 		}
@@ -4499,7 +4499,7 @@ namespace Tomahawk
 				if (!It->second)
 					continue;
 
-				Processor* Root = It->second->Processor;
+				Processor* Root = It->second->Source;
 				Mutex.unlock();
 				if (Root != nullptr)
 					Root->Free(It->second);
@@ -4560,7 +4560,7 @@ namespace Tomahawk
 			Mutex.unlock();
 
 			AssetResource* Asset = FindAsset(Path);
-			if (Asset != nullptr && Asset->Processor == Processor)
+			if (Asset != nullptr && Asset->Source == Processor)
 				return Processor->Duplicate(Asset, Map);
 
 			auto Stream = new Rest::FileStream();
@@ -4580,7 +4580,7 @@ namespace Tomahawk
 				return nullptr;
 
 			AssetResource* Asset = FindAsset(Path);
-			if (Asset != nullptr && Asset->Processor == Processor)
+			if (Asset != nullptr && Asset->Source == Processor)
 				return Processor->Duplicate(Asset, Map);
 
 			auto It = Streams.find(Docker->second->Stream);
@@ -4806,7 +4806,7 @@ namespace Tomahawk
 			}
 
 			AssetResource* Asset = new AssetResource();
-			Asset->Processor = Root;
+			Asset->Source = Root;
 			Asset->Path = Rest::Stroke(Path).Replace(Environment, "./").Replace('\\', '/').R();
 			Asset->Resource = Resource;
 			Assets[Asset->Path] = Asset;

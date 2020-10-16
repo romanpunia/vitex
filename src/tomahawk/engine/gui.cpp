@@ -688,8 +688,11 @@ namespace Tomahawk
 				}
 				virtual void ProcessEvent(Rml::Event& Event) override
 				{
-					if (Handler)
-						Handler(IEvent(&Event));
+					if (!Handler)
+						return;
+
+					IEvent Basis(&Event);
+					Handler(Basis);
 				}
 			};
 
@@ -2259,14 +2262,14 @@ namespace Tomahawk
 				
 				bool Result = Rml::Initialise();
 
-				Context = new ContextInstancer();
-				Rml::Factory::RegisterContextInstancer(Context);
+				ContextFactory = new ContextInstancer();
+				Rml::Factory::RegisterContextInstancer(ContextFactory);
 
-				Listener = new ListenerInstancer();
-				Rml::Factory::RegisterEventListenerInstancer(Listener);
+				ListenerFactory = new ListenerInstancer();
+				Rml::Factory::RegisterEventListenerInstancer(ListenerFactory);
 
-				Document = new DocumentInstancer();
-				Rml::Factory::RegisterElementInstancer("body", Document);
+				DocumentFactory = new DocumentInstancer();
+				Rml::Factory::RegisterElementInstancer("body", DocumentFactory);
 
 				return Result;
 			}
@@ -2295,14 +2298,14 @@ namespace Tomahawk
 				RenderInterface = nullptr;
 				Rml::SetRenderInterface(nullptr);
 
-				delete Document;
-				Document = nullptr;
+				delete DocumentFactory;
+				DocumentFactory = nullptr;
 
-				delete Listener;
-				Listener = nullptr;
+				delete ListenerFactory;
+				ListenerFactory = nullptr;
 				
-				delete Context;
-				Context = nullptr;
+				delete ContextFactory;
+				ContextFactory = nullptr;
 
 				ScriptInterface = nullptr;
 				return true;
@@ -2407,9 +2410,9 @@ namespace Tomahawk
 			}
 			std::unordered_map<std::string, DataSource*>* Subsystem::Sources = nullptr;
 			Script::VMManager* Subsystem::ScriptInterface = nullptr;
-			ContextInstancer* Subsystem::Context = nullptr;
-			DocumentInstancer* Subsystem::Document = nullptr;
-			ListenerInstancer* Subsystem::Listener = nullptr;
+			ContextInstancer* Subsystem::ContextFactory = nullptr;
+			DocumentInstancer* Subsystem::DocumentFactory = nullptr;
+			ListenerInstancer* Subsystem::ListenerFactory = nullptr;
 			RenderSubsystem* Subsystem::RenderInterface = nullptr;
 			FileSubsystem* Subsystem::FileInterface = nullptr;
 			MainSubsystem* Subsystem::SystemInterface = nullptr;
@@ -2925,7 +2928,8 @@ namespace Tomahawk
 					for (auto& Item : Props)
 						ToProperty((Rml::Variant*)&Item, &Args[i++]);
 
-					Callback(IEvent(&Event), Args);
+					IEvent Basis(&Event);
+					Callback(Basis, Args);
 				});
 			}
 			bool DataModel::SetUnmountCallback(const ModelCallback& Callback)
@@ -3453,14 +3457,14 @@ namespace Tomahawk
 			}
 			DataModel* Context::SetDataModel(const std::string& Name)
 			{
-				Rml::DataModelConstructor* Result = &Base->CreateDataModel(Name);
-				if (!*Result)
+				Rml::DataModelConstructor Result = Base->CreateDataModel(Name);
+				if (!Result)
 					return nullptr;
 
-				DataModel* Handle = new DataModel(Result);
-				if (auto Type = Result->RegisterStruct<DataNode>())
+				DataModel* Handle = new DataModel(&Result);
+				if (auto Type = Result.RegisterStruct<DataNode>())
 				{
-					Result->RegisterArray<std::vector<DataNode>>();
+					Result.RegisterArray<std::vector<DataNode>>();
 					Type.RegisterMember("at", &DataNode::Childs);
 					Type.RegisterMemberFunc("size", &DataNode::GetValueSize);
 				}

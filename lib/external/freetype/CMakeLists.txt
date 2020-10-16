@@ -1,5 +1,4 @@
 #Resolve headers, refs and linkage
-set(TH_USE_FREETYPE ON CACHE BOOL "Enable FreeType library")
 if (TH_USE_FREETYPE)
 	find_path(FREETYPE_LOCATION ft2build.h)
 	if (FREETYPE_LOCATION)

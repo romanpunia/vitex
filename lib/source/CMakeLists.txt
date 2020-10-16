@@ -28,7 +28,7 @@ elseif (CMAKE_SIZEOF_VOID_P EQUAL 8)
 	enable_language(ASM_MASM)
 endif()
 
-#Script compiler ASM files
+#AngelScript's compiler ASM files
 if (MSVC)
 	if (CMAKE_SIZEOF_VOID_P EQUAL 8)
 		list(APPEND SOURCE "${PROJECT_SOURCE_DIR}/src/internal/angelscript/source/as_callfunc_x64_msvc_asm.asm")
@@ -39,6 +39,25 @@ else()
 	list(APPEND SOURCE "${PROJECT_SOURCE_DIR}/src/internal/angelscript/source/as_callfunc_arm_gcc.S")
 	list(APPEND SOURCE "${PROJECT_SOURCE_DIR}/src/internal/angelscript/source/as_callfunc_arm_vita.S")
 	list(APPEND SOURCE "${PROJECT_SOURCE_DIR}/src/internal/angelscript/source/as_callfunc_arm_xcode.S")
+endif()
+
+#Filtering out FreeType dependencies for RmlUi
+if (TH_USE_FREETYPE)
+	find_path(FREETYPE_LOCATION ft2build.h)
+	if (FREETYPE_LOCATION)
+		find_package(Freetype QUIET)
+		if (NOT Freetype_FOUND)
+			find_library(Freetype_FOUND "freetype")
+		endif()
+	endif()
+	unset(FREETYPE_LOCATION CACHE)
+	unset(Freetype_FOUND CACHE)
+	unset(FREETYPE_LIBRARIES CACHE)
+	unset(FREETYPE_DIR CACHE)
+	unset(FREETYPE_LOCATION CACHE)
+endif()
+if (NOT Freetype_FOUND AND NOT FREETYPE_LIBRARIES)
+	list(FILTER SOURCE EXCLUDE REGEX "rmlui[\\\/]Source[\\\/]Core[\\\/]FontEngineDefault")
 endif()
 
 #Compiling resources

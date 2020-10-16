@@ -22,6 +22,9 @@ if (NOT DEFINED CMAKE_LIBRARY_OUTPUT_DIRECTORY)
 	set(CMAKE_LIBRARY_OUTPUT_DIRECTORY_RELEASE ${CMAKE_SOURCE_DIR}/bin)
 endif()
 
+#Global option required to process RmlUi
+set(TH_USE_FREETYPE ON CACHE BOOL "Enable FreeType library")
+
 #Project's source resolver
 include(lib/source/CMakeLists.txt)
 

@@ -18,9 +18,11 @@ namespace Tomahawk
 
 			public:
 				Model(Entity* Ref);
-				virtual ~Model() = default;
+				virtual ~Model() override;
 				virtual void Deserialize(ContentManager* Content, Rest::Document* Node) override;
 				virtual void Serialize(ContentManager* Content, Rest::Document* Node) override;
+				virtual void Awake(Component* New) override;
+				virtual void Asleep() override;
 				virtual float Cull(const Viewer& View) override;
 				virtual Component* Copy(Entity* New) override;
 				virtual Compute::Matrix4x4 GetBoundingBox() override;
@@ -28,18 +30,7 @@ namespace Tomahawk
 				Graphics::Model* GetDrawable();
 
 			public:
-				TH_COMPONENT(Model);
-			};
-
-			class TH_OUT LimpidModel : public Model
-			{
-			public:
-				LimpidModel(Entity* Ref);
-				virtual ~LimpidModel() = default;
-				virtual Component* Copy(Entity* New) override;
-
-			public:
-				TH_COMPONENT(LimpidModel);
+				TH_COMPONENT("model");
 			};
 
 			class TH_OUT Skin : public Drawable
@@ -52,10 +43,12 @@ namespace Tomahawk
 
 			public:
 				Skin(Entity* Ref);
-				virtual ~Skin() = default;
+				virtual ~Skin() override;
 				virtual void Deserialize(ContentManager* Content, Rest::Document* Node) override;
 				virtual void Serialize(ContentManager* Content, Rest::Document* Node) override;
 				virtual void Synchronize(Rest::Timer* Time) override;
+				virtual void Awake(Component* New) override;
+				virtual void Asleep() override;
 				virtual float Cull(const Viewer& View) override;
 				virtual Component* Copy(Entity* New) override;
 				virtual Compute::Matrix4x4 GetBoundingBox() override;
@@ -63,18 +56,7 @@ namespace Tomahawk
 				Graphics::SkinModel* GetDrawable();
 
 			public:
-				TH_COMPONENT(Skin);
-			};
-
-			class TH_OUT LimpidSkin : public Skin
-			{
-			public:
-				LimpidSkin(Entity* Ref);
-				virtual ~LimpidSkin() = default;
-				virtual Component* Copy(Entity* New) override;
-
-			public:
-				TH_COMPONENT(LimpidSkin);
+				TH_COMPONENT("skin");
 			};
 
 			class TH_OUT Emitter : public Drawable
@@ -90,26 +72,16 @@ namespace Tomahawk
 			public:
 				Emitter(Entity* Ref);
 				virtual ~Emitter() override;
-				virtual void Awake(Component* New) override;
 				virtual void Deserialize(ContentManager* Content, Rest::Document* Node) override;
 				virtual void Serialize(ContentManager* Content, Rest::Document* Node) override;
+				virtual void Awake(Component* New) override;
+				virtual void Asleep() override;
 				virtual float Cull(const Viewer& View) override;
 				virtual Component* Copy(Entity* New) override;
 				Graphics::InstanceBuffer* GetBuffer();
 
 			public:
-				TH_COMPONENT(Emitter);
-			};
-
-			class TH_OUT LimpidEmitter : public Emitter
-			{
-			public:
-				LimpidEmitter(Entity* Ref);
-				virtual ~LimpidEmitter() = default;
-				virtual Component* Copy(Entity* New) override;
-
-			public:
-				TH_COMPONENT(LimpidEmitter);
+				TH_COMPONENT("emitter");
 			};
 
 			class TH_OUT SoftBody : public Drawable
@@ -130,14 +102,15 @@ namespace Tomahawk
 				virtual void Deserialize(ContentManager* Content, Rest::Document* Node) override;
 				virtual void Serialize(ContentManager* Content, Rest::Document* Node) override;
 				virtual void Synchronize(Rest::Timer* Time) override;
+				virtual void Awake(Component* New) override;
 				virtual void Asleep() override;
 				virtual float Cull(const Viewer& View) override;
 				virtual Component* Copy(Entity* New) override;
-				void InitializeShape(Compute::UnmanagedShape* Shape, float Anticipation);
-				void InitializeShape(ContentManager* Content, const std::string& Path, float Anticipation);
-				void InitializeEllipsoid(const Compute::SoftBody::Desc::CV::SEllipsoid& Shape, float Anticipation);
-				void InitializePatch(const Compute::SoftBody::Desc::CV::SPatch& Shape, float Anticipation);
-				void InitializeRope(const Compute::SoftBody::Desc::CV::SRope& Shape, float Anticipation);
+				void Create(Compute::UnmanagedShape* Shape, float Anticipation);
+				void Create(ContentManager* Content, const std::string& Path, float Anticipation);
+				void CreateEllipsoid(const Compute::SoftBody::Desc::CV::SEllipsoid& Shape, float Anticipation);
+				void CreatePatch(const Compute::SoftBody::Desc::CV::SPatch& Shape, float Anticipation);
+				void CreateRope(const Compute::SoftBody::Desc::CV::SRope& Shape, float Anticipation);
 				void Fill(Graphics::GraphicsDevice* Device, Graphics::ElementBuffer* IndexBuffer, Graphics::ElementBuffer* VertexBuffer);
 				void Clear();
 				void SetTransform(const Compute::Vector3& Position, const Compute::Vector3& Scale, const Compute::Vector3& Rotation);
@@ -147,18 +120,7 @@ namespace Tomahawk
 				std::vector<int>& GetIndices();
 
 			public:
-				TH_COMPONENT(SoftBody);
-			};
-
-			class TH_OUT LimpidSoftBody : public SoftBody
-			{
-			public:
-				LimpidSoftBody(Entity* Ref);
-				virtual ~LimpidSoftBody() = default;
-				virtual Component* Copy(Entity* New) override;
-
-			public:
-				TH_COMPONENT(LimpidSoftBody);
+				TH_COMPONENT("soft-body");
 			};
 
 			class TH_OUT Decal : public Drawable
@@ -175,22 +137,13 @@ namespace Tomahawk
 				virtual void Deserialize(ContentManager* Content, Rest::Document* Node) override;
 				virtual void Serialize(ContentManager* Content, Rest::Document* Node) override;
 				virtual void Synchronize(Rest::Timer* Time) override;
+				virtual void Awake(Component* New) override;
+				virtual void Asleep() override;
 				virtual float Cull(const Viewer& View) override;
 				virtual Component* Copy(Entity* New) override;
 
 			public:
-				TH_COMPONENT(Decal);
-			};
-
-			class TH_OUT LimpidDecal : public Decal
-			{
-			public:
-				LimpidDecal(Entity* Ref);
-				virtual ~LimpidDecal() = default;
-				virtual Component* Copy(Entity* New) override;
-
-			public:
-				TH_COMPONENT(LimpidDecal);
+				TH_COMPONENT("decal");
 			};
 
 			class TH_OUT SkinAnimator : public Component
@@ -230,7 +183,7 @@ namespace Tomahawk
 				bool IsPosed(int64_t Clip, int64_t Frame);
 
 			public:
-				TH_COMPONENT(SkinAnimator);
+				TH_COMPONENT("skin-animator");
 			};
 
 			class TH_OUT KeyAnimator : public Component
@@ -265,7 +218,7 @@ namespace Tomahawk
 				bool IsPosed(int64_t Clip, int64_t Frame);
 
 			public:
-				TH_COMPONENT(KeyAnimator);
+				TH_COMPONENT("key-animator");
 			};
 
 			class TH_OUT EmitterAnimator : public Component
@@ -298,7 +251,7 @@ namespace Tomahawk
 				void FastSynchronization(float DeltaTime);
 
 			public:
-				TH_COMPONENT(EmitterAnimator);
+				TH_COMPONENT("emitter-animator");
 			};
 
 			class TH_OUT RigidBody : public Component
@@ -319,8 +272,8 @@ namespace Tomahawk
 				virtual void Synchronize(Rest::Timer* Time) override;
 				virtual void Asleep() override;
 				virtual Component* Copy(Entity* New) override;
-				void Initialize(btCollisionShape* Shape, float Mass, float Anticipation);
-				void Initialize(ContentManager* Content, const std::string& Path, float Mass, float Anticipation);
+				void Create(btCollisionShape* Shape, float Mass, float Anticipation);
+				void Create(ContentManager* Content, const std::string& Path, float Mass, float Anticipation);
 				void Clear();
 				void SetTransform(const Compute::Vector3& Position, const Compute::Vector3& Scale, const Compute::Vector3& Rotation);
 				void SetTransform(bool Kinematic);
@@ -328,7 +281,7 @@ namespace Tomahawk
 				Compute::RigidBody* GetBody() const;
 
 			public:
-				TH_COMPONENT(RigidBody);
+				TH_COMPONENT("rigid-body");
 			};
 
 			class TH_OUT Acceleration : public Component
@@ -342,7 +295,7 @@ namespace Tomahawk
 				Compute::Vector3 ConstantVelocity;
 				Compute::Vector3 ConstantTorque;
 				Compute::Vector3 ConstantCenter;
-				bool Velocity;
+				bool Kinematic;
 
 			public:
 				Acceleration(Entity* Ref);
@@ -355,11 +308,19 @@ namespace Tomahawk
 				Compute::RigidBody* GetBody() const;
 
 			public:
-				TH_COMPONENT(Acceleration);
+				TH_COMPONENT("acceleration");
 			};
 
 			class TH_OUT SliderConstraint : public Component
 			{
+			private:
+				struct
+				{
+					int64_t Connection;
+					bool Ghost;
+					bool Linear;
+				} Wanted;
+
 			private:
 				Compute::SliderConstraint* Instance;
 				Entity* Connection;
@@ -369,14 +330,15 @@ namespace Tomahawk
 				virtual ~SliderConstraint() override;
 				virtual void Deserialize(ContentManager* Content, Rest::Document* Node) override;
 				virtual void Serialize(ContentManager* Content, Rest::Document* Node) override;
+				virtual void Synchronize(Rest::Timer* Time) override;
 				virtual Component* Copy(Entity* New) override;
-				void Initialize(Entity* Other, bool IsGhosted, bool IsLinear);
+				void Create(Entity* Other, bool IsGhosted, bool IsLinear);
 				void Clear();
 				Compute::SliderConstraint* GetConstraint() const;
 				Entity* GetConnection() const;
 
 			public:
-				TH_COMPONENT(SliderConstraint);
+				TH_COMPONENT("slider-constraint");
 			};
 
 			class TH_OUT FreeLook : public Component
@@ -387,7 +349,7 @@ namespace Tomahawk
 
 			public:
 				Graphics::KeyMap Rotate;
-				float Sensitivity;
+				float Sensivity;
 
 			public:
 				FreeLook(Entity* Ref);
@@ -398,7 +360,7 @@ namespace Tomahawk
 				Graphics::Activity* GetActivity() const;
 
 			public:
-				TH_COMPONENT(FreeLook);
+				TH_COMPONENT("free-look");
 			};
 
 			class TH_OUT Fly : public Component
@@ -429,7 +391,7 @@ namespace Tomahawk
 				Graphics::Activity* GetActivity() const;
 
 			public:
-				TH_COMPONENT(Fly);
+				TH_COMPONENT("fly");
 			};
 
 			class TH_OUT AudioSource : public Component
@@ -451,7 +413,7 @@ namespace Tomahawk
 				Audio::AudioSync& GetSync();
 
 			public:
-				TH_COMPONENT(AudioSource);
+				TH_COMPONENT("audio-source");
 			};
 
 			class TH_OUT AudioListener : public Component
@@ -472,7 +434,7 @@ namespace Tomahawk
 				virtual Component* Copy(Entity* New) override;
 
 			public:
-				TH_COMPONENT(AudioListener);
+				TH_COMPONENT("audio-listener");
 			};
 
 			class TH_OUT PointLight : public Cullable
@@ -503,16 +465,16 @@ namespace Tomahawk
 				Graphics::Texture2D* GetShadowCache() const;
 
 			public:
-				TH_COMPONENT(PointLight);
+				TH_COMPONENT("point-light");
 			};
 
 			class TH_OUT SpotLight : public Cullable
 			{
 			private:
 				Graphics::Texture2D* ShadowCache;
+				Graphics::Texture2D* ProjectMap;
 
 			public:
-				Graphics::Texture2D* ProjectMap;
 				Compute::Matrix4x4 Projection;
 				Compute::Matrix4x4 View;
 				Compute::Vector3 Diffuse;
@@ -526,7 +488,7 @@ namespace Tomahawk
 
 			public:
 				SpotLight(Entity* Ref);
-				virtual ~SpotLight() = default;
+				virtual ~SpotLight() override;
 				virtual void Deserialize(ContentManager* Content, Rest::Document* Node) override;
 				virtual void Serialize(ContentManager* Content, Rest::Document* Node) override;
 				virtual void Synchronize(Rest::Timer* Time) override;
@@ -534,9 +496,11 @@ namespace Tomahawk
 				virtual Component* Copy(Entity* New) override;
 				void SetShadowCache(Graphics::Texture2D* NewCache);
 				Graphics::Texture2D* GetShadowCache() const;
+				void SetProjectMap(Graphics::Texture2D* NewCache);
+				Graphics::Texture2D* GetProjectMap() const;
 
 			public:
-				TH_COMPONENT(SpotLight);
+				TH_COMPONENT("spot-light");
 			};
 
 			class TH_OUT LineLight : public Component
@@ -577,7 +541,7 @@ namespace Tomahawk
 				Graphics::Texture2D* GetShadowCache() const;
 
 			public:
-				TH_COMPONENT(LineLight);
+				TH_COMPONENT("line-light");
 			};
 
 			class TH_OUT ReflectionProbe : public Cullable
@@ -623,7 +587,7 @@ namespace Tomahawk
 				Graphics::Texture2D* GetDiffuseMap();
 
 			public:
-				TH_COMPONENT(ReflectionProbe);
+				TH_COMPONENT("reflection-probe");
 			};
 
 			class TH_OUT Camera : public Component
@@ -669,7 +633,7 @@ namespace Tomahawk
 				bool RayTest(Compute::Ray& Ray, const Compute::Matrix4x4& World);
 
 			public:
-				TH_COMPONENT(Camera);
+				TH_COMPONENT("camera");
 			};
 
 			class TH_OUT Scriptable : public Component
@@ -696,7 +660,7 @@ namespace Tomahawk
 					Script::VMCFunction* Asleep = nullptr;
 					Script::VMCFunction* Synchronize = nullptr;
 					Script::VMCFunction* Update = nullptr;
-					Script::VMCFunction* Pipe = nullptr;
+					Script::VMCFunction* Message = nullptr;
 				} Entry;
 
 			protected:
@@ -716,7 +680,7 @@ namespace Tomahawk
 				virtual void Synchronize(Rest::Timer* Time) override;
 				virtual void Asleep() override;
 				virtual void Update(Rest::Timer* Time) override;
-				virtual void Pipe(Event* Value) override;
+				virtual void Message(Event* Value) override;
 				virtual Component* Copy(Entity* New) override;
 				int Call(const std::string& Name, unsigned int Args, const InvocationCallback& ArgCallback);
 				int Call(Tomahawk::Script::VMCFunction* Entry, const InvocationCallback& ArgCallback);
@@ -884,7 +848,7 @@ namespace Tomahawk
 				}
 
 			public:
-				TH_COMPONENT(Scriptable);
+				TH_COMPONENT("scriptable");
 			};
 		}
 	}

@@ -1,4 +1,4 @@
-Texture2D DiffuseMap : register(t0);
+Texture2D DiffuseMap : register(t1);
 SamplerState Sampler : register(s0);
 
 float4 GetDiffuse(in float2 TexCoord)

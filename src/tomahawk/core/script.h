@@ -1096,10 +1096,10 @@ namespace Tomahawk
 
 				return Result;
 			}
-			template <typename T, typename R, typename... Args>
-			int SetMethodEx(const char* Decl, R(* Value)(T*, Args...))
+			template <typename R, typename... Args>
+			int SetMethodEx(const char* Decl, R(* Value)(Args...))
 			{
-				asSFuncPtr* Ptr = VMBridge::Function<R(*)(T*, Args...)>(Value);
+				asSFuncPtr* Ptr = VMBridge::Function<R(*)(Args...)>(Value);
 				int Result = SetMethodAddress(Decl, Ptr, VMCall_CDECL_OBJFIRST);
 				VMFuncStore::ReleaseFunctor(&Ptr);
 
@@ -1630,6 +1630,7 @@ namespace Tomahawk
 			int ExecuteFile(const char* Name, const char* ModuleName, const char* EntryName, void* Return = nullptr, int ReturnTypeId = VMTypeId_VOID);
 			int ExecuteMemory(const std::string& Buffer, const char* ModuleName, const char* EntryName, void* Return = nullptr, int ReturnTypeId = VMTypeId_VOID);
 			int ExecuteEntry(const char* Name, void* Return = nullptr, int ReturnTypeId = VMTypeId_VOID);
+			int ExecuteEntry(const char* Name, void* Return, int ReturnTypeId, const std::function<void(VMContext*)>& ArgsCallback);
 			int ExecuteScoped(const std::string& Code, void* Return = nullptr, int ReturnTypeId = VMTypeId_VOID);
 			int ExecuteScoped(const char* Buffer, uint64_t Length, void* Return = nullptr, int ReturnTypeId = VMTypeId_VOID);
 			VMModule GetModule() const;

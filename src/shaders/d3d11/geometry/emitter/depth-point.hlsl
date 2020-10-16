@@ -52,7 +52,7 @@ VertexResult90 VS(VertexBase V)
 float4 PS(VertexResult90 V) : SV_TARGET0
 {
     Material Mat = GetMaterial(MaterialId);
-	float Alpha = V.Alpha * (1.0 - Mat.Limpidity);
+	float Alpha = V.Alpha * (1.0 - Mat.Transparency);
 
 	[branch] if (HasDiffuse > 0)
 		Alpha *= GetDiffuse(V.TexCoord).w;

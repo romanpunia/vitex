@@ -164,8 +164,7 @@ namespace Tomahawk
 						if (!Compiler->Clear())
 							return false;
 
-						delete Compiler;
-						Compiler = nullptr;
+						TH_CLEAR(Compiler);
 						Save = true;
 					}
 					else
@@ -875,7 +874,7 @@ namespace Tomahawk
 							int64_t Result = Parser->ParseDecodeChunked((char*)Buffer, &Size);
 							if (Result == -1)
 							{
-								delete Parser;
+								TH_RELEASE(Parser);
 								Base->Request.ContentState = Content_Corrupted;
 
 								if (Callback)
@@ -895,7 +894,7 @@ namespace Tomahawk
 							return Result == -2;
 						}
 
-						delete Parser;
+						TH_RELEASE(Parser);
 						if (Size != -1)
 						{
 							if (!Base->Route || Base->Request.Buffer.size() < Base->Route->MaxCacheLength)
@@ -1063,8 +1062,9 @@ namespace Tomahawk
 							if (Segment->Callback)
 								Segment->Callback(Base, nullptr, Size);
 
-							delete Parser;
+							TH_RELEASE(Parser);
 							delete Segment;
+
 							return true;
 						}
 
@@ -1074,8 +1074,9 @@ namespace Tomahawk
 							if (Segment->Callback)
 								Segment->Callback(Base, nullptr, 0);
 
-							delete Parser;
+							TH_RELEASE(Parser);
 							delete Segment;
+
 							return false;
 						}
 
@@ -1561,7 +1562,7 @@ namespace Tomahawk
 			}
 			Query::~Query()
 			{
-				delete Object;
+				TH_RELEASE(Object);
 			}
 			void Query::Clear()
 			{
@@ -1675,7 +1676,7 @@ namespace Tomahawk
 				if (!JSON)
 					return;
 
-				delete Object;
+				TH_RELEASE(Object);
 				Object = BSON::Document::ToDocument(JSON)->As<QueryParameter>();
 				BSON::Document::Release(&JSON);
 			}
@@ -1769,7 +1770,7 @@ namespace Tomahawk
 			}
 			Session::~Session()
 			{
-				delete Query;
+				TH_RELEASE(Query);
 			}
 			void Session::Clear()
 			{
@@ -1846,7 +1847,7 @@ namespace Tomahawk
 
 				if (V != nullptr)
 				{
-					delete Query;
+					TH_RELEASE(Query);
 					Query = V;
 				}
 
@@ -4732,7 +4733,7 @@ namespace Tomahawk
 					Script::VMCompiler* Compiler = VM->CreateCompiler();
 					if (Compiler->PrepareScope(Rest::OS::GetFilename(Base->Request.Path), Base->Request.Path) < 0)
 					{
-						delete Compiler;
+						TH_RELEASE(Compiler);
 						return (void)Base->Error(500, "Gateway module cannot be prepared.");
 					}
 
@@ -4741,7 +4742,7 @@ namespace Tomahawk
 					{
 						if (!Base->Route->Callbacks.Gateway(Base, Compiler))
 						{
-							delete Compiler;
+							TH_RELEASE(Compiler);
 							return (void)Base->Error(500, "Gateway creation exception.");
 						}
 					}
@@ -5131,13 +5132,13 @@ namespace Tomahawk
 					if (Parser->ParseRequest(Base->Request.Buffer.c_str(), Base->Request.Buffer.size(), 0) < 0)
 					{
 						Base->Request.Buffer.clear();
-						delete Parser;
+						TH_RELEASE(Parser);
 
 						return Base->Error(400, "Invalid request was provided by client");
 					}
 
 					Base->Request.Buffer.clear();
-					delete Parser;
+					TH_RELEASE(Parser);
 
 					if (!Util::ConstructRoute(Conf, Base) || !Base->Route)
 						return Base->Error(400, "Request cannot be resolved");
@@ -5437,7 +5438,7 @@ namespace Tomahawk
 							int64_t Result = Parser->ParseDecodeChunked((char*)Buffer, &Size);
 							if (Result == -1)
 							{
-								delete Parser;
+								TH_RELEASE(Parser);
 								Request.ContentState = Content_Corrupted;
 
 								if (Callback)
@@ -5454,7 +5455,7 @@ namespace Tomahawk
 							return Result == -2;
 						}
 
-						delete Parser;
+						TH_RELEASE(Parser);
 						if (Size != -1)
 						{
 							if (Response.Buffer.size() < MaxSize)
@@ -5582,11 +5583,11 @@ namespace Tomahawk
 				strcpy(Request.RemoteAddress, Stream.GetRemoteAddress().c_str());
 				if (Parser->ParseResponse(Response.Buffer.c_str(), Response.Buffer.size(), 0) < 0)
 				{
-					delete Parser;
+					TH_RELEASE(Parser);
 					return Error("cannot parse http response");
 				}
 
-				delete Parser;
+				TH_RELEASE(Parser);
 				return Success(0);
 			}
 			RequestFrame* Client::GetRequest()

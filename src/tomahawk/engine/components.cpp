@@ -8,15 +8,22 @@ namespace Tomahawk
 	{
 		namespace Components
 		{
-			Model::Model(Entity* Ref) : Drawable(Ref, true)
+			Model::Model(Entity* Ref) : Drawable(Ref, Model::GetTypeId(), true)
 			{
 				Instance = nullptr;
+			}
+			Model::~Model()
+			{
+				TH_RELEASE(Instance);
 			}
 			void Model::Deserialize(ContentManager* Content, Rest::Document* Node)
 			{
 				std::string Path;
 				if (NMake::Unpack(Node->Find("model"), &Path))
-					Instance = Content->Load<Graphics::Model>(Path, nullptr);
+				{
+					TH_RELEASE(Instance);
+					Instance = Content->Load<Graphics::Model>(Path);
+				}
 
 				std::vector<Rest::Document*> Faces = Node->FindCollectionPath("surfaces.surface");
 				for (auto&& Surface : Faces)
@@ -33,7 +40,10 @@ namespace Tomahawk
 						Surfaces[Ref] = Face;
 				}
 
+				bool Transparent = false;
+				NMake::Unpack(Node->Find("transparency"), &Transparent);
 				NMake::Unpack(Node->Find("static"), &Static);
+				SetTransparency(Transparent);
 			}
 			void Model::Serialize(ContentManager* Content, Rest::Document* Node)
 			{
@@ -52,10 +62,21 @@ namespace Tomahawk
 					}
 				}
 
+				NMake::Pack(Node->SetDocument("transparency"), HasTransparency());
 				NMake::Pack(Node->SetDocument("static"), Static);
+			}
+			void Model::Awake(Component* New)
+			{
+				if (!New)
+					Attach();
+			}
+			void Model::Asleep()
+			{
+				Detach();
 			}
 			void Model::SetDrawable(Graphics::Model* Drawable)
 			{
+				TH_RELEASE(Instance);
 				Instance = Drawable;
 			}
 			float Model::Cull(const Viewer& View)
@@ -79,9 +100,13 @@ namespace Tomahawk
 			Component* Model::Copy(Entity* New)
 			{
 				Model* Target = new Model(New);
+				Target->SetTransparency(HasTransparency());
 				Target->Visibility = Visibility;
 				Target->Instance = Instance;
 				Target->Surfaces = Surfaces;
+
+				if (Target->Instance != nullptr)
+					Target->Instance->AddRef();
 
 				return Target;
 			}
@@ -90,28 +115,22 @@ namespace Tomahawk
 				return Instance;
 			}
 
-			LimpidModel::LimpidModel(Entity* Ref) : Model(Ref)
-			{
-			}
-			Component* LimpidModel::Copy(Entity* New)
-			{
-				LimpidModel* Target = new LimpidModel(New);
-				Target->Visibility = Visibility;
-				Target->Instance = Instance;
-				Target->Surfaces = Surfaces;
-
-				return Target;
-			}
-
-			Skin::Skin(Entity* Ref) : Drawable(Ref, true)
+			Skin::Skin(Entity* Ref) : Drawable(Ref, Skin::GetTypeId(), true)
 			{
 				Instance = nullptr;
+			}
+			Skin::~Skin()
+			{
+				TH_RELEASE(Instance);
 			}
 			void Skin::Deserialize(ContentManager* Content, Rest::Document* Node)
 			{
 				std::string Path;
 				if (NMake::Unpack(Node->Find("skin-model"), &Path))
-					Instance = Content->Load<Graphics::SkinModel>(Path, nullptr);
+				{
+					TH_RELEASE(Instance);
+					Instance = Content->Load<Graphics::SkinModel>(Path);
+				}
 
 				std::vector<Rest::Document*> Faces = Node->FindCollectionPath("surfaces.surface");
 				for (auto&& Surface : Faces)
@@ -139,7 +158,10 @@ namespace Tomahawk
 					NMake::Unpack(Pose->Find("rotation"), &Node.Rotation);
 				}
 
+				bool Transparent = false;
+				NMake::Unpack(Node->Find("transparency"), &Transparent);
 				NMake::Unpack(Node->Find("static"), &Static);
+				SetTransparency(Transparent);
 			}
 			void Skin::Serialize(ContentManager* Content, Rest::Document* Node)
 			{
@@ -158,6 +180,7 @@ namespace Tomahawk
 					}
 				}
 
+				NMake::Pack(Node->SetDocument("transparency"), HasTransparency());
 				NMake::Pack(Node->SetDocument("static"), Static);
 
 				Rest::Document* Poses = Node->SetArray("poses");
@@ -174,8 +197,18 @@ namespace Tomahawk
 				if (Instance != nullptr)
 					Instance->ComputePose(&Skeleton);
 			}
+			void Skin::Awake(Component* New)
+			{
+				if (!New)
+					Attach();
+			}
+			void Skin::Asleep()
+			{
+				Detach();
+			}
 			void Skin::SetDrawable(Graphics::SkinModel* Drawable)
 			{
+				TH_RELEASE(Instance);
 				Instance = Drawable;
 			}
 			float Skin::Cull(const Viewer& View)
@@ -199,9 +232,13 @@ namespace Tomahawk
 			Component* Skin::Copy(Entity* New)
 			{
 				Skin* Target = new Skin(New);
+				Target->SetTransparency(HasTransparency());
 				Target->Visibility = Visibility;
 				Target->Instance = Instance;
 				Target->Surfaces = Surfaces;
+
+				if (Target->Instance != nullptr)
+					Target->Instance->AddRef();
 
 				return Target;
 			}
@@ -210,20 +247,7 @@ namespace Tomahawk
 				return Instance;
 			}
 
-			LimpidSkin::LimpidSkin(Entity* Ref) : Skin(Ref)
-			{
-			}
-			Component* LimpidSkin::Copy(Entity* New)
-			{
-				LimpidSkin* Target = new LimpidSkin(New);
-				Target->Visibility = Visibility;
-				Target->Instance = Instance;
-				Target->Surfaces = Surfaces;
-
-				return Target;
-			}
-
-			Emitter::Emitter(Entity* Ref) : Drawable(Ref, false)
+			Emitter::Emitter(Entity* Ref) : Drawable(Ref, Emitter::GetTypeId(), false)
 			{
 				Instance = nullptr;
 				Connected = false;
@@ -232,26 +256,18 @@ namespace Tomahawk
 			}
 			Emitter::~Emitter()
 			{
-				if (Instance != nullptr)
-					delete Instance;
-			}
-			void Emitter::Awake(Component* New)
-			{
-				if (Instance || !Parent || !Parent->GetScene())
-					return;
-
-				Graphics::InstanceBuffer::Desc I = Graphics::InstanceBuffer::Desc();
-				I.ElementLimit = 1 << 10;
-
-				Instance = Parent->GetScene()->GetDevice()->CreateInstanceBuffer(I);
+				TH_RELEASE(Instance);
 			}
 			void Emitter::Deserialize(ContentManager* Content, Rest::Document* Node)
 			{
+				bool Transparent = false;
 				NMake::Unpack(Node->Find("surface"), &Surfaces.begin()->second, Content);
+				NMake::Unpack(Node->Find("transparency"), &Transparent);
 				NMake::Unpack(Node->Find("quad-based"), &QuadBased);
 				NMake::Unpack(Node->Find("connected"), &Connected);
 				NMake::Unpack(Node->Find("static"), &Static);
 				NMake::Unpack(Node->Find("volume"), &Volume);
+				SetTransparency(Transparent);
 
 				uint64_t Limit;
 				if (!NMake::Unpack(Node->Find("limit"), &Limit))
@@ -272,6 +288,7 @@ namespace Tomahawk
 			void Emitter::Serialize(ContentManager* Content, Rest::Document* Node)
 			{
 				NMake::Pack(Node->SetDocument("surface"), Surfaces.begin()->second, Content);
+				NMake::Pack(Node->SetDocument("transparency"), HasTransparency());
 				NMake::Pack(Node->SetDocument("quad-based"), QuadBased);
 				NMake::Pack(Node->SetDocument("connected"), Connected);
 				NMake::Pack(Node->SetDocument("static"), Static);
@@ -289,6 +306,21 @@ namespace Tomahawk
 					NMake::Pack(Node->SetDocument("elements"), Vertices);
 				}
 			}
+			void Emitter::Awake(Component* New)
+			{
+				if (Instance || !Parent || !Parent->GetScene())
+					return;
+
+				Graphics::InstanceBuffer::Desc I = Graphics::InstanceBuffer::Desc();
+				I.ElementLimit = 1 << 10;
+
+				Instance = Parent->GetScene()->GetDevice()->CreateInstanceBuffer(I);
+				Attach();
+			}
+			void Emitter::Asleep()
+			{
+				Detach();
+			}
 			float Emitter::Cull(const Viewer& View)
 			{
 				float Result = 1.0f - Parent->Transform->Position.Distance(View.WorldPosition) / (View.ViewDistance);
@@ -300,6 +332,7 @@ namespace Tomahawk
 			Component* Emitter::Copy(Entity* New)
 			{
 				Emitter* Target = new Emitter(New);
+				Target->SetTransparency(HasTransparency());
 				Target->Visibility = Visibility;
 				Target->Volume = Volume;
 				Target->Connected = Connected;
@@ -313,22 +346,7 @@ namespace Tomahawk
 				return Instance;
 			}
 
-			LimpidEmitter::LimpidEmitter(Entity* Ref) : Emitter(Ref)
-			{
-			}
-			Component* LimpidEmitter::Copy(Entity* New)
-			{
-				LimpidEmitter* Target = new LimpidEmitter(New);
-				Target->Visibility = Visibility;
-				Target->Volume = Volume;
-				Target->Connected = Connected;
-				Target->Surfaces = Surfaces;
-				Target->Instance->GetArray()->Copy(*Instance->GetArray());
-
-				return Target;
-			}
-
-			SoftBody::SoftBody(Entity* Ref) : Drawable(Ref, false)
+			SoftBody::SoftBody(Entity* Ref) : Drawable(Ref, SoftBody::GetTypeId(), false)
 			{
 				Hull = nullptr;
 				Instance = nullptr;
@@ -337,16 +355,21 @@ namespace Tomahawk
 			}
 			SoftBody::~SoftBody()
 			{
-				delete Instance;
+				TH_RELEASE(Instance);
 			}
 			void SoftBody::Deserialize(ContentManager* Content, Rest::Document* Node)
 			{
-				std::string Path; bool Extended;
+				bool Extended = false;
+				bool Transparent = false;
+				std::string Path;
+
 				NMake::Unpack(Node->Find("extended"), &Extended);
 				NMake::Unpack(Node->Find("kinematic"), &Kinematic);
 				NMake::Unpack(Node->Find("manage"), &Manage);
 				NMake::Unpack(Node->Find("static"), &Static);
+				NMake::Unpack(Node->Find("transparency"), &Transparent);
 				NMake::Unpack(Node->Find("surface"), &Surfaces.begin()->second, Content);
+				SetTransparency(Transparent);
 
 				if (!Extended)
 					return;
@@ -359,9 +382,9 @@ namespace Tomahawk
 				{
 					if (NMake::Unpack(Node->Find("path"), &Path))
 					{
-						auto* Shape = Content->Load<Compute::UnmanagedShape>(Path, nullptr);
+						auto* Shape = Content->Load<Compute::UnmanagedShape>(Path);
 						if (Shape != nullptr)
-							InitializeShape(Shape, CcdMotionThreshold);
+							Create(Shape, CcdMotionThreshold);
 					}
 				}
 				else if ((CV = Node->Find("ellipsoid")) != nullptr)
@@ -370,7 +393,7 @@ namespace Tomahawk
 					NMake::Unpack(CV->Get("center"), &Shape.Center);
 					NMake::Unpack(CV->Get("radius"), &Shape.Radius);
 					NMake::Unpack(CV->Get("count"), &Shape.Count);
-					InitializeEllipsoid(Shape, CcdMotionThreshold);
+					CreateEllipsoid(Shape, CcdMotionThreshold);
 				}
 				else if ((CV = Node->Find("patch")) != nullptr)
 				{
@@ -386,7 +409,7 @@ namespace Tomahawk
 					NMake::Unpack(CV->Get("count-x"), &Shape.CountX);
 					NMake::Unpack(CV->Get("count-y"), &Shape.CountY);
 					NMake::Unpack(CV->Get("diagonals"), &Shape.GenerateDiagonals);
-					InitializePatch(Shape, CcdMotionThreshold);
+					CreatePatch(Shape, CcdMotionThreshold);
 				}
 				else if ((CV = Node->Find("rope")) != nullptr)
 				{
@@ -396,7 +419,7 @@ namespace Tomahawk
 					NMake::Unpack(CV->Get("end"), &Shape.End);
 					NMake::Unpack(CV->Get("end-fixed"), &Shape.EndFixed);
 					NMake::Unpack(CV->Get("count"), &Shape.Count);
-					InitializeRope(Shape, CcdMotionThreshold);
+					CreateRope(Shape, CcdMotionThreshold);
 				}
 
 				if (!Instance)
@@ -505,6 +528,7 @@ namespace Tomahawk
 			}
 			void SoftBody::Serialize(ContentManager* Content, Rest::Document* Node)
 			{
+				NMake::Pack(Node->SetDocument("transparency"), HasTransparency());
 				NMake::Pack(Node->SetDocument("kinematic"), Kinematic);
 				NMake::Pack(Node->SetDocument("manage"), Manage);
 				NMake::Pack(Node->SetDocument("extended"), Instance != nullptr);
@@ -625,18 +649,24 @@ namespace Tomahawk
 				if (Indices.empty())
 					Instance->Reindex(&Indices);
 			}
+			void SoftBody::Awake(Component* New)
+			{
+				if (!New)
+					Attach();
+			}
 			void SoftBody::Asleep()
 			{
+				Detach();
 				if (Instance != nullptr)
 					Instance->SetAsGhost();
 			}
-			void SoftBody::InitializeShape(Compute::UnmanagedShape* Shape, float Anticipation)
+			void SoftBody::Create(Compute::UnmanagedShape* Shape, float Anticipation)
 			{
 				if (!Shape || !Parent || !Parent->GetScene() || !Parent->GetScene()->GetSimulator())
 					return;
 
 				Parent->GetScene()->Lock();
-				delete Instance;
+				TH_RELEASE(Instance);
 
 				Compute::SoftBody::Desc I;
 				I.Anticipation = Anticipation;
@@ -657,22 +687,22 @@ namespace Tomahawk
 				Instance->SetActivity(true);
 				Parent->GetScene()->Unlock();
 			}
-			void SoftBody::InitializeShape(ContentManager* Content, const std::string& Path, float Anticipation)
+			void SoftBody::Create(ContentManager* Content, const std::string& Path, float Anticipation)
 			{
 				if (Content != nullptr)
 				{
-					Hull = Content->Load<Compute::UnmanagedShape>(Path, nullptr);
+					Hull = Content->Load<Compute::UnmanagedShape>(Path);
 					if (Hull != nullptr)
-						InitializeShape(Hull, Anticipation);
+						Create(Hull, Anticipation);
 				}
 			}
-			void SoftBody::InitializeEllipsoid(const Compute::SoftBody::Desc::CV::SEllipsoid& Shape, float Anticipation)
+			void SoftBody::CreateEllipsoid(const Compute::SoftBody::Desc::CV::SEllipsoid& Shape, float Anticipation)
 			{
 				if (!Parent || !Parent->GetScene() || !Parent->GetScene()->GetSimulator())
 					return;
 
 				Parent->GetScene()->Lock();
-				delete Instance;
+				TH_RELEASE(Instance);
 
 				Compute::SoftBody::Desc I;
 				I.Anticipation = Anticipation;
@@ -690,13 +720,13 @@ namespace Tomahawk
 				Instance->SetActivity(true);
 				Parent->GetScene()->Unlock();
 			}
-			void SoftBody::InitializePatch(const Compute::SoftBody::Desc::CV::SPatch& Shape, float Anticipation)
+			void SoftBody::CreatePatch(const Compute::SoftBody::Desc::CV::SPatch& Shape, float Anticipation)
 			{
 				if (!Parent || !Parent->GetScene() || !Parent->GetScene()->GetSimulator())
 					return;
 
 				Parent->GetScene()->Lock();
-				delete Instance;
+				TH_RELEASE(Instance);
 
 				Compute::SoftBody::Desc I;
 				I.Anticipation = Anticipation;
@@ -714,13 +744,13 @@ namespace Tomahawk
 				Instance->SetActivity(true);
 				Parent->GetScene()->Unlock();
 			}
-			void SoftBody::InitializeRope(const Compute::SoftBody::Desc::CV::SRope& Shape, float Anticipation)
+			void SoftBody::CreateRope(const Compute::SoftBody::Desc::CV::SRope& Shape, float Anticipation)
 			{
 				if (!Parent || !Parent->GetScene() || !Parent->GetScene()->GetSimulator())
 					return;
 
 				Parent->GetScene()->Lock();
-				delete Instance;
+				TH_RELEASE(Instance);
 
 				Compute::SoftBody::Desc I;
 				I.Anticipation = Anticipation;
@@ -761,8 +791,7 @@ namespace Tomahawk
 					return;
 
 				Parent->GetScene()->Lock();
-				delete Instance;
-				Instance = nullptr;
+				TH_CLEAR(Instance);
 				Parent->GetScene()->Unlock();
 			}
 			void SoftBody::SetTransform(const Compute::Vector3& Position, const Compute::Vector3& Scale, const Compute::Vector3& Rotation)
@@ -808,6 +837,7 @@ namespace Tomahawk
 			Component* SoftBody::Copy(Entity* New)
 			{
 				SoftBody* Target = new SoftBody(New);
+				Target->SetTransparency(HasTransparency());
 				Target->Kinematic = Kinematic;
 
 				if (Instance != nullptr)
@@ -831,36 +861,22 @@ namespace Tomahawk
 				return Indices;
 			}
 
-			LimpidSoftBody::LimpidSoftBody(Entity* Ref) : SoftBody(Ref)
-			{
-			}
-			Component* LimpidSoftBody::Copy(Entity* New)
-			{
-				LimpidSoftBody* Target = new LimpidSoftBody(New);
-				Target->Kinematic = Kinematic;
-
-				if (Instance != nullptr)
-				{
-					Target->Instance = Instance->Copy();
-					Target->Instance->UserPointer = Target;
-				}
-
-				return Target;
-			}
-
-			Decal::Decal(Entity* Ref) : Drawable(Ref, false)
+			Decal::Decal(Entity* Ref) : Drawable(Ref, Decal::GetTypeId(), false)
 			{
 				FieldOfView = 90.0f;
 				Distance = 15.0f;
 			}
 			void Decal::Deserialize(ContentManager* Content, Rest::Document* Node)
 			{
+				bool Transparent = false;
 				NMake::Unpack(Node->Find("projection"), &Projection);
 				NMake::Unpack(Node->Find("view"), &View);
 				NMake::Unpack(Node->Find("field-of-view"), &FieldOfView);
 				NMake::Unpack(Node->Find("distance"), &Distance);
 				NMake::Unpack(Node->Find("static"), &Static);
+				NMake::Unpack(Node->Find("transparency"), &Transparent);
 				NMake::Unpack(Node->Find("surface"), &Surfaces.begin()->second, Content);
+				SetTransparency(Transparent);
 			}
 			void Decal::Serialize(ContentManager* Content, Rest::Document* Node)
 			{
@@ -869,12 +885,22 @@ namespace Tomahawk
 				NMake::Pack(Node->SetDocument("field-of-view"), FieldOfView);
 				NMake::Pack(Node->SetDocument("distance"), Distance);
 				NMake::Pack(Node->SetDocument("static"), Static);
+				NMake::Pack(Node->SetDocument("transparency"), HasTransparency());
 				NMake::Pack(Node->SetDocument("surface"), Surfaces.begin()->second, Content);
 			}
 			void Decal::Synchronize(Rest::Timer* Time)
 			{
 				Projection = Compute::Matrix4x4::CreatePerspective(FieldOfView, 1, 0.1f, Distance);
 				View = Compute::Matrix4x4::CreateTranslation(-Parent->Transform->Position) * Compute::Matrix4x4::CreateCameraRotation(-Parent->Transform->Rotation);
+			}
+			void Decal::Awake(Component* New)
+			{
+				if (!New)
+					Attach();
+			}
+			void Decal::Asleep()
+			{
+				Detach();
 			}
 			float Decal::Cull(const Viewer& View)
 			{
@@ -887,18 +913,6 @@ namespace Tomahawk
 			Component* Decal::Copy(Entity* New)
 			{
 				Decal* Target = new Decal(New);
-				Target->Visibility = Visibility;
-				Target->Surfaces = Surfaces;
-
-				return Target;
-			}
-
-			LimpidDecal::LimpidDecal(Entity* Ref) : Decal(Ref)
-			{
-			}
-			Component* LimpidDecal::Copy(Entity* New)
-			{
-				LimpidDecal* Target = new LimpidDecal(New);
 				Target->Visibility = Visibility;
 				Target->Surfaces = Surfaces;
 
@@ -1048,7 +1062,7 @@ namespace Tomahawk
 				if (!Content)
 					return false;
 
-				Rest::Document* Result = Content->Load<Rest::Document>(Path, nullptr);
+				Rest::Document* Result = Content->Load<Rest::Document>(Path);
 				if (!Result)
 					return false;
 
@@ -1056,7 +1070,7 @@ namespace Tomahawk
 				if (NMake::Unpack(Result, &Clips))
 					Reference = Rest::Stroke(Path).Replace(Content->GetEnvironment(), "./").Replace('\\', '/').R();
 
-				delete Result;
+				TH_RELEASE(Result);
 				return true;
 			}
 			void SkinAnimator::GetPose(Compute::SkinAnimatorKey* Result)
@@ -1262,7 +1276,7 @@ namespace Tomahawk
 				if (!Content)
 					return false;
 
-				Rest::Document* Result = Content->Load<Rest::Document>(Path, nullptr);
+				Rest::Document* Result = Content->Load<Rest::Document>(Path);
 				if (!Result)
 					return false;
 
@@ -1270,7 +1284,7 @@ namespace Tomahawk
 				if (NMake::Unpack(Result, &Clips))
 					Reference = Rest::Stroke(Path).Replace(Content->GetEnvironment(), "./").Replace('\\', '/').R();
 
-				delete Result;
+				TH_RELEASE(Result);
 				return true;
 			}
 			void KeyAnimator::GetPose(Compute::AnimatorKey* Result)
@@ -1433,9 +1447,6 @@ namespace Tomahawk
 			void EmitterAnimator::Awake(Component* New)
 			{
 				Base = Parent->GetComponent<Emitter>();
-				if (!Base)
-					Base = Parent->GetComponent<LimpidEmitter>();
-
 				SetActive(Base != nullptr);
 			}
 			void EmitterAnimator::Synchronize(Rest::Timer* Time)
@@ -1573,14 +1584,15 @@ namespace Tomahawk
 			}
 			RigidBody::~RigidBody()
 			{
-				delete Instance;
+				TH_RELEASE(Instance);
 			}
 			void RigidBody::Deserialize(ContentManager* Content, Rest::Document* Node)
 			{
-				bool Extended;
+				bool Extended = false;
 				NMake::Unpack(Node->Find("extended"), &Extended);
 				NMake::Unpack(Node->Find("kinematic"), &Kinematic);
 				NMake::Unpack(Node->Find("manage"), &Manage);
+
 				if (!Extended)
 					return;
 
@@ -1595,9 +1607,9 @@ namespace Tomahawk
 					uint64_t Type;
 					if (NMake::Unpack(Node->Find("path"), &Path))
 					{
-						auto* Shape = Content->Load<Compute::UnmanagedShape>(Path, nullptr);
+						auto* Shape = Content->Load<Compute::UnmanagedShape>(Path);
 						if (Shape != nullptr)
-							Initialize(Shape->Shape, Mass, CcdMotionThreshold);
+							Create(Shape->Shape, Mass, CcdMotionThreshold);
 					}
 					else if (!NMake::Unpack(CV->Find("type"), &Type))
 					{
@@ -1606,14 +1618,14 @@ namespace Tomahawk
 						{
 							btCollisionShape* Shape = Parent->GetScene()->GetSimulator()->CreateConvexHull(Vertices);
 							if (Shape != nullptr)
-								Initialize(Shape, Mass, CcdMotionThreshold);
+								Create(Shape, Mass, CcdMotionThreshold);
 						}
 					}
 					else
 					{
 						btCollisionShape* Shape = Parent->GetScene()->GetSimulator()->CreateShape((Compute::Shape)Type);
 						if (Shape != nullptr)
-							Initialize(Shape, Mass, CcdMotionThreshold);
+							Create(Shape, Mass, CcdMotionThreshold);
 					}
 				}
 
@@ -1766,13 +1778,13 @@ namespace Tomahawk
 				if (Instance != nullptr)
 					Instance->SetAsGhost();
 			}
-			void RigidBody::Initialize(btCollisionShape* Shape, float Mass, float Anticipation)
+			void RigidBody::Create(btCollisionShape* Shape, float Mass, float Anticipation)
 			{
 				if (!Shape || !Parent || !Parent->GetScene() || !Parent->GetScene()->GetSimulator())
 					return;
 
 				Parent->GetScene()->Lock();
-				delete Instance;
+				TH_RELEASE(Instance);
 
 				Compute::RigidBody::Desc I;
 				I.Anticipation = Anticipation;
@@ -1784,13 +1796,13 @@ namespace Tomahawk
 				Instance->SetActivity(true);
 				Parent->GetScene()->Unlock();
 			}
-			void RigidBody::Initialize(ContentManager* Content, const std::string& Path, float Mass, float Anticipation)
+			void RigidBody::Create(ContentManager* Content, const std::string& Path, float Mass, float Anticipation)
 			{
 				if (Content != nullptr)
 				{
-					Hull = Content->Load<Compute::UnmanagedShape>(Path, nullptr);
+					Hull = Content->Load<Compute::UnmanagedShape>(Path);
 					if (Hull != nullptr)
-						Initialize(Hull->Shape, Mass, Anticipation);
+						Create(Hull->Shape, Mass, Anticipation);
 				}
 			}
 			void RigidBody::Clear()
@@ -1799,8 +1811,7 @@ namespace Tomahawk
 					return;
 
 				Parent->GetScene()->Lock();
-				delete Instance;
-				Instance = nullptr;
+				TH_CLEAR(Instance);
 				Parent->GetScene()->Unlock();
 			}
 			void RigidBody::SetTransform(const Compute::Vector3& Position, const Compute::Vector3& Scale, const Compute::Vector3& Rotation)
@@ -1867,7 +1878,7 @@ namespace Tomahawk
 				ConstantTorque = 0;
 				ConstantCenter = 0;
 				RigidBody = nullptr;
-				Velocity = false;
+				Kinematic = true;
 			}
 			void Acceleration::Deserialize(ContentManager* Content, Rest::Document* Node)
 			{
@@ -1876,7 +1887,7 @@ namespace Tomahawk
 				NMake::Unpack(Node->Find("constant-velocity"), &ConstantVelocity);
 				NMake::Unpack(Node->Find("constant-torque"), &ConstantTorque);
 				NMake::Unpack(Node->Find("constant-center"), &ConstantCenter);
-				NMake::Unpack(Node->Find("velocity"), &Velocity);
+				NMake::Unpack(Node->Find("kinematic"), &Kinematic);
 			}
 			void Acceleration::Serialize(ContentManager* Content, Rest::Document* Node)
 			{
@@ -1885,7 +1896,7 @@ namespace Tomahawk
 				NMake::Pack(Node->SetDocument("constant-velocity"), ConstantVelocity);
 				NMake::Pack(Node->SetDocument("constant-torque"), ConstantTorque);
 				NMake::Pack(Node->SetDocument("constant-center"), ConstantCenter);
-				NMake::Pack(Node->SetDocument("velocity"), Velocity);
+				NMake::Pack(Node->SetDocument("kinematic"), Kinematic);
 			}
 			void Acceleration::Awake(Component* New)
 			{
@@ -1902,7 +1913,7 @@ namespace Tomahawk
 					return;
 
 				float DeltaTime = (float)Time->GetDeltaTime();
-				if (!Velocity)
+				if (Kinematic)
 				{
 					RigidBody->SetLinearVelocity(ConstantVelocity);
 					RigidBody->SetAngularVelocity(ConstantTorque);
@@ -1948,7 +1959,7 @@ namespace Tomahawk
 			Component* Acceleration::Copy(Entity* New)
 			{
 				Acceleration* Target = new Acceleration(New);
-				Target->Velocity = Velocity;
+				Target->Kinematic = Kinematic;
 				Target->AmplitudeTorque = AmplitudeTorque;
 				Target->AmplitudeVelocity = AmplitudeVelocity;
 				Target->ConstantCenter = ConstantCenter;
@@ -1965,10 +1976,13 @@ namespace Tomahawk
 
 			SliderConstraint::SliderConstraint(Entity* Ref) : Component(Ref), Instance(nullptr), Connection(nullptr)
 			{
+				Wanted.Connection = -1;
+				Wanted.Ghost = true;
+				Wanted.Linear = true;
 			}
 			SliderConstraint::~SliderConstraint()
 			{
-				delete Instance;
+				TH_RELEASE(Instance);
 			}
 			void SliderConstraint::Deserialize(ContentManager* Content, Rest::Document* Node)
 			{
@@ -1979,15 +1993,11 @@ namespace Tomahawk
 
 				uint64_t Index;
 				if (NMake::Unpack(Node->Find("connection"), &Index))
-				{
-					if (Parent->GetScene()->HasEntity(Index))
-						Connection = Parent->GetScene()->GetEntity(Index);
-				}
+					Wanted.Connection = Index;
 
-				bool CollisionState = false, LinearPowerState = false;
-				NMake::Unpack(Node->Find("collision-state"), &CollisionState);
-				NMake::Unpack(Node->Find("linear-power-state"), &CollisionState);
-				Initialize(Connection, CollisionState, LinearPowerState);
+				NMake::Unpack(Node->Find("collision-state"), &Wanted.Ghost);
+				NMake::Unpack(Node->Find("linear-power-state"), &Wanted.Linear);
+				Create(Connection, Wanted.Ghost, Wanted.Linear);
 
 				if (!Instance)
 					return;
@@ -2148,13 +2158,23 @@ namespace Tomahawk
 				NMake::Pack(Node->SetDocument("powered-linear-motor"), Instance->GetPoweredLinearMotor());
 				NMake::Pack(Node->SetDocument("enabled"), Instance->IsEnabled());
 			}
-			void SliderConstraint::Initialize(Entity* Other, bool IsGhosted, bool IsLinear)
+			void SliderConstraint::Synchronize(Rest::Timer* Time)
+			{
+				if (Wanted.Connection < 0)
+					return;
+
+				if (!Connection)
+					Create(Parent->GetScene()->GetEntity(Wanted.Connection), Wanted.Ghost, Wanted.Linear);
+				
+				Wanted.Connection = -1;
+			}
+			void SliderConstraint::Create(Entity* Other, bool IsGhosted, bool IsLinear)
 			{
 				if (Parent == Other || !Parent || !Parent->GetScene())
 					return;
 
 				Parent->GetScene()->Lock();
-				delete Instance;
+				TH_RELEASE(Instance);
 
 				Connection = Other;
 				if (!Connection)
@@ -2183,8 +2203,7 @@ namespace Tomahawk
 					return;
 
 				Parent->GetScene()->Lock();
-				delete Instance;
-				Instance = nullptr;
+				TH_CLEAR(Instance);
 				Connection = nullptr;
 				Parent->GetScene()->Unlock();
 			}
@@ -2219,7 +2238,7 @@ namespace Tomahawk
 				return Connection;
 			}
 
-			FreeLook::FreeLook(Entity* Ref) : Component(Ref), Activity(nullptr), Rotate(Graphics::KeyCode_CURSORRIGHT), Sensitivity(0.005f)
+			FreeLook::FreeLook(Entity* Ref) : Component(Ref), Activity(nullptr), Rotate(Graphics::KeyCode_CURSORRIGHT), Sensivity(0.005f)
 			{
 			}
 			void FreeLook::Awake(Component* New)
@@ -2241,8 +2260,8 @@ namespace Tomahawk
 					Compute::Vector2 Cursor = Activity->GetGlobalCursorPosition();
 					if (!Activity->IsKeyDownHit(Rotate))
 					{
-						float X = (Cursor.Y - Position.Y) * Sensitivity;
-						float Y = (Cursor.X - Position.X) * Sensitivity;
+						float X = (Cursor.Y - Position.Y) * Sensivity;
+						float Y = (Cursor.X - Position.X) * Sensivity;
 						Parent->Transform->Rotation += Compute::Vector3(X, Y);
 						Parent->Transform->Rotation.X = Compute::Mathf::Clamp(Parent->Transform->Rotation.X, -1.57079632679f, 1.57079632679f);
 					}
@@ -2259,7 +2278,7 @@ namespace Tomahawk
 				Target->Activity = Activity;
 				Target->Position = Position;
 				Target->Rotate = Rotate;
-				Target->Sensitivity = Sensitivity;
+				Target->Sensivity = Sensivity;
 
 				return Target;
 			}
@@ -2354,13 +2373,13 @@ namespace Tomahawk
 			}
 			AudioSource::~AudioSource()
 			{
-				delete Source;
+				TH_RELEASE(Source);
 			}
 			void AudioSource::Deserialize(ContentManager* Content, Rest::Document* Node)
 			{
 				std::string Path;
 				if (NMake::Unpack(Node->Find("audio-clip"), &Path))
-					Source->SetClip(Content->Load<Audio::AudioClip>(Path, nullptr));
+					Source->SetClip(Content->Load<Audio::AudioClip>(Path));
 
 				NMake::Unpack(Node->Find("velocity"), &Sync.Velocity);
 				NMake::Unpack(Node->Find("direction"), &Sync.Direction);
@@ -2445,9 +2464,6 @@ namespace Tomahawk
 			}
 			void AudioSource::Synchronize(Rest::Timer* Time)
 			{
-				if (!Parent->GetScene()->IsActive())
-					return;
-
 				if (Time != nullptr && Time->GetDeltaTime() > 0.0)
 				{
 					Sync.Velocity = (Parent->Transform->Position - LastPosition) * Time->GetDeltaTime();
@@ -2571,11 +2587,11 @@ namespace Tomahawk
 				Projection = Compute::Matrix4x4::CreatePerspective(90.0f, 1.0f, 0.1f, ShadowDistance);
 				View = Compute::Matrix4x4::CreateCubeMapLookAt(0, Parent->Transform->Position.InvertZ());
 			}
-			float PointLight::Cull(const Viewer& View)
+			float PointLight::Cull(const Viewer& Base)
 			{
-				float Result = 1.0f - Parent->Transform->Position.Distance(View.WorldPosition) / View.ViewDistance;
+				float Result = 1.0f - Parent->Transform->Position.Distance(Base.WorldPosition) / Base.ViewDistance;
 				if (Result > 0.0f)
-					Result = Compute::MathCommon::IsCubeInFrustum(Parent->Transform->GetWorldUnscaled() * View.ViewProjection, GetRange()) == -1 ? Result : 0.0f;
+					Result = Compute::MathCommon::IsCubeInFrustum(Parent->Transform->GetWorldUnscaled() * Base.ViewProjection, GetRange()) == -1 ? Result : 0.0f;
 
 				return Result;
 			}
@@ -2617,11 +2633,18 @@ namespace Tomahawk
 				Emission = 1.0f;
 				Shadowed = false;
 			}
+			SpotLight::~SpotLight()
+			{
+				TH_RELEASE(ProjectMap);
+			}
 			void SpotLight::Deserialize(ContentManager* Content, Rest::Document* Node)
 			{
 				std::string Path;
 				if (NMake::Unpack(Node->Find("project-map"), &Path))
-					ProjectMap = Content->Load<Graphics::Texture2D>(Path, nullptr);
+				{
+					TH_RELEASE(ProjectMap);
+					ProjectMap = Content->Load<Graphics::Texture2D>(Path);
+				}
 
 				NMake::Unpack(Node->Find("diffuse"), &Diffuse);
 				NMake::Unpack(Node->Find("projection"), &Projection);
@@ -2688,6 +2711,15 @@ namespace Tomahawk
 			Graphics::Texture2D* SpotLight::GetShadowCache() const
 			{
 				return ShadowCache;
+			}
+			void SpotLight::SetProjectMap(Graphics::Texture2D* NewCache)
+			{
+				TH_RELEASE(ProjectMap);
+				ProjectMap = NewCache;
+			}
+			Graphics::Texture2D* SpotLight::GetProjectMap() const
+			{
+				return ProjectMap;
 			}
 
 			LineLight::LineLight(Entity* Ref) : Component(Ref)
@@ -2812,7 +2844,14 @@ namespace Tomahawk
 			}
 			ReflectionProbe::~ReflectionProbe()
 			{
-				delete ProbeCache;
+				TH_RELEASE(DiffuseMapX[0]);
+				TH_RELEASE(DiffuseMapX[1]);
+				TH_RELEASE(DiffuseMapY[0]);
+				TH_RELEASE(DiffuseMapY[1]);
+				TH_RELEASE(DiffuseMapZ[0]);
+				TH_RELEASE(DiffuseMapZ[1]);
+				TH_RELEASE(DiffuseMap);
+				TH_RELEASE(ProbeCache);
 			}
 			void ReflectionProbe::Deserialize(ContentManager* Content, Rest::Document* Node)
 			{
@@ -2820,25 +2859,46 @@ namespace Tomahawk
 				if (!NMake::Unpack(Node->Find("diffuse-map"), &Path))
 				{
 					if (NMake::Unpack(Node->Find("diffuse-map-px"), &Path))
-						DiffuseMapX[0] = Content->Load<Graphics::Texture2D>(Path, nullptr);
+					{
+						TH_RELEASE(DiffuseMapX[0]);
+						DiffuseMapX[0] = Content->Load<Graphics::Texture2D>(Path);
+					}
 
 					if (NMake::Unpack(Node->Find("diffuse-map-nx"), &Path))
-						DiffuseMapX[1] = Content->Load<Graphics::Texture2D>(Path, nullptr);
+					{
+						TH_RELEASE(DiffuseMapX[1]);
+						DiffuseMapX[1] = Content->Load<Graphics::Texture2D>(Path);
+					}
 
 					if (NMake::Unpack(Node->Find("diffuse-map-py"), &Path))
-						DiffuseMapY[0] = Content->Load<Graphics::Texture2D>(Path, nullptr);
+					{
+						TH_RELEASE(DiffuseMapY[0]);
+						DiffuseMapY[0] = Content->Load<Graphics::Texture2D>(Path);
+					}
 
 					if (NMake::Unpack(Node->Find("diffuse-map-ny"), &Path))
-						DiffuseMapY[1] = Content->Load<Graphics::Texture2D>(Path, nullptr);
+					{
+						TH_RELEASE(DiffuseMapY[1]);
+						DiffuseMapY[1] = Content->Load<Graphics::Texture2D>(Path);
+					}
 
 					if (NMake::Unpack(Node->Find("diffuse-map-pz"), &Path))
-						DiffuseMapZ[0] = Content->Load<Graphics::Texture2D>(Path, nullptr);
+					{
+						TH_RELEASE(DiffuseMapZ[0]);
+						DiffuseMapZ[0] = Content->Load<Graphics::Texture2D>(Path);
+					}
 
 					if (NMake::Unpack(Node->Find("diffuse-map-nz"), &Path))
-						DiffuseMapZ[1] = Content->Load<Graphics::Texture2D>(Path, nullptr);
+					{
+						TH_RELEASE(DiffuseMapZ[1]);
+						DiffuseMapZ[1] = Content->Load<Graphics::Texture2D>(Path);
+					}
 				}
 				else
-					DiffuseMap = Content->Load<Graphics::Texture2D>(Path, nullptr);
+				{
+					TH_RELEASE(DiffuseMap);
+					DiffuseMap = Content->Load<Graphics::Texture2D>(Path);
+				}
 
 				std::vector<Compute::Matrix4x4> Views;
 				NMake::Unpack(Node->Find("view"), &Views);
@@ -2948,19 +3008,26 @@ namespace Tomahawk
 			{
 				if (!Map)
 				{
-					DiffuseMapX[0] = DiffuseMapX[1] = nullptr;
-					DiffuseMapY[0] = DiffuseMapY[1] = nullptr;
-					DiffuseMapZ[0] = DiffuseMapZ[1] = nullptr;
-					DiffuseMap = nullptr;
+					TH_CLEAR(DiffuseMapX[0]);
+					TH_CLEAR(DiffuseMapX[1]);
+					TH_CLEAR(DiffuseMapY[0]);
+					TH_CLEAR(DiffuseMapY[1]);
+					TH_CLEAR(DiffuseMapZ[0]);
+					TH_CLEAR(DiffuseMapZ[1]);
+					TH_CLEAR(DiffuseMap);
 					return false;
 				}
 
-				DiffuseMapX[0] = DiffuseMapX[1] = nullptr;
-				DiffuseMapY[0] = DiffuseMapY[1] = nullptr;
-				DiffuseMapZ[0] = DiffuseMapZ[1] = nullptr;
+				TH_CLEAR(DiffuseMapX[0]);
+				TH_CLEAR(DiffuseMapX[1]);
+				TH_CLEAR(DiffuseMapY[0]);
+				TH_CLEAR(DiffuseMapY[1]);
+				TH_CLEAR(DiffuseMapZ[0]);
+				TH_CLEAR(DiffuseMapZ[1]);
+				TH_RELEASE(DiffuseMap);
 				DiffuseMap = Map;
 
-				delete ProbeCache;
+				TH_RELEASE(ProbeCache);
 				ProbeCache = Parent->GetScene()->GetDevice()->CreateTextureCube(DiffuseMap);
 				return ProbeCache != nullptr;
 			}
@@ -2968,12 +3035,23 @@ namespace Tomahawk
 			{
 				if (!MapX[0] || !MapX[1] || !MapY[0] || !MapY[1] || !MapZ[0] || !MapZ[1])
 				{
-					DiffuseMapX[0] = DiffuseMapX[1] = nullptr;
-					DiffuseMapY[0] = DiffuseMapY[1] = nullptr;
-					DiffuseMapZ[0] = DiffuseMapZ[1] = nullptr;
-					DiffuseMap = nullptr;
+					TH_CLEAR(DiffuseMapX[0]);
+					TH_CLEAR(DiffuseMapX[1]);
+					TH_CLEAR(DiffuseMapY[0]);
+					TH_CLEAR(DiffuseMapY[1]);
+					TH_CLEAR(DiffuseMapZ[0]);
+					TH_CLEAR(DiffuseMapZ[1]);
+					TH_CLEAR(DiffuseMap);
 					return false;
 				}
+
+				TH_RELEASE(DiffuseMapX[0]);
+				TH_RELEASE(DiffuseMapX[1]);
+				TH_RELEASE(DiffuseMapY[0]);
+				TH_RELEASE(DiffuseMapY[1]);
+				TH_RELEASE(DiffuseMapZ[0]);
+				TH_RELEASE(DiffuseMapZ[1]);
+				TH_CLEAR(DiffuseMap);
 
 				Graphics::Texture2D* Resources[6];
 				Resources[0] = DiffuseMapX[0] = MapX[0];
@@ -2982,9 +3060,8 @@ namespace Tomahawk
 				Resources[3] = DiffuseMapY[1] = MapY[1];
 				Resources[4] = DiffuseMapZ[0] = MapZ[0];
 				Resources[5] = DiffuseMapZ[1] = MapZ[1];
-				DiffuseMap = nullptr;
 
-				delete ProbeCache;
+				TH_RELEASE(ProbeCache);
 				ProbeCache = Parent->GetScene()->GetDevice()->CreateTextureCube(Resources);
 				return ProbeCache != nullptr;
 			}
@@ -3035,7 +3112,7 @@ namespace Tomahawk
 			}
 			Camera::~Camera()
 			{
-				delete Renderer;
+				TH_RELEASE(Renderer);
 			}
 			void Camera::Awake(Component* New)
 			{
@@ -3261,7 +3338,7 @@ namespace Tomahawk
 			}
 			Scriptable::~Scriptable()
 			{
-				delete Compiler;
+				TH_RELEASE(Compiler);
 			}
 			void Scriptable::Deserialize(ContentManager* Content, Rest::Document* Node)
 			{
@@ -3466,13 +3543,10 @@ namespace Tomahawk
 						default:
 						{
 							Script::VMTypeInfo Type = GetCompiler()->GetManager()->Global().GetTypeInfoById(Result.TypeId);
-							if (!Type.IsValid() || strcmp(Type.GetName(), "String") != 0)
-							{
-								delete Var;
-								Var = nullptr;
-							}
-							else
+							if (Type.IsValid() && strcmp(Type.GetName(), "String") == 0)
 								NMake::Pack(Var->SetDocument("data"), *(std::string*)Result.Pointer);
+							else
+								TH_CLEAR(Var);
 							break;
 						}
 					}
@@ -3542,9 +3616,9 @@ namespace Tomahawk
 					Context->SetArgObject(1, Time);
 				});
 			}
-			void Scriptable::Pipe(Event* Value)
+			void Scriptable::Message(Event* Value)
 			{
-				Call(Entry.Pipe, [this, &Value](Script::VMContext* Context)
+				Call(Entry.Message, [this, &Value](Script::VMContext* Context)
 				{
 					if (Invoke == InvokeType_Typeless)
 						return;
@@ -3721,7 +3795,7 @@ namespace Tomahawk
 					Entry.Asleep = nullptr;
 					Entry.Synchronize = nullptr;
 					Entry.Update = nullptr;
-					Entry.Pipe = nullptr;
+					Entry.Message = nullptr;
 					Compiler->Clear();
 					Safe.unlock();
 
@@ -3756,7 +3830,7 @@ namespace Tomahawk
 				Entry.Asleep = GetFunctionByName("Asleep", Invoke == InvokeType_Typeless ? 0 : 1).GetFunction();
 				Entry.Synchronize = GetFunctionByName("Synchronize", Invoke == InvokeType_Typeless ? 0 : 2).GetFunction();
 				Entry.Update = GetFunctionByName("Update", Invoke == InvokeType_Typeless ? 0 : 2).GetFunction();
-				Entry.Pipe = GetFunctionByName("Pipe", Invoke == InvokeType_Typeless ? 0 : 2).GetFunction();
+				Entry.Message = GetFunctionByName("Message", Invoke == InvokeType_Typeless ? 0 : 2).GetFunction();
 
 				return R;
 			}

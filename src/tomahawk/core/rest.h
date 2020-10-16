@@ -107,22 +107,18 @@ typedef socklen_t socket_size_t;
 #define TH_MALLOC(Size) Tomahawk::Rest::Mem::Malloc(Size)
 #define TH_REALLOC(Ptr, Size) Tomahawk::Rest::Mem::Realloc(Ptr, Size)
 #define TH_FREE(Ptr) Tomahawk::Rest::Mem::Free(Ptr)
+#define TH_RELEASE(Ptr) { if (Ptr != nullptr) (Ptr)->Release(); }
+#define TH_CLEAR(Ptr) { if (Ptr != nullptr) { (Ptr)->Release(); Ptr = nullptr; } }
 #define TH_PREFIX_CHAR '$'
 #define TH_PREFIX_STR "$"
 #define TH_LOG(Format, ...) Tomahawk::Rest::Debug::Log(0, TH_LINE, TH_FILE, Format, ##__VA_ARGS__)
-#define TH_COMPONENT_ID(ClassName) Tomahawk::Rest::OS::CheckSum(#ClassName)
-#define TH_COMPONENT_HASH(ClassName) Tomahawk::Rest::OS::CheckSum(ClassName)
-#define TH_COMPONENT_IS(Source, ClassName) (Source->GetId() == TH_COMPONENT_ID(ClassName))
-#define TH_COMPONENT(ClassName) \
-virtual const char* GetName() override { static const char* V = #ClassName; return V; } \
-virtual uint64_t GetId() override { static uint64_t V = TH_COMPONENT_ID(ClassName); return V; } \
-static const char* GetTypeName() { static const char* V = #ClassName; return V; } \
-static uint64_t GetTypeId() { static uint64_t V = TH_COMPONENT_ID(ClassName); return V; }
-#define TH_COMPONENT_BASIS(ClassName) \
-virtual const char* GetName() { static const char* V = #ClassName; return V; } \
-virtual uint64_t GetId() { static uint64_t V = TH_COMPONENT_ID(ClassName); return V; } \
-static const char* GetTypeName() { static const char* V = #ClassName; return V; } \
-static uint64_t GetTypeId() { static uint64_t V = TH_COMPONENT_ID(ClassName); return V; }
+#define TH_COMPONENT_HASH(Name) Tomahawk::Rest::OS::CheckSum(Name)
+#define TH_COMPONENT_IS(Source, Name) (Source->GetId() == TH_COMPONENT_HASH(Name))
+#define TH_COMPONENT(Name) \
+virtual const char* GetName() { return Name; } \
+virtual uint64_t GetId() { static uint64_t V = TH_COMPONENT_HASH(Name); return V; } \
+static const char* GetTypeName() { return Name; } \
+static uint64_t GetTypeId() { static uint64_t V = TH_COMPONENT_HASH(Name); return V; }
 
 namespace Tomahawk
 {
@@ -428,6 +424,7 @@ namespace Tomahawk
 			Stroke& ToLower();
 			Stroke& Clip(uint64_t Length);
 			Stroke& ReplaceOf(const char* Chars, const char* To, uint64_t Start = 0U);
+			Stroke& ReplaceNotOf(const char* Chars, const char* To, uint64_t Start = 0U);
 			Stroke& Replace(const std::string& From, const std::string& To, uint64_t Start = 0U);
 			Stroke& Replace(const char* From, const char* To, uint64_t Start = 0U);
 			Stroke& Replace(const char& From, const char& To, uint64_t Position = 0U);
@@ -479,11 +476,15 @@ namespace Tomahawk
 			Stroke::Settle FindUnescaped(const char& Needle, uint64_t Offset = 0U) const;
 			Stroke::Settle FindOf(const std::string& Needle, uint64_t Offset = 0U) const;
 			Stroke::Settle FindOf(const char* Needle, uint64_t Offset = 0U) const;
+			Stroke::Settle FindNotOf(const std::string& Needle, uint64_t Offset = 0U) const;
+			Stroke::Settle FindNotOf(const char* Needle, uint64_t Offset = 0U) const;
 			bool StartsWith(const std::string& Value, uint64_t Offset = 0U) const;
 			bool StartsWith(const char* Value, uint64_t Offset = 0U) const;
 			bool StartsOf(const char* Value, uint64_t Offset = 0U) const;
+			bool StartsNotOf(const char* Value, uint64_t Offset = 0U) const;
 			bool EndsWith(const std::string& Value) const;
 			bool EndsOf(const char* Value) const;
+			bool EndsNotOf(const char* Value) const;
 			bool EndsWith(const char* Value) const;
 			bool EndsWith(const char& Value) const;
 			bool Empty() const;
@@ -510,6 +511,7 @@ namespace Tomahawk
 			std::vector<std::string> Split(char With, uint64_t Start = 0U) const;
 			std::vector<std::string> SplitMax(char With, uint64_t MaxCount, uint64_t Start = 0U) const;
 			std::vector<std::string> SplitOf(const char* With, uint64_t Start = 0U) const;
+			std::vector<std::string> SplitNotOf(const char* With, uint64_t Start = 0U) const;
 			Stroke& operator = (const Stroke& New);
 
 		public:
@@ -517,6 +519,8 @@ namespace Tomahawk
 			static int CaseCompare(const char* Value1, const char* Value2);
 			static int Match(const char* Pattern, const char* Text);
 			static int Match(const char* Pattern, uint64_t Length, const char* Text);
+			static std::string ToStringAutoPrec(float Number);
+			static std::string ToStringAutoPrec(double Number);
 		};
 
 		struct TH_OUT TickTimer
@@ -948,14 +952,17 @@ namespace Tomahawk
 				return (T*)Callable(Data...);
 			}
 			template <typename T, typename... Args>
-			static void Push(const std::string& Hash)
+			static void Push()
 			{
 				if (!Factory)
 					Factory = new std::unordered_map<uint64_t, void*>();
 
+				if (Factory->find(T::GetTypeId()) != Factory->end())
+					return TH_ERROR("type \"%s\" already exists in composer's table", T::GetTypeName());
+
 				auto Callable = &Composer::Callee<T, Args...>;
 				void* Result = reinterpret_cast<void*&>(Callable);
-				(*Factory)[TH_COMPONENT_HASH(Hash)] = Result;
+				(*Factory)[T::GetTypeId()] = Result;
 			}
 
 		private:
@@ -977,8 +984,8 @@ namespace Tomahawk
 		public:
 			Object();
 			virtual ~Object();
-			void* operator new(size_t Size);
 			void operator delete(void* Data);
+			void* operator new(size_t Size);
 			void SetFlag();
 			bool GetFlag();
 			int GetRefCount();
@@ -986,16 +993,6 @@ namespace Tomahawk
 			Object* Release();
 
 		public:
-			template <typename T>
-			T* AddRefAs()
-			{
-				return (T*)AddRef();
-			}
-			template <typename T>
-			T* ReleaseAs()
-			{
-				return (T*)Release();
-			}
 			template <typename T>
 			T* As()
 			{

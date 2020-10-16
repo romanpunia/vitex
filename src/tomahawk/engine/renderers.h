@@ -2,7 +2,7 @@
 #define TH_ENGINE_RENDERERS_H
 
 #include "../core/engine.h"
-#include "gui/context.h"
+#include "gui.h"
 
 namespace Tomahawk
 {
@@ -10,7 +10,7 @@ namespace Tomahawk
 	{
 		namespace Renderers
 		{
-			class TH_OUT ModelRenderer : public GeoRenderer
+			class TH_OUT Model : public GeometryDraw
 			{
 			private:
 				struct
@@ -35,22 +35,20 @@ namespace Tomahawk
 				Graphics::InputLayout* Layout = nullptr;
 
 			public:
-				ModelRenderer(RenderSystem* Lab);
-				virtual ~ModelRenderer() override;
+				Model(RenderSystem* Lab);
+				virtual ~Model() override;
 				void Activate() override;
 				void Deactivate() override;
-				void CullGeometry(const Viewer& View, Rest::Pool<Component*>* Geometry) override;
-				void RenderGBuffer(Rest::Timer* Time, Rest::Pool<Component*>* Geometry, RenderOpt Options) override;
-				void RenderDepthLinear(Rest::Timer* Time, Rest::Pool<Component*>* Geometry) override;
-				void RenderDepthCubic(Rest::Timer* Time, Rest::Pool<Component*>* Geometry, Compute::Matrix4x4* ViewProjection) override;
-				Rest::Pool<Component*>* GetOpaque() override;
-				Rest::Pool<Component*>* GetLimpid(uint64_t Index) override;
+				void CullGeometry(const Viewer& View, Rest::Pool<Drawable*>* Geometry) override;
+				void RenderGBuffer(Rest::Timer* Time, Rest::Pool<Drawable*>* Geometry, RenderOpt Options) override;
+				void RenderDepthLinear(Rest::Timer* Time, Rest::Pool<Drawable*>* Geometry) override;
+				void RenderDepthCubic(Rest::Timer* Time, Rest::Pool<Drawable*>* Geometry, Compute::Matrix4x4* ViewProjection) override;
 				
 			public:
-				TH_COMPONENT(ModelRenderer);
+				TH_COMPONENT("model-renderer");
 			};
 
-			class TH_OUT SkinRenderer : public GeoRenderer
+			class TH_OUT Skin : public GeometryDraw
 			{
 			private:
 				struct
@@ -75,22 +73,20 @@ namespace Tomahawk
 				Graphics::InputLayout* Layout = nullptr;
 
 			public:
-				SkinRenderer(RenderSystem* Lab);
-				virtual ~SkinRenderer();
+				Skin(RenderSystem* Lab);
+				virtual ~Skin();
 				void Activate() override;
 				void Deactivate() override;
-				void CullGeometry(const Viewer& View, Rest::Pool<Component*>* Geometry) override;
-				void RenderGBuffer(Rest::Timer* Time, Rest::Pool<Component*>* Geometry, RenderOpt Options) override;
-				void RenderDepthLinear(Rest::Timer* Time, Rest::Pool<Component*>* Geometry) override;
-				void RenderDepthCubic(Rest::Timer* Time, Rest::Pool<Component*>* Geometry, Compute::Matrix4x4* ViewProjection) override;
-				Rest::Pool<Component*>* GetOpaque() override;
-				Rest::Pool<Component*>* GetLimpid(uint64_t Index) override;
+				void CullGeometry(const Viewer& View, Rest::Pool<Drawable*>* Geometry) override;
+				void RenderGBuffer(Rest::Timer* Time, Rest::Pool<Drawable*>* Geometry, RenderOpt Options) override;
+				void RenderDepthLinear(Rest::Timer* Time, Rest::Pool<Drawable*>* Geometry) override;
+				void RenderDepthCubic(Rest::Timer* Time, Rest::Pool<Drawable*>* Geometry, Compute::Matrix4x4* ViewProjection) override;
 
 			public:
-				TH_COMPONENT(SkinRenderer);
+				TH_COMPONENT("skin-renderer");
 			};
 
-			class TH_OUT SoftBodyRenderer : public GeoRenderer
+			class TH_OUT SoftBody : public GeometryDraw
 			{
 			private:
 				struct
@@ -117,22 +113,20 @@ namespace Tomahawk
 				Graphics::ElementBuffer* IndexBuffer = nullptr;
 
 			public:
-				SoftBodyRenderer(RenderSystem* Lab);
-				virtual ~SoftBodyRenderer();
+				SoftBody(RenderSystem* Lab);
+				virtual ~SoftBody();
 				void Activate() override;
 				void Deactivate() override;
-				void CullGeometry(const Viewer& View, Rest::Pool<Component*>* Geometry) override;
-				void RenderGBuffer(Rest::Timer* Time, Rest::Pool<Component*>* Geometry, RenderOpt Options) override;
-				void RenderDepthLinear(Rest::Timer* Time, Rest::Pool<Component*>* Geometry) override;
-				void RenderDepthCubic(Rest::Timer* Time, Rest::Pool<Component*>* Geometry, Compute::Matrix4x4* ViewProjection) override;
-				Rest::Pool<Component*>* GetOpaque() override;
-				Rest::Pool<Component*>* GetLimpid(uint64_t Index) override;
+				void CullGeometry(const Viewer& View, Rest::Pool<Drawable*>* Geometry) override;
+				void RenderGBuffer(Rest::Timer* Time, Rest::Pool<Drawable*>* Geometry, RenderOpt Options) override;
+				void RenderDepthLinear(Rest::Timer* Time, Rest::Pool<Drawable*>* Geometry) override;
+				void RenderDepthCubic(Rest::Timer* Time, Rest::Pool<Drawable*>* Geometry, Compute::Matrix4x4* ViewProjection) override;
 
 			public:
-				TH_COMPONENT(SoftBodyRenderer);
+				TH_COMPONENT("soft-body-renderer");
 			};
 
-			class TH_OUT EmitterRenderer : public GeoRenderer
+			class TH_OUT Emitter : public GeometryDraw
 			{
 			private:
 				struct
@@ -162,21 +156,19 @@ namespace Tomahawk
 				Graphics::InputLayout* Layout = nullptr;
 
 			public:
-				EmitterRenderer(RenderSystem* Lab);
-				virtual ~EmitterRenderer() override;
+				Emitter(RenderSystem* Lab);
+				virtual ~Emitter() override;
 				void Activate() override;
 				void Deactivate() override;
-				void RenderGBuffer(Rest::Timer* Time, Rest::Pool<Component*>* Geometry, RenderOpt Options) override;
-				void RenderDepthLinear(Rest::Timer* Time, Rest::Pool<Component*>* Geometry) override;
-				void RenderDepthCubic(Rest::Timer* Time, Rest::Pool<Component*>* Geometry, Compute::Matrix4x4* ViewProjection) override;
-				Rest::Pool<Component*>* GetOpaque() override;
-				Rest::Pool<Component*>* GetLimpid(uint64_t Index) override;
+				void RenderGBuffer(Rest::Timer* Time, Rest::Pool<Drawable*>* Geometry, RenderOpt Options) override;
+				void RenderDepthLinear(Rest::Timer* Time, Rest::Pool<Drawable*>* Geometry) override;
+				void RenderDepthCubic(Rest::Timer* Time, Rest::Pool<Drawable*>* Geometry, Compute::Matrix4x4* ViewProjection) override;
 
 			public:
-				TH_COMPONENT(EmitterRenderer);
+				TH_COMPONENT("emitter-renderer");
 			};
 
-			class TH_OUT DecalRenderer : public GeoRenderer
+			class TH_OUT Decal : public GeometryDraw
 			{
 			public:
 				struct RenderConstant
@@ -195,21 +187,19 @@ namespace Tomahawk
 				Graphics::Shader* Shader = nullptr;
 
 			public:
-				DecalRenderer(RenderSystem* Lab);
-				virtual ~DecalRenderer() override;
+				Decal(RenderSystem* Lab);
+				virtual ~Decal() override;
 				void Activate() override;
 				void Deactivate() override;
-				void RenderGBuffer(Rest::Timer* Time, Rest::Pool<Component*>* Geometry, RenderOpt Options) override;
-				void RenderDepthLinear(Rest::Timer* Time, Rest::Pool<Component*>* Geometry) override;
-				void RenderDepthCubic(Rest::Timer* Time, Rest::Pool<Component*>* Geometry, Compute::Matrix4x4* ViewProjection) override;
-				Rest::Pool<Component*>* GetOpaque() override;
-				Rest::Pool<Component*>* GetLimpid(uint64_t Index) override;
+				void RenderGBuffer(Rest::Timer* Time, Rest::Pool<Drawable*>* Geometry, RenderOpt Options) override;
+				void RenderDepthLinear(Rest::Timer* Time, Rest::Pool<Drawable*>* Geometry) override;
+				void RenderDepthCubic(Rest::Timer* Time, Rest::Pool<Drawable*>* Geometry, Compute::Matrix4x4* ViewProjection) override;
 
 			public:
-				TH_COMPONENT(DecalRenderer);
+				TH_COMPONENT("decal-renderer");
 			};
 
-			class TH_OUT LimpidRenderer : public Renderer
+			class TH_OUT Transparency : public Renderer
 			{
 			private:
 				Graphics::MultiRenderTarget2D* Surface1 = nullptr;
@@ -233,17 +223,17 @@ namespace Tomahawk
 				} RenderPass;
 
 			public:
-				LimpidRenderer(RenderSystem* Lab);
-				virtual ~LimpidRenderer();
+				Transparency(RenderSystem* Lab);
+				virtual ~Transparency();
 				void Activate() override;
 				void Render(Rest::Timer* Time, RenderState State, RenderOpt Options) override;
 				void ResizeBuffers() override;
 
 			public:
-				TH_COMPONENT(LimpidRenderer);
+				TH_COMPONENT("transparency-renderer");
 			};
 
-			class TH_OUT DepthRenderer : public TickRenderer
+			class TH_OUT Depth : public TimingDraw
 			{
 			public:
 				struct
@@ -268,8 +258,8 @@ namespace Tomahawk
 				float ShadowDistance;
 
 			public:
-				DepthRenderer(RenderSystem* Lab);
-				virtual ~DepthRenderer();
+				Depth(RenderSystem* Lab);
+				virtual ~Depth();
 				void Deserialize(ContentManager* Content, Rest::Document* Node) override;
 				void Serialize(ContentManager* Content, Rest::Document* Node) override;
 				void Activate() override;
@@ -277,10 +267,10 @@ namespace Tomahawk
 				void TickRender(Rest::Timer* Time, RenderState State, RenderOpt Options) override;
 
 			public:
-				TH_COMPONENT(DepthRenderer);
+				TH_COMPONENT("depth-renderer");
 			};
 
-			class TH_OUT ProbeRenderer : public Renderer
+			class TH_OUT Environment : public Renderer
 			{
 			private:
 				Rest::Pool<Engine::Component*>* ReflectionProbes = nullptr;
@@ -292,8 +282,8 @@ namespace Tomahawk
 				uint64_t Size, MipLevels;
 
 			public:
-				ProbeRenderer(RenderSystem* Lab);
-				virtual ~ProbeRenderer();
+				Environment(RenderSystem* Lab);
+				virtual ~Environment();
 				void Deserialize(ContentManager* Content, Rest::Document* Node) override;
 				void Serialize(ContentManager* Content, Rest::Document* Node) override;
 				void Activate() override;
@@ -303,10 +293,10 @@ namespace Tomahawk
 				void SetCaptureSize(size_t Size);
 
 			public:
-				TH_COMPONENT(ProbeRenderer);
+				TH_COMPONENT("environment-renderer");
 			};
 
-			class TH_OUT LightRenderer : public Renderer
+			class TH_OUT Lighting : public Renderer
 			{
 			public:
 				struct
@@ -422,8 +412,8 @@ namespace Tomahawk
 				bool RecursiveProbes;
 
 			public:
-				LightRenderer(RenderSystem* Lab);
-				virtual ~LightRenderer();
+				Lighting(RenderSystem* Lab);
+				virtual ~Lighting();
 				void Deserialize(ContentManager* Content, Rest::Document* Node) override;
 				void Serialize(ContentManager* Content, Rest::Document* Node) override;
 				void Activate() override;
@@ -435,64 +425,80 @@ namespace Tomahawk
 				Graphics::Texture2D* GetSkyBase();
 
 			public:
-				TH_COMPONENT(LightRenderer);
+				TH_COMPONENT("lighting-renderer");
 			};
 
-			class TH_OUT GUIRenderer : public Renderer
+			class TH_OUT Glitch : public EffectDraw
 			{
-			private:
-				GUI::Context* Context;
-
 			public:
-				Compute::Matrix4x4 Offset;
-				bool AA;
-
-			public:
-				GUIRenderer(RenderSystem* Lab);
-				GUIRenderer(RenderSystem* Lab, Graphics::Activity* NewWindow);
-				virtual ~GUIRenderer() override;
-				void Render(Rest::Timer* Time, RenderState State, RenderOpt Options) override;
-				GUI::Context* GetContext();
-
-			public:
-				TH_COMPONENT(GUIRenderer);
-			};
-
-			class TH_OUT ReflectionsRenderer : public EffectRenderer
-			{
-			private:
-				Graphics::Shader* Pass1;
-				Graphics::Shader* Pass2;
-				Graphics::Shader* Pass3;
-
-			public:
-				struct RenderConstant1
+				struct RenderConstant
 				{
-					float Samples = 24.0f;
-					float MipLevels = 0.0f;
-					float Intensity = 1.0f;
-					float Padding = 0.0f;
-				} RenderPass1;
-
-				struct RenderConstant2
-				{
-					float Texel[2] = { 1.0f, 1.0f };
-					float Samples = 4.000f;
-					float Blur = 4.000f;
-				} RenderPass2;
+					float ScanLineJitterDisplacement = 0;
+					float ScanLineJitterThreshold = 0;
+					float VerticalJumpAmount = 0;
+					float VerticalJumpTime = 0;
+					float ColorDriftAmount = 0;
+					float ColorDriftTime = 0;
+					float HorizontalShake = 0;
+					float ElapsedTime = 0;
+				} RenderPass;
 
 			public:
-				ReflectionsRenderer(RenderSystem* Lab);
-				virtual ~ReflectionsRenderer() = default;
+				float ScanLineJitter;
+				float VerticalJump;
+				float HorizontalShake;
+				float ColorDrift;
+
+			public:
+				Glitch(RenderSystem* Lab);
+				virtual ~Glitch() = default;
 				void Deserialize(ContentManager* Content, Rest::Document* Node) override;
 				void Serialize(ContentManager* Content, Rest::Document* Node) override;
 				void RenderEffect(Rest::Timer* Time) override;
 
 			public:
-				TH_COMPONENT(ReflectionsRenderer);
+				TH_COMPONENT("glitch-renderer");
 			};
 
-			class TH_OUT DepthOfFieldRenderer : public EffectRenderer
+			class TH_OUT Tone : public EffectDraw
+			{
+			public:
+				struct RenderConstant
+				{
+					Compute::Vector3 BlindVisionR = Compute::Vector3(1, 0, 0);
+					float VignetteAmount = 0.0f;
+					Compute::Vector3 BlindVisionG = Compute::Vector3(0, 1, 0);
+					float VignetteCurve = 1.5f;
+					Compute::Vector3 BlindVisionB = Compute::Vector3(0, 0, 1);
+					float VignetteRadius = 1.0f;
+					Compute::Vector3 VignetteColor;
+					float LinearIntensity = 0.0f;
+					Compute::Vector3 ColorGamma = Compute::Vector3(1, 1, 1);
+					float GammaIntensity = 2.2f;
+					Compute::Vector3 DesaturationGamma = Compute::Vector3(0.3f, 0.59f, 0.11f);
+					float DesaturationIntensity = 0.0f;
+					float ToneIntensity = 1.0f;
+					float AcesIntensity = 1.0f;
+					float AcesA = 3.01f;
+					float AcesB = 0.03f;
+					float AcesC = 2.43f;
+					float AcesD = 0.59f;
+					float AcesE = 0.14f;
+					float Padding = 0.0f;
+				} RenderPass;
+
+			public:
+				Tone(RenderSystem* Lab);
+				virtual ~Tone() = default;
+				void Deserialize(ContentManager* Content, Rest::Document* Node) override;
+				void Serialize(ContentManager* Content, Rest::Document* Node) override;
+				void RenderEffect(Rest::Timer* Time) override;
+
+			public:
+				TH_COMPONENT("tone-renderer");
+			};
+
+			class TH_OUT DoF : public EffectDraw
 			{
 			private:
 				struct
@@ -524,18 +530,18 @@ namespace Tomahawk
 				float FocusTime = 0.1f;
 
 			public:
-				DepthOfFieldRenderer(RenderSystem* Lab);
-				virtual ~DepthOfFieldRenderer() = default;
+				DoF(RenderSystem* Lab);
+				virtual ~DoF() = default;
 				void Deserialize(ContentManager* Content, Rest::Document* Node) override;
 				void Serialize(ContentManager* Content, Rest::Document* Node) override;
 				void RenderEffect(Rest::Timer* Time) override;
 				void FocusAtNearestTarget(float DeltaTime);
 
 			public:
-				TH_COMPONENT(DepthOfFieldRenderer);
+				TH_COMPONENT("dof-renderer");
 			};
 
-			class TH_OUT EmissionRenderer : public EffectRenderer
+			class TH_OUT Bloom : public EffectDraw
 			{
 			private:
 				Graphics::Shader* Pass1;
@@ -554,49 +560,51 @@ namespace Tomahawk
 				} RenderPass;
 
 			public:
-				EmissionRenderer(RenderSystem* Lab);
-				virtual ~EmissionRenderer() = default;
+				Bloom(RenderSystem* Lab);
+				virtual ~Bloom() = default;
 				void Deserialize(ContentManager* Content, Rest::Document* Node) override;
 				void Serialize(ContentManager* Content, Rest::Document* Node) override;
 				void RenderEffect(Rest::Timer* Time) override;
 
 			public:
-				TH_COMPONENT(EmissionRenderer);
+				TH_COMPONENT("bloom-renderer");
 			};
 
-			class TH_OUT GlitchRenderer : public EffectRenderer
+			class TH_OUT SSR : public EffectDraw
 			{
+			private:
+				Graphics::Shader* Pass1;
+				Graphics::Shader* Pass2;
+				Graphics::Shader* Pass3;
+
 			public:
-				struct RenderConstant
+				struct RenderConstant1
 				{
-					float ScanLineJitterDisplacement = 0;
-					float ScanLineJitterThreshold = 0;
-					float VerticalJumpAmount = 0;
-					float VerticalJumpTime = 0;
-					float ColorDriftAmount = 0;
-					float ColorDriftTime = 0;
-					float HorizontalShake = 0;
-					float ElapsedTime = 0;
-				} RenderPass;
+					float Samples = 24.0f;
+					float MipLevels = 0.0f;
+					float Intensity = 1.0f;
+					float Padding = 0.0f;
+				} RenderPass1;
+
+				struct RenderConstant2
+				{
+					float Texel[2] = { 1.0f, 1.0f };
+					float Samples = 4.000f;
+					float Blur = 4.000f;
+				} RenderPass2;
 
 			public:
-				float ScanLineJitter;
-				float VerticalJump;
-				float HorizontalShake;
-				float ColorDrift;
-
-			public:
-				GlitchRenderer(RenderSystem* Lab);
-				virtual ~GlitchRenderer() = default;
+				SSR(RenderSystem* Lab);
+				virtual ~SSR() = default;
 				void Deserialize(ContentManager* Content, Rest::Document* Node) override;
 				void Serialize(ContentManager* Content, Rest::Document* Node) override;
 				void RenderEffect(Rest::Timer* Time) override;
 
 			public:
-				TH_COMPONENT(GlitchRenderer);
+				TH_COMPONENT("ssr-renderer");
 			};
 
-			class TH_OUT AmbientOcclusionRenderer : public EffectRenderer
+			class TH_OUT SSAO : public EffectDraw
 			{
 			private:
 				Graphics::Shader* Pass1;
@@ -627,17 +635,17 @@ namespace Tomahawk
 				} RenderPass2;
 
 			public:
-				AmbientOcclusionRenderer(RenderSystem* Lab);
-				virtual ~AmbientOcclusionRenderer() = default;
+				SSAO(RenderSystem* Lab);
+				virtual ~SSAO() = default;
 				void Deserialize(ContentManager* Content, Rest::Document* Node) override;
 				void Serialize(ContentManager* Content, Rest::Document* Node) override;
 				void RenderEffect(Rest::Timer* Time) override;
 
 			public:
-				TH_COMPONENT(AmbientOcclusionRenderer);
+				TH_COMPONENT("ssao-renderer");
 			};
 
-			class TH_OUT DirectOcclusionRenderer : public EffectRenderer
+			class TH_OUT SSDO : public EffectDraw
 			{
 			private:
 				Graphics::Shader* Pass1;
@@ -668,52 +676,31 @@ namespace Tomahawk
 				} RenderPass2;
 
 			public:
-				DirectOcclusionRenderer(RenderSystem* Lab);
-				virtual ~DirectOcclusionRenderer() = default;
+				SSDO(RenderSystem* Lab);
+				virtual ~SSDO() = default;
 				void Deserialize(ContentManager* Content, Rest::Document* Node) override;
 				void Serialize(ContentManager* Content, Rest::Document* Node) override;
 				void RenderEffect(Rest::Timer* Time) override;
 
 			public:
-				TH_COMPONENT(DirectOcclusionRenderer);
+				TH_COMPONENT("ssdo-renderer");
 			};
 
-			class TH_OUT ToneRenderer : public EffectRenderer
+			class TH_OUT UserInterface : public Renderer
 			{
-			public:
-				struct RenderConstant
-				{
-					Compute::Vector3 BlindVisionR = Compute::Vector3(1, 0, 0);
-					float VignetteAmount = 0.0f;
-					Compute::Vector3 BlindVisionG = Compute::Vector3(0, 1, 0);
-					float VignetteCurve = 1.5f;
-					Compute::Vector3 BlindVisionB = Compute::Vector3(0, 0, 1);
-					float VignetteRadius = 1.0f;
-					Compute::Vector3 VignetteColor;
-					float LinearIntensity = 0.0f;
-					Compute::Vector3 ColorGamma = Compute::Vector3(1, 1, 1);
-					float GammaIntensity = 2.2f;
-					Compute::Vector3 DesaturationGamma = Compute::Vector3(0.3f, 0.59f, 0.11f);
-					float DesaturationIntensity = 0.0f;
-					float ToneIntensity = 1.0f;
-					float AcesIntensity = 1.0f;
-					float AcesA = 3.01f;
-					float AcesB = 0.03f;
-					float AcesC = 2.43f;
-					float AcesD = 0.59f;
-					float AcesE = 0.14f;
-					float Padding = 0.0f;
-				} RenderPass;
+			private:
+				Graphics::Activity* Activity;
+				GUI::Context* Context;
 
 			public:
-				ToneRenderer(RenderSystem* Lab);
-				virtual ~ToneRenderer() = default;
-				void Deserialize(ContentManager* Content, Rest::Document* Node) override;
-				void Serialize(ContentManager* Content, Rest::Document* Node) override;
-				void RenderEffect(Rest::Timer* Time) override;
+				UserInterface(RenderSystem* Lab);
+				UserInterface(RenderSystem* Lab, Graphics::Activity* NewActivity);
+				virtual ~UserInterface() override;
+				void Render(Rest::Timer* Time, RenderState State, RenderOpt Options) override;
+				GUI::Context* GetContext();
 
 			public:
-				TH_COMPONENT(ToneRenderer);
+				TH_COMPONENT("user-interface-renderer");
 			};
 		}
 	}

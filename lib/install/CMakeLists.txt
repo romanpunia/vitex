@@ -30,11 +30,5 @@ install(FILES
         src/tomahawk/engine/components.h
         src/tomahawk/engine/processors.h
         src/tomahawk/engine/renderers.h
+        src/tomahawk/engine/gui.h
         DESTINATION include/tomahawk/engine)
-install(FILES
-        src/tomahawk/engine/gui/context.h
-        src/tomahawk/engine/gui/elements.h
-        src/tomahawk/engine/gui/layout.h
-        src/tomahawk/engine/gui/logical.h
-        src/tomahawk/engine/gui/shapes.h
-        DESTINATION include/tomahawk/engine/gui)

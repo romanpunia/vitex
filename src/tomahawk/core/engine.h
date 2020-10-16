@@ -11,10 +11,9 @@ namespace Tomahawk
 {
 	namespace Engine
 	{
-		typedef std::unordered_map<std::string, struct ContentKey> ContentMap;
 		typedef std::function<void(Rest::Timer*, struct Viewer*)> RenderCallback;
 		typedef std::function<void(class ContentManager*, bool)> SaveCallback;
-		typedef std::function<void(class Entity*, class Component*, bool)> MutationCallback;
+		typedef std::function<void(class Event*)> MessageCallback;
 		typedef std::function<bool(class Component*)> RayCallback;
 
 		class SceneGraph;
@@ -27,7 +26,11 @@ namespace Tomahawk
 
 		class Component;
 
-		class FileProcessor;
+		class Drawable;
+
+		class Cullable;
+
+		class Processor;
 
 		class RenderSystem;
 
@@ -57,16 +60,6 @@ namespace Tomahawk
 			ThreadId_Count
 		};
 
-		enum ContentType
-		{
-			ContentType_Null,
-			ContentType_String,
-			ContentType_Integer,
-			ContentType_Number,
-			ContentType_Boolean,
-			ContentType_Pointer,
-		};
-
 		enum CullResult
 		{
 			CullResult_Always,
@@ -77,7 +70,7 @@ namespace Tomahawk
 		enum RenderOpt
 		{
 			RenderOpt_None = 0,
-			RenderOpt_Limpid = 1,
+			RenderOpt_Transparent = 1,
 			RenderOpt_Static = 2,
 			RenderOpt_Inner = 4
 		};
@@ -89,6 +82,12 @@ namespace Tomahawk
 			RenderState_Depth_Cubic
 		};
 
+		enum GeoCategory
+		{
+			GeoCategory_Opaque,
+			GeoCategory_Transparent
+		};
+
 		struct TH_OUT Material
 		{
 			Compute::Vector4 Emission;
@@ -96,7 +95,7 @@ namespace Tomahawk
 			Compute::Vector2 Roughness = { 1, 0 };
 			Compute::Vector2 Occlusion = { 1, 0 };
 			float Fresnel = 0.0f;
-			float Limpidity = 0.0f;
+			float Transparency = 0.0f;
 			float Refraction = 0.0f;
 			float Environment = 0.0f;
 			float Radius = 0.0f;
@@ -105,7 +104,7 @@ namespace Tomahawk
 
 		struct TH_OUT AssetResource
 		{
-			FileProcessor* Processor = nullptr;
+			Processor* Processor = nullptr;
 			void* Resource = nullptr;
 			std::string Path;
 		};
@@ -116,33 +115,6 @@ namespace Tomahawk
 			std::string Path;
 			uint64_t Length = 0;
 			uint64_t Offset = 0;
-		};
-
-		struct TH_OUT ContentKey
-		{
-			ContentType Type;
-			std::string String;
-			int64_t Integer;
-			double Number;
-			bool Boolean;
-			void* Pointer;
-
-			ContentKey();
-			explicit ContentKey(const std::string& Value);
-			explicit ContentKey(int64_t Value);
-			explicit ContentKey(double Value);
-			explicit ContentKey(bool Value);
-			explicit ContentKey(void* Value);
-		};
-
-		struct TH_OUT ContentArgs
-		{
-			ContentMap* Args;
-
-			ContentArgs(ContentMap* Map);
-			bool Is(const std::string& Name, const ContentKey& Value);
-			ContentKey* Get(const std::string& Name);
-			ContentKey* Get(const std::string& Name, ContentType Type);
 		};
 
 		struct TH_OUT ThreadEvent
@@ -178,6 +150,7 @@ namespace Tomahawk
 
 		struct TH_OUT Appearance
 		{
+		private:
 			Graphics::Texture2D* DiffuseMap = nullptr;
 			Graphics::Texture2D* NormalMap = nullptr;
 			Graphics::Texture2D* MetallicMap = nullptr;
@@ -185,15 +158,36 @@ namespace Tomahawk
 			Graphics::Texture2D* HeightMap = nullptr;
 			Graphics::Texture2D* OcclusionMap = nullptr;
 			Graphics::Texture2D* EmissionMap = nullptr;
+
+		public:
 			Compute::Vector3 Diffuse = 1;
 			Compute::Vector2 TexCoord = 1;
 			float HeightAmount = 0.0f;
 			float HeightBias = 0.0f;
 			int64_t Material = -1;
 
-			static bool UploadGBuffer(Graphics::GraphicsDevice* Device, Appearance* Surface);
-			static bool UploadLinearDepth(Graphics::GraphicsDevice* Device, Appearance* Surface);
-			static bool UploadCubicDepth(Graphics::GraphicsDevice* Device, Appearance* Surface);
+		public:
+			Appearance();
+			Appearance(const Appearance& Other);
+			~Appearance();
+			bool FillGBuffer(Graphics::GraphicsDevice* Device) const;
+			bool FillLinearDepth(Graphics::GraphicsDevice* Device) const;
+			bool FillCubicDepth(Graphics::GraphicsDevice* Device) const;
+			void SetDiffuseMap(Graphics::Texture2D* New);
+			Graphics::Texture2D* GetDiffuseMap() const;
+			void SetNormalMap(Graphics::Texture2D* New);
+			Graphics::Texture2D* GetNormalMap() const;
+			void SetMetallicMap(Graphics::Texture2D* New);
+			Graphics::Texture2D* GetMetallicMap() const;
+			void SetRoughnessMap(Graphics::Texture2D* New);
+			Graphics::Texture2D* GetRoughnessMap() const;
+			void SetHeightMap(Graphics::Texture2D* New);
+			Graphics::Texture2D* GetHeightMap() const;
+			void SetOcclusionMap(Graphics::Texture2D* New);
+			Graphics::Texture2D* GetOcclusionMap() const;
+			void SetEmissionMap(Graphics::Texture2D* New);
+			Graphics::Texture2D* GetEmissionMap() const;
+			Appearance& operator= (const Appearance& Other);
 		};
 
 		struct TH_OUT Viewer
@@ -211,6 +205,19 @@ namespace Tomahawk
 			RenderSystem* Renderer = nullptr;
 
 			void Set(const Compute::Matrix4x4& View, const Compute::Matrix4x4& Projection, const Compute::Vector3& Position, float Distance);
+		};
+
+		struct TH_OUT AssetFile : public Rest::Object
+		{
+		private:
+			char* Buffer;
+			size_t Size;
+
+		public:
+			AssetFile(char* SrcBuffer, size_t SrcSize);
+			virtual ~AssetFile() override;
+			char* GetBuffer();
+			size_t GetSize();
 		};
 
 		class TH_OUT NMake
@@ -322,38 +329,28 @@ namespace Tomahawk
 			friend SceneGraph;
 
 		private:
-			Component* Root = nullptr;
-			void* Context = nullptr;
-			uint64_t Type = 0;
-			bool Foreach = false;
+			Component * TComponent;
+			Entity* TEntity;
+			SceneGraph* TScene;
+			std::string Id;
 
 		public:
-			template <typename T>
-			bool Is()
-			{
-				return typeid(T).hash_code() == Type;
-			}
-			template <typename T>
-			T* Get()
-			{
-				return (T*)Context;
-			}
-		};
+			Compute::PropertyArgs Args;
 
-		struct TH_OUT AssetFile : public Rest::Object
-		{
 		private:
-			char* Buffer;
-			size_t Size;
+			Event(const std::string& NewName, SceneGraph* Target, const Compute::PropertyArgs& NewArgs);
+			Event(const std::string& NewName, Entity* Target, const Compute::PropertyArgs& NewArgs);
+			Event(const std::string& NewName, Component* Target, const Compute::PropertyArgs& NewArgs);
 
 		public:
-			AssetFile(char* SrcBuffer, size_t SrcSize);
-			virtual ~AssetFile() override;
-			char* GetBuffer();
-			size_t GetSize();
+			bool Is(const std::string& Name);
+			const std::string& GetName();
+			Component* GetComponent();
+			Entity* GetEntity();
+			SceneGraph* GetScene();
 		};
 
-		class TH_OUT FileProcessor : public Rest::Object
+		class TH_OUT Processor : public Rest::Object
 		{
 			friend ContentManager;
 
@@ -361,12 +358,12 @@ namespace Tomahawk
 			ContentManager* Content;
 
 		public:
-			FileProcessor(ContentManager* NewContent);
-			virtual ~FileProcessor() override;
+			Processor(ContentManager* NewContent);
+			virtual ~Processor() override;
 			virtual void Free(AssetResource* Asset);
-			virtual void* Duplicate(AssetResource* Asset, ContentArgs* Keys);
-			virtual void* Deserialize(Rest::FileStream* Stream, uint64_t Length, uint64_t Offset, ContentArgs* Keys);
-			virtual bool Serialize(Rest::FileStream* Stream, void* Instance, ContentArgs* Keys);
+			virtual void* Duplicate(AssetResource* Asset, const Compute::PropertyArgs& Keys);
+			virtual void* Deserialize(Rest::FileStream* Stream, uint64_t Length, uint64_t Offset, const Compute::PropertyArgs& Keys);
+			virtual bool Serialize(Rest::FileStream* Stream, void* Instance, const Compute::PropertyArgs& Keys);
 			ContentManager* GetContent();
 		};
 
@@ -390,7 +387,7 @@ namespace Tomahawk
 			virtual void Asleep();
 			virtual void Synchronize(Rest::Timer* Time);
 			virtual void Update(Rest::Timer* Time);
-			virtual void Pipe(Event* Value);
+			virtual void Message(Event* Value);
 			virtual Component* Copy(Entity* New) = 0;
 			virtual Compute::Matrix4x4 GetBoundingBox();
 			Entity* GetEntity();
@@ -398,63 +395,7 @@ namespace Tomahawk
 			bool IsActive();
 
 		public:
-			TH_COMPONENT_BASIS(Component);
-		};
-
-		class TH_OUT Cullable : public Component
-		{
-			friend RenderSystem;
-
-		protected:
-			float Visibility;
-
-		public:
-			Cullable(Entity* Ref);
-			virtual ~Cullable() = default;
-			virtual float Cull(const Viewer& View) = 0;
-			virtual Component* Copy(Entity* New) override = 0;
-			virtual void ClearCull();
-			float GetRange();
-			bool IsVisible(const Viewer& View, Compute::Matrix4x4* World);
-			bool IsNear(const Viewer& View);
-
-		public:
-			TH_COMPONENT(Cullable);
-		};
-
-		class TH_OUT Drawable : public Cullable
-		{
-		private:
-			bool Complex;
-
-		protected:
-			std::unordered_map<void*, Appearance> Surfaces;
-			Graphics::Query* Query;
-			uint64_t Fragments;
-			int Satisfied;
-
-		public:
-			bool Static;
-
-		public:
-			Drawable(Entity* Ref, bool Complex);
-			virtual ~Drawable();
-			virtual void Pipe(Event* Value) override;
-			virtual Component* Copy(Entity* New) override = 0;
-			virtual void ClearCull() override;
-			bool FragmentBegin(Graphics::GraphicsDevice* Device);
-			void FragmentEnd(Graphics::GraphicsDevice* Device);
-			int FetchFragments(RenderSystem* System);
-			uint64_t GetFragmentsCount();
-			const std::unordered_map<void*, Appearance>& GetSurfaces();
-			Material* GetMaterial(Appearance* Surface);
-			Material* GetMaterial();
-			Appearance* GetSurface(void* Instance);
-			Appearance* GetSurface();
-			bool IsLimpid();
-
-		public:
-			TH_COMPONENT(Drawable);
+			TH_COMPONENT("component");
 		};
 
 		class TH_OUT Entity : public Rest::Object
@@ -513,7 +454,7 @@ namespace Tomahawk
 			friend SceneGraph;
 
 		protected:
-			RenderSystem* System;
+			RenderSystem * System;
 
 		public:
 			bool Active;
@@ -530,73 +471,9 @@ namespace Tomahawk
 			virtual void Render(Rest::Timer* TimeStep, RenderState State, RenderOpt Options);
 			void SetRenderer(RenderSystem* NewSystem);
 			RenderSystem* GetRenderer();
-			
-		public:
-			TH_COMPONENT_BASIS(Renderer);
-		};
-
-		class TH_OUT GeoRenderer : public Renderer
-		{
-		public:
-			GeoRenderer(RenderSystem* Lab);
-			virtual ~GeoRenderer() override;
-			virtual void CullGeometry(const Viewer& View, Rest::Pool<Component*>* Geometry);
-			virtual void RenderGBuffer(Rest::Timer* TimeStep, Rest::Pool<Component*>* Geometry, RenderOpt Options) = 0;
-			virtual void RenderDepthLinear(Rest::Timer* TimeStep, Rest::Pool<Component*>* Geometry) = 0;
-			virtual void RenderDepthCubic(Rest::Timer* TimeStep, Rest::Pool<Component*>* Geometry, Compute::Matrix4x4* ViewProjection) = 0;
-			virtual Rest::Pool<Component*>* GetOpaque() = 0;
-			virtual Rest::Pool<Component*>* GetLimpid(uint64_t Layer) = 0;
-			void CullGeometry(const Viewer& View) override;
-			void Render(Rest::Timer* TimeStep, RenderState State, RenderOpt Options) override;
 
 		public:
-			TH_COMPONENT(GeoRenderer);
-		};
-
-		class TH_OUT TickRenderer : public Renderer
-		{
-		protected:
-			Rest::TickTimer Tick;
-
-		public:
-			TickRenderer(RenderSystem* Lab);
-			virtual ~TickRenderer() override;
-			virtual void TickRender(Rest::Timer* TimeStep, RenderState State, RenderOpt Options);
-			virtual void FrameRender(Rest::Timer* TimeStep, RenderState State, RenderOpt Options);
-			void Render(Rest::Timer* TimeStep, RenderState State, RenderOpt Options) override;
-
-		public:
-			TH_COMPONENT(TickRenderer);
-		};
-
-		class TH_OUT EffectRenderer : public Renderer
-		{
-		protected:
-			std::unordered_map<std::string, Graphics::Shader*> Shaders;
-			Graphics::DepthStencilState* DepthStencil;
-			Graphics::RasterizerState* Rasterizer;
-			Graphics::BlendState* Blend;
-			Graphics::SamplerState* Sampler;
-			Graphics::InputLayout* Layout;
-			Graphics::RenderTarget2D* Output;
-			Graphics::Texture2D* Pass;
-
-		public:
-			EffectRenderer(RenderSystem* Lab);
-			virtual ~EffectRenderer() override;
-			virtual void RenderEffect(Rest::Timer* Time);
-			void Activate() override;
-			void ResizeBuffers() override;
-			void Render(Rest::Timer* Time, RenderState State, RenderOpt Options) override;
-
-		protected:
-			void RenderMerge(Graphics::Shader* Effect, void* Buffer = nullptr);
-			void RenderResult(Graphics::Shader* Effect, void* Buffer = nullptr);
-			Graphics::Shader* GetEffect(const std::string& Name);
-			Graphics::Shader* CompileEffect(const std::string& Name, const std::string& Code, size_t BufferSize = 0);
-
-		public:
-			TH_COMPONENT(EffectRenderer);
+			TH_COMPONENT("renderer");
 		};
 
 		class TH_OUT ShaderCache : public Rest::Object
@@ -684,7 +561,7 @@ namespace Tomahawk
 			SceneGraph* GetScene();
 
 		private:
-		    Rest::Pool<Component*>* GetSceneComponents(uint64_t Section);
+			Rest::Pool<Component*>* GetSceneComponents(uint64_t Section);
 
 		public:
 			template <typename In>
@@ -726,11 +603,144 @@ namespace Tomahawk
 			}
 		};
 
+		class TH_OUT Cullable : public Component
+		{
+			friend RenderSystem;
+
+		protected:
+			float Visibility;
+
+		public:
+			Cullable(Entity* Ref);
+			virtual ~Cullable() = default;
+			virtual float Cull(const Viewer& View) = 0;
+			virtual Component* Copy(Entity* New) override = 0;
+			virtual void ClearCull();
+			float GetRange();
+			bool IsVisible(const Viewer& View, Compute::Matrix4x4* World);
+			bool IsNear(const Viewer& View);
+
+		public:
+			TH_COMPONENT("cullable");
+		};
+
+		class TH_OUT Drawable : public Cullable
+		{
+			friend SceneGraph;
+
+		private:
+			Graphics::Query* Query;
+			GeoCategory Category;
+			uint64_t Fragments;
+			uint64_t Source;
+			int Satisfied;
+			bool Complex;
+
+		protected:
+			std::unordered_map<void*, Appearance> Surfaces;
+
+		public:
+			bool Static;
+
+		public:
+			Drawable(Entity* Ref, uint64_t Hash, bool Complex);
+			virtual ~Drawable();
+			virtual void Message(Event* Value) override;
+			virtual Component* Copy(Entity* New) override = 0;
+			virtual void ClearCull() override;
+			bool SetTransparency(bool Enabled);
+			bool Begin(Graphics::GraphicsDevice* Device);
+			void End(Graphics::GraphicsDevice* Device);
+			int Fetch(RenderSystem* System);
+			uint64_t GetFragmentsCount();
+			const std::unordered_map<void*, Appearance>& GetSurfaces();
+			Material* GetMaterial(Appearance* Surface);
+			Material* GetMaterial();
+			Appearance* GetSurface(void* Instance);
+			Appearance* GetSurface();
+			bool HasTransparency();
+
+		protected:
+			void Attach();
+			void Detach();
+
+		public:
+			TH_COMPONENT("drawable");
+		};
+
+		class TH_OUT GeometryDraw : public Renderer
+		{
+		private:
+			uint64_t Source;
+
+		public:
+			GeometryDraw(RenderSystem* Lab, uint64_t Hash);
+			virtual ~GeometryDraw() override;
+			virtual void CullGeometry(const Viewer& View, Rest::Pool<Drawable*>* Geometry);
+			virtual void RenderGBuffer(Rest::Timer* TimeStep, Rest::Pool<Drawable*>* Geometry, RenderOpt Options) = 0;
+			virtual void RenderDepthLinear(Rest::Timer* TimeStep, Rest::Pool<Drawable*>* Geometry) = 0;
+			virtual void RenderDepthCubic(Rest::Timer* TimeStep, Rest::Pool<Drawable*>* Geometry, Compute::Matrix4x4* ViewProjection) = 0;
+			void CullGeometry(const Viewer& View) override;
+			void Render(Rest::Timer* TimeStep, RenderState State, RenderOpt Options) override;
+			Rest::Pool<Drawable*>* GetOpaque();
+			Rest::Pool<Drawable*>* GetTransparent();
+
+		public:
+			TH_COMPONENT("geometry-draw");
+		};
+
+		class TH_OUT TimingDraw : public Renderer
+		{
+		protected:
+			Rest::TickTimer Tick;
+
+		public:
+			TimingDraw(RenderSystem* Lab);
+			virtual ~TimingDraw() override;
+			virtual void TickRender(Rest::Timer* TimeStep, RenderState State, RenderOpt Options);
+			virtual void FrameRender(Rest::Timer* TimeStep, RenderState State, RenderOpt Options);
+			void Render(Rest::Timer* TimeStep, RenderState State, RenderOpt Options) override;
+
+		public:
+			TH_COMPONENT("timing-draw");
+		};
+
+		class TH_OUT EffectDraw : public Renderer
+		{
+		protected:
+			std::unordered_map<std::string, Graphics::Shader*> Shaders;
+			Graphics::DepthStencilState* DepthStencil;
+			Graphics::RasterizerState* Rasterizer;
+			Graphics::BlendState* Blend;
+			Graphics::SamplerState* Sampler;
+			Graphics::InputLayout* Layout;
+			Graphics::RenderTarget2D* Output;
+			Graphics::Texture2D* Pass;
+
+		public:
+			EffectDraw(RenderSystem* Lab);
+			virtual ~EffectDraw() override;
+			virtual void RenderEffect(Rest::Timer* Time);
+			void Activate() override;
+			void ResizeBuffers() override;
+			void Render(Rest::Timer* Time, RenderState State, RenderOpt Options) override;
+
+		protected:
+			void RenderMerge(Graphics::Shader* Effect, void* Buffer = nullptr);
+			void RenderResult(Graphics::Shader* Effect, void* Buffer = nullptr);
+			Graphics::Shader* GetEffect(const std::string& Name);
+			Graphics::Shader* CompileEffect(const std::string& Name, const std::string& Code, size_t BufferSize = 0);
+
+		public:
+			TH_COMPONENT("effect-draw");
+		};
+
 		class TH_OUT SceneGraph : public Rest::Object
 		{
 			friend Renderer;
 			friend Component;
 			friend Entity;
+			friend Drawable;
 
 		public:
 			struct Desc
@@ -753,6 +763,13 @@ namespace Tomahawk
 			};
 
 		private:
+			struct Geometry
+			{
+				Rest::Pool<Drawable*> Opaque;
+				Rest::Pool<Drawable*> Transparent;
+			};
+
+		private:
 			struct
 			{
 				Thread Threads[ThreadId_Count];
@@ -762,15 +779,8 @@ namespace Tomahawk
 				std::atomic<int> Count;
 				std::atomic<bool> Locked;
 				std::mutex Await, Safe, Events;
-				std::mutex Global;
+				std::mutex Global, Listener;
 			} Sync;
-
-			struct
-			{
-				std::unordered_map<std::string, MutationCallback> Callbacks;
-				std::mutex Safe;
-				bool Invoked;
-			} Mutation;
 
 			struct
 			{
@@ -785,7 +795,9 @@ namespace Tomahawk
 			Graphics::MultiRenderTarget2D* Surface = nullptr;
 			Graphics::ElementBuffer* Structure = nullptr;
 			Compute::Simulator* Simulator = nullptr;
+			std::unordered_map<std::string, std::pair<std::string, MessageCallback>> Listeners;
 			std::unordered_map<uint64_t, Rest::Pool<Component*>> Components;
+			std::unordered_map<uint64_t, Geometry> Drawables;
 			std::vector<Material> Materials;
 			std::vector<std::string> Names;
 			std::vector<Event*> Events;
@@ -793,6 +805,7 @@ namespace Tomahawk
 			Rest::Pool<Entity*> Entities;
 			Component* Camera = nullptr;
 			Desc Conf;
+			bool Invoked;
 			bool Active;
 
 		public:
@@ -812,7 +825,6 @@ namespace Tomahawk
 			void Synchronize(Rest::Timer* Time);
 			void RemoveMaterial(uint64_t MaterialId);
 			void RemoveEntity(Entity* Entity, bool Release);
-			void SetMutation(const std::string& Name, const MutationCallback& Callback);
 			void SetCamera(Entity* Camera);
 			void CloneEntities(Entity* Instance, std::vector<Entity*>* Array);
 			void RestoreViewBuffer(Viewer* View);
@@ -822,6 +834,7 @@ namespace Tomahawk
 			void SortEntitiesFrontToBack();
 			void SortEntitiesFrontToBack(uint64_t Section);
 			void SortEntitiesFrontToBack(Rest::Pool<Component*>* Array);
+			void Actualize();
 			void Redistribute();
 			void Reindex();
 			void ExpandMaterialStructure();
@@ -842,6 +855,12 @@ namespace Tomahawk
 			void GetTargetDesc(Graphics::RenderTarget2D::Desc* Result);
 			void GetTargetDesc(Graphics::MultiRenderTarget2D::Desc* Result);
 			void GetTargetFormat(Graphics::Format* Result, uint64_t Size);
+			bool AddEventListener(const std::string& Name, const std::string& Event, const MessageCallback& Callback);
+			bool RemoveEventListener(const std::string& Name);
+			bool DispatchEvent(const std::string& EventName, const Compute::PropertyArgs& Args);
+			bool DispatchEvent(Component* Target, const std::string& EventName, const Compute::PropertyArgs& Args);
+			bool DispatchEvent(Entity* Target, const std::string& EventName, const Compute::PropertyArgs& Args);
+			void Dispatch();
 			Material* AddMaterial(const std::string& Name, const Material& Material);
 			Entity* CloneEntities(Entity* Value);
 			Entity* FindNamedEntity(const std::string& Name);
@@ -864,13 +883,16 @@ namespace Tomahawk
 			bool IsEntityVisible(Entity* Entity, const Compute::Matrix4x4& ViewProjection);
 			bool IsEntityVisible(Entity* Entity, const Compute::Matrix4x4& ViewProjection, const Compute::Vector3& ViewPosition, float DrawDistance);
 			bool AddEntity(Entity* Entity);
-			bool Denotify();
 			bool IsActive();
 			uint64_t GetMaterialCount();
 			uint64_t GetEntityCount();
 			uint64_t GetComponentCount(uint64_t Section);
+			uint64_t GetOpaqueCount();
+			uint64_t GetTransparentCount();
 			bool HasEntity(Entity* Entity);
 			bool HasEntity(uint64_t Entity);
+			Rest::Pool<Drawable*>* GetOpaque(uint64_t Section);
+			Rest::Pool<Drawable*>* GetTransparent(uint64_t Section);
 			Graphics::MultiRenderTarget2D* GetSurface();
 			Graphics::ElementBuffer* GetStructure();
 			Graphics::GraphicsDevice* GetDevice();
@@ -880,12 +902,14 @@ namespace Tomahawk
 			Desc& GetConf();
 
 		protected:
-			void InvokeMutation(Entity* Target, Component* Base, bool Push);
+			void AddDrawable(Drawable* Source, GeoCategory Category);
+			void RemoveDrawable(Drawable* Source, GeoCategory Category);
 			void BeginThread(ThreadId Thread);
 			void EndThread(ThreadId Thread);
-			void DispatchEvents();
+			void Mutate(Entity* Target, bool Added);
 			void RegisterEntity(Entity* In);
 			bool UnregisterEntity(Entity* In);
+			bool DispatchLastEvent();
 			Entity* CloneEntity(Entity* Entity);
 
 		public:
@@ -898,36 +922,6 @@ namespace Tomahawk
 			void SortEntitiesBackToFront()
 			{
 				SortEntitiesBackToFront(T::GetTypeId());
-			}
-			template <typename T>
-			bool Notify(Component* To, const T& Value)
-			{
-				if (!Conf.Queue)
-					return false;
-
-				Event* Message = new Event();
-				Message->Type = typeid(T).hash_code();
-				Message->Foreach = false;
-				Message->Root = To;
-				Message->Context = TH_MALLOC(sizeof(T));
-				memcpy(Message->Context, &Value, sizeof(T));
-
-				return Conf.Queue->Event<Event>(Message);
-			}
-			template <typename T>
-			bool NotifyEach(Component* To, const T& Value)
-			{
-				if (!Conf.Queue)
-					return false;
-
-				Event* Message = new Event();
-				Message->Type = typeid(T).hash_code();
-				Message->Foreach = true;
-				Message->Root = To;
-				Message->Context = TH_MALLOC(sizeof(T));
-				memcpy(Message->Context, &Value, sizeof(T));
-
-				return Conf.Queue->Event<Event>(Message);
 			}
 			template <typename T>
 			uint64_t GetEntityCount()
@@ -962,6 +956,16 @@ namespace Tomahawk
 				return GetComponents(T::GetTypeId());
 			}
 			template <typename T>
+			Rest::Pool<Drawable*>* GetOpaque()
+			{
+				return GetOpaque(T::GetTypeId());
+			}
+			template <typename T>
+			Rest::Pool<Drawable*>* GetTransparent()
+			{
+				return GetTransparent(T::GetTypeId());
+			}
+			template <typename T>
 			T* GetComponent()
 			{
 				return (T*)GetComponent(0, T::GetTypeId());
@@ -982,7 +986,7 @@ namespace Tomahawk
 		private:
 			std::unordered_map<std::string, AssetDocker*> Dockers;
 			std::unordered_map<std::string, AssetResource*> Assets;
-			std::unordered_map<int64_t, FileProcessor*> Processors;
+			std::unordered_map<int64_t, Processor*> Processors;
 			std::unordered_map<Rest::FileStream*, int64_t> Streams;
 			Graphics::GraphicsDevice* Device;
 			Rest::EventQueue* Queue;
@@ -998,7 +1002,7 @@ namespace Tomahawk
 			void SetEnvironment(const std::string& Path);
 			bool Import(const std::string& Path);
 			bool Export(const std::string& Path, const std::string& Directory, const std::string& Name = "");
-			bool Cache(FileProcessor* Root, const std::string& Path, void* Resource);
+			bool Cache(Processor* Root, const std::string& Path, void* Resource);
 			AssetResource* FindAsset(const std::string& Path);
 			AssetResource* FindAsset(void* Resource);
 			Graphics::GraphicsDevice* GetDevice();
@@ -1007,43 +1011,39 @@ namespace Tomahawk
 
 		public:
 			template <typename T>
-			T* Load(const std::string& Path, ContentMap* Keys)
+			T* Load(const std::string& Path, const Compute::PropertyArgs& Keys = Compute::PropertyArgs())
 			{
 				return (T*)LoadForward(Path, GetProcessor<T>(), Keys);
 			}
 			template <typename T>
-			bool LoadAsync(const std::string& Path, ContentMap* Keys, const std::function<void(class ContentManager*, T*)>& Callback)
+			bool LoadAsync(const std::string& Path, const Compute::PropertyArgs& Keys, const std::function<void(class ContentManager*, T*)>& Callback)
 			{
 				if (!Queue)
 					return false;
 
-				ContentMap* Map = Keys ? new ContentMap(*Keys) : nullptr;
-				return Queue->Task<ContentManager>(this, [this, Path, Callback, Map](Rest::EventQueue*, Rest::EventArgs*)
+				return Queue->Task<ContentManager>(this, [this, Path, Callback, Keys](Rest::EventQueue*, Rest::EventArgs*)
 				{
-					T* Result = (T*)LoadForward(Path, GetProcessor<T>(), Map);
+					T* Result = (T*)LoadForward(Path, GetProcessor<T>(), Keys);
 					if (Callback)
 						Callback(this, Result);
-					delete Map;
 				});
 			}
 			template <typename T>
-			bool Save(const std::string& Path, T* Object, ContentMap* Keys)
+			bool Save(const std::string& Path, T* Object, const Compute::PropertyArgs& Keys = Compute::PropertyArgs())
 			{
 				return SaveForward(Path, GetProcessor<T>(), Object, Keys);
 			}
 			template <typename T>
-			bool SaveAsync(const std::string& Path, T* Object, ContentMap* Keys, const SaveCallback& Callback)
+			bool SaveAsync(const std::string& Path, T* Object, const Compute::PropertyArgs& Keys, const SaveCallback& Callback)
 			{
 				if (!Queue)
 					return false;
 
-				ContentMap* Map = Keys ? new ContentMap(*Keys) : nullptr;
-				return Queue->Task<ContentManager>(this, [this, Path, Callback, Object, Map](Rest::EventQueue*, Rest::EventArgs*)
+				return Queue->Task<ContentManager>(this, [this, Path, Callback, Object, Keys](Rest::EventQueue*, Rest::EventArgs*)
 				{
-					bool Result = SaveForward(Path, GetProcessor<T>(), Object, Map);
+					bool Result = SaveForward(Path, GetProcessor<T>(), Object, Keys);
 					if (Callback)
 						Callback(this, Result);
-					delete Map;
 				});
 			}
 			template <typename T>
@@ -1083,7 +1083,7 @@ namespace Tomahawk
 				return Instance;
 			}
 			template <typename T>
-			FileProcessor* GetProcessor()
+			Processor* GetProcessor()
 			{
 				Mutex.lock();
 				auto It = Processors.find(typeid(T).hash_code());
@@ -1098,9 +1098,9 @@ namespace Tomahawk
 			}
 
 		private:
-			void* LoadForward(const std::string& Path, FileProcessor* Processor, ContentMap* Keys);
-			void* LoadStreaming(const std::string& Path, FileProcessor* Processor, ContentMap* Keys);
-			bool SaveForward(const std::string& Path, FileProcessor* Processor, void* Object, ContentMap* Keys);
+			void* LoadForward(const std::string& Path, Processor* Processor, const Compute::PropertyArgs& Keys);
+			void* LoadStreaming(const std::string& Path, Processor* Processor, const Compute::PropertyArgs& Keys);
+			bool SaveForward(const std::string& Path, Processor* Processor, void* Object, const Compute::PropertyArgs& Keys);
 		};
 
 		class TH_OUT Application : public Rest::Object

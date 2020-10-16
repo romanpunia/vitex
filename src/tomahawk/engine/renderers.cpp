@@ -7,7 +7,7 @@ namespace Tomahawk
 	{
 		namespace Renderers
 		{
-			ModelRenderer::ModelRenderer(Engine::RenderSystem* Lab) : GeoRenderer(Lab)
+			Model::Model(Engine::RenderSystem* Lab) : GeometryDraw(Lab, Components::Model::GetTypeId())
 			{
 				DepthStencil = Lab->GetDevice()->GetDepthStencilState("less");
 				BackRasterizer = Lab->GetDevice()->GetRasterizerState("cull-back");
@@ -29,24 +29,22 @@ namespace Tomahawk
 				if (System->GetDevice()->GetSection("geometry/model/occlusion", &I.Data))
 					Shaders.Occlusion = System->CompileShader("mr-occlusion", I, 0);
 			}
-			ModelRenderer::~ModelRenderer()
+			Model::~Model()
 			{
 				System->FreeShader("mr-gbuffer", Shaders.GBuffer);
 				System->FreeShader("mr-depth-linear", Shaders.Linear);
 				System->FreeShader("mr-depth-cubic", Shaders.Cubic);
 				System->FreeShader("mr-occlusion", Shaders.Occlusion);
 			}
-			void ModelRenderer::Activate()
+			void Model::Activate()
 			{
 				System->AddCull<Engine::Components::Model>();
-				System->AddCull<Engine::Components::LimpidModel>();
 			}
-			void ModelRenderer::Deactivate()
+			void Model::Deactivate()
 			{
 				System->RemoveCull<Engine::Components::Model>();
-				System->RemoveCull<Engine::Components::LimpidModel>();
 			}
-			void ModelRenderer::CullGeometry(const Viewer& View, Rest::Pool<Component*>* Geometry)
+			void Model::CullGeometry(const Viewer& View, Rest::Pool<Drawable*>* Geometry)
 			{
 				Graphics::GraphicsDevice* Device = System->GetDevice();
 				Device->SetRasterizerState(BackRasterizer);
@@ -64,7 +62,7 @@ namespace Tomahawk
 					if (!Drawable || Drawable->Meshes.empty())
 						continue;
 
-					if (!Base->FragmentBegin(Device))
+					if (!Base->Begin(Device))
 						continue;
 
 					if (Base->GetFragmentsCount() > 0)
@@ -86,10 +84,10 @@ namespace Tomahawk
 						Device->SetVertexBuffer(System->GetBoxVBuffer(), 0);
 						Device->DrawIndexed(System->GetBoxIBuffer()->GetElements(), 0, 0);
 					}
-					Base->FragmentEnd(Device);
+					Base->End(Device);
 				}
 			}
-			void ModelRenderer::RenderGBuffer(Rest::Timer* Time, Rest::Pool<Component*>* Geometry, RenderOpt Options)
+			void Model::RenderGBuffer(Rest::Timer* Time, Rest::Pool<Drawable*>* Geometry, RenderOpt Options)
 			{
 				Graphics::GraphicsDevice* Device = System->GetDevice();
 				CullResult Cull = (Options & RenderOpt_Inner ? CullResult_Always : CullResult_Last);
@@ -115,7 +113,8 @@ namespace Tomahawk
 
 					for (auto&& Mesh : Drawable->Meshes)
 					{
-						if (!Appearance::UploadGBuffer(Device, Base->GetSurface(Mesh)))
+						auto* Surface = Base->GetSurface(Mesh);
+						if (!Surface || !Surface->FillGBuffer(Device))
 							continue;
 
 						Device->Render.World = Mesh->World * Base->GetEntity()->Transform->GetWorld();
@@ -127,7 +126,7 @@ namespace Tomahawk
 
 				Device->FlushTexture2D(1, 7);
 			}
-			void ModelRenderer::RenderDepthLinear(Rest::Timer* Time, Rest::Pool<Component*>* Geometry)
+			void Model::RenderDepthLinear(Rest::Timer* Time, Rest::Pool<Drawable*>* Geometry)
 			{
 				Graphics::GraphicsDevice* Device = System->GetDevice();
 				Device->SetDepthStencilState(DepthStencil);
@@ -147,7 +146,8 @@ namespace Tomahawk
 
 					for (auto&& Mesh : Drawable->Meshes)
 					{
-						if (!Appearance::UploadLinearDepth(Device, Base->GetSurface(Mesh)))
+						auto* Surface = Base->GetSurface(Mesh);
+						if (!Surface || !Surface->FillLinearDepth(Device))
 							continue;
 
 						Device->Render.World = Mesh->World * Base->GetEntity()->Transform->GetWorld();
@@ -159,7 +159,7 @@ namespace Tomahawk
 
 				Device->SetTexture2D(nullptr, 1);
 			}
-			void ModelRenderer::RenderDepthCubic(Rest::Timer* Time, Rest::Pool<Component*>* Geometry, Compute::Matrix4x4* ViewProjection)
+			void Model::RenderDepthCubic(Rest::Timer* Time, Rest::Pool<Drawable*>* Geometry, Compute::Matrix4x4* ViewProjection)
 			{
 				Graphics::GraphicsDevice* Device = System->GetDevice();
 				memcpy(Depth.FaceViewProjection, ViewProjection, sizeof(Compute::Matrix4x4) * 6);
@@ -182,7 +182,8 @@ namespace Tomahawk
 
 					for (auto&& Mesh : Drawable->Meshes)
 					{
-						if (!Appearance::UploadCubicDepth(Device, Base->GetSurface(Mesh)))
+						auto* Surface = Base->GetSurface(Mesh);
+						if (!Surface || !Surface->FillCubicDepth(Device))
 							continue;
 
 						Device->Render.World = Mesh->World * Base->GetEntity()->Transform->GetWorld();
@@ -194,16 +195,8 @@ namespace Tomahawk
 				Device->SetTexture2D(nullptr, 1);
 				Device->SetShader(nullptr, Graphics::ShaderType_Geometry);
 			}
-			Rest::Pool<Component*>* ModelRenderer::GetOpaque()
-			{
-				return System->GetScene()->GetComponents<Components::Model>();
-			}
-			Rest::Pool<Component*>* ModelRenderer::GetLimpid(uint64_t Layer)
-			{
-				return System->GetScene()->GetComponents<Components::LimpidModel>();
-			}
 
-			SkinRenderer::SkinRenderer(Engine::RenderSystem* Lab) : GeoRenderer(Lab)
+			Skin::Skin(Engine::RenderSystem* Lab) : GeometryDraw(Lab, Components::Skin::GetTypeId())
 			{
 				DepthStencil = Lab->GetDevice()->GetDepthStencilState("less");
 				BackRasterizer = Lab->GetDevice()->GetRasterizerState("cull-back");
@@ -225,24 +218,22 @@ namespace Tomahawk
 				if (System->GetDevice()->GetSection("geometry/skin/occlusion", &I.Data))
 					Shaders.Occlusion = System->CompileShader("sr-occlusion", I, 0);
 			}
-			SkinRenderer::~SkinRenderer()
+			Skin::~Skin()
 			{
 				System->FreeShader("sr-gbuffer", Shaders.GBuffer);
 				System->FreeShader("sr-depth-linear", Shaders.Linear);
 				System->FreeShader("sr-depth-cubic", Shaders.Cubic);
 				System->FreeShader("sr-occlusion", Shaders.Occlusion);
 			}
-			void SkinRenderer::Activate()
+			void Skin::Activate()
 			{
 				System->AddCull<Engine::Components::Skin>();
-				System->AddCull<Engine::Components::LimpidSkin>();
 			}
-			void SkinRenderer::Deactivate()
+			void Skin::Deactivate()
 			{
 				System->RemoveCull<Engine::Components::Skin>();
-				System->RemoveCull<Engine::Components::LimpidSkin>();
 			}
-			void SkinRenderer::CullGeometry(const Viewer& View, Rest::Pool<Component*>* Geometry)
+			void Skin::CullGeometry(const Viewer& View, Rest::Pool<Drawable*>* Geometry)
 			{
 				Graphics::GraphicsDevice* Device = System->GetDevice();
 				Device->SetRasterizerState(BackRasterizer);
@@ -260,7 +251,7 @@ namespace Tomahawk
 					if (!Drawable || Drawable->Meshes.empty())
 						continue;
 
-					if (!Base->FragmentBegin(Device))
+					if (!Base->Begin(Device))
 						continue;
 
 					if (Base->GetFragmentsCount() > 0)
@@ -289,10 +280,10 @@ namespace Tomahawk
 						Device->SetVertexBuffer(System->GetSkinBoxVBuffer(), 0);
 						Device->DrawIndexed(System->GetSkinBoxIBuffer()->GetElements(), 0, 0);
 					}
-					Base->FragmentEnd(Device);
+					Base->End(Device);
 				}
 			}
-			void SkinRenderer::RenderGBuffer(Rest::Timer* Time, Rest::Pool<Component*>* Geometry, RenderOpt Options)
+			void Skin::RenderGBuffer(Rest::Timer* Time, Rest::Pool<Drawable*>* Geometry, RenderOpt Options)
 			{
 				Graphics::GraphicsDevice* Device = System->GetDevice();
 				CullResult Cull = (Options & RenderOpt_Inner ? CullResult_Always : CullResult_Last);
@@ -323,7 +314,8 @@ namespace Tomahawk
 					Device->UpdateBuffer(Graphics::RenderBufferType_Animation);
 					for (auto&& Mesh : Drawable->Meshes)
 					{
-						if (!Appearance::UploadGBuffer(Device, Base->GetSurface(Mesh)))
+						auto* Surface = Base->GetSurface(Mesh);
+						if (!Surface || !Surface->FillGBuffer(Device))
 							continue;
 
 						Device->Render.World = Mesh->World * Base->GetEntity()->Transform->GetWorld();
@@ -335,7 +327,7 @@ namespace Tomahawk
 
 				Device->FlushTexture2D(1, 7);
 			}
-			void SkinRenderer::RenderDepthLinear(Rest::Timer* Time, Rest::Pool<Component*>* Geometry)
+			void Skin::RenderDepthLinear(Rest::Timer* Time, Rest::Pool<Drawable*>* Geometry)
 			{
 				Graphics::GraphicsDevice* Device = System->GetDevice();
 				Device->SetDepthStencilState(DepthStencil);
@@ -360,7 +352,8 @@ namespace Tomahawk
 					Device->UpdateBuffer(Graphics::RenderBufferType_Animation);
 					for (auto&& Mesh : Drawable->Meshes)
 					{
-						if (!Appearance::UploadLinearDepth(Device, Base->GetSurface(Mesh)))
+						auto* Surface = Base->GetSurface(Mesh);
+						if (!Surface || !Surface->FillLinearDepth(Device))
 							continue;
 
 						Device->Render.World = Mesh->World * Base->GetEntity()->Transform->GetWorld();
@@ -372,7 +365,7 @@ namespace Tomahawk
 
 				Device->SetTexture2D(nullptr, 1);
 			}
-			void SkinRenderer::RenderDepthCubic(Rest::Timer* Time, Rest::Pool<Component*>* Geometry, Compute::Matrix4x4* ViewProjection)
+			void Skin::RenderDepthCubic(Rest::Timer* Time, Rest::Pool<Drawable*>* Geometry, Compute::Matrix4x4* ViewProjection)
 			{
 				Graphics::GraphicsDevice* Device = System->GetDevice();
 				memcpy(Depth.FaceViewProjection, ViewProjection, sizeof(Compute::Matrix4x4) * 6);
@@ -400,7 +393,8 @@ namespace Tomahawk
 					Device->UpdateBuffer(Graphics::RenderBufferType_Animation);
 					for (auto&& Mesh : Drawable->Meshes)
 					{
-						if (!Appearance::UploadCubicDepth(Device, Base->GetSurface(Mesh)))
+						auto* Surface = Base->GetSurface(Mesh);
+						if (!Surface || !Surface->FillCubicDepth(Device))
 							continue;
 
 						Device->Render.World = Mesh->World * Base->GetEntity()->Transform->GetWorld();
@@ -412,16 +406,8 @@ namespace Tomahawk
 				Device->SetTexture2D(nullptr, 1);
 				Device->SetShader(nullptr, Graphics::ShaderType_Geometry);
 			}
-			Rest::Pool<Component*>* SkinRenderer::GetOpaque()
-			{
-				return System->GetScene()->GetComponents<Components::Skin>();
-			}
-			Rest::Pool<Component*>* SkinRenderer::GetLimpid(uint64_t Layer)
-			{
-				return System->GetScene()->GetComponents<Components::LimpidSkin>();
-			}
 
-			SoftBodyRenderer::SoftBodyRenderer(Engine::RenderSystem* Lab) : GeoRenderer(Lab)
+			SoftBody::SoftBody(Engine::RenderSystem* Lab) : GeometryDraw(Lab, Components::SoftBody::GetTypeId())
 			{
 				DepthStencil = Lab->GetDevice()->GetDepthStencilState("less");
 				BackRasterizer = Lab->GetDevice()->GetRasterizerState("cull-back");
@@ -461,26 +447,24 @@ namespace Tomahawk
 				if (System->GetDevice()->GetSection("geometry/model/occlusion", &I.Data))
 					Shaders.Occlusion = System->CompileShader("mr-occlusion", I, 0);
 			}
-			SoftBodyRenderer::~SoftBodyRenderer()
+			SoftBody::~SoftBody()
 			{
 				System->FreeShader("mr-gbuffer", Shaders.GBuffer);
 				System->FreeShader("mr-depth-linear", Shaders.Linear);
 				System->FreeShader("mr-depth-cubic", Shaders.Cubic);
 				System->FreeShader("mr-occlusion", Shaders.Occlusion);
-				delete VertexBuffer;
-				delete IndexBuffer;
+				TH_RELEASE(VertexBuffer);
+				TH_RELEASE(IndexBuffer);
 			}
-			void SoftBodyRenderer::Activate()
+			void SoftBody::Activate()
 			{
 				System->AddCull<Engine::Components::SoftBody>();
-				System->AddCull<Engine::Components::LimpidSoftBody>();
 			}
-			void SoftBodyRenderer::Deactivate()
+			void SoftBody::Deactivate()
 			{
 				System->RemoveCull<Engine::Components::SoftBody>();
-				System->RemoveCull<Engine::Components::LimpidSoftBody>();
 			}
-			void SoftBodyRenderer::CullGeometry(const Viewer& View, Rest::Pool<Component*>* Geometry)
+			void SoftBody::CullGeometry(const Viewer& View, Rest::Pool<Drawable*>* Geometry)
 			{
 				Graphics::GraphicsDevice* Device = System->GetDevice();
 				Device->SetRasterizerState(BackRasterizer);
@@ -497,7 +481,7 @@ namespace Tomahawk
 					if (Base->GetIndices().empty())
 						continue;
 
-					if (!Base->FragmentBegin(Device))
+					if (!Base->Begin(Device))
 						continue;
 
 					if (Base->GetFragmentsCount() > 0)
@@ -519,10 +503,10 @@ namespace Tomahawk
 						Device->SetVertexBuffer(System->GetBoxVBuffer(), 0);
 						Device->DrawIndexed((unsigned int)Base->GetIndices().size(), 0, 0);
 					}
-					Base->FragmentEnd(Device);
+					Base->End(Device);
 				}
 			}
-			void SoftBodyRenderer::RenderGBuffer(Rest::Timer* Time, Rest::Pool<Component*>* Geometry, RenderOpt Options)
+			void SoftBody::RenderGBuffer(Rest::Timer* Time, Rest::Pool<Drawable*>* Geometry, RenderOpt Options)
 			{
 				Graphics::GraphicsDevice* Device = System->GetDevice();
 				CullResult Cull = (Options & RenderOpt_Inner ? CullResult_Always : CullResult_Last);
@@ -545,7 +529,8 @@ namespace Tomahawk
 					if (!System->PassDrawable(Base, Cull, nullptr))
 						continue;
 
-					if (!Appearance::UploadGBuffer(Device, Base->GetSurface()))
+					auto* Surface = Base->GetSurface();
+					if (!Surface || !Surface->FillGBuffer(Device))
 						continue;
 
 					Base->Fill(Device, IndexBuffer, VertexBuffer);
@@ -560,7 +545,7 @@ namespace Tomahawk
 
 				Device->FlushTexture2D(1, 7);
 			}
-			void SoftBodyRenderer::RenderDepthLinear(Rest::Timer* Time, Rest::Pool<Component*>* Geometry)
+			void SoftBody::RenderDepthLinear(Rest::Timer* Time, Rest::Pool<Drawable*>* Geometry)
 			{
 				Graphics::GraphicsDevice* Device = System->GetDevice();
 				Device->SetDepthStencilState(DepthStencil);
@@ -579,7 +564,8 @@ namespace Tomahawk
 					if (!System->PassDrawable(Base, CullResult_Always, nullptr))
 						continue;
 
-					if (!Appearance::UploadLinearDepth(Device, Base->GetSurface()))
+					auto* Surface = Base->GetSurface();
+					if (!Surface || !Surface->FillLinearDepth(Device))
 						continue;
 
 					Base->Fill(Device, IndexBuffer, VertexBuffer);
@@ -594,7 +580,7 @@ namespace Tomahawk
 
 				Device->SetTexture2D(nullptr, 1);
 			}
-			void SoftBodyRenderer::RenderDepthCubic(Rest::Timer* Time, Rest::Pool<Component*>* Geometry, Compute::Matrix4x4* ViewProjection)
+			void SoftBody::RenderDepthCubic(Rest::Timer* Time, Rest::Pool<Drawable*>* Geometry, Compute::Matrix4x4* ViewProjection)
 			{
 				Graphics::GraphicsDevice* Device = System->GetDevice();
 				memcpy(Depth.FaceViewProjection, ViewProjection, sizeof(Compute::Matrix4x4) * 6);
@@ -613,7 +599,8 @@ namespace Tomahawk
 					if (!Base->GetBody() || Base->GetEntity()->Transform->Position.Distance(System->GetScene()->View.WorldPosition) >= System->GetScene()->View.ViewDistance + Base->GetEntity()->Transform->Scale.Length())
 						continue;
 
-					if (!Appearance::UploadCubicDepth(Device, Base->GetSurface()))
+					auto* Surface = Base->GetSurface();
+					if (!Surface || !Surface->FillCubicDepth(Device))
 						continue;
 
 					Base->Fill(Device, IndexBuffer, VertexBuffer);
@@ -628,16 +615,8 @@ namespace Tomahawk
 				Device->SetTexture2D(nullptr, 1);
 				Device->SetShader(nullptr, Graphics::ShaderType_Geometry);
 			}
-			Rest::Pool<Component*>* SoftBodyRenderer::GetOpaque()
-			{
-				return System->GetScene()->GetComponents<Components::SoftBody>();
-			}
-			Rest::Pool<Component*>* SoftBodyRenderer::GetLimpid(uint64_t Layer)
-			{
-				return System->GetScene()->GetComponents<Components::LimpidSoftBody>();
-			}
 
-			EmitterRenderer::EmitterRenderer(RenderSystem* Lab) : GeoRenderer(Lab)
+			Emitter::Emitter(RenderSystem* Lab) : GeometryDraw(Lab, Components::Emitter::GetTypeId())
 			{
 				DepthStencilOpaque = Lab->GetDevice()->GetDepthStencilState("less");
 				DepthStencilLimpid = Lab->GetDevice()->GetDepthStencilState("less-none");
@@ -663,7 +642,7 @@ namespace Tomahawk
 				if (System->GetDevice()->GetSection("geometry/emitter/depth-quad", &I.Data))
 					Shaders.Quad = System->CompileShader("er-depth-quad", I, sizeof(Depth));
 			}
-			EmitterRenderer::~EmitterRenderer()
+			Emitter::~Emitter()
 			{
 				System->FreeShader("er-gbuffer-opaque", Shaders.Opaque);
 				System->FreeShader("er-gbuffer-limpid", Shaders.Limpid);
@@ -671,19 +650,17 @@ namespace Tomahawk
 				System->FreeShader("er-depth-point", Shaders.Point);
 				System->FreeShader("er-depth-quad", Shaders.Quad);
 			}
-			void EmitterRenderer::Activate()
+			void Emitter::Activate()
 			{
 				Opaque = System->AddCull<Engine::Components::Emitter>();
-				Limpid = System->AddCull<Engine::Components::LimpidEmitter>();
 			}
-			void EmitterRenderer::Deactivate()
+			void Emitter::Deactivate()
 			{
 				Opaque = System->RemoveCull<Engine::Components::Emitter>();
-				Limpid = System->RemoveCull<Engine::Components::LimpidEmitter>();
 			}
-			void EmitterRenderer::RenderGBuffer(Rest::Timer* Time, Rest::Pool<Component*>* Geometry, RenderOpt Options)
+			void Emitter::RenderGBuffer(Rest::Timer* Time, Rest::Pool<Drawable*>* Geometry, RenderOpt Options)
 			{
-				if (Options & RenderOpt_Limpid || !Opaque || !Limpid)
+				if (Options & RenderOpt_Transparent || !Opaque || !Limpid)
 					return;
 
 				Graphics::GraphicsDevice* Device = System->GetDevice();
@@ -711,7 +688,8 @@ namespace Tomahawk
 					if (!System->PassDrawable(Base, Cull, nullptr))
 						continue;
 
-					if (!Appearance::UploadGBuffer(Device, Base->GetSurface()))
+					auto* Surface = Base->GetSurface();
+					if (!Surface || !Surface->FillGBuffer(Device))
 						continue;
 
 					Device->Render.World = System->GetScene()->View.Projection;
@@ -740,7 +718,8 @@ namespace Tomahawk
 					if (!System->PassDrawable(Base, Cull, nullptr))
 						continue;
 
-					if (!Appearance::UploadGBuffer(Device, Base->GetSurface()))
+					auto* Surface = Base->GetSurface();
+					if (!Surface || !Surface->FillGBuffer(Device))
 						continue;
 
 					Device->Render.World = System->GetScene()->View.Projection;
@@ -760,7 +739,7 @@ namespace Tomahawk
 				Device->SetPrimitiveTopology(T);
 				Device->SetShader(nullptr, Graphics::ShaderType_Geometry);
 			}
-			void EmitterRenderer::RenderDepthLinear(Rest::Timer* Time, Rest::Pool<Component*>* Geometry)
+			void Emitter::RenderDepthLinear(Rest::Timer* Time, Rest::Pool<Drawable*>* Geometry)
 			{
 				Graphics::GraphicsDevice* Device = System->GetDevice();
 				Graphics::PrimitiveTopology T = Device->GetPrimitiveTopology();
@@ -781,7 +760,8 @@ namespace Tomahawk
 					if (!Base->GetBuffer())
 						continue;
 
-					if (!Appearance::UploadLinearDepth(Device, Base->GetSurface()))
+					auto* Surface = Base->GetSurface();
+					if (!Surface || !Surface->FillLinearDepth(Device))
 						continue;
 
 					Device->Render.World = Base->QuadBased ? System->GetScene()->View.Projection : Compute::Matrix4x4::Identity();
@@ -800,7 +780,7 @@ namespace Tomahawk
 				Device->SetPrimitiveTopology(T);
 				Device->SetShader(nullptr, Graphics::ShaderType_Geometry);
 			}
-			void EmitterRenderer::RenderDepthCubic(Rest::Timer* Time, Rest::Pool<Component*>* Geometry, Compute::Matrix4x4* ViewProjection)
+			void Emitter::RenderDepthCubic(Rest::Timer* Time, Rest::Pool<Drawable*>* Geometry, Compute::Matrix4x4* ViewProjection)
 			{
 				Graphics::GraphicsDevice* Device = System->GetDevice();
 				Depth.FaceView[0] = Compute::Matrix4x4::CreateCubeMapLookAt(0, System->GetScene()->View.InvViewPosition);
@@ -827,7 +807,8 @@ namespace Tomahawk
 					if (!Base->GetBuffer())
 						continue;
 
-					if (!Appearance::UploadCubicDepth(Device, Base->GetSurface()))
+					auto* Surface = Base->GetSurface();
+					if (!Surface || !Surface->FillCubicDepth(Device))
 						continue;
 
 					Device->Render.World = (Base->Connected ? Base->GetEntity()->Transform->GetWorld() : Compute::Matrix4x4::Identity());			
@@ -841,16 +822,8 @@ namespace Tomahawk
 				Device->SetPrimitiveTopology(T);
 				Device->SetShader(nullptr, Graphics::ShaderType_Geometry);
 			}
-			Rest::Pool<Component*>* EmitterRenderer::GetOpaque()
-			{
-				return Opaque->Empty() ? Limpid : Opaque;
-			}
-			Rest::Pool<Component*>* EmitterRenderer::GetLimpid(uint64_t Layer)
-			{
-				return Limpid->Empty() ? Opaque : Limpid;
-			}
 
-			DecalRenderer::DecalRenderer(RenderSystem* Lab) : GeoRenderer(Lab)
+			Decal::Decal(RenderSystem* Lab) : GeometryDraw(Lab, Components::Decal::GetTypeId())
 			{
 				DepthStencil = Lab->GetDevice()->GetDepthStencilState("none");
 				Rasterizer = Lab->GetDevice()->GetRasterizerState("cull-back");
@@ -862,24 +835,22 @@ namespace Tomahawk
 				if (System->GetDevice()->GetSection("geometry/decal/gbuffer", &I.Data))
 					Shader = System->CompileShader("dr-gbuffer", I, sizeof(RenderPass));
 			}
-			DecalRenderer::~DecalRenderer()
+			Decal::~Decal()
 			{
 				System->FreeShader("dr-gbuffer", Shader);
 			}
-			void DecalRenderer::Activate()
+			void Decal::Activate()
 			{
 				System->AddCull<Engine::Components::Decal>();
-				System->AddCull<Engine::Components::LimpidDecal>();
 			}
-			void DecalRenderer::Deactivate()
+			void Decal::Deactivate()
 			{
 				System->RemoveCull<Engine::Components::Decal>();
-				System->RemoveCull<Engine::Components::LimpidDecal>();
 			}
-			void DecalRenderer::RenderGBuffer(Rest::Timer* Time, Rest::Pool<Component*>* Geometry, RenderOpt Options)
+			void Decal::RenderGBuffer(Rest::Timer* Time, Rest::Pool<Drawable*>* Geometry, RenderOpt Options)
 			{
 				Graphics::GraphicsDevice* Device = System->GetDevice();
-				Rest::Pool<Component*>* Array = (Options & RenderOpt_Limpid ? Limpid : Opaque);
+				Rest::Pool<Component*>* Array = (Options & RenderOpt_Transparent ? Limpid : Opaque);
 				CullResult Cull = (Options & RenderOpt_Inner ? CullResult_Always : CullResult_Last);
 				bool Map[8] = { true, true, false, true, false, false, false, false };
 				bool Static = (Options & RenderOpt_Static);
@@ -905,7 +876,8 @@ namespace Tomahawk
 					if ((Static && !Base->Static) || !System->PassDrawable(Base, Cull, nullptr))
 						continue;
 
-					if (!Appearance::UploadGBuffer(Device, Base->GetSurface()))
+					auto* Surface = Base->GetSurface();
+					if (!Surface || !Surface->FillGBuffer(Device))
 						continue;
 
 					RenderPass.OwnViewProjection = Base->View * Base->Projection;
@@ -918,22 +890,14 @@ namespace Tomahawk
 
 				Device->FlushTexture2D(1, 8);
 			}
-			void DecalRenderer::RenderDepthLinear(Rest::Timer* Time, Rest::Pool<Component*>* Geometry)
+			void Decal::RenderDepthLinear(Rest::Timer* Time, Rest::Pool<Drawable*>* Geometry)
 			{
 			}
-			void DecalRenderer::RenderDepthCubic(Rest::Timer* Time, Rest::Pool<Component*>* Geometry, Compute::Matrix4x4* ViewProjection)
+			void Decal::RenderDepthCubic(Rest::Timer* Time, Rest::Pool<Drawable*>* Geometry, Compute::Matrix4x4* ViewProjection)
 			{
-			}
-			Rest::Pool<Component*>* DecalRenderer::GetOpaque()
-			{
-				return System->GetScene()->GetComponents<Components::Decal>();
-			}
-			Rest::Pool<Component*>* DecalRenderer::GetLimpid(uint64_t Layer)
-			{
-				return System->GetScene()->GetComponents<Components::LimpidDecal>();
 			}
 
-			LimpidRenderer::LimpidRenderer(RenderSystem* Lab) : Renderer(Lab)
+			Transparency::Transparency(RenderSystem* Lab) : Renderer(Lab)
 			{
 				DepthStencil = Lab->GetDevice()->GetDepthStencilState("none");
 				Rasterizer = Lab->GetDevice()->GetRasterizerState("cull-back");
@@ -945,32 +909,35 @@ namespace Tomahawk
 				if (System->GetDevice()->GetSection("pass/limpid", &I.Data))
 					Shader = System->CompileShader("lr-limpid", I, sizeof(RenderPass));
 			}
-			LimpidRenderer::~LimpidRenderer()
+			Transparency::~Transparency()
 			{
 				System->FreeShader("lr-limpid", Shader);
-				delete Surface1;
-				delete Input1;
-				delete Surface2;
-				delete Input2;
+				TH_RELEASE(Surface1);
+				TH_RELEASE(Input1);
+				TH_RELEASE(Surface2);
+				TH_RELEASE(Input2);
 			}
-			void LimpidRenderer::Activate()
+			void Transparency::Activate()
 			{
 				ResizeBuffers();
 			}
-			void LimpidRenderer::Render(Rest::Timer* Time, RenderState State, RenderOpt Options)
+			void Transparency::Render(Rest::Timer* Time, RenderState State, RenderOpt Options)
 			{
 				bool Inner = (Options & RenderOpt_Inner);
-				if (State != RenderState_GBuffer || Options & RenderOpt_Limpid)
+				if (State != RenderState_GBuffer || Options & RenderOpt_Transparent)
 					return;
 
 				SceneGraph* Scene = System->GetScene();
+				if (!Scene->GetTransparentCount())
+					return;
+
 				Graphics::MultiRenderTarget2D* S = Scene->GetSurface();
 				Graphics::GraphicsDevice* Device = System->GetDevice();
 				RenderPass.MipLevels = (Inner ? MipLevels2 : MipLevels1);
 
 				Scene->SwapSurface(Inner ? Surface2 : Surface1);
 				Scene->SetSurfaceCleared();
-				Scene->RenderGBuffer(Time, Options | RenderOpt_Limpid);
+				Scene->RenderGBuffer(Time, Options | RenderOpt_Transparent);
 				Scene->SwapSurface(S);
 
 				Device->CopyTargetTo(S, 0, Inner ? Input2 : Input1);
@@ -998,22 +965,22 @@ namespace Tomahawk
 				Device->Draw(6, 0);
 				Device->FlushTexture2D(1, 8);
 			}
-			void LimpidRenderer::ResizeBuffers()
+			void Transparency::ResizeBuffers()
 			{
 				Graphics::MultiRenderTarget2D::Desc F1;
 				System->GetScene()->GetTargetDesc(&F1);
 				MipLevels1 = (float)F1.MipLevels;
 
-				delete Surface1;
+				TH_RELEASE(Surface1);
 				Surface1 = System->GetDevice()->CreateMultiRenderTarget2D(F1);
 
 				Graphics::RenderTarget2D::Desc F2;
 				System->GetScene()->GetTargetDesc(&F2);
 
-				delete Input1;
+				TH_RELEASE(Input1);
 				Input1 = System->GetDevice()->CreateRenderTarget2D(F2);
 
-				auto* Renderer = System->GetRenderer<Renderers::ProbeRenderer>();
+				auto* Renderer = System->GetRenderer<Renderers::Environment>();
 				if (Renderer != nullptr)
 				{
 					F1.Width = (unsigned int)Renderer->Size;
@@ -1025,18 +992,18 @@ namespace Tomahawk
 					MipLevels2 = (float)Renderer->MipLevels;
 				}
 
-				delete Surface2;
+				TH_RELEASE(Surface2);
 				Surface2 = System->GetDevice()->CreateMultiRenderTarget2D(F1);
 
-				delete Input2;
+				TH_RELEASE(Input2);
 				Input2 = System->GetDevice()->CreateRenderTarget2D(F2);
 			}
 		
-			DepthRenderer::DepthRenderer(RenderSystem* Lab) : TickRenderer(Lab), ShadowDistance(0.5f)
+			Depth::Depth(RenderSystem* Lab) : TimingDraw(Lab), ShadowDistance(0.5f)
 			{
 				Tick.Delay = 10;
 			}
-			DepthRenderer::~DepthRenderer()
+			Depth::~Depth()
 			{
 				for (auto It = Renderers.PointLight.begin(); It != Renderers.PointLight.end(); It++)
 					delete *It;
@@ -1062,7 +1029,7 @@ namespace Tomahawk
 				for (auto It = Lights->Begin(); It != Lights->End(); It++)
 					(*It)->As<Components::LineLight>()->SetShadowCache(nullptr);
 			}
-			void DepthRenderer::Deserialize(ContentManager* Content, Rest::Document* Node)
+			void Depth::Deserialize(ContentManager* Content, Rest::Document* Node)
 			{
 				NMake::Unpack(Node->Find("point-light-resolution"), &Renderers.PointLightResolution);
 				NMake::Unpack(Node->Find("point-light-limits"), &Renderers.PointLightLimits);
@@ -1072,7 +1039,7 @@ namespace Tomahawk
 				NMake::Unpack(Node->Find("line-light-limits"), &Renderers.LineLightLimits);
 				NMake::Unpack(Node->Find("shadow-distance"), &ShadowDistance);
 			}
-			void DepthRenderer::Serialize(ContentManager* Content, Rest::Document* Node)
+			void Depth::Serialize(ContentManager* Content, Rest::Document* Node)
 			{
 				NMake::Pack(Node->SetDocument("point-light-resolution"), Renderers.PointLightResolution);
 				NMake::Pack(Node->SetDocument("point-light-limits"), Renderers.PointLightLimits);
@@ -1082,7 +1049,7 @@ namespace Tomahawk
 				NMake::Pack(Node->SetDocument("line-light-limits"), Renderers.LineLightLimits);
 				NMake::Pack(Node->SetDocument("shadow-distance"), ShadowDistance);
 			}
-			void DepthRenderer::Activate()
+			void Depth::Activate()
 			{
 				PointLights = System->AddCull<Engine::Components::PointLight>();
 				SpotLights = System->AddCull<Engine::Components::SpotLight>();
@@ -1138,14 +1105,14 @@ namespace Tomahawk
 					*It = System->GetDevice()->CreateRenderTarget2D(F);
 				}
 			}
-			void DepthRenderer::Deactivate()
+			void Depth::Deactivate()
 			{
 				PointLights = System->RemoveCull<Engine::Components::PointLight>();
 				SpotLights = System->RemoveCull<Engine::Components::SpotLight>();
 			}
-			void DepthRenderer::TickRender(Rest::Timer* Time, RenderState State, RenderOpt Options)
+			void Depth::TickRender(Rest::Timer* Time, RenderState State, RenderOpt Options)
 			{
-				if (State != RenderState_GBuffer || Options & RenderOpt_Inner || Options & RenderOpt_Limpid)
+				if (State != RenderState_GBuffer || Options & RenderOpt_Inner || Options & RenderOpt_Transparent)
 					return;
 
 				Graphics::GraphicsDevice* Device = System->GetDevice();
@@ -1221,35 +1188,35 @@ namespace Tomahawk
 				Scene->RestoreViewBuffer(nullptr);
 			}
 
-			ProbeRenderer::ProbeRenderer(RenderSystem* Lab) : Renderer(Lab), Surface(nullptr), Size(128), MipLevels(7)
+			Environment::Environment(RenderSystem* Lab) : Renderer(Lab), Surface(nullptr), Size(128), MipLevels(7)
 			{
 			}
-			ProbeRenderer::~ProbeRenderer()
+			Environment::~Environment()
 			{
-				delete Surface;
+				TH_RELEASE(Surface);
 			}
-			void ProbeRenderer::Deserialize(ContentManager* Content, Rest::Document* Node)
+			void Environment::Deserialize(ContentManager* Content, Rest::Document* Node)
 			{
 				NMake::Unpack(Node->Find("size"), &Size);
 				NMake::Unpack(Node->Find("mip-levels"), &MipLevels);
 			}
-			void ProbeRenderer::Serialize(ContentManager* Content, Rest::Document* Node)
+			void Environment::Serialize(ContentManager* Content, Rest::Document* Node)
 			{
 				NMake::Pack(Node->SetDocument("size"), Size);
 				NMake::Pack(Node->SetDocument("mip-levels"), MipLevels);
 			}
-			void ProbeRenderer::Activate()
+			void Environment::Activate()
 			{
 				ReflectionProbes = System->AddCull<Engine::Components::ReflectionProbe>();
 				CreateRenderTarget();
 			}
-			void ProbeRenderer::Deactivate()
+			void Environment::Deactivate()
 			{
 				ReflectionProbes = System->RemoveCull<Engine::Components::ReflectionProbe>();
 			}
-			void ProbeRenderer::Render(Rest::Timer* Time, RenderState State, RenderOpt Options)
+			void Environment::Render(Rest::Timer* Time, RenderState State, RenderOpt Options)
 			{
-				if (State != RenderState_GBuffer || Options & RenderOpt_Inner || Options & RenderOpt_Limpid)
+				if (State != RenderState_GBuffer || Options & RenderOpt_Inner || Options & RenderOpt_Transparent)
 					return;
 
 				SceneGraph* Scene = System->GetScene();
@@ -1294,7 +1261,7 @@ namespace Tomahawk
 				Scene->SwapSurface(S);
 				Scene->RestoreViewBuffer(nullptr);
 			}
-			void ProbeRenderer::CreateRenderTarget()
+			void Environment::CreateRenderTarget()
 			{
 				Map = Size;
 
@@ -1310,16 +1277,16 @@ namespace Tomahawk
 				else
 					F.MipLevels = (unsigned int)MipLevels;
 
-				delete Surface;
+				TH_RELEASE(Surface);
 				Surface = System->GetDevice()->CreateMultiRenderTarget2D(F);
 			}
-			void ProbeRenderer::SetCaptureSize(size_t NewSize)
+			void Environment::SetCaptureSize(size_t NewSize)
 			{
 				Size = NewSize;
 				CreateRenderTarget();
 			}
 
-			LightRenderer::LightRenderer(RenderSystem* Lab) : Renderer(Lab), RecursiveProbes(true), Input1(nullptr), Input2(nullptr), Output1(nullptr), Output2(nullptr)
+			Lighting::Lighting(RenderSystem* Lab) : Renderer(Lab), RecursiveProbes(true), Input1(nullptr), Input2(nullptr), Output1(nullptr), Output2(nullptr)
 			{
 				DepthStencil = Lab->GetDevice()->GetDepthStencilState("none");
 				FrontRasterizer = Lab->GetDevice()->GetRasterizerState("cull-front");
@@ -1353,7 +1320,7 @@ namespace Tomahawk
 				if (System->GetDevice()->GetSection("geometry/light/base/ambient", &I.Data))
 					Shaders.Ambient = System->CompileShader("lr-ambient", I, sizeof(AmbientLight));
 			}
-			LightRenderer::~LightRenderer()
+			Lighting::~Lighting()
 			{
 				System->FreeShader("lr-point-base", Shaders.PointBase);
 				System->FreeShader("lr-point-shade", Shaders.PointShade);
@@ -1363,17 +1330,18 @@ namespace Tomahawk
 				System->FreeShader("lr-line-shade", Shaders.LineShade);
 				System->FreeShader("lr-probe", Shaders.Probe);
 				System->FreeShader("lr-ambient", Shaders.Ambient);
-				delete Input1;
-				delete Output1;
-				delete Input2;
-				delete Output2;
-				delete SkyMap;
+				TH_RELEASE(Input1);
+				TH_RELEASE(Output1);
+				TH_RELEASE(Input2);
+				TH_RELEASE(Output2);
+				TH_RELEASE(SkyBase);
+				TH_RELEASE(SkyMap);
 			}
-			void LightRenderer::Deserialize(ContentManager* Content, Rest::Document* Node)
+			void Lighting::Deserialize(ContentManager* Content, Rest::Document* Node)
 			{
 				std::string Path;
 				if (NMake::Unpack(Node->Find("sky-map"), &Path))
-					SetSkyMap(Content->Load<Graphics::Texture2D>(Path, nullptr));
+					SetSkyMap(Content->Load<Graphics::Texture2D>(Path));
 
 				NMake::Unpack(Node->Find("high-emission"), &AmbientLight.HighEmission);
 				NMake::Unpack(Node->Find("low-emission"), &AmbientLight.LowEmission);
@@ -1382,7 +1350,7 @@ namespace Tomahawk
 				NMake::Unpack(Node->Find("sky-color"), &AmbientLight.SkyColor);
 				NMake::Unpack(Node->Find("recursive-probes"), &RecursiveProbes);
 			}
-			void LightRenderer::Serialize(ContentManager* Content, Rest::Document* Node)
+			void Lighting::Serialize(ContentManager* Content, Rest::Document* Node)
 			{
 				AssetResource* Asset = Content->FindAsset(SkyBase);
 				if (Asset != nullptr)
@@ -1395,33 +1363,33 @@ namespace Tomahawk
 				NMake::Pack(Node->SetDocument("sky-color"), AmbientLight.SkyColor);
 				NMake::Pack(Node->SetDocument("recursive-probes"), RecursiveProbes);
 			}
-			void LightRenderer::Activate()
+			void Lighting::Activate()
 			{
 				ReflectionProbes = System->AddCull<Engine::Components::ReflectionProbe>();
 				PointLights = System->AddCull<Engine::Components::PointLight>();
 				SpotLights = System->AddCull<Engine::Components::SpotLight>();
 				LineLights = System->GetScene()->GetComponents<Engine::Components::LineLight>();
 
-				DepthRenderer* Depth = System->GetRenderer<DepthRenderer>();
+				Depth* Depth = System->GetRenderer<Renderers::Depth>();
 				if (Depth != nullptr)
 				{
 					Quality.SpotLight = (float)Depth->Renderers.SpotLightResolution;
 					Quality.LineLight = (float)Depth->Renderers.LineLightResolution;
 				}
 
-				ProbeRenderer* Probe = System->GetRenderer<ProbeRenderer>();
+				Environment* Probe = System->GetRenderer<Renderers::Environment>();
 				if (Probe != nullptr)
 					ReflectionProbe.MipLevels = (float)Probe->MipLevels;
 
 				ResizeBuffers();
 			}
-			void LightRenderer::Deactivate()
+			void Lighting::Deactivate()
 			{
 				ReflectionProbes = System->RemoveCull<Engine::Components::ReflectionProbe>();
 				PointLights = System->RemoveCull<Engine::Components::PointLight>();
 				SpotLights = System->RemoveCull<Engine::Components::SpotLight>();
 			}
-			void LightRenderer::Render(Rest::Timer* Time, RenderState State, RenderOpt Options)
+			void Lighting::Render(Rest::Timer* Time, RenderState State, RenderOpt Options)
 			{
 				if (State != RenderState_GBuffer)
 					return;
@@ -1555,9 +1523,9 @@ namespace Tomahawk
 					SpotLight.OwnViewProjection = Light->View * Light->Projection;
 					SpotLight.Position = Light->GetEntity()->Transform->Position.InvertZ();
 					SpotLight.Lighting = Light->Diffuse.Mul(Light->Emission * D);
-					SpotLight.Diffuse = (Light->ProjectMap != nullptr);
+					SpotLight.Diffuse = (Light->GetProjectMap() != nullptr);
 
-					Device->SetTexture2D(Light->ProjectMap, 5);
+					Device->SetTexture2D(Light->GetProjectMap(), 5);
 					Device->SetShader(Active, Graphics::ShaderType_Pixel);
 					Device->UpdateBuffer(Shaders.SpotBase, &SpotLight);
 					Device->DrawIndexed((unsigned int)System->GetCubeIBuffer()->GetElements(), 0, 0);
@@ -1614,18 +1582,18 @@ namespace Tomahawk
 				Device->Draw(6, 0);
 				Device->FlushTexture2D(1, 6);
 			}
-			void LightRenderer::ResizeBuffers()
+			void Lighting::ResizeBuffers()
 			{
 				Graphics::RenderTarget2D::Desc F;
 				System->GetScene()->GetTargetDesc(&F);
 
-				delete Output1;
+				TH_RELEASE(Output1);
 				Output1 = System->GetDevice()->CreateRenderTarget2D(F);
 
-				delete Input1;
+				TH_RELEASE(Input1);
 				Input1 = System->GetDevice()->CreateRenderTarget2D(F);
 
-				auto* Renderer = System->GetRenderer<Renderers::ProbeRenderer>();
+				auto* Renderer = System->GetRenderer<Renderers::Environment>();
 				if (Renderer != nullptr)
 				{
 					F.Width = (unsigned int)Renderer->Size;
@@ -1633,29 +1601,29 @@ namespace Tomahawk
 					F.MipLevels = (unsigned int)Renderer->MipLevels;
 				}
 
-				delete Output2;
+				TH_RELEASE(Output2);
 				Output2 = System->GetDevice()->CreateRenderTarget2D(F);
 
-				delete Input2;
+				TH_RELEASE(Input2);
 				Input2 = System->GetDevice()->CreateRenderTarget2D(F);
 			}
-			void LightRenderer::SetSkyMap(Graphics::Texture2D* Cubemap)
+			void Lighting::SetSkyMap(Graphics::Texture2D* Cubemap)
 			{
+				TH_RELEASE(SkyBase);
 				SkyBase = Cubemap;
-				delete SkyMap;
-				SkyMap = nullptr;
 
+				TH_CLEAR(SkyMap);
 				if (SkyBase != nullptr)
 					SkyMap = System->GetDevice()->CreateTextureCube(SkyBase);
 			}
-			Graphics::TextureCube* LightRenderer::GetSkyMap()
+			Graphics::TextureCube* Lighting::GetSkyMap()
 			{
 				if (!SkyBase)
 					return nullptr;
 
 				return SkyMap;
 			}
-			Graphics::Texture2D* LightRenderer::GetSkyBase()
+			Graphics::Texture2D* Lighting::GetSkyBase()
 			{
 				if (!SkyMap)
 					return nullptr;
@@ -1663,83 +1631,120 @@ namespace Tomahawk
 				return SkyBase;
 			}
 
-			GUIRenderer::GUIRenderer(RenderSystem* Lab) : GUIRenderer(Lab, Application::Get() ? Application::Get()->Activity : nullptr)
-			{
-			}
-			GUIRenderer::GUIRenderer(RenderSystem* Lab, Graphics::Activity* NewActivity) : Renderer(Lab), Context(nullptr), AA(true)
-			{
-				Context = new GUI::Context(System->GetDevice(), NewActivity);
-			}
-			GUIRenderer::~GUIRenderer()
-			{
-				delete Context;
-			}
-			void GUIRenderer::Render(Rest::Timer* Timer, RenderState State, RenderOpt Options)
-			{
-				if (State != RenderState_GBuffer || Options & RenderOpt_Inner || Options & RenderOpt_Limpid)
-					return;
-
-				Graphics::MultiRenderTarget2D* Surface = System->GetScene()->GetSurface();
-				if (!Surface)
-					return;
-
-				Context->Prepare(Surface->GetWidth(), Surface->GetHeight());
-				System->GetScene()->SetSurface();
-				Context->Render(Offset, AA);
-			}
-			GUI::Context* GUIRenderer::GetContext()
-			{
-				return Context;
-			}
-
-			ReflectionsRenderer::ReflectionsRenderer(RenderSystem* Lab) : EffectRenderer(Lab), Pass1(nullptr), Pass2(nullptr)
+			Glitch::Glitch(RenderSystem* Lab) : EffectDraw(Lab), ScanLineJitter(0), VerticalJump(0), HorizontalShake(0), ColorDrift(0)
 			{
 				std::string Data;
-				if (System->GetDevice()->GetSection("pass/reflection", &Data))
-					Pass1 = CompileEffect("rr-reflection", Data, sizeof(RenderPass1));
-
-				if (System->GetDevice()->GetSection("pass/gloss-x", &Data))
-					Pass2 = CompileEffect("rr-gloss-x", Data, sizeof(RenderPass2));
-
-				if (System->GetDevice()->GetSection("pass/gloss-y", &Data))
-					Pass3 = CompileEffect("rr-gloss-y", Data, sizeof(RenderPass2));
+				if (System->GetDevice()->GetSection("pass/glitch", &Data))
+					CompileEffect("gr-glitch", Data, sizeof(RenderPass));
 			}
-			void ReflectionsRenderer::Deserialize(ContentManager* Content, Rest::Document* Node)
+			void Glitch::Deserialize(ContentManager* Content, Rest::Document* Node)
 			{
-				NMake::Unpack(Node->Find("samples-1"), &RenderPass1.Samples);
-				NMake::Unpack(Node->Find("samples-2"), &RenderPass2.Samples);
-				NMake::Unpack(Node->Find("intensity"), &RenderPass1.Intensity);
-				NMake::Unpack(Node->Find("blur"), &RenderPass2.Blur);
+				NMake::Unpack(Node->Find("scanline-jitter"), &ScanLineJitter);
+				NMake::Unpack(Node->Find("vertical-jump"), &VerticalJump);
+				NMake::Unpack(Node->Find("horizontal-shake"), &HorizontalShake);
+				NMake::Unpack(Node->Find("color-drift"), &ColorDrift);
+				NMake::Unpack(Node->Find("horizontal-shake"), &HorizontalShake);
+				NMake::Unpack(Node->Find("elapsed-time"), &RenderPass.ElapsedTime);
+				NMake::Unpack(Node->Find("scanline-jitter-displacement"), &RenderPass.ScanLineJitterDisplacement);
+				NMake::Unpack(Node->Find("scanline-jitter-threshold"), &RenderPass.ScanLineJitterThreshold);
+				NMake::Unpack(Node->Find("vertical-jump-amount"), &RenderPass.VerticalJumpAmount);
+				NMake::Unpack(Node->Find("vertical-jump-time"), &RenderPass.VerticalJumpTime);
+				NMake::Unpack(Node->Find("color-drift-amount"), &RenderPass.ColorDriftAmount);
+				NMake::Unpack(Node->Find("color-drift-time"), &RenderPass.ColorDriftTime);
 			}
-			void ReflectionsRenderer::Serialize(ContentManager* Content, Rest::Document* Node)
+			void Glitch::Serialize(ContentManager* Content, Rest::Document* Node)
 			{
-				NMake::Pack(Node->SetDocument("samples-1"), RenderPass1.Samples);
-				NMake::Pack(Node->SetDocument("samples-2"), RenderPass2.Samples);
-				NMake::Pack(Node->SetDocument("intensity"), RenderPass1.Intensity);
-				NMake::Pack(Node->SetDocument("blur"), RenderPass2.Blur);
+				NMake::Pack(Node->SetDocument("scanline-jitter"), ScanLineJitter);
+				NMake::Pack(Node->SetDocument("vertical-jump"), VerticalJump);
+				NMake::Pack(Node->SetDocument("horizontal-shake"), HorizontalShake);
+				NMake::Pack(Node->SetDocument("color-drift"), ColorDrift);
+				NMake::Pack(Node->SetDocument("horizontal-shake"), HorizontalShake);
+				NMake::Pack(Node->SetDocument("elapsed-time"), RenderPass.ElapsedTime);
+				NMake::Pack(Node->SetDocument("scanline-jitter-displacement"), RenderPass.ScanLineJitterDisplacement);
+				NMake::Pack(Node->SetDocument("scanline-jitter-threshold"), RenderPass.ScanLineJitterThreshold);
+				NMake::Pack(Node->SetDocument("vertical-jump-amount"), RenderPass.VerticalJumpAmount);
+				NMake::Pack(Node->SetDocument("vertical-jump-time"), RenderPass.VerticalJumpTime);
+				NMake::Pack(Node->SetDocument("color-drift-amount"), RenderPass.ColorDriftAmount);
+				NMake::Pack(Node->SetDocument("color-drift-time"), RenderPass.ColorDriftTime);
 			}
-			void ReflectionsRenderer::RenderEffect(Rest::Timer* Time)
+			void Glitch::RenderEffect(Rest::Timer* Time)
 			{
-				Graphics::MultiRenderTarget2D* Surface = System->GetScene()->GetSurface();
-				if (Surface != nullptr)
-					System->GetDevice()->GenerateMips(Surface->GetTarget(0));
+				if (RenderPass.ElapsedTime >= 32000.0f)
+					RenderPass.ElapsedTime = 0.0f;
 
-				RenderPass1.MipLevels = System->GetDevice()->GetMipLevel((unsigned int)Output->GetWidth(), (unsigned int)Output->GetHeight());
-				RenderPass2.Texel[0] = 1.0f / Output->GetWidth();
-				RenderPass2.Texel[1] = 1.0f / Output->GetHeight();
-				
-				RenderMerge(Pass1, &RenderPass1);
-				RenderMerge(Pass2, &RenderPass2);
-				RenderResult(Pass3, &RenderPass2);
+				RenderPass.ElapsedTime += (float)Time->GetDeltaTime() * 10.0f;
+				RenderPass.VerticalJumpAmount = VerticalJump;
+				RenderPass.VerticalJumpTime += (float)Time->GetDeltaTime() * VerticalJump * 11.3f;
+				RenderPass.ScanLineJitterThreshold = Compute::Mathf::Saturate(1.0f - ScanLineJitter * 1.2f);
+				RenderPass.ScanLineJitterDisplacement = 0.002f + Compute::Mathf::Pow(ScanLineJitter, 3) * 0.05f;
+				RenderPass.HorizontalShake = HorizontalShake * 0.2f;
+				RenderPass.ColorDriftAmount = ColorDrift * 0.04f;
+				RenderPass.ColorDriftTime = RenderPass.ElapsedTime * 606.11f;
+				RenderResult(nullptr, &RenderPass);
 			}
 
-			DepthOfFieldRenderer::DepthOfFieldRenderer(RenderSystem* Lab) : EffectRenderer(Lab)
+			Tone::Tone(RenderSystem* Lab) : EffectDraw(Lab)
+			{
+				std::string Data;
+				if (System->GetDevice()->GetSection("pass/tone", &Data))
+					CompileEffect("tr-tone", Data, sizeof(RenderPass));
+			}
+			void Tone::Deserialize(ContentManager* Content, Rest::Document* Node)
+			{
+				NMake::Unpack(Node->Find("blind-vision-r"), &RenderPass.BlindVisionR);
+				NMake::Unpack(Node->Find("blind-vision-g"), &RenderPass.BlindVisionG);
+				NMake::Unpack(Node->Find("blind-vision-b"), &RenderPass.BlindVisionB);
+				NMake::Unpack(Node->Find("vignette-color"), &RenderPass.VignetteColor);
+				NMake::Unpack(Node->Find("color-gamma"), &RenderPass.ColorGamma);
+				NMake::Unpack(Node->Find("desaturation-gamma"), &RenderPass.DesaturationGamma);
+				NMake::Unpack(Node->Find("vignette-amount"), &RenderPass.VignetteAmount);
+				NMake::Unpack(Node->Find("vignette-curve"), &RenderPass.VignetteCurve);
+				NMake::Unpack(Node->Find("vignette-radius"), &RenderPass.VignetteRadius);
+				NMake::Unpack(Node->Find("linear-intensity"), &RenderPass.LinearIntensity);
+				NMake::Unpack(Node->Find("gamma-intensity"), &RenderPass.GammaIntensity);
+				NMake::Unpack(Node->Find("desaturation-intensity"), &RenderPass.DesaturationIntensity);
+				NMake::Unpack(Node->Find("tone-intensity"), &RenderPass.ToneIntensity);
+				NMake::Unpack(Node->Find("aces-intensity"), &RenderPass.AcesIntensity);
+				NMake::Unpack(Node->Find("aces-a"), &RenderPass.AcesA);
+				NMake::Unpack(Node->Find("aces-b"), &RenderPass.AcesB);
+				NMake::Unpack(Node->Find("aces-c"), &RenderPass.AcesC);
+				NMake::Unpack(Node->Find("aces-d"), &RenderPass.AcesD);
+				NMake::Unpack(Node->Find("aces-e"), &RenderPass.AcesE);
+			}
+			void Tone::Serialize(ContentManager* Content, Rest::Document* Node)
+			{
+				NMake::Pack(Node->SetDocument("blind-vision-r"), RenderPass.BlindVisionR);
+				NMake::Pack(Node->SetDocument("blind-vision-g"), RenderPass.BlindVisionG);
+				NMake::Pack(Node->SetDocument("blind-vision-b"), RenderPass.BlindVisionB);
+				NMake::Pack(Node->SetDocument("vignette-color"), RenderPass.VignetteColor);
+				NMake::Pack(Node->SetDocument("color-gamma"), RenderPass.ColorGamma);
+				NMake::Pack(Node->SetDocument("desaturation-gamma"), RenderPass.DesaturationGamma);
+				NMake::Pack(Node->SetDocument("vignette-amount"), RenderPass.VignetteAmount);
+				NMake::Pack(Node->SetDocument("vignette-curve"), RenderPass.VignetteCurve);
+				NMake::Pack(Node->SetDocument("vignette-radius"), RenderPass.VignetteRadius);
+				NMake::Pack(Node->SetDocument("linear-intensity"), RenderPass.LinearIntensity);
+				NMake::Pack(Node->SetDocument("gamma-intensity"), RenderPass.GammaIntensity);
+				NMake::Pack(Node->SetDocument("desaturation-intensity"), RenderPass.DesaturationIntensity);
+				NMake::Pack(Node->SetDocument("tone-intensity"), RenderPass.ToneIntensity);
+				NMake::Pack(Node->SetDocument("aces-intensity"), RenderPass.AcesIntensity);
+				NMake::Pack(Node->SetDocument("aces-a"), RenderPass.AcesA);
+				NMake::Pack(Node->SetDocument("aces-b"), RenderPass.AcesB);
+				NMake::Pack(Node->SetDocument("aces-c"), RenderPass.AcesC);
+				NMake::Pack(Node->SetDocument("aces-d"), RenderPass.AcesD);
+				NMake::Pack(Node->SetDocument("aces-e"), RenderPass.AcesE);
+			}
+			void Tone::RenderEffect(Rest::Timer* Time)
+			{
+				RenderResult(nullptr, &RenderPass);
+			}
+
+			DoF::DoF(RenderSystem* Lab) : EffectDraw(Lab)
 			{
 				std::string Data;
 				if (System->GetDevice()->GetSection("pass/focus", &Data))
 					CompileEffect("dfr-focus", Data, sizeof(RenderPass));
 			}
-			void DepthOfFieldRenderer::Deserialize(ContentManager* Content, Rest::Document* Node)
+			void DoF::Deserialize(ContentManager* Content, Rest::Document* Node)
 			{
 				NMake::Unpack(Node->Find("focus-distance"), &FocusDistance);
 				NMake::Unpack(Node->Find("focus-time"), &FocusTime);
@@ -1752,7 +1757,7 @@ namespace Tomahawk
 				NMake::Unpack(Node->Find("far-distance"), &RenderPass.FarDistance);
 				NMake::Unpack(Node->Find("far-range"), &RenderPass.FarRange);
 			}
-			void DepthOfFieldRenderer::Serialize(ContentManager* Content, Rest::Document* Node)
+			void DoF::Serialize(ContentManager* Content, Rest::Document* Node)
 			{
 				NMake::Pack(Node->SetDocument("focus-distance"), FocusDistance);
 				NMake::Pack(Node->SetDocument("focus-time"), FocusTime);
@@ -1765,7 +1770,7 @@ namespace Tomahawk
 				NMake::Pack(Node->SetDocument("far-distance"), RenderPass.FarDistance);
 				NMake::Pack(Node->SetDocument("far-range"), RenderPass.FarRange);
 			}
-			void DepthOfFieldRenderer::RenderEffect(Rest::Timer* Time)
+			void DoF::RenderEffect(Rest::Timer* Time)
 			{
 				if (FocusDistance > 0.0f)
 					FocusAtNearestTarget(Time->GetDeltaTime());
@@ -1774,7 +1779,7 @@ namespace Tomahawk
 				RenderPass.Texel[1] = 1.0f / Output->GetHeight();
 				RenderResult(nullptr, &RenderPass);
 			}
-			void DepthOfFieldRenderer::FocusAtNearestTarget(float DeltaTime)
+			void DoF::FocusAtNearestTarget(float DeltaTime)
 			{
 				Compute::Ray Origin;
 				Origin.Origin = System->GetScene()->View.WorldPosition.InvertZ();
@@ -1830,8 +1835,8 @@ namespace Tomahawk
 				if (RenderPass.Radius < 0.0f)
 					RenderPass.Radius = 0.0f;
 			}
-			
-			EmissionRenderer::EmissionRenderer(RenderSystem* Lab) : EffectRenderer(Lab)
+
+			Bloom::Bloom(RenderSystem* Lab) : EffectDraw(Lab)
 			{
 				std::string Data;
 				if (System->GetDevice()->GetSection("pass/bloom-x", &Data))
@@ -1840,81 +1845,70 @@ namespace Tomahawk
 				if (System->GetDevice()->GetSection("pass/bloom-y", &Data))
 					Pass2 = CompileEffect("br-bloom-y", Data, sizeof(RenderPass));
 			}
-			void EmissionRenderer::Deserialize(ContentManager* Content, Rest::Document* Node)
+			void Bloom::Deserialize(ContentManager* Content, Rest::Document* Node)
 			{
 				NMake::Unpack(Node->Find("samples"), &RenderPass.Samples);
 				NMake::Unpack(Node->Find("intensity"), &RenderPass.Intensity);
 				NMake::Unpack(Node->Find("threshold"), &RenderPass.Threshold);
 				NMake::Unpack(Node->Find("scale"), &RenderPass.Scale);
 			}
-			void EmissionRenderer::Serialize(ContentManager* Content, Rest::Document* Node)
+			void Bloom::Serialize(ContentManager* Content, Rest::Document* Node)
 			{
 				NMake::Pack(Node->SetDocument("samples"), RenderPass.Samples);
 				NMake::Pack(Node->SetDocument("intensity"), RenderPass.Intensity);
 				NMake::Pack(Node->SetDocument("threshold"), RenderPass.Threshold);
 				NMake::Pack(Node->SetDocument("scale"), RenderPass.Scale);
 			}
-			void EmissionRenderer::RenderEffect(Rest::Timer* Time)
+			void Bloom::RenderEffect(Rest::Timer* Time)
 			{
 				RenderPass.Texel[0] = 1.0f / Output->GetWidth();
 				RenderPass.Texel[1] = 1.0f / Output->GetHeight();
 				RenderMerge(Pass1, &RenderPass);
 				RenderResult(Pass2, &RenderPass);
 			}
-			
-			GlitchRenderer::GlitchRenderer(RenderSystem* Lab) : EffectRenderer(Lab), ScanLineJitter(0), VerticalJump(0), HorizontalShake(0), ColorDrift(0)
+
+			SSR::SSR(RenderSystem* Lab) : EffectDraw(Lab), Pass1(nullptr), Pass2(nullptr)
 			{
 				std::string Data;
-				if (System->GetDevice()->GetSection("pass/glitch", &Data))
-					CompileEffect("gr-glitch", Data, sizeof(RenderPass));
-			}
-			void GlitchRenderer::Deserialize(ContentManager* Content, Rest::Document* Node)
-			{
-				NMake::Unpack(Node->Find("scanline-jitter"), &ScanLineJitter);
-				NMake::Unpack(Node->Find("vertical-jump"), &VerticalJump);
-				NMake::Unpack(Node->Find("horizontal-shake"), &HorizontalShake);
-				NMake::Unpack(Node->Find("color-drift"), &ColorDrift);
-				NMake::Unpack(Node->Find("horizontal-shake"), &HorizontalShake);
-				NMake::Unpack(Node->Find("elapsed-time"), &RenderPass.ElapsedTime);
-				NMake::Unpack(Node->Find("scanline-jitter-displacement"), &RenderPass.ScanLineJitterDisplacement);
-				NMake::Unpack(Node->Find("scanline-jitter-threshold"), &RenderPass.ScanLineJitterThreshold);
-				NMake::Unpack(Node->Find("vertical-jump-amount"), &RenderPass.VerticalJumpAmount);
-				NMake::Unpack(Node->Find("vertical-jump-time"), &RenderPass.VerticalJumpTime);
-				NMake::Unpack(Node->Find("color-drift-amount"), &RenderPass.ColorDriftAmount);
-				NMake::Unpack(Node->Find("color-drift-time"), &RenderPass.ColorDriftTime);
-			}
-			void GlitchRenderer::Serialize(ContentManager* Content, Rest::Document* Node)
-			{
-				NMake::Pack(Node->SetDocument("scanline-jitter"), ScanLineJitter);
-				NMake::Pack(Node->SetDocument("vertical-jump"), VerticalJump);
-				NMake::Pack(Node->SetDocument("horizontal-shake"), HorizontalShake);
-				NMake::Pack(Node->SetDocument("color-drift"), ColorDrift);
-				NMake::Pack(Node->SetDocument("horizontal-shake"), HorizontalShake);
-				NMake::Pack(Node->SetDocument("elapsed-time"), RenderPass.ElapsedTime);
-				NMake::Pack(Node->SetDocument("scanline-jitter-displacement"), RenderPass.ScanLineJitterDisplacement);
-				NMake::Pack(Node->SetDocument("scanline-jitter-threshold"), RenderPass.ScanLineJitterThreshold);
-				NMake::Pack(Node->SetDocument("vertical-jump-amount"), RenderPass.VerticalJumpAmount);
-				NMake::Pack(Node->SetDocument("vertical-jump-time"), RenderPass.VerticalJumpTime);
-				NMake::Pack(Node->SetDocument("color-drift-amount"), RenderPass.ColorDriftAmount);
-				NMake::Pack(Node->SetDocument("color-drift-time"), RenderPass.ColorDriftTime);
-			}
-			void GlitchRenderer::RenderEffect(Rest::Timer* Time)
-			{
-				if (RenderPass.ElapsedTime >= 32000.0f)
-					RenderPass.ElapsedTime = 0.0f;
+				if (System->GetDevice()->GetSection("pass/reflection", &Data))
+					Pass1 = CompileEffect("rr-reflection", Data, sizeof(RenderPass1));
 
-				RenderPass.ElapsedTime += (float)Time->GetDeltaTime() * 10.0f;
-				RenderPass.VerticalJumpAmount = VerticalJump;
-				RenderPass.VerticalJumpTime += (float)Time->GetDeltaTime() * VerticalJump * 11.3f;
-				RenderPass.ScanLineJitterThreshold = Compute::Mathf::Saturate(1.0f - ScanLineJitter * 1.2f);
-				RenderPass.ScanLineJitterDisplacement = 0.002f + Compute::Mathf::Pow(ScanLineJitter, 3) * 0.05f;
-				RenderPass.HorizontalShake = HorizontalShake * 0.2f;
-				RenderPass.ColorDriftAmount = ColorDrift * 0.04f;
-				RenderPass.ColorDriftTime = RenderPass.ElapsedTime * 606.11f;
-				RenderResult(nullptr, &RenderPass);
+				if (System->GetDevice()->GetSection("pass/gloss-x", &Data))
+					Pass2 = CompileEffect("rr-gloss-x", Data, sizeof(RenderPass2));
+
+				if (System->GetDevice()->GetSection("pass/gloss-y", &Data))
+					Pass3 = CompileEffect("rr-gloss-y", Data, sizeof(RenderPass2));
+			}
+			void SSR::Deserialize(ContentManager* Content, Rest::Document* Node)
+			{
+				NMake::Unpack(Node->Find("samples-1"), &RenderPass1.Samples);
+				NMake::Unpack(Node->Find("samples-2"), &RenderPass2.Samples);
+				NMake::Unpack(Node->Find("intensity"), &RenderPass1.Intensity);
+				NMake::Unpack(Node->Find("blur"), &RenderPass2.Blur);
+			}
+			void SSR::Serialize(ContentManager* Content, Rest::Document* Node)
+			{
+				NMake::Pack(Node->SetDocument("samples-1"), RenderPass1.Samples);
+				NMake::Pack(Node->SetDocument("samples-2"), RenderPass2.Samples);
+				NMake::Pack(Node->SetDocument("intensity"), RenderPass1.Intensity);
+				NMake::Pack(Node->SetDocument("blur"), RenderPass2.Blur);
+			}
+			void SSR::RenderEffect(Rest::Timer* Time)
+			{
+				Graphics::MultiRenderTarget2D* Surface = System->GetScene()->GetSurface();
+				if (Surface != nullptr)
+					System->GetDevice()->GenerateMips(Surface->GetTarget(0));
+
+				RenderPass1.MipLevels = System->GetDevice()->GetMipLevel((unsigned int)Output->GetWidth(), (unsigned int)Output->GetHeight());
+				RenderPass2.Texel[0] = 1.0f / Output->GetWidth();
+				RenderPass2.Texel[1] = 1.0f / Output->GetHeight();
+
+				RenderMerge(Pass1, &RenderPass1);
+				RenderMerge(Pass2, &RenderPass2);
+				RenderResult(Pass3, &RenderPass2);
 			}
 
-			AmbientOcclusionRenderer::AmbientOcclusionRenderer(RenderSystem* Lab) : EffectRenderer(Lab), Pass1(nullptr), Pass2(nullptr)
+			SSAO::SSAO(RenderSystem* Lab) : EffectDraw(Lab), Pass1(nullptr), Pass2(nullptr)
 			{
 				std::string Data;
 				if (System->GetDevice()->GetSection("pass/ambient", &Data))
@@ -1926,7 +1920,7 @@ namespace Tomahawk
 				if (System->GetDevice()->GetSection("pass/blur-y", &Data))
 					Pass3 = CompileEffect("aor-blur-y", Data, sizeof(RenderPass2));
 			}
-			void AmbientOcclusionRenderer::Deserialize(ContentManager* Content, Rest::Document* Node)
+			void SSAO::Deserialize(ContentManager* Content, Rest::Document* Node)
 			{
 				NMake::Unpack(Node->Find("scale"), &RenderPass1.Scale);
 				NMake::Unpack(Node->Find("intensity"), &RenderPass1.Intensity);
@@ -1940,7 +1934,7 @@ namespace Tomahawk
 				NMake::Unpack(Node->Find("blur"), &RenderPass2.Blur);
 				NMake::Unpack(Node->Find("additive"), &RenderPass2.Additive);
 			}
-			void AmbientOcclusionRenderer::Serialize(ContentManager* Content, Rest::Document* Node)
+			void SSAO::Serialize(ContentManager* Content, Rest::Document* Node)
 			{
 				NMake::Pack(Node->SetDocument("scale"), RenderPass1.Scale);
 				NMake::Pack(Node->SetDocument("intensity"), RenderPass1.Intensity);
@@ -1954,7 +1948,7 @@ namespace Tomahawk
 				NMake::Pack(Node->SetDocument("blur"), RenderPass2.Blur);
 				NMake::Pack(Node->SetDocument("additive"), RenderPass2.Additive);
 			}
-			void AmbientOcclusionRenderer::RenderEffect(Rest::Timer* Time)
+			void SSAO::RenderEffect(Rest::Timer* Time)
 			{
 				RenderPass2.Texel[0] = 1.0f / Output->GetWidth();
 				RenderPass2.Texel[1] = 1.0f / Output->GetHeight();
@@ -1964,7 +1958,7 @@ namespace Tomahawk
 				RenderResult(Pass3, &RenderPass2);
 			}
 
-			DirectOcclusionRenderer::DirectOcclusionRenderer(RenderSystem* Lab) : EffectRenderer(Lab), Pass1(nullptr), Pass2(nullptr)
+			SSDO::SSDO(RenderSystem* Lab) : EffectDraw(Lab), Pass1(nullptr), Pass2(nullptr)
 			{
 				std::string Data;
 				if (System->GetDevice()->GetSection("pass/indirect", &Data))
@@ -1976,7 +1970,7 @@ namespace Tomahawk
 				if (System->GetDevice()->GetSection("pass/blur-y", &Data))
 					Pass3 = CompileEffect("dor-blur-y", Data, sizeof(RenderPass2));
 			}
-			void DirectOcclusionRenderer::Deserialize(ContentManager* Content, Rest::Document* Node)
+			void SSDO::Deserialize(ContentManager* Content, Rest::Document* Node)
 			{
 				NMake::Unpack(Node->Find("scale"), &RenderPass1.Scale);
 				NMake::Unpack(Node->Find("intensity"), &RenderPass1.Intensity);
@@ -1990,7 +1984,7 @@ namespace Tomahawk
 				NMake::Unpack(Node->Find("blur"), &RenderPass2.Blur);
 				NMake::Unpack(Node->Find("additive"), &RenderPass2.Additive);
 			}
-			void DirectOcclusionRenderer::Serialize(ContentManager* Content, Rest::Document* Node)
+			void SSDO::Serialize(ContentManager* Content, Rest::Document* Node)
 			{
 				NMake::Pack(Node->SetDocument("scale"), RenderPass1.Scale);
 				NMake::Pack(Node->SetDocument("intensity"), RenderPass1.Intensity);
@@ -2004,7 +1998,7 @@ namespace Tomahawk
 				NMake::Pack(Node->SetDocument("blur"), RenderPass2.Blur);
 				NMake::Pack(Node->SetDocument("additive"), RenderPass2.Additive);
 			}
-			void DirectOcclusionRenderer::RenderEffect(Rest::Timer* Time)
+			void SSDO::RenderEffect(Rest::Timer* Time)
 			{
 				RenderPass2.Texel[0] = 1.0f / Output->GetWidth();
 				RenderPass2.Texel[1] = 1.0f / Output->GetHeight();
@@ -2013,60 +2007,38 @@ namespace Tomahawk
 				RenderMerge(Pass2, &RenderPass2);
 				RenderResult(Pass3, &RenderPass2);
 			}
-			
-			ToneRenderer::ToneRenderer(RenderSystem* Lab) : EffectRenderer(Lab)
+
+
+			UserInterface::UserInterface(RenderSystem* Lab) : UserInterface(Lab, Application::Get() ? Application::Get()->Activity : nullptr)
 			{
-				std::string Data;
-				if (System->GetDevice()->GetSection("pass/tone", &Data))
-					CompileEffect("tr-tone", Data, sizeof(RenderPass));
 			}
-			void ToneRenderer::Deserialize(ContentManager* Content, Rest::Document* Node)
+			UserInterface::UserInterface(RenderSystem* Lab, Graphics::Activity* NewActivity) : Renderer(Lab), Activity(NewActivity)
 			{
-				NMake::Unpack(Node->Find("blind-vision-r"), &RenderPass.BlindVisionR);
-				NMake::Unpack(Node->Find("blind-vision-g"), &RenderPass.BlindVisionG);
-				NMake::Unpack(Node->Find("blind-vision-b"), &RenderPass.BlindVisionB);
-				NMake::Unpack(Node->Find("vignette-color"), &RenderPass.VignetteColor);
-				NMake::Unpack(Node->Find("color-gamma"), &RenderPass.ColorGamma);
-				NMake::Unpack(Node->Find("desaturation-gamma"), &RenderPass.DesaturationGamma);
-				NMake::Unpack(Node->Find("vignette-amount"), &RenderPass.VignetteAmount);
-				NMake::Unpack(Node->Find("vignette-curve"), &RenderPass.VignetteCurve);
-				NMake::Unpack(Node->Find("vignette-radius"), &RenderPass.VignetteRadius);
-				NMake::Unpack(Node->Find("linear-intensity"), &RenderPass.LinearIntensity);
-				NMake::Unpack(Node->Find("gamma-intensity"), &RenderPass.GammaIntensity);
-				NMake::Unpack(Node->Find("desaturation-intensity"), &RenderPass.DesaturationIntensity);
-				NMake::Unpack(Node->Find("tone-intensity"), &RenderPass.ToneIntensity);
-				NMake::Unpack(Node->Find("aces-intensity"), &RenderPass.AcesIntensity);
-				NMake::Unpack(Node->Find("aces-a"), &RenderPass.AcesA);
-				NMake::Unpack(Node->Find("aces-b"), &RenderPass.AcesB);
-				NMake::Unpack(Node->Find("aces-c"), &RenderPass.AcesC);
-				NMake::Unpack(Node->Find("aces-d"), &RenderPass.AcesD);
-				NMake::Unpack(Node->Find("aces-e"), &RenderPass.AcesE);
+				Context = new GUI::Context(Lab->GetDevice());
 			}
-			void ToneRenderer::Serialize(ContentManager* Content, Rest::Document* Node)
+			UserInterface::~UserInterface()
 			{
-				NMake::Pack(Node->SetDocument("blind-vision-r"), RenderPass.BlindVisionR);
-				NMake::Pack(Node->SetDocument("blind-vision-g"), RenderPass.BlindVisionG);
-				NMake::Pack(Node->SetDocument("blind-vision-b"), RenderPass.BlindVisionB);
-				NMake::Pack(Node->SetDocument("vignette-color"), RenderPass.VignetteColor);
-				NMake::Pack(Node->SetDocument("color-gamma"), RenderPass.ColorGamma);
-				NMake::Pack(Node->SetDocument("desaturation-gamma"), RenderPass.DesaturationGamma);
-				NMake::Pack(Node->SetDocument("vignette-amount"), RenderPass.VignetteAmount);
-				NMake::Pack(Node->SetDocument("vignette-curve"), RenderPass.VignetteCurve);
-				NMake::Pack(Node->SetDocument("vignette-radius"), RenderPass.VignetteRadius);
-				NMake::Pack(Node->SetDocument("linear-intensity"), RenderPass.LinearIntensity);
-				NMake::Pack(Node->SetDocument("gamma-intensity"), RenderPass.GammaIntensity);
-				NMake::Pack(Node->SetDocument("desaturation-intensity"), RenderPass.DesaturationIntensity);
-				NMake::Pack(Node->SetDocument("tone-intensity"), RenderPass.ToneIntensity);
-				NMake::Pack(Node->SetDocument("aces-intensity"), RenderPass.AcesIntensity);
-				NMake::Pack(Node->SetDocument("aces-a"), RenderPass.AcesA);
-				NMake::Pack(Node->SetDocument("aces-b"), RenderPass.AcesB);
-				NMake::Pack(Node->SetDocument("aces-c"), RenderPass.AcesC);
-				NMake::Pack(Node->SetDocument("aces-d"), RenderPass.AcesD);
-				NMake::Pack(Node->SetDocument("aces-e"), RenderPass.AcesE);
+				TH_RELEASE(Context);
 			}
-			void ToneRenderer::RenderEffect(Rest::Timer* Time)
+			void UserInterface::Render(Rest::Timer* Timer, RenderState State, RenderOpt Options)
 			{
-				RenderResult(nullptr, &RenderPass);
+				if (State != RenderState_GBuffer || Options & RenderOpt_Inner || Options & RenderOpt_Transparent)
+					return;
+
+				Graphics::MultiRenderTarget2D* Surface = System->GetScene()->GetSurface();
+				if (!Context)
+					return;
+
+				Context->UpdateEvents(Activity);
+				if (!Surface)
+					return;
+
+				System->GetDevice()->SetTarget(Surface);
+				Context->RenderLists(Surface->GetTarget(0));
+			}
+			GUI::Context* UserInterface::GetContext()
+			{
+				return Context;
 			}
 		}
 	}

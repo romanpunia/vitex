@@ -1,8 +1,8 @@
 #ifndef TOMAHAWK_H
 #define TOMAHAWK_H
-#define TH_MAJOR_VERSION 1
-#define TH_MINOR_VERSION 8
-#define TH_PATCH_LEVEL 5
+#define TH_MAJOR_VERSION 2
+#define TH_MINOR_VERSION 0
+#define TH_PATCH_LEVEL 0
 #define TH_VERSION(X, Y, Z) ((X) * 1000 + (Y) * 100 + (Z))
 #define TH_AT_LEAST(X, Y, Z) (TH_VERSION(TH_MAJOR_VERSION, TH_MINOR_VERSION, TH_PATCH_LEVEL) >= TH_VERSION(X, Y, Z))
 #include "core/rest.h"
@@ -17,17 +17,14 @@
 #include "network/bson.h"
 #include "network/mongodb.h"
 #include "core/script.h"
-#include "script/core.h"
-#include "script/rest.h"
+#include "script/core-api.h"
+#include "script/rest-api.h"
+#include "script/gui-api.h"
 #include "core/engine.h"
 #include "engine/components.h"
 #include "engine/processors.h"
 #include "engine/renderers.h"
-#include "engine/gui/context.h"
-#include "engine/gui/elements.h"
-#include "engine/gui/layout.h"
-#include "engine/gui/logical.h"
-#include "engine/gui/shapes.h"
+#include "engine/gui.h"
 
 namespace Tomahawk
 {

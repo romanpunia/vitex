@@ -1,1 +1,0 @@
-target_include_directories(tomahawk PRIVATE ${CMAKE_CURRENT_LIST_DIR})

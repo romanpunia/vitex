@@ -12,46 +12,46 @@ namespace Tomahawk
 			class TH_OUT FilterContext
 			{
 			public:
-				static void Initialize();
+				static void Create();
 			};
 
-			class TH_OUT LowpassFilter : public AudioFilter
+			class TH_OUT Lowpass : public AudioFilter
 			{
 			public:
 				float GainHF = 1.0f;
 				float Gain = 1.0f;
 
 			public:
-				LowpassFilter();
-				virtual ~LowpassFilter() override;
+				Lowpass();
+				virtual ~Lowpass() override;
 				void Synchronize() override;
 				void Deserialize(Rest::Document* Node) override;
 				void Serialize(Rest::Document* Node) override;
 				AudioFilter* Copy() override;
 
 			public:
-				TH_COMPONENT(LowpassFilter);
+				TH_COMPONENT("lowpass-filter");
 			};
 
-			class TH_OUT HighpassFilter : public AudioFilter
+			class TH_OUT Highpass : public AudioFilter
 			{
 			public:
 				float GainLF = 1.0f;
 				float Gain = 1.0f;
 
 			public:
-				HighpassFilter();
-				virtual ~HighpassFilter() override;
+				Highpass();
+				virtual ~Highpass() override;
 				void Synchronize() override;
 				void Deserialize(Rest::Document* Node) override;
 				void Serialize(Rest::Document* Node) override;
 				AudioFilter* Copy() override;
 
 			public:
-				TH_COMPONENT(HighpassFilter);
+				TH_COMPONENT("highpass-filter");
 			};
 
-			class TH_OUT BandpassFilter : public AudioFilter
+			class TH_OUT Bandpass : public AudioFilter
 			{
 			public:
 				float GainHF = 1.0f;
@@ -59,15 +59,15 @@ namespace Tomahawk
 				float Gain = 1.0f;
 
 			public:
-				BandpassFilter();
-				virtual ~BandpassFilter() override;
+				Bandpass();
+				virtual ~Bandpass() override;
 				void Synchronize() override;
 				void Deserialize(Rest::Document* Node) override;
 				void Serialize(Rest::Document* Node) override;
 				AudioFilter* Copy() override;
 
 			public:
-				TH_COMPONENT(BandpassFilter);
+				TH_COMPONENT("bandpass-filter");
 			};
 		}
 	}

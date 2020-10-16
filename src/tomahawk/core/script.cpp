@@ -1,7 +1,8 @@
 #include "script.h"
 #include "../script/compiler/compiler.h"
-#include "../script/core.h"
-#include "../script/rest.h"
+#include "../script/core-api.h"
+#include "../script/rest-api.h"
+#include "../script/gui-api.h"
 #include <iostream>
 #include <sstream>
 
@@ -2312,8 +2313,8 @@ namespace Tomahawk
 		}
 		VMCompiler::~VMCompiler()
 		{
-			delete Context;
-			delete Processor;
+			TH_RELEASE(Context);
+			TH_RELEASE(Processor);
 		}
 		void VMCompiler::SetIncludeCallback(const Compute::ProcIncludeCallback& Callback)
 		{
@@ -2585,6 +2586,10 @@ namespace Tomahawk
 		}
 		int VMCompiler::ExecuteEntry(const char* Name, void* Return, int ReturnTypeId)
 		{
+			return ExecuteEntry(Name, Return, ReturnTypeId, nullptr);
+		}
+		int VMCompiler::ExecuteEntry(const char* Name, void* Return, int ReturnTypeId, const std::function<void(VMContext*)>& ArgsCallback)
+		{
 			if (!BuiltOK || !Manager || !Context || !Name || !Module)
 				return -1;
 
@@ -2600,6 +2605,9 @@ namespace Tomahawk
 			int R = VM->Prepare(Function);
 			if (R < 0)
 				return R;
+
+			if (ArgsCallback)
+				ArgsCallback(Context);
 
 			R = VM->Execute();
 			if (Return != 0 && ReturnTypeId != asTYPEID_VOID)
@@ -3786,6 +3794,16 @@ namespace Tomahawk
 				return true;
 			}
 
+			if (Name == "Gui")
+			{
+				UseSubmodule("Gui.Context");
+				UseSubmodule("Gui.Document");
+				UseSubmodule("Gui.Element");
+				UseSubmodule("Gui.Event");
+
+				return true;
+			}
+
 			if (Name == "System.Any")
 				return RegisterAnyAPI(this);
 
@@ -3860,6 +3878,18 @@ namespace Tomahawk
 				UseSubmodule("System.Map");
 				return RegisterDocumentAPI(this);
 			}
+
+			if (Name == "Gui.Element")
+				return RegisterGuiElementAPI(this);
+
+			if (Name == "Gui.Document")
+				return RegisterGuiDocumentAPI(this);
+
+			if (Name == "Gui.Event")
+				return RegisterGuiEventAPI(this);
+
+			if (Name == "Gui.Context")
+				return RegisterGuiContextAPI(this);
 
 			Features[Name] = false;
 			return false;

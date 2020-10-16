@@ -149,7 +149,7 @@ namespace Tomahawk
 					if (Document != nullptr)
 						bson_destroy(Document);
 
-					TH_ERROR("couldn't parse JSON data -> %s", Error.message);
+					TH_ERROR("[json] %s", Error.message);
 					return nullptr;
 				}
 

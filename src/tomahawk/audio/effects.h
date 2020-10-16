@@ -12,10 +12,10 @@ namespace Tomahawk
 			class TH_OUT EffectContext
 			{
 			public:
-				static void Initialize();
+				static void Create();
 			};
 
-			class TH_OUT ReverbEffect : public AudioEffect
+			class TH_OUT Reverb : public AudioEffect
 			{
 			private:
 				bool EAX;
@@ -46,18 +46,18 @@ namespace Tomahawk
 				bool IsDecayHFLimited = true;
 				
 			public:
-				ReverbEffect();
-				virtual ~ReverbEffect() override;
+				Reverb();
+				virtual ~Reverb() override;
 				void Synchronize() override;
 				void Deserialize(Rest::Document* Node) override;
 				void Serialize(Rest::Document* Node) override;
 				AudioEffect* Copy() override;
 
 			public:
-				TH_COMPONENT(ReverbEffect);
+				TH_COMPONENT("reverb-effect");
 			};
 
-			class TH_OUT ChorusEffect : public AudioEffect
+			class TH_OUT Chorus : public AudioEffect
 			{
 			public:
 				float Rate = 1.1f;
@@ -68,18 +68,18 @@ namespace Tomahawk
 				int Phase = 90;
 
 			public:
-				ChorusEffect();
-				virtual ~ChorusEffect() override;
+				Chorus();
+				virtual ~Chorus() override;
 				void Synchronize() override;
 				void Deserialize(Rest::Document* Node) override;
 				void Serialize(Rest::Document* Node) override;
 				AudioEffect* Copy() override;
 
 			public:
-				TH_COMPONENT(ChorusEffect);
+				TH_COMPONENT("chorus-effect");
 			};
 
-			class TH_OUT DistortionEffect : public AudioEffect
+			class TH_OUT Distortion : public AudioEffect
 			{
 			public:
 				float Edge = 0.2f;
@@ -89,18 +89,18 @@ namespace Tomahawk
 				float EQBandwidth = 3600.0f;
 
 			public:
-				DistortionEffect();
-				virtual ~DistortionEffect() override;
+				Distortion();
+				virtual ~Distortion() override;
 				void Synchronize() override;
 				void Deserialize(Rest::Document* Node) override;
 				void Serialize(Rest::Document* Node) override;
 				AudioEffect* Copy() override;
 
 			public:
-				TH_COMPONENT(DistortionEffect);
+				TH_COMPONENT("distortion-effect");
 			};
 
-			class TH_OUT EchoEffect : public AudioEffect
+			class TH_OUT Echo : public AudioEffect
 			{
 			public:
 				float Delay = 0.1f;
@@ -110,18 +110,18 @@ namespace Tomahawk
 				float Spread = -1.0f;
 
 			public:
-				EchoEffect();
-				virtual ~EchoEffect() override;
+				Echo();
+				virtual ~Echo() override;
 				void Synchronize() override;
 				void Deserialize(Rest::Document* Node) override;
 				void Serialize(Rest::Document* Node) override;
 				AudioEffect* Copy() override;
 
 			public:
-				TH_COMPONENT(EchoEffect);
+				TH_COMPONENT("echo-effect");
 			};
 
-			class TH_OUT FlangerEffect : public AudioEffect
+			class TH_OUT Flanger : public AudioEffect
 			{
 			public:
 				float Rate = 0.27f;
@@ -132,18 +132,18 @@ namespace Tomahawk
 				int Phase = 0;
 
 			public:
-				FlangerEffect();
-				virtual ~FlangerEffect() override;
+				Flanger();
+				virtual ~Flanger() override;
 				void Synchronize() override;
 				void Deserialize(Rest::Document* Node) override;
 				void Serialize(Rest::Document* Node) override;
 				AudioEffect* Copy() override;
 
 			public:
-				TH_COMPONENT(FlangerEffect);
+				TH_COMPONENT("flanger-effect");
 			};
 
-			class TH_OUT FrequencyShifterEffect : public AudioEffect
+			class TH_OUT FrequencyShifter : public AudioEffect
 			{
 			public:
 				float Frequency = 0.0f;
@@ -151,18 +151,18 @@ namespace Tomahawk
 				int RightDirection = 0;
 
 			public:
-				FrequencyShifterEffect();
-				virtual ~FrequencyShifterEffect() override;
+				FrequencyShifter();
+				virtual ~FrequencyShifter() override;
 				void Synchronize() override;
 				void Deserialize(Rest::Document* Node) override;
 				void Serialize(Rest::Document* Node) override;
 				AudioEffect* Copy() override;
 
 			public:
-				TH_COMPONENT(FrequencyShifterEffect);
+				TH_COMPONENT("frequency-shifter-effect");
 			};
 
-			class TH_OUT VocalMorpherEffect : public AudioEffect
+			class TH_OUT VocalMorpher : public AudioEffect
 			{
 			public:
 				float Rate = 1.41f;
@@ -173,36 +173,36 @@ namespace Tomahawk
 				int Waveform = 0;
 
 			public:
-				VocalMorpherEffect();
-				virtual ~VocalMorpherEffect() override;
+				VocalMorpher();
+				virtual ~VocalMorpher() override;
 				void Synchronize() override;
 				void Deserialize(Rest::Document* Node) override;
 				void Serialize(Rest::Document* Node) override;
 				AudioEffect* Copy() override;
 
 			public:
-				TH_COMPONENT(VocalMorpherEffect);
+				TH_COMPONENT("vocal-morpher-effect");
 			};
 
-			class TH_OUT PitchShifterEffect : public AudioEffect
+			class TH_OUT PitchShifter : public AudioEffect
 			{
 			public:
 				int CoarseTune = 12;
 				int FineTune = 0;
 
 			public:
-				PitchShifterEffect();
-				virtual ~PitchShifterEffect() override;
+				PitchShifter();
+				virtual ~PitchShifter() override;
 				void Synchronize() override;
 				void Deserialize(Rest::Document* Node) override;
 				void Serialize(Rest::Document* Node) override;
 				AudioEffect* Copy() override;
 
 			public:
-				TH_COMPONENT(PitchShifterEffect);
+				TH_COMPONENT("pitch-shifter-effect");
 			};
 
-			class TH_OUT RingModulatorEffect : public AudioEffect
+			class TH_OUT RingModulator : public AudioEffect
 			{
 			public:
 				float Frequency = 440.0f;
@@ -210,18 +210,18 @@ namespace Tomahawk
 				int Waveform = 0;
 
 			public:
-				RingModulatorEffect();
-				virtual ~RingModulatorEffect() override;
+				RingModulator();
+				virtual ~RingModulator() override;
 				void Synchronize() override;
 				void Deserialize(Rest::Document* Node) override;
 				void Serialize(Rest::Document* Node) override;
 				AudioEffect* Copy() override;
 
 			public:
-				TH_COMPONENT(RingModulatorEffect);
+				TH_COMPONENT("ring-modulator-effect");
 			};
 
-			class TH_OUT AutowahEffect : public AudioEffect
+			class TH_OUT Autowah : public AudioEffect
 			{
 			public:
 				float AttackTime = 0.06f;
@@ -230,32 +230,32 @@ namespace Tomahawk
 				float PeakGain = 11.22f;
 
 			public:
-				AutowahEffect();
-				virtual ~AutowahEffect() override;
+				Autowah();
+				virtual ~Autowah() override;
 				void Synchronize() override;
 				void Deserialize(Rest::Document* Node) override;
 				void Serialize(Rest::Document* Node) override;
 				AudioEffect* Copy() override;
 
 			public:
-				TH_COMPONENT(AutowahEffect);
+				TH_COMPONENT("autowah-effect");
 			};
 
-			class TH_OUT CompressorEffect : public AudioEffect
+			class TH_OUT Compressor : public AudioEffect
 			{
 			public:
-				CompressorEffect();
-				virtual ~CompressorEffect() override;
+				Compressor();
+				virtual ~Compressor() override;
 				void Synchronize() override;
 				void Deserialize(Rest::Document* Node) override;
 				void Serialize(Rest::Document* Node) override;
 				AudioEffect* Copy() override;
 
 			public:
-				TH_COMPONENT(CompressorEffect);
+				TH_COMPONENT("compressor-effect");
 			};
 
-			class TH_OUT EqualizerEffect : public AudioEffect
+			class TH_OUT Equalizer : public AudioEffect
 			{
 			public:
 				float LowGain = 1.0f;
@@ -270,15 +270,15 @@ namespace Tomahawk
 				float HighCutOff = 6000.0f;
 
 			public:
-				EqualizerEffect();
-				virtual ~EqualizerEffect() override;
+				Equalizer();
+				virtual ~Equalizer() override;
 				void Synchronize() override;
 				void Deserialize(Rest::Document* Node) override;
 				void Serialize(Rest::Document* Node) override;
 				AudioEffect* Copy() override;
 
 			public:
-				TH_COMPONENT(EqualizerEffect);
+				TH_COMPONENT("equalizer-effect");
 			};
 		}
 	}

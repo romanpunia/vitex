@@ -89,6 +89,275 @@ namespace Tomahawk
 			}
 		};
 
+		Property::Property() : Property((void*)nullptr)
+		{
+		}
+		Property::Property(const Property& Other)
+		{
+			Copy(Other);
+		}
+		Property::Property(const std::string& Value) : Type(PropertyType_String)
+		{
+			String* Buffer = (String*)TH_MALLOC(sizeof(String));
+			Buffer->Buffer = (char*)TH_MALLOC(sizeof(char) * Value.size());
+			Buffer->Size = Value.size();
+
+			memcpy(Buffer->Buffer, Value.c_str(), sizeof(char) * Value.size());
+			Data = (char*)Buffer;
+		}
+		Property::Property(const Vector2& Value) : Type(PropertyType_Vector2)
+		{
+			Data = (char*)TH_MALLOC(sizeof(Vector2));
+			memcpy(Data, (void*)&Value, sizeof(Vector2));
+		}
+		Property::Property(const Vector3& Value) : Type(PropertyType_Vector3)
+		{
+			Data = (char*)TH_MALLOC(sizeof(Vector3));
+			memcpy(Data, (void*)&Value, sizeof(Vector3));
+		}
+		Property::Property(const Vector4& Value) : Type(PropertyType_Vector4)
+		{
+			Data = (char*)TH_MALLOC(sizeof(Vector4));
+			memcpy(Data, (void*)&Value, sizeof(Vector4));
+		}
+		Property::Property(int64_t Value) : Type(PropertyType_Integer)
+		{
+			Data = (char*)TH_MALLOC(sizeof(int64_t));
+			memcpy(Data, (void*)&Value, sizeof(int64_t));
+		}
+		Property::Property(double Value) : Type(PropertyType_Number)
+		{
+			Data = (char*)TH_MALLOC(sizeof(double));
+			memcpy(Data, (void*)&Value, sizeof(double));
+		}
+		Property::Property(bool Value) : Type(PropertyType_Boolean)
+		{
+			Data = (char*)TH_MALLOC(sizeof(bool));
+			memcpy(Data, (void*)&Value, sizeof(bool));
+		}
+		Property::Property(void* Value) : Type(PropertyType_Pointer), Data((char*)Value)
+		{
+			if (!Data)
+				Type = PropertyType_Null;
+		}
+		Property::~Property()
+		{
+			Free();
+		}
+		bool Property::Is(const Property& Value) const
+		{
+			if (Type != Value.Type)
+				return false;
+
+			switch (Type)
+			{
+				case PropertyType_Null:
+					return Type == Value.Type;
+				case PropertyType_String:
+					if (GetStringSize() != Value.GetStringSize())
+						return false;
+
+					return strncmp(GetString(), Value.GetString(), sizeof(char) * GetStringSize()) == 0;
+				case PropertyType_Integer:
+					return GetInteger() == Value.GetInteger();
+				case PropertyType_Vector2:
+					return GetVector2() == Value.GetVector2();
+				case PropertyType_Vector3:
+					return GetVector3() == Value.GetVector3();
+				case PropertyType_Vector4:
+					return GetVector4() == Value.GetVector4();
+				case PropertyType_Number:
+					return GetNumber() == Value.GetNumber();
+				case PropertyType_Boolean:
+					return GetBoolean() == Value.GetBoolean();
+				case PropertyType_Pointer:
+					return GetPointer() == Value.GetPointer();
+			}
+
+			return false;
+		}
+		std::string Property::ToString() const
+		{
+			switch (Type)
+			{
+				case PropertyType_Null:
+					return "null";
+				case PropertyType_String:
+					return std::string(GetString(), GetStringSize());
+				case PropertyType_Integer:
+					return std::to_string(GetInteger());
+				case PropertyType_Number:
+					return std::to_string(GetNumber());
+				case PropertyType_Boolean:
+					return GetBoolean() ? "true" : "false";
+				case PropertyType_Pointer:
+				{
+					char Buffer[32];
+					snprintf(Buffer, sizeof(Buffer), "0x%p", GetPointer());
+
+					return Buffer;
+				}
+				default:
+					return "";
+			}
+		}
+		const char* Property::GetString() const
+		{
+			if (Type != PropertyType_String)
+				return nullptr;
+
+			return ((String*)Data)->Buffer;
+		}
+		size_t Property::GetStringSize() const
+		{
+			if (Type != PropertyType_String)
+				return 0;
+
+			return ((String*)Data)->Size;
+		}
+		Vector2 Property::GetVector2() const
+		{
+			if (Type == PropertyType_Vector2)
+				return *(Vector2*)Data;
+
+			return Vector2((float)GetNumber());
+		}
+		Vector3 Property::GetVector3() const
+		{
+			if (Type == PropertyType_Vector3)
+				return *(Vector3*)Data;
+
+			return Vector3((float)GetNumber());
+		}
+		Vector4 Property::GetVector4() const
+		{
+			if (Type == PropertyType_Vector4)
+				return *(Vector4*)Data;
+
+			return Vector4((float)GetNumber());
+		}
+		int64_t Property::GetInteger() const
+		{
+			if (Type == PropertyType_Integer)
+				return *(int64_t*)Data;
+
+			if (Type == PropertyType_Number)
+				return (int64_t)*(double*)Data;
+
+			return 0;
+		}
+		double Property::GetNumber() const
+		{
+			if (Type == PropertyType_Integer)
+				return (double)*(int64_t*)Data;
+
+			if (Type == PropertyType_Number)
+				return *(double*)Data;
+
+			return 0.0;
+		}
+		bool Property::GetBoolean() const
+		{
+			if (Type == PropertyType_Boolean)
+				return *(bool*)Data;
+
+			return false;
+		}
+		void* Property::GetPointer() const
+		{
+			if (Type == PropertyType_Pointer)
+				return (void*)Data;
+
+			return nullptr;
+		}
+		PropertyType Property::GetType() const
+		{
+			return Type;
+		}
+		bool Property::operator== (const Property& Other) const
+		{
+			return Is(Other);
+		}
+		bool Property::operator!= (const Property& Other) const
+		{
+			return !Is(Other);
+		}
+		Property& Property::operator= (const Property& Other)
+		{
+			Free();
+			Copy(Other);
+
+			return *this;
+		}
+		Property::operator bool() const
+		{
+			return Data != nullptr;
+		}
+		void Property::Copy(const Property& Other)
+		{
+			Type = Other.Type;
+			switch (Type)
+			{
+				case PropertyType_String:
+				{
+					String* From = (String*)Other.Data;
+					String* Buffer = (String*)TH_MALLOC(sizeof(String));
+					Buffer->Buffer = (char*)TH_MALLOC(sizeof(char) * From->Size);
+					Buffer->Size = From->Size;
+
+					memcpy(Buffer->Buffer, From->Buffer, sizeof(char) * From->Size);
+					Data = (char*)Buffer;
+					break;
+				}
+				case PropertyType_Vector2:
+					Data = (char*)TH_MALLOC(sizeof(Vector2));
+					memcpy(Data, Other.Data, sizeof(Vector2));
+					break;
+				case PropertyType_Vector3:
+					Data = (char*)TH_MALLOC(sizeof(Vector3));
+					memcpy(Data, Other.Data, sizeof(Vector3));
+					break;
+				case PropertyType_Vector4:
+					Data = (char*)TH_MALLOC(sizeof(Vector4));
+					memcpy(Data, Other.Data, sizeof(Vector4));
+					break;
+				case PropertyType_Integer:
+					Data = (char*)TH_MALLOC(sizeof(int64_t));
+					memcpy(Data, Other.Data, sizeof(int64_t));
+					break;
+				case PropertyType_Number:
+					Data = (char*)TH_MALLOC(sizeof(double));
+					memcpy(Data, Other.Data, sizeof(double));
+					break;
+				case PropertyType_Boolean:
+					Data = (char*)TH_MALLOC(sizeof(bool));
+					memcpy(Data, Other.Data, sizeof(bool));
+					break;
+				case PropertyType_Pointer:
+					Data = (char*)Other.Data;
+					break;
+				default:
+					Data = nullptr;
+					break;
+			}
+		}
+		void Property::Free()
+		{
+			if (!Data)
+				return;
+
+			if (Type == PropertyType_String)
+			{
+				String* Buffer = (String*)Data;
+				TH_FREE(Buffer->Buffer);
+				TH_FREE(Data);
+			}
+			else if (Type != PropertyType_Null && Type != PropertyType_Pointer)
+				TH_FREE(Data);
+
+			Data = nullptr;
+		}
+
 		Vector2::Vector2()
 		{
 			X = 0;
@@ -1826,18 +2095,42 @@ namespace Tomahawk
 			float Y = Mathf::Cotan(FieldOfView / 2.0f);
 			float X = Y / AspectRatio;
 
-			return Matrix4x4(Vector4(X, 0, 0, 0), Vector4(0, Y, 0, 0), Vector4(0, 0, FarClip / (FarClip - NearClip), 1), Vector4(0, 0, -NearClip * FarClip / (FarClip - NearClip), 0));
+			return Matrix4x4(
+				Vector4(X, 0, 0, 0),
+				Vector4(0, Y, 0, 0),
+				Vector4(0, 0, FarClip / (FarClip - NearClip), 1),
+				Vector4(0, 0, -NearClip * FarClip / (FarClip - NearClip), 0));
 		}
 		Matrix4x4 Matrix4x4::CreatePerspective(float FieldOfView, float AspectRatio, float NearClip, float FarClip)
 		{
 			float Y = Mathf::Cotan(Mathf::Deg2Rad() * FieldOfView / 2.0f);
 			float X = Y / AspectRatio;
 
-			return Matrix4x4(Vector4(X, 0, 0, 0), Vector4(0, Y, 0, 0), Vector4(0, 0, FarClip / (FarClip - NearClip), 1), Vector4(0, 0, -NearClip * FarClip / (FarClip - NearClip), 0));
+			return Matrix4x4(
+				Vector4(X, 0, 0, 0),
+				Vector4(0, Y, 0, 0),
+				Vector4(0, 0, FarClip / (FarClip - NearClip), 1),
+				Vector4(0, 0, -NearClip * FarClip / (FarClip - NearClip), 0));
 		}
-		Matrix4x4 Matrix4x4::CreateOrthographic(float width, float height, float NearClip, float FarClip)
+		Matrix4x4 Matrix4x4::CreateOrthographic(float Width, float Height, float NearClip, float FarClip)
 		{
-			return Matrix4x4(Vector4(2 / width, 0, 0, 0), Vector4(0, 2 / height, 0, 0), Vector4(0, 0, 1 / (FarClip - NearClip), 0), Vector4(0, 0, NearClip / (NearClip - FarClip), 1));
+			return Matrix4x4(
+				Vector4(2 / Width, 0, 0, 0),
+				Vector4(0, 2 / Height, 0, 0),
+				Vector4(0, 0, 1 / (FarClip - NearClip), 0),
+				Vector4(0, 0, NearClip / (NearClip - FarClip), 1));
+		}
+		Matrix4x4 Matrix4x4::CreateOrthographicBox(float Width, float Height, float NearClip, float FarClip)
+		{
+			return CreateOrthographicBox(0.0f, Width, Height, 0.0f, NearClip, FarClip);
+		}
+		Matrix4x4 Matrix4x4::CreateOrthographicBox(float Left, float Right, float Bottom, float Top, float Near, float Far)
+		{
+			return Matrix4x4(
+				Vector4(2 / (Right - Left), 0, 0, 0),
+				Vector4(0, 2 / (Top - Bottom), 0, 0),
+				Vector4(0, 0, -2 / (Far - Near), 0),
+				Vector4(-(Right + Left) / (Right - Left), -(Top + Bottom) / (Top - Bottom), -(Far + Near) / (Far - Near), 1));
 		}
 		Matrix4x4 Matrix4x4::CreateOrthographic(float Left, float Right, float Bottom, float Top, float NearClip, float FarClip)
 		{
@@ -4500,6 +4793,7 @@ namespace Tomahawk
 				return ReturnResult(false, Nesting);
 
 			Buffer.Trim();
+			Buffer.Resize(strlen(Buffer.Get()));
 			return ReturnResult(true, Nesting);
 		}
 		bool Preprocessor::SaveResult()
@@ -4809,9 +5103,6 @@ namespace Tomahawk
 		{
 			auto Result = Buffer.Find(V, SOffset ? *SOffset : 0);
 			if (!Result.Found)
-				return 0;
-
-			if (Result.Start > 0 && (Buffer.R()[Result.Start - 1] != '\n' && Buffer.R()[Result.Start - 1] != '\r'))
 				return 0;
 
 			uint64_t Start = Result.End + 1;
@@ -5447,6 +5738,34 @@ namespace Tomahawk
 		{
 			if (!Instance)
 				return;
+
+			int Constrs = Instance->getNumConstraintRefs();
+			for (int i = 0; i < Constrs; i++)
+			{
+				btTypedConstraint* Constr = Instance->getConstraintRef(i);
+				if (Constr != nullptr)
+				{
+					void* Ptr = Constr->getUserConstraintPtr();
+					if (Ptr != nullptr)
+					{
+						btTypedConstraintType Type = Constr->getConstraintType();
+						switch (Type)
+						{
+							case SLIDER_CONSTRAINT_TYPE:
+								if (((SliderConstraint*)Ptr)->First == Instance)
+									((SliderConstraint*)Ptr)->First = nullptr;
+								else if (((SliderConstraint*)Ptr)->Second == Instance)
+									((SliderConstraint*)Ptr)->Second = nullptr;
+								break;
+							default:
+								break;
+						}
+					}
+
+					Instance->removeConstraintRef(Constr);
+					Constrs--; i--;
+				}
+			}
 
 			if (Instance->getMotionState())
 			{
@@ -6776,6 +7095,7 @@ namespace Tomahawk
 			First = I.Target1->Bullet();
 			Second = I.Target2->Bullet();
 			Instance = new btSliderConstraint(*First, *Second, btTransform::getIdentity(), btTransform::getIdentity(), I.UseLinearPower);
+			Instance->setUserConstraintPtr(this);
 			Instance->setUpperLinLimit(20);
 			Instance->setLowerLinLimit(10);
 

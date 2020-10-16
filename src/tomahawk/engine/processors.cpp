@@ -27,7 +27,7 @@ namespace Tomahawk
 {
 	namespace Engine
 	{
-		namespace FileProcessors
+		namespace Processors
 		{
 #ifdef TH_HAS_ASSIMP
 			Compute::Matrix4x4 ToMatrix(const aiMatrix4x4& Root)
@@ -35,10 +35,10 @@ namespace Tomahawk
 				return Compute::Matrix4x4(Root.a1, Root.a2, Root.a3, Root.a4, Root.b1, Root.b2, Root.b3, Root.b4, Root.c1, Root.c2, Root.c3, Root.c4, Root.d1, Root.d2, Root.d3, Root.d4);
 			}
 #endif
-			AssetFileProcessor::AssetFileProcessor(ContentManager* Manager) : FileProcessor(Manager)
+			Asset::Asset(ContentManager* Manager) : Processor(Manager)
 			{
 			}
-			void* AssetFileProcessor::Deserialize(Rest::FileStream* Stream, uint64_t Length, uint64_t Offset, ContentArgs* Args)
+			void* Asset::Deserialize(Rest::FileStream* Stream, uint64_t Length, uint64_t Offset, const Compute::PropertyArgs& Args)
 			{
 				char* Binary = (char*)TH_MALLOC(sizeof(char) * Length);
 				if (Stream->Read(Binary, Length) != Length)
@@ -51,12 +51,12 @@ namespace Tomahawk
 				return new AssetFile(Binary, (size_t)Length);
 			}
 
-			SceneGraphProcessor::SceneGraphProcessor(ContentManager* Manager) : FileProcessor(Manager)
+			SceneGraph::SceneGraph(ContentManager* Manager) : Processor(Manager)
 			{
 			}
-			void* SceneGraphProcessor::Deserialize(Rest::FileStream* Stream, uint64_t Length, uint64_t Offset, ContentArgs* Args)
+			void* SceneGraph::Deserialize(Rest::FileStream* Stream, uint64_t Length, uint64_t Offset, const Compute::PropertyArgs& Args)
 			{
-				SceneGraph::Desc I = SceneGraph::Desc();
+				Engine::SceneGraph::Desc I = Engine::SceneGraph::Desc();
 				I.Device = Content->GetDevice();
 
 				Application* App = Application::Get();
@@ -68,7 +68,7 @@ namespace Tomahawk
 				}
 
 				std::string Environment = Content->GetEnvironment();
-				Rest::Document* Document = Content->Load<Rest::Document>(Stream->Filename(), nullptr);
+				Rest::Document* Document = Content->Load<Rest::Document>(Stream->Filename());
 				if (!Document)
 					return nullptr;
 
@@ -93,11 +93,11 @@ namespace Tomahawk
 					NMake::Unpack(Metadata->Find("enable-hdr"), &I.EnableHDR);
 				}
 
-				SceneGraph* Object = new SceneGraph(I);
-				ContentKey* Key = Args->Get("active");
+				Engine::SceneGraph* Object = new Engine::SceneGraph(I);
+				auto IsActive = Args.find("active");
 
-				if (Key != nullptr)
-					Object->SetActive(Key->Boolean);
+				if (IsActive != Args.end() && IsActive->second.GetType() == Compute::PropertyType_Boolean)
+					Object->SetActive(IsActive->second.GetBoolean());
 
 				Rest::Document* Materials = Document->Find("materials", true);
 				if (Materials != nullptr)
@@ -184,6 +184,7 @@ namespace Tomahawk
 					}
 				}
 
+				TH_RELEASE(Document);
 				for (int64_t i = 0; i < (int64_t)Object->GetEntityCount(); i++)
 				{
 					Entity* Entity = Object->GetEntity(i);
@@ -194,18 +195,13 @@ namespace Tomahawk
 						Compute::MathCommon::SetRootUnsafe(Entity->Transform, Object->GetEntity(Index)->Transform);
 				}
 
-				Object->Denotify();
-				Object->Redistribute();
-				delete Document;
-
+				Object->Actualize();
 				return Object;
 			}
-			bool SceneGraphProcessor::Serialize(Rest::FileStream* Stream, void* Instance, ContentArgs* Args)
+			bool SceneGraph::Serialize(Rest::FileStream* Stream, void* Instance, const Compute::PropertyArgs& Args)
 			{
-				SceneGraph* Object = (SceneGraph*)Instance;
-				Object->Denotify();
-				Object->Redistribute();
-				Object->Reindex();
+				Engine::SceneGraph* Object = (Engine::SceneGraph*)Instance;
+				Object->Actualize();
 
 				Rest::Document* Document = new Rest::Document();
 				Document->Name = "scene";
@@ -276,28 +272,29 @@ namespace Tomahawk
 					}
 				}
 
-				Content->Save<Rest::Document>(Stream->Filename(), Document, Args->Args);
-				delete Document;
+				Content->Save<Rest::Document>(Stream->Filename(), Document, Args);
+				TH_RELEASE(Document);
 
 				return true;
 			}
 
-			AudioClipProcessor::AudioClipProcessor(ContentManager* Manager) : FileProcessor(Manager)
+			AudioClip::AudioClip(ContentManager* Manager) : Processor(Manager)
 			{
 			}
-			AudioClipProcessor::~AudioClipProcessor()
+			AudioClip::~AudioClip()
 			{
 			}
-			void AudioClipProcessor::Free(AssetResource* Asset)
+			void AudioClip::Free(AssetResource* Asset)
 			{
 				if (Asset->Resource != nullptr)
 					delete ((Audio::AudioClip*)Asset->Resource);
 			}
-			void* AudioClipProcessor::Duplicate(AssetResource* Asset, ContentArgs* Args)
+			void* AudioClip::Duplicate(AssetResource* Asset, const Compute::PropertyArgs& Args)
 			{
+				((Audio::AudioClip*)Asset->Resource)->AddRef();
 				return Asset->Resource;
 			}
-			void* AudioClipProcessor::Deserialize(Rest::FileStream* Stream, uint64_t Length, uint64_t Offset, ContentArgs* Args)
+			void* AudioClip::Deserialize(Rest::FileStream* Stream, uint64_t Length, uint64_t Offset, const Compute::PropertyArgs& Args)
 			{
 				if (Rest::Stroke(&Stream->Filename()).EndsWith(".wav"))
 					return DeserializeWAVE(Stream, Length, Offset, Args);
@@ -306,7 +303,7 @@ namespace Tomahawk
 
 				return nullptr;
 			}
-			void* AudioClipProcessor::DeserializeWAVE(Rest::FileStream* Stream, uint64_t Length, uint64_t Offset, ContentArgs* Args)
+			void* AudioClip::DeserializeWAVE(Rest::FileStream* Stream, uint64_t Length, uint64_t Offset, const Compute::PropertyArgs& Args)
 			{
 #ifdef TH_HAS_SDL2
 				void* Binary = TH_MALLOC(sizeof(char) * Length);
@@ -352,12 +349,14 @@ namespace Tomahawk
 				TH_FREE(Binary);
 
 				Content->Cache(this, Stream->Filename(), Object);
+				Object->AddRef();
+
 				return Object;
 #else
 				return nullptr;
 #endif
 			}
-			void* AudioClipProcessor::DeserializeOGG(Rest::FileStream* Stream, uint64_t Length, uint64_t Offset, ContentArgs* Args)
+			void* AudioClip::DeserializeOGG(Rest::FileStream* Stream, uint64_t Length, uint64_t Offset, const Compute::PropertyArgs& Args)
 			{
 				void* Binary = TH_MALLOC(sizeof(char) * Length);
 				if (Stream->Read((char*)Binary, Length) != Length)
@@ -390,25 +389,28 @@ namespace Tomahawk
 				TH_FREE(Binary);
 
 				Content->Cache(this, Stream->Filename(), Object);
+				Object->AddRef();
+
 				return Object;
 			}
 
-			Texture2DProcessor::Texture2DProcessor(ContentManager* Manager) : FileProcessor(Manager)
+			Texture2D::Texture2D(ContentManager* Manager) : Processor(Manager)
 			{
 			}
-			Texture2DProcessor::~Texture2DProcessor()
+			Texture2D::~Texture2D()
 			{
 			}
-			void Texture2DProcessor::Free(AssetResource* Asset)
+			void Texture2D::Free(AssetResource* Asset)
 			{
 				if (Asset->Resource != nullptr)
 					delete ((Graphics::Texture2D*)Asset->Resource);
 			}
-			void* Texture2DProcessor::Duplicate(AssetResource* Asset, ContentArgs* Args)
+			void* Texture2D::Duplicate(AssetResource* Asset, const Compute::PropertyArgs& Args)
 			{
+				((Graphics::Texture2D*)Asset->Resource)->AddRef();
 				return Asset->Resource;
 			}
-			void* Texture2DProcessor::Deserialize(Rest::FileStream* Stream, uint64_t Length, uint64_t Offset, ContentArgs* Args)
+			void* Texture2D::Deserialize(Rest::FileStream* Stream, uint64_t Length, uint64_t Offset, const Compute::PropertyArgs& Args)
 			{
 				unsigned char* Binary = (unsigned char*)TH_MALLOC(sizeof(unsigned char) * Length);
 				if (Stream->Read((char*)Binary, Length) != Length)
@@ -445,27 +447,30 @@ namespace Tomahawk
 					return nullptr;
 
 				Content->Cache(this, Stream->Filename(), Object);
+				Object->AddRef();
+
 				return (void*)Object;
 			}
 
-			ShaderProcessor::ShaderProcessor(ContentManager* Manager) : FileProcessor(Manager)
+			Shader::Shader(ContentManager* Manager) : Processor(Manager)
 			{
 			}
-			ShaderProcessor::~ShaderProcessor()
+			Shader::~Shader()
 			{
 			}
-			void ShaderProcessor::Free(AssetResource* Asset)
+			void Shader::Free(AssetResource* Asset)
 			{
 				if (Asset->Resource != nullptr)
 					delete ((Graphics::Shader*)Asset->Resource);
 			}
-			void* ShaderProcessor::Duplicate(AssetResource* Asset, ContentArgs* Args)
+			void* Shader::Duplicate(AssetResource* Asset, const Compute::PropertyArgs& Args)
 			{
+				((Graphics::Shader*)Asset->Resource)->AddRef();
 				return Asset->Resource;
 			}
-			void* ShaderProcessor::Deserialize(Rest::FileStream* Stream, uint64_t Length, uint64_t Offset, ContentArgs* Args)
+			void* Shader::Deserialize(Rest::FileStream* Stream, uint64_t Length, uint64_t Offset, const Compute::PropertyArgs& Args)
 			{
-				if (!Args)
+				if (Args.empty())
 				{
 					TH_ERROR("shader processor args: req pointer Layout and req integer LayoutSize");
 					return nullptr;
@@ -483,32 +488,34 @@ namespace Tomahawk
 				Content->GetDevice()->Lock();
 
 				delete[] Code;
-
 				if (!Object)
 					return nullptr;
 
 				Content->Cache(this, Stream->Filename(), Object);
+				Object->AddRef();
+
 				return Object;
 			}
 
-			ModelProcessor::ModelProcessor(ContentManager* Manager) : FileProcessor(Manager)
+			Model::Model(ContentManager* Manager) : Processor(Manager)
 			{
 			}
-			ModelProcessor::~ModelProcessor()
+			Model::~Model()
 			{
 			}
-			void ModelProcessor::Free(AssetResource* Asset)
+			void Model::Free(AssetResource* Asset)
 			{
 				if (Asset->Resource != nullptr)
 					delete ((Graphics::MeshBuffer*)Asset->Resource);
 			}
-			void* ModelProcessor::Duplicate(AssetResource* Asset, ContentArgs* Args)
+			void* Model::Duplicate(AssetResource* Asset, const Compute::PropertyArgs& Args)
 			{
+				((Graphics::Model*)Asset->Resource)->AddRef();
 				return Asset->Resource;
 			}
-			void* ModelProcessor::Deserialize(Rest::FileStream* Stream, uint64_t Length, uint64_t Offset, ContentArgs* Args)
+			void* Model::Deserialize(Rest::FileStream* Stream, uint64_t Length, uint64_t Offset, const Compute::PropertyArgs& Args)
 			{
-				auto* Document = Content->Load<Rest::Document>(Stream->Filename(), nullptr);
+				auto* Document = Content->Load<Rest::Document>(Stream->Filename());
 				if (!Document)
 					return nullptr;
 
@@ -526,13 +533,13 @@ namespace Tomahawk
 
 					if (!NMake::Unpack(Mesh->Find("indices"), &F.Indices))
 					{
-						delete Document;
+						TH_RELEASE(Document);
 						return nullptr;
 					}
 
 					if (!NMake::Unpack(Mesh->Find("vertices"), &F.Elements))
 					{
-						delete Document;
+						TH_RELEASE(Document);
 						return nullptr;
 					}
 
@@ -554,11 +561,12 @@ namespace Tomahawk
 				}
 
 				Content->Cache(this, Stream->Filename(), Object);
-				delete Document;
+				Object->AddRef();
+				TH_RELEASE(Document);
 
 				return (void*)Object;
 			}
-			Rest::Document* ModelProcessor::Import(const std::string& Path, unsigned int Opts)
+			Rest::Document* Model::Import(const std::string& Path, unsigned int Opts)
 			{
 #ifdef TH_HAS_ASSIMP
 				Assimp::Importer Importer;
@@ -624,7 +632,7 @@ namespace Tomahawk
 				return nullptr;
 #endif
 			}
-			void ModelProcessor::ProcessNode(void* Scene_, void* Node_, MeshInfo* Info, const Compute::Matrix4x4& Global)
+			void Model::ProcessNode(void* Scene_, void* Node_, MeshInfo* Info, const Compute::Matrix4x4& Global)
 			{
 #ifdef TH_HAS_ASSIMP
 				auto* Scene = (aiScene*)Scene_;
@@ -638,7 +646,7 @@ namespace Tomahawk
 					ProcessNode(Scene, Node->mChildren[n], Info, World);
 #endif
 			}
-			void ModelProcessor::ProcessMesh(void* Scene_, void* Mesh_, MeshInfo* Info, const Compute::Matrix4x4& Global)
+			void Model::ProcessMesh(void* Scene_, void* Mesh_, MeshInfo* Info, const Compute::Matrix4x4& Global)
 			{
 #ifdef TH_HAS_ASSIMP
 				auto* Scene = (aiScene*)Scene_;
@@ -768,7 +776,7 @@ namespace Tomahawk
 				Info->Meshes.emplace_back(Blob);
 #endif
 			}
-			void ModelProcessor::ProcessHeirarchy(void* Scene_, void* Node_, MeshInfo* Info, Compute::Joint* Parent)
+			void Model::ProcessHeirarchy(void* Scene_, void* Node_, MeshInfo* Info, Compute::Joint* Parent)
 			{
 #ifdef TH_HAS_ASSIMP
 				auto* Scene = (aiScene*)Scene_;
@@ -791,7 +799,7 @@ namespace Tomahawk
 				}
 #endif
 			}
-			std::vector<std::pair<int64_t, Compute::Joint>>::iterator ModelProcessor::FindJoint(std::vector<std::pair<int64_t, Compute::Joint>>& Joints, const std::string& Name)
+			std::vector<std::pair<int64_t, Compute::Joint>>::iterator Model::FindJoint(std::vector<std::pair<int64_t, Compute::Joint>>& Joints, const std::string& Name)
 			{
 				for (auto It = Joints.begin(); It != Joints.end(); It++)
 				{
@@ -802,24 +810,25 @@ namespace Tomahawk
 				return Joints.end();
 			}
 
-			SkinModelProcessor::SkinModelProcessor(ContentManager* Manager) : FileProcessor(Manager)
+			SkinModel::SkinModel(ContentManager* Manager) : Processor(Manager)
 			{
 			}
-			SkinModelProcessor::~SkinModelProcessor()
+			SkinModel::~SkinModel()
 			{
 			}
-			void SkinModelProcessor::Free(AssetResource* Asset)
+			void SkinModel::Free(AssetResource* Asset)
 			{
 				if (Asset->Resource != nullptr)
 					delete ((Graphics::SkinMeshBuffer*)Asset->Resource);
 			}
-			void* SkinModelProcessor::Duplicate(AssetResource* Asset, ContentArgs* Args)
+			void* SkinModel::Duplicate(AssetResource* Asset, const Compute::PropertyArgs& Args)
 			{
+				((Graphics::SkinModel*)Asset->Resource)->AddRef();
 				return Asset->Resource;
 			}
-			void* SkinModelProcessor::Deserialize(Rest::FileStream* Stream, uint64_t Length, uint64_t Offset, ContentArgs* Args)
+			void* SkinModel::Deserialize(Rest::FileStream* Stream, uint64_t Length, uint64_t Offset, const Compute::PropertyArgs& Args)
 			{
-				auto* Document = Content->Load<Rest::Document>(Stream->Filename(), nullptr);
+				auto* Document = Content->Load<Rest::Document>(Stream->Filename());
 				if (!Document)
 					return nullptr;
 
@@ -838,13 +847,13 @@ namespace Tomahawk
 
 					if (!NMake::Unpack(Mesh->Find("indices"), &F.Indices))
 					{
-						delete Document;
+						TH_RELEASE(Document);
 						return nullptr;
 					}
 
 					if (!NMake::Unpack(Mesh->Find("vertices"), &F.Elements))
 					{
-						delete Document;
+						TH_RELEASE(Document);
 						return nullptr;
 					}
 
@@ -866,11 +875,12 @@ namespace Tomahawk
 				}
 
 				Content->Cache(this, Stream->Filename(), Object);
-				delete Document;
+				Object->AddRef();
 
+				TH_RELEASE(Document);
 				return (void*)Object;
 			}
-			Rest::Document* SkinModelProcessor::ImportAnimation(const std::string& Path, unsigned int Opts)
+			Rest::Document* SkinModel::ImportAnimation(const std::string& Path, unsigned int Opts)
 			{
 #ifdef TH_HAS_ASSIMP
 				Assimp::Importer Importer;
@@ -960,7 +970,7 @@ namespace Tomahawk
 				return nullptr;
 #endif
 			}
-			void SkinModelProcessor::ProcessNode(void* Scene_, void* Node_, std::unordered_map<std::string, MeshNode>* Joints, int64_t& Id)
+			void SkinModel::ProcessNode(void* Scene_, void* Node_, std::unordered_map<std::string, MeshNode>* Joints, int64_t& Id)
 			{
 #ifdef TH_HAS_ASSIMP
 				auto* Scene = (aiScene*)Scene_;
@@ -992,7 +1002,7 @@ namespace Tomahawk
 					ProcessNode(Scene, Node->mChildren[n], Joints, Id);
 #endif
 			}
-			void SkinModelProcessor::ProcessHeirarchy(void* Scene_, void* Node_, std::unordered_map<std::string, MeshNode>* Joints)
+			void SkinModel::ProcessHeirarchy(void* Scene_, void* Node_, std::unordered_map<std::string, MeshNode>* Joints)
 			{
 #ifdef TH_HAS_ASSIMP
 				auto* Scene = (aiScene*)Scene_;
@@ -1006,7 +1016,7 @@ namespace Tomahawk
 					ProcessHeirarchy(Scene, Node->mChildren[i], Joints);
 #endif
 			}
-			void SkinModelProcessor::ProcessKeys(std::vector<Compute::AnimatorKey>* Keys, std::unordered_map<std::string, MeshNode>* Joints)
+			void SkinModel::ProcessKeys(std::vector<Compute::AnimatorKey>* Keys, std::unordered_map<std::string, MeshNode>* Joints)
 			{
 				if (Keys->size() < Joints->size())
 				{
@@ -1021,10 +1031,10 @@ namespace Tomahawk
 				}
 			}
 
-			DocumentProcessor::DocumentProcessor(ContentManager* Manager) : FileProcessor(Manager)
+			Document::Document(ContentManager* Manager) : Processor(Manager)
 			{
 			}
-			void* DocumentProcessor::Deserialize(Rest::FileStream* Stream, uint64_t Length, uint64_t Offset, ContentArgs* Args)
+			void* Document::Deserialize(Rest::FileStream* Stream, uint64_t Length, uint64_t Offset, const Compute::PropertyArgs& Args)
 			{
 				Rest::NReadCallback Callback = [Stream](char* Buffer, int64_t Size)
 				{
@@ -1046,13 +1056,19 @@ namespace Tomahawk
 				Stream->Seek(Rest::FileSeek_Begin, Offset);
 				return Rest::Document::ReadXML(Length, Callback);
 			}
-			bool DocumentProcessor::Serialize(Rest::FileStream* Stream, void* Instance, ContentArgs* Args)
+			bool Document::Serialize(Rest::FileStream* Stream, void* Instance, const Compute::PropertyArgs& Args)
 			{
+				auto Type = Args.find("type");
+				if (Type == Args.end())
+				{
+					TH_ERROR("document type must be specified");
+					return false;
+				}
+
 				auto Document = (Rest::Document*)Instance;
-				bool Result = true;
 				std::string Offset;
 
-				if (Args->Is("XML", ContentKey(true)))
+				if (Type->second == Compute::Property("XML"))
 				{
 					Rest::Document::WriteXML(Document, [Stream, &Offset](Rest::DocumentPretty Pretty, const char* Buffer, int64_t Length)
 					{
@@ -1081,7 +1097,7 @@ namespace Tomahawk
 						}
 					});
 				}
-				else if (Args->Is("JSON", ContentKey(true)))
+				else if (Type->second == Compute::Property("JSON"))
 				{
 					Rest::Document::WriteJSON(Document, [Stream, &Offset](Rest::DocumentPretty Pretty, const char* Buffer, int64_t Length)
 					{
@@ -1110,7 +1126,7 @@ namespace Tomahawk
 						}
 					});
 				}
-				else if (Args->Is("BIN", ContentKey(true)))
+				else if (Type->second == Compute::Property("Binary"))
 				{
 					Rest::Document::WriteBIN(Document, [Stream](Rest::DocumentPretty, const char* Buffer, int64_t Length)
 					{
@@ -1118,21 +1134,19 @@ namespace Tomahawk
 							Stream->Write(Buffer, Length);
 					});
 				}
-				else
-					Result = false;
 
-				return Result;
+				return true;
 			}
 
-			ServerProcessor::ServerProcessor(ContentManager* Manager) : FileProcessor(Manager)
+			Server::Server(ContentManager* Manager) : Processor(Manager)
 			{
 			}
-			void* ServerProcessor::Deserialize(Rest::FileStream* Stream, uint64_t Length, uint64_t Offset, ContentArgs* Args)
+			void* Server::Deserialize(Rest::FileStream* Stream, uint64_t Length, uint64_t Offset, const Compute::PropertyArgs& Args)
 			{
 				std::string N = Network::Socket::LocalIpAddress();
 				std::string D = Rest::OS::FileDirectory(Stream->Filename());
 
-				auto* Document = Content->Load<Rest::Document>(Stream->Filename(), nullptr);
+				auto* Document = Content->Load<Rest::Document>(Stream->Filename());
 				auto* Object = new Network::HTTP::Server();
 				auto* Router = new Network::HTTP::MapRouter();
 
@@ -1435,18 +1449,18 @@ namespace Tomahawk
 				}
 
 				Object->Configure(Router);
-				delete Document;
+				TH_RELEASE(Document);
 
 				return (void*)Object;
 			}
 
-			ShapeProcessor::ShapeProcessor(ContentManager* Manager) : FileProcessor(Manager)
+			Shape::Shape(ContentManager* Manager) : Processor(Manager)
 			{
 			}
-			ShapeProcessor::~ShapeProcessor()
+			Shape::~Shape()
 			{
 			}
-			void ShapeProcessor::Free(AssetResource* Asset)
+			void Shape::Free(AssetResource* Asset)
 			{
 				if (Asset->Resource != nullptr)
 				{
@@ -1455,13 +1469,13 @@ namespace Tomahawk
 					delete Shape;
 				}
 			}
-			void* ShapeProcessor::Duplicate(AssetResource* Asset, ContentArgs* Args)
+			void* Shape::Duplicate(AssetResource* Asset, const Compute::PropertyArgs& Args)
 			{
 				return Asset->Resource;
 			}
-			void* ShapeProcessor::Deserialize(Rest::FileStream* Stream, uint64_t Length, uint64_t Offset, ContentArgs* Args)
+			void* Shape::Deserialize(Rest::FileStream* Stream, uint64_t Length, uint64_t Offset, const Compute::PropertyArgs& Args)
 			{
-				auto* Document = Content->Load<Rest::Document>(Stream->Filename(), nullptr);
+				auto* Document = Content->Load<Rest::Document>(Stream->Filename());
 				if (!Document)
 					return nullptr;
 
@@ -1471,21 +1485,21 @@ namespace Tomahawk
 				{
 					if (!NMake::Unpack(Mesh->Find("indices"), &Object->Indices))
 					{
-						delete Document;
+						TH_RELEASE(Document);
 						delete Object;
 						return nullptr;
 					}
 
 					if (!NMake::Unpack(Mesh->Find("vertices"), &Object->Vertices))
 					{
-						delete Document;
+						TH_RELEASE(Document);
 						delete Object;
 						return nullptr;
 					}
 				}
 
 				Object->Shape = Compute::Simulator::CreateUnmanagedShape(Object->Vertices);
-				delete Document;
+				TH_RELEASE(Document);
 
 				if (!Object->Shape)
 				{

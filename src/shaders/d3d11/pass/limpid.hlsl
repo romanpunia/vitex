@@ -51,12 +51,12 @@ float4 PS(VertexResult V) : SV_TARGET0
     float3 Eye = normalize(Position - ViewPosition);
     float4 Normal = GetSample(LChannel1, TexCoord);
     Material Mat = GetMaterial(Normal.w);
-    float4 Diffuse = float4(GetSample(LChannel0, TexCoord).xyz, max(0, 1.0 - Mat.Limpidity));
+    float4 Diffuse = float4(GetSample(LChannel0, TexCoord).xyz, max(0, 1.0 - Mat.Transparency));
     float R = Mat.Roughness.x + GetSample(LChannel3, TexCoord).x * Mat.Roughness.y;
 
-    Diffuse.x += GetOpaqueAuto(GetUV(TexCoord, -Mat.Refraction, 0.05), R * MipLevels).x * Mat.Limpidity;
-    Diffuse.y += GetOpaqueAuto(GetUV(TexCoord, -Mat.Refraction, 0.0), R * MipLevels).y * Mat.Limpidity;
-    Diffuse.z += GetOpaqueAuto(GetUV(TexCoord, -Mat.Refraction, -0.05), R * MipLevels).z * Mat.Limpidity;
+    Diffuse.x += GetOpaqueAuto(GetUV(TexCoord, -Mat.Refraction, 0.05), R * MipLevels).x * Mat.Transparency;
+    Diffuse.y += GetOpaqueAuto(GetUV(TexCoord, -Mat.Refraction, 0.0), R * MipLevels).y * Mat.Transparency;
+    Diffuse.z += GetOpaqueAuto(GetUV(TexCoord, -Mat.Refraction, -0.05), R * MipLevels).z * Mat.Transparency;
 
     return Diffuse;
 };

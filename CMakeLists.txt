@@ -56,15 +56,6 @@ endif()
 #Project's compiler support for non-UNIX platforms
 include(lib/compiler/CMakeLists.txt)
 
-#Project's internal dependency resolvers
-include(src/internal/angelscript/CMakeLists.txt)
-include(src/internal/bullet3/CMakeLists.txt)
-include(src/internal/nuklear/CMakeLists.txt)
-include(src/internal/tinyfiledialogs/CMakeLists.txt)
-include(src/internal/rapidxml/CMakeLists.txt)
-include(src/internal/stb/CMakeLists.txt)
-include(src/internal/wepoll/CMakeLists.txt)
-
 #Project's external dependency resolvers
 include(lib/external/openssl/CMakeLists.txt)
 include(lib/external/openal/CMakeLists.txt)
@@ -73,8 +64,18 @@ include(lib/external/d3d11/CMakeLists.txt)
 include(lib/external/glew/CMakeLists.txt)
 include(lib/external/zlib/CMakeLists.txt)
 include(lib/external/sdl2/CMakeLists.txt)
+include(lib/external/freetype/CMakeLists.txt)
 include(lib/external/assimp/CMakeLists.txt)
 include(lib/external/mongoc/CMakeLists.txt)
+
+#Project's internal dependency resolvers
+include(src/internal/angelscript/CMakeLists.txt)
+include(src/internal/bullet3/CMakeLists.txt)
+include(src/internal/rmlui/CMakeLists.txt)
+include(src/internal/tinyfiledialogs/CMakeLists.txt)
+include(src/internal/rapidxml/CMakeLists.txt)
+include(src/internal/stb/CMakeLists.txt)
+include(src/internal/wepoll/CMakeLists.txt)
 
 #Project's target and installation
 include(src/tomahawk/CMakeLists.txt)

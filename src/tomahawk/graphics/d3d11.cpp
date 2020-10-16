@@ -489,7 +489,7 @@ namespace Tomahawk
 				Shader::Desc F = Shader::Desc();
 				F.Filename = "basic";
 				
-				if (GetSection("standard/basic", &F.Data))
+				if (GetSection("geometry/basic/gbuffer", &F.Data))
 					BasicEffect = CreateShader(F);
 			}
 			D3D11Device::~D3D11Device()
@@ -513,7 +513,8 @@ namespace Tomahawk
 
 					if (Debugger != nullptr)
 					{
-						Debugger->ReportLiveDeviceObjects(D3D11_RLDO_DETAIL | (D3D11_RLDO_FLAGS)0x4);
+						D3D11_RLDO_FLAGS Flags = (D3D11_RLDO_FLAGS)(D3D11_RLDO_DETAIL | 0x4); // D3D11_RLDO_IGNORE_INTERNAL
+						Debugger->ReportLiveDeviceObjects(Flags);
 						Debugger->Release();
 					}
 				}
@@ -645,24 +646,24 @@ namespace Tomahawk
 			}
 			void D3D11Device::SetBuffer(Shader* Resource, unsigned int Slot, unsigned int Type)
 			{
-				ID3D11Buffer* Buffer = (Resource ? Resource->As<D3D11Shader>()->ConstantBuffer : nullptr);
+				ID3D11Buffer* IBuffer = (Resource ? Resource->As<D3D11Shader>()->ConstantBuffer : nullptr);
 				if (Type & ShaderType_Vertex)
-					ImmediateContext->VSSetConstantBuffers(Slot, 1, &Buffer);
+					ImmediateContext->VSSetConstantBuffers(Slot, 1, &IBuffer);
 
 				if (Type & ShaderType_Pixel)
-					ImmediateContext->PSSetConstantBuffers(Slot, 1, &Buffer);
+					ImmediateContext->PSSetConstantBuffers(Slot, 1, &IBuffer);
 
 				if (Type & ShaderType_Geometry)
-					ImmediateContext->GSSetConstantBuffers(Slot, 1, &Buffer);
+					ImmediateContext->GSSetConstantBuffers(Slot, 1, &IBuffer);
 
 				if (Type & ShaderType_Hull)
-					ImmediateContext->HSSetConstantBuffers(Slot, 1, &Buffer);
+					ImmediateContext->HSSetConstantBuffers(Slot, 1, &IBuffer);
 
 				if (Type & ShaderType_Domain)
-					ImmediateContext->DSSetConstantBuffers(Slot, 1, &Buffer);
+					ImmediateContext->DSSetConstantBuffers(Slot, 1, &IBuffer);
 
 				if (Type & ShaderType_Compute)
-					ImmediateContext->CSSetConstantBuffers(Slot, 1, &Buffer);
+					ImmediateContext->CSSetConstantBuffers(Slot, 1, &IBuffer);
 			}
 			void D3D11Device::SetBuffer(InstanceBuffer* Resource, unsigned int Slot)
 			{
@@ -682,9 +683,9 @@ namespace Tomahawk
 			void D3D11Device::SetVertexBuffer(ElementBuffer* Resource, unsigned int Slot)
 			{
 				D3D11ElementBuffer* IResource = (D3D11ElementBuffer*)Resource;
-				ID3D11Buffer* Buffer = (IResource ? IResource->Element : nullptr);
+				ID3D11Buffer* IBuffer = (IResource ? IResource->Element : nullptr);
 				unsigned int Stride = (IResource ? IResource->Stride : 0), Offset = 0;
-				ImmediateContext->IASetVertexBuffers(Slot, 1, &Buffer, &Stride, &Offset);
+				ImmediateContext->IASetVertexBuffers(Slot, 1, &IBuffer, &Stride, &Offset);
 			}
 			void D3D11Device::SetTexture2D(Texture2D* Resource, unsigned int Slot)
 			{
@@ -941,14 +942,14 @@ namespace Tomahawk
 
 				ImmediateContext->RSSetViewports(Count, Viewports);
 			}
-			void D3D11Device::SetScissorRects(unsigned int Count, Rectangle* Value)
+			void D3D11Device::SetScissorRects(unsigned int Count, Compute::Rectangle* Value)
 			{
 				if (!Count || !Value)
 					return;
 
 				D3D11_RECT Rects[D3D11_VIEWPORT_AND_SCISSORRECT_OBJECT_COUNT_PER_PIPELINE];
 				for (unsigned int i = 0; i < Count; i++)
-					memcpy(&Rects[i], &Value[i], sizeof(Rectangle));
+					memcpy(&Rects[i], &Value[i], sizeof(Compute::Rectangle));
 
 				ImmediateContext->RSSetScissorRects(Count, Rects);
 			}
@@ -1247,9 +1248,27 @@ namespace Tomahawk
 			{
 				ImmediateContext->Draw(Count, Location);
 			}
-			bool D3D11Device::CopyTexture2D(Texture2D** Result)
+			bool D3D11Device::CopyTexture2D(Texture2D* Resource, Texture2D** Result)
 			{
-				return CopyTexture2D(RenderTarget, Result);
+				D3D11Texture2D* IResource = (D3D11Texture2D*)Resource;
+				if (!IResource || !IResource->View || !Result)
+					return false;
+
+				D3D11_TEXTURE2D_DESC Information;
+				IResource->View->GetDesc(&Information);
+				Information.BindFlags |= D3D11_BIND_SHADER_RESOURCE;
+
+				D3D11Texture2D* Texture = (D3D11Texture2D*)(*Result ? *Result : CreateTexture2D());
+				if (!*Result)
+				{
+					if (D3DDevice->CreateTexture2D(&Information, nullptr, &Texture->View) != S_OK)
+						return false;
+				}
+
+				ImmediateContext->CopyResource(Texture->View, IResource->View);
+				*Result = Texture;
+
+				return GenerateTexture(Texture);
 			}
 			bool D3D11Device::CopyTexture2D(RenderTarget2D* Resource, Texture2D** Result)
 			{
@@ -1259,6 +1278,7 @@ namespace Tomahawk
 
 				D3D11_TEXTURE2D_DESC Information;
 				IResource->Texture->GetDesc(&Information);
+				Information.BindFlags |= D3D11_BIND_SHADER_RESOURCE;
 
 				D3D11Texture2D* Texture = (D3D11Texture2D*)(*Result ? *Result : CreateTexture2D());
 				if (!*Result)
@@ -1270,7 +1290,7 @@ namespace Tomahawk
 				ImmediateContext->CopyResource(Texture->View, IResource->Texture);
 				*Result = Texture;
 
-				return true;
+				return GenerateTexture(Texture);
 			}
 			bool D3D11Device::CopyTexture2D(MultiRenderTarget2D* Resource, unsigned int Target, Texture2D** Result)
 			{
@@ -1280,6 +1300,7 @@ namespace Tomahawk
 
 				D3D11_TEXTURE2D_DESC Information;
 				IResource->Texture[Target]->GetDesc(&Information);
+				Information.BindFlags |= D3D11_BIND_SHADER_RESOURCE;
 
 				D3D11Texture2D* Texture = (D3D11Texture2D*)(*Result ? *Result : CreateTexture2D());
 				if (!*Result)
@@ -1291,7 +1312,7 @@ namespace Tomahawk
 				ImmediateContext->CopyResource(Texture->View, IResource->Texture[Target]);
 				*Result = Texture;
 
-				return true;
+				return GenerateTexture(Texture);
 			}
 			bool D3D11Device::CopyTexture2D(RenderTargetCube* Resource, unsigned int Face, Texture2D** Result)
 			{
@@ -1301,6 +1322,7 @@ namespace Tomahawk
 
 				D3D11_TEXTURE2D_DESC Information;
 				IResource->Cube->GetDesc(&Information);
+				Information.BindFlags |= D3D11_BIND_SHADER_RESOURCE;
 
 				D3D11Texture2D* Texture = (D3D11Texture2D*)(*Result ? *Result : CreateTexture2D());
 				if (!*Result)
@@ -1312,7 +1334,7 @@ namespace Tomahawk
 				ImmediateContext->CopySubresourceRegion(Texture->View, Face * Information.MipLevels, 0, 0, 0, IResource->Cube, 0, 0);
 				*Result = Texture;
 
-				return true;
+				return GenerateTexture(Texture);
 			}
 			bool D3D11Device::CopyTexture2D(MultiRenderTargetCube* Resource, unsigned int Cube, unsigned int Face, Texture2D** Result)
 			{
@@ -1322,6 +1344,7 @@ namespace Tomahawk
 
 				D3D11_TEXTURE2D_DESC Information;
 				IResource->Cube[Cube]->GetDesc(&Information);
+				Information.BindFlags |= D3D11_BIND_SHADER_RESOURCE;
 
 				D3D11Texture2D* Texture = (D3D11Texture2D*)(*Result ? *Result : CreateTexture2D());
 				if (!*Result)
@@ -1333,7 +1356,7 @@ namespace Tomahawk
 				ImmediateContext->CopySubresourceRegion(Texture->View, Face * Information.MipLevels, 0, 0, 0, IResource->Cube[Cube], 0, 0);
 				*Result = Texture;
 
-				return true;
+				return GenerateTexture(Texture);
 			}
 			bool D3D11Device::CopyTextureCube(RenderTargetCube* Resource, TextureCube** Result)
 			{
@@ -1343,6 +1366,7 @@ namespace Tomahawk
 
 				D3D11_TEXTURE2D_DESC Information;
 				IResource->Cube->GetDesc(&Information);
+				Information.BindFlags |= D3D11_BIND_SHADER_RESOURCE;
 
 				void* Resources[6];
 				for (unsigned int i = 0; i < 6; i++)
@@ -1371,6 +1395,7 @@ namespace Tomahawk
 
 				D3D11_TEXTURE2D_DESC Information;
 				IResource->Cube[Cube]->GetDesc(&Information);
+				Information.BindFlags |= D3D11_BIND_SHADER_RESOURCE;
 
 				void* Resources[6];
 				for (unsigned int i = 0; i < 6; i++)
@@ -1536,49 +1561,89 @@ namespace Tomahawk
 				ReleaseCom(IResource->View.Face);
 				return true;
 			}
-			void D3D11Device::SwapTargetDepth(RenderTarget2D* From, RenderTarget2D* To)
+			bool D3D11Device::CopyBackBuffer(Texture2D** Result)
 			{
-				D3D11RenderTarget2D* IResource1 = (D3D11RenderTarget2D*)From;
-				D3D11RenderTarget2D* IResource2 = (D3D11RenderTarget2D*)To;
-				if (!IResource1 || !IResource2)
-					return;
+				ID3D11Texture2D* BackBuffer = nullptr;
+				SwapChain->GetBuffer(0, __uuidof(BackBuffer), reinterpret_cast<void**>(&BackBuffer));
 
-				ID3D11DepthStencilView* DSV = IResource1->DepthStencilView;
-				IResource1->DepthStencilView = IResource2->DepthStencilView;
-				IResource2->DepthStencilView = DSV;
+				D3D11_TEXTURE2D_DESC Information;
+				BackBuffer->GetDesc(&Information);
+				Information.BindFlags = D3D11_BIND_SHADER_RESOURCE;
+
+				D3D11Texture2D* Texture = (D3D11Texture2D*)(*Result ? *Result : CreateTexture2D());
+				if (!*Result)
+				{
+					if (SwapChainResource.SampleDesc.Count > 1)
+					{
+						Information.SampleDesc.Count = 1;
+						Information.SampleDesc.Quality = 0;
+					}
+
+					if (D3DDevice->CreateTexture2D(&Information, nullptr, &Texture->View) != S_OK)
+						return false;
+				}
+
+				if (SwapChainResource.SampleDesc.Count > 1)
+					ImmediateContext->ResolveSubresource(Texture->View, 0, BackBuffer, 0, DXGI_FORMAT_R8G8B8A8_UNORM);
+				else
+					ImmediateContext->CopyResource(Texture->View, BackBuffer);
+
+				ReleaseCom(BackBuffer);
+				return GenerateTexture(Texture);
 			}
-			void D3D11Device::SwapTargetDepth(MultiRenderTarget2D* From, MultiRenderTarget2D* To)
+			bool D3D11Device::CopyBackBufferMSAA(Texture2D** Result)
 			{
-				D3D11MultiRenderTarget2D* IResource1 = (D3D11MultiRenderTarget2D*)From;
-				D3D11MultiRenderTarget2D* IResource2 = (D3D11MultiRenderTarget2D*)To;
-				if (!IResource1 || !IResource2)
-					return;
+				ID3D11Texture2D* BackBuffer = nullptr;
+				SwapChain->GetBuffer(0, __uuidof(BackBuffer), reinterpret_cast<void**>(&BackBuffer));
 
-				ID3D11DepthStencilView* DSV = IResource1->DepthStencilView;
-				IResource1->DepthStencilView = IResource2->DepthStencilView;
-				IResource2->DepthStencilView = DSV;
+				D3D11_TEXTURE2D_DESC Texture;
+				BackBuffer->GetDesc(&Texture);
+				Texture.BindFlags = D3D11_BIND_SHADER_RESOURCE;
+				Texture.SampleDesc.Count = 1;
+				Texture.SampleDesc.Quality = 0;
+
+				ID3D11Texture2D* Resource = nullptr;
+				D3DDevice->CreateTexture2D(&Texture, nullptr, &Resource);
+				ImmediateContext->ResolveSubresource(Resource, 0, BackBuffer, 0, DXGI_FORMAT_R8G8B8A8_UNORM);
+
+				D3D11_SHADER_RESOURCE_VIEW_DESC SRV;
+				SRV.Format = DXGI_FORMAT_R8G8B8A8_UNORM;
+				SRV.ViewDimension = D3D11_SRV_DIMENSION_TEXTURE2D;
+				SRV.Texture2D.MostDetailedMip = 0;
+				SRV.Texture2D.MipLevels = 1;
+
+				ID3D11ShaderResourceView* ResourceView = nullptr;
+				D3DDevice->CreateShaderResourceView(Resource, &SRV, &ResourceView);
+				ReleaseCom(BackBuffer);
+				ReleaseCom(Resource);
+
+				return (void*)Resource;
 			}
-			void D3D11Device::SwapTargetDepth(RenderTargetCube* From, RenderTargetCube* To)
+			bool D3D11Device::CopyBackBufferNoAA(Texture2D** Result)
 			{
-				D3D11RenderTargetCube* IResource1 = (D3D11RenderTargetCube*)From;
-				D3D11RenderTargetCube* IResource2 = (D3D11RenderTargetCube*)To;
-				if (!IResource1 || !IResource2)
-					return;
+				ID3D11Texture2D* BackBuffer = nullptr;
+				SwapChain->GetBuffer(0, __uuidof(BackBuffer), reinterpret_cast<void**>(&BackBuffer));
 
-				ID3D11DepthStencilView* DSV = IResource1->DepthStencilView;
-				IResource1->DepthStencilView = IResource2->DepthStencilView;
-				IResource2->DepthStencilView = DSV;
-			}
-			void D3D11Device::SwapTargetDepth(MultiRenderTargetCube* From, MultiRenderTargetCube* To)
-			{
-				D3D11MultiRenderTargetCube* IResource1 = (D3D11MultiRenderTargetCube*)From;
-				D3D11MultiRenderTargetCube* IResource2 = (D3D11MultiRenderTargetCube*)To;
-				if (!IResource1 || !IResource2)
-					return;
+				D3D11_TEXTURE2D_DESC Texture;
+				BackBuffer->GetDesc(&Texture);
+				Texture.BindFlags = D3D11_BIND_SHADER_RESOURCE;
 
-				ID3D11DepthStencilView* DSV = IResource1->DepthStencilView;	
-				IResource1->DepthStencilView = IResource2->DepthStencilView;
-				IResource2->DepthStencilView = DSV;
+				ID3D11Texture2D* Resource = nullptr;
+				D3DDevice->CreateTexture2D(&Texture, nullptr, &Resource);
+				ImmediateContext->CopyResource(Resource, BackBuffer);
+
+				D3D11_SHADER_RESOURCE_VIEW_DESC SRV;
+				SRV.Format = DXGI_FORMAT_R8G8B8A8_UNORM;
+				SRV.ViewDimension = D3D11_SRV_DIMENSION_TEXTURE2D;
+				SRV.Texture2D.MostDetailedMip = 0;
+				SRV.Texture2D.MipLevels = 1;
+
+				ID3D11ShaderResourceView* ResourceView = nullptr;
+				D3DDevice->CreateShaderResourceView(Resource, &SRV, &ResourceView);
+				ReleaseCom(BackBuffer);
+				ReleaseCom(Resource);
+
+				return (void*)ResourceView;
 			}
 			void D3D11Device::FetchViewports(unsigned int* Count, Viewport* Out)
 			{
@@ -1592,7 +1657,7 @@ namespace Tomahawk
 				for (UINT i = 0; i < ViewCount; i++)
 					memcpy(&Out[i], &Viewports[i], sizeof(D3D11_VIEWPORT));
 			}
-			void D3D11Device::FetchScissorRects(unsigned int* Count, Rectangle* Out)
+			void D3D11Device::FetchScissorRects(unsigned int* Count, Compute::Rectangle* Out)
 			{
 				D3D11_RECT Rects[D3D11_VIEWPORT_AND_SCISSORRECT_OBJECT_COUNT_PER_PIPELINE];
 				UINT RectCount = (Count ? *Count : 1);
@@ -1612,8 +1677,7 @@ namespace Tomahawk
 				if (RenderTarget != nullptr)
 				{
 					ImmediateContext->OMSetRenderTargets(0, 0, 0);
-					delete RenderTarget;
-					RenderTarget = nullptr;
+					TH_CLEAR(RenderTarget);
 
 					DXGI_SWAP_CHAIN_DESC Info;
 					if (SwapChain->GetDesc(&Info) != S_OK)
@@ -1650,6 +1714,9 @@ namespace Tomahawk
 				if (!IResource || !IResource->View)
 					return false;
 				
+				if (IResource->Resource != nullptr)
+					return true;
+
 				D3D11_TEXTURE2D_DESC Description;
 				IResource->View->GetDesc(&Description);
 				IResource->FormatMode = (Format)Description.Format;
@@ -2702,6 +2769,25 @@ namespace Tomahawk
 				Result->Viewport.TopLeftX = 0.0f;
 				Result->Viewport.TopLeftY = 0.0f;
 
+				if (!I.RenderSurface)
+					return Result;
+
+				SwapChain->GetBuffer(0, __uuidof(Result->Texture), reinterpret_cast<void**>(&Result->Texture));
+
+				D3D11Texture2D* Target = (D3D11Texture2D*)CreateTexture2D();
+				Target->View = Result->Texture;
+				Result->Resource = Target;
+				Result->Texture->AddRef();
+
+				D3D11_TEXTURE2D_DESC Description;
+				Target->View->GetDesc(&Description);
+				Target->FormatMode = (Format)Description.Format;
+				Target->Usage = (ResourceUsage)Description.Usage;
+				Target->Width = Description.Width;
+				Target->Height = Description.Height;
+				Target->MipLevels = Description.MipLevels;
+				Target->AccessFlags = (CPUAccess)Description.CPUAccessFlags;
+
 				return Result;
 			}
 			MultiRenderTarget2D* D3D11Device::CreateMultiRenderTarget2D(const MultiRenderTarget2D::Desc& I)
@@ -3046,96 +3132,6 @@ namespace Tomahawk
 
 				return ShaderModel_Invalid;
 			}
-			void* D3D11Device::GetBackBuffer()
-			{
-				ID3D11Texture2D* BackBuffer = nullptr;
-				SwapChain->GetBuffer(0, __uuidof(BackBuffer), reinterpret_cast<void**>(&BackBuffer));
-
-				D3D11_TEXTURE2D_DESC Texture;
-				BackBuffer->GetDesc(&Texture);
-				Texture.BindFlags = D3D11_BIND_SHADER_RESOURCE;
-
-				ID3D11Texture2D* Resource = nullptr;
-				if (SwapChainResource.SampleDesc.Count > 1)
-				{
-					Texture.SampleDesc.Count = 1;
-					Texture.SampleDesc.Quality = 0;
-					D3DDevice->CreateTexture2D(&Texture, nullptr, &Resource);
-					ImmediateContext->ResolveSubresource(Resource, 0, BackBuffer, 0, DXGI_FORMAT_R8G8B8A8_UNORM);
-				}
-				else
-				{
-					D3DDevice->CreateTexture2D(&Texture, nullptr, &Resource);
-					ImmediateContext->CopyResource(Resource, BackBuffer);
-				}
-
-				D3D11_SHADER_RESOURCE_VIEW_DESC SRV;
-				SRV.Format = DXGI_FORMAT_R8G8B8A8_UNORM;
-				SRV.ViewDimension = D3D11_SRV_DIMENSION_TEXTURE2D;
-				SRV.Texture2D.MostDetailedMip = 0;
-				SRV.Texture2D.MipLevels = 1;
-
-				ID3D11ShaderResourceView* ResourceView = nullptr;
-				D3DDevice->CreateShaderResourceView(Resource, &SRV, &ResourceView);
-				ReleaseCom(BackBuffer);
-				ReleaseCom(Resource);
-
-				return (void*)ResourceView;
-			}
-			void* D3D11Device::GetBackBufferMSAA()
-			{
-				ID3D11Texture2D* BackBuffer = nullptr;
-				SwapChain->GetBuffer(0, __uuidof(BackBuffer), reinterpret_cast<void**>(&BackBuffer));
-
-				D3D11_TEXTURE2D_DESC Texture;
-				BackBuffer->GetDesc(&Texture);
-				Texture.BindFlags = D3D11_BIND_SHADER_RESOURCE;
-				Texture.SampleDesc.Count = 1;
-				Texture.SampleDesc.Quality = 0;
-
-				ID3D11Texture2D* Resource = nullptr;
-				D3DDevice->CreateTexture2D(&Texture, nullptr, &Resource);
-				ImmediateContext->ResolveSubresource(Resource, 0, BackBuffer, 0, DXGI_FORMAT_R8G8B8A8_UNORM);
-
-				D3D11_SHADER_RESOURCE_VIEW_DESC SRV;
-				SRV.Format = DXGI_FORMAT_R8G8B8A8_UNORM;
-				SRV.ViewDimension = D3D11_SRV_DIMENSION_TEXTURE2D;
-				SRV.Texture2D.MostDetailedMip = 0;
-				SRV.Texture2D.MipLevels = 1;
-
-				ID3D11ShaderResourceView* ResourceView = nullptr;
-				D3DDevice->CreateShaderResourceView(Resource, &SRV, &ResourceView);
-				ReleaseCom(BackBuffer);
-				ReleaseCom(Resource);
-
-				return (void*)Resource;
-			}
-			void* D3D11Device::GetBackBufferNoAA()
-			{
-				ID3D11Texture2D* BackBuffer = nullptr;
-				SwapChain->GetBuffer(0, __uuidof(BackBuffer), reinterpret_cast<void**>(&BackBuffer));
-
-				D3D11_TEXTURE2D_DESC Texture;
-				BackBuffer->GetDesc(&Texture);
-				Texture.BindFlags = D3D11_BIND_SHADER_RESOURCE;
-
-				ID3D11Texture2D* Resource = nullptr;
-				D3DDevice->CreateTexture2D(&Texture, nullptr, &Resource);
-				ImmediateContext->CopyResource(Resource, BackBuffer);
-
-				D3D11_SHADER_RESOURCE_VIEW_DESC SRV;
-				SRV.Format = DXGI_FORMAT_R8G8B8A8_UNORM;
-				SRV.ViewDimension = D3D11_SRV_DIMENSION_TEXTURE2D;
-				SRV.Texture2D.MostDetailedMip = 0;
-				SRV.Texture2D.MipLevels = 1;
-
-				ID3D11ShaderResourceView* ResourceView = nullptr;
-				D3DDevice->CreateShaderResourceView(Resource, &SRV, &ResourceView);
-				ReleaseCom(BackBuffer);
-				ReleaseCom(Resource);
-
-				return (void*)ResourceView;
-			}
 			void* D3D11Device::GetDevice()
 			{
 				return (void*)D3DDevice;
@@ -3314,25 +3310,33 @@ namespace Tomahawk
 
 					switch (It.Format)
 					{
-						case Tomahawk::Graphics::AttributeType_Uint:
-							if (It.Components == 1)
-								Result[i].Format = DXGI_FORMAT_R32_UINT;
+						case Tomahawk::Graphics::AttributeType_Byte:
+							if (It.Components == 3)
+							{
+								TH_ERROR("D3D11 does not support 24bit format for this type");
+								delete[] Result;
+								return nullptr;
+							}
+							else if (It.Components == 1)
+								Result[i].Format = DXGI_FORMAT_R8_SNORM;
 							else if (It.Components == 2)
-								Result[i].Format = DXGI_FORMAT_R32G32_UINT;
-							else if (It.Components == 3)
-								Result[i].Format = DXGI_FORMAT_R32G32B32_UINT;
+								Result[i].Format = DXGI_FORMAT_R8G8_SNORM;
 							else if (It.Components == 4)
-								Result[i].Format = DXGI_FORMAT_R32G32B32A32_UINT;
+								Result[i].Format = DXGI_FORMAT_R8G8B8A8_SNORM;
 							break;
-						case Tomahawk::Graphics::AttributeType_Int:
-							if (It.Components == 1)
-								Result[i].Format = DXGI_FORMAT_R32_SINT;
+						case Tomahawk::Graphics::AttributeType_Ubyte:
+							if (It.Components == 3)
+							{
+								TH_ERROR("D3D11 does not support 24bit format for this type");
+								delete[] Result;
+								return nullptr;
+							}
+							else if (It.Components == 1)
+								Result[i].Format = DXGI_FORMAT_R8_UNORM;
 							else if (It.Components == 2)
-								Result[i].Format = DXGI_FORMAT_R32G32_SINT;
-							else if (It.Components == 3)
-								Result[i].Format = DXGI_FORMAT_R32G32B32_SINT;
+								Result[i].Format = DXGI_FORMAT_R8G8_UNORM;
 							else if (It.Components == 4)
-								Result[i].Format = DXGI_FORMAT_R32G32B32A32_SINT;
+								Result[i].Format = DXGI_FORMAT_R8G8B8A8_UNORM;
 							break;
 						case Tomahawk::Graphics::AttributeType_Half:
 							if (It.Components == 1)
@@ -3353,6 +3357,26 @@ namespace Tomahawk
 								Result[i].Format = DXGI_FORMAT_R32G32B32_FLOAT;
 							else if (It.Components == 4)
 								Result[i].Format = DXGI_FORMAT_R32G32B32A32_FLOAT;
+							break;
+						case Tomahawk::Graphics::AttributeType_Int:
+							if (It.Components == 1)
+								Result[i].Format = DXGI_FORMAT_R32_SINT;
+							else if (It.Components == 2)
+								Result[i].Format = DXGI_FORMAT_R32G32_SINT;
+							else if (It.Components == 3)
+								Result[i].Format = DXGI_FORMAT_R32G32B32_SINT;
+							else if (It.Components == 4)
+								Result[i].Format = DXGI_FORMAT_R32G32B32A32_SINT;
+							break;
+						case Tomahawk::Graphics::AttributeType_Uint:
+							if (It.Components == 1)
+								Result[i].Format = DXGI_FORMAT_R32_UINT;
+							else if (It.Components == 2)
+								Result[i].Format = DXGI_FORMAT_R32G32_UINT;
+							else if (It.Components == 3)
+								Result[i].Format = DXGI_FORMAT_R32G32B32_UINT;
+							else if (It.Components == 4)
+								Result[i].Format = DXGI_FORMAT_R32G32B32A32_UINT;
 							break;
 						default:
 							break;

@@ -942,6 +942,22 @@ namespace Tomahawk
 
 			return *this;
 		}
+		Stroke& Stroke::ReplaceNotOf(const char* Chars, const char* To, uint64_t Start)
+		{
+			if (!Chars || Chars[0] == '\0' || !To)
+				return *this;
+
+			Stroke::Settle Result{};
+			uint64_t Offset = Start, ToSize = (uint64_t)strlen(To);
+			while ((Result = FindNotOf(Chars, Offset)).Found)
+			{
+				EraseOffsets(Result.Start, Result.End);
+				Insert(To, Result.Start);
+				Offset += ToSize;
+			}
+
+			return *this;
+		}
 		Stroke& Stroke::Replace(const std::string& From, const std::string& To, uint64_t Start)
 		{
 			uint64_t Offset = Start;
@@ -1510,6 +1526,50 @@ namespace Tomahawk
 
 			return { L->size() - 1, L->size(), false };
 		}
+		Stroke::Settle Stroke::FindNotOf(const std::string& Needle, uint64_t Offset) const
+		{
+			for (uint64_t i = Offset; i < L->size(); i++)
+			{
+				bool Result = false;
+				for (char k : Needle)
+				{
+					if (L->at(i) == k)
+					{
+						Result = true;
+						break;
+					}
+				}
+
+				if (!Result)
+					return { i, i + 1, true };
+			}
+
+			return { L->size() - 1, L->size(), false };
+		}
+		Stroke::Settle Stroke::FindNotOf(const char* Needle, uint64_t Offset) const
+		{
+			if (!Needle)
+				return { L->size() - 1, L->size(), false };
+
+			auto Length = (uint64_t)strlen(Needle);
+			for (uint64_t i = Offset; i < L->size(); i++)
+			{
+				bool Result = false;
+				for (uint64_t k = 0; k < Length; k++)
+				{
+					if (L->at(i) == Needle[k])
+					{
+						Result = true;
+						break;
+					}
+				}
+
+				if (!Result)
+					return { i, i + 1, true };
+			}
+
+			return { L->size() - 1, L->size(), false };
+		}
 		bool Stroke::StartsWith(const std::string& Value, uint64_t Offset) const
 		{
 			if (L->size() < Value.size())
@@ -1557,6 +1617,27 @@ namespace Tomahawk
 
 			return false;
 		}
+		bool Stroke::StartsNotOf(const char* Value, uint64_t Offset) const
+		{
+			if (!Value)
+				return false;
+
+			auto Length = (uint64_t)strlen(Value);
+			if (Offset >= L->size())
+				return false;
+
+			bool Result = true;
+			for (uint64_t j = 0; j < Length; j++)
+			{
+				if (L->at(Offset) == Value[j])
+				{
+					Result = false;
+					break;
+				}
+			}
+
+			return Result;
+		}
 		bool Stroke::EndsWith(const std::string& Value) const
 		{
 			if (L->empty())
@@ -1588,6 +1669,25 @@ namespace Tomahawk
 			}
 
 			return false;
+		}
+		bool Stroke::EndsNotOf(const char* Value) const
+		{
+			if (!Value)
+				return false;
+
+			auto Length = (uint64_t)strlen(Value);
+			bool Result = true;
+
+			for (uint64_t j = 0; j < Length; j++)
+			{
+				if (L->back() == Value[j])
+				{
+					Result = false;
+					break;
+				}
+			}
+
+			return Result;
 		}
 		bool Stroke::Empty() const
 		{
@@ -1918,6 +2018,23 @@ namespace Tomahawk
 
 			return Output;
 		}
+		std::vector<std::string> Stroke::SplitNotOf(const char* With, uint64_t Start) const
+		{
+			Stroke::Settle Result = FindNotOf(With, Start);
+			uint64_t Offset = Start;
+
+			std::vector<std::string> Output;
+			while (Result.Found)
+			{
+				Output.push_back(L->substr(Offset, Result.Start - Offset));
+				Result = FindNotOf(With, Offset = Result.End);
+			}
+
+			if (Offset < L->size())
+				Output.push_back(L->substr(Offset));
+
+			return Output;
+		}
 		Stroke& Stroke::operator= (const Stroke& Value)
 		{
 			if (&Value == this)
@@ -1933,6 +2050,24 @@ namespace Tomahawk
 				L = new std::string();
 
 			return *this;
+		}
+		std::string Stroke::ToStringAutoPrec(float Number)
+		{
+			std::string Result(std::to_string(Number));
+			Result.erase(Result.find_last_not_of('0') + 1, std::string::npos);
+			if (!Result.empty() && Result.back() == '.')
+				Result.erase(Result.end() - 1);
+
+			return Result;
+		}
+		std::string Stroke::ToStringAutoPrec(double Number)
+		{
+			std::string Result(std::to_string(Number));
+			Result.erase(Result.find_last_not_of('0') + 1, std::string::npos);
+			if (!Result.empty() && Result.back() == '.')
+				Result.erase(Result.end() - 1);
+
+			return Result;
 		}
 
 		SpinLock::SpinLock()
@@ -3024,7 +3159,7 @@ namespace Tomahawk
 		FileTree::~FileTree()
 		{
 			for (auto& Directory : Directories)
-				delete Directory;
+				TH_RELEASE(Directory);
 		}
 		void FileTree::Loop(const std::function<bool(FileTree*)>& Callback)
 		{
@@ -4113,7 +4248,7 @@ namespace Tomahawk
 		}
 		FileLogger::~FileLogger()
 		{
-			delete Stream;
+			TH_RELEASE(Stream);
 		}
 		void FileLogger::Process(const std::function<bool(FileLogger*, const char*, int64_t)>& Callback)
 		{
@@ -4640,7 +4775,7 @@ namespace Tomahawk
 						continue;
 
 					Value->Args.Alive = false;
-					Tasks.erase(It--);
+					Tasks.erase(It);
 
 					Sync.Tasks.unlock();
 					if (!NoCall && Value->Callback)
@@ -4665,7 +4800,7 @@ namespace Tomahawk
 						continue;
 
 					Value->Args.Alive = false;
-					Events.erase(It--);
+					Events.erase(It);
 
 					Sync.Events.unlock();
 					if (!NoCall && Value->Callback)
@@ -4690,7 +4825,7 @@ namespace Tomahawk
 						continue;
 
 					Value->Args.Alive = false;
-					Timers.erase(Timers.begin());
+					Timers.erase(It);
 
 					Sync.Timers.unlock();
 					if (!NoCall && Value->Callback)
@@ -4776,7 +4911,7 @@ namespace Tomahawk
 				if (Document != nullptr)
 				{
 					Document->Parent = nullptr;
-					delete Document;
+					TH_RELEASE(Document);
 				}
 			}
 
@@ -4819,7 +4954,7 @@ namespace Tomahawk
 			Document* Value = new Document();
 			if (!Value->Deserialize(Prop))
 			{
-				delete Value;
+				TH_RELEASE(Value);
 				return SetNull(Label);
 			}
 
@@ -5800,7 +5935,7 @@ namespace Tomahawk
 			Document* Current = new Document();
 			if (!ProcessBINRead(Current, &Map, Callback))
 			{
-				delete Current;
+				TH_RELEASE(Current);
 				return nullptr;
 			}
 
@@ -5827,25 +5962,25 @@ namespace Tomahawk
 			catch (const std::runtime_error& e)
 			{
 				delete iDocument;
-				TH_ERROR("xml runtime error caused because %s", e.what());
+				TH_ERROR("[xml] %s", e.what());
 				return nullptr;
 			}
 			catch (const rapidxml::parse_error& e)
 			{
 				delete iDocument;
-				TH_ERROR("xml parse error caused because %s", e.what());
+				TH_ERROR("[xml] %s", e.what());
 				return nullptr;
 			}
 			catch (const std::exception& e)
 			{
 				delete iDocument;
-				TH_ERROR("xml parse exception caused because %s", e.what());
+				TH_ERROR("[xml] %s", e.what());
 				return nullptr;
 			}
 			catch (...)
 			{
 				delete iDocument;
-				TH_ERROR("undefined xml parse error");
+				TH_ERROR("[xml] parse error");
 				return nullptr;
 			}
 
@@ -5864,10 +5999,7 @@ namespace Tomahawk
 			Result->Type = NodeType_Array;
 
 			if (!ProcessXMLRead((void*)Base, Result))
-			{
-				delete Result;
-				Result = nullptr;
-			}
+				TH_CLEAR(Result);
 
 			iDocument->clear();
 			delete iDocument;

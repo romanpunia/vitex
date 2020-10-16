@@ -343,8 +343,7 @@ namespace Tomahawk
 #ifdef TH_HAS_MONGOC
 				if (State == 1)
 				{
-					delete Cache;
-					Cache = nullptr;
+					TH_CLEAR(Cache);
 					mongoc_cleanup();
 					State = 0;
 				}
@@ -661,7 +660,7 @@ namespace Tomahawk
 				{
 					BSON::Document::Release(Selector);
 					BSON::Document::Release(Options);
-					TH_ERROR("couldn't build command -> %s", Error.message);
+					TH_ERROR("[mongoc] %s", Error.message);
 					return false;
 				}
 
@@ -689,7 +688,7 @@ namespace Tomahawk
 				{
 					BSON::Document::Release(Selector);
 					BSON::Document::Release(Options);
-					TH_ERROR("couldn't build command -> %s", Error.message);
+					TH_ERROR("[mongoc] %s", Error.message);
 					return false;
 				}
 
@@ -719,7 +718,7 @@ namespace Tomahawk
 					BSON::Document::Release(Selector);
 					BSON::Document::Release(Replacement);
 					BSON::Document::Release(Options);
-					TH_ERROR("couldn't build command -> %s", Error.message);
+					TH_ERROR("[mongoc] %s", Error.message);
 					return false;
 				}
 
@@ -748,7 +747,7 @@ namespace Tomahawk
 				{
 					BSON::Document::Release(Document);
 					BSON::Document::Release(Options);
-					TH_ERROR("couldn't build command -> %s", Error.message);
+					TH_ERROR("[mongoc] %s", Error.message);
 					return false;
 				}
 
@@ -778,7 +777,7 @@ namespace Tomahawk
 					BSON::Document::Release(Selector);
 					BSON::Document::Release(Document);
 					BSON::Document::Release(Options);
-					TH_ERROR("couldn't build command -> %s", Error.message);
+					TH_ERROR("[mongoc] %s", Error.message);
 					return false;
 				}
 
@@ -809,7 +808,7 @@ namespace Tomahawk
 					BSON::Document::Release(Selector);
 					BSON::Document::Release(Document);
 					BSON::Document::Release(Options);
-					TH_ERROR("couldn't build command -> %s", Error.message);
+					TH_ERROR("[mongoc] %s", Error.message);
 					return false;
 				}
 
@@ -832,7 +831,7 @@ namespace Tomahawk
 
 				if (!mongoc_bulk_operation_remove_many_with_opts(Operation, Selector, Options, &Error))
 				{
-					TH_ERROR("couldn't build command -> %s", Error.message);
+					TH_ERROR("[mongoc] %s", Error.message);
 					return false;
 				}
 
@@ -852,7 +851,7 @@ namespace Tomahawk
 
 				if (!mongoc_bulk_operation_remove_one_with_opts(Operation, Selector, Options, &Error))
 				{
-					TH_ERROR("couldn't build command -> %s", Error.message);
+					TH_ERROR("[mongoc] %s", Error.message);
 					return false;
 				}
 
@@ -872,7 +871,7 @@ namespace Tomahawk
 
 				if (!mongoc_bulk_operation_replace_one_with_opts(Operation, Selector, Replacement, Options, &Error))
 				{
-					TH_ERROR("couldn't build command -> %s", Error.message);
+					TH_ERROR("[mongoc] %s", Error.message);
 					return false;
 				}
 
@@ -892,7 +891,7 @@ namespace Tomahawk
 
 				if (!mongoc_bulk_operation_insert_with_opts(Operation, Document, Options, &Error))
 				{
-					TH_ERROR("couldn't build command -> %s", Error.message);
+					TH_ERROR("[mongoc] %s", Error.message);
 					return false;
 				}
 
@@ -912,7 +911,7 @@ namespace Tomahawk
 
 				if (!mongoc_bulk_operation_update_one_with_opts(Operation, Selector, Document, Options, &Error))
 				{
-					TH_ERROR("couldn't build command -> %s", Error.message);
+					TH_ERROR("[mongoc] %s", Error.message);
 					return false;
 				}
 
@@ -932,7 +931,7 @@ namespace Tomahawk
 
 				if (!mongoc_bulk_operation_update_many_with_opts(Operation, Selector, Document, Options, &Error))
 				{
-					TH_ERROR("couldn't build command -> %s", Error.message);
+					TH_ERROR("[mongoc] %s", Error.message);
 					return false;
 				}
 
@@ -2439,7 +2438,7 @@ namespace Tomahawk
 				if (Cursor == nullptr || Error.code != 0)
 				{
 					BSON::Document::Release(Options);
-					TH_ERROR("couldn't fetch the cursor -> %s", Error.message);
+					TH_ERROR("[mongoc] %s", Error.message);
 					return nullptr;
 				}
 
@@ -3161,7 +3160,7 @@ namespace Tomahawk
 				TURI* URI = mongoc_uri_new_with_error(Address, &Error);
 				if (URI == nullptr)
 				{
-					TH_ERROR("couldn't parse URI -> %s", Error.message);
+					TH_ERROR("[urierr] %s", Error.message);
 					return false;
 				}
 
@@ -3761,7 +3760,7 @@ namespace Tomahawk
 				Address = mongoc_uri_new_with_error(URI, &Error);
 				if (Address == nullptr)
 				{
-					TH_ERROR("couldn't parse URI -> %s", Error.message);
+					TH_ERROR("[urierr] %s", Error.message);
 					return false;
 				}
 

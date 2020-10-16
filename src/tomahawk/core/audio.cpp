@@ -88,8 +88,8 @@ namespace Tomahawk
 			LOAD_PROC(LPALGETAUXILIARYEFFECTSLOTF, alGetAuxiliaryEffectSlotf);
 			LOAD_PROC(LPALGETAUXILIARYEFFECTSLOTFV, alGetAuxiliaryEffectSlotfv);
 #endif
-			Effects::EffectContext::Initialize();
-			Filters::FilterContext::Initialize();
+			Effects::EffectContext::Create();
+			Filters::FilterContext::Create();
 		}
 		void AudioContext::Release()
 		{
@@ -424,7 +424,7 @@ namespace Tomahawk
 				alDeleteAuxiliaryEffectSlots(1, &Slot);
 			AudioContext::Unlock();
 #endif
-			delete Filter;
+			TH_RELEASE(Filter);
 		}
 		bool AudioEffect::CreateLocked(const std::function<bool()>& Callback)
 		{
@@ -453,9 +453,7 @@ namespace Tomahawk
 		}
 		bool AudioEffect::SetFilter(AudioFilter** NewFilter)
 		{
-			delete Filter;
-			Filter = nullptr;
-
+			TH_CLEAR(Filter);
 			if (!NewFilter || !*NewFilter)
 				return true;
 
@@ -580,8 +578,9 @@ namespace Tomahawk
 		AudioSource::~AudioSource()
 		{
 			for (auto* Effect : Effects)
-				delete Effect;
+				TH_RELEASE(Effect);
 
+			TH_RELEASE(Clip);
 #ifdef TH_HAS_OPENAL
 			AudioContext::Lock();
 			alSourceStop(Instance);
@@ -605,7 +604,7 @@ namespace Tomahawk
 				return false;
 
 			auto It = Effects.begin() + EffectId;
-			delete *It;
+			TH_RELEASE(*It);
 			Effects.erase(It);
 
 			for (size_t i = EffectId; i < Effects.size(); i++)
@@ -626,7 +625,9 @@ namespace Tomahawk
 			AudioContext::Lock();
 			alSourceStop(Instance);
 
+			TH_RELEASE(Clip);
 			Clip = NewClip;
+
 			if (Clip != nullptr)
 				alSourcei(Instance, AL_BUFFER, Clip->GetBuffer());
 

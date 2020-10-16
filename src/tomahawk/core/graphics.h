@@ -749,6 +749,10 @@ namespace Tomahawk
 			DisplayCursor_ResizeNESW,
 			DisplayCursor_ResizeNWSE,
 			DisplayCursor_Hand,
+			DisplayCursor_Crosshair,
+			DisplayCursor_Wait,
+			DisplayCursor_Progress,
+			DisplayCursor_No,
 			DisplayCursor_Count
 		};
 
@@ -765,10 +769,12 @@ namespace Tomahawk
 
 		enum AttributeType
 		{
-			AttributeType_Uint,
-			AttributeType_Int,
+			AttributeType_Byte,
+			AttributeType_Ubyte,
 			AttributeType_Half,
-			AttributeType_Float
+			AttributeType_Float,
+			AttributeType_Int,
+			AttributeType_Uint,
 		};
 
 		typedef std::function<void(AppState)> AppStateChangeCallback;
@@ -856,14 +862,6 @@ namespace Tomahawk
 			float Height;
 			float MinDepth;
 			float MaxDepth;
-		};
-
-		struct TH_OUT Rectangle
-		{
-			long Left;
-			long Top;
-			long Right;
-			long Bottom;
 		};
 
 		struct TH_OUT RenderTargetBlendState
@@ -1621,7 +1619,7 @@ namespace Tomahawk
 			virtual void SetViewport(RenderTargetCube* Resource, const Viewport& In) = 0;
 			virtual void SetViewport(MultiRenderTargetCube* Resource, const Viewport& In) = 0;
 			virtual void SetViewports(unsigned int Count, Viewport* Viewports) = 0;
-			virtual void SetScissorRects(unsigned int Count, Rectangle* Value) = 0;
+			virtual void SetScissorRects(unsigned int Count, Compute::Rectangle* Value) = 0;
 			virtual void SetPrimitiveTopology(PrimitiveTopology Topology) = 0;
 			virtual void FlushTexture2D(unsigned int Slot, unsigned int Count) = 0;
 			virtual void FlushTexture3D(unsigned int Slot, unsigned int Count) = 0;
@@ -1653,7 +1651,7 @@ namespace Tomahawk
 			virtual void DrawIndexed(MeshBuffer* Resource) = 0;
 			virtual void DrawIndexed(SkinMeshBuffer* Resource) = 0;
 			virtual void Draw(unsigned int Count, unsigned int Location) = 0;
-			virtual bool CopyTexture2D(Texture2D** Result) = 0;
+			virtual bool CopyTexture2D(Texture2D* Resource, Texture2D** Result) = 0;
 			virtual bool CopyTexture2D(RenderTarget2D* Resource, Texture2D** Result) = 0;
 			virtual bool CopyTexture2D(MultiRenderTarget2D* Resource, unsigned int Target, Texture2D** Result) = 0;
 			virtual bool CopyTexture2D(RenderTargetCube* Resource, unsigned int Face, Texture2D** Result) = 0;
@@ -1669,12 +1667,11 @@ namespace Tomahawk
 			virtual bool CopyBegin(MultiRenderTarget2D* Resource, unsigned int Target, unsigned int MipLevels, unsigned int Size) = 0;
 			virtual bool CopyFace(MultiRenderTarget2D* Resource, unsigned int Target, unsigned int Face) = 0;
 			virtual bool CopyEnd(MultiRenderTarget2D* Resource, TextureCube* Result) = 0;
-			virtual void SwapTargetDepth(RenderTarget2D* From, RenderTarget2D* To) = 0;
-			virtual void SwapTargetDepth(MultiRenderTarget2D* From, MultiRenderTarget2D* To) = 0;
-			virtual void SwapTargetDepth(RenderTargetCube* From, RenderTargetCube* To) = 0;
-			virtual void SwapTargetDepth(MultiRenderTargetCube* From, MultiRenderTargetCube* To) = 0;
+			virtual bool CopyBackBuffer(Texture2D** Result) = 0;
+			virtual bool CopyBackBufferMSAA(Texture2D** Result) = 0;
+			virtual bool CopyBackBufferNoAA(Texture2D** Result) = 0;
 			virtual void FetchViewports(unsigned int* Count, Viewport* Out) = 0;
-			virtual void FetchScissorRects(unsigned int* Count, Rectangle* Out) = 0;
+			virtual void FetchScissorRects(unsigned int* Count, Compute::Rectangle* Out) = 0;
 			virtual bool ResizeBuffers(unsigned int Width, unsigned int Height) = 0;
 			virtual bool GenerateTexture(Texture2D* Resource) = 0;
 			virtual bool GenerateTexture(Texture3D* Resource) = 0;
@@ -1724,9 +1721,6 @@ namespace Tomahawk
 			virtual Query* CreateQuery(const Query::Desc& I) = 0;
 			virtual PrimitiveTopology GetPrimitiveTopology() = 0;
 			virtual ShaderModel GetSupportedShaderModel() = 0;
-			virtual void* GetBackBuffer() = 0;
-			virtual void* GetBackBufferMSAA() = 0;
-			virtual void* GetBackBufferNoAA() = 0;
 			virtual void* GetDevice() = 0;
 			virtual void* GetContext() = 0;
 			virtual bool IsValid() = 0;
@@ -1837,20 +1831,21 @@ namespace Tomahawk
 			void SetGlobalCursorPosition(float X, float Y);
 			void SetKey(KeyCode KeyCode, bool Value);
 			void SetCursor(DisplayCursor Style);
-			void Cursor(bool Enabled);
-			void Grab(bool Enabled);
+			void SetCursorVisibility(bool Enabled);
+			void SetGrabbing(bool Enabled);
+			void SetFullscreen(bool Enabled);
+			void SetBorderless(bool Enabled);
+			void SetIcon(Surface* Icon);
+			void SetTitle(const char* Value);
+			void SetScreenKeyboard(bool Enabled);
 			void Reset();
 			void Hide();
 			void Show();
 			void Maximize();
 			void Minimize();
 			void Focus();
-			void Fullscreen(bool Enabled);
-			void Borderless(bool Enabled);
 			void Move(int X, int Y);
 			void Resize(int Width, int Height);
-			void Title(const char* Value);
-			void Icon(Surface* Icon);
 			void Load(SDL_SysWMinfo* Base);
 			bool CaptureKeyMap(KeyMap* Value);
 			bool Dispatch();
@@ -1860,6 +1855,7 @@ namespace Tomahawk
 			bool IsKeyUp(const KeyMap& Key);
 			bool IsKeyDownHit(const KeyMap& Key);
 			bool IsKeyUpHit(const KeyMap& Key);
+			bool IsScreenKeyboardEnabled();
 			float GetX();
 			float GetY();
 			float GetWidth();
@@ -1882,7 +1878,8 @@ namespace Tomahawk
 			bool* GetInputState();
 
 		public:
-			static const char* GetKeyName(KeyCode Code);
+			static const char* GetKeyCodeName(KeyCode Code);
+			static const char* GetKeyModName(KeyMod Code);
 		};
 
 		class TH_OUT Model : public Rest::Object

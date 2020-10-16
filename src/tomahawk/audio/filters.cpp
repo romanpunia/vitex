@@ -47,7 +47,7 @@ namespace Tomahawk
 			LPALGETAUXILIARYEFFECTSLOTF alGetAuxiliaryEffectSlotf = nullptr;
 			LPALGETAUXILIARYEFFECTSLOTFV alGetAuxiliaryEffectSlotfv = nullptr;
 #endif
-			void FilterContext::Initialize()
+			void FilterContext::Create()
 			{
 #ifdef TH_HAS_OPENAL
 				LOAD_PROC(LPALGENFILTERS, alGenFilters);
@@ -86,7 +86,7 @@ namespace Tomahawk
 #endif
 			}
 
-			LowpassFilter::LowpassFilter()
+			Lowpass::Lowpass()
 			{
 #ifdef TH_HAS_OPENAL
 				CreateLocked([this]()
@@ -96,10 +96,10 @@ namespace Tomahawk
 				});
 #endif
 			}
-			LowpassFilter::~LowpassFilter()
+			Lowpass::~Lowpass()
 			{
 			}
-			void LowpassFilter::Synchronize()
+			void Lowpass::Synchronize()
 			{
 #ifdef TH_HAS_OPENAL
 				AudioContext::Lock();
@@ -108,26 +108,26 @@ namespace Tomahawk
 				AudioContext::Unlock();
 #endif
 			}
-			void LowpassFilter::Deserialize(Rest::Document* Node)
+			void Lowpass::Deserialize(Rest::Document* Node)
 			{
 				Engine::NMake::Unpack(Node->Find("gain"), &Gain);
 				Engine::NMake::Unpack(Node->Find("gain-hf"), &GainHF);
 			}
-			void LowpassFilter::Serialize(Rest::Document* Node)
+			void Lowpass::Serialize(Rest::Document* Node)
 			{
 				Engine::NMake::Pack(Node->SetDocument("gain"), Gain);
 				Engine::NMake::Pack(Node->SetDocument("gain-hf"), GainHF);
 			}
-			AudioFilter* LowpassFilter::Copy()
+			AudioFilter* Lowpass::Copy()
 			{
-				LowpassFilter* Target = new LowpassFilter();
+				Lowpass* Target = new Lowpass();
 				Target->Gain = Gain;
 				Target->GainHF = GainHF;
 
 				return Target;
 			}
 
-			HighpassFilter::HighpassFilter()
+			Highpass::Highpass()
 			{
 #ifdef TH_HAS_OPENAL
 				CreateLocked([this]()
@@ -137,10 +137,10 @@ namespace Tomahawk
 				});
 #endif
 			}
-			HighpassFilter::~HighpassFilter()
+			Highpass::~Highpass()
 			{
 			}
-			void HighpassFilter::Synchronize()
+			void Highpass::Synchronize()
 			{
 #ifdef TH_HAS_OPENAL
 				AudioContext::Lock();
@@ -149,26 +149,26 @@ namespace Tomahawk
 				AudioContext::Unlock();
 #endif
 			}
-			void HighpassFilter::Deserialize(Rest::Document* Node)
+			void Highpass::Deserialize(Rest::Document* Node)
 			{
 				Engine::NMake::Unpack(Node->Find("gain"), &Gain);
 				Engine::NMake::Unpack(Node->Find("gain-lf"), &GainLF);
 			}
-			void HighpassFilter::Serialize(Rest::Document* Node)
+			void Highpass::Serialize(Rest::Document* Node)
 			{
 				Engine::NMake::Pack(Node->SetDocument("gain"), Gain);
 				Engine::NMake::Pack(Node->SetDocument("gain-lf"), GainLF);
 			}
-			AudioFilter* HighpassFilter::Copy()
+			AudioFilter* Highpass::Copy()
 			{
-				HighpassFilter* Target = new HighpassFilter();
+				Highpass* Target = new Highpass();
 				Target->Gain = Gain;
 				Target->GainLF = GainLF;
 
 				return Target;
 			}
 
-			BandpassFilter::BandpassFilter()
+			Bandpass::Bandpass()
 			{
 #ifdef TH_HAS_OPENAL
 				CreateLocked([this]()
@@ -178,10 +178,10 @@ namespace Tomahawk
 				});
 #endif
 			}
-			BandpassFilter::~BandpassFilter()
+			Bandpass::~Bandpass()
 			{
 			}
-			void BandpassFilter::Synchronize()
+			void Bandpass::Synchronize()
 			{
 #ifdef TH_HAS_OPENAL
 				AudioContext::Lock();
@@ -191,21 +191,21 @@ namespace Tomahawk
 				AudioContext::Unlock();
 #endif
 			}
-			void BandpassFilter::Deserialize(Rest::Document* Node)
+			void Bandpass::Deserialize(Rest::Document* Node)
 			{
 				Engine::NMake::Unpack(Node->Find("gain"), &Gain);
 				Engine::NMake::Unpack(Node->Find("gain-lf"), &GainLF);
 				Engine::NMake::Unpack(Node->Find("gain-hf"), &GainHF);
 			}
-			void BandpassFilter::Serialize(Rest::Document* Node)
+			void Bandpass::Serialize(Rest::Document* Node)
 			{
 				Engine::NMake::Pack(Node->SetDocument("gain"), Gain);
 				Engine::NMake::Pack(Node->SetDocument("gain-lf"), GainLF);
 				Engine::NMake::Pack(Node->SetDocument("gain-hf"), GainHF);
 			}
-			AudioFilter* BandpassFilter::Copy()
+			AudioFilter* Bandpass::Copy()
 			{
-				BandpassFilter* Target = new BandpassFilter();
+				Bandpass* Target = new Bandpass();
 				Target->Gain = Gain;
 				Target->GainLF = GainLF;
 				Target->GainHF = GainHF;

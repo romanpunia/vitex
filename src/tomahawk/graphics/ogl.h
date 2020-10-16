@@ -364,7 +364,7 @@ namespace Tomahawk
 				void SetViewport(RenderTargetCube* Resource, const Viewport& In) override;
 				void SetViewport(MultiRenderTargetCube* Resource, const Viewport& In) override;
 				void SetViewports(unsigned int Count, Viewport* Viewports) override;
-				void SetScissorRects(unsigned int Count, Rectangle* Value) override;
+				void SetScissorRects(unsigned int Count, Compute::Rectangle* Value) override;
 				void SetPrimitiveTopology(PrimitiveTopology Topology) override;
 				void FlushTexture2D(unsigned int Slot, unsigned int Count) override;
 				void FlushTexture3D(unsigned int Slot, unsigned int Count) override;
@@ -396,7 +396,7 @@ namespace Tomahawk
 				void DrawIndexed(MeshBuffer* Resource) override;
 				void DrawIndexed(SkinMeshBuffer* Resource) override;
 				void Draw(unsigned int Count, unsigned int Location) override;
-				bool CopyTexture2D(Texture2D** Result) override;
+				bool CopyTexture2D(Texture2D* Resource, Texture2D** Result) override;
 				bool CopyTexture2D(RenderTarget2D* Resource, Texture2D** Result) override;
 				bool CopyTexture2D(MultiRenderTarget2D* Resource, unsigned int Target, Texture2D** Result) override;
 				bool CopyTexture2D(RenderTargetCube* Resource, unsigned int Face, Texture2D** Result) override;
@@ -412,12 +412,11 @@ namespace Tomahawk
 				bool CopyBegin(MultiRenderTarget2D* Resource, unsigned int Target, unsigned int MipLevels, unsigned int Size) override;
 				bool CopyFace(MultiRenderTarget2D* Resource, unsigned int Target, unsigned int Face) override;
 				bool CopyEnd(MultiRenderTarget2D* Resource, TextureCube* Result) override;
-				void SwapTargetDepth(RenderTarget2D* From, RenderTarget2D* To) override;
-				void SwapTargetDepth(MultiRenderTarget2D* From, MultiRenderTarget2D* To) override;
-				void SwapTargetDepth(RenderTargetCube* From, RenderTargetCube* To) override;
-				void SwapTargetDepth(MultiRenderTargetCube* From, MultiRenderTargetCube* To) override;
+				bool CopyBackBuffer(Texture2D** Result) override;
+				bool CopyBackBufferMSAA(Texture2D** Result) override;
+				bool CopyBackBufferNoAA(Texture2D** Result) override;
 				void FetchViewports(unsigned int* Count, Viewport* Out) override;
-				void FetchScissorRects(unsigned int* Count, Rectangle* Out) override;
+				void FetchScissorRects(unsigned int* Count, Compute::Rectangle* Out) override;
 				bool ResizeBuffers(unsigned int Width, unsigned int Height) override;
 				bool GenerateTexture(Texture2D* Resource) override;
 				bool GenerateTexture(Texture3D* Resource) override;
@@ -467,9 +466,6 @@ namespace Tomahawk
 				Query* CreateQuery(const Query::Desc& I) override;
 				PrimitiveTopology GetPrimitiveTopology() override;
 				ShaderModel GetSupportedShaderModel() override;
-				void* GetBackBuffer() override;
-				void* GetBackBufferMSAA() override;
-				void* GetBackBufferNoAA() override;
 				void* GetDevice() override;
 				void* GetContext() override;
 				bool IsValid() override;

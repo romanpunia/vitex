@@ -15,52 +15,227 @@ namespace Tomahawk
 {
 	namespace Engine
 	{
-		bool Appearance::UploadGBuffer(Graphics::GraphicsDevice* Device, Appearance* Surface)
+		Event::Event(const std::string& NewName, SceneGraph* Target, const Compute::PropertyArgs& NewArgs) : Id(NewName), Args(NewArgs), TScene(Target), TEntity(nullptr), TComponent(nullptr)
 		{
-			if (!Device || !Surface || Surface->Material < 0)
+		}
+		Event::Event(const std::string& NewName, Entity* Target, const Compute::PropertyArgs& NewArgs) : Id(NewName), Args(NewArgs), TScene(nullptr), TEntity(Target), TComponent(nullptr)
+		{
+		}
+		Event::Event(const std::string& NewName, Component* Target, const Compute::PropertyArgs& NewArgs) : Id(NewName), Args(NewArgs), TScene(nullptr), TEntity(nullptr), TComponent(Target)
+		{
+		}
+		bool Event::Is(const std::string& Name)
+		{
+			return Id == Name;
+		}
+		const std::string& Event::GetName()
+		{
+			return Id;
+		}
+		Component* Event::GetComponent()
+		{
+			return TComponent;
+		}
+		Entity* Event::GetEntity()
+		{
+			if (TComponent != nullptr)
+				return TComponent->GetEntity();
+
+			return TEntity;
+		}
+		SceneGraph* Event::GetScene()
+		{
+			if (TEntity != nullptr)
+				return TEntity->GetScene();
+
+			if (TComponent != nullptr)
+				return TComponent->GetEntity()->GetScene();
+
+			return TScene;
+		}
+
+		Appearance::Appearance()
+		{
+		}
+		Appearance::Appearance(const Appearance& Other)
+		{
+			if (Other.DiffuseMap != nullptr)
+				DiffuseMap = (Graphics::Texture2D*)Other.DiffuseMap->AddRef();
+
+			if (Other.NormalMap != nullptr)
+				NormalMap = (Graphics::Texture2D*)Other.NormalMap->AddRef();
+
+			if (Other.MetallicMap != nullptr)
+				MetallicMap = (Graphics::Texture2D*)Other.MetallicMap->AddRef();
+
+			if (Other.RoughnessMap != nullptr)
+				RoughnessMap = (Graphics::Texture2D*)Other.RoughnessMap->AddRef();
+
+			if (Other.HeightMap != nullptr)
+				HeightMap = (Graphics::Texture2D*)Other.HeightMap->AddRef();
+
+			if (Other.OcclusionMap != nullptr)
+				OcclusionMap = (Graphics::Texture2D*)Other.OcclusionMap->AddRef();
+
+			if (Other.EmissionMap != nullptr)
+				EmissionMap = (Graphics::Texture2D*)Other.EmissionMap->AddRef();
+
+			Diffuse = Other.Diffuse;
+			TexCoord = Other.TexCoord;
+			HeightAmount = Other.HeightAmount;
+			HeightBias = Other.HeightBias;
+			Material = Other.Material;
+		}
+		Appearance::~Appearance()
+		{
+			TH_RELEASE(DiffuseMap);
+			TH_RELEASE(NormalMap);
+			TH_RELEASE(MetallicMap);
+			TH_RELEASE(RoughnessMap);
+			TH_RELEASE(HeightMap);
+			TH_RELEASE(OcclusionMap);
+			TH_RELEASE(EmissionMap);
+		}
+		bool Appearance::FillGBuffer(Graphics::GraphicsDevice* Device) const
+		{
+			if (!Device || Material < 0)
 				return false;
 
-			Device->Render.HasDiffuse = (float)(Surface->DiffuseMap != nullptr);
-			Device->Render.HasNormal = (float)(Surface->NormalMap != nullptr);
-			Device->Render.HasHeight = (float)(Surface->HeightMap != nullptr);
-			Device->Render.HeightAmount = Surface->HeightAmount;
-			Device->Render.HeightBias = Surface->HeightBias;
-			Device->Render.MaterialId = (float)Surface->Material;
-			Device->Render.Diffuse = Surface->Diffuse;
-			Device->Render.TexCoord = Surface->TexCoord;
-			Device->SetTexture2D(Surface->DiffuseMap, 1);
-			Device->SetTexture2D(Surface->NormalMap, 2);
-			Device->SetTexture2D(Surface->MetallicMap, 3);
-			Device->SetTexture2D(Surface->RoughnessMap, 4);
-			Device->SetTexture2D(Surface->HeightMap, 5);
-			Device->SetTexture2D(Surface->OcclusionMap, 6);
-			Device->SetTexture2D(Surface->EmissionMap, 7);
+			Device->Render.HasDiffuse = (float)(DiffuseMap != nullptr);
+			Device->Render.HasNormal = (float)(NormalMap != nullptr);
+			Device->Render.HasHeight = (float)(HeightMap != nullptr);
+			Device->Render.HeightAmount = HeightAmount;
+			Device->Render.HeightBias = HeightBias;
+			Device->Render.MaterialId = (float)Material;
+			Device->Render.Diffuse = Diffuse;
+			Device->Render.TexCoord = TexCoord;
+			Device->SetTexture2D(DiffuseMap, 1);
+			Device->SetTexture2D(NormalMap, 2);
+			Device->SetTexture2D(MetallicMap, 3);
+			Device->SetTexture2D(RoughnessMap, 4);
+			Device->SetTexture2D(HeightMap, 5);
+			Device->SetTexture2D(OcclusionMap, 6);
+			Device->SetTexture2D(EmissionMap, 7);
 
 			return true;
 		}
-		bool Appearance::UploadLinearDepth(Graphics::GraphicsDevice* Device, Appearance* Surface)
+		bool Appearance::FillLinearDepth(Graphics::GraphicsDevice* Device) const
 		{
-			if (!Device || !Surface || Surface->Material < 0)
+			if (!Device || Material < 0)
 				return false;
 
-			Device->Render.HasDiffuse = (float)(Surface->DiffuseMap != nullptr);
-			Device->Render.MaterialId = Surface->Material;
-			Device->Render.TexCoord = Surface->TexCoord;
-			Device->SetTexture2D(Surface->DiffuseMap, 1);
+			Device->Render.HasDiffuse = (float)(DiffuseMap != nullptr);
+			Device->Render.MaterialId = Material;
+			Device->Render.TexCoord = TexCoord;
+			Device->SetTexture2D(DiffuseMap, 1);
 
 			return true;
 		}
-		bool Appearance::UploadCubicDepth(Graphics::GraphicsDevice* Device, Appearance* Surface)
+		bool Appearance::FillCubicDepth(Graphics::GraphicsDevice* Device) const
 		{
-			if (!Device || !Surface || Surface->Material < 0)
+			if (!Device || Material < 0)
 				return false;
 
-			Device->Render.HasDiffuse = (float)(Surface->DiffuseMap != nullptr);
-			Device->Render.MaterialId = Surface->Material;
-			Device->Render.TexCoord = Surface->TexCoord;
-			Device->SetTexture2D(Surface->DiffuseMap, 1);
+			Device->Render.HasDiffuse = (float)(DiffuseMap != nullptr);
+			Device->Render.MaterialId = Material;
+			Device->Render.TexCoord = TexCoord;
+			Device->SetTexture2D(DiffuseMap, 1);
 
 			return true;
+		}
+		void Appearance::SetDiffuseMap(Graphics::Texture2D* New)
+		{
+			TH_RELEASE(DiffuseMap);
+			DiffuseMap = New;
+		}
+		Graphics::Texture2D* Appearance::GetDiffuseMap() const
+		{
+			return DiffuseMap;
+		}
+		void Appearance::SetNormalMap(Graphics::Texture2D* New)
+		{
+			TH_RELEASE(NormalMap);
+			NormalMap = New;
+		}
+		Graphics::Texture2D* Appearance::GetNormalMap() const
+		{
+			return NormalMap;
+		}
+		void Appearance::SetMetallicMap(Graphics::Texture2D* New)
+		{
+			TH_RELEASE(MetallicMap);
+			MetallicMap = New;
+		}
+		Graphics::Texture2D* Appearance::GetMetallicMap() const
+		{
+			return MetallicMap;
+		}
+		void Appearance::SetRoughnessMap(Graphics::Texture2D* New)
+		{
+			TH_RELEASE(RoughnessMap);
+			RoughnessMap = New;
+		}
+		Graphics::Texture2D* Appearance::GetRoughnessMap() const
+		{
+			return RoughnessMap;
+		}
+		void Appearance::SetHeightMap(Graphics::Texture2D* New)
+		{
+			TH_RELEASE(HeightMap);
+			HeightMap = New;
+		}
+		Graphics::Texture2D* Appearance::GetHeightMap() const
+		{
+			return HeightMap;
+		}
+		void Appearance::SetOcclusionMap(Graphics::Texture2D* New)
+		{
+			TH_RELEASE(OcclusionMap);
+			OcclusionMap = New;
+		}
+		Graphics::Texture2D* Appearance::GetOcclusionMap() const
+		{
+			return OcclusionMap;
+		}
+		void Appearance::SetEmissionMap(Graphics::Texture2D* New)
+		{
+			TH_RELEASE(EmissionMap);
+			EmissionMap = New;
+		}
+		Graphics::Texture2D* Appearance::GetEmissionMap() const
+		{
+			return EmissionMap;
+		}
+		Appearance& Appearance::operator= (const Appearance& Other)
+		{
+			if (Other.DiffuseMap != nullptr)
+				DiffuseMap = (Graphics::Texture2D*)Other.DiffuseMap->AddRef();
+
+			if (Other.NormalMap != nullptr)
+				NormalMap = (Graphics::Texture2D*)Other.NormalMap->AddRef();
+
+			if (Other.MetallicMap != nullptr)
+				MetallicMap = (Graphics::Texture2D*)Other.MetallicMap->AddRef();
+
+			if (Other.RoughnessMap != nullptr)
+				RoughnessMap = (Graphics::Texture2D*)Other.RoughnessMap->AddRef();
+
+			if (Other.HeightMap != nullptr)
+				HeightMap = (Graphics::Texture2D*)Other.HeightMap->AddRef();
+
+			if (Other.OcclusionMap != nullptr)
+				OcclusionMap = (Graphics::Texture2D*)Other.OcclusionMap->AddRef();
+
+			if (Other.EmissionMap != nullptr)
+				EmissionMap = (Graphics::Texture2D*)Other.EmissionMap->AddRef();
+
+			Diffuse = Other.Diffuse;
+			TexCoord = Other.TexCoord;
+			HeightAmount = Other.HeightAmount;
+			HeightBias = Other.HeightBias;
+			Material = Other.Material;
+
+			return *this;
 		}
 
 		bool NMake::Pack(Rest::Document* V, bool Value)
@@ -164,7 +339,7 @@ namespace Tomahawk
 			NMake::Pack(V->SetDocument("roughness"), Value.Roughness);
 			NMake::Pack(V->SetDocument("fresnel"), Value.Fresnel);
 			NMake::Pack(V->SetDocument("refraction"), Value.Refraction);
-			NMake::Pack(V->SetDocument("limpidity"), Value.Limpidity);
+			NMake::Pack(V->SetDocument("transparency"), Value.Transparency);
 			NMake::Pack(V->SetDocument("environment"), Value.Environment);
 			NMake::Pack(V->SetDocument("occlusion"), Value.Occlusion);
 			NMake::Pack(V->SetDocument("radius"), Value.Radius);
@@ -232,31 +407,31 @@ namespace Tomahawk
 			if (!V || !Content)
 				return false;
 
-			AssetResource* Asset = Content->FindAsset(Value.DiffuseMap);
+			AssetResource* Asset = Content->FindAsset(Value.GetDiffuseMap());
 			if (Asset != nullptr)
 				NMake::Pack(V->SetDocument("diffuse-map"), Asset->Path);
 
-			Asset = Content->FindAsset(Value.NormalMap);
+			Asset = Content->FindAsset(Value.GetNormalMap());
 			if (Asset != nullptr)
 				NMake::Pack(V->SetDocument("normal-map"), Asset->Path);
 
-			Asset = Content->FindAsset(Value.MetallicMap);
+			Asset = Content->FindAsset(Value.GetMetallicMap());
 			if (Asset != nullptr)
 				NMake::Pack(V->SetDocument("metallic-map"), Asset->Path);
 
-			Asset = Content->FindAsset(Value.RoughnessMap);
+			Asset = Content->FindAsset(Value.GetRoughnessMap());
 			if (Asset != nullptr)
 				NMake::Pack(V->SetDocument("roughness-map"), Asset->Path);
 
-			Asset = Content->FindAsset(Value.HeightMap);
+			Asset = Content->FindAsset(Value.GetHeightMap());
 			if (Asset != nullptr)
 				NMake::Pack(V->SetDocument("height-map"), Asset->Path);
 
-			Asset = Content->FindAsset(Value.OcclusionMap);
+			Asset = Content->FindAsset(Value.GetOcclusionMap());
 			if (Asset != nullptr)
 				NMake::Pack(V->SetDocument("occlusion-map"), Asset->Path);
 
-			Asset = Content->FindAsset(Value.EmissionMap);
+			Asset = Content->FindAsset(Value.GetEmissionMap());
 			if (Asset != nullptr)
 				NMake::Pack(V->SetDocument("emission-map"), Asset->Path);
 
@@ -829,7 +1004,7 @@ namespace Tomahawk
 			NMake::Unpack(V->Find("roughness"), &O->Roughness);
 			NMake::Unpack(V->Find("fresnel"), &O->Fresnel);
 			NMake::Unpack(V->Find("refraction"), &O->Refraction);
-			NMake::Unpack(V->Find("limpidity"), &O->Limpidity);
+			NMake::Unpack(V->Find("transparency"), &O->Transparency);
 			NMake::Unpack(V->Find("environment"), &O->Environment);
 			NMake::Unpack(V->Find("occlusion"), &O->Occlusion);
 			NMake::Unpack(V->Find("radius"), &O->Radius);
@@ -908,25 +1083,25 @@ namespace Tomahawk
 
 			std::string Path;
 			if (NMake::Unpack(V->Find("diffuse-map"), &Path))
-				O->DiffuseMap = Content->Load<Graphics::Texture2D>(Path, nullptr);
+				O->SetDiffuseMap(Content->Load<Graphics::Texture2D>(Path));
 
 			if (NMake::Unpack(V->Find("normal-map"), &Path))
-				O->NormalMap = Content->Load<Graphics::Texture2D>(Path, nullptr);
+				O->SetNormalMap(Content->Load<Graphics::Texture2D>(Path));
 
 			if (NMake::Unpack(V->Find("metallic-map"), &Path))
-				O->MetallicMap = Content->Load<Graphics::Texture2D>(Path, nullptr);
+				O->SetMetallicMap(Content->Load<Graphics::Texture2D>(Path));
 
 			if (NMake::Unpack(V->Find("roughness-map"), &Path))
-				O->RoughnessMap = Content->Load<Graphics::Texture2D>(Path, nullptr);
+				O->SetRoughnessMap(Content->Load<Graphics::Texture2D>(Path));
 
 			if (NMake::Unpack(V->Find("height-map"), &Path))
-				O->HeightMap = Content->Load<Graphics::Texture2D>(Path, nullptr);
+				O->SetHeightMap(Content->Load<Graphics::Texture2D>(Path));
 
 			if (NMake::Unpack(V->Find("occlusion-map"), &Path))
-				O->OcclusionMap = Content->Load<Graphics::Texture2D>(Path, nullptr);
+				O->SetOcclusionMap(Content->Load<Graphics::Texture2D>(Path));
 
 			if (NMake::Unpack(V->Find("emission-map"), &Path))
-				O->EmissionMap = Content->Load<Graphics::Texture2D>(Path, nullptr);
+				O->SetEmissionMap(Content->Load<Graphics::Texture2D>(Path));
 
 			NMake::Unpack(V->Find("diffuse"), &O->Diffuse);
 			NMake::Unpack(V->Find("texcoord"), &O->TexCoord);
@@ -1619,74 +1794,6 @@ namespace Tomahawk
 			return true;
 		}
 
-		ContentKey::ContentKey() : Type(ContentType_Null), Integer(0), Number(0), Boolean(false), Pointer(nullptr)
-		{
-		}
-		ContentKey::ContentKey(const std::string& Value) : Type(ContentType_String), Integer(0), Number(0), Boolean(false), String(Value), Pointer(nullptr)
-		{
-		}
-		ContentKey::ContentKey(int64_t Value) : Type(ContentType_Integer), Integer(Value), Number((double)Value), Boolean(false), Pointer(nullptr)
-		{
-		}
-		ContentKey::ContentKey(double Value) : Type(ContentType_Number), Integer((int64_t)Value), Number(Value), Boolean(false), Pointer(nullptr)
-		{
-		}
-		ContentKey::ContentKey(bool Value) : Type(ContentType_Boolean), Integer(0), Number(0), Boolean(Value), Pointer(nullptr)
-		{
-		}
-		ContentKey::ContentKey(void* Value) : Type(ContentType_Pointer), Integer(0), Number(0), Boolean(false), Pointer(Value)
-		{
-			if (!Pointer)
-				Type = ContentType_Null;
-		}
-
-		ContentArgs::ContentArgs(ContentMap* Map) : Args(Map)
-		{
-		}
-		bool ContentArgs::Is(const std::string& Name, const ContentKey& Value)
-		{
-			ContentKey* V = Get(Name);
-			if (!V || V->Type != Value.Type)
-				return false;
-
-			switch (V->Type)
-			{
-				case ContentType_Null:
-					return true;
-				case ContentType_String:
-					return V->String == Value.String;
-				case ContentType_Integer:
-					return V->Integer == Value.Integer;
-				case ContentType_Number:
-					return V->Number == Value.Number;
-				case ContentType_Boolean:
-					return V->Boolean == Value.Boolean;
-				case ContentType_Pointer:
-					return V->Pointer == Value.Pointer;
-			}
-
-			return false;
-		}
-		ContentKey* ContentArgs::Get(const std::string& Name)
-		{
-			if (!Args)
-				return nullptr;
-
-			auto It = Args->find(Name);
-			if (It == Args->end())
-				return nullptr;
-
-			return &It->second;
-		}
-		ContentKey* ContentArgs::Get(const std::string& Name, ContentType Type)
-		{
-			ContentKey* V = Get(Name);
-			if (!V || V->Type != Type)
-				return nullptr;
-
-			return V;
-		}
-
 		AssetFile::AssetFile(char* SrcBuffer, size_t SrcSize) : Buffer(SrcBuffer), Size(SrcSize)
 		{
 		}
@@ -1704,28 +1811,28 @@ namespace Tomahawk
 			return Size;
 		}
 
-		FileProcessor::FileProcessor(ContentManager* NewContent) : Content(NewContent)
+		Processor::Processor(ContentManager* NewContent) : Content(NewContent)
 		{
 		}
-		FileProcessor::~FileProcessor()
+		Processor::~Processor()
 		{
 		}
-		void FileProcessor::Free(AssetResource* Asset)
+		void Processor::Free(AssetResource* Asset)
 		{
 		}
-		void* FileProcessor::Duplicate(AssetResource* Asset, ContentArgs* Args)
-		{
-			return nullptr;
-		}
-		void* FileProcessor::Deserialize(Rest::FileStream* Stream, uint64_t Length, uint64_t Offset, ContentArgs* Args)
+		void* Processor::Duplicate(AssetResource* Asset, const Compute::PropertyArgs& Args)
 		{
 			return nullptr;
 		}
-		bool FileProcessor::Serialize(Rest::FileStream* Stream, void* Object, ContentArgs* Args)
+		void* Processor::Deserialize(Rest::FileStream* Stream, uint64_t Length, uint64_t Offset, const Compute::PropertyArgs& Args)
+		{
+			return nullptr;
+		}
+		bool Processor::Serialize(Rest::FileStream* Stream, void* Object, const Compute::PropertyArgs& Args)
 		{
 			return false;
 		}
-		ContentManager* FileProcessor::GetContent()
+		ContentManager* Processor::GetContent()
 		{
 			return Content;
 		}
@@ -1773,7 +1880,7 @@ namespace Tomahawk
 		void Component::Update(Rest::Timer* Time)
 		{
 		}
-		void Component::Pipe(Event* Value)
+		void Component::Message(Event* Value)
 		{
 		}
 		Entity* Component::GetEntity()
@@ -1842,21 +1949,26 @@ namespace Tomahawk
 			return Parent->Transform->Position.Distance(View.WorldPosition) <= View.ViewDistance + Parent->Transform->Scale.Length();
 		}
 
-		Drawable::Drawable(Entity* Ref, bool vComplex) : Cullable(Ref), Fragments(1), Satisfied(1), Complex(vComplex), Static(true), Query(nullptr)
+		Drawable::Drawable(Entity* Ref, uint64_t Hash, bool vComplex) : Cullable(Ref), Category(GeoCategory_Opaque), Fragments(1), Satisfied(1), Source(Hash), Complex(vComplex), Static(true), Query(nullptr)
 		{
 			if (!Complex)
 				Surfaces[nullptr] = Appearance();
 		}
 		Drawable::~Drawable()
 		{
-			delete Query;
+			TH_RELEASE(Query);
+			Detach();
 		}
-		void Drawable::Pipe(Event* Value)
+		void Drawable::Message(Event* Value)
 		{
-			if (!Value || !Value->Is<Material>())
+			if (!Value || !Value->Is("materialchange"))
 				return;
 
-			uint64_t Material = (uint64_t)Value->Get<Engine::Material>()->Id;
+			Compute::Property& MaterialId = Value->Args["material-id"];
+			if (!MaterialId)
+				return;
+
+			int64_t Material = MaterialId.GetInteger();
 			for (auto&& Surface : Surfaces)
 			{
 				if (Surface.second.Material == Material)
@@ -1867,7 +1979,28 @@ namespace Tomahawk
 		{
 			Fragments = 1;
 		}
-		bool Drawable::FragmentBegin(Graphics::GraphicsDevice* Device)
+		bool Drawable::SetTransparency(bool Enabled)
+		{
+			if (!Parent || !Parent->GetScene())
+			{
+				if (Enabled)
+					Category = GeoCategory_Transparent;
+				else
+					Category = GeoCategory_Opaque;
+
+				return false;
+			}
+
+			Detach();
+			if (Enabled)
+				Category = GeoCategory_Transparent;
+			else
+				Category = GeoCategory_Opaque;
+
+			Parent->GetScene()->AddDrawable(this, Category);
+			return true;
+		}
+		bool Drawable::Begin(Graphics::GraphicsDevice* Device)
 		{
 			if (!Device)
 				return false;
@@ -1893,7 +2026,7 @@ namespace Tomahawk
 
 			return Fragments > 0;
 		}
-		void Drawable::FragmentEnd(Graphics::GraphicsDevice* Device)
+		void Drawable::End(Graphics::GraphicsDevice* Device)
 		{
 			if (Device && Satisfied == 0)
 			{
@@ -1901,7 +2034,16 @@ namespace Tomahawk
 				Device->QueryEnd(Query);
 			}
 		}
-		int Drawable::FetchFragments(RenderSystem* System)
+		void Drawable::Attach()
+		{
+			SetTransparency(false);
+		}
+		void Drawable::Detach()
+		{
+			if (Parent && Parent->GetScene())
+				Parent->GetScene()->RemoveDrawable(this, Category);
+		}
+		int Drawable::Fetch(RenderSystem* System)
 		{
 			if (!System || !Query || Satisfied != -1)
 				return -1;
@@ -1950,17 +2092,9 @@ namespace Tomahawk
 
 			return &Surfaces.begin()->second;
 		}
-		bool Drawable::IsLimpid()
+		bool Drawable::HasTransparency()
 		{
-			SceneGraph* Scene = Parent->GetScene();
-			for (auto& Surface : Surfaces)
-			{
-				Material* Result = Scene->GetMaterialById((uint64_t)Surface.second.Material);
-				if (Result != nullptr && Result->Limpidity > 0.0f)
-					return true;
-			}
-
-			return false;
+			return Category == GeoCategory_Transparent;
 		}
 
 		Entity::Entity(SceneGraph* Ref) : Scene(Ref), Id(-1), Tag(-1), Distance(0)
@@ -1979,7 +2113,7 @@ namespace Tomahawk
 				delete Component.second;
 			}
 
-			delete Transform;
+			TH_RELEASE(Transform);
 		}
 		void Entity::RemoveComponent(uint64_t Id)
 		{
@@ -1998,7 +2132,10 @@ namespace Tomahawk
 			delete It->second;
 			Components.erase(It);
 			if (Scene != nullptr)
+			{
 				Scene->Unlock();
+				Scene->Mutate(this, false);
+			}
 		}
 		void Entity::RemoveChilds()
 		{
@@ -2026,7 +2163,7 @@ namespace Tomahawk
 				if (Scene != nullptr)
 					Scene->RemoveEntity(Entity, true);
 				else
-					delete Entity;
+					TH_RELEASE(Entity);
 
 				if (Transform->GetChildCount() == 0)
 				{
@@ -2069,6 +2206,9 @@ namespace Tomahawk
 				Component.second->Awake(In == Component.second ? nullptr : In);
 
 			In->SetActive(true);
+			if (Scene != nullptr)
+				Scene->Mutate(this, true);
+
 			return In;
 		}
 		Component* Entity::GetComponent(uint64_t Id)
@@ -2124,240 +2264,6 @@ namespace Tomahawk
 			return System;
 		}
 
-		GeoRenderer::GeoRenderer(RenderSystem* Lab) : Renderer(Lab)
-		{
-		}
-		GeoRenderer::~GeoRenderer()
-		{
-		}
-		void GeoRenderer::CullGeometry(const Viewer& View, Rest::Pool<Component*>* Geometry)
-		{
-		}
-		void GeoRenderer::RenderGBuffer(Rest::Timer* TimeStep, Rest::Pool<Component*>* Geometry, RenderOpt Options)
-		{
-		}
-		void GeoRenderer::RenderDepthLinear(Rest::Timer* TimeStep, Rest::Pool<Component*>* Geometry)
-		{
-		}
-		void GeoRenderer::RenderDepthCubic(Rest::Timer* TimeStep, Rest::Pool<Component*>* Geometry, Compute::Matrix4x4* ViewProjection)
-		{
-		}
-		void GeoRenderer::CullGeometry(const Viewer& View)
-		{
-			Rest::Pool<Component*>* Opaque = GetOpaque();
-			if (Opaque != nullptr && Opaque->Size() > 0)
-				CullGeometry(View, Opaque);
-
-			Rest::Pool<Component*>* Limpid = GetLimpid(0);
-			if (Limpid != nullptr && Limpid->Size() > 0)
-				CullGeometry(View, Limpid);
-		}
-		void GeoRenderer::Render(Rest::Timer* TimeStep, RenderState State, RenderOpt Options)
-		{
-			if (State == RenderState_GBuffer)
-			{
-				Rest::Pool<Component*>* Geometry;
-				if (Options & RenderOpt_Limpid)
-					Geometry = GetLimpid(0);
-				else
-					Geometry = GetOpaque();
-
-				if (Geometry != nullptr && Geometry->Size() > 0)
-					RenderGBuffer(TimeStep, Geometry, Options);
-			}
-			else if (State == RenderState_Depth_Linear)
-			{
-				if (!(Options & RenderOpt_Inner))
-					return;
-
-				Rest::Pool<Component*>* Opaque = GetOpaque();
-				if (Opaque != nullptr && Opaque->Size() > 0)
-					RenderDepthLinear(TimeStep, Opaque);
-
-				Rest::Pool<Component*>* Limpid = GetLimpid(0);
-				if (Limpid != nullptr && Limpid->Size() > 0)
-					RenderDepthLinear(TimeStep, Limpid);
-			}
-			else if (State == RenderState_Depth_Cubic)
-			{
-				Viewer& View = System->GetScene()->View;
-				if (!(Options & RenderOpt_Inner))
-					return;
-
-				Rest::Pool<Component*>* Opaque = GetOpaque();
-				if (Opaque != nullptr && Opaque->Size() > 0)
-					RenderDepthCubic(TimeStep, Opaque, View.CubicViewProjection);
-
-				Rest::Pool<Component*>* Limpid = GetLimpid(0);
-				if (Limpid != nullptr && Limpid->Size() > 0)
-					RenderDepthCubic(TimeStep, Limpid, View.CubicViewProjection);
-			}
-		}
-		Rest::Pool<Component*>* GeoRenderer::GetOpaque()
-		{
-			return nullptr;
-		}
-		Rest::Pool<Component*>* GeoRenderer::GetLimpid(uint64_t Layer)
-		{
-			return nullptr;
-		}
-
-		TickRenderer::TickRenderer(RenderSystem* Lab) : Renderer(Lab)
-		{
-		}
-		TickRenderer::~TickRenderer()
-		{
-		}
-		void TickRenderer::TickRender(Rest::Timer* TimeStep, RenderState State, RenderOpt Options)
-		{
-		}
-		void TickRenderer::FrameRender(Rest::Timer* TimeStep, RenderState State, RenderOpt Options)
-		{
-		}
-		void TickRenderer::Render(Rest::Timer* Time, RenderState State, RenderOpt Options)
-		{
-			if (Tick.TickEvent(Time->GetElapsedTime()))
-				TickRender(Time, State, Options);
-
-			FrameRender(Time, State, Options);
-		}
-		
-		EffectRenderer::EffectRenderer(RenderSystem* Lab) : Renderer(Lab), Output(nullptr), Pass(nullptr)
-		{
-			DepthStencil = Lab->GetDevice()->GetDepthStencilState("none");
-			Rasterizer = Lab->GetDevice()->GetRasterizerState("cull-back");
-			Blend = Lab->GetDevice()->GetBlendState("overwrite");
-			Sampler = Lab->GetDevice()->GetSamplerState("trilinear-x16");
-			Layout = Lab->GetDevice()->GetInputLayout("shape-vertex");
-		}
-		EffectRenderer::~EffectRenderer()
-		{
-			for (auto It = Shaders.begin(); It != Shaders.end(); It++)
-				System->FreeShader(It->first, It->second);
-
-			delete Pass;
-			delete Output;
-		}
-		void EffectRenderer::RenderMerge(Graphics::Shader* Effect, void* Buffer)
-		{
-			if (!Effect)
-				Effect = Shaders.begin()->second;
-
-			Graphics::GraphicsDevice* Device = System->GetDevice();
-			Device->SetTexture2D(Pass, 5);
-			Device->SetShader(Effect, Graphics::ShaderType_Vertex | Graphics::ShaderType_Pixel);
-
-			if (Buffer != nullptr)
-			{
-				Device->UpdateBuffer(Effect, Buffer);
-				Device->SetBuffer(Effect, 3, Graphics::ShaderType_Vertex | Graphics::ShaderType_Pixel);
-			}
-
-			Device->Draw(6, 0);
-			Device->CopyTexture2D(Output, &Pass);
-			Device->GenerateTexture(Pass);
-		}
-		void EffectRenderer::RenderResult(Graphics::Shader* Effect, void* Buffer)
-		{
-			if (!Effect)
-				Effect = Shaders.begin()->second;
-
-			Graphics::GraphicsDevice* Device = System->GetDevice();
-			Device->SetTexture2D(Pass, 5);
-			Device->SetShader(Effect, Graphics::ShaderType_Vertex | Graphics::ShaderType_Pixel);
-
-			if (Buffer != nullptr)
-			{
-				Device->UpdateBuffer(Effect, Buffer);
-				Device->SetBuffer(Effect, 3, Graphics::ShaderType_Vertex | Graphics::ShaderType_Pixel);
-			}
-
-			Device->Draw(6, 0);
-		}
-		void EffectRenderer::RenderEffect(Rest::Timer* Time)
-		{
-		}
-		void EffectRenderer::Activate()
-		{
-			ResizeBuffers();
-		}
-		void EffectRenderer::Render(Rest::Timer* Time, RenderState State, RenderOpt Options)
-		{
-			if (State != RenderState_GBuffer || Options & RenderOpt_Inner)
-				return;
-
-			Graphics::MultiRenderTarget2D* Surface = System->GetScene()->GetSurface();
-			if (!Surface || Shaders.empty())
-				return;
-
-			Graphics::GraphicsDevice* Device = System->GetDevice();
-			Device->SetDepthStencilState(DepthStencil);
-			Device->SetSamplerState(Sampler);
-			Device->SetBlendState(Blend);
-			Device->SetRasterizerState(Rasterizer);
-			Device->SetInputLayout(Layout);
-			Device->SetTarget(Output, 0, 0, 0);
-			Device->SetTexture2D(Surface->GetTarget(0), 1);
-			Device->SetTexture2D(Surface->GetTarget(1), 2);
-			Device->SetTexture2D(Surface->GetTarget(2), 3);
-			Device->SetTexture2D(Surface->GetTarget(3), 4);
-			Device->SetVertexBuffer(System->GetQuadVBuffer(), 0);
-
-			RenderEffect(Time);
-
-			Device->FlushTexture2D(1, 4);
-			Device->CopyTargetFrom(Surface, 0, Output);
-		}
-		void EffectRenderer::ResizeBuffers()
-		{
-			Graphics::RenderTarget2D::Desc I = Graphics::RenderTarget2D::Desc();
-			I.MiscFlags = Graphics::ResourceMisc_Generate_Mips;
-			I.Width = (unsigned int)System->GetScene()->GetSurface()->GetWidth();
-			I.Height = (unsigned int)System->GetScene()->GetSurface()->GetHeight();
-			I.MipLevels = System->GetDevice()->GetMipLevel(I.Width, I.Height);
-			System->GetScene()->GetTargetFormat(&I.FormatMode, 1);
-
-			delete Output;
-			Output = System->GetDevice()->CreateRenderTarget2D(I);
-
-			delete Pass;
-			Pass = nullptr;
-		}
-		Graphics::Shader* EffectRenderer::GetEffect(const std::string& Name)
-		{
-			auto It = Shaders.find(Name);
-			if (It != Shaders.end())
-				return It->second;
-
-			return nullptr;
-		}
-		Graphics::Shader* EffectRenderer::CompileEffect(const std::string& Name, const std::string& Code, size_t BufferSize)
-		{
-			if (Name.empty())
-			{
-				TH_ERROR("cannot compile unnamed shader source");
-				return nullptr;
-			}
-
-			Graphics::Shader::Desc Desc = Graphics::Shader::Desc();
-			Desc.Data = Code;
-
-			Graphics::Shader* Shader = System->CompileShader(Name, Desc, BufferSize);
-			if (!Shader)
-				return nullptr;
-
-			auto It = Shaders.find(Name);
-			if (It != Shaders.end())
-			{
-				delete It->second;
-				It->second = Shader;
-			}
-			else
-				Shaders[Name] = Shader;
-
-			return Shader;
-		}
-
 		ShaderCache::ShaderCache(Graphics::GraphicsDevice* NewDevice) : Device(NewDevice)
 		{
 		}
@@ -2374,12 +2280,12 @@ namespace Tomahawk
 			Shader = Device->CreateShader(Desc);
 			if (!Shader->IsValid())
 			{
-				delete Shader;
+				TH_RELEASE(Shader);
 				return nullptr;
 			}
 			else if (BufferSize > 0)
 				Device->UpdateBufferSize(Shader, BufferSize);
-			
+
 			Safe.lock();
 			SCache& Result = Cache[Name];
 			Result.Shader = Shader;
@@ -2458,19 +2364,19 @@ namespace Tomahawk
 					continue;
 
 				Renderer->Deactivate();
-				delete Renderer;
+				TH_RELEASE(Renderer);
 			}
 
-			delete Target;
-			delete QuadVertex;
-			delete SphereVertex;
-			delete SphereIndex;
-			delete CubeVertex;
-			delete CubeIndex;
-			delete BoxVertex;
-			delete BoxIndex;
-			delete SkinBoxVertex;
-			delete SkinBoxIndex;
+			TH_RELEASE(Target);
+			TH_RELEASE(QuadVertex);
+			TH_RELEASE(SphereVertex);
+			TH_RELEASE(SphereIndex);
+			TH_RELEASE(CubeVertex);
+			TH_RELEASE(CubeIndex);
+			TH_RELEASE(BoxVertex);
+			TH_RELEASE(BoxIndex);
+			TH_RELEASE(SkinBoxVertex);
+			TH_RELEASE(SkinBoxIndex);
 		}
 		void RenderSystem::SetDepthSize(size_t Size)
 		{
@@ -2489,7 +2395,7 @@ namespace Tomahawk
 			I.Width = (size_t)((float)Size * Aspect);
 			I.Height = Size;
 
-			delete Target;
+			TH_RELEASE(Target);
 			Target = Device->CreateDepthBuffer(I);
 		}
 		void RenderSystem::SetScene(SceneGraph* NewScene)
@@ -2596,7 +2502,7 @@ namespace Tomahawk
 					return;
 			}
 
-			delete Shader;
+			TH_RELEASE(Shader);
 		}
 		bool RenderSystem::PassCullable(Cullable* Base, CullResult Mode, float* Result)
 		{
@@ -2618,7 +2524,7 @@ namespace Tomahawk
 			{
 				if (EnableOcclusionCull)
 				{
-					int R = Base->FetchFragments(this);
+					int R = Base->Fetch(this);
 					if (R != -1)
 						return R > 0;
 				}
@@ -2665,9 +2571,9 @@ namespace Tomahawk
 			return nullptr;
 		}
 		Rest::Pool<Component*>* RenderSystem::GetSceneComponents(uint64_t Section)
-        {
-		    return Scene ? Scene->GetComponents(Section) : nullptr;
-        }
+		{
+			return Scene ? Scene->GetComponents(Section) : nullptr;
+		}
 		size_t RenderSystem::GetDepthSize()
 		{
 			return DepthSize;
@@ -3130,7 +3036,245 @@ namespace Tomahawk
 			return Scene;
 		}
 
-		SceneGraph::SceneGraph(const Desc& I) : Conf(I), Active(true)
+		GeometryDraw::GeometryDraw(RenderSystem* Lab, uint64_t Hash) : Renderer(Lab), Source(Hash)
+		{
+		}
+		GeometryDraw::~GeometryDraw()
+		{
+		}
+		void GeometryDraw::CullGeometry(const Viewer& View, Rest::Pool<Drawable*>* Geometry)
+		{
+		}
+		void GeometryDraw::RenderGBuffer(Rest::Timer* TimeStep, Rest::Pool<Drawable*>* Geometry, RenderOpt Options)
+		{
+		}
+		void GeometryDraw::RenderDepthLinear(Rest::Timer* TimeStep, Rest::Pool<Drawable*>* Geometry)
+		{
+		}
+		void GeometryDraw::RenderDepthCubic(Rest::Timer* TimeStep, Rest::Pool<Drawable*>* Geometry, Compute::Matrix4x4* ViewProjection)
+		{
+		}
+		void GeometryDraw::CullGeometry(const Viewer& View)
+		{
+			Rest::Pool<Drawable*>* Opaque = GetOpaque();
+			if (Opaque != nullptr && Opaque->Size() > 0)
+				CullGeometry(View, Opaque);
+
+			Rest::Pool<Drawable*>* Transparent = GetTransparent();
+			if (Transparent != nullptr && Transparent->Size() > 0)
+				CullGeometry(View, Transparent);
+		}
+		void GeometryDraw::Render(Rest::Timer* TimeStep, RenderState State, RenderOpt Options)
+		{
+			if (State == RenderState_GBuffer)
+			{
+				Rest::Pool<Drawable*>* Geometry;
+				if (Options & RenderOpt_Transparent)
+					Geometry = GetTransparent();
+				else
+					Geometry = GetOpaque();
+
+				if (Geometry != nullptr && Geometry->Size() > 0)
+					RenderGBuffer(TimeStep, Geometry, Options);
+			}
+			else if (State == RenderState_Depth_Linear)
+			{
+				if (!(Options & RenderOpt_Inner))
+					return;
+
+				Rest::Pool<Drawable*>* Opaque = GetOpaque();
+				if (Opaque != nullptr && Opaque->Size() > 0)
+					RenderDepthLinear(TimeStep, Opaque);
+
+				Rest::Pool<Drawable*>* Transparent = GetTransparent();
+				if (Transparent != nullptr && Transparent->Size() > 0)
+					RenderDepthLinear(TimeStep, Transparent);
+			}
+			else if (State == RenderState_Depth_Cubic)
+			{
+				Viewer& View = System->GetScene()->View;
+				if (!(Options & RenderOpt_Inner))
+					return;
+
+				Rest::Pool<Drawable*>* Opaque = GetOpaque();
+				if (Opaque != nullptr && Opaque->Size() > 0)
+					RenderDepthCubic(TimeStep, Opaque, View.CubicViewProjection);
+
+				Rest::Pool<Drawable*>* Transparent = GetTransparent();
+				if (Transparent != nullptr && Transparent->Size() > 0)
+					RenderDepthCubic(TimeStep, Transparent, View.CubicViewProjection);
+			}
+		}
+		Rest::Pool<Drawable*>* GeometryDraw::GetOpaque()
+		{
+			if (!System || !System->GetScene())
+				return false;
+
+			return System->GetScene()->GetOpaque(Source);
+		}
+		Rest::Pool<Drawable*>* GeometryDraw::GetTransparent()
+		{
+			if (!System || !System->GetScene())
+				return false;
+
+			return System->GetScene()->GetTransparent(Source);
+		}
+
+		TimingDraw::TimingDraw(RenderSystem* Lab) : Renderer(Lab)
+		{
+		}
+		TimingDraw::~TimingDraw()
+		{
+		}
+		void TimingDraw::TickRender(Rest::Timer* TimeStep, RenderState State, RenderOpt Options)
+		{
+		}
+		void TimingDraw::FrameRender(Rest::Timer* TimeStep, RenderState State, RenderOpt Options)
+		{
+		}
+		void TimingDraw::Render(Rest::Timer* Time, RenderState State, RenderOpt Options)
+		{
+			if (Tick.TickEvent(Time->GetElapsedTime()))
+				TickRender(Time, State, Options);
+
+			FrameRender(Time, State, Options);
+		}
+		
+		EffectDraw::EffectDraw(RenderSystem* Lab) : Renderer(Lab), Output(nullptr), Pass(nullptr)
+		{
+			DepthStencil = Lab->GetDevice()->GetDepthStencilState("none");
+			Rasterizer = Lab->GetDevice()->GetRasterizerState("cull-back");
+			Blend = Lab->GetDevice()->GetBlendState("overwrite");
+			Sampler = Lab->GetDevice()->GetSamplerState("trilinear-x16");
+			Layout = Lab->GetDevice()->GetInputLayout("shape-vertex");
+		}
+		EffectDraw::~EffectDraw()
+		{
+			for (auto It = Shaders.begin(); It != Shaders.end(); It++)
+				System->FreeShader(It->first, It->second);
+
+			TH_RELEASE(Pass);
+			TH_RELEASE(Output);
+		}
+		void EffectDraw::RenderMerge(Graphics::Shader* Effect, void* Buffer)
+		{
+			if (!Effect)
+				Effect = Shaders.begin()->second;
+
+			Graphics::GraphicsDevice* Device = System->GetDevice();
+			Device->SetTexture2D(Pass, 5);
+			Device->SetShader(Effect, Graphics::ShaderType_Vertex | Graphics::ShaderType_Pixel);
+
+			if (Buffer != nullptr)
+			{
+				Device->UpdateBuffer(Effect, Buffer);
+				Device->SetBuffer(Effect, 3, Graphics::ShaderType_Vertex | Graphics::ShaderType_Pixel);
+			}
+
+			Device->Draw(6, 0);
+			Device->CopyTexture2D(Output, &Pass);
+			Device->GenerateTexture(Pass);
+		}
+		void EffectDraw::RenderResult(Graphics::Shader* Effect, void* Buffer)
+		{
+			if (!Effect)
+				Effect = Shaders.begin()->second;
+
+			Graphics::GraphicsDevice* Device = System->GetDevice();
+			Device->SetTexture2D(Pass, 5);
+			Device->SetShader(Effect, Graphics::ShaderType_Vertex | Graphics::ShaderType_Pixel);
+
+			if (Buffer != nullptr)
+			{
+				Device->UpdateBuffer(Effect, Buffer);
+				Device->SetBuffer(Effect, 3, Graphics::ShaderType_Vertex | Graphics::ShaderType_Pixel);
+			}
+
+			Device->Draw(6, 0);
+		}
+		void EffectDraw::RenderEffect(Rest::Timer* Time)
+		{
+		}
+		void EffectDraw::Activate()
+		{
+			ResizeBuffers();
+		}
+		void EffectDraw::Render(Rest::Timer* Time, RenderState State, RenderOpt Options)
+		{
+			if (State != RenderState_GBuffer || Options & RenderOpt_Inner)
+				return;
+
+			Graphics::MultiRenderTarget2D* Surface = System->GetScene()->GetSurface();
+			if (!Surface || Shaders.empty())
+				return;
+
+			Graphics::GraphicsDevice* Device = System->GetDevice();
+			Device->SetDepthStencilState(DepthStencil);
+			Device->SetSamplerState(Sampler);
+			Device->SetBlendState(Blend);
+			Device->SetRasterizerState(Rasterizer);
+			Device->SetInputLayout(Layout);
+			Device->SetTarget(Output, 0, 0, 0);
+			Device->SetTexture2D(Surface->GetTarget(0), 1);
+			Device->SetTexture2D(Surface->GetTarget(1), 2);
+			Device->SetTexture2D(Surface->GetTarget(2), 3);
+			Device->SetTexture2D(Surface->GetTarget(3), 4);
+			Device->SetVertexBuffer(System->GetQuadVBuffer(), 0);
+
+			RenderEffect(Time);
+
+			Device->FlushTexture2D(1, 4);
+			Device->CopyTargetFrom(Surface, 0, Output);
+		}
+		void EffectDraw::ResizeBuffers()
+		{
+			Graphics::RenderTarget2D::Desc I = Graphics::RenderTarget2D::Desc();
+			I.MiscFlags = Graphics::ResourceMisc_Generate_Mips;
+			I.Width = (unsigned int)System->GetScene()->GetSurface()->GetWidth();
+			I.Height = (unsigned int)System->GetScene()->GetSurface()->GetHeight();
+			I.MipLevels = System->GetDevice()->GetMipLevel(I.Width, I.Height);
+			System->GetScene()->GetTargetFormat(&I.FormatMode, 1);
+
+			TH_RELEASE(Output);
+			Output = System->GetDevice()->CreateRenderTarget2D(I);
+			TH_CLEAR(Pass);
+		}
+		Graphics::Shader* EffectDraw::GetEffect(const std::string& Name)
+		{
+			auto It = Shaders.find(Name);
+			if (It != Shaders.end())
+				return It->second;
+
+			return nullptr;
+		}
+		Graphics::Shader* EffectDraw::CompileEffect(const std::string& Name, const std::string& Code, size_t BufferSize)
+		{
+			if (Name.empty())
+			{
+				TH_ERROR("cannot compile unnamed shader source");
+				return nullptr;
+			}
+
+			Graphics::Shader::Desc Desc = Graphics::Shader::Desc();
+			Desc.Data = Code;
+
+			Graphics::Shader* Shader = System->CompileShader(Name, Desc, BufferSize);
+			if (!Shader)
+				return nullptr;
+
+			auto It = Shaders.find(Name);
+			if (It != Shaders.end())
+			{
+				delete It->second;
+				It->second = Shader;
+			}
+			else
+				Shaders[Name] = Shader;
+
+			return Shader;
+		}
+
+		SceneGraph::SceneGraph(const Desc& I) : Conf(I), Active(true), Invoked(false)
 		{
 			Image.DepthStencil = nullptr;
 			Image.Rasterizer = nullptr;
@@ -3150,15 +3294,15 @@ namespace Tomahawk
 		}
 		SceneGraph::~SceneGraph()
 		{
-			Denotify();
+			Dispatch();
 			Lock();
 
 			for (auto It = Entities.Begin(); It != Entities.End(); It++)
-				delete *It;
+				TH_RELEASE(*It);
 
-			delete Structure;
-			delete Surface;
-			delete Simulator;
+			TH_RELEASE(Structure);
+			TH_RELEASE(Surface);
+			TH_RELEASE(Simulator);
 
 			Unlock();
 		}
@@ -3177,6 +3321,15 @@ namespace Tomahawk
 			Conf = NewConf;
 			Entities.Reserve(Conf.EntityCount);
 			Pending.Reserve(Conf.ComponentCount);
+
+			for (auto& Array : Components)
+				Array.second.Reserve(Conf.ComponentCount);
+
+			for (auto& Array : Drawables)
+			{
+				Array.second.Opaque.Reserve(Conf.ComponentCount);
+				Array.second.Transparent.Reserve(Conf.ComponentCount);
+			}
 
 			ResizeBuffers();
 			if (Camera != nullptr)
@@ -3219,10 +3372,10 @@ namespace Tomahawk
 			Conf.Device->SetInputLayout(Image.Layout);
 			Conf.Device->SetShader(Conf.Device->GetBasicEffect(), Graphics::ShaderType_Vertex | Graphics::ShaderType_Pixel);
 			Conf.Device->SetVertexBuffer(View.Renderer->GetQuadVBuffer(), 0);
-			Conf.Device->SetTexture2D(Surface->GetTarget(0), 0);
+			Conf.Device->SetTexture2D(Surface->GetTarget(0), 1);
 			Conf.Device->UpdateBuffer(Graphics::RenderBufferType_Render);
 			Conf.Device->Draw(6, 0);
-			Conf.Device->SetTexture2D(nullptr, 0);
+			Conf.Device->SetTexture2D(nullptr, 1);
 		}
 		void SceneGraph::RenderGBuffer(Rest::Timer* Time, RenderOpt Options)
 		{
@@ -3301,12 +3454,12 @@ namespace Tomahawk
 		}
 		void SceneGraph::Update(Rest::Timer* Time)
 		{
-			if (!Active)
-				return;
-
 			BeginThread(ThreadId_Update);
-			for (auto It = Pending.Begin(); It != Pending.End(); It++)
-				(*It)->Update(Time);
+			if (Active)
+			{
+				for (auto It = Pending.Begin(); It != Pending.End(); It++)
+					(*It)->Update(Time);
+			}
 
 			Compute::Vector3& Far = View.WorldPosition;
 			if (Camera != nullptr)
@@ -3315,8 +3468,14 @@ namespace Tomahawk
 			for (auto It = Entities.Begin(); It != Entities.End(); It++)
 				(*It)->Distance = (*It)->Transform->Position.Distance(Far);
 
-			DispatchEvents();
+			DispatchLastEvent();
 			EndThread(ThreadId_Update);
+		}
+		void SceneGraph::Actualize()
+		{
+			Redistribute();
+			Dispatch();
+			Reindex();
 		}
 		void SceneGraph::Redistribute()
 		{
@@ -3384,26 +3543,6 @@ namespace Tomahawk
 				return A->Parent->Distance < B->Parent->Distance;
 			});
 		}
-		void SceneGraph::SetMutation(const std::string& Name, const MutationCallback& Callback)
-		{
-			if (Mutation.Invoked)
-				return;
-
-			Mutation.Safe.lock();
-			Mutation.Invoked = true;
-
-			if (!Callback)
-			{
-				auto It = Mutation.Callbacks.find(Name);
-				if (It != Mutation.Callbacks.end())
-					Mutation.Callbacks.erase(It);
-			}
-			else
-				Mutation.Callbacks[Name] = Callback;
-
-			Mutation.Invoked = true;
-			Mutation.Safe.unlock();
-		}
 		void SceneGraph::SetCamera(Entity* In)
 		{
 			if (In != nullptr)
@@ -3429,14 +3568,14 @@ namespace Tomahawk
 			if (!Entity)
 				return;
 
-			Denotify();
+			Dispatch();
 			if (!UnregisterEntity(Entity) || !Release)
 				return;
 			else
 				Entity->RemoveChilds();
 
 			Lock();
-			delete Entity;
+			TH_RELEASE(Entity);
 			Unlock();
 		}
 		void SceneGraph::RemoveMaterial(uint64_t Material)
@@ -3444,7 +3583,10 @@ namespace Tomahawk
 			if (Material >= Materials.size() || Material >= Names.size())
 				return;
 
-			if (!NotifyEach<Engine::Material>(nullptr, Materials[Material]))
+			Compute::PropertyArgs Args;
+			Args["material-id"] = Compute::Property((int64_t)Materials[Material].Id);
+
+			if (!DispatchEvent("materialchange", Args))
 				return;
 
 			Lock();
@@ -3466,11 +3608,9 @@ namespace Tomahawk
 			if (!In)
 				return;
 
-			InvokeMutation(In, nullptr, true);
 			for (auto& Component : In->Components)
 			{
 				Component.second->Awake(Component.second);
-				InvokeMutation(In, Component.second, true);
 
 				auto Storage = GetComponents(Component.second->GetId());
 				if (Component.second->Active)
@@ -3483,6 +3623,8 @@ namespace Tomahawk
 				else
 					Pending.Remove(Component.second);
 			}
+
+			Mutate(In, true);
 		}
 		bool SceneGraph::UnregisterEntity(Entity* In)
 		{
@@ -3496,11 +3638,9 @@ namespace Tomahawk
 			if (!In || !In->GetScene())
 				return false;
 
-			InvokeMutation(In, nullptr, false);
 			for (auto& Component : In->Components)
 			{
 				Component.second->Asleep();
-				InvokeMutation(In, Component.second, false);
 
 				auto Storage = &Components[Component.second->GetId()];
 				Storage->Remove(Component.second);
@@ -3508,6 +3648,8 @@ namespace Tomahawk
 			}
 
 			Entities.Remove(In);
+			Mutate(In, false);
+
 			return true;
 		}
 		void SceneGraph::CloneEntities(Entity* Instance, std::vector<Entity*>* Array)
@@ -3579,7 +3721,7 @@ namespace Tomahawk
 			F.Elements = Materials.data();
 			F.StructureByteStride = F.ElementWidth;
 
-			delete Structure;
+			TH_RELEASE(Structure);
 			Structure = Conf.Device->CreateElementBuffer(F);
 			Unlock();
 		}
@@ -3652,39 +3794,12 @@ namespace Tomahawk
 			Thread* Entry = &Sync.Threads[(uint64_t)Id];
 			Entry->Id = std::thread::id();
 		}
-		void SceneGraph::DispatchEvents()
+		void SceneGraph::Dispatch()
 		{
-			Sync.Events.lock();
-			if (Events.empty())
-				return Sync.Events.unlock();
+			if (Conf.Queue != nullptr)
+				while (Conf.Queue->Pull<Event>(Rest::EventType_Events));
 
-			Event* Message = *Events.begin();
-			Events.erase(Events.begin());
-			Sync.Events.unlock();
-
-			if (Message->Foreach)
-			{
-				if (!Message->Root || !Message->Root->Parent)
-				{
-					for (auto It = Entities.Begin(); It != Entities.End(); It++)
-					{
-						for (auto K = (*It)->First(); K != (*It)->Last(); K++)
-							K->second->Pipe(Message);
-					}
-				}
-				else
-				{
-					for (auto It = Message->Root->Parent->First(); It != Message->Root->Parent->Last(); It++)
-						It->second->Pipe(Message);
-				}
-			}
-			else if (Message->Root)
-				Message->Root->Pipe(Message);
-
-			if (Message->Context != nullptr)
-				TH_FREE(Message->Context);
-
-			delete Message;
+			while (DispatchLastEvent());
 		}
 		void SceneGraph::ResizeBuffers()
 		{
@@ -3694,7 +3809,7 @@ namespace Tomahawk
 			if (Camera != nullptr)
 			{
 				Lock();
-				delete Surface;
+				TH_RELEASE(Surface);
 				Surface = Conf.Device->CreateMultiRenderTarget2D(F);
 
 				auto* Array = GetComponents<Components::Camera>();
@@ -3705,7 +3820,7 @@ namespace Tomahawk
 			}
 			else
 			{
-				delete Surface;
+				TH_RELEASE(Surface);
 				Surface = Conf.Device->CreateMultiRenderTarget2D(F);
 			}
 		}
@@ -3801,26 +3916,6 @@ namespace Tomahawk
 		{
 			Conf.Device->ClearDepth(Surface);
 		}
-		void SceneGraph::InvokeMutation(Entity* Target, Component* Base, bool Push)
-		{
-			if (Mutation.Callbacks.empty())
-				return;
-
-			bool Invoked = Mutation.Invoked;
-			if (!Invoked)
-				Mutation.Safe.lock();
-			Mutation.Invoked = true;
-
-			for (auto& Callback : Mutation.Callbacks)
-			{
-				if (Callback.second)
-					Callback.second(Target, Base, Push);
-			}
-
-			Mutation.Invoked = Invoked;
-			if (!Invoked)
-				Mutation.Safe.unlock();
-		}
 		void SceneGraph::GetTargetDesc(Graphics::RenderTarget2D::Desc* Result)
 		{
 			if (!Result)
@@ -3863,6 +3958,127 @@ namespace Tomahawk
 
 			for (uint64_t i = 4; i < Size; i++)
 				Result[i] = Graphics::Format_Invalid;
+		}
+		bool SceneGraph::AddEventListener(const std::string& Name, const std::string& EventName, const MessageCallback& Callback)
+		{
+			if (!Callback || Invoked)
+				return false;
+
+			Sync.Listener.lock();
+			Invoked = true;
+
+			Listeners[Name] = std::make_pair(EventName, Callback);
+
+			Invoked = false;
+			Sync.Listener.unlock();
+
+			return true;
+		}
+		bool SceneGraph::RemoveEventListener(const std::string& Name)
+		{
+			bool Result = false;
+			if (Invoked)
+				return Result;
+
+			Sync.Listener.lock();
+			Invoked = true;
+
+			auto It = Listeners.find(Name);
+			if (It != Listeners.end())
+			{
+				Listeners.erase(It);
+				Result = true;
+			}
+
+			Invoked = false;
+			Sync.Listener.unlock();
+
+			return Result;
+		}
+		bool SceneGraph::DispatchEvent(const std::string& EventName, const Compute::PropertyArgs& Args)
+		{
+			return Conf.Queue ? Conf.Queue->Event<Event>(new Event(EventName, this, Args)) : false;
+		}
+		bool SceneGraph::DispatchEvent(Component* Target, const std::string& EventName, const Compute::PropertyArgs& Args)
+		{
+			return Conf.Queue ? Conf.Queue->Event<Event>(new Event(EventName, Target, Args)) : false;
+		}
+		bool SceneGraph::DispatchEvent(Entity* Target, const std::string& EventName, const Compute::PropertyArgs& Args)
+		{
+			return Conf.Queue ? Conf.Queue->Event<Event>(new Event(EventName, Target, Args)) : false;
+		}
+		bool SceneGraph::DispatchLastEvent()
+		{
+			Sync.Events.lock();
+			if (Events.empty())
+			{
+				Sync.Events.unlock();
+				return false;
+			}
+
+			Event* Message = *Events.begin();
+			Events.erase(Events.begin());
+
+			bool Result = !Events.empty();
+			Sync.Events.unlock();
+
+			if (Message->TScene != nullptr)
+			{
+				for (auto It = Entities.Begin(); It != Entities.End(); It++)
+				{
+					for (auto& Item : (*It)->Components)
+						Item.second->Message(Message);
+				}
+			}
+			else if (Message->TEntity != nullptr)
+			{
+				for (auto& Item : Message->TEntity->Components)
+					Item.second->Message(Message);
+			}
+			else if (Message->TComponent != nullptr)
+				Message->TComponent->Message(Message);
+
+			if (!Listeners.empty())
+			{
+				Sync.Listener.lock();
+				for (auto& Callback : Listeners)
+				{
+					if (Callback.second.first == Message->Id)
+						Callback.second.second(Message);
+				}
+				Sync.Listener.unlock();
+			}
+
+			delete Message;
+			return Result;
+		}
+		void SceneGraph::Mutate(Entity* Target, bool Added)
+		{
+			Compute::PropertyArgs Args;
+			Args["entity-ptr"] = Compute::Property((void*)Target);
+			Args["added"] = Compute::Property(Added);
+
+			DispatchEvent("mutation", Args);
+		}
+		void SceneGraph::AddDrawable(Drawable* Source, GeoCategory Category)
+		{
+			if (!Source)
+				return;
+		
+			if (Category == GeoCategory_Opaque)
+				GetOpaque(Source->Source)->Add(Source);
+			else if (Category == GeoCategory_Transparent)
+				GetTransparent(Source->Source)->Add(Source);
+		}
+		void SceneGraph::RemoveDrawable(Drawable* Source, GeoCategory Category)
+		{
+			if (!Source)
+				return;
+
+			if (Category == GeoCategory_Opaque)
+				GetOpaque(Source->Source)->Remove(Source);
+			else if (Category == GeoCategory_Transparent)
+				GetTransparent(Source->Source)->Remove(Source);
 		}
 		Material* SceneGraph::AddMaterial(const std::string& Name, const Material& From)
 		{
@@ -4059,6 +4275,30 @@ namespace Tomahawk
 
 			return Array;
 		}
+		Rest::Pool<Drawable*>* SceneGraph::GetOpaque(uint64_t Section)
+		{
+			Rest::Pool<Drawable*>* Array = &Drawables[Section].Opaque;
+			if (Array->Capacity() >= Conf.ComponentCount)
+				return Array;
+
+			Lock();
+			Array->Reserve(Conf.ComponentCount);
+			Unlock();
+
+			return Array;
+		}
+		Rest::Pool<Drawable*>* SceneGraph::GetTransparent(uint64_t Section)
+		{
+			Rest::Pool<Drawable*>* Array = &Drawables[Section].Transparent;
+			if (Array->Capacity() >= Conf.ComponentCount)
+				return Array;
+
+			Lock();
+			Array->Reserve(Conf.ComponentCount);
+			Unlock();
+
+			return Array;
+		}
 		std::vector<Entity*> SceneGraph::FindParentFreeEntities(Entity* Entity)
 		{
 			std::vector<Engine::Entity*> Array;
@@ -4146,14 +4386,6 @@ namespace Tomahawk
 			RegisterEntity(Entity);
 			return true;
 		}
-		bool SceneGraph::Denotify()
-		{
-			if (!Conf.Queue)
-				return false;
-
-			while (Conf.Queue->Pull<Event>(Rest::EventType_Events));
-			return true;
-		}
 		bool SceneGraph::HasEntity(Entity* Entity)
 		{
 			Lock();
@@ -4188,6 +4420,22 @@ namespace Tomahawk
 		uint64_t SceneGraph::GetMaterialCount()
 		{
 			return Materials.size();
+		}
+		uint64_t SceneGraph::GetOpaqueCount()
+		{
+			uint64_t Count = 0;
+			for (auto& Array : Drawables)
+				Count += Array.second.Opaque.Size();
+
+			return Count;
+		}
+		uint64_t SceneGraph::GetTransparentCount()
+		{
+			uint64_t Count = 0;
+			for (auto& Array : Drawables)
+				Count += Array.second.Transparent.Size();
+
+			return Count;
 		}
 		Graphics::MultiRenderTarget2D* SceneGraph::GetSurface()
 		{
@@ -4251,7 +4499,7 @@ namespace Tomahawk
 				if (!It->second)
 					continue;
 
-				FileProcessor* Root = It->second->Processor;
+				Processor* Root = It->second->Processor;
 				Mutex.unlock();
 				if (Root != nullptr)
 					Root->Free(It->second);
@@ -4281,12 +4529,11 @@ namespace Tomahawk
 			Rest::OS::SetDirectory(Environment.c_str());
 			Mutex.unlock();
 		}
-		void* ContentManager::LoadForward(const std::string& Path, FileProcessor* Processor, ContentMap* Map)
+		void* ContentManager::LoadForward(const std::string& Path, Processor* Processor, const Compute::PropertyArgs& Map)
 		{
 			if (Path.empty())
 				return nullptr;
 
-			ContentArgs Args(Map);
 			if (!Processor)
 			{
 				TH_ERROR("file processor for \"%s\" wasn't found", Path.c_str());
@@ -4314,16 +4561,16 @@ namespace Tomahawk
 
 			AssetResource* Asset = FindAsset(Path);
 			if (Asset != nullptr && Asset->Processor == Processor)
-				return Processor->Duplicate(Asset, &Args);
+				return Processor->Duplicate(Asset, Map);
 
 			auto Stream = new Rest::FileStream();
 			Stream->Open(File.c_str(), Rest::FileMode_Binary_Read_Only);
-			Object = Processor->Deserialize(Stream, Stream->Size(), 0, &Args);
-			delete Stream;
+			Object = Processor->Deserialize(Stream, Stream->Size(), 0, Map);
+			TH_RELEASE(Stream);
 
 			return Object;
 		}
-		void* ContentManager::LoadStreaming(const std::string& Path, FileProcessor* Processor, ContentMap* Map)
+		void* ContentManager::LoadStreaming(const std::string& Path, Processor* Processor, const Compute::PropertyArgs& Map)
 		{
 			if (Path.empty())
 				return nullptr;
@@ -4333,9 +4580,8 @@ namespace Tomahawk
 				return nullptr;
 
 			AssetResource* Asset = FindAsset(Path);
-			ContentArgs Args(Map);
 			if (Asset != nullptr && Asset->Processor == Processor)
-				return Processor->Duplicate(Asset, &Args);
+				return Processor->Duplicate(Asset, Map);
 
 			auto It = Streams.find(Docker->second->Stream);
 			if (It == Streams.end())
@@ -4348,9 +4594,9 @@ namespace Tomahawk
 			Stream->Seek(Rest::FileSeek_Begin, It->second + Docker->second->Offset);
 			Stream->Filename() = Path;
 
-			return Processor->Deserialize(Stream, Docker->second->Length, It->second + Docker->second->Offset, &Args);
+			return Processor->Deserialize(Stream, Docker->second->Length, It->second + Docker->second->Offset, Map);
 		}
-		bool ContentManager::SaveForward(const std::string& Path, FileProcessor* Processor, void* Object, ContentMap* Map)
+		bool ContentManager::SaveForward(const std::string& Path, Processor* Processor, void* Object, const Compute::PropertyArgs& Map)
 		{
 			if (Path.empty())
 				return false;
@@ -4368,7 +4614,6 @@ namespace Tomahawk
 			}
 
 			Mutex.lock();
-			ContentArgs Args(Map);
 			std::string Directory = Rest::OS::FileDirectory(Path);
 			std::string File = Rest::OS::Resolve(Directory, Environment);
 			File.append(Path.substr(Directory.size()));
@@ -4380,13 +4625,14 @@ namespace Tomahawk
 				if (!Stream->Open(Path.c_str(), Rest::FileMode_Binary_Write_Only))
 				{
 					TH_ERROR("cannot open stream for writing at \"%s\" or \"%s\"", File.c_str(), Path.c_str());
-					delete Stream;
+					TH_RELEASE(Stream);
 					return false;
 				}
 			}
 
-			bool Result = Processor->Serialize(Stream, Object, &Args);
-			delete Stream;
+			bool Result = Processor->Serialize(Stream, Object, Map);
+			TH_RELEASE(Stream);
+
 			return Result;
 		}
 		bool ContentManager::Import(const std::string& Path)
@@ -4409,7 +4655,8 @@ namespace Tomahawk
 			if (!Stream->OpenZ(File.c_str(), Rest::FileMode::FileMode_Binary_Read_Only))
 			{
 				TH_ERROR("cannot open \"%s\" for reading", File.c_str());
-				delete Stream;
+				TH_RELEASE(Stream);
+
 				return false;
 			}
 
@@ -4417,14 +4664,16 @@ namespace Tomahawk
 			if (Stream->Read(Buffer, 16) != 16)
 			{
 				TH_ERROR("file \"%s\" has corrupted header", File.c_str());
-				delete Stream;
+				TH_RELEASE(Stream);
+
 				return false;
 			}
 
 			if (memcmp(Buffer, "\0d\0o\0c\0k\0h\0e\0a\0d", sizeof(char) * 16) != 0)
 			{
 				TH_ERROR("file \"%s\" header version is corrupted", File.c_str());
-				delete Stream;
+				TH_RELEASE(Stream);
+
 				return false;
 			}
 
@@ -4432,7 +4681,8 @@ namespace Tomahawk
 			if (Stream->Read((char*)&Size, sizeof(uint64_t)) != sizeof(uint64_t))
 			{
 				TH_ERROR("file \"%s\" has corrupted dock size", File.c_str());
-				delete Stream;
+				TH_RELEASE(Stream);
+
 				return false;
 			}
 
@@ -4479,22 +4729,22 @@ namespace Tomahawk
 				return false;
 			}
 
-			std::string Base = Rest::OS::Resolve(Directory, Environment);
-			auto Tree = new Rest::FileTree(Base);
+			std::string DBase = Rest::OS::Resolve(Directory, Environment);
+			auto Tree = new Rest::FileTree(DBase);
 			Stream->Write("\0d\0o\0c\0k\0h\0e\0a\0d", sizeof(char) * 16);
 
 			uint64_t Size = Tree->GetFiles();
 			Stream->Write((char*)&Size, sizeof(uint64_t));
 
 			uint64_t Offset = 0;
-			Tree->Loop([Stream, &Offset, &Base, &Name](Rest::FileTree* Tree)
+			Tree->Loop([Stream, &Offset, &DBase, &Name](Rest::FileTree* Tree)
 			{
 				for (auto& Resource : Tree->Files)
 				{
 					Rest::FileStream* File = new Rest::FileStream();
 					if (File->Open(Resource.c_str(), Rest::FileMode_Binary_Read_Only))
 					{
-						std::string Path = Rest::Stroke(Resource).Replace(Base, Name).Replace('\\', '/').R();
+						std::string Path = Rest::Stroke(Resource).Replace(DBase, Name).Replace('\\', '/').R();
 						if (Name.empty())
 							Path.assign(Path.substr(1));
 
@@ -4509,7 +4759,8 @@ namespace Tomahawk
 						if (Size > 0)
 							Stream->Write((char*)Path.c_str(), sizeof(char) * Size);
 					}
-					delete File;
+
+					TH_RELEASE(File);
 				}
 
 				return true;
@@ -4533,18 +4784,18 @@ namespace Tomahawk
 							Size -= Offset;
 						}
 					}
-					delete File;
+					TH_RELEASE(File);
 				}
 
 				return true;
 			});
 
-			delete Tree;
-			delete Stream;
+			TH_RELEASE(Tree);
+			TH_RELEASE(Stream);
 
 			return true;
 		}
-		bool ContentManager::Cache(FileProcessor* Root, const std::string& Path, void* Resource)
+		bool ContentManager::Cache(Processor* Root, const std::string& Path, void* Resource)
 		{
 			Mutex.lock();
 			auto It = Assets.find(Path);
@@ -4645,16 +4896,23 @@ namespace Tomahawk
 					{
 						GUI::Context* GUI = (GUI::Context*)GetGUI();
 						if (GUI != nullptr)
-							GUI->EmitWheel(X, Y, Normal);
-
+							GUI->EmitWheel(X, Y, Normal, Activity->GetKeyModState());
+						
 						WheelEvent(X, Y, Normal);
 					};
 					Activity->Callbacks.WindowStateChange = [this](Graphics::WindowState NewState, int X, int Y)
 					{
+						if (NewState == Graphics::WindowState_Resize)
+						{
+							GUI::Context* GUI = (GUI::Context*)GetGUI();
+							if (GUI != nullptr)
+								GUI->EmitResize(X, Y);
+						}
+
 						WindowEvent(NewState, X, Y);
 					};
 
-					Activity->Cursor(!I->DisableCursor);
+					Activity->SetCursorVisibility(!I->DisableCursor);
 					if (I->Usage & ApplicationUse_Graphics_Module)
 					{
 						Compute::Vector2 Size = Activity->GetSize();
@@ -4668,10 +4926,9 @@ namespace Tomahawk
 						Renderer = Graphics::GraphicsDevice::Create(I->GraphicsDevice);
 						if (!Renderer || !Renderer->IsValid())
 						{
-							delete Renderer;
-							Renderer = nullptr;
-
 							TH_ERROR("graphics device cannot be created");
+							TH_CLEAR(Renderer);
+
 							return;
 						}
 
@@ -4689,10 +4946,9 @@ namespace Tomahawk
 				Audio = new Audio::AudioDevice();
 				if (!Audio->IsValid())
 				{
-					delete Audio;
-					Audio = nullptr;
-
 					TH_ERROR("audio device cannot be created");
+					TH_CLEAR(Renderer);
+
 					return;
 				}
 			}
@@ -4700,21 +4956,27 @@ namespace Tomahawk
 			if (I->Usage & ApplicationUse_Content_Module)
 			{
 				Content = new ContentManager(Renderer, Queue);
-				Content->AddProcessor<FileProcessors::AssetFileProcessor, Engine::AssetFile>();
-				Content->AddProcessor<FileProcessors::SceneGraphProcessor, Engine::SceneGraph>();
-				Content->AddProcessor<FileProcessors::AudioClipProcessor, Audio::AudioClip>();
-				Content->AddProcessor<FileProcessors::Texture2DProcessor, Graphics::Texture2D>();
-				Content->AddProcessor<FileProcessors::ShaderProcessor, Graphics::Shader>();
-				Content->AddProcessor<FileProcessors::ModelProcessor, Graphics::Model>();
-				Content->AddProcessor<FileProcessors::SkinModelProcessor, Graphics::SkinModel>();
-				Content->AddProcessor<FileProcessors::DocumentProcessor, Rest::Document>();
-				Content->AddProcessor<FileProcessors::ServerProcessor, Network::HTTP::Server>();
-				Content->AddProcessor<FileProcessors::ShapeProcessor, Compute::UnmanagedShape>();
+				Content->AddProcessor<Processors::Asset, Engine::AssetFile>();
+				Content->AddProcessor<Processors::SceneGraph, Engine::SceneGraph>();
+				Content->AddProcessor<Processors::AudioClip, Audio::AudioClip>();
+				Content->AddProcessor<Processors::Texture2D, Graphics::Texture2D>();
+				Content->AddProcessor<Processors::Shader, Graphics::Shader>();
+				Content->AddProcessor<Processors::Model, Graphics::Model>();
+				Content->AddProcessor<Processors::SkinModel, Graphics::SkinModel>();
+				Content->AddProcessor<Processors::Document, Rest::Document>();
+				Content->AddProcessor<Processors::Server, Network::HTTP::Server>();
+				Content->AddProcessor<Processors::Shape, Compute::UnmanagedShape>();
 				Content->SetEnvironment(I->Environment.empty() ? Rest::OS::GetDirectory() + I->Directory : I->Environment + I->Directory);
 			}
 
 			if (I->Usage & ApplicationUse_AngelScript_Module)
 				VM = new Script::VMManager();
+
+			if (Activity != nullptr && Renderer != nullptr && Content != nullptr)
+			{
+				GUI::Subsystem::SetMetadata(Activity, Content, nullptr);
+				GUI::Subsystem::SetManager(VM);
+			}
 
 			State = ApplicationState_Staging;
 		}
@@ -4723,14 +4985,18 @@ namespace Tomahawk
 			if (Renderer != nullptr)
 				Renderer->FlushState();
 
-			delete Scene;
-			delete Queue;
-			delete VM;
-			delete Audio;
-			delete Content;
-			delete Shaders;
-			delete Renderer;
-			delete Activity;
+			TH_RELEASE(Scene);
+			TH_RELEASE(Queue);
+			TH_RELEASE(VM);
+			TH_RELEASE(Audio);
+
+			if (Activity != nullptr && Renderer != nullptr && Content != nullptr)
+				Engine::GUI::Subsystem::Release();
+
+			TH_RELEASE(Content);
+			TH_RELEASE(Shaders);
+			TH_RELEASE(Renderer);
+			TH_RELEASE(Activity);
 			Host = nullptr;
 		}
 		void Application::KeyEvent(Graphics::KeyCode Key, Graphics::KeyMod Mod, int Virtual, int Repeat, bool Pressed)
@@ -4826,7 +5092,7 @@ namespace Tomahawk
 				return;
 
 			if (Scene != nullptr)
-				Scene->Denotify();
+				Scene->Dispatch();
 
 			if (I->TaskWorkersCount < Workers)
 				I->TaskWorkersCount = Workers;
@@ -4834,6 +5100,9 @@ namespace Tomahawk
 			Rest::Timer* Time = new Rest::Timer();
 			Time->SetStepLimitation(I->MaxFrames, I->MinFrames);
 			Time->FrameLimit = I->FrameLimit;
+
+			if (Activity != nullptr && Renderer != nullptr && Content != nullptr)
+				GUI::Subsystem::SetMetadata(Activity, Content, Time);
 
 			if (I->Threading != Rest::EventWorkflow_Singlethreaded)
 			{
@@ -4891,7 +5160,7 @@ namespace Tomahawk
 				Queue->SetState(Rest::EventState_Idle);
 			}
 
-			delete Time;
+			TH_RELEASE(Time);
 		}
 		void* Application::GetGUI()
 		{
@@ -4902,8 +5171,8 @@ namespace Tomahawk
 			if (!BaseCamera)
 				return nullptr;
 
-			Renderers::GUIRenderer* Renderer = BaseCamera->GetRenderer()->GetRenderer<Renderers::GUIRenderer>();
-			return Renderer != nullptr ? Renderer->GetContext() : nullptr;
+			Renderers::UserInterface* Result = BaseCamera->GetRenderer()->GetRenderer<Renderers::UserInterface>();
+			return Result != nullptr ? Result->GetContext() : nullptr;
 		}
 		void Application::Callee(Rest::EventQueue* Queue, Rest::EventArgs* Args)
 		{
@@ -4924,64 +5193,59 @@ namespace Tomahawk
 		}
 		void Application::Compose()
 		{
-			Rest::Composer::Push<Components::Model, Entity*>("Model");
-			Rest::Composer::Push<Components::LimpidModel, Entity*>("LimpidModel");
-			Rest::Composer::Push<Components::Skin, Entity*>("Skin");
-			Rest::Composer::Push<Components::LimpidSkin, Entity*>("LimpidSkin");
-			Rest::Composer::Push<Components::Emitter, Entity*>("Emitter");
-			Rest::Composer::Push<Components::LimpidEmitter, Entity*>("LimpidEmitter");
-			Rest::Composer::Push<Components::SoftBody, Entity*>("SoftBody");
-			Rest::Composer::Push<Components::LimpidSoftBody, Entity*>("LimpidSoftBody");
-			Rest::Composer::Push<Components::Decal, Entity*>("Decal");
-			Rest::Composer::Push<Components::LimpidDecal, Entity*>("LimpidDecal");
-			Rest::Composer::Push<Components::SkinAnimator, Entity*>("SkinAnimator");
-			Rest::Composer::Push<Components::KeyAnimator, Entity*>("KeyAnimator");
-			Rest::Composer::Push<Components::EmitterAnimator, Entity*>("EmitterAnimator");
-			Rest::Composer::Push<Components::RigidBody, Entity*>("RigidBody");
-			Rest::Composer::Push<Components::Acceleration, Entity*>("Acceleration");
-			Rest::Composer::Push<Components::SliderConstraint, Entity*>("SliderConstraint");
-			Rest::Composer::Push<Components::FreeLook, Entity*>("FreeLook");
-			Rest::Composer::Push<Components::Fly, Entity*>("Fly");
-			Rest::Composer::Push<Components::AudioSource, Entity*>("AudioSource");
-			Rest::Composer::Push<Components::AudioListener, Entity*>("AudioListener");
-			Rest::Composer::Push<Components::PointLight, Entity*>("PointLight");
-			Rest::Composer::Push<Components::SpotLight, Entity*>("SpotLight");
-			Rest::Composer::Push<Components::LineLight, Entity*>("LineLight");
-			Rest::Composer::Push<Components::ReflectionProbe, Entity*>("ReflectionProbe");
-			Rest::Composer::Push<Components::Camera, Entity*>("Camera");
-			Rest::Composer::Push<Components::Scriptable, Entity*>("Scriptable");
-			Rest::Composer::Push<Renderers::ModelRenderer, RenderSystem*>("ModelRenderer");
-			Rest::Composer::Push<Renderers::SkinRenderer, RenderSystem*>("SkinRenderer");
-			Rest::Composer::Push<Renderers::SoftBodyRenderer, RenderSystem*>("SoftBodyRenderer");
-			Rest::Composer::Push<Renderers::EmitterRenderer, RenderSystem*>("EmitterRenderer");
-			Rest::Composer::Push<Renderers::DecalRenderer, RenderSystem*>("DecalRenderer");
-			Rest::Composer::Push<Renderers::LimpidRenderer, RenderSystem*>("LimpidRenderer");
-			Rest::Composer::Push<Renderers::DepthRenderer, RenderSystem*>("DepthRenderer");
-			Rest::Composer::Push<Renderers::ProbeRenderer, RenderSystem*>("ProbeRenderer");
-			Rest::Composer::Push<Renderers::LightRenderer, RenderSystem*>("LightRenderer");
-			Rest::Composer::Push<Renderers::ReflectionsRenderer, RenderSystem*>("ReflectionsRenderer");
-			Rest::Composer::Push<Renderers::DepthOfFieldRenderer, RenderSystem*>("DepthOfFieldRenderer");
-			Rest::Composer::Push<Renderers::EmissionRenderer, RenderSystem*>("EmissionRenderer");
-			Rest::Composer::Push<Renderers::GlitchRenderer, RenderSystem*>("GlitchRenderer");
-			Rest::Composer::Push<Renderers::AmbientOcclusionRenderer, RenderSystem*>("AmbientOcclusionRenderer");
-			Rest::Composer::Push<Renderers::DirectOcclusionRenderer, RenderSystem*>("DirectOcclusionRenderer");
-			Rest::Composer::Push<Renderers::ToneRenderer, RenderSystem*>("ToneRenderer");
-			Rest::Composer::Push<Renderers::GUIRenderer, RenderSystem*>("GUIRenderer");
-			Rest::Composer::Push<Audio::Effects::ReverbEffect>("ReverbEffect");
-			Rest::Composer::Push<Audio::Effects::ChorusEffect>("ChorusEffect");
-			Rest::Composer::Push<Audio::Effects::DistortionEffect>("DistortionEffect");
-			Rest::Composer::Push<Audio::Effects::EchoEffect>("EchoEffect");
-			Rest::Composer::Push<Audio::Effects::FlangerEffect>("FlangerEffect");
-			Rest::Composer::Push<Audio::Effects::FrequencyShifterEffect>("FrequencyShifterEffect");
-			Rest::Composer::Push<Audio::Effects::VocalMorpherEffect>("VocalMorpherEffect");
-			Rest::Composer::Push<Audio::Effects::PitchShifterEffect>("PitchShifterEffect");
-			Rest::Composer::Push<Audio::Effects::RingModulatorEffect>("RingModulatorEffect");
-			Rest::Composer::Push<Audio::Effects::AutowahEffect>("AutowahEffect");
-			Rest::Composer::Push<Audio::Effects::CompressorEffect>("CompressorEffect");
-			Rest::Composer::Push<Audio::Effects::EqualizerEffect>("EqualizerEffect");
-			Rest::Composer::Push<Audio::Filters::LowpassFilter>("LowpassFilter");
-			Rest::Composer::Push<Audio::Filters::BandpassFilter>("BandpassFilter");
-			Rest::Composer::Push<Audio::Filters::HighpassFilter>("HighpassFilter");
+			Rest::Composer::Push<Components::Model, Entity*>();
+			Rest::Composer::Push<Components::Skin, Entity*>();
+			Rest::Composer::Push<Components::Emitter, Entity*>();
+			Rest::Composer::Push<Components::SoftBody, Entity*>();
+			Rest::Composer::Push<Components::Decal, Entity*>();
+			Rest::Composer::Push<Components::SkinAnimator, Entity*>();
+			Rest::Composer::Push<Components::KeyAnimator, Entity*>();
+			Rest::Composer::Push<Components::EmitterAnimator, Entity*>();
+			Rest::Composer::Push<Components::RigidBody, Entity*>();
+			Rest::Composer::Push<Components::Acceleration, Entity*>();
+			Rest::Composer::Push<Components::SliderConstraint, Entity*>();
+			Rest::Composer::Push<Components::FreeLook, Entity*>();
+			Rest::Composer::Push<Components::Fly, Entity*>();
+			Rest::Composer::Push<Components::AudioSource, Entity*>();
+			Rest::Composer::Push<Components::AudioListener, Entity*>();
+			Rest::Composer::Push<Components::PointLight, Entity*>();
+			Rest::Composer::Push<Components::SpotLight, Entity*>();
+			Rest::Composer::Push<Components::LineLight, Entity*>();
+			Rest::Composer::Push<Components::ReflectionProbe, Entity*>();
+			Rest::Composer::Push<Components::Camera, Entity*>();
+			Rest::Composer::Push<Components::Scriptable, Entity*>();
+			Rest::Composer::Push<Renderers::Model, RenderSystem*>();
+			Rest::Composer::Push<Renderers::Skin, RenderSystem*>();
+			Rest::Composer::Push<Renderers::SoftBody, RenderSystem*>();
+			Rest::Composer::Push<Renderers::Emitter, RenderSystem*>();
+			Rest::Composer::Push<Renderers::Decal, RenderSystem*>();
+			Rest::Composer::Push<Renderers::Transparency, RenderSystem*>();
+			Rest::Composer::Push<Renderers::Depth, RenderSystem*>();
+			Rest::Composer::Push<Renderers::Environment, RenderSystem*>();
+			Rest::Composer::Push<Renderers::Lighting, RenderSystem*>();
+			Rest::Composer::Push<Renderers::Glitch, RenderSystem*>();
+			Rest::Composer::Push<Renderers::Tone, RenderSystem*>();
+			Rest::Composer::Push<Renderers::DoF, RenderSystem*>();
+			Rest::Composer::Push<Renderers::Bloom, RenderSystem*>();
+			Rest::Composer::Push<Renderers::SSR, RenderSystem*>();
+			Rest::Composer::Push<Renderers::SSAO, RenderSystem*>();
+			Rest::Composer::Push<Renderers::SSDO, RenderSystem*>();
+			Rest::Composer::Push<Renderers::UserInterface, RenderSystem*>();
+			Rest::Composer::Push<Audio::Effects::Reverb>();
+			Rest::Composer::Push<Audio::Effects::Chorus>();
+			Rest::Composer::Push<Audio::Effects::Distortion>();
+			Rest::Composer::Push<Audio::Effects::Echo>();
+			Rest::Composer::Push<Audio::Effects::Flanger>();
+			Rest::Composer::Push<Audio::Effects::FrequencyShifter>();
+			Rest::Composer::Push<Audio::Effects::VocalMorpher>();
+			Rest::Composer::Push<Audio::Effects::PitchShifter>();
+			Rest::Composer::Push<Audio::Effects::RingModulator>();
+			Rest::Composer::Push<Audio::Effects::Autowah>();
+			Rest::Composer::Push<Audio::Effects::Compressor>();
+			Rest::Composer::Push<Audio::Effects::Equalizer>();
+			Rest::Composer::Push<Audio::Filters::Lowpass>();
+			Rest::Composer::Push<Audio::Filters::Bandpass>();
+			Rest::Composer::Push<Audio::Filters::Highpass>();
 		}
 		Application* Application::Get()
 		{

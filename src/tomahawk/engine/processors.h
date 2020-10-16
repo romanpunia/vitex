@@ -7,7 +7,7 @@ namespace Tomahawk
 {
 	namespace Engine
 	{
-		namespace FileProcessors
+		namespace Processors
 		{
 			enum MeshOpt
 			{
@@ -68,64 +68,64 @@ namespace Tomahawk
 				int64_t Index;
 			};
 
-			class TH_OUT AssetFileProcessor : public FileProcessor
+			class TH_OUT Asset : public Processor
 			{
 			public:
-				AssetFileProcessor(ContentManager* Manager);
-				void* Deserialize(Rest::FileStream* Stream, uint64_t Length, uint64_t Offset, ContentArgs* Args) override;
+				Asset(ContentManager* Manager);
+				void* Deserialize(Rest::FileStream* Stream, uint64_t Length, uint64_t Offset, const Compute::PropertyArgs& Args) override;
 			};
 
-			class TH_OUT SceneGraphProcessor : public FileProcessor
+			class TH_OUT SceneGraph : public Processor
 			{
 			public:
-				SceneGraphProcessor(ContentManager* Manager);
-				void* Deserialize(Rest::FileStream* Stream, uint64_t Length, uint64_t Offset, ContentArgs* Args) override;
-				bool Serialize(Rest::FileStream* Stream, void* Object, ContentArgs* Args) override;
+				SceneGraph(ContentManager* Manager);
+				void* Deserialize(Rest::FileStream* Stream, uint64_t Length, uint64_t Offset, const Compute::PropertyArgs& Args) override;
+				bool Serialize(Rest::FileStream* Stream, void* Object, const Compute::PropertyArgs& Args) override;
 			};
 
-			class TH_OUT AudioClipProcessor : public FileProcessor
+			class TH_OUT AudioClip : public Processor
 			{
 			public:
-				AudioClipProcessor(ContentManager* Manager);
-				virtual ~AudioClipProcessor() override;
+				AudioClip(ContentManager* Manager);
+				virtual ~AudioClip() override;
 				void Free(AssetResource* Asset) override;
-				void* Duplicate(AssetResource* Asset, ContentArgs* Args) override;
-				void* Deserialize(Rest::FileStream* Stream, uint64_t Length, uint64_t Offset, ContentArgs* Args) override;
-				void* DeserializeWAVE(Rest::FileStream* Stream, uint64_t Length, uint64_t Offset, ContentArgs* Args);
-				void* DeserializeOGG(Rest::FileStream* Stream, uint64_t Length, uint64_t Offset, ContentArgs* Args);
+				void* Duplicate(AssetResource* Asset, const Compute::PropertyArgs& Args) override;
+				void* Deserialize(Rest::FileStream* Stream, uint64_t Length, uint64_t Offset, const Compute::PropertyArgs& Args) override;
+				void* DeserializeWAVE(Rest::FileStream* Stream, uint64_t Length, uint64_t Offset, const Compute::PropertyArgs& Args);
+				void* DeserializeOGG(Rest::FileStream* Stream, uint64_t Length, uint64_t Offset, const Compute::PropertyArgs& Args);
 			};
 
-			class TH_OUT Texture2DProcessor : public FileProcessor
+			class TH_OUT Texture2D : public Processor
 			{
 			public:
-				Texture2DProcessor(ContentManager* Manager);
-				virtual ~Texture2DProcessor() override;
+				Texture2D(ContentManager* Manager);
+				virtual ~Texture2D() override;
 				void Free(AssetResource* Asset) override;
-				void* Duplicate(AssetResource* Asset, ContentArgs* Args) override;
-				void* Deserialize(Rest::FileStream* Stream, uint64_t Length, uint64_t Offset, ContentArgs* Args) override;
+				void* Duplicate(AssetResource* Asset, const Compute::PropertyArgs& Args) override;
+				void* Deserialize(Rest::FileStream* Stream, uint64_t Length, uint64_t Offset, const Compute::PropertyArgs& Args) override;
 			};
 
-			class TH_OUT ShaderProcessor : public FileProcessor
+			class TH_OUT Shader : public Processor
 			{
 			public:
-				ShaderProcessor(ContentManager* Manager);
-				virtual ~ShaderProcessor() override;
+				Shader(ContentManager* Manager);
+				virtual ~Shader() override;
 				void Free(AssetResource* Asset) override;
-				void* Duplicate(AssetResource* Asset, ContentArgs* Args) override;
-				void* Deserialize(Rest::FileStream* Stream, uint64_t Length, uint64_t Offset, ContentArgs* Args) override;
+				void* Duplicate(AssetResource* Asset, const Compute::PropertyArgs& Args) override;
+				void* Deserialize(Rest::FileStream* Stream, uint64_t Length, uint64_t Offset, const Compute::PropertyArgs& Args) override;
 			};
 
-			class TH_OUT ModelProcessor : public FileProcessor
+			class TH_OUT Model : public Processor
 			{
 			public:
 				Graphics::MeshBuffer::Desc Options;
 
 			public:
-				ModelProcessor(ContentManager* Manager);
-				virtual ~ModelProcessor() override;
+				Model(ContentManager* Manager);
+				virtual ~Model() override;
 				void Free(AssetResource* Asset) override;
-				void* Duplicate(AssetResource* Asset, ContentArgs* Args) override;
-				void* Deserialize(Rest::FileStream* Stream, uint64_t Length, uint64_t Offset, ContentArgs* Args) override;
+				void* Duplicate(AssetResource* Asset, const Compute::PropertyArgs& Args) override;
+				void* Deserialize(Rest::FileStream* Stream, uint64_t Length, uint64_t Offset, const Compute::PropertyArgs& Args) override;
 
 			public:
 				static Rest::Document* Import(const std::string& Path, unsigned int Opts = MeshOpt_CalcTangentSpace | MeshOpt_GenSmoothNormals | MeshOpt_JoinIdenticalVertices | MeshOpt_ImproveCacheLocality | MeshOpt_LimitBoneWeights | MeshOpt_RemoveRedundantMaterials | MeshOpt_SplitLargeMeshes | MeshOpt_Triangulate | MeshOpt_GenUVCoords | MeshOpt_SortByPType | MeshOpt_RemoveDegenerates | MeshOpt_RemoveInvalidData | MeshOpt_RemoveInstances | MeshOpt_ValidateDataStructure | MeshOpt_OptimizeMeshes | MeshOpt_TransformUVCoords | 0);
@@ -137,17 +137,17 @@ namespace Tomahawk
 				static std::vector<std::pair<int64_t, Compute::Joint>>::iterator FindJoint(std::vector<std::pair<int64_t, Compute::Joint>>& Joints, const std::string& Name);
 			};
 
-			class TH_OUT SkinModelProcessor : public FileProcessor
+			class TH_OUT SkinModel : public Processor
 			{
 			public:
 				Graphics::SkinMeshBuffer::Desc Options;
 
 			public:
-				SkinModelProcessor(ContentManager* Manager);
-				virtual ~SkinModelProcessor() override;
+				SkinModel(ContentManager* Manager);
+				virtual ~SkinModel() override;
 				void Free(AssetResource* Asset) override;
-				void* Duplicate(AssetResource* Asset, ContentArgs* Args) override;
-				void* Deserialize(Rest::FileStream* Stream, uint64_t Length, uint64_t Offset, ContentArgs* Args) override;
+				void* Duplicate(AssetResource* Asset, const Compute::PropertyArgs& Args) override;
+				void* Deserialize(Rest::FileStream* Stream, uint64_t Length, uint64_t Offset, const Compute::PropertyArgs& Args) override;
 
 			public:
 				static Rest::Document* ImportAnimation(const std::string& Path, unsigned int Opts = MeshOpt_CalcTangentSpace | MeshOpt_GenSmoothNormals | MeshOpt_JoinIdenticalVertices | MeshOpt_ImproveCacheLocality | MeshOpt_LimitBoneWeights | MeshOpt_RemoveRedundantMaterials | MeshOpt_SplitLargeMeshes | MeshOpt_Triangulate | MeshOpt_GenUVCoords | MeshOpt_SortByPType | MeshOpt_RemoveDegenerates | MeshOpt_RemoveInvalidData | MeshOpt_RemoveInstances | MeshOpt_ValidateDataStructure | MeshOpt_OptimizeMeshes | MeshOpt_TransformUVCoords | 0);
@@ -158,32 +158,32 @@ namespace Tomahawk
 				static void ProcessKeys(std::vector<Compute::AnimatorKey>* Keys, std::unordered_map<std::string, MeshNode>* Joints);
 			};
 
-			class TH_OUT DocumentProcessor : public FileProcessor
+			class TH_OUT Document : public Processor
 			{
 			public:
-				DocumentProcessor(ContentManager* Manager);
-				void* Deserialize(Rest::FileStream* Stream, uint64_t Length, uint64_t Offset, ContentArgs* Args) override;
-				bool Serialize(Rest::FileStream* Stream, void* Object, ContentArgs* Args) override;
+				Document(ContentManager* Manager);
+				void* Deserialize(Rest::FileStream* Stream, uint64_t Length, uint64_t Offset, const Compute::PropertyArgs& Args) override;
+				bool Serialize(Rest::FileStream* Stream, void* Object, const Compute::PropertyArgs& Args) override;
 			};
 
-			class TH_OUT ServerProcessor : public FileProcessor
+			class TH_OUT Server : public Processor
 			{
 			public:
 				std::function<void(void*, Rest::Document*)> Callback;
 
 			public:
-				ServerProcessor(ContentManager* Manager);
-				void* Deserialize(Rest::FileStream* Stream, uint64_t Length, uint64_t Offset, ContentArgs* Args) override;
+				Server(ContentManager* Manager);
+				void* Deserialize(Rest::FileStream* Stream, uint64_t Length, uint64_t Offset, const Compute::PropertyArgs& Args) override;
 			};
 
-			class TH_OUT ShapeProcessor : public FileProcessor
+			class TH_OUT Shape : public Processor
 			{
 			public:
-				ShapeProcessor(ContentManager* Manager);
-				virtual ~ShapeProcessor() override;
+				Shape(ContentManager* Manager);
+				virtual ~Shape() override;
 				void Free(AssetResource* Asset) override;
-				void* Duplicate(AssetResource* Asset, ContentArgs* Args) override;
-				void* Deserialize(Rest::FileStream* Stream, uint64_t Length, uint64_t Offset, ContentArgs* Args) override;
+				void* Duplicate(AssetResource* Asset, const Compute::PropertyArgs& Args) override;
+				void* Deserialize(Rest::FileStream* Stream, uint64_t Length, uint64_t Offset, const Compute::PropertyArgs& Args) override;
 			};
 		}
 	}

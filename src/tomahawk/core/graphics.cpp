@@ -314,8 +314,8 @@ namespace Tomahawk
 		}
 		MeshBuffer::~MeshBuffer()
 		{
-			delete VertexBuffer;
-			delete IndexBuffer;
+			TH_RELEASE(VertexBuffer);
+			TH_RELEASE(IndexBuffer);
 		}
 		ElementBuffer* MeshBuffer::GetVertexBuffer()
 		{
@@ -331,8 +331,8 @@ namespace Tomahawk
 		}
 		SkinMeshBuffer::~SkinMeshBuffer()
 		{
-			delete VertexBuffer;
-			delete IndexBuffer;
+			TH_RELEASE(VertexBuffer);
+			TH_RELEASE(IndexBuffer);
 		}
 		ElementBuffer* SkinMeshBuffer::GetVertexBuffer()
 		{
@@ -355,7 +355,7 @@ namespace Tomahawk
 		}
 		InstanceBuffer::~InstanceBuffer()
 		{
-			delete Elements;
+			TH_RELEASE(Elements);
 		}
 		Rest::Pool<Compute::ElementVertex>* InstanceBuffer::GetArray()
 		{
@@ -492,7 +492,7 @@ namespace Tomahawk
 		}
 		RenderTarget2D::~RenderTarget2D()
 		{
-			delete Resource;
+			TH_RELEASE(Resource);
 		}
 		Texture2D* RenderTarget2D::GetTarget()
 		{
@@ -527,7 +527,7 @@ namespace Tomahawk
 		}
 		RenderTargetCube::~RenderTargetCube()
 		{
-			delete Resource;
+			TH_RELEASE(Resource);
 		}
 		Texture2D* RenderTargetCube::GetTarget()
 		{
@@ -609,7 +609,7 @@ namespace Tomahawk
 			if (In.Data.empty())
 				return true;
 
-			Compute::IncludeDesc Desc;
+			Compute::IncludeDesc Desc = Compute::IncludeDesc();
 			Desc.Exts.push_back(".hlsl");
 			Desc.Exts.push_back(".glsl");
 			Desc.Root = Rest::OS::GetDirectory();
@@ -643,7 +643,7 @@ namespace Tomahawk
 				Processor->Define(Word);
 
 			bool Result = Processor->Process(In.Filename, In.Data);
-			delete Processor;
+			TH_RELEASE(Processor);
 
 			return Result;
 		}
@@ -667,7 +667,7 @@ namespace Tomahawk
 			DepthStencilStates["less"] = CreateDepthStencilState(DepthStencil);
 
 			DepthStencil.DepthEnable = true;
-			DepthStencil.DepthWriteMask = Graphics::DepthWrite_Zero;
+			DepthStencil.DepthWriteMask = Graphics::DepthWrite_All;
 			DepthStencil.DepthFunction = Graphics::Comparison_Greater_Equal;
 			DepthStencil.StencilEnable = true;
 			DepthStencil.StencilReadMask = 0xFF;
@@ -778,6 +778,18 @@ namespace Tomahawk
 			Rasterizer.ScissorEnable = true;
 			Rasterizer.SlopeScaledDepthBias = 0.0f;
 			RasterizerStates["cull-none-scissor"] = CreateRasterizerState(Rasterizer);
+
+			Rasterizer.AntialiasedLineEnable = false;
+			Rasterizer.CullMode = Graphics::VertexCull_Back;
+			Rasterizer.DepthBias = 0;
+			Rasterizer.DepthBiasClamp = 0;
+			Rasterizer.DepthClipEnable = true;
+			Rasterizer.FillMode = Graphics::SurfaceFill_Solid;
+			Rasterizer.FrontCounterClockwise = false;
+			Rasterizer.MultisampleEnable = false;
+			Rasterizer.ScissorEnable = true;
+			Rasterizer.SlopeScaledDepthBias = 0.0f;
+			RasterizerStates["cull-back-scissor"] = CreateRasterizerState(Rasterizer);
 
 			Graphics::BlendState::Desc Blend;
 			Blend.AlphaToCoverageEnable = false;
@@ -920,6 +932,14 @@ namespace Tomahawk
 			};
 			InputLayouts["skin-vertex"] = CreateInputLayout(Layout);
 
+			Layout.Attributes =
+			{
+				{ "POSITION", 0, AttributeType_Float, 2, 0 },
+				{ "COLOR", 0, AttributeType_Ubyte, 4, 2 * sizeof(float) },
+				{ "TEXCOORD", 0, AttributeType_Float, 2, 2 * sizeof(float) + 4 * sizeof(unsigned char) }
+			};
+			InputLayouts["gui-vertex"] = CreateInputLayout(Layout);
+
 			SetDepthStencilState(GetDepthStencilState("less"));
 			SetRasterizerState(GetRasterizerState("cull-back"));
 			SetBlendState(GetBlendState("overwrite"));
@@ -1039,6 +1059,28 @@ namespace Tomahawk
 #else
 				TH_ERROR("geometry/light/shade/spot.hlsl was not compiled");
 #endif
+#ifdef HAS_D3D11_GEOMETRY_BASIC_GBUFFER_HLSL
+				AddSection("geometry/basic/gbuffer.hlsl", GET_RESOURCE_BATCH(d3d11_geometry_basic_gbuffer_hlsl));
+#else
+				TH_ERROR("geometry/basic/gbuffer.hlsl was not compiled");
+#endif
+#ifdef HAS_D3D11_GEOMETRY_GUI_ELEMENT_HLSL
+				AddSection("geometry/gui/element.hlsl", GET_RESOURCE_BATCH(d3d11_geometry_gui_element_hlsl));
+#else
+				TH_ERROR("geometry/gui/element.hlsl was not compiled");
+#endif
+#ifdef HAS_D3D11_GEOMETRY_GUI_BOX_SHADOW_HLSL
+				unsigned int s = resource_batch::d3d11_geometry_gui_box_shadow_hlsl::size;
+				std::string dataa((const char*)resource_batch::d3d11_geometry_gui_box_shadow_hlsl::data, resource_batch::d3d11_geometry_gui_box_shadow_hlsl::size);
+				AddSection("geometry/gui/box-shadow.hlsl", GET_RESOURCE_BATCH(d3d11_geometry_gui_box_shadow_hlsl));
+#else
+				TH_ERROR("geometry/gui/box-shadow.hlsl was not compiled");
+#endif
+#ifdef HAS_D3D11_GEOMETRY_GUI_BOX_BLUR_HLSL
+				AddSection("geometry/gui/box-blur.hlsl", GET_RESOURCE_BATCH(d3d11_geometry_gui_box_blur_hlsl));
+#else
+				TH_ERROR("geometry/gui/box-blur.hlsl was not compiled");
+#endif
 #ifdef HAS_D3D11_PASS_LIMPID_HLSL
 				AddSection("pass/limpid.hlsl", GET_RESOURCE_BATCH(d3d11_pass_limpid_hlsl));
 #else
@@ -1079,11 +1121,6 @@ namespace Tomahawk
 #else
 				TH_ERROR("pass/glitch.hlsl was not compiled");
 #endif
-#ifdef HAS_D3D11_PASS_GUI_HLSL
-				AddSection("pass/gui.hlsl", GET_RESOURCE_BATCH(d3d11_pass_gui_hlsl));
-#else
-				TH_ERROR("pass/gui.hlsl was not compiled");
-#endif
 #ifdef HAS_D3D11_PASS_INDIRECT_HLSL
 				AddSection("pass/indirect.hlsl", GET_RESOURCE_BATCH(d3d11_pass_indirect_hlsl));
 #else
@@ -1118,11 +1155,6 @@ namespace Tomahawk
 				AddSection("renderer/buffer/cubic.hlsl", GET_RESOURCE_BATCH(d3d11_renderer_buffer_cubic_hlsl));
 #else
 				TH_ERROR("renderer/buffer/cubic.hlsl was not compiled");
-#endif
-#ifdef HAS_D3D11_RENDERER_BUFFER_GUI_HLSL
-				AddSection("renderer/buffer/gui.hlsl", GET_RESOURCE_BATCH(d3d11_renderer_buffer_gui_hlsl));
-#else
-				TH_ERROR("renderer/buffer/gui.hlsl was not compiled");
 #endif
 #ifdef HAS_D3D11_RENDERER_BUFFER_OBJECT_HLSL
 				AddSection("renderer/buffer/object.hlsl", GET_RESOURCE_BATCH(d3d11_renderer_buffer_object_hlsl));
@@ -1203,11 +1235,6 @@ namespace Tomahawk
 				AddSection("standard/atmosphere.hlsl", GET_RESOURCE_BATCH(d3d11_standard_atmosphere_hlsl));
 #else
 				TH_ERROR("standard/atmosphere.hlsl was not compiled");
-#endif
-#ifdef HAS_D3D11_STANDARD_BASIC_HLSL
-				AddSection("standard/basic.hlsl", GET_RESOURCE_BATCH(d3d11_standard_basic_hlsl));
-#else
-				TH_ERROR("standard/basic.hlsl was not compiled");
 #endif
 #ifdef HAS_D3D11_STANDARD_COOK_TORRANCE_HLSL
 				AddSection("standard/cook-torrance.hlsl", GET_RESOURCE_BATCH(d3d11_standard_cook_torrance_hlsl));
@@ -1372,6 +1399,26 @@ namespace Tomahawk
 #else
 			TH_ERROR("geometry/light/shade/spot.glsl was not compiled");
 #endif
+#ifdef HAS_OGL_GEOMETRY_BASIC_GBUFFER_GLSL
+				AddSection("geometry/basic/gbuffer.glsl", GET_RESOURCE_BATCH(ogl_geometry_basic_gbuffer_glsl));
+#else
+				TH_ERROR("geometry/basic/gbuffer.glsl was not compiled");
+#endif
+#ifdef HAS_OGL_GEOMETRY_GUI_ELEMENT_GLSL
+				AddSection("geometry/gui/element.glsl", GET_RESOURCE_BATCH(ogl_geometry_gui_element_glsl));
+#else
+				TH_ERROR("geometry/gui/element.glsl was not compiled");
+#endif
+#ifdef HAS_OGL_GEOMETRY_GUI_BOX_SHADOW_GLSL
+				AddSection("geometry/gui/box-shadow.glsl", GET_RESOURCE_BATCH(ogl_geometry_gui_box_shadow_glsl));
+#else
+				TH_ERROR("geometry/gui/box-shadow.glsl was not compiled");
+#endif
+#ifdef HAS_OGL_GEOMETRY_GUI_BOX_BLUR_GLSL
+				AddSection("geometry/gui/box-blur.glsl", GET_RESOURCE_BATCH(ogl_geometry_gui_box_blur_glsl));
+#else
+				TH_ERROR("geometry/gui/box-blur.glsl was not compiled");
+#endif
 #ifdef HAS_OGL_PASS_LIMPID_GLSL
 			AddSection("pass/limpid.glsl", GET_RESOURCE_BATCH(ogl_pass_limpid_glsl));
 #else
@@ -1412,11 +1459,6 @@ namespace Tomahawk
 #else
 			TH_ERROR("pass/glitch.glsl was not compiled");
 #endif
-#ifdef HAS_OGL_PASS_GUI_GLSL
-			AddSection("pass/gui.glsl", GET_RESOURCE_BATCH(ogl_pass_gui_glsl));
-#else
-			TH_ERROR("pass/gui.glsl was not compiled");
-#endif
 #ifdef HAS_OGL_PASS_INDIRECT_GLSL
 			AddSection("pass/indirect.glsl", GET_RESOURCE_BATCH(ogl_pass_indirect_glsl));
 #else
@@ -1451,11 +1493,6 @@ namespace Tomahawk
 			AddSection("renderer/buffer/cubic.glsl", GET_RESOURCE_BATCH(ogl_renderer_buffer_cubic_glsl));
 #else
 			TH_ERROR("renderer/buffer/cubic.glsl was not compiled");
-#endif
-#ifdef HAS_OGL_RENDERER_BUFFER_GUI_GLSL
-			AddSection("renderer/buffer/gui.glsl", GET_RESOURCE_BATCH(ogl_renderer_buffer_gui_glsl));
-#else
-			TH_ERROR("renderer/buffer/gui.glsl was not compiled");
 #endif
 #ifdef HAS_OGL_RENDERER_BUFFER_OBJECT_GLSL
 			AddSection("renderer/buffer/object.glsl", GET_RESOURCE_BATCH(ogl_renderer_buffer_object_glsl));
@@ -1537,11 +1574,6 @@ namespace Tomahawk
 #else
 			TH_ERROR("standard/atmosphere.glsl was not compiled");
 #endif
-#ifdef HAS_OGL_STANDARD_BASIC_GLSL
-			AddSection("standard/basic.glsl", GET_RESOURCE_BATCH(ogl_standard_basic_glsl));
-#else
-			TH_ERROR("standard/basic.glsl was not compiled");
-#endif
 #ifdef HAS_OGL_STANDARD_COOK_TORRANCE_GLSL
 			AddSection("standard/cook-torrance.glsl", GET_RESOURCE_BATCH(ogl_standard_cook_torrance_glsl));
 #else
@@ -1597,7 +1629,6 @@ namespace Tomahawk
 		unsigned int GraphicsDevice::GetMipLevel(unsigned int Width, unsigned int Height)
 		{
 			unsigned int MipLevels = 1;
-
 			while (Width > 1 && Height > 1)
 			{
 				Width = (unsigned int)Compute::Mathf::Max((float)Width / 2.0f, 1.0f);
@@ -1726,30 +1757,27 @@ namespace Tomahawk
 		void GraphicsDevice::FreeProxy()
 		{
 			for (auto It = DepthStencilStates.begin(); It != DepthStencilStates.end(); It++)
-				delete It->second;
+				TH_RELEASE(It->second);
 			DepthStencilStates.clear();
 
 			for (auto It = RasterizerStates.begin(); It != RasterizerStates.end(); It++)
-				delete It->second;
+				TH_RELEASE(It->second);
 			RasterizerStates.clear();
 
 			for (auto It = BlendStates.begin(); It != BlendStates.end(); It++)
-				delete It->second;
+				TH_RELEASE(It->second);
 			BlendStates.clear();
 
 			for (auto It = SamplerStates.begin(); It != SamplerStates.end(); It++)
-				delete It->second;
+				TH_RELEASE(It->second);
 			SamplerStates.clear();
 
 			for (auto It = InputLayouts.begin(); It != InputLayouts.end(); It++)
-				delete It->second;
+				TH_RELEASE(It->second);
 			InputLayouts.clear();
 
-			delete RenderTarget;
-			RenderTarget = nullptr;
-
-			delete BasicEffect;
-			BasicEffect = nullptr;
+			TH_CLEAR(RenderTarget);
+			TH_CLEAR(BasicEffect);
 		}
 		GraphicsDevice* GraphicsDevice::Create(const Desc& I)
 		{
@@ -1776,6 +1804,10 @@ namespace Tomahawk
 			Cursors[DisplayCursor_ResizeNESW] = SDL_CreateSystemCursor(SDL_SYSTEM_CURSOR_SIZENESW);
 			Cursors[DisplayCursor_ResizeNWSE] = SDL_CreateSystemCursor(SDL_SYSTEM_CURSOR_SIZENWSE);
 			Cursors[DisplayCursor_Hand] = SDL_CreateSystemCursor(SDL_SYSTEM_CURSOR_HAND);
+			Cursors[DisplayCursor_Crosshair] = SDL_CreateSystemCursor(SDL_SYSTEM_CURSOR_CROSSHAIR);
+			Cursors[DisplayCursor_Wait] = SDL_CreateSystemCursor(SDL_SYSTEM_CURSOR_WAIT);
+			Cursors[DisplayCursor_Progress] = SDL_CreateSystemCursor(SDL_SYSTEM_CURSOR_WAITARROW);
+			Cursors[DisplayCursor_No] = SDL_CreateSystemCursor(SDL_SYSTEM_CURSOR_NO);
 #endif
 			memset(Keys[0], 0, 1024 * sizeof(bool));
 			memset(Keys[1], 0, 1024 * sizeof(bool));
@@ -1798,6 +1830,9 @@ namespace Tomahawk
 		void Activity::SetClipboardText(const std::string& Text)
 		{
 #ifdef TH_HAS_SDL2
+			if (!Handle)
+				return;
+
 			SDL_SetClipboardText(Text.c_str());
 #endif
 		}
@@ -1820,6 +1855,8 @@ namespace Tomahawk
 		void Activity::SetGlobalCursorPosition(const Compute::Vector2& Position)
 		{
 #ifdef TH_HAS_SDL2
+			if (!Handle)
+				return;
 #if SDL_VERSION_ATLEAST(2, 0, 4)
 			SDL_WarpMouseGlobal((int)Position.X, (int)Position.Y);
 #endif
@@ -1828,6 +1865,8 @@ namespace Tomahawk
 		void Activity::SetGlobalCursorPosition(float X, float Y)
 		{
 #ifdef TH_HAS_SDL2
+			if (!Handle)
+				return;
 #if SDL_VERSION_ATLEAST(2, 0, 4)
 			SDL_WarpMouseGlobal((int)X, (int)Y);
 #endif
@@ -1840,13 +1879,55 @@ namespace Tomahawk
 		void Activity::SetCursor(DisplayCursor Style)
 		{
 #ifdef TH_HAS_SDL2
-			SDL_SetCursor(Cursors[Style]);
+			if (Style != DisplayCursor_None)
+			{
+				SDL_ShowCursor(true);
+				SDL_SetCursor(Cursors[Style]);
+			}
+			else
+			{
+				SDL_ShowCursor(false);
+				SDL_SetCursor(Cursors[DisplayCursor_Arrow]);
+			}
 #endif
 		}
-		void Activity::Cursor(bool Enabled)
+		void Activity::SetCursorVisibility(bool Enabled)
 		{
 #ifdef TH_HAS_SDL2
+			if (!Handle)
+				return;
+
 			SDL_ShowCursor(Enabled);
+#endif
+		}
+		void Activity::SetGrabbing(bool Enabled)
+		{
+#ifdef TH_HAS_SDL2
+			SDL_SetWindowGrab(Handle, Enabled ? SDL_TRUE : SDL_FALSE);
+#endif
+		}
+		void Activity::SetFullscreen(bool Enabled)
+		{
+#ifdef TH_HAS_SDL2
+			SDL_SetWindowFullscreen(Handle, Enabled ? SDL_WINDOW_FULLSCREEN : 0);
+#endif
+		}
+		void Activity::SetBorderless(bool Enabled)
+		{
+#ifdef TH_HAS_SDL2
+			SDL_SetWindowBordered(Handle, Enabled ? SDL_TRUE : SDL_FALSE);
+#endif
+		}
+		void Activity::SetScreenKeyboard(bool Enabled)
+		{
+#ifdef TH_HAS_SDL2
+			if (!Handle || !SDL_HasScreenKeyboardSupport())
+				return;
+
+			if (Enabled)
+				SDL_StartTextInput();
+			else
+				SDL_StopTextInput();
 #endif
 		}
 		void Activity::Reset()
@@ -1897,12 +1978,6 @@ namespace Tomahawk
 			Handle = SDL_CreateWindow(Rest.Title, Rest.X, Rest.Y, Rest.Width, Rest.Height, Flags);
 #endif
 		}
-		void Activity::Grab(bool Enabled)
-		{
-#ifdef TH_HAS_SDL2
-			SDL_SetWindowGrab(Handle, Enabled ? SDL_TRUE : SDL_FALSE);
-#endif
-		}
 		void Activity::Hide()
 		{
 #ifdef TH_HAS_SDL2
@@ -1927,18 +2002,6 @@ namespace Tomahawk
 			SDL_MinimizeWindow(Handle);
 #endif
 		}
-		void Activity::Fullscreen(bool Enabled)
-		{
-#ifdef TH_HAS_SDL2
-			SDL_SetWindowFullscreen(Handle, Enabled ? SDL_WINDOW_FULLSCREEN : 0);
-#endif
-		}
-		void Activity::Borderless(bool Enabled)
-		{
-#ifdef TH_HAS_SDL2
-			SDL_SetWindowBordered(Handle, Enabled ? SDL_TRUE : SDL_FALSE);
-#endif
-		}
 		void Activity::Focus()
 		{
 #ifdef TH_HAS_SDL2
@@ -1959,14 +2022,14 @@ namespace Tomahawk
 			SDL_SetWindowSize(Handle, W, H);
 #endif
 		}
-		void Activity::Title(const char* Value)
+		void Activity::SetTitle(const char* Value)
 		{
 #ifdef TH_HAS_SDL2
 			if (Value != nullptr)
 				SDL_SetWindowTitle(Handle, Value);
 #endif
 		}
-		void Activity::Icon(Surface* Icon)
+		void Activity::SetIcon(Surface* Icon)
 		{
 #ifdef TH_HAS_SDL2
 			SDL_SetWindowIcon(Handle, (SDL_Surface*)Icon->GetResource());
@@ -2095,7 +2158,6 @@ namespace Tomahawk
 					if (Mapping.Enabled && !Mapping.Mapped)
 					{
 						Mapping.Key.Key = (KeyCode)Event.key.keysym.scancode;
-						Mapping.Key.Mod = (KeyMod)Event.key.keysym.mod;
 						Mapping.Mapped = true;
 						Mapping.Captured = false;
 					}
@@ -2106,7 +2168,10 @@ namespace Tomahawk
 						Callbacks.KeyState((KeyCode)Event.key.keysym.scancode, (KeyMod)Event.key.keysym.mod, (int)Event.key.keysym.sym, (int)(Event.key.repeat != 0), false);
 
 					if (Mapping.Enabled && Mapping.Mapped && Mapping.Key.Key == (KeyCode)Event.key.keysym.scancode)
+					{
+						Mapping.Key.Mod = (KeyMod)SDL_GetModState();
 						Mapping.Captured = true;
+					}
 
 					return true;
 				case SDL_TEXTINPUT:
@@ -2136,7 +2201,6 @@ namespace Tomahawk
 							if (Mapping.Enabled && !Mapping.Mapped)
 							{
 								Mapping.Key.Key = KeyCode_CURSORLEFT;
-								Mapping.Key.Mod = (KeyMod)SDL_GetModState();
 								Mapping.Mapped = true;
 								Mapping.Captured = false;
 							}
@@ -2149,7 +2213,6 @@ namespace Tomahawk
 							if (Mapping.Enabled && !Mapping.Mapped)
 							{
 								Mapping.Key.Key = KeyCode_CURSORMIDDLE;
-								Mapping.Key.Mod = (KeyMod)SDL_GetModState();
 								Mapping.Mapped = true;
 								Mapping.Captured = false;
 							}
@@ -2162,7 +2225,6 @@ namespace Tomahawk
 							if (Mapping.Enabled && !Mapping.Mapped)
 							{
 								Mapping.Key.Key = KeyCode_CURSORRIGHT;
-								Mapping.Key.Mod = (KeyMod)SDL_GetModState();
 								Mapping.Mapped = true;
 								Mapping.Captured = false;
 							}
@@ -2175,7 +2237,6 @@ namespace Tomahawk
 							if (Mapping.Enabled && !Mapping.Mapped)
 							{
 								Mapping.Key.Key = KeyCode_CURSORX1;
-								Mapping.Key.Mod = (KeyMod)SDL_GetModState();
 								Mapping.Mapped = true;
 								Mapping.Captured = false;
 							}
@@ -2188,7 +2249,6 @@ namespace Tomahawk
 							if (Mapping.Enabled && !Mapping.Mapped)
 							{
 								Mapping.Key.Key = KeyCode_CURSORX2;
-								Mapping.Key.Mod = (KeyMod)SDL_GetModState();
 								Mapping.Mapped = true;
 								Mapping.Captured = false;
 							}
@@ -2204,7 +2264,10 @@ namespace Tomahawk
 								Callbacks.KeyState(KeyCode_CURSORLEFT, (KeyMod)SDL_GetModState(), (int)KeyCode_CURSORLEFT, (int)Event.button.clicks, false);
 
 							if (Mapping.Enabled && Mapping.Mapped && Mapping.Key.Key == KeyCode_CURSORLEFT)
+							{
+								Mapping.Key.Mod = (KeyMod)SDL_GetModState();
 								Mapping.Captured = true;
+							}
 
 							return true;
 						case SDL_BUTTON_MIDDLE:
@@ -2212,7 +2275,10 @@ namespace Tomahawk
 								Callbacks.KeyState(KeyCode_CURSORMIDDLE, (KeyMod)SDL_GetModState(), (int)KeyCode_CURSORMIDDLE, (int)Event.button.clicks, false);
 
 							if (Mapping.Enabled && Mapping.Mapped && Mapping.Key.Key == KeyCode_CURSORMIDDLE)
+							{
+								Mapping.Key.Mod = (KeyMod)SDL_GetModState();
 								Mapping.Captured = true;
+							}
 
 							return true;
 						case SDL_BUTTON_RIGHT:
@@ -2220,7 +2286,10 @@ namespace Tomahawk
 								Callbacks.KeyState(KeyCode_CURSORRIGHT, (KeyMod)SDL_GetModState(), (int)KeyCode_CURSORRIGHT, (int)Event.button.clicks, false);
 
 							if (Mapping.Enabled && Mapping.Mapped && Mapping.Key.Key == KeyCode_CURSORRIGHT)
+							{
+								Mapping.Key.Mod = (KeyMod)SDL_GetModState();
 								Mapping.Captured = true;
+							}
 
 							return true;
 						case SDL_BUTTON_X1:
@@ -2228,7 +2297,10 @@ namespace Tomahawk
 								Callbacks.KeyState(KeyCode_CURSORX1, (KeyMod)SDL_GetModState(), (int)KeyCode_CURSORX1, (int)Event.button.clicks, false);
 
 							if (Mapping.Enabled && Mapping.Mapped && Mapping.Key.Key == KeyCode_CURSORX1)
+							{
+								Mapping.Key.Mod = (KeyMod)SDL_GetModState();
 								Mapping.Captured = true;
+							}
 
 							return true;
 						case SDL_BUTTON_X2:
@@ -2236,7 +2308,10 @@ namespace Tomahawk
 								Callbacks.KeyState(KeyCode_CURSORX2, (KeyMod)SDL_GetModState(), (int)KeyCode_CURSORX2, (int)Event.button.clicks, false);
 
 							if (Mapping.Enabled && Mapping.Mapped && Mapping.Key.Key == KeyCode_CURSORX2)
+							{
+								Mapping.Key.Mod = (KeyMod)SDL_GetModState();
 								Mapping.Captured = true;
+							}
 
 							return true;
 					}
@@ -2246,8 +2321,8 @@ namespace Tomahawk
 					if (Callbacks.CursorWheelState && Id == Event.window.windowID)
 						Callbacks.CursorWheelState((int)Event.wheel.x, (int)Event.wheel.y, Event.wheel.direction & SDL_MOUSEWHEEL_NORMAL);
 #else
-				if (Callbacks.CursorWheelState && Id == Event.window.windowID)
-					Callbacks.CursorWheelState((int)Event.wheel.x, (int)Event.wheel.y, 0);
+					if (Callbacks.CursorWheelState && Id == Event.window.windowID)
+						Callbacks.CursorWheelState((int)Event.wheel.x, (int)Event.wheel.y, 0);
 #endif
 					return true;
 				case SDL_JOYAXISMOTION:
@@ -2481,6 +2556,17 @@ namespace Tomahawk
 			return !Keys[0][Key.Key] && Keys[1][Key.Key];
 #endif
 		}
+		bool Activity::IsScreenKeyboardEnabled()
+		{
+#ifdef TH_HAS_SDL2
+			if (!Handle)
+				return false;
+
+			return SDL_IsScreenKeyboardShown(Handle);
+#else
+			return false;
+#endif
+		}
 		float Activity::GetX()
 		{
 #ifdef TH_HAS_SDL2
@@ -2539,6 +2625,9 @@ namespace Tomahawk
 		KeyMod Activity::GetKeyModState()
 		{
 #ifdef TH_HAS_SDL2
+			if (!Handle)
+				return KeyMod_NONE;
+
 			return (KeyMod)SDL_GetModState();
 #else
 			return KeyMod_NONE;
@@ -2599,6 +2688,9 @@ namespace Tomahawk
 		Compute::Vector2 Activity::GetGlobalCursorPosition()
 		{
 #ifdef TH_HAS_SDL2
+			if (!Handle)
+				return Compute::Vector2();
+
 #if SDL_VERSION_ATLEAST(2, 0, 4)
 			int X, Y;
 			SDL_GetGlobalMouseState(&X, &Y);
@@ -2614,6 +2706,9 @@ namespace Tomahawk
 		Compute::Vector2 Activity::GetCursorPosition()
 		{
 #ifdef TH_HAS_SDL2
+			if (!Handle)
+				return Compute::Vector2();
+
 #if SDL_VERSION_ATLEAST(2, 0, 4)
 			int X, Y;
 			SDL_GetMouseState(&X, &Y);
@@ -2647,6 +2742,9 @@ namespace Tomahawk
 		std::string Activity::GetClipboardText()
 		{
 #ifdef TH_HAS_SDL2
+			if (!Handle)
+				return std::string();
+
 			char* Text = SDL_GetClipboardText();
 			std::string Result = (Text ? Text : "");
 
@@ -2665,6 +2763,9 @@ namespace Tomahawk
 		std::string Activity::GetError()
 		{
 #ifdef TH_HAS_SDL2
+			if (!Handle)
+				return "";
+
 			const char* Error = SDL_GetError();
 			if (!Error)
 				return "";
@@ -2694,7 +2795,7 @@ namespace Tomahawk
 #endif
 			return Keys[0];
 		}
-		const char* Activity::GetKeyName(KeyCode Code)
+		const char* Activity::GetKeyCodeName(KeyCode Code)
 		{
 			const char* Name;
 			switch (Code)
@@ -3306,7 +3407,7 @@ namespace Tomahawk
 					Name = "Octal";
 					break;
 				case KeyCode_KP_DECIMAL:
-					Name = "Decima;";
+					Name = "Decimal";
 					break;
 				case KeyCode_KP_HEXADECIMAL:
 					Name = "Hexadecimal";
@@ -3439,6 +3540,63 @@ namespace Tomahawk
 					break;
 				case KeyCode_CURSORX2:
 					Name = "Cursor X2";
+					break;
+				default:
+					Name = nullptr;
+					break;
+			}
+
+			return Name;
+		}
+		const char* Activity::GetKeyModName(KeyMod Code)
+		{
+			const char* Name;
+			switch (Code)
+			{
+				case Tomahawk::Graphics::KeyMod_LSHIFT:
+					Name = "Left Shift";
+					break;
+				case Tomahawk::Graphics::KeyMod_RSHIFT:
+					Name = "Right Shift";
+					break;
+				case Tomahawk::Graphics::KeyMod_LCTRL:
+					Name = "Left Ctrl";
+					break;
+				case Tomahawk::Graphics::KeyMod_RCTRL:
+					Name = "Right Ctrl";
+					break;
+				case Tomahawk::Graphics::KeyMod_LALT:
+					Name = "Left Alt";
+					break;
+				case Tomahawk::Graphics::KeyMod_RALT:
+					Name = "Right Alt";
+					break;
+				case Tomahawk::Graphics::KeyMod_LGUI:
+					Name = "Left Gui";
+					break;
+				case Tomahawk::Graphics::KeyMod_RGUI:
+					Name = "Right Gui";
+					break;
+				case Tomahawk::Graphics::KeyMod_NUM:
+					Name = "Num-lock";
+					break;
+				case Tomahawk::Graphics::KeyMod_CAPS:
+					Name = "Caps-lock";
+					break;
+				case Tomahawk::Graphics::KeyMod_MODE:
+					Name = "Mode";
+					break;
+				case Tomahawk::Graphics::KeyMod_SHIFT:
+					Name = "Shift";
+					break;
+				case Tomahawk::Graphics::KeyMod_CTRL:
+					Name = "Ctrl";
+					break;
+				case Tomahawk::Graphics::KeyMod_ALT:
+					Name = "Alt";
+					break;
+				case Tomahawk::Graphics::KeyMod_GUI:
+					Name = "Gui";
 					break;
 				default:
 					Name = nullptr;

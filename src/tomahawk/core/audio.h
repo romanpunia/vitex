@@ -230,6 +230,7 @@ namespace Tomahawk
 			virtual ~AudioSource() override;
 			int64_t AddEffect(AudioEffect* Effect);
 			bool RemoveEffect(uint64_t EffectId);
+			bool RemoveEffectById(uint64_t EffectId);
 			void SetClip(AudioClip* Clip);
 			void Synchronize(AudioSync* Sync, const Compute::Vector3& Position);
 			void Reset();
@@ -238,8 +239,16 @@ namespace Tomahawk
 			void Stop();
 			bool IsPlaying() const;
 			AudioClip* GetClip() const;
+			AudioEffect* GetEffect(uint64_t Section) const;
 			unsigned int GetInstance() const;
 			std::vector<AudioEffect*>* GetEffects();
+
+		public:
+			template <typename T>
+			T* GetEffect()
+			{
+				return (T*)GetEffect(T::GetTypeId());
+			}
 		};
 
 		class TH_OUT AudioDevice : public Rest::Object

@@ -619,6 +619,16 @@ namespace Tomahawk
 
 			return true;
 		}
+		bool AudioSource::RemoveEffectById(uint64_t EffectId)
+		{
+			for (size_t i = 0; i < Effects.size(); i++)
+			{
+				if (Effects[i]->GetId() == EffectId)
+					return RemoveEffect(i);
+			}
+
+			return false;
+		}
 		void AudioSource::SetClip(AudioClip* NewClip)
 		{
 #ifdef TH_HAS_OPENAL
@@ -742,6 +752,16 @@ namespace Tomahawk
 		AudioClip* AudioSource::GetClip() const
 		{
 			return Clip;
+		}
+		AudioEffect* AudioSource::GetEffect(uint64_t Section) const
+		{
+			for (auto* Effect : Effects)
+			{
+				if (Effect && Effect->GetId() == Section)
+					return Effect;
+			}
+
+			return nullptr;
 		}
 		unsigned int AudioSource::GetInstance() const
 		{

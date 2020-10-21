@@ -2535,6 +2535,16 @@ namespace Tomahawk
 
 			return PassCullable(Base, Mode, Result);
 		}
+		int64_t RenderSystem::GetOffset(uint64_t Id)
+		{
+			for (size_t i = 0; i < Renderers.size(); i++)
+			{
+				if (Renderers[i]->GetId() == Id)
+					return (int64_t)i;
+			}
+
+			return -1;
+		}
 		Renderer* RenderSystem::AddRenderer(Renderer* In)
 		{
 			if (!In)

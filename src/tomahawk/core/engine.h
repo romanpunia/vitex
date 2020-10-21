@@ -543,6 +543,7 @@ namespace Tomahawk
 			void FreeShader(const std::string& Name, Graphics::Shader* Shader);
 			bool PassCullable(Cullable* Base, CullResult Mode, float* Result);
 			bool PassDrawable(Drawable* Base, CullResult Mode, float* Result);
+			int64_t GetOffset(uint64_t Id);
 			Graphics::Shader* CompileShader(const std::string& Name, Graphics::Shader::Desc& Desc, size_t BufferSize = 0);
 			Renderer* AddRenderer(Renderer* In);
 			Renderer* GetRenderer(uint64_t Id);
@@ -568,6 +569,11 @@ namespace Tomahawk
 			void RemoveRenderer()
 			{
 				RemoveRenderer(In::GetTypeId());
+			}
+			template <typename In>
+			int64_t GetOffset()
+			{
+				return GetOffset(In::GetTypeId());
 			}
 			template <typename In, typename... Args>
 			In* AddRenderer(Args&& ... Data)

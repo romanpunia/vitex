@@ -17,6 +17,7 @@ Tomahawk is a cross-platform C++14 framework to create any type of application f
 + Adaptable dependency system
 + Fast spinlock mutex without CPU time wasting
 + Switchable thread-safe fixed-size memory pool (malloc, realloc, free)
++ Ref. counting (opt. with new/delete) for ownership management
 #### Math
 + Vertices
 + Vectors
@@ -109,12 +110,12 @@ Tomahawk is a cross-platform C++14 framework to create any type of application f
 + Fully changeable GUI tree
 #### Engine
 + Thread-safe scene graph
-+ Async/sync content management with file processors
++ Async/sync content management with processors
 + Entity system
 + Component system
 + Render system to handle any type of visualisation per camera
 + Data serialization
-+ Built-in file processors for many types of data
++ Built-in processors for many types of data
 + Built-in components for different simulations
 + Built-in renderers for different visualisations
 + Built-in shader code for every renderer
@@ -153,7 +154,7 @@ Tomahawk is a cross-platform C++14 framework to create any type of application f
 + Line light (sun)
 + Probe light (can cast reflections to entities)
 + Camera (with rendering system that holds renderers)
-#### Built-in file processors
+#### Built-in processors
 + Scene graph processor
 + Audio clip processor (WAVE, OGG)
 + Texture 2d processor (JPG, PNG, TGA, BMP, PSD, GIF, HDR, PIC)
@@ -196,7 +197,7 @@ These are used widely and presents useful features
 * [Bullet Physics](https://github.com/bulletphysics/bullet3)
 * [AngelScript](https://sourceforge.net/projects/angelscript/)
 * [Wepoll](https://github.com/piscisaureus/wepoll)
-* [Nuklear](https://github.com/Immediate-Mode-UI/Nuklear)
+* [RmlUi](https://github.com/mikke89/RmlUi)
 * [Tiny File Dialogs](https://github.com/native-toolkit/tinyfiledialogs)
 * [RapidXML](https://github.com/discordapp/rapidxml)
 * [STB](https://github.com/nothings/stb)

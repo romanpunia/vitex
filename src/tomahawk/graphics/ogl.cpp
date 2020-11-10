@@ -1293,7 +1293,38 @@ namespace Tomahawk
 				OGLTexture2D* IResource = (OGLTexture2D*)Resource;
 				if (!IResource || IResource->Resource == GL_INVALID_VALUE || !Result)
 					return false;
-				/* TODO: IMPL */
+
+				int Width, Height;
+				glGetTexLevelParameteriv(GL_TEXTURE_2D, 0, GL_TEXTURE_WIDTH, &Width);
+				glGetTexLevelParameteriv(GL_TEXTURE_2D, 0, GL_TEXTURE_HEIGHT, &Height);
+
+				if (!*Result)
+				{
+					Texture2D::Desc F;
+					F.Width = (unsigned int)Width;
+					F.Height = (unsigned int)Height;
+					F.RowPitch = (Width * 32 + 7) / 8;
+					F.DepthPitch = F.RowPitch * Height;
+					F.MipLevels = GetMipLevel(F.Width, F.Height);
+
+					glBindTexture(GL_TEXTURE_2D, IResource->Resource);
+					glGetTexImage(GL_TEXTURE_2D, 0, GL_RGBA, GL_UNSIGNED_BYTE, (void*)(0));
+					F.Data = (void*)glMapBuffer(GL_PIXEL_PACK_BUFFER, GL_READ_ONLY);
+					*Result = (OGLTexture2D*)CreateTexture2D(F);
+					glUnmapBuffer(GL_PIXEL_PACK_BUFFER);
+				}
+				else
+				{
+					GLuint Buffers[2];
+					glGenFramebuffers(2, Buffers);
+					glBindFramebuffer(GL_READ_FRAMEBUFFER, Buffers[0]);
+					glFramebufferTexture2D(GL_READ_FRAMEBUFFER, GL_COLOR_ATTACHMENT0, GL_TEXTURE_2D, IResource->Resource, 0);
+					glBindFramebuffer(GL_DRAW_FRAMEBUFFER, Buffers[1]);
+					glFramebufferTexture2D(GL_DRAW_FRAMEBUFFER, GL_COLOR_ATTACHMENT0, GL_TEXTURE_2D, ((OGLTexture2D*)(*Result))->Resource, 0);
+					glBlitFramebuffer(0, 0, Width, Height, 0, 0, Width, Height, GL_COLOR_BUFFER_BIT, GL_NEAREST);
+					glDeleteFramebuffers(2, Buffers);
+				}
+
 				return true;
 			}
 			bool OGLDevice::CopyTexture2D(RenderTarget2D* Resource, Texture2D** Result)
@@ -1301,7 +1332,38 @@ namespace Tomahawk
 				OGLRenderTarget2D* IResource = (OGLRenderTarget2D*)Resource;
 				if (!IResource || !IResource->Texture || !Result)
 					return false;
-				/* TODO: IMPL */
+
+				int Width, Height;
+				glGetTexLevelParameteriv(GL_TEXTURE_2D, 0, GL_TEXTURE_WIDTH, &Width);
+				glGetTexLevelParameteriv(GL_TEXTURE_2D, 0, GL_TEXTURE_HEIGHT, &Height);
+
+				if (!*Result)
+				{
+					Texture2D::Desc F;
+					F.Width = (unsigned int)Width;
+					F.Height = (unsigned int)Height;
+					F.RowPitch = (Width * 32 + 7) / 8;
+					F.DepthPitch = F.RowPitch * Height;
+					F.MipLevels = GetMipLevel(F.Width, F.Height);
+
+					glBindTexture(GL_TEXTURE_2D, IResource->Texture);
+					glGetTexImage(GL_TEXTURE_2D, 0, GL_RGBA, GL_UNSIGNED_BYTE, (void*)(0));
+					F.Data = (void*)glMapBuffer(GL_PIXEL_PACK_BUFFER, GL_READ_ONLY);
+					*Result = (OGLTexture2D*)CreateTexture2D(F);
+					glUnmapBuffer(GL_PIXEL_PACK_BUFFER);
+				}
+				else
+				{
+					GLuint Buffers[2];
+					glGenFramebuffers(2, Buffers);
+					glBindFramebuffer(GL_READ_FRAMEBUFFER, Buffers[0]);
+					glFramebufferTexture2D(GL_READ_FRAMEBUFFER, GL_COLOR_ATTACHMENT0, GL_TEXTURE_2D, IResource->Texture, 0);
+					glBindFramebuffer(GL_DRAW_FRAMEBUFFER, Buffers[1]);
+					glFramebufferTexture2D(GL_DRAW_FRAMEBUFFER, GL_COLOR_ATTACHMENT0, GL_TEXTURE_2D, ((OGLTexture2D*)(*Result))->Resource, 0);
+					glBlitFramebuffer(0, 0, Width, Height, 0, 0, Width, Height, GL_COLOR_BUFFER_BIT, GL_NEAREST);
+					glDeleteFramebuffers(2, Buffers);
+				}
+
 				return true;
 			}
 			bool OGLDevice::CopyTexture2D(MultiRenderTarget2D* Resource, unsigned int Target, Texture2D** Result)
@@ -1309,7 +1371,38 @@ namespace Tomahawk
 				OGLMultiRenderTarget2D* IResource = (OGLMultiRenderTarget2D*)Resource;
 				if (!IResource || Target >= IResource->SVTarget || !Result)
 					return false;
-				/* TODO: IMPL */
+
+				int Width, Height;
+				glGetTexLevelParameteriv(GL_TEXTURE_2D, 0, GL_TEXTURE_WIDTH, &Width);
+				glGetTexLevelParameteriv(GL_TEXTURE_2D, 0, GL_TEXTURE_HEIGHT, &Height);
+
+				if (!*Result)
+				{
+					Texture2D::Desc F;
+					F.Width = (unsigned int)Width;
+					F.Height = (unsigned int)Height;
+					F.RowPitch = (Width * 32 + 7) / 8;
+					F.DepthPitch = F.RowPitch * Height;
+					F.MipLevels = GetMipLevel(F.Width, F.Height);
+
+					glBindTexture(GL_TEXTURE_2D, IResource->Texture[Target]);
+					glGetTexImage(GL_TEXTURE_2D, 0, GL_RGBA, GL_UNSIGNED_BYTE, (void*)(0));
+					F.Data = (void*)glMapBuffer(GL_PIXEL_PACK_BUFFER, GL_READ_ONLY);
+					*Result = (OGLTexture2D*)CreateTexture2D(F);
+					glUnmapBuffer(GL_PIXEL_PACK_BUFFER);
+				}
+				else
+				{
+					GLuint Buffers[2];
+					glGenFramebuffers(2, Buffers);
+					glBindFramebuffer(GL_READ_FRAMEBUFFER, Buffers[0]);
+					glFramebufferTexture2D(GL_READ_FRAMEBUFFER, GL_COLOR_ATTACHMENT0, GL_TEXTURE_2D, IResource->Texture[Target], 0);
+					glBindFramebuffer(GL_DRAW_FRAMEBUFFER, Buffers[1]);
+					glFramebufferTexture2D(GL_DRAW_FRAMEBUFFER, GL_COLOR_ATTACHMENT0, GL_TEXTURE_2D, ((OGLTexture2D*)(*Result))->Resource, 0);
+					glBlitFramebuffer(0, 0, Width, Height, 0, 0, Width, Height, GL_COLOR_BUFFER_BIT, GL_NEAREST);
+					glDeleteFramebuffers(2, Buffers);
+				}
+
 				return true;
 			}
 			bool OGLDevice::CopyTexture2D(RenderTargetCube* Resource, unsigned int Face, Texture2D** Result)

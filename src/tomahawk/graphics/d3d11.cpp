@@ -284,8 +284,8 @@ namespace Tomahawk
 			}
 			D3D11MultiRenderTarget2D::~D3D11MultiRenderTarget2D()
 			{
-				ReleaseCom(View.Face);
-				ReleaseCom(View.Subresource);
+				ReleaseCom(Cube.Face);
+				ReleaseCom(Cube.Subresource);
 				ReleaseCom(DepthStencilView);
 				for (int i = 0; i < 8; i++)
 				{
@@ -1432,107 +1432,43 @@ namespace Tomahawk
 				ImmediateContext->CopyResource(Resource->As<D3D11MultiRenderTarget2D>()->Texture[Target], From->As<D3D11RenderTarget2D>()->Texture);
 				return true;
 			}
-			bool D3D11Device::CopyTargetDepth(RenderTarget2D* From, RenderTarget2D* To)
-			{
-				D3D11RenderTarget2D* IResource1 = (D3D11RenderTarget2D*)From;
-				D3D11RenderTarget2D* IResource2 = (D3D11RenderTarget2D*)To;
-				if (!IResource1 || !IResource2)
-					return false;
-
-				ID3D11Resource* Depth1 = nullptr;
-				IResource1->DepthStencilView->GetResource(&Depth1);
-
-				ID3D11Resource* Depth2 = nullptr;
-				IResource2->DepthStencilView->GetResource(&Depth2);
-
-				ImmediateContext->CopyResource(Depth2, Depth1);
-				return true;
-			}
-			bool D3D11Device::CopyTargetDepth(MultiRenderTarget2D* From, MultiRenderTarget2D* To)
-			{
-				D3D11MultiRenderTarget2D* IResource1 = (D3D11MultiRenderTarget2D*)From;
-				D3D11MultiRenderTarget2D* IResource2 = (D3D11MultiRenderTarget2D*)To;
-				if (!IResource1 || !IResource2)
-					return false;
-
-				ID3D11Resource* Depth1 = nullptr;
-				IResource1->DepthStencilView->GetResource(&Depth1);
-
-				ID3D11Resource* Depth2 = nullptr;
-				IResource2->DepthStencilView->GetResource(&Depth2);
-
-				ImmediateContext->CopyResource(Depth2, Depth1);
-				return true;
-			}
-			bool D3D11Device::CopyTargetDepth(RenderTargetCube* From, RenderTargetCube* To)
-			{
-				D3D11RenderTargetCube* IResource1 = (D3D11RenderTargetCube*)From;
-				D3D11RenderTargetCube* IResource2 = (D3D11RenderTargetCube*)To;
-				if (!IResource1 || !IResource2)
-					return false;
-
-				ID3D11Resource* Depth1 = nullptr;
-				IResource1->DepthStencilView->GetResource(&Depth1);
-
-				ID3D11Resource* Depth2 = nullptr;
-				IResource2->DepthStencilView->GetResource(&Depth2);
-
-				ImmediateContext->CopyResource(Depth2, Depth1);
-				return true;
-			}
-			bool D3D11Device::CopyTargetDepth(MultiRenderTargetCube* From, MultiRenderTargetCube* To)
-			{
-				D3D11MultiRenderTargetCube* IResource1 = (D3D11MultiRenderTargetCube*)From;
-				D3D11MultiRenderTargetCube* IResource2 = (D3D11MultiRenderTargetCube*)To;
-				if (!IResource1 || !IResource2)
-					return false;
-
-				ID3D11Resource* Depth1 = nullptr;
-				IResource1->DepthStencilView->GetResource(&Depth1);
-
-				ID3D11Resource* Depth2 = nullptr;
-				IResource2->DepthStencilView->GetResource(&Depth2);
-
-				ImmediateContext->CopyResource(Depth2, Depth1);
-				return true;
-			}
 			bool D3D11Device::CopyBegin(MultiRenderTarget2D* Resource, unsigned int Target, unsigned int MipLevels, unsigned int Size)
 			{
 				D3D11MultiRenderTarget2D* IResource = (D3D11MultiRenderTarget2D*)Resource;
 				if (!IResource || Target >= IResource->SVTarget)
 					return false;
 
-				if (IResource->View.Target != Target)
+				if (IResource->Cube.Target != Target)
 				{
-					IResource->View.Target = Target;
+					IResource->Cube.Target = Target;
 					if (IResource->Texture[Target] != nullptr)
-						IResource->Texture[Target]->GetDesc(&IResource->View.Texture);
+						IResource->Texture[Target]->GetDesc(&IResource->Cube.Texture);
 
-					IResource->View.Texture.ArraySize = 1;
-					IResource->View.Texture.CPUAccessFlags = 0;
-					IResource->View.Texture.MiscFlags = 0;
-					IResource->View.Texture.MipLevels = MipLevels;
-					IResource->View.CubeMap = IResource->View.Texture;
-					IResource->View.CubeMap.MipLevels = MipLevels;
-					IResource->View.CubeMap.ArraySize = 6;
-					IResource->View.CubeMap.Usage = D3D11_USAGE_DEFAULT;
-					IResource->View.CubeMap.BindFlags = D3D11_BIND_RENDER_TARGET | D3D11_BIND_SHADER_RESOURCE;
-					IResource->View.CubeMap.CPUAccessFlags = 0;
-					IResource->View.CubeMap.MiscFlags = D3D11_RESOURCE_MISC_TEXTURECUBE | D3D11_RESOURCE_MISC_GENERATE_MIPS;
-					IResource->View.Resource.Format = IResource->View.Texture.Format;
-					IResource->View.Resource.ViewDimension = D3D11_SRV_DIMENSION_TEXTURECUBE;
-					IResource->View.Resource.TextureCube.MostDetailedMip = 0;
-					IResource->View.Resource.TextureCube.MipLevels = MipLevels;
-					IResource->View.Region = { 0, 0, 0, (unsigned int)Size, (unsigned int)Size, 1 };
+					IResource->Cube.Texture.ArraySize = 1;
+					IResource->Cube.Texture.CPUAccessFlags = 0;
+					IResource->Cube.Texture.MiscFlags = 0;
+					IResource->Cube.Texture.MipLevels = MipLevels;
+					IResource->Cube.CubeMap = IResource->Cube.Texture;
+					IResource->Cube.CubeMap.MipLevels = MipLevels;
+					IResource->Cube.CubeMap.ArraySize = 6;
+					IResource->Cube.CubeMap.Usage = D3D11_USAGE_DEFAULT;
+					IResource->Cube.CubeMap.BindFlags = D3D11_BIND_RENDER_TARGET | D3D11_BIND_SHADER_RESOURCE;
+					IResource->Cube.CubeMap.CPUAccessFlags = 0;
+					IResource->Cube.CubeMap.MiscFlags = D3D11_RESOURCE_MISC_TEXTURECUBE | D3D11_RESOURCE_MISC_GENERATE_MIPS;
+					IResource->Cube.Resource.Format = IResource->Cube.Texture.Format;
+					IResource->Cube.Resource.ViewDimension = D3D11_SRV_DIMENSION_TEXTURECUBE;
+					IResource->Cube.Resource.TextureCube.MostDetailedMip = 0;
+					IResource->Cube.Resource.TextureCube.MipLevels = MipLevels;
+					IResource->Cube.Region = { 0, 0, 0, (unsigned int)Size, (unsigned int)Size, 1 };
 				}
 
-				ReleaseCom(IResource->View.Subresource);
-				ReleaseCom(IResource->View.Face);
+				ReleaseCom(IResource->Cube.Subresource);
+				ReleaseCom(IResource->Cube.Face);
 
-				if (D3DDevice->CreateTexture2D(&IResource->View.Texture, nullptr, &IResource->View.Subresource) != S_OK)
+				if (D3DDevice->CreateTexture2D(&IResource->Cube.Texture, nullptr, &IResource->Cube.Subresource) != S_OK)
 					return false;
 
-				return D3DDevice->CreateTexture2D(&IResource->View.CubeMap, nullptr, &IResource->View.Face) == S_OK;
+				return D3DDevice->CreateTexture2D(&IResource->Cube.CubeMap, nullptr, &IResource->Cube.Face) == S_OK;
 			}
 			bool D3D11Device::CopyFace(MultiRenderTarget2D* Resource, unsigned int Target, unsigned int Face)
 			{
@@ -1540,8 +1476,8 @@ namespace Tomahawk
 				if (!IResource || Target >= IResource->SVTarget || Face >= 6)
 					return false;
 
-				ImmediateContext->CopyResource(IResource->View.Subresource, IResource->Texture[Target]);
-				ImmediateContext->CopySubresourceRegion(IResource->View.Face, Face * IResource->View.CubeMap.MipLevels, 0, 0, 0, IResource->View.Subresource, 0, &IResource->View.Region);
+				ImmediateContext->CopyResource(IResource->Cube.Subresource, IResource->Texture[Target]);
+				ImmediateContext->CopySubresourceRegion(IResource->Cube.Face, Face * IResource->Cube.CubeMap.MipLevels, 0, 0, 0, IResource->Cube.Subresource, 0, &IResource->Cube.Region);
 				return true;
 			}
 			bool D3D11Device::CopyEnd(MultiRenderTarget2D* Resource, TextureCube* Result)
@@ -1553,12 +1489,12 @@ namespace Tomahawk
 				ID3D11ShaderResourceView** Subresource = &Result->As<D3D11TextureCube>()->Resource;
 				ReleaseCom((*Subresource));
 
-				if (D3DDevice->CreateShaderResourceView(IResource->View.Face, &IResource->View.Resource, Subresource) != S_OK)
+				if (D3DDevice->CreateShaderResourceView(IResource->Cube.Face, &IResource->Cube.Resource, Subresource) != S_OK)
 					return false;
 
 				ImmediateContext->GenerateMips(*Subresource);
-				ReleaseCom(IResource->View.Subresource);
-				ReleaseCom(IResource->View.Face);
+				ReleaseCom(IResource->Cube.Subresource);
+				ReleaseCom(IResource->Cube.Face);
 				return true;
 			}
 			bool D3D11Device::CopyBackBuffer(Texture2D** Result)

@@ -227,6 +227,14 @@ namespace Tomahawk
 				friend OGLDevice;
 
 			public:
+				struct
+				{
+					GLuint Buffers[2] = { GL_INVALID_VALUE };
+					GLuint Resource = GL_INVALID_VALUE;
+					unsigned int Size = 0;
+				} Cube;
+
+			public:
 				std::vector<GLenum> Formats;
 				GLuint Texture[8] = { GL_INVALID_VALUE };
 				GLuint FrameBuffer = GL_INVALID_VALUE;
@@ -405,10 +413,6 @@ namespace Tomahawk
 				bool CopyTextureCube(MultiRenderTargetCube* Resource, unsigned int Cube, TextureCube** Result) override;
 				bool CopyTargetTo(MultiRenderTarget2D* Resource, unsigned int Target, RenderTarget2D* To) override;
 				bool CopyTargetFrom(MultiRenderTarget2D* Resource, unsigned int Target, RenderTarget2D* From) override;
-				bool CopyTargetDepth(RenderTarget2D* From, RenderTarget2D* To) override;
-				bool CopyTargetDepth(MultiRenderTarget2D* From, MultiRenderTarget2D* To) override;
-				bool CopyTargetDepth(RenderTargetCube* From, RenderTargetCube* To) override;
-				bool CopyTargetDepth(MultiRenderTargetCube* From, MultiRenderTargetCube* To) override;
 				bool CopyBegin(MultiRenderTarget2D* Resource, unsigned int Target, unsigned int MipLevels, unsigned int Size) override;
 				bool CopyFace(MultiRenderTarget2D* Resource, unsigned int Target, unsigned int Face) override;
 				bool CopyEnd(MultiRenderTarget2D* Resource, TextureCube* Result) override;

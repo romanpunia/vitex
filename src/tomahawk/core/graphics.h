@@ -1660,10 +1660,6 @@ namespace Tomahawk
 			virtual bool CopyTextureCube(MultiRenderTargetCube* Resource, unsigned int Cube, TextureCube** Result) = 0;
 			virtual bool CopyTargetTo(MultiRenderTarget2D* Resource, unsigned int Target, RenderTarget2D* To) = 0;
 			virtual bool CopyTargetFrom(MultiRenderTarget2D* Resource, unsigned int Target, RenderTarget2D* From) = 0;
-			virtual bool CopyTargetDepth(RenderTarget2D* From, RenderTarget2D* To) = 0;
-			virtual bool CopyTargetDepth(MultiRenderTarget2D* From, MultiRenderTarget2D* To) = 0;
-			virtual bool CopyTargetDepth(RenderTargetCube* From, RenderTargetCube* To) = 0;
-			virtual bool CopyTargetDepth(MultiRenderTargetCube* From, MultiRenderTargetCube* To) = 0;
 			virtual bool CopyBegin(MultiRenderTarget2D* Resource, unsigned int Target, unsigned int MipLevels, unsigned int Size) = 0;
 			virtual bool CopyFace(MultiRenderTarget2D* Resource, unsigned int Target, unsigned int Face) = 0;
 			virtual bool CopyEnd(MultiRenderTarget2D* Resource, TextureCube* Result) = 0;

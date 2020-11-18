@@ -2008,7 +2008,6 @@ namespace Tomahawk
 				RenderResult(Pass3, &RenderPass2);
 			}
 
-
 			UserInterface::UserInterface(RenderSystem* Lab) : UserInterface(Lab, Application::Get() ? Application::Get()->Activity : nullptr)
 			{
 			}

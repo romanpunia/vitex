@@ -4976,8 +4976,16 @@ namespace Tomahawk
 			int R = FindDirective(Buffer, "#ifdef", &Offset, nullptr, &Start, &End);
 			if (R < 0)
 			{
-				TH_ERROR("cannot parse ifdef block directive");
-				return -1;
+				R = FindDirective(Buffer, "#ifndef", &Offset, nullptr, &Start, &End);
+				if (R < 0)
+				{
+					TH_ERROR("cannot parse ifdef block directive");
+					return -1;
+				}
+				else if (R == 0)
+					return 0;
+
+				Resolved = !Resolved;
 			}
 			else if (R == 0)
 				return 0;
@@ -5000,7 +5008,7 @@ namespace Tomahawk
 				Resolved = !Resolved;
 			}
 
-			ResolveDirective:
+		ResolveDirective:
 			Rest::Stroke::Settle Cond = Buffer.Find('#', Offset);
 			R = FindBlockNesting(Buffer, Cond, Offset, B1Start + B1End == 0 ? Resolved : !Resolved);
 			if (R < 0)

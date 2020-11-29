@@ -10,7 +10,6 @@ namespace Tomahawk
 		{
 			Model::Model(Entity* Ref) : Drawable(Ref, Model::GetTypeId(), true)
 			{
-				Instance = nullptr;
 			}
 			Model::~Model()
 			{
@@ -117,7 +116,6 @@ namespace Tomahawk
 
 			Skin::Skin(Entity* Ref) : Drawable(Ref, Skin::GetTypeId(), true)
 			{
-				Instance = nullptr;
 			}
 			Skin::~Skin()
 			{
@@ -249,10 +247,6 @@ namespace Tomahawk
 
 			Emitter::Emitter(Entity* Ref) : Drawable(Ref, Emitter::GetTypeId(), false)
 			{
-				Instance = nullptr;
-				Connected = false;
-				QuadBased = false;
-				Volume = 1.0f;
 			}
 			Emitter::~Emitter()
 			{
@@ -348,10 +342,6 @@ namespace Tomahawk
 
 			SoftBody::SoftBody(Entity* Ref) : Drawable(Ref, SoftBody::GetTypeId(), false)
 			{
-				Hull = nullptr;
-				Instance = nullptr;
-				Kinematic = false;
-				Manage = true;
 			}
 			SoftBody::~SoftBody()
 			{
@@ -863,8 +853,6 @@ namespace Tomahawk
 
 			Decal::Decal(Entity* Ref) : Drawable(Ref, Decal::GetTypeId(), false)
 			{
-				FieldOfView = 90.0f;
-				Distance = 15.0f;
 			}
 			void Decal::Deserialize(ContentManager* Content, Rest::Document* Node)
 			{
@@ -1398,11 +1386,6 @@ namespace Tomahawk
 
 			EmitterAnimator::EmitterAnimator(Entity* Ref) : Component(Ref)
 			{
-				Position = 0.0f;
-				Diffuse = 0.0f;
-				ScaleSpeed = 0.0f;
-				RotationSpeed = 0.0f;
-				Velocity = 0.0f;
 				Spawner.Scale.Max = 1;
 				Spawner.Scale.Min = 1;
 				Spawner.Rotation.Max = 0;
@@ -1418,9 +1401,6 @@ namespace Tomahawk
 				Spawner.Noise.Min = -1;
 				Spawner.Noise.Max = 1;
 				Spawner.Iterations = 1;
-				Simulate = false;
-				Noisiness = 0.0f;
-				Base = nullptr;
 			}
 			void EmitterAnimator::Deserialize(ContentManager* Content, Rest::Document* Node)
 			{
@@ -1428,7 +1408,7 @@ namespace Tomahawk
 				NMake::Unpack(Node->Find("position"), &Position);
 				NMake::Unpack(Node->Find("velocity"), &Velocity);
 				NMake::Unpack(Node->Find("spawner"), &Spawner);
-				NMake::Unpack(Node->Find("noisiness"), &Noisiness);
+				NMake::Unpack(Node->Find("noise"), &Noise);
 				NMake::Unpack(Node->Find("rotation-speed"), &RotationSpeed);
 				NMake::Unpack(Node->Find("scale-speed"), &ScaleSpeed);
 				NMake::Unpack(Node->Find("simulate"), &Simulate);
@@ -1439,7 +1419,7 @@ namespace Tomahawk
 				NMake::Pack(Node->SetDocument("position"), Position);
 				NMake::Pack(Node->SetDocument("velocity"), Velocity);
 				NMake::Pack(Node->SetDocument("spawner"), Spawner);
-				NMake::Pack(Node->SetDocument("noisiness"), Noisiness);
+				NMake::Pack(Node->SetDocument("noise"), Noise);
 				NMake::Pack(Node->SetDocument("rotation-speed"), RotationSpeed);
 				NMake::Pack(Node->SetDocument("scale-speed"), ScaleSpeed);
 				NMake::Pack(Node->SetDocument("simulate"), Simulate);
@@ -1488,7 +1468,7 @@ namespace Tomahawk
 					return;
 
 				float DeltaTime = (float)Time->GetDeltaTime();
-				if (Noisiness != 0.0f)
+				if (Noise != 0.0f)
 					AccurateSynchronization(DeltaTime);
 				else
 					FastSynchronization(DeltaTime);
@@ -1500,7 +1480,7 @@ namespace Tomahawk
 
 				for (auto It = Array->Begin(); It != Array->End(); It++)
 				{
-					Compute::Vector3 Noise = Spawner.Noise.Generate() / Noisiness;
+					Compute::Vector3 Noise = Spawner.Noise.Generate() / Noise;
 					It->PositionX += (It->VelocityX + Position.X + Noise.X) * DeltaTime;
 					It->PositionY += (It->VelocityY + Position.Y + Noise.Y) * DeltaTime;
 					It->PositionZ += (It->VelocityZ + Position.Z + Noise.Z) * DeltaTime;
@@ -1565,7 +1545,7 @@ namespace Tomahawk
 				Target->ScaleSpeed = ScaleSpeed;
 				Target->RotationSpeed = RotationSpeed;
 				Target->Spawner = Spawner;
-				Target->Noisiness = Noisiness;
+				Target->Noise = Noise;
 				Target->Simulate = Simulate;
 
 				return Target;
@@ -1577,10 +1557,6 @@ namespace Tomahawk
 
 			RigidBody::RigidBody(Entity* Ref) : Component(Ref)
 			{
-				Hull = nullptr;
-				Instance = nullptr;
-				Kinematic = false;
-				Manage = true;
 			}
 			RigidBody::~RigidBody()
 			{
@@ -1872,13 +1848,6 @@ namespace Tomahawk
 
 			Acceleration::Acceleration(Entity* Ref) : Component(Ref)
 			{
-				AmplitudeVelocity = 0;
-				AmplitudeTorque = 0;
-				ConstantVelocity = 0;
-				ConstantTorque = 0;
-				ConstantCenter = 0;
-				RigidBody = nullptr;
-				Kinematic = true;
 			}
 			void Acceleration::Deserialize(ContentManager* Content, Rest::Document* Node)
 			{
@@ -1976,9 +1945,6 @@ namespace Tomahawk
 
 			SliderConstraint::SliderConstraint(Entity* Ref) : Component(Ref), Instance(nullptr), Connection(nullptr)
 			{
-				Wanted.Connection = -1;
-				Wanted.Ghost = true;
-				Wanted.Linear = true;
 			}
 			SliderConstraint::~SliderConstraint()
 			{
@@ -2289,18 +2255,6 @@ namespace Tomahawk
 
 			Fly::Fly(Entity* Ref) : Component(Ref), Activity(nullptr)
 			{
-				SpeedNormal = 1.2f;
-				SpeedUp = 2.6f;
-				SpeedDown = 0.25f;
-				Forward = Graphics::KeyCode_W;
-				Backward = Graphics::KeyCode_S;
-				Right = Graphics::KeyCode_D;
-				Left = Graphics::KeyCode_A;
-				Up = Graphics::KeyCode_SPACE;
-				Down = Graphics::KeyCode_Z;
-				Fast = Graphics::KeyCode_LSHIFT;
-				Slow = Graphics::KeyCode_LCTRL;
-				Axis = Compute::Vector3(1, 1, -1);
 			}
 			void Fly::Awake(Component* New)
 			{
@@ -2503,7 +2457,6 @@ namespace Tomahawk
 
 			AudioListener::AudioListener(Entity* Ref) : Component(Ref)
 			{
-				Gain = 1.0f;
 			}
 			AudioListener::~AudioListener()
 			{
@@ -2554,37 +2507,34 @@ namespace Tomahawk
 
 			PointLight::PointLight(Entity* Ref) : Cullable(Ref)
 			{
-				ShadowCache = nullptr;
-				Diffuse = Compute::Vector3::One();
-				Emission = 1.0f;
 			}
 			void PointLight::Deserialize(ContentManager* Content, Rest::Document* Node)
 			{
-				NMake::Unpack(Node->Find("diffuse"), &Diffuse);
-				NMake::Unpack(Node->Find("emission"), &Emission);
-				NMake::Unpack(Node->Find("shadow-softness"), &ShadowSoftness);
-				NMake::Unpack(Node->Find("shadow-distance"), &ShadowDistance);
-				NMake::Unpack(Node->Find("shadow-bias"), &ShadowBias);
-				NMake::Unpack(Node->Find("shadow-iterations"), &ShadowIterations);
-				NMake::Unpack(Node->Find("shadowed"), &Shadowed);
 				NMake::Unpack(Node->Find("projection"), &Projection);
 				NMake::Unpack(Node->Find("view"), &View);
+				NMake::Unpack(Node->Find("diffuse"), &Diffuse);
+				NMake::Unpack(Node->Find("emission"), &Emission);
+				NMake::Unpack(Node->Find("shadow-softness"), &Shadow.Softness);
+				NMake::Unpack(Node->Find("shadow-distance"), &Shadow.Distance);
+				NMake::Unpack(Node->Find("shadow-bias"), &Shadow.Bias);
+				NMake::Unpack(Node->Find("shadow-iterations"), &Shadow.Iterations);
+				NMake::Unpack(Node->Find("shadow-enabled"), &Shadow.Enabled);
 			}
 			void PointLight::Serialize(ContentManager* Content, Rest::Document* Node)
 			{
-				NMake::Pack(Node->SetDocument("diffuse"), Diffuse);
-				NMake::Pack(Node->SetDocument("emission"), Emission);
-				NMake::Pack(Node->SetDocument("shadow-softness"), ShadowSoftness);
-				NMake::Pack(Node->SetDocument("shadow-distance"), ShadowDistance);
-				NMake::Pack(Node->SetDocument("shadow-bias"), ShadowBias);
-				NMake::Pack(Node->SetDocument("shadow-iterations"), ShadowIterations);
-				NMake::Pack(Node->SetDocument("shadowed"), Shadowed);
 				NMake::Pack(Node->SetDocument("projection"), Projection);
 				NMake::Pack(Node->SetDocument("view"), View);
+				NMake::Pack(Node->SetDocument("diffuse"), Diffuse);
+				NMake::Pack(Node->SetDocument("emission"), Emission);
+				NMake::Pack(Node->SetDocument("shadow-softness"), Shadow.Softness);
+				NMake::Pack(Node->SetDocument("shadow-distance"), Shadow.Distance);
+				NMake::Pack(Node->SetDocument("shadow-bias"), Shadow.Bias);
+				NMake::Pack(Node->SetDocument("shadow-iterations"), Shadow.Iterations);
+				NMake::Pack(Node->SetDocument("shadow-enabled"), Shadow.Enabled);
 			}
 			void PointLight::Synchronize(Rest::Timer* Time)
 			{
-				Projection = Compute::Matrix4x4::CreatePerspective(90.0f, 1.0f, 0.1f, ShadowDistance);
+				Projection = Compute::Matrix4x4::CreatePerspective(90.0f, 1.0f, 0.1f, Shadow.Distance);
 				View = Compute::Matrix4x4::CreateCubeMapLookAt(0, Parent->Transform->Position.InvertZ());
 			}
 			float PointLight::Cull(const Viewer& Base)
@@ -2602,81 +2552,53 @@ namespace Tomahawk
 				Target->Emission = Emission;
 				Target->Visibility = Visibility;
 				Target->Projection = Projection;
-				Target->ShadowBias = ShadowBias;
-				Target->ShadowDistance = ShadowDistance;
-				Target->ShadowIterations = ShadowIterations;
-				Target->ShadowSoftness = ShadowSoftness;
-				Target->Shadowed = Shadowed;
 				Target->View = View;
+				memcpy(&Target->Shadow, &Shadow, sizeof(Shadow));
 
 				return Target;
 			}
-			void PointLight::SetShadowCache(Graphics::Texture2D* NewCache)
+			void PointLight::SetDepthCache(Graphics::MultiRenderTargetCube* NewCache)
 			{
-				ShadowCache = NewCache;
+				Depth = NewCache;
 			}
-			Graphics::Texture2D* PointLight::GetShadowCache() const
+			Graphics::MultiRenderTargetCube* PointLight::GetDepthCache() const
 			{
-				return ShadowCache;
+				return Depth;
 			}
 
 			SpotLight::SpotLight(Entity* Ref) : Cullable(Ref)
 			{
-				Diffuse = Compute::Vector3::One();
-				ShadowCache = nullptr;
-				ProjectMap = nullptr;
-				ShadowSoftness = 0.0f;
-				ShadowIterations = 2;
-				ShadowDistance = 100;
-				ShadowBias = 0.0f;
-				FieldOfView = 90.0f;
-				Emission = 1.0f;
-				Shadowed = false;
-			}
-			SpotLight::~SpotLight()
-			{
-				TH_RELEASE(ProjectMap);
 			}
 			void SpotLight::Deserialize(ContentManager* Content, Rest::Document* Node)
 			{
-				std::string Path;
-				if (NMake::Unpack(Node->Find("project-map"), &Path))
-				{
-					TH_RELEASE(ProjectMap);
-					ProjectMap = Content->Load<Graphics::Texture2D>(Path);
-				}
-
-				NMake::Unpack(Node->Find("diffuse"), &Diffuse);
 				NMake::Unpack(Node->Find("projection"), &Projection);
 				NMake::Unpack(Node->Find("view"), &View);
-				NMake::Unpack(Node->Find("shadow-bias"), &ShadowBias);
-				NMake::Unpack(Node->Find("shadow-distance"), &ShadowDistance);
-				NMake::Unpack(Node->Find("shadow-softness"), &ShadowSoftness);
-				NMake::Unpack(Node->Find("shadow-iterations"), &ShadowIterations);
-				NMake::Unpack(Node->Find("field-of-view"), &FieldOfView);
+				NMake::Unpack(Node->Find("diffuse"), &Diffuse);
+				NMake::Unpack(Node->Find("cutoff"), &Cutoff);
 				NMake::Unpack(Node->Find("emission"), &Emission);
-				NMake::Unpack(Node->Find("shadowed"), &Shadowed);
+				NMake::Unpack(Node->Find("shadow-bias"), &Shadow.Bias);
+				NMake::Unpack(Node->Find("shadow-distance"), &Shadow.Distance);
+				NMake::Unpack(Node->Find("shadow-softness"), &Shadow.Softness);
+				NMake::Unpack(Node->Find("shadow-iterations"), &Shadow.Iterations);
+				NMake::Unpack(Node->Find("shadow-enabled"), &Shadow.Enabled);
 			}
 			void SpotLight::Serialize(ContentManager* Content, Rest::Document* Node)
 			{
-				AssetResource* Asset = Content->FindAsset(ProjectMap);
-				if (Asset != nullptr)
-					NMake::Pack(Node->SetDocument("project-map"), Asset->Path);
-
-				NMake::Pack(Node->SetDocument("diffuse"), Diffuse);
 				NMake::Pack(Node->SetDocument("projection"), Projection);
 				NMake::Pack(Node->SetDocument("view"), View);
-				NMake::Pack(Node->SetDocument("shadow-bias"), ShadowBias);
-				NMake::Pack(Node->SetDocument("shadow-distance"), ShadowDistance);
-				NMake::Pack(Node->SetDocument("shadow-softness"), ShadowSoftness);
-				NMake::Pack(Node->SetDocument("shadow-iterations"), ShadowIterations);
-				NMake::Pack(Node->SetDocument("field-of-view"), FieldOfView);
+				NMake::Pack(Node->SetDocument("diffuse"), Diffuse);
+				NMake::Pack(Node->SetDocument("cutoff"), Cutoff);
 				NMake::Pack(Node->SetDocument("emission"), Emission);
-				NMake::Pack(Node->SetDocument("shadowed"), Shadowed);
+				NMake::Pack(Node->SetDocument("shadow-bias"), Shadow.Bias);
+				NMake::Pack(Node->SetDocument("shadow-distance"), Shadow.Distance);
+				NMake::Pack(Node->SetDocument("shadow-softness"), Shadow.Softness);
+				NMake::Pack(Node->SetDocument("shadow-iterations"), Shadow.Iterations);
+				NMake::Pack(Node->SetDocument("shadow-enabled"), Shadow.Enabled);
 			}
 			void SpotLight::Synchronize(Rest::Timer* Time)
 			{
-				Projection = Compute::Matrix4x4::CreatePerspective(FieldOfView, 1, 0.1f, ShadowDistance);
+				Cutoff = Compute::Mathf::Clamp(Cutoff, 0.0f, 180.0f);
+				Projection = Compute::Matrix4x4::CreatePerspective(Cutoff, 1, 0.1f, Shadow.Distance);
 				View = Compute::Matrix4x4::CreateTranslation(-Parent->Transform->Position) * Compute::Matrix4x4::CreateCameraRotation(-Parent->Transform->Rotation);
 			}
 			float SpotLight::Cull(const Viewer& View)
@@ -2693,107 +2615,74 @@ namespace Tomahawk
 				Target->Diffuse = Diffuse;
 				Target->Projection = Projection;
 				Target->View = View;
-				Target->ProjectMap = ProjectMap;
-				Target->FieldOfView = FieldOfView;
+				Target->Cutoff = Cutoff;
 				Target->Emission = Emission;
-				Target->Shadowed = Shadowed;
-				Target->ShadowBias = ShadowBias;
-				Target->ShadowDistance = ShadowDistance;
-				Target->ShadowIterations = ShadowIterations;
-				Target->ShadowSoftness = ShadowSoftness;
+				memcpy(&Target->Shadow, &Shadow, sizeof(Shadow));
 
 				return Target;
 			}
-			void SpotLight::SetShadowCache(Graphics::Texture2D* NewCache)
+			void SpotLight::SetDepthCache(Graphics::MultiRenderTarget2D* NewCache)
 			{
-				ShadowCache = NewCache;
+				Depth = NewCache;
 			}
-			Graphics::Texture2D* SpotLight::GetShadowCache() const
+			Graphics::MultiRenderTarget2D* SpotLight::GetDepthCache() const
 			{
-				return ShadowCache;
-			}
-			void SpotLight::SetProjectMap(Graphics::Texture2D* NewCache)
-			{
-				TH_RELEASE(ProjectMap);
-				ProjectMap = NewCache;
-			}
-			Graphics::Texture2D* SpotLight::GetProjectMap() const
-			{
-				return ProjectMap;
+				return Depth;
 			}
 
 			LineLight::LineLight(Entity* Ref) : Component(Ref)
 			{
-				Diffuse = Compute::Vector3(1.0f, 1.0f, 1.0f);
-				RlhEmission = Compute::Vector3(0.0000055f, 0.000013f, 0.0000224f);
-				MieEmission = 0.000021f;
-				RlhHeight = 8000.0f;
-				MieHeight = 1200.0f;
-				ScatterIntensity = 7.0f;
-				PlanetRadius = 6371000.0f;
-				AtmosphereRadius = 6471000.0f;
-				MieDirection = 0.87f;
-				ShadowCache = nullptr;
-				Shadowed = false;
-				ShadowSoftness = 0.0f;
-				ShadowDistance = 100;
-				ShadowBias = 0.0f;
-				ShadowFarBias = 20.0f;
-				ShadowLength = 16;
-				ShadowHeight = 0.0f;
-				ShadowIterations = 2;
-				Emission = 1.0f;
 			}
 			void LineLight::Deserialize(ContentManager* Content, Rest::Document* Node)
 			{
-				NMake::Unpack(Node->Find("rlh-emission"), &RlhEmission);
-				NMake::Unpack(Node->Find("mie-emission"), &MieEmission);
-				NMake::Unpack(Node->Find("rlh-height"), &RlhHeight);
-				NMake::Unpack(Node->Find("mie-height"), &MieEmission);
-				NMake::Unpack(Node->Find("scatter-intensity"), &ScatterIntensity);
-				NMake::Unpack(Node->Find("planet-radius"), &PlanetRadius);
-				NMake::Unpack(Node->Find("atmosphere-radius"), &AtmosphereRadius);
-				NMake::Unpack(Node->Find("mie-direction"), &MieDirection);
-				NMake::Unpack(Node->Find("diffuse"), &Diffuse);
 				NMake::Unpack(Node->Find("projection"), &Projection);
 				NMake::Unpack(Node->Find("view"), &View);
-				NMake::Unpack(Node->Find("shadow-bias"), &ShadowBias);
-				NMake::Unpack(Node->Find("shadow-distance"), &ShadowDistance);
-				NMake::Unpack(Node->Find("shadow-far-bias"), &ShadowFarBias);
-				NMake::Unpack(Node->Find("shadow-softness"), &ShadowSoftness);
-				NMake::Unpack(Node->Find("shadow-length"), &ShadowLength);
-				NMake::Unpack(Node->Find("shadow-height"), &ShadowHeight);
-				NMake::Unpack(Node->Find("shadow-iterations"), &ShadowIterations);
+				NMake::Unpack(Node->Find("diffuse"), &Diffuse);
 				NMake::Unpack(Node->Find("emission"), &Emission);
-				NMake::Unpack(Node->Find("shadowed"), &Shadowed);
+				NMake::Unpack(Node->Find("shadow-bias"), &Shadow.Bias);
+				NMake::Unpack(Node->Find("shadow-distance"), &Shadow.Distance);
+				NMake::Unpack(Node->Find("shadow-far-bias"), &Shadow.FarBias);
+				NMake::Unpack(Node->Find("shadow-softness"), &Shadow.Softness);
+				NMake::Unpack(Node->Find("shadow-length"), &Shadow.Length);
+				NMake::Unpack(Node->Find("shadow-height"), &Shadow.Height);
+				NMake::Unpack(Node->Find("shadow-iterations"), &Shadow.Iterations);
+				NMake::Unpack(Node->Find("shadow-enabled"), &Shadow.Enabled);
+				NMake::Unpack(Node->Find("rlh-emission"), &Sky.RlhEmission);
+				NMake::Unpack(Node->Find("mie-emission"), &Sky.MieEmission);
+				NMake::Unpack(Node->Find("rlh-height"), &Sky.RlhHeight);
+				NMake::Unpack(Node->Find("mie-height"), &Sky.MieEmission);
+				NMake::Unpack(Node->Find("mie-direction"), &Sky.MieDirection);
+				NMake::Unpack(Node->Find("inner-radius"), &Sky.InnerRadius);
+				NMake::Unpack(Node->Find("outer-radius"), &Sky.OuterRadius);
+				NMake::Unpack(Node->Find("sky-intensity"), &Sky.Intensity);
 			}
 			void LineLight::Serialize(ContentManager* Content, Rest::Document* Node)
 			{
-				NMake::Pack(Node->SetDocument("rlh-emission"), RlhEmission);
-				NMake::Pack(Node->SetDocument("mie-emission"), MieEmission);
-				NMake::Pack(Node->SetDocument("rlh-height"), RlhHeight);
-				NMake::Pack(Node->SetDocument("mie-height"), MieEmission);
-				NMake::Pack(Node->SetDocument("scatter-intensity"), ScatterIntensity);
-				NMake::Pack(Node->SetDocument("planet-radius"), PlanetRadius);
-				NMake::Pack(Node->SetDocument("atmosphere-radius"), AtmosphereRadius);
-				NMake::Pack(Node->SetDocument("mie-direction"), MieDirection);
-				NMake::Pack(Node->SetDocument("diffuse"), Diffuse);
 				NMake::Pack(Node->SetDocument("projection"), Projection);
 				NMake::Pack(Node->SetDocument("view"), View);
-				NMake::Pack(Node->SetDocument("shadow-bias"), ShadowBias);
-				NMake::Pack(Node->SetDocument("shadow-distance"), ShadowDistance);
-				NMake::Pack(Node->SetDocument("shadow-far-bias"), ShadowFarBias);
-				NMake::Pack(Node->SetDocument("shadow-softness"), ShadowSoftness);
-				NMake::Pack(Node->SetDocument("shadow-length"), ShadowLength);
-				NMake::Pack(Node->SetDocument("shadow-height"), ShadowHeight);
-				NMake::Pack(Node->SetDocument("shadow-iterations"), ShadowIterations);
+				NMake::Pack(Node->SetDocument("diffuse"), Diffuse);
 				NMake::Pack(Node->SetDocument("emission"), Emission);
-				NMake::Pack(Node->SetDocument("shadowed"), Shadowed);
+				NMake::Pack(Node->SetDocument("shadow-bias"), Shadow.Bias);
+				NMake::Pack(Node->SetDocument("shadow-distance"), Shadow.Distance);
+				NMake::Pack(Node->SetDocument("shadow-far-bias"), Shadow.FarBias);
+				NMake::Pack(Node->SetDocument("shadow-softness"), Shadow.Softness);
+				NMake::Pack(Node->SetDocument("shadow-length"), Shadow.Length);
+				NMake::Pack(Node->SetDocument("shadow-height"), Shadow.Height);
+				NMake::Pack(Node->SetDocument("shadow-iterations"), Shadow.Iterations);
+				NMake::Pack(Node->SetDocument("shadow-enabled"), Shadow.Enabled);
+				NMake::Pack(Node->SetDocument("rlh-emission"), Sky.RlhEmission);
+				NMake::Pack(Node->SetDocument("mie-emission"), Sky.MieEmission);
+				NMake::Pack(Node->SetDocument("rlh-height"), Sky.RlhHeight);
+				NMake::Pack(Node->SetDocument("mie-height"), Sky.MieEmission);
+				NMake::Pack(Node->SetDocument("mie-direction"), Sky.MieDirection);
+				NMake::Pack(Node->SetDocument("inner-radius"), Sky.InnerRadius);
+				NMake::Pack(Node->SetDocument("outer-radius"), Sky.OuterRadius);
+				NMake::Pack(Node->SetDocument("sky-intensity"), Sky.Intensity);
 			}
 			void LineLight::Synchronize(Rest::Timer* Time)
 			{
-				Projection = Compute::Matrix4x4::CreateOrthographic(ShadowDistance, ShadowDistance, -ShadowDistance / 2.0f - ShadowFarBias, ShadowDistance / 2.0f + ShadowFarBias);
-				View = Compute::Matrix4x4::CreateLineLightLookAt(Parent->Transform->Position, Parent->GetScene()->GetCamera()->GetEntity()->Transform->Position.SetY(ShadowHeight));
+				Projection = Compute::Matrix4x4::CreateOrthographic(Shadow.Distance, Shadow.Distance, -Shadow.Distance / 2.0f - Shadow.FarBias, Shadow.Distance / 2.0f + Shadow.FarBias);
+				View = Compute::Matrix4x4::CreateLineLightLookAt(Parent->Transform->Position, Parent->GetScene()->GetCamera()->GetEntity()->Transform->Position.SetY(Shadow.Height));
 			}
 			Component* LineLight::Copy(Entity* New)
 			{
@@ -2801,46 +2690,24 @@ namespace Tomahawk
 				Target->Projection = Projection;
 				Target->View = View;
 				Target->Diffuse = Diffuse;
-				Target->ShadowBias = ShadowBias;
-				Target->ShadowDistance = ShadowDistance;
-				Target->ShadowFarBias = ShadowFarBias;
-				Target->ShadowSoftness = ShadowSoftness;
-				Target->ShadowLength = ShadowLength;
-				Target->ShadowHeight = ShadowHeight;
-				Target->ShadowIterations = ShadowIterations;
 				Target->Emission = Emission;
-				Target->Shadowed = Shadowed;
+				memcpy(&Target->Shadow, &Shadow, sizeof(Shadow));
+				memcpy(&Target->Sky, &Sky, sizeof(Sky));
 
 				return Target;
 			}
-			void LineLight::SetShadowCache(Graphics::Texture2D* NewCache)
+			void LineLight::SetDepthCache(Graphics::MultiRenderTarget2D* NewCache)
 			{
-				ShadowCache = NewCache;
+				Depth = NewCache;
 			}
-			Graphics::Texture2D* LineLight::GetShadowCache() const
+			Graphics::MultiRenderTarget2D* LineLight::GetDepthCache() const
 			{
-				return ShadowCache;
+				return Depth;
 			}
 
 			ReflectionProbe::ReflectionProbe(Entity* Ref) : Cullable(Ref)
 			{
 				Projection = Compute::Matrix4x4::CreatePerspectiveRad(1.57079632679f, 1, 0.01f, 100.0f);
-				Diffuse = Compute::Vector3::One();
-				ViewOffset = Compute::Vector3(1, 1, -1);
-				DiffuseMapX[0] = nullptr;
-				DiffuseMapX[1] = nullptr;
-				DiffuseMapY[0] = nullptr;
-				DiffuseMapY[1] = nullptr;
-				DiffuseMapZ[0] = nullptr;
-				DiffuseMapZ[1] = nullptr;
-				DiffuseMap = nullptr;
-				ProbeCache = nullptr;
-				Infinity = 0.0f;
-				Emission = 1.0f;
-				CaptureRange = 10.0f;
-				RenderLocked = false;
-				ParallaxCorrected = false;
-				StaticMask = false;
 			}
 			ReflectionProbe::~ReflectionProbe()
 			{
@@ -2851,7 +2718,7 @@ namespace Tomahawk
 				TH_RELEASE(DiffuseMapZ[0]);
 				TH_RELEASE(DiffuseMapZ[1]);
 				TH_RELEASE(DiffuseMap);
-				TH_RELEASE(ProbeCache);
+				TH_RELEASE(Probe);
 			}
 			void ReflectionProbe::Deserialize(ContentManager* Content, Rest::Document* Node)
 			{
@@ -2901,14 +2768,14 @@ namespace Tomahawk
 				}
 
 				std::vector<Compute::Matrix4x4> Views;
-				NMake::Unpack(Node->Find("view"), &Views);
-				NMake::Unpack(Node->Find("rebuild"), &Rebuild);
 				NMake::Unpack(Node->Find("projection"), &Projection);
+				NMake::Unpack(Node->Find("view"), &Views);
+				NMake::Unpack(Node->Find("tick"), &Tick);
 				NMake::Unpack(Node->Find("diffuse"), &Diffuse);
-				NMake::Unpack(Node->Find("capture-range"), &CaptureRange);
+				NMake::Unpack(Node->Find("range"), &Range);
 				NMake::Unpack(Node->Find("emission"), &Emission);
 				NMake::Unpack(Node->Find("infinity"), &Infinity);
-				NMake::Unpack(Node->Find("parallax-corrected"), &ParallaxCorrected);
+				NMake::Unpack(Node->Find("parallax"), &Parallax);
 				NMake::Unpack(Node->Find("static-mask"), &StaticMask);
 
 				int64_t Count = Compute::Math<int64_t>::Min((int64_t)Views.size(), 6);
@@ -2960,14 +2827,14 @@ namespace Tomahawk
 				for (int64_t i = 0; i < 6; i++)
 					Views.push_back(View[i]);
 
-				NMake::Pack(Node->SetDocument("view"), Views);
-				NMake::Pack(Node->SetDocument("rebuild"), Rebuild);
 				NMake::Pack(Node->SetDocument("projection"), Projection);
+				NMake::Pack(Node->SetDocument("view"), Views);
+				NMake::Pack(Node->SetDocument("tick"), Tick);
 				NMake::Pack(Node->SetDocument("diffuse"), Diffuse);
-				NMake::Pack(Node->SetDocument("capture-range"), CaptureRange);
+				NMake::Pack(Node->SetDocument("range"), Range);
 				NMake::Pack(Node->SetDocument("emission"), Emission);
 				NMake::Pack(Node->SetDocument("infinity"), Infinity);
-				NMake::Pack(Node->SetDocument("parallax-corrected"), ParallaxCorrected);
+				NMake::Pack(Node->SetDocument("parallax"), Parallax);
 				NMake::Pack(Node->SetDocument("static-mask"), StaticMask);
 			}
 			float ReflectionProbe::Cull(const Viewer& View)
@@ -2989,8 +2856,8 @@ namespace Tomahawk
 				Target->Diffuse = Diffuse;
 				Target->Visibility = Visibility;
 				Target->Emission = Emission;
-				Target->CaptureRange = CaptureRange;
-				Target->Rebuild = Rebuild;
+				Target->Range = Range;
+				Target->Tick = Tick;
 				memcpy(Target->View, View, 6 * sizeof(Compute::Matrix4x4));
 
 				if (!DiffuseMap)
@@ -3002,7 +2869,7 @@ namespace Tomahawk
 			}
 			void ReflectionProbe::SetProbeCache(Graphics::TextureCube* NewCache)
 			{
-				ProbeCache = NewCache;
+				Probe = NewCache;
 			}
 			bool ReflectionProbe::SetDiffuseMap(Graphics::Texture2D* Map)
 			{
@@ -3027,9 +2894,9 @@ namespace Tomahawk
 				TH_RELEASE(DiffuseMap);
 				DiffuseMap = Map;
 
-				TH_RELEASE(ProbeCache);
-				ProbeCache = Parent->GetScene()->GetDevice()->CreateTextureCube(DiffuseMap);
-				return ProbeCache != nullptr;
+				TH_RELEASE(Probe);
+				Probe = Parent->GetScene()->GetDevice()->CreateTextureCube(DiffuseMap);
+				return Probe != nullptr;
 			}
 			bool ReflectionProbe::SetDiffuseMap(Graphics::Texture2D* MapX[2], Graphics::Texture2D* MapY[2], Graphics::Texture2D* MapZ[2])
 			{
@@ -3061,9 +2928,9 @@ namespace Tomahawk
 				Resources[4] = DiffuseMapZ[0] = MapZ[0];
 				Resources[5] = DiffuseMapZ[1] = MapZ[1];
 
-				TH_RELEASE(ProbeCache);
-				ProbeCache = Parent->GetScene()->GetDevice()->CreateTextureCube(Resources);
-				return ProbeCache != nullptr;
+				TH_RELEASE(Probe);
+				Probe = Parent->GetScene()->GetDevice()->CreateTextureCube(Resources);
+				return Probe != nullptr;
 			}
 			bool ReflectionProbe::IsImageBased() const
 			{
@@ -3071,7 +2938,7 @@ namespace Tomahawk
 			}
 			Graphics::TextureCube* ReflectionProbe::GetProbeCache() const
 			{
-				return ProbeCache;
+				return Probe;
 			}
 			Graphics::Texture2D* ReflectionProbe::GetDiffuseMapXP()
 			{
@@ -3104,11 +2971,6 @@ namespace Tomahawk
 			
 			Camera::Camera(Entity* Ref) : Component(Ref), Mode(ProjectionMode_Perspective)
 			{
-				Projection = Compute::Matrix4x4::Identity();
-				NearPlane = 0.1f;
-				FarPlane = 1000.0f;
-				Width = Height = -1;
-				FieldOfView = 75.0f;
 			}
 			Camera::~Camera()
 			{

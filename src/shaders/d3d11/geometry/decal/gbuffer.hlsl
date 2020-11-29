@@ -4,7 +4,7 @@
 
 cbuffer RenderConstant : register(b3)
 {
-	matrix OwnViewProjection;
+	matrix DecalViewProjection;
 };
 
 Texture2D LChannel2 : register(t8);
@@ -30,7 +30,7 @@ VertexResult VS(VertexBase V)
 
 float4 PS(VertexResult V) : SV_TARGET0
 {
-	float4 L = mul(float4(GetWorldPosition(V.TexCoord), 1), OwnViewProjection);
+	float4 L = mul(float4(GetWorldPosition(V.TexCoord), 1), DecalViewProjection);
 	float2 T = float2(L.x / L.w / 2.0 + 0.5f, 1 - (L.y / L.w / 2.0 + 0.5f));
 	[branch] if (L.z <= 0 || saturate(T.x) != T.x || saturate(T.y) != T.y)
         discard;

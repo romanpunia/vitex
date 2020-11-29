@@ -4,21 +4,24 @@
 
 cbuffer RenderConstant : register(b3)
 {
-	matrix OwnWorldViewProjection;
+	matrix LightWorldViewProjection;
+	matrix LightViewProjection;
+    float3 Direction;
+    float Cutoff;
 	float3 Position;
 	float Range;
 	float3 Lighting;
-	float Distance;
 	float Softness;
 	float Recount;
 	float Bias;
 	float Iterations;
+	float Padding;
 };
 
 VertexResult VS(VertexBase V)
 {
 	VertexResult Result = (VertexResult)0;
-	Result.Position = mul(V.Position, OwnWorldViewProjection);
+	Result.Position = mul(V.Position, LightWorldViewProjection);
 	Result.TexCoord = Result.Position;
 
 	return Result;
@@ -30,13 +33,19 @@ float4 PS(VertexResult V) : SV_TARGET0
     [branch] if (Frag.Depth >= 1.0)
         return float4(0, 0, 0, 0);
 
-	Material Mat = GetMaterial(Frag.Material);
 	float3 D = Position - Frag.Position;
+    float3 K = normalize(D);
+    float F = dot(-K, Direction);
+    [branch] if (F <= Cutoff)
+        return float4(0, 0, 0, 0);
+
+	Material Mat = GetMaterial(Frag.Material);
+	float3 A = 1.0 - length(D) / Range, O;
+	float3 P = normalize(ViewPosition - Frag.Position);
 	float3 M = GetMetallicFactor(Frag, Mat);
 	float R = GetRoughnessFactor(Frag, Mat);
-	float A = 1.0 - length(D) / Range;
-	float3 P = normalize(ViewPosition - Frag.Position), O;
-    float3 E = GetLight(P, normalize(D), Frag.Normal, M, R, O);
+    float3 E = GetLight(P, K, Frag.Normal, M, R, O);
+    A *= 1.0 - (1.0 - F) * 1.0 / (1.0 - Cutoff);
 
-	return float4(Lighting * (Frag.Diffuse * E + O) * A, A);
+	return float4(Lighting * (Frag.Diffuse * E + O) * A, length(A) / 3.0);
 };

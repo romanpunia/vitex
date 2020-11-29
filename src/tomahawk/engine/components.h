@@ -62,12 +62,12 @@ namespace Tomahawk
 			class TH_OUT Emitter : public Drawable
 			{
 			protected:
-				Graphics::InstanceBuffer* Instance;
+				Graphics::InstanceBuffer* Instance = nullptr;
 
 			public:
-				Compute::Vector3 Volume;
-				bool Connected;
-				bool QuadBased;
+				Compute::Vector3 Volume = 1.0f;
+				bool Connected = false;
+				bool QuadBased = false;
 
 			public:
 				Emitter(Entity* Ref);
@@ -87,14 +87,14 @@ namespace Tomahawk
 			class TH_OUT SoftBody : public Drawable
 			{
 			protected:
-				Compute::UnmanagedShape* Hull;
-				Compute::SoftBody* Instance;
+				Compute::UnmanagedShape* Hull = nullptr;
+				Compute::SoftBody* Instance = nullptr;
 				std::vector<Compute::Vertex> Vertices;
 				std::vector<int> Indices;
 
 			public:
-				bool Kinematic;
-				bool Manage;
+				bool Kinematic = false;
+				bool Manage = true;
 
 			public:
 				SoftBody(Entity* Ref);
@@ -128,8 +128,8 @@ namespace Tomahawk
 			public:
 				Compute::Matrix4x4 Projection;
 				Compute::Matrix4x4 View;
-				float FieldOfView;
-				float Distance;
+				float FieldOfView = 90.0f;
+				float Distance = 15.0f;
 
 			public:
 				Decal(Entity* Ref);
@@ -224,17 +224,17 @@ namespace Tomahawk
 			class TH_OUT EmitterAnimator : public Component
 			{
 			private:
-				Emitter* Base;
+				Emitter* Base = nullptr;
 
 			public:
 				Compute::Vector4 Diffuse;
 				Compute::Vector3 Position;
 				Compute::Vector3 Velocity;
 				SpawnerProperties Spawner;
-				float RotationSpeed;
-				float ScaleSpeed;
-				float Noisiness;
-				bool Simulate;
+				float RotationSpeed = 0.0f;
+				float ScaleSpeed = 0.0f;
+				float Noise = 0.0f;
+				bool Simulate = false;
 
 			public:
 				EmitterAnimator(Entity* Ref);
@@ -257,12 +257,12 @@ namespace Tomahawk
 			class TH_OUT RigidBody : public Component
 			{
 			private:
-				Compute::UnmanagedShape* Hull;
-				Compute::RigidBody* Instance;
+				Compute::UnmanagedShape* Hull = nullptr;
+				Compute::RigidBody* Instance = nullptr;
 
 			public:
-				bool Kinematic;
-				bool Manage;
+				bool Kinematic = false;
+				bool Manage = true;
 
 			public:
 				RigidBody(Entity* Ref);
@@ -287,7 +287,7 @@ namespace Tomahawk
 			class TH_OUT Acceleration : public Component
 			{
 			private:
-				Compute::RigidBody* RigidBody;
+				Compute::RigidBody* RigidBody = nullptr;
 
 			public:
 				Compute::Vector3 AmplitudeVelocity;
@@ -295,7 +295,7 @@ namespace Tomahawk
 				Compute::Vector3 ConstantVelocity;
 				Compute::Vector3 ConstantTorque;
 				Compute::Vector3 ConstantCenter;
-				bool Kinematic;
+				bool Kinematic = true;
 
 			public:
 				Acceleration(Entity* Ref);
@@ -316,9 +316,9 @@ namespace Tomahawk
 			private:
 				struct
 				{
-					int64_t Connection;
-					bool Ghost;
-					bool Linear;
+					int64_t Connection = -1;
+					bool Ghost = true;
+					bool Linear = true;
 				} Wanted;
 
 			private:
@@ -369,19 +369,19 @@ namespace Tomahawk
 				Graphics::Activity* Activity;
 
 			public:
-				Graphics::KeyMap Forward;
-				Graphics::KeyMap Backward;
-				Graphics::KeyMap Right;
-				Graphics::KeyMap Left;
-				Graphics::KeyMap Up;
-				Graphics::KeyMap Down;
-				Graphics::KeyMap Fast;
-				Graphics::KeyMap Slow;
-				Compute::Vector3 Axis;
-				float SpeedNormal;
-				float SpeedUp;
-				float SpeedDown;
-
+				Graphics::KeyMap Forward = Graphics::KeyCode_W;
+				Graphics::KeyMap Backward = Graphics::KeyCode_S;
+				Graphics::KeyMap Right = Graphics::KeyCode_D;
+				Graphics::KeyMap Left = Graphics::KeyCode_A;
+				Graphics::KeyMap Up = Graphics::KeyCode_SPACE;
+				Graphics::KeyMap Down = Graphics::KeyCode_Z;
+				Graphics::KeyMap Fast = Graphics::KeyCode_LSHIFT;
+				Graphics::KeyMap Slow = Graphics::KeyCode_LCTRL;
+				Compute::Vector3 Axis = Compute::Vector3(1.0f, 1.0f, -1.0f);;
+				float SpeedNormal = 1.2f;
+				float SpeedUp = 2.6f;
+				float SpeedDown = 0.25f;
+				
 			public:
 				Fly(Entity* Ref);
 				virtual ~Fly() = default;
@@ -422,7 +422,7 @@ namespace Tomahawk
 				Compute::Vector3 LastPosition;
 
 			public:
-				float Gain;
+				float Gain = 1.0f;
 
 			public:
 				AudioListener(Entity* Ref);
@@ -440,18 +440,23 @@ namespace Tomahawk
 			class TH_OUT PointLight : public Cullable
 			{
 			private:
-				Graphics::Texture2D* ShadowCache;
+				Graphics::MultiRenderTargetCube* Depth = nullptr;
+
+			public:
+				struct
+				{
+					float Softness = 0.0f;
+					float Distance = 100.0f;
+					float Bias = 0.0f;
+					int Iterations = 2;
+					bool Enabled = false;
+				} Shadow;
 
 			public:
 				Compute::Matrix4x4 View;
 				Compute::Matrix4x4 Projection;
-				Compute::Vector3 Diffuse;
+				Compute::Vector3 Diffuse = 1.0f;
 				float Emission = 1.0f;
-				float ShadowSoftness = 0.0f;
-				float ShadowDistance = 10.0f;
-				float ShadowBias = 0.0f;
-				int ShadowIterations = 2;
-				bool Shadowed = false;
 
 			public:
 				PointLight(Entity* Ref);
@@ -461,8 +466,8 @@ namespace Tomahawk
 				virtual void Synchronize(Rest::Timer* Time) override;
 				virtual float Cull(const Viewer& View) override;
 				virtual Component* Copy(Entity* New) override;
-				void SetShadowCache(Graphics::Texture2D* NewCache);
-				Graphics::Texture2D* GetShadowCache() const;
+				void SetDepthCache(Graphics::MultiRenderTargetCube* NewCache);
+				Graphics::MultiRenderTargetCube* GetDepthCache() const;
 
 			public:
 				TH_COMPONENT("point-light");
@@ -471,33 +476,35 @@ namespace Tomahawk
 			class TH_OUT SpotLight : public Cullable
 			{
 			private:
-				Graphics::Texture2D* ShadowCache;
-				Graphics::Texture2D* ProjectMap;
+				Graphics::MultiRenderTarget2D* Depth = nullptr;
+
+			public:
+				struct
+				{
+					float Softness = 0.0f;
+					float Distance = 100.0f;
+					float Bias = 0.0f;
+					int Iterations = 2;
+					bool Enabled = false;
+				} Shadow;
 
 			public:
 				Compute::Matrix4x4 Projection;
 				Compute::Matrix4x4 View;
-				Compute::Vector3 Diffuse;
-				float ShadowSoftness;
-				float ShadowDistance;
-				float ShadowBias;
-				float FieldOfView;
-				float Emission;
-				int ShadowIterations;
-				bool Shadowed;
+				Compute::Vector3 Diffuse = 1.0f;
+				float Emission = 1.0f;
+				float Cutoff = 60.0f;
 
 			public:
 				SpotLight(Entity* Ref);
-				virtual ~SpotLight() override;
+				virtual ~SpotLight() = default;
 				virtual void Deserialize(ContentManager* Content, Rest::Document* Node) override;
 				virtual void Serialize(ContentManager* Content, Rest::Document* Node) override;
 				virtual void Synchronize(Rest::Timer* Time) override;
 				virtual float Cull(const Viewer& View) override;
 				virtual Component* Copy(Entity* New) override;
-				void SetShadowCache(Graphics::Texture2D* NewCache);
-				Graphics::Texture2D* GetShadowCache() const;
-				void SetProjectMap(Graphics::Texture2D* NewCache);
-				Graphics::Texture2D* GetProjectMap() const;
+				void SetDepthCache(Graphics::MultiRenderTarget2D* NewCache);
+				Graphics::MultiRenderTarget2D* GetDepthCache() const;
 
 			public:
 				TH_COMPONENT("spot-light");
@@ -506,29 +513,38 @@ namespace Tomahawk
 			class TH_OUT LineLight : public Component
 			{
 			private:
-				Graphics::Texture2D* ShadowCache;
+				Graphics::MultiRenderTarget2D* Depth = nullptr;
+
+			public:
+				struct
+				{
+					Compute::Vector3 RlhEmission = Compute::Vector3(0.0000055f, 0.000013f, 0.0000224f);
+					Compute::Vector3 MieEmission = 0.000021f;
+					float RlhHeight = 8000.0f;
+					float MieHeight = 1200.0f;
+					float MieDirection = 0.94f;
+					float InnerRadius = 6371000.0f;
+					float OuterRadius = 6471000.0f;
+					float Intensity = 7.0f;
+				} Sky;
+
+				struct
+				{
+					float Distance = 100.0f;
+					float Softness = 0.0f;
+					float Bias = 0.0f;
+					float FarBias = 20.0f;
+					float Length = 16.0f;
+					float Height = 0.0f;
+					int Iterations = 2;
+					bool Enabled = false;
+				} Shadow;
 
 			public:
 				Compute::Matrix4x4 Projection;
 				Compute::Matrix4x4 View;
-				Compute::Vector3 Diffuse;
-				Compute::Vector3 RlhEmission;
-				Compute::Vector3 MieEmission;
-				float RlhHeight;
-				float MieHeight;
-				float ScatterIntensity;
-				float PlanetRadius;
-				float AtmosphereRadius;
-				float MieDirection;
-				float ShadowDistance;
-				float ShadowSoftness;
-				float ShadowBias;
-				float ShadowFarBias;
-				float ShadowLength;
-				float ShadowHeight;
-				float Emission;
-				int ShadowIterations;
-				bool Shadowed;
+				Compute::Vector3 Diffuse = 1.0f;
+				float Emission = 1.0f;
 
 			public:
 				LineLight(Entity* Ref);
@@ -537,8 +553,8 @@ namespace Tomahawk
 				virtual void Serialize(ContentManager* Content, Rest::Document* Node) override;
 				virtual void Synchronize(Rest::Timer* Time) override;
 				virtual Component* Copy(Entity* New) override;
-				void SetShadowCache(Graphics::Texture2D* NewCache);
-				Graphics::Texture2D* GetShadowCache() const;
+				void SetDepthCache(Graphics::MultiRenderTarget2D* NewCache);
+				Graphics::MultiRenderTarget2D* GetDepthCache() const;
 
 			public:
 				TH_COMPONENT("line-light");
@@ -547,24 +563,24 @@ namespace Tomahawk
 			class TH_OUT ReflectionProbe : public Cullable
 			{
 			private:
-				Graphics::Texture2D* DiffuseMapX[2];
-				Graphics::Texture2D* DiffuseMapY[2];
-				Graphics::Texture2D* DiffuseMapZ[2];
-				Graphics::Texture2D* DiffuseMap;
-				Graphics::TextureCube* ProbeCache;
+				Graphics::Texture2D* DiffuseMapX[2] = { nullptr };
+				Graphics::Texture2D* DiffuseMapY[2] = { nullptr };
+				Graphics::Texture2D* DiffuseMapZ[2] = { nullptr };
+				Graphics::Texture2D* DiffuseMap = nullptr;
+				Graphics::TextureCube* Probe = nullptr;
 
 			public:
 				Compute::Matrix4x4 View[6];
 				Compute::Matrix4x4 Projection;
-				Compute::Vector3 Diffuse;
-				Compute::Vector3 ViewOffset;
-				Rest::TickTimer Rebuild;
-				float CaptureRange;
-				float Emission;
-				float Infinity;
-				bool ParallaxCorrected;
-				bool RenderLocked;
-				bool StaticMask;
+				Compute::Vector3 Offset = Compute::Vector3(1.0f, 1.0f, -1.0f);
+				Compute::Vector3 Diffuse = 1.0f;
+				Rest::TickTimer Tick;
+				float Emission = 1.0f;
+				float Infinity = 0.0f;
+				float Range = 10.0f;
+				bool Parallax = false;
+				bool Locked = false;
+				bool StaticMask = false;
 
 			public:
 				ReflectionProbe(Entity* Ref);
@@ -606,9 +622,11 @@ namespace Tomahawk
 				Viewer FieldView;
 
 			public:
-				float NearPlane, FarPlane;
-				float Width, Height;
-				float FieldOfView;
+				float NearPlane = 0.1f;
+				float FarPlane = 1000.0f;
+				float Width = -1;
+				float Height = -1;
+				float FieldOfView = 75.0f;
 
 			public:
 				Camera(Entity* Ref);

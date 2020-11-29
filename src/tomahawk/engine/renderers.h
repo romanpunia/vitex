@@ -173,7 +173,7 @@ namespace Tomahawk
 			public:
 				struct RenderConstant
 				{
-					Compute::Matrix4x4 OwnViewProjection;
+					Compute::Matrix4x4 ViewProjection;
 				} RenderPass;
 
 			private:
@@ -238,12 +238,12 @@ namespace Tomahawk
 			public:
 				struct
 				{
-					std::vector<Graphics::RenderTargetCube*> PointLight;
-					std::vector<Graphics::RenderTarget2D*> SpotLight;
-					std::vector<Graphics::RenderTarget2D*> LineLight;
+					std::vector<Graphics::MultiRenderTargetCube*> PointLight;
+					std::vector<Graphics::MultiRenderTarget2D*> SpotLight;
+					std::vector<Graphics::MultiRenderTarget2D*> LineLight;
 					uint64_t PointLightResolution = 256;
 					uint64_t PointLightLimits = 4;
-					uint64_t SpotLightResolution = 1024;
+					uint64_t SpotLightResolution = 512;
 					uint64_t SpotLightLimits = 16;
 					uint64_t LineLightResolution = 2048;
 					uint64_t LineLightLimits = 2;
@@ -301,7 +301,7 @@ namespace Tomahawk
 			public:
 				struct
 				{
-					Compute::Matrix4x4 OwnWorldViewProjection;
+					Compute::Matrix4x4 WorldViewProjection;
 					Compute::Vector3 Position;
 					float Range;
 					Compute::Vector3 Lighting;
@@ -314,7 +314,7 @@ namespace Tomahawk
 
 				struct
 				{
-					Compute::Matrix4x4 OwnWorldViewProjection;
+					Compute::Matrix4x4 WorldViewProjection;
 					Compute::Vector3 Position;
 					float Range;
 					Compute::Vector3 Lighting;
@@ -327,21 +327,24 @@ namespace Tomahawk
 
 				struct
 				{
-					Compute::Matrix4x4 OwnWorldViewProjection;
-					Compute::Matrix4x4 OwnViewProjection;
+					Compute::Matrix4x4 WorldViewProjection;
+					Compute::Matrix4x4 ViewProjection;
+					Compute::Vector3 Direction;
+					float Cutoff;
 					Compute::Vector3 Position;
 					float Range;
 					Compute::Vector3 Lighting;
-					float Diffuse;
 					float Softness;
 					float Recount;
 					float Bias;
 					float Iterations;
+					float Padding;
 				} SpotLight;
 
 				struct
 				{
-					Compute::Matrix4x4 OwnViewProjection;
+					Compute::Matrix4x4 ViewProjection;
+					Compute::Matrix4x4 SkyOffset;
 					Compute::Vector3 Position;
 					float ShadowDistance;
 					Compute::Vector3 Lighting;
@@ -374,19 +377,17 @@ namespace Tomahawk
 			protected:
 				struct
 				{
-					Graphics::Shader* PointBase = nullptr;
-					Graphics::Shader* PointShade = nullptr;
-					Graphics::Shader* SpotBase = nullptr;
-					Graphics::Shader* SpotShade = nullptr;
-					Graphics::Shader* LineBase = nullptr;
-					Graphics::Shader* LineShade = nullptr;
+					Graphics::Shader* Point[2] = { nullptr };
+					Graphics::Shader* Spot[2] = { nullptr };
+					Graphics::Shader* Line[2] = { nullptr };
 					Graphics::Shader* Probe = nullptr;
 					Graphics::Shader* Ambient = nullptr;
 				} Shaders;
 
 				struct
 				{
-					float SpotLight = 1024;
+					float PointLight = 256;
+					float SpotLight = 512;
 					float LineLight = 2048;
 				} Quality;
 

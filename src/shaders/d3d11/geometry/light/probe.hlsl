@@ -4,7 +4,7 @@
 
 cbuffer RenderConstant : register(b3)
 {
-	matrix OwnWorldViewProjection;
+	matrix LightWorldViewProjection;
 	float3 Position;
 	float Range;
 	float3 Lighting;
@@ -20,7 +20,7 @@ TextureCube EnvironmentMap : register(t5);
 VertexResult VS(VertexBase V)
 {
 	VertexResult Result = (VertexResult)0;
-	Result.Position = mul(V.Position, OwnWorldViewProjection);
+	Result.Position = mul(V.Position, LightWorldViewProjection);
 	Result.TexCoord = Result.Position;
 
 	return Result;

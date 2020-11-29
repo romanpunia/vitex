@@ -4,7 +4,8 @@
 
 cbuffer RenderConstant : register(b3)
 {
-	matrix OwnViewProjection;
+	matrix LightViewProjection;
+    matrix SkyOffset;
 	float3 Position;
 	float ShadowDistance;
 	float3 Lighting;
@@ -25,7 +26,9 @@ cbuffer RenderConstant : register(b3)
 
 float4 PS(VertexResult V) : SV_TARGET0
 {
-	Fragment Frag = GetFragment(GetTexCoord(V.TexCoord));
+    float2 TexCoord = GetTexCoord(V.TexCoord);
+	Fragment Frag = GetFragment(TexCoord);
+
     [branch] if (Frag.Depth >= 1.0)
     {
         [branch] if (ScatterIntensity <= 0.0)
@@ -40,7 +43,7 @@ float4 PS(VertexResult V) : SV_TARGET0
         A.RlhHeight = RlhHeight;
         A.MieHeight = MieHeight;
         A.MieG = MieDirection;
-        return float4(GetAtmosphere(Frag.Position, float3(0, 6372e3, 0), Position, A), 1.0);
+        return float4(GetAtmosphere(TexCoord, SkyOffset, float3(0, 6372e3, 0), Position, A), 1.0);
     }
 
 	Material Mat = GetMaterial(Frag.Material);

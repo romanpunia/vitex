@@ -74,58 +74,58 @@ namespace resource_batch
 		extern const unsigned size;
 	}
 
-	namespace d3d11_geometry_light_base_ambient_hlsl
+	namespace d3d11_geometry_light_ambient_hlsl
 	{
-#define HAS_D3D11_GEOMETRY_LIGHT_BASE_AMBIENT_HLSL
+#define HAS_D3D11_GEOMETRY_LIGHT_AMBIENT_HLSL
 		extern const unsigned char data[];
 		extern const unsigned size;
 	}
 
-	namespace d3d11_geometry_light_base_line_hlsl
+	namespace d3d11_geometry_light_direct_line_hlsl
 	{
-#define HAS_D3D11_GEOMETRY_LIGHT_BASE_LINE_HLSL
+#define HAS_D3D11_GEOMETRY_LIGHT_DIRECT_LINE_HLSL
 		extern const unsigned char data[];
 		extern const unsigned size;
 	}
 
-	namespace d3d11_geometry_light_base_point_hlsl
+	namespace d3d11_geometry_light_direct_point_hlsl
 	{
-#define HAS_D3D11_GEOMETRY_LIGHT_BASE_POINT_HLSL
+#define HAS_D3D11_GEOMETRY_LIGHT_DIRECT_POINT_HLSL
 		extern const unsigned char data[];
 		extern const unsigned size;
 	}
 
-	namespace d3d11_geometry_light_base_probe_hlsl
+	namespace d3d11_geometry_light_direct_spot_hlsl
 	{
-#define HAS_D3D11_GEOMETRY_LIGHT_BASE_PROBE_HLSL
+#define HAS_D3D11_GEOMETRY_LIGHT_DIRECT_SPOT_HLSL
 		extern const unsigned char data[];
 		extern const unsigned size;
 	}
 
-	namespace d3d11_geometry_light_base_spot_hlsl
+	namespace d3d11_geometry_light_indirect_line_hlsl
 	{
-#define HAS_D3D11_GEOMETRY_LIGHT_BASE_SPOT_HLSL
+#define HAS_D3D11_GEOMETRY_LIGHT_INDIRECT_LINE_HLSL
 		extern const unsigned char data[];
 		extern const unsigned size;
 	}
 
-	namespace d3d11_geometry_light_shade_line_hlsl
+	namespace d3d11_geometry_light_indirect_point_hlsl
 	{
-#define HAS_D3D11_GEOMETRY_LIGHT_SHADE_LINE_HLSL
+#define HAS_D3D11_GEOMETRY_LIGHT_INDIRECT_POINT_HLSL
 		extern const unsigned char data[];
 		extern const unsigned size;
 	}
 
-	namespace d3d11_geometry_light_shade_point_hlsl
+	namespace d3d11_geometry_light_indirect_spot_hlsl
 	{
-#define HAS_D3D11_GEOMETRY_LIGHT_SHADE_POINT_HLSL
+#define HAS_D3D11_GEOMETRY_LIGHT_INDIRECT_SPOT_HLSL
 		extern const unsigned char data[];
 		extern const unsigned size;
 	}
 
-	namespace d3d11_geometry_light_shade_spot_hlsl
+	namespace d3d11_geometry_light_probe_hlsl
 	{
-#define HAS_D3D11_GEOMETRY_LIGHT_SHADE_SPOT_HLSL
+#define HAS_D3D11_GEOMETRY_LIGHT_PROBE_HLSL
 		extern const unsigned char data[];
 		extern const unsigned size;
 	}

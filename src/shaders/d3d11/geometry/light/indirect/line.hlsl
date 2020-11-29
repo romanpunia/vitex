@@ -5,7 +5,8 @@
 
 cbuffer RenderConstant : register(b3)
 {
-	matrix OwnViewProjection;
+	matrix LightViewProjection;
+    matrix SkyOffset;
 	float3 Position;
 	float ShadowDistance;
 	float3 Lighting;
@@ -28,6 +29,7 @@ Texture2D ShadowMap : register(t5);
 
 void SampleShadow(in float2 D, in float L, out float C, out float B)
 {
+    C = B = 0.0;
 	[loop] for (int x = -Iterations; x < Iterations; x++)
 	{
 		[loop] for (int y = -Iterations; y < Iterations; y++)
@@ -42,7 +44,9 @@ void SampleShadow(in float2 D, in float L, out float C, out float B)
 
 float4 PS(VertexResult V) : SV_TARGET0
 {
-	Fragment Frag = GetFragment(GetTexCoord(V.TexCoord));
+    float2 TexCoord = GetTexCoord(V.TexCoord);
+	Fragment Frag = GetFragment(TexCoord);
+
     [branch] if (Frag.Depth >= 1.0)
     {
         [branch] if (ScatterIntensity <= 0.0)
@@ -57,11 +61,11 @@ float4 PS(VertexResult V) : SV_TARGET0
         A.RlhHeight = RlhHeight;
         A.MieHeight = MieHeight;
         A.MieG = MieDirection;
-        return float4(GetAtmosphere(Frag.Position, float3(0, 6372e3, 0), Position, A), 1.0);
+        return float4(GetAtmosphere(TexCoord, SkyOffset, float3(0, 6372e3, 0), Position, A), 1.0);
     }
     
 	Material Mat = GetMaterial(Frag.Material);
-	float4 L = mul(float4(Frag.Position, 1), OwnViewProjection);
+	float4 L = mul(float4(Frag.Position, 1), LightViewProjection);
 	float2 T = float2(L.x / L.w / 2.0 + 0.5f, 1 - (L.y / L.w / 2.0 + 0.5f));
 	float3 D = Position;
 	float3 M = GetMetallicFactor(Frag, Mat);
@@ -73,7 +77,7 @@ float4 PS(VertexResult V) : SV_TARGET0
 	[branch] if (saturate(T.x) == T.x && saturate(T.y) == T.y)
 	{
 		float G = length(float2(ViewPosition.x - P.x, ViewPosition.z - P.z));
-		float I = L.z / L.w - Bias, C = 0.0, B = 0.0;
+		float I = L.z / L.w - Bias, C, B;
 
 		[branch] if (Softness <= 0.0)
 		{

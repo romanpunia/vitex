@@ -362,11 +362,13 @@ namespace Tomahawk
 			{
 				DepthStencilView = nullptr;
 				Viewport = { 0, 0, 512, 512, 0, 1 };
+
 				for (int i = 0; i < 8; i++)
 				{
 					RenderTargetView[i] = nullptr;
 					Texture[i] = nullptr;
 					Resource[i] = nullptr;
+					Cube[i] = nullptr;
 				}
 			}
 			D3D11MultiRenderTargetCube::~D3D11MultiRenderTargetCube()
@@ -729,7 +731,6 @@ namespace Tomahawk
 				ImmediateContext->OMSetRenderTargets(1, &IResource->RenderTargetView, IResource->DepthStencilView);
 				ImmediateContext->RSSetViewports(1, &IResource->Viewport);
 				ImmediateContext->ClearRenderTargetView(IResource->RenderTargetView, ClearColor);
-				ImmediateContext->ClearDepthStencilView(IResource->DepthStencilView, D3D11_CLEAR_DEPTH, 1.0f, 0);
 			}
 			void D3D11Device::SetTarget(RenderTarget2D* Resource)
 			{
@@ -750,7 +751,6 @@ namespace Tomahawk
 				ImmediateContext->OMSetRenderTargets(1, &IResource->RenderTargetView[Target], IResource->DepthStencilView);
 				ImmediateContext->RSSetViewports(1, &IResource->Viewport);
 				ImmediateContext->ClearRenderTargetView(IResource->RenderTargetView[Target], ClearColor);
-				ImmediateContext->ClearDepthStencilView(IResource->DepthStencilView, D3D11_CLEAR_DEPTH, 1.0f, 0);
 			}
 			void D3D11Device::SetTarget(MultiRenderTarget2D* Resource, unsigned int Target)
 			{
@@ -770,7 +770,6 @@ namespace Tomahawk
 				float ClearColor[4] = { R, G, B, 0.0f };
 				ImmediateContext->OMSetRenderTargets(IResource->SVTarget, IResource->RenderTargetView, IResource->DepthStencilView);
 				ImmediateContext->RSSetViewports(1, &IResource->Viewport);
-				ImmediateContext->ClearDepthStencilView(IResource->DepthStencilView, D3D11_CLEAR_DEPTH, 1.0f, 0);
 
 				for (int i = 0; i < IResource->SVTarget; i++)
 					ImmediateContext->ClearRenderTargetView(IResource->RenderTargetView[i], ClearColor);
@@ -794,7 +793,6 @@ namespace Tomahawk
 				ImmediateContext->OMSetRenderTargets(1, &IResource->RenderTargetView, IResource->DepthStencilView);
 				ImmediateContext->RSSetViewports(1, &IResource->Viewport);
 				ImmediateContext->ClearRenderTargetView(IResource->RenderTargetView, ClearColor);
-				ImmediateContext->ClearDepthStencilView(IResource->DepthStencilView, D3D11_CLEAR_DEPTH, 1.0f, 0);
 			}
 			void D3D11Device::SetTarget(RenderTargetCube* Resource)
 			{
@@ -815,7 +813,6 @@ namespace Tomahawk
 				ImmediateContext->OMSetRenderTargets(1, &IResource->RenderTargetView[Target], IResource->DepthStencilView);
 				ImmediateContext->RSSetViewports(1, &IResource->Viewport);
 				ImmediateContext->ClearRenderTargetView(IResource->RenderTargetView[Target], ClearColor);
-				ImmediateContext->ClearDepthStencilView(IResource->DepthStencilView, D3D11_CLEAR_DEPTH, 1.0f, 0);
 			}
 			void D3D11Device::SetTarget(MultiRenderTargetCube* Resource, unsigned int Target)
 			{
@@ -835,7 +832,6 @@ namespace Tomahawk
 				float ClearColor[4] = { R, G, B, 0.0f };
 				ImmediateContext->OMSetRenderTargets(IResource->SVTarget, IResource->RenderTargetView, IResource->DepthStencilView);
 				ImmediateContext->RSSetViewports(1, &IResource->Viewport);
-				ImmediateContext->ClearDepthStencilView(IResource->DepthStencilView, D3D11_CLEAR_DEPTH, 1.0f, 0);
 
 				for (int i = 0; i < IResource->SVTarget; i++)
 					ImmediateContext->ClearRenderTargetView(IResource->RenderTargetView[i], ClearColor);

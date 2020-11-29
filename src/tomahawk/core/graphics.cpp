@@ -1019,45 +1019,45 @@ namespace Tomahawk
 #else
 				TH_ERROR("geometry/decal/gbuffer.hlsl was not compiled");
 #endif
-#ifdef HAS_D3D11_GEOMETRY_LIGHT_BASE_AMBIENT_HLSL
-				AddSection("geometry/light/base/ambient.hlsl", GET_RESOURCE_BATCH(d3d11_geometry_light_base_ambient_hlsl));
+#ifdef HAS_D3D11_GEOMETRY_LIGHT_AMBIENT_HLSL
+				AddSection("geometry/light/ambient.hlsl", GET_RESOURCE_BATCH(d3d11_geometry_light_ambient_hlsl));
 #else
-				TH_ERROR("geometry/light/base/ambient.hlsl was not compiled");
+				TH_ERROR("geometry/light/ambient.hlsl was not compiled");
 #endif
-#ifdef HAS_D3D11_GEOMETRY_LIGHT_BASE_PROBE_HLSL
-				AddSection("geometry/light/base/probe.hlsl", GET_RESOURCE_BATCH(d3d11_geometry_light_base_probe_hlsl));
+#ifdef HAS_D3D11_GEOMETRY_LIGHT_PROBE_HLSL
+				AddSection("geometry/light/probe.hlsl", GET_RESOURCE_BATCH(d3d11_geometry_light_probe_hlsl));
 #else
-				TH_ERROR("geometry/light/base/probe.hlsl was not compiled");
+				TH_ERROR("geometry/light/probe.hlsl was not compiled");
 #endif
-#ifdef HAS_D3D11_GEOMETRY_LIGHT_BASE_LINE_HLSL
-				AddSection("geometry/light/base/line.hlsl", GET_RESOURCE_BATCH(d3d11_geometry_light_base_line_hlsl));
+#ifdef HAS_D3D11_GEOMETRY_LIGHT_DIRECT_LINE_HLSL
+				AddSection("geometry/light/direct/line.hlsl", GET_RESOURCE_BATCH(d3d11_geometry_light_direct_line_hlsl));
 #else
-				TH_ERROR("geometry/light/base/line.hlsl was not compiled");
+				TH_ERROR("geometry/light/direct/line.hlsl was not compiled");
 #endif
-#ifdef HAS_D3D11_GEOMETRY_LIGHT_BASE_POINT_HLSL
-				AddSection("geometry/light/base/point.hlsl", GET_RESOURCE_BATCH(d3d11_geometry_light_base_point_hlsl));
+#ifdef HAS_D3D11_GEOMETRY_LIGHT_DIRECT_POINT_HLSL
+				AddSection("geometry/light/direct/point.hlsl", GET_RESOURCE_BATCH(d3d11_geometry_light_direct_point_hlsl));
 #else
-				TH_ERROR("geometry/light/base/point.hlsl was not compiled");
+				TH_ERROR("geometry/light/direct/point.hlsl was not compiled");
 #endif
-#ifdef HAS_D3D11_GEOMETRY_LIGHT_BASE_SPOT_HLSL
-				AddSection("geometry/light/base/spot.hlsl", GET_RESOURCE_BATCH(d3d11_geometry_light_base_spot_hlsl));
+#ifdef HAS_D3D11_GEOMETRY_LIGHT_DIRECT_SPOT_HLSL
+				AddSection("geometry/light/direct/spot.hlsl", GET_RESOURCE_BATCH(d3d11_geometry_light_direct_spot_hlsl));
 #else
-				TH_ERROR("geometry/light/base/spot.hlsl was not compiled");
+				TH_ERROR("geometry/light/direct/spot.hlsl was not compiled");
 #endif
-#ifdef HAS_D3D11_GEOMETRY_LIGHT_SHADE_LINE_HLSL
-				AddSection("geometry/light/shade/line.hlsl", GET_RESOURCE_BATCH(d3d11_geometry_light_shade_line_hlsl));
+#ifdef HAS_D3D11_GEOMETRY_LIGHT_INDIRECT_LINE_HLSL
+				AddSection("geometry/light/indirect/line.hlsl", GET_RESOURCE_BATCH(d3d11_geometry_light_indirect_line_hlsl));
 #else
-				TH_ERROR("geometry/light/shade/line.hlsl was not compiled");
+				TH_ERROR("geometry/light/indirect/line.hlsl was not compiled");
 #endif
-#ifdef HAS_D3D11_GEOMETRY_LIGHT_SHADE_POINT_HLSL
-				AddSection("geometry/light/shade/point.hlsl", GET_RESOURCE_BATCH(d3d11_geometry_light_shade_point_hlsl));
+#ifdef HAS_D3D11_GEOMETRY_LIGHT_INDIRECT_POINT_HLSL
+				AddSection("geometry/light/indirect/point.hlsl", GET_RESOURCE_BATCH(d3d11_geometry_light_indirect_point_hlsl));
 #else
-				TH_ERROR("geometry/light/shade/point.hlsl was not compiled");
+				TH_ERROR("geometry/light/indirect/point.hlsl was not compiled");
 #endif
-#ifdef HAS_D3D11_GEOMETRY_LIGHT_SHADE_SPOT_HLSL
-				AddSection("geometry/light/shade/spot.hlsl", GET_RESOURCE_BATCH(d3d11_geometry_light_shade_spot_hlsl));
+#ifdef HAS_D3D11_GEOMETRY_LIGHT_INDIRECT_SPOT_HLSL
+				AddSection("geometry/light/indirect/spot.hlsl", GET_RESOURCE_BATCH(d3d11_geometry_light_indirect_spot_hlsl));
 #else
-				TH_ERROR("geometry/light/shade/spot.hlsl was not compiled");
+				TH_ERROR("geometry/light/indirect/spot.hlsl was not compiled");
 #endif
 #ifdef HAS_D3D11_GEOMETRY_BASIC_GBUFFER_HLSL
 				AddSection("geometry/basic/gbuffer.hlsl", GET_RESOURCE_BATCH(d3d11_geometry_basic_gbuffer_hlsl));
@@ -1359,45 +1359,45 @@ namespace Tomahawk
 #else
 			TH_ERROR("geometry/decal/gbuffer.glsl was not compiled");
 #endif
-#ifdef HAS_OGL_GEOMETRY_LIGHT_BASE_AMBIENT_GLSL
-			AddSection("geometry/light/base/ambient.glsl", GET_RESOURCE_BATCH(ogl_geometry_light_base_ambient_glsl));
+#ifdef HAS_OGL_GEOMETRY_LIGHT_AMBIENT_GLSL
+			AddSection("geometry/light/ambient.glsl", GET_RESOURCE_BATCH(ogl_geometry_light_ambient_glsl));
 #else
-			TH_ERROR("geometry/light/base/ambient.glsl was not compiled");
+			TH_ERROR("geometry/light/ambient.glsl was not compiled");
 #endif
-#ifdef HAS_OGL_GEOMETRY_LIGHT_BASE_PROBE_GLSL
-			AddSection("geometry/light/base/probe.glsl", GET_RESOURCE_BATCH(ogl_geometry_light_base_probe_glsl));
+#ifdef HAS_OGL_GEOMETRY_LIGHT_PROBE_GLSL
+			AddSection("geometry/light/probe.glsl", GET_RESOURCE_BATCH(ogl_geometry_light_probe_glsl));
 #else
-			TH_ERROR("geometry/light/base/probe.glsl was not compiled");
+			TH_ERROR("geometry/light/probe.glsl was not compiled");
 #endif
-#ifdef HAS_OGL_GEOMETRY_LIGHT_BASE_LINE_GLSL
-			AddSection("geometry/light/base/line.glsl", GET_RESOURCE_BATCH(ogl_geometry_light_base_line_glsl));
+#ifdef HAS_OGL_GEOMETRY_LIGHT_DIRECT_LINE_GLSL
+			AddSection("geometry/light/direct/line.glsl", GET_RESOURCE_BATCH(ogl_geometry_light_direct_line_glsl));
 #else
-			TH_ERROR("geometry/light/base/line.glsl was not compiled");
+			TH_ERROR("geometry/light/direct/line.glsl was not compiled");
 #endif
-#ifdef HAS_OGL_GEOMETRY_LIGHT_BASE_POINT_GLSL
-			AddSection("geometry/light/base/point.glsl", GET_RESOURCE_BATCH(ogl_geometry_light_base_point_glsl));
+#ifdef HAS_OGL_GEOMETRY_LIGHT_DIRECT_POINT_GLSL
+			AddSection("geometry/light/direct/point.glsl", GET_RESOURCE_BATCH(ogl_geometry_light_direct_point_glsl));
 #else
-			TH_ERROR("geometry/light/base/point.glsl was not compiled");
+			TH_ERROR("geometry/light/direct/point.glsl was not compiled");
 #endif
-#ifdef HAS_OGL_GEOMETRY_LIGHT_BASE_SPOT_GLSL
-			AddSection("geometry/light/base/spot.glsl", GET_RESOURCE_BATCH(ogl_geometry_light_base_spot_glsl));
+#ifdef HAS_OGL_GEOMETRY_LIGHT_DIRECT_SPOT_GLSL
+			AddSection("geometry/light/direct/spot.glsl", GET_RESOURCE_BATCH(ogl_geometry_light_direct_spot_glsl));
 #else
-			TH_ERROR("geometry/light/base/spot.glsl was not compiled");
+			TH_ERROR("geometry/light/direct/spot.glsl was not compiled");
 #endif
-#ifdef HAS_OGL_GEOMETRY_LIGHT_SHADE_LINE_GLSL
-			AddSection("geometry/light/shade/line.glsl", GET_RESOURCE_BATCH(ogl_geometry_light_shade_line_glsl));
+#ifdef HAS_OGL_GEOMETRY_LIGHT_INDIRECT_LINE_GLSL
+			AddSection("geometry/light/indirect/line.glsl", GET_RESOURCE_BATCH(ogl_geometry_light_indirect_line_glsl));
 #else
-			TH_ERROR("geometry/light/shade/line.glsl was not compiled");
+			TH_ERROR("geometry/light/indirect/line.glsl was not compiled");
 #endif
-#ifdef HAS_OGL_GEOMETRY_LIGHT_SHADE_POINT_GLSL
-			AddSection("geometry/light/shade/point.glsl", GET_RESOURCE_BATCH(ogl_geometry_light_shade_point_glsl));
+#ifdef HAS_OGL_GEOMETRY_LIGHT_INDIRECT_POINT_GLSL
+			AddSection("geometry/light/indirect/point.glsl", GET_RESOURCE_BATCH(ogl_geometry_light_indirect_point_glsl));
 #else
-			TH_ERROR("geometry/light/shade/point.glsl was not compiled");
+			TH_ERROR("geometry/light/indirect/point.glsl was not compiled");
 #endif
-#ifdef HAS_OGL_GEOMETRY_LIGHT_SHADE_SPOT_GLSL
-			AddSection("geometry/light/shade/spot.glsl", GET_RESOURCE_BATCH(ogl_geometry_light_shade_spot_glsl));
+#ifdef HAS_OGL_GEOMETRY_LIGHT_INDIRECT_SPOT_GLSL
+			AddSection("geometry/light/indirect/spot.glsl", GET_RESOURCE_BATCH(ogl_geometry_light_indirect_spot_glsl));
 #else
-			TH_ERROR("geometry/light/shade/spot.glsl was not compiled");
+			TH_ERROR("geometry/light/indirect/spot.glsl was not compiled");
 #endif
 #ifdef HAS_OGL_GEOMETRY_BASIC_GBUFFER_GLSL
 				AddSection("geometry/basic/gbuffer.glsl", GET_RESOURCE_BATCH(ogl_geometry_basic_gbuffer_glsl));

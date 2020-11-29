@@ -880,7 +880,7 @@ namespace Tomahawk
 					if (!Surface || !Surface->FillGBuffer(Device))
 						continue;
 
-					RenderPass.OwnViewProjection = Base->View * Base->Projection;
+					RenderPass.ViewProjection = Base->View * Base->Projection;
 					Device->Render.World = Compute::Matrix4x4::CreateScale(Base->GetRange()) * Compute::Matrix4x4::CreateTranslation(Base->GetEntity()->Transform->Position);
 					Device->Render.WorldViewProjection = Device->Render.World * System->GetScene()->View.ViewProjection;
 					Device->UpdateBuffer(Graphics::RenderBufferType_Render);
@@ -1019,15 +1019,15 @@ namespace Tomahawk
 
 				Rest::Pool<Component*>* Lights = System->GetScene()->GetComponents<Components::PointLight>();
 				for (auto It = Lights->Begin(); It != Lights->End(); It++)
-					(*It)->As<Components::PointLight>()->SetShadowCache(nullptr);
+					(*It)->As<Components::PointLight>()->SetDepthCache(nullptr);
 
 				Lights = System->GetScene()->GetComponents<Components::SpotLight>();
 				for (auto It = Lights->Begin(); It != Lights->End(); It++)
-					(*It)->As<Components::SpotLight>()->SetShadowCache(nullptr);
+					(*It)->As<Components::SpotLight>()->SetDepthCache(nullptr);
 
 				Lights = System->GetScene()->GetComponents<Components::LineLight>();
 				for (auto It = Lights->Begin(); It != Lights->End(); It++)
-					(*It)->As<Components::LineLight>()->SetShadowCache(nullptr);
+					(*It)->As<Components::LineLight>()->SetDepthCache(nullptr);
 			}
 			void Depth::Deserialize(ContentManager* Content, Rest::Document* Node)
 			{
@@ -1056,13 +1056,13 @@ namespace Tomahawk
 				LineLights = System->GetScene()->GetComponents<Engine::Components::LineLight>();
 
 				for (auto It = PointLights->Begin(); It != PointLights->End(); It++)
-					(*It)->As<Engine::Components::PointLight>()->SetShadowCache(nullptr);
+					(*It)->As<Engine::Components::PointLight>()->SetDepthCache(nullptr);
 
 				for (auto It = SpotLights->Begin(); It != SpotLights->End(); It++)
-					(*It)->As<Engine::Components::SpotLight>()->SetShadowCache(nullptr);
+					(*It)->As<Engine::Components::SpotLight>()->SetDepthCache(nullptr);
 
 				for (auto It = LineLights->Begin(); It != LineLights->End(); It++)
-					(*It)->As<Engine::Components::LineLight>()->SetShadowCache(nullptr);
+					(*It)->As<Engine::Components::LineLight>()->SetDepthCache(nullptr);
 
 				for (auto It = Renderers.PointLight.begin(); It != Renderers.PointLight.end(); It++)
 					delete *It;
@@ -1076,33 +1076,42 @@ namespace Tomahawk
 				Renderers.PointLight.resize(Renderers.PointLightLimits);
 				for (auto It = Renderers.PointLight.begin(); It != Renderers.PointLight.end(); It++)
 				{
-					Graphics::RenderTargetCube::Desc F = Graphics::RenderTargetCube::Desc();
+					Graphics::MultiRenderTargetCube::Desc F = Graphics::MultiRenderTargetCube::Desc();
 					F.Size = (unsigned int)Renderers.PointLightResolution;
-					F.FormatMode = Graphics::Format_R32G32_Float;
+					F.FormatMode[0] = Graphics::Format_R32G32_Float;
+					F.FormatMode[1] = Graphics::Format_R16G16B16A16_Float;
+					F.FormatMode[2] = Graphics::Format_R16G16B16A16_Float;
+					F.Target = Graphics::SurfaceTarget2;
 
-					*It = System->GetDevice()->CreateRenderTargetCube(F);
+					*It = System->GetDevice()->CreateMultiRenderTargetCube(F);
 				}
 
 				Renderers.SpotLight.resize(Renderers.SpotLightLimits);
 				for (auto It = Renderers.SpotLight.begin(); It != Renderers.SpotLight.end(); It++)
 				{
-					Graphics::RenderTarget2D::Desc F = Graphics::RenderTarget2D::Desc();
+					Graphics::MultiRenderTarget2D::Desc F = Graphics::MultiRenderTarget2D::Desc();
 					F.Width = (unsigned int)Renderers.SpotLightResolution;
 					F.Height = (unsigned int)Renderers.SpotLightResolution;
-					F.FormatMode = Graphics::Format_R32G32_Float;
+					F.FormatMode[0] = Graphics::Format_R32G32_Float;
+					F.FormatMode[1] = Graphics::Format_R16G16B16A16_Float;
+					F.FormatMode[2] = Graphics::Format_R16G16B16A16_Float;
+					F.SVTarget = Graphics::SurfaceTarget2;
 
-					*It = System->GetDevice()->CreateRenderTarget2D(F);
+					*It = System->GetDevice()->CreateMultiRenderTarget2D(F);
 				}
 
 				Renderers.LineLight.resize(Renderers.LineLightLimits);
 				for (auto It = Renderers.LineLight.begin(); It != Renderers.LineLight.end(); It++)
 				{
-					Graphics::RenderTarget2D::Desc F = Graphics::RenderTarget2D::Desc();
+					Graphics::MultiRenderTarget2D::Desc F = Graphics::MultiRenderTarget2D::Desc();
 					F.Width = (unsigned int)Renderers.LineLightResolution;
 					F.Height = (unsigned int)Renderers.LineLightResolution;
-					F.FormatMode = Graphics::Format_R32G32_Float;
+					F.FormatMode[0] = Graphics::Format_R32G32_Float;
+					F.FormatMode[1] = Graphics::Format_R16G16B16A16_Float;
+					F.FormatMode[2] = Graphics::Format_R16G16B16A16_Float;
+					F.SVTarget = Graphics::SurfaceTarget2;
 
-					*It = System->GetDevice()->CreateRenderTarget2D(F);
+					*It = System->GetDevice()->CreateMultiRenderTarget2D(F);
 				}
 			}
 			void Depth::Deactivate()
@@ -1126,20 +1135,20 @@ namespace Tomahawk
 					if (Shadows >= Renderers.PointLight.size())
 						break;
 
-					Light->SetShadowCache(nullptr);
-					if (!Light->Shadowed)
+					Light->SetDepthCache(nullptr);
+					if (!Light->Shadow.Enabled)
 						continue;
 					
 					if (!System->PassCullable(Light, CullResult_Always, &D) || D < ShadowDistance)
 						continue;
 
-					Graphics::RenderTargetCube* Target = Renderers.PointLight[Shadows];
+					Graphics::MultiRenderTargetCube* Target = Renderers.PointLight[Shadows];
 					Device->SetTarget(Target, 0, 0, 0);
 					Device->ClearDepth(Target);
 
-					Scene->SetView(Compute::Matrix4x4::Identity(), Light->Projection, Light->GetEntity()->Transform->Position, Light->ShadowDistance, true);
+					Scene->SetView(Compute::Matrix4x4::Identity(), Light->Projection, Light->GetEntity()->Transform->Position, Light->Shadow.Distance, true);
 					Scene->RenderDepthCubic(Time);
-					Light->SetShadowCache(Target->GetTarget()); Shadows++;
+					Light->SetDepthCache(Target); Shadows++;
 				}
 
 				Shadows = 0;
@@ -1149,20 +1158,20 @@ namespace Tomahawk
 					if (Shadows >= Renderers.SpotLight.size())
 						break;
 
-					Light->SetShadowCache(nullptr);
-					if (!Light->Shadowed)
+					Light->SetDepthCache(nullptr);
+					if (!Light->Shadow.Enabled)
 						continue;
 
 					if (!System->PassCullable(Light, CullResult_Always, &D) || D < ShadowDistance)
 						continue;
 
-					Graphics::RenderTarget2D* Target = Renderers.SpotLight[Shadows];
+					Graphics::MultiRenderTarget2D* Target = Renderers.SpotLight[Shadows];
 					Device->SetTarget(Target, 0, 0, 0);
 					Device->ClearDepth(Target);
 
-					Scene->SetView(Light->View, Light->Projection, Light->GetEntity()->Transform->Position, Light->ShadowDistance, true);
+					Scene->SetView(Light->View, Light->Projection, Light->GetEntity()->Transform->Position, Light->Shadow.Distance, true);
 					Scene->RenderDepthLinear(Time);
-					Light->SetShadowCache(Target->GetTarget()); Shadows++;
+					Light->SetDepthCache(Target); Shadows++;
 				}
 
 				Shadows = 0;
@@ -1172,17 +1181,17 @@ namespace Tomahawk
 					if (Shadows >= Renderers.LineLight.size())
 						break;
 
-					Light->SetShadowCache(nullptr);
-					if (!Light->Shadowed)
+					Light->SetDepthCache(nullptr);
+					if (!Light->Shadow.Enabled)
 						continue;
 
-					Graphics::RenderTarget2D* Target = Renderers.LineLight[Shadows];
+					Graphics::MultiRenderTarget2D* Target = Renderers.LineLight[Shadows];
 					Device->SetTarget(Target, 0, 0, 0);
 					Device->ClearDepth(Target);
 
 					Scene->SetView(Light->View, Light->Projection, 0.0f, -1.0f, true);
 					Scene->RenderDepthLinear(Time);
-					Light->SetShadowCache(Target->GetTarget()); Shadows++;
+					Light->SetDepthCache(Target); Shadows++;
 				}
 
 				Scene->RestoreViewBuffer(nullptr);
@@ -1238,23 +1247,23 @@ namespace Tomahawk
 						Cache = Device->CreateTextureCube();
 						Light->SetProbeCache(Cache);
 					}
-					else if (!Light->Rebuild.TickEvent(ElapsedTime) || Light->Rebuild.Delay <= 0.0)
+					else if (!Light->Tick.TickEvent(ElapsedTime) || Light->Tick.Delay <= 0.0)
 						continue;
 
 					Device->CopyBegin(Surface, 0, MipLevels, Size);
-					Light->RenderLocked = true;
+					Light->Locked = true;
 
-					Compute::Vector3 Position = Light->GetEntity()->Transform->Position * Light->ViewOffset;
+					Compute::Vector3 Position = Light->GetEntity()->Transform->Position * Light->Offset;
 					for (unsigned int j = 0; j < 6; j++)
 					{
 						Light->View[j] = Compute::Matrix4x4::CreateCubeMapLookAt(j, Position);
-						Scene->SetView(Light->View[j], Light->Projection, Position, Light->CaptureRange, true);
+						Scene->SetView(Light->View[j], Light->Projection, Position, Light->Range, true);
 						Scene->ClearSurface();
 						Scene->RenderGBuffer(Time, Light->StaticMask ? RenderOpt_Inner | RenderOpt_Static : RenderOpt_Inner);
 						Device->CopyFace(Surface, 0, j);
 					}
 
-					Light->RenderLocked = false;
+					Light->Locked = false;
 					Device->CopyEnd(Surface, Cache);
 				}
 
@@ -1296,38 +1305,38 @@ namespace Tomahawk
 				Layout = Lab->GetDevice()->GetInputLayout("shape-vertex");
 
 				Graphics::Shader::Desc I = Graphics::Shader::Desc();
-				if (System->GetDevice()->GetSection("geometry/light/shade/point", &I.Data))
-					Shaders.PointShade = System->CompileShader("lr-point-shade", I, 0);
+				if (System->GetDevice()->GetSection("geometry/light/direct/point", &I.Data))
+					Shaders.Point[0] = System->CompileShader("lr-point-direct", I, sizeof(PointLight));
 
-				if (System->GetDevice()->GetSection("geometry/light/shade/spot", &I.Data))
-					Shaders.SpotShade = System->CompileShader("lr-spot-shade", I, 0);
+				if (System->GetDevice()->GetSection("geometry/light/indirect/point", &I.Data))
+					Shaders.Point[1] = System->CompileShader("lr-point-indirect", I, 0);
 
-				if (System->GetDevice()->GetSection("geometry/light/shade/line", &I.Data))
-					Shaders.LineShade = System->CompileShader("lr-line-shade", I, 0);
+				if (System->GetDevice()->GetSection("geometry/light/direct/spot", &I.Data))
+					Shaders.Spot[0] = System->CompileShader("lr-spot-direct", I, sizeof(SpotLight));
 
-				if (System->GetDevice()->GetSection("geometry/light/base/point", &I.Data))
-					Shaders.PointBase = System->CompileShader("lr-point-base", I, sizeof(PointLight));
+				if (System->GetDevice()->GetSection("geometry/light/indirect/spot", &I.Data))
+					Shaders.Spot[1] = System->CompileShader("lr-spot-indirect", I, 0);
 
-				if (System->GetDevice()->GetSection("geometry/light/base/spot", &I.Data))
-					Shaders.SpotBase = System->CompileShader("lr-spot-base", I, sizeof(SpotLight));
+				if (System->GetDevice()->GetSection("geometry/light/direct/line", &I.Data))
+					Shaders.Line[0] = System->CompileShader("lr-line-direct", I, sizeof(LineLight));
 
-				if (System->GetDevice()->GetSection("geometry/light/base/line", &I.Data))
-					Shaders.LineBase = System->CompileShader("lr-line-base", I, sizeof(LineLight));
+				if (System->GetDevice()->GetSection("geometry/light/indirect/line", &I.Data))
+					Shaders.Line[1] = System->CompileShader("lr-line-indirect", I, 0);
 
-				if (System->GetDevice()->GetSection("geometry/light/base/probe", &I.Data))
+				if (System->GetDevice()->GetSection("geometry/light/probe", &I.Data))
 					Shaders.Probe = System->CompileShader("lr-probe", I, sizeof(ReflectionProbe));
 
-				if (System->GetDevice()->GetSection("geometry/light/base/ambient", &I.Data))
+				if (System->GetDevice()->GetSection("geometry/light/ambient", &I.Data))
 					Shaders.Ambient = System->CompileShader("lr-ambient", I, sizeof(AmbientLight));
 			}
 			Lighting::~Lighting()
 			{
-				System->FreeShader("lr-point-base", Shaders.PointBase);
-				System->FreeShader("lr-point-shade", Shaders.PointShade);
-				System->FreeShader("lr-spot-base", Shaders.SpotBase);
-				System->FreeShader("lr-spot-shade", Shaders.SpotShade);
-				System->FreeShader("lr-line-base", Shaders.LineBase);
-				System->FreeShader("lr-line-shade", Shaders.LineShade);
+				System->FreeShader("lr-point-direct", Shaders.Point[0]);
+				System->FreeShader("lr-point-indirect", Shaders.Point[1]);
+				System->FreeShader("lr-spot-direct", Shaders.Spot[0]);
+				System->FreeShader("lr-spot-indirect", Shaders.Spot[1]);
+				System->FreeShader("lr-line-direct", Shaders.Line[0]);
+				System->FreeShader("lr-line-indirect", Shaders.Line[1]);
 				System->FreeShader("lr-probe", Shaders.Probe);
 				System->FreeShader("lr-ambient", Shaders.Ambient);
 				TH_RELEASE(Input1);
@@ -1373,6 +1382,7 @@ namespace Tomahawk
 				Depth* Depth = System->GetRenderer<Renderers::Depth>();
 				if (Depth != nullptr)
 				{
+					Quality.PointLight = (float)Depth->Renderers.PointLightResolution;
 					Quality.SpotLight = (float)Depth->Renderers.SpotLightResolution;
 					Quality.LineLight = (float)Depth->Renderers.LineLightResolution;
 				}
@@ -1400,6 +1410,7 @@ namespace Tomahawk
 				bool Inner = (Options & RenderOpt_Inner);
 				float D = 0.0;
 
+				AmbientLight.SkyOffset = System->GetScene()->View.Projection.Invert() * Compute::Matrix4x4::CreateRotation(System->GetScene()->View.WorldRotation);
 				Device->SetDepthStencilState(DepthStencil);
 				Device->SetSamplerState(Sampler);
 				Device->SetBlendState(Blend);
@@ -1426,11 +1437,11 @@ namespace Tomahawk
 							continue;
 
 						ReflectionProbe.Range = Light->GetRange();
-						ReflectionProbe.OwnWorldViewProjection = Compute::Matrix4x4::CreateTranslatedScale(Light->GetEntity()->Transform->Position, ReflectionProbe.Range) * System->GetScene()->View.ViewProjection;
+						ReflectionProbe.WorldViewProjection = Compute::Matrix4x4::CreateTranslatedScale(Light->GetEntity()->Transform->Position, ReflectionProbe.Range) * System->GetScene()->View.ViewProjection;
 						ReflectionProbe.Position = Light->GetEntity()->Transform->Position.InvertZ();
 						ReflectionProbe.Lighting = Light->Diffuse.Mul(Light->Emission * D);
 						ReflectionProbe.Scale = Light->GetEntity()->Transform->Scale;
-						ReflectionProbe.Parallax = (Light->ParallaxCorrected ? 1.0f : 0.0f);
+						ReflectionProbe.Parallax = (Light->Parallax ? 1.0f : 0.0f);
 						ReflectionProbe.Infinity = Light->Infinity;
 
 						Device->SetTextureCube(Light->GetProbeCache(), 5);
@@ -1446,15 +1457,15 @@ namespace Tomahawk
 					for (auto It = ReflectionProbes->Begin(); It != ReflectionProbes->End(); ++It)
 					{
 						Engine::Components::ReflectionProbe* Light = (Engine::Components::ReflectionProbe*)*It;
-						if (Light->RenderLocked || !Light->GetProbeCache() || !System->PassCullable(Light, CullResult_Always, &D))
+						if (Light->Locked || !Light->GetProbeCache() || !System->PassCullable(Light, CullResult_Always, &D))
 							continue;
 
 						ReflectionProbe.Range = Light->GetRange();
-						ReflectionProbe.OwnWorldViewProjection = Compute::Matrix4x4::CreateTranslatedScale(Light->GetEntity()->Transform->Position, ReflectionProbe.Range) * System->GetScene()->View.ViewProjection;
+						ReflectionProbe.WorldViewProjection = Compute::Matrix4x4::CreateTranslatedScale(Light->GetEntity()->Transform->Position, ReflectionProbe.Range) * System->GetScene()->View.ViewProjection;
 						ReflectionProbe.Position = Light->GetEntity()->Transform->Position.InvertZ();
 						ReflectionProbe.Lighting = Light->Diffuse.Mul(Light->Emission * D);
 						ReflectionProbe.Scale = Light->GetEntity()->Transform->Scale;
-						ReflectionProbe.Parallax = (Light->ParallaxCorrected ? 1.0f : 0.0f);
+						ReflectionProbe.Parallax = (Light->Parallax ? 1.0f : 0.0f);
 						ReflectionProbe.Infinity = Light->Infinity;
 
 						Device->SetTextureCube(Light->GetProbeCache(), 5);
@@ -1463,8 +1474,8 @@ namespace Tomahawk
 					}
 				}
 
-				Device->SetShader(Shaders.PointBase, Graphics::ShaderType_Vertex);
-				Device->SetBuffer(Shaders.PointBase, 3, Graphics::ShaderType_Vertex | Graphics::ShaderType_Pixel);
+				Device->SetShader(Shaders.Point[0], Graphics::ShaderType_Vertex);
+				Device->SetBuffer(Shaders.Point[0], 3, Graphics::ShaderType_Vertex | Graphics::ShaderType_Pixel);
 
 				for (auto It = PointLights->Begin(); It != PointLights->End(); ++It)
 				{
@@ -1472,32 +1483,33 @@ namespace Tomahawk
 					if (!System->PassCullable(Light, CullResult_Always, &D))
 						continue;
 
-					if (Light->Shadowed && Light->GetShadowCache())
+					Graphics::MultiRenderTargetCube* Depth = Light->GetDepthCache();
+					if (Light->Shadow.Enabled && Depth != nullptr)
 					{
-						PointLight.Softness = Light->ShadowSoftness <= 0 ? 0 : Quality.SpotLight / Light->ShadowSoftness;
-						PointLight.Recount = 8.0f * Light->ShadowIterations * Light->ShadowIterations * Light->ShadowIterations;
-						PointLight.Bias = Light->ShadowBias;
-						PointLight.Distance = Light->ShadowDistance;
-						PointLight.Iterations = (float)Light->ShadowIterations;
+						PointLight.Softness = Light->Shadow.Softness <= 0 ? 0 : Quality.PointLight / Light->Shadow.Softness;
+						PointLight.Recount = 8.0f * Light->Shadow.Iterations * Light->Shadow.Iterations * Light->Shadow.Iterations;
+						PointLight.Bias = Light->Shadow.Bias;
+						PointLight.Distance = Light->Shadow.Distance;
+						PointLight.Iterations = (float)Light->Shadow.Iterations;
+						Active = Shaders.Point[1];
 
-						Active = Shaders.PointShade;
-						Device->SetTexture2D(Light->GetShadowCache(), 5);
+						Device->SetTexture2D(Depth->GetTarget(0), 5);
 					}
 					else
-						Active = Shaders.PointBase;
+						Active = Shaders.Point[0];
 
 					PointLight.Range = Light->GetRange();
-					PointLight.OwnWorldViewProjection = Compute::Matrix4x4::CreateTranslatedScale(Light->GetEntity()->Transform->Position, PointLight.Range) * System->GetScene()->View.ViewProjection;
+					PointLight.WorldViewProjection = Compute::Matrix4x4::CreateTranslatedScale(Light->GetEntity()->Transform->Position, PointLight.Range) * System->GetScene()->View.ViewProjection;
 					PointLight.Position = Light->GetEntity()->Transform->Position.InvertZ();
 					PointLight.Lighting = Light->Diffuse.Mul(Light->Emission * D);
 					
 					Device->SetShader(Active, Graphics::ShaderType_Pixel);
-					Device->UpdateBuffer(Shaders.PointBase, &PointLight);
+					Device->UpdateBuffer(Shaders.Point[0], &PointLight);
 					Device->DrawIndexed((unsigned int)System->GetCubeIBuffer()->GetElements(), 0, 0);
 				}
 
-				Device->SetShader(Shaders.SpotBase, Graphics::ShaderType_Vertex);
-				Device->SetBuffer(Shaders.SpotBase, 3, Graphics::ShaderType_Vertex | Graphics::ShaderType_Pixel);
+				Device->SetShader(Shaders.Spot[0], Graphics::ShaderType_Vertex);
+				Device->SetBuffer(Shaders.Spot[0], 3, Graphics::ShaderType_Vertex | Graphics::ShaderType_Pixel);
 
 				for (auto It = SpotLights->Begin(); It != SpotLights->End(); ++It)
 				{
@@ -1505,73 +1517,76 @@ namespace Tomahawk
 					if (!System->PassCullable(Light, CullResult_Always, &D))
 						continue;
 
-					if (Light->Shadowed && Light->GetShadowCache())
+					Graphics::MultiRenderTarget2D* Depth = Light->GetDepthCache();
+					if (Light->Shadow.Enabled && Depth != nullptr)
 					{
-						SpotLight.Softness = Light->ShadowSoftness <= 0 ? 0 : Quality.SpotLight / Light->ShadowSoftness;
-						SpotLight.Recount = 4.0f * Light->ShadowIterations * Light->ShadowIterations;
-						SpotLight.Bias = Light->ShadowBias;
-						SpotLight.Iterations = (float)Light->ShadowIterations;
+						SpotLight.Softness = Light->Shadow.Softness <= 0 ? 0 : Quality.SpotLight / Light->Shadow.Softness;
+						SpotLight.Recount = 4.0f * Light->Shadow.Iterations * Light->Shadow.Iterations;
+						SpotLight.Bias = Light->Shadow.Bias;
+						SpotLight.Iterations = (float)Light->Shadow.Iterations;
+						Active = Shaders.Spot[1];
 
-						Active = Shaders.SpotShade;
-						Device->SetTexture2D(Light->GetShadowCache(), 6);
+						Device->SetTexture2D(Depth->GetTarget(0), 5);
 					}
 					else
-						Active = Shaders.SpotBase;
+						Active = Shaders.Spot[0];
 
 					SpotLight.Range = Light->GetRange();
-					SpotLight.OwnWorldViewProjection = Compute::Matrix4x4::CreateScale(SpotLight.Range) * Compute::Matrix4x4::CreateTranslation(Light->GetEntity()->Transform->Position) * System->GetScene()->View.ViewProjection;
-					SpotLight.OwnViewProjection = Light->View * Light->Projection;
+					SpotLight.WorldViewProjection = Compute::Matrix4x4::CreateScale(SpotLight.Range) * Compute::Matrix4x4::CreateTranslation(Light->GetEntity()->Transform->Position) * System->GetScene()->View.ViewProjection;
+					SpotLight.ViewProjection = Light->View * Light->Projection;
+					SpotLight.Direction = Light->GetEntity()->Transform->Rotation.DepthDirection();
 					SpotLight.Position = Light->GetEntity()->Transform->Position.InvertZ();
 					SpotLight.Lighting = Light->Diffuse.Mul(Light->Emission * D);
-					SpotLight.Diffuse = (Light->GetProjectMap() != nullptr);
+					SpotLight.Cutoff = Compute::Mathf::Cos(Compute::Mathf::Deg2Rad() * Light->Cutoff * 0.5f);
 
-					Device->SetTexture2D(Light->GetProjectMap(), 5);
 					Device->SetShader(Active, Graphics::ShaderType_Pixel);
-					Device->UpdateBuffer(Shaders.SpotBase, &SpotLight);
+					Device->UpdateBuffer(Shaders.Spot[0], &SpotLight);
 					Device->DrawIndexed((unsigned int)System->GetCubeIBuffer()->GetElements(), 0, 0);
 				}
 
 				Device->SetRasterizerState(BackRasterizer);
-				Device->SetShader(Shaders.LineBase, Graphics::ShaderType_Vertex);
-				Device->SetBuffer(Shaders.LineBase, 3, Graphics::ShaderType_Vertex | Graphics::ShaderType_Pixel);
+				Device->SetShader(Shaders.Line[0], Graphics::ShaderType_Vertex);
+				Device->SetBuffer(Shaders.Line[0], 3, Graphics::ShaderType_Vertex | Graphics::ShaderType_Pixel);
 				Device->SetVertexBuffer(System->GetQuadVBuffer(), 0);
 
 				for (auto It = LineLights->Begin(); It != LineLights->End(); ++It)
 				{
 					Engine::Components::LineLight* Light = (Engine::Components::LineLight*)*It;
-					if (Light->Shadowed && Light->GetShadowCache())
-					{
-						LineLight.OwnViewProjection = Light->View * Light->Projection;
-						LineLight.Softness = Light->ShadowSoftness <= 0 ? 0 : Quality.LineLight / Light->ShadowSoftness;
-						LineLight.Recount = 4.0f * Light->ShadowIterations * Light->ShadowIterations;
-						LineLight.Bias = Light->ShadowBias;
-						LineLight.ShadowDistance = Light->ShadowDistance / 2.0f;
-						LineLight.ShadowLength = Light->ShadowLength;
-						LineLight.Iterations = (float)Light->ShadowIterations;
+					Graphics::MultiRenderTarget2D* Depth = Light->GetDepthCache();
 
-						Active = Shaders.LineShade;
-						Device->SetTexture2D(Light->GetShadowCache(), 5);
+					if (Light->Shadow.Enabled && Depth != nullptr)
+					{
+						LineLight.ViewProjection = Light->View * Light->Projection;
+						LineLight.Softness = Light->Shadow.Softness <= 0 ? 0 : Quality.LineLight / Light->Shadow.Softness;
+						LineLight.Recount = 4.0f * Light->Shadow.Iterations * Light->Shadow.Iterations;
+						LineLight.Bias = Light->Shadow.Bias;
+						LineLight.ShadowDistance = Light->Shadow.Distance / 2.0f;
+						LineLight.ShadowLength = Light->Shadow.Length;
+						LineLight.Iterations = (float)Light->Shadow.Iterations;
+						Active = Shaders.Line[1];
+
+						Device->SetTexture2D(Depth->GetTarget(0), 5);
 					}
 					else
-						Active = Shaders.LineBase;
+						Active = Shaders.Line[0];
 
 					LineLight.Position = Light->GetEntity()->Transform->Position.InvertZ().NormalizeSafe();
 					LineLight.Lighting = Light->Diffuse.Mul(Light->Emission);
-					LineLight.RlhEmission = Light->RlhEmission;
-					LineLight.RlhHeight = Light->RlhHeight;
-					LineLight.MieEmission = Light->MieEmission;
-					LineLight.MieHeight = Light->MieHeight;
-					LineLight.ScatterIntensity = Light->ScatterIntensity;
-					LineLight.PlanetRadius = Light->PlanetRadius;
-					LineLight.AtmosphereRadius = Light->AtmosphereRadius;
-					LineLight.MieDirection = Light->MieDirection;
+					LineLight.RlhEmission = Light->Sky.RlhEmission;
+					LineLight.RlhHeight = Light->Sky.RlhHeight;
+					LineLight.MieEmission = Light->Sky.MieEmission;
+					LineLight.MieHeight = Light->Sky.MieHeight;
+					LineLight.ScatterIntensity = Light->Sky.Intensity;
+					LineLight.PlanetRadius = Light->Sky.InnerRadius;
+					LineLight.AtmosphereRadius = Light->Sky.OuterRadius;
+					LineLight.MieDirection = Light->Sky.MieDirection;
+					LineLight.SkyOffset = AmbientLight.SkyOffset;
 
 					Device->SetShader(Active, Graphics::ShaderType_Pixel);
-					Device->UpdateBuffer(Shaders.LineBase, &LineLight);
+					Device->UpdateBuffer(Shaders.Line[0], &LineLight);
 					Device->Draw(6, 0);
 				}
 
-				AmbientLight.SkyOffset = System->GetScene()->View.Projection.Invert() * Compute::Matrix4x4::CreateRotation(System->GetScene()->View.WorldRotation);
 				Device->SetTarget(Surface, 0, 0, 0, 0);
 				Device->ClearDepth(Surface);
 				Device->SetTexture2D(Inner ? Output2->GetTarget() : Output1->GetTarget(), 5);

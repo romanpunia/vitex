@@ -16,6 +16,7 @@ cbuffer RenderConstant : register(b3)
 };
 
 TextureCube ShadowMap : register(t5);
+SamplerState ShadowSampler : register(s1);
 
 void SampleShadow(in float3 D, in float L, out float C, out float B)
 {
@@ -26,7 +27,7 @@ void SampleShadow(in float3 D, in float L, out float C, out float B)
 		{
 			[loop] for (int z = -Iterations; z < Iterations; z++)
 			{
-				float2 Shadow = GetSample3Level(ShadowMap, D + float3(x, y, z) / Softness, 0).xy;
+				float2 Shadow = ShadowMap.SampleLevel(ShadowSampler, D + float3(x, y, z) / Softness, 0).xy;
 				C += step(L, Shadow.x); B += Shadow.y;
 			}
 		}
@@ -63,7 +64,7 @@ float4 PS(VertexResult V) : SV_TARGET0
 
 	[branch] if (Softness <= 0.0)
 	{
-		float2 Shadow = GetSample3Level(ShadowMap, -K, 0).xy;
+		float2 Shadow = ShadowMap.SampleLevel(ShadowSampler, -K, 0).xy;
 		C = step(I, Shadow.x); B = Shadow.y;
 	}
 	else

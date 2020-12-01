@@ -448,7 +448,7 @@ namespace Tomahawk
 					float Softness = 0.0f;
 					float Distance = 100.0f;
 					float Bias = 0.0f;
-					int Iterations = 2;
+					uint32_t Iterations = 2;
 					bool Enabled = false;
 				} Shadow;
 
@@ -484,7 +484,7 @@ namespace Tomahawk
 					float Softness = 0.0f;
 					float Distance = 100.0f;
 					float Bias = 0.0f;
-					int Iterations = 2;
+					uint32_t Iterations = 2;
 					bool Enabled = false;
 				} Shadow;
 
@@ -512,8 +512,11 @@ namespace Tomahawk
 
 			class TH_OUT LineLight : public Component
 			{
+			public:
+				typedef std::vector<Graphics::MultiRenderTarget2D*> CascadeMap;
+
 			private:
-				Graphics::MultiRenderTarget2D* Depth = nullptr;
+				CascadeMap* Depth = nullptr;
 
 			public:
 				struct
@@ -530,19 +533,18 @@ namespace Tomahawk
 
 				struct
 				{
-					float Distance = 100.0f;
+					float Distance[6] = { 25.0f, 50.0f, 100.0f, 175.0f, 250.0f, 325.0f };
 					float Softness = 0.0f;
 					float Bias = 0.0f;
-					float FarBias = 20.0f;
-					float Length = 16.0f;
-					float Height = 0.0f;
-					int Iterations = 2;
+					float Offset = 0.225f;
+					uint32_t Iterations = 2;
+					uint32_t Cascades = 3;
 					bool Enabled = false;
 				} Shadow;
 
 			public:
-				Compute::Matrix4x4 Projection;
-				Compute::Matrix4x4 View;
+				Compute::Matrix4x4 Projection[6];
+				Compute::Matrix4x4 View[6];
 				Compute::Vector3 Diffuse = 1.0f;
 				float Emission = 1.0f;
 
@@ -553,8 +555,8 @@ namespace Tomahawk
 				virtual void Serialize(ContentManager* Content, Rest::Document* Node) override;
 				virtual void Synchronize(Rest::Timer* Time) override;
 				virtual Component* Copy(Entity* New) override;
-				void SetDepthCache(Graphics::MultiRenderTarget2D* NewCache);
-				Graphics::MultiRenderTarget2D* GetDepthCache() const;
+				void SetDepthCache(CascadeMap* NewCache);
+				CascadeMap* GetDepthCache() const;
 
 			public:
 				TH_COMPONENT("line-light");
@@ -647,6 +649,9 @@ namespace Tomahawk
 				Compute::Vector3 GetViewPosition();
 				Compute::Ray GetScreenRay(const Compute::Vector2& Position);
 				float GetDistance(Entity* Other);
+				float GetWidth();
+				float GetHeight();
+				float GetAspect();
 				bool RayTest(Compute::Ray& Ray, Entity* Other);
 				bool RayTest(Compute::Ray& Ray, const Compute::Matrix4x4& World);
 

@@ -2140,6 +2140,18 @@ namespace Tomahawk
 
 			return Matrix4x4(Vector4(2 / Width, 0, 0, -(Right + Left) / Width), Vector4(0, 2 / Height, 0, -(Top + Bottom) / Height), Vector4(0, 0, -2 / Depth, -(FarClip + NearClip) / Depth), Vector4(0, 0, 0, 1));
 		}
+		Matrix4x4 Matrix4x4::CreateOrthographicOffCenter(float ViewLeft, float ViewRight, float ViewBottom, float ViewTop, float NearZ, float FarZ)
+		{
+			float ReciprocalWidth = 1.0f / (ViewRight - ViewLeft);
+			float ReciprocalHeight = 1.0f / (ViewTop - ViewBottom);
+			float Range = 1.0f / (FarZ - NearZ);
+
+			return Matrix4x4(
+				Vector4(ReciprocalWidth + ReciprocalWidth, 0, 0, 0),
+				Vector4(0, ReciprocalHeight + ReciprocalHeight, 0, 0),
+				Vector4(0, 0, Range, 0),
+				Vector4(-(ViewLeft + ViewRight) * ReciprocalWidth, -(ViewTop + ViewBottom) * ReciprocalHeight, -Range * NearZ, 1));
+		}
 		Matrix4x4 Matrix4x4::Create(const Vector3& Position, const Vector3& Scale, const Vector3& Rotation)
 		{
 			return Matrix4x4::CreateScale(Scale) * Matrix4x4::CreateRotation(Rotation) * Matrix4x4::CreateTranslation(Position);
@@ -2178,11 +2190,11 @@ namespace Tomahawk
 
 			return Result;
 		}
-		Matrix4x4 Matrix4x4::CreateLineLightLookAt(const Vector3& Position, const Vector3& Camera)
+		Matrix4x4 Matrix4x4::CreateLockedLookAt(const Vector3& Position, const Vector3& Camera, const Vector3& Up)
 		{
 			Vector3 APosition = (Position + Camera).InvertZ();
 			Vector3 Z = (Position * Vector3(-1, -1, 1)).Normalize();
-			Vector3 X = Vector3(0, 1).Cross(Z).Normalize();
+			Vector3 X = Up.Cross(Z).Normalize();
 			Vector3 Y = Z.Cross(X);
 
 			Matrix4x4 Result = Matrix4x4::Identity();

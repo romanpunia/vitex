@@ -19,6 +19,7 @@ cbuffer RenderConstant : register(b3)
 };
 
 Texture2D ShadowMap : register(t5);
+SamplerState ShadowSampler : register(s1);
 
 void SampleShadow(float2 D, float L, out float C, out float B)
 {
@@ -27,7 +28,7 @@ void SampleShadow(float2 D, float L, out float C, out float B)
 	{
 		[loop] for (int y = -Iterations; y < Iterations; y++)
 		{
-			float2 Shadow = GetSampleLevel(ShadowMap, D + float2(x, y) / Softness, 0).xy;
+			float2 Shadow = ShadowMap.SampleLevel(ShadowSampler, saturate(D + float2(x, y) / Softness), 0).xy;
 			C += step(L, Shadow.x); B += Shadow.y;
 		}
 	}
@@ -70,7 +71,7 @@ float4 PS(VertexResult V) : SV_TARGET0
 	    float I = L.z / L.w - Bias, C, B;
         [branch] if (Softness <= 0.0)
         {
-            float2 Shadow = GetSampleLevel(ShadowMap, T, 0).xy;
+            float2 Shadow = ShadowMap.SampleLevel(ShadowSampler, T, 0).xy;
             C = step(I, Shadow.x); B = Shadow.y;
         }
         else

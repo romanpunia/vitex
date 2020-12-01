@@ -505,9 +505,9 @@ namespace Tomahawk
 				else
 					SetShaderModel(ShaderModel_GLSL_1_1_0);
 			}
-			void OGLDevice::SetSamplerState(SamplerState* State)
+			void OGLDevice::SetSamplerState(SamplerState* State, unsigned int Slot)
 			{
-				glBindSampler(0, (GLuint)(State ? State->As<OGLSamplerState>()->Resource : GL_INVALID_VALUE));
+				glBindSampler(Slot, (GLuint)(State ? State->As<OGLSamplerState>()->Resource : GL_INVALID_VALUE));
 			}
 			void OGLDevice::SetBlendState(BlendState* State)
 			{
@@ -802,7 +802,7 @@ namespace Tomahawk
 			void OGLDevice::SetTarget(MultiRenderTarget2D* Resource, unsigned int Target, float R, float G, float B)
 			{
 				OGLMultiRenderTarget2D* IResource = (OGLMultiRenderTarget2D*)Resource;
-				if (!IResource || Target < IResource->SVTarget)
+				if (!IResource || Target < IResource->Target)
 					return;
 
 				GLenum Targets[8] = { GL_NONE };
@@ -1371,7 +1371,7 @@ namespace Tomahawk
 			bool OGLDevice::CopyTexture2D(MultiRenderTarget2D* Resource, unsigned int Target, Texture2D** Result)
 			{
 				OGLMultiRenderTarget2D* IResource = (OGLMultiRenderTarget2D*)Resource;
-				if (!IResource || Target >= IResource->SVTarget || !Result)
+				if (!IResource || Target >= IResource->Target || !Result)
 					return false;
 
 				int Width, Height;
@@ -1449,7 +1449,7 @@ namespace Tomahawk
 			bool OGLDevice::CopyTexture2D(MultiRenderTargetCube* Resource, unsigned int Cube, unsigned int Face, Texture2D** Result)
 			{
 				OGLMultiRenderTargetCube* IResource = (OGLMultiRenderTargetCube*)Resource;
-				if (!IResource || Cube >= IResource->SVTarget || Face >= 6 || !Result)
+				if (!IResource || Cube >= IResource->Target || Face >= 6 || !Result)
 					return false;
 
 				int Width, Height;
@@ -1529,7 +1529,7 @@ namespace Tomahawk
 			bool OGLDevice::CopyTextureCube(MultiRenderTargetCube* Resource, unsigned int Cube, TextureCube** Result)
 			{
 				OGLMultiRenderTargetCube* IResource = (OGLMultiRenderTargetCube*)Resource;
-				if (!IResource || Cube >= IResource->SVTarget || !Result)
+				if (!IResource || Cube >= IResource->Target || !Result)
 					return false;
 
 				int Width, Height;
@@ -1613,7 +1613,7 @@ namespace Tomahawk
 			bool OGLDevice::CopyBegin(MultiRenderTarget2D* Resource, unsigned int Target, unsigned int MipLevels, unsigned int Size)
 			{
 				OGLMultiRenderTarget2D* IResource = (OGLMultiRenderTarget2D*)Resource;
-				if (!IResource || Target >= IResource->SVTarget)
+				if (!IResource || Target >= IResource->Target)
 					return false;
 				
 				IResource->Cube.Size = Size;
@@ -1649,7 +1649,7 @@ namespace Tomahawk
 			bool OGLDevice::CopyFace(MultiRenderTarget2D* Resource, unsigned int Target, unsigned int Face)
 			{
 				OGLMultiRenderTarget2D* IResource = (OGLMultiRenderTarget2D*)Resource;
-				if (!IResource || Target >= IResource->SVTarget || Face >= 6)
+				if (!IResource || Target >= IResource->Target || Face >= 6)
 					return false;
 
 				glBindFramebuffer(GL_READ_FRAMEBUFFER, IResource->Cube.Buffers[0]);
@@ -2665,7 +2665,7 @@ namespace Tomahawk
 				glBindRenderbuffer(GL_RENDERBUFFER, 0);
 				glFramebufferRenderbuffer(GL_FRAMEBUFFER, GL_DEPTH_STENCIL_ATTACHMENT, GL_RENDERBUFFER, Result->DepthBuffer);
 
-				for (unsigned int i = 0; i < (unsigned int)I.SVTarget; i++)
+				for (unsigned int i = 0; i < (unsigned int)I.Target; i++)
 				{
 					GLenum Format = OGLDevice::GetFormat(I.FormatMode[i]);
 					glGenTextures(1, &Result->Texture[i]);

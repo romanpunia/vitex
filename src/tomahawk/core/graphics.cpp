@@ -501,25 +501,25 @@ namespace Tomahawk
 
 		MultiRenderTarget2D::MultiRenderTarget2D(const Desc& I)
 		{
-			SVTarget = I.SVTarget;
+			Target = I.Target;
 			for (int i = 0; i < 8; i++)
 				Resource[i] = nullptr;
 		}
 		MultiRenderTarget2D::~MultiRenderTarget2D()
 		{
-			for (int i = 0; i < SVTarget; i++)
+			for (int i = 0; i < Target; i++)
 				delete Resource[i];
 		}
 		SurfaceTarget MultiRenderTarget2D::GetSVTarget()
 		{
-			return SVTarget;
+			return Target;
 		}
-		Texture2D* MultiRenderTarget2D::GetTarget(unsigned int Target)
+		Texture2D* MultiRenderTarget2D::GetTarget(unsigned int Slot)
 		{
-			if (Target >= SVTarget)
+			if (Slot >= Target)
 				return nullptr;
 
-			return Resource[Target];
+			return Resource[Slot];
 		}
 
 		RenderTargetCube::RenderTargetCube(const Desc& I) : Resource(nullptr)
@@ -536,25 +536,25 @@ namespace Tomahawk
 
 		MultiRenderTargetCube::MultiRenderTargetCube(const Desc& I)
 		{
-			SVTarget = I.Target;
+			Target = I.Target;
 			for (int i = 0; i < 8; i++)
 				Resource[i] = nullptr;
 		}
 		MultiRenderTargetCube::~MultiRenderTargetCube()
 		{
-			for (int i = 0; i < SVTarget; i++)
+			for (int i = 0; i < Target; i++)
 				delete Resource[i];
 		}
 		SurfaceTarget MultiRenderTargetCube::GetSVTarget()
 		{
-			return SVTarget;
+			return Target;
 		}
-		Texture2D* MultiRenderTargetCube::GetTarget(unsigned int Target)
+		Texture2D* MultiRenderTargetCube::GetTarget(unsigned int Slot)
 		{
-			if (Target >= SVTarget)
+			if (Slot >= Target)
 				return nullptr;
 
-			return Resource[Target];
+			return Resource[Slot];
 		}
 
 		Query::Query()
@@ -893,6 +893,21 @@ namespace Tomahawk
 			Sampler.MaxLOD = std::numeric_limits<float>::max();
 			SamplerStates["point"] = CreateSamplerState(Sampler);
 
+			Sampler.Filter = Graphics::PixelFilter_Anistropic;
+			Sampler.AddressU = Graphics::TextureAddress_Mirror;
+			Sampler.AddressV = Graphics::TextureAddress_Mirror;
+			Sampler.AddressW = Graphics::TextureAddress_Mirror;
+			Sampler.MipLODBias = 0.0f;
+			Sampler.MaxAnisotropy = 16;
+			Sampler.ComparisonFunction = Graphics::Comparison_Never;
+			Sampler.BorderColor[0] = 0.0f;
+			Sampler.BorderColor[1] = 0.0f;
+			Sampler.BorderColor[2] = 0.0f;
+			Sampler.BorderColor[3] = 0.0f;
+			Sampler.MinLOD = 0.0f;
+			Sampler.MaxLOD = std::numeric_limits<float>::max();
+			SamplerStates["shadow"] = CreateSamplerState(Sampler);
+
 			InputLayout::Desc Layout;
 			Layout.Attributes =
 			{
@@ -940,10 +955,10 @@ namespace Tomahawk
 			};
 			InputLayouts["gui-vertex"] = CreateInputLayout(Layout);
 
+			SetSamplerState(GetSamplerState("trilinear-x16"), 0);
 			SetDepthStencilState(GetDepthStencilState("less"));
 			SetRasterizerState(GetRasterizerState("cull-back"));
 			SetBlendState(GetBlendState("overwrite"));
-			SetSamplerState(GetSamplerState("trilinear-x16"));
 		}
 		void GraphicsDevice::InitSections()
 		{

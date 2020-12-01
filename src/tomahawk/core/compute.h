@@ -733,6 +733,7 @@ namespace Tomahawk
 			static Matrix4x4 CreateOrthographic(float Width, float Height, float NearClip, float FarClip);
 			static Matrix4x4 CreateOrthographicBox(float Width, float Height, float NearClip, float FarClip);
 			static Matrix4x4 CreateOrthographicBox(float Left, float Right, float Bottom, float Top, float Near, float Far);
+			static Matrix4x4 CreateOrthographicOffCenter(float ViewLeft, float ViewRight, float ViewBottom, float ViewTop, float NearZ, float FarZ);
 			static Matrix4x4 Create(const Vector3& Position, const Vector3& Scale, const Vector3& Rotation);
 			static Matrix4x4 Create(const Vector3& Position, const Vector3& Rotation);
 			static Matrix4x4 CreateRotation(const Vector3& Rotation);
@@ -741,7 +742,7 @@ namespace Tomahawk
 			static Matrix4x4 CreateCamera(const Vector3& Position, const Vector3& Rotation);
 			static Matrix4x4 CreateOrigin(const Vector3& Position, const Vector3& Rotation);
 			static Matrix4x4 CreateCubeMapLookAt(int Face, const Vector3& Position);
-			static Matrix4x4 CreateLineLightLookAt(const Vector3& Position, const Vector3& Camera);
+			static Matrix4x4 CreateLockedLookAt(const Vector3& Position, const Vector3& Origin, const Vector3& Up);
 			static Matrix4x4 CreateRotation(const Vector3& Forward, const Vector3& Up, const Vector3& Right);
 			static Matrix4x4 Identity()
 			{

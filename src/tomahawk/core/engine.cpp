@@ -2449,9 +2449,9 @@ namespace Tomahawk
 			if (!Occlusion.TickEvent(ElapsedTime))
 				return;
 
+			Device->SetSamplerState(Sampler, 0);
 			Device->SetDepthStencilState(DepthStencil);
 			Device->SetBlendState(Blend);
-			Device->SetSamplerState(Sampler);
 			Device->SetTarget(Target);
 			Device->ClearDepth(Target);
 
@@ -3219,8 +3219,8 @@ namespace Tomahawk
 				return;
 
 			Graphics::GraphicsDevice* Device = System->GetDevice();
+			Device->SetSamplerState(Sampler, 0);
 			Device->SetDepthStencilState(DepthStencil);
-			Device->SetSamplerState(Sampler);
 			Device->SetBlendState(Blend);
 			Device->SetRasterizerState(Rasterizer);
 			Device->SetInputLayout(Layout);
@@ -3375,8 +3375,8 @@ namespace Tomahawk
 			Conf.Device->SetTarget();
 			Conf.Device->Render.Diffuse = 1.0f;
 			Conf.Device->Render.WorldViewProjection.Identify();
+			Conf.Device->SetSamplerState(Image.Sampler, 0);
 			Conf.Device->SetDepthStencilState(Image.DepthStencil);
-			Conf.Device->SetSamplerState(Image.Sampler);
 			Conf.Device->SetBlendState(Image.Blend);
 			Conf.Device->SetRasterizerState(Image.Rasterizer);
 			Conf.Device->SetInputLayout(Image.Layout);
@@ -3942,7 +3942,7 @@ namespace Tomahawk
 			if (!Result)
 				return;
 
-			Result->SVTarget = Graphics::SurfaceTarget3;
+			Result->Target = Graphics::SurfaceTarget3;
 			Result->MiscFlags = Graphics::ResourceMisc_Generate_Mips;
 			Result->Width = (unsigned int)(Conf.Device->GetRenderTarget()->GetWidth() * Conf.RenderQuality);
 			Result->Height = (unsigned int)(Conf.Device->GetRenderTarget()->GetHeight() * Conf.RenderQuality);

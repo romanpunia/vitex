@@ -83,9 +83,9 @@ namespace Tomahawk
 				float Result = 0.0f;
 				if (Instance != nullptr)
 				{
-				    Compute::Matrix4x4 Box = GetBoundingBox();
-                    Result = IsVisible(View, &Box);
-                }
+					Compute::Matrix4x4 Box = GetBoundingBox();
+					Result = IsVisible(View, &Box);
+				}
 
 				return Result;
 			}
@@ -213,10 +213,10 @@ namespace Tomahawk
 			{
 				float Result = 0.0f;
 				if (Instance != nullptr)
-                {
-                    Compute::Matrix4x4 Box = GetBoundingBox();
-                    Result = IsVisible(View, &Box);
-                }
+				{
+					Compute::Matrix4x4 Box = GetBoundingBox();
+					Result = IsVisible(View, &Box);
+				}
 
 				return Result;
 			}
@@ -817,10 +817,10 @@ namespace Tomahawk
 			{
 				float Result = 0.0f;
 				if (Instance != nullptr)
-                {
-                    Compute::Matrix4x4 Box = Parent->Transform->GetWorldUnscaled();
-                    Result = IsVisible(View, &Box);
-                }
+				{
+					Compute::Matrix4x4 Box = Parent->Transform->GetWorldUnscaled();
+					Result = IsVisible(View, &Box);
+				}
 
 				return Result;
 			}
@@ -1216,7 +1216,7 @@ namespace Tomahawk
 					State.Duration = Clip->Duration;
 					State.Rate = Clip->Rate * NextKey.Time;
 					State.Time = Compute::Mathf::Min(State.Time + State.Rate * (float)Time->GetDeltaTime() / State.Duration, State.Duration);
-					
+
 					float T = Compute::Mathf::Min(State.Time / State.Duration, 1.0f);
 					Position = Current.Position = PrevKey.Position.Lerp(NextKey.Position, T);
 					Rotation = Current.Rotation = PrevKey.Rotation.AngularLerp(NextKey.Rotation, T);
@@ -2131,7 +2131,7 @@ namespace Tomahawk
 
 				if (!Connection)
 					Create(Parent->GetScene()->GetEntity(Wanted.Connection), Wanted.Ghost, Wanted.Linear);
-				
+
 				Wanted.Connection = -1;
 			}
 			void SliderConstraint::Create(Entity* Other, bool IsGhosted, bool IsLinear)
@@ -2635,16 +2635,22 @@ namespace Tomahawk
 			}
 			void LineLight::Deserialize(ContentManager* Content, Rest::Document* Node)
 			{
-				NMake::Unpack(Node->Find("projection"), &Projection);
-				NMake::Unpack(Node->Find("view"), &View);
 				NMake::Unpack(Node->Find("diffuse"), &Diffuse);
 				NMake::Unpack(Node->Find("emission"), &Emission);
+
+				for (uint32_t i = 0; i < 6; i++)
+				{
+					NMake::Unpack(Node->Find("projection-" + std::to_string(i)), &Projection[i]);
+					NMake::Unpack(Node->Find("view-" + std::to_string(i)), &View[i]);
+				}
+
+				for (uint32_t i = 0; i < 6; i++)
+					NMake::Unpack(Node->Find("shadow-distance-" + std::to_string(i)), &Shadow.Distance[i]);
+
+				NMake::Unpack(Node->Find("shadow-cascades"), &Shadow.Cascades);
 				NMake::Unpack(Node->Find("shadow-bias"), &Shadow.Bias);
-				NMake::Unpack(Node->Find("shadow-distance"), &Shadow.Distance);
-				NMake::Unpack(Node->Find("shadow-far-bias"), &Shadow.FarBias);
+				NMake::Unpack(Node->Find("shadow-offset"), &Shadow.Offset);
 				NMake::Unpack(Node->Find("shadow-softness"), &Shadow.Softness);
-				NMake::Unpack(Node->Find("shadow-length"), &Shadow.Length);
-				NMake::Unpack(Node->Find("shadow-height"), &Shadow.Height);
 				NMake::Unpack(Node->Find("shadow-iterations"), &Shadow.Iterations);
 				NMake::Unpack(Node->Find("shadow-enabled"), &Shadow.Enabled);
 				NMake::Unpack(Node->Find("rlh-emission"), &Sky.RlhEmission);
@@ -2658,16 +2664,22 @@ namespace Tomahawk
 			}
 			void LineLight::Serialize(ContentManager* Content, Rest::Document* Node)
 			{
-				NMake::Pack(Node->SetDocument("projection"), Projection);
-				NMake::Pack(Node->SetDocument("view"), View);
 				NMake::Pack(Node->SetDocument("diffuse"), Diffuse);
 				NMake::Pack(Node->SetDocument("emission"), Emission);
+
+				for (uint32_t i = 0; i < 6; i++)
+				{
+					NMake::Pack(Node->SetDocument("projection-" + std::to_string(i)), Projection[i]);
+					NMake::Pack(Node->SetDocument("view-" + std::to_string(i)), View[i]);
+				}
+
+				for (uint32_t i = 0; i < 6; i++)
+					NMake::Pack(Node->SetDocument("shadow-distance-" + std::to_string(i)), Shadow.Distance[i]);
+
+				NMake::Pack(Node->SetDocument("shadow-cascades"), Shadow.Cascades);
 				NMake::Pack(Node->SetDocument("shadow-bias"), Shadow.Bias);
-				NMake::Pack(Node->SetDocument("shadow-distance"), Shadow.Distance);
-				NMake::Pack(Node->SetDocument("shadow-far-bias"), Shadow.FarBias);
+				NMake::Pack(Node->SetDocument("shadow-offset"), Shadow.Offset);
 				NMake::Pack(Node->SetDocument("shadow-softness"), Shadow.Softness);
-				NMake::Pack(Node->SetDocument("shadow-length"), Shadow.Length);
-				NMake::Pack(Node->SetDocument("shadow-height"), Shadow.Height);
 				NMake::Pack(Node->SetDocument("shadow-iterations"), Shadow.Iterations);
 				NMake::Pack(Node->SetDocument("shadow-enabled"), Shadow.Enabled);
 				NMake::Pack(Node->SetDocument("rlh-emission"), Sky.RlhEmission);
@@ -2681,26 +2693,43 @@ namespace Tomahawk
 			}
 			void LineLight::Synchronize(Rest::Timer* Time)
 			{
-				Projection = Compute::Matrix4x4::CreateOrthographic(Shadow.Distance, Shadow.Distance, -Shadow.Distance / 2.0f - Shadow.FarBias, Shadow.Distance / 2.0f + Shadow.FarBias);
-				View = Compute::Matrix4x4::CreateLineLightLookAt(Parent->Transform->Position, Parent->GetScene()->GetCamera()->GetEntity()->Transform->Position.SetY(Shadow.Height));
+				auto* Viewer = Parent->GetScene()->GetCamera()->As<Camera>();
+				auto* Transform = Viewer->GetEntity()->Transform;
+				Compute::Vector3 Direction = -Parent->Transform->Position.NormalizeSafe();
+				Compute::Vector3 Eye = Transform->Position * Compute::Vector3(1.0f, 0.1f, 1.0f);
+				Compute::Vector3 Up = Transform->GetWorld().Right();
+				Compute::Matrix4x4 Look = Compute::Matrix4x4::CreateLockedLookAt(Parent->Transform->Position, Eye, Up);
+				float Near = -Viewer->FarPlane - Viewer->NearPlane;
+				float Far = Viewer->FarPlane;
+
+				if (Shadow.Cascades > 6)
+					return;
+
+				for (uint32_t i = 0; i < Shadow.Cascades; i++)
+				{
+					float Distance = Shadow.Distance[i];
+					Projection[i] = Compute::Matrix4x4::CreateOrthographic(Distance, Distance, Near, Far) *
+						Compute::Matrix4x4::CreateTranslation(Compute::Vector3((float)i * Shadow.Offset, 0.0));
+					View[i] = Look;
+				}
 			}
 			Component* LineLight::Copy(Entity* New)
 			{
 				LineLight* Target = new LineLight(New);
-				Target->Projection = Projection;
-				Target->View = View;
 				Target->Diffuse = Diffuse;
 				Target->Emission = Emission;
+				memcpy(Target->Projection, Projection, sizeof(Compute::Matrix4x4) * 6);
+				memcpy(Target->View, View, sizeof(Compute::Matrix4x4) * 6);
 				memcpy(&Target->Shadow, &Shadow, sizeof(Shadow));
 				memcpy(&Target->Sky, &Sky, sizeof(Sky));
 
 				return Target;
 			}
-			void LineLight::SetDepthCache(Graphics::MultiRenderTarget2D* NewCache)
+			void LineLight::SetDepthCache(CascadeMap* NewCache)
 			{
 				Depth = NewCache;
 			}
-			Graphics::MultiRenderTarget2D* LineLight::GetDepthCache() const
+			LineLight::CascadeMap* LineLight::GetDepthCache() const
 			{
 				return Depth;
 			}
@@ -2968,7 +2997,7 @@ namespace Tomahawk
 			{
 				return DiffuseMap;
 			}
-			
+
 			Camera::Camera(Entity* Ref) : Component(Ref), Mode(ProjectionMode_Perspective)
 			{
 			}
@@ -3169,6 +3198,33 @@ namespace Tomahawk
 					return -1.0f;
 
 				return Other->Transform->Position.Distance(FieldView.WorldPosition);
+			}
+			float Camera::GetWidth()
+			{
+				float W = Width;
+				if (W <= 0)
+					W = Viewport.Width;
+
+				return W;
+			}
+			float Camera::GetHeight()
+			{
+				float H = Height;
+				if (H <= 0)
+					H = Viewport.Height;
+
+				return H;
+			}
+			float Camera::GetAspect()
+			{
+				float W = Width, H = Height;
+				if (W <= 0 || H <= 0)
+				{
+					W = Viewport.Width;
+					H = Viewport.Height;
+				}
+
+				return W / H;
 			}
 			bool Camera::RayTest(Compute::Ray& Ray, Entity* Other)
 			{
@@ -3416,7 +3472,7 @@ namespace Tomahawk
 					if (Var != nullptr)
 						Cache->SetDocument(Result.Name, Var);
 				}
-				
+
 				Call(Entry.Serialize, [this, &Content, &Node](Script::VMContext* Context)
 				{
 					if (Invoke == InvokeType_Typeless)

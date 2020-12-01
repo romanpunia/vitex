@@ -271,7 +271,6 @@ namespace Tomahawk
 				ID3D11DepthStencilView* DepthStencilView;
 				ID3D11RenderTargetView* RenderTargetView;
 				ID3D11Texture2D* Texture;
-				ID3D11Texture2D* Cube;
 				D3D11_VIEWPORT Viewport;
 
 			public:
@@ -291,7 +290,6 @@ namespace Tomahawk
 				ID3D11DepthStencilView* DepthStencilView;
 				ID3D11RenderTargetView* RenderTargetView[8];
 				ID3D11Texture2D* Texture[8];
-				ID3D11Texture2D* Cube[8];
 				D3D11_VIEWPORT Viewport;
 
 			public:
@@ -345,7 +343,7 @@ namespace Tomahawk
 				virtual ~D3D11Device() override;
 				void SetConstantBuffers() override;
 				void SetShaderModel(ShaderModel Model) override;
-				void SetSamplerState(SamplerState* State) override;
+				void SetSamplerState(SamplerState* State, unsigned int Slot) override;
 				void SetBlendState(BlendState* State) override;
 				void SetRasterizerState(RasterizerState* State) override;
 				void SetDepthStencilState(DepthStencilState* State) override;

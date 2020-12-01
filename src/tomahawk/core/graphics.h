@@ -1403,7 +1403,7 @@ namespace Tomahawk
 			struct Desc
 			{
 				CPUAccess AccessFlags = CPUAccess_Invalid;
-				SurfaceTarget SVTarget = SurfaceTarget0;
+				SurfaceTarget Target = SurfaceTarget0;
 				Format FormatMode[8] = { Format_B8G8R8A8_Unorm };
 				ResourceUsage Usage = ResourceUsage_Default;
 				ResourceBind BindFlags = (ResourceBind)(ResourceBind_Render_Target | ResourceBind_Shader_Input);
@@ -1414,7 +1414,7 @@ namespace Tomahawk
 			};
 
 		protected:
-			SurfaceTarget SVTarget;
+			SurfaceTarget Target;
 			Texture2D* Resource[8];
 
 		protected:
@@ -1475,7 +1475,7 @@ namespace Tomahawk
 			};
 
 		protected:
-			SurfaceTarget SVTarget;
+			SurfaceTarget Target;
 			Texture2D* Resource[8];
 
 		protected:
@@ -1582,7 +1582,7 @@ namespace Tomahawk
 			virtual ~GraphicsDevice();
 			virtual void SetConstantBuffers() = 0;
 			virtual void SetShaderModel(ShaderModel Model) = 0;
-			virtual void SetSamplerState(SamplerState* State) = 0;
+			virtual void SetSamplerState(SamplerState* State, unsigned int Slot) = 0;
 			virtual void SetBlendState(BlendState* State) = 0;
 			virtual void SetRasterizerState(RasterizerState* State) = 0;
 			virtual void SetDepthStencilState(DepthStencilState* State) = 0;

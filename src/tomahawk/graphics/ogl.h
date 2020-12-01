@@ -335,7 +335,7 @@ namespace Tomahawk
 				virtual ~OGLDevice() override;
 				void SetConstantBuffers() override;
 				void SetShaderModel(ShaderModel Model) override;
-				void SetSamplerState(SamplerState* State) override;
+				void SetSamplerState(SamplerState* State, unsigned int Slot) override;
 				void SetBlendState(BlendState* State) override;
 				void SetRasterizerState(RasterizerState* State) override;
 				void SetDepthStencilState(DepthStencilState* State) override;

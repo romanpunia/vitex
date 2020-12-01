@@ -4,24 +4,24 @@
 
 cbuffer RenderConstant : register(b3)
 {
-	matrix LightViewProjection;
+    matrix LightViewProjection[6];
     matrix SkyOffset;
-	float3 Position;
-	float ShadowDistance;
-	float3 Lighting;
-	float ShadowLength;
-	float Softness;
-	float Recount;
-	float Bias;
-	float Iterations;
     float3 RlhEmission;
     float RlhHeight;
     float3 MieEmission;
     float MieHeight;
+    float3 Lighting;
+    float Softness;
+    float3 Position;
+    float Recount;
+    float Cascades;
+    float Bias;
+    float Iterations;
     float ScatterIntensity;
     float PlanetRadius;
     float AtmosphereRadius;
     float MieDirection;
+    float Padding;
 };
 
 float4 PS(VertexResult V) : SV_TARGET0

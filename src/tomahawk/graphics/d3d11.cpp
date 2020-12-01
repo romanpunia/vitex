@@ -324,14 +324,12 @@ namespace Tomahawk
 				DepthStencilView = nullptr;
 				RenderTargetView = nullptr;
 				Texture = nullptr;
-				Cube = nullptr;
 			}
 			D3D11RenderTargetCube::~D3D11RenderTargetCube()
 			{
 				ReleaseCom(DepthStencilView);
 				ReleaseCom(RenderTargetView);
 				ReleaseCom(Texture);
-				ReleaseCom(Cube);
 			}
 			Viewport D3D11RenderTargetCube::GetViewport()
 			{
@@ -368,16 +366,14 @@ namespace Tomahawk
 					RenderTargetView[i] = nullptr;
 					Texture[i] = nullptr;
 					Resource[i] = nullptr;
-					Cube[i] = nullptr;
 				}
 			}
 			D3D11MultiRenderTargetCube::~D3D11MultiRenderTargetCube()
 			{
-				for (int i = 0; i < SVTarget; i++)
+				for (int i = 0; i < Target; i++)
 				{
 					ReleaseCom(RenderTargetView[i]);
 					ReleaseCom(Texture[i]);
-					ReleaseCom(Cube[i]);
 				}
 				ReleaseCom(DepthStencilView);
 			}
@@ -599,10 +595,10 @@ namespace Tomahawk
 					HSP = VSP;
 				}
 			}
-			void D3D11Device::SetSamplerState(SamplerState* State)
+			void D3D11Device::SetSamplerState(SamplerState* State, unsigned int Slot)
 			{
 				ID3D11SamplerState* NewState = (ID3D11SamplerState*)(State ? State->GetResource() : nullptr);
-				ImmediateContext->PSSetSamplers(0, 1, &NewState);
+				ImmediateContext->PSSetSamplers(Slot, 1, &NewState);
 			}
 			void D3D11Device::SetBlendState(BlendState* State)
 			{
@@ -768,10 +764,10 @@ namespace Tomahawk
 					return;
 
 				float ClearColor[4] = { R, G, B, 0.0f };
-				ImmediateContext->OMSetRenderTargets(IResource->SVTarget, IResource->RenderTargetView, IResource->DepthStencilView);
+				ImmediateContext->OMSetRenderTargets(IResource->Target, IResource->RenderTargetView, IResource->DepthStencilView);
 				ImmediateContext->RSSetViewports(1, &IResource->Viewport);
 
-				for (int i = 0; i < IResource->SVTarget; i++)
+				for (int i = 0; i < IResource->Target; i++)
 					ImmediateContext->ClearRenderTargetView(IResource->RenderTargetView[i], ClearColor);
 			}
 			void D3D11Device::SetTarget(MultiRenderTarget2D* Resource)
@@ -780,7 +776,7 @@ namespace Tomahawk
 				if (!IResource)
 					return;
 
-				ImmediateContext->OMSetRenderTargets(IResource->SVTarget, IResource->RenderTargetView, IResource->DepthStencilView);
+				ImmediateContext->OMSetRenderTargets(IResource->Target, IResource->RenderTargetView, IResource->DepthStencilView);
 				ImmediateContext->RSSetViewports(1, &IResource->Viewport);
 			}
 			void D3D11Device::SetTarget(RenderTargetCube* Resource, float R, float G, float B)
@@ -830,10 +826,10 @@ namespace Tomahawk
 					return;
 
 				float ClearColor[4] = { R, G, B, 0.0f };
-				ImmediateContext->OMSetRenderTargets(IResource->SVTarget, IResource->RenderTargetView, IResource->DepthStencilView);
+				ImmediateContext->OMSetRenderTargets(IResource->Target, IResource->RenderTargetView, IResource->DepthStencilView);
 				ImmediateContext->RSSetViewports(1, &IResource->Viewport);
 
-				for (int i = 0; i < IResource->SVTarget; i++)
+				for (int i = 0; i < IResource->Target; i++)
 					ImmediateContext->ClearRenderTargetView(IResource->RenderTargetView[i], ClearColor);
 			}
 			void D3D11Device::SetTarget(MultiRenderTargetCube* Resource)
@@ -842,7 +838,7 @@ namespace Tomahawk
 				if (!IResource)
 					return;
 
-				ImmediateContext->OMSetRenderTargets(IResource->SVTarget, IResource->RenderTargetView, IResource->DepthStencilView);
+				ImmediateContext->OMSetRenderTargets(IResource->Target, IResource->RenderTargetView, IResource->DepthStencilView);
 				ImmediateContext->RSSetViewports(1, &IResource->Viewport);
 			}
 			void D3D11Device::SetTargetMap(MultiRenderTarget2D* Resource, bool Enabled[8])
@@ -855,7 +851,7 @@ namespace Tomahawk
 				for (unsigned int i = 0; i < 8; i++)
 					Targets[i] = (Enabled[i] ? IResource->RenderTargetView[i] : nullptr);
 
-				ImmediateContext->OMSetRenderTargets(IResource->SVTarget, Targets, IResource->DepthStencilView);
+				ImmediateContext->OMSetRenderTargets(IResource->Target, Targets, IResource->DepthStencilView);
 				ImmediateContext->RSSetViewports(1, &IResource->Viewport);
 			}
 			void D3D11Device::SetTargetMap(MultiRenderTargetCube* Resource, bool Enabled[8])
@@ -868,7 +864,7 @@ namespace Tomahawk
 				for (unsigned int i = 0; i < 8; i++)
 					Targets[i] = (Enabled[i] ? IResource->RenderTargetView[i] : nullptr);
 
-				ImmediateContext->OMSetRenderTargets(IResource->SVTarget, Targets, IResource->DepthStencilView);
+				ImmediateContext->OMSetRenderTargets(IResource->Target, Targets, IResource->DepthStencilView);
 				ImmediateContext->RSSetViewports(1, &IResource->Viewport);
 			}
 			void D3D11Device::SetViewport(const Viewport& In)
@@ -1142,7 +1138,7 @@ namespace Tomahawk
 			void D3D11Device::Clear(MultiRenderTarget2D* Resource, unsigned int Target, float R, float G, float B)
 			{
 				D3D11MultiRenderTarget2D* IResource = (D3D11MultiRenderTarget2D*)Resource;
-				if (!IResource || Target >= IResource->SVTarget)
+				if (!IResource || Target >= IResource->Target)
 					return;
 
 				float ClearColor[4] = { R, G, B, 0.0f };
@@ -1160,7 +1156,7 @@ namespace Tomahawk
 			void D3D11Device::Clear(MultiRenderTargetCube* Resource, unsigned int Target, float R, float G, float B)
 			{
 				D3D11MultiRenderTargetCube* IResource = (D3D11MultiRenderTargetCube*)Resource;
-				if (!IResource || Target >= IResource->SVTarget)
+				if (!IResource || Target >= IResource->Target)
 					return;
 
 				float ClearColor[4] = { R, G, B, 0.0f };
@@ -1291,7 +1287,7 @@ namespace Tomahawk
 			bool D3D11Device::CopyTexture2D(MultiRenderTarget2D* Resource, unsigned int Target, Texture2D** Result)
 			{
 				D3D11MultiRenderTarget2D* IResource = (D3D11MultiRenderTarget2D*)Resource;
-				if (!IResource || Target >= IResource->SVTarget || !IResource->Texture[Target] || !Result)
+				if (!IResource || Target >= IResource->Target || !IResource->Texture[Target] || !Result)
 					return false;
 
 				D3D11_TEXTURE2D_DESC Information;
@@ -1313,11 +1309,11 @@ namespace Tomahawk
 			bool D3D11Device::CopyTexture2D(RenderTargetCube* Resource, unsigned int Face, Texture2D** Result)
 			{
 				D3D11RenderTargetCube* IResource = (D3D11RenderTargetCube*)Resource;
-				if (!IResource || Face >= 6 || !IResource->Cube || !Result)
+				if (!IResource || Face >= 6 || !IResource->Texture || !Result)
 					return false;
 
 				D3D11_TEXTURE2D_DESC Information;
-				IResource->Cube->GetDesc(&Information);
+				IResource->Texture->GetDesc(&Information);
 				Information.BindFlags |= D3D11_BIND_SHADER_RESOURCE;
 
 				D3D11Texture2D* Texture = (D3D11Texture2D*)(*Result ? *Result : CreateTexture2D());
@@ -1327,7 +1323,7 @@ namespace Tomahawk
 						return false;
 				}
 
-				ImmediateContext->CopySubresourceRegion(Texture->View, Face * Information.MipLevels, 0, 0, 0, IResource->Cube, 0, 0);
+				ImmediateContext->CopySubresourceRegion(Texture->View, Face * Information.MipLevels, 0, 0, 0, IResource->Texture, 0, 0);
 				*Result = Texture;
 
 				return GenerateTexture(Texture);
@@ -1335,11 +1331,11 @@ namespace Tomahawk
 			bool D3D11Device::CopyTexture2D(MultiRenderTargetCube* Resource, unsigned int Cube, unsigned int Face, Texture2D** Result)
 			{
 				D3D11MultiRenderTargetCube* IResource = (D3D11MultiRenderTargetCube*)Resource;
-				if (!IResource || Cube >= IResource->SVTarget || Face >= 6 || !IResource->Cube[Cube] || !Result)
+				if (!IResource || Cube >= IResource->Target || Face >= 6 || !IResource->Texture[Cube] || !Result)
 					return false;
 
 				D3D11_TEXTURE2D_DESC Information;
-				IResource->Cube[Cube]->GetDesc(&Information);
+				IResource->Texture[Cube]->GetDesc(&Information);
 				Information.BindFlags |= D3D11_BIND_SHADER_RESOURCE;
 
 				D3D11Texture2D* Texture = (D3D11Texture2D*)(*Result ? *Result : CreateTexture2D());
@@ -1349,7 +1345,7 @@ namespace Tomahawk
 						return false;
 				}
 
-				ImmediateContext->CopySubresourceRegion(Texture->View, Face * Information.MipLevels, 0, 0, 0, IResource->Cube[Cube], 0, 0);
+				ImmediateContext->CopySubresourceRegion(Texture->View, Face * Information.MipLevels, 0, 0, 0, IResource->Texture[Cube], 0, 0);
 				*Result = Texture;
 
 				return GenerateTexture(Texture);
@@ -1357,11 +1353,11 @@ namespace Tomahawk
 			bool D3D11Device::CopyTextureCube(RenderTargetCube* Resource, TextureCube** Result)
 			{
 				D3D11RenderTargetCube* IResource = (D3D11RenderTargetCube*)Resource;
-				if (!IResource || !IResource->Cube || !Result)
+				if (!IResource || !IResource->Texture || !Result)
 					return false;
 
 				D3D11_TEXTURE2D_DESC Information;
-				IResource->Cube->GetDesc(&Information);
+				IResource->Texture->GetDesc(&Information);
 				Information.BindFlags |= D3D11_BIND_SHADER_RESOURCE;
 
 				void* Resources[6];
@@ -1376,7 +1372,7 @@ namespace Tomahawk
 						return false;
 					}
 
-					ImmediateContext->CopySubresourceRegion(Subresource, i, 0, 0, 0, IResource->Cube, 0, 0);
+					ImmediateContext->CopySubresourceRegion(Subresource, i, 0, 0, 0, IResource->Texture, 0, 0);
 					Resources[i] = (bool*)Subresource;
 				}
 
@@ -1386,11 +1382,11 @@ namespace Tomahawk
 			bool D3D11Device::CopyTextureCube(MultiRenderTargetCube* Resource, unsigned int Cube, TextureCube** Result)
 			{
 				D3D11MultiRenderTargetCube* IResource = (D3D11MultiRenderTargetCube*)Resource;
-				if (!IResource || Cube >= IResource->SVTarget || !IResource->Cube[Cube] || !Result)
+				if (!IResource || Cube >= IResource->Target || !IResource->Texture[Cube] || !Result)
 					return false;
 
 				D3D11_TEXTURE2D_DESC Information;
-				IResource->Cube[Cube]->GetDesc(&Information);
+				IResource->Texture[Cube]->GetDesc(&Information);
 				Information.BindFlags |= D3D11_BIND_SHADER_RESOURCE;
 
 				void* Resources[6];
@@ -1405,7 +1401,7 @@ namespace Tomahawk
 						return false;
 					}
 
-					ImmediateContext->CopySubresourceRegion(Subresource, i, 0, 0, 0, IResource->Cube[Cube], 0, 0);
+					ImmediateContext->CopySubresourceRegion(Subresource, i, 0, 0, 0, IResource->Texture[Cube], 0, 0);
 					Resources[i] = (bool*)Subresource;
 				}
 
@@ -1431,7 +1427,7 @@ namespace Tomahawk
 			bool D3D11Device::CopyBegin(MultiRenderTarget2D* Resource, unsigned int Target, unsigned int MipLevels, unsigned int Size)
 			{
 				D3D11MultiRenderTarget2D* IResource = (D3D11MultiRenderTarget2D*)Resource;
-				if (!IResource || Target >= IResource->SVTarget)
+				if (!IResource || Target >= IResource->Target)
 					return false;
 
 				if (IResource->Cube.Target != Target)
@@ -1469,7 +1465,7 @@ namespace Tomahawk
 			bool D3D11Device::CopyFace(MultiRenderTarget2D* Resource, unsigned int Target, unsigned int Face)
 			{
 				D3D11MultiRenderTarget2D* IResource = (D3D11MultiRenderTarget2D*)Resource;
-				if (!IResource || Target >= IResource->SVTarget || Face >= 6)
+				if (!IResource || Target >= IResource->Target || Face >= 6)
 					return false;
 
 				ImmediateContext->CopyResource(IResource->Cube.Subresource, IResource->Texture[Target]);
@@ -2752,7 +2748,7 @@ namespace Tomahawk
 					RTV.Texture2DArray.ArraySize = 1;
 				}
 
-				for (int i = 0; i < Result->SVTarget; i++)
+				for (int i = 0; i < Result->Target; i++)
 				{
 					Result->Information.Format = (DXGI_FORMAT)I.FormatMode[i];
 					if (D3DDevice->CreateTexture2D(&Result->Information, nullptr, &Result->Texture[i]) != S_OK)
@@ -2843,7 +2839,7 @@ namespace Tomahawk
 				Description.CPUAccessFlags = I.AccessFlags;
 				Description.MiscFlags = (unsigned int)I.MiscFlags;
 
-				if (D3DDevice->CreateTexture2D(&Description, nullptr, &Result->Cube) != S_OK)
+				if (D3DDevice->CreateTexture2D(&Description, nullptr, &Result->Texture) != S_OK)
 				{
 					TH_ERROR("couldn't create cube map texture 2d");
 					return Result;
@@ -2893,17 +2889,17 @@ namespace Tomahawk
 				RTV.Texture2DArray.ArraySize = 6;
 				RTV.Texture2DArray.MipSlice = 0;
 
-				if (D3DDevice->CreateRenderTargetView(Result->Cube, &RTV, &Result->RenderTargetView) != S_OK)
+				if (D3DDevice->CreateRenderTargetView(Result->Texture, &RTV, &Result->RenderTargetView) != S_OK)
 				{
 					TH_ERROR("couldn't create render target view");
 					return Result;
 				}
 
 				D3D11Texture2D* Target = (D3D11Texture2D*)CreateTexture2D();
-				Target->View = Result->Cube;
+				Target->View = Result->Texture;
 
 				Result->Resource = Target;
-				Result->Cube->AddRef();
+				Result->Texture->AddRef();
 
 				if (!GenerateTexture(Target))
 				{
@@ -2933,48 +2929,57 @@ namespace Tomahawk
 				Description.ArraySize = 6;
 				Description.SampleDesc.Count = 1;
 				Description.SampleDesc.Quality = 0;
-				Description.Format = DXGI_FORMAT_D32_FLOAT;
 				Description.Usage = (D3D11_USAGE)I.Usage;
-				Description.BindFlags = D3D11_BIND_DEPTH_STENCIL;
 				Description.CPUAccessFlags = I.AccessFlags;
 				Description.MiscFlags = (unsigned int)I.MiscFlags;
-
-				for (int i = 0; i < Result->SVTarget; i++)
-				{
-					if (D3DDevice->CreateTexture2D(&Description, nullptr, &Result->Texture[i]) != S_OK)
-					{
-						TH_ERROR("couldn't create texture 2d");
-						return Result;
-					}
-				}
-
-				D3D11_DEPTH_STENCIL_VIEW_DESC DSV;
-				ZeroMemory(&DSV, sizeof(DSV));
-				DSV.Format = Description.Format;
-				DSV.ViewDimension = D3D11_DSV_DIMENSION_TEXTURE2DARRAY;
-				DSV.Texture2DArray.FirstArraySlice = 0;
-				DSV.Texture2DArray.ArraySize = 6;
-				DSV.Texture2DArray.MipSlice = 0;
-
-				if (D3DDevice->CreateDepthStencilView(Result->Texture[0], &DSV, &Result->DepthStencilView) != S_OK)
-				{
-					TH_ERROR("couldn't create depth stencil view");
-					return Result;
-				}
-
 				Description.BindFlags = I.BindFlags;
-				Description.MiscFlags = (unsigned int)I.MiscFlags;
 				Description.MipLevels = MipLevels;
 
-				for (int i = 0; i < Result->SVTarget; i++)
+				for (int i = 0; i < Result->Target; i++)
 				{
 					Description.Format = (DXGI_FORMAT)I.FormatMode[i];
-					if (D3DDevice->CreateTexture2D(&Description, nullptr, &Result->Cube[i]) != S_OK)
+					if (D3DDevice->CreateTexture2D(&Description, nullptr, &Result->Texture[i]) != S_OK)
 					{
 						TH_ERROR("couldn't create cube map rexture 2d");
 						return Result;
 					}
 				}
+
+				D3D11_TEXTURE2D_DESC DepthBuffer;
+				ZeroMemory(&DepthBuffer, sizeof(DepthBuffer));
+				DepthBuffer.Width = I.Size;
+				DepthBuffer.Height = I.Size;
+				DepthBuffer.MipLevels = 1;
+				DepthBuffer.ArraySize = 6;
+				DepthBuffer.Format = DXGI_FORMAT_D24_UNORM_S8_UINT;
+				DepthBuffer.SampleDesc.Count = 1;
+				DepthBuffer.SampleDesc.Quality = 0;
+				DepthBuffer.Usage = (D3D11_USAGE)I.Usage;
+				DepthBuffer.BindFlags = D3D11_BIND_DEPTH_STENCIL;
+				DepthBuffer.CPUAccessFlags = I.AccessFlags;
+				DepthBuffer.MiscFlags = 0;
+
+				ID3D11Texture2D* DepthTexture = nullptr;
+				if (D3DDevice->CreateTexture2D(&DepthBuffer, nullptr, &DepthTexture) != S_OK)
+				{
+					TH_ERROR("couldn't create depth buffer texture 2d");
+					return Result;
+				}
+
+				D3D11_DEPTH_STENCIL_VIEW_DESC DSV;
+				ZeroMemory(&DSV, sizeof(DSV));
+				DSV.Format = DepthBuffer.Format;
+				DSV.ViewDimension = D3D11_DSV_DIMENSION_TEXTURE2DARRAY;
+				DSV.Texture2DArray.FirstArraySlice = 0;
+				DSV.Texture2DArray.ArraySize = 6;
+				DSV.Texture2DArray.MipSlice = 0;
+
+				if (D3DDevice->CreateDepthStencilView(DepthTexture, &DSV, &Result->DepthStencilView) != S_OK)
+				{
+					TH_ERROR("couldn't create depth stencil view");
+					return Result;
+				}
+				ReleaseCom(DepthTexture);
 
 				D3D11_RENDER_TARGET_VIEW_DESC RTV;
 				ZeroMemory(&RTV, sizeof(RTV));
@@ -2983,10 +2988,10 @@ namespace Tomahawk
 				RTV.Texture2DArray.ArraySize = 6;
 				RTV.Texture2DArray.MipSlice = 0;
 
-				for (int i = 0; i < Result->SVTarget; i++)
+				for (int i = 0; i < Result->Target; i++)
 				{
 					RTV.Format = (DXGI_FORMAT)I.FormatMode[i];
-					if (D3DDevice->CreateRenderTargetView(Result->Cube[i], &RTV, &Result->RenderTargetView[i]) != S_OK)
+					if (D3DDevice->CreateRenderTargetView(Result->Texture[i], &RTV, &Result->RenderTargetView[i]) != S_OK)
 					{
 						TH_ERROR("couldn't create render target view");
 						return Result;
@@ -3000,13 +3005,13 @@ namespace Tomahawk
 				SRV.TextureCube.MostDetailedMip = 0;
 				SRV.TextureCube.MipLevels = MipLevels;
 
-				for (int i = 0; i < Result->SVTarget; i++)
+				for (int i = 0; i < Result->Target; i++)
 				{
 					D3D11Texture2D* Target = (D3D11Texture2D*)CreateTexture2D();
-					Target->View = Result->Cube[i];
+					Target->View = Result->Texture[i];
 
 					Result->Resource[i] = Target;
-					Result->Cube[i]->AddRef();
+					Result->Texture[i]->AddRef();
 
 					if (!GenerateTexture(Target))
 					{

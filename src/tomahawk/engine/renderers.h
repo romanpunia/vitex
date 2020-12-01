@@ -236,16 +236,19 @@ namespace Tomahawk
 			class TH_OUT Depth : public TimingDraw
 			{
 			public:
+				typedef std::vector<Graphics::MultiRenderTarget2D*> CascadeMap;
+
+			public:
 				struct
 				{
 					std::vector<Graphics::MultiRenderTargetCube*> PointLight;
 					std::vector<Graphics::MultiRenderTarget2D*> SpotLight;
-					std::vector<Graphics::MultiRenderTarget2D*> LineLight;
+					std::vector<CascadeMap*> LineLight;
 					uint64_t PointLightResolution = 256;
 					uint64_t PointLightLimits = 4;
 					uint64_t SpotLightResolution = 512;
 					uint64_t SpotLightLimits = 16;
-					uint64_t LineLightResolution = 2048;
+					uint64_t LineLightResolution = 1024;
 					uint64_t LineLightLimits = 2;
 				} Renderers;
 
@@ -265,6 +268,11 @@ namespace Tomahawk
 				void Activate() override;
 				void Deactivate() override;
 				void TickRender(Rest::Timer* Time, RenderState State, RenderOpt Options) override;
+
+			private:
+				void GenerateCascadeMap(CascadeMap** Result, uint32_t Size);
+				void GetDepthFormat(Graphics::Format* Result);
+				void GetDepthTarget(Graphics::SurfaceTarget* Result);
 
 			public:
 				TH_COMPONENT("depth-renderer");
@@ -343,24 +351,24 @@ namespace Tomahawk
 
 				struct
 				{
-					Compute::Matrix4x4 ViewProjection;
+					Compute::Matrix4x4 ViewProjection[6];
 					Compute::Matrix4x4 SkyOffset;
-					Compute::Vector3 Position;
-					float ShadowDistance;
-					Compute::Vector3 Lighting;
-					float ShadowLength;
-					float Softness;
-					float Recount;
-					float Bias;
-					float Iterations;
 					Compute::Vector3 RlhEmission;
 					float RlhHeight;
 					Compute::Vector3 MieEmission;
 					float MieHeight;
+					Compute::Vector3 Lighting;
+					float Softness;
+					Compute::Vector3 Position;
+					float Recount;
+					float Cascades;
+					float Bias;
+					float Iterations;
 					float ScatterIntensity;
 					float PlanetRadius;
 					float AtmosphereRadius;
 					float MieDirection;
+					float Padding;
 				} LineLight;
 
 				struct
@@ -400,7 +408,8 @@ namespace Tomahawk
 				Graphics::RasterizerState* FrontRasterizer = nullptr;
 				Graphics::RasterizerState* BackRasterizer = nullptr;
 				Graphics::BlendState* Blend = nullptr;
-				Graphics::SamplerState* Sampler = nullptr;
+				Graphics::SamplerState* ShadowSampler = nullptr;
+				Graphics::SamplerState* WrapSampler = nullptr;
 				Graphics::InputLayout* Layout = nullptr;
 				Graphics::RenderTarget2D* Output1 = nullptr;
 				Graphics::RenderTarget2D* Output2 = nullptr;

@@ -93,8 +93,8 @@ namespace Tomahawk
 				CullResult Cull = (Options & RenderOpt_Inner ? CullResult_Always : CullResult_Last);
 				bool Static = (Options & RenderOpt_Static);
 
+				Device->SetSamplerState(Sampler, 0);
 				Device->SetDepthStencilState(DepthStencil);
-				Device->SetSamplerState(Sampler);
 				Device->SetBlendState(Blend);
 				Device->SetRasterizerState(BackRasterizer);
 				Device->SetInputLayout(Layout);
@@ -129,8 +129,8 @@ namespace Tomahawk
 			void Model::RenderDepthLinear(Rest::Timer* Time, Rest::Pool<Drawable*>* Geometry)
 			{
 				Graphics::GraphicsDevice* Device = System->GetDevice();
+				Device->SetSamplerState(Sampler, 0);
 				Device->SetDepthStencilState(DepthStencil);
-				Device->SetSamplerState(Sampler);
 				Device->SetBlendState(Blend);
 				Device->SetRasterizerState(FrontRasterizer);
 				Device->SetInputLayout(Layout);
@@ -163,8 +163,8 @@ namespace Tomahawk
 			{
 				Graphics::GraphicsDevice* Device = System->GetDevice();
 				memcpy(Depth.FaceViewProjection, ViewProjection, sizeof(Compute::Matrix4x4) * 6);
+				Device->SetSamplerState(Sampler, 0);
 				Device->SetDepthStencilState(DepthStencil);
-				Device->SetSamplerState(Sampler);
 				Device->SetBlendState(Blend);
 				Device->SetRasterizerState(FrontRasterizer);
 				Device->SetInputLayout(Layout);
@@ -289,8 +289,8 @@ namespace Tomahawk
 				CullResult Cull = (Options & RenderOpt_Inner ? CullResult_Always : CullResult_Last);
 				bool Static = (Options & RenderOpt_Static);
 
+				Device->SetSamplerState(Sampler, 0);
 				Device->SetDepthStencilState(DepthStencil);
-				Device->SetSamplerState(Sampler);
 				Device->SetBlendState(Blend);
 				Device->SetRasterizerState(BackRasterizer);
 				Device->SetInputLayout(Layout);
@@ -330,8 +330,8 @@ namespace Tomahawk
 			void Skin::RenderDepthLinear(Rest::Timer* Time, Rest::Pool<Drawable*>* Geometry)
 			{
 				Graphics::GraphicsDevice* Device = System->GetDevice();
+				Device->SetSamplerState(Sampler, 0);
 				Device->SetDepthStencilState(DepthStencil);
-				Device->SetSamplerState(Sampler);
 				Device->SetBlendState(Blend);
 				Device->SetRasterizerState(FrontRasterizer);
 				Device->SetInputLayout(Layout);
@@ -369,8 +369,8 @@ namespace Tomahawk
 			{
 				Graphics::GraphicsDevice* Device = System->GetDevice();
 				memcpy(Depth.FaceViewProjection, ViewProjection, sizeof(Compute::Matrix4x4) * 6);
+				Device->SetSamplerState(Sampler, 0);
 				Device->SetDepthStencilState(DepthStencil);
-				Device->SetSamplerState(Sampler);
 				Device->SetBlendState(Blend);
 				Device->SetRasterizerState(FrontRasterizer);
 				Device->SetInputLayout(Layout);
@@ -512,8 +512,8 @@ namespace Tomahawk
 				CullResult Cull = (Options & RenderOpt_Inner ? CullResult_Always : CullResult_Last);
 				bool Static = (Options & RenderOpt_Static);
 
+				Device->SetSamplerState(Sampler, 0);
 				Device->SetDepthStencilState(DepthStencil);
-				Device->SetSamplerState(Sampler);
 				Device->SetBlendState(Blend);
 				Device->SetRasterizerState(BackRasterizer);
 				Device->SetInputLayout(Layout);
@@ -548,8 +548,8 @@ namespace Tomahawk
 			void SoftBody::RenderDepthLinear(Rest::Timer* Time, Rest::Pool<Drawable*>* Geometry)
 			{
 				Graphics::GraphicsDevice* Device = System->GetDevice();
+				Device->SetSamplerState(Sampler, 0);
 				Device->SetDepthStencilState(DepthStencil);
-				Device->SetSamplerState(Sampler);
 				Device->SetBlendState(Blend);
 				Device->SetRasterizerState(FrontRasterizer);
 				Device->SetInputLayout(Layout);
@@ -584,8 +584,8 @@ namespace Tomahawk
 			{
 				Graphics::GraphicsDevice* Device = System->GetDevice();
 				memcpy(Depth.FaceViewProjection, ViewProjection, sizeof(Compute::Matrix4x4) * 6);
+				Device->SetSamplerState(Sampler, 0);
 				Device->SetDepthStencilState(DepthStencil);
-				Device->SetSamplerState(Sampler);
 				Device->SetBlendState(Blend);
 				Device->SetRasterizerState(FrontRasterizer);
 				Device->SetInputLayout(Layout);
@@ -669,8 +669,8 @@ namespace Tomahawk
 				CullResult Cull = (Options & RenderOpt_Inner ? CullResult_Always : CullResult_Last);
 				bool Static = (Options & RenderOpt_Static);
 
+				Device->SetSamplerState(Sampler, 0);
 				Device->SetDepthStencilState(DepthStencilOpaque);
-				Device->SetSamplerState(Sampler);
 				Device->SetBlendState(OverwriteBlend);
 				Device->SetRasterizerState(BackRasterizer);
 				Device->SetInputLayout(Layout);
@@ -745,8 +745,8 @@ namespace Tomahawk
 				Graphics::PrimitiveTopology T = Device->GetPrimitiveTopology();
 				Compute::Matrix4x4& View = System->GetScene()->View.View;
 
+				Device->SetSamplerState(Sampler, 0);
 				Device->SetDepthStencilState(DepthStencilLimpid);
-				Device->SetSamplerState(Sampler);
 				Device->SetBlendState(OverwriteBlend);
 				Device->SetRasterizerState(FrontRasterizer);
 				Device->SetInputLayout(Layout);
@@ -791,8 +791,8 @@ namespace Tomahawk
 				Depth.FaceView[5] = Compute::Matrix4x4::CreateCubeMapLookAt(5, System->GetScene()->View.InvViewPosition);
 
 				Graphics::PrimitiveTopology T = Device->GetPrimitiveTopology();
+				Device->SetSamplerState(Sampler, 0);
 				Device->SetDepthStencilState(DepthStencilLimpid);
-				Device->SetSamplerState(Sampler);
 				Device->SetBlendState(OverwriteBlend);
 				Device->SetRasterizerState(FrontRasterizer);
 				Device->SetInputLayout(Layout);
@@ -858,8 +858,8 @@ namespace Tomahawk
 				if (!Array || Geometry->Empty())
 					return;
 
+				Device->SetSamplerState(Sampler, 0);
 				Device->SetDepthStencilState(DepthStencil);
-				Device->SetSamplerState(Sampler);
 				Device->SetBlendState(Blend);
 				Device->SetRasterizerState(Rasterizer);
 				Device->SetInputLayout(Layout);
@@ -945,8 +945,8 @@ namespace Tomahawk
 				Device->SetTarget(S, 0);
 				Device->Clear(S, 0, 0, 0, 0);
 				Device->UpdateBuffer(Shader, &RenderPass);
+				Device->SetSamplerState(Sampler, 0);
 				Device->SetDepthStencilState(DepthStencil);
-				Device->SetSamplerState(Sampler);
 				Device->SetBlendState(Blend);
 				Device->SetRasterizerState(Rasterizer);
 				Device->SetInputLayout(Layout);
@@ -1012,8 +1012,16 @@ namespace Tomahawk
 					delete *It;
 
 				for (auto It = Renderers.LineLight.begin(); It != Renderers.LineLight.end(); It++)
-					delete *It;
+				{
+					if (*It != nullptr)
+					{
+						for (auto* Target : *(*It))
+							delete Target;
+					}
 
+					delete *It;
+				}
+				
 				if (!System || !System->GetScene())
 					return;
 
@@ -1078,10 +1086,8 @@ namespace Tomahawk
 				{
 					Graphics::MultiRenderTargetCube::Desc F = Graphics::MultiRenderTargetCube::Desc();
 					F.Size = (unsigned int)Renderers.PointLightResolution;
-					F.FormatMode[0] = Graphics::Format_R32G32_Float;
-					F.FormatMode[1] = Graphics::Format_R16G16B16A16_Float;
-					F.FormatMode[2] = Graphics::Format_R16G16B16A16_Float;
-					F.Target = Graphics::SurfaceTarget2;
+					GetDepthFormat(F.FormatMode);
+					GetDepthTarget(&F.Target);
 
 					*It = System->GetDevice()->CreateMultiRenderTargetCube(F);
 				}
@@ -1092,27 +1098,15 @@ namespace Tomahawk
 					Graphics::MultiRenderTarget2D::Desc F = Graphics::MultiRenderTarget2D::Desc();
 					F.Width = (unsigned int)Renderers.SpotLightResolution;
 					F.Height = (unsigned int)Renderers.SpotLightResolution;
-					F.FormatMode[0] = Graphics::Format_R32G32_Float;
-					F.FormatMode[1] = Graphics::Format_R16G16B16A16_Float;
-					F.FormatMode[2] = Graphics::Format_R16G16B16A16_Float;
-					F.SVTarget = Graphics::SurfaceTarget2;
+					GetDepthFormat(F.FormatMode);
+					GetDepthTarget(&F.Target);
 
 					*It = System->GetDevice()->CreateMultiRenderTarget2D(F);
 				}
 
 				Renderers.LineLight.resize(Renderers.LineLightLimits);
 				for (auto It = Renderers.LineLight.begin(); It != Renderers.LineLight.end(); It++)
-				{
-					Graphics::MultiRenderTarget2D::Desc F = Graphics::MultiRenderTarget2D::Desc();
-					F.Width = (unsigned int)Renderers.LineLightResolution;
-					F.Height = (unsigned int)Renderers.LineLightResolution;
-					F.FormatMode[0] = Graphics::Format_R32G32_Float;
-					F.FormatMode[1] = Graphics::Format_R16G16B16A16_Float;
-					F.FormatMode[2] = Graphics::Format_R16G16B16A16_Float;
-					F.SVTarget = Graphics::SurfaceTarget2;
-
-					*It = System->GetDevice()->CreateMultiRenderTarget2D(F);
-				}
+					*It = nullptr;
 			}
 			void Depth::Deactivate()
 			{
@@ -1148,7 +1142,9 @@ namespace Tomahawk
 
 					Scene->SetView(Compute::Matrix4x4::Identity(), Light->Projection, Light->GetEntity()->Transform->Position, Light->Shadow.Distance, true);
 					Scene->RenderDepthCubic(Time);
-					Light->SetDepthCache(Target); Shadows++;
+
+					Light->SetDepthCache(Target);
+					Shadows++;
 				}
 
 				Shadows = 0;
@@ -1171,7 +1167,9 @@ namespace Tomahawk
 
 					Scene->SetView(Light->View, Light->Projection, Light->GetEntity()->Transform->Position, Light->Shadow.Distance, true);
 					Scene->RenderDepthLinear(Time);
-					Light->SetDepthCache(Target); Shadows++;
+
+					Light->SetDepthCache(Target);
+					Shadows++;
 				}
 
 				Shadows = 0;
@@ -1185,16 +1183,58 @@ namespace Tomahawk
 					if (!Light->Shadow.Enabled)
 						continue;
 
-					Graphics::MultiRenderTarget2D* Target = Renderers.LineLight[Shadows];
-					Device->SetTarget(Target, 0, 0, 0);
-					Device->ClearDepth(Target);
+					CascadeMap*& Target = Renderers.LineLight[Shadows];
+					if (Light->Shadow.Cascades < 1 || Light->Shadow.Cascades > 6)
+						continue;
 
-					Scene->SetView(Light->View, Light->Projection, 0.0f, -1.0f, true);
-					Scene->RenderDepthLinear(Time);
-					Light->SetDepthCache(Target); Shadows++;
+					if (!Target || Target->size() < Light->Shadow.Cascades)
+						GenerateCascadeMap(&Target, Light->Shadow.Cascades);
+
+					for (size_t i = 0; i < Target->size(); i++)
+					{
+						Graphics::MultiRenderTarget2D* Cascade = (*Target)[i];
+						Device->SetTarget(Cascade, 0, 0, 0);
+						Device->ClearDepth(Cascade);
+
+						Scene->SetView(Light->View[i], Light->Projection[i], 0.0f, -1.0f, true);
+						Scene->RenderDepthLinear(Time);
+					}
+
+					Light->SetDepthCache(Target);
+					Shadows++;
 				}
 
 				Scene->RestoreViewBuffer(nullptr);
+			}
+			void Depth::GenerateCascadeMap(CascadeMap** Result, uint32_t Size)
+			{
+				CascadeMap* Target = (*Result ? *Result : new CascadeMap());
+				for (auto It = Target->begin(); It != Target->end(); It++)
+					delete *It;
+
+				Target->resize(Size);
+				for (auto It = Target->begin(); It != Target->end(); It++)
+				{
+					Graphics::MultiRenderTarget2D::Desc F = Graphics::MultiRenderTarget2D::Desc();
+					F.Width = (unsigned int)Renderers.LineLightResolution;
+					F.Height = (unsigned int)Renderers.LineLightResolution;
+					GetDepthFormat(F.FormatMode);
+					GetDepthTarget(&F.Target);
+		
+					*It = System->GetDevice()->CreateMultiRenderTarget2D(F);
+				}
+
+				*Result = Target;
+			}
+			void Depth::GetDepthFormat(Graphics::Format* Result)
+			{
+				Result[0] = Graphics::Format_R32G32_Float;
+				Result[1] = Graphics::Format_R16G16B16A16_Float;
+				Result[2] = Graphics::Format_R16G16B16A16_Float;
+			}
+			void Depth::GetDepthTarget(Graphics::SurfaceTarget* Result)
+			{
+				*Result = Graphics::SurfaceTarget2;
 			}
 
 			Environment::Environment(RenderSystem* Lab) : Renderer(Lab), Surface(nullptr), Size(128), MipLevels(7)
@@ -1301,7 +1341,8 @@ namespace Tomahawk
 				FrontRasterizer = Lab->GetDevice()->GetRasterizerState("cull-front");
 				BackRasterizer = Lab->GetDevice()->GetRasterizerState("cull-back");
 				Blend = Lab->GetDevice()->GetBlendState("additive");
-				Sampler = Lab->GetDevice()->GetSamplerState("trilinear-x16");
+				ShadowSampler = Lab->GetDevice()->GetSamplerState("shadow");
+				WrapSampler = Lab->GetDevice()->GetSamplerState("trilinear-x16");
 				Layout = Lab->GetDevice()->GetInputLayout("shape-vertex");
 
 				Graphics::Shader::Desc I = Graphics::Shader::Desc();
@@ -1411,8 +1452,9 @@ namespace Tomahawk
 				float D = 0.0;
 
 				AmbientLight.SkyOffset = System->GetScene()->View.Projection.Invert() * Compute::Matrix4x4::CreateRotation(System->GetScene()->View.WorldRotation);
+				Device->SetSamplerState(WrapSampler, 0);
+				Device->SetSamplerState(ShadowSampler, 1);
 				Device->SetDepthStencilState(DepthStencil);
-				Device->SetSamplerState(Sampler);
 				Device->SetBlendState(Blend);
 				Device->SetRasterizerState(FrontRasterizer);
 				Device->SetInputLayout(Layout);
@@ -1552,20 +1594,22 @@ namespace Tomahawk
 				for (auto It = LineLights->Begin(); It != LineLights->End(); ++It)
 				{
 					Engine::Components::LineLight* Light = (Engine::Components::LineLight*)*It;
-					Graphics::MultiRenderTarget2D* Depth = Light->GetDepthCache();
+					Depth::CascadeMap* Depth = Light->GetDepthCache();
 
 					if (Light->Shadow.Enabled && Depth != nullptr)
 					{
-						LineLight.ViewProjection = Light->View * Light->Projection;
 						LineLight.Softness = Light->Shadow.Softness <= 0 ? 0 : Quality.LineLight / Light->Shadow.Softness;
 						LineLight.Recount = 4.0f * Light->Shadow.Iterations * Light->Shadow.Iterations;
-						LineLight.Bias = Light->Shadow.Bias;
-						LineLight.ShadowDistance = Light->Shadow.Distance / 2.0f;
-						LineLight.ShadowLength = Light->Shadow.Length;
 						LineLight.Iterations = (float)Light->Shadow.Iterations;
+						LineLight.Bias = Light->Shadow.Bias;
+						LineLight.Cascades = Depth->size();
 						Active = Shaders.Line[1];
 
-						Device->SetTexture2D(Depth->GetTarget(0), 5);
+						for (size_t i = 0; i < Depth->size(); i++)
+						{
+							LineLight.ViewProjection[i] = Light->View[i] * Light->Projection[i];
+							Device->SetTexture2D((*Depth)[i]->GetTarget(0), 5 + i);
+						}
 					}
 					else
 						Active = Shaders.Line[0];
@@ -1595,7 +1639,7 @@ namespace Tomahawk
 				Device->SetBuffer(Shaders.Ambient, 3, Graphics::ShaderType_Vertex | Graphics::ShaderType_Pixel);
 				Device->UpdateBuffer(Shaders.Ambient, &AmbientLight);
 				Device->Draw(6, 0);
-				Device->FlushTexture2D(1, 6);
+				Device->FlushTexture2D(1, 10);
 			}
 			void Lighting::ResizeBuffers()
 			{

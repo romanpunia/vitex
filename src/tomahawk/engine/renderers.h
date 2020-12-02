@@ -327,8 +327,8 @@ namespace Tomahawk
 					float Range;
 					Compute::Vector3 Lighting;
 					float Distance;
+					float Umbra;
 					float Softness;
-					float Recount;
 					float Bias;
 					float Iterations;
 				} PointLight;
@@ -343,9 +343,9 @@ namespace Tomahawk
 					float Range;
 					Compute::Vector3 Lighting;
 					float Softness;
-					float Recount;
 					float Bias;
 					float Iterations;
+					float Umbra;
 					float Padding;
 				} SpotLight;
 
@@ -360,7 +360,6 @@ namespace Tomahawk
 					Compute::Vector3 Lighting;
 					float Softness;
 					Compute::Vector3 Position;
-					float Recount;
 					float Cascades;
 					float Bias;
 					float Iterations;
@@ -368,6 +367,7 @@ namespace Tomahawk
 					float PlanetRadius;
 					float AtmosphereRadius;
 					float MieDirection;
+					float Umbra;
 					float Padding;
 				} LineLight;
 

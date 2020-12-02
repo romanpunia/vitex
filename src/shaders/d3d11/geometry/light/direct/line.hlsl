@@ -13,7 +13,6 @@ cbuffer RenderConstant : register(b3)
     float3 Lighting;
     float Softness;
     float3 Position;
-    float Recount;
     float Cascades;
     float Bias;
     float Iterations;
@@ -21,6 +20,7 @@ cbuffer RenderConstant : register(b3)
     float PlanetRadius;
     float AtmosphereRadius;
     float MieDirection;
+    float Umbra;
     float Padding;
 };
 

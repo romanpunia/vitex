@@ -9,8 +9,8 @@ cbuffer RenderConstant : register(b3)
 	float Range;
 	float3 Lighting;
 	float Distance;
+    float Umbra;
 	float Softness;
-	float Recount;
 	float Bias;
 	float Iterations;
 };

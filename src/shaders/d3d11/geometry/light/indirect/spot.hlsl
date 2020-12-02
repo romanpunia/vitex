@@ -1,6 +1,8 @@
 #include "renderer/vertex/shape"
 #include "workflow/pass"
 #include "standard/cook-torrance"
+#include "standard/random-float"
+#pragma warning(disable: 4000)
 
 cbuffer RenderConstant : register(b3)
 {
@@ -12,28 +14,51 @@ cbuffer RenderConstant : register(b3)
 	float Range;
 	float3 Lighting;
 	float Softness;
-	float Recount;
 	float Bias;
 	float Iterations;
-	float Padding;
+	float Umbra;
+    float Padding;
 };
 
 Texture2D ShadowMap : register(t5);
 SamplerState ShadowSampler : register(s1);
 
-void SampleShadow(float2 D, float L, out float C, out float B)
+float GetPenumbra(in float2 D, in float L)
 {
-    C = B = 0.0;
-	[loop] for (int x = -Iterations; x < Iterations; x++)
+    [branch] if (Umbra <= 0.0)
+        return 1.0;
+    
+    float Length = 0.0, Count = 0.0;
+    [unroll] for (int i = 0; i < 16; i++)
+    {
+        float R = ShadowMap.SampleLevel(ShadowSampler, D + FiboDisk[i] / Softness, 0).x;
+        float Step = 1.0 - step(L, R);
+        Length += R * Step;
+        Count += Step;
+    }
+
+    [branch] if (Count < 2.0)
+        return -1.0;
+    
+    Length /= Count;
+    return max(0.05, saturate(Umbra * FarPlane * (L - Length) / Length));
+}
+float GetLightness(in float2 D, in float L)
+{
+    float Penumbra = GetPenumbra(D, L);
+    [branch] if (Penumbra < 0.0)
+        return 1.0;
+
+    float Result = 0.0, Inter = 0.0;
+	[loop] for (int j = 0; j < Iterations; j++)
 	{
-		[loop] for (int y = -Iterations; y < Iterations; y++)
-		{
-			float2 Shadow = ShadowMap.SampleLevel(ShadowSampler, saturate(D + float2(x, y) / Softness), 0).xy;
-			C += step(L, Shadow.x); B += Shadow.y;
-		}
+        float2 R = ShadowMap.SampleLevel(ShadowSampler, D + Penumbra * FiboDisk[j] / Softness, 0).xy;
+        Result += step(L, R.x);
+        Inter += R.y;
 	}
 
-	C /= Recount; B /= Recount;
+	Result /= Iterations;
+    return Result + (Inter / Iterations) * (1.0 - Result);
 }
 
 VertexResult VS(VertexBase V)
@@ -67,19 +92,8 @@ float4 PS(VertexResult V) : SV_TARGET0
 	float4 L = mul(float4(Frag.Position, 1), LightViewProjection);
 	float2 T = float2(L.x / L.w / 2.0 + 0.5f, 1 - (L.y / L.w / 2.0 + 0.5f));
 	[branch] if (L.z > 0.0 && saturate(T.x) == T.x && saturate(T.y) == T.y)
-    {
-	    float I = L.z / L.w - Bias, C, B;
-        [branch] if (Softness <= 0.0)
-        {
-            float2 Shadow = ShadowMap.SampleLevel(ShadowSampler, T, 0).xy;
-            C = step(I, Shadow.x); B = Shadow.y;
-        }
-        else
-            SampleShadow(T, I, C, B);
-
-        A *= C + B * (1.0 - C);
-    }
-
+        A *= GetLightness(T, L.z / L.w - Bias);
+    
     A *= 1.0 - (1.0 - F) * 1.0 / (1.0 - Cutoff);
 	return float4(Lighting * (Frag.Diffuse * E + O) * A, length(A) / 3.0);
 };

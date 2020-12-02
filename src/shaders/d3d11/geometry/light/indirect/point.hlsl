@@ -1,6 +1,8 @@
 #include "renderer/vertex/shape"
 #include "workflow/pass"
 #include "standard/cook-torrance"
+#include "standard/random-float"
+#pragma warning(disable: 4000)
 
 cbuffer RenderConstant : register(b3)
 {
@@ -9,8 +11,8 @@ cbuffer RenderConstant : register(b3)
 	float Range;
 	float3 Lighting;
 	float Distance;
+    float Umbra;
 	float Softness;
-	float Recount;
 	float Bias;
 	float Iterations;
 };
@@ -18,22 +20,44 @@ cbuffer RenderConstant : register(b3)
 TextureCube ShadowMap : register(t5);
 SamplerState ShadowSampler : register(s1);
 
-void SampleShadow(in float3 D, in float L, out float C, out float B)
+float GetPenumbra(in float3 D, in float L)
 {
-    C = B = 0.0;
-	[loop] for (int x = -Iterations; x < Iterations; x++)
+    [branch] if (Umbra <= 0.0)
+        return 1.0;
+    
+    float Length = 0.0, Count = 0.0;
+    [unroll] for (int i = 0; i < 16; i++)
+    {
+        float2 Offset = FiboDisk[i];
+        float R = ShadowMap.SampleLevel(ShadowSampler, D + float3(Offset, -Offset.x) / Softness, 0).x;
+        float Step = 1.0 - step(L, R);
+        Length += R * Step;
+        Count += Step;
+    }
+
+    [branch] if (Count < 2.0)
+        return -1.0;
+    
+    Length /= Count;
+    return max(0.05, saturate(Umbra * (L - Length) / Length));
+}
+float GetLightness(in float3 D, in float L)
+{
+    float Penumbra = GetPenumbra(D, L);
+    [branch] if (Penumbra < 0.0)
+        return 1.0;
+
+    float Result = 0.0, Inter = 0.0;
+	[loop] for (int j = 0; j < Iterations; j++)
 	{
-		[loop] for (int y = -Iterations; y < Iterations; y++)
-		{
-			[loop] for (int z = -Iterations; z < Iterations; z++)
-			{
-				float2 Shadow = ShadowMap.SampleLevel(ShadowSampler, D + float3(x, y, z) / Softness, 0).xy;
-				C += step(L, Shadow.x); B += Shadow.y;
-			}
-		}
+        float2 Offset = FiboDisk[j];
+        float2 R = ShadowMap.SampleLevel(ShadowSampler, D + Penumbra * float3(Offset, -Offset.x) / Softness, 0).xy;
+        Result += step(L, R.x);
+        Inter += R.y;
 	}
 
-	C /= Recount; B /= Recount;
+	Result /= Iterations;
+    return Result + (Inter / Iterations) * (1.0 - Result);
 }
 
 VertexResult VS(VertexBase V)
@@ -60,17 +84,7 @@ float4 PS(VertexResult V) : SV_TARGET0
 	float A = 1.0 - L / Range;
 	float3 P = normalize(ViewPosition - Frag.Position), O;
 	float3 E = GetLight(P, K, Frag.Normal, M, R, O);
-	float I = L / Distance - Bias, C, B;
-
-	[branch] if (Softness <= 0.0)
-	{
-		float2 Shadow = ShadowMap.SampleLevel(ShadowSampler, -K, 0).xy;
-		C = step(I, Shadow.x); B = Shadow.y;
-	}
-	else
-		SampleShadow(-K, I, C, B);
 
     E = Lighting * (Frag.Diffuse * E + O);
-	E *= C + B * (1.0 - C);
-	return float4(E * A, A);
+	return float4(E * GetLightness(-K, L / Distance - Bias) * A, A);
 };

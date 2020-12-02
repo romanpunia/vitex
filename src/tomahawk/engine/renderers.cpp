@@ -1140,6 +1140,7 @@ namespace Tomahawk
 					Device->SetTarget(Target, 0, 0, 0);
 					Device->ClearDepth(Target);
 
+					Light->AssembleDepthOrigin();
 					Scene->SetView(Compute::Matrix4x4::Identity(), Light->Projection, Light->GetEntity()->Transform->Position, Light->Shadow.Distance, true);
 					Scene->RenderDepthCubic(Time);
 
@@ -1165,6 +1166,7 @@ namespace Tomahawk
 					Device->SetTarget(Target, 0, 0, 0);
 					Device->ClearDepth(Target);
 
+					Light->AssembleDepthOrigin();
 					Scene->SetView(Light->View, Light->Projection, Light->GetEntity()->Transform->Position, Light->Shadow.Distance, true);
 					Scene->RenderDepthLinear(Time);
 
@@ -1190,6 +1192,7 @@ namespace Tomahawk
 					if (!Target || Target->size() < Light->Shadow.Cascades)
 						GenerateCascadeMap(&Target, Light->Shadow.Cascades);
 
+					Light->AssembleDepthOrigin();
 					for (size_t i = 0; i < Target->size(); i++)
 					{
 						Graphics::MultiRenderTarget2D* Cascade = (*Target)[i];
@@ -1449,7 +1452,7 @@ namespace Tomahawk
 				Graphics::MultiRenderTarget2D* Surface = System->GetScene()->GetSurface();
 				Graphics::Shader* Active = nullptr;
 				bool Inner = (Options & RenderOpt_Inner);
-				float D = 0.0;
+				float D = 0.0f;
 
 				AmbientLight.SkyOffset = System->GetScene()->View.Projection.Invert() * Compute::Matrix4x4::CreateRotation(System->GetScene()->View.WorldRotation);
 				Device->SetSamplerState(WrapSampler, 0);
@@ -1529,10 +1532,10 @@ namespace Tomahawk
 					if (Light->Shadow.Enabled && Depth != nullptr)
 					{
 						PointLight.Softness = Light->Shadow.Softness <= 0 ? 0 : Quality.PointLight / Light->Shadow.Softness;
-						PointLight.Recount = 8.0f * Light->Shadow.Iterations * Light->Shadow.Iterations * Light->Shadow.Iterations;
 						PointLight.Bias = Light->Shadow.Bias;
 						PointLight.Distance = Light->Shadow.Distance;
 						PointLight.Iterations = (float)Light->Shadow.Iterations;
+						PointLight.Umbra = Light->Disperse;
 						Active = Shaders.Point[1];
 
 						Device->SetTexture2D(Depth->GetTarget(0), 5);
@@ -1563,9 +1566,9 @@ namespace Tomahawk
 					if (Light->Shadow.Enabled && Depth != nullptr)
 					{
 						SpotLight.Softness = Light->Shadow.Softness <= 0 ? 0 : Quality.SpotLight / Light->Shadow.Softness;
-						SpotLight.Recount = 4.0f * Light->Shadow.Iterations * Light->Shadow.Iterations;
 						SpotLight.Bias = Light->Shadow.Bias;
 						SpotLight.Iterations = (float)Light->Shadow.Iterations;
+						SpotLight.Umbra = Light->Disperse;
 						Active = Shaders.Spot[1];
 
 						Device->SetTexture2D(Depth->GetTarget(0), 5);
@@ -1599,10 +1602,10 @@ namespace Tomahawk
 					if (Light->Shadow.Enabled && Depth != nullptr)
 					{
 						LineLight.Softness = Light->Shadow.Softness <= 0 ? 0 : Quality.LineLight / Light->Shadow.Softness;
-						LineLight.Recount = 4.0f * Light->Shadow.Iterations * Light->Shadow.Iterations;
 						LineLight.Iterations = (float)Light->Shadow.Iterations;
 						LineLight.Bias = Light->Shadow.Bias;
 						LineLight.Cascades = Depth->size();
+						LineLight.Umbra = Light->Disperse;
 						Active = Shaders.Line[1];
 
 						for (size_t i = 0; i < Depth->size(); i++)

@@ -2514,6 +2514,7 @@ namespace Tomahawk
 				NMake::Unpack(Node->Find("view"), &View);
 				NMake::Unpack(Node->Find("diffuse"), &Diffuse);
 				NMake::Unpack(Node->Find("emission"), &Emission);
+				NMake::Unpack(Node->Find("disperse"), &Disperse);
 				NMake::Unpack(Node->Find("shadow-softness"), &Shadow.Softness);
 				NMake::Unpack(Node->Find("shadow-distance"), &Shadow.Distance);
 				NMake::Unpack(Node->Find("shadow-bias"), &Shadow.Bias);
@@ -2526,16 +2527,12 @@ namespace Tomahawk
 				NMake::Pack(Node->SetDocument("view"), View);
 				NMake::Pack(Node->SetDocument("diffuse"), Diffuse);
 				NMake::Pack(Node->SetDocument("emission"), Emission);
+				NMake::Pack(Node->SetDocument("disperse"), Disperse);
 				NMake::Pack(Node->SetDocument("shadow-softness"), Shadow.Softness);
 				NMake::Pack(Node->SetDocument("shadow-distance"), Shadow.Distance);
 				NMake::Pack(Node->SetDocument("shadow-bias"), Shadow.Bias);
 				NMake::Pack(Node->SetDocument("shadow-iterations"), Shadow.Iterations);
 				NMake::Pack(Node->SetDocument("shadow-enabled"), Shadow.Enabled);
-			}
-			void PointLight::Synchronize(Rest::Timer* Time)
-			{
-				Projection = Compute::Matrix4x4::CreatePerspective(90.0f, 1.0f, 0.1f, Shadow.Distance);
-				View = Compute::Matrix4x4::CreateCubeMapLookAt(0, Parent->Transform->Position.InvertZ());
 			}
 			float PointLight::Cull(const Viewer& Base)
 			{
@@ -2557,6 +2554,11 @@ namespace Tomahawk
 
 				return Target;
 			}
+			void PointLight::AssembleDepthOrigin()
+			{
+				Projection = Compute::Matrix4x4::CreatePerspective(90.0f, 1.0f, 0.1f, Shadow.Distance);
+				View = Compute::Matrix4x4::CreateCubeMapLookAt(0, Parent->Transform->Position.InvertZ());
+			}
 			void PointLight::SetDepthCache(Graphics::MultiRenderTargetCube* NewCache)
 			{
 				Depth = NewCache;
@@ -2574,8 +2576,9 @@ namespace Tomahawk
 				NMake::Unpack(Node->Find("projection"), &Projection);
 				NMake::Unpack(Node->Find("view"), &View);
 				NMake::Unpack(Node->Find("diffuse"), &Diffuse);
-				NMake::Unpack(Node->Find("cutoff"), &Cutoff);
 				NMake::Unpack(Node->Find("emission"), &Emission);
+				NMake::Unpack(Node->Find("disperse"), &Disperse);
+				NMake::Unpack(Node->Find("cutoff"), &Cutoff);
 				NMake::Unpack(Node->Find("shadow-bias"), &Shadow.Bias);
 				NMake::Unpack(Node->Find("shadow-distance"), &Shadow.Distance);
 				NMake::Unpack(Node->Find("shadow-softness"), &Shadow.Softness);
@@ -2587,8 +2590,9 @@ namespace Tomahawk
 				NMake::Pack(Node->SetDocument("projection"), Projection);
 				NMake::Pack(Node->SetDocument("view"), View);
 				NMake::Pack(Node->SetDocument("diffuse"), Diffuse);
-				NMake::Pack(Node->SetDocument("cutoff"), Cutoff);
 				NMake::Pack(Node->SetDocument("emission"), Emission);
+				NMake::Pack(Node->SetDocument("disperse"), Disperse);
+				NMake::Pack(Node->SetDocument("cutoff"), Cutoff);
 				NMake::Pack(Node->SetDocument("shadow-bias"), Shadow.Bias);
 				NMake::Pack(Node->SetDocument("shadow-distance"), Shadow.Distance);
 				NMake::Pack(Node->SetDocument("shadow-softness"), Shadow.Softness);
@@ -2598,8 +2602,6 @@ namespace Tomahawk
 			void SpotLight::Synchronize(Rest::Timer* Time)
 			{
 				Cutoff = Compute::Mathf::Clamp(Cutoff, 0.0f, 180.0f);
-				Projection = Compute::Matrix4x4::CreatePerspective(Cutoff, 1, 0.1f, Shadow.Distance);
-				View = Compute::Matrix4x4::CreateTranslation(-Parent->Transform->Position) * Compute::Matrix4x4::CreateCameraRotation(-Parent->Transform->Rotation);
 			}
 			float SpotLight::Cull(const Viewer& View)
 			{
@@ -2621,6 +2623,11 @@ namespace Tomahawk
 
 				return Target;
 			}
+			void SpotLight::AssembleDepthOrigin()
+			{
+				Projection = Compute::Matrix4x4::CreatePerspective(Cutoff, 1, 0.1f, Shadow.Distance);
+				View = Compute::Matrix4x4::CreateTranslation(-Parent->Transform->Position) * Compute::Matrix4x4::CreateCameraRotation(-Parent->Transform->Rotation);
+			}
 			void SpotLight::SetDepthCache(Graphics::MultiRenderTarget2D* NewCache)
 			{
 				Depth = NewCache;
@@ -2637,6 +2644,7 @@ namespace Tomahawk
 			{
 				NMake::Unpack(Node->Find("diffuse"), &Diffuse);
 				NMake::Unpack(Node->Find("emission"), &Emission);
+				NMake::Unpack(Node->Find("disperse"), &Disperse);
 
 				for (uint32_t i = 0; i < 6; i++)
 				{
@@ -2666,6 +2674,7 @@ namespace Tomahawk
 			{
 				NMake::Pack(Node->SetDocument("diffuse"), Diffuse);
 				NMake::Pack(Node->SetDocument("emission"), Emission);
+				NMake::Pack(Node->SetDocument("disperse"), Disperse);
 
 				for (uint32_t i = 0; i < 6; i++)
 				{
@@ -2691,7 +2700,19 @@ namespace Tomahawk
 				NMake::Pack(Node->SetDocument("outer-radius"), Sky.OuterRadius);
 				NMake::Pack(Node->SetDocument("sky-intensity"), Sky.Intensity);
 			}
-			void LineLight::Synchronize(Rest::Timer* Time)
+			Component* LineLight::Copy(Entity* New)
+			{
+				LineLight* Target = new LineLight(New);
+				Target->Diffuse = Diffuse;
+				Target->Emission = Emission;
+				memcpy(Target->Projection, Projection, sizeof(Compute::Matrix4x4) * 6);
+				memcpy(Target->View, View, sizeof(Compute::Matrix4x4) * 6);
+				memcpy(&Target->Shadow, &Shadow, sizeof(Shadow));
+				memcpy(&Target->Sky, &Sky, sizeof(Sky));
+
+				return Target;
+			}
+			void LineLight::AssembleDepthOrigin()
 			{
 				auto* Viewer = Parent->GetScene()->GetCamera()->As<Camera>();
 				auto* Transform = Viewer->GetEntity()->Transform;
@@ -2712,18 +2733,6 @@ namespace Tomahawk
 						Compute::Matrix4x4::CreateTranslation(Compute::Vector3((float)i * Shadow.Offset, 0.0));
 					View[i] = Look;
 				}
-			}
-			Component* LineLight::Copy(Entity* New)
-			{
-				LineLight* Target = new LineLight(New);
-				Target->Diffuse = Diffuse;
-				Target->Emission = Emission;
-				memcpy(Target->Projection, Projection, sizeof(Compute::Matrix4x4) * 6);
-				memcpy(Target->View, View, sizeof(Compute::Matrix4x4) * 6);
-				memcpy(&Target->Shadow, &Shadow, sizeof(Shadow));
-				memcpy(&Target->Sky, &Sky, sizeof(Sky));
-
-				return Target;
 			}
 			void LineLight::SetDepthCache(CascadeMap* NewCache)
 			{

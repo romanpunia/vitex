@@ -1,6 +1,7 @@
 #include "standard/space-sv"
 #include "standard/cook-torrance"
 #include "standard/atmosphere"
+#include "standard/random-float"
 #pragma warning(disable: 3595)
 
 cbuffer RenderConstant : register(b3)
@@ -14,7 +15,6 @@ cbuffer RenderConstant : register(b3)
     float3 Lighting;
     float Softness;
     float3 Position;
-    float Recount;
     float Cascades;
     float Bias;
     float Iterations;
@@ -22,25 +22,49 @@ cbuffer RenderConstant : register(b3)
     float PlanetRadius;
     float AtmosphereRadius;
     float MieDirection;
+    float Umbra;
     float Padding;
 };
 
 Texture2D ShadowMap[6] : register(t5);
 SamplerState ShadowSampler : register(s1);
 
-void SampleShadow(uniform uint I, in float2 D, in float L, out float C, out float B)
+float GetPenumbra(uniform uint I, in float2 D, in float L)
 {
-    C = B = 0.0;
-	[loop] for (int x = -Iterations; x < Iterations; x++)
+    [branch] if (Umbra <= 0.0)
+        return 1.0;
+    
+    float Length = 0.0, Count = 0.0;
+    [unroll] for (int i = 0; i < 16; i++)
+    {
+        float R = ShadowMap[I].SampleLevel(ShadowSampler, D + FiboDisk[i] / Softness, 0).x;
+        float Step = 1.0 - step(L, R);
+        Length += R * Step;
+        Count += Step;
+    }
+
+    [branch] if (Count < 2.0)
+        return 1.0;
+    
+    Length /= Count;
+    return max(0.05, saturate(Umbra * FarPlane * (L - Length) / Length));
+}
+float GetLightness(uniform uint I, in float2 D, in float L)
+{
+    float Penumbra = GetPenumbra(I, D, L);
+    [branch] if (Penumbra < 0.0)
+        return 1.0;
+
+    float Result = 0.0, Inter = 0.0;
+	[loop] for (int j = 0; j < Iterations; j++)
 	{
-		[loop] for (int y = -Iterations; y < Iterations; y++)
-		{
-			float2 Shadow = ShadowMap[I].SampleLevel(ShadowSampler, saturate(D + float2(x, y) / Softness), 0).xy;
-			C += step(L, Shadow.x); B += Shadow.y;
-		}
+        float2 R = ShadowMap[I].SampleLevel(ShadowSampler, D + Penumbra * FiboDisk[j] / Softness, 0).xy;
+        Result += step(L, R.x);
+        Inter += R.y;
 	}
 
-	C /= Recount; B /= Recount;
+	Result /= Iterations;
+    return Result + (Inter / Iterations) * (1.0 - Result);
 }
 float SampleCascade(in float3 Position, in float G, uniform uint Index)
 {
@@ -51,17 +75,9 @@ float SampleCascade(in float3 Position, in float G, uniform uint Index)
     float2 T = float2(L.x / L.w / 2.0 + 0.5f, 1 - (L.y / L.w / 2.0 + 0.5f));
     [branch] if (saturate(T.x) != T.x || saturate(T.y) != T.y)
         return -1.0;
-        
-    float I = L.z / L.w - Bias, C, B;
-    [branch] if (Softness <= 0.0)
-    {
-        float2 Shadow = ShadowMap[Index].SampleLevel(ShadowSampler, T, 0).xy;
-        C = step(I, Shadow.x); B = Shadow.y;
-    }
-    else
-        SampleShadow(Index, T, I, C, B);
-
-    return C + B * (1.0 - C);
+    
+    float D = L.z / L.w - Bias, C, B;
+    return GetLightness(Index, T, D);
 }
 
 float4 PS(VertexResult V) : SV_TARGET0

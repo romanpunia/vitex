@@ -445,7 +445,7 @@ namespace Tomahawk
 			public:
 				struct
 				{
-					float Softness = 0.0f;
+					float Softness = 1.0f;
 					float Distance = 100.0f;
 					float Bias = 0.0f;
 					uint32_t Iterations = 2;
@@ -457,15 +457,16 @@ namespace Tomahawk
 				Compute::Matrix4x4 Projection;
 				Compute::Vector3 Diffuse = 1.0f;
 				float Emission = 1.0f;
+				float Disperse = 0.0f;
 
 			public:
 				PointLight(Entity* Ref);
 				virtual ~PointLight() = default;
 				virtual void Deserialize(ContentManager* Content, Rest::Document* Node) override;
 				virtual void Serialize(ContentManager* Content, Rest::Document* Node) override;
-				virtual void Synchronize(Rest::Timer* Time) override;
 				virtual float Cull(const Viewer& View) override;
 				virtual Component* Copy(Entity* New) override;
+				void AssembleDepthOrigin();
 				void SetDepthCache(Graphics::MultiRenderTargetCube* NewCache);
 				Graphics::MultiRenderTargetCube* GetDepthCache() const;
 
@@ -481,7 +482,7 @@ namespace Tomahawk
 			public:
 				struct
 				{
-					float Softness = 0.0f;
+					float Softness = 1.0f;
 					float Distance = 100.0f;
 					float Bias = 0.0f;
 					uint32_t Iterations = 2;
@@ -494,6 +495,7 @@ namespace Tomahawk
 				Compute::Vector3 Diffuse = 1.0f;
 				float Emission = 1.0f;
 				float Cutoff = 60.0f;
+				float Disperse = 0.0f;
 
 			public:
 				SpotLight(Entity* Ref);
@@ -503,6 +505,7 @@ namespace Tomahawk
 				virtual void Synchronize(Rest::Timer* Time) override;
 				virtual float Cull(const Viewer& View) override;
 				virtual Component* Copy(Entity* New) override;
+				void AssembleDepthOrigin();
 				void SetDepthCache(Graphics::MultiRenderTarget2D* NewCache);
 				Graphics::MultiRenderTarget2D* GetDepthCache() const;
 
@@ -534,7 +537,7 @@ namespace Tomahawk
 				struct
 				{
 					float Distance[6] = { 25.0f, 50.0f, 100.0f, 175.0f, 250.0f, 325.0f };
-					float Softness = 0.0f;
+					float Softness = 1.0f;
 					float Bias = 0.0f;
 					float Offset = 0.225f;
 					uint32_t Iterations = 2;
@@ -547,14 +550,15 @@ namespace Tomahawk
 				Compute::Matrix4x4 View[6];
 				Compute::Vector3 Diffuse = 1.0f;
 				float Emission = 1.0f;
+				float Disperse = 0.0f;
 
 			public:
 				LineLight(Entity* Ref);
 				virtual ~LineLight() = default;
 				virtual void Deserialize(ContentManager* Content, Rest::Document* Node) override;
 				virtual void Serialize(ContentManager* Content, Rest::Document* Node) override;
-				virtual void Synchronize(Rest::Timer* Time) override;
 				virtual Component* Copy(Entity* New) override;
+				void AssembleDepthOrigin();
 				void SetDepthCache(CascadeMap* NewCache);
 				CascadeMap* GetDepthCache() const;
 

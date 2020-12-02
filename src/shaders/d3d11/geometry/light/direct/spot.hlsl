@@ -12,10 +12,10 @@ cbuffer RenderConstant : register(b3)
 	float Range;
 	float3 Lighting;
 	float Softness;
-	float Recount;
 	float Bias;
 	float Iterations;
-	float Padding;
+	float Umbra;
+    float Padding;
 };
 
 VertexResult VS(VertexBase V)

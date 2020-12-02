@@ -4,275 +4,149 @@
 
 namespace resource_batch
 {
-	namespace d3d11_geometry_basic_gbuffer_hlsl
+	namespace d3d11_effects_ambient_hlsl
 	{
-#define HAS_D3D11_GEOMETRY_BASIC_GBUFFER_HLSL
+#define HAS_D3D11_EFFECTS_AMBIENT_HLSL
 		extern const unsigned char data[];
 		extern const unsigned size;
 	}
 
-	namespace d3d11_geometry_decal_gbuffer_hlsl
+	namespace d3d11_effects_bloom_x_hlsl
 	{
-#define HAS_D3D11_GEOMETRY_DECAL_GBUFFER_HLSL
+#define HAS_D3D11_EFFECTS_BLOOM_X_HLSL
 		extern const unsigned char data[];
 		extern const unsigned size;
 	}
 
-	namespace d3d11_geometry_emitter_depth_linear_hlsl
+	namespace d3d11_effects_bloom_y_hlsl
 	{
-#define HAS_D3D11_GEOMETRY_EMITTER_DEPTH_LINEAR_HLSL
+#define HAS_D3D11_EFFECTS_BLOOM_Y_HLSL
 		extern const unsigned char data[];
 		extern const unsigned size;
 	}
 
-	namespace d3d11_geometry_emitter_depth_point_hlsl
+	namespace d3d11_effects_blur_x_hlsl
 	{
-#define HAS_D3D11_GEOMETRY_EMITTER_DEPTH_POINT_HLSL
+#define HAS_D3D11_EFFECTS_BLUR_X_HLSL
 		extern const unsigned char data[];
 		extern const unsigned size;
 	}
 
-	namespace d3d11_geometry_emitter_depth_quad_hlsl
+	namespace d3d11_effects_blur_y_hlsl
 	{
-#define HAS_D3D11_GEOMETRY_EMITTER_DEPTH_QUAD_HLSL
+#define HAS_D3D11_EFFECTS_BLUR_Y_HLSL
 		extern const unsigned char data[];
 		extern const unsigned size;
 	}
 
-	namespace d3d11_geometry_emitter_gbuffer_limpid_hlsl
+	namespace d3d11_effects_focus_hlsl
 	{
-#define HAS_D3D11_GEOMETRY_EMITTER_GBUFFER_LIMPID_HLSL
+#define HAS_D3D11_EFFECTS_FOCUS_HLSL
 		extern const unsigned char data[];
 		extern const unsigned size;
 	}
 
-	namespace d3d11_geometry_emitter_gbuffer_opaque_hlsl
+	namespace d3d11_effects_glitch_hlsl
 	{
-#define HAS_D3D11_GEOMETRY_EMITTER_GBUFFER_OPAQUE_HLSL
+#define HAS_D3D11_EFFECTS_GLITCH_HLSL
 		extern const unsigned char data[];
 		extern const unsigned size;
 	}
 
-	namespace d3d11_geometry_gui_box_blur_hlsl
+	namespace d3d11_effects_gloss_x_hlsl
 	{
-#define HAS_D3D11_GEOMETRY_GUI_BOX_BLUR_HLSL
+#define HAS_D3D11_EFFECTS_GLOSS_X_HLSL
 		extern const unsigned char data[];
 		extern const unsigned size;
 	}
 
-	namespace d3d11_geometry_gui_box_shadow_hlsl
+	namespace d3d11_effects_gloss_y_hlsl
 	{
-#define HAS_D3D11_GEOMETRY_GUI_BOX_SHADOW_HLSL
+#define HAS_D3D11_EFFECTS_GLOSS_Y_HLSL
 		extern const unsigned char data[];
 		extern const unsigned size;
 	}
 
-	namespace d3d11_geometry_gui_element_hlsl
+	namespace d3d11_effects_indirect_hlsl
 	{
-#define HAS_D3D11_GEOMETRY_GUI_ELEMENT_HLSL
+#define HAS_D3D11_EFFECTS_INDIRECT_HLSL
 		extern const unsigned char data[];
 		extern const unsigned size;
 	}
 
-	namespace d3d11_geometry_light_ambient_hlsl
+	namespace d3d11_effects_reflection_hlsl
 	{
-#define HAS_D3D11_GEOMETRY_LIGHT_AMBIENT_HLSL
+#define HAS_D3D11_EFFECTS_REFLECTION_HLSL
 		extern const unsigned char data[];
 		extern const unsigned size;
 	}
 
-	namespace d3d11_geometry_light_direct_line_hlsl
+	namespace d3d11_effects_tone_hlsl
 	{
-#define HAS_D3D11_GEOMETRY_LIGHT_DIRECT_LINE_HLSL
+#define HAS_D3D11_EFFECTS_TONE_HLSL
 		extern const unsigned char data[];
 		extern const unsigned size;
 	}
 
-	namespace d3d11_geometry_light_direct_point_hlsl
+	namespace d3d11_effects_transparency_hlsl
 	{
-#define HAS_D3D11_GEOMETRY_LIGHT_DIRECT_POINT_HLSL
+#define HAS_D3D11_EFFECTS_TRANSPARENCY_HLSL
 		extern const unsigned char data[];
 		extern const unsigned size;
 	}
 
-	namespace d3d11_geometry_light_direct_spot_hlsl
+	namespace d3d11_light_ambient_hlsl
 	{
-#define HAS_D3D11_GEOMETRY_LIGHT_DIRECT_SPOT_HLSL
+#define HAS_D3D11_LIGHT_AMBIENT_HLSL
 		extern const unsigned char data[];
 		extern const unsigned size;
 	}
 
-	namespace d3d11_geometry_light_indirect_line_hlsl
+	namespace d3d11_light_direct_line_hlsl
 	{
-#define HAS_D3D11_GEOMETRY_LIGHT_INDIRECT_LINE_HLSL
+#define HAS_D3D11_LIGHT_DIRECT_LINE_HLSL
 		extern const unsigned char data[];
 		extern const unsigned size;
 	}
 
-	namespace d3d11_geometry_light_indirect_point_hlsl
+	namespace d3d11_light_direct_point_hlsl
 	{
-#define HAS_D3D11_GEOMETRY_LIGHT_INDIRECT_POINT_HLSL
+#define HAS_D3D11_LIGHT_DIRECT_POINT_HLSL
 		extern const unsigned char data[];
 		extern const unsigned size;
 	}
 
-	namespace d3d11_geometry_light_indirect_spot_hlsl
+	namespace d3d11_light_direct_spot_hlsl
 	{
-#define HAS_D3D11_GEOMETRY_LIGHT_INDIRECT_SPOT_HLSL
+#define HAS_D3D11_LIGHT_DIRECT_SPOT_HLSL
 		extern const unsigned char data[];
 		extern const unsigned size;
 	}
 
-	namespace d3d11_geometry_light_probe_hlsl
+	namespace d3d11_light_indirect_line_hlsl
 	{
-#define HAS_D3D11_GEOMETRY_LIGHT_PROBE_HLSL
+#define HAS_D3D11_LIGHT_INDIRECT_LINE_HLSL
 		extern const unsigned char data[];
 		extern const unsigned size;
 	}
 
-	namespace d3d11_geometry_model_depth_cubic_hlsl
+	namespace d3d11_light_indirect_point_hlsl
 	{
-#define HAS_D3D11_GEOMETRY_MODEL_DEPTH_CUBIC_HLSL
+#define HAS_D3D11_LIGHT_INDIRECT_POINT_HLSL
 		extern const unsigned char data[];
 		extern const unsigned size;
 	}
 
-	namespace d3d11_geometry_model_depth_linear_hlsl
+	namespace d3d11_light_indirect_spot_hlsl
 	{
-#define HAS_D3D11_GEOMETRY_MODEL_DEPTH_LINEAR_HLSL
+#define HAS_D3D11_LIGHT_INDIRECT_SPOT_HLSL
 		extern const unsigned char data[];
 		extern const unsigned size;
 	}
 
-	namespace d3d11_geometry_model_gbuffer_hlsl
+	namespace d3d11_light_probe_hlsl
 	{
-#define HAS_D3D11_GEOMETRY_MODEL_GBUFFER_HLSL
-		extern const unsigned char data[];
-		extern const unsigned size;
-	}
-
-	namespace d3d11_geometry_model_occlusion_hlsl
-	{
-#define HAS_D3D11_GEOMETRY_MODEL_OCCLUSION_HLSL
-		extern const unsigned char data[];
-		extern const unsigned size;
-	}
-
-	namespace d3d11_geometry_skin_depth_cubic_hlsl
-	{
-#define HAS_D3D11_GEOMETRY_SKIN_DEPTH_CUBIC_HLSL
-		extern const unsigned char data[];
-		extern const unsigned size;
-	}
-
-	namespace d3d11_geometry_skin_depth_linear_hlsl
-	{
-#define HAS_D3D11_GEOMETRY_SKIN_DEPTH_LINEAR_HLSL
-		extern const unsigned char data[];
-		extern const unsigned size;
-	}
-
-	namespace d3d11_geometry_skin_gbuffer_hlsl
-	{
-#define HAS_D3D11_GEOMETRY_SKIN_GBUFFER_HLSL
-		extern const unsigned char data[];
-		extern const unsigned size;
-	}
-
-	namespace d3d11_geometry_skin_occlusion_hlsl
-	{
-#define HAS_D3D11_GEOMETRY_SKIN_OCCLUSION_HLSL
-		extern const unsigned char data[];
-		extern const unsigned size;
-	}
-
-	namespace d3d11_pass_ambient_hlsl
-	{
-#define HAS_D3D11_PASS_AMBIENT_HLSL
-		extern const unsigned char data[];
-		extern const unsigned size;
-	}
-
-	namespace d3d11_pass_bloom_x_hlsl
-	{
-#define HAS_D3D11_PASS_BLOOM_X_HLSL
-		extern const unsigned char data[];
-		extern const unsigned size;
-	}
-
-	namespace d3d11_pass_bloom_y_hlsl
-	{
-#define HAS_D3D11_PASS_BLOOM_Y_HLSL
-		extern const unsigned char data[];
-		extern const unsigned size;
-	}
-
-	namespace d3d11_pass_blur_x_hlsl
-	{
-#define HAS_D3D11_PASS_BLUR_X_HLSL
-		extern const unsigned char data[];
-		extern const unsigned size;
-	}
-
-	namespace d3d11_pass_blur_y_hlsl
-	{
-#define HAS_D3D11_PASS_BLUR_Y_HLSL
-		extern const unsigned char data[];
-		extern const unsigned size;
-	}
-
-	namespace d3d11_pass_focus_hlsl
-	{
-#define HAS_D3D11_PASS_FOCUS_HLSL
-		extern const unsigned char data[];
-		extern const unsigned size;
-	}
-
-	namespace d3d11_pass_glitch_hlsl
-	{
-#define HAS_D3D11_PASS_GLITCH_HLSL
-		extern const unsigned char data[];
-		extern const unsigned size;
-	}
-
-	namespace d3d11_pass_gloss_x_hlsl
-	{
-#define HAS_D3D11_PASS_GLOSS_X_HLSL
-		extern const unsigned char data[];
-		extern const unsigned size;
-	}
-
-	namespace d3d11_pass_gloss_y_hlsl
-	{
-#define HAS_D3D11_PASS_GLOSS_Y_HLSL
-		extern const unsigned char data[];
-		extern const unsigned size;
-	}
-
-	namespace d3d11_pass_indirect_hlsl
-	{
-#define HAS_D3D11_PASS_INDIRECT_HLSL
-		extern const unsigned char data[];
-		extern const unsigned size;
-	}
-
-	namespace d3d11_pass_limpid_hlsl
-	{
-#define HAS_D3D11_PASS_LIMPID_HLSL
-		extern const unsigned char data[];
-		extern const unsigned size;
-	}
-
-	namespace d3d11_pass_reflection_hlsl
-	{
-#define HAS_D3D11_PASS_REFLECTION_HLSL
-		extern const unsigned char data[];
-		extern const unsigned size;
-	}
-
-	namespace d3d11_pass_tone_hlsl
-	{
-#define HAS_D3D11_PASS_TONE_HLSL
+#define HAS_D3D11_LIGHT_PROBE_HLSL
 		extern const unsigned char data[];
 		extern const unsigned size;
 	}
@@ -445,16 +319,142 @@ namespace resource_batch
 		extern const unsigned size;
 	}
 
-	namespace d3d11_workflow_geometry_hlsl
+	namespace d3d11_topology_basic_geometry_hlsl
 	{
-#define HAS_D3D11_WORKFLOW_GEOMETRY_HLSL
+#define HAS_D3D11_TOPOLOGY_BASIC_GEOMETRY_HLSL
 		extern const unsigned char data[];
 		extern const unsigned size;
 	}
 
-	namespace d3d11_workflow_pass_hlsl
+	namespace d3d11_topology_decal_geometry_hlsl
 	{
-#define HAS_D3D11_WORKFLOW_PASS_HLSL
+#define HAS_D3D11_TOPOLOGY_DECAL_GEOMETRY_HLSL
+		extern const unsigned char data[];
+		extern const unsigned size;
+	}
+
+	namespace d3d11_topology_emitter_flux_linear_hlsl
+	{
+#define HAS_D3D11_TOPOLOGY_EMITTER_FLUX_LINEAR_HLSL
+		extern const unsigned char data[];
+		extern const unsigned size;
+	}
+
+	namespace d3d11_topology_emitter_flux_point_hlsl
+	{
+#define HAS_D3D11_TOPOLOGY_EMITTER_FLUX_POINT_HLSL
+		extern const unsigned char data[];
+		extern const unsigned size;
+	}
+
+	namespace d3d11_topology_emitter_flux_quad_hlsl
+	{
+#define HAS_D3D11_TOPOLOGY_EMITTER_FLUX_QUAD_HLSL
+		extern const unsigned char data[];
+		extern const unsigned size;
+	}
+
+	namespace d3d11_topology_emitter_geometry_opaque_hlsl
+	{
+#define HAS_D3D11_TOPOLOGY_EMITTER_GEOMETRY_OPAQUE_HLSL
+		extern const unsigned char data[];
+		extern const unsigned size;
+	}
+
+	namespace d3d11_topology_emitter_geometry_transparency_hlsl
+	{
+#define HAS_D3D11_TOPOLOGY_EMITTER_GEOMETRY_TRANSPARENCY_HLSL
+		extern const unsigned char data[];
+		extern const unsigned size;
+	}
+
+	namespace d3d11_topology_gui_box_blur_hlsl
+	{
+#define HAS_D3D11_TOPOLOGY_GUI_BOX_BLUR_HLSL
+		extern const unsigned char data[];
+		extern const unsigned size;
+	}
+
+	namespace d3d11_topology_gui_box_shadow_hlsl
+	{
+#define HAS_D3D11_TOPOLOGY_GUI_BOX_SHADOW_HLSL
+		extern const unsigned char data[];
+		extern const unsigned size;
+	}
+
+	namespace d3d11_topology_gui_geometry_hlsl
+	{
+#define HAS_D3D11_TOPOLOGY_GUI_GEOMETRY_HLSL
+		extern const unsigned char data[];
+		extern const unsigned size;
+	}
+
+	namespace d3d11_topology_model_flux_cubic_hlsl
+	{
+#define HAS_D3D11_TOPOLOGY_MODEL_FLUX_CUBIC_HLSL
+		extern const unsigned char data[];
+		extern const unsigned size;
+	}
+
+	namespace d3d11_topology_model_flux_linear_hlsl
+	{
+#define HAS_D3D11_TOPOLOGY_MODEL_FLUX_LINEAR_HLSL
+		extern const unsigned char data[];
+		extern const unsigned size;
+	}
+
+	namespace d3d11_topology_model_geometry_hlsl
+	{
+#define HAS_D3D11_TOPOLOGY_MODEL_GEOMETRY_HLSL
+		extern const unsigned char data[];
+		extern const unsigned size;
+	}
+
+	namespace d3d11_topology_model_occlusion_hlsl
+	{
+#define HAS_D3D11_TOPOLOGY_MODEL_OCCLUSION_HLSL
+		extern const unsigned char data[];
+		extern const unsigned size;
+	}
+
+	namespace d3d11_topology_skin_flux_cubic_hlsl
+	{
+#define HAS_D3D11_TOPOLOGY_SKIN_FLUX_CUBIC_HLSL
+		extern const unsigned char data[];
+		extern const unsigned size;
+	}
+
+	namespace d3d11_topology_skin_flux_linear_hlsl
+	{
+#define HAS_D3D11_TOPOLOGY_SKIN_FLUX_LINEAR_HLSL
+		extern const unsigned char data[];
+		extern const unsigned size;
+	}
+
+	namespace d3d11_topology_skin_geometry_hlsl
+	{
+#define HAS_D3D11_TOPOLOGY_SKIN_GEOMETRY_HLSL
+		extern const unsigned char data[];
+		extern const unsigned size;
+	}
+
+	namespace d3d11_topology_skin_occlusion_hlsl
+	{
+#define HAS_D3D11_TOPOLOGY_SKIN_OCCLUSION_HLSL
+		extern const unsigned char data[];
+		extern const unsigned size;
+	}
+
+	namespace d3d11_workflow_effects_hlsl
+	{
+#define HAS_D3D11_WORKFLOW_EFFECTS_HLSL
+		extern const unsigned char data[];
+		extern const unsigned size;
+	}
+
+	namespace d3d11_workflow_geometry_hlsl
+	{
+#define HAS_D3D11_WORKFLOW_GEOMETRY_HLSL
 		extern const unsigned char data[];
 		extern const unsigned size;
 	}
@@ -473,268 +473,149 @@ namespace resource_batch
 		extern const unsigned size;
 	}
 
-	namespace ogl_geometry_basic_gbuffer_glsl
+	namespace ogl_effects_ambient_glsl
 	{
-#define HAS_OGL_GEOMETRY_BASIC_GBUFFER_GLSL
+#define HAS_OGL_EFFECTS_AMBIENT_GLSL
 		extern const unsigned char data[];
 		extern const unsigned size;
 	}
 
-	namespace ogl_geometry_decal_gbuffer_glsl
+	namespace ogl_effects_bloom_x_glsl
 	{
-#define HAS_OGL_GEOMETRY_DECAL_GBUFFER_GLSL
+#define HAS_OGL_EFFECTS_BLOOM_X_GLSL
 		extern const unsigned char data[];
 		extern const unsigned size;
 	}
 
-	namespace ogl_geometry_emitter_depth_linear_glsl
+	namespace ogl_effects_bloom_y_glsl
 	{
-#define HAS_OGL_GEOMETRY_EMITTER_DEPTH_LINEAR_GLSL
+#define HAS_OGL_EFFECTS_BLOOM_Y_GLSL
 		extern const unsigned char data[];
 		extern const unsigned size;
 	}
 
-	namespace ogl_geometry_emitter_depth_point_glsl
+	namespace ogl_effects_blur_x_glsl
 	{
-#define HAS_OGL_GEOMETRY_EMITTER_DEPTH_POINT_GLSL
+#define HAS_OGL_EFFECTS_BLUR_X_GLSL
 		extern const unsigned char data[];
 		extern const unsigned size;
 	}
 
-	namespace ogl_geometry_emitter_depth_quad_glsl
+	namespace ogl_effects_blur_y_glsl
 	{
-#define HAS_OGL_GEOMETRY_EMITTER_DEPTH_QUAD_GLSL
+#define HAS_OGL_EFFECTS_BLUR_Y_GLSL
 		extern const unsigned char data[];
 		extern const unsigned size;
 	}
 
-	namespace ogl_geometry_emitter_gbuffer_limpid_glsl
+	namespace ogl_effects_focus_glsl
 	{
-#define HAS_OGL_GEOMETRY_EMITTER_GBUFFER_LIMPID_GLSL
+#define HAS_OGL_EFFECTS_FOCUS_GLSL
 		extern const unsigned char data[];
 		extern const unsigned size;
 	}
 
-	namespace ogl_geometry_emitter_gbuffer_opaque_glsl
+	namespace ogl_effects_glitch_glsl
 	{
-#define HAS_OGL_GEOMETRY_EMITTER_GBUFFER_OPAQUE_GLSL
+#define HAS_OGL_EFFECTS_GLITCH_GLSL
 		extern const unsigned char data[];
 		extern const unsigned size;
 	}
 
-	namespace ogl_geometry_gui_box_shadow_glsl
+	namespace ogl_effects_gloss_x_glsl
 	{
-#define HAS_OGL_GEOMETRY_GUI_BOX_SHADOW_GLSL
+#define HAS_OGL_EFFECTS_GLOSS_X_GLSL
 		extern const unsigned char data[];
 		extern const unsigned size;
 	}
 
-	namespace ogl_geometry_gui_element_glsl
+	namespace ogl_effects_gloss_y_glsl
 	{
-#define HAS_OGL_GEOMETRY_GUI_ELEMENT_GLSL
+#define HAS_OGL_EFFECTS_GLOSS_Y_GLSL
 		extern const unsigned char data[];
 		extern const unsigned size;
 	}
 
-	namespace ogl_geometry_light_base_ambient_glsl
+	namespace ogl_effects_indirect_glsl
 	{
-#define HAS_OGL_GEOMETRY_LIGHT_BASE_AMBIENT_GLSL
+#define HAS_OGL_EFFECTS_INDIRECT_GLSL
 		extern const unsigned char data[];
 		extern const unsigned size;
 	}
 
-	namespace ogl_geometry_light_base_line_glsl
+	namespace ogl_effects_reflection_glsl
 	{
-#define HAS_OGL_GEOMETRY_LIGHT_BASE_LINE_GLSL
+#define HAS_OGL_EFFECTS_REFLECTION_GLSL
 		extern const unsigned char data[];
 		extern const unsigned size;
 	}
 
-	namespace ogl_geometry_light_base_point_glsl
+	namespace ogl_effects_tone_glsl
 	{
-#define HAS_OGL_GEOMETRY_LIGHT_BASE_POINT_GLSL
+#define HAS_OGL_EFFECTS_TONE_GLSL
 		extern const unsigned char data[];
 		extern const unsigned size;
 	}
 
-	namespace ogl_geometry_light_base_probe_glsl
+	namespace ogl_effects_transparency_glsl
 	{
-#define HAS_OGL_GEOMETRY_LIGHT_BASE_PROBE_GLSL
+#define HAS_OGL_EFFECTS_TRANSPARENCY_GLSL
 		extern const unsigned char data[];
 		extern const unsigned size;
 	}
 
-	namespace ogl_geometry_light_base_spot_glsl
+	namespace ogl_light_ambient_glsl
 	{
-#define HAS_OGL_GEOMETRY_LIGHT_BASE_SPOT_GLSL
+#define HAS_OGL_LIGHT_AMBIENT_GLSL
 		extern const unsigned char data[];
 		extern const unsigned size;
 	}
 
-	namespace ogl_geometry_light_shade_line_glsl
+	namespace ogl_light_direct_line_glsl
 	{
-#define HAS_OGL_GEOMETRY_LIGHT_SHADE_LINE_GLSL
+#define HAS_OGL_LIGHT_DIRECT_LINE_GLSL
 		extern const unsigned char data[];
 		extern const unsigned size;
 	}
 
-	namespace ogl_geometry_light_shade_point_glsl
+	namespace ogl_light_direct_point_glsl
 	{
-#define HAS_OGL_GEOMETRY_LIGHT_SHADE_POINT_GLSL
+#define HAS_OGL_LIGHT_DIRECT_POINT_GLSL
 		extern const unsigned char data[];
 		extern const unsigned size;
 	}
 
-	namespace ogl_geometry_light_shade_spot_glsl
+	namespace ogl_light_direct_spot_glsl
 	{
-#define HAS_OGL_GEOMETRY_LIGHT_SHADE_SPOT_GLSL
+#define HAS_OGL_LIGHT_DIRECT_SPOT_GLSL
 		extern const unsigned char data[];
 		extern const unsigned size;
 	}
 
-	namespace ogl_geometry_model_depth_cubic_glsl
+	namespace ogl_light_indirect_line_glsl
 	{
-#define HAS_OGL_GEOMETRY_MODEL_DEPTH_CUBIC_GLSL
+#define HAS_OGL_LIGHT_INDIRECT_LINE_GLSL
 		extern const unsigned char data[];
 		extern const unsigned size;
 	}
 
-	namespace ogl_geometry_model_depth_linear_glsl
+	namespace ogl_light_indirect_point_glsl
 	{
-#define HAS_OGL_GEOMETRY_MODEL_DEPTH_LINEAR_GLSL
+#define HAS_OGL_LIGHT_INDIRECT_POINT_GLSL
 		extern const unsigned char data[];
 		extern const unsigned size;
 	}
 
-	namespace ogl_geometry_model_gbuffer_glsl
+	namespace ogl_light_indirect_spot_glsl
 	{
-#define HAS_OGL_GEOMETRY_MODEL_GBUFFER_GLSL
+#define HAS_OGL_LIGHT_INDIRECT_SPOT_GLSL
 		extern const unsigned char data[];
 		extern const unsigned size;
 	}
 
-	namespace ogl_geometry_model_occlusion_glsl
+	namespace ogl_light_probe_glsl
 	{
-#define HAS_OGL_GEOMETRY_MODEL_OCCLUSION_GLSL
-		extern const unsigned char data[];
-		extern const unsigned size;
-	}
-
-	namespace ogl_geometry_skin_depth_cubic_glsl
-	{
-#define HAS_OGL_GEOMETRY_SKIN_DEPTH_CUBIC_GLSL
-		extern const unsigned char data[];
-		extern const unsigned size;
-	}
-
-	namespace ogl_geometry_skin_depth_linear_glsl
-	{
-#define HAS_OGL_GEOMETRY_SKIN_DEPTH_LINEAR_GLSL
-		extern const unsigned char data[];
-		extern const unsigned size;
-	}
-
-	namespace ogl_geometry_skin_gbuffer_glsl
-	{
-#define HAS_OGL_GEOMETRY_SKIN_GBUFFER_GLSL
-		extern const unsigned char data[];
-		extern const unsigned size;
-	}
-
-	namespace ogl_geometry_skin_occlusion_glsl
-	{
-#define HAS_OGL_GEOMETRY_SKIN_OCCLUSION_GLSL
-		extern const unsigned char data[];
-		extern const unsigned size;
-	}
-
-	namespace ogl_pass_ambient_glsl
-	{
-#define HAS_OGL_PASS_AMBIENT_GLSL
-		extern const unsigned char data[];
-		extern const unsigned size;
-	}
-
-	namespace ogl_pass_bloom_x_glsl
-	{
-#define HAS_OGL_PASS_BLOOM_X_GLSL
-		extern const unsigned char data[];
-		extern const unsigned size;
-	}
-
-	namespace ogl_pass_bloom_y_glsl
-	{
-#define HAS_OGL_PASS_BLOOM_Y_GLSL
-		extern const unsigned char data[];
-		extern const unsigned size;
-	}
-
-	namespace ogl_pass_blur_x_glsl
-	{
-#define HAS_OGL_PASS_BLUR_X_GLSL
-		extern const unsigned char data[];
-		extern const unsigned size;
-	}
-
-	namespace ogl_pass_blur_y_glsl
-	{
-#define HAS_OGL_PASS_BLUR_Y_GLSL
-		extern const unsigned char data[];
-		extern const unsigned size;
-	}
-
-	namespace ogl_pass_focus_glsl
-	{
-#define HAS_OGL_PASS_FOCUS_GLSL
-		extern const unsigned char data[];
-		extern const unsigned size;
-	}
-
-	namespace ogl_pass_glitch_glsl
-	{
-#define HAS_OGL_PASS_GLITCH_GLSL
-		extern const unsigned char data[];
-		extern const unsigned size;
-	}
-
-	namespace ogl_pass_gloss_x_glsl
-	{
-#define HAS_OGL_PASS_GLOSS_X_GLSL
-		extern const unsigned char data[];
-		extern const unsigned size;
-	}
-
-	namespace ogl_pass_gloss_y_glsl
-	{
-#define HAS_OGL_PASS_GLOSS_Y_GLSL
-		extern const unsigned char data[];
-		extern const unsigned size;
-	}
-
-	namespace ogl_pass_indirect_glsl
-	{
-#define HAS_OGL_PASS_INDIRECT_GLSL
-		extern const unsigned char data[];
-		extern const unsigned size;
-	}
-
-	namespace ogl_pass_limpid_glsl
-	{
-#define HAS_OGL_PASS_LIMPID_GLSL
-		extern const unsigned char data[];
-		extern const unsigned size;
-	}
-
-	namespace ogl_pass_reflection_glsl
-	{
-#define HAS_OGL_PASS_REFLECTION_GLSL
-		extern const unsigned char data[];
-		extern const unsigned size;
-	}
-
-	namespace ogl_pass_tone_glsl
-	{
-#define HAS_OGL_PASS_TONE_GLSL
+#define HAS_OGL_LIGHT_PROBE_GLSL
 		extern const unsigned char data[];
 		extern const unsigned size;
 	}
@@ -749,13 +630,6 @@ namespace resource_batch
 	namespace ogl_renderer_buffer_cubic_glsl
 	{
 #define HAS_OGL_RENDERER_BUFFER_CUBIC_GLSL
-		extern const unsigned char data[];
-		extern const unsigned size;
-	}
-
-	namespace ogl_renderer_buffer_gui_glsl
-	{
-#define HAS_OGL_RENDERER_BUFFER_GUI_GLSL
 		extern const unsigned char data[];
 		extern const unsigned size;
 	}
@@ -910,6 +784,132 @@ namespace resource_batch
 	namespace ogl_standard_space_uv_glsl
 	{
 #define HAS_OGL_STANDARD_SPACE_UV_GLSL
+		extern const unsigned char data[];
+		extern const unsigned size;
+	}
+
+	namespace ogl_topology_basic_geometry_glsl
+	{
+#define HAS_OGL_TOPOLOGY_BASIC_GEOMETRY_GLSL
+		extern const unsigned char data[];
+		extern const unsigned size;
+	}
+
+	namespace ogl_topology_decal_geometry_glsl
+	{
+#define HAS_OGL_TOPOLOGY_DECAL_GEOMETRY_GLSL
+		extern const unsigned char data[];
+		extern const unsigned size;
+	}
+
+	namespace ogl_topology_emitter_flux_linear_glsl
+	{
+#define HAS_OGL_TOPOLOGY_EMITTER_FLUX_LINEAR_GLSL
+		extern const unsigned char data[];
+		extern const unsigned size;
+	}
+
+	namespace ogl_topology_emitter_flux_point_glsl
+	{
+#define HAS_OGL_TOPOLOGY_EMITTER_FLUX_POINT_GLSL
+		extern const unsigned char data[];
+		extern const unsigned size;
+	}
+
+	namespace ogl_topology_emitter_flux_quad_glsl
+	{
+#define HAS_OGL_TOPOLOGY_EMITTER_FLUX_QUAD_GLSL
+		extern const unsigned char data[];
+		extern const unsigned size;
+	}
+
+	namespace ogl_topology_emitter_geometry_opaque_glsl
+	{
+#define HAS_OGL_TOPOLOGY_EMITTER_GEOMETRY_OPAQUE_GLSL
+		extern const unsigned char data[];
+		extern const unsigned size;
+	}
+
+	namespace ogl_topology_emitter_geometry_transparency_glsl
+	{
+#define HAS_OGL_TOPOLOGY_EMITTER_GEOMETRY_TRANSPARENCY_GLSL
+		extern const unsigned char data[];
+		extern const unsigned size;
+	}
+
+	namespace ogl_topology_gui_box_blur_glsl
+	{
+#define HAS_OGL_TOPOLOGY_GUI_BOX_BLUR_GLSL
+		extern const unsigned char data[];
+		extern const unsigned size;
+	}
+
+	namespace ogl_topology_gui_box_shadow_glsl
+	{
+#define HAS_OGL_TOPOLOGY_GUI_BOX_SHADOW_GLSL
+		extern const unsigned char data[];
+		extern const unsigned size;
+	}
+
+	namespace ogl_topology_gui_geometry_glsl
+	{
+#define HAS_OGL_TOPOLOGY_GUI_GEOMETRY_GLSL
+		extern const unsigned char data[];
+		extern const unsigned size;
+	}
+
+	namespace ogl_topology_model_flux_cubic_glsl
+	{
+#define HAS_OGL_TOPOLOGY_MODEL_FLUX_CUBIC_GLSL
+		extern const unsigned char data[];
+		extern const unsigned size;
+	}
+
+	namespace ogl_topology_model_flux_linear_glsl
+	{
+#define HAS_OGL_TOPOLOGY_MODEL_FLUX_LINEAR_GLSL
+		extern const unsigned char data[];
+		extern const unsigned size;
+	}
+
+	namespace ogl_topology_model_geometry_glsl
+	{
+#define HAS_OGL_TOPOLOGY_MODEL_GEOMETRY_GLSL
+		extern const unsigned char data[];
+		extern const unsigned size;
+	}
+
+	namespace ogl_topology_model_occlusion_glsl
+	{
+#define HAS_OGL_TOPOLOGY_MODEL_OCCLUSION_GLSL
+		extern const unsigned char data[];
+		extern const unsigned size;
+	}
+
+	namespace ogl_topology_skin_flux_cubic_glsl
+	{
+#define HAS_OGL_TOPOLOGY_SKIN_FLUX_CUBIC_GLSL
+		extern const unsigned char data[];
+		extern const unsigned size;
+	}
+
+	namespace ogl_topology_skin_flux_linear_glsl
+	{
+#define HAS_OGL_TOPOLOGY_SKIN_FLUX_LINEAR_GLSL
+		extern const unsigned char data[];
+		extern const unsigned size;
+	}
+
+	namespace ogl_topology_skin_geometry_glsl
+	{
+#define HAS_OGL_TOPOLOGY_SKIN_GEOMETRY_GLSL
+		extern const unsigned char data[];
+		extern const unsigned size;
+	}
+
+	namespace ogl_topology_skin_occlusion_glsl
+	{
+#define HAS_OGL_TOPOLOGY_SKIN_OCCLUSION_GLSL
 		extern const unsigned char data[];
 		extern const unsigned size;
 	}

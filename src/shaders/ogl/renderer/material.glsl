@@ -5,7 +5,7 @@ struct Material
     float2 Roughness;
     float2 Occlusion;
     float Fresnel;
-    float Limpidity;
+    float Transparency;
     float Refraction;
     float Environment;
     float Radius;

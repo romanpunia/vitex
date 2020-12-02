@@ -96,7 +96,7 @@ namespace Tomahawk
 			TH_RELEASE(OcclusionMap);
 			TH_RELEASE(EmissionMap);
 		}
-		bool Appearance::FillGBuffer(Graphics::GraphicsDevice* Device) const
+		bool Appearance::FillGeometry(Graphics::GraphicsDevice* Device) const
 		{
 			if (!Device || Material < 0)
 				return false;
@@ -119,7 +119,7 @@ namespace Tomahawk
 
 			return true;
 		}
-		bool Appearance::FillLinearDepth(Graphics::GraphicsDevice* Device) const
+		bool Appearance::FillFluxLinear(Graphics::GraphicsDevice* Device) const
 		{
 			if (!Device || Material < 0)
 				return false;
@@ -131,7 +131,7 @@ namespace Tomahawk
 
 			return true;
 		}
-		bool Appearance::FillCubicDepth(Graphics::GraphicsDevice* Device) const
+		bool Appearance::FillFluxCubic(Graphics::GraphicsDevice* Device) const
 		{
 			if (!Device || Material < 0)
 				return false;
@@ -336,6 +336,7 @@ namespace Tomahawk
 
 			NMake::Pack(V->SetDocument("emission"), Value.Emission);
 			NMake::Pack(V->SetDocument("metallic"), Value.Metallic);
+			NMake::Pack(V->SetDocument("scatter"), Value.Scatter);
 			NMake::Pack(V->SetDocument("roughness"), Value.Roughness);
 			NMake::Pack(V->SetDocument("fresnel"), Value.Fresnel);
 			NMake::Pack(V->SetDocument("refraction"), Value.Refraction);
@@ -1001,6 +1002,7 @@ namespace Tomahawk
 
 			NMake::Unpack(V->Find("emission"), &O->Emission);
 			NMake::Unpack(V->Find("metallic"), &O->Metallic);
+			NMake::Unpack(V->Find("scatter"), &O->Scatter);
 			NMake::Unpack(V->Find("roughness"), &O->Roughness);
 			NMake::Unpack(V->Find("fresnel"), &O->Fresnel);
 			NMake::Unpack(V->Find("refraction"), &O->Refraction);
@@ -1837,7 +1839,7 @@ namespace Tomahawk
 			return Content;
 		}
 		
-		void Viewer::Set(const Compute::Matrix4x4& _View, const Compute::Matrix4x4& _Projection, const Compute::Vector3& _Position, float _Distance)
+		void Viewer::Set(const Compute::Matrix4x4& _View, const Compute::Matrix4x4& _Projection, const Compute::Vector3& _Position, float _Near, float _Far)
 		{
 			View = _View;
 			Projection = _Projection;
@@ -1847,7 +1849,8 @@ namespace Tomahawk
 			ViewPosition = InvViewPosition.Invert();
 			WorldPosition = _Position;
 			WorldRotation = -_View.Rotation();
-			ViewDistance = (_Distance < 0 ? 999999999 : _Distance);
+			FarPlane = (_Far < _Near ? 999999999 : _Far);
+			NearPlane = _Near;
 			CubicViewProjection[0] = Compute::Matrix4x4::CreateCubeMapLookAt(0, InvViewPosition) * Projection;
 			CubicViewProjection[1] = Compute::Matrix4x4::CreateCubeMapLookAt(1, InvViewPosition) * Projection;
 			CubicViewProjection[2] = Compute::Matrix4x4::CreateCubeMapLookAt(2, InvViewPosition) * Projection;
@@ -1939,14 +1942,14 @@ namespace Tomahawk
 		}
 		bool Cullable::IsVisible(const Viewer& View, Compute::Matrix4x4* World)
 		{
-			if (Parent->Transform->Position.Distance(View.WorldPosition) > View.ViewDistance + Parent->Transform->Scale.Length())
+			if (Parent->Transform->Position.Distance(View.WorldPosition) > View.FarPlane + Parent->Transform->Scale.Length())
 				return false;
 
 			return Compute::MathCommon::IsCubeInFrustum((World ? *World : Parent->Transform->GetWorld()) * View.ViewProjection, 1.5f) == -1;
 		}
 		bool Cullable::IsNear(const Viewer& View)
 		{
-			return Parent->Transform->Position.Distance(View.WorldPosition) <= View.ViewDistance + Parent->Transform->Scale.Length();
+			return Parent->Transform->Position.Distance(View.WorldPosition) <= View.FarPlane + Parent->Transform->Scale.Length();
 		}
 
 		Drawable::Drawable(Entity* Ref, uint64_t Hash, bool vComplex) : Cullable(Ref), Category(GeoCategory_Opaque), Fragments(1), Satisfied(1), Source(Hash), Complex(vComplex), Static(true), Query(nullptr)
@@ -3055,13 +3058,13 @@ namespace Tomahawk
 		void GeometryDraw::CullGeometry(const Viewer& View, Rest::Pool<Drawable*>* Geometry)
 		{
 		}
-		void GeometryDraw::RenderGBuffer(Rest::Timer* TimeStep, Rest::Pool<Drawable*>* Geometry, RenderOpt Options)
+		void GeometryDraw::RenderGeometry(Rest::Timer* TimeStep, Rest::Pool<Drawable*>* Geometry, RenderOpt Options)
 		{
 		}
-		void GeometryDraw::RenderDepthLinear(Rest::Timer* TimeStep, Rest::Pool<Drawable*>* Geometry)
+		void GeometryDraw::RenderFluxLinear(Rest::Timer* TimeStep, Rest::Pool<Drawable*>* Geometry)
 		{
 		}
-		void GeometryDraw::RenderDepthCubic(Rest::Timer* TimeStep, Rest::Pool<Drawable*>* Geometry, Compute::Matrix4x4* ViewProjection)
+		void GeometryDraw::RenderFluxCubic(Rest::Timer* TimeStep, Rest::Pool<Drawable*>* Geometry, Compute::Matrix4x4* ViewProjection)
 		{
 		}
 		void GeometryDraw::CullGeometry(const Viewer& View)
@@ -3076,7 +3079,7 @@ namespace Tomahawk
 		}
 		void GeometryDraw::Render(Rest::Timer* TimeStep, RenderState State, RenderOpt Options)
 		{
-			if (State == RenderState_GBuffer)
+			if (State == RenderState_Geometry)
 			{
 				Rest::Pool<Drawable*>* Geometry;
 				if (Options & RenderOpt_Transparent)
@@ -3085,22 +3088,22 @@ namespace Tomahawk
 					Geometry = GetOpaque();
 
 				if (Geometry != nullptr && Geometry->Size() > 0)
-					RenderGBuffer(TimeStep, Geometry, Options);
+					RenderGeometry(TimeStep, Geometry, Options);
 			}
-			else if (State == RenderState_Depth_Linear)
+			else if (State == RenderState_Flux_Linear)
 			{
 				if (!(Options & RenderOpt_Inner))
 					return;
 
 				Rest::Pool<Drawable*>* Opaque = GetOpaque();
 				if (Opaque != nullptr && Opaque->Size() > 0)
-					RenderDepthLinear(TimeStep, Opaque);
+					RenderFluxLinear(TimeStep, Opaque);
 
 				Rest::Pool<Drawable*>* Transparent = GetTransparent();
 				if (Transparent != nullptr && Transparent->Size() > 0)
-					RenderDepthLinear(TimeStep, Transparent);
+					RenderFluxLinear(TimeStep, Transparent);
 			}
-			else if (State == RenderState_Depth_Cubic)
+			else if (State == RenderState_Flux_Cubic)
 			{
 				Viewer& View = System->GetScene()->View;
 				if (!(Options & RenderOpt_Inner))
@@ -3108,11 +3111,11 @@ namespace Tomahawk
 
 				Rest::Pool<Drawable*>* Opaque = GetOpaque();
 				if (Opaque != nullptr && Opaque->Size() > 0)
-					RenderDepthCubic(TimeStep, Opaque, View.CubicViewProjection);
+					RenderFluxCubic(TimeStep, Opaque, View.CubicViewProjection);
 
 				Rest::Pool<Drawable*>* Transparent = GetTransparent();
 				if (Transparent != nullptr && Transparent->Size() > 0)
-					RenderDepthCubic(TimeStep, Transparent, View.CubicViewProjection);
+					RenderFluxCubic(TimeStep, Transparent, View.CubicViewProjection);
 			}
 		}
 		Rest::Pool<Drawable*>* GeometryDraw::GetOpaque()
@@ -3211,7 +3214,7 @@ namespace Tomahawk
 		}
 		void EffectDraw::Render(Rest::Timer* Time, RenderState State, RenderOpt Options)
 		{
-			if (State != RenderState_GBuffer || Options & RenderOpt_Inner)
+			if (State != RenderState_Geometry || Options & RenderOpt_Inner)
 				return;
 
 			Graphics::MultiRenderTarget2D* Surface = System->GetScene()->GetSurface();
@@ -3387,7 +3390,7 @@ namespace Tomahawk
 			Conf.Device->Draw(6, 0);
 			Conf.Device->SetTexture2D(nullptr, 1);
 		}
-		void SceneGraph::RenderGBuffer(Rest::Timer* Time, RenderOpt Options)
+		void SceneGraph::RenderGeometry(Rest::Timer* Time, RenderOpt Options)
 		{
 			if (!View.Renderer)
 				return;
@@ -3396,10 +3399,10 @@ namespace Tomahawk
 			for (auto& Renderer : *States)
 			{
 				if (Renderer->Active)
-					Renderer->Render(Time, RenderState_GBuffer, Options);
+					Renderer->Render(Time, RenderState_Geometry, Options);
 			}
 		}
-		void SceneGraph::RenderDepthLinear(Rest::Timer* Time)
+		void SceneGraph::RenderFluxLinear(Rest::Timer* Time)
 		{
 			if (!View.Renderer)
 				return;
@@ -3408,10 +3411,10 @@ namespace Tomahawk
 			for (auto& Renderer : *States)
 			{
 				if (Renderer->Active)
-					Renderer->Render(Time, RenderState_Depth_Linear, RenderOpt_Inner);
+					Renderer->Render(Time, RenderState_Flux_Linear, RenderOpt_Inner);
 			}
 		}
-		void SceneGraph::RenderDepthCubic(Rest::Timer* Time)
+		void SceneGraph::RenderFluxCubic(Rest::Timer* Time)
 		{
 			if (!View.Renderer)
 				return;
@@ -3420,7 +3423,7 @@ namespace Tomahawk
 			for (auto& Renderer : *States)
 			{
 				if (Renderer->Active)
-					Renderer->Render(Time, RenderState_Depth_Cubic, RenderOpt_Inner);
+					Renderer->Render(Time, RenderState_Flux_Cubic, RenderOpt_Inner);
 			}
 		}
 		void SceneGraph::Render(Rest::Timer* Time)
@@ -3433,7 +3436,7 @@ namespace Tomahawk
 				Conf.Device->SetStructureBuffer(Structure, 0);
 				
 				ClearSurface();
-				RenderGBuffer(Time, RenderOpt_None);
+				RenderGeometry(Time, RenderOpt_None);
 				View.Renderer->CullGeometry(Time, View);
 			}
 			EndThread(ThreadId_Render);
@@ -3710,7 +3713,9 @@ namespace Tomahawk
 			Conf.Device->View.Projection = View.Projection;
 			Conf.Device->View.View = View.View;
 			Conf.Device->View.ViewPosition = View.InvViewPosition;
-			Conf.Device->View.FarPlane = View.ViewDistance;
+			Conf.Device->View.ViewDirection = View.WorldRotation.DepthDirection();
+			Conf.Device->View.FarPlane = View.FarPlane;
+			Conf.Device->View.NearPlane = View.NearPlane;
 			Conf.Device->UpdateBuffer(Graphics::RenderBufferType_View);
 		}
 		void SceneGraph::ExpandMaterialStructure()
@@ -3881,9 +3886,9 @@ namespace Tomahawk
 				}
 			}
 		}
-		void SceneGraph::SetView(const Compute::Matrix4x4& _View, const Compute::Matrix4x4& _Projection, const Compute::Vector3& _Position, float _Distance, bool Upload)
+		void SceneGraph::SetView(const Compute::Matrix4x4& _View, const Compute::Matrix4x4& _Projection, const Compute::Vector3& _Position, float _Near, float _Far, bool Upload)
 		{
-			View.Set(_View, _Projection, _Position, _Distance);
+			View.Set(_View, _Projection, _Position, _Near, _Far);
 			if (Upload)
 				RestoreViewBuffer(&View);
 		}
@@ -4372,7 +4377,7 @@ namespace Tomahawk
 		}
 		bool SceneGraph::IsEntityVisible(Entity* Entity, const Compute::Matrix4x4& ViewProjection)
 		{
-			if (!Camera || !Entity || Entity->Transform->Position.Distance(Camera->Parent->Transform->Position) > View.ViewDistance + Entity->Transform->Scale.Length())
+			if (!Camera || !Entity || Entity->Transform->Position.Distance(Camera->Parent->Transform->Position) > View.FarPlane + Entity->Transform->Scale.Length())
 				return false;
 
 			return (Compute::MathCommon::IsCubeInFrustum(Entity->Transform->GetWorld() * ViewProjection, 2) == -1);

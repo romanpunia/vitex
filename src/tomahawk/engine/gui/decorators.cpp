@@ -198,7 +198,7 @@ namespace Tomahawk
 				Graphics::Shader::Desc I = Graphics::Shader::Desc();
 				I.Filename = "box-shadow";
 
-				if (Device->GetSection("geometry/gui/box-shadow", &I.Data))
+				if (Device->GetSection("topology/gui/box-shadow", &I.Data))
 				{
 					Shader = Device->CreateShader(I);
 					if (Shader != nullptr)
@@ -256,7 +256,7 @@ namespace Tomahawk
 				Graphics::Shader::Desc I = Graphics::Shader::Desc();
 				I.Filename = "box-blur";
 
-				if (Device->GetSection("geometry/gui/box-blur", &I.Data))
+				if (Device->GetSection("topology/gui/box-blur", &I.Data))
 				{
 					Shader = Device->CreateShader(I);
 					if (Shader != nullptr)

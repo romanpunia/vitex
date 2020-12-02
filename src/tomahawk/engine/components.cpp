@@ -317,7 +317,7 @@ namespace Tomahawk
 			}
 			float Emitter::Cull(const Viewer& View)
 			{
-				float Result = 1.0f - Parent->Transform->Position.Distance(View.WorldPosition) / (View.ViewDistance);
+				float Result = 1.0f - Parent->Transform->Position.Distance(View.WorldPosition) / (View.FarPlane);
 				if (Result > 0.0f)
 					Result = Compute::MathCommon::IsCubeInFrustum(Compute::Matrix4x4::CreateScale(Volume) * Parent->Transform->GetWorldUnscaled() * View.ViewProjection, 1.5f) == -1 ? Result : 0.0f;
 
@@ -892,7 +892,7 @@ namespace Tomahawk
 			}
 			float Decal::Cull(const Viewer& View)
 			{
-				float Result = 1.0f - Parent->Transform->Position.Distance(View.WorldPosition) / View.ViewDistance;
+				float Result = 1.0f - Parent->Transform->Position.Distance(View.WorldPosition) / View.FarPlane;
 				if (Result > 0.0f)
 					Result = Compute::MathCommon::IsCubeInFrustum(Parent->Transform->GetWorld() * View.ViewProjection, GetRange()) == -1 ? Result : 0.0f;
 
@@ -2536,7 +2536,7 @@ namespace Tomahawk
 			}
 			float PointLight::Cull(const Viewer& Base)
 			{
-				float Result = 1.0f - Parent->Transform->Position.Distance(Base.WorldPosition) / Base.ViewDistance;
+				float Result = 1.0f - Parent->Transform->Position.Distance(Base.WorldPosition) / Base.FarPlane;
 				if (Result > 0.0f)
 					Result = Compute::MathCommon::IsCubeInFrustum(Parent->Transform->GetWorldUnscaled() * Base.ViewProjection, GetRange()) == -1 ? Result : 0.0f;
 
@@ -2605,7 +2605,7 @@ namespace Tomahawk
 			}
 			float SpotLight::Cull(const Viewer& View)
 			{
-				float Result = 1.0f - Parent->Transform->Position.Distance(View.WorldPosition) / View.ViewDistance;
+				float Result = 1.0f - Parent->Transform->Position.Distance(View.WorldPosition) / View.FarPlane;
 				if (Result > 0.0f)
 					Result = Compute::MathCommon::IsCubeInFrustum(Parent->Transform->GetWorldUnscaled() * View.ViewProjection, GetRange()) == -1 ? Result : 0.0f;
 
@@ -2880,7 +2880,7 @@ namespace Tomahawk
 				float Result = 1.0f;
 				if (Infinity <= 0.0f)
 				{
-					Result = 1.0f - Parent->Transform->Position.Distance(View.WorldPosition) / View.ViewDistance;
+					Result = 1.0f - Parent->Transform->Position.Distance(View.WorldPosition) / View.FarPlane;
 					if (Result > 0.0f)
 						Result = Compute::MathCommon::IsCubeInFrustum(Parent->Transform->GetWorldUnscaled() * View.ViewProjection, GetRange()) == -1 ? Result : 0.0f;
 				}
@@ -3151,7 +3151,7 @@ namespace Tomahawk
 
 				Compute::Vector3 Position = Parent->Transform->Position.InvertX().InvertY();
 				Compute::Matrix4x4 World = Compute::Matrix4x4::CreateCamera(Position, -Parent->Transform->Rotation);
-				View->Set(World, Projection, Parent->Transform->Position, FarPlane);
+				View->Set(World, Projection, Parent->Transform->Position, NearPlane, FarPlane);
 				View->WorldRotation = Parent->Transform->Rotation;
 				View->Renderer = Renderer;
 				FieldView = *View;

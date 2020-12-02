@@ -451,7 +451,7 @@ namespace Tomahawk
 				Shader::Desc F = Shader::Desc();
 				F.Filename = "basic";
 
-				if (GetSection("geometry/basic/gbuffer", &F.Data))
+				if (GetSection("topology/basic/geometry", &F.Data))
 					BasicEffect = CreateShader(F);
 			}
 			OGLDevice::~OGLDevice()

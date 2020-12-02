@@ -1,4 +1,4 @@
-#include "workflow/pass"
+#include "workflow/effects"
 
 float RayEdge(in float2 TexCoord)
 {

@@ -912,6 +912,8 @@ namespace Tomahawk
 			Compute::Matrix4x4 View;
 			Compute::Vector3 ViewPosition;
 			float FarPlane;
+			Compute::Vector3 ViewDirection;
+			float NearPlane;
 		};
 
 		struct TH_OUT PoseBuffer

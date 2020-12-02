@@ -1,5 +1,5 @@
 #include "renderer/vertex/shape"
-#include "workflow/pass"
+#include "workflow/effects"
 
 VertexResult VS(VertexBase V)
 {

@@ -17,24 +17,24 @@ namespace Tomahawk
 				Layout = Lab->GetDevice()->GetInputLayout("vertex");
 
 				Graphics::Shader::Desc I = Graphics::Shader::Desc();
-				if (System->GetDevice()->GetSection("geometry/model/gbuffer", &I.Data))
-					Shaders.GBuffer = System->CompileShader("mr-gbuffer", I, 0);
+				if (System->GetDevice()->GetSection("topology/model/geometry", &I.Data))
+					Shaders.Geometry = System->CompileShader("mr-geometry", I, 0);
 
-				if (System->GetDevice()->GetSection("geometry/model/depth-linear", &I.Data))
-					Shaders.Linear = System->CompileShader("mr-depth-linear", I, 0);
-
-				if (System->GetDevice()->GetSection("geometry/model/depth-cubic", &I.Data))
-					Shaders.Cubic = System->CompileShader("mr-depth-cubic", I, sizeof(Depth));
-
-				if (System->GetDevice()->GetSection("geometry/model/occlusion", &I.Data))
+				if (System->GetDevice()->GetSection("topology/model/occlusion", &I.Data))
 					Shaders.Occlusion = System->CompileShader("mr-occlusion", I, 0);
+
+				if (System->GetDevice()->GetSection("topology/model/flux/linear", &I.Data))
+					Shaders.Linear = System->CompileShader("mr-flux-linear", I, 0);
+
+				if (System->GetDevice()->GetSection("topology/model/flux/cubic", &I.Data))
+					Shaders.Cubic = System->CompileShader("mr-flux-cubic", I, sizeof(Depth));
 			}
 			Model::~Model()
 			{
-				System->FreeShader("mr-gbuffer", Shaders.GBuffer);
-				System->FreeShader("mr-depth-linear", Shaders.Linear);
-				System->FreeShader("mr-depth-cubic", Shaders.Cubic);
+				System->FreeShader("mr-geometry", Shaders.Geometry);
 				System->FreeShader("mr-occlusion", Shaders.Occlusion);
+				System->FreeShader("mr-flux-linear", Shaders.Linear);
+				System->FreeShader("mr-flux-cubic", Shaders.Cubic);
 			}
 			void Model::Activate()
 			{
@@ -87,7 +87,7 @@ namespace Tomahawk
 					Base->End(Device);
 				}
 			}
-			void Model::RenderGBuffer(Rest::Timer* Time, Rest::Pool<Drawable*>* Geometry, RenderOpt Options)
+			void Model::RenderGeometry(Rest::Timer* Time, Rest::Pool<Drawable*>* Geometry, RenderOpt Options)
 			{
 				Graphics::GraphicsDevice* Device = System->GetDevice();
 				CullResult Cull = (Options & RenderOpt_Inner ? CullResult_Always : CullResult_Last);
@@ -98,7 +98,7 @@ namespace Tomahawk
 				Device->SetBlendState(Blend);
 				Device->SetRasterizerState(BackRasterizer);
 				Device->SetInputLayout(Layout);
-				Device->SetShader(Shaders.GBuffer, Graphics::ShaderType_Vertex | Graphics::ShaderType_Pixel);
+				Device->SetShader(Shaders.Geometry, Graphics::ShaderType_Vertex | Graphics::ShaderType_Pixel);
 				System->GetScene()->SetSurface();
 
 				for (auto It = Geometry->Begin(); It != Geometry->End(); ++It)
@@ -114,7 +114,7 @@ namespace Tomahawk
 					for (auto&& Mesh : Drawable->Meshes)
 					{
 						auto* Surface = Base->GetSurface(Mesh);
-						if (!Surface || !Surface->FillGBuffer(Device))
+						if (!Surface || !Surface->FillGeometry(Device))
 							continue;
 
 						Device->Render.World = Mesh->World * Base->GetEntity()->Transform->GetWorld();
@@ -126,7 +126,7 @@ namespace Tomahawk
 
 				Device->FlushTexture2D(1, 7);
 			}
-			void Model::RenderDepthLinear(Rest::Timer* Time, Rest::Pool<Drawable*>* Geometry)
+			void Model::RenderFluxLinear(Rest::Timer* Time, Rest::Pool<Drawable*>* Geometry)
 			{
 				Graphics::GraphicsDevice* Device = System->GetDevice();
 				Device->SetSamplerState(Sampler, 0);
@@ -147,7 +147,7 @@ namespace Tomahawk
 					for (auto&& Mesh : Drawable->Meshes)
 					{
 						auto* Surface = Base->GetSurface(Mesh);
-						if (!Surface || !Surface->FillLinearDepth(Device))
+						if (!Surface || !Surface->FillFluxLinear(Device))
 							continue;
 
 						Device->Render.World = Mesh->World * Base->GetEntity()->Transform->GetWorld();
@@ -159,7 +159,7 @@ namespace Tomahawk
 
 				Device->SetTexture2D(nullptr, 1);
 			}
-			void Model::RenderDepthCubic(Rest::Timer* Time, Rest::Pool<Drawable*>* Geometry, Compute::Matrix4x4* ViewProjection)
+			void Model::RenderFluxCubic(Rest::Timer* Time, Rest::Pool<Drawable*>* Geometry, Compute::Matrix4x4* ViewProjection)
 			{
 				Graphics::GraphicsDevice* Device = System->GetDevice();
 				memcpy(Depth.FaceViewProjection, ViewProjection, sizeof(Compute::Matrix4x4) * 6);
@@ -183,7 +183,7 @@ namespace Tomahawk
 					for (auto&& Mesh : Drawable->Meshes)
 					{
 						auto* Surface = Base->GetSurface(Mesh);
-						if (!Surface || !Surface->FillCubicDepth(Device))
+						if (!Surface || !Surface->FillFluxCubic(Device))
 							continue;
 
 						Device->Render.World = Mesh->World * Base->GetEntity()->Transform->GetWorld();
@@ -206,24 +206,24 @@ namespace Tomahawk
 				Layout = Lab->GetDevice()->GetInputLayout("skin-vertex");
 
 				Graphics::Shader::Desc I = Graphics::Shader::Desc();
-				if (System->GetDevice()->GetSection("geometry/skin/gbuffer", &I.Data))
-					Shaders.GBuffer = System->CompileShader("sr-gbuffer", I, 0);
+				if (System->GetDevice()->GetSection("topology/skin/geometry", &I.Data))
+					Shaders.Geometry = System->CompileShader("sr-geometry", I, 0);
 
-				if (System->GetDevice()->GetSection("geometry/skin/depth-linear", &I.Data))
-					Shaders.Linear = System->CompileShader("sr-depth-linear", I, 0);
-
-				if (System->GetDevice()->GetSection("geometry/skin/depth-cubic", &I.Data))
-					Shaders.Cubic = System->CompileShader("sr-depth-cubic", I, sizeof(Depth));
-
-				if (System->GetDevice()->GetSection("geometry/skin/occlusion", &I.Data))
+				if (System->GetDevice()->GetSection("topology/skin/occlusion", &I.Data))
 					Shaders.Occlusion = System->CompileShader("sr-occlusion", I, 0);
+
+				if (System->GetDevice()->GetSection("topology/skin/flux/linear", &I.Data))
+					Shaders.Linear = System->CompileShader("sr-flux-linear", I, 0);
+
+				if (System->GetDevice()->GetSection("topology/skin/flux/cubic", &I.Data))
+					Shaders.Cubic = System->CompileShader("sr-flux-cubic", I, sizeof(Depth));
 			}
 			Skin::~Skin()
 			{
-				System->FreeShader("sr-gbuffer", Shaders.GBuffer);
-				System->FreeShader("sr-depth-linear", Shaders.Linear);
-				System->FreeShader("sr-depth-cubic", Shaders.Cubic);
+				System->FreeShader("sr-geometry", Shaders.Geometry);
 				System->FreeShader("sr-occlusion", Shaders.Occlusion);
+				System->FreeShader("sr-flux-linear", Shaders.Linear);
+				System->FreeShader("sr-flux-cubic", Shaders.Cubic);
 			}
 			void Skin::Activate()
 			{
@@ -283,7 +283,7 @@ namespace Tomahawk
 					Base->End(Device);
 				}
 			}
-			void Skin::RenderGBuffer(Rest::Timer* Time, Rest::Pool<Drawable*>* Geometry, RenderOpt Options)
+			void Skin::RenderGeometry(Rest::Timer* Time, Rest::Pool<Drawable*>* Geometry, RenderOpt Options)
 			{
 				Graphics::GraphicsDevice* Device = System->GetDevice();
 				CullResult Cull = (Options & RenderOpt_Inner ? CullResult_Always : CullResult_Last);
@@ -294,7 +294,7 @@ namespace Tomahawk
 				Device->SetBlendState(Blend);
 				Device->SetRasterizerState(BackRasterizer);
 				Device->SetInputLayout(Layout);
-				Device->SetShader(Shaders.GBuffer, Graphics::ShaderType_Vertex | Graphics::ShaderType_Pixel);
+				Device->SetShader(Shaders.Geometry, Graphics::ShaderType_Vertex | Graphics::ShaderType_Pixel);
 				System->GetScene()->SetSurface();
 
 				for (auto It = Geometry->Begin(); It != Geometry->End(); ++It)
@@ -315,7 +315,7 @@ namespace Tomahawk
 					for (auto&& Mesh : Drawable->Meshes)
 					{
 						auto* Surface = Base->GetSurface(Mesh);
-						if (!Surface || !Surface->FillGBuffer(Device))
+						if (!Surface || !Surface->FillGeometry(Device))
 							continue;
 
 						Device->Render.World = Mesh->World * Base->GetEntity()->Transform->GetWorld();
@@ -327,7 +327,7 @@ namespace Tomahawk
 
 				Device->FlushTexture2D(1, 7);
 			}
-			void Skin::RenderDepthLinear(Rest::Timer* Time, Rest::Pool<Drawable*>* Geometry)
+			void Skin::RenderFluxLinear(Rest::Timer* Time, Rest::Pool<Drawable*>* Geometry)
 			{
 				Graphics::GraphicsDevice* Device = System->GetDevice();
 				Device->SetSamplerState(Sampler, 0);
@@ -353,7 +353,7 @@ namespace Tomahawk
 					for (auto&& Mesh : Drawable->Meshes)
 					{
 						auto* Surface = Base->GetSurface(Mesh);
-						if (!Surface || !Surface->FillLinearDepth(Device))
+						if (!Surface || !Surface->FillFluxLinear(Device))
 							continue;
 
 						Device->Render.World = Mesh->World * Base->GetEntity()->Transform->GetWorld();
@@ -365,7 +365,7 @@ namespace Tomahawk
 
 				Device->SetTexture2D(nullptr, 1);
 			}
-			void Skin::RenderDepthCubic(Rest::Timer* Time, Rest::Pool<Drawable*>* Geometry, Compute::Matrix4x4* ViewProjection)
+			void Skin::RenderFluxCubic(Rest::Timer* Time, Rest::Pool<Drawable*>* Geometry, Compute::Matrix4x4* ViewProjection)
 			{
 				Graphics::GraphicsDevice* Device = System->GetDevice();
 				memcpy(Depth.FaceViewProjection, ViewProjection, sizeof(Compute::Matrix4x4) * 6);
@@ -394,7 +394,7 @@ namespace Tomahawk
 					for (auto&& Mesh : Drawable->Meshes)
 					{
 						auto* Surface = Base->GetSurface(Mesh);
-						if (!Surface || !Surface->FillCubicDepth(Device))
+						if (!Surface || !Surface->FillFluxCubic(Device))
 							continue;
 
 						Device->Render.World = Mesh->World * Base->GetEntity()->Transform->GetWorld();
@@ -435,24 +435,24 @@ namespace Tomahawk
 				IndexBuffer = Lab->GetDevice()->CreateElementBuffer(F);
 
 				Graphics::Shader::Desc I = Graphics::Shader::Desc();
-				if (System->GetDevice()->GetSection("geometry/model/gbuffer", &I.Data))
-					Shaders.GBuffer = System->CompileShader("mr-gbuffer", I, 0);
+				if (System->GetDevice()->GetSection("topology/model/geometry", &I.Data))
+					Shaders.Geometry = System->CompileShader("mr-geometry", I, 0);
 
-				if (System->GetDevice()->GetSection("geometry/model/depth-linear", &I.Data))
-					Shaders.Linear = System->CompileShader("mr-depth-linear", I, 0);
-
-				if (System->GetDevice()->GetSection("geometry/model/depth-cubic", &I.Data))
-					Shaders.Cubic = System->CompileShader("mr-depth-cubic", I, sizeof(Depth));
-
-				if (System->GetDevice()->GetSection("geometry/model/occlusion", &I.Data))
+				if (System->GetDevice()->GetSection("topology/model/occlusion", &I.Data))
 					Shaders.Occlusion = System->CompileShader("mr-occlusion", I, 0);
+
+				if (System->GetDevice()->GetSection("topology/model/flux/linear", &I.Data))
+					Shaders.Linear = System->CompileShader("mr-flux-linear", I, 0);
+
+				if (System->GetDevice()->GetSection("topology/model/flux/cubic", &I.Data))
+					Shaders.Cubic = System->CompileShader("mr-flux-cubic", I, sizeof(Depth));
 			}
 			SoftBody::~SoftBody()
 			{
-				System->FreeShader("mr-gbuffer", Shaders.GBuffer);
-				System->FreeShader("mr-depth-linear", Shaders.Linear);
-				System->FreeShader("mr-depth-cubic", Shaders.Cubic);
+				System->FreeShader("mr-geometry", Shaders.Geometry);
 				System->FreeShader("mr-occlusion", Shaders.Occlusion);
+				System->FreeShader("mr-flux-linear", Shaders.Linear);
+				System->FreeShader("mr-flux-cubic", Shaders.Cubic);
 				TH_RELEASE(VertexBuffer);
 				TH_RELEASE(IndexBuffer);
 			}
@@ -506,7 +506,7 @@ namespace Tomahawk
 					Base->End(Device);
 				}
 			}
-			void SoftBody::RenderGBuffer(Rest::Timer* Time, Rest::Pool<Drawable*>* Geometry, RenderOpt Options)
+			void SoftBody::RenderGeometry(Rest::Timer* Time, Rest::Pool<Drawable*>* Geometry, RenderOpt Options)
 			{
 				Graphics::GraphicsDevice* Device = System->GetDevice();
 				CullResult Cull = (Options & RenderOpt_Inner ? CullResult_Always : CullResult_Last);
@@ -517,7 +517,7 @@ namespace Tomahawk
 				Device->SetBlendState(Blend);
 				Device->SetRasterizerState(BackRasterizer);
 				Device->SetInputLayout(Layout);
-				Device->SetShader(Shaders.GBuffer, Graphics::ShaderType_Vertex | Graphics::ShaderType_Pixel);
+				Device->SetShader(Shaders.Geometry, Graphics::ShaderType_Vertex | Graphics::ShaderType_Pixel);
 				System->GetScene()->SetSurface();
 
 				for (auto It = Geometry->Begin(); It != Geometry->End(); ++It)
@@ -530,7 +530,7 @@ namespace Tomahawk
 						continue;
 
 					auto* Surface = Base->GetSurface();
-					if (!Surface || !Surface->FillGBuffer(Device))
+					if (!Surface || !Surface->FillGeometry(Device))
 						continue;
 
 					Base->Fill(Device, IndexBuffer, VertexBuffer);
@@ -545,7 +545,7 @@ namespace Tomahawk
 
 				Device->FlushTexture2D(1, 7);
 			}
-			void SoftBody::RenderDepthLinear(Rest::Timer* Time, Rest::Pool<Drawable*>* Geometry)
+			void SoftBody::RenderFluxLinear(Rest::Timer* Time, Rest::Pool<Drawable*>* Geometry)
 			{
 				Graphics::GraphicsDevice* Device = System->GetDevice();
 				Device->SetSamplerState(Sampler, 0);
@@ -565,7 +565,7 @@ namespace Tomahawk
 						continue;
 
 					auto* Surface = Base->GetSurface();
-					if (!Surface || !Surface->FillLinearDepth(Device))
+					if (!Surface || !Surface->FillFluxLinear(Device))
 						continue;
 
 					Base->Fill(Device, IndexBuffer, VertexBuffer);
@@ -580,7 +580,7 @@ namespace Tomahawk
 
 				Device->SetTexture2D(nullptr, 1);
 			}
-			void SoftBody::RenderDepthCubic(Rest::Timer* Time, Rest::Pool<Drawable*>* Geometry, Compute::Matrix4x4* ViewProjection)
+			void SoftBody::RenderFluxCubic(Rest::Timer* Time, Rest::Pool<Drawable*>* Geometry, Compute::Matrix4x4* ViewProjection)
 			{
 				Graphics::GraphicsDevice* Device = System->GetDevice();
 				memcpy(Depth.FaceViewProjection, ViewProjection, sizeof(Compute::Matrix4x4) * 6);
@@ -596,11 +596,11 @@ namespace Tomahawk
 				for (auto It = Geometry->Begin(); It != Geometry->End(); ++It)
 				{
 					Engine::Components::SoftBody* Base = (Engine::Components::SoftBody*)*It;
-					if (!Base->GetBody() || Base->GetEntity()->Transform->Position.Distance(System->GetScene()->View.WorldPosition) >= System->GetScene()->View.ViewDistance + Base->GetEntity()->Transform->Scale.Length())
+					if (!Base->GetBody() || Base->GetEntity()->Transform->Position.Distance(System->GetScene()->View.WorldPosition) >= System->GetScene()->View.FarPlane + Base->GetEntity()->Transform->Scale.Length())
 						continue;
 
 					auto* Surface = Base->GetSurface();
-					if (!Surface || !Surface->FillCubicDepth(Device))
+					if (!Surface || !Surface->FillFluxCubic(Device))
 						continue;
 
 					Base->Fill(Device, IndexBuffer, VertexBuffer);
@@ -627,28 +627,28 @@ namespace Tomahawk
 				Sampler = Lab->GetDevice()->GetSamplerState("trilinear-x16");
 
 				Graphics::Shader::Desc I = Graphics::Shader::Desc();
-				if (System->GetDevice()->GetSection("geometry/emitter/gbuffer-opaque", &I.Data))
-					Shaders.Opaque = System->CompileShader("er-gbuffer-opaque", I, 0);
+				if (System->GetDevice()->GetSection("topology/emitter/geometry/opaque", &I.Data))
+					Shaders.Opaque = System->CompileShader("er-opaque", I, 0);
 
-				if (System->GetDevice()->GetSection("geometry/emitter/gbuffer-limpid", &I.Data))
-					Shaders.Limpid = System->CompileShader("er-gbuffer-limpid", I, 0);
+				if (System->GetDevice()->GetSection("topology/emitter/geometry/transparency", &I.Data))
+					Shaders.Transparency = System->CompileShader("er-transparency", I, 0);
 
-				if (System->GetDevice()->GetSection("geometry/emitter/depth-linear", &I.Data))
-					Shaders.Linear = System->CompileShader("er-depth-linear", I, 0);
+				if (System->GetDevice()->GetSection("topology/emitter/flux/linear", &I.Data))
+					Shaders.Linear = System->CompileShader("er-flux-linear", I, 0);
 
-				if (System->GetDevice()->GetSection("geometry/emitter/depth-point", &I.Data))
-					Shaders.Point = System->CompileShader("er-depth-point", I, 0);
+				if (System->GetDevice()->GetSection("topology/emitter/flux/point", &I.Data))
+					Shaders.Point = System->CompileShader("er-flux-point", I, 0);
 
-				if (System->GetDevice()->GetSection("geometry/emitter/depth-quad", &I.Data))
-					Shaders.Quad = System->CompileShader("er-depth-quad", I, sizeof(Depth));
+				if (System->GetDevice()->GetSection("topology/emitter/flux/quad", &I.Data))
+					Shaders.Quad = System->CompileShader("er-flux-quad", I, sizeof(Depth));
 			}
 			Emitter::~Emitter()
 			{
-				System->FreeShader("er-gbuffer-opaque", Shaders.Opaque);
-				System->FreeShader("er-gbuffer-limpid", Shaders.Limpid);
-				System->FreeShader("er-depth-linear", Shaders.Linear);
-				System->FreeShader("er-depth-point", Shaders.Point);
-				System->FreeShader("er-depth-quad", Shaders.Quad);
+				System->FreeShader("er-opaque", Shaders.Opaque);
+				System->FreeShader("er-transparency", Shaders.Transparency);
+				System->FreeShader("er-flux-linear", Shaders.Linear);
+				System->FreeShader("er-flux-point", Shaders.Point);
+				System->FreeShader("er-flux-quad", Shaders.Quad);
 			}
 			void Emitter::Activate()
 			{
@@ -658,7 +658,7 @@ namespace Tomahawk
 			{
 				Opaque = System->RemoveCull<Engine::Components::Emitter>();
 			}
-			void Emitter::RenderGBuffer(Rest::Timer* Time, Rest::Pool<Drawable*>* Geometry, RenderOpt Options)
+			void Emitter::RenderGeometry(Rest::Timer* Time, Rest::Pool<Drawable*>* Geometry, RenderOpt Options)
 			{
 				if (Options & RenderOpt_Transparent || !Opaque || !Limpid)
 					return;
@@ -689,7 +689,7 @@ namespace Tomahawk
 						continue;
 
 					auto* Surface = Base->GetSurface();
-					if (!Surface || !Surface->FillGBuffer(Device))
+					if (!Surface || !Surface->FillGeometry(Device))
 						continue;
 
 					Device->Render.World = System->GetScene()->View.Projection;
@@ -707,7 +707,7 @@ namespace Tomahawk
 
 				Device->SetDepthStencilState(DepthStencilLimpid);
 				Device->SetBlendState(AdditiveBlend);
-				Device->SetShader(Shaders.Limpid, Graphics::ShaderType_Vertex | Graphics::ShaderType_Pixel);
+				Device->SetShader(Shaders.Transparency, Graphics::ShaderType_Vertex | Graphics::ShaderType_Pixel);
 				
 				for (auto It = Limpid->Begin(); It != Limpid->End(); ++It)
 				{
@@ -719,7 +719,7 @@ namespace Tomahawk
 						continue;
 
 					auto* Surface = Base->GetSurface();
-					if (!Surface || !Surface->FillGBuffer(Device))
+					if (!Surface || !Surface->FillGeometry(Device))
 						continue;
 
 					Device->Render.World = System->GetScene()->View.Projection;
@@ -730,7 +730,7 @@ namespace Tomahawk
 
 					Device->UpdateBuffer(Base->GetBuffer());
 					Device->SetBuffer(Base->GetBuffer(), 8);
-					Device->SetShader(Base->QuadBased ? Shaders.Limpid : nullptr, Graphics::ShaderType_Geometry);
+					Device->SetShader(Base->QuadBased ? Shaders.Transparency : nullptr, Graphics::ShaderType_Geometry);
 					Device->UpdateBuffer(Graphics::RenderBufferType_Render);
 					Device->Draw((unsigned int)Base->GetBuffer()->GetArray()->Size(), 0);
 				}
@@ -739,7 +739,7 @@ namespace Tomahawk
 				Device->SetPrimitiveTopology(T);
 				Device->SetShader(nullptr, Graphics::ShaderType_Geometry);
 			}
-			void Emitter::RenderDepthLinear(Rest::Timer* Time, Rest::Pool<Drawable*>* Geometry)
+			void Emitter::RenderFluxLinear(Rest::Timer* Time, Rest::Pool<Drawable*>* Geometry)
 			{
 				Graphics::GraphicsDevice* Device = System->GetDevice();
 				Graphics::PrimitiveTopology T = Device->GetPrimitiveTopology();
@@ -761,7 +761,7 @@ namespace Tomahawk
 						continue;
 
 					auto* Surface = Base->GetSurface();
-					if (!Surface || !Surface->FillLinearDepth(Device))
+					if (!Surface || !Surface->FillFluxLinear(Device))
 						continue;
 
 					Device->Render.World = Base->QuadBased ? System->GetScene()->View.Projection : Compute::Matrix4x4::Identity();
@@ -780,7 +780,7 @@ namespace Tomahawk
 				Device->SetPrimitiveTopology(T);
 				Device->SetShader(nullptr, Graphics::ShaderType_Geometry);
 			}
-			void Emitter::RenderDepthCubic(Rest::Timer* Time, Rest::Pool<Drawable*>* Geometry, Compute::Matrix4x4* ViewProjection)
+			void Emitter::RenderFluxCubic(Rest::Timer* Time, Rest::Pool<Drawable*>* Geometry, Compute::Matrix4x4* ViewProjection)
 			{
 				Graphics::GraphicsDevice* Device = System->GetDevice();
 				Depth.FaceView[0] = Compute::Matrix4x4::CreateCubeMapLookAt(0, System->GetScene()->View.InvViewPosition);
@@ -808,7 +808,7 @@ namespace Tomahawk
 						continue;
 
 					auto* Surface = Base->GetSurface();
-					if (!Surface || !Surface->FillCubicDepth(Device))
+					if (!Surface || !Surface->FillFluxCubic(Device))
 						continue;
 
 					Device->Render.World = (Base->Connected ? Base->GetEntity()->Transform->GetWorld() : Compute::Matrix4x4::Identity());			
@@ -832,12 +832,12 @@ namespace Tomahawk
 				Layout = Lab->GetDevice()->GetInputLayout("shape-vertex");
 
 				Graphics::Shader::Desc I = Graphics::Shader::Desc();
-				if (System->GetDevice()->GetSection("geometry/decal/gbuffer", &I.Data))
-					Shader = System->CompileShader("dr-gbuffer", I, sizeof(RenderPass));
+				if (System->GetDevice()->GetSection("topology/decal/geometry", &I.Data))
+					Shader = System->CompileShader("dr-geometry", I, sizeof(RenderPass));
 			}
 			Decal::~Decal()
 			{
-				System->FreeShader("dr-gbuffer", Shader);
+				System->FreeShader("dr-geometry", Shader);
 			}
 			void Decal::Activate()
 			{
@@ -847,7 +847,7 @@ namespace Tomahawk
 			{
 				System->RemoveCull<Engine::Components::Decal>();
 			}
-			void Decal::RenderGBuffer(Rest::Timer* Time, Rest::Pool<Drawable*>* Geometry, RenderOpt Options)
+			void Decal::RenderGeometry(Rest::Timer* Time, Rest::Pool<Drawable*>* Geometry, RenderOpt Options)
 			{
 				Graphics::GraphicsDevice* Device = System->GetDevice();
 				Rest::Pool<Component*>* Array = (Options & RenderOpt_Transparent ? Limpid : Opaque);
@@ -877,7 +877,7 @@ namespace Tomahawk
 						continue;
 
 					auto* Surface = Base->GetSurface();
-					if (!Surface || !Surface->FillGBuffer(Device))
+					if (!Surface || !Surface->FillGeometry(Device))
 						continue;
 
 					RenderPass.ViewProjection = Base->View * Base->Projection;
@@ -890,10 +890,10 @@ namespace Tomahawk
 
 				Device->FlushTexture2D(1, 8);
 			}
-			void Decal::RenderDepthLinear(Rest::Timer* Time, Rest::Pool<Drawable*>* Geometry)
+			void Decal::RenderFluxLinear(Rest::Timer* Time, Rest::Pool<Drawable*>* Geometry)
 			{
 			}
-			void Decal::RenderDepthCubic(Rest::Timer* Time, Rest::Pool<Drawable*>* Geometry, Compute::Matrix4x4* ViewProjection)
+			void Decal::RenderFluxCubic(Rest::Timer* Time, Rest::Pool<Drawable*>* Geometry, Compute::Matrix4x4* ViewProjection)
 			{
 			}
 
@@ -906,12 +906,12 @@ namespace Tomahawk
 				Layout = Lab->GetDevice()->GetInputLayout("shape-vertex");
 
 				Graphics::Shader::Desc I = Graphics::Shader::Desc();
-				if (System->GetDevice()->GetSection("pass/limpid", &I.Data))
-					Shader = System->CompileShader("lr-limpid", I, sizeof(RenderPass));
+				if (System->GetDevice()->GetSection("effects/transparency", &I.Data))
+					Shader = System->CompileShader("lr-transparency", I, sizeof(RenderPass));
 			}
 			Transparency::~Transparency()
 			{
-				System->FreeShader("lr-limpid", Shader);
+				System->FreeShader("lr-transparency", Shader);
 				TH_RELEASE(Surface1);
 				TH_RELEASE(Input1);
 				TH_RELEASE(Surface2);
@@ -924,7 +924,7 @@ namespace Tomahawk
 			void Transparency::Render(Rest::Timer* Time, RenderState State, RenderOpt Options)
 			{
 				bool Inner = (Options & RenderOpt_Inner);
-				if (State != RenderState_GBuffer || Options & RenderOpt_Transparent)
+				if (State != RenderState_Geometry || Options & RenderOpt_Transparent)
 					return;
 
 				SceneGraph* Scene = System->GetScene();
@@ -937,7 +937,7 @@ namespace Tomahawk
 
 				Scene->SwapSurface(Inner ? Surface2 : Surface1);
 				Scene->SetSurfaceCleared();
-				Scene->RenderGBuffer(Time, Options | RenderOpt_Transparent);
+				Scene->RenderGeometry(Time, Options | RenderOpt_Transparent);
 				Scene->SwapSurface(S);
 
 				Device->CopyTargetTo(S, 0, Inner ? Input2 : Input1);
@@ -1115,7 +1115,7 @@ namespace Tomahawk
 			}
 			void Depth::TickRender(Rest::Timer* Time, RenderState State, RenderOpt Options)
 			{
-				if (State != RenderState_GBuffer || Options & RenderOpt_Inner || Options & RenderOpt_Transparent)
+				if (State != RenderState_Geometry || Options & RenderOpt_Inner || Options & RenderOpt_Transparent)
 					return;
 
 				Graphics::GraphicsDevice* Device = System->GetDevice();
@@ -1141,8 +1141,8 @@ namespace Tomahawk
 					Device->ClearDepth(Target);
 
 					Light->AssembleDepthOrigin();
-					Scene->SetView(Compute::Matrix4x4::Identity(), Light->Projection, Light->GetEntity()->Transform->Position, Light->Shadow.Distance, true);
-					Scene->RenderDepthCubic(Time);
+					Scene->SetView(Compute::Matrix4x4::Identity(), Light->Projection, Light->GetEntity()->Transform->Position, 0.1f, Light->Shadow.Distance, true);
+					Scene->RenderFluxCubic(Time);
 
 					Light->SetDepthCache(Target);
 					Shadows++;
@@ -1167,8 +1167,8 @@ namespace Tomahawk
 					Device->ClearDepth(Target);
 
 					Light->AssembleDepthOrigin();
-					Scene->SetView(Light->View, Light->Projection, Light->GetEntity()->Transform->Position, Light->Shadow.Distance, true);
-					Scene->RenderDepthLinear(Time);
+					Scene->SetView(Light->View, Light->Projection, Light->GetEntity()->Transform->Position, 0.1f, Light->Shadow.Distance, true);
+					Scene->RenderFluxLinear(Time);
 
 					Light->SetDepthCache(Target);
 					Shadows++;
@@ -1199,8 +1199,8 @@ namespace Tomahawk
 						Device->SetTarget(Cascade, 0, 0, 0);
 						Device->ClearDepth(Cascade);
 
-						Scene->SetView(Light->View[i], Light->Projection[i], 0.0f, -1.0f, true);
-						Scene->RenderDepthLinear(Time);
+						Scene->SetView(Light->View[i], Light->Projection[i], 0.0f, 0.1f, Light->Shadow.Distance[i], true);
+						Scene->RenderFluxLinear(Time);
 					}
 
 					Light->SetDepthCache(Target);
@@ -1268,7 +1268,7 @@ namespace Tomahawk
 			}
 			void Environment::Render(Rest::Timer* Time, RenderState State, RenderOpt Options)
 			{
-				if (State != RenderState_GBuffer || Options & RenderOpt_Inner || Options & RenderOpt_Transparent)
+				if (State != RenderState_Geometry || Options & RenderOpt_Inner || Options & RenderOpt_Transparent)
 					return;
 
 				SceneGraph* Scene = System->GetScene();
@@ -1300,9 +1300,9 @@ namespace Tomahawk
 					for (unsigned int j = 0; j < 6; j++)
 					{
 						Light->View[j] = Compute::Matrix4x4::CreateCubeMapLookAt(j, Position);
-						Scene->SetView(Light->View[j], Light->Projection, Position, Light->Range, true);
+						Scene->SetView(Light->View[j], Light->Projection, Position, 0.1f, Light->Range, true);
 						Scene->ClearSurface();
-						Scene->RenderGBuffer(Time, Light->StaticMask ? RenderOpt_Inner | RenderOpt_Static : RenderOpt_Inner);
+						Scene->RenderGeometry(Time, Light->StaticMask ? RenderOpt_Inner | RenderOpt_Static : RenderOpt_Inner);
 						Device->CopyFace(Surface, 0, j);
 					}
 
@@ -1349,28 +1349,28 @@ namespace Tomahawk
 				Layout = Lab->GetDevice()->GetInputLayout("shape-vertex");
 
 				Graphics::Shader::Desc I = Graphics::Shader::Desc();
-				if (System->GetDevice()->GetSection("geometry/light/direct/point", &I.Data))
+				if (System->GetDevice()->GetSection("light/direct/point", &I.Data))
 					Shaders.Point[0] = System->CompileShader("lr-point-direct", I, sizeof(PointLight));
 
-				if (System->GetDevice()->GetSection("geometry/light/indirect/point", &I.Data))
+				if (System->GetDevice()->GetSection("light/indirect/point", &I.Data))
 					Shaders.Point[1] = System->CompileShader("lr-point-indirect", I, 0);
 
-				if (System->GetDevice()->GetSection("geometry/light/direct/spot", &I.Data))
+				if (System->GetDevice()->GetSection("light/direct/spot", &I.Data))
 					Shaders.Spot[0] = System->CompileShader("lr-spot-direct", I, sizeof(SpotLight));
 
-				if (System->GetDevice()->GetSection("geometry/light/indirect/spot", &I.Data))
+				if (System->GetDevice()->GetSection("light/indirect/spot", &I.Data))
 					Shaders.Spot[1] = System->CompileShader("lr-spot-indirect", I, 0);
 
-				if (System->GetDevice()->GetSection("geometry/light/direct/line", &I.Data))
+				if (System->GetDevice()->GetSection("light/direct/line", &I.Data))
 					Shaders.Line[0] = System->CompileShader("lr-line-direct", I, sizeof(LineLight));
 
-				if (System->GetDevice()->GetSection("geometry/light/indirect/line", &I.Data))
+				if (System->GetDevice()->GetSection("light/indirect/line", &I.Data))
 					Shaders.Line[1] = System->CompileShader("lr-line-indirect", I, 0);
 
-				if (System->GetDevice()->GetSection("geometry/light/probe", &I.Data))
+				if (System->GetDevice()->GetSection("light/probe", &I.Data))
 					Shaders.Probe = System->CompileShader("lr-probe", I, sizeof(ReflectionProbe));
 
-				if (System->GetDevice()->GetSection("geometry/light/ambient", &I.Data))
+				if (System->GetDevice()->GetSection("light/ambient", &I.Data))
 					Shaders.Ambient = System->CompileShader("lr-ambient", I, sizeof(AmbientLight));
 			}
 			Lighting::~Lighting()
@@ -1445,7 +1445,7 @@ namespace Tomahawk
 			}
 			void Lighting::Render(Rest::Timer* Time, RenderState State, RenderOpt Options)
 			{
-				if (State != RenderState_GBuffer)
+				if (State != RenderState_Geometry)
 					return;
 
 				Graphics::GraphicsDevice* Device = System->GetDevice();
@@ -1696,7 +1696,7 @@ namespace Tomahawk
 			Glitch::Glitch(RenderSystem* Lab) : EffectDraw(Lab), ScanLineJitter(0), VerticalJump(0), HorizontalShake(0), ColorDrift(0)
 			{
 				std::string Data;
-				if (System->GetDevice()->GetSection("pass/glitch", &Data))
+				if (System->GetDevice()->GetSection("effects/glitch", &Data))
 					CompileEffect("gr-glitch", Data, sizeof(RenderPass));
 			}
 			void Glitch::Deserialize(ContentManager* Content, Rest::Document* Node)
@@ -1748,7 +1748,7 @@ namespace Tomahawk
 			Tone::Tone(RenderSystem* Lab) : EffectDraw(Lab)
 			{
 				std::string Data;
-				if (System->GetDevice()->GetSection("pass/tone", &Data))
+				if (System->GetDevice()->GetSection("effects/tone", &Data))
 					CompileEffect("tr-tone", Data, sizeof(RenderPass));
 			}
 			void Tone::Deserialize(ContentManager* Content, Rest::Document* Node)
@@ -1803,7 +1803,7 @@ namespace Tomahawk
 			DoF::DoF(RenderSystem* Lab) : EffectDraw(Lab)
 			{
 				std::string Data;
-				if (System->GetDevice()->GetSection("pass/focus", &Data))
+				if (System->GetDevice()->GetSection("effects/focus", &Data))
 					CompileEffect("dfr-focus", Data, sizeof(RenderPass));
 			}
 			void DoF::Deserialize(ContentManager* Content, Rest::Document* Node)
@@ -1901,10 +1901,10 @@ namespace Tomahawk
 			Bloom::Bloom(RenderSystem* Lab) : EffectDraw(Lab)
 			{
 				std::string Data;
-				if (System->GetDevice()->GetSection("pass/bloom-x", &Data))
+				if (System->GetDevice()->GetSection("effects/bloom-x", &Data))
 					Pass1 = CompileEffect("br-bloom-x", Data, sizeof(RenderPass));
 
-				if (System->GetDevice()->GetSection("pass/bloom-y", &Data))
+				if (System->GetDevice()->GetSection("effects/bloom-y", &Data))
 					Pass2 = CompileEffect("br-bloom-y", Data, sizeof(RenderPass));
 			}
 			void Bloom::Deserialize(ContentManager* Content, Rest::Document* Node)
@@ -1932,13 +1932,13 @@ namespace Tomahawk
 			SSR::SSR(RenderSystem* Lab) : EffectDraw(Lab), Pass1(nullptr), Pass2(nullptr)
 			{
 				std::string Data;
-				if (System->GetDevice()->GetSection("pass/reflection", &Data))
+				if (System->GetDevice()->GetSection("effects/reflection", &Data))
 					Pass1 = CompileEffect("rr-reflection", Data, sizeof(RenderPass1));
 
-				if (System->GetDevice()->GetSection("pass/gloss-x", &Data))
+				if (System->GetDevice()->GetSection("effects/gloss-x", &Data))
 					Pass2 = CompileEffect("rr-gloss-x", Data, sizeof(RenderPass2));
 
-				if (System->GetDevice()->GetSection("pass/gloss-y", &Data))
+				if (System->GetDevice()->GetSection("effects/gloss-y", &Data))
 					Pass3 = CompileEffect("rr-gloss-y", Data, sizeof(RenderPass2));
 			}
 			void SSR::Deserialize(ContentManager* Content, Rest::Document* Node)
@@ -1973,13 +1973,13 @@ namespace Tomahawk
 			SSAO::SSAO(RenderSystem* Lab) : EffectDraw(Lab), Pass1(nullptr), Pass2(nullptr)
 			{
 				std::string Data;
-				if (System->GetDevice()->GetSection("pass/ambient", &Data))
+				if (System->GetDevice()->GetSection("effects/ambient", &Data))
 					Pass1 = CompileEffect("aor-ambient", Data, sizeof(RenderPass1));
 
-				if (System->GetDevice()->GetSection("pass/blur-x", &Data))
+				if (System->GetDevice()->GetSection("effects/blur-x", &Data))
 					Pass2 = CompileEffect("aor-blur-x", Data, sizeof(RenderPass2));
 
-				if (System->GetDevice()->GetSection("pass/blur-y", &Data))
+				if (System->GetDevice()->GetSection("effects/blur-y", &Data))
 					Pass3 = CompileEffect("aor-blur-y", Data, sizeof(RenderPass2));
 			}
 			void SSAO::Deserialize(ContentManager* Content, Rest::Document* Node)
@@ -2023,13 +2023,13 @@ namespace Tomahawk
 			SSDO::SSDO(RenderSystem* Lab) : EffectDraw(Lab), Pass1(nullptr), Pass2(nullptr)
 			{
 				std::string Data;
-				if (System->GetDevice()->GetSection("pass/indirect", &Data))
+				if (System->GetDevice()->GetSection("effects/indirect", &Data))
 					Pass1 = CompileEffect("dor-indirect", Data, sizeof(RenderPass1));
 
-				if (System->GetDevice()->GetSection("pass/blur-x", &Data))
+				if (System->GetDevice()->GetSection("effects/blur-x", &Data))
 					Pass2 = CompileEffect("dor-blur-x", Data, sizeof(RenderPass2));
 
-				if (System->GetDevice()->GetSection("pass/blur-y", &Data))
+				if (System->GetDevice()->GetSection("effects/blur-y", &Data))
 					Pass3 = CompileEffect("dor-blur-y", Data, sizeof(RenderPass2));
 			}
 			void SSDO::Deserialize(ContentManager* Content, Rest::Document* Node)
@@ -2083,7 +2083,7 @@ namespace Tomahawk
 			}
 			void UserInterface::Render(Rest::Timer* Timer, RenderState State, RenderOpt Options)
 			{
-				if (State != RenderState_GBuffer || Options & RenderOpt_Inner || Options & RenderOpt_Transparent)
+				if (State != RenderState_Geometry || Options & RenderOpt_Inner || Options & RenderOpt_Transparent)
 					return;
 
 				Graphics::MultiRenderTarget2D* Surface = System->GetScene()->GetSurface();

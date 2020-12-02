@@ -77,9 +77,9 @@ namespace Tomahawk
 
 		enum RenderState
 		{
-			RenderState_GBuffer,
-			RenderState_Depth_Linear,
-			RenderState_Depth_Cubic
+			RenderState_Geometry,
+			RenderState_Flux_Linear,
+			RenderState_Flux_Cubic
 		};
 
 		enum GeoCategory
@@ -90,10 +90,11 @@ namespace Tomahawk
 
 		struct TH_OUT Material
 		{
-			Compute::Vector4 Emission;
-			Compute::Vector4 Metallic;
-			Compute::Vector2 Roughness = { 1, 0 };
-			Compute::Vector2 Occlusion = { 1, 0 };
+			Compute::Vector4 Emission = { 0.0f, 0.0f, 0.0f, 0.0f };
+			Compute::Vector4 Metallic = { 0.0f, 0.0f, 0.0f, 0.0f };
+			Compute::Vector3 Scatter = { 0.1f, 16.0f, 0.0f };
+			Compute::Vector2 Roughness = { 1.0f, 0.0f };
+			Compute::Vector2 Occlusion = { 1.0f, 0.0f };
 			float Fresnel = 0.0f;
 			float Transparency = 0.0f;
 			float Refraction = 0.0f;
@@ -170,9 +171,9 @@ namespace Tomahawk
 			Appearance();
 			Appearance(const Appearance& Other);
 			~Appearance();
-			bool FillGBuffer(Graphics::GraphicsDevice* Device) const;
-			bool FillLinearDepth(Graphics::GraphicsDevice* Device) const;
-			bool FillCubicDepth(Graphics::GraphicsDevice* Device) const;
+			bool FillGeometry(Graphics::GraphicsDevice* Device) const;
+			bool FillFluxLinear(Graphics::GraphicsDevice* Device) const;
+			bool FillFluxCubic(Graphics::GraphicsDevice* Device) const;
 			void SetDiffuseMap(Graphics::Texture2D* New);
 			Graphics::Texture2D* GetDiffuseMap() const;
 			void SetNormalMap(Graphics::Texture2D* New);
@@ -192,6 +193,7 @@ namespace Tomahawk
 
 		struct TH_OUT Viewer
 		{
+			RenderSystem* Renderer = nullptr;
 			Compute::Matrix4x4 CubicViewProjection[6];
 			Compute::Matrix4x4 InvViewProjection;
 			Compute::Matrix4x4 ViewProjection;
@@ -201,10 +203,10 @@ namespace Tomahawk
 			Compute::Vector3 ViewPosition;
 			Compute::Vector3 WorldPosition;
 			Compute::Vector3 WorldRotation;
-			float ViewDistance = 0.0f;
-			RenderSystem* Renderer = nullptr;
+			float FarPlane = 0.0f;
+			float NearPlane = 0.0f;
 
-			void Set(const Compute::Matrix4x4& View, const Compute::Matrix4x4& Projection, const Compute::Vector3& Position, float Distance);
+			void Set(const Compute::Matrix4x4& View, const Compute::Matrix4x4& Projection, const Compute::Vector3& Position, float Near, float Far);
 		};
 
 		struct TH_OUT AssetFile : public Rest::Object
@@ -683,9 +685,9 @@ namespace Tomahawk
 			GeometryDraw(RenderSystem* Lab, uint64_t Hash);
 			virtual ~GeometryDraw() override;
 			virtual void CullGeometry(const Viewer& View, Rest::Pool<Drawable*>* Geometry);
-			virtual void RenderGBuffer(Rest::Timer* TimeStep, Rest::Pool<Drawable*>* Geometry, RenderOpt Options) = 0;
-			virtual void RenderDepthLinear(Rest::Timer* TimeStep, Rest::Pool<Drawable*>* Geometry) = 0;
-			virtual void RenderDepthCubic(Rest::Timer* TimeStep, Rest::Pool<Drawable*>* Geometry, Compute::Matrix4x4* ViewProjection) = 0;
+			virtual void RenderGeometry(Rest::Timer* TimeStep, Rest::Pool<Drawable*>* Geometry, RenderOpt Options) = 0;
+			virtual void RenderFluxLinear(Rest::Timer* TimeStep, Rest::Pool<Drawable*>* Geometry) = 0;
+			virtual void RenderFluxCubic(Rest::Timer* TimeStep, Rest::Pool<Drawable*>* Geometry, Compute::Matrix4x4* ViewProjection) = 0;
 			void CullGeometry(const Viewer& View) override;
 			void Render(Rest::Timer* TimeStep, RenderState State, RenderOpt Options) override;
 			Rest::Pool<Drawable*>* GetOpaque();
@@ -822,9 +824,9 @@ namespace Tomahawk
 			virtual ~SceneGraph() override;
 			void Configure(const Desc& Conf);
 			void Submit();
-			void RenderGBuffer(Rest::Timer* Time, RenderOpt Options);
-			void RenderDepthLinear(Rest::Timer* Time);
-			void RenderDepthCubic(Rest::Timer* Time);
+			void RenderGeometry(Rest::Timer* Time, RenderOpt Options);
+			void RenderFluxLinear(Rest::Timer* Time);
+			void RenderFluxCubic(Rest::Timer* Time);
 			void Render(Rest::Timer* Time);
 			void Update(Rest::Timer* Time);
 			void Simulation(Rest::Timer* Time);
@@ -851,7 +853,7 @@ namespace Tomahawk
 			void ScriptHook(const std::string& Name = "Main");
 			void SwapSurface(Graphics::MultiRenderTarget2D* NewSurface);
 			void SetActive(bool Enabled);
-			void SetView(const Compute::Matrix4x4& View, const Compute::Matrix4x4& Projection, const Compute::Vector3& Position, float Distance, bool Upload);
+			void SetView(const Compute::Matrix4x4& View, const Compute::Matrix4x4& Projection, const Compute::Vector3& Position, float Near, float Far, bool Upload);
 			void SetSurface();
 			void SetSurfaceCleared();
 			void SetMaterialName(uint64_t Material, const std::string& Name);

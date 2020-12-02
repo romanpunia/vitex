@@ -1,3 +1,7 @@
+float GetThickness(in float3 P, in float3 L, in float3 N, in float3 Scatter)
+{
+    return saturate(dot(-N, L)) * pow(saturate(dot(P, -normalize(L + N * Scatter.x))), Scatter.y) * Scatter.z;
+}
 float3 GetLight(in float3 P, in float3 L, in float3 N, in float3 M, in float G, out float3 O)
 {
     float3 R = normalize(P + L);

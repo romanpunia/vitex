@@ -84,7 +84,7 @@ float4 PS(VertexResult V) : SV_TARGET0
 {
     float2 TexCoord = GetTexCoord(V.TexCoord);
 	Fragment Frag = GetFragment(TexCoord);
-
+    
     [branch] if (Frag.Depth >= 1.0)
     {
         [branch] if (ScatterIntensity <= 0.0)

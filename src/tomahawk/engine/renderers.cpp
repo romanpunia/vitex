@@ -1401,6 +1401,12 @@ namespace Tomahawk
 				NMake::Unpack(Node->Find("sky-emission"), &AmbientLight.SkyEmission);
 				NMake::Unpack(Node->Find("light-emission"), &AmbientLight.LightEmission);
 				NMake::Unpack(Node->Find("sky-color"), &AmbientLight.SkyColor);
+				NMake::Unpack(Node->Find("fog-color"), &AmbientLight.FogColor);
+				NMake::Unpack(Node->Find("fog-amount"), &AmbientLight.FogAmount);
+				NMake::Unpack(Node->Find("fog-far-off"), &AmbientLight.FogFarOff);
+				NMake::Unpack(Node->Find("fog-far"), &AmbientLight.FogFar);
+				NMake::Unpack(Node->Find("fog-near-off"), &AmbientLight.FogNearOff);
+				NMake::Unpack(Node->Find("fog-near"), &AmbientLight.FogNear);
 				NMake::Unpack(Node->Find("recursive-probes"), &RecursiveProbes);
 			}
 			void Lighting::Serialize(ContentManager* Content, Rest::Document* Node)
@@ -1414,6 +1420,12 @@ namespace Tomahawk
 				NMake::Pack(Node->SetDocument("sky-emission"), AmbientLight.SkyEmission);
 				NMake::Pack(Node->SetDocument("light-emission"), AmbientLight.LightEmission);
 				NMake::Pack(Node->SetDocument("sky-color"), AmbientLight.SkyColor);
+				NMake::Pack(Node->SetDocument("fog-color"), AmbientLight.FogColor);
+				NMake::Pack(Node->SetDocument("fog-amount"), AmbientLight.FogAmount);
+				NMake::Pack(Node->SetDocument("fog-far-off"), AmbientLight.FogFarOff);
+				NMake::Pack(Node->SetDocument("fog-far"), AmbientLight.FogFar);
+				NMake::Pack(Node->SetDocument("fog-near-off"), AmbientLight.FogNearOff);
+				NMake::Pack(Node->SetDocument("fog-near"), AmbientLight.FogNear);
 				NMake::Pack(Node->SetDocument("recursive-probes"), RecursiveProbes);
 			}
 			void Lighting::Activate()

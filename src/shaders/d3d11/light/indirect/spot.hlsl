@@ -80,7 +80,7 @@ float4 PS(VertexResult V) : SV_TARGET0
     float3 K = normalize(D);
     float F = dot(-K, Direction);
     [branch] if (F <= Cutoff)
-        return float4(0, 0, 0, 0);
+        return float4(0.25, 0, 0, 1.0);
 
 	Material Mat = GetMaterial(Frag.Material);
 	float3 A = 1.0 - length(D) / Range, O;

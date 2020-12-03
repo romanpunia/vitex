@@ -379,7 +379,13 @@ namespace Tomahawk
 					float SkyEmission = 0.0f;
 					Compute::Vector3 LowEmission = 0.025f;
 					float LightEmission = 1.0f;
-					Compute::Vector3 SkyColor = 1.0;
+					Compute::Vector3 SkyColor = 1.0f;
+					float FogFarOff = 0.1f;
+					Compute::Vector3 FogColor = { 0.5f, 0.6f, 0.7f };
+					float FogNearOff = 0.1f;
+					Compute::Vector3 FogFar = 0.125f;
+					float FogAmount = 0.0f;
+					Compute::Vector3 FogNear = 0.125f;
 					float Padding = 0.0f;
 				} AmbientLight;
 

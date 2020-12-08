@@ -1,0 +1,52 @@
+#include "sdk/objects/material"
+#pragma warning(disable: 4000)
+
+StructuredBuffer<Material> Materials : register(t0);
+Texture2D DiffuseMap : register(t1);
+Texture2D NormalMap : register(t2);
+Texture2D MetallicMap : register(t3);
+Texture2D RoughnessMap : register(t4);
+Texture2D HeightMap : register(t5);
+Texture2D OcclusionMap : register(t6);
+Texture2D EmissionMap : register(t7);
+SamplerState Sampler : register(s0);
+
+float2 GetParallax(float2 TexCoord, float3 Direction, float Amount, float Bias)
+{
+    float Steps = lerp(24.0, 2.0, pow(1.0 - abs(dot(float3(0.0, 0.0, 1.0), Direction)), 4));
+    float Step = 1.0 / Steps;
+    float Depth = 0.0;
+    float2 Delta = Direction.xy * Amount / Steps;
+    float2 Result = TexCoord;
+    float Sample = HeightMap.SampleLevel(Sampler, Result, 0).x + Bias;
+    
+    [loop] for (float i = 0; i < Steps; i++)
+    {
+        [branch] if (Depth >= Sample)
+            break;
+
+        Result -= Delta;
+        Sample = HeightMap.SampleLevel(Sampler, Result, 0).x + Bias;  
+        Depth += Step;
+    }
+
+    float2 Origin = Result + Delta;
+    float Depth1 = Sample - Depth;
+    float Depth2 = HeightMap.SampleLevel(Sampler, Origin, 0).x + Bias - Depth + Step;
+    float Weight = Depth1 / (Depth1 - Depth2);
+    
+    return Origin * Weight + Result * (1.0 - Weight);
+}
+float3 GetNormal(float2 TexCoord, float3 Normal, float3 Tangent, float3 Bitangent)
+{
+    float3 Result = NormalMap.Sample(Sampler, TexCoord).xyz * 2.0 - 1.0;
+    return normalize(Result.x * Tangent + Result.y * Bitangent + Result.z * Normal);
+}
+float4 GetDiffuse(float2 TexCoord)
+{
+    return DiffuseMap.Sample(Sampler, TexCoord);
+}
+Material GetMaterial(float Material_Id)
+{
+    return Materials[Material_Id];
+}

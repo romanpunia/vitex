@@ -198,15 +198,13 @@ namespace Tomahawk
 
 			public:
 				ID3D11DepthStencilView* DepthStencilView;
-				D3D11_VIEWPORT Viewport;
 
 			public:
 				D3D11DepthBuffer(const Desc& I);
 				virtual ~D3D11DepthBuffer() override;
-				Graphics::Viewport GetViewport() override;
-				float GetWidth() override;
-				float GetHeight() override;
 				void* GetResource() override;
+				uint32_t GetWidth() override;
+				uint32_t GetHeight() override;
 			};
 
 			class D3D11RenderTarget2D : public RenderTarget2D
@@ -214,18 +212,17 @@ namespace Tomahawk
 				friend D3D11Device;
 
 			public:
+				ID3D11DepthStencilView* DepthStencilView;
 				ID3D11RenderTargetView* RenderTargetView;
 				ID3D11Texture2D* Texture;
-				ID3D11DepthStencilView* DepthStencilView;
-				D3D11_VIEWPORT Viewport;
 
 			public:
 				D3D11RenderTarget2D(const Desc& I);
 				virtual ~D3D11RenderTarget2D() override;
-				Graphics::Viewport GetViewport() override;
-				float GetWidth() override;
-				float GetHeight() override;
-				void* GetResource() override;
+				void* GetTargetBuffer() override;
+				void* GetDepthBuffer() override;
+				uint32_t GetWidth() override;
+				uint32_t GetHeight() override;
 			};
 
 			class D3D11MultiRenderTarget2D : public MultiRenderTarget2D
@@ -233,31 +230,18 @@ namespace Tomahawk
 				friend D3D11Device;
 
 			public:
-				struct
-				{
-					ID3D11Texture2D* Face = nullptr;
-					ID3D11Texture2D* Subresource = nullptr;
-					D3D11_SHADER_RESOURCE_VIEW_DESC Resource;
-					D3D11_TEXTURE2D_DESC CubeMap;
-					D3D11_TEXTURE2D_DESC Texture;
-					D3D11_BOX Region;
-					unsigned int Target = -1;
-				} Cube;
-
-			public:
-				D3D11_TEXTURE2D_DESC Information;
-				D3D11_VIEWPORT Viewport;
+				ID3D11DepthStencilView* DepthStencilView;
 				ID3D11RenderTargetView* RenderTargetView[8];
 				ID3D11Texture2D* Texture[8];
-				ID3D11DepthStencilView* DepthStencilView;
+				D3D11_TEXTURE2D_DESC Information;
 
 			public:
 				D3D11MultiRenderTarget2D(const Desc& I);
 				virtual ~D3D11MultiRenderTarget2D() override;
-				Graphics::Viewport GetViewport() override;
-				float GetWidth() override;
-				float GetHeight() override;
-				void* GetResource(int Id) override;
+				void* GetTargetBuffer() override;
+				void* GetDepthBuffer() override;
+				uint32_t GetWidth() override;
+				uint32_t GetHeight() override;
 
 			private:
 				void FillView(unsigned int Target, unsigned int MipLevels, unsigned int Size);
@@ -271,15 +255,14 @@ namespace Tomahawk
 				ID3D11DepthStencilView* DepthStencilView;
 				ID3D11RenderTargetView* RenderTargetView;
 				ID3D11Texture2D* Texture;
-				D3D11_VIEWPORT Viewport;
 
 			public:
 				D3D11RenderTargetCube(const Desc& I);
 				virtual ~D3D11RenderTargetCube() override;
-				Graphics::Viewport GetViewport() override;
-				float GetWidth() override;
-				float GetHeight() override;
-				void* GetResource() override;
+				void* GetTargetBuffer() override;
+				void* GetDepthBuffer() override;
+				uint32_t GetWidth() override;
+				uint32_t GetHeight() override;
 			};
 
 			class D3D11MultiRenderTargetCube : public MultiRenderTargetCube
@@ -290,15 +273,31 @@ namespace Tomahawk
 				ID3D11DepthStencilView* DepthStencilView;
 				ID3D11RenderTargetView* RenderTargetView[8];
 				ID3D11Texture2D* Texture[8];
-				D3D11_VIEWPORT Viewport;
 
 			public:
 				D3D11MultiRenderTargetCube(const Desc& I);
 				virtual ~D3D11MultiRenderTargetCube() override;
-				Graphics::Viewport GetViewport() override;
-				float GetWidth() override;
-				float GetHeight() override;
-				void* GetResource(int Id) override;
+				void* GetTargetBuffer() override;
+				void* GetDepthBuffer() override;
+				uint32_t GetWidth() override;
+				uint32_t GetHeight() override;
+			};
+
+			class D3D11Cubemap : public Cubemap
+			{
+				friend D3D11Device;
+
+			public:
+				ID3D11Texture2D* Subresource;
+				ID3D11Texture2D* Face;
+				D3D11_SHADER_RESOURCE_VIEW_DESC Resource;
+				D3D11_TEXTURE2D_DESC Texture;
+				D3D11_TEXTURE2D_DESC Cube;
+				D3D11_BOX Region;
+
+			public:
+				D3D11Cubemap(const Desc& I);
+				virtual ~D3D11Cubemap() override;
 			};
 
 			class D3D11Query : public Query
@@ -360,25 +359,11 @@ namespace Tomahawk
 				void SetTarget(float R, float G, float B) override;
 				void SetTarget() override;
 				void SetTarget(DepthBuffer* Resource) override;
-				void SetTarget(RenderTarget2D* Resource, float R, float G, float B) override;
-				void SetTarget(RenderTarget2D* Resource) override;
-				void SetTarget(MultiRenderTarget2D* Resource, unsigned int Target, float R, float G, float B) override;
-				void SetTarget(MultiRenderTarget2D* Resource, unsigned int Target) override;
-				void SetTarget(MultiRenderTarget2D* Resource, float R, float G, float B) override;
-				void SetTarget(MultiRenderTarget2D* Resource) override;
-				void SetTarget(RenderTargetCube* Resource, float R, float G, float B) override;
-				void SetTarget(RenderTargetCube* Resource) override;
-				void SetTarget(MultiRenderTargetCube* Resource, unsigned int Target, float R, float G, float B) override;
-				void SetTarget(MultiRenderTargetCube* Resource, unsigned int Target) override;
-				void SetTarget(MultiRenderTargetCube* Resource, float R, float G, float B) override;
-				void SetTarget(MultiRenderTargetCube* Resource) override;
-				void SetTargetMap(MultiRenderTarget2D* Resource, bool Enabled[8]) override;
-				void SetTargetMap(MultiRenderTargetCube* Resource, bool Enabled[8]) override;
-				void SetViewport(const Viewport& In) override;
-				void SetViewport(RenderTarget2D* Resource, const Viewport& In) override;
-				void SetViewport(MultiRenderTarget2D* Resource, const Viewport& In) override;
-				void SetViewport(RenderTargetCube* Resource, const Viewport& In) override;
-				void SetViewport(MultiRenderTargetCube* Resource, const Viewport& In) override;
+				void SetTarget(Graphics::RenderTarget* Resource, unsigned int Target, float R, float G, float B) override;
+				void SetTarget(Graphics::RenderTarget* Resource, unsigned int Target) override;
+				void SetTarget(Graphics::RenderTarget* Resource, float R, float G, float B) override;
+				void SetTarget(Graphics::RenderTarget* Resource) override;
+				void SetTargetMap(Graphics::RenderTarget* Resource, bool Enabled[8]) override;
 				void SetViewports(unsigned int Count, Viewport* Viewports) override;
 				void SetScissorRects(unsigned int Count, Compute::Rectangle* Value) override;
 				void SetPrimitiveTopology(PrimitiveTopology Topology) override;
@@ -398,37 +383,29 @@ namespace Tomahawk
 				bool UpdateBufferSize(InstanceBuffer* Resource, uint64_t Size) override;
 				void ClearBuffer(InstanceBuffer* Resource) override;
 				void Clear(float R, float G, float B) override;
-				void Clear(RenderTarget2D* Resource, float R, float G, float B) override;
-				void Clear(MultiRenderTarget2D* Resource, unsigned int Target, float R, float G, float B) override;
-				void Clear(RenderTargetCube* Resource, float R, float G, float B) override;
-				void Clear(MultiRenderTargetCube* Resource, unsigned int Target, float R, float G, float B) override;
+				void Clear(Graphics::RenderTarget* Resource, unsigned int Target, float R, float G, float B) override;
 				void ClearDepth() override;
 				void ClearDepth(DepthBuffer* Resource) override;
-				void ClearDepth(RenderTarget2D* Resource) override;
-				void ClearDepth(MultiRenderTarget2D* Resource) override;
-				void ClearDepth(RenderTargetCube* Resource) override;
-				void ClearDepth(MultiRenderTargetCube* Resource) override;
+				void ClearDepth(Graphics::RenderTarget* Resource) override;
 				void DrawIndexed(unsigned int Count, unsigned int IndexLocation, unsigned int BaseLocation) override;
 				void DrawIndexed(MeshBuffer* Resource) override;
 				void DrawIndexed(SkinMeshBuffer* Resource) override;
 				void Draw(unsigned int Count, unsigned int Location) override;
 				bool CopyTexture2D(Texture2D* Resource, Texture2D** Result) override;
-				bool CopyTexture2D(RenderTarget2D* Resource, Texture2D** Result) override;
-				bool CopyTexture2D(MultiRenderTarget2D* Resource, unsigned int Target, Texture2D** Result) override;
+				bool CopyTexture2D(Graphics::RenderTarget* Resource, unsigned int Target, Texture2D** Result) override;
 				bool CopyTexture2D(RenderTargetCube* Resource, unsigned int Face, Texture2D** Result) override;
 				bool CopyTexture2D(MultiRenderTargetCube* Resource, unsigned int Cube, unsigned int Face, Texture2D** Result) override;
 				bool CopyTextureCube(RenderTargetCube* Resource, TextureCube** Result) override;
 				bool CopyTextureCube(MultiRenderTargetCube* Resource, unsigned int Cube, TextureCube** Result) override;
-				bool CopyTargetTo(MultiRenderTarget2D* Resource, unsigned int Target, RenderTarget2D* To) override;
-				bool CopyTargetFrom(MultiRenderTarget2D* Resource, unsigned int Target, RenderTarget2D* From) override;
-				bool CopyBegin(MultiRenderTarget2D* Resource, unsigned int Target, unsigned int MipLevels, unsigned int Size) override;
-				bool CopyFace(MultiRenderTarget2D* Resource, unsigned int Target, unsigned int Face) override;
-				bool CopyEnd(MultiRenderTarget2D* Resource, TextureCube* Result) override;
+				bool CopyTarget(Graphics::RenderTarget* From, unsigned int FromTarget, Graphics::RenderTarget* To, unsigned int ToTarget) override;
 				bool CopyBackBuffer(Texture2D** Result) override;
 				bool CopyBackBufferMSAA(Texture2D** Result) override;
 				bool CopyBackBufferNoAA(Texture2D** Result) override;
-				void FetchViewports(unsigned int* Count, Viewport* Out) override;
-				void FetchScissorRects(unsigned int* Count, Compute::Rectangle* Out) override;
+				bool CubemapBegin(Cubemap* Resource) override;
+				bool CubemapFace(Cubemap* Resource, unsigned int Target, unsigned int Face) override;
+				bool CubemapEnd(Cubemap* Resource, TextureCube* Result) override;
+				void GetViewports(unsigned int* Count, Viewport* Out) override;
+				void GetScissorRects(unsigned int* Count, Compute::Rectangle* Out) override;
 				bool ResizeBuffers(unsigned int Width, unsigned int Height) override;
 				bool GenerateTexture(Texture2D* Resource) override;
 				bool GenerateTexture(Texture3D* Resource) override;
@@ -475,6 +452,7 @@ namespace Tomahawk
 				MultiRenderTarget2D* CreateMultiRenderTarget2D(const MultiRenderTarget2D::Desc& I) override;
 				RenderTargetCube* CreateRenderTargetCube(const RenderTargetCube::Desc& I) override;
 				MultiRenderTargetCube* CreateMultiRenderTargetCube(const MultiRenderTargetCube::Desc& I) override;
+				Cubemap* CreateCubemap(const Cubemap::Desc& I) override;
 				Query* CreateQuery(const Query::Desc& I) override;
 				PrimitiveTopology GetPrimitiveTopology() override;
 				ShaderModel GetSupportedShaderModel() override;
@@ -482,6 +460,7 @@ namespace Tomahawk
 				void* GetContext() override;
 				bool IsValid() override;
 				bool CreateDirectBuffer(uint64_t Size);
+				bool CreateTexture2D(Texture2D* Resource, DXGI_FORMAT Format);
 				ID3D11InputLayout* GenerateInputLayout(D3D11Shader* Shader);
 				int CreateConstantBuffer(ID3D11Buffer** Buffer, size_t Size);
 				char* GetCompileState(ID3DBlob* Error);

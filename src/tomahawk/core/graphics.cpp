@@ -379,7 +379,7 @@ namespace Tomahawk
 			Width = 512;
 			Height = 512;
 			MipLevels = 1;
-			FormatMode = Graphics::Format_Invalid;
+			FormatMode = Graphics::Format_Unknown;
 			Usage = Graphics::ResourceUsage_Default;
 			AccessFlags = Graphics::CPUAccess_Invalid;
 		}
@@ -480,26 +480,57 @@ namespace Tomahawk
 			return MipLevels;
 		}
 
-		DepthBuffer::DepthBuffer(const Desc& I)
+		DepthBuffer::DepthBuffer(const Desc& I) : Resource(nullptr)
 		{
+			Viewarea = { 0, 0, 512, 512, 0, 1 };
 		}
 		DepthBuffer::~DepthBuffer()
 		{
+			TH_RELEASE(Resource);
+		}
+		Texture2D* DepthBuffer::GetTarget()
+		{
+			return Resource;
+		}
+		const Graphics::Viewport& DepthBuffer::GetViewport()
+		{
+			return Viewarea;
 		}
 
-		RenderTarget2D::RenderTarget2D(const Desc& I) : Resource(nullptr)
+		RenderTarget::RenderTarget() : DepthStencil(nullptr)
+		{
+			Viewarea = { 0, 0, 512, 512, 0, 1 };
+		}
+		RenderTarget::~RenderTarget()
+		{
+			TH_RELEASE(DepthStencil);
+		}
+		Texture2D* RenderTarget::GetDepthStencil()
+		{
+			return DepthStencil;
+		}
+		const Graphics::Viewport& RenderTarget::GetViewport()
+		{
+			return Viewarea;
+		}
+
+		RenderTarget2D::RenderTarget2D(const Desc& I) : RenderTarget(), Resource(nullptr)
 		{
 		}
 		RenderTarget2D::~RenderTarget2D()
 		{
 			TH_RELEASE(Resource);
 		}
-		Texture2D* RenderTarget2D::GetTarget()
+		uint32_t RenderTarget2D::GetTargetCount()
+		{
+			return 1;
+		}
+		Texture2D* RenderTarget2D::GetTarget(unsigned int Index)
 		{
 			return Resource;
 		}
 
-		MultiRenderTarget2D::MultiRenderTarget2D(const Desc& I)
+		MultiRenderTarget2D::MultiRenderTarget2D(const Desc& I) : RenderTarget()
 		{
 			Target = I.Target;
 			for (int i = 0; i < 8; i++)
@@ -510,9 +541,9 @@ namespace Tomahawk
 			for (int i = 0; i < Target; i++)
 				delete Resource[i];
 		}
-		SurfaceTarget MultiRenderTarget2D::GetSVTarget()
+		uint32_t MultiRenderTarget2D::GetTargetCount()
 		{
-			return Target;
+			return (uint32_t)Target;
 		}
 		Texture2D* MultiRenderTarget2D::GetTarget(unsigned int Slot)
 		{
@@ -522,19 +553,23 @@ namespace Tomahawk
 			return Resource[Slot];
 		}
 
-		RenderTargetCube::RenderTargetCube(const Desc& I) : Resource(nullptr)
+		RenderTargetCube::RenderTargetCube(const Desc& I) : RenderTarget(), Resource(nullptr)
 		{
 		}
 		RenderTargetCube::~RenderTargetCube()
 		{
 			TH_RELEASE(Resource);
 		}
-		Texture2D* RenderTargetCube::GetTarget()
+		uint32_t RenderTargetCube::GetTargetCount()
+		{
+			return 1;
+		}
+		Texture2D* RenderTargetCube::GetTarget(unsigned int Index)
 		{
 			return Resource;
 		}
 
-		MultiRenderTargetCube::MultiRenderTargetCube(const Desc& I)
+		MultiRenderTargetCube::MultiRenderTargetCube(const Desc& I) : RenderTarget()
 		{
 			Target = I.Target;
 			for (int i = 0; i < 8; i++)
@@ -545,9 +580,9 @@ namespace Tomahawk
 			for (int i = 0; i < Target; i++)
 				delete Resource[i];
 		}
-		SurfaceTarget MultiRenderTargetCube::GetSVTarget()
+		uint32_t MultiRenderTargetCube::GetTargetCount()
 		{
-			return Target;
+			return (uint32_t)Target;
 		}
 		Texture2D* MultiRenderTargetCube::GetTarget(unsigned int Slot)
 		{
@@ -555,6 +590,14 @@ namespace Tomahawk
 				return nullptr;
 
 			return Resource[Slot];
+		}
+
+		Cubemap::Cubemap(const Desc& I) : Meta(I)
+		{
+		}
+		bool Cubemap::IsValid()
+		{
+			return Meta.Source != nullptr;
 		}
 
 		Query::Query()
@@ -665,6 +708,38 @@ namespace Tomahawk
 			DepthStencil.BackFaceStencilPassOperation = Graphics::StencilOperation_Keep;
 			DepthStencil.BackFaceStencilFunction = Graphics::Comparison_Always;
 			DepthStencilStates["less"] = CreateDepthStencilState(DepthStencil);
+
+			DepthStencil.DepthEnable = true;
+			DepthStencil.DepthWriteMask = Graphics::DepthWrite_Zero;
+			DepthStencil.DepthFunction = Graphics::Comparison_Less;
+			DepthStencil.StencilEnable = true;
+			DepthStencil.StencilReadMask = 0xFF;
+			DepthStencil.StencilWriteMask = 0x0;
+			DepthStencil.FrontFaceStencilFailOperation = Graphics::StencilOperation_Keep;
+			DepthStencil.FrontFaceStencilDepthFailOperation = Graphics::StencilOperation_Add;
+			DepthStencil.FrontFaceStencilPassOperation = Graphics::StencilOperation_Keep;
+			DepthStencil.FrontFaceStencilFunction = Graphics::Comparison_Always;
+			DepthStencil.BackFaceStencilFailOperation = Graphics::StencilOperation_Keep;
+			DepthStencil.BackFaceStencilDepthFailOperation = Graphics::StencilOperation_Subtract;
+			DepthStencil.BackFaceStencilPassOperation = Graphics::StencilOperation_Keep;
+			DepthStencil.BackFaceStencilFunction = Graphics::Comparison_Always;
+			DepthStencilStates["less-read-only"] = CreateDepthStencilState(DepthStencil);
+
+			DepthStencil.DepthEnable = true;
+			DepthStencil.DepthWriteMask = Graphics::DepthWrite_Zero;
+			DepthStencil.DepthFunction = Graphics::Comparison_Greater_Equal;
+			DepthStencil.StencilEnable = true;
+			DepthStencil.StencilReadMask = 0xFF;
+			DepthStencil.StencilWriteMask = 0x0;
+			DepthStencil.FrontFaceStencilFailOperation = Graphics::StencilOperation_Keep;
+			DepthStencil.FrontFaceStencilDepthFailOperation = Graphics::StencilOperation_Add;
+			DepthStencil.FrontFaceStencilPassOperation = Graphics::StencilOperation_Keep;
+			DepthStencil.FrontFaceStencilFunction = Graphics::Comparison_Always;
+			DepthStencil.BackFaceStencilFailOperation = Graphics::StencilOperation_Keep;
+			DepthStencil.BackFaceStencilDepthFailOperation = Graphics::StencilOperation_Subtract;
+			DepthStencil.BackFaceStencilPassOperation = Graphics::StencilOperation_Keep;
+			DepthStencil.BackFaceStencilFunction = Graphics::Comparison_Always;
+			DepthStencilStates["greater-read-only"] = CreateDepthStencilState(DepthStencil);
 
 			DepthStencil.DepthEnable = true;
 			DepthStencil.DepthWriteMask = Graphics::DepthWrite_All;
@@ -962,682 +1037,29 @@ namespace Tomahawk
 		}
 		void GraphicsDevice::InitSections()
 		{
-			if (Backend == RenderBackend_D3D11)
+#ifdef HAS_SHADER_BATCH
+			shader_batch::foreach(this, [](void* Context, const char* Name, const unsigned char* Buffer, unsigned Size)
 			{
-#ifdef HAS_D3D11_TOPOLOGY_EMITTER_FLUX_POINT_HLSL
-				AddSection("topology/emitter/flux/point.hlsl", GET_RESOURCE_BATCH(d3d11_topology_emitter_flux_point_hlsl));
-#else
-				TH_ERROR("topology/emitter/flux/point.hlsl was not compiled");
-#endif
-#ifdef HAS_D3D11_TOPOLOGY_EMITTER_FLUX_QUAD_HLSL
-				AddSection("topology/emitter/flux/quad.hlsl", GET_RESOURCE_BATCH(d3d11_topology_emitter_flux_quad_hlsl));
-#else
-				TH_ERROR("topology/emitter/flux/quad.hlsl was not compiled");
-#endif
-#ifdef HAS_D3D11_TOPOLOGY_EMITTER_FLUX_LINEAR_HLSL
-				AddSection("topology/emitter/flux/linear.hlsl", GET_RESOURCE_BATCH(d3d11_topology_emitter_flux_linear_hlsl));
-#else
-				TH_ERROR("topology/emitter/flux/linear.hlsl was not compiled");
-#endif
-#ifdef HAS_D3D11_TOPOLOGY_EMITTER_GEOMETRY_OPAQUE_HLSL
-				AddSection("topology/emitter/geometry/opaque.hlsl", GET_RESOURCE_BATCH(d3d11_topology_emitter_geometry_opaque_hlsl));
-#else
-				TH_ERROR("topology/emitter/geometry/opaque.hlsl was not compiled");
-#endif
-#ifdef HAS_D3D11_TOPOLOGY_EMITTER_GEOMETRY_TRANSPARENCY_HLSL
-				AddSection("topology/emitter/geometry/transparency.hlsl", GET_RESOURCE_BATCH(d3d11_topology_emitter_geometry_transparency_hlsl));
-#else
-				TH_ERROR("topology/emitter/geometry/limpid.hlsl was not compiled");
-#endif
-#ifdef HAS_D3D11_TOPOLOGY_MODEL_OCCLUSION_HLSL
-				AddSection("topology/model/occlusion.hlsl", GET_RESOURCE_BATCH(d3d11_topology_model_occlusion_hlsl));
-#else
-				TH_ERROR("topology/model/occlusion.hlsl was not compiled");
-#endif
-#ifdef HAS_D3D11_TOPOLOGY_MODEL_FLUX_CUBIC_HLSL
-				AddSection("topology/model/flux/cubic.hlsl", GET_RESOURCE_BATCH(d3d11_topology_model_flux_cubic_hlsl));
-#else
-				TH_ERROR("topology/model/flux/cubic.hlsl was not compiled");
-#endif
-#ifdef HAS_D3D11_TOPOLOGY_MODEL_FLUX_LINEAR_HLSL
-				AddSection("topology/model/flux/linear.hlsl", GET_RESOURCE_BATCH(d3d11_topology_model_flux_linear_hlsl));
-#else
-				TH_ERROR("topology/model/flux/linear.hlsl was not compiled");
-#endif
-#ifdef HAS_D3D11_TOPOLOGY_MODEL_GEOMETRY_HLSL
-				AddSection("topology/model/geometry.hlsl", GET_RESOURCE_BATCH(d3d11_topology_model_geometry_hlsl));
-#else
-				TH_ERROR("topology/model/geometry.hlsl was not compiled");
-#endif
-#ifdef HAS_D3D11_TOPOLOGY_SKIN_OCCLUSION_HLSL
-				AddSection("topology/skin/occlusion.hlsl", GET_RESOURCE_BATCH(d3d11_topology_skin_occlusion_hlsl));
-#else
-				TH_ERROR("topology/skin/occlusion.hlsl was not compiled");
-#endif
-#ifdef HAS_D3D11_TOPOLOGY_SKIN_FLUX_CUBIC_HLSL
-				AddSection("topology/skin/flux/cubic.hlsl", GET_RESOURCE_BATCH(d3d11_topology_skin_flux_cubic_hlsl));
-#else
-				TH_ERROR("topology/skin/flux/cubic.hlsl was not compiled");
-#endif
-#ifdef HAS_D3D11_TOPOLOGY_SKIN_FLUX_LINEAR_HLSL
-				AddSection("topology/skin/flux/linear.hlsl", GET_RESOURCE_BATCH(d3d11_topology_skin_flux_linear_hlsl));
-#else
-				TH_ERROR("topology/skin/flux/linear.hlsl was not compiled");
-#endif
-#ifdef HAS_D3D11_TOPOLOGY_SKIN_GEOMETRY_HLSL
-				AddSection("topology/skin/geometry.hlsl", GET_RESOURCE_BATCH(d3d11_topology_skin_geometry_hlsl));
-#else
-				TH_ERROR("topology/skin/geometry.hlsl was not compiled");
-#endif
-#ifdef HAS_D3D11_TOPOLOGY_DECAL_GEOMETRY_HLSL
-				AddSection("topology/decal/geometry.hlsl", GET_RESOURCE_BATCH(d3d11_topology_decal_geometry_hlsl));
-#else
-				TH_ERROR("topology/decal/geometry.hlsl was not compiled");
-#endif
-#ifdef HAS_D3D11_TOPOLOGY_BASIC_GEOMETRY_HLSL
-				AddSection("topology/basic/geometry.hlsl", GET_RESOURCE_BATCH(d3d11_topology_basic_geometry_hlsl));
-#else
-				TH_ERROR("topology/basic/geometry.hlsl was not compiled");
-#endif
-#ifdef HAS_D3D11_TOPOLOGY_GUI_GEOMETRY_HLSL
-				AddSection("topology/gui/geometry.hlsl", GET_RESOURCE_BATCH(d3d11_topology_gui_geometry_hlsl));
-#else
-				TH_ERROR("topology/gui/geometry.hlsl was not compiled");
-#endif
-#ifdef HAS_D3D11_TOPOLOGY_GUI_BOX_SHADOW_HLSL
-				AddSection("topology/gui/box-shadow.hlsl", GET_RESOURCE_BATCH(d3d11_topology_gui_box_shadow_hlsl));
-#else
-				TH_ERROR("topology/gui/box-shadow.hlsl was not compiled");
-#endif
-#ifdef HAS_D3D11_TOPOLOGY_GUI_BOX_BLUR_HLSL
-				AddSection("topology/gui/box-blur.hlsl", GET_RESOURCE_BATCH(d3d11_topology_gui_box_blur_hlsl));
-#else
-				TH_ERROR("topology/gui/box-blur.hlsl was not compiled");
-#endif
-#ifdef HAS_D3D11_LIGHT_AMBIENT_HLSL
-				AddSection("light/ambient.hlsl", GET_RESOURCE_BATCH(d3d11_light_ambient_hlsl));
-#else
-				TH_ERROR("light/ambient.hlsl was not compiled");
-#endif
-#ifdef HAS_D3D11_LIGHT_PROBE_HLSL
-				AddSection("light/probe.hlsl", GET_RESOURCE_BATCH(d3d11_light_probe_hlsl));
-#else
-				TH_ERROR("light/probe.hlsl was not compiled");
-#endif
-#ifdef HAS_D3D11_LIGHT_DIRECT_LINE_HLSL
-				AddSection("light/direct/line.hlsl", GET_RESOURCE_BATCH(d3d11_light_direct_line_hlsl));
-#else
-				TH_ERROR("light/direct/line.hlsl was not compiled");
-#endif
-#ifdef HAS_D3D11_LIGHT_DIRECT_POINT_HLSL
-				AddSection("light/direct/point.hlsl", GET_RESOURCE_BATCH(d3d11_light_direct_point_hlsl));
-#else
-				TH_ERROR("light/direct/point.hlsl was not compiled");
-#endif
-#ifdef HAS_D3D11_LIGHT_DIRECT_SPOT_HLSL
-				AddSection("light/direct/spot.hlsl", GET_RESOURCE_BATCH(d3d11_light_direct_spot_hlsl));
-#else
-				TH_ERROR("light/direct/spot.hlsl was not compiled");
-#endif
-#ifdef HAS_D3D11_LIGHT_INDIRECT_LINE_HLSL
-				AddSection("light/indirect/line.hlsl", GET_RESOURCE_BATCH(d3d11_light_indirect_line_hlsl));
-#else
-				TH_ERROR("light/indirect/line.hlsl was not compiled");
-#endif
-#ifdef HAS_D3D11_LIGHT_INDIRECT_POINT_HLSL
-				AddSection("light/indirect/point.hlsl", GET_RESOURCE_BATCH(d3d11_light_indirect_point_hlsl));
-#else
-				TH_ERROR("light/indirect/point.hlsl was not compiled");
-#endif
-#ifdef HAS_D3D11_LIGHT_INDIRECT_SPOT_HLSL
-				AddSection("light/indirect/spot.hlsl", GET_RESOURCE_BATCH(d3d11_light_indirect_spot_hlsl));
-#else
-				TH_ERROR("light/indirect/spot.hlsl was not compiled");
-#endif
-#ifdef HAS_D3D11_EFFECTS_TRANSPARENCY_HLSL
-				AddSection("effects/transparency.hlsl", GET_RESOURCE_BATCH(d3d11_effects_transparency_hlsl));
-#else
-				TH_ERROR("effects/limpid.hlsl was not compiled");
-#endif
-#ifdef HAS_D3D11_EFFECTS_AMBIENT_HLSL
-				AddSection("effects/ambient.hlsl", GET_RESOURCE_BATCH(d3d11_effects_ambient_hlsl));
-#else
-				TH_ERROR("effects/ambient.hlsl was not compiled");
-#endif
-#ifdef HAS_D3D11_EFFECTS_BLOOM_X_HLSL
-				AddSection("effects/bloom-x.hlsl", GET_RESOURCE_BATCH(d3d11_effects_bloom_x_hlsl));
-#else
-				TH_ERROR("effects/bloom-x.hlsl was not compiled");
-#endif
-#ifdef HAS_D3D11_EFFECTS_BLOOM_Y_HLSL
-				AddSection("effects/bloom-y.hlsl", GET_RESOURCE_BATCH(d3d11_effects_bloom_y_hlsl));
-#else
-				TH_ERROR("effects/bloom-y.hlsl was not compiled");
-#endif
-#ifdef HAS_D3D11_EFFECTS_BLUR_X_HLSL
-				AddSection("effects/blur-x.hlsl", GET_RESOURCE_BATCH(d3d11_effects_blur_x_hlsl));
-#else
-				TH_ERROR("effects/blur-x.hlsl was not compiled");
-#endif
-#ifdef HAS_D3D11_EFFECTS_BLUR_Y_HLSL
-				AddSection("effects/blur-y.hlsl", GET_RESOURCE_BATCH(d3d11_effects_blur_y_hlsl));
-#else
-				TH_ERROR("effects/blur-y.hlsl was not compiled");
-#endif
-#ifdef HAS_D3D11_EFFECTS_FOCUS_HLSL
-				AddSection("effects/focus.hlsl", GET_RESOURCE_BATCH(d3d11_effects_focus_hlsl));
-#else
-				TH_ERROR("effects/focus.hlsl was not compiled");
-#endif
-#ifdef HAS_D3D11_EFFECTS_GLITCH_HLSL
-				AddSection("effects/glitch.hlsl", GET_RESOURCE_BATCH(d3d11_effects_glitch_hlsl));
-#else
-				TH_ERROR("effects/glitch.hlsl was not compiled");
-#endif
-#ifdef HAS_D3D11_EFFECTS_INDIRECT_HLSL
-				AddSection("effects/indirect.hlsl", GET_RESOURCE_BATCH(d3d11_effects_indirect_hlsl));
-#else
-				TH_ERROR("effects/indirect.hlsl was not compiled");
-#endif
-#ifdef HAS_D3D11_EFFECTS_GLOSS_X_HLSL
-				AddSection("effects/gloss-x.hlsl", GET_RESOURCE_BATCH(d3d11_effects_gloss_x_hlsl));
-#else
-				TH_ERROR("effects/gloss-x.hlsl was not compiled");
-#endif
-#ifdef HAS_D3D11_EFFECTS_GLOSS_Y_HLSL
-				AddSection("effects/gloss-y.hlsl", GET_RESOURCE_BATCH(d3d11_effects_gloss_y_hlsl));
-#else
-				TH_ERROR("effects/gloss-y.hlsl was not compiled");
-#endif
-#ifdef HAS_D3D11_EFFECTS_REFLECTION_HLSL
-				AddSection("effects/reflection.hlsl", GET_RESOURCE_BATCH(d3d11_effects_reflection_hlsl));
-#else
-				TH_ERROR("effects/reflection.hlsl was not compiled");
-#endif
-#ifdef HAS_D3D11_EFFECTS_TONE_HLSL
-				AddSection("effects/tone.hlsl", GET_RESOURCE_BATCH(d3d11_effects_tone_hlsl));
-#else
-				TH_ERROR("effects/tone.hlsl was not compiled");
-#endif
-#ifdef HAS_D3D11_RENDERER_BUFFER_ANIMATION_HLSL
-				AddSection("renderer/buffer/animation.hlsl", GET_RESOURCE_BATCH(d3d11_renderer_buffer_animation_hlsl));
-#else
-				TH_ERROR("renderer/buffer/animation.hlsl was not compiled");
-#endif
-#ifdef HAS_D3D11_RENDERER_BUFFER_CUBIC_HLSL
-				AddSection("renderer/buffer/cubic.hlsl", GET_RESOURCE_BATCH(d3d11_renderer_buffer_cubic_hlsl));
-#else
-				TH_ERROR("renderer/buffer/cubic.hlsl was not compiled");
-#endif
-#ifdef HAS_D3D11_RENDERER_BUFFER_OBJECT_HLSL
-				AddSection("renderer/buffer/object.hlsl", GET_RESOURCE_BATCH(d3d11_renderer_buffer_object_hlsl));
-#else
-				TH_ERROR("renderer/buffer/object.hlsl was not compiled");
-#endif
-#ifdef HAS_D3D11_RENDERER_BUFFER_VIEWER_HLSL
-				AddSection("renderer/buffer/viewer.hlsl", GET_RESOURCE_BATCH(d3d11_renderer_buffer_viewer_hlsl));
-#else
-				TH_ERROR("renderer/buffer/viewer.hlsl was not compiled");
-#endif
-#ifdef HAS_D3D11_RENDERER_INPUT_BASE_HLSL
-				AddSection("renderer/input/base.hlsl", GET_RESOURCE_BATCH(d3d11_renderer_input_base_hlsl));
-#else
-				TH_ERROR("renderer/input/base.hlsl was not compiled");
-#endif
-#ifdef HAS_D3D11_RENDERER_INPUT_ELEMENT_HLSL
-				AddSection("renderer/input/element.hlsl", GET_RESOURCE_BATCH(d3d11_renderer_input_element_hlsl));
-#else
-				TH_ERROR("renderer/input/element.hlsl was not compiled");
-#endif
-#ifdef HAS_D3D11_RENDERER_INPUT_SV_HLSL
-				AddSection("renderer/input/sv.hlsl", GET_RESOURCE_BATCH(d3d11_renderer_input_sv_hlsl));
-#else
-				TH_ERROR("renderer/input/sv.hlsl was not compiled");
-#endif
-#ifdef HAS_D3D11_RENDERER_VERTEX_ELEMENT_HLSL
-				AddSection("renderer/vertex/element.hlsl", GET_RESOURCE_BATCH(d3d11_renderer_vertex_element_hlsl));
-#else
-				TH_ERROR("renderer/vertex/element.hlsl was not compiled");
-#endif
-#ifdef HAS_D3D11_RENDERER_VERTEX_GUI_HLSL
-				AddSection("renderer/vertex/gui.hlsl", GET_RESOURCE_BATCH(d3d11_renderer_vertex_gui_hlsl));
-#else
-				TH_ERROR("renderer/vertex/gui.hlsl was not compiled");
-#endif
-#ifdef HAS_D3D11_RENDERER_VERTEX_SHAPE_HLSL
-				AddSection("renderer/vertex/shape.hlsl", GET_RESOURCE_BATCH(d3d11_renderer_vertex_shape_hlsl));
-#else
-				TH_ERROR("renderer/vertex/shape.hlsl was not compiled");
-#endif
-#ifdef HAS_D3D11_RENDERER_VERTEX_SKIN_HLSL
-				AddSection("renderer/vertex/skin.hlsl", GET_RESOURCE_BATCH(d3d11_renderer_vertex_skin_hlsl));
-#else
-				TH_ERROR("renderer/vertex/skin.hlsl was not compiled");
-#endif
-#ifdef HAS_D3D11_RENDERER_ELEMENT_HLSL
-				AddSection("renderer/element.hlsl", GET_RESOURCE_BATCH(d3d11_renderer_element_hlsl));
-#else
-				TH_ERROR("renderer/element.hlsl was not compiled");
-#endif
-#ifdef HAS_D3D11_RENDERER_FRAGMENT_HLSL
-				AddSection("renderer/fragment.hlsl", GET_RESOURCE_BATCH(d3d11_renderer_fragment_hlsl));
-#else
-				TH_ERROR("renderer/fragment.hlsl was not compiled");
-#endif
-#ifdef HAS_D3D11_RENDERER_GBUFFER_HLSL
-				AddSection("renderer/gbuffer.hlsl", GET_RESOURCE_BATCH(d3d11_renderer_gbuffer_hlsl));
-#else
-				TH_ERROR("renderer/gbuffer.hlsl was not compiled");
-#endif
-#ifdef HAS_D3D11_RENDERER_MATERIAL_HLSL
-				AddSection("renderer/material.hlsl", GET_RESOURCE_BATCH(d3d11_renderer_material_hlsl));
-#else
-				TH_ERROR("renderer/material.hlsl was not compiled");
-#endif
-#ifdef HAS_D3D11_RENDERER_VERTEX_HLSL
-				AddSection("renderer/vertex.hlsl", GET_RESOURCE_BATCH(d3d11_renderer_vertex_hlsl));
-#else
-				TH_ERROR("renderer/vertex.hlsl was not compiled");
-#endif
-#ifdef HAS_D3D11_STANDARD_COMPRESS_HLSL
-				AddSection("standard/compress.hlsl", GET_RESOURCE_BATCH(d3d11_standard_compress_hlsl));
-#else
-				TH_ERROR("standard/compress.hlsl was not compiled");
-#endif
-#ifdef HAS_D3D11_STANDARD_ATMOSPHERE_HLSL
-				AddSection("standard/atmosphere.hlsl", GET_RESOURCE_BATCH(d3d11_standard_atmosphere_hlsl));
-#else
-				TH_ERROR("standard/atmosphere.hlsl was not compiled");
-#endif
-#ifdef HAS_D3D11_STANDARD_COOK_TORRANCE_HLSL
-				AddSection("standard/cook-torrance.hlsl", GET_RESOURCE_BATCH(d3d11_standard_cook_torrance_hlsl));
-#else
-				TH_ERROR("standard/cook-torrance.hlsl was not compiled");
-#endif
-#ifdef HAS_D3D11_STANDARD_POW_HLSL
-				AddSection("standard/pow.hlsl", GET_RESOURCE_BATCH(d3d11_standard_pow_hlsl));
-#else
-				TH_ERROR("standard/pow.hlsl was not compiled");
-#endif
-#ifdef HAS_D3D11_STANDARD_RANDOM_FLOAT_HLSL
-				AddSection("standard/random-float.hlsl", GET_RESOURCE_BATCH(d3d11_standard_random_float_hlsl));
-#else
-				TH_ERROR("standard/random-float.hlsl was not compiled");
-#endif
-#ifdef HAS_D3D11_STANDARD_RAY_MARCH_HLSL
-				AddSection("standard/ray-march.hlsl", GET_RESOURCE_BATCH(d3d11_standard_ray_march_hlsl));
-#else
-				TH_ERROR("standard/ray-march.hlsl was not compiled");
-#endif
-#ifdef HAS_D3D11_STANDARD_SPACE_SV_HLSL
-				AddSection("standard/space-sv.hlsl", GET_RESOURCE_BATCH(d3d11_standard_space_sv_hlsl));
-#else
-				TH_ERROR("standard/space-sv.hlsl was not compiled");
-#endif
-#ifdef HAS_D3D11_STANDARD_SPACE_UV_HLSL
-				AddSection("standard/space-uv.hlsl", GET_RESOURCE_BATCH(d3d11_standard_space_uv_hlsl));
-#else
-				TH_ERROR("standard/space-uv.hlsl was not compiled");
-#endif
-#ifdef HAS_D3D11_WORKFLOW_GEOMETRY_HLSL
-				AddSection("workflow/geometry.hlsl", GET_RESOURCE_BATCH(d3d11_workflow_geometry_hlsl));
-#else
-				TH_ERROR("workflow/geometry.hlsl was not compiled");
-#endif
-#ifdef HAS_D3D11_WORKFLOW_RASTERIZER_HLSL
-				AddSection("workflow/rasterizer.hlsl", GET_RESOURCE_BATCH(d3d11_workflow_rasterizer_hlsl));
-#else
-				TH_ERROR("workflow/rasterizer.hlsl was not compiled");
-#endif
-#ifdef HAS_D3D11_WORKFLOW_PRIMITIVE_HLSL
-				AddSection("workflow/primitive.hlsl", GET_RESOURCE_BATCH(d3d11_workflow_primitive_hlsl));
-#else
-				TH_ERROR("workflow/primitive.hlsl was not compiled");
-#endif
-#ifdef HAS_D3D11_WORKFLOW_EFFECTS_HLSL
-				AddSection("workflow/effects.hlsl", GET_RESOURCE_BATCH(d3d11_workflow_effects_hlsl));
-#else
-				TH_ERROR("workflow/effects.hlsl was not compiled");
-#endif
-			}
-			else if (Backend == RenderBackend_OGL)
-			{
-#ifdef HAS_OGL_TOPOLOGY_EMITTER_FLUX_POINT_GLSL
-				AddSection("topology/emitter/flux/point.glsl", GET_RESOURCE_BATCH(ogl_topology_emitter_flux_point_glsl));
-#else
-				TH_ERROR("topology/emitter/flux/point.glsl was not compiled");
-#endif
-#ifdef HAS_OGL_TOPOLOGY_EMITTER_FLUX_QUAD_GLSL
-				AddSection("topology/emitter/flux/quad.glsl", GET_RESOURCE_BATCH(ogl_topology_emitter_flux_quad_glsl));
-#else
-				TH_ERROR("topology/emitter/flux/quad.glsl was not compiled");
-#endif
-#ifdef HAS_OGL_TOPOLOGY_EMITTER_FLUX_LINEAR_GLSL
-				AddSection("topology/emitter/flux/linear.glsl", GET_RESOURCE_BATCH(ogl_topology_emitter_flux_linear_glsl));
-#else
-				TH_ERROR("topology/emitter/flux/linear.glsl was not compiled");
-#endif
-#ifdef HAS_OGL_TOPOLOGY_EMITTER_GEOMETRY_OPAQUE_GLSL
-				AddSection("topology/emitter/geometry/opaque.glsl", GET_RESOURCE_BATCH(ogl_topology_emitter_geometry_opaque_glsl));
-#else
-				TH_ERROR("topology/emitter/geometry/opaque.glsl was not compiled");
-#endif
-#ifdef HAS_OGL_TOPOLOGY_EMITTER_GEOMETRY_TRANSPARENCY_GLSL
-				AddSection("topology/emitter/geometry/transparency.glsl", GET_RESOURCE_BATCH(ogl_topology_emitter_geometry_transparency_glsl));
-#else
-				TH_ERROR("topology/emitter/geometry/limpid.glsl was not compiled");
-#endif
-#ifdef HAS_OGL_TOPOLOGY_MODEL_OCCLUSION_GLSL
-				AddSection("topology/model/occlusion.glsl", GET_RESOURCE_BATCH(ogl_topology_model_occlusion_glsl));
-#else
-				TH_ERROR("topology/model/occlusion.glsl was not compiled");
-#endif
-#ifdef HAS_OGL_TOPOLOGY_MODEL_FLUX_CUBIC_GLSL
-				AddSection("topology/model/flux/cubic.glsl", GET_RESOURCE_BATCH(ogl_topology_model_flux_cubic_glsl));
-#else
-				TH_ERROR("topology/model/flux/cubic.glsl was not compiled");
-#endif
-#ifdef HAS_OGL_TOPOLOGY_MODEL_FLUX_LINEAR_GLSL
-				AddSection("topology/model/flux/linear.glsl", GET_RESOURCE_BATCH(ogl_topology_model_flux_linear_glsl));
-#else
-				TH_ERROR("topology/model/flux/linear.glsl was not compiled");
-#endif
-#ifdef HAS_OGL_TOPOLOGY_MODEL_GEOMETRY_GLSL
-				AddSection("topology/model/geometry.glsl", GET_RESOURCE_BATCH(ogl_topology_model_geometry_glsl));
-#else
-				TH_ERROR("topology/model/geometry.glsl was not compiled");
-#endif
-#ifdef HAS_OGL_TOPOLOGY_SKIN_OCCLUSION_GLSL
-				AddSection("topology/skin/occlusion.glsl", GET_RESOURCE_BATCH(ogl_topology_skin_occlusion_glsl));
-#else
-				TH_ERROR("topology/skin/occlusion.glsl was not compiled");
-#endif
-#ifdef HAS_OGL_TOPOLOGY_SKIN_FLUX_CUBIC_GLSL
-				AddSection("topology/skin/flux/cubic.glsl", GET_RESOURCE_BATCH(ogl_topology_skin_flux_cubic_glsl));
-#else
-				TH_ERROR("topology/skin/flux/cubic.glsl was not compiled");
-#endif
-#ifdef HAS_OGL_TOPOLOGY_SKIN_FLUX_LINEAR_GLSL
-				AddSection("topology/skin/flux/linear.glsl", GET_RESOURCE_BATCH(ogl_topology_skin_flux_linear_glsl));
-#else
-				TH_ERROR("topology/skin/flux/linear.glsl was not compiled");
-#endif
-#ifdef HAS_OGL_TOPOLOGY_SKIN_GEOMETRY_GLSL
-				AddSection("topology/skin/geometry.glsl", GET_RESOURCE_BATCH(ogl_topology_skin_geometry_glsl));
-#else
-				TH_ERROR("topology/skin/geometry.glsl was not compiled");
-#endif
-#ifdef HAS_OGL_TOPOLOGY_DECAL_GEOMETRY_GLSL
-				AddSection("topology/decal/geometry.glsl", GET_RESOURCE_BATCH(ogl_topology_decal_geometry_glsl));
-#else
-				TH_ERROR("topology/decal/geometry.glsl was not compiled");
-#endif
-#ifdef HAS_OGL_TOPOLOGY_BASIC_GEOMETRY_GLSL
-				AddSection("topology/basic/geometry.glsl", GET_RESOURCE_BATCH(ogl_topology_basic_geometry_glsl));
-#else
-				TH_ERROR("topology/basic/geometry.glsl was not compiled");
-#endif
-#ifdef HAS_OGL_TOPOLOGY_GUI_GEOMETRY_GLSL
-				AddSection("topology/gui/geometry.glsl", GET_RESOURCE_BATCH(ogl_topology_gui_geometry_glsl));
-#else
-				TH_ERROR("topology/gui/geometry.glsl was not compiled");
-#endif
-#ifdef HAS_OGL_TOPOLOGY_GUI_BOX_SHADOW_GLSL
-				AddSection("topology/gui/box-shadow.glsl", GET_RESOURCE_BATCH(ogl_topology_gui_box_shadow_glsl));
-#else
-				TH_ERROR("topology/gui/box-shadow.glsl was not compiled");
-#endif
-#ifdef HAS_OGL_TOPOLOGY_GUI_BOX_BLUR_GLSL
-				AddSection("topology/gui/box-blur.glsl", GET_RESOURCE_BATCH(ogl_topology_gui_box_blur_glsl));
-#else
-				TH_ERROR("topology/gui/box-blur.glsl was not compiled");
-#endif
-#ifdef HAS_OGL_LIGHT_AMBIENT_GLSL
-				AddSection("light/ambient.glsl", GET_RESOURCE_BATCH(ogl_light_ambient_glsl));
-#else
-				TH_ERROR("light/ambient.glsl was not compiled");
-#endif
-#ifdef HAS_OGL_LIGHT_PROBE_GLSL
-				AddSection("light/probe.glsl", GET_RESOURCE_BATCH(ogl_light_probe_glsl));
-#else
-				TH_ERROR("light/probe.glsl was not compiled");
-#endif
-#ifdef HAS_OGL_LIGHT_DIRECT_LINE_GLSL
-				AddSection("light/direct/line.glsl", GET_RESOURCE_BATCH(ogl_light_direct_line_glsl));
-#else
-				TH_ERROR("light/direct/line.glsl was not compiled");
-#endif
-#ifdef HAS_OGL_LIGHT_DIRECT_POINT_GLSL
-				AddSection("light/direct/point.glsl", GET_RESOURCE_BATCH(ogl_light_direct_point_glsl));
-#else
-				TH_ERROR("light/direct/point.glsl was not compiled");
-#endif
-#ifdef HAS_OGL_LIGHT_DIRECT_SPOT_GLSL
-				AddSection("light/direct/spot.glsl", GET_RESOURCE_BATCH(ogl_light_direct_spot_glsl));
-#else
-				TH_ERROR("light/direct/spot.glsl was not compiled");
-#endif
-#ifdef HAS_OGL_LIGHT_INDIRECT_LINE_GLSL
-				AddSection("light/indirect/line.glsl", GET_RESOURCE_BATCH(ogl_light_indirect_line_glsl));
-#else
-				TH_ERROR("light/indirect/line.glsl was not compiled");
-#endif
-#ifdef HAS_OGL_LIGHT_INDIRECT_POINT_GLSL
-				AddSection("light/indirect/point.glsl", GET_RESOURCE_BATCH(ogl_light_indirect_point_glsl));
-#else
-				TH_ERROR("light/indirect/point.glsl was not compiled");
-#endif
-#ifdef HAS_OGL_LIGHT_INDIRECT_SPOT_GLSL
-				AddSection("light/indirect/spot.glsl", GET_RESOURCE_BATCH(ogl_light_indirect_spot_glsl));
-#else
-				TH_ERROR("light/indirect/spot.glsl was not compiled");
-#endif
-#ifdef HAS_OGL_EFFECTS_TRANSPARENCY_GLSL
-				AddSection("effects/transparency.glsl", GET_RESOURCE_BATCH(ogl_effects_transparency_glsl));
-#else
-				TH_ERROR("effects/limpid.glsl was not compiled");
-#endif
-#ifdef HAS_OGL_EFFECTS_AMBIENT_GLSL
-				AddSection("effects/ambient.glsl", GET_RESOURCE_BATCH(ogl_effects_ambient_glsl));
-#else
-				TH_ERROR("effects/ambient.glsl was not compiled");
-#endif
-#ifdef HAS_OGL_EFFECTS_BLOOM_X_GLSL
-				AddSection("effects/bloom-x.glsl", GET_RESOURCE_BATCH(ogl_effects_bloom_x_glsl));
-#else
-				TH_ERROR("effects/bloom-x.glsl was not compiled");
-#endif
-#ifdef HAS_OGL_EFFECTS_BLOOM_Y_GLSL
-				AddSection("effects/bloom-y.glsl", GET_RESOURCE_BATCH(ogl_effects_bloom_y_glsl));
-#else
-				TH_ERROR("effects/bloom-y.glsl was not compiled");
-#endif
-#ifdef HAS_OGL_EFFECTS_BLUR_X_GLSL
-				AddSection("effects/blur-x.glsl", GET_RESOURCE_BATCH(ogl_effects_blur_x_glsl));
-#else
-				TH_ERROR("effects/blur-x.glsl was not compiled");
-#endif
-#ifdef HAS_OGL_EFFECTS_BLUR_Y_GLSL
-				AddSection("effects/blur-y.glsl", GET_RESOURCE_BATCH(ogl_effects_blur_y_glsl));
-#else
-				TH_ERROR("effects/blur-y.glsl was not compiled");
-#endif
-#ifdef HAS_OGL_EFFECTS_FOCUS_GLSL
-				AddSection("effects/focus.glsl", GET_RESOURCE_BATCH(ogl_effects_focus_glsl));
-#else
-				TH_ERROR("effects/focus.glsl was not compiled");
-#endif
-#ifdef HAS_OGL_EFFECTS_GLITCH_GLSL
-				AddSection("effects/glitch.glsl", GET_RESOURCE_BATCH(ogl_effects_glitch_glsl));
-#else
-				TH_ERROR("effects/glitch.glsl was not compiled");
-#endif
-#ifdef HAS_OGL_EFFECTS_INDIRECT_GLSL
-				AddSection("effects/indirect.glsl", GET_RESOURCE_BATCH(ogl_effects_indirect_glsl));
-#else
-				TH_ERROR("effects/indirect.glsl was not compiled");
-#endif
-#ifdef HAS_OGL_EFFECTS_GLOSS_X_GLSL
-				AddSection("effects/gloss-x.glsl", GET_RESOURCE_BATCH(ogl_effects_gloss_x_glsl));
-#else
-				TH_ERROR("effects/gloss-x.glsl was not compiled");
-#endif
-#ifdef HAS_OGL_EFFECTS_GLOSS_Y_GLSL
-				AddSection("effects/gloss-y.glsl", GET_RESOURCE_BATCH(ogl_effects_gloss_y_glsl));
-#else
-				TH_ERROR("effects/gloss-y.glsl was not compiled");
-#endif
-#ifdef HAS_OGL_EFFECTS_REFLECTION_GLSL
-				AddSection("effects/reflection.glsl", GET_RESOURCE_BATCH(ogl_effects_reflection_glsl));
-#else
-				TH_ERROR("effects/reflection.glsl was not compiled");
-#endif
-#ifdef HAS_OGL_EFFECTS_TONE_GLSL
-				AddSection("effects/tone.glsl", GET_RESOURCE_BATCH(ogl_effects_tone_glsl));
-#else
-				TH_ERROR("effects/tone.glsl was not compiled");
-#endif
-#ifdef HAS_OGL_RENDERER_BUFFER_ANIMATION_GLSL
-				AddSection("renderer/buffer/animation.glsl", GET_RESOURCE_BATCH(ogl_renderer_buffer_animation_glsl));
-#else
-				TH_ERROR("renderer/buffer/animation.glsl was not compiled");
-#endif
-#ifdef HAS_OGL_RENDERER_BUFFER_CUBIC_GLSL
-				AddSection("renderer/buffer/cubic.glsl", GET_RESOURCE_BATCH(ogl_renderer_buffer_cubic_glsl));
-#else
-				TH_ERROR("renderer/buffer/cubic.glsl was not compiled");
-#endif
-#ifdef HAS_OGL_RENDERER_BUFFER_OBJECT_GLSL
-				AddSection("renderer/buffer/object.glsl", GET_RESOURCE_BATCH(ogl_renderer_buffer_object_glsl));
-#else
-				TH_ERROR("renderer/buffer/object.glsl was not compiled");
-#endif
-#ifdef HAS_OGL_RENDERER_BUFFER_VIEWER_GLSL
-				AddSection("renderer/buffer/viewer.glsl", GET_RESOURCE_BATCH(ogl_renderer_buffer_viewer_glsl));
-#else
-				TH_ERROR("renderer/buffer/viewer.glsl was not compiled");
-#endif
-#ifdef HAS_OGL_RENDERER_INPUT_BASE_GLSL
-				AddSection("renderer/input/base.glsl", GET_RESOURCE_BATCH(ogl_renderer_input_base_glsl));
-#else
-				TH_ERROR("renderer/input/base.glsl was not compiled");
-#endif
-#ifdef HAS_OGL_RENDERER_INPUT_ELEMENT_GLSL
-				AddSection("renderer/input/element.glsl", GET_RESOURCE_BATCH(ogl_renderer_input_element_glsl));
-#else
-				TH_ERROR("renderer/input/element.glsl was not compiled");
-#endif
-#ifdef HAS_OGL_RENDERER_INPUT_SV_GLSL
-				AddSection("renderer/input/sv.glsl", GET_RESOURCE_BATCH(ogl_renderer_input_sv_glsl));
-#else
-				TH_ERROR("renderer/input/sv.glsl was not compiled");
-#endif
-#ifdef HAS_OGL_RENDERER_VERTEX_ELEMENT_GLSL
-				AddSection("renderer/vertex/element.glsl", GET_RESOURCE_BATCH(ogl_renderer_vertex_element_glsl));
-#else
-				TH_ERROR("renderer/vertex/element.glsl was not compiled");
-#endif
-#ifdef HAS_OGL_RENDERER_VERTEX_GUI_GLSL
-				AddSection("renderer/vertex/gui.glsl", GET_RESOURCE_BATCH(ogl_renderer_vertex_gui_glsl));
-#else
-				TH_ERROR("renderer/vertex/gui.glsl was not compiled");
-#endif
-#ifdef HAS_OGL_RENDERER_VERTEX_SHAPE_GLSL
-				AddSection("renderer/vertex/shape.glsl", GET_RESOURCE_BATCH(ogl_renderer_vertex_shape_glsl));
-#else
-				TH_ERROR("renderer/vertex/shape.glsl was not compiled");
-#endif
-#ifdef HAS_OGL_RENDERER_VERTEX_SKIN_GLSL
-				AddSection("renderer/vertex/skin.glsl", GET_RESOURCE_BATCH(ogl_renderer_vertex_skin_glsl));
-#else
-				TH_ERROR("renderer/vertex/skin.glsl was not compiled");
-#endif
-#ifdef HAS_OGL_RENDERER_ELEMENT_GLSL
-				AddSection("renderer/element.glsl", GET_RESOURCE_BATCH(ogl_renderer_element_glsl));
-#else
-				TH_ERROR("renderer/element.glsl was not compiled");
-#endif
-#ifdef HAS_OGL_RENDERER_FRAGMENT_GLSL
-				AddSection("renderer/fragment.glsl", GET_RESOURCE_BATCH(ogl_renderer_fragment_glsl));
-#else
-				TH_ERROR("renderer/fragment.glsl was not compiled");
-#endif
-#ifdef HAS_OGL_RENDERER_GBUFFER_GLSL
-				AddSection("renderer/gbuffer.glsl", GET_RESOURCE_BATCH(ogl_renderer_gbuffer_glsl));
-#else
-				TH_ERROR("renderer/gbuffer.glsl was not compiled");
-#endif
-#ifdef HAS_OGL_RENDERER_MATERIAL_GLSL
-				AddSection("renderer/material.glsl", GET_RESOURCE_BATCH(ogl_renderer_material_glsl));
-#else
-				TH_ERROR("renderer/material.glsl was not compiled");
-#endif
-#ifdef HAS_OGL_RENDERER_VERTEX_GLSL
-				AddSection("renderer/vertex.glsl", GET_RESOURCE_BATCH(ogl_renderer_vertex_glsl));
-#else
-				TH_ERROR("renderer/vertex.glsl was not compiled");
-#endif
-#ifdef HAS_OGL_STANDARD_COMPRESS_GLSL
-				AddSection("standard/compress.glsl", GET_RESOURCE_BATCH(ogl_standard_compress_glsl));
-#else
-				TH_ERROR("standard/compress.glsl was not compiled");
-#endif
-#ifdef HAS_OGL_STANDARD_ATMOSPHERE_GLSL
-				AddSection("standard/atmosphere.glsl", GET_RESOURCE_BATCH(ogl_standard_atmosphere_glsl));
-#else
-				TH_ERROR("standard/atmosphere.glsl was not compiled");
-#endif
-#ifdef HAS_OGL_STANDARD_COOK_TORRANCE_GLSL
-				AddSection("standard/cook-torrance.glsl", GET_RESOURCE_BATCH(ogl_standard_cook_torrance_glsl));
-#else
-				TH_ERROR("standard/cook-torrance.glsl was not compiled");
-#endif
-#ifdef HAS_OGL_STANDARD_POW_GLSL
-				AddSection("standard/pow.glsl", GET_RESOURCE_BATCH(ogl_standard_pow_glsl));
-#else
-				TH_ERROR("standard/pow.glsl was not compiled");
-#endif
-#ifdef HAS_OGL_STANDARD_RANDOM_FLOAT_GLSL
-				AddSection("standard/random-float.glsl", GET_RESOURCE_BATCH(ogl_standard_random_float_glsl));
-#else
-				TH_ERROR("standard/random-float.glsl was not compiled");
-#endif
-#ifdef HAS_OGL_STANDARD_RAY_MARCH_GLSL
-				AddSection("standard/ray-march.glsl", GET_RESOURCE_BATCH(ogl_standard_ray_march_glsl));
-#else
-				TH_ERROR("standard/ray-march.glsl was not compiled");
-#endif
-#ifdef HAS_OGL_STANDARD_SPACE_SV_GLSL
-				AddSection("standard/space-sv.glsl", GET_RESOURCE_BATCH(ogl_standard_space_sv_glsl));
-#else
-				TH_ERROR("standard/space-sv.glsl was not compiled");
-#endif
-#ifdef HAS_OGL_STANDARD_SPACE_UV_GLSL
-				AddSection("standard/space-uv.glsl", GET_RESOURCE_BATCH(ogl_standard_space_uv_glsl));
-#else
-				TH_ERROR("standard/space-uv.glsl was not compiled");
-#endif
-#ifdef HAS_OGL_WORKFLOW_GEOMETRY_GLSL
-				AddSection("workflow/geometry.glsl", GET_RESOURCE_BATCH(ogl_workflow_geometry_glsl));
-#else
-				TH_ERROR("workflow/geometry.glsl was not compiled");
-#endif
-#ifdef HAS_OGL_WORKFLOW_RASTERIZER_GLSL
-				AddSection("workflow/rasterizer.glsl", GET_RESOURCE_BATCH(ogl_workflow_rasterizer_glsl));
-#else
-				TH_ERROR("workflow/rasterizer.glsl was not compiled");
-#endif
-#ifdef HAS_OGL_WORKFLOW_PRIMITIVE_GLSL
-				AddSection("workflow/primitive.glsl", GET_RESOURCE_BATCH(ogl_workflow_primitive_glsl));
-#else
-				TH_ERROR("workflow/primitive.glsl was not compiled");
-#endif
-#ifdef HAS_OGL_WORKFLOW_EFFECTS_GLSL
-				AddSection("workflow/effects.glsl", GET_RESOURCE_BATCH(ogl_workflow_effects_glsl));
-#else
-				TH_ERROR("workflow/effects.glsl was not compiled");
+				GraphicsDevice* Base = (GraphicsDevice*)Context;
+				if (!Base)
+					return;
+
+				RenderBackend Backend = Base->GetBackend();
+				if (Backend == RenderBackend_NONE)
+					return;
+
+				Rest::Stroke Source(Name);
+				if (Backend == RenderBackend_D3D11 && !Source.StartsWith("d3d11/"))
+					return;
+				else if (Backend == RenderBackend_OGL && !Source.StartsWith("ogl/"))
+					return;
+
+				Source.Erase(0, Source.Find('/').End);
+				Base->AddSection(Source.R(), std::string((const char*)Buffer, Size));
+			});
+#else
+			TH_WARN("default shader resources were not compiled");
 #endif
-			}
 		}
 		unsigned int GraphicsDevice::GetMipLevel(unsigned int Width, unsigned int Height)
 		{
@@ -2580,48 +2002,48 @@ namespace Tomahawk
 			return false;
 #endif
 		}
-		float Activity::GetX()
+		uint32_t Activity::GetX()
 		{
 #ifdef TH_HAS_SDL2
 			int X, Y;
 			SDL_GetWindowPosition(Handle, &X, &Y);
 
-			return (float)X;
+			return X;
 #else
-			return 0.0f;
+			return 0;
 #endif
 		}
-		float Activity::GetY()
+		uint32_t Activity::GetY()
 		{
 #ifdef TH_HAS_SDL2
 			int X, Y;
 			SDL_GetWindowPosition(Handle, &X, &Y);
 
-			return (float)Y;
+			return Y;
 #else
-			return 0.0f;
+			return 0;
 #endif
 		}
-		float Activity::GetWidth()
+		uint32_t Activity::GetWidth()
 		{
 #ifdef TH_HAS_SDL2
 			int W, H;
 			SDL_GetWindowSize(Handle, &W, &H);
 
-			return (float)W;
+			return W;
 #else
-			return 0.0f;
+			return 0;
 #endif
 		}
-		float Activity::GetHeight()
+		uint32_t Activity::GetHeight()
 		{
 #ifdef TH_HAS_SDL2
 			int W, H;
 			SDL_GetWindowSize(Handle, &W, &H);
 
-			return (float)H;
+			return H;
 #else
-			return 0.0f;
+			return 0;
 #endif
 		}
 		float Activity::GetAspectRatio()

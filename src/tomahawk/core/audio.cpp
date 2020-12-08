@@ -779,14 +779,26 @@ namespace Tomahawk
 			Device = (void*)alcOpenDevice(nullptr);
 			if (!Device)
 			{
-			    TH_ERROR("couldn't create alc device");
+				AudioContext::Unlock();
+				TH_ERROR("couldn't create alc device");
+
+				int Code = alGetError();
+				if (Code != AL_NO_ERROR)
+					TH_ERROR(alGetString(Code));
+
 				return;
 			}
 
 			Context = (void*)alcCreateContext((ALCdevice*)Device, nullptr);
 			if (!Context)
 			{
+				AudioContext::Unlock();
 				TH_ERROR("couldn't create alc device context");
+
+				int Code = alcGetError((ALCdevice*)Device);
+				if (Code != AL_NO_ERROR)
+					TH_ERROR(alcGetString((ALCdevice*)Device, Code));
+
 				return;
 			}
 

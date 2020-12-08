@@ -103,11 +103,10 @@ Tomahawk is a cross-platform C++14 framework to create any type of application f
 + HTML-like GUI declarations
 + Logical nodes for conditional rendering
 + Read/write dynamic properties
-+ Various widgets from Nuklear
++ Various widgets
 + Layouting system
 + Font system
-+ Callbacks for every widget
-+ Fully changeable GUI tree
++ Based on RmlUi
 #### Engine
 + Thread-safe scene graph
 + Async/sync content management with processors
@@ -221,4 +220,4 @@ These are resolved automatically.
 Tomahawk is licensed under the MIT license
 
 ## Known Issues
-This project is under development, bugs aren't the rare thing. Also dependency installation process can by quite tricky on some platforms like MacOS. OpenGL is not working properly, sooner or later it will be fully implemented, but it requires too much work for one person. There is about 60 shaders written in HLSL, they must be also implemented in GLSL for OpenGL to work properly. Script interface covers less than 5% of Tomahawk's abilities, bindings are wasting to much time to write, sorry :)
+This project is under development, bugs aren't the rare thing. Also dependency installation process can by quite tricky on some platforms like MacOS. OpenGL is not working properly, sooner or later it will be fully implemented, but it requires too much work for one person. There is about 60 shaders written in HLSL, they must be also implemented in GLSL for OpenGL to work properly. Script interface covers less than 5% of Tomahawk's abilities, bindings are wasting too much time to write, sorry :)

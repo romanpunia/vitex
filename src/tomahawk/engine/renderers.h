@@ -15,10 +15,20 @@ namespace Tomahawk
 			private:
 				struct
 				{
+					struct
+					{
+						Graphics::Shader* Linear = nullptr;
+						Graphics::Shader* Cubic = nullptr;
+					} Flux;
+					
+					struct
+					{
+						Graphics::Shader* Linear = nullptr;
+						Graphics::Shader* Cubic = nullptr;
+					} Depth;
+
 					Graphics::Shader* Geometry = nullptr;
 					Graphics::Shader* Occlusion = nullptr;
-					Graphics::Shader* Linear = nullptr;
-					Graphics::Shader* Cubic = nullptr;
 				} Shaders;
 
 				struct
@@ -41,8 +51,8 @@ namespace Tomahawk
 				void Deactivate() override;
 				void CullGeometry(const Viewer& View, Rest::Pool<Drawable*>* Geometry) override;
 				void RenderGeometry(Rest::Timer* Time, Rest::Pool<Drawable*>* Geometry, RenderOpt Options) override;
-				void RenderFluxLinear(Rest::Timer* Time, Rest::Pool<Drawable*>* Geometry) override;
-				void RenderFluxCubic(Rest::Timer* Time, Rest::Pool<Drawable*>* Geometry, Compute::Matrix4x4* ViewProjection) override;
+				void RenderFluxLinear(Rest::Timer* Time, Rest::Pool<Drawable*>* Geometry, RenderOpt Options) override;
+				void RenderFluxCubic(Rest::Timer* Time, Rest::Pool<Drawable*>* Geometry, Compute::Matrix4x4* ViewProjection, RenderOpt Options) override;
 				
 			public:
 				TH_COMPONENT("model-renderer");
@@ -53,10 +63,20 @@ namespace Tomahawk
 			private:
 				struct
 				{
+					struct
+					{
+						Graphics::Shader* Linear = nullptr;
+						Graphics::Shader* Cubic = nullptr;
+					} Flux;
+
+					struct
+					{
+						Graphics::Shader* Linear = nullptr;
+						Graphics::Shader* Cubic = nullptr;
+					} Depth;
+
 					Graphics::Shader* Geometry = nullptr;
 					Graphics::Shader* Occlusion = nullptr;
-					Graphics::Shader* Linear = nullptr;
-					Graphics::Shader* Cubic = nullptr;
 				} Shaders;
 
 				struct
@@ -79,8 +99,8 @@ namespace Tomahawk
 				void Deactivate() override;
 				void CullGeometry(const Viewer& View, Rest::Pool<Drawable*>* Geometry) override;
 				void RenderGeometry(Rest::Timer* Time, Rest::Pool<Drawable*>* Geometry, RenderOpt Options) override;
-				void RenderFluxLinear(Rest::Timer* Time, Rest::Pool<Drawable*>* Geometry) override;
-				void RenderFluxCubic(Rest::Timer* Time, Rest::Pool<Drawable*>* Geometry, Compute::Matrix4x4* ViewProjection) override;
+				void RenderFluxLinear(Rest::Timer* Time, Rest::Pool<Drawable*>* Geometry, RenderOpt Options) override;
+				void RenderFluxCubic(Rest::Timer* Time, Rest::Pool<Drawable*>* Geometry, Compute::Matrix4x4* ViewProjection, RenderOpt Options) override;
 
 			public:
 				TH_COMPONENT("skin-renderer");
@@ -91,10 +111,20 @@ namespace Tomahawk
 			private:
 				struct
 				{
+					struct
+					{
+						Graphics::Shader* Linear = nullptr;
+						Graphics::Shader* Cubic = nullptr;
+					} Flux;
+
+					struct
+					{
+						Graphics::Shader* Linear = nullptr;
+						Graphics::Shader* Cubic = nullptr;
+					} Depth;
+
 					Graphics::Shader* Geometry = nullptr;
 					Graphics::Shader* Occlusion = nullptr;
-					Graphics::Shader* Linear = nullptr;
-					Graphics::Shader* Cubic = nullptr;
 				} Shaders;
 
 				struct
@@ -119,8 +149,8 @@ namespace Tomahawk
 				void Deactivate() override;
 				void CullGeometry(const Viewer& View, Rest::Pool<Drawable*>* Geometry) override;
 				void RenderGeometry(Rest::Timer* Time, Rest::Pool<Drawable*>* Geometry, RenderOpt Options) override;
-				void RenderFluxLinear(Rest::Timer* Time, Rest::Pool<Drawable*>* Geometry) override;
-				void RenderFluxCubic(Rest::Timer* Time, Rest::Pool<Drawable*>* Geometry, Compute::Matrix4x4* ViewProjection) override;
+				void RenderFluxLinear(Rest::Timer* Time, Rest::Pool<Drawable*>* Geometry, RenderOpt Options) override;
+				void RenderFluxCubic(Rest::Timer* Time, Rest::Pool<Drawable*>* Geometry, Compute::Matrix4x4* ViewProjection, RenderOpt Options) override;
 
 			public:
 				TH_COMPONENT("soft-body-renderer");
@@ -131,12 +161,23 @@ namespace Tomahawk
 			private:
 				struct
 				{
+					struct
+					{
+						Graphics::Shader* Linear = nullptr;
+						Graphics::Shader* Quad = nullptr;
+						Graphics::Shader* Point = nullptr;
+					} Flux;
+
+					struct
+					{
+						Graphics::Shader* Linear = nullptr;
+						Graphics::Shader* Quad = nullptr;
+						Graphics::Shader* Point = nullptr;
+					} Depth;
+
 					Graphics::Shader* Opaque = nullptr;
 					Graphics::Shader* Transparency = nullptr;
 					Graphics::Shader* Occlusion = nullptr;
-					Graphics::Shader* Linear = nullptr;
-					Graphics::Shader* Quad = nullptr;
-					Graphics::Shader* Point = nullptr;
 				} Shaders;
 
 				struct
@@ -162,8 +203,8 @@ namespace Tomahawk
 				void Activate() override;
 				void Deactivate() override;
 				void RenderGeometry(Rest::Timer* Time, Rest::Pool<Drawable*>* Geometry, RenderOpt Options) override;
-				void RenderFluxLinear(Rest::Timer* Time, Rest::Pool<Drawable*>* Geometry) override;
-				void RenderFluxCubic(Rest::Timer* Time, Rest::Pool<Drawable*>* Geometry, Compute::Matrix4x4* ViewProjection) override;
+				void RenderFluxLinear(Rest::Timer* Time, Rest::Pool<Drawable*>* Geometry, RenderOpt Options) override;
+				void RenderFluxCubic(Rest::Timer* Time, Rest::Pool<Drawable*>* Geometry, Compute::Matrix4x4* ViewProjection, RenderOpt Options) override;
 
 			public:
 				TH_COMPONENT("emitter-renderer");
@@ -193,8 +234,8 @@ namespace Tomahawk
 				void Activate() override;
 				void Deactivate() override;
 				void RenderGeometry(Rest::Timer* Time, Rest::Pool<Drawable*>* Geometry, RenderOpt Options) override;
-				void RenderFluxLinear(Rest::Timer* Time, Rest::Pool<Drawable*>* Geometry) override;
-				void RenderFluxCubic(Rest::Timer* Time, Rest::Pool<Drawable*>* Geometry, Compute::Matrix4x4* ViewProjection) override;
+				void RenderFluxLinear(Rest::Timer* Time, Rest::Pool<Drawable*>* Geometry, RenderOpt Options) override;
+				void RenderFluxCubic(Rest::Timer* Time, Rest::Pool<Drawable*>* Geometry, Compute::Matrix4x4* ViewProjection, RenderOpt Options) override;
 
 			public:
 				TH_COMPONENT("decal-renderer");
@@ -287,6 +328,7 @@ namespace Tomahawk
 
 			public:
 				Graphics::MultiRenderTarget2D* Surface = nullptr;
+				Graphics::Cubemap* Subresource = nullptr;
 				Graphics::Texture2D* Face = nullptr;
 				uint64_t Size, MipLevels;
 
@@ -375,9 +417,9 @@ namespace Tomahawk
 				struct
 				{
 					Compute::Matrix4x4 SkyOffset;
-					Compute::Vector3 HighEmission = 0.05f;
+					Compute::Vector3 HighEmission = 0.028f;
 					float SkyEmission = 0.0f;
-					Compute::Vector3 LowEmission = 0.025f;
+					Compute::Vector3 LowEmission = 0.016f;
 					float LightEmission = 1.0f;
 					Compute::Vector3 SkyColor = 1.0f;
 					float FogFarOff = 0.1f;
@@ -411,7 +453,9 @@ namespace Tomahawk
 				Rest::Pool<Engine::Component*>* ReflectionProbes = nullptr;
 				Rest::Pool<Engine::Component*>* SpotLights = nullptr;
 				Rest::Pool<Engine::Component*>* LineLights = nullptr;
-				Graphics::DepthStencilState* DepthStencil = nullptr;
+				Graphics::DepthStencilState* DepthStencilNone = nullptr;
+				Graphics::DepthStencilState* DepthStencilGreater = nullptr;
+				Graphics::DepthStencilState* DepthStencilLess = nullptr;
 				Graphics::RasterizerState* FrontRasterizer = nullptr;
 				Graphics::RasterizerState* BackRasterizer = nullptr;
 				Graphics::BlendState* Blend = nullptr;

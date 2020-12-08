@@ -449,6 +449,7 @@ namespace Tomahawk
 					float Distance = 100.0f;
 					float Bias = 0.0f;
 					uint32_t Iterations = 2;
+					bool Flux = false;
 					bool Enabled = false;
 				} Shadow;
 
@@ -486,6 +487,7 @@ namespace Tomahawk
 					float Distance = 100.0f;
 					float Bias = 0.0f;
 					uint32_t Iterations = 2;
+					bool Flux = false;
 					bool Enabled = false;
 				} Shadow;
 
@@ -542,6 +544,7 @@ namespace Tomahawk
 					float Offset = 0.225f;
 					uint32_t Iterations = 2;
 					uint32_t Cascades = 3;
+					bool Flux = false;
 					bool Enabled = false;
 				} Shadow;
 

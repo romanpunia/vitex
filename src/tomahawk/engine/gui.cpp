@@ -287,7 +287,7 @@ namespace Tomahawk
 							Graphics::Shader::Desc I = Graphics::Shader::Desc();
 							I.Filename = "element";
 
-							if (Device->GetSection("topology/gui/geometry", &I.Data))
+							if (Device->GetSection("shaders/gui/geometry", &I.Data))
 								Shader = Device->CreateShader(I);
 
 							Graphics::ElementBuffer::Desc F = Graphics::ElementBuffer::Desc();

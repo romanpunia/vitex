@@ -3058,15 +3058,6 @@ namespace Tomahawk
 		void GeometryDraw::CullGeometry(const Viewer& View, Rest::Pool<Drawable*>* Geometry)
 		{
 		}
-		void GeometryDraw::RenderGeometry(Rest::Timer* TimeStep, Rest::Pool<Drawable*>* Geometry, RenderOpt Options)
-		{
-		}
-		void GeometryDraw::RenderFluxLinear(Rest::Timer* TimeStep, Rest::Pool<Drawable*>* Geometry)
-		{
-		}
-		void GeometryDraw::RenderFluxCubic(Rest::Timer* TimeStep, Rest::Pool<Drawable*>* Geometry, Compute::Matrix4x4* ViewProjection)
-		{
-		}
 		void GeometryDraw::CullGeometry(const Viewer& View)
 		{
 			Rest::Pool<Drawable*>* Opaque = GetOpaque();
@@ -3097,11 +3088,11 @@ namespace Tomahawk
 
 				Rest::Pool<Drawable*>* Opaque = GetOpaque();
 				if (Opaque != nullptr && Opaque->Size() > 0)
-					RenderFluxLinear(TimeStep, Opaque);
+					RenderFluxLinear(TimeStep, Opaque, Options);
 
 				Rest::Pool<Drawable*>* Transparent = GetTransparent();
 				if (Transparent != nullptr && Transparent->Size() > 0)
-					RenderFluxLinear(TimeStep, Transparent);
+					RenderFluxLinear(TimeStep, Transparent, Options);
 			}
 			else if (State == RenderState_Flux_Cubic)
 			{
@@ -3111,11 +3102,11 @@ namespace Tomahawk
 
 				Rest::Pool<Drawable*>* Opaque = GetOpaque();
 				if (Opaque != nullptr && Opaque->Size() > 0)
-					RenderFluxCubic(TimeStep, Opaque, View.CubicViewProjection);
+					RenderFluxCubic(TimeStep, Opaque, View.CubicViewProjection, Options);
 
 				Rest::Pool<Drawable*>* Transparent = GetTransparent();
 				if (Transparent != nullptr && Transparent->Size() > 0)
-					RenderFluxCubic(TimeStep, Transparent, View.CubicViewProjection);
+					RenderFluxCubic(TimeStep, Transparent, View.CubicViewProjection, Options);
 			}
 		}
 		Rest::Pool<Drawable*>* GeometryDraw::GetOpaque()
@@ -3185,7 +3176,7 @@ namespace Tomahawk
 			}
 
 			Device->Draw(6, 0);
-			Device->CopyTexture2D(Output, &Pass);
+			Device->CopyTexture2D(Output, 0, &Pass);
 			Device->GenerateTexture(Pass);
 		}
 		void EffectDraw::RenderResult(Graphics::Shader* Effect, void* Buffer)
@@ -3227,7 +3218,7 @@ namespace Tomahawk
 			Device->SetBlendState(Blend);
 			Device->SetRasterizerState(Rasterizer);
 			Device->SetInputLayout(Layout);
-			Device->SetTarget(Output, 0, 0, 0);
+			Device->SetTarget(Output, 0, 0, 0, 0);
 			Device->SetTexture2D(Surface->GetTarget(0), 1);
 			Device->SetTexture2D(Surface->GetTarget(1), 2);
 			Device->SetTexture2D(Surface->GetTarget(2), 3);
@@ -3237,7 +3228,7 @@ namespace Tomahawk
 			RenderEffect(Time);
 
 			Device->FlushTexture2D(1, 4);
-			Device->CopyTargetFrom(Surface, 0, Output);
+			Device->CopyTarget(Output, 0, Surface, 0);
 		}
 		void EffectDraw::ResizeBuffers()
 		{
@@ -3402,7 +3393,7 @@ namespace Tomahawk
 					Renderer->Render(Time, RenderState_Geometry, Options);
 			}
 		}
-		void SceneGraph::RenderFluxLinear(Rest::Timer* Time)
+		void SceneGraph::RenderFluxLinear(Rest::Timer* Time, RenderOpt Options)
 		{
 			if (!View.Renderer)
 				return;
@@ -3411,10 +3402,10 @@ namespace Tomahawk
 			for (auto& Renderer : *States)
 			{
 				if (Renderer->Active)
-					Renderer->Render(Time, RenderState_Flux_Linear, RenderOpt_Inner);
+					Renderer->Render(Time, RenderState_Flux_Linear, RenderOpt_Inner | Options);
 			}
 		}
-		void SceneGraph::RenderFluxCubic(Rest::Timer* Time)
+		void SceneGraph::RenderFluxCubic(Rest::Timer* Time, RenderOpt Options)
 		{
 			if (!View.Renderer)
 				return;
@@ -3423,7 +3414,7 @@ namespace Tomahawk
 			for (auto& Renderer : *States)
 			{
 				if (Renderer->Active)
-					Renderer->Render(Time, RenderState_Flux_Cubic, RenderOpt_Inner);
+					Renderer->Render(Time, RenderState_Flux_Cubic, RenderOpt_Inner | Options);
 			}
 		}
 		void SceneGraph::Render(Rest::Timer* Time)
@@ -3972,7 +3963,7 @@ namespace Tomahawk
 				Result[3] = Graphics::Format_R8G8B8A8_Unorm;
 
 			for (uint64_t i = 4; i < Size; i++)
-				Result[i] = Graphics::Format_Invalid;
+				Result[i] = Graphics::Format_Unknown;
 		}
 		bool SceneGraph::AddEventListener(const std::string& Name, const std::string& EventName, const MessageCallback& Callback)
 		{
@@ -4890,7 +4881,14 @@ namespace Tomahawk
 				if (I->Activity.Width > 0 && I->Activity.Height > 0)
 				{
 					Activity = new Graphics::Activity(I->Activity);
+					if (!Activity->GetHandle())
+					{
+						TH_ERROR("cannot create activity instance");
+						return;
+					}
+
 					Activity->UserPointer = this;
+					Activity->SetCursorVisibility(!I->DisableCursor);
 					Activity->Callbacks.KeyState = [this](Graphics::KeyCode Key, Graphics::KeyMod Mod, int Virtual, int Repeat, bool Pressed)
 					{
 						GUI::Context* GUI = (GUI::Context*)GetGUI();
@@ -4927,7 +4925,6 @@ namespace Tomahawk
 						WindowEvent(NewState, X, Y);
 					};
 
-					Activity->SetCursorVisibility(!I->DisableCursor);
 					if (I->Usage & ApplicationUse_Graphics_Module)
 					{
 						Compute::Vector2 Size = Activity->GetSize();
@@ -4942,8 +4939,6 @@ namespace Tomahawk
 						if (!Renderer || !Renderer->IsValid())
 						{
 							TH_ERROR("graphics device cannot be created");
-							TH_CLEAR(Renderer);
-
 							return;
 						}
 
@@ -4962,8 +4957,6 @@ namespace Tomahawk
 				if (!Audio->IsValid())
 				{
 					TH_ERROR("audio device cannot be created");
-					TH_CLEAR(Renderer);
-
 					return;
 				}
 			}

@@ -72,7 +72,8 @@ namespace Tomahawk
 			RenderOpt_None = 0,
 			RenderOpt_Transparent = 1,
 			RenderOpt_Static = 2,
-			RenderOpt_Inner = 4
+			RenderOpt_Inner = 4,
+			RenderOpt_Flux = 8
 		};
 
 		enum RenderState
@@ -686,8 +687,8 @@ namespace Tomahawk
 			virtual ~GeometryDraw() override;
 			virtual void CullGeometry(const Viewer& View, Rest::Pool<Drawable*>* Geometry);
 			virtual void RenderGeometry(Rest::Timer* TimeStep, Rest::Pool<Drawable*>* Geometry, RenderOpt Options) = 0;
-			virtual void RenderFluxLinear(Rest::Timer* TimeStep, Rest::Pool<Drawable*>* Geometry) = 0;
-			virtual void RenderFluxCubic(Rest::Timer* TimeStep, Rest::Pool<Drawable*>* Geometry, Compute::Matrix4x4* ViewProjection) = 0;
+			virtual void RenderFluxLinear(Rest::Timer* TimeStep, Rest::Pool<Drawable*>* Geometry, RenderOpt Options) = 0;
+			virtual void RenderFluxCubic(Rest::Timer* TimeStep, Rest::Pool<Drawable*>* Geometry, Compute::Matrix4x4* ViewProjection, RenderOpt Options) = 0;
 			void CullGeometry(const Viewer& View) override;
 			void Render(Rest::Timer* TimeStep, RenderState State, RenderOpt Options) override;
 			Rest::Pool<Drawable*>* GetOpaque();
@@ -699,7 +700,7 @@ namespace Tomahawk
 
 		class TH_OUT TimingDraw : public Renderer
 		{
-		protected:
+		public:
 			Rest::TickTimer Tick;
 
 		public:
@@ -825,8 +826,8 @@ namespace Tomahawk
 			void Configure(const Desc& Conf);
 			void Submit();
 			void RenderGeometry(Rest::Timer* Time, RenderOpt Options);
-			void RenderFluxLinear(Rest::Timer* Time);
-			void RenderFluxCubic(Rest::Timer* Time);
+			void RenderFluxLinear(Rest::Timer* Time, RenderOpt Options);
+			void RenderFluxCubic(Rest::Timer* Time, RenderOpt Options);
 			void Render(Rest::Timer* Time);
 			void Update(Rest::Timer* Time);
 			void Simulation(Rest::Timer* Time);

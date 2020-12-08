@@ -2519,6 +2519,7 @@ namespace Tomahawk
 				NMake::Unpack(Node->Find("shadow-distance"), &Shadow.Distance);
 				NMake::Unpack(Node->Find("shadow-bias"), &Shadow.Bias);
 				NMake::Unpack(Node->Find("shadow-iterations"), &Shadow.Iterations);
+				NMake::Unpack(Node->Find("shadow-flux"), &Shadow.Flux);
 				NMake::Unpack(Node->Find("shadow-enabled"), &Shadow.Enabled);
 			}
 			void PointLight::Serialize(ContentManager* Content, Rest::Document* Node)
@@ -2532,6 +2533,7 @@ namespace Tomahawk
 				NMake::Pack(Node->SetDocument("shadow-distance"), Shadow.Distance);
 				NMake::Pack(Node->SetDocument("shadow-bias"), Shadow.Bias);
 				NMake::Pack(Node->SetDocument("shadow-iterations"), Shadow.Iterations);
+				NMake::Pack(Node->SetDocument("shadow-flux"), Shadow.Flux);
 				NMake::Pack(Node->SetDocument("shadow-enabled"), Shadow.Enabled);
 			}
 			float PointLight::Cull(const Viewer& Base)
@@ -2583,6 +2585,7 @@ namespace Tomahawk
 				NMake::Unpack(Node->Find("shadow-distance"), &Shadow.Distance);
 				NMake::Unpack(Node->Find("shadow-softness"), &Shadow.Softness);
 				NMake::Unpack(Node->Find("shadow-iterations"), &Shadow.Iterations);
+				NMake::Unpack(Node->Find("shadow-flux"), &Shadow.Flux);
 				NMake::Unpack(Node->Find("shadow-enabled"), &Shadow.Enabled);
 			}
 			void SpotLight::Serialize(ContentManager* Content, Rest::Document* Node)
@@ -2597,6 +2600,7 @@ namespace Tomahawk
 				NMake::Pack(Node->SetDocument("shadow-distance"), Shadow.Distance);
 				NMake::Pack(Node->SetDocument("shadow-softness"), Shadow.Softness);
 				NMake::Pack(Node->SetDocument("shadow-iterations"), Shadow.Iterations);
+				NMake::Pack(Node->SetDocument("shadow-flux"), Shadow.Flux);
 				NMake::Pack(Node->SetDocument("shadow-enabled"), Shadow.Enabled);
 			}
 			void SpotLight::Synchronize(Rest::Timer* Time)
@@ -2660,6 +2664,7 @@ namespace Tomahawk
 				NMake::Unpack(Node->Find("shadow-offset"), &Shadow.Offset);
 				NMake::Unpack(Node->Find("shadow-softness"), &Shadow.Softness);
 				NMake::Unpack(Node->Find("shadow-iterations"), &Shadow.Iterations);
+				NMake::Unpack(Node->Find("shadow-flux"), &Shadow.Flux);
 				NMake::Unpack(Node->Find("shadow-enabled"), &Shadow.Enabled);
 				NMake::Unpack(Node->Find("rlh-emission"), &Sky.RlhEmission);
 				NMake::Unpack(Node->Find("mie-emission"), &Sky.MieEmission);
@@ -2690,6 +2695,7 @@ namespace Tomahawk
 				NMake::Pack(Node->SetDocument("shadow-offset"), Shadow.Offset);
 				NMake::Pack(Node->SetDocument("shadow-softness"), Shadow.Softness);
 				NMake::Pack(Node->SetDocument("shadow-iterations"), Shadow.Iterations);
+				NMake::Pack(Node->SetDocument("shadow-flux"), Shadow.Flux);
 				NMake::Pack(Node->SetDocument("shadow-enabled"), Shadow.Enabled);
 				NMake::Pack(Node->SetDocument("rlh-emission"), Sky.RlhEmission);
 				NMake::Pack(Node->SetDocument("mie-emission"), Sky.MieEmission);

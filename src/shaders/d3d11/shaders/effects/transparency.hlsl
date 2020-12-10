@@ -27,16 +27,15 @@ float3 GetOpaque(float2 TexCoord, float D2, float L)
 
     return GetDiffuse(TexCoord, L).xyz;
 }
-float3 GetOpaqueAuto(float2 TexCoord, float L)
+float3 GetCoverage(float2 TexCoord, float L)
 {
-    float D2 = GetDepth(TexCoord);
-    return GetOpaque(TexCoord, D2, L);
+    return GetOpaque(TexCoord, GetDepth(TexCoord), L);
 }
 float2 GetUV(float2 TexCoord, float L, float V)
 {
 	float2 T = TexCoord - 0.5;
     float R = T.x * T.x + T.y * T.y;
-	float F = 1.0 + R * (L + lerp(0, V, abs(L)));
+	float F = 1.0 + R * (lerp(0, V, abs(L)) - L);
     
     return F * T + 0.5;
 }
@@ -63,12 +62,13 @@ float4 PS(VOutput V) : SV_TARGET0
     float3 Eye = normalize(Position - ViewPosition);
     float4 Normal = GetSample(LChannel1, TexCoord);
     Material Mat = GetMaterial(Normal.w);
-    float4 Diffuse = float4(GetSample(LChannel0, TexCoord).xyz, max(0, 1.0 - Mat.Transparency));
-    float R = Mat.Roughness.x + GetSample(LChannel3, TexCoord).x * Mat.Roughness.y;
+    float4 Diffuse = GetSample(LChannel0, TexCoord);
+    float A = (1.0 - Diffuse.w) * Mat.Transparency;
+    float R = max(0.0, Mat.Roughness.x + GetSample(LChannel3, TexCoord).x * Mat.Roughness.y - 0.25) / 0.75;
 
-    Diffuse.x += GetOpaqueAuto(GetUV(TexCoord, -Mat.Refraction, 0.05), R * MipLevels).x * Mat.Transparency;
-    Diffuse.y += GetOpaqueAuto(GetUV(TexCoord, -Mat.Refraction, 0.0), R * MipLevels).y * Mat.Transparency;
-    Diffuse.z += GetOpaqueAuto(GetUV(TexCoord, -Mat.Refraction, -0.05), R * MipLevels).z * Mat.Transparency;
+    Diffuse.x += GetCoverage(GetUV(TexCoord, Mat.Refraction, 0.05), R * MipLevels).x * A;
+    Diffuse.y += GetCoverage(GetUV(TexCoord, Mat.Refraction, 0.0), R * MipLevels).y * A;
+    Diffuse.z += GetCoverage(GetUV(TexCoord, Mat.Refraction, -0.05), R * MipLevels).z * A;
 
-    return Diffuse;
+    return float4(Diffuse.xyz, 1.0 - A);
 };

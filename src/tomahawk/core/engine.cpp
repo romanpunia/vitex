@@ -1945,7 +1945,7 @@ namespace Tomahawk
 			if (Parent->Transform->Position.Distance(View.WorldPosition) > View.FarPlane + Parent->Transform->Scale.Length())
 				return false;
 
-			return Compute::MathCommon::IsCubeInFrustum((World ? *World : Parent->Transform->GetWorld()) * View.ViewProjection, 1.5f) == -1;
+			return Compute::MathCommon::IsCubeInFrustum((World ? *World : Parent->Transform->GetWorld()) * View.ViewProjection, 1.65f) == -1;
 		}
 		bool Cullable::IsNear(const Viewer& View)
 		{
@@ -3148,7 +3148,7 @@ namespace Tomahawk
 		{
 			DepthStencil = Lab->GetDevice()->GetDepthStencilState("none");
 			Rasterizer = Lab->GetDevice()->GetRasterizerState("cull-back");
-			Blend = Lab->GetDevice()->GetBlendState("overwrite");
+			Blend = Lab->GetDevice()->GetBlendState("overwrite-opaque");
 			Sampler = Lab->GetDevice()->GetSamplerState("trilinear-x16");
 			Layout = Lab->GetDevice()->GetInputLayout("shape-vertex");
 		}

@@ -7,6 +7,372 @@ namespace Tomahawk
 	{
 		namespace Renderers
 		{
+			Depth::Depth(RenderSystem* Lab) : TimingDraw(Lab), ShadowDistance(0.5f)
+			{
+				Tick.Delay = 10;
+			}
+			Depth::~Depth()
+			{
+				for (auto It = Renderers.PointLight.begin(); It != Renderers.PointLight.end(); It++)
+					delete *It;
+
+				for (auto It = Renderers.SpotLight.begin(); It != Renderers.SpotLight.end(); It++)
+					delete *It;
+
+				for (auto It = Renderers.LineLight.begin(); It != Renderers.LineLight.end(); It++)
+				{
+					if (*It != nullptr)
+					{
+						for (auto* Target : *(*It))
+							delete Target;
+					}
+
+					delete *It;
+				}
+
+				if (!System || !System->GetScene())
+					return;
+
+				Rest::Pool<Component*>* Lights = System->GetScene()->GetComponents<Components::PointLight>();
+				for (auto It = Lights->Begin(); It != Lights->End(); It++)
+					(*It)->As<Components::PointLight>()->SetDepthCache(nullptr);
+
+				Lights = System->GetScene()->GetComponents<Components::SpotLight>();
+				for (auto It = Lights->Begin(); It != Lights->End(); It++)
+					(*It)->As<Components::SpotLight>()->SetDepthCache(nullptr);
+
+				Lights = System->GetScene()->GetComponents<Components::LineLight>();
+				for (auto It = Lights->Begin(); It != Lights->End(); It++)
+					(*It)->As<Components::LineLight>()->SetDepthCache(nullptr);
+			}
+			void Depth::Deserialize(ContentManager* Content, Rest::Document* Node)
+			{
+				NMake::Unpack(Node->Find("point-light-resolution"), &Renderers.PointLightResolution);
+				NMake::Unpack(Node->Find("point-light-limits"), &Renderers.PointLightLimits);
+				NMake::Unpack(Node->Find("spot-light-resolution"), &Renderers.SpotLightResolution);
+				NMake::Unpack(Node->Find("spot-light-limits"), &Renderers.SpotLightLimits);
+				NMake::Unpack(Node->Find("line-light-resolution"), &Renderers.LineLightResolution);
+				NMake::Unpack(Node->Find("line-light-limits"), &Renderers.LineLightLimits);
+				NMake::Unpack(Node->Find("shadow-distance"), &ShadowDistance);
+			}
+			void Depth::Serialize(ContentManager* Content, Rest::Document* Node)
+			{
+				NMake::Pack(Node->SetDocument("point-light-resolution"), Renderers.PointLightResolution);
+				NMake::Pack(Node->SetDocument("point-light-limits"), Renderers.PointLightLimits);
+				NMake::Pack(Node->SetDocument("spot-light-resolution"), Renderers.SpotLightResolution);
+				NMake::Pack(Node->SetDocument("spot-light-limits"), Renderers.SpotLightLimits);
+				NMake::Pack(Node->SetDocument("line-light-resolution"), Renderers.LineLightResolution);
+				NMake::Pack(Node->SetDocument("line-light-limits"), Renderers.LineLightLimits);
+				NMake::Pack(Node->SetDocument("shadow-distance"), ShadowDistance);
+			}
+			void Depth::Activate()
+			{
+				PointLights = System->AddCull<Engine::Components::PointLight>();
+				SpotLights = System->AddCull<Engine::Components::SpotLight>();
+				LineLights = System->GetScene()->GetComponents<Engine::Components::LineLight>();
+
+				for (auto It = PointLights->Begin(); It != PointLights->End(); It++)
+					(*It)->As<Engine::Components::PointLight>()->SetDepthCache(nullptr);
+
+				for (auto It = SpotLights->Begin(); It != SpotLights->End(); It++)
+					(*It)->As<Engine::Components::SpotLight>()->SetDepthCache(nullptr);
+
+				for (auto It = LineLights->Begin(); It != LineLights->End(); It++)
+					(*It)->As<Engine::Components::LineLight>()->SetDepthCache(nullptr);
+
+				for (auto It = Renderers.PointLight.begin(); It != Renderers.PointLight.end(); It++)
+					delete *It;
+
+				for (auto It = Renderers.SpotLight.begin(); It != Renderers.SpotLight.end(); It++)
+					delete *It;
+
+				for (auto It = Renderers.LineLight.begin(); It != Renderers.LineLight.end(); It++)
+					delete *It;
+
+				Renderers.PointLight.resize(Renderers.PointLightLimits);
+				for (auto It = Renderers.PointLight.begin(); It != Renderers.PointLight.end(); It++)
+				{
+					Graphics::MultiRenderTargetCube::Desc F = Graphics::MultiRenderTargetCube::Desc();
+					F.Size = (unsigned int)Renderers.PointLightResolution;
+					GetDepthFormat(F.FormatMode);
+					GetDepthTarget(&F.Target);
+
+					*It = System->GetDevice()->CreateMultiRenderTargetCube(F);
+				}
+
+				Renderers.SpotLight.resize(Renderers.SpotLightLimits);
+				for (auto It = Renderers.SpotLight.begin(); It != Renderers.SpotLight.end(); It++)
+				{
+					Graphics::MultiRenderTarget2D::Desc F = Graphics::MultiRenderTarget2D::Desc();
+					F.Width = (unsigned int)Renderers.SpotLightResolution;
+					F.Height = (unsigned int)Renderers.SpotLightResolution;
+					GetDepthFormat(F.FormatMode);
+					GetDepthTarget(&F.Target);
+
+					*It = System->GetDevice()->CreateMultiRenderTarget2D(F);
+				}
+
+				Renderers.LineLight.resize(Renderers.LineLightLimits);
+				for (auto It = Renderers.LineLight.begin(); It != Renderers.LineLight.end(); It++)
+					*It = nullptr;
+			}
+			void Depth::Deactivate()
+			{
+				PointLights = System->RemoveCull<Engine::Components::PointLight>();
+				SpotLights = System->RemoveCull<Engine::Components::SpotLight>();
+			}
+			void Depth::TickRender(Rest::Timer* Time, RenderState State, RenderOpt Options)
+			{
+				if (State != RenderState_Geometry || Options & RenderOpt_Inner || Options & RenderOpt_Transparent)
+					return;
+
+				Graphics::GraphicsDevice* Device = System->GetDevice();
+				SceneGraph* Scene = System->GetScene();
+				float D = 0.0f;
+
+				uint64_t Shadows = 0;
+				for (auto It = PointLights->Begin(); It != PointLights->End(); It++)
+				{
+					Engine::Components::PointLight* Light = (Engine::Components::PointLight*)*It;
+					if (Shadows >= Renderers.PointLight.size())
+						break;
+
+					Light->SetDepthCache(nullptr);
+					if (!Light->Shadow.Enabled)
+						continue;
+
+					if (!System->PassCullable(Light, CullResult_Always, &D) || D < ShadowDistance)
+						continue;
+
+					Graphics::MultiRenderTargetCube* Target = Renderers.PointLight[Shadows];
+					if (!Light->Shadow.Flux)
+						Device->SetTarget(Target, 0, 0, 0, 0);
+					else
+						Device->SetTarget(Target, 0, 0, 0);
+					Device->ClearDepth(Target);
+
+					Light->AssembleDepthOrigin();
+					Scene->SetView(Compute::Matrix4x4::Identity(), Light->Projection, Light->GetEntity()->Transform->Position, 0.1f, Light->Shadow.Distance, true);
+					Scene->RenderFluxCubic(Time, Light->Shadow.Flux ? RenderOpt_Flux : RenderOpt_None);
+
+					Light->SetDepthCache(Target);
+					Shadows++;
+				}
+
+				Shadows = 0;
+				for (auto It = SpotLights->Begin(); It != SpotLights->End(); It++)
+				{
+					Engine::Components::SpotLight* Light = (Engine::Components::SpotLight*)*It;
+					if (Shadows >= Renderers.SpotLight.size())
+						break;
+
+					Light->SetDepthCache(nullptr);
+					if (!Light->Shadow.Enabled)
+						continue;
+
+					if (!System->PassCullable(Light, CullResult_Always, &D) || D < ShadowDistance)
+						continue;
+
+					Graphics::MultiRenderTarget2D* Target = Renderers.SpotLight[Shadows];
+					if (!Light->Shadow.Flux)
+						Device->SetTarget(Target, 0, 0, 0, 0);
+					else
+						Device->SetTarget(Target, 0, 0, 0);
+					Device->ClearDepth(Target);
+
+					Light->AssembleDepthOrigin();
+					Scene->SetView(Light->View, Light->Projection, Light->GetEntity()->Transform->Position, 0.1f, Light->Shadow.Distance, true);
+					Scene->RenderFluxLinear(Time, Light->Shadow.Flux ? RenderOpt_Flux : RenderOpt_None);
+
+					Light->SetDepthCache(Target);
+					Shadows++;
+				}
+
+				Shadows = 0;
+				for (auto It = LineLights->Begin(); It != LineLights->End(); It++)
+				{
+					Engine::Components::LineLight* Light = (Engine::Components::LineLight*)*It;
+					if (Shadows >= Renderers.LineLight.size())
+						break;
+
+					Light->SetDepthCache(nullptr);
+					if (!Light->Shadow.Enabled)
+						continue;
+
+					CascadeMap*& Target = Renderers.LineLight[Shadows];
+					if (Light->Shadow.Cascades < 1 || Light->Shadow.Cascades > 6)
+						continue;
+
+					if (!Target || Target->size() < Light->Shadow.Cascades)
+						GenerateCascadeMap(&Target, Light->Shadow.Cascades);
+
+					Light->AssembleDepthOrigin();
+					for (size_t i = 0; i < Target->size(); i++)
+					{
+						Graphics::MultiRenderTarget2D* Cascade = (*Target)[i];
+						if (!Light->Shadow.Flux)
+							Device->SetTarget(Cascade, 0, 0, 0, 0);
+						else
+							Device->SetTarget(Cascade, 0, 0, 0);
+						Device->ClearDepth(Cascade);
+
+						Scene->SetView(Light->View[i], Light->Projection[i], 0.0f, 0.1f, Light->Shadow.Distance[i], true);
+						Scene->RenderFluxLinear(Time, Light->Shadow.Flux ? RenderOpt_Flux : RenderOpt_None);
+					}
+
+					Light->SetDepthCache(Target);
+					Shadows++;
+				}
+
+				Device->FlushTexture2D(1, 8);
+				Scene->RestoreViewBuffer(nullptr);
+			}
+			void Depth::GenerateCascadeMap(CascadeMap** Result, uint32_t Size)
+			{
+				CascadeMap* Target = (*Result ? *Result : new CascadeMap());
+				for (auto It = Target->begin(); It != Target->end(); It++)
+					delete *It;
+
+				Target->resize(Size);
+				for (auto It = Target->begin(); It != Target->end(); It++)
+				{
+					Graphics::MultiRenderTarget2D::Desc F = Graphics::MultiRenderTarget2D::Desc();
+					F.Width = (unsigned int)Renderers.LineLightResolution;
+					F.Height = (unsigned int)Renderers.LineLightResolution;
+					GetDepthFormat(F.FormatMode);
+					GetDepthTarget(&F.Target);
+
+					*It = System->GetDevice()->CreateMultiRenderTarget2D(F);
+				}
+
+				*Result = Target;
+			}
+			void Depth::GetDepthFormat(Graphics::Format* Result)
+			{
+				Result[0] = Graphics::Format_R32_Float;
+				Result[1] = Graphics::Format_R8G8B8A8_Unorm;
+				Result[2] = Graphics::Format_R16G16B16A16_Float;
+			}
+			void Depth::GetDepthTarget(Graphics::SurfaceTarget* Result)
+			{
+				*Result = Graphics::SurfaceTarget2;
+			}
+
+			Environment::Environment(RenderSystem* Lab) : Renderer(Lab), Surface(nullptr), Size(128), MipLevels(7)
+			{
+			}
+			Environment::~Environment()
+			{
+				TH_RELEASE(Surface);
+				TH_RELEASE(Subresource);
+			}
+			void Environment::Deserialize(ContentManager* Content, Rest::Document* Node)
+			{
+				NMake::Unpack(Node->Find("size"), &Size);
+				NMake::Unpack(Node->Find("mip-levels"), &MipLevels);
+
+				Lighting* Light = System->GetRenderer<Renderers::Lighting>();
+				if (Light != nullptr)
+					Light->ReflectionProbe.MipLevels = (float)MipLevels;
+			}
+			void Environment::Serialize(ContentManager* Content, Rest::Document* Node)
+			{
+				NMake::Pack(Node->SetDocument("size"), Size);
+				NMake::Pack(Node->SetDocument("mip-levels"), MipLevels);
+			}
+			void Environment::Activate()
+			{
+				ReflectionProbes = System->AddCull<Engine::Components::ReflectionProbe>();
+				CreateRenderTarget();
+			}
+			void Environment::Deactivate()
+			{
+				ReflectionProbes = System->RemoveCull<Engine::Components::ReflectionProbe>();
+			}
+			void Environment::Render(Rest::Timer* Time, RenderState State, RenderOpt Options)
+			{
+				if (State != RenderState_Geometry || Options & RenderOpt_Inner || Options & RenderOpt_Transparent)
+					return;
+
+				SceneGraph* Scene = System->GetScene();
+				Graphics::GraphicsDevice* Device = System->GetDevice();
+				Graphics::MultiRenderTarget2D* S = Scene->GetSurface();
+				Scene->SwapSurface(Surface);
+				Scene->SetSurface();
+
+				double ElapsedTime = Time->GetElapsedTime();
+				for (auto It = ReflectionProbes->Begin(); It != ReflectionProbes->End(); It++)
+				{
+					Engine::Components::ReflectionProbe* Light = (Engine::Components::ReflectionProbe*)*It;
+					if (Light->IsImageBased() || !System->PassCullable(Light, CullResult_Always, nullptr))
+						continue;
+
+					Graphics::TextureCube* Cache = Light->GetProbeCache();
+					if (!Cache)
+					{
+						Cache = Device->CreateTextureCube();
+						Light->SetProbeCache(Cache);
+					}
+					else if (!Light->Tick.TickEvent(ElapsedTime) || Light->Tick.Delay <= 0.0)
+						continue;
+
+					Device->CubemapBegin(Subresource);
+					Light->Locked = true;
+
+					Compute::Vector3 Position = Light->GetEntity()->Transform->Position * Light->Offset;
+					for (unsigned int j = 0; j < 6; j++)
+					{
+						Light->View[j] = Compute::Matrix4x4::CreateCubeMapLookAt(j, Position);
+						Scene->SetView(Light->View[j], Light->Projection, Position, 0.1f, Light->Range, true);
+						Scene->ClearSurface();
+						Scene->RenderGeometry(Time, Light->StaticMask ? RenderOpt_Inner | RenderOpt_Static : RenderOpt_Inner);
+						Device->CubemapFace(Subresource, 0, j);
+					}
+
+					Light->Locked = false;
+					Device->CubemapEnd(Subresource, Cache);
+				}
+
+				Scene->SwapSurface(S);
+				Scene->RestoreViewBuffer(nullptr);
+			}
+			void Environment::CreateRenderTarget()
+			{
+				Map = Size;
+
+				Graphics::MultiRenderTarget2D::Desc F;
+				System->GetScene()->GetTargetDesc(&F);
+
+				F.MipLevels = System->GetDevice()->GetMipLevel((unsigned int)Size, (unsigned int)Size);
+				F.Width = (unsigned int)Size;
+				F.Height = (unsigned int)Size;
+
+				if (MipLevels > F.MipLevels)
+					MipLevels = F.MipLevels;
+				else
+					F.MipLevels = (unsigned int)MipLevels;
+
+				TH_RELEASE(Surface);
+				Surface = System->GetDevice()->CreateMultiRenderTarget2D(F);
+
+				Graphics::Cubemap::Desc I;
+				I.Source = Surface;
+				I.MipLevels = MipLevels;
+				I.Size = Size;
+
+				TH_RELEASE(Subresource);
+				Subresource = System->GetDevice()->CreateCubemap(I);
+
+				Lighting* Light = System->GetRenderer<Renderers::Lighting>();
+				if (Light != nullptr)
+					Light->ResizeBuffers();
+			}
+			void Environment::SetCaptureSize(size_t NewSize)
+			{
+				Size = NewSize;
+				CreateRenderTarget();
+			}
+
 			Model::Model(Engine::RenderSystem* Lab) : GeometryDraw(Lab, Components::Model::GetTypeId())
 			{
 				DepthStencil = Lab->GetDevice()->GetDepthStencilState("less");
@@ -947,464 +1313,6 @@ namespace Tomahawk
 			{
 			}
 
-			Transparency::Transparency(RenderSystem* Lab) : Renderer(Lab)
-			{
-				DepthStencil = Lab->GetDevice()->GetDepthStencilState("none");
-				Rasterizer = Lab->GetDevice()->GetRasterizerState("cull-back");
-				Blend = Lab->GetDevice()->GetBlendState("overwrite");
-				Sampler = Lab->GetDevice()->GetSamplerState("trilinear-x16");
-				Layout = Lab->GetDevice()->GetInputLayout("shape-vertex");
-
-				Graphics::Shader::Desc I = Graphics::Shader::Desc();
-				if (System->GetDevice()->GetSection("shaders/effects/transparency", &I.Data))
-					Shader = System->CompileShader("lr-transparency", I, sizeof(RenderPass));
-			}
-			Transparency::~Transparency()
-			{
-				System->FreeShader("lr-transparency", Shader);
-				TH_RELEASE(Surface1);
-				TH_RELEASE(Input1);
-				TH_RELEASE(Surface2);
-				TH_RELEASE(Input2);
-			}
-			void Transparency::Activate()
-			{
-				ResizeBuffers();
-			}
-			void Transparency::Render(Rest::Timer* Time, RenderState State, RenderOpt Options)
-			{
-				bool Inner = (Options & RenderOpt_Inner);
-				if (State != RenderState_Geometry || Options & RenderOpt_Transparent)
-					return;
-
-				SceneGraph* Scene = System->GetScene();
-				if (!Scene->GetTransparentCount())
-					return;
-
-				Graphics::MultiRenderTarget2D* S = Scene->GetSurface();
-				Graphics::GraphicsDevice* Device = System->GetDevice();
-				RenderPass.MipLevels = (Inner ? MipLevels2 : MipLevels1);
-
-				Scene->SwapSurface(Inner ? Surface2 : Surface1);
-				Scene->SetSurfaceCleared();
-				Scene->RenderGeometry(Time, Options | RenderOpt_Transparent);
-				Scene->SwapSurface(S);
-
-				Device->CopyTarget(S, 0, Inner ? Input2 : Input1, 0);
-				Device->GenerateMips(Inner ? Input2->GetTarget(0) : Input1->GetTarget(0));
-				Device->SetTarget(S, 0);
-				Device->Clear(S, 0, 0, 0, 0);
-				Device->UpdateBuffer(Shader, &RenderPass);
-				Device->SetSamplerState(Sampler, 0);
-				Device->SetDepthStencilState(DepthStencil);
-				Device->SetBlendState(Blend);
-				Device->SetRasterizerState(Rasterizer);
-				Device->SetInputLayout(Layout);
-				Device->SetShader(Shader, Graphics::ShaderType_Vertex | Graphics::ShaderType_Pixel);
-				Device->SetBuffer(Shader, 3, Graphics::ShaderType_Vertex | Graphics::ShaderType_Pixel);
-				Device->SetVertexBuffer(System->GetQuadVBuffer(), 0);
-				Device->SetTexture2D(Inner ? Input2->GetTarget(0) : Input1->GetTarget(0), 1);
-				Device->SetTexture2D(S->GetTarget(1), 2);
-				Device->SetTexture2D(S->GetTarget(2), 3);
-				Device->SetTexture2D(S->GetTarget(3), 4);
-				Device->SetTexture2D(Inner ? Surface2->GetTarget(0) : Surface1->GetTarget(0), 5);
-				Device->SetTexture2D(Inner ? Surface2->GetTarget(1) : Surface1->GetTarget(1), 6);
-				Device->SetTexture2D(Inner ? Surface2->GetTarget(2) : Surface1->GetTarget(2), 7);
-				Device->SetTexture2D(Inner ? Surface2->GetTarget(3) : Surface1->GetTarget(3), 8);
-				Device->UpdateBuffer(Graphics::RenderBufferType_Render);
-				Device->Draw(6, 0);
-				Device->FlushTexture2D(1, 8);
-			}
-			void Transparency::ResizeBuffers()
-			{
-				Graphics::MultiRenderTarget2D::Desc F1;
-				System->GetScene()->GetTargetDesc(&F1);
-				MipLevels1 = (float)F1.MipLevels;
-
-				TH_RELEASE(Surface1);
-				Surface1 = System->GetDevice()->CreateMultiRenderTarget2D(F1);
-
-				Graphics::RenderTarget2D::Desc F2;
-				System->GetScene()->GetTargetDesc(&F2);
-
-				TH_RELEASE(Input1);
-				Input1 = System->GetDevice()->CreateRenderTarget2D(F2);
-
-				auto* Renderer = System->GetRenderer<Renderers::Environment>();
-				if (Renderer != nullptr)
-				{
-					F1.Width = (unsigned int)Renderer->Size;
-					F1.Height = (unsigned int)Renderer->Size;
-					F1.MipLevels = (unsigned int)Renderer->MipLevels;
-					F2.Width = (unsigned int)Renderer->Size;
-					F2.Height = (unsigned int)Renderer->Size;
-					F2.MipLevels = (unsigned int)Renderer->MipLevels;
-					MipLevels2 = (float)Renderer->MipLevels;
-				}
-
-				TH_RELEASE(Surface2);
-				Surface2 = System->GetDevice()->CreateMultiRenderTarget2D(F1);
-
-				TH_RELEASE(Input2);
-				Input2 = System->GetDevice()->CreateRenderTarget2D(F2);
-			}
-		
-			Depth::Depth(RenderSystem* Lab) : TimingDraw(Lab), ShadowDistance(0.5f)
-			{
-				Tick.Delay = 10;
-			}
-			Depth::~Depth()
-			{
-				for (auto It = Renderers.PointLight.begin(); It != Renderers.PointLight.end(); It++)
-					delete *It;
-
-				for (auto It = Renderers.SpotLight.begin(); It != Renderers.SpotLight.end(); It++)
-					delete *It;
-
-				for (auto It = Renderers.LineLight.begin(); It != Renderers.LineLight.end(); It++)
-				{
-					if (*It != nullptr)
-					{
-						for (auto* Target : *(*It))
-							delete Target;
-					}
-
-					delete *It;
-				}
-				
-				if (!System || !System->GetScene())
-					return;
-
-				Rest::Pool<Component*>* Lights = System->GetScene()->GetComponents<Components::PointLight>();
-				for (auto It = Lights->Begin(); It != Lights->End(); It++)
-					(*It)->As<Components::PointLight>()->SetDepthCache(nullptr);
-
-				Lights = System->GetScene()->GetComponents<Components::SpotLight>();
-				for (auto It = Lights->Begin(); It != Lights->End(); It++)
-					(*It)->As<Components::SpotLight>()->SetDepthCache(nullptr);
-
-				Lights = System->GetScene()->GetComponents<Components::LineLight>();
-				for (auto It = Lights->Begin(); It != Lights->End(); It++)
-					(*It)->As<Components::LineLight>()->SetDepthCache(nullptr);
-			}
-			void Depth::Deserialize(ContentManager* Content, Rest::Document* Node)
-			{
-				NMake::Unpack(Node->Find("point-light-resolution"), &Renderers.PointLightResolution);
-				NMake::Unpack(Node->Find("point-light-limits"), &Renderers.PointLightLimits);
-				NMake::Unpack(Node->Find("spot-light-resolution"), &Renderers.SpotLightResolution);
-				NMake::Unpack(Node->Find("spot-light-limits"), &Renderers.SpotLightLimits);
-				NMake::Unpack(Node->Find("line-light-resolution"), &Renderers.LineLightResolution);
-				NMake::Unpack(Node->Find("line-light-limits"), &Renderers.LineLightLimits);
-				NMake::Unpack(Node->Find("shadow-distance"), &ShadowDistance);
-			}
-			void Depth::Serialize(ContentManager* Content, Rest::Document* Node)
-			{
-				NMake::Pack(Node->SetDocument("point-light-resolution"), Renderers.PointLightResolution);
-				NMake::Pack(Node->SetDocument("point-light-limits"), Renderers.PointLightLimits);
-				NMake::Pack(Node->SetDocument("spot-light-resolution"), Renderers.SpotLightResolution);
-				NMake::Pack(Node->SetDocument("spot-light-limits"), Renderers.SpotLightLimits);
-				NMake::Pack(Node->SetDocument("line-light-resolution"), Renderers.LineLightResolution);
-				NMake::Pack(Node->SetDocument("line-light-limits"), Renderers.LineLightLimits);
-				NMake::Pack(Node->SetDocument("shadow-distance"), ShadowDistance);
-			}
-			void Depth::Activate()
-			{
-				PointLights = System->AddCull<Engine::Components::PointLight>();
-				SpotLights = System->AddCull<Engine::Components::SpotLight>();
-				LineLights = System->GetScene()->GetComponents<Engine::Components::LineLight>();
-
-				for (auto It = PointLights->Begin(); It != PointLights->End(); It++)
-					(*It)->As<Engine::Components::PointLight>()->SetDepthCache(nullptr);
-
-				for (auto It = SpotLights->Begin(); It != SpotLights->End(); It++)
-					(*It)->As<Engine::Components::SpotLight>()->SetDepthCache(nullptr);
-
-				for (auto It = LineLights->Begin(); It != LineLights->End(); It++)
-					(*It)->As<Engine::Components::LineLight>()->SetDepthCache(nullptr);
-
-				for (auto It = Renderers.PointLight.begin(); It != Renderers.PointLight.end(); It++)
-					delete *It;
-
-				for (auto It = Renderers.SpotLight.begin(); It != Renderers.SpotLight.end(); It++)
-					delete *It;
-
-				for (auto It = Renderers.LineLight.begin(); It != Renderers.LineLight.end(); It++)
-					delete *It;
-
-				Renderers.PointLight.resize(Renderers.PointLightLimits);
-				for (auto It = Renderers.PointLight.begin(); It != Renderers.PointLight.end(); It++)
-				{
-					Graphics::MultiRenderTargetCube::Desc F = Graphics::MultiRenderTargetCube::Desc();
-					F.Size = (unsigned int)Renderers.PointLightResolution;
-					GetDepthFormat(F.FormatMode);
-					GetDepthTarget(&F.Target);
-
-					*It = System->GetDevice()->CreateMultiRenderTargetCube(F);
-				}
-
-				Renderers.SpotLight.resize(Renderers.SpotLightLimits);
-				for (auto It = Renderers.SpotLight.begin(); It != Renderers.SpotLight.end(); It++)
-				{
-					Graphics::MultiRenderTarget2D::Desc F = Graphics::MultiRenderTarget2D::Desc();
-					F.Width = (unsigned int)Renderers.SpotLightResolution;
-					F.Height = (unsigned int)Renderers.SpotLightResolution;
-					GetDepthFormat(F.FormatMode);
-					GetDepthTarget(&F.Target);
-
-					*It = System->GetDevice()->CreateMultiRenderTarget2D(F);
-				}
-
-				Renderers.LineLight.resize(Renderers.LineLightLimits);
-				for (auto It = Renderers.LineLight.begin(); It != Renderers.LineLight.end(); It++)
-					*It = nullptr;
-			}
-			void Depth::Deactivate()
-			{
-				PointLights = System->RemoveCull<Engine::Components::PointLight>();
-				SpotLights = System->RemoveCull<Engine::Components::SpotLight>();
-			}
-			void Depth::TickRender(Rest::Timer* Time, RenderState State, RenderOpt Options)
-			{
-				if (State != RenderState_Geometry || Options & RenderOpt_Inner || Options & RenderOpt_Transparent)
-					return;
-
-				Graphics::GraphicsDevice* Device = System->GetDevice();
-				SceneGraph* Scene = System->GetScene();
-				float D = 0.0f;
-
-				uint64_t Shadows = 0;
-				for (auto It = PointLights->Begin(); It != PointLights->End(); It++)
-				{
-					Engine::Components::PointLight* Light = (Engine::Components::PointLight*)*It;
-					if (Shadows >= Renderers.PointLight.size())
-						break;
-
-					Light->SetDepthCache(nullptr);
-					if (!Light->Shadow.Enabled)
-						continue;
-					
-					if (!System->PassCullable(Light, CullResult_Always, &D) || D < ShadowDistance)
-						continue;
-
-					Graphics::MultiRenderTargetCube* Target = Renderers.PointLight[Shadows];
-					Device->SetTarget(Target, 0, 0, 0);
-					Device->ClearDepth(Target);
-
-					Light->AssembleDepthOrigin();
-					Scene->SetView(Compute::Matrix4x4::Identity(), Light->Projection, Light->GetEntity()->Transform->Position, 0.1f, Light->Shadow.Distance, true);
-					Scene->RenderFluxCubic(Time, Light->Shadow.Flux ? RenderOpt_Flux : RenderOpt_None);
-
-					Light->SetDepthCache(Target);
-					Shadows++;
-				}
-
-				Shadows = 0;
-				for (auto It = SpotLights->Begin(); It != SpotLights->End(); It++)
-				{
-					Engine::Components::SpotLight* Light = (Engine::Components::SpotLight*)*It;
-					if (Shadows >= Renderers.SpotLight.size())
-						break;
-
-					Light->SetDepthCache(nullptr);
-					if (!Light->Shadow.Enabled)
-						continue;
-
-					if (!System->PassCullable(Light, CullResult_Always, &D) || D < ShadowDistance)
-						continue;
-
-					Graphics::MultiRenderTarget2D* Target = Renderers.SpotLight[Shadows];
-					Device->SetTarget(Target, 0, 0, 0, 0);
-					Device->ClearDepth(Target);
-
-					Light->AssembleDepthOrigin();
-					Scene->SetView(Light->View, Light->Projection, Light->GetEntity()->Transform->Position, 0.1f, Light->Shadow.Distance, true);
-					Scene->RenderFluxLinear(Time, Light->Shadow.Flux ? RenderOpt_Flux : RenderOpt_None);
-
-					Light->SetDepthCache(Target);
-					Shadows++;
-				}
-
-				Shadows = 0;
-				for (auto It = LineLights->Begin(); It != LineLights->End(); It++)
-				{
-					Engine::Components::LineLight* Light = (Engine::Components::LineLight*)*It;
-					if (Shadows >= Renderers.LineLight.size())
-						break;
-
-					Light->SetDepthCache(nullptr);
-					if (!Light->Shadow.Enabled)
-						continue;
-
-					CascadeMap*& Target = Renderers.LineLight[Shadows];
-					if (Light->Shadow.Cascades < 1 || Light->Shadow.Cascades > 6)
-						continue;
-
-					if (!Target || Target->size() < Light->Shadow.Cascades)
-						GenerateCascadeMap(&Target, Light->Shadow.Cascades);
-
-					Light->AssembleDepthOrigin();
-					for (size_t i = 0; i < Target->size(); i++)
-					{
-						Graphics::MultiRenderTarget2D* Cascade = (*Target)[i];
-						Device->SetTarget(Cascade, 0, 0, 0);
-						Device->ClearDepth(Cascade);
-
-						Scene->SetView(Light->View[i], Light->Projection[i], 0.0f, 0.1f, Light->Shadow.Distance[i], true);
-						Scene->RenderFluxLinear(Time, Light->Shadow.Flux ? RenderOpt_Flux : RenderOpt_None);
-					}
-
-					Light->SetDepthCache(Target);
-					Shadows++;
-				}
-
-				Scene->RestoreViewBuffer(nullptr);
-			}
-			void Depth::GenerateCascadeMap(CascadeMap** Result, uint32_t Size)
-			{
-				CascadeMap* Target = (*Result ? *Result : new CascadeMap());
-				for (auto It = Target->begin(); It != Target->end(); It++)
-					delete *It;
-
-				Target->resize(Size);
-				for (auto It = Target->begin(); It != Target->end(); It++)
-				{
-					Graphics::MultiRenderTarget2D::Desc F = Graphics::MultiRenderTarget2D::Desc();
-					F.Width = (unsigned int)Renderers.LineLightResolution;
-					F.Height = (unsigned int)Renderers.LineLightResolution;
-					GetDepthFormat(F.FormatMode);
-					GetDepthTarget(&F.Target);
-		
-					*It = System->GetDevice()->CreateMultiRenderTarget2D(F);
-				}
-
-				*Result = Target;
-			}
-			void Depth::GetDepthFormat(Graphics::Format* Result)
-			{
-				Result[0] = Graphics::Format_R32_Float;
-				Result[1] = Graphics::Format_R8G8B8A8_Unorm;
-				Result[2] = Graphics::Format_R16G16B16A16_Float;
-			}
-			void Depth::GetDepthTarget(Graphics::SurfaceTarget* Result)
-			{
-				*Result = Graphics::SurfaceTarget2;
-			}
-
-			Environment::Environment(RenderSystem* Lab) : Renderer(Lab), Surface(nullptr), Size(128), MipLevels(7)
-			{
-			}
-			Environment::~Environment()
-			{
-				TH_RELEASE(Surface);
-				TH_RELEASE(Subresource);
-			}
-			void Environment::Deserialize(ContentManager* Content, Rest::Document* Node)
-			{
-				NMake::Unpack(Node->Find("size"), &Size);
-				NMake::Unpack(Node->Find("mip-levels"), &MipLevels);
-
-				Lighting* Light = System->GetRenderer<Renderers::Lighting>();
-				if (Light != nullptr)
-					Light->ReflectionProbe.MipLevels = (float)MipLevels;
-			}
-			void Environment::Serialize(ContentManager* Content, Rest::Document* Node)
-			{
-				NMake::Pack(Node->SetDocument("size"), Size);
-				NMake::Pack(Node->SetDocument("mip-levels"), MipLevels);
-			}
-			void Environment::Activate()
-			{
-				ReflectionProbes = System->AddCull<Engine::Components::ReflectionProbe>();
-				CreateRenderTarget();
-			}
-			void Environment::Deactivate()
-			{
-				ReflectionProbes = System->RemoveCull<Engine::Components::ReflectionProbe>();
-			}
-			void Environment::Render(Rest::Timer* Time, RenderState State, RenderOpt Options)
-			{
-				if (State != RenderState_Geometry || Options & RenderOpt_Inner || Options & RenderOpt_Transparent)
-					return;
-
-				SceneGraph* Scene = System->GetScene();
-				Graphics::GraphicsDevice* Device = System->GetDevice();
-				Graphics::MultiRenderTarget2D* S = Scene->GetSurface();
-				Scene->SwapSurface(Surface);
-				Scene->SetSurface();
-
-				double ElapsedTime = Time->GetElapsedTime();
-				for (auto It = ReflectionProbes->Begin(); It != ReflectionProbes->End(); It++)
-				{
-					Engine::Components::ReflectionProbe* Light = (Engine::Components::ReflectionProbe*)*It;
-					if (Light->IsImageBased() || !System->PassCullable(Light, CullResult_Always, nullptr))
-						continue;
-
-					Graphics::TextureCube* Cache = Light->GetProbeCache();
-					if (!Cache)
-					{
-						Cache = Device->CreateTextureCube();
-						Light->SetProbeCache(Cache);
-					}
-					else if (!Light->Tick.TickEvent(ElapsedTime) || Light->Tick.Delay <= 0.0)
-						continue;
-
-					Device->CubemapBegin(Subresource);
-					Light->Locked = true;
-
-					Compute::Vector3 Position = Light->GetEntity()->Transform->Position * Light->Offset;
-					for (unsigned int j = 0; j < 6; j++)
-					{
-						Light->View[j] = Compute::Matrix4x4::CreateCubeMapLookAt(j, Position);
-						Scene->SetView(Light->View[j], Light->Projection, Position, 0.1f, Light->Range, true);
-						Scene->ClearSurface();
-						Scene->RenderGeometry(Time, Light->StaticMask ? RenderOpt_Inner | RenderOpt_Static : RenderOpt_Inner);
-						Device->CubemapFace(Subresource, 0, j);
-					}
-
-					Light->Locked = false;
-					Device->CubemapEnd(Subresource, Cache);
-				}
-
-				Scene->SwapSurface(S);
-				Scene->RestoreViewBuffer(nullptr);
-			}
-			void Environment::CreateRenderTarget()
-			{
-				Map = Size;
-
-				Graphics::MultiRenderTarget2D::Desc F;
-				System->GetScene()->GetTargetDesc(&F);
-
-				F.MipLevels = System->GetDevice()->GetMipLevel((unsigned int)Size, (unsigned int)Size);
-				F.Width = (unsigned int)Size;
-				F.Height = (unsigned int)Size;
-
-				if (MipLevels > F.MipLevels)
-					MipLevels = F.MipLevels;
-				else
-					F.MipLevels = (unsigned int)MipLevels;
-
-				TH_RELEASE(Surface);
-				Surface = System->GetDevice()->CreateMultiRenderTarget2D(F);
-
-				Graphics::Cubemap::Desc I;
-				I.Source = Surface;
-				I.MipLevels = MipLevels;
-				I.Size = Size;
-
-				TH_RELEASE(Subresource);
-				Subresource = System->GetDevice()->CreateCubemap(I);
-
-				Lighting* Light = System->GetRenderer<Renderers::Lighting>();
-				if (Light != nullptr)
-					Light->ResizeBuffers();
-			}
-			void Environment::SetCaptureSize(size_t NewSize)
-			{
-				Size = NewSize;
-				CreateRenderTarget();
-			}
-
 			Lighting::Lighting(RenderSystem* Lab) : Renderer(Lab), RecursiveProbes(true), Input1(nullptr), Input2(nullptr), Output1(nullptr), Output2(nullptr)
 			{
 				DepthStencilNone = Lab->GetDevice()->GetDepthStencilState("none");
@@ -1412,7 +1320,7 @@ namespace Tomahawk
 				DepthStencilLess = Lab->GetDevice()->GetDepthStencilState("less-read-only");
 				FrontRasterizer = Lab->GetDevice()->GetRasterizerState("cull-front");
 				BackRasterizer = Lab->GetDevice()->GetRasterizerState("cull-back");
-				Blend = Lab->GetDevice()->GetBlendState("additive");
+				Blend = Lab->GetDevice()->GetBlendState("additive-opaque");
 				ShadowSampler = Lab->GetDevice()->GetSamplerState("shadow");
 				WrapSampler = Lab->GetDevice()->GetSamplerState("trilinear-x16");
 				Layout = Lab->GetDevice()->GetInputLayout("shape-vertex");
@@ -1816,111 +1724,247 @@ namespace Tomahawk
 				return SkyBase;
 			}
 
-			Glitch::Glitch(RenderSystem* Lab) : EffectDraw(Lab), ScanLineJitter(0), VerticalJump(0), HorizontalShake(0), ColorDrift(0)
+			Transparency::Transparency(RenderSystem* Lab) : Renderer(Lab)
+			{
+				DepthStencil = Lab->GetDevice()->GetDepthStencilState("none");
+				Rasterizer = Lab->GetDevice()->GetRasterizerState("cull-back");
+				Blend = Lab->GetDevice()->GetBlendState("overwrite");
+				Sampler = Lab->GetDevice()->GetSamplerState("trilinear-x16");
+				Layout = Lab->GetDevice()->GetInputLayout("shape-vertex");
+
+				Graphics::Shader::Desc I = Graphics::Shader::Desc();
+				if (System->GetDevice()->GetSection("shaders/effects/transparency", &I.Data))
+					Shader = System->CompileShader("lr-transparency", I, sizeof(RenderPass));
+			}
+			Transparency::~Transparency()
+			{
+				System->FreeShader("lr-transparency", Shader);
+				TH_RELEASE(Surface1);
+				TH_RELEASE(Input1);
+				TH_RELEASE(Surface2);
+				TH_RELEASE(Input2);
+			}
+			void Transparency::Activate()
+			{
+				ResizeBuffers();
+			}
+			void Transparency::Render(Rest::Timer* Time, RenderState State, RenderOpt Options)
+			{
+				bool Inner = (Options & RenderOpt_Inner);
+				if (State != RenderState_Geometry || Options & RenderOpt_Transparent)
+					return;
+
+				SceneGraph* Scene = System->GetScene();
+				if (!Scene->GetTransparentCount())
+					return;
+
+				Graphics::MultiRenderTarget2D* S = Scene->GetSurface();
+				Graphics::GraphicsDevice* Device = System->GetDevice();
+				RenderPass.MipLevels = (Inner ? MipLevels2 : MipLevels1);
+
+				Scene->SwapSurface(Inner ? Surface2 : Surface1);
+				Scene->SetSurfaceCleared();
+				Scene->RenderGeometry(Time, Options | RenderOpt_Transparent);
+				Scene->SwapSurface(S);
+
+				Device->CopyTarget(S, 0, Inner ? Input2 : Input1, 0);
+				Device->GenerateMips(Inner ? Input2->GetTarget(0) : Input1->GetTarget(0));
+				Device->SetTarget(S, 0);
+				Device->Clear(S, 0, 0, 0, 0);
+				Device->UpdateBuffer(Shader, &RenderPass);
+				Device->SetSamplerState(Sampler, 0);
+				Device->SetDepthStencilState(DepthStencil);
+				Device->SetBlendState(Blend);
+				Device->SetRasterizerState(Rasterizer);
+				Device->SetInputLayout(Layout);
+				Device->SetShader(Shader, Graphics::ShaderType_Vertex | Graphics::ShaderType_Pixel);
+				Device->SetBuffer(Shader, 3, Graphics::ShaderType_Vertex | Graphics::ShaderType_Pixel);
+				Device->SetVertexBuffer(System->GetQuadVBuffer(), 0);
+				Device->SetTexture2D(Inner ? Input2->GetTarget(0) : Input1->GetTarget(0), 1);
+				Device->SetTexture2D(S->GetTarget(1), 2);
+				Device->SetTexture2D(S->GetTarget(2), 3);
+				Device->SetTexture2D(S->GetTarget(3), 4);
+				Device->SetTexture2D(Inner ? Surface2->GetTarget(0) : Surface1->GetTarget(0), 5);
+				Device->SetTexture2D(Inner ? Surface2->GetTarget(1) : Surface1->GetTarget(1), 6);
+				Device->SetTexture2D(Inner ? Surface2->GetTarget(2) : Surface1->GetTarget(2), 7);
+				Device->SetTexture2D(Inner ? Surface2->GetTarget(3) : Surface1->GetTarget(3), 8);
+				Device->UpdateBuffer(Graphics::RenderBufferType_Render);
+				Device->Draw(6, 0);
+				Device->FlushTexture2D(1, 8);
+			}
+			void Transparency::ResizeBuffers()
+			{
+				Graphics::MultiRenderTarget2D::Desc F1;
+				System->GetScene()->GetTargetDesc(&F1);
+				MipLevels1 = (float)F1.MipLevels;
+
+				TH_RELEASE(Surface1);
+				Surface1 = System->GetDevice()->CreateMultiRenderTarget2D(F1);
+
+				Graphics::RenderTarget2D::Desc F2;
+				System->GetScene()->GetTargetDesc(&F2);
+
+				TH_RELEASE(Input1);
+				Input1 = System->GetDevice()->CreateRenderTarget2D(F2);
+
+				auto* Renderer = System->GetRenderer<Renderers::Environment>();
+				if (Renderer != nullptr)
+				{
+					F1.Width = (unsigned int)Renderer->Size;
+					F1.Height = (unsigned int)Renderer->Size;
+					F1.MipLevels = (unsigned int)Renderer->MipLevels;
+					F2.Width = (unsigned int)Renderer->Size;
+					F2.Height = (unsigned int)Renderer->Size;
+					F2.MipLevels = (unsigned int)Renderer->MipLevels;
+					MipLevels2 = (float)Renderer->MipLevels;
+				}
+
+				TH_RELEASE(Surface2);
+				Surface2 = System->GetDevice()->CreateMultiRenderTarget2D(F1);
+
+				TH_RELEASE(Input2);
+				Input2 = System->GetDevice()->CreateRenderTarget2D(F2);
+			}
+
+			SSR::SSR(RenderSystem* Lab) : EffectDraw(Lab), Pass1(nullptr), Pass2(nullptr)
 			{
 				std::string Data;
-				if (System->GetDevice()->GetSection("shaders/effects/glitch", &Data))
-					CompileEffect("gr-glitch", Data, sizeof(RenderPass));
-			}
-			void Glitch::Deserialize(ContentManager* Content, Rest::Document* Node)
-			{
-				NMake::Unpack(Node->Find("scanline-jitter"), &ScanLineJitter);
-				NMake::Unpack(Node->Find("vertical-jump"), &VerticalJump);
-				NMake::Unpack(Node->Find("horizontal-shake"), &HorizontalShake);
-				NMake::Unpack(Node->Find("color-drift"), &ColorDrift);
-				NMake::Unpack(Node->Find("horizontal-shake"), &HorizontalShake);
-				NMake::Unpack(Node->Find("elapsed-time"), &RenderPass.ElapsedTime);
-				NMake::Unpack(Node->Find("scanline-jitter-displacement"), &RenderPass.ScanLineJitterDisplacement);
-				NMake::Unpack(Node->Find("scanline-jitter-threshold"), &RenderPass.ScanLineJitterThreshold);
-				NMake::Unpack(Node->Find("vertical-jump-amount"), &RenderPass.VerticalJumpAmount);
-				NMake::Unpack(Node->Find("vertical-jump-time"), &RenderPass.VerticalJumpTime);
-				NMake::Unpack(Node->Find("color-drift-amount"), &RenderPass.ColorDriftAmount);
-				NMake::Unpack(Node->Find("color-drift-time"), &RenderPass.ColorDriftTime);
-			}
-			void Glitch::Serialize(ContentManager* Content, Rest::Document* Node)
-			{
-				NMake::Pack(Node->SetDocument("scanline-jitter"), ScanLineJitter);
-				NMake::Pack(Node->SetDocument("vertical-jump"), VerticalJump);
-				NMake::Pack(Node->SetDocument("horizontal-shake"), HorizontalShake);
-				NMake::Pack(Node->SetDocument("color-drift"), ColorDrift);
-				NMake::Pack(Node->SetDocument("horizontal-shake"), HorizontalShake);
-				NMake::Pack(Node->SetDocument("elapsed-time"), RenderPass.ElapsedTime);
-				NMake::Pack(Node->SetDocument("scanline-jitter-displacement"), RenderPass.ScanLineJitterDisplacement);
-				NMake::Pack(Node->SetDocument("scanline-jitter-threshold"), RenderPass.ScanLineJitterThreshold);
-				NMake::Pack(Node->SetDocument("vertical-jump-amount"), RenderPass.VerticalJumpAmount);
-				NMake::Pack(Node->SetDocument("vertical-jump-time"), RenderPass.VerticalJumpTime);
-				NMake::Pack(Node->SetDocument("color-drift-amount"), RenderPass.ColorDriftAmount);
-				NMake::Pack(Node->SetDocument("color-drift-time"), RenderPass.ColorDriftTime);
-			}
-			void Glitch::RenderEffect(Rest::Timer* Time)
-			{
-				if (RenderPass.ElapsedTime >= 32000.0f)
-					RenderPass.ElapsedTime = 0.0f;
+				if (System->GetDevice()->GetSection("shaders/effects/reflection", &Data))
+					Pass1 = CompileEffect("rr-reflection", Data, sizeof(RenderPass1));
 
-				RenderPass.ElapsedTime += (float)Time->GetDeltaTime() * 10.0f;
-				RenderPass.VerticalJumpAmount = VerticalJump;
-				RenderPass.VerticalJumpTime += (float)Time->GetDeltaTime() * VerticalJump * 11.3f;
-				RenderPass.ScanLineJitterThreshold = Compute::Mathf::Saturate(1.0f - ScanLineJitter * 1.2f);
-				RenderPass.ScanLineJitterDisplacement = 0.002f + Compute::Mathf::Pow(ScanLineJitter, 3) * 0.05f;
-				RenderPass.HorizontalShake = HorizontalShake * 0.2f;
-				RenderPass.ColorDriftAmount = ColorDrift * 0.04f;
-				RenderPass.ColorDriftTime = RenderPass.ElapsedTime * 606.11f;
-				RenderResult(nullptr, &RenderPass);
+				if (System->GetDevice()->GetSection("shaders/effects/gloss-x", &Data))
+					Pass2 = CompileEffect("rr-gloss-x", Data, sizeof(RenderPass2));
+
+				if (System->GetDevice()->GetSection("shaders/effects/gloss-y", &Data))
+					Pass3 = CompileEffect("rr-gloss-y", Data, sizeof(RenderPass2));
+			}
+			void SSR::Deserialize(ContentManager* Content, Rest::Document* Node)
+			{
+				NMake::Unpack(Node->Find("samples-1"), &RenderPass1.Samples);
+				NMake::Unpack(Node->Find("samples-2"), &RenderPass2.Samples);
+				NMake::Unpack(Node->Find("intensity"), &RenderPass1.Intensity);
+				NMake::Unpack(Node->Find("blur"), &RenderPass2.Blur);
+			}
+			void SSR::Serialize(ContentManager* Content, Rest::Document* Node)
+			{
+				NMake::Pack(Node->SetDocument("samples-1"), RenderPass1.Samples);
+				NMake::Pack(Node->SetDocument("samples-2"), RenderPass2.Samples);
+				NMake::Pack(Node->SetDocument("intensity"), RenderPass1.Intensity);
+				NMake::Pack(Node->SetDocument("blur"), RenderPass2.Blur);
+			}
+			void SSR::RenderEffect(Rest::Timer* Time)
+			{
+				Graphics::MultiRenderTarget2D* Surface = System->GetScene()->GetSurface();
+				if (Surface != nullptr)
+					System->GetDevice()->GenerateMips(Surface->GetTarget(0));
+
+				RenderPass1.MipLevels = System->GetDevice()->GetMipLevel((unsigned int)Output->GetWidth(), (unsigned int)Output->GetHeight());
+				RenderPass2.Texel[0] = 1.0f / Output->GetWidth();
+				RenderPass2.Texel[1] = 1.0f / Output->GetHeight();
+
+				RenderMerge(Pass1, &RenderPass1);
+				RenderMerge(Pass2, &RenderPass2);
+				RenderResult(Pass3, &RenderPass2);
 			}
 
-			Tone::Tone(RenderSystem* Lab) : EffectDraw(Lab)
+			SSDO::SSDO(RenderSystem* Lab) : EffectDraw(Lab), Pass1(nullptr), Pass2(nullptr)
 			{
 				std::string Data;
-				if (System->GetDevice()->GetSection("shaders/effects/tone", &Data))
-					CompileEffect("tr-tone", Data, sizeof(RenderPass));
+				if (System->GetDevice()->GetSection("shaders/effects/indirect", &Data))
+					Pass1 = CompileEffect("dor-indirect", Data, sizeof(RenderPass1));
+
+				if (System->GetDevice()->GetSection("shaders/effects/blur-x", &Data))
+					Pass2 = CompileEffect("dor-blur-x", Data, sizeof(RenderPass2));
+
+				if (System->GetDevice()->GetSection("shaders/effects/blur-y", &Data))
+					Pass3 = CompileEffect("dor-blur-y", Data, sizeof(RenderPass2));
 			}
-			void Tone::Deserialize(ContentManager* Content, Rest::Document* Node)
+			void SSDO::Deserialize(ContentManager* Content, Rest::Document* Node)
 			{
-				NMake::Unpack(Node->Find("blind-vision-r"), &RenderPass.BlindVisionR);
-				NMake::Unpack(Node->Find("blind-vision-g"), &RenderPass.BlindVisionG);
-				NMake::Unpack(Node->Find("blind-vision-b"), &RenderPass.BlindVisionB);
-				NMake::Unpack(Node->Find("vignette-color"), &RenderPass.VignetteColor);
-				NMake::Unpack(Node->Find("color-gamma"), &RenderPass.ColorGamma);
-				NMake::Unpack(Node->Find("desaturation-gamma"), &RenderPass.DesaturationGamma);
-				NMake::Unpack(Node->Find("vignette-amount"), &RenderPass.VignetteAmount);
-				NMake::Unpack(Node->Find("vignette-curve"), &RenderPass.VignetteCurve);
-				NMake::Unpack(Node->Find("vignette-radius"), &RenderPass.VignetteRadius);
-				NMake::Unpack(Node->Find("linear-intensity"), &RenderPass.LinearIntensity);
-				NMake::Unpack(Node->Find("gamma-intensity"), &RenderPass.GammaIntensity);
-				NMake::Unpack(Node->Find("desaturation-intensity"), &RenderPass.DesaturationIntensity);
-				NMake::Unpack(Node->Find("tone-intensity"), &RenderPass.ToneIntensity);
-				NMake::Unpack(Node->Find("aces-intensity"), &RenderPass.AcesIntensity);
-				NMake::Unpack(Node->Find("aces-a"), &RenderPass.AcesA);
-				NMake::Unpack(Node->Find("aces-b"), &RenderPass.AcesB);
-				NMake::Unpack(Node->Find("aces-c"), &RenderPass.AcesC);
-				NMake::Unpack(Node->Find("aces-d"), &RenderPass.AcesD);
-				NMake::Unpack(Node->Find("aces-e"), &RenderPass.AcesE);
+				NMake::Unpack(Node->Find("scale"), &RenderPass1.Scale);
+				NMake::Unpack(Node->Find("intensity"), &RenderPass1.Intensity);
+				NMake::Unpack(Node->Find("bias"), &RenderPass1.Bias);
+				NMake::Unpack(Node->Find("radius"), &RenderPass1.Radius);
+				NMake::Unpack(Node->Find("distance"), &RenderPass1.Distance);
+				NMake::Unpack(Node->Find("fade"), &RenderPass1.Fade);
+				NMake::Unpack(Node->Find("power"), &RenderPass2.Power);
+				NMake::Unpack(Node->Find("samples-1"), &RenderPass1.Samples);
+				NMake::Unpack(Node->Find("samples-2"), &RenderPass2.Samples);
+				NMake::Unpack(Node->Find("blur"), &RenderPass2.Blur);
+				NMake::Unpack(Node->Find("additive"), &RenderPass2.Additive);
 			}
-			void Tone::Serialize(ContentManager* Content, Rest::Document* Node)
+			void SSDO::Serialize(ContentManager* Content, Rest::Document* Node)
 			{
-				NMake::Pack(Node->SetDocument("blind-vision-r"), RenderPass.BlindVisionR);
-				NMake::Pack(Node->SetDocument("blind-vision-g"), RenderPass.BlindVisionG);
-				NMake::Pack(Node->SetDocument("blind-vision-b"), RenderPass.BlindVisionB);
-				NMake::Pack(Node->SetDocument("vignette-color"), RenderPass.VignetteColor);
-				NMake::Pack(Node->SetDocument("color-gamma"), RenderPass.ColorGamma);
-				NMake::Pack(Node->SetDocument("desaturation-gamma"), RenderPass.DesaturationGamma);
-				NMake::Pack(Node->SetDocument("vignette-amount"), RenderPass.VignetteAmount);
-				NMake::Pack(Node->SetDocument("vignette-curve"), RenderPass.VignetteCurve);
-				NMake::Pack(Node->SetDocument("vignette-radius"), RenderPass.VignetteRadius);
-				NMake::Pack(Node->SetDocument("linear-intensity"), RenderPass.LinearIntensity);
-				NMake::Pack(Node->SetDocument("gamma-intensity"), RenderPass.GammaIntensity);
-				NMake::Pack(Node->SetDocument("desaturation-intensity"), RenderPass.DesaturationIntensity);
-				NMake::Pack(Node->SetDocument("tone-intensity"), RenderPass.ToneIntensity);
-				NMake::Pack(Node->SetDocument("aces-intensity"), RenderPass.AcesIntensity);
-				NMake::Pack(Node->SetDocument("aces-a"), RenderPass.AcesA);
-				NMake::Pack(Node->SetDocument("aces-b"), RenderPass.AcesB);
-				NMake::Pack(Node->SetDocument("aces-c"), RenderPass.AcesC);
-				NMake::Pack(Node->SetDocument("aces-d"), RenderPass.AcesD);
-				NMake::Pack(Node->SetDocument("aces-e"), RenderPass.AcesE);
+				NMake::Pack(Node->SetDocument("scale"), RenderPass1.Scale);
+				NMake::Pack(Node->SetDocument("intensity"), RenderPass1.Intensity);
+				NMake::Pack(Node->SetDocument("bias"), RenderPass1.Bias);
+				NMake::Pack(Node->SetDocument("radius"), RenderPass1.Radius);
+				NMake::Pack(Node->SetDocument("distance"), RenderPass1.Distance);
+				NMake::Pack(Node->SetDocument("fade"), RenderPass1.Fade);
+				NMake::Pack(Node->SetDocument("power"), RenderPass2.Power);
+				NMake::Pack(Node->SetDocument("samples-1"), RenderPass1.Samples);
+				NMake::Pack(Node->SetDocument("samples-2"), RenderPass2.Samples);
+				NMake::Pack(Node->SetDocument("blur"), RenderPass2.Blur);
+				NMake::Pack(Node->SetDocument("additive"), RenderPass2.Additive);
 			}
-			void Tone::RenderEffect(Rest::Timer* Time)
+			void SSDO::RenderEffect(Rest::Timer* Time)
 			{
-				RenderResult(nullptr, &RenderPass);
+				RenderPass2.Texel[0] = 1.0f / Output->GetWidth();
+				RenderPass2.Texel[1] = 1.0f / Output->GetHeight();
+
+				RenderMerge(Pass1, &RenderPass1);
+				RenderMerge(Pass2, &RenderPass2);
+				RenderResult(Pass3, &RenderPass2);
+			}
+
+			SSAO::SSAO(RenderSystem* Lab) : EffectDraw(Lab), Pass1(nullptr), Pass2(nullptr)
+			{
+				std::string Data;
+				if (System->GetDevice()->GetSection("shaders/effects/ambient", &Data))
+					Pass1 = CompileEffect("aor-ambient", Data, sizeof(RenderPass1));
+
+				if (System->GetDevice()->GetSection("shaders/effects/blur-x", &Data))
+					Pass2 = CompileEffect("aor-blur-x", Data, sizeof(RenderPass2));
+
+				if (System->GetDevice()->GetSection("shaders/effects/blur-y", &Data))
+					Pass3 = CompileEffect("aor-blur-y", Data, sizeof(RenderPass2));
+			}
+			void SSAO::Deserialize(ContentManager* Content, Rest::Document* Node)
+			{
+				NMake::Unpack(Node->Find("scale"), &RenderPass1.Scale);
+				NMake::Unpack(Node->Find("intensity"), &RenderPass1.Intensity);
+				NMake::Unpack(Node->Find("bias"), &RenderPass1.Bias);
+				NMake::Unpack(Node->Find("radius"), &RenderPass1.Radius);
+				NMake::Unpack(Node->Find("distance"), &RenderPass1.Distance);
+				NMake::Unpack(Node->Find("fade"), &RenderPass1.Fade);
+				NMake::Unpack(Node->Find("power"), &RenderPass2.Power);
+				NMake::Unpack(Node->Find("samples-1"), &RenderPass1.Samples);
+				NMake::Unpack(Node->Find("samples-2"), &RenderPass2.Samples);
+				NMake::Unpack(Node->Find("blur"), &RenderPass2.Blur);
+				NMake::Unpack(Node->Find("additive"), &RenderPass2.Additive);
+			}
+			void SSAO::Serialize(ContentManager* Content, Rest::Document* Node)
+			{
+				NMake::Pack(Node->SetDocument("scale"), RenderPass1.Scale);
+				NMake::Pack(Node->SetDocument("intensity"), RenderPass1.Intensity);
+				NMake::Pack(Node->SetDocument("bias"), RenderPass1.Bias);
+				NMake::Pack(Node->SetDocument("radius"), RenderPass1.Radius);
+				NMake::Pack(Node->SetDocument("distance"), RenderPass1.Distance);
+				NMake::Pack(Node->SetDocument("fade"), RenderPass1.Fade);
+				NMake::Pack(Node->SetDocument("power"), RenderPass2.Power);
+				NMake::Pack(Node->SetDocument("samples-1"), RenderPass1.Samples);
+				NMake::Pack(Node->SetDocument("samples-2"), RenderPass2.Samples);
+				NMake::Pack(Node->SetDocument("blur"), RenderPass2.Blur);
+				NMake::Pack(Node->SetDocument("additive"), RenderPass2.Additive);
+			}
+			void SSAO::RenderEffect(Rest::Timer* Time)
+			{
+				RenderPass2.Texel[0] = 1.0f / Output->GetWidth();
+				RenderPass2.Texel[1] = 1.0f / Output->GetHeight();
+
+				RenderMerge(Pass1, &RenderPass1);
+				RenderMerge(Pass2, &RenderPass2);
+				RenderResult(Pass3, &RenderPass2);
 			}
 
 			DoF::DoF(RenderSystem* Lab) : EffectDraw(Lab)
@@ -2052,145 +2096,111 @@ namespace Tomahawk
 				RenderResult(Pass2, &RenderPass);
 			}
 
-			SSR::SSR(RenderSystem* Lab) : EffectDraw(Lab), Pass1(nullptr), Pass2(nullptr)
+			Tone::Tone(RenderSystem* Lab) : EffectDraw(Lab)
 			{
 				std::string Data;
-				if (System->GetDevice()->GetSection("shaders/effects/reflection", &Data))
-					Pass1 = CompileEffect("rr-reflection", Data, sizeof(RenderPass1));
-
-				if (System->GetDevice()->GetSection("shaders/effects/gloss-x", &Data))
-					Pass2 = CompileEffect("rr-gloss-x", Data, sizeof(RenderPass2));
-
-				if (System->GetDevice()->GetSection("shaders/effects/gloss-y", &Data))
-					Pass3 = CompileEffect("rr-gloss-y", Data, sizeof(RenderPass2));
+				if (System->GetDevice()->GetSection("shaders/effects/tone", &Data))
+					CompileEffect("tr-tone", Data, sizeof(RenderPass));
 			}
-			void SSR::Deserialize(ContentManager* Content, Rest::Document* Node)
+			void Tone::Deserialize(ContentManager* Content, Rest::Document* Node)
 			{
-				NMake::Unpack(Node->Find("samples-1"), &RenderPass1.Samples);
-				NMake::Unpack(Node->Find("samples-2"), &RenderPass2.Samples);
-				NMake::Unpack(Node->Find("intensity"), &RenderPass1.Intensity);
-				NMake::Unpack(Node->Find("blur"), &RenderPass2.Blur);
+				NMake::Unpack(Node->Find("blind-vision-r"), &RenderPass.BlindVisionR);
+				NMake::Unpack(Node->Find("blind-vision-g"), &RenderPass.BlindVisionG);
+				NMake::Unpack(Node->Find("blind-vision-b"), &RenderPass.BlindVisionB);
+				NMake::Unpack(Node->Find("vignette-color"), &RenderPass.VignetteColor);
+				NMake::Unpack(Node->Find("color-gamma"), &RenderPass.ColorGamma);
+				NMake::Unpack(Node->Find("desaturation-gamma"), &RenderPass.DesaturationGamma);
+				NMake::Unpack(Node->Find("vignette-amount"), &RenderPass.VignetteAmount);
+				NMake::Unpack(Node->Find("vignette-curve"), &RenderPass.VignetteCurve);
+				NMake::Unpack(Node->Find("vignette-radius"), &RenderPass.VignetteRadius);
+				NMake::Unpack(Node->Find("linear-intensity"), &RenderPass.LinearIntensity);
+				NMake::Unpack(Node->Find("gamma-intensity"), &RenderPass.GammaIntensity);
+				NMake::Unpack(Node->Find("desaturation-intensity"), &RenderPass.DesaturationIntensity);
+				NMake::Unpack(Node->Find("tone-intensity"), &RenderPass.ToneIntensity);
+				NMake::Unpack(Node->Find("aces-intensity"), &RenderPass.AcesIntensity);
+				NMake::Unpack(Node->Find("aces-a"), &RenderPass.AcesA);
+				NMake::Unpack(Node->Find("aces-b"), &RenderPass.AcesB);
+				NMake::Unpack(Node->Find("aces-c"), &RenderPass.AcesC);
+				NMake::Unpack(Node->Find("aces-d"), &RenderPass.AcesD);
+				NMake::Unpack(Node->Find("aces-e"), &RenderPass.AcesE);
 			}
-			void SSR::Serialize(ContentManager* Content, Rest::Document* Node)
+			void Tone::Serialize(ContentManager* Content, Rest::Document* Node)
 			{
-				NMake::Pack(Node->SetDocument("samples-1"), RenderPass1.Samples);
-				NMake::Pack(Node->SetDocument("samples-2"), RenderPass2.Samples);
-				NMake::Pack(Node->SetDocument("intensity"), RenderPass1.Intensity);
-				NMake::Pack(Node->SetDocument("blur"), RenderPass2.Blur);
+				NMake::Pack(Node->SetDocument("blind-vision-r"), RenderPass.BlindVisionR);
+				NMake::Pack(Node->SetDocument("blind-vision-g"), RenderPass.BlindVisionG);
+				NMake::Pack(Node->SetDocument("blind-vision-b"), RenderPass.BlindVisionB);
+				NMake::Pack(Node->SetDocument("vignette-color"), RenderPass.VignetteColor);
+				NMake::Pack(Node->SetDocument("color-gamma"), RenderPass.ColorGamma);
+				NMake::Pack(Node->SetDocument("desaturation-gamma"), RenderPass.DesaturationGamma);
+				NMake::Pack(Node->SetDocument("vignette-amount"), RenderPass.VignetteAmount);
+				NMake::Pack(Node->SetDocument("vignette-curve"), RenderPass.VignetteCurve);
+				NMake::Pack(Node->SetDocument("vignette-radius"), RenderPass.VignetteRadius);
+				NMake::Pack(Node->SetDocument("linear-intensity"), RenderPass.LinearIntensity);
+				NMake::Pack(Node->SetDocument("gamma-intensity"), RenderPass.GammaIntensity);
+				NMake::Pack(Node->SetDocument("desaturation-intensity"), RenderPass.DesaturationIntensity);
+				NMake::Pack(Node->SetDocument("tone-intensity"), RenderPass.ToneIntensity);
+				NMake::Pack(Node->SetDocument("aces-intensity"), RenderPass.AcesIntensity);
+				NMake::Pack(Node->SetDocument("aces-a"), RenderPass.AcesA);
+				NMake::Pack(Node->SetDocument("aces-b"), RenderPass.AcesB);
+				NMake::Pack(Node->SetDocument("aces-c"), RenderPass.AcesC);
+				NMake::Pack(Node->SetDocument("aces-d"), RenderPass.AcesD);
+				NMake::Pack(Node->SetDocument("aces-e"), RenderPass.AcesE);
 			}
-			void SSR::RenderEffect(Rest::Timer* Time)
+			void Tone::RenderEffect(Rest::Timer* Time)
 			{
-				Graphics::MultiRenderTarget2D* Surface = System->GetScene()->GetSurface();
-				if (Surface != nullptr)
-					System->GetDevice()->GenerateMips(Surface->GetTarget(0));
-
-				RenderPass1.MipLevels = System->GetDevice()->GetMipLevel((unsigned int)Output->GetWidth(), (unsigned int)Output->GetHeight());
-				RenderPass2.Texel[0] = 1.0f / Output->GetWidth();
-				RenderPass2.Texel[1] = 1.0f / Output->GetHeight();
-
-				RenderMerge(Pass1, &RenderPass1);
-				RenderMerge(Pass2, &RenderPass2);
-				RenderResult(Pass3, &RenderPass2);
+				RenderResult(nullptr, &RenderPass);
 			}
 
-			SSAO::SSAO(RenderSystem* Lab) : EffectDraw(Lab), Pass1(nullptr), Pass2(nullptr)
-			{
-				std::string Data;
-				if (System->GetDevice()->GetSection("shaders/effects/ambient", &Data))
-					Pass1 = CompileEffect("aor-ambient", Data, sizeof(RenderPass1));
-
-				if (System->GetDevice()->GetSection("shaders/effects/blur-x", &Data))
-					Pass2 = CompileEffect("aor-blur-x", Data, sizeof(RenderPass2));
-
-				if (System->GetDevice()->GetSection("shaders/effects/blur-y", &Data))
-					Pass3 = CompileEffect("aor-blur-y", Data, sizeof(RenderPass2));
-			}
-			void SSAO::Deserialize(ContentManager* Content, Rest::Document* Node)
-			{
-				NMake::Unpack(Node->Find("scale"), &RenderPass1.Scale);
-				NMake::Unpack(Node->Find("intensity"), &RenderPass1.Intensity);
-				NMake::Unpack(Node->Find("bias"), &RenderPass1.Bias);
-				NMake::Unpack(Node->Find("radius"), &RenderPass1.Radius);
-				NMake::Unpack(Node->Find("distance"), &RenderPass1.Distance);
-				NMake::Unpack(Node->Find("fade"), &RenderPass1.Fade);
-				NMake::Unpack(Node->Find("power"), &RenderPass2.Power);
-				NMake::Unpack(Node->Find("samples-1"), &RenderPass1.Samples);
-				NMake::Unpack(Node->Find("samples-2"), &RenderPass2.Samples);
-				NMake::Unpack(Node->Find("blur"), &RenderPass2.Blur);
-				NMake::Unpack(Node->Find("additive"), &RenderPass2.Additive);
-			}
-			void SSAO::Serialize(ContentManager* Content, Rest::Document* Node)
-			{
-				NMake::Pack(Node->SetDocument("scale"), RenderPass1.Scale);
-				NMake::Pack(Node->SetDocument("intensity"), RenderPass1.Intensity);
-				NMake::Pack(Node->SetDocument("bias"), RenderPass1.Bias);
-				NMake::Pack(Node->SetDocument("radius"), RenderPass1.Radius);
-				NMake::Pack(Node->SetDocument("distance"), RenderPass1.Distance);
-				NMake::Pack(Node->SetDocument("fade"), RenderPass1.Fade);
-				NMake::Pack(Node->SetDocument("power"), RenderPass2.Power);
-				NMake::Pack(Node->SetDocument("samples-1"), RenderPass1.Samples);
-				NMake::Pack(Node->SetDocument("samples-2"), RenderPass2.Samples);
-				NMake::Pack(Node->SetDocument("blur"), RenderPass2.Blur);
-				NMake::Pack(Node->SetDocument("additive"), RenderPass2.Additive);
-			}
-			void SSAO::RenderEffect(Rest::Timer* Time)
-			{
-				RenderPass2.Texel[0] = 1.0f / Output->GetWidth();
-				RenderPass2.Texel[1] = 1.0f / Output->GetHeight();
-
-				RenderMerge(Pass1, &RenderPass1);
-				RenderMerge(Pass2, &RenderPass2);
-				RenderResult(Pass3, &RenderPass2);
-			}
-
-			SSDO::SSDO(RenderSystem* Lab) : EffectDraw(Lab), Pass1(nullptr), Pass2(nullptr)
+			Glitch::Glitch(RenderSystem* Lab) : EffectDraw(Lab), ScanLineJitter(0), VerticalJump(0), HorizontalShake(0), ColorDrift(0)
 			{
 				std::string Data;
-				if (System->GetDevice()->GetSection("shaders/effects/indirect", &Data))
-					Pass1 = CompileEffect("dor-indirect", Data, sizeof(RenderPass1));
-
-				if (System->GetDevice()->GetSection("shaders/effects/blur-x", &Data))
-					Pass2 = CompileEffect("dor-blur-x", Data, sizeof(RenderPass2));
-
-				if (System->GetDevice()->GetSection("shaders/effects/blur-y", &Data))
-					Pass3 = CompileEffect("dor-blur-y", Data, sizeof(RenderPass2));
+				if (System->GetDevice()->GetSection("shaders/effects/glitch", &Data))
+					CompileEffect("gr-glitch", Data, sizeof(RenderPass));
 			}
-			void SSDO::Deserialize(ContentManager* Content, Rest::Document* Node)
+			void Glitch::Deserialize(ContentManager* Content, Rest::Document* Node)
 			{
-				NMake::Unpack(Node->Find("scale"), &RenderPass1.Scale);
-				NMake::Unpack(Node->Find("intensity"), &RenderPass1.Intensity);
-				NMake::Unpack(Node->Find("bias"), &RenderPass1.Bias);
-				NMake::Unpack(Node->Find("radius"), &RenderPass1.Radius);
-				NMake::Unpack(Node->Find("distance"), &RenderPass1.Distance);
-				NMake::Unpack(Node->Find("fade"), &RenderPass1.Fade);
-				NMake::Unpack(Node->Find("power"), &RenderPass2.Power);
-				NMake::Unpack(Node->Find("samples-1"), &RenderPass1.Samples);
-				NMake::Unpack(Node->Find("samples-2"), &RenderPass2.Samples);
-				NMake::Unpack(Node->Find("blur"), &RenderPass2.Blur);
-				NMake::Unpack(Node->Find("additive"), &RenderPass2.Additive);
+				NMake::Unpack(Node->Find("scanline-jitter"), &ScanLineJitter);
+				NMake::Unpack(Node->Find("vertical-jump"), &VerticalJump);
+				NMake::Unpack(Node->Find("horizontal-shake"), &HorizontalShake);
+				NMake::Unpack(Node->Find("color-drift"), &ColorDrift);
+				NMake::Unpack(Node->Find("horizontal-shake"), &HorizontalShake);
+				NMake::Unpack(Node->Find("elapsed-time"), &RenderPass.ElapsedTime);
+				NMake::Unpack(Node->Find("scanline-jitter-displacement"), &RenderPass.ScanLineJitterDisplacement);
+				NMake::Unpack(Node->Find("scanline-jitter-threshold"), &RenderPass.ScanLineJitterThreshold);
+				NMake::Unpack(Node->Find("vertical-jump-amount"), &RenderPass.VerticalJumpAmount);
+				NMake::Unpack(Node->Find("vertical-jump-time"), &RenderPass.VerticalJumpTime);
+				NMake::Unpack(Node->Find("color-drift-amount"), &RenderPass.ColorDriftAmount);
+				NMake::Unpack(Node->Find("color-drift-time"), &RenderPass.ColorDriftTime);
 			}
-			void SSDO::Serialize(ContentManager* Content, Rest::Document* Node)
+			void Glitch::Serialize(ContentManager* Content, Rest::Document* Node)
 			{
-				NMake::Pack(Node->SetDocument("scale"), RenderPass1.Scale);
-				NMake::Pack(Node->SetDocument("intensity"), RenderPass1.Intensity);
-				NMake::Pack(Node->SetDocument("bias"), RenderPass1.Bias);
-				NMake::Pack(Node->SetDocument("radius"), RenderPass1.Radius);
-				NMake::Pack(Node->SetDocument("distance"), RenderPass1.Distance);
-				NMake::Pack(Node->SetDocument("fade"), RenderPass1.Fade);
-				NMake::Pack(Node->SetDocument("power"), RenderPass2.Power);
-				NMake::Pack(Node->SetDocument("samples-1"), RenderPass1.Samples);
-				NMake::Pack(Node->SetDocument("samples-2"), RenderPass2.Samples);
-				NMake::Pack(Node->SetDocument("blur"), RenderPass2.Blur);
-				NMake::Pack(Node->SetDocument("additive"), RenderPass2.Additive);
+				NMake::Pack(Node->SetDocument("scanline-jitter"), ScanLineJitter);
+				NMake::Pack(Node->SetDocument("vertical-jump"), VerticalJump);
+				NMake::Pack(Node->SetDocument("horizontal-shake"), HorizontalShake);
+				NMake::Pack(Node->SetDocument("color-drift"), ColorDrift);
+				NMake::Pack(Node->SetDocument("horizontal-shake"), HorizontalShake);
+				NMake::Pack(Node->SetDocument("elapsed-time"), RenderPass.ElapsedTime);
+				NMake::Pack(Node->SetDocument("scanline-jitter-displacement"), RenderPass.ScanLineJitterDisplacement);
+				NMake::Pack(Node->SetDocument("scanline-jitter-threshold"), RenderPass.ScanLineJitterThreshold);
+				NMake::Pack(Node->SetDocument("vertical-jump-amount"), RenderPass.VerticalJumpAmount);
+				NMake::Pack(Node->SetDocument("vertical-jump-time"), RenderPass.VerticalJumpTime);
+				NMake::Pack(Node->SetDocument("color-drift-amount"), RenderPass.ColorDriftAmount);
+				NMake::Pack(Node->SetDocument("color-drift-time"), RenderPass.ColorDriftTime);
 			}
-			void SSDO::RenderEffect(Rest::Timer* Time)
+			void Glitch::RenderEffect(Rest::Timer* Time)
 			{
-				RenderPass2.Texel[0] = 1.0f / Output->GetWidth();
-				RenderPass2.Texel[1] = 1.0f / Output->GetHeight();
+				if (RenderPass.ElapsedTime >= 32000.0f)
+					RenderPass.ElapsedTime = 0.0f;
 
-				RenderMerge(Pass1, &RenderPass1);
-				RenderMerge(Pass2, &RenderPass2);
-				RenderResult(Pass3, &RenderPass2);
+				RenderPass.ElapsedTime += (float)Time->GetDeltaTime() * 10.0f;
+				RenderPass.VerticalJumpAmount = VerticalJump;
+				RenderPass.VerticalJumpTime += (float)Time->GetDeltaTime() * VerticalJump * 11.3f;
+				RenderPass.ScanLineJitterThreshold = Compute::Mathf::Saturate(1.0f - ScanLineJitter * 1.2f);
+				RenderPass.ScanLineJitterDisplacement = 0.002f + Compute::Mathf::Pow(ScanLineJitter, 3) * 0.05f;
+				RenderPass.HorizontalShake = HorizontalShake * 0.2f;
+				RenderPass.ColorDriftAmount = ColorDrift * 0.04f;
+				RenderPass.ColorDriftTime = RenderPass.ElapsedTime * 606.11f;
+				RenderResult(nullptr, &RenderPass);
 			}
 
 			UserInterface::UserInterface(RenderSystem* Lab) : UserInterface(Lab, Application::Get() ? Application::Get()->Activity : nullptr)

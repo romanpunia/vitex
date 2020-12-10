@@ -2,10 +2,6 @@
 
 GFlux PS(VOutputLinear V)
 {
-    float4 Diffuse = float4(1.0, 1.0, 1.0, 1.0);
-    if (HasDiffuse > 0)
-        Diffuse = GetDiffuse(V.TexCoord);
-
-    Material Mat = GetMaterial(MaterialId);
-    return Compose(Diffuse, Mat.Transparency, V.Normal, length(V.UV.xyz - ViewPosition) / FarPlane);
+    float4 Diffuse = (HasDiffuse ? GetDiffuse(V.TexCoord) : float4(1.0, 1.0, 1.0, 1.0));
+    return Compose(Diffuse, 1.0 - GetMaterial(MaterialId).Transparency, V.Normal, length(V.UV.xyz - ViewPosition) / FarPlane);
 };

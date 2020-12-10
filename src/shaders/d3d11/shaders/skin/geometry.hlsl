@@ -26,7 +26,7 @@ VOutput VS(VInput V)
     }
 	else
 	{
-		Result.Position = Result.UV = mul(V.Position, WorldViewProjection);
+		Result.Position = Result.UV = mul(Position, WorldViewProjection);
 		Result.Normal = normalize(mul(V.Normal, (float3x3)World));
 		Result.Tangent = normalize(mul(V.Tangent, (float3x3)World));
 		Result.Bitangent = normalize(mul(V.Bitangent, (float3x3)World));
@@ -40,8 +40,7 @@ VOutput VS(VInput V)
         TangentSpace[2] = Result.Normal;
         TangentSpace = transpose(TangentSpace);
 
-        Result.Direction = normalize(ViewPosition - mul(Position, World).xyz);
-        Result.Direction = mul(Result.Direction, TangentSpace);
+        Result.Direction = mul(normalize(ViewPosition - mul(Position, World).xyz), TangentSpace) / float3(TexCoord, 1.0);
     }
 
 	return Result;

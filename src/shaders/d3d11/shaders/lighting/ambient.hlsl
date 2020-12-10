@@ -72,7 +72,7 @@ float4 PS(AmbientVertexResult V) : SV_TARGET0
     float3 M = GetBaseReflectivity(Frag.Diffuse, GetMetallic(Frag, Mat));
 	float3 A = GetIllumination(HighEmission, LowEmission, Frag.Normal.y);
     float3 F = GetFresnelSchlick(dot(normalize(Frag.Position - ViewPosition), Frag.Normal), M);
-    float3 D = lerp(Frag.Diffuse.xyz, F, F * Mat.Fresnel);
+    float3 D = lerp(Frag.Diffuse.xyz, F, F * Mat.Fresnel * 0.05);
     R.xyz += A * D * O + GetIllumination(E, E * 0.5, Frag.Normal.y) * O;
 
 	return float4(GetScattering(R.xyz, L), 1.0);

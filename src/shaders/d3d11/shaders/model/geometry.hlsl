@@ -20,8 +20,7 @@ VOutput VS(VInput V)
         TangentSpace[2] = Result.Normal;
         TangentSpace = transpose(TangentSpace);
 
-        Result.Direction = normalize(ViewPosition - mul(V.Position, World).xyz);
-        Result.Direction = mul(Result.Direction, TangentSpace);
+        Result.Direction = mul(normalize(ViewPosition - mul(V.Position, World).xyz), TangentSpace) / float3(TexCoord, 1.0);
     }
 
 	return Result;

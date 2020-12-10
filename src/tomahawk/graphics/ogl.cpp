@@ -3096,13 +3096,13 @@ namespace Tomahawk
 					case Format_R32_Sint:
 						return GL_R32I;
 					case Format_R24G8_Typeless:
-						return GL_R32UI;
+						return GL_DEPTH24_STENCIL8;
 					case Format_D24_Unorm_S8_Uint:
-						return GL_R32UI;
+						return GL_DEPTH24_STENCIL8;
 					case Format_R24_Unorm_X8_Typeless:
-						return GL_R32UI;
+						return GL_DEPTH24_STENCIL8;
 					case Format_X24_Typeless_G8_Uint:
-						return GL_R32UI;
+						return GL_DEPTH24_STENCIL8;
 					case Format_R8G8_Typeless:
 						return GL_RG8UI;
 					case Format_R8G8_Unorm:

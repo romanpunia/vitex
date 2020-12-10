@@ -10,6 +10,78 @@ namespace Tomahawk
 	{
 		namespace Renderers
 		{
+			class TH_OUT Depth : public TimingDraw
+			{
+			public:
+				typedef std::vector<Graphics::MultiRenderTarget2D*> CascadeMap;
+
+			public:
+				struct
+				{
+					std::vector<Graphics::MultiRenderTargetCube*> PointLight;
+					std::vector<Graphics::MultiRenderTarget2D*> SpotLight;
+					std::vector<CascadeMap*> LineLight;
+					uint64_t PointLightResolution = 256;
+					uint64_t PointLightLimits = 4;
+					uint64_t SpotLightResolution = 512;
+					uint64_t SpotLightLimits = 16;
+					uint64_t LineLightResolution = 1024;
+					uint64_t LineLightLimits = 2;
+				} Renderers;
+
+			private:
+				Rest::Pool<Engine::Component*>* PointLights = nullptr;
+				Rest::Pool<Engine::Component*>* SpotLights = nullptr;
+				Rest::Pool<Engine::Component*>* LineLights = nullptr;
+
+			public:
+				float ShadowDistance;
+
+			public:
+				Depth(RenderSystem* Lab);
+				virtual ~Depth();
+				void Deserialize(ContentManager* Content, Rest::Document* Node) override;
+				void Serialize(ContentManager* Content, Rest::Document* Node) override;
+				void Activate() override;
+				void Deactivate() override;
+				void TickRender(Rest::Timer* Time, RenderState State, RenderOpt Options) override;
+
+			private:
+				void GenerateCascadeMap(CascadeMap** Result, uint32_t Size);
+				void GetDepthFormat(Graphics::Format* Result);
+				void GetDepthTarget(Graphics::SurfaceTarget* Result);
+
+			public:
+				TH_COMPONENT("depth-renderer");
+			};
+
+			class TH_OUT Environment : public Renderer
+			{
+			private:
+				Rest::Pool<Engine::Component*>* ReflectionProbes = nullptr;
+				uint64_t Map;
+
+			public:
+				Graphics::MultiRenderTarget2D* Surface = nullptr;
+				Graphics::Cubemap* Subresource = nullptr;
+				Graphics::Texture2D* Face = nullptr;
+				uint64_t Size, MipLevels;
+
+			public:
+				Environment(RenderSystem* Lab);
+				virtual ~Environment();
+				void Deserialize(ContentManager* Content, Rest::Document* Node) override;
+				void Serialize(ContentManager* Content, Rest::Document* Node) override;
+				void Activate() override;
+				void Deactivate() override;
+				void Render(Rest::Timer* Time, RenderState State, RenderOpt Options) override;
+				void CreateRenderTarget();
+				void SetCaptureSize(size_t Size);
+
+			public:
+				TH_COMPONENT("environment-renderer");
+			};
+
 			class TH_OUT Model : public GeometryDraw
 			{
 			private:
@@ -241,112 +313,6 @@ namespace Tomahawk
 				TH_COMPONENT("decal-renderer");
 			};
 
-			class TH_OUT Transparency : public Renderer
-			{
-			private:
-				Graphics::MultiRenderTarget2D* Surface1 = nullptr;
-				Graphics::RenderTarget2D* Input1 = nullptr;
-				Graphics::MultiRenderTarget2D* Surface2 = nullptr;
-				Graphics::RenderTarget2D* Input2 = nullptr;
-				Graphics::DepthStencilState* DepthStencil = nullptr;
-				Graphics::RasterizerState* Rasterizer = nullptr;
-				Graphics::BlendState* Blend = nullptr;
-				Graphics::SamplerState* Sampler = nullptr;
-				Graphics::InputLayout* Layout = nullptr;
-				Graphics::Shader* Shader = nullptr;
-				float MipLevels1 = 0.0f;
-				float MipLevels2 = 0.0f;
-
-			public:
-				struct RenderConstant
-				{
-					float MipLevels = 0.0f;
-					Compute::Vector3 Padding;
-				} RenderPass;
-
-			public:
-				Transparency(RenderSystem* Lab);
-				virtual ~Transparency();
-				void Activate() override;
-				void Render(Rest::Timer* Time, RenderState State, RenderOpt Options) override;
-				void ResizeBuffers() override;
-
-			public:
-				TH_COMPONENT("transparency-renderer");
-			};
-
-			class TH_OUT Depth : public TimingDraw
-			{
-			public:
-				typedef std::vector<Graphics::MultiRenderTarget2D*> CascadeMap;
-
-			public:
-				struct
-				{
-					std::vector<Graphics::MultiRenderTargetCube*> PointLight;
-					std::vector<Graphics::MultiRenderTarget2D*> SpotLight;
-					std::vector<CascadeMap*> LineLight;
-					uint64_t PointLightResolution = 256;
-					uint64_t PointLightLimits = 4;
-					uint64_t SpotLightResolution = 512;
-					uint64_t SpotLightLimits = 16;
-					uint64_t LineLightResolution = 1024;
-					uint64_t LineLightLimits = 2;
-				} Renderers;
-
-			private:
-				Rest::Pool<Engine::Component*>* PointLights = nullptr;
-				Rest::Pool<Engine::Component*>* SpotLights = nullptr;
-				Rest::Pool<Engine::Component*>* LineLights = nullptr;
-
-			public:
-				float ShadowDistance;
-
-			public:
-				Depth(RenderSystem* Lab);
-				virtual ~Depth();
-				void Deserialize(ContentManager* Content, Rest::Document* Node) override;
-				void Serialize(ContentManager* Content, Rest::Document* Node) override;
-				void Activate() override;
-				void Deactivate() override;
-				void TickRender(Rest::Timer* Time, RenderState State, RenderOpt Options) override;
-
-			private:
-				void GenerateCascadeMap(CascadeMap** Result, uint32_t Size);
-				void GetDepthFormat(Graphics::Format* Result);
-				void GetDepthTarget(Graphics::SurfaceTarget* Result);
-
-			public:
-				TH_COMPONENT("depth-renderer");
-			};
-
-			class TH_OUT Environment : public Renderer
-			{
-			private:
-				Rest::Pool<Engine::Component*>* ReflectionProbes = nullptr;
-				uint64_t Map;
-
-			public:
-				Graphics::MultiRenderTarget2D* Surface = nullptr;
-				Graphics::Cubemap* Subresource = nullptr;
-				Graphics::Texture2D* Face = nullptr;
-				uint64_t Size, MipLevels;
-
-			public:
-				Environment(RenderSystem* Lab);
-				virtual ~Environment();
-				void Deserialize(ContentManager* Content, Rest::Document* Node) override;
-				void Serialize(ContentManager* Content, Rest::Document* Node) override;
-				void Activate() override;
-				void Deactivate() override;
-				void Render(Rest::Timer* Time, RenderState State, RenderOpt Options) override;
-				void CreateRenderTarget();
-				void SetCaptureSize(size_t Size);
-
-			public:
-				TH_COMPONENT("environment-renderer");
-			};
-
 			class TH_OUT Lighting : public Renderer
 			{
 			public:
@@ -489,74 +455,154 @@ namespace Tomahawk
 				TH_COMPONENT("lighting-renderer");
 			};
 
-			class TH_OUT Glitch : public EffectDraw
+			class TH_OUT Transparency : public Renderer
 			{
+			private:
+				Graphics::MultiRenderTarget2D* Surface1 = nullptr;
+				Graphics::RenderTarget2D* Input1 = nullptr;
+				Graphics::MultiRenderTarget2D* Surface2 = nullptr;
+				Graphics::RenderTarget2D* Input2 = nullptr;
+				Graphics::DepthStencilState* DepthStencil = nullptr;
+				Graphics::RasterizerState* Rasterizer = nullptr;
+				Graphics::BlendState* Blend = nullptr;
+				Graphics::SamplerState* Sampler = nullptr;
+				Graphics::InputLayout* Layout = nullptr;
+				Graphics::Shader* Shader = nullptr;
+				float MipLevels1 = 0.0f;
+				float MipLevels2 = 0.0f;
+
 			public:
 				struct RenderConstant
 				{
-					float ScanLineJitterDisplacement = 0;
-					float ScanLineJitterThreshold = 0;
-					float VerticalJumpAmount = 0;
-					float VerticalJumpTime = 0;
-					float ColorDriftAmount = 0;
-					float ColorDriftTime = 0;
-					float HorizontalShake = 0;
-					float ElapsedTime = 0;
+					float MipLevels = 0.0f;
+					Compute::Vector3 Padding;
 				} RenderPass;
 
 			public:
-				float ScanLineJitter;
-				float VerticalJump;
-				float HorizontalShake;
-				float ColorDrift;
+				Transparency(RenderSystem* Lab);
+				virtual ~Transparency();
+				void Activate() override;
+				void Render(Rest::Timer* Time, RenderState State, RenderOpt Options) override;
+				void ResizeBuffers() override;
 
 			public:
-				Glitch(RenderSystem* Lab);
-				virtual ~Glitch() = default;
-				void Deserialize(ContentManager* Content, Rest::Document* Node) override;
-				void Serialize(ContentManager* Content, Rest::Document* Node) override;
-				void RenderEffect(Rest::Timer* Time) override;
-
-			public:
-				TH_COMPONENT("glitch-renderer");
+				TH_COMPONENT("transparency-renderer");
 			};
 
-			class TH_OUT Tone : public EffectDraw
+			class TH_OUT SSR : public EffectDraw
 			{
-			public:
-				struct RenderConstant
-				{
-					Compute::Vector3 BlindVisionR = Compute::Vector3(1, 0, 0);
-					float VignetteAmount = 0.0f;
-					Compute::Vector3 BlindVisionG = Compute::Vector3(0, 1, 0);
-					float VignetteCurve = 1.5f;
-					Compute::Vector3 BlindVisionB = Compute::Vector3(0, 0, 1);
-					float VignetteRadius = 1.0f;
-					Compute::Vector3 VignetteColor;
-					float LinearIntensity = 0.0f;
-					Compute::Vector3 ColorGamma = Compute::Vector3(1, 1, 1);
-					float GammaIntensity = 2.2f;
-					Compute::Vector3 DesaturationGamma = Compute::Vector3(0.3f, 0.59f, 0.11f);
-					float DesaturationIntensity = 0.0f;
-					float ToneIntensity = 1.0f;
-					float AcesIntensity = 1.0f;
-					float AcesA = 3.01f;
-					float AcesB = 0.03f;
-					float AcesC = 2.43f;
-					float AcesD = 0.59f;
-					float AcesE = 0.14f;
-					float Padding = 0.0f;
-				} RenderPass;
+			private:
+				Graphics::Shader* Pass1;
+				Graphics::Shader* Pass2;
+				Graphics::Shader* Pass3;
 
 			public:
-				Tone(RenderSystem* Lab);
-				virtual ~Tone() = default;
+				struct RenderConstant1
+				{
+					float Samples = 24.0f;
+					float MipLevels = 0.0f;
+					float Intensity = 1.0f;
+					float Padding = 0.0f;
+				} RenderPass1;
+
+				struct RenderConstant2
+				{
+					float Texel[2] = { 1.0f, 1.0f };
+					float Samples = 4.000f;
+					float Blur = 4.000f;
+				} RenderPass2;
+
+			public:
+				SSR(RenderSystem* Lab);
+				virtual ~SSR() = default;
 				void Deserialize(ContentManager* Content, Rest::Document* Node) override;
 				void Serialize(ContentManager* Content, Rest::Document* Node) override;
 				void RenderEffect(Rest::Timer* Time) override;
 
 			public:
-				TH_COMPONENT("tone-renderer");
+				TH_COMPONENT("ssr-renderer");
+			};
+
+			class TH_OUT SSDO : public EffectDraw
+			{
+			private:
+				Graphics::Shader* Pass1;
+				Graphics::Shader* Pass2;
+				Graphics::Shader* Pass3;
+
+			public:
+				struct RenderConstant1
+				{
+					float Samples = 3.1f;
+					float Intensity = 1.35f;
+					float Scale = 0.0f;
+					float Bias = -0.55f;
+					float Radius = 0.34f;
+					float Distance = 4.5f;
+					float Fade = 2.54f;
+					float Padding = 0.0f;
+				} RenderPass1;
+
+				struct RenderConstant2
+				{
+					float Texel[2] = { 1.0f, 1.0f };
+					float Samples = 4.000f;
+					float Blur = 2.000f;
+					float Power = 1.000f;
+					float Additive = 1.000f;
+					float Padding[2];
+				} RenderPass2;
+
+			public:
+				SSDO(RenderSystem* Lab);
+				virtual ~SSDO() = default;
+				void Deserialize(ContentManager* Content, Rest::Document* Node) override;
+				void Serialize(ContentManager* Content, Rest::Document* Node) override;
+				void RenderEffect(Rest::Timer* Time) override;
+
+			public:
+				TH_COMPONENT("ssdo-renderer");
+			};
+
+			class TH_OUT SSAO : public EffectDraw
+			{
+			private:
+				Graphics::Shader* Pass1;
+				Graphics::Shader* Pass2;
+				Graphics::Shader* Pass3;
+
+			public:
+				struct RenderConstant1
+				{
+					float Samples = 4.0f;
+					float Intensity = 2.25f;
+					float Scale = 1.0f;
+					float Bias = 0.11f;
+					float Radius = 0.0275f;
+					float Distance = 3.83f;
+					float Fade = 1.96f;
+					float Padding = 0.0f;
+				} RenderPass1;
+
+				struct RenderConstant2
+				{
+					float Texel[2] = { 1.0f, 1.0f };
+					float Samples = 4.000f;
+					float Blur = 2.000f;
+					float Power = 1.000f;
+					float Additive = 0.000f;
+					float Padding[2];
+				} RenderPass2;
+
+			public:
+				SSAO(RenderSystem* Lab);
+				virtual ~SSAO() = default;
+				void Deserialize(ContentManager* Content, Rest::Document* Node) override;
+				void Serialize(ContentManager* Content, Rest::Document* Node) override;
+				void RenderEffect(Rest::Timer* Time) override;
+
+			public:
+				TH_COMPONENT("ssao-renderer");
 			};
 
 			class TH_OUT DoF : public EffectDraw
@@ -631,120 +677,74 @@ namespace Tomahawk
 				TH_COMPONENT("bloom-renderer");
 			};
 
-			class TH_OUT SSR : public EffectDraw
+			class TH_OUT Tone : public EffectDraw
 			{
-			private:
-				Graphics::Shader* Pass1;
-				Graphics::Shader* Pass2;
-				Graphics::Shader* Pass3;
-
 			public:
-				struct RenderConstant1
+				struct RenderConstant
 				{
-					float Samples = 24.0f;
-					float MipLevels = 0.0f;
-					float Intensity = 1.0f;
+					Compute::Vector3 BlindVisionR = Compute::Vector3(1, 0, 0);
+					float VignetteAmount = 0.0f;
+					Compute::Vector3 BlindVisionG = Compute::Vector3(0, 1, 0);
+					float VignetteCurve = 1.5f;
+					Compute::Vector3 BlindVisionB = Compute::Vector3(0, 0, 1);
+					float VignetteRadius = 1.0f;
+					Compute::Vector3 VignetteColor;
+					float LinearIntensity = 0.0f;
+					Compute::Vector3 ColorGamma = Compute::Vector3(1, 1, 1);
+					float GammaIntensity = 2.2f;
+					Compute::Vector3 DesaturationGamma = Compute::Vector3(0.3f, 0.59f, 0.11f);
+					float DesaturationIntensity = 0.0f;
+					float ToneIntensity = 1.0f;
+					float AcesIntensity = 1.0f;
+					float AcesA = 3.01f;
+					float AcesB = 0.03f;
+					float AcesC = 2.43f;
+					float AcesD = 0.59f;
+					float AcesE = 0.14f;
 					float Padding = 0.0f;
-				} RenderPass1;
-
-				struct RenderConstant2
-				{
-					float Texel[2] = { 1.0f, 1.0f };
-					float Samples = 4.000f;
-					float Blur = 4.000f;
-				} RenderPass2;
+				} RenderPass;
 
 			public:
-				SSR(RenderSystem* Lab);
-				virtual ~SSR() = default;
+				Tone(RenderSystem* Lab);
+				virtual ~Tone() = default;
 				void Deserialize(ContentManager* Content, Rest::Document* Node) override;
 				void Serialize(ContentManager* Content, Rest::Document* Node) override;
 				void RenderEffect(Rest::Timer* Time) override;
 
 			public:
-				TH_COMPONENT("ssr-renderer");
+				TH_COMPONENT("tone-renderer");
 			};
 
-			class TH_OUT SSAO : public EffectDraw
+			class TH_OUT Glitch : public EffectDraw
 			{
-			private:
-				Graphics::Shader* Pass1;
-				Graphics::Shader* Pass2;
-				Graphics::Shader* Pass3;
+			public:
+				struct RenderConstant
+				{
+					float ScanLineJitterDisplacement = 0;
+					float ScanLineJitterThreshold = 0;
+					float VerticalJumpAmount = 0;
+					float VerticalJumpTime = 0;
+					float ColorDriftAmount = 0;
+					float ColorDriftTime = 0;
+					float HorizontalShake = 0;
+					float ElapsedTime = 0;
+				} RenderPass;
 
 			public:
-				struct RenderConstant1
-				{
-					float Samples = 4.0f;
-					float Intensity = 2.25f;
-					float Scale = 1.0f;
-					float Bias = 0.11f;
-					float Radius = 0.0275f;
-					float Distance = 3.83f;
-					float Fade = 1.96f;
-					float Padding = 0.0f;
-				} RenderPass1;
-
-				struct RenderConstant2
-				{
-					float Texel[2] = { 1.0f, 1.0f };
-					float Samples = 4.000f;
-					float Blur = 2.000f;
-					float Power = 1.000f;
-					float Additive = 0.000f;
-					float Padding[2];
-				} RenderPass2;
+				float ScanLineJitter;
+				float VerticalJump;
+				float HorizontalShake;
+				float ColorDrift;
 
 			public:
-				SSAO(RenderSystem* Lab);
-				virtual ~SSAO() = default;
+				Glitch(RenderSystem* Lab);
+				virtual ~Glitch() = default;
 				void Deserialize(ContentManager* Content, Rest::Document* Node) override;
 				void Serialize(ContentManager* Content, Rest::Document* Node) override;
 				void RenderEffect(Rest::Timer* Time) override;
 
 			public:
-				TH_COMPONENT("ssao-renderer");
-			};
-
-			class TH_OUT SSDO : public EffectDraw
-			{
-			private:
-				Graphics::Shader* Pass1;
-				Graphics::Shader* Pass2;
-				Graphics::Shader* Pass3;
-
-			public:
-				struct RenderConstant1
-				{
-					float Samples = 3.1f;
-					float Intensity = 1.35f;
-					float Scale = 0.0f;
-					float Bias = -0.55f;
-					float Radius = 0.34f;
-					float Distance = 4.5f;
-					float Fade = 2.54f;
-					float Padding = 0.0f;
-				} RenderPass1;
-
-				struct RenderConstant2
-				{
-					float Texel[2] = { 1.0f, 1.0f };
-					float Samples = 4.000f;
-					float Blur = 2.000f;
-					float Power = 1.000f;
-					float Additive = 1.000f;
-					float Padding[2];
-				} RenderPass2;
-
-			public:
-				SSDO(RenderSystem* Lab);
-				virtual ~SSDO() = default;
-				void Deserialize(ContentManager* Content, Rest::Document* Node) override;
-				void Serialize(ContentManager* Content, Rest::Document* Node) override;
-				void RenderEffect(Rest::Timer* Time) override;
-
-			public:
-				TH_COMPONENT("ssdo-renderer");
+				TH_COMPONENT("glitch-renderer");
 			};
 
 			class TH_OUT UserInterface : public Renderer

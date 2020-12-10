@@ -13,13 +13,13 @@ SamplerState Sampler : register(s0);
 
 float2 GetParallax(float2 TexCoord, float3 Direction, float Amount, float Bias)
 {
-    float Steps = lerp(24.0, 2.0, pow(1.0 - abs(dot(float3(0.0, 0.0, 1.0), Direction)), 4));
+    float Steps = lerp(32.0, 8.0, pow(1.0 - abs(dot(float3(0.0, 0.0, 1.0), Direction)), 4));
     float Step = 1.0 / Steps;
     float Depth = 0.0;
     float2 Delta = Direction.xy * Amount / Steps;
     float2 Result = TexCoord;
     float Sample = HeightMap.SampleLevel(Sampler, Result, 0).x + Bias;
-    
+
     [loop] for (float i = 0; i < Steps; i++)
     {
         [branch] if (Depth >= Sample)

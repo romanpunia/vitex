@@ -876,6 +876,12 @@ namespace Tomahawk
 			Blend.AlphaToCoverageEnable = false;
 			Blend.IndependentBlendEnable = false;
 			Blend.RenderTarget[0].BlendEnable = false;
+			Blend.RenderTarget[0].RenderTargetWriteMask = Graphics::ColorWriteEnable_Red | Graphics::ColorWriteEnable_Green | Graphics::ColorWriteEnable_Blue;
+			BlendStates["overwrite-opaque"] = CreateBlendState(Blend);
+
+			Blend.AlphaToCoverageEnable = false;
+			Blend.IndependentBlendEnable = false;
+			Blend.RenderTarget[0].BlendEnable = false;
 			Blend.RenderTarget[0].RenderTargetWriteMask = 0;
 			BlendStates["overwrite-colorless"] = CreateBlendState(Blend);
 
@@ -890,6 +896,18 @@ namespace Tomahawk
 			Blend.RenderTarget[0].BlendOperationAlpha = Graphics::BlendOperation_Add;
 			Blend.RenderTarget[0].RenderTargetWriteMask = Graphics::ColorWriteEnable_All;
 			BlendStates["additive"] = CreateBlendState(Blend);
+
+			Blend.AlphaToCoverageEnable = false;
+			Blend.IndependentBlendEnable = false;
+			Blend.RenderTarget[0].BlendEnable = true;
+			Blend.RenderTarget[0].SrcBlend = Graphics::Blend_One;
+			Blend.RenderTarget[0].DestBlend = Graphics::Blend_One;
+			Blend.RenderTarget[0].BlendOperationMode = Graphics::BlendOperation_Add;
+			Blend.RenderTarget[0].SrcBlendAlpha = Graphics::Blend_One;
+			Blend.RenderTarget[0].DestBlendAlpha = Graphics::Blend_One;
+			Blend.RenderTarget[0].BlendOperationAlpha = Graphics::BlendOperation_Add;
+			Blend.RenderTarget[0].RenderTargetWriteMask = Graphics::ColorWriteEnable_Red | Graphics::ColorWriteEnable_Green | Graphics::ColorWriteEnable_Blue;
+			BlendStates["additive-opaque"] = CreateBlendState(Blend);
 
 			Blend.AlphaToCoverageEnable = false;
 			Blend.IndependentBlendEnable = true;

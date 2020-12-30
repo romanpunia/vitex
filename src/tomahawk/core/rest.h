@@ -132,7 +132,7 @@ namespace Tomahawk
 
 		class Object;
 
-		class FileStream;
+		class Stream;
 
 		enum EventState
 		{
@@ -850,6 +850,7 @@ namespace Tomahawk
 			static void SetDirectory(const char* Path);
 			static void SaveBitmap(const char* Path, int Width, int Height, unsigned char* Ptr);
 			static bool Iterate(const char* Path, const std::function<bool(DirectoryEntry*)>& Callback);
+			static bool FileRemote(const char* Path);
 			static bool FileExists(const char* Path);
 			static bool ExecExists(const char* Path);
 			static bool DirExists(const char* Path);
@@ -875,6 +876,7 @@ namespace Tomahawk
 			static void* LoadObject(const char* Path);
 			static void* LoadObjectFunction(void* Handle, const char* Name);
 			static void* Open(const char* Path, const char* Mode);
+			static Stream* Open(const std::string& Path, FileMode Mode);
 			static std::string Resolve(const char* Path);
 			static std::string Resolve(const std::string& Path, const std::string& Directory);
 			static std::string ResolveDir(const char* Path);
@@ -888,8 +890,8 @@ namespace Tomahawk
 			static std::vector<std::string> GetDiskDrives();
 			static const char* FileExtention(const char* Path);
 			static unsigned char* ReadAllBytes(const char* Path, uint64_t* ByteLength);
-			static unsigned char* ReadAllBytes(FileStream* Stream, uint64_t* ByteLength);
-			static unsigned char* ReadByteChunk(FileStream* Stream, uint64_t Length);
+			static unsigned char* ReadAllBytes(Stream* Stream, uint64_t* ByteLength);
+			static unsigned char* ReadByteChunk(Stream* Stream, uint64_t Length);
 			static bool WantTextInput(const std::string& Title, const std::string& Message, const std::string& DefaultInput, std::string* Result);
 			static bool WantPasswordInput(const std::string& Title, const std::string& Message, std::string* Result);
 			static bool WantFileSave(const std::string& Title, const std::string& DefaultPath, const std::string& Filter, const std::string& FilterDescription, std::string* Result);
@@ -1075,52 +1077,117 @@ namespace Tomahawk
 			double GetTimeStep();
 		};
 
-		class TH_OUT FileStream : public Object
+		class TH_OUT Stream : public Object
 		{
 		protected:
-			void* Compress = nullptr;
-			FILE* Buffer = nullptr;
 			std::string Path;
+
+		public:
+			Stream();
+			virtual ~Stream() = default;
+			virtual void Clear() = 0;
+			virtual bool Open(const char* File, FileMode Mode) = 0;
+			virtual bool Close() = 0;
+			virtual bool Seek(FileSeek Mode, int64_t Offset) = 0;
+			virtual bool Move(int64_t Offset) = 0;
+			virtual int Flush() = 0;
+			virtual uint64_t ReadAny(const char* Format, ...) = 0;
+			virtual uint64_t Read(char* Buffer, uint64_t Length) = 0;
+			virtual uint64_t WriteAny(const char* Format, ...) = 0;
+			virtual uint64_t Write(const char* Buffer, uint64_t Length) = 0;
+			virtual uint64_t Tell() = 0;
+			virtual int GetFd() = 0;
+			virtual void* GetBuffer() = 0;
+			uint64_t GetSize();
+			std::string& GetSource();
+		};
+
+		class TH_OUT FileStream : public Stream
+		{
+		protected:
+			FILE* Resource;
 
 		public:
 			FileStream();
 			virtual ~FileStream() override;
-			void Clear();
-			bool Open(const char* File, FileMode Mode);
-			bool OpenZ(const char* File, FileMode Mode);
-			bool Close();
-			bool Seek(FileSeek Mode, int64_t Offset);
-			bool Move(int64_t Offset);
-			int Error();
-			int Flush();
-			int Fd();
-			unsigned char Get();
-			unsigned char Put(unsigned char Value);
-			uint64_t ReadAny(const char* Format, ...);
-			uint64_t Read(char* Buffer, uint64_t Length);
-			uint64_t WriteAny(const char* Format, ...);
-			uint64_t Write(const char* Buffer, uint64_t Length);
-			uint64_t Tell();
-			uint64_t Size();
-			std::string& Filename();
-			FILE* Stream();
-			void* StreamZ();
+			virtual void Clear();
+			virtual bool Open(const char* File, FileMode Mode);
+			virtual bool Close();
+			virtual bool Seek(FileSeek Mode, int64_t Offset);
+			virtual bool Move(int64_t Offset);
+			virtual int Flush();
+			virtual uint64_t ReadAny(const char* Format, ...);
+			virtual uint64_t Read(char* Buffer, uint64_t Length);
+			virtual uint64_t WriteAny(const char* Format, ...);
+			virtual uint64_t Write(const char* Buffer, uint64_t Length);
+			virtual uint64_t Tell();
+			virtual int GetFd();
+			virtual void* GetBuffer();
 		};
 
-		class TH_OUT FileLogger : public Object
+		class TH_OUT GzStream : public Stream
+		{
+		protected:
+			void* Resource;
+
+		public:
+			GzStream();
+			virtual ~GzStream() override;
+			virtual void Clear();
+			virtual bool Open(const char* File, FileMode Mode);
+			virtual bool Close();
+			virtual bool Seek(FileSeek Mode, int64_t Offset);
+			virtual bool Move(int64_t Offset);
+			virtual int Flush();
+			virtual uint64_t ReadAny(const char* Format, ...);
+			virtual uint64_t Read(char* Buffer, uint64_t Length);
+			virtual uint64_t WriteAny(const char* Format, ...);
+			virtual uint64_t Write(const char* Buffer, uint64_t Length);
+			virtual uint64_t Tell();
+			virtual int GetFd();
+			virtual void* GetBuffer();
+		};
+
+		class TH_OUT WebStream : public Stream
+		{
+		protected:
+			void* Resource;
+			std::string Buffer;
+			uint64_t Offset;
+			uint64_t Size;
+
+		public:
+			WebStream();
+			virtual ~WebStream() override;
+			virtual void Clear();
+			virtual bool Open(const char* File, FileMode Mode);
+			virtual bool Close();
+			virtual bool Seek(FileSeek Mode, int64_t Offset);
+			virtual bool Move(int64_t Offset);
+			virtual int Flush();
+			virtual uint64_t ReadAny(const char* Format, ...);
+			virtual uint64_t Read(char* Buffer, uint64_t Length);
+			virtual uint64_t WriteAny(const char* Format, ...);
+			virtual uint64_t Write(const char* Buffer, uint64_t Length);
+			virtual uint64_t Tell();
+			virtual int GetFd();
+			virtual void* GetBuffer();
+		};
+
+		class TH_OUT ChangeLog : public Object
 		{
 		private:
 			std::string LastValue;
 			uint64_t Offset;
 
 		public:
-			FileStream* Stream = nullptr;
+			Stream* Stream = nullptr;
 			std::string Path, Name;
 
 		public:
-			FileLogger(const std::string& Root);
-			virtual ~FileLogger() override;
-			void Process(const std::function<bool(FileLogger*, const char*, int64_t)>& Callback);
+			ChangeLog(const std::string& Root);
+			virtual ~ChangeLog() override;
+			void Process(const std::function<bool(ChangeLog*, const char*, int64_t)>& Callback);
 		};
 
 		class TH_OUT FileTree : public Object

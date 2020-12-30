@@ -195,6 +195,20 @@ namespace Tomahawk
 			Socket* Base = nullptr;
 		};
 
+		struct TH_OUT SourceURL
+		{
+			std::unordered_map<std::string, std::string> Query;
+			std::string URL;
+			std::string Protocol;
+			std::string Login;
+			std::string Password;
+			std::string Host;
+			std::string Path;
+			int Port;
+
+			SourceURL(const std::string& Src);
+		};
+
 		struct TH_OUT Certificate
 		{
 			std::string Subject;

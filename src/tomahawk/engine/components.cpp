@@ -2519,7 +2519,6 @@ namespace Tomahawk
 				NMake::Unpack(Node->Find("shadow-distance"), &Shadow.Distance);
 				NMake::Unpack(Node->Find("shadow-bias"), &Shadow.Bias);
 				NMake::Unpack(Node->Find("shadow-iterations"), &Shadow.Iterations);
-				NMake::Unpack(Node->Find("shadow-flux"), &Shadow.Flux);
 				NMake::Unpack(Node->Find("shadow-enabled"), &Shadow.Enabled);
 			}
 			void PointLight::Serialize(ContentManager* Content, Rest::Document* Node)
@@ -2533,7 +2532,6 @@ namespace Tomahawk
 				NMake::Pack(Node->SetDocument("shadow-distance"), Shadow.Distance);
 				NMake::Pack(Node->SetDocument("shadow-bias"), Shadow.Bias);
 				NMake::Pack(Node->SetDocument("shadow-iterations"), Shadow.Iterations);
-				NMake::Pack(Node->SetDocument("shadow-flux"), Shadow.Flux);
 				NMake::Pack(Node->SetDocument("shadow-enabled"), Shadow.Enabled);
 			}
 			float PointLight::Cull(const Viewer& Base)
@@ -2561,15 +2559,7 @@ namespace Tomahawk
 				Projection = Compute::Matrix4x4::CreatePerspective(90.0f, 1.0f, 0.1f, Shadow.Distance);
 				View = Compute::Matrix4x4::CreateCubeMapLookAt(0, Parent->Transform->Position.InvertZ());
 			}
-			void PointLight::SetDepthCache(Graphics::MultiRenderTargetCube* NewCache)
-			{
-				Depth = NewCache;
-			}
-			Graphics::MultiRenderTargetCube* PointLight::GetDepthCache() const
-			{
-				return Depth;
-			}
-
+			
 			SpotLight::SpotLight(Entity* Ref) : Cullable(Ref)
 			{
 			}
@@ -2585,7 +2575,6 @@ namespace Tomahawk
 				NMake::Unpack(Node->Find("shadow-distance"), &Shadow.Distance);
 				NMake::Unpack(Node->Find("shadow-softness"), &Shadow.Softness);
 				NMake::Unpack(Node->Find("shadow-iterations"), &Shadow.Iterations);
-				NMake::Unpack(Node->Find("shadow-flux"), &Shadow.Flux);
 				NMake::Unpack(Node->Find("shadow-enabled"), &Shadow.Enabled);
 			}
 			void SpotLight::Serialize(ContentManager* Content, Rest::Document* Node)
@@ -2600,7 +2589,6 @@ namespace Tomahawk
 				NMake::Pack(Node->SetDocument("shadow-distance"), Shadow.Distance);
 				NMake::Pack(Node->SetDocument("shadow-softness"), Shadow.Softness);
 				NMake::Pack(Node->SetDocument("shadow-iterations"), Shadow.Iterations);
-				NMake::Pack(Node->SetDocument("shadow-flux"), Shadow.Flux);
 				NMake::Pack(Node->SetDocument("shadow-enabled"), Shadow.Enabled);
 			}
 			void SpotLight::Synchronize(Rest::Timer* Time)
@@ -2632,14 +2620,6 @@ namespace Tomahawk
 				Projection = Compute::Matrix4x4::CreatePerspective(Cutoff, 1, 0.1f, Shadow.Distance);
 				View = Compute::Matrix4x4::CreateTranslation(-Parent->Transform->Position) * Compute::Matrix4x4::CreateCameraRotation(-Parent->Transform->Rotation);
 			}
-			void SpotLight::SetDepthCache(Graphics::MultiRenderTarget2D* NewCache)
-			{
-				Depth = NewCache;
-			}
-			Graphics::MultiRenderTarget2D* SpotLight::GetDepthCache() const
-			{
-				return Depth;
-			}
 
 			LineLight::LineLight(Entity* Ref) : Component(Ref)
 			{
@@ -2664,7 +2644,6 @@ namespace Tomahawk
 				NMake::Unpack(Node->Find("shadow-offset"), &Shadow.Offset);
 				NMake::Unpack(Node->Find("shadow-softness"), &Shadow.Softness);
 				NMake::Unpack(Node->Find("shadow-iterations"), &Shadow.Iterations);
-				NMake::Unpack(Node->Find("shadow-flux"), &Shadow.Flux);
 				NMake::Unpack(Node->Find("shadow-enabled"), &Shadow.Enabled);
 				NMake::Unpack(Node->Find("rlh-emission"), &Sky.RlhEmission);
 				NMake::Unpack(Node->Find("mie-emission"), &Sky.MieEmission);
@@ -2695,7 +2674,6 @@ namespace Tomahawk
 				NMake::Pack(Node->SetDocument("shadow-offset"), Shadow.Offset);
 				NMake::Pack(Node->SetDocument("shadow-softness"), Shadow.Softness);
 				NMake::Pack(Node->SetDocument("shadow-iterations"), Shadow.Iterations);
-				NMake::Pack(Node->SetDocument("shadow-flux"), Shadow.Flux);
 				NMake::Pack(Node->SetDocument("shadow-enabled"), Shadow.Enabled);
 				NMake::Pack(Node->SetDocument("rlh-emission"), Sky.RlhEmission);
 				NMake::Pack(Node->SetDocument("mie-emission"), Sky.MieEmission);
@@ -2739,14 +2717,6 @@ namespace Tomahawk
 						Compute::Matrix4x4::CreateTranslation(Compute::Vector3((float)i * Shadow.Offset, 0.0));
 					View[i] = Look;
 				}
-			}
-			void LineLight::SetDepthCache(CascadeMap* NewCache)
-			{
-				Depth = NewCache;
-			}
-			LineLight::CascadeMap* LineLight::GetDepthCache() const
-			{
-				return Depth;
 			}
 
 			ReflectionProbe::ReflectionProbe(Entity* Ref) : Cullable(Ref)
@@ -3032,16 +3002,16 @@ namespace Tomahawk
 				if (!Renderer)
 					Renderer = new RenderSystem(Parent->GetScene()->GetDevice());
 
-				if (Renderer->GetScene() == Parent->GetScene() && New != this)
-					return;
-
-				Renderer->SetScene(Parent->GetScene());
-				for (auto& Render : *Renderer->GetRenderers())
+				if (Renderer->GetScene() != Parent->GetScene())
 				{
-					Render->Deactivate();
-					Render->SetRenderer(Renderer);
-					Render->Activate();
+					Renderer->SetScene(Parent->GetScene());
+					Renderer->Remount();
 				}
+				
+				if (New == this)
+					Renderer->Unmount();
+				else if (!New)
+					Renderer->Mount();
 			}
 			void Camera::Asleep()
 			{
@@ -3077,8 +3047,13 @@ namespace Tomahawk
 				NMake::Unpack(Node->Find("occlusion-stall"), &Renderer->StallFrames);
 				NMake::Unpack(Node->Find("occlusion-size"), &Size);
 				NMake::Unpack(Node->Find("sorting-delay"), &Renderer->Sorting.Delay);
-				NMake::Unpack(Node->Find("frustum-cull"), &Renderer->EnableFrustumCull);
-				NMake::Unpack(Node->Find("occlusion-cull"), &Renderer->EnableOcclusionCull);
+
+				bool FC = true, OC = false;
+				NMake::Unpack(Node->Find("frustum-cull"), &FC);
+				NMake::Unpack(Node->Find("occlusion-cull"), &OC);
+
+				Renderer->SetFrustumCulling(FC);
+				Renderer->SetOcclusionCulling(OC);
 
 				std::vector<Rest::Document*> Renderers = Node->FindCollectionPath("renderers.renderer");
 				Renderer->SetScene(Parent->GetScene());
@@ -3121,8 +3096,8 @@ namespace Tomahawk
 				NMake::Pack(Node->SetDocument("occlusion-stall"), Renderer->StallFrames);
 				NMake::Pack(Node->SetDocument("occlusion-size"), Renderer->GetDepthSize());
 				NMake::Pack(Node->SetDocument("sorting-delay"), Renderer->Sorting.Delay);
-				NMake::Pack(Node->SetDocument("frustum-cull"), Renderer->EnableFrustumCull);
-				NMake::Pack(Node->SetDocument("occlusion-cull"), Renderer->EnableOcclusionCull);
+				NMake::Pack(Node->SetDocument("frustum-cull"), Renderer->HasFrustumCulling());
+				NMake::Pack(Node->SetDocument("occlusion-cull"), Renderer->HasOcclusionCulling());
 
 				Rest::Document* Renderers = Node->SetArray("renderers");
 				for (auto& Ref : *Renderer->GetRenderers())

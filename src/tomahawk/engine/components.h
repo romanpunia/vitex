@@ -439,9 +439,6 @@ namespace Tomahawk
 
 			class TH_OUT PointLight : public Cullable
 			{
-			private:
-				Graphics::MultiRenderTargetCube* Depth = nullptr;
-
 			public:
 				struct
 				{
@@ -449,11 +446,11 @@ namespace Tomahawk
 					float Distance = 100.0f;
 					float Bias = 0.0f;
 					uint32_t Iterations = 2;
-					bool Flux = false;
 					bool Enabled = false;
 				} Shadow;
 
 			public:
+				CubicDepthMap* DepthMap = nullptr;
 				Compute::Matrix4x4 View;
 				Compute::Matrix4x4 Projection;
 				Compute::Vector3 Diffuse = 1.0f;
@@ -468,8 +465,6 @@ namespace Tomahawk
 				virtual float Cull(const Viewer& View) override;
 				virtual Component* Copy(Entity* New) override;
 				void AssembleDepthOrigin();
-				void SetDepthCache(Graphics::MultiRenderTargetCube* NewCache);
-				Graphics::MultiRenderTargetCube* GetDepthCache() const;
 
 			public:
 				TH_COMPONENT("point-light");
@@ -477,9 +472,6 @@ namespace Tomahawk
 
 			class TH_OUT SpotLight : public Cullable
 			{
-			private:
-				Graphics::MultiRenderTarget2D* Depth = nullptr;
-
 			public:
 				struct
 				{
@@ -487,11 +479,11 @@ namespace Tomahawk
 					float Distance = 100.0f;
 					float Bias = 0.0f;
 					uint32_t Iterations = 2;
-					bool Flux = false;
 					bool Enabled = false;
 				} Shadow;
 
 			public:
+				LinearDepthMap* DepthMap = nullptr;
 				Compute::Matrix4x4 Projection;
 				Compute::Matrix4x4 View;
 				Compute::Vector3 Diffuse = 1.0f;
@@ -508,8 +500,6 @@ namespace Tomahawk
 				virtual float Cull(const Viewer& View) override;
 				virtual Component* Copy(Entity* New) override;
 				void AssembleDepthOrigin();
-				void SetDepthCache(Graphics::MultiRenderTarget2D* NewCache);
-				Graphics::MultiRenderTarget2D* GetDepthCache() const;
 
 			public:
 				TH_COMPONENT("spot-light");
@@ -517,12 +507,6 @@ namespace Tomahawk
 
 			class TH_OUT LineLight : public Component
 			{
-			public:
-				typedef std::vector<Graphics::MultiRenderTarget2D*> CascadeMap;
-
-			private:
-				CascadeMap* Depth = nullptr;
-
 			public:
 				struct
 				{
@@ -544,11 +528,11 @@ namespace Tomahawk
 					float Offset = 0.225f;
 					uint32_t Iterations = 2;
 					uint32_t Cascades = 3;
-					bool Flux = false;
 					bool Enabled = false;
 				} Shadow;
 
 			public:
+				CascadedDepthMap* DepthMap = nullptr;
 				Compute::Matrix4x4 Projection[6];
 				Compute::Matrix4x4 View[6];
 				Compute::Vector3 Diffuse = 1.0f;
@@ -562,8 +546,6 @@ namespace Tomahawk
 				virtual void Serialize(ContentManager* Content, Rest::Document* Node) override;
 				virtual Component* Copy(Entity* New) override;
 				void AssembleDepthOrigin();
-				void SetDepthCache(CascadeMap* NewCache);
-				CascadeMap* GetDepthCache() const;
 
 			public:
 				TH_COMPONENT("line-light");

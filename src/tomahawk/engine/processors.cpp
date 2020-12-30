@@ -38,7 +38,7 @@ namespace Tomahawk
 			Asset::Asset(ContentManager* Manager) : Processor(Manager)
 			{
 			}
-			void* Asset::Deserialize(Rest::FileStream* Stream, uint64_t Length, uint64_t Offset, const Compute::PropertyArgs& Args)
+			void* Asset::Deserialize(Rest::Stream* Stream, uint64_t Length, uint64_t Offset, const Compute::PropertyArgs& Args)
 			{
 				char* Binary = (char*)TH_MALLOC(sizeof(char) * Length);
 				if (Stream->Read(Binary, Length) != Length)
@@ -54,7 +54,7 @@ namespace Tomahawk
 			SceneGraph::SceneGraph(ContentManager* Manager) : Processor(Manager)
 			{
 			}
-			void* SceneGraph::Deserialize(Rest::FileStream* Stream, uint64_t Length, uint64_t Offset, const Compute::PropertyArgs& Args)
+			void* SceneGraph::Deserialize(Rest::Stream* Stream, uint64_t Length, uint64_t Offset, const Compute::PropertyArgs& Args)
 			{
 				Engine::SceneGraph::Desc I = Engine::SceneGraph::Desc();
 				I.Device = Content->GetDevice();
@@ -68,7 +68,7 @@ namespace Tomahawk
 				}
 
 				std::string Environment = Content->GetEnvironment();
-				Rest::Document* Document = Content->Load<Rest::Document>(Stream->Filename());
+				Rest::Document* Document = Content->Load<Rest::Document>(Stream->GetSource());
 				if (!Document)
 					return nullptr;
 
@@ -198,7 +198,7 @@ namespace Tomahawk
 				Object->Actualize();
 				return Object;
 			}
-			bool SceneGraph::Serialize(Rest::FileStream* Stream, void* Instance, const Compute::PropertyArgs& Args)
+			bool SceneGraph::Serialize(Rest::Stream* Stream, void* Instance, const Compute::PropertyArgs& Args)
 			{
 				Engine::SceneGraph* Object = (Engine::SceneGraph*)Instance;
 				Object->Actualize();
@@ -272,7 +272,7 @@ namespace Tomahawk
 					}
 				}
 
-				Content->Save<Rest::Document>(Stream->Filename(), Document, Args);
+				Content->Save<Rest::Document>(Stream->GetSource(), Document, Args);
 				TH_RELEASE(Document);
 
 				return true;
@@ -294,16 +294,16 @@ namespace Tomahawk
 				((Audio::AudioClip*)Asset->Resource)->AddRef();
 				return Asset->Resource;
 			}
-			void* AudioClip::Deserialize(Rest::FileStream* Stream, uint64_t Length, uint64_t Offset, const Compute::PropertyArgs& Args)
+			void* AudioClip::Deserialize(Rest::Stream* Stream, uint64_t Length, uint64_t Offset, const Compute::PropertyArgs& Args)
 			{
-				if (Rest::Stroke(&Stream->Filename()).EndsWith(".wav"))
+				if (Rest::Stroke(&Stream->GetSource()).EndsWith(".wav"))
 					return DeserializeWAVE(Stream, Length, Offset, Args);
-				else if (Rest::Stroke(&Stream->Filename()).EndsWith(".ogg"))
+				else if (Rest::Stroke(&Stream->GetSource()).EndsWith(".ogg"))
 					return DeserializeOGG(Stream, Length, Offset, Args);
 
 				return nullptr;
 			}
-			void* AudioClip::DeserializeWAVE(Rest::FileStream* Stream, uint64_t Length, uint64_t Offset, const Compute::PropertyArgs& Args)
+			void* AudioClip::DeserializeWAVE(Rest::Stream* Stream, uint64_t Length, uint64_t Offset, const Compute::PropertyArgs& Args)
 			{
 #ifdef TH_HAS_SDL2
 				void* Binary = TH_MALLOC(sizeof(char) * Length);
@@ -348,7 +348,7 @@ namespace Tomahawk
 				SDL_FreeWAV(WavSamples);
 				TH_FREE(Binary);
 
-				Content->Cache(this, Stream->Filename(), Object);
+				Content->Cache(this, Stream->GetSource(), Object);
 				Object->AddRef();
 
 				return Object;
@@ -356,7 +356,7 @@ namespace Tomahawk
 				return nullptr;
 #endif
 			}
-			void* AudioClip::DeserializeOGG(Rest::FileStream* Stream, uint64_t Length, uint64_t Offset, const Compute::PropertyArgs& Args)
+			void* AudioClip::DeserializeOGG(Rest::Stream* Stream, uint64_t Length, uint64_t Offset, const Compute::PropertyArgs& Args)
 			{
 				void* Binary = TH_MALLOC(sizeof(char) * Length);
 				if (Stream->Read((char*)Binary, Length) != Length)
@@ -388,7 +388,7 @@ namespace Tomahawk
 				TH_FREE(Buffer);
 				TH_FREE(Binary);
 
-				Content->Cache(this, Stream->Filename(), Object);
+				Content->Cache(this, Stream->GetSource(), Object);
 				Object->AddRef();
 
 				return Object;
@@ -410,7 +410,7 @@ namespace Tomahawk
 				((Graphics::Texture2D*)Asset->Resource)->AddRef();
 				return Asset->Resource;
 			}
-			void* Texture2D::Deserialize(Rest::FileStream* Stream, uint64_t Length, uint64_t Offset, const Compute::PropertyArgs& Args)
+			void* Texture2D::Deserialize(Rest::Stream* Stream, uint64_t Length, uint64_t Offset, const Compute::PropertyArgs& Args)
 			{
 				unsigned char* Binary = (unsigned char*)TH_MALLOC(sizeof(unsigned char) * Length);
 				if (Stream->Read((char*)Binary, Length) != Length)
@@ -446,7 +446,7 @@ namespace Tomahawk
 				if (!Object)
 					return nullptr;
 
-				Content->Cache(this, Stream->Filename(), Object);
+				Content->Cache(this, Stream->GetSource(), Object);
 				Object->AddRef();
 
 				return (void*)Object;
@@ -468,7 +468,7 @@ namespace Tomahawk
 				((Graphics::Shader*)Asset->Resource)->AddRef();
 				return Asset->Resource;
 			}
-			void* Shader::Deserialize(Rest::FileStream* Stream, uint64_t Length, uint64_t Offset, const Compute::PropertyArgs& Args)
+			void* Shader::Deserialize(Rest::Stream* Stream, uint64_t Length, uint64_t Offset, const Compute::PropertyArgs& Args)
 			{
 				if (Args.empty())
 				{
@@ -480,7 +480,7 @@ namespace Tomahawk
 				Stream->Read(Code, Length);
 
 				Graphics::Shader::Desc I = Graphics::Shader::Desc();
-				I.Filename = Stream->Filename();
+				I.Filename = Stream->GetSource();
 				I.Data = Code;
 
 				Content->GetDevice()->Unlock();
@@ -491,7 +491,7 @@ namespace Tomahawk
 				if (!Object)
 					return nullptr;
 
-				Content->Cache(this, Stream->Filename(), Object);
+				Content->Cache(this, Stream->GetSource(), Object);
 				Object->AddRef();
 
 				return Object;
@@ -513,9 +513,9 @@ namespace Tomahawk
 				((Graphics::Model*)Asset->Resource)->AddRef();
 				return Asset->Resource;
 			}
-			void* Model::Deserialize(Rest::FileStream* Stream, uint64_t Length, uint64_t Offset, const Compute::PropertyArgs& Args)
+			void* Model::Deserialize(Rest::Stream* Stream, uint64_t Length, uint64_t Offset, const Compute::PropertyArgs& Args)
 			{
-				auto* Document = Content->Load<Rest::Document>(Stream->Filename());
+				auto* Document = Content->Load<Rest::Document>(Stream->GetSource());
 				if (!Document)
 					return nullptr;
 
@@ -560,7 +560,7 @@ namespace Tomahawk
 						Compute::MathCommon::ComputeMatrixOrientation(&Object->Meshes.back()->World, true);
 				}
 
-				Content->Cache(this, Stream->Filename(), Object);
+				Content->Cache(this, Stream->GetSource(), Object);
 				Object->AddRef();
 				TH_RELEASE(Document);
 
@@ -826,9 +826,9 @@ namespace Tomahawk
 				((Graphics::SkinModel*)Asset->Resource)->AddRef();
 				return Asset->Resource;
 			}
-			void* SkinModel::Deserialize(Rest::FileStream* Stream, uint64_t Length, uint64_t Offset, const Compute::PropertyArgs& Args)
+			void* SkinModel::Deserialize(Rest::Stream* Stream, uint64_t Length, uint64_t Offset, const Compute::PropertyArgs& Args)
 			{
-				auto* Document = Content->Load<Rest::Document>(Stream->Filename());
+				auto* Document = Content->Load<Rest::Document>(Stream->GetSource());
 				if (!Document)
 					return nullptr;
 
@@ -874,7 +874,7 @@ namespace Tomahawk
 						Compute::MathCommon::ComputeMatrixOrientation(&Object->Meshes.back()->World, true);
 				}
 
-				Content->Cache(this, Stream->Filename(), Object);
+				Content->Cache(this, Stream->GetSource(), Object);
 				Object->AddRef();
 
 				TH_RELEASE(Document);
@@ -1034,7 +1034,7 @@ namespace Tomahawk
 			Document::Document(ContentManager* Manager) : Processor(Manager)
 			{
 			}
-			void* Document::Deserialize(Rest::FileStream* Stream, uint64_t Length, uint64_t Offset, const Compute::PropertyArgs& Args)
+			void* Document::Deserialize(Rest::Stream* Stream, uint64_t Length, uint64_t Offset, const Compute::PropertyArgs& Args)
 			{
 				Rest::NReadCallback Callback = [Stream](char* Buffer, int64_t Size)
 				{
@@ -1056,7 +1056,7 @@ namespace Tomahawk
 				Stream->Seek(Rest::FileSeek_Begin, Offset);
 				return Rest::Document::ReadXML(Length, Callback);
 			}
-			bool Document::Serialize(Rest::FileStream* Stream, void* Instance, const Compute::PropertyArgs& Args)
+			bool Document::Serialize(Rest::Stream* Stream, void* Instance, const Compute::PropertyArgs& Args)
 			{
 				auto Type = Args.find("type");
 				if (Type == Args.end())
@@ -1141,12 +1141,12 @@ namespace Tomahawk
 			Server::Server(ContentManager* Manager) : Processor(Manager)
 			{
 			}
-			void* Server::Deserialize(Rest::FileStream* Stream, uint64_t Length, uint64_t Offset, const Compute::PropertyArgs& Args)
+			void* Server::Deserialize(Rest::Stream* Stream, uint64_t Length, uint64_t Offset, const Compute::PropertyArgs& Args)
 			{
 				std::string N = Network::Socket::LocalIpAddress();
-				std::string D = Rest::OS::FileDirectory(Stream->Filename());
+				std::string D = Rest::OS::FileDirectory(Stream->GetSource());
 
-				auto* Document = Content->Load<Rest::Document>(Stream->Filename());
+				auto* Document = Content->Load<Rest::Document>(Stream->GetSource());
 				auto* Object = new Network::HTTP::Server();
 				auto* Router = new Network::HTTP::MapRouter();
 
@@ -1473,9 +1473,9 @@ namespace Tomahawk
 			{
 				return Asset->Resource;
 			}
-			void* Shape::Deserialize(Rest::FileStream* Stream, uint64_t Length, uint64_t Offset, const Compute::PropertyArgs& Args)
+			void* Shape::Deserialize(Rest::Stream* Stream, uint64_t Length, uint64_t Offset, const Compute::PropertyArgs& Args)
 			{
-				auto* Document = Content->Load<Rest::Document>(Stream->Filename());
+				auto* Document = Content->Load<Rest::Document>(Stream->GetSource());
 				if (!Document)
 					return nullptr;
 
@@ -1507,7 +1507,7 @@ namespace Tomahawk
 					return nullptr;
 				}
 
-				Content->Cache(this, Stream->Filename(), Object);
+				Content->Cache(this, Stream->GetSource(), Object);
 				return (void*)Object;
 			}
 		}

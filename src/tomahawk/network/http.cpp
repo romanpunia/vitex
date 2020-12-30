@@ -45,6 +45,27 @@ namespace Tomahawk
 	{
 		namespace HTTP
 		{
+			static void TextAppend(std::vector<char>& Array, const std::string& Src)
+			{
+				Array.insert(Array.end(), Src.begin(), Src.end());
+			}
+			static void TextAppend(std::vector<char>& Array, const char* Buffer, size_t Size)
+			{
+				Array.insert(Array.end(), Buffer, Buffer + Size);
+			}
+			static void TextAssign(std::vector<char>& Array, const std::string& Src)
+			{
+				Array.assign(Src.begin(), Src.end());
+			}
+			static void TextAssign(std::vector<char>& Array, const char* Buffer, size_t Size)
+			{
+				Array.assign(Buffer, Buffer + Size);
+			}
+			static std::string TextSubstring(std::vector<char>& Array, size_t Offset, size_t Size)
+			{
+				return std::string(Array.data() + Offset, Size);
+			}
+
 			MimeStatic::MimeStatic(const char* Ext, const char* T) : Extension(Ext), Type(T)
 			{
 			}
@@ -882,7 +903,7 @@ namespace Tomahawk
 
 								return false;
 							}
-							else if (Result >= 0)
+							else if (Result >= 0 || Result == -2)
 							{
 								if (Callback)
 									Callback(Base, Buffer, (int)Size);
@@ -1295,7 +1316,7 @@ namespace Tomahawk
 							Stream.zfree = Z_NULL;
 							Stream.opaque = Z_NULL;
 							Stream.avail_in = (uInt)Response.Buffer.size();
-							Stream.next_in = (Bytef*)Response.Buffer.c_str();
+							Stream.next_in = (Bytef*)Response.Buffer.data();
 
 							if (deflateInit2(&Stream, Route ? Route->Compression.QualityLevel : 8, Z_DEFLATED, (Gzip ? 15 | 16 : 15), Route ? Route->Compression.MemoryLevel : 8, Route ? (int)Route->Compression.Tune : 0) == Z_OK)
 							{
@@ -1305,7 +1326,7 @@ namespace Tomahawk
 
 								if (deflate(&Stream, Z_FINISH) == Z_STREAM_END && deflateEnd(&Stream) == Z_OK)
 								{
-									Response.Buffer.assign(Buffer.c_str(), (uint64_t)Stream.total_out);
+									TextAssign(Response.Buffer, Buffer.c_str(), (uint64_t)Stream.total_out);
 									if (!Response.GetHeader("Content-Encoding"))
 									{
 										if (Gzip)
@@ -1344,7 +1365,7 @@ namespace Tomahawk
 								Data.append(ContentRange.c_str(), ContentRange.size());
 								Data.append("\r\n", 2);
 								Data.append("\r\n", 2);
-								Data.append(Response.Buffer.substr(Offset.first, Offset.second));
+								Data.append(TextSubstring(Response.Buffer, Offset.first, Offset.second));
 								Data.append("\r\n", 2);
 							}
 
@@ -1352,7 +1373,7 @@ namespace Tomahawk
 							Data.append(Boundary);
 							Data.append("--\r\n", 4);
 
-							Response.Buffer.assign(Data);
+							TextAssign(Response.Buffer, Data);
 						}
 						else
 						{
@@ -1360,7 +1381,7 @@ namespace Tomahawk
 							if (!Response.GetHeader("Content-Range"))
 								Content.fAppend("Content-Range: %s\r\n", Util::ConstructContentRange(Offset.first, Offset.second, Response.Buffer.size()).c_str());
 
-							Response.Buffer.assign(Response.Buffer.substr(Offset.first, Offset.second));
+							TextAssign(Response.Buffer, TextSubstring(Response.Buffer, Offset.first, Offset.second));
 						}
 					}
 
@@ -1401,7 +1422,7 @@ namespace Tomahawk
 
 					if (!Base->Response.Buffer.empty())
 					{
-						return !Socket->WriteAsync(Base->Response.Buffer.c_str(), (int64_t)Base->Response.Buffer.size(), [](Network::Socket* Socket, int64_t Size)
+						return !Socket->WriteAsync(Base->Response.Buffer.data(), (int64_t)Base->Response.Buffer.size(), [](Network::Socket* Socket, int64_t Size)
 						{
 							auto Base = Socket->Context<HTTP::Connection>();
 							if (Size <= 0)
@@ -4178,7 +4199,7 @@ namespace Tomahawk
 				if (Base->Request.URI.size() > 1)
 					Parent = Rest::OS::FileDirectory(Base->Request.URI.substr(0, Base->Request.URI.size() - 1));
 
-				Base->Response.Buffer =
+				TextAssign(Base->Response.Buffer,
 					"<html><head><title>Index of " + Name + "</title>"
 					"<style>th {text-align: left;}</style></head>"
 					"<body><h1>Index of " + Name + "</h1><pre><table cellpadding=\"0\">"
@@ -4187,7 +4208,7 @@ namespace Tomahawk
 					"<th><a href=\"?s" + Direction + "\">Size</a></th></tr>"
 					"<tr><td colspan=\"3\"><hr></td></tr>"
 					"<tr><td><a href=\"" + Parent + "\">Parent directory</a></td>"
-					"<td>&nbsp;-</td><td>&nbsp;&nbsp;-</td></tr>";
+					"<td>&nbsp;-</td><td>&nbsp;&nbsp;-</td></tr>");
 
 				for (auto It = Entries.begin(); It != Entries.end(); It++)
 					It->UserData = Base;
@@ -4221,9 +4242,9 @@ namespace Tomahawk
 					if (It->Source.IsDirectory && !Rest::Stroke(&HREF).EndsOf("/\\"))
 						HREF.append(1, '/');
 
-					Base->Response.Buffer.append("<tr><td><a href=\"" + HREF + "\">" + It->Path + "</a></td><td>&nbsp;" + Date + "</td><td>&nbsp;&nbsp;" + Size + "</td></tr>\n");
+					TextAppend(Base->Response.Buffer, "<tr><td><a href=\"" + HREF + "\">" + It->Path + "</a></td><td>&nbsp;" + Date + "</td><td>&nbsp;&nbsp;" + Size + "</td></tr>\n");
 				}
-				Base->Response.Buffer.append("</table></pre></body></html>");
+				TextAppend(Base->Response.Buffer, "</table></pre></body></html>");
 
 #ifdef TH_HAS_ZLIB
 				bool Deflate = false, Gzip = false;
@@ -4243,7 +4264,7 @@ namespace Tomahawk
 						Stream.zfree = Z_NULL;
 						Stream.opaque = Z_NULL;
 						Stream.avail_in = (uInt)Base->Response.Buffer.size();
-						Stream.next_in = (Bytef*)Base->Response.Buffer.c_str();
+						Stream.next_in = (Bytef*)Base->Response.Buffer.data();
 
 						if (deflateInit2(&Stream, Base->Route->Compression.QualityLevel, Z_DEFLATED, (Gzip ? 15 | 16 : 15), Base->Route->Compression.MemoryLevel, (int)Base->Route->Compression.Tune) == Z_OK)
 						{
@@ -4253,7 +4274,7 @@ namespace Tomahawk
 
 							if (deflate(&Stream, Z_FINISH) == Z_STREAM_END && deflateEnd(&Stream) == Z_OK)
 							{
-								Base->Response.Buffer.assign(Buffer.c_str(), (uint64_t)Stream.total_out);
+								TextAssign(Base->Response.Buffer, Buffer.c_str(), (uint64_t)Stream.total_out);
 								if (!Base->Response.GetHeader("Content-Encoding"))
 								{
 									if (Gzip)
@@ -4268,7 +4289,7 @@ namespace Tomahawk
 #endif
 				Content.fAppend("Content-Length: %llu\r\n\r\n", (uint64_t)Base->Response.Buffer.size());
 				if (strcmp(Base->Request.Method, "HEAD"))
-					Content.Append(Base->Response.Buffer);
+					Content.Append(Base->Response.Buffer.data());
 
 				Base->Response.Buffer.clear();
 				return Base->Stream->WriteAsync(Content.Get(), (int64_t)Content.Size(), [](Socket* Socket, int64_t Size)
@@ -4497,7 +4518,7 @@ namespace Tomahawk
 
 					if (Base->Response.Buffer.size() >= ContentLength)
 					{
-						return Base->Stream->WriteAsync(Base->Response.Buffer.c_str() + Range, (int64_t)ContentLength, [](Socket* Socket, int64_t Size)
+						return Base->Stream->WriteAsync(Base->Response.Buffer.data() + Range, (int64_t)ContentLength, [](Socket* Socket, int64_t Size)
 						{
 							auto Base = Socket->Context<HTTP::Connection>();
 							if (Size < 0)
@@ -4604,7 +4625,7 @@ namespace Tomahawk
 						ZStream.zfree = Z_NULL;
 						ZStream.opaque = Z_NULL;
 						ZStream.avail_in = (uInt)Base->Response.Buffer.size();
-						ZStream.next_in = (Bytef*)Base->Response.Buffer.c_str();
+						ZStream.next_in = (Bytef*)Base->Response.Buffer.data();
 
 						if (deflateInit2(&ZStream, Base->Route->Compression.QualityLevel, Z_DEFLATED, (Gzip ? 15 | 16 : 15), Base->Route->Compression.MemoryLevel, (int)Base->Route->Compression.Tune) == Z_OK)
 						{
@@ -4613,10 +4634,10 @@ namespace Tomahawk
 							ZStream.next_out = (Bytef*)Buffer.c_str();
 
 							if (deflate(&ZStream, Z_FINISH) == Z_STREAM_END && deflateEnd(&ZStream) == Z_OK)
-								Base->Response.Buffer.assign(Buffer.c_str(), (uint64_t)ZStream.total_out);
+								TextAssign(Base->Response.Buffer, Buffer.c_str(), (uint64_t)ZStream.total_out);
 						}
 #endif
-						return Base->Stream->WriteAsync(Base->Response.Buffer.c_str(), (int64_t)ContentLength, [](Socket* Socket, int64_t Size)
+						return Base->Stream->WriteAsync(Base->Response.Buffer.data(), (int64_t)ContentLength, [](Socket* Socket, int64_t Size)
 						{
 							auto Base = Socket->Context<HTTP::Connection>();
 							if (Size < 0)
@@ -5343,7 +5364,11 @@ namespace Tomahawk
 				else if (!memcmp(Request.Method, "POST", 4) || !memcmp(Request.Method, "PUT", 3) || !memcmp(Request.Method, "PATCH", 5))
 					Request.SetHeader("Content-Length", "0");
 
-				Content.fAppend("%s %s %s\r\n", Request.Method, Request.URI.c_str(), Request.Version);
+				if (!Request.Query.empty())
+					Content.fAppend("%s %s?%s %s\r\n", Request.Method, Request.URI.c_str(), Request.Query.c_str(), Request.Version);
+				else
+					Content.fAppend("%s %s %s\r\n", Request.Method, Request.URI.c_str(), Request.Version);
+
 				Util::ConstructHeadFull(&Request, &Response, true, &Content);
 				Content.Append("\r\n");
 
@@ -5364,7 +5389,7 @@ namespace Tomahawk
 							else if (Size == 0)
 								return Receive();
 
-							this->Response.Buffer.append(Buffer, Size);
+							TextAppend(this->Response.Buffer, Buffer, Size);
 							return true;
 						});
 					}
@@ -5383,7 +5408,7 @@ namespace Tomahawk
 							else if (Size == 0)
 								return Receive();
 
-							this->Response.Buffer.append(Buffer, Size);
+							TextAppend(this->Response.Buffer, Buffer, Size);
 							return true;
 						});
 					});
@@ -5446,10 +5471,10 @@ namespace Tomahawk
 
 								return false;
 							}
-							else if (Result >= 0)
+							else if (Result >= 0 || Result == -2)
 							{
 								if (Response.Buffer.size() < MaxSize)
-									Response.Buffer.append(Buffer, Size);
+									TextAppend(Response.Buffer, Buffer, Size);
 							}
 
 							return Result == -2;
@@ -5490,7 +5515,7 @@ namespace Tomahawk
 						}
 
 						if (Response.Buffer.size() < MaxSize)
-							Response.Buffer.append(Buffer, Size);
+							TextAppend(Response.Buffer, Buffer, Size);
 
 						if (Callback)
 							Callback(this, &Request, &Response);
@@ -5559,7 +5584,7 @@ namespace Tomahawk
 					}
 
 					if (Response.Buffer.size() < MaxSize)
-						Response.Buffer.append(Buffer, Size);
+						TextAppend(Response.Buffer, Buffer, Size);
 
 					return true;
 				}) > 0;
@@ -5581,7 +5606,7 @@ namespace Tomahawk
 				Parser->UserPointer = &Segment;
 
 				strcpy(Request.RemoteAddress, Stream.GetRemoteAddress().c_str());
-				if (Parser->ParseResponse(Response.Buffer.c_str(), Response.Buffer.size(), 0) < 0)
+				if (Parser->ParseResponse(Response.Buffer.data(), Response.Buffer.size(), 0) < 0)
 				{
 					TH_RELEASE(Parser);
 					return Error("cannot parse http response");

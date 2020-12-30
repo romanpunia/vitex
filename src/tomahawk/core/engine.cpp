@@ -119,7 +119,7 @@ namespace Tomahawk
 
 			return true;
 		}
-		bool Appearance::FillFluxLinear(Graphics::GraphicsDevice* Device) const
+		bool Appearance::FillDepthLinear(Graphics::GraphicsDevice* Device) const
 		{
 			if (!Device || Material < 0)
 				return false;
@@ -131,7 +131,7 @@ namespace Tomahawk
 
 			return true;
 		}
-		bool Appearance::FillFluxCubic(Graphics::GraphicsDevice* Device) const
+		bool Appearance::FillDepthCubic(Graphics::GraphicsDevice* Device) const
 		{
 			if (!Device || Material < 0)
 				return false;
@@ -1826,11 +1826,11 @@ namespace Tomahawk
 		{
 			return nullptr;
 		}
-		void* Processor::Deserialize(Rest::FileStream* Stream, uint64_t Length, uint64_t Offset, const Compute::PropertyArgs& Args)
+		void* Processor::Deserialize(Rest::Stream* Stream, uint64_t Length, uint64_t Offset, const Compute::PropertyArgs& Args)
 		{
 			return nullptr;
 		}
-		bool Processor::Serialize(Rest::FileStream* Stream, void* Object, const Compute::PropertyArgs& Args)
+		bool Processor::Serialize(Rest::Stream* Stream, void* Object, const Compute::PropertyArgs& Args)
 		{
 			return false;
 		}
@@ -2351,7 +2351,7 @@ namespace Tomahawk
 			Safe.unlock();
 		}
 
-		RenderSystem::RenderSystem(Graphics::GraphicsDevice* Ref) : Device(Ref), Target(nullptr), Scene(nullptr), BoxIndex(nullptr), BoxVertex(nullptr), QuadVertex(nullptr), SphereVertex(nullptr), SphereIndex(nullptr), CubeVertex(nullptr), CubeIndex(nullptr), SkinBoxVertex(nullptr), SkinBoxIndex(nullptr), EnableFrustumCull(true), EnableOcclusionCull(false)
+		RenderSystem::RenderSystem(Graphics::GraphicsDevice* Ref) : Device(Ref), Target(nullptr), Scene(nullptr), BoxIndex(nullptr), BoxVertex(nullptr), QuadVertex(nullptr), SphereVertex(nullptr), SphereIndex(nullptr), CubeVertex(nullptr), CubeIndex(nullptr), SkinBoxVertex(nullptr), SkinBoxIndex(nullptr), FrustumCulling(true), OcclusionCulling(false)
 		{
 			Occlusion.Delay = 5;
 			Sorting.Delay = 5;
@@ -2381,6 +2381,18 @@ namespace Tomahawk
 			TH_RELEASE(SkinBoxVertex);
 			TH_RELEASE(SkinBoxIndex);
 		}
+		void RenderSystem::SetOcclusionCulling(bool Enabled, bool KeepResults)
+		{
+			OcclusionCulling = Enabled;
+			if (!KeepResults)
+				ClearCull();
+		}
+		void RenderSystem::SetFrustumCulling(bool Enabled, bool KeepResults)
+		{
+			FrustumCulling = Enabled;
+			if (!KeepResults)
+				ClearCull();
+		}
 		void RenderSystem::SetDepthSize(size_t Size)
 		{
 			if (!Scene || !Device)
@@ -2406,31 +2418,50 @@ namespace Tomahawk
 			Scene = NewScene;
 			SetDepthSize(DepthSize);
 		}
+		void RenderSystem::Remount(Renderer* Target)
+		{
+			if (!Target)
+				return;
+
+			Target->Deactivate();
+			Target->SetRenderer(this);
+			Target->Activate();
+			Target->ResizeBuffers();
+		}
 		void RenderSystem::Remount()
 		{
 			ClearCull();
+			for (auto& Target : Renderers)
+				Remount(Target);
+		}
+		void RenderSystem::Mount()
+		{
 			for (auto& Renderer : Renderers)
-			{
-				Renderer->Deactivate();
 				Renderer->Activate();
-			}
+		}
+		void RenderSystem::Unmount()
+		{
+			for (auto& Renderer : Renderers)
+				Renderer->Deactivate();
 		}
 		void RenderSystem::ClearCull()
 		{
 			for (auto& Base : Cull)
 			{
-				for (auto It = Base.second->Begin(); It != Base.second->End(); ++It)
+				auto* Array = Scene->GetComponents(Base);
+				for (auto It = Array->Begin(); It != Array->End(); ++It)
 					(*It)->As<Cullable>()->ClearCull();
 			}
 		}
 		void RenderSystem::Synchronize(Rest::Timer* Time, const Viewer& View)
 		{
-			if (!EnableFrustumCull)
+			if (!FrustumCulling)
 				return;
 
 			for (auto& Base : Cull)
 			{
-				for (auto It = Base.second->Begin(); It != Base.second->End(); ++It)
+				auto* Array = Scene->GetComponents(Base);
+				for (auto It = Array->Begin(); It != Array->End(); ++It)
 				{
 					Cullable* Data = (Cullable*)*It;
 					Data->Visibility = Data->Cull(View);
@@ -2439,14 +2470,14 @@ namespace Tomahawk
 		}
 		void RenderSystem::CullGeometry(Rest::Timer* Time, const Viewer& View)
 		{
-			if (!EnableOcclusionCull || !Target)
+			if (!OcclusionCulling || !Target)
 				return;
 
 			double ElapsedTime = Time->GetElapsedTime();
 			if (Sorting.TickEvent(ElapsedTime))
 			{
 				for (auto& Base : Cull)
-					Scene->SortEntitiesFrontToBack(Base.second);
+					Scene->SortOpaqueFrontToBack(Base);
 			}
 
 			if (!Occlusion.TickEvent(ElapsedTime))
@@ -2525,7 +2556,7 @@ namespace Tomahawk
 		{
 			if (Mode == CullResult_Last)
 			{
-				if (EnableOcclusionCull)
+				if (OcclusionCulling)
 				{
 					int R = Base->Fetch(this);
 					if (R != -1)
@@ -2537,6 +2568,14 @@ namespace Tomahawk
 			}
 
 			return PassCullable(Base, Mode, Result);
+		}
+		bool RenderSystem::HasOcclusionCulling()
+		{
+			return OcclusionCulling;
+		}
+		bool RenderSystem::HasFrustumCulling()
+		{
+			return FrustumCulling;
 		}
 		int64_t RenderSystem::GetOffset(uint64_t Id)
 		{
@@ -2569,6 +2608,7 @@ namespace Tomahawk
 
 			In->SetRenderer(this);
 			In->Activate();
+			In->ResizeBuffers();
 			Renderers.push_back(In);
 
 			return In;
@@ -3063,14 +3103,10 @@ namespace Tomahawk
 			Rest::Pool<Drawable*>* Opaque = GetOpaque();
 			if (Opaque != nullptr && Opaque->Size() > 0)
 				CullGeometry(View, Opaque);
-
-			Rest::Pool<Drawable*>* Transparent = GetTransparent();
-			if (Transparent != nullptr && Transparent->Size() > 0)
-				CullGeometry(View, Transparent);
 		}
 		void GeometryDraw::Render(Rest::Timer* TimeStep, RenderState State, RenderOpt Options)
 		{
-			if (State == RenderState_Geometry)
+			if (State == RenderState_Geometry_Raw)
 			{
 				Rest::Pool<Drawable*>* Geometry;
 				if (Options & RenderOpt_Transparent)
@@ -3079,22 +3115,31 @@ namespace Tomahawk
 					Geometry = GetOpaque();
 
 				if (Geometry != nullptr && Geometry->Size() > 0)
-					RenderGeometry(TimeStep, Geometry, Options);
+					RenderGeometryRaw(TimeStep, Geometry, Options);
 			}
-			else if (State == RenderState_Flux_Linear)
+			else if (State == RenderState_Geometry_Lumina)
+			{
+				if (Options & RenderOpt_Transparent)
+					return;
+
+				Rest::Pool<Drawable*>* Geometry = GetOpaque();
+				if (Geometry != nullptr && Geometry->Size() > 0)
+					RenderGeometryLumina(TimeStep, Geometry, Options);
+			}
+			else if (State == RenderState_Depth_Linear)
 			{
 				if (!(Options & RenderOpt_Inner))
 					return;
 
 				Rest::Pool<Drawable*>* Opaque = GetOpaque();
 				if (Opaque != nullptr && Opaque->Size() > 0)
-					RenderFluxLinear(TimeStep, Opaque, Options);
+					RenderDepthLinear(TimeStep, Opaque);
 
 				Rest::Pool<Drawable*>* Transparent = GetTransparent();
 				if (Transparent != nullptr && Transparent->Size() > 0)
-					RenderFluxLinear(TimeStep, Transparent, Options);
+					RenderDepthLinear(TimeStep, Transparent);
 			}
-			else if (State == RenderState_Flux_Cubic)
+			else if (State == RenderState_Depth_Cubic)
 			{
 				Viewer& View = System->GetScene()->View;
 				if (!(Options & RenderOpt_Inner))
@@ -3102,11 +3147,11 @@ namespace Tomahawk
 
 				Rest::Pool<Drawable*>* Opaque = GetOpaque();
 				if (Opaque != nullptr && Opaque->Size() > 0)
-					RenderFluxCubic(TimeStep, Opaque, View.CubicViewProjection, Options);
+					RenderDepthCubic(TimeStep, Opaque, View.CubicViewProjection);
 
 				Rest::Pool<Drawable*>* Transparent = GetTransparent();
 				if (Transparent != nullptr && Transparent->Size() > 0)
-					RenderFluxCubic(TimeStep, Transparent, View.CubicViewProjection, Options);
+					RenderDepthCubic(TimeStep, Transparent, View.CubicViewProjection);
 			}
 		}
 		Rest::Pool<Drawable*>* GeometryDraw::GetOpaque()
@@ -3199,13 +3244,9 @@ namespace Tomahawk
 		void EffectDraw::RenderEffect(Rest::Timer* Time)
 		{
 		}
-		void EffectDraw::Activate()
-		{
-			ResizeBuffers();
-		}
 		void EffectDraw::Render(Rest::Timer* Time, RenderState State, RenderOpt Options)
 		{
-			if (State != RenderState_Geometry || Options & RenderOpt_Inner)
+			if (State != RenderState_Geometry_Raw || Options & RenderOpt_Inner)
 				return;
 
 			Graphics::MultiRenderTarget2D* Surface = System->GetScene()->GetSurface();
@@ -3381,42 +3422,6 @@ namespace Tomahawk
 			Conf.Device->Draw(6, 0);
 			Conf.Device->SetTexture2D(nullptr, 1);
 		}
-		void SceneGraph::RenderGeometry(Rest::Timer* Time, RenderOpt Options)
-		{
-			if (!View.Renderer)
-				return;
-
-			auto* States = View.Renderer->GetRenderers();
-			for (auto& Renderer : *States)
-			{
-				if (Renderer->Active)
-					Renderer->Render(Time, RenderState_Geometry, Options);
-			}
-		}
-		void SceneGraph::RenderFluxLinear(Rest::Timer* Time, RenderOpt Options)
-		{
-			if (!View.Renderer)
-				return;
-
-			auto* States = View.Renderer->GetRenderers();
-			for (auto& Renderer : *States)
-			{
-				if (Renderer->Active)
-					Renderer->Render(Time, RenderState_Flux_Linear, RenderOpt_Inner | Options);
-			}
-		}
-		void SceneGraph::RenderFluxCubic(Rest::Timer* Time, RenderOpt Options)
-		{
-			if (!View.Renderer)
-				return;
-
-			auto* States = View.Renderer->GetRenderers();
-			for (auto& Renderer : *States)
-			{
-				if (Renderer->Active)
-					Renderer->Render(Time, RenderState_Flux_Cubic, RenderOpt_Inner | Options);
-			}
-		}
 		void SceneGraph::Render(Rest::Timer* Time)
 		{
 			BeginThread(ThreadId_Render);
@@ -3427,10 +3432,22 @@ namespace Tomahawk
 				Conf.Device->SetStructureBuffer(Structure, 0);
 				
 				ClearSurface();
-				RenderGeometry(Time, RenderOpt_None);
+				Render(Time, RenderState_Geometry_Raw, RenderOpt_None);
 				View.Renderer->CullGeometry(Time, View);
 			}
 			EndThread(ThreadId_Render);
+		}
+		void SceneGraph::Render(Rest::Timer* Time, RenderState Stage, RenderOpt Options)
+		{
+			if (!View.Renderer)
+				return;
+
+			auto* States = View.Renderer->GetRenderers();
+			for (auto& Renderer : *States)
+			{
+				if (Renderer->Active)
+					Renderer->Render(Time, Stage, Options);
+			}
 		}
 		void SceneGraph::Simulation(Rest::Timer* Time)
 		{
@@ -3505,18 +3522,11 @@ namespace Tomahawk
 			}
 			Unlock();
 		}
-		void SceneGraph::SortEntitiesBackToFront()
+		void SceneGraph::SortOpaqueBackToFront(uint64_t Section)
 		{
-			std::sort(Entities.Begin(), Entities.End(), [](Entity* A, Entity* B)
-			{
-				return A->Distance > B->Distance;
-			});
+			SortOpaqueBackToFront(GetOpaque(Section));
 		}
-		void SceneGraph::SortEntitiesBackToFront(uint64_t Section)
-		{
-			SortEntitiesBackToFront(GetComponents(Section));
-		}
-		void SceneGraph::SortEntitiesBackToFront(Rest::Pool<Component*>* Array)
+		void SceneGraph::SortOpaqueBackToFront(Rest::Pool<Drawable*>* Array)
 		{
 			if (!Array)
 				return;
@@ -3526,18 +3536,11 @@ namespace Tomahawk
 				return A->Parent->Distance > B->Parent->Distance;
 			});
 		}
-		void SceneGraph::SortEntitiesFrontToBack()
+		void SceneGraph::SortOpaqueFrontToBack(uint64_t Section)
 		{
-			std::sort(Entities.Begin(), Entities.End(), [](Entity* A, Entity* B)
-			{
-				return A->Distance < B->Distance;
-			});
+			SortOpaqueFrontToBack(GetOpaque(Section));
 		}
-		void SceneGraph::SortEntitiesFrontToBack(uint64_t Section)
-		{
-			SortEntitiesFrontToBack(GetComponents(Section));
-		}
-		void SceneGraph::SortEntitiesFrontToBack(Rest::Pool<Component*>* Array)
+		void SceneGraph::SortOpaqueFrontToBack(Rest::Pool<Drawable*>* Array)
 		{
 			if (!Array)
 				return;
@@ -3547,25 +3550,25 @@ namespace Tomahawk
 				return A->Parent->Distance < B->Parent->Distance;
 			});
 		}
-		void SceneGraph::SetCamera(Entity* In)
+		void SceneGraph::SetCamera(Entity* NewCamera)
 		{
-			if (In != nullptr)
+			Components::Camera* Target = nullptr;
+			if (NewCamera != nullptr)
 			{
-				auto Viewer = In->GetComponent<Components::Camera>();
-				if (Viewer != nullptr && Viewer->Active)
+				Target = NewCamera->GetComponent<Components::Camera>();
+				if (Target != nullptr && Target->Active)
 				{
-					Viewer->Awake(nullptr);
-					Lock();
-					Camera = Viewer;
-					Unlock();
+					if (Camera != nullptr)
+						Camera->Awake(Camera);
+					Target->Awake(nullptr);
 				}
+				else
+					Target = nullptr;
 			}
-			else
-			{
-				Lock();
-				Camera = nullptr;
-				Unlock();
-			}
+
+			Lock();
+			Camera = Target;
+			Unlock();
 		}
 		void SceneGraph::RemoveEntity(Entity* Entity, bool Release)
 		{
@@ -4551,17 +4554,21 @@ namespace Tomahawk
 				return Object;
 
 			Mutex.lock();
-			std::string File = Rest::OS::Resolve(Path, Environment);
-			if (!Rest::OS::FileExists(File.c_str()))
+			std::string File = Path;
+			if (!Rest::OS::FileRemote(Path.c_str()))
 			{
-				if (!Rest::OS::FileExists(Path.c_str()))
+				File = Rest::OS::Resolve(Path, Environment);
+				if (!Rest::OS::FileExists(File.c_str()))
 				{
-					Mutex.unlock();
-					TH_ERROR("file \"%s\" wasn't found", File.c_str());
-					return nullptr;
-				}
+					if (!Rest::OS::FileExists(Path.c_str()))
+					{
+						Mutex.unlock();
+						TH_ERROR("file \"%s\" wasn't found", File.c_str());
+						return nullptr;
+					}
 
-				File = Path;
+					File = Path;
+				}
 			}
 			Mutex.unlock();
 
@@ -4569,9 +4576,11 @@ namespace Tomahawk
 			if (Asset != nullptr && Asset->Source == Processor)
 				return Processor->Duplicate(Asset, Map);
 
-			auto Stream = new Rest::FileStream();
-			Stream->Open(File.c_str(), Rest::FileMode_Binary_Read_Only);
-			Object = Processor->Deserialize(Stream, Stream->Size(), 0, Map);
+			auto* Stream = Rest::OS::Open(File, Rest::FileMode_Binary_Read_Only);
+			if (!Stream)
+				return nullptr;
+
+			Object = Processor->Deserialize(Stream, Stream->GetSize(), 0, Map);
 			TH_RELEASE(Stream);
 
 			return Object;
@@ -4596,9 +4605,9 @@ namespace Tomahawk
 				return nullptr;
 			}
 
-			Rest::FileStream* Stream = Docker->second->Stream;
+			auto* Stream = Docker->second->Stream;
 			Stream->Seek(Rest::FileSeek_Begin, It->second + Docker->second->Offset);
-			Stream->Filename() = Path;
+			Stream->GetSource() = Path;
 
 			return Processor->Deserialize(Stream, Docker->second->Length, It->second + Docker->second->Offset, Map);
 		}
@@ -4625,10 +4634,11 @@ namespace Tomahawk
 			File.append(Path.substr(Directory.size()));
 			Mutex.unlock();
 
-			auto Stream = new Rest::FileStream();
-			if (!Stream->Open(File.c_str(), Rest::FileMode_Binary_Write_Only))
+			auto* Stream = Rest::OS::Open(File, Rest::FileMode_Binary_Write_Only);
+			if (!Stream)
 			{
-				if (!Stream->Open(Path.c_str(), Rest::FileMode_Binary_Write_Only))
+				Stream = Rest::OS::Open(Path, Rest::FileMode_Binary_Write_Only);
+				if (!Stream)
 				{
 					TH_ERROR("cannot open stream for writing at \"%s\" or \"%s\"", File.c_str(), Path.c_str());
 					TH_RELEASE(Stream);
@@ -4657,8 +4667,8 @@ namespace Tomahawk
 			}
 			Mutex.unlock();
 
-			Rest::FileStream* Stream = new Rest::FileStream();
-			if (!Stream->OpenZ(File.c_str(), Rest::FileMode::FileMode_Binary_Read_Only))
+			auto* Stream = new Rest::GzStream();
+			if (!Stream->Open(File.c_str(), Rest::FileMode::FileMode_Binary_Read_Only))
 			{
 				TH_ERROR("cannot open \"%s\" for reading", File.c_str());
 				TH_RELEASE(Stream);
@@ -4727,8 +4737,8 @@ namespace Tomahawk
 				return false;
 			}
 
-			auto Stream = new Rest::FileStream();
-			if (!Stream->OpenZ(Rest::OS::Resolve(Path, Environment).c_str(), Rest::FileMode_Write_Only))
+			auto* Stream = new Rest::GzStream();
+			if (!Stream->Open(Rest::OS::Resolve(Path, Environment).c_str(), Rest::FileMode_Write_Only))
 			{
 				TH_ERROR("cannot open \"%s\" for writing", Path.c_str());
 				delete Stream;
@@ -4747,25 +4757,25 @@ namespace Tomahawk
 			{
 				for (auto& Resource : Tree->Files)
 				{
-					Rest::FileStream* File = new Rest::FileStream();
-					if (File->Open(Resource.c_str(), Rest::FileMode_Binary_Read_Only))
-					{
-						std::string Path = Rest::Stroke(Resource).Replace(DBase, Name).Replace('\\', '/').R();
-						if (Name.empty())
-							Path.assign(Path.substr(1));
+					auto* File = Rest::OS::Open(Resource, Rest::FileMode_Binary_Read_Only);
+					if (!File)
+						continue;
 
-						uint64_t Size = (uint64_t)Path.size();
-						uint64_t Length = File->Size();
+					std::string Path = Rest::Stroke(Resource).Replace(DBase, Name).Replace('\\', '/').R();
+					if (Name.empty())
+						Path.assign(Path.substr(1));
 
-						Stream->Write((char*)&Size, sizeof(uint64_t));
-						Stream->Write((char*)&Offset, sizeof(uint64_t));
-						Stream->Write((char*)&Length, sizeof(uint64_t));
+					uint64_t Size = (uint64_t)Path.size();
+					uint64_t Length = File->GetSize();
 
-						Offset += Length;
-						if (Size > 0)
-							Stream->Write((char*)Path.c_str(), sizeof(char) * Size);
-					}
+					Stream->Write((char*)&Size, sizeof(uint64_t));
+					Stream->Write((char*)&Offset, sizeof(uint64_t));
+					Stream->Write((char*)&Length, sizeof(uint64_t));
 
+					Offset += Length;
+					if (Size > 0)
+						Stream->Write((char*)Path.c_str(), sizeof(char) * Size);
+	
 					TH_RELEASE(File);
 				}
 
@@ -4775,21 +4785,22 @@ namespace Tomahawk
 			{
 				for (auto& Resource : Tree->Files)
 				{
-					Rest::FileStream* File = new Rest::FileStream();
-					if (File->Open(Resource.c_str(), Rest::FileMode_Binary_Read_Only))
-					{
-						int64_t Size = (int64_t)File->Size();
-						while (Size > 0)
-						{
-							char Buffer[8192];
-							int64_t Offset = File->Read(Buffer, Size > 8192 ? 8192 : Size);
-							if (Offset <= 0)
-								break;
+					auto* File = Rest::OS::Open(Resource, Rest::FileMode_Binary_Read_Only);
+					if (!File)
+						continue;
 
-							Stream->Write(Buffer, Offset);
-							Size -= Offset;
-						}
+					int64_t Size = (int64_t)File->GetSize();
+					while (Size > 0)
+					{
+						char Buffer[8192];
+						int64_t Offset = File->Read(Buffer, Size > 8192 ? 8192 : Size);
+						if (Offset <= 0)
+							break;
+
+						Stream->Write(Buffer, Offset);
+						Size -= Offset;
 					}
+
 					TH_RELEASE(File);
 				}
 
@@ -5231,6 +5242,7 @@ namespace Tomahawk
 			Rest::Composer::Push<Renderers::Depth, RenderSystem*>();
 			Rest::Composer::Push<Renderers::Environment, RenderSystem*>();
 			Rest::Composer::Push<Renderers::Lighting, RenderSystem*>();
+			Rest::Composer::Push<Renderers::Lumina, RenderSystem*>();
 			Rest::Composer::Push<Renderers::Glitch, RenderSystem*>();
 			Rest::Composer::Push<Renderers::Tone, RenderSystem*>();
 			Rest::Composer::Push<Renderers::DoF, RenderSystem*>();

@@ -11,6 +11,9 @@ namespace Tomahawk
 {
 	namespace Engine
 	{
+		typedef Graphics::RenderTargetCube CubicDepthMap;
+		typedef Graphics::RenderTarget2D LinearDepthMap;
+		typedef std::vector<LinearDepthMap*> CascadedDepthMap;
 		typedef std::function<void(Rest::Timer*, struct Viewer*)> RenderCallback;
 		typedef std::function<void(class ContentManager*, bool)> SaveCallback;
 		typedef std::function<void(class Event*)> MessageCallback;
@@ -72,15 +75,15 @@ namespace Tomahawk
 			RenderOpt_None = 0,
 			RenderOpt_Transparent = 1,
 			RenderOpt_Static = 2,
-			RenderOpt_Inner = 4,
-			RenderOpt_Flux = 8
+			RenderOpt_Inner = 4
 		};
 
 		enum RenderState
 		{
-			RenderState_Geometry,
-			RenderState_Flux_Linear,
-			RenderState_Flux_Cubic
+			RenderState_Geometry_Raw,
+			RenderState_Geometry_Lumina,
+			RenderState_Depth_Linear,
+			RenderState_Depth_Cubic
 		};
 
 		enum GeoCategory
@@ -113,7 +116,7 @@ namespace Tomahawk
 
 		struct TH_OUT AssetDocker
 		{
-			Rest::FileStream* Stream = nullptr;
+			Rest::Stream* Stream = nullptr;
 			std::string Path;
 			uint64_t Length = 0;
 			uint64_t Offset = 0;
@@ -173,8 +176,8 @@ namespace Tomahawk
 			Appearance(const Appearance& Other);
 			~Appearance();
 			bool FillGeometry(Graphics::GraphicsDevice* Device) const;
-			bool FillFluxLinear(Graphics::GraphicsDevice* Device) const;
-			bool FillFluxCubic(Graphics::GraphicsDevice* Device) const;
+			bool FillDepthLinear(Graphics::GraphicsDevice* Device) const;
+			bool FillDepthCubic(Graphics::GraphicsDevice* Device) const;
 			void SetDiffuseMap(Graphics::Texture2D* New);
 			Graphics::Texture2D* GetDiffuseMap() const;
 			void SetNormalMap(Graphics::Texture2D* New);
@@ -365,8 +368,8 @@ namespace Tomahawk
 			virtual ~Processor() override;
 			virtual void Free(AssetResource* Asset);
 			virtual void* Duplicate(AssetResource* Asset, const Compute::PropertyArgs& Keys);
-			virtual void* Deserialize(Rest::FileStream* Stream, uint64_t Length, uint64_t Offset, const Compute::PropertyArgs& Keys);
-			virtual bool Serialize(Rest::FileStream* Stream, void* Instance, const Compute::PropertyArgs& Keys);
+			virtual void* Deserialize(Rest::Stream* Stream, uint64_t Length, uint64_t Offset, const Compute::PropertyArgs& Keys);
+			virtual bool Serialize(Rest::Stream* Stream, void* Instance, const Compute::PropertyArgs& Keys);
 			ContentManager* GetContent();
 		};
 
@@ -505,8 +508,8 @@ namespace Tomahawk
 		class TH_OUT RenderSystem : public Rest::Object
 		{
 		protected:
-			std::unordered_map<uint64_t, Rest::Pool<Component*>*> Cull;
 			std::vector<Renderer*> Renderers;
+			std::unordered_set<uint64_t> Cull;
 			Graphics::DepthStencilState* DepthStencil;
 			Graphics::BlendState* Blend;
 			Graphics::SamplerState* Sampler;
@@ -523,21 +526,26 @@ namespace Tomahawk
 			Graphics::GraphicsDevice* Device;
 			SceneGraph* Scene;
 			size_t DepthSize;
+			bool OcclusionCulling;
+			bool FrustumCulling;
 			bool Satisfied;
 
 		public:
 			Rest::TickTimer Occlusion;
 			Rest::TickTimer Sorting;
 			size_t StallFrames;
-			bool EnableOcclusionCull;
-			bool EnableFrustumCull;
 
 		public:
 			RenderSystem(Graphics::GraphicsDevice* Device);
 			virtual ~RenderSystem() override;
+			void SetOcclusionCulling(bool Enabled, bool KeepResults = false);
+			void SetFrustumCulling(bool Enabled, bool KeepResults = false);
 			void SetDepthSize(size_t Size);
 			void SetScene(SceneGraph* NewScene);
+			void Remount(Renderer* Target);
 			void Remount();
+			void Mount();
+			void Unmount();
 			void ClearCull();
 			void CullGeometry(Rest::Timer* Time, const Viewer& View);
 			void Synchronize(Rest::Timer* Time, const Viewer& View);
@@ -546,6 +554,8 @@ namespace Tomahawk
 			void FreeShader(const std::string& Name, Graphics::Shader* Shader);
 			bool PassCullable(Cullable* Base, CullResult Mode, float* Result);
 			bool PassDrawable(Drawable* Base, CullResult Mode, float* Result);
+			bool HasOcclusionCulling();
+			bool HasFrustumCulling();
 			int64_t GetOffset(uint64_t Id);
 			Graphics::Shader* CompileShader(const std::string& Name, Graphics::Shader::Desc& Desc, size_t BufferSize = 0);
 			Renderer* AddRenderer(Renderer* In);
@@ -594,9 +604,8 @@ namespace Tomahawk
 				static_assert(std::is_base_of<Cullable, T>::value,
 					"component is not cullable");
 
-				auto* Result = GetSceneComponents(T::GetTypeId());
-				Cull[T::GetTypeId()] = Result;
-				return Result;
+				Cull.insert(T::GetTypeId());
+				return GetSceneComponents(T::GetTypeId());
 			}
 			template <typename T>
 			Rest::Pool<Component*>* RemoveCull()
@@ -606,7 +615,7 @@ namespace Tomahawk
 
 				auto It = Cull.find(T::GetTypeId());
 				if (It != Cull.end())
-					Cull.erase(It);
+					Cull.erase(*It);
 
 				return nullptr;
 			}
@@ -686,9 +695,10 @@ namespace Tomahawk
 			GeometryDraw(RenderSystem* Lab, uint64_t Hash);
 			virtual ~GeometryDraw() override;
 			virtual void CullGeometry(const Viewer& View, Rest::Pool<Drawable*>* Geometry);
-			virtual void RenderGeometry(Rest::Timer* TimeStep, Rest::Pool<Drawable*>* Geometry, RenderOpt Options) = 0;
-			virtual void RenderFluxLinear(Rest::Timer* TimeStep, Rest::Pool<Drawable*>* Geometry, RenderOpt Options) = 0;
-			virtual void RenderFluxCubic(Rest::Timer* TimeStep, Rest::Pool<Drawable*>* Geometry, Compute::Matrix4x4* ViewProjection, RenderOpt Options) = 0;
+			virtual void RenderGeometryRaw(Rest::Timer* TimeStep, Rest::Pool<Drawable*>* Geometry, RenderOpt Options) = 0;
+			virtual void RenderGeometryLumina(Rest::Timer* TimeStep, Rest::Pool<Drawable*>* Geometry, RenderOpt Options) = 0;
+			virtual void RenderDepthLinear(Rest::Timer* TimeStep, Rest::Pool<Drawable*>* Geometry) = 0;
+			virtual void RenderDepthCubic(Rest::Timer* TimeStep, Rest::Pool<Drawable*>* Geometry, Compute::Matrix4x4* ViewProjection) = 0;
 			void CullGeometry(const Viewer& View) override;
 			void Render(Rest::Timer* TimeStep, RenderState State, RenderOpt Options) override;
 			Rest::Pool<Drawable*>* GetOpaque();
@@ -730,7 +740,6 @@ namespace Tomahawk
 			EffectDraw(RenderSystem* Lab);
 			virtual ~EffectDraw() override;
 			virtual void RenderEffect(Rest::Timer* Time);
-			void Activate() override;
 			void ResizeBuffers() override;
 			void Render(Rest::Timer* Time, RenderState State, RenderOpt Options) override;
 
@@ -825,10 +834,8 @@ namespace Tomahawk
 			virtual ~SceneGraph() override;
 			void Configure(const Desc& Conf);
 			void Submit();
-			void RenderGeometry(Rest::Timer* Time, RenderOpt Options);
-			void RenderFluxLinear(Rest::Timer* Time, RenderOpt Options);
-			void RenderFluxCubic(Rest::Timer* Time, RenderOpt Options);
 			void Render(Rest::Timer* Time);
+			void Render(Rest::Timer* Time, RenderState Stage, RenderOpt Options);
 			void Update(Rest::Timer* Time);
 			void Simulation(Rest::Timer* Time);
 			void Synchronize(Rest::Timer* Time);
@@ -837,12 +844,10 @@ namespace Tomahawk
 			void SetCamera(Entity* Camera);
 			void CloneEntities(Entity* Instance, std::vector<Entity*>* Array);
 			void RestoreViewBuffer(Viewer* View);
-			void SortEntitiesBackToFront();
-			void SortEntitiesBackToFront(uint64_t Section);
-			void SortEntitiesBackToFront(Rest::Pool<Component*>* Array);
-			void SortEntitiesFrontToBack();
-			void SortEntitiesFrontToBack(uint64_t Section);
-			void SortEntitiesFrontToBack(Rest::Pool<Component*>* Array);
+			void SortOpaqueBackToFront(uint64_t Section);
+			void SortOpaqueBackToFront(Rest::Pool<Drawable*>* Array);
+			void SortOpaqueFrontToBack(uint64_t Section);
+			void SortOpaqueFrontToBack(Rest::Pool<Drawable*>* Array);
 			void Actualize();
 			void Redistribute();
 			void Reindex();
@@ -996,7 +1001,7 @@ namespace Tomahawk
 			std::unordered_map<std::string, AssetDocker*> Dockers;
 			std::unordered_map<std::string, AssetResource*> Assets;
 			std::unordered_map<int64_t, Processor*> Processors;
-			std::unordered_map<Rest::FileStream*, int64_t> Streams;
+			std::unordered_map<Rest::Stream*, int64_t> Streams;
 			Graphics::GraphicsDevice* Device;
 			Rest::EventQueue* Queue;
 			std::string Environment, Base;

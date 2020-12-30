@@ -1,5 +1,6 @@
 #include "network.h"
 #include "../network/http.h"
+#include <RmlUi/Core/URL.h>
 #ifdef TH_MICROSOFT
 #include <winsock2.h>
 #include <windows.h>
@@ -56,6 +57,21 @@ namespace Tomahawk
 {
 	namespace Network
 	{
+		SourceURL::SourceURL(const std::string& Src) : URL(Src)
+		{
+			Rml::URL Fixed(Rest::Stroke(&URL).Find("://").Found ? URL : "file:///" + URL);
+			Path = Fixed.GetPath() + Fixed.GetFileName() + (Fixed.GetExtension().empty() ? "" : "." + Fixed.GetExtension());
+			Host = Fixed.GetHost();
+			Login = Fixed.GetLogin();
+			Password = Fixed.GetPassword();
+			Protocol = Fixed.GetProtocol();
+			Port = Fixed.GetPort();
+
+			const auto& Parameters = Fixed.GetParameters();
+			for (auto& Item : Parameters)
+				Query.insert(std::make_pair(Item.first, Item.second));
+		}
+
 		bool Address::Free(Network::Address* Address)
 		{
 			if (!Address)

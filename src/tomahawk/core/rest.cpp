@@ -1,5 +1,6 @@
 #include "rest.h"
 #include "../network/bson.h"
+#include "../network/http.h"
 #include <cctype>
 #include <ctime>
 #include <thread>
@@ -2828,7 +2829,24 @@ namespace Tomahawk
 			std::this_thread::sleep_for(std::chrono::milliseconds(Ms));
 		}
 
-		FileStream::FileStream()
+		Stream::Stream()
+		{
+		}
+		std::string& Stream::GetSource()
+		{
+			return Path;
+		}
+		uint64_t Stream::GetSize()
+		{
+			uint64_t Position = Tell();
+			Seek(FileSeek_End, 0);
+			uint64_t Size = Tell();
+			Seek(FileSeek_Begin, Position);
+
+			return Size;
+		}
+
+		FileStream::FileStream() : Resource(nullptr)
 		{
 		}
 		FileStream::~FileStream()
@@ -2839,7 +2857,7 @@ namespace Tomahawk
 		{
 			Close();
 			if (!Path.empty())
-				Buffer = (FILE*)OS::Open(Path.c_str(), "w");
+				Resource = (FILE*)OS::Open(Path.c_str(), "w");
 		}
 		bool FileStream::Open(const char* File, FileMode Mode)
 		{
@@ -2850,46 +2868,167 @@ namespace Tomahawk
 			switch (Mode)
 			{
 				case FileMode_Read_Only:
-					Buffer = (FILE*)OS::Open(Path.c_str(), "r");
+					Resource = (FILE*)OS::Open(Path.c_str(), "r");
 					break;
 				case FileMode_Write_Only:
-					Buffer = (FILE*)OS::Open(Path.c_str(), "w");
+					Resource = (FILE*)OS::Open(Path.c_str(), "w");
 					break;
 				case FileMode_Append_Only:
-					Buffer = (FILE*)OS::Open(Path.c_str(), "a");
+					Resource = (FILE*)OS::Open(Path.c_str(), "a");
 					break;
 				case FileMode_Read_Write:
-					Buffer = (FILE*)OS::Open(Path.c_str(), "r+");
+					Resource = (FILE*)OS::Open(Path.c_str(), "r+");
 					break;
 				case FileMode_Write_Read:
-					Buffer = (FILE*)OS::Open(Path.c_str(), "w+");
+					Resource = (FILE*)OS::Open(Path.c_str(), "w+");
 					break;
 				case FileMode_Read_Append_Write:
-					Buffer = (FILE*)OS::Open(Path.c_str(), "a+");
+					Resource = (FILE*)OS::Open(Path.c_str(), "a+");
 					break;
 				case FileMode_Binary_Read_Only:
-					Buffer = (FILE*)OS::Open(Path.c_str(), "rb");
+					Resource = (FILE*)OS::Open(Path.c_str(), "rb");
 					break;
 				case FileMode_Binary_Write_Only:
-					Buffer = (FILE*)OS::Open(Path.c_str(), "wb");
+					Resource = (FILE*)OS::Open(Path.c_str(), "wb");
 					break;
 				case FileMode_Binary_Append_Only:
-					Buffer = (FILE*)OS::Open(Path.c_str(), "ab");
+					Resource = (FILE*)OS::Open(Path.c_str(), "ab");
 					break;
 				case FileMode_Binary_Read_Write:
-					Buffer = (FILE*)OS::Open(Path.c_str(), "rb+");
+					Resource = (FILE*)OS::Open(Path.c_str(), "rb+");
 					break;
 				case FileMode_Binary_Write_Read:
-					Buffer = (FILE*)OS::Open(Path.c_str(), "wb+");
+					Resource = (FILE*)OS::Open(Path.c_str(), "wb+");
 					break;
 				case FileMode_Binary_Read_Append_Write:
-					Buffer = (FILE*)OS::Open(Path.c_str(), "ab+");
+					Resource = (FILE*)OS::Open(Path.c_str(), "ab+");
 					break;
 			}
 
-			return Buffer != nullptr;
+			return Resource != nullptr;
 		}
-		bool FileStream::OpenZ(const char* File, FileMode Mode)
+		bool FileStream::Close()
+		{
+			if (Resource != nullptr)
+			{
+				fclose(Resource);
+				Resource = nullptr;
+			}
+
+			return true;
+		}
+		bool FileStream::Seek(FileSeek Mode, int64_t Offset)
+		{
+			switch (Mode)
+			{
+				case FileSeek_Begin:
+					if (Resource != nullptr)
+						return fseek(Resource, (long)Offset, SEEK_SET) == 0;
+					break;
+				case FileSeek_Current:
+					if (Resource != nullptr)
+						return fseek(Resource, (long)Offset, SEEK_CUR) == 0;
+					break;
+				case FileSeek_End:
+					if (Resource != nullptr)
+						return fseek(Resource, (long)Offset, SEEK_END) == 0;
+					break;
+			}
+
+			return false;
+		}
+		bool FileStream::Move(int64_t Offset)
+		{
+			if (!Resource)
+				return false;
+
+			return fseek(Resource, (long)Offset, SEEK_CUR) == 0;
+		}
+		int FileStream::Flush()
+		{
+			if (!Resource)
+				return 0;
+
+			return fflush(Resource);
+		}
+		uint64_t FileStream::ReadAny(const char* Format, ...)
+		{
+			va_list Args;
+			uint64_t R = 0;
+			va_start(Args, Format);
+
+			if (Resource != nullptr)
+				R = (uint64_t)vfscanf(Resource, Format, Args);
+
+			va_end(Args);
+
+			return R;
+		}
+		uint64_t FileStream::Read(char* Data, uint64_t Length)
+		{
+			if (!Resource)
+				return 0;
+
+			return fread(Data, 1, (size_t)Length, Resource);
+		}
+		uint64_t FileStream::WriteAny(const char* Format, ...)
+		{
+			va_list Args;
+			uint64_t R = 0;
+			va_start(Args, Format);
+			if (Resource != nullptr)
+				R = (uint64_t)vfprintf(Resource, Format, Args);
+			va_end(Args);
+
+			return R;
+		}
+		uint64_t FileStream::Write(const char* Data, uint64_t Length)
+		{
+			if (!Resource)
+				return 0;
+
+			return fwrite(Data, 1, (size_t)Length, Resource);
+		}
+		uint64_t FileStream::Tell()
+		{
+			if (!Resource)
+				return 0;
+
+			return ftell(Resource);
+		}
+		int FileStream::GetFd()
+		{
+			if (!Resource)
+				return -1;
+
+#ifdef TH_MICROSOFT
+			return _fileno(Resource);
+#else
+			return fileno(Resource);
+#endif
+		}
+		void* FileStream::GetBuffer()
+		{
+			return (void*)Resource;
+		}
+
+		GzStream::GzStream() : Resource(nullptr)
+		{
+		}
+		GzStream::~GzStream()
+		{
+			Close();
+		}
+		void GzStream::Clear()
+		{
+			Close();
+			if (!Path.empty())
+			{
+				fclose((FILE*)OS::Open(Path.c_str(), "w"));
+				Open(Path.c_str(), FileMode_Binary_Write_Only);
+			}
+		}
+		bool GzStream::Open(const char* File, FileMode Mode)
 		{
 			if (!File || !Close())
 				return false;
@@ -2900,11 +3039,11 @@ namespace Tomahawk
 			{
 				case FileMode_Binary_Read_Only:
 				case FileMode_Read_Only:
-					Compress = gzopen(Path.c_str(), "rb");
+					Resource = gzopen(Path.c_str(), "rb");
 					break;
 				case FileMode_Binary_Write_Only:
 				case FileMode_Write_Only:
-					Compress = gzopen(Path.c_str(), "wb");
+					Resource = gzopen(Path.c_str(), "wb");
 					break;
 				case FileMode_Read_Write:
 				case FileMode_Write_Read:
@@ -2918,220 +3057,280 @@ namespace Tomahawk
 					break;
 			}
 
-			return Compress;
+			return Resource != nullptr;
 #else
 			return false;
 #endif
 		}
-		bool FileStream::Close()
+		bool GzStream::Close()
 		{
 #ifdef TH_HAS_ZLIB
-			if (Compress != nullptr)
+			if (Resource != nullptr)
 			{
-				gzclose((gzFile)Compress);
-				Compress = nullptr;
+				gzclose((gzFile)Resource);
+				Resource = nullptr;
 			}
 #endif
-			if (Buffer != nullptr)
-			{
-				fclose(Buffer);
-				Buffer = nullptr;
-			}
-
 			return true;
 		}
-		bool FileStream::Seek(FileSeek Mode, int64_t Offset)
+		bool GzStream::Seek(FileSeek Mode, int64_t Offset)
 		{
 			switch (Mode)
 			{
 				case FileSeek_Begin:
 #ifdef TH_HAS_ZLIB
-					if (Compress != nullptr)
-						return gzseek((gzFile)Compress, (long)Offset, SEEK_SET) == 0;
+					if (Resource != nullptr)
+						return gzseek((gzFile)Resource, (long)Offset, SEEK_SET) == 0;
 #endif
-					if (Buffer != nullptr)
-						return fseek(Buffer, (long)Offset, SEEK_SET) == 0;
 					break;
 				case FileSeek_Current:
 #ifdef TH_HAS_ZLIB
-					if (Compress != nullptr)
-						return gzseek((gzFile)Compress, (long)Offset, SEEK_CUR) == 0;
+					if (Resource != nullptr)
+						return gzseek((gzFile)Resource, (long)Offset, SEEK_CUR) == 0;
 #endif
-					if (Buffer != nullptr)
-						return fseek(Buffer, (long)Offset, SEEK_CUR) == 0;
 					break;
 				case FileSeek_End:
 #ifdef TH_HAS_ZLIB
-					if (Compress != nullptr)
-						return gzseek((gzFile)Compress, (long)Offset, SEEK_END) == 0;
+					if (Resource != nullptr)
+						return gzseek((gzFile)Resource, (long)Offset, SEEK_END) == 0;
 #endif
-					if (Buffer != nullptr)
-						return fseek(Buffer, (long)Offset, SEEK_END) == 0;
 					break;
 			}
 
 			return false;
 		}
-		bool FileStream::Move(int64_t Offset)
+		bool GzStream::Move(int64_t Offset)
 		{
 #ifdef TH_HAS_ZLIB
-			if (Compress != nullptr)
-				return gzseek((gzFile)Compress, (long)Offset, SEEK_CUR) == 0;
+			if (Resource != nullptr)
+				return gzseek((gzFile)Resource, (long)Offset, SEEK_CUR) == 0;
 #endif
-			if (!Buffer)
+			return false;
+		}
+		int GzStream::Flush()
+		{
+			if (!Resource)
+				return 0;
+#ifdef TH_HAS_ZLIB
+			return gzflush((gzFile)Resource, Z_SYNC_FLUSH);
+#else
+			return 0;
+#endif
+		}
+		uint64_t GzStream::ReadAny(const char* Format, ...)
+		{
+			return 0;
+		}
+		uint64_t GzStream::Read(char* Data, uint64_t Length)
+		{
+#ifdef TH_HAS_ZLIB
+			if (Resource != nullptr)
+				return gzread((gzFile)Resource, Data, Length);
+#endif
+			return 0;
+		}
+		uint64_t GzStream::WriteAny(const char* Format, ...)
+		{
+			va_list Args;
+			uint64_t R = 0;
+			va_start(Args, Format);
+#ifdef TH_HAS_ZLIB
+			if (Resource != nullptr)
+				R = (uint64_t)gzvprintf((gzFile)Resource, Format, Args);
+#endif
+			va_end(Args);
+
+			return R;
+		}
+		uint64_t GzStream::Write(const char* Data, uint64_t Length)
+		{
+#ifdef TH_HAS_ZLIB
+			if (Resource != nullptr)
+				return gzwrite((gzFile)Resource, Data, Length);
+#endif
+			return 0;
+		}
+		uint64_t GzStream::Tell()
+		{
+#ifdef TH_HAS_ZLIB
+			if (Resource != nullptr)
+				return gztell((gzFile)Resource);
+#endif
+			return 0;
+		}
+		int GzStream::GetFd()
+		{
+			return -1;
+		}
+		void* GzStream::GetBuffer()
+		{
+			return (void*)Resource;
+		}
+
+		WebStream::WebStream() : Resource(nullptr), Offset(0), Size(0)
+		{
+		}
+		WebStream::~WebStream()
+		{
+			Close();
+		}
+		void WebStream::Clear()
+		{
+		}
+		bool WebStream::Open(const char* File, FileMode Mode)
+		{
+			if (!File || !Close())
 				return false;
 
-			return fseek(Buffer, (long)Offset, SEEK_CUR) == 0;
-		}
-		int FileStream::Error()
-		{
-#ifdef TH_HAS_ZLIB
-			if (Compress != nullptr)
+			Network::SourceURL URL(File);
+			if (URL.Protocol != "http" && URL.Protocol != "https")
+				return false;
+
+			Network::Host Address;
+			Address.Hostname = URL.Host;
+			Address.Secure = (URL.Protocol == "https");
+			Address.Port = (URL.Port < 0 ? (Address.Secure ? 443 : 80) : URL.Port);
+
+			Network::HTTP::RequestFrame Request;
+			strcpy(Request.Version, "HTTP/1.1");
+			strcpy(Request.Method, "GET");
+			Request.URI.assign('/' + URL.Path);
+			
+			for (auto& Item : URL.Query)
+				Request.Query += Item.first + "=" + Item.second;
+
+			switch (Mode)
 			{
-				int Error;
-				const char* M = gzerror((gzFile)Compress, &Error);
-				if (M != nullptr && M[0] != '\0')
-					TH_ERROR("gz stream error -> %s", M);
+				case FileMode_Binary_Read_Only:
+				case FileMode_Read_Only:
+				{
+					auto* Client = new Network::HTTP::Client(30000);
+					Client->Connect(&Address, false, [this, &Client, &Request](Network::SocketClient*, int Code)
+					{
+						Client->Send(&Request, [this](Network::HTTP::Client* Result, Network::HTTP::RequestFrame* Request, Network::HTTP::ResponseFrame* Response)
+						{
+							const char* ContentLength = Response->GetHeader("Content-Length");
+							if (!ContentLength)
+							{
+								Result->Consume(1024 * 1024 * 16, [this](Network::HTTP::Client*, Network::HTTP::RequestFrame*, Network::HTTP::ResponseFrame* Response)
+								{
+									this->Buffer.assign(Response->Buffer.begin(), Response->Buffer.end());
+									this->Size = Response->Buffer.size();
+								});
+							}
+							else
+								this->Size = Stroke(ContentLength).ToUInt64();
 
-				return Error;
+							if (Response->StatusCode > 0)
+								this->Resource = Result;
+						});
+					});
+
+					if (!Resource)
+					{
+						TH_RELEASE(Client);
+						return false;
+					}
+					break;
+				}
+				case FileMode_Binary_Write_Only:
+				case FileMode_Write_Only:
+				case FileMode_Read_Write:
+				case FileMode_Write_Read:
+				case FileMode_Append_Only:
+				case FileMode_Read_Append_Write:
+				case FileMode_Binary_Append_Only:
+				case FileMode_Binary_Read_Write:
+				case FileMode_Binary_Write_Read:
+				case FileMode_Binary_Read_Append_Write:
+					Close();
+					break;
 			}
-#endif
-			if (!Buffer)
+
+			return Resource != nullptr;
+		}
+		bool WebStream::Close()
+		{
+			auto* Client = (Network::HTTP::Client*)Resource;
+			TH_RELEASE(Client);
+			Resource = nullptr;
+			Offset = Size = 0;
+			Buffer.swap(std::string());
+
+			return true;
+		}
+		bool WebStream::Seek(FileSeek Mode, int64_t NewOffset)
+		{
+			switch (Mode)
+			{
+				case FileSeek_Begin:
+					Offset = NewOffset;
+					return true;
+				case FileSeek_Current:
+					Offset += NewOffset;
+					return true;
+				case FileSeek_End:
+					Offset = Size - Offset;
+					return true;
+			}
+
+			return false;
+		}
+		bool WebStream::Move(int64_t Offset)
+		{
+			return false;
+		}
+		int WebStream::Flush()
+		{
+			return 0;
+		}
+		uint64_t WebStream::ReadAny(const char* Format, ...)
+		{
+			return 0;
+		}
+		uint64_t WebStream::Read(char* Data, uint64_t Length)
+		{
+			if (!Resource || !Length)
 				return 0;
 
-			return ferror(Buffer);
-		}
-		int FileStream::Flush()
-		{
-			if (!Buffer)
-				return 0;
+			uint64_t Result = 0;
+			if (!Buffer.empty())
+			{
+				Result = std::min(Length, (uint64_t)Buffer.size() - Offset);
+				memcpy(Data, Buffer.c_str() + Offset, Result);
+				Offset += Result;
 
-			return fflush(Buffer);
-		}
-		int FileStream::Fd()
-		{
-			if (!Buffer)
-				return -1;
+				return Result;
+			}
 
-#ifdef TH_MICROSOFT
-			return _fileno(Buffer);
-#else
-			return fileno(Buffer);
-#endif
-		}
-		unsigned char FileStream::Get()
-		{
-#ifdef TH_HAS_ZLIB
-			if (Compress != nullptr)
-				return (unsigned char)gzgetc((gzFile)Compress);
-#endif
-			if (!Buffer)
-				return 0;
+			((Network::HTTP::Client*)Resource)->Consume(Length, [this, &Data, &Length, &Result](Network::HTTP::Client*, Network::HTTP::RequestFrame*, Network::HTTP::ResponseFrame* Response)
+			{
+				Result = std::min(Length, (uint64_t)Response->Buffer.size());
+				memcpy(Data, Response->Buffer.data(), Result);
+			});
 
-			return (unsigned char)getc(Buffer);
+			Offset += Result;
+			return Result;
 		}
-		unsigned char FileStream::Put(unsigned char Value)
+		uint64_t WebStream::WriteAny(const char* Format, ...)
 		{
-#ifdef TH_HAS_ZLIB
-			if (Compress != nullptr)
-				return (unsigned char)gzputc((gzFile)Compress, Value);
-#endif
-			if (!Buffer)
-				return 0;
-
-			return (unsigned char)putc((int)Value, Buffer);
+			return 0;
 		}
-		uint64_t FileStream::ReadAny(const char* Format, ...)
+		uint64_t WebStream::Write(const char* Data, uint64_t Length)
 		{
-#ifdef TH_HAS_ZLIB
-			if (Compress != nullptr)
-				return 0;
-#endif
-			va_list Args;
-			uint64_t R = 0;
-			va_start(Args, Format);
-
-			if (Buffer != nullptr)
-				R = (uint64_t)vfscanf(Buffer, Format, Args);
-
-			va_end(Args);
-
-			return R;
+			return 0;
 		}
-		uint64_t FileStream::Read(char* Data, uint64_t Length)
+		uint64_t WebStream::Tell()
 		{
-#ifdef TH_HAS_ZLIB
-			if (Compress != nullptr)
-				return gzread((gzFile)Compress, Data, Length);
-#endif
-			if (!Buffer)
-				return 0;
-
-			return fread(Data, 1, (size_t)Length, Buffer);
+			return Offset;
 		}
-		uint64_t FileStream::WriteAny(const char* Format, ...)
+		int WebStream::GetFd()
 		{
-			va_list Args;
-			uint64_t R = 0;
-			va_start(Args, Format);
-#ifdef TH_HAS_ZLIB
-			if (Compress != nullptr)
-				R = (uint64_t)gzvprintf((gzFile)Compress, Format, Args);
-			else if (Buffer != nullptr)
-				R = (uint64_t)vfprintf(Buffer, Format, Args);
-#else
-			if (Buffer != nullptr)
-				R = (uint64_t)vfprintf(Buffer, Format, Args);
-#endif
-			va_end(Args);
-
-			return R;
+			return (int)((Network::HTTP::Client*)Resource)->GetStream()->GetFd();
 		}
-		uint64_t FileStream::Write(const char* Data, uint64_t Length)
+		void* WebStream::GetBuffer()
 		{
-#ifdef TH_HAS_ZLIB
-			if (Compress != nullptr)
-				return gzwrite((gzFile)Compress, Data, Length);
-#endif
-			if (!Buffer)
-				return 0;
-
-			return fwrite(Data, 1, (size_t)Length, Buffer);
-		}
-		uint64_t FileStream::Tell()
-		{
-#ifdef TH_HAS_ZLIB
-			if (Compress != nullptr)
-				return gztell((gzFile)Compress);
-#endif
-			if (!Buffer)
-				return 0;
-
-			return ftell(Buffer);
-		}
-		uint64_t FileStream::Size()
-		{
-			if (!Buffer)
-				return 0;
-
-			uint64_t Position = Tell();
-			Seek(FileSeek_End, 0);
-			uint64_t Size = Tell();
-			Seek(FileSeek_Begin, Position);
-
-			return Size;
-		}
-		std::string& FileStream::Filename()
-		{
-			return Path;
-		}
-		FILE* FileStream::Stream()
-		{
-			return Buffer;
-		}
-		void* FileStream::StreamZ()
-		{
-			return Compress;
+			return (void*)Resource;
 		}
 
 		FileTree::FileTree(const std::string& Folder)
@@ -3286,6 +3485,10 @@ namespace Tomahawk
 			}
 
 			return true;
+		}
+		bool OS::FileRemote(const char* Path)
+		{
+			return Path && Network::SourceURL(Path).Protocol != "file";
 		}
 		bool OS::FileExists(const char* Path)
 		{
@@ -3841,6 +4044,33 @@ namespace Tomahawk
 			return (void*)Stream;
 #endif
 		}
+		Stream* OS::Open(const std::string& Path, FileMode Mode)
+		{
+			Network::SourceURL URL(Path);
+			if (URL.Protocol == "file")
+			{
+				Stream* Result = nullptr;
+				if (Stroke(&Path).EndsWith(".gz"))
+					Result = new GzStream();
+				else
+					Result = new FileStream();
+
+				if (Result->Open(Path.c_str(), Mode))
+					return Result;
+
+				TH_RELEASE(Result);
+			}
+			else if (URL.Protocol == "http" || URL.Protocol == "https")
+			{
+				Stream* Result = new WebStream();
+				if (Result->Open(Path.c_str(), Mode))
+					return Result;
+
+				TH_RELEASE(Result);
+			}
+
+			return nullptr;
+		}
 		bool OS::SendFile(FILE* Stream, socket_t Socket, int64_t Size)
 		{
 			if (!Stream || !Size)
@@ -4105,12 +4335,12 @@ namespace Tomahawk
 			fclose(Stream);
 			return Bytes;
 		}
-		unsigned char* OS::ReadAllBytes(FileStream* Stream, uint64_t* Length)
+		unsigned char* OS::ReadAllBytes(Stream* Stream, uint64_t* Length)
 		{
 			if (!Stream)
 				return nullptr;
 
-			uint64_t Size = Stream->Size();
+			uint64_t Size = Stream->GetSize();
 
 			auto* Bytes = new unsigned char[(size_t)(Size + 1)];
 			Stream->Read((char*)Bytes, Size * sizeof(unsigned char));
@@ -4121,7 +4351,7 @@ namespace Tomahawk
 
 			return Bytes;
 		}
-		unsigned char* OS::ReadByteChunk(FileStream* Stream, uint64_t Length)
+		unsigned char* OS::ReadByteChunk(Stream* Stream, uint64_t Length)
 		{
 			auto* Bytes = (unsigned char*)TH_MALLOC((size_t)(Length + 1));
 			Stream->Read((char*)Bytes, Length);
@@ -4239,22 +4469,22 @@ namespace Tomahawk
 			return (uint64_t)~Result;
 		}
 
-		FileLogger::FileLogger(const std::string& Root) : Path(Root), Offset(-1)
+		ChangeLog::ChangeLog(const std::string& Root) : Path(Root), Offset(-1)
 		{
 			Stream = new FileStream();
 			auto V = Stroke(&Path).Replace("/", "\\").Split('\\');
 			if (!V.empty())
 				Name = V.back();
 		}
-		FileLogger::~FileLogger()
+		ChangeLog::~ChangeLog()
 		{
 			TH_RELEASE(Stream);
 		}
-		void FileLogger::Process(const std::function<bool(FileLogger*, const char*, int64_t)>& Callback)
+		void ChangeLog::Process(const std::function<bool(ChangeLog*, const char*, int64_t)>& Callback)
 		{
 			Stream->Open(Path.c_str(), FileMode_Binary_Read_Only);
 
-			uint64_t Length = Stream->Size();
+			uint64_t Length = Stream->GetSize();
 			if (Length <= Offset || Offset <= 0)
 			{
 				Offset = Length;

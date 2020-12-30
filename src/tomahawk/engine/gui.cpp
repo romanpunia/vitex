@@ -346,44 +346,44 @@ namespace Tomahawk
 				}
 				virtual Rml::FileHandle Open(const Rml::String& Path) override
 				{
-					if (!Rest::OS::FileExists(Path.c_str()))
+					std::string Target = Path;
+					if (!Rest::OS::FileExists(Target.c_str()))
 					{
 						ContentManager* Content = (Subsystem::GetRenderInterface() ? Subsystem::GetRenderInterface()->GetContent() : nullptr);
-						std::string Target = (Content ? Rest::OS::Resolve(Path, Content->GetEnvironment()) : Rest::OS::Resolve(Path.c_str()));
-						return (Rml::FileHandle)Rest::OS::Open(Target.empty() ? Path.c_str() : Target.c_str(), "rb");
+						Target = (Content ? Rest::OS::Resolve(Path, Content->GetEnvironment()) : Rest::OS::Resolve(Path.c_str()));
+						Target = (Target.empty() ? Path.c_str() : Target.c_str());
 					}
 
-					return (Rml::FileHandle)Rest::OS::Open(Path.c_str(), "rb");
+					return (Rml::FileHandle)Rest::OS::Open(Target, Rest::FileMode_Binary_Read_Only);
 				}
 				virtual void Close(Rml::FileHandle File) override
 				{
-					FILE* Stream = (FILE*)File;
-					if (Stream != nullptr)
-						fclose(Stream);
+					Rest::Stream* Stream = (Rest::Stream*)File;
+					TH_RELEASE(Stream);
 				}
 				virtual size_t Read(void* Buffer, size_t Size, Rml::FileHandle File) override
 				{
-					FILE* Stream = (FILE*)File;
+					Rest::Stream* Stream = (Rest::Stream*)File;
 					if (!Stream)
 						return 0;
 
-					return fread(Buffer, 1, Size, Stream);
+					return Stream->Read((char*)Buffer, Size);
 				}
 				virtual bool Seek(Rml::FileHandle File, long Offset, int Origin) override
 				{
-					FILE* Stream = (FILE*)File;
+					Rest::Stream* Stream = (Rest::Stream*)File;
 					if (!Stream)
 						return false;
 
-					return fseek(Stream, Offset, Origin) == 0;
+					return Stream->Seek((Rest::FileSeek)Origin, Offset) == 0;
 				}
 				virtual size_t Tell(Rml::FileHandle File) override
 				{
-					FILE* Stream = (FILE*)File;
+					Rest::Stream* Stream = (Rest::Stream*)File;
 					if (!Stream)
 						return 0;
 
-					return ftell(Stream);
+					return Stream->Tell();
 				}
 			};
 
@@ -459,14 +459,31 @@ namespace Tomahawk
 
 					Activity->SetScreenKeyboard(false);
 				}
-				virtual void JoinPath(Rml::String& Result, const Rml::String& HTML, const Rml::String& CSS) override
+				virtual void JoinPath(Rml::String& Result, const Rml::String& Path1, const Rml::String& Path2) override
 				{
-					Result = Rest::OS::Resolve(CSS, Rest::OS::FileDirectory(HTML));
-					if (Result.empty())
+					ContentManager* Content = (Subsystem::GetRenderInterface() ? Subsystem::GetRenderInterface()->GetContent() : nullptr);
+					std::string Proto1, Proto2;
+					std::string Fixed1 = GetFixedURL(Path1, Proto1);
+					std::string Fixed2 = GetFixedURL(Path2, Proto2);
+
+					if (Proto1 != "file" && Proto2 == "file")
 					{
-						ContentManager* Content = (Subsystem::GetRenderInterface() ? Subsystem::GetRenderInterface()->GetContent() : nullptr);
-						Result = (Content ? Rest::OS::Resolve(CSS, Content->GetEnvironment()) : Rest::OS::Resolve(CSS.c_str()));
+						Rest::Stroke Buffer(&Result);
+						if (!Buffer.Assign(Path1).EndsWith('/'))
+							Buffer.Append('/');
+
+						Buffer.Append(Fixed2).Replace("/////", "//");
+						Rest::Stroke::Settle Idx = Buffer.Find("://");
+						Buffer.Replace("//", "/", Idx.Found ? Idx.End : 0);
 					}
+					else if (Proto1 == "file" && Proto2 == "file")
+					{
+						Result = Rest::OS::Resolve(Fixed2, Rest::OS::FileDirectory(Fixed1));
+						if (Result.empty())
+							Result = (Content ? Rest::OS::Resolve(Fixed2, Content->GetEnvironment()) : Rest::OS::Resolve(Fixed2.c_str()));
+					}
+					else if (Proto1 == "file" && Proto2 != "file")
+						Result = Rest::Stroke(Path2).Replace("/////", "//").R();
 				}
 				virtual bool LogMessage(Rml::Log::Type Type, const Rml::String& Message) override
 				{
@@ -537,6 +554,18 @@ namespace Tomahawk
 				const std::unordered_map<std::string, bool>& GetFontFaces()
 				{
 					return Fonts;
+				}
+				std::string GetFixedURL(const std::string& URL, std::string& Proto)
+				{
+					if (!Rest::Stroke(&URL).Find("://").Found)
+					{
+						Proto = "file";
+						return URL;
+					}
+
+					Rml::URL Base(URL);
+					Proto = Base.GetProtocol();
+					return Base.GetPathedFileName();
 				}
 			};
 
@@ -3190,6 +3219,7 @@ namespace Tomahawk
 			}
 			IElementDocument Context::Construct(const std::string& Path)
 			{
+				uint64_t Length = 0;
 				bool State = Loading;
 				Loading = true;
 
@@ -3199,9 +3229,30 @@ namespace Tomahawk
 				ClearVM();
 				Elements.clear();
 
-				auto* Result = Base->LoadDocument(Path);
-				
+				unsigned char* Buffer = Rest::OS::ReadAllBytes(Path.c_str(), &Length);
+				if (!Buffer)
+				{
+				ErrorState:
+					Base->UnloadAllDocuments();
+					Loading = State;
+
+					return nullptr;
+				}
+
+				std::string Data((const char*)Buffer, Length);
+				TH_FREE(Buffer);
+
+				Decompose(Data);
+				if (!Preprocess(Path, Data))
+					goto ErrorState;
+
+				Rest::Stroke URL(Path);
+				URL.Replace('\\', '/');
+				URL.Insert("file:///", 0);
+
+				auto* Result = Base->LoadDocumentFromMemory(Data, URL.R());
 				Loading = State;
+
 				return Result;
 			}
 			bool Context::Deconstruct()
@@ -3557,6 +3608,71 @@ namespace Tomahawk
 			void Context::SetMountCallback(const ModelCallback& Callback)
 			{
 				OnMount = Callback;
+			}
+			bool Context::Preprocess(const std::string& Path, std::string& Buffer)
+			{
+				Compute::Preprocessor::Desc Features;
+				Features.Conditions = false;
+				Features.Defines = false;
+				Features.Pragmas = false;
+
+				Compute::IncludeDesc Desc = Compute::IncludeDesc();
+				Desc.Exts.push_back(".html");
+				Desc.Exts.push_back(".htm");
+				Desc.Root = Rest::OS::GetDirectory();
+
+				Compute::Preprocessor* Processor = new Compute::Preprocessor();
+				Processor->SetIncludeCallback([this](Compute::Preprocessor* P, const Compute::IncludeResult& File, std::string* Output)
+				{
+					if (File.Module.empty() || (!File.IsFile && !File.IsSystem))
+						return false;
+
+					if (File.IsSystem && !File.IsFile)
+						return false;
+
+					uint64_t Length;
+					unsigned char* Data = Rest::OS::ReadAllBytes(File.Module.c_str(), &Length);
+					if (!Data)
+						return false;
+
+					Output->assign((const char*)Data, (size_t)Length);
+					TH_FREE(Data);
+
+					this->Decompose(*Output);
+					return true;
+				});
+				Processor->SetIncludeOptions(Desc);
+				Processor->SetFeatures(Features);
+
+				return Processor->Process(Path, Buffer);
+			}
+			void Context::Decompose(std::string& Data)
+			{
+				Rest::Stroke::Settle Result, Start, End;
+				Rest::Stroke Buffer(&Data);
+				Result.End = End.End = 0;
+
+				while (Result.End < Buffer.Size())
+				{
+					Start = Buffer.Find("<!--", End.End);
+					if (!Start.Found)
+						return;
+
+					End = Buffer.Find("-->", Start.End);
+					if (!End.Found)
+						return;
+
+					Result = Buffer.Find("#include", Start.End);
+					if (!Result.Found)
+						return;
+
+					if (Result.End >= End.Start)
+						continue;
+
+					Buffer.RemovePart(End.Start, End.End);
+					Buffer.RemovePart(Start.Start, Start.End);
+					End.End = Start.Start;
+				}
 			}
 			void Context::CreateVM()
 			{

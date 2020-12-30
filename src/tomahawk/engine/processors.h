@@ -72,15 +72,15 @@ namespace Tomahawk
 			{
 			public:
 				Asset(ContentManager* Manager);
-				void* Deserialize(Rest::FileStream* Stream, uint64_t Length, uint64_t Offset, const Compute::PropertyArgs& Args) override;
+				void* Deserialize(Rest::Stream* Stream, uint64_t Length, uint64_t Offset, const Compute::PropertyArgs& Args) override;
 			};
 
 			class TH_OUT SceneGraph : public Processor
 			{
 			public:
 				SceneGraph(ContentManager* Manager);
-				void* Deserialize(Rest::FileStream* Stream, uint64_t Length, uint64_t Offset, const Compute::PropertyArgs& Args) override;
-				bool Serialize(Rest::FileStream* Stream, void* Object, const Compute::PropertyArgs& Args) override;
+				void* Deserialize(Rest::Stream* Stream, uint64_t Length, uint64_t Offset, const Compute::PropertyArgs& Args) override;
+				bool Serialize(Rest::Stream* Stream, void* Object, const Compute::PropertyArgs& Args) override;
 			};
 
 			class TH_OUT AudioClip : public Processor
@@ -90,9 +90,9 @@ namespace Tomahawk
 				virtual ~AudioClip() override;
 				void Free(AssetResource* Asset) override;
 				void* Duplicate(AssetResource* Asset, const Compute::PropertyArgs& Args) override;
-				void* Deserialize(Rest::FileStream* Stream, uint64_t Length, uint64_t Offset, const Compute::PropertyArgs& Args) override;
-				void* DeserializeWAVE(Rest::FileStream* Stream, uint64_t Length, uint64_t Offset, const Compute::PropertyArgs& Args);
-				void* DeserializeOGG(Rest::FileStream* Stream, uint64_t Length, uint64_t Offset, const Compute::PropertyArgs& Args);
+				void* Deserialize(Rest::Stream* Stream, uint64_t Length, uint64_t Offset, const Compute::PropertyArgs& Args) override;
+				void* DeserializeWAVE(Rest::Stream* Stream, uint64_t Length, uint64_t Offset, const Compute::PropertyArgs& Args);
+				void* DeserializeOGG(Rest::Stream* Stream, uint64_t Length, uint64_t Offset, const Compute::PropertyArgs& Args);
 			};
 
 			class TH_OUT Texture2D : public Processor
@@ -102,7 +102,7 @@ namespace Tomahawk
 				virtual ~Texture2D() override;
 				void Free(AssetResource* Asset) override;
 				void* Duplicate(AssetResource* Asset, const Compute::PropertyArgs& Args) override;
-				void* Deserialize(Rest::FileStream* Stream, uint64_t Length, uint64_t Offset, const Compute::PropertyArgs& Args) override;
+				void* Deserialize(Rest::Stream* Stream, uint64_t Length, uint64_t Offset, const Compute::PropertyArgs& Args) override;
 			};
 
 			class TH_OUT Shader : public Processor
@@ -112,7 +112,7 @@ namespace Tomahawk
 				virtual ~Shader() override;
 				void Free(AssetResource* Asset) override;
 				void* Duplicate(AssetResource* Asset, const Compute::PropertyArgs& Args) override;
-				void* Deserialize(Rest::FileStream* Stream, uint64_t Length, uint64_t Offset, const Compute::PropertyArgs& Args) override;
+				void* Deserialize(Rest::Stream* Stream, uint64_t Length, uint64_t Offset, const Compute::PropertyArgs& Args) override;
 			};
 
 			class TH_OUT Model : public Processor
@@ -125,7 +125,7 @@ namespace Tomahawk
 				virtual ~Model() override;
 				void Free(AssetResource* Asset) override;
 				void* Duplicate(AssetResource* Asset, const Compute::PropertyArgs& Args) override;
-				void* Deserialize(Rest::FileStream* Stream, uint64_t Length, uint64_t Offset, const Compute::PropertyArgs& Args) override;
+				void* Deserialize(Rest::Stream* Stream, uint64_t Length, uint64_t Offset, const Compute::PropertyArgs& Args) override;
 
 			public:
 				static Rest::Document* Import(const std::string& Path, unsigned int Opts = MeshOpt_CalcTangentSpace | MeshOpt_GenSmoothNormals | MeshOpt_JoinIdenticalVertices | MeshOpt_ImproveCacheLocality | MeshOpt_LimitBoneWeights | MeshOpt_RemoveRedundantMaterials | MeshOpt_SplitLargeMeshes | MeshOpt_Triangulate | MeshOpt_GenUVCoords | MeshOpt_SortByPType | MeshOpt_RemoveDegenerates | MeshOpt_RemoveInvalidData | MeshOpt_RemoveInstances | MeshOpt_ValidateDataStructure | MeshOpt_OptimizeMeshes | MeshOpt_TransformUVCoords | 0);
@@ -147,7 +147,7 @@ namespace Tomahawk
 				virtual ~SkinModel() override;
 				void Free(AssetResource* Asset) override;
 				void* Duplicate(AssetResource* Asset, const Compute::PropertyArgs& Args) override;
-				void* Deserialize(Rest::FileStream* Stream, uint64_t Length, uint64_t Offset, const Compute::PropertyArgs& Args) override;
+				void* Deserialize(Rest::Stream* Stream, uint64_t Length, uint64_t Offset, const Compute::PropertyArgs& Args) override;
 
 			public:
 				static Rest::Document* ImportAnimation(const std::string& Path, unsigned int Opts = MeshOpt_CalcTangentSpace | MeshOpt_GenSmoothNormals | MeshOpt_JoinIdenticalVertices | MeshOpt_ImproveCacheLocality | MeshOpt_LimitBoneWeights | MeshOpt_RemoveRedundantMaterials | MeshOpt_SplitLargeMeshes | MeshOpt_Triangulate | MeshOpt_GenUVCoords | MeshOpt_SortByPType | MeshOpt_RemoveDegenerates | MeshOpt_RemoveInvalidData | MeshOpt_RemoveInstances | MeshOpt_ValidateDataStructure | MeshOpt_OptimizeMeshes | MeshOpt_TransformUVCoords | 0);
@@ -162,8 +162,8 @@ namespace Tomahawk
 			{
 			public:
 				Document(ContentManager* Manager);
-				void* Deserialize(Rest::FileStream* Stream, uint64_t Length, uint64_t Offset, const Compute::PropertyArgs& Args) override;
-				bool Serialize(Rest::FileStream* Stream, void* Object, const Compute::PropertyArgs& Args) override;
+				void* Deserialize(Rest::Stream* Stream, uint64_t Length, uint64_t Offset, const Compute::PropertyArgs& Args) override;
+				bool Serialize(Rest::Stream* Stream, void* Object, const Compute::PropertyArgs& Args) override;
 			};
 
 			class TH_OUT Server : public Processor
@@ -173,7 +173,7 @@ namespace Tomahawk
 
 			public:
 				Server(ContentManager* Manager);
-				void* Deserialize(Rest::FileStream* Stream, uint64_t Length, uint64_t Offset, const Compute::PropertyArgs& Args) override;
+				void* Deserialize(Rest::Stream* Stream, uint64_t Length, uint64_t Offset, const Compute::PropertyArgs& Args) override;
 			};
 
 			class TH_OUT Shape : public Processor
@@ -183,7 +183,7 @@ namespace Tomahawk
 				virtual ~Shape() override;
 				void Free(AssetResource* Asset) override;
 				void* Duplicate(AssetResource* Asset, const Compute::PropertyArgs& Args) override;
-				void* Deserialize(Rest::FileStream* Stream, uint64_t Length, uint64_t Offset, const Compute::PropertyArgs& Args) override;
+				void* Deserialize(Rest::Stream* Stream, uint64_t Length, uint64_t Offset, const Compute::PropertyArgs& Args) override;
 			};
 		}
 	}

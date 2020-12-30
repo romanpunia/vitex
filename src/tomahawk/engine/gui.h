@@ -650,6 +650,8 @@ namespace Tomahawk
 
 			private:
 				bool Inject(Rest::Document* Conf, const std::string& Relative);
+				bool Preprocess(const std::string& Path, std::string& Buffer);
+				void Decompose(std::string& Buffer);
 				void CreateVM();
 				void ClearVM();
 

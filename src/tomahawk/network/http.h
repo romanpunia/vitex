@@ -180,7 +180,7 @@ namespace Tomahawk
 			{
 				std::vector<Cookie> Cookies;
 				std::vector<Header> Headers;
-				std::string Buffer;
+				std::vector<char> Buffer;
 				int StatusCode = -1;
 
 				void SetHeader(const char* Key, const char* Value);

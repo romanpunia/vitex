@@ -3255,7 +3255,7 @@ namespace Tomahawk
 			TH_RELEASE(Client);
 			Resource = nullptr;
 			Offset = Size = 0;
-			Buffer.swap(std::string());
+			std::string().swap(Buffer);
 
 			return true;
 		}

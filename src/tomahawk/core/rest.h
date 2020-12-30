@@ -1181,7 +1181,7 @@ namespace Tomahawk
 			uint64_t Offset;
 
 		public:
-			Stream* Stream = nullptr;
+			Stream* Source = nullptr;
 			std::string Path, Name;
 
 		public:

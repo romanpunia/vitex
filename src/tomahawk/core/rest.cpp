@@ -4471,20 +4471,20 @@ namespace Tomahawk
 
 		ChangeLog::ChangeLog(const std::string& Root) : Path(Root), Offset(-1)
 		{
-			Stream = new FileStream();
+			Source = new FileStream();
 			auto V = Stroke(&Path).Replace("/", "\\").Split('\\');
 			if (!V.empty())
 				Name = V.back();
 		}
 		ChangeLog::~ChangeLog()
 		{
-			TH_RELEASE(Stream);
+			TH_RELEASE(Source);
 		}
 		void ChangeLog::Process(const std::function<bool(ChangeLog*, const char*, int64_t)>& Callback)
 		{
-			Stream->Open(Path.c_str(), FileMode_Binary_Read_Only);
+			Source->Open(Path.c_str(), FileMode_Binary_Read_Only);
 
-			uint64_t Length = Stream->GetSize();
+			uint64_t Length = Source->GetSize();
 			if (Length <= Offset || Offset <= 0)
 			{
 				Offset = Length;
@@ -4492,10 +4492,10 @@ namespace Tomahawk
 			}
 
 			int64_t Delta = Length - Offset;
-			Stream->Seek(FileSeek_Begin, Length - Delta);
+			Source->Seek(FileSeek_Begin, Length - Delta);
 
 			char* Data = (char*)TH_MALLOC(sizeof(char) * ((size_t)Delta + 1));
-			Stream->Read(Data, sizeof(char) * Delta);
+			Source->Read(Data, sizeof(char) * Delta);
 
 			std::string Value = Data;
 			int64_t ValueLength = -1;

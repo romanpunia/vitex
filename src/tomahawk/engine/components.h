@@ -87,7 +87,6 @@ namespace Tomahawk
 			class TH_OUT SoftBody : public Drawable
 			{
 			protected:
-				Compute::UnmanagedShape* Hull = nullptr;
 				Compute::SoftBody* Instance = nullptr;
 				std::vector<Compute::Vertex> Vertices;
 				std::vector<int> Indices;
@@ -106,12 +105,14 @@ namespace Tomahawk
 				virtual void Asleep() override;
 				virtual float Cull(const Viewer& View) override;
 				virtual Component* Copy(Entity* New) override;
+				virtual Compute::Matrix4x4 GetBoundingBox() override;
 				void Create(Compute::UnmanagedShape* Shape, float Anticipation);
 				void Create(ContentManager* Content, const std::string& Path, float Anticipation);
 				void CreateEllipsoid(const Compute::SoftBody::Desc::CV::SEllipsoid& Shape, float Anticipation);
 				void CreatePatch(const Compute::SoftBody::Desc::CV::SPatch& Shape, float Anticipation);
 				void CreateRope(const Compute::SoftBody::Desc::CV::SRope& Shape, float Anticipation);
 				void Fill(Graphics::GraphicsDevice* Device, Graphics::ElementBuffer* IndexBuffer, Graphics::ElementBuffer* VertexBuffer);
+				void Regenerate();
 				void Clear();
 				void SetTransform(const Compute::Vector3& Position, const Compute::Vector3& Scale, const Compute::Vector3& Rotation);
 				void SetTransform(bool Kinematic);

@@ -16,6 +16,7 @@
 #include <assimp/scene.h>
 #include <assimp/matrix4x4.h>
 #include <assimp/cimport.h>
+#include <assimp/postprocess.h> 
 #endif
 extern "C"
 {
@@ -150,7 +151,7 @@ namespace Tomahawk
 							NMake::Unpack(Parent->Find("scale"), Scale);
 							NMake::Unpack(Parent->Find("world"), World);
 
-							Compute::MathCommon::ConfigurateUnsafe(Entity->Transform, World, Position, Rotation, Scale);
+							Compute::Common::ConfigurateUnsafe(Entity->Transform, World, Position, Rotation, Scale);
 						}
 
 						Rest::Document* Components = It->Find("components");
@@ -192,7 +193,7 @@ namespace Tomahawk
 					Entity->Id = i;
 
 					if (Index >= 0 && Index < (int64_t)Object->GetEntityCount() && Index != i)
-						Compute::MathCommon::SetRootUnsafe(Entity->Transform, Object->GetEntity(Index)->Transform);
+						Compute::Common::SetRootUnsafe(Entity->Transform, Object->GetEntity(Index)->Transform);
 				}
 
 				Object->Actualize();
@@ -284,12 +285,12 @@ namespace Tomahawk
 			AudioClip::~AudioClip()
 			{
 			}
-			void AudioClip::Free(AssetResource* Asset)
+			void AudioClip::Free(AssetCache* Asset)
 			{
 				if (Asset->Resource != nullptr)
 					delete ((Audio::AudioClip*)Asset->Resource);
 			}
-			void* AudioClip::Duplicate(AssetResource* Asset, const Compute::PropertyArgs& Args)
+			void* AudioClip::Duplicate(AssetCache* Asset, const Compute::PropertyArgs& Args)
 			{
 				((Audio::AudioClip*)Asset->Resource)->AddRef();
 				return Asset->Resource;
@@ -400,12 +401,12 @@ namespace Tomahawk
 			Texture2D::~Texture2D()
 			{
 			}
-			void Texture2D::Free(AssetResource* Asset)
+			void Texture2D::Free(AssetCache* Asset)
 			{
 				if (Asset->Resource != nullptr)
 					delete ((Graphics::Texture2D*)Asset->Resource);
 			}
-			void* Texture2D::Duplicate(AssetResource* Asset, const Compute::PropertyArgs& Args)
+			void* Texture2D::Duplicate(AssetCache* Asset, const Compute::PropertyArgs& Args)
 			{
 				((Graphics::Texture2D*)Asset->Resource)->AddRef();
 				return Asset->Resource;
@@ -458,12 +459,12 @@ namespace Tomahawk
 			Shader::~Shader()
 			{
 			}
-			void Shader::Free(AssetResource* Asset)
+			void Shader::Free(AssetCache* Asset)
 			{
 				if (Asset->Resource != nullptr)
 					delete ((Graphics::Shader*)Asset->Resource);
 			}
-			void* Shader::Duplicate(AssetResource* Asset, const Compute::PropertyArgs& Args)
+			void* Shader::Duplicate(AssetCache* Asset, const Compute::PropertyArgs& Args)
 			{
 				((Graphics::Shader*)Asset->Resource)->AddRef();
 				return Asset->Resource;
@@ -503,12 +504,12 @@ namespace Tomahawk
 			Model::~Model()
 			{
 			}
-			void Model::Free(AssetResource* Asset)
+			void Model::Free(AssetCache* Asset)
 			{
 				if (Asset->Resource != nullptr)
 					delete ((Graphics::MeshBuffer*)Asset->Resource);
 			}
-			void* Model::Duplicate(AssetResource* Asset, const Compute::PropertyArgs& Args)
+			void* Model::Duplicate(AssetCache* Asset, const Compute::PropertyArgs& Args)
 			{
 				((Graphics::Model*)Asset->Resource)->AddRef();
 				return Asset->Resource;
@@ -545,8 +546,8 @@ namespace Tomahawk
 
 					if (Content->GetDevice()->GetBackend() == Graphics::RenderBackend_D3D11)
 					{
-						Compute::MathCommon::ComputeIndexWindingOrderFlip(F.Indices);
-						Compute::MathCommon::ComputeVertexOrientation(F.Elements, true);
+						Compute::Common::ComputeIndexWindingOrderFlip(F.Indices);
+						Compute::Common::ComputeVertexOrientation(F.Elements, true);
 					}
 
 					Content->GetDevice()->Lock();
@@ -557,7 +558,7 @@ namespace Tomahawk
 					NMake::Unpack(Mesh->Find("world"), &Object->Meshes.back()->World);
 
 					if (Content->GetDevice()->GetBackend() == Graphics::RenderBackend_D3D11)
-						Compute::MathCommon::ComputeMatrixOrientation(&Object->Meshes.back()->World, true);
+						Compute::Common::ComputeMatrixOrientation(&Object->Meshes.back()->World, true);
 				}
 
 				Content->Cache(this, Stream->GetSource(), Object);
@@ -664,7 +665,7 @@ namespace Tomahawk
 					}
 				}
 				else
-					Blob.Name = Compute::MathCommon::MD5Hash(Compute::MathCommon::RandomBytes(8)).substr(0, 8);
+					Blob.Name = Compute::Common::MD5Hash(Compute::Common::RandomBytes(8)).substr(0, 8);
 
 				for (unsigned int v = 0; v < Mesh->mNumVertices; v++)
 				{
@@ -816,12 +817,12 @@ namespace Tomahawk
 			SkinModel::~SkinModel()
 			{
 			}
-			void SkinModel::Free(AssetResource* Asset)
+			void SkinModel::Free(AssetCache* Asset)
 			{
 				if (Asset->Resource != nullptr)
 					delete ((Graphics::SkinMeshBuffer*)Asset->Resource);
 			}
-			void* SkinModel::Duplicate(AssetResource* Asset, const Compute::PropertyArgs& Args)
+			void* SkinModel::Duplicate(AssetCache* Asset, const Compute::PropertyArgs& Args)
 			{
 				((Graphics::SkinModel*)Asset->Resource)->AddRef();
 				return Asset->Resource;
@@ -859,8 +860,8 @@ namespace Tomahawk
 
 					if (Content->GetDevice()->GetBackend() == Graphics::RenderBackend_D3D11)
 					{
-						Compute::MathCommon::ComputeIndexWindingOrderFlip(F.Indices);
-						Compute::MathCommon::ComputeInfluenceOrientation(F.Elements, true);
+						Compute::Common::ComputeIndexWindingOrderFlip(F.Indices);
+						Compute::Common::ComputeInfluenceOrientation(F.Elements, true);
 					}
 
 					Content->GetDevice()->Lock();
@@ -871,7 +872,7 @@ namespace Tomahawk
 					NMake::Unpack(Mesh->Find("world"), &Object->Meshes.back()->World);
 
 					if (Content->GetDevice()->GetBackend() == Graphics::RenderBackend_D3D11)
-						Compute::MathCommon::ComputeMatrixOrientation(&Object->Meshes.back()->World, true);
+						Compute::Common::ComputeMatrixOrientation(&Object->Meshes.back()->World, true);
 				}
 
 				Content->Cache(this, Stream->GetSource(), Object);
@@ -1460,7 +1461,7 @@ namespace Tomahawk
 			Shape::~Shape()
 			{
 			}
-			void Shape::Free(AssetResource* Asset)
+			void Shape::Free(AssetCache* Asset)
 			{
 				if (Asset->Resource != nullptr)
 				{
@@ -1469,7 +1470,7 @@ namespace Tomahawk
 					delete Shape;
 				}
 			}
-			void* Shape::Duplicate(AssetResource* Asset, const Compute::PropertyArgs& Args)
+			void* Shape::Duplicate(AssetCache* Asset, const Compute::PropertyArgs& Args)
 			{
 				return Asset->Resource;
 			}

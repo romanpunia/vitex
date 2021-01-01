@@ -5786,7 +5786,7 @@ namespace Tomahawk
 #ifdef TH_HAS_MONGOC
 					return TH_PREFIX_STR + Network::BSON::Document::OIdToString((unsigned char*)String.c_str());
 #else
-					return TH_PREFIX_STR + Compute::MathCommon::Base64Encode(String);
+					return TH_PREFIX_STR + Compute::Common::Base64Encode(String);
 #endif
 				case NodeType_Null:
 					return TH_PREFIX_STR "null";
@@ -5850,7 +5850,7 @@ namespace Tomahawk
 				}
 #else
 				Type = NodeType_Id;
-				String = Compute::MathCommon::Base64Decode(Value.substr(1));
+				String = Compute::Common::Base64Decode(Value.substr(1));
 				return true;
 #endif
 			}

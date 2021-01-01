@@ -15,6 +15,8 @@ extern "C"
 #define BtV3(V) btVector3(V.X, V.Y, V.Z)
 #define V3Bt(V) Vector3(V.getX(), V.getY(), V.getZ())
 #define REGEX_FAIL(A, B) if (A) return (B)
+#define MAKE_ADJ_TRI(x) (x&0x3fffffff)
+#define IS_BOUNDARY(x) (x==0xffffffff)
 
 namespace Tomahawk
 {
@@ -23,7 +25,7 @@ namespace Tomahawk
 		class FindContactsHandler : public btCollisionWorld::ContactResultCallback
 		{
 		public:
-			int (* Callback)(ShapeContact*, const CollisionBody&, const CollisionBody&) = nullptr;
+			int(*Callback)(ShapeContact*, const CollisionBody&, const CollisionBody&) = nullptr;
 
 		public:
 			btScalar addSingleResult(btManifoldPoint& Point, const btCollisionObjectWrapper* Object1, int PartId0, int Index0, const btCollisionObjectWrapper* Object2, int PartId1, int Index1)
@@ -70,7 +72,7 @@ namespace Tomahawk
 		class FindRayContactsHandler : public btCollisionWorld::RayResultCallback
 		{
 		public:
-			int (* Callback)(RayContact*, const CollisionBody&) = nullptr;
+			int(*Callback)(RayContact*, const CollisionBody&) = nullptr;
 
 		public:
 			btScalar addSingleResult(btCollisionWorld::LocalRayResult& RayResult, bool NormalInWorldSpace)
@@ -3052,7 +3054,7 @@ namespace Tomahawk
 
 							if (nj > j && non_greedy)
 								break;
-						}while (n1 > 0);
+						} while (n1 > 0);
 
 						if (n1 < 0 && n2 < 0 && Value[i + step] == '*' && (n2 = ParseInner(Value + ni, ValueLength - ni, Buffer + j, BufferLength - j, Info, Case)) > 0)
 							nj = j + n2;
@@ -3136,7 +3138,7 @@ namespace Tomahawk
 				p = i == 0 ? b->Pointer : Info->Branches[b->Branches + i - 1].Pointer + 1;
 				Length = b->BranchesCount == 0 ? b->Length : i == b->BranchesCount ? (int64_t)(b->Pointer + b->Length - p) : (int64_t)(Info->Branches[b->Branches + i].Pointer - p);
 				result = ParseInner(p, Length, Buffer, BufferLength, Info, Case);
-			}while (result <= 0 && i++ < b->BranchesCount);
+			} while (result <= 0 && i++ < b->BranchesCount);
 
 			return result;
 		}
@@ -3244,27 +3246,27 @@ namespace Tomahawk
 		const char* Regex::Syntax()
 		{
 			return "\"^\" - Match beginning of a buffer\n"
-				   "\"$\" - Match end of a buffer\n"
-				   "\"()\" - Grouping and substring capturing\n"
-				   "\"\\s\" - Match whitespace\n"
-				   "\"\\S\" - Match non - whitespace\n"
-				   "\"\\d\" - Match decimal digit\n"
-				   "\"\\n\" - Match new line character\n"
-				   "\"\\r\" - Match line feed character\n"
-				   "\"\\f\" - Match form feed character\n"
-				   "\"\\v\" - Match vertical tab character\n"
-				   "\"\\t\" - Match horizontal tab character\n"
-				   "\"\\b\" - Match backspace character\n"
-				   "\"+\" - Match one or more times (greedy)\n"
-				   "\"+?\" - Match one or more times (non - greedy)\n"
-				   "\"*\" - Match zero or more times (greedy)\n"
-				   "\"*?\" - Match zero or more times(non - greedy)\n"
-				   "\"?\" - Match zero or once(non - greedy)\n"
-				   "\"x|y\" - Match x or y(alternation operator)\n"
-				   "\"\\meta\" - Match one of the meta character: ^$().[]*+?|\\\n"
-				   "\"\\xHH\" - Match byte with hex value 0xHH, e.g. \\x4a\n"
-				   "\"[...]\" - Match any character from set. Ranges like[a-z] are supported\n"
-				   "\"[^...]\" - Match any character but ones from set\n";
+				"\"$\" - Match end of a buffer\n"
+				"\"()\" - Grouping and substring capturing\n"
+				"\"\\s\" - Match whitespace\n"
+				"\"\\S\" - Match non - whitespace\n"
+				"\"\\d\" - Match decimal digit\n"
+				"\"\\n\" - Match new line character\n"
+				"\"\\r\" - Match line feed character\n"
+				"\"\\f\" - Match form feed character\n"
+				"\"\\v\" - Match vertical tab character\n"
+				"\"\\t\" - Match horizontal tab character\n"
+				"\"\\b\" - Match backspace character\n"
+				"\"+\" - Match one or more times (greedy)\n"
+				"\"+?\" - Match one or more times (non - greedy)\n"
+				"\"*\" - Match zero or more times (greedy)\n"
+				"\"*?\" - Match zero or more times(non - greedy)\n"
+				"\"?\" - Match zero or once(non - greedy)\n"
+				"\"x|y\" - Match x or y(alternation operator)\n"
+				"\"\\meta\" - Match one of the meta character: ^$().[]*+?|\\\n"
+				"\"\\xHH\" - Match byte with hex value 0xHH, e.g. \\x4a\n"
+				"\"[...]\" - Match any character from set. Ranges like[a-z] are supported\n"
+				"\"[^...]\" - Match any character but ones from set\n";
 		}
 
 		CollisionBody::CollisionBody(btCollisionObject* Object)
@@ -3276,6 +3278,944 @@ namespace Tomahawk
 			btSoftBody* SoftObject = btSoftBody::upcast(Object);
 			if (SoftObject != nullptr)
 				Soft = (SoftBody*)SoftObject->getUserPointer();
+		}
+
+		unsigned char AdjTriangle::FindEdge(unsigned int vref0, unsigned int vref1)
+		{
+			unsigned char EdgeNb = 0xff;
+			if (VRef[0] == vref0 && VRef[1] == vref1)
+				EdgeNb = 0;
+			else if (VRef[0] == vref1 && VRef[1] == vref0)
+				EdgeNb = 0;
+			else if (VRef[0] == vref0 && VRef[2] == vref1)
+				EdgeNb = 1;
+			else if (VRef[0] == vref1 && VRef[2] == vref0)
+				EdgeNb = 1;
+			else if (VRef[1] == vref0 && VRef[2] == vref1)
+				EdgeNb = 2;
+			else if (VRef[1] == vref1 && VRef[2] == vref0)
+				EdgeNb = 2;
+
+			return EdgeNb;
+		}
+		unsigned int AdjTriangle::OppositeVertex(unsigned int vref0, unsigned int vref1)
+		{
+			unsigned int Ref = 0xffffffff;
+			if (VRef[0] == vref0 && VRef[1] == vref1)
+				Ref = VRef[2];
+			else if (VRef[0] == vref1 && VRef[1] == vref0)
+				Ref = VRef[2];
+			else if (VRef[0] == vref0 && VRef[2] == vref1)
+				Ref = VRef[1];
+			else if (VRef[0] == vref1 && VRef[2] == vref0)
+				Ref = VRef[1];
+			else if (VRef[1] == vref0 && VRef[2] == vref1)
+				Ref = VRef[0];
+			else if (VRef[1] == vref1 && VRef[2] == vref0)
+				Ref = VRef[0];
+
+			return Ref;
+		}
+
+		Adjacencies::Adjacencies() : NbEdges(0), CurrentNbFaces(0), Edges(nullptr), NbFaces(0), Faces(nullptr)
+		{
+		}
+		Adjacencies::~Adjacencies()
+		{
+			if (Edges != nullptr)
+			{
+				delete[] Edges;
+				Edges = nullptr;
+			}
+
+			if (Faces != nullptr)
+			{
+				delete[] Faces;
+				Faces = nullptr;
+			}
+		}
+		bool Adjacencies::Fill(Adjacencies::Desc& create)
+		{
+			NbFaces = create.NbFaces;
+			Faces = new AdjTriangle[NbFaces];
+			if (!Faces)
+				return false;
+
+			Edges = new AdjEdge[NbFaces * 3];
+			if (!Edges)
+				return false;
+
+			for (unsigned int i = 0; i < NbFaces; i++)
+			{
+				unsigned int Ref0 = create.Faces[i * 3 + 0];
+				unsigned int Ref1 = create.Faces[i * 3 + 1];
+				unsigned int Ref2 = create.Faces[i * 3 + 2];
+				AddTriangle(Ref0, Ref1, Ref2);
+			}
+
+			return true;
+		}
+		bool Adjacencies::Resolve()
+		{
+			RadixSorter Core;
+			unsigned int* FaceNb = new unsigned int[NbEdges];
+			if (!FaceNb)
+				return false;
+
+			unsigned int* VRefs0 = new unsigned int[NbEdges];
+			if (!VRefs0)
+				return false;
+
+			unsigned int* VRefs1 = new unsigned int[NbEdges];
+			if (!VRefs1)
+				return false;
+
+			for (unsigned int i = 0; i < NbEdges; i++)
+			{
+				FaceNb[i] = Edges[i].FaceNb;
+				VRefs0[i] = Edges[i].Ref0;
+				VRefs1[i] = Edges[i].Ref1;
+			}
+
+			unsigned int* Sorted = Core.Sort(FaceNb, NbEdges).Sort(VRefs0, NbEdges).Sort(VRefs1, NbEdges).GetIndices();
+			unsigned int LastRef0 = VRefs0[Sorted[0]];
+			unsigned int LastRef1 = VRefs1[Sorted[0]];
+			unsigned int Count = 0;
+			unsigned int TmpBuffer[3];
+
+			for (unsigned int i = 0; i < NbEdges; i++)
+			{
+				unsigned int Face = FaceNb[Sorted[i]];
+				unsigned int Ref0 = VRefs0[Sorted[i]];
+				unsigned int Ref1 = VRefs1[Sorted[i]];
+
+				if (Ref0 == LastRef0 && Ref1 == LastRef1)
+				{
+					TmpBuffer[Count++] = Face;
+					if (Count == 3)
+					{
+						if (VRefs1 != nullptr)
+						{
+							delete[] VRefs1;
+							VRefs1 = nullptr;
+						}
+
+						if (VRefs0 != nullptr)
+						{
+							delete[] VRefs0;
+							VRefs0 = nullptr;
+						}
+
+						if (FaceNb != nullptr)
+						{
+							delete[] FaceNb;
+							FaceNb = nullptr;
+						}
+
+						return false;
+					}
+				}
+				else
+				{
+					if (Count == 2)
+					{
+						bool Status = UpdateLink(TmpBuffer[0], TmpBuffer[1], LastRef0, LastRef1);
+						if (!Status)
+						{
+							if (VRefs1 != nullptr)
+							{
+								delete[] VRefs1;
+								VRefs1 = nullptr;
+							}
+
+							if (VRefs0 != nullptr)
+							{
+								delete[] VRefs0;
+								VRefs0 = nullptr;
+							}
+
+							if (FaceNb != nullptr)
+							{
+								delete[] FaceNb;
+								FaceNb = nullptr;
+							}
+
+							return Status;
+						}
+					}
+
+					Count = 0;
+					TmpBuffer[Count++] = Face;
+					LastRef0 = Ref0;
+					LastRef1 = Ref1;
+				}
+			}
+
+			bool Status = true;
+			if (Count == 2)
+				Status = UpdateLink(TmpBuffer[0], TmpBuffer[1], LastRef0, LastRef1);
+
+			if (VRefs1 != nullptr)
+			{
+				delete[] VRefs1;
+				VRefs1 = nullptr;
+			}
+
+			if (VRefs0 != nullptr)
+			{
+				delete[] VRefs0;
+				VRefs0 = nullptr;
+			}
+
+			if (FaceNb != nullptr)
+			{
+				delete[] FaceNb;
+				FaceNb = nullptr;
+			}
+
+			if (Edges != nullptr)
+			{
+				delete[] Edges;
+				Edges = nullptr;
+			}
+
+			return Status;
+		}
+		bool Adjacencies::AddTriangle(unsigned int ref0, unsigned int ref1, unsigned int ref2)
+		{
+			Faces[CurrentNbFaces].VRef[0] = ref0;
+			Faces[CurrentNbFaces].VRef[1] = ref1;
+			Faces[CurrentNbFaces].VRef[2] = ref2;
+			Faces[CurrentNbFaces].ATri[0] = -1;
+			Faces[CurrentNbFaces].ATri[1] = -1;
+			Faces[CurrentNbFaces].ATri[2] = -1;
+
+			if (ref0 < ref1)
+				AddEdge(ref0, ref1, CurrentNbFaces);
+			else
+				AddEdge(ref1, ref0, CurrentNbFaces);
+
+			if (ref0 < ref2)
+				AddEdge(ref0, ref2, CurrentNbFaces);
+			else
+				AddEdge(ref2, ref0, CurrentNbFaces);
+
+			if (ref1 < ref2)
+				AddEdge(ref1, ref2, CurrentNbFaces);
+			else
+				AddEdge(ref2, ref1, CurrentNbFaces);
+
+			CurrentNbFaces++;
+			return true;
+		}
+		bool Adjacencies::AddEdge(unsigned int ref0, unsigned int ref1, unsigned int face)
+		{
+			Edges[NbEdges].Ref0 = ref0;
+			Edges[NbEdges].Ref1 = ref1;
+			Edges[NbEdges].FaceNb = face;
+			NbEdges++;
+
+			return true;
+		}
+		bool Adjacencies::UpdateLink(unsigned int firsttri, unsigned int secondtri, unsigned int ref0, unsigned int ref1)
+		{
+			AdjTriangle* Tri0 = &Faces[firsttri];
+			AdjTriangle* Tri1 = &Faces[secondtri];
+			unsigned char EdgeNb0 = Tri0->FindEdge(ref0, ref1);
+			if (EdgeNb0 == 0xff)
+				return false;
+
+			unsigned char EdgeNb1 = Tri1->FindEdge(ref0, ref1);
+			if (EdgeNb1 == 0xff)
+				return false;
+
+			Tri0->ATri[EdgeNb0] = secondtri | (unsigned int(EdgeNb1) << 30);
+			Tri1->ATri[EdgeNb1] = firsttri | (unsigned int(EdgeNb0) << 30);
+
+			return true;
+		}
+
+		TriangleStrip::TriangleStrip() : Adj(nullptr), Tags(nullptr)
+		{
+		}
+		TriangleStrip::~TriangleStrip()
+		{
+			FreeBuffers();
+		}
+		TriangleStrip& TriangleStrip::FreeBuffers()
+		{
+			std::vector<unsigned int>().swap(SingleStrip);
+			std::vector<unsigned int>().swap(StripRuns);
+			std::vector<unsigned int>().swap(StripLengths);
+
+			if (Tags != nullptr)
+			{
+				delete[] Tags;
+				Tags = nullptr;
+			}
+
+			if (Adj != nullptr)
+			{
+				delete Adj;
+				Adj = nullptr;
+			}
+
+			return *this;
+		}
+		bool TriangleStrip::Fill(const TriangleStrip::Desc& create)
+		{
+			FreeBuffers();
+			{
+				Adj = new Adjacencies();
+				if (!Adj)
+					return false;
+
+				Adjacencies::Desc ac;
+				ac.NbFaces = create.NbFaces;
+				ac.Faces = create.Faces;
+
+				if (!Adj->Fill(ac))
+				{
+					delete Adj;
+					Adj = nullptr;
+
+					return false;
+				}
+
+				if (!Adj->Resolve())
+				{
+					delete Adj;
+					Adj = nullptr;
+
+					return false;
+				}
+
+				OneSided = create.OneSided;
+				SGIAlgorithm = create.SGIAlgorithm;
+				ConnectAllStrips = create.ConnectAllStrips;
+			}
+
+			return true;
+		}
+		bool TriangleStrip::Resolve(TriangleStrip::Result& result)
+		{
+			if (!Adj)
+				return false;
+
+			Tags = new bool[Adj->NbFaces];
+			if (!Tags)
+				return false;
+
+			unsigned int* Connectivity = new unsigned int[Adj->NbFaces];
+			if (!Connectivity)
+				return false;
+
+			memset(Tags, 0, Adj->NbFaces * sizeof(bool));
+			memset(Connectivity, 0, Adj->NbFaces * sizeof(unsigned int));
+
+			if (SGIAlgorithm)
+			{
+				for (unsigned int i = 0; i < Adj->NbFaces; i++)
+				{
+					AdjTriangle* Tri = &Adj->Faces[i];
+					if (!IS_BOUNDARY(Tri->ATri[0]))
+						Connectivity[i]++;
+
+					if (!IS_BOUNDARY(Tri->ATri[1]))
+						Connectivity[i]++;
+
+					if (!IS_BOUNDARY(Tri->ATri[2]))
+						Connectivity[i]++;
+				}
+
+				RadixSorter RS;
+				unsigned int* Sorted = RS.Sort(Connectivity, Adj->NbFaces).GetIndices();
+				memcpy(Connectivity, Sorted, Adj->NbFaces * sizeof(unsigned int));
+			}
+			else
+			{
+				for (unsigned int i = 0; i < Adj->NbFaces; i++)
+					Connectivity[i] = i;
+			}
+
+			NbStrips = 0;
+			unsigned int TotalNbFaces = 0;
+			unsigned int Index = 0;
+
+			while (TotalNbFaces != Adj->NbFaces)
+			{
+				while (Tags[Connectivity[Index]])
+					Index++;
+
+				unsigned int FirstFace = Connectivity[Index];
+				TotalNbFaces += ComputeStrip(FirstFace);
+				NbStrips++;
+			}
+
+			if (Connectivity != nullptr)
+			{
+				delete[] Connectivity;
+				Connectivity = nullptr;
+			}
+
+			if (Tags != nullptr)
+			{
+				delete[] Tags;
+				Tags = nullptr;
+			}
+
+			result.Groups = StripLengths;
+			result.Strips = StripRuns;
+
+			if (ConnectAllStrips)
+				ConnectStrips(result);
+
+			return true;
+		}
+		unsigned int TriangleStrip::ComputeStrip(unsigned int face)
+		{
+			unsigned int* Strip[3];
+			unsigned int* Faces[3];
+			unsigned int Length[3];
+			unsigned int FirstLength[3];
+			unsigned int Refs0[3];
+			unsigned int Refs1[3];
+
+			Refs0[0] = Adj->Faces[face].VRef[0];
+			Refs1[0] = Adj->Faces[face].VRef[1];
+
+			Refs0[1] = Adj->Faces[face].VRef[2];
+			Refs1[1] = Adj->Faces[face].VRef[0];
+
+			Refs0[2] = Adj->Faces[face].VRef[1];
+			Refs1[2] = Adj->Faces[face].VRef[2];
+
+			for (unsigned int j = 0; j < 3; j++)
+			{
+				Strip[j] = new unsigned int[Adj->NbFaces + 2 + 1 + 2];
+				Faces[j] = new unsigned int[Adj->NbFaces + 2];
+				memset(Strip[j], 0xff, (Adj->NbFaces + 2 + 1 + 2) * sizeof(unsigned int));
+				memset(Faces[j], 0xff, (Adj->NbFaces + 2) * sizeof(unsigned int));
+
+				bool* vTags = new bool[Adj->NbFaces];
+				memcpy(vTags, Tags, Adj->NbFaces * sizeof(bool));
+
+				Length[j] = TrackStrip(face, Refs0[j], Refs1[j], &Strip[j][0], &Faces[j][0], vTags);
+				FirstLength[j] = Length[j];
+
+				for (unsigned int i = 0; i < Length[j] / 2; i++)
+				{
+					Strip[j][i] ^= Strip[j][Length[j] - i - 1];
+					Strip[j][Length[j] - i - 1] ^= Strip[j][i];
+					Strip[j][i] ^= Strip[j][Length[j] - i - 1];
+				}
+
+				for (unsigned int i = 0; i < (Length[j] - 2) / 2; i++)
+				{
+					Faces[j][i] ^= Faces[j][Length[j] - i - 3];
+					Faces[j][Length[j] - i - 3] ^= Faces[j][i];
+					Faces[j][i] ^= Faces[j][Length[j] - i - 3];
+				}
+
+				unsigned int NewRef0 = Strip[j][Length[j] - 3];
+				unsigned int NewRef1 = Strip[j][Length[j] - 2];
+				unsigned int ExtraLength = TrackStrip(face, NewRef0, NewRef1, &Strip[j][Length[j] - 3], &Faces[j][Length[j] - 3], vTags);
+				Length[j] += ExtraLength - 3;
+				delete[] vTags;
+			}
+
+			unsigned int Longest = Length[0];
+			unsigned int Best = 0;
+			if (Length[1] > Longest)
+			{
+				Longest = Length[1];
+				Best = 1;
+			}
+
+			if (Length[2] > Longest)
+			{
+				Longest = Length[2];
+				Best = 2;
+			}
+
+			unsigned int NbFaces = Longest - 2;
+			for (unsigned int j = 0; j < Longest - 2; j++)
+				Tags[Faces[Best][j]] = true;
+
+			if (OneSided && FirstLength[Best] & 1)
+			{
+				if (Longest == 3 || Longest == 4)
+				{
+					Strip[Best][1] ^= Strip[Best][2];
+					Strip[Best][2] ^= Strip[Best][1];
+					Strip[Best][1] ^= Strip[Best][2];
+				}
+				else
+				{
+					for (unsigned int j = 0; j < Longest / 2; j++)
+					{
+						Strip[Best][j] ^= Strip[Best][Longest - j - 1];
+						Strip[Best][Longest - j - 1] ^= Strip[Best][j];
+						Strip[Best][j] ^= Strip[Best][Longest - j - 1];
+					}
+
+					unsigned int NewPos = Longest - FirstLength[Best];
+					if (NewPos & 1)
+					{
+						for (unsigned int j = 0; j < Longest; j++)
+							Strip[Best][Longest - j] = Strip[Best][Longest - j - 1];
+						Longest++;
+					}
+				}
+			}
+
+			for (unsigned int j = 0; j < Longest; j++)
+			{
+				unsigned int Ref = Strip[Best][j];
+				StripRuns.push_back(Ref);
+			}
+
+			StripLengths.push_back(Longest);
+			for (unsigned int j = 0; j < 3; j++)
+			{
+				if (Faces[j] != nullptr)
+				{
+					delete[] Faces[j];
+					Faces[j] = nullptr;
+				}
+
+				if (Strip[j] != nullptr)
+				{
+					delete[] Strip[j];
+					Strip[j] = nullptr;
+				}
+			}
+
+			return NbFaces;
+		}
+		unsigned int TriangleStrip::TrackStrip(unsigned int face, unsigned int oldest, unsigned int middle, unsigned int* strip, unsigned int* faces, bool* tags)
+		{
+			unsigned int Length = 2;
+			strip[0] = oldest;
+			strip[1] = middle;
+
+			bool DoTheStrip = true;
+			while (DoTheStrip)
+			{
+				unsigned int Newest = Adj->Faces[face].OppositeVertex(oldest, middle);
+				strip[Length++] = Newest;
+				*faces++ = face;
+				tags[face] = true;
+
+				unsigned char CurEdge = Adj->Faces[face].FindEdge(middle, Newest);
+				unsigned int Link = Adj->Faces[face].ATri[CurEdge];
+
+				if (!IS_BOUNDARY(Link))
+				{
+					face = MAKE_ADJ_TRI(Link);
+					if (tags[face])
+						DoTheStrip = false;
+				}
+				else
+					DoTheStrip = false;
+
+				oldest = middle;
+				middle = Newest;
+			}
+
+			return Length;
+		}
+		bool TriangleStrip::ConnectStrips(TriangleStrip::Result& result)
+		{
+			unsigned int* drefs = (unsigned int*)result.Strips.data();
+			if (!drefs)
+				return false;
+
+			SingleStrip.clear();
+			TotalLength = 0;
+
+			for (unsigned int k = 0; k < result.Groups.size(); k++)
+			{
+				if (k)
+				{
+					unsigned int LastRef = drefs[-1];
+					unsigned int FirstRef = drefs[0];
+					SingleStrip.push_back(LastRef);
+					SingleStrip.push_back(FirstRef);
+					TotalLength += 2;
+
+					if (OneSided && TotalLength & 1)
+					{
+						unsigned int SecondRef = drefs[1];
+						if (FirstRef != SecondRef)
+						{
+							SingleStrip.push_back(FirstRef);
+							TotalLength++;
+						}
+						else
+						{
+							result.Groups[k]--;
+							drefs++;
+						}
+					}
+				}
+
+				for (unsigned int j = 0; j < result.Groups[k]; j++)
+				{
+					unsigned int Ref = drefs[j];
+					SingleStrip.push_back(Ref);
+				}
+
+				drefs += result.Groups[k];
+				TotalLength += result.Groups[k];
+			}
+
+			result.Strips = SingleStrip;
+			result.Groups = std::vector<unsigned int>({ TotalLength });
+
+			return true;
+		}
+
+		std::vector<int> TriangleStrip::Result::GetIndices(int Group)
+		{
+			if (Group < 0)
+			{
+				std::vector<int> Indices;
+				Indices.reserve(Strips.size());
+
+				for (auto& Index : Strips)
+					Indices.push_back(Index);
+
+				return Indices;
+			}
+			else if (Group < (int)Groups.size())
+			{
+				size_t Size = Groups[Group];
+				std::vector<int> Indices;
+				Indices.reserve(Size);
+
+				size_t Off = 0, Idx = 0;
+				while (Off != Group)
+					Idx += Groups[Off++];
+
+				Size += Idx;
+				for (size_t i = Idx; i < Size; i++)
+					Indices.push_back(Strips[i]);
+
+				return Indices;
+			}
+
+			return std::vector<int>();
+		}
+		std::vector<int> TriangleStrip::Result::GetInvIndices(int Group)
+		{
+			std::vector<int> Indices = GetIndices(Group);
+			std::reverse(Indices.begin(), Indices.end());
+
+			return Indices;
+		}
+
+		RadixSorter::RadixSorter()
+		{
+			Indices = nullptr;
+			Indices2 = nullptr;
+			CurrentSize = 0;
+			Histogram = new unsigned int[256 * 4];
+			Offset = new unsigned int[256];
+			ResetIndices();
+		}
+		RadixSorter::~RadixSorter()
+		{
+			if (Offset != nullptr)
+			{
+				delete[] Offset;
+				Offset = nullptr;
+			}
+
+			if (Histogram != nullptr)
+			{
+				delete[] Histogram;
+				Histogram = nullptr;
+			}
+
+			if (Indices2 != nullptr)
+			{
+				delete[] Indices2;
+				Indices2 = nullptr;
+			}
+
+			if (Indices != nullptr)
+			{
+				delete[] Indices;
+				Indices = nullptr;
+			}
+		}
+		RadixSorter& RadixSorter::Sort(unsigned int* input, unsigned int nb, bool signedvalues)
+		{
+			if (nb > CurrentSize)
+			{
+				if (Indices2 != nullptr)
+				{
+					delete[] Indices2;
+					Indices2 = nullptr;
+				}
+
+				if (Indices != nullptr)
+				{
+					delete[] Indices;
+					Indices = nullptr;
+				}
+
+				Indices = new unsigned int[nb];
+				Indices2 = new unsigned int[nb];
+				CurrentSize = nb;
+				ResetIndices();
+			}
+
+			memset(Histogram, 0, 256 * 4 * sizeof(unsigned int));
+
+			bool AlreadySorted = true;
+			unsigned int* vIndices = Indices;
+			unsigned char* p = (unsigned char*)input;
+			unsigned char* pe = &p[nb * 4];
+			unsigned int* h0 = &Histogram[0];
+			unsigned int* h1 = &Histogram[256];
+			unsigned int* h2 = &Histogram[512];
+			unsigned int* h3 = &Histogram[768];
+
+			if (!signedvalues)
+			{
+				unsigned int PrevVal = input[Indices[0]];
+				while (p != pe)
+				{
+					unsigned int Val = input[*vIndices++];
+					if (Val < PrevVal)
+						AlreadySorted = false;
+
+					PrevVal = Val;
+					h0[*p++]++;
+					h1[*p++]++;
+					h2[*p++]++;
+					h3[*p++]++;
+				}
+			}
+			else
+			{
+				signed int PrevVal = (signed int)input[Indices[0]];
+				while (p != pe)
+				{
+					signed int Val = (signed int)input[*vIndices++];
+					if (Val < PrevVal)
+						AlreadySorted = false;
+
+					PrevVal = Val;
+					h0[*p++]++;
+					h1[*p++]++;
+					h2[*p++]++;
+					h3[*p++]++;
+				}
+			}
+
+			if (AlreadySorted)
+				return *this;
+
+			unsigned int NbNegativeValues = 0;
+			if (signedvalues)
+			{
+				unsigned int* h3 = &Histogram[768];
+				for (unsigned int i = 128; i < 256; i++)
+					NbNegativeValues += h3[i];
+			}
+
+			for (unsigned int j = 0; j < 4; j++)
+			{
+				unsigned int* CurCount = &Histogram[j << 8];
+				bool PerformPass = true;
+
+				for (unsigned int i = 0; i < 256; i++)
+				{
+					if (CurCount[i] == nb)
+					{
+						PerformPass = false;
+						break;
+					}
+
+					if (CurCount[i])
+						break;
+				}
+
+				if (PerformPass)
+				{
+					if (j != 3 || !signedvalues)
+					{
+						Offset[0] = 0;
+						for (unsigned int i = 1; i < 256; i++)
+							Offset[i] = Offset[i - 1] + CurCount[i - 1];
+					}
+					else
+					{
+						Offset[0] = NbNegativeValues;
+						for (unsigned int i = 1; i < 128; i++)
+							Offset[i] = Offset[i - 1] + CurCount[i - 1];
+
+						Offset[128] = 0;
+						for (unsigned int i = 129; i < 256; i++)
+							Offset[i] = Offset[i - 1] + CurCount[i - 1];
+					}
+
+					unsigned char* InputBytes = (unsigned char*)input;
+					unsigned int* IndicesStart = Indices;
+					unsigned int* IndicesEnd = &Indices[nb];
+					InputBytes += j;
+
+					while (IndicesStart != IndicesEnd)
+					{
+						unsigned int id = *IndicesStart++;
+						Indices2[Offset[InputBytes[id << 2]]++] = id;
+					}
+
+					unsigned int* Tmp = Indices;
+					Indices = Indices2;
+					Indices2 = Tmp;
+				}
+			}
+
+			return *this;
+		}
+		RadixSorter& RadixSorter::Sort(float* input2, unsigned int nb)
+		{
+			unsigned int* input = (unsigned int*)input2;
+			if (nb > CurrentSize)
+			{
+				if (Indices2 != nullptr)
+				{
+					delete[] Indices2;
+					Indices2 = nullptr;
+				}
+
+				if (Indices != nullptr)
+				{
+					delete[] Indices;
+					Indices = nullptr;
+				}
+
+				Indices = new unsigned int[nb];
+				Indices2 = new unsigned int[nb];
+				CurrentSize = nb;
+				ResetIndices();
+			}
+
+			memset(Histogram, 0, 256 * 4 * sizeof(unsigned int));
+			{
+				float PrevVal = input2[Indices[0]];
+				bool AlreadySorted = true;
+				unsigned int* vIndices = Indices;
+				unsigned char* p = (unsigned char*)input;
+				unsigned char* pe = &p[nb * 4];
+				unsigned int* h0 = &Histogram[0];
+				unsigned int* h1 = &Histogram[256];
+				unsigned int* h2 = &Histogram[512];
+				unsigned int* h3 = &Histogram[768];
+
+				while (p != pe)
+				{
+					float Val = input2[*vIndices++];
+					if (Val < PrevVal)
+						AlreadySorted = false;
+
+					PrevVal = Val;
+					h0[*p++]++;
+					h1[*p++]++;
+					h2[*p++]++;
+					h3[*p++]++;
+				}
+
+				if (AlreadySorted)
+					return *this;
+			}
+
+			unsigned int NbNegativeValues = 0;
+			unsigned int* h3 = &Histogram[768];
+			for (unsigned int i = 128; i < 256; i++)
+				NbNegativeValues += h3[i];
+
+			for (unsigned int j = 0; j < 4; j++)
+			{
+				unsigned int* CurCount = &Histogram[j << 8];
+				bool PerformPass = true;
+
+				for (unsigned int i = 0; i < 256; i++)
+				{
+					if (CurCount[i] == nb)
+					{
+						PerformPass = false;
+						break;
+					}
+
+					if (CurCount[i])
+						break;
+				}
+
+				if (PerformPass)
+				{
+					if (j != 3)
+					{
+						Offset[0] = 0;
+						for (unsigned int i = 1; i < 256; i++)
+							Offset[i] = Offset[i - 1] + CurCount[i - 1];
+
+						unsigned char* InputBytes = (unsigned char*)input;
+						unsigned int* IndicesStart = Indices;
+						unsigned int* IndicesEnd = &Indices[nb];
+						InputBytes += j;
+
+						while (IndicesStart != IndicesEnd)
+						{
+							unsigned int id = *IndicesStart++;
+							Indices2[Offset[InputBytes[id << 2]]++] = id;
+						}
+					}
+					else
+					{
+						Offset[0] = NbNegativeValues;
+						for (unsigned int i = 1; i < 128; i++)
+							Offset[i] = Offset[i - 1] + CurCount[i - 1];
+
+						Offset[255] = 0;
+						for (unsigned int i = 0; i < 127; i++)
+							Offset[254 - i] = Offset[255 - i] + CurCount[255 - i];
+
+						for (unsigned int i = 128; i < 256; i++)
+							Offset[i] += CurCount[i];
+
+						for (unsigned int i = 0; i < nb; i++)
+						{
+							unsigned int Radix = input[Indices[i]] >> 24;
+							if (Radix < 128)
+								Indices2[Offset[Radix]++] = Indices[i];
+							else
+								Indices2[--Offset[Radix]] = Indices[i];
+						}
+					}
+
+					unsigned int* Tmp = Indices;
+					Indices = Indices2;
+					Indices2 = Tmp;
+				}
+			}
+
+			return *this;
+		}
+		RadixSorter& RadixSorter::ResetIndices()
+		{
+			for (unsigned int i = 0; i < CurrentSize; i++)
+				Indices[i] = i;
+
+			return *this;
+		}
+		unsigned int* RadixSorter::GetIndices()
+		{
+			return Indices;
 		}
 
 		MD5Hasher::MD5Hasher()
@@ -3514,7 +4454,7 @@ namespace Tomahawk
 			A = L(A + I(B, C, D) + X + AC, S) + B;
 		}
 
-		float MathCommon::IsCubeInFrustum(const Matrix4x4& WVP, float Radius)
+		float Common::IsCubeInFrustum(const Matrix4x4& WVP, float Radius)
 		{
 			float Plane[4];
 			Plane[0] = WVP.Row[3] + WVP.Row[0];
@@ -3573,14 +4513,14 @@ namespace Tomahawk
 
 			return -1;
 		}
-		bool MathCommon::HasSphereIntersected(const Vector3& PositionR0, float RadiusR0, const Vector3& PositionR1, float RadiusR1)
+		bool Common::HasSphereIntersected(const Vector3& PositionR0, float RadiusR0, const Vector3& PositionR1, float RadiusR1)
 		{
 			if (PositionR0.Distance(PositionR1) < RadiusR0 + RadiusR1)
 				return true;
 
 			return false;
 		}
-		bool MathCommon::HasLineIntersected(float Distance0, float Distance1, const Vector3& Point0, const Vector3& Point1, Vector3& Hit)
+		bool Common::HasLineIntersected(float Distance0, float Distance1, const Vector3& Point0, const Vector3& Point1, Vector3& Hit)
 		{
 			if ((Distance0 * Distance1) >= 0)
 				return false;
@@ -3591,7 +4531,7 @@ namespace Tomahawk
 			Hit = Point0 + (Point1 - Point0) * (-Distance0 / (Distance1 - Distance0));
 			return true;
 		}
-		bool MathCommon::HasLineIntersectedCube(const Vector3& Min, const Vector3& Max, const Vector3& Start, const Vector3& End)
+		bool Common::HasLineIntersectedCube(const Vector3& Min, const Vector3& Max, const Vector3& Start, const Vector3& End)
 		{
 			if (End.X < Min.X && Start.X < Min.X)
 				return false;
@@ -3620,7 +4560,7 @@ namespace Tomahawk
 
 			return false;
 		}
-		bool MathCommon::HasPointIntersectedCube(const Vector3& LastHit, const Vector3& Min, const Vector3& Max, int Axis)
+		bool Common::HasPointIntersectedCube(const Vector3& LastHit, const Vector3& Min, const Vector3& Max, int Axis)
 		{
 			if (Axis == 1 && LastHit.Z > Min.Z && LastHit.Z < Max.Z && LastHit.Y > Min.Y && LastHit.Y < Max.Y)
 				return true;
@@ -3633,22 +4573,22 @@ namespace Tomahawk
 
 			return false;
 		}
-		bool MathCommon::HasPointIntersectedCube(const Vector3& Position, const Vector3& Scale, const Vector3& P0)
+		bool Common::HasPointIntersectedCube(const Vector3& Position, const Vector3& Scale, const Vector3& P0)
 		{
 			return (P0.X) <= (Position.X + Scale.X) && (Position.X - Scale.X) <= (P0.X) && (P0.Y) <= (Position.Y + Scale.Y) && (Position.Y - Scale.Y) <= (P0.Y) && (P0.Z) <= (Position.Z + Scale.Z) && (Position.Z - Scale.Z) <= (P0.Z);
 		}
-		bool MathCommon::HasPointIntersectedRectangle(const Vector3& Position, const Vector3& Scale, const Vector3& P0)
+		bool Common::HasPointIntersectedRectangle(const Vector3& Position, const Vector3& Scale, const Vector3& P0)
 		{
 			return P0.X >= Position.X - Scale.X && P0.X < Position.X + Scale.X && P0.Y >= Position.Y - Scale.Y && P0.Y < Position.Y + Scale.Y;
 		}
-		bool MathCommon::HasSBIntersected(Transform* R0, Transform* R1)
+		bool Common::HasSBIntersected(Transform* R0, Transform* R1)
 		{
 			if (!HasSphereIntersected(R0->Position, R0->Scale.Hypotenuse(), R1->Position, R1->Scale.Hypotenuse()))
 				return false;
 
 			return true;
 		}
-		bool MathCommon::HasOBBIntersected(Transform* R0, Transform* R1)
+		bool Common::HasOBBIntersected(Transform* R0, Transform* R1)
 		{
 			if (R1->Rotation + R0->Rotation == 0)
 				return HasAABBIntersected(R0, R1);
@@ -3699,11 +4639,11 @@ namespace Tomahawk
 
 			return false;
 		}
-		bool MathCommon::HasAABBIntersected(Transform* R0, Transform* R1)
+		bool Common::HasAABBIntersected(Transform* R0, Transform* R1)
 		{
 			return (R0->Position.X - R0->Scale.X) <= (R1->Position.X + R1->Scale.X) && (R1->Position.X - R1->Scale.X) <= (R0->Position.X + R0->Scale.X) && (R0->Position.Y - R0->Scale.Y) <= (R1->Position.Y + R1->Scale.Y) && (R1->Position.Y - R1->Scale.Y) <= (R0->Position.Y + R0->Scale.Y) && (R0->Position.Z - R0->Scale.Z) <= (R1->Position.Z + R1->Scale.Z) && (R1->Position.Z - R1->Scale.Z) <= (R0->Position.Z + R0->Scale.Z);
 		}
-		bool MathCommon::HexToString(void* Data, uint64_t Length, char* Buffer, uint64_t BufferLength)
+		bool Common::HexToString(void* Data, uint64_t Length, char* Buffer, uint64_t BufferLength)
 		{
 			if (!Data || !Length || !Buffer || !BufferLength)
 				return false;
@@ -3724,7 +4664,7 @@ namespace Tomahawk
 			Buffer[3 * Length - 1] = 0;
 			return true;
 		}
-		bool MathCommon::Hex(char c, int& v)
+		bool Common::Hex(char c, int& v)
 		{
 			if (0x20 <= c && isdigit(c))
 			{
@@ -3744,7 +4684,7 @@ namespace Tomahawk
 
 			return false;
 		}
-		bool MathCommon::HexToDecimal(const std::string& s, uint64_t i, uint64_t cnt, int& Value)
+		bool Common::HexToDecimal(const std::string& s, uint64_t i, uint64_t cnt, int& Value)
 		{
 			if (i >= s.size())
 				return false;
@@ -3764,7 +4704,7 @@ namespace Tomahawk
 
 			return true;
 		}
-		void MathCommon::ComputeJointOrientation(Compute::Joint* Value, bool LeftHanded)
+		void Common::ComputeJointOrientation(Compute::Joint* Value, bool LeftHanded)
 		{
 			if (Value != nullptr)
 			{
@@ -3774,7 +4714,7 @@ namespace Tomahawk
 					ComputeJointOrientation(&Child, LeftHanded);
 			}
 		}
-		void MathCommon::ComputeMatrixOrientation(Compute::Matrix4x4* Matrix, bool LeftHanded)
+		void Common::ComputeMatrixOrientation(Compute::Matrix4x4* Matrix, bool LeftHanded)
 		{
 			Compute::Matrix4x4 Coord(1, 0, 0, 0, 0, 1, 0, 0, 0, 0, -1, 0, 0, 0, 0, 1);
 
@@ -3784,7 +4724,7 @@ namespace Tomahawk
 			if (Matrix != nullptr)
 				*Matrix = *Matrix * Coord;
 		}
-		void MathCommon::ComputePositionOrientation(Compute::Vector3* Position, bool LeftHanded)
+		void Common::ComputePositionOrientation(Compute::Vector3* Position, bool LeftHanded)
 		{
 			Compute::Matrix4x4 Coord(1, 0, 0, 0, 0, 1, 0, 0, 0, 0, -1, 0, 0, 0, 0, 1);
 
@@ -3794,11 +4734,11 @@ namespace Tomahawk
 			if (Position != nullptr)
 				*Position = (Coord * Compute::Matrix4x4::CreateTranslation(*Position)).Position();
 		}
-		void MathCommon::ComputeIndexWindingOrderFlip(std::vector<int>& Indices)
+		void Common::ComputeIndexWindingOrderFlip(std::vector<int>& Indices)
 		{
 			std::reverse(Indices.begin(), Indices.end());
 		}
-		void MathCommon::ComputeVertexOrientation(std::vector<Vertex>& Vertices, bool LeftHanded)
+		void Common::ComputeVertexOrientation(std::vector<Vertex>& Vertices, bool LeftHanded)
 		{
 			Compute::Matrix4x4 Coord(1, 0, 0, 0, 0, 1, 0, 0, 0, 0, -1, 0, 0, 0, 0, 1);
 
@@ -3815,7 +4755,7 @@ namespace Tomahawk
 				It->PositionZ = Position.Z;
 			}
 		}
-		void MathCommon::ComputeInfluenceOrientation(std::vector<SkinVertex>& Vertices, bool LeftHanded)
+		void Common::ComputeInfluenceOrientation(std::vector<SkinVertex>& Vertices, bool LeftHanded)
 		{
 			Compute::Matrix4x4 Coord(1, 0, 0, 0, 0, 1, 0, 0, 0, 0, -1, 0, 0, 0, 0, 1);
 
@@ -3832,12 +4772,12 @@ namespace Tomahawk
 				It->PositionZ = Position.Z;
 			}
 		}
-		void MathCommon::ComputeInfluenceNormals(std::vector<SkinVertex>& Vertices)
+		void Common::ComputeInfluenceNormals(std::vector<SkinVertex>& Vertices)
 		{
 			Vector3 Tangent, Bitangent;
 			for (uint64_t i = 0; i < Vertices.size(); i += 3)
 			{
-				SkinVertex& V1 = Vertices[i], & V2 = Vertices[i + 1], & V3 = Vertices[i + 2];
+				SkinVertex& V1 = Vertices[i], &V2 = Vertices[i + 1], &V3 = Vertices[i + 2];
 				ComputeInfluenceTangentBitangent(V1, V2, V3, Tangent, Bitangent);
 
 				V1.TangentX = Tangent.X;
@@ -3860,12 +4800,12 @@ namespace Tomahawk
 				V3.BitangentZ = Bitangent.Z;
 			}
 		}
-		void MathCommon::ComputeInfluenceNormalsArray(SkinVertex* Vertices, uint64_t Count)
+		void Common::ComputeInfluenceNormalsArray(SkinVertex* Vertices, uint64_t Count)
 		{
 			Vector3 Tangent, Bitangent;
 			for (uint64_t i = 0; i < Count; i += 3)
 			{
-				SkinVertex& V1 = Vertices[i], & V2 = Vertices[i + 1], & V3 = Vertices[i + 2];
+				SkinVertex& V1 = Vertices[i], &V2 = Vertices[i + 1], &V3 = Vertices[i + 2];
 				ComputeInfluenceTangentBitangent(V1, V2, V3, Tangent, Bitangent);
 
 				V1.TangentX = Tangent.X;
@@ -3888,7 +4828,7 @@ namespace Tomahawk
 				V3.BitangentZ = Bitangent.Z;
 			}
 		}
-		void MathCommon::ComputeInfluenceTangentBitangent(SkinVertex V1, SkinVertex V2, SkinVertex V3, Vector3& Tangent, Vector3& Bitangent, Vector3& Normal)
+		void Common::ComputeInfluenceTangentBitangent(SkinVertex V1, SkinVertex V2, SkinVertex V3, Vector3& Tangent, Vector3& Bitangent, Vector3& Normal)
 		{
 			Vector3 Face1 = Vector3(V2.PositionX - V1.PositionX, V2.PositionY - V1.PositionY, V2.PositionZ - V1.PositionZ);
 			Vector3 Face2 = Vector3(V3.PositionX - V1.PositionX, V3.PositionY - V1.PositionY, V3.PositionZ - V1.PositionZ);
@@ -3912,7 +4852,7 @@ namespace Tomahawk
 			Normal.Z = (Tangent.X * Bitangent.Y) - (Tangent.Y * Bitangent.X);
 			Normal = -Normal.NormalizeSafe();
 		}
-		void MathCommon::ComputeInfluenceTangentBitangent(SkinVertex V1, SkinVertex V2, SkinVertex V3, Vector3& Tangent, Vector3& Bitangent)
+		void Common::ComputeInfluenceTangentBitangent(SkinVertex V1, SkinVertex V2, SkinVertex V3, Vector3& Tangent, Vector3& Bitangent)
 		{
 			Vector3 Face1 = Vector3(V2.PositionX - V1.PositionX, V2.PositionY - V1.PositionY, V2.PositionZ - V1.PositionZ);
 			Vector3 Face2 = Vector3(V3.PositionX - V1.PositionX, V3.PositionY - V1.PositionY, V3.PositionZ - V1.PositionZ);
@@ -3931,14 +4871,14 @@ namespace Tomahawk
 			Bitangent.Z = (Coord2.X * Face2.Z - Coord2.Y * Face1.Z) * Ray;
 			Bitangent = Bitangent.NormalizeSafe();
 		}
-		void MathCommon::Randomize()
+		void Common::Randomize()
 		{
 			srand((unsigned int)time(nullptr));
 #ifdef TH_HAS_OPENSSL
 			RAND_poll();
 #endif
 		}
-		void MathCommon::ConfigurateUnsafe(Transform* In, Matrix4x4* LocalTransform, Vector3* LocalPosition, Vector3* LocalRotation, Vector3* LocalScale)
+		void Common::ConfigurateUnsafe(Transform* In, Matrix4x4* LocalTransform, Vector3* LocalPosition, Vector3* LocalRotation, Vector3* LocalScale)
 		{
 			if (!In)
 				return;
@@ -3959,19 +4899,19 @@ namespace Tomahawk
 				delete In->LocalScale;
 			In->LocalScale = LocalScale;
 		}
-		void MathCommon::SetRootUnsafe(Transform* In, Transform* Root)
+		void Common::SetRootUnsafe(Transform* In, Transform* Root)
 		{
 			In->Root = Root;
 
 			if (Root != nullptr)
 				Root->AddChild(In);
 		}
-		void MathCommon::Sha1CollapseBufferBlock(unsigned int* Buffer)
+		void Common::Sha1CollapseBufferBlock(unsigned int* Buffer)
 		{
 			for (int i = 16; --i >= 0;)
 				Buffer[i] = 0;
 		}
-		void MathCommon::Sha1ComputeHashBlock(unsigned int* Result, unsigned int* W)
+		void Common::Sha1ComputeHashBlock(unsigned int* Result, unsigned int* W)
 		{
 			unsigned int A = Result[0];
 			unsigned int B = Result[1];
@@ -3984,7 +4924,7 @@ namespace Tomahawk
 #define Sha1Make(F, V) {const unsigned int T=Sha1Roll(A,5)+(F)+E+V+W[R];E=D;D=C;C=Sha1Roll(B,30);B=A;A=T;R++;}
 
 			while (R < 16)
-			Sha1Make((B & C) | (~B & D), 0x5a827999);
+				Sha1Make((B & C) | (~B & D), 0x5a827999);
 
 			while (R < 20)
 			{
@@ -4019,7 +4959,7 @@ namespace Tomahawk
 			Result[3] += D;
 			Result[4] += E;
 		}
-		void MathCommon::Sha1Compute(const void* Value, const int Length, unsigned char* Hash20)
+		void Common::Sha1Compute(const void* Value, const int Length, unsigned char* Hash20)
 		{
 			unsigned int Result[5] = { 0x67452301, 0xefcdab89, 0x98badcfe, 0x10325476, 0xc3d2e1f0 };
 			const unsigned char* ValueCUC = (const unsigned char*)Value;
@@ -4058,7 +4998,7 @@ namespace Tomahawk
 			for (int i = 20; --i >= 0;)
 				Hash20[i] = (Result[i >> 2] >> (((3 - i) & 0x3) << 3)) & 0xff;
 		}
-		void MathCommon::Sha1Hash20ToHex(const unsigned char* Hash20, char* HexString)
+		void Common::Sha1Hash20ToHex(const unsigned char* Hash20, char* HexString)
 		{
 			const char Hex[] = { "0123456789abcdef" };
 			for (int i = 20; --i >= 0;)
@@ -4069,16 +5009,16 @@ namespace Tomahawk
 
 			HexString[40] = 0;
 		}
-		bool MathCommon::IsBase64(unsigned char Value)
+		bool Common::IsBase64(unsigned char Value)
 		{
 			return (isalnum(Value) || (Value == '+') || (Value == '/'));
 		}
-		unsigned char MathCommon::RandomUC()
+		unsigned char Common::RandomUC()
 		{
 			static const char Alphabet[] = "0123456789ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz";
 			return Alphabet[rand() % (sizeof(Alphabet) - 1)];
 		}
-		int64_t MathCommon::RandomNumber(int64_t Min, int64_t Max)
+		int64_t Common::RandomNumber(int64_t Min, int64_t Max)
 		{
 			int64_t Raw = 0;
 #ifdef TH_HAS_OPENSSL
@@ -4088,7 +5028,7 @@ namespace Tomahawk
 #endif
 			return Min + (Raw % static_cast<int64_t>(Max - Min + 1));
 		}
-		uint64_t MathCommon::Utf8(int code, char* Buffer)
+		uint64_t Common::Utf8(int code, char* Buffer)
 		{
 			if (code < 0x0080)
 			{
@@ -4130,7 +5070,7 @@ namespace Tomahawk
 
 			return 0;
 		}
-		std::string MathCommon::Base10ToBaseN(uint64_t Value, unsigned int BaseLessThan65)
+		std::string Common::Base10ToBaseN(uint64_t Value, unsigned int BaseLessThan65)
 		{
 			static const char* Base62 = "0123456789ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz+/";
 			static const char* Base64 = "ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789+/";
@@ -4151,7 +5091,7 @@ namespace Tomahawk
 
 			return Output;
 		}
-		std::string MathCommon::Encrypt(const std::string& Text, int Offset)
+		std::string Common::Encrypt(const std::string& Text, int Offset)
 		{
 			std::string Result;
 			for (uint64_t i = 0; i < (uint64_t)Text.size(); i++)
@@ -4164,7 +5104,7 @@ namespace Tomahawk
 
 			return Result;
 		}
-		std::string MathCommon::Decrypt(const std::string& Text, int Offset)
+		std::string Common::Decrypt(const std::string& Text, int Offset)
 		{
 			std::string Result;
 			for (uint64_t i = 0; i < (uint64_t)Text.size(); i++)
@@ -4177,7 +5117,7 @@ namespace Tomahawk
 
 			return Result;
 		}
-		std::string MathCommon::BinToHex(const char* Value, size_t Size)
+		std::string Common::BinToHex(const char* Value, size_t Size)
 		{
 			const char Hex[] = "0123456789abcdef";
 			std::string Output;
@@ -4194,7 +5134,7 @@ namespace Tomahawk
 
 			return Output;
 		}
-		std::string MathCommon::RandomBytes(uint64_t Length)
+		std::string Common::RandomBytes(uint64_t Length)
 		{
 #ifdef TH_HAS_OPENSSL
 			unsigned char* Buffer = (unsigned char*)TH_MALLOC(sizeof(unsigned char) * Length);
@@ -4208,7 +5148,7 @@ namespace Tomahawk
 			return "";
 #endif
 		}
-		std::string MathCommon::MD5Hash(const std::string& Value)
+		std::string Common::MD5Hash(const std::string& Value)
 		{
 			MD5Hasher Hasher;
 			Hasher.Update(Value);
@@ -4216,7 +5156,7 @@ namespace Tomahawk
 
 			return Hasher.ToHex();
 		}
-		std::string MathCommon::Sha256Encode(const char* Value, const char* Key, const char* IV)
+		std::string Common::Sha256Encode(const char* Value, const char* Key, const char* IV)
 		{
 #ifdef TH_HAS_OPENSSL
 			EVP_CIPHER_CTX* Context;
@@ -4255,7 +5195,7 @@ namespace Tomahawk
 			return Value;
 #endif
 		}
-		std::string MathCommon::Sha256Decode(const char* Value, const char* Key, const char* IV)
+		std::string Common::Sha256Decode(const char* Value, const char* Key, const char* IV)
 		{
 #ifdef TH_HAS_OPENSSL
 			EVP_CIPHER_CTX* Context;
@@ -4291,7 +5231,7 @@ namespace Tomahawk
 
 			return Output;
 		}
-		std::string MathCommon::Aes256Encode(const std::string& Value, const char* Key, const char* IV)
+		std::string Common::Aes256Encode(const std::string& Value, const char* Key, const char* IV)
 		{
 			EVP_CIPHER_CTX* Context;
 			if (Value.empty() || !Key || !IV || !(Context = EVP_CIPHER_CTX_new()))
@@ -4329,7 +5269,7 @@ namespace Tomahawk
 			return Value;
 #endif
 		}
-		std::string MathCommon::Aes256Decode(const std::string& Value, const char* Key, const char* IV)
+		std::string Common::Aes256Decode(const std::string& Value, const char* Key, const char* IV)
 		{
 #ifdef TH_HAS_OPENSSL
 			EVP_CIPHER_CTX* Context;
@@ -4368,7 +5308,7 @@ namespace Tomahawk
 			return Value;
 #endif
 		}
-		std::string MathCommon::Base64Encode(const unsigned char* Value, uint64_t Length)
+		std::string Common::Base64Encode(const unsigned char* Value, uint64_t Length)
 		{
 			if (!Value)
 				return "";
@@ -4416,7 +5356,7 @@ namespace Tomahawk
 			return Encoded;
 
 		}
-		std::string MathCommon::Base64Encode(const std::string& Text)
+		std::string Common::Base64Encode(const std::string& Text)
 		{
 			std::string Encoded;
 			unsigned char Row3[3];
@@ -4462,7 +5402,7 @@ namespace Tomahawk
 
 			return Encoded;
 		}
-		std::string MathCommon::Base64Decode(const std::string& Value)
+		std::string Common::Base64Decode(const std::string& Value)
 		{
 			int Length = (int)Value.size();
 			int Offset = 0, Step = 0;
@@ -4513,11 +5453,11 @@ namespace Tomahawk
 
 			return Decoded;
 		}
-		std::string MathCommon::URIEncode(const std::string& Text)
+		std::string Common::URIEncode(const std::string& Text)
 		{
 			return URIEncode(Text.c_str(), Text.size());
 		}
-		std::string MathCommon::URIEncode(const char* Text, uint64_t Length)
+		std::string Common::URIEncode(const char* Text, uint64_t Length)
 		{
 			if (!Text || !Length)
 				return "";
@@ -4544,11 +5484,11 @@ namespace Tomahawk
 
 			return Value;
 		}
-		std::string MathCommon::URIDecode(const std::string& Text)
+		std::string Common::URIDecode(const std::string& Text)
 		{
 			return URIDecode(Text.c_str(), Text.size());
 		}
-		std::string MathCommon::URIDecode(const char* Text, uint64_t Length)
+		std::string Common::URIDecode(const char* Text, uint64_t Length)
 		{
 			if (!Text)
 				return "";
@@ -4576,7 +5516,7 @@ namespace Tomahawk
 
 			return Value;
 		}
-		std::string MathCommon::Hybi10Encode(Hybi10Request Request, bool Masked)
+		std::string Common::Hybi10Encode(Hybi10Request Request, bool Masked)
 		{
 			std::string Stream;
 			size_t Length = (size_t)Request.Payload.size();
@@ -4654,7 +5594,7 @@ namespace Tomahawk
 
 			return Stream;
 		}
-		std::string MathCommon::DecimalToHex(uint64_t n)
+		std::string Common::DecimalToHex(uint64_t n)
 		{
 			const char* Set = "0123456789abcdef";
 			std::string Result;
@@ -4663,11 +5603,11 @@ namespace Tomahawk
 			{
 				Result = Set[n & 15] + Result;
 				n >>= 4;
-			}while (n > 0);
+			} while (n > 0);
 
 			return Result;
 		}
-		Hybi10Request MathCommon::Hybi10Decode(const std::string& Value)
+		Hybi10Request Common::Hybi10Decode(const std::string& Value)
 		{
 			Hybi10PayloadHeader* Payload = (Hybi10PayloadHeader*)Value.substr(0, 2).c_str();
 			Hybi10Request Decoded;
@@ -4702,22 +5642,67 @@ namespace Tomahawk
 
 			return Decoded;
 		}
-		Ray MathCommon::CreateCursorRay(const Vector3& Origin, const Vector2& Cursor, const Vector2& Screen, const Matrix4x4& InvProjection, const Matrix4x4& InvView)
+		std::vector<int> Common::CreateTriangleStrip(TriangleStrip::Desc& Desc, const std::vector<int>& Indices)
+		{
+			std::vector<unsigned int> Src;
+			Src.reserve(Indices.size());
+
+			for (auto& Index : Indices)
+				Src.push_back((unsigned int)Index);
+
+			Desc.Faces = Src.data();
+			Desc.NbFaces = Src.size() / 3;
+
+			TriangleStrip Strip;
+			if (!Strip.Fill(Desc))
+				return std::vector<int>();
+
+			TriangleStrip::Result Result;
+			if (!Strip.Resolve(Result))
+				return std::vector<int>();
+
+			return Result.GetIndices();
+		}
+		std::vector<int> Common::CreateTriangleList(const std::vector<int>& Indices)
+		{
+			size_t Size = Indices.size() - 2;
+			std::vector<int> Result;
+			Result.reserve(Size * 3);
+
+			for (size_t i = 0; i < Size; i++)
+			{
+				if (i % 2 == 0)
+				{
+					Result.push_back(Indices[i + 0]);
+					Result.push_back(Indices[i + 1]);
+					Result.push_back(Indices[i + 2]);
+				}
+				else
+				{
+					Result.push_back(Indices[i + 2]);
+					Result.push_back(Indices[i + 1]);
+					Result.push_back(Indices[i + 0]);
+				}
+			}
+
+			return Result;
+		}
+		Ray Common::CreateCursorRay(const Vector3& Origin, const Vector2& Cursor, const Vector2& Screen, const Matrix4x4& InvProjection, const Matrix4x4& InvView)
 		{
 			Vector4 Eye = Vector4((2.0f * Cursor.X) / Screen.X - 1.0f, 1.0f - (2.0f * Cursor.Y) / Screen.Y, 1.0f, 1.0f) * InvProjection;
 
 			Eye = (Vector4(Eye.X, Eye.Y, 1.0f, 0.0f) * InvView).NormalizeSafe();
 			return Ray(Origin.InvertZ(), Vector3(Eye.X, Eye.Y, Eye.Z));
 		}
-		bool MathCommon::CursorRayTest(const Ray& Cursor, const Vector3& Position, const Vector3& Scale)
+		bool Common::CursorRayTest(const Ray& Cursor, const Vector3& Position, const Vector3& Scale)
 		{
 			return Cursor.IntersectsAABB(Position.InvertZ(), Scale);
 		}
-		bool MathCommon::CursorRayTest(const Ray& Cursor, const Matrix4x4& World)
+		bool Common::CursorRayTest(const Ray& Cursor, const Matrix4x4& World)
 		{
 			return Cursor.IntersectsOBB(World);
 		}
-		uint64_t MathCommon::CRC32(const std::string& Data)
+		uint64_t Common::CRC32(const std::string& Data)
 		{
 			return Rest::OS::CheckSum(Data);
 		}
@@ -5241,6 +6226,112 @@ namespace Tomahawk
 			return Result;
 		}
 
+		FiniteState::FiniteState()
+		{
+		}
+		FiniteState::~FiniteState()
+		{
+			for (auto& Action : Actions)
+				delete Action.second;
+		}
+		FiniteState* FiniteState::Bind(const std::string& Name, const ActionCallback& Callback)
+		{
+			if (!Callback)
+				return this;
+
+			ActionCallback* Result = new ActionCallback(Callback);
+
+			Mutex.lock();
+			auto It = Actions.find(Name);
+			if (It != Actions.end())
+			{
+				delete It->second;
+				It->second = Result;
+				Mutex.unlock();
+
+				return this;
+			}
+
+			Actions.insert(std::make_pair(Name, Result));
+			Mutex.unlock();
+
+			return this;
+		}
+		FiniteState* FiniteState::Unbind(const std::string& Name)
+		{
+			Mutex.lock();
+			auto It = Actions.find(Name);
+			if (It == Actions.end())
+			{
+				Mutex.unlock();
+				return this;
+			}
+
+			delete It->second;
+			Actions.erase(It);
+			Mutex.unlock();
+
+			return this;
+		}
+		FiniteState* FiniteState::Push(const std::string& Name)
+		{
+			Mutex.lock();
+			ActionCallback* Callback = Find(Name);
+			if (!Callback)
+			{
+				Mutex.unlock();
+				return this;
+			}
+
+			State.push(Callback);
+			Mutex.unlock();
+
+			return this;
+		}
+		FiniteState* FiniteState::Replace(const std::string& Name)
+		{
+			Mutex.lock();
+			ActionCallback* Callback = Find(Name);
+			if (!Callback)
+			{
+				Mutex.unlock();
+				return this;
+			}
+
+			if (!State.empty())
+				State.pop();
+
+			State.push(Callback);
+			Mutex.unlock();
+
+			return this;
+		}
+		FiniteState* FiniteState::Pop()
+		{
+			Mutex.lock();
+			State.pop();
+			Mutex.unlock();
+
+			return this;
+		}
+		void FiniteState::Update()
+		{
+			Mutex.lock();
+			ActionCallback* Next = (State.empty() ? nullptr : State.top());
+			Mutex.unlock();
+
+			if (Next != nullptr)
+				(*Next)(this);
+		}
+		ActionCallback* FiniteState::Find(const std::string& Name)
+		{
+			auto It = Actions.find(Name);
+			if (It != Actions.end())
+				return It->second;
+
+			return nullptr;
+		}
+
 		Transform::Transform()
 		{
 			Root = nullptr;
@@ -5403,7 +6494,7 @@ namespace Tomahawk
 
 			if (_Rotation != nullptr)
 				*_Rotation = Result.Rotation();
-			
+
 			if (_Scale != nullptr)
 				*_Scale = (ConstantScale ? *_Scale : *_Scale / Root->Scale);
 		}
@@ -5418,7 +6509,7 @@ namespace Tomahawk
 
 			if (_Rotation != nullptr)
 				*_Rotation = Result.Rotation();
-			
+
 			if (_Scale != nullptr)
 				*_Scale = (ConstantScale ? *_Scale : *_Scale * Root->Scale);
 		}
@@ -6370,22 +7461,22 @@ namespace Tomahawk
 			btTransform BtTransform(Rotation, btVector3(Initial.Position.X, Initial.Position.Y, -Initial.Position.Z));
 			btSoftRigidDynamicsWorld* World = (btSoftRigidDynamicsWorld*)Engine->GetWorld();
 			btSoftBodyWorldInfo& Info = World->getWorldInfo();
+			UnmanagedShape* Hull = Initial.Shape.Convex.Hull;
 
-			if (Initial.Shape.Convex.Enabled && Initial.Shape.Convex.Hull)
+			if (Initial.Shape.Convex.Enabled && Hull != nullptr)
 			{
-				UnmanagedShape* Hull = Initial.Shape.Convex.Hull;
 				std::vector<btScalar> Vertices;
-
 				Vertices.resize(Hull->Vertices.size() * 3);
-				for (size_t i = 0; i < Hull->Vertices.size() * 3; i += 3)
+
+				for (size_t i = 0; i < Hull->Vertices.size(); i++)
 				{
-					Vertex& V = Hull->Vertices[i / 3];
-					Vertices[i + 0] = V.PositionX;
-					Vertices[i + 1] = V.PositionY;
-					Vertices[i + 2] = V.PositionZ;
+					Vertex& V = Hull->Vertices[i];
+					Vertices[i * 3 + 0] = (btScalar)V.PositionX;
+					Vertices[i * 3 + 1] = (btScalar)V.PositionY;
+					Vertices[i * 3 + 2] = (btScalar)V.PositionZ;
 				}
 
-				Instance = btSoftBodyHelpers::CreateFromTriMesh(Info, Vertices.data(), Hull->Indices.data(), (int)Hull->Indices.size() / 3);
+				Instance = btSoftBodyHelpers::CreateFromTriMesh(Info, Vertices.data(), Hull->Indices.data(), (int)Hull->Indices.size() / 3, false);
 			}
 			else if (Initial.Shape.Ellipsoid.Enabled)
 			{
@@ -6420,7 +7511,6 @@ namespace Tomahawk
 				Instance = btSoftBodyHelpers::CreatePatch(Info, BtV3(Initial.Shape.Patch.Corner00), BtV3(Initial.Shape.Patch.Corner10), BtV3(Initial.Shape.Patch.Corner01), BtV3(Initial.Shape.Patch.Corner11), Initial.Shape.Patch.CountX, Initial.Shape.Patch.CountY, FixedCorners, Initial.Shape.Patch.GenerateDiagonals);
 			}
 
-			Instance->setUserPointer(this);
 			if (Initial.Anticipation > 0)
 			{
 				Instance->setCcdMotionThreshold(Initial.Anticipation);
@@ -6428,8 +7518,13 @@ namespace Tomahawk
 			}
 
 			SetConfig(Initial.Config);
-			Instance->transform(BtTransform);
+			Instance->randomizeConstraints();
 			Instance->setPose(true, true);
+			Instance->getCollisionShape()->setMargin(0.04f);
+			Instance->transform(BtTransform);
+			Instance->setUserPointer(this);
+			Instance->setTotalMass(100.0f, true);
+
 			if (Instance->getWorldArrayIndex() == -1)
 				World->addSoftBody(Instance);
 		}
@@ -6497,27 +7592,25 @@ namespace Tomahawk
 			}
 
 			Center /= (float)Instance->m_nodes.size();
-			Center = Center.InvertZ();
-
 			if (!Kinematic)
 			{
 				btScalar X, Y, Z;
 				Instance->getWorldTransform().getRotation().getEulerZYX(Z, Y, X);
-				Transform->SetTransform(TransformSpace_Global, Center, 1.0f, Vector3(-X, -Y, Z));
+				Transform->SetTransform(TransformSpace_Global, Center.InvertZ(), 1.0f, Vector3(-X, -Y, Z));
 			}
 			else
 			{
-				Vector3 Position = Transform->Position.InvertZ() - Center.InvertZ();
+				Vector3 Position = Transform->Position.InvertZ() - Center;
 				if (Position.Length() > 0.005f)
 					Instance->translate(BtV3(Position));
 			}
 		}
-		void SoftBody::Reindex(std::vector<int>* Indices)
+		void SoftBody::GetIndices(std::vector<int>* Result)
 		{
-			if (!Instance || !Indices)
+			if (!Instance || !Result)
 				return;
 
-			std::map<btSoftBody::Node*, int> Nodes;
+			std::unordered_map<btSoftBody::Node*, int> Nodes;
 			for (int i = 0; i < Instance->m_nodes.size(); i++)
 				Nodes.insert(std::make_pair(&Instance->m_nodes[i], i));
 
@@ -6528,23 +7621,28 @@ namespace Tomahawk
 				{
 					auto It = Nodes.find(Face.m_n[j]);
 					if (It != Nodes.end())
-						Indices->push_back(It->second);
+						Result->push_back(It->second);
 				}
 			}
 		}
-		void SoftBody::Retrieve(std::vector<Vertex>* Vertices)
+		void SoftBody::GetVertices(std::vector<Vertex>* Result)
 		{
-			if (!Instance || !Vertices)
+			if (!Instance || !Result)
 				return;
 
 			size_t Size = (size_t)Instance->m_nodes.size();
-			if (Vertices->size() != Size)
-				Vertices->resize(Size);
+			if (Result->size() != Size)
+			{
+				if (Initial.Shape.Convex.Enabled)
+					*Result = Initial.Shape.Convex.Hull->Vertices;
+				else
+					Result->resize(Size);
+			}
 
 			for (size_t i = 0; i < Size; i++)
 			{
 				auto* Node = &Instance->m_nodes[i];
-				Vertex& Position = Vertices->at(i);
+				Vertex& Position = Result->at(i);
 				Position.PositionX = Node->m_x.x();
 				Position.PositionY = Node->m_x.y();
 				Position.PositionZ = Node->m_x.z();
@@ -6553,25 +7651,19 @@ namespace Tomahawk
 				Position.NormalZ = Node->m_n.z();
 			}
 		}
-		void SoftBody::Update(std::vector<Vertex>* Vertices)
+		void SoftBody::GetBoundingBox(Vector3* Min, Vector3* Max)
 		{
-			if (!Instance || !Vertices)
+			if (!Instance)
 				return;
 
-			if (Vertices->size() != Instance->m_nodes.size())
-				return;
+			btVector3 bMin, bMax;
+			Instance->getAabb(bMin, bMax);
 
-			for (int i = 0; i < Instance->m_nodes.size(); i++)
-			{
-				auto* Node = &Instance->m_nodes[i];
-				Vertex& Position = Vertices->at(i);
-				Position.PositionX = Node->m_x.x();
-				Position.PositionY = Node->m_x.y();
-				Position.PositionZ = Node->m_x.z();
-				Position.NormalX = Node->m_n.x();
-				Position.NormalY = Node->m_n.y();
-				Position.NormalZ = Node->m_n.z();
-			}
+			if (Min != nullptr)
+				*Min = V3Bt(bMin).InvertZ();
+
+			if (Max != nullptr)
+				*Max = V3Bt(bMax).InvertZ();
 		}
 		void SoftBody::SetContactStiffnessAndDamping(float Stiffness, float Damping)
 		{
@@ -6946,11 +8038,16 @@ namespace Tomahawk
 		}
 		Vector3 SoftBody::GetScale()
 		{
-			if (!Instance || !Instance->getCollisionShape())
+			if (!Instance)
 				return Vector3(1, 1, 1);
 
-			btVector3 Value = Instance->getCollisionShape()->getLocalScaling();
-			return Vector3(Value.getX(), Value.getY(), Value.getZ());
+			btVector3 bMin, bMax;
+			Instance->getAabb(bMin, bMax);
+
+			btVector3 bScale = bMax - bMin;
+			Vector3 Scale = V3Bt(bScale);
+
+			return Scale.Div(2.0f).Abs();
 		}
 		Vector3 SoftBody::GetPosition()
 		{
@@ -7585,6 +8682,8 @@ namespace Tomahawk
 				World = new btSoftRigidDynamicsWorld(Dispatcher, Broadphase, Solver, Collision, SoftSolver);
 
 				btSoftRigidDynamicsWorld* SoftWorld = (btSoftRigidDynamicsWorld*)World;
+				SoftWorld->getDispatchInfo().m_enableSPU = true;
+
 				btSoftBodyWorldInfo& Info = SoftWorld->getWorldInfo();
 				Info.m_gravity = BtV3(I.Gravity);
 				Info.water_normal = BtV3(I.WaterNormal);
@@ -7823,7 +8922,7 @@ namespace Tomahawk
 
 			World->stepSimulation(TimeStep * TimeSpeed, Interpolate, TimeSpeed / 60.0f);
 		}
-		void Simulator::FindContacts(RigidBody* Body, int(* Callback)(ShapeContact*, const CollisionBody&, const CollisionBody&))
+		void Simulator::FindContacts(RigidBody* Body, int(*Callback)(ShapeContact*, const CollisionBody&, const CollisionBody&))
 		{
 			if (!Callback || !Body)
 				return;
@@ -7832,7 +8931,7 @@ namespace Tomahawk
 			Handler.Callback = Callback;
 			World->contactTest(Body->Bullet(), Handler);
 		}
-		bool Simulator::FindRayContacts(const Vector3& Start, const Vector3& End, int(* Callback)(RayContact*, const CollisionBody&))
+		bool Simulator::FindRayContacts(const Vector3& Start, const Vector3& End, int(*Callback)(RayContact*, const CollisionBody&))
 		{
 			if (!Callback)
 				return false;

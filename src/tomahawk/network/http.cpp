@@ -1110,7 +1110,7 @@ namespace Tomahawk
 					Resource.Length = Request.ContentLength;
 					Resource.Memory = false;
 					Resource.Type = (ContentType ? ContentType : "application/octet-stream");
-					Resource.Path = Rest::OS::GetDirectory() + Compute::MathCommon::MD5Hash(Compute::MathCommon::RandomBytes(16));
+					Resource.Path = Rest::OS::GetDirectory() + Compute::Common::MD5Hash(Compute::Common::RandomBytes(16));
 
 					FILE* File = (FILE*)Rest::OS::Open(Resource.Path.c_str(), "wb");
 					if (!File)
@@ -1471,7 +1471,7 @@ namespace Tomahawk
 					unsigned char* Pointer = Buffer;
 					int Size = i2d_ASN1_INTEGER(Serial, &Pointer);
 
-					if (!Compute::MathCommon::HexToString(Buffer, (uint64_t)Size, SerialBuffer, sizeof(SerialBuffer)))
+					if (!Compute::Common::HexToString(Buffer, (uint64_t)Size, SerialBuffer, sizeof(SerialBuffer)))
 						*SerialBuffer = '\0';
 				}
 				else
@@ -1481,7 +1481,7 @@ namespace Tomahawk
 				ASN1_digest((int (*)(void*, unsigned char**))i2d_X509, Digest, (char*)Certificate, Buffer, &Size);
 
 				char FingerBuffer[1024];
-				if (!Compute::MathCommon::HexToString(Buffer, (uint64_t)Size, FingerBuffer, sizeof(FingerBuffer)))
+				if (!Compute::Common::HexToString(Buffer, (uint64_t)Size, FingerBuffer, sizeof(FingerBuffer)))
 					*FingerBuffer = '\0';
 
 				Output->Subject = SubjectBuffer;
@@ -1498,7 +1498,7 @@ namespace Tomahawk
 
 			std::string QueryParameter::Build()
 			{
-				std::string Output, Label = Compute::MathCommon::URIEncode(Parent != nullptr ? ('[' + Name + ']') : Name);
+				std::string Output, Label = Compute::Common::URIEncode(Parent != nullptr ? ('[' + Name + ']') : Name);
 				if (IsObject())
 				{
 					for (auto It = Nodes.begin(); It != Nodes.end(); It++)
@@ -1512,7 +1512,7 @@ namespace Tomahawk
 				{
 					std::string Value = Serialize();
 					if (!Value.empty())
-						Output.append(Label).append(1, '=').append(Compute::MathCommon::URIEncode(Value));
+						Output.append(Label).append(1, '=').append(Compute::Common::URIEncode(Value));
 					else
 						Output.append(Label);
 				}
@@ -1521,7 +1521,7 @@ namespace Tomahawk
 			}
 			std::string QueryParameter::BuildFromBase()
 			{
-				std::string Output, Label = Compute::MathCommon::URIEncode(Name);
+				std::string Output, Label = Compute::Common::URIEncode(Name);
 				if (IsObject())
 				{
 					for (auto It = Nodes.begin(); It != Nodes.end(); It++)
@@ -1535,7 +1535,7 @@ namespace Tomahawk
 				{
 					std::string Value = Serialize();
 					if (!Value.empty())
-						Output.append(Label).append(1, '=').append(Compute::MathCommon::URIEncode(Value));
+						Output.append(Label).append(1, '=').append(Compute::Common::URIEncode(Value));
 					else
 						Output.append(Label);
 				}
@@ -1592,7 +1592,7 @@ namespace Tomahawk
 			}
 			void Query::NewParameter(std::vector<QueryToken>* Tokens, const QueryToken& Name, const QueryToken& Value)
 			{
-				std::string URI = Compute::MathCommon::URIDecode(Name.Value, Name.Length);
+				std::string URI = Compute::Common::URIDecode(Name.Value, Name.Length);
 				char* Data = (char*)URI.c_str();
 
 				uint64_t Offset = 0, Length = URI.size();
@@ -1647,7 +1647,7 @@ namespace Tomahawk
 				}
 
 				if (Parameter != nullptr)
-					Parameter->Deserialize(Compute::MathCommon::URIDecode(Value.Value, Value.Length));
+					Parameter->Deserialize(Compute::Common::URIDecode(Value.Value, Value.Length));
 			}
 			void Query::Decode(const char* Type, const std::string& URI)
 			{
@@ -1892,7 +1892,7 @@ namespace Tomahawk
 					return SessionId;
 
 				int64_t Time = time(nullptr);
-				SessionId = Compute::MathCommon::MD5Hash(Base->Request.URI + std::to_string(Time));
+				SessionId = Compute::Common::MD5Hash(Base->Request.URI + std::to_string(Time));
 				IsNewSession = true;
 
 				if (SessionExpires == 0)
@@ -2895,10 +2895,10 @@ namespace Tomahawk
 						if (Base->Request.URI[i + 1] == 'u')
 						{
 							int Value = 0;
-							if (Compute::MathCommon::HexToDecimal(Base->Request.URI, i + 2, 4, Value))
+							if (Compute::Common::HexToDecimal(Base->Request.URI, i + 2, 4, Value))
 							{
 								char Buffer[4];
-								uint64_t LCount = Compute::MathCommon::Utf8(Value, Buffer);
+								uint64_t LCount = Compute::Common::Utf8(Value, Buffer);
 								if (LCount > 0)
 									Base->Request.Path.append(Buffer, LCount);
 
@@ -2910,7 +2910,7 @@ namespace Tomahawk
 						else
 						{
 							int Value = 0;
-							if (Compute::MathCommon::HexToDecimal(Base->Request.URI, i + 1, 2, Value))
+							if (Compute::Common::HexToDecimal(Base->Request.URI, i + 1, 2, Value))
 							{
 								Base->Request.Path += Value;
 								i += 2;
@@ -3488,7 +3488,7 @@ namespace Tomahawk
 				Segment->Source.Length = 0;
 
 				if (Segment->Route)
-					Segment->Source.Path = Segment->Route->Site->ResourceRoot + Compute::MathCommon::MD5Hash(Compute::MathCommon::RandomBytes(16));
+					Segment->Source.Path = Segment->Route->Site->ResourceRoot + Compute::Common::MD5Hash(Compute::Common::RandomBytes(16));
 
 				Segment->Stream = (FILE*)Rest::OS::Open(Segment->Source.Path.c_str(), "wb");
 				return Segment->Stream != nullptr;
@@ -3658,7 +3658,7 @@ namespace Tomahawk
 					Index++;
 
 				std::string Type = std::string(Authorization, Index);
-				std::string Credentials = Compute::MathCommon::Base64Decode(Authorization + Index + 1);
+				std::string Credentials = Compute::Common::Base64Decode(Authorization + Index + 1);
 				Index = 0;
 
 				while (Credentials[Index] != ':' && Credentials[Index] != '\0')
@@ -4194,7 +4194,7 @@ namespace Tomahawk
 					Size--;
 
 				char Direction = (!Base->Request.Query.empty() && Base->Request.Query[1] == 'd') ? 'a' : 'd';
-				std::string Name = Compute::MathCommon::URIDecode(Base->Request.URI);
+				std::string Name = Compute::Common::URIDecode(Base->Request.URI);
 				std::string Parent(1, '/');
 				if (Base->Request.URI.size() > 1)
 					Parent = Rest::OS::FileDirectory(Base->Request.URI.substr(0, Base->Request.URI.size() - 1));
@@ -4237,7 +4237,7 @@ namespace Tomahawk
 					char Date[64];
 					Rest::DateTime::TimeFormatLCL(Date, sizeof(Date), It->Source.LastModified);
 
-					std::string URI = Compute::MathCommon::URIEncode(It->Path);
+					std::string URI = Compute::Common::URIEncode(It->Path);
 					std::string HREF = (Base->Request.URI + ((*(Base->Request.URI.c_str() + 1) != '\0' && Base->Request.URI[Base->Request.URI.size() - 1] != '/') ? "/" : "") + URI);
 					if (It->Source.IsDirectory && !Rest::Stroke(&HREF).EndsOf("/\\"))
 						HREF.append(1, '/');
@@ -4810,13 +4810,13 @@ namespace Tomahawk
 				Base->Request.Buffer.clear();
 
 				char Encoded20[20];
-				Compute::MathCommon::Sha1Compute(Buffer, (int)strlen(Buffer), (unsigned char*)Encoded20);
+				Compute::Common::Sha1Compute(Buffer, (int)strlen(Buffer), (unsigned char*)Encoded20);
 
 				Rest::Stroke Content;
 				Content.fAppend("HTTP/1.1 101 Switching Protocols\r\n"
 								"Upgrade: websocket\r\n"
 								"Connection: Upgrade\r\n"
-								"Sec-WebSocket-Accept: %s\r\n", Compute::MathCommon::Base64Encode((const unsigned char*)Encoded20, 20).c_str());
+								"Sec-WebSocket-Accept: %s\r\n", Compute::Common::Base64Encode((const unsigned char*)Encoded20, 20).c_str());
 
 				const char* Protocol = Base->Request.GetHeader("Sec-WebSocket-Protocol");
 				if (Protocol != nullptr)

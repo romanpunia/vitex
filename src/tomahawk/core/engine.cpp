@@ -408,31 +408,31 @@ namespace Tomahawk
 			if (!V || !Content)
 				return false;
 
-			AssetResource* Asset = Content->FindAsset(Value.GetDiffuseMap());
+			AssetCache* Asset = Content->Find<Graphics::Texture2D>(Value.GetDiffuseMap());
 			if (Asset != nullptr)
 				NMake::Pack(V->SetDocument("diffuse-map"), Asset->Path);
 
-			Asset = Content->FindAsset(Value.GetNormalMap());
+			Asset = Content->Find<Graphics::Texture2D>(Value.GetNormalMap());
 			if (Asset != nullptr)
 				NMake::Pack(V->SetDocument("normal-map"), Asset->Path);
 
-			Asset = Content->FindAsset(Value.GetMetallicMap());
+			Asset = Content->Find<Graphics::Texture2D>(Value.GetMetallicMap());
 			if (Asset != nullptr)
 				NMake::Pack(V->SetDocument("metallic-map"), Asset->Path);
 
-			Asset = Content->FindAsset(Value.GetRoughnessMap());
+			Asset = Content->Find<Graphics::Texture2D>(Value.GetRoughnessMap());
 			if (Asset != nullptr)
 				NMake::Pack(V->SetDocument("roughness-map"), Asset->Path);
 
-			Asset = Content->FindAsset(Value.GetHeightMap());
+			Asset = Content->Find<Graphics::Texture2D>(Value.GetHeightMap());
 			if (Asset != nullptr)
 				NMake::Pack(V->SetDocument("height-map"), Asset->Path);
 
-			Asset = Content->FindAsset(Value.GetOcclusionMap());
+			Asset = Content->Find<Graphics::Texture2D>(Value.GetOcclusionMap());
 			if (Asset != nullptr)
 				NMake::Pack(V->SetDocument("occlusion-map"), Asset->Path);
 
-			Asset = Content->FindAsset(Value.GetEmissionMap());
+			Asset = Content->Find<Graphics::Texture2D>(Value.GetEmissionMap());
 			if (Asset != nullptr)
 				NMake::Pack(V->SetDocument("emission-map"), Asset->Path);
 
@@ -1813,16 +1813,37 @@ namespace Tomahawk
 			return Size;
 		}
 
+		Reactor::Reactor(Application* Ref, double Limit, JobCallback Callback) : App(Ref), Src(Callback)
+		{
+			Time = new Rest::Timer();
+			Time->FrameLimit = Limit;
+		}
+		Reactor::~Reactor()
+		{
+			TH_RELEASE(Time);
+		}
+		void Reactor::UpdateCore()
+		{
+			Time->Synchronize();
+			if (Src != nullptr)
+				Src(this, App);
+		}
+		void Reactor::UpdateTask()
+		{
+			Time->Synchronize();
+			Src(this, App);
+		}
+
 		Processor::Processor(ContentManager* NewContent) : Content(NewContent)
 		{
 		}
 		Processor::~Processor()
 		{
 		}
-		void Processor::Free(AssetResource* Asset)
+		void Processor::Free(AssetCache* Asset)
 		{
 		}
-		void* Processor::Duplicate(AssetResource* Asset, const Compute::PropertyArgs& Args)
+		void* Processor::Duplicate(AssetCache* Asset, const Compute::PropertyArgs& Args)
 		{
 			return nullptr;
 		}
@@ -1945,7 +1966,7 @@ namespace Tomahawk
 			if (Parent->Transform->Position.Distance(View.WorldPosition) > View.FarPlane + Parent->Transform->Scale.Length())
 				return false;
 
-			return Compute::MathCommon::IsCubeInFrustum((World ? *World : Parent->Transform->GetWorld()) * View.ViewProjection, 1.65f) == -1;
+			return Compute::Common::IsCubeInFrustum((World ? *World : Parent->Transform->GetWorld()) * View.ViewProjection, 1.65f) == -1;
 		}
 		bool Cullable::IsNear(const Viewer& View)
 		{
@@ -2947,7 +2968,7 @@ namespace Tomahawk
 			Indices.push_back(15);
 			Indices.push_back(23);
 			Indices.push_back(16);
-			Compute::MathCommon::ComputeIndexWindingOrderFlip(Indices);
+			Compute::Common::ComputeIndexWindingOrderFlip(Indices);
 
 			Graphics::ElementBuffer::Desc F = Graphics::ElementBuffer::Desc();
 			F.AccessFlags = Graphics::CPUAccess_Invalid;
@@ -3044,7 +3065,7 @@ namespace Tomahawk
 			Indices.push_back(15);
 			Indices.push_back(23);
 			Indices.push_back(16);
-			Compute::MathCommon::ComputeIndexWindingOrderFlip(Indices);
+			Compute::Common::ComputeIndexWindingOrderFlip(Indices);
 
 			Graphics::ElementBuffer::Desc F = Graphics::ElementBuffer::Desc();
 			F.AccessFlags = Graphics::CPUAccess_Invalid;
@@ -3847,7 +3868,7 @@ namespace Tomahawk
 				if (MaxDistance > 0.0f && Current->Parent->Distance > MaxDistance)
 					continue;
 
-				if (Compute::MathCommon::CursorRayTest(Base, Current->GetBoundingBox()) && !Callback(Current))
+				if (Compute::Common::CursorRayTest(Base, Current->GetBoundingBox()) && !Callback(Current))
 					break;
 			}
 		}
@@ -4374,14 +4395,14 @@ namespace Tomahawk
 			if (!Camera || !Entity || Entity->Transform->Position.Distance(Camera->Parent->Transform->Position) > View.FarPlane + Entity->Transform->Scale.Length())
 				return false;
 
-			return (Compute::MathCommon::IsCubeInFrustum(Entity->Transform->GetWorld() * ViewProjection, 2) == -1);
+			return (Compute::Common::IsCubeInFrustum(Entity->Transform->GetWorld() * ViewProjection, 2) == -1);
 		}
 		bool SceneGraph::IsEntityVisible(Entity* Entity, const Compute::Matrix4x4& ViewProjection, const Compute::Vector3& ViewPosition, float DrawDistance)
 		{
 			if (!Entity || Entity->Transform->Position.Distance(ViewPosition) > DrawDistance + Entity->Transform->Scale.Length())
 				return false;
 
-			return (Compute::MathCommon::IsCubeInFrustum(Entity->Transform->GetWorld() * ViewProjection, 2) == -1);
+			return (Compute::Common::IsCubeInFrustum(Entity->Transform->GetWorld() * ViewProjection, 2) == -1);
 		}
 		bool SceneGraph::AddEntity(Entity* Entity)
 		{
@@ -4503,18 +4524,20 @@ namespace Tomahawk
 		void ContentManager::InvalidateCache()
 		{
 			Mutex.lock();
-			for (auto It = Assets.begin(); It != Assets.end(); It++)
+			for (auto& Entries : Assets)
 			{
-				if (!It->second)
-					continue;
+				for (auto& Entry : Entries.second)
+				{
+					if (!Entry.second)
+						continue;
 
-				Processor* Root = It->second->Source;
-				Mutex.unlock();
-				if (Root != nullptr)
-					Root->Free(It->second);
-				Mutex.lock();
+					Mutex.unlock();
+					if (Entry.first != nullptr)
+						Entry.first->Free(Entry.second);
+					Mutex.lock();
 
-				delete It->second;
+					delete Entry.second;
+				}
 			}
 
 			Assets.clear();
@@ -4572,8 +4595,8 @@ namespace Tomahawk
 			}
 			Mutex.unlock();
 
-			AssetResource* Asset = FindAsset(Path);
-			if (Asset != nullptr && Asset->Source == Processor)
+			AssetCache* Asset = Find(Processor, Path);
+			if (Asset != nullptr)
 				return Processor->Duplicate(Asset, Map);
 
 			auto* Stream = Rest::OS::Open(File, Rest::FileMode_Binary_Read_Only);
@@ -4594,8 +4617,8 @@ namespace Tomahawk
 			if (Docker == Dockers.end() || !Docker->second || !Docker->second->Stream)
 				return nullptr;
 
-			AssetResource* Asset = FindAsset(Path);
-			if (Asset != nullptr && Asset->Source == Processor)
+			AssetCache* Asset = Find(Processor, Path);
+			if (Asset != nullptr)
 				return Processor->Duplicate(Asset, Map);
 
 			auto It = Streams.find(Docker->second->Stream);
@@ -4705,7 +4728,7 @@ namespace Tomahawk
 			Mutex.lock();
 			for (uint64_t i = 0; i < Size; i++)
 			{
-				AssetDocker* Docker = new AssetDocker();
+				AssetArchive* Docker = new AssetArchive();
 				Docker->Stream = Stream;
 
 				uint64_t Length;
@@ -4814,45 +4837,50 @@ namespace Tomahawk
 		}
 		bool ContentManager::Cache(Processor* Root, const std::string& Path, void* Resource)
 		{
-			Mutex.lock();
-			auto It = Assets.find(Path);
-			if (It != Assets.end())
-			{
-				Mutex.unlock();
+			if (Find(Root, Path) != nullptr)
 				return false;
-			}
 
-			AssetResource* Asset = new AssetResource();
-			Asset->Source = Root;
+			AssetCache* Asset = new AssetCache();
 			Asset->Path = Rest::Stroke(Path).Replace(Environment, "./").Replace('\\', '/').R();
 			Asset->Resource = Resource;
-			Assets[Asset->Path] = Asset;
+
+			Mutex.lock();
+			auto& Entries = Assets[Asset->Path];
+			Entries[Root] = Asset;
 			Mutex.unlock();
 
 			return true;
 		}
-		AssetResource* ContentManager::FindAsset(const std::string& Path)
+		AssetCache* ContentManager::Find(Processor* Target, const std::string& Path)
 		{
 			Mutex.lock();
 			auto It = Assets.find(Rest::Stroke(Path).Replace(Environment, "./").Replace('\\', '/').R());
 			if (It != Assets.end())
 			{
-				Mutex.unlock();
-				return It->second;
+				auto KIt = It->second.find(Target);
+				if (KIt != It->second.end())
+				{
+					Mutex.unlock();
+					return KIt->second;
+				}
 			}
 
 			Mutex.unlock();
 			return nullptr;
 		}
-		AssetResource* ContentManager::FindAsset(void* Resource)
+		AssetCache* ContentManager::Find(Processor* Target, void* Resource)
 		{
 			Mutex.lock();
 			for (auto& It : Assets)
 			{
-				if (It.second && It.second->Resource == Resource)
+				auto KIt = It.second.find(Target);
+				if (KIt == It.second.end())
+					continue;
+
+				if (KIt->second && KIt->second->Resource == Resource)
 				{
 					Mutex.unlock();
-					return It.second;
+					return KIt->second;
 				}
 			}
 
@@ -5016,6 +5044,10 @@ namespace Tomahawk
 			TH_RELEASE(Shaders);
 			TH_RELEASE(Renderer);
 			TH_RELEASE(Activity);
+
+			for (auto& Job : Workers)
+				delete Job;
+
 			Host = nullptr;
 		}
 		void Application::KeyEvent(Graphics::KeyCode Key, Graphics::KeyMod Mod, int Virtual, int Repeat, bool Pressed)
@@ -5040,33 +5072,10 @@ namespace Tomahawk
 		void Application::Render(Rest::Timer* Time)
 		{
 		}
-		void Application::Update(Rest::Timer* Time)
-		{
-		}
 		void Application::Initialize(Desc* I)
 		{
 		}
-		void Application::Restate(ApplicationState Value)
-		{
-			State = Value;
-		}
-		void Application::Enqueue(const std::function<void(Rest::Timer*)>& Callback, double Limit)
-		{
-			if (!Queue || !Callback)
-				return;
-
-			ThreadEvent* Call = new ThreadEvent();
-			Call->Callback = Callback;
-			Call->App = this;
-			Call->Timer = new Rest::Timer();
-			Call->Timer->FrameLimit = Limit;
-
-			if (State == ApplicationState_Staging)
-				Workers++;
-
-			Queue->Task<ThreadEvent>(Call, Callee);
-		}
-		void Application::Run(Desc* I)
+		void Application::Start(Desc* I)
 		{
 			if (!I || !Queue)
 			{
@@ -5113,15 +5122,18 @@ namespace Tomahawk
 			if (Scene != nullptr)
 				Scene->Dispatch();
 
-			if (I->TaskWorkersCount < Workers)
-				I->TaskWorkersCount = Workers;
+			if (Workers.empty())
+				Workers.push_back(new Reactor(this, 0.0, nullptr));
 
-			Rest::Timer* Time = new Rest::Timer();
-			Time->SetStepLimitation(I->MaxFrames, I->MinFrames);
-			Time->FrameLimit = I->FrameLimit;
+			for (auto It = Workers.begin() + 1; It != Workers.end(); It++)
+				Queue->Task<Reactor>(*It, Callee);
+
+			Reactor* Job = Workers.front();
+			Job->Time->SetStepLimitation(I->MaxFrames, I->MinFrames);
+			Job->Time->FrameLimit = I->FrameLimit;
 
 			if (Activity != nullptr && Renderer != nullptr && Content != nullptr)
-				GUI::Subsystem::SetMetadata(Activity, Content, Time);
+				GUI::Subsystem::SetMetadata(Activity, Content, Job->Time);
 
 			if (I->Threading != Rest::EventWorkflow_Singlethreaded)
 			{
@@ -5129,26 +5141,24 @@ namespace Tomahawk
 					TH_WARN("tasks will not be processed (no workers)");
 
 				State = ApplicationState_Multithreaded;
-				Queue->Start(I->Threading, I->TaskWorkersCount, I->EventWorkersCount);
+				Queue->Start(I->Threading, std::max((uint64_t)Workers.size(), I->TaskWorkersCount), I->EventWorkersCount);
 
 				if (Activity != nullptr)
 				{
 					while (State == ApplicationState_Multithreaded)
 					{
-						Time->Synchronize();
 						Activity->Dispatch();
-						Update(Time);
-						Render(Time);
+						Job->UpdateCore();
+						Render(Job->Time);
 					}
 				}
 				else
 				{
 					while (State == ApplicationState_Multithreaded)
-					{
-						Time->Synchronize();
-						Update(Time);
-					}
+						Job->UpdateCore();
 				}
+
+				Queue->Stop();
 			}
 			else
 			{
@@ -5160,10 +5170,9 @@ namespace Tomahawk
 					while (State == ApplicationState_Singlethreaded)
 					{
 						Queue->Tick();
-						Time->Synchronize();
 						Activity->Dispatch();
-						Update(Time);
-						Render(Time);
+						Job->UpdateCore();
+						Render(Job->Time);
 					}
 				}
 				else
@@ -5171,15 +5180,16 @@ namespace Tomahawk
 					while (State == ApplicationState_Singlethreaded)
 					{
 						Queue->Tick();
-						Time->Synchronize();
-						Update(Time);
+						Job->UpdateCore();
 					}
 				}
 
 				Queue->SetState(Rest::EventState_Idle);
 			}
-
-			TH_RELEASE(Time);
+		}
+		void Application::Stop()
+		{
+			State = ApplicationState_Terminated;
 		}
 		void* Application::GetGUI()
 		{
@@ -5195,20 +5205,14 @@ namespace Tomahawk
 		}
 		void Application::Callee(Rest::EventQueue* Queue, Rest::EventArgs* Args)
 		{
-			ThreadEvent* Data = Args->Get<ThreadEvent>();
+			Reactor* Job = Args->Get<Reactor>();
 			do
 			{
-				Data->Callback(Data->Timer);
-				Data->Timer->Synchronize();
-			}while (Data->App->State == ApplicationState_Multithreaded && Args->Blockable());
+				Job->UpdateTask();
+			} while (Job->App->State == ApplicationState_Multithreaded && Args->Blockable());
 
-			if (Data->App->State != ApplicationState_Singlethreaded)
-			{
-				delete Data->Timer;
-				Args->Free<ThreadEvent>();
-			}
-			else
-				Queue->Task<ThreadEvent>(Data, Callee);
+			if (Job->App->State == ApplicationState_Singlethreaded)
+				Queue->Task<Reactor>(Job, Callee);
 		}
 		void Application::Compose()
 		{

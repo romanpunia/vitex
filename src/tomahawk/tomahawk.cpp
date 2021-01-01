@@ -384,7 +384,7 @@ namespace Tomahawk
 		}
 
 		if (Modes & TInit_Compute)
-			Compute::MathCommon::Randomize();
+			Compute::Common::Randomize();
 
 		if (Modes & TInit_Locale)
 		{

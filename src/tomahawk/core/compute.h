@@ -4,6 +4,7 @@
 #include "rest.h"
 #include <cmath>
 #include <map>
+#include <stack>
 
 class btCollisionConfiguration;
 class btBroadphaseInterface;
@@ -49,6 +50,7 @@ namespace Tomahawk
 
 		struct Vector4;
 
+		typedef std::function<void(class FiniteState*)> ActionCallback;
 		typedef std::function<bool(class Preprocessor*, const struct IncludeResult& File, std::string* Out)> ProcIncludeCallback;
 		typedef std::function<bool(class Preprocessor*, const std::string& Pragma)> ProcPragmaCallback;
 		typedef std::function<void(const struct CollisionBody&)> CollisionCallback;
@@ -1005,6 +1007,116 @@ namespace Tomahawk
 			CollisionBody(btCollisionObject* Object);
 		};
 
+		struct TH_OUT AdjTriangle
+		{
+			unsigned int VRef[3];
+			unsigned int ATri[3];
+
+			unsigned char FindEdge(unsigned int VRef0, unsigned int VRef1);
+			unsigned int OppositeVertex(unsigned int VRef0, unsigned int VRef1);
+		};
+
+		struct TH_OUT AdjEdge
+		{
+			unsigned int Ref0;
+			unsigned int Ref1;
+			unsigned int FaceNb;
+		};
+
+		class TH_OUT Adjacencies
+		{
+		public:
+			struct Desc
+			{
+				unsigned int NbFaces = 0;
+				unsigned int* Faces = nullptr;
+			};
+
+		private:
+			unsigned int NbEdges;
+			unsigned int CurrentNbFaces;
+			AdjEdge* Edges;
+
+		public:
+			unsigned int NbFaces;
+			AdjTriangle* Faces;
+
+		public:
+			Adjacencies();
+			~Adjacencies();
+			bool Fill(Adjacencies::Desc& I);
+			bool Resolve();
+
+		private:
+			bool AddTriangle(unsigned int Ref0, unsigned int Ref1, unsigned int Ref2);
+			bool AddEdge(unsigned int Ref0, unsigned int Ref1, unsigned int Face);
+			bool UpdateLink(unsigned int FirstTri, unsigned int SecondTri, unsigned int Ref0, unsigned int Ref1);
+		};
+
+		class TH_OUT TriangleStrip
+		{
+		public:
+			struct Desc
+			{
+				unsigned int NbFaces = 0;
+				unsigned int* Faces = nullptr;
+				bool OneSided = true;
+				bool SGIAlgorithm = true;
+				bool ConnectAllStrips = false;
+			};
+
+			struct Result
+			{
+				std::vector<unsigned int> Strips;
+				std::vector<unsigned int> Groups;
+
+				std::vector<int> GetIndices(int Group = -1);
+				std::vector<int> GetInvIndices(int Group = -1);
+			};
+
+		private:
+			std::vector<unsigned int> SingleStrip;
+			std::vector<unsigned int> StripLengths;
+			std::vector<unsigned int> StripRuns;
+			Adjacencies* Adj;
+			bool* Tags;
+			unsigned int NbStrips;
+			unsigned int TotalLength;
+			bool OneSided;
+			bool SGIAlgorithm;
+			bool ConnectAllStrips;
+
+		public:
+			TriangleStrip();
+			~TriangleStrip();
+			bool Fill(const TriangleStrip::Desc& I);
+			bool Resolve(TriangleStrip::Result& Result);
+
+		private:
+			TriangleStrip& FreeBuffers();
+			unsigned int ComputeStrip(unsigned int Face);
+			unsigned int TrackStrip(unsigned int Face, unsigned int Oldest, unsigned int Middle, unsigned int* Strip, unsigned int* Faces, bool* Tags);
+			bool ConnectStrips(TriangleStrip::Result& Result);
+		};
+
+		class TH_OUT RadixSorter
+		{
+		private:
+			unsigned int* Histogram;
+			unsigned int* Offset;
+			unsigned int CurrentSize;
+			unsigned int* Indices;
+			unsigned int* Indices2;
+
+		public:
+			RadixSorter();
+			~RadixSorter();
+			RadixSorter& Sort(unsigned int* Input, unsigned int Nb, bool SignedValues = true);
+			RadixSorter& Sort(float* Input, unsigned int Nb);
+			RadixSorter& ResetIndices();
+			unsigned int* GetIndices();
+		};
+
 		class TH_OUT MD5Hasher
 		{
 		private:
@@ -1212,6 +1324,13 @@ namespace Tomahawk
 			{
 				return (T)(1.0 / std::tan((double)Value));
 			}
+			static bool NearEqual(T A, T B, T Factor = (T)1.0f)
+			{
+				T Min = A - (A - std::nextafter(A, std::numeric_limits<T>::lowest())) * Factor;
+				T Max = A + (std::nextafter(A, std::numeric_limits<T>::max()) - A) * Factor;
+
+				return Min <= B && Max >= B;
+			}
 			static void Swap(T& Value0, T& Value1)
 			{
 				T Value2 = Value0;
@@ -1220,7 +1339,7 @@ namespace Tomahawk
 			}
 		};
 
-		class TH_OUT MathCommon
+		class TH_OUT Common
 		{
 		public:
 			static std::string Base10ToBaseN(uint64_t Value, unsigned int BaseLessThan65);
@@ -1277,6 +1396,8 @@ namespace Tomahawk
 			static unsigned char RandomUC();
 			static int64_t RandomNumber(int64_t Begin, int64_t End);
 			static uint64_t Utf8(int code, char* Buffer);
+			static std::vector<int> CreateTriangleStrip(TriangleStrip::Desc& Desc, const std::vector<int>& Indices);
+			static std::vector<int> CreateTriangleList(const std::vector<int>& Indices);
 			static Ray CreateCursorRay(const Vector3& Origin, const Vector2& Cursor, const Vector2& Screen, const Matrix4x4& InvProjection, const Matrix4x4& InvView);
 			static bool CursorRayTest(const Ray& Cursor, const Vector3& Position, const Vector3& Scale);
 			static bool CursorRayTest(const Ray& Cursor, const Matrix4x4& World);
@@ -1360,9 +1481,30 @@ namespace Tomahawk
 			static IncludeResult ResolveInclude(const IncludeDesc& Desc);
 		};
 
+		class TH_OUT FiniteState : public Rest::Object
+		{
+		private:
+			std::unordered_map<std::string, ActionCallback*> Actions;
+			std::stack<ActionCallback*> State;
+			std::mutex Mutex;
+
+		public:
+			FiniteState();
+			virtual ~FiniteState() override;
+			FiniteState* Bind(const std::string& Name, const ActionCallback& Callback);
+			FiniteState* Unbind(const std::string& Name);
+			FiniteState* Push(const std::string& Name);
+			FiniteState* Replace(const std::string& Name);
+			FiniteState* Pop();
+			void Update();
+
+		private:
+			ActionCallback* Find(const std::string& Name);
+		};
+
 		class TH_OUT Transform : public Rest::Object
 		{
-			friend MathCommon;
+			friend Common;
 
 		private:
 			std::vector<Transform*>* Childs;
@@ -1591,10 +1733,10 @@ namespace Tomahawk
 					float DP = 0;
 					float DG = 0;
 					float LF = 0;
-					float PR = 0;
-					float VC = 0;
-					float DF = 0.2f;
-					float MT = 0;
+					float PR = 1.0f;
+					float VC = 0.1f;
+					float DF = 0.5f;
+					float MT = 0.1f;
 					float CHR = 1;
 					float KHR = 0.1f;
 					float SHR = 1;
@@ -1609,13 +1751,13 @@ namespace Tomahawk
 					float TimeScale = 1;
 					float Drag = 0;
 					float MaxStress = 0;
-					int Clusters = 16;
-					int Constraints = 8;
+					int Clusters = 0;
+					int Constraints = 2;
 					int VIterations = 10;
-					int PIterations = 10;
+					int PIterations = 2;
 					int DIterations = 0;
 					int CIterations = 4;
-					int Collisions = SoftCollision_Default;
+					int Collisions = SoftCollision_Default | SoftCollision_VF_SS;
 				} Config;
 
 				float Anticipation = 0;
@@ -1651,9 +1793,9 @@ namespace Tomahawk
 			SoftBody* Copy();
 			void Activate(bool Force);
 			void Synchronize(Transform* Transform, bool Kinematic);
-			void Reindex(std::vector<int>* Indices);
-			void Retrieve(std::vector<Vertex>* Vertices);
-			void Update(std::vector<Vertex>* Vertices);
+			void GetIndices(std::vector<int>* Indices);
+			void GetVertices(std::vector<Vertex>* Vertices);
+			void GetBoundingBox(Vector3* Min, Vector3* Max);
 			void SetContactStiffnessAndDamping(float Stiffness, float Damping);
 			void AddAnchor(int Node, RigidBody* Body, bool DisableCollisionBetweenLinkedBodies = false, float Influence = 1);
 			void AddAnchor(int Node, RigidBody* Body, const Vector3& LocalPivot, bool DisableCollisionBetweenLinkedBodies = false, float Influence = 1);

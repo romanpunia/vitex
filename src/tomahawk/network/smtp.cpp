@@ -134,7 +134,7 @@ namespace Tomahawk
 					return Error("no recipients selected");
 
 				if (!Request.Attachments.empty())
-					Boundary = Compute::MathCommon::MD5Hash(Compute::MathCommon::RandomBytes(64));
+					Boundary = Compute::Common::MD5Hash(Compute::Common::RandomBytes(64));
 
 				Rest::Stroke Content;
 				Content.fAppend("MAIL FROM: <%s>\r\n", Request.SenderAddress.c_str());
@@ -409,10 +409,10 @@ namespace Tomahawk
 				{
 					return SendRequest(334, "AUTH LOGIN\r\n", [this, Callback]()
 					{
-						std::string Hash = Compute::MathCommon::Base64Encode(Request.Login);
+						std::string Hash = Compute::Common::Base64Encode(Request.Login);
 						SendRequest(334, Hash.append("\r\n"), [this, Callback]()
 						{
-							std::string Hash = Compute::MathCommon::Base64Encode(Request.Password);
+							std::string Hash = Compute::Common::Base64Encode(Request.Password);
 							SendRequest(235, Hash.append("\r\n"), [this, Callback]()
 							{
 								Authorized = true;
@@ -432,7 +432,7 @@ namespace Tomahawk
 							Escape[i] = 0;
 					}
 
-					return SendRequest(235, Rest::Form("AUTH PLAIN %s\r\n", Compute::MathCommon::Base64Encode(Hash).c_str()).R(), [this, Callback]()
+					return SendRequest(235, Rest::Form("AUTH PLAIN %s\r\n", Compute::Common::Base64Encode(Hash).c_str()).R(), [this, Callback]()
 					{
 						Authorized = true;
 						Callback();
@@ -443,7 +443,7 @@ namespace Tomahawk
 					return SendRequest(334, "AUTH CRAM-MD5\r\n", [this, Callback]()
 					{
 						std::string EncodedChallenge = Command.c_str() + 4;
-						std::string DecodedChallenge = Compute::MathCommon::Base64Decode(EncodedChallenge);
+						std::string DecodedChallenge = Compute::Common::Base64Decode(EncodedChallenge);
 						unsigned char* UserChallenge = Unicode(DecodedChallenge.c_str());
 						unsigned char* UserPassword = Unicode(Request.Password.c_str());
 
@@ -495,7 +495,7 @@ namespace Tomahawk
 						delete UserResult;
 
 						DecodedChallenge = Request.Login + ' ' + UserBase;
-						EncodedChallenge = Compute::MathCommon::Base64Encode(reinterpret_cast<const unsigned char*>(DecodedChallenge.c_str()), DecodedChallenge.size());
+						EncodedChallenge = Compute::Common::Base64Encode(reinterpret_cast<const unsigned char*>(DecodedChallenge.c_str()), DecodedChallenge.size());
 
 						delete UserBase;
 						SendRequest(235, Rest::Form("%s\r\n", EncodedChallenge.c_str()).R(), [this, Callback]()
@@ -510,7 +510,7 @@ namespace Tomahawk
 					return SendRequest(334, "AUTH DIGEST-MD5\r\n", [this, Callback]()
 					{
 						std::string EncodedChallenge = Command.c_str() + 4;
-						Rest::Stroke DecodedChallenge = Compute::MathCommon::Base64Decode(EncodedChallenge);
+						Rest::Stroke DecodedChallenge = Compute::Common::Base64Decode(EncodedChallenge);
 
 						Rest::Stroke::Settle Result1 = DecodedChallenge.Find("nonce");
 						if (!Result1.Found)
@@ -631,7 +631,7 @@ namespace Tomahawk
 										",Response=%s"
 										",qop=auth", Nonce.c_str(), NC, CNonce, URI.c_str(), DecodedChallenge.Get());
 
-						EncodedChallenge = Compute::MathCommon::Base64Encode(Content.R());
+						EncodedChallenge = Compute::Common::Base64Encode(Content.R());
 						SendRequest(334, Rest::Form("%s\r\n", EncodedChallenge.c_str()).R(), [this, Callback]()
 						{
 							SendRequest(235, "\r\n", [this, Callback]()
@@ -674,7 +674,7 @@ namespace Tomahawk
 				if (Id > 0 && (Name[Id] == '\\' || Name[Id] == '/'))
 					Name = Name - 1;
 
-				std::string Hash = Rest::Form("=?UTF-8?B?%s?=", Compute::MathCommon::Base64Encode((unsigned char*)Name, Id + 1).c_str()).R();
+				std::string Hash = Rest::Form("=?UTF-8?B?%s?=", Compute::Common::Base64Encode((unsigned char*)Name, Id + 1).c_str()).R();
 				Rest::Stroke Content;
 				Content.fAppend("--%s\r\n", Boundary.c_str());
 				Content.fAppend("Content-Type: application/x-msdownload; name=\"%s\"\r\n", Hash.c_str());
@@ -703,7 +703,7 @@ namespace Tomahawk
 				if (Size == -1)
 					return Error("cannot read attachment block from %s", It.Path.c_str());
 
-				std::string Content = Compute::MathCommon::Base64Encode((const unsigned char*)Data, Size);
+				std::string Content = Compute::Common::Base64Encode((const unsigned char*)Data, Size);
 				Content.append("\r\n");
 
 				It.Length -= Size;

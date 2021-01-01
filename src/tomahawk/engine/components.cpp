@@ -46,7 +46,7 @@ namespace Tomahawk
 			}
 			void Model::Serialize(ContentManager* Content, Rest::Document* Node)
 			{
-				AssetResource* Asset = Content->FindAsset(Instance);
+				AssetCache* Asset = Content->Find<Graphics::Model>(Instance);
 				if (Asset != nullptr)
 					NMake::Pack(Node->SetDocument("model"), Asset->Path);
 
@@ -163,7 +163,7 @@ namespace Tomahawk
 			}
 			void Skin::Serialize(ContentManager* Content, Rest::Document* Node)
 			{
-				AssetResource* Asset = Content->FindAsset(Instance);
+				AssetCache* Asset = Content->Find<Graphics::SkinModel>(Instance);
 				if (Asset != nullptr)
 					NMake::Pack(Node->SetDocument("skin-model"), Asset->Path);
 
@@ -319,7 +319,7 @@ namespace Tomahawk
 			{
 				float Result = 1.0f - Parent->Transform->Position.Distance(View.WorldPosition) / (View.FarPlane);
 				if (Result > 0.0f)
-					Result = Compute::MathCommon::IsCubeInFrustum(Compute::Matrix4x4::CreateScale(Volume) * Parent->Transform->GetWorldUnscaled() * View.ViewProjection, 1.5f) == -1 ? Result : 0.0f;
+					Result = Compute::Common::IsCubeInFrustum(Compute::Matrix4x4::CreateScale(Volume) * Parent->Transform->GetWorldUnscaled() * View.ViewProjection, 1.5f) == -1 ? Result : 0.0f;
 
 				return Result;
 			}
@@ -564,12 +564,14 @@ namespace Tomahawk
 				auto& Desc = Instance->GetInitialState();
 				if (Desc.Shape.Convex.Enabled)
 				{
-					Rest::Document* CV = Node->SetDocument("shape");
 					if (Instance->GetCollisionShapeType() == Compute::Shape_Convex_Hull)
 					{
-						AssetResource* Asset = Content->FindAsset(Hull);
-						if (Asset != nullptr && Hull != nullptr)
-							NMake::Pack(CV->SetDocument("path"), Asset->Path);
+						AssetCache* Asset = Content->Find<Compute::UnmanagedShape>(Desc.Shape.Convex.Hull);
+						if (Asset != nullptr)
+						{
+							Rest::Document* Shape = Node->SetDocument("shape");
+							NMake::Pack(Shape->SetDocument("path"), Asset->Path);
+						}
 					}
 				}
 				else if (Desc.Shape.Ellipsoid.Enabled)
@@ -603,7 +605,7 @@ namespace Tomahawk
 					NMake::Pack(Shape->SetDocument("end-fixed"), Desc.Shape.Rope.EndFixed);
 					NMake::Pack(Shape->SetDocument("count"), Desc.Shape.Rope.Count);
 				}
-
+				
 				NMake::Pack(Node->SetDocument("ccd-motion-threshold"), Instance->GetCcdMotionThreshold());
 				NMake::Pack(Node->SetDocument("activation-state"), (uint64_t)Instance->GetActivationState());
 				NMake::Pack(Node->SetDocument("friction"), Instance->GetFriction());
@@ -635,9 +637,9 @@ namespace Tomahawk
 				if (!Visibility)
 					return;
 
-				Instance->Update(&Vertices);
+				Instance->GetVertices(&Vertices);
 				if (Indices.empty())
-					Instance->Reindex(&Indices);
+					Instance->GetIndices(&Indices);
 			}
 			void SoftBody::Awake(Component* New)
 			{
@@ -663,15 +665,15 @@ namespace Tomahawk
 				I.Shape.Convex.Hull = Shape;
 				I.Shape.Convex.Enabled = true;
 
-				Vertices = Shape->Vertices;
-				Indices = Shape->Indices;
-
 				Instance = Parent->GetScene()->GetSimulator()->CreateSoftBody(I, Parent->Transform);
 				if (!Instance)
 				{
 					TH_ERROR("cannot create soft body");
-					return;
+					return Parent->GetScene()->Unlock();
 				}
+
+				Vertices.clear();
+				Indices.clear();
 
 				Instance->UserPointer = this;
 				Instance->SetActivity(true);
@@ -681,7 +683,7 @@ namespace Tomahawk
 			{
 				if (Content != nullptr)
 				{
-					Hull = Content->Load<Compute::UnmanagedShape>(Path);
+					Compute::UnmanagedShape* Hull = Content->Load<Compute::UnmanagedShape>(Path);
 					if (Hull != nullptr)
 						Create(Hull, Anticipation);
 				}
@@ -703,8 +705,11 @@ namespace Tomahawk
 				if (!Instance)
 				{
 					TH_ERROR("cannot create soft body");
-					return;
+					return Parent->GetScene()->Unlock();
 				}
+
+				Vertices.clear();
+				Indices.clear();
 
 				Instance->UserPointer = this;
 				Instance->SetActivity(true);
@@ -727,8 +732,11 @@ namespace Tomahawk
 				if (!Instance)
 				{
 					TH_ERROR("cannot create soft body");
-					return;
+					return Parent->GetScene()->Unlock();
 				}
+
+				Vertices.clear();
+				Indices.clear();
 
 				Instance->UserPointer = this;
 				Instance->SetActivity(true);
@@ -751,8 +759,11 @@ namespace Tomahawk
 				if (!Instance)
 				{
 					TH_ERROR("cannot create soft body");
-					return;
+					return Parent->GetScene()->Unlock();
 				}
+
+				Vertices.clear();
+				Indices.clear();
 
 				Instance->UserPointer = this;
 				Instance->SetActivity(true);
@@ -774,6 +785,22 @@ namespace Tomahawk
 					memcpy(Map.Pointer, (void*)Indices.data(), Indices.size() * sizeof(int));
 					Device->Unmap(IndexBuffer, &Map);
 				}
+			}
+			void SoftBody::Regenerate()
+			{
+				if (!Instance || !Parent || !Parent->GetScene() || !Parent->GetScene()->GetSimulator())
+					return;
+
+				Parent->GetScene()->Lock();
+
+				Compute::SoftBody::Desc I = Instance->GetInitialState();
+				TH_RELEASE(Instance);
+
+				Instance = Parent->GetScene()->GetSimulator()->CreateSoftBody(I, Parent->Transform);
+				if (!Instance)
+					TH_ERROR("cannot regenerate soft body");
+
+				Parent->GetScene()->Unlock();
 			}
 			void SoftBody::Clear()
 			{
@@ -818,11 +845,21 @@ namespace Tomahawk
 				float Result = 0.0f;
 				if (Instance != nullptr)
 				{
-					Compute::Matrix4x4 Box = Parent->Transform->GetWorldUnscaled();
+					Compute::Matrix4x4 Box = GetBoundingBox();
 					Result = IsVisible(View, &Box);
 				}
 
 				return Result;
+			}
+			Compute::Matrix4x4 SoftBody::GetBoundingBox()
+			{
+				if (!Instance)
+					return Parent->Transform->GetWorld();
+
+				Compute::Vector3 Min, Max;
+				Instance->GetBoundingBox(&Min, &Max);
+
+				return Compute::Matrix4x4::Create((Max + Min).Div(2.0f), Parent->Transform->Scale * Instance->GetScale(), Parent->Transform->Rotation);
 			}
 			Component* SoftBody::Copy(Entity* New)
 			{
@@ -894,7 +931,7 @@ namespace Tomahawk
 			{
 				float Result = 1.0f - Parent->Transform->Position.Distance(View.WorldPosition) / View.FarPlane;
 				if (Result > 0.0f)
-					Result = Compute::MathCommon::IsCubeInFrustum(Parent->Transform->GetWorld() * View.ViewProjection, GetRange()) == -1 ? Result : 0.0f;
+					Result = Compute::Common::IsCubeInFrustum(Parent->Transform->GetWorld() * View.ViewProjection, GetRange()) == -1 ? Result : 0.0f;
 
 				return Result;
 			}
@@ -1707,7 +1744,7 @@ namespace Tomahawk
 				Rest::Document* CV = Node->SetDocument("shape");
 				if (Instance->GetCollisionShapeType() == Compute::Shape_Convex_Hull)
 				{
-					AssetResource* Asset = Content->FindAsset(Hull);
+					AssetCache* Asset = Content->Find<Compute::UnmanagedShape>(Hull);
 					if (!Asset || !Hull)
 					{
 						std::vector<Compute::Vector3> Vertices = Parent->GetScene()->GetSimulator()->GetShapeVertices(Instance->GetCollisionShape());
@@ -2383,7 +2420,7 @@ namespace Tomahawk
 			}
 			void AudioSource::Serialize(ContentManager* Content, Rest::Document* Node)
 			{
-				AssetResource* Asset = Content->FindAsset(Source->GetClip());
+				AssetCache* Asset = Content->Find<Audio::AudioClip>(Source->GetClip());
 				if (Asset != nullptr)
 					NMake::Pack(Node->SetDocument("audio-clip"), Asset->Path);
 
@@ -2538,7 +2575,7 @@ namespace Tomahawk
 			{
 				float Result = 1.0f - Parent->Transform->Position.Distance(Base.WorldPosition) / Base.FarPlane;
 				if (Result > 0.0f)
-					Result = Compute::MathCommon::IsCubeInFrustum(Parent->Transform->GetWorldUnscaled() * Base.ViewProjection, GetRange()) == -1 ? Result : 0.0f;
+					Result = Compute::Common::IsCubeInFrustum(Parent->Transform->GetWorldUnscaled() * Base.ViewProjection, GetRange()) == -1 ? Result : 0.0f;
 
 				return Result;
 			}
@@ -2599,7 +2636,7 @@ namespace Tomahawk
 			{
 				float Result = 1.0f - Parent->Transform->Position.Distance(View.WorldPosition) / View.FarPlane;
 				if (Result > 0.0f)
-					Result = Compute::MathCommon::IsCubeInFrustum(Parent->Transform->GetWorldUnscaled() * View.ViewProjection, GetRange()) == -1 ? Result : 0.0f;
+					Result = Compute::Common::IsCubeInFrustum(Parent->Transform->GetWorldUnscaled() * View.ViewProjection, GetRange()) == -1 ? Result : 0.0f;
 
 				return Result;
 			}
@@ -2803,36 +2840,36 @@ namespace Tomahawk
 			}
 			void ReflectionProbe::Serialize(ContentManager* Content, Rest::Document* Node)
 			{
-				AssetResource* Asset = nullptr;
+				AssetCache* Asset = nullptr;
 				if (!DiffuseMap)
 				{
-					Asset = Content->FindAsset(DiffuseMapX[0]);
+					Asset = Content->Find<Graphics::Texture2D>(DiffuseMapX[0]);
 					if (Asset != nullptr)
 						NMake::Pack(Node->SetDocument("diffuse-map-px"), Asset->Path);
 
-					Asset = Content->FindAsset(DiffuseMapX[1]);
+					Asset = Content->Find<Graphics::Texture2D>(DiffuseMapX[1]);
 					if (Asset != nullptr)
 						NMake::Pack(Node->SetDocument("diffuse-map-nx"), Asset->Path);
 
-					Asset = Content->FindAsset(DiffuseMapY[0]);
+					Asset = Content->Find<Graphics::Texture2D>(DiffuseMapY[0]);
 					if (Asset != nullptr)
 						NMake::Pack(Node->SetDocument("diffuse-map-py"), Asset->Path);
 
-					Asset = Content->FindAsset(DiffuseMapY[1]);
+					Asset = Content->Find<Graphics::Texture2D>(DiffuseMapY[1]);
 					if (Asset != nullptr)
 						NMake::Pack(Node->SetDocument("diffuse-map-ny"), Asset->Path);
 
-					Asset = Content->FindAsset(DiffuseMapZ[0]);
+					Asset = Content->Find<Graphics::Texture2D>(DiffuseMapZ[0]);
 					if (Asset != nullptr)
 						NMake::Pack(Node->SetDocument("diffuse-map-pz"), Asset->Path);
 
-					Asset = Content->FindAsset(DiffuseMapZ[1]);
+					Asset = Content->Find<Graphics::Texture2D>(DiffuseMapZ[1]);
 					if (Asset != nullptr)
 						NMake::Pack(Node->SetDocument("diffuse-map-nz"), Asset->Path);
 				}
 				else
 				{
-					Asset = Content->FindAsset(DiffuseMap);
+					Asset = Content->Find<Graphics::Texture2D>(DiffuseMap);
 					if (Asset != nullptr)
 						NMake::Pack(Node->SetDocument("diffuse-map"), Asset->Path);
 				}
@@ -2858,7 +2895,7 @@ namespace Tomahawk
 				{
 					Result = 1.0f - Parent->Transform->Position.Distance(View.WorldPosition) / View.FarPlane;
 					if (Result > 0.0f)
-						Result = Compute::MathCommon::IsCubeInFrustum(Parent->Transform->GetWorldUnscaled() * View.ViewProjection, GetRange()) == -1 ? Result : 0.0f;
+						Result = Compute::Common::IsCubeInFrustum(Parent->Transform->GetWorldUnscaled() * View.ViewProjection, GetRange()) == -1 ? Result : 0.0f;
 				}
 
 				return Result;
@@ -3180,7 +3217,7 @@ namespace Tomahawk
 					W = V.Width; H = V.Height;
 				}
 
-				return Compute::MathCommon::CreateCursorRay(Parent->Transform->Position, Position, Compute::Vector2(W, H), Projection.Invert(), GetView().Invert());
+				return Compute::Common::CreateCursorRay(Parent->Transform->Position, Position, Compute::Vector2(W, H), Projection.Invert(), GetView().Invert());
 			}
 			float Camera::GetDistance(Entity* Other)
 			{
@@ -3221,11 +3258,11 @@ namespace Tomahawk
 				if (!Other)
 					return false;
 
-				return Compute::MathCommon::CursorRayTest(Ray, Other->Transform->GetWorld());
+				return Compute::Common::CursorRayTest(Ray, Other->Transform->GetWorld());
 			}
 			bool Camera::RayTest(Compute::Ray& Ray, const Compute::Matrix4x4& World)
 			{
-				return Compute::MathCommon::CursorRayTest(Ray, World);
+				return Compute::Common::CursorRayTest(Ray, World);
 			}
 			Component* Camera::Copy(Entity* New)
 			{

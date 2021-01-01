@@ -174,8 +174,7 @@ namespace Tomahawk
 
 			private:
 				Graphics::DepthStencilState* DepthStencil = nullptr;
-				Graphics::RasterizerState* BackRasterizer = nullptr;
-				Graphics::RasterizerState* FrontRasterizer = nullptr;
+				Graphics::RasterizerState* Rasterizer = nullptr;
 				Graphics::BlendState* Blend = nullptr;
 				Graphics::SamplerState* Sampler = nullptr;
 				Graphics::InputLayout* Layout = nullptr;

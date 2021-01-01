@@ -47,7 +47,7 @@ namespace Tomahawk
 					case BSON::Type_Integer:
 						return String.assign(std::to_string(Integer));
 					case BSON::Type_ObjectId:
-						return String.assign(Compute::MathCommon::Base64Encode((const char*)ObjectId));
+						return String.assign(Compute::Common::Base64Encode((const char*)ObjectId));
 					case BSON::Type_Null:
 						return String.assign("null");
 					case BSON::Type_Unknown:

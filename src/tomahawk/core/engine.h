@@ -14,6 +14,7 @@ namespace Tomahawk
 		typedef Graphics::RenderTargetCube CubicDepthMap;
 		typedef Graphics::RenderTarget2D LinearDepthMap;
 		typedef std::vector<LinearDepthMap*> CascadedDepthMap;
+		typedef void(*JobCallback)(struct Reactor*, class Application*);
 		typedef std::function<void(Rest::Timer*, struct Viewer*)> RenderCallback;
 		typedef std::function<void(class ContentManager*, bool)> SaveCallback;
 		typedef std::function<void(class Event*)> MessageCallback;
@@ -107,26 +108,18 @@ namespace Tomahawk
 			float Id = 0.0f;
 		};
 
-		struct TH_OUT AssetResource
+		struct TH_OUT AssetCache
 		{
-			Processor* Source = nullptr;
-			void* Resource = nullptr;
 			std::string Path;
+			void* Resource;
 		};
 
-		struct TH_OUT AssetDocker
+		struct TH_OUT AssetArchive
 		{
 			Rest::Stream* Stream = nullptr;
 			std::string Path;
 			uint64_t Length = 0;
 			uint64_t Offset = 0;
-		};
-
-		struct TH_OUT ThreadEvent
-		{
-			std::function<void(Rest::Timer * )> Callback;
-			Rest::Timer* Timer = nullptr;
-			Application* App = nullptr;
 		};
 
 		struct TH_OUT AnimatorState
@@ -224,6 +217,24 @@ namespace Tomahawk
 			virtual ~AssetFile() override;
 			char* GetBuffer();
 			size_t GetSize();
+		};
+
+		struct TH_OUT Reactor
+		{
+			friend Application;
+
+		private:
+			Application* App;
+			JobCallback Src;
+
+		public:
+			Rest::Timer* Time;
+
+		private:
+			Reactor(Application* Ref, double Limit, JobCallback Callback);
+			~Reactor();
+			void UpdateCore();
+			void UpdateTask();
 		};
 
 		class TH_OUT NMake
@@ -366,8 +377,8 @@ namespace Tomahawk
 		public:
 			Processor(ContentManager* NewContent);
 			virtual ~Processor() override;
-			virtual void Free(AssetResource* Asset);
-			virtual void* Duplicate(AssetResource* Asset, const Compute::PropertyArgs& Keys);
+			virtual void Free(AssetCache* Asset);
+			virtual void* Duplicate(AssetCache* Asset, const Compute::PropertyArgs& Keys);
 			virtual void* Deserialize(Rest::Stream* Stream, uint64_t Length, uint64_t Offset, const Compute::PropertyArgs& Keys);
 			virtual bool Serialize(Rest::Stream* Stream, void* Instance, const Compute::PropertyArgs& Keys);
 			ContentManager* GetContent();
@@ -998,8 +1009,8 @@ namespace Tomahawk
 		class TH_OUT ContentManager : public Rest::Object
 		{
 		private:
-			std::unordered_map<std::string, AssetDocker*> Dockers;
-			std::unordered_map<std::string, AssetResource*> Assets;
+			std::unordered_map<std::string, std::unordered_map<Processor*, AssetCache*>> Assets;
+			std::unordered_map<std::string, AssetArchive*> Dockers;
 			std::unordered_map<int64_t, Processor*> Processors;
 			std::unordered_map<Rest::Stream*, int64_t> Streams;
 			Graphics::GraphicsDevice* Device;
@@ -1017,8 +1028,6 @@ namespace Tomahawk
 			bool Import(const std::string& Path);
 			bool Export(const std::string& Path, const std::string& Directory, const std::string& Name = "");
 			bool Cache(Processor* Root, const std::string& Path, void* Resource);
-			AssetResource* FindAsset(const std::string& Path);
-			AssetResource* FindAsset(void* Resource);
 			Graphics::GraphicsDevice* GetDevice();
 			Rest::EventQueue* GetQueue();
 			std::string GetEnvironment();
@@ -1110,11 +1119,23 @@ namespace Tomahawk
 				Mutex.unlock();
 				return nullptr;
 			}
+			template <typename T>
+			AssetCache* Find(const std::string& Path)
+			{
+				return Find(GetProcessor<T>(), Path);
+			}
+			template <typename T>
+			AssetCache* Find(void* Resource)
+			{
+				return Find(GetProcessor<T>(), Resource);
+			}
 
 		private:
 			void* LoadForward(const std::string& Path, Processor* Processor, const Compute::PropertyArgs& Keys);
 			void* LoadStreaming(const std::string& Path, Processor* Processor, const Compute::PropertyArgs& Keys);
 			bool SaveForward(const std::string& Path, Processor* Processor, void* Object, const Compute::PropertyArgs& Keys);
+			AssetCache* Find(Processor* Target, const std::string& Path);
+			AssetCache* Find(Processor* Target, void* Resource);
 		};
 
 		class TH_OUT Application : public Rest::Object
@@ -1139,7 +1160,10 @@ namespace Tomahawk
 
 		private:
 			static Application* Host;
-			uint64_t Workers = 0;
+
+		private:
+			std::vector<Reactor*> Workers;
+			ApplicationState State = ApplicationState_Terminated;
 
 		public:
 			Audio::AudioDevice* Audio = nullptr;
@@ -1150,7 +1174,6 @@ namespace Tomahawk
 			ContentManager* Content = nullptr;
 			SceneGraph* Scene = nullptr;
 			ShaderCache* Shaders = nullptr;
-			ApplicationState State = ApplicationState_Terminated;
 
 		public:
 			Application(Desc* I);
@@ -1162,12 +1185,29 @@ namespace Tomahawk
 			virtual void ScriptHook(Script::VMGlobal* Global);
 			virtual bool ComposeEvent();
 			virtual void Render(Rest::Timer* Time);
-			virtual void Update(Rest::Timer* Time);
 			virtual void Initialize(Desc* I);
 			virtual void* GetGUI();
-			void Restate(ApplicationState Value);
-			void Enqueue(const std::function<void(Rest::Timer*)>& Callback, double Limit = 0);
-			void Run(Desc* I);
+			void Start(Desc* I);
+			void Stop();
+
+		public:
+			template <typename T, void(T::*Event)(Rest::Timer*)>
+			Reactor* Enqueue(double UpdateLimit = 0.0)
+			{
+				static_assert(std::is_base_of<Application, T>::value,
+					"method is not from Application class");
+
+				if (!Event)
+					return nullptr;
+
+				Reactor* Result = new Reactor(this, UpdateLimit, [](Reactor* Job, Application* App)
+				{
+					(((T*)App)->*Event)(Job->Time);
+				});
+
+				Workers.push_back(Result);
+				return Result;
+			}
 
 		private:
 			static void Callee(Rest::EventQueue* Queue, Rest::EventArgs* Args);

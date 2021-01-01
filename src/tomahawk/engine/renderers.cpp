@@ -823,8 +823,7 @@ namespace Tomahawk
 			SoftBody::SoftBody(Engine::RenderSystem* Lab) : GeometryDraw(Lab, Components::SoftBody::GetTypeId())
 			{
 				DepthStencil = Lab->GetDevice()->GetDepthStencilState("less");
-				BackRasterizer = Lab->GetDevice()->GetRasterizerState("cull-back");
-				FrontRasterizer = Lab->GetDevice()->GetRasterizerState("cull-front");
+				Rasterizer = Lab->GetDevice()->GetRasterizerState("cull-none");
 				Blend = Lab->GetDevice()->GetBlendState("overwrite");
 				Sampler = Lab->GetDevice()->GetSamplerState("trilinear-x16");
 				Layout = Lab->GetDevice()->GetInputLayout("vertex");
@@ -884,7 +883,7 @@ namespace Tomahawk
 			void SoftBody::CullGeometry(const Viewer& View, Rest::Pool<Drawable*>* Geometry)
 			{
 				Graphics::GraphicsDevice* Device = System->GetDevice();
-				Device->SetRasterizerState(BackRasterizer);
+				Device->SetRasterizerState(Rasterizer);
 				Device->SetInputLayout(Layout);
 				Device->SetShader(nullptr, Graphics::ShaderType_Pixel);
 				Device->SetShader(Shaders.Occlusion, Graphics::ShaderType_Vertex);
@@ -932,7 +931,7 @@ namespace Tomahawk
 				Device->SetSamplerState(Sampler, 0);
 				Device->SetDepthStencilState(DepthStencil);
 				Device->SetBlendState(Blend);
-				Device->SetRasterizerState(BackRasterizer);
+				Device->SetRasterizerState(Rasterizer);
 				Device->SetInputLayout(Layout);
 				Device->SetShader(Shaders.Geometry, Graphics::ShaderType_Vertex | Graphics::ShaderType_Pixel);
 				System->GetScene()->SetSurface();
@@ -968,7 +967,7 @@ namespace Tomahawk
 				Device->SetSamplerState(Sampler, 0);
 				Device->SetDepthStencilState(DepthStencil);
 				Device->SetBlendState(Blend);
-				Device->SetRasterizerState(BackRasterizer);
+				Device->SetRasterizerState(Rasterizer);
 				Device->SetInputLayout(Layout);
 				Device->SetShader(Shaders.Lumina, Graphics::ShaderType_Vertex | Graphics::ShaderType_Pixel);
 	
@@ -1003,7 +1002,7 @@ namespace Tomahawk
 				Device->SetSamplerState(Sampler, 0);
 				Device->SetDepthStencilState(DepthStencil);
 				Device->SetBlendState(Blend);
-				Device->SetRasterizerState(FrontRasterizer);
+				Device->SetRasterizerState(Rasterizer);
 				Device->SetInputLayout(Layout);
 				Device->SetShader(Shaders.Depth.Linear, Graphics::ShaderType_Vertex | Graphics::ShaderType_Pixel);
 
@@ -1038,7 +1037,7 @@ namespace Tomahawk
 				Device->SetSamplerState(Sampler, 0);
 				Device->SetDepthStencilState(DepthStencil);
 				Device->SetBlendState(Blend);
-				Device->SetRasterizerState(FrontRasterizer);
+				Device->SetRasterizerState(Rasterizer);
 				Device->SetInputLayout(Layout);
 				Device->SetShader(Shaders.Depth.Linear, Graphics::ShaderType_Vertex | Graphics::ShaderType_Pixel | Graphics::ShaderType_Geometry);
 				Device->SetBuffer(Shaders.Depth.Cubic, 3, Graphics::ShaderType_Vertex | Graphics::ShaderType_Pixel | Graphics::ShaderType_Geometry);
@@ -1441,7 +1440,7 @@ namespace Tomahawk
 			}
 			void Lighting::Serialize(ContentManager* Content, Rest::Document* Node)
 			{
-				AssetResource* Asset = Content->FindAsset(SkyBase);
+				AssetCache* Asset = Content->Find<Graphics::Texture2D>(SkyBase);
 				if (Asset != nullptr)
 					NMake::Pack(Node->SetDocument("sky-map"), Asset->Path);
 
@@ -1550,7 +1549,7 @@ namespace Tomahawk
 							continue;
 
 						Compute::Vector3 Position(Light->GetEntity()->Transform->Position), Scale(Light->GetRange());
-						bool Front = Compute::MathCommon::HasPointIntersectedCube(Position, Scale.Mul(1.025), Camera);
+						bool Front = Compute::Common::HasPointIntersectedCube(Position, Scale.Mul(1.025), Camera);
 						if ((Front && Backcull) || (!Front && !Backcull))
 						{
 							Device->SetRasterizerState(Front ? FrontRasterizer : BackRasterizer);
@@ -1583,7 +1582,7 @@ namespace Tomahawk
 							continue;
 
 						Compute::Vector3 Position(Light->GetEntity()->Transform->Position), Scale(Light->GetRange());
-						bool Front = Compute::MathCommon::HasPointIntersectedCube(Position, Scale.Mul(1.025), Camera);
+						bool Front = Compute::Common::HasPointIntersectedCube(Position, Scale.Mul(1.025), Camera);
 						if ((Front && Backcull) || (!Front && !Backcull))
 						{
 							Device->SetRasterizerState(Front ? FrontRasterizer : BackRasterizer);
@@ -1615,7 +1614,7 @@ namespace Tomahawk
 						continue;
 
 					Compute::Vector3 Position(Light->GetEntity()->Transform->Position), Scale(Light->GetRange());
-					bool Front = Compute::MathCommon::HasPointIntersectedCube(Position, Scale.Mul(1.025), Camera);
+					bool Front = Compute::Common::HasPointIntersectedCube(Position, Scale.Mul(1.025), Camera);
 					if ((Front && Backcull) || (!Front && !Backcull))
 					{
 						Device->SetRasterizerState(Front ? FrontRasterizer : BackRasterizer);
@@ -1657,7 +1656,7 @@ namespace Tomahawk
 						continue;
 
 					Compute::Vector3 Position(Light->GetEntity()->Transform->Position), Scale(Light->GetRange());
-					bool Front = Compute::MathCommon::HasPointIntersectedCube(Position, Scale.Mul(1.025), Camera);
+					bool Front = Compute::Common::HasPointIntersectedCube(Position, Scale.Mul(1.025), Camera);
 					if ((Front && Backcull) || (!Front && !Backcull))
 					{
 						Device->SetRasterizerState(Front ? FrontRasterizer : BackRasterizer);

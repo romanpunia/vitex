@@ -88,8 +88,8 @@ namespace Tomahawk
 			public:
 				AudioClip(ContentManager* Manager);
 				virtual ~AudioClip() override;
-				void Free(AssetResource* Asset) override;
-				void* Duplicate(AssetResource* Asset, const Compute::PropertyArgs& Args) override;
+				void Free(AssetCache* Asset) override;
+				void* Duplicate(AssetCache* Asset, const Compute::PropertyArgs& Args) override;
 				void* Deserialize(Rest::Stream* Stream, uint64_t Length, uint64_t Offset, const Compute::PropertyArgs& Args) override;
 				void* DeserializeWAVE(Rest::Stream* Stream, uint64_t Length, uint64_t Offset, const Compute::PropertyArgs& Args);
 				void* DeserializeOGG(Rest::Stream* Stream, uint64_t Length, uint64_t Offset, const Compute::PropertyArgs& Args);
@@ -100,8 +100,8 @@ namespace Tomahawk
 			public:
 				Texture2D(ContentManager* Manager);
 				virtual ~Texture2D() override;
-				void Free(AssetResource* Asset) override;
-				void* Duplicate(AssetResource* Asset, const Compute::PropertyArgs& Args) override;
+				void Free(AssetCache* Asset) override;
+				void* Duplicate(AssetCache* Asset, const Compute::PropertyArgs& Args) override;
 				void* Deserialize(Rest::Stream* Stream, uint64_t Length, uint64_t Offset, const Compute::PropertyArgs& Args) override;
 			};
 
@@ -110,8 +110,8 @@ namespace Tomahawk
 			public:
 				Shader(ContentManager* Manager);
 				virtual ~Shader() override;
-				void Free(AssetResource* Asset) override;
-				void* Duplicate(AssetResource* Asset, const Compute::PropertyArgs& Args) override;
+				void Free(AssetCache* Asset) override;
+				void* Duplicate(AssetCache* Asset, const Compute::PropertyArgs& Args) override;
 				void* Deserialize(Rest::Stream* Stream, uint64_t Length, uint64_t Offset, const Compute::PropertyArgs& Args) override;
 			};
 
@@ -123,8 +123,8 @@ namespace Tomahawk
 			public:
 				Model(ContentManager* Manager);
 				virtual ~Model() override;
-				void Free(AssetResource* Asset) override;
-				void* Duplicate(AssetResource* Asset, const Compute::PropertyArgs& Args) override;
+				void Free(AssetCache* Asset) override;
+				void* Duplicate(AssetCache* Asset, const Compute::PropertyArgs& Args) override;
 				void* Deserialize(Rest::Stream* Stream, uint64_t Length, uint64_t Offset, const Compute::PropertyArgs& Args) override;
 
 			public:
@@ -145,8 +145,8 @@ namespace Tomahawk
 			public:
 				SkinModel(ContentManager* Manager);
 				virtual ~SkinModel() override;
-				void Free(AssetResource* Asset) override;
-				void* Duplicate(AssetResource* Asset, const Compute::PropertyArgs& Args) override;
+				void Free(AssetCache* Asset) override;
+				void* Duplicate(AssetCache* Asset, const Compute::PropertyArgs& Args) override;
 				void* Deserialize(Rest::Stream* Stream, uint64_t Length, uint64_t Offset, const Compute::PropertyArgs& Args) override;
 
 			public:
@@ -181,8 +181,8 @@ namespace Tomahawk
 			public:
 				Shape(ContentManager* Manager);
 				virtual ~Shape() override;
-				void Free(AssetResource* Asset) override;
-				void* Duplicate(AssetResource* Asset, const Compute::PropertyArgs& Args) override;
+				void Free(AssetCache* Asset) override;
+				void* Duplicate(AssetCache* Asset, const Compute::PropertyArgs& Args) override;
 				void* Deserialize(Rest::Stream* Stream, uint64_t Length, uint64_t Offset, const Compute::PropertyArgs& Args) override;
 			};
 		}

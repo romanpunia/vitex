@@ -974,7 +974,7 @@ namespace Tomahawk
 				unsigned char* Pointer = Buffer;
 				int Size = i2d_ASN1_INTEGER(Serial, &Pointer);
 
-				if (!Compute::MathCommon::HexToString(Buffer, (uint64_t)Size, SerialBuffer, sizeof(SerialBuffer)))
+				if (!Compute::Common::HexToString(Buffer, (uint64_t)Size, SerialBuffer, sizeof(SerialBuffer)))
 					*SerialBuffer = '\0';
 			}
 			else
@@ -984,7 +984,7 @@ namespace Tomahawk
 			ASN1_digest((int (*)(void*, unsigned char**))i2d_X509, Digest, (char*)Certificate, Buffer, &Size);
 
 			char FingerBuffer[1024];
-			if (!Compute::MathCommon::HexToString(Buffer, (uint64_t)Size, FingerBuffer, sizeof(FingerBuffer)))
+			if (!Compute::Common::HexToString(Buffer, (uint64_t)Size, FingerBuffer, sizeof(FingerBuffer)))
 				*FingerBuffer = '\0';
 
 			Output->Subject = SubjectBuffer;
@@ -1523,7 +1523,7 @@ namespace Tomahawk
 #ifdef SSL_CTX_set_ecdh_auto
 				SSL_CTX_set_ecdh_auto(It.second.Context, 1);
 #endif
-				std::string ContextId = Compute::MathCommon::MD5Hash(Rest::Stroke((int64_t)time(nullptr)).R());
+				std::string ContextId = Compute::Common::MD5Hash(Rest::Stroke((int64_t)time(nullptr)).R());
 				SSL_CTX_set_session_id_context(It.second.Context, (const unsigned char*)ContextId.c_str(), (unsigned int)ContextId.size());
 
 				if (!It.second.Chain.empty() && !It.second.Key.empty())

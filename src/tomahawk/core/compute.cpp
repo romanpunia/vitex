@@ -3529,8 +3529,8 @@ namespace Tomahawk
 			if (EdgeNb1 == 0xff)
 				return false;
 
-			Tri0->ATri[EdgeNb0] = secondtri | (unsigned int(EdgeNb1) << 30);
-			Tri1->ATri[EdgeNb1] = firsttri | (unsigned int(EdgeNb0) << 30);
+			Tri0->ATri[EdgeNb0] = secondtri | ((unsigned int)EdgeNb1 << 30);
+			Tri1->ATri[EdgeNb1] = firsttri | ((unsigned int)EdgeNb0 << 30);
 
 			return true;
 		}

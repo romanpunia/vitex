@@ -778,6 +778,39 @@ namespace Tomahawk
 				glActiveTexture(GL_TEXTURE0 + Slot);
 				glBindTexture(GL_TEXTURE_CUBE_MAP, Resource ? Resource->As<OGLTextureCube>()->Resource : GL_NONE);
 			}
+			void OGLDevice::SetWriteable(ElementBuffer* Resource, unsigned int Slot)
+			{
+			}
+			void OGLDevice::SetWriteable(Texture2D* Resource, unsigned int Slot)
+			{
+				OGLTexture2D* IResource = (OGLTexture2D*)Resource;
+				glActiveTexture(GL_TEXTURE0 + Slot);
+
+				if (!IResource)
+					glBindTexture(GL_TEXTURE_2D, GL_NONE);
+				else
+					glBindImageTexture(Slot, IResource->Resource, 0, GL_TRUE, 0, GL_READ_WRITE, IResource->Format);
+			}
+			void OGLDevice::SetWriteable(Texture3D* Resource, unsigned int Slot)
+			{
+				OGLTexture3D* IResource = (OGLTexture3D*)Resource;
+				glActiveTexture(GL_TEXTURE0 + Slot);
+
+				if (!IResource)
+					glBindTexture(GL_TEXTURE_3D, GL_NONE);
+				else
+					glBindImageTexture(Slot, IResource->Resource, 0, GL_TRUE, 0, GL_READ_WRITE, IResource->Format);
+			}
+			void OGLDevice::SetWriteable(TextureCube* Resource, unsigned int Slot)
+			{
+				OGLTextureCube* IResource = (OGLTextureCube*)Resource;
+				glActiveTexture(GL_TEXTURE0 + Slot);
+
+				if (!IResource)
+					glBindTexture(GL_TEXTURE_CUBE_MAP, GL_NONE);
+				else
+					glBindImageTexture(Slot, IResource->Resource, 0, GL_TRUE, 0, GL_READ_WRITE, IResource->Format);
+			}
 			void OGLDevice::SetTarget(float R, float G, float B)
 			{
 				SetTarget(RenderTarget, 0, R, G, B);
@@ -927,6 +960,14 @@ namespace Tomahawk
 				}
 
 				glViewport((GLuint)Viewarea.TopLeftX, (GLuint)Viewarea.TopLeftY, (GLuint)Viewarea.Width, (GLuint)Viewarea.Height);
+			}
+			void OGLDevice::SetTargetRect(unsigned int Width, unsigned int Height)
+			{
+				if (!Width || !Height)
+					return;
+
+				glBindFramebuffer(GL_FRAMEBUFFER, 0);
+				glViewport(0, 0, Width, Height);
 			}
 			void OGLDevice::SetViewports(unsigned int Count, Viewport* Value)
 			{
@@ -1120,6 +1161,60 @@ namespace Tomahawk
 				GLvoid* Data = glMapBuffer(Element->Flags, GL_WRITE_ONLY);
 				memset(Data, 0, IResource->ElementWidth * IResource->ElementLimit);
 				glUnmapBuffer(Element->Flags);
+			}
+			void OGLDevice::ClearWritable(Texture2D* Resource)
+			{
+				ClearWritable(Resource, 0.0f, 0.0f, 0.0f);
+			}
+			void OGLDevice::ClearWritable(Texture2D* Resource, float R, float G, float B)
+			{
+				OGLTexture2D* IResource = (OGLTexture2D*)Resource;
+				if (!IResource)
+					return;
+
+				GLfloat ClearColor[4] = { R, G, B, 0.0f };
+				GLint PrevHandle = 0;
+
+				glGetIntegerv(GL_TEXTURE_BINDING_2D, &PrevHandle);
+				glBindTexture(GL_TEXTURE_2D, IResource->Resource);
+				glClearTexImage(IResource->Resource, 0, IResource->Format, GL_FLOAT, &ClearColor);
+				glBindTexture(GL_TEXTURE_2D, PrevHandle);
+			}
+			void OGLDevice::ClearWritable(Texture3D* Resource)
+			{
+				ClearWritable(Resource, 0.0f, 0.0f, 0.0f);
+			}
+			void OGLDevice::ClearWritable(Texture3D* Resource, float R, float G, float B)
+			{
+				OGLTexture3D* IResource = (OGLTexture3D*)Resource;
+				if (!IResource)
+					return;
+
+				GLfloat ClearColor[4] = { R, G, B, 0.0f };
+				GLint PrevHandle = 0;
+
+				glGetIntegerv(GL_TEXTURE_BINDING_3D, &PrevHandle);
+				glBindTexture(GL_TEXTURE_3D, IResource->Resource);
+				glClearTexImage(IResource->Resource, 0, IResource->Format, GL_FLOAT, &ClearColor);
+				glBindTexture(GL_TEXTURE_3D, PrevHandle);
+			}
+			void OGLDevice::ClearWritable(TextureCube* Resource)
+			{
+				ClearWritable(Resource, 0.0f, 0.0f, 0.0f);
+			}
+			void OGLDevice::ClearWritable(TextureCube* Resource, float R, float G, float B)
+			{
+				OGLTextureCube* IResource = (OGLTextureCube*)Resource;
+				if (!IResource)
+					return;
+
+				GLfloat ClearColor[4] = { R, G, B, 0.0f };
+				GLint PrevHandle = 0;
+
+				glGetIntegerv(GL_TEXTURE_BINDING_CUBE_MAP, &PrevHandle);
+				glBindTexture(GL_TEXTURE_CUBE_MAP, IResource->Resource);
+				glClearTexImage(IResource->Resource, 0, IResource->Format, GL_FLOAT, &ClearColor);
+				glBindTexture(GL_TEXTURE_CUBE_MAP, PrevHandle);
 			}
 			void OGLDevice::Clear(float R, float G, float B)
 			{
@@ -2168,6 +2263,7 @@ namespace Tomahawk
 				glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_T, GL_REPEAT);
 				glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_R, GL_REPEAT);
 
+				Result->Format = GetFormat(I.StructureMode);
 				if (I.MipLevels > 0)
 				{
 					glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_LINEAR);
@@ -2203,6 +2299,7 @@ namespace Tomahawk
 				glTexParameteri(GL_TEXTURE_3D, GL_TEXTURE_WRAP_T, GL_REPEAT);
 				glTexParameteri(GL_TEXTURE_3D, GL_TEXTURE_WRAP_R, GL_REPEAT);
 
+				Result->Format = GetFormat(I.StructureMode);
 				if (I.MipLevels > 0)
 				{
 					glTexParameteri(GL_TEXTURE_3D, GL_TEXTURE_MAG_FILTER, GL_LINEAR);
@@ -2235,6 +2332,7 @@ namespace Tomahawk
 				glTexParameteri(GL_TEXTURE_CUBE_MAP, GL_TEXTURE_WRAP_T, GL_CLAMP_TO_EDGE);
 				glTexParameteri(GL_TEXTURE_CUBE_MAP, GL_TEXTURE_WRAP_R, GL_CLAMP_TO_EDGE);
 
+				Result->Format = GetFormat(I.StructureMode);
 				if (I.MipLevels > 0)
 				{
 					glTexParameteri(GL_TEXTURE_CUBE_MAP, GL_TEXTURE_MAG_FILTER, GL_LINEAR);

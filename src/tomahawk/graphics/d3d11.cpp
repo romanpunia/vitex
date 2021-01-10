@@ -104,11 +104,13 @@ namespace Tomahawk
 			{
 				Resource = nullptr;
 				Element = nullptr;
+				Access = nullptr;
 			}
 			D3D11ElementBuffer::~D3D11ElementBuffer()
 			{
 				ReleaseCom(Resource);
 				ReleaseCom(Element);
+				ReleaseCom(Access);
 			}
 			void* D3D11ElementBuffer::GetResource()
 			{
@@ -156,7 +158,7 @@ namespace Tomahawk
 				ReleaseCom(Resource);
 			}
 
-			D3D11Texture2D::D3D11Texture2D() : Texture2D(), Resource(nullptr), View(nullptr)
+			D3D11Texture2D::D3D11Texture2D() : Texture2D(), Resource(nullptr), View(nullptr), Access(nullptr)
 			{
 			}
 			D3D11Texture2D::D3D11Texture2D(const Desc& I) : Texture2D(I), Resource(nullptr), View(nullptr)
@@ -166,26 +168,28 @@ namespace Tomahawk
 			{
 				ReleaseCom(View);
 				ReleaseCom(Resource);
+				ReleaseCom(Access);
 			}
 			void* D3D11Texture2D::GetResource()
 			{
 				return (void*)Resource;
 			}
 
-			D3D11Texture3D::D3D11Texture3D() : Texture3D(), Resource(nullptr), View(nullptr)
+			D3D11Texture3D::D3D11Texture3D() : Texture3D(), Resource(nullptr), View(nullptr), Access(nullptr)
 			{
 			}
 			D3D11Texture3D::~D3D11Texture3D()
 			{
 				ReleaseCom(View);
 				ReleaseCom(Resource);
+				ReleaseCom(Access);
 			}
 			void* D3D11Texture3D::GetResource()
 			{
 				return (void*)Resource;
 			}
 
-			D3D11TextureCube::D3D11TextureCube() : TextureCube(), Resource(nullptr), View(nullptr)
+			D3D11TextureCube::D3D11TextureCube() : TextureCube(), Resource(nullptr), View(nullptr), Access(nullptr)
 			{
 			}
 			D3D11TextureCube::D3D11TextureCube(const Desc& I) : TextureCube(I), Resource(nullptr), View(nullptr)
@@ -195,6 +199,7 @@ namespace Tomahawk
 			{
 				ReleaseCom(View);
 				ReleaseCom(Resource);
+				ReleaseCom(Access);
 			}
 			void* D3D11TextureCube::GetResource()
 			{
@@ -688,6 +693,58 @@ namespace Tomahawk
 				ID3D11ShaderResourceView* NewState = (Resource ? Resource->As<D3D11TextureCube>()->Resource : nullptr);
 				ImmediateContext->PSSetShaderResources(Slot, 1, &NewState);
 			}
+			void D3D11Device::SetWriteable(ElementBuffer* Resource, unsigned int Slot)
+			{
+				D3D11ElementBuffer* IResource = (D3D11ElementBuffer*)Resource;
+				UINT Offset = 0;
+
+				if (!IResource || !IResource->Access)
+				{
+					ID3D11UnorderedAccessView* Empty = nullptr;
+					ImmediateContext->OMSetRenderTargetsAndUnorderedAccessViews(D3D11_KEEP_RENDER_TARGETS_AND_DEPTH_STENCIL, nullptr, nullptr, Slot, 1, &Empty, &Offset);
+				}
+				else
+					ImmediateContext->OMSetRenderTargetsAndUnorderedAccessViews(D3D11_KEEP_RENDER_TARGETS_AND_DEPTH_STENCIL, nullptr, nullptr, Slot, 1, &IResource->Access, &Offset);
+			}
+			void D3D11Device::SetWriteable(Texture2D* Resource, unsigned int Slot)
+			{
+				D3D11Texture2D* IResource = (D3D11Texture2D*)Resource;
+				UINT Offset = 0;
+
+				if (!IResource || !IResource->Access)
+				{
+					ID3D11UnorderedAccessView* Empty = nullptr;
+					ImmediateContext->OMSetRenderTargetsAndUnorderedAccessViews(D3D11_KEEP_RENDER_TARGETS_AND_DEPTH_STENCIL, nullptr, nullptr, Slot, 1, &Empty, &Offset);
+				}
+				else
+					ImmediateContext->OMSetRenderTargetsAndUnorderedAccessViews(D3D11_KEEP_RENDER_TARGETS_AND_DEPTH_STENCIL, nullptr, nullptr, Slot, 1, &IResource->Access, &Offset);
+			}
+			void D3D11Device::SetWriteable(Texture3D* Resource, unsigned int Slot)
+			{
+				D3D11Texture3D* IResource = (D3D11Texture3D*)Resource;
+				UINT Offset = 0;
+
+				if (!IResource || !IResource->Access)
+				{
+					ID3D11UnorderedAccessView* Empty = nullptr;
+					ImmediateContext->OMSetRenderTargetsAndUnorderedAccessViews(D3D11_KEEP_RENDER_TARGETS_AND_DEPTH_STENCIL, nullptr, nullptr, Slot, 1, &Empty, &Offset);
+				}
+				else
+					ImmediateContext->OMSetRenderTargetsAndUnorderedAccessViews(D3D11_KEEP_RENDER_TARGETS_AND_DEPTH_STENCIL, nullptr, nullptr, Slot, 1, &IResource->Access, &Offset);
+			}
+			void D3D11Device::SetWriteable(TextureCube* Resource, unsigned int Slot)
+			{
+				D3D11TextureCube* IResource = (D3D11TextureCube*)Resource;
+				UINT Offset = 0;
+
+				if (!IResource || !IResource->Access)
+				{
+					ID3D11UnorderedAccessView* Empty = nullptr;
+					ImmediateContext->OMSetRenderTargetsAndUnorderedAccessViews(D3D11_KEEP_RENDER_TARGETS_AND_DEPTH_STENCIL, nullptr, nullptr, Slot, 1, &Empty, &Offset);
+				}
+				else
+					ImmediateContext->OMSetRenderTargetsAndUnorderedAccessViews(D3D11_KEEP_RENDER_TARGETS_AND_DEPTH_STENCIL, nullptr, nullptr, Slot, 1, &IResource->Access, &Offset);
+			}
 			void D3D11Device::SetTarget(float R, float G, float B)
 			{
 				SetTarget(RenderTarget, 0, R, G, B);
@@ -783,6 +840,15 @@ namespace Tomahawk
 
 				ImmediateContext->RSSetViewports(1, &Viewport);
 				ImmediateContext->OMSetRenderTargets(Count, TargetBuffer, DepthBuffer);
+			}
+			void D3D11Device::SetTargetRect(unsigned int Width, unsigned int Height)
+			{
+				if (!Width || !Height)
+					return;
+
+				D3D11_VIEWPORT Viewport = { 0, 0, Width, Height, 0, 1 };
+				ImmediateContext->RSSetViewports(1, &Viewport);
+				ImmediateContext->OMSetRenderTargets(0, nullptr, nullptr);
 			}
 			void D3D11Device::SetViewports(unsigned int Count, Viewport* Value)
 			{
@@ -982,6 +1048,60 @@ namespace Tomahawk
 				ImmediateContext->Map(Element->Element, 0, D3D11_MAP_WRITE_DISCARD, 0, &MappedResource);
 				MappedResource.pData = nullptr;
 				ImmediateContext->Unmap(Element->Element, 0);
+			}
+			void D3D11Device::ClearWritable(Texture2D* Resource)
+			{
+				D3D11Texture2D* IResource = (D3D11Texture2D*)Resource;
+				if (!IResource || !IResource->Access)
+					return;
+
+				UINT ClearColor[4] = { 0, 0, 0, 0 };
+				ImmediateContext->ClearUnorderedAccessViewUint(IResource->Access, ClearColor);
+			}
+			void D3D11Device::ClearWritable(Texture2D* Resource, float R, float G, float B)
+			{
+				D3D11Texture2D* IResource = (D3D11Texture2D*)Resource;
+				if (!IResource || !IResource->Access)
+					return;
+
+				float ClearColor[4] = { R, G, B, 0.0f };
+				ImmediateContext->ClearUnorderedAccessViewFloat(IResource->Access, ClearColor);
+			}
+			void D3D11Device::ClearWritable(Texture3D* Resource)
+			{
+				D3D11Texture3D* IResource = (D3D11Texture3D*)Resource;
+				if (!IResource || !IResource->Access)
+					return;
+
+				UINT ClearColor[4] = { 0, 0, 0, 0 };
+				ImmediateContext->ClearUnorderedAccessViewUint(IResource->Access, ClearColor);
+			}
+			void D3D11Device::ClearWritable(Texture3D* Resource, float R, float G, float B)
+			{
+				D3D11Texture3D* IResource = (D3D11Texture3D*)Resource;
+				if (!IResource || !IResource->Access)
+					return;
+
+				float ClearColor[4] = { R, G, B, 0.0f };
+				ImmediateContext->ClearUnorderedAccessViewFloat(IResource->Access, ClearColor);
+			}
+			void D3D11Device::ClearWritable(TextureCube* Resource)
+			{
+				D3D11TextureCube* IResource = (D3D11TextureCube*)Resource;
+				if (!IResource || !IResource->Access)
+					return;
+
+				UINT ClearColor[4] = { 0, 0, 0, 0 };
+				ImmediateContext->ClearUnorderedAccessViewUint(IResource->Access, ClearColor);
+			}
+			void D3D11Device::ClearWritable(TextureCube* Resource, float R, float G, float B)
+			{
+				D3D11TextureCube* IResource = (D3D11TextureCube*)Resource;
+				if (!IResource || !IResource->Access)
+					return;
+
+				float ClearColor[4] = { R, G, B, 0.0f };
+				ImmediateContext->ClearUnorderedAccessViewFloat(IResource->Access, ClearColor);
 			}
 			void D3D11Device::Clear(float R, float G, float B)
 			{
@@ -1923,6 +2043,23 @@ namespace Tomahawk
 				else
 					D3DDevice->CreateBuffer(&Buffer, nullptr, &Result->Element);
 
+				if (I.Writable)
+				{
+					D3D11_UNORDERED_ACCESS_VIEW_DESC AccessDesc;
+					ZeroMemory(&AccessDesc, sizeof(AccessDesc));
+					AccessDesc.Format = (DXGI_FORMAT)I.StructureMode;
+					AccessDesc.ViewDimension = D3D11_UAV_DIMENSION_BUFFER;
+					AccessDesc.Buffer.Flags = 0;
+					AccessDesc.Buffer.FirstElement = 0;
+					AccessDesc.Buffer.NumElements = I.ElementCount;
+
+					if (D3DDevice->CreateUnorderedAccessView(Result->Element, &AccessDesc, &Result->Access) != S_OK)
+					{
+						TH_ERROR("couldn't create buffer access view");
+						return Result;
+					}
+				}
+
 				if (!(I.MiscFlags & ResourceMisc_Buffer_Structured))
 					return Result;
 
@@ -2042,6 +2179,9 @@ namespace Tomahawk
 					Description.MiscFlags |= D3D11_RESOURCE_MISC_GENERATE_MIPS;
 				}
 
+				if (I.Writable)
+					Description.BindFlags |= D3D11_BIND_UNORDERED_ACCESS;
+
 				D3D11_SUBRESOURCE_DATA Data;
 				Data.pSysMem = I.Data;
 				Data.SysMemPitch = I.RowPitch;
@@ -2056,7 +2196,7 @@ namespace Tomahawk
 
 				if (!GenerateTexture(Result))
 				{
-					TH_ERROR("couldn't create 2d resource");
+					TH_ERROR("couldn't generate 2d resource");
 					return Result;
 				}
 
@@ -2064,6 +2204,21 @@ namespace Tomahawk
 				{
 					ImmediateContext->UpdateSubresource(Result->View, 0, nullptr, I.Data, I.RowPitch, I.DepthPitch);
 					ImmediateContext->GenerateMips(Result->Resource);
+				}
+
+				if (!I.Writable)
+					return Result;
+
+				D3D11_UNORDERED_ACCESS_VIEW_DESC AccessDesc;
+				ZeroMemory(&AccessDesc, sizeof(AccessDesc));
+				AccessDesc.Format = (DXGI_FORMAT)I.StructureMode;
+				AccessDesc.ViewDimension = D3D11_UAV_DIMENSION_TEXTURE2D;
+				AccessDesc.Texture2D.MipSlice = 0;
+
+				if (D3DDevice->CreateUnorderedAccessView(Result->View, &AccessDesc, &Result->Access) != S_OK)
+				{
+					TH_ERROR("couldn't create 2d texture access view");
+					return Result;
 				}
 
 				return Result;
@@ -2086,14 +2241,39 @@ namespace Tomahawk
 				Description.CPUAccessFlags = I.AccessFlags;
 				Description.MiscFlags = (unsigned int)I.MiscFlags;
 
+				if (I.Writable)
+					Description.BindFlags |= D3D11_BIND_UNORDERED_ACCESS;
+
 				D3D11Texture3D* Result = new D3D11Texture3D();
 				if (D3DDevice->CreateTexture3D(&Description, nullptr, &Result->View) != S_OK)
 				{
-					TH_ERROR("couldn't create 2d resource");
+					TH_ERROR("couldn't create 3d resource");
 					return Result;
 				}
 
-				GenerateTexture(Result);
+				if (!GenerateTexture(Result))
+				{
+					TH_ERROR("couldn't generate 3d resource");
+					return Result;
+				}
+
+				if (!I.Writable)
+					return Result;
+
+				D3D11_UNORDERED_ACCESS_VIEW_DESC AccessDesc;
+				ZeroMemory(&AccessDesc, sizeof(AccessDesc));
+				AccessDesc.Format = (DXGI_FORMAT)I.StructureMode;
+				AccessDesc.ViewDimension = D3D11_UAV_DIMENSION_TEXTURE3D;
+				AccessDesc.Texture3D.MipSlice = 0;
+				AccessDesc.Texture3D.FirstWSlice = 0;
+				AccessDesc.Texture3D.WSize = I.Depth;
+
+				if (D3DDevice->CreateUnorderedAccessView(Result->View, &AccessDesc, &Result->Access) != S_OK)
+				{
+					TH_ERROR("couldn't create 3d texture access view");
+					return Result;
+				}
+
 				return Result;
 			}
 			TextureCube* D3D11Device::CreateTextureCube()
@@ -2116,10 +2296,13 @@ namespace Tomahawk
 				Description.CPUAccessFlags = I.AccessFlags;
 				Description.MiscFlags = (unsigned int)I.MiscFlags;
 
+				if (I.Writable)
+					Description.BindFlags |= D3D11_BIND_UNORDERED_ACCESS;
+
 				D3D11TextureCube* Result = new D3D11TextureCube();
 				if (D3DDevice->CreateTexture2D(&Description, 0, &Result->View) != S_OK)
 				{
-					TH_ERROR("couldn't create texture 2d");
+					TH_ERROR("couldn't create texture cube");
 					return Result;
 				}
 
@@ -2131,7 +2314,29 @@ namespace Tomahawk
 				Region.front = 0;
 				Region.back = 1;
 
-				GenerateTexture(Result);
+				if (!GenerateTexture(Result))
+				{
+					TH_ERROR("couldn't generate cube resource");
+					return Result;
+				}
+
+				if (!I.Writable)
+					return Result;
+
+				D3D11_UNORDERED_ACCESS_VIEW_DESC AccessDesc;
+				ZeroMemory(&AccessDesc, sizeof(AccessDesc));
+				AccessDesc.Format = (DXGI_FORMAT)I.StructureMode;
+				AccessDesc.ViewDimension = D3D11_UAV_DIMENSION_TEXTURE2DARRAY;
+				AccessDesc.Texture2DArray.MipSlice = 0;
+				AccessDesc.Texture2DArray.FirstArraySlice = 0;
+				AccessDesc.Texture2DArray.ArraySize = 6;
+
+				if (D3DDevice->CreateUnorderedAccessView(Result->View, &AccessDesc, &Result->Access) != S_OK)
+				{
+					TH_ERROR("couldn't create cube texture access view");
+					return Result;
+				}
+
 				return Result;
 			}
 			TextureCube* D3D11Device::CreateTextureCube(Graphics::Texture2D* Resource[6])

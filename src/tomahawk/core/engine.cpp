@@ -5234,7 +5234,7 @@ namespace Tomahawk
 			Rest::Composer::Push<Components::PointLight, Entity*>();
 			Rest::Composer::Push<Components::SpotLight, Entity*>();
 			Rest::Composer::Push<Components::LineLight, Entity*>();
-			Rest::Composer::Push<Components::ReflectionProbe, Entity*>();
+			Rest::Composer::Push<Components::SurfaceLight, Entity*>();
 			Rest::Composer::Push<Components::Camera, Entity*>();
 			Rest::Composer::Push<Components::Scriptable, Entity*>();
 			Rest::Composer::Push<Renderers::Model, RenderSystem*>();

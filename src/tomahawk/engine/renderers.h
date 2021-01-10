@@ -55,7 +55,7 @@ namespace Tomahawk
 			class TH_OUT Environment : public Renderer
 			{
 			private:
-				Rest::Pool<Engine::Component*>* ReflectionProbes = nullptr;
+				Rest::Pool<Engine::Component*>* SurfaceLights = nullptr;
 
 			public:
 				Graphics::MultiRenderTarget2D* Surface = nullptr;
@@ -289,7 +289,7 @@ namespace Tomahawk
 					float Parallax;
 					Compute::Vector3 Padding;
 					float Infinity;
-				} ReflectionProbe;
+				} SurfaceLight;
 
 				struct
 				{
@@ -378,7 +378,7 @@ namespace Tomahawk
 
 			private:
 				Rest::Pool<Engine::Component*>* PointLights = nullptr;
-				Rest::Pool<Engine::Component*>* ReflectionProbes = nullptr;
+				Rest::Pool<Engine::Component*>* SurfaceLights = nullptr;
 				Rest::Pool<Engine::Component*>* SpotLights = nullptr;
 				Rest::Pool<Engine::Component*>* LineLights = nullptr;
 				Graphics::DepthStencilState* DepthStencilNone = nullptr;
@@ -412,6 +412,13 @@ namespace Tomahawk
 				void SetSkyMap(Graphics::Texture2D* Cubemap);
 				Graphics::TextureCube* GetSkyMap();
 				Graphics::Texture2D* GetSkyBase();
+
+			private:
+				void RenderSurfaceLights(Graphics::GraphicsDevice* Device, Compute::Vector3& Camera, float& Distance, bool& Backcull, const bool& Inner);
+				void RenderPointLights(Graphics::GraphicsDevice* Device, Compute::Vector3& Camera, float& Distance, bool& Backcull, const bool& Inner);
+				void RenderSpotLights(Graphics::GraphicsDevice* Device, Compute::Vector3& Camera, float& Distance, bool& Backcull, const bool& Inner);
+				void RenderLineLights(Graphics::GraphicsDevice* Device, bool& Backcull);
+				void RenderAmbientLight(Graphics::GraphicsDevice* Device, Graphics::MultiRenderTarget2D* Surface, const bool& Inner);
 
 			public:
 				TH_COMPONENT("lighting-renderer");
@@ -453,6 +460,11 @@ namespace Tomahawk
 			class TH_OUT Lumina : public Renderer
 			{
 			private:
+				Graphics::DepthStencilState* DepthStencil = nullptr;
+				Graphics::RasterizerState* Rasterizer = nullptr;
+				Graphics::BlendState* Blend = nullptr;
+				Graphics::Texture3D* Buffer;
+				unsigned int Size;
 
 			public:
 				struct RenderConstant
@@ -465,6 +477,7 @@ namespace Tomahawk
 				virtual ~Lumina();
 				void ResizeBuffers() override;
 				void Render(Rest::Timer* Time, RenderState State, RenderOpt Options) override;
+				void SetBufferSize(unsigned int Size);
 
 			public:
 				TH_COMPONENT("lumina-renderer");

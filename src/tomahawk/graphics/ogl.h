@@ -160,6 +160,7 @@ namespace Tomahawk
 				friend OGLDevice;
 
 			public:
+				GLenum Format = GL_NONE;
 				GLuint Resource = GL_NONE;
 
 			public:
@@ -174,6 +175,7 @@ namespace Tomahawk
 				friend OGLDevice;
 
 			public:
+				GLenum Format = GL_NONE;
 				GLuint Resource = GL_NONE;
 
 			public:
@@ -187,6 +189,7 @@ namespace Tomahawk
 				friend OGLDevice;
 
 			public:
+				GLenum Format = GL_NONE;
 				GLuint Resource = GL_NONE;
 
 			public:
@@ -353,6 +356,10 @@ namespace Tomahawk
 				void SetTexture2D(Texture2D* Resource, unsigned int Slot) override;
 				void SetTexture3D(Texture3D* Resource, unsigned int Slot) override;
 				void SetTextureCube(TextureCube* Resource, unsigned int Slot) override;
+				void SetWriteable(ElementBuffer* Resource, unsigned int Slot) override;
+				void SetWriteable(Texture2D* Resource, unsigned int Slot) override;
+				void SetWriteable(Texture3D* Resource, unsigned int Slot) override;
+				void SetWriteable(TextureCube* Resource, unsigned int Slot) override;
 				void SetTarget(float R, float G, float B) override;
 				void SetTarget() override;
 				void SetTarget(DepthBuffer* Resource) override;
@@ -361,6 +368,7 @@ namespace Tomahawk
 				void SetTarget(Graphics::RenderTarget* Resource, float R, float G, float B) override;
 				void SetTarget(Graphics::RenderTarget* Resource) override;
 				void SetTargetMap(Graphics::RenderTarget* Resource, bool Enabled[8]) override;
+				void SetTargetRect(unsigned int Width, unsigned int Height) override;
 				void SetViewports(unsigned int Count, Viewport* Viewports) override;
 				void SetScissorRects(unsigned int Count, Compute::Rectangle* Value) override;
 				void SetPrimitiveTopology(PrimitiveTopology Topology) override;
@@ -379,6 +387,12 @@ namespace Tomahawk
 				bool UpdateBufferSize(Shader* Resource, size_t Size) override;
 				bool UpdateBufferSize(InstanceBuffer* Resource, uint64_t Size) override;
 				void ClearBuffer(InstanceBuffer* Resource) override;
+				void ClearWritable(Texture2D* Resource) override;
+				void ClearWritable(Texture2D* Resource, float R, float G, float B) override;
+				void ClearWritable(Texture3D* Resource) override;
+				void ClearWritable(Texture3D* Resource, float R, float G, float B) override;
+				void ClearWritable(TextureCube* Resource) override;
+				void ClearWritable(TextureCube* Resource, float R, float G, float B) override;
 				void Clear(float R, float G, float B) override;
 				void Clear(Graphics::RenderTarget* Resource, unsigned int Target, float R, float G, float B) override;
 				void ClearDepth() override;

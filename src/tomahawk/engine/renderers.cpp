@@ -241,7 +241,7 @@ namespace Tomahawk
 
 				Lighting* Light = System->GetRenderer<Renderers::Lighting>();
 				if (Light != nullptr)
-					Light->ReflectionProbe.MipLevels = (float)MipLevels;
+					Light->SurfaceLight.MipLevels = (float)MipLevels;
 			}
 			void Environment::Serialize(ContentManager* Content, Rest::Document* Node)
 			{
@@ -250,11 +250,11 @@ namespace Tomahawk
 			}
 			void Environment::Activate()
 			{
-				ReflectionProbes = System->AddCull<Engine::Components::ReflectionProbe>();
+				SurfaceLights = System->AddCull<Engine::Components::SurfaceLight>();
 			}
 			void Environment::Deactivate()
 			{
-				ReflectionProbes = System->RemoveCull<Engine::Components::ReflectionProbe>();
+				SurfaceLights = System->RemoveCull<Engine::Components::SurfaceLight>();
 			}
 			void Environment::ResizeBuffers()
 			{
@@ -272,9 +272,9 @@ namespace Tomahawk
 				Scene->SetSurface();
 
 				double ElapsedTime = Time->GetElapsedTime();
-				for (auto It = ReflectionProbes->Begin(); It != ReflectionProbes->End(); It++)
+				for (auto It = SurfaceLights->Begin(); It != SurfaceLights->End(); It++)
 				{
-					Engine::Components::ReflectionProbe* Light = (Engine::Components::ReflectionProbe*)*It;
+					Engine::Components::SurfaceLight* Light = (Engine::Components::SurfaceLight*)*It;
 					if (Light->IsImageBased() || !System->PassCullable(Light, CullResult_Always, nullptr))
 						continue;
 
@@ -466,11 +466,8 @@ namespace Tomahawk
 			{
 				Graphics::GraphicsDevice* Device = System->GetDevice();
 				Device->SetSamplerState(Sampler, 0);
-				Device->SetDepthStencilState(DepthStencil);
-				Device->SetBlendState(Blend);
-				Device->SetRasterizerState(BackRasterizer);
 				Device->SetInputLayout(Layout);
-				Device->SetShader(Shaders.Lumina, Graphics::ShaderType_Vertex | Graphics::ShaderType_Pixel);
+				Device->SetShader(Shaders.Lumina, Graphics::ShaderType_Vertex | Graphics::ShaderType_Pixel | Graphics::ShaderType_Geometry);
 
 				for (auto It = Geometry->Begin(); It != Geometry->End(); ++It)
 				{
@@ -705,11 +702,8 @@ namespace Tomahawk
 			{
 				Graphics::GraphicsDevice* Device = System->GetDevice();
 				Device->SetSamplerState(Sampler, 0);
-				Device->SetDepthStencilState(DepthStencil);
-				Device->SetBlendState(Blend);
-				Device->SetRasterizerState(BackRasterizer);
 				Device->SetInputLayout(Layout);
-				Device->SetShader(Shaders.Lumina, Graphics::ShaderType_Vertex | Graphics::ShaderType_Pixel);
+				Device->SetShader(Shaders.Lumina, Graphics::ShaderType_Vertex | Graphics::ShaderType_Pixel | Graphics::ShaderType_Geometry);
 
 				for (auto It = Geometry->Begin(); It != Geometry->End(); ++It)
 				{
@@ -965,11 +959,8 @@ namespace Tomahawk
 			{
 				Graphics::GraphicsDevice* Device = System->GetDevice();
 				Device->SetSamplerState(Sampler, 0);
-				Device->SetDepthStencilState(DepthStencil);
-				Device->SetBlendState(Blend);
-				Device->SetRasterizerState(Rasterizer);
 				Device->SetInputLayout(Layout);
-				Device->SetShader(Shaders.Lumina, Graphics::ShaderType_Vertex | Graphics::ShaderType_Pixel);
+				Device->SetShader(Shaders.Lumina, Graphics::ShaderType_Vertex | Graphics::ShaderType_Pixel | Graphics::ShaderType_Geometry);
 	
 				for (auto It = Geometry->Begin(); It != Geometry->End(); ++It)
 				{
@@ -1394,7 +1385,7 @@ namespace Tomahawk
 					Shaders.Line[2] = System->CompileShader("lr-line-lumina", I, 0);
 
 				if (System->GetDevice()->GetSection("shaders/lighting/reflection", &I.Data))
-					Shaders.Reflection = System->CompileShader("lr-reflection", I, sizeof(ReflectionProbe));
+					Shaders.Reflection = System->CompileShader("lr-reflection", I, sizeof(SurfaceLight));
 
 				if (System->GetDevice()->GetSection("shaders/lighting/ambient", &I.Data))
 					Shaders.Ambient = System->CompileShader("lr-ambient", I, sizeof(AmbientLight));
@@ -1459,14 +1450,14 @@ namespace Tomahawk
 			}
 			void Lighting::Activate()
 			{
-				ReflectionProbes = System->AddCull<Engine::Components::ReflectionProbe>();
+				SurfaceLights = System->AddCull<Engine::Components::SurfaceLight>();
 				PointLights = System->AddCull<Engine::Components::PointLight>();
 				SpotLights = System->AddCull<Engine::Components::SpotLight>();
 				LineLights = System->GetScene()->GetComponents<Engine::Components::LineLight>();
 			}
 			void Lighting::Deactivate()
 			{
-				ReflectionProbes = System->RemoveCull<Engine::Components::ReflectionProbe>();
+				SurfaceLights = System->RemoveCull<Engine::Components::SurfaceLight>();
 				PointLights = System->RemoveCull<Engine::Components::PointLight>();
 				SpotLights = System->RemoveCull<Engine::Components::SpotLight>();
 			}
@@ -1482,7 +1473,7 @@ namespace Tomahawk
 
 				Environment* Probe = System->GetRenderer<Renderers::Environment>();
 				if (Probe != nullptr)
-					ReflectionProbe.MipLevels = (float)Probe->MipLevels;
+					SurfaceLight.MipLevels = (float)Probe->MipLevels;
 
 				Graphics::RenderTarget2D::Desc F;
 				System->GetScene()->GetTargetDesc(&F);
@@ -1499,7 +1490,7 @@ namespace Tomahawk
 					F.Width = (unsigned int)Renderer->Size;
 					F.Height = (unsigned int)Renderer->Size;
 					F.MipLevels = (unsigned int)Renderer->MipLevels;
-					ReflectionProbe.MipLevels = (float)Renderer->MipLevels;
+					SurfaceLight.MipLevels = (float)Renderer->MipLevels;
 				}
 
 				TH_RELEASE(Output2);
@@ -1516,10 +1507,9 @@ namespace Tomahawk
 				Compute::Vector3& Camera = System->GetScene()->View.WorldPosition;
 				Graphics::GraphicsDevice* Device = System->GetDevice();
 				Graphics::MultiRenderTarget2D* Surface = System->GetScene()->GetSurface();
-				Graphics::Shader* Active = nullptr;
 				bool Inner = (Options & RenderOpt_Inner);
 				bool Backcull = true;
-				float D = 0.0f;
+				float Distance = 0.0f;
 
 				AmbientLight.SkyOffset = System->GetScene()->View.Projection.Invert() * Compute::Matrix4x4::CreateRotation(System->GetScene()->View.WorldRotation);
 				Device->SetSamplerState(WrapSampler, 0);
@@ -1537,15 +1527,25 @@ namespace Tomahawk
 				Device->SetIndexBuffer(System->GetCubeIBuffer(), Graphics::Format_R32_Uint);
 				Device->SetVertexBuffer(System->GetCubeVBuffer(), 0);
 
+				RenderSurfaceLights(Device, Camera, Distance, Backcull, Inner);
+				RenderPointLights(Device, Camera, Distance, Backcull, Inner);
+				RenderSpotLights(Device, Camera, Distance, Backcull, Inner);
+				RenderLineLights(Device, Inner);
+				RenderAmbientLight(Device, Surface, Inner);
+
+				Device->FlushTexture2D(1, 10);
+			}
+			void Lighting::RenderSurfaceLights(Graphics::GraphicsDevice* Device, Compute::Vector3& Camera, float& Distance, bool& Backcull, const bool& Inner)
+			{
 				if (!Inner)
 				{
 					Device->SetShader(Shaders.Reflection, Graphics::ShaderType_Vertex | Graphics::ShaderType_Pixel);
 					Device->SetBuffer(Shaders.Reflection, 3, Graphics::ShaderType_Vertex | Graphics::ShaderType_Pixel);
 
-					for (auto It = ReflectionProbes->Begin(); It != ReflectionProbes->End(); ++It)
+					for (auto It = SurfaceLights->Begin(); It != SurfaceLights->End(); ++It)
 					{
-						Engine::Components::ReflectionProbe* Light = (Engine::Components::ReflectionProbe*)*It;
-						if (!Light->GetProbeCache() || !System->PassCullable(Light, CullResult_Always, &D))
+						Engine::Components::SurfaceLight* Light = (Engine::Components::SurfaceLight*)*It;
+						if (!Light->GetProbeCache() || !System->PassCullable(Light, CullResult_Always, &Distance))
 							continue;
 
 						Compute::Vector3 Position(Light->GetEntity()->Transform->Position), Scale(Light->GetRange());
@@ -1557,16 +1557,16 @@ namespace Tomahawk
 							Backcull = !Backcull;
 						}
 
-						ReflectionProbe.Range = Scale.X;
-						ReflectionProbe.WorldViewProjection = Compute::Matrix4x4::CreateTranslatedScale(Position, Scale) * System->GetScene()->View.ViewProjection;
-						ReflectionProbe.Position = Light->GetEntity()->Transform->Position.InvertZ();
-						ReflectionProbe.Lighting = Light->Diffuse.Mul(Light->Emission * D);
-						ReflectionProbe.Scale = Light->GetEntity()->Transform->Scale;
-						ReflectionProbe.Parallax = (Light->Parallax ? 1.0f : 0.0f);
-						ReflectionProbe.Infinity = Light->Infinity;
+						SurfaceLight.Range = Scale.X;
+						SurfaceLight.WorldViewProjection = Compute::Matrix4x4::CreateTranslatedScale(Position, Scale) * System->GetScene()->View.ViewProjection;
+						SurfaceLight.Position = Light->GetEntity()->Transform->Position.InvertZ();
+						SurfaceLight.Lighting = Light->Diffuse.Mul(Light->Emission * Distance);
+						SurfaceLight.Scale = Light->GetEntity()->Transform->Scale;
+						SurfaceLight.Parallax = (Light->Parallax ? 1.0f : 0.0f);
+						SurfaceLight.Infinity = Light->Infinity;
 
 						Device->SetTextureCube(Light->GetProbeCache(), 5);
-						Device->UpdateBuffer(Shaders.Reflection, &ReflectionProbe);
+						Device->UpdateBuffer(Shaders.Reflection, &SurfaceLight);
 						Device->DrawIndexed((unsigned int)System->GetCubeIBuffer()->GetElements(), 0, 0);
 					}
 				}
@@ -1575,10 +1575,10 @@ namespace Tomahawk
 					Device->SetShader(Shaders.Reflection, Graphics::ShaderType_Vertex | Graphics::ShaderType_Pixel);
 					Device->SetBuffer(Shaders.Reflection, 3, Graphics::ShaderType_Vertex | Graphics::ShaderType_Pixel);
 
-					for (auto It = ReflectionProbes->Begin(); It != ReflectionProbes->End(); ++It)
+					for (auto It = SurfaceLights->Begin(); It != SurfaceLights->End(); ++It)
 					{
-						Engine::Components::ReflectionProbe* Light = (Engine::Components::ReflectionProbe*)*It;
-						if (Light->Locked || !Light->GetProbeCache() || !System->PassCullable(Light, CullResult_Always, &D))
+						Engine::Components::SurfaceLight* Light = (Engine::Components::SurfaceLight*)*It;
+						if (Light->Locked || !Light->GetProbeCache() || !System->PassCullable(Light, CullResult_Always, &Distance))
 							continue;
 
 						Compute::Vector3 Position(Light->GetEntity()->Transform->Position), Scale(Light->GetRange());
@@ -1590,27 +1590,30 @@ namespace Tomahawk
 							Backcull = !Backcull;
 						}
 
-						ReflectionProbe.Range = Scale.X;
-						ReflectionProbe.WorldViewProjection = Compute::Matrix4x4::CreateTranslatedScale(Position, Scale) * System->GetScene()->View.ViewProjection;
-						ReflectionProbe.Position = Light->GetEntity()->Transform->Position.InvertZ();
-						ReflectionProbe.Lighting = Light->Diffuse.Mul(Light->Emission * D);
-						ReflectionProbe.Scale = Light->GetEntity()->Transform->Scale;
-						ReflectionProbe.Parallax = (Light->Parallax ? 1.0f : 0.0f);
-						ReflectionProbe.Infinity = Light->Infinity;
+						SurfaceLight.Range = Scale.X;
+						SurfaceLight.WorldViewProjection = Compute::Matrix4x4::CreateTranslatedScale(Position, Scale) * System->GetScene()->View.ViewProjection;
+						SurfaceLight.Position = Light->GetEntity()->Transform->Position.InvertZ();
+						SurfaceLight.Lighting = Light->Diffuse.Mul(Light->Emission * Distance);
+						SurfaceLight.Scale = Light->GetEntity()->Transform->Scale;
+						SurfaceLight.Parallax = (Light->Parallax ? 1.0f : 0.0f);
+						SurfaceLight.Infinity = Light->Infinity;
 
 						Device->SetTextureCube(Light->GetProbeCache(), 5);
-						Device->UpdateBuffer(Shaders.Reflection, &ReflectionProbe);
+						Device->UpdateBuffer(Shaders.Reflection, &SurfaceLight);
 						Device->DrawIndexed((unsigned int)System->GetCubeIBuffer()->GetElements(), 0, 0);
 					}
 				}
-
+			}
+			void Lighting::RenderPointLights(Graphics::GraphicsDevice* Device, Compute::Vector3& Camera, float& Distance, bool& Backcull, const bool& Inner)
+			{
+				Graphics::Shader* Active = nullptr;
 				Device->SetShader(Shaders.Point[0], Graphics::ShaderType_Vertex);
 				Device->SetBuffer(Shaders.Point[0], 3, Graphics::ShaderType_Vertex | Graphics::ShaderType_Pixel);
 
 				for (auto It = PointLights->Begin(); It != PointLights->End(); ++It)
 				{
 					Engine::Components::PointLight* Light = (Engine::Components::PointLight*)*It;
-					if (!System->PassCullable(Light, CullResult_Always, &D))
+					if (!System->PassCullable(Light, CullResult_Always, &Distance))
 						continue;
 
 					Compute::Vector3 Position(Light->GetEntity()->Transform->Position), Scale(Light->GetRange());
@@ -1639,20 +1642,23 @@ namespace Tomahawk
 					PointLight.Range = Scale.X;
 					PointLight.WorldViewProjection = Compute::Matrix4x4::CreateTranslatedScale(Position, Scale) * System->GetScene()->View.ViewProjection;
 					PointLight.Position = Light->GetEntity()->Transform->Position.InvertZ();
-					PointLight.Lighting = Light->Diffuse.Mul(Light->Emission * D);
-					
+					PointLight.Lighting = Light->Diffuse.Mul(Light->Emission * Distance);
+
 					Device->SetShader(Active, Graphics::ShaderType_Pixel);
 					Device->UpdateBuffer(Shaders.Point[0], &PointLight);
 					Device->DrawIndexed((unsigned int)System->GetCubeIBuffer()->GetElements(), 0, 0);
 				}
-
+			}
+			void Lighting::RenderSpotLights(Graphics::GraphicsDevice* Device, Compute::Vector3& Camera, float& Distance, bool& Backcull, const bool& Inner)
+			{
+				Graphics::Shader* Active = nullptr;
 				Device->SetShader(Shaders.Spot[0], Graphics::ShaderType_Vertex);
 				Device->SetBuffer(Shaders.Spot[0], 3, Graphics::ShaderType_Vertex | Graphics::ShaderType_Pixel);
 
 				for (auto It = SpotLights->Begin(); It != SpotLights->End(); ++It)
 				{
 					Engine::Components::SpotLight* Light = (Engine::Components::SpotLight*)*It;
-					if (!System->PassCullable(Light, CullResult_Always, &D))
+					if (!System->PassCullable(Light, CullResult_Always, &Distance))
 						continue;
 
 					Compute::Vector3 Position(Light->GetEntity()->Transform->Position), Scale(Light->GetRange());
@@ -1682,14 +1688,17 @@ namespace Tomahawk
 					SpotLight.ViewProjection = Light->View * Light->Projection;
 					SpotLight.Direction = Light->GetEntity()->Transform->Rotation.DepthDirection();
 					SpotLight.Position = Light->GetEntity()->Transform->Position.InvertZ();
-					SpotLight.Lighting = Light->Diffuse.Mul(Light->Emission * D);
+					SpotLight.Lighting = Light->Diffuse.Mul(Light->Emission * Distance);
 					SpotLight.Cutoff = Compute::Mathf::Cos(Compute::Mathf::Deg2Rad() * Light->Cutoff * 0.5f);
 
 					Device->SetShader(Active, Graphics::ShaderType_Pixel);
 					Device->UpdateBuffer(Shaders.Spot[0], &SpotLight);
 					Device->DrawIndexed((unsigned int)System->GetCubeIBuffer()->GetElements(), 0, 0);
 				}
-
+			}
+			void Lighting::RenderLineLights(Graphics::GraphicsDevice* Device, bool& Backcull)
+			{
+				Graphics::Shader* Active = nullptr;
 				if (!Backcull)
 					Device->SetRasterizerState(BackRasterizer);
 
@@ -1735,7 +1744,9 @@ namespace Tomahawk
 					Device->UpdateBuffer(Shaders.Line[0], &LineLight);
 					Device->Draw(6, 0);
 				}
-
+			}
+			void Lighting::RenderAmbientLight(Graphics::GraphicsDevice* Device, Graphics::MultiRenderTarget2D* Surface, const bool& Inner)
+			{
 				Device->CopyTarget(Surface, 0, Inner ? Output2 : Output1, 0);
 				Device->Clear(Surface, 0, 0, 0, 0);
 				Device->SetTexture2D(Inner ? Output2->GetTarget(0) : Output1->GetTarget(0), 5);
@@ -1744,7 +1755,6 @@ namespace Tomahawk
 				Device->SetBuffer(Shaders.Ambient, 3, Graphics::ShaderType_Vertex | Graphics::ShaderType_Pixel);
 				Device->UpdateBuffer(Shaders.Ambient, &AmbientLight);
 				Device->Draw(6, 0);
-				Device->FlushTexture2D(1, 10);
 			}
 			void Lighting::SetSkyMap(Graphics::Texture2D* Cubemap)
 			{
@@ -1868,28 +1878,51 @@ namespace Tomahawk
 				Device->FlushTexture2D(1, 8);
 			}
 			
-			Lumina::Lumina(RenderSystem* Lab) : Renderer(Lab)
+			Lumina::Lumina(RenderSystem* Lab) : Renderer(Lab), Buffer(nullptr), Size(0)
 			{
+				DepthStencil = Lab->GetDevice()->GetDepthStencilState("none");
+				Rasterizer = Lab->GetDevice()->GetRasterizerState("cull-none");
+				Blend = Lab->GetDevice()->GetBlendState("overwrite-colorless");
 			}
 			Lumina::~Lumina()
 			{
 			}
 			void Lumina::ResizeBuffers()
 			{
+				if (Size == 0)
+					SetBufferSize(128);
 			}
 			void Lumina::Render(Rest::Timer* Time, RenderState State, RenderOpt Options)
 			{
-				if (Options & RenderOpt_Transparent)
+				if (Options & RenderOpt_Transparent || Options & RenderOpt_Inner)
 					return;
 
-				if (State == RenderState_Geometry_Lumina && Options & RenderOpt_Inner)
-				{
+				Graphics::GraphicsDevice* Device = System->GetDevice();
+				Graphics::MultiRenderTarget2D* Surface = System->GetScene()->GetSurface();
+				Device->ClearWritable(Buffer);
+				Device->SetTargetRect(Size, Size);
+				Device->SetDepthStencilState(DepthStencil);
+				Device->SetBlendState(Blend);
+				Device->SetRasterizerState(Rasterizer);
+				Device->SetWriteable(Buffer, 8);
+				System->GetScene()->Render(Time, RenderState_Geometry_Lumina, RenderOpt_Inner);
+				Device->SetWriteable((Graphics::Texture3D*)nullptr, 8);
+				Device->SetTarget(Surface);
+			}
+			void Lumina::SetBufferSize(unsigned int NewSize)
+			{
+				if (Size == NewSize)
+					return;
 
-				}
-				else if (State == RenderState_Geometry_Raw)
-				{
+				Graphics::Texture3D::Desc I;
+				I.Width = I.Height = I.Depth = Size = NewSize;
+				I.FormatMode = Graphics::Format_R8G8B8A8_Typeless;
+				I.StructureMode = Graphics::Format_R32_Uint;
+				I.Writable = true;
+				I.MipLevels = 7;
 
-				}
+				TH_RELEASE(Buffer);
+				Buffer = System->GetDevice()->CreateTexture3D(I);
 			}
 
 			SSR::SSR(RenderSystem* Lab) : EffectDraw(Lab), Pass1(nullptr), Pass2(nullptr)

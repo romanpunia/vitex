@@ -552,7 +552,7 @@ namespace Tomahawk
 				TH_COMPONENT("line-light");
 			};
 
-			class TH_OUT ReflectionProbe : public Cullable
+			class TH_OUT SurfaceLight : public Cullable
 			{
 			private:
 				Graphics::Texture2D* DiffuseMapX[2] = { nullptr };
@@ -575,8 +575,8 @@ namespace Tomahawk
 				bool StaticMask = false;
 
 			public:
-				ReflectionProbe(Entity* Ref);
-				virtual ~ReflectionProbe() override;
+				SurfaceLight(Entity* Ref);
+				virtual ~SurfaceLight() override;
 				virtual void Deserialize(ContentManager* Content, Rest::Document* Node) override;
 				virtual void Serialize(ContentManager* Content, Rest::Document* Node) override;
 				virtual float Cull(const Viewer& View) override;
@@ -595,7 +595,7 @@ namespace Tomahawk
 				Graphics::Texture2D* GetDiffuseMap();
 
 			public:
-				TH_COMPONENT("reflection-probe");
+				TH_COMPONENT("surface-light");
 			};
 
 			class TH_OUT Camera : public Component

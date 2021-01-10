@@ -1072,10 +1072,12 @@ namespace Tomahawk
 				ResourceUsage Usage = ResourceUsage_Default;
 				ResourceBind BindFlags = ResourceBind_Vertex_Buffer;
 				ResourceMisc MiscFlags = ResourceMisc_None;
+				Format StructureMode = Format_Unknown;
 				unsigned int StructureByteStride = 0;
 				unsigned int ElementWidth = 0;
 				unsigned int ElementCount = 0;
 				void* Elements = nullptr;
+				bool Writable = false;
 			};
 
 		protected:
@@ -1189,12 +1191,14 @@ namespace Tomahawk
 				ResourceUsage Usage = ResourceUsage_Default;
 				ResourceBind BindFlags = ResourceBind_Shader_Input;
 				ResourceMisc MiscFlags = ResourceMisc_None;
+				Format StructureMode = Format_Unknown;
 				void* Data = nullptr;
 				unsigned int RowPitch = 0;
 				unsigned int DepthPitch = 0;
 				unsigned int Width = 512;
 				unsigned int Height = 512;
 				int MipLevels = 1;
+				bool Writable = false;
 			};
 
 		protected:
@@ -1229,10 +1233,12 @@ namespace Tomahawk
 				ResourceUsage Usage = ResourceUsage_Default;
 				ResourceBind BindFlags = ResourceBind_Shader_Input;
 				ResourceMisc MiscFlags = ResourceMisc_None;
+				Format StructureMode = Format_Unknown;
 				unsigned int Width = 512;
 				unsigned int Height = 512;
 				unsigned int Depth = 1;
 				int MipLevels = 1;
+				bool Writable = false;
 			};
 
 		protected:
@@ -1268,9 +1274,11 @@ namespace Tomahawk
 				ResourceUsage Usage = ResourceUsage_Default;
 				ResourceBind BindFlags = ResourceBind_Shader_Input;
 				ResourceMisc MiscFlags = ResourceMisc_Texture_Cube;
+				Format StructureMode = Format_Unknown;
 				unsigned int Width = 128;
 				unsigned int Height = 128;
 				int MipLevels = 1;
+				bool Writable = false;
 			};
 
 		protected:
@@ -1601,6 +1609,10 @@ namespace Tomahawk
 			virtual void SetTexture2D(Texture2D* Resource, unsigned int Slot) = 0;
 			virtual void SetTexture3D(Texture3D* Resource, unsigned int Slot) = 0;
 			virtual void SetTextureCube(TextureCube* Resource, unsigned int Slot) = 0;
+			virtual void SetWriteable(ElementBuffer* Resource, unsigned int Slot) = 0;
+			virtual void SetWriteable(Texture2D* Resource, unsigned int Slot) = 0;
+			virtual void SetWriteable(Texture3D* Resource, unsigned int Slot) = 0;
+			virtual void SetWriteable(TextureCube* Resource, unsigned int Slot) = 0;
 			virtual void SetTarget(float R, float G, float B) = 0;
 			virtual void SetTarget() = 0;
 			virtual void SetTarget(DepthBuffer* Resource) = 0;
@@ -1609,6 +1621,7 @@ namespace Tomahawk
 			virtual void SetTarget(Graphics::RenderTarget* Resource, float R, float G, float B) = 0;
 			virtual void SetTarget(Graphics::RenderTarget* Resource) = 0;;
 			virtual void SetTargetMap(Graphics::RenderTarget* Resource, bool Enabled[8]) = 0;
+			virtual void SetTargetRect(unsigned int Width, unsigned int Height) = 0;
 			virtual void SetViewports(unsigned int Count, Viewport* Viewports) = 0;
 			virtual void SetScissorRects(unsigned int Count, Compute::Rectangle* Value) = 0;
 			virtual void SetPrimitiveTopology(PrimitiveTopology Topology) = 0;
@@ -1627,6 +1640,12 @@ namespace Tomahawk
 			virtual bool UpdateBufferSize(Shader* Resource, size_t Size) = 0;
 			virtual bool UpdateBufferSize(InstanceBuffer* Resource, uint64_t Size) = 0;
 			virtual void ClearBuffer(InstanceBuffer* Resource) = 0;
+			virtual void ClearWritable(Texture2D* Resource) = 0;
+			virtual void ClearWritable(Texture2D* Resource, float R, float G, float B) = 0;
+			virtual void ClearWritable(Texture3D* Resource) = 0;
+			virtual void ClearWritable(Texture3D* Resource, float R, float G, float B) = 0;
+			virtual void ClearWritable(TextureCube* Resource) = 0;
+			virtual void ClearWritable(TextureCube* Resource, float R, float G, float B) = 0;
 			virtual void Clear(float R, float G, float B) = 0;
 			virtual void Clear(Graphics::RenderTarget* Resource, unsigned int Target, float R, float G, float B) = 0;
 			virtual void ClearDepth() = 0;

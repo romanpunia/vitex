@@ -2756,11 +2756,11 @@ namespace Tomahawk
 				}
 			}
 
-			ReflectionProbe::ReflectionProbe(Entity* Ref) : Cullable(Ref)
+			SurfaceLight::SurfaceLight(Entity* Ref) : Cullable(Ref)
 			{
 				Projection = Compute::Matrix4x4::CreatePerspectiveRad(1.57079632679f, 1, 0.01f, 100.0f);
 			}
-			ReflectionProbe::~ReflectionProbe()
+			SurfaceLight::~SurfaceLight()
 			{
 				TH_RELEASE(DiffuseMapX[0]);
 				TH_RELEASE(DiffuseMapX[1]);
@@ -2771,7 +2771,7 @@ namespace Tomahawk
 				TH_RELEASE(DiffuseMap);
 				TH_RELEASE(Probe);
 			}
-			void ReflectionProbe::Deserialize(ContentManager* Content, Rest::Document* Node)
+			void SurfaceLight::Deserialize(ContentManager* Content, Rest::Document* Node)
 			{
 				std::string Path;
 				if (!NMake::Unpack(Node->Find("diffuse-map"), &Path))
@@ -2780,42 +2780,49 @@ namespace Tomahawk
 					{
 						TH_RELEASE(DiffuseMapX[0]);
 						DiffuseMapX[0] = Content->Load<Graphics::Texture2D>(Path);
+						DiffuseMapX[0]->AddRef();
 					}
 
 					if (NMake::Unpack(Node->Find("diffuse-map-nx"), &Path))
 					{
 						TH_RELEASE(DiffuseMapX[1]);
 						DiffuseMapX[1] = Content->Load<Graphics::Texture2D>(Path);
+						DiffuseMapX[1]->AddRef();
 					}
 
 					if (NMake::Unpack(Node->Find("diffuse-map-py"), &Path))
 					{
 						TH_RELEASE(DiffuseMapY[0]);
 						DiffuseMapY[0] = Content->Load<Graphics::Texture2D>(Path);
+						DiffuseMapY[0]->AddRef();
 					}
 
 					if (NMake::Unpack(Node->Find("diffuse-map-ny"), &Path))
 					{
 						TH_RELEASE(DiffuseMapY[1]);
 						DiffuseMapY[1] = Content->Load<Graphics::Texture2D>(Path);
+						DiffuseMapY[1]->AddRef();
 					}
 
 					if (NMake::Unpack(Node->Find("diffuse-map-pz"), &Path))
 					{
 						TH_RELEASE(DiffuseMapZ[0]);
 						DiffuseMapZ[0] = Content->Load<Graphics::Texture2D>(Path);
+						DiffuseMapZ[0]->AddRef();
 					}
 
 					if (NMake::Unpack(Node->Find("diffuse-map-nz"), &Path))
 					{
 						TH_RELEASE(DiffuseMapZ[1]);
 						DiffuseMapZ[1] = Content->Load<Graphics::Texture2D>(Path);
+						DiffuseMapZ[1]->AddRef();
 					}
 				}
 				else
 				{
 					TH_RELEASE(DiffuseMap);
 					DiffuseMap = Content->Load<Graphics::Texture2D>(Path);
+					DiffuseMap->AddRef();
 				}
 
 				std::vector<Compute::Matrix4x4> Views;
@@ -2838,7 +2845,7 @@ namespace Tomahawk
 				else
 					SetDiffuseMap(DiffuseMap);
 			}
-			void ReflectionProbe::Serialize(ContentManager* Content, Rest::Document* Node)
+			void SurfaceLight::Serialize(ContentManager* Content, Rest::Document* Node)
 			{
 				AssetCache* Asset = nullptr;
 				if (!DiffuseMap)
@@ -2888,7 +2895,7 @@ namespace Tomahawk
 				NMake::Pack(Node->SetDocument("parallax"), Parallax);
 				NMake::Pack(Node->SetDocument("static-mask"), StaticMask);
 			}
-			float ReflectionProbe::Cull(const Viewer& View)
+			float SurfaceLight::Cull(const Viewer& View)
 			{
 				float Result = 1.0f;
 				if (Infinity <= 0.0f)
@@ -2900,9 +2907,9 @@ namespace Tomahawk
 
 				return Result;
 			}
-			Component* ReflectionProbe::Copy(Entity* New)
+			Component* SurfaceLight::Copy(Entity* New)
 			{
-				ReflectionProbe* Target = new ReflectionProbe(New);
+				SurfaceLight* Target = new SurfaceLight(New);
 				Target->Projection = Projection;
 				Target->Diffuse = Diffuse;
 				Target->Visibility = Visibility;
@@ -2918,11 +2925,11 @@ namespace Tomahawk
 
 				return Target;
 			}
-			void ReflectionProbe::SetProbeCache(Graphics::TextureCube* NewCache)
+			void SurfaceLight::SetProbeCache(Graphics::TextureCube* NewCache)
 			{
 				Probe = NewCache;
 			}
-			bool ReflectionProbe::SetDiffuseMap(Graphics::Texture2D* Map)
+			bool SurfaceLight::SetDiffuseMap(Graphics::Texture2D* Map)
 			{
 				if (!Map)
 				{
@@ -2944,12 +2951,13 @@ namespace Tomahawk
 				TH_CLEAR(DiffuseMapZ[1]);
 				TH_RELEASE(DiffuseMap);
 				DiffuseMap = Map;
+				Map->AddRef();
 
 				TH_RELEASE(Probe);
 				Probe = Parent->GetScene()->GetDevice()->CreateTextureCube(DiffuseMap);
 				return Probe != nullptr;
 			}
-			bool ReflectionProbe::SetDiffuseMap(Graphics::Texture2D* MapX[2], Graphics::Texture2D* MapY[2], Graphics::Texture2D* MapZ[2])
+			bool SurfaceLight::SetDiffuseMap(Graphics::Texture2D* MapX[2], Graphics::Texture2D* MapY[2], Graphics::Texture2D* MapZ[2])
 			{
 				if (!MapX[0] || !MapX[1] || !MapY[0] || !MapY[1] || !MapZ[0] || !MapZ[1])
 				{
@@ -2972,50 +2980,50 @@ namespace Tomahawk
 				TH_CLEAR(DiffuseMap);
 
 				Graphics::Texture2D* Resources[6];
-				Resources[0] = DiffuseMapX[0] = MapX[0];
-				Resources[1] = DiffuseMapX[1] = MapX[1];
-				Resources[2] = DiffuseMapY[0] = MapY[0];
-				Resources[3] = DiffuseMapY[1] = MapY[1];
-				Resources[4] = DiffuseMapZ[0] = MapZ[0];
-				Resources[5] = DiffuseMapZ[1] = MapZ[1];
+				Resources[0] = DiffuseMapX[0] = MapX[0]; MapX[0]->AddRef();
+				Resources[1] = DiffuseMapX[1] = MapX[1]; MapX[1]->AddRef();
+				Resources[2] = DiffuseMapY[0] = MapY[0]; MapY[0]->AddRef();
+				Resources[3] = DiffuseMapY[1] = MapY[1]; MapY[1]->AddRef();
+				Resources[4] = DiffuseMapZ[0] = MapZ[0]; MapZ[0]->AddRef();
+				Resources[5] = DiffuseMapZ[1] = MapZ[1]; MapZ[1]->AddRef();
 
 				TH_RELEASE(Probe);
 				Probe = Parent->GetScene()->GetDevice()->CreateTextureCube(Resources);
 				return Probe != nullptr;
 			}
-			bool ReflectionProbe::IsImageBased() const
+			bool SurfaceLight::IsImageBased() const
 			{
 				return DiffuseMapX[0] != nullptr || DiffuseMap != nullptr;
 			}
-			Graphics::TextureCube* ReflectionProbe::GetProbeCache() const
+			Graphics::TextureCube* SurfaceLight::GetProbeCache() const
 			{
 				return Probe;
 			}
-			Graphics::Texture2D* ReflectionProbe::GetDiffuseMapXP()
+			Graphics::Texture2D* SurfaceLight::GetDiffuseMapXP()
 			{
 				return DiffuseMapX[0];
 			}
-			Graphics::Texture2D* ReflectionProbe::GetDiffuseMapXN()
+			Graphics::Texture2D* SurfaceLight::GetDiffuseMapXN()
 			{
 				return DiffuseMapX[1];
 			}
-			Graphics::Texture2D* ReflectionProbe::GetDiffuseMapYP()
+			Graphics::Texture2D* SurfaceLight::GetDiffuseMapYP()
 			{
 				return DiffuseMapY[0];
 			}
-			Graphics::Texture2D* ReflectionProbe::GetDiffuseMapYN()
+			Graphics::Texture2D* SurfaceLight::GetDiffuseMapYN()
 			{
 				return DiffuseMapY[1];
 			}
-			Graphics::Texture2D* ReflectionProbe::GetDiffuseMapZP()
+			Graphics::Texture2D* SurfaceLight::GetDiffuseMapZP()
 			{
 				return DiffuseMapZ[0];
 			}
-			Graphics::Texture2D* ReflectionProbe::GetDiffuseMapZN()
+			Graphics::Texture2D* SurfaceLight::GetDiffuseMapZN()
 			{
 				return DiffuseMapZ[1];
 			}
-			Graphics::Texture2D* ReflectionProbe::GetDiffuseMap()
+			Graphics::Texture2D* SurfaceLight::GetDiffuseMap()
 			{
 				return DiffuseMap;
 			}

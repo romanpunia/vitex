@@ -460,17 +460,24 @@ namespace Tomahawk
 			class TH_OUT Lumina : public Renderer
 			{
 			private:
+				Graphics::Texture3D* DiffuseBuffer = nullptr;
+				Graphics::Texture3D* NormalBuffer = nullptr;
+				Graphics::Texture3D* SurfaceBuffer = nullptr;
 				Graphics::DepthStencilState* DepthStencil = nullptr;
 				Graphics::RasterizerState* Rasterizer = nullptr;
 				Graphics::BlendState* Blend = nullptr;
-				Graphics::Texture3D* Buffer;
 				unsigned int Size;
 
 			public:
 				struct RenderConstant
 				{
-
+					Compute::Vector4 GridCenter;
+					Compute::Vector4 GridSize;
+					Compute::Vector4 GridScale;
 				} RenderPass;
+
+			public:
+				float Distance;
 
 			public:
 				Lumina(RenderSystem* Lab);
@@ -478,6 +485,12 @@ namespace Tomahawk
 				void ResizeBuffers() override;
 				void Render(Rest::Timer* Time, RenderState State, RenderOpt Options) override;
 				void SetBufferSize(unsigned int Size);
+				
+			private:
+				void RenderVoxels(Rest::Timer* Time, Graphics::GraphicsDevice* Device, Graphics::MultiRenderTarget2D* Surface);
+
+			public:
+				static void SetLuminaBuffer(RenderSystem* System, Graphics::Shader* Src, unsigned int Slot);
 
 			public:
 				TH_COMPONENT("lumina-renderer");

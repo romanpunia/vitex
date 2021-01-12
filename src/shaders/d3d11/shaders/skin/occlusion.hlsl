@@ -13,10 +13,10 @@ VOutput VS(VInput V)
 			mul(Offsets[(int)V.Index.z], V.Bias.z) +
 			mul(Offsets[(int)V.Index.w], V.Bias.w);
 
-		Result.Position = mul(mul(V.Position, Offset), WorldViewProjection);
+		Result.Position = mul(mul(float4(V.Position, 1.0), Offset), WorldViewProjection);
     }
 	else
-		Result.Position = mul(V.Position, WorldViewProjection);
+		Result.Position = mul(float4(V.Position, 1.0), WorldViewProjection);
 
 	return Result;
 }

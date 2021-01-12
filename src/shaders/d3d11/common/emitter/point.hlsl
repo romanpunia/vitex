@@ -1,6 +1,5 @@
 #include "sdk/layouts/element"
 #include "sdk/channels/stream"
-#include "sdk/channels/gflux"
 #include "sdk/buffers/object"
 #include "sdk/buffers/viewer"
 

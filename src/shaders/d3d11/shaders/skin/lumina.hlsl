@@ -9,7 +9,7 @@ VOutput VS(VInput V)
 	VOutput Result = (VOutput)0;
 	Result.TexCoord = V.TexCoord * TexCoord;
 
-    float4 Position = V.Position;
+    float4 Position = float4(V.Position, 1.0);
 	[branch] if (HasAnimation > 0)
 	{
 		matrix Offset =
@@ -18,7 +18,7 @@ VOutput VS(VInput V)
 			mul(Offsets[(int)V.Index.z], V.Bias.z) +
 			mul(Offsets[(int)V.Index.w], V.Bias.w);
 
-        Position = mul(V.Position, Offset);
+        Position = mul(float4(V.Position, 1.0), Offset);
 		Result.Position = Result.UV = mul(Position, WorldViewProjection);
 		Result.Normal = normalize(mul(mul(float4(V.Normal, 0), Offset).xyz, (float3x3)World));
 		Result.Tangent = normalize(mul(mul(float4(V.Tangent, 0), Offset).xyz, (float3x3)World));

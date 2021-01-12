@@ -1,44 +1,40 @@
 #include "sdk/layouts/vertex"
-#include "sdk/channels/gbuffer"
+#include "sdk/channels/lumina"
 #include "sdk/buffers/object"
-#include "sdk/buffers/viewer"
 
 VOutput VS(VInput V)
 {
 	VOutput Result = (VOutput)0;
-	Result.Position = Result.UV = mul(V.Position, WorldViewProjection);
+    Result.Position = Result.UV = GetVoxel(mul(float4(V.Position, 1.0), World));
 	Result.Normal = normalize(mul(V.Normal, (float3x3)World));
 	Result.Tangent = normalize(mul(V.Tangent, (float3x3)World));
 	Result.Bitangent = normalize(mul(V.Bitangent, (float3x3)World));
 	Result.TexCoord = V.TexCoord * TexCoord;
 
-    [branch] if (HasHeight > 0)
-    {
-        float3x3 TangentSpace;
-        TangentSpace[0] = Result.Tangent;
-        TangentSpace[1] = Result.Bitangent;
-        TangentSpace[2] = Result.Normal;
-        TangentSpace = transpose(TangentSpace);
-
-        Result.Direction = mul(normalize(ViewPosition - mul(V.Position, World).xyz), TangentSpace) / float3(TexCoord, 1.0);
-    }
-
 	return Result;
 }
 
-GBuffer PS(VOutput V)
+[maxvertexcount(3)]
+void GS(triangle VOutput V[3], inout TriangleStream<VOutput> Stream)
 {
-    float2 TexCoord = V.TexCoord;
-    [branch] if (HasHeight > 0)
-        TexCoord = GetParallax(TexCoord, V.Direction, HeightAmount, HeightBias);
-    
+	uint Dominant = GetDominant(V[0].Normal, V[1].Normal, V[2].Normal);
+	[unroll] for (uint i = 0; i < 3; ++i)
+	{
+		VOutput Result = V[i];
+        Result.Position = GetVoxelSpace(Result.Position, Dominant);
+		Stream.Append(Result);
+	}
+}
+
+Lumina PS(VOutput V)
+{
 	float4 Color = float4(Diffuse, 1.0);
 	[branch] if (HasDiffuse > 0)
-		Color *= GetDiffuse(TexCoord);
+		Color *= GetDiffuse(V.TexCoord);
 
 	float3 Normal = V.Normal;
 	[branch] if (HasNormal > 0)
-        Normal = GetNormal(TexCoord, V.Normal, V.Tangent, V.Bitangent);
+        Normal = GetNormal(V.TexCoord, V.Normal, V.Tangent, V.Bitangent);
     
-    return Compose(TexCoord, Color, Normal, V.UV.z / V.UV.w, MaterialId);
+    return Compose(V.TexCoord, Color, Normal, V.UV.xyz, MaterialId);
 };

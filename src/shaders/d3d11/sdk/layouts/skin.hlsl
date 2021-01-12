@@ -1,6 +1,6 @@
 struct VInput
 {
-    float4 Position : POSITION;
+    float3 Position : POSITION;
     float2 TexCoord : TEXCOORD0;
     float3 Normal : NORMAL0;
     float3 Tangent : TANGENT0;
@@ -35,4 +35,12 @@ struct VOutputLinear
 	float2 TexCoord : TEXCOORD0;
     float3 Normal : NORMAL0;
 	float4 UV : TEXCOORD1;
+};
+
+struct VOutputLumina
+{
+    float4 Position : SV_POSITION;
+    float2 TexCoord : TEXCOORD0;
+    float3 Normal : NORMAL0;
+    float4 UV : TEXCOORD1;
 };

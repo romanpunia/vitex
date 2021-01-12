@@ -30,7 +30,7 @@ float3 GetFactor(float2 TexCoord, float3 Position, float3 Normal, float Power, f
 VOutput VS(VInput V)
 {
 	VOutput Result = (VOutput)0;
-	Result.Position = V.Position;
+	Result.Position = float4(V.Position, 1.0);
 	Result.TexCoord = Result.Position;
 
 	return Result;

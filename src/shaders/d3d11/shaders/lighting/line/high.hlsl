@@ -81,7 +81,7 @@ float GetCascade(float3 Position, uniform uint Index)
 VOutput VS(VInput V)
 {
 	VOutput Result = (VOutput)0;
-	Result.Position = V.Position;
+	Result.Position = float4(V.Position, 1.0);
 	Result.TexCoord = Result.Position;
 
 	return Result;

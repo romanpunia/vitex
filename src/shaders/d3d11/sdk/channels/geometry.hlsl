@@ -1,4 +1,5 @@
 #include "sdk/objects/material"
+#include "sdk/buffers/viewer"
 #pragma warning(disable: 4000)
 
 StructuredBuffer<Material> Materials : register(t0);
@@ -36,6 +37,16 @@ float2 GetParallax(float2 TexCoord, float3 Direction, float Amount, float Bias)
     float Weight = Depth1 / (Depth1 - Depth2);
     
     return Origin * Weight + Result * (1.0 - Weight);
+}
+float3 GetDirection(float3 Tangent, float3 Bitangent, float3 Normal, float4 Position, float2 Scale)
+{
+    float3x3 TangentSpace;
+    TangentSpace[0] = Tangent;
+    TangentSpace[1] = Bitangent;
+    TangentSpace[2] = Normal;
+    TangentSpace = transpose(TangentSpace);
+
+    return mul(normalize(ViewPosition - Position.xyz), TangentSpace) / float3(Scale, 1.0);
 }
 float3 GetNormal(float2 TexCoord, float3 Normal, float3 Tangent, float3 Bitangent)
 {

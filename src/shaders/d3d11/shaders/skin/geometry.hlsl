@@ -9,7 +9,7 @@ VOutput VS(VInput V)
 	VOutput Result = (VOutput)0;
 	Result.TexCoord = V.TexCoord * TexCoord;
 
-    float4 Position = V.Position;
+    float4 Position = float4(V.Position, 1.0);
 	[branch] if (HasAnimation > 0)
 	{
 		matrix Offset =
@@ -18,7 +18,7 @@ VOutput VS(VInput V)
 			mul(Offsets[(int)V.Index.z], V.Bias.z) +
 			mul(Offsets[(int)V.Index.w], V.Bias.w);
 
-        Position = mul(V.Position, Offset);
+        Position = mul(float4(V.Position, 1.0), Offset);
 		Result.Position = Result.UV = mul(Position, WorldViewProjection);
 		Result.Normal = normalize(mul(mul(float4(V.Normal, 0), Offset).xyz, (float3x3)World));
 		Result.Tangent = normalize(mul(mul(float4(V.Tangent, 0), Offset).xyz, (float3x3)World));
@@ -33,15 +33,7 @@ VOutput VS(VInput V)
 	}
 
     [branch] if (HasHeight > 0)
-    {
-        float3x3 TangentSpace;
-        TangentSpace[0] = Result.Tangent;
-        TangentSpace[1] = Result.Bitangent;
-        TangentSpace[2] = Result.Normal;
-        TangentSpace = transpose(TangentSpace);
-
-        Result.Direction = mul(normalize(ViewPosition - mul(Position, World).xyz), TangentSpace) / float3(TexCoord, 1.0);
-    }
+        Result.Direction = GetDirection(Result.Tangent, Result.Bitangent, Result.Normal, mul(Position, World), TexCoord);
 
 	return Result;
 }

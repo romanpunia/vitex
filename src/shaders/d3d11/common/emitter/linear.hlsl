@@ -1,6 +1,5 @@
 #include "sdk/layouts/element"
 #include "sdk/channels/stream"
-#include "sdk/channels/gflux"
 #include "sdk/buffers/object"
 
 VOutputLinear Make(VOutputLinear V, float2 Offset, float2 TexCoord2)

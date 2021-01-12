@@ -9,12 +9,12 @@ cbuffer RenderConstant : register(b3)
 	matrix DecalViewProjection;
 };
 
-Texture2D LChannel2 : register(t8);
+Texture2D LDepthBuffer : register(t8);
 
 VOutput VS(VInput V)
 {
 	VOutput Result = (VOutput)0;
-	Result.Position = mul(V.Position, WorldViewProjection);
+	Result.Position = mul(float4(V.Position, 1.0), WorldViewProjection);
 	Result.TexCoord = Result.Position;
 
 	return Result;
@@ -23,7 +23,7 @@ VOutput VS(VInput V)
 float4 PS(VOutput V) : SV_TARGET0
 {
     float2 TexCoord = float2(0.5 + 0.5 * V.TexCoord.x / V.TexCoord.w, 0.5 - 0.5 * V.TexCoord.y / V.TexCoord.w);
-    float4 Position = mul(float4(TexCoord.x * 2.0 - 1.0, 1.0 - TexCoord.y * 2.0, GetSampleLevel(LChannel2, TexCoord, 0).x, 1.0), InvViewProjection);
+    float4 Position = mul(float4(TexCoord.x * 2.0 - 1.0, 1.0 - TexCoord.y * 2.0, GetSampleLevel(LDepthBuffer, TexCoord, 0).x, 1.0), InvViewProjection);
 	float4 Projected = mul(Position / Position.w, DecalViewProjection);
 
 	TexCoord = float2(Projected.x / Projected.w / 2.0 + 0.5, 1 - (Projected.y / Projected.w / 2.0 + 0.5));

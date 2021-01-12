@@ -36,7 +36,7 @@ void Blur(inout float3 Linear, inout float3 Gamma, float2 UV, float2 Amount, flo
 VOutput VS(VInput V)
 {
 	VOutput Result = (VOutput)0;
-	Result.Position = V.Position;
+	Result.Position = float4(V.Position, 1.0);
 	Result.TexCoord = Result.Position;
 
 	return Result;

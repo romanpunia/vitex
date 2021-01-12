@@ -1,14 +1,7 @@
 struct GBuffer
 {
-    float4 Channel0 : SV_TARGET0;
-    float4 Channel1 : SV_TARGET1;
-    float Channel2 : SV_TARGET2;
-    float4 Channel3 : SV_TARGET3;
-};
-
-struct GDepthless
-{
-    float4 Channel0 : SV_TARGET0;
-    float4 Channel1 : SV_TARGET1;
-    float4 Channel3 : SV_TARGET3;
+    float4 DiffuseBuffer : SV_TARGET0;
+    float4 NormalBuffer : SV_TARGET1;
+    float DepthBuffer : SV_TARGET2;
+    float4 SurfaceBuffer : SV_TARGET3;
 };

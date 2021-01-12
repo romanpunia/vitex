@@ -1072,7 +1072,6 @@ namespace Tomahawk
 				ResourceUsage Usage = ResourceUsage_Default;
 				ResourceBind BindFlags = ResourceBind_Vertex_Buffer;
 				ResourceMisc MiscFlags = ResourceMisc_None;
-				Format StructureMode = Format_Unknown;
 				unsigned int StructureByteStride = 0;
 				unsigned int ElementWidth = 0;
 				unsigned int ElementCount = 0;
@@ -1191,7 +1190,6 @@ namespace Tomahawk
 				ResourceUsage Usage = ResourceUsage_Default;
 				ResourceBind BindFlags = ResourceBind_Shader_Input;
 				ResourceMisc MiscFlags = ResourceMisc_None;
-				Format StructureMode = Format_Unknown;
 				void* Data = nullptr;
 				unsigned int RowPitch = 0;
 				unsigned int DepthPitch = 0;
@@ -1233,7 +1231,6 @@ namespace Tomahawk
 				ResourceUsage Usage = ResourceUsage_Default;
 				ResourceBind BindFlags = ResourceBind_Shader_Input;
 				ResourceMisc MiscFlags = ResourceMisc_None;
-				Format StructureMode = Format_Unknown;
 				unsigned int Width = 512;
 				unsigned int Height = 512;
 				unsigned int Depth = 1;
@@ -1274,7 +1271,6 @@ namespace Tomahawk
 				ResourceUsage Usage = ResourceUsage_Default;
 				ResourceBind BindFlags = ResourceBind_Shader_Input;
 				ResourceMisc MiscFlags = ResourceMisc_Texture_Cube;
-				Format StructureMode = Format_Unknown;
 				unsigned int Width = 128;
 				unsigned int Height = 128;
 				int MipLevels = 1;

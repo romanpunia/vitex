@@ -169,6 +169,7 @@ namespace Tomahawk
 			Appearance(const Appearance& Other);
 			~Appearance();
 			bool FillGeometry(Graphics::GraphicsDevice* Device) const;
+			bool FillLumina(Graphics::GraphicsDevice* Device) const;
 			bool FillDepthLinear(Graphics::GraphicsDevice* Device) const;
 			bool FillDepthCubic(Graphics::GraphicsDevice* Device) const;
 			void SetDiffuseMap(Graphics::Texture2D* New);

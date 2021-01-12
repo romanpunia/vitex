@@ -6,22 +6,14 @@
 VOutput VS(VInput V)
 {
 	VOutput Result = (VOutput)0;
-	Result.Position = Result.UV = mul(V.Position, WorldViewProjection);
+	Result.Position = Result.UV = mul(float4(V.Position, 1.0), WorldViewProjection);
 	Result.Normal = normalize(mul(V.Normal, (float3x3)World));
 	Result.Tangent = normalize(mul(V.Tangent, (float3x3)World));
 	Result.Bitangent = normalize(mul(V.Bitangent, (float3x3)World));
 	Result.TexCoord = V.TexCoord * TexCoord;
 
     [branch] if (HasHeight > 0)
-    {
-        float3x3 TangentSpace;
-        TangentSpace[0] = Result.Tangent;
-        TangentSpace[1] = Result.Bitangent;
-        TangentSpace[2] = Result.Normal;
-        TangentSpace = transpose(TangentSpace);
-
-        Result.Direction = mul(normalize(ViewPosition - mul(V.Position, World).xyz), TangentSpace) / float3(TexCoord, 1.0);
-    }
+        Result.Direction = GetDirection(Result.Tangent, Result.Bitangent, Result.Normal, mul(float4(V.Position, 1.0), World), TexCoord);
 
 	return Result;
 }

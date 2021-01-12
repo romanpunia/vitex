@@ -846,7 +846,7 @@ namespace Tomahawk
 				if (!Width || !Height)
 					return;
 
-				D3D11_VIEWPORT Viewport = { 0, 0, Width, Height, 0, 1 };
+				D3D11_VIEWPORT Viewport = { 0, 0, (FLOAT)Width, (FLOAT)Height, 0, 1 };
 				ImmediateContext->RSSetViewports(1, &Viewport);
 				ImmediateContext->OMSetRenderTargets(0, nullptr, nullptr);
 			}
@@ -2047,7 +2047,7 @@ namespace Tomahawk
 				{
 					D3D11_UNORDERED_ACCESS_VIEW_DESC AccessDesc;
 					ZeroMemory(&AccessDesc, sizeof(AccessDesc));
-					AccessDesc.Format = (DXGI_FORMAT)I.StructureMode;
+					AccessDesc.Format = DXGI_FORMAT_R32_FLOAT;
 					AccessDesc.ViewDimension = D3D11_UAV_DIMENSION_BUFFER;
 					AccessDesc.Buffer.Flags = 0;
 					AccessDesc.Buffer.FirstElement = 0;
@@ -2211,7 +2211,7 @@ namespace Tomahawk
 
 				D3D11_UNORDERED_ACCESS_VIEW_DESC AccessDesc;
 				ZeroMemory(&AccessDesc, sizeof(AccessDesc));
-				AccessDesc.Format = (DXGI_FORMAT)I.StructureMode;
+				AccessDesc.Format = (DXGI_FORMAT)I.FormatMode;
 				AccessDesc.ViewDimension = D3D11_UAV_DIMENSION_TEXTURE2D;
 				AccessDesc.Texture2D.MipSlice = 0;
 
@@ -2262,7 +2262,7 @@ namespace Tomahawk
 
 				D3D11_UNORDERED_ACCESS_VIEW_DESC AccessDesc;
 				ZeroMemory(&AccessDesc, sizeof(AccessDesc));
-				AccessDesc.Format = (DXGI_FORMAT)I.StructureMode;
+				AccessDesc.Format = (DXGI_FORMAT)I.FormatMode;
 				AccessDesc.ViewDimension = D3D11_UAV_DIMENSION_TEXTURE3D;
 				AccessDesc.Texture3D.MipSlice = 0;
 				AccessDesc.Texture3D.FirstWSlice = 0;
@@ -2325,7 +2325,7 @@ namespace Tomahawk
 
 				D3D11_UNORDERED_ACCESS_VIEW_DESC AccessDesc;
 				ZeroMemory(&AccessDesc, sizeof(AccessDesc));
-				AccessDesc.Format = (DXGI_FORMAT)I.StructureMode;
+				AccessDesc.Format = (DXGI_FORMAT)I.FormatMode;
 				AccessDesc.ViewDimension = D3D11_UAV_DIMENSION_TEXTURE2DARRAY;
 				AccessDesc.Texture2DArray.MipSlice = 0;
 				AccessDesc.Texture2DArray.FirstArraySlice = 0;
@@ -2765,7 +2765,7 @@ namespace Tomahawk
 				DepthBuffer.Width = I.Size;
 				DepthBuffer.Height = I.Size;
 				DepthBuffer.MipLevels = 1;
-				DepthBuffer.ArraySize = 1;
+				DepthBuffer.ArraySize = 6;
 				DepthBuffer.Format = DXGI_FORMAT_R24G8_TYPELESS;
 				DepthBuffer.SampleDesc.Count = 1;
 				DepthBuffer.SampleDesc.Quality = 0;
@@ -2784,8 +2784,10 @@ namespace Tomahawk
 				D3D11_DEPTH_STENCIL_VIEW_DESC DSV;
 				ZeroMemory(&DSV, sizeof(DSV));
 				DSV.Format = DXGI_FORMAT_D24_UNORM_S8_UINT;
-				DSV.ViewDimension = D3D11_DSV_DIMENSION_TEXTURE2D;
-				DSV.Texture2D.MipSlice = 0;
+				DSV.ViewDimension = D3D11_DSV_DIMENSION_TEXTURE2DARRAY;
+				DSV.Texture2DArray.FirstArraySlice = 0;
+				DSV.Texture2DArray.ArraySize = 6;
+				DSV.Texture2DArray.MipSlice = 0;
 
 				if (D3DDevice->CreateDepthStencilView(DepthTexture, &DSV, &Result->DepthStencilView) != S_OK)
 				{
@@ -2865,7 +2867,7 @@ namespace Tomahawk
 				DepthBuffer.Width = I.Size;
 				DepthBuffer.Height = I.Size;
 				DepthBuffer.MipLevels = 1;
-				DepthBuffer.ArraySize = 1;
+				DepthBuffer.ArraySize = 6;
 				DepthBuffer.Format = DXGI_FORMAT_R24G8_TYPELESS;
 				DepthBuffer.SampleDesc.Count = 1;
 				DepthBuffer.SampleDesc.Quality = 0;
@@ -2884,8 +2886,10 @@ namespace Tomahawk
 				D3D11_DEPTH_STENCIL_VIEW_DESC DSV;
 				ZeroMemory(&DSV, sizeof(DSV));
 				DSV.Format = DXGI_FORMAT_D24_UNORM_S8_UINT;
-				DSV.ViewDimension = D3D11_DSV_DIMENSION_TEXTURE2D;
-				DSV.Texture2D.MipSlice = 0;
+				DSV.ViewDimension = D3D11_DSV_DIMENSION_TEXTURE2DARRAY;
+				DSV.Texture2DArray.FirstArraySlice = 0;
+				DSV.Texture2DArray.ArraySize = 6;
+				DSV.Texture2DArray.MipSlice = 0;
 
 				if (D3DDevice->CreateDepthStencilView(DepthTexture, &DSV, &Result->DepthStencilView) != S_OK)
 				{

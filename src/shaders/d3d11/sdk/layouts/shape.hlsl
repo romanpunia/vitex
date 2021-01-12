@@ -1,6 +1,6 @@
 struct VInput
 {
-    float4 Position : POSITION;
+    float3 Position : POSITION;
     float2 TexCoord : TEXCOORD0;
 };
 

@@ -23,7 +23,7 @@ TextureCube EnvironmentMap : register(t5);
 VOutput VS(VInput V)
 {
 	VOutput Result = (VOutput)0;
-	Result.Position = mul(V.Position, LightWorldViewProjection);
+	Result.Position = mul(float4(V.Position, 1.0), LightWorldViewProjection);
 	Result.TexCoord = Result.Position;
 
 	return Result;

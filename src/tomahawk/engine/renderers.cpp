@@ -353,7 +353,7 @@ namespace Tomahawk
 					Shaders.Geometry = System->CompileShader("mr-geometry", I, 0);
 
 				if (System->GetDevice()->GetSection("shaders/model/lumina", &I.Data))
-					Shaders.Lumina = System->CompileShader("mr-lumina", I, 0);
+					Shaders.Lumina = System->CompileShader("mr-lumina", I, sizeof(Lumina::RenderConstant));
 
 				if (System->GetDevice()->GetSection("shaders/model/occlusion", &I.Data))
 					Shaders.Occlusion = System->CompileShader("mr-occlusion", I, 0);
@@ -468,31 +468,30 @@ namespace Tomahawk
 				Device->SetSamplerState(Sampler, 0);
 				Device->SetInputLayout(Layout);
 				Device->SetShader(Shaders.Lumina, Graphics::ShaderType_Vertex | Graphics::ShaderType_Pixel | Graphics::ShaderType_Geometry);
+				Lumina::SetLuminaBuffer(System, Shaders.Lumina, 3);
 
+				Viewer& View = System->GetScene()->View;
 				for (auto It = Geometry->Begin(); It != Geometry->End(); ++It)
 				{
 					Engine::Components::Model* Base = (Engine::Components::Model*)*It;
-					if (!Base->Static)
-						continue;
-
 					auto* Drawable = Base->GetDrawable();
-					if (!Drawable || !System->PassDrawable(Base, CullResult_Always, nullptr))
+					if (!Drawable || !Base->IsNear(View))
 						continue;
 
 					for (auto&& Mesh : Drawable->Meshes)
 					{
 						auto* Surface = Base->GetSurface(Mesh);
-						if (!Surface || !Surface->FillGeometry(Device))
+						if (!Surface || !Surface->FillLumina(Device))
 							continue;
 
-						Device->Render.World = Mesh->World * Base->GetEntity()->Transform->GetWorld();
-						Device->Render.WorldViewProjection = Device->Render.World * System->GetScene()->View.ViewProjection;
+						Device->Render.WorldViewProjection = Device->Render.World = Mesh->World * Base->GetEntity()->Transform->GetWorld();
 						Device->UpdateBuffer(Graphics::RenderBufferType_Render);
 						Device->DrawIndexed(Mesh);
 					}
 				}
 
-				Device->FlushTexture2D(1, 7);
+				Device->FlushTexture2D(4, 6);
+				Device->SetShader(nullptr, Graphics::ShaderType_Geometry);
 			}
 			void Model::RenderDepthLinear(Rest::Timer* Time, Rest::Pool<Drawable*>* Geometry)
 			{
@@ -577,7 +576,7 @@ namespace Tomahawk
 					Shaders.Geometry = System->CompileShader("sr-geometry", I, 0);
 
 				if (System->GetDevice()->GetSection("shaders/skin/lumina", &I.Data))
-					Shaders.Lumina = System->CompileShader("sr-lumina", I, 0);
+					Shaders.Lumina = System->CompileShader("sr-lumina", I, sizeof(Lumina::RenderConstant));
 
 				if (System->GetDevice()->GetSection("shaders/skin/occlusion", &I.Data))
 					Shaders.Occlusion = System->CompileShader("sr-occlusion", I, 0);
@@ -704,7 +703,9 @@ namespace Tomahawk
 				Device->SetSamplerState(Sampler, 0);
 				Device->SetInputLayout(Layout);
 				Device->SetShader(Shaders.Lumina, Graphics::ShaderType_Vertex | Graphics::ShaderType_Pixel | Graphics::ShaderType_Geometry);
+				Lumina::SetLuminaBuffer(System, Shaders.Lumina, 3);
 
+				Viewer& View = System->GetScene()->View;
 				for (auto It = Geometry->Begin(); It != Geometry->End(); ++It)
 				{
 					Engine::Components::Skin* Base = (Engine::Components::Skin*)*It;
@@ -712,7 +713,7 @@ namespace Tomahawk
 						continue;
 
 					auto* Drawable = Base->GetDrawable();
-					if (!Drawable || !System->PassDrawable(Base, CullResult_Always, nullptr))
+					if (!Drawable || !Base->IsNear(View))
 						continue;
 
 					Device->Animation.HasAnimation = !Base->GetDrawable()->Joints.empty();
@@ -723,17 +724,17 @@ namespace Tomahawk
 					for (auto&& Mesh : Drawable->Meshes)
 					{
 						auto* Surface = Base->GetSurface(Mesh);
-						if (!Surface || !Surface->FillGeometry(Device))
+						if (!Surface || !Surface->FillLumina(Device))
 							continue;
 
-						Device->Render.World = Mesh->World * Base->GetEntity()->Transform->GetWorld();
-						Device->Render.WorldViewProjection = Device->Render.World * System->GetScene()->View.ViewProjection;
+						Device->Render.WorldViewProjection = Device->Render.World = Mesh->World * Base->GetEntity()->Transform->GetWorld();
 						Device->UpdateBuffer(Graphics::RenderBufferType_Render);
 						Device->DrawIndexed(Mesh);
 					}
 				}
 
-				Device->FlushTexture2D(1, 7);
+				Device->FlushTexture2D(4, 6);
+				Device->SetShader(nullptr, Graphics::ShaderType_Geometry);
 			}
 			void Skin::RenderDepthLinear(Rest::Timer* Time, Rest::Pool<Drawable*>* Geometry)
 			{
@@ -845,7 +846,7 @@ namespace Tomahawk
 					Shaders.Geometry = System->CompileShader("mr-geometry", I, 0);
 
 				if (System->GetDevice()->GetSection("shaders/model/lumina", &I.Data))
-					Shaders.Lumina = System->CompileShader("mr-lumina", I, 0);
+					Shaders.Lumina = System->CompileShader("mr-lumina", I, sizeof(Lumina::RenderConstant));
 
 				if (System->GetDevice()->GetSection("shaders/model/occlusion", &I.Data))
 					Shaders.Occlusion = System->CompileShader("mr-occlusion", I, 0);
@@ -961,31 +962,34 @@ namespace Tomahawk
 				Device->SetSamplerState(Sampler, 0);
 				Device->SetInputLayout(Layout);
 				Device->SetShader(Shaders.Lumina, Graphics::ShaderType_Vertex | Graphics::ShaderType_Pixel | Graphics::ShaderType_Geometry);
-	
+				Lumina::SetLuminaBuffer(System, Shaders.Lumina, 3);
+
+				Viewer& View = System->GetScene()->View;
 				for (auto It = Geometry->Begin(); It != Geometry->End(); ++It)
 				{
 					Engine::Components::SoftBody* Base = (Engine::Components::SoftBody*)*It;
 					if (!Base->Static || Base->GetIndices().empty())
 						continue;
 
-					if (!System->PassDrawable(Base, CullResult_Always, nullptr))
+					if (!Base->IsNear(View))
 						continue;
 
 					auto* Surface = Base->GetSurface();
-					if (!Surface || !Surface->FillGeometry(Device))
+					if (!Surface || !Surface->FillLumina(Device))
 						continue;
 
 					Base->Fill(Device, IndexBuffer, VertexBuffer);
 
 					Device->Render.World.Identify();
-					Device->Render.WorldViewProjection = System->GetScene()->View.ViewProjection;
+					Device->Render.WorldViewProjection.Identify();
 					Device->UpdateBuffer(Graphics::RenderBufferType_Render);
 					Device->SetVertexBuffer(VertexBuffer, 0);
 					Device->SetIndexBuffer(IndexBuffer, Graphics::Format_R32_Uint);
 					Device->DrawIndexed((unsigned int)Base->GetIndices().size(), 0, 0);
 				}
 
-				Device->FlushTexture2D(1, 7);
+				Device->FlushTexture2D(4, 6);
+				Device->SetShader(nullptr, Graphics::ShaderType_Geometry);
 			}
 			void SoftBody::RenderDepthLinear(Rest::Timer* Time, Rest::Pool<Drawable*>* Geometry)
 			{
@@ -1878,7 +1882,7 @@ namespace Tomahawk
 				Device->FlushTexture2D(1, 8);
 			}
 			
-			Lumina::Lumina(RenderSystem* Lab) : Renderer(Lab), Buffer(nullptr), Size(0)
+			Lumina::Lumina(RenderSystem* Lab) : Renderer(Lab), Size(0), Distance(4)
 			{
 				DepthStencil = Lab->GetDevice()->GetDepthStencilState("none");
 				Rasterizer = Lab->GetDevice()->GetRasterizerState("cull-none");
@@ -1886,6 +1890,9 @@ namespace Tomahawk
 			}
 			Lumina::~Lumina()
 			{
+				TH_RELEASE(DiffuseBuffer);
+				TH_RELEASE(NormalBuffer);
+				TH_RELEASE(SurfaceBuffer);
 			}
 			void Lumina::ResizeBuffers()
 			{
@@ -1899,14 +1906,33 @@ namespace Tomahawk
 
 				Graphics::GraphicsDevice* Device = System->GetDevice();
 				Graphics::MultiRenderTarget2D* Surface = System->GetScene()->GetSurface();
-				Device->ClearWritable(Buffer);
+				RenderVoxels(Time, Device, Surface);
+			}
+			void Lumina::RenderVoxels(Rest::Timer* Time, Graphics::GraphicsDevice* Device, Graphics::MultiRenderTarget2D* Surface)
+			{
+				SceneGraph* Scene = System->GetScene();
+				RenderPass.GridCenter = Scene->View.WorldPosition;
+				RenderPass.GridSize = (float)Size;
+				RenderPass.GridScale = Distance;
+				Scene->View.FarPlane = Distance;
+
+				Device->ClearWritable(DiffuseBuffer);
+				Device->ClearWritable(NormalBuffer);
+				Device->ClearWritable(SurfaceBuffer);
 				Device->SetTargetRect(Size, Size);
 				Device->SetDepthStencilState(DepthStencil);
 				Device->SetBlendState(Blend);
 				Device->SetRasterizerState(Rasterizer);
-				Device->SetWriteable(Buffer, 8);
-				System->GetScene()->Render(Time, RenderState_Geometry_Lumina, RenderOpt_Inner);
-				Device->SetWriteable((Graphics::Texture3D*)nullptr, 8);
+				Device->SetWriteable(DiffuseBuffer, 1);
+				Device->SetWriteable(NormalBuffer, 2);
+				Device->SetWriteable(SurfaceBuffer, 2);
+
+				Scene->Render(Time, RenderState_Geometry_Lumina, RenderOpt_Inner);
+				Scene->RestoreViewBuffer(nullptr);
+
+				Device->SetWriteable((Graphics::Texture3D*)nullptr, 1);
+				Device->SetWriteable((Graphics::Texture3D*)nullptr, 2);
+				Device->SetWriteable((Graphics::Texture3D*)nullptr, 3);
 				Device->SetTarget(Surface);
 			}
 			void Lumina::SetBufferSize(unsigned int NewSize)
@@ -1914,15 +1940,38 @@ namespace Tomahawk
 				if (Size == NewSize)
 					return;
 
+				Graphics::Format Formats[3];
+				System->GetScene()->GetTargetFormat(Formats, 3);
+
 				Graphics::Texture3D::Desc I;
 				I.Width = I.Height = I.Depth = Size = NewSize;
-				I.FormatMode = Graphics::Format_R8G8B8A8_Typeless;
-				I.StructureMode = Graphics::Format_R32_Uint;
+				I.MipLevels = System->GetDevice()->GetMipLevel(Size, Size);
+				I.FormatMode = Formats[0];
 				I.Writable = true;
-				I.MipLevels = 7;
 
-				TH_RELEASE(Buffer);
-				Buffer = System->GetDevice()->CreateTexture3D(I);
+				TH_RELEASE(DiffuseBuffer);
+				DiffuseBuffer = System->GetDevice()->CreateTexture3D(I);
+
+				I.FormatMode = Formats[1];
+				TH_RELEASE(NormalBuffer);
+				NormalBuffer = System->GetDevice()->CreateTexture3D(I);
+
+				I.FormatMode = Formats[2];
+				TH_RELEASE(SurfaceBuffer);
+				SurfaceBuffer = System->GetDevice()->CreateTexture3D(I);
+			}
+			void Lumina::SetLuminaBuffer(RenderSystem* System, Graphics::Shader* Src, unsigned int Slot)
+			{
+				if (!System || !Src)
+					return;
+
+				Lumina* Renderer = System->GetRenderer<Lumina>();
+				if (!Renderer)
+					return;
+
+				Graphics::GraphicsDevice* Device = System->GetDevice();
+				Device->SetBuffer(Src, Slot, Graphics::ShaderType_Vertex | Graphics::ShaderType_Pixel | Graphics::ShaderType_Geometry);
+				Device->UpdateBuffer(Src, &Renderer->RenderPass);
 			}
 
 			SSR::SSR(RenderSystem* Lab) : EffectDraw(Lab), Pass1(nullptr), Pass2(nullptr)

@@ -46,7 +46,7 @@ float3 GetIllumination(float3 Up, float3 Down, float Height)
 AmbientVertexResult VS(VInput V)
 {
 	AmbientVertexResult Result = (AmbientVertexResult)0;
-	Result.Position = V.Position;
+	Result.Position = float4(V.Position, 1.0);
 	Result.TexCoord.xy = V.TexCoord;
     Result.View = mul(float4(V.Position.xy, 1.0, 1.0), SkyOffset);
     Result.View.xyz /= Result.View.w;

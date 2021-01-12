@@ -119,6 +119,25 @@ namespace Tomahawk
 
 			return true;
 		}
+		bool Appearance::FillLumina(Graphics::GraphicsDevice* Device) const
+		{
+			if (!Device || Material < 0)
+				return false;
+
+			Device->Render.HasDiffuse = (float)(DiffuseMap != nullptr);
+			Device->Render.HasNormal = (float)(NormalMap != nullptr);
+			Device->Render.MaterialId = (float)Material;
+			Device->Render.Diffuse = Diffuse;
+			Device->Render.TexCoord = TexCoord;
+			Device->SetTexture2D(DiffuseMap, 4);
+			Device->SetTexture2D(NormalMap, 5);
+			Device->SetTexture2D(MetallicMap, 6);
+			Device->SetTexture2D(RoughnessMap, 7);
+			Device->SetTexture2D(OcclusionMap, 8);
+			Device->SetTexture2D(EmissionMap, 9);
+
+			return true;
+		}
 		bool Appearance::FillDepthLinear(Graphics::GraphicsDevice* Device) const
 		{
 			if (!Device || Material < 0)

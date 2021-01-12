@@ -1,5 +1,5 @@
 #include "sdk/layouts/skin"
-#include "sdk/channels/gflux"
+#include "sdk/channels/depth"
 #include "sdk/buffers/object"
 #include "sdk/buffers/viewer"
 #include "sdk/buffers/cubic"
@@ -47,10 +47,10 @@ VOutputLinear VS(VInput V)
 			mul(Offsets[(int)V.Index.z], V.Bias.z) +
 			mul(Offsets[(int)V.Index.w], V.Bias.w);
 
-		Result.Position = Result.UV = mul(mul(V.Position, Offset), World);
+		Result.Position = Result.UV = mul(mul(float4(V.Position, 1.0), Offset), World);
 	}
 	else
-		Result.Position = Result.UV = mul(V.Position, World);
+		Result.Position = Result.UV = mul(float4(V.Position, 1.0), World);
 
 	return Result;
 }

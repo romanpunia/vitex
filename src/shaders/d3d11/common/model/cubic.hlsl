@@ -1,5 +1,5 @@
 #include "sdk/layouts/vertex"
-#include "sdk/channels/gflux"
+#include "sdk/channels/depth"
 #include "sdk/buffers/object"
 #include "sdk/buffers/viewer"
 #include "sdk/buffers/cubic"
@@ -35,7 +35,7 @@ void GS(triangle VOutputLinear V[3], inout TriangleStream<VOutputCubic> Stream)
 VOutputLinear VS(VInput V)
 {
 	VOutputLinear Result = (VOutputLinear)0;
-	Result.Position = Result.UV = mul(V.Position, World);
+	Result.Position = Result.UV = mul(float4(V.Position, 1.0), World);
 	Result.Normal = normalize(mul(V.Normal, (float3x3)World));
 	Result.TexCoord = V.TexCoord * TexCoord;
 

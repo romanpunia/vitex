@@ -10,10 +10,10 @@ cbuffer RenderConstant : register(b3)
 	float3 Padding;
 }
 
-Texture2D LChannel0 : register(t5);
-Texture2D LChannel1 : register(t6);
-Texture2D LChannel2 : register(t7);
-Texture2D LChannel3 : register(t8);
+Texture2D LDiffuseBuffer : register(t5);
+Texture2D LNormalBuffer : register(t6);
+Texture2D LDepthBuffer : register(t7);
+Texture2D LSurfaceBuffer : register(t8);
 
 float3 GetOpaque(float2 TexCoord, float D2, float L)
 {
@@ -22,7 +22,7 @@ float3 GetOpaque(float2 TexCoord, float D2, float L)
 
     float3 Position = GetPosition(TexCoord, D2);
     float3 Eye = normalize(Position - ViewPosition);
-    float4 Normal = GetSample(Channel1, TexCoord);
+    float4 Normal = GetSample(NormalBuffer, TexCoord);
     Material Mat = GetMaterial(Normal.w);
 
     return GetDiffuse(TexCoord, L).xyz;
@@ -43,7 +43,7 @@ float2 GetUV(float2 TexCoord, float L, float V)
 VOutput VS(VInput V)
 {
 	VOutput Result = (VOutput)0;
-	Result.Position = V.Position;
+	Result.Position = float4(V.Position, 1.0);
 	Result.TexCoord = Result.Position;
 
 	return Result;
@@ -52,7 +52,7 @@ VOutput VS(VInput V)
 float4 PS(VOutput V) : SV_TARGET0
 {
     float2 TexCoord = GetTexCoord(V.TexCoord);
-    float D1 = GetSampleLevel(LChannel2, TexCoord, 0).x;
+    float D1 = GetSampleLevel(LDepthBuffer, TexCoord, 0).x;
     float D2 = GetDepth(TexCoord);
 
     [branch] if (D2 < D1 || D1 >= 1.0)
@@ -60,11 +60,11 @@ float4 PS(VOutput V) : SV_TARGET0
 
     float3 Position = GetPosition(TexCoord, D1);
     float3 Eye = normalize(Position - ViewPosition);
-    float4 Normal = GetSample(LChannel1, TexCoord);
+    float4 Normal = GetSample(LNormalBuffer, TexCoord);
     Material Mat = GetMaterial(Normal.w);
-    float4 Diffuse = GetSample(LChannel0, TexCoord);
+    float4 Diffuse = GetSample(LDiffuseBuffer, TexCoord);
     float A = (1.0 - Diffuse.w) * Mat.Transparency;
-    float R = max(0.0, Mat.Roughness.x + GetSample(LChannel3, TexCoord).x * Mat.Roughness.y - 0.25) / 0.75;
+    float R = max(0.0, Mat.Roughness.x + GetSample(LSurfaceBuffer, TexCoord).x * Mat.Roughness.y - 0.25) / 0.75;
 
     Diffuse.x += GetCoverage(GetUV(TexCoord, Mat.Refraction, 0.05), R * MipLevels).x * A;
     Diffuse.y += GetCoverage(GetUV(TexCoord, Mat.Refraction, 0.0), R * MipLevels).y * A;

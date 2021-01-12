@@ -18,7 +18,7 @@ Texture2D Image : register(t5);
 VOutput VS(VInput V)
 {
 	VOutput Result = (VOutput)0;
-	Result.Position = V.Position;
+	Result.Position = float4(V.Position, 1.0);
 	Result.TexCoord.xy = V.TexCoord;
 
 	return Result;

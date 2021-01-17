@@ -105,7 +105,7 @@ namespace Tomahawk
 
 			return Info->section;
 		}
-		const char* VMMessage::GetMessage() const
+		const char* VMMessage::GetText() const
 		{
 			if (!IsValid())
 				return nullptr;
@@ -2128,12 +2128,12 @@ namespace Tomahawk
 
 				return Module->AddScriptSection(File.Module.c_str(), Buffer.c_str(), Buffer.size()) >= 0;
 			});
-			Processor->SetPragmaCallback([this](Compute::Preprocessor* C, const std::string& Value)
+			Processor->SetPragmaCallback([this](Compute::Preprocessor* C, const std::string& Path, const std::string& Value)
 			{
 				if (!Manager)
 					return false;
 
-				if (Pragma && Pragma(C, Value))
+				if (Pragma && Pragma(C, Path, Value))
 					return true;
 
 				Rest::Stroke Comment(&Value);
@@ -2151,7 +2151,7 @@ namespace Tomahawk
 				{
 					Rest::Stroke Name(Comment);
 					Name.Substring(Start.End, End.Start - Start.End).Trim();
-					if (Name.Get()[0] == '\"' && Name.Get()[Name.Size() - 1] == '\"')
+					if (!Name.Empty() && Name.Get()[0] == '\"' && Name.Get()[Name.Size() - 1] == '\"')
 						Name.Substring(1, Name.Size() - 2);
 
 					if (!Name.Empty())
@@ -2165,12 +2165,12 @@ namespace Tomahawk
 
 					Rest::Stroke Name(Comment);
 					Name.Substring(Start.End, Split.Start - Start.End).Trim().ToUpper();
-					if (Name.Get()[0] == '\"' && Name.Get()[Name.Size() - 1] == '\"')
+					if (!Name.Empty() && Name.Get()[0] == '\"' && Name.Get()[Name.Size() - 1] == '\"')
 						Name.Substring(1, Name.Size() - 2);
 
 					Rest::Stroke Value(Comment);
 					Value.Substring(Split.End, End.Start - Split.End).Trim();
-					if (Value.Get()[0] == '\"' && Value.Get()[Value.Size() - 1] == '\"')
+					if (!Value.Empty() && Value.Get()[0] == '\"' && Value.Get()[Value.Size() - 1] == '\"')
 						Value.Substring(1, Value.Size() - 2);
 
 					size_t Result = Value.HasInteger() ? Value.ToUInt64() : 0;
@@ -2245,12 +2245,12 @@ namespace Tomahawk
 
 					Rest::Stroke Name(Comment);
 					Name.Substring(Start.End, Split.Start - Start.End).Trim().ToUpper();
-					if (Name.Get()[0] == '\"' && Name.Get()[Name.Size() - 1] == '\"')
+					if (!Name.Empty() && Name.Get()[0] == '\"' && Name.Get()[Name.Size() - 1] == '\"')
 						Name.Substring(1, Name.Size() - 2);
 
 					Rest::Stroke Value(Comment);
 					Value.Substring(Split.End, End.Start - Split.End).Trim();
-					if (Value.Get()[0] == '\"' && Value.Get()[Value.Size() - 1] == '\"')
+					if (!Value.Empty() && Value.Get()[0] == '\"' && Value.Get()[Value.Size() - 1] == '\"')
 						Value.Substring(1, Value.Size() - 2);
 
 					if (Name.R() == "INFO")
@@ -2268,12 +2268,12 @@ namespace Tomahawk
 
 					Rest::Stroke Name(Comment);
 					Name.Substring(Start.End, Split.Start - Start.End).Trim().ToUpper();
-					if (Name.Get()[0] == '\"' && Name.Get()[Name.Size() - 1] == '\"')
+					if (!Name.Empty() && Name.Get()[0] == '\"' && Name.Get()[Name.Size() - 1] == '\"')
 						Name.Substring(1, Name.Size() - 2);
 
 					Rest::Stroke Value(Comment);
 					Value.Substring(Split.End, End.Start - Split.End).Trim();
-					if (Value.Get()[0] == '\"' && Value.Get()[Value.Size() - 1] == '\"')
+					if (!Value.Empty() && Value.Get()[0] == '\"' && Value.Get()[Value.Size() - 1] == '\"')
 						Value.Substring(1, Value.Size() - 2);
 
 					size_t Result = Value.HasInteger() ? Value.ToUInt64() : 0;
@@ -2288,7 +2288,7 @@ namespace Tomahawk
 				{
 					Rest::Stroke Name(Comment);
 					Name.Substring(Start.End, End.Start - Start.End).Trim();
-					if (Name.Get()[0] == '\"' && Name.Get()[Name.Size() - 1] == '\"')
+					if (!Name.Empty() && Name.Get()[0] == '\"' && Name.Get()[Name.Size() - 1] == '\"')
 						Name.Substring(1, Name.Size() - 2);
 
 					if (Name.Empty())
@@ -2297,6 +2297,55 @@ namespace Tomahawk
 					if (!Manager->UseSubmodule(Name.R()))
 					{
 						TH_ERROR("system module \"%s\" was not found", Name.Get());
+						return false;
+					}
+				}
+				else if (Comment.StartsWith("cimport"))
+				{
+					Rest::Stroke Name(Comment);
+					Name.Substring(Start.End, End.Start - Start.End).Trim();
+
+					Rest::Stroke::Settle Split = Name.Find(',');
+					if (!Split.Found)
+					{
+						TH_ERROR("empty kernel target format:\n\t#pragma cimport(\"so_library_or_empty:function_name\", \"function_decl\")");
+						return false;
+					}
+
+					Rest::Stroke Kernel = Rest::Stroke(Name).Substring(0, Split.Start).Trim();
+					if (!Kernel.Empty() && Kernel.Get()[0] == '\"' && Kernel.Get()[Kernel.Size() - 1] == '\"')
+						Kernel.Substring(1, Kernel.Size() - 2);
+
+					Rest::Stroke::Settle Func = Kernel.Find(':');
+					if (Kernel.Empty())
+					{
+						TH_ERROR("incorrect kernel target format:\n\t#pragma cimport(\"so_library_or_empty:function_name\", \"function_decl\")");
+						return false;
+					}
+
+					Rest::Stroke Function = (Func.Found ? Rest::Stroke(Kernel).Substring(Func.End) : Kernel);
+					if (Func.Found)
+						Kernel.Substring(0, Func.Start);
+					else
+						Kernel.Clear();
+
+					Rest::Stroke Decl = Name.Substring(Split.End).Trim();
+					if (!Decl.Empty() && Decl.Get()[0] == '\"' && Decl.Get()[Decl.Size() - 1] == '\"')
+						Decl.Substring(1, Decl.Size() - 2);
+
+					if (!Kernel.Empty() && Kernel.R()[0] == '.')
+					{
+						std::string Subpath = Rest::OS::Resolve(Kernel.R(), Rest::OS::FileDirectory(Path));
+						if (!Subpath.empty())
+							Kernel = Subpath;
+					}
+
+					if (Function.Empty() || Decl.Empty())
+						return false;
+
+					if (!Manager->ImportSymbol(Kernel.R(), Function.R(), Decl.R()))
+					{
+						TH_ERROR("cannot find \"%s\" decl. symbol in \"%s\"", Function.Get(), Kernel.Get());
 						return false;
 					}
 				}
@@ -3247,6 +3296,9 @@ namespace Tomahawk
 		}
 		VMManager::~VMManager()
 		{
+			for (auto& Core : Kernels)
+				Rest::OS::UnloadObject(Core.second.Handle);
+
 			for (auto& Context : Contexts)
 				Context->Release();
 
@@ -3893,6 +3945,53 @@ namespace Tomahawk
 
 			Features[Name] = false;
 			return false;
+		}
+		bool VMManager::ImportSymbol(const std::string& Path, const std::string& Func, const std::string& Decl)
+		{
+			if (!Engine || Decl.empty() || Func.empty())
+				return false;
+
+			auto Core = Kernels.find(Path);
+			if (Core == Kernels.end())
+			{
+				void* Handle = Rest::OS::LoadObject(Path);
+				if (!Handle)
+				{
+					TH_ERROR("cannot load shared object: %s", Path.c_str());
+					return false;
+				}
+
+				Kernel Library;
+				Library.Handle = Handle;
+				Kernels.insert({ Path, Library });
+
+				Core = Kernels.find(Path);
+				if (Core == Kernels.end())
+				{
+					TH_ERROR("cannot resolve shared object: %s", Path.c_str());
+					return false;
+				}
+			}
+
+			auto Handle = Core->second.Functions.find(Func);
+			if (Handle != Core->second.Functions.end())
+				return true;
+
+			VMObjectFunction Function = (VMObjectFunction)Rest::OS::LoadObjectFunction(Core->second.Handle, Func.c_str());
+			if (!Function)
+			{
+				TH_ERROR("cannot load shared object function: %s", Func.c_str());
+				return false;
+			}
+
+			if (Engine->RegisterGlobalFunction(Decl.c_str(), asFUNCTION(Function), asCALL_CDECL) < 0)
+			{
+				TH_ERROR("cannot register shared object function: %s", Decl.c_str());
+				return false;
+			}
+
+			Core->second.Functions.insert({ Func, Function });
+			return true;
 		}
 		std::vector<std::string> VMManager::GetSubmodules()
 		{

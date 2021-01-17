@@ -81,7 +81,7 @@ namespace Tomahawk
 
 		enum RenderState
 		{
-			RenderState_Geometry_Raw,
+			RenderState_Geometry_Result,
 			RenderState_Geometry_Lumina,
 			RenderState_Depth_Linear,
 			RenderState_Depth_Cubic
@@ -707,7 +707,7 @@ namespace Tomahawk
 			GeometryDraw(RenderSystem* Lab, uint64_t Hash);
 			virtual ~GeometryDraw() override;
 			virtual void CullGeometry(const Viewer& View, Rest::Pool<Drawable*>* Geometry);
-			virtual void RenderGeometryRaw(Rest::Timer* TimeStep, Rest::Pool<Drawable*>* Geometry, RenderOpt Options) = 0;
+			virtual void RenderGeometryResult(Rest::Timer* TimeStep, Rest::Pool<Drawable*>* Geometry, RenderOpt Options) = 0;
 			virtual void RenderGeometryLumina(Rest::Timer* TimeStep, Rest::Pool<Drawable*>* Geometry, RenderOpt Options) = 0;
 			virtual void RenderDepthLinear(Rest::Timer* TimeStep, Rest::Pool<Drawable*>* Geometry) = 0;
 			virtual void RenderDepthCubic(Rest::Timer* TimeStep, Rest::Pool<Drawable*>* Geometry, Compute::Matrix4x4* ViewProjection) = 0;
@@ -718,22 +718,6 @@ namespace Tomahawk
 
 		public:
 			TH_COMPONENT("geometry-draw");
-		};
-
-		class TH_OUT TimingDraw : public Renderer
-		{
-		public:
-			Rest::TickTimer Tick;
-
-		public:
-			TimingDraw(RenderSystem* Lab);
-			virtual ~TimingDraw() override;
-			virtual void TickRender(Rest::Timer* TimeStep, RenderState State, RenderOpt Options);
-			virtual void FrameRender(Rest::Timer* TimeStep, RenderState State, RenderOpt Options);
-			void Render(Rest::Timer* TimeStep, RenderState State, RenderOpt Options) override;
-
-		public:
-			TH_COMPONENT("timing-draw");
 		};
 
 		class TH_OUT EffectDraw : public Renderer

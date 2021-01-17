@@ -1,4 +1,4 @@
-cbuffer RenderConstant : register(b3)
+cbuffer Voxelizer : register(b3)
 {
     float4 GridCenter;
     float4 GridSize;

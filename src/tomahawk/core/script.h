@@ -320,7 +320,8 @@ namespace Tomahawk
 		typedef asIScriptGeneric VMCGeneric;
 		typedef asIScriptObject VMCObject;
 		typedef asILockableSharedBool VMCLockableSharedBool;
-		typedef void (VMDummy::*VMMethodPtr)();
+		typedef void(VMDummy::*VMMethodPtr)();
+		typedef void(*VMObjectFunction)();
 		typedef std::function<void(struct VMTypeInfo*, struct VMFuncProperty*)> PropertyCallback;
 		typedef std::function<void(struct VMTypeInfo*, struct VMFunction*)> MethodCallback;
 
@@ -626,7 +627,7 @@ namespace Tomahawk
 		public:
 			VMMessage(asSMessageInfo* Info);
 			const char* GetSection() const;
-			const char* GetMessage() const;
+			const char* GetText() const;
 			VMLogType GetType() const;
 			int GetRow() const;
 			int GetColumn() const;
@@ -1736,6 +1737,13 @@ namespace Tomahawk
 		class TH_OUT VMManager : public Rest::Object
 		{
 		private:
+			struct Kernel
+			{
+				std::unordered_map<std::string, void*> Functions;
+				void* Handle;
+			};
+
+		private:
 			static int ManagerUD;
 
 		private:
@@ -1743,6 +1751,7 @@ namespace Tomahawk
 			std::unordered_map<std::string, Rest::Document*> Datas;
 			std::unordered_map<std::string, VMByteCode> Opcodes;
 			std::unordered_map<std::string, bool> Features;
+			std::unordered_map<std::string, Kernel> Kernels;
 			std::vector<VMCContext*> Contexts;
 			Compute::Preprocessor::Desc Proc;
 			Compute::IncludeDesc Include;
@@ -1814,6 +1823,7 @@ namespace Tomahawk
 			bool ImportFile(const std::string& Path, std::string* Out);
 			bool HasSubmodule(const std::string& Name);
 			bool UseSubmodule(const std::string& Name);
+			bool ImportSymbol(const std::string& Path, const std::string& Name, const std::string& Decl);
 			std::vector<std::string> GetSubmodules();
 
 		public:

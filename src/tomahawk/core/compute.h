@@ -52,7 +52,7 @@ namespace Tomahawk
 
 		typedef std::function<void(class FiniteState*)> ActionCallback;
 		typedef std::function<bool(class Preprocessor*, const struct IncludeResult& File, std::string* Out)> ProcIncludeCallback;
-		typedef std::function<bool(class Preprocessor*, const std::string& Pragma)> ProcPragmaCallback;
+		typedef std::function<bool(class Preprocessor*, const std::string& Path, const std::string& Pragma)> ProcPragmaCallback;
 		typedef std::function<void(const struct CollisionBody&)> CollisionCallback;
 		typedef std::unordered_map<std::string, struct Property> PropertyArgs;
 		typedef std::vector<struct Property> PropertyList;
@@ -1468,7 +1468,7 @@ namespace Tomahawk
 			bool SaveResult();
 			bool ReturnResult(bool Result, bool WasNested);
 			bool ProcessIncludeDirective(const std::string& Path, Rest::Stroke& Buffer);
-			bool ProcessPragmaDirective(Rest::Stroke& Buffer);
+			bool ProcessPragmaDirective(const std::string& Path, Rest::Stroke& Buffer);
 			bool ProcessBlockDirective(Rest::Stroke& Buffer);
 			bool ProcessDefineDirective(Rest::Stroke& Buffer, uint64_t Base, uint64_t& Offset, bool Endless);
 			int FindDefineDirective(Rest::Stroke& Buffer, uint64_t& Offset, uint64_t* Size);

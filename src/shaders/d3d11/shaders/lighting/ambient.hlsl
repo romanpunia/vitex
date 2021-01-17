@@ -18,7 +18,7 @@ cbuffer RenderConstant : register(b3)
     float3 FogFar;
     float FogAmount;
     float3 FogNear;
-	float Padding;
+	float Recursive;
 };
 
 struct AmbientVertexResult

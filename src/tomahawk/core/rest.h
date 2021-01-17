@@ -104,6 +104,7 @@ typedef socklen_t socket_size_t;
 #define TH_WARN(...)
 #define TH_ERROR(...)
 #endif
+#define TH_COUT extern "C" TH_OUT
 #define TH_MALLOC(Size) Tomahawk::Rest::Mem::Malloc(Size)
 #define TH_REALLOC(Ptr, Size) Tomahawk::Rest::Mem::Realloc(Ptr, Size)
 #define TH_FREE(Ptr) Tomahawk::Rest::Mem::Free(Ptr)
@@ -873,8 +874,8 @@ namespace Tomahawk
 			static int GetError();
 			static std::string GetErrorName(int Code);
 			static void Run(const char* Format, ...);
-			static void* LoadObject(const char* Path);
-			static void* LoadObjectFunction(void* Handle, const char* Name);
+			static void* LoadObject(const std::string& Path = "");
+			static void* LoadObjectFunction(void* Handle, const std::string& Name);
 			static void* Open(const char* Path, const char* Mode);
 			static Stream* Open(const std::string& Path, FileMode Mode);
 			static std::string Resolve(const char* Path);

@@ -4,20 +4,8 @@
 #include "sdk/core/material"
 #include "sdk/core/position"
 #include "sdk/core/random"
+#include "common/lighting/point/buffer"
 #pragma warning(disable: 4000)
-
-cbuffer RenderConstant : register(b3)
-{
-	matrix LightWorldViewProjection;
-	float3 Position;
-	float Range;
-	float3 Lighting;
-	float Distance;
-    float Umbra;
-	float Softness;
-	float Bias;
-	float Iterations;
-};
 
 TextureCube ShadowMap : register(t5);
 SamplerState ShadowSampler : register(s1);

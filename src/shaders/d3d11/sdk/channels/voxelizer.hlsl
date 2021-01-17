@@ -1,7 +1,7 @@
 #include "sdk/objects/material"
 #include "sdk/objects/lumina"
 #include "sdk/buffers/viewer"
-#include "sdk/buffers/lumina"
+#include "sdk/buffers/voxelizer"
 #pragma warning(disable: 4000)
 
 StructuredBuffer<Material> Materials : register(t0);

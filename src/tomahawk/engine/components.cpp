@@ -3708,7 +3708,7 @@ namespace Tomahawk
 						return Script::VMResult_INVALID_CONFIGURATION;
 
 					Compiler = Manager->CreateCompiler();
-					Compiler->SetPragmaCallback([this](Compute::Preprocessor*, const std::string& Pragma)
+					Compiler->SetPragmaCallback([this](Compute::Preprocessor*, const std::string& Path, const std::string& Pragma)
 					{
 						Rest::Stroke Comment(&Pragma);
 						Comment.Trim();

@@ -3,22 +3,7 @@
 #include "sdk/core/lighting"
 #include "sdk/core/material"
 #include "sdk/core/position"
-
-cbuffer RenderConstant : register(b3)
-{
-	matrix LightWorldViewProjection;
-	matrix LightViewProjection;
-    float3 Direction;
-    float Cutoff;
-	float3 Position;
-	float Range;
-	float3 Lighting;
-	float Softness;
-	float Bias;
-	float Iterations;
-	float Umbra;
-    float Padding;
-};
+#include "common/lighting/spot/buffer"
 
 VOutput VS(VInput V)
 {

@@ -1,5 +1,5 @@
 #include "sdk/layouts/vertex"
-#include "sdk/channels/lumina"
+#include "sdk/channels/voxelizer"
 #include "sdk/buffers/object"
 
 VOutput VS(VInput V)

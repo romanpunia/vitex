@@ -28,6 +28,7 @@
 #endif
 #include <stdio.h>
 #include <fcntl.h>
+#include <dlfcn.h>
 #endif
 #ifdef TH_HAS_SDL2
 #include <SDL2/SDL.h>
@@ -540,7 +541,9 @@ namespace Tomahawk
 		std::string DateTime::GetGMTBasedString(int64_t TimeStamp)
 		{
 			auto Time = (time_t)TimeStamp;
-			struct tm GTMTimeStamp { };
+			struct tm GTMTimeStamp
+			{
+			};
 
 #ifdef TH_MICROSOFT
 			if (gmtime_s(&GTMTimeStamp, &Time) != 0)
@@ -559,7 +562,9 @@ namespace Tomahawk
 				return false;
 
 			auto TimeStamp = (time_t)Time;
-			struct tm Date { };
+			struct tm Date
+			{
+			};
 
 #if defined(_WIN32_CE)
 			static const int DaysPerMonth[] = { 31, 28, 31, 30, 31, 30, 31, 31, 30, 31, 30, 31 };
@@ -604,7 +609,9 @@ namespace Tomahawk
 		bool DateTime::TimeFormatLCL(char* Buffer, uint64_t Length, int64_t Time)
 		{
 			auto TimeStamp = (time_t)Time;
-			struct tm Date { };
+			struct tm Date
+			{
+			};
 
 #if defined(_WIN32_WCE)
 			static const int DaysPerMonth[] = { 31, 28, 31, 30, 31, 30, 31, 31, 30, 31, 30, 31 };
@@ -665,7 +672,9 @@ namespace Tomahawk
 				if (strcmp(Name, MonthNames[i]) != 0)
 					continue;
 
-				struct tm Time { };
+				struct tm Time
+				{
+				};
 				Time.tm_year = Year - 1900;
 				Time.tm_mon = (int)i;
 				Time.tm_mday = Day;
@@ -3195,7 +3204,7 @@ namespace Tomahawk
 			strcpy(Request.Version, "HTTP/1.1");
 			strcpy(Request.Method, "GET");
 			Request.URI.assign('/' + URL.Path);
-			
+
 			for (auto& Item : URL.Query)
 				Request.Query += Item.first + "=" + Item.second;
 
@@ -3492,7 +3501,9 @@ namespace Tomahawk
 		}
 		bool OS::FileExists(const char* Path)
 		{
-			struct stat Buffer { };
+			struct stat Buffer
+			{
+			};
 			return (stat(Resolve(Path).c_str(), &Buffer) == 0);
 		}
 		bool OS::ExecExists(const char* Path)
@@ -3509,7 +3520,9 @@ namespace Tomahawk
 		}
 		bool OS::DirExists(const char* Path)
 		{
-			struct stat Buffer { };
+			struct stat Buffer
+			{
+			};
 			if (stat(Resolve(Path).c_str(), &Buffer) != 0)
 				return false;
 
@@ -3776,7 +3789,9 @@ namespace Tomahawk
 			memset(Resource, 0, sizeof(*Resource));
 			return false;
 #else
-			struct stat State {};
+			struct stat State
+			{
+			};
 			if (stat(Path.c_str(), &State) != 0)
 				return false;
 
@@ -3805,12 +3820,13 @@ namespace Tomahawk
 		}
 		bool OS::UnloadObject(void* Handle)
 		{
-#ifdef TH_HAS_SDL2
 			if (!Handle)
 				return false;
 
-			SDL_UnloadObject(Handle);
-			return true;
+#ifdef TH_MICROSOFT
+			return (FreeLibrary((HMODULE)Handle) != 0);
+#elif defined(TH_UNIX)
+			return (dlclose(Handle) == 0);
 #else
 			return false;
 #endif
@@ -4003,28 +4019,70 @@ namespace Tomahawk
 			if (system(Buffer) == 0)
 				TH_ERROR("[sys] couldn't execute command");
 		}
-		void* OS::LoadObject(const char* Path)
+		void* OS::LoadObject(const std::string& Path)
 		{
-#ifdef TH_HAS_SDL2
-			if (!Path)
-				return nullptr;
+			Stroke Name(Path);
+#ifdef TH_MICROSOFT
+			if (Path.empty())
+				return GetModuleHandle(nullptr);
 
-			return SDL_LoadObject(Path);
+			if (!Name.EndsWith(".dll"))
+				Name.Append(".dll");
+
+			return (void*)LoadLibrary(Name.Get());
+#elif defined(TH_APPLE)
+			if (Path.empty())
+				return (void*)dlopen(nullptr, RTLD_LAZY);
+
+			if (!Name.EndsWith(".dylib"))
+				Name.Append(".dylib");
+
+			return (void*)dlopen(Name.Get(), RTLD_LAZY);
+#elif defined(TH_UNIX)
+			if (Path.empty())
+				return (void*)dlopen(nullptr, RTLD_LAZY);
+
+			if (!Name.EndsWith(".so"))
+				Name.Append(".so");
+
+			return (void*)dlopen(Name.Get(), RTLD_LAZY);
 #else
 			return nullptr;
 #endif
 		}
-		void* OS::LoadObjectFunction(void* Handle, const char* Name)
+		void* OS::LoadObjectFunction(void* Handle, const std::string& Name)
 		{
-#ifdef TH_HAS_SDL2
-			if (!Handle || !Name)
+			if (!Handle || Name.empty())
 				return nullptr;
 
-			return SDL_LoadFunction(Handle, Name);
+#ifdef TH_MICROSOFT
+			void* Result = GetProcAddress((HMODULE)Handle, Name.c_str());
+			if (!Result)
+			{
+				LPVOID Buffer;
+				FormatMessage(FORMAT_MESSAGE_ALLOCATE_BUFFER | FORMAT_MESSAGE_FROM_SYSTEM | FORMAT_MESSAGE_IGNORE_INSERTS, nullptr, GetLastError(), MAKELANGID(LANG_NEUTRAL, SUBLANG_DEFAULT), (LPTSTR)&Buffer, 0, nullptr);
+				LPVOID Display = (LPVOID)LocalAlloc(LMEM_ZEROINIT, (::lstrlen((LPCTSTR)Buffer) + 40) * sizeof(TCHAR));
+				std::string Text((LPCTSTR)Display);
+				LocalFree(Buffer);
+				LocalFree(Display);
+
+				if (!Text.empty())
+					TH_ERROR("dll symload error: %s", Text.c_str());
+			}
+
+			return Result;
+#elif defined(TH_UNIX)
+			void* Result = dlsym(Handle, Name.c_str());
+			if (!Result)
+			{
+				const char* Text = dlerror();
+				if (Text != nullptr)
+					TH_ERROR("so symload error: %s", Text);
+			}
 #else
 			return nullptr;
 #endif
-		}
+	}
 		void* OS::Open(const char* Path, const char* Mode)
 		{
 			if (!Path || !Mode)
@@ -4132,7 +4190,7 @@ namespace Tomahawk
 			TH_FREE(Data);
 
 			return Output;
-		}
+}
 		std::string OS::Resolve(const char* Path)
 		{
 			if (!Path || Path[0] == '\0')
@@ -4225,7 +4283,9 @@ namespace Tomahawk
 		FileState OS::GetState(const char* Path)
 		{
 			FileState State{ };
-			struct stat Buffer { };
+			struct stat Buffer
+			{
+			};
 
 			if (stat(Path, &Buffer) != 0)
 				return State;
@@ -5794,7 +5854,7 @@ namespace Tomahawk
 					return TH_PREFIX_STR "undefined";
 				default:
 					break;
-			}
+		}
 
 			return "";
 		}
@@ -5884,7 +5944,7 @@ namespace Tomahawk
 			String = Value;
 
 			return true;
-		}
+			}
 		bool Document::WriteBIN(Document* Value, const NWriteCallback& Callback)
 		{
 			if (!Value || !Callback)
@@ -6248,7 +6308,7 @@ namespace Tomahawk
 			{
 				TH_ERROR("cannot read json document");
 				return nullptr;
-			}
+		}
 
 			Network::BSON::TDocument* Document = Network::BSON::Document::Create(Buffer);
 			if (!Document)

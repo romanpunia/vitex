@@ -3146,7 +3146,7 @@ namespace Tomahawk
 		}
 		void GeometryDraw::Render(Rest::Timer* TimeStep, RenderState State, RenderOpt Options)
 		{
-			if (State == RenderState_Geometry_Raw)
+			if (State == RenderState_Geometry_Result)
 			{
 				Rest::Pool<Drawable*>* Geometry;
 				if (Options & RenderOpt_Transparent)
@@ -3155,7 +3155,7 @@ namespace Tomahawk
 					Geometry = GetOpaque();
 
 				if (Geometry != nullptr && Geometry->Size() > 0)
-					RenderGeometryRaw(TimeStep, Geometry, Options);
+					RenderGeometryResult(TimeStep, Geometry, Options);
 			}
 			else if (State == RenderState_Geometry_Lumina)
 			{
@@ -3209,26 +3209,6 @@ namespace Tomahawk
 			return System->GetScene()->GetTransparent(Source);
 		}
 
-		TimingDraw::TimingDraw(RenderSystem* Lab) : Renderer(Lab)
-		{
-		}
-		TimingDraw::~TimingDraw()
-		{
-		}
-		void TimingDraw::TickRender(Rest::Timer* TimeStep, RenderState State, RenderOpt Options)
-		{
-		}
-		void TimingDraw::FrameRender(Rest::Timer* TimeStep, RenderState State, RenderOpt Options)
-		{
-		}
-		void TimingDraw::Render(Rest::Timer* Time, RenderState State, RenderOpt Options)
-		{
-			if (Tick.TickEvent(Time->GetElapsedTime()))
-				TickRender(Time, State, Options);
-
-			FrameRender(Time, State, Options);
-		}
-		
 		EffectDraw::EffectDraw(RenderSystem* Lab) : Renderer(Lab), Output(nullptr), Pass(nullptr)
 		{
 			DepthStencil = Lab->GetDevice()->GetDepthStencilState("none");
@@ -3286,7 +3266,7 @@ namespace Tomahawk
 		}
 		void EffectDraw::Render(Rest::Timer* Time, RenderState State, RenderOpt Options)
 		{
-			if (State != RenderState_Geometry_Raw || Options & RenderOpt_Inner)
+			if (State != RenderState_Geometry_Result || Options & RenderOpt_Inner)
 				return;
 
 			Graphics::MultiRenderTarget2D* Surface = System->GetScene()->GetSurface();
@@ -3472,7 +3452,7 @@ namespace Tomahawk
 				Conf.Device->SetStructureBuffer(Structure, 0);
 				
 				ClearSurface();
-				Render(Time, RenderState_Geometry_Raw, RenderOpt_None);
+				Render(Time, RenderState_Geometry_Result, RenderOpt_None);
 				View.Renderer->CullGeometry(Time, View);
 			}
 			EndThread(ThreadId_Render);
@@ -5261,11 +5241,8 @@ namespace Tomahawk
 			Rest::Composer::Push<Renderers::SoftBody, RenderSystem*>();
 			Rest::Composer::Push<Renderers::Emitter, RenderSystem*>();
 			Rest::Composer::Push<Renderers::Decal, RenderSystem*>();
-			Rest::Composer::Push<Renderers::Transparency, RenderSystem*>();
-			Rest::Composer::Push<Renderers::Depth, RenderSystem*>();
-			Rest::Composer::Push<Renderers::Environment, RenderSystem*>();
 			Rest::Composer::Push<Renderers::Lighting, RenderSystem*>();
-			Rest::Composer::Push<Renderers::Lumina, RenderSystem*>();
+			Rest::Composer::Push<Renderers::Transparency, RenderSystem*>();
 			Rest::Composer::Push<Renderers::Glitch, RenderSystem*>();
 			Rest::Composer::Push<Renderers::Tone, RenderSystem*>();
 			Rest::Composer::Push<Renderers::DoF, RenderSystem*>();

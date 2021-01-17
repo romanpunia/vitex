@@ -5782,7 +5782,7 @@ namespace Tomahawk
 					return ReturnResult(false, Nesting);
 			}
 
-			if (Features.Pragmas && !ProcessPragmaDirective(Buffer))
+			if (Features.Pragmas && !ProcessPragmaDirective(Path, Buffer))
 				return ReturnResult(false, Nesting);
 
 			uint64_t Offset;
@@ -5872,7 +5872,7 @@ namespace Tomahawk
 				Result.End = Result.Start + 1;
 			}
 		}
-		bool Preprocessor::ProcessPragmaDirective(Rest::Stroke& Buffer)
+		bool Preprocessor::ProcessPragmaDirective(const std::string& Path, Rest::Stroke& Buffer)
 		{
 			if (Buffer.Empty())
 				return true;
@@ -5891,7 +5891,7 @@ namespace Tomahawk
 					return true;
 
 				Rest::Stroke Value(Buffer.Get() + Start, End - Start);
-				if (Pragma && !Pragma(this, Value.Trim().Replace("  ", " ").R()))
+				if (Pragma && !Pragma(this, Path, Value.Trim().Replace("  ", " ").R()))
 				{
 					TH_ERROR("cannot process pragma \"%s\" directive", Value.Get());
 					return false;

@@ -3990,7 +3990,7 @@ namespace Tomahawk
 				return false;
 			}
 
-			Core->second.Functions.insert({ Func, Function });
+			Core->second.Functions.insert({ Func, (void*)Function });
 			return true;
 		}
 		std::vector<std::string> VMManager::GetSubmodules()

@@ -1209,13 +1209,14 @@ namespace Tomahawk
 		class TH_OUT EventWorker : public Object
 		{
 			friend EventArgs;
+			friend EventQueue;
 
 		private:
 			EventQueue* Queue;
 			std::thread Thread;
 			bool Extended;
 
-		public:
+		private:
 			EventWorker(EventQueue* Value, bool IsTask);
 			virtual ~EventWorker() override;
 

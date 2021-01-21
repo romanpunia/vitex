@@ -1118,6 +1118,8 @@ namespace Tomahawk
 				if (!Size)
 					std::this_thread::sleep_for(std::chrono::microseconds(100));
 			} while (Queue == Loop && Args);
+
+			return;
 		}
 		bool Multiplexer::Create(int Length, int64_t Timeout, Rest::EventQueue* Queue)
 		{
@@ -1582,6 +1584,7 @@ namespace Tomahawk
 			if (!Router && State == ServerState_Idle)
 				return false;
 
+			Rest::EventQueue* Last = Queue;
 			if (Queue != nullptr && Worker != nullptr)
 			{
 				Queue->Expire(Worker->Id);
@@ -1589,6 +1592,8 @@ namespace Tomahawk
 			}
 
 			State = ServerState_Stopping;
+			Queue = nullptr;
+
 			Sync.lock();
 			for (auto It = Good.begin(); It != Good.end(); It++)
 			{
@@ -1604,7 +1609,7 @@ namespace Tomahawk
 			{
 				FreeQueued();
 				std::this_thread::sleep_for(std::chrono::milliseconds(100));
-			}while (!Bad.empty() || !Good.empty());
+			} while (!Bad.empty() || !Good.empty());
 
 			if (!OnUnlisten())
 				return false;
@@ -1621,14 +1626,13 @@ namespace Tomahawk
 				delete It;
 			}
 
+			if (Multiplexer::GetQueue() == Last)
+				Multiplexer::Bind(0, nullptr);
+
 			OnDeallocateRouter(Router);
 			Router = nullptr;
 			State = ServerState_Idle;
 
-			if (Multiplexer::GetQueue() == Queue)
-				Multiplexer::Bind(0, nullptr);
-
-			Queue = nullptr;
 			return true;
 		}
 		bool SocketServer::Listen(Rest::EventQueue* Ref)

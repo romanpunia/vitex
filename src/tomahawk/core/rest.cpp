@@ -4605,9 +4605,6 @@ namespace Tomahawk
 		}
 		EventWorker::~EventWorker()
 		{
-			if (Queue != nullptr)
-				Queue->Async.Condition[Extended ? 0 : 1].notify_all();
-
 			if (Thread.get_id() != std::this_thread::get_id() && Thread.joinable())
 				Thread.join();
 		}
@@ -4631,11 +4628,12 @@ namespace Tomahawk
 					Condition->wait(Lock);
 				}
 			} while (Queue->State == EventState_Working);
-
+			
 			return true;
 		}
 		bool EventWorker::QueueEvent()
 		{
+			while (Queue->State == EventState_Working);
 			if (!Queue)
 				return false;
 
@@ -4654,7 +4652,7 @@ namespace Tomahawk
 					Condition->wait(Lock);
 				}
 			} while (Queue->State == EventState_Working);
-
+			
 			return true;
 		}
 
@@ -4747,6 +4745,9 @@ namespace Tomahawk
 			}
 
 			State = EventState_Terminated;
+			Async.Condition[0].notify_all();
+			Async.Condition[1].notify_all();
+
 			for (auto& Worker : Async.Workers)
 			{
 				for (auto It = Worker.begin(); It != Worker.end(); It++)

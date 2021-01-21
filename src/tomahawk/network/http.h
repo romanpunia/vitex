@@ -193,7 +193,7 @@ namespace Tomahawk
 			struct TH_OUT WebSocketFrame
 			{
 				friend struct GatewayFrame;
-
+				friend struct Connection;
 				friend class Util;
 
 			private:

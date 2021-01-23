@@ -3708,29 +3708,10 @@ namespace Tomahawk
 						return Script::VMResult_INVALID_CONFIGURATION;
 
 					Compiler = Manager->CreateCompiler();
-					Compiler->SetPragmaCallback([this](Compute::Preprocessor*, const std::string& Path, const std::string& Pragma)
+					Compiler->SetPragmaCallback([this](Compute::Preprocessor*, const std::string& Name, const std::vector<std::string>& Args)
 					{
-						Rest::Stroke Comment(&Pragma);
-						Comment.Trim();
-
-						auto Start = Comment.Find('(');
-						if (!Start.Found)
-							return false;
-
-						auto End = Comment.ReverseFind(')');
-						if (!End.Found)
-							return false;
-
-						if (!Comment.StartsWith("name"))
-							return false;
-
-						Rest::Stroke Name(Comment);
-						Name.Substring(Start.End, End.Start - Start.End).Trim();
-						if (Name.Get()[0] == '\"' && Name.Get()[Name.Size() - 1] == '\"')
-							Name.Substring(1, Name.Size() - 2);
-
-						if (!Name.Empty())
-							Module = Name.R();
+						if (Name == "name" && Args.size() == 1)
+							Module = Args[0];
 
 						return true;
 					});
@@ -3755,7 +3736,7 @@ namespace Tomahawk
 					return Script::VMResult_SUCCESS;
 				}
 
-				int R = Compiler->PrepareScope("base", Source == SourceType_Resource ? Resource : "anonymous");
+				int R = Compiler->Prepare("base", Source == SourceType_Resource ? Resource : "anonymous", true, true);
 				if (R < 0)
 				{
 					Safe.unlock();

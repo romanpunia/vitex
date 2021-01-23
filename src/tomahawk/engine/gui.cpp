@@ -3691,7 +3691,7 @@ namespace Tomahawk
 					return;
 
 				Compiler->Clear();
-				Compiler->PrepareScope("__scope__");
+				Compiler->Prepare("__scope__", true);
 			}
 			const std::string& Context::GetDocumentsBaseTag()
 			{

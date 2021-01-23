@@ -604,6 +604,10 @@ namespace Tomahawk
 		{
 			return str.empty();
 		}
+		static void* StringToCString(const std::string& Value)
+		{
+			return (void*)Value.c_str();
+		}
 		static std::string StringReverse(const std::string& Value)
 		{
 			Rest::Stroke Result(Value);
@@ -4911,6 +4915,7 @@ namespace Tomahawk
 			Engine->RegisterObjectMethod("String", "String ToLower() const", asFUNCTION(StringToLower), asCALL_CDECL_OBJLAST);
 			Engine->RegisterObjectMethod("String", "String ToUpper() const", asFUNCTION(StringToUpper), asCALL_CDECL_OBJLAST);
 			Engine->RegisterObjectMethod("String", "String Reverse() const", asFUNCTION(StringReverse), asCALL_CDECL_OBJLAST);
+			Engine->RegisterObjectMethod("String", "Address@ GetAddress() const", asFUNCTION(StringToCString), asCALL_CDECL_OBJLAST);
 			Engine->RegisterGlobalFunction("int64 ToInt(const String &in, uint base = 10, uint &out byteCount = 0)", asFUNCTION(StringToInt), asCALL_CDECL);
 			Engine->RegisterGlobalFunction("uint64 ToUInt(const String &in, uint base = 10, uint &out byteCount = 0)", asFUNCTION(StringToUInt), asCALL_CDECL);
 			Engine->RegisterGlobalFunction("double ToFloat(const String &in, uint &out byteCount = 0)", asFUNCTION(StringToFloat), asCALL_CDECL);

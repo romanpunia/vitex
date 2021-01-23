@@ -276,14 +276,14 @@ namespace Tomahawk
 			}
 #endif
 
-			int Error = 1;
-			socklen_t Size = sizeof(Error);
-			getsockopt(Fd, SOL_SOCKET, SO_ERROR, (char*)&Error, &Size);
-
 			linger Linger;
 			Linger.l_onoff = 1;
 			Linger.l_linger = (TimeWait > 0 ? TimeWait : 0);
 			setsockopt(Fd, SOL_SOCKET, SO_LINGER, (char*)&Linger, sizeof(Linger));
+
+			int Error = 1;
+			socklen_t Size = sizeof(Error);
+			getsockopt(Fd, SOL_SOCKET, SO_ERROR, (char*)&Error, &Size);
 
 			shutdown(Fd, SD_BOTH);
 			closesocket(Fd);

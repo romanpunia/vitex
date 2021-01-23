@@ -1618,10 +1618,8 @@ namespace Tomahawk
 			bool IsDefined(const std::string& Word);
 			bool IsBuilt();
 			bool IsCached();
-			int Prepare(const std::string& ModuleName);
-			int Prepare(const std::string& ModuleName, const std::string& Cache, bool Debug = true);
-			int PrepareScope(const std::string& ModuleName);
-			int PrepareScope(const std::string& ModuleName, const std::string& Cache, bool Debug = true);
+			int Prepare(const std::string& ModuleName, bool Scoped = false);
+			int Prepare(const std::string& ModuleName, const std::string& Cache, bool Debug = true, bool Scoped = false);
 			int Compile(bool Await);
 			int SaveByteCode(VMByteCode* Info);
 			int LoadByteCode(VMByteCode* Info);
@@ -1785,6 +1783,8 @@ namespace Tomahawk
 			void SetByteCodeCache(VMByteCode* Info);
 			VMContext* CreateContext();
 			VMCompiler* CreateCompiler();
+			VMCModule* CreateScopedModule(const std::string& Name, bool AqLock = true);
+			VMCModule* CreateModule(const std::string& Name, bool AqLock = true);
 			void* CreateObject(const VMTypeInfo& Type);
 			void* CreateObjectCopy(void* Object, const VMTypeInfo& Type);
 			void* CreateEmptyObject(const VMTypeInfo& Type);
@@ -1817,13 +1817,13 @@ namespace Tomahawk
 			size_t GetProperty(VMProp Property) const;
 			VMCManager* GetEngine() const;
 			std::string GetDocumentRoot() const;
-			std::string GetScopedName(const std::string& Name);
 			Rest::Document* ImportJSON(const std::string& Path);
 			bool IsNullable(int TypeId);
 			bool ImportFile(const std::string& Path, std::string* Out);
 			bool HasSubmodule(const std::string& Name);
 			bool UseSubmodule(const std::string& Name);
-			bool ImportSymbol(const std::string& Path, const std::string& Name, const std::string& Decl);
+			bool ImportSymbol(const std::vector<std::string>& Sources, const std::string& Name, const std::string& Decl);
+			bool ImportLibrary(const std::string& Path);
 			std::vector<std::string> GetSubmodules();
 
 		public:
@@ -1834,6 +1834,7 @@ namespace Tomahawk
 			static void FreeProxy();
 
 		private:
+			static std::string GetLibraryName(const std::string& Path);
 			static VMCContext* RequestContext(VMCManager* Engine, void* Data);
 			static void ReturnContext(VMCManager* Engine, VMCContext* Context, void* Data);
 			static void CompileLogger(asSMessageInfo* Info, void* Object);

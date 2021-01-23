@@ -70,7 +70,7 @@ namespace Tomahawk
 			VMTypeInfo Type = Engine->Global().GetTypeInfoByName(TypeName);
 			return Engine->NotifyOfNewObject(Object, Type.GetTypeInfo());
 		}
-		asSFuncPtr* VMFuncStore::CreateFunctionBase(void(* Base)(), int Type)
+		asSFuncPtr* VMFuncStore::CreateFunctionBase(void(*Base)(), int Type)
 		{
 			asSFuncPtr* Ptr = new asSFuncPtr(Type);
 			Ptr->ptr.f.func = reinterpret_cast<asFUNCTION_t>(Base);
@@ -1227,157 +1227,157 @@ namespace Tomahawk
 		{
 			switch (Op)
 			{
-			case VMOpFunc_Neg:
-				if (Right)
-					return "";
+				case VMOpFunc_Neg:
+					if (Right)
+						return "";
 
-				return Rest::Form("%s opNeg()%s", Out, Const ? " const" : "");
-			case VMOpFunc_Com:
-				if (Right)
-					return "";
+					return Rest::Form("%s opNeg()%s", Out, Const ? " const" : "");
+				case VMOpFunc_Com:
+					if (Right)
+						return "";
 
-				return Rest::Form("%s opCom()%s", Out, Const ? " const" : "");
-			case VMOpFunc_PreInc:
-				if (Right)
-					return "";
+					return Rest::Form("%s opCom()%s", Out, Const ? " const" : "");
+				case VMOpFunc_PreInc:
+					if (Right)
+						return "";
 
-				return Rest::Form("%s opPreInc()%s", Out, Const ? " const" : "");
-			case VMOpFunc_PreDec:
-				if (Right)
-					return "";
+					return Rest::Form("%s opPreInc()%s", Out, Const ? " const" : "");
+				case VMOpFunc_PreDec:
+					if (Right)
+						return "";
 
-				return Rest::Form("%s opPreDec()%s", Out, Const ? " const" : "");
-			case VMOpFunc_PostInc:
-				if (Right)
-					return "";
+					return Rest::Form("%s opPreDec()%s", Out, Const ? " const" : "");
+				case VMOpFunc_PostInc:
+					if (Right)
+						return "";
 
-				return Rest::Form("%s opPostInc()%s", Out, Const ? " const" : "");
-			case VMOpFunc_PostDec:
-				if (Right)
-					return "";
+					return Rest::Form("%s opPostInc()%s", Out, Const ? " const" : "");
+				case VMOpFunc_PostDec:
+					if (Right)
+						return "";
 
-				return Rest::Form("%s opPostDec()%s", Out, Const ? " const" : "");
-			case VMOpFunc_Equals:
-				if (Right)
-					return "";
+					return Rest::Form("%s opPostDec()%s", Out, Const ? " const" : "");
+				case VMOpFunc_Equals:
+					if (Right)
+						return "";
 
-				return Rest::Form("%s opEquals(%s)%s", Out, Args ? Args : "", Const ? " const" : "");
-			case VMOpFunc_Cmp:
-				if (Right)
-					return "";
+					return Rest::Form("%s opEquals(%s)%s", Out, Args ? Args : "", Const ? " const" : "");
+				case VMOpFunc_Cmp:
+					if (Right)
+						return "";
 
-				return Rest::Form("%s opCmp(%s)%s", Out, Args ? Args : "", Const ? " const" : "");
-			case VMOpFunc_Assign:
-				if (Right)
-					return "";
+					return Rest::Form("%s opCmp(%s)%s", Out, Args ? Args : "", Const ? " const" : "");
+				case VMOpFunc_Assign:
+					if (Right)
+						return "";
 
-				return Rest::Form("%s opAssign(%s)%s", Out, Args ? Args : "", Const ? " const" : "");
-			case VMOpFunc_AddAssign:
-				if (Right)
-					return "";
+					return Rest::Form("%s opAssign(%s)%s", Out, Args ? Args : "", Const ? " const" : "");
+				case VMOpFunc_AddAssign:
+					if (Right)
+						return "";
 
-				return Rest::Form("%s opAddAssign(%s)%s", Out, Args ? Args : "", Const ? " const" : "");
-			case VMOpFunc_SubAssign:
-				if (Right)
-					return "";
+					return Rest::Form("%s opAddAssign(%s)%s", Out, Args ? Args : "", Const ? " const" : "");
+				case VMOpFunc_SubAssign:
+					if (Right)
+						return "";
 
-				return Rest::Form("%s opSubAssign(%s)%s", Out, Args ? Args : "", Const ? " const" : "");
-			case VMOpFunc_MulAssign:
-				if (Right)
-					return "";
+					return Rest::Form("%s opSubAssign(%s)%s", Out, Args ? Args : "", Const ? " const" : "");
+				case VMOpFunc_MulAssign:
+					if (Right)
+						return "";
 
-				return Rest::Form("%s opMulAssign(%s)%s", Out, Args ? Args : "", Const ? " const" : "");
-			case VMOpFunc_DivAssign:
-				if (Right)
-					return "";
+					return Rest::Form("%s opMulAssign(%s)%s", Out, Args ? Args : "", Const ? " const" : "");
+				case VMOpFunc_DivAssign:
+					if (Right)
+						return "";
 
-				return Rest::Form("%s opDivAssign(%s)%s", Out, Args ? Args : "", Const ? " const" : "");
-			case VMOpFunc_ModAssign:
-				if (Right)
-					return "";
+					return Rest::Form("%s opDivAssign(%s)%s", Out, Args ? Args : "", Const ? " const" : "");
+				case VMOpFunc_ModAssign:
+					if (Right)
+						return "";
 
-				return Rest::Form("%s opModAssign(%s)%s", Out, Args ? Args : "", Const ? " const" : "");
-			case VMOpFunc_PowAssign:
-				if (Right)
-					return "";
+					return Rest::Form("%s opModAssign(%s)%s", Out, Args ? Args : "", Const ? " const" : "");
+				case VMOpFunc_PowAssign:
+					if (Right)
+						return "";
 
-				return Rest::Form("%s opPowAssign(%s)%s", Out, Args ? Args : "", Const ? " const" : "");
-			case VMOpFunc_AndAssign:
-				if (Right)
-					return "";
+					return Rest::Form("%s opPowAssign(%s)%s", Out, Args ? Args : "", Const ? " const" : "");
+				case VMOpFunc_AndAssign:
+					if (Right)
+						return "";
 
-				return Rest::Form("%s opAndAssign(%s)%s", Out, Args ? Args : "", Const ? " const" : "");
-			case VMOpFunc_OrAssign:
-				if (Right)
-					return "";
+					return Rest::Form("%s opAndAssign(%s)%s", Out, Args ? Args : "", Const ? " const" : "");
+				case VMOpFunc_OrAssign:
+					if (Right)
+						return "";
 
-				return Rest::Form("%s opOrAssign(%s)%s", Out, Args ? Args : "", Const ? " const" : "");
-			case VMOpFunc_XOrAssign:
-				if (Right)
-					return "";
+					return Rest::Form("%s opOrAssign(%s)%s", Out, Args ? Args : "", Const ? " const" : "");
+				case VMOpFunc_XOrAssign:
+					if (Right)
+						return "";
 
-				return Rest::Form("%s opXorAssign(%s)%s", Out, Args ? Args : "", Const ? " const" : "");
-			case VMOpFunc_ShlAssign:
-				if (Right)
-					return "";
+					return Rest::Form("%s opXorAssign(%s)%s", Out, Args ? Args : "", Const ? " const" : "");
+				case VMOpFunc_ShlAssign:
+					if (Right)
+						return "";
 
-				return Rest::Form("%s opShlAssign(%s)%s", Out, Args ? Args : "", Const ? " const" : "");
-			case VMOpFunc_ShrAssign:
-				if (Right)
-					return "";
+					return Rest::Form("%s opShlAssign(%s)%s", Out, Args ? Args : "", Const ? " const" : "");
+				case VMOpFunc_ShrAssign:
+					if (Right)
+						return "";
 
-				return Rest::Form("%s opShrAssign(%s)%s", Out, Args ? Args : "", Const ? " const" : "");
-			case VMOpFunc_UshrAssign:
-				if (Right)
-					return "";
+					return Rest::Form("%s opShrAssign(%s)%s", Out, Args ? Args : "", Const ? " const" : "");
+				case VMOpFunc_UshrAssign:
+					if (Right)
+						return "";
 
-				return Rest::Form("%s opUshrAssign(%s)%s", Out, Args ? Args : "", Const ? " const" : "");
-			case VMOpFunc_Add:
-				return Rest::Form("%s opAdd%s(%s)%s", Out, Right ? "_r" : "", Args ? Args : "", Const ? " const" : "");
-			case VMOpFunc_Sub:
-				return Rest::Form("%s opSub%s(%s)%s", Out, Right ? "_r" : "", Args ? Args : "", Const ? " const" : "");
-			case VMOpFunc_Mul:
-				return Rest::Form("%s opMul%s(%s)%s", Out, Right ? "_r" : "", Args ? Args : "", Const ? " const" : "");
-			case VMOpFunc_Div:
-				return Rest::Form("%s opDiv%s(%s)%s", Out, Right ? "_r" : "", Args ? Args : "", Const ? " const" : "");
-			case VMOpFunc_Mod:
-				return Rest::Form("%s opMod%s(%s)%s", Out, Right ? "_r" : "", Args ? Args : "", Const ? " const" : "");
-			case VMOpFunc_Pow:
-				return Rest::Form("%s opPow%s(%s)%s", Out, Right ? "_r" : "", Args ? Args : "", Const ? " const" : "");
-			case VMOpFunc_And:
-				return Rest::Form("%s opAnd%s(%s)%s", Out, Right ? "_r" : "", Args ? Args : "", Const ? " const" : "");
-			case VMOpFunc_Or:
-				return Rest::Form("%s opOr%s(%s)%s", Out, Right ? "_r" : "", Args ? Args : "", Const ? " const" : "");
-			case VMOpFunc_XOr:
-				return Rest::Form("%s opXor%s(%s)%s", Out, Right ? "_r" : "", Args ? Args : "", Const ? " const" : "");
-			case VMOpFunc_Shl:
-				return Rest::Form("%s opShl%s(%s)%s", Out, Right ? "_r" : "", Args ? Args : "", Const ? " const" : "");
-			case VMOpFunc_Shr:
-				return Rest::Form("%s opShr%s(%s)%s", Out, Right ? "_r" : "", Args ? Args : "", Const ? " const" : "");
-			case VMOpFunc_Ushr:
-				return Rest::Form("%s opUshr%s(%s)%s", Out, Right ? "_r" : "", Args ? Args : "", Const ? " const" : "");
-			case VMOpFunc_Index:
-				if (Right)
-					return "";
+					return Rest::Form("%s opUshrAssign(%s)%s", Out, Args ? Args : "", Const ? " const" : "");
+				case VMOpFunc_Add:
+					return Rest::Form("%s opAdd%s(%s)%s", Out, Right ? "_r" : "", Args ? Args : "", Const ? " const" : "");
+				case VMOpFunc_Sub:
+					return Rest::Form("%s opSub%s(%s)%s", Out, Right ? "_r" : "", Args ? Args : "", Const ? " const" : "");
+				case VMOpFunc_Mul:
+					return Rest::Form("%s opMul%s(%s)%s", Out, Right ? "_r" : "", Args ? Args : "", Const ? " const" : "");
+				case VMOpFunc_Div:
+					return Rest::Form("%s opDiv%s(%s)%s", Out, Right ? "_r" : "", Args ? Args : "", Const ? " const" : "");
+				case VMOpFunc_Mod:
+					return Rest::Form("%s opMod%s(%s)%s", Out, Right ? "_r" : "", Args ? Args : "", Const ? " const" : "");
+				case VMOpFunc_Pow:
+					return Rest::Form("%s opPow%s(%s)%s", Out, Right ? "_r" : "", Args ? Args : "", Const ? " const" : "");
+				case VMOpFunc_And:
+					return Rest::Form("%s opAnd%s(%s)%s", Out, Right ? "_r" : "", Args ? Args : "", Const ? " const" : "");
+				case VMOpFunc_Or:
+					return Rest::Form("%s opOr%s(%s)%s", Out, Right ? "_r" : "", Args ? Args : "", Const ? " const" : "");
+				case VMOpFunc_XOr:
+					return Rest::Form("%s opXor%s(%s)%s", Out, Right ? "_r" : "", Args ? Args : "", Const ? " const" : "");
+				case VMOpFunc_Shl:
+					return Rest::Form("%s opShl%s(%s)%s", Out, Right ? "_r" : "", Args ? Args : "", Const ? " const" : "");
+				case VMOpFunc_Shr:
+					return Rest::Form("%s opShr%s(%s)%s", Out, Right ? "_r" : "", Args ? Args : "", Const ? " const" : "");
+				case VMOpFunc_Ushr:
+					return Rest::Form("%s opUshr%s(%s)%s", Out, Right ? "_r" : "", Args ? Args : "", Const ? " const" : "");
+				case VMOpFunc_Index:
+					if (Right)
+						return "";
 
-				return Rest::Form("%s opIndex(%s)%s", Out, Args ? Args : "", Const ? " const" : "");
-			case VMOpFunc_Call:
-				if (Right)
-					return "";
+					return Rest::Form("%s opIndex(%s)%s", Out, Args ? Args : "", Const ? " const" : "");
+				case VMOpFunc_Call:
+					if (Right)
+						return "";
 
-				return Rest::Form("%s opCall(%s)%s", Out, Args ? Args : "", Const ? " const" : "");
-			case VMOpFunc_Cast:
-				if (Right)
-					return "";
+					return Rest::Form("%s opCall(%s)%s", Out, Args ? Args : "", Const ? " const" : "");
+				case VMOpFunc_Cast:
+					if (Right)
+						return "";
 
-				return Rest::Form("%s opCast()%s", Out, Const ? " const" : "");
-			case VMOpFunc_ImplCast:
-				if (Right)
-					return "";
+					return Rest::Form("%s opCast()%s", Out, Const ? " const" : "");
+				case VMOpFunc_ImplCast:
+					if (Right)
+						return "";
 
-				return Rest::Form("%s opImplCast()%s", Out, Const ? " const" : "");
-			default:
-				return "";
+					return Rest::Form("%s opImplCast()%s", Out, Const ? " const" : "");
+				default:
+					return "";
 			}
 		}
 
@@ -1480,16 +1480,25 @@ namespace Tomahawk
 			if (!IsValid())
 				return -1;
 
-			return Mod->Build();
+			Manager->Lock();
+			int R = Mod->Build();
+			Manager->Unlock();
+
+			return R;
 		}
 		int VMModule::LoadByteCode(VMByteCode* Info)
 		{
+			int R = -1;
 			if (!Info || !IsValid())
-				return -1;
+				return R;
 
-			CByteCodeStream* Stream = new CByteCodeStream(Info->Data);
-			int R = Mod->LoadByteCode(Stream, &Info->Debug);
-			delete Stream;
+			Manager->Lock();
+			{
+				CByteCodeStream* Stream = new CByteCodeStream(Info->Data);
+				R = Mod->LoadByteCode(Stream, &Info->Debug);
+				delete Stream;
+			}
+			Manager->Unlock();
 
 			return R;
 		}
@@ -1499,8 +1508,10 @@ namespace Tomahawk
 				return -1;
 
 			Manager->Lock();
-			Mod->Discard();
-			Mod = nullptr;
+			{
+				Mod->Discard();
+				Mod = nullptr;
+			}
 			Manager->Unlock();
 
 			return 0;
@@ -1539,7 +1550,9 @@ namespace Tomahawk
 				return -1;
 
 			VMCFunction* OutFunc = nullptr;
+			Manager->Lock();
 			int R = Mod->CompileFunction(SectionName, Code, LineOffset, (asDWORD)CompileFlags, &OutFunc);
+			Manager->Unlock();
 
 			if (OutFunction != nullptr)
 				*OutFunction = VMFunction(OutFunc);
@@ -1551,7 +1564,11 @@ namespace Tomahawk
 			if (!IsValid())
 				return -1;
 
-			return Mod->CompileGlobalVar(SectionName, Code, LineOffset);
+			Manager->Lock();
+			int R = Mod->CompileGlobalVar(SectionName, Code, LineOffset);
+			Manager->Unlock();
+
+			return R;
 		}
 		int VMModule::SetDefaultNamespace(const char* NameSpace)
 		{
@@ -1625,13 +1642,18 @@ namespace Tomahawk
 		}
 		int VMModule::SaveByteCode(VMByteCode* Info) const
 		{
+			int R = -1;
 			if (!Info || !IsValid())
-				return -1;
+				return R;
 
-			CByteCodeStream* Stream = new CByteCodeStream();
-			int R = Mod->SaveByteCode(Stream, Info->Debug);
-			Info->Data = Stream->GetCode();
-			delete Stream;
+			Manager->Lock();
+			{
+				CByteCodeStream* Stream = new CByteCodeStream();
+				R = Mod->SaveByteCode(Stream, Info->Debug);
+				Info->Data = Stream->GetCode();
+				delete Stream;
+			}
+			Manager->Unlock();
 
 			return R;
 		}
@@ -1928,7 +1950,7 @@ namespace Tomahawk
 			if (!Manager)
 				return -1;
 
-			const char* Name = nullptr, * NameSpace = nullptr;
+			const char* Name = nullptr, *NameSpace = nullptr;
 			const char* ConfigGroup = nullptr;
 			void* Pointer = nullptr;
 			bool IsConst = false;
@@ -2128,227 +2150,136 @@ namespace Tomahawk
 
 				return Module->AddScriptSection(File.Module.c_str(), Buffer.c_str(), Buffer.size()) >= 0;
 			});
-			Processor->SetPragmaCallback([this](Compute::Preprocessor* C, const std::string& Path, const std::string& Value)
+			Processor->SetPragmaCallback([this](Compute::Preprocessor* C, const std::string& Name, const std::vector<std::string>& Args)
 			{
 				if (!Manager)
 					return false;
 
-				if (Pragma && Pragma(C, Path, Value))
+				if (Pragma && Pragma(C, Name, Args))
 					return true;
 
-				Rest::Stroke Comment(&Value);
-				Comment.Trim();
-
-				auto Start = Comment.Find('(');
-				if (!Start.Found)
-					return false;
-
-				auto End = Comment.ReverseFind(')');
-				if (!End.Found)
-					return false;
-
-				if (Comment.StartsWith("define"))
+				if (Name == "compile" && Args.size() == 2)
 				{
-					Rest::Stroke Name(Comment);
-					Name.Substring(Start.End, End.Start - Start.End).Trim();
-					if (!Name.Empty() && Name.Get()[0] == '\"' && Name.Get()[Name.Size() - 1] == '\"')
-						Name.Substring(1, Name.Size() - 2);
-
-					if (!Name.Empty())
-						Define(Name.R());
-				}
-				else if (Comment.StartsWith("compile"))
-				{
-					auto Split = Comment.Find(',', Start.End);
-					if (!Split.Found)
-						return false;
-
-					Rest::Stroke Name(Comment);
-					Name.Substring(Start.End, Split.Start - Start.End).Trim().ToUpper();
-					if (!Name.Empty() && Name.Get()[0] == '\"' && Name.Get()[Name.Size() - 1] == '\"')
-						Name.Substring(1, Name.Size() - 2);
-
-					Rest::Stroke Value(Comment);
-					Value.Substring(Split.End, End.Start - Split.End).Trim();
-					if (!Value.Empty() && Value.Get()[0] == '\"' && Value.Get()[Value.Size() - 1] == '\"')
-						Value.Substring(1, Value.Size() - 2);
+					const std::string& Key = Args[0];
+					Rest::Stroke Value(&Args[1]);
 
 					size_t Result = Value.HasInteger() ? Value.ToUInt64() : 0;
-					if (Name.R() == "ALLOW_UNSAFE_REFERENCES")
+					if (Key == "ALLOW_UNSAFE_REFERENCES")
 						Manager->SetProperty(VMProp_ALLOW_UNSAFE_REFERENCES, Result);
-					else if (Name.R() == "OPTIMIZE_BYTECODE")
+					else if (Key == "OPTIMIZE_BYTECODE")
 						Manager->SetProperty(VMProp_OPTIMIZE_BYTECODE, Result);
-					else if (Name.R() == "COPY_SCRIPT_SECTIONS")
+					else if (Key == "COPY_SCRIPT_SECTIONS")
 						Manager->SetProperty(VMProp_COPY_SCRIPT_SECTIONS, Result);
-					else if (Name.R() == "MAX_STACK_SIZE")
+					else if (Key == "MAX_STACK_SIZE")
 						Manager->SetProperty(VMProp_MAX_STACK_SIZE, Result);
-					else if (Name.R() == "USE_CHARACTER_LITERALS")
+					else if (Key == "USE_CHARACTER_LITERALS")
 						Manager->SetProperty(VMProp_USE_CHARACTER_LITERALS, Result);
-					else if (Name.R() == "ALLOW_MULTILINE_STRINGS")
+					else if (Key == "ALLOW_MULTILINE_STRINGS")
 						Manager->SetProperty(VMProp_ALLOW_MULTILINE_STRINGS, Result);
-					else if (Name.R() == "ALLOW_IMPLICIT_HANDLE_TYPES")
+					else if (Key == "ALLOW_IMPLICIT_HANDLE_TYPES")
 						Manager->SetProperty(VMProp_ALLOW_IMPLICIT_HANDLE_TYPES, Result);
-					else if (Name.R() == "BUILD_WITHOUT_LINE_CUES")
+					else if (Key == "BUILD_WITHOUT_LINE_CUES")
 						Manager->SetProperty(VMProp_BUILD_WITHOUT_LINE_CUES, Result);
-					else if (Name.R() == "INIT_GLOBAL_VARS_AFTER_BUILD")
+					else if (Key == "INIT_GLOBAL_VARS_AFTER_BUILD")
 						Manager->SetProperty(VMProp_INIT_GLOBAL_VARS_AFTER_BUILD, Result);
-					else if (Name.R() == "REQUIRE_ENUM_SCOPE")
+					else if (Key == "REQUIRE_ENUM_SCOPE")
 						Manager->SetProperty(VMProp_REQUIRE_ENUM_SCOPE, Result);
-					else if (Name.R() == "SCRIPT_SCANNER")
+					else if (Key == "SCRIPT_SCANNER")
 						Manager->SetProperty(VMProp_SCRIPT_SCANNER, Result);
-					else if (Name.R() == "INCLUDE_JIT_INSTRUCTIONS")
+					else if (Key == "INCLUDE_JIT_INSTRUCTIONS")
 						Manager->SetProperty(VMProp_INCLUDE_JIT_INSTRUCTIONS, Result);
-					else if (Name.R() == "STRING_ENCODING")
+					else if (Key == "STRING_ENCODING")
 						Manager->SetProperty(VMProp_STRING_ENCODING, Result);
-					else if (Name.R() == "PROPERTY_ACCESSOR_MODE")
+					else if (Key == "PROPERTY_ACCESSOR_MODE")
 						Manager->SetProperty(VMProp_PROPERTY_ACCESSOR_MODE, Result);
-					else if (Name.R() == "EXPAND_DEF_ARRAY_TO_TMPL")
+					else if (Key == "EXPAND_DEF_ARRAY_TO_TMPL")
 						Manager->SetProperty(VMProp_EXPAND_DEF_ARRAY_TO_TMPL, Result);
-					else if (Name.R() == "AUTO_GARBAGE_COLLECT")
+					else if (Key == "AUTO_GARBAGE_COLLECT")
 						Manager->SetProperty(VMProp_AUTO_GARBAGE_COLLECT, Result);
-					else if (Name.R() == "DISALLOW_GLOBAL_VARS")
+					else if (Key == "DISALLOW_GLOBAL_VARS")
 						Manager->SetProperty(VMProp_ALWAYS_IMPL_DEFAULT_CONSTRUCT, Result);
-					else if (Name.R() == "ALWAYS_IMPL_DEFAULT_CONSTRUCT")
+					else if (Key == "ALWAYS_IMPL_DEFAULT_CONSTRUCT")
 						Manager->SetProperty(VMProp_ALWAYS_IMPL_DEFAULT_CONSTRUCT, Result);
-					else if (Name.R() == "COMPILER_WARNINGS")
+					else if (Key == "COMPILER_WARNINGS")
 						Manager->SetProperty(VMProp_COMPILER_WARNINGS, Result);
-					else if (Name.R() == "DISALLOW_VALUE_ASSIGN_FOR_REF_TYPE")
+					else if (Key == "DISALLOW_VALUE_ASSIGN_FOR_REF_TYPE")
 						Manager->SetProperty(VMProp_DISALLOW_VALUE_ASSIGN_FOR_REF_TYPE, Result);
-					else if (Name.R() == "ALTER_SYNTAX_NAMED_ARGS")
+					else if (Key == "ALTER_SYNTAX_NAMED_ARGS")
 						Manager->SetProperty(VMProp_ALTER_SYNTAX_NAMED_ARGS, Result);
-					else if (Name.R() == "DISABLE_INTEGER_DIVISION")
+					else if (Key == "DISABLE_INTEGER_DIVISION")
 						Manager->SetProperty(VMProp_DISABLE_INTEGER_DIVISION, Result);
-					else if (Name.R() == "DISALLOW_EMPTY_LIST_ELEMENTS")
+					else if (Key == "DISALLOW_EMPTY_LIST_ELEMENTS")
 						Manager->SetProperty(VMProp_DISALLOW_EMPTY_LIST_ELEMENTS, Result);
-					else if (Name.R() == "PRIVATE_PROP_AS_PROTECTED")
+					else if (Key == "PRIVATE_PROP_AS_PROTECTED")
 						Manager->SetProperty(VMProp_PRIVATE_PROP_AS_PROTECTED, Result);
-					else if (Name.R() == "ALLOW_UNICODE_IDENTIFIERS")
+					else if (Key == "ALLOW_UNICODE_IDENTIFIERS")
 						Manager->SetProperty(VMProp_ALLOW_UNICODE_IDENTIFIERS, Result);
-					else if (Name.R() == "HEREDOC_TRIM_MODE")
+					else if (Key == "HEREDOC_TRIM_MODE")
 						Manager->SetProperty(VMProp_HEREDOC_TRIM_MODE, Result);
-					else if (Name.R() == "MAX_NESTED_CALLS")
+					else if (Key == "MAX_NESTED_CALLS")
 						Manager->SetProperty(VMProp_MAX_NESTED_CALLS, Result);
-					else if (Name.R() == "GENERIC_CALL_MODE")
+					else if (Key == "GENERIC_CALL_MODE")
 						Manager->SetProperty(VMProp_GENERIC_CALL_MODE, Result);
-					else if (Name.R() == "INIT_STACK_SIZE")
+					else if (Key == "INIT_STACK_SIZE")
 						Manager->SetProperty(VMProp_INIT_STACK_SIZE, Result);
-					else if (Name.R() == "INIT_CALL_STACK_SIZE")
+					else if (Key == "INIT_CALL_STACK_SIZE")
 						Manager->SetProperty(VMProp_INIT_CALL_STACK_SIZE, Result);
-					else if (Name.R() == "MAX_CALL_STACK_SIZE")
+					else if (Key == "MAX_CALL_STACK_SIZE")
 						Manager->SetProperty(VMProp_MAX_CALL_STACK_SIZE, Result);
 				}
-				else if (Comment.StartsWith("comment"))
+				else if (Name == "comment" && Args.size() == 2)
 				{
-					auto Split = Comment.Find(',', Start.End);
-					if (!Split.Found)
-						return false;
-
-					Rest::Stroke Name(Comment);
-					Name.Substring(Start.End, Split.Start - Start.End).Trim().ToUpper();
-					if (!Name.Empty() && Name.Get()[0] == '\"' && Name.Get()[Name.Size() - 1] == '\"')
-						Name.Substring(1, Name.Size() - 2);
-
-					Rest::Stroke Value(Comment);
-					Value.Substring(Split.End, End.Start - Split.End).Trim();
-					if (!Value.Empty() && Value.Get()[0] == '\"' && Value.Get()[Value.Size() - 1] == '\"')
-						Value.Substring(1, Value.Size() - 2);
-
-					if (Name.R() == "INFO")
-						TH_INFO("%s", Value.Get());
-					else if (Name.R() == "WARN")
-						TH_WARN("%s", Value.Get());
-					else if (Name.R() == "ERROR")
-						TH_ERROR("%s", Value.Get());
+					const std::string& Key = Args[0];
+					if (Key == "INFO")
+						TH_INFO("%s", Args[1].c_str());
+					else if (Key == "WARN")
+						TH_WARN("%s", Args[1].c_str());
+					else if (Key == "ERROR")
+						TH_ERROR("%s", Args[1].c_str());
 				}
-				else if (Comment.StartsWith("modify"))
+				else if (Name == "modify" && Args.size() == 2)
 				{
-					auto Split = Comment.Find(',', Start.End);
-					if (!Split.Found || !Module)
-						return false;
-
-					Rest::Stroke Name(Comment);
-					Name.Substring(Start.End, Split.Start - Start.End).Trim().ToUpper();
-					if (!Name.Empty() && Name.Get()[0] == '\"' && Name.Get()[Name.Size() - 1] == '\"')
-						Name.Substring(1, Name.Size() - 2);
-
-					Rest::Stroke Value(Comment);
-					Value.Substring(Split.End, End.Start - Split.End).Trim();
-					if (!Value.Empty() && Value.Get()[0] == '\"' && Value.Get()[Value.Size() - 1] == '\"')
-						Value.Substring(1, Value.Size() - 2);
+					const std::string& Key = Args[0];
+					Rest::Stroke Value(&Args[1]);
 
 					size_t Result = Value.HasInteger() ? Value.ToUInt64() : 0;
-					if (Name.R() == "NAME")
-						Module->SetName(Value.Value());
-					else if (Name.R() == "NAMESPACE")
-						Module->SetDefaultNamespace(Value.Value());
-					else if (Name.R() == "ACCESS_MASK")
+					if (Key == "NAME")
+						Module->SetName(Value.Get());
+					else if (Key == "NAMESPACE")
+						Module->SetDefaultNamespace(Value.Get());
+					else if (Key == "ACCESS_MASK")
 						Module->SetAccessMask(Result);
 				}
-				else if (Comment.StartsWith("using"))
+				else if (Name == "using" && Args.size() == 1)
 				{
-					Rest::Stroke Name(Comment);
-					Name.Substring(Start.End, End.Start - Start.End).Trim();
-					if (!Name.Empty() && Name.Get()[0] == '\"' && Name.Get()[Name.Size() - 1] == '\"')
-						Name.Substring(1, Name.Size() - 2);
-
-					if (Name.Empty())
-						return false;
-
-					if (!Manager->UseSubmodule(Name.R()))
+					if (!Manager->UseSubmodule(Args[0]))
 					{
-						TH_ERROR("system module \"%s\" was not found", Name.Get());
+						TH_ERROR("system module \"%s\" was not found", Args[0].c_str());
 						return false;
 					}
 				}
-				else if (Comment.StartsWith("cimport"))
+				else if (Name == "cimport" && Args.size() >= 2)
 				{
-					Rest::Stroke Name(Comment);
-					Name.Substring(Start.End, End.Start - Start.End).Trim();
+					std::vector<std::string> Sources;
+					if (Args.size() > 2)
+						Sources.assign(Args.begin() + 2, Args.end());
 
-					Rest::Stroke::Settle Split = Name.Find(',');
-					if (!Split.Found)
+					Manager->ImportSymbol(Sources, Args[1], Args[0]);
+				}
+				else if (Name == "clibrary" && Args.size() == 1)
+				{
+					std::string Path = Args[0];
+					if (!Path.empty() && Path.front() == '.')
 					{
-						TH_ERROR("empty kernel target format:\n\t#pragma cimport(\"so_library_or_empty:function_name\", \"function_decl\")");
-						return false;
-					}
-
-					Rest::Stroke Kernel = Rest::Stroke(Name).Substring(0, Split.Start).Trim();
-					if (!Kernel.Empty() && Kernel.Get()[0] == '\"' && Kernel.Get()[Kernel.Size() - 1] == '\"')
-						Kernel.Substring(1, Kernel.Size() - 2);
-
-					Rest::Stroke::Settle Func = Kernel.Find(':');
-					if (Kernel.Empty())
-					{
-						TH_ERROR("incorrect kernel target format:\n\t#pragma cimport(\"so_library_or_empty:function_name\", \"function_decl\")");
-						return false;
-					}
-
-					Rest::Stroke Function = (Func.Found ? Rest::Stroke(Kernel).Substring(Func.End) : Kernel);
-					if (Func.Found)
-						Kernel.Substring(0, Func.Start);
-					else
-						Kernel.Clear();
-
-					Rest::Stroke Decl = Name.Substring(Split.End).Trim();
-					if (!Decl.Empty() && Decl.Get()[0] == '\"' && Decl.Get()[Decl.Size() - 1] == '\"')
-						Decl.Substring(1, Decl.Size() - 2);
-
-					if (!Kernel.Empty() && Kernel.R()[0] == '.')
-					{
-						std::string Subpath = Rest::OS::Resolve(Kernel.R(), Rest::OS::FileDirectory(Path));
+						std::string Subpath = Rest::OS::Resolve(Path, Rest::OS::FileDirectory(Processor->GetCurrentFilePath()));
 						if (!Subpath.empty())
-							Kernel = Subpath;
+							Path = Subpath;
 					}
 
-					if (Function.Empty() || Decl.Empty())
-						return false;
-
-					if (!Manager->ImportSymbol(Kernel.R(), Function.R(), Decl.R()))
-					{
-						TH_ERROR("cannot find \"%s\" decl. symbol in \"%s\"", Function.Get(), Kernel.Get());
-						return false;
-					}
+					Manager->ImportLibrary(Path);
 				}
+				else if (Name == "define" && Args.size() == 1)
+					Define(Args[0]);
 
 				return true;
 			});
@@ -2387,13 +2318,16 @@ namespace Tomahawk
 				return false;
 
 			Manager->Lock();
-			if (Module != nullptr)
-				Module->Discard();
+			{
+				if (Module != nullptr)
+					Module->Discard();
+
+				Module = nullptr;
+				BuiltOK = false;
+			}
 			Manager->Unlock();
 
 			Processor->Clear();
-			Module = nullptr;
-			BuiltOK = false;
 			return true;
 		}
 		bool VMCompiler::IsPending()
@@ -2412,7 +2346,7 @@ namespace Tomahawk
 		{
 			return VCache.Valid;
 		}
-		int VMCompiler::Prepare(const std::string& ModuleName)
+		int VMCompiler::Prepare(const std::string& ModuleName, bool Scoped)
 		{
 			if (!Manager || ModuleName.empty())
 				return -1;
@@ -2421,16 +2355,16 @@ namespace Tomahawk
 			VCache.Valid = false;
 			VCache.Name.clear();
 
-			VMCManager* Engine = Manager->GetEngine();
-			if (!Engine)
-				return -1;
-
 			Manager->Lock();
 			if (Module != nullptr)
 				Module->Discard();
+
+			if (Scoped)
+				Module = Manager->CreateScopedModule(ModuleName.c_str(), false);
+			else
+				Module = Manager->CreateModule(ModuleName.c_str(), false);
 			Manager->Unlock();
 
-			Module = Engine->GetModule(ModuleName.c_str(), asGM_ALWAYS_CREATE);
 			if (!Module)
 				return -1;
 
@@ -2438,12 +2372,12 @@ namespace Tomahawk
 			Manager->SetProcessorOptions(Processor);
 			return 0;
 		}
-		int VMCompiler::Prepare(const std::string& ModuleName, const std::string& Name, bool Debug)
+		int VMCompiler::Prepare(const std::string& ModuleName, const std::string& Name, bool Debug, bool Scoped)
 		{
 			if (!Manager)
 				return -1;
 
-			int Result = Prepare(ModuleName);
+			int Result = Prepare(ModuleName, Scoped);
 			if (Result < 0)
 				return Result;
 
@@ -2456,20 +2390,6 @@ namespace Tomahawk
 			}
 
 			return Result;
-		}
-		int VMCompiler::PrepareScope(const std::string& ModuleName)
-		{
-			if (!Manager)
-				return -1;
-
-			return Prepare(Manager->GetScopedName(ModuleName));
-		}
-		int VMCompiler::PrepareScope(const std::string& ModuleName, const std::string& Name, bool Debug)
-		{
-			if (!Manager)
-				return -1;
-
-			return Prepare(Manager->GetScopedName(ModuleName), Name, Debug);
 		}
 		int VMCompiler::Compile(bool Await)
 		{
@@ -2492,11 +2412,17 @@ namespace Tomahawk
 				return R;
 			}
 
+			Manager->Lock();
 			int R = Module->Build();
+			Manager->Unlock();
+
 			while (Await && R == asBUILD_IN_PROGRESS)
 			{
 				std::this_thread::sleep_for(std::chrono::microseconds(100));
+
+				Manager->Lock();
 				R = Module->Build();
+				Manager->Unlock();
 			}
 
 			BuiltOK = (R >= 0);
@@ -2522,20 +2448,37 @@ namespace Tomahawk
 		}
 		int VMCompiler::SaveByteCode(VMByteCode* Info)
 		{
+			Manager->Lock();
 			if (!Info || !Module || !BuiltOK)
 			{
+				Manager->Unlock();
 				TH_ERROR("module was not built");
 				return -1;
 			}
 
-			return VMModule(Module).SaveByteCode(Info);
+			CByteCodeStream* Stream = new CByteCodeStream();
+			int R = Module->SaveByteCode(Stream, Info->Debug);
+			Info->Data = Stream->GetCode();
+			delete Stream;
+
+			Manager->Unlock();
+			return R;
 		}
 		int VMCompiler::LoadByteCode(VMByteCode* Info)
 		{
+			Manager->Lock();
 			if (!Info || !Module)
+			{
+				Manager->Unlock();
 				return -1;
+			}
 
-			return VMModule(Module).LoadByteCode(Info);
+			CByteCodeStream* Stream = new CByteCodeStream(Info->Data);
+			int R = Module->LoadByteCode(Stream, &Info->Debug);
+			delete Stream;
+
+			Manager->Unlock();
+			return R;
 		}
 		int VMCompiler::LoadFile(const std::string& Path)
 		{
@@ -2705,7 +2648,10 @@ namespace Tomahawk
 				Type->Release();
 
 			VMCFunction* Function = nullptr;
+			Manager->Lock();
 			int R = Module->CompileFunction("__vfbdy", Eval.c_str(), -1, asCOMP_ADD_TO_MODULE, &Function);
+			Manager->Unlock();
+
 			if (R < 0)
 				return R;
 
@@ -2785,7 +2731,7 @@ namespace Tomahawk
 			}
 			asThreadCleanup();
 		}
-		int VMContext::SetExceptionCallback(void(* Callback)(VMCContext* Context, void* Object), void* Object)
+		int VMContext::SetExceptionCallback(void(*Callback)(VMCContext* Context, void* Object), void* Object)
 		{
 			if (!Context)
 				return -1;
@@ -3110,7 +3056,7 @@ namespace Tomahawk
 
 			return Context->ClearExceptionCallback();
 		}
-		int VMContext::SetLineCallback(void(* Callback)(VMCContext* Context, void* Object), void* Object)
+		int VMContext::SetLineCallback(void(*Callback)(VMCContext* Context, void* Object), void* Object)
 		{
 			if (!Context || !Callback)
 				return -1;
@@ -3270,15 +3216,15 @@ namespace Tomahawk
 			std::string Stack = Api ? Api->GetStackTrace() : "";
 
 			TH_ERROR("uncaught exception raised"
-						"\n\tdescription: %s"
-						"\n\tfunction: %s"
-						"\n\tmodule: %s"
-						"\n\tsource: %s"
-						"\n\tline: %i\n%.*s", Message ? Message : "undefined", Decl ? Decl : "undefined", Mod ? Mod : "undefined", Source ? Source : "undefined", Line, (int)Stack.size(), Stack.c_str());
+				"\n\tdescription: %s"
+				"\n\tfunction: %s"
+				"\n\tmodule: %s"
+				"\n\tsource: %s"
+				"\n\tline: %i\n%.*s", Message ? Message : "undefined", Decl ? Decl : "undefined", Mod ? Mod : "undefined", Source ? Source : "undefined", Line, (int)Stack.size(), Stack.c_str());
 		}
 		int VMContext::ContextUD = 152;
 
-		VMManager::VMManager() : Engine(asCreateScriptEngine()), Globals(this), Cached(true), Scope(0), JIT(nullptr)
+		VMManager::VMManager() : Engine(asCreateScriptEngine()), Globals(this), Cached(true), Scope(0), JIT(nullptr), Nullable(0)
 		{
 			Include.Exts.push_back(".as");
 			Include.Root = Rest::OS::GetDirectory();
@@ -3290,9 +3236,15 @@ namespace Tomahawk
 			Engine->SetEngineProperty(asEP_USE_CHARACTER_LITERALS, true);
 			Engine->SetEngineProperty(asEP_DISALLOW_EMPTY_LIST_ELEMENTS, true);
 			Engine->SetEngineProperty(asEP_COMPILER_WARNINGS, 1);
-			Engine->RegisterObjectType("Nullable", 0, asOBJ_REF | asOBJ_NOCOUNT);
-			Engine->RegisterGlobalFunction("Nullable@ get_nullptr() property", asFUNCTION(VMManager::GetNullable), asCALL_CDECL);
-			Nullable = Engine->GetTypeIdByDecl("Nullable@");
+
+			if (Engine->RegisterObjectType("Nullable", 0, asOBJ_REF | asOBJ_NOCOUNT) >= 0)
+			{
+				Engine->RegisterGlobalFunction("Nullable@ get_nullptr() property", asFUNCTION(VMManager::GetNullable), asCALL_CDECL);
+				Nullable = Engine->GetTypeIdByDecl("Nullable@");
+			}
+
+			if (Engine->RegisterObjectType("Address", 0, asOBJ_REF | asOBJ_NOCOUNT) < 0)
+				TH_ERROR("could not register Address type for script engine");
 		}
 		VMManager::~VMManager()
 		{
@@ -3401,7 +3353,7 @@ namespace Tomahawk
 			Opcodes[Info->Name] = *Info;
 			Safe.unlock();
 		}
-		int VMManager::SetLogCallback(void(* Callback)(const asSMessageInfo* Message, void* Object), void* Object)
+		int VMManager::SetLogCallback(void(*Callback)(const asSMessageInfo* Message, void* Object), void* Object)
 		{
 			if (!Callback)
 				return Engine->ClearMessageCallback();
@@ -3419,6 +3371,55 @@ namespace Tomahawk
 		VMCompiler* VMManager::CreateCompiler()
 		{
 			return new VMCompiler(this);
+		}
+		VMCModule* VMManager::CreateScopedModule(const std::string& Name, bool AqLock)
+		{
+			if (!Engine || Name.empty())
+				return nullptr;
+
+			if (AqLock)
+				Safe.lock();
+
+			if (!Engine->GetModule(Name.c_str()))
+			{
+				if (AqLock)
+					Safe.unlock();
+
+				return Engine->GetModule(Name.c_str(), asGM_ALWAYS_CREATE);
+			}
+
+
+			std::string Result;
+			while (true)
+			{
+				Result = Name + std::to_string(Scope++);
+				if (!Engine->GetModule(Result.c_str()))
+				{
+					if (AqLock)
+						Safe.unlock();
+
+					return Engine->GetModule(Result.c_str(), asGM_ALWAYS_CREATE);
+				}
+			}
+
+			if (AqLock)
+				Safe.unlock();
+
+			return nullptr;
+		}
+		VMCModule* VMManager::CreateModule(const std::string& Name, bool AqLock)
+		{
+			if (!Engine || Name.empty())
+				return nullptr;
+
+			if (AqLock)
+				Safe.lock();
+
+			VMCModule* Result = Engine->GetModule(Name.c_str(), asGM_ALWAYS_CREATE);
+			if (AqLock)
+				Safe.unlock();
+
+			return Result;
 		}
 		void* VMManager::CreateObject(const VMTypeInfo& Type)
 		{
@@ -3462,7 +3463,7 @@ namespace Tomahawk
 		}
 		void VMManager::GetStatistics(unsigned int* CurrentSize, unsigned int* TotalDestroyed, unsigned int* TotalDetected, unsigned int* NewObjects, unsigned int* TotalNewDestroyed) const
 		{
-            unsigned int asCurrentSize, asTotalDestroyed, asTotalDetected, asNewObjects, asTotalNewDestroyed;
+			unsigned int asCurrentSize, asTotalDestroyed, asTotalDetected, asNewObjects, asTotalNewDestroyed;
 			Engine->GetGCStatistics(&asCurrentSize, &asTotalDestroyed, &asTotalDetected, &asNewObjects, &asTotalNewDestroyed);
 
 			if (CurrentSize != nullptr)
@@ -3679,26 +3680,6 @@ namespace Tomahawk
 			}
 			Safe.unlock();
 		}
-		std::string VMManager::GetScopedName(const std::string& Name)
-		{
-			if (!Engine || Name.empty())
-				return Name;
-
-			if (!Engine->GetModule(Name.c_str()))
-				return Name;
-
-			while (true)
-			{
-				Safe.lock();
-				std::string Result = Name + std::to_string(Scope++);
-				Safe.unlock();
-
-				if (!Engine->GetModule(Result.c_str()))
-					return Result;
-			}
-
-			return nullptr;
-		}
 		std::string VMManager::GetDocumentRoot() const
 		{
 			return Include.Root;
@@ -3803,13 +3784,13 @@ namespace Tomahawk
 
 			Safe.unlock();
 			return Copy;
-		}
+			}
 		bool VMManager::HasSubmodule(const std::string& Name)
 		{
 			auto It = Features.find(Name);
 			if (It != Features.end())
 				return It->second;
-			
+
 			return false;
 		}
 		bool VMManager::UseSubmodule(const std::string& Name)
@@ -3946,51 +3927,89 @@ namespace Tomahawk
 			Features[Name] = false;
 			return false;
 		}
-		bool VMManager::ImportSymbol(const std::string& Path, const std::string& Func, const std::string& Decl)
+		bool VMManager::ImportSymbol(const std::vector<std::string>& Sources, const std::string& Func, const std::string& Decl)
 		{
 			if (!Engine || Decl.empty() || Func.empty())
 				return false;
 
-			auto Core = Kernels.find(Path);
+			Safe.lock();
+			auto Core = Kernels.end();
+			for (auto& Item : Sources)
+			{
+				Core = Kernels.find(Item);
+				if (Core != Kernels.end())
+					break;
+			}
+
 			if (Core == Kernels.end())
 			{
-				void* Handle = Rest::OS::LoadObject(Path);
-				if (!Handle)
-				{
-					TH_ERROR("cannot load shared object: %s", Path.c_str());
-					return false;
-				}
+				Safe.unlock();
+				bool Failed = !ImportLibrary("");
+				Safe.lock();
 
-				Kernel Library;
-				Library.Handle = Handle;
-				Kernels.insert({ Path, Library });
-
-				Core = Kernels.find(Path);
-				if (Core == Kernels.end())
+				if (Failed || (Core = Kernels.find("")) == Kernels.end())
 				{
-					TH_ERROR("cannot resolve shared object: %s", Path.c_str());
+					TH_ERROR("cannot load find function in any of presented libraries:\n\t%s", Func.c_str());
 					return false;
 				}
 			}
 
 			auto Handle = Core->second.Functions.find(Func);
 			if (Handle != Core->second.Functions.end())
+			{
+				Safe.unlock();
 				return true;
+			}
 
 			VMObjectFunction Function = (VMObjectFunction)Rest::OS::LoadObjectFunction(Core->second.Handle, Func.c_str());
 			if (!Function)
 			{
 				TH_ERROR("cannot load shared object function: %s", Func.c_str());
+				Safe.unlock();
 				return false;
 			}
 
 			if (Engine->RegisterGlobalFunction(Decl.c_str(), asFUNCTION(Function), asCALL_CDECL) < 0)
 			{
 				TH_ERROR("cannot register shared object function: %s", Decl.c_str());
+				Safe.unlock();
 				return false;
 			}
 
 			Core->second.Functions.insert({ Func, (void*)Function });
+			Safe.unlock();
+
+			return true;
+		}
+		bool VMManager::ImportLibrary(const std::string& Path)
+		{
+			std::string Name = GetLibraryName(Path);
+			if (!Engine)
+				return false;
+
+			Safe.lock();
+			auto Core = Kernels.find(Name);
+			if (Core != Kernels.end())
+			{
+				Safe.unlock();
+				return true;
+			}
+			Safe.unlock();
+
+			void* Handle = Rest::OS::LoadObject(Path);
+			if (!Handle)
+			{
+				TH_ERROR("cannot load shared object: %s", Path.c_str());
+				return false;
+			}
+
+			Kernel Library;
+			Library.Handle = Handle;
+
+			Safe.lock();
+			Kernels.insert({ Name, Library });
+			Safe.unlock();
+
 			return true;
 		}
 		std::vector<std::string> VMManager::GetSubmodules()
@@ -4034,6 +4053,22 @@ namespace Tomahawk
 				return nullptr;
 
 			return Get(Context->GetEngine());
+		}
+		std::string VMManager::GetLibraryName(const std::string& Path)
+		{
+			if (Path.empty())
+				return Path;
+
+			Rest::Stroke Src(Path);
+			Rest::Stroke::Settle Start = Src.ReverseFindOf("\\/");
+			if (Start.Found)
+				Src.Substring(Start.End);
+
+			Rest::Stroke::Settle End = Src.ReverseFind('.');
+			if (End.Found)
+				Src.Substring(0, End.End);
+
+			return Src.R();
 		}
 		VMCContext* VMManager::RequestContext(VMCManager* Engine, void* Data)
 		{
@@ -4267,7 +4302,7 @@ namespace Tomahawk
 					{
 						for (asUINT n = 0; n < Mod->GetGlobalVarCount(); n++)
 						{
-							const char* VarName = 0, * NameSpace = 0;
+							const char* VarName = 0, *NameSpace = 0;
 							Mod->GetGlobalVar(n, &VarName, &NameSpace, &TypeId);
 
 							if (Name == VarName && Scope == NameSpace)
@@ -4462,16 +4497,16 @@ namespace Tomahawk
 		void VMDebugger::PrintHelp()
 		{
 			Output(" c - Continue\n"
-				   " s - Step into\n"
-				   " n - Next step\n"
-				   " o - Step out\n"
-				   " b - Set break point\n"
-				   " l - List various things\n"
-				   " r - Remove break point\n"
-				   " p - Print value\n"
-				   " w - Where am I?\n"
-				   " a - Abort execution\n"
-				   " h - Print this help text\n");
+				" s - Step into\n"
+				" n - Next step\n"
+				" o - Step out\n"
+				" b - Set break point\n"
+				" l - List various things\n"
+				" r - Remove break point\n"
+				" p - Print value\n"
+				" w - Where am I?\n"
+				" a - Abort execution\n"
+				" h - Print this help text\n");
 		}
 		void VMDebugger::Output(const std::string& Data)
 		{
@@ -4605,8 +4640,8 @@ namespace Tomahawk
 					else
 					{
 						Output("Incorrect format for setting break point, expected one of:\n"
-							   " b <file name>:<line number>\n"
-							   " b <function name>\n");
+							" b <file name>:<line number>\n"
+							" b <function name>\n");
 					}
 
 					return false;
@@ -4633,7 +4668,7 @@ namespace Tomahawk
 					else
 					{
 						Output("Incorrect format for removing break points, expected:\n"
-							   " r <all|number of break point>\n");
+							" r <all|number of break point>\n");
 					}
 
 					return false;
@@ -4669,13 +4704,13 @@ namespace Tomahawk
 					if (WantPrintHelp)
 					{
 						Output("Expected format: \n"
-							   " l <list option>\n"
-							   "Available options: \n"
-							   " b - breakpoints\n"
-							   " v - local variables\n"
-							   " m - member properties\n"
-							   " g - global variables\n"
-							   " s - statistics\n");
+							" l <list option>\n"
+							"Available options: \n"
+							" b - breakpoints\n"
+							" v - local variables\n"
+							" m - member properties\n"
+							" g - global variables\n"
+							" s - statistics\n");
 					}
 
 					return false;
@@ -4689,7 +4724,7 @@ namespace Tomahawk
 					if (P == std::string::npos)
 					{
 						Output("Incorrect format for print, expected:\n"
-							   " p <expression>\n");
+							" p <expression>\n");
 					}
 					else
 						PrintValue(Command.substr(P), Context);
@@ -4847,5 +4882,5 @@ namespace Tomahawk
 		{
 			return Manager;
 		}
+		}
 	}
-}

@@ -5746,6 +5746,7 @@ namespace Tomahawk
 		{
 			Defines.clear();
 			Sets.clear();
+			ExpandedPath.clear();
 		}
 		bool Preprocessor::IsDefined(const char* Name) const
 		{
@@ -5773,6 +5774,7 @@ namespace Tomahawk
 			if (Features.Conditions && !ProcessBlockDirective(Buffer))
 				return ReturnResult(false, Nesting);
 
+			ExpandedPath = Path;
 			if (Features.Includes)
 			{
 				if (!Path.empty())
@@ -5804,7 +5806,10 @@ namespace Tomahawk
 		{
 			Nested = WasNested;
 			if (!Nested)
+			{
 				Sets.clear();
+				ExpandedPath.clear();
+			}
 
 			return Result;
 		}
@@ -5864,7 +5869,10 @@ namespace Tomahawk
 						return false;
 					}
 
-					if (!Output.empty() && !Process(File.Module, Output))
+					bool Failed = (!Output.empty() && !Process(File.Module, Output));
+					ExpandedPath = Path;
+
+					if (Failed)
 						return false;
 				}
 
@@ -5877,7 +5885,9 @@ namespace Tomahawk
 			if (Buffer.Empty())
 				return true;
 
+			std::vector<std::string> Args;
 			uint64_t Offset = 0;
+
 			while (true)
 			{
 				uint64_t Base, Start, End;
@@ -5891,7 +5901,39 @@ namespace Tomahawk
 					return true;
 
 				Rest::Stroke Value(Buffer.Get() + Start, End - Start);
-				if (Pragma && !Pragma(this, Path, Value.Trim().Replace("  ", " ").R()))
+				Value.Trim().Replace("  ", " ");
+				Args.clear();
+
+				auto fStart = Value.Find('(');
+				if (fStart.Found)
+				{
+					auto fEnd = Value.ReverseFind(')');
+					if (fEnd.Found)
+					{
+						std::string Subvalue;
+						bool Quoted = false;
+						size_t Index = fStart.End;
+
+						while (Index < fEnd.End)
+						{
+							char V = Value.R()[Index];
+							if (!Quoted && (V == ',' || V == ')'))
+							{
+								Rest::Stroke(&Subvalue).Trim().Replace("\\\"", "\"");
+								Args.push_back(Subvalue);
+								Subvalue.clear();
+							}
+							else if (V == '"' && (!Index || Value.R()[Index - 1] != '\\'))
+								Quoted = !Quoted;
+							else
+								Subvalue += V;
+							Index++;
+						}
+					}
+				}
+
+				Value.Substring(0, fStart.Start);
+				if (Pragma && !Pragma(this, Value.R(), Args))
 				{
 					TH_ERROR("cannot process pragma \"%s\" directive", Value.Get());
 					return false;
@@ -6144,6 +6186,10 @@ namespace Tomahawk
 			}
 
 			return false;
+		}
+		const std::string& Preprocessor::GetCurrentFilePath()
+		{
+			return ExpandedPath;
 		}
 		IncludeResult Preprocessor::ResolveInclude(const IncludeDesc& Desc)
 		{

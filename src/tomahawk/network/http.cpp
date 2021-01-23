@@ -4752,7 +4752,7 @@ namespace Tomahawk
 				return Base->Root->Queue->Task<GatewayFrame>(nullptr, [=](Rest::EventQueue* Queue, Rest::EventArgs* Args)
 				{
 					Script::VMCompiler* Compiler = VM->CreateCompiler();
-					if (Compiler->PrepareScope(Rest::OS::GetFilename(Base->Request.Path), Base->Request.Path) < 0)
+					if (Compiler->Prepare(Rest::OS::GetFilename(Base->Request.Path), Base->Request.Path, true, true) < 0)
 					{
 						TH_RELEASE(Compiler);
 						return (void)Base->Error(500, "Gateway module cannot be prepared.");

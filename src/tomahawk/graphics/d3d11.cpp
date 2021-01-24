@@ -693,57 +693,53 @@ namespace Tomahawk
 				ID3D11ShaderResourceView* NewState = (Resource ? Resource->As<D3D11TextureCube>()->Resource : nullptr);
 				ImmediateContext->PSSetShaderResources(Slot, 1, &NewState);
 			}
-			void D3D11Device::SetWriteable(ElementBuffer* Resource, unsigned int Slot)
+			void D3D11Device::SetWriteable(ElementBuffer** Resource, unsigned int Count, unsigned int Slot)
 			{
-				D3D11ElementBuffer* IResource = (D3D11ElementBuffer*)Resource;
-				UINT Offset = 0;
+				if (!Resource || Count > 8)
+					return;
 
-				if (!IResource || !IResource->Access)
-				{
-					ID3D11UnorderedAccessView* Empty = nullptr;
-					ImmediateContext->OMSetRenderTargetsAndUnorderedAccessViews(D3D11_KEEP_RENDER_TARGETS_AND_DEPTH_STENCIL, nullptr, nullptr, Slot, 1, &Empty, &Offset);
-				}
-				else
-					ImmediateContext->OMSetRenderTargetsAndUnorderedAccessViews(D3D11_KEEP_RENDER_TARGETS_AND_DEPTH_STENCIL, nullptr, nullptr, Slot, 1, &IResource->Access, &Offset);
+				ID3D11UnorderedAccessView* Array[8] = { nullptr };
+				for (unsigned int i = 0; i < Count; i++)
+					Array[i] = (Resource[i] ? ((D3D11ElementBuffer*)(Resource[i]))->Access : nullptr);
+
+				UINT Offset = 0;
+				ImmediateContext->OMSetRenderTargetsAndUnorderedAccessViews(D3D11_KEEP_RENDER_TARGETS_AND_DEPTH_STENCIL, nullptr, nullptr, Slot, Count, Array, &Offset);
 			}
-			void D3D11Device::SetWriteable(Texture2D* Resource, unsigned int Slot)
+			void D3D11Device::SetWriteable(Texture2D** Resource, unsigned int Count, unsigned int Slot)
 			{
-				D3D11Texture2D* IResource = (D3D11Texture2D*)Resource;
-				UINT Offset = 0;
+				if (!Resource || Count > 8)
+					return;
 
-				if (!IResource || !IResource->Access)
-				{
-					ID3D11UnorderedAccessView* Empty = nullptr;
-					ImmediateContext->OMSetRenderTargetsAndUnorderedAccessViews(D3D11_KEEP_RENDER_TARGETS_AND_DEPTH_STENCIL, nullptr, nullptr, Slot, 1, &Empty, &Offset);
-				}
-				else
-					ImmediateContext->OMSetRenderTargetsAndUnorderedAccessViews(D3D11_KEEP_RENDER_TARGETS_AND_DEPTH_STENCIL, nullptr, nullptr, Slot, 1, &IResource->Access, &Offset);
+				ID3D11UnorderedAccessView* Array[8] = { nullptr };
+				for (unsigned int i = 0; i < Count; i++)
+					Array[i] = (Resource[i] ? ((D3D11Texture2D*)(Resource[i]))->Access : nullptr);
+
+				UINT Offset = 0;
+				ImmediateContext->OMSetRenderTargetsAndUnorderedAccessViews(D3D11_KEEP_RENDER_TARGETS_AND_DEPTH_STENCIL, nullptr, nullptr, Slot, Count, Array, &Offset);
 			}
-			void D3D11Device::SetWriteable(Texture3D* Resource, unsigned int Slot)
+			void D3D11Device::SetWriteable(Texture3D** Resource, unsigned int Count, unsigned int Slot)
 			{
-				D3D11Texture3D* IResource = (D3D11Texture3D*)Resource;
-				UINT Offset = 0;
+				if (!Resource || Count > 8)
+					return;
 
-				if (!IResource || !IResource->Access)
-				{
-					ID3D11UnorderedAccessView* Empty = nullptr;
-					ImmediateContext->OMSetRenderTargetsAndUnorderedAccessViews(D3D11_KEEP_RENDER_TARGETS_AND_DEPTH_STENCIL, nullptr, nullptr, Slot, 1, &Empty, &Offset);
-				}
-				else
-					ImmediateContext->OMSetRenderTargetsAndUnorderedAccessViews(D3D11_KEEP_RENDER_TARGETS_AND_DEPTH_STENCIL, nullptr, nullptr, Slot, 1, &IResource->Access, &Offset);
+				ID3D11UnorderedAccessView* Array[8] = { nullptr };
+				for (unsigned int i = 0; i < Count; i++)
+					Array[i] = (Resource[i] ? ((D3D11Texture3D*)(Resource[i]))->Access : nullptr);
+
+				UINT Offset = 0;
+				ImmediateContext->OMSetRenderTargetsAndUnorderedAccessViews(D3D11_KEEP_RENDER_TARGETS_AND_DEPTH_STENCIL, nullptr, nullptr, Slot, Count, Array, &Offset);
 			}
-			void D3D11Device::SetWriteable(TextureCube* Resource, unsigned int Slot)
+			void D3D11Device::SetWriteable(TextureCube** Resource, unsigned int Count, unsigned int Slot)
 			{
-				D3D11TextureCube* IResource = (D3D11TextureCube*)Resource;
-				UINT Offset = 0;
+				if (!Resource || Count > 8)
+					return;
 
-				if (!IResource || !IResource->Access)
-				{
-					ID3D11UnorderedAccessView* Empty = nullptr;
-					ImmediateContext->OMSetRenderTargetsAndUnorderedAccessViews(D3D11_KEEP_RENDER_TARGETS_AND_DEPTH_STENCIL, nullptr, nullptr, Slot, 1, &Empty, &Offset);
-				}
-				else
-					ImmediateContext->OMSetRenderTargetsAndUnorderedAccessViews(D3D11_KEEP_RENDER_TARGETS_AND_DEPTH_STENCIL, nullptr, nullptr, Slot, 1, &IResource->Access, &Offset);
+				ID3D11UnorderedAccessView* Array[8] = { nullptr };
+				for (unsigned int i = 0; i < Count; i++)
+					Array[i] = (Resource[i] ? ((D3D11TextureCube*)(Resource[i]))->Access : nullptr);
+
+				UINT Offset = 0;
+				ImmediateContext->OMSetRenderTargetsAndUnorderedAccessViews(D3D11_KEEP_RENDER_TARGETS_AND_DEPTH_STENCIL, nullptr, nullptr, Slot, Count, Array, &Offset);
 			}
 			void D3D11Device::SetTarget(float R, float G, float B)
 			{

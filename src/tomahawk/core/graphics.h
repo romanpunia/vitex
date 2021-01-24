@@ -1605,10 +1605,10 @@ namespace Tomahawk
 			virtual void SetTexture2D(Texture2D* Resource, unsigned int Slot) = 0;
 			virtual void SetTexture3D(Texture3D* Resource, unsigned int Slot) = 0;
 			virtual void SetTextureCube(TextureCube* Resource, unsigned int Slot) = 0;
-			virtual void SetWriteable(ElementBuffer* Resource, unsigned int Slot) = 0;
-			virtual void SetWriteable(Texture2D* Resource, unsigned int Slot) = 0;
-			virtual void SetWriteable(Texture3D* Resource, unsigned int Slot) = 0;
-			virtual void SetWriteable(TextureCube* Resource, unsigned int Slot) = 0;
+			virtual void SetWriteable(ElementBuffer** Resource, unsigned int Count, unsigned int Slot) = 0;
+			virtual void SetWriteable(Texture2D** Resource, unsigned int Count, unsigned int Slot) = 0;
+			virtual void SetWriteable(Texture3D** Resource, unsigned int Count, unsigned int Slot) = 0;
+			virtual void SetWriteable(TextureCube** Resource, unsigned int Count, unsigned int Slot) = 0;
 			virtual void SetTarget(float R, float G, float B) = 0;
 			virtual void SetTarget() = 0;
 			virtual void SetTarget(DepthBuffer* Resource) = 0;

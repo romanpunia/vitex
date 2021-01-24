@@ -356,10 +356,10 @@ namespace Tomahawk
 				void SetTexture2D(Texture2D* Resource, unsigned int Slot) override;
 				void SetTexture3D(Texture3D* Resource, unsigned int Slot) override;
 				void SetTextureCube(TextureCube* Resource, unsigned int Slot) override;
-				void SetWriteable(ElementBuffer* Resource, unsigned int Slot) override;
-				void SetWriteable(Texture2D* Resource, unsigned int Slot) override;
-				void SetWriteable(Texture3D* Resource, unsigned int Slot) override;
-				void SetWriteable(TextureCube* Resource, unsigned int Slot) override;
+				void SetWriteable(ElementBuffer** Resource, unsigned int Count, unsigned int Slot) override;
+				void SetWriteable(Texture2D** Resource, unsigned int Count, unsigned int Slot) override;
+				void SetWriteable(Texture3D** Resource, unsigned int Count, unsigned int Slot) override;
+				void SetWriteable(TextureCube** Resource, unsigned int Count, unsigned int Slot) override;
 				void SetTarget(float R, float G, float B) override;
 				void SetTarget() override;
 				void SetTarget(DepthBuffer* Resource) override;

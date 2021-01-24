@@ -5,7 +5,7 @@
 #pragma warning(disable: 4000)
 
 StructuredBuffer<Material> Materials : register(t0);
-RWTexture3D<float4> DiffuseLumina : register(u1);
+RWTexture3D<unorm float4> DiffuseLumina : register(u1);
 RWTexture3D<float4> NormalLumina : register(u2);
 RWTexture3D<float4> SurfaceLumina : register(u3);
 Texture2D DiffuseMap : register(t4);
@@ -47,7 +47,7 @@ float4 GetDiffuse(float2 TexCoord)
 Lumina Compose(float2 TexCoord, float4 Diffuse, float3 Normal, float3 Position, float MaterialId)
 {
     uint3 Voxel = (uint3)floor((float3(0.5, -0.5, 0.5) * Position + 0.5) * GridSize.xyz);
-    [branch] if (Voxel.x > (uint)GridSize.x || Voxel.y > (uint)GridSize.y || Voxel.z > (uint)GridSize.z)
+    [branch] if (Voxel.x >= (uint)GridSize.x || Voxel.y >= (uint)GridSize.y || Voxel.z >= (uint)GridSize.z)
         return (Lumina)0;
     
     DiffuseLumina[Voxel] = Diffuse;

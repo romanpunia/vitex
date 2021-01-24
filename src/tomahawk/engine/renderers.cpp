@@ -1021,7 +1021,7 @@ namespace Tomahawk
 				IndirectLight.Enabled = true;
 				IndirectLight.Distance = 4.0;
 				IndirectLight.Size = 128;
-				IndirectLight.Tick.Delay = 5;
+				IndirectLight.Tick.Delay = 10;
 				Surfaces.Size = 128;
 				Shadows.Tick.Delay = 5;
 				Shadows.Distance = 0.5f;
@@ -1032,6 +1032,7 @@ namespace Tomahawk
 				FrontRasterizer = Lab->GetDevice()->GetRasterizerState("cull-front");
 				BackRasterizer = Lab->GetDevice()->GetRasterizerState("cull-back");
 				NoneRasterizer = Lab->GetDevice()->GetRasterizerState("cull-none");
+				BlendOverload = Lab->GetDevice()->GetBlendState("overwrite");
 				BlendAdditive = Lab->GetDevice()->GetBlendState("additive-opaque");
 				BlendOverwrite = Lab->GetDevice()->GetBlendState("overwrite-colorless");
 				ShadowSampler = Lab->GetDevice()->GetSamplerState("shadow");
@@ -1071,6 +1072,9 @@ namespace Tomahawk
 
 				if (System->GetDevice()->GetSection("shaders/lighting/ambient", &I.Data))
 					Shaders.Ambient = System->CompileShader("lr-ambient", I, sizeof(AmbientLight));
+
+				if (System->GetDevice()->GetSection("shaders/lighting/inject", &I.Data))
+					Shaders.Inject = System->CompileShader("lr-inject", I, sizeof(Voxelizer));
 			}
 			Lighting::~Lighting()
 			{
@@ -1086,6 +1090,7 @@ namespace Tomahawk
 				System->FreeShader("lr-line-voxelize", Shaders.Line[2]);
 				System->FreeShader("lr-surface", Shaders.Surface);
 				System->FreeShader("lr-ambient", Shaders.Ambient);
+				System->FreeShader("lr-inject", Shaders.Inject);
 				TH_RELEASE(DiffuseBuffer);
 				TH_RELEASE(NormalBuffer);
 				TH_RELEASE(SurfaceBuffer);
@@ -1224,10 +1229,11 @@ namespace Tomahawk
 							RenderVoxels(Time, Device, Scene->GetSurface());
 					}
 
+					if (IndirectLight.Enabled)
+						RenderLuminaBuffers(Device, Options);
+
 					RenderResultBuffers(Device, Options);
 				}
-				else if (State == RenderState_Geometry_Lumina && IndirectLight.Enabled)
-					RenderLuminaBuffers(Device, Options);
 			}
 			void Lighting::RenderResultBuffers(Graphics::GraphicsDevice* Device, RenderOpt Options)
 			{
@@ -1263,8 +1269,29 @@ namespace Tomahawk
 			}
 			void Lighting::RenderLuminaBuffers(Graphics::GraphicsDevice* Device, RenderOpt Options)
 			{
-				// TODO: Impl. light voxelization (inc. point, spot, line and ambient lights)
-				// then in RenderResultBuffers if voxel buffer is ready, then combine outputs
+				Graphics::Texture3D* Buffer[3];
+				Buffer[0] = DiffuseBuffer;
+				Buffer[1] = NormalBuffer;
+				Buffer[2] = SurfaceBuffer;
+
+				Graphics::MultiRenderTarget2D* Target = System->GetScene()->GetSurface();
+				Device->SetSamplerState(WrapSampler, 0);
+				Device->SetDepthStencilState(DepthStencilNone);
+				Device->SetBlendState(BlendOverload);
+				Device->SetRasterizerState(BackRasterizer);
+				Device->SetInputLayout(Layout);
+				Device->SetTarget(Target, 0);
+				Device->SetWriteable(Buffer, 3, 1);
+				Device->SetTexture2D(Target->GetTarget(2), 4);
+				Device->SetVertexBuffer(System->GetQuadVBuffer(), 0);
+
+				Device->SetShader(Shaders.Inject, Graphics::ShaderType_Vertex | Graphics::ShaderType_Pixel);
+				Device->SetBuffer(Shaders.Inject, 3, Graphics::ShaderType_Vertex | Graphics::ShaderType_Pixel);
+				Device->UpdateBuffer(Shaders.Inject, &Voxelizer);
+				Device->Draw(6, 0);
+
+				Device->SetTargetRect(IndirectLight.Size, IndirectLight.Size);
+				Device->SetTexture2D(nullptr, 4);
 			}
 			void Lighting::RenderShadowMaps(Graphics::GraphicsDevice* Device, SceneGraph* Scene, Rest::Timer* Time)
 			{
@@ -1400,8 +1427,13 @@ namespace Tomahawk
 			}
 			void Lighting::RenderVoxels(Rest::Timer* Time, Graphics::GraphicsDevice* Device, Graphics::MultiRenderTarget2D* Surface)
 			{
+				Graphics::Texture3D* Buffer[3];
+				Buffer[0] = DiffuseBuffer;
+				Buffer[1] = NormalBuffer;
+				Buffer[2] = SurfaceBuffer;
+
 				SceneGraph* Scene = System->GetScene();
-				Voxelizer.GridCenter = Scene->View.WorldPosition;
+				Voxelizer.GridCenter = Scene->View.WorldPosition.InvertZ();
 				Voxelizer.GridSize = (float)IndirectLight.Size;
 				Voxelizer.GridScale = IndirectLight.Distance;
 				Scene->View.FarPlane = IndirectLight.Distance;
@@ -1413,16 +1445,13 @@ namespace Tomahawk
 				Device->SetDepthStencilState(DepthStencilNone);
 				Device->SetBlendState(BlendOverwrite);
 				Device->SetRasterizerState(NoneRasterizer);
-				Device->SetWriteable(DiffuseBuffer, 1);
-				Device->SetWriteable(NormalBuffer, 2);
-				Device->SetWriteable(SurfaceBuffer, 2);
+				Device->SetWriteable(Buffer, 3, 1);
 
 				Scene->Render(Time, RenderState_Geometry_Lumina, RenderOpt_Inner);
 				Scene->RestoreViewBuffer(nullptr);
 
-				Device->SetWriteable((Graphics::Texture3D*)nullptr, 1);
-				Device->SetWriteable((Graphics::Texture3D*)nullptr, 2);
-				Device->SetWriteable((Graphics::Texture3D*)nullptr, 3);
+				Graphics::Texture3D* Flush[3] = { nullptr };
+				Device->SetWriteable(Flush, 3, 1);
 				Device->SetTarget(Surface);
 			}
 			void Lighting::RenderSurfaceLights(Graphics::GraphicsDevice* Device, Compute::Vector3& Camera, float& Distance, bool& Backcull, const bool& Inner)

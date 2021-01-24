@@ -334,6 +334,7 @@ namespace Tomahawk
 					Graphics::Shader* Line[3] = { nullptr };
 					Graphics::Shader* Surface = nullptr;
 					Graphics::Shader* Ambient = nullptr;
+					Graphics::Shader* Inject = nullptr;
 				} Shaders;
 
 			private:
@@ -347,6 +348,7 @@ namespace Tomahawk
 				Graphics::RasterizerState* FrontRasterizer = nullptr;
 				Graphics::RasterizerState* BackRasterizer = nullptr;
 				Graphics::RasterizerState* NoneRasterizer = nullptr;
+				Graphics::BlendState* BlendOverload = nullptr;
 				Graphics::BlendState* BlendAdditive = nullptr;
 				Graphics::BlendState* BlendOverwrite = nullptr;
 				Graphics::SamplerState* ShadowSampler = nullptr;

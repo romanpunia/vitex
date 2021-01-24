@@ -778,38 +778,56 @@ namespace Tomahawk
 				glActiveTexture(GL_TEXTURE0 + Slot);
 				glBindTexture(GL_TEXTURE_CUBE_MAP, Resource ? Resource->As<OGLTextureCube>()->Resource : GL_NONE);
 			}
-			void OGLDevice::SetWriteable(ElementBuffer* Resource, unsigned int Slot)
+			void OGLDevice::SetWriteable(ElementBuffer** Resource, unsigned int Count, unsigned int Slot)
 			{
 			}
-			void OGLDevice::SetWriteable(Texture2D* Resource, unsigned int Slot)
+			void OGLDevice::SetWriteable(Texture2D** Resource, unsigned int Count, unsigned int Slot)
 			{
-				OGLTexture2D* IResource = (OGLTexture2D*)Resource;
-				glActiveTexture(GL_TEXTURE0 + Slot);
+				if (!Resource)
+					return;
 
-				if (!IResource)
-					glBindTexture(GL_TEXTURE_2D, GL_NONE);
-				else
-					glBindImageTexture(Slot, IResource->Resource, 0, GL_TRUE, 0, GL_READ_WRITE, IResource->Format);
+				for (unsigned int i = 0; i < Count; i++)
+				{
+					OGLTexture2D* IResource = (OGLTexture2D*)Resource[i];
+					glActiveTexture(GL_TEXTURE0 + Slot + i);
+
+					if (!IResource)
+						glBindTexture(GL_TEXTURE_2D, GL_NONE);
+					else
+						glBindImageTexture(Slot + i, IResource->Resource, 0, GL_TRUE, 0, GL_READ_WRITE, IResource->Format);
+				}
 			}
-			void OGLDevice::SetWriteable(Texture3D* Resource, unsigned int Slot)
+			void OGLDevice::SetWriteable(Texture3D** Resource, unsigned int Count, unsigned int Slot)
 			{
-				OGLTexture3D* IResource = (OGLTexture3D*)Resource;
-				glActiveTexture(GL_TEXTURE0 + Slot);
+				if (!Resource)
+					return;
 
-				if (!IResource)
-					glBindTexture(GL_TEXTURE_3D, GL_NONE);
-				else
-					glBindImageTexture(Slot, IResource->Resource, 0, GL_TRUE, 0, GL_READ_WRITE, IResource->Format);
+				for (unsigned int i = 0; i < Count; i++)
+				{
+					OGLTexture3D* IResource = (OGLTexture3D*)Resource[i];
+					glActiveTexture(GL_TEXTURE0 + Slot + i);
+
+					if (!IResource)
+						glBindTexture(GL_TEXTURE_3D, GL_NONE);
+					else
+						glBindImageTexture(Slot + i, IResource->Resource, 0, GL_TRUE, 0, GL_READ_WRITE, IResource->Format);
+				}
 			}
-			void OGLDevice::SetWriteable(TextureCube* Resource, unsigned int Slot)
+			void OGLDevice::SetWriteable(TextureCube** Resource, unsigned int Count, unsigned int Slot)
 			{
-				OGLTextureCube* IResource = (OGLTextureCube*)Resource;
-				glActiveTexture(GL_TEXTURE0 + Slot);
+				if (!Resource)
+					return;
 
-				if (!IResource)
-					glBindTexture(GL_TEXTURE_CUBE_MAP, GL_NONE);
-				else
-					glBindImageTexture(Slot, IResource->Resource, 0, GL_TRUE, 0, GL_READ_WRITE, IResource->Format);
+				for (unsigned int i = 0; i < Count; i++)
+				{
+					OGLTextureCube* IResource = (OGLTextureCube*)Resource[i];
+					glActiveTexture(GL_TEXTURE0 + Slot + i);
+
+					if (!IResource)
+						glBindTexture(GL_TEXTURE_CUBE_MAP, GL_NONE);
+					else
+						glBindImageTexture(Slot + i, IResource->Resource, 0, GL_TRUE, 0, GL_READ_WRITE, IResource->Format);
+				}
 			}
 			void OGLDevice::SetTarget(float R, float G, float B)
 			{

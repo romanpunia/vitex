@@ -1018,11 +1018,12 @@ namespace Tomahawk
 
 			Lighting::Lighting(RenderSystem* Lab) : Renderer(Lab)
 			{
+				Surfaces.Size = 128;
+				SurfaceLight.MipLevels = 0;
 				IndirectLight.Enabled = false;
 				IndirectLight.Distance = 10.0f;
 				IndirectLight.Size = 128;
 				IndirectLight.Tick.Delay = 15;
-				Surfaces.Size = 256;
 				Shadows.Tick.Delay = 5;
 				Shadows.Distance = 0.5f;
 
@@ -1206,9 +1207,6 @@ namespace Tomahawk
 
 				TH_RELEASE(Input1);
 				Input1 = System->GetDevice()->CreateRenderTarget2D(F);
-
-				SetSurfaceBufferSize(Surfaces.Size);
-				SetVoxelBufferSize(IndirectLight.Size);
 			}
 			void Lighting::Render(Rest::Timer* Time, RenderState State, RenderOpt Options)
 			{
@@ -1269,16 +1267,19 @@ namespace Tomahawk
 			void Lighting::RenderVoxelsBuffers(Graphics::GraphicsDevice* Device, RenderOpt Options)
 			{
 				Graphics::MultiRenderTarget2D* Target = System->GetScene()->GetSurface();
+				if (!DiffuseBuffer || !NormalBuffer || !SurfaceBuffer)
+					return;
+
 				Device->SetSamplerState(ShadowSampler, 0);
 				Device->SetDepthStencilState(DepthStencilNone);
-				Device->SetBlendState(Device->GetBlendState("overwrite"));
+				Device->SetBlendState(BlendAdditive);
 				Device->SetRasterizerState(BackRasterizer);
 				Device->SetInputLayout(Layout);
 				Device->SetTarget(Target, 0);
 				Device->SetTexture3D(DiffuseBuffer, 1);
-				Device->SetTexture3D(NormalBuffer, 2);
-				Device->SetTexture3D(SurfaceBuffer, 3);
-				Device->SetTexture2D(Target->GetTarget(2), 4);
+				Device->SetTexture2D(Target->GetTarget(1), 2);
+				Device->SetTexture2D(Target->GetTarget(2), 3);
+				Device->SetTexture2D(Target->GetTarget(3), 4);
 				Device->SetVertexBuffer(System->GetQuadVBuffer(), 0);
 
 				Device->SetShader(Shaders.Ambient[1], Graphics::ShaderType_Vertex | Graphics::ShaderType_Pixel);
@@ -1286,8 +1287,8 @@ namespace Tomahawk
 				Device->UpdateBuffer(Shaders.Ambient[1], &Voxelizer);
 				Device->Draw(6, 0);
 
-				Device->FlushTexture3D(1, 3);
-				Device->FlushTexture2D(4, 1);
+				Device->FlushTexture3D(1, 1);
+				Device->FlushTexture2D(2, 3);
 			}
 			void Lighting::RenderShadowMaps(Graphics::GraphicsDevice* Device, SceneGraph* Scene, Rest::Timer* Time)
 			{
@@ -1381,6 +1382,12 @@ namespace Tomahawk
 			}
 			void Lighting::RenderSurfaceMaps(Graphics::GraphicsDevice* Device, SceneGraph* Scene, Rest::Timer* Time)
 			{
+				if (SurfaceLights->Empty())
+					return;
+
+				if (!Surface || !Subresource || !Output1 || !Output2)
+					SetSurfaceBufferSize(Surfaces.Size);
+
 				Graphics::MultiRenderTarget2D* S = Scene->GetSurface();
 				Scene->SwapSurface(Surface);
 				Scene->SetSurface();
@@ -1423,13 +1430,19 @@ namespace Tomahawk
 			}
 			void Lighting::RenderVoxels(Rest::Timer* Time, Graphics::GraphicsDevice* Device, Graphics::MultiRenderTarget2D* Surface)
 			{
+				SceneGraph* Scene = System->GetScene();
+				if (!DiffuseBuffer || !NormalBuffer || !SurfaceBuffer)
+					SetVoxelBufferSize(IndirectLight.Size);
+
 				Graphics::Texture3D* Buffer[3];
 				Buffer[0] = DiffuseBuffer;
 				Buffer[1] = NormalBuffer;
 				Buffer[2] = SurfaceBuffer;
 
-				SceneGraph* Scene = System->GetScene();
-				Voxelizer.GridCenter = Scene->View.WorldPosition.InvertZ();
+				Compute::Vector3 Center = Scene->View.WorldPosition.InvertZ();
+				if (Voxelizer.GridCenter.Distance(Center) > 0.75 * IndirectLight.Distance.Length() / 3)
+					Voxelizer.GridCenter = Center;
+
 				Voxelizer.GridSize = (float)IndirectLight.Size;
 				Voxelizer.GridScale = IndirectLight.Distance;
 				Scene->View.FarPlane = (IndirectLight.Distance.X + IndirectLight.Distance.Y + IndirectLight.Distance.Z) / 3.0f;
@@ -1864,16 +1877,16 @@ namespace Tomahawk
 				TH_RELEASE(Input1);
 				Input1 = System->GetDevice()->CreateRenderTarget2D(F2);
 
-				auto* Renderer = System->GetRenderer<Renderers::Lighting>();
+				auto* Renderer = System->GetRenderer<Lighting>();
 				if (Renderer != nullptr)
 				{
+					F1.MipLevels = System->GetDevice()->GetMipLevel((unsigned int)Renderer->Surfaces.Size, (unsigned int)Renderer->Surfaces.Size);
 					F1.Width = (unsigned int)Renderer->Surfaces.Size;
 					F1.Height = (unsigned int)Renderer->Surfaces.Size;
-					F1.MipLevels = (unsigned int)Renderer->SurfaceLight.MipLevels;
+					F2.MipLevels = F1.MipLevels;
 					F2.Width = (unsigned int)Renderer->Surfaces.Size;
 					F2.Height = (unsigned int)Renderer->Surfaces.Size;
-					F2.MipLevels = (unsigned int)Renderer->SurfaceLight.MipLevels;
-					MipLevels2 = (float)Renderer->SurfaceLight.MipLevels;
+					MipLevels2 = (float)F1.MipLevels;
 				}
 
 				TH_RELEASE(Surface2);

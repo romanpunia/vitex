@@ -16,6 +16,15 @@ Texture2D OcclusionMap : register(t8);
 Texture2D EmissionMap : register(t9);
 SamplerState Sampler : register(s0);
 
+void ConvervativeRasterize(inout float4 P1, inout float4 P2, inout float4 P3)
+{
+    float2 Side0 = normalize(P2.xy - P1.xy);
+    float2 Side1 = normalize(P3.xy - P2.xy);
+    float2 Side2 = normalize(P1.xy - P3.xy);
+    P1.xy += normalize(Side2 - Side0) / GridSize.xy;
+    P2.xy += normalize(Side0 - Side1) / GridSize.xy;
+    P3.xy += normalize(Side1 - Side2) / GridSize.xy;
+}
 uint GetDominant(float3 N1, float3 N2, float3 N3)
 {
     float3 Face = abs(N1 + N2 + N3);

@@ -96,8 +96,8 @@ namespace Tomahawk
 		struct TH_OUT Attenuation
 		{
 			float Range = 10.0f;
-			float C1 = 1.0f;
-			float C2 = 1.0f;
+			float C1 = 0.6f;
+			float C2 = 0.6f;
 		};
 
 		struct TH_OUT Material

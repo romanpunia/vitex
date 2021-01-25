@@ -1,7 +1,9 @@
 float GetRangeAttenuation(float3 L, float C1, float C2, float Distance)
-{
+{ 
     float F = length(L);
-    return saturate(Distance / (1.0 + C1 * F + C2 * F * F));
+    float D = max(F - Distance, 0.0);
+    float I = D / Distance + 1.0;
+    return max(((1.0 / (I * I)) - C1) / (1.0 - C2), 0.0);
 }
 float GetConeAttenuation(float3 L, float3 LN, float C1, float C2, float Distance, float3 Axis, float Angle)
 {

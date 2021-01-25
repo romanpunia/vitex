@@ -2577,7 +2577,7 @@ namespace Tomahawk
 			{
 				float Result = 1.0f - Parent->Transform->Position.Distance(Base.WorldPosition) / Base.FarPlane;
 				if (Result > 0.0f)
-					Result = Compute::Common::IsCubeInFrustum(Parent->Transform->GetWorldUnscaled() * Base.ViewProjection, GetRange()) == -1 ? Result : 0.0f;
+					Result = Compute::Common::IsCubeInFrustum(Parent->Transform->GetWorldUnscaled() * Base.ViewProjection, GetBoxRange()) == -1 ? Result : 0.0f;
 
 				return Result;
 			}
@@ -2598,6 +2598,10 @@ namespace Tomahawk
 			{
 				Projection = Compute::Matrix4x4::CreatePerspective(90.0f, 1.0f, 0.1f, Shadow.Distance);
 				View = Compute::Matrix4x4::CreateCubeMapLookAt(0, Parent->Transform->Position.InvertZ());
+			}
+			float PointLight::GetBoxRange() const
+			{
+				return Size.Range * 1.25;
 			}
 			
 			SpotLight::SpotLight(Entity* Ref) : Cullable(Ref)
@@ -2641,7 +2645,7 @@ namespace Tomahawk
 			{
 				float Result = 1.0f - Parent->Transform->Position.Distance(View.WorldPosition) / View.FarPlane;
 				if (Result > 0.0f)
-					Result = Compute::Common::IsCubeInFrustum(Parent->Transform->GetWorldUnscaled() * View.ViewProjection, GetRange()) == -1 ? Result : 0.0f;
+					Result = Compute::Common::IsCubeInFrustum(Parent->Transform->GetWorldUnscaled() * View.ViewProjection, GetBoxRange()) == -1 ? Result : 0.0f;
 
 				return Result;
 			}
@@ -2662,6 +2666,10 @@ namespace Tomahawk
 			{
 				Projection = Compute::Matrix4x4::CreatePerspective(Cutoff, 1, 0.1f, Shadow.Distance);
 				View = Compute::Matrix4x4::CreateTranslation(-Parent->Transform->Position) * Compute::Matrix4x4::CreateCameraRotation(-Parent->Transform->Rotation);
+			}
+			float SpotLight::GetBoxRange() const
+			{
+				return Size.Range * 1.25;
 			}
 
 			LineLight::LineLight(Entity* Ref) : Component(Ref)
@@ -2908,7 +2916,7 @@ namespace Tomahawk
 				{
 					Result = 1.0f - Parent->Transform->Position.Distance(View.WorldPosition) / View.FarPlane;
 					if (Result > 0.0f)
-						Result = Compute::Common::IsCubeInFrustum(Parent->Transform->GetWorldUnscaled() * View.ViewProjection, GetRange()) == -1 ? Result : 0.0f;
+						Result = Compute::Common::IsCubeInFrustum(Parent->Transform->GetWorldUnscaled() * View.ViewProjection, GetBoxRange()) == -1 ? Result : 0.0f;
 				}
 
 				return Result;
@@ -3000,6 +3008,10 @@ namespace Tomahawk
 			bool SurfaceLight::IsImageBased() const
 			{
 				return DiffuseMapX[0] != nullptr || DiffuseMap != nullptr;
+			}
+			float SurfaceLight::GetBoxRange() const
+			{
+				return Size.Range * 1.25;
 			}
 			Graphics::TextureCube* SurfaceLight::GetProbeCache() const
 			{

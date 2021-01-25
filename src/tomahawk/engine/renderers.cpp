@@ -1477,8 +1477,8 @@ namespace Tomahawk
 						if (!Light->GetProbeCache() || !System->PassCullable(Light, CullResult_Always, &Distance))
 							continue;
 
-						Compute::Vector3 Position(Light->GetEntity()->Transform->Position), Scale(Light->Size.Range);
-						bool Front = Compute::Common::HasPointIntersectedCube(Position, Scale.Mul(1.025), Camera);
+						Compute::Vector3 Position(Light->GetEntity()->Transform->Position), Scale(Light->GetBoxRange());
+						bool Front = Compute::Common::HasPointIntersectedCube(Position, Scale, Camera);
 						if ((Front && Backcull) || (!Front && !Backcull))
 						{
 							Device->SetRasterizerState(Front ? FrontRasterizer : BackRasterizer);
@@ -1494,7 +1494,7 @@ namespace Tomahawk
 						SurfaceLight.Infinity = Light->Infinity;
 						SurfaceLight.Attenuation.X = Light->Size.C1;
 						SurfaceLight.Attenuation.Y = Light->Size.C2;
-						SurfaceLight.Range = Scale.X;
+						SurfaceLight.Range = Light->Size.Range;
 
 						Device->SetTextureCube(Light->GetProbeCache(), 5);
 						Device->UpdateBuffer(Shaders.Surface, &SurfaceLight);
@@ -1512,8 +1512,8 @@ namespace Tomahawk
 						if (Light->Locked || !Light->GetProbeCache() || !System->PassCullable(Light, CullResult_Always, &Distance))
 							continue;
 
-						Compute::Vector3 Position(Light->GetEntity()->Transform->Position), Scale(Light->Size.Range);
-						bool Front = Compute::Common::HasPointIntersectedCube(Position, Scale.Mul(1.025), Camera);
+						Compute::Vector3 Position(Light->GetEntity()->Transform->Position), Scale(Light->GetBoxRange());
+						bool Front = Compute::Common::HasPointIntersectedCube(Position, Scale, Camera);
 						if ((Front && Backcull) || (!Front && !Backcull))
 						{
 							Device->SetRasterizerState(Front ? FrontRasterizer : BackRasterizer);
@@ -1529,7 +1529,7 @@ namespace Tomahawk
 						SurfaceLight.Infinity = Light->Infinity;
 						SurfaceLight.Attenuation.X = Light->Size.C1;
 						SurfaceLight.Attenuation.Y = Light->Size.C2;
-						SurfaceLight.Range = Scale.X;
+						SurfaceLight.Range = Light->Size.Range;
 
 						Device->SetTextureCube(Light->GetProbeCache(), 5);
 						Device->UpdateBuffer(Shaders.Surface, &SurfaceLight);
@@ -1549,8 +1549,8 @@ namespace Tomahawk
 					if (!System->PassCullable(Light, CullResult_Always, &Distance))
 						continue;
 
-					Compute::Vector3 Position(Light->GetEntity()->Transform->Position), Scale(Light->Size.Range);
-					bool Front = Compute::Common::HasPointIntersectedCube(Position, Scale.Mul(1.025), Camera);
+					Compute::Vector3 Position(Light->GetEntity()->Transform->Position), Scale(Light->GetBoxRange());
+					bool Front = Compute::Common::HasPointIntersectedCube(Position, Scale, Camera);
 					if ((Front && Backcull) || (!Front && !Backcull))
 					{
 						Device->SetRasterizerState(Front ? FrontRasterizer : BackRasterizer);
@@ -1577,7 +1577,7 @@ namespace Tomahawk
 					PointLight.Lighting = Light->Diffuse.Mul(Light->Emission * Distance);
 					PointLight.Attenuation.X = Light->Size.C1;
 					PointLight.Attenuation.Y = Light->Size.C2;
-					PointLight.Range = Scale.X;
+					PointLight.Range = Light->Size.Range;
 
 					Device->SetShader(Active, Graphics::ShaderType_Pixel);
 					Device->UpdateBuffer(Shaders.Point[0], &PointLight);
@@ -1596,8 +1596,8 @@ namespace Tomahawk
 					if (!System->PassCullable(Light, CullResult_Always, &Distance))
 						continue;
 
-					Compute::Vector3 Position(Light->GetEntity()->Transform->Position), Scale(Light->Size.Range);
-					bool Front = Compute::Common::HasPointIntersectedCube(Position, Scale.Mul(1.025), Camera);
+					Compute::Vector3 Position(Light->GetEntity()->Transform->Position), Scale(Light->GetBoxRange());
+					bool Front = Compute::Common::HasPointIntersectedCube(Position, Scale, Camera);
 					if ((Front && Backcull) || (!Front && !Backcull))
 					{
 						Device->SetRasterizerState(Front ? FrontRasterizer : BackRasterizer);
@@ -1626,7 +1626,7 @@ namespace Tomahawk
 					SpotLight.Cutoff = Compute::Mathf::Cos(Compute::Mathf::Deg2Rad() * Light->Cutoff * 0.5f);
 					SpotLight.Attenuation.X = Light->Size.C1;
 					SpotLight.Attenuation.Y = Light->Size.C2;
-					SpotLight.Range = Scale.X;
+					SpotLight.Range = Light->Size.Range;
 
 					Device->SetShader(Active, Graphics::ShaderType_Pixel);
 					Device->UpdateBuffer(Shaders.Spot[0], &SpotLight);

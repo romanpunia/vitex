@@ -455,6 +455,7 @@ namespace Tomahawk
 				Compute::Matrix4x4 View;
 				Compute::Matrix4x4 Projection;
 				Compute::Vector3 Diffuse = 1.0f;
+				Attenuation Size;
 				float Emission = 1.0f;
 				float Disperse = 0.0f;
 
@@ -488,6 +489,7 @@ namespace Tomahawk
 				Compute::Matrix4x4 Projection;
 				Compute::Matrix4x4 View;
 				Compute::Vector3 Diffuse = 1.0f;
+				Attenuation Size;
 				float Emission = 1.0f;
 				float Cutoff = 60.0f;
 				float Disperse = 0.0f;
@@ -567,9 +569,9 @@ namespace Tomahawk
 				Compute::Vector3 Offset = Compute::Vector3(1.0f, 1.0f, -1.0f);
 				Compute::Vector3 Diffuse = 1.0f;
 				Rest::TickTimer Tick;
+				Attenuation Size;
 				float Emission = 1.0f;
 				float Infinity = 0.0f;
-				float Range = 10.0f;
 				bool Parallax = false;
 				bool Locked = false;
 				bool StaticMask = false;

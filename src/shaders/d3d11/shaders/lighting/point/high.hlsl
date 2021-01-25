@@ -68,7 +68,7 @@ float4 PS(VOutput V) : SV_TARGET0
     float3 L = normalize(K);
     float3 R = GetCookTorranceBRDF(Frag.Normal, D, L, Frag.Diffuse, M, G);
     float3 S = GetSubsurface(Frag.Normal, D, L, Mat.Scatter) * E;
-    float A = GetRangeAttenuation(K, Range);
+    float A = GetRangeAttenuation(K, Attenuation.x, Attenuation.y, Range);
     A *= GetLightness(-L, length(K) / Distance - Bias) + length(S) / 3.0;
 
 	return float4(Lighting * (R + S) * A, A);

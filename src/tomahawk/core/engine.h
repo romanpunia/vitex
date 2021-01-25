@@ -82,7 +82,7 @@ namespace Tomahawk
 		enum RenderState
 		{
 			RenderState_Geometry_Result,
-			RenderState_Geometry_Lumina,
+			RenderState_Geometry_Voxels,
 			RenderState_Depth_Linear,
 			RenderState_Depth_Cubic
 		};
@@ -91,6 +91,13 @@ namespace Tomahawk
 		{
 			GeoCategory_Opaque,
 			GeoCategory_Transparent
+		};
+
+		struct TH_OUT Attenuation
+		{
+			float Range = 10.0f;
+			float C1 = 1.0f;
+			float C2 = 1.0f;
 		};
 
 		struct TH_OUT Material
@@ -169,7 +176,7 @@ namespace Tomahawk
 			Appearance(const Appearance& Other);
 			~Appearance();
 			bool FillGeometry(Graphics::GraphicsDevice* Device) const;
-			bool FillLumina(Graphics::GraphicsDevice* Device) const;
+			bool FillVoxels(Graphics::GraphicsDevice* Device) const;
 			bool FillDepthLinear(Graphics::GraphicsDevice* Device) const;
 			bool FillDepthCubic(Graphics::GraphicsDevice* Device) const;
 			void SetDiffuseMap(Graphics::Texture2D* New);
@@ -254,6 +261,7 @@ namespace Tomahawk
 			static bool Pack(Rest::Document* V, const Compute::Vector3& Value);
 			static bool Pack(Rest::Document* V, const Compute::Vector4& Value);
 			static bool Pack(Rest::Document* V, const Compute::Matrix4x4& Value);
+			static bool Pack(Rest::Document* V, const Attenuation& Value);
 			static bool Pack(Rest::Document* V, const Material& Value);
 			static bool Pack(Rest::Document* V, const AnimatorState& Value);
 			static bool Pack(Rest::Document* V, const SpawnerProperties& Value);
@@ -303,6 +311,7 @@ namespace Tomahawk
 			static bool Unpack(Rest::Document* V, Compute::Vector3* O);
 			static bool Unpack(Rest::Document* V, Compute::Vector4* O);
 			static bool Unpack(Rest::Document* V, Compute::Matrix4x4* O);
+			static bool Unpack(Rest::Document* V, Attenuation* O);
 			static bool Unpack(Rest::Document* V, Material* O);
 			static bool Unpack(Rest::Document* V, AnimatorState* O);
 			static bool Unpack(Rest::Document* V, SpawnerProperties* O);
@@ -708,7 +717,7 @@ namespace Tomahawk
 			virtual ~GeometryDraw() override;
 			virtual void CullGeometry(const Viewer& View, Rest::Pool<Drawable*>* Geometry);
 			virtual void RenderGeometryResult(Rest::Timer* TimeStep, Rest::Pool<Drawable*>* Geometry, RenderOpt Options) = 0;
-			virtual void RenderGeometryLumina(Rest::Timer* TimeStep, Rest::Pool<Drawable*>* Geometry, RenderOpt Options) = 0;
+			virtual void RenderGeometryVoxels(Rest::Timer* TimeStep, Rest::Pool<Drawable*>* Geometry, RenderOpt Options) = 0;
 			virtual void RenderDepthLinear(Rest::Timer* TimeStep, Rest::Pool<Drawable*>* Geometry) = 0;
 			virtual void RenderDepthCubic(Rest::Timer* TimeStep, Rest::Pool<Drawable*>* Geometry, Compute::Matrix4x4* ViewProjection) = 0;
 			void CullGeometry(const Viewer& View) override;

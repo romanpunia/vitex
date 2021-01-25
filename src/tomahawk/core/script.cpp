@@ -2138,8 +2138,11 @@ namespace Tomahawk
 				if (Include && Include(C, File, Out))
 					return true;
 
-				if (File.Module.empty() || (!File.IsFile && File.IsSystem) || !Module)
+				if (File.Module.empty() || !Module)
 					return false;
+
+				if (!File.IsFile && File.IsSystem)
+					return Manager->ImportSubmodule(File.Module);
 
 				std::string Buffer;
 				if (!Manager->ImportFile(File.Module, &Buffer))
@@ -2249,14 +2252,6 @@ namespace Tomahawk
 						Module->SetDefaultNamespace(Value.Get());
 					else if (Key == "ACCESS_MASK")
 						Module->SetAccessMask(Result);
-				}
-				else if (Name == "using" && Args.size() == 1)
-				{
-					if (!Manager->UseSubmodule(Args[0]))
-					{
-						TH_ERROR("system module \"%s\" was not found", Args[0].c_str());
-						return false;
-					}
 				}
 				else if (Name == "cimport" && Args.size() >= 2)
 				{
@@ -3224,7 +3219,7 @@ namespace Tomahawk
 		}
 		int VMContext::ContextUD = 152;
 
-		VMManager::VMManager() : Engine(asCreateScriptEngine()), Globals(this), Cached(true), Scope(0), JIT(nullptr), Nullable(0)
+		VMManager::VMManager() : Engine(asCreateScriptEngine()), Globals(this), Cached(true), Scope(0), JIT(nullptr), Nullable(0), Imports(VMImport_All)
 		{
 			Include.Exts.push_back(".as");
 			Include.Root = Rest::OS::GetDirectory();
@@ -3245,6 +3240,8 @@ namespace Tomahawk
 
 			if (Engine->RegisterObjectType("Address", 0, asOBJ_REF | asOBJ_NOCOUNT) < 0)
 				TH_ERROR("could not register Address type for script engine");
+
+			RegisterSubmodules(this);
 		}
 		VMManager::~VMManager()
 		{
@@ -3260,6 +3257,10 @@ namespace Tomahawk
 			delete (VMCJITCompiler*)JIT;
 #endif
 			ClearCache();
+		}
+		void VMManager::SetImports(unsigned int Opts)
+		{
+			Imports = Opts;
 		}
 		void VMManager::SetJIT(unsigned int JITOpts)
 		{
@@ -3688,8 +3689,41 @@ namespace Tomahawk
 		{
 			return TypeId == 0 || TypeId == Nullable;
 		}
+		bool VMManager::AddSubmodule(const std::string& Name, const std::vector<std::string>& Dependencies, const SubmoduleCallback& Callback)
+		{
+			Safe.lock();
+			auto It = Modules.find(Name);
+			if (It != Modules.end())
+			{
+				if (Callback || !Dependencies.empty())
+				{
+					It->second.Dependencies = Dependencies;
+					It->second.Callback = Callback;
+					It->second.Registered = false;
+				}
+				else
+					Modules.erase(It);
+			}
+			else
+			{
+				Submodule Result;
+				Result.Dependencies = Dependencies;
+				Result.Callback = Callback;
+				Result.Registered = false;
+				Modules.insert({ Name, Result });
+			}
+
+			Safe.unlock();
+			return true;
+		}
 		bool VMManager::ImportFile(const std::string& Path, std::string* Out)
 		{
+			if (!(Imports & VMImport_Files))
+			{
+				TH_ERROR("file import is not allowed");
+				return false;
+			}
+
 			if (!Rest::OS::FileExists(Path.c_str()))
 				return false;
 
@@ -3720,8 +3754,152 @@ namespace Tomahawk
 			Safe.unlock();
 			return true;
 		}
+		bool VMManager::ImportSymbol(const std::vector<std::string>& Sources, const std::string& Func, const std::string& Decl)
+		{
+			if (!(Imports & VMImport_CSymbols))
+			{
+				TH_ERROR("csymbols import is not allowed");
+				return false;
+			}
+
+			if (!Engine || Decl.empty() || Func.empty())
+				return false;
+
+			Safe.lock();
+			auto Core = Kernels.end();
+			for (auto& Item : Sources)
+			{
+				Core = Kernels.find(Item);
+				if (Core != Kernels.end())
+					break;
+			}
+
+			if (Core == Kernels.end())
+			{
+				Safe.unlock();
+				bool Failed = !ImportLibrary("");
+				Safe.lock();
+
+				if (Failed || (Core = Kernels.find("")) == Kernels.end())
+				{
+					TH_ERROR("cannot load find function in any of presented libraries:\n\t%s", Func.c_str());
+					return false;
+				}
+			}
+
+			auto Handle = Core->second.Functions.find(Func);
+			if (Handle != Core->second.Functions.end())
+			{
+				Safe.unlock();
+				return true;
+			}
+
+			VMObjectFunction Function = (VMObjectFunction)Rest::OS::LoadObjectFunction(Core->second.Handle, Func.c_str());
+			if (!Function)
+			{
+				TH_ERROR("cannot load shared object function: %s", Func.c_str());
+				Safe.unlock();
+				return false;
+			}
+
+			if (Engine->RegisterGlobalFunction(Decl.c_str(), asFUNCTION(Function), asCALL_CDECL) < 0)
+			{
+				TH_ERROR("cannot register shared object function: %s", Decl.c_str());
+				Safe.unlock();
+				return false;
+			}
+
+			Core->second.Functions.insert({ Func, (void*)Function });
+			Safe.unlock();
+
+			return true;
+		}
+		bool VMManager::ImportLibrary(const std::string& Path)
+		{
+			if (!(Imports & VMImport_CLibraries) && !Path.empty())
+			{
+				TH_ERROR("clibraries import is not allowed");
+				return false;
+			}
+
+			std::string Name = GetLibraryName(Path);
+			if (!Engine)
+				return false;
+
+			Safe.lock();
+			auto Core = Kernels.find(Name);
+			if (Core != Kernels.end())
+			{
+				Safe.unlock();
+				return true;
+			}
+			Safe.unlock();
+
+			void* Handle = Rest::OS::LoadObject(Path);
+			if (!Handle)
+			{
+				TH_ERROR("cannot load shared object: %s", Path.c_str());
+				return false;
+			}
+
+			Kernel Library;
+			Library.Handle = Handle;
+
+			Safe.lock();
+			Kernels.insert({ Name, Library });
+			Safe.unlock();
+
+			return true;
+		}
+		bool VMManager::ImportSubmodule(const std::string& Name)
+		{
+			if (!(Imports & VMImport_Submodules))
+			{
+				TH_ERROR("submodules import is not allowed");
+				return false;
+			}
+
+			Safe.lock();
+			auto It = Modules.find(Name);
+			if (It == Modules.end())
+			{
+				Safe.unlock();
+				TH_ERROR("couldn't find script submodule %s", Name.c_str());
+				return false;
+			}
+
+			if (It->second.Registered)
+			{
+				Safe.unlock();
+				return true;
+			}
+
+			Submodule Base = It->second;
+			It->second.Registered = true;
+			Safe.unlock();
+
+			for (auto& Item : Base.Dependencies)
+			{
+				if (!ImportSubmodule(Item))
+				{
+					TH_ERROR("couldn't load submodule %s for %s", Item.c_str(), Name.c_str());
+					return false;
+				}
+			}
+
+			if (Base.Callback)
+				Base.Callback(this);
+
+			return true;
+		}
 		Rest::Document* VMManager::ImportJSON(const std::string& Path)
 		{
+			if (!(Imports & VMImport_JSON))
+			{
+				TH_ERROR("json import is not allowed");
+				return nullptr;
+			}
+
 			std::string File = Rest::OS::Resolve(Path, Include.Root);
 			if (!Rest::OS::FileExists(File.c_str()))
 			{
@@ -3784,243 +3962,6 @@ namespace Tomahawk
 
 			Safe.unlock();
 			return Copy;
-			}
-		bool VMManager::HasSubmodule(const std::string& Name)
-		{
-			auto It = Features.find(Name);
-			if (It != Features.end())
-				return It->second;
-
-			return false;
-		}
-		bool VMManager::UseSubmodule(const std::string& Name)
-		{
-			if (HasSubmodule(Name))
-				return true;
-
-			Features[Name] = true;
-			if (Name == "System")
-			{
-				UseSubmodule("System.Any");
-				UseSubmodule("System.Array");
-				UseSubmodule("System.String");
-				UseSubmodule("System.Map");
-				UseSubmodule("System.Grid");
-				UseSubmodule("System.Math");
-				UseSubmodule("System.Complex");
-				UseSubmodule("System.Ref");
-				UseSubmodule("System.WeakRef");
-				UseSubmodule("System.Exception");
-				UseSubmodule("System.Thread");
-				UseSubmodule("System.Random");
-				UseSubmodule("System.Async");
-
-				return true;
-			}
-
-			if (Name == "Rest")
-			{
-				UseSubmodule("Rest.Format");
-				UseSubmodule("Rest.Console");
-				UseSubmodule("Rest.Document");
-
-				return true;
-			}
-
-			if (Name == "Gui")
-			{
-				UseSubmodule("Gui.Context");
-				UseSubmodule("Gui.Document");
-				UseSubmodule("Gui.Element");
-				UseSubmodule("Gui.Event");
-
-				return true;
-			}
-
-			if (Name == "System.Any")
-				return RegisterAnyAPI(this);
-
-			if (Name == "System.Array")
-				return RegisterArrayAPI(this);
-
-			if (Name == "System.Complex")
-				return RegisterComplexAPI(this);
-
-			if (Name == "System.Grid")
-				return RegisterGridAPI(this);
-
-			if (Name == "System.Ref")
-				return RegisterRefAPI(this);
-
-			if (Name == "System.WeakRef")
-				return RegisterWeakRefAPI(this);
-
-			if (Name == "System.Math")
-				return RegisterMathAPI(this);
-
-			if (Name == "System.Random")
-				return RegisterRandomAPI(this);
-
-			if (Name == "System.String")
-			{
-				UseSubmodule("System.Array");
-				return RegisterStringAPI(this);
-			}
-
-			if (Name == "System.Map")
-			{
-				UseSubmodule("System.Array");
-				UseSubmodule("System.String");
-				return RegisterMapAPI(this);
-			}
-
-			if (Name == "System.Exception")
-			{
-				UseSubmodule("System.String");
-				return RegisterExceptionAPI(this);
-			}
-
-			if (Name == "System.Thread")
-			{
-				UseSubmodule("System.Any");
-				return RegisterThreadAPI(this);
-			}
-
-			if (Name == "System.Async")
-			{
-				UseSubmodule("System.Any");
-				return RegisterAsyncAPI(this);
-			}
-
-			if (Name == "Rest.Format")
-			{
-				UseSubmodule("System.String");
-				return RegisterFormatAPI(this);
-			}
-
-			if (Name == "Rest.Console")
-			{
-				UseSubmodule("Rest.Format");
-				return RegisterConsoleAPI(this);
-			}
-
-			if (Name == "Rest.Document")
-			{
-				UseSubmodule("System.String");
-				UseSubmodule("System.Array");
-				UseSubmodule("System.Map");
-				return RegisterDocumentAPI(this);
-			}
-
-			if (Name == "Gui.Element")
-				return RegisterGuiElementAPI(this);
-
-			if (Name == "Gui.Document")
-				return RegisterGuiDocumentAPI(this);
-
-			if (Name == "Gui.Event")
-				return RegisterGuiEventAPI(this);
-
-			if (Name == "Gui.Context")
-				return RegisterGuiContextAPI(this);
-
-			Features[Name] = false;
-			return false;
-		}
-		bool VMManager::ImportSymbol(const std::vector<std::string>& Sources, const std::string& Func, const std::string& Decl)
-		{
-			if (!Engine || Decl.empty() || Func.empty())
-				return false;
-
-			Safe.lock();
-			auto Core = Kernels.end();
-			for (auto& Item : Sources)
-			{
-				Core = Kernels.find(Item);
-				if (Core != Kernels.end())
-					break;
-			}
-
-			if (Core == Kernels.end())
-			{
-				Safe.unlock();
-				bool Failed = !ImportLibrary("");
-				Safe.lock();
-
-				if (Failed || (Core = Kernels.find("")) == Kernels.end())
-				{
-					TH_ERROR("cannot load find function in any of presented libraries:\n\t%s", Func.c_str());
-					return false;
-				}
-			}
-
-			auto Handle = Core->second.Functions.find(Func);
-			if (Handle != Core->second.Functions.end())
-			{
-				Safe.unlock();
-				return true;
-			}
-
-			VMObjectFunction Function = (VMObjectFunction)Rest::OS::LoadObjectFunction(Core->second.Handle, Func.c_str());
-			if (!Function)
-			{
-				TH_ERROR("cannot load shared object function: %s", Func.c_str());
-				Safe.unlock();
-				return false;
-			}
-
-			if (Engine->RegisterGlobalFunction(Decl.c_str(), asFUNCTION(Function), asCALL_CDECL) < 0)
-			{
-				TH_ERROR("cannot register shared object function: %s", Decl.c_str());
-				Safe.unlock();
-				return false;
-			}
-
-			Core->second.Functions.insert({ Func, (void*)Function });
-			Safe.unlock();
-
-			return true;
-		}
-		bool VMManager::ImportLibrary(const std::string& Path)
-		{
-			std::string Name = GetLibraryName(Path);
-			if (!Engine)
-				return false;
-
-			Safe.lock();
-			auto Core = Kernels.find(Name);
-			if (Core != Kernels.end())
-			{
-				Safe.unlock();
-				return true;
-			}
-			Safe.unlock();
-
-			void* Handle = Rest::OS::LoadObject(Path);
-			if (!Handle)
-			{
-				TH_ERROR("cannot load shared object: %s", Path.c_str());
-				return false;
-			}
-
-			Kernel Library;
-			Library.Handle = Handle;
-
-			Safe.lock();
-			Kernels.insert({ Name, Library });
-			Safe.unlock();
-
-			return true;
-		}
-		std::vector<std::string> VMManager::GetSubmodules()
-		{
-			std::vector<std::string> Result;
-			Result.reserve(Features.size());
-
-			for (auto& Item : Features)
-				Result.push_back(Item.first);
-
-			return Result;
 		}
 		size_t VMManager::GetProperty(VMProp Property) const
 		{
@@ -4112,6 +4053,60 @@ namespace Tomahawk
 				TH_INFO("\n\t%s (%i, %i): %s", Info->section && Info->section[0] != '\0' ? Info->section : "any", Info->row, Info->col, Info->message);
 			else if (Info->type == asMSGTYPE_ERROR)
 				TH_ERROR("\n\t%s (%i, %i): %s", Info->section && Info->section[0] != '\0' ? Info->section : "any", Info->row, Info->col, Info->message);
+		}
+		void VMManager::RegisterSubmodules(VMManager* Engine)
+		{
+			Engine->AddSubmodule("std/any", { }, RegisterAnyAPI);
+			Engine->AddSubmodule("std/array", { }, RegisterArrayAPI);
+			Engine->AddSubmodule("std/complex", { }, RegisterComplexAPI);
+			Engine->AddSubmodule("std/grid", { }, RegisterGridAPI);
+			Engine->AddSubmodule("std/ref", { }, RegisterRefAPI);
+			Engine->AddSubmodule("std/weakref", { }, RegisterWeakRefAPI);
+			Engine->AddSubmodule("std/math", { }, RegisterMathAPI);
+			Engine->AddSubmodule("std/random", { }, RegisterRandomAPI);
+			Engine->AddSubmodule("std/string", { "std/array" }, RegisterStringAPI);
+			Engine->AddSubmodule("std/map", { "std/array", "std/string" }, RegisterMapAPI);
+			Engine->AddSubmodule("std/exception", { "std/string" }, RegisterExceptionAPI);
+			Engine->AddSubmodule("std/thread", { "std/any" }, RegisterThreadAPI);
+			Engine->AddSubmodule("std/async", { "std/any" }, RegisterAsyncAPI);
+			Engine->AddSubmodule("std",
+			{
+				"std/any",
+				"std/array",
+				"std/complex",
+				"std/grid",
+				"std/ref",
+				"std/weakref",
+				"std/math",
+				"std/random",
+				"std/string",
+				"std/map",
+				"std/exception",
+				"std/thread",
+				"std/async"
+			}, nullptr);
+
+			Engine->AddSubmodule("rest/format", { "std/string" }, RegisterFormatAPI);
+			Engine->AddSubmodule("rest/console", { "rest/format" }, RegisterConsoleAPI);
+			Engine->AddSubmodule("rest/document", { "std/array", "std/string", "std/map" }, RegisterDocumentAPI);
+			Engine->AddSubmodule("rest",
+			{
+				"rest/format",
+				"rest/console",
+				"rest/document"
+			}, nullptr);
+
+			Engine->AddSubmodule("gui/element", { }, RegisterGuiElementAPI);
+			Engine->AddSubmodule("gui/document", { }, RegisterGuiDocumentAPI);
+			Engine->AddSubmodule("gui/event", { }, RegisterGuiEventAPI);
+			Engine->AddSubmodule("gui/context", { }, RegisterGuiContextAPI);
+			Engine->AddSubmodule("gui",
+			{
+				"gui/element",
+				"gui/document",
+				"gui/event",
+				"gui/context"
+			}, nullptr);
 		}
 		size_t VMManager::GetDefaultAccessMask()
 		{
@@ -4882,5 +4877,5 @@ namespace Tomahawk
 		{
 			return Manager;
 		}
-		}
 	}
+}

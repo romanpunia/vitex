@@ -312,6 +312,16 @@ namespace Tomahawk
 			VMOpFunc_ImplCast
 		};
 
+		enum VMImport
+		{
+			VMImport_CLibraries = 1,
+			VMImport_CSymbols = 2,
+			VMImport_Submodules = 4,
+			VMImport_Files = 8,
+			VMImport_JSON = 8,
+			VMImport_All = (VMImport_CLibraries | VMImport_CSymbols | VMImport_Submodules | VMImport_Files | VMImport_JSON)
+		};
+
 		typedef asIScriptEngine VMCManager;
 		typedef asIScriptContext VMCContext;
 		typedef asIScriptModule VMCModule;
@@ -324,6 +334,7 @@ namespace Tomahawk
 		typedef void(*VMObjectFunction)();
 		typedef std::function<void(struct VMTypeInfo*, struct VMFuncProperty*)> PropertyCallback;
 		typedef std::function<void(struct VMTypeInfo*, struct VMFunction*)> MethodCallback;
+		typedef std::function<void(class VMManager*)> SubmoduleCallback;
 
         class TH_OUT VMFuncStore
         {
@@ -1741,6 +1752,13 @@ namespace Tomahawk
 				void* Handle;
 			};
 
+			struct Submodule
+			{
+				std::vector<std::string> Dependencies;
+				SubmoduleCallback Callback;
+				bool Registered;
+			};
+
 		private:
 			static int ManagerUD;
 
@@ -1748,8 +1766,8 @@ namespace Tomahawk
 			std::unordered_map<std::string, std::string> Files;
 			std::unordered_map<std::string, Rest::Document*> Datas;
 			std::unordered_map<std::string, VMByteCode> Opcodes;
-			std::unordered_map<std::string, bool> Features;
 			std::unordered_map<std::string, Kernel> Kernels;
+			std::unordered_map<std::string, Submodule> Modules;
 			std::vector<VMCContext*> Contexts;
 			Compute::Preprocessor::Desc Proc;
 			Compute::IncludeDesc Include;
@@ -1757,6 +1775,7 @@ namespace Tomahawk
 			uint64_t Scope;
 			VMCManager* Engine;
 			VMGlobal Globals;
+			unsigned int Imports;
 			int Nullable;
 			void* JIT;
 			bool Cached;
@@ -1764,6 +1783,7 @@ namespace Tomahawk
 		public:
 			VMManager();
 			~VMManager();
+			void SetImports(unsigned int Opts);
 			void SetJIT(unsigned int Opts);
 			void SetCache(bool Enabled);
 			void ClearCache();
@@ -1817,14 +1837,13 @@ namespace Tomahawk
 			size_t GetProperty(VMProp Property) const;
 			VMCManager* GetEngine() const;
 			std::string GetDocumentRoot() const;
-			Rest::Document* ImportJSON(const std::string& Path);
 			bool IsNullable(int TypeId);
+			bool AddSubmodule(const std::string& Name, const std::vector<std::string>& Dependencies, const SubmoduleCallback& Callback);
 			bool ImportFile(const std::string& Path, std::string* Out);
-			bool HasSubmodule(const std::string& Name);
-			bool UseSubmodule(const std::string& Name);
 			bool ImportSymbol(const std::vector<std::string>& Sources, const std::string& Name, const std::string& Decl);
 			bool ImportLibrary(const std::string& Path);
-			std::vector<std::string> GetSubmodules();
+			bool ImportSubmodule(const std::string& Name);
+			Rest::Document* ImportJSON(const std::string& Path);
 
 		public:
 			static void SetMemoryFunctions(void*(*Alloc)(size_t), void(*Free)(void*));
@@ -1838,6 +1857,7 @@ namespace Tomahawk
 			static VMCContext* RequestContext(VMCManager* Engine, void* Data);
 			static void ReturnContext(VMCManager* Engine, VMCContext* Context, void* Data);
 			static void CompileLogger(asSMessageInfo* Info, void* Object);
+			static void RegisterSubmodules(VMManager* Engine);
 			static void* GetNullable();
 		};
 

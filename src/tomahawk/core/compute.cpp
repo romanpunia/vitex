@@ -6204,7 +6204,7 @@ namespace Tomahawk
 			{
 				if (Desc.Root.empty())
 				{
-					Result.Module = Desc.Path;
+					Result.Module = Rest::Stroke(Desc.Path).Replace('\\', '/').R();
 					Result.IsSystem = true;
 					Result.IsFile = false;
 					return Result;
@@ -6235,7 +6235,7 @@ namespace Tomahawk
 					return Result;
 				}
 
-				Result.Module = Desc.Path;
+				Result.Module = Rest::Stroke(Desc.Path).Replace('\\', '/').R();;
 				Result.IsSystem = true;
 				Result.IsFile = false;
 				return Result;

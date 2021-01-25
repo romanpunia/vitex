@@ -41,7 +41,7 @@ namespace Tomahawk
 				void Deactivate() override;
 				void CullGeometry(const Viewer& View, Rest::Pool<Drawable*>* Geometry) override;
 				void RenderGeometryResult(Rest::Timer* Time, Rest::Pool<Drawable*>* Geometry, RenderOpt Options) override;
-				void RenderGeometryLumina(Rest::Timer* Time, Rest::Pool<Drawable*>* Geometry, RenderOpt Options) override;
+				void RenderGeometryVoxels(Rest::Timer* Time, Rest::Pool<Drawable*>* Geometry, RenderOpt Options) override;
 				void RenderDepthLinear(Rest::Timer* Time, Rest::Pool<Drawable*>* Geometry) override;
 				void RenderDepthCubic(Rest::Timer* Time, Rest::Pool<Drawable*>* Geometry, Compute::Matrix4x4* ViewProjection) override;
 				
@@ -80,7 +80,7 @@ namespace Tomahawk
 				void Deactivate() override;
 				void CullGeometry(const Viewer& View, Rest::Pool<Drawable*>* Geometry) override;
 				void RenderGeometryResult(Rest::Timer* Time, Rest::Pool<Drawable*>* Geometry, RenderOpt Options) override;
-				void RenderGeometryLumina(Rest::Timer* Time, Rest::Pool<Drawable*>* Geometry, RenderOpt Options) override;
+				void RenderGeometryVoxels(Rest::Timer* Time, Rest::Pool<Drawable*>* Geometry, RenderOpt Options) override;
 				void RenderDepthLinear(Rest::Timer* Time, Rest::Pool<Drawable*>* Geometry) override;
 				void RenderDepthCubic(Rest::Timer* Time, Rest::Pool<Drawable*>* Geometry, Compute::Matrix4x4* ViewProjection) override;
 
@@ -120,7 +120,7 @@ namespace Tomahawk
 				void Deactivate() override;
 				void CullGeometry(const Viewer& View, Rest::Pool<Drawable*>* Geometry) override;
 				void RenderGeometryResult(Rest::Timer* Time, Rest::Pool<Drawable*>* Geometry, RenderOpt Options) override;
-				void RenderGeometryLumina(Rest::Timer* Time, Rest::Pool<Drawable*>* Geometry, RenderOpt Options) override;
+				void RenderGeometryVoxels(Rest::Timer* Time, Rest::Pool<Drawable*>* Geometry, RenderOpt Options) override;
 				void RenderDepthLinear(Rest::Timer* Time, Rest::Pool<Drawable*>* Geometry) override;
 				void RenderDepthCubic(Rest::Timer* Time, Rest::Pool<Drawable*>* Geometry, Compute::Matrix4x4* ViewProjection) override;
 
@@ -167,7 +167,7 @@ namespace Tomahawk
 				void Activate() override;
 				void Deactivate() override;
 				void RenderGeometryResult(Rest::Timer* Time, Rest::Pool<Drawable*>* Geometry, RenderOpt Options) override;
-				void RenderGeometryLumina(Rest::Timer* Time, Rest::Pool<Drawable*>* Geometry, RenderOpt Options) override;
+				void RenderGeometryVoxels(Rest::Timer* Time, Rest::Pool<Drawable*>* Geometry, RenderOpt Options) override;
 				void RenderDepthLinear(Rest::Timer* Time, Rest::Pool<Drawable*>* Geometry) override;
 				void RenderDepthCubic(Rest::Timer* Time, Rest::Pool<Drawable*>* Geometry, Compute::Matrix4x4* ViewProjection) override;
 
@@ -199,7 +199,7 @@ namespace Tomahawk
 				void Activate() override;
 				void Deactivate() override;
 				void RenderGeometryResult(Rest::Timer* Time, Rest::Pool<Drawable*>* Geometry, RenderOpt Options) override;
-				void RenderGeometryLumina(Rest::Timer* Time, Rest::Pool<Drawable*>* Geometry, RenderOpt Options) override;
+				void RenderGeometryVoxels(Rest::Timer* Time, Rest::Pool<Drawable*>* Geometry, RenderOpt Options) override;
 				void RenderDepthLinear(Rest::Timer* Time, Rest::Pool<Drawable*>* Geometry) override;
 				void RenderDepthCubic(Rest::Timer* Time, Rest::Pool<Drawable*>* Geometry, Compute::Matrix4x4* ViewProjection) override;
 
@@ -226,13 +226,14 @@ namespace Tomahawk
 					float MipLevels;
 					Compute::Vector3 Scale;
 					float Parallax;
-					Compute::Vector3 Padding;
+					Compute::Vector3 Attenuation;
 					float Infinity;
 				} SurfaceLight;
 
 				struct
 				{
 					Compute::Matrix4x4 WorldViewProjection;
+					Compute::Vector4 Attenuation;
 					Compute::Vector3 Position;
 					float Range;
 					Compute::Vector3 Lighting;
@@ -247,6 +248,7 @@ namespace Tomahawk
 				{
 					Compute::Matrix4x4 WorldViewProjection;
 					Compute::Matrix4x4 ViewProjection;
+					Compute::Vector4 Attenuation;
 					Compute::Vector3 Direction;
 					float Cutoff;
 					Compute::Vector3 Position;
@@ -301,7 +303,7 @@ namespace Tomahawk
 				struct
 				{
 					Rest::TickTimer Tick;
-					float Distance;
+					Compute::Vector3 Distance;
 					uint64_t Size;
 					bool Enabled;
 				} IndirectLight;
@@ -329,12 +331,11 @@ namespace Tomahawk
 			protected:
 				struct
 				{
+					Graphics::Shader* Ambient[2] = { nullptr };
 					Graphics::Shader* Point[3] = { nullptr };
 					Graphics::Shader* Spot[3] = { nullptr };
 					Graphics::Shader* Line[3] = { nullptr };
 					Graphics::Shader* Surface = nullptr;
-					Graphics::Shader* Ambient = nullptr;
-					Graphics::Shader* Inject = nullptr;
 				} Shaders;
 
 			private:
@@ -348,7 +349,6 @@ namespace Tomahawk
 				Graphics::RasterizerState* FrontRasterizer = nullptr;
 				Graphics::RasterizerState* BackRasterizer = nullptr;
 				Graphics::RasterizerState* NoneRasterizer = nullptr;
-				Graphics::BlendState* BlendOverload = nullptr;
 				Graphics::BlendState* BlendAdditive = nullptr;
 				Graphics::BlendState* BlendOverwrite = nullptr;
 				Graphics::SamplerState* ShadowSampler = nullptr;
@@ -384,7 +384,7 @@ namespace Tomahawk
 
 			private:
 				void RenderResultBuffers(Graphics::GraphicsDevice* Device, RenderOpt Options);
-				void RenderLuminaBuffers(Graphics::GraphicsDevice* Device, RenderOpt Options);
+				void RenderVoxelsBuffers(Graphics::GraphicsDevice* Device, RenderOpt Options);
 				void RenderShadowMaps(Graphics::GraphicsDevice* Device, SceneGraph* Scene, Rest::Timer* Time);
 				void RenderSurfaceMaps(Graphics::GraphicsDevice* Device, SceneGraph* Scene, Rest::Timer* Time);
 				void RenderVoxels(Rest::Timer* Time, Graphics::GraphicsDevice* Device, Graphics::MultiRenderTarget2D* Surface);

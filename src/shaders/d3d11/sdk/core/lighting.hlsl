@@ -1,10 +1,11 @@
-float GetRangeAttenuation(float3 L, float Distance)
+float GetRangeAttenuation(float3 L, float C1, float C2, float Distance)
 {
-    return max(1.0 - length(L) / Distance, 0.0);
+    float F = length(L);
+    return saturate(Distance / (1.0 + C1 * F + C2 * F * F));
 }
-float GetConeAttenuation(float3 L, float3 LN, float Distance, float3 Axis, float Angle)
+float GetConeAttenuation(float3 L, float3 LN, float C1, float C2, float Distance, float3 Axis, float Angle)
 {
-    return 3.0 * GetRangeAttenuation(L, Distance) * max(1.0 - (1.0 - dot(-LN, Axis)) * 1.0 / (1.0 - Angle), 0.0);
+    return 3.0 * GetRangeAttenuation(L, C1, C2, Distance) * max(1.0 - (1.0 - dot(-LN, Axis)) * 1.0 / (1.0 - Angle), 0.0);
 }
 float GetSubsurface(float3 N, float3 V, float3 Origin, float3 Scatter)
 {

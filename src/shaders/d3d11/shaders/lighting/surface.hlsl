@@ -14,7 +14,7 @@ cbuffer RenderConstant : register(b3)
 	float MipLevels;
 	float3 Scale;
 	float Parallax;
-    float3 Padding;
+    float3 Attenuation;
     float Infinity;
 };
 
@@ -43,7 +43,7 @@ float4 PS(VOutput V) : SV_TARGET0
     float3 E = normalize(Frag.Position - ViewPosition);
 	float3 M = GetMetallic(Frag, Mat);
 	float R = GetRoughness(Frag, Mat);
-	float A = max(Infinity, (1.0 - length(D) / Range)) * Mat.Environment;
+	float A = max(Infinity, GetRangeAttenuation(D, Attenuation.x, Attenuation.y, Range)) * Mat.Environment;
 
 	D = -normalize(reflect(-E, -Frag.Normal));
 	[branch] if (Parallax > 0)

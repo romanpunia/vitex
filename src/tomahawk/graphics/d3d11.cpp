@@ -2237,6 +2237,12 @@ namespace Tomahawk
 				Description.CPUAccessFlags = I.AccessFlags;
 				Description.MiscFlags = (unsigned int)I.MiscFlags;
 
+				if (I.MipLevels > 0)
+				{
+					Description.BindFlags |= D3D11_BIND_RENDER_TARGET;
+					Description.MiscFlags |= D3D11_RESOURCE_MISC_GENERATE_MIPS;
+				}
+
 				if (I.Writable)
 					Description.BindFlags |= D3D11_BIND_UNORDERED_ACCESS;
 
@@ -2290,7 +2296,13 @@ namespace Tomahawk
 				Description.Usage = (D3D11_USAGE)I.Usage;
 				Description.BindFlags = I.BindFlags;
 				Description.CPUAccessFlags = I.AccessFlags;
-				Description.MiscFlags = (unsigned int)I.MiscFlags;
+				Description.MiscFlags = D3D11_RESOURCE_MISC_TEXTURECUBE | (unsigned int)I.MiscFlags;
+
+				if (I.MipLevels > 0)
+				{
+					Description.BindFlags |= D3D11_BIND_RENDER_TARGET;
+					Description.MiscFlags |= D3D11_RESOURCE_MISC_GENERATE_MIPS;
+				}
 
 				if (I.Writable)
 					Description.BindFlags |= D3D11_BIND_UNORDERED_ACCESS;

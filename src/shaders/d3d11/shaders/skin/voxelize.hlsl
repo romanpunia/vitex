@@ -39,11 +39,17 @@ void GS(triangle VOutput V[3], inout TriangleStream<VOutput> Stream)
 {
 	uint Dominant = GetDominant(V[0].Normal, V[1].Normal, V[2].Normal);
 	[unroll] for (uint i = 0; i < 3; ++i)
-	{
-		VOutput Result = V[i];
-        Result.Position = GetVoxelSpace(Result.Position, Dominant);
-		Stream.Append(Result);
-	}
+        V[i].Position = GetVoxelSpace(V[i].Position, Dominant);
+             
+    float2 Side0 = normalize(V[1].Position.xy - V[0].Position.xy);
+    float2 Side1 = normalize(V[2].Position.xy - V[1].Position.xy);
+    float2 Side2 = normalize(V[0].Position.xy - V[2].Position.xy);
+    V[0].Position.xy += normalize(Side2 - Side0) / GridSize.xy;
+    V[1].Position.xy += normalize(Side0 - Side1) / GridSize.xy;
+    V[2].Position.xy += normalize(Side1 - Side2) / GridSize.xy;
+
+	[unroll] for (uint j = 0; j < 3; ++j)
+        Stream.Append(V[j]);
 }
 
 Lumina PS(VOutput V)

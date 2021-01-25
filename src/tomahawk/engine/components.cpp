@@ -2549,6 +2549,7 @@ namespace Tomahawk
 			{
 				NMake::Unpack(Node->Find("projection"), &Projection);
 				NMake::Unpack(Node->Find("view"), &View);
+				NMake::Unpack(Node->Find("size"), &Size);
 				NMake::Unpack(Node->Find("diffuse"), &Diffuse);
 				NMake::Unpack(Node->Find("emission"), &Emission);
 				NMake::Unpack(Node->Find("disperse"), &Disperse);
@@ -2562,6 +2563,7 @@ namespace Tomahawk
 			{
 				NMake::Pack(Node->SetDocument("projection"), Projection);
 				NMake::Pack(Node->SetDocument("view"), View);
+				NMake::Pack(Node->SetDocument("size"), Size);
 				NMake::Pack(Node->SetDocument("diffuse"), Diffuse);
 				NMake::Pack(Node->SetDocument("emission"), Emission);
 				NMake::Pack(Node->SetDocument("disperse"), Disperse);
@@ -2587,6 +2589,7 @@ namespace Tomahawk
 				Target->Visibility = Visibility;
 				Target->Projection = Projection;
 				Target->View = View;
+				Target->Size = Size;
 				memcpy(&Target->Shadow, &Shadow, sizeof(Shadow));
 
 				return Target;
@@ -2604,6 +2607,7 @@ namespace Tomahawk
 			{
 				NMake::Unpack(Node->Find("projection"), &Projection);
 				NMake::Unpack(Node->Find("view"), &View);
+				NMake::Unpack(Node->Find("size"), &Size);
 				NMake::Unpack(Node->Find("diffuse"), &Diffuse);
 				NMake::Unpack(Node->Find("emission"), &Emission);
 				NMake::Unpack(Node->Find("disperse"), &Disperse);
@@ -2618,6 +2622,7 @@ namespace Tomahawk
 			{
 				NMake::Pack(Node->SetDocument("projection"), Projection);
 				NMake::Pack(Node->SetDocument("view"), View);
+				NMake::Pack(Node->SetDocument("size"), Size);
 				NMake::Pack(Node->SetDocument("diffuse"), Diffuse);
 				NMake::Pack(Node->SetDocument("emission"), Emission);
 				NMake::Pack(Node->SetDocument("disperse"), Disperse);
@@ -2646,6 +2651,7 @@ namespace Tomahawk
 				Target->Diffuse = Diffuse;
 				Target->Projection = Projection;
 				Target->View = View;
+				Target->Size = Size;
 				Target->Cutoff = Cutoff;
 				Target->Emission = Emission;
 				memcpy(&Target->Shadow, &Shadow, sizeof(Shadow));
@@ -2830,7 +2836,7 @@ namespace Tomahawk
 				NMake::Unpack(Node->Find("view"), &Views);
 				NMake::Unpack(Node->Find("tick"), &Tick);
 				NMake::Unpack(Node->Find("diffuse"), &Diffuse);
-				NMake::Unpack(Node->Find("range"), &Range);
+				NMake::Unpack(Node->Find("size"), &Size);
 				NMake::Unpack(Node->Find("emission"), &Emission);
 				NMake::Unpack(Node->Find("infinity"), &Infinity);
 				NMake::Unpack(Node->Find("parallax"), &Parallax);
@@ -2888,8 +2894,8 @@ namespace Tomahawk
 				NMake::Pack(Node->SetDocument("projection"), Projection);
 				NMake::Pack(Node->SetDocument("view"), Views);
 				NMake::Pack(Node->SetDocument("tick"), Tick);
+				NMake::Pack(Node->SetDocument("size"), Size);
 				NMake::Pack(Node->SetDocument("diffuse"), Diffuse);
-				NMake::Pack(Node->SetDocument("range"), Range);
 				NMake::Pack(Node->SetDocument("emission"), Emission);
 				NMake::Pack(Node->SetDocument("infinity"), Infinity);
 				NMake::Pack(Node->SetDocument("parallax"), Parallax);
@@ -2914,7 +2920,7 @@ namespace Tomahawk
 				Target->Diffuse = Diffuse;
 				Target->Visibility = Visibility;
 				Target->Emission = Emission;
-				Target->Range = Range;
+				Target->Size = Size;
 				Target->Tick = Tick;
 				memcpy(Target->View, View, 6 * sizeof(Compute::Matrix4x4));
 

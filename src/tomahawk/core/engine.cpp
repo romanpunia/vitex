@@ -119,7 +119,7 @@ namespace Tomahawk
 
 			return true;
 		}
-		bool Appearance::FillLumina(Graphics::GraphicsDevice* Device) const
+		bool Appearance::FillVoxels(Graphics::GraphicsDevice* Device) const
 		{
 			if (!Device || Material < 0)
 				return false;
@@ -347,6 +347,16 @@ namespace Tomahawk
 				return false;
 
 			return V->SetNumber("[m11]", Value.Row[0]) != nullptr && V->SetNumber("[m12]", Value.Row[1]) != nullptr && V->SetNumber("[m13]", Value.Row[2]) != nullptr && V->SetNumber("[m14]", Value.Row[3]) != nullptr && V->SetNumber("[m21]", Value.Row[4]) != nullptr && V->SetNumber("[m22]", Value.Row[5]) != nullptr && V->SetNumber("[m23]", Value.Row[6]) != nullptr && V->SetNumber("[m24]", Value.Row[7]) != nullptr && V->SetNumber("[m31]", Value.Row[8]) != nullptr && V->SetNumber("[m32]", Value.Row[9]) != nullptr && V->SetNumber("[m33]", Value.Row[10]) != nullptr && V->SetNumber("[m34]", Value.Row[11]) != nullptr && V->SetNumber("[m41]", Value.Row[12]) != nullptr && V->SetNumber("[m42]", Value.Row[13]) != nullptr && V->SetNumber("[m43]", Value.Row[14]) != nullptr && V->SetNumber("[m44]", Value.Row[15]) != nullptr;
+		}
+		bool NMake::Pack(Rest::Document* V, const Attenuation& Value)
+		{
+			if (!V)
+				return false;
+
+			NMake::Pack(V->SetDocument("range"), Value.Range);
+			NMake::Pack(V->SetDocument("c1"), Value.C1);
+			NMake::Pack(V->SetDocument("c2"), Value.C2);
+			return true;
 		}
 		bool NMake::Pack(Rest::Document* V, const Material& Value)
 		{
@@ -1012,6 +1022,16 @@ namespace Tomahawk
 			O->Row[13] = V->GetNumber("[m42]");
 			O->Row[14] = V->GetNumber("[m43]");
 			O->Row[15] = V->GetNumber("[m44]");
+			return true;
+		}
+		bool NMake::Unpack(Rest::Document* V, Attenuation* O)
+		{
+			if (!V || !O)
+				return false;
+
+			NMake::Unpack(V->Find("range"), &O->Range);
+			NMake::Unpack(V->Find("c2"), &O->C1);
+			NMake::Unpack(V->Find("c1"), &O->C2);
 			return true;
 		}
 		bool NMake::Unpack(Rest::Document* V, Material* O)
@@ -3157,14 +3177,14 @@ namespace Tomahawk
 				if (Geometry != nullptr && Geometry->Size() > 0)
 					RenderGeometryResult(TimeStep, Geometry, Options);
 			}
-			else if (State == RenderState_Geometry_Lumina)
+			else if (State == RenderState_Geometry_Voxels)
 			{
 				if (Options & RenderOpt_Transparent)
 					return;
 
 				Rest::Pool<Drawable*>* Geometry = GetOpaque();
 				if (Geometry != nullptr && Geometry->Size() > 0)
-					RenderGeometryLumina(TimeStep, Geometry, Options);
+					RenderGeometryVoxels(TimeStep, Geometry, Options);
 			}
 			else if (State == RenderState_Depth_Linear)
 			{

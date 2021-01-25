@@ -22,7 +22,7 @@ float4 PS(VOutput V) : SV_TARGET0
 
     float3 K = Position - Frag.Position;
     float3 L = normalize(K);
-    float A = GetConeAttenuation(K, L, Range, Direction, Cutoff);
+    float A = GetConeAttenuation(K, L, Attenuation.x, Attenuation.y, Range, Direction, Cutoff);
     [branch] if (A <= 0.0)
         return float4(0, 0, 0, 0);
 

@@ -42,7 +42,7 @@ float4 GetVoxelSpace(float4 Position, uint Dominant)
 }
 float4 GetVoxel(float4 Position)
 {
-    return float4(clamp(Position.xyz - GridCenter.xyz, -GridScale.xyz, GridScale.xyz) / GridScale.xyz, 1.0);
+    return float4(clamp(Position.xyz - GridCenter, -GridScale.xyz, GridScale.xyz) / GridScale.xyz, 1.0);
 }
 float3 GetNormal(float2 TexCoord, float3 Normal, float3 Tangent, float3 Bitangent)
 {
@@ -58,7 +58,7 @@ Lumina Compose(float2 TexCoord, float4 Diffuse, float3 Normal, float3 Position, 
     [branch] if (Position.x < -1.0 || Position.x > 1.0 || Position.y < -1.0 || Position.y > 1.0 || Position.z < -1.0 || Position.z > 1.0)
         return (Lumina)0;
     
-    uint3 Voxel = (uint3)floor((float3(0.5, -0.5, 0.5) * Position + 0.5) * GridSize.xyz);
+    uint3 Voxel = (uint3)floor((float3(0.5, -0.5, 0.5) * Position + 0.5) * GridSize);
     DiffuseBuffer[Voxel] = Diffuse;
     NormalBuffer[Voxel] = float4(Normal, MaterialId);
     SurfaceBuffer[Voxel] = float4(

@@ -1,6 +1,8 @@
 cbuffer Voxelizer : register(b3)
 {
-    float4 GridCenter;
-    float4 GridSize;
+    float3 GridCenter;
+    float GridStep;
+    float3 GridSize;
+    float GridMipLevels;
     float4 GridScale;
 };

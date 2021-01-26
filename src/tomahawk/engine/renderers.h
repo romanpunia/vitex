@@ -209,25 +209,18 @@ namespace Tomahawk
 
 			class TH_OUT Lighting : public Renderer
 			{
-			public:
-				struct VoxelBuffer
-				{
-					Compute::Vector4 GridCenter;
-					Compute::Vector4 GridSize;
-					Compute::Vector4 GridScale;
-				} Voxelizer;
-
+			private:
 				struct
 				{
 					Compute::Matrix4x4 WorldViewProjection;
 					Compute::Vector3 Position;
-					float Range;
+					float Range = 0.0f;
 					Compute::Vector3 Lighting;
-					float MipLevels;
+					float MipLevels = 0.0f;
 					Compute::Vector3 Scale;
-					float Parallax;
+					float Parallax = 0.0f;
 					Compute::Vector3 Attenuation;
-					float Infinity;
+					float Infinity = 0.0f;
 				} SurfaceLight;
 
 				struct
@@ -235,13 +228,13 @@ namespace Tomahawk
 					Compute::Matrix4x4 WorldViewProjection;
 					Compute::Vector4 Attenuation;
 					Compute::Vector3 Position;
-					float Range;
+					float Range = 0.0f;
 					Compute::Vector3 Lighting;
-					float Distance;
-					float Umbra;
-					float Softness;
-					float Bias;
-					float Iterations;
+					float Distance = 0.0f;
+					float Umbra = 0.0f;
+					float Softness = 0.0f;
+					float Bias = 0.0f;
+					float Iterations = 0.0f;
 				} PointLight;
 
 				struct
@@ -250,15 +243,15 @@ namespace Tomahawk
 					Compute::Matrix4x4 ViewProjection;
 					Compute::Vector4 Attenuation;
 					Compute::Vector3 Direction;
-					float Cutoff;
+					float Cutoff = 0.0f;
 					Compute::Vector3 Position;
-					float Range;
+					float Range = 0.0f;
 					Compute::Vector3 Lighting;
-					float Softness;
-					float Bias;
-					float Iterations;
-					float Umbra;
-					float Padding;
+					float Softness = 0.0f;
+					float Bias = 0.0f;
+					float Iterations = 0.0f;
+					float Umbra = 0.0f;
+					float Padding = 0.0f;
 				} SpotLight;
 
 				struct
@@ -266,22 +259,40 @@ namespace Tomahawk
 					Compute::Matrix4x4 ViewProjection[6];
 					Compute::Matrix4x4 SkyOffset;
 					Compute::Vector3 RlhEmission;
-					float RlhHeight;
+					float RlhHeight = 0.0f;
 					Compute::Vector3 MieEmission;
-					float MieHeight;
+					float MieHeight = 0.0f;
 					Compute::Vector3 Lighting;
-					float Softness;
+					float Softness = 0.0f;
 					Compute::Vector3 Position;
-					float Cascades;
-					float Bias;
-					float Iterations;
-					float ScatterIntensity;
-					float PlanetRadius;
-					float AtmosphereRadius;
-					float MieDirection;
-					float Umbra;
-					float Padding;
+					float Cascades = 0.0f;
+					float Bias = 0.0f;
+					float Iterations = 0.0f;
+					float ScatterIntensity = 0.0f;
+					float PlanetRadius = 0.0f;
+					float AtmosphereRadius = 0.0f;
+					float MieDirection = 0.0f;
+					float Umbra = 0.0f;
+					float Padding = 0.0f;
 				} LineLight;
+
+			public:
+				struct VoxelBuffer
+				{
+					Compute::Vector3 Center;
+					float RayStep = 1.0f;
+					Compute::Vector3 Size;
+					float MipLevels = 8.0f;
+					Compute::Vector4 Scale;
+				} Voxelizer;
+
+				struct
+				{
+					Rest::TickTimer Tick;
+					Compute::Vector3 Distance = 10.0f;
+					uint64_t Size = 128;
+					bool Enabled = false;
+				} GI;
 
 				struct
 				{
@@ -298,15 +309,7 @@ namespace Tomahawk
 					float FogAmount = 0.0f;
 					Compute::Vector3 FogNear = 0.125f;
 					float Recursive = 1.0f;
-				} AmbientLight;
-
-				struct
-				{
-					Rest::TickTimer Tick;
-					Compute::Vector3 Distance;
-					uint64_t Size;
-					bool Enabled;
-				} IndirectLight;
+				} Ambient;
 
 				struct
 				{
@@ -320,7 +323,7 @@ namespace Tomahawk
 					uint64_t LineLightResolution = 1024;
 					uint64_t LineLightLimits = 2;
 					Rest::TickTimer Tick;
-					float Distance;
+					float Distance = 0.5f;
 				} Shadows;
 
 				struct

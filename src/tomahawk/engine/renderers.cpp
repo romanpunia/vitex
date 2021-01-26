@@ -1018,14 +1018,9 @@ namespace Tomahawk
 
 			Lighting::Lighting(RenderSystem* Lab) : Renderer(Lab)
 			{
-				Surfaces.Size = 128;
-				SurfaceLight.MipLevels = 0;
-				IndirectLight.Enabled = false;
-				IndirectLight.Distance = 10.0f;
-				IndirectLight.Size = 128;
-				IndirectLight.Tick.Delay = 15;
 				Shadows.Tick.Delay = 5;
-				Shadows.Distance = 0.5f;
+				GI.Tick.Delay = 15;
+				GI.Enabled = true;
 
 				DepthStencilNone = Lab->GetDevice()->GetDepthStencilState("none");
 				DepthStencilGreater = Lab->GetDevice()->GetDepthStencilState("greater-read-only");
@@ -1041,7 +1036,7 @@ namespace Tomahawk
 
 				Graphics::Shader::Desc I = Graphics::Shader::Desc();
 				if (System->GetDevice()->GetSection("shaders/lighting/ambient/direct", &I.Data))
-					Shaders.Ambient[0] = System->CompileShader("lr-ambient-direct", I, sizeof(AmbientLight));
+					Shaders.Ambient[0] = System->CompileShader("lr-ambient-direct", I, sizeof(Ambient));
 
 				if (System->GetDevice()->GetSection("shaders/lighting/ambient/indirect", &I.Data))
 					Shaders.Ambient[1] = System->CompileShader("lr-ambient-indirect", I, sizeof(Voxelizer));
@@ -1109,18 +1104,18 @@ namespace Tomahawk
 				if (NMake::Unpack(Node->Find("sky-map"), &Path))
 					SetSkyMap(Content->Load<Graphics::Texture2D>(Path));
 
-				NMake::Unpack(Node->Find("high-emission"), &AmbientLight.HighEmission);
-				NMake::Unpack(Node->Find("low-emission"), &AmbientLight.LowEmission);
-				NMake::Unpack(Node->Find("sky-emission"), &AmbientLight.SkyEmission);
-				NMake::Unpack(Node->Find("light-emission"), &AmbientLight.LightEmission);
-				NMake::Unpack(Node->Find("sky-color"), &AmbientLight.SkyColor);
-				NMake::Unpack(Node->Find("fog-color"), &AmbientLight.FogColor);
-				NMake::Unpack(Node->Find("fog-amount"), &AmbientLight.FogAmount);
-				NMake::Unpack(Node->Find("fog-far-off"), &AmbientLight.FogFarOff);
-				NMake::Unpack(Node->Find("fog-far"), &AmbientLight.FogFar);
-				NMake::Unpack(Node->Find("fog-near-off"), &AmbientLight.FogNearOff);
-				NMake::Unpack(Node->Find("fog-near"), &AmbientLight.FogNear);
-				NMake::Unpack(Node->Find("recursive"), &AmbientLight.Recursive);
+				NMake::Unpack(Node->Find("high-emission"), &Ambient.HighEmission);
+				NMake::Unpack(Node->Find("low-emission"), &Ambient.LowEmission);
+				NMake::Unpack(Node->Find("sky-emission"), &Ambient.SkyEmission);
+				NMake::Unpack(Node->Find("light-emission"), &Ambient.LightEmission);
+				NMake::Unpack(Node->Find("sky-color"), &Ambient.SkyColor);
+				NMake::Unpack(Node->Find("fog-color"), &Ambient.FogColor);
+				NMake::Unpack(Node->Find("fog-amount"), &Ambient.FogAmount);
+				NMake::Unpack(Node->Find("fog-far-off"), &Ambient.FogFarOff);
+				NMake::Unpack(Node->Find("fog-far"), &Ambient.FogFar);
+				NMake::Unpack(Node->Find("fog-near-off"), &Ambient.FogNearOff);
+				NMake::Unpack(Node->Find("fog-near"), &Ambient.FogNear);
+				NMake::Unpack(Node->Find("recursive"), &Ambient.Recursive);
 				NMake::Unpack(Node->Find("point-light-resolution"), &Shadows.PointLightResolution);
 				NMake::Unpack(Node->Find("point-light-limits"), &Shadows.PointLightLimits);
 				NMake::Unpack(Node->Find("spot-light-resolution"), &Shadows.SpotLightResolution);
@@ -1136,18 +1131,18 @@ namespace Tomahawk
 				if (Asset != nullptr)
 					NMake::Pack(Node->SetDocument("sky-map"), Asset->Path);
 
-				NMake::Pack(Node->SetDocument("high-emission"), AmbientLight.HighEmission);
-				NMake::Pack(Node->SetDocument("low-emission"), AmbientLight.LowEmission);
-				NMake::Pack(Node->SetDocument("sky-emission"), AmbientLight.SkyEmission);
-				NMake::Pack(Node->SetDocument("light-emission"), AmbientLight.LightEmission);
-				NMake::Pack(Node->SetDocument("sky-color"), AmbientLight.SkyColor);
-				NMake::Pack(Node->SetDocument("fog-color"), AmbientLight.FogColor);
-				NMake::Pack(Node->SetDocument("fog-amount"), AmbientLight.FogAmount);
-				NMake::Pack(Node->SetDocument("fog-far-off"), AmbientLight.FogFarOff);
-				NMake::Pack(Node->SetDocument("fog-far"), AmbientLight.FogFar);
-				NMake::Pack(Node->SetDocument("fog-near-off"), AmbientLight.FogNearOff);
-				NMake::Pack(Node->SetDocument("fog-near"), AmbientLight.FogNear);
-				NMake::Pack(Node->SetDocument("recursive"), AmbientLight.Recursive);
+				NMake::Pack(Node->SetDocument("high-emission"), Ambient.HighEmission);
+				NMake::Pack(Node->SetDocument("low-emission"), Ambient.LowEmission);
+				NMake::Pack(Node->SetDocument("sky-emission"), Ambient.SkyEmission);
+				NMake::Pack(Node->SetDocument("light-emission"), Ambient.LightEmission);
+				NMake::Pack(Node->SetDocument("sky-color"), Ambient.SkyColor);
+				NMake::Pack(Node->SetDocument("fog-color"), Ambient.FogColor);
+				NMake::Pack(Node->SetDocument("fog-amount"), Ambient.FogAmount);
+				NMake::Pack(Node->SetDocument("fog-far-off"), Ambient.FogFarOff);
+				NMake::Pack(Node->SetDocument("fog-far"), Ambient.FogFar);
+				NMake::Pack(Node->SetDocument("fog-near-off"), Ambient.FogNearOff);
+				NMake::Pack(Node->SetDocument("fog-near"), Ambient.FogNear);
+				NMake::Pack(Node->SetDocument("recursive"), Ambient.Recursive);
 				NMake::Pack(Node->SetDocument("point-light-resolution"), Shadows.PointLightResolution);
 				NMake::Pack(Node->SetDocument("point-light-limits"), Shadows.PointLightLimits);
 				NMake::Pack(Node->SetDocument("spot-light-resolution"), Shadows.SpotLightResolution);
@@ -1223,11 +1218,11 @@ namespace Tomahawk
 					else
 						RenderSurfaceMaps(Device, Scene, Time);
 
-					if (IndirectLight.Enabled && IndirectLight.Tick.TickEvent(ElapsedTime))
+					if (GI.Enabled && GI.Tick.TickEvent(ElapsedTime))
 						RenderVoxels(Time, Device, Scene->GetSurface());
 				}
 
-				if (IndirectLight.Enabled)
+				if (GI.Enabled)
 					RenderVoxelsBuffers(Device, Options);
 
 				RenderResultBuffers(Device, Options);
@@ -1240,7 +1235,7 @@ namespace Tomahawk
 				bool Backcull = true;
 				float Distance = 0.0f;
 
-				AmbientLight.SkyOffset = System->GetScene()->View.Projection.Invert() * Compute::Matrix4x4::CreateRotation(System->GetScene()->View.WorldRotation);
+				Ambient.SkyOffset = System->GetScene()->View.Projection.Invert() * Compute::Matrix4x4::CreateRotation(System->GetScene()->View.WorldRotation);
 				Device->SetSamplerState(WrapSampler, 0);
 				Device->SetSamplerState(ShadowSampler, 1);
 				Device->SetDepthStencilState(DepthStencilLess);
@@ -1272,14 +1267,16 @@ namespace Tomahawk
 
 				Device->SetSamplerState(ShadowSampler, 0);
 				Device->SetDepthStencilState(DepthStencilNone);
-				Device->SetBlendState(BlendAdditive);
+				Device->SetBlendState(Device->GetBlendState("overwrite"));
 				Device->SetRasterizerState(BackRasterizer);
 				Device->SetInputLayout(Layout);
 				Device->SetTarget(Target, 0);
 				Device->SetTexture3D(DiffuseBuffer, 1);
-				Device->SetTexture2D(Target->GetTarget(1), 2);
-				Device->SetTexture2D(Target->GetTarget(2), 3);
-				Device->SetTexture2D(Target->GetTarget(3), 4);
+				Device->SetTexture3D(NormalBuffer, 2);
+				Device->SetTexture3D(SurfaceBuffer, 3);
+				Device->SetTexture2D(Target->GetTarget(1), 4);
+				Device->SetTexture2D(Target->GetTarget(2), 5);
+				Device->SetTexture2D(Target->GetTarget(3), 6);
 				Device->SetVertexBuffer(System->GetQuadVBuffer(), 0);
 
 				Device->SetShader(Shaders.Ambient[1], Graphics::ShaderType_Vertex | Graphics::ShaderType_Pixel);
@@ -1287,8 +1284,8 @@ namespace Tomahawk
 				Device->UpdateBuffer(Shaders.Ambient[1], &Voxelizer);
 				Device->Draw(6, 0);
 
-				Device->FlushTexture3D(1, 1);
-				Device->FlushTexture2D(2, 3);
+				Device->FlushTexture3D(1, 3);
+				Device->FlushTexture2D(4, 3);
 			}
 			void Lighting::RenderShadowMaps(Graphics::GraphicsDevice* Device, SceneGraph* Scene, Rest::Timer* Time)
 			{
@@ -1432,7 +1429,7 @@ namespace Tomahawk
 			{
 				SceneGraph* Scene = System->GetScene();
 				if (!DiffuseBuffer || !NormalBuffer || !SurfaceBuffer)
-					SetVoxelBufferSize(IndirectLight.Size);
+					SetVoxelBufferSize(GI.Size);
 
 				Graphics::Texture3D* Buffer[3];
 				Buffer[0] = DiffuseBuffer;
@@ -1440,17 +1437,17 @@ namespace Tomahawk
 				Buffer[2] = SurfaceBuffer;
 
 				Compute::Vector3 Center = Scene->View.WorldPosition.InvertZ();
-				if (Voxelizer.GridCenter.Distance(Center) > 0.75 * IndirectLight.Distance.Length() / 3)
-					Voxelizer.GridCenter = Center;
+				if (Voxelizer.Center.Distance(Center) > 0.75 * GI.Distance.Length() / 3)
+					Voxelizer.Center = Center;
 
-				Voxelizer.GridSize = (float)IndirectLight.Size;
-				Voxelizer.GridScale = IndirectLight.Distance;
-				Scene->View.FarPlane = (IndirectLight.Distance.X + IndirectLight.Distance.Y + IndirectLight.Distance.Z) / 3.0f;
+				Voxelizer.Size = (float)GI.Size;
+				Voxelizer.Scale = GI.Distance;
+				Scene->View.FarPlane = (GI.Distance.X + GI.Distance.Y + GI.Distance.Z) / 3.0f;
 
 				Device->ClearWritable(DiffuseBuffer);
 				Device->ClearWritable(NormalBuffer);
 				Device->ClearWritable(SurfaceBuffer);
-				Device->SetTargetRect(IndirectLight.Size, IndirectLight.Size);
+				Device->SetTargetRect(GI.Size, GI.Size);
 				Device->SetDepthStencilState(DepthStencilNone);
 				Device->SetBlendState(BlendOverwrite);
 				Device->SetRasterizerState(NoneRasterizer);
@@ -1501,7 +1498,7 @@ namespace Tomahawk
 						Device->DrawIndexed((unsigned int)System->GetCubeIBuffer()->GetElements(), 0, 0);
 					}
 				}
-				else if (AmbientLight.Recursive > 0.0f)
+				else if (Ambient.Recursive > 0.0f)
 				{
 					Device->SetShader(Shaders.Surface, Graphics::ShaderType_Vertex | Graphics::ShaderType_Pixel);
 					Device->SetBuffer(Shaders.Surface, 3, Graphics::ShaderType_Vertex | Graphics::ShaderType_Pixel);
@@ -1675,7 +1672,7 @@ namespace Tomahawk
 					LineLight.PlanetRadius = Light->Sky.InnerRadius;
 					LineLight.AtmosphereRadius = Light->Sky.OuterRadius;
 					LineLight.MieDirection = Light->Sky.MieDirection;
-					LineLight.SkyOffset = AmbientLight.SkyOffset;
+					LineLight.SkyOffset = Ambient.SkyOffset;
 
 					Device->SetShader(Active, Graphics::ShaderType_Pixel);
 					Device->UpdateBuffer(Shaders.Line[0], &LineLight);
@@ -1690,7 +1687,7 @@ namespace Tomahawk
 				Device->SetTextureCube(SkyMap, 6);
 				Device->SetShader(Shaders.Ambient[0], Graphics::ShaderType_Vertex | Graphics::ShaderType_Pixel);
 				Device->SetBuffer(Shaders.Ambient[0], 3, Graphics::ShaderType_Vertex | Graphics::ShaderType_Pixel);
-				Device->UpdateBuffer(Shaders.Ambient[0], &AmbientLight);
+				Device->UpdateBuffer(Shaders.Ambient[0], &Ambient);
 				Device->Draw(6, 0);
 			}
 			void Lighting::GenerateCascadeMap(CascadedDepthMap** Result, uint32_t Size)
@@ -1796,10 +1793,11 @@ namespace Tomahawk
 				System->GetScene()->GetTargetFormat(Formats, 3);
 
 				Graphics::Texture3D::Desc I;
-				I.Width = I.Height = I.Depth = IndirectLight.Size = NewSize;
-				I.MipLevels = System->GetDevice()->GetMipLevel(IndirectLight.Size, IndirectLight.Size);
+				I.Width = I.Height = I.Depth = GI.Size = NewSize;
+				I.MipLevels = System->GetDevice()->GetMipLevel(GI.Size, GI.Size);
 				I.FormatMode = Formats[0];
 				I.Writable = true;
+				Voxelizer.MipLevels = (float)I.MipLevels;
 
 				TH_RELEASE(DiffuseBuffer);
 				DiffuseBuffer = System->GetDevice()->CreateTexture3D(I);

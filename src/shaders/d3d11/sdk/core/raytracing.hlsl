@@ -1,20 +1,31 @@
 #include "sdk/channels/raytracer"
 
-float3 ConeTraceDiffuse(float3 From, float3 Direction)
+float4 Conetrace(float3 Normal, float3 Position, float3 Direction, float Ratio)
 {
-	float3 Result = 0.0;
-	float3 Distance = 0.1953125;
-	float Spread = 0.325;
+    Fragment Frag = (Fragment)0;
+    Material Mat = (Material)0;
+	float3 Step = 1.0 / GridScale.xyz;
+    float3 Origin = Position + Normal * Step * 2.0 * 1.414213;
+	float3 Distance = Step;
+	float4 Result = 0.0;
 
-	while (length(Distance) / 3.0 < 1.414213)
-    {
-		float3 Voxel = GetVoxel(From + Distance * Direction);
-        float3 L0 = Spread * Distance / GridScale.xyz;
-		float L1 = log2(1.0 + (L0.x + L0.y + L0.z) / 3.0);
-		float L2 = (L1 + 1.0) * (L1 + 1.0);
+	while (Distance.x < GridScale.x && Result.w < 1.0)
+	{
+		float3 Position = GetVoxel(Origin + Direction * Distance);
+        [branch] if (!IsInVoxelGrid(Position))
+            break;
+        
+		float3 Radius = max(2.0 * Distance * Ratio, Step);
+		float Level = length(log2(Radius * GridScale.xyz)) / 3.0;
+        [branch] if (Level > GridMipLevels)
+            break;
 
-		Result += GetDiffuse(Voxel, 0).xyz;
-		Distance += GridScale.xyz * L2 * 2.0;
+        Frag = GetFragment3D(Position, Level);
+        Mat = GetMaterial(Frag.Material);
+        Frag.Diffuse += GetEmission(Frag, Mat);
+
+		Result += float4(Frag.Diffuse * Frag.Alpha, Frag.Alpha) * (1.0 - Result.w);
+		Distance += Radius * GridStep;
 	}
 
 	return Result;

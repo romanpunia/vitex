@@ -1,6 +1,10 @@
 #include "sdk/objects/fragment"
 #include "sdk/objects/material"
 
+float GetAperture(float Roughness)
+{
+    return tan(Roughness * 3.141596 * 0.2);
+}
 float GetRoughnessMip(Fragment Frag, Material Mat, in float MaxLevels)
 {
     return MaxLevels * (Mat.Roughness.x + Frag.Roughness * Mat.Roughness.y);

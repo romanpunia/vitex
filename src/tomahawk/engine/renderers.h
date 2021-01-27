@@ -283,7 +283,12 @@ namespace Tomahawk
 					float RayStep = 1.0f;
 					Compute::Vector3 Size;
 					float MipLevels = 8.0f;
-					Compute::Vector4 Scale;
+					Compute::Vector3 Scale;
+					float MaxSteps = 32.0f;
+					float Intensity = 3.0f;
+					float Occlusion = 0.9f;
+					float Shadows = 0.25f;
+					float Padding = 0.0f;
 				} Voxelizer;
 
 				struct
@@ -387,7 +392,7 @@ namespace Tomahawk
 
 			private:
 				void RenderResultBuffers(Graphics::GraphicsDevice* Device, RenderOpt Options);
-				void RenderVoxelsBuffers(Graphics::GraphicsDevice* Device, RenderOpt Options);
+				void RenderVoxelBuffers(Graphics::GraphicsDevice* Device, RenderOpt Options);
 				void RenderShadowMaps(Graphics::GraphicsDevice* Device, SceneGraph* Scene, Rest::Timer* Time);
 				void RenderSurfaceMaps(Graphics::GraphicsDevice* Device, SceneGraph* Scene, Rest::Timer* Time);
 				void RenderVoxels(Rest::Timer* Time, Graphics::GraphicsDevice* Device, Graphics::MultiRenderTarget2D* Surface);

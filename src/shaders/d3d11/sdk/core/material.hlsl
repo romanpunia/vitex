@@ -3,7 +3,7 @@
 
 float GetAperture(float Roughness)
 {
-    return tan(Roughness * 3.141596 * 0.2);
+    return max(0.01, tan(Roughness * 3.141596 * 0.05));
 }
 float GetRoughnessMip(Fragment Frag, Material Mat, in float MaxLevels)
 {

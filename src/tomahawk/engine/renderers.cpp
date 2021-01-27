@@ -1019,8 +1019,7 @@ namespace Tomahawk
 			Lighting::Lighting(RenderSystem* Lab) : Renderer(Lab)
 			{
 				Shadows.Tick.Delay = 5;
-				GI.Tick.Delay = 15;
-				GI.Enabled = true;
+				GI.Tick.Delay = 16.666;
 
 				DepthStencilNone = Lab->GetDevice()->GetDepthStencilState("none");
 				DepthStencilGreater = Lab->GetDevice()->GetDepthStencilState("greater-read-only");
@@ -1218,14 +1217,21 @@ namespace Tomahawk
 					else
 						RenderSurfaceMaps(Device, Scene, Time);
 
-					if (GI.Enabled && GI.Tick.TickEvent(ElapsedTime))
-						RenderVoxels(Time, Device, Scene->GetSurface());
+					Compute::Vector3 Center = Scene->View.WorldPosition.InvertZ();
+					if (GI.Enabled)
+					{
+						bool Revoxelize = (Voxelizer.Center.Distance(Center) > 0.5 * GI.Distance.Length() / 3);
+						if (Revoxelize)
+							Voxelizer.Center = Center;
+
+						if (Revoxelize || GI.Tick.TickEvent(ElapsedTime))
+							RenderVoxels(Time, Device, Scene->GetSurface());
+					}
 				}
 
-				if (GI.Enabled)
-					RenderVoxelsBuffers(Device, Options);
-
 				RenderResultBuffers(Device, Options);
+				if (GI.Enabled && !(Options & RenderOpt_Inner))
+					RenderVoxelBuffers(Device, Options);
 			}
 			void Lighting::RenderResultBuffers(Graphics::GraphicsDevice* Device, RenderOpt Options)
 			{
@@ -1259,33 +1265,25 @@ namespace Tomahawk
 
 				Device->FlushTexture2D(1, 10);
 			}
-			void Lighting::RenderVoxelsBuffers(Graphics::GraphicsDevice* Device, RenderOpt Options)
+			void Lighting::RenderVoxelBuffers(Graphics::GraphicsDevice* Device, RenderOpt Options)
 			{
 				Graphics::MultiRenderTarget2D* Target = System->GetScene()->GetSurface();
 				if (!DiffuseBuffer || !NormalBuffer || !SurfaceBuffer)
 					return;
 
-				Device->SetSamplerState(ShadowSampler, 0);
-				Device->SetDepthStencilState(DepthStencilNone);
-				Device->SetBlendState(Device->GetBlendState("overwrite"));
-				Device->SetRasterizerState(BackRasterizer);
-				Device->SetInputLayout(Layout);
 				Device->SetTarget(Target, 0);
 				Device->SetTexture3D(DiffuseBuffer, 1);
-				Device->SetTexture3D(NormalBuffer, 2);
-				Device->SetTexture3D(SurfaceBuffer, 3);
-				Device->SetTexture2D(Target->GetTarget(1), 4);
-				Device->SetTexture2D(Target->GetTarget(2), 5);
-				Device->SetTexture2D(Target->GetTarget(3), 6);
-				Device->SetVertexBuffer(System->GetQuadVBuffer(), 0);
+				Device->SetTexture2D(Target->GetTarget(1), 2);
+				Device->SetTexture2D(Target->GetTarget(2), 3);
+				Device->SetTexture2D(Target->GetTarget(3), 4);
 
 				Device->SetShader(Shaders.Ambient[1], Graphics::ShaderType_Vertex | Graphics::ShaderType_Pixel);
 				Device->SetBuffer(Shaders.Ambient[1], 3, Graphics::ShaderType_Vertex | Graphics::ShaderType_Pixel);
 				Device->UpdateBuffer(Shaders.Ambient[1], &Voxelizer);
 				Device->Draw(6, 0);
 
-				Device->FlushTexture3D(1, 3);
-				Device->FlushTexture2D(4, 3);
+				Device->FlushTexture3D(1, 1);
+				Device->FlushTexture2D(2, 3);
 			}
 			void Lighting::RenderShadowMaps(Graphics::GraphicsDevice* Device, SceneGraph* Scene, Rest::Timer* Time)
 			{
@@ -1435,10 +1433,6 @@ namespace Tomahawk
 				Buffer[0] = DiffuseBuffer;
 				Buffer[1] = NormalBuffer;
 				Buffer[2] = SurfaceBuffer;
-
-				Compute::Vector3 Center = Scene->View.WorldPosition.InvertZ();
-				if (Voxelizer.Center.Distance(Center) > 0.75 * GI.Distance.Length() / 3)
-					Voxelizer.Center = Center;
 
 				Voxelizer.Size = (float)GI.Size;
 				Voxelizer.Scale = GI.Distance;
@@ -1789,26 +1783,25 @@ namespace Tomahawk
 			}
 			void Lighting::SetVoxelBufferSize(size_t NewSize)
 			{
-				Graphics::Format Formats[3];
-				System->GetScene()->GetTargetFormat(Formats, 3);
+				unsigned int MipLevels = System->GetDevice()->GetMipLevel(GI.Size, GI.Size);
+				Voxelizer.MipLevels = (float)MipLevels;
 
 				Graphics::Texture3D::Desc I;
 				I.Width = I.Height = I.Depth = GI.Size = NewSize;
-				I.MipLevels = System->GetDevice()->GetMipLevel(GI.Size, GI.Size);
-				I.FormatMode = Formats[0];
+				I.MipLevels = MipLevels;
+				I.FormatMode = Graphics::Format_R8G8B8A8_Unorm;
 				I.Writable = true;
-				Voxelizer.MipLevels = (float)I.MipLevels;
 
 				TH_RELEASE(DiffuseBuffer);
 				DiffuseBuffer = System->GetDevice()->CreateTexture3D(I);
 
 				I.MipLevels = 0;
-				I.FormatMode = Formats[1];
+				I.FormatMode = Graphics::Format_R16G16B16A16_Unorm;
 				TH_RELEASE(NormalBuffer);
 				NormalBuffer = System->GetDevice()->CreateTexture3D(I);
 
 				I.MipLevels = 0;
-				I.FormatMode = Formats[2];
+				I.FormatMode = Graphics::Format_R8G8B8A8_Unorm;
 				TH_RELEASE(SurfaceBuffer);
 				SurfaceBuffer = System->GetDevice()->CreateTexture3D(I);
 			}

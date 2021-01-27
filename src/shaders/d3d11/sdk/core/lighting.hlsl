@@ -66,6 +66,19 @@ float3 GetSpecularBRDF(float3 N, float3 V, float3 L, float3 Albedo, float3 Metal
     float G = GetGeometrySmith(NdotV, NdotL, Roughness);
     float3 M = GetBaseReflectivity(Albedo, Metallic);
     float3 F = GetFresnelSchlick(HdotV, M);
+    float3 A = length(Albedo);
     
-    return G * F;
+    return G * F * A;
+}
+float3 GetReflectanceBRDF(float3 N, float3 V, float3 L, float3 Albedo, float3 Metallic, float Roughness)
+{
+    float NdotV = max(dot(N, V), 0.00001);
+    float NdotL = max(dot(N, L), 0.00001);
+    float HdotV = max(dot(normalize(V + L), V), 0.0);
+    float G = GetGeometrySmith(NdotV, NdotL, Roughness);
+    float3 M = GetBaseReflectivity(Albedo, Metallic);
+    float3 F = GetFresnelSchlick(HdotV, M);
+    float3 A = length(Albedo);
+    
+    return G * F * A * Metallic;
 }

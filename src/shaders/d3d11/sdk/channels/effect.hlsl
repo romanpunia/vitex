@@ -9,6 +9,14 @@ Texture2D DepthBuffer : register(t3);
 Texture2D SurfaceBuffer : register(t4);
 SamplerState Sampler : register(s0);
 
+bool IsInPixelGrid(float2 TexCoord)
+{
+    return TexCoord.x >= 0.0 && TexCoord.x <= 1.0 && TexCoord.y >= 0.0 && TexCoord.y <= 1.0;
+}
+float Linearize(float Depth)
+{
+    return NearPlane * FarPlane / (FarPlane + Depth * (NearPlane - FarPlane));
+}
 float GetDepth(float2 TexCoord)
 {
     return DepthBuffer.SampleLevel(Sampler, TexCoord, 0).x;

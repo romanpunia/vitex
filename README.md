@@ -76,15 +76,19 @@ Tomahawk is a cross-platform C++14 framework to create any type of application f
 + Async/sync SMTP client support
 + Polling mechanisms: select, poll, epoll, kqueue, iocp
 #### Scripting
-+ AngelScript packed into library
++ Angel Script packed into library
 + Template abstraction over virtual machine
 + Support for real threads
 + Compiler with simple preprocessor (defines, include, pragmas)
 + Built-in switchable default interfaces
 + Promise-like async data type support
-+ Simple debugger support
-+ Wrapper over most of the functionality
 + JIT compiler support for non-ARM platforms
++ Module system to add bindings as include files
++ Symbolic imports to import functions from C/C++ libraries directly to script
++ Pointer wrapper to work directly with raw pointers
++ Strings with pointer conversion support to work with C char arrays
++ Standard library
++ Tomahawk bindings (WIP)
 #### Graphics
 + Configurable windowing (activity) system
 + Input detection (keyboard, cursor, controller, joystick, multi-touch)
@@ -106,6 +110,7 @@ Tomahawk is a cross-platform C++14 framework to create any type of application f
 + Various widgets
 + Layouting system
 + Font system
++ Dynamic trees (and recursive)
 + Based on RmlUi
 #### Engine
 + Thread-safe scene graph
@@ -118,22 +123,21 @@ Tomahawk is a cross-platform C++14 framework to create any type of application f
 + Built-in components for different simulations
 + Built-in renderers for different visualisations
 + Built-in shader code for every renderer
-+ Retain mode dynamic GUI subsystem based on Nuklear
 #### Built-in renderers
-+ Model renderer
-+ Skinned model renderer
-+ Depth renderer (shadow maps for meshes and particles)
-+ Probe renderer (probes for reflections and illumination lights)
-+ Light renderer (to render point, spot, line and probe lights with shadowing)
-+ Element system renderer (for particles)
-+ Reflection renderer (for screen-space reflections)
-+ Depth of field renderer
-+ Emission renderer (to render glowing materials)
-+ Glitch renderer (to render different glitches on the screen)
-+ Ambient occlusion renderer (simple screen-space AO)
-+ Direction occlusion renderer (simple GI)
-+ Tone renderer (tone mapping)
-+ GUI renderer (Nuklear-based ui renderer)
++ Skinned, default and soft-body models
++ Particle systems
++ Deferred decals
++ PBR Lighting with shadows
++ PBR Surfaces (aka env. mapping, O(1) recursive reflections included)
++ PBR global illumination (radiance, reflections and ambient occlusion)
++ Bloom for emissive materials
++ Screen-space reflections
++ Screen-space ambient occlusion
++ Screen-space GI (simplified)
++ Depth of field
++ Tone mapping
++ Glitch effect
++ UI rendering
 #### Built-in components
 + Rigid body
 + Acceleration (force applier for rigid bodies)

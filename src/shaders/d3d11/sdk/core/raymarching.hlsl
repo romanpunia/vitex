@@ -1,38 +1,60 @@
 #include "sdk/channels/effect"
 #include "sdk/core/position"
 
-float RayEdge(float2 TexCoord)
+float Rayprefix(float3 Eye, float3 Direction)
 {
-    float2 Coord = smoothstep(0.2, 0.6, abs(float2(0.5, 0.5) - TexCoord));
-    return clamp(1.0 - (Coord.x + Coord.y), 0.0, 1.0);
+    return 1.0 - smoothstep(0.1, 0.75, dot(-Eye, Direction));
 }
-float RayEdgeRange(float2 TexCoord, float Min, float Max)
+float Raypostfix(float2 TexCoord, float3 Direction)
 {
-    float2 Coord = smoothstep(Min, Max, abs(float2(0.5, 0.5) - TexCoord));
-    return clamp(1.0 - (Coord.x + Coord.y), 0.0, 1.0);
+    float2 Size = smoothstep(0.1, 0.2, TexCoord) * (1.0 - smoothstep(0.9, 1.0, TexCoord));
+    return Size.x * Size.y * smoothstep(-0.05, 0.0, dot(GetNormal(TexCoord), -Direction));
 }
-bool RayMarch(float3 Position, inout float3 Direction, float Iterations, out float3 HitCoord)
+float Rayreduce(float3 Position, float3 TexCoord, float Power)
 {
-    float3 Coord; float Depth;
-    const float Bias = 0.000001;
-    Position += Direction;
+    float Size = length(GetPosition(TexCoord.xy, TexCoord.z) - Position) * Power;
+    return 1.0 / (1.0 + 6.0 * Size * Size);
+}
+float3 Raysearch(float3 Ray1, float3 Ray2)
+{
+    const float Steps = 12.0;
+    const float Bias = 0.00005;
+	float3 Low = Ray1;
+	float3 High = Ray2;
+	float3 Result = 0.0;
 
-	[loop] for (int i = 0; i < Iterations; i++)
+	[unroll] for (float i = 0; i < Steps; i++)
 	{
-		Coord = GetPositionUV(Position);
-		Depth = Coord.z - GetDepth(Coord.xy);
-        
-		[branch] if (abs(Depth) < Bias)
-		{
-			HitCoord = Coord;
-            return true;
-		}
+		Result = lerp(Low, High, 0.5);
+		float Depth = GetDepth(Result.xy);
 
-        [branch] if (Depth > 0)
-            Direction *= 0.5;
-
-		Position -= Direction * sign(Depth);
+		[branch] if (Result.z > Depth + Bias)
+			High = Result;
+		else
+			Low = Result;
 	}
-	
-	return false;
+
+    return Result;
+}
+float3 Raymarch(float3 Position, float3 Direction, float Iterations, float Distance)
+{
+    const float Bias = 0.00005;
+    float Step = Distance / Iterations;
+    float3 Ray = Direction * Step;
+    float3 Sample = 0.0;
+
+	[loop] for (float i = 0; i < Iterations; i++)
+	{
+		float3 Next = GetPositionUV(Position + Ray * i);
+        [branch] if (!IsInPixelGrid(Next.xy))
+            break;
+
+		float Depth = GetDepth(Next.xy);	
+		[branch] if (Next.z >= Depth + Bias)
+            return Raysearch(Sample, Next);
+        
+        Sample = Next;
+	}
+
+    return -1.0;
 }

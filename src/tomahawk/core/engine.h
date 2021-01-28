@@ -19,6 +19,7 @@ namespace Tomahawk
 		typedef std::function<void(class ContentManager*, bool)> SaveCallback;
 		typedef std::function<void(class Event*)> MessageCallback;
 		typedef std::function<bool(class Component*)> RayCallback;
+		typedef std::function<bool(Graphics::RenderTarget*)> TargetCallback;
 
 		class SceneGraph;
 
@@ -91,6 +92,19 @@ namespace Tomahawk
 		{
 			GeoCategory_Opaque,
 			GeoCategory_Transparent
+		};
+
+		enum BufferType
+		{
+			BufferType_Index = 0,
+			BufferType_Vertex = 1
+		};
+
+		enum TargetType
+		{
+			TargetType_Main = 0,
+			TargetType_Secondary = 1,
+			TargetType_Count
 		};
 
 		struct TH_OUT Attenuation
@@ -522,7 +536,48 @@ namespace Tomahawk
 			virtual ~ShaderCache() override;
 			Graphics::Shader* Compile(const std::string& Name, const Graphics::Shader::Desc& Desc, size_t BufferSize = 0);
 			Graphics::Shader* Get(const std::string& Name);
+			std::string Find(Graphics::Shader* Shader);
+			bool Has(const std::string& Name);
 			bool Free(const std::string& Name, Graphics::Shader* Shader = nullptr);
+			void ClearCache();
+		};
+
+		class TH_OUT PrimitiveCache : public Rest::Object
+		{
+		private:
+			struct SCache
+			{
+				Graphics::ElementBuffer* Buffers[2];
+				uint64_t Count;
+			};
+
+		private:
+			std::unordered_map<std::string, SCache> Cache;
+			Graphics::GraphicsDevice* Device;
+			Graphics::ElementBuffer* Sphere[2];
+			Graphics::ElementBuffer* Cube[2];
+			Graphics::ElementBuffer* Box[2];
+			Graphics::ElementBuffer* SkinBox[2];
+			Graphics::ElementBuffer* Quad;
+			std::mutex Safe;
+
+		public:
+			PrimitiveCache(Graphics::GraphicsDevice* Device);
+			virtual ~PrimitiveCache() override;
+			bool Compile(Graphics::ElementBuffer** Result, const std::string& Name, size_t ElementSize, size_t ElementsCount);
+			bool Get(Graphics::ElementBuffer** Result, const std::string& Name);
+			bool Has(const std::string& Name);
+			bool Free(const std::string& Name, Graphics::ElementBuffer** Buffers);
+			std::string Find(Graphics::ElementBuffer** Buffer);
+			Graphics::ElementBuffer* GetQuad();
+			Graphics::ElementBuffer* GetSphere(BufferType Type);
+			Graphics::ElementBuffer* GetCube(BufferType Type);
+			Graphics::ElementBuffer* GetBox(BufferType Type);
+			Graphics::ElementBuffer* GetSkinBox(BufferType Type);
+			void GetSphereBuffers(Graphics::ElementBuffer** Result);
+			void GetCubeBuffers(Graphics::ElementBuffer** Result);
+			void GetBoxBuffers(Graphics::ElementBuffer** Result);
+			void GetSkinBoxBuffers(Graphics::ElementBuffer** Result);
 			void ClearCache();
 		};
 
@@ -535,15 +590,6 @@ namespace Tomahawk
 			Graphics::BlendState* Blend;
 			Graphics::SamplerState* Sampler;
 			Graphics::DepthBuffer* Target;
-			Graphics::ElementBuffer* QuadVertex;
-			Graphics::ElementBuffer* SphereVertex;
-			Graphics::ElementBuffer* SphereIndex;
-			Graphics::ElementBuffer* CubeVertex;
-			Graphics::ElementBuffer* CubeIndex;
-			Graphics::ElementBuffer* BoxVertex;
-			Graphics::ElementBuffer* BoxIndex;
-			Graphics::ElementBuffer* SkinBoxVertex;
-			Graphics::ElementBuffer* SkinBoxIndex;
 			Graphics::GraphicsDevice* Device;
 			SceneGraph* Scene;
 			size_t DepthSize;
@@ -572,27 +618,28 @@ namespace Tomahawk
 			void Synchronize(Rest::Timer* Time, const Viewer& View);
 			void MoveRenderer(uint64_t Id, int64_t Offset);
 			void RemoveRenderer(uint64_t Id);
+			void RestoreOutput();
 			void FreeShader(const std::string& Name, Graphics::Shader* Shader);
+			void FreeShader(Graphics::Shader* Shader);
+			void FreeBuffers(const std::string& Name, Graphics::ElementBuffer** Buffers);
+			void FreeBuffers(Graphics::ElementBuffer** Buffers);
 			bool PassCullable(Cullable* Base, CullResult Mode, float* Result);
 			bool PassDrawable(Drawable* Base, CullResult Mode, float* Result);
 			bool HasOcclusionCulling();
 			bool HasFrustumCulling();
 			int64_t GetOffset(uint64_t Id);
 			Graphics::Shader* CompileShader(const std::string& Name, Graphics::Shader::Desc& Desc, size_t BufferSize = 0);
+			Graphics::Shader* CompileShader(const std::string& SectionName, size_t BufferSize = 0);
+			bool CompileBuffers(Graphics::ElementBuffer** Result, const std::string& Name, size_t ElementSize, size_t ElementsCount);
 			Renderer* AddRenderer(Renderer* In);
 			Renderer* GetRenderer(uint64_t Id);
 			size_t GetDepthSize();
-			Graphics::ElementBuffer* GetQuadVBuffer();
-			Graphics::ElementBuffer* GetSphereVBuffer();
-			Graphics::ElementBuffer* GetSphereIBuffer();
-			Graphics::ElementBuffer* GetCubeVBuffer();
-			Graphics::ElementBuffer* GetCubeIBuffer();
-			Graphics::ElementBuffer* GetBoxVBuffer();
-			Graphics::ElementBuffer* GetBoxIBuffer();
-			Graphics::ElementBuffer* GetSkinBoxVBuffer();
-			Graphics::ElementBuffer* GetSkinBoxIBuffer();
 			std::vector<Renderer*>* GetRenderers();
+			Graphics::MultiRenderTarget2D* GetMRT(TargetType Type);
+			Graphics::RenderTarget2D* GetRT(TargetType Type);
+			Graphics::Texture2D** GetMerger();
 			Graphics::GraphicsDevice* GetDevice();
+			PrimitiveCache* GetPrimitives();
 			SceneGraph* GetScene();
 
 		private:
@@ -738,21 +785,22 @@ namespace Tomahawk
 			Graphics::BlendState* Blend;
 			Graphics::SamplerState* Sampler;
 			Graphics::InputLayout* Layout;
-			Graphics::RenderTarget2D* Output;
-			Graphics::Texture2D* Pass;
 
 		public:
 			EffectDraw(RenderSystem* Lab);
 			virtual ~EffectDraw() override;
 			virtual void RenderEffect(Rest::Timer* Time);
-			void ResizeBuffers() override;
 			void Render(Rest::Timer* Time, RenderState State, RenderOpt Options) override;
+			unsigned int GetMipLevels();
+			unsigned int GetWidth();
+			unsigned int GetHeight();
 
 		protected:
 			void RenderMerge(Graphics::Shader* Effect, void* Buffer = nullptr);
 			void RenderResult(Graphics::Shader* Effect, void* Buffer = nullptr);
 			Graphics::Shader* GetEffect(const std::string& Name);
 			Graphics::Shader* CompileEffect(const std::string& Name, const std::string& Code, size_t BufferSize = 0);
+			Graphics::Shader* CompileEffect(const std::string& SectionName, size_t BufferSize = 0);
 
 		public:
 			TH_COMPONENT("effect-draw");
@@ -776,7 +824,6 @@ namespace Tomahawk
 				Graphics::GraphicsDevice* Device = nullptr;
 				Script::VMManager* Manager = nullptr;
 				Rest::EventQueue* Queue = nullptr;
-				ShaderCache* Cache = nullptr;
 			};
 
 			struct Thread
@@ -807,17 +854,17 @@ namespace Tomahawk
 
 			struct
 			{
+				Graphics::MultiRenderTarget2D* MRT[TargetType_Count * 2];
+				Graphics::RenderTarget2D* RT[TargetType_Count * 2];
 				Graphics::DepthStencilState* DepthStencil;
 				Graphics::RasterizerState* Rasterizer;
 				Graphics::BlendState* Blend;
 				Graphics::SamplerState* Sampler;
 				Graphics::InputLayout* Layout;
-			} Image;
+				Graphics::Texture2D* Merger;
+			} Display;
 
 		protected:
-			Graphics::MultiRenderTarget2D* Surface = nullptr;
-			Graphics::ElementBuffer* Structure = nullptr;
-			Compute::Simulator* Simulator = nullptr;
 			std::unordered_map<std::string, std::pair<std::string, MessageCallback>> Listeners;
 			std::unordered_map<uint64_t, Rest::Pool<Component*>> Components;
 			std::unordered_map<uint64_t, Geometry> Drawables;
@@ -826,7 +873,11 @@ namespace Tomahawk
 			std::vector<Event*> Events;
 			Rest::Pool<Component*> Pending;
 			Rest::Pool<Entity*> Entities;
-			Component* Camera = nullptr;
+			Graphics::ElementBuffer* Structure;
+			Compute::Simulator* Simulator;
+			PrimitiveCache* Primitives;
+			ShaderCache* Shaders;
+			Component* Camera;
 			Desc Conf;
 			bool Invoked;
 			bool Active;
@@ -862,18 +913,15 @@ namespace Tomahawk
 			void ResizeBuffers();
 			void RayTest(uint64_t Section, const Compute::Ray& Origin, float MaxDistance, const RayCallback& Callback);
 			void ScriptHook(const std::string& Name = "Main");
-			void SwapSurface(Graphics::MultiRenderTarget2D* NewSurface);
 			void SetActive(bool Enabled);
 			void SetView(const Compute::Matrix4x4& View, const Compute::Matrix4x4& Projection, const Compute::Vector3& Position, float Near, float Far, bool Upload);
-			void SetSurface();
-			void SetSurfaceCleared();
 			void SetMaterialName(uint64_t Material, const std::string& Name);
-			void ClearSurface();
-			void ClearSurfaceColor();
-			void ClearSurfaceDepth();
-			void GetTargetDesc(Graphics::RenderTarget2D::Desc* Result);
-			void GetTargetDesc(Graphics::MultiRenderTarget2D::Desc* Result);
-			void GetTargetFormat(Graphics::Format* Result, uint64_t Size);
+			void SetMRT(TargetType Type, bool Clear);
+			void SetRT(TargetType Type, bool Clear);
+			void SwapMRT(TargetType Type, Graphics::MultiRenderTarget2D* New);
+			void SwapRT(TargetType Type, Graphics::RenderTarget2D* New);
+			void ClearMRT(TargetType Type, bool Color, bool Depth);
+			void ClearRT(TargetType Type, bool Color, bool Depth);
 			bool AddEventListener(const std::string& Name, const std::string& Event, const MessageCallback& Callback);
 			bool RemoveEventListener(const std::string& Name);
 			bool DispatchEvent(const std::string& EventName, const Compute::PropertyArgs& Args);
@@ -895,6 +943,9 @@ namespace Tomahawk
 			Material* GetMaterialByName(const std::string& Material);
 			Material* GetMaterialById(uint64_t Material);
 			Rest::Pool<Component*>* GetComponents(uint64_t Section);
+			Graphics::RenderTarget2D::Desc GetDescRT();
+			Graphics::MultiRenderTarget2D::Desc GetDescMRT();
+			Graphics::Format GetFormatMRT(unsigned int Target);
 			std::vector<Entity*> FindParentFreeEntities(Entity* Entity);
 			std::vector<Entity*> FindNamedEntities(const std::string& Name);
 			std::vector<Entity*> FindEntitiesAt(const Compute::Vector3& Position, float Radius);
@@ -912,15 +963,19 @@ namespace Tomahawk
 			bool HasEntity(uint64_t Entity);
 			Rest::Pool<Drawable*>* GetOpaque(uint64_t Section);
 			Rest::Pool<Drawable*>* GetTransparent(uint64_t Section);
-			Graphics::MultiRenderTarget2D* GetSurface();
+			Graphics::MultiRenderTarget2D* GetMRT(TargetType Type);
+			Graphics::RenderTarget2D* GetRT(TargetType Type);
+			Graphics::Texture2D** GetMerger();
 			Graphics::ElementBuffer* GetStructure();
 			Graphics::GraphicsDevice* GetDevice();
 			Rest::EventQueue* GetQueue();
 			Compute::Simulator* GetSimulator();
-			ShaderCache* GetCache();
+			ShaderCache* GetShaders();
+			PrimitiveCache* GetPrimitives();
 			Desc& GetConf();
 
 		protected:
+			void ResizeRenderBuffers();
 			void AddDrawable(Drawable* Source, GeoCategory Category);
 			void RemoveDrawable(Drawable* Source, GeoCategory Category);
 			void BeginThread(ThreadId Thread);
@@ -1149,7 +1204,6 @@ namespace Tomahawk
 				double MinFrames = 10;
 				unsigned int Usage = ApplicationUse_Graphics_Module | ApplicationUse_Activity_Module | ApplicationUse_Audio_Module | ApplicationUse_AngelScript_Module | ApplicationUse_Content_Module;
 				bool DisableCursor = false;
-				bool EnableShaderCache = true;
 			};
 
 		private:
@@ -1167,7 +1221,6 @@ namespace Tomahawk
 			Rest::EventQueue* Queue = nullptr;
 			ContentManager* Content = nullptr;
 			SceneGraph* Scene = nullptr;
-			ShaderCache* Shaders = nullptr;
 
 		public:
 			Application(Desc* I);

@@ -14,7 +14,7 @@ float3 GetPosition(float2 TexCoord, float Depth)
 float3 GetPositionUV(float3 Position)
 {
     float4 Coord = mul(float4(Position, 1.0), ViewProjection);
-    Coord.xy = float2(0.5, 0.5) + float2(0.5f, -0.5) * Coord.xy / Coord.w;
+    Coord.xy = float2(0.5, 0.5) + float2(0.5, -0.5) * Coord.xy / Coord.w;
     Coord.z /= Coord.w;
     
     return Coord.xyz;

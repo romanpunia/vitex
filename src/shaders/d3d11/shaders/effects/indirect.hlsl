@@ -14,17 +14,19 @@ cbuffer RenderConstant : register(b3)
 	float Radius;
 	float Distance;
 	float Fade;
-    float Padding;
+    float MipLevels;
 }
 
-float3 GetFactor(float2 TexCoord, float3 Position, float3 Normal, float Power, float R, float3 M, float3 P) 
+Texture2D LightBuffer : register(t6);
+
+float3 GetFactor(float2 TexCoord, float3 Position, float3 Normal, float Power, float R) 
 {
+    float3 C = LightBuffer.SampleLevel(Sampler, TexCoord, R).xyz;
     float3 D = GetPosition(TexCoord, GetDepth(TexCoord)) - Position;
     float3 V = normalize(D), O;
-    float3 E = GetSpecularBRDF(Normal, P, V, GetDiffuse(TexCoord, 0).xyz, M, R);
     float T = length(D) * Scale;
 
-    return E * max(0.0, dot(Normal, V) - Bias) * (1.0 / (1.0 + T)) * Power;
+    return C * max(0.0, dot(Normal, V) - Bias) * (1.0 / (1.0 + T)) * Power;
 }
 
 VOutput VS(VInput V)
@@ -50,6 +52,7 @@ float4 PS(VOutput V) : SV_TARGET0
 	float Vision = saturate(pow(abs(distance(ViewPosition, Frag.Position) / Distance), Fade));
     float Power = Intensity * GetOcclusion(Frag, Mat);
     float Size = Radius + Mat.Radius;
+    float T = GetRoughnessMip(Frag, Mat, MipLevels);
     float R = GetRoughness(Frag, Mat);
 	float3 M = GetMetallic(Frag, Mat);
 	float3 P = normalize(ViewPosition - Frag.Position);
@@ -60,12 +63,12 @@ float4 PS(VOutput V) : SV_TARGET0
         float2 C1 = reflect(Disk[j], Random) * Size; 
         float2 C2 = float2(C1.x * 0.707 - C1.y * 0.707, C1.x * 0.707 + C1.y * 0.707); 
 
-        Factor += GetFactor(TexCoord + C1 * 0.25, Frag.Position, Frag.Normal, Power, R, M, P); 
-        Factor += GetFactor(TexCoord + C2 * 0.5, Frag.Position, Frag.Normal, Power, R, M, P);
-        Factor += GetFactor(TexCoord + C1 * 0.75, Frag.Position, Frag.Normal, Power, R, M, P);
-        Factor += GetFactor(TexCoord + C2, Frag.Position, Frag.Normal, Power, R, M, P);
+        Factor += GetFactor(TexCoord + C1 * 0.25, Frag.Position, Frag.Normal, Power, T); 
+        Factor += GetFactor(TexCoord + C2 * 0.5, Frag.Position, Frag.Normal, Power, T);
+        Factor += GetFactor(TexCoord + C1 * 0.75, Frag.Position, Frag.Normal, Power, T);
+        Factor += GetFactor(TexCoord + C2, Frag.Position, Frag.Normal, Power, T);
     }
 
-    Factor /= Samples * Samples; 
-    return float4(Factor * Vision, 1.0);
+    Factor /= Samples * Samples;
+    return float4(GetSpecularBRDF(Frag.Normal, P, P, Factor, M, R) * Vision, 1.0);
 };

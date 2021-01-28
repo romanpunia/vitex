@@ -44,7 +44,7 @@ namespace Tomahawk
 				void RenderGeometryVoxels(Rest::Timer* Time, Rest::Pool<Drawable*>* Geometry, RenderOpt Options) override;
 				void RenderDepthLinear(Rest::Timer* Time, Rest::Pool<Drawable*>* Geometry) override;
 				void RenderDepthCubic(Rest::Timer* Time, Rest::Pool<Drawable*>* Geometry, Compute::Matrix4x4* ViewProjection) override;
-				
+
 			public:
 				TH_COMPONENT("model-renderer");
 			};
@@ -293,8 +293,12 @@ namespace Tomahawk
 
 				struct
 				{
-					Rest::TickTimer Tick;
+					Graphics::Texture3D* LightBuffer = nullptr;
+					Graphics::Texture3D* DiffuseBuffer = nullptr;
+					Graphics::Texture3D* NormalBuffer = nullptr;
+					Graphics::Texture3D* SurfaceBuffer = nullptr;
 					Compute::Vector3 Distance = 10.0f;
+					Rest::TickTimer Tick;
 					uint64_t Size = 128;
 					bool Enabled = false;
 				} GI;
@@ -333,6 +337,11 @@ namespace Tomahawk
 
 				struct
 				{
+					Graphics::MultiRenderTarget2D* Merger = nullptr;
+					Graphics::RenderTarget2D* Output = nullptr;
+					Graphics::RenderTarget2D* Input = nullptr;
+					Graphics::Cubemap* Subresource = nullptr;
+					Graphics::Texture2D* Face = nullptr;
 					uint64_t Size = 128;
 				} Surfaces;
 
@@ -362,18 +371,9 @@ namespace Tomahawk
 				Graphics::SamplerState* ShadowSampler = nullptr;
 				Graphics::SamplerState* WrapSampler = nullptr;
 				Graphics::InputLayout* Layout = nullptr;
-				Graphics::MultiRenderTarget2D* Surface = nullptr;
-				Graphics::RenderTarget2D* Output1 = nullptr;
-				Graphics::RenderTarget2D* Output2 = nullptr;
-				Graphics::RenderTarget2D* Input1 = nullptr;
-				Graphics::RenderTarget2D* Input2 = nullptr;
-				Graphics::Texture3D* DiffuseBuffer = nullptr;
-				Graphics::Texture3D* NormalBuffer = nullptr;
-				Graphics::Texture3D* SurfaceBuffer = nullptr;
-				Graphics::Texture2D* Face = nullptr;
+				Graphics::Texture2D* LightMap = nullptr;
 				Graphics::Texture2D* SkyBase = nullptr;
 				Graphics::TextureCube* SkyMap = nullptr;
-				Graphics::Cubemap* Subresource = nullptr;
 
 			public:
 				Lighting(RenderSystem* Lab);
@@ -389,18 +389,19 @@ namespace Tomahawk
 				void SetVoxelBufferSize(size_t Size);
 				Graphics::TextureCube* GetSkyMap();
 				Graphics::Texture2D* GetSkyBase();
+				Graphics::Texture2D* GetLightMap();
 
 			private:
 				void RenderResultBuffers(Graphics::GraphicsDevice* Device, RenderOpt Options);
 				void RenderVoxelBuffers(Graphics::GraphicsDevice* Device, RenderOpt Options);
 				void RenderShadowMaps(Graphics::GraphicsDevice* Device, SceneGraph* Scene, Rest::Timer* Time);
 				void RenderSurfaceMaps(Graphics::GraphicsDevice* Device, SceneGraph* Scene, Rest::Timer* Time);
-				void RenderVoxels(Rest::Timer* Time, Graphics::GraphicsDevice* Device, Graphics::MultiRenderTarget2D* Surface);
+				void RenderVoxels(Rest::Timer* Time, Graphics::GraphicsDevice* Device);
 				void RenderSurfaceLights(Graphics::GraphicsDevice* Device, Compute::Vector3& Camera, float& Distance, bool& Backcull, const bool& Inner);
 				void RenderPointLights(Graphics::GraphicsDevice* Device, Compute::Vector3& Camera, float& Distance, bool& Backcull, const bool& Inner);
 				void RenderSpotLights(Graphics::GraphicsDevice* Device, Compute::Vector3& Camera, float& Distance, bool& Backcull, const bool& Inner);
 				void RenderLineLights(Graphics::GraphicsDevice* Device, bool& Backcull);
-				void RenderAmbientLight(Graphics::GraphicsDevice* Device, Graphics::MultiRenderTarget2D* Surface, const bool& Inner);
+				void RenderAmbientLight(Graphics::GraphicsDevice* Device, const bool& Inner);
 				void GenerateCascadeMap(CascadedDepthMap** Result, uint32_t Size);
 				void FlushDepthBuffersAndCache();
 
@@ -414,18 +415,15 @@ namespace Tomahawk
 			class TH_OUT Transparency : public Renderer
 			{
 			private:
-				Graphics::MultiRenderTarget2D* Surface1 = nullptr;
-				Graphics::RenderTarget2D* Input1 = nullptr;
-				Graphics::MultiRenderTarget2D* Surface2 = nullptr;
-				Graphics::RenderTarget2D* Input2 = nullptr;
+				Graphics::MultiRenderTarget2D* Merger = nullptr;
+				Graphics::RenderTarget2D* Input = nullptr;
 				Graphics::DepthStencilState* DepthStencil = nullptr;
 				Graphics::RasterizerState* Rasterizer = nullptr;
 				Graphics::BlendState* Blend = nullptr;
 				Graphics::SamplerState* Sampler = nullptr;
 				Graphics::InputLayout* Layout = nullptr;
 				Graphics::Shader* Shader = nullptr;
-				float MipLevels1 = 0.0f;
-				float MipLevels2 = 0.0f;
+				float MipLevels[2] = { 0.0f, 0.0f };
 
 			public:
 				struct RenderConstant
@@ -454,10 +452,10 @@ namespace Tomahawk
 			public:
 				struct RenderConstant1
 				{
-					float Samples = 24.0f;
+					float Samples = 32.0f;
 					float MipLevels = 0.0f;
-					float Intensity = 1.0f;
-					float Padding = 0.0f;
+					float Intensity = 1.4f;
+					float Distance = 4.0f;
 				} RenderPass1;
 
 				struct RenderConstant2
@@ -489,13 +487,13 @@ namespace Tomahawk
 				struct RenderConstant1
 				{
 					float Samples = 3.1f;
-					float Intensity = 1.35f;
+					float Intensity = 5.0f;
 					float Scale = 0.0f;
-					float Bias = -0.55f;
+					float Bias = 0.0f;
 					float Radius = 0.34f;
-					float Distance = 4.5f;
+					float Distance = 0.5f;
 					float Fade = 2.54f;
-					float Padding = 0.0f;
+					float MipLevels = 0.0f;
 				} RenderPass1;
 
 				struct RenderConstant2
@@ -530,10 +528,10 @@ namespace Tomahawk
 				struct RenderConstant1
 				{
 					float Samples = 4.0f;
-					float Intensity = 2.25f;
-					float Scale = 1.0f;
+					float Intensity = 3.12f;
+					float Scale = 0.5f;
 					float Bias = 0.11f;
-					float Radius = 0.0275f;
+					float Radius = 0.06f;
 					float Distance = 3.83f;
 					float Fade = 1.96f;
 					float Padding = 0.0f;
@@ -542,11 +540,11 @@ namespace Tomahawk
 				struct RenderConstant2
 				{
 					float Texel[2] = { 1.0f, 1.0f };
-					float Samples = 4.000f;
-					float Blur = 2.000f;
+					float Samples = 8.000f;
+					float Blur = 4.000f;
 					float Power = 1.000f;
 					float Additive = 0.000f;
-					float Padding[2];
+					float Padding[2] = { 0.0, 0.0 };
 				} RenderPass2;
 
 			public:

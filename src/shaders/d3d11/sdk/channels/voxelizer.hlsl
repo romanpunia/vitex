@@ -8,12 +8,13 @@ StructuredBuffer<Material> Materials : register(t0);
 RWTexture3D<unorm float4> DiffuseBuffer : register(u1);
 RWTexture3D<unorm float4> NormalBuffer : register(u2);
 RWTexture3D<unorm float4> SurfaceBuffer : register(u3);
-Texture2D DiffuseMap : register(t4);
-Texture2D NormalMap : register(t5);
-Texture2D MetallicMap : register(t6);
-Texture2D RoughnessMap : register(t7);
-Texture2D OcclusionMap : register(t8);
-Texture2D EmissionMap : register(t9);
+RWTexture3D<unorm float4> LightBuffer : register(u4);
+Texture2D DiffuseMap : register(t5);
+Texture2D NormalMap : register(t6);
+Texture2D MetallicMap : register(t7);
+Texture2D RoughnessMap : register(t8);
+Texture2D OcclusionMap : register(t9);
+Texture2D EmissionMap : register(t10);
 SamplerState Sampler : register(s0);
 
 void ConvervativeRasterize(inout float4 P1, inout float4 P2, inout float4 P3)

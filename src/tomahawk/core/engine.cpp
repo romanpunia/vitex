@@ -129,12 +129,12 @@ namespace Tomahawk
 			Device->Render.MaterialId = (float)Material;
 			Device->Render.Diffuse = Diffuse;
 			Device->Render.TexCoord = TexCoord;
-			Device->SetTexture2D(DiffuseMap, 4);
-			Device->SetTexture2D(NormalMap, 5);
-			Device->SetTexture2D(MetallicMap, 6);
-			Device->SetTexture2D(RoughnessMap, 7);
-			Device->SetTexture2D(OcclusionMap, 8);
-			Device->SetTexture2D(EmissionMap, 9);
+			Device->SetTexture2D(DiffuseMap, 5);
+			Device->SetTexture2D(NormalMap, 6);
+			Device->SetTexture2D(MetallicMap, 7);
+			Device->SetTexture2D(RoughnessMap, 8);
+			Device->SetTexture2D(OcclusionMap, 9);
+			Device->SetTexture2D(EmissionMap, 10);
 
 			return true;
 		}
@@ -1898,7 +1898,7 @@ namespace Tomahawk
 		{
 			return Content;
 		}
-		
+
 		void Viewer::Set(const Compute::Matrix4x4& _View, const Compute::Matrix4x4& _Projection, const Compute::Vector3& _Position, float _Near, float _Far)
 		{
 			View = _View;
@@ -2110,7 +2110,7 @@ namespace Tomahawk
 		{
 			if (!System || !Query || Satisfied != -1)
 				return -1;
-			
+
 			if (!System->GetDevice()->GetQueryData(Query, &Fragments))
 				return -1;
 
@@ -2372,6 +2372,35 @@ namespace Tomahawk
 			Safe.unlock();
 			return nullptr;
 		}
+		std::string ShaderCache::Find(Graphics::Shader* Shader)
+		{
+			Safe.lock();
+			for (auto& Item : Cache)
+			{
+				if (Item.second.Shader == Shader)
+				{
+					std::string Result = Item.first;
+					Safe.unlock();
+					return Result;
+				}
+			}
+
+			Safe.unlock();
+			return std::string();
+		}
+		bool ShaderCache::Has(const std::string& Name)
+		{
+			Safe.lock();
+			auto It = Cache.find(Name);
+			if (It != Cache.end())
+			{
+				Safe.unlock();
+				return true;
+			}
+
+			Safe.unlock();
+			return false;
+		}
 		bool ShaderCache::Free(const std::string& Name, Graphics::Shader* Shader)
 		{
 			Safe.lock();
@@ -2379,7 +2408,7 @@ namespace Tomahawk
 			if (It == Cache.end())
 				return false;
 
-			if (Shader != It->second.Shader)
+			if (Shader != nullptr && Shader != It->second.Shader)
 			{
 				Safe.unlock();
 				return false;
@@ -2392,7 +2421,7 @@ namespace Tomahawk
 				return true;
 			}
 
-			delete It->second.Shader;
+			TH_RELEASE(It->second.Shader);
 			Cache.erase(It);
 			Safe.unlock();
 
@@ -2402,16 +2431,675 @@ namespace Tomahawk
 		{
 			Safe.lock();
 			for (auto It = Cache.begin(); It != Cache.end(); It++)
-			{
-				delete It->second.Shader;
-				It->second.Shader = nullptr;
-			}
+				TH_CLEAR(It->second.Shader);
 
 			Cache.clear();
 			Safe.unlock();
 		}
 
-		RenderSystem::RenderSystem(Graphics::GraphicsDevice* Ref) : Device(Ref), Target(nullptr), Scene(nullptr), BoxIndex(nullptr), BoxVertex(nullptr), QuadVertex(nullptr), SphereVertex(nullptr), SphereIndex(nullptr), CubeVertex(nullptr), CubeIndex(nullptr), SkinBoxVertex(nullptr), SkinBoxIndex(nullptr), FrustumCulling(true), OcclusionCulling(false)
+		PrimitiveCache::PrimitiveCache(Graphics::GraphicsDevice* Ref) : Device(Ref), Quad(nullptr)
+		{
+			Sphere[0] = Sphere[1] = nullptr;
+			Cube[0] = Cube[1] = nullptr;
+			Box[0] = Box[1] = nullptr;
+			SkinBox[0] = SkinBox[1] = nullptr;
+		}
+		PrimitiveCache::~PrimitiveCache()
+		{
+			ClearCache();
+		}
+		bool PrimitiveCache::Compile(Graphics::ElementBuffer** Results, const std::string& Name, size_t ElementSize, size_t ElementsCount)
+		{
+			if (!Results || Get(Results, Name))
+				return false;
+
+			Graphics::ElementBuffer::Desc F = Graphics::ElementBuffer::Desc();
+			F.AccessFlags = Graphics::CPUAccess_Write;
+			F.Usage = Graphics::ResourceUsage_Dynamic;
+			F.BindFlags = Graphics::ResourceBind_Vertex_Buffer;
+			F.ElementWidth = ElementSize;
+			F.ElementCount = ElementsCount;
+
+			Graphics::ElementBuffer* VertexBuffer = Device->CreateElementBuffer(F);
+			if (!VertexBuffer)
+				return false;
+
+			F = Graphics::ElementBuffer::Desc();
+			F.AccessFlags = Graphics::CPUAccess_Write;
+			F.Usage = Graphics::ResourceUsage_Dynamic;
+			F.BindFlags = Graphics::ResourceBind_Index_Buffer;
+			F.ElementWidth = sizeof(int);
+			F.ElementCount = ElementsCount * 3;
+
+			Graphics::ElementBuffer* IndexBuffer = Device->CreateElementBuffer(F);
+			if (!IndexBuffer)
+			{
+				TH_RELEASE(VertexBuffer);
+				return false;
+			}
+
+			Safe.lock();
+			SCache& Result = Cache[Name];
+			Result.Buffers[BufferType_Index] = Results[BufferType_Index] = IndexBuffer;
+			Result.Buffers[BufferType_Vertex] = Results[BufferType_Vertex] = VertexBuffer;
+			Result.Count = 1;
+			Safe.unlock();
+
+			return true;
+		}
+		bool PrimitiveCache::Get(Graphics::ElementBuffer** Results, const std::string& Name)
+		{
+			if (!Results)
+				return false;
+
+			Safe.lock();
+			auto It = Cache.find(Name);
+			if (It != Cache.end())
+			{
+				It->second.Count++;
+				Safe.unlock();
+
+				Results[BufferType_Index] = It->second.Buffers[BufferType_Index];
+				Results[BufferType_Vertex] = It->second.Buffers[BufferType_Vertex];
+				return true;
+			}
+
+			Safe.unlock();
+			return false;
+		}
+		bool PrimitiveCache::Has(const std::string& Name)
+		{
+			Safe.lock();
+			auto It = Cache.find(Name);
+			if (It != Cache.end())
+			{
+				Safe.unlock();
+				return true;
+			}
+
+			Safe.unlock();
+			return false;
+		}
+		bool PrimitiveCache::Free(const std::string& Name, Graphics::ElementBuffer** Buffers)
+		{
+			Safe.lock();
+			auto It = Cache.find(Name);
+			if (It == Cache.end())
+				return false;
+
+			if (Buffers != nullptr)
+			{
+				if ((Buffers[0] != nullptr && Buffers[0] != It->second.Buffers[0]) || (Buffers[1] != nullptr && Buffers[1] != It->second.Buffers[1]))
+				{
+					Safe.unlock();
+					return false;
+				}
+			}
+
+			It->second.Count--;
+			if (It->second.Count > 0)
+			{
+				Safe.unlock();
+				return true;
+			}
+
+			TH_RELEASE(It->second.Buffers[0]);
+			TH_RELEASE(It->second.Buffers[1]);
+			Cache.erase(It);
+			Safe.unlock();
+
+			return true;
+		}
+		std::string PrimitiveCache::Find(Graphics::ElementBuffer** Buffers)
+		{
+			if (!Buffers)
+				return std::string();
+
+			Safe.lock();
+			for (auto& Item : Cache)
+			{
+				if (Item.second.Buffers[0] == Buffers[0] && Item.second.Buffers[1] == Buffers[1])
+				{
+					std::string Result = Item.first;
+					Safe.unlock();
+					return Result;
+				}
+			}
+
+			Safe.unlock();
+			return std::string();
+		}
+		Graphics::ElementBuffer* PrimitiveCache::GetQuad()
+		{
+			if (Quad != nullptr)
+				return Quad;
+
+			if (!Device)
+				return nullptr;
+
+			std::vector<Compute::ShapeVertex> Elements;
+			Elements.push_back({ -1.0f, -1.0f, 0, -1, 0 });
+			Elements.push_back({ -1.0f, 1.0f, 0, -1, -1 });
+			Elements.push_back({ 1.0f, 1.0f, 0, 0, -1 });
+			Elements.push_back({ -1.0f, -1.0f, 0, -1, 0 });
+			Elements.push_back({ 1.0f, 1.0f, 0, 0, -1 });
+			Elements.push_back({ 1.0f, -1.0f, 0, 0, 0 });
+
+			Graphics::ElementBuffer::Desc F = Graphics::ElementBuffer::Desc();
+			F.AccessFlags = Graphics::CPUAccess_Invalid;
+			F.Usage = Graphics::ResourceUsage_Default;
+			F.BindFlags = Graphics::ResourceBind_Vertex_Buffer;
+			F.ElementCount = 6;
+			F.ElementWidth = sizeof(Compute::ShapeVertex);
+			F.Elements = &Elements[0];
+
+			Safe.lock();
+			Quad = Device->CreateElementBuffer(F);
+			Safe.unlock();
+
+			return Quad;
+		}
+		Graphics::ElementBuffer* PrimitiveCache::GetSphere(BufferType Type)
+		{
+			if (Sphere[Type] != nullptr)
+				return Sphere[Type];
+
+			if (!Device)
+				return nullptr;
+
+			if (Type == BufferType_Index)
+			{
+				std::vector<int> Indices;
+				Indices.push_back(0);
+				Indices.push_back(4);
+				Indices.push_back(1);
+				Indices.push_back(0);
+				Indices.push_back(9);
+				Indices.push_back(4);
+				Indices.push_back(9);
+				Indices.push_back(5);
+				Indices.push_back(4);
+				Indices.push_back(4);
+				Indices.push_back(5);
+				Indices.push_back(8);
+				Indices.push_back(4);
+				Indices.push_back(8);
+				Indices.push_back(1);
+				Indices.push_back(8);
+				Indices.push_back(10);
+				Indices.push_back(1);
+				Indices.push_back(8);
+				Indices.push_back(3);
+				Indices.push_back(10);
+				Indices.push_back(5);
+				Indices.push_back(3);
+				Indices.push_back(8);
+				Indices.push_back(5);
+				Indices.push_back(2);
+				Indices.push_back(3);
+				Indices.push_back(2);
+				Indices.push_back(7);
+				Indices.push_back(3);
+				Indices.push_back(7);
+				Indices.push_back(10);
+				Indices.push_back(3);
+				Indices.push_back(7);
+				Indices.push_back(6);
+				Indices.push_back(10);
+				Indices.push_back(7);
+				Indices.push_back(11);
+				Indices.push_back(6);
+				Indices.push_back(11);
+				Indices.push_back(0);
+				Indices.push_back(6);
+				Indices.push_back(0);
+				Indices.push_back(1);
+				Indices.push_back(6);
+				Indices.push_back(6);
+				Indices.push_back(1);
+				Indices.push_back(10);
+				Indices.push_back(9);
+				Indices.push_back(0);
+				Indices.push_back(11);
+				Indices.push_back(9);
+				Indices.push_back(11);
+				Indices.push_back(2);
+				Indices.push_back(9);
+				Indices.push_back(2);
+				Indices.push_back(5);
+				Indices.push_back(7);
+				Indices.push_back(2);
+				Indices.push_back(11);
+
+				Graphics::ElementBuffer::Desc F = Graphics::ElementBuffer::Desc();
+				F.AccessFlags = Graphics::CPUAccess_Invalid;
+				F.Usage = Graphics::ResourceUsage_Default;
+				F.BindFlags = Graphics::ResourceBind_Index_Buffer;
+				F.ElementCount = (unsigned int)Indices.size();
+				F.ElementWidth = sizeof(int);
+				F.Elements = &Indices[0];
+
+				Safe.lock();
+				Sphere[BufferType_Index] = Device->CreateElementBuffer(F);
+				Safe.unlock();
+
+				return Sphere[BufferType_Index];
+			}
+			else if (Type == BufferType_Vertex)
+			{
+				const float X = 0.525731112119133606;
+				const float Z = 0.850650808352039932;
+				const float N = 0.0f;
+
+				std::vector<Compute::ShapeVertex> Elements;
+				Elements.push_back({ -X, N, Z });
+				Elements.push_back({ X, N, Z });
+				Elements.push_back({ -X, N, -Z });
+				Elements.push_back({ X, N, -Z });
+				Elements.push_back({ N, Z, X });
+				Elements.push_back({ N, Z, -X });
+				Elements.push_back({ N, -Z, X });
+				Elements.push_back({ N, -Z, -X });
+				Elements.push_back({ Z, X, N });
+				Elements.push_back({ -Z, X, N });
+				Elements.push_back({ Z, -X, N });
+				Elements.push_back({ -Z, -X, N });
+
+				Graphics::ElementBuffer::Desc F = Graphics::ElementBuffer::Desc();
+				F.AccessFlags = Graphics::CPUAccess_Invalid;
+				F.Usage = Graphics::ResourceUsage_Default;
+				F.BindFlags = Graphics::ResourceBind_Vertex_Buffer;
+				F.ElementCount = (unsigned int)Elements.size();
+				F.ElementWidth = sizeof(Compute::ShapeVertex);
+				F.Elements = &Elements[0];
+
+				Safe.lock();
+				Sphere[BufferType_Vertex] = Device->CreateElementBuffer(F);
+				Safe.unlock();
+
+				return Sphere[BufferType_Vertex];
+			}
+
+			return nullptr;
+		}
+		Graphics::ElementBuffer* PrimitiveCache::GetCube(BufferType Type)
+		{
+			if (Cube[Type] != nullptr)
+				return Cube[Type];
+
+			if (!Device)
+				return nullptr;
+
+			if (Type == BufferType_Index)
+			{
+				std::vector<int> Indices;
+				Indices.push_back(0);
+				Indices.push_back(1);
+				Indices.push_back(2);
+				Indices.push_back(0);
+				Indices.push_back(18);
+				Indices.push_back(1);
+				Indices.push_back(3);
+				Indices.push_back(4);
+				Indices.push_back(5);
+				Indices.push_back(3);
+				Indices.push_back(19);
+				Indices.push_back(4);
+				Indices.push_back(6);
+				Indices.push_back(7);
+				Indices.push_back(8);
+				Indices.push_back(6);
+				Indices.push_back(20);
+				Indices.push_back(7);
+				Indices.push_back(9);
+				Indices.push_back(10);
+				Indices.push_back(11);
+				Indices.push_back(9);
+				Indices.push_back(21);
+				Indices.push_back(10);
+				Indices.push_back(12);
+				Indices.push_back(13);
+				Indices.push_back(14);
+				Indices.push_back(12);
+				Indices.push_back(22);
+				Indices.push_back(13);
+				Indices.push_back(15);
+				Indices.push_back(16);
+				Indices.push_back(17);
+				Indices.push_back(15);
+				Indices.push_back(23);
+				Indices.push_back(16);
+
+				Graphics::ElementBuffer::Desc F = Graphics::ElementBuffer::Desc();
+				F.AccessFlags = Graphics::CPUAccess_Invalid;
+				F.Usage = Graphics::ResourceUsage_Default;
+				F.BindFlags = Graphics::ResourceBind_Index_Buffer;
+				F.ElementCount = (unsigned int)Indices.size();
+				F.ElementWidth = sizeof(int);
+				F.Elements = &Indices[0];
+
+				Safe.lock();
+				Cube[BufferType_Index] = Device->CreateElementBuffer(F);
+				Safe.unlock();
+
+				return Cube[BufferType_Index];
+			}
+			else if (Type == BufferType_Vertex)
+			{
+				std::vector<Compute::ShapeVertex> Elements;
+				Elements.push_back({ -1, 1, 1, 0.875, -0.5 });
+				Elements.push_back({ 1, -1, 1, 0.625, -0.75 });
+				Elements.push_back({ 1, 1, 1, 0.625, -0.5 });
+				Elements.push_back({ 1, -1, 1, 0.625, -0.75 });
+				Elements.push_back({ -1, -1, -1, 0.375, -1 });
+				Elements.push_back({ 1, -1, -1, 0.375, -0.75 });
+				Elements.push_back({ -1, -1, 1, 0.625, -0 });
+				Elements.push_back({ -1, 1, -1, 0.375, -0.25 });
+				Elements.push_back({ -1, -1, -1, 0.375, -0 });
+				Elements.push_back({ 1, 1, -1, 0.375, -0.5 });
+				Elements.push_back({ -1, -1, -1, 0.125, -0.75 });
+				Elements.push_back({ -1, 1, -1, 0.125, -0.5 });
+				Elements.push_back({ 1, 1, 1, 0.625, -0.5 });
+				Elements.push_back({ 1, -1, -1, 0.375, -0.75 });
+				Elements.push_back({ 1, 1, -1, 0.375, -0.5 });
+				Elements.push_back({ -1, 1, 1, 0.625, -0.25 });
+				Elements.push_back({ 1, 1, -1, 0.375, -0.5 });
+				Elements.push_back({ -1, 1, -1, 0.375, -0.25 });
+				Elements.push_back({ -1, -1, 1, 0.875, -0.75 });
+				Elements.push_back({ -1, -1, 1, 0.625, -1 });
+				Elements.push_back({ -1, 1, 1, 0.625, -0.25 });
+				Elements.push_back({ 1, -1, -1, 0.375, -0.75 });
+				Elements.push_back({ 1, -1, 1, 0.625, -0.75 });
+				Elements.push_back({ 1, 1, 1, 0.625, -0.5 });
+
+				Graphics::ElementBuffer::Desc F = Graphics::ElementBuffer::Desc();
+				F.AccessFlags = Graphics::CPUAccess_Invalid;
+				F.Usage = Graphics::ResourceUsage_Default;
+				F.BindFlags = Graphics::ResourceBind_Vertex_Buffer;
+				F.ElementCount = (unsigned int)Elements.size();
+				F.ElementWidth = sizeof(Compute::ShapeVertex);
+				F.Elements = &Elements[0];
+
+				Safe.lock();
+				Cube[BufferType_Vertex] = Device->CreateElementBuffer(F);
+				Safe.unlock();
+
+				return Cube[BufferType_Vertex];
+			}
+
+			return nullptr;
+		}
+		Graphics::ElementBuffer* PrimitiveCache::GetBox(BufferType Type)
+		{
+			if (Box[Type] != nullptr)
+				return Box[Type];
+
+			if (!Device)
+				return nullptr;
+
+			if (Type == BufferType_Index)
+			{
+				std::vector<int> Indices;
+				Indices.push_back(0);
+				Indices.push_back(1);
+				Indices.push_back(2);
+				Indices.push_back(0);
+				Indices.push_back(18);
+				Indices.push_back(1);
+				Indices.push_back(3);
+				Indices.push_back(4);
+				Indices.push_back(5);
+				Indices.push_back(3);
+				Indices.push_back(19);
+				Indices.push_back(4);
+				Indices.push_back(6);
+				Indices.push_back(7);
+				Indices.push_back(8);
+				Indices.push_back(6);
+				Indices.push_back(20);
+				Indices.push_back(7);
+				Indices.push_back(9);
+				Indices.push_back(10);
+				Indices.push_back(11);
+				Indices.push_back(9);
+				Indices.push_back(21);
+				Indices.push_back(10);
+				Indices.push_back(12);
+				Indices.push_back(13);
+				Indices.push_back(14);
+				Indices.push_back(12);
+				Indices.push_back(22);
+				Indices.push_back(13);
+				Indices.push_back(15);
+				Indices.push_back(16);
+				Indices.push_back(17);
+				Indices.push_back(15);
+				Indices.push_back(23);
+				Indices.push_back(16);
+				Compute::Common::ComputeIndexWindingOrderFlip(Indices);
+
+				Graphics::ElementBuffer::Desc F = Graphics::ElementBuffer::Desc();
+				F.AccessFlags = Graphics::CPUAccess_Invalid;
+				F.Usage = Graphics::ResourceUsage_Default;
+				F.BindFlags = Graphics::ResourceBind_Index_Buffer;
+				F.ElementCount = (unsigned int)Indices.size();
+				F.ElementWidth = sizeof(int);
+				F.Elements = &Indices[0];
+
+				Safe.lock();
+				Box[BufferType_Index] = Device->CreateElementBuffer(F);
+				Safe.unlock();
+
+				return Box[BufferType_Index];
+			}
+			else if (Type == BufferType_Vertex)
+			{
+				std::vector<Compute::Vertex> Elements;
+				Elements.push_back({ -1, 1, 1, 0.875, -0.5, 0, 0, 1, -1, 0, 0, 0, 1, 0 });
+				Elements.push_back({ 1, -1, 1, 0.625, -0.75, 0, 0, 1, -1, 0, 0, 0, 1, 0 });
+				Elements.push_back({ 1, 1, 1, 0.625, -0.5, 0, 0, 1, -1, 0, 0, 0, 1, 0 });
+				Elements.push_back({ 1, -1, 1, 0.625, -0.75, 0, -1, 0, 0, 0, 1, 1, 0, 0 });
+				Elements.push_back({ -1, -1, -1, 0.375, -1, 0, -1, 0, 0, 0, 1, 1, 0, 0 });
+				Elements.push_back({ 1, -1, -1, 0.375, -0.75, 0, -1, 0, 0, 0, 1, 1, 0, 0 });
+				Elements.push_back({ -1, -1, 1, 0.625, -0, -1, 0, 0, 0, 0, 1, 0, -1, 0 });
+				Elements.push_back({ -1, 1, -1, 0.375, -0.25, -1, 0, 0, 0, 0, 1, 0, -1, 0 });
+				Elements.push_back({ -1, -1, -1, 0.375, -0, -1, 0, 0, 0, 0, 1, 0, -1, 0 });
+				Elements.push_back({ 1, 1, -1, 0.375, -0.5, 0, 0, -1, 1, 0, 0, 0, 1, 0 });
+				Elements.push_back({ -1, -1, -1, 0.125, -0.75, 0, 0, -1, 1, 0, 0, 0, 1, 0 });
+				Elements.push_back({ -1, 1, -1, 0.125, -0.5, 0, 0, -1, 1, 0, 0, 0, 1, 0 });
+				Elements.push_back({ 1, 1, 1, 0.625, -0.5, 1, 0, 0, 0, 0, 1, 0, 1, 0 });
+				Elements.push_back({ 1, -1, -1, 0.375, -0.75, 1, 0, 0, 0, 0, 1, 0, 1, 0 });
+				Elements.push_back({ 1, 1, -1, 0.375, -0.5, 1, 0, 0, 0, 0, 1, 0, 1, 0 });
+				Elements.push_back({ -1, 1, 1, 0.625, -0.25, 0, 1, 0, 0, 0, 1, -1, 0, 0 });
+				Elements.push_back({ 1, 1, -1, 0.375, -0.5, 0, 1, 0, 0, 0, 1, -1, 0, 0 });
+				Elements.push_back({ -1, 1, -1, 0.375, -0.25, 0, 1, 0, 0, 0, 1, -1, 0, 0 });
+				Elements.push_back({ -1, -1, 1, 0.875, -0.75, 0, 0, 1, -1, 0, 0, 0, 1, 0 });
+				Elements.push_back({ -1, -1, 1, 0.625, -1, 0, -1, 0, 0, 0, 1, 1, 0, 0 });
+				Elements.push_back({ -1, 1, 1, 0.625, -0.25, -1, 0, 0, 0, 0, 1, 0, -1, 0 });
+				Elements.push_back({ 1, -1, -1, 0.375, -0.75, 0, 0, -1, 1, 0, 0, 0, 1, 0 });
+				Elements.push_back({ 1, -1, 1, 0.625, -0.75, 1, 0, 0, 0, 0, 1, 0, 1, 0 });
+				Elements.push_back({ 1, 1, 1, 0.625, -0.5, 0, 1, 0, 0, 0, 1, -1, 0, 0 });
+
+				Graphics::ElementBuffer::Desc F = Graphics::ElementBuffer::Desc();
+				F.AccessFlags = Graphics::CPUAccess_Invalid;
+				F.Usage = Graphics::ResourceUsage_Default;
+				F.BindFlags = Graphics::ResourceBind_Vertex_Buffer;
+				F.ElementCount = (unsigned int)Elements.size();
+				F.ElementWidth = sizeof(Compute::Vertex);
+				F.Elements = &Elements[0];
+
+				Safe.lock();
+				Box[BufferType_Vertex] = Device->CreateElementBuffer(F);
+				Safe.unlock();
+
+				return Box[BufferType_Vertex];
+			}
+
+			return nullptr;
+		}
+		Graphics::ElementBuffer* PrimitiveCache::GetSkinBox(BufferType Type)
+		{
+			if (SkinBox[Type] != nullptr)
+				return SkinBox[Type];
+
+			if (!Device)
+				return nullptr;
+
+			if (Type == BufferType_Index)
+			{
+				std::vector<int> Indices;
+				Indices.push_back(0);
+				Indices.push_back(1);
+				Indices.push_back(2);
+				Indices.push_back(0);
+				Indices.push_back(18);
+				Indices.push_back(1);
+				Indices.push_back(3);
+				Indices.push_back(4);
+				Indices.push_back(5);
+				Indices.push_back(3);
+				Indices.push_back(19);
+				Indices.push_back(4);
+				Indices.push_back(6);
+				Indices.push_back(7);
+				Indices.push_back(8);
+				Indices.push_back(6);
+				Indices.push_back(20);
+				Indices.push_back(7);
+				Indices.push_back(9);
+				Indices.push_back(10);
+				Indices.push_back(11);
+				Indices.push_back(9);
+				Indices.push_back(21);
+				Indices.push_back(10);
+				Indices.push_back(12);
+				Indices.push_back(13);
+				Indices.push_back(14);
+				Indices.push_back(12);
+				Indices.push_back(22);
+				Indices.push_back(13);
+				Indices.push_back(15);
+				Indices.push_back(16);
+				Indices.push_back(17);
+				Indices.push_back(15);
+				Indices.push_back(23);
+				Indices.push_back(16);
+				Compute::Common::ComputeIndexWindingOrderFlip(Indices);
+
+				Graphics::ElementBuffer::Desc F = Graphics::ElementBuffer::Desc();
+				F.AccessFlags = Graphics::CPUAccess_Invalid;
+				F.Usage = Graphics::ResourceUsage_Default;
+				F.BindFlags = Graphics::ResourceBind_Index_Buffer;
+				F.ElementCount = (unsigned int)Indices.size();
+				F.ElementWidth = sizeof(int);
+				F.Elements = &Indices[0];
+
+				Safe.lock();
+				SkinBox[BufferType_Index] = Device->CreateElementBuffer(F);
+				Safe.unlock();
+
+				return SkinBox[BufferType_Index];
+			}
+			else if (Type == BufferType_Vertex)
+			{
+				std::vector<Compute::SkinVertex> Elements;
+				Elements.push_back({ -1, 1, 1, 0.875, -0.5, 0, 0, 1, -1, 0, 0, 0, 1, 0, -1, -1, -1, -1, 0, 0, 0, 0 });
+				Elements.push_back({ 1, -1, 1, 0.625, -0.75, 0, 0, 1, -1, 0, 0, 0, 1, 0, -1, -1, -1, -1, 0, 0, 0, 0 });
+				Elements.push_back({ 1, 1, 1, 0.625, -0.5, 0, 0, 1, -1, 0, 0, 0, 1, 0, -1, -1, -1, -1, 0, 0, 0, 0 });
+				Elements.push_back({ 1, -1, 1, 0.625, -0.75, 0, -1, 0, 0, 0, 1, 1, 0, 0, -1, -1, -1, -1, 0, 0, 0, 0 });
+				Elements.push_back({ -1, -1, -1, 0.375, -1, 0, -1, 0, 0, 0, 1, 1, 0, 0, -1, -1, -1, -1, 0, 0, 0, 0 });
+				Elements.push_back({ 1, -1, -1, 0.375, -0.75, 0, -1, 0, 0, 0, 1, 1, 0, 0, -1, -1, -1, -1, 0, 0, 0, 0 });
+				Elements.push_back({ -1, -1, 1, 0.625, -0, -1, 0, 0, 0, 0, 1, 0, -1, 0, -1, -1, -1, -1, 0, 0, 0, 0 });
+				Elements.push_back({ -1, 1, -1, 0.375, -0.25, -1, 0, 0, 0, 0, 1, 0, -1, 0, -1, -1, -1, -1, 0, 0, 0, 0 });
+				Elements.push_back({ -1, -1, -1, 0.375, -0, -1, 0, 0, 0, 0, 1, 0, -1, 0, -1, -1, -1, -1, 0, 0, 0, 0 });
+				Elements.push_back({ 1, 1, -1, 0.375, -0.5, 0, 0, -1, 1, 0, 0, 0, 1, 0, -1, -1, -1, -1, 0, 0, 0, 0 });
+				Elements.push_back({ -1, -1, -1, 0.125, -0.75, 0, 0, -1, 1, 0, 0, 0, 1, 0, -1, -1, -1, -1, 0, 0, 0, 0 });
+				Elements.push_back({ -1, 1, -1, 0.125, -0.5, 0, 0, -1, 1, 0, 0, 0, 1, 0, -1, -1, -1, -1, 0, 0, 0, 0 });
+				Elements.push_back({ 1, 1, 1, 0.625, -0.5, 1, 0, 0, 0, 0, 1, 0, 1, 0, -1, -1, -1, -1, 0, 0, 0, 0 });
+				Elements.push_back({ 1, -1, -1, 0.375, -0.75, 1, 0, 0, 0, 0, 1, 0, 1, 0, -1, -1, -1, -1, 0, 0, 0, 0 });
+				Elements.push_back({ 1, 1, -1, 0.375, -0.5, 1, 0, 0, 0, 0, 1, 0, 1, 0, -1, -1, -1, -1, 0, 0, 0, 0 });
+				Elements.push_back({ -1, 1, 1, 0.625, -0.25, 0, 1, 0, 0, 0, 1, -1, 0, 0, -1, -1, -1, -1, 0, 0, 0, 0 });
+				Elements.push_back({ 1, 1, -1, 0.375, -0.5, 0, 1, 0, 0, 0, 1, -1, 0, 0, -1, -1, -1, -1, 0, 0, 0, 0 });
+				Elements.push_back({ -1, 1, -1, 0.375, -0.25, 0, 1, 0, 0, 0, 1, -1, 0, 0, -1, -1, -1, -1, 0, 0, 0, 0 });
+				Elements.push_back({ -1, -1, 1, 0.875, -0.75, 0, 0, 1, -1, 0, 0, 0, 1, 0, -1, -1, -1, -1, 0, 0, 0, 0 });
+				Elements.push_back({ -1, -1, 1, 0.625, -1, 0, -1, 0, 0, 0, 1, 1, 0, 0, -1, -1, -1, -1, 0, 0, 0, 0 });
+				Elements.push_back({ -1, 1, 1, 0.625, -0.25, -1, 0, 0, 0, 0, 1, 0, -1, 0, -1, -1, -1, -1, 0, 0, 0, 0 });
+				Elements.push_back({ 1, -1, -1, 0.375, -0.75, 0, 0, -1, 1, 0, 0, 0, 1, 0, -1, -1, -1, -1, 0, 0, 0, 0 });
+				Elements.push_back({ 1, -1, 1, 0.625, -0.75, 1, 0, 0, 0, 0, 1, 0, 1, 0, -1, -1, -1, -1, 0, 0, 0, 0 });
+				Elements.push_back({ 1, 1, 1, 0.625, -0.5, 0, 1, 0, 0, 0, 1, -1, 0, 0, -1, -1, -1, -1, 0, 0, 0, 0 });
+
+				Graphics::ElementBuffer::Desc F = Graphics::ElementBuffer::Desc();
+				F.AccessFlags = Graphics::CPUAccess_Invalid;
+				F.Usage = Graphics::ResourceUsage_Default;
+				F.BindFlags = Graphics::ResourceBind_Vertex_Buffer;
+				F.ElementCount = (unsigned int)Elements.size();
+				F.ElementWidth = sizeof(Compute::SkinVertex);
+				F.Elements = &Elements[0];
+
+				Safe.lock();
+				SkinBox[BufferType_Vertex] = Device->CreateElementBuffer(F);
+				Safe.unlock();
+
+				return SkinBox[BufferType_Vertex];
+			}
+
+			return nullptr;
+		}
+		void PrimitiveCache::GetSphereBuffers(Graphics::ElementBuffer** Result)
+		{
+			if (Result != nullptr)
+			{
+				Result[BufferType_Index] = GetSphere(BufferType_Index);
+				Result[BufferType_Vertex] = GetSphere(BufferType_Vertex);
+			}
+		}
+		void PrimitiveCache::GetCubeBuffers(Graphics::ElementBuffer** Result)
+		{
+			if (Result != nullptr)
+			{
+				Result[BufferType_Index] = GetCube(BufferType_Index);
+				Result[BufferType_Vertex] = GetCube(BufferType_Vertex);
+			}
+		}
+		void PrimitiveCache::GetBoxBuffers(Graphics::ElementBuffer** Result)
+		{
+			if (Result != nullptr)
+			{
+				Result[BufferType_Index] = GetBox(BufferType_Index);
+				Result[BufferType_Vertex] = GetBox(BufferType_Vertex);
+			}
+		}
+		void PrimitiveCache::GetSkinBoxBuffers(Graphics::ElementBuffer** Result)
+		{
+			if (Result != nullptr)
+			{
+				Result[BufferType_Index] = GetSkinBox(BufferType_Index);
+				Result[BufferType_Vertex] = GetSkinBox(BufferType_Vertex);
+			}
+		}
+		void PrimitiveCache::ClearCache()
+		{
+			Safe.lock();
+			for (auto It = Cache.begin(); It != Cache.end(); It++)
+			{
+				TH_CLEAR(It->second.Buffers[0]);
+				TH_CLEAR(It->second.Buffers[1]);
+			}
+
+			Cache.clear();
+			TH_CLEAR(Sphere[0]);
+			TH_CLEAR(Sphere[1]);
+			TH_CLEAR(Cube[0]);
+			TH_CLEAR(Cube[1]);
+			TH_CLEAR(Box[0]);
+			TH_CLEAR(Box[1]);
+			TH_CLEAR(SkinBox[0]);
+			TH_CLEAR(SkinBox[1]);
+			TH_CLEAR(Quad);
+			Safe.unlock();
+		}
+
+		RenderSystem::RenderSystem(Graphics::GraphicsDevice* Ref) : Device(Ref), Target(nullptr), Scene(nullptr), FrustumCulling(true), OcclusionCulling(false)
 		{
 			Occlusion.Delay = 5;
 			Sorting.Delay = 5;
@@ -2431,15 +3119,6 @@ namespace Tomahawk
 			}
 
 			TH_RELEASE(Target);
-			TH_RELEASE(QuadVertex);
-			TH_RELEASE(SphereVertex);
-			TH_RELEASE(SphereIndex);
-			TH_RELEASE(CubeVertex);
-			TH_RELEASE(CubeIndex);
-			TH_RELEASE(BoxVertex);
-			TH_RELEASE(BoxIndex);
-			TH_RELEASE(SkinBoxVertex);
-			TH_RELEASE(SkinBoxIndex);
 		}
 		void RenderSystem::SetOcclusionCulling(bool Enabled, bool KeepResults)
 		{
@@ -2463,8 +3142,8 @@ namespace Tomahawk
 			Sampler = Device->GetSamplerState("point");
 			DepthSize = Size;
 
-			Graphics::MultiRenderTarget2D* Surface = Scene->GetSurface();
-			float Aspect = Surface->GetWidth() / Surface->GetHeight();
+			Graphics::MultiRenderTarget2D* MRT = Scene->GetMRT(TargetType_Main);
+			float Aspect = MRT->GetWidth() / MRT->GetHeight();
 
 			Graphics::DepthBuffer::Desc I;
 			I.Width = (size_t)((float)Size * Aspect);
@@ -2587,16 +3266,56 @@ namespace Tomahawk
 				}
 			}
 		}
+		void RenderSystem::RestoreOutput()
+		{
+			if (Scene != nullptr)
+				Scene->SetMRT(TargetType_Main, false);
+		}
 		void RenderSystem::FreeShader(const std::string& Name, Graphics::Shader* Shader)
 		{
-			ShaderCache* Cache = (Scene ? Scene->GetCache() : nullptr);
+			ShaderCache* Cache = (Scene ? Scene->GetShaders() : nullptr);
 			if (Cache != nullptr)
 			{
-				if (Cache->Get(Name) == Shader)
+				if (Cache->Has(Name))
 					return;
 			}
 
 			TH_RELEASE(Shader);
+		}
+		void RenderSystem::FreeShader(Graphics::Shader* Shader)
+		{
+			ShaderCache* Cache = (Scene ? Scene->GetShaders() : nullptr);
+			if (Cache != nullptr)
+				return FreeShader(Cache->Find(Shader), Shader);
+
+			TH_RELEASE(Shader);
+		}
+		void RenderSystem::FreeBuffers(const std::string& Name, Graphics::ElementBuffer** Buffers)
+		{
+			if (!Buffers)
+				return;
+
+			PrimitiveCache* Cache = (Scene ? Scene->GetPrimitives() : nullptr);
+			if (Cache != nullptr)
+			{
+				if (Cache->Has(Name))
+					return;
+			}
+
+			TH_RELEASE(Buffers[0]);
+			TH_RELEASE(Buffers[1]);
+		}
+		void RenderSystem::FreeBuffers(Graphics::ElementBuffer** Buffers)
+		{
+			if (!Buffers)
+				return;
+
+			PrimitiveCache* Cache = (Scene ? Scene->GetPrimitives() : nullptr);
+			if (Cache != nullptr)
+				return FreeBuffers(Cache->Find(Buffers), Buffers);
+
+			TH_RELEASE(Buffers[0]);
+			TH_RELEASE(Buffers[1]);
 		}
 		bool RenderSystem::PassCullable(Cullable* Base, CullResult Mode, float* Result)
 		{
@@ -2647,6 +3366,75 @@ namespace Tomahawk
 
 			return -1;
 		}
+		Graphics::Shader* RenderSystem::CompileShader(const std::string& Name, Graphics::Shader::Desc& Desc, size_t BufferSize)
+		{
+			if (Name.empty() && Desc.Filename.empty())
+			{
+				TH_ERROR("shader must have name or filename");
+				return nullptr;
+			}
+
+			Desc.Filename = Name;
+			ShaderCache* Cache = (Scene ? Scene->GetShaders() : nullptr);
+			if (Cache != nullptr)
+				return Cache->Compile(Name.empty() ? Desc.Filename : Name, Desc, BufferSize);
+
+			Graphics::Shader* Shader = Device->CreateShader(Desc);
+			if (BufferSize > 0)
+				Device->UpdateBufferSize(Shader, BufferSize);
+
+			return Shader;
+		}
+		Graphics::Shader* RenderSystem::CompileShader(const std::string& SectionName, size_t BufferSize)
+		{
+			Graphics::Shader::Desc I = Graphics::Shader::Desc();
+			if (!Device->GetSection(SectionName, &I.Data))
+				return nullptr;
+
+			return CompileShader(SectionName, I, BufferSize);
+		}
+		bool RenderSystem::CompileBuffers(Graphics::ElementBuffer** Result, const std::string& Name, size_t ElementSize, size_t ElementsCount)
+		{
+			if (Name.empty() || !Result)
+			{
+				TH_ERROR("buffers must have a name");
+				return false;
+			}
+
+			PrimitiveCache* Cache = (Scene ? Scene->GetPrimitives() : nullptr);
+			if (Cache != nullptr)
+				return Cache->Compile(Result, Name, ElementSize, ElementsCount);
+
+			Graphics::ElementBuffer::Desc F = Graphics::ElementBuffer::Desc();
+			F.AccessFlags = Graphics::CPUAccess_Write;
+			F.Usage = Graphics::ResourceUsage_Dynamic;
+			F.BindFlags = Graphics::ResourceBind_Vertex_Buffer;
+			F.ElementWidth = ElementSize;
+			F.ElementCount = ElementsCount;
+
+			Graphics::ElementBuffer* VertexBuffer = Device->CreateElementBuffer(F);
+			if (!VertexBuffer)
+				return false;
+
+			F = Graphics::ElementBuffer::Desc();
+			F.AccessFlags = Graphics::CPUAccess_Write;
+			F.Usage = Graphics::ResourceUsage_Dynamic;
+			F.BindFlags = Graphics::ResourceBind_Index_Buffer;
+			F.ElementWidth = sizeof(int);
+			F.ElementCount = ElementsCount * 3;
+
+			Graphics::ElementBuffer* IndexBuffer = Device->CreateElementBuffer(F);
+			if (!IndexBuffer)
+			{
+				TH_RELEASE(VertexBuffer);
+				return false;
+			}
+
+			Result[BufferType_Index] = IndexBuffer;
+			Result[BufferType_Vertex] = VertexBuffer;
+
+			return true;
+		}
 		Renderer* RenderSystem::AddRenderer(Renderer* In)
 		{
 			if (!In)
@@ -2691,458 +3479,41 @@ namespace Tomahawk
 		{
 			return DepthSize;
 		}
-		Graphics::ElementBuffer* RenderSystem::GetQuadVBuffer()
-		{
-			if (QuadVertex != nullptr)
-				return QuadVertex;
-
-			std::vector<Compute::ShapeVertex> Elements;
-			Elements.push_back({ -1.0f, -1.0f, 0, -1, 0 });
-			Elements.push_back({ -1.0f, 1.0f, 0, -1, -1 });
-			Elements.push_back({ 1.0f, 1.0f, 0, 0, -1 });
-			Elements.push_back({ -1.0f, -1.0f, 0, -1, 0 });
-			Elements.push_back({ 1.0f, 1.0f, 0, 0, -1 });
-			Elements.push_back({ 1.0f, -1.0f, 0, 0, 0 });
-
-			Graphics::ElementBuffer::Desc F = Graphics::ElementBuffer::Desc();
-			F.AccessFlags = Graphics::CPUAccess_Invalid;
-			F.Usage = Graphics::ResourceUsage_Default;
-			F.BindFlags = Graphics::ResourceBind_Vertex_Buffer;
-			F.ElementCount = 6;
-			F.ElementWidth = sizeof(Compute::ShapeVertex);
-			F.Elements = &Elements[0];
-
-			QuadVertex = Device->CreateElementBuffer(F);
-			return QuadVertex;
-		}
-		Graphics::ElementBuffer* RenderSystem::GetSphereVBuffer()
-		{
-			if (SphereVertex != nullptr)
-				return SphereVertex;
-
-			const float X = 0.525731112119133606;
-			const float Z = 0.850650808352039932;
-			const float N = 0.0f;
-
-			std::vector<Compute::ShapeVertex> Elements;
-			Elements.push_back({ -X, N, Z });
-			Elements.push_back({ X, N, Z });
-			Elements.push_back({ -X, N, -Z });
-			Elements.push_back({ X, N, -Z });
-			Elements.push_back({ N, Z, X });
-			Elements.push_back({ N, Z, -X });
-			Elements.push_back({ N, -Z, X });
-			Elements.push_back({ N, -Z, -X });
-			Elements.push_back({ Z, X, N });
-			Elements.push_back({ -Z, X, N });
-			Elements.push_back({ Z, -X, N });
-			Elements.push_back({ -Z, -X, N });
-
-			Graphics::ElementBuffer::Desc F = Graphics::ElementBuffer::Desc();
-			F.AccessFlags = Graphics::CPUAccess_Invalid;
-			F.Usage = Graphics::ResourceUsage_Default;
-			F.BindFlags = Graphics::ResourceBind_Vertex_Buffer;
-			F.ElementCount = (unsigned int)Elements.size();
-			F.ElementWidth = sizeof(Compute::ShapeVertex);
-			F.Elements = &Elements[0];
-
-			SphereVertex = Device->CreateElementBuffer(F);
-			return SphereVertex;
-		}
-		Graphics::ElementBuffer* RenderSystem::GetSphereIBuffer()
-		{
-			if (SphereIndex != nullptr)
-				return SphereIndex;
-
-			std::vector<int> Indices;
-			Indices.push_back(0);
-			Indices.push_back(4);
-			Indices.push_back(1);
-			Indices.push_back(0);
-			Indices.push_back(9);
-			Indices.push_back(4);
-			Indices.push_back(9);
-			Indices.push_back(5);
-			Indices.push_back(4);
-			Indices.push_back(4);
-			Indices.push_back(5);
-			Indices.push_back(8);
-			Indices.push_back(4);
-			Indices.push_back(8);
-			Indices.push_back(1);
-			Indices.push_back(8);
-			Indices.push_back(10);
-			Indices.push_back(1);
-			Indices.push_back(8);
-			Indices.push_back(3);
-			Indices.push_back(10);
-			Indices.push_back(5);
-			Indices.push_back(3);
-			Indices.push_back(8);
-			Indices.push_back(5);
-			Indices.push_back(2);
-			Indices.push_back(3);
-			Indices.push_back(2);
-			Indices.push_back(7);
-			Indices.push_back(3);
-			Indices.push_back(7);
-			Indices.push_back(10);
-			Indices.push_back(3);
-			Indices.push_back(7);
-			Indices.push_back(6);
-			Indices.push_back(10);
-			Indices.push_back(7);
-			Indices.push_back(11);
-			Indices.push_back(6);
-			Indices.push_back(11);
-			Indices.push_back(0);
-			Indices.push_back(6);
-			Indices.push_back(0);
-			Indices.push_back(1);
-			Indices.push_back(6);
-			Indices.push_back(6);
-			Indices.push_back(1);
-			Indices.push_back(10);
-			Indices.push_back(9);
-			Indices.push_back(0);
-			Indices.push_back(11);
-			Indices.push_back(9);
-			Indices.push_back(11);
-			Indices.push_back(2);
-			Indices.push_back(9);
-			Indices.push_back(2);
-			Indices.push_back(5);
-			Indices.push_back(7);
-			Indices.push_back(2);
-			Indices.push_back(11);
-
-			Graphics::ElementBuffer::Desc F = Graphics::ElementBuffer::Desc();
-			F.AccessFlags = Graphics::CPUAccess_Invalid;
-			F.Usage = Graphics::ResourceUsage_Default;
-			F.BindFlags = Graphics::ResourceBind_Index_Buffer;
-			F.ElementCount = (unsigned int)Indices.size();
-			F.ElementWidth = sizeof(int);
-			F.Elements = &Indices[0];
-
-			SphereIndex = Device->CreateElementBuffer(F);
-			return SphereIndex;
-		}
-		Graphics::ElementBuffer* RenderSystem::GetCubeVBuffer()
-		{
-			if (CubeVertex != nullptr)
-				return CubeVertex;
-
-			std::vector<Compute::ShapeVertex> Elements;
-			Elements.push_back({ -1, 1, 1, 0.875, -0.5 });
-			Elements.push_back({ 1, -1, 1, 0.625, -0.75 });
-			Elements.push_back({ 1, 1, 1, 0.625, -0.5 });
-			Elements.push_back({ 1, -1, 1, 0.625, -0.75 });
-			Elements.push_back({ -1, -1, -1, 0.375, -1 });
-			Elements.push_back({ 1, -1, -1, 0.375, -0.75 });
-			Elements.push_back({ -1, -1, 1, 0.625, -0 });
-			Elements.push_back({ -1, 1, -1, 0.375, -0.25 });
-			Elements.push_back({ -1, -1, -1, 0.375, -0 });
-			Elements.push_back({ 1, 1, -1, 0.375, -0.5 });
-			Elements.push_back({ -1, -1, -1, 0.125, -0.75 });
-			Elements.push_back({ -1, 1, -1, 0.125, -0.5 });
-			Elements.push_back({ 1, 1, 1, 0.625, -0.5 });
-			Elements.push_back({ 1, -1, -1, 0.375, -0.75 });
-			Elements.push_back({ 1, 1, -1, 0.375, -0.5 });
-			Elements.push_back({ -1, 1, 1, 0.625, -0.25 });
-			Elements.push_back({ 1, 1, -1, 0.375, -0.5 });
-			Elements.push_back({ -1, 1, -1, 0.375, -0.25 });
-			Elements.push_back({ -1, -1, 1, 0.875, -0.75 });
-			Elements.push_back({ -1, -1, 1, 0.625, -1 });
-			Elements.push_back({ -1, 1, 1, 0.625, -0.25 });
-			Elements.push_back({ 1, -1, -1, 0.375, -0.75 });
-			Elements.push_back({ 1, -1, 1, 0.625, -0.75 });
-			Elements.push_back({ 1, 1, 1, 0.625, -0.5 });
-
-			Graphics::ElementBuffer::Desc F = Graphics::ElementBuffer::Desc();
-			F.AccessFlags = Graphics::CPUAccess_Invalid;
-			F.Usage = Graphics::ResourceUsage_Default;
-			F.BindFlags = Graphics::ResourceBind_Vertex_Buffer;
-			F.ElementCount = (unsigned int)Elements.size();
-			F.ElementWidth = sizeof(Compute::ShapeVertex);
-			F.Elements = &Elements[0];
-
-			CubeVertex = Device->CreateElementBuffer(F);
-			return CubeVertex;
-		}
-		Graphics::ElementBuffer* RenderSystem::GetCubeIBuffer()
-		{
-			if (CubeIndex != nullptr)
-				return CubeIndex;
-
-			std::vector<int> Indices;
-			Indices.push_back(0);
-			Indices.push_back(1);
-			Indices.push_back(2);
-			Indices.push_back(0);
-			Indices.push_back(18);
-			Indices.push_back(1);
-			Indices.push_back(3);
-			Indices.push_back(4);
-			Indices.push_back(5);
-			Indices.push_back(3);
-			Indices.push_back(19);
-			Indices.push_back(4);
-			Indices.push_back(6);
-			Indices.push_back(7);
-			Indices.push_back(8);
-			Indices.push_back(6);
-			Indices.push_back(20);
-			Indices.push_back(7);
-			Indices.push_back(9);
-			Indices.push_back(10);
-			Indices.push_back(11);
-			Indices.push_back(9);
-			Indices.push_back(21);
-			Indices.push_back(10);
-			Indices.push_back(12);
-			Indices.push_back(13);
-			Indices.push_back(14);
-			Indices.push_back(12);
-			Indices.push_back(22);
-			Indices.push_back(13);
-			Indices.push_back(15);
-			Indices.push_back(16);
-			Indices.push_back(17);
-			Indices.push_back(15);
-			Indices.push_back(23);
-			Indices.push_back(16);
-
-			Graphics::ElementBuffer::Desc F = Graphics::ElementBuffer::Desc();
-			F.AccessFlags = Graphics::CPUAccess_Invalid;
-			F.Usage = Graphics::ResourceUsage_Default;
-			F.BindFlags = Graphics::ResourceBind_Index_Buffer;
-			F.ElementCount = (unsigned int)Indices.size();
-			F.ElementWidth = sizeof(int);
-			F.Elements = &Indices[0];
-
-			CubeIndex = Device->CreateElementBuffer(F);
-			return CubeIndex;
-		}
-		Graphics::ElementBuffer* RenderSystem::GetBoxVBuffer()
-		{
-			if (BoxVertex != nullptr)
-				return BoxVertex;
-
-			std::vector<Compute::Vertex> Elements;
-			Elements.push_back({ -1, 1, 1, 0.875, -0.5, 0, 0, 1, -1, 0, 0, 0, 1, 0 });
-			Elements.push_back({ 1, -1, 1, 0.625, -0.75, 0, 0, 1, -1, 0, 0, 0, 1, 0 });
-			Elements.push_back({ 1, 1, 1, 0.625, -0.5, 0, 0, 1, -1, 0, 0, 0, 1, 0 });
-			Elements.push_back({ 1, -1, 1, 0.625, -0.75, 0, -1, 0, 0, 0, 1, 1, 0, 0 });
-			Elements.push_back({ -1, -1, -1, 0.375, -1, 0, -1, 0, 0, 0, 1, 1, 0, 0 });
-			Elements.push_back({ 1, -1, -1, 0.375, -0.75, 0, -1, 0, 0, 0, 1, 1, 0, 0 });
-			Elements.push_back({ -1, -1, 1, 0.625, -0, -1, 0, 0, 0, 0, 1, 0, -1, 0 });
-			Elements.push_back({ -1, 1, -1, 0.375, -0.25, -1, 0, 0, 0, 0, 1, 0, -1, 0 });
-			Elements.push_back({ -1, -1, -1, 0.375, -0, -1, 0, 0, 0, 0, 1, 0, -1, 0 });
-			Elements.push_back({ 1, 1, -1, 0.375, -0.5, 0, 0, -1, 1, 0, 0, 0, 1, 0 });
-			Elements.push_back({ -1, -1, -1, 0.125, -0.75, 0, 0, -1, 1, 0, 0, 0, 1, 0 });
-			Elements.push_back({ -1, 1, -1, 0.125, -0.5, 0, 0, -1, 1, 0, 0, 0, 1, 0 });
-			Elements.push_back({ 1, 1, 1, 0.625, -0.5, 1, 0, 0, 0, 0, 1, 0, 1, 0 });
-			Elements.push_back({ 1, -1, -1, 0.375, -0.75, 1, 0, 0, 0, 0, 1, 0, 1, 0 });
-			Elements.push_back({ 1, 1, -1, 0.375, -0.5, 1, 0, 0, 0, 0, 1, 0, 1, 0 });
-			Elements.push_back({ -1, 1, 1, 0.625, -0.25, 0, 1, 0, 0, 0, 1, -1, 0, 0 });
-			Elements.push_back({ 1, 1, -1, 0.375, -0.5, 0, 1, 0, 0, 0, 1, -1, 0, 0 });
-			Elements.push_back({ -1, 1, -1, 0.375, -0.25, 0, 1, 0, 0, 0, 1, -1, 0, 0 });
-			Elements.push_back({ -1, -1, 1, 0.875, -0.75, 0, 0, 1, -1, 0, 0, 0, 1, 0 });
-			Elements.push_back({ -1, -1, 1, 0.625, -1, 0, -1, 0, 0, 0, 1, 1, 0, 0 });
-			Elements.push_back({ -1, 1, 1, 0.625, -0.25, -1, 0, 0, 0, 0, 1, 0, -1, 0 });
-			Elements.push_back({ 1, -1, -1, 0.375, -0.75, 0, 0, -1, 1, 0, 0, 0, 1, 0 });
-			Elements.push_back({ 1, -1, 1, 0.625, -0.75, 1, 0, 0, 0, 0, 1, 0, 1, 0 });
-			Elements.push_back({ 1, 1, 1, 0.625, -0.5, 0, 1, 0, 0, 0, 1, -1, 0, 0 });
-
-			Graphics::ElementBuffer::Desc F = Graphics::ElementBuffer::Desc();
-			F.AccessFlags = Graphics::CPUAccess_Invalid;
-			F.Usage = Graphics::ResourceUsage_Default;
-			F.BindFlags = Graphics::ResourceBind_Vertex_Buffer;
-			F.ElementCount = (unsigned int)Elements.size();
-			F.ElementWidth = sizeof(Compute::Vertex);
-			F.Elements = &Elements[0];
-
-			BoxVertex = Device->CreateElementBuffer(F);
-			return BoxVertex;
-		}
-		Graphics::ElementBuffer* RenderSystem::GetBoxIBuffer()
-		{
-			if (BoxIndex != nullptr)
-				return BoxIndex;
-
-			std::vector<int> Indices;
-			Indices.push_back(0);
-			Indices.push_back(1);
-			Indices.push_back(2);
-			Indices.push_back(0);
-			Indices.push_back(18);
-			Indices.push_back(1);
-			Indices.push_back(3);
-			Indices.push_back(4);
-			Indices.push_back(5);
-			Indices.push_back(3);
-			Indices.push_back(19);
-			Indices.push_back(4);
-			Indices.push_back(6);
-			Indices.push_back(7);
-			Indices.push_back(8);
-			Indices.push_back(6);
-			Indices.push_back(20);
-			Indices.push_back(7);
-			Indices.push_back(9);
-			Indices.push_back(10);
-			Indices.push_back(11);
-			Indices.push_back(9);
-			Indices.push_back(21);
-			Indices.push_back(10);
-			Indices.push_back(12);
-			Indices.push_back(13);
-			Indices.push_back(14);
-			Indices.push_back(12);
-			Indices.push_back(22);
-			Indices.push_back(13);
-			Indices.push_back(15);
-			Indices.push_back(16);
-			Indices.push_back(17);
-			Indices.push_back(15);
-			Indices.push_back(23);
-			Indices.push_back(16);
-			Compute::Common::ComputeIndexWindingOrderFlip(Indices);
-
-			Graphics::ElementBuffer::Desc F = Graphics::ElementBuffer::Desc();
-			F.AccessFlags = Graphics::CPUAccess_Invalid;
-			F.Usage = Graphics::ResourceUsage_Default;
-			F.BindFlags = Graphics::ResourceBind_Index_Buffer;
-			F.ElementCount = (unsigned int)Indices.size();
-			F.ElementWidth = sizeof(int);
-			F.Elements = &Indices[0];
-
-			BoxIndex = Device->CreateElementBuffer(F);
-			return BoxIndex;
-		}
-		Graphics::ElementBuffer* RenderSystem::GetSkinBoxVBuffer()
-		{
-			if (SkinBoxVertex != nullptr)
-				return SkinBoxVertex;
-
-			std::vector<Compute::SkinVertex> Elements;
-			Elements.push_back({ -1, 1, 1, 0.875, -0.5, 0, 0, 1, -1, 0, 0, 0, 1, 0, -1, -1, -1, -1, 0, 0, 0, 0 });
-			Elements.push_back({ 1, -1, 1, 0.625, -0.75, 0, 0, 1, -1, 0, 0, 0, 1, 0, -1, -1, -1, -1, 0, 0, 0, 0 });
-			Elements.push_back({ 1, 1, 1, 0.625, -0.5, 0, 0, 1, -1, 0, 0, 0, 1, 0, -1, -1, -1, -1, 0, 0, 0, 0 });
-			Elements.push_back({ 1, -1, 1, 0.625, -0.75, 0, -1, 0, 0, 0, 1, 1, 0, 0, -1, -1, -1, -1, 0, 0, 0, 0 });
-			Elements.push_back({ -1, -1, -1, 0.375, -1, 0, -1, 0, 0, 0, 1, 1, 0, 0, -1, -1, -1, -1, 0, 0, 0, 0 });
-			Elements.push_back({ 1, -1, -1, 0.375, -0.75, 0, -1, 0, 0, 0, 1, 1, 0, 0, -1, -1, -1, -1, 0, 0, 0, 0 });
-			Elements.push_back({ -1, -1, 1, 0.625, -0, -1, 0, 0, 0, 0, 1, 0, -1, 0, -1, -1, -1, -1, 0, 0, 0, 0 });
-			Elements.push_back({ -1, 1, -1, 0.375, -0.25, -1, 0, 0, 0, 0, 1, 0, -1, 0, -1, -1, -1, -1, 0, 0, 0, 0 });
-			Elements.push_back({ -1, -1, -1, 0.375, -0, -1, 0, 0, 0, 0, 1, 0, -1, 0, -1, -1, -1, -1, 0, 0, 0, 0 });
-			Elements.push_back({ 1, 1, -1, 0.375, -0.5, 0, 0, -1, 1, 0, 0, 0, 1, 0, -1, -1, -1, -1, 0, 0, 0, 0 });
-			Elements.push_back({ -1, -1, -1, 0.125, -0.75, 0, 0, -1, 1, 0, 0, 0, 1, 0, -1, -1, -1, -1, 0, 0, 0, 0 });
-			Elements.push_back({ -1, 1, -1, 0.125, -0.5, 0, 0, -1, 1, 0, 0, 0, 1, 0, -1, -1, -1, -1, 0, 0, 0, 0 });
-			Elements.push_back({ 1, 1, 1, 0.625, -0.5, 1, 0, 0, 0, 0, 1, 0, 1, 0, -1, -1, -1, -1, 0, 0, 0, 0 });
-			Elements.push_back({ 1, -1, -1, 0.375, -0.75, 1, 0, 0, 0, 0, 1, 0, 1, 0, -1, -1, -1, -1, 0, 0, 0, 0 });
-			Elements.push_back({ 1, 1, -1, 0.375, -0.5, 1, 0, 0, 0, 0, 1, 0, 1, 0, -1, -1, -1, -1, 0, 0, 0, 0 });
-			Elements.push_back({ -1, 1, 1, 0.625, -0.25, 0, 1, 0, 0, 0, 1, -1, 0, 0, -1, -1, -1, -1, 0, 0, 0, 0 });
-			Elements.push_back({ 1, 1, -1, 0.375, -0.5, 0, 1, 0, 0, 0, 1, -1, 0, 0, -1, -1, -1, -1, 0, 0, 0, 0 });
-			Elements.push_back({ -1, 1, -1, 0.375, -0.25, 0, 1, 0, 0, 0, 1, -1, 0, 0, -1, -1, -1, -1, 0, 0, 0, 0 });
-			Elements.push_back({ -1, -1, 1, 0.875, -0.75, 0, 0, 1, -1, 0, 0, 0, 1, 0, -1, -1, -1, -1, 0, 0, 0, 0 });
-			Elements.push_back({ -1, -1, 1, 0.625, -1, 0, -1, 0, 0, 0, 1, 1, 0, 0, -1, -1, -1, -1, 0, 0, 0, 0 });
-			Elements.push_back({ -1, 1, 1, 0.625, -0.25, -1, 0, 0, 0, 0, 1, 0, -1, 0, -1, -1, -1, -1, 0, 0, 0, 0 });
-			Elements.push_back({ 1, -1, -1, 0.375, -0.75, 0, 0, -1, 1, 0, 0, 0, 1, 0, -1, -1, -1, -1, 0, 0, 0, 0 });
-			Elements.push_back({ 1, -1, 1, 0.625, -0.75, 1, 0, 0, 0, 0, 1, 0, 1, 0, -1, -1, -1, -1, 0, 0, 0, 0 });
-			Elements.push_back({ 1, 1, 1, 0.625, -0.5, 0, 1, 0, 0, 0, 1, -1, 0, 0, -1, -1, -1, -1, 0, 0, 0, 0 });
-
-			Graphics::ElementBuffer::Desc F = Graphics::ElementBuffer::Desc();
-			F.AccessFlags = Graphics::CPUAccess_Invalid;
-			F.Usage = Graphics::ResourceUsage_Default;
-			F.BindFlags = Graphics::ResourceBind_Vertex_Buffer;
-			F.ElementCount = (unsigned int)Elements.size();
-			F.ElementWidth = sizeof(Compute::SkinVertex);
-			F.Elements = &Elements[0];
-
-			SkinBoxVertex = Device->CreateElementBuffer(F);
-			return SkinBoxVertex;
-		}
-		Graphics::ElementBuffer* RenderSystem::GetSkinBoxIBuffer()
-		{
-			if (SkinBoxIndex != nullptr)
-				return SkinBoxIndex;
-
-			std::vector<int> Indices;
-			Indices.push_back(0);
-			Indices.push_back(1);
-			Indices.push_back(2);
-			Indices.push_back(0);
-			Indices.push_back(18);
-			Indices.push_back(1);
-			Indices.push_back(3);
-			Indices.push_back(4);
-			Indices.push_back(5);
-			Indices.push_back(3);
-			Indices.push_back(19);
-			Indices.push_back(4);
-			Indices.push_back(6);
-			Indices.push_back(7);
-			Indices.push_back(8);
-			Indices.push_back(6);
-			Indices.push_back(20);
-			Indices.push_back(7);
-			Indices.push_back(9);
-			Indices.push_back(10);
-			Indices.push_back(11);
-			Indices.push_back(9);
-			Indices.push_back(21);
-			Indices.push_back(10);
-			Indices.push_back(12);
-			Indices.push_back(13);
-			Indices.push_back(14);
-			Indices.push_back(12);
-			Indices.push_back(22);
-			Indices.push_back(13);
-			Indices.push_back(15);
-			Indices.push_back(16);
-			Indices.push_back(17);
-			Indices.push_back(15);
-			Indices.push_back(23);
-			Indices.push_back(16);
-			Compute::Common::ComputeIndexWindingOrderFlip(Indices);
-
-			Graphics::ElementBuffer::Desc F = Graphics::ElementBuffer::Desc();
-			F.AccessFlags = Graphics::CPUAccess_Invalid;
-			F.Usage = Graphics::ResourceUsage_Default;
-			F.BindFlags = Graphics::ResourceBind_Index_Buffer;
-			F.ElementCount = (unsigned int)Indices.size();
-			F.ElementWidth = sizeof(int);
-			F.Elements = &Indices[0];
-
-			SkinBoxIndex = Device->CreateElementBuffer(F);
-			return SkinBoxIndex;
-		}
 		std::vector<Renderer*>* RenderSystem::GetRenderers()
 		{
 			return &Renderers;
+		}
+		Graphics::MultiRenderTarget2D* RenderSystem::GetMRT(TargetType Type)
+		{
+			if (!Scene)
+				return nullptr;
+
+			return Scene->GetMRT(Type);
+		}
+		Graphics::RenderTarget2D* RenderSystem::GetRT(TargetType Type)
+		{
+			if (!Scene)
+				return nullptr;
+
+			return Scene->GetRT(Type);
 		}
 		Graphics::GraphicsDevice* RenderSystem::GetDevice()
 		{
 			return Device;
 		}
-		Graphics::Shader* RenderSystem::CompileShader(const std::string& Name, Graphics::Shader::Desc& Desc, size_t BufferSize)
+		Graphics::Texture2D** RenderSystem::GetMerger()
 		{
-			if (Name.empty() && Desc.Filename.empty())
-			{
-				TH_ERROR("shader must have name or filename");
+			if (!Scene)
 				return nullptr;
-			}
 
-			Desc.Filename = Name;
-			ShaderCache* Cache = (Scene ? Scene->GetCache() : nullptr);
-			if (Cache != nullptr)
-				return Cache->Compile(Name.empty() ? Desc.Filename : Name, Desc, BufferSize);
+			return Scene->GetMerger();
+		}
+		PrimitiveCache* RenderSystem::GetPrimitives()
+		{
+			if (!Scene)
+				return nullptr;
 
-			Graphics::Shader* Shader = Device->CreateShader(Desc);
-			if (BufferSize > 0)
-				Device->UpdateBufferSize(Shader, BufferSize);
-
-			return Shader;
+			return Scene->GetPrimitives();
 		}
 		SceneGraph* RenderSystem::GetScene()
 		{
@@ -3229,7 +3600,7 @@ namespace Tomahawk
 			return System->GetScene()->GetTransparent(Source);
 		}
 
-		EffectDraw::EffectDraw(RenderSystem* Lab) : Renderer(Lab), Output(nullptr), Pass(nullptr)
+		EffectDraw::EffectDraw(RenderSystem* Lab) : Renderer(Lab)
 		{
 			DepthStencil = Lab->GetDevice()->GetDepthStencilState("none");
 			Rasterizer = Lab->GetDevice()->GetRasterizerState("cull-back");
@@ -3241,17 +3612,16 @@ namespace Tomahawk
 		{
 			for (auto It = Shaders.begin(); It != Shaders.end(); It++)
 				System->FreeShader(It->first, It->second);
-
-			TH_RELEASE(Pass);
-			TH_RELEASE(Output);
 		}
 		void EffectDraw::RenderMerge(Graphics::Shader* Effect, void* Buffer)
 		{
 			if (!Effect)
 				Effect = Shaders.begin()->second;
 
+			Graphics::RenderTarget2D* Output = System->GetRT(TargetType_Main);
 			Graphics::GraphicsDevice* Device = System->GetDevice();
-			Device->SetTexture2D(Pass, 5);
+			Graphics::Texture2D** Merger = System->GetMerger();
+			Device->SetTexture2D(*Merger, 5);
 			Device->SetShader(Effect, Graphics::ShaderType_Vertex | Graphics::ShaderType_Pixel);
 
 			if (Buffer != nullptr)
@@ -3261,8 +3631,7 @@ namespace Tomahawk
 			}
 
 			Device->Draw(6, 0);
-			Device->CopyTexture2D(Output, 0, &Pass);
-			Device->GenerateTexture(Pass);
+			Device->CopyTexture2D(Output, 0, Merger);
 		}
 		void EffectDraw::RenderResult(Graphics::Shader* Effect, void* Buffer)
 		{
@@ -3270,7 +3639,7 @@ namespace Tomahawk
 				Effect = Shaders.begin()->second;
 
 			Graphics::GraphicsDevice* Device = System->GetDevice();
-			Device->SetTexture2D(Pass, 5);
+			Device->SetTexture2D(*System->GetMerger(), 5);
 			Device->SetShader(Effect, Graphics::ShaderType_Vertex | Graphics::ShaderType_Pixel);
 
 			if (Buffer != nullptr)
@@ -3289,10 +3658,11 @@ namespace Tomahawk
 			if (State != RenderState_Geometry_Result || Options & RenderOpt_Inner)
 				return;
 
-			Graphics::MultiRenderTarget2D* Surface = System->GetScene()->GetSurface();
-			if (!Surface || Shaders.empty())
+			if (Shaders.empty())
 				return;
 
+			Graphics::MultiRenderTarget2D* Input = System->GetMRT(TargetType_Main);
+			Graphics::RenderTarget2D* Output = System->GetRT(TargetType_Main);
 			Graphics::GraphicsDevice* Device = System->GetDevice();
 			Device->SetSamplerState(Sampler, 0);
 			Device->SetDepthStencilState(DepthStencil);
@@ -3300,29 +3670,16 @@ namespace Tomahawk
 			Device->SetRasterizerState(Rasterizer);
 			Device->SetInputLayout(Layout);
 			Device->SetTarget(Output, 0, 0, 0, 0);
-			Device->SetTexture2D(Surface->GetTarget(0), 1);
-			Device->SetTexture2D(Surface->GetTarget(1), 2);
-			Device->SetTexture2D(Surface->GetTarget(2), 3);
-			Device->SetTexture2D(Surface->GetTarget(3), 4);
-			Device->SetVertexBuffer(System->GetQuadVBuffer(), 0);
+			Device->SetTexture2D(Input->GetTarget(0), 1);
+			Device->SetTexture2D(Input->GetTarget(1), 2);
+			Device->SetTexture2D(Input->GetTarget(2), 3);
+			Device->SetTexture2D(Input->GetTarget(3), 4);
+			Device->SetVertexBuffer(System->GetPrimitives()->GetQuad(), 0);
 
 			RenderEffect(Time);
 
 			Device->FlushTexture2D(1, 4);
-			Device->CopyTarget(Output, 0, Surface, 0);
-		}
-		void EffectDraw::ResizeBuffers()
-		{
-			Graphics::RenderTarget2D::Desc I = Graphics::RenderTarget2D::Desc();
-			I.MiscFlags = Graphics::ResourceMisc_Generate_Mips;
-			I.Width = (unsigned int)System->GetScene()->GetSurface()->GetWidth();
-			I.Height = (unsigned int)System->GetScene()->GetSurface()->GetHeight();
-			I.MipLevels = System->GetDevice()->GetMipLevel(I.Width, I.Height);
-			System->GetScene()->GetTargetFormat(&I.FormatMode, 1);
-
-			TH_RELEASE(Output);
-			Output = System->GetDevice()->CreateRenderTarget2D(I);
-			TH_CLEAR(Pass);
+			Device->CopyTarget(Output, 0, Input, 0);
 		}
 		Graphics::Shader* EffectDraw::GetEffect(const std::string& Name)
 		{
@@ -3358,18 +3715,46 @@ namespace Tomahawk
 
 			return Shader;
 		}
-
-		SceneGraph::SceneGraph(const Desc& I) : Conf(I), Active(true), Invoked(false)
+		Graphics::Shader* EffectDraw::CompileEffect(const std::string& SectionName, size_t BufferSize)
 		{
-			Image.DepthStencil = nullptr;
-			Image.Rasterizer = nullptr;
-			Image.Blend = nullptr;
-			Image.Sampler = nullptr;
+			std::string Data;
+			if (!System->GetDevice()->GetSection(SectionName, &Data))
+				return nullptr;
 
-			Sync.Count = 0;
-			Sync.Locked = false;
-			for (int i = 0; i < ThreadId_Count; i++)
+			return CompileEffect(SectionName, Data, BufferSize);
+		}
+		unsigned int EffectDraw::GetMipLevels()
+		{
+			Graphics::RenderTarget2D* RT = System->GetRT(TargetType_Main);
+			return System->GetDevice()->GetMipLevel(RT->GetWidth(), RT->GetHeight());
+		}
+		unsigned int EffectDraw::GetWidth()
+		{
+			return System->GetRT(TargetType_Main)->GetWidth();
+		}
+		unsigned int EffectDraw::GetHeight()
+		{
+			return System->GetRT(TargetType_Main)->GetHeight();
+		}
+
+		SceneGraph::SceneGraph(const Desc& I) : Conf(I), Active(true), Invoked(false), Structure(nullptr), Simulator(nullptr), Camera(nullptr), Primitives(nullptr), Shaders(nullptr)
+		{
+			Sync.Count = 0; Sync.Locked = false;
+			for (unsigned int i = 0; i < ThreadId_Count; i++)
 				Sync.Threads[i].State = 0;
+
+			for (unsigned int i = 0; i < TargetType_Count * 2; i++)
+			{
+				Display.MRT[i] = nullptr;
+				Display.RT[i] = nullptr;
+			}
+
+			Display.Merger = nullptr;
+			Display.DepthStencil = nullptr;
+			Display.Rasterizer = nullptr;
+			Display.Blend = nullptr;
+			Display.Sampler = nullptr;
+			Display.Layout = nullptr;
 
 			Materials.reserve(16);
 			Configure(I);
@@ -3385,9 +3770,17 @@ namespace Tomahawk
 			for (auto It = Entities.Begin(); It != Entities.End(); It++)
 				TH_RELEASE(*It);
 
+			TH_RELEASE(Display.Merger);
+			for (unsigned int i = 0; i < TargetType_Count; i++)
+			{
+				TH_RELEASE(Display.MRT[i]);
+				TH_RELEASE(Display.RT[i]);
+			}
+
 			TH_RELEASE(Structure);
-			TH_RELEASE(Surface);
 			TH_RELEASE(Simulator);
+			TH_RELEASE(Shaders);
+			TH_RELEASE(Primitives);
 
 			Unlock();
 		}
@@ -3396,16 +3789,22 @@ namespace Tomahawk
 			if (!Conf.Queue || !Conf.Device)
 				return;
 
-			Image.DepthStencil = Conf.Device->GetDepthStencilState("none");
-			Image.Rasterizer = Conf.Device->GetRasterizerState("cull-back");
-			Image.Blend = Conf.Device->GetBlendState("overwrite");
-			Image.Sampler = Conf.Device->GetSamplerState("trilinear-x16");
-			Image.Layout = Conf.Device->GetInputLayout("shape-vertex");
+			Display.DepthStencil = Conf.Device->GetDepthStencilState("none");
+			Display.Rasterizer = Conf.Device->GetRasterizerState("cull-back");
+			Display.Blend = Conf.Device->GetBlendState("overwrite");
+			Display.Sampler = Conf.Device->GetSamplerState("trilinear-x16");
+			Display.Layout = Conf.Device->GetInputLayout("shape-vertex");
 
 			Lock();
 			Conf = NewConf;
 			Entities.Reserve(Conf.EntityCount);
 			Pending.Reserve(Conf.ComponentCount);
+
+			TH_RELEASE(Shaders);
+			Shaders = new ShaderCache(Conf.Device);
+
+			TH_RELEASE(Primitives);
+			Primitives = new PrimitiveCache(Conf.Device);
 
 			for (auto& Array : Components)
 				Array.second.Reserve(Conf.ComponentCount);
@@ -3450,14 +3849,14 @@ namespace Tomahawk
 			Conf.Device->SetTarget();
 			Conf.Device->Render.Diffuse = 1.0f;
 			Conf.Device->Render.WorldViewProjection.Identify();
-			Conf.Device->SetSamplerState(Image.Sampler, 0);
-			Conf.Device->SetDepthStencilState(Image.DepthStencil);
-			Conf.Device->SetBlendState(Image.Blend);
-			Conf.Device->SetRasterizerState(Image.Rasterizer);
-			Conf.Device->SetInputLayout(Image.Layout);
+			Conf.Device->SetSamplerState(Display.Sampler, 0);
+			Conf.Device->SetDepthStencilState(Display.DepthStencil);
+			Conf.Device->SetBlendState(Display.Blend);
+			Conf.Device->SetRasterizerState(Display.Rasterizer);
+			Conf.Device->SetInputLayout(Display.Layout);
 			Conf.Device->SetShader(Conf.Device->GetBasicEffect(), Graphics::ShaderType_Vertex | Graphics::ShaderType_Pixel);
-			Conf.Device->SetVertexBuffer(View.Renderer->GetQuadVBuffer(), 0);
-			Conf.Device->SetTexture2D(Surface->GetTarget(0), 1);
+			Conf.Device->SetVertexBuffer(View.Renderer->GetPrimitives()->GetQuad(), 0);
+			Conf.Device->SetTexture2D(Display.MRT[TargetType_Main]->GetTarget(0), 1);
 			Conf.Device->UpdateBuffer(Graphics::RenderBufferType_Render);
 			Conf.Device->Draw(6, 0);
 			Conf.Device->SetTexture2D(nullptr, 1);
@@ -3470,8 +3869,8 @@ namespace Tomahawk
 				RestoreViewBuffer(nullptr);
 				Conf.Device->UpdateBuffer(Structure, Materials.data(), Materials.size() * sizeof(Material));
 				Conf.Device->SetStructureBuffer(Structure, 0);
-				
-				ClearSurface();
+
+				SetMRT(TargetType_Main, true);
 				Render(Time, RenderState_Geometry_Result, RenderOpt_None);
 				View.Renderer->CullGeometry(Time, View);
 			}
@@ -3852,25 +4251,30 @@ namespace Tomahawk
 		}
 		void SceneGraph::ResizeBuffers()
 		{
-			Graphics::MultiRenderTarget2D::Desc F;
-			GetTargetDesc(&F);
+			if (!Camera)
+				return ResizeRenderBuffers();
 
-			if (Camera != nullptr)
+			Lock();
+			ResizeRenderBuffers();
+
+			auto* Array = GetComponents<Components::Camera>();
+			for (auto It = Array->Begin(); It != Array->End(); It++)
+				(*It)->As<Components::Camera>()->ResizeBuffers();
+			Unlock();
+		}
+		void SceneGraph::ResizeRenderBuffers()
+		{
+			Graphics::MultiRenderTarget2D::Desc MRT = GetDescMRT();
+			Graphics::RenderTarget2D::Desc RT = GetDescRT();
+			TH_CLEAR(Display.Merger);
+
+			for (unsigned int i = 0; i < TargetType_Count; i++)
 			{
-				Lock();
-				TH_RELEASE(Surface);
-				Surface = Conf.Device->CreateMultiRenderTarget2D(F);
+				TH_RELEASE(Display.MRT[i]);
+				Display.MRT[i] = Conf.Device->CreateMultiRenderTarget2D(MRT);
 
-				auto* Array = GetComponents<Components::Camera>();
-				for (auto It = Array->Begin(); It != Array->End(); It++)
-					(*It)->As<Components::Camera>()->ResizeBuffers();
-
-				Unlock();
-			}
-			else
-			{
-				TH_RELEASE(Surface);
-				Surface = Conf.Device->CreateMultiRenderTarget2D(F);
+				TH_RELEASE(Display.RT[i]);
+				Display.RT[i] = Conf.Device->CreateRenderTarget2D(RT);
 			}
 		}
 		void SceneGraph::RayTest(uint64_t Section, const Compute::Ray& Origin, float MaxDistance, const RayCallback& Callback)
@@ -3900,10 +4304,6 @@ namespace Tomahawk
 				Base->CallEntry(Name);
 			}
 		}
-		void SceneGraph::SwapSurface(Graphics::MultiRenderTarget2D* NewSurface)
-		{
-			Surface = NewSurface;
-		}
 		void SceneGraph::SetActive(bool Enabled)
 		{
 			Active = Enabled;
@@ -3926,19 +4326,6 @@ namespace Tomahawk
 			if (Upload)
 				RestoreViewBuffer(&View);
 		}
-		void SceneGraph::SetSurface()
-		{
-			Conf.Device->SetTarget(Surface);
-		}
-		void SceneGraph::SetSurfaceCleared()
-		{
-			Conf.Device->SetTarget(Surface);
-			Conf.Device->Clear(Surface, 0, 0, 0, 0);
-			Conf.Device->Clear(Surface, 1, 0, 0, 0);
-			Conf.Device->Clear(Surface, 2, 1, 0, 0);
-			Conf.Device->Clear(Surface, 3, 0, 0, 0);
-			Conf.Device->ClearDepth(Surface);
-		}
 		void SceneGraph::SetMaterialName(uint64_t Material, const std::string& Name)
 		{
 			if (Material >= Names.size())
@@ -3946,67 +4333,90 @@ namespace Tomahawk
 
 			Names[Material] = Name;
 		}
-		void SceneGraph::ClearSurface()
+		void SceneGraph::SetMRT(TargetType Type, bool Clear)
 		{
-			Conf.Device->Clear(Surface, 0, 0, 0, 0);
-			Conf.Device->Clear(Surface, 1, 0, 0, 0);
-			Conf.Device->Clear(Surface, 2, 1, 0, 0);
-			Conf.Device->Clear(Surface, 3, 0, 0, 0);
-			Conf.Device->ClearDepth(Surface);
-		}
-		void SceneGraph::ClearSurfaceColor()
-		{
-			Conf.Device->Clear(Surface, 0, 0, 0, 0);
-			Conf.Device->Clear(Surface, 1, 0, 0, 0);
-			Conf.Device->Clear(Surface, 2, 1, 0, 0);
-			Conf.Device->Clear(Surface, 3, 0, 0, 0);
-		}
-		void SceneGraph::ClearSurfaceDepth()
-		{
-			Conf.Device->ClearDepth(Surface);
-		}
-		void SceneGraph::GetTargetDesc(Graphics::RenderTarget2D::Desc* Result)
-		{
-			if (!Result)
+			Graphics::MultiRenderTarget2D* Target = Display.MRT[Type];
+			Conf.Device->SetTarget(Target);
+
+			if (!Clear)
 				return;
 
-			Result->MiscFlags = Graphics::ResourceMisc_Generate_Mips;
-			Result->Width = (unsigned int)(Conf.Device->GetRenderTarget()->GetWidth() * Conf.RenderQuality);
-			Result->Height = (unsigned int)(Conf.Device->GetRenderTarget()->GetHeight() * Conf.RenderQuality);
-			Result->MipLevels = Conf.Device->GetMipLevel(Result->Width, Result->Height);
-			GetTargetFormat(&Result->FormatMode, 1);
+			Conf.Device->Clear(Target, 0, 0, 0, 0);
+			Conf.Device->Clear(Target, 1, 0, 0, 0);
+			Conf.Device->Clear(Target, 2, 1, 0, 0);
+			Conf.Device->Clear(Target, 3, 0, 0, 0);
+			Conf.Device->ClearDepth(Target);
 		}
-		void SceneGraph::GetTargetDesc(Graphics::MultiRenderTarget2D::Desc* Result)
+		void SceneGraph::SetRT(TargetType Type, bool Clear)
 		{
-			if (!Result)
+			Graphics::RenderTarget2D* Target = Display.RT[Type];
+			Conf.Device->SetTarget(Target);
+
+			if (!Clear)
 				return;
 
-			Result->Target = Graphics::SurfaceTarget3;
-			Result->MiscFlags = Graphics::ResourceMisc_Generate_Mips;
-			Result->Width = (unsigned int)(Conf.Device->GetRenderTarget()->GetWidth() * Conf.RenderQuality);
-			Result->Height = (unsigned int)(Conf.Device->GetRenderTarget()->GetHeight() * Conf.RenderQuality);
-			Result->MipLevels = Conf.Device->GetMipLevel(Result->Width, Result->Height);
-			GetTargetFormat(Result->FormatMode, 8);
+			Conf.Device->Clear(Target, 0, 0, 0, 0);
+			Conf.Device->ClearDepth(Target);
 		}
-		void SceneGraph::GetTargetFormat(Graphics::Format* Result, uint64_t Size)
+		void SceneGraph::SwapMRT(TargetType Type, Graphics::MultiRenderTarget2D* New)
 		{
-			if (!Result || !Size)
+			if (Display.MRT[Type] == New)
 				return;
 
-			if (Size >= 1)
-				Result[0] = Conf.EnableHDR ? Graphics::Format_R16G16B16A16_Unorm : Graphics::Format_R8G8B8A8_Unorm;
+			Graphics::MultiRenderTarget2D* Cache = Display.MRT[Type + TargetType_Count];
+			if (New != nullptr)
+			{
+				Graphics::MultiRenderTarget2D* Base = Display.MRT[Type];
+				Display.MRT[Type] = New;
 
-			if (Size >= 2)
-				Result[1] = Graphics::Format_R16G16B16A16_Float;
+				if (!Cache)
+					Display.MRT[Type + TargetType_Count] = Base;
+			}
+			else if (Cache != nullptr)
+			{
+				Display.MRT[Type] = Cache;
+				Display.MRT[Type + TargetType_Count] = nullptr;
+			}
+		}
+		void SceneGraph::SwapRT(TargetType Type, Graphics::RenderTarget2D* New)
+		{
+			Graphics::RenderTarget2D* Cache = Display.RT[Type + TargetType_Count];
+			if (New != nullptr)
+			{
+				Graphics::RenderTarget2D* Base = Display.RT[Type];
+				Display.RT[Type] = New;
 
-			if (Size >= 3)
-				Result[2] = Graphics::Format_R32_Float;
+				if (!Cache)
+					Display.RT[Type + TargetType_Count] = Base;
+			}
+			else if (Cache != nullptr)
+			{
+				Display.RT[Type] = Cache;
+				Display.RT[Type + TargetType_Count] = nullptr;
+			}
+		}
+		void SceneGraph::ClearMRT(TargetType Type, bool Color, bool Depth)
+		{
+			Graphics::MultiRenderTarget2D* Target = Display.MRT[Type];
+			if (Color)
+			{
+				Conf.Device->Clear(Target, 0, 0, 0, 0);
+				Conf.Device->Clear(Target, 1, 0, 0, 0);
+				Conf.Device->Clear(Target, 2, 1, 0, 0);
+				Conf.Device->Clear(Target, 3, 0, 0, 0);
+			}
 
-			if (Size >= 4)
-				Result[3] = Graphics::Format_R8G8B8A8_Unorm;
+			if (Depth)
+				Conf.Device->ClearDepth(Target);
+		}
+		void SceneGraph::ClearRT(TargetType Type, bool Color, bool Depth)
+		{
+			Graphics::RenderTarget2D* Target = Display.RT[Type];
+			if (Color)
+				Conf.Device->Clear(Target, 0, 0, 0, 0);
 
-			for (uint64_t i = 4; i < Size; i++)
-				Result[i] = Graphics::Format_Unknown;
+			if (Depth)
+				Conf.Device->ClearDepth(Target);
 		}
 		bool SceneGraph::AddEventListener(const std::string& Name, const std::string& EventName, const MessageCallback& Callback)
 		{
@@ -4113,7 +4523,7 @@ namespace Tomahawk
 		{
 			if (!Source)
 				return;
-		
+
 			if (Category == GeoCategory_Opaque)
 				GetOpaque(Source->Source)->Add(Source);
 			else if (Category == GeoCategory_Transparent)
@@ -4348,6 +4758,56 @@ namespace Tomahawk
 
 			return Array;
 		}
+		Graphics::RenderTarget2D::Desc SceneGraph::GetDescRT()
+		{
+			Graphics::RenderTarget2D* Target = Conf.Device->GetRenderTarget();
+			if (!Target)
+				return Graphics::RenderTarget2D::Desc();
+
+			Graphics::RenderTarget2D::Desc Desc;
+			Desc.MiscFlags = Graphics::ResourceMisc_Generate_Mips;
+			Desc.Width = (unsigned int)(Target->GetWidth() * Conf.RenderQuality);
+			Desc.Height = (unsigned int)(Target->GetHeight() * Conf.RenderQuality);
+			Desc.MipLevels = Conf.Device->GetMipLevel(Desc.Width, Desc.Height);
+			Desc.FormatMode = GetFormatMRT(0);
+
+			return Desc;
+		}
+		Graphics::MultiRenderTarget2D::Desc SceneGraph::GetDescMRT()
+		{
+			Graphics::RenderTarget2D* Target = Conf.Device->GetRenderTarget();
+			if (!Target)
+				return Graphics::MultiRenderTarget2D::Desc();
+
+			Graphics::MultiRenderTarget2D::Desc Desc;
+			Desc.MiscFlags = Graphics::ResourceMisc_Generate_Mips;
+			Desc.Width = (unsigned int)(Target->GetWidth() * Conf.RenderQuality);
+			Desc.Height = (unsigned int)(Target->GetHeight() * Conf.RenderQuality);
+			Desc.MipLevels = Conf.Device->GetMipLevel(Desc.Width, Desc.Height);
+			Desc.Target = Graphics::SurfaceTarget3;
+			Desc.FormatMode[0] = GetFormatMRT(0);
+			Desc.FormatMode[1] = GetFormatMRT(1);
+			Desc.FormatMode[2] = GetFormatMRT(2);
+			Desc.FormatMode[3] = GetFormatMRT(3);
+
+			return Desc;
+		}
+		Graphics::Format SceneGraph::GetFormatMRT(unsigned int Target)
+		{
+			if (Target == 0)
+				return Conf.EnableHDR ? Graphics::Format_R16G16B16A16_Unorm : Graphics::Format_R8G8B8A8_Unorm;
+
+			if (Target == 1)
+				return Graphics::Format_R16G16B16A16_Float;
+
+			if (Target == 2)
+				return Graphics::Format_R32_Float;
+
+			if (Target == 3)
+				return Graphics::Format_R8G8B8A8_Unorm;
+
+			return Graphics::Format_Unknown;
+		}
 		std::vector<Entity*> SceneGraph::FindParentFreeEntities(Entity* Entity)
 		{
 			std::vector<Engine::Entity*> Array;
@@ -4486,9 +4946,17 @@ namespace Tomahawk
 
 			return Count;
 		}
-		Graphics::MultiRenderTarget2D* SceneGraph::GetSurface()
+		Graphics::MultiRenderTarget2D* SceneGraph::GetMRT(TargetType Type)
 		{
-			return Surface;
+			return Display.MRT[Type];
+		}
+		Graphics::RenderTarget2D* SceneGraph::GetRT(TargetType Type)
+		{
+			return Display.RT[Type];
+		}
+		Graphics::Texture2D** SceneGraph::GetMerger()
+		{
+			return &Display.Merger;
 		}
 		Graphics::ElementBuffer* SceneGraph::GetStructure()
 		{
@@ -4502,9 +4970,13 @@ namespace Tomahawk
 		{
 			return Conf.Queue;
 		}
-		ShaderCache* SceneGraph::GetCache()
+		ShaderCache* SceneGraph::GetShaders()
 		{
-			return Conf.Cache;
+			return Shaders;
+		}
+		PrimitiveCache* SceneGraph::GetPrimitives()
+		{
+			return Primitives;
 		}
 		Compute::Simulator* SceneGraph::GetSimulator()
 		{
@@ -4817,7 +5289,7 @@ namespace Tomahawk
 					Offset += Length;
 					if (Size > 0)
 						Stream->Write((char*)Path.c_str(), sizeof(char) * Size);
-	
+
 					TH_RELEASE(File);
 				}
 
@@ -4968,7 +5440,7 @@ namespace Tomahawk
 						GUI::Context* GUI = (GUI::Context*)GetGUI();
 						if (GUI != nullptr)
 							GUI->EmitWheel(X, Y, Normal, Activity->GetKeyModState());
-						
+
 						WheelEvent(X, Y, Normal);
 					};
 					Activity->Callbacks.WindowStateChange = [this](Graphics::WindowState NewState, int X, int Y)
@@ -4999,9 +5471,6 @@ namespace Tomahawk
 							TH_ERROR("graphics device cannot be created");
 							return;
 						}
-
-						if (I->EnableShaderCache)
-							Shaders = new ShaderCache(Renderer);
 					}
 				}
 				else
@@ -5060,7 +5529,6 @@ namespace Tomahawk
 				Engine::GUI::Subsystem::Release();
 
 			TH_RELEASE(Content);
-			TH_RELEASE(Shaders);
 			TH_RELEASE(Renderer);
 			TH_RELEASE(Activity);
 

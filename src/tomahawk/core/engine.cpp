@@ -3613,8 +3613,11 @@ namespace Tomahawk
 			for (auto It = Shaders.begin(); It != Shaders.end(); It++)
 				System->FreeShader(It->first, It->second);
 		}
-		void EffectDraw::RenderMerge(Graphics::Shader* Effect, void* Buffer)
+		void EffectDraw::RenderMerge(Graphics::Shader* Effect, void* Buffer, size_t Count)
 		{
+			if (!Count)
+				return;
+
 			if (!Effect)
 				Effect = Shaders.begin()->second;
 
@@ -3630,8 +3633,11 @@ namespace Tomahawk
 				Device->SetBuffer(Effect, 3, Graphics::ShaderType_Vertex | Graphics::ShaderType_Pixel);
 			}
 
-			Device->Draw(6, 0);
-			Device->CopyTexture2D(Output, 0, Merger);
+			for (size_t i = 0; i < Count; i++)
+			{
+				Device->Draw(6, 0);
+				Device->CopyTexture2D(Output, 0, Merger);
+			}
 		}
 		void EffectDraw::RenderResult(Graphics::Shader* Effect, void* Buffer)
 		{
@@ -4284,6 +4290,7 @@ namespace Tomahawk
 
 			Rest::Pool<Component*>* Array = GetComponents(Section);
 			Compute::Ray Base = Origin;
+			Compute::Vector3 Hit;
 
 			for (auto It = Array->Begin(); It != Array->End(); It++)
 			{
@@ -4291,7 +4298,7 @@ namespace Tomahawk
 				if (MaxDistance > 0.0f && Current->Parent->Distance > MaxDistance)
 					continue;
 
-				if (Compute::Common::CursorRayTest(Base, Current->GetBoundingBox()) && !Callback(Current))
+				if (Compute::Common::CursorRayTest(Base, Current->GetBoundingBox(), &Hit) && !Callback(Current, Hit))
 					break;
 			}
 		}
@@ -5737,7 +5744,6 @@ namespace Tomahawk
 			Rest::Composer::Push<Renderers::Bloom, RenderSystem*>();
 			Rest::Composer::Push<Renderers::SSR, RenderSystem*>();
 			Rest::Composer::Push<Renderers::SSAO, RenderSystem*>();
-			Rest::Composer::Push<Renderers::SSDO, RenderSystem*>();
 			Rest::Composer::Push<Renderers::UserInterface, RenderSystem*>();
 			Rest::Composer::Push<Audio::Effects::Reverb>();
 			Rest::Composer::Push<Audio::Effects::Chorus>();

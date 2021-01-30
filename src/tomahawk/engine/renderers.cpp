@@ -17,11 +17,11 @@ namespace Tomahawk
 				Sampler = Device->GetSamplerState("trilinear-x16");
 				Layout = Device->GetInputLayout("vertex");
 
-				Shaders.Geometry = System->CompileShader("shaders/model/geometry");
-				Shaders.Voxelize = System->CompileShader("shaders/model/voxelize", sizeof(Lighting::VoxelBuffer));
-				Shaders.Occlusion = System->CompileShader("shaders/model/occlusion");
-				Shaders.Depth.Linear = System->CompileShader("shaders/model/depth/linear");
-				Shaders.Depth.Cubic = System->CompileShader("shaders/model/depth/cubic", sizeof(Compute::Matrix4x4) * 6);
+				Shaders.Geometry = System->CompileShader("geometry/model/geometry");
+				Shaders.Voxelize = System->CompileShader("geometry/model/voxelize", sizeof(Lighting::VoxelBuffer));
+				Shaders.Occlusion = System->CompileShader("geometry/model/occlusion");
+				Shaders.Depth.Linear = System->CompileShader("geometry/model/depth/linear");
+				Shaders.Depth.Cubic = System->CompileShader("geometry/model/depth/cubic", sizeof(Compute::Matrix4x4) * 6);
 			}
 			Model::~Model()
 			{
@@ -233,11 +233,11 @@ namespace Tomahawk
 				Sampler = Device->GetSamplerState("trilinear-x16");
 				Layout = Device->GetInputLayout("skin-vertex");
 
-				Shaders.Geometry = System->CompileShader("shaders/skin/geometry");
-				Shaders.Voxelize = System->CompileShader("shaders/skin/voxelize", sizeof(Lighting::VoxelBuffer));
-				Shaders.Occlusion = System->CompileShader("shaders/skin/occlusion");
-				Shaders.Depth.Linear = System->CompileShader("shaders/skin/depth/linear");
-				Shaders.Depth.Cubic = System->CompileShader("shaders/skin/depth/cubic", sizeof(Compute::Matrix4x4) * 6);
+				Shaders.Geometry = System->CompileShader("geometry/skin/geometry");
+				Shaders.Voxelize = System->CompileShader("geometry/skin/voxelize", sizeof(Lighting::VoxelBuffer));
+				Shaders.Occlusion = System->CompileShader("geometry/skin/occlusion");
+				Shaders.Depth.Linear = System->CompileShader("geometry/skin/depth/linear");
+				Shaders.Depth.Cubic = System->CompileShader("geometry/skin/depth/cubic", sizeof(Compute::Matrix4x4) * 6);
 			}
 			Skin::~Skin()
 			{
@@ -478,11 +478,11 @@ namespace Tomahawk
 				Sampler = Device->GetSamplerState("trilinear-x16");
 				Layout = Device->GetInputLayout("vertex");
 
-				Shaders.Geometry = System->CompileShader("shaders/model/geometry");
-				Shaders.Voxelize = System->CompileShader("shaders/model/voxelize", sizeof(Lighting::VoxelBuffer));
-				Shaders.Occlusion = System->CompileShader("shaders/model/occlusion");
-				Shaders.Depth.Linear = System->CompileShader("shaders/model/depth/linear");
-				Shaders.Depth.Cubic = System->CompileShader("shaders/model/depth/cubic", sizeof(Compute::Matrix4x4) * 6);
+				Shaders.Geometry = System->CompileShader("geometry/model/geometry");
+				Shaders.Voxelize = System->CompileShader("geometry/model/voxelize", sizeof(Lighting::VoxelBuffer));
+				Shaders.Occlusion = System->CompileShader("geometry/model/occlusion");
+				Shaders.Depth.Linear = System->CompileShader("geometry/model/depth/linear");
+				Shaders.Depth.Cubic = System->CompileShader("geometry/model/depth/cubic", sizeof(Compute::Matrix4x4) * 6);
 
 				Graphics::ElementBuffer* Buffers[2];
 				if (Lab->CompileBuffers(Buffers, "soft-body", sizeof(Compute::Vertex), 16384))
@@ -711,11 +711,11 @@ namespace Tomahawk
 				OverwriteBlend = Device->GetBlendState("overwrite");
 				Sampler = Device->GetSamplerState("trilinear-x16");
 
-				Shaders.Opaque = System->CompileShader("shaders/emitter/geometry/opaque");
-				Shaders.Transparency = System->CompileShader("shaders/emitter/geometry/transparency");
-				Shaders.Depth.Linear = System->CompileShader("shaders/emitter/depth/linear");
-				Shaders.Depth.Point = System->CompileShader("shaders/emitter/depth/point");
-				Shaders.Depth.Quad = System->CompileShader("shaders/emitter/depth/quad", sizeof(Depth));
+				Shaders.Opaque = System->CompileShader("geometry/emitter/geometry/opaque");
+				Shaders.Transparency = System->CompileShader("geometry/emitter/geometry/transparency");
+				Shaders.Depth.Linear = System->CompileShader("geometry/emitter/depth/linear");
+				Shaders.Depth.Point = System->CompileShader("geometry/emitter/depth/point");
+				Shaders.Depth.Quad = System->CompileShader("geometry/emitter/depth/quad", sizeof(Depth));
 			}
 			Emitter::~Emitter()
 			{
@@ -731,7 +731,7 @@ namespace Tomahawk
 			}
 			void Emitter::Deactivate()
 			{
-				Opaque = System->RemoveCull<Engine::Components::Emitter>();
+				System->RemoveCull<Engine::Components::Emitter>();
 			}
 			void Emitter::RenderGeometryResult(Rest::Timer* Time, Rest::Pool<Drawable*>* Geometry, RenderOpt Options)
 			{
@@ -909,7 +909,7 @@ namespace Tomahawk
 				Sampler = Device->GetSamplerState("trilinear-x16");
 				Layout = Device->GetInputLayout("shape-vertex");
 
-				Shader = System->CompileShader("shaders/decal/geometry", sizeof(RenderPass));
+				Shader = System->CompileShader("geometry/decal/geometry", sizeof(RenderPass));
 			}
 			Decal::~Decal()
 			{
@@ -996,21 +996,22 @@ namespace Tomahawk
 				WrapSampler = Device->GetSamplerState("trilinear-x16");
 				Layout = Device->GetInputLayout("shape-vertex");
 
-				Shaders.Ambient[0] = System->CompileShader("shaders/lighting/ambient/direct", sizeof(Ambient));
-				Shaders.Ambient[1] = System->CompileShader("shaders/lighting/ambient/indirect", sizeof(Voxelizer));
-				Shaders.Point[0] = System->CompileShader("shaders/lighting/point/low", sizeof(PointLight));
-				Shaders.Point[1] = System->CompileShader("shaders/lighting/point/high");
-				Shaders.Point[2] = System->CompileShader("shaders/lighting/point/indirect");
-				Shaders.Spot[0] = System->CompileShader("shaders/lighting/spot/low", sizeof(SpotLight));
-				Shaders.Spot[1] = System->CompileShader("shaders/lighting/spot/high");
-				Shaders.Spot[2] = System->CompileShader("shaders/lighting/spot/indirect");
-				Shaders.Line[0] = System->CompileShader("shaders/lighting/line/low", sizeof(LineLight));
-				Shaders.Line[1] = System->CompileShader("shaders/lighting/line/high");
-				Shaders.Line[2] = System->CompileShader("shaders/lighting/line/indirect");
-				Shaders.Surface = System->CompileShader("shaders/lighting/surface", sizeof(SurfaceLight));
+				Shaders.Ambient[0] = System->CompileShader("lighting/ambient/direct", sizeof(IAmbientLight));
+				Shaders.Ambient[1] = System->CompileShader("lighting/ambient/indirect", sizeof(IVoxelBuffer));
+				Shaders.Point[0] = System->CompileShader("lighting/point/low", sizeof(IPointLight));
+				Shaders.Point[1] = System->CompileShader("lighting/point/high");
+				Shaders.Point[2] = System->CompileShader("lighting/point/indirect");
+				Shaders.Spot[0] = System->CompileShader("lighting/spot/low", sizeof(ISpotLight));
+				Shaders.Spot[1] = System->CompileShader("lighting/spot/high");
+				Shaders.Spot[2] = System->CompileShader("lighting/spot/indirect");
+				Shaders.Line[0] = System->CompileShader("lighting/line/low", sizeof(ILineLight));
+				Shaders.Line[1] = System->CompileShader("lighting/line/high");
+				Shaders.Line[2] = System->CompileShader("lighting/line/indirect");
+				Shaders.Surface = System->CompileShader("lighting/surface", sizeof(ISurfaceLight));
 
 				Shadows.Tick.Delay = 5;
-				GI.Tick.Delay = 16.666;
+				Radiance.Tick.Delay = 16.666;
+				Radiance.Enabled = false;
 			}
 			Lighting::~Lighting()
 			{
@@ -1027,14 +1028,13 @@ namespace Tomahawk
 						System->FreeShader(Shaders.Ambient[i]);
 				}
 
-				TH_RELEASE(GI.DiffuseBuffer);
-				TH_RELEASE(GI.NormalBuffer);
-				TH_RELEASE(GI.SurfaceBuffer);
+				TH_RELEASE(Radiance.DiffuseBuffer);
+				TH_RELEASE(Radiance.NormalBuffer);
+				TH_RELEASE(Radiance.SurfaceBuffer);
 				TH_RELEASE(Surfaces.Subresource);
 				TH_RELEASE(Surfaces.Input);
 				TH_RELEASE(Surfaces.Output);
 				TH_RELEASE(Surfaces.Merger);
-				TH_RELEASE(LightMap);
 				TH_RELEASE(SkyBase);
 				TH_RELEASE(SkyMap);
 			}
@@ -1044,18 +1044,18 @@ namespace Tomahawk
 				if (NMake::Unpack(Node->Find("sky-map"), &Path))
 					SetSkyMap(Content->Load<Graphics::Texture2D>(Path));
 
-				NMake::Unpack(Node->Find("high-emission"), &Ambient.HighEmission);
-				NMake::Unpack(Node->Find("low-emission"), &Ambient.LowEmission);
-				NMake::Unpack(Node->Find("sky-emission"), &Ambient.SkyEmission);
-				NMake::Unpack(Node->Find("light-emission"), &Ambient.LightEmission);
-				NMake::Unpack(Node->Find("sky-color"), &Ambient.SkyColor);
-				NMake::Unpack(Node->Find("fog-color"), &Ambient.FogColor);
-				NMake::Unpack(Node->Find("fog-amount"), &Ambient.FogAmount);
-				NMake::Unpack(Node->Find("fog-far-off"), &Ambient.FogFarOff);
-				NMake::Unpack(Node->Find("fog-far"), &Ambient.FogFar);
-				NMake::Unpack(Node->Find("fog-near-off"), &Ambient.FogNearOff);
-				NMake::Unpack(Node->Find("fog-near"), &Ambient.FogNear);
-				NMake::Unpack(Node->Find("recursive"), &Ambient.Recursive);
+				NMake::Unpack(Node->Find("high-emission"), &AmbientLight.HighEmission);
+				NMake::Unpack(Node->Find("low-emission"), &AmbientLight.LowEmission);
+				NMake::Unpack(Node->Find("sky-emission"), &AmbientLight.SkyEmission);
+				NMake::Unpack(Node->Find("light-emission"), &AmbientLight.LightEmission);
+				NMake::Unpack(Node->Find("sky-color"), &AmbientLight.SkyColor);
+				NMake::Unpack(Node->Find("fog-color"), &AmbientLight.FogColor);
+				NMake::Unpack(Node->Find("fog-amount"), &AmbientLight.FogAmount);
+				NMake::Unpack(Node->Find("fog-far-off"), &AmbientLight.FogFarOff);
+				NMake::Unpack(Node->Find("fog-far"), &AmbientLight.FogFar);
+				NMake::Unpack(Node->Find("fog-near-off"), &AmbientLight.FogNearOff);
+				NMake::Unpack(Node->Find("fog-near"), &AmbientLight.FogNear);
+				NMake::Unpack(Node->Find("recursive"), &AmbientLight.Recursive);
 				NMake::Unpack(Node->Find("point-light-resolution"), &Shadows.PointLightResolution);
 				NMake::Unpack(Node->Find("point-light-limits"), &Shadows.PointLightLimits);
 				NMake::Unpack(Node->Find("spot-light-resolution"), &Shadows.SpotLightResolution);
@@ -1071,18 +1071,18 @@ namespace Tomahawk
 				if (Asset != nullptr)
 					NMake::Pack(Node->SetDocument("sky-map"), Asset->Path);
 
-				NMake::Pack(Node->SetDocument("high-emission"), Ambient.HighEmission);
-				NMake::Pack(Node->SetDocument("low-emission"), Ambient.LowEmission);
-				NMake::Pack(Node->SetDocument("sky-emission"), Ambient.SkyEmission);
-				NMake::Pack(Node->SetDocument("light-emission"), Ambient.LightEmission);
-				NMake::Pack(Node->SetDocument("sky-color"), Ambient.SkyColor);
-				NMake::Pack(Node->SetDocument("fog-color"), Ambient.FogColor);
-				NMake::Pack(Node->SetDocument("fog-amount"), Ambient.FogAmount);
-				NMake::Pack(Node->SetDocument("fog-far-off"), Ambient.FogFarOff);
-				NMake::Pack(Node->SetDocument("fog-far"), Ambient.FogFar);
-				NMake::Pack(Node->SetDocument("fog-near-off"), Ambient.FogNearOff);
-				NMake::Pack(Node->SetDocument("fog-near"), Ambient.FogNear);
-				NMake::Pack(Node->SetDocument("recursive"), Ambient.Recursive);
+				NMake::Pack(Node->SetDocument("high-emission"), AmbientLight.HighEmission);
+				NMake::Pack(Node->SetDocument("low-emission"), AmbientLight.LowEmission);
+				NMake::Pack(Node->SetDocument("sky-emission"), AmbientLight.SkyEmission);
+				NMake::Pack(Node->SetDocument("light-emission"), AmbientLight.LightEmission);
+				NMake::Pack(Node->SetDocument("sky-color"), AmbientLight.SkyColor);
+				NMake::Pack(Node->SetDocument("fog-color"), AmbientLight.FogColor);
+				NMake::Pack(Node->SetDocument("fog-amount"), AmbientLight.FogAmount);
+				NMake::Pack(Node->SetDocument("fog-far-off"), AmbientLight.FogFarOff);
+				NMake::Pack(Node->SetDocument("fog-far"), AmbientLight.FogFar);
+				NMake::Pack(Node->SetDocument("fog-near-off"), AmbientLight.FogNearOff);
+				NMake::Pack(Node->SetDocument("fog-near"), AmbientLight.FogNear);
+				NMake::Pack(Node->SetDocument("recursive"), AmbientLight.Recursive);
 				NMake::Pack(Node->SetDocument("point-light-resolution"), Shadows.PointLightResolution);
 				NMake::Pack(Node->SetDocument("point-light-limits"), Shadows.PointLightLimits);
 				NMake::Pack(Node->SetDocument("spot-light-resolution"), Shadows.SpotLightResolution);
@@ -1101,14 +1101,13 @@ namespace Tomahawk
 			}
 			void Lighting::Deactivate()
 			{
-				SurfaceLights = System->RemoveCull<Engine::Components::SurfaceLight>();
-				PointLights = System->RemoveCull<Engine::Components::PointLight>();
-				SpotLights = System->RemoveCull<Engine::Components::SpotLight>();
+				System->RemoveCull<Engine::Components::SurfaceLight>();
+				System->RemoveCull<Engine::Components::PointLight>();
+				System->RemoveCull<Engine::Components::SpotLight>();
 			}
 			void Lighting::ResizeBuffers()
 			{
 				FlushDepthBuffersAndCache();
-				TH_CLEAR(LightMap);
 
 				Shadows.PointLight.resize(Shadows.PointLightLimits);
 				for (auto It = Shadows.PointLight.begin(); It != Shadows.PointLight.end(); It++)
@@ -1151,19 +1150,19 @@ namespace Tomahawk
 						RenderSurfaceMaps(Device, Scene, Time);
 
 					Compute::Vector3 Center = Scene->View.WorldPosition.InvertZ();
-					if (GI.Enabled)
+					if (Radiance.Enabled)
 					{
-						bool Revoxelize = (Voxelizer.Center.Distance(Center) > 0.5 * GI.Distance.Length() / 3);
+						bool Revoxelize = (VoxelBuffer.Center.Distance(Center) > 0.5 * Radiance.Distance.Length() / 3);
 						if (Revoxelize)
-							Voxelizer.Center = Center;
+							VoxelBuffer.Center = Center;
 
-						if (Revoxelize || GI.Tick.TickEvent(ElapsedTime))
+						if (Revoxelize || Radiance.Tick.TickEvent(ElapsedTime))
 							RenderVoxels(Time, Device);
 					}
 				}
 
 				RenderResultBuffers(Device, Options);
-				if (GI.Enabled && !(Options & RenderOpt_Inner))
+				if (Radiance.Enabled && !(Options & RenderOpt_Inner))
 					RenderVoxelBuffers(Device, Options);
 				System->RestoreOutput();
 			}
@@ -1178,7 +1177,7 @@ namespace Tomahawk
 				Graphics::ElementBuffer* Cube[2];
 				System->GetPrimitives()->GetCubeBuffers(Cube);
 
-				Ambient.SkyOffset = System->GetScene()->View.Projection.Invert() * Compute::Matrix4x4::CreateRotation(System->GetScene()->View.WorldRotation);
+				AmbientLight.SkyOffset = System->GetScene()->View.Projection.Invert() * Compute::Matrix4x4::CreateRotation(System->GetScene()->View.WorldRotation);
 				Device->SetSamplerState(WrapSampler, 0);
 				Device->SetSamplerState(ShadowSampler, 1);
 				Device->SetDepthStencilState(DepthStencilLess);
@@ -1205,18 +1204,18 @@ namespace Tomahawk
 			void Lighting::RenderVoxelBuffers(Graphics::GraphicsDevice* Device, RenderOpt Options)
 			{
 				Graphics::MultiRenderTarget2D* MRT = System->GetMRT(TargetType_Main);
-				if (!GI.DiffuseBuffer || !GI.NormalBuffer || !GI.SurfaceBuffer)
+				if (!Radiance.DiffuseBuffer || !Radiance.NormalBuffer || !Radiance.SurfaceBuffer)
 					return;
 
 				Device->SetTarget(MRT, 0);
-				Device->SetTexture3D(GI.DiffuseBuffer, 1);
+				Device->SetTexture3D(Radiance.DiffuseBuffer, 1);
 				Device->SetTexture2D(MRT->GetTarget(1), 2);
 				Device->SetTexture2D(MRT->GetTarget(2), 3);
 				Device->SetTexture2D(MRT->GetTarget(3), 4);
 
 				Device->SetShader(Shaders.Ambient[1], Graphics::ShaderType_Vertex | Graphics::ShaderType_Pixel);
 				Device->SetBuffer(Shaders.Ambient[1], 3, Graphics::ShaderType_Vertex | Graphics::ShaderType_Pixel);
-				Device->UpdateBuffer(Shaders.Ambient[1], &Voxelizer);
+				Device->UpdateBuffer(Shaders.Ambient[1], &VoxelBuffer);
 				Device->Draw(6, 0);
 
 				Device->FlushTexture3D(1, 1);
@@ -1362,22 +1361,22 @@ namespace Tomahawk
 			void Lighting::RenderVoxels(Rest::Timer* Time, Graphics::GraphicsDevice* Device)
 			{
 				SceneGraph* Scene = System->GetScene();
-				if (!GI.DiffuseBuffer || !GI.NormalBuffer || !GI.SurfaceBuffer)
-					SetVoxelBufferSize(GI.Size);
+				if (!Radiance.DiffuseBuffer || !Radiance.NormalBuffer || !Radiance.SurfaceBuffer)
+					SetVoxelBufferSize(Radiance.Size);
 
 				Graphics::Texture3D* Buffer[3];
-				Buffer[0] = GI.DiffuseBuffer;
-				Buffer[1] = GI.NormalBuffer;
-				Buffer[2] = GI.SurfaceBuffer;
+				Buffer[0] = Radiance.DiffuseBuffer;
+				Buffer[1] = Radiance.NormalBuffer;
+				Buffer[2] = Radiance.SurfaceBuffer;
 
-				Voxelizer.Size = (float)GI.Size;
-				Voxelizer.Scale = GI.Distance;
-				Scene->View.FarPlane = (GI.Distance.X + GI.Distance.Y + GI.Distance.Z) / 3.0f;
+				VoxelBuffer.Size = (float)Radiance.Size;
+				VoxelBuffer.Scale = Radiance.Distance;
+				Scene->View.FarPlane = (Radiance.Distance.X + Radiance.Distance.Y + Radiance.Distance.Z) / 3.0f;
 
-				Device->ClearWritable(GI.DiffuseBuffer);
-				Device->ClearWritable(GI.NormalBuffer);
-				Device->ClearWritable(GI.SurfaceBuffer);
-				Device->SetTargetRect(GI.Size, GI.Size);
+				Device->ClearWritable(Radiance.DiffuseBuffer);
+				Device->ClearWritable(Radiance.NormalBuffer);
+				Device->ClearWritable(Radiance.SurfaceBuffer);
+				Device->SetTargetRect(Radiance.Size, Radiance.Size);
 				Device->SetDepthStencilState(DepthStencilNone);
 				Device->SetBlendState(BlendOverwrite);
 				Device->SetRasterizerState(NoneRasterizer);
@@ -1388,7 +1387,7 @@ namespace Tomahawk
 
 				Graphics::Texture3D* Flush[3] = { nullptr };
 				Device->SetWriteable(Flush, 3, 1);
-				Device->GenerateMips(GI.DiffuseBuffer);
+				Device->GenerateMips(Radiance.DiffuseBuffer);
 			}
 			void Lighting::RenderSurfaceLights(Graphics::GraphicsDevice* Device, Compute::Vector3& Camera, float& Distance, bool& Backcull, const bool& Inner)
 			{
@@ -1430,7 +1429,7 @@ namespace Tomahawk
 						Device->DrawIndexed((unsigned int)Cube[BufferType_Index]->GetElements(), 0, 0);
 					}
 				}
-				else if (Ambient.Recursive > 0.0f)
+				else if (AmbientLight.Recursive > 0.0f)
 				{
 					Device->SetShader(Shaders.Surface, Graphics::ShaderType_Vertex | Graphics::ShaderType_Pixel);
 					Device->SetBuffer(Shaders.Surface, 3, Graphics::ShaderType_Vertex | Graphics::ShaderType_Pixel);
@@ -1610,7 +1609,7 @@ namespace Tomahawk
 					LineLight.PlanetRadius = Light->Sky.InnerRadius;
 					LineLight.AtmosphereRadius = Light->Sky.OuterRadius;
 					LineLight.MieDirection = Light->Sky.MieDirection;
-					LineLight.SkyOffset = Ambient.SkyOffset;
+					LineLight.SkyOffset = AmbientLight.SkyOffset;
 
 					Device->SetShader(Active, Graphics::ShaderType_Pixel);
 					Device->UpdateBuffer(Shaders.Line[0], &LineLight);
@@ -1627,9 +1626,8 @@ namespace Tomahawk
 				Device->SetTextureCube(SkyMap, 6);
 				Device->SetShader(Shaders.Ambient[0], Graphics::ShaderType_Vertex | Graphics::ShaderType_Pixel);
 				Device->SetBuffer(Shaders.Ambient[0], 3, Graphics::ShaderType_Vertex | Graphics::ShaderType_Pixel);
-				Device->UpdateBuffer(Shaders.Ambient[0], &Ambient);
+				Device->UpdateBuffer(Shaders.Ambient[0], &AmbientLight);
 				Device->Draw(6, 0);
-				Device->CopyTexture2D(RT, 0, &LightMap);
 			}
 			void Lighting::GenerateCascadeMap(CascadedDepthMap** Result, uint32_t Size)
 			{
@@ -1726,27 +1724,27 @@ namespace Tomahawk
 			}
 			void Lighting::SetVoxelBufferSize(size_t NewSize)
 			{
-				unsigned int MipLevels = System->GetDevice()->GetMipLevel(GI.Size, GI.Size);
-				Voxelizer.MipLevels = (float)MipLevels;
+				unsigned int MipLevels = System->GetDevice()->GetMipLevel(Radiance.Size, Radiance.Size);
+				VoxelBuffer.MipLevels = (float)MipLevels;
 
 				Graphics::Texture3D::Desc I;
-				I.Width = I.Height = I.Depth = GI.Size = NewSize;
+				I.Width = I.Height = I.Depth = Radiance.Size = NewSize;
 				I.MipLevels = MipLevels;
 				I.FormatMode = Graphics::Format_R8G8B8A8_Unorm;
 				I.Writable = true;
 
-				TH_RELEASE(GI.DiffuseBuffer);
-				GI.DiffuseBuffer = System->GetDevice()->CreateTexture3D(I);
+				TH_RELEASE(Radiance.DiffuseBuffer);
+				Radiance.DiffuseBuffer = System->GetDevice()->CreateTexture3D(I);
 
 				I.MipLevels = 0;
 				I.FormatMode = Graphics::Format_R16G16B16A16_Unorm;
-				TH_RELEASE(GI.NormalBuffer);
-				GI.NormalBuffer = System->GetDevice()->CreateTexture3D(I);
+				TH_RELEASE(Radiance.NormalBuffer);
+				Radiance.NormalBuffer = System->GetDevice()->CreateTexture3D(I);
 
 				I.MipLevels = 0;
 				I.FormatMode = Graphics::Format_R8G8B8A8_Unorm;
-				TH_RELEASE(GI.SurfaceBuffer);
-				GI.SurfaceBuffer = System->GetDevice()->CreateTexture3D(I);
+				TH_RELEASE(Radiance.SurfaceBuffer);
+				Radiance.SurfaceBuffer = System->GetDevice()->CreateTexture3D(I);
 			}
 			void Lighting::SetVoxelBuffer(RenderSystem* System, Graphics::Shader* Src, unsigned int Slot)
 			{
@@ -1759,7 +1757,7 @@ namespace Tomahawk
 
 				Graphics::GraphicsDevice* Device = System->GetDevice();
 				Device->SetBuffer(Src, Slot, Graphics::ShaderType_Vertex | Graphics::ShaderType_Pixel | Graphics::ShaderType_Geometry);
-				Device->UpdateBuffer(Src, &Renderer->Voxelizer);
+				Device->UpdateBuffer(Src, &Renderer->VoxelBuffer);
 			}
 			Graphics::TextureCube* Lighting::GetSkyMap()
 			{
@@ -1775,11 +1773,7 @@ namespace Tomahawk
 
 				return SkyBase;
 			}
-			Graphics::Texture2D* Lighting::GetLightMap()
-			{
-				return LightMap;
-			}
-
+	
 			Transparency::Transparency(RenderSystem* Lab) : Renderer(Lab)
 			{
 				Graphics::GraphicsDevice* Device = System->GetDevice();
@@ -1789,7 +1783,7 @@ namespace Tomahawk
 				Sampler = Device->GetSamplerState("trilinear-x16");
 				Layout = Device->GetInputLayout("shape-vertex");
 
-				Shader = System->CompileShader("shaders/effects/transparency", sizeof(RenderPass));
+				Shader = System->CompileShader("merger/transparency", sizeof(RenderPass));
 			}
 			Transparency::~Transparency()
 			{
@@ -1869,177 +1863,124 @@ namespace Tomahawk
 				System->RestoreOutput();
 			}
 
-			SSR::SSR(RenderSystem* Lab) : EffectDraw(Lab), Pass1(nullptr), Pass2(nullptr)
+			SSR::SSR(RenderSystem* Lab) : EffectDraw(Lab)
 			{
-				Pass1 = CompileEffect("shaders/effects/reflection", sizeof(RenderPass1));
-				Pass2 = CompileEffect("shaders/effects/gloss-x", sizeof(RenderPass2));
-				Pass3 = CompileEffect("shaders/effects/gloss-y", sizeof(RenderPass2));
+				Shaders.Reflectance = CompileEffect("raytracing/reflectance", sizeof(Reflectance));
+				Shaders.Gloss[0] = CompileEffect("blur/gloss-x", sizeof(Gloss));
+				Shaders.Gloss[1] = CompileEffect("blur/gloss-y");
+				Shaders.Additive = CompileEffect("merger/additive");
 			}
 			void SSR::Deserialize(ContentManager* Content, Rest::Document* Node)
 			{
-				NMake::Unpack(Node->Find("samples-1"), &RenderPass1.Samples);
-				NMake::Unpack(Node->Find("samples-2"), &RenderPass2.Samples);
-				NMake::Unpack(Node->Find("intensity"), &RenderPass1.Intensity);
-				NMake::Unpack(Node->Find("blur"), &RenderPass2.Blur);
+				NMake::Unpack(Node->Find("samples-1"), &Reflectance.Samples);
+				NMake::Unpack(Node->Find("samples-2"), &Gloss.Samples);
+				NMake::Unpack(Node->Find("intensity"), &Reflectance.Intensity);
+				NMake::Unpack(Node->Find("blur"), &Gloss.Blur);
 			}
 			void SSR::Serialize(ContentManager* Content, Rest::Document* Node)
 			{
-				NMake::Pack(Node->SetDocument("samples-1"), RenderPass1.Samples);
-				NMake::Pack(Node->SetDocument("samples-2"), RenderPass2.Samples);
-				NMake::Pack(Node->SetDocument("intensity"), RenderPass1.Intensity);
-				NMake::Pack(Node->SetDocument("blur"), RenderPass2.Blur);
+				NMake::Pack(Node->SetDocument("samples-1"), Reflectance.Samples);
+				NMake::Pack(Node->SetDocument("samples-2"), Gloss.Samples);
+				NMake::Pack(Node->SetDocument("intensity"), Reflectance.Intensity);
+				NMake::Pack(Node->SetDocument("blur"), Gloss.Blur);
 			}
 			void SSR::RenderEffect(Rest::Timer* Time)
 			{
 				Graphics::MultiRenderTarget2D* MRT = System->GetMRT(TargetType_Main);
 				System->GetDevice()->GenerateMips(MRT->GetTarget(0));
 
-				RenderPass1.MipLevels = GetMipLevels();
-				RenderPass2.Texel[0] = 1.0f / GetWidth();
-				RenderPass2.Texel[1] = 1.0f / GetHeight();
+				Reflectance.MipLevels = GetMipLevels();
+				Gloss.Texel[0] = 1.0f / GetWidth();
+				Gloss.Texel[1] = 1.0f / GetHeight();
 
-				RenderMerge(Pass1, &RenderPass1);
-				RenderMerge(Pass2, &RenderPass2);
-				RenderResult(Pass3, &RenderPass2);
+				RenderMerge(Shaders.Reflectance, &Reflectance);
+				RenderMerge(Shaders.Gloss[0], &Gloss, 2);
+				RenderMerge(Shaders.Gloss[1], nullptr, 2);
+				RenderResult(Shaders.Additive);
 			}
 
-			SSDO::SSDO(RenderSystem* Lab) : EffectDraw(Lab), Pass1(nullptr), Pass2(nullptr)
+			SSAO::SSAO(RenderSystem* Lab) : EffectDraw(Lab)
 			{
-				Pass1 = CompileEffect("shaders/effects/indirect", sizeof(RenderPass1));
-				Pass2 = CompileEffect("shaders/effects/blur-x", sizeof(RenderPass2));
-				Pass3 = CompileEffect("shaders/effects/blur-y", sizeof(RenderPass2));
-			}
-			void SSDO::Deserialize(ContentManager* Content, Rest::Document* Node)
-			{
-				NMake::Unpack(Node->Find("scale"), &RenderPass1.Scale);
-				NMake::Unpack(Node->Find("intensity"), &RenderPass1.Intensity);
-				NMake::Unpack(Node->Find("bias"), &RenderPass1.Bias);
-				NMake::Unpack(Node->Find("radius"), &RenderPass1.Radius);
-				NMake::Unpack(Node->Find("distance"), &RenderPass1.Distance);
-				NMake::Unpack(Node->Find("fade"), &RenderPass1.Fade);
-				NMake::Unpack(Node->Find("power"), &RenderPass2.Power);
-				NMake::Unpack(Node->Find("samples-1"), &RenderPass1.Samples);
-				NMake::Unpack(Node->Find("samples-2"), &RenderPass2.Samples);
-				NMake::Unpack(Node->Find("blur"), &RenderPass2.Blur);
-				NMake::Unpack(Node->Find("additive"), &RenderPass2.Additive);
-			}
-			void SSDO::Serialize(ContentManager* Content, Rest::Document* Node)
-			{
-				NMake::Pack(Node->SetDocument("scale"), RenderPass1.Scale);
-				NMake::Pack(Node->SetDocument("intensity"), RenderPass1.Intensity);
-				NMake::Pack(Node->SetDocument("bias"), RenderPass1.Bias);
-				NMake::Pack(Node->SetDocument("radius"), RenderPass1.Radius);
-				NMake::Pack(Node->SetDocument("distance"), RenderPass1.Distance);
-				NMake::Pack(Node->SetDocument("fade"), RenderPass1.Fade);
-				NMake::Pack(Node->SetDocument("power"), RenderPass2.Power);
-				NMake::Pack(Node->SetDocument("samples-1"), RenderPass1.Samples);
-				NMake::Pack(Node->SetDocument("samples-2"), RenderPass2.Samples);
-				NMake::Pack(Node->SetDocument("blur"), RenderPass2.Blur);
-				NMake::Pack(Node->SetDocument("additive"), RenderPass2.Additive);
-			}
-			void SSDO::RenderEffect(Rest::Timer* Time)
-			{
-				Lighting* Renderer = System->GetRenderer<Lighting>();
-				if (!Renderer)
-					return;
-
-				Graphics::Texture2D* LightBuffer = Renderer->GetLightMap();
-				Graphics::GraphicsDevice* Device = System->GetDevice();
-				Device->GenerateMips(LightBuffer);
-				Device->SetTexture2D(LightBuffer, 6);
-				
-				RenderPass1.MipLevels = GetMipLevels();
-				RenderPass2.Texel[0] = 1.0f / GetWidth();
-				RenderPass2.Texel[1] = 1.0f / GetHeight();
-
-				RenderMerge(Pass1, &RenderPass1);
-				RenderMerge(Pass2, &RenderPass2);
-				RenderResult(Pass3, &RenderPass2);
-				Device->SetTexture2D(nullptr, 6);
-			}
-
-			SSAO::SSAO(RenderSystem* Lab) : EffectDraw(Lab), Pass1(nullptr), Pass2(nullptr)
-			{
-				Pass1 = CompileEffect("shaders/effects/ambient", sizeof(RenderPass1));
-				Pass2 = CompileEffect("shaders/effects/blur-x", sizeof(RenderPass2));
-				Pass3 = CompileEffect("shaders/effects/blur-y", sizeof(RenderPass2));
+				Shaders.Shading = CompileEffect("raytracing/shading", sizeof(Shading));
+				Shaders.Fibo[0] = CompileEffect("blur/fibo-x", sizeof(Fibo));
+				Shaders.Fibo[1] = CompileEffect("blur/fibo-y");
+				Shaders.Multiply = CompileEffect("merger/multiply");
 			}
 			void SSAO::Deserialize(ContentManager* Content, Rest::Document* Node)
 			{
-				NMake::Unpack(Node->Find("scale"), &RenderPass1.Scale);
-				NMake::Unpack(Node->Find("intensity"), &RenderPass1.Intensity);
-				NMake::Unpack(Node->Find("bias"), &RenderPass1.Bias);
-				NMake::Unpack(Node->Find("radius"), &RenderPass1.Radius);
-				NMake::Unpack(Node->Find("distance"), &RenderPass1.Distance);
-				NMake::Unpack(Node->Find("fade"), &RenderPass1.Fade);
-				NMake::Unpack(Node->Find("power"), &RenderPass2.Power);
-				NMake::Unpack(Node->Find("samples-1"), &RenderPass1.Samples);
-				NMake::Unpack(Node->Find("samples-2"), &RenderPass2.Samples);
-				NMake::Unpack(Node->Find("blur"), &RenderPass2.Blur);
-				NMake::Unpack(Node->Find("additive"), &RenderPass2.Additive);
+				NMake::Unpack(Node->Find("samples-1"), &Shading.Samples);
+				NMake::Unpack(Node->Find("scale"), &Shading.Scale);
+				NMake::Unpack(Node->Find("intensity"), &Shading.Intensity);
+				NMake::Unpack(Node->Find("bias"), &Shading.Bias);
+				NMake::Unpack(Node->Find("radius"), &Shading.Radius);
+				NMake::Unpack(Node->Find("distance"), &Shading.Distance);
+				NMake::Unpack(Node->Find("fade"), &Shading.Fade);
+				NMake::Unpack(Node->Find("power"), &Fibo.Power);
+				NMake::Unpack(Node->Find("samples-2"), &Fibo.Samples);
+				NMake::Unpack(Node->Find("blur"), &Fibo.Blur);
 			}
 			void SSAO::Serialize(ContentManager* Content, Rest::Document* Node)
 			{
-				NMake::Pack(Node->SetDocument("scale"), RenderPass1.Scale);
-				NMake::Pack(Node->SetDocument("intensity"), RenderPass1.Intensity);
-				NMake::Pack(Node->SetDocument("bias"), RenderPass1.Bias);
-				NMake::Pack(Node->SetDocument("radius"), RenderPass1.Radius);
-				NMake::Pack(Node->SetDocument("distance"), RenderPass1.Distance);
-				NMake::Pack(Node->SetDocument("fade"), RenderPass1.Fade);
-				NMake::Pack(Node->SetDocument("power"), RenderPass2.Power);
-				NMake::Pack(Node->SetDocument("samples-1"), RenderPass1.Samples);
-				NMake::Pack(Node->SetDocument("samples-2"), RenderPass2.Samples);
-				NMake::Pack(Node->SetDocument("blur"), RenderPass2.Blur);
-				NMake::Pack(Node->SetDocument("additive"), RenderPass2.Additive);
+				NMake::Pack(Node->SetDocument("samples-1"), Shading.Samples);
+				NMake::Pack(Node->SetDocument("scale"), Shading.Scale);
+				NMake::Pack(Node->SetDocument("intensity"), Shading.Intensity);
+				NMake::Pack(Node->SetDocument("bias"), Shading.Bias);
+				NMake::Pack(Node->SetDocument("radius"), Shading.Radius);
+				NMake::Pack(Node->SetDocument("distance"), Shading.Distance);
+				NMake::Pack(Node->SetDocument("fade"), Shading.Fade);
+				NMake::Pack(Node->SetDocument("power"), Fibo.Power);
+				NMake::Pack(Node->SetDocument("samples-2"), Fibo.Samples);
+				NMake::Pack(Node->SetDocument("blur"), Fibo.Blur);
 			}
 			void SSAO::RenderEffect(Rest::Timer* Time)
 			{
-				RenderPass2.Texel[0] = 1.0f / GetWidth();
-				RenderPass2.Texel[1] = 1.0f / GetHeight();
+				Fibo.Texel[0] = 1.0f / GetWidth();
+				Fibo.Texel[1] = 1.0f / GetHeight();
 
-				RenderMerge(Pass1, &RenderPass1);
-				RenderMerge(Pass2, &RenderPass2);
-				RenderResult(Pass3, &RenderPass2);
+				RenderMerge(Shaders.Shading, &Shading);
+				RenderMerge(Shaders.Fibo[0], &Fibo, 2);
+				RenderMerge(Shaders.Fibo[1], nullptr, 2);
+				RenderResult(Shaders.Multiply);
 			}
 
 			DoF::DoF(RenderSystem* Lab) : EffectDraw(Lab)
 			{
-				CompileEffect("shaders/effects/focus", sizeof(RenderPass));
+				CompileEffect("postprocess/focus", sizeof(Focus));
 			}
 			void DoF::Deserialize(ContentManager* Content, Rest::Document* Node)
 			{
-				NMake::Unpack(Node->Find("focus-distance"), &FocusDistance);
-				NMake::Unpack(Node->Find("focus-time"), &FocusTime);
-				NMake::Unpack(Node->Find("focus-radius"), &FocusRadius);
-				NMake::Unpack(Node->Find("radius"), &RenderPass.Radius);
-				NMake::Unpack(Node->Find("bokeh"), &RenderPass.Bokeh);
-				NMake::Unpack(Node->Find("scale"), &RenderPass.Scale);
-				NMake::Unpack(Node->Find("near-distance"), &RenderPass.NearDistance);
-				NMake::Unpack(Node->Find("near-range"), &RenderPass.NearRange);
-				NMake::Unpack(Node->Find("far-distance"), &RenderPass.FarDistance);
-				NMake::Unpack(Node->Find("far-range"), &RenderPass.FarRange);
+				NMake::Unpack(Node->Find("distance"), &Distance);
+				NMake::Unpack(Node->Find("time"), &Time);
+				NMake::Unpack(Node->Find("radius"), &Radius);
+				NMake::Unpack(Node->Find("radius"), &Focus.Radius);
+				NMake::Unpack(Node->Find("bokeh"), &Focus.Bokeh);
+				NMake::Unpack(Node->Find("scale"), &Focus.Scale);
+				NMake::Unpack(Node->Find("near-distance"), &Focus.NearDistance);
+				NMake::Unpack(Node->Find("near-range"), &Focus.NearRange);
+				NMake::Unpack(Node->Find("far-distance"), &Focus.FarDistance);
+				NMake::Unpack(Node->Find("far-range"), &Focus.FarRange);
 			}
 			void DoF::Serialize(ContentManager* Content, Rest::Document* Node)
 			{
-				NMake::Pack(Node->SetDocument("focus-distance"), FocusDistance);
-				NMake::Pack(Node->SetDocument("focus-time"), FocusTime);
-				NMake::Pack(Node->SetDocument("focus-radius"), FocusRadius);
-				NMake::Pack(Node->SetDocument("radius"), RenderPass.Radius);
-				NMake::Pack(Node->SetDocument("bokeh"), RenderPass.Bokeh);
-				NMake::Pack(Node->SetDocument("scale"), RenderPass.Scale);
-				NMake::Pack(Node->SetDocument("near-distance"), RenderPass.NearDistance);
-				NMake::Pack(Node->SetDocument("near-range"), RenderPass.NearRange);
-				NMake::Pack(Node->SetDocument("far-distance"), RenderPass.FarDistance);
-				NMake::Pack(Node->SetDocument("far-range"), RenderPass.FarRange);
+				NMake::Pack(Node->SetDocument("distance"), Distance);
+				NMake::Pack(Node->SetDocument("time"), Time);
+				NMake::Pack(Node->SetDocument("radius"), Radius);
+				NMake::Pack(Node->SetDocument("radius"), Focus.Radius);
+				NMake::Pack(Node->SetDocument("bokeh"), Focus.Bokeh);
+				NMake::Pack(Node->SetDocument("scale"), Focus.Scale);
+				NMake::Pack(Node->SetDocument("near-distance"), Focus.NearDistance);
+				NMake::Pack(Node->SetDocument("near-range"), Focus.NearRange);
+				NMake::Pack(Node->SetDocument("far-distance"), Focus.FarDistance);
+				NMake::Pack(Node->SetDocument("far-range"), Focus.FarRange);
 			}
 			void DoF::RenderEffect(Rest::Timer* Time)
 			{
-				if (FocusDistance > 0.0f)
+				if (Distance > 0.0f)
 					FocusAtNearestTarget(Time->GetDeltaTime());
 				
-				RenderPass.Texel[0] = 1.0f / GetWidth();
-				RenderPass.Texel[1] = 1.0f / GetHeight();
-				RenderResult(nullptr, &RenderPass);
+				Focus.Texel[0] = 1.0f / GetWidth();
+				Focus.Texel[1] = 1.0f / GetHeight();
+				RenderResult(nullptr, &Focus);
 			}
 			void DoF::FocusAtNearestTarget(float DeltaTime)
 			{
@@ -2047,13 +1988,13 @@ namespace Tomahawk
 				Origin.Origin = System->GetScene()->View.WorldPosition.InvertZ();
 				Origin.Direction = System->GetScene()->View.WorldRotation.DepthDirection();
 
-				Component* Target = nullptr;
-				System->GetScene()->RayTest<Components::Model>(Origin, FocusDistance, [this, &Target](Component* Result)
+				bool Change = false;
+				System->GetScene()->RayTest<Components::Model>(Origin, Distance, [this, &Origin, &Change](Component* Result, const Compute::Vector3& Hit)
 				{
 					float NextRange = Result->As<Components::Model>()->GetRange();
-					float NextDistance = Result->GetEntity()->Distance + NextRange / 2.0f;
+					float NextDistance = Origin.Origin.Distance(Hit) + NextRange / 2.0f;
 
-					if (NextDistance <= RenderPass.NearRange || NextDistance + NextRange / 2.0f >= FocusDistance)
+					if (NextDistance <= Focus.NearRange || NextDistance + NextRange / 2.0f >= Distance)
 						return true;
 
 					if (NextDistance >= State.Distance && State.Distance > 0.0f)
@@ -2061,126 +2002,126 @@ namespace Tomahawk
 
 					State.Distance = NextDistance;
 					State.Range = NextRange;
-					Target = Result;
+					Change = true;
 
 					return true;
 				});
 
-				if (State.Target != Target)
+				if (Change)
 				{
-					State.Target = Target;
-					State.Radius = RenderPass.Radius;
+					State.Radius = Focus.Radius;
 					State.Factor = 0.0f;
 				}
-				else if (!State.Target)
-					State.Distance = 0.0f;
 
-				State.Factor += FocusTime * DeltaTime;
+				State.Factor += Time * DeltaTime;
 				if (State.Factor > 1.0f)
 					State.Factor = 1.0f;
 
 				if (State.Distance > 0.0f)
 				{
-					State.Distance += State.Range / 2.0f + RenderPass.FarRange;
-					RenderPass.FarDistance = State.Distance;
-					RenderPass.Radius = Compute::Math<float>::Lerp(State.Radius, FocusRadius, State.Factor);
+					State.Distance += State.Range / 2.0f + Focus.FarRange;
+					Focus.FarDistance = State.Distance;
+					Focus.Radius = Compute::Math<float>::Lerp(State.Radius, Radius, State.Factor);
 				}
 				else
 				{
 					State.Distance = 0.0f;
 					if (State.Factor >= 1.0f)
-						RenderPass.FarDistance = State.Distance;
+						Focus.FarDistance = State.Distance;
 
-					RenderPass.Radius = Compute::Math<float>::Lerp(State.Radius, 0.0f, State.Factor);
+					Focus.Radius = Compute::Math<float>::Lerp(State.Radius, 0.0f, State.Factor);
 				}
 
-				if (RenderPass.Radius < 0.0f)
-					RenderPass.Radius = 0.0f;
+				if (Focus.Radius < 0.0f)
+					Focus.Radius = 0.0f;
 			}
 
 			Bloom::Bloom(RenderSystem* Lab) : EffectDraw(Lab)
 			{
-				Pass1 = CompileEffect("shaders/effects/bloom-x", sizeof(RenderPass));
-				Pass2 = CompileEffect("shaders/effects/bloom-y", sizeof(RenderPass));
+				Shaders.Bloom = CompileEffect("postprocess/bloom", sizeof(Extraction));
+				Shaders.Fibo[0] = CompileEffect("blur/fibo-x", sizeof(Fibo));
+				Shaders.Fibo[1] = CompileEffect("blur/fibo-y");
+				Shaders.Additive = CompileEffect("merger/additive");
 			}
 			void Bloom::Deserialize(ContentManager* Content, Rest::Document* Node)
 			{
-				NMake::Unpack(Node->Find("samples"), &RenderPass.Samples);
-				NMake::Unpack(Node->Find("intensity"), &RenderPass.Intensity);
-				NMake::Unpack(Node->Find("threshold"), &RenderPass.Threshold);
-				NMake::Unpack(Node->Find("scale"), &RenderPass.Scale);
+				NMake::Unpack(Node->Find("intensity"), &Extraction.Intensity);
+				NMake::Unpack(Node->Find("threshold"), &Extraction.Threshold);
+				NMake::Unpack(Node->Find("power"), &Fibo.Power);
+				NMake::Unpack(Node->Find("samples"), &Fibo.Samples);
+				NMake::Unpack(Node->Find("blur"), &Fibo.Blur);
 			}
 			void Bloom::Serialize(ContentManager* Content, Rest::Document* Node)
 			{
-				NMake::Pack(Node->SetDocument("samples"), RenderPass.Samples);
-				NMake::Pack(Node->SetDocument("intensity"), RenderPass.Intensity);
-				NMake::Pack(Node->SetDocument("threshold"), RenderPass.Threshold);
-				NMake::Pack(Node->SetDocument("scale"), RenderPass.Scale);
+				NMake::Pack(Node->SetDocument("intensity"), Extraction.Intensity);
+				NMake::Pack(Node->SetDocument("threshold"), Extraction.Threshold);
+				NMake::Pack(Node->SetDocument("power"), Fibo.Power);
+				NMake::Pack(Node->SetDocument("samples"), Fibo.Samples);
+				NMake::Pack(Node->SetDocument("blur"), Fibo.Blur);
 			}
 			void Bloom::RenderEffect(Rest::Timer* Time)
 			{
-				RenderPass.Texel[0] = 1.0f / GetWidth();
-				RenderPass.Texel[1] = 1.0f / GetHeight();
-				RenderMerge(Pass1, &RenderPass);
-				RenderResult(Pass2, &RenderPass);
+				Fibo.Texel[0] = 1.0f / GetWidth();
+				Fibo.Texel[1] = 1.0f / GetHeight();
+
+				RenderMerge(Shaders.Bloom, &Extraction);
+				RenderMerge(Shaders.Fibo[0], &Fibo, 3);
+				RenderMerge(Shaders.Fibo[1], nullptr, 3);
+				RenderResult(Shaders.Additive);
 			}
 
 			Tone::Tone(RenderSystem* Lab) : EffectDraw(Lab)
 			{
-				CompileEffect("shaders/effects/tone", sizeof(RenderPass));
+				CompileEffect("postprocess/tone", sizeof(Mapping));
 			}
 			void Tone::Deserialize(ContentManager* Content, Rest::Document* Node)
 			{
-				NMake::Unpack(Node->Find("blind-vision-r"), &RenderPass.BlindVisionR);
-				NMake::Unpack(Node->Find("blind-vision-g"), &RenderPass.BlindVisionG);
-				NMake::Unpack(Node->Find("blind-vision-b"), &RenderPass.BlindVisionB);
-				NMake::Unpack(Node->Find("vignette-color"), &RenderPass.VignetteColor);
-				NMake::Unpack(Node->Find("color-gamma"), &RenderPass.ColorGamma);
-				NMake::Unpack(Node->Find("desaturation-gamma"), &RenderPass.DesaturationGamma);
-				NMake::Unpack(Node->Find("vignette-amount"), &RenderPass.VignetteAmount);
-				NMake::Unpack(Node->Find("vignette-curve"), &RenderPass.VignetteCurve);
-				NMake::Unpack(Node->Find("vignette-radius"), &RenderPass.VignetteRadius);
-				NMake::Unpack(Node->Find("linear-intensity"), &RenderPass.LinearIntensity);
-				NMake::Unpack(Node->Find("gamma-intensity"), &RenderPass.GammaIntensity);
-				NMake::Unpack(Node->Find("desaturation-intensity"), &RenderPass.DesaturationIntensity);
-				NMake::Unpack(Node->Find("tone-intensity"), &RenderPass.ToneIntensity);
-				NMake::Unpack(Node->Find("aces-intensity"), &RenderPass.AcesIntensity);
-				NMake::Unpack(Node->Find("aces-a"), &RenderPass.AcesA);
-				NMake::Unpack(Node->Find("aces-b"), &RenderPass.AcesB);
-				NMake::Unpack(Node->Find("aces-c"), &RenderPass.AcesC);
-				NMake::Unpack(Node->Find("aces-d"), &RenderPass.AcesD);
-				NMake::Unpack(Node->Find("aces-e"), &RenderPass.AcesE);
+				NMake::Unpack(Node->Find("grayscale"), &Mapping.Grayscale);
+				NMake::Unpack(Node->Find("aces"), &Mapping.ACES);
+				NMake::Unpack(Node->Find("filmic"), &Mapping.Filmic);
+				NMake::Unpack(Node->Find("lottes"), &Mapping.Lottes);
+				NMake::Unpack(Node->Find("reinhard"), &Mapping.Reinhard);
+				NMake::Unpack(Node->Find("reinhard2"), &Mapping.Reinhard2);
+				NMake::Unpack(Node->Find("unreal"), &Mapping.Unreal);
+				NMake::Unpack(Node->Find("uchimura"), &Mapping.Uchimura);
+				NMake::Unpack(Node->Find("ubrightness"), &Mapping.UBrightness);
+				NMake::Unpack(Node->Find("usontrast"), &Mapping.UContrast);
+				NMake::Unpack(Node->Find("ustart"), &Mapping.UStart);
+				NMake::Unpack(Node->Find("ulength"), &Mapping.ULength);
+				NMake::Unpack(Node->Find("ublack"), &Mapping.UBlack);
+				NMake::Unpack(Node->Find("upedestal"), &Mapping.UPedestal);
+				NMake::Unpack(Node->Find("exposure"), &Mapping.Exposure);
+				NMake::Unpack(Node->Find("eintensity"), &Mapping.EIntensity);
+				NMake::Unpack(Node->Find("egamma"), &Mapping.EGamma);
 			}
 			void Tone::Serialize(ContentManager* Content, Rest::Document* Node)
 			{
-				NMake::Pack(Node->SetDocument("blind-vision-r"), RenderPass.BlindVisionR);
-				NMake::Pack(Node->SetDocument("blind-vision-g"), RenderPass.BlindVisionG);
-				NMake::Pack(Node->SetDocument("blind-vision-b"), RenderPass.BlindVisionB);
-				NMake::Pack(Node->SetDocument("vignette-color"), RenderPass.VignetteColor);
-				NMake::Pack(Node->SetDocument("color-gamma"), RenderPass.ColorGamma);
-				NMake::Pack(Node->SetDocument("desaturation-gamma"), RenderPass.DesaturationGamma);
-				NMake::Pack(Node->SetDocument("vignette-amount"), RenderPass.VignetteAmount);
-				NMake::Pack(Node->SetDocument("vignette-curve"), RenderPass.VignetteCurve);
-				NMake::Pack(Node->SetDocument("vignette-radius"), RenderPass.VignetteRadius);
-				NMake::Pack(Node->SetDocument("linear-intensity"), RenderPass.LinearIntensity);
-				NMake::Pack(Node->SetDocument("gamma-intensity"), RenderPass.GammaIntensity);
-				NMake::Pack(Node->SetDocument("desaturation-intensity"), RenderPass.DesaturationIntensity);
-				NMake::Pack(Node->SetDocument("tone-intensity"), RenderPass.ToneIntensity);
-				NMake::Pack(Node->SetDocument("aces-intensity"), RenderPass.AcesIntensity);
-				NMake::Pack(Node->SetDocument("aces-a"), RenderPass.AcesA);
-				NMake::Pack(Node->SetDocument("aces-b"), RenderPass.AcesB);
-				NMake::Pack(Node->SetDocument("aces-c"), RenderPass.AcesC);
-				NMake::Pack(Node->SetDocument("aces-d"), RenderPass.AcesD);
-				NMake::Pack(Node->SetDocument("aces-e"), RenderPass.AcesE);
+				NMake::Pack(Node->SetDocument("grayscale"), Mapping.Grayscale);
+				NMake::Pack(Node->SetDocument("aces"), Mapping.ACES);
+				NMake::Pack(Node->SetDocument("filmic"), Mapping.Filmic);
+				NMake::Pack(Node->SetDocument("lottes"), Mapping.Lottes);
+				NMake::Pack(Node->SetDocument("reinhard"), Mapping.Reinhard);
+				NMake::Pack(Node->SetDocument("reinhard2"), Mapping.Reinhard2);
+				NMake::Pack(Node->SetDocument("unreal"), Mapping.Unreal);
+				NMake::Pack(Node->SetDocument("uchimura"), Mapping.Uchimura);
+				NMake::Pack(Node->SetDocument("ubrightness"), Mapping.UBrightness);
+				NMake::Pack(Node->SetDocument("usontrast"), Mapping.UContrast);
+				NMake::Pack(Node->SetDocument("ustart"), Mapping.UStart);
+				NMake::Pack(Node->SetDocument("ulength"), Mapping.ULength);
+				NMake::Pack(Node->SetDocument("ublack"), Mapping.UBlack);
+				NMake::Pack(Node->SetDocument("upedestal"), Mapping.UPedestal);
+				NMake::Pack(Node->SetDocument("exposure"), Mapping.Exposure);
+				NMake::Pack(Node->SetDocument("eintensity"), Mapping.EIntensity);
+				NMake::Pack(Node->SetDocument("egamma"), Mapping.EGamma);
 			}
 			void Tone::RenderEffect(Rest::Timer* Time)
 			{
-				RenderResult(nullptr, &RenderPass);
+				RenderResult(nullptr, &Mapping);
 			}
 
 			Glitch::Glitch(RenderSystem* Lab) : EffectDraw(Lab), ScanLineJitter(0), VerticalJump(0), HorizontalShake(0), ColorDrift(0)
 			{
-				CompileEffect("shaders/effects/glitch", sizeof(RenderPass));
+				CompileEffect("postprocess/glitch", sizeof(Distortion));
 			}
 			void Glitch::Deserialize(ContentManager* Content, Rest::Document* Node)
 			{
@@ -2189,13 +2130,13 @@ namespace Tomahawk
 				NMake::Unpack(Node->Find("horizontal-shake"), &HorizontalShake);
 				NMake::Unpack(Node->Find("color-drift"), &ColorDrift);
 				NMake::Unpack(Node->Find("horizontal-shake"), &HorizontalShake);
-				NMake::Unpack(Node->Find("elapsed-time"), &RenderPass.ElapsedTime);
-				NMake::Unpack(Node->Find("scanline-jitter-displacement"), &RenderPass.ScanLineJitterDisplacement);
-				NMake::Unpack(Node->Find("scanline-jitter-threshold"), &RenderPass.ScanLineJitterThreshold);
-				NMake::Unpack(Node->Find("vertical-jump-amount"), &RenderPass.VerticalJumpAmount);
-				NMake::Unpack(Node->Find("vertical-jump-time"), &RenderPass.VerticalJumpTime);
-				NMake::Unpack(Node->Find("color-drift-amount"), &RenderPass.ColorDriftAmount);
-				NMake::Unpack(Node->Find("color-drift-time"), &RenderPass.ColorDriftTime);
+				NMake::Unpack(Node->Find("elapsed-time"), &Distortion.ElapsedTime);
+				NMake::Unpack(Node->Find("scanline-jitter-displacement"), &Distortion.ScanLineJitterDisplacement);
+				NMake::Unpack(Node->Find("scanline-jitter-threshold"), &Distortion.ScanLineJitterThreshold);
+				NMake::Unpack(Node->Find("vertical-jump-amount"), &Distortion.VerticalJumpAmount);
+				NMake::Unpack(Node->Find("vertical-jump-time"), &Distortion.VerticalJumpTime);
+				NMake::Unpack(Node->Find("color-drift-amount"), &Distortion.ColorDriftAmount);
+				NMake::Unpack(Node->Find("color-drift-time"), &Distortion.ColorDriftTime);
 			}
 			void Glitch::Serialize(ContentManager* Content, Rest::Document* Node)
 			{
@@ -2204,28 +2145,28 @@ namespace Tomahawk
 				NMake::Pack(Node->SetDocument("horizontal-shake"), HorizontalShake);
 				NMake::Pack(Node->SetDocument("color-drift"), ColorDrift);
 				NMake::Pack(Node->SetDocument("horizontal-shake"), HorizontalShake);
-				NMake::Pack(Node->SetDocument("elapsed-time"), RenderPass.ElapsedTime);
-				NMake::Pack(Node->SetDocument("scanline-jitter-displacement"), RenderPass.ScanLineJitterDisplacement);
-				NMake::Pack(Node->SetDocument("scanline-jitter-threshold"), RenderPass.ScanLineJitterThreshold);
-				NMake::Pack(Node->SetDocument("vertical-jump-amount"), RenderPass.VerticalJumpAmount);
-				NMake::Pack(Node->SetDocument("vertical-jump-time"), RenderPass.VerticalJumpTime);
-				NMake::Pack(Node->SetDocument("color-drift-amount"), RenderPass.ColorDriftAmount);
-				NMake::Pack(Node->SetDocument("color-drift-time"), RenderPass.ColorDriftTime);
+				NMake::Pack(Node->SetDocument("elapsed-time"), Distortion.ElapsedTime);
+				NMake::Pack(Node->SetDocument("scanline-jitter-displacement"), Distortion.ScanLineJitterDisplacement);
+				NMake::Pack(Node->SetDocument("scanline-jitter-threshold"), Distortion.ScanLineJitterThreshold);
+				NMake::Pack(Node->SetDocument("vertical-jump-amount"), Distortion.VerticalJumpAmount);
+				NMake::Pack(Node->SetDocument("vertical-jump-time"), Distortion.VerticalJumpTime);
+				NMake::Pack(Node->SetDocument("color-drift-amount"), Distortion.ColorDriftAmount);
+				NMake::Pack(Node->SetDocument("color-drift-time"), Distortion.ColorDriftTime);
 			}
 			void Glitch::RenderEffect(Rest::Timer* Time)
 			{
-				if (RenderPass.ElapsedTime >= 32000.0f)
-					RenderPass.ElapsedTime = 0.0f;
+				if (Distortion.ElapsedTime >= 32000.0f)
+					Distortion.ElapsedTime = 0.0f;
 
-				RenderPass.ElapsedTime += (float)Time->GetDeltaTime() * 10.0f;
-				RenderPass.VerticalJumpAmount = VerticalJump;
-				RenderPass.VerticalJumpTime += (float)Time->GetDeltaTime() * VerticalJump * 11.3f;
-				RenderPass.ScanLineJitterThreshold = Compute::Mathf::Saturate(1.0f - ScanLineJitter * 1.2f);
-				RenderPass.ScanLineJitterDisplacement = 0.002f + Compute::Mathf::Pow(ScanLineJitter, 3) * 0.05f;
-				RenderPass.HorizontalShake = HorizontalShake * 0.2f;
-				RenderPass.ColorDriftAmount = ColorDrift * 0.04f;
-				RenderPass.ColorDriftTime = RenderPass.ElapsedTime * 606.11f;
-				RenderResult(nullptr, &RenderPass);
+				Distortion.ElapsedTime += (float)Time->GetDeltaTime() * 10.0f;
+				Distortion.VerticalJumpAmount = VerticalJump;
+				Distortion.VerticalJumpTime += (float)Time->GetDeltaTime() * VerticalJump * 11.3f;
+				Distortion.ScanLineJitterThreshold = Compute::Mathf::Saturate(1.0f - ScanLineJitter * 1.2f);
+				Distortion.ScanLineJitterDisplacement = 0.002f + Compute::Mathf::Pow(ScanLineJitter, 3) * 0.05f;
+				Distortion.HorizontalShake = HorizontalShake * 0.2f;
+				Distortion.ColorDriftAmount = ColorDrift * 0.04f;
+				Distortion.ColorDriftTime = Distortion.ElapsedTime * 606.11f;
+				RenderResult(nullptr, &Distortion);
 			}
 
 			UserInterface::UserInterface(RenderSystem* Lab) : UserInterface(Lab, Application::Get() ? Application::Get()->Activity : nullptr)

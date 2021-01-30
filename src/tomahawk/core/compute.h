@@ -681,9 +681,9 @@ namespace Tomahawk
 			Vector3 operator *(float T) const;
 			bool IntersectsPlane(const Vector3& Normal, float Diameter) const;
 			bool IntersectsSphere(const Vector3& Position, float Radius, bool DiscardInside = true) const;
-			bool IntersectsAABBAt(const Vector3& Min, const Vector3& Max) const;
-			bool IntersectsAABB(const Vector3& Position, const Vector3& Scale) const;
-			bool IntersectsOBB(const Matrix4x4& World) const;
+			bool IntersectsAABBAt(const Vector3& Min, const Vector3& Max, Vector3* Hit) const;
+			bool IntersectsAABB(const Vector3& Position, const Vector3& Scale, Vector3* Hit) const;
+			bool IntersectsOBB(const Matrix4x4& World, Vector3* Hit) const;
 		};
 
 		struct TH_OUT Matrix4x4
@@ -1399,8 +1399,8 @@ namespace Tomahawk
 			static std::vector<int> CreateTriangleStrip(TriangleStrip::Desc& Desc, const std::vector<int>& Indices);
 			static std::vector<int> CreateTriangleList(const std::vector<int>& Indices);
 			static Ray CreateCursorRay(const Vector3& Origin, const Vector2& Cursor, const Vector2& Screen, const Matrix4x4& InvProjection, const Matrix4x4& InvView);
-			static bool CursorRayTest(const Ray& Cursor, const Vector3& Position, const Vector3& Scale);
-			static bool CursorRayTest(const Ray& Cursor, const Matrix4x4& World);
+			static bool CursorRayTest(const Ray& Cursor, const Vector3& Position, const Vector3& Scale, Vector3* Hit = nullptr);
+			static bool CursorRayTest(const Ray& Cursor, const Matrix4x4& World, Vector3* Hit = nullptr);
 			static uint64_t CRC32(const std::string& Data);
 		};
 

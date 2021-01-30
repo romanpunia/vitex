@@ -480,7 +480,7 @@ namespace Tomahawk
 				Shader::Desc F = Shader::Desc();
 				F.Filename = "basic";
 				
-				if (GetSection("shaders/basic/geometry", &F.Data))
+				if (GetSection("geometry/basic/geometry", &F.Data))
 					BasicEffect = CreateShader(F);
 			}
 			D3D11Device::~D3D11Device()

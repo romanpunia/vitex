@@ -1532,7 +1532,7 @@ namespace Tomahawk
 
 			return true;
 		}
-		bool Ray::IntersectsAABBAt(const Vector3& Min, const Vector3& Max) const
+		bool Ray::IntersectsAABBAt(const Vector3& Min, const Vector3& Max, Vector3* Hit) const
 		{
 			Vector3 HitPoint; float T;
 			if (Origin > Min && Origin < Max)
@@ -1544,7 +1544,12 @@ namespace Tomahawk
 				HitPoint = Origin + Direction * T;
 
 				if (HitPoint.Y >= Min.Y && HitPoint.Y <= Max.Y && HitPoint.Z >= Min.Z && HitPoint.Z <= Max.Z)
+				{
+					if (Hit != nullptr)
+						*Hit = HitPoint;
+
 					return true;
+				}
 			}
 
 			if (Origin.X >= Max.X && Direction.X < 0)
@@ -1553,7 +1558,12 @@ namespace Tomahawk
 				HitPoint = Origin + Direction * T;
 
 				if (HitPoint.Y >= Min.Y && HitPoint.Y <= Max.Y && HitPoint.Z >= Min.Z && HitPoint.Z <= Max.Z)
+				{
+					if (Hit != nullptr)
+						*Hit = HitPoint;
+
 					return true;
+				}
 			}
 
 			if (Origin.Y <= Min.Y && Direction.Y > 0)
@@ -1562,7 +1572,12 @@ namespace Tomahawk
 				HitPoint = Origin + Direction * T;
 
 				if (HitPoint.X >= Min.X && HitPoint.X <= Max.X && HitPoint.Z >= Min.Z && HitPoint.Z <= Max.Z)
+				{
+					if (Hit != nullptr)
+						*Hit = HitPoint;
+
 					return true;
+				}
 			}
 
 			if (Origin.Y >= Max.Y && Direction.Y < 0)
@@ -1571,7 +1586,12 @@ namespace Tomahawk
 				HitPoint = Origin + Direction * T;
 
 				if (HitPoint.X >= Min.X && HitPoint.X <= Max.X && HitPoint.Z >= Min.Z && HitPoint.Z <= Max.Z)
+				{
+					if (Hit != nullptr)
+						*Hit = HitPoint;
+
 					return true;
+				}
 			}
 
 			if (Origin.Z <= Min.Z && Direction.Z > 0)
@@ -1580,7 +1600,12 @@ namespace Tomahawk
 				HitPoint = Origin + Direction * T;
 
 				if (HitPoint.X >= Min.X && HitPoint.X <= Max.X && HitPoint.Y >= Min.Y && HitPoint.Y <= Max.Y)
+				{
+					if (Hit != nullptr)
+						*Hit = HitPoint;
+
 					return true;
+				}
 			}
 
 			if (Origin.Z >= Max.Z && Direction.Z < 0)
@@ -1589,19 +1614,24 @@ namespace Tomahawk
 				HitPoint = Origin + Direction * T;
 
 				if (HitPoint.X >= Min.X && HitPoint.X <= Max.X && HitPoint.Y >= Min.Y && HitPoint.Y <= Max.Y)
+				{
+					if (Hit != nullptr)
+						*Hit = HitPoint;
+
 					return true;
+				}
 			}
 
 			return false;
 		}
-		bool Ray::IntersectsAABB(const Vector3& Position, const Vector3& Scale) const
+		bool Ray::IntersectsAABB(const Vector3& Position, const Vector3& Scale, Vector3* Hit) const
 		{
 			Vector3 Min = Position - Scale;
 			Vector3 Max = Position + Scale;
 
-			return IntersectsAABBAt(Min, Max);
+			return IntersectsAABBAt(Min, Max, Hit);
 		}
-		bool Ray::IntersectsOBB(const Matrix4x4& World) const
+		bool Ray::IntersectsOBB(const Matrix4x4& World, Vector3* Hit) const
 		{
 			Matrix4x4 Offset = World.Invert();
 			Vector3 Min = -1.0f, Max = 1.0f;
@@ -1618,7 +1648,12 @@ namespace Tomahawk
 				HitPoint = O + D * T;
 
 				if (HitPoint.Y >= Min.Y && HitPoint.Y <= Max.Y && HitPoint.Z >= Min.Z && HitPoint.Z <= Max.Z)
+				{
+					if (Hit != nullptr)
+						*Hit = HitPoint;
+
 					return true;
+				}
 			}
 
 			if (O.X >= Max.X && D.X < 0)
@@ -1627,7 +1662,12 @@ namespace Tomahawk
 				HitPoint = O + D * T;
 
 				if (HitPoint.Y >= Min.Y && HitPoint.Y <= Max.Y && HitPoint.Z >= Min.Z && HitPoint.Z <= Max.Z)
+				{
+					if (Hit != nullptr)
+						*Hit = HitPoint;
+
 					return true;
+				}
 			}
 
 			if (O.Y <= Min.Y && D.Y > 0)
@@ -1636,7 +1676,12 @@ namespace Tomahawk
 				HitPoint = O + D * T;
 
 				if (HitPoint.X >= Min.X && HitPoint.X <= Max.X && HitPoint.Z >= Min.Z && HitPoint.Z <= Max.Z)
+				{
+					if (Hit != nullptr)
+						*Hit = HitPoint;
+
 					return true;
+				}
 			}
 
 			if (O.Y >= Max.Y && D.Y < 0)
@@ -1645,7 +1690,12 @@ namespace Tomahawk
 				HitPoint = O + D * T;
 
 				if (HitPoint.X >= Min.X && HitPoint.X <= Max.X && HitPoint.Z >= Min.Z && HitPoint.Z <= Max.Z)
+				{
+					if (Hit != nullptr)
+						*Hit = HitPoint;
+
 					return true;
+				}
 			}
 
 			if (O.Z <= Min.Z && D.Z > 0)
@@ -1654,7 +1704,12 @@ namespace Tomahawk
 				HitPoint = O + D * T;
 
 				if (HitPoint.X >= Min.X && HitPoint.X <= Max.X && HitPoint.Y >= Min.Y && HitPoint.Y <= Max.Y)
+				{
+					if (Hit != nullptr)
+						*Hit = HitPoint;
+
 					return true;
+				}
 			}
 
 			if (O.Z >= Max.Z && D.Z < 0)
@@ -1663,7 +1718,12 @@ namespace Tomahawk
 				HitPoint = O + D * T;
 
 				if (HitPoint.X >= Min.X && HitPoint.X <= Max.X && HitPoint.Y >= Min.Y && HitPoint.Y <= Max.Y)
+				{
+					if (Hit != nullptr)
+						*Hit = HitPoint;
+
 					return true;
+				}
 			}
 
 			return false;
@@ -5694,13 +5754,13 @@ namespace Tomahawk
 			Eye = (Vector4(Eye.X, Eye.Y, 1.0f, 0.0f) * InvView).NormalizeSafe();
 			return Ray(Origin.InvertZ(), Vector3(Eye.X, Eye.Y, Eye.Z));
 		}
-		bool Common::CursorRayTest(const Ray& Cursor, const Vector3& Position, const Vector3& Scale)
+		bool Common::CursorRayTest(const Ray& Cursor, const Vector3& Position, const Vector3& Scale, Vector3* Hit)
 		{
-			return Cursor.IntersectsAABB(Position.InvertZ(), Scale);
+			return Cursor.IntersectsAABB(Position.InvertZ(), Scale, Hit);
 		}
-		bool Common::CursorRayTest(const Ray& Cursor, const Matrix4x4& World)
+		bool Common::CursorRayTest(const Ray& Cursor, const Matrix4x4& World, Vector3* Hit)
 		{
-			return Cursor.IntersectsOBB(World);
+			return Cursor.IntersectsOBB(World, Hit);
 		}
 		uint64_t Common::CRC32(const std::string& Data)
 		{

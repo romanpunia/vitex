@@ -18,7 +18,7 @@ namespace Tomahawk
 		typedef std::function<void(Rest::Timer*, struct Viewer*)> RenderCallback;
 		typedef std::function<void(class ContentManager*, bool)> SaveCallback;
 		typedef std::function<void(class Event*)> MessageCallback;
-		typedef std::function<bool(class Component*)> RayCallback;
+		typedef std::function<bool(class Component*, const Compute::Vector3&)> RayCallback;
 		typedef std::function<bool(Graphics::RenderTarget*)> TargetCallback;
 
 		class SceneGraph;
@@ -796,7 +796,7 @@ namespace Tomahawk
 			unsigned int GetHeight();
 
 		protected:
-			void RenderMerge(Graphics::Shader* Effect, void* Buffer = nullptr);
+			void RenderMerge(Graphics::Shader* Effect, void* Buffer = nullptr, size_t Count = 1);
 			void RenderResult(Graphics::Shader* Effect, void* Buffer = nullptr);
 			Graphics::Shader* GetEffect(const std::string& Name);
 			Graphics::Shader* CompileEffect(const std::string& Name, const std::string& Code, size_t BufferSize = 0);

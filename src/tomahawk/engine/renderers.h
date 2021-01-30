@@ -210,7 +210,7 @@ namespace Tomahawk
 			class TH_OUT Lighting : public Renderer
 			{
 			private:
-				struct
+				struct ISurfaceLight
 				{
 					Compute::Matrix4x4 WorldViewProjection;
 					Compute::Vector3 Position;
@@ -221,9 +221,9 @@ namespace Tomahawk
 					float Parallax = 0.0f;
 					Compute::Vector3 Attenuation;
 					float Infinity = 0.0f;
-				} SurfaceLight;
+				};
 
-				struct
+				struct IPointLight
 				{
 					Compute::Matrix4x4 WorldViewProjection;
 					Compute::Vector4 Attenuation;
@@ -235,9 +235,9 @@ namespace Tomahawk
 					float Softness = 0.0f;
 					float Bias = 0.0f;
 					float Iterations = 0.0f;
-				} PointLight;
+				};
 
-				struct
+				struct ISpotLight
 				{
 					Compute::Matrix4x4 WorldViewProjection;
 					Compute::Matrix4x4 ViewProjection;
@@ -252,9 +252,9 @@ namespace Tomahawk
 					float Iterations = 0.0f;
 					float Umbra = 0.0f;
 					float Padding = 0.0f;
-				} SpotLight;
+				};
 
-				struct
+				struct ILineLight
 				{
 					Compute::Matrix4x4 ViewProjection[6];
 					Compute::Matrix4x4 SkyOffset;
@@ -274,36 +274,9 @@ namespace Tomahawk
 					float MieDirection = 0.0f;
 					float Umbra = 0.0f;
 					float Padding = 0.0f;
-				} LineLight;
+				};
 
-			public:
-				struct VoxelBuffer
-				{
-					Compute::Vector3 Center;
-					float RayStep = 1.0f;
-					Compute::Vector3 Size;
-					float MipLevels = 8.0f;
-					Compute::Vector3 Scale;
-					float MaxSteps = 32.0f;
-					float Intensity = 3.0f;
-					float Occlusion = 0.9f;
-					float Shadows = 0.25f;
-					float Padding = 0.0f;
-				} Voxelizer;
-
-				struct
-				{
-					Graphics::Texture3D* LightBuffer = nullptr;
-					Graphics::Texture3D* DiffuseBuffer = nullptr;
-					Graphics::Texture3D* NormalBuffer = nullptr;
-					Graphics::Texture3D* SurfaceBuffer = nullptr;
-					Compute::Vector3 Distance = 10.0f;
-					Rest::TickTimer Tick;
-					uint64_t Size = 128;
-					bool Enabled = false;
-				} GI;
-
-				struct
+				struct IAmbientLight
 				{
 					Compute::Matrix4x4 SkyOffset;
 					Compute::Vector3 HighEmission = 0.028f;
@@ -318,8 +291,33 @@ namespace Tomahawk
 					float FogAmount = 0.0f;
 					Compute::Vector3 FogNear = 0.125f;
 					float Recursive = 1.0f;
-				} Ambient;
+				};
 
+				struct IVoxelBuffer
+				{
+					Compute::Vector3 Center;
+					float RayStep = 1.0f;
+					Compute::Vector3 Size;
+					float MipLevels = 8.0f;
+					Compute::Vector3 Scale;
+					float MaxSteps = 32.0f;
+					float Intensity = 3.0f;
+					float Occlusion = 0.9f;
+					float Shadows = 0.25f;
+					float Padding = 0.0f;
+				};
+
+			protected:
+				struct
+				{
+					Graphics::Shader* Ambient[2] = { nullptr };
+					Graphics::Shader* Point[3] = { nullptr };
+					Graphics::Shader* Spot[3] = { nullptr };
+					Graphics::Shader* Line[3] = { nullptr };
+					Graphics::Shader* Surface = nullptr;
+				} Shaders;
+
+			public:
 				struct
 				{
 					std::vector<Graphics::RenderTargetCube*> PointLight;
@@ -345,15 +343,17 @@ namespace Tomahawk
 					uint64_t Size = 128;
 				} Surfaces;
 
-			protected:
 				struct
 				{
-					Graphics::Shader* Ambient[2] = { nullptr };
-					Graphics::Shader* Point[3] = { nullptr };
-					Graphics::Shader* Spot[3] = { nullptr };
-					Graphics::Shader* Line[3] = { nullptr };
-					Graphics::Shader* Surface = nullptr;
-				} Shaders;
+					Graphics::Texture3D* LightBuffer = nullptr;
+					Graphics::Texture3D* DiffuseBuffer = nullptr;
+					Graphics::Texture3D* NormalBuffer = nullptr;
+					Graphics::Texture3D* SurfaceBuffer = nullptr;
+					Compute::Vector3 Distance = 10.0f;
+					Rest::TickTimer Tick;
+					uint64_t Size = 128;
+					bool Enabled = false;
+				} Radiance;
 
 			private:
 				Rest::Pool<Engine::Component*>* PointLights = nullptr;
@@ -371,9 +371,16 @@ namespace Tomahawk
 				Graphics::SamplerState* ShadowSampler = nullptr;
 				Graphics::SamplerState* WrapSampler = nullptr;
 				Graphics::InputLayout* Layout = nullptr;
-				Graphics::Texture2D* LightMap = nullptr;
 				Graphics::Texture2D* SkyBase = nullptr;
 				Graphics::TextureCube* SkyMap = nullptr;
+				ISurfaceLight SurfaceLight;
+				IPointLight PointLight;
+				ISpotLight SpotLight;
+				ILineLight LineLight;
+
+			public:
+				IAmbientLight AmbientLight;
+				IVoxelBuffer VoxelBuffer;
 
 			public:
 				Lighting(RenderSystem* Lab);
@@ -389,7 +396,6 @@ namespace Tomahawk
 				void SetVoxelBufferSize(size_t Size);
 				Graphics::TextureCube* GetSkyMap();
 				Graphics::Texture2D* GetSkyBase();
-				Graphics::Texture2D* GetLightMap();
 
 			private:
 				void RenderResultBuffers(Graphics::GraphicsDevice* Device, RenderOpt Options);
@@ -445,25 +451,28 @@ namespace Tomahawk
 			class TH_OUT SSR : public EffectDraw
 			{
 			private:
-				Graphics::Shader* Pass1;
-				Graphics::Shader* Pass2;
-				Graphics::Shader* Pass3;
+				struct
+				{
+					Graphics::Shader* Gloss[2] = { nullptr };
+					Graphics::Shader* Reflectance = nullptr;
+					Graphics::Shader* Additive = nullptr;
+				} Shaders;
 
 			public:
-				struct RenderConstant1
+				struct ReflectanceBuffer
 				{
 					float Samples = 32.0f;
 					float MipLevels = 0.0f;
 					float Intensity = 1.4f;
 					float Distance = 4.0f;
-				} RenderPass1;
+				} Reflectance;
 
-				struct RenderConstant2
+				struct GlossBuffer
 				{
 					float Texel[2] = { 1.0f, 1.0f };
 					float Samples = 4.000f;
 					float Blur = 4.000f;
-				} RenderPass2;
+				} Gloss;
 
 			public:
 				SSR(RenderSystem* Lab);
@@ -476,56 +485,18 @@ namespace Tomahawk
 				TH_COMPONENT("ssr-renderer");
 			};
 
-			class TH_OUT SSDO : public EffectDraw
-			{
-			private:
-				Graphics::Shader* Pass1;
-				Graphics::Shader* Pass2;
-				Graphics::Shader* Pass3;
-
-			public:
-				struct RenderConstant1
-				{
-					float Samples = 3.1f;
-					float Intensity = 5.0f;
-					float Scale = 0.0f;
-					float Bias = 0.0f;
-					float Radius = 0.34f;
-					float Distance = 0.5f;
-					float Fade = 2.54f;
-					float MipLevels = 0.0f;
-				} RenderPass1;
-
-				struct RenderConstant2
-				{
-					float Texel[2] = { 1.0f, 1.0f };
-					float Samples = 4.000f;
-					float Blur = 2.000f;
-					float Power = 1.000f;
-					float Additive = 1.000f;
-					float Padding[2];
-				} RenderPass2;
-
-			public:
-				SSDO(RenderSystem* Lab);
-				virtual ~SSDO() = default;
-				void Deserialize(ContentManager* Content, Rest::Document* Node) override;
-				void Serialize(ContentManager* Content, Rest::Document* Node) override;
-				void RenderEffect(Rest::Timer* Time) override;
-
-			public:
-				TH_COMPONENT("ssdo-renderer");
-			};
-
 			class TH_OUT SSAO : public EffectDraw
 			{
 			private:
-				Graphics::Shader* Pass1;
-				Graphics::Shader* Pass2;
-				Graphics::Shader* Pass3;
+				struct
+				{
+					Graphics::Shader* Shading = nullptr;
+					Graphics::Shader* Fibo[2] = { nullptr };
+					Graphics::Shader* Multiply = nullptr;
+				} Shaders;
 
 			public:
-				struct RenderConstant1
+				struct ShadingBuffer
 				{
 					float Samples = 4.0f;
 					float Intensity = 3.12f;
@@ -535,17 +506,16 @@ namespace Tomahawk
 					float Distance = 3.83f;
 					float Fade = 1.96f;
 					float Padding = 0.0f;
-				} RenderPass1;
+				} Shading;
 
-				struct RenderConstant2
+				struct FiboBuffer
 				{
 					float Texel[2] = { 1.0f, 1.0f };
 					float Samples = 8.000f;
 					float Blur = 4.000f;
+					float Padding[3] = { 0.0f };
 					float Power = 1.000f;
-					float Additive = 0.000f;
-					float Padding[2] = { 0.0, 0.0 };
-				} RenderPass2;
+				} Fibo;
 
 			public:
 				SSAO(RenderSystem* Lab);
@@ -563,15 +533,14 @@ namespace Tomahawk
 			private:
 				struct
 				{
-					Component* Target = nullptr;
 					float Radius = 0.0f;
 					float Factor = 0.0f;
-					float Distance = -1.0f;
+					float Distance = 0.0f;
 					float Range = 0.0f;
 				} State;
 
 			public:
-				struct RenderConstant
+				struct FocusBuffer
 				{
 					float Texel[2] = { 1.0f / 512.0f };
 					float Radius = 1.0f;
@@ -582,12 +551,12 @@ namespace Tomahawk
 					float FarDistance = 32.0f;
 					float FarRange = 2.0f;
 					float Padding[3] = { 0.0f };
-				} RenderPass;
+				} Focus;
 
 			public:
-				float FocusDistance = -1.0f;
-				float FocusRadius = 1.5f;
-				float FocusTime = 0.1f;
+				float Distance = -1.0f;
+				float Radius = 1.5f;
+				float Time = 0.1f;
 
 			public:
 				DoF(RenderSystem* Lab);
@@ -604,20 +573,29 @@ namespace Tomahawk
 			class TH_OUT Bloom : public EffectDraw
 			{
 			private:
-				Graphics::Shader* Pass1;
-				Graphics::Shader* Pass2;
+				struct
+				{
+					Graphics::Shader* Bloom = nullptr;
+					Graphics::Shader* Fibo[2] = { nullptr };
+					Graphics::Shader* Additive = nullptr;
+				} Shaders;
 
 			public:
-				struct RenderConstant
+				struct ExtractionBuffer
+				{
+					float Padding[2] = { 0.0f };
+					float Intensity = 8.0f;
+					float Threshold = 0.73f;
+				} Extraction;
+
+				struct FiboBuffer
 				{
 					float Texel[2] = { 1.0f, 1.0f };
-					float Samples = 24.0f;
-					float Intensity = 1.736f;
-					float Threshold = 0.38f;
-					float Scale = 0.1f;
-					float Padding1 = 0.0f;
-					float Padding2 = 0.0f;
-				} RenderPass;
+					float Samples = 14.000f;
+					float Blur = 64.000f;
+					float Padding[3] = { 0.0f };
+					float Power = 1.000f;
+				} Fibo;
 
 			public:
 				Bloom(RenderSystem* Lab);
@@ -633,29 +611,27 @@ namespace Tomahawk
 			class TH_OUT Tone : public EffectDraw
 			{
 			public:
-				struct RenderConstant
+				struct MappingBuffer
 				{
-					Compute::Vector3 BlindVisionR = Compute::Vector3(1, 0, 0);
-					float VignetteAmount = 0.0f;
-					Compute::Vector3 BlindVisionG = Compute::Vector3(0, 1, 0);
-					float VignetteCurve = 1.5f;
-					Compute::Vector3 BlindVisionB = Compute::Vector3(0, 0, 1);
-					float VignetteRadius = 1.0f;
-					Compute::Vector3 VignetteColor;
-					float LinearIntensity = 0.0f;
-					Compute::Vector3 ColorGamma = Compute::Vector3(1, 1, 1);
-					float GammaIntensity = 2.2f;
-					Compute::Vector3 DesaturationGamma = Compute::Vector3(0.3f, 0.59f, 0.11f);
-					float DesaturationIntensity = 0.0f;
-					float ToneIntensity = 1.0f;
-					float AcesIntensity = 1.0f;
-					float AcesA = 3.01f;
-					float AcesB = 0.03f;
-					float AcesC = 2.43f;
-					float AcesD = 0.59f;
-					float AcesE = 0.14f;
-					float Padding = 0.0f;
-				} RenderPass;
+					float Padding[3] = { 0.0f };
+					float Grayscale = -0.12f;
+					float ACES = 0.6f;
+					float Filmic = -0.12f;
+					float Lottes = 0.109f;
+					float Reinhard = -0.09f;
+					float Reinhard2 = -0.03f;
+					float Unreal = -0.13f;
+					float Uchimura = 1.0f;
+					float UBrightness = 2.0f;
+					float UContrast = 1.0f;
+					float UStart = 0.82f;
+					float ULength = 0.4f;
+					float UBlack = 1.13f;
+					float UPedestal = 0.05f;
+					float Exposure = 0.0f;
+					float EIntensity = 0.9f;
+					float EGamma = 2.2f;
+				} Mapping;
 
 			public:
 				Tone(RenderSystem* Lab);
@@ -671,7 +647,7 @@ namespace Tomahawk
 			class TH_OUT Glitch : public EffectDraw
 			{
 			public:
-				struct RenderConstant
+				struct DistortionBuffer
 				{
 					float ScanLineJitterDisplacement = 0;
 					float ScanLineJitterThreshold = 0;
@@ -681,7 +657,7 @@ namespace Tomahawk
 					float ColorDriftTime = 0;
 					float HorizontalShake = 0;
 					float ElapsedTime = 0;
-				} RenderPass;
+				} Distortion;
 
 			public:
 				float ScanLineJitter;

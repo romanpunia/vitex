@@ -29,6 +29,10 @@ float4 GetDiffuse(float2 TexCoord, float Level)
 {
     return DiffuseBuffer.SampleLevel(Sampler, TexCoord, Level);
 }
+float4 GetDiffuseSample(float2 TexCoord)
+{
+    return DiffuseBuffer.Sample(Sampler, TexCoord);
+}
 Fragment GetFragment(float2 TexCoord)
 {
     float4 C0 = DiffuseBuffer.SampleLevel(Sampler, TexCoord, 0);

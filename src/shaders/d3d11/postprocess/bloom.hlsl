@@ -1,7 +1,6 @@
 #include "std/layouts/shape"
 #include "std/channels/effect"
 #include "std/core/sampler"
-#include "std/core/random"
 
 cbuffer RenderConstant : register(b3)
 {

@@ -785,17 +785,26 @@ namespace Tomahawk
 			Graphics::BlendState* Blend;
 			Graphics::SamplerState* Sampler;
 			Graphics::InputLayout* Layout;
+			Graphics::RenderTarget2D* Output;
+			Graphics::RenderTarget2D* Swap;
+			unsigned int MaxSlot;
 
 		public:
 			EffectDraw(RenderSystem* Lab);
 			virtual ~EffectDraw() override;
+			virtual void ResizeEffect();
 			virtual void RenderEffect(Rest::Timer* Time);
 			void Render(Rest::Timer* Time, RenderState State, RenderOpt Options) override;
+			void ResizeBuffers() override;
 			unsigned int GetMipLevels();
 			unsigned int GetWidth();
 			unsigned int GetHeight();
 
 		protected:
+			void RenderOutput(Graphics::RenderTarget2D* Resource = nullptr);
+			void RenderTexture(uint32_t Slot6, Graphics::Texture2D* Resource = nullptr);
+			void RenderTexture(uint32_t Slot6, Graphics::Texture3D* Resource = nullptr);
+			void RenderTexture(uint32_t Slot6, Graphics::TextureCube* Resource = nullptr);
 			void RenderMerge(Graphics::Shader* Effect, void* Buffer = nullptr, size_t Count = 1);
 			void RenderResult(Graphics::Shader* Effect, void* Buffer = nullptr);
 			Graphics::Shader* GetEffect(const std::string& Name);

@@ -3600,7 +3600,7 @@ namespace Tomahawk
 			return System->GetScene()->GetTransparent(Source);
 		}
 
-		EffectDraw::EffectDraw(RenderSystem* Lab) : Renderer(Lab)
+		EffectDraw::EffectDraw(RenderSystem* Lab) : Renderer(Lab), MaxSlot(0), Output(nullptr)
 		{
 			DepthStencil = Lab->GetDevice()->GetDepthStencilState("none");
 			Rasterizer = Lab->GetDevice()->GetRasterizerState("cull-back");
@@ -3613,6 +3613,51 @@ namespace Tomahawk
 			for (auto It = Shaders.begin(); It != Shaders.end(); It++)
 				System->FreeShader(It->first, It->second);
 		}
+		void EffectDraw::ResizeBuffers()
+		{
+			Output = nullptr;
+			ResizeEffect();
+		}
+		void EffectDraw::ResizeEffect()
+		{
+		}
+		void EffectDraw::RenderOutput(Graphics::RenderTarget2D* Resource)
+		{
+			if (Resource != nullptr)
+			{
+				Output = Resource;
+				Swap = Resource;
+			}
+			else
+				Output = System->GetRT(TargetType_Main);
+
+			Graphics::GraphicsDevice* Device = System->GetDevice();
+			Device->SetTarget(Output, 0, 0, 0, 0);
+		}
+		void EffectDraw::RenderTexture(uint32_t Slot6, Graphics::Texture2D* Resource)
+		{
+			Graphics::GraphicsDevice* Device = System->GetDevice();
+			Device->SetTexture2D(Resource, 6 + Slot6);
+
+			if (Resource != nullptr)
+				MaxSlot = std::max(MaxSlot, 6 + Slot6);
+		}
+		void EffectDraw::RenderTexture(uint32_t Slot6, Graphics::Texture3D* Resource)
+		{
+			Graphics::GraphicsDevice* Device = System->GetDevice();
+			Device->SetTexture3D(Resource, 6 + Slot6);
+
+			if (Resource != nullptr)
+				MaxSlot = std::max(MaxSlot, 6 + Slot6);
+		}
+		void EffectDraw::RenderTexture(uint32_t Slot6, Graphics::TextureCube* Resource)
+		{
+			Graphics::GraphicsDevice* Device = System->GetDevice();
+			Device->SetTextureCube(Resource, 6 + Slot6);
+
+			if (Resource != nullptr)
+				MaxSlot = std::max(MaxSlot, 6 + Slot6);
+		}
 		void EffectDraw::RenderMerge(Graphics::Shader* Effect, void* Buffer, size_t Count)
 		{
 			if (!Count)
@@ -3621,12 +3666,15 @@ namespace Tomahawk
 			if (!Effect)
 				Effect = Shaders.begin()->second;
 
-			Graphics::RenderTarget2D* Output = System->GetRT(TargetType_Main);
 			Graphics::GraphicsDevice* Device = System->GetDevice();
 			Graphics::Texture2D** Merger = System->GetMerger();
-			Device->SetTexture2D(*Merger, 5);
-			Device->SetShader(Effect, Graphics::ShaderType_Vertex | Graphics::ShaderType_Pixel);
 
+			if (Swap != nullptr && Output != Swap)
+				Device->SetTexture2D(Swap->GetTarget(0), 5);
+			else
+				Device->SetTexture2D(*Merger, 5);
+				
+			Device->SetShader(Effect, Graphics::ShaderType_Vertex | Graphics::ShaderType_Pixel);
 			if (Buffer != nullptr)
 			{
 				Device->UpdateBuffer(Effect, Buffer);
@@ -3636,8 +3684,12 @@ namespace Tomahawk
 			for (size_t i = 0; i < Count; i++)
 			{
 				Device->Draw(6, 0);
-				Device->CopyTexture2D(Output, 0, Merger);
+				if (!Swap)
+					Device->CopyTexture2D(Output, 0, Merger);
 			}
+
+			if (Swap == Output)
+				RenderOutput();
 		}
 		void EffectDraw::RenderResult(Graphics::Shader* Effect, void* Buffer)
 		{
@@ -3645,9 +3697,14 @@ namespace Tomahawk
 				Effect = Shaders.begin()->second;
 
 			Graphics::GraphicsDevice* Device = System->GetDevice();
-			Device->SetTexture2D(*System->GetMerger(), 5);
-			Device->SetShader(Effect, Graphics::ShaderType_Vertex | Graphics::ShaderType_Pixel);
+			Graphics::Texture2D** Merger = System->GetMerger();
 
+			if (Swap != nullptr && Output != Swap)
+				Device->SetTexture2D(Swap->GetTarget(0), 5);
+			else
+				Device->SetTexture2D(*Merger, 5);
+
+			Device->SetShader(Effect, Graphics::ShaderType_Vertex | Graphics::ShaderType_Pixel);
 			if (Buffer != nullptr)
 			{
 				Device->UpdateBuffer(Effect, Buffer);
@@ -3655,6 +3712,7 @@ namespace Tomahawk
 			}
 
 			Device->Draw(6, 0);
+			Output = System->GetRT(TargetType_Main);
 		}
 		void EffectDraw::RenderEffect(Rest::Timer* Time)
 		{
@@ -3664,11 +3722,15 @@ namespace Tomahawk
 			if (State != RenderState_Geometry_Result || Options & RenderOpt_Inner)
 				return;
 
+			MaxSlot = 5;
 			if (Shaders.empty())
 				return;
 
+			Swap = nullptr;
+			if (!Output)
+				Output = System->GetRT(TargetType_Main);
+
 			Graphics::MultiRenderTarget2D* Input = System->GetMRT(TargetType_Main);
-			Graphics::RenderTarget2D* Output = System->GetRT(TargetType_Main);
 			Graphics::GraphicsDevice* Device = System->GetDevice();
 			Device->SetSamplerState(Sampler, 0);
 			Device->SetDepthStencilState(DepthStencil);
@@ -3684,8 +3746,9 @@ namespace Tomahawk
 
 			RenderEffect(Time);
 
-			Device->FlushTexture2D(1, 4);
+			Device->FlushTexture2D(1, MaxSlot);
 			Device->CopyTarget(Output, 0, Input, 0);
+			System->RestoreOutput();
 		}
 		Graphics::Shader* EffectDraw::GetEffect(const std::string& Name)
 		{
@@ -5744,6 +5807,7 @@ namespace Tomahawk
 			Rest::Composer::Push<Renderers::Bloom, RenderSystem*>();
 			Rest::Composer::Push<Renderers::SSR, RenderSystem*>();
 			Rest::Composer::Push<Renderers::SSAO, RenderSystem*>();
+			Rest::Composer::Push<Renderers::MotionBlur, RenderSystem*>();
 			Rest::Composer::Push<Renderers::UserInterface, RenderSystem*>();
 			Rest::Composer::Push<Audio::Effects::Reverb>();
 			Rest::Composer::Push<Audio::Effects::Chorus>();

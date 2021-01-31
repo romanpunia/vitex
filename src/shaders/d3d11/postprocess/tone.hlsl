@@ -1,9 +1,10 @@
 #include "std/layouts/shape"
 #include "std/channels/effect"
+#include "std/core/sampler"
 
 cbuffer RenderConstant : register(b3)
 {
-    float3 Padding;
+    float2 Padding;
     float Grayscale;
     float ACES;
     float Filmic;
@@ -21,7 +22,14 @@ cbuffer RenderConstant : register(b3)
     float Exposure;
     float EIntensity;
     float EGamma;
+    float Adaptation;
+    float AGray;
+    float AWhite;
+    float ABlack;
+    float ASpeed;
 }
+
+Texture2D LUT : register(t5);
 
 float3 GetGrayscale(float3 Color)
 {
@@ -68,26 +76,34 @@ float3 GetUnreal(float3 Color)
 }
 float3 GetUchimura(float3 Color)
 {
-    float l0 = ((UBrightness - UStart) * ULength) / UContrast;
+    float K0 = ((UBrightness - UStart) * ULength) / UContrast;
     float L0 = UStart - UStart / UContrast;
     float L1 = UStart + (1.0 - UStart) / UContrast;
-    float S0 = UStart + l0;
-    float S1 = UStart + UContrast * l0;
+    float S0 = UStart + K0;
+    float S1 = UStart + UContrast * K0;
     float C2 = (UContrast * UBrightness) / (UBrightness - S1);
     float CP = -C2 / UBrightness;
-    float3 w0 = 1.0 - smoothstep(0.0, UStart, Color);
-    float3 w2 = step(UStart + l0, Color);
-    float3 w1 = 1.0 - w0 - w2;
+    float3 W0 = 1.0 - smoothstep(0.0, UStart, Color);
+    float3 W2 = step(UStart + K0, Color);
+    float3 W1 = 1.0 - W0 - W2;
     float3 T = UStart * pow(abs(Color / UStart), UBlack) + UPedestal;
     float3 S = UBrightness - (UBrightness - S1) * exp(CP * (Color - S0));
     float3 L = UStart + UContrast * (Color - UStart);
 
-    return T * w0 + L * w1 + S * w2;
+    return T * W0 + L * W1 + S * W2;
 }
 float3 GetExposure(float3 Color)
 {
     float3 Result = 1.0 - exp(-Color * EIntensity);
     return pow(abs(Result), 1.0 / EGamma);
+}
+float3 GetAdaptation(float3 Color)
+{
+    float Luminance = LUT.Load(int3(0, 0, 0)).r;
+    float Avg = saturate((Color.x + Color.y + Color.z) / 3.0);
+    float Exp = AGray / clamp(Luminance, ABlack, AWhite);
+
+    return Color * Exp;
 }
 
 VOutput VS(VInput V)
@@ -102,6 +118,7 @@ VOutput VS(VInput V)
 float4 PS(VOutput V) : SV_TARGET0
 {
 	float3 Result = GetDiffuse(V.TexCoord.xy, 0).xyz;
+    Result = lerp(Result, GetAdaptation(Result), Adaptation);
     Result = lerp(Result, GetGrayscale(Result), Grayscale);
     Result = lerp(Result, GetACES(Result), ACES);
     Result = lerp(Result, GetFilmic(Result), Filmic);
@@ -111,6 +128,6 @@ float4 PS(VOutput V) : SV_TARGET0
     Result = lerp(Result, GetUnreal(Result), Unreal);
     Result = lerp(Result, GetUchimura(Result), Uchimura);
     Result = lerp(Result, GetExposure(Result), Exposure);
-
+    
 	return float4(Result, 1.0);
 };

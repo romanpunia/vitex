@@ -570,6 +570,40 @@ namespace Tomahawk
 				TH_COMPONENT("dof-renderer");
 			};
 
+			class TH_OUT MotionBlur : public EffectDraw
+			{
+			private:
+				struct
+				{
+					Graphics::Shader* Velocity = nullptr;
+					Graphics::Shader* Motion = nullptr;
+				} Shaders;
+
+			public:
+				struct VelocityBuffer
+				{
+					Compute::Matrix4x4 LastViewProjection;
+				} Velocity;
+
+				struct MotionBuffer
+				{
+					float Samples = 32.000f;
+					float Blur = 1.8f;
+					float Motion = 0.3f;
+					float Padding = 0.0f;
+				} Motion;
+
+			public:
+				MotionBlur(RenderSystem* Lab);
+				virtual ~MotionBlur() = default;
+				void Deserialize(ContentManager* Content, Rest::Document* Node) override;
+				void Serialize(ContentManager* Content, Rest::Document* Node) override;
+				void RenderEffect(Rest::Timer* Time) override;
+
+			public:
+				TH_COMPONENT("motionblur-renderer");
+			};
+
 			class TH_OUT Bloom : public EffectDraw
 			{
 			private:
@@ -610,10 +644,24 @@ namespace Tomahawk
 
 			class TH_OUT Tone : public EffectDraw
 			{
+			private:
+				struct
+				{
+					Graphics::Shader* Luminance = nullptr;
+					Graphics::Shader* Tone = nullptr;
+				} Shaders;
+
 			public:
+				struct LuminanceBuffer
+				{
+					float Texel[2] = { 1.0f, 1.0f };
+					float MipLevels = 0.0f;
+					float Time = 0.0f;
+				} Luminance;
+
 				struct MappingBuffer
 				{
-					float Padding[3] = { 0.0f };
+					float Padding[2] = { 0.0f };
 					float Grayscale = -0.12f;
 					float ACES = 0.6f;
 					float Filmic = -0.12f;
@@ -631,14 +679,27 @@ namespace Tomahawk
 					float Exposure = 0.0f;
 					float EIntensity = 0.9f;
 					float EGamma = 2.2f;
+					float Adaptation = 0.0f;
+					float AGray = 1.0f;
+					float AWhite = 1.0f;
+					float ABlack = 0.05f;
+					float ASpeed = 2.0f;
 				} Mapping;
+
+			private:
+				Graphics::RenderTarget2D* LutTarget = nullptr;
+				Graphics::Texture2D* LutMap = nullptr;
 
 			public:
 				Tone(RenderSystem* Lab);
-				virtual ~Tone() = default;
+				virtual ~Tone() override;
 				void Deserialize(ContentManager* Content, Rest::Document* Node) override;
 				void Serialize(ContentManager* Content, Rest::Document* Node) override;
 				void RenderEffect(Rest::Timer* Time) override;
+
+			private:
+				void RenderLUT(Rest::Timer* Time);
+				void SetLUTSize(size_t Size);
 
 			public:
 				TH_COMPONENT("tone-renderer");

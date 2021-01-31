@@ -2036,6 +2036,31 @@ namespace Tomahawk
 					Focus.Radius = 0.0f;
 			}
 
+			MotionBlur::MotionBlur(RenderSystem* Lab) : EffectDraw(Lab)
+			{
+				Shaders.Velocity = CompileEffect("postprocess/velocity", sizeof(Velocity));
+				Shaders.Motion = CompileEffect("blur/motion", sizeof(Motion));
+			}
+			void MotionBlur::Deserialize(ContentManager* Content, Rest::Document* Node)
+			{
+				NMake::Unpack(Node->Find("samples"), &Motion.Samples);
+				NMake::Unpack(Node->Find("blur"), &Motion.Blur);
+				NMake::Unpack(Node->Find("motion"), &Motion.Motion);
+			}
+			void MotionBlur::Serialize(ContentManager* Content, Rest::Document* Node)
+			{
+				NMake::Pack(Node->SetDocument("samples"), Motion.Samples);
+				NMake::Pack(Node->SetDocument("blur"), Motion.Blur);
+				NMake::Pack(Node->SetDocument("motion"), Motion.Motion);
+			}
+			void MotionBlur::RenderEffect(Rest::Timer* Time)
+			{
+				RenderMerge(Shaders.Velocity, &Velocity);
+				RenderResult(Shaders.Motion, &Motion);
+
+				Velocity.LastViewProjection = System->GetScene()->View.ViewProjection;
+			}
+
 			Bloom::Bloom(RenderSystem* Lab) : EffectDraw(Lab)
 			{
 				Shaders.Bloom = CompileEffect("postprocess/bloom", sizeof(Extraction));
@@ -2072,7 +2097,13 @@ namespace Tomahawk
 
 			Tone::Tone(RenderSystem* Lab) : EffectDraw(Lab)
 			{
-				CompileEffect("postprocess/tone", sizeof(Mapping));
+				Shaders.Luminance = CompileEffect("postprocess/luminance", sizeof(Luminance));
+				Shaders.Tone = CompileEffect("postprocess/tone", sizeof(Mapping));
+			}
+			Tone::~Tone()
+			{
+				TH_RELEASE(LutTarget);
+				TH_RELEASE(LutMap);
 			}
 			void Tone::Deserialize(ContentManager* Content, Rest::Document* Node)
 			{
@@ -2093,6 +2124,11 @@ namespace Tomahawk
 				NMake::Unpack(Node->Find("exposure"), &Mapping.Exposure);
 				NMake::Unpack(Node->Find("eintensity"), &Mapping.EIntensity);
 				NMake::Unpack(Node->Find("egamma"), &Mapping.EGamma);
+				NMake::Unpack(Node->Find("adaptation"), &Mapping.Adaptation);
+				NMake::Unpack(Node->Find("agray"), &Mapping.AGray);
+				NMake::Unpack(Node->Find("awhite"), &Mapping.AWhite);
+				NMake::Unpack(Node->Find("ablack"), &Mapping.ABlack);
+				NMake::Unpack(Node->Find("aspeed"), &Mapping.ASpeed);
 			}
 			void Tone::Serialize(ContentManager* Content, Rest::Document* Node)
 			{
@@ -2113,10 +2149,52 @@ namespace Tomahawk
 				NMake::Pack(Node->SetDocument("exposure"), Mapping.Exposure);
 				NMake::Pack(Node->SetDocument("eintensity"), Mapping.EIntensity);
 				NMake::Pack(Node->SetDocument("egamma"), Mapping.EGamma);
+				NMake::Pack(Node->SetDocument("adaptation"), Mapping.Adaptation);
+				NMake::Pack(Node->SetDocument("agray"), Mapping.AGray);
+				NMake::Pack(Node->SetDocument("awhite"), Mapping.AWhite);
+				NMake::Pack(Node->SetDocument("ablack"), Mapping.ABlack);
+				NMake::Pack(Node->SetDocument("aspeed"), Mapping.ASpeed);
 			}
 			void Tone::RenderEffect(Rest::Timer* Time)
 			{
-				RenderResult(nullptr, &Mapping);
+				if (Mapping.Adaptation > 0.0f)
+					RenderLUT(Time);
+
+				RenderResult(Shaders.Tone, &Mapping);
+			}
+			void Tone::RenderLUT(Rest::Timer* Time)
+			{
+				if (!LutMap || !LutTarget)
+					SetLUTSize(1);
+
+				Graphics::MultiRenderTarget2D* MRT = System->GetMRT(TargetType_Main);
+				Graphics::GraphicsDevice* Device = System->GetDevice();
+				Device->GenerateMips(MRT->GetTarget(0));
+				Device->CopyTexture2D(LutTarget, 0, &LutMap);
+
+				Luminance.Texel[0] = 1.0f / GetWidth();
+				Luminance.Texel[1] = 1.0f / GetHeight();
+				Luminance.MipLevels = GetMipLevels();
+				Luminance.Time = Time->GetTimeStep() * Mapping.ASpeed;
+
+				RenderTexture(0, LutMap);
+				RenderOutput(LutTarget);
+				RenderMerge(Shaders.Luminance, &Luminance);
+			}
+			void Tone::SetLUTSize(size_t Size)
+			{
+				TH_CLEAR(LutTarget);
+				TH_CLEAR(LutMap);
+
+				Graphics::GraphicsDevice* Device = System->GetDevice();
+				Graphics::RenderTarget2D::Desc RT = System->GetScene()->GetDescRT();
+				RT.MipLevels = Device->GetMipLevel(Size, Size);
+				RT.FormatMode = Graphics::Format_R16_Float;
+				RT.Width = Size;
+				RT.Height = Size;
+
+				LutTarget = Device->CreateRenderTarget2D(RT);
+				Device->CopyTexture2D(LutTarget, 0, &LutMap);
 			}
 
 			Glitch::Glitch(RenderSystem* Lab) : EffectDraw(Lab), ScanLineJitter(0), VerticalJump(0), HorizontalShake(0), ColorDrift(0)

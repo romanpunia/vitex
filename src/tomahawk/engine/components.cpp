@@ -2581,6 +2581,17 @@ namespace Tomahawk
 
 				return Result;
 			}
+			bool PointLight::IsVisible(const Viewer& View, Compute::Matrix4x4* World)
+			{
+				if (Parent->Transform->Position.Distance(View.WorldPosition) > View.FarPlane + GetBoxRange())
+					return false;
+
+				return Compute::Common::IsCubeInFrustum((World ? *World : Parent->Transform->GetWorld()) * View.ViewProjection, 1.65f) == -1;
+			}
+			bool PointLight::IsNear(const Viewer& View)
+			{
+				return Parent->Transform->Position.Distance(View.WorldPosition) <= View.FarPlane + GetBoxRange();
+			}
 			Component* PointLight::Copy(Entity* New)
 			{
 				PointLight* Target = new PointLight(New);
@@ -2648,6 +2659,17 @@ namespace Tomahawk
 					Result = Compute::Common::IsCubeInFrustum(Parent->Transform->GetWorldUnscaled() * View.ViewProjection, GetBoxRange()) == -1 ? Result : 0.0f;
 
 				return Result;
+			}
+			bool SpotLight::IsVisible(const Viewer& View, Compute::Matrix4x4* World)
+			{
+				if (Parent->Transform->Position.Distance(View.WorldPosition) > View.FarPlane + GetBoxRange())
+					return false;
+
+				return Compute::Common::IsCubeInFrustum((World ? *World : Parent->Transform->GetWorld()) * View.ViewProjection, 1.65f) == -1;
+			}
+			bool SpotLight::IsNear(const Viewer& View)
+			{
+				return Parent->Transform->Position.Distance(View.WorldPosition) <= View.FarPlane + GetBoxRange();
 			}
 			Component* SpotLight::Copy(Entity* New)
 			{

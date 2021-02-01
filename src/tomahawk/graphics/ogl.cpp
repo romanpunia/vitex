@@ -829,6 +829,22 @@ namespace Tomahawk
 						glBindImageTexture(Slot + i, IResource->Resource, 0, GL_TRUE, 0, GL_READ_WRITE, IResource->Format);
 				}
 			}
+			void OGLDevice::SetComputable(ElementBuffer** Resource, unsigned int Count, unsigned int Slot)
+			{
+				SetWriteable(Resource, Count, Slot);
+			}
+			void OGLDevice::SetComputable(Texture2D** Resource, unsigned int Count, unsigned int Slot)
+			{
+				SetWriteable(Resource, Count, Slot);
+			}
+			void OGLDevice::SetComputable(Texture3D** Resource, unsigned int Count, unsigned int Slot)
+			{
+				SetWriteable(Resource, Count, Slot);
+			}
+			void OGLDevice::SetComputable(TextureCube** Resource, unsigned int Count, unsigned int Slot)
+			{
+				SetWriteable(Resource, Count, Slot);
+			}
 			void OGLDevice::SetTarget(float R, float G, float B)
 			{
 				SetTarget(RenderTarget, 0, R, G, B);
@@ -1290,6 +1306,10 @@ namespace Tomahawk
 			void OGLDevice::Draw(unsigned int Count, unsigned int Location)
 			{
 				glDrawArrays(GetPrimitiveTopologyDraw(Primitive), (GLint)Location, (GLint)Count);
+			}
+			void OGLDevice::Dispatch(unsigned int GroupX, unsigned int GroupY, unsigned int GroupZ)
+			{
+				glDispatchCompute(GroupX, GroupY, GroupZ);
 			}
 			bool OGLDevice::CopyTexture2D(Texture2D* Resource, Texture2D** Result)
 			{

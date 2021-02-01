@@ -1609,6 +1609,10 @@ namespace Tomahawk
 			virtual void SetWriteable(Texture2D** Resource, unsigned int Count, unsigned int Slot) = 0;
 			virtual void SetWriteable(Texture3D** Resource, unsigned int Count, unsigned int Slot) = 0;
 			virtual void SetWriteable(TextureCube** Resource, unsigned int Count, unsigned int Slot) = 0;
+			virtual void SetComputable(ElementBuffer** Resource, unsigned int Count, unsigned int Slot) = 0;
+			virtual void SetComputable(Texture2D** Resource, unsigned int Count, unsigned int Slot) = 0;
+			virtual void SetComputable(Texture3D** Resource, unsigned int Count, unsigned int Slot) = 0;
+			virtual void SetComputable(TextureCube** Resource, unsigned int Count, unsigned int Slot) = 0;
 			virtual void SetTarget(float R, float G, float B) = 0;
 			virtual void SetTarget() = 0;
 			virtual void SetTarget(DepthBuffer* Resource) = 0;
@@ -1651,6 +1655,7 @@ namespace Tomahawk
 			virtual void DrawIndexed(MeshBuffer* Resource) = 0;
 			virtual void DrawIndexed(SkinMeshBuffer* Resource) = 0;
 			virtual void Draw(unsigned int Count, unsigned int Location) = 0;
+			virtual void Dispatch(unsigned int GroupX, unsigned int GroupY, unsigned int GroupZ) = 0;
 			virtual bool CopyTexture2D(Texture2D* Resource, Texture2D** Result) = 0;
 			virtual bool CopyTexture2D(Graphics::RenderTarget* Resource, unsigned int Target, Texture2D** Result) = 0;
 			virtual bool CopyTexture2D(RenderTargetCube* Resource, unsigned int Face, Texture2D** Result) = 0;

@@ -1,4 +1,4 @@
-cbuffer RenderConstant : register(b3)
+struct PointLight
 {
 	matrix LightWorldViewProjection;
     float4 Attenuation;
@@ -11,3 +11,11 @@ cbuffer RenderConstant : register(b3)
 	float Bias;
 	float Iterations;
 };
+
+cbuffer RenderConstant : register(b3)
+{
+    float3 LxPadding;
+    float LightCount;
+};
+
+StructuredBuffer<PointLight> Lights : register(t5);

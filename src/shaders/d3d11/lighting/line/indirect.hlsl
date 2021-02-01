@@ -1,13 +1,8 @@
-#include "std/channels/raytracer"
+#include "std/channels/voxelizer"
 #include "std/core/lighting"
-#include "lighting/common/line/buffer"
-
-StructuredBuffer<LineLight> Lights : register(t5);
+#include "lighting/common/line/array"
 
 [numthreads(8, 8, 8)]
-void CS(uint3 Thread : SV_DispatchThreadID)
+void CS(uint3 Voxel : SV_DispatchThreadID)
 {
-    
-    
-
 };

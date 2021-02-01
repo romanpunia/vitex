@@ -666,6 +666,7 @@ namespace Tomahawk
 			{
 				ID3D11ShaderResourceView* NewState = (Resource ? Resource->As<D3D11ElementBuffer>()->Resource : nullptr);
 				ImmediateContext->PSSetShaderResources(Slot, 1, &NewState);
+				ImmediateContext->CSSetShaderResources(Slot, 1, &NewState);
 			}
 			void D3D11Device::SetIndexBuffer(ElementBuffer* Resource, Format FormatMode)
 			{
@@ -740,6 +741,54 @@ namespace Tomahawk
 
 				UINT Offset = 0;
 				ImmediateContext->OMSetRenderTargetsAndUnorderedAccessViews(D3D11_KEEP_RENDER_TARGETS_AND_DEPTH_STENCIL, nullptr, nullptr, Slot, Count, Array, &Offset);
+			}
+			void D3D11Device::SetComputable(ElementBuffer** Resource, unsigned int Count, unsigned int Slot)
+			{
+				if (!Resource || Count > 8)
+					return;
+
+				ID3D11UnorderedAccessView* Array[8] = { nullptr };
+				for (unsigned int i = 0; i < Count; i++)
+					Array[i] = (Resource[i] ? ((D3D11ElementBuffer*)(Resource[i]))->Access : nullptr);
+
+				UINT Offset = 0;
+				ImmediateContext->CSSetUnorderedAccessViews(Slot, Count, Array, &Offset);
+			}
+			void D3D11Device::SetComputable(Texture2D** Resource, unsigned int Count, unsigned int Slot)
+			{
+				if (!Resource || Count > 8)
+					return;
+
+				ID3D11UnorderedAccessView* Array[8] = { nullptr };
+				for (unsigned int i = 0; i < Count; i++)
+					Array[i] = (Resource[i] ? ((D3D11Texture2D*)(Resource[i]))->Access : nullptr);
+
+				UINT Offset = 0;
+				ImmediateContext->CSSetUnorderedAccessViews(Slot, Count, Array, &Offset);
+			}
+			void D3D11Device::SetComputable(Texture3D** Resource, unsigned int Count, unsigned int Slot)
+			{
+				if (!Resource || Count > 8)
+					return;
+
+				ID3D11UnorderedAccessView* Array[8] = { nullptr };
+				for (unsigned int i = 0; i < Count; i++)
+					Array[i] = (Resource[i] ? ((D3D11Texture3D*)(Resource[i]))->Access : nullptr);
+
+				UINT Offset = 0;
+				ImmediateContext->CSSetUnorderedAccessViews(Slot, Count, Array, &Offset);
+			}
+			void D3D11Device::SetComputable(TextureCube** Resource, unsigned int Count, unsigned int Slot)
+			{
+				if (!Resource || Count > 8)
+					return;
+
+				ID3D11UnorderedAccessView* Array[8] = { nullptr };
+				for (unsigned int i = 0; i < Count; i++)
+					Array[i] = (Resource[i] ? ((D3D11TextureCube*)(Resource[i]))->Access : nullptr);
+
+				UINT Offset = 0;
+				ImmediateContext->CSSetUnorderedAccessViews(Slot, Count, Array, &Offset);
 			}
 			void D3D11Device::SetTarget(float R, float G, float B)
 			{
@@ -1166,6 +1215,10 @@ namespace Tomahawk
 			void D3D11Device::Draw(unsigned int Count, unsigned int Location)
 			{
 				ImmediateContext->Draw(Count, Location);
+			}
+			void D3D11Device::Dispatch(unsigned int GroupX, unsigned int GroupY, unsigned int GroupZ)
+			{
+				ImmediateContext->Dispatch(GroupX, GroupY, GroupZ);
 			}
 			bool D3D11Device::CopyTexture2D(Texture2D* Resource, Texture2D** Result)
 			{

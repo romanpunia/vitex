@@ -360,6 +360,10 @@ namespace Tomahawk
 				void SetWriteable(Texture2D** Resource, unsigned int Count, unsigned int Slot) override;
 				void SetWriteable(Texture3D** Resource, unsigned int Count, unsigned int Slot) override;
 				void SetWriteable(TextureCube** Resource, unsigned int Count, unsigned int Slot) override;
+				void SetComputable(ElementBuffer** Resource, unsigned int Count, unsigned int Slot) override;
+				void SetComputable(Texture2D** Resource, unsigned int Count, unsigned int Slot) override;
+				void SetComputable(Texture3D** Resource, unsigned int Count, unsigned int Slot) override;
+				void SetComputable(TextureCube** Resource, unsigned int Count, unsigned int Slot) override;
 				void SetTarget(float R, float G, float B) override;
 				void SetTarget() override;
 				void SetTarget(DepthBuffer* Resource) override;
@@ -402,6 +406,7 @@ namespace Tomahawk
 				void DrawIndexed(MeshBuffer* Resource) override;
 				void DrawIndexed(SkinMeshBuffer* Resource) override;
 				void Draw(unsigned int Count, unsigned int Location) override;
+				void Dispatch(unsigned int GroupX, unsigned int GroupY, unsigned int GroupZ) override;
 				bool CopyTexture2D(Texture2D* Resource, Texture2D** Result) override;
 				bool CopyTexture2D(Graphics::RenderTarget* Resource, unsigned int Target, Texture2D** Result) override;
 				bool CopyTexture2D(RenderTargetCube* Resource, unsigned int Face, Texture2D** Result) override;

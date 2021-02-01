@@ -1,4 +1,4 @@
-cbuffer RenderConstant : register(b3)
+struct LineLight
 {
     matrix LightViewProjection[6];
     matrix SkyOffset;
@@ -19,3 +19,11 @@ cbuffer RenderConstant : register(b3)
     float Umbra;
     float Padding;
 };
+
+cbuffer RenderConstant : register(b3)
+{
+    float3 LxPadding;
+    float LightCount;
+};
+
+StructuredBuffer<LineLight> Lights : register(t5);

@@ -465,6 +465,8 @@ namespace Tomahawk
 				virtual void Deserialize(ContentManager* Content, Rest::Document* Node) override;
 				virtual void Serialize(ContentManager* Content, Rest::Document* Node) override;
 				virtual float Cull(const Viewer& View) override;
+				virtual bool IsVisible(const Viewer& View, Compute::Matrix4x4* World) override;
+				virtual bool IsNear(const Viewer& View) override;
 				virtual Component* Copy(Entity* New) override;
 				float GetBoxRange() const;
 				void AssembleDepthOrigin();
@@ -502,6 +504,8 @@ namespace Tomahawk
 				virtual void Serialize(ContentManager* Content, Rest::Document* Node) override;
 				virtual void Synchronize(Rest::Timer* Time) override;
 				virtual float Cull(const Viewer& View) override;
+				virtual bool IsVisible(const Viewer& View, Compute::Matrix4x4* World) override;
+				virtual bool IsNear(const Viewer& View) override;
 				virtual Component* Copy(Entity* New) override;
 				float GetBoxRange() const;
 				void AssembleDepthOrigin();

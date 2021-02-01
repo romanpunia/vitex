@@ -699,12 +699,12 @@ namespace Tomahawk
 		public:
 			Cullable(Entity* Ref);
 			virtual ~Cullable() = default;
+			virtual bool IsVisible(const Viewer& View, Compute::Matrix4x4* World);
+			virtual bool IsNear(const Viewer& View);
 			virtual float Cull(const Viewer& View) = 0;
 			virtual Component* Copy(Entity* New) override = 0;
 			virtual void ClearCull();
 			float GetRange();
-			bool IsVisible(const Viewer& View, Compute::Matrix4x4* World);
-			bool IsNear(const Viewer& View);
 
 		public:
 			TH_COMPONENT("cullable");

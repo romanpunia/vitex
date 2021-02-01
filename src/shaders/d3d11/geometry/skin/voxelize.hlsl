@@ -1,5 +1,5 @@
 #include "std/layouts/skin"
-#include "std/channels/voxelizer"
+#include "std/channels/gvoxelizer"
 #include "std/buffers/object"
 #include "std/buffers/animation"
 

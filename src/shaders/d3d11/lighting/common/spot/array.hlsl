@@ -1,4 +1,4 @@
-cbuffer RenderConstant : register(b3)
+struct SpotLight
 {
 	matrix LightWorldViewProjection;
 	matrix LightViewProjection;
@@ -14,3 +14,11 @@ cbuffer RenderConstant : register(b3)
 	float Umbra;
     float Padding;
 };
+
+cbuffer RenderConstant : register(b3)
+{
+    float3 LxPadding;
+    float LightCount;
+};
+
+StructuredBuffer<SpotLight> Lights : register(t5);

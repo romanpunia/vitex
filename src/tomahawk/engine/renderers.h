@@ -304,7 +304,7 @@ namespace Tomahawk
 					float Intensity = 3.0f;
 					float Occlusion = 0.9f;
 					float Shadows = 0.25f;
-					float Padding = 0.0f;
+					float Lights = 0.0f;
 				};
 
 			protected:
@@ -316,6 +316,27 @@ namespace Tomahawk
 					Graphics::Shader* Line[3] = { nullptr };
 					Graphics::Shader* Surface = nullptr;
 				} Shaders;
+
+				struct
+				{
+					Graphics::ElementBuffer* PBuffer = nullptr;
+					Graphics::ElementBuffer* SBuffer = nullptr;
+					Graphics::ElementBuffer* LBuffer = nullptr;
+					std::vector<IPointLight> PArray;
+					std::vector<ISpotLight> SArray;
+					std::vector<ILineLight> LArray;
+					const size_t MaxLights = 64;
+				} Storage;
+
+				struct
+				{
+					Graphics::GraphicsDevice* Device = nullptr;
+					SceneGraph* Scene = nullptr;
+					Compute::Vector3 View;
+					float Distance = 0.0f;
+					bool Backcull = true;
+					bool Inner = false;
+				} State;
 
 			public:
 				struct
@@ -398,18 +419,27 @@ namespace Tomahawk
 				Graphics::Texture2D* GetSkyBase();
 
 			private:
-				void RenderResultBuffers(Graphics::GraphicsDevice* Device, RenderOpt Options);
-				void RenderVoxelBuffers(Graphics::GraphicsDevice* Device, RenderOpt Options);
-				void RenderShadowMaps(Graphics::GraphicsDevice* Device, SceneGraph* Scene, Rest::Timer* Time);
-				void RenderSurfaceMaps(Graphics::GraphicsDevice* Device, SceneGraph* Scene, Rest::Timer* Time);
-				void RenderVoxels(Rest::Timer* Time, Graphics::GraphicsDevice* Device);
-				void RenderSurfaceLights(Graphics::GraphicsDevice* Device, Compute::Vector3& Camera, float& Distance, bool& Backcull, const bool& Inner);
-				void RenderPointLights(Graphics::GraphicsDevice* Device, Compute::Vector3& Camera, float& Distance, bool& Backcull, const bool& Inner);
-				void RenderSpotLights(Graphics::GraphicsDevice* Device, Compute::Vector3& Camera, float& Distance, bool& Backcull, const bool& Inner);
-				void RenderLineLights(Graphics::GraphicsDevice* Device, bool& Backcull);
-				void RenderAmbientLight(Graphics::GraphicsDevice* Device, const bool& Inner);
+				bool GetSurfaceLight(ISurfaceLight* Dest, Component* Src, Compute::Vector3& Position, Compute::Vector3& Scale);
+				bool GetPointLight(IPointLight* Dest, Component* Src, Compute::Vector3& Position, Compute::Vector3& Scale);
+				bool GetSpotLight(ISpotLight* Dest, Component* Src, Compute::Vector3& Position, Compute::Vector3& Scale);
+				bool GetLineLight(ILineLight* Dest, Component* Src);
+				void GetLightCulling(Component* Src, float Range, Compute::Vector3* Position, Compute::Vector3* Scale);
 				void GenerateCascadeMap(CascadedDepthMap** Result, uint32_t Size);
+				size_t GeneratePointLights();
+				size_t GenerateSpotLights();
+				size_t GenerateLineLights();
 				void FlushDepthBuffersAndCache();
+				void RenderResultBuffers(RenderOpt Options);
+				void RenderVoxelBuffers(RenderOpt Options);
+				void RenderShadowMaps(Rest::Timer* Time);
+				void RenderSurfaceMaps(Rest::Timer* Time);
+				void RenderVoxels(Rest::Timer* Time);
+				void RenderLuminance();
+				void RenderSurfaceLights();
+				void RenderPointLights();
+				void RenderSpotLights();
+				void RenderLineLights();
+				void RenderAmbientLight();
 
 			public:
 				static void SetVoxelBuffer(RenderSystem* System, Graphics::Shader* Src, unsigned int Slot);

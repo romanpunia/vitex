@@ -1000,18 +1000,18 @@ namespace Tomahawk
 				Shaders.Ambient[1] = System->CompileShader("lighting/ambient/indirect", sizeof(IVoxelBuffer));
 				Shaders.Point[0] = System->CompileShader("lighting/point/low", sizeof(IPointLight));
 				Shaders.Point[1] = System->CompileShader("lighting/point/high");
-				Shaders.Point[2] = System->CompileShader("lighting/point/indirect");
+				Shaders.Point[2] = System->CompileShader("lighting/point/indirect", sizeof(IVoxelBuffer));
 				Shaders.Spot[0] = System->CompileShader("lighting/spot/low", sizeof(ISpotLight));
 				Shaders.Spot[1] = System->CompileShader("lighting/spot/high");
-				Shaders.Spot[2] = System->CompileShader("lighting/spot/indirect");
+				Shaders.Spot[2] = System->CompileShader("lighting/spot/indirect", sizeof(IVoxelBuffer));
 				Shaders.Line[0] = System->CompileShader("lighting/line/low", sizeof(ILineLight));
 				Shaders.Line[1] = System->CompileShader("lighting/line/high");
-				Shaders.Line[2] = System->CompileShader("lighting/line/indirect");
+				Shaders.Line[2] = System->CompileShader("lighting/line/indirect", sizeof(IVoxelBuffer));
 				Shaders.Surface = System->CompileShader("lighting/surface", sizeof(ISurfaceLight));
 
 				Shadows.Tick.Delay = 5;
 				Radiance.Tick.Delay = 16.666;
-				Radiance.Enabled = false;
+				Radiance.Enabled = true;
 			}
 			Lighting::~Lighting()
 			{
@@ -1028,9 +1028,13 @@ namespace Tomahawk
 						System->FreeShader(Shaders.Ambient[i]);
 				}
 
+				TH_RELEASE(Radiance.LightBuffer);
 				TH_RELEASE(Radiance.DiffuseBuffer);
 				TH_RELEASE(Radiance.NormalBuffer);
 				TH_RELEASE(Radiance.SurfaceBuffer);
+				TH_RELEASE(Storage.PBuffer);
+				TH_RELEASE(Storage.SBuffer);
+				TH_RELEASE(Storage.LBuffer);
 				TH_RELEASE(Surfaces.Subresource);
 				TH_RELEASE(Surfaces.Input);
 				TH_RELEASE(Surfaces.Output);
@@ -1134,500 +1138,103 @@ namespace Tomahawk
 				for (auto It = Shadows.LineLight.begin(); It != Shadows.LineLight.end(); It++)
 					*It = nullptr;
 			}
-			void Lighting::Render(Rest::Timer* Time, RenderState State, RenderOpt Options)
+			bool Lighting::GetSurfaceLight(ISurfaceLight* Dest, Component* Src, Compute::Vector3& Position, Compute::Vector3& Scale)
 			{
-				Graphics::GraphicsDevice* Device = System->GetDevice();
-				if (State != RenderState_Geometry_Result)
+				Engine::Components::SurfaceLight* Light = (Engine::Components::SurfaceLight*)Src;
+				Dest->WorldViewProjection = Compute::Matrix4x4::CreateTranslatedScale(Position, Scale) * State.Scene->View.ViewProjection;
+				Dest->Position = Light->GetEntity()->Transform->Position.InvertZ();
+				Dest->Lighting = Light->Diffuse.Mul(Light->Emission * State.Distance);
+				Dest->Scale = Light->GetEntity()->Transform->Scale;
+				Dest->Parallax = (Light->Parallax ? 1.0f : 0.0f);
+				Dest->Infinity = Light->Infinity;
+				Dest->Attenuation.X = Light->Size.C1;
+				Dest->Attenuation.Y = Light->Size.C2;
+				Dest->Range = Light->Size.Range;
+
+				return true;
+			}
+			bool Lighting::GetPointLight(IPointLight* Dest, Component* Src, Compute::Vector3& Position, Compute::Vector3& Scale)
+			{
+				Engine::Components::PointLight* Light = (Engine::Components::PointLight*)Src;
+				Dest->WorldViewProjection = Compute::Matrix4x4::CreateTranslatedScale(Position, Scale) * System->GetScene()->View.ViewProjection;
+				Dest->Position = Light->GetEntity()->Transform->Position.InvertZ();
+				Dest->Lighting = Light->Diffuse.Mul(Light->Emission * State.Distance);
+				Dest->Attenuation.X = Light->Size.C1;
+				Dest->Attenuation.Y = Light->Size.C2;
+				Dest->Range = Light->Size.Range;
+
+				if (!Light->Shadow.Enabled || !Light->DepthMap)
+					return false;
+
+				Dest->Softness = Light->Shadow.Softness <= 0 ? 0 : (float)Shadows.PointLightResolution / Light->Shadow.Softness;
+				Dest->Bias = Light->Shadow.Bias;
+				Dest->Distance = Light->Shadow.Distance;
+				Dest->Iterations = (float)Light->Shadow.Iterations;
+				Dest->Umbra = Light->Disperse;
+				return true;
+			}
+			bool Lighting::GetSpotLight(ISpotLight* Dest, Component* Src, Compute::Vector3& Position, Compute::Vector3& Scale)
+			{
+				Engine::Components::SpotLight* Light = (Engine::Components::SpotLight*)Src;
+				Dest->WorldViewProjection = Compute::Matrix4x4::CreateTranslatedScale(Position, Scale) * State.Scene->View.ViewProjection;
+				Dest->ViewProjection = Light->View * Light->Projection;
+				Dest->Direction = Light->GetEntity()->Transform->Rotation.DepthDirection();
+				Dest->Position = Light->GetEntity()->Transform->Position.InvertZ();
+				Dest->Lighting = Light->Diffuse.Mul(Light->Emission * State.Distance);
+				Dest->Cutoff = Compute::Mathf::Cos(Compute::Mathf::Deg2Rad() * Light->Cutoff * 0.5f);
+				Dest->Attenuation.X = Light->Size.C1;
+				Dest->Attenuation.Y = Light->Size.C2;
+				Dest->Range = Light->Size.Range;
+
+				if (!Light->Shadow.Enabled || !Light->DepthMap)
+					return false;
+
+				Dest->Softness = Light->Shadow.Softness <= 0 ? 0 : (float)Shadows.SpotLightResolution / Light->Shadow.Softness;
+				Dest->Bias = Light->Shadow.Bias;
+				Dest->Iterations = (float)Light->Shadow.Iterations;
+				Dest->Umbra = Light->Disperse;
+				return true;
+			}
+			bool Lighting::GetLineLight(ILineLight* Dest, Component* Src)
+			{
+				Engine::Components::LineLight* Light = (Engine::Components::LineLight*)Src;
+				Dest->Position = Light->GetEntity()->Transform->Position.InvertZ().NormalizeSafe();
+				Dest->Lighting = Light->Diffuse.Mul(Light->Emission);
+				Dest->RlhEmission = Light->Sky.RlhEmission;
+				Dest->RlhHeight = Light->Sky.RlhHeight;
+				Dest->MieEmission = Light->Sky.MieEmission;
+				Dest->MieHeight = Light->Sky.MieHeight;
+				Dest->ScatterIntensity = Light->Sky.Intensity;
+				Dest->PlanetRadius = Light->Sky.InnerRadius;
+				Dest->AtmosphereRadius = Light->Sky.OuterRadius;
+				Dest->MieDirection = Light->Sky.MieDirection;
+				Dest->SkyOffset = AmbientLight.SkyOffset;
+
+				if (!Light->Shadow.Enabled || !Light->DepthMap)
+					return false;
+
+				Dest->Softness = Light->Shadow.Softness <= 0 ? 0 : (float)Shadows.LineLightResolution / Light->Shadow.Softness;
+				Dest->Iterations = (float)Light->Shadow.Iterations;
+				Dest->Bias = Light->Shadow.Bias;
+				Dest->Cascades = Light->DepthMap->size();
+				Dest->Umbra = Light->Disperse;
+
+				for (size_t i = 0; i < Light->DepthMap->size(); i++)
+					Dest->ViewProjection[i] = Light->View[i] * Light->Projection[i];
+
+				return true;
+			}
+			void Lighting::GetLightCulling(Component* Src, float Range, Compute::Vector3* Position, Compute::Vector3* Scale)
+			{
+				*Position = Src->GetEntity()->Transform->Position; *Scale = Range;
+				bool Front = Compute::Common::HasPointIntersectedCube(*Position, *Scale, State.View);
+
+				if (!(Front && State.Backcull) && !(!Front && !State.Backcull))
 					return;
 
-				SceneGraph* Scene = System->GetScene();
-				if (!(Options & RenderOpt_Inner || Options & RenderOpt_Transparent))
-				{
-					double ElapsedTime = Time->GetElapsedTime();
-					if (Shadows.Tick.TickEvent(ElapsedTime))
-						RenderShadowMaps(Device, Scene, Time);
-					else
-						RenderSurfaceMaps(Device, Scene, Time);
-
-					Compute::Vector3 Center = Scene->View.WorldPosition.InvertZ();
-					if (Radiance.Enabled)
-					{
-						bool Revoxelize = (VoxelBuffer.Center.Distance(Center) > 0.5 * Radiance.Distance.Length() / 3);
-						if (Revoxelize)
-							VoxelBuffer.Center = Center;
-
-						if (Revoxelize || Radiance.Tick.TickEvent(ElapsedTime))
-							RenderVoxels(Time, Device);
-					}
-				}
-
-				RenderResultBuffers(Device, Options);
-				if (Radiance.Enabled && !(Options & RenderOpt_Inner))
-					RenderVoxelBuffers(Device, Options);
-				System->RestoreOutput();
-			}
-			void Lighting::RenderResultBuffers(Graphics::GraphicsDevice* Device, RenderOpt Options)
-			{
-				bool Inner = (Options & RenderOpt_Inner), Backcull = true;
-				Graphics::MultiRenderTarget2D* MRT = System->GetMRT(TargetType_Main);
-				Graphics::RenderTarget2D* RT = (Inner ? Surfaces.Input : System->GetRT(TargetType_Main));
-				Compute::Vector3& Camera = System->GetScene()->View.WorldPosition;
-				float Distance = 0.0f;
-
-				Graphics::ElementBuffer* Cube[2];
-				System->GetPrimitives()->GetCubeBuffers(Cube);
-
-				AmbientLight.SkyOffset = System->GetScene()->View.Projection.Invert() * Compute::Matrix4x4::CreateRotation(System->GetScene()->View.WorldRotation);
-				Device->SetSamplerState(WrapSampler, 0);
-				Device->SetSamplerState(ShadowSampler, 1);
-				Device->SetDepthStencilState(DepthStencilLess);
-				Device->SetBlendState(BlendAdditive);
-				Device->SetRasterizerState(BackRasterizer);
-				Device->SetInputLayout(Layout);
-				Device->CopyTarget(MRT, 0, RT, 0);
-				Device->SetTarget(MRT, 0, 0, 0, 0);
-				Device->SetTexture2D(RT->GetTarget(0), 1);
-				Device->SetTexture2D(MRT->GetTarget(1), 2);
-				Device->SetTexture2D(MRT->GetTarget(2), 3);
-				Device->SetTexture2D(MRT->GetTarget(3), 4);
-				Device->SetIndexBuffer(Cube[BufferType_Index], Graphics::Format_R32_Uint);
-				Device->SetVertexBuffer(Cube[BufferType_Vertex], 0);
-
-				RenderSurfaceLights(Device, Camera, Distance, Backcull, Inner);
-				RenderPointLights(Device, Camera, Distance, Backcull, Inner);
-				RenderSpotLights(Device, Camera, Distance, Backcull, Inner);
-				RenderLineLights(Device, Inner);
-				RenderAmbientLight(Device, Inner);
-
-				Device->FlushTexture2D(1, 10);
-			}
-			void Lighting::RenderVoxelBuffers(Graphics::GraphicsDevice* Device, RenderOpt Options)
-			{
-				Graphics::MultiRenderTarget2D* MRT = System->GetMRT(TargetType_Main);
-				if (!Radiance.DiffuseBuffer || !Radiance.NormalBuffer || !Radiance.SurfaceBuffer)
-					return;
-
-				Device->SetTarget(MRT, 0);
-				Device->SetTexture3D(Radiance.DiffuseBuffer, 1);
-				Device->SetTexture2D(MRT->GetTarget(1), 2);
-				Device->SetTexture2D(MRT->GetTarget(2), 3);
-				Device->SetTexture2D(MRT->GetTarget(3), 4);
-
-				Device->SetShader(Shaders.Ambient[1], Graphics::ShaderType_Vertex | Graphics::ShaderType_Pixel);
-				Device->SetBuffer(Shaders.Ambient[1], 3, Graphics::ShaderType_Vertex | Graphics::ShaderType_Pixel);
-				Device->UpdateBuffer(Shaders.Ambient[1], &VoxelBuffer);
-				Device->Draw(6, 0);
-
-				Device->FlushTexture3D(1, 1);
-				Device->FlushTexture2D(2, 3);
-			}
-			void Lighting::RenderShadowMaps(Graphics::GraphicsDevice* Device, SceneGraph* Scene, Rest::Timer* Time)
-			{
-				uint64_t Counter = 0; float D = 0.0f;
-				for (auto It = PointLights->Begin(); It != PointLights->End(); It++)
-				{
-					Engine::Components::PointLight* Light = (Engine::Components::PointLight*)*It;
-					if (Counter >= Shadows.PointLight.size())
-						break;
-
-					Light->DepthMap = nullptr;
-					if (!Light->Shadow.Enabled)
-						continue;
-
-					if (!System->PassCullable(Light, CullResult_Always, &D) || D < Shadows.Distance)
-						continue;
-
-					CubicDepthMap* Target = Shadows.PointLight[Counter];
-					Device->SetTarget(Target, 0, 0, 0, 0);
-					Device->ClearDepth(Target);
-
-					Light->AssembleDepthOrigin();
-					Scene->SetView(Compute::Matrix4x4::Identity(), Light->Projection, Light->GetEntity()->Transform->Position, 0.1f, Light->Shadow.Distance, true);
-					Scene->Render(Time, RenderState_Depth_Cubic, RenderOpt_Inner);
-
-					Light->DepthMap = Target;
-					Counter++;
-				}
-
-				Counter = 0;
-				for (auto It = SpotLights->Begin(); It != SpotLights->End(); It++)
-				{
-					Engine::Components::SpotLight* Light = (Engine::Components::SpotLight*)*It;
-					if (Counter >= Shadows.SpotLight.size())
-						break;
-
-					Light->DepthMap = nullptr;
-					if (!Light->Shadow.Enabled)
-						continue;
-
-					if (!System->PassCullable(Light, CullResult_Always, &D) || D < Shadows.Distance)
-						continue;
-
-					LinearDepthMap* Target = Shadows.SpotLight[Counter];
-					Device->SetTarget(Target, 0, 0, 0, 0);
-					Device->ClearDepth(Target);
-
-					Light->AssembleDepthOrigin();
-					Scene->SetView(Light->View, Light->Projection, Light->GetEntity()->Transform->Position, 0.1f, Light->Shadow.Distance, true);
-					Scene->Render(Time, RenderState_Depth_Linear, RenderOpt_Inner);
-
-					Light->DepthMap = Target;
-					Counter++;
-				}
-
-				Counter = 0;
-				for (auto It = LineLights->Begin(); It != LineLights->End(); It++)
-				{
-					Engine::Components::LineLight* Light = (Engine::Components::LineLight*)*It;
-					if (Counter >= Shadows.LineLight.size())
-						break;
-
-					Light->DepthMap = nullptr;
-					if (!Light->Shadow.Enabled)
-						continue;
-
-					CascadedDepthMap*& Target = Shadows.LineLight[Counter];
-					if (Light->Shadow.Cascades < 1 || Light->Shadow.Cascades > 6)
-						continue;
-
-					if (!Target || Target->size() < Light->Shadow.Cascades)
-						GenerateCascadeMap(&Target, Light->Shadow.Cascades);
-
-					Light->AssembleDepthOrigin();
-					for (size_t i = 0; i < Target->size(); i++)
-					{
-						LinearDepthMap* Cascade = (*Target)[i];
-						Device->SetTarget(Cascade, 0, 0, 0, 0);
-						Device->ClearDepth(Cascade);
-
-						Scene->SetView(Light->View[i], Light->Projection[i], 0.0f, 0.1f, Light->Shadow.Distance[i], true);
-						Scene->Render(Time, RenderState_Depth_Linear, RenderOpt_Inner);
-					}
-
-					Light->DepthMap = Target;
-					Counter++;
-				}
-
-				Device->FlushTexture2D(1, 8);
-				Scene->RestoreViewBuffer(nullptr);
-			}
-			void Lighting::RenderSurfaceMaps(Graphics::GraphicsDevice* Device, SceneGraph* Scene, Rest::Timer* Time)
-			{
-				if (SurfaceLights->Empty())
-					return;
-
-				if (!Surfaces.Merger || !Surfaces.Subresource || !Surfaces.Input || !Surfaces.Output)
-					SetSurfaceBufferSize(Surfaces.Size);
-
-				Scene->SwapMRT(TargetType_Main, Surfaces.Merger);
-				Scene->SetMRT(TargetType_Main, false);
-
-				double ElapsedTime = Time->GetElapsedTime();
-				for (auto It = SurfaceLights->Begin(); It != SurfaceLights->End(); It++)
-				{
-					Engine::Components::SurfaceLight* Light = (Engine::Components::SurfaceLight*)*It;
-					if (Light->IsImageBased() || !System->PassCullable(Light, CullResult_Always, nullptr))
-						continue;
-
-					Graphics::TextureCube* Cache = Light->GetProbeCache();
-					if (!Cache)
-					{
-						Cache = Device->CreateTextureCube();
-						Light->SetProbeCache(Cache);
-					}
-					else if (!Light->Tick.TickEvent(ElapsedTime) || Light->Tick.Delay <= 0.0)
-						continue;
-
-					Device->CubemapBegin(Surfaces.Subresource);
-					Light->Locked = true;
-
-					Compute::Vector3 Position = Light->GetEntity()->Transform->Position * Light->Offset;
-					for (unsigned int j = 0; j < 6; j++)
-					{
-						Light->View[j] = Compute::Matrix4x4::CreateCubeMapLookAt(j, Position);
-						Scene->SetView(Light->View[j], Light->Projection, Position, 0.1f, Light->Size.Range, true);
-						Scene->ClearMRT(TargetType_Main, true, true);
-						Scene->Render(Time, RenderState_Geometry_Result, Light->StaticMask ? RenderOpt_Inner | RenderOpt_Static : RenderOpt_Inner);
-						Device->CubemapFace(Surfaces.Subresource, 0, j);
-					}
-
-					Light->Locked = false;
-					Device->CubemapEnd(Surfaces.Subresource, Cache);
-				}
-
-				Scene->SwapMRT(TargetType_Main, nullptr);
-				Scene->RestoreViewBuffer(nullptr);
-			}
-			void Lighting::RenderVoxels(Rest::Timer* Time, Graphics::GraphicsDevice* Device)
-			{
-				SceneGraph* Scene = System->GetScene();
-				if (!Radiance.DiffuseBuffer || !Radiance.NormalBuffer || !Radiance.SurfaceBuffer)
-					SetVoxelBufferSize(Radiance.Size);
-
-				Graphics::Texture3D* Buffer[3];
-				Buffer[0] = Radiance.DiffuseBuffer;
-				Buffer[1] = Radiance.NormalBuffer;
-				Buffer[2] = Radiance.SurfaceBuffer;
-
-				VoxelBuffer.Size = (float)Radiance.Size;
-				VoxelBuffer.Scale = Radiance.Distance;
-				Scene->View.FarPlane = (Radiance.Distance.X + Radiance.Distance.Y + Radiance.Distance.Z) / 3.0f;
-
-				Device->ClearWritable(Radiance.DiffuseBuffer);
-				Device->ClearWritable(Radiance.NormalBuffer);
-				Device->ClearWritable(Radiance.SurfaceBuffer);
-				Device->SetTargetRect(Radiance.Size, Radiance.Size);
-				Device->SetDepthStencilState(DepthStencilNone);
-				Device->SetBlendState(BlendOverwrite);
-				Device->SetRasterizerState(NoneRasterizer);
-				Device->SetWriteable(Buffer, 3, 1);
-
-				Scene->Render(Time, RenderState_Geometry_Voxels, RenderOpt_Inner);
-				Scene->RestoreViewBuffer(nullptr);
-
-				Graphics::Texture3D* Flush[3] = { nullptr };
-				Device->SetWriteable(Flush, 3, 1);
-				Device->GenerateMips(Radiance.DiffuseBuffer);
-			}
-			void Lighting::RenderSurfaceLights(Graphics::GraphicsDevice* Device, Compute::Vector3& Camera, float& Distance, bool& Backcull, const bool& Inner)
-			{
-				Graphics::ElementBuffer* Cube[2];
-				System->GetPrimitives()->GetCubeBuffers(Cube);
-
-				if (!Inner)
-				{
-					Device->SetShader(Shaders.Surface, Graphics::ShaderType_Vertex | Graphics::ShaderType_Pixel);
-					Device->SetBuffer(Shaders.Surface, 3, Graphics::ShaderType_Vertex | Graphics::ShaderType_Pixel);
-
-					for (auto It = SurfaceLights->Begin(); It != SurfaceLights->End(); ++It)
-					{
-						Engine::Components::SurfaceLight* Light = (Engine::Components::SurfaceLight*)*It;
-						if (!Light->GetProbeCache() || !System->PassCullable(Light, CullResult_Always, &Distance))
-							continue;
-
-						Compute::Vector3 Position(Light->GetEntity()->Transform->Position), Scale(Light->GetBoxRange());
-						bool Front = Compute::Common::HasPointIntersectedCube(Position, Scale, Camera);
-						if ((Front && Backcull) || (!Front && !Backcull))
-						{
-							Device->SetRasterizerState(Front ? FrontRasterizer : BackRasterizer);
-							Device->SetDepthStencilState(Front ? DepthStencilGreater : DepthStencilLess);
-							Backcull = !Backcull;
-						}
-
-						SurfaceLight.WorldViewProjection = Compute::Matrix4x4::CreateTranslatedScale(Position, Scale) * System->GetScene()->View.ViewProjection;
-						SurfaceLight.Position = Light->GetEntity()->Transform->Position.InvertZ();
-						SurfaceLight.Lighting = Light->Diffuse.Mul(Light->Emission * Distance);
-						SurfaceLight.Scale = Light->GetEntity()->Transform->Scale;
-						SurfaceLight.Parallax = (Light->Parallax ? 1.0f : 0.0f);
-						SurfaceLight.Infinity = Light->Infinity;
-						SurfaceLight.Attenuation.X = Light->Size.C1;
-						SurfaceLight.Attenuation.Y = Light->Size.C2;
-						SurfaceLight.Range = Light->Size.Range;
-
-						Device->SetTextureCube(Light->GetProbeCache(), 5);
-						Device->UpdateBuffer(Shaders.Surface, &SurfaceLight);
-						Device->DrawIndexed((unsigned int)Cube[BufferType_Index]->GetElements(), 0, 0);
-					}
-				}
-				else if (AmbientLight.Recursive > 0.0f)
-				{
-					Device->SetShader(Shaders.Surface, Graphics::ShaderType_Vertex | Graphics::ShaderType_Pixel);
-					Device->SetBuffer(Shaders.Surface, 3, Graphics::ShaderType_Vertex | Graphics::ShaderType_Pixel);
-
-					for (auto It = SurfaceLights->Begin(); It != SurfaceLights->End(); ++It)
-					{
-						Engine::Components::SurfaceLight* Light = (Engine::Components::SurfaceLight*)*It;
-						if (Light->Locked || !Light->GetProbeCache() || !System->PassCullable(Light, CullResult_Always, &Distance))
-							continue;
-
-						Compute::Vector3 Position(Light->GetEntity()->Transform->Position), Scale(Light->GetBoxRange());
-						bool Front = Compute::Common::HasPointIntersectedCube(Position, Scale, Camera);
-						if ((Front && Backcull) || (!Front && !Backcull))
-						{
-							Device->SetRasterizerState(Front ? FrontRasterizer : BackRasterizer);
-							Device->SetDepthStencilState(Front ? DepthStencilGreater : DepthStencilLess);
-							Backcull = !Backcull;
-						}
-
-						SurfaceLight.WorldViewProjection = Compute::Matrix4x4::CreateTranslatedScale(Position, Scale) * System->GetScene()->View.ViewProjection;
-						SurfaceLight.Position = Light->GetEntity()->Transform->Position.InvertZ();
-						SurfaceLight.Lighting = Light->Diffuse.Mul(Light->Emission * Distance);
-						SurfaceLight.Scale = Light->GetEntity()->Transform->Scale;
-						SurfaceLight.Parallax = (Light->Parallax ? 1.0f : 0.0f);
-						SurfaceLight.Infinity = Light->Infinity;
-						SurfaceLight.Attenuation.X = Light->Size.C1;
-						SurfaceLight.Attenuation.Y = Light->Size.C2;
-						SurfaceLight.Range = Light->Size.Range;
-
-						Device->SetTextureCube(Light->GetProbeCache(), 5);
-						Device->UpdateBuffer(Shaders.Surface, &SurfaceLight);
-						Device->DrawIndexed((unsigned int)Cube[BufferType_Index]->GetElements(), 0, 0);
-					}
-				}
-			}
-			void Lighting::RenderPointLights(Graphics::GraphicsDevice* Device, Compute::Vector3& Camera, float& Distance, bool& Backcull, const bool& Inner)
-			{
-				Graphics::ElementBuffer* Cube[2];
-				System->GetPrimitives()->GetCubeBuffers(Cube);
-
-				Graphics::Shader* Active = nullptr;
-				Device->SetShader(Shaders.Point[0], Graphics::ShaderType_Vertex);
-				Device->SetBuffer(Shaders.Point[0], 3, Graphics::ShaderType_Vertex | Graphics::ShaderType_Pixel);
-
-				for (auto It = PointLights->Begin(); It != PointLights->End(); ++It)
-				{
-					Engine::Components::PointLight* Light = (Engine::Components::PointLight*)*It;
-					if (!System->PassCullable(Light, CullResult_Always, &Distance))
-						continue;
-
-					Compute::Vector3 Position(Light->GetEntity()->Transform->Position), Scale(Light->GetBoxRange());
-					bool Front = Compute::Common::HasPointIntersectedCube(Position, Scale, Camera);
-					if ((Front && Backcull) || (!Front && !Backcull))
-					{
-						Device->SetRasterizerState(Front ? FrontRasterizer : BackRasterizer);
-						Device->SetDepthStencilState(Front ? DepthStencilGreater : DepthStencilLess);
-						Backcull = !Backcull;
-					}
-
-					if (Light->Shadow.Enabled && Light->DepthMap != nullptr)
-					{
-						PointLight.Softness = Light->Shadow.Softness <= 0 ? 0 : (float)Shadows.PointLightResolution / Light->Shadow.Softness;
-						PointLight.Bias = Light->Shadow.Bias;
-						PointLight.Distance = Light->Shadow.Distance;
-						PointLight.Iterations = (float)Light->Shadow.Iterations;
-						PointLight.Umbra = Light->Disperse;
-						Active = Shaders.Point[1];
-
-						Device->SetTexture2D(Light->DepthMap->GetTarget(0), 5);
-					}
-					else
-						Active = Shaders.Point[0];
-
-					PointLight.WorldViewProjection = Compute::Matrix4x4::CreateTranslatedScale(Position, Scale) * System->GetScene()->View.ViewProjection;
-					PointLight.Position = Light->GetEntity()->Transform->Position.InvertZ();
-					PointLight.Lighting = Light->Diffuse.Mul(Light->Emission * Distance);
-					PointLight.Attenuation.X = Light->Size.C1;
-					PointLight.Attenuation.Y = Light->Size.C2;
-					PointLight.Range = Light->Size.Range;
-
-					Device->SetShader(Active, Graphics::ShaderType_Pixel);
-					Device->UpdateBuffer(Shaders.Point[0], &PointLight);
-					Device->DrawIndexed((unsigned int)Cube[BufferType_Index]->GetElements(), 0, 0);
-				}
-			}
-			void Lighting::RenderSpotLights(Graphics::GraphicsDevice* Device, Compute::Vector3& Camera, float& Distance, bool& Backcull, const bool& Inner)
-			{
-				Graphics::ElementBuffer* Cube[2];
-				System->GetPrimitives()->GetCubeBuffers(Cube);
-
-				Graphics::Shader* Active = nullptr;
-				Device->SetShader(Shaders.Spot[0], Graphics::ShaderType_Vertex);
-				Device->SetBuffer(Shaders.Spot[0], 3, Graphics::ShaderType_Vertex | Graphics::ShaderType_Pixel);
-
-				for (auto It = SpotLights->Begin(); It != SpotLights->End(); ++It)
-				{
-					Engine::Components::SpotLight* Light = (Engine::Components::SpotLight*)*It;
-					if (!System->PassCullable(Light, CullResult_Always, &Distance))
-						continue;
-
-					Compute::Vector3 Position(Light->GetEntity()->Transform->Position), Scale(Light->GetBoxRange());
-					bool Front = Compute::Common::HasPointIntersectedCube(Position, Scale, Camera);
-					if ((Front && Backcull) || (!Front && !Backcull))
-					{
-						Device->SetRasterizerState(Front ? FrontRasterizer : BackRasterizer);
-						Device->SetDepthStencilState(Front ? DepthStencilGreater : DepthStencilLess);
-						Backcull = !Backcull;
-					}
-
-					if (Light->Shadow.Enabled && Light->DepthMap != nullptr)
-					{
-						SpotLight.Softness = Light->Shadow.Softness <= 0 ? 0 : (float)Shadows.SpotLightResolution / Light->Shadow.Softness;
-						SpotLight.Bias = Light->Shadow.Bias;
-						SpotLight.Iterations = (float)Light->Shadow.Iterations;
-						SpotLight.Umbra = Light->Disperse;
-						Active = Shaders.Spot[1];
-
-						Device->SetTexture2D(Light->DepthMap->GetTarget(0), 5);
-					}
-					else
-						Active = Shaders.Spot[0];
-
-					SpotLight.WorldViewProjection = Compute::Matrix4x4::CreateTranslatedScale(Position, Scale) * System->GetScene()->View.ViewProjection;
-					SpotLight.ViewProjection = Light->View * Light->Projection;
-					SpotLight.Direction = Light->GetEntity()->Transform->Rotation.DepthDirection();
-					SpotLight.Position = Light->GetEntity()->Transform->Position.InvertZ();
-					SpotLight.Lighting = Light->Diffuse.Mul(Light->Emission * Distance);
-					SpotLight.Cutoff = Compute::Mathf::Cos(Compute::Mathf::Deg2Rad() * Light->Cutoff * 0.5f);
-					SpotLight.Attenuation.X = Light->Size.C1;
-					SpotLight.Attenuation.Y = Light->Size.C2;
-					SpotLight.Range = Light->Size.Range;
-
-					Device->SetShader(Active, Graphics::ShaderType_Pixel);
-					Device->UpdateBuffer(Shaders.Spot[0], &SpotLight);
-					Device->DrawIndexed((unsigned int)Cube[BufferType_Index]->GetElements(), 0, 0);
-				}
-			}
-			void Lighting::RenderLineLights(Graphics::GraphicsDevice* Device, bool& Backcull)
-			{
-				Graphics::Shader* Active = nullptr;
-				if (!Backcull)
-					Device->SetRasterizerState(BackRasterizer);
-
-				Device->SetDepthStencilState(DepthStencilNone);
-				Device->SetShader(Shaders.Line[0], Graphics::ShaderType_Vertex);
-				Device->SetBuffer(Shaders.Line[0], 3, Graphics::ShaderType_Vertex | Graphics::ShaderType_Pixel);
-				Device->SetVertexBuffer(System->GetPrimitives()->GetQuad(), 0);
-
-				for (auto It = LineLights->Begin(); It != LineLights->End(); ++It)
-				{
-					Engine::Components::LineLight* Light = (Engine::Components::LineLight*)*It;
-					if (Light->Shadow.Enabled && Light->DepthMap != nullptr)
-					{
-						LineLight.Softness = Light->Shadow.Softness <= 0 ? 0 : (float)Shadows.LineLightResolution / Light->Shadow.Softness;
-						LineLight.Iterations = (float)Light->Shadow.Iterations;
-						LineLight.Bias = Light->Shadow.Bias;
-						LineLight.Cascades = Light->DepthMap->size();
-						LineLight.Umbra = Light->Disperse;
-						Active = Shaders.Line[1];
-
-						for (size_t i = 0; i < Light->DepthMap->size(); i++)
-						{
-							LineLight.ViewProjection[i] = Light->View[i] * Light->Projection[i];
-							Device->SetTexture2D((*Light->DepthMap)[i]->GetTarget(0), 5 + i);
-						}
-					}
-					else
-						Active = Shaders.Line[0];
-
-					LineLight.Position = Light->GetEntity()->Transform->Position.InvertZ().NormalizeSafe();
-					LineLight.Lighting = Light->Diffuse.Mul(Light->Emission);
-					LineLight.RlhEmission = Light->Sky.RlhEmission;
-					LineLight.RlhHeight = Light->Sky.RlhHeight;
-					LineLight.MieEmission = Light->Sky.MieEmission;
-					LineLight.MieHeight = Light->Sky.MieHeight;
-					LineLight.ScatterIntensity = Light->Sky.Intensity;
-					LineLight.PlanetRadius = Light->Sky.InnerRadius;
-					LineLight.AtmosphereRadius = Light->Sky.OuterRadius;
-					LineLight.MieDirection = Light->Sky.MieDirection;
-					LineLight.SkyOffset = AmbientLight.SkyOffset;
-
-					Device->SetShader(Active, Graphics::ShaderType_Pixel);
-					Device->UpdateBuffer(Shaders.Line[0], &LineLight);
-					Device->Draw(6, 0);
-				}
-			}
-			void Lighting::RenderAmbientLight(Graphics::GraphicsDevice* Device, const bool& Inner)
-			{
-				Graphics::MultiRenderTarget2D* MRT = System->GetMRT(TargetType_Main);
-				Graphics::RenderTarget2D* RT = (Inner ? Surfaces.Output : System->GetRT(TargetType_Secondary));
-				Device->CopyTarget(MRT, 0, RT, 0);
-				Device->Clear(MRT, 0, 0, 0, 0);
-				Device->SetTexture2D(RT->GetTarget(0), 5);
-				Device->SetTextureCube(SkyMap, 6);
-				Device->SetShader(Shaders.Ambient[0], Graphics::ShaderType_Vertex | Graphics::ShaderType_Pixel);
-				Device->SetBuffer(Shaders.Ambient[0], 3, Graphics::ShaderType_Vertex | Graphics::ShaderType_Pixel);
-				Device->UpdateBuffer(Shaders.Ambient[0], &AmbientLight);
-				Device->Draw(6, 0);
+				State.Device->SetRasterizerState(Front ? FrontRasterizer : BackRasterizer);
+				State.Device->SetDepthStencilState(Front ? DepthStencilGreater : DepthStencilLess);
+				State.Backcull = !State.Backcull;
 			}
 			void Lighting::GenerateCascadeMap(CascadedDepthMap** Result, uint32_t Size)
 			{
@@ -1647,6 +1254,54 @@ namespace Tomahawk
 				}
 
 				*Result = Target;
+			}
+			size_t Lighting::GeneratePointLights()
+			{
+				size_t Count = 0;
+				for (auto It = PointLights->Begin(); It != PointLights->End(); ++It)
+				{
+					Engine::Components::PointLight* Light = (Engine::Components::PointLight*)*It;
+					if (Count >= Storage.MaxLights || !Light->IsNear(State.Scene->View))
+						continue;
+
+					Compute::Vector3 Position(Light->GetEntity()->Transform->Position), Scale(Light->GetBoxRange());
+					GetPointLight(&Storage.PArray[Count], Light, Position, Scale); Count++;
+				}
+
+				VoxelBuffer.Lights = (float)Count;
+				return Count;
+			}
+			size_t Lighting::GenerateSpotLights()
+			{
+				size_t Count = 0;
+				for (auto It = SpotLights->Begin(); It != SpotLights->End(); ++It)
+				{
+					Engine::Components::SpotLight* Light = (Engine::Components::SpotLight*)*It;
+					if (Count >= Storage.MaxLights || !Light->IsNear(State.Scene->View))
+						continue;
+
+					Compute::Vector3 Position(Light->GetEntity()->Transform->Position), Scale(Light->GetBoxRange());
+					GetSpotLight(&Storage.SArray[Count], Light, Position, Scale); Count++;
+				}
+
+				VoxelBuffer.Lights = (float)Count;
+				return Count;
+			}
+			size_t Lighting::GenerateLineLights()
+			{
+				size_t Count = 0;
+				for (auto It = LineLights->Begin(); It != LineLights->End(); ++It)
+				{
+					Engine::Components::LineLight* Light = (Engine::Components::LineLight*)*It;
+					if (Count >= Storage.MaxLights)
+						continue;
+
+					GetLineLight(&Storage.LArray[Count], Light);
+					Count++;
+				}
+
+				VoxelBuffer.Lights = (float)Count;
+				return Count;
 			}
 			void Lighting::FlushDepthBuffersAndCache()
 			{
@@ -1681,6 +1336,445 @@ namespace Tomahawk
 
 					delete *It;
 				}
+			}
+			void Lighting::Render(Rest::Timer* Time, RenderState Status, RenderOpt Options)
+			{
+				State.Device = System->GetDevice();
+				State.Scene = System->GetScene();
+
+				if (Status == RenderState_Geometry_Voxels)
+					return RenderLuminance();
+				else if (Status != RenderState_Geometry_Result)
+					return;
+
+				if (!(Options & RenderOpt_Inner || Options & RenderOpt_Transparent))
+				{
+					double ElapsedTime = Time->GetElapsedTime();
+					if (Shadows.Tick.TickEvent(ElapsedTime))
+						RenderShadowMaps(Time);
+					else
+						RenderSurfaceMaps(Time);
+
+					Compute::Vector3 Center = State.Scene->View.WorldPosition.InvertZ();
+					if (Radiance.Enabled)
+					{
+						bool Revoxelize = (VoxelBuffer.Center.Distance(Center) > 0.5 * Radiance.Distance.Length() / 3);
+						if (Revoxelize)
+							VoxelBuffer.Center = Center;
+
+						if (Revoxelize || Radiance.Tick.TickEvent(ElapsedTime))
+							RenderVoxels(Time);
+					}
+				}
+
+				RenderResultBuffers(Options);
+				if (Radiance.Enabled && !(Options & RenderOpt_Inner))
+					RenderVoxelBuffers(Options);
+				System->RestoreOutput();
+			}
+			void Lighting::RenderResultBuffers(RenderOpt Options)
+			{
+				State.View = State.Scene->View.WorldPosition;
+				State.Distance = 0.0f;
+				State.Inner = (Options & RenderOpt_Inner);
+				State.Backcull = true;
+
+				Graphics::MultiRenderTarget2D* MRT = System->GetMRT(TargetType_Main);
+				Graphics::RenderTarget2D* RT = (State.Inner ? Surfaces.Input : System->GetRT(TargetType_Main));
+
+				Graphics::ElementBuffer* Cube[2];
+				System->GetPrimitives()->GetCubeBuffers(Cube);
+
+				AmbientLight.SkyOffset = System->GetScene()->View.Projection.Invert() * Compute::Matrix4x4::CreateRotation(System->GetScene()->View.WorldRotation);
+				State.Device->SetSamplerState(WrapSampler, 0);
+				State.Device->SetSamplerState(ShadowSampler, 1);
+				State.Device->SetDepthStencilState(DepthStencilLess);
+				State.Device->SetBlendState(BlendAdditive);
+				State.Device->SetRasterizerState(BackRasterizer);
+				State.Device->SetInputLayout(Layout);
+				State.Device->CopyTarget(MRT, 0, RT, 0);
+				State.Device->SetTarget(MRT, 0, 0, 0, 0);
+				State.Device->SetTexture2D(RT->GetTarget(0), 1);
+				State.Device->SetTexture2D(MRT->GetTarget(1), 2);
+				State.Device->SetTexture2D(MRT->GetTarget(2), 3);
+				State.Device->SetTexture2D(MRT->GetTarget(3), 4);
+				State.Device->SetIndexBuffer(Cube[BufferType_Index], Graphics::Format_R32_Uint);
+				State.Device->SetVertexBuffer(Cube[BufferType_Vertex], 0);
+
+				RenderSurfaceLights();
+				RenderPointLights();
+				RenderSpotLights();
+				RenderLineLights();
+				RenderAmbientLight();
+
+				State.Device->FlushTexture2D(1, 10);
+			}
+			void Lighting::RenderVoxelBuffers(RenderOpt Options)
+			{
+				Graphics::MultiRenderTarget2D* MRT = System->GetMRT(TargetType_Main);
+				if (!Radiance.LightBuffer)
+					return;
+
+				State.Device->SetTarget(MRT, 0);
+				State.Device->SetTexture3D(Radiance.LightBuffer, 1);
+				State.Device->SetTexture2D(MRT->GetTarget(1), 2);
+				State.Device->SetTexture2D(MRT->GetTarget(2), 3);
+				State.Device->SetTexture2D(MRT->GetTarget(3), 4);
+
+				State.Device->SetShader(Shaders.Ambient[1], Graphics::ShaderType_Vertex | Graphics::ShaderType_Pixel);
+				State.Device->SetBuffer(Shaders.Ambient[1], 3, Graphics::ShaderType_Vertex | Graphics::ShaderType_Pixel);
+				State.Device->UpdateBuffer(Shaders.Ambient[1], &VoxelBuffer);
+				State.Device->Draw(6, 0);
+
+				State.Device->FlushTexture3D(1, 1);
+				State.Device->FlushTexture2D(2, 3);
+			}
+			void Lighting::RenderShadowMaps(Rest::Timer* Time)
+			{
+				uint64_t Counter = 0; float D = 0.0f;
+				for (auto It = PointLights->Begin(); It != PointLights->End(); It++)
+				{
+					Engine::Components::PointLight* Light = (Engine::Components::PointLight*)*It;
+					if (Counter >= Shadows.PointLight.size())
+						break;
+
+					Light->DepthMap = nullptr;
+					if (!Light->Shadow.Enabled)
+						continue;
+
+					if (!System->PassCullable(Light, CullResult_Always, &D) || D < Shadows.Distance)
+						continue;
+
+					CubicDepthMap* Target = Shadows.PointLight[Counter];
+					State.Device->SetTarget(Target, 0, 0, 0, 0);
+					State.Device->ClearDepth(Target);
+
+					Light->AssembleDepthOrigin();
+					State.Scene->SetView(Compute::Matrix4x4::Identity(), Light->Projection, Light->GetEntity()->Transform->Position, 0.1f, Light->Shadow.Distance, true);
+					State.Scene->Render(Time, RenderState_Depth_Cubic, RenderOpt_Inner);
+
+					Light->DepthMap = Target;
+					Counter++;
+				}
+
+				Counter = 0;
+				for (auto It = SpotLights->Begin(); It != SpotLights->End(); It++)
+				{
+					Engine::Components::SpotLight* Light = (Engine::Components::SpotLight*)*It;
+					if (Counter >= Shadows.SpotLight.size())
+						break;
+
+					Light->DepthMap = nullptr;
+					if (!Light->Shadow.Enabled)
+						continue;
+
+					if (!System->PassCullable(Light, CullResult_Always, &D) || D < Shadows.Distance)
+						continue;
+
+					LinearDepthMap* Target = Shadows.SpotLight[Counter];
+					State.Device->SetTarget(Target, 0, 0, 0, 0);
+					State.Device->ClearDepth(Target);
+
+					Light->AssembleDepthOrigin();
+					State.Scene->SetView(Light->View, Light->Projection, Light->GetEntity()->Transform->Position, 0.1f, Light->Shadow.Distance, true);
+					State.Scene->Render(Time, RenderState_Depth_Linear, RenderOpt_Inner);
+
+					Light->DepthMap = Target;
+					Counter++;
+				}
+
+				Counter = 0;
+				for (auto It = LineLights->Begin(); It != LineLights->End(); It++)
+				{
+					Engine::Components::LineLight* Light = (Engine::Components::LineLight*)*It;
+					if (Counter >= Shadows.LineLight.size())
+						break;
+
+					Light->DepthMap = nullptr;
+					if (!Light->Shadow.Enabled)
+						continue;
+
+					CascadedDepthMap*& Target = Shadows.LineLight[Counter];
+					if (Light->Shadow.Cascades < 1 || Light->Shadow.Cascades > 6)
+						continue;
+
+					if (!Target || Target->size() < Light->Shadow.Cascades)
+						GenerateCascadeMap(&Target, Light->Shadow.Cascades);
+
+					Light->AssembleDepthOrigin();
+					for (size_t i = 0; i < Target->size(); i++)
+					{
+						LinearDepthMap* Cascade = (*Target)[i];
+						State.Device->SetTarget(Cascade, 0, 0, 0, 0);
+						State.Device->ClearDepth(Cascade);
+
+						State.Scene->SetView(Light->View[i], Light->Projection[i], 0.0f, 0.1f, Light->Shadow.Distance[i], true);
+						State.Scene->Render(Time, RenderState_Depth_Linear, RenderOpt_Inner);
+					}
+
+					Light->DepthMap = Target;
+					Counter++;
+				}
+
+				State.Device->FlushTexture2D(1, 8);
+				State.Scene->RestoreViewBuffer(nullptr);
+			}
+			void Lighting::RenderSurfaceMaps(Rest::Timer* Time)
+			{
+				if (SurfaceLights->Empty())
+					return;
+
+				if (!Surfaces.Merger || !Surfaces.Subresource || !Surfaces.Input || !Surfaces.Output)
+					SetSurfaceBufferSize(Surfaces.Size);
+
+				State.Scene->SwapMRT(TargetType_Main, Surfaces.Merger);
+				State.Scene->SetMRT(TargetType_Main, false);
+
+				double ElapsedTime = Time->GetElapsedTime();
+				for (auto It = SurfaceLights->Begin(); It != SurfaceLights->End(); It++)
+				{
+					Engine::Components::SurfaceLight* Light = (Engine::Components::SurfaceLight*)*It;
+					if (Light->IsImageBased() || !System->PassCullable(Light, CullResult_Always, nullptr))
+						continue;
+
+					Graphics::TextureCube* Cache = Light->GetProbeCache();
+					if (!Cache)
+					{
+						Cache = State.Device->CreateTextureCube();
+						Light->SetProbeCache(Cache);
+					}
+					else if (!Light->Tick.TickEvent(ElapsedTime) || Light->Tick.Delay <= 0.0)
+						continue;
+
+					State.Device->CubemapBegin(Surfaces.Subresource);
+					Light->Locked = true;
+
+					Compute::Vector3 Position = Light->GetEntity()->Transform->Position * Light->Offset;
+					for (unsigned int j = 0; j < 6; j++)
+					{
+						Light->View[j] = Compute::Matrix4x4::CreateCubeMapLookAt(j, Position);
+						State.Scene->SetView(Light->View[j], Light->Projection, Position, 0.1f, Light->Size.Range, true);
+						State.Scene->ClearMRT(TargetType_Main, true, true);
+						State.Scene->Render(Time, RenderState_Geometry_Result, Light->StaticMask ? RenderOpt_Inner | RenderOpt_Static : RenderOpt_Inner);
+						State.Device->CubemapFace(Surfaces.Subresource, 0, j);
+					}
+
+					Light->Locked = false;
+					State.Device->CubemapEnd(Surfaces.Subresource, Cache);
+				}
+
+				State.Scene->SwapMRT(TargetType_Main, nullptr);
+				State.Scene->RestoreViewBuffer(nullptr);
+			}
+			void Lighting::RenderVoxels(Rest::Timer* Time)
+			{
+				if (!Radiance.LightBuffer)
+					SetVoxelBufferSize(Radiance.Size);
+
+				Graphics::Texture3D* Buffer[4];
+				Buffer[0] = Radiance.LightBuffer;
+				Buffer[1] = Radiance.DiffuseBuffer;
+				Buffer[2] = Radiance.NormalBuffer;
+				Buffer[3] = Radiance.SurfaceBuffer;
+
+				VoxelBuffer.Size = (float)Radiance.Size;
+				VoxelBuffer.Scale = Radiance.Distance;
+				State.Scene->View.FarPlane = (Radiance.Distance.X + Radiance.Distance.Y + Radiance.Distance.Z) / 3.0f;
+
+				State.Device->ClearWritable(Radiance.LightBuffer);
+				State.Device->ClearWritable(Radiance.DiffuseBuffer);
+				State.Device->ClearWritable(Radiance.NormalBuffer);
+				State.Device->ClearWritable(Radiance.SurfaceBuffer);
+				State.Device->SetTargetRect(Radiance.Size, Radiance.Size);
+				State.Device->SetDepthStencilState(DepthStencilNone);
+				State.Device->SetBlendState(BlendOverwrite);
+				State.Device->SetRasterizerState(NoneRasterizer);
+				State.Device->SetWriteable(Buffer, 4, 1);
+
+				State.Scene->Render(Time, RenderState_Geometry_Voxels, RenderOpt_Inner);
+				State.Scene->RestoreViewBuffer(nullptr);
+
+				Graphics::Texture3D* Flush[4] = { nullptr };
+				State.Device->SetWriteable(Flush, 4, 1);
+				State.Device->GenerateMips(Radiance.LightBuffer);
+			}
+			void Lighting::RenderLuminance()
+			{
+				Graphics::Texture3D* Buffer[4];
+				Buffer[0] = Radiance.LightBuffer;
+				Buffer[1] = Radiance.DiffuseBuffer;
+				Buffer[2] = Radiance.NormalBuffer;
+				Buffer[3] = Radiance.SurfaceBuffer;
+
+				Graphics::Texture3D* Flush[4] = { nullptr };
+				State.Device->SetWriteable(Flush, 4, 1);
+				State.Device->SetComputable(Buffer, 4, 1);
+
+				uint32_t X = (uint32_t)(VoxelBuffer.Size.X / 8.0f);
+				uint32_t Y = (uint32_t)(VoxelBuffer.Size.Y / 8.0f);
+				uint32_t Z = (uint32_t)(VoxelBuffer.Size.Z / 8.0f);
+
+				if (GeneratePointLights() > 0)
+				{
+					State.Device->UpdateBuffer(Shaders.Point[2], &VoxelBuffer);
+					State.Device->UpdateBuffer(Storage.PBuffer, Storage.PArray.data(), Storage.MaxLights * sizeof(IPointLight));
+					State.Device->SetStructureBuffer(Storage.PBuffer, 5);
+					State.Device->SetBuffer(Shaders.Point[2], 3, Graphics::ShaderType_Compute);
+					State.Device->SetShader(Shaders.Point[2], Graphics::ShaderType_Compute);
+					State.Device->Dispatch(X, Y, Z);
+				}
+
+				State.Device->SetShader(nullptr, Graphics::ShaderType_Compute);
+				State.Device->SetStructureBuffer(nullptr, 5);
+				State.Device->SetComputable(Flush, 4, 1);
+				State.Device->SetWriteable(Buffer, 4, 1);
+			}
+			void Lighting::RenderSurfaceLights()
+			{
+				Graphics::ElementBuffer* Cube[2];
+				System->GetPrimitives()->GetCubeBuffers(Cube);
+
+				if (!State.Inner)
+				{
+					State.Device->SetShader(Shaders.Surface, Graphics::ShaderType_Vertex | Graphics::ShaderType_Pixel);
+					State.Device->SetBuffer(Shaders.Surface, 3, Graphics::ShaderType_Vertex | Graphics::ShaderType_Pixel);
+
+					Compute::Vector3 Position, Scale;
+					for (auto It = SurfaceLights->Begin(); It != SurfaceLights->End(); ++It)
+					{
+						Engine::Components::SurfaceLight* Light = (Engine::Components::SurfaceLight*)*It;
+						if (!Light->GetProbeCache() || !System->PassCullable(Light, CullResult_Always, &State.Distance))
+							continue;
+
+						GetLightCulling(Light, Light->GetBoxRange(), &Position, &Scale);
+						GetSurfaceLight(&SurfaceLight, Light, Position, Scale);
+
+						State.Device->SetTextureCube(Light->GetProbeCache(), 5);
+						State.Device->UpdateBuffer(Shaders.Surface, &SurfaceLight);
+						State.Device->DrawIndexed((unsigned int)Cube[BufferType_Index]->GetElements(), 0, 0);
+					}
+				}
+				else if (AmbientLight.Recursive > 0.0f)
+				{
+					State.Device->SetShader(Shaders.Surface, Graphics::ShaderType_Vertex | Graphics::ShaderType_Pixel);
+					State.Device->SetBuffer(Shaders.Surface, 3, Graphics::ShaderType_Vertex | Graphics::ShaderType_Pixel);
+
+					Compute::Vector3 Position, Scale;
+					for (auto It = SurfaceLights->Begin(); It != SurfaceLights->End(); ++It)
+					{
+						Engine::Components::SurfaceLight* Light = (Engine::Components::SurfaceLight*)*It;
+						if (Light->Locked || !Light->GetProbeCache() || !System->PassCullable(Light, CullResult_Always, &State.Distance))
+							continue;
+
+						GetLightCulling(Light, Light->GetBoxRange(), &Position, &Scale);
+						GetSurfaceLight(&SurfaceLight, Light, Position, Scale);
+
+						State.Device->SetTextureCube(Light->GetProbeCache(), 5);
+						State.Device->UpdateBuffer(Shaders.Surface, &SurfaceLight);
+						State.Device->DrawIndexed((unsigned int)Cube[BufferType_Index]->GetElements(), 0, 0);
+					}
+				}
+			}
+			void Lighting::RenderPointLights()
+			{
+				Graphics::ElementBuffer* Cube[2];
+				System->GetPrimitives()->GetCubeBuffers(Cube);
+
+				Graphics::Shader* Active = nullptr;
+				State.Device->SetShader(Shaders.Point[0], Graphics::ShaderType_Vertex);
+				State.Device->SetBuffer(Shaders.Point[0], 3, Graphics::ShaderType_Vertex | Graphics::ShaderType_Pixel);
+
+				Compute::Vector3 Position, Scale;
+				for (auto It = PointLights->Begin(); It != PointLights->End(); ++It)
+				{
+					Engine::Components::PointLight* Light = (Engine::Components::PointLight*)*It;
+					if (!System->PassCullable(Light, CullResult_Always, &State.Distance))
+						continue;
+
+					GetLightCulling(Light, Light->GetBoxRange(), &Position, &Scale);
+					if (GetPointLight(&PointLight, Light, Position, Scale))
+					{
+						Active = Shaders.Point[1];
+						State.Device->SetTexture2D(Light->DepthMap->GetTarget(0), 5);
+					}
+					else
+						Active = Shaders.Point[0];
+
+					State.Device->SetShader(Active, Graphics::ShaderType_Pixel);
+					State.Device->UpdateBuffer(Shaders.Point[0], &PointLight);
+					State.Device->DrawIndexed((unsigned int)Cube[BufferType_Index]->GetElements(), 0, 0);
+				}
+			}
+			void Lighting::RenderSpotLights()
+			{
+				Graphics::ElementBuffer* Cube[2];
+				System->GetPrimitives()->GetCubeBuffers(Cube);
+
+				Graphics::Shader* Active = nullptr;
+				State.Device->SetShader(Shaders.Spot[0], Graphics::ShaderType_Vertex);
+				State.Device->SetBuffer(Shaders.Spot[0], 3, Graphics::ShaderType_Vertex | Graphics::ShaderType_Pixel);
+
+				Compute::Vector3 Position, Scale;
+				for (auto It = SpotLights->Begin(); It != SpotLights->End(); ++It)
+				{
+					Engine::Components::SpotLight* Light = (Engine::Components::SpotLight*)*It;
+					if (!System->PassCullable(Light, CullResult_Always, &State.Distance))
+						continue;
+
+					GetLightCulling(Light, Light->GetBoxRange(), &Position, &Scale);
+					if (GetSpotLight(&SpotLight, Light, Position, Scale))
+					{
+						Active = Shaders.Spot[1];
+						State.Device->SetTexture2D(Light->DepthMap->GetTarget(0), 5);
+					}
+					else
+						Active = Shaders.Spot[0];
+
+					State.Device->SetShader(Active, Graphics::ShaderType_Pixel);
+					State.Device->UpdateBuffer(Shaders.Spot[0], &SpotLight);
+					State.Device->DrawIndexed((unsigned int)Cube[BufferType_Index]->GetElements(), 0, 0);
+				}
+			}
+			void Lighting::RenderLineLights()
+			{
+				Graphics::Shader* Active = nullptr;
+				if (!State.Backcull)
+					State.Device->SetRasterizerState(BackRasterizer);
+
+				State.Device->SetDepthStencilState(DepthStencilNone);
+				State.Device->SetShader(Shaders.Line[0], Graphics::ShaderType_Vertex);
+				State.Device->SetBuffer(Shaders.Line[0], 3, Graphics::ShaderType_Vertex | Graphics::ShaderType_Pixel);
+				State.Device->SetVertexBuffer(System->GetPrimitives()->GetQuad(), 0);
+
+				for (auto It = LineLights->Begin(); It != LineLights->End(); ++It)
+				{
+					Engine::Components::LineLight* Light = (Engine::Components::LineLight*)*It;
+					if (GetLineLight(&LineLight, Light))
+					{
+						Active = Shaders.Line[1];
+						for (size_t i = 0; i < Light->DepthMap->size(); i++)
+							State.Device->SetTexture2D((*Light->DepthMap)[i]->GetTarget(0), 5 + i);
+					}
+					else
+						Active = Shaders.Line[0];
+
+					State.Device->SetShader(Active, Graphics::ShaderType_Pixel);
+					State.Device->UpdateBuffer(Shaders.Line[0], &LineLight);
+					State.Device->Draw(6, 0);
+				}
+			}
+			void Lighting::RenderAmbientLight()
+			{
+				Graphics::MultiRenderTarget2D* MRT = System->GetMRT(TargetType_Main);
+				Graphics::RenderTarget2D* RT = (State.Inner ? Surfaces.Output : System->GetRT(TargetType_Secondary));
+				State.Device->CopyTarget(MRT, 0, RT, 0);
+				State.Device->Clear(MRT, 0, 0, 0, 0);
+				State.Device->SetTexture2D(RT->GetTarget(0), 5);
+				State.Device->SetTextureCube(SkyMap, 6);
+				State.Device->SetShader(Shaders.Ambient[0], Graphics::ShaderType_Vertex | Graphics::ShaderType_Pixel);
+				State.Device->SetBuffer(Shaders.Ambient[0], 3, Graphics::ShaderType_Vertex | Graphics::ShaderType_Pixel);
+				State.Device->UpdateBuffer(Shaders.Ambient[0], &AmbientLight);
+				State.Device->Draw(6, 0);
 			}
 			void Lighting::SetSkyMap(Graphics::Texture2D* Cubemap)
 			{
@@ -1724,27 +1818,58 @@ namespace Tomahawk
 			}
 			void Lighting::SetVoxelBufferSize(size_t NewSize)
 			{
-				unsigned int MipLevels = System->GetDevice()->GetMipLevel(Radiance.Size, Radiance.Size);
+				Graphics::GraphicsDevice* Device = System->GetDevice();
+				unsigned int MipLevels = Device->GetMipLevel(Radiance.Size, Radiance.Size);
 				VoxelBuffer.MipLevels = (float)MipLevels;
 
 				Graphics::Texture3D::Desc I;
 				I.Width = I.Height = I.Depth = Radiance.Size = NewSize;
-				I.MipLevels = MipLevels;
+				I.MipLevels = 0;
 				I.FormatMode = Graphics::Format_R8G8B8A8_Unorm;
 				I.Writable = true;
 
 				TH_RELEASE(Radiance.DiffuseBuffer);
-				Radiance.DiffuseBuffer = System->GetDevice()->CreateTexture3D(I);
+				Radiance.DiffuseBuffer = Device->CreateTexture3D(I);
 
 				I.MipLevels = 0;
 				I.FormatMode = Graphics::Format_R16G16B16A16_Unorm;
 				TH_RELEASE(Radiance.NormalBuffer);
-				Radiance.NormalBuffer = System->GetDevice()->CreateTexture3D(I);
+				Radiance.NormalBuffer = Device->CreateTexture3D(I);
 
 				I.MipLevels = 0;
 				I.FormatMode = Graphics::Format_R8G8B8A8_Unorm;
 				TH_RELEASE(Radiance.SurfaceBuffer);
-				Radiance.SurfaceBuffer = System->GetDevice()->CreateTexture3D(I);
+				Radiance.SurfaceBuffer = Device->CreateTexture3D(I);
+
+				I.MipLevels = MipLevels;
+				I.FormatMode = Graphics::Format_R8G8B8A8_Unorm;
+				TH_RELEASE(Radiance.LightBuffer);
+				Radiance.LightBuffer = Device->CreateTexture3D(I);
+
+				Graphics::ElementBuffer::Desc F = Graphics::ElementBuffer::Desc();
+				F.AccessFlags = Graphics::CPUAccess_Write;
+				F.MiscFlags = Graphics::ResourceMisc_Buffer_Structured;
+				F.Usage = Graphics::ResourceUsage_Dynamic;
+				F.BindFlags = Graphics::ResourceBind_Shader_Input;
+				F.ElementCount = (unsigned int)Storage.MaxLights;
+				F.ElementWidth = sizeof(IPointLight);
+				F.StructureByteStride = F.ElementWidth;
+
+				TH_RELEASE(Storage.PBuffer);
+				Storage.PBuffer = Device->CreateElementBuffer(F);
+				Storage.PArray.resize(Storage.MaxLights);
+
+				F.ElementWidth = sizeof(ISpotLight);
+				F.StructureByteStride = F.ElementWidth;
+				TH_RELEASE(Storage.SBuffer);
+				Storage.SBuffer = Device->CreateElementBuffer(F);
+				Storage.SArray.resize(Storage.MaxLights);
+
+				F.ElementWidth = sizeof(ILineLight);
+				F.StructureByteStride = F.ElementWidth;
+				TH_RELEASE(Storage.LBuffer);
+				Storage.LBuffer = Device->CreateElementBuffer(F);
+				Storage.LArray.resize(Storage.MaxLights);
 			}
 			void Lighting::SetVoxelBuffer(RenderSystem* System, Graphics::Shader* Src, unsigned int Slot)
 			{

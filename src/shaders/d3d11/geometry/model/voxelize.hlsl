@@ -1,5 +1,5 @@
 #include "std/layouts/vertex"
-#include "std/channels/voxelizer"
+#include "std/channels/gvoxelizer"
 #include "std/buffers/object"
 
 VOutput VS(VInput V)

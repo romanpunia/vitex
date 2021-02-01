@@ -9,5 +9,5 @@ cbuffer Voxelizer : register(b3)
     float VxIntensity;
     float VxOcclusion;
     float VxShadows;
-    float VxPadding;
+    float VxLights;
 };

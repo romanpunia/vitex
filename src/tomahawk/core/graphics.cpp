@@ -1048,10 +1048,10 @@ namespace Tomahawk
 			};
 			InputLayouts["gui-vertex"] = CreateInputLayout(Layout);
 
-			SetSamplerState(GetSamplerState("trilinear-x16"), 0);
 			SetDepthStencilState(GetDepthStencilState("less"));
 			SetRasterizerState(GetRasterizerState("cull-back"));
 			SetBlendState(GetBlendState("overwrite"));
+			SetSamplerState(GetSamplerState("trilinear-x16"), 0, TH_PS);
 		}
 		void GraphicsDevice::InitSections()
 		{

@@ -588,11 +588,6 @@ namespace Tomahawk
 					HSP = VSP;
 				}
 			}
-			void D3D11Device::SetSamplerState(SamplerState* State, unsigned int Slot)
-			{
-				ID3D11SamplerState* NewState = (ID3D11SamplerState*)(State ? State->GetResource() : nullptr);
-				ImmediateContext->PSSetSamplers(Slot, 1, &NewState);
-			}
 			void D3D11Device::SetBlendState(BlendState* State)
 			{
 				ID3D11BlendState* NewState = (ID3D11BlendState*)(State ? State->GetResource() : nullptr);
@@ -635,6 +630,27 @@ namespace Tomahawk
 
 				ImmediateContext->IASetInputLayout(GenerateInputLayout(IResource));
 			}
+			void D3D11Device::SetSamplerState(SamplerState* State, unsigned int Slot, unsigned int Type)
+			{
+				ID3D11SamplerState* NewState = (ID3D11SamplerState*)(State ? State->GetResource() : nullptr);
+				if (Type & ShaderType_Vertex)
+					ImmediateContext->VSSetSamplers(Slot, 1, &NewState);
+
+				if (Type & ShaderType_Pixel)
+					ImmediateContext->PSSetSamplers(Slot, 1, &NewState);
+
+				if (Type & ShaderType_Geometry)
+					ImmediateContext->GSSetSamplers(Slot, 1, &NewState);
+
+				if (Type & ShaderType_Hull)
+					ImmediateContext->HSSetSamplers(Slot, 1, &NewState);
+
+				if (Type & ShaderType_Domain)
+					ImmediateContext->DSSetSamplers(Slot, 1, &NewState);
+
+				if (Type & ShaderType_Compute)
+					ImmediateContext->CSSetSamplers(Slot, 1, &NewState);
+			}
 			void D3D11Device::SetBuffer(Shader* Resource, unsigned int Slot, unsigned int Type)
 			{
 				ID3D11Buffer* IBuffer = (Resource ? Resource->As<D3D11Shader>()->ConstantBuffer : nullptr);
@@ -656,17 +672,110 @@ namespace Tomahawk
 				if (Type & ShaderType_Compute)
 					ImmediateContext->CSSetConstantBuffers(Slot, 1, &IBuffer);
 			}
-			void D3D11Device::SetBuffer(InstanceBuffer* Resource, unsigned int Slot)
+			void D3D11Device::SetBuffer(InstanceBuffer* Resource, unsigned int Slot, unsigned int Type)
 			{
 				ID3D11ShaderResourceView* NewState = (Resource ? Resource->As<D3D11InstanceBuffer>()->Resource : nullptr);
-				ImmediateContext->PSSetShaderResources(Slot, 1, &NewState);
-				ImmediateContext->VSSetShaderResources(Slot, 1, &NewState);
+				if (Type & ShaderType_Vertex)
+					ImmediateContext->VSSetShaderResources(Slot, 1, &NewState);
+
+				if (Type & ShaderType_Pixel)
+					ImmediateContext->PSSetShaderResources(Slot, 1, &NewState);
+
+				if (Type & ShaderType_Geometry)
+					ImmediateContext->GSSetShaderResources(Slot, 1, &NewState);
+
+				if (Type & ShaderType_Hull)
+					ImmediateContext->HSSetShaderResources(Slot, 1, &NewState);
+
+				if (Type & ShaderType_Domain)
+					ImmediateContext->DSSetShaderResources(Slot, 1, &NewState);
+
+				if (Type & ShaderType_Compute)
+					ImmediateContext->CSSetShaderResources(Slot, 1, &NewState);
 			}
-			void D3D11Device::SetStructureBuffer(ElementBuffer* Resource, unsigned int Slot)
+			void D3D11Device::SetStructureBuffer(ElementBuffer* Resource, unsigned int Slot, unsigned int Type)
 			{
 				ID3D11ShaderResourceView* NewState = (Resource ? Resource->As<D3D11ElementBuffer>()->Resource : nullptr);
-				ImmediateContext->PSSetShaderResources(Slot, 1, &NewState);
-				ImmediateContext->CSSetShaderResources(Slot, 1, &NewState);
+				if (Type & ShaderType_Vertex)
+					ImmediateContext->VSSetShaderResources(Slot, 1, &NewState);
+
+				if (Type & ShaderType_Pixel)
+					ImmediateContext->PSSetShaderResources(Slot, 1, &NewState);
+
+				if (Type & ShaderType_Geometry)
+					ImmediateContext->GSSetShaderResources(Slot, 1, &NewState);
+
+				if (Type & ShaderType_Hull)
+					ImmediateContext->HSSetShaderResources(Slot, 1, &NewState);
+
+				if (Type & ShaderType_Domain)
+					ImmediateContext->DSSetShaderResources(Slot, 1, &NewState);
+
+				if (Type & ShaderType_Compute)
+					ImmediateContext->CSSetShaderResources(Slot, 1, &NewState);
+			}
+			void D3D11Device::SetTexture2D(Texture2D* Resource, unsigned int Slot, unsigned int Type)
+			{
+				ID3D11ShaderResourceView* NewState = (Resource ? Resource->As<D3D11Texture2D>()->Resource : nullptr);
+				if (Type & ShaderType_Vertex)
+					ImmediateContext->VSSetShaderResources(Slot, 1, &NewState);
+
+				if (Type & ShaderType_Pixel)
+					ImmediateContext->PSSetShaderResources(Slot, 1, &NewState);
+
+				if (Type & ShaderType_Geometry)
+					ImmediateContext->GSSetShaderResources(Slot, 1, &NewState);
+
+				if (Type & ShaderType_Hull)
+					ImmediateContext->HSSetShaderResources(Slot, 1, &NewState);
+
+				if (Type & ShaderType_Domain)
+					ImmediateContext->DSSetShaderResources(Slot, 1, &NewState);
+
+				if (Type & ShaderType_Compute)
+					ImmediateContext->CSSetShaderResources(Slot, 1, &NewState);
+			}
+			void D3D11Device::SetTexture3D(Texture3D* Resource, unsigned int Slot, unsigned int Type)
+			{
+				ID3D11ShaderResourceView* NewState = (Resource ? Resource->As<D3D11Texture3D>()->Resource : nullptr);
+				if (Type & ShaderType_Vertex)
+					ImmediateContext->VSSetShaderResources(Slot, 1, &NewState);
+
+				if (Type & ShaderType_Pixel)
+					ImmediateContext->PSSetShaderResources(Slot, 1, &NewState);
+
+				if (Type & ShaderType_Geometry)
+					ImmediateContext->GSSetShaderResources(Slot, 1, &NewState);
+
+				if (Type & ShaderType_Hull)
+					ImmediateContext->HSSetShaderResources(Slot, 1, &NewState);
+
+				if (Type & ShaderType_Domain)
+					ImmediateContext->DSSetShaderResources(Slot, 1, &NewState);
+
+				if (Type & ShaderType_Compute)
+					ImmediateContext->CSSetShaderResources(Slot, 1, &NewState);
+			}
+			void D3D11Device::SetTextureCube(TextureCube* Resource, unsigned int Slot, unsigned int Type)
+			{
+				ID3D11ShaderResourceView* NewState = (Resource ? Resource->As<D3D11TextureCube>()->Resource : nullptr);
+				if (Type & ShaderType_Vertex)
+					ImmediateContext->VSSetShaderResources(Slot, 1, &NewState);
+
+				if (Type & ShaderType_Pixel)
+					ImmediateContext->PSSetShaderResources(Slot, 1, &NewState);
+
+				if (Type & ShaderType_Geometry)
+					ImmediateContext->GSSetShaderResources(Slot, 1, &NewState);
+
+				if (Type & ShaderType_Hull)
+					ImmediateContext->HSSetShaderResources(Slot, 1, &NewState);
+
+				if (Type & ShaderType_Domain)
+					ImmediateContext->DSSetShaderResources(Slot, 1, &NewState);
+
+				if (Type & ShaderType_Compute)
+					ImmediateContext->CSSetShaderResources(Slot, 1, &NewState);
 			}
 			void D3D11Device::SetIndexBuffer(ElementBuffer* Resource, Format FormatMode)
 			{
@@ -679,22 +788,7 @@ namespace Tomahawk
 				unsigned int Stride = (IResource ? IResource->Stride : 0), Offset = 0;
 				ImmediateContext->IASetVertexBuffers(Slot, 1, &IBuffer, &Stride, &Offset);
 			}
-			void D3D11Device::SetTexture2D(Texture2D* Resource, unsigned int Slot)
-			{
-				ID3D11ShaderResourceView* NewState = (Resource ? Resource->As<D3D11Texture2D>()->Resource : nullptr);
-				ImmediateContext->PSSetShaderResources(Slot, 1, &NewState);
-			}
-			void D3D11Device::SetTexture3D(Texture3D* Resource, unsigned int Slot)
-			{
-				ID3D11ShaderResourceView* NewState = (Resource ? Resource->As<D3D11Texture3D>()->Resource : nullptr);
-				ImmediateContext->PSSetShaderResources(Slot, 1, &NewState);
-			}
-			void D3D11Device::SetTextureCube(TextureCube* Resource, unsigned int Slot)
-			{
-				ID3D11ShaderResourceView* NewState = (Resource ? Resource->As<D3D11TextureCube>()->Resource : nullptr);
-				ImmediateContext->PSSetShaderResources(Slot, 1, &NewState);
-			}
-			void D3D11Device::SetWriteable(ElementBuffer** Resource, unsigned int Count, unsigned int Slot)
+			void D3D11Device::SetWriteable(ElementBuffer** Resource, unsigned int Count, unsigned int Slot, bool Computable)
 			{
 				if (!Resource || Count > 8)
 					return;
@@ -704,9 +798,12 @@ namespace Tomahawk
 					Array[i] = (Resource[i] ? ((D3D11ElementBuffer*)(Resource[i]))->Access : nullptr);
 
 				UINT Offset = 0;
-				ImmediateContext->OMSetRenderTargetsAndUnorderedAccessViews(D3D11_KEEP_RENDER_TARGETS_AND_DEPTH_STENCIL, nullptr, nullptr, Slot, Count, Array, &Offset);
+				if (!Computable)
+					ImmediateContext->OMSetRenderTargetsAndUnorderedAccessViews(D3D11_KEEP_RENDER_TARGETS_AND_DEPTH_STENCIL, nullptr, nullptr, Slot, Count, Array, &Offset);
+				else
+					ImmediateContext->CSSetUnorderedAccessViews(Slot, Count, Array, &Offset);
 			}
-			void D3D11Device::SetWriteable(Texture2D** Resource, unsigned int Count, unsigned int Slot)
+			void D3D11Device::SetWriteable(Texture2D** Resource, unsigned int Count, unsigned int Slot, bool Computable)
 			{
 				if (!Resource || Count > 8)
 					return;
@@ -716,9 +813,12 @@ namespace Tomahawk
 					Array[i] = (Resource[i] ? ((D3D11Texture2D*)(Resource[i]))->Access : nullptr);
 
 				UINT Offset = 0;
-				ImmediateContext->OMSetRenderTargetsAndUnorderedAccessViews(D3D11_KEEP_RENDER_TARGETS_AND_DEPTH_STENCIL, nullptr, nullptr, Slot, Count, Array, &Offset);
+				if (!Computable)
+					ImmediateContext->OMSetRenderTargetsAndUnorderedAccessViews(D3D11_KEEP_RENDER_TARGETS_AND_DEPTH_STENCIL, nullptr, nullptr, Slot, Count, Array, &Offset);
+				else
+					ImmediateContext->CSSetUnorderedAccessViews(Slot, Count, Array, &Offset);
 			}
-			void D3D11Device::SetWriteable(Texture3D** Resource, unsigned int Count, unsigned int Slot)
+			void D3D11Device::SetWriteable(Texture3D** Resource, unsigned int Count, unsigned int Slot, bool Computable)
 			{
 				if (!Resource || Count > 8)
 					return;
@@ -728,9 +828,12 @@ namespace Tomahawk
 					Array[i] = (Resource[i] ? ((D3D11Texture3D*)(Resource[i]))->Access : nullptr);
 
 				UINT Offset = 0;
-				ImmediateContext->OMSetRenderTargetsAndUnorderedAccessViews(D3D11_KEEP_RENDER_TARGETS_AND_DEPTH_STENCIL, nullptr, nullptr, Slot, Count, Array, &Offset);
+				if (!Computable)
+					ImmediateContext->OMSetRenderTargetsAndUnorderedAccessViews(D3D11_KEEP_RENDER_TARGETS_AND_DEPTH_STENCIL, nullptr, nullptr, Slot, Count, Array, &Offset);
+				else
+					ImmediateContext->CSSetUnorderedAccessViews(Slot, Count, Array, &Offset);
 			}
-			void D3D11Device::SetWriteable(TextureCube** Resource, unsigned int Count, unsigned int Slot)
+			void D3D11Device::SetWriteable(TextureCube** Resource, unsigned int Count, unsigned int Slot, bool Computable)
 			{
 				if (!Resource || Count > 8)
 					return;
@@ -740,55 +843,10 @@ namespace Tomahawk
 					Array[i] = (Resource[i] ? ((D3D11TextureCube*)(Resource[i]))->Access : nullptr);
 
 				UINT Offset = 0;
-				ImmediateContext->OMSetRenderTargetsAndUnorderedAccessViews(D3D11_KEEP_RENDER_TARGETS_AND_DEPTH_STENCIL, nullptr, nullptr, Slot, Count, Array, &Offset);
-			}
-			void D3D11Device::SetComputable(ElementBuffer** Resource, unsigned int Count, unsigned int Slot)
-			{
-				if (!Resource || Count > 8)
-					return;
-
-				ID3D11UnorderedAccessView* Array[8] = { nullptr };
-				for (unsigned int i = 0; i < Count; i++)
-					Array[i] = (Resource[i] ? ((D3D11ElementBuffer*)(Resource[i]))->Access : nullptr);
-
-				UINT Offset = 0;
-				ImmediateContext->CSSetUnorderedAccessViews(Slot, Count, Array, &Offset);
-			}
-			void D3D11Device::SetComputable(Texture2D** Resource, unsigned int Count, unsigned int Slot)
-			{
-				if (!Resource || Count > 8)
-					return;
-
-				ID3D11UnorderedAccessView* Array[8] = { nullptr };
-				for (unsigned int i = 0; i < Count; i++)
-					Array[i] = (Resource[i] ? ((D3D11Texture2D*)(Resource[i]))->Access : nullptr);
-
-				UINT Offset = 0;
-				ImmediateContext->CSSetUnorderedAccessViews(Slot, Count, Array, &Offset);
-			}
-			void D3D11Device::SetComputable(Texture3D** Resource, unsigned int Count, unsigned int Slot)
-			{
-				if (!Resource || Count > 8)
-					return;
-
-				ID3D11UnorderedAccessView* Array[8] = { nullptr };
-				for (unsigned int i = 0; i < Count; i++)
-					Array[i] = (Resource[i] ? ((D3D11Texture3D*)(Resource[i]))->Access : nullptr);
-
-				UINT Offset = 0;
-				ImmediateContext->CSSetUnorderedAccessViews(Slot, Count, Array, &Offset);
-			}
-			void D3D11Device::SetComputable(TextureCube** Resource, unsigned int Count, unsigned int Slot)
-			{
-				if (!Resource || Count > 8)
-					return;
-
-				ID3D11UnorderedAccessView* Array[8] = { nullptr };
-				for (unsigned int i = 0; i < Count; i++)
-					Array[i] = (Resource[i] ? ((D3D11TextureCube*)(Resource[i]))->Access : nullptr);
-
-				UINT Offset = 0;
-				ImmediateContext->CSSetUnorderedAccessViews(Slot, Count, Array, &Offset);
+				if (!Computable)
+					ImmediateContext->OMSetRenderTargetsAndUnorderedAccessViews(D3D11_KEEP_RENDER_TARGETS_AND_DEPTH_STENCIL, nullptr, nullptr, Slot, Count, Array, &Offset);
+				else
+					ImmediateContext->CSSetUnorderedAccessViews(Slot, Count, Array, &Offset);
 			}
 			void D3D11Device::SetTarget(float R, float G, float B)
 			{
@@ -921,18 +979,36 @@ namespace Tomahawk
 			{
 				ImmediateContext->IASetPrimitiveTopology((D3D11_PRIMITIVE_TOPOLOGY)Topology);
 			}
-			void D3D11Device::FlushTexture2D(unsigned int Slot, unsigned int Count)
+			void D3D11Device::FlushTexture2D(unsigned int Slot, unsigned int Count, unsigned int Type)
 			{
-				ID3D11ShaderResourceView* Array[64] = { nullptr };
-				ImmediateContext->PSSetShaderResources(Slot, Count > 64 ? 64 : Count, Array);
+				static ID3D11ShaderResourceView* Array[32] = { nullptr };
+				unsigned int Size = (Count > 32 ? 32 : Count);
+
+				if (Type & ShaderType_Vertex)
+					ImmediateContext->VSSetShaderResources(Slot, Size, Array);
+
+				if (Type & ShaderType_Pixel)
+					ImmediateContext->PSSetShaderResources(Slot, Size, Array);
+
+				if (Type & ShaderType_Geometry)
+					ImmediateContext->GSSetShaderResources(Slot, Size, Array);
+
+				if (Type & ShaderType_Hull)
+					ImmediateContext->HSSetShaderResources(Slot, Size, Array);
+
+				if (Type & ShaderType_Domain)
+					ImmediateContext->DSSetShaderResources(Slot, Size, Array);
+
+				if (Type & ShaderType_Compute)
+					ImmediateContext->CSSetShaderResources(Slot, Size, Array);
 			}
-			void D3D11Device::FlushTexture3D(unsigned int Slot, unsigned int Count)
+			void D3D11Device::FlushTexture3D(unsigned int Slot, unsigned int Count, unsigned int Type)
 			{
-				FlushTexture2D(Slot, Count);
+				FlushTexture2D(Slot, Count, Type);
 			}
-			void D3D11Device::FlushTextureCube(unsigned int Slot, unsigned int Count)
+			void D3D11Device::FlushTextureCube(unsigned int Slot, unsigned int Count, unsigned int Type)
 			{
-				FlushTexture2D(Slot, Count);
+				FlushTexture2D(Slot, Count, Type);
 			}
 			void D3D11Device::FlushState()
 			{
@@ -1959,14 +2035,8 @@ namespace Tomahawk
 
 				Rest::Stroke Code(&F.Data);
 				uint64_t Length = Code.Size();
-				bool VS = Code.Find("VS").Found;
-				bool PS = Code.Find("PS").Found;
-				bool GS = Code.Find("GS").Found;
-				bool DS = Code.Find("DS").Found;
-				bool HS = Code.Find("HS").Found;
-				bool CS = Code.Find("CS").Found;
 
-				if (VS)
+				if (Code.Find("VS").Found)
 				{
 					D3DCompile(Code.Get(), (SIZE_T)Length * sizeof(char), F.Filename.empty() ? nullptr : F.Filename.c_str(), nullptr, nullptr, "VS", GetVSProfile(), CompileFlags, 0, &Result->Signature, &ErrorBlob);
 					if (GetCompileState(ErrorBlob))
@@ -1981,7 +2051,7 @@ namespace Tomahawk
 					D3DDevice->CreateVertexShader(Result->Signature->GetBufferPointer(), Result->Signature->GetBufferSize(), nullptr, &Result->VertexShader);
 				}
 
-				if (PS)
+				if (Code.Find("PS").Found)
 				{
 					ShaderBlob = nullptr;
 					D3DCompile(Code.Get(), (SIZE_T)Length * sizeof(char), F.Filename.empty() ? nullptr : F.Filename.c_str(), nullptr, nullptr, "PS", GetPSProfile(), CompileFlags, 0, &ShaderBlob, &ErrorBlob);
@@ -1998,7 +2068,7 @@ namespace Tomahawk
 					ReleaseCom(ShaderBlob);
 				}
 
-				if (GS)
+				if (Code.Find("GS").Found)
 				{
 					ShaderBlob = nullptr;
 					D3DCompile(Code.Get(), (SIZE_T)Length * sizeof(char), F.Filename.empty() ? nullptr : F.Filename.c_str(), nullptr, nullptr, "GS", GetGSProfile(), GetCompileFlags(), 0, &ShaderBlob, &ErrorBlob);
@@ -2015,7 +2085,7 @@ namespace Tomahawk
 					ReleaseCom(ShaderBlob);
 				}
 
-				if (CS)
+				if (Code.Find("CS").Found)
 				{
 					ShaderBlob = nullptr;
 					D3DCompile(Code.Get(), (SIZE_T)Length * sizeof(char), F.Filename.empty() ? nullptr : F.Filename.c_str(), nullptr, nullptr, "CS", GetCSProfile(), GetCompileFlags(), 0, &ShaderBlob, &ErrorBlob);
@@ -2032,7 +2102,7 @@ namespace Tomahawk
 					ReleaseCom(ShaderBlob);
 				}
 
-				if (HS)
+				if (Code.Find("HS").Found)
 				{
 					ShaderBlob = nullptr;
 					D3DCompile(Code.Get(), (SIZE_T)Length * sizeof(char), F.Filename.empty() ? nullptr : F.Filename.c_str(), nullptr, nullptr, "HS", GetHSProfile(), GetCompileFlags(), 0, &ShaderBlob, &ErrorBlob);
@@ -2049,7 +2119,7 @@ namespace Tomahawk
 					ReleaseCom(ShaderBlob);
 				}
 
-				if (DS)
+				if (Code.Find("DS").Found)
 				{
 					ShaderBlob = nullptr;
 					D3DCompile(Code.Get(), (SIZE_T)Length * sizeof(char), F.Filename.empty() ? nullptr : F.Filename.c_str(), nullptr, nullptr, "DS", GetDSProfile(), GetCompileFlags(), 0, &ShaderBlob, &ErrorBlob);

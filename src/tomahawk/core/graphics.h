@@ -6,6 +6,13 @@
 #include <functional>
 #include <limits>
 
+#define TH_VS Tomahawk::Graphics::ShaderType_Vertex
+#define TH_PS Tomahawk::Graphics::ShaderType_Pixel
+#define TH_GS Tomahawk::Graphics::ShaderType_Geometry
+#define TH_CS Tomahawk::Graphics::ShaderType_Compute
+#define TH_HS Tomahawk::Graphics::ShaderType_Hull
+#define TH_DS Tomahawk::Graphics::ShaderType_Domain
+
 struct SDL_SysWMinfo;
 struct SDL_Cursor;
 struct SDL_Window;
@@ -1591,28 +1598,24 @@ namespace Tomahawk
 			virtual ~GraphicsDevice();
 			virtual void SetConstantBuffers() = 0;
 			virtual void SetShaderModel(ShaderModel Model) = 0;
-			virtual void SetSamplerState(SamplerState* State, unsigned int Slot) = 0;
 			virtual void SetBlendState(BlendState* State) = 0;
 			virtual void SetRasterizerState(RasterizerState* State) = 0;
 			virtual void SetDepthStencilState(DepthStencilState* State) = 0;
 			virtual void SetInputLayout(InputLayout* State) = 0;
 			virtual void SetShader(Shader* Resource, unsigned int Type) = 0;
+			virtual void SetSamplerState(SamplerState* State, unsigned int Slot, unsigned int Type) = 0;
 			virtual void SetBuffer(Shader* Resource, unsigned int Slot, unsigned int Type) = 0;
-			virtual void SetBuffer(InstanceBuffer* Resource, unsigned int Slot) = 0;
-			virtual void SetStructureBuffer(ElementBuffer* Resource, unsigned int Slot) = 0;
+			virtual void SetBuffer(InstanceBuffer* Resource, unsigned int Slot, unsigned int Type) = 0;
+			virtual void SetStructureBuffer(ElementBuffer* Resource, unsigned int Slot, unsigned int Type) = 0;
+			virtual void SetTexture2D(Texture2D* Resource, unsigned int Slot, unsigned int Type) = 0;
+			virtual void SetTexture3D(Texture3D* Resource, unsigned int Slot, unsigned int Type) = 0;
+			virtual void SetTextureCube(TextureCube* Resource, unsigned int Slot, unsigned int Type) = 0;
 			virtual void SetIndexBuffer(ElementBuffer* Resource, Format FormatMode) = 0;
 			virtual void SetVertexBuffer(ElementBuffer* Resource, unsigned int Slot) = 0;
-			virtual void SetTexture2D(Texture2D* Resource, unsigned int Slot) = 0;
-			virtual void SetTexture3D(Texture3D* Resource, unsigned int Slot) = 0;
-			virtual void SetTextureCube(TextureCube* Resource, unsigned int Slot) = 0;
-			virtual void SetWriteable(ElementBuffer** Resource, unsigned int Count, unsigned int Slot) = 0;
-			virtual void SetWriteable(Texture2D** Resource, unsigned int Count, unsigned int Slot) = 0;
-			virtual void SetWriteable(Texture3D** Resource, unsigned int Count, unsigned int Slot) = 0;
-			virtual void SetWriteable(TextureCube** Resource, unsigned int Count, unsigned int Slot) = 0;
-			virtual void SetComputable(ElementBuffer** Resource, unsigned int Count, unsigned int Slot) = 0;
-			virtual void SetComputable(Texture2D** Resource, unsigned int Count, unsigned int Slot) = 0;
-			virtual void SetComputable(Texture3D** Resource, unsigned int Count, unsigned int Slot) = 0;
-			virtual void SetComputable(TextureCube** Resource, unsigned int Count, unsigned int Slot) = 0;
+			virtual void SetWriteable(ElementBuffer** Resource, unsigned int Count, unsigned int Slot, bool Computable) = 0;
+			virtual void SetWriteable(Texture2D** Resource, unsigned int Count, unsigned int Slot, bool Computable) = 0;
+			virtual void SetWriteable(Texture3D** Resource, unsigned int Count, unsigned int Slot, bool Computable) = 0;
+			virtual void SetWriteable(TextureCube** Resource, unsigned int Count, unsigned int Slot, bool Computable) = 0;
 			virtual void SetTarget(float R, float G, float B) = 0;
 			virtual void SetTarget() = 0;
 			virtual void SetTarget(DepthBuffer* Resource) = 0;
@@ -1625,9 +1628,9 @@ namespace Tomahawk
 			virtual void SetViewports(unsigned int Count, Viewport* Viewports) = 0;
 			virtual void SetScissorRects(unsigned int Count, Compute::Rectangle* Value) = 0;
 			virtual void SetPrimitiveTopology(PrimitiveTopology Topology) = 0;
-			virtual void FlushTexture2D(unsigned int Slot, unsigned int Count) = 0;
-			virtual void FlushTexture3D(unsigned int Slot, unsigned int Count) = 0;
-			virtual void FlushTextureCube(unsigned int Slot, unsigned int Count) = 0;
+			virtual void FlushTexture2D(unsigned int Slot, unsigned int Count, unsigned int Type) = 0;
+			virtual void FlushTexture3D(unsigned int Slot, unsigned int Count, unsigned int Type) = 0;
+			virtual void FlushTextureCube(unsigned int Slot, unsigned int Count, unsigned int Type) = 0;
 			virtual void FlushState() = 0;
 			virtual bool Map(ElementBuffer* Resource, ResourceMap Mode, MappedSubresource* Map) = 0;
 			virtual bool Unmap(ElementBuffer* Resource, MappedSubresource* Map) = 0;

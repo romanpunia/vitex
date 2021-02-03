@@ -109,13 +109,13 @@ namespace Tomahawk
 			Device->Render.MaterialId = (float)Material;
 			Device->Render.Diffuse = Diffuse;
 			Device->Render.TexCoord = TexCoord;
-			Device->SetTexture2D(DiffuseMap, 1);
-			Device->SetTexture2D(NormalMap, 2);
-			Device->SetTexture2D(MetallicMap, 3);
-			Device->SetTexture2D(RoughnessMap, 4);
-			Device->SetTexture2D(HeightMap, 5);
-			Device->SetTexture2D(OcclusionMap, 6);
-			Device->SetTexture2D(EmissionMap, 7);
+			Device->SetTexture2D(DiffuseMap, 1, TH_PS);
+			Device->SetTexture2D(NormalMap, 2, TH_PS);
+			Device->SetTexture2D(MetallicMap, 3, TH_PS);
+			Device->SetTexture2D(RoughnessMap, 4, TH_PS);
+			Device->SetTexture2D(HeightMap, 5, TH_PS);
+			Device->SetTexture2D(OcclusionMap, 6, TH_PS);
+			Device->SetTexture2D(EmissionMap, 7, TH_PS);
 
 			return true;
 		}
@@ -129,12 +129,12 @@ namespace Tomahawk
 			Device->Render.MaterialId = (float)Material;
 			Device->Render.Diffuse = Diffuse;
 			Device->Render.TexCoord = TexCoord;
-			Device->SetTexture2D(DiffuseMap, 5);
-			Device->SetTexture2D(NormalMap, 6);
-			Device->SetTexture2D(MetallicMap, 7);
-			Device->SetTexture2D(RoughnessMap, 8);
-			Device->SetTexture2D(OcclusionMap, 9);
-			Device->SetTexture2D(EmissionMap, 10);
+			Device->SetTexture2D(DiffuseMap, 5, TH_PS);
+			Device->SetTexture2D(NormalMap, 6, TH_PS);
+			Device->SetTexture2D(MetallicMap, 7, TH_PS);
+			Device->SetTexture2D(RoughnessMap, 8, TH_PS);
+			Device->SetTexture2D(OcclusionMap, 9, TH_PS);
+			Device->SetTexture2D(EmissionMap, 10, TH_PS);
 
 			return true;
 		}
@@ -146,7 +146,7 @@ namespace Tomahawk
 			Device->Render.HasDiffuse = (float)(DiffuseMap != nullptr);
 			Device->Render.MaterialId = Material;
 			Device->Render.TexCoord = TexCoord;
-			Device->SetTexture2D(DiffuseMap, 1);
+			Device->SetTexture2D(DiffuseMap, 1, TH_PS);
 
 			return true;
 		}
@@ -158,7 +158,7 @@ namespace Tomahawk
 			Device->Render.HasDiffuse = (float)(DiffuseMap != nullptr);
 			Device->Render.MaterialId = Material;
 			Device->Render.TexCoord = TexCoord;
-			Device->SetTexture2D(DiffuseMap, 1);
+			Device->SetTexture2D(DiffuseMap, 1, TH_PS);
 
 			return true;
 		}
@@ -3222,7 +3222,7 @@ namespace Tomahawk
 			if (!Occlusion.TickEvent(ElapsedTime))
 				return;
 
-			Device->SetSamplerState(Sampler, 0);
+			Device->SetSamplerState(Sampler, 0, TH_PS);
 			Device->SetDepthStencilState(DepthStencil);
 			Device->SetBlendState(Blend);
 			Device->SetTarget(Target);
@@ -3637,7 +3637,7 @@ namespace Tomahawk
 		void EffectDraw::RenderTexture(uint32_t Slot6, Graphics::Texture2D* Resource)
 		{
 			Graphics::GraphicsDevice* Device = System->GetDevice();
-			Device->SetTexture2D(Resource, 6 + Slot6);
+			Device->SetTexture2D(Resource, 6 + Slot6, TH_PS);
 
 			if (Resource != nullptr)
 				MaxSlot = std::max(MaxSlot, 6 + Slot6);
@@ -3645,7 +3645,7 @@ namespace Tomahawk
 		void EffectDraw::RenderTexture(uint32_t Slot6, Graphics::Texture3D* Resource)
 		{
 			Graphics::GraphicsDevice* Device = System->GetDevice();
-			Device->SetTexture3D(Resource, 6 + Slot6);
+			Device->SetTexture3D(Resource, 6 + Slot6, TH_PS);
 
 			if (Resource != nullptr)
 				MaxSlot = std::max(MaxSlot, 6 + Slot6);
@@ -3653,7 +3653,7 @@ namespace Tomahawk
 		void EffectDraw::RenderTexture(uint32_t Slot6, Graphics::TextureCube* Resource)
 		{
 			Graphics::GraphicsDevice* Device = System->GetDevice();
-			Device->SetTextureCube(Resource, 6 + Slot6);
+			Device->SetTextureCube(Resource, 6 + Slot6, TH_PS);
 
 			if (Resource != nullptr)
 				MaxSlot = std::max(MaxSlot, 6 + Slot6);
@@ -3670,15 +3670,15 @@ namespace Tomahawk
 			Graphics::Texture2D** Merger = System->GetMerger();
 
 			if (Swap != nullptr && Output != Swap)
-				Device->SetTexture2D(Swap->GetTarget(0), 5);
+				Device->SetTexture2D(Swap->GetTarget(0), 5, TH_PS);
 			else
-				Device->SetTexture2D(*Merger, 5);
+				Device->SetTexture2D(*Merger, 5, TH_PS);
 				
-			Device->SetShader(Effect, Graphics::ShaderType_Vertex | Graphics::ShaderType_Pixel);
+			Device->SetShader(Effect, TH_VS | TH_PS);
 			if (Buffer != nullptr)
 			{
 				Device->UpdateBuffer(Effect, Buffer);
-				Device->SetBuffer(Effect, 3, Graphics::ShaderType_Vertex | Graphics::ShaderType_Pixel);
+				Device->SetBuffer(Effect, 3, TH_VS | TH_PS);
 			}
 
 			for (size_t i = 0; i < Count; i++)
@@ -3700,15 +3700,15 @@ namespace Tomahawk
 			Graphics::Texture2D** Merger = System->GetMerger();
 
 			if (Swap != nullptr && Output != Swap)
-				Device->SetTexture2D(Swap->GetTarget(0), 5);
+				Device->SetTexture2D(Swap->GetTarget(0), 5, TH_PS);
 			else
-				Device->SetTexture2D(*Merger, 5);
+				Device->SetTexture2D(*Merger, 5, TH_PS);
 
-			Device->SetShader(Effect, Graphics::ShaderType_Vertex | Graphics::ShaderType_Pixel);
+			Device->SetShader(Effect, TH_VS | TH_PS);
 			if (Buffer != nullptr)
 			{
 				Device->UpdateBuffer(Effect, Buffer);
-				Device->SetBuffer(Effect, 3, Graphics::ShaderType_Vertex | Graphics::ShaderType_Pixel);
+				Device->SetBuffer(Effect, 3, TH_VS | TH_PS);
 			}
 
 			Device->Draw(6, 0);
@@ -3732,21 +3732,21 @@ namespace Tomahawk
 
 			Graphics::MultiRenderTarget2D* Input = System->GetMRT(TargetType_Main);
 			Graphics::GraphicsDevice* Device = System->GetDevice();
-			Device->SetSamplerState(Sampler, 0);
+			Device->SetSamplerState(Sampler, 0, TH_PS);
 			Device->SetDepthStencilState(DepthStencil);
 			Device->SetBlendState(Blend);
 			Device->SetRasterizerState(Rasterizer);
 			Device->SetInputLayout(Layout);
 			Device->SetTarget(Output, 0, 0, 0, 0);
-			Device->SetTexture2D(Input->GetTarget(0), 1);
-			Device->SetTexture2D(Input->GetTarget(1), 2);
-			Device->SetTexture2D(Input->GetTarget(2), 3);
-			Device->SetTexture2D(Input->GetTarget(3), 4);
+			Device->SetTexture2D(Input->GetTarget(0), 1, TH_PS);
+			Device->SetTexture2D(Input->GetTarget(1), 2, TH_PS);
+			Device->SetTexture2D(Input->GetTarget(2), 3, TH_PS);
+			Device->SetTexture2D(Input->GetTarget(3), 4, TH_PS);
 			Device->SetVertexBuffer(System->GetPrimitives()->GetQuad(), 0);
 
 			RenderEffect(Time);
 
-			Device->FlushTexture2D(1, MaxSlot);
+			Device->FlushTexture2D(1, MaxSlot, TH_PS);
 			Device->CopyTarget(Output, 0, Input, 0);
 			System->RestoreOutput();
 		}
@@ -3918,17 +3918,17 @@ namespace Tomahawk
 			Conf.Device->SetTarget();
 			Conf.Device->Render.Diffuse = 1.0f;
 			Conf.Device->Render.WorldViewProjection.Identify();
-			Conf.Device->SetSamplerState(Display.Sampler, 0);
+			Conf.Device->SetSamplerState(Display.Sampler, 0, TH_PS);
 			Conf.Device->SetDepthStencilState(Display.DepthStencil);
 			Conf.Device->SetBlendState(Display.Blend);
 			Conf.Device->SetRasterizerState(Display.Rasterizer);
 			Conf.Device->SetInputLayout(Display.Layout);
-			Conf.Device->SetShader(Conf.Device->GetBasicEffect(), Graphics::ShaderType_Vertex | Graphics::ShaderType_Pixel);
+			Conf.Device->SetShader(Conf.Device->GetBasicEffect(), TH_VS | TH_PS);
 			Conf.Device->SetVertexBuffer(View.Renderer->GetPrimitives()->GetQuad(), 0);
-			Conf.Device->SetTexture2D(Display.MRT[TargetType_Main]->GetTarget(0), 1);
+			Conf.Device->SetTexture2D(Display.MRT[TargetType_Main]->GetTarget(0), 1, TH_PS);
 			Conf.Device->UpdateBuffer(Graphics::RenderBufferType_Render);
 			Conf.Device->Draw(6, 0);
-			Conf.Device->SetTexture2D(nullptr, 1);
+			Conf.Device->SetTexture2D(nullptr, 1, TH_PS);
 		}
 		void SceneGraph::Render(Rest::Timer* Time)
 		{
@@ -3937,7 +3937,7 @@ namespace Tomahawk
 			{
 				RestoreViewBuffer(nullptr);
 				Conf.Device->UpdateBuffer(Structure, Materials.data(), Materials.size() * sizeof(Material));
-				Conf.Device->SetStructureBuffer(Structure, 0);
+				Conf.Device->SetStructureBuffer(Structure, 0, TH_PS | TH_CS);
 
 				SetMRT(TargetType_Main, true);
 				Render(Time, RenderState_Geometry_Result, RenderOpt_None);

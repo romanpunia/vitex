@@ -301,7 +301,7 @@ namespace Tomahawk
 					float MipLevels = 8.0f;
 					Compute::Vector3 Scale;
 					float MaxSteps = 32.0f;
-					float Intensity = 3.0f;
+					float Intensity = 8.0f;
 					float Occlusion = 0.9f;
 					float Shadows = 0.25f;
 					float Lights = 0.0f;
@@ -424,6 +424,7 @@ namespace Tomahawk
 				bool GetSpotLight(ISpotLight* Dest, Component* Src, Compute::Vector3& Position, Compute::Vector3& Scale);
 				bool GetLineLight(ILineLight* Dest, Component* Src);
 				void GetLightCulling(Component* Src, float Range, Compute::Vector3* Position, Compute::Vector3* Scale);
+				void GetVoxelBuffers(Graphics::Texture3D** In, Graphics::Texture3D** Out);
 				void GenerateCascadeMap(CascadedDepthMap** Result, uint32_t Size);
 				size_t GeneratePointLights();
 				size_t GenerateSpotLights();

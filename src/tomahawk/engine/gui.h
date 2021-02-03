@@ -530,8 +530,8 @@ namespace Tomahawk
 
 			private:
 				std::unordered_map<std::string, DataRow*> Nodes;
-				DataSourceSubsystem* DS;
-				DataFormatterSubsystem* DF;
+				DataFormatterSubsystem* DFS;
+				DataSourceSubsystem* DSS;
 				FormatCallback OnFormat;
 				ColumnCallback OnColumn;
 				ChangeCallback OnChange;

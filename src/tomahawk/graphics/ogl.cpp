@@ -527,10 +527,6 @@ namespace Tomahawk
 				else
 					SetShaderModel(ShaderModel_GLSL_1_1_0);
 			}
-			void OGLDevice::SetSamplerState(SamplerState* State, unsigned int Slot)
-			{
-				glBindSampler(Slot, (GLuint)(State ? State->As<OGLSamplerState>()->Resource : GL_NONE));
-			}
 			void OGLDevice::SetBlendState(BlendState* State)
 			{
 				if (!State)
@@ -726,17 +722,21 @@ namespace Tomahawk
 				IResource->Programs[Type] = Program;
 				glUseProgramObjectARB(Program);
 			}
+			void OGLDevice::SetSamplerState(SamplerState* State, unsigned int Slot, unsigned int Type)
+			{
+				glBindSampler(Slot, (GLuint)(State ? State->As<OGLSamplerState>()->Resource : GL_NONE));
+			}
 			void OGLDevice::SetBuffer(Shader* Resource, unsigned int Slot, unsigned int Type)
 			{
 				OGLShader* IResource = (OGLShader*)Resource;
 				glBindBufferBase(GL_UNIFORM_BUFFER, Slot, IResource ? IResource->ConstantBuffer : GL_NONE);
 			}
-			void OGLDevice::SetBuffer(InstanceBuffer* Resource, unsigned int Slot)
+			void OGLDevice::SetBuffer(InstanceBuffer* Resource, unsigned int Slot, unsigned int Type)
 			{
 				OGLInstanceBuffer* IResource = (OGLInstanceBuffer*)Resource;
-				SetStructureBuffer(IResource ? IResource->Elements : nullptr, Slot);
+				SetStructureBuffer(IResource ? IResource->Elements : nullptr, Slot, Type);
 			}
-			void OGLDevice::SetStructureBuffer(ElementBuffer* Resource, unsigned int Slot)
+			void OGLDevice::SetStructureBuffer(ElementBuffer* Resource, unsigned int Slot, unsigned int Type)
 			{
 				glBindBufferBase(GL_SHADER_STORAGE_BUFFER, Slot, Resource ? Resource->As<OGLElementBuffer>()->Resource : GL_NONE);
 			}
@@ -763,25 +763,25 @@ namespace Tomahawk
 				for (auto& Attribute : Layout->VertexLayout)
 					Attribute(IResource->Stride);
 			}
-			void OGLDevice::SetTexture2D(Texture2D* Resource, unsigned int Slot)
+			void OGLDevice::SetTexture2D(Texture2D* Resource, unsigned int Slot, unsigned int Type)
 			{
 				glActiveTexture(GL_TEXTURE0 + Slot);
 				glBindTexture(GL_TEXTURE_2D, Resource ? Resource->As<OGLTexture2D>()->Resource : GL_NONE);
 			}
-			void OGLDevice::SetTexture3D(Texture3D* Resource, unsigned int Slot)
+			void OGLDevice::SetTexture3D(Texture3D* Resource, unsigned int Slot, unsigned int Type)
 			{
 				glActiveTexture(GL_TEXTURE0 + Slot);
 				glBindTexture(GL_TEXTURE_3D, Resource ? Resource->As<OGLTexture3D>()->Resource : GL_NONE);
 			}
-			void OGLDevice::SetTextureCube(TextureCube* Resource, unsigned int Slot)
+			void OGLDevice::SetTextureCube(TextureCube* Resource, unsigned int Slot, unsigned int Type)
 			{
 				glActiveTexture(GL_TEXTURE0 + Slot);
 				glBindTexture(GL_TEXTURE_CUBE_MAP, Resource ? Resource->As<OGLTextureCube>()->Resource : GL_NONE);
 			}
-			void OGLDevice::SetWriteable(ElementBuffer** Resource, unsigned int Count, unsigned int Slot)
+			void OGLDevice::SetWriteable(ElementBuffer** Resource, unsigned int Count, unsigned int Slot, bool Computable)
 			{
 			}
-			void OGLDevice::SetWriteable(Texture2D** Resource, unsigned int Count, unsigned int Slot)
+			void OGLDevice::SetWriteable(Texture2D** Resource, unsigned int Count, unsigned int Slot, bool Computable)
 			{
 				if (!Resource)
 					return;
@@ -797,7 +797,7 @@ namespace Tomahawk
 						glBindImageTexture(Slot + i, IResource->Resource, 0, GL_TRUE, 0, GL_READ_WRITE, IResource->Format);
 				}
 			}
-			void OGLDevice::SetWriteable(Texture3D** Resource, unsigned int Count, unsigned int Slot)
+			void OGLDevice::SetWriteable(Texture3D** Resource, unsigned int Count, unsigned int Slot, bool Computable)
 			{
 				if (!Resource)
 					return;
@@ -813,7 +813,7 @@ namespace Tomahawk
 						glBindImageTexture(Slot + i, IResource->Resource, 0, GL_TRUE, 0, GL_READ_WRITE, IResource->Format);
 				}
 			}
-			void OGLDevice::SetWriteable(TextureCube** Resource, unsigned int Count, unsigned int Slot)
+			void OGLDevice::SetWriteable(TextureCube** Resource, unsigned int Count, unsigned int Slot, bool Computable)
 			{
 				if (!Resource)
 					return;
@@ -828,22 +828,6 @@ namespace Tomahawk
 					else
 						glBindImageTexture(Slot + i, IResource->Resource, 0, GL_TRUE, 0, GL_READ_WRITE, IResource->Format);
 				}
-			}
-			void OGLDevice::SetComputable(ElementBuffer** Resource, unsigned int Count, unsigned int Slot)
-			{
-				SetWriteable(Resource, Count, Slot);
-			}
-			void OGLDevice::SetComputable(Texture2D** Resource, unsigned int Count, unsigned int Slot)
-			{
-				SetWriteable(Resource, Count, Slot);
-			}
-			void OGLDevice::SetComputable(Texture3D** Resource, unsigned int Count, unsigned int Slot)
-			{
-				SetWriteable(Resource, Count, Slot);
-			}
-			void OGLDevice::SetComputable(TextureCube** Resource, unsigned int Count, unsigned int Slot)
-			{
-				SetWriteable(Resource, Count, Slot);
 			}
 			void OGLDevice::SetTarget(float R, float G, float B)
 			{
@@ -1018,7 +1002,7 @@ namespace Tomahawk
 				glPolygonMode(GL_FRONT_AND_BACK, GetPrimitiveTopology(_Topology));
 				Primitive = _Topology;
 			}
-			void OGLDevice::FlushTexture2D(unsigned int Slot, unsigned int Count)
+			void OGLDevice::FlushTexture2D(unsigned int Slot, unsigned int Count, unsigned int Type)
 			{
 				if (Count <= 0 || Count > 31)
 					return;
@@ -1030,7 +1014,7 @@ namespace Tomahawk
 					glBindTexture(GL_TEXTURE_2D, 0);
 				}
 			}
-			void OGLDevice::FlushTexture3D(unsigned int Slot, unsigned int Count)
+			void OGLDevice::FlushTexture3D(unsigned int Slot, unsigned int Count, unsigned int Type)
 			{
 				if (Count <= 0 || Count > 31)
 					return;
@@ -1042,7 +1026,7 @@ namespace Tomahawk
 					glBindTexture(GL_TEXTURE_3D, 0);
 				}
 			}
-			void OGLDevice::FlushTextureCube(unsigned int Slot, unsigned int Count)
+			void OGLDevice::FlushTextureCube(unsigned int Slot, unsigned int Count, unsigned int Type)
 			{
 				if (Count <= 0 || Count > 31)
 					return;

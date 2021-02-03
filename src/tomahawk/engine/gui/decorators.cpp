@@ -129,8 +129,8 @@ namespace Tomahawk
 					IBoxShadow->RenderPass.Radius.W = Element->GetProperty<float>("border-top-left-radius");
 
 					SetWorldViewProjection(Device, Element, Position, Size, Offset.Abs() + Radius + 4096.0f);
-					Device->SetShader(IBoxShadow->Shader, Graphics::ShaderType_Vertex | Graphics::ShaderType_Pixel);
-					Device->SetBuffer(IBoxShadow->Shader, 3, Graphics::ShaderType_Pixel);
+					Device->SetShader(IBoxShadow->Shader, TH_VS | TH_PS);
+					Device->SetBuffer(IBoxShadow->Shader, 3, TH_PS);
 					Device->SetVertexBuffer(IBoxShadow->VertexBuffer, 0);
 					Device->UpdateBuffer(IBoxShadow->Shader, &IBoxShadow->RenderPass);
 					Device->UpdateBuffer(Graphics::RenderBufferType_Render);
@@ -183,9 +183,9 @@ namespace Tomahawk
 					SetWorldViewProjection(Device, Element, Position, Size);
 					Device->Render.Diffuse = Color;
 					Device->CopyTexture2D(Background, &IBoxBlur->Background);
-					Device->SetTexture2D(IBoxBlur->Background, 1);
-					Device->SetShader(IBoxBlur->Shader, Graphics::ShaderType_Vertex | Graphics::ShaderType_Pixel);
-					Device->SetBuffer(IBoxBlur->Shader, 3, Graphics::ShaderType_Pixel);
+					Device->SetTexture2D(IBoxBlur->Background, 1, TH_PS);
+					Device->SetShader(IBoxBlur->Shader, TH_VS | TH_PS);
+					Device->SetBuffer(IBoxBlur->Shader, 3, TH_PS);
 					Device->SetVertexBuffer(IBoxBlur->VertexBuffer, 0);
 					Device->UpdateBuffer(IBoxBlur->Shader, &IBoxBlur->RenderPass);
 					Device->UpdateBuffer(Graphics::RenderBufferType_Render);

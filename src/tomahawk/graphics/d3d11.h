@@ -1,5 +1,5 @@
-#ifndef TH_GRAPHICS_DIRECTX11_H
-#define TH_GRAPHICS_DIRECTX11_H
+#ifndef TH_GRAPHICS_D3D11_H
+#define TH_GRAPHICS_D3D11_H
 
 #include "../core/graphics.h"
 
@@ -346,28 +346,24 @@ namespace Tomahawk
 				virtual ~D3D11Device() override;
 				void SetConstantBuffers() override;
 				void SetShaderModel(ShaderModel Model) override;
-				void SetSamplerState(SamplerState* State, unsigned int Slot) override;
 				void SetBlendState(BlendState* State) override;
 				void SetRasterizerState(RasterizerState* State) override;
 				void SetDepthStencilState(DepthStencilState* State) override;
 				void SetInputLayout(InputLayout* State) override;
 				void SetShader(Shader* Resource, unsigned int Type) override;
+				void SetSamplerState(SamplerState* State, unsigned int Slot, unsigned int Type) override;
 				void SetBuffer(Shader* Resource, unsigned int Slot, unsigned int Type) override;
-				void SetBuffer(InstanceBuffer* Resource, unsigned int Slot) override;
-				void SetStructureBuffer(ElementBuffer* Resource, unsigned int Slot) override;
+				void SetBuffer(InstanceBuffer* Resource, unsigned int Slot, unsigned int Type) override;
+				void SetStructureBuffer(ElementBuffer* Resource, unsigned int Slot, unsigned int Type) override;
+				void SetTexture2D(Texture2D* Resource, unsigned int Slot, unsigned int Type) override;
+				void SetTexture3D(Texture3D* Resource, unsigned int Slot, unsigned int Type) override;
+				void SetTextureCube(TextureCube* Resource, unsigned int Slot, unsigned int Type) override;
 				void SetIndexBuffer(ElementBuffer* Resource, Format FormatMode) override;
 				void SetVertexBuffer(ElementBuffer* Resource, unsigned int Slot) override;
-				void SetTexture2D(Texture2D* Resource, unsigned int Slot) override;
-				void SetTexture3D(Texture3D* Resource, unsigned int Slot) override;
-				void SetTextureCube(TextureCube* Resource, unsigned int Slot) override;
-				void SetWriteable(ElementBuffer** Resource, unsigned int Count, unsigned int Slot) override;
-				void SetWriteable(Texture2D** Resource, unsigned int Count, unsigned int Slot) override;
-				void SetWriteable(Texture3D** Resource, unsigned int Count, unsigned int Slot) override;
-				void SetWriteable(TextureCube** Resource, unsigned int Count, unsigned int Slot) override;
-				void SetComputable(ElementBuffer** Resource, unsigned int Count, unsigned int Slot) override;
-				void SetComputable(Texture2D** Resource, unsigned int Count, unsigned int Slot) override;
-				void SetComputable(Texture3D** Resource, unsigned int Count, unsigned int Slot) override;
-				void SetComputable(TextureCube** Resource, unsigned int Count, unsigned int Slot) override;
+				void SetWriteable(ElementBuffer** Resource, unsigned int Count, unsigned int Slot, bool Computable) override;
+				void SetWriteable(Texture2D** Resource, unsigned int Count, unsigned int Slot, bool Computable) override;
+				void SetWriteable(Texture3D** Resource, unsigned int Count, unsigned int Slot, bool Computable) override;
+				void SetWriteable(TextureCube** Resource, unsigned int Count, unsigned int Slot, bool Computable) override;
 				void SetTarget(float R, float G, float B) override;
 				void SetTarget() override;
 				void SetTarget(DepthBuffer* Resource) override;
@@ -380,9 +376,9 @@ namespace Tomahawk
 				void SetViewports(unsigned int Count, Viewport* Viewports) override;
 				void SetScissorRects(unsigned int Count, Compute::Rectangle* Value) override;
 				void SetPrimitiveTopology(PrimitiveTopology Topology) override;
-				void FlushTexture2D(unsigned int Slot, unsigned int Count) override;
-				void FlushTexture3D(unsigned int Slot, unsigned int Count) override;
-				void FlushTextureCube(unsigned int Slot, unsigned int Count) override;
+				void FlushTexture2D(unsigned int Slot, unsigned int Count, unsigned int Type) override;
+				void FlushTexture3D(unsigned int Slot, unsigned int Count, unsigned int Type) override;
+				void FlushTextureCube(unsigned int Slot, unsigned int Count, unsigned int Type) override;
 				void FlushState() override;
 				bool Map(ElementBuffer* Resource, ResourceMap Mode, MappedSubresource* Map) override;
 				bool Unmap(ElementBuffer* Resource, MappedSubresource* Map) override;

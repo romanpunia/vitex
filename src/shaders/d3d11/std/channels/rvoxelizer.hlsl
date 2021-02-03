@@ -1,22 +1,37 @@
-#include "std/core/material"
 #include "std/buffers/viewer"
 #include "std/buffers/voxelizer"
+#include "std/core/material"
 #pragma warning(disable: 4000)
 
 StructuredBuffer<Material> Materials : register(t0);
 RWTexture3D<unorm float4> LightBuffer : register(u1);
-RWTexture3D<unorm float4> DiffuseBuffer : register(u2);
-RWTexture3D<unorm float4> NormalBuffer : register(u3);
-RWTexture3D<unorm float4> SurfaceBuffer : register(u4);
+Texture3D<unorm float4> DiffuseBuffer : register(t2);
+Texture3D<float4> NormalBuffer : register(t3);
+Texture3D<unorm float4> SurfaceBuffer : register(t4);
 
 float3 GetVoxelToWorld(uint3 Position)
 {
-    return (float3)Position * (VxScale / VxSize) + VxCenter;
+    float3 Result = (float3)Position / VxSize;
+    Result = 2.0 * Result - 1.0;
+    return Result * VxScale + VxCenter;
+}
+float4 GetDiffuse(uint3 Voxel)
+{
+    return DiffuseBuffer.Load(int4((int3)Voxel.xyz, 0));
+}
+float4 GetNormal(uint3 Voxel)
+{
+    return NormalBuffer.Load(int4((int3)Voxel.xyz, 0));
+}
+float4 GetSurface(uint3 Voxel)
+{
+    return SurfaceBuffer.Load(int4((int3)Voxel.xyz, 0));
 }
 Fragment GetFragmentWithDiffuse(float4 C0, uint3 Voxel)
 {
-    float4 C1 = NormalBuffer[Voxel];
-    float4 C3 = SurfaceBuffer[Voxel];
+    int4 Coord = int4((int3)Voxel.xyz, 0);
+    float4 C1 = NormalBuffer.Load(Coord);
+    float4 C3 = SurfaceBuffer.Load(Coord);
 
     Fragment Result;
     Result.Position = GetVoxelToWorld(Voxel);
@@ -34,7 +49,7 @@ Fragment GetFragmentWithDiffuse(float4 C0, uint3 Voxel)
 }
 Fragment GetFragment(uint3 Voxel)
 {
-    float4 C0 = DiffuseBuffer[Voxel];
+    float4 C0 = DiffuseBuffer.Load(int4((int3)Voxel.xyz, 0));
     return GetFragmentWithDiffuse(C0, Voxel);
 }
 Material GetMaterial(float Material_Id)

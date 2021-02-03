@@ -130,8 +130,8 @@ namespace Tomahawk
 					else
 						Device->Render.WorldViewProjection = Compute::Matrix4x4::CreateTranslation(Compute::Vector3(Translation.x, Translation.y)) * Ortho;
 					
-					Device->SetTexture2D(Buffer->Texture, 1);
-					Device->SetShader(Shader, Graphics::ShaderType_Vertex | Graphics::ShaderType_Pixel);
+					Device->SetTexture2D(Buffer->Texture, 1, TH_PS);
+					Device->SetShader(Shader, TH_VS | TH_PS);
 					Device->SetVertexBuffer(Buffer->VertexBuffer, 0);
 					Device->SetIndexBuffer(Buffer->IndexBuffer, Graphics::Format_R32_Uint);
 					Device->UpdateBuffer(Graphics::RenderBufferType_Render);
@@ -217,7 +217,7 @@ namespace Tomahawk
 					Device->Render.WorldViewProjection = Transform * Ortho;
 					Device->ClearDepth();
 					Device->SetBlendState(ColorlessBlend);
-					Device->SetShader(Shader, Graphics::ShaderType_Vertex | Graphics::ShaderType_Pixel);
+					Device->SetShader(Shader, TH_VS | TH_PS);
 					Device->SetVertexBuffer(VertexBuffer, 0);
 					Device->UpdateBuffer(Graphics::RenderBufferType_Render);
 					Device->Draw(VertexBuffer->GetElements(), 0);
@@ -2983,21 +2983,21 @@ namespace Tomahawk
 				return Base != nullptr;
 			}
 
-			DataSource::DataSource(const std::string& NewName) : Name(NewName), DS(nullptr), DF(nullptr), Root(new DataRow(this, nullptr))
+			DataSource::DataSource(const std::string& NewName) : Name(NewName), DSS(nullptr), DFS(nullptr), Root(new DataRow(this, nullptr))
 			{
 				if (Name.empty())
 					return;
 
-				if (!DS)
-					DS = new DataSourceSubsystem(this);
+				if (!DSS)
+					DSS = new DataSourceSubsystem(this);
 
-				if (!DF)
-					DF = new DataFormatterSubsystem(this);
+				if (!DFS)
+					DFS = new DataFormatterSubsystem(this);
 			}
 			DataSource::~DataSource()
 			{
-				delete DS;
-				delete DF;
+				delete DSS;
+				delete DFS;
 				delete Root;
 			}
 			void DataSource::SetFormatCallback(const FormatCallback& Callback)
@@ -3018,23 +3018,23 @@ namespace Tomahawk
 			}
 			void DataSource::RowAdd(const std::string& Table, int FirstRowAdded, int NumRowsAdded)
 			{
-				if (DS != nullptr)
-					DS->NotifyRowAdd(Table, FirstRowAdded, NumRowsAdded);
+				if (DSS != nullptr)
+					DSS->NotifyRowAdd(Table, FirstRowAdded, NumRowsAdded);
 			}
 			void DataSource::RowRemove(const std::string& Table, int FirstRowRemoved, int NumRowsRemoved)
 			{
-				if (DS != nullptr)
-					DS->NotifyRowRemove(Table, FirstRowRemoved, NumRowsRemoved);
+				if (DSS != nullptr)
+					DSS->NotifyRowRemove(Table, FirstRowRemoved, NumRowsRemoved);
 			}
 			void DataSource::RowChange(const std::string& Table, int FirstRowChanged, int NumRowsChanged)
 			{
-				if (DS != nullptr)
-					DS->NotifyRowChange(Table, FirstRowChanged, NumRowsChanged);
+				if (DSS != nullptr)
+					DSS->NotifyRowChange(Table, FirstRowChanged, NumRowsChanged);
 			}
 			void DataSource::RowChange(const std::string& Table)
 			{
-				if (DS != nullptr)
-					DS->NotifyRowChange(Table);
+				if (DSS != nullptr)
+					DSS->NotifyRowChange(Table);
 			}
 			void DataSource::SetTarget(void* OldTarget, void* NewTarget)
 			{

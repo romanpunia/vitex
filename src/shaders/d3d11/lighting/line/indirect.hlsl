@@ -1,4 +1,4 @@
-#include "std/channels/voxelizer"
+#include "std/channels/rvoxelizer"
 #include "std/core/lighting"
 #include "lighting/common/line/array"
 

@@ -981,7 +981,7 @@ namespace Tomahawk
 			{
 			}
 
-			Lighting::Lighting(RenderSystem* Lab) : Renderer(Lab)
+			Lighting::Lighting(RenderSystem* Lab) : Renderer(Lab), EnableGI(true)
 			{
 				Graphics::GraphicsDevice* Device = System->GetDevice();
 				DepthStencilNone = Device->GetDepthStencilState("none");
@@ -1060,6 +1060,7 @@ namespace Tomahawk
 				NMake::Unpack(Node->Find("line-light-limits"), &Shadows.LineLightLimits);
 				NMake::Unpack(Node->Find("shadow-distance"), &Shadows.Distance);
 				NMake::Unpack(Node->Find("sf-size"), &Surfaces.Size);
+				NMake::Unpack(Node->Find("gi"), &EnableGI);
 			}
 			void Lighting::Serialize(ContentManager* Content, Rest::Document* Node)
 			{
@@ -1087,6 +1088,7 @@ namespace Tomahawk
 				NMake::Pack(Node->SetDocument("line-light-limits"), Shadows.LineLightLimits);
 				NMake::Pack(Node->SetDocument("shadow-distance"), Shadows.Distance);
 				NMake::Pack(Node->SetDocument("sf-size"), Surfaces.Size);
+				NMake::Pack(Node->SetDocument("gi"), EnableGI);
 			}
 			void Lighting::Activate()
 			{
@@ -1167,6 +1169,7 @@ namespace Tomahawk
 				VoxelBuffer.Size = (float)Src->GetBufferSize();
 				VoxelBuffer.RayStep = Src->RayStep;
 				VoxelBuffer.MaxSteps = Src->MaxSteps;
+				VoxelBuffer.Distance = Src->Distance;
 				VoxelBuffer.Intensity = Src->Intensity;
 				VoxelBuffer.Occlusion = Src->Occlusion;
 				VoxelBuffer.Shadows = Src->Shadows;
@@ -1437,13 +1440,11 @@ namespace Tomahawk
 					else
 						RenderSurfaceMaps(Time);
 
-					if (!Illuminators->Empty())
-						RenderVoxels(Time);
+					if (EnableGI && !Illuminators->Empty())
+						RenderVoxelMap(Time);
 				}
 
 				RenderResultBuffers(Options);
-				if (!Illuminators->Empty() && !(Options & RenderOpt_Inner))
-					RenderVoxelBuffers(Options);
 				System->RestoreOutput();
 			}
 			void Lighting::RenderResultBuffers(RenderOpt Options)
@@ -1479,28 +1480,10 @@ namespace Tomahawk
 				RenderPointLights();
 				RenderSpotLights();
 				RenderLineLights();
-				RenderAmbientLight();
+				RenderIllumination();
+				RenderAmbient();
 
 				State.Device->FlushTexture2D(1, 10, TH_PS);
-			}
-			void Lighting::RenderVoxelBuffers(RenderOpt Options)
-			{
-				Graphics::MultiRenderTarget2D* MRT = System->GetMRT(TargetType_Main);
-				if (!LightBuffer)
-					return;
-
-				State.Device->SetBlendState(BlendOverload);
-				State.Device->SetTarget(MRT, 0);
-				State.Device->SetTexture3D(LightBuffer, 1, TH_PS);
-				State.Device->SetTexture2D(MRT->GetTarget(1), 2, TH_PS);
-				State.Device->SetTexture2D(MRT->GetTarget(2), 3, TH_PS);
-				State.Device->SetTexture2D(MRT->GetTarget(3), 4, TH_PS);
-				State.Device->SetShader(Shaders.Ambient[1], TH_VS | TH_PS);
-				State.Device->SetBuffer(Shaders.Ambient[1], 3, TH_VS | TH_PS);
-				State.Device->UpdateBuffer(Shaders.Ambient[1], &VoxelBuffer);
-				State.Device->Draw(6, 0);
-				State.Device->FlushTexture3D(1, 1, TH_PS);
-				State.Device->FlushTexture2D(2, 3, TH_PS);
 			}
 			void Lighting::RenderShadowMaps(Rest::Timer* Time)
 			{
@@ -1639,7 +1622,7 @@ namespace Tomahawk
 				State.Scene->SwapMRT(TargetType_Main, nullptr);
 				State.Scene->RestoreViewBuffer(nullptr);
 			}
-			void Lighting::RenderVoxels(Rest::Timer* Time)
+			void Lighting::RenderVoxelMap(Rest::Timer* Time)
 			{
 				Components::Illuminator* Area = (Components::Illuminator*)GetIlluminator(Time);
 				if (!Area || !LightBuffer)
@@ -1860,13 +1843,31 @@ namespace Tomahawk
 					State.Device->UpdateBuffer(Shaders.Line[0], &LineLight);
 					State.Device->Draw(6, 0);
 				}
+
+				State.Device->SetBlendState(BlendOverload);
 			}
-			void Lighting::RenderAmbientLight()
+			void Lighting::RenderIllumination()
+			{
+				if (!EnableGI || !LightBuffer || State.Inner)
+					return;
+
+				Graphics::MultiRenderTarget2D* MRT = System->GetMRT(TargetType_Main);
+				Graphics::RenderTarget2D* RT = System->GetRT(TargetType_Secondary);
+				State.Device->CopyTarget(MRT, 0, RT, 0);
+				State.Device->SetTexture2D(RT->GetTarget(0), 1, TH_PS);
+				State.Device->SetTexture3D(LightBuffer, 5, TH_PS);
+				State.Device->SetShader(Shaders.Ambient[1], TH_VS | TH_PS);
+				State.Device->SetBuffer(Shaders.Ambient[1], 3, TH_VS | TH_PS);
+				State.Device->UpdateBuffer(Shaders.Ambient[1], &VoxelBuffer);
+				State.Device->Draw(6, 0);
+				State.Device->SetTexture2D(nullptr, 1, TH_PS);
+				State.Device->SetTexture3D(nullptr, 5, TH_PS);
+			}
+			void Lighting::RenderAmbient()
 			{
 				Graphics::MultiRenderTarget2D* MRT = System->GetMRT(TargetType_Main);
 				Graphics::RenderTarget2D* RT = (State.Inner ? Surfaces.Output : System->GetRT(TargetType_Secondary));
 				State.Device->CopyTarget(MRT, 0, RT, 0);
-				State.Device->Clear(MRT, 0, 0, 0, 0);
 				State.Device->SetTexture2D(RT->GetTarget(0), 5, TH_PS);
 				State.Device->SetTextureCube(SkyMap, 6, TH_PS);
 				State.Device->SetShader(Shaders.Ambient[0], TH_VS | TH_PS);

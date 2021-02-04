@@ -303,9 +303,10 @@ namespace Tomahawk
 					float MaxSteps = 32.0f;
 					Compute::Vector3 Lights;
 					float Intensity = 8.0f;
-					float Padding[2] = { 0.0f };
+					float Distance = 1.0f;
 					float Occlusion = 0.9f;
 					float Shadows = 0.25f;
+					float Padding = 0.0f;
 				};
 
 			protected:
@@ -397,6 +398,7 @@ namespace Tomahawk
 			public:
 				IAmbientLight AmbientLight;
 				IVoxelBuffer VoxelBuffer;
+				bool EnableGI;
 
 			public:
 				Lighting(RenderSystem* Lab);
@@ -427,16 +429,16 @@ namespace Tomahawk
 				size_t GenerateLineLights();
 				void FlushDepthBuffersAndCache();
 				void RenderResultBuffers(RenderOpt Options);
-				void RenderVoxelBuffers(RenderOpt Options);
 				void RenderShadowMaps(Rest::Timer* Time);
 				void RenderSurfaceMaps(Rest::Timer* Time);
-				void RenderVoxels(Rest::Timer* Time);
+				void RenderVoxelMap(Rest::Timer* Time);
 				void RenderLuminance();
 				void RenderSurfaceLights();
 				void RenderPointLights();
 				void RenderSpotLights();
 				void RenderLineLights();
-				void RenderAmbientLight();
+				void RenderIllumination();
+				void RenderAmbient();
 
 			public:
 				static void SetVoxelBuffer(RenderSystem* System, Graphics::Shader* Src, unsigned int Slot);

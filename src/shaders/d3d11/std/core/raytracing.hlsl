@@ -21,7 +21,7 @@ static const float ConeWeights[] =
 
 float4 Raymarch(float3 Position, float3 Normal, float3 Direction, float Ratio, out float Occlusion)
 {
-	float3 Step = 1.0 / VxScale;
+	float3 Step = VxDistance / VxScale;
     float3 Origin = Position + Normal * Step * 2.828426;
 	float3 Distance = Step * 0.5;
 	float4 Result = 0.0;
@@ -38,7 +38,7 @@ float4 Raymarch(float3 Position, float3 Normal, float3 Direction, float Ratio, o
         [branch] if (Level > VxMipLevels)
             break;
 
-        float4 Diffuse = GetDiffuse(Voxel, Level);
+        float4 Diffuse = GetLight(Voxel, Level);
 		Result += Diffuse * (1.0 - Result.w);
 		Distance += Radius * VxStep / max(1.0, Level);
         Occlusion += Diffuse.w / (1.0 + 0.03 * GetAvg(Radius));

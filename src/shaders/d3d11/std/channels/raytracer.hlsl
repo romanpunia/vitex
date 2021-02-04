@@ -4,10 +4,11 @@
 #include "std/core/lighting"
 
 StructuredBuffer<Material> Materials : register(t0);
-Texture3D<unorm float4> LightBuffer : register(t1);
+Texture2D DiffuseBuffer : register(t1);
 Texture2D NormalBuffer : register(t2);
 Texture2D DepthBuffer : register(t3);
 Texture2D SurfaceBuffer : register(t4);
+Texture3D<unorm float4> LightBuffer : register(t5);
 SamplerState Sampler : register(s0);
 
 bool IsInVoxelGrid(float3 Voxel)
@@ -27,21 +28,24 @@ float3 GetFlatVoxel(float3 Voxel)
 {
     return floor(Voxel * VxSize) / VxSize;
 }
-float4 GetDiffuse(float3 Voxel, float Level)
+float4 GetLight(float3 Voxel, float Level)
 {
     return LightBuffer.SampleLevel(Sampler, Voxel, Level);
 }
+float4 GetDiffuse(float2 TexCoord)
+{
+    return DiffuseBuffer.SampleLevel(Sampler, TexCoord, 0);
+}
 Fragment GetFragment(float2 TexCoord)
 {
+    float4 C0 = DiffuseBuffer.SampleLevel(Sampler, TexCoord, 0);
+    float4 C1 = NormalBuffer.SampleLevel(Sampler, TexCoord, 0);
     float4 C2 = DepthBuffer.SampleLevel(Sampler, TexCoord, 0);
+    float4 C3 = SurfaceBuffer.SampleLevel(Sampler, TexCoord, 0);
     float4 Position = mul(float4(TexCoord.x * 2.0 - 1.0, 1.0 - TexCoord.y * 2.0, C2.x, 1.0), InvViewProjection);
     Position /= Position.w;
 
-    float3 Voxel = GetFlatVoxel(GetVoxel(Position.xyz));
-    float4 C0 = LightBuffer.SampleLevel(Sampler, Voxel, 0);
-    float4 C1 = NormalBuffer.SampleLevel(Sampler, TexCoord, 0);
-    float4 C3 = SurfaceBuffer.SampleLevel(Sampler, TexCoord, 0);
-    bool Usable = IsInVoxelGrid(Voxel);
+    bool Usable = IsInVoxelGrid(GetFlatVoxel(GetVoxel(Position.xyz)));
 
     Fragment Result;
     Result.Position = Position.xyz;

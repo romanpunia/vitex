@@ -36,8 +36,8 @@ void CS(uint3 Voxel : SV_DispatchThreadID)
             continue;
         
         float3 L = normalize(K);
-        float3 R = GetReflectanceBRDF(Frag.Normal, D, L, Frag.Diffuse, M, G);
-        Result += float4(Light.Lighting , 1.0) * A;
+        float3 R = GetCookTorranceBRDF(Frag.Normal, D, L, Frag.Diffuse, M, G);
+        Result += float4(Light.Lighting * R, 1.0) * A;
     }
 
     [loop] for (i = 0; i < VxLights.y; i++)
@@ -50,7 +50,7 @@ void CS(uint3 Voxel : SV_DispatchThreadID)
         [branch] if (A <= Alpha)
             continue;
 
-        float3 R = GetReflectanceBRDF(Frag.Normal, D, L, Frag.Diffuse, M, G);
+        float3 R = GetCookTorranceBRDF(Frag.Normal, D, L, Frag.Diffuse, M, G);
         Result += float4(Light.Lighting * R, 1.0) * A;
     }
 
@@ -58,7 +58,7 @@ void CS(uint3 Voxel : SV_DispatchThreadID)
     {
         LineLight Light = LineLights[i];
         float3 L = normalize(Light.Position - Frag.Position);
-        float3 R = GetReflectanceBRDF(Frag.Normal, D, L, Frag.Diffuse, M, G);
+        float3 R = GetCookTorranceBRDF(Frag.Normal, D, L, Frag.Diffuse, M, G);
         Result += float4(Light.Lighting * R, 1.0);
     }
 

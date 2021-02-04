@@ -3073,6 +3073,7 @@ namespace Tomahawk
 				Tick.Delay = 16.666;
 				RayStep = 1.0f;
 				MaxSteps = 32.0f;
+				Distance = 1.0f;
 				Intensity = 1.0f;
 				Occlusion = 0.9f;
 				Shadows = 0.25f;
@@ -3086,6 +3087,7 @@ namespace Tomahawk
 				NMake::Unpack(Node->Find("size"), &Size);
 				NMake::Unpack(Node->Find("ray-step"), &RayStep);
 				NMake::Unpack(Node->Find("max-steps"), &MaxSteps);
+				NMake::Unpack(Node->Find("distance"), &Distance);
 				NMake::Unpack(Node->Find("intensity"), &Intensity);
 				NMake::Unpack(Node->Find("occlusion"), &Occlusion);
 				NMake::Unpack(Node->Find("shadows"), &Shadows);
@@ -3096,6 +3098,7 @@ namespace Tomahawk
 				NMake::Pack(Node->SetDocument("size"), Size);
 				NMake::Pack(Node->SetDocument("ray-step"), RayStep);
 				NMake::Pack(Node->SetDocument("max-steps"), MaxSteps);
+				NMake::Pack(Node->SetDocument("distance"), Distance);
 				NMake::Pack(Node->SetDocument("intensity"), Intensity);
 				NMake::Pack(Node->SetDocument("occlusion"), Occlusion);
 				NMake::Pack(Node->SetDocument("shadows"), Shadows);

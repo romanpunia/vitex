@@ -617,6 +617,7 @@ namespace Tomahawk
 				Rest::TickTimer Tick;
 				float RayStep;
 				float MaxSteps;
+				float Distance;
 				float Intensity;
 				float Occlusion;
 				float Shadows;

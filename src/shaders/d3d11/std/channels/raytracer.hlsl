@@ -18,11 +18,6 @@ float GetAvg(float3 Value)
 {
     return (Value.x + Value.y + Value.z) / 3.0;
 }
-float GetFalloff(float3 Position)
-{
-    float Distance = (VxScale.x + VxScale.y + VxScale.z) / 3.0;
-    return GetRangeAttenuation(VxCenter - Position, 0.8, 0.8, Distance);
-}
 float3 GetVoxel(float3 Position)
 {
     float3 Voxel = clamp(Position - VxCenter, -VxScale, VxScale) / VxScale;

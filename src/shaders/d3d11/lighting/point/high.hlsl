@@ -4,7 +4,7 @@
 #include "std/core/material"
 #include "std/core/position"
 #include "std/core/random"
-#include "lighting/common/point/buffer"
+#include "lighting/point/common/buffer"
 #pragma warning(disable: 4000)
 
 TextureCube ShadowMap : register(t5);

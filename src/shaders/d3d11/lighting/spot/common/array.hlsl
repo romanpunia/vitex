@@ -15,10 +15,4 @@ struct SpotLight
     float Padding;
 };
 
-cbuffer RenderConstant : register(b3)
-{
-    float3 LxPadding;
-    float LightCount;
-};
-
-StructuredBuffer<SpotLight> Lights : register(t5);
+StructuredBuffer<SpotLight> SpotLights : register(t6);

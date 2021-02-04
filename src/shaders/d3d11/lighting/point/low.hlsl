@@ -3,7 +3,7 @@
 #include "std/core/lighting"
 #include "std/core/material"
 #include "std/core/position"
-#include "lighting/common/point/buffer"
+#include "lighting/point/common/buffer"
 
 VOutput VS(VInput V)
 {
@@ -31,5 +31,5 @@ float4 PS(VOutput V) : SV_TARGET0
     float3 S = GetSubsurface(Frag.Normal, D, L, Mat.Scatter) * E;
     float A = GetRangeAttenuation(K, Attenuation.x, Attenuation.y, Range);
 
-    return float4(0, 0, 0, 0);//float4(Lighting * (R + S) * A, A);
+    return float4(Lighting * (R + S) * A, A);
 };

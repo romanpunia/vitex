@@ -607,6 +607,36 @@ namespace Tomahawk
 				TH_COMPONENT("surface-light");
 			};
 
+			class TH_OUT Illuminator : public Cullable
+			{
+			private:
+				Graphics::Texture3D* Buffer;
+				size_t MipLevels, Size;
+
+			public:
+				Rest::TickTimer Tick;
+				float RayStep;
+				float MaxSteps;
+				float Intensity;
+				float Occlusion;
+				float Shadows;
+
+			public:
+				Illuminator(Entity* Ref);
+				virtual ~Illuminator() override;
+				virtual void Deserialize(ContentManager* Content, Rest::Document* Node) override;
+				virtual void Serialize(ContentManager* Content, Rest::Document* Node) override;
+				virtual float Cull(const Viewer& View) override;
+				virtual Component* Copy(Entity* New) override;
+				void SetBufferSize(size_t NewSize);
+				Graphics::Texture3D* GetBuffer();
+				size_t GetBufferSize();
+				size_t GetMipLevels();
+
+			public:
+				TH_COMPONENT("illuminator");
+			};
+
 			class TH_OUT Camera : public Component
 			{
 			public:

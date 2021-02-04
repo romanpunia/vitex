@@ -3068,6 +3068,96 @@ namespace Tomahawk
 				return DiffuseMap;
 			}
 
+			Illuminator::Illuminator(Entity* Ref) : Cullable(Ref), Buffer(nullptr), MipLevels(0), Size(64)
+			{
+				Tick.Delay = 16.666;
+				RayStep = 1.0f;
+				MaxSteps = 32.0f;
+				Intensity = 1.0f;
+				Occlusion = 0.9f;
+				Shadows = 0.25f;
+			}
+			Illuminator::~Illuminator()
+			{
+				TH_RELEASE(Buffer);
+			}
+			void Illuminator::Deserialize(ContentManager* Content, Rest::Document* Node)
+			{
+				NMake::Unpack(Node->Find("size"), &Size);
+				NMake::Unpack(Node->Find("ray-step"), &RayStep);
+				NMake::Unpack(Node->Find("max-steps"), &MaxSteps);
+				NMake::Unpack(Node->Find("intensity"), &Intensity);
+				NMake::Unpack(Node->Find("occlusion"), &Occlusion);
+				NMake::Unpack(Node->Find("shadows"), &Shadows);
+				SetBufferSize(Size);
+			}
+			void Illuminator::Serialize(ContentManager* Content, Rest::Document* Node)
+			{
+				NMake::Pack(Node->SetDocument("size"), Size);
+				NMake::Pack(Node->SetDocument("ray-step"), RayStep);
+				NMake::Pack(Node->SetDocument("max-steps"), MaxSteps);
+				NMake::Pack(Node->SetDocument("intensity"), Intensity);
+				NMake::Pack(Node->SetDocument("occlusion"), Occlusion);
+				NMake::Pack(Node->SetDocument("shadows"), Shadows);
+			}
+			float Illuminator::Cull(const Viewer& View)
+			{
+				Compute::Matrix4x4 Box = Parent->Transform->GetWorld();
+				return IsVisible(View, &Box);
+			}
+			Component* Illuminator::Copy(Entity* New)
+			{
+				Illuminator* Target = new Illuminator(New);
+				Target->Tick = Tick;
+				Target->RayStep = RayStep;
+				Target->MaxSteps = MaxSteps;
+				Target->Intensity = Intensity;
+				Target->Occlusion = Occlusion;
+				Target->Shadows = Shadows;
+
+				if (Buffer != nullptr)
+					Target->SetBufferSize(Size);
+
+				return Target;
+			}
+			void Illuminator::SetBufferSize(size_t NewSize)
+			{
+				if (NewSize % 8 != 0)
+					NewSize = Size;
+
+				SceneGraph* Scene = Parent->GetScene();
+				if (!Scene)
+					return;
+
+				Graphics::GraphicsDevice* Device = Scene->GetDevice();
+				if (!Device)
+					return;
+
+				Graphics::Texture3D::Desc I;
+				I.Width = I.Height = I.Depth = Size = NewSize;
+				I.MipLevels = MipLevels = Device->GetMipLevel(Size, Size);
+				I.FormatMode = Graphics::Format_R8G8B8A8_Unorm;
+				I.Writable = true;
+
+				TH_RELEASE(Buffer);
+				Buffer = Device->CreateTexture3D(I);
+
+				if (Size >= Scene->GetVoxelBufferSize())
+					Scene->SetVoxelBufferSize(Size);
+			}
+			Graphics::Texture3D* Illuminator::GetBuffer()
+			{
+				return Buffer;
+			}
+			size_t Illuminator::GetBufferSize()
+			{
+				return Size;
+			}
+			size_t Illuminator::GetMipLevels()
+			{
+				return MipLevels;
+			}
+
 			Camera::Camera(Entity* Ref) : Component(Ref), Mode(ProjectionMode_Perspective)
 			{
 			}

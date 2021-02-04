@@ -3,7 +3,7 @@
 #include "std/core/lighting"
 #include "std/core/material"
 #include "std/core/position"
-#include "lighting/common/spot/buffer"
+#include "lighting/spot/common/buffer"
 
 VOutput VS(VInput V)
 {

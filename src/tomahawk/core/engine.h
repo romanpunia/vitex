@@ -107,6 +107,13 @@ namespace Tomahawk
 			TargetType_Count
 		};
 
+		enum VoxelType
+		{
+			VoxelType_Diffuse = 0,
+			VoxelType_Normal = 1,
+			VoxelType_Surface = 2
+		};
+
 		struct TH_OUT Attenuation
 		{
 			float Range = 10.0f;
@@ -865,12 +872,14 @@ namespace Tomahawk
 			{
 				Graphics::MultiRenderTarget2D* MRT[TargetType_Count * 2];
 				Graphics::RenderTarget2D* RT[TargetType_Count * 2];
+				Graphics::Texture3D* VoxelBuffers[3];
 				Graphics::DepthStencilState* DepthStencil;
 				Graphics::RasterizerState* Rasterizer;
 				Graphics::BlendState* Blend;
 				Graphics::SamplerState* Sampler;
 				Graphics::InputLayout* Layout;
 				Graphics::Texture2D* Merger;
+				size_t VoxelSize;
 			} Display;
 
 		protected:
@@ -925,12 +934,14 @@ namespace Tomahawk
 			void SetActive(bool Enabled);
 			void SetView(const Compute::Matrix4x4& View, const Compute::Matrix4x4& Projection, const Compute::Vector3& Position, float Near, float Far, bool Upload);
 			void SetMaterialName(uint64_t Material, const std::string& Name);
+			void SetVoxelBufferSize(size_t Size);
 			void SetMRT(TargetType Type, bool Clear);
 			void SetRT(TargetType Type, bool Clear);
 			void SwapMRT(TargetType Type, Graphics::MultiRenderTarget2D* New);
 			void SwapRT(TargetType Type, Graphics::RenderTarget2D* New);
 			void ClearMRT(TargetType Type, bool Color, bool Depth);
 			void ClearRT(TargetType Type, bool Color, bool Depth);
+			bool GetVoxelBuffer(Graphics::Texture3D** In, Graphics::Texture3D** Out);
 			bool AddEventListener(const std::string& Name, const std::string& Event, const MessageCallback& Callback);
 			bool RemoveEventListener(const std::string& Name);
 			bool DispatchEvent(const std::string& EventName, const Compute::PropertyArgs& Args);
@@ -968,6 +979,7 @@ namespace Tomahawk
 			uint64_t GetComponentCount(uint64_t Section);
 			uint64_t GetOpaqueCount();
 			uint64_t GetTransparentCount();
+			size_t GetVoxelBufferSize();
 			bool HasEntity(Entity* Entity);
 			bool HasEntity(uint64_t Entity);
 			Rest::Pool<Drawable*>* GetOpaque(uint64_t Section);

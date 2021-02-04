@@ -4,7 +4,7 @@
 #include "std/core/atmosphere"
 #include "std/core/material"
 #include "std/core/position"
-#include "lighting/common/line/buffer"
+#include "lighting/line/common/buffer"
 
 VOutput VS(VInput V)
 {

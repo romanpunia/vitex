@@ -12,10 +12,4 @@ struct PointLight
 	float Iterations;
 };
 
-cbuffer RenderConstant : register(b3)
-{
-    float3 LxPadding;
-    float LightCount;
-};
-
-StructuredBuffer<PointLight> Lights : register(t5);
+StructuredBuffer<PointLight> PointLights : register(t5);

@@ -129,12 +129,12 @@ namespace Tomahawk
 			Device->Render.MaterialId = (float)Material;
 			Device->Render.Diffuse = Diffuse;
 			Device->Render.TexCoord = TexCoord;
-			Device->SetTexture2D(DiffuseMap, 5, TH_PS);
-			Device->SetTexture2D(NormalMap, 6, TH_PS);
-			Device->SetTexture2D(MetallicMap, 7, TH_PS);
-			Device->SetTexture2D(RoughnessMap, 8, TH_PS);
-			Device->SetTexture2D(OcclusionMap, 9, TH_PS);
-			Device->SetTexture2D(EmissionMap, 10, TH_PS);
+			Device->SetTexture2D(DiffuseMap, 4, TH_PS);
+			Device->SetTexture2D(NormalMap, 5, TH_PS);
+			Device->SetTexture2D(MetallicMap, 6, TH_PS);
+			Device->SetTexture2D(RoughnessMap, 7, TH_PS);
+			Device->SetTexture2D(OcclusionMap, 8, TH_PS);
+			Device->SetTexture2D(EmissionMap, 9, TH_PS);
 
 			return true;
 		}
@@ -3818,12 +3818,16 @@ namespace Tomahawk
 				Display.RT[i] = nullptr;
 			}
 
+			Display.VoxelBuffers[VoxelType_Diffuse] = nullptr;
+			Display.VoxelBuffers[VoxelType_Normal] = nullptr;
+			Display.VoxelBuffers[VoxelType_Surface] = nullptr;
 			Display.Merger = nullptr;
 			Display.DepthStencil = nullptr;
 			Display.Rasterizer = nullptr;
 			Display.Blend = nullptr;
 			Display.Sampler = nullptr;
 			Display.Layout = nullptr;
+			Display.VoxelSize = 0;
 
 			Materials.reserve(16);
 			Configure(I);
@@ -3839,7 +3843,11 @@ namespace Tomahawk
 			for (auto It = Entities.Begin(); It != Entities.End(); It++)
 				TH_RELEASE(*It);
 
+			TH_RELEASE(Display.VoxelBuffers[VoxelType_Diffuse]);
+			TH_RELEASE(Display.VoxelBuffers[VoxelType_Normal]);
+			TH_RELEASE(Display.VoxelBuffers[VoxelType_Surface]);
 			TH_RELEASE(Display.Merger);
+
 			for (unsigned int i = 0; i < TargetType_Count; i++)
 			{
 				TH_RELEASE(Display.MRT[i]);
@@ -4403,6 +4411,28 @@ namespace Tomahawk
 
 			Names[Material] = Name;
 		}
+		void SceneGraph::SetVoxelBufferSize(size_t Size)
+		{
+			if (Size % 8 != 0)
+				Size = Display.VoxelSize;
+
+			Graphics::Texture3D::Desc I;
+			I.Width = I.Height = I.Depth = Display.VoxelSize = Size;
+			I.MipLevels = 0;
+			I.Writable = true;
+
+			I.FormatMode = Graphics::Format_R8G8B8A8_Unorm;
+			TH_RELEASE(Display.VoxelBuffers[VoxelType_Diffuse]);
+			Display.VoxelBuffers[VoxelType_Diffuse] = Conf.Device->CreateTexture3D(I);
+
+			I.FormatMode = Graphics::Format_R16G16B16A16_Float;
+			TH_RELEASE(Display.VoxelBuffers[VoxelType_Normal]);
+			Display.VoxelBuffers[VoxelType_Normal] = Conf.Device->CreateTexture3D(I);
+
+			I.FormatMode = Graphics::Format_R8G8B8A8_Unorm;
+			TH_RELEASE(Display.VoxelBuffers[VoxelType_Surface]);
+			Display.VoxelBuffers[VoxelType_Surface] = Conf.Device->CreateTexture3D(I);
+		}
 		void SceneGraph::SetMRT(TargetType Type, bool Clear)
 		{
 			Graphics::MultiRenderTarget2D* Target = Display.MRT[Type];
@@ -4487,6 +4517,19 @@ namespace Tomahawk
 
 			if (Depth)
 				Conf.Device->ClearDepth(Target);
+		}
+		bool SceneGraph::GetVoxelBuffer(Graphics::Texture3D** In, Graphics::Texture3D** Out)
+		{
+			if (!In || !Out || !Display.VoxelBuffers[0] || !Display.VoxelBuffers[1] || !Display.VoxelBuffers[2])
+				return false;
+
+			for (unsigned int i = 0; i < 3; i++)
+			{
+				In[i] = Display.VoxelBuffers[i];
+				Out[i] = nullptr;
+			}
+
+			return true;
 		}
 		bool SceneGraph::AddEventListener(const std::string& Name, const std::string& EventName, const MessageCallback& Callback)
 		{
@@ -5015,6 +5058,10 @@ namespace Tomahawk
 				Count += Array.second.Transparent.Size();
 
 			return Count;
+		}
+		size_t SceneGraph::GetVoxelBufferSize()
+		{
+			return Display.VoxelSize;
 		}
 		Graphics::MultiRenderTarget2D* SceneGraph::GetMRT(TargetType Type)
 		{
@@ -5792,6 +5839,7 @@ namespace Tomahawk
 			Rest::Composer::Push<Components::SpotLight, Entity*>();
 			Rest::Composer::Push<Components::LineLight, Entity*>();
 			Rest::Composer::Push<Components::SurfaceLight, Entity*>();
+			Rest::Composer::Push<Components::Illuminator, Entity*>();
 			Rest::Composer::Push<Components::Camera, Entity*>();
 			Rest::Composer::Push<Components::Scriptable, Entity*>();
 			Rest::Composer::Push<Renderers::Model, RenderSystem*>();

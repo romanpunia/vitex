@@ -992,6 +992,7 @@ namespace Tomahawk
 				NoneRasterizer = Device->GetRasterizerState("cull-none");
 				BlendAdditive = Device->GetBlendState("additive-opaque");
 				BlendOverwrite = Device->GetBlendState("overwrite-colorless");
+				BlendOverload = Device->GetBlendState("overwrite");
 				ShadowSampler = Device->GetSamplerState("shadow");
 				WrapSampler = Device->GetSamplerState("trilinear-x16");
 				Layout = Device->GetInputLayout("shape-vertex");
@@ -1000,39 +1001,29 @@ namespace Tomahawk
 				Shaders.Ambient[1] = System->CompileShader("lighting/ambient/indirect", sizeof(IVoxelBuffer));
 				Shaders.Point[0] = System->CompileShader("lighting/point/low", sizeof(IPointLight));
 				Shaders.Point[1] = System->CompileShader("lighting/point/high");
-				Shaders.Point[2] = System->CompileShader("lighting/point/indirect", sizeof(IVoxelBuffer));
 				Shaders.Spot[0] = System->CompileShader("lighting/spot/low", sizeof(ISpotLight));
 				Shaders.Spot[1] = System->CompileShader("lighting/spot/high");
-				Shaders.Spot[2] = System->CompileShader("lighting/spot/indirect", sizeof(IVoxelBuffer));
 				Shaders.Line[0] = System->CompileShader("lighting/line/low", sizeof(ILineLight));
 				Shaders.Line[1] = System->CompileShader("lighting/line/high");
-				Shaders.Line[2] = System->CompileShader("lighting/line/indirect", sizeof(IVoxelBuffer));
+				Shaders.Voxelize = System->CompileShader("lighting/voxelize", sizeof(IVoxelBuffer));
 				Shaders.Surface = System->CompileShader("lighting/surface", sizeof(ISurfaceLight));
 
 				Shadows.Tick.Delay = 5;
-				Radiance.Tick.Delay = 16.666;
-
-				Radiance.Enabled = false;
 			}
 			Lighting::~Lighting()
 			{
 				FlushDepthBuffersAndCache();
+				System->FreeShader(Shaders.Voxelize);
 				System->FreeShader(Shaders.Surface);
 
-				for (unsigned int i = 0; i < 3; i++)
+				for (unsigned int i = 0; i < 2; i++)
 				{
 					System->FreeShader(Shaders.Line[i]);
 					System->FreeShader(Shaders.Spot[i]);
 					System->FreeShader(Shaders.Point[i]);
-
-					if (i < 2)
-						System->FreeShader(Shaders.Ambient[i]);
+					System->FreeShader(Shaders.Ambient[i]);
 				}
 
-				TH_RELEASE(Radiance.LightBuffer);
-				TH_RELEASE(Radiance.DiffuseBuffer);
-				TH_RELEASE(Radiance.NormalBuffer);
-				TH_RELEASE(Radiance.SurfaceBuffer);
 				TH_RELEASE(Storage.PBuffer);
 				TH_RELEASE(Storage.SBuffer);
 				TH_RELEASE(Storage.LBuffer);
@@ -1099,6 +1090,7 @@ namespace Tomahawk
 			}
 			void Lighting::Activate()
 			{
+				Illuminators = System->AddCull<Engine::Components::Illuminator>();
 				SurfaceLights = System->AddCull<Engine::Components::SurfaceLight>();
 				PointLights = System->AddCull<Engine::Components::PointLight>();
 				SpotLights = System->AddCull<Engine::Components::SpotLight>();
@@ -1106,6 +1098,7 @@ namespace Tomahawk
 			}
 			void Lighting::Deactivate()
 			{
+				System->RemoveCull<Engine::Components::Illuminator>();
 				System->RemoveCull<Engine::Components::SurfaceLight>();
 				System->RemoveCull<Engine::Components::PointLight>();
 				System->RemoveCull<Engine::Components::SpotLight>();
@@ -1138,6 +1131,58 @@ namespace Tomahawk
 				Shadows.LineLight.resize(Shadows.LineLightLimits);
 				for (auto It = Shadows.LineLight.begin(); It != Shadows.LineLight.end(); It++)
 					*It = nullptr;
+			}
+			Component* Lighting::GetIlluminator(Rest::Timer* Time)
+			{
+				Engine::Components::Illuminator* Src = nullptr;
+				float Distance = std::numeric_limits<float>::max();
+
+				for (auto It = Illuminators->Begin(); It != Illuminators->End(); It++)
+				{
+					Engine::Components::Illuminator* Area = (Engine::Components::Illuminator*)*It;
+					if (Area->GetEntity()->Distance >= Distance)
+						continue;
+
+					Distance = Area->GetEntity()->Distance;
+					if (System->PassCullable(Area, CullResult_Always, nullptr))
+						Src = Area;
+				}
+
+				if (!Src)
+				{
+					LightBuffer = nullptr;
+					return nullptr;
+				}
+
+				if (!Src->GetBuffer())
+					Src->SetBufferSize(Src->GetBufferSize());
+
+				LightBuffer = Src->GetBuffer();
+				if (!Src->Tick.TickEvent(Time->GetElapsedTime()))
+					return nullptr;
+
+				VoxelBuffer.Center = Src->GetEntity()->Transform->Position.InvertZ();
+				VoxelBuffer.Scale = Src->GetEntity()->Transform->Scale;
+				VoxelBuffer.MipLevels = (float)Src->GetMipLevels();
+				VoxelBuffer.Size = (float)Src->GetBufferSize();
+				VoxelBuffer.RayStep = Src->RayStep;
+				VoxelBuffer.MaxSteps = Src->MaxSteps;
+				VoxelBuffer.Intensity = Src->Intensity;
+				VoxelBuffer.Occlusion = Src->Occlusion;
+				VoxelBuffer.Shadows = Src->Shadows;
+
+				return Src;
+			}
+			float Lighting::GetDominant(const Compute::Vector3& Axis)
+			{
+				float Max = Axis.X;
+				if (Axis.Y > Max)
+					Max = Axis.Y;
+
+				if (Axis.Z > Max)
+					Max = Axis.Z;
+
+				return Max;
 			}
 			bool Lighting::GetSurfaceLight(ISurfaceLight* Dest, Component* Src, Compute::Vector3& Position, Compute::Vector3& Scale)
 			{
@@ -1228,7 +1273,7 @@ namespace Tomahawk
 			void Lighting::GetLightCulling(Component* Src, float Range, Compute::Vector3* Position, Compute::Vector3* Scale)
 			{
 				*Position = Src->GetEntity()->Transform->Position; *Scale = Range;
-				bool Front = Compute::Common::HasPointIntersectedCube(*Position, *Scale, State.View);
+				bool Front = Compute::Common::HasPointIntersectedCube(*Position, Scale->Mul(1.01f), State.View);
 
 				if (!(Front && State.Backcull) && !(!Front && !State.Backcull))
 					return;
@@ -1237,16 +1282,32 @@ namespace Tomahawk
 				State.Device->SetDepthStencilState(Front ? DepthStencilGreater : DepthStencilLess);
 				State.Backcull = !State.Backcull;
 			}
-			void Lighting::GetVoxelBuffers(Graphics::Texture3D** In, Graphics::Texture3D** Out)
+			void Lighting::GenerateLightBuffers()
 			{
-				In[0] = Radiance.LightBuffer;
-				Out[0] = nullptr;
-				In[1] = Radiance.DiffuseBuffer;
-				Out[1] = nullptr;
-				In[2] = Radiance.NormalBuffer;
-				Out[2] = nullptr;
-				In[3] = Radiance.SurfaceBuffer;
-				Out[3] = nullptr;
+				Graphics::ElementBuffer::Desc F = Graphics::ElementBuffer::Desc();
+				F.AccessFlags = Graphics::CPUAccess_Write;
+				F.MiscFlags = Graphics::ResourceMisc_Buffer_Structured;
+				F.Usage = Graphics::ResourceUsage_Dynamic;
+				F.BindFlags = Graphics::ResourceBind_Shader_Input;
+				F.ElementCount = (unsigned int)Storage.MaxLights;
+				F.ElementWidth = sizeof(IPointLight);
+				F.StructureByteStride = F.ElementWidth;
+
+				TH_RELEASE(Storage.PBuffer);
+				Storage.PBuffer = State.Device->CreateElementBuffer(F);
+				Storage.PArray.resize(Storage.MaxLights);
+
+				F.ElementWidth = sizeof(ISpotLight);
+				F.StructureByteStride = F.ElementWidth;
+				TH_RELEASE(Storage.SBuffer);
+				Storage.SBuffer = State.Device->CreateElementBuffer(F);
+				Storage.SArray.resize(Storage.MaxLights);
+
+				F.ElementWidth = sizeof(ILineLight);
+				F.StructureByteStride = F.ElementWidth;
+				TH_RELEASE(Storage.LBuffer);
+				Storage.LBuffer = State.Device->CreateElementBuffer(F);
+				Storage.LArray.resize(Storage.MaxLights);
 			}
 			void Lighting::GenerateCascadeMap(CascadedDepthMap** Result, uint32_t Size)
 			{
@@ -1269,6 +1330,9 @@ namespace Tomahawk
 			}
 			size_t Lighting::GeneratePointLights()
 			{
+				if (!Storage.PBuffer)
+					GenerateLightBuffers();
+
 				size_t Count = 0;
 				for (auto It = PointLights->Begin(); It != PointLights->End(); ++It)
 				{
@@ -1280,11 +1344,14 @@ namespace Tomahawk
 					GetPointLight(&Storage.PArray[Count], Light, Position, Scale); Count++;
 				}
 
-				VoxelBuffer.Lights = (float)Count;
+				VoxelBuffer.Lights.X = (float)Count;
 				return Count;
 			}
 			size_t Lighting::GenerateSpotLights()
 			{
+				if (!Storage.SBuffer)
+					GenerateLightBuffers();
+
 				size_t Count = 0;
 				for (auto It = SpotLights->Begin(); It != SpotLights->End(); ++It)
 				{
@@ -1296,11 +1363,14 @@ namespace Tomahawk
 					GetSpotLight(&Storage.SArray[Count], Light, Position, Scale); Count++;
 				}
 
-				VoxelBuffer.Lights = (float)Count;
+				VoxelBuffer.Lights.Y = (float)Count;
 				return Count;
 			}
 			size_t Lighting::GenerateLineLights()
 			{
+				if (!Storage.LBuffer)
+					GenerateLightBuffers();
+
 				size_t Count = 0;
 				for (auto It = LineLights->Begin(); It != LineLights->End(); ++It)
 				{
@@ -1312,7 +1382,7 @@ namespace Tomahawk
 					Count++;
 				}
 
-				VoxelBuffer.Lights = (float)Count;
+				VoxelBuffer.Lights.Z = (float)Count;
 				return Count;
 			}
 			void Lighting::FlushDepthBuffersAndCache()
@@ -1367,20 +1437,12 @@ namespace Tomahawk
 					else
 						RenderSurfaceMaps(Time);
 
-					Compute::Vector3 Center = State.Scene->View.WorldPosition.InvertZ();
-					if (Radiance.Enabled)
-					{
-						bool Revoxelize = (VoxelBuffer.Center.Distance(Center) > 0.5 * Radiance.Distance.Length() / 3);
-						if (Revoxelize)
-							VoxelBuffer.Center = Center;
-
-						if (Revoxelize || Radiance.Tick.TickEvent(ElapsedTime))
-							RenderVoxels(Time);
-					}
+					if (!Illuminators->Empty())
+						RenderVoxels(Time);
 				}
 
 				RenderResultBuffers(Options);
-				if (Radiance.Enabled && !(Options & RenderOpt_Inner))
+				if (!Illuminators->Empty() && !(Options & RenderOpt_Inner))
 					RenderVoxelBuffers(Options);
 				System->RestoreOutput();
 			}
@@ -1424,11 +1486,12 @@ namespace Tomahawk
 			void Lighting::RenderVoxelBuffers(RenderOpt Options)
 			{
 				Graphics::MultiRenderTarget2D* MRT = System->GetMRT(TargetType_Main);
-				if (!Radiance.LightBuffer)
+				if (!LightBuffer)
 					return;
 
+				State.Device->SetBlendState(BlendOverload);
 				State.Device->SetTarget(MRT, 0);
-				State.Device->SetTexture3D(Radiance.LightBuffer, 1, TH_PS);
+				State.Device->SetTexture3D(LightBuffer, 1, TH_PS);
 				State.Device->SetTexture2D(MRT->GetTarget(1), 2, TH_PS);
 				State.Device->SetTexture2D(MRT->GetTarget(2), 3, TH_PS);
 				State.Device->SetTexture2D(MRT->GetTarget(3), 4, TH_PS);
@@ -1578,61 +1641,91 @@ namespace Tomahawk
 			}
 			void Lighting::RenderVoxels(Rest::Timer* Time)
 			{
-				if (!Radiance.LightBuffer)
-					SetVoxelBufferSize(Radiance.Size);
+				Components::Illuminator* Area = (Components::Illuminator*)GetIlluminator(Time);
+				if (!Area || !LightBuffer)
+					return;
 
-				Graphics::Texture3D* In[4], *Out[4];
-				GetVoxelBuffers(In, Out);
+				bool Inside = Compute::Common::HasPointIntersectedCube(VoxelBuffer.Center, VoxelBuffer.Scale, State.Scene->View.InvViewPosition);
+				if (!Inside && Storage.Area == Area && Storage.Inside == Inside)
+					return;
 
-				VoxelBuffer.Size = (float)Radiance.Size;
-				VoxelBuffer.Scale = Radiance.Distance;
-				State.Scene->View.FarPlane = (Radiance.Distance.X + Radiance.Distance.Y + Radiance.Distance.Z) / 3.0f;
+				Graphics::Texture3D* In[3], *Out[3];
+				if (!State.Scene->GetVoxelBuffer(In, Out))
+					return;
 
-				State.Device->ClearWritable(Radiance.LightBuffer);
-				State.Device->ClearWritable(Radiance.DiffuseBuffer);
-				State.Device->ClearWritable(Radiance.NormalBuffer);
-				State.Device->ClearWritable(Radiance.SurfaceBuffer);
-				State.Device->SetTargetRect(Radiance.Size, Radiance.Size);
+				size_t Size = State.Scene->GetVoxelBufferSize();
+				State.Device->ClearWritable(In[VoxelType_Diffuse]);
+				State.Device->ClearWritable(In[VoxelType_Normal]);
+				State.Device->ClearWritable(In[VoxelType_Surface]);
+				State.Device->SetTargetRect(Size, Size);
 				State.Device->SetDepthStencilState(DepthStencilNone);
 				State.Device->SetBlendState(BlendOverwrite);
 				State.Device->SetRasterizerState(NoneRasterizer);
-				State.Device->SetWriteable(In, 4, 1, false);
+				State.Device->SetWriteable(In, 3, 1, false);
 
-				State.Scene->Render(Time, RenderState_Geometry_Voxels, RenderOpt_Inner);
-				State.Scene->RestoreViewBuffer(nullptr);
+				if (Inside)
+				{
+					State.Scene->View.FarPlane = GetDominant(VoxelBuffer.Scale) * 1.75f;
+					State.Scene->Render(Time, RenderState_Geometry_Voxels, RenderOpt_Inner);
+					State.Scene->RestoreViewBuffer(nullptr);
+				}
+				else
+					State.Scene->Render(Time, RenderState_Geometry_Voxels, RenderOpt_Inner);
 
-				State.Device->SetWriteable(Out, 4, 1, false);
-				State.Device->GenerateMips(Radiance.LightBuffer);
+				State.Device->SetWriteable(Out, 3, 1, false);
+				State.Device->GenerateMips(LightBuffer);
+				Storage.Inside = Inside;
+				Storage.Area = Area;
 			}
 			void Lighting::RenderLuminance()
 			{
+				Graphics::Texture3D* In[3], *Out[3];
+				if (!LightBuffer || !State.Scene->GetVoxelBuffer(In, Out))
+					return;
+
 				uint32_t X = (uint32_t)(VoxelBuffer.Size.X / 8.0f);
 				uint32_t Y = (uint32_t)(VoxelBuffer.Size.Y / 8.0f);
 				uint32_t Z = (uint32_t)(VoxelBuffer.Size.Z / 8.0f);
-				Graphics::Texture3D* In[4], *Out[4];
-				GetVoxelBuffers(In, Out);
 
-				State.Device->SetWriteable(Out, 4, 1, false);
-				State.Device->SetWriteable(In, 1, 1, true);
-				State.Device->SetTexture3D(In[1], 2, TH_CS);
-				State.Device->SetTexture3D(In[2], 3, TH_CS);
-				State.Device->SetTexture3D(In[3], 4, TH_CS);
+				State.Device->ClearWritable(LightBuffer);
+				State.Device->SetWriteable(Out, 3, 1, false);
+				State.Device->SetWriteable(&LightBuffer, 1, 1, true);
+				State.Device->SetTexture3D(In[VoxelType_Diffuse], 2, TH_CS);
+				State.Device->SetTexture3D(In[VoxelType_Normal], 3, TH_CS);
+				State.Device->SetTexture3D(In[VoxelType_Surface], 4, TH_CS);
 
-				if (GeneratePointLights() > 0)
+				size_t PointLightsCount = GeneratePointLights();
+				if (PointLightsCount > 0)
 				{
-					State.Device->UpdateBuffer(Shaders.Point[2], &VoxelBuffer);
-					State.Device->UpdateBuffer(Storage.PBuffer, Storage.PArray.data(), Storage.MaxLights * sizeof(IPointLight));
+					State.Device->UpdateBuffer(Storage.PBuffer, Storage.PArray.data(), PointLightsCount * sizeof(IPointLight));
 					State.Device->SetStructureBuffer(Storage.PBuffer, 5, TH_CS);
-					State.Device->SetBuffer(Shaders.Point[2], 3, TH_CS);
-					State.Device->SetShader(Shaders.Point[2], TH_CS);
-					State.Device->Dispatch(X, Y, Z);
 				}
 
+				size_t SpotLightsCount = GenerateSpotLights();
+				if (SpotLightsCount > 0)
+				{
+					State.Device->UpdateBuffer(Storage.SBuffer, Storage.SArray.data(), SpotLightsCount * sizeof(ISpotLight));
+					State.Device->SetStructureBuffer(Storage.SBuffer, 6, TH_CS);
+				}
+
+				size_t LineLightsCount = GenerateLineLights();
+				if (LineLightsCount > 0)
+				{
+					State.Device->UpdateBuffer(Storage.LBuffer, Storage.LArray.data(), LineLightsCount * sizeof(ILineLight));
+					State.Device->SetStructureBuffer(Storage.LBuffer, 7, TH_CS);
+				}
+
+				State.Device->UpdateBuffer(Shaders.Voxelize, &VoxelBuffer);
+				State.Device->SetBuffer(Shaders.Voxelize, 3, TH_CS);
+				State.Device->SetShader(Shaders.Voxelize, TH_CS);
+				State.Device->Dispatch(X, Y, Z);
 				State.Device->FlushTexture3D(2, 3, TH_CS);
 				State.Device->SetShader(nullptr, TH_CS);
 				State.Device->SetStructureBuffer(nullptr, 5, TH_CS);
+				State.Device->SetStructureBuffer(nullptr, 6, TH_CS);
+				State.Device->SetStructureBuffer(nullptr, 7, TH_CS);
 				State.Device->SetWriteable(Out, 1, 1, true);
-				State.Device->SetWriteable(In, 4, 1, false);
+				State.Device->SetWriteable(In, 3, 1, false);
 			}
 			void Lighting::RenderSurfaceLights()
 			{
@@ -1820,61 +1913,6 @@ namespace Tomahawk
 
 				TH_RELEASE(Surfaces.Input);
 				Surfaces.Input = System->GetDevice()->CreateRenderTarget2D(F2);
-			}
-			void Lighting::SetVoxelBufferSize(size_t NewSize)
-			{
-				Graphics::GraphicsDevice* Device = System->GetDevice();
-				unsigned int MipLevels = Device->GetMipLevel(Radiance.Size, Radiance.Size);
-				VoxelBuffer.MipLevels = (float)MipLevels;
-
-				Graphics::Texture3D::Desc I;
-				I.Width = I.Height = I.Depth = Radiance.Size = NewSize;
-				I.MipLevels = 0;
-				I.FormatMode = Graphics::Format_R8G8B8A8_Unorm;
-				I.Writable = true;
-
-				TH_RELEASE(Radiance.DiffuseBuffer);
-				Radiance.DiffuseBuffer = Device->CreateTexture3D(I);
-
-				I.MipLevels = 0;
-				I.FormatMode = Graphics::Format_R16G16B16A16_Float;
-				TH_RELEASE(Radiance.NormalBuffer);
-				Radiance.NormalBuffer = Device->CreateTexture3D(I);
-
-				I.MipLevels = 0;
-				I.FormatMode = Graphics::Format_R8G8B8A8_Unorm;
-				TH_RELEASE(Radiance.SurfaceBuffer);
-				Radiance.SurfaceBuffer = Device->CreateTexture3D(I);
-
-				I.MipLevels = MipLevels;
-				I.FormatMode = Graphics::Format_R8G8B8A8_Unorm;
-				TH_RELEASE(Radiance.LightBuffer);
-				Radiance.LightBuffer = Device->CreateTexture3D(I);
-
-				Graphics::ElementBuffer::Desc F = Graphics::ElementBuffer::Desc();
-				F.AccessFlags = Graphics::CPUAccess_Write;
-				F.MiscFlags = Graphics::ResourceMisc_Buffer_Structured;
-				F.Usage = Graphics::ResourceUsage_Dynamic;
-				F.BindFlags = Graphics::ResourceBind_Shader_Input;
-				F.ElementCount = (unsigned int)Storage.MaxLights;
-				F.ElementWidth = sizeof(IPointLight);
-				F.StructureByteStride = F.ElementWidth;
-
-				TH_RELEASE(Storage.PBuffer);
-				Storage.PBuffer = Device->CreateElementBuffer(F);
-				Storage.PArray.resize(Storage.MaxLights);
-
-				F.ElementWidth = sizeof(ISpotLight);
-				F.StructureByteStride = F.ElementWidth;
-				TH_RELEASE(Storage.SBuffer);
-				Storage.SBuffer = Device->CreateElementBuffer(F);
-				Storage.SArray.resize(Storage.MaxLights);
-
-				F.ElementWidth = sizeof(ILineLight);
-				F.StructureByteStride = F.ElementWidth;
-				TH_RELEASE(Storage.LBuffer);
-				Storage.LBuffer = Device->CreateElementBuffer(F);
-				Storage.LArray.resize(Storage.MaxLights);
 			}
 			void Lighting::SetVoxelBuffer(RenderSystem* System, Graphics::Shader* Src, unsigned int Slot)
 			{

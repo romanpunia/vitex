@@ -301,19 +301,21 @@ namespace Tomahawk
 					float MipLevels = 8.0f;
 					Compute::Vector3 Scale;
 					float MaxSteps = 32.0f;
+					Compute::Vector3 Lights;
 					float Intensity = 8.0f;
+					float Padding[2] = { 0.0f };
 					float Occlusion = 0.9f;
 					float Shadows = 0.25f;
-					float Lights = 0.0f;
 				};
 
 			protected:
 				struct
 				{
 					Graphics::Shader* Ambient[2] = { nullptr };
-					Graphics::Shader* Point[3] = { nullptr };
-					Graphics::Shader* Spot[3] = { nullptr };
-					Graphics::Shader* Line[3] = { nullptr };
+					Graphics::Shader* Point[2] = { nullptr };
+					Graphics::Shader* Spot[2] = { nullptr };
+					Graphics::Shader* Line[2] = { nullptr };
+					Graphics::Shader* Voxelize = nullptr;
 					Graphics::Shader* Surface = nullptr;
 				} Shaders;
 
@@ -326,6 +328,8 @@ namespace Tomahawk
 					std::vector<ISpotLight> SArray;
 					std::vector<ILineLight> LArray;
 					const size_t MaxLights = 64;
+					Component* Area = nullptr;
+					bool Inside = false;
 				} Storage;
 
 				struct
@@ -364,21 +368,10 @@ namespace Tomahawk
 					uint64_t Size = 128;
 				} Surfaces;
 
-				struct
-				{
-					Graphics::Texture3D* LightBuffer = nullptr;
-					Graphics::Texture3D* DiffuseBuffer = nullptr;
-					Graphics::Texture3D* NormalBuffer = nullptr;
-					Graphics::Texture3D* SurfaceBuffer = nullptr;
-					Compute::Vector3 Distance = 10.0f;
-					Rest::TickTimer Tick;
-					uint64_t Size = 128;
-					bool Enabled = false;
-				} Radiance;
-
 			private:
-				Rest::Pool<Engine::Component*>* PointLights = nullptr;
+				Rest::Pool<Engine::Component*>* Illuminators = nullptr;
 				Rest::Pool<Engine::Component*>* SurfaceLights = nullptr;
+				Rest::Pool<Engine::Component*>* PointLights = nullptr;
 				Rest::Pool<Engine::Component*>* SpotLights = nullptr;
 				Rest::Pool<Engine::Component*>* LineLights = nullptr;
 				Graphics::DepthStencilState* DepthStencilNone = nullptr;
@@ -389,10 +382,12 @@ namespace Tomahawk
 				Graphics::RasterizerState* NoneRasterizer = nullptr;
 				Graphics::BlendState* BlendAdditive = nullptr;
 				Graphics::BlendState* BlendOverwrite = nullptr;
+				Graphics::BlendState* BlendOverload = nullptr;
 				Graphics::SamplerState* ShadowSampler = nullptr;
 				Graphics::SamplerState* WrapSampler = nullptr;
 				Graphics::InputLayout* Layout = nullptr;
 				Graphics::Texture2D* SkyBase = nullptr;
+				Graphics::Texture3D* LightBuffer = nullptr;
 				Graphics::TextureCube* SkyMap = nullptr;
 				ISurfaceLight SurfaceLight;
 				IPointLight PointLight;
@@ -414,17 +409,18 @@ namespace Tomahawk
 				void Render(Rest::Timer* Time, RenderState State, RenderOpt Options) override;
 				void SetSkyMap(Graphics::Texture2D* Cubemap);
 				void SetSurfaceBufferSize(size_t Size);
-				void SetVoxelBufferSize(size_t Size);
 				Graphics::TextureCube* GetSkyMap();
 				Graphics::Texture2D* GetSkyBase();
 
 			private:
+				Component* GetIlluminator(Rest::Timer* Time);
+				float GetDominant(const Compute::Vector3& Axis);
 				bool GetSurfaceLight(ISurfaceLight* Dest, Component* Src, Compute::Vector3& Position, Compute::Vector3& Scale);
 				bool GetPointLight(IPointLight* Dest, Component* Src, Compute::Vector3& Position, Compute::Vector3& Scale);
 				bool GetSpotLight(ISpotLight* Dest, Component* Src, Compute::Vector3& Position, Compute::Vector3& Scale);
 				bool GetLineLight(ILineLight* Dest, Component* Src);
 				void GetLightCulling(Component* Src, float Range, Compute::Vector3* Position, Compute::Vector3* Scale);
-				void GetVoxelBuffers(Graphics::Texture3D** In, Graphics::Texture3D** Out);
+				void GenerateLightBuffers();
 				void GenerateCascadeMap(CascadedDepthMap** Result, uint32_t Size);
 				size_t GeneratePointLights();
 				size_t GenerateSpotLights();

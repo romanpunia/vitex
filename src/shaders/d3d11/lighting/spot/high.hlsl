@@ -4,7 +4,7 @@
 #include "std/core/material"
 #include "std/core/random"
 #include "std/core/position"
-#include "lighting/common/spot/buffer"
+#include "lighting/spot/common/buffer"
 #pragma warning(disable: 4000)
 
 Texture2D ShadowMap : register(t5);

@@ -5,7 +5,7 @@
 #include "std/core/atmosphere"
 #include "std/core/material"
 #include "std/core/position"
-#include "lighting/common/line/buffer"
+#include "lighting/line/common/buffer"
 #pragma warning(disable: 3595)
 
 Texture2D ShadowMap[6] : register(t5);

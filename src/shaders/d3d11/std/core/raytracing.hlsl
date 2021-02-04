@@ -56,7 +56,7 @@ float4 GetReflectance(float3 Position, float3 Normal, float3 Metallic, float Rou
 
     return float4(GetReflectanceBRDF(Normal, -Eye, Direction, Result.xyz, Metallic, Roughness), Result.w);
 }
-float4 GetRadiance(float3 Position, float3 Normal, float3 Metallic)
+float4 GetRadiance(float3 Position, float3 Normal, float3 Metallic, out float Shadow)
 {
     float Occlusion = 0.0;
 	float4 Result = 0.0;
@@ -72,8 +72,8 @@ float4 GetRadiance(float3 Position, float3 Normal, float3 Metallic)
 	}
 
     Occlusion = saturate(1.0 - Occlusion * VxShadows);
-    Occlusion = lerp(1.0, min(1.0, Occlusion), VxOcclusion);
+    Shadow = lerp(1.0, min(1.0, Occlusion), VxOcclusion);
 	Result = saturate(Result / 6.0);
     
-    return float4(Result.xyz * Occlusion, Result.w);
+    return Result;
 }

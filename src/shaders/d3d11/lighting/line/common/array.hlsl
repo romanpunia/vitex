@@ -20,10 +20,4 @@ struct LineLight
     float Padding;
 };
 
-cbuffer RenderConstant : register(b3)
-{
-    float3 LxPadding;
-    float LightCount;
-};
-
-StructuredBuffer<LineLight> Lights : register(t5);
+StructuredBuffer<LineLight> LineLights : register(t7);

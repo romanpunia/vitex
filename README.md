@@ -5,14 +5,16 @@ Tomahawk is a cross-platform C++14 framework to create any type of application f
 
 ## Features
 #### Core
-+ Thread-safe event queue
++ Thread-safe event queue (with adjustable workers count)
 + File system
 + Process management
 + Timers
 + Memory management
 + OS functionality
 + String utils
-+ XML/JSON/Binary abstraction
++ Separate any-value serializator
++ Key-value storage documents
++ XML/JSON serialization (plus custom JSONB format)
 + Switchable logging system
 + Adaptable dependency system
 + Fast spinlock mutex without CPU time wasting
@@ -87,6 +89,7 @@ Tomahawk is a cross-platform C++14 framework to create any type of application f
 + Symbolic imports to import functions from C/C++ libraries directly to script
 + Pointer wrapper to work directly with raw pointers
 + Strings with pointer conversion support to work with C char arrays
++ Debugger interface
 + Standard library
 + Tomahawk bindings (WIP)
 #### Graphics
@@ -203,6 +206,7 @@ These are used widely and presents useful features
 * [RmlUi](https://github.com/mikke89/RmlUi)
 * [Tiny File Dialogs](https://github.com/native-toolkit/tinyfiledialogs)
 * [RapidXML](https://github.com/discordapp/rapidxml)
+* [RapidJSON](https://github.com/tencent/rapidjson)
 * [STB](https://github.com/nothings/stb)
 
 ## Optional dependencies from **/lib/external**

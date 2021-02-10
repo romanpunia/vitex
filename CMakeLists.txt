@@ -77,6 +77,7 @@ include(src/internal/bullet3/CMakeLists.txt)
 include(src/internal/rmlui/CMakeLists.txt)
 include(src/internal/tinyfiledialogs/CMakeLists.txt)
 include(src/internal/rapidxml/CMakeLists.txt)
+include(src/internal/rapidjson/CMakeLists.txt)
 include(src/internal/stb/CMakeLists.txt)
 include(src/internal/wepoll/CMakeLists.txt)
 

@@ -13,11 +13,11 @@ namespace Tomahawk
 	{
 		namespace BSON
 		{
-			KeyPair::~KeyPair()
+			Property::~Property()
 			{
 				Release();
 			}
-			void KeyPair::Release()
+			void Property::Release()
 			{
 				BSON::Document::Release(&Document);
 				BSON::Document::Release(&Array);
@@ -30,7 +30,7 @@ namespace Tomahawk
 				Mod = Type_Unknown;
 				IsValid = false;
 			}
-			std::string& KeyPair::ToString()
+			std::string& Property::ToString()
 			{
 				switch (Mod)
 				{
@@ -86,47 +86,55 @@ namespace Tomahawk
 			TDocument* Document::Create(Rest::Document* Document)
 			{
 #ifdef TH_HAS_MONGOC
-				if (!Document || !Document->IsObject())
+				if (!Document || !Document->Value.IsObject())
 					return nullptr;
 
 				TDocument* New = bson_new();
 				TDocument* Replica = nullptr;
 				uint64_t Index = 0;
 
-				bool Array = (Document->Type == Rest::NodeType_Array);
+				bool Array = (Document->Value.GetType() == Rest::VarType_Array);
 				for (auto&& Node : *Document->GetNodes())
 				{
-					switch (Node->Type)
+					switch (Node->Value.GetType())
 					{
-						case Rest::NodeType_Object:
+						case Rest::VarType_Object:
 							Replica = Create(Node);
-							AddKeyDocument(New, Array ? nullptr : Node->Name.c_str(), &Replica, Index);
+							AddKeyDocument(New, Array ? nullptr : Node->Key.c_str(), &Replica, Index);
 							break;
-						case Rest::NodeType_Array:
+						case Rest::VarType_Array:
 							Replica = Create(Node);
-							AddKeyArray(New, Array ? nullptr : Node->Name.c_str(), &Replica, Index);
+							AddKeyArray(New, Array ? nullptr : Node->Key.c_str(), &Replica, Index);
 							break;
-						case Rest::NodeType_String:
-							AddKeyString(New, Array ? nullptr : Node->Name.c_str(), Node->String.c_str(), Index);
+						case Rest::VarType_String:
+							AddKeyStringBuffer(New, Array ? nullptr : Node->Key.c_str(), Node->Value.GetString(), Node->Value.GetSize(), Index);
 							break;
-						case Rest::NodeType_Boolean:
-							AddKeyBoolean(New, Array ? nullptr : Node->Name.c_str(), Node->Boolean, Index);
+						case Rest::VarType_Boolean:
+							AddKeyBoolean(New, Array ? nullptr : Node->Key.c_str(), Node->Value.GetBoolean(), Index);
 							break;
-						case Rest::NodeType_Decimal:
-							AddKeyDecimal(New, Array ? nullptr : Node->Name.c_str(), Node->Integer, Node->Low, Index);
+						case Rest::VarType_Decimal:
+							AddKeyDecimalString(New, Array ? nullptr : Node->Key.c_str(), Node->Value.GetDecimal(), Index);
 							break;
-						case Rest::NodeType_Number:
-							AddKeyNumber(New, Array ? nullptr : Node->Name.c_str(), Node->Number, Index);
+						case Rest::VarType_Number:
+							AddKeyNumber(New, Array ? nullptr : Node->Key.c_str(), Node->Value.GetNumber(), Index);
 							break;
-						case Rest::NodeType_Integer:
-							AddKeyInteger(New, Array ? nullptr : Node->Name.c_str(), Node->Integer, Index);
+						case Rest::VarType_Integer:
+							AddKeyInteger(New, Array ? nullptr : Node->Key.c_str(), Node->Value.GetInteger(), Index);
 							break;
-						case Rest::NodeType_Null:
-							AddKeyNull(New, Array ? nullptr : Node->Name.c_str(), Index);
+						case Rest::VarType_Null:
+							AddKeyNull(New, Array ? nullptr : Node->Key.c_str(), Index);
 							break;
-						case Rest::NodeType_Id:
-							AddKeyObjectId(New, Array ? nullptr : Node->Name.c_str(), (unsigned char*)Node->String.c_str(), Index);
+						case Rest::VarType_Base64:
+						{
+							if (Node->Value.GetSize() != 12)
+							{
+								std::string Base = Compute::Common::Base64Encode(Node->Value.GetBlob());
+								AddKeyStringBuffer(New, Array ? nullptr : Node->Key.c_str(), Base.c_str(), Base.size(), Index);
+							}
+							else
+								AddKeyObjectId(New, Array ? nullptr : Node->Key.c_str(), Node->Value.GetBase64(), Index);
 							break;
+						}
 						default:
 							break;
 					}
@@ -182,7 +190,7 @@ namespace Tomahawk
 #endif
 				*Document = nullptr;
 			}
-			void Document::Loop(TDocument* Document, void* Context, const std::function<bool(TDocument*, KeyPair*, void*)>& Callback)
+			void Document::Loop(TDocument* Document, void* Context, const std::function<bool(TDocument*, Property*, void*)>& Callback)
 			{
 				if (!Callback || !Document)
 					return;
@@ -192,7 +200,7 @@ namespace Tomahawk
 				if (!bson_iter_init(&It, Document))
 					return;
 
-				KeyPair Output;
+				Property Output;
 				while (bson_iter_next(&It))
 				{
 					Clone(&It, &Output);
@@ -447,7 +455,7 @@ namespace Tomahawk
 				return false;
 #endif
 			}
-			bool Document::AddKey(TDocument* Document, const char* Key, KeyPair* Value, uint64_t ArrayId)
+			bool Document::AddKey(TDocument* Document, const char* Key, Property* Value, uint64_t ArrayId)
 			{
 #ifdef TH_HAS_MONGOC
 				if (!Document || !Value)
@@ -498,7 +506,7 @@ namespace Tomahawk
 				return false;
 #endif
 			}
-			bool Document::GetKey(TDocument* Document, const char* Key, KeyPair* Output)
+			bool Document::GetKey(TDocument* Document, const char* Key, Property* Output)
 			{
 #ifdef TH_HAS_MONGOC
 				bson_iter_t It;
@@ -510,7 +518,7 @@ namespace Tomahawk
 				return false;
 #endif
 			}
-			bool Document::GetKeyWithNotation(TDocument* Document, const char* Key, KeyPair* Output)
+			bool Document::GetKeyWithNotation(TDocument* Document, const char* Key, Property* Output)
 			{
 #ifdef TH_HAS_MONGOC
 				bson_iter_t It, Value;
@@ -539,7 +547,7 @@ namespace Tomahawk
 				return false;
 #endif
 			}
-			bool Document::Clone(void* It, KeyPair* Output)
+			bool Document::Clone(void* It, Property* Output)
 			{
 #ifdef TH_HAS_MONGOC
 				const bson_value_t* Value = bson_iter_value((bson_iter_t*)It);
@@ -766,52 +774,50 @@ namespace Tomahawk
 				if (!Document)
 					return nullptr;
 
-				Rest::Document* New = new Rest::Document();
-				if (IsArray)
-					New->Type = Rest::NodeType_Array;
-
-				Loop(Document, New, [](TDocument* Base, KeyPair* Key, void* UserData) -> bool
+				Rest::Document* New = (IsArray ? Rest::Document::Array() : Rest::Document::Object());
+				Loop(Document, New, [](TDocument* Base, Property* Key, void* UserData) -> bool
 				{
 					Rest::Document* Node = (Rest::Document*)UserData;
-					std::string Name = (Node->Type == Rest::NodeType_Array ? "" : Key->Name);
-					double Decimal;
+					std::string Name = (Node->Value.GetType() == Rest::VarType_Array ? "" : Key->Name);
 
 					switch (Key->Mod)
 					{
 						case BSON::Type_Document:
 						{
-							Node->SetDocument(Name, ToDocument(Key->Document, false));
+							Node->Set(Name, ToDocument(Key->Document, false));
 							break;
 						}
 						case BSON::Type_Array:
 						{
-							Node->SetArray(Name, ToDocument(Key->Array, true));
+							Node->Set(Name, ToDocument(Key->Array, true));
 							break;
 						}
 						case BSON::Type_String:
-							Node->SetString(Name, Key->String.c_str());
+							Node->Set(Name, Rest::Var::String(Key->String));
 							break;
 						case BSON::Type_Boolean:
-							Node->SetBoolean(Name, Key->Boolean);
+							Node->Set(Name, Rest::Var::Boolean(Key->Boolean));
 							break;
 						case BSON::Type_Number:
-							Node->SetNumber(Name, Key->Number);
+							Node->Set(Name, Rest::Var::Number(Key->Number));
 							break;
 						case BSON::Type_Decimal:
-							Decimal = Rest::Stroke(&Key->ToString()).ToFloat64();
+						{
+							double Decimal = Rest::Stroke(&Key->ToString()).ToDouble();
 							if (Decimal != (int64_t)Decimal)
-								Node->SetNumber(Name, Decimal);
+								Node->Set(Name, Rest::Var::Number(Decimal));
 							else
-								Node->SetInteger(Name, (int64_t)Decimal);
+								Node->Set(Name, Rest::Var::Integer((int64_t)Decimal));
 							break;
+						}
 						case BSON::Type_Integer:
-							Node->SetInteger(Name, Key->Integer);
+							Node->Set(Name, Rest::Var::Integer(Key->Integer));
 							break;
 						case BSON::Type_ObjectId:
-							Node->SetId(Name, Key->ObjectId);
+							Node->Set(Name, Rest::Var::Base64(Key->ObjectId, 12));
 							break;
 						case BSON::Type_Null:
-							Node->SetNull(Name);
+							Node->Set(Name, Rest::Var::Null());
 							break;
 						default:
 							break;

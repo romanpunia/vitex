@@ -353,6 +353,7 @@ namespace Tomahawk
 						uint64_t CookieExpires = 31536000;
 					} Session;
 
+					bool Verify = false;
 					bool Enabled = false;
 				} Gateway;
 				struct
@@ -415,6 +416,7 @@ namespace Tomahawk
 			class TH_OUT QueryParameter : public Rest::Document
 			{
 			public:
+				QueryParameter();
 				std::string Build();
 				std::string BuildFromBase();
 				QueryParameter* Find(QueryToken* Name);

@@ -805,7 +805,7 @@ namespace Tomahawk
 				}
 			};
 
-			static void ToProperty(Rml::Variant* From, Compute::Property* To)
+			void IVariant::Convert(Rml::Variant* From, Rest::Variant* To)
 			{
 				if (!From || !To)
 					return;
@@ -813,90 +813,92 @@ namespace Tomahawk
 				switch (From->GetType())
 				{
 					case Rml::Variant::BOOL:
-						*To = Compute::Property(From->Get<bool>());
+						*To = std::move(Rest::Var::Boolean(From->Get<bool>()));
 						break;
 					case Rml::Variant::FLOAT:
 					case Rml::Variant::DOUBLE:
-						*To = Compute::Property(From->Get<double>());
+						*To = std::move(Rest::Var::Number(From->Get<double>()));
 						break;
 					case Rml::Variant::BYTE:
 					case Rml::Variant::CHAR:
 					case Rml::Variant::INT:
 					case Rml::Variant::INT64:
-						*To = Compute::Property(From->Get<int64_t>());
+						*To = std::move(Rest::Var::Integer(From->Get<int64_t>()));
 						break;
 					case Rml::Variant::VECTOR2:
 					{
 						Rml::Vector2f T = From->Get<Rml::Vector2f>();
-						*To = Compute::Property(Compute::Vector2(T.x, T.y));
+						*To = std::move(Rest::Var::String(FromVector2(Compute::Vector2(T.x, T.y))));
 						break;
 					}
 					case Rml::Variant::VECTOR3:
 					{
 						Rml::Vector3f T = From->Get<Rml::Vector3f>();
-						*To = Compute::Property(Compute::Vector3(T.x, T.y, T.z));
+						*To = std::move(Rest::Var::String(FromVector3(Compute::Vector3(T.x, T.y, T.z))));
 						break;
 					}
 					case Rml::Variant::VECTOR4:
 					{
 						Rml::Vector4f T = From->Get<Rml::Vector4f>();
-						*To = Compute::Property(Compute::Vector4(T.x, T.y, T.z, T.w));
+						*To = std::move(Rest::Var::String(FromVector4(Compute::Vector4(T.x, T.y, T.z, T.w))));
 						break;
 					}
 					case Rml::Variant::STRING:
 					case Rml::Variant::COLOURF:
 					case Rml::Variant::COLOURB:
-						*To = Compute::Property(From->Get<std::string>());
+						*To = std::move(Rest::Var::String(From->Get<std::string>()));
 						break;
 					case Rml::Variant::VOIDPTR:
-						*To = Compute::Property(From->Get<void*>());
+						*To = std::move(Rest::Var::Pointer(From->Get<void*>()));
 						break;
 					default:
-						*To = Compute::Property();
+						*To = std::move(Rest::Var::Undefined());
 						break;
 				}
 			}
-			static void FromProperty(Compute::Property* From, Rml::Variant* To)
+			void IVariant::Revert(Rest::Variant* From, Rml::Variant* To)
 			{
 				if (!From || !To)
 					return;
 
 				switch (From->GetType())
 				{
-					case Compute::PropertyType_Null:
+					case Rest::VarType_Null:
 						*To = Rml::Variant((void*)nullptr);
 						break;
-					case Compute::PropertyType_String:
-						*To = Rml::Variant(From->ToString());
-						break;
-					case Compute::PropertyType_Vector2:
+					case Rest::VarType_String:
 					{
-						Compute::Vector2 T = From->GetVector2();
-						*To = Rml::Variant(Rml::Vector2f(T.X, T.Y));
+						std::string Blob = From->GetBlob();
+						int Type = IVariant::GetVectorType(Blob);
+						if (Type == 2)
+						{
+							Compute::Vector2 T = IVariant::ToVector2(Blob);
+							*To = Rml::Variant(Rml::Vector2f(T.X, T.Y));
+						}
+						else if (Type == 3)
+						{
+							Compute::Vector3 T = IVariant::ToVector3(Blob);
+							*To = Rml::Variant(Rml::Vector3f(T.X, T.Y, T.Z));
+						}
+						else if (Type == 4)
+						{
+							Compute::Vector4 T = IVariant::ToVector4(Blob);
+							*To = Rml::Variant(Rml::Vector4f(T.X, T.Y, T.Z, T.W));
+						}
+						else
+							*To = Rml::Variant(From->GetBlob());
 						break;
 					}
-					case Compute::PropertyType_Vector3:
-					{
-						Compute::Vector3 T = From->GetVector3();
-						*To = Rml::Variant(Rml::Vector3f(T.X, T.Y, T.Z));
-						break;
-					}
-					case Compute::PropertyType_Vector4:
-					{
-						Compute::Vector4 T = From->GetVector4();
-						*To = Rml::Variant(Rml::Vector4f(T.X, T.Y, T.Z, T.W));
-						break;
-					}
-					case Compute::PropertyType_Integer:
+					case Rest::VarType_Integer:
 						*To = Rml::Variant(From->GetInteger());
 						break;
-					case Compute::PropertyType_Number:
+					case Rest::VarType_Number:
 						*To = Rml::Variant(From->GetNumber());
 						break;
-					case Compute::PropertyType_Boolean:
+					case Rest::VarType_Boolean:
 						*To = Rml::Variant(From->GetBoolean());
 						break;
-					case Compute::PropertyType_Pointer:
+					case Rest::VarType_Pointer:
 						*To = Rml::Variant(From->GetPointer());
 						break;
 					default:
@@ -904,7 +906,7 @@ namespace Tomahawk
 						break;
 				}
 			}
-			static Compute::Vector4 ToColor4(const std::string& Value)
+			Compute::Vector4 IVariant::ToColor4(const std::string& Value)
 			{
 				if (Value.empty())
 					return 0.0f;
@@ -952,7 +954,7 @@ namespace Tomahawk
 
 				return Result;
 			}
-			static std::string FromColor4(const Compute::Vector4& Base, bool HEX)
+			std::string IVariant::FromColor4(const Compute::Vector4& Base, bool HEX)
 			{
 				if (!HEX)
 					return Rest::Form("%d %d %d %d", (unsigned int)(Base.X * 255.0f), (unsigned int)(Base.Y * 255.0f), (unsigned int)(Base.Z * 255.0f), (unsigned int)(Base.W * 255.0f)).R();
@@ -963,7 +965,7 @@ namespace Tomahawk
 					(unsigned int)(Base.Z * 255.0f),
 					(unsigned int)(Base.W * 255.0f)).R();
 			}
-			static Compute::Vector4 ToColor3(const std::string& Value)
+			Compute::Vector4 IVariant::ToColor3(const std::string& Value)
 			{
 				if (Value.empty())
 					return 0.0f;
@@ -1002,7 +1004,7 @@ namespace Tomahawk
 
 				return Result;
 			}
-			static std::string FromColor3(const Compute::Vector4& Base, bool HEX)
+			std::string IVariant::FromColor3(const Compute::Vector4& Base, bool HEX)
 			{
 				if (!HEX)
 					return Rest::Form("%d %d %d", (unsigned int)(Base.X * 255.0f), (unsigned int)(Base.Y * 255.0f), (unsigned int)(Base.Z * 255.0f)).R();
@@ -1011,6 +1013,55 @@ namespace Tomahawk
 					(unsigned int)(Base.X * 255.0f),
 					(unsigned int)(Base.Y * 255.0f),
 					(unsigned int)(Base.Z * 255.0f)).R();
+			}
+			int IVariant::GetVectorType(const std::string& Value)
+			{
+				if (Value.size() < 2 || Value[0] != 'v')
+					return -1;
+
+				if (Value[1] == '2')
+					return 2;
+
+				if (Value[1] == '3')
+					return 3;
+
+				if (Value[1] == '4')
+					return 4;
+
+				return -1;
+			}
+			Compute::Vector4 IVariant::ToVector4(const std::string& Base)
+			{
+				Compute::Vector4 Result;
+				sscanf(Base.c_str(), "v4 %f %f %f %f", &Result.X, &Result.Y, &Result.Z, &Result.W);
+
+				return Result;
+			}
+			std::string IVariant::FromVector4(const Compute::Vector4& Base)
+			{
+				return Rest::Form("v4 %f %f %f %f", Base.X, Base.Y, Base.Z, Base.W).R();
+			}
+			Compute::Vector3 IVariant::ToVector3(const std::string& Base)
+			{
+				Compute::Vector3 Result;
+				sscanf(Base.c_str(), "v3 %f %f %f", &Result.X, &Result.Y, &Result.Z);
+
+				return Result;
+			}
+			std::string IVariant::FromVector3(const Compute::Vector3& Base)
+			{
+				return Rest::Form("v3 %f %f %f %f", Base.X, Base.Y, Base.Z).R();
+			}
+			Compute::Vector2 IVariant::ToVector2(const std::string& Base)
+			{
+				Compute::Vector2 Result;
+				sscanf(Base.c_str(), "v2 %f %f", &Result.X, &Result.Y);
+
+				return Result;
+			}
+			std::string IVariant::FromVector2(const Compute::Vector2& Base)
+			{
+				return Rest::Form("v2 %f %f %f %f", Base.X, Base.Y).R();
 			}
 
 			IEvent::IEvent(Rml::Event* Ref) : Base(Ref)
@@ -1687,7 +1738,7 @@ namespace Tomahawk
 				if (IsValid() && Listener != nullptr && Listener->Base != nullptr)
 					Base->RemoveEventListener(Event, Listener->Base, InCapturePhase);
 			}
-			bool IElement::DispatchEvent(const std::string& Type, const Compute::PropertyArgs& Args)
+			bool IElement::DispatchEvent(const std::string& Type, const Rest::VariantArgs& Args)
 			{
 				if (!IsValid())
 					return false;
@@ -1696,7 +1747,7 @@ namespace Tomahawk
 				for (auto& Item : Args)
 				{
 					Rml::Variant& Prop = Props[Item.first];
-					FromProperty((Compute::Property*)&Item.second, &Prop);
+					IVariant::Revert((Rest::Variant*)&Item.second, &Prop);
 				}
 
 				return Base->DispatchEvent(Type, Props);
@@ -1800,7 +1851,7 @@ namespace Tomahawk
 					return false;
 
 				std::string Value = Form->GetValue();
-				Compute::Vector4 Color = (Alpha ? ToColor4(Value) : ToColor3(Value));
+				Compute::Vector4 Color = (Alpha ? IVariant::ToColor4(Value) : IVariant::ToColor3(Value));
 
 				if (Alpha)
 				{
@@ -1829,9 +1880,9 @@ namespace Tomahawk
 						return false;
 
 					if (Alpha)
-						Form->SetValue(FromColor4(*Ptr, true));
+						Form->SetValue(IVariant::FromColor4(*Ptr, true));
 					else
-						Form->SetValue(FromColor3(*Ptr, true));
+						Form->SetValue(IVariant::FromColor3(*Ptr, true));
 
 					return true;
 				}
@@ -1847,9 +1898,9 @@ namespace Tomahawk
 				}
 
 				if (Alpha)
-					Form->SetValue(FromColor4(*Ptr, Value.empty() ? true : Value[0] == '#'));
+					Form->SetValue(IVariant::FromColor4(*Ptr, Value.empty() ? true : Value[0] == '#'));
 				else
-					Form->SetValue(FromColor3(*Ptr, Value.empty() ? true : Value[0] == '#'));
+					Form->SetValue(IVariant::FromColor3(*Ptr, Value.empty() ? true : Value[0] == '#'));
 
 				return false;
 			}
@@ -2112,7 +2163,7 @@ namespace Tomahawk
 					Form->SetValue(Value.R());
 				}
 
-				double N = Value.ToFloat64();
+				double N = Value.ToDouble();
 				if (N == *Ptr)
 					return false;
 
@@ -2449,13 +2500,13 @@ namespace Tomahawk
 			bool Subsystem::HasDecorators = false;
 			int Subsystem::State = 0;
 
-			DataNode::DataNode(DataModel* Model, std::string* TopName, const Compute::Property& Initial) : Handle(Model), Safe(true)
+			DataNode::DataNode(DataModel* Model, std::string* TopName, const Rest::Variant& Initial) : Handle(Model), Safe(true)
 			{
-				Ref = new Compute::Property(Initial);
+				Ref = new Rest::Variant(Initial);
 				if (TopName != nullptr)
 					Name = new std::string(*TopName);
 			}
-			DataNode::DataNode(DataModel* Model, std::string* TopName, Compute::Property* Reference) : Handle(Model), Safe(false), Ref(Reference)
+			DataNode::DataNode(DataModel* Model, std::string* TopName, Rest::Variant* Reference) : Handle(Model), Safe(false), Ref(Reference)
 			{
 				if (TopName != nullptr)
 					Name = new std::string(*TopName);
@@ -2463,7 +2514,7 @@ namespace Tomahawk
 			DataNode::DataNode(const DataNode& Other) : Childs(Other.Childs), Handle(Other.Handle), Safe(Other.Safe)
 			{
 				if (Safe)
-					Ref = new Compute::Property(*Other.Ref);
+					Ref = new Rest::Variant(*Other.Ref);
 				else
 					Ref = Other.Ref;
 
@@ -2477,9 +2528,9 @@ namespace Tomahawk
 
 				delete Name;
 			}
-			DataNode& DataNode::Add(const Compute::PropertyList& Initial)
+			DataNode& DataNode::Add(const Rest::VariantList& Initial)
 			{
-				Childs.push_back(DataNode(Handle, Name, Compute::Property()));
+				Childs.push_back(DataNode(Handle, Name, Rest::Var::Undefined()));
 				if (Handle != nullptr && Name != nullptr)
 					Handle->Change(*Name);
 				
@@ -2489,7 +2540,7 @@ namespace Tomahawk
 
 				return Result;
 			}
-			DataNode& DataNode::Add(const Compute::Property& Initial)
+			DataNode& DataNode::Add(const Rest::Variant& Initial)
 			{
 				Childs.push_back(DataNode(Handle, Name, Initial));
 				if (Handle != nullptr && Name != nullptr)
@@ -2497,7 +2548,7 @@ namespace Tomahawk
 
 				return Childs.back();
 			}
-			DataNode& DataNode::Add(Compute::Property* Reference)
+			DataNode& DataNode::Add(Rest::Variant* Reference)
 			{
 				Childs.push_back(DataNode(Handle, Name, Reference));
 				if (Handle != nullptr && Name != nullptr)
@@ -2532,7 +2583,7 @@ namespace Tomahawk
 				Childs.clear();
 				return true;
 			}
-			void DataNode::Set(const Compute::Property& NewValue)
+			void DataNode::Set(const Rest::Variant& NewValue)
 			{
 				if (*Ref == NewValue)
 					return;
@@ -2541,7 +2592,7 @@ namespace Tomahawk
 				if (Handle != nullptr && Name != nullptr)
 					Handle->Change(*Name);
 			}
-			void DataNode::Set(Compute::Property* NewReference)
+			void DataNode::Set(Rest::Variant* NewReference)
 			{
 				if (!NewReference || NewReference == Ref)
 					return;
@@ -2557,59 +2608,59 @@ namespace Tomahawk
 			}
 			void DataNode::SetString(const std::string& Value)
 			{
-				Set(Compute::Property(Value));
+				Set(Rest::Var::String(Value));
 			}
 			void DataNode::SetVector2(const Compute::Vector2& Value)
 			{
-				Set(Compute::Property(Value));
+				Set(Rest::Var::String(IVariant::FromVector2(Value)));
 			}
 			void DataNode::SetVector3(const Compute::Vector3& Value)
 			{
-				Set(Compute::Property(Value));
+				Set(Rest::Var::String(IVariant::FromVector3(Value)));
 			}
 			void DataNode::SetVector4(const Compute::Vector4& Value)
 			{
-				Set(Compute::Property(Value));
+				Set(Rest::Var::String(IVariant::FromVector4(Value)));
 			}
 			void DataNode::SetInteger(int64_t Value)
 			{
-				Set(Compute::Property(Value));
+				Set(Rest::Var::Integer(Value));
 			}
 			void DataNode::SetFloat(float Value)
 			{
-				Set(Compute::Property(Value));
+				Set(Rest::Var::Number(Value));
 			}
 			void DataNode::SetDouble(double Value)
 			{
-				Set(Compute::Property(Value));
+				Set(Rest::Var::Number(Value));
 			}
 			void DataNode::SetBoolean(bool Value)
 			{
-				Set(Compute::Property(Value));
+				Set(Rest::Var::Boolean(Value));
 			}
 			void DataNode::SetPointer(void* Value)
 			{
-				Set(Compute::Property(Value));
+				Set(Rest::Var::Pointer(Value));
 			}
-			const Compute::Property& DataNode::Get()
+			const Rest::Variant& DataNode::Get()
 			{
 				return *Ref;
 			}
 			std::string DataNode::GetString()
 			{
-				return Ref->ToString();
+				return Ref->GetBlob();
 			}
 			Compute::Vector2 DataNode::GetVector2()
 			{
-				return Ref->GetVector2();
+				return IVariant::ToVector2(Ref->GetBlob());
 			}
 			Compute::Vector3 DataNode::GetVector3()
 			{
-				return Ref->GetVector3();
+				return IVariant::ToVector3(Ref->GetBlob());
 			}
 			Compute::Vector4 DataNode::GetVector4()
 			{
-				return Ref->GetVector4();
+				return IVariant::ToVector4(Ref->GetBlob());
 			}
 			int64_t DataNode::GetInteger()
 			{
@@ -2633,11 +2684,11 @@ namespace Tomahawk
 			}
 			void DataNode::GetValue(Rml::Variant& Result)
 			{
-				FromProperty(Ref, &Result);
+				IVariant::Revert(Ref, &Result);
 			}
 			void DataNode::SetValue(const Rml::Variant& Result)
 			{
-				ToProperty((Rml::Variant*)&Result, Ref);
+				IVariant::Convert((Rml::Variant*)&Result, Ref);
 			}
 			void DataNode::GetValueSize(Rml::Variant& Result)
 			{
@@ -2647,7 +2698,7 @@ namespace Tomahawk
 			{
 				this->~DataNode();
 				if (Safe)
-					Ref = new Compute::Property(*Other.Ref);
+					Ref = new Rest::Variant(*Other.Ref);
 				else
 					Ref = Other.Ref;
 
@@ -2807,7 +2858,7 @@ namespace Tomahawk
 
 				delete Base;
 			}
-			DataNode* DataModel::SetProperty(const std::string& Name, const Compute::Property& Value)
+			DataNode* DataModel::SetProperty(const std::string& Name, const Rest::Variant& Value)
 			{
 				if (!IsValid())
 					return nullptr;
@@ -2820,7 +2871,7 @@ namespace Tomahawk
 				}
 
 				Result = new DataNode(this, (std::string*)&Name, Value);
-				if (Value.GetType() != Compute::PropertyType_Null)
+				if (Value.GetType() != Rest::VarType_Null)
 				{
 					if (Base->BindFunc(Name, std::bind(&DataNode::GetValue, Result, std::placeholders::_1), std::bind(&DataNode::SetValue, Result, std::placeholders::_1)))
 					{
@@ -2837,7 +2888,7 @@ namespace Tomahawk
 				delete Result;
 				return nullptr;
 			}
-			DataNode* DataModel::SetProperty(const std::string& Name, Compute::Property* Value)
+			DataNode* DataModel::SetProperty(const std::string& Name, Rest::Variant* Value)
 			{
 				if (!IsValid() || !Value)
 					return nullptr;
@@ -2861,31 +2912,31 @@ namespace Tomahawk
 			}
 			DataNode* DataModel::SetArray(const std::string& Name)
 			{
-				return SetProperty(Name, Compute::Property());
+				return SetProperty(Name, Rest::Var::Array());
 			}
 			DataNode* DataModel::SetString(const std::string& Name, const std::string& Value)
 			{
-				return SetProperty(Name, Compute::Property(Value));
+				return SetProperty(Name, Rest::Var::String(Value));
 			}
 			DataNode* DataModel::SetInteger(const std::string& Name, int64_t Value)
 			{
-				return SetProperty(Name, Compute::Property(Value));
+				return SetProperty(Name, Rest::Var::Integer(Value));
 			}
 			DataNode* DataModel::SetFloat(const std::string& Name, float Value)
 			{
-				return SetProperty(Name, Compute::Property(Value));
+				return SetProperty(Name, Rest::Var::Number(Value));
 			}
 			DataNode* DataModel::SetDouble(const std::string& Name, double Value)
 			{
-				return SetProperty(Name, Compute::Property(Value));
+				return SetProperty(Name, Rest::Var::Number(Value));
 			}
 			DataNode* DataModel::SetBoolean(const std::string& Name, bool Value)
 			{
-				return SetProperty(Name, Compute::Property(Value));
+				return SetProperty(Name, Rest::Var::Boolean(Value));
 			}
 			DataNode* DataModel::SetPointer(const std::string& Name, void* Value)
 			{
-				return SetProperty(Name, Compute::Property(Value));
+				return SetProperty(Name, Rest::Var::Pointer(Value));
 			}
 			DataNode* DataModel::GetProperty(const std::string& Name)
 			{
@@ -2901,7 +2952,7 @@ namespace Tomahawk
 				if (!Result)
 					return "";
 
-				return Result->Ref->ToString();
+				return Result->Ref->GetBlob();
 			}
 			int64_t DataModel::GetInteger(const std::string& Name)
 			{
@@ -2950,12 +3001,12 @@ namespace Tomahawk
 
 				return Base->BindEventCallback(Name, [Callback](Rml::DataModelHandle Handle, Rml::Event& Event, const Rml::VariantList& Props)
 				{
-					Compute::PropertyList Args;
+					Rest::VariantList Args;
 					Args.resize(Props.size());
 
 					size_t i = 0;
 					for (auto& Item : Props)
-						ToProperty((Rml::Variant*)&Item, &Args[i++]);
+						IVariant::Convert((Rml::Variant*)&Item, &Args[i++]);
 
 					IEvent Basis(&Event);
 					Callback(Basis, Args);
@@ -3285,7 +3336,7 @@ namespace Tomahawk
 						return false;
 					}
 
-					std::string Path = IPath->Serialize();
+					std::string Path = IPath->Value.Serialize();
 					std::string Target = Rest::OS::Resolve(Path, Relative);
 
 					if (!AddFontFace(Target.empty() ? Path : Target, Face->GetAttribute("fallback") != nullptr))
@@ -3305,7 +3356,7 @@ namespace Tomahawk
 						return false;
 					}
 
-					std::string Path = IPath->Serialize();
+					std::string Path = IPath->Value.Serialize();
 					std::string Target = Rest::OS::Resolve(Path, Relative);
 					IElementDocument Result = Construct(Target.empty() ? Path : Target);
 
@@ -3644,7 +3695,10 @@ namespace Tomahawk
 				Processor->SetIncludeOptions(Desc);
 				Processor->SetFeatures(Features);
 
-				return Processor->Process(Path, Buffer);
+				bool Result = Processor->Process(Path, Buffer);
+				TH_RELEASE(Processor);
+
+				return Result;
 			}
 			void Context::Decompose(std::string& Data)
 			{

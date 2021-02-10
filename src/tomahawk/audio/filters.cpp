@@ -115,8 +115,8 @@ namespace Tomahawk
 			}
 			void Lowpass::Serialize(Rest::Document* Node)
 			{
-				Engine::NMake::Pack(Node->SetDocument("gain"), Gain);
-				Engine::NMake::Pack(Node->SetDocument("gain-hf"), GainHF);
+				Engine::NMake::Pack(Node->Set("gain"), Gain);
+				Engine::NMake::Pack(Node->Set("gain-hf"), GainHF);
 			}
 			AudioFilter* Lowpass::Copy()
 			{
@@ -156,8 +156,8 @@ namespace Tomahawk
 			}
 			void Highpass::Serialize(Rest::Document* Node)
 			{
-				Engine::NMake::Pack(Node->SetDocument("gain"), Gain);
-				Engine::NMake::Pack(Node->SetDocument("gain-lf"), GainLF);
+				Engine::NMake::Pack(Node->Set("gain"), Gain);
+				Engine::NMake::Pack(Node->Set("gain-lf"), GainLF);
 			}
 			AudioFilter* Highpass::Copy()
 			{
@@ -199,9 +199,9 @@ namespace Tomahawk
 			}
 			void Bandpass::Serialize(Rest::Document* Node)
 			{
-				Engine::NMake::Pack(Node->SetDocument("gain"), Gain);
-				Engine::NMake::Pack(Node->SetDocument("gain-lf"), GainLF);
-				Engine::NMake::Pack(Node->SetDocument("gain-hf"), GainHF);
+				Engine::NMake::Pack(Node->Set("gain"), Gain);
+				Engine::NMake::Pack(Node->Set("gain-lf"), GainLF);
+				Engine::NMake::Pack(Node->Set("gain-hf"), GainHF);
 			}
 			AudioFilter* Bandpass::Copy()
 			{

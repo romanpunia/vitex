@@ -233,14 +233,14 @@ namespace Tomahawk
 				if (!Source)
 					return "";
 
-				switch (Source->Type)
+				switch (Source->Value.GetType())
 				{
-					case Rest::NodeType_Object:
+					case Rest::VarType_Object:
 					{
 						std::string Result = "{";
 						for (auto* Node : *Source->GetNodes())
 						{
-							Result.append(1, '\"').append(Node->Name).append("\":");
+							Result.append(1, '\"').append(Node->Key).append("\":");
 							Result.append(GetJSON(Node)).append(1, ',');
 						}
 
@@ -249,7 +249,7 @@ namespace Tomahawk
 
 						return Result + "}";
 					}
-					case Rest::NodeType_Array:
+					case Rest::VarType_Array:
 					{
 						std::string Result = "[";
 						for (auto* Node : *Source->GetNodes())
@@ -260,28 +260,28 @@ namespace Tomahawk
 
 						return Result + "]";
 					}
-					case Rest::NodeType_String:
-						return "\"" + Source->String + "\"";
-					case Rest::NodeType_Integer:
-						return std::to_string(Source->Integer);
-					case Rest::NodeType_Number:
-						return std::to_string(Source->Number);
-					case Rest::NodeType_Boolean:
-						return Source->Boolean ? "true" : "false";
-					case Rest::NodeType_Decimal:
+					case Rest::VarType_String:
+						return "\"" + Source->Value.GetBlob() + "\"";
+					case Rest::VarType_Integer:
+						return std::to_string(Source->Value.GetInteger());
+					case Rest::VarType_Number:
+						return std::to_string(Source->Value.GetNumber());
+					case Rest::VarType_Boolean:
+						return Source->Value.GetBoolean() ? "true" : "false";
+					case Rest::VarType_Decimal:
+						return "{\"$numberDouble\":\"" + Source->Value.GetDecimal() + "\"}";
+					case Rest::VarType_Base64:
 					{
-#ifdef TH_HAS_MONGOC
-						Network::BSON::KeyPair Pair;
-						Pair.Mod = Network::BSON::Type_Decimal;
-						Pair.High = Source->Integer;
-						Pair.Low = Source->Low;
-						return "{\"$numberDouble\":\"" + Pair.ToString() + "\"}";
-#endif
+						if (Source->Value.GetSize() != 12)
+						{
+							std::string Base = Compute::Common::Base64Encode(Source->Value.GetBlob());
+							return "\"" + Base + "\"";
+						}
+
+						return "{\"$oid\":\"" + BSON::Document::OIdToString(Source->Value.GetBase64()) + "\"}";
 					}
-					case Rest::NodeType_Id:
-						return "{\"$oid\":\"" + BSON::Document::OIdToString((unsigned char*)Source->String.c_str()) + "\"}";
-					case Rest::NodeType_Null:
-					case Rest::NodeType_Undefined:
+					case Rest::VarType_Null:
+					case Rest::VarType_Undefined:
 						return "null";
 					default:
 						break;
@@ -2298,7 +2298,7 @@ namespace Tomahawk
 					return 0;
 				}
 
-				BSON::KeyPair Count;
+				BSON::Property Count;
 				BSON::Document::GetKey(Result, "Count", &Count);
 				Cursor::Release(&Cursor);
 

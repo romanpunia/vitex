@@ -110,8 +110,8 @@ typedef socklen_t socket_size_t;
 #define TH_FREE(Ptr) Tomahawk::Rest::Mem::Free(Ptr)
 #define TH_RELEASE(Ptr) { if (Ptr != nullptr) (Ptr)->Release(); }
 #define TH_CLEAR(Ptr) { if (Ptr != nullptr) { (Ptr)->Release(); Ptr = nullptr; } }
-#define TH_PREFIX_CHAR '$'
-#define TH_PREFIX_STR "$"
+#define TH_PREFIX_CHAR '@'
+#define TH_PREFIX_STR "@"
 #define TH_LOG(Format, ...) Tomahawk::Rest::Debug::Log(0, TH_LINE, TH_FILE, Format, ##__VA_ARGS__)
 #define TH_COMPONENT_HASH(Name) Tomahawk::Rest::OS::CheckSum(Name)
 #define TH_COMPONENT_IS(Source, Name) (Source->GetId() == TH_COMPONENT_HASH(Name))
@@ -134,6 +134,31 @@ namespace Tomahawk
 		class Object;
 
 		class Stream;
+
+		class Var;
+
+		enum FileMode
+		{
+			FileMode_Read_Only,
+			FileMode_Write_Only,
+			FileMode_Append_Only,
+			FileMode_Read_Write,
+			FileMode_Write_Read,
+			FileMode_Read_Append_Write,
+			FileMode_Binary_Read_Only,
+			FileMode_Binary_Write_Only,
+			FileMode_Binary_Append_Only,
+			FileMode_Binary_Read_Write,
+			FileMode_Binary_Write_Read,
+			FileMode_Binary_Read_Append_Write
+		};
+
+		enum FileSeek
+		{
+			FileSeek_Begin,
+			FileSeek_Current,
+			FileSeek_End
+		};
 
 		enum EventState
 		{
@@ -159,57 +184,86 @@ namespace Tomahawk
 			EventType_Pull = (1 << 6)
 		};
 
-		enum NodeType
+		enum VarType
 		{
-			NodeType_Undefined,
-			NodeType_Object,
-			NodeType_Array,
-			NodeType_String,
-			NodeType_Integer,
-			NodeType_Number,
-			NodeType_Boolean,
-			NodeType_Null,
-			NodeType_Id,
-			NodeType_Decimal
+			VarType_Null,
+			VarType_Undefined,
+			VarType_Object,
+			VarType_Array,
+			VarType_Pointer,
+			VarType_String,
+			VarType_Base64,
+			VarType_Integer,
+			VarType_Number,
+			VarType_Decimal,
+			VarType_Boolean
 		};
 
-		enum DocumentPretty
+		enum VarFormat
 		{
-			DocumentPretty_Dummy,
-			DocumentPretty_Tab_Decrease,
-			DocumentPretty_Tab_Increase,
-			DocumentPretty_Write_Space,
-			DocumentPretty_Write_Line,
-			DocumentPretty_Write_Tab,
-		};
-
-		enum FileMode
-		{
-			FileMode_Read_Only,
-			FileMode_Write_Only,
-			FileMode_Append_Only,
-			FileMode_Read_Write,
-			FileMode_Write_Read,
-			FileMode_Read_Append_Write,
-			FileMode_Binary_Read_Only,
-			FileMode_Binary_Write_Only,
-			FileMode_Binary_Append_Only,
-			FileMode_Binary_Read_Write,
-			FileMode_Binary_Write_Read,
-			FileMode_Binary_Read_Append_Write
-		};
-
-		enum FileSeek
-		{
-			FileSeek_Begin,
-			FileSeek_Current,
-			FileSeek_End
+			VarFormat_Dummy,
+			VarFormat_Tab_Decrease,
+			VarFormat_Tab_Increase,
+			VarFormat_Write_Space,
+			VarFormat_Write_Line,
+			VarFormat_Write_Tab,
 		};
 
 		typedef std::function<void(class EventQueue*, struct EventArgs*)> BaseCallback;
 		typedef std::function<bool(class EventQueue*, struct EventArgs*)> PullCallback;
-		typedef std::function<void(DocumentPretty, const char*, int64_t)> NWriteCallback;
+		typedef std::function<void(VarFormat, const char*, int64_t)> NWriteCallback;
 		typedef std::function<bool(char*, int64_t)> NReadCallback;
+		typedef std::unordered_map<std::string, struct Variant> VariantArgs;
+		typedef std::vector<struct Variant> VariantList;
+
+		struct TH_OUT Variant
+		{
+			friend Document;
+			friend Var;
+
+		private:
+			struct String
+			{
+				char* Buffer;
+				size_t Size;
+			};
+
+		private:
+			VarType Type;
+			char* Data;
+
+		public:
+			Variant();
+			Variant(const Variant& Other);
+			Variant(Variant&& Other);
+			~Variant();
+			bool Deserialize(const std::string& Value, bool Strict = false);
+			std::string Serialize() const;
+			std::string GetDecimal() const;
+			std::string GetBlob() const;
+			void* GetPointer() const;
+			const char* GetString() const;
+			unsigned char* GetBase64() const;
+			int64_t GetInteger() const;
+			double GetNumber() const;
+			bool GetBoolean() const;
+			VarType GetType() const;
+			size_t GetSize() const;
+			Variant& operator= (const Variant& Other);
+			Variant& operator= (Variant&& Other);
+			bool operator== (const Variant& Other) const;
+			bool operator!= (const Variant& Other) const;
+			operator bool() const;
+			bool IsObject() const;
+			bool IsEmpty() const;
+
+		private:
+			Variant(VarType NewType, char* NewData);
+			bool Is(const Variant& Value) const;
+			void Copy(const Variant& Other);
+			void Copy(Variant&& Other);
+			void Free();
+		};
 
 		struct TH_OUT FileState
 		{
@@ -499,8 +553,8 @@ namespace Tomahawk
 			unsigned int ToUInt() const;
 			unsigned long ToULong() const;
 			int64_t ToInt64() const;
-			double ToFloat64() const;
-			long double ToLFloat64() const;
+			double ToDouble() const;
+			long double ToLDouble() const;
 			uint64_t ToUInt64() const;
 			uint64_t Size() const;
 			uint64_t Capacity() const;
@@ -549,6 +603,27 @@ namespace Tomahawk
 			void Release();
 		};
 
+		class TH_OUT Var
+		{
+		public:
+			static Variant Auto(const std::string& Value, bool Strict = false);
+			static Variant Null();
+			static Variant Undefined();
+			static Variant Object();
+			static Variant Array();
+			static Variant Pointer(void* Value);
+			static Variant String(const std::string& Value);
+			static Variant String(const char* Value, size_t Size);
+			static Variant Base64(const std::string& Value);
+			static Variant Base64(const unsigned char* Value, size_t Size);
+			static Variant Base64(const char* Value, size_t Size);
+			static Variant Integer(int64_t Value);
+			static Variant Number(double Value);
+			static Variant Decimal(const std::string& Value);
+			static Variant Decimal(const char* Value, size_t Size);
+			static Variant Boolean(bool Value);
+		};
+
 		class TH_OUT Mem
 		{
 		private:
@@ -578,271 +653,6 @@ namespace Tomahawk
 			static void ConcatSequentialPages(MemoryPage* Block, bool IsAllocated);
 			static MemoryPage* FindFirstPage(uint64_t MinSize);
 			static void SplitPage(MemoryPage* Block, uint64_t Size);
-		};
-
-		template <class T>
-		class Pool
-		{
-		public:
-			typedef T* Iterator;
-
-		protected:
-			uint64_t Count, Volume;
-			T* Data;
-
-		public:
-			Pool() : Count(0), Volume(0), Data(nullptr)
-			{
-				Reserve(1);
-			}
-			Pool(uint64_t _Size, uint64_t _Capacity, T* _Data) : Count(_Size), Volume(_Capacity), Data(_Data)
-			{
-				if (!Data && Volume > 0)
-					Reserve(Volume);
-				else if (!Data || !Volume)
-					Reserve(1);
-			}
-			Pool(uint64_t _Capacity) : Count(0), Volume(0), Data(nullptr)
-			{
-				if (_Capacity > 0)
-					Reserve(_Capacity);
-				else
-					Reserve(1);
-			}
-			Pool(const Pool<T>& Ref) : Count(0), Volume(0), Data(nullptr)
-			{
-				if (Ref.Data != nullptr)
-					Copy(Ref);
-				else
-					Reserve(1);
-			}
-			~Pool()
-			{
-				Release();
-			}
-			void Swap(const Pool<T>& Raw)
-			{
-				uint64_t _Size = Raw.Count;
-				Raw.Count = Count;
-				Count = _Size;
-
-				uint64_t _Capacity = Raw.Volume;
-				Raw.Volume = Volume;
-				Volume = _Capacity;
-
-				T* _Data = Raw.Data;
-				if (!Raw.Data)
-					Release();
-				else if (!Data)
-					Raw.Release();
-
-				Raw.Data = Data;
-				Data = _Data;
-			}
-			void Reserve(uint64_t NewCount)
-			{
-				if (NewCount <= Volume)
-					return;
-
-				Volume = NewCount;
-				T* Raw = (T*)TH_MALLOC((size_t)(Volume * SizeOf(Data)));
-				memset(Raw, 0, (size_t)(Volume * SizeOf(Data)));
-
-				if (!Assign(Begin(), End(), Raw))
-					memcpy(Raw, Data, (size_t)(Count * SizeOf(Data)));
-
-				if (Data != nullptr)
-				{
-					for (auto It = Begin(); It != End(); It++)
-						Dispose(It);
-
-					TH_FREE(Data);
-				}
-				Data = Raw;
-			}
-			void Release()
-			{
-				if (Data != nullptr)
-				{
-					for (auto It = Begin(); It != End(); It++)
-						Dispose(It);
-
-					TH_FREE(Data);
-					Data = nullptr;
-				}
-
-				Count = Volume = 0;
-			}
-			void Resize(uint64_t NewSize)
-			{
-				if (NewSize > Volume)
-					Reserve(IncreaseCapacity(NewSize));
-
-				Count = NewSize;
-			}
-			void Copy(const Pool<T>& Raw)
-			{
-				if (Data == nullptr || (Data != nullptr && Volume >= Raw.Volume))
-				{
-					Data = (T*)TH_MALLOC((size_t)(Raw.Count * SizeOf(Data)));
-					memset(Data, 0, (size_t)(Raw.Count * SizeOf(Data)));
-				}
-				else
-					Data = (T*)TH_REALLOC(Data, (size_t)(Raw.Volume * SizeOf(Data)));
-
-				Count = Raw.Count;
-				Volume = Raw.Volume;
-				if (!Assign(Raw.Begin(), Raw.End(), Data))
-					memcpy(Data, Raw.Data, (size_t)(Count * SizeOf(Data)));
-			}
-			void Clear()
-			{
-				Count = 0;
-			}
-			Iterator Add(const T& Ref)
-			{
-				if (Count >= Volume)
-					return End();
-
-				Data[Count++] = Ref;
-				return End() - 1;
-			}
-			Iterator AddIfNotExists(const T& Ref)
-			{
-				Iterator It = Find(Ref);
-				if (It != End())
-					return It;
-
-				return Add(Ref);
-			}
-			Iterator RemoveAt(Iterator It)
-			{
-				Count--;
-				Data[It - Data] = Data[Count];
-				Dispose(It);
-				return It;
-			}
-			Iterator Remove(const T& Value)
-			{
-				Iterator It;
-				while ((It = Find(Value)) != End())
-					RemoveAt(It);
-
-				return It;
-			}
-			Iterator At(uint64_t Index) const
-			{
-				if (Index < 0 || Index >= Count)
-					return End();
-
-				return Data + Index;
-			}
-			Iterator Find(const T& Ref)
-			{
-				for (auto It = Data; It != Data + Count; It++)
-				{
-					if (*It == Ref)
-						return It;
-				}
-
-				return Data + Count;
-			}
-
-		public:
-			Iterator Begin() const
-			{
-				return Data;
-			}
-			Iterator End() const
-			{
-				return Data + Count;
-			}
-			T* Get() const
-			{
-				return Data;
-			}
-			T& Front() const
-			{
-				return *Begin();
-			}
-			T& Back() const
-			{
-				return *(End() - 1);
-			}
-			T& operator [](uint64_t Index) const
-			{
-				return *(Data + Index);
-			}
-			Pool<T>& operator =(const Pool<T>& Raw)
-			{
-				Copy(Raw);
-				return *this;
-			}
-			bool operator ==(const Pool<T>& Raw)
-			{
-				return Compare(Raw) == 0;
-			}
-			bool operator !=(const Pool<T>& Raw)
-			{
-				return Compare(Raw) != 0;
-			}
-			bool operator <(const Pool<T>& Raw)
-			{
-				return Compare(Raw) < 0;
-			}
-			bool operator <=(const Pool<T>& Raw)
-			{
-				return Compare(Raw) <= 0;
-			}
-			bool operator >(const Pool<T>& Raw)
-			{
-				return Compare(Raw) > 0;
-			}
-			bool operator >=(const Pool<T>& Raw)
-			{
-				return Compare(Raw) >= 0;
-			}
-
-		public:
-			uint64_t Size() const
-			{
-				return Count;
-			}
-			uint64_t Capacity() const
-			{
-				return Volume;
-			}
-			bool Empty() const
-			{
-				return Count <= 0;
-			}
-
-		protected:
-			bool Assign(Iterator A, Iterator B, Iterator C)
-			{
-				if (std::is_pointer<T>::value)
-					return false;
-
-				std::copy(A, B, C);
-				return true;
-			}
-			void Dispose(Iterator It)
-			{
-				if (!std::is_pointer<T>::value)
-					It->~T();
-			}
-			uint64_t SizeOf(Iterator A)
-			{
-				if (!std::is_pointer<T>::value)
-					return sizeof(T);
-
-				return sizeof(uint64_t);
-			}
-			uint64_t IncreaseCapacity(uint64_t NewSize)
-			{
-				uint64_t Alpha = Volume ? (Volume + Volume / 2) : 8;
-				return Alpha > NewSize ? Alpha : NewSize;
-			}
 		};
 
 		class TH_OUT OS
@@ -1418,92 +1228,332 @@ namespace Tomahawk
 		protected:
 			std::vector<Document*> Nodes;
 			Document* Parent;
-
-		public:
-			std::string Name;
-			std::string String;
-			NodeType Type;
-			int64_t Low;
-			int64_t Integer;
-			double Number;
-			bool Boolean;
 			bool Saved;
 
 		public:
-			Document();
+			std::string Key;
+			Variant Value;
+
+		public:
+			Document(const Variant& Base);
+			Document(Variant&& Base);
 			virtual ~Document() override;
+			std::unordered_map<std::string, uint64_t> GetNames() const;
+			std::vector<Document*> FindCollection(const std::string& Name, bool Deep = false) const;
+			std::vector<Document*> FetchCollection(const std::string& Notation, bool Deep = false) const;
+			std::vector<Document*> GetAttributes() const;
+			std::vector<Document*>* GetNodes();
+			Document* Find(const std::string& Name, bool Deep = false) const;
+			Document* Fetch(const std::string& Notation, bool Deep = false) const;
+			Variant GetVar(size_t Index) const;
+			Variant GetVar(const std::string& Key) const;
+			Document* GetParent() const;
+			Document* GetAttribute(const std::string& Key) const;
+			Document* Get(size_t Index) const;
+			Document* Get(const std::string& Key) const;
+			Document* Set(const std::string& Key);
+			Document* Set(const std::string& Key, const Variant& Value);
+			Document* Set(const std::string& Key, Variant&& Value);
+			Document* Set(const std::string& Key, Document* Value);
+			Document* SetAttribute(const std::string& Key, const Variant& Value);
+			Document* SetAttribute(const std::string& Key, Variant&& Value);
+			Document* Push(const Variant& Value);
+			Document* Push(Variant&& Value);
+			Document* Push(Document* Value);
+			Document* Pop(size_t Index);
+			Document* Pop(const std::string& Name);
+			Document* Copy() const;
+			bool Has(const std::string& Name) const;
+			bool Has64(const std::string& Name, size_t Size = 12) const;
+			bool IsAttribute() const;
+			bool IsSaved() const;
+			int64_t Size() const;
+			std::string GetName() const;
 			void Join(Document* Other);
 			void Clear();
 			void Save();
-			Document* GetIndex(int64_t Index);
-			Document* Get(const std::string& Name);
-			Document* SetCast(const std::string& Name, const std::string& Prop);
-			Document* SetUndefined(const std::string& Name);
-			Document* SetNull(const std::string& Name);
-			Document* SetId(const std::string& Name, unsigned char Value[12]);
-			Document* SetDocument(const std::string& Name, Document* Value);
-			Document* SetDocument(const std::string& Name);
-			Document* SetArray(const std::string& Name, Document* Value);
-			Document* SetArray(const std::string& Name);
-			Document* SetAttribute(const std::string& Name, const std::string& Value);
-			Document* SetString(const std::string& Name, const char* Value, int64_t Size);
-			Document* SetString(const std::string& Name, const std::string& Value);
-			Document* SetInteger(const std::string& Name, int64_t Value);
-			Document* SetNumber(const std::string& Name, double Value);
-			Document* SetDecimal(const std::string& Name, int64_t High, int64_t Low);
-			Document* SetDecimal(const std::string& Name, const std::string& Value);
-			Document* SetBoolean(const std::string& Name, bool Value);
-			Document* Copy();
-			Document* GetParent();
-			Document* GetAttribute(const std::string& Name);
-			bool IsAttribute();
-			bool IsObject();
-			bool Deserialize(const std::string& Value);
-			bool GetBoolean(const std::string& Name);
-			bool GetNull(const std::string& Name);
-			bool GetUndefined(const std::string& Name);
-			int64_t Size();
-			int64_t GetDecimal(const std::string& Name, int64_t* Low);
-			int64_t GetInteger(const std::string& Name);
-			double GetNumber(const std::string& Name);
-			unsigned char* GetId(const std::string& Name);
-			const char* GetString(const std::string& Name);
-			std::string& GetStringBlob(const std::string& Name);
-			std::string GetName();
-			std::string Serialize();
-			Document* Find(const std::string& Name, bool Here = false);
-			Document* FindPath(const std::string& Notation, bool Here = false);
-			std::vector<Document*> FindCollection(const std::string& Name, bool Here = false);
-			std::vector<Document*> FindCollectionPath(const std::string& Notation, bool Here = false);
-			std::vector<Document*> GetAttributes();
-			std::vector<Document*>* GetNodes();
-			std::unordered_map<std::string, uint64_t> CreateMapping();
 
 		public:
-			static bool WriteBIN(Document* Value, const NWriteCallback& Callback);
+			static Document* Object();
+			static Document* Array();
 			static bool WriteXML(Document* Value, const NWriteCallback& Callback);
 			static bool WriteJSON(Document* Value, const NWriteCallback& Callback);
-			static Document* ReadBIN(const NReadCallback& Callback);
-			static Document* ReadXML(int64_t Size, const NReadCallback& Callback);
-			static Document* ReadJSON(int64_t Size, const NReadCallback& Callback);
-			static Document* NewArray();
-			static Document* NewUndefined();
-			static Document* NewNull();
-			static Document* NewId(unsigned char Value[12]);
-			static Document* NewString(const char* Value, int64_t Size);
-			static Document* NewString(const std::string& Value);
-			static Document* NewInteger(int64_t Value);
-			static Document* NewNumber(double Value);
-			static Document* NewDecimal(int64_t High, int64_t Low);
-			static Document* NewDecimal(const std::string& Value);
-			static Document* NewBoolean(bool Value);
+			static bool WriteJSONB(Document* Value, const NWriteCallback& Callback);
+			static Document* ReadXML(int64_t Size, const NReadCallback& Callback, bool Assert = true);
+			static Document* ReadJSON(int64_t Size, const NReadCallback& Callback, bool Assert = true);
+			static Document* ReadJSONB(const NReadCallback& Callback, bool Assert = true);
 
 		private:
-			static void ProcessBINWrite(Document* Current, std::unordered_map<std::string, uint64_t>* Map, const NWriteCallback& Callback);
-			static bool ProcessBINRead(Document* Current, std::unordered_map<uint64_t, std::string>* Map, const NReadCallback& Callback);
-			static bool ProcessMAPRead(Document* Current, std::unordered_map<std::string, uint64_t>* Map, uint64_t& Index);
 			static bool ProcessXMLRead(void* Base, Document* Current);
-			static bool ProcessJSONRead(Document* Current);
+			static bool ProcessJSONRead(void* Base, Document* Current);
+			static bool ProcessJSONBWrite(Document* Current, std::unordered_map<std::string, uint64_t>* Map, const NWriteCallback& Callback);
+			static bool ProcessJSONBRead(Document* Current, std::unordered_map<uint64_t, std::string>* Map, const NReadCallback& Callback);
+			static bool ProcessNames(const Document* Current, std::unordered_map<std::string, uint64_t>* Map, uint64_t& Index);
+		};
+
+		template <class T>
+		class Pool
+		{
+		public:
+			typedef T* Iterator;
+
+		protected:
+			uint64_t Count, Volume;
+			T* Data;
+
+		public:
+			Pool() : Count(0), Volume(0), Data(nullptr)
+			{
+				Reserve(1);
+			}
+			Pool(uint64_t _Size, uint64_t _Capacity, T* _Data) : Count(_Size), Volume(_Capacity), Data(_Data)
+			{
+				if (!Data && Volume > 0)
+					Reserve(Volume);
+				else if (!Data || !Volume)
+					Reserve(1);
+			}
+			Pool(uint64_t _Capacity) : Count(0), Volume(0), Data(nullptr)
+			{
+				if (_Capacity > 0)
+					Reserve(_Capacity);
+				else
+					Reserve(1);
+			}
+			Pool(const Pool<T>& Ref) : Count(0), Volume(0), Data(nullptr)
+			{
+				if (Ref.Data != nullptr)
+					Copy(Ref);
+				else
+					Reserve(1);
+			}
+			~Pool()
+			{
+				Release();
+			}
+			void Swap(const Pool<T>& Raw)
+			{
+				uint64_t _Size = Raw.Count;
+				Raw.Count = Count;
+				Count = _Size;
+
+				uint64_t _Capacity = Raw.Volume;
+				Raw.Volume = Volume;
+				Volume = _Capacity;
+
+				T* _Data = Raw.Data;
+				if (!Raw.Data)
+					Release();
+				else if (!Data)
+					Raw.Release();
+
+				Raw.Data = Data;
+				Data = _Data;
+			}
+			void Reserve(uint64_t NewCount)
+			{
+				if (NewCount <= Volume)
+					return;
+
+				Volume = NewCount;
+				T* Raw = (T*)TH_MALLOC((size_t)(Volume * SizeOf(Data)));
+				memset(Raw, 0, (size_t)(Volume * SizeOf(Data)));
+
+				if (!Assign(Begin(), End(), Raw))
+					memcpy(Raw, Data, (size_t)(Count * SizeOf(Data)));
+
+				if (Data != nullptr)
+				{
+					for (auto It = Begin(); It != End(); It++)
+						Dispose(It);
+
+					TH_FREE(Data);
+				}
+				Data = Raw;
+			}
+			void Release()
+			{
+				if (Data != nullptr)
+				{
+					for (auto It = Begin(); It != End(); It++)
+						Dispose(It);
+
+					TH_FREE(Data);
+					Data = nullptr;
+				}
+
+				Count = Volume = 0;
+			}
+			void Resize(uint64_t NewSize)
+			{
+				if (NewSize > Volume)
+					Reserve(IncreaseCapacity(NewSize));
+
+				Count = NewSize;
+			}
+			void Copy(const Pool<T>& Raw)
+			{
+				if (Data == nullptr || (Data != nullptr && Volume >= Raw.Volume))
+				{
+					Data = (T*)TH_MALLOC((size_t)(Raw.Count * SizeOf(Data)));
+					memset(Data, 0, (size_t)(Raw.Count * SizeOf(Data)));
+				}
+				else
+					Data = (T*)TH_REALLOC(Data, (size_t)(Raw.Volume * SizeOf(Data)));
+
+				Count = Raw.Count;
+				Volume = Raw.Volume;
+				if (!Assign(Raw.Begin(), Raw.End(), Data))
+					memcpy(Data, Raw.Data, (size_t)(Count * SizeOf(Data)));
+			}
+			void Clear()
+			{
+				Count = 0;
+			}
+			Iterator Add(const T& Ref)
+			{
+				if (Count >= Volume)
+					return End();
+
+				Data[Count++] = Ref;
+				return End() - 1;
+			}
+			Iterator AddIfNotExists(const T& Ref)
+			{
+				Iterator It = Find(Ref);
+				if (It != End())
+					return It;
+
+				return Add(Ref);
+			}
+			Iterator RemoveAt(Iterator It)
+			{
+				Count--;
+				Data[It - Data] = Data[Count];
+				Dispose(It);
+				return It;
+			}
+			Iterator Remove(const T& Value)
+			{
+				Iterator It;
+				while ((It = Find(Value)) != End())
+					RemoveAt(It);
+
+				return It;
+			}
+			Iterator At(uint64_t Index) const
+			{
+				if (Index < 0 || Index >= Count)
+					return End();
+
+				return Data + Index;
+			}
+			Iterator Find(const T& Ref)
+			{
+				for (auto It = Data; It != Data + Count; It++)
+				{
+					if (*It == Ref)
+						return It;
+				}
+
+				return Data + Count;
+			}
+
+		public:
+			Iterator Begin() const
+			{
+				return Data;
+			}
+			Iterator End() const
+			{
+				return Data + Count;
+			}
+			T* Get() const
+			{
+				return Data;
+			}
+			T& Front() const
+			{
+				return *Begin();
+			}
+			T& Back() const
+			{
+				return *(End() - 1);
+			}
+			T& operator [](uint64_t Index) const
+			{
+				return *(Data + Index);
+			}
+			Pool<T>& operator =(const Pool<T>& Raw)
+			{
+				Copy(Raw);
+				return *this;
+			}
+			bool operator ==(const Pool<T>& Raw)
+			{
+				return Compare(Raw) == 0;
+			}
+			bool operator !=(const Pool<T>& Raw)
+			{
+				return Compare(Raw) != 0;
+			}
+			bool operator <(const Pool<T>& Raw)
+			{
+				return Compare(Raw) < 0;
+			}
+			bool operator <=(const Pool<T>& Raw)
+			{
+				return Compare(Raw) <= 0;
+			}
+			bool operator >(const Pool<T>& Raw)
+			{
+				return Compare(Raw) > 0;
+			}
+			bool operator >=(const Pool<T>& Raw)
+			{
+				return Compare(Raw) >= 0;
+			}
+
+		public:
+			uint64_t Size() const
+			{
+				return Count;
+			}
+			uint64_t Capacity() const
+			{
+				return Volume;
+			}
+			bool Empty() const
+			{
+				return Count <= 0;
+			}
+
+		protected:
+			bool Assign(Iterator A, Iterator B, Iterator C)
+			{
+				if (std::is_pointer<T>::value)
+					return false;
+
+				std::copy(A, B, C);
+				return true;
+			}
+			void Dispose(Iterator It)
+			{
+				if (!std::is_pointer<T>::value)
+					It->~T();
+			}
+			uint64_t SizeOf(Iterator A)
+			{
+				if (!std::is_pointer<T>::value)
+					return sizeof(T);
+
+				return sizeof(uint64_t);
+			}
+			uint64_t IncreaseCapacity(uint64_t NewSize)
+			{
+				uint64_t Alpha = Volume ? (Volume + Volume / 2) : 8;
+				return Alpha > NewSize ? Alpha : NewSize;
+			}
 		};
 
 		TH_OUT Stroke Form(const char* Format, ...);

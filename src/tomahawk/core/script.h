@@ -312,6 +312,13 @@ namespace Tomahawk
 			VMOpFunc_ImplCast
 		};
 
+		enum VMOp
+		{
+			VMOp_Left = 0,
+			VMOp_Right = 1,
+			VMOp_Const = 2
+		};
+
 		enum VMImport
 		{
 			VMImport_CLibraries = 1,
@@ -954,12 +961,12 @@ namespace Tomahawk
 				return Result;
 			}
 			template <typename T, typename R, typename... A>
-			int SetLOperator(VMOpFunc Op, const char* Out, const char* Args, R(T::*Value)(A...))
+			int SetOperator(VMOpFunc Type, VMOp Opts, const char* Out, const char* Args, R(T::*Value)(A...))
 			{
 				if (!Out)
 					return -1;
 
-				Rest::Stroke Operator = GetOperator(Op, Out, Args, false, false);
+				Rest::Stroke Operator = GetOperator(Type, Out, Args, Opts & VMOp_Const, Opts & VMOp_Right);
 				if (Operator.Empty())
 					return -1;
 
@@ -970,114 +977,18 @@ namespace Tomahawk
 				return Result;
 			}
 			template <typename R, typename... A>
-			int SetLOperatorEx(VMOpFunc Op, const char* Out, const char* Args, R(*Value)(A...))
+			int SetOperatorEx(VMOpFunc Type, VMOp Opts, const char* Out, const char* Args, R(*Value)(A...))
 			{
 				if (!Out)
 					return -1;
 
-				Rest::Stroke Operator = GetOperator(Op, Out, Args, false, false);
+				Rest::Stroke Operator = GetOperator(Type, Out, Args, Opts & VMOp_Const, Opts & VMOp_Right);
 				if (Operator.Empty())
 					return -1;
 
 				asSFuncPtr* Ptr = VMBridge::Function(Value);
 				int Result = SetOperatorAddress(Operator.Get(), Ptr, VMCall_CDECL_OBJFIRST);
                 VMFuncStore::ReleaseFunctor(&Ptr);
-
-				return Result;
-			}
-			template <typename T, typename R, typename... A>
-			int SetLCOperator(VMOpFunc Op, const char* Out, const char* Args, R(T::*Value)(A...))
-			{
-				if (!Out)
-					return -1;
-
-				Rest::Stroke Operator = GetOperator(Op, Out, Args, true, false);
-				if (Operator.Empty())
-					return -1;
-
-				asSFuncPtr* Ptr = VMBridge::Method<T, R, A...>(Value);
-				int Result = SetOperatorAddress(Operator.Get(), Ptr, VMCall_THISCALL);
-				VMFuncStore::ReleaseFunctor(&Ptr);
-
-				return Result;
-			}
-			template <typename R, typename... A>
-			int SetLCOperatorEx(VMOpFunc Op, const char* Out, const char* Args, R(*Value)(A...))
-			{
-				if (!Out)
-					return -1;
-
-				Rest::Stroke Operator = GetOperator(Op, Out, Args, true, false);
-				if (Operator.Empty())
-					return -1;
-
-				asSFuncPtr* Ptr = VMBridge::Function(Value);
-				int Result = SetOperatorAddress(Operator.Get(), Ptr, VMCall_CDECL_OBJFIRST);
-				VMFuncStore::ReleaseFunctor(&Ptr);
-
-				return Result;
-			}
-			template <typename T, typename R, typename... A>
-			int SetROperator(VMOpFunc Op, const char* Out, const char* Args, R(T::*Value)(A...))
-			{
-				if (!Out)
-					return -1;
-
-				Rest::Stroke Operator = GetOperator(Op, Out, Args, false, true);
-				if (Operator.Empty())
-					return -1;
-
-				asSFuncPtr* Ptr = VMBridge::Method<T, R, A...>(Value);
-				int Result = SetOperatorAddress(Operator.Get(), Ptr, VMCall_THISCALL);
-				VMFuncStore::ReleaseFunctor(&Ptr);
-
-				return Result;
-			}
-			template <typename R, typename... A>
-			int SetROperatorEx(VMOpFunc Op, const char* Out, const char* Args, R(*Value)(A...))
-			{
-				if (!Out)
-					return -1;
-
-				Rest::Stroke Operator = GetOperator(Op, Out, Args, false, true);
-				if (Operator.Empty())
-					return -1;
-
-				asSFuncPtr* Ptr = VMBridge::Function(Value);
-				int Result = SetOperatorAddress(Operator.Get(), Ptr, VMCall_CDECL_OBJFIRST);
-				VMFuncStore::ReleaseFunctor(&Ptr);
-
-				return Result;
-			}
-			template <typename T, typename R, typename... A>
-			int SetRCOperator(VMOpFunc Op, const char* Out, const char* Args, R(T::*Value)(A...))
-			{
-				if (!Out)
-					return -1;
-
-				Rest::Stroke Operator = GetOperator(Op, Out, Args, true, true);
-				if (Operator.Empty())
-					return -1;
-
-				asSFuncPtr* Ptr = VMBridge::Method<T, R, A...>(Value);
-				int Result = SetOperatorAddress(Operator.Get(), Ptr, VMCall_THISCALL);
-				VMFuncStore::ReleaseFunctor(&Ptr);
-
-				return Result;
-			}
-			template <typename R, typename... A>
-			int SetRCOperatorEx(VMOpFunc Op, const char* Out, const char* Args, R(*Value)(A...))
-			{
-				if (!Out)
-					return -1;
-
-				Rest::Stroke Operator = GetOperator(Op, Out, Args, true, true);
-				if (Operator.Empty())
-					return -1;
-
-				asSFuncPtr* Ptr = VMBridge::Function(Value);
-				int Result = SetOperatorAddress(Operator.Get(), Ptr, VMCall_CDECL_OBJFIRST);
-				VMFuncStore::ReleaseFunctor(&Ptr);
 
 				return Result;
 			}
@@ -1769,6 +1680,7 @@ namespace Tomahawk
 			std::unordered_map<std::string, Kernel> Kernels;
 			std::unordered_map<std::string, Submodule> Modules;
 			std::vector<VMCContext*> Contexts;
+			std::string DefaultNamespace;
 			Compute::Preprocessor::Desc Proc;
 			Compute::IncludeDesc Include;
 			std::mutex Safe;
@@ -1837,6 +1749,9 @@ namespace Tomahawk
 			size_t GetProperty(VMProp Property) const;
 			VMCManager* GetEngine() const;
 			std::string GetDocumentRoot() const;
+			std::vector<std::string> GetSubmodules() const;
+			std::vector<std::string> VerifyModules(const std::string& Directory, const Compute::RegExp& Exp);
+			bool VerifyModule(const std::string& Path);
 			bool IsNullable(int TypeId);
 			bool AddSubmodule(const std::string& Name, const std::vector<std::string>& Dependencies, const SubmoduleCallback& Callback);
 			bool ImportFile(const std::string& Path, std::string* Out);
@@ -1918,6 +1833,11 @@ namespace Tomahawk
 			std::string ToString(void* Value, unsigned int TypeId, int ExpandMembersLevel, VMManager* Engine);
 			VMManager* GetEngine();
 		};
+
+		inline VMOp operator |(VMOp A, VMOp B)
+		{
+			return static_cast<VMOp>(static_cast<uint64_t>(A) | static_cast<uint64_t>(B));
+		}
 	}
 }
 #endif

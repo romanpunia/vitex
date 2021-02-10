@@ -54,8 +54,6 @@ namespace Tomahawk
 		typedef std::function<bool(class Preprocessor*, const struct IncludeResult& File, std::string* Out)> ProcIncludeCallback;
 		typedef std::function<bool(class Preprocessor*, const std::string& Name, const std::vector<std::string>& Args)> ProcPragmaCallback;
 		typedef std::function<void(const struct CollisionBody&)> CollisionCallback;
-		typedef std::unordered_map<std::string, struct Property> PropertyArgs;
-		typedef std::vector<struct Property> PropertyList;
 
 		enum Hybi10_Opcode
 		{
@@ -175,66 +173,6 @@ namespace Tomahawk
 		{
 			TransformSpace_Local,
 			TransformSpace_Global
-		};
-
-		enum PropertyType
-		{
-			PropertyType_Null,
-			PropertyType_String,
-			PropertyType_Vector4,
-			PropertyType_Vector3,
-			PropertyType_Vector2,
-			PropertyType_Integer,
-			PropertyType_Number,
-			PropertyType_Boolean,
-			PropertyType_Pointer
-		};
-
-		struct TH_OUT Property
-		{
-		private:
-			struct String
-			{
-				char* Buffer;
-				size_t Size;
-			};
-
-		private:
-			PropertyType Type;
-			char* Data;
-
-		public:
-			Property();
-			Property(const Property& Other);
-			~Property();
-			explicit Property(const std::string& Value);
-			explicit Property(const Vector2& Value);
-			explicit Property(const Vector3& Value);
-			explicit Property(const Vector4& Value);
-			explicit Property(int64_t Value);
-			explicit Property(double Value);
-			explicit Property(bool Value);
-			explicit Property(void* Value);
-			std::string ToString() const;
-			const char* GetString() const;
-			Vector2 GetVector2() const;
-			Vector3 GetVector3() const;
-			Vector4 GetVector4() const;
-			size_t GetStringSize() const;
-			int64_t GetInteger() const;
-			double GetNumber() const;
-			bool GetBoolean() const;
-			void* GetPointer() const;
-			PropertyType GetType() const;
-			Property& operator= (const Property& Other);
-			bool operator== (const Property& Other) const;
-			bool operator!= (const Property& Other) const;
-			operator bool() const;
-
-		private:
-			bool Is(const Property& Value) const;
-			void Copy(const Property& Other);
-			void Free();
 		};
 
 		struct TH_OUT IncludeDesc

@@ -78,9 +78,9 @@ namespace Tomahawk
 			typedef std::function<void(void*)> DestroyCallback;
 			typedef std::function<void(DataRow*)> ChangeCallback;
 			typedef std::function<void(IEvent&)> EventCallback;
-			typedef std::function<void(IEvent&, const Compute::PropertyList&)> DataCallback;
-			typedef std::function<void(Compute::Property&)> GetterCallback;
-			typedef std::function<void(const Compute::Property&)> SetterCallback;
+			typedef std::function<void(IEvent&, const Rest::VariantList&)> DataCallback;
+			typedef std::function<void(Rest::Variant&)> GetterCallback;
+			typedef std::function<void(const Rest::Variant&)> SetterCallback;
 			typedef std::function<void(Context*)> ModelCallback;
 
 			enum ModalFlag
@@ -174,6 +174,24 @@ namespace Tomahawk
 				InputType_Text = 3,
 				InputType_Cursor = 4,
 				InputType_Any = (InputType_Keys | InputType_Scroll | InputType_Text | InputType_Cursor)
+			};
+
+			class TH_OUT IVariant
+			{
+			public:
+				static void Convert(Rml::Variant* From, Rest::Variant* To);
+				static void Revert(Rest::Variant* From, Rml::Variant* To);
+				static Compute::Vector4 ToColor4(const std::string& Value);
+				static std::string FromColor4(const Compute::Vector4& Base, bool HEX);
+				static Compute::Vector4 ToColor3(const std::string& Value);
+				static std::string FromColor3(const Compute::Vector4& Base, bool HEX);
+				static int GetVectorType(const std::string& Value);
+				static Compute::Vector4 ToVector4(const std::string& Base);
+				static std::string FromVector4(const Compute::Vector4& Base);
+				static Compute::Vector3 ToVector3(const std::string& Base);
+				static std::string FromVector3(const Compute::Vector3& Base);
+				static Compute::Vector2 ToVector2(const std::string& Base);
+				static std::string FromVector2(const Compute::Vector2& Base);
 			};
 
 			class TH_OUT IEvent
@@ -296,7 +314,7 @@ namespace Tomahawk
 				void Click();
 				void AddEventListener(const std::string& Event, Handler* Listener, bool InCapturePhase = false);
 				void RemoveEventListener(const std::string& Event, Handler* Listener, bool InCapturePhase = false);
-				bool DispatchEvent(const std::string& Type, const Compute::PropertyArgs& Args);
+				bool DispatchEvent(const std::string& Type, const Rest::VariantArgs& Args);
 				void ScrollIntoView(bool AlignWithTop = true);
 				IElement AppendChild(const IElement& Element, bool DOMElement = true);
 				IElement InsertBefore(const IElement& Element, const IElement& AdjacentElement);
@@ -397,27 +415,27 @@ namespace Tomahawk
 
 			private:
 				std::vector<DataNode> Childs;
-				Compute::Property* Ref;
+				Rest::Variant* Ref;
 				DataModel* Handle;
 				std::string* Name;
 				bool Safe;
 
 			private:
-				DataNode(DataModel* Model, std::string* TopName, const Compute::Property& Initial);
-				DataNode(DataModel* Model, std::string* TopName, Compute::Property* Reference);
+				DataNode(DataModel* Model, std::string* TopName, const Rest::Variant& Initial);
+				DataNode(DataModel* Model, std::string* TopName, Rest::Variant* Reference);
 
 			public:
 				DataNode(const DataNode& Other);
 				~DataNode();
-				DataNode& Add(const Compute::PropertyList& Initial);
-				DataNode& Add(const Compute::Property& Initial);
-				DataNode& Add(Compute::Property* Reference);
+				DataNode& Add(const Rest::VariantList& Initial);
+				DataNode& Add(const Rest::Variant& Initial);
+				DataNode& Add(Rest::Variant* Reference);
 				DataNode& At(size_t Index);
 				size_t GetSize();
 				bool Remove(size_t Index);
 				bool Clear();
-				void Set(const Compute::Property& NewValue);
-				void Set(Compute::Property* NewReference);
+				void Set(const Rest::Variant& NewValue);
+				void Set(Rest::Variant* NewReference);
 				void SetString(const std::string& Value);
 				void SetVector2(const Compute::Vector2& Value);
 				void SetVector3(const Compute::Vector3& Value);
@@ -427,7 +445,7 @@ namespace Tomahawk
 				void SetDouble(double Value);
 				void SetBoolean(bool Value);
 				void SetPointer(void* Value);
-				const Compute::Property& Get();
+				const Rest::Variant& Get();
 				std::string GetString();
 				Compute::Vector2 GetVector2();
 				Compute::Vector3 GetVector3();
@@ -498,8 +516,8 @@ namespace Tomahawk
 
 			public:
 				virtual ~DataModel() override;
-				DataNode* SetProperty(const std::string& Name, const Compute::Property& Value);
-				DataNode* SetProperty(const std::string& Name, Compute::Property* Reference);
+				DataNode* SetProperty(const std::string& Name, const Rest::Variant& Value);
+				DataNode* SetProperty(const std::string& Name, Rest::Variant* Reference);
 				DataNode* SetArray(const std::string& Name);
 				DataNode* SetString(const std::string& Name, const std::string& Value);
 				DataNode* SetInteger(const std::string& Name, int64_t Value);

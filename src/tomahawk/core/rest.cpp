@@ -1,5 +1,4 @@
 #include "rest.h"
-#include "../network/bson.h"
 #include "../network/http.h"
 #include <cctype>
 #include <ctime>
@@ -9,6 +8,7 @@
 #include <csignal>
 #include <sys/stat.h>
 #include <rapidxml.hpp>
+#include <rapidjson/document.h>
 #include <tinyfiledialogs.h>
 #ifdef TH_MICROSOFT
 #include <Windows.h>
@@ -120,6 +120,354 @@ namespace Tomahawk
 				Input[0] = L'\0';
 		}
 #endif
+		Variant::Variant() : Type(VarType_Undefined), Data(nullptr)
+		{
+		}
+		Variant::Variant(VarType NewType, char* NewData) : Type(NewType), Data(NewData)
+		{
+		}
+		Variant::Variant(const Variant& Other)
+		{
+			Copy(Other);
+		}
+		Variant::Variant(Variant&& Other) : Type(Other.Type), Data(Other.Data)
+		{
+			Other.Data = nullptr;
+			Other.Type = VarType_Undefined;
+		}
+		Variant::~Variant()
+		{
+			Free();
+		}
+		bool Variant::Deserialize(const std::string& Value, bool Strict)
+		{
+			Free();
+			if (!Strict)
+			{
+				if (Value == TH_PREFIX_STR "null")
+				{
+					Type = VarType_Null;
+					return true;
+				}
+
+				if (Value == TH_PREFIX_STR "undefined")
+				{
+					Type = VarType_Undefined;
+					return true;
+				}
+
+				if (Value == TH_PREFIX_STR "object")
+				{
+					Type = VarType_Object;
+					return true;
+				}
+
+				if (Value == TH_PREFIX_STR "array")
+				{
+					Type = VarType_Array;
+					return true;
+				}
+
+				if (Value == TH_PREFIX_STR "pointer")
+				{
+					Type = VarType_Pointer;
+					return true;
+				}
+
+				if (Value == "true")
+				{
+					Copy(std::move(Var::Boolean(true)));
+					return true;
+				}
+
+				if (Value == "false")
+				{
+					Copy(std::move(Var::Boolean(false)));
+					return true;
+				}
+
+				Stroke Buffer(&Value);
+				if (Buffer.HasNumber())
+				{
+					if (Buffer.HasDecimal())
+						Copy(std::move(Var::Decimal(Buffer.R())));
+					else if (Buffer.HasInteger())
+						Copy(std::move(Var::Integer(Buffer.ToInt64())));
+					else
+						Copy(std::move(Var::Number(Buffer.ToDouble())));
+
+					return true;
+				}
+			}
+
+			if (Value.size() > 2 && Value.front() == TH_PREFIX_CHAR && Value.back() == TH_PREFIX_CHAR)
+			{
+				Copy(std::move(Var::Base64(Compute::Common::Base64Decode(std::string(Value.substr(1).c_str(), Value.size() - 2)))));
+				return true;
+			}
+
+			Copy(std::move(Var::String(Value)));
+			return true;
+		}
+		std::string Variant::Serialize() const
+		{
+			switch (Type)
+			{
+				case VarType_Null:
+					return TH_PREFIX_STR "null";
+				case VarType_Undefined:
+					return TH_PREFIX_STR "undefined";
+				case VarType_Object:
+					return TH_PREFIX_STR "object";
+				case VarType_Array:
+					return TH_PREFIX_STR "array";
+				case VarType_Pointer:
+					return TH_PREFIX_STR "pointer";
+				case VarType_String:
+				case VarType_Decimal:
+					return std::string(GetString(), GetSize());
+				case VarType_Base64:
+					return TH_PREFIX_STR + Compute::Common::Base64Encode(GetBase64(), GetSize()) + TH_PREFIX_STR;
+				case VarType_Integer:
+					return std::to_string(GetInteger());
+				case VarType_Number:
+					return std::to_string(GetNumber());
+				case VarType_Boolean:
+					return GetBoolean() ? "true" : "false";
+				default:
+					return "";
+			}
+		}
+		std::string Variant::GetDecimal() const
+		{
+			if (Type != VarType_Decimal)
+				return "0.0";
+
+			return std::string(((String*)Data)->Buffer, ((String*)Data)->Size);
+		}
+		std::string Variant::GetBlob() const
+		{
+			if (Type != VarType_String && Type != VarType_Base64)
+				return "";
+
+			return std::string(((String*)Data)->Buffer, ((String*)Data)->Size);
+		}
+		void* Variant::GetPointer() const
+		{
+			if (Type == VarType_Pointer)
+				return (void*)Data;
+
+			return nullptr;
+		}
+		const char* Variant::GetString() const
+		{
+			if (Type != VarType_String && Type != VarType_Base64)
+				return nullptr;
+
+			return (const char*)((String*)Data)->Buffer;
+		}
+		unsigned char* Variant::GetBase64() const
+		{
+			if (Type != VarType_String && Type != VarType_Base64)
+				return nullptr;
+
+			return (unsigned char*)((String*)Data)->Buffer;
+		}
+		int64_t Variant::GetInteger() const
+		{
+			if (Type == VarType_Integer)
+				return *(int64_t*)Data;
+
+			if (Type == VarType_Number)
+				return (int64_t)*(double*)Data;
+
+			return 0;
+		}
+		double Variant::GetNumber() const
+		{
+			if (Type == VarType_Integer)
+				return (double)*(int64_t*)Data;
+
+			if (Type == VarType_Number)
+				return *(double*)Data;
+
+			return 0.0;
+		}
+		bool Variant::GetBoolean() const
+		{
+			if (Type == VarType_Boolean)
+				return (Data != nullptr);
+
+			return false;
+		}
+		VarType Variant::GetType() const
+		{
+			return Type;
+		}
+		size_t Variant::GetSize() const
+		{
+			switch (Type)
+			{
+				case VarType_Null:
+				case VarType_Undefined:
+				case VarType_Object:
+				case VarType_Array:
+				case VarType_Boolean:
+					return 0;
+				case VarType_Pointer:
+					return sizeof(char*);
+				case VarType_String:
+				case VarType_Base64:
+				case VarType_Decimal:
+					return ((String*)Data)->Size;
+				case VarType_Integer:
+					return sizeof(int64_t);
+				case VarType_Number:
+					return sizeof(double);
+			}
+
+			return 0;
+		}
+		bool Variant::operator== (const Variant& Other) const
+		{
+			return Is(Other);
+		}
+		bool Variant::operator!= (const Variant& Other) const
+		{
+			return !Is(Other);
+		}
+		Variant& Variant::operator= (const Variant& Other)
+		{
+			Free();
+			Copy(Other);
+
+			return *this;
+		}
+		Variant& Variant::operator= (Variant&& Other)
+		{
+			Free();
+			Copy(std::move(Other));
+
+			return *this;
+		}
+		Variant::operator bool() const
+		{
+			switch (Type)
+			{
+				case VarType_Object:
+				case VarType_Array:
+					return true;
+				case VarType_String:
+				case VarType_Base64:
+				case VarType_Decimal:
+					return GetSize() > 0;
+				case VarType_Integer:
+					return GetInteger() > 0;
+				case VarType_Number:
+					return GetNumber() > 0.0;
+				case VarType_Boolean:
+					return GetBoolean();
+			}
+
+			return Data != nullptr;
+		}
+		bool Variant::IsObject() const
+		{
+			return Type == VarType_Object || Type == VarType_Array;
+		}
+		bool Variant::IsEmpty() const
+		{
+			return Data == nullptr;
+		}
+		bool Variant::Is(const Variant& Value) const
+		{
+			if (Type != Value.Type)
+				return false;
+
+			switch (Type)
+			{
+				case VarType_Null:
+				case VarType_Undefined:
+					return true;
+				case VarType_Pointer:
+					return GetPointer() == Value.GetPointer();
+				case VarType_String:
+				case VarType_Base64:
+				case VarType_Decimal:
+					if (GetSize() != Value.GetSize())
+						return false;
+
+					return strncmp(GetString(), Value.GetString(), sizeof(char) * GetSize()) == 0;
+				case VarType_Integer:
+					return GetInteger() == Value.GetInteger();
+				case VarType_Number:
+					return GetNumber() == Value.GetNumber();
+				case VarType_Boolean:
+					return GetBoolean() == Value.GetBoolean();
+			}
+
+			return false;
+		}
+		void Variant::Copy(const Variant& Other)
+		{
+			Type = Other.Type;
+			switch (Type)
+			{
+				case VarType_Pointer:
+				case VarType_Boolean:
+					Data = (char*)Other.Data;
+					break;
+				case VarType_String:
+				case VarType_Base64:
+				case VarType_Decimal:
+				{
+					String* From = (String*)Other.Data;
+					String* Buffer = (String*)TH_MALLOC(sizeof(String));
+					Buffer->Buffer = (char*)TH_MALLOC(sizeof(char) * (From->Size + 1));
+					Buffer->Size = From->Size;
+
+					memcpy(Buffer->Buffer, From->Buffer, sizeof(char) * From->Size);
+					Buffer->Buffer[Buffer->Size] = '\0';
+					Data = (char*)Buffer;
+					break;
+				}
+				case VarType_Integer:
+					Data = (char*)TH_MALLOC(sizeof(int64_t));
+					memcpy(Data, Other.Data, sizeof(int64_t));
+					break;
+				case VarType_Number:
+					Data = (char*)TH_MALLOC(sizeof(double));
+					memcpy(Data, Other.Data, sizeof(double));
+					break;
+				default:
+					Data = nullptr;
+					break;
+			}
+		}
+		void Variant::Copy(Variant&& Other)
+		{
+			Type = Other.Type;
+			Other.Type = VarType_Undefined;
+			Data = Other.Data;
+			Other.Data = nullptr;
+		}
+		void Variant::Free()
+		{
+			if (!Data)
+				return;
+
+			if (Type == VarType_String || Type == VarType_Base64)
+			{
+				String* Buffer = (String*)Data;
+				TH_FREE(Buffer->Buffer);
+				TH_FREE(Data);
+			}
+			else if (Type != VarType_Undefined && Type != VarType_Null && Type != VarType_Pointer && Type != VarType_Boolean)
+				TH_FREE(Data);
+
+			Data = nullptr;
+		}
+
 		bool EventArgs::Blockable()
 		{
 			if (!Worker || !Worker->Queue)
@@ -1866,11 +2214,11 @@ namespace Tomahawk
 		{
 			return strtoll(L->c_str(), nullptr, 10);
 		}
-		double Stroke::ToFloat64() const
+		double Stroke::ToDouble() const
 		{
 			return strtod(L->c_str(), nullptr);
 		}
-		long double Stroke::ToLFloat64() const
+		long double Stroke::ToLDouble() const
 		{
 			return strtold(L->c_str(), nullptr);
 		}
@@ -2091,6 +2439,131 @@ namespace Tomahawk
 		void SpinLock::Release()
 		{
 			Atom.clear(std::memory_order_release);
+		}
+
+		Variant Var::Auto(const std::string& Value, bool Strict)
+		{
+			Variant Result;
+			Result.Deserialize(Value, Strict);
+
+			return Result;
+		}
+		Variant Var::Null()
+		{
+			return Variant(VarType_Null, nullptr);
+		}
+		Variant Var::Undefined()
+		{
+			return Variant(VarType_Undefined, nullptr);
+		}
+		Variant Var::Object()
+		{
+			return Variant(VarType_Object, nullptr);
+		}
+		Variant Var::Array()
+		{
+			return Variant(VarType_Array, nullptr);
+		}
+		Variant Var::Pointer(void* Value)
+		{
+			if (!Value)
+				return Null();
+
+			return Variant(VarType_Pointer, (char*)Value);
+		}
+		Variant Var::String(const std::string& Value)
+		{
+			Variant::String* Buffer = (Variant::String*)TH_MALLOC(sizeof(Variant::String));
+			Buffer->Size = Value.size();
+			Buffer->Buffer = (char*)TH_MALLOC(sizeof(char) * (Buffer->Size + 1));
+
+			memcpy(Buffer->Buffer, Value.c_str(), sizeof(char) * Buffer->Size);
+			Buffer->Buffer[Buffer->Size] = '\0';
+
+			return Variant(VarType_String, (char*)Buffer);
+		}
+		Variant Var::String(const char* Value, size_t Size)
+		{
+			if (!Value)
+				return Null();
+
+			Variant::String* Buffer = (Variant::String*)TH_MALLOC(sizeof(Variant::String));
+			Buffer->Size = Size;
+			Buffer->Buffer = (char*)TH_MALLOC(sizeof(char) * (Buffer->Size + 1));
+
+			memcpy(Buffer->Buffer, Value, sizeof(char) * Buffer->Size);
+			Buffer->Buffer[Buffer->Size] = '\0';
+
+			return Variant(VarType_String, (char*)Buffer);
+		}
+		Variant Var::Base64(const std::string& Value)
+		{
+			Variant::String* Buffer = (Variant::String*)TH_MALLOC(sizeof(Variant::String));
+			Buffer->Size = Value.size();
+			Buffer->Buffer = (char*)TH_MALLOC(sizeof(char) * (Buffer->Size + 1));
+
+			memcpy(Buffer->Buffer, Value.c_str(), sizeof(char) * Buffer->Size);
+			Buffer->Buffer[Buffer->Size] = '\0';
+
+			return Variant(VarType_Base64, (char*)Buffer);
+		}
+		Variant Var::Base64(const unsigned char* Value, size_t Size)
+		{
+			return Base64((const char*)Value, Size);
+		}
+		Variant Var::Base64(const char* Value, size_t Size)
+		{
+			if (!Value)
+				return Null();
+
+			Variant::String* Buffer = (Variant::String*)TH_MALLOC(sizeof(Variant::String));
+			Buffer->Size = Size;
+			Buffer->Buffer = (char*)TH_MALLOC(sizeof(char) * (Buffer->Size + 1));
+
+			memcpy(Buffer->Buffer, Value, sizeof(char) * Buffer->Size);
+			Buffer->Buffer[Buffer->Size] = '\0';
+
+			return Variant(VarType_Base64, (char*)Buffer);
+		}
+		Variant Var::Integer(int64_t Value)
+		{
+			char* Data = (char*)TH_MALLOC(sizeof(int64_t));
+			memcpy(Data, (void*)&Value, sizeof(int64_t));
+
+			return Variant(VarType_Integer, Data);
+		}
+		Variant Var::Number(double Value)
+		{
+			char* Data = (char*)TH_MALLOC(sizeof(double));
+			memcpy(Data, (void*)&Value, sizeof(double));
+
+			return Variant(VarType_Number, Data);
+		}
+		Variant Var::Decimal(const std::string& Value)
+		{
+			Variant::String* Buffer = (Variant::String*)TH_MALLOC(sizeof(Variant::String));
+			Buffer->Size = Value.size();
+			Buffer->Buffer = (char*)TH_MALLOC(sizeof(char) * (Buffer->Size + 1));
+
+			memcpy(Buffer->Buffer, Value.c_str(), sizeof(char) * Buffer->Size);
+			Buffer->Buffer[Buffer->Size] = '\0';
+
+			return Variant(VarType_Decimal, (char*)Buffer);
+		}
+		Variant Var::Decimal(const char* Value, size_t Size)
+		{
+			Variant::String* Buffer = (Variant::String*)TH_MALLOC(sizeof(Variant::String));
+			Buffer->Size = Size;
+			Buffer->Buffer = (char*)TH_MALLOC(sizeof(char) * (Buffer->Size + 1));
+
+			memcpy(Buffer->Buffer, Value, sizeof(char) * Buffer->Size);
+			Buffer->Buffer[Buffer->Size] = '\0';
+
+			return Variant(VarType_Decimal, (char*)Buffer);
+		}
+		Variant Var::Boolean(bool Value)
+		{
+			return Variant(VarType_Boolean, (char*)(Value ? 0x1 : 0x0));
 		}
 
 		void Mem::Create(size_t InitialSize)
@@ -5139,7 +5612,10 @@ namespace Tomahawk
 			return State;
 		}
 
-		Document::Document() : Parent(nullptr), Type(NodeType_Object), Low(0), Integer(0), Number(0.0), Boolean(false), Saved(true)
+		Document::Document(const Variant& Base) : Parent(nullptr), Saved(true), Value(Base)
+		{
+		}
+		Document::Document(Variant&& Base) : Parent(nullptr), Saved(true), Value(std::move(Base))
 		{
 		}
 		Document::~Document()
@@ -5160,6 +5636,358 @@ namespace Tomahawk
 
 			Clear();
 		}
+		std::unordered_map<std::string, uint64_t> Document::GetNames() const
+		{
+			std::unordered_map<std::string, uint64_t> Mapping;
+			uint64_t Index = 0;
+
+			ProcessNames(this, &Mapping, Index);
+			return Mapping;
+		}
+		std::vector<Document*> Document::FindCollection(const std::string& Name, bool Deep) const
+		{
+			std::vector<Document*> Result;
+			for (auto Value : Nodes)
+			{
+				if (Value->Key == Name)
+					Result.push_back(Value);
+
+				if (!Deep)
+					continue;
+
+				std::vector<Document*> New = Value->FindCollection(Name);
+				for (auto& Subvalue : New)
+					Result.push_back(Subvalue);
+			}
+
+			return Result;
+		}
+		std::vector<Document*> Document::FetchCollection(const std::string& Notation, bool Deep) const
+		{
+			std::vector<std::string> Names = Stroke(Notation).Split('.');
+			if (Names.empty())
+				return std::vector<Document*>();
+
+			if (Names.size() == 1)
+				return FindCollection(*Names.begin());
+
+			Document* Current = Find(*Names.begin(), Deep);
+			if (!Current)
+				return std::vector<Document*>();
+
+			for (auto It = Names.begin() + 1; It != Names.end() - 1; It++)
+			{
+				Current = Current->Find(*It, Deep);
+				if (!Current)
+					return std::vector<Document*>();
+			}
+
+			return Current->FindCollection(*(Names.end() - 1), Deep);
+		}
+		std::vector<Document*> Document::GetAttributes() const
+		{
+			std::vector<Document*> Attributes;
+			for (auto It : Nodes)
+			{
+				if (It->IsAttribute())
+					Attributes.push_back(It);
+			}
+
+			return Attributes;
+		}
+		std::vector<Document*>* Document::GetNodes()
+		{
+			return &Nodes;
+		}
+		Document* Document::Find(const std::string& Name, bool Deep) const
+		{
+			if (Value.Type == VarType_Array)
+			{
+				Rest::Stroke Number(&Name);
+				if (Number.HasInteger())
+				{
+					int64_t Index = Number.ToInt64();
+					if (Index >= 0 && Index < Nodes.size())
+						return Nodes[Index];
+				}
+			}
+
+			for (auto K : Nodes)
+			{
+				if (K->Key == Name)
+					return K;
+
+				if (!Deep)
+					continue;
+
+				Document* V = K->Find(Name);
+				if (V != nullptr)
+					return V;
+			}
+
+			return nullptr;
+		}
+		Document* Document::Fetch(const std::string& Notation, bool Deep) const
+		{
+			std::vector<std::string> Names = Stroke(Notation).Split('.');
+			if (Names.empty())
+				return nullptr;
+
+			Document* Current = Find(*Names.begin(), Deep);
+			if (!Current)
+				return nullptr;
+
+			for (auto It = Names.begin() + 1; It != Names.end(); It++)
+			{
+				Current = Current->Find(*It, Deep);
+				if (!Current)
+					return nullptr;
+			}
+
+			return Current;
+		}
+		Document* Document::GetParent() const
+		{
+			return Parent;
+		}
+		Document* Document::GetAttribute(const std::string& Name) const
+		{
+			return Get("[" + Name + "]");
+		}
+		Variant Document::GetVar(size_t Index) const
+		{
+			Document* Result = Get(Index);
+			if (!Result)
+				return Var::Undefined();
+
+			return Result->Value;
+		}
+		Variant Document::GetVar(const std::string& Key) const
+		{
+			Document* Result = Get(Key);
+			if (!Result)
+				return Var::Undefined();
+
+			return Result->Value;
+		}
+		Document* Document::Get(size_t Index) const
+		{
+			if (Index < 0 || Index >= Nodes.size())
+				return nullptr;
+
+			return Nodes[Index];
+		}
+		Document* Document::Get(const std::string& Name) const
+		{
+			if (Name.empty())
+				return nullptr;
+
+			for (auto Document : Nodes)
+			{
+				if (Document->Key == Name)
+					return Document;
+			}
+
+			return nullptr;
+		}
+		Document* Document::Set(const std::string& Name)
+		{
+			return Set(Name, std::move(Var::Object()));
+		}
+		Document* Document::Set(const std::string& Name, const Variant& Base)
+		{
+			Saved = false;
+			if (Value.Type == VarType_Object)
+			{
+				for (auto Node : Nodes)
+				{
+					if (Node->Key == Name)
+					{
+						Node->Value = Base;
+						Node->Saved = false;
+						Node->Nodes.clear();
+
+						return Node;
+					}
+				}
+			}
+
+			Document* Result = new Document(Base);
+			Result->Key.assign(Name);
+			Result->Saved = false;
+			Result->Parent = this;
+
+			Nodes.push_back(Result);
+			return Result;
+		}
+		Document* Document::Set(const std::string& Name, Variant&& Base)
+		{
+			Saved = false;
+			if (Value.Type == VarType_Object)
+			{
+				for (auto Node : Nodes)
+				{
+					if (Node->Key == Name)
+					{
+						Node->Value = std::move(Base);
+						Node->Saved = false;
+						Node->Nodes.clear();
+
+						return Node;
+					}
+				}
+			}
+
+			Document* Result = new Document(std::move(Base));
+			Result->Key.assign(Name);
+			Result->Saved = false;
+			Result->Parent = this;
+
+			Nodes.push_back(Result);
+			return Result;
+		}
+		Document* Document::Set(const std::string& Name, Document* Base)
+		{
+			if (!Base)
+				return Set(Name, std::move(Var::Null()));
+
+			Base->Key.assign(Name);
+			Base->Saved = false;
+			Base->Parent = this;
+			Saved = false;
+
+			if (Value.Type == VarType_Object)
+			{
+				for (auto It = Nodes.begin(); It != Nodes.end(); It++)
+				{
+					if ((*It)->Key != Name)
+						continue;
+
+					(*It)->Parent = nullptr;
+					TH_RELEASE(*It);
+					*It = Base;
+
+					return Base;
+				}
+			}
+
+			Nodes.push_back(Base);
+			return Base;
+		}
+		Document* Document::SetAttribute(const std::string& Name, const Variant& Value)
+		{
+			return Set("[" + Name + "]", Value);
+		}
+		Document* Document::SetAttribute(const std::string& Name, Variant&& Value)
+		{
+			return Set("[" + Name + "]", std::move(Value));
+		}
+		Document* Document::Push(const Variant& Base)
+		{
+			Document* Result = new Document(Base);
+			Result->Saved = false;
+			Result->Parent = this;
+			Saved = false;
+
+			Nodes.push_back(Result);
+			return Result;
+		}
+		Document* Document::Push(Variant&& Base)
+		{
+			Document* Result = new Document(std::move(Base));
+			Result->Saved = false;
+			Result->Parent = this;
+			Saved = false;
+
+			Nodes.push_back(Result);
+			return Result;
+		}
+		Document* Document::Push(Document* Base)
+		{
+			if (!Base)
+				return Push(std::move(Var::Null()));
+
+			Base->Saved = false;
+			Base->Parent = this;
+			Saved = false;
+
+			Nodes.push_back(Base);
+			return Base;
+		}
+		Document* Document::Pop(size_t Index)
+		{
+			if (Index < 0 || Index >= Nodes.size())
+				return nullptr;
+
+			Document* Base = Nodes[Index];
+			Base->Parent = nullptr;
+			TH_RELEASE(Base);
+			Nodes.erase(Nodes.begin() + Index);
+
+			return this;
+		}
+		Document* Document::Pop(const std::string& Name)
+		{
+			for (auto It = Nodes.begin(); It != Nodes.end(); It++)
+			{
+				if (!*It || (*It)->Key != Name)
+					continue;
+
+				(*It)->Parent = nullptr;
+				TH_RELEASE(*It);
+				Nodes.erase(It);
+				break;
+			}
+
+			return this;
+		}
+		Document* Document::Copy() const
+		{
+			Document* New = new Document(Value);
+			New->Parent = nullptr;
+			New->Key.assign(Key);
+			New->Saved = Saved;
+			New->Nodes = Nodes;
+
+			for (auto It = New->Nodes.begin(); It != New->Nodes.end(); It++)
+			{
+				if (*It != nullptr)
+					*It = (*It)->Copy();
+			}
+
+			return New;
+		}
+		bool Document::Has(const std::string& Name) const
+		{
+			return Fetch(Name) != nullptr;
+		}
+		bool Document::Has64(const std::string& Name, size_t Size) const
+		{
+			Document* Base = Fetch(Name);
+			if (!Base || Base->Value.GetType() != VarType_Base64)
+				return false;
+
+			return Base->Value.GetSize() == Size;
+		}
+		bool Document::IsAttribute() const
+		{
+			if (Key.size() >= 2)
+				return false;
+
+			return (Key.front() == '[' && Key.back() == ']');
+		}
+		bool Document::IsSaved() const
+		{
+			return Saved;
+		}
+		int64_t Document::Size() const
+		{
+			return (int64_t)Nodes.size();
+		}
+		std::string Document::GetName() const
+		{
+			return IsAttribute() ? Key.substr(1, Key.size() - 2) : Key;
+		}
 		void Document::Join(Document* Other)
 		{
 			if (!Other)
@@ -5172,7 +6000,7 @@ namespace Tomahawk
 				Copy->Parent = this;
 				Saved = false;
 
-				if (Type == NodeType_Array)
+				if (Value.Type == VarType_Array)
 				{
 					Nodes.push_back(Copy);
 					continue;
@@ -5181,11 +6009,11 @@ namespace Tomahawk
 				bool Exists = false;
 				for (auto It = Nodes.begin(); It != Nodes.end(); It++)
 				{
-					if (!*It || (*It)->Name != Copy->Name)
+					if (!*It || (*It)->Key != Copy->Key)
 						continue;
 
 					(*It)->Parent = nullptr;
-					delete *It;
+					TH_RELEASE(*It);
 					*It = Copy;
 					Exists = true;
 					break;
@@ -5212,7 +6040,7 @@ namespace Tomahawk
 		{
 			for (auto& It : Nodes)
 			{
-				if (It->Type == NodeType_Array || It->Type == NodeType_Object)
+				if (It->Value.IsObject())
 					It->Save();
 				else
 					It->Saved = true;
@@ -5220,934 +6048,171 @@ namespace Tomahawk
 
 			Saved = true;
 		}
-		Document* Document::GetIndex(int64_t Index)
+		Document* Document::Object()
 		{
-			if (Index < 0 || Index >= Nodes.size())
-				return nullptr;
-
-			return Nodes[Index];
+			return new Document(std::move(Var::Object()));
 		}
-		Document* Document::Get(const std::string& Label)
+		Document* Document::Array()
 		{
-			if (Label.empty())
-				return nullptr;
-
-			for (auto Document : Nodes)
-			{
-				if (Document->Name == Label)
-					return Document;
-			}
-
-			return nullptr;
+			return new Document(std::move(Var::Array()));
 		}
-		Document* Document::SetCast(const std::string& Label, const std::string& Prop)
+		bool Document::WriteXML(Document* Base, const NWriteCallback& Callback)
 		{
-			Document* Value = new Document();
-			if (!Value->Deserialize(Prop))
-			{
-				TH_RELEASE(Value);
-				return SetNull(Label);
-			}
-
-			Value->Saved = false;
-			Value->Parent = this;
-			Value->Name.assign(Label);
-			Saved = false;
-
-			if (Type != NodeType_Array)
-			{
-				for (auto It = Nodes.begin(); It != Nodes.end(); It++)
-				{
-					if (!*It || (*It)->Name != Label)
-						continue;
-
-					(*It)->Parent = nullptr;
-					delete *It;
-					*It = Value;
-
-					return Value;
-				}
-			}
-
-			Nodes.push_back(Value);
-			return Value;
-		}
-		Document* Document::SetUndefined(const std::string& Label)
-		{
-			for (auto It = Nodes.begin(); It != Nodes.end(); It++)
-			{
-				if (!*It || (*It)->Name != Label)
-					continue;
-
-				(*It)->Parent = nullptr;
-				delete *It;
-				Nodes.erase(It);
-				break;
-			}
-
-			return nullptr;
-		}
-		Document* Document::SetNull(const std::string& Label)
-		{
-			Document* Duplicate = Get(Label);
-			Saved = false;
-
-			if (Duplicate != nullptr)
-			{
-				Duplicate->Type = NodeType_Null;
-				Duplicate->Saved = false;
-				Duplicate->Name.assign(Label);
-
-				return Duplicate;
-			}
-
-			Duplicate = new Document();
-			Duplicate->Type = NodeType_Null;
-			Duplicate->Saved = false;
-			Duplicate->Parent = this;
-			Duplicate->Name.assign(Label);
-
-			Nodes.push_back(Duplicate);
-			return Duplicate;
-		}
-		Document* Document::SetId(const std::string& Label, unsigned char Value[12])
-		{
-			Document* Duplicate = Get(Label);
-			Saved = false;
-
-			if (Duplicate != nullptr)
-			{
-				Duplicate->Type = NodeType_Id;
-				Duplicate->String.assign((const char*)Value, 12);
-				Duplicate->Saved = false;
-				Duplicate->Name.assign(Label);
-
-				return Duplicate;
-			}
-
-			Duplicate = new Document();
-			Duplicate->Type = NodeType_Id;
-			Duplicate->String.assign((const char*)Value, 12);
-			Duplicate->Saved = false;
-			Duplicate->Parent = this;
-			Duplicate->Name.assign(Label);
-
-			Nodes.push_back(Duplicate);
-			return Duplicate;
-		}
-		Document* Document::SetDocument(const std::string& Label, Document* Value)
-		{
-			if (!Value)
-				return SetNull(Label);
-
-			Value->Type = NodeType_Object;
-			Value->Saved = false;
-			Value->Parent = this;
-			Value->Name.assign(Label);
-			Saved = false;
-
-			if (Type != NodeType_Array)
-			{
-				for (auto It = Nodes.begin(); It != Nodes.end(); It++)
-				{
-					if (!*It || (*It)->Name != Label)
-						continue;
-
-					(*It)->Parent = nullptr;
-					delete *It;
-					*It = Value;
-
-					return Value;
-				}
-			}
-
-			Nodes.push_back(Value);
-			return Value;
-		}
-		Document* Document::SetDocument(const std::string& Label)
-		{
-			return SetDocument(Label, new Document());
-		}
-		Document* Document::SetArray(const std::string& Label, Document* Value)
-		{
-			if (!Value)
-				return SetNull(Label);
-
-			Value->Type = NodeType_Array;
-			Value->Saved = false;
-			Value->Parent = this;
-			Value->Name.assign(Label);
-			Saved = false;
-
-			if (Type != NodeType_Array)
-			{
-				for (auto It = Nodes.begin(); It != Nodes.end(); It++)
-				{
-					if (!*It || (*It)->Name != Label)
-						continue;
-
-					(*It)->Parent = nullptr;
-					delete *It;
-					*It = Value;
-
-					return Value;
-				}
-			}
-
-			Nodes.push_back(Value);
-			return Value;
-		}
-		Document* Document::SetArray(const std::string& Label)
-		{
-			return SetArray(Label, new Document());
-		}
-		Document* Document::SetAttribute(const std::string& Label, const std::string& Value)
-		{
-			return SetCast("[" + Label + "]", Value);
-		}
-		Document* Document::SetString(const std::string& Label, const char* Value, int64_t Size)
-		{
-			if (!Value)
-				return SetNull(Label);
-
-			Document* Duplicate = Get(Label);
-			Saved = false;
-
-			if (Duplicate != nullptr)
-			{
-				Duplicate->Type = NodeType_String;
-				Duplicate->String.assign(Value, (size_t)(Size < 0 ? strlen(Value) : Size));
-				Duplicate->Saved = false;
-				Duplicate->Name.assign(Label);
-
-				return Duplicate;
-			}
-
-			Duplicate = new Document();
-			Duplicate->Type = NodeType_String;
-			Duplicate->String.assign(Value, (size_t)(Size < 0 ? strlen(Value) : Size));
-			Duplicate->Saved = false;
-			Duplicate->Parent = this;
-			Duplicate->Name.assign(Label);
-
-			Nodes.push_back(Duplicate);
-			return Duplicate;
-		}
-		Document* Document::SetString(const std::string& Label, const std::string& Value)
-		{
-			Document* Duplicate = Get(Label);
-			Saved = false;
-
-			if (Duplicate != nullptr)
-			{
-				Duplicate->Type = NodeType_String;
-				Duplicate->String.assign(Value);
-				Duplicate->Saved = false;
-				Duplicate->Name.assign(Label);
-
-				return Duplicate;
-			}
-
-			Duplicate = new Document();
-			Duplicate->Type = NodeType_String;
-			Duplicate->String.assign(Value);
-			Duplicate->Saved = false;
-			Duplicate->Parent = this;
-			Duplicate->Name.assign(Label);
-
-			Nodes.push_back(Duplicate);
-			return Duplicate;
-		}
-		Document* Document::SetInteger(const std::string& Label, int64_t Value)
-		{
-			Document* Duplicate = Get(Label);
-			Saved = false;
-
-			if (Duplicate != nullptr)
-			{
-				Duplicate->Type = NodeType_Integer;
-				Duplicate->Integer = Value;
-				Duplicate->Number = (double)Value;
-				Duplicate->Saved = false;
-				Duplicate->Name.assign(Label);
-
-				return Duplicate;
-			}
-
-			Duplicate = new Document();
-			Duplicate->Type = NodeType_Integer;
-			Duplicate->Integer = Value;
-			Duplicate->Number = (double)Value;
-			Duplicate->Saved = false;
-			Duplicate->Parent = this;
-			Duplicate->Name.assign(Label);
-
-			Nodes.push_back(Duplicate);
-			return Duplicate;
-		}
-		Document* Document::SetNumber(const std::string& Label, double Value)
-		{
-			Document* Duplicate = Get(Label);
-			Saved = false;
-
-			if (Duplicate != nullptr)
-			{
-				Duplicate->Type = NodeType_Number;
-				Duplicate->Integer = (int64_t)Value;
-				Duplicate->Number = Value;
-				Duplicate->Saved = false;
-				Duplicate->Name.assign(Label);
-
-				return Duplicate;
-			}
-
-			Duplicate = new Document();
-			Duplicate->Type = NodeType_Number;
-			Duplicate->Integer = (int64_t)Value;
-			Duplicate->Number = Value;
-			Duplicate->Saved = false;
-			Duplicate->Parent = this;
-			Duplicate->Name.assign(Label);
-
-			Nodes.push_back(Duplicate);
-			return Duplicate;
-		}
-		Document* Document::SetDecimal(const std::string& Label, int64_t fHigh, int64_t fLow)
-		{
-			Document* Duplicate = Get(Label);
-			Saved = false;
-
-			if (Duplicate != nullptr)
-			{
-				Duplicate->Type = NodeType_Decimal;
-				Duplicate->Integer = fHigh;
-				Duplicate->Low = fLow;
-				Duplicate->Saved = false;
-				Duplicate->Name.assign(Label);
-
-				return Duplicate;
-			}
-
-			Duplicate = new Document();
-			Duplicate->Type = NodeType_Decimal;
-			Duplicate->Integer = fHigh;
-			Duplicate->Low = fLow;
-			Duplicate->Saved = false;
-			Duplicate->Parent = this;
-			Duplicate->Name.assign(Label);
-
-			Nodes.push_back(Duplicate);
-			return Duplicate;
-		}
-		Document* Document::SetDecimal(const std::string& Label, const std::string& Value)
-		{
-#ifdef TH_HAS_MONGOC
-			int64_t fHigh, fLow;
-			if (!Network::BSON::Document::ParseDecimal(Value.c_str(), &fHigh, &fLow))
-				return nullptr;
-
-			return SetDecimal(Label, fHigh, fLow);
-#else
-			return nullptr;
-#endif
-		}
-		Document* Document::SetBoolean(const std::string& Label, bool Value)
-		{
-			Document* Duplicate = Get(Label);
-			Saved = false;
-
-			if (Duplicate != nullptr)
-			{
-				Duplicate->Type = NodeType_Boolean;
-				Duplicate->Boolean = Value;
-				Duplicate->Saved = false;
-				Duplicate->Name.assign(Label);
-
-				return Duplicate;
-			}
-
-			Duplicate = new Document();
-			Duplicate->Type = NodeType_Boolean;
-			Duplicate->Boolean = Value;
-			Duplicate->Saved = false;
-			Duplicate->Parent = this;
-			Duplicate->Name.assign(Label);
-
-			Nodes.push_back(Duplicate);
-			return Duplicate;
-		}
-		Document* Document::Copy()
-		{
-			Document* New = new Document();
-			New->Parent = nullptr;
-			New->Name.assign(Name);
-			New->String.assign(String);
-			New->Type = Type;
-			New->Low = Low;
-			New->Integer = Integer;
-			New->Number = Number;
-			New->Boolean = Boolean;
-			New->Saved = Saved;
-			New->Nodes = Nodes;
-
-			for (auto It = New->Nodes.begin(); It != New->Nodes.end(); It++)
-			{
-				if (*It != nullptr)
-					*It = (*It)->Copy();
-			}
-
-			return New;
-		}
-		Document* Document::GetParent()
-		{
-			return Parent;
-		}
-		Document* Document::GetAttribute(const std::string& Label)
-		{
-			return Get("[" + Label + "]");
-		}
-		bool Document::IsAttribute()
-		{
-			if (Name.empty())
+			if (!Base || !Callback)
 				return false;
 
-			return (Name.front() == '[' && Name.back() == ']');
-		}
-		bool Document::IsObject()
-		{
-			return Type == NodeType_Object || Type == NodeType_Array;
-		}
-		bool Document::GetBoolean(const std::string& Label)
-		{
-			Document* Value = Get(Label);
-			if (!Value || Value->Type != NodeType_Boolean)
-				return false;
-
-			return Value->Boolean;
-		}
-		bool Document::GetNull(const std::string& Label)
-		{
-			Document* Value = Get(Label);
-			return !Value || Value->Type == NodeType_Null;
-		}
-		bool Document::GetUndefined(const std::string& Label)
-		{
-			Document* Value = Get(Label);
-			return !Value || Value->Type == NodeType_Undefined;
-		}
-		int64_t Document::Size()
-		{
-			return (int64_t)Nodes.size();
-		}
-		int64_t Document::GetDecimal(const std::string& Label, int64_t* fLow)
-		{
-			Document* Value = Get(Label);
-			if (!Value || Value->Type != NodeType_Decimal)
-				return 0;
-
-			if (fLow != nullptr)
-				*fLow = Value->Low;
-
-			return Value->Integer;
-		}
-		int64_t Document::GetInteger(const std::string& Label)
-		{
-			Document* Value = Get(Label);
-			if (!Value)
-				return 0;
-
-			if (Value->Type == NodeType_Integer)
-				return Value->Integer;
-
-			if (Value->Type == NodeType_Number)
-				return (int64_t)Value->Number;
-
-			return 0;
-		}
-		double Document::GetNumber(const std::string& Label)
-		{
-			Document* Value = Get(Label);
-			if (!Value)
-				return 0.0;
-
-			if (Value->Type == NodeType_Integer)
-				return (double)Value->Integer;
-
-			if (Value->Type == NodeType_Number)
-				return Value->Number;
-
-			return 0.0;
-		}
-		unsigned char* Document::GetId(const std::string& Label)
-		{
-			Document* Value = Get(Label);
-			if (!Value || Value->Type != NodeType_Id || Value->String.size() != 12)
-				return nullptr;
-
-			return (unsigned char*)Value->String.c_str();
-		}
-		const char* Document::GetString(const std::string& Label)
-		{
-			Document* Value = Get(Label);
-			if (!Value || Value->Type != NodeType_String)
-				return nullptr;
-
-			return Value->String.c_str();
-		}
-		std::string& Document::GetStringBlob(const std::string& Label)
-		{
-			Document* Value = Get(Label);
-			if (!Value || Value->Type != NodeType_String)
-				return String;
-
-			return Value->String;
-		}
-		std::string Document::GetName()
-		{
-			return IsAttribute() ? Name.substr(1, Name.size() - 2) : Name;
-		}
-		Document* Document::Find(const std::string& Label, bool Here)
-		{
-			if (Type == NodeType_Array)
-			{
-				Rest::Stroke Number(&Label);
-				if (Number.HasInteger())
-				{
-					int64_t Index = Number.ToInt64();
-					if (Index >= 0 && Index < Nodes.size())
-						return Nodes[Index];
-				}
-			}
-
-			for (auto K : Nodes)
-			{
-				if (K->Name == Label)
-					return K;
-
-				if (Here)
-					continue;
-
-				Document* V = K->Find(Label);
-				if (V != nullptr)
-					return V;
-			}
-
-			return nullptr;
-		}
-		Document* Document::FindPath(const std::string& Notation, bool Here)
-		{
-			std::vector<std::string> Names = Stroke(Notation).Split('.');
-			if (Names.empty())
-				return nullptr;
-
-			Document* Current = Find(*Names.begin(), Here);
-			if (!Current)
-				return nullptr;
-
-			for (auto It = Names.begin() + 1; It != Names.end(); It++)
-			{
-				Current = Current->Find(*It, Here);
-				if (!Current)
-					return nullptr;
-			}
-
-			return Current;
-		}
-		std::vector<Document*> Document::FindCollection(const std::string& Label, bool Here)
-		{
-			std::vector<Document*> Result;
-			for (auto Value : Nodes)
-			{
-				if (Value->Name == Label)
-					Result.push_back(Value);
-
-				if (Here)
-					continue;
-
-				std::vector<Document*> New = Value->FindCollection(Label);
-				for (auto& Ji : New)
-					Result.push_back(Ji);
-			}
-
-			return Result;
-		}
-		std::vector<Document*> Document::FindCollectionPath(const std::string& Notation, bool Here)
-		{
-			std::vector<std::string> Names = Stroke(Notation).Split('.');
-			if (Names.empty())
-				return std::vector<Document*>();
-
-			if (Names.size() == 1)
-				return FindCollection(*Names.begin());
-
-			Document* Current = Find(*Names.begin(), Here);
-			if (!Current)
-				return std::vector<Document*>();
-
-			for (auto It = Names.begin() + 1; It != Names.end() - 1; It++)
-			{
-				Current = Current->Find(*It, Here);
-				if (!Current)
-					return std::vector<Document*>();
-			}
-
-			return Current->FindCollection(*(Names.end() - 1), Here);
-		}
-		std::vector<Document*> Document::GetAttributes()
-		{
-			std::vector<Document*> Attributes;
-			for (auto It : Nodes)
-			{
-				if (It->IsAttribute())
-					Attributes.push_back(It);
-			}
-
-			return Attributes;
-		}
-		std::vector<Document*>* Document::GetNodes()
-		{
-			return &Nodes;
-		}
-		std::unordered_map<std::string, uint64_t> Document::CreateMapping()
-		{
-			std::unordered_map<std::string, uint64_t> Mapping;
-			uint64_t Index = 0;
-
-			ProcessMAPRead(this, &Mapping, Index);
-			return Mapping;
-		}
-		std::string Document::Serialize()
-		{
-			switch (Type)
-			{
-				case NodeType_Object:
-				case NodeType_Array:
-				case NodeType_String:
-					return String;
-				case NodeType_Integer:
-					return std::to_string(Integer);
-				case NodeType_Number:
-					return std::to_string(Number);
-				case NodeType_Boolean:
-					return Boolean ? "true" : "false";
-				case NodeType_Decimal:
-				{
-#ifdef TH_HAS_MONGOC
-					Network::BSON::KeyPair Pair;
-					Pair.Mod = Network::BSON::Type_Decimal;
-					Pair.High = Integer;
-					Pair.Low = Low;
-
-					return Pair.ToString();
-#else
-					break;
-#endif
-				}
-				case NodeType_Id:
-#ifdef TH_HAS_MONGOC
-					return TH_PREFIX_STR + Network::BSON::Document::OIdToString((unsigned char*)String.c_str());
-#else
-					return TH_PREFIX_STR + Compute::Common::Base64Encode(String);
-#endif
-				case NodeType_Null:
-					return TH_PREFIX_STR "null";
-				case NodeType_Undefined:
-					return TH_PREFIX_STR "undefined";
-				default:
-					break;
-		}
-
-			return "";
-		}
-		bool Document::Deserialize(const std::string& Value)
-		{
-			if (Value == TH_PREFIX_STR "undefined")
-			{
-				Type = NodeType_Undefined;
-				return true;
-			}
-
-			if (Value == TH_PREFIX_STR "object")
-			{
-				Type = NodeType_Object;
-				return true;
-			}
-
-			if (Value == TH_PREFIX_STR "array")
-			{
-				Type = NodeType_Array;
-				return true;
-			}
-
-			if (Value == TH_PREFIX_STR "null")
-			{
-				Type = NodeType_Null;
-				return true;
-			}
-
-			if (Value == "true")
-			{
-				Type = NodeType_Boolean;
-				Boolean = true;
-				return true;
-			}
-
-			if (Value == "false")
-			{
-				Type = NodeType_Boolean;
-				Boolean = false;
-				return true;
-			}
-
-			if (Value.size() == 25 && Value.front() == TH_PREFIX_CHAR)
-			{
-#ifdef TH_HAS_MONGOC
-				std::string OId = Network::BSON::Document::StringToOId(Value.substr(1));
-				if (OId.size() == 12)
-				{
-					Type = NodeType_Id;
-					String = OId;
-					return true;
-				}
-#else
-				Type = NodeType_Id;
-				String = Compute::Common::Base64Decode(Value.substr(1));
-				return true;
-#endif
-			}
-
-			Stroke Man(&Value);
-			if (Man.HasNumber())
-			{
-				if (Man.HasDecimal() && Network::BSON::Document::ParseDecimal(Value.c_str(), &Integer, &Low))
-				{
-					Type = NodeType_Decimal;
-					return true;
-				}
-
-				if (Man.HasInteger())
-				{
-					Type = NodeType_Integer;
-					Integer = Man.ToInt64();
-					Number = (double)Integer;
-				}
-				else
-				{
-					Type = NodeType_Number;
-					Integer = (int64_t)Number;
-					Number = Man.ToFloat64();
-				}
-
-				return true;
-			}
-
-			Type = NodeType_String;
-			String = Value;
-
-			return true;
-			}
-		bool Document::WriteBIN(Document* Value, const NWriteCallback& Callback)
-		{
-			if (!Value || !Callback)
-				return false;
-
-			std::unordered_map<std::string, uint64_t> Mapping = Value->CreateMapping();
-			uint64_t Set = (uint64_t)Mapping.size();
-
-			Callback(DocumentPretty_Dummy, "\0b\0i\0n\0h\0e\0a\0d\r\n", sizeof(char) * 16);
-			Callback(DocumentPretty_Dummy, (const char*)&Set, sizeof(uint64_t));
-
-			for (auto It = Mapping.begin(); It != Mapping.end(); It++)
-			{
-				uint64_t Size = (uint64_t)It->first.size();
-				Callback(DocumentPretty_Dummy, (const char*)&It->second, sizeof(uint64_t));
-				Callback(DocumentPretty_Dummy, (const char*)&Size, sizeof(uint64_t));
-
-				if (Size > 0)
-					Callback(DocumentPretty_Dummy, It->first.c_str(), sizeof(char) * Size);
-			}
-
-			ProcessBINWrite(Value, &Mapping, Callback);
-			return true;
-		}
-		bool Document::WriteXML(Document* Value, const NWriteCallback& Callback)
-		{
-			if (!Value || !Callback)
-				return false;
-
-			std::vector<Document*> Attributes = Value->GetAttributes();
-			std::string Text = Value->String;
-
-			bool Scalable = (!Text.empty() || ((int64_t)Value->Nodes.size() - (int64_t)Attributes.size()) > 0);
-			Callback(DocumentPretty_Write_Tab, "", 0);
-			Callback(DocumentPretty_Dummy, "<", 1);
-			Callback(DocumentPretty_Dummy, Value->Name.c_str(), (int64_t)Value->Name.size());
+			std::vector<Document*> Attributes = Base->GetAttributes();
+			bool Scalable = (Base->Value.GetSize() || ((int64_t)Base->Nodes.size() - (int64_t)Attributes.size()) > 0);
+			Callback(VarFormat_Write_Tab, "", 0);
+			Callback(VarFormat_Dummy, "<", 1);
+			Callback(VarFormat_Dummy, Base->Key.c_str(), (int64_t)Base->Key.size());
 
 			if (Attributes.empty())
 			{
 				if (Scalable)
-					Callback(DocumentPretty_Dummy, ">", 1);
+					Callback(VarFormat_Dummy, ">", 1);
 				else
-					Callback(DocumentPretty_Dummy, " />", 3);
+					Callback(VarFormat_Dummy, " />", 3);
 			}
 			else
-				Callback(DocumentPretty_Dummy, " ", 1);
+				Callback(VarFormat_Dummy, " ", 1);
 
 			for (auto It = Attributes.begin(); It != Attributes.end(); It++)
 			{
-				std::string Name = (*It)->Name;
-				std::string Blob = (*It)->Serialize();
+				std::string Key = (*It)->GetName();
+				std::string Value = (*It)->Value.Serialize();
 
-				Callback(DocumentPretty_Dummy, Name.c_str() + 1, (int64_t)Name.size() - 2);
-				Callback(DocumentPretty_Dummy, "=\"", 2);
-				Callback(DocumentPretty_Dummy, Blob.c_str(), (int64_t)Blob.size());
+				Callback(VarFormat_Dummy, Key.c_str() + 1, (int64_t)Key.size() - 2);
+				Callback(VarFormat_Dummy, "=\"", 2);
+				Callback(VarFormat_Dummy, Value.c_str(), (int64_t)Value.size());
 				It++;
 
 				if (It == Attributes.end())
 				{
 					if (!Scalable)
 					{
-						Callback(DocumentPretty_Write_Space, "\"", 1);
-						Callback(DocumentPretty_Dummy, "/>", 2);
+						Callback(VarFormat_Write_Space, "\"", 1);
+						Callback(VarFormat_Dummy, "/>", 2);
 					}
 					else
-						Callback(DocumentPretty_Dummy, "\">", 2);
+						Callback(VarFormat_Dummy, "\">", 2);
 				}
 				else
-					Callback(DocumentPretty_Write_Space, "\"", 1);
+					Callback(VarFormat_Write_Space, "\"", 1);
 
 				It--;
 			}
 
-			Callback(DocumentPretty_Tab_Increase, "", 0);
-			if (!Text.empty())
+			Callback(VarFormat_Tab_Increase, "", 0);
+			if (Base->Value.GetSize() > 0)
 			{
-				if (!Value->Nodes.empty())
+				std::string Text = Base->Value.Serialize();
+				if (!Base->Nodes.empty())
 				{
-					Callback(DocumentPretty_Write_Line, "", 0);
-					Callback(DocumentPretty_Write_Tab, "", 0);
-					Callback(DocumentPretty_Dummy, Text.c_str(), Text.size());
-					Callback(DocumentPretty_Write_Line, "", 0);
+					Callback(VarFormat_Write_Line, "", 0);
+					Callback(VarFormat_Write_Tab, "", 0);
+					Callback(VarFormat_Dummy, Text.c_str(), Text.size());
+					Callback(VarFormat_Write_Line, "", 0);
 				}
 				else
-					Callback(DocumentPretty_Dummy, Text.c_str(), Text.size());
+					Callback(VarFormat_Dummy, Text.c_str(), Text.size());
 			}
 			else
-				Callback(DocumentPretty_Write_Line, "", 0);
+				Callback(VarFormat_Write_Line, "", 0);
 
-			for (auto&& It : Value->Nodes)
+			for (auto&& It : Base->Nodes)
 			{
 				if (!It->IsAttribute())
 					WriteXML(It, Callback);
 			}
 
-			Callback(DocumentPretty_Tab_Decrease, "", 0);
+			Callback(VarFormat_Tab_Decrease, "", 0);
 			if (!Scalable)
 				return true;
 
-			if (!Value->Nodes.empty())
-				Callback(DocumentPretty_Write_Tab, "", 0);
+			if (!Base->Nodes.empty())
+				Callback(VarFormat_Write_Tab, "", 0);
 
-			Callback(DocumentPretty_Dummy, "</", 2);
-			Callback(DocumentPretty_Dummy, Value->Name.c_str(), (int64_t)Value->Name.size());
-			Callback(Value->Parent ? DocumentPretty_Write_Line : DocumentPretty_Dummy, ">", 1);
+			Callback(VarFormat_Dummy, "</", 2);
+			Callback(VarFormat_Dummy, Base->Key.c_str(), (int64_t)Base->Key.size());
+			Callback(Base->Parent ? VarFormat_Write_Line : VarFormat_Dummy, ">", 1);
 
 			return true;
 		}
-		bool Document::WriteJSON(Document* Value, const NWriteCallback& Callback)
+		bool Document::WriteJSON(Document* Base, const NWriteCallback& Callback)
 		{
-			if (!Value || !Callback)
+			if (!Base || !Callback)
 				return false;
 
-			auto Size = Value->Nodes.size();
-			size_t Offset = 0;
-			bool Array = (Value->Type == NodeType_Array);
-
-			if (Array)
+			if (!Base->Parent && !Base->Value.IsObject())
 			{
-				for (auto&& Document : Value->Nodes)
-				{
-					if (Document->Name.empty())
-						continue;
-
-					Array = false;
-					break;
-				}
-			}
-
-			if (Value->Parent != nullptr)
-				Callback(DocumentPretty_Write_Line, "", 0);
-
-			Callback(DocumentPretty_Write_Tab, "", 0);
-			Callback(DocumentPretty_Dummy, Array ? "[" : "{", 1);
-			Callback(DocumentPretty_Tab_Increase, "", 0);
-
-			if (!Array && !Value->String.empty())
-			{
-				Rest::Stroke Safe(Value->String);
+				std::string Value = Base->Value.Serialize();
+				Rest::Stroke Safe(&Value);
 				Safe.Escape();
 
-				Callback(DocumentPretty_Write_Line, "", 0);
-				Callback(DocumentPretty_Write_Tab, "", 0);
-				Callback(DocumentPretty_Write_Space, "\"@text@\":", 9);
-				Callback(DocumentPretty_Dummy, "\"", 1);
-				Callback(DocumentPretty_Dummy, Safe.Get(), (int64_t)Safe.Size());
-				Callback(DocumentPretty_Dummy, "\"", 1);
+				if (Base->Value.Type != VarType_String && Base->Value.Type != VarType_Base64)
+				{
+					if (!Value.empty() && Value.front() == TH_PREFIX_CHAR)
+						Callback(VarFormat_Dummy, Value.c_str() + 1, (int64_t)Value.size() - 1);
+					else
+						Callback(VarFormat_Dummy, Value.c_str(), (int64_t)Value.size());
+				}
+				else
+				{
+					Callback(VarFormat_Dummy, "\"", 1);
+					Callback(VarFormat_Dummy, Value.c_str(), (int64_t)Value.size());
+					Callback(VarFormat_Dummy, "\"", 1);
+				}
+
+				return true;
 			}
+			
+			size_t Size = Base->Nodes.size(), Offset = 0;
+			bool Array = (Base->Value.Type == VarType_Array);
 
-			std::unordered_map<std::string, uint64_t> Mapping = Value->CreateMapping();
-			for (auto&& It : Mapping)
-				It.second = 0;
+			if (Base->Parent != nullptr)
+				Callback(VarFormat_Write_Line, "", 0);
 
-			for (auto&& Document : Value->Nodes)
+			Callback(VarFormat_Write_Tab, "", 0);
+			Callback(VarFormat_Dummy, Array ? "[" : "{", 1);
+			Callback(VarFormat_Tab_Increase, "", 0);
+
+			for (auto&& Document : Base->Nodes)
 			{
 				if (!Array)
 				{
-					std::string Name = Document->Name;
-
-					auto It = Mapping.find(Name);
-					if (It != Mapping.end())
-					{
-						if (It->second > 0)
-							Name.append(1, '@').append(std::to_string(It->second - 1));
-						It->second++;
-					}
-
-					Callback(DocumentPretty_Write_Line, "", 0);
-					Callback(DocumentPretty_Write_Tab, "", 0);
-					Callback(DocumentPretty_Dummy, "\"", 1);
-					Callback(DocumentPretty_Dummy, Name.c_str(), (int64_t)Name.size());
-					Callback(DocumentPretty_Write_Space, "\":", 2);
+					std::string Key = Document->GetName();
+					Callback(VarFormat_Write_Line, "", 0);
+					Callback(VarFormat_Write_Tab, "", 0);
+					Callback(VarFormat_Dummy, "\"", 1);
+					Callback(VarFormat_Dummy, Key.c_str(), (int64_t)Key.size());
+					Callback(VarFormat_Write_Space, "\":", 2);
 				}
 
-				bool Blob = Document->IsObject();
-				if (Blob && Document->Type == NodeType_Array && !Document->String.empty() && Document->Nodes.empty())
-					Blob = false;
-
-				if (!Blob)
+				if (!Document->Value.IsObject())
 				{
-					std::string Key = Document->Serialize();
-					Rest::Stroke Safe(&Key);
+					std::string Value = Document->Value.Serialize();
+					Rest::Stroke Safe(&Value);
 					Safe.Escape();
 
 					if (Array)
 					{
-						Callback(DocumentPretty_Write_Line, "", 0);
-						Callback(DocumentPretty_Write_Tab, "", 0);
+						Callback(VarFormat_Write_Line, "", 0);
+						Callback(VarFormat_Write_Tab, "", 0);
 					}
 
-					if (!Document->IsObject() && Document->Type != NodeType_String && Document->Type != NodeType_Id)
+					if (!Document->Value.IsObject() && Document->Value.Type != VarType_String && Document->Value.Type != VarType_Base64)
 					{
-						if (!Key.empty() && Key.front() == TH_PREFIX_CHAR)
-							Callback(DocumentPretty_Dummy, Key.c_str() + 1, (int64_t)Key.size() - 1);
+						if (!Value.empty() && Value.front() == TH_PREFIX_CHAR)
+							Callback(VarFormat_Dummy, Value.c_str() + 1, (int64_t)Value.size() - 1);
 						else
-							Callback(DocumentPretty_Dummy, Key.c_str(), (int64_t)Key.size());
+							Callback(VarFormat_Dummy, Value.c_str(), (int64_t)Value.size());
 					}
 					else
 					{
-						Callback(DocumentPretty_Dummy, "\"", 1);
-						Callback(DocumentPretty_Dummy, Key.c_str(), (int64_t)Key.size());
-						Callback(DocumentPretty_Dummy, "\"", 1);
+						Callback(VarFormat_Dummy, "\"", 1);
+						Callback(VarFormat_Dummy, Value.c_str(), (int64_t)Value.size());
+						Callback(VarFormat_Dummy, "\"", 1);
 					}
 				}
 				else
@@ -6155,84 +6220,43 @@ namespace Tomahawk
 
 				Offset++;
 				if (Offset < Size)
-					Callback(DocumentPretty_Dummy, ",", 1);
+					Callback(VarFormat_Dummy, ",", 1);
 			}
 
-			Callback(DocumentPretty_Tab_Decrease, "", 0);
-			Callback(DocumentPretty_Write_Line, "", 0);
+			Callback(VarFormat_Tab_Decrease, "", 0);
+			Callback(VarFormat_Write_Line, "", 0);
 
-			if (Value->Parent != nullptr)
-				Callback(DocumentPretty_Write_Tab, "", 0);
+			if (Base->Parent != nullptr)
+				Callback(VarFormat_Write_Tab, "", 0);
 
-			Callback(DocumentPretty_Dummy, Array ? "]" : "}", 1);
+			Callback(VarFormat_Dummy, Array ? "]" : "}", 1);
 			return true;
 		}
-		Document* Document::ReadBIN(const NReadCallback& Callback)
+		bool Document::WriteJSONB(Document* Base, const NWriteCallback& Callback)
 		{
-			if (!Callback)
-				return nullptr;
+			if (!Base || !Callback)
+				return false;
 
-			char Hello[18];
-			if (!Callback((char*)Hello, sizeof(char) * 16))
+			std::unordered_map<std::string, uint64_t> Mapping = Base->GetNames();
+			uint64_t Set = (uint64_t)Mapping.size();
+
+			Callback(VarFormat_Dummy, "\0b\0i\0n\0h\0e\0a\0d\r\n", sizeof(char) * 16);
+			Callback(VarFormat_Dummy, (const char*)&Set, sizeof(uint64_t));
+
+			for (auto It = Mapping.begin(); It != Mapping.end(); It++)
 			{
-				TH_ERROR("form cannot be defined");
-				return nullptr;
+				uint64_t Size = (uint64_t)It->first.size();
+				Callback(VarFormat_Dummy, (const char*)&It->second, sizeof(uint64_t));
+				Callback(VarFormat_Dummy, (const char*)&Size, sizeof(uint64_t));
+
+				if (Size > 0)
+					Callback(VarFormat_Dummy, It->first.c_str(), sizeof(char) * Size);
 			}
 
-			if (memcmp((void*)Hello, (void*)"\0b\0i\0n\0h\0e\0a\0d\r\n", sizeof(char) * 16) != 0)
-			{
-				TH_ERROR("version is undefined");
-				return nullptr;
-			}
-
-			uint64_t Set = 0;
-			if (!Callback((char*)&Set, sizeof(uint64_t)))
-			{
-				TH_ERROR("name map is undefined");
-				return nullptr;
-			}
-
-			std::unordered_map<uint64_t, std::string> Map;
-			for (uint64_t i = 0; i < Set; i++)
-			{
-				uint64_t Index = 0;
-				if (!Callback((char*)&Index, sizeof(uint64_t)))
-				{
-					TH_ERROR("name index is undefined");
-					return nullptr;
-				}
-
-				uint64_t Size = 0;
-				if (!Callback((char*)&Size, sizeof(uint64_t)))
-				{
-					TH_ERROR("name size is undefined");
-					return nullptr;
-				}
-
-				if (Size <= 0)
-					continue;
-
-				std::string Name;
-				Name.resize(Size);
-				if (!Callback((char*)Name.c_str(), sizeof(char) * Size))
-				{
-					TH_ERROR("name data is undefined");
-					return nullptr;
-				}
-
-				Map.insert({ Index, Name });
-			}
-
-			Document* Current = new Document();
-			if (!ProcessBINRead(Current, &Map, Callback))
-			{
-				TH_RELEASE(Current);
-				return nullptr;
-			}
-
-			return Current;
+			ProcessJSONBWrite(Base, &Mapping, Callback);
+			return true;
 		}
-		Document* Document::ReadXML(int64_t Size, const NReadCallback& Callback)
+		Document* Document::ReadXML(int64_t Size, const NReadCallback& Callback, bool Assert)
 		{
 			if (!Callback || !Size)
 				return nullptr;
@@ -6241,7 +6265,9 @@ namespace Tomahawk
 			Buffer.resize(Size);
 			if (!Callback((char*)Buffer.c_str(), sizeof(char) * Size))
 			{
-				TH_ERROR("cannot read xml document");
+				if (Assert)
+					TH_ERROR("cannot read xml document");
+
 				return nullptr;
 			}
 
@@ -6253,25 +6279,33 @@ namespace Tomahawk
 			catch (const std::runtime_error& e)
 			{
 				delete iDocument;
-				TH_ERROR("[xml] %s", e.what());
+				if (Assert)
+					TH_ERROR("[xml] %s", e.what());
+
 				return nullptr;
 			}
 			catch (const rapidxml::parse_error& e)
 			{
 				delete iDocument;
-				TH_ERROR("[xml] %s", e.what());
+				if (Assert)
+					TH_ERROR("[xml] %s", e.what());
+
 				return nullptr;
 			}
 			catch (const std::exception& e)
 			{
 				delete iDocument;
-				TH_ERROR("[xml] %s", e.what());
+				if (Assert)
+					TH_ERROR("[xml] %s", e.what());
+
 				return nullptr;
 			}
 			catch (...)
 			{
 				delete iDocument;
-				TH_ERROR("[xml] parse error");
+				if (Assert)
+					TH_ERROR("[xml] parse error");
+
 				return nullptr;
 			}
 
@@ -6284,10 +6318,8 @@ namespace Tomahawk
 				return nullptr;
 			}
 
-			Document* Result = new Document();
-			Result->Name = Base->name();
-			Result->String = Base->value();
-			Result->Type = NodeType_Array;
+			Document* Result = Document::Array();
+			Result->Key = Base->name();
 
 			if (!ProcessXMLRead((void*)Base, Result))
 				TH_CLEAR(Result);
@@ -6297,179 +6329,376 @@ namespace Tomahawk
 
 			return Result;
 		}
-		Document* Document::ReadJSON(int64_t Size, const NReadCallback& Callback)
+		Document* Document::ReadJSON(int64_t Size, const NReadCallback& Callback, bool Assert)
 		{
 			if (!Callback || !Size)
 				return nullptr;
 
-#ifdef TH_HAS_MONGOC
 			std::string Buffer;
 			Buffer.resize(Size);
 			if (!Callback((char*)Buffer.c_str(), sizeof(char) * Size))
 			{
-				TH_ERROR("cannot read json document");
-				return nullptr;
-		}
+				if (Assert)
+					TH_ERROR("cannot read json document");
 
-			Network::BSON::TDocument* Document = Network::BSON::Document::Create(Buffer);
-			if (!Document)
-			{
-				TH_ERROR("cannot parse json document");
 				return nullptr;
 			}
 
-			Rest::Document* Result = Network::BSON::Document::ToDocument(Document);
-			Network::BSON::Document::Release(&Document);
-			ProcessJSONRead(Result);
-
-			if (Result != nullptr && Result->Name.empty())
-				Result->Name.assign("document");
-
-			return Result;
-#else
-			TH_ERROR("json parse is unsupported for this build");
-			return nullptr;
-#endif
-		}
-		Document* Document::NewArray()
-		{
-			Document* Result = new Document();
-			Result->Type = NodeType_Array;
-
-			return Result;
-		}
-		Document* Document::NewUndefined()
-		{
-			Document* Result = new Document();
-			Result->Type = NodeType_Undefined;
-
-			return Result;
-		}
-		Document* Document::NewNull()
-		{
-			Document* Result = new Document();
-			Result->Type = NodeType_Null;
-
-			return Result;
-		}
-		Document* Document::NewId(unsigned char Value[12])
-		{
-			if (!Value)
-				return nullptr;
-
-			Document* Result = new Document();
-			Result->Type = NodeType_Id;
-			Result->String.assign((const char*)Value, 12);
-
-			return Result;
-		}
-		Document* Document::NewString(const char* Value, int64_t Size)
-		{
-			if (!Value)
-				return nullptr;
-
-			Document* Result = new Document();
-			Result->Type = NodeType_String;
-			Result->String.assign(Value, Size);
-
-			return Result;
-		}
-		Document* Document::NewString(const std::string& Value)
-		{
-			Document* Result = new Document();
-			Result->Type = NodeType_String;
-			Result->String.assign(Value);
-
-			return Result;
-		}
-		Document* Document::NewInteger(int64_t Value)
-		{
-			Document* Result = new Document();
-			Result->Type = NodeType_Integer;
-			Result->Integer = Value;
-			Result->Number = (double)Value;
-
-			return Result;
-		}
-		Document* Document::NewNumber(double Value)
-		{
-			Document* Result = new Document();
-			Result->Type = NodeType_Number;
-			Result->Integer = (int64_t)Value;
-			Result->Number = Value;
-
-			return Result;
-		}
-		Document* Document::NewDecimal(int64_t High, int64_t Low)
-		{
-			Document* Result = new Document();
-			Result->Type = NodeType_Decimal;
-			Result->Integer = High;
-			Result->Low = Low;
-
-			return Result;
-		}
-		Document* Document::NewDecimal(const std::string& Value)
-		{
-#ifdef TH_HAS_MONGOC
-			int64_t fHigh, fLow;
-			if (!Network::BSON::Document::ParseDecimal(Value.c_str(), &fHigh, &fLow))
-				return nullptr;
-
-			Document* Result = new Document();
-			Result->Type = NodeType_Decimal;
-			Result->Integer = fHigh;
-			Result->Low = fLow;
-
-			return Result;
-#else
-			return nullptr;
-#endif
-		}
-		Document* Document::NewBoolean(bool Value)
-		{
-			Document* Result = new Document();
-			Result->Type = NodeType_Boolean;
-			Result->Boolean = Value;
-
-			return Result;
-		}
-		void Document::ProcessBINWrite(Document* Current, std::unordered_map<std::string, uint64_t>* Map, const NWriteCallback& Callback)
-		{
-			uint64_t Id = Map->at(Current->Name), Count = 0;
-			Callback(DocumentPretty_Dummy, (const char*)&Id, sizeof(uint64_t));
-			Callback(DocumentPretty_Dummy, (const char*)&Current->Type, sizeof(NodeType));
-			Callback(DocumentPretty_Dummy, (const char*)&(Count = Current->String.size()), sizeof(uint64_t));
-
-			if (Count > 0)
-				Callback(DocumentPretty_Dummy, (const char*)Current->String.c_str(), (size_t)Count);
-
-			switch (Current->Type)
+			rapidjson::Document Base;
+			Base.Parse(Buffer.c_str(), Buffer.size());
+			
+			Rest::Document* Result = nullptr;
+			if (Base.HasParseError())
 			{
-				case NodeType_Integer:
-					Callback(DocumentPretty_Dummy, (const char*)&Current->Integer, sizeof(int64_t));
+				if (!Assert)
+					return nullptr;
+
+				int Offset = (int)Base.GetErrorOffset();
+				switch (Base.GetParseError())
+				{
+					case rapidjson::kParseErrorDocumentEmpty:
+						TH_ERROR("[json:%i] the document is empty", Offset);
+						break;
+					case rapidjson::kParseErrorDocumentRootNotSingular:
+						TH_ERROR("[json:%i] the document root must not follow by other values", Offset);
+						break;
+					case rapidjson::kParseErrorValueInvalid:
+						TH_ERROR("[json:%i] invalid value", Offset);
+						break;
+					case rapidjson::kParseErrorObjectMissName:
+						TH_ERROR("[json:%i] missing a name for object member", Offset);
+						break;
+					case rapidjson::kParseErrorObjectMissColon:
+						TH_ERROR("[json:%i] missing a colon after a name of object member", Offset);
+						break;
+					case rapidjson::kParseErrorObjectMissCommaOrCurlyBracket:
+						TH_ERROR("[json:%i] missing a comma or '}' after an object member", Offset);
+						break;
+					case rapidjson::kParseErrorArrayMissCommaOrSquareBracket:
+						TH_ERROR("[json:%i] missing a comma or ']' after an array element", Offset);
+						break;
+					case rapidjson::kParseErrorStringUnicodeEscapeInvalidHex:
+						TH_ERROR("[json:%i] incorrect hex digit after \\u escape in string", Offset);
+						break;
+					case rapidjson::kParseErrorStringUnicodeSurrogateInvalid:
+						TH_ERROR("[json:%i] the surrogate pair in string is invalid", Offset);
+						break;
+					case rapidjson::kParseErrorStringEscapeInvalid:
+						TH_ERROR("[json:%i] invalid escape character in string", Offset);
+						break;
+					case rapidjson::kParseErrorStringMissQuotationMark:
+						TH_ERROR("[json:%i] missing a closing quotation mark in string", Offset);
+						break;
+					case rapidjson::kParseErrorStringInvalidEncoding:
+						TH_ERROR("[json:%i] invalid encoding in string", Offset);
+						break;
+					case rapidjson::kParseErrorNumberTooBig:
+						TH_ERROR("[json:%i] number too big to be stored in double", Offset);
+						break;
+					case rapidjson::kParseErrorNumberMissFraction:
+						TH_ERROR("[json:%i] miss fraction part in number", Offset);
+						break;
+					case rapidjson::kParseErrorNumberMissExponent:
+						TH_ERROR("[json:%i] miss exponent in number", Offset);
+						break;
+					case rapidjson::kParseErrorTermination:
+						TH_ERROR("[json:%i] parsing was terminated", Offset);
+						break;
+					case rapidjson::kParseErrorUnspecificSyntaxError:
+						TH_ERROR("[json:%i] unspecific syntax error", Offset);
+						break;
+					default:
+						break;
+				}
+
+				return nullptr;
+			}
+
+			rapidjson::Type Type = Base.GetType();
+			switch (Type)
+			{
+				case rapidjson::kNullType:
+					Result = new Document(std::move(Var::Null()));
 					break;
-				case NodeType_Number:
-					Callback(DocumentPretty_Dummy, (const char*)&Current->Number, sizeof(double));
+				case rapidjson::kFalseType:
+					Result = new Document(std::move(Var::Boolean(false)));
 					break;
-				case NodeType_Decimal:
-					Callback(DocumentPretty_Dummy, (const char*)&Current->Integer, sizeof(int64_t));
-					Callback(DocumentPretty_Dummy, (const char*)&Current->Low, sizeof(int64_t));
+				case rapidjson::kTrueType:
+					Result = new Document(std::move(Var::Boolean(true)));
 					break;
-				case NodeType_Boolean:
-					Callback(DocumentPretty_Dummy, (const char*)&Current->Boolean, sizeof(bool));
+				case rapidjson::kObjectType:
+					Result = Document::Object();
+					if (!ProcessJSONRead((void*)&Base, Result))
+						TH_CLEAR(Result);
 					break;
-				case NodeType_Array:
-				case NodeType_Object:
-					Callback(DocumentPretty_Dummy, (const char*)&(Count = Current->Nodes.size()), sizeof(uint64_t));
-					for (auto& Document : Current->Nodes)
-						ProcessBINWrite(Document, Map, Callback);
+				case rapidjson::kArrayType:
+					Result = Document::Array();
+					if (!ProcessJSONRead((void*)&Base, Result))
+						TH_CLEAR(Result);
+					break;
+				case rapidjson::kStringType:
+					Result = new Document(std::move(Var::Auto(std::string(Base.GetString(), Base.GetStringLength()), true)));
+					break;
+				case rapidjson::kNumberType:
+					if (Base.IsInt())
+						Result = new Document(std::move(Var::Integer(Base.GetInt64())));
+					else
+						Result = new Document(std::move(Var::Number(Base.GetDouble())));
 					break;
 				default:
+					Result = new Document(std::move(Var::Undefined()));
 					break;
 			}
+
+			if (Result != nullptr && Result->Key.empty())
+				Result->Key.assign("document");
+
+			return Result;
 		}
-		bool Document::ProcessBINRead(Document* Current, std::unordered_map<uint64_t, std::string>* Map, const NReadCallback& Callback)
+		Document* Document::ReadJSONB(const NReadCallback& Callback, bool Assert)
+		{
+			if (!Callback)
+				return nullptr;
+
+			char Hello[18];
+			if (!Callback((char*)Hello, sizeof(char) * 16))
+			{
+				if (Assert)
+					TH_ERROR("form cannot be defined");
+
+				return nullptr;
+			}
+
+			if (memcmp((void*)Hello, (void*)"\0b\0i\0n\0h\0e\0a\0d\r\n", sizeof(char) * 16) != 0)
+			{
+				if (Assert)
+					TH_ERROR("version is undefined");
+
+				return nullptr;
+			}
+
+			uint64_t Set = 0;
+			if (!Callback((char*)&Set, sizeof(uint64_t)))
+			{
+				if (Assert)
+					TH_ERROR("name map is undefined");
+
+				return nullptr;
+			}
+
+			std::unordered_map<uint64_t, std::string> Map;
+			for (uint64_t i = 0; i < Set; i++)
+			{
+				uint64_t Index = 0;
+				if (!Callback((char*)&Index, sizeof(uint64_t)))
+				{
+					if (Assert)
+						TH_ERROR("name index is undefined");
+
+					return nullptr;
+				}
+
+				uint64_t Size = 0;
+				if (!Callback((char*)&Size, sizeof(uint64_t)))
+				{
+					if (Assert)
+						TH_ERROR("name size is undefined");
+
+					return nullptr;
+				}
+
+				if (Size <= 0)
+					continue;
+
+				std::string Name;
+				Name.resize(Size);
+				if (!Callback((char*)Name.c_str(), sizeof(char) * Size))
+				{
+					if (Assert)
+						TH_ERROR("name data is undefined");
+
+					return nullptr;
+				}
+
+				Map.insert({ Index, Name });
+			}
+
+			Document* Current = Document::Object();
+			if (!ProcessJSONBRead(Current, &Map, Callback))
+			{
+				TH_RELEASE(Current);
+				return nullptr;
+			}
+
+			return Current;
+		}
+		bool Document::ProcessXMLRead(void* Base, Document* Current)
+		{
+			auto Ref = (rapidxml::xml_node<>*)Base;
+			if (!Ref || !Current)
+				return false;
+
+			for (rapidxml::xml_attribute<>* It = Ref->first_attribute(); It; It = It->next_attribute())
+			{
+				if (It->name()[0] != '\0')
+					Current->SetAttribute(It->name(), std::move(Var::Auto(It->value())));
+			}
+
+			for (rapidxml::xml_node<>* It = Ref->first_node(); It; It = It->next_sibling())
+			{
+				if (It->name()[0] == '\0')
+					continue;
+
+				Document* Subresult = Current->Set(It->name(), Document::Array());
+				ProcessXMLRead((void*)It, Subresult);
+
+				if (Subresult->Nodes.empty() && It->value_size() > 0)
+					Subresult->Value.Deserialize(std::string(It->value(), It->value_size()));
+			}
+
+			return true;
+		}
+		bool Document::ProcessJSONRead(void* Base, Document* Current)
+		{
+			auto Ref = (rapidjson::Value*)Base;
+			if (!Ref || !Current)
+				return false;
+
+			std::string Value;
+			if (!Ref->IsArray())
+			{
+				VarType Type = Current->Value.Type;
+				Current->Value.Type = VarType_Array;
+
+				std::string Name;
+				for (auto It = Ref->MemberBegin(); It != Ref->MemberEnd(); It++)
+				{
+					if (!It->name.IsString())
+						continue;
+
+					Name.assign(It->name.GetString(), (size_t)It->name.GetStringLength());
+					switch (It->value.GetType())
+					{
+						case rapidjson::kNullType:
+							Current->Set(Name, std::move(Var::Null()));
+							break;
+						case rapidjson::kFalseType:
+							Current->Set(Name, std::move(Var::Boolean(false)));
+							break;
+						case rapidjson::kTrueType:
+							Current->Set(Name, std::move(Var::Boolean(true)));
+							break;
+						case rapidjson::kObjectType:
+							ProcessJSONRead((void*)&It->value, Current->Set(Name));
+							break;
+						case rapidjson::kArrayType:
+							ProcessJSONRead((void*)&It->value, Current->Set(Name, std::move(Var::Array())));
+							break;
+						case rapidjson::kStringType:
+							Value.assign(It->value.GetString(), It->value.GetStringLength());
+							Current->Set(Name, std::move(Var::Auto(Value, true)));
+							break;
+						case rapidjson::kNumberType:
+							if (It->value.IsInt())
+								Current->Set(Name, std::move(Var::Integer(It->value.GetInt64())));
+							else
+								Current->Set(Name, std::move(Var::Number(It->value.GetDouble())));
+							break;
+						default:
+							break;
+					}
+				}
+
+				Current->Value.Type = Type;
+			}
+			else
+			{
+				for (auto It = Ref->Begin(); It != Ref->End(); It++)
+				{
+					switch (It->GetType())
+					{
+						case rapidjson::kNullType:
+							Current->Push(std::move(Var::Null()));
+							break;
+						case rapidjson::kFalseType:
+							Current->Push(std::move(Var::Boolean(false)));
+							break;
+						case rapidjson::kTrueType:
+							Current->Push(std::move(Var::Boolean(true)));
+							break;
+						case rapidjson::kObjectType:
+							ProcessJSONRead((void*)It, Current->Push(std::move(Var::Object())));
+							break;
+						case rapidjson::kArrayType:
+							ProcessJSONRead((void*)It, Current->Push(std::move(Var::Array())));
+							break;
+						case rapidjson::kStringType:
+							Value.assign(It->GetString(), It->GetStringLength());
+							Current->Push(std::move(Var::Auto(Value, true)));
+							break;
+						case rapidjson::kNumberType:
+							if (It->IsInt())
+								Current->Push(std::move(Var::Integer(It->GetInt64())));
+							else
+								Current->Push(std::move(Var::Number(It->GetDouble())));
+							break;
+						default:
+							break;
+					}
+				}
+			}
+
+			return true;
+		}
+		bool Document::ProcessJSONBWrite(Document* Current, std::unordered_map<std::string, uint64_t>* Map, const NWriteCallback& Callback)
+		{
+			uint64_t Id = Map->at(Current->Key);
+			Callback(VarFormat_Dummy, (const char*)&Id, sizeof(uint64_t));
+			Callback(VarFormat_Dummy, (const char*)&Current->Value.Type, sizeof(VarType));
+
+			switch (Current->Value.Type)
+			{
+				case VarType_Object:
+				case VarType_Array:
+				{
+					uint64_t Count = Current->Nodes.size();
+					Callback(VarFormat_Dummy, (const char*)&Count, sizeof(uint64_t));
+					for (auto& Document : Current->Nodes)
+						ProcessJSONBWrite(Document, Map, Callback);
+					break;
+				}
+				case VarType_String:
+				case VarType_Base64:
+				case VarType_Decimal:
+				{
+					uint64_t Size = Current->Value.GetSize();
+					Callback(VarFormat_Dummy, (const char*)&Size, sizeof(uint64_t));
+					Callback(VarFormat_Dummy, Current->Value.GetString(), Size * sizeof(char));
+					break;
+				}
+				case VarType_Integer:
+				{
+					int64_t Copy = Current->Value.GetInteger();
+					Callback(VarFormat_Dummy, (const char*)&Copy, sizeof(int64_t));
+					break;
+				}
+				case VarType_Number:
+				{
+					double Copy = Current->Value.GetNumber();
+					Callback(VarFormat_Dummy, (const char*)&Copy, sizeof(double));
+					break;
+				}
+				case VarType_Boolean:
+				{
+					bool Copy = Current->Value.GetBoolean();
+					Callback(VarFormat_Dummy, (const char*)&Copy, sizeof(bool));
+					break;
+				}
+			}
+
+			return true;
+		}
+		bool Document::ProcessJSONBRead(Document* Current, std::unordered_map<uint64_t, std::string>* Map, const NReadCallback& Callback)
 		{
 			uint64_t Id = 0;
 			if (!Callback((char*)&Id, sizeof(uint64_t)))
@@ -6480,73 +6709,20 @@ namespace Tomahawk
 
 			auto It = Map->find(Id);
 			if (It != Map->end())
-				Current->Name = It->second;
+				Current->Key = It->second;
 
-			if (!Callback((char*)&Current->Type, sizeof(NodeType)))
+			if (!Callback((char*)&Current->Value.Type, sizeof(VarType)))
 			{
 				TH_ERROR("key type is undefined");
 				return false;
 			}
 
-			uint64_t Count = 0;
-			if (!Callback((char*)&Count, sizeof(uint64_t)))
+			switch (Current->Value.Type)
 			{
-				TH_ERROR("key value size is undefined");
-				return false;
-			}
-
-			if (Count > 0)
-			{
-				Current->String.resize(Count);
-				if (!Callback((char*)Current->String.c_str(), sizeof(char) * Count))
+				case VarType_Object:
+				case VarType_Array:
 				{
-					TH_ERROR("key value data is undefined");
-					return false;
-				}
-			}
-
-			switch (Current->Type)
-			{
-				case NodeType_Integer:
-					if (!Callback((char*)&Current->Integer, sizeof(int64_t)))
-					{
-						TH_ERROR("key value is undefined");
-						return false;
-					}
-
-					Current->Number = (double)Current->Integer;
-					break;
-				case NodeType_Number:
-					if (!Callback((char*)&Current->Number, sizeof(double)))
-					{
-						TH_ERROR("key value is undefined");
-						return false;
-					}
-
-					Current->Integer = (int64_t)Current->Number;
-					break;
-				case NodeType_Decimal:
-					if (!Callback((char*)&Current->Integer, sizeof(int64_t)))
-					{
-						TH_ERROR("key value is undefined");
-						return false;
-					}
-
-					if (!Callback((char*)&Current->Low, sizeof(int64_t)))
-					{
-						TH_ERROR("key value is undefined");
-						return false;
-					}
-					break;
-				case NodeType_Boolean:
-					if (!Callback((char*)&Current->Boolean, sizeof(bool)))
-					{
-						TH_ERROR("key value is undefined");
-						return false;
-					}
-					break;
-				case NodeType_Array:
-				case NodeType_Object:
+					uint64_t Count = 0;
 					if (!Callback((char*)&Count, sizeof(uint64_t)))
 					{
 						TH_ERROR("key value size is undefined");
@@ -6559,85 +6735,125 @@ namespace Tomahawk
 					Current->Nodes.resize(Count);
 					for (auto K = Current->Nodes.begin(); K != Current->Nodes.end(); K++)
 					{
-						*K = new Document();
+						*K = Document::Object();
 						(*K)->Parent = Current;
 						(*K)->Saved = true;
 
-						ProcessBINRead(*K, Map, Callback);
+						ProcessJSONBRead(*K, Map, Callback);
 					}
 					break;
-				default:
+				}
+				case VarType_String:
+				{
+					uint64_t Size = 0;
+					if (!Callback((char*)&Size, sizeof(uint64_t)))
+					{
+						TH_ERROR("key value size is undefined");
+						return false;
+					}
+
+					std::string Buffer;
+					Buffer.resize(Size);
+
+					if (!Callback((char*)Buffer.c_str(), Size * sizeof(char)))
+					{
+						TH_ERROR("key value data is undefined");
+						return false;
+					}
+
+					Current->Value = std::move(Var::String(Buffer));
 					break;
+				}
+				case VarType_Base64:
+				{
+					uint64_t Size = 0;
+					if (!Callback((char*)&Size, sizeof(uint64_t)))
+					{
+						TH_ERROR("key value size is undefined");
+						return false;
+					}
+
+					std::string Buffer;
+					Buffer.resize(Size);
+
+					if (!Callback((char*)Buffer.c_str(), Size * sizeof(char)))
+					{
+						TH_ERROR("key value data is undefined");
+						return false;
+					}
+
+					Current->Value = std::move(Var::Base64(Buffer));
+					break;
+				}
+				case VarType_Integer:
+				{
+					int64_t Integer = 0;
+					if (!Callback((char*)&Integer, sizeof(int64_t)))
+					{
+						TH_ERROR("key value is undefined");
+						return false;
+					}
+
+					Current->Value = std::move(Var::Integer(Integer));
+					break;
+				}
+				case VarType_Number:
+				{
+					double Number = 0.0;
+					if (!Callback((char*)&Number, sizeof(double)))
+					{
+						TH_ERROR("key value is undefined");
+						return false;
+					}
+
+					Current->Value = std::move(Var::Number(Number));
+					break;
+				}
+				case VarType_Decimal:
+				{
+					uint64_t Size = 0;
+					if (!Callback((char*)&Size, sizeof(uint64_t)))
+					{
+						TH_ERROR("key value size is undefined");
+						return false;
+					}
+
+					std::string Buffer;
+					Buffer.resize(Size);
+
+					if (!Callback((char*)Buffer.c_str(), Size * sizeof(char)))
+					{
+						TH_ERROR("key value data is undefined");
+						return false;
+					}
+
+					Current->Value = std::move(Var::Decimal(Buffer));
+					break;
+				}
+				case VarType_Boolean:
+				{
+					bool Boolean = false;
+					if (!Callback((char*)&Boolean, sizeof(bool)))
+					{
+						TH_ERROR("key value is undefined");
+						return false;
+					}
+
+					Current->Value = std::move(Var::Boolean(Boolean));
+					break;
+				}
 			}
 
 			return true;
 		}
-		bool Document::ProcessMAPRead(Document* Current, std::unordered_map<std::string, uint64_t>* Map, uint64_t& Index)
+		bool Document::ProcessNames(const Document* Current, std::unordered_map<std::string, uint64_t>* Map, uint64_t& Index)
 		{
-			auto M = Map->find(Current->Name);
+			auto M = Map->find(Current->Key);
 			if (M == Map->end())
-				Map->insert({ Current->Name, Index++ });
+				Map->insert({ Current->Key, Index++ });
 
 			for (auto Document : Current->Nodes)
-				ProcessMAPRead(Document, Map, Index);
-
-			return true;
-		}
-		bool Document::ProcessXMLRead(void* Base, Document* Current)
-		{
-			auto Ref = (rapidxml::xml_node<>*)Base;
-			if (!Ref || !Current)
-				return false;
-
-			for (rapidxml::xml_attribute<>* It = Ref->first_attribute(); It; It = It->next_attribute())
-			{
-				if (strcmp(It->name(), "") != 0)
-					Current->SetAttribute(It->name(), It->value());
-			}
-
-			for (rapidxml::xml_node<>* It = Ref->first_node(); It; It = It->next_sibling())
-			{
-				if (strcmp(It->name(), "") == 0)
-					continue;
-
-				Document* V = Current->SetArray(It->name());
-				V->String = It->value();
-
-				ProcessXMLRead((void*)It, V);
-				if (V->Nodes.empty() && !V->String.empty())
-					V->Type = NodeType_String;
-			}
-
-			return true;
-		}
-		bool Document::ProcessJSONRead(Document* Current)
-		{
-			Document* Text = Current->Get("@text@");
-			if (Text != nullptr)
-			{
-				NodeType Base = Current->Type;
-				Current->Deserialize(Text->Serialize());
-				Current->SetUndefined("@text@");
-				Current->Type = Base;
-			}
-
-			for (auto&& Document : Current->Nodes)
-			{
-				Stroke V(&Document->Name);
-				Stroke::Settle F = V.Find('@');
-
-				if (F.Found)
-				{
-					const char* Buffer = V.Get() + F.End;
-					while (*Buffer != '\0' && Stroke::IsDigit(*Buffer))
-						Buffer++;
-
-					if (*Buffer == '\0')
-						V.Clip(F.End - 1);
-				}
-
-				ProcessJSONRead(Document);
-			}
+				ProcessNames(Document, Map, Index);
 
 			return true;
 		}

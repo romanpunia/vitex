@@ -269,57 +269,57 @@ namespace Tomahawk
 		class TH_OUT NMake
 		{
 		public:
-			static bool Pack(Rest::Document* V, bool Value);
-			static bool Pack(Rest::Document* V, int Value);
-			static bool Pack(Rest::Document* V, unsigned int Value);
-			static bool Pack(Rest::Document* V, float Value);
-			static bool Pack(Rest::Document* V, double Value);
-			static bool Pack(Rest::Document* V, int64_t Value);
-			static bool Pack(Rest::Document* V, long double Value);
-			static bool Pack(Rest::Document* V, uint64_t Value);
-			static bool Pack(Rest::Document* V, const char* Value);
-			static bool Pack(Rest::Document* V, const Compute::Vector2& Value);
-			static bool Pack(Rest::Document* V, const Compute::Vector3& Value);
-			static bool Pack(Rest::Document* V, const Compute::Vector4& Value);
-			static bool Pack(Rest::Document* V, const Compute::Matrix4x4& Value);
-			static bool Pack(Rest::Document* V, const Attenuation& Value);
-			static bool Pack(Rest::Document* V, const Material& Value);
-			static bool Pack(Rest::Document* V, const AnimatorState& Value);
-			static bool Pack(Rest::Document* V, const SpawnerProperties& Value);
-			static bool Pack(Rest::Document* V, const Appearance& Value, ContentManager* Content);
-			static bool Pack(Rest::Document* V, const Compute::SkinAnimatorKey& Value);
-			static bool Pack(Rest::Document* V, const Compute::SkinAnimatorClip& Value);
-			static bool Pack(Rest::Document* V, const Compute::KeyAnimatorClip& Value);
-			static bool Pack(Rest::Document* V, const Compute::AnimatorKey& Value);
-			static bool Pack(Rest::Document* V, const Compute::ElementVertex& Value);
-			static bool Pack(Rest::Document* V, const Compute::Joint& Value);
-			static bool Pack(Rest::Document* V, const Compute::Vertex& Value);
-			static bool Pack(Rest::Document* V, const Compute::SkinVertex& Value);
-			static bool Pack(Rest::Document* V, const Rest::TickTimer& Value);
-			static bool Pack(Rest::Document* V, const std::string& Value);
-			static bool Pack(Rest::Document* V, const std::vector<bool>& Value);
-			static bool Pack(Rest::Document* V, const std::vector<int>& Value);
-			static bool Pack(Rest::Document* V, const std::vector<unsigned int>& Value);
-			static bool Pack(Rest::Document* V, const std::vector<float>& Value);
-			static bool Pack(Rest::Document* V, const std::vector<double>& Value);
-			static bool Pack(Rest::Document* V, const std::vector<int64_t>& Value);
-			static bool Pack(Rest::Document* V, const std::vector<long double>& Value);
-			static bool Pack(Rest::Document* V, const std::vector<uint64_t>& Value);
-			static bool Pack(Rest::Document* V, const std::vector<Compute::Vector2>& Value);
-			static bool Pack(Rest::Document* V, const std::vector<Compute::Vector3>& Value);
-			static bool Pack(Rest::Document* V, const std::vector<Compute::Vector4>& Value);
-			static bool Pack(Rest::Document* V, const std::vector<Compute::Matrix4x4>& Value);
-			static bool Pack(Rest::Document* V, const std::vector<AnimatorState>& Value);
-			static bool Pack(Rest::Document* V, const std::vector<SpawnerProperties>& Value);
-			static bool Pack(Rest::Document* V, const std::vector<Compute::SkinAnimatorClip>& Value);
-			static bool Pack(Rest::Document* V, const std::vector<Compute::KeyAnimatorClip>& Value);
-			static bool Pack(Rest::Document* V, const std::vector<Compute::AnimatorKey>& Value);
-			static bool Pack(Rest::Document* V, const std::vector<Compute::ElementVertex>& Value);
-			static bool Pack(Rest::Document* V, const std::vector<Compute::Joint>& Value);
-			static bool Pack(Rest::Document* V, const std::vector<Compute::Vertex>& Value);
-			static bool Pack(Rest::Document* V, const std::vector<Compute::SkinVertex>& Value);
-			static bool Pack(Rest::Document* V, const std::vector<Rest::TickTimer>& Value);
-			static bool Pack(Rest::Document* V, const std::vector<std::string>& Value);
+			static void Pack(Rest::Document* V, bool Value);
+			static void Pack(Rest::Document* V, int Value);
+			static void Pack(Rest::Document* V, unsigned int Value);
+			static void Pack(Rest::Document* V, float Value);
+			static void Pack(Rest::Document* V, double Value);
+			static void Pack(Rest::Document* V, int64_t Value);
+			static void Pack(Rest::Document* V, long double Value);
+			static void Pack(Rest::Document* V, uint64_t Value);
+			static void Pack(Rest::Document* V, const char* Value);
+			static void Pack(Rest::Document* V, const Compute::Vector2& Value);
+			static void Pack(Rest::Document* V, const Compute::Vector3& Value);
+			static void Pack(Rest::Document* V, const Compute::Vector4& Value);
+			static void Pack(Rest::Document* V, const Compute::Matrix4x4& Value);
+			static void Pack(Rest::Document* V, const Attenuation& Value);
+			static void Pack(Rest::Document* V, const Material& Value);
+			static void Pack(Rest::Document* V, const AnimatorState& Value);
+			static void Pack(Rest::Document* V, const SpawnerProperties& Value);
+			static void Pack(Rest::Document* V, const Appearance& Value, ContentManager* Content);
+			static void Pack(Rest::Document* V, const Compute::SkinAnimatorKey& Value);
+			static void Pack(Rest::Document* V, const Compute::SkinAnimatorClip& Value);
+			static void Pack(Rest::Document* V, const Compute::KeyAnimatorClip& Value);
+			static void Pack(Rest::Document* V, const Compute::AnimatorKey& Value);
+			static void Pack(Rest::Document* V, const Compute::ElementVertex& Value);
+			static void Pack(Rest::Document* V, const Compute::Joint& Value);
+			static void Pack(Rest::Document* V, const Compute::Vertex& Value);
+			static void Pack(Rest::Document* V, const Compute::SkinVertex& Value);
+			static void Pack(Rest::Document* V, const Rest::TickTimer& Value);
+			static void Pack(Rest::Document* V, const std::string& Value);
+			static void Pack(Rest::Document* V, const std::vector<bool>& Value);
+			static void Pack(Rest::Document* V, const std::vector<int>& Value);
+			static void Pack(Rest::Document* V, const std::vector<unsigned int>& Value);
+			static void Pack(Rest::Document* V, const std::vector<float>& Value);
+			static void Pack(Rest::Document* V, const std::vector<double>& Value);
+			static void Pack(Rest::Document* V, const std::vector<int64_t>& Value);
+			static void Pack(Rest::Document* V, const std::vector<long double>& Value);
+			static void Pack(Rest::Document* V, const std::vector<uint64_t>& Value);
+			static void Pack(Rest::Document* V, const std::vector<Compute::Vector2>& Value);
+			static void Pack(Rest::Document* V, const std::vector<Compute::Vector3>& Value);
+			static void Pack(Rest::Document* V, const std::vector<Compute::Vector4>& Value);
+			static void Pack(Rest::Document* V, const std::vector<Compute::Matrix4x4>& Value);
+			static void Pack(Rest::Document* V, const std::vector<AnimatorState>& Value);
+			static void Pack(Rest::Document* V, const std::vector<SpawnerProperties>& Value);
+			static void Pack(Rest::Document* V, const std::vector<Compute::SkinAnimatorClip>& Value);
+			static void Pack(Rest::Document* V, const std::vector<Compute::KeyAnimatorClip>& Value);
+			static void Pack(Rest::Document* V, const std::vector<Compute::AnimatorKey>& Value);
+			static void Pack(Rest::Document* V, const std::vector<Compute::ElementVertex>& Value);
+			static void Pack(Rest::Document* V, const std::vector<Compute::Joint>& Value);
+			static void Pack(Rest::Document* V, const std::vector<Compute::Vertex>& Value);
+			static void Pack(Rest::Document* V, const std::vector<Compute::SkinVertex>& Value);
+			static void Pack(Rest::Document* V, const std::vector<Rest::TickTimer>& Value);
+			static void Pack(Rest::Document* V, const std::vector<std::string>& Value);
 			static bool Unpack(Rest::Document* V, bool* O);
 			static bool Unpack(Rest::Document* V, int* O);
 			static bool Unpack(Rest::Document* V, unsigned int* O);
@@ -383,12 +383,12 @@ namespace Tomahawk
 			std::string Id;
 
 		public:
-			Compute::PropertyArgs Args;
+			Rest::VariantArgs Args;
 
 		private:
-			Event(const std::string& NewName, SceneGraph* Target, const Compute::PropertyArgs& NewArgs);
-			Event(const std::string& NewName, Entity* Target, const Compute::PropertyArgs& NewArgs);
-			Event(const std::string& NewName, Component* Target, const Compute::PropertyArgs& NewArgs);
+			Event(const std::string& NewName, SceneGraph* Target, const Rest::VariantArgs& NewArgs);
+			Event(const std::string& NewName, Entity* Target, const Rest::VariantArgs& NewArgs);
+			Event(const std::string& NewName, Component* Target, const Rest::VariantArgs& NewArgs);
 
 		public:
 			bool Is(const std::string& Name);
@@ -409,9 +409,9 @@ namespace Tomahawk
 			Processor(ContentManager* NewContent);
 			virtual ~Processor() override;
 			virtual void Free(AssetCache* Asset);
-			virtual void* Duplicate(AssetCache* Asset, const Compute::PropertyArgs& Keys);
-			virtual void* Deserialize(Rest::Stream* Stream, uint64_t Length, uint64_t Offset, const Compute::PropertyArgs& Keys);
-			virtual bool Serialize(Rest::Stream* Stream, void* Instance, const Compute::PropertyArgs& Keys);
+			virtual void* Duplicate(AssetCache* Asset, const Rest::VariantArgs& Keys);
+			virtual void* Deserialize(Rest::Stream* Stream, uint64_t Length, uint64_t Offset, const Rest::VariantArgs& Keys);
+			virtual bool Serialize(Rest::Stream* Stream, void* Instance, const Rest::VariantArgs& Keys);
 			ContentManager* GetContent();
 		};
 
@@ -944,9 +944,9 @@ namespace Tomahawk
 			bool GetVoxelBuffer(Graphics::Texture3D** In, Graphics::Texture3D** Out);
 			bool AddEventListener(const std::string& Name, const std::string& Event, const MessageCallback& Callback);
 			bool RemoveEventListener(const std::string& Name);
-			bool DispatchEvent(const std::string& EventName, const Compute::PropertyArgs& Args);
-			bool DispatchEvent(Component* Target, const std::string& EventName, const Compute::PropertyArgs& Args);
-			bool DispatchEvent(Entity* Target, const std::string& EventName, const Compute::PropertyArgs& Args);
+			bool DispatchEvent(const std::string& EventName, const Rest::VariantArgs& Args);
+			bool DispatchEvent(Component* Target, const std::string& EventName, const Rest::VariantArgs& Args);
+			bool DispatchEvent(Entity* Target, const std::string& EventName, const Rest::VariantArgs& Args);
 			void Dispatch();
 			Material* AddMaterial(const std::string& Name, const Material& Material);
 			Entity* CloneEntities(Entity* Value);
@@ -1104,12 +1104,12 @@ namespace Tomahawk
 
 		public:
 			template <typename T>
-			T* Load(const std::string& Path, const Compute::PropertyArgs& Keys = Compute::PropertyArgs())
+			T* Load(const std::string& Path, const Rest::VariantArgs& Keys = Rest::VariantArgs())
 			{
 				return (T*)LoadForward(Path, GetProcessor<T>(), Keys);
 			}
 			template <typename T>
-			bool LoadAsync(const std::string& Path, const Compute::PropertyArgs& Keys, const std::function<void(class ContentManager*, T*)>& Callback)
+			bool LoadAsync(const std::string& Path, const Rest::VariantArgs& Keys, const std::function<void(class ContentManager*, T*)>& Callback)
 			{
 				if (!Queue)
 					return false;
@@ -1122,12 +1122,12 @@ namespace Tomahawk
 				});
 			}
 			template <typename T>
-			bool Save(const std::string& Path, T* Object, const Compute::PropertyArgs& Keys = Compute::PropertyArgs())
+			bool Save(const std::string& Path, T* Object, const Rest::VariantArgs& Keys = Rest::VariantArgs())
 			{
 				return SaveForward(Path, GetProcessor<T>(), Object, Keys);
 			}
 			template <typename T>
-			bool SaveAsync(const std::string& Path, T* Object, const Compute::PropertyArgs& Keys, const SaveCallback& Callback)
+			bool SaveAsync(const std::string& Path, T* Object, const Rest::VariantArgs& Keys, const SaveCallback& Callback)
 			{
 				if (!Queue)
 					return false;
@@ -1201,9 +1201,9 @@ namespace Tomahawk
 			}
 
 		private:
-			void* LoadForward(const std::string& Path, Processor* Processor, const Compute::PropertyArgs& Keys);
-			void* LoadStreaming(const std::string& Path, Processor* Processor, const Compute::PropertyArgs& Keys);
-			bool SaveForward(const std::string& Path, Processor* Processor, void* Object, const Compute::PropertyArgs& Keys);
+			void* LoadForward(const std::string& Path, Processor* Processor, const Rest::VariantArgs& Keys);
+			void* LoadStreaming(const std::string& Path, Processor* Processor, const Rest::VariantArgs& Keys);
+			bool SaveForward(const std::string& Path, Processor* Processor, void* Object, const Rest::VariantArgs& Keys);
 			AssetCache* Find(Processor* Target, const std::string& Path);
 			AssetCache* Find(Processor* Target, void* Resource);
 		};

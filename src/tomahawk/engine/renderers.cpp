@@ -1066,29 +1066,29 @@ namespace Tomahawk
 			{
 				AssetCache* Asset = Content->Find<Graphics::Texture2D>(SkyBase);
 				if (Asset != nullptr)
-					NMake::Pack(Node->SetDocument("sky-map"), Asset->Path);
+					NMake::Pack(Node->Set("sky-map"), Asset->Path);
 
-				NMake::Pack(Node->SetDocument("high-emission"), AmbientLight.HighEmission);
-				NMake::Pack(Node->SetDocument("low-emission"), AmbientLight.LowEmission);
-				NMake::Pack(Node->SetDocument("sky-emission"), AmbientLight.SkyEmission);
-				NMake::Pack(Node->SetDocument("light-emission"), AmbientLight.LightEmission);
-				NMake::Pack(Node->SetDocument("sky-color"), AmbientLight.SkyColor);
-				NMake::Pack(Node->SetDocument("fog-color"), AmbientLight.FogColor);
-				NMake::Pack(Node->SetDocument("fog-amount"), AmbientLight.FogAmount);
-				NMake::Pack(Node->SetDocument("fog-far-off"), AmbientLight.FogFarOff);
-				NMake::Pack(Node->SetDocument("fog-far"), AmbientLight.FogFar);
-				NMake::Pack(Node->SetDocument("fog-near-off"), AmbientLight.FogNearOff);
-				NMake::Pack(Node->SetDocument("fog-near"), AmbientLight.FogNear);
-				NMake::Pack(Node->SetDocument("recursive"), AmbientLight.Recursive);
-				NMake::Pack(Node->SetDocument("point-light-resolution"), Shadows.PointLightResolution);
-				NMake::Pack(Node->SetDocument("point-light-limits"), Shadows.PointLightLimits);
-				NMake::Pack(Node->SetDocument("spot-light-resolution"), Shadows.SpotLightResolution);
-				NMake::Pack(Node->SetDocument("spot-light-limits"), Shadows.SpotLightLimits);
-				NMake::Pack(Node->SetDocument("line-light-resolution"), Shadows.LineLightResolution);
-				NMake::Pack(Node->SetDocument("line-light-limits"), Shadows.LineLightLimits);
-				NMake::Pack(Node->SetDocument("shadow-distance"), Shadows.Distance);
-				NMake::Pack(Node->SetDocument("sf-size"), Surfaces.Size);
-				NMake::Pack(Node->SetDocument("gi"), EnableGI);
+				NMake::Pack(Node->Set("high-emission"), AmbientLight.HighEmission);
+				NMake::Pack(Node->Set("low-emission"), AmbientLight.LowEmission);
+				NMake::Pack(Node->Set("sky-emission"), AmbientLight.SkyEmission);
+				NMake::Pack(Node->Set("light-emission"), AmbientLight.LightEmission);
+				NMake::Pack(Node->Set("sky-color"), AmbientLight.SkyColor);
+				NMake::Pack(Node->Set("fog-color"), AmbientLight.FogColor);
+				NMake::Pack(Node->Set("fog-amount"), AmbientLight.FogAmount);
+				NMake::Pack(Node->Set("fog-far-off"), AmbientLight.FogFarOff);
+				NMake::Pack(Node->Set("fog-far"), AmbientLight.FogFar);
+				NMake::Pack(Node->Set("fog-near-off"), AmbientLight.FogNearOff);
+				NMake::Pack(Node->Set("fog-near"), AmbientLight.FogNear);
+				NMake::Pack(Node->Set("recursive"), AmbientLight.Recursive);
+				NMake::Pack(Node->Set("point-light-resolution"), Shadows.PointLightResolution);
+				NMake::Pack(Node->Set("point-light-limits"), Shadows.PointLightLimits);
+				NMake::Pack(Node->Set("spot-light-resolution"), Shadows.SpotLightResolution);
+				NMake::Pack(Node->Set("spot-light-limits"), Shadows.SpotLightLimits);
+				NMake::Pack(Node->Set("line-light-resolution"), Shadows.LineLightResolution);
+				NMake::Pack(Node->Set("line-light-limits"), Shadows.LineLightLimits);
+				NMake::Pack(Node->Set("shadow-distance"), Shadows.Distance);
+				NMake::Pack(Node->Set("sf-size"), Surfaces.Size);
+				NMake::Pack(Node->Set("gi"), EnableGI);
 			}
 			void Lighting::Activate()
 			{
@@ -2048,10 +2048,10 @@ namespace Tomahawk
 			}
 			void SSR::Serialize(ContentManager* Content, Rest::Document* Node)
 			{
-				NMake::Pack(Node->SetDocument("samples-1"), Reflectance.Samples);
-				NMake::Pack(Node->SetDocument("samples-2"), Gloss.Samples);
-				NMake::Pack(Node->SetDocument("intensity"), Reflectance.Intensity);
-				NMake::Pack(Node->SetDocument("blur"), Gloss.Blur);
+				NMake::Pack(Node->Set("samples-1"), Reflectance.Samples);
+				NMake::Pack(Node->Set("samples-2"), Gloss.Samples);
+				NMake::Pack(Node->Set("intensity"), Reflectance.Intensity);
+				NMake::Pack(Node->Set("blur"), Gloss.Blur);
 			}
 			void SSR::RenderEffect(Rest::Timer* Time)
 			{
@@ -2090,16 +2090,16 @@ namespace Tomahawk
 			}
 			void SSAO::Serialize(ContentManager* Content, Rest::Document* Node)
 			{
-				NMake::Pack(Node->SetDocument("samples-1"), Shading.Samples);
-				NMake::Pack(Node->SetDocument("scale"), Shading.Scale);
-				NMake::Pack(Node->SetDocument("intensity"), Shading.Intensity);
-				NMake::Pack(Node->SetDocument("bias"), Shading.Bias);
-				NMake::Pack(Node->SetDocument("radius"), Shading.Radius);
-				NMake::Pack(Node->SetDocument("distance"), Shading.Distance);
-				NMake::Pack(Node->SetDocument("fade"), Shading.Fade);
-				NMake::Pack(Node->SetDocument("power"), Fibo.Power);
-				NMake::Pack(Node->SetDocument("samples-2"), Fibo.Samples);
-				NMake::Pack(Node->SetDocument("blur"), Fibo.Blur);
+				NMake::Pack(Node->Set("samples-1"), Shading.Samples);
+				NMake::Pack(Node->Set("scale"), Shading.Scale);
+				NMake::Pack(Node->Set("intensity"), Shading.Intensity);
+				NMake::Pack(Node->Set("bias"), Shading.Bias);
+				NMake::Pack(Node->Set("radius"), Shading.Radius);
+				NMake::Pack(Node->Set("distance"), Shading.Distance);
+				NMake::Pack(Node->Set("fade"), Shading.Fade);
+				NMake::Pack(Node->Set("power"), Fibo.Power);
+				NMake::Pack(Node->Set("samples-2"), Fibo.Samples);
+				NMake::Pack(Node->Set("blur"), Fibo.Blur);
 			}
 			void SSAO::RenderEffect(Rest::Timer* Time)
 			{
@@ -2131,16 +2131,16 @@ namespace Tomahawk
 			}
 			void DoF::Serialize(ContentManager* Content, Rest::Document* Node)
 			{
-				NMake::Pack(Node->SetDocument("distance"), Distance);
-				NMake::Pack(Node->SetDocument("time"), Time);
-				NMake::Pack(Node->SetDocument("radius"), Radius);
-				NMake::Pack(Node->SetDocument("radius"), Focus.Radius);
-				NMake::Pack(Node->SetDocument("bokeh"), Focus.Bokeh);
-				NMake::Pack(Node->SetDocument("scale"), Focus.Scale);
-				NMake::Pack(Node->SetDocument("near-distance"), Focus.NearDistance);
-				NMake::Pack(Node->SetDocument("near-range"), Focus.NearRange);
-				NMake::Pack(Node->SetDocument("far-distance"), Focus.FarDistance);
-				NMake::Pack(Node->SetDocument("far-range"), Focus.FarRange);
+				NMake::Pack(Node->Set("distance"), Distance);
+				NMake::Pack(Node->Set("time"), Time);
+				NMake::Pack(Node->Set("radius"), Radius);
+				NMake::Pack(Node->Set("radius"), Focus.Radius);
+				NMake::Pack(Node->Set("bokeh"), Focus.Bokeh);
+				NMake::Pack(Node->Set("scale"), Focus.Scale);
+				NMake::Pack(Node->Set("near-distance"), Focus.NearDistance);
+				NMake::Pack(Node->Set("near-range"), Focus.NearRange);
+				NMake::Pack(Node->Set("far-distance"), Focus.FarDistance);
+				NMake::Pack(Node->Set("far-range"), Focus.FarRange);
 			}
 			void DoF::RenderEffect(Rest::Timer* Time)
 			{
@@ -2218,9 +2218,9 @@ namespace Tomahawk
 			}
 			void MotionBlur::Serialize(ContentManager* Content, Rest::Document* Node)
 			{
-				NMake::Pack(Node->SetDocument("samples"), Motion.Samples);
-				NMake::Pack(Node->SetDocument("blur"), Motion.Blur);
-				NMake::Pack(Node->SetDocument("motion"), Motion.Motion);
+				NMake::Pack(Node->Set("samples"), Motion.Samples);
+				NMake::Pack(Node->Set("blur"), Motion.Blur);
+				NMake::Pack(Node->Set("motion"), Motion.Motion);
 			}
 			void MotionBlur::RenderEffect(Rest::Timer* Time)
 			{
@@ -2247,11 +2247,11 @@ namespace Tomahawk
 			}
 			void Bloom::Serialize(ContentManager* Content, Rest::Document* Node)
 			{
-				NMake::Pack(Node->SetDocument("intensity"), Extraction.Intensity);
-				NMake::Pack(Node->SetDocument("threshold"), Extraction.Threshold);
-				NMake::Pack(Node->SetDocument("power"), Fibo.Power);
-				NMake::Pack(Node->SetDocument("samples"), Fibo.Samples);
-				NMake::Pack(Node->SetDocument("blur"), Fibo.Blur);
+				NMake::Pack(Node->Set("intensity"), Extraction.Intensity);
+				NMake::Pack(Node->Set("threshold"), Extraction.Threshold);
+				NMake::Pack(Node->Set("power"), Fibo.Power);
+				NMake::Pack(Node->Set("samples"), Fibo.Samples);
+				NMake::Pack(Node->Set("blur"), Fibo.Blur);
 			}
 			void Bloom::RenderEffect(Rest::Timer* Time)
 			{
@@ -2301,28 +2301,28 @@ namespace Tomahawk
 			}
 			void Tone::Serialize(ContentManager* Content, Rest::Document* Node)
 			{
-				NMake::Pack(Node->SetDocument("grayscale"), Mapping.Grayscale);
-				NMake::Pack(Node->SetDocument("aces"), Mapping.ACES);
-				NMake::Pack(Node->SetDocument("filmic"), Mapping.Filmic);
-				NMake::Pack(Node->SetDocument("lottes"), Mapping.Lottes);
-				NMake::Pack(Node->SetDocument("reinhard"), Mapping.Reinhard);
-				NMake::Pack(Node->SetDocument("reinhard2"), Mapping.Reinhard2);
-				NMake::Pack(Node->SetDocument("unreal"), Mapping.Unreal);
-				NMake::Pack(Node->SetDocument("uchimura"), Mapping.Uchimura);
-				NMake::Pack(Node->SetDocument("ubrightness"), Mapping.UBrightness);
-				NMake::Pack(Node->SetDocument("usontrast"), Mapping.UContrast);
-				NMake::Pack(Node->SetDocument("ustart"), Mapping.UStart);
-				NMake::Pack(Node->SetDocument("ulength"), Mapping.ULength);
-				NMake::Pack(Node->SetDocument("ublack"), Mapping.UBlack);
-				NMake::Pack(Node->SetDocument("upedestal"), Mapping.UPedestal);
-				NMake::Pack(Node->SetDocument("exposure"), Mapping.Exposure);
-				NMake::Pack(Node->SetDocument("eintensity"), Mapping.EIntensity);
-				NMake::Pack(Node->SetDocument("egamma"), Mapping.EGamma);
-				NMake::Pack(Node->SetDocument("adaptation"), Mapping.Adaptation);
-				NMake::Pack(Node->SetDocument("agray"), Mapping.AGray);
-				NMake::Pack(Node->SetDocument("awhite"), Mapping.AWhite);
-				NMake::Pack(Node->SetDocument("ablack"), Mapping.ABlack);
-				NMake::Pack(Node->SetDocument("aspeed"), Mapping.ASpeed);
+				NMake::Pack(Node->Set("grayscale"), Mapping.Grayscale);
+				NMake::Pack(Node->Set("aces"), Mapping.ACES);
+				NMake::Pack(Node->Set("filmic"), Mapping.Filmic);
+				NMake::Pack(Node->Set("lottes"), Mapping.Lottes);
+				NMake::Pack(Node->Set("reinhard"), Mapping.Reinhard);
+				NMake::Pack(Node->Set("reinhard2"), Mapping.Reinhard2);
+				NMake::Pack(Node->Set("unreal"), Mapping.Unreal);
+				NMake::Pack(Node->Set("uchimura"), Mapping.Uchimura);
+				NMake::Pack(Node->Set("ubrightness"), Mapping.UBrightness);
+				NMake::Pack(Node->Set("usontrast"), Mapping.UContrast);
+				NMake::Pack(Node->Set("ustart"), Mapping.UStart);
+				NMake::Pack(Node->Set("ulength"), Mapping.ULength);
+				NMake::Pack(Node->Set("ublack"), Mapping.UBlack);
+				NMake::Pack(Node->Set("upedestal"), Mapping.UPedestal);
+				NMake::Pack(Node->Set("exposure"), Mapping.Exposure);
+				NMake::Pack(Node->Set("eintensity"), Mapping.EIntensity);
+				NMake::Pack(Node->Set("egamma"), Mapping.EGamma);
+				NMake::Pack(Node->Set("adaptation"), Mapping.Adaptation);
+				NMake::Pack(Node->Set("agray"), Mapping.AGray);
+				NMake::Pack(Node->Set("awhite"), Mapping.AWhite);
+				NMake::Pack(Node->Set("ablack"), Mapping.ABlack);
+				NMake::Pack(Node->Set("aspeed"), Mapping.ASpeed);
 			}
 			void Tone::RenderEffect(Rest::Timer* Time)
 			{
@@ -2387,18 +2387,18 @@ namespace Tomahawk
 			}
 			void Glitch::Serialize(ContentManager* Content, Rest::Document* Node)
 			{
-				NMake::Pack(Node->SetDocument("scanline-jitter"), ScanLineJitter);
-				NMake::Pack(Node->SetDocument("vertical-jump"), VerticalJump);
-				NMake::Pack(Node->SetDocument("horizontal-shake"), HorizontalShake);
-				NMake::Pack(Node->SetDocument("color-drift"), ColorDrift);
-				NMake::Pack(Node->SetDocument("horizontal-shake"), HorizontalShake);
-				NMake::Pack(Node->SetDocument("elapsed-time"), Distortion.ElapsedTime);
-				NMake::Pack(Node->SetDocument("scanline-jitter-displacement"), Distortion.ScanLineJitterDisplacement);
-				NMake::Pack(Node->SetDocument("scanline-jitter-threshold"), Distortion.ScanLineJitterThreshold);
-				NMake::Pack(Node->SetDocument("vertical-jump-amount"), Distortion.VerticalJumpAmount);
-				NMake::Pack(Node->SetDocument("vertical-jump-time"), Distortion.VerticalJumpTime);
-				NMake::Pack(Node->SetDocument("color-drift-amount"), Distortion.ColorDriftAmount);
-				NMake::Pack(Node->SetDocument("color-drift-time"), Distortion.ColorDriftTime);
+				NMake::Pack(Node->Set("scanline-jitter"), ScanLineJitter);
+				NMake::Pack(Node->Set("vertical-jump"), VerticalJump);
+				NMake::Pack(Node->Set("horizontal-shake"), HorizontalShake);
+				NMake::Pack(Node->Set("color-drift"), ColorDrift);
+				NMake::Pack(Node->Set("horizontal-shake"), HorizontalShake);
+				NMake::Pack(Node->Set("elapsed-time"), Distortion.ElapsedTime);
+				NMake::Pack(Node->Set("scanline-jitter-displacement"), Distortion.ScanLineJitterDisplacement);
+				NMake::Pack(Node->Set("scanline-jitter-threshold"), Distortion.ScanLineJitterThreshold);
+				NMake::Pack(Node->Set("vertical-jump-amount"), Distortion.VerticalJumpAmount);
+				NMake::Pack(Node->Set("vertical-jump-time"), Distortion.VerticalJumpTime);
+				NMake::Pack(Node->Set("color-drift-amount"), Distortion.ColorDriftAmount);
+				NMake::Pack(Node->Set("color-drift-time"), Distortion.ColorDriftTime);
 			}
 			void Glitch::RenderEffect(Rest::Timer* Time)
 			{

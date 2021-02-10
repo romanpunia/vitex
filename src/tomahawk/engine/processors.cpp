@@ -39,7 +39,7 @@ namespace Tomahawk
 			Asset::Asset(ContentManager* Manager) : Processor(Manager)
 			{
 			}
-			void* Asset::Deserialize(Rest::Stream* Stream, uint64_t Length, uint64_t Offset, const Compute::PropertyArgs& Args)
+			void* Asset::Deserialize(Rest::Stream* Stream, uint64_t Length, uint64_t Offset, const Rest::VariantArgs& Args)
 			{
 				char* Binary = (char*)TH_MALLOC(sizeof(char) * Length);
 				if (Stream->Read(Binary, Length) != Length)
@@ -55,7 +55,7 @@ namespace Tomahawk
 			SceneGraph::SceneGraph(ContentManager* Manager) : Processor(Manager)
 			{
 			}
-			void* SceneGraph::Deserialize(Rest::Stream* Stream, uint64_t Length, uint64_t Offset, const Compute::PropertyArgs& Args)
+			void* SceneGraph::Deserialize(Rest::Stream* Stream, uint64_t Length, uint64_t Offset, const Rest::VariantArgs& Args)
 			{
 				Engine::SceneGraph::Desc I = Engine::SceneGraph::Desc();
 				I.Device = Content->GetDevice();
@@ -96,10 +96,10 @@ namespace Tomahawk
 				Engine::SceneGraph* Object = new Engine::SceneGraph(I);
 				auto IsActive = Args.find("active");
 
-				if (IsActive != Args.end() && IsActive->second.GetType() == Compute::PropertyType_Boolean)
+				if (IsActive != Args.end() && IsActive->second.GetType() == Rest::VarType_Boolean)
 					Object->SetActive(IsActive->second.GetBoolean());
 
-				Rest::Document* Materials = Document->Find("materials", true);
+				Rest::Document* Materials = Document->Find("materials");
 				if (Materials != nullptr)
 				{
 					std::vector<Rest::Document*> Collection = Materials->FindCollection("material");
@@ -115,7 +115,7 @@ namespace Tomahawk
 					}
 				}
 
-				Rest::Document* Entities = Document->Find("entities", true);
+				Rest::Document* Entities = Document->Find("entities");
 				if (Entities != nullptr)
 				{
 					std::vector<Rest::Document*> Collection = Entities->FindCollection("entity");
@@ -156,7 +156,7 @@ namespace Tomahawk
 						Rest::Document* Components = It->Find("components");
 						if (Components != nullptr)
 						{
-							std::vector<Rest::Document*> Elements = It->FindCollection("component");
+							std::vector<Rest::Document*> Elements = Components->FindCollection("component");
 							for (auto& Element : Elements)
 							{
 								uint64_t Id;
@@ -174,9 +174,9 @@ namespace Tomahawk
 								if (NMake::Unpack(Element->Find("active"), &Active))
 									Target->SetActive(Active);
 
-								Rest::Document* Meta = Element->Find("metadata", "");
+								Rest::Document* Meta = Element->Find("metadata");
 								if (!Meta)
-									Meta = Element->SetDocument("metadata");
+									Meta = Element->Set("metadata");
 
 								Target->Deserialize(Content, Meta);
 							}
@@ -198,77 +198,77 @@ namespace Tomahawk
 				Object->Actualize();
 				return Object;
 			}
-			bool SceneGraph::Serialize(Rest::Stream* Stream, void* Instance, const Compute::PropertyArgs& Args)
+			bool SceneGraph::Serialize(Rest::Stream* Stream, void* Instance, const Rest::VariantArgs& Args)
 			{
 				Engine::SceneGraph* Object = (Engine::SceneGraph*)Instance;
 				Object->Actualize();
 
-				Rest::Document* Document = new Rest::Document();
-				Document->Name = "scene";
+				Rest::Document* Document = Rest::Document::Object();
+				Document->Key = "scene";
 
-				Rest::Document* Metadata = Document->SetDocument("metadata");
-				NMake::Pack(Metadata->SetDocument("components"), Object->GetConf().ComponentCount);
-				NMake::Pack(Metadata->SetDocument("entities"), Object->GetConf().EntityCount);
-				NMake::Pack(Metadata->SetDocument("render-quality"), Object->GetConf().RenderQuality);
-				NMake::Pack(Metadata->SetDocument("enable-hdr"), Object->GetConf().EnableHDR);
+				Rest::Document* Metadata = Document->Set("metadata");
+				NMake::Pack(Metadata->Set("components"), Object->GetConf().ComponentCount);
+				NMake::Pack(Metadata->Set("entities"), Object->GetConf().EntityCount);
+				NMake::Pack(Metadata->Set("render-quality"), Object->GetConf().RenderQuality);
+				NMake::Pack(Metadata->Set("enable-hdr"), Object->GetConf().EnableHDR);
 
-				Rest::Document* Simulator = Metadata->SetDocument("simulator");
-				NMake::Pack(Simulator->SetDocument("enable-soft-body"), Object->GetSimulator()->HasSoftBodySupport());
-				NMake::Pack(Simulator->SetDocument("max-displacement"), Object->GetSimulator()->GetMaxDisplacement());
-				NMake::Pack(Simulator->SetDocument("air-density"), Object->GetSimulator()->GetAirDensity());
-				NMake::Pack(Simulator->SetDocument("water-offset"), Object->GetSimulator()->GetWaterOffset());
-				NMake::Pack(Simulator->SetDocument("water-density"), Object->GetSimulator()->GetWaterDensity());
-				NMake::Pack(Simulator->SetDocument("water-normal"), Object->GetSimulator()->GetWaterNormal());
-				NMake::Pack(Simulator->SetDocument("gravity"), Object->GetSimulator()->GetGravity());
+				Rest::Document* Simulator = Metadata->Set("simulator");
+				NMake::Pack(Simulator->Set("enable-soft-body"), Object->GetSimulator()->HasSoftBodySupport());
+				NMake::Pack(Simulator->Set("max-displacement"), Object->GetSimulator()->GetMaxDisplacement());
+				NMake::Pack(Simulator->Set("air-density"), Object->GetSimulator()->GetAirDensity());
+				NMake::Pack(Simulator->Set("water-offset"), Object->GetSimulator()->GetWaterOffset());
+				NMake::Pack(Simulator->Set("water-density"), Object->GetSimulator()->GetWaterDensity());
+				NMake::Pack(Simulator->Set("water-normal"), Object->GetSimulator()->GetWaterNormal());
+				NMake::Pack(Simulator->Set("gravity"), Object->GetSimulator()->GetGravity());
 
-				Rest::Document* Materials = Document->SetArray("materials");
+				Rest::Document* Materials = Document->Set("materials", std::move(Rest::Var::Array()));
 				for (uint64_t i = 0; i < Object->GetMaterialCount(); i++)
 				{
-					Rest::Document* Material = Materials->SetDocument("material");
-					NMake::Pack(Material->SetDocument("name"), Object->GetMaterialName(i));
+					Rest::Document* Material = Materials->Set("material");
+					NMake::Pack(Material->Set("name"), Object->GetMaterialName(i));
 
 					Engine::Material* Ref = Object->GetMaterialById(i);
 					if (Ref != nullptr)
 						NMake::Pack(Material, *Ref);
 				}
 
-				Rest::Document* Entities = Document->SetArray("entities");
+				Rest::Document* Entities = Document->Set("entities", std::move(Rest::Var::Array()));
 				for (uint64_t i = 0; i < Object->GetEntityCount(); i++)
 				{
 					Entity* Ref = Object->GetEntity(i);
 
-					Rest::Document* Entity = Entities->SetDocument("entity");
-					NMake::Pack(Entity->SetDocument("name"), Ref->Name);
-					NMake::Pack(Entity->SetDocument("tag"), Ref->Tag);
+					Rest::Document* Entity = Entities->Set("entity");
+					NMake::Pack(Entity->Set("name"), Ref->Name);
+					NMake::Pack(Entity->Set("tag"), Ref->Tag);
 
-					Rest::Document* Transform = Entity->SetDocument("transform");
-					NMake::Pack(Transform->SetDocument("position"), Ref->Transform->Position);
-					NMake::Pack(Transform->SetDocument("rotation"), Ref->Transform->Rotation);
-					NMake::Pack(Transform->SetDocument("scale"), Ref->Transform->Scale);
-					NMake::Pack(Transform->SetDocument("constant-scale"), Ref->Transform->ConstantScale);
+					Rest::Document* Transform = Entity->Set("transform");
+					NMake::Pack(Transform->Set("position"), Ref->Transform->Position);
+					NMake::Pack(Transform->Set("rotation"), Ref->Transform->Rotation);
+					NMake::Pack(Transform->Set("scale"), Ref->Transform->Scale);
+					NMake::Pack(Transform->Set("constant-scale"), Ref->Transform->ConstantScale);
 
 					if (Ref->Transform->GetRoot() != nullptr)
 					{
-						Rest::Document* Parent = Entity->SetDocument("parent");
+						Rest::Document* Parent = Entity->Set("parent");
 						if (Ref->Transform->GetRoot()->UserPointer)
-							NMake::Pack(Parent->SetDocument("id"), ((Engine::Entity*)Ref->Transform->GetRoot()->UserPointer)->Id);
+							NMake::Pack(Parent->Set("id"), ((Engine::Entity*)Ref->Transform->GetRoot()->UserPointer)->Id);
 
-						NMake::Pack(Parent->SetDocument("position"), *Ref->Transform->GetLocalPosition());
-						NMake::Pack(Parent->SetDocument("rotation"), *Ref->Transform->GetLocalRotation());
-						NMake::Pack(Parent->SetDocument("scale"), *Ref->Transform->GetLocalScale());
-						NMake::Pack(Parent->SetDocument("world"), Ref->Transform->GetWorld());
+						NMake::Pack(Parent->Set("position"), *Ref->Transform->GetLocalPosition());
+						NMake::Pack(Parent->Set("rotation"), *Ref->Transform->GetLocalRotation());
+						NMake::Pack(Parent->Set("scale"), *Ref->Transform->GetLocalScale());
+						NMake::Pack(Parent->Set("world"), Ref->Transform->GetWorld());
 					}
 
 					if (Ref->GetComponentCount() <= 0)
 						continue;
 
-					Rest::Document* Components = Entity->SetArray("components");
+					Rest::Document* Components = Entity->Set("components", std::move(Rest::Var::Array()));
 					for (auto It = Ref->First(); It != Ref->Last(); It++)
 					{
-						Rest::Document* Component = Components->SetDocument("component");
-						NMake::Pack(Component->SetDocument("id"), It->second->GetId());
-						NMake::Pack(Component->SetDocument("active"), It->second->IsActive());
-						It->second->Serialize(Content, Component->SetDocument("metadata"));
+						Rest::Document* Component = Components->Set("component");
+						NMake::Pack(Component->Set("id"), It->second->GetId());
+						NMake::Pack(Component->Set("active"), It->second->IsActive());
+						It->second->Serialize(Content, Component->Set("metadata"));
 					}
 				}
 
@@ -289,12 +289,12 @@ namespace Tomahawk
 				if (Asset->Resource != nullptr)
 					delete ((Audio::AudioClip*)Asset->Resource);
 			}
-			void* AudioClip::Duplicate(AssetCache* Asset, const Compute::PropertyArgs& Args)
+			void* AudioClip::Duplicate(AssetCache* Asset, const Rest::VariantArgs& Args)
 			{
 				((Audio::AudioClip*)Asset->Resource)->AddRef();
 				return Asset->Resource;
 			}
-			void* AudioClip::Deserialize(Rest::Stream* Stream, uint64_t Length, uint64_t Offset, const Compute::PropertyArgs& Args)
+			void* AudioClip::Deserialize(Rest::Stream* Stream, uint64_t Length, uint64_t Offset, const Rest::VariantArgs& Args)
 			{
 				if (Rest::Stroke(&Stream->GetSource()).EndsWith(".wav"))
 					return DeserializeWAVE(Stream, Length, Offset, Args);
@@ -303,7 +303,7 @@ namespace Tomahawk
 
 				return nullptr;
 			}
-			void* AudioClip::DeserializeWAVE(Rest::Stream* Stream, uint64_t Length, uint64_t Offset, const Compute::PropertyArgs& Args)
+			void* AudioClip::DeserializeWAVE(Rest::Stream* Stream, uint64_t Length, uint64_t Offset, const Rest::VariantArgs& Args)
 			{
 #ifdef TH_HAS_SDL2
 				void* Binary = TH_MALLOC(sizeof(char) * Length);
@@ -356,7 +356,7 @@ namespace Tomahawk
 				return nullptr;
 #endif
 			}
-			void* AudioClip::DeserializeOGG(Rest::Stream* Stream, uint64_t Length, uint64_t Offset, const Compute::PropertyArgs& Args)
+			void* AudioClip::DeserializeOGG(Rest::Stream* Stream, uint64_t Length, uint64_t Offset, const Rest::VariantArgs& Args)
 			{
 				void* Binary = TH_MALLOC(sizeof(char) * Length);
 				if (Stream->Read((char*)Binary, Length) != Length)
@@ -405,12 +405,12 @@ namespace Tomahawk
 				if (Asset->Resource != nullptr)
 					delete ((Graphics::Texture2D*)Asset->Resource);
 			}
-			void* Texture2D::Duplicate(AssetCache* Asset, const Compute::PropertyArgs& Args)
+			void* Texture2D::Duplicate(AssetCache* Asset, const Rest::VariantArgs& Args)
 			{
 				((Graphics::Texture2D*)Asset->Resource)->AddRef();
 				return Asset->Resource;
 			}
-			void* Texture2D::Deserialize(Rest::Stream* Stream, uint64_t Length, uint64_t Offset, const Compute::PropertyArgs& Args)
+			void* Texture2D::Deserialize(Rest::Stream* Stream, uint64_t Length, uint64_t Offset, const Rest::VariantArgs& Args)
 			{
 				unsigned char* Binary = (unsigned char*)TH_MALLOC(sizeof(unsigned char) * Length);
 				if (Stream->Read((char*)Binary, Length) != Length)
@@ -463,12 +463,12 @@ namespace Tomahawk
 				if (Asset->Resource != nullptr)
 					delete ((Graphics::Shader*)Asset->Resource);
 			}
-			void* Shader::Duplicate(AssetCache* Asset, const Compute::PropertyArgs& Args)
+			void* Shader::Duplicate(AssetCache* Asset, const Rest::VariantArgs& Args)
 			{
 				((Graphics::Shader*)Asset->Resource)->AddRef();
 				return Asset->Resource;
 			}
-			void* Shader::Deserialize(Rest::Stream* Stream, uint64_t Length, uint64_t Offset, const Compute::PropertyArgs& Args)
+			void* Shader::Deserialize(Rest::Stream* Stream, uint64_t Length, uint64_t Offset, const Rest::VariantArgs& Args)
 			{
 				if (Args.empty())
 				{
@@ -508,12 +508,12 @@ namespace Tomahawk
 				if (Asset->Resource != nullptr)
 					delete ((Graphics::MeshBuffer*)Asset->Resource);
 			}
-			void* Model::Duplicate(AssetCache* Asset, const Compute::PropertyArgs& Args)
+			void* Model::Duplicate(AssetCache* Asset, const Rest::VariantArgs& Args)
 			{
 				((Graphics::Model*)Asset->Resource)->AddRef();
 				return Asset->Resource;
 			}
-			void* Model::Deserialize(Rest::Stream* Stream, uint64_t Length, uint64_t Offset, const Compute::PropertyArgs& Args)
+			void* Model::Deserialize(Rest::Stream* Stream, uint64_t Length, uint64_t Offset, const Rest::VariantArgs& Args)
 			{
 				auto* Document = Content->Load<Rest::Document>(Stream->GetSource());
 				if (!Document)
@@ -524,7 +524,7 @@ namespace Tomahawk
 				NMake::Unpack(Document->Find("max"), &Object->Max);
 				NMake::Unpack(Document->Find("min"), &Object->Min);
 
-				std::vector<Rest::Document*> Meshes = Document->FindCollectionPath("meshes.mesh");
+				std::vector<Rest::Document*> Meshes = Document->FetchCollection("meshes.mesh");
 				for (auto&& Mesh : Meshes)
 				{
 					Graphics::MeshBuffer::Desc F;
@@ -589,8 +589,8 @@ namespace Tomahawk
 						Joints.push_back(It.second);
 				}
 
-				auto* Document = new Rest::Document();
-				Document->Name = "model";
+				auto* Document = Rest::Document::Object();
+				Document->Key = "model";
 
 				float Min = 0, Max = 0;
 				if (Info.NX < Min)
@@ -611,20 +611,20 @@ namespace Tomahawk
 				if (Info.PZ > Max)
 					Max = Info.PZ;
 
-				NMake::Pack(Document->SetDocument("options"), Opts);
-				NMake::Pack(Document->SetDocument("root"), ToMatrix(Scene->mRootNode->mTransformation.Inverse()).Transpose());
-				NMake::Pack(Document->SetDocument("max"), Compute::Vector4(Info.PX, Info.PY, Info.PZ, Max));
-				NMake::Pack(Document->SetDocument("min"), Compute::Vector4(Info.NX, Info.NY, Info.NZ, Min));
-				NMake::Pack(Document->SetArray("joints"), Joints);
+				NMake::Pack(Document->Set("options"), Opts);
+				NMake::Pack(Document->Set("root"), ToMatrix(Scene->mRootNode->mTransformation.Inverse()).Transpose());
+				NMake::Pack(Document->Set("max"), Compute::Vector4(Info.PX, Info.PY, Info.PZ, Max));
+				NMake::Pack(Document->Set("min"), Compute::Vector4(Info.NX, Info.NY, Info.NZ, Min));
+				NMake::Pack(Document->Set("joints", std::move(Rest::Var::Array())), Joints);
 
-				Rest::Document* Meshes = Document->SetArray("meshes");
+				Rest::Document* Meshes = Document->Set("meshes", std::move(Rest::Var::Array()));
 				for (auto&& It : Info.Meshes)
 				{
-					Rest::Document* Mesh = Meshes->SetDocument("mesh");
-					NMake::Pack(Mesh->SetDocument("name"), It.Name);
-					NMake::Pack(Mesh->SetDocument("world"), It.World);
-					NMake::Pack(Mesh->SetDocument("vertices"), It.Vertices);
-					NMake::Pack(Mesh->SetDocument("indices"), It.Indices);
+					Rest::Document* Mesh = Meshes->Set("mesh");
+					NMake::Pack(Mesh->Set("name"), It.Name);
+					NMake::Pack(Mesh->Set("world"), It.World);
+					NMake::Pack(Mesh->Set("vertices"), It.Vertices);
+					NMake::Pack(Mesh->Set("indices"), It.Indices);
 				}
 
 				return Document;
@@ -821,12 +821,12 @@ namespace Tomahawk
 				if (Asset->Resource != nullptr)
 					delete ((Graphics::SkinMeshBuffer*)Asset->Resource);
 			}
-			void* SkinModel::Duplicate(AssetCache* Asset, const Compute::PropertyArgs& Args)
+			void* SkinModel::Duplicate(AssetCache* Asset, const Rest::VariantArgs& Args)
 			{
 				((Graphics::SkinModel*)Asset->Resource)->AddRef();
 				return Asset->Resource;
 			}
-			void* SkinModel::Deserialize(Rest::Stream* Stream, uint64_t Length, uint64_t Offset, const Compute::PropertyArgs& Args)
+			void* SkinModel::Deserialize(Rest::Stream* Stream, uint64_t Length, uint64_t Offset, const Rest::VariantArgs& Args)
 			{
 				auto* Document = Content->Load<Rest::Document>(Stream->GetSource());
 				if (!Document)
@@ -838,7 +838,7 @@ namespace Tomahawk
 				NMake::Unpack(Document->Find("min"), &Object->Min);
 				NMake::Unpack(Document->Find("joints"), &Object->Joints);
 
-				std::vector<Rest::Document*> Meshes = Document->FindCollectionPath("meshes.mesh");
+				std::vector<Rest::Document*> Meshes = Document->FetchCollection("meshes.mesh");
 				for (auto&& Mesh : Meshes)
 				{
 					Graphics::SkinMeshBuffer::Desc F;
@@ -961,8 +961,8 @@ namespace Tomahawk
 					}
 				}
 
-				auto* Document = new Rest::Document();
-				Document->Name = "animation";
+				auto* Document = Rest::Document::Object();
+				Document->Key = "animation";
 
 				NMake::Pack(Document, Clips);
 				return Document;
@@ -1034,7 +1034,7 @@ namespace Tomahawk
 			Document::Document(ContentManager* Manager) : Processor(Manager)
 			{
 			}
-			void* Document::Deserialize(Rest::Stream* Stream, uint64_t Length, uint64_t Offset, const Compute::PropertyArgs& Args)
+			void* Document::Deserialize(Rest::Stream* Stream, uint64_t Length, uint64_t Offset, const Rest::VariantArgs& Args)
 			{
 				Rest::NReadCallback Callback = [Stream](char* Buffer, int64_t Size)
 				{
@@ -1044,19 +1044,24 @@ namespace Tomahawk
 					return Stream->Read(Buffer, Size) == Size;
 				};
 
-				auto* Object = Rest::Document::ReadBIN(Callback);
+				auto* Object = Rest::Document::ReadJSONB(Callback, false);
 				if (Object != nullptr)
 					return Object;
 
 				Stream->Seek(Rest::FileSeek_Begin, Offset);
-				Object = Rest::Document::ReadJSON(Length, Callback);
+				Object = Rest::Document::ReadJSON(Length, Callback, false);
 				if (Object != nullptr)
 					return Object;
 
 				Stream->Seek(Rest::FileSeek_Begin, Offset);
-				return Rest::Document::ReadXML(Length, Callback);
+				Object = Rest::Document::ReadXML(Length, Callback, false);
+
+				if (!Object)
+					TH_ERROR("[doc] file is not in JSON, JSONB or XML format");
+
+				return Object;
 			}
-			bool Document::Serialize(Rest::Stream* Stream, void* Instance, const Compute::PropertyArgs& Args)
+			bool Document::Serialize(Rest::Stream* Stream, void* Instance, const Rest::VariantArgs& Args)
 			{
 				auto Type = Args.find("type");
 				if (Type == Args.end())
@@ -1068,28 +1073,28 @@ namespace Tomahawk
 				auto Document = (Rest::Document*)Instance;
 				std::string Offset;
 
-				if (Type->second == Compute::Property("XML"))
+				if (Type->second == Rest::Var::String("XML"))
 				{
-					Rest::Document::WriteXML(Document, [Stream, &Offset](Rest::DocumentPretty Pretty, const char* Buffer, int64_t Length)
+					Rest::Document::WriteXML(Document, [Stream, &Offset](Rest::VarFormat Pretty, const char* Buffer, int64_t Length)
 					{
 						if (Buffer != nullptr && Length > 0)
 							Stream->Write(Buffer, Length);
 
 						switch (Pretty)
 						{
-							case Tomahawk::Rest::DocumentPretty_Tab_Decrease:
+							case Tomahawk::Rest::VarFormat_Tab_Decrease:
 								Offset.assign(Offset.substr(0, Offset.size() - 1));
 								break;
-							case Tomahawk::Rest::DocumentPretty_Tab_Increase:
+							case Tomahawk::Rest::VarFormat_Tab_Increase:
 								Offset.append(1, '\t');
 								break;
-							case Tomahawk::Rest::DocumentPretty_Write_Space:
+							case Tomahawk::Rest::VarFormat_Write_Space:
 								Stream->Write(" ", 1);
 								break;
-							case Tomahawk::Rest::DocumentPretty_Write_Line:
+							case Tomahawk::Rest::VarFormat_Write_Line:
 								Stream->Write("\n", 1);
 								break;
-							case Tomahawk::Rest::DocumentPretty_Write_Tab:
+							case Tomahawk::Rest::VarFormat_Write_Tab:
 								Stream->Write(Offset.c_str(), Offset.size());
 								break;
 							default:
@@ -1097,28 +1102,28 @@ namespace Tomahawk
 						}
 					});
 				}
-				else if (Type->second == Compute::Property("JSON"))
+				else if (Type->second == Rest::Var::String("JSON"))
 				{
-					Rest::Document::WriteJSON(Document, [Stream, &Offset](Rest::DocumentPretty Pretty, const char* Buffer, int64_t Length)
+					Rest::Document::WriteJSON(Document, [Stream, &Offset](Rest::VarFormat Pretty, const char* Buffer, int64_t Length)
 					{
 						if (Buffer != nullptr && Length > 0)
 							Stream->Write(Buffer, Length);
 
 						switch (Pretty)
 						{
-							case Tomahawk::Rest::DocumentPretty_Tab_Decrease:
+							case Tomahawk::Rest::VarFormat_Tab_Decrease:
 								Offset.assign(Offset.substr(0, Offset.size() - 1));
 								break;
-							case Tomahawk::Rest::DocumentPretty_Tab_Increase:
+							case Tomahawk::Rest::VarFormat_Tab_Increase:
 								Offset.append(1, '\t');
 								break;
-							case Tomahawk::Rest::DocumentPretty_Write_Space:
+							case Tomahawk::Rest::VarFormat_Write_Space:
 								Stream->Write(" ", 1);
 								break;
-							case Tomahawk::Rest::DocumentPretty_Write_Line:
+							case Tomahawk::Rest::VarFormat_Write_Line:
 								Stream->Write("\n", 1);
 								break;
-							case Tomahawk::Rest::DocumentPretty_Write_Tab:
+							case Tomahawk::Rest::VarFormat_Write_Tab:
 								Stream->Write(Offset.c_str(), Offset.size());
 								break;
 							default:
@@ -1126,9 +1131,9 @@ namespace Tomahawk
 						}
 					});
 				}
-				else if (Type->second == Compute::Property("Binary"))
+				else if (Type->second == Rest::Var::String("JSONB"))
 				{
-					Rest::Document::WriteBIN(Document, [Stream](Rest::DocumentPretty, const char* Buffer, int64_t Length)
+					Rest::Document::WriteJSONB(Document, [Stream](Rest::VarFormat, const char* Buffer, int64_t Length)
 					{
 						if (Buffer != nullptr && Length > 0)
 							Stream->Write(Buffer, Length);
@@ -1141,7 +1146,7 @@ namespace Tomahawk
 			Server::Server(ContentManager* Manager) : Processor(Manager)
 			{
 			}
-			void* Server::Deserialize(Rest::Stream* Stream, uint64_t Length, uint64_t Offset, const Compute::PropertyArgs& Args)
+			void* Server::Deserialize(Rest::Stream* Stream, uint64_t Length, uint64_t Offset, const Rest::VariantArgs& Args)
 			{
 				std::string N = Network::Socket::LocalIpAddress();
 				std::string D = Rest::OS::FileDirectory(Stream->GetSource());
@@ -1162,7 +1167,7 @@ namespace Tomahawk
 				else if (Callback)
 					Callback((void*)Object, Document);
 
-				if (!NMake::Unpack(Document->FindPath("module-root"), &Router->ModuleRoot))
+				if (!NMake::Unpack(Document->Fetch("module-root"), &Router->ModuleRoot))
 					Router->ModuleRoot.clear();
 
 				if (!NMake::Unpack(Document->Find("keep-alive"), &Router->KeepAliveMaxCount))
@@ -1271,25 +1276,28 @@ namespace Tomahawk
 					if (Site == nullptr)
 						continue;
 
-					if (!NMake::Unpack(It->FindPath("gateway.session.name"), &Site->Gateway.Session.Name))
+					if (!NMake::Unpack(It->Fetch("gateway.session.name"), &Site->Gateway.Session.Name))
 						Site->Gateway.Session.Name = "SessionId";
 
-					if (!NMake::Unpack(It->FindPath("gateway.session.document-root"), &Site->Gateway.Session.DocumentRoot))
+					if (!NMake::Unpack(It->Fetch("gateway.session.document-root"), &Site->Gateway.Session.DocumentRoot))
 						Site->Gateway.Session.DocumentRoot.clear();
 
-					if (!NMake::Unpack(It->FindPath("gateway.session.domain"), &Site->Gateway.Session.Domain))
+					if (!NMake::Unpack(It->Fetch("gateway.session.domain"), &Site->Gateway.Session.Domain))
 						Site->Gateway.Session.Domain.clear();
 
-					if (!NMake::Unpack(It->FindPath("gateway.session.path"), &Site->Gateway.Session.Path))
+					if (!NMake::Unpack(It->Fetch("gateway.session.path"), &Site->Gateway.Session.Path))
 						Site->Gateway.Session.Path = "/";
 
-					if (!NMake::Unpack(It->FindPath("gateway.session.path"), &Site->Gateway.Session.Expires))
+					if (!NMake::Unpack(It->Fetch("gateway.session.path"), &Site->Gateway.Session.Expires))
 						Site->Gateway.Session.Expires = 604800;
 
-					if (!NMake::Unpack(It->FindPath("gateway.session.cookie-expires"), &Site->Gateway.Session.CookieExpires))
+					if (!NMake::Unpack(It->Fetch("gateway.session.cookie-expires"), &Site->Gateway.Session.CookieExpires))
 						Site->Gateway.Session.CookieExpires = 31536000;
 
-					if (!NMake::Unpack(It->FindPath("gateway.enabled"), &Site->Gateway.Enabled))
+					if (!NMake::Unpack(It->Fetch("gateway.verify"), &Site->Gateway.Verify))
+						Site->Gateway.Verify = false;
+
+					if (!NMake::Unpack(It->Fetch("gateway.enabled"), &Site->Gateway.Enabled))
 						Site->Gateway.Enabled = false;
 
 					if (!NMake::Unpack(It->Find("resource-root"), &Site->ResourceRoot))
@@ -1320,7 +1328,7 @@ namespace Tomahawk
 						if (Route == nullptr)
 							continue;
 
-						std::vector<Rest::Document*> GatewayFiles = Base->FindCollectionPath("gateway.files.file");
+						std::vector<Rest::Document*> GatewayFiles = Base->FetchCollection("gateway.files.file");
 						for (auto& File : GatewayFiles)
 						{
 							std::string Pattern;
@@ -1328,7 +1336,7 @@ namespace Tomahawk
 								Route->Gateway.Files.push_back(Compute::Regex::Create(Pattern, Compute::RegexFlags_IgnoreCase));
 						}
 
-						std::vector<Rest::Document*> GatewayMethods = Base->FindCollectionPath("gateway.methods.method");
+						std::vector<Rest::Document*> GatewayMethods = Base->FetchCollection("gateway.methods.method");
 						for (auto& Method : GatewayMethods)
 						{
 							std::string Value;
@@ -1336,7 +1344,7 @@ namespace Tomahawk
 								Route->Gateway.Methods.push_back(Value);
 						}
 
-						std::vector<Rest::Document*> AuthUsers = Base->FindCollectionPath("auth.users.user");
+						std::vector<Rest::Document*> AuthUsers = Base->FetchCollection("auth.users.user");
 						for (auto& User : AuthUsers)
 						{
 							Network::HTTP::Credentials Credentials;
@@ -1345,7 +1353,7 @@ namespace Tomahawk
 							Route->Auth.Users.push_back(Credentials);
 						}
 
-						std::vector<Rest::Document*> AuthMethods = Base->FindCollectionPath("auth.methods.method");
+						std::vector<Rest::Document*> AuthMethods = Base->FetchCollection("auth.methods.method");
 						for (auto& Method : AuthMethods)
 						{
 							std::string Value;
@@ -1353,7 +1361,7 @@ namespace Tomahawk
 								Route->Auth.Methods.push_back(Value);
 						}
 
-						std::vector<Rest::Document*> CompressionFiles = Base->FindCollectionPath("compression.files.file");
+						std::vector<Rest::Document*> CompressionFiles = Base->FetchCollection("compression.files.file");
 						for (auto& File : CompressionFiles)
 						{
 							std::string Value;
@@ -1361,7 +1369,7 @@ namespace Tomahawk
 								Route->Compression.Files.push_back(Compute::Regex::Create(Value, Compute::RegexFlags_IgnoreCase));
 						}
 
-						std::vector<Rest::Document*> HiddenFiles = Base->FindCollectionPath("hidden-files.hide");
+						std::vector<Rest::Document*> HiddenFiles = Base->FetchCollection("hidden-files.hide");
 						for (auto& File : HiddenFiles)
 						{
 							std::string Value;
@@ -1369,7 +1377,7 @@ namespace Tomahawk
 								Route->HiddenFiles.push_back(Compute::Regex::Create(Value, Compute::RegexFlags_IgnoreCase));
 						}
 
-						std::vector<Rest::Document*> IndexFiles = Base->FindCollectionPath("index-files.index");
+						std::vector<Rest::Document*> IndexFiles = Base->FetchCollection("index-files.index");
 						for (auto& File : IndexFiles)
 						{
 							std::string Value;
@@ -1377,7 +1385,7 @@ namespace Tomahawk
 								Route->IndexFiles.push_back(Value);
 						}
 
-						std::vector<Rest::Document*> ErrorFiles = Base->FindCollectionPath("error-files.error");
+						std::vector<Rest::Document*> ErrorFiles = Base->FetchCollection("error-files.error");
 						for (auto& File : ErrorFiles)
 						{
 							Network::HTTP::ErrorFile Pattern;
@@ -1386,7 +1394,7 @@ namespace Tomahawk
 							Route->ErrorFiles.push_back(Pattern);
 						}
 
-						std::vector<Rest::Document*> MimeTypes = Base->FindCollectionPath("mime-types.file");
+						std::vector<Rest::Document*> MimeTypes = Base->FetchCollection("mime-types.file");
 						for (auto& Type : MimeTypes)
 						{
 							Network::HTTP::MimeType Pattern;
@@ -1395,7 +1403,7 @@ namespace Tomahawk
 							Route->MimeTypes.push_back(Pattern);
 						}
 
-						std::vector<Rest::Document*> DisallowedMethods = Base->FindCollectionPath("disallowed-methods.method");
+						std::vector<Rest::Document*> DisallowedMethods = Base->FetchCollection("disallowed-methods.method");
 						for (auto& Method : DisallowedMethods)
 						{
 							std::string Value;
@@ -1404,7 +1412,7 @@ namespace Tomahawk
 						}
 
 						std::string Tune;
-						if (NMake::Unpack(Base->FindPath("compression.tune"), &Tune))
+						if (NMake::Unpack(Base->Fetch("compression.tune"), &Tune))
 						{
 							if (!strcmp(Tune.c_str(), "Filtered"))
 								Route->Compression.Tune = Network::HTTP::CompressionTune_Filtered;
@@ -1418,10 +1426,10 @@ namespace Tomahawk
 								Route->Compression.Tune = Network::HTTP::CompressionTune_Default;
 						}
 
-						if (NMake::Unpack(Base->FindPath("compression.quality-level"), &Route->Compression.QualityLevel))
+						if (NMake::Unpack(Base->Fetch("compression.quality-level"), &Route->Compression.QualityLevel))
 							Route->Compression.QualityLevel = Compute::Mathi::Clamp(Route->Compression.QualityLevel, 0, 9);
 
-						if (NMake::Unpack(Base->FindPath("compression.memory-level"), &Route->Compression.MemoryLevel))
+						if (NMake::Unpack(Base->Fetch("compression.memory-level"), &Route->Compression.MemoryLevel))
 							Route->Compression.MemoryLevel = Compute::Mathi::Clamp(Route->Compression.MemoryLevel, 1, 9);
 
 						if (NMake::Unpack(Base->Find("document-root"), &Route->DocumentRoot))
@@ -1430,10 +1438,10 @@ namespace Tomahawk
 						if (NMake::Unpack(Base->Find("default"), &Route->Default))
 							Rest::Stroke(&Route->Default).Path(N, D);
 
-						NMake::Unpack(Base->FindPath("auth.type"), &Route->Auth.Type);
-						NMake::Unpack(Base->FindPath("auth.realm"), &Route->Auth.Realm);
-						NMake::Unpack(Base->FindPath("compression.min-length"), &Route->Compression.MinLength);
-						NMake::Unpack(Base->FindPath("compression.enabled"), &Route->Compression.Enabled);
+						NMake::Unpack(Base->Fetch("auth.type"), &Route->Auth.Type);
+						NMake::Unpack(Base->Fetch("auth.realm"), &Route->Auth.Realm);
+						NMake::Unpack(Base->Fetch("compression.min-length"), &Route->Compression.MinLength);
+						NMake::Unpack(Base->Fetch("compression.enabled"), &Route->Compression.Enabled);
 						NMake::Unpack(Base->Find("char-set"), &Route->CharSet);
 						NMake::Unpack(Base->Find("access-control-allow-origin"), &Route->AccessControlAllowOrigin);
 						NMake::Unpack(Base->Find("refer"), &Route->Refer);
@@ -1469,18 +1477,18 @@ namespace Tomahawk
 					delete Shape;
 				}
 			}
-			void* Shape::Duplicate(AssetCache* Asset, const Compute::PropertyArgs& Args)
+			void* Shape::Duplicate(AssetCache* Asset, const Rest::VariantArgs& Args)
 			{
 				return Asset->Resource;
 			}
-			void* Shape::Deserialize(Rest::Stream* Stream, uint64_t Length, uint64_t Offset, const Compute::PropertyArgs& Args)
+			void* Shape::Deserialize(Rest::Stream* Stream, uint64_t Length, uint64_t Offset, const Rest::VariantArgs& Args)
 			{
 				auto* Document = Content->Load<Rest::Document>(Stream->GetSource());
 				if (!Document)
 					return nullptr;
 
 				Compute::UnmanagedShape* Object = new Compute::UnmanagedShape();
-				std::vector<Rest::Document*> Meshes = Document->FindCollectionPath("meshes.mesh");
+				std::vector<Rest::Document*> Meshes = Document->FetchCollection("meshes.mesh");
 				for (auto&& Mesh : Meshes)
 				{
 					if (!NMake::Unpack(Mesh->Find("indices"), &Object->Indices))

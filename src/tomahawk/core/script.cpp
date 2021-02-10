@@ -3567,6 +3567,14 @@ namespace Tomahawk
 			if (!Namespace)
 				return -1;
 
+			const char* Prev = Engine->GetDefaultNamespace();
+			Safe.lock();
+			if (Prev != nullptr)
+				DefaultNamespace = Prev;
+			else
+				DefaultNamespace.clear();
+			Safe.unlock();
+
 			return Engine->SetDefaultNamespace(Namespace);
 		}
 		int VMManager::BeginNamespaceIsolated(const char* Namespace, size_t DefaultMask)
@@ -3575,16 +3583,20 @@ namespace Tomahawk
 				return -1;
 
 			BeginAccessMask(DefaultMask);
-			return Engine->SetDefaultNamespace(Namespace);
+			return BeginNamespace(Namespace);
 		}
 		int VMManager::EndNamespaceIsolated()
 		{
 			EndAccessMask();
-			return Engine->SetDefaultNamespace("");
+			return EndNamespace();
 		}
 		int VMManager::EndNamespace()
 		{
-			return Engine->SetDefaultNamespace("");
+			Safe.lock();
+			int R = Engine->SetDefaultNamespace(DefaultNamespace.c_str());
+			Safe.unlock();
+
+			return R;
 		}
 		int VMManager::Namespace(const char* Namespace, const std::function<int(VMGlobal*)>& Callback)
 		{
@@ -3684,6 +3696,77 @@ namespace Tomahawk
 		std::string VMManager::GetDocumentRoot() const
 		{
 			return Include.Root;
+		}
+		std::vector<std::string> VMManager::GetSubmodules() const
+		{
+			std::vector<std::string> Result;
+			for (auto& Module : Modules)
+			{
+				if (Module.second.Registered)
+					Result.push_back(Module.first);
+			}
+
+			return Result;
+		}
+		std::vector<std::string> VMManager::VerifyModules(const std::string& Directory, const Compute::RegExp& Exp)
+		{
+			std::vector<std::string> Result;
+			if (!Rest::OS::DirExists(Directory.c_str()))
+				return Result;
+
+			std::vector<Rest::ResourceEntry> Entries;
+			if (!Rest::OS::ScanDir(Directory, &Entries))
+				return Result;
+
+			for (auto& Entry : Entries)
+			{
+				if (Directory.back() != '/' && Directory.back() != '\\')
+					Entry.Path = Directory + '/' + Entry.Path;
+				else
+					Entry.Path = Directory + Entry.Path;
+
+				if (!Entry.Source.IsDirectory)
+				{
+					if (!Compute::Regex::Match((Compute::RegExp*)&Exp, nullptr, Entry.Path))
+						continue;
+
+					if (!VerifyModule(Entry.Path))
+						Result.push_back(Entry.Path);
+				}
+				else
+				{
+					std::vector<std::string> Merge = VerifyModules(Entry.Path, Exp);
+					if (!Merge.empty())
+						Result.insert(Result.end(), Merge.begin(), Merge.end());
+				}
+			}
+
+			return Result;
+		}
+		bool VMManager::VerifyModule(const std::string& Path)
+		{
+			if (!Engine)
+				return false;
+
+			std::string Source = Rest::OS::Read(Path.c_str());
+			if (Source.empty())
+				return true;
+
+			Safe.lock();
+			asIScriptModule* Module = Engine->GetModule("__vfver", asGM_ALWAYS_CREATE);
+			Module->AddScriptSection(Path.c_str(), Source.c_str(), Source.size());
+
+			int R = Module->Build();
+			while (R == asBUILD_IN_PROGRESS)
+			{
+				std::this_thread::sleep_for(std::chrono::microseconds(100));
+				R = Module->Build();
+			}
+
+			Module->Discard();
+			Safe.unlock();
+
+			return R >= 0;
 		}
 		bool VMManager::IsNullable(int TypeId)
 		{
@@ -4088,11 +4171,13 @@ namespace Tomahawk
 
 			Engine->AddSubmodule("rest/format", { "std/string" }, RegisterFormatAPI);
 			Engine->AddSubmodule("rest/console", { "rest/format" }, RegisterConsoleAPI);
-			Engine->AddSubmodule("rest/document", { "std/array", "std/string", "std/map" }, RegisterDocumentAPI);
+			Engine->AddSubmodule("rest/variant", { }, RegisterVariantAPI);
+			Engine->AddSubmodule("rest/document", { "std/array", "std/string", "std/map", "rest/variant" }, RegisterDocumentAPI);
 			Engine->AddSubmodule("rest",
 			{
 				"rest/format",
 				"rest/console",
+				"rest/variant",
 				"rest/document"
 			}, nullptr);
 

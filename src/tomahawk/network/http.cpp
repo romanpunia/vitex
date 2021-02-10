@@ -1496,10 +1496,13 @@ namespace Tomahawk
 #endif
 			}
 
+			QueryParameter::QueryParameter() : Rest::Document(std::move(Rest::Var::Object()))
+			{
+			}
 			std::string QueryParameter::Build()
 			{
-				std::string Output, Label = Compute::Common::URIEncode(Parent != nullptr ? ('[' + Name + ']') : Name);
-				if (IsObject())
+				std::string Output, Label = Compute::Common::URIEncode(Parent != nullptr ? ('[' + Key + ']') : Key);
+				if (Value.IsObject())
 				{
 					for (auto It = Nodes.begin(); It != Nodes.end(); It++)
 					{
@@ -1510,9 +1513,9 @@ namespace Tomahawk
 				}
 				else
 				{
-					std::string Value = Serialize();
-					if (!Value.empty())
-						Output.append(Label).append(1, '=').append(Compute::Common::URIEncode(Value));
+					std::string V = Value.Serialize();
+					if (!V.empty())
+						Output.append(Label).append(1, '=').append(Compute::Common::URIEncode(V));
 					else
 						Output.append(Label);
 				}
@@ -1521,8 +1524,8 @@ namespace Tomahawk
 			}
 			std::string QueryParameter::BuildFromBase()
 			{
-				std::string Output, Label = Compute::Common::URIEncode(Name);
-				if (IsObject())
+				std::string Output, Label = Compute::Common::URIEncode(Key);
+				if (Value.IsObject())
 				{
 					for (auto It = Nodes.begin(); It != Nodes.end(); It++)
 					{
@@ -1533,9 +1536,9 @@ namespace Tomahawk
 				}
 				else
 				{
-					std::string Value = Serialize();
-					if (!Value.empty())
-						Output.append(Label).append(1, '=').append(Compute::Common::URIEncode(Value));
+					std::string V = Value.Serialize();
+					if (!V.empty())
+						Output.append(Label).append(1, '=').append(Compute::Common::URIEncode(V));
 					else
 						Output.append(Label);
 				}
@@ -1551,7 +1554,7 @@ namespace Tomahawk
 				{
 					for (auto It = Nodes.begin(); It != Nodes.end(); It++)
 					{
-						if (!strncmp((*It)->Name.c_str(), Name->Value, (size_t)Name->Length))
+						if (!strncmp((*It)->Key.c_str(), Name->Value, (size_t)Name->Length))
 							return (QueryParameter*)*It;
 					}
 				}
@@ -1559,18 +1562,19 @@ namespace Tomahawk
 				QueryParameter* New = new QueryParameter();
 				if (Name->Length > 0)
 				{
-					New->Name.assign(Name->Value, Name->Length);
-					if (!Rest::Stroke(&New->Name).HasInteger())
-						Type = Rest::NodeType_Object;
+					New->Key.assign(Name->Value, Name->Length);
+					if (!Rest::Stroke(&New->Key).HasInteger())
+						Value = Rest::Var::Object();
 					else
-						Type = Rest::NodeType_Array;
+						Value = Rest::Var::Array();
 				}
 				else
 				{
-					New->Name.assign(std::to_string(Nodes.size()));
-					Type = Rest::NodeType_Array;
+					New->Key.assign(std::to_string(Nodes.size()));
+					Value = Rest::Var::Array();
 				}
-				New->Type = Rest::NodeType_String;
+
+				New->Value = std::move(Rest::Var::String("", 0));
 				New->Parent = this;
 				Nodes.push_back(New);
 
@@ -1647,7 +1651,7 @@ namespace Tomahawk
 				}
 
 				if (Parameter != nullptr)
-					Parameter->Deserialize(Compute::Common::URIDecode(Value.Value, Value.Length));
+					Parameter->Value.Deserialize(Compute::Common::URIDecode(Value.Value, Value.Length));
 			}
 			void Query::Decode(const char* Type, const std::string& URI)
 			{
@@ -1741,11 +1745,11 @@ namespace Tomahawk
 			}
 			QueryParameter* Query::Set(const char* Name)
 			{
-				return (QueryParameter*)Object->SetString(Name, "");
+				return (QueryParameter*)Object->Set(Name, std::move(Rest::Var::String("", 0)));
 			}
 			QueryParameter* Query::Set(const char* Name, const char* Value)
 			{
-				return (QueryParameter*)Object->SetString(Name, Value);
+				return (QueryParameter*)Object->Set(Name, std::move(Rest::Var::String(Value)));
 			}
 			QueryParameter* Query::GetParameter(QueryToken* Name)
 			{
@@ -1756,10 +1760,10 @@ namespace Tomahawk
 				{
 					for (auto It = Object->GetNodes()->begin(); It != Object->GetNodes()->end(); It++)
 					{
-						if ((*It)->Name.size() != Name->Length)
+						if ((*It)->Key.size() != Name->Length)
 							continue;
 
-						if (!strncmp((*It)->Name.c_str(), Name->Value, (size_t)Name->Length))
+						if (!strncmp((*It)->Key.c_str(), Name->Value, (size_t)Name->Length))
 							return (QueryParameter*)*It;
 					}
 				}
@@ -1767,19 +1771,19 @@ namespace Tomahawk
 				QueryParameter* New = new QueryParameter();
 				if (Name->Length > 0)
 				{
-					New->Name.assign(Name->Value, Name->Length);
-					if (!Rest::Stroke(&New->Name).HasInteger())
-						Object->Type = Rest::NodeType_Object;
+					New->Key.assign(Name->Value, Name->Length);
+					if (!Rest::Stroke(&New->Key).HasInteger())
+						Object->Value = Rest::Var::Object();
 					else
-						Object->Type = Rest::NodeType_Array;
+						Object->Value = Rest::Var::Array();
 				}
 				else
 				{
-					New->Name.assign(std::to_string(Object->GetNodes()->size()));
-					Object->Type = Rest::NodeType_Array;
+					New->Key.assign(std::to_string(Object->GetNodes()->size()));
+					Object->Value = Rest::Var::Array();
 				}
 
-				New->Type = Rest::NodeType_String;
+				New->Value = std::move(Rest::Var::String("", 0));
 				Object->GetNodes()->push_back(New);
 
 				return New;
@@ -1787,7 +1791,7 @@ namespace Tomahawk
 
 			Session::Session()
 			{
-				Query = new Rest::Document();
+				Query = Rest::Document::Object();
 			}
 			Session::~Session()
 			{
@@ -1800,7 +1804,7 @@ namespace Tomahawk
 			}
 			bool Session::Write(Connection* Base)
 			{
-				if (!Base || !Base->Route || !Query || Query->Saved)
+				if (!Base || !Base->Route || !Query || Query->IsSaved())
 					return false;
 
 				std::string Document = Base->Route->Site->Gateway.Session.DocumentRoot + FindSessionId(Base);
@@ -1812,7 +1816,7 @@ namespace Tomahawk
 				SessionExpires = time(nullptr) + Base->Route->Site->Gateway.Session.Expires;
 				fwrite(&SessionExpires, sizeof(int64_t), 1, Stream);
 
-				Query->WriteBIN(Query, [Stream](Rest::DocumentPretty, const char* Buffer, int64_t Size)
+				Query->WriteJSONB(Query, [Stream](Rest::VarFormat, const char* Buffer, int64_t Size)
 				{
 					if (Buffer != nullptr && Size > 0)
 						fwrite(Buffer, Size, 1, Stream);
@@ -1858,7 +1862,7 @@ namespace Tomahawk
 				}
 
 
-				Rest::Document* V = Rest::Document::ReadBIN([Stream](char* Buffer, int64_t Size)
+				Rest::Document* V = Rest::Document::ReadJSONB([Stream](char* Buffer, int64_t Size)
 				{
 					if (!Buffer || !Size)
 						return true;
@@ -5044,6 +5048,27 @@ namespace Tomahawk
 
 						for (auto J = Route->ErrorFiles.begin(); J < Route->ErrorFiles.end(); J++)
 							J->Pattern = Rest::OS::Resolve(J->Pattern.c_str());
+
+						if (!Root->VM || !Entry->Gateway.Enabled || !Entry->Gateway.Verify)
+							continue;
+
+						for (auto& Exp : Route->Gateway.Files)
+						{
+							std::vector<std::string> Result = Root->VM->VerifyModules(Route->DocumentRoot, Exp);
+							if (!Result.empty())
+							{
+								std::string Files;
+								for (auto& Name : Result)
+									Files += "\n\t" + Name;
+
+								TH_ERROR("(vm) there are errors in %i module(s)%s", (int)Result.size(), Files.c_str());
+								Entry->Gateway.Enabled = false;
+								break;
+							}
+						}
+
+						if (Entry->Gateway.Enabled && !Route->Gateway.Files.empty())
+							TH_INFO("(vm) modules are verified for: %s", Route->DocumentRoot.c_str());
 					}
 
 					qsort((void*)Entry->Routes.data(), (size_t)Entry->Routes.size(), sizeof(HTTP::RouteEntry*), [](const void* A1, const void* B1) -> int

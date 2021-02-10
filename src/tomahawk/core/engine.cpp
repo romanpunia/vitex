@@ -15,13 +15,13 @@ namespace Tomahawk
 {
 	namespace Engine
 	{
-		Event::Event(const std::string& NewName, SceneGraph* Target, const Compute::PropertyArgs& NewArgs) : Id(NewName), Args(NewArgs), TScene(Target), TEntity(nullptr), TComponent(nullptr)
+		Event::Event(const std::string& NewName, SceneGraph* Target, const Rest::VariantArgs& NewArgs) : Id(NewName), Args(NewArgs), TScene(Target), TEntity(nullptr), TComponent(nullptr)
 		{
 		}
-		Event::Event(const std::string& NewName, Entity* Target, const Compute::PropertyArgs& NewArgs) : Id(NewName), Args(NewArgs), TScene(nullptr), TEntity(Target), TComponent(nullptr)
+		Event::Event(const std::string& NewName, Entity* Target, const Rest::VariantArgs& NewArgs) : Id(NewName), Args(NewArgs), TScene(nullptr), TEntity(Target), TComponent(nullptr)
 		{
 		}
-		Event::Event(const std::string& NewName, Component* Target, const Compute::PropertyArgs& NewArgs) : Id(NewName), Args(NewArgs), TScene(nullptr), TEntity(nullptr), TComponent(Target)
+		Event::Event(const std::string& NewName, Component* Target, const Rest::VariantArgs& NewArgs) : Id(NewName), Args(NewArgs), TScene(nullptr), TEntity(nullptr), TComponent(Target)
 		{
 		}
 		bool Event::Is(const std::string& Name)
@@ -257,436 +257,499 @@ namespace Tomahawk
 			return *this;
 		}
 
-		bool NMake::Pack(Rest::Document* V, bool Value)
+		void NMake::Pack(Rest::Document* V, bool Value)
+		{
+			if (V != nullptr)
+				V->SetAttribute("b", std::move(Rest::Var::Boolean(Value)));
+		}
+		void NMake::Pack(Rest::Document* V, int Value)
+		{
+			if (V != nullptr)
+				V->SetAttribute("i", std::move(Rest::Var::Integer(Value)));
+		}
+		void NMake::Pack(Rest::Document* V, unsigned int Value)
+		{
+			if (V != nullptr)
+				V->SetAttribute("i", std::move(Rest::Var::Integer(Value)));
+		}
+		void NMake::Pack(Rest::Document* V, float Value)
+		{
+			if (V != nullptr)
+				V->SetAttribute("n", std::move(Rest::Var::Number(Value)));
+		}
+		void NMake::Pack(Rest::Document* V, double Value)
+		{
+			if (V != nullptr)
+				V->SetAttribute("n", std::move(Rest::Var::Number(Value)));
+		}
+		void NMake::Pack(Rest::Document* V, int64_t Value)
+		{
+			if (V != nullptr)
+				V->SetAttribute("i", std::move(Rest::Var::Integer(Value)));
+		}
+		void NMake::Pack(Rest::Document* V, long double Value)
+		{
+			if (V != nullptr)
+				V->SetAttribute("n", std::move(Rest::Var::Number(Value)));
+		}
+		void NMake::Pack(Rest::Document* V, uint64_t Value)
+		{
+			if (V != nullptr)
+				V->SetAttribute("i", std::move(Rest::Var::Integer(Value)));
+		}
+		void NMake::Pack(Rest::Document* V, const char* Value)
+		{
+			V->SetAttribute("s", Rest::Var::String(Value ? Value : ""));
+		}
+		void NMake::Pack(Rest::Document* V, const Compute::Vector2& Value)
 		{
 			if (!V)
-				return false;
+				return;
 
-			return V->SetBoolean("[b]", Value) != nullptr;
+			V->SetAttribute("x", std::move(Rest::Var::Number(Value.X)));
+			V->SetAttribute("y", std::move(Rest::Var::Number(Value.Y)));
 		}
-		bool NMake::Pack(Rest::Document* V, int Value)
+		void NMake::Pack(Rest::Document* V, const Compute::Vector3& Value)
 		{
 			if (!V)
-				return false;
+				return;
 
-			return V->SetInteger("[i]", Value) != nullptr;
+			V->SetAttribute("x", std::move(Rest::Var::Number(Value.X)));
+			V->SetAttribute("y", std::move(Rest::Var::Number(Value.Y)));
+			V->SetAttribute("z", std::move(Rest::Var::Number(Value.Z)));
 		}
-		bool NMake::Pack(Rest::Document* V, unsigned int Value)
+		void NMake::Pack(Rest::Document* V, const Compute::Vector4& Value)
 		{
 			if (!V)
-				return false;
+				return;
 
-			return V->SetInteger("[i]", Value) != nullptr;
+			V->SetAttribute("x", std::move(Rest::Var::Number(Value.X)));
+			V->SetAttribute("y", std::move(Rest::Var::Number(Value.Y)));
+			V->SetAttribute("z", std::move(Rest::Var::Number(Value.Z)));
+			V->SetAttribute("w", std::move(Rest::Var::Number(Value.W)));
 		}
-		bool NMake::Pack(Rest::Document* V, float Value)
+		void NMake::Pack(Rest::Document* V, const Compute::Matrix4x4& Value)
 		{
 			if (!V)
-				return false;
+				return;
 
-			return V->SetNumber("[n]", Value) != nullptr;
+			V->SetAttribute("m11", std::move(Rest::Var::Number(Value.Row[0])));
+			V->SetAttribute("m12", std::move(Rest::Var::Number(Value.Row[1])));
+			V->SetAttribute("m13", std::move(Rest::Var::Number(Value.Row[2])));
+			V->SetAttribute("m14", std::move(Rest::Var::Number(Value.Row[3])));
+			V->SetAttribute("m21", std::move(Rest::Var::Number(Value.Row[4])));
+			V->SetAttribute("m22", std::move(Rest::Var::Number(Value.Row[5])));
+			V->SetAttribute("m23", std::move(Rest::Var::Number(Value.Row[6])));
+			V->SetAttribute("m24", std::move(Rest::Var::Number(Value.Row[7])));
+			V->SetAttribute("m31", std::move(Rest::Var::Number(Value.Row[8])));
+			V->SetAttribute("m32", std::move(Rest::Var::Number(Value.Row[9])));
+			V->SetAttribute("m33", std::move(Rest::Var::Number(Value.Row[10])));
+			V->SetAttribute("m34", std::move(Rest::Var::Number(Value.Row[11])));
+			V->SetAttribute("m41", std::move(Rest::Var::Number(Value.Row[12])));
+			V->SetAttribute("m42", std::move(Rest::Var::Number(Value.Row[13])));
+			V->SetAttribute("m43", std::move(Rest::Var::Number(Value.Row[14])));
+			V->SetAttribute("m44", std::move(Rest::Var::Number(Value.Row[15])));
 		}
-		bool NMake::Pack(Rest::Document* V, double Value)
+		void NMake::Pack(Rest::Document* V, const Attenuation& Value)
 		{
 			if (!V)
-				return false;
+				return;
 
-			return V->SetNumber("[n]", Value) != nullptr;
+			NMake::Pack(V->Set("range"), Value.Range);
+			NMake::Pack(V->Set("c1"), Value.C1);
+			NMake::Pack(V->Set("c2"), Value.C2);
 		}
-		bool NMake::Pack(Rest::Document* V, int64_t Value)
+		void NMake::Pack(Rest::Document* V, const Material& Value)
 		{
 			if (!V)
-				return false;
+				return;
 
-			return V->SetInteger("[i]", Value) != nullptr;
+			NMake::Pack(V->Set("emission"), Value.Emission);
+			NMake::Pack(V->Set("metallic"), Value.Metallic);
+			NMake::Pack(V->Set("scatter"), Value.Scatter);
+			NMake::Pack(V->Set("roughness"), Value.Roughness);
+			NMake::Pack(V->Set("fresnel"), Value.Fresnel);
+			NMake::Pack(V->Set("refraction"), Value.Refraction);
+			NMake::Pack(V->Set("transparency"), Value.Transparency);
+			NMake::Pack(V->Set("environment"), Value.Environment);
+			NMake::Pack(V->Set("occlusion"), Value.Occlusion);
+			NMake::Pack(V->Set("radius"), Value.Radius);
+			NMake::Pack(V->Set("id"), Value.Id);
 		}
-		bool NMake::Pack(Rest::Document* V, long double Value)
+		void NMake::Pack(Rest::Document* V, const AnimatorState& Value)
 		{
 			if (!V)
-				return false;
+				return;
 
-			return V->SetDecimal("[d]", std::to_string(Value)) != nullptr;
+			NMake::Pack(V->Set("looped"), Value.Looped);
+			NMake::Pack(V->Set("paused"), Value.Paused);
+			NMake::Pack(V->Set("blended"), Value.Blended);
+			NMake::Pack(V->Set("clip"), Value.Clip);
+			NMake::Pack(V->Set("frame"), Value.Frame);
+			NMake::Pack(V->Set("rate"), Value.Rate);
+			NMake::Pack(V->Set("duration"), Value.Duration);
+			NMake::Pack(V->Set("time"), Value.Time);
 		}
-		bool NMake::Pack(Rest::Document* V, uint64_t Value)
+		void NMake::Pack(Rest::Document* V, const SpawnerProperties& Value)
 		{
 			if (!V)
-				return false;
+				return;
 
-			return V->SetInteger("[i]", Value) != nullptr;
+			NMake::Pack(V->Set("iterations"), Value.Iterations);
+
+			Rest::Document* Angular = V->Set("angular");
+			NMake::Pack(Angular->Set("intensity"), Value.Angular.Intensity);
+			NMake::Pack(Angular->Set("accuracy"), Value.Angular.Accuracy);
+			NMake::Pack(Angular->Set("min"), Value.Angular.Min);
+			NMake::Pack(Angular->Set("max"), Value.Angular.Max);
+
+			Rest::Document* Diffusion = V->Set("diffusion");
+			NMake::Pack(Diffusion->Set("intensity"), Value.Diffusion.Intensity);
+			NMake::Pack(Diffusion->Set("accuracy"), Value.Diffusion.Accuracy);
+			NMake::Pack(Diffusion->Set("min"), Value.Diffusion.Min);
+			NMake::Pack(Diffusion->Set("max"), Value.Diffusion.Max);
+
+			Rest::Document* Noise = V->Set("noise");
+			NMake::Pack(Noise->Set("intensity"), Value.Noise.Intensity);
+			NMake::Pack(Noise->Set("accuracy"), Value.Noise.Accuracy);
+			NMake::Pack(Noise->Set("min"), Value.Noise.Min);
+			NMake::Pack(Noise->Set("max"), Value.Noise.Max);
+
+			Rest::Document* Position = V->Set("position");
+			NMake::Pack(Position->Set("intensity"), Value.Position.Intensity);
+			NMake::Pack(Position->Set("accuracy"), Value.Position.Accuracy);
+			NMake::Pack(Position->Set("min"), Value.Position.Min);
+			NMake::Pack(Position->Set("max"), Value.Position.Max);
+
+			Rest::Document* Rotation = V->Set("rotation");
+			NMake::Pack(Rotation->Set("intensity"), Value.Rotation.Intensity);
+			NMake::Pack(Rotation->Set("accuracy"), Value.Rotation.Accuracy);
+			NMake::Pack(Rotation->Set("min"), Value.Rotation.Min);
+			NMake::Pack(Rotation->Set("max"), Value.Rotation.Max);
+
+			Rest::Document* Scale = V->Set("scale");
+			NMake::Pack(Scale->Set("intensity"), Value.Scale.Intensity);
+			NMake::Pack(Scale->Set("accuracy"), Value.Scale.Accuracy);
+			NMake::Pack(Scale->Set("min"), Value.Scale.Min);
+			NMake::Pack(Scale->Set("max"), Value.Scale.Max);
+
+			Rest::Document* Velocity = V->Set("velocity");
+			NMake::Pack(Velocity->Set("intensity"), Value.Velocity.Intensity);
+			NMake::Pack(Velocity->Set("accuracy"), Value.Velocity.Accuracy);
+			NMake::Pack(Velocity->Set("min"), Value.Velocity.Min);
+			NMake::Pack(Velocity->Set("max"), Value.Velocity.Max);
 		}
-		bool NMake::Pack(Rest::Document* V, const char* Value)
-		{
-			if (!V || !Value)
-				return false;
-
-			return V->SetString("[s]", Value) != nullptr;
-		}
-		bool NMake::Pack(Rest::Document* V, const Compute::Vector2& Value)
-		{
-			if (!V)
-				return false;
-
-			return V->SetNumber("[x]", Value.X) != nullptr && V->SetNumber("[y]", Value.Y) != nullptr;
-		}
-		bool NMake::Pack(Rest::Document* V, const Compute::Vector3& Value)
-		{
-			if (!V)
-				return false;
-
-			return V->SetNumber("[x]", Value.X) != nullptr && V->SetNumber("[y]", Value.Y) != nullptr && V->SetNumber("[z]", Value.Z) != nullptr;
-		}
-		bool NMake::Pack(Rest::Document* V, const Compute::Vector4& Value)
-		{
-			if (!V)
-				return false;
-
-			return V->SetNumber("[x]", Value.X) != nullptr && V->SetNumber("[y]", Value.Y) != nullptr && V->SetNumber("[z]", Value.Z) != nullptr && V->SetNumber("[w]", Value.W) != nullptr;
-		}
-		bool NMake::Pack(Rest::Document* V, const Compute::Matrix4x4& Value)
-		{
-			if (!V)
-				return false;
-
-			return V->SetNumber("[m11]", Value.Row[0]) != nullptr && V->SetNumber("[m12]", Value.Row[1]) != nullptr && V->SetNumber("[m13]", Value.Row[2]) != nullptr && V->SetNumber("[m14]", Value.Row[3]) != nullptr && V->SetNumber("[m21]", Value.Row[4]) != nullptr && V->SetNumber("[m22]", Value.Row[5]) != nullptr && V->SetNumber("[m23]", Value.Row[6]) != nullptr && V->SetNumber("[m24]", Value.Row[7]) != nullptr && V->SetNumber("[m31]", Value.Row[8]) != nullptr && V->SetNumber("[m32]", Value.Row[9]) != nullptr && V->SetNumber("[m33]", Value.Row[10]) != nullptr && V->SetNumber("[m34]", Value.Row[11]) != nullptr && V->SetNumber("[m41]", Value.Row[12]) != nullptr && V->SetNumber("[m42]", Value.Row[13]) != nullptr && V->SetNumber("[m43]", Value.Row[14]) != nullptr && V->SetNumber("[m44]", Value.Row[15]) != nullptr;
-		}
-		bool NMake::Pack(Rest::Document* V, const Attenuation& Value)
-		{
-			if (!V)
-				return false;
-
-			NMake::Pack(V->SetDocument("range"), Value.Range);
-			NMake::Pack(V->SetDocument("c1"), Value.C1);
-			NMake::Pack(V->SetDocument("c2"), Value.C2);
-			return true;
-		}
-		bool NMake::Pack(Rest::Document* V, const Material& Value)
-		{
-			if (!V)
-				return false;
-
-			NMake::Pack(V->SetDocument("emission"), Value.Emission);
-			NMake::Pack(V->SetDocument("metallic"), Value.Metallic);
-			NMake::Pack(V->SetDocument("scatter"), Value.Scatter);
-			NMake::Pack(V->SetDocument("roughness"), Value.Roughness);
-			NMake::Pack(V->SetDocument("fresnel"), Value.Fresnel);
-			NMake::Pack(V->SetDocument("refraction"), Value.Refraction);
-			NMake::Pack(V->SetDocument("transparency"), Value.Transparency);
-			NMake::Pack(V->SetDocument("environment"), Value.Environment);
-			NMake::Pack(V->SetDocument("occlusion"), Value.Occlusion);
-			NMake::Pack(V->SetDocument("radius"), Value.Radius);
-			NMake::Pack(V->SetDocument("id"), Value.Id);
-			return true;
-		}
-		bool NMake::Pack(Rest::Document* V, const AnimatorState& Value)
-		{
-			if (!V)
-				return false;
-
-			return V->SetBoolean("[looped]", Value.Looped) != nullptr && V->SetBoolean("[paused]", Value.Paused) != nullptr && V->SetBoolean("[blended]", Value.Blended) != nullptr && V->SetInteger("[clip]", Value.Clip) != nullptr && V->SetInteger("[frame]", Value.Frame) != nullptr && V->SetNumber("[rate]", Value.Rate) != nullptr && V->SetNumber("[duration]", Value.Duration) != nullptr && V->SetNumber("[time]", Value.Time) != nullptr;
-		}
-		bool NMake::Pack(Rest::Document* V, const SpawnerProperties& Value)
-		{
-			if (!V)
-				return false;
-
-			Rest::Document* Angular = V->SetDocument("angular");
-			NMake::Pack(Angular->SetDocument("intensity"), Value.Angular.Intensity);
-			NMake::Pack(Angular->SetDocument("accuracy"), Value.Angular.Accuracy);
-			NMake::Pack(Angular->SetDocument("min"), Value.Angular.Min);
-			NMake::Pack(Angular->SetDocument("max"), Value.Angular.Max);
-
-			Rest::Document* Diffusion = V->SetDocument("diffusion");
-			NMake::Pack(Diffusion->SetDocument("intensity"), Value.Diffusion.Intensity);
-			NMake::Pack(Diffusion->SetDocument("accuracy"), Value.Diffusion.Accuracy);
-			NMake::Pack(Diffusion->SetDocument("min"), Value.Diffusion.Min);
-			NMake::Pack(Diffusion->SetDocument("max"), Value.Diffusion.Max);
-
-			Rest::Document* Noise = V->SetDocument("noise");
-			NMake::Pack(Noise->SetDocument("intensity"), Value.Noise.Intensity);
-			NMake::Pack(Noise->SetDocument("accuracy"), Value.Noise.Accuracy);
-			NMake::Pack(Noise->SetDocument("min"), Value.Noise.Min);
-			NMake::Pack(Noise->SetDocument("max"), Value.Noise.Max);
-
-			Rest::Document* Position = V->SetDocument("position");
-			NMake::Pack(Position->SetDocument("intensity"), Value.Position.Intensity);
-			NMake::Pack(Position->SetDocument("accuracy"), Value.Position.Accuracy);
-			NMake::Pack(Position->SetDocument("min"), Value.Position.Min);
-			NMake::Pack(Position->SetDocument("max"), Value.Position.Max);
-
-			Rest::Document* Rotation = V->SetDocument("rotation");
-			NMake::Pack(Rotation->SetDocument("intensity"), Value.Rotation.Intensity);
-			NMake::Pack(Rotation->SetDocument("accuracy"), Value.Rotation.Accuracy);
-			NMake::Pack(Rotation->SetDocument("min"), Value.Rotation.Min);
-			NMake::Pack(Rotation->SetDocument("max"), Value.Rotation.Max);
-
-			Rest::Document* Scale = V->SetDocument("scale");
-			NMake::Pack(Scale->SetDocument("intensity"), Value.Scale.Intensity);
-			NMake::Pack(Scale->SetDocument("accuracy"), Value.Scale.Accuracy);
-			NMake::Pack(Scale->SetDocument("min"), Value.Scale.Min);
-			NMake::Pack(Scale->SetDocument("max"), Value.Scale.Max);
-
-			Rest::Document* Velocity = V->SetDocument("velocity");
-			NMake::Pack(Velocity->SetDocument("intensity"), Value.Velocity.Intensity);
-			NMake::Pack(Velocity->SetDocument("accuracy"), Value.Velocity.Accuracy);
-			NMake::Pack(Velocity->SetDocument("min"), Value.Velocity.Min);
-			NMake::Pack(Velocity->SetDocument("max"), Value.Velocity.Max);
-
-			return V->SetInteger("[iterations]", Value.Iterations) && Angular && Diffusion && Noise && Position && Rotation && Scale && Velocity;
-		}
-		bool NMake::Pack(Rest::Document* V, const Appearance& Value, ContentManager* Content)
+		void NMake::Pack(Rest::Document* V, const Appearance& Value, ContentManager* Content)
 		{
 			if (!V || !Content)
-				return false;
+				return;
 
 			AssetCache* Asset = Content->Find<Graphics::Texture2D>(Value.GetDiffuseMap());
-			if (Asset != nullptr)
-				NMake::Pack(V->SetDocument("diffuse-map"), Asset->Path);
+			if (Asset)
+				NMake::Pack(V->Set("diffuse-map"), Asset->Path);
 
 			Asset = Content->Find<Graphics::Texture2D>(Value.GetNormalMap());
-			if (Asset != nullptr)
-				NMake::Pack(V->SetDocument("normal-map"), Asset->Path);
+			if (Asset)
+				NMake::Pack(V->Set("normal-map"), Asset->Path);
 
 			Asset = Content->Find<Graphics::Texture2D>(Value.GetMetallicMap());
-			if (Asset != nullptr)
-				NMake::Pack(V->SetDocument("metallic-map"), Asset->Path);
+			if (Asset)
+				NMake::Pack(V->Set("metallic-map"), Asset->Path);
 
 			Asset = Content->Find<Graphics::Texture2D>(Value.GetRoughnessMap());
-			if (Asset != nullptr)
-				NMake::Pack(V->SetDocument("roughness-map"), Asset->Path);
+			if (Asset)
+				NMake::Pack(V->Set("roughness-map"), Asset->Path);
 
 			Asset = Content->Find<Graphics::Texture2D>(Value.GetHeightMap());
-			if (Asset != nullptr)
-				NMake::Pack(V->SetDocument("height-map"), Asset->Path);
+			if (Asset)
+				NMake::Pack(V->Set("height-map"), Asset->Path);
 
 			Asset = Content->Find<Graphics::Texture2D>(Value.GetOcclusionMap());
-			if (Asset != nullptr)
-				NMake::Pack(V->SetDocument("occlusion-map"), Asset->Path);
+			if (Asset)
+				NMake::Pack(V->Set("occlusion-map"), Asset->Path);
 
 			Asset = Content->Find<Graphics::Texture2D>(Value.GetEmissionMap());
-			if (Asset != nullptr)
-				NMake::Pack(V->SetDocument("emission-map"), Asset->Path);
+			if (Asset)
+				NMake::Pack(V->Set("emission-map"), Asset->Path);
 
-			NMake::Pack(V->SetDocument("diffuse"), Value.Diffuse);
-			NMake::Pack(V->SetDocument("texcoord"), Value.TexCoord);
-			NMake::Pack(V->SetDocument("height-amount"), Value.HeightAmount);
-			NMake::Pack(V->SetDocument("height-bias"), Value.HeightBias);
-			NMake::Pack(V->SetDocument("material"), Value.Material);
-			return true;
+			NMake::Pack(V->Set("diffuse"), Value.Diffuse);
+			NMake::Pack(V->Set("texcoord"), Value.TexCoord);
+			NMake::Pack(V->Set("height-amount"), Value.HeightAmount);
+			NMake::Pack(V->Set("height-bias"), Value.HeightBias);
+			NMake::Pack(V->Set("material"), Value.Material);
 		}
-		bool NMake::Pack(Rest::Document* V, const Compute::SkinAnimatorKey& Value)
+		void NMake::Pack(Rest::Document* V, const Compute::SkinAnimatorKey& Value)
 		{
 			if (!V)
-				return false;
+				return;
 
-			NMake::Pack(V->SetDocument("pose"), Value.Pose);
-			NMake::Pack(V->SetDocument("time"), Value.Time);
-
-			return true;
+			NMake::Pack(V->Set("pose"), Value.Pose);
+			NMake::Pack(V->Set("time"), Value.Time);
 		}
-		bool NMake::Pack(Rest::Document* V, const Compute::SkinAnimatorClip& Value)
+		void NMake::Pack(Rest::Document* V, const Compute::SkinAnimatorClip& Value)
 		{
 			if (!V)
-				return false;
+				return;
 
-			NMake::Pack(V->SetDocument("name"), Value.Name);
-			NMake::Pack(V->SetDocument("duration"), Value.Duration);
-			NMake::Pack(V->SetDocument("rate"), Value.Rate);
+			NMake::Pack(V->Set("name"), Value.Name);
+			NMake::Pack(V->Set("duration"), Value.Duration);
+			NMake::Pack(V->Set("rate"), Value.Rate);
 
-			Rest::Document* Array = V->SetArray("frames");
+			Rest::Document* Array = V->Set("frames", std::move(Rest::Var::Array()));
 			for (auto&& It : Value.Keys)
-				NMake::Pack(Array->SetDocument("frame"), It);
-
-			return true;
+				NMake::Pack(Array->Set("frame"), It);
 		}
-		bool NMake::Pack(Rest::Document* V, const Compute::KeyAnimatorClip& Value)
+		void NMake::Pack(Rest::Document* V, const Compute::KeyAnimatorClip& Value)
 		{
 			if (!V)
-				return false;
+				return;
 
-			return NMake::Pack(V->SetDocument("name"), Value.Name) && NMake::Pack(V->SetDocument("rate"), Value.Rate) && NMake::Pack(V->SetDocument("duration"), Value.Duration) && NMake::Pack(V->SetDocument("frames"), Value.Keys);
+			NMake::Pack(V->Set("name"), Value.Name);
+			NMake::Pack(V->Set("rate"), Value.Rate);
+			NMake::Pack(V->Set("duration"), Value.Duration);
+			NMake::Pack(V->Set("frames"), Value.Keys);
 		}
-		bool NMake::Pack(Rest::Document* V, const Compute::AnimatorKey& Value)
+		void NMake::Pack(Rest::Document* V, const Compute::AnimatorKey& Value)
 		{
 			if (!V)
-				return false;
+				return;
 
-			return NMake::Pack(V->SetDocument("position"), Value.Position) && NMake::Pack(V->SetDocument("rotation"), Value.Rotation) && NMake::Pack(V->SetDocument("scale"), Value.Scale) && NMake::Pack(V->SetDocument("time"), Value.Time);
+			NMake::Pack(V->Set("position"), Value.Position);
+			NMake::Pack(V->Set("rotation"), Value.Rotation);
+			NMake::Pack(V->Set("scale"), Value.Scale);
+			NMake::Pack(V->Set("time"), Value.Time);
 		}
-		bool NMake::Pack(Rest::Document* V, const Compute::ElementVertex& Value)
+		void NMake::Pack(Rest::Document* V, const Compute::ElementVertex& Value)
 		{
 			if (!V)
-				return false;
-
-			return V->SetNumber("[px]", Value.PositionX) != nullptr && V->SetNumber("[py]", Value.PositionY) != nullptr && V->SetNumber("[pz]", Value.PositionZ) != nullptr && V->SetNumber("[vx]", Value.VelocityX) != nullptr && V->SetNumber("[vy]", Value.VelocityY) != nullptr && V->SetNumber("[vz]", Value.VelocityZ) != nullptr && V->SetNumber("[cx]", Value.ColorX) != nullptr && V->SetNumber("[cy]", Value.ColorY) != nullptr && V->SetNumber("[cz]", Value.ColorZ) != nullptr && V->SetNumber("[cw]", Value.ColorW) != nullptr && V->SetNumber("[a]", Value.Angular) != nullptr && V->SetNumber("[s]", Value.Scale) != nullptr && V->SetNumber("[r]", Value.Rotation) != nullptr;
+				return;
+			
+			V->SetAttribute("px", std::move(Rest::Var::Number(Value.PositionX)));
+			V->SetAttribute("py", std::move(Rest::Var::Number(Value.PositionY)));
+			V->SetAttribute("pz", std::move(Rest::Var::Number(Value.PositionZ)));
+			V->SetAttribute("vx", std::move(Rest::Var::Number(Value.VelocityX)));
+			V->SetAttribute("vy", std::move(Rest::Var::Number(Value.VelocityY)));
+			V->SetAttribute("vz", std::move(Rest::Var::Number(Value.VelocityZ)));
+			V->SetAttribute("cx", std::move(Rest::Var::Number(Value.ColorX)));
+			V->SetAttribute("cy", std::move(Rest::Var::Number(Value.ColorY)));
+			V->SetAttribute("cz", std::move(Rest::Var::Number(Value.ColorZ)));
+			V->SetAttribute("cw", std::move(Rest::Var::Number(Value.ColorW)));
+			V->SetAttribute("a", std::move(Rest::Var::Number(Value.Angular)));
+			V->SetAttribute("s", std::move(Rest::Var::Number(Value.Scale)));
+			V->SetAttribute("r", std::move(Rest::Var::Number(Value.Rotation)));
 		}
-		bool NMake::Pack(Rest::Document* V, const Compute::Vertex& Value)
+		void NMake::Pack(Rest::Document* V, const Compute::Vertex& Value)
 		{
 			if (!V)
-				return false;
+				return;
 
-			return V->SetNumber("[px]", Value.PositionX) != nullptr && V->SetNumber("[py]", Value.PositionY) != nullptr && V->SetNumber("[pz]", Value.PositionZ) != nullptr && V->SetNumber("[tx]", Value.TexCoordX) != nullptr && V->SetNumber("[ty]", Value.TexCoordY) != nullptr && V->SetNumber("[nx]", Value.NormalX) != nullptr && V->SetNumber("[ny]", Value.NormalY) != nullptr && V->SetNumber("[nz]", Value.NormalZ) != nullptr && V->SetNumber("[tnx]", Value.TangentX) != nullptr && V->SetNumber("[tny]", Value.TangentY) != nullptr && V->SetNumber("[tnz]", Value.TangentZ) != nullptr && V->SetNumber("[btx]", Value.BitangentX) != nullptr && V->SetNumber("[bty]", Value.BitangentY) != nullptr && V->SetNumber("[btz]", Value.BitangentZ) != nullptr;
+			V->SetAttribute("px", std::move(Rest::Var::Number(Value.PositionX)));
+			V->SetAttribute("py", std::move(Rest::Var::Number(Value.PositionY)));
+			V->SetAttribute("pz", std::move(Rest::Var::Number(Value.PositionZ)));
+			V->SetAttribute("tx", std::move(Rest::Var::Number(Value.TexCoordX)));
+			V->SetAttribute("ty", std::move(Rest::Var::Number(Value.TexCoordY)));
+			V->SetAttribute("nx", std::move(Rest::Var::Number(Value.NormalX)));
+			V->SetAttribute("ny", std::move(Rest::Var::Number(Value.NormalY)));
+			V->SetAttribute("nz", std::move(Rest::Var::Number(Value.NormalZ)));
+			V->SetAttribute("tnx", std::move(Rest::Var::Number(Value.TangentX)));
+			V->SetAttribute("tny", std::move(Rest::Var::Number(Value.TangentY)));
+			V->SetAttribute("tnz", std::move(Rest::Var::Number(Value.TangentZ)));
+			V->SetAttribute("btx", std::move(Rest::Var::Number(Value.BitangentX)));
+			V->SetAttribute("bty", std::move(Rest::Var::Number(Value.BitangentY)));
+			V->SetAttribute("btz", std::move(Rest::Var::Number(Value.BitangentZ)));
 		}
-		bool NMake::Pack(Rest::Document* V, const Compute::SkinVertex& Value)
+		void NMake::Pack(Rest::Document* V, const Compute::SkinVertex& Value)
 		{
 			if (!V)
-				return false;
+				return;
 
-			return V->SetNumber("[px]", Value.PositionX) != nullptr && V->SetNumber("[py]", Value.PositionY) != nullptr && V->SetNumber("[pz]", Value.PositionZ) != nullptr && V->SetNumber("[tx]", Value.TexCoordX) != nullptr && V->SetNumber("[ty]", Value.TexCoordY) != nullptr && V->SetNumber("[nx]", Value.NormalX) != nullptr && V->SetNumber("[ny]", Value.NormalY) != nullptr && V->SetNumber("[nz]", Value.NormalZ) != nullptr && V->SetNumber("[tnx]", Value.TangentX) != nullptr && V->SetNumber("[tny]", Value.TangentY) != nullptr && V->SetNumber("[tnz]", Value.TangentZ) != nullptr && V->SetNumber("[btx]", Value.BitangentX) != nullptr && V->SetNumber("[bty]", Value.BitangentY) != nullptr && V->SetNumber("[btz]", Value.BitangentZ) != nullptr && V->SetNumber("[ji0]", Value.JointIndex0) != nullptr && V->SetNumber("[ji1]", Value.JointIndex1) != nullptr && V->SetNumber("[ji2]", Value.JointIndex2) != nullptr && V->SetNumber("[ji3]", Value.JointIndex3) != nullptr && V->SetNumber("[jb0]", Value.JointBias0) != nullptr && V->SetNumber("[jb1]", Value.JointBias1) != nullptr && V->SetNumber("[jb2]", Value.JointBias2) != nullptr && V->SetNumber("[jb3]", Value.JointBias3) != nullptr;
+			V->SetAttribute("px", std::move(Rest::Var::Number(Value.PositionX)));
+			V->SetAttribute("py", std::move(Rest::Var::Number(Value.PositionY)));
+			V->SetAttribute("pz", std::move(Rest::Var::Number(Value.PositionZ)));
+			V->SetAttribute("tx", std::move(Rest::Var::Number(Value.TexCoordX)));
+			V->SetAttribute("ty", std::move(Rest::Var::Number(Value.TexCoordY)));
+			V->SetAttribute("nx", std::move(Rest::Var::Number(Value.NormalX)));
+			V->SetAttribute("ny", std::move(Rest::Var::Number(Value.NormalY)));
+			V->SetAttribute("nz", std::move(Rest::Var::Number(Value.NormalZ)));
+			V->SetAttribute("tnx", std::move(Rest::Var::Number(Value.TangentX)));
+			V->SetAttribute("tny", std::move(Rest::Var::Number(Value.TangentY)));
+			V->SetAttribute("tnz", std::move(Rest::Var::Number(Value.TangentZ)));
+			V->SetAttribute("btx", std::move(Rest::Var::Number(Value.BitangentX)));
+			V->SetAttribute("bty", std::move(Rest::Var::Number(Value.BitangentY)));
+			V->SetAttribute("btz", std::move(Rest::Var::Number(Value.BitangentZ)));
+			V->SetAttribute("ji0", std::move(Rest::Var::Number(Value.JointIndex0)));
+			V->SetAttribute("ji1", std::move(Rest::Var::Number(Value.JointIndex1)));
+			V->SetAttribute("ji2", std::move(Rest::Var::Number(Value.JointIndex2)));
+			V->SetAttribute("ji3", std::move(Rest::Var::Number(Value.JointIndex3)));
+			V->SetAttribute("jb0", std::move(Rest::Var::Number(Value.JointBias0)));
+			V->SetAttribute("jb1", std::move(Rest::Var::Number(Value.JointBias1)));
+			V->SetAttribute("jb2", std::move(Rest::Var::Number(Value.JointBias2)));
+			V->SetAttribute("jb3", std::move(Rest::Var::Number(Value.JointBias3)));
 		}
-		bool NMake::Pack(Rest::Document* V, const Compute::Joint& Value)
+		void NMake::Pack(Rest::Document* V, const Compute::Joint& Value)
 		{
 			if (!V)
-				return false;
+				return;
 
-			NMake::Pack(V->SetDocument("index"), Value.Index);
-			NMake::Pack(V->SetDocument("name"), Value.Name);
-			NMake::Pack(V->SetDocument("transform"), Value.Transform);
-			NMake::Pack(V->SetDocument("bind-shape"), Value.BindShape);
+			NMake::Pack(V->Set("index"), Value.Index);
+			NMake::Pack(V->Set("name"), Value.Name);
+			NMake::Pack(V->Set("transform"), Value.Transform);
+			NMake::Pack(V->Set("bind-shape"), Value.BindShape);
 
-			Rest::Document* Joints = V->SetArray("childs");
+			Rest::Document* Joints = V->Set("childs", std::move(Rest::Var::Array()));
 			for (auto& It : Value.Childs)
-				NMake::Pack(Joints->SetDocument("joint"), It);
-
-			return true;
+				NMake::Pack(Joints->Set("joint"), It);
 		}
-		bool NMake::Pack(Rest::Document* V, const Rest::TickTimer& Value)
+		void NMake::Pack(Rest::Document* V, const Rest::TickTimer& Value)
 		{
 			if (!V)
-				return false;
+				return;
 
-			return V->SetInteger("[delay]", Value.Delay) != nullptr;
+			V->SetAttribute("delay", std::move(Rest::Var::Number(Value.Delay)));
 		}
-		bool NMake::Pack(Rest::Document* V, const std::string& Value)
+		void NMake::Pack(Rest::Document* V, const std::string& Value)
 		{
 			if (!V)
-				return false;
+				return;
 
-			return V->SetString("[s]", Value) != nullptr;
+			V->SetAttribute("s", std::move(Rest::Var::String(Value)));
 		}
-		bool NMake::Pack(Rest::Document* V, const std::vector<bool>& Value)
+		void NMake::Pack(Rest::Document* V, const std::vector<bool>& Value)
 		{
 			if (!V)
-				return false;
+				return;
 
 			std::stringstream Stream;
 			for (auto&& It : Value)
 				Stream << It << " ";
 
-			return V->SetString("b-array", Stream.str().substr(0, Stream.str().size() - 1)) && V->SetInteger("[size]", Value.size());
+			V->Set("b-array", std::move(Rest::Var::String(Stream.str().substr(0, Stream.str().size() - 1))));
+			V->Set("size", std::move(Rest::Var::Integer((int64_t)Value.size())));
 		}
-		bool NMake::Pack(Rest::Document* V, const std::vector<int>& Value)
+		void NMake::Pack(Rest::Document* V, const std::vector<int>& Value)
 		{
 			if (!V)
-				return false;
+				return;
 
 			std::stringstream Stream;
 			for (auto&& It : Value)
 				Stream << It << " ";
 
-			return V->SetString("i-array", Stream.str().substr(0, Stream.str().size() - 1)) && V->SetInteger("[size]", Value.size());
+			V->Set("i-array", std::move(Rest::Var::String(Stream.str().substr(0, Stream.str().size() - 1))));
+			V->Set("size", std::move(Rest::Var::Integer((int64_t)Value.size())));
 		}
-		bool NMake::Pack(Rest::Document* V, const std::vector<unsigned int>& Value)
+		void NMake::Pack(Rest::Document* V, const std::vector<unsigned int>& Value)
 		{
 			if (!V)
-				return false;
+				return;
 
 			std::stringstream Stream;
 			for (auto&& It : Value)
 				Stream << It << " ";
 
-			return V->SetString("i-array", Stream.str().substr(0, Stream.str().size() - 1)) && V->SetInteger("[size]", Value.size());
+			V->Set("i-array", std::move(Rest::Var::String(Stream.str().substr(0, Stream.str().size() - 1))));
+			V->Set("size", std::move(Rest::Var::Integer((int64_t)Value.size())));
 		}
-		bool NMake::Pack(Rest::Document* V, const std::vector<float>& Value)
+		void NMake::Pack(Rest::Document* V, const std::vector<float>& Value)
 		{
 			if (!V)
-				return false;
+				return;
 
 			std::stringstream Stream;
 			for (auto&& It : Value)
 				Stream << It << " ";
 
-			return V->SetString("f-array", Stream.str().substr(0, Stream.str().size() - 1)) && V->SetInteger("[size]", Value.size());
+			V->Set("n-array", std::move(Rest::Var::String(Stream.str().substr(0, Stream.str().size() - 1))));
+			V->Set("size", std::move(Rest::Var::Integer((int64_t)Value.size())));
 		}
-		bool NMake::Pack(Rest::Document* V, const std::vector<double>& Value)
+		void NMake::Pack(Rest::Document* V, const std::vector<double>& Value)
 		{
 			if (!V)
-				return false;
+				return;
 
 			std::stringstream Stream;
 			for (auto&& It : Value)
 				Stream << It << " ";
 
-			return V->SetString("f-array", Stream.str().substr(0, Stream.str().size() - 1)) && V->SetInteger("[size]", Value.size());
+			V->Set("n-array", std::move(Rest::Var::String(Stream.str().substr(0, Stream.str().size() - 1))));
+			V->Set("size", std::move(Rest::Var::Integer((int64_t)Value.size())));
 		}
-		bool NMake::Pack(Rest::Document* V, const std::vector<int64_t>& Value)
+		void NMake::Pack(Rest::Document* V, const std::vector<int64_t>& Value)
 		{
 			if (!V)
-				return false;
+				return;
 
 			std::stringstream Stream;
 			for (auto&& It : Value)
 				Stream << It << " ";
 
-			return V->SetString("f-array", Stream.str().substr(0, Stream.str().size() - 1)) && V->SetInteger("[size]", Value.size());
+			V->Set("i-array", std::move(Rest::Var::String(Stream.str().substr(0, Stream.str().size() - 1))));
+			V->Set("size", std::move(Rest::Var::Integer((int64_t)Value.size())));
 		}
-		bool NMake::Pack(Rest::Document* V, const std::vector<long double>& Value)
+		void NMake::Pack(Rest::Document* V, const std::vector<long double>& Value)
 		{
 			if (!V)
-				return false;
+				return;
 
 			std::stringstream Stream;
 			for (auto&& It : Value)
 				Stream << It << " ";
 
-			return V->SetString("f-array", Stream.str().substr(0, Stream.str().size() - 1)) && V->SetInteger("[size]", Value.size());
+			V->Set("n-array", std::move(Rest::Var::String(Stream.str().substr(0, Stream.str().size() - 1))));
+			V->Set("size", std::move(Rest::Var::Integer((int64_t)Value.size())));
 		}
-		bool NMake::Pack(Rest::Document* V, const std::vector<uint64_t>& Value)
+		void NMake::Pack(Rest::Document* V, const std::vector<uint64_t>& Value)
 		{
 			if (!V)
-				return false;
+				return;
 
 			std::stringstream Stream;
 			for (auto&& It : Value)
 				Stream << It << " ";
 
-			return V->SetString("i-array", Stream.str().substr(0, Stream.str().size() - 1)) && V->SetInteger("[size]", Value.size());
+			V->Set("i-array", std::move(Rest::Var::String(Stream.str().substr(0, Stream.str().size() - 1))));
+			V->Set("size", std::move(Rest::Var::Integer((int64_t)Value.size())));
 		}
-		bool NMake::Pack(Rest::Document* V, const std::vector<Compute::Vector2>& Value)
+		void NMake::Pack(Rest::Document* V, const std::vector<Compute::Vector2>& Value)
 		{
 			if (!V)
-				return false;
+				return;
 
 			std::stringstream Stream;
 			for (auto&& It : Value)
 				Stream << It.X << " " << It.Y << " ";
 
-			return V->SetString("v2-array", Stream.str().substr(0, Stream.str().size() - 1)) && V->SetInteger("[size]", Value.size());
+			V->Set("v2-array", std::move(Rest::Var::String(Stream.str().substr(0, Stream.str().size() - 1))));
+			V->Set("size", std::move(Rest::Var::Integer((int64_t)Value.size())));
 		}
-		bool NMake::Pack(Rest::Document* V, const std::vector<Compute::Vector3>& Value)
+		void NMake::Pack(Rest::Document* V, const std::vector<Compute::Vector3>& Value)
 		{
 			if (!V)
-				return false;
+				return;
 
 			std::stringstream Stream;
 			for (auto&& It : Value)
 				Stream << It.X << " " << It.Y << " " << It.Z << " ";
 
-			return V->SetString("v3-array", Stream.str().substr(0, Stream.str().size() - 1)) && V->SetInteger("[size]", Value.size());
+			V->Set("v3-array", std::move(Rest::Var::String(Stream.str().substr(0, Stream.str().size() - 1))));
+			V->Set("size", std::move(Rest::Var::Integer((int64_t)Value.size())));
 		}
-		bool NMake::Pack(Rest::Document* V, const std::vector<Compute::Vector4>& Value)
+		void NMake::Pack(Rest::Document* V, const std::vector<Compute::Vector4>& Value)
 		{
 			if (!V)
-				return false;
+				return;
 
 			std::stringstream Stream;
 			for (auto&& It : Value)
 				Stream << It.X << " " << It.Y << " " << It.Z << " " << It.W << " ";
 
-			return V->SetString("v4-array", Stream.str().substr(0, Stream.str().size() - 1)) && V->SetInteger("[size]", Value.size());
+			V->Set("v4-array", std::move(Rest::Var::String(Stream.str().substr(0, Stream.str().size() - 1))));
+			V->Set("size", std::move(Rest::Var::Integer((int64_t)Value.size())));
 		}
-		bool NMake::Pack(Rest::Document* V, const std::vector<Compute::Matrix4x4>& Value)
+		void NMake::Pack(Rest::Document* V, const std::vector<Compute::Matrix4x4>& Value)
 		{
 			if (!V)
-				return false;
+				return;
 
 			std::stringstream Stream;
 			for (auto&& It : Value)
@@ -695,12 +758,13 @@ namespace Tomahawk
 					Stream << i << " ";
 			}
 
-			return V->SetString("m4x4-array", Stream.str().substr(0, Stream.str().size() - 1)) && V->SetInteger("[size]", Value.size());
+			V->Set("m4x4-array", std::move(Rest::Var::String(Stream.str().substr(0, Stream.str().size() - 1))));
+			V->Set("size", std::move(Rest::Var::Integer((int64_t)Value.size())));
 		}
-		bool NMake::Pack(Rest::Document* V, const std::vector<AnimatorState>& Value)
+		void NMake::Pack(Rest::Document* V, const std::vector<AnimatorState>& Value)
 		{
 			if (!V)
-				return false;
+				return;
 
 			std::stringstream Stream;
 			for (auto&& It : Value)
@@ -715,12 +779,13 @@ namespace Tomahawk
 				Stream << It.Clip << " ";
 			}
 
-			return V->SetString("as-array", Stream.str().substr(0, Stream.str().size() - 1)) && V->SetInteger("[size]", Value.size());
+			V->Set("as-array", std::move(Rest::Var::String(Stream.str().substr(0, Stream.str().size() - 1))));
+			V->Set("size", std::move(Rest::Var::Integer((int64_t)Value.size())));
 		}
-		bool NMake::Pack(Rest::Document* V, const std::vector<SpawnerProperties>& Value)
+		void NMake::Pack(Rest::Document* V, const std::vector<SpawnerProperties>& Value)
 		{
 			if (!V)
-				return false;
+				return;
 
 			std::stringstream Stream;
 			for (auto&& It : Value)
@@ -743,34 +808,31 @@ namespace Tomahawk
 				Stream << It.Iterations << " ";
 			}
 
-			return V->SetString("sp-array", Stream.str().substr(0, Stream.str().size() - 1)) && V->SetInteger("[size]", Value.size());
+			V->Set("sp-array", std::move(Rest::Var::String(Stream.str().substr(0, Stream.str().size() - 1))));
+			V->Set("size", std::move(Rest::Var::Integer((int64_t)Value.size())));
 		}
-		bool NMake::Pack(Rest::Document* V, const std::vector<Compute::SkinAnimatorClip>& Value)
+		void NMake::Pack(Rest::Document* V, const std::vector<Compute::SkinAnimatorClip>& Value)
 		{
 			if (!V)
-				return false;
+				return;
 
-			Rest::Document* Array = V->SetArray("clips");
+			Rest::Document* Array = V->Set("clips", std::move(Rest::Var::Array()));
 			for (auto&& It : Value)
-				NMake::Pack(Array->SetDocument("clip"), It);
-
-			return true;
+				NMake::Pack(Array->Set("clip"), It);
 		}
-		bool NMake::Pack(Rest::Document* V, const std::vector<Compute::KeyAnimatorClip>& Value)
+		void NMake::Pack(Rest::Document* V, const std::vector<Compute::KeyAnimatorClip>& Value)
 		{
 			if (!V)
-				return false;
+				return;
 
-			Rest::Document* Array = V->SetArray("clips");
+			Rest::Document* Array = V->Set("clips", std::move(Rest::Var::Array()));
 			for (auto&& It : Value)
-				NMake::Pack(Array->SetDocument("clip"), It);
-
-			return true;
+				NMake::Pack(Array->Set("clip"), It);
 		}
-		bool NMake::Pack(Rest::Document* V, const std::vector<Compute::AnimatorKey>& Value)
+		void NMake::Pack(Rest::Document* V, const std::vector<Compute::AnimatorKey>& Value)
 		{
 			if (!V)
-				return false;
+				return;
 
 			std::stringstream Stream;
 			for (auto&& It : Value)
@@ -787,12 +849,13 @@ namespace Tomahawk
 				Stream << It.Time << " ";
 			}
 
-			return V->SetString("ak-array", Stream.str().substr(0, Stream.str().size() - 1)) && V->SetInteger("[size]", Value.size());
+			V->Set("ak-array", std::move(Rest::Var::String(Stream.str().substr(0, Stream.str().size() - 1))));
+			V->Set("size", std::move(Rest::Var::Integer((int64_t)Value.size())));
 		}
-		bool NMake::Pack(Rest::Document* V, const std::vector<Compute::ElementVertex>& Value)
+		void NMake::Pack(Rest::Document* V, const std::vector<Compute::ElementVertex>& Value)
 		{
 			if (!V)
-				return false;
+				return;
 
 			std::stringstream Stream;
 			for (auto&& It : Value)
@@ -812,22 +875,21 @@ namespace Tomahawk
 				Stream << It.Scale << " ";
 			}
 
-			return V->SetString("ev-array", Stream.str().substr(0, Stream.str().size() - 1)) && V->SetInteger("[size]", Value.size());
+			V->Set("ev-array", std::move(Rest::Var::String(Stream.str().substr(0, Stream.str().size() - 1))));
+			V->Set("size", std::move(Rest::Var::Integer((int64_t)Value.size())));
 		}
-		bool NMake::Pack(Rest::Document* V, const std::vector<Compute::Joint>& Value)
+		void NMake::Pack(Rest::Document* V, const std::vector<Compute::Joint>& Value)
 		{
 			if (!V)
-				return false;
+				return;
 
 			for (auto&& It : Value)
-				NMake::Pack(V->SetDocument("joint"), It);
-
-			return true;
+				NMake::Pack(V->Set("joint"), It);
 		}
-		bool NMake::Pack(Rest::Document* V, const std::vector<Compute::Vertex>& Value)
+		void NMake::Pack(Rest::Document* V, const std::vector<Compute::Vertex>& Value)
 		{
 			if (!V)
-				return false;
+				return;
 
 			std::stringstream Stream;
 			for (auto&& It : Value)
@@ -849,12 +911,13 @@ namespace Tomahawk
 				Stream << "-1 -1 -1 -1 0 0 0 0 ";
 			}
 
-			return V->SetString("iv-array", Stream.str().substr(0, Stream.str().size() - 1)) && V->SetInteger("[size]", Value.size());
+			V->Set("iv-array", std::move(Rest::Var::String(Stream.str().substr(0, Stream.str().size() - 1))));
+			V->Set("size", std::move(Rest::Var::Integer((int64_t)Value.size())));
 		}
-		bool NMake::Pack(Rest::Document* V, const std::vector<Compute::SkinVertex>& Value)
+		void NMake::Pack(Rest::Document* V, const std::vector<Compute::SkinVertex>& Value)
 		{
 			if (!V)
-				return false;
+				return;
 
 			std::stringstream Stream;
 			for (auto&& It : Value)
@@ -883,36 +946,38 @@ namespace Tomahawk
 				Stream << It.JointBias3 << " ";
 			}
 
-			return V->SetString("iv-array", Stream.str().substr(0, Stream.str().size() - 1)) && V->SetInteger("[size]", Value.size());
+			V->Set("iv-array", std::move(Rest::Var::String(Stream.str().substr(0, Stream.str().size() - 1))));
+			V->Set("size", std::move(Rest::Var::Integer((int64_t)Value.size())));
 		}
-		bool NMake::Pack(Rest::Document* V, const std::vector<Rest::TickTimer>& Value)
+		void NMake::Pack(Rest::Document* V, const std::vector<Rest::TickTimer>& Value)
 		{
 			if (!V)
-				return false;
+				return;
 
 			std::stringstream Stream;
 			for (auto&& It : Value)
 				Stream << It.Delay << " ";
 
-			return V->SetString("tt-array", Stream.str().substr(0, Stream.str().size() - 1)) && V->SetInteger("[size]", Value.size());
+			V->Set("tt-array", std::move(Rest::Var::String(Stream.str().substr(0, Stream.str().size() - 1))));
+			V->Set("size", std::move(Rest::Var::Integer((int64_t)Value.size())));
 		}
-		bool NMake::Pack(Rest::Document* V, const std::vector<std::string>& Value)
+		void NMake::Pack(Rest::Document* V, const std::vector<std::string>& Value)
 		{
 			if (!V)
-				return false;
+				return;
 
-			Rest::Document* A = V->SetArray("s-array");
+			Rest::Document* Array = V->Set("s-array", std::move(Rest::Var::Array()));
 			for (auto&& It : Value)
-				A->SetString("s", It);
+				Array->Set("s", std::move(Rest::Var::String(It)));
 
-			return V->SetInteger("[size]", Value.size());
+			V->Set("size", std::move(Rest::Var::Integer((int64_t)Value.size())));
 		}
 		bool NMake::Unpack(Rest::Document* V, bool* O)
 		{
 			if (!V || !O)
 				return false;
 
-			*O = V->GetBoolean("[b]");
+			*O = V->GetVar("[b]").GetBoolean();
 			return true;
 		}
 		bool NMake::Unpack(Rest::Document* V, int* O)
@@ -920,7 +985,7 @@ namespace Tomahawk
 			if (!V || !O)
 				return false;
 
-			*O = V->GetInteger("[i]");
+			*O = (int)V->GetVar("[i]").GetInteger();
 			return true;
 		}
 		bool NMake::Unpack(Rest::Document* V, unsigned int* O)
@@ -928,7 +993,7 @@ namespace Tomahawk
 			if (!V || !O)
 				return false;
 
-			*O = V->GetInteger("[i]");
+			*O = (unsigned int)V->GetVar("[i]").GetInteger();
 			return true;
 		}
 		bool NMake::Unpack(Rest::Document* V, float* O)
@@ -936,7 +1001,7 @@ namespace Tomahawk
 			if (!V || !O)
 				return false;
 
-			*O = V->GetNumber("[n]");
+			*O = (float)V->GetVar("[n]").GetNumber();
 			return true;
 		}
 		bool NMake::Unpack(Rest::Document* V, double* O)
@@ -944,7 +1009,7 @@ namespace Tomahawk
 			if (!V || !O)
 				return false;
 
-			*O = V->GetNumber("[n]");
+			*O = (int)V->GetVar("[n]").GetNumber();
 			return true;
 		}
 		bool NMake::Unpack(Rest::Document* V, long double* O)
@@ -952,7 +1017,7 @@ namespace Tomahawk
 			if (!V || !O)
 				return false;
 
-			*O = V->GetNumber("[n]");
+			*O = V->GetVar("[n]").GetNumber();
 			return true;
 		}
 		bool NMake::Unpack(Rest::Document* V, int64_t* O)
@@ -960,7 +1025,7 @@ namespace Tomahawk
 			if (!V || !O)
 				return false;
 
-			*O = V->GetInteger("[i]");
+			*O = V->GetVar("[i]").GetInteger();
 			return true;
 		}
 		bool NMake::Unpack(Rest::Document* V, uint64_t* O)
@@ -968,7 +1033,7 @@ namespace Tomahawk
 			if (!V || !O)
 				return false;
 
-			*O = V->GetInteger("[i]");
+			*O = V->GetVar("[i]").GetInteger();
 			return true;
 		}
 		bool NMake::Unpack(Rest::Document* V, Compute::Vector2* O)
@@ -976,8 +1041,8 @@ namespace Tomahawk
 			if (!V || !O)
 				return false;
 
-			O->X = V->GetNumber("[x]");
-			O->Y = V->GetNumber("[y]");
+			O->X = (float)V->GetVar("[x]").GetNumber();
+			O->Y = (float)V->GetVar("[y]").GetNumber();
 			return true;
 		}
 		bool NMake::Unpack(Rest::Document* V, Compute::Vector3* O)
@@ -985,9 +1050,9 @@ namespace Tomahawk
 			if (!V || !O)
 				return false;
 
-			O->X = V->GetNumber("[x]");
-			O->Y = V->GetNumber("[y]");
-			O->Z = V->GetNumber("[z]");
+			O->X = (float)V->GetVar("[x]").GetNumber();
+			O->Y = (float)V->GetVar("[y]").GetNumber();
+			O->Z = (float)V->GetVar("[z]").GetNumber();
 			return true;
 		}
 		bool NMake::Unpack(Rest::Document* V, Compute::Vector4* O)
@@ -995,10 +1060,10 @@ namespace Tomahawk
 			if (!V || !O)
 				return false;
 
-			O->X = V->GetNumber("[x]");
-			O->Y = V->GetNumber("[y]");
-			O->Z = V->GetNumber("[z]");
-			O->W = V->GetNumber("[w]");
+			O->X = (float)V->GetVar("[x]").GetNumber();
+			O->Y = (float)V->GetVar("[y]").GetNumber();
+			O->Z = (float)V->GetVar("[z]").GetNumber();
+			O->W = (float)V->GetVar("[w]").GetNumber();
 			return true;
 		}
 		bool NMake::Unpack(Rest::Document* V, Compute::Matrix4x4* O)
@@ -1006,22 +1071,22 @@ namespace Tomahawk
 			if (!V || !O)
 				return false;
 
-			O->Row[0] = V->GetNumber("[m11]");
-			O->Row[1] = V->GetNumber("[m12]");
-			O->Row[2] = V->GetNumber("[m13]");
-			O->Row[3] = V->GetNumber("[m14]");
-			O->Row[4] = V->GetNumber("[m21]");
-			O->Row[5] = V->GetNumber("[m22]");
-			O->Row[6] = V->GetNumber("[m23]");
-			O->Row[7] = V->GetNumber("[m24]");
-			O->Row[8] = V->GetNumber("[m31]");
-			O->Row[9] = V->GetNumber("[m32]");
-			O->Row[10] = V->GetNumber("[m33]");
-			O->Row[11] = V->GetNumber("[m34]");
-			O->Row[12] = V->GetNumber("[m41]");
-			O->Row[13] = V->GetNumber("[m42]");
-			O->Row[14] = V->GetNumber("[m43]");
-			O->Row[15] = V->GetNumber("[m44]");
+			O->Row[0] = (float)V->GetVar("[m11]").GetNumber();
+			O->Row[1] = (float)V->GetVar("[m12]").GetNumber();
+			O->Row[2] = (float)V->GetVar("[m13]").GetNumber();
+			O->Row[3] = (float)V->GetVar("[m14]").GetNumber();
+			O->Row[4] = (float)V->GetVar("[m21]").GetNumber();
+			O->Row[5] = (float)V->GetVar("[m22]").GetNumber();
+			O->Row[6] = (float)V->GetVar("[m23]").GetNumber();
+			O->Row[7] = (float)V->GetVar("[m24]").GetNumber();
+			O->Row[8] = (float)V->GetVar("[m31]").GetNumber();
+			O->Row[9] = (float)V->GetVar("[m32]").GetNumber();
+			O->Row[10] = (float)V->GetVar("[m33]").GetNumber();
+			O->Row[11] = (float)V->GetVar("[m34]").GetNumber();
+			O->Row[12] = (float)V->GetVar("[m41]").GetNumber();
+			O->Row[13] = (float)V->GetVar("[m42]").GetNumber();
+			O->Row[14] = (float)V->GetVar("[m43]").GetNumber();
+			O->Row[15] = (float)V->GetVar("[m44]").GetNumber();
 			return true;
 		}
 		bool NMake::Unpack(Rest::Document* V, Attenuation* O)
@@ -1029,9 +1094,9 @@ namespace Tomahawk
 			if (!V || !O)
 				return false;
 
-			NMake::Unpack(V->Find("range"), &O->Range);
-			NMake::Unpack(V->Find("c2"), &O->C1);
-			NMake::Unpack(V->Find("c1"), &O->C2);
+			NMake::Unpack(V->Get("range"), &O->Range);
+			NMake::Unpack(V->Get("c2"), &O->C1);
+			NMake::Unpack(V->Get("c1"), &O->C2);
 			return true;
 		}
 		bool NMake::Unpack(Rest::Document* V, Material* O)
@@ -1039,17 +1104,17 @@ namespace Tomahawk
 			if (!V || !O)
 				return false;
 
-			NMake::Unpack(V->Find("emission"), &O->Emission);
-			NMake::Unpack(V->Find("metallic"), &O->Metallic);
-			NMake::Unpack(V->Find("scatter"), &O->Scatter);
-			NMake::Unpack(V->Find("roughness"), &O->Roughness);
-			NMake::Unpack(V->Find("fresnel"), &O->Fresnel);
-			NMake::Unpack(V->Find("refraction"), &O->Refraction);
-			NMake::Unpack(V->Find("transparency"), &O->Transparency);
-			NMake::Unpack(V->Find("environment"), &O->Environment);
-			NMake::Unpack(V->Find("occlusion"), &O->Occlusion);
-			NMake::Unpack(V->Find("radius"), &O->Radius);
-			NMake::Unpack(V->Find("id"), &O->Id);
+			NMake::Unpack(V->Get("emission"), &O->Emission);
+			NMake::Unpack(V->Get("metallic"), &O->Metallic);
+			NMake::Unpack(V->Get("scatter"), &O->Scatter);
+			NMake::Unpack(V->Get("roughness"), &O->Roughness);
+			NMake::Unpack(V->Get("fresnel"), &O->Fresnel);
+			NMake::Unpack(V->Get("refraction"), &O->Refraction);
+			NMake::Unpack(V->Get("transparency"), &O->Transparency);
+			NMake::Unpack(V->Get("environment"), &O->Environment);
+			NMake::Unpack(V->Get("occlusion"), &O->Occlusion);
+			NMake::Unpack(V->Get("radius"), &O->Radius);
+			NMake::Unpack(V->Get("id"), &O->Id);
 			return true;
 		}
 		bool NMake::Unpack(Rest::Document* V, AnimatorState* O)
@@ -1057,20 +1122,22 @@ namespace Tomahawk
 			if (!V || !O)
 				return false;
 
-			O->Looped = V->GetBoolean("[looped]");
-			O->Paused = V->GetBoolean("[paused]");
-			O->Blended = V->GetBoolean("[blended]");
-			O->Clip = V->GetInteger("[clip]");
-			O->Frame = V->GetInteger("[frame]");
-			O->Rate = V->GetNumber("[rate]");
-			O->Duration = V->GetNumber("[duration]");
-			O->Time = V->GetNumber("[time]");
+			NMake::Unpack(V->Get("looped"), &O->Looped);
+			NMake::Unpack(V->Get("paused"), &O->Paused);
+			NMake::Unpack(V->Get("blended"), &O->Blended);
+			NMake::Unpack(V->Get("clip"), &O->Clip);
+			NMake::Unpack(V->Get("frame"), &O->Frame);
+			NMake::Unpack(V->Get("rate"), &O->Rate);
+			NMake::Unpack(V->Get("duration"), &O->Duration);
+			NMake::Unpack(V->Get("time"), &O->Time);
 			return true;
 		}
 		bool NMake::Unpack(Rest::Document* V, SpawnerProperties* O)
 		{
 			if (!V || !O)
 				return false;
+
+			NMake::Unpack(V->Get("iterations"), &O->Iterations);
 
 			Rest::Document* Angular = V->Get("angular");
 			NMake::Unpack(Angular->Get("intensity"), &O->Angular.Intensity);
@@ -1114,7 +1181,6 @@ namespace Tomahawk
 			NMake::Unpack(Velocity->Get("min"), &O->Velocity.Min);
 			NMake::Unpack(Velocity->Get("max"), &O->Velocity.Max);
 
-			O->Iterations = V->GetInteger("[iterations]");
 			return true;
 		}
 		bool NMake::Unpack(Rest::Document* V, Appearance* O, ContentManager* Content)
@@ -1123,32 +1189,32 @@ namespace Tomahawk
 				return false;
 
 			std::string Path;
-			if (NMake::Unpack(V->Find("diffuse-map"), &Path))
+			if (NMake::Unpack(V->Get("diffuse-map"), &Path))
 				O->SetDiffuseMap(Content->Load<Graphics::Texture2D>(Path));
 
-			if (NMake::Unpack(V->Find("normal-map"), &Path))
+			if (NMake::Unpack(V->Get("normal-map"), &Path))
 				O->SetNormalMap(Content->Load<Graphics::Texture2D>(Path));
 
-			if (NMake::Unpack(V->Find("metallic-map"), &Path))
+			if (NMake::Unpack(V->Get("metallic-map"), &Path))
 				O->SetMetallicMap(Content->Load<Graphics::Texture2D>(Path));
 
-			if (NMake::Unpack(V->Find("roughness-map"), &Path))
+			if (NMake::Unpack(V->Get("roughness-map"), &Path))
 				O->SetRoughnessMap(Content->Load<Graphics::Texture2D>(Path));
 
-			if (NMake::Unpack(V->Find("height-map"), &Path))
+			if (NMake::Unpack(V->Get("height-map"), &Path))
 				O->SetHeightMap(Content->Load<Graphics::Texture2D>(Path));
 
-			if (NMake::Unpack(V->Find("occlusion-map"), &Path))
+			if (NMake::Unpack(V->Get("occlusion-map"), &Path))
 				O->SetOcclusionMap(Content->Load<Graphics::Texture2D>(Path));
 
-			if (NMake::Unpack(V->Find("emission-map"), &Path))
+			if (NMake::Unpack(V->Get("emission-map"), &Path))
 				O->SetEmissionMap(Content->Load<Graphics::Texture2D>(Path));
 
-			NMake::Unpack(V->Find("diffuse"), &O->Diffuse);
-			NMake::Unpack(V->Find("texcoord"), &O->TexCoord);
-			NMake::Unpack(V->Find("height-amount"), &O->HeightAmount);
-			NMake::Unpack(V->Find("height-bias"), &O->HeightBias);
-			NMake::Unpack(V->Find("material"), &O->Material);
+			NMake::Unpack(V->Get("diffuse"), &O->Diffuse);
+			NMake::Unpack(V->Get("texcoord"), &O->TexCoord);
+			NMake::Unpack(V->Get("height-amount"), &O->HeightAmount);
+			NMake::Unpack(V->Get("height-bias"), &O->HeightBias);
+			NMake::Unpack(V->Get("material"), &O->Material);
 			return true;
 		}
 		bool NMake::Unpack(Rest::Document* V, Compute::SkinAnimatorKey* O)
@@ -1156,8 +1222,8 @@ namespace Tomahawk
 			if (!V)
 				return false;
 
-			NMake::Unpack(V->Find("pose"), &O->Pose);
-			NMake::Unpack(V->Find("time"), &O->Time);
+			NMake::Unpack(V->Get("pose"), &O->Pose);
+			NMake::Unpack(V->Get("time"), &O->Time);
 
 			return true;
 		}
@@ -1166,11 +1232,11 @@ namespace Tomahawk
 			if (!V || !O)
 				return false;
 
-			NMake::Unpack(V->Find("name"), &O->Name);
-			NMake::Unpack(V->Find("duration"), &O->Duration);
-			NMake::Unpack(V->Find("rate"), &O->Rate);
+			NMake::Unpack(V->Get("name"), &O->Name);
+			NMake::Unpack(V->Get("duration"), &O->Duration);
+			NMake::Unpack(V->Get("rate"), &O->Rate);
 
-			std::vector<Rest::Document*> Frames = V->FindCollectionPath("frames.frame", true);
+			std::vector<Rest::Document*> Frames = V->FetchCollection("frames.frame", false);
 			for (auto&& It : Frames)
 			{
 				O->Keys.emplace_back();
@@ -1184,10 +1250,10 @@ namespace Tomahawk
 			if (!V || !O)
 				return false;
 
-			NMake::Unpack(V->Find("name"), &O->Name);
-			NMake::Unpack(V->Find("duration"), &O->Duration);
-			NMake::Unpack(V->Find("rate"), &O->Rate);
-			NMake::Unpack(V->Find("frames"), &O->Keys);
+			NMake::Unpack(V->Get("name"), &O->Name);
+			NMake::Unpack(V->Get("duration"), &O->Duration);
+			NMake::Unpack(V->Get("rate"), &O->Rate);
+			NMake::Unpack(V->Get("frames"), &O->Keys);
 			return true;
 		}
 		bool NMake::Unpack(Rest::Document* V, Compute::AnimatorKey* O)
@@ -1211,7 +1277,7 @@ namespace Tomahawk
 			NMake::Unpack(V->Get("transform"), &O->Transform);
 			NMake::Unpack(V->Get("bind-shape"), &O->BindShape);
 
-			std::vector<Rest::Document*> Joints = V->FindCollectionPath("childs.joint", true);
+			std::vector<Rest::Document*> Joints = V->FetchCollection("childs.joint", false);
 			for (auto& It : Joints)
 			{
 				O->Childs.emplace_back();
@@ -1225,19 +1291,19 @@ namespace Tomahawk
 			if (!V || !O)
 				return false;
 
-			O->PositionX = V->GetNumber("[px]");
-			O->PositionY = V->GetNumber("[py]");
-			O->PositionZ = V->GetNumber("[pz]");
-			O->VelocityX = V->GetNumber("[vx]");
-			O->VelocityY = V->GetNumber("[vy]");
-			O->VelocityZ = V->GetNumber("[vz]");
-			O->ColorX = V->GetNumber("[cx]");
-			O->ColorY = V->GetNumber("[cy]");
-			O->ColorZ = V->GetNumber("[cz]");
-			O->ColorW = V->GetNumber("[cw]");
-			O->Angular = V->GetNumber("[a]");
-			O->Scale = V->GetNumber("[s]");
-			O->Rotation = V->GetNumber("[r]");
+			O->PositionX = (float)V->GetVar("[px]").GetNumber();
+			O->PositionY = (float)V->GetVar("[py]").GetNumber();
+			O->PositionZ = (float)V->GetVar("[pz]").GetNumber();
+			O->VelocityX = (float)V->GetVar("[vx]").GetNumber();
+			O->VelocityY = (float)V->GetVar("[vy]").GetNumber();
+			O->VelocityZ = (float)V->GetVar("[vz]").GetNumber();
+			O->ColorX = (float)V->GetVar("[cx]").GetNumber();
+			O->ColorY = (float)V->GetVar("[cy]").GetNumber();
+			O->ColorZ = (float)V->GetVar("[cz]").GetNumber();
+			O->ColorW = (float)V->GetVar("[cw]").GetNumber();
+			O->Angular = (float)V->GetVar("[a]").GetNumber();
+			O->Scale = (float)V->GetVar("[s]").GetNumber();
+			O->Rotation = (float)V->GetVar("[r]").GetNumber();
 			return true;
 		}
 		bool NMake::Unpack(Rest::Document* V, Compute::Vertex* O)
@@ -1245,20 +1311,20 @@ namespace Tomahawk
 			if (!V || !O)
 				return false;
 
-			O->PositionX = V->GetNumber("[px]");
-			O->PositionY = V->GetNumber("[py]");
-			O->PositionZ = V->GetNumber("[pz]");
-			O->TexCoordX = V->GetNumber("[tx]");
-			O->TexCoordY = V->GetNumber("[ty]");
-			O->NormalX = V->GetNumber("[nx]");
-			O->NormalY = V->GetNumber("[ny]");
-			O->NormalZ = V->GetNumber("[nz]");
-			O->TangentX = V->GetNumber("[tnx]");
-			O->TangentY = V->GetNumber("[tny]");
-			O->TangentZ = V->GetNumber("[tnz]");
-			O->BitangentX = V->GetNumber("[btx]");
-			O->BitangentY = V->GetNumber("[bty]");
-			O->BitangentZ = V->GetNumber("[btz]");
+			O->PositionX = (float)V->GetVar("[px]").GetNumber();
+			O->PositionY = (float)V->GetVar("[py]").GetNumber();
+			O->PositionZ = (float)V->GetVar("[pz]").GetNumber();
+			O->TexCoordX = (float)V->GetVar("[tx]").GetNumber();
+			O->TexCoordY = (float)V->GetVar("[ty]").GetNumber();
+			O->NormalX = (float)V->GetVar("[nx]").GetNumber();
+			O->NormalY = (float)V->GetVar("[ny]").GetNumber();
+			O->NormalZ = (float)V->GetVar("[nz]").GetNumber();
+			O->TangentX = (float)V->GetVar("[tnx]").GetNumber();
+			O->TangentY = (float)V->GetVar("[tny]").GetNumber();
+			O->TangentZ = (float)V->GetVar("[tnz]").GetNumber();
+			O->BitangentX = (float)V->GetVar("[btx]").GetNumber();
+			O->BitangentY = (float)V->GetVar("[bty]").GetNumber();
+			O->BitangentZ = (float)V->GetVar("[btz]").GetNumber();
 			return true;
 		}
 		bool NMake::Unpack(Rest::Document* V, Compute::SkinVertex* O)
@@ -1266,28 +1332,28 @@ namespace Tomahawk
 			if (!V || !O)
 				return false;
 
-			O->PositionX = V->GetNumber("[px]");
-			O->PositionY = V->GetNumber("[py]");
-			O->PositionZ = V->GetNumber("[pz]");
-			O->TexCoordX = V->GetNumber("[tx]");
-			O->TexCoordY = V->GetNumber("[ty]");
-			O->NormalX = V->GetNumber("[nx]");
-			O->NormalY = V->GetNumber("[ny]");
-			O->NormalZ = V->GetNumber("[nz]");
-			O->TangentX = V->GetNumber("[tnx]");
-			O->TangentY = V->GetNumber("[tny]");
-			O->TangentZ = V->GetNumber("[tnz]");
-			O->BitangentX = V->GetNumber("[btx]");
-			O->BitangentY = V->GetNumber("[bty]");
-			O->BitangentZ = V->GetNumber("[btz]");
-			O->JointIndex0 = V->GetNumber("[ji0]");
-			O->JointIndex1 = V->GetNumber("[ji1]");
-			O->JointIndex2 = V->GetNumber("[ji2]");
-			O->JointIndex3 = V->GetNumber("[ji3]");
-			O->JointBias0 = V->GetNumber("[jb0]");
-			O->JointBias1 = V->GetNumber("[jb1]");
-			O->JointBias2 = V->GetNumber("[jb2]");
-			O->JointBias3 = V->GetNumber("[jb3]");
+			O->PositionX = (float)V->GetVar("[px]").GetNumber();
+			O->PositionY = (float)V->GetVar("[py]").GetNumber();
+			O->PositionZ = (float)V->GetVar("[pz]").GetNumber();
+			O->TexCoordX = (float)V->GetVar("[tx]").GetNumber();
+			O->TexCoordY = (float)V->GetVar("[ty]").GetNumber();
+			O->NormalX = (float)V->GetVar("[nx]").GetNumber();
+			O->NormalY = (float)V->GetVar("[ny]").GetNumber();
+			O->NormalZ = (float)V->GetVar("[nz]").GetNumber();
+			O->TangentX = (float)V->GetVar("[tnx]").GetNumber();
+			O->TangentY = (float)V->GetVar("[tny]").GetNumber();
+			O->TangentZ = (float)V->GetVar("[tnz]").GetNumber();
+			O->BitangentX = (float)V->GetVar("[btx]").GetNumber();
+			O->BitangentY = (float)V->GetVar("[bty]").GetNumber();
+			O->BitangentZ = (float)V->GetVar("[btz]").GetNumber();
+			O->JointIndex0 = (float)V->GetVar("[ji0]").GetNumber();
+			O->JointIndex1 = (float)V->GetVar("[ji1]").GetNumber();
+			O->JointIndex2 = (float)V->GetVar("[ji2]").GetNumber();
+			O->JointIndex3 = (float)V->GetVar("[ji3]").GetNumber();
+			O->JointBias0 = (float)V->GetVar("[jb0]").GetNumber();
+			O->JointBias1 = (float)V->GetVar("[jb1]").GetNumber();
+			O->JointBias2 = (float)V->GetVar("[jb2]").GetNumber();
+			O->JointBias3 = (float)V->GetVar("[jb3]").GetNumber();
 			return true;
 		}
 		bool NMake::Unpack(Rest::Document* V, Rest::TickTimer* O)
@@ -1295,7 +1361,7 @@ namespace Tomahawk
 			if (!V || !O)
 				return false;
 
-			O->Delay = V->GetNumber("[delay]");
+			O->Delay = (float)V->GetVar("[delay]").GetNumber();
 			return true;
 		}
 		bool NMake::Unpack(Rest::Document* V, std::string* O)
@@ -1303,7 +1369,7 @@ namespace Tomahawk
 			if (!V || !O)
 				return false;
 
-			*O = V->GetStringBlob("[s]");
+			*O = V->GetVar("[s]").GetBlob();
 			return true;
 		}
 		bool NMake::Unpack(Rest::Document* V, std::vector<bool>* O)
@@ -1311,8 +1377,8 @@ namespace Tomahawk
 			if (!V || !O)
 				return false;
 
-			std::string& Array = V->GetStringBlob("b-array");
-			int64_t Size = V->GetInteger("[size]");
+			std::string& Array = V->GetVar("b-array").GetBlob();
+			int64_t Size = V->GetVar("[size]").GetInteger();
 			if (Array.empty() || !Size)
 				return false;
 
@@ -1333,8 +1399,8 @@ namespace Tomahawk
 			if (!V || !O)
 				return false;
 
-			std::string& Array = V->GetStringBlob("i-array");
-			int64_t Size = V->GetInteger("[size]");
+			std::string& Array = V->GetVar("i-array").GetBlob();
+			int64_t Size = V->GetVar("[size]").GetInteger();
 			if (Array.empty() || !Size)
 				return false;
 
@@ -1355,8 +1421,8 @@ namespace Tomahawk
 			if (!V || !O)
 				return false;
 
-			std::string& Array = V->GetStringBlob("i-array");
-			int64_t Size = V->GetInteger("[size]");
+			std::string& Array = V->GetVar("i-array").GetBlob();
+			int64_t Size = V->GetVar("[size]").GetInteger();
 			if (Array.empty() || !Size)
 				return false;
 
@@ -1377,8 +1443,8 @@ namespace Tomahawk
 			if (!V || !O)
 				return false;
 
-			std::string& Array = V->GetStringBlob("f-array");
-			int64_t Size = V->GetInteger("[size]");
+			std::string& Array = V->GetVar("n-array").GetBlob();
+			int64_t Size = V->GetVar("[size]").GetInteger();
 			if (Array.empty() || !Size)
 				return false;
 
@@ -1399,8 +1465,8 @@ namespace Tomahawk
 			if (!V || !O)
 				return false;
 
-			std::string& Array = V->GetStringBlob("f-array");
-			int64_t Size = V->GetInteger("[size]");
+			std::string& Array = V->GetVar("n-array").GetBlob();
+			int64_t Size = V->GetVar("[size]").GetInteger();
 			if (Array.empty() || !Size)
 				return false;
 
@@ -1421,8 +1487,8 @@ namespace Tomahawk
 			if (!V || !O)
 				return false;
 
-			std::string& Array = V->GetStringBlob("i-array");
-			int64_t Size = V->GetInteger("[size]");
+			std::string& Array = V->GetVar("i-array").GetBlob();
+			int64_t Size = V->GetVar("[size]").GetInteger();
 			if (Array.empty() || !Size)
 				return false;
 
@@ -1443,8 +1509,8 @@ namespace Tomahawk
 			if (!V || !O)
 				return false;
 
-			std::string& Array = V->GetStringBlob("f-array");
-			int64_t Size = V->GetInteger("[size]");
+			std::string& Array = V->GetVar("n-array").GetBlob();
+			int64_t Size = V->GetVar("[size]").GetInteger();
 			if (Array.empty() || !Size)
 				return false;
 
@@ -1465,8 +1531,8 @@ namespace Tomahawk
 			if (!V || !O)
 				return false;
 
-			std::string& Array = V->GetStringBlob("i-array");
-			int64_t Size = V->GetInteger("[size]");
+			std::string& Array = V->GetVar("i-array").GetBlob();
+			int64_t Size = V->GetVar("[size]").GetInteger();
 			if (Array.empty() || !Size)
 				return false;
 
@@ -1487,8 +1553,8 @@ namespace Tomahawk
 			if (!V || !O)
 				return false;
 
-			std::string& Array = V->GetStringBlob("v2-array");
-			int64_t Size = V->GetInteger("[size]");
+			std::string& Array = V->GetVar("v2-array").GetBlob();
+			int64_t Size = V->GetVar("[size]").GetInteger();
 			if (Array.empty() || !Size)
 				return false;
 
@@ -1505,8 +1571,8 @@ namespace Tomahawk
 			if (!V || !O)
 				return false;
 
-			std::string& Array = V->GetStringBlob("v3-array");
-			int64_t Size = V->GetInteger("[size]");
+			std::string& Array = V->GetVar("v3-array").GetBlob();
+			int64_t Size = V->GetVar("[size]").GetInteger();
 			if (Array.empty() || !Size)
 				return false;
 
@@ -1523,8 +1589,8 @@ namespace Tomahawk
 			if (!V || !O)
 				return false;
 
-			std::string& Array = V->GetStringBlob("v4-array");
-			int64_t Size = V->GetInteger("[size]");
+			std::string& Array = V->GetVar("v4-array").GetBlob();
+			int64_t Size = V->GetVar("[size]").GetInteger();
 			if (Array.empty() || !Size)
 				return false;
 
@@ -1541,8 +1607,8 @@ namespace Tomahawk
 			if (!V || !O)
 				return false;
 
-			std::string& Array = V->GetStringBlob("m4x4-array");
-			int64_t Size = V->GetInteger("[size]");
+			std::string& Array = V->GetVar("m4x4-array").GetBlob();
+			int64_t Size = V->GetVar("[size]").GetInteger();
 			if (Array.empty() || !Size)
 				return false;
 
@@ -1562,8 +1628,8 @@ namespace Tomahawk
 			if (!V || !O)
 				return false;
 
-			std::string& Array = V->GetStringBlob("as-array");
-			int64_t Size = V->GetInteger("[size]");
+			std::string& Array = V->GetVar("as-array").GetBlob();
+			int64_t Size = V->GetVar("[size]").GetInteger();
 			if (Array.empty() || !Size)
 				return false;
 
@@ -1589,8 +1655,8 @@ namespace Tomahawk
 			if (!V || !O)
 				return false;
 
-			std::string& Array = V->GetStringBlob("sp-array");
-			int64_t Size = V->GetInteger("[size]");
+			std::string& Array = V->GetVar("sp-array").GetBlob();
+			int64_t Size = V->GetVar("[size]").GetInteger();
 			if (Array.empty() || !Size)
 				return false;
 
@@ -1624,7 +1690,7 @@ namespace Tomahawk
 			if (!V || !O)
 				return false;
 
-			std::vector<Rest::Document*> Frames = V->FindCollectionPath("clips.clip", true);
+			std::vector<Rest::Document*> Frames = V->FetchCollection("clips.clip", false);
 			for (auto&& It : Frames)
 			{
 				O->push_back(Compute::SkinAnimatorClip());
@@ -1638,7 +1704,7 @@ namespace Tomahawk
 			if (!V || !O)
 				return false;
 
-			std::vector<Rest::Document*> Frames = V->FindCollectionPath("clips.clip", true);
+			std::vector<Rest::Document*> Frames = V->FetchCollection("clips.clip", false);
 			for (auto&& It : Frames)
 			{
 				O->push_back(Compute::KeyAnimatorClip());
@@ -1652,8 +1718,8 @@ namespace Tomahawk
 			if (!V || !O)
 				return false;
 
-			std::string& Array = V->GetStringBlob("ak-array");
-			int64_t Size = V->GetInteger("[size]");
+			std::string& Array = V->GetVar("ak-array").GetBlob();
+			int64_t Size = V->GetVar("[size]").GetInteger();
 			if (Array.empty() || !Size)
 				return false;
 
@@ -1673,8 +1739,8 @@ namespace Tomahawk
 			if (!V || !O)
 				return false;
 
-			std::string& Array = V->GetStringBlob("ev-array");
-			int64_t Size = V->GetInteger("[size]");
+			std::string& Array = V->GetVar("ev-array").GetBlob();
+			int64_t Size = V->GetVar("[size]").GetInteger();
 			if (Array.empty() || !Size)
 				return false;
 
@@ -1719,8 +1785,8 @@ namespace Tomahawk
 			if (!V || !O)
 				return false;
 
-			std::string& Array = V->GetStringBlob("iv-array");
-			int64_t Size = V->GetInteger("[size]");
+			std::string& Array = V->GetVar("iv-array").GetBlob();
+			int64_t Size = V->GetVar("[size]").GetInteger();
 			if (Array.empty() || !Size)
 				return false;
 
@@ -1761,8 +1827,8 @@ namespace Tomahawk
 			if (!V || !O)
 				return false;
 
-			std::string& Array = V->GetStringBlob("iv-array");
-			int64_t Size = V->GetInteger("[size]");
+			std::string& Array = V->GetVar("iv-array").GetBlob();
+			int64_t Size = V->GetVar("[size]").GetInteger();
 			if (Array.empty() || !Size)
 				return false;
 
@@ -1802,8 +1868,8 @@ namespace Tomahawk
 			if (!V || !O)
 				return false;
 
-			std::string& Array = V->GetStringBlob("tt-array");
-			int64_t Size = V->GetInteger("[size]");
+			std::string& Array = V->GetVar("tt-array").GetBlob();
+			int64_t Size = V->GetVar("[size]").GetInteger();
 			if (Array.empty() || !Size)
 				return false;
 
@@ -1820,16 +1886,14 @@ namespace Tomahawk
 			if (!V || !O)
 				return false;
 
-			Rest::Document* Array = V->Get("tt-array");
-			int64_t Size = V->GetInteger("[size]");
-			if (!Array || !Size)
+			Rest::Document* Array = V->Get("s-array");
+			if (!Array)
 				return false;
 
-			O->reserve((size_t)Size);
 			for (auto&& It : *Array->GetNodes())
 			{
-				if (It->Name == "s" && It->Type == Rest::NodeType_String)
-					O->push_back(It->String);
+				if (It->Key == "s" && It->Value.GetType() == Rest::VarType_String)
+					O->push_back(It->Value.GetBlob());
 			}
 
 			return true;
@@ -1882,15 +1946,15 @@ namespace Tomahawk
 		void Processor::Free(AssetCache* Asset)
 		{
 		}
-		void* Processor::Duplicate(AssetCache* Asset, const Compute::PropertyArgs& Args)
+		void* Processor::Duplicate(AssetCache* Asset, const Rest::VariantArgs& Args)
 		{
 			return nullptr;
 		}
-		void* Processor::Deserialize(Rest::Stream* Stream, uint64_t Length, uint64_t Offset, const Compute::PropertyArgs& Args)
+		void* Processor::Deserialize(Rest::Stream* Stream, uint64_t Length, uint64_t Offset, const Rest::VariantArgs& Args)
 		{
 			return nullptr;
 		}
-		bool Processor::Serialize(Rest::Stream* Stream, void* Object, const Compute::PropertyArgs& Args)
+		bool Processor::Serialize(Rest::Stream* Stream, void* Object, const Rest::VariantArgs& Args)
 		{
 			return false;
 		}
@@ -2027,8 +2091,8 @@ namespace Tomahawk
 			if (!Value || !Value->Is("materialchange"))
 				return;
 
-			Compute::Property& MaterialId = Value->Args["material-id"];
-			if (!MaterialId)
+			Rest::Variant& MaterialId = Value->Args["material-id"];
+			if (MaterialId.IsEmpty())
 				return;
 
 			int64_t Material = MaterialId.GetInteger();
@@ -4106,8 +4170,8 @@ namespace Tomahawk
 			if (Material >= Materials.size() || Material >= Names.size())
 				return;
 
-			Compute::PropertyArgs Args;
-			Args["material-id"] = Compute::Property((int64_t)Materials[Material].Id);
+			Rest::VariantArgs Args;
+			Args["material-id"] = Rest::Var::Integer((int64_t)Materials[Material].Id);
 
 			if (!DispatchEvent("materialchange", Args))
 				return;
@@ -4567,15 +4631,15 @@ namespace Tomahawk
 
 			return Result;
 		}
-		bool SceneGraph::DispatchEvent(const std::string& EventName, const Compute::PropertyArgs& Args)
+		bool SceneGraph::DispatchEvent(const std::string& EventName, const Rest::VariantArgs& Args)
 		{
 			return Conf.Queue ? Conf.Queue->Event<Event>(new Event(EventName, this, Args)) : false;
 		}
-		bool SceneGraph::DispatchEvent(Component* Target, const std::string& EventName, const Compute::PropertyArgs& Args)
+		bool SceneGraph::DispatchEvent(Component* Target, const std::string& EventName, const Rest::VariantArgs& Args)
 		{
 			return Conf.Queue ? Conf.Queue->Event<Event>(new Event(EventName, Target, Args)) : false;
 		}
-		bool SceneGraph::DispatchEvent(Entity* Target, const std::string& EventName, const Compute::PropertyArgs& Args)
+		bool SceneGraph::DispatchEvent(Entity* Target, const std::string& EventName, const Rest::VariantArgs& Args)
 		{
 			return Conf.Queue ? Conf.Queue->Event<Event>(new Event(EventName, Target, Args)) : false;
 		}
@@ -4626,9 +4690,9 @@ namespace Tomahawk
 		}
 		void SceneGraph::Mutate(Entity* Target, bool Added)
 		{
-			Compute::PropertyArgs Args;
-			Args["entity-ptr"] = Compute::Property((void*)Target);
-			Args["added"] = Compute::Property(Added);
+			Rest::VariantArgs Args;
+			Args["entity-ptr"] = Rest::Var::Pointer((void*)Target);
+			Args["added"] = Rest::Var::Boolean(Added);
 
 			DispatchEvent("mutation", Args);
 		}
@@ -5169,7 +5233,7 @@ namespace Tomahawk
 			Rest::OS::SetDirectory(Environment.c_str());
 			Mutex.unlock();
 		}
-		void* ContentManager::LoadForward(const std::string& Path, Processor* Processor, const Compute::PropertyArgs& Map)
+		void* ContentManager::LoadForward(const std::string& Path, Processor* Processor, const Rest::VariantArgs& Map)
 		{
 			if (Path.empty())
 				return nullptr;
@@ -5216,7 +5280,7 @@ namespace Tomahawk
 
 			return Object;
 		}
-		void* ContentManager::LoadStreaming(const std::string& Path, Processor* Processor, const Compute::PropertyArgs& Map)
+		void* ContentManager::LoadStreaming(const std::string& Path, Processor* Processor, const Rest::VariantArgs& Map)
 		{
 			if (Path.empty())
 				return nullptr;
@@ -5242,7 +5306,7 @@ namespace Tomahawk
 
 			return Processor->Deserialize(Stream, Docker->second->Length, It->second + Docker->second->Offset, Map);
 		}
-		bool ContentManager::SaveForward(const std::string& Path, Processor* Processor, void* Object, const Compute::PropertyArgs& Map)
+		bool ContentManager::SaveForward(const std::string& Path, Processor* Processor, void* Object, const Rest::VariantArgs& Map)
 		{
 			if (Path.empty())
 				return false;

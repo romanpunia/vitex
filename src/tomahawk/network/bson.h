@@ -30,7 +30,7 @@ namespace Tomahawk
 				Type_Decimal
 			};
 
-			struct TH_OUT KeyPair
+			struct TH_OUT Property
 			{
 				std::string Name;
 				std::string String;
@@ -45,7 +45,7 @@ namespace Tomahawk
 				bool Boolean = false;
 				bool IsValid = false;
 
-				~KeyPair();
+				~Property();
 				void Release();
 				std::string& ToString();
 			};
@@ -58,7 +58,7 @@ namespace Tomahawk
 				static TDocument* Create(const std::string& JSON);
 				static TDocument* Create(const unsigned char* Buffer, uint64_t Length);
 				static void Release(TDocument** Document);
-				static void Loop(TDocument* Document, void* Context, const std::function<bool(TDocument*, KeyPair*, void*)>& Callback);
+				static void Loop(TDocument* Document, void* Context, const std::function<bool(TDocument*, Property*, void*)>& Callback);
 				static bool ParseDecimal(const char* Value, int64_t* High, int64_t* Low);
 				static bool GenerateId(unsigned char* Id12);
 				static bool AddKeyDocument(TDocument* Document, const char* Key, TDocument** Value, uint64_t ArrayId = 0);
@@ -74,10 +74,10 @@ namespace Tomahawk
 				static bool AddKeyBoolean(TDocument* Document, const char* Key, bool Value, uint64_t ArrayId = 0);
 				static bool AddKeyObjectId(TDocument* Document, const char* Key, unsigned char Value[12], uint64_t ArrayId = 0);
 				static bool AddKeyNull(TDocument* Document, const char* Key, uint64_t ArrayId = 0);
-				static bool AddKey(TDocument* Document, const char* Key, KeyPair* Value, uint64_t ArrayId = 0);
+				static bool AddKey(TDocument* Document, const char* Key, Property* Value, uint64_t ArrayId = 0);
 				static bool HasKey(TDocument* Document, const char* Key);
-				static bool GetKey(TDocument* Document, const char* Key, KeyPair* Output);
-				static bool GetKeyWithNotation(TDocument* Document, const char* Key, KeyPair* Output);
+				static bool GetKey(TDocument* Document, const char* Key, Property* Output);
+				static bool GetKeyWithNotation(TDocument* Document, const char* Key, Property* Output);
 				static unsigned int GetHashId(unsigned char* Id12);
 				static int64_t GetTimeId(unsigned char* Id12);
 				static uint64_t CountKeys(TDocument* Document);
@@ -90,7 +90,7 @@ namespace Tomahawk
 				static TDocument* Copy(TDocument* Document);
 
 			private:
-				static bool Clone(void* It, KeyPair* Output);
+				static bool Clone(void* It, Property* Output);
 			};
 		}
 	}

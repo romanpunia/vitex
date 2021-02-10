@@ -1377,7 +1377,7 @@ namespace Tomahawk
 			if (!V || !O)
 				return false;
 
-			std::string& Array = V->GetVar("b-array").GetBlob();
+			std::string Array(std::move(V->GetVar("b-array").GetBlob()));
 			int64_t Size = V->GetVar("[size]").GetInteger();
 			if (Array.empty() || !Size)
 				return false;
@@ -1399,7 +1399,7 @@ namespace Tomahawk
 			if (!V || !O)
 				return false;
 
-			std::string& Array = V->GetVar("i-array").GetBlob();
+			std::string Array(std::move(V->GetVar("i-array").GetBlob()));
 			int64_t Size = V->GetVar("[size]").GetInteger();
 			if (Array.empty() || !Size)
 				return false;
@@ -1421,7 +1421,7 @@ namespace Tomahawk
 			if (!V || !O)
 				return false;
 
-			std::string& Array = V->GetVar("i-array").GetBlob();
+			std::string Array(std::move(V->GetVar("i-array").GetBlob()));
 			int64_t Size = V->GetVar("[size]").GetInteger();
 			if (Array.empty() || !Size)
 				return false;
@@ -1443,7 +1443,7 @@ namespace Tomahawk
 			if (!V || !O)
 				return false;
 
-			std::string& Array = V->GetVar("n-array").GetBlob();
+			std::string Array(std::move(V->GetVar("n-array").GetBlob()));
 			int64_t Size = V->GetVar("[size]").GetInteger();
 			if (Array.empty() || !Size)
 				return false;
@@ -1465,7 +1465,7 @@ namespace Tomahawk
 			if (!V || !O)
 				return false;
 
-			std::string& Array = V->GetVar("n-array").GetBlob();
+			std::string Array(std::move(V->GetVar("n-array").GetBlob()));
 			int64_t Size = V->GetVar("[size]").GetInteger();
 			if (Array.empty() || !Size)
 				return false;
@@ -1487,7 +1487,7 @@ namespace Tomahawk
 			if (!V || !O)
 				return false;
 
-			std::string& Array = V->GetVar("i-array").GetBlob();
+			std::string Array(std::move(V->GetVar("i-array").GetBlob()));
 			int64_t Size = V->GetVar("[size]").GetInteger();
 			if (Array.empty() || !Size)
 				return false;
@@ -1509,7 +1509,7 @@ namespace Tomahawk
 			if (!V || !O)
 				return false;
 
-			std::string& Array = V->GetVar("n-array").GetBlob();
+			std::string Array(std::move(V->GetVar("n-array").GetBlob()));
 			int64_t Size = V->GetVar("[size]").GetInteger();
 			if (Array.empty() || !Size)
 				return false;
@@ -1531,7 +1531,7 @@ namespace Tomahawk
 			if (!V || !O)
 				return false;
 
-			std::string& Array = V->GetVar("i-array").GetBlob();
+			std::string Array(std::move(V->GetVar("i-array").GetBlob()));
 			int64_t Size = V->GetVar("[size]").GetInteger();
 			if (Array.empty() || !Size)
 				return false;
@@ -1553,7 +1553,7 @@ namespace Tomahawk
 			if (!V || !O)
 				return false;
 
-			std::string& Array = V->GetVar("v2-array").GetBlob();
+			std::string Array(std::move(V->GetVar("v2-array").GetBlob()));
 			int64_t Size = V->GetVar("[size]").GetInteger();
 			if (Array.empty() || !Size)
 				return false;
@@ -1571,7 +1571,7 @@ namespace Tomahawk
 			if (!V || !O)
 				return false;
 
-			std::string& Array = V->GetVar("v3-array").GetBlob();
+			std::string Array(std::move(V->GetVar("v3-array").GetBlob()));
 			int64_t Size = V->GetVar("[size]").GetInteger();
 			if (Array.empty() || !Size)
 				return false;
@@ -1589,7 +1589,7 @@ namespace Tomahawk
 			if (!V || !O)
 				return false;
 
-			std::string& Array = V->GetVar("v4-array").GetBlob();
+			std::string Array(std::move(V->GetVar("v4-array").GetBlob()));
 			int64_t Size = V->GetVar("[size]").GetInteger();
 			if (Array.empty() || !Size)
 				return false;
@@ -1607,7 +1607,7 @@ namespace Tomahawk
 			if (!V || !O)
 				return false;
 
-			std::string& Array = V->GetVar("m4x4-array").GetBlob();
+			std::string Array(std::move(V->GetVar("m4x4-array").GetBlob()));
 			int64_t Size = V->GetVar("[size]").GetInteger();
 			if (Array.empty() || !Size)
 				return false;
@@ -1628,7 +1628,7 @@ namespace Tomahawk
 			if (!V || !O)
 				return false;
 
-			std::string& Array = V->GetVar("as-array").GetBlob();
+			std::string Array(std::move(V->GetVar("as-array").GetBlob()));
 			int64_t Size = V->GetVar("[size]").GetInteger();
 			if (Array.empty() || !Size)
 				return false;
@@ -1655,7 +1655,7 @@ namespace Tomahawk
 			if (!V || !O)
 				return false;
 
-			std::string& Array = V->GetVar("sp-array").GetBlob();
+			std::string Array(std::move(V->GetVar("sp-array").GetBlob()));
 			int64_t Size = V->GetVar("[size]").GetInteger();
 			if (Array.empty() || !Size)
 				return false;
@@ -1718,7 +1718,7 @@ namespace Tomahawk
 			if (!V || !O)
 				return false;
 
-			std::string& Array = V->GetVar("ak-array").GetBlob();
+			std::string Array(std::move(V->GetVar("ak-array").GetBlob()));
 			int64_t Size = V->GetVar("[size]").GetInteger();
 			if (Array.empty() || !Size)
 				return false;
@@ -1739,7 +1739,7 @@ namespace Tomahawk
 			if (!V || !O)
 				return false;
 
-			std::string& Array = V->GetVar("ev-array").GetBlob();
+			std::string Array(std::move(V->GetVar("ev-array").GetBlob()));
 			int64_t Size = V->GetVar("[size]").GetInteger();
 			if (Array.empty() || !Size)
 				return false;
@@ -1785,7 +1785,7 @@ namespace Tomahawk
 			if (!V || !O)
 				return false;
 
-			std::string& Array = V->GetVar("iv-array").GetBlob();
+			std::string Array(std::move(V->GetVar("iv-array").GetBlob()));
 			int64_t Size = V->GetVar("[size]").GetInteger();
 			if (Array.empty() || !Size)
 				return false;
@@ -1827,7 +1827,7 @@ namespace Tomahawk
 			if (!V || !O)
 				return false;
 
-			std::string& Array = V->GetVar("iv-array").GetBlob();
+			std::string Array(std::move(V->GetVar("iv-array").GetBlob()));
 			int64_t Size = V->GetVar("[size]").GetInteger();
 			if (Array.empty() || !Size)
 				return false;
@@ -1868,7 +1868,7 @@ namespace Tomahawk
 			if (!V || !O)
 				return false;
 
-			std::string& Array = V->GetVar("tt-array").GetBlob();
+			std::string Array(std::move(V->GetVar("tt-array").GetBlob()));
 			int64_t Size = V->GetVar("[size]").GetInteger();
 			if (Array.empty() || !Size)
 				return false;

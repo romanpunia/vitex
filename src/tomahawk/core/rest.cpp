@@ -8,7 +8,7 @@
 #include <csignal>
 #include <sys/stat.h>
 #include <rapidxml.hpp>
-#include <rapidjson/document.h>
+#include <json/document.h>
 #include <tinyfiledialogs.h>
 #ifdef TH_MICROSOFT
 #include <Windows.h>
@@ -4529,7 +4529,7 @@ namespace Tomahawk
 				return nullptr;
 
 #ifdef TH_MICROSOFT
-			void* Result = GetProcAddress((HMODULE)Handle, Name.c_str());
+			void* Result = (void*)GetProcAddress((HMODULE)Handle, Name.c_str());
 			if (!Result)
 			{
 				LPVOID Buffer;
@@ -4545,7 +4545,7 @@ namespace Tomahawk
 
 			return Result;
 #elif defined(TH_UNIX)
-			void* Result = dlsym(Handle, Name.c_str());
+			void* Result = (void*)dlsym(Handle, Name.c_str());
 			if (!Result)
 			{
 				const char* Text = dlerror();

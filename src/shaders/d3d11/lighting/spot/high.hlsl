@@ -13,34 +13,37 @@ SamplerState ShadowSampler : register(s1);
 float GetPenumbra(float2 D, float L)
 {
     [branch] if (Umbra <= 0.0)
-        return 1.0;
+        return 0.0;
     
     float Length = 0.0, Count = 0.0;
-    [unroll] for (int i = 0; i < 16; i++)
+    [unroll] for (float i = 0; i < 16; i++)
     {
         float S1 = ShadowMap.SampleLevel(ShadowSampler, D + FiboDisk[i] / Softness, 0).x;
-        float S2 = 1.0 - step(L, S1);
+        float S2 = step(S1, L);
         Length += S1 * S2;
         Count += S2;
     }
 
     [branch] if (Count < 2.0)
-        return -1.0;
+        return 1.0;
     
     Length /= Count;
-    return max(0.1, saturate(Umbra * FarPlane * (L - Length) / Length));
+    return saturate(Umbra * FarPlane * (L - Length) / Length);
 }
 float GetLightness(float2 D, float L)
 {
     float Penumbra = GetPenumbra(D, L);
-    [branch] if (Penumbra < 0.0)
+    [branch] if (Penumbra >= 1.0)
         return 1.0;
 
     float Result = 0.0;
-	[loop] for (int j = 0; j < Iterations; j++)
-        Result += step(L, ShadowMap.SampleLevel(ShadowSampler, D + Penumbra * FiboDisk[j] / Softness, 0).x);
+	[loop] for (float j = 0; j < Iterations; j++)
+    {
+        float2 Offset = FiboDisk[j % 64] * (64.0 / max(64.0, j));
+        Result += step(L, ShadowMap.SampleLevel(Sampler, D + Offset / Softness, 0).x);
+    }
     
-    return Result / Iterations;
+    return lerp(Result / Iterations, 1.0, Penumbra);
 }
 
 VOutput VS(VInput V)

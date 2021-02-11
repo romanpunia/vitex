@@ -840,6 +840,8 @@ namespace Tomahawk
 				Graphics::GraphicsDevice* Device = nullptr;
 				Script::VMManager* Manager = nullptr;
 				Rest::EventQueue* Queue = nullptr;
+				PrimitiveCache* Primitives = nullptr;
+				ShaderCache* Shaders = nullptr;
 			};
 
 			struct Thread
@@ -893,8 +895,6 @@ namespace Tomahawk
 			Rest::Pool<Entity*> Entities;
 			Graphics::ElementBuffer* Structure;
 			Compute::Simulator* Simulator;
-			PrimitiveCache* Primitives;
-			ShaderCache* Shaders;
 			Component* Camera;
 			Desc Conf;
 			bool Invoked;
@@ -1226,6 +1226,13 @@ namespace Tomahawk
 				unsigned int Usage = ApplicationUse_Graphics_Module | ApplicationUse_Activity_Module | ApplicationUse_Audio_Module | ApplicationUse_AngelScript_Module | ApplicationUse_Content_Module;
 				bool DisableCursor = false;
 			};
+
+		public:
+			struct
+			{
+				ShaderCache* Shaders = nullptr;
+				PrimitiveCache* Primitives = nullptr;
+			} Cache;
 
 		private:
 			static Application* Host;

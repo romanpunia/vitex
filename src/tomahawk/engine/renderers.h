@@ -295,6 +295,7 @@ namespace Tomahawk
 
 				struct IVoxelBuffer
 				{
+					Compute::Matrix4x4 WorldViewProjection;
 					Compute::Vector3 Center;
 					float RayStep = 1.0f;
 					Compute::Vector3 Size;
@@ -306,7 +307,7 @@ namespace Tomahawk
 					float Distance = 1.0f;
 					float Occlusion = 0.9f;
 					float Shadows = 0.25f;
-					float Padding = 0.0f;
+					float Bleeding = 1.0f;
 				};
 
 			protected:

@@ -14,13 +14,13 @@ SamplerState ShadowSampler : register(s1);
 float GetPenumbra(uniform uint I, float2 D, float L)
 {
     [branch] if (Umbra <= 0.0)
-        return 1.0;
+        return 0.0;
     
     float Length = 0.0, Count = 0.0;
-    [unroll] for (int i = 0; i < 16; i++)
+    [unroll] for (float i = 0; i < 16; i++)
     {
         float S1 = ShadowMap[I].SampleLevel(ShadowSampler, D + FiboDisk[i] / Softness, 0).x;
-        float S2 = 1.0 - step(L, S1);
+        float S2 = step(S1, L);
         Length += S1 * S2;
         Count += S2;
     }
@@ -29,7 +29,7 @@ float GetPenumbra(uniform uint I, float2 D, float L)
         return 1.0;
     
     Length /= Count;
-    return max(0.1, saturate(Umbra * FarPlane * (L - Length) / Length));
+    return saturate(Umbra * FarPlane * (L - Length) / Length);
 }
 float GetLightness(uniform uint I, float2 D, float L)
 {
@@ -39,9 +39,9 @@ float GetLightness(uniform uint I, float2 D, float L)
 
     float Result = 0.0;
 	[loop] for (int j = 0; j < Iterations; j++)
-        Result += step(L, ShadowMap[I].SampleLevel(ShadowSampler, D + Penumbra * FiboDisk[j] / Softness, 0).x);
+        Result += step(L, ShadowMap[I].SampleLevel(Sampler, D + FiboDisk[j] / Softness, 0).x);
 
-    return Result / Iterations;
+    return lerp(Result / Iterations, 1.0, Penumbra);
 }
 float GetCascade(float3 Position, uniform uint Index)
 {

@@ -986,7 +986,7 @@ namespace Tomahawk
 			Sampler.MaxLOD = std::numeric_limits<float>::max();
 			SamplerStates["point"] = CreateSamplerState(Sampler);
 
-			Sampler.Filter = Graphics::PixelFilter_Anistropic;
+			Sampler.Filter = Graphics::PixelFilter_Min_Mag_Mip_Point;
 			Sampler.AddressU = Graphics::TextureAddress_Mirror;
 			Sampler.AddressV = Graphics::TextureAddress_Mirror;
 			Sampler.AddressW = Graphics::TextureAddress_Mirror;

@@ -3077,6 +3077,7 @@ namespace Tomahawk
 				Intensity = 1.0f;
 				Occlusion = 0.9f;
 				Shadows = 0.25f;
+				Bleeding = 1.0f;
 			}
 			Illuminator::~Illuminator()
 			{
@@ -3091,6 +3092,7 @@ namespace Tomahawk
 				NMake::Unpack(Node->Find("intensity"), &Intensity);
 				NMake::Unpack(Node->Find("occlusion"), &Occlusion);
 				NMake::Unpack(Node->Find("shadows"), &Shadows);
+				NMake::Unpack(Node->Find("bleeding"), &Bleeding);
 				SetBufferSize(Size);
 			}
 			void Illuminator::Serialize(ContentManager* Content, Rest::Document* Node)
@@ -3102,6 +3104,7 @@ namespace Tomahawk
 				NMake::Pack(Node->Set("intensity"), Intensity);
 				NMake::Pack(Node->Set("occlusion"), Occlusion);
 				NMake::Pack(Node->Set("shadows"), Shadows);
+				NMake::Pack(Node->Set("bleeding"), Bleeding);
 			}
 			float Illuminator::Cull(const Viewer& View)
 			{

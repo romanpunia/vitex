@@ -1173,6 +1173,7 @@ namespace Tomahawk
 				VoxelBuffer.Intensity = Src->Intensity;
 				VoxelBuffer.Occlusion = Src->Occlusion;
 				VoxelBuffer.Shadows = Src->Shadows;
+				VoxelBuffer.Bleeding = Src->Bleeding;
 
 				return Src;
 			}
@@ -1213,7 +1214,10 @@ namespace Tomahawk
 				Dest->Range = Light->Size.Range;
 
 				if (!Light->Shadow.Enabled || !Light->DepthMap)
+				{
+					Dest->Softness = 0.0f;
 					return false;
+				}
 
 				Dest->Softness = Light->Shadow.Softness <= 0 ? 0 : (float)Shadows.PointLightResolution / Light->Shadow.Softness;
 				Dest->Bias = Light->Shadow.Bias;
@@ -1236,7 +1240,10 @@ namespace Tomahawk
 				Dest->Range = Light->Size.Range;
 
 				if (!Light->Shadow.Enabled || !Light->DepthMap)
+				{
+					Dest->Softness = 0.0f;
 					return false;
+				}
 
 				Dest->Softness = Light->Shadow.Softness <= 0 ? 0 : (float)Shadows.SpotLightResolution / Light->Shadow.Softness;
 				Dest->Bias = Light->Shadow.Bias;
@@ -1260,7 +1267,10 @@ namespace Tomahawk
 				Dest->SkyOffset = AmbientLight.SkyOffset;
 
 				if (!Light->Shadow.Enabled || !Light->DepthMap)
+				{
+					Dest->Softness = 0.0f;
 					return false;
+				}
 
 				Dest->Softness = Light->Shadow.Softness <= 0 ? 0 : (float)Shadows.LineLightResolution / Light->Shadow.Softness;
 				Dest->Iterations = (float)Light->Shadow.Iterations;
@@ -1275,9 +1285,10 @@ namespace Tomahawk
 			}
 			void Lighting::GetLightCulling(Component* Src, float Range, Compute::Vector3* Position, Compute::Vector3* Scale)
 			{
-				*Position = Src->GetEntity()->Transform->Position; *Scale = Range;
+				*Position = Src->GetEntity()->Transform->Position;
+				*Scale = (Range > 0.0f ? Range : Src->GetEntity()->Transform->Scale);
+				
 				bool Front = Compute::Common::HasPointIntersectedCube(*Position, Scale->Mul(1.01f), State.View);
-
 				if (!(Front && State.Backcull) && !(!Front && !State.Backcull))
 					return;
 
@@ -1648,7 +1659,7 @@ namespace Tomahawk
 
 				if (Inside)
 				{
-					State.Scene->View.FarPlane = GetDominant(VoxelBuffer.Scale) * 1.75f;
+					State.Scene->View.FarPlane = GetDominant(VoxelBuffer.Scale) * 2.0f;
 					State.Scene->Render(Time, RenderState_Geometry_Voxels, RenderOpt_Inner);
 					State.Scene->RestoreViewBuffer(nullptr);
 				}
@@ -1820,7 +1831,10 @@ namespace Tomahawk
 			{
 				Graphics::Shader* Active = nullptr;
 				if (!State.Backcull)
+				{
 					State.Device->SetRasterizerState(BackRasterizer);
+					State.Backcull = true;
+				}
 
 				State.Device->SetDepthStencilState(DepthStencilNone);
 				State.Device->SetShader(Shaders.Line[0], TH_VS);
@@ -1848,20 +1862,36 @@ namespace Tomahawk
 			}
 			void Lighting::RenderIllumination()
 			{
-				if (!EnableGI || !LightBuffer || State.Inner)
+				if (!EnableGI || !LightBuffer || State.Inner || !Storage.Area)
 					return;
+
+				Graphics::ElementBuffer* Cube[2];
+				System->GetPrimitives()->GetCubeBuffers(Cube);
+
+				Compute::Vector3 Position, Scale;
+				GetLightCulling(Storage.Area, 0.0f, &Position, &Scale);
+				VoxelBuffer.WorldViewProjection = Compute::Matrix4x4::CreateTranslatedScale(Position, Scale) * State.Scene->View.ViewProjection;
+
+				if (State.Backcull)
+					State.Device->SetDepthStencilState(DepthStencilLess);
 
 				Graphics::MultiRenderTarget2D* MRT = System->GetMRT(TargetType_Main);
 				Graphics::RenderTarget2D* RT = System->GetRT(TargetType_Secondary);
 				State.Device->CopyTarget(MRT, 0, RT, 0);
+				State.Device->SetVertexBuffer(Cube[BufferType_Vertex], 0);
 				State.Device->SetTexture2D(RT->GetTarget(0), 1, TH_PS);
 				State.Device->SetTexture3D(LightBuffer, 5, TH_PS);
 				State.Device->SetShader(Shaders.Ambient[1], TH_VS | TH_PS);
 				State.Device->SetBuffer(Shaders.Ambient[1], 3, TH_VS | TH_PS);
 				State.Device->UpdateBuffer(Shaders.Ambient[1], &VoxelBuffer);
-				State.Device->Draw(6, 0);
-				State.Device->SetTexture2D(nullptr, 1, TH_PS);
+				State.Device->DrawIndexed((unsigned int)Cube[BufferType_Index]->GetElements(), 0, 0);
+				State.Device->SetTexture2D(System->GetRT(TargetType_Main)->GetTarget(0), 1, TH_PS);
 				State.Device->SetTexture3D(nullptr, 5, TH_PS);
+				State.Device->SetVertexBuffer(System->GetPrimitives()->GetQuad(), 0);
+				State.Device->SetDepthStencilState(DepthStencilNone);
+
+				if (!State.Backcull)
+					State.Device->SetRasterizerState(BackRasterizer);
 			}
 			void Lighting::RenderAmbient()
 			{

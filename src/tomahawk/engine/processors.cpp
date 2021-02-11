@@ -63,6 +63,8 @@ namespace Tomahawk
 				Application* App = Application::Get();
 				if (App != nullptr)
 				{
+					I.Shaders = App->Cache.Shaders;
+					I.Primitives = App->Cache.Primitives;
 					I.Queue = App->Queue;
 					I.Manager = App->VM;
 				}

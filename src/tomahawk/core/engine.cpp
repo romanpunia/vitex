@@ -3870,7 +3870,7 @@ namespace Tomahawk
 			return System->GetRT(TargetType_Main)->GetHeight();
 		}
 
-		SceneGraph::SceneGraph(const Desc& I) : Conf(I), Active(true), Invoked(false), Structure(nullptr), Simulator(nullptr), Camera(nullptr), Primitives(nullptr), Shaders(nullptr)
+		SceneGraph::SceneGraph(const Desc& I) : Conf(I), Active(true), Invoked(false), Structure(nullptr), Simulator(nullptr), Camera(nullptr)
 		{
 			Sync.Count = 0; Sync.Locked = false;
 			for (unsigned int i = 0; i < ThreadId_Count; i++)
@@ -3920,8 +3920,6 @@ namespace Tomahawk
 
 			TH_RELEASE(Structure);
 			TH_RELEASE(Simulator);
-			TH_RELEASE(Shaders);
-			TH_RELEASE(Primitives);
 
 			Unlock();
 		}
@@ -3940,12 +3938,6 @@ namespace Tomahawk
 			Conf = NewConf;
 			Entities.Reserve(Conf.EntityCount);
 			Pending.Reserve(Conf.ComponentCount);
-
-			TH_RELEASE(Shaders);
-			Shaders = new ShaderCache(Conf.Device);
-
-			TH_RELEASE(Primitives);
-			Primitives = new PrimitiveCache(Conf.Device);
 
 			for (auto& Array : Components)
 				Array.second.Reserve(Conf.ComponentCount);
@@ -5153,11 +5145,11 @@ namespace Tomahawk
 		}
 		ShaderCache* SceneGraph::GetShaders()
 		{
-			return Shaders;
+			return Conf.Shaders;
 		}
 		PrimitiveCache* SceneGraph::GetPrimitives()
 		{
-			return Primitives;
+			return Conf.Primitives;
 		}
 		Compute::Simulator* SceneGraph::GetSimulator()
 		{
@@ -5248,16 +5240,18 @@ namespace Tomahawk
 			if (Object != nullptr)
 				return Object;
 
-			Mutex.lock();
 			std::string File = Path;
 			if (!Rest::OS::FileRemote(Path.c_str()))
 			{
+				Mutex.lock();
 				File = Rest::OS::Resolve(Path, Environment);
-				if (!Rest::OS::FileExists(File.c_str()))
+				Mutex.unlock();
+
+				Rest::Resource Source;
+				if (!Rest::OS::StateResource(File, &Source))
 				{
-					if (!Rest::OS::FileExists(Path.c_str()))
+					if (!Rest::OS::StateResource(Path, &Source))
 					{
-						Mutex.unlock();
 						TH_ERROR("file \"%s\" wasn't found", File.c_str());
 						return nullptr;
 					}
@@ -5265,7 +5259,6 @@ namespace Tomahawk
 					File = Path;
 				}
 			}
-			Mutex.unlock();
 
 			AssetCache* Asset = Find(Processor, Path);
 			if (Asset != nullptr)
@@ -5350,9 +5343,12 @@ namespace Tomahawk
 		{
 			Mutex.lock();
 			std::string File = Rest::OS::Resolve(Path, Environment);
-			if (!Rest::OS::FileExists(File.c_str()))
+			Mutex.unlock();
+
+			Rest::Resource Source;
+			if (!Rest::OS::StateResource(File, &Source))
 			{
-				if (!Rest::OS::FileExists(Path.c_str()))
+				if (!Rest::OS::StateResource(Path, &Source))
 				{
 					TH_ERROR("file \"%s\" wasn't found", Path.c_str());
 					return false;
@@ -5360,7 +5356,6 @@ namespace Tomahawk
 
 				File = Path;
 			}
-			Mutex.unlock();
 
 			auto* Stream = new Rest::GzStream();
 			if (!Stream->Open(File.c_str(), Rest::FileMode::FileMode_Binary_Read_Only))
@@ -5652,6 +5647,9 @@ namespace Tomahawk
 							TH_ERROR("graphics device cannot be created");
 							return;
 						}
+
+						Cache.Shaders = new ShaderCache(Renderer);
+						Cache.Primitives = new PrimitiveCache(Renderer);
 					}
 				}
 				else
@@ -5709,6 +5707,8 @@ namespace Tomahawk
 			if (Activity != nullptr && Renderer != nullptr && Content != nullptr)
 				Engine::GUI::Subsystem::Release();
 
+			TH_RELEASE(Cache.Shaders);
+			TH_RELEASE(Cache.Primitives);
 			TH_RELEASE(Content);
 			TH_RELEASE(Renderer);
 			TH_RELEASE(Activity);

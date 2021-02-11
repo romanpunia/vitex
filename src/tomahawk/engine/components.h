@@ -621,6 +621,7 @@ namespace Tomahawk
 				float Intensity;
 				float Occlusion;
 				float Shadows;
+				float Bleeding;
 
 			public:
 				Illuminator(Entity* Ref);

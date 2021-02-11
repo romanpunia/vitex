@@ -5971,7 +5971,7 @@ namespace Tomahawk
 		}
 		bool Document::IsAttribute() const
 		{
-			if (Key.size() >= 2)
+			if (Key.size() < 2)
 				return false;
 
 			return (Key.front() == '[' && Key.back() == ']');
@@ -6082,7 +6082,7 @@ namespace Tomahawk
 				std::string Key = (*It)->GetName();
 				std::string Value = (*It)->Value.Serialize();
 
-				Callback(VarFormat_Dummy, Key.c_str() + 1, (int64_t)Key.size() - 2);
+				Callback(VarFormat_Dummy, Key.c_str(), (int64_t)Key.size());
 				Callback(VarFormat_Dummy, "=\"", 2);
 				Callback(VarFormat_Dummy, Value.c_str(), (int64_t)Value.size());
 				It++;
@@ -6181,11 +6181,10 @@ namespace Tomahawk
 			{
 				if (!Array)
 				{
-					std::string Key = Document->GetName();
 					Callback(VarFormat_Write_Line, "", 0);
 					Callback(VarFormat_Write_Tab, "", 0);
 					Callback(VarFormat_Dummy, "\"", 1);
-					Callback(VarFormat_Dummy, Key.c_str(), (int64_t)Key.size());
+					Callback(VarFormat_Dummy, Document->Key.c_str(), (int64_t)Document->Key.size());
 					Callback(VarFormat_Write_Space, "\":", 2);
 				}
 

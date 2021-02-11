@@ -19,7 +19,33 @@ static const float ConeWeights[] =
     0.15
 };
 
-float4 Raymarch(float3 Position, float3 Normal, float3 Direction, float Ratio, out float Occlusion)
+float4 Raymarch(float3 Position, float3 Normal, float3 Direction, float Ratio)
+{
+	float3 Step = VxDistance / VxScale;
+    float3 Origin = Position + Normal * Step * 2.828426;
+	float3 Distance = Step * 0.5;
+	float4 Result = 0.0;
+    float Count = 0.0;
+
+	while (Distance.x < VxScale.x && Result.w < 1.0)
+	{
+		float3 Voxel = GetVoxel(Origin + Direction * Distance);
+        [branch] if (!IsInVoxelGrid(Voxel) || Count++ >= VxMaxSteps)
+            break;
+        
+		float3 Radius = max(2.0 * Distance * Ratio, Step);
+		float Level = GetAvg(log2(Radius * VxScale));
+        [branch] if (Level > VxMipLevels)
+            break;
+
+        float4 Diffuse = GetLight(Voxel, Level);
+		Result += Diffuse * (1.0 - Result.w);
+		Distance += Radius * VxStep / max(1.0, Level);
+	}
+
+	return Result;
+}
+float4 RaymarchDensity(float3 Position, float3 Normal, float3 Direction, float Ratio, out float Occlusion)
 {
 	float3 Step = VxDistance / VxScale;
     float3 Origin = Position + Normal * Step * 2.828426;
@@ -46,13 +72,11 @@ float4 Raymarch(float3 Position, float3 Normal, float3 Direction, float Ratio, o
 
 	return Result;
 }
-float4 GetReflectance(float3 Position, float3 Normal, float3 Metallic, float Roughness)
+float4 GetSpecular(float3 Position, float3 Normal, float3 Eye, float3 Metallic, float Roughness)
 {
-    float Occlusion = 0.0;
-    float3 Eye = normalize(Position - ViewPosition);
 	float3 Direction = reflect(Eye, Normal);
 	float Ratio = GetAperture(Roughness);
-    float4 Result = Raymarch(Position, Normal, Direction, Ratio, Occlusion);
+    float4 Result = Raymarch(Position, Normal, Direction, Ratio);
 
     return float4(GetReflectanceBRDF(Normal, -Eye, Direction, Result.xyz, Metallic, Roughness), Result.w);
 }
@@ -67,7 +91,7 @@ float4 GetRadiance(float3 Position, float3 Normal, float3 Metallic, out float Sh
 		Direction *= dot(Direction, Normal) < 0.0 ? -1.0 : 1.0;
 
         float Ambient = 0.0;
-        Result += ConeWeights[i] * Raymarch(Position, Normal, Direction, 0.577, Ambient);
+        Result += ConeWeights[i] * RaymarchDensity(Position, Normal, Direction, 0.577, Ambient);
         Occlusion += ConeWeights[i] * Ambient;
 	}
 

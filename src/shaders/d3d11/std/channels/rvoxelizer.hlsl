@@ -9,6 +9,19 @@ Texture3D<unorm float4> DiffuseBuffer : register(t2);
 Texture3D<float4> NormalBuffer : register(t3);
 Texture3D<unorm float4> SurfaceBuffer : register(t4);
 
+bool IsInVoxelGrid(float3 Voxel)
+{
+    return (Voxel.x >= 0.0 && Voxel.x < VxSize.x && Voxel.y >= 0.0 && Voxel.y < VxSize.y && Voxel.z >= 0.0 && Voxel.z < VxSize.z);
+}
+float GetAvg(float3 Value)
+{
+    return (Value.x + Value.y + Value.z) / 3.0;
+}
+float3 GetVoxel(float3 Position)
+{
+    float3 Voxel = clamp(Position - VxCenter, -VxScale, VxScale) / VxScale;
+    return (float3(0.5, 0.5, 0.5) * Voxel + 0.5) * VxSize;
+}
 float3 GetVoxelToWorld(uint3 Position)
 {
     float3 Result = (float3)Position / VxSize;

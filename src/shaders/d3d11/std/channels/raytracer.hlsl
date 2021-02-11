@@ -45,7 +45,7 @@ Fragment GetFragment(float2 TexCoord)
     float4 Position = mul(float4(TexCoord.x * 2.0 - 1.0, 1.0 - TexCoord.y * 2.0, C2.x, 1.0), InvViewProjection);
     Position /= Position.w;
 
-    bool Usable = IsInVoxelGrid(GetFlatVoxel(GetVoxel(Position.xyz)));
+    bool Usable = IsInVoxelGrid(GetVoxel(Position.xyz));
 
     Fragment Result;
     Result.Position = Position.xyz;
@@ -53,7 +53,7 @@ Fragment GetFragment(float2 TexCoord)
     Result.Alpha = C0.w;
     Result.Normal = C1.xyz;
     Result.Material = C1.w;
-    Result.Depth = (Usable ? C2.x : 1.0);
+    Result.Depth = (Usable ? C2.x : 2.0);
     Result.Roughness = C3.x;
     Result.Metallic = C3.y;
     Result.Occlusion = C3.z;

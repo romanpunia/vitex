@@ -1,5 +1,6 @@
 cbuffer Voxelizer : register(b3)
 {
+    matrix VxWorldViewProjection;
     float3 VxCenter;
     float VxStep;
     float3 VxSize;
@@ -11,5 +12,5 @@ cbuffer Voxelizer : register(b3)
     float VxDistance;
     float VxOcclusion;
     float VxShadows;
-    float VxPadding;
+    float VxBleeding;
 };

@@ -1,5 +1,4 @@
 #include "http.h"
-#include "bson.h"
 #ifdef TH_MICROSOFT
 #include <WS2tcpip.h>
 #include <io.h>

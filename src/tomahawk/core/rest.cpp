@@ -2563,7 +2563,8 @@ namespace Tomahawk
 		}
 		Variant Var::Boolean(bool Value)
 		{
-			return Variant(VarType_Boolean, (char*)(Value ? 0x1 : 0x0));
+			void* Ptr = (Value ? (void*)&Value : nullptr);
+			return Variant(VarType_Boolean, (char*)Ptr);
 		}
 
 		void Mem::Create(size_t InitialSize)

@@ -6063,62 +6063,62 @@ namespace Tomahawk
 
 			std::vector<Document*> Attributes = Base->GetAttributes();
 			bool Scalable = (Base->Value.GetSize() || ((int64_t)Base->Nodes.size() - (int64_t)Attributes.size()) > 0);
-			Callback(VarFormat_Write_Tab, "", 0);
-			Callback(VarFormat_Dummy, "<", 1);
-			Callback(VarFormat_Dummy, Base->Key.c_str(), (int64_t)Base->Key.size());
+			Callback(VarForm_Write_Tab, "", 0);
+			Callback(VarForm_Dummy, "<", 1);
+			Callback(VarForm_Dummy, Base->Key.c_str(), (int64_t)Base->Key.size());
 
 			if (Attributes.empty())
 			{
 				if (Scalable)
-					Callback(VarFormat_Dummy, ">", 1);
+					Callback(VarForm_Dummy, ">", 1);
 				else
-					Callback(VarFormat_Dummy, " />", 3);
+					Callback(VarForm_Dummy, " />", 3);
 			}
 			else
-				Callback(VarFormat_Dummy, " ", 1);
+				Callback(VarForm_Dummy, " ", 1);
 
 			for (auto It = Attributes.begin(); It != Attributes.end(); It++)
 			{
 				std::string Key = (*It)->GetName();
 				std::string Value = (*It)->Value.Serialize();
 
-				Callback(VarFormat_Dummy, Key.c_str(), (int64_t)Key.size());
-				Callback(VarFormat_Dummy, "=\"", 2);
-				Callback(VarFormat_Dummy, Value.c_str(), (int64_t)Value.size());
+				Callback(VarForm_Dummy, Key.c_str(), (int64_t)Key.size());
+				Callback(VarForm_Dummy, "=\"", 2);
+				Callback(VarForm_Dummy, Value.c_str(), (int64_t)Value.size());
 				It++;
 
 				if (It == Attributes.end())
 				{
 					if (!Scalable)
 					{
-						Callback(VarFormat_Write_Space, "\"", 1);
-						Callback(VarFormat_Dummy, "/>", 2);
+						Callback(VarForm_Write_Space, "\"", 1);
+						Callback(VarForm_Dummy, "/>", 2);
 					}
 					else
-						Callback(VarFormat_Dummy, "\">", 2);
+						Callback(VarForm_Dummy, "\">", 2);
 				}
 				else
-					Callback(VarFormat_Write_Space, "\"", 1);
+					Callback(VarForm_Write_Space, "\"", 1);
 
 				It--;
 			}
 
-			Callback(VarFormat_Tab_Increase, "", 0);
+			Callback(VarForm_Tab_Increase, "", 0);
 			if (Base->Value.GetSize() > 0)
 			{
 				std::string Text = Base->Value.Serialize();
 				if (!Base->Nodes.empty())
 				{
-					Callback(VarFormat_Write_Line, "", 0);
-					Callback(VarFormat_Write_Tab, "", 0);
-					Callback(VarFormat_Dummy, Text.c_str(), Text.size());
-					Callback(VarFormat_Write_Line, "", 0);
+					Callback(VarForm_Write_Line, "", 0);
+					Callback(VarForm_Write_Tab, "", 0);
+					Callback(VarForm_Dummy, Text.c_str(), Text.size());
+					Callback(VarForm_Write_Line, "", 0);
 				}
 				else
-					Callback(VarFormat_Dummy, Text.c_str(), Text.size());
+					Callback(VarForm_Dummy, Text.c_str(), Text.size());
 			}
 			else
-				Callback(VarFormat_Write_Line, "", 0);
+				Callback(VarForm_Write_Line, "", 0);
 
 			for (auto&& It : Base->Nodes)
 			{
@@ -6126,16 +6126,16 @@ namespace Tomahawk
 					WriteXML(It, Callback);
 			}
 
-			Callback(VarFormat_Tab_Decrease, "", 0);
+			Callback(VarForm_Tab_Decrease, "", 0);
 			if (!Scalable)
 				return true;
 
 			if (!Base->Nodes.empty())
-				Callback(VarFormat_Write_Tab, "", 0);
+				Callback(VarForm_Write_Tab, "", 0);
 
-			Callback(VarFormat_Dummy, "</", 2);
-			Callback(VarFormat_Dummy, Base->Key.c_str(), (int64_t)Base->Key.size());
-			Callback(Base->Parent ? VarFormat_Write_Line : VarFormat_Dummy, ">", 1);
+			Callback(VarForm_Dummy, "</", 2);
+			Callback(VarForm_Dummy, Base->Key.c_str(), (int64_t)Base->Key.size());
+			Callback(Base->Parent ? VarForm_Write_Line : VarForm_Dummy, ">", 1);
 
 			return true;
 		}
@@ -6153,15 +6153,15 @@ namespace Tomahawk
 				if (Base->Value.Type != VarType_String && Base->Value.Type != VarType_Base64)
 				{
 					if (!Value.empty() && Value.front() == TH_PREFIX_CHAR)
-						Callback(VarFormat_Dummy, Value.c_str() + 1, (int64_t)Value.size() - 1);
+						Callback(VarForm_Dummy, Value.c_str() + 1, (int64_t)Value.size() - 1);
 					else
-						Callback(VarFormat_Dummy, Value.c_str(), (int64_t)Value.size());
+						Callback(VarForm_Dummy, Value.c_str(), (int64_t)Value.size());
 				}
 				else
 				{
-					Callback(VarFormat_Dummy, "\"", 1);
-					Callback(VarFormat_Dummy, Value.c_str(), (int64_t)Value.size());
-					Callback(VarFormat_Dummy, "\"", 1);
+					Callback(VarForm_Dummy, "\"", 1);
+					Callback(VarForm_Dummy, Value.c_str(), (int64_t)Value.size());
+					Callback(VarForm_Dummy, "\"", 1);
 				}
 
 				return true;
@@ -6171,21 +6171,21 @@ namespace Tomahawk
 			bool Array = (Base->Value.Type == VarType_Array);
 
 			if (Base->Parent != nullptr)
-				Callback(VarFormat_Write_Line, "", 0);
+				Callback(VarForm_Write_Line, "", 0);
 
-			Callback(VarFormat_Write_Tab, "", 0);
-			Callback(VarFormat_Dummy, Array ? "[" : "{", 1);
-			Callback(VarFormat_Tab_Increase, "", 0);
+			Callback(VarForm_Write_Tab, "", 0);
+			Callback(VarForm_Dummy, Array ? "[" : "{", 1);
+			Callback(VarForm_Tab_Increase, "", 0);
 
 			for (auto&& Document : Base->Nodes)
 			{
 				if (!Array)
 				{
-					Callback(VarFormat_Write_Line, "", 0);
-					Callback(VarFormat_Write_Tab, "", 0);
-					Callback(VarFormat_Dummy, "\"", 1);
-					Callback(VarFormat_Dummy, Document->Key.c_str(), (int64_t)Document->Key.size());
-					Callback(VarFormat_Write_Space, "\":", 2);
+					Callback(VarForm_Write_Line, "", 0);
+					Callback(VarForm_Write_Tab, "", 0);
+					Callback(VarForm_Dummy, "\"", 1);
+					Callback(VarForm_Dummy, Document->Key.c_str(), (int64_t)Document->Key.size());
+					Callback(VarForm_Write_Space, "\":", 2);
 				}
 
 				if (!Document->Value.IsObject())
@@ -6196,22 +6196,22 @@ namespace Tomahawk
 
 					if (Array)
 					{
-						Callback(VarFormat_Write_Line, "", 0);
-						Callback(VarFormat_Write_Tab, "", 0);
+						Callback(VarForm_Write_Line, "", 0);
+						Callback(VarForm_Write_Tab, "", 0);
 					}
 
 					if (!Document->Value.IsObject() && Document->Value.Type != VarType_String && Document->Value.Type != VarType_Base64)
 					{
 						if (!Value.empty() && Value.front() == TH_PREFIX_CHAR)
-							Callback(VarFormat_Dummy, Value.c_str() + 1, (int64_t)Value.size() - 1);
+							Callback(VarForm_Dummy, Value.c_str() + 1, (int64_t)Value.size() - 1);
 						else
-							Callback(VarFormat_Dummy, Value.c_str(), (int64_t)Value.size());
+							Callback(VarForm_Dummy, Value.c_str(), (int64_t)Value.size());
 					}
 					else
 					{
-						Callback(VarFormat_Dummy, "\"", 1);
-						Callback(VarFormat_Dummy, Value.c_str(), (int64_t)Value.size());
-						Callback(VarFormat_Dummy, "\"", 1);
+						Callback(VarForm_Dummy, "\"", 1);
+						Callback(VarForm_Dummy, Value.c_str(), (int64_t)Value.size());
+						Callback(VarForm_Dummy, "\"", 1);
 					}
 				}
 				else
@@ -6219,16 +6219,16 @@ namespace Tomahawk
 
 				Offset++;
 				if (Offset < Size)
-					Callback(VarFormat_Dummy, ",", 1);
+					Callback(VarForm_Dummy, ",", 1);
 			}
 
-			Callback(VarFormat_Tab_Decrease, "", 0);
-			Callback(VarFormat_Write_Line, "", 0);
+			Callback(VarForm_Tab_Decrease, "", 0);
+			Callback(VarForm_Write_Line, "", 0);
 
 			if (Base->Parent != nullptr)
-				Callback(VarFormat_Write_Tab, "", 0);
+				Callback(VarForm_Write_Tab, "", 0);
 
-			Callback(VarFormat_Dummy, Array ? "]" : "}", 1);
+			Callback(VarForm_Dummy, Array ? "]" : "}", 1);
 			return true;
 		}
 		bool Document::WriteJSONB(Document* Base, const NWriteCallback& Callback)
@@ -6239,17 +6239,17 @@ namespace Tomahawk
 			std::unordered_map<std::string, uint64_t> Mapping = Base->GetNames();
 			uint64_t Set = (uint64_t)Mapping.size();
 
-			Callback(VarFormat_Dummy, "\0b\0i\0n\0h\0e\0a\0d\r\n", sizeof(char) * 16);
-			Callback(VarFormat_Dummy, (const char*)&Set, sizeof(uint64_t));
+			Callback(VarForm_Dummy, "\0b\0i\0n\0h\0e\0a\0d\r\n", sizeof(char) * 16);
+			Callback(VarForm_Dummy, (const char*)&Set, sizeof(uint64_t));
 
 			for (auto It = Mapping.begin(); It != Mapping.end(); It++)
 			{
 				uint64_t Size = (uint64_t)It->first.size();
-				Callback(VarFormat_Dummy, (const char*)&It->second, sizeof(uint64_t));
-				Callback(VarFormat_Dummy, (const char*)&Size, sizeof(uint64_t));
+				Callback(VarForm_Dummy, (const char*)&It->second, sizeof(uint64_t));
+				Callback(VarForm_Dummy, (const char*)&Size, sizeof(uint64_t));
 
 				if (Size > 0)
-					Callback(VarFormat_Dummy, It->first.c_str(), sizeof(char) * Size);
+					Callback(VarForm_Dummy, It->first.c_str(), sizeof(char) * Size);
 			}
 
 			ProcessJSONBWrite(Base, &Mapping, Callback);
@@ -6652,8 +6652,8 @@ namespace Tomahawk
 		bool Document::ProcessJSONBWrite(Document* Current, std::unordered_map<std::string, uint64_t>* Map, const NWriteCallback& Callback)
 		{
 			uint64_t Id = Map->at(Current->Key);
-			Callback(VarFormat_Dummy, (const char*)&Id, sizeof(uint64_t));
-			Callback(VarFormat_Dummy, (const char*)&Current->Value.Type, sizeof(VarType));
+			Callback(VarForm_Dummy, (const char*)&Id, sizeof(uint64_t));
+			Callback(VarForm_Dummy, (const char*)&Current->Value.Type, sizeof(VarType));
 
 			switch (Current->Value.Type)
 			{
@@ -6661,7 +6661,7 @@ namespace Tomahawk
 				case VarType_Array:
 				{
 					uint64_t Count = Current->Nodes.size();
-					Callback(VarFormat_Dummy, (const char*)&Count, sizeof(uint64_t));
+					Callback(VarForm_Dummy, (const char*)&Count, sizeof(uint64_t));
 					for (auto& Document : Current->Nodes)
 						ProcessJSONBWrite(Document, Map, Callback);
 					break;
@@ -6671,26 +6671,26 @@ namespace Tomahawk
 				case VarType_Decimal:
 				{
 					uint64_t Size = Current->Value.GetSize();
-					Callback(VarFormat_Dummy, (const char*)&Size, sizeof(uint64_t));
-					Callback(VarFormat_Dummy, Current->Value.GetString(), Size * sizeof(char));
+					Callback(VarForm_Dummy, (const char*)&Size, sizeof(uint64_t));
+					Callback(VarForm_Dummy, Current->Value.GetString(), Size * sizeof(char));
 					break;
 				}
 				case VarType_Integer:
 				{
 					int64_t Copy = Current->Value.GetInteger();
-					Callback(VarFormat_Dummy, (const char*)&Copy, sizeof(int64_t));
+					Callback(VarForm_Dummy, (const char*)&Copy, sizeof(int64_t));
 					break;
 				}
 				case VarType_Number:
 				{
 					double Copy = Current->Value.GetNumber();
-					Callback(VarFormat_Dummy, (const char*)&Copy, sizeof(double));
+					Callback(VarForm_Dummy, (const char*)&Copy, sizeof(double));
 					break;
 				}
 				case VarType_Boolean:
 				{
 					bool Copy = Current->Value.GetBoolean();
-					Callback(VarFormat_Dummy, (const char*)&Copy, sizeof(bool));
+					Callback(VarForm_Dummy, (const char*)&Copy, sizeof(bool));
 					break;
 				}
 			}

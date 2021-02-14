@@ -14,8 +14,7 @@
 #include "core/network.h"
 #include "network/http.h"
 #include "network/smtp.h"
-#include "network/bson.h"
-#include "network/mongodb.h"
+#include "network/mdb.h"
 #include "core/script.h"
 #include "script/core-api.h"
 #include "script/rest-api.h"
@@ -70,6 +69,7 @@ namespace Tomahawk
 		static bool HasZLib();
 		static bool HasAssimp();
 		static bool HasMongoDB();
+		static bool HasPostgreSQL();
 		static bool HasOpenAL();
 		static bool HasSDL2();
 		static int Version();

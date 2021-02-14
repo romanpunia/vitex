@@ -70,6 +70,7 @@ include(lib/external/sdl2/CMakeLists.txt)
 include(lib/external/freetype/CMakeLists.txt)
 include(lib/external/assimp/CMakeLists.txt)
 include(lib/external/mongoc/CMakeLists.txt)
+include(lib/external/pq/CMakeLists.txt)
 
 #Project's internal dependency resolvers
 include(src/internal/angelscript/CMakeLists.txt)

@@ -1077,26 +1077,26 @@ namespace Tomahawk
 
 				if (Type->second == Rest::Var::String("XML"))
 				{
-					Rest::Document::WriteXML(Document, [Stream, &Offset](Rest::VarFormat Pretty, const char* Buffer, int64_t Length)
+					Rest::Document::WriteXML(Document, [Stream, &Offset](Rest::VarForm Pretty, const char* Buffer, int64_t Length)
 					{
 						if (Buffer != nullptr && Length > 0)
 							Stream->Write(Buffer, Length);
 
 						switch (Pretty)
 						{
-							case Tomahawk::Rest::VarFormat_Tab_Decrease:
+							case Tomahawk::Rest::VarForm_Tab_Decrease:
 								Offset.assign(Offset.substr(0, Offset.size() - 1));
 								break;
-							case Tomahawk::Rest::VarFormat_Tab_Increase:
+							case Tomahawk::Rest::VarForm_Tab_Increase:
 								Offset.append(1, '\t');
 								break;
-							case Tomahawk::Rest::VarFormat_Write_Space:
+							case Tomahawk::Rest::VarForm_Write_Space:
 								Stream->Write(" ", 1);
 								break;
-							case Tomahawk::Rest::VarFormat_Write_Line:
+							case Tomahawk::Rest::VarForm_Write_Line:
 								Stream->Write("\n", 1);
 								break;
-							case Tomahawk::Rest::VarFormat_Write_Tab:
+							case Tomahawk::Rest::VarForm_Write_Tab:
 								Stream->Write(Offset.c_str(), Offset.size());
 								break;
 							default:
@@ -1106,26 +1106,26 @@ namespace Tomahawk
 				}
 				else if (Type->second == Rest::Var::String("JSON"))
 				{
-					Rest::Document::WriteJSON(Document, [Stream, &Offset](Rest::VarFormat Pretty, const char* Buffer, int64_t Length)
+					Rest::Document::WriteJSON(Document, [Stream, &Offset](Rest::VarForm Pretty, const char* Buffer, int64_t Length)
 					{
 						if (Buffer != nullptr && Length > 0)
 							Stream->Write(Buffer, Length);
 
 						switch (Pretty)
 						{
-							case Tomahawk::Rest::VarFormat_Tab_Decrease:
+							case Tomahawk::Rest::VarForm_Tab_Decrease:
 								Offset.assign(Offset.substr(0, Offset.size() - 1));
 								break;
-							case Tomahawk::Rest::VarFormat_Tab_Increase:
+							case Tomahawk::Rest::VarForm_Tab_Increase:
 								Offset.append(1, '\t');
 								break;
-							case Tomahawk::Rest::VarFormat_Write_Space:
+							case Tomahawk::Rest::VarForm_Write_Space:
 								Stream->Write(" ", 1);
 								break;
-							case Tomahawk::Rest::VarFormat_Write_Line:
+							case Tomahawk::Rest::VarForm_Write_Line:
 								Stream->Write("\n", 1);
 								break;
-							case Tomahawk::Rest::VarFormat_Write_Tab:
+							case Tomahawk::Rest::VarForm_Write_Tab:
 								Stream->Write(Offset.c_str(), Offset.size());
 								break;
 							default:
@@ -1135,7 +1135,7 @@ namespace Tomahawk
 				}
 				else if (Type->second == Rest::Var::String("JSONB"))
 				{
-					Rest::Document::WriteJSONB(Document, [Stream](Rest::VarFormat, const char* Buffer, int64_t Length)
+					Rest::Document::WriteJSONB(Document, [Stream](Rest::VarForm, const char* Buffer, int64_t Length)
 					{
 						if (Buffer != nullptr && Length > 0)
 							Stream->Write(Buffer, Length);

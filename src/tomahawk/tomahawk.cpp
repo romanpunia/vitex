@@ -118,6 +118,14 @@ namespace Tomahawk
 		return false;
 #endif
 	}
+	bool Library::HasPostgreSQL()
+	{
+#ifdef TH_HAS_POSTGRESQL
+		return true;
+#else
+		return false;
+#endif
+	}
 	bool Library::HasOpenAL()
 	{
 #ifdef TH_HAS_OPENAL
@@ -451,7 +459,7 @@ namespace Tomahawk
 		if (Modes & TInit_Network)
 		{
 			Network::Multiplexer::Release();
-			Network::MongoDB::Connector::Release();
+			Network::MDB::Driver::Release();
 #ifdef TH_MICROSOFT
 			WSACleanup();
 #endif

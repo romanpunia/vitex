@@ -1,5 +1,4 @@
 #include "rest-api.h"
-#include "../network/bson.h"
 #ifndef ANGELSCRIPT_H 
 #include <angelscript.h>
 #endif
@@ -605,7 +604,7 @@ namespace Tomahawk
 		std::string VMCDocument::ToJSON(Rest::Document* Base)
 		{
 			std::string Stream;
-			Rest::Document::WriteJSON(Base, [&Stream](Rest::VarFormat, const char* Buffer, int64_t Length)
+			Rest::Document::WriteJSON(Base, [&Stream](Rest::VarForm, const char* Buffer, int64_t Length)
 			{
 				if (Buffer != nullptr && Length > 0)
 					Stream.append(Buffer, Length);
@@ -616,7 +615,7 @@ namespace Tomahawk
 		std::string VMCDocument::ToXML(Rest::Document* Base)
 		{
 			std::string Stream;
-			Rest::Document::WriteXML(Base, [&Stream](Rest::VarFormat, const char* Buffer, int64_t Length)
+			Rest::Document::WriteXML(Base, [&Stream](Rest::VarForm, const char* Buffer, int64_t Length)
 			{
 				if (Buffer != nullptr && Length > 0)
 					Stream.append(Buffer, Length);

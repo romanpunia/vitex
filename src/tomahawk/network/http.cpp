@@ -1697,13 +1697,25 @@ namespace Tomahawk
 			}
 			void Query::DecodeAJSON(const std::string& URI)
 			{
-				BSON::TDocument* JSON = BSON::Document::Create(URI);
-				if (!JSON)
-					return;
+				size_t Offset = 0;
+				TH_CLEAR(Object);
 
-				TH_RELEASE(Object);
-				Object = BSON::Document::ToDocument(JSON)->As<QueryParameter>();
-				BSON::Document::Release(&JSON);
+				Object = (QueryParameter*)Rest::Document::ReadJSON(URI.size(), [&URI, &Offset](char* Buffer, int64_t Size)
+				{
+					if (!Buffer || !Size)
+						return true;
+
+					size_t Length = URI.size() - Offset;
+					if (Size < Length)
+						Length = Size;
+
+					if (!Length)
+						return false;
+
+					memcpy(Buffer, URI.c_str() + Offset, Length);
+					Offset += Length;
+					return true;
+				});
 			}
 			std::string Query::Encode(const char* Type)
 			{
@@ -1733,11 +1745,14 @@ namespace Tomahawk
 			}
 			std::string Query::EncodeAJSON()
 			{
-				BSON::TDocument* JSON = BSON::Document::Create(Object);
-				std::string Output = BSON::Document::ToClassicJSON(JSON);
-				BSON::Document::Release(&JSON);
+				std::string Stream;
+				Rest::Document::WriteJSON(Object, [&Stream](Rest::VarForm, const char* Buffer, int64_t Length)
+				{
+					if (Buffer != nullptr && Length > 0)
+						Stream.append(Buffer, Length);
+				});
 
-				return Output;
+				return Stream;
 			}
 			QueryParameter* Query::Get(const char* Name)
 			{
@@ -1816,7 +1831,7 @@ namespace Tomahawk
 				SessionExpires = time(nullptr) + Base->Route->Site->Gateway.Session.Expires;
 				fwrite(&SessionExpires, sizeof(int64_t), 1, Stream);
 
-				Query->WriteJSONB(Query, [Stream](Rest::VarFormat, const char* Buffer, int64_t Size)
+				Query->WriteJSONB(Query, [Stream](Rest::VarForm, const char* Buffer, int64_t Size)
 				{
 					if (Buffer != nullptr && Size > 0)
 						fwrite(Buffer, Size, 1, Stream);

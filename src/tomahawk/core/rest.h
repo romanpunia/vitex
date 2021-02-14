@@ -199,19 +199,19 @@ namespace Tomahawk
 			VarType_Boolean
 		};
 
-		enum VarFormat
+		enum VarForm
 		{
-			VarFormat_Dummy,
-			VarFormat_Tab_Decrease,
-			VarFormat_Tab_Increase,
-			VarFormat_Write_Space,
-			VarFormat_Write_Line,
-			VarFormat_Write_Tab,
+			VarForm_Dummy,
+			VarForm_Tab_Decrease,
+			VarForm_Tab_Increase,
+			VarForm_Write_Space,
+			VarForm_Write_Line,
+			VarForm_Write_Tab,
 		};
 
 		typedef std::function<void(class EventQueue*, struct EventArgs*)> BaseCallback;
 		typedef std::function<bool(class EventQueue*, struct EventArgs*)> PullCallback;
-		typedef std::function<void(VarFormat, const char*, int64_t)> NWriteCallback;
+		typedef std::function<void(VarForm, const char*, int64_t)> NWriteCallback;
 		typedef std::function<bool(char*, int64_t)> NReadCallback;
 		typedef std::unordered_map<std::string, struct Variant> VariantArgs;
 		typedef std::vector<struct Variant> VariantList;

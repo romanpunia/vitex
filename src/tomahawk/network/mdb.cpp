@@ -306,8 +306,10 @@ namespace Tomahawk
 			}
 			void Document::Join(TDocument* Document, TDocument* Value)
 			{
+#ifdef TH_HAS_MONGOC
 				if (Document != nullptr && Value != nullptr)
 					bson_concat(Document, Value);
+#endif
 			}
 			bool Document::SetDocument(TDocument* Document, const char* Key, TDocument** Value, uint64_t ArrayId)
 			{
@@ -2458,6 +2460,7 @@ namespace Tomahawk
 
 			TTransaction* Transaction::Create(Connection* Client, TDocument** Uid)
 			{
+#ifdef TH_HAS_MONGOC
 				if (!Client || !Uid)
 					return nullptr;
 
@@ -2482,17 +2485,23 @@ namespace Tomahawk
 				}
 
 				return Client->Session;
+#else
+				return nullptr;
+#endif
 			}
 			void Transaction::Release(Connection* Client)
 			{
+#ifdef TH_HAS_MONGOC
 				if (Client != nullptr && Client->Session != nullptr)
 				{
 					mongoc_client_session_destroy(Client->Session);
 					Client->Session = nullptr;
 				}
+#endif
 			}
 			bool Transaction::Start(TTransaction* Session)
 			{
+#ifdef TH_HAS_MONGOC
 				if (!Session)
 					return false;
 
@@ -2504,16 +2513,24 @@ namespace Tomahawk
 				}
 
 				return true;
+#else
+				return false;
+#endif
 			}
 			bool Transaction::Abort(TTransaction* Session)
 			{
+#ifdef TH_HAS_MONGOC
 				if (!Session)
 					return false;
 
 				return mongoc_client_session_abort_transaction(Session, nullptr);
+#else
+				return false;
+#endif
 			}
 			bool Transaction::Commit(TTransaction* Session, TDocument** Reply)
 			{
+#ifdef TH_HAS_MONGOC
 				if (!Session)
 					return false;
 
@@ -2523,6 +2540,11 @@ namespace Tomahawk
 					TH_ERROR("[mongoc] could not commit transaction\n\t%s", Error.message);
 					return false;
 				}
+				
+				return true;
+#else
+				return false;
+#endif
 			}
 
 			Connection::Connection() : Session(nullptr), Base(nullptr), Master(nullptr), Connected(false)

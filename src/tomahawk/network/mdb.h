@@ -34,6 +34,8 @@ namespace Tomahawk
 
 			class Connection;
 
+			class Queue;
+
 			enum Query
 			{
 				Query_None = 0,
@@ -259,7 +261,7 @@ namespace Tomahawk
 
 			class TH_OUT Connection : public Rest::Object
 			{
-				friend class Queue;
+				friend Queue;
 				friend Transaction;
 
 			private:

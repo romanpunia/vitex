@@ -3430,18 +3430,17 @@ namespace Tomahawk
 
 			return -1;
 		}
-		Graphics::Shader* RenderSystem::CompileShader(const std::string& Name, Graphics::Shader::Desc& Desc, size_t BufferSize)
+		Graphics::Shader* RenderSystem::CompileShader(Graphics::Shader::Desc& Desc, size_t BufferSize)
 		{
-			if (Name.empty() && Desc.Filename.empty())
+			if (Desc.Filename.empty())
 			{
-				TH_ERROR("shader must have name or filename");
+				TH_ERROR("shader must have a name");
 				return nullptr;
 			}
 
-			Desc.Filename = Name;
 			ShaderCache* Cache = (Scene ? Scene->GetShaders() : nullptr);
 			if (Cache != nullptr)
-				return Cache->Compile(Name.empty() ? Desc.Filename : Name, Desc, BufferSize);
+				return Cache->Compile(Desc.Filename, Desc, BufferSize);
 
 			Graphics::Shader* Shader = Device->CreateShader(Desc);
 			if (BufferSize > 0)
@@ -3452,10 +3451,10 @@ namespace Tomahawk
 		Graphics::Shader* RenderSystem::CompileShader(const std::string& SectionName, size_t BufferSize)
 		{
 			Graphics::Shader::Desc I = Graphics::Shader::Desc();
-			if (!Device->GetSection(SectionName, &I.Data))
+			if (!Device->GetSection(SectionName, &I))
 				return nullptr;
 
-			return CompileShader(SectionName, I, BufferSize);
+			return CompileShader(I, BufferSize);
 		}
 		bool RenderSystem::CompileBuffers(Graphics::ElementBuffer** Result, const std::string& Name, size_t ElementSize, size_t ElementsCount)
 		{
@@ -3822,39 +3821,36 @@ namespace Tomahawk
 
 			return nullptr;
 		}
-		Graphics::Shader* EffectDraw::CompileEffect(const std::string& Name, const std::string& Code, size_t BufferSize)
+		Graphics::Shader* EffectDraw::CompileEffect(Graphics::Shader::Desc& Desc, size_t BufferSize)
 		{
-			if (Name.empty())
+			if (Desc.Filename.empty())
 			{
 				TH_ERROR("cannot compile unnamed shader source");
 				return nullptr;
 			}
 
-			Graphics::Shader::Desc Desc = Graphics::Shader::Desc();
-			Desc.Data = Code;
-
-			Graphics::Shader* Shader = System->CompileShader(Name, Desc, BufferSize);
+			Graphics::Shader* Shader = System->CompileShader(Desc, BufferSize);
 			if (!Shader)
 				return nullptr;
 
-			auto It = Shaders.find(Name);
+			auto It = Shaders.find(Desc.Filename);
 			if (It != Shaders.end())
 			{
 				delete It->second;
 				It->second = Shader;
 			}
 			else
-				Shaders[Name] = Shader;
+				Shaders[Desc.Filename] = Shader;
 
 			return Shader;
 		}
 		Graphics::Shader* EffectDraw::CompileEffect(const std::string& SectionName, size_t BufferSize)
 		{
-			std::string Data;
-			if (!System->GetDevice()->GetSection(SectionName, &Data))
+			Graphics::Shader::Desc I = Graphics::Shader::Desc();
+			if (!System->GetDevice()->GetSection(SectionName, &I))
 				return nullptr;
 
-			return CompileEffect(SectionName, Data, BufferSize);
+			return CompileEffect(I, BufferSize);
 		}
 		unsigned int EffectDraw::GetMipLevels()
 		{

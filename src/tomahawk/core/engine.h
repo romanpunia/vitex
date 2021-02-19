@@ -635,7 +635,7 @@ namespace Tomahawk
 			bool HasOcclusionCulling();
 			bool HasFrustumCulling();
 			int64_t GetOffset(uint64_t Id);
-			Graphics::Shader* CompileShader(const std::string& Name, Graphics::Shader::Desc& Desc, size_t BufferSize = 0);
+			Graphics::Shader* CompileShader(Graphics::Shader::Desc& Desc, size_t BufferSize = 0);
 			Graphics::Shader* CompileShader(const std::string& SectionName, size_t BufferSize = 0);
 			bool CompileBuffers(Graphics::ElementBuffer** Result, const std::string& Name, size_t ElementSize, size_t ElementsCount);
 			Renderer* AddRenderer(Renderer* In);
@@ -815,7 +815,7 @@ namespace Tomahawk
 			void RenderMerge(Graphics::Shader* Effect, void* Buffer = nullptr, size_t Count = 1);
 			void RenderResult(Graphics::Shader* Effect, void* Buffer = nullptr);
 			Graphics::Shader* GetEffect(const std::string& Name);
-			Graphics::Shader* CompileEffect(const std::string& Name, const std::string& Code, size_t BufferSize = 0);
+			Graphics::Shader* CompileEffect(Graphics::Shader::Desc& Desc, size_t BufferSize = 0);
 			Graphics::Shader* CompileEffect(const std::string& SectionName, size_t BufferSize = 0);
 
 		public:

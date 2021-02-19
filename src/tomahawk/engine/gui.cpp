@@ -285,9 +285,7 @@ namespace Tomahawk
 						if (Device != nullptr)
 						{
 							Graphics::Shader::Desc I = Graphics::Shader::Desc();
-							I.Filename = "element";
-
-							if (Device->GetSection("interface/geometry", &I.Data))
+							if (Device->GetSection("interface/geometry", &I))
 								Shader = Device->CreateShader(I);
 
 							Graphics::ElementBuffer::Desc F = Graphics::ElementBuffer::Desc();

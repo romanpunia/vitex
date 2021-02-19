@@ -33,7 +33,7 @@ namespace Tomahawk
 				void Release();
 			};
 
-			class OGLDepthStencilState : public DepthStencilState
+			class OGLDepthStencilState final : public DepthStencilState
 			{
 				friend OGLDevice;
 
@@ -43,7 +43,7 @@ namespace Tomahawk
 				void* GetResource() override;
 			};
 
-			class OGLRasterizerState : public RasterizerState
+			class OGLRasterizerState final : public RasterizerState
 			{
 				friend OGLDevice;
 
@@ -53,7 +53,7 @@ namespace Tomahawk
 				void* GetResource() override;
 			};
 
-			class OGLBlendState : public BlendState
+			class OGLBlendState final : public BlendState
 			{
 				friend OGLDevice;
 
@@ -63,7 +63,7 @@ namespace Tomahawk
 				void* GetResource() override;
 			};
 
-			class OGLSamplerState : public SamplerState
+			class OGLSamplerState final : public SamplerState
 			{
 				friend OGLDevice;
 
@@ -76,7 +76,7 @@ namespace Tomahawk
 				void* GetResource() override;
 			};
 
-			class OGLInputLayout : public InputLayout
+			class OGLInputLayout final : public InputLayout
 			{
 				friend OGLDevice;
 
@@ -89,7 +89,7 @@ namespace Tomahawk
 				void* GetResource() override;
 			};
 
-			class OGLShader : public Shader
+			class OGLShader final : public Shader
 			{
 				friend OGLDevice;
 
@@ -113,7 +113,7 @@ namespace Tomahawk
 				bool IsValid() override;
 			};
 
-			class OGLElementBuffer : public ElementBuffer
+			class OGLElementBuffer final : public ElementBuffer
 			{
 				friend OGLDevice;
 
@@ -128,7 +128,7 @@ namespace Tomahawk
 				void* GetResource() override;
 			};
 
-			class OGLMeshBuffer : public MeshBuffer
+			class OGLMeshBuffer final : public MeshBuffer
 			{
 				friend OGLDevice;
 
@@ -137,7 +137,7 @@ namespace Tomahawk
 				Compute::Vertex* GetElements(GraphicsDevice* Device) override;
 			};
 
-			class OGLSkinMeshBuffer : public SkinMeshBuffer
+			class OGLSkinMeshBuffer final : public SkinMeshBuffer
 			{
 				friend OGLDevice;
 
@@ -146,7 +146,7 @@ namespace Tomahawk
 				Compute::SkinVertex* GetElements(GraphicsDevice* Device) override;
 			};
 
-			class OGLInstanceBuffer : public InstanceBuffer
+			class OGLInstanceBuffer final : public InstanceBuffer
 			{
 				friend OGLDevice;
 
@@ -155,7 +155,7 @@ namespace Tomahawk
 				virtual ~OGLInstanceBuffer() override;
 			};
 
-			class OGLTexture2D : public Texture2D
+			class OGLTexture2D final : public Texture2D
 			{
 				friend OGLDevice;
 
@@ -170,7 +170,7 @@ namespace Tomahawk
 				void* GetResource() override;
 			};
 
-			class OGLTexture3D : public Texture3D
+			class OGLTexture3D final : public Texture3D
 			{
 				friend OGLDevice;
 
@@ -184,7 +184,7 @@ namespace Tomahawk
 				void* GetResource() override;
 			};
 
-			class OGLTextureCube : public TextureCube
+			class OGLTextureCube final : public TextureCube
 			{
 				friend OGLDevice;
 
@@ -199,7 +199,7 @@ namespace Tomahawk
 				void* GetResource() override;
 			};
 
-			class OGLDepthBuffer : public DepthBuffer
+			class OGLDepthBuffer final : public DepthBuffer
 			{
 				friend OGLDevice;
 
@@ -215,7 +215,7 @@ namespace Tomahawk
 				uint32_t GetHeight() override;
 			};
 
-			class OGLRenderTarget2D : public RenderTarget2D
+			class OGLRenderTarget2D final : public RenderTarget2D
 			{
 				friend OGLDevice;
 
@@ -232,7 +232,7 @@ namespace Tomahawk
 				uint32_t GetHeight() override;
 			};
 
-			class OGLMultiRenderTarget2D : public MultiRenderTarget2D
+			class OGLMultiRenderTarget2D final : public MultiRenderTarget2D
 			{
 				friend OGLDevice;
 
@@ -249,7 +249,7 @@ namespace Tomahawk
 				uint32_t GetHeight() override;
 			};
 
-			class OGLRenderTargetCube : public RenderTargetCube
+			class OGLRenderTargetCube final : public RenderTargetCube
 			{
 				friend OGLDevice;
 
@@ -266,7 +266,7 @@ namespace Tomahawk
 				uint32_t GetHeight() override;
 			};
 
-			class OGLMultiRenderTargetCube : public MultiRenderTargetCube
+			class OGLMultiRenderTargetCube final : public MultiRenderTargetCube
 			{
 				friend OGLDevice;
 
@@ -283,7 +283,7 @@ namespace Tomahawk
 				uint32_t GetHeight() override;
 			};
 
-			class OGLCubemap : public Cubemap
+			class OGLCubemap final : public Cubemap
 			{
 				friend OGLDevice;
 
@@ -296,7 +296,7 @@ namespace Tomahawk
 				virtual ~OGLCubemap() override;
 			};
 
-			class OGLQuery : public Query
+			class OGLQuery final : public Query
 			{
 			public:
 				GLuint Async = GL_NONE;
@@ -308,7 +308,7 @@ namespace Tomahawk
 				void* GetResource() override;
 			};
 
-			class OGLDevice : public GraphicsDevice
+			class OGLDevice final : public GraphicsDevice
 			{
 			private:
 				struct ConstantBuffer

@@ -15,7 +15,7 @@ namespace Tomahawk
 		{
 			class D3D11Device;
 
-			class D3D11DepthStencilState : public DepthStencilState
+			class D3D11DepthStencilState final : public DepthStencilState
 			{
 				friend D3D11Device;
 
@@ -28,7 +28,7 @@ namespace Tomahawk
 				void* GetResource() override;
 			};
 
-			class D3D11RasterizerState : public RasterizerState
+			class D3D11RasterizerState final : public RasterizerState
 			{
 				friend D3D11Device;
 
@@ -41,7 +41,7 @@ namespace Tomahawk
 				void* GetResource() override;
 			};
 
-			class D3D11BlendState : public BlendState
+			class D3D11BlendState final : public BlendState
 			{
 				friend D3D11Device;
 
@@ -54,7 +54,7 @@ namespace Tomahawk
 				void* GetResource() override;
 			};
 
-			class D3D11SamplerState : public SamplerState
+			class D3D11SamplerState final : public SamplerState
 			{
 				friend D3D11Device;
 
@@ -67,7 +67,7 @@ namespace Tomahawk
 				void* GetResource() override;
 			};
 
-			class D3D11InputLayout : public InputLayout
+			class D3D11InputLayout final : public InputLayout
 			{
 				friend D3D11Device;
 
@@ -77,7 +77,7 @@ namespace Tomahawk
 				void* GetResource() override;
 			};
 
-			class D3D11Shader : public Shader
+			class D3D11Shader final : public Shader
 			{
 				friend D3D11Device;
 
@@ -101,7 +101,7 @@ namespace Tomahawk
 				bool IsValid() override;
 			};
 
-			class D3D11ElementBuffer : public ElementBuffer
+			class D3D11ElementBuffer final : public ElementBuffer
 			{
 				friend D3D11Device;
 
@@ -116,7 +116,7 @@ namespace Tomahawk
 				void* GetResource() override;
 			};
 
-			class D3D11MeshBuffer : public MeshBuffer
+			class D3D11MeshBuffer final : public MeshBuffer
 			{
 				friend D3D11Device;
 
@@ -125,7 +125,7 @@ namespace Tomahawk
 				Compute::Vertex* GetElements(GraphicsDevice* Device) override;
 			};
 
-			class D3D11SkinMeshBuffer : public SkinMeshBuffer
+			class D3D11SkinMeshBuffer final : public SkinMeshBuffer
 			{
 				friend D3D11Device;
 
@@ -134,7 +134,7 @@ namespace Tomahawk
 				Compute::SkinVertex* GetElements(GraphicsDevice* Device) override;
 			};
 
-			class D3D11InstanceBuffer : public InstanceBuffer
+			class D3D11InstanceBuffer final : public InstanceBuffer
 			{
 				friend D3D11Device;
 
@@ -149,7 +149,7 @@ namespace Tomahawk
 				virtual ~D3D11InstanceBuffer() override;
 			};
 
-			class D3D11Texture2D : public Texture2D
+			class D3D11Texture2D final : public Texture2D
 			{
 				friend D3D11Device;
 
@@ -165,7 +165,7 @@ namespace Tomahawk
 				void* GetResource() override;
 			};
 
-			class D3D11Texture3D : public Texture3D
+			class D3D11Texture3D final : public Texture3D
 			{
 				friend D3D11Device;
 
@@ -180,7 +180,7 @@ namespace Tomahawk
 				void* GetResource() override;
 			};
 
-			class D3D11TextureCube : public TextureCube
+			class D3D11TextureCube final : public TextureCube
 			{
 				friend D3D11Device;
 
@@ -196,7 +196,7 @@ namespace Tomahawk
 				void* GetResource() override;
 			};
 
-			class D3D11DepthBuffer : public DepthBuffer
+			class D3D11DepthBuffer final : public DepthBuffer
 			{
 				friend D3D11Device;
 
@@ -211,7 +211,7 @@ namespace Tomahawk
 				uint32_t GetHeight() override;
 			};
 
-			class D3D11RenderTarget2D : public RenderTarget2D
+			class D3D11RenderTarget2D final : public RenderTarget2D
 			{
 				friend D3D11Device;
 
@@ -229,7 +229,7 @@ namespace Tomahawk
 				uint32_t GetHeight() override;
 			};
 
-			class D3D11MultiRenderTarget2D : public MultiRenderTarget2D
+			class D3D11MultiRenderTarget2D final : public MultiRenderTarget2D
 			{
 				friend D3D11Device;
 
@@ -251,7 +251,7 @@ namespace Tomahawk
 				void FillView(unsigned int Target, unsigned int MipLevels, unsigned int Size);
 			};
 
-			class D3D11RenderTargetCube : public RenderTargetCube
+			class D3D11RenderTargetCube final : public RenderTargetCube
 			{
 				friend D3D11Device;
 
@@ -269,7 +269,7 @@ namespace Tomahawk
 				uint32_t GetHeight() override;
 			};
 
-			class D3D11MultiRenderTargetCube : public MultiRenderTargetCube
+			class D3D11MultiRenderTargetCube final : public MultiRenderTargetCube
 			{
 				friend D3D11Device;
 
@@ -287,7 +287,7 @@ namespace Tomahawk
 				uint32_t GetHeight() override;
 			};
 
-			class D3D11Cubemap : public Cubemap
+			class D3D11Cubemap final : public Cubemap
 			{
 				friend D3D11Device;
 
@@ -304,7 +304,7 @@ namespace Tomahawk
 				virtual ~D3D11Cubemap() override;
 			};
 
-			class D3D11Query : public Query
+			class D3D11Query final : public Query
 			{
 			public:
 				ID3D11Query* Async;
@@ -315,7 +315,7 @@ namespace Tomahawk
 				void* GetResource() override;
 			};
 
-			class D3D11Device : public GraphicsDevice
+			class D3D11Device final : public GraphicsDevice
 			{
 			private:
 				struct

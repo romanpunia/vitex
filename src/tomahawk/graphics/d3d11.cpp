@@ -475,17 +475,15 @@ namespace Tomahawk
 
 				SetShaderModel(I.ShaderMode == ShaderModel_Auto ? GetSupportedShaderModel() : I.ShaderMode);
 				ResizeBuffers(I.BufferWidth, I.BufferHeight);
-				InitStates();
+				CreateStates();
 
 				Shader::Desc F = Shader::Desc();
-				F.Filename = "basic";
-				
-				if (GetSection("geometry/basic/geometry", &F.Data))
+				if (GetSection("geometry/basic/geometry", &F))
 					BasicEffect = CreateShader(F);
 			}
 			D3D11Device::~D3D11Device()
 			{
-				FreeProxy();
+				ReleaseProxy();
 				ReleaseCom(DirectRenderer.VertexShader);
 				ReleaseCom(DirectRenderer.VertexLayout);
 				ReleaseCom(DirectRenderer.ConstantBuffer);
@@ -2036,9 +2034,10 @@ namespace Tomahawk
 				Rest::Stroke Code(&F.Data);
 				uint64_t Length = Code.Size();
 
-				if (Code.Find("VS").Found)
+				std::string VertexEntry = GetShaderMain(ShaderType_Vertex);
+				if (Code.Find(VertexEntry).Found)
 				{
-					D3DCompile(Code.Get(), (SIZE_T)Length * sizeof(char), F.Filename.empty() ? nullptr : F.Filename.c_str(), nullptr, nullptr, "VS", GetVSProfile(), CompileFlags, 0, &Result->Signature, &ErrorBlob);
+					D3DCompile(Code.Get(), (SIZE_T)Length * sizeof(char), F.Filename.empty() ? nullptr : F.Filename.c_str(), nullptr, nullptr, VertexEntry.c_str(), GetVSProfile(), CompileFlags, 0, &Result->Signature, &ErrorBlob);
 					if (GetCompileState(ErrorBlob))
 					{
 						std::string Message = GetCompileState(ErrorBlob);
@@ -2051,10 +2050,11 @@ namespace Tomahawk
 					D3DDevice->CreateVertexShader(Result->Signature->GetBufferPointer(), Result->Signature->GetBufferSize(), nullptr, &Result->VertexShader);
 				}
 
-				if (Code.Find("PS").Found)
+				std::string PixelEntry = GetShaderMain(ShaderType_Pixel);
+				if (Code.Find(PixelEntry).Found)
 				{
 					ShaderBlob = nullptr;
-					D3DCompile(Code.Get(), (SIZE_T)Length * sizeof(char), F.Filename.empty() ? nullptr : F.Filename.c_str(), nullptr, nullptr, "PS", GetPSProfile(), CompileFlags, 0, &ShaderBlob, &ErrorBlob);
+					D3DCompile(Code.Get(), (SIZE_T)Length * sizeof(char), F.Filename.empty() ? nullptr : F.Filename.c_str(), nullptr, nullptr, PixelEntry.c_str(), GetPSProfile(), CompileFlags, 0, &ShaderBlob, &ErrorBlob);
 					if (GetCompileState(ErrorBlob))
 					{
 						std::string Message = GetCompileState(ErrorBlob);
@@ -2068,10 +2068,11 @@ namespace Tomahawk
 					ReleaseCom(ShaderBlob);
 				}
 
-				if (Code.Find("GS").Found)
+				std::string GeometryEntry = GetShaderMain(ShaderType_Geometry);
+				if (Code.Find(GeometryEntry).Found)
 				{
 					ShaderBlob = nullptr;
-					D3DCompile(Code.Get(), (SIZE_T)Length * sizeof(char), F.Filename.empty() ? nullptr : F.Filename.c_str(), nullptr, nullptr, "GS", GetGSProfile(), GetCompileFlags(), 0, &ShaderBlob, &ErrorBlob);
+					D3DCompile(Code.Get(), (SIZE_T)Length * sizeof(char), F.Filename.empty() ? nullptr : F.Filename.c_str(), nullptr, nullptr, GeometryEntry.c_str(), GetGSProfile(), GetCompileFlags(), 0, &ShaderBlob, &ErrorBlob);
 					if (GetCompileState(ErrorBlob))
 					{
 						std::string Message = GetCompileState(ErrorBlob);
@@ -2085,10 +2086,11 @@ namespace Tomahawk
 					ReleaseCom(ShaderBlob);
 				}
 
-				if (Code.Find("CS").Found)
+				std::string ComputeEntry = GetShaderMain(ShaderType_Compute);
+				if (Code.Find(ComputeEntry).Found)
 				{
 					ShaderBlob = nullptr;
-					D3DCompile(Code.Get(), (SIZE_T)Length * sizeof(char), F.Filename.empty() ? nullptr : F.Filename.c_str(), nullptr, nullptr, "CS", GetCSProfile(), GetCompileFlags(), 0, &ShaderBlob, &ErrorBlob);
+					D3DCompile(Code.Get(), (SIZE_T)Length * sizeof(char), F.Filename.empty() ? nullptr : F.Filename.c_str(), nullptr, nullptr, ComputeEntry.c_str(), GetCSProfile(), GetCompileFlags(), 0, &ShaderBlob, &ErrorBlob);
 					if (GetCompileState(ErrorBlob))
 					{
 						std::string Message = GetCompileState(ErrorBlob);
@@ -2102,10 +2104,11 @@ namespace Tomahawk
 					ReleaseCom(ShaderBlob);
 				}
 
-				if (Code.Find("HS").Found)
+				std::string HullEntry = GetShaderMain(ShaderType_Hull);
+				if (Code.Find(HullEntry).Found)
 				{
 					ShaderBlob = nullptr;
-					D3DCompile(Code.Get(), (SIZE_T)Length * sizeof(char), F.Filename.empty() ? nullptr : F.Filename.c_str(), nullptr, nullptr, "HS", GetHSProfile(), GetCompileFlags(), 0, &ShaderBlob, &ErrorBlob);
+					D3DCompile(Code.Get(), (SIZE_T)Length * sizeof(char), F.Filename.empty() ? nullptr : F.Filename.c_str(), nullptr, nullptr, HullEntry.c_str(), GetHSProfile(), GetCompileFlags(), 0, &ShaderBlob, &ErrorBlob);
 					if (GetCompileState(ErrorBlob))
 					{
 						std::string Message = GetCompileState(ErrorBlob);
@@ -2119,10 +2122,11 @@ namespace Tomahawk
 					ReleaseCom(ShaderBlob);
 				}
 
-				if (Code.Find("DS").Found)
+				std::string DomainEntry = GetShaderMain(ShaderType_Domain);
+				if (Code.Find(DomainEntry).Found)
 				{
 					ShaderBlob = nullptr;
-					D3DCompile(Code.Get(), (SIZE_T)Length * sizeof(char), F.Filename.empty() ? nullptr : F.Filename.c_str(), nullptr, nullptr, "DS", GetDSProfile(), GetCompileFlags(), 0, &ShaderBlob, &ErrorBlob);
+					D3DCompile(Code.Get(), (SIZE_T)Length * sizeof(char), F.Filename.empty() ? nullptr : F.Filename.c_str(), nullptr, nullptr, DomainEntry.c_str(), GetDSProfile(), GetCompileFlags(), 0, &ShaderBlob, &ErrorBlob);
 					if (GetCompileState(ErrorBlob))
 					{
 						std::string Message = GetCompileState(ErrorBlob);
@@ -3204,7 +3208,7 @@ namespace Tomahawk
 							float4 Color : COLOR0;
 						};
 
-						PS_INPUT VS(VS_INPUT Input)
+						PS_INPUT vs_main(VS_INPUT Input)
 						{
 							PS_INPUT Output;
 							Output.Position = mul(WorldViewProjection, float4(Input.Position.xyz, 1));
@@ -3216,7 +3220,7 @@ namespace Tomahawk
 					);
 
 					ID3DBlob* Blob = nullptr, *Error = nullptr;
-					D3DCompile(VertexShaderCode, strlen(VertexShaderCode), nullptr, nullptr, nullptr, "VS", GetVSProfile(), 0, 0, &Blob, nullptr);
+					D3DCompile(VertexShaderCode, strlen(VertexShaderCode), nullptr, nullptr, nullptr, "vs_main", GetVSProfile(), 0, 0, &Blob, nullptr);
 					if (GetCompileState(Error))
 					{
 						std::string Message = GetCompileState(Error);
@@ -3263,7 +3267,7 @@ namespace Tomahawk
 						Texture2D Diffuse : register(t0);
 						SamplerState State : register(s0);
 
-						float4 PS(PS_INPUT Input) : SV_TARGET0
+						float4 ps_main(PS_INPUT Input) : SV_TARGET0
 						{
 						   if (Padding.z > 0)
 							   return Input.Color * Diffuse.Sample(State, Input.TexCoord + Padding.xy) * Padding.w;
@@ -3273,7 +3277,7 @@ namespace Tomahawk
 					);
 
 					ID3DBlob* Blob = nullptr, *Error = nullptr;
-					D3DCompile(PixelShaderCode, strlen(PixelShaderCode), nullptr, nullptr, nullptr, "PS", GetPSProfile(), 0, 0, &Blob, &Error);
+					D3DCompile(PixelShaderCode, strlen(PixelShaderCode), nullptr, nullptr, nullptr, "ps_main", GetPSProfile(), 0, 0, &Blob, &Error);
 					if (GetCompileState(Error))
 					{
 						std::string Message = GetCompileState(Error);

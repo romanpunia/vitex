@@ -44,82 +44,85 @@ extern "C"
 #define EPOCH_DIFF (MAKEUQUAD(0xd53e8000, 0x019db1de))
 #define SYS2UNIX_TIME(L, H) ((int64_t)((MAKEUQUAD((L), (H)) - EPOCH_DIFF) / RATE_DIFF))
 #define LEAP_YEAR(X) (((X) % 4 == 0) && (((X) % 100) != 0 || ((X) % 400) == 0))
+#ifdef TH_MICROSOFT
+namespace
+{
+	BOOL WINAPI ConsoleEventHandler(DWORD Event)
+	{
+		switch (Event)
+		{
+			case CTRL_C_EVENT:
+			case CTRL_BREAK_EVENT:
+				raise(SIGINT);
+				break;
+			case CTRL_CLOSE_EVENT:
+			case CTRL_SHUTDOWN_EVENT:
+			case CTRL_LOGOFF_EVENT:
+				raise(SIGTERM);
+				break;
+			default:
+				break;
+		}
+
+		return TRUE;
+	}
+	int UnicodeCompare(const wchar_t* Value1, const wchar_t* Value2)
+	{
+		int Difference;
+		do
+		{
+			Difference = tolower(*Value1) - tolower(*Value2);
+			Value1++;
+			Value2++;
+		} while (Difference == 0 && Value1[-1] != '\0');
+
+		return Difference;
+	}
+	void UnicodePath(const char* Path, wchar_t* Input, size_t InputSize)
+	{
+		char Buffer1[1024];
+		strncpy(Buffer1, Path, sizeof(Buffer1));
+
+		for (int i = 0; Buffer1[i] != '\0'; i++)
+		{
+			if (Buffer1[i] == '/')
+				Buffer1[i] = '\\';
+
+			if (Buffer1[i] == '\\' && i > 0)
+			{
+				while (Buffer1[i + 1] == '\\' || Buffer1[i + 1] == '/')
+					memmove(Buffer1 + i + 1, Buffer1 + i + 2, strlen(Buffer1 + i + 1));
+			}
+		}
+
+		memset(Input, 0, InputSize * sizeof(wchar_t));
+		MultiByteToWideChar(CP_UTF8, 0, Buffer1, -1, Input, (int)InputSize);
+
+		char Buffer2[1024];
+		WideCharToMultiByte(CP_UTF8, 0, Input, (int)InputSize, Buffer2, sizeof(Buffer2), nullptr, nullptr);
+		if (strcmp(Buffer1, Buffer2) != 0)
+			Input[0] = L'\0';
+
+		wchar_t WBuffer[1024 + 1];
+		memset(WBuffer, 0, (sizeof(WBuffer) / sizeof(WBuffer[0])) * sizeof(wchar_t));
+
+		DWORD Length = GetLongPathNameW(Input, WBuffer, (sizeof(WBuffer) / sizeof(WBuffer[0])) - 1);
+		if (Length == 0)
+		{
+			if (GetLastError() == ERROR_FILE_NOT_FOUND)
+				return;
+		}
+
+		if (Length >= (sizeof(WBuffer) / sizeof(WBuffer[0])) || UnicodeCompare(Input, WBuffer) != 0)
+			Input[0] = L'\0';
+	}
+}
+#endif
 
 namespace Tomahawk
 {
 	namespace Rest
 	{
-#ifdef TH_MICROSOFT
-		BOOL WINAPI ConsoleEventHandler(DWORD Event)
-		{
-			switch (Event)
-			{
-				case CTRL_C_EVENT:
-				case CTRL_BREAK_EVENT:
-					raise(SIGINT);
-					break;
-				case CTRL_CLOSE_EVENT:
-				case CTRL_SHUTDOWN_EVENT:
-				case CTRL_LOGOFF_EVENT:
-					raise(SIGTERM);
-					break;
-				default:
-					break;
-			}
-
-			return TRUE;
-		}
-		int UnicodeCompare(const wchar_t* Value1, const wchar_t* Value2)
-		{
-			int Difference;
-			do
-			{
-				Difference = tolower(*Value1) - tolower(*Value2);
-				Value1++;
-				Value2++;
-			} while (Difference == 0 && Value1[-1] != '\0');
-
-			return Difference;
-		}
-		void UnicodePath(const char* Path, wchar_t* Input, size_t InputSize)
-		{
-			char Buffer1[1024];
-			strncpy(Buffer1, Path, sizeof(Buffer1));
-
-			for (int i = 0; Buffer1[i] != '\0'; i++)
-			{
-				if (Buffer1[i] == '/')
-					Buffer1[i] = '\\';
-
-				if (Buffer1[i] == '\\' && i > 0)
-				{
-					while (Buffer1[i + 1] == '\\' || Buffer1[i + 1] == '/')
-						memmove(Buffer1 + i + 1, Buffer1 + i + 2, strlen(Buffer1 + i + 1));
-				}
-			}
-
-			memset(Input, 0, InputSize * sizeof(wchar_t));
-			MultiByteToWideChar(CP_UTF8, 0, Buffer1, -1, Input, (int)InputSize);
-
-			char Buffer2[1024];
-			WideCharToMultiByte(CP_UTF8, 0, Input, (int)InputSize, Buffer2, sizeof(Buffer2), nullptr, nullptr);
-			if (strcmp(Buffer1, Buffer2) != 0)
-				Input[0] = L'\0';
-
-			wchar_t WBuffer[1024 + 1];
-			memset(WBuffer, 0, (sizeof(WBuffer) / sizeof(WBuffer[0])) * sizeof(wchar_t));
-
-			DWORD Length = GetLongPathNameW(Input, WBuffer, (sizeof(WBuffer) / sizeof(WBuffer[0])) - 1);
-			if (Length == 0)
-			{
-				if (GetLastError() == ERROR_FILE_NOT_FOUND)
-					return;
-			}
-
-			if (Length >= (sizeof(WBuffer) / sizeof(WBuffer[0])) || UnicodeCompare(Input, WBuffer) != 0)
-				Input[0] = L'\0';
-		}
-#endif
 		Variant::Variant() : Type(VarType_Undefined), Data(nullptr)
 		{
 		}
@@ -2892,41 +2895,41 @@ namespace Tomahawk
 		}
 		std::unordered_map<uint64_t, void*>* Composer::Factory = nullptr;
 
-		Object::Object() : __vcnt(1), __vflg(false)
+		Object::Object() noexcept : __vcnt(1), __vflg(false)
 		{
 		}
-		Object::~Object()
+		Object::~Object() noexcept
 		{
 		}
-		void Object::operator delete(void* Data)
+		void Object::operator delete(void* Data) noexcept
 		{
 			Object* Ref = (Object*)Data;
 			if (Ref != nullptr && --Ref->__vcnt <= 0)
 				Mem::Free(Data);
 		}
-		void* Object::operator new(size_t Size)
+		void* Object::operator new(size_t Size) noexcept
 		{
 			return Mem::Malloc((size_t)Size);
 		}
-		void Object::SetFlag()
+		void Object::SetFlag() noexcept
 		{
 			__vflg = true;
 		}
-		bool Object::GetFlag()
+		bool Object::GetFlag() noexcept
 		{
 			return __vflg.load();
 		}
-		int Object::GetRefCount()
+		int Object::GetRefCount() noexcept
 		{
 			return __vcnt.load();
 		}
-		Object* Object::AddRef()
+		Object* Object::AddRef() noexcept
 		{
 			__vcnt++;
 			__vflg = false;
 			return this;
 		}
-		Object* Object::Release()
+		Object* Object::Release() noexcept
 		{
 			__vflg = false;
 			if (--__vcnt)
@@ -4832,7 +4835,7 @@ namespace Tomahawk
 			while (*Buffer != '\0')
 				Buffer++;
 
-			while (*Buffer != '.' || Buffer != Path)
+			while (*Buffer != '.' && Buffer != Path)
 				Buffer--;
 
 			if (Buffer == Path)

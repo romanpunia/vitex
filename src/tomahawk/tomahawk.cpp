@@ -59,8 +59,9 @@ namespace Tomahawk
 				   "\n\t\tZLib: %s"
 				   "\n\t\tAssimp: %s"
 				   "\n\t\tMongoDB: %s"
+				   "\n\t\tPostgreSQL: %s"
 				   "\n\t\tOpenAL: %s"
-				   "\n\t\tSDL2: %s", TH_MAJOR_VERSION, TH_MINOR_VERSION, TH_PATCH_LEVEL, Platform(), Compiler(), HasDirectX() ? "ON" : "OFF", HasOpenGL() ? "ON" : "OFF", HasOpenSSL() ? "ON" : "OFF", HasGLEW() ? "ON" : "OFF", HasZLib() ? "ON" : "OFF", HasAssimp() ? "ON" : "OFF", HasMongoDB() ? "ON" : "OFF", HasOpenAL() ? "ON" : "OFF", HasSDL2() ? "ON" : "OFF");
+				   "\n\t\tSDL2: %s", TH_MAJOR_VERSION, TH_MINOR_VERSION, TH_PATCH_LEVEL, Platform(), Compiler(), HasDirectX() ? "ON" : "OFF", HasOpenGL() ? "ON" : "OFF", HasOpenSSL() ? "ON" : "OFF", HasGLEW() ? "ON" : "OFF", HasZLib() ? "ON" : "OFF", HasAssimp() ? "ON" : "OFF", HasMongoDB() ? "ON" : "OFF", HasPostgreSQL() ? "ON" : "OFF", HasOpenAL() ? "ON" : "OFF", HasSDL2() ? "ON" : "OFF");
 	}
 	bool Library::HasDirectX()
 	{

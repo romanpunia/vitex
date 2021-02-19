@@ -196,9 +196,7 @@ namespace Tomahawk
 			BoxShadowInstancer::BoxShadowInstancer(Graphics::GraphicsDevice* NewDevice) : Device(NewDevice), Shader(nullptr)
 			{
 				Graphics::Shader::Desc I = Graphics::Shader::Desc();
-				I.Filename = "box-shadow";
-
-				if (Device->GetSection("interface/box-shadow", &I.Data))
+				if (Device->GetSection("interface/box-shadow", &I))
 				{
 					Shader = Device->CreateShader(I);
 					if (Shader != nullptr)
@@ -254,9 +252,7 @@ namespace Tomahawk
 			BoxBlurInstancer::BoxBlurInstancer(Graphics::GraphicsDevice* NewDevice) : Device(NewDevice), Shader(nullptr), Background(nullptr)
 			{
 				Graphics::Shader::Desc I = Graphics::Shader::Desc();
-				I.Filename = "box-blur";
-
-				if (Device->GetSection("interface/box-blur", &I.Data))
+				if (Device->GetSection("interface/box-blur", &I))
 				{
 					Shader = Device->CreateShader(I);
 					if (Shader != nullptr)

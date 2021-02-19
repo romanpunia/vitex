@@ -10,7 +10,7 @@ namespace Tomahawk
 	{
 		namespace Renderers
 		{
-			class TH_OUT Model : public GeometryDraw
+			class TH_OUT Model final : public GeometryDraw
 			{
 			private:
 				struct
@@ -49,7 +49,7 @@ namespace Tomahawk
 				TH_COMPONENT("model-renderer");
 			};
 
-			class TH_OUT Skin : public GeometryDraw
+			class TH_OUT Skin final : public GeometryDraw
 			{
 			private:
 				struct
@@ -88,7 +88,7 @@ namespace Tomahawk
 				TH_COMPONENT("skin-renderer");
 			};
 
-			class TH_OUT SoftBody : public GeometryDraw
+			class TH_OUT SoftBody final : public GeometryDraw
 			{
 			private:
 				struct
@@ -128,7 +128,7 @@ namespace Tomahawk
 				TH_COMPONENT("soft-body-renderer");
 			};
 
-			class TH_OUT Emitter : public GeometryDraw
+			class TH_OUT Emitter final : public GeometryDraw
 			{
 			private:
 				struct
@@ -175,7 +175,7 @@ namespace Tomahawk
 				TH_COMPONENT("emitter-renderer");
 			};
 
-			class TH_OUT Decal : public GeometryDraw
+			class TH_OUT Decal final : public GeometryDraw
 			{
 			public:
 				struct RenderConstant
@@ -207,7 +207,7 @@ namespace Tomahawk
 				TH_COMPONENT("decal-renderer");
 			};
 
-			class TH_OUT Lighting : public Renderer
+			class TH_OUT Lighting final : public Renderer
 			{
 			private:
 				struct ISurfaceLight
@@ -410,6 +410,7 @@ namespace Tomahawk
 				void Deactivate() override;
 				void ResizeBuffers() override;
 				void Render(Rest::Timer* Time, RenderState State, RenderOpt Options) override;
+				void ClearStorage();
 				void SetSkyMap(Graphics::Texture2D* Cubemap);
 				void SetSurfaceBufferSize(size_t Size);
 				Graphics::TextureCube* GetSkyMap();
@@ -448,7 +449,7 @@ namespace Tomahawk
 				TH_COMPONENT("lighting-renderer");
 			};
 
-			class TH_OUT Transparency : public Renderer
+			class TH_OUT Transparency final : public Renderer
 			{
 			private:
 				Graphics::MultiRenderTarget2D* Merger = nullptr;
@@ -478,7 +479,7 @@ namespace Tomahawk
 				TH_COMPONENT("transparency-renderer");
 			};
 
-			class TH_OUT SSR : public EffectDraw
+			class TH_OUT SSR final : public EffectDraw
 			{
 			private:
 				struct
@@ -515,7 +516,7 @@ namespace Tomahawk
 				TH_COMPONENT("ssr-renderer");
 			};
 
-			class TH_OUT SSAO : public EffectDraw
+			class TH_OUT SSAO final : public EffectDraw
 			{
 			private:
 				struct
@@ -558,7 +559,7 @@ namespace Tomahawk
 				TH_COMPONENT("ssao-renderer");
 			};
 
-			class TH_OUT DoF : public EffectDraw
+			class TH_OUT DoF final : public EffectDraw
 			{
 			private:
 				struct
@@ -600,7 +601,7 @@ namespace Tomahawk
 				TH_COMPONENT("dof-renderer");
 			};
 
-			class TH_OUT MotionBlur : public EffectDraw
+			class TH_OUT MotionBlur final : public EffectDraw
 			{
 			private:
 				struct
@@ -634,7 +635,7 @@ namespace Tomahawk
 				TH_COMPONENT("motionblur-renderer");
 			};
 
-			class TH_OUT Bloom : public EffectDraw
+			class TH_OUT Bloom final : public EffectDraw
 			{
 			private:
 				struct
@@ -672,7 +673,7 @@ namespace Tomahawk
 				TH_COMPONENT("bloom-renderer");
 			};
 
-			class TH_OUT Tone : public EffectDraw
+			class TH_OUT Tone final : public EffectDraw
 			{
 			private:
 				struct
@@ -735,7 +736,7 @@ namespace Tomahawk
 				TH_COMPONENT("tone-renderer");
 			};
 
-			class TH_OUT Glitch : public EffectDraw
+			class TH_OUT Glitch final : public EffectDraw
 			{
 			public:
 				struct DistortionBuffer
@@ -767,7 +768,7 @@ namespace Tomahawk
 				TH_COMPONENT("glitch-renderer");
 			};
 
-			class TH_OUT UserInterface : public Renderer
+			class TH_OUT UserInterface final : public Renderer
 			{
 			private:
 				Graphics::Activity* Activity;

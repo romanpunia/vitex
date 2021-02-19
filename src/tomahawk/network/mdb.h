@@ -14,6 +14,9 @@ struct _mongoc_client_pool_t;
 struct _mongoc_change_stream_t;
 struct _mongoc_client_session_t;
 
+#define TH_MDB_COMPILE(Args, Code) Tomahawk::Network::MDB::Driver::GetSubquery(#Code, Args, true)
+#define TH_MDB_RECOMPILE(Args, Code) Tomahawk::Network::MDB::Driver::GetSubquery(#Code, Args, false)
+
 namespace Tomahawk
 {
 	namespace Network
@@ -330,6 +333,7 @@ namespace Tomahawk
 				static bool AddDirectory(const std::string& Directory, const std::string& Origin = "");
 				static bool RemoveQuery(const std::string& Name);
 				static TDocument* GetQuery(const std::string& Name, QueryMap* Map, bool Once = true);
+				static TDocument* GetSubquery(const char* Buffer, QueryMap* Map, bool Once = true);
 				static std::vector<std::string> GetQueries();
 
 			private:

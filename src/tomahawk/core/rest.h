@@ -795,19 +795,19 @@ namespace Tomahawk
 			std::atomic<bool> __vflg;
 
 		public:
-			Object();
-			virtual ~Object();
-			void operator delete(void* Data);
-			void* operator new(size_t Size);
-			void SetFlag();
-			bool GetFlag();
-			int GetRefCount();
-			Object* AddRef();
-			Object* Release();
+			Object() noexcept;
+			virtual ~Object() noexcept;
+			void operator delete(void* Data) noexcept;
+			void* operator new(size_t Size) noexcept;
+			void SetFlag() noexcept;
+			bool GetFlag() noexcept;
+			int GetRefCount() noexcept;
+			Object* AddRef() noexcept;
+			Object* Release() noexcept;
 
 		public:
 			template <typename T>
-			T* As()
+			T* As() noexcept
 			{
 				return (T*)this;
 			}

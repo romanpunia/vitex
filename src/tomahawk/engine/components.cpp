@@ -3106,6 +3106,19 @@ namespace Tomahawk
 				NMake::Pack(Node->Set("shadows"), Shadows);
 				NMake::Pack(Node->Set("bleeding"), Bleeding);
 			}
+			void Illuminator::Asleep()
+			{
+				if (!Parent || !Parent->GetScene())
+					return;
+
+				RenderSystem* System = (RenderSystem*)Parent->GetScene()->GetRenderer();
+				if (System != nullptr)
+				{
+					auto* Lighting = System->GetRenderer<Renderers::Lighting>();
+					if (Lighting != nullptr)
+						Lighting->ClearStorage();
+				}
+			}
 			float Illuminator::Cull(const Viewer& View)
 			{
 				Compute::Matrix4x4 Box = Parent->Transform->GetWorld();

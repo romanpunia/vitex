@@ -612,11 +612,11 @@ namespace Tomahawk
 			CompileFlags = I.CompilationFlags;
 			Backend = I.Backend;
 			Debug = I.Debug;
-			InitSections();
+			CreateSections();
 		}
 		GraphicsDevice::~GraphicsDevice()
 		{
-			FreeProxy();
+			ReleaseProxy();
 			for (auto It = Sections.begin(); It != Sections.end(); It++)
 				delete It->second;
 			Sections.clear();
@@ -629,68 +629,7 @@ namespace Tomahawk
 		{
 			Mutex.unlock();
 		}
-		void GraphicsDevice::AddSection(const std::string& Name, const std::string& Code)
-		{
-			Section* Include = new Section();
-			Include->Code = Code;
-			Include->Name = Name;
-
-			RemoveSection(Name);
-			Sections[Name] = Include;
-		}
-		void GraphicsDevice::RemoveSection(const std::string& Name)
-		{
-			auto It = Sections.find(Name);
-			if (It == Sections.end())
-				return;
-
-			delete It->second;
-			Sections.erase(It);
-		}
-		bool GraphicsDevice::Preprocess(Shader::Desc& In)
-		{
-			if (In.Data.empty())
-				return true;
-
-			Compute::IncludeDesc Desc = Compute::IncludeDesc();
-			Desc.Exts.push_back(".hlsl");
-			Desc.Exts.push_back(".glsl");
-			Desc.Root = Rest::OS::GetDirectory();
-			In.Features.Pragmas = false;
-
-			Compute::Preprocessor* Processor = new Compute::Preprocessor();
-			Processor->SetIncludeCallback([this, &In](Compute::Preprocessor* P, const Compute::IncludeResult& File, std::string* Output)
-			{
-				if (In.Include && In.Include(P, File, Output))
-					return true;
-
-				if (File.Module.empty() || (!File.IsFile && !File.IsSystem))
-					return false;
-
-				if (File.IsSystem && !File.IsFile)
-					return GetSection(File.Module, Output, true);
-
-				uint64_t Length;
-				unsigned char* Data = Rest::OS::ReadAllBytes(File.Module.c_str(), &Length);
-				if (!Data)
-					return false;
-
-				Output->assign((const char*)Data, (size_t)Length);
-				TH_FREE(Data);
-				return true;
-			});
-			Processor->SetIncludeOptions(Desc);
-			Processor->SetFeatures(In.Features);
-
-			for (auto& Word : In.Defines)
-				Processor->Define(Word);
-
-			bool Result = Processor->Process(In.Filename, In.Data);
-			TH_RELEASE(Processor);
-
-			return Result;
-		}
-		void GraphicsDevice::InitStates()
+		void GraphicsDevice::CreateStates()
 		{
 			Graphics::DepthStencilState::Desc DepthStencil;
 			DepthStencil.DepthEnable = true;
@@ -1053,31 +992,220 @@ namespace Tomahawk
 			SetBlendState(GetBlendState("overwrite"));
 			SetSamplerState(GetSamplerState("trilinear-x16"), 0, TH_PS);
 		}
-		void GraphicsDevice::InitSections()
+		void GraphicsDevice::CreateSections()
 		{
 #ifdef HAS_SHADER_BATCH
 			shader_batch::foreach(this, [](void* Context, const char* Name, const unsigned char* Buffer, unsigned Size)
 			{
 				GraphicsDevice* Base = (GraphicsDevice*)Context;
-				if (!Base)
-					return;
-
-				RenderBackend Backend = Base->GetBackend();
-				if (Backend == RenderBackend_NONE)
-					return;
-
-				Rest::Stroke Source(Name);
-				if (Backend == RenderBackend_D3D11 && !Source.StartsWith("d3d11/"))
-					return;
-				else if (Backend == RenderBackend_OGL && !Source.StartsWith("ogl/"))
-					return;
-
-				Source.Erase(0, Source.Find('/').End);
-				Base->AddSection(Source.R(), std::string((const char*)Buffer, Size));
+				if (Base != nullptr && Base->GetBackend() != RenderBackend_NONE)
+					Base->AddSection(Name, std::string((const char*)Buffer, Size));
 			});
 #else
 			TH_WARN("default shader resources were not compiled");
 #endif
+		}
+		void GraphicsDevice::ReleaseProxy()
+		{
+			for (auto It = DepthStencilStates.begin(); It != DepthStencilStates.end(); It++)
+				TH_RELEASE(It->second);
+			DepthStencilStates.clear();
+
+			for (auto It = RasterizerStates.begin(); It != RasterizerStates.end(); It++)
+				TH_RELEASE(It->second);
+			RasterizerStates.clear();
+
+			for (auto It = BlendStates.begin(); It != BlendStates.end(); It++)
+				TH_RELEASE(It->second);
+			BlendStates.clear();
+
+			for (auto It = SamplerStates.begin(); It != SamplerStates.end(); It++)
+				TH_RELEASE(It->second);
+			SamplerStates.clear();
+
+			for (auto It = InputLayouts.begin(); It != InputLayouts.end(); It++)
+				TH_RELEASE(It->second);
+			InputLayouts.clear();
+
+			TH_CLEAR(RenderTarget);
+			TH_CLEAR(BasicEffect);
+		}
+		bool GraphicsDevice::AddSection(const std::string& Name, const std::string& Code)
+		{
+			Rest::Stroke Language(Rest::OS::FileExtention(Name.c_str()));
+			Language.Substring(1).Trim().ToLower();
+
+			ShaderLang Lang = ShaderLang_NONE;
+			if (Language.R() == "hlsl")
+				Lang = ShaderLang_HLSL;
+			else if (Language.R() == "glsl")
+				Lang = ShaderLang_GLSL;
+			else if (Language.R() == "msl")
+				Lang = ShaderLang_MSL;
+			else if (Language.R() == "spv")
+				Lang = ShaderLang_SPV;
+
+			RemoveSection(Name);
+			if (Lang == ShaderLang_NONE)
+			{
+				TH_ERROR("shader resource is using unknown %s language:\n\t%s", Language.Get(), Name.c_str());
+				return false;
+			}
+
+			Section* Include = new Section();
+			Include->Code = Code;
+			Include->Name = Name;
+			Include->Lang = Lang;
+			Sections[Name] = Include;
+
+			return true;
+		}
+		bool GraphicsDevice::RemoveSection(const std::string& Name)
+		{
+			auto It = Sections.find(Name);
+			if (It == Sections.end())
+				return false;
+
+			delete It->second;
+			Sections.erase(It);
+
+			return true;
+		}
+		bool GraphicsDevice::Preprocess(Shader::Desc& Subresult)
+		{
+			if (Subresult.Data.empty())
+				return true;
+
+			Compute::IncludeDesc Desc = Compute::IncludeDesc();
+			Desc.Exts.push_back(".hlsl");
+			Desc.Exts.push_back(".glsl");
+			Desc.Exts.push_back(".msl");
+			Desc.Exts.push_back(".spv");
+			Desc.Root = Rest::OS::GetDirectory();
+			Subresult.Features.Pragmas = false;
+
+			Compute::Preprocessor* Processor = new Compute::Preprocessor();
+			Processor->SetIncludeCallback([this, &Subresult](Compute::Preprocessor* P, const Compute::IncludeResult& File, std::string* Output)
+			{
+				if (Subresult.Include && Subresult.Include(P, File, Output))
+					return true;
+
+				if (File.Module.empty() || (!File.IsFile && !File.IsSystem))
+					return false;
+
+				if (File.IsSystem && !File.IsFile)
+				{
+					Section* Result;
+					if (!GetSection(File.Module, &Result, true))
+						return false;
+
+					if (Result->Lang != Subresult.Lang)
+					{
+						TH_ERROR("mixed shader languages detected:\n\t%s", File.Module.c_str());
+						return false;
+					}
+
+					Output->assign(Result->Code);
+					return true;
+				}
+
+				uint64_t Length;
+				unsigned char* Data = Rest::OS::ReadAllBytes(File.Module.c_str(), &Length);
+				if (!Data)
+					return false;
+
+				Output->assign((const char*)Data, (size_t)Length);
+				TH_FREE(Data);
+				return true;
+			});
+			Processor->SetIncludeOptions(Desc);
+			Processor->SetFeatures(Subresult.Features);
+
+			for (auto& Word : Subresult.Defines)
+				Processor->Define(Word);
+
+			bool Preprocessed = Processor->Process(Subresult.Filename, Subresult.Data);
+			TH_RELEASE(Processor);
+
+			if (!Preprocessed)
+				return false;
+
+			switch (Backend)
+			{
+				case Tomahawk::Graphics::RenderBackend_D3D11:
+					return Transpile(&Subresult.Data, Subresult.Lang, ShaderLang_HLSL);
+				case Tomahawk::Graphics::RenderBackend_OGL:
+					return Transpile(&Subresult.Data, Subresult.Lang, ShaderLang_GLSL);
+				default:
+					return false;
+			}
+		}
+		bool GraphicsDevice::Transpile(std::string* Source, ShaderLang From, ShaderLang To)
+		{
+			if (!Source || Source->empty() || From == To)
+				return true;
+#ifdef TH_HAS_SPIRV
+
+#else
+			TH_ERROR("cannot transpile shader source without spirv-cross");
+			return false;
+#endif
+		}
+		bool GraphicsDevice::GetSection(const std::string& Name, Section** Result, bool Internal)
+		{
+			if (Name.empty() || Sections.empty())
+			{
+				if (!Internal)
+					TH_ERROR("\n\tcould not find shader: \"%s\"");
+
+				return false;
+			}
+
+			std::function<bool(const std::string&)> Resolve = [this, &Result](const std::string& Src)
+			{
+				auto It = Sections.find(Src);
+				if (It == Sections.end())
+					return false;
+
+				if (Result != nullptr)
+					*Result = It->second;
+
+				return true;
+			};
+
+			if (Resolve(Name) ||
+				Resolve(Name + ".hlsl") ||
+				Resolve(Name + ".glsl") ||
+				Resolve(Name + ".msl") ||
+				Resolve(Name + ".spv"))
+				return true;
+
+			if (Result != nullptr)
+				*Result = nullptr;
+
+			if (!Internal)
+				TH_ERROR("\n\tcould not find shader: \"%s\"", Name.c_str());
+
+			return false;
+		}
+		bool GraphicsDevice::GetSection(const std::string& Name, Shader::Desc* Result)
+		{
+			if (Name.empty() || !Result)
+				return false;
+
+			Section* Subresult;
+			if (!GetSection(Name, &Subresult, false))
+				return false;
+
+			Result->Filename.assign(Subresult->Name);
+			Result->Data.assign(Subresult->Code);
+			Result->Lang = Subresult->Lang;
+
+			return true;
+		}
+		bool GraphicsDevice::IsDebug()
+		{
+			return Debug;
 		}
 		unsigned int GraphicsDevice::GetMipLevel(unsigned int Width, unsigned int Height)
 		{
@@ -1090,6 +1218,34 @@ namespace Tomahawk
 			}
 
 			return MipLevels;
+		}
+		unsigned int GraphicsDevice::GetPresentFlags()
+		{
+			return PresentFlags;
+		}
+		unsigned int GraphicsDevice::GetCompileFlags()
+		{
+			return CompileFlags;
+		}
+		std::string GraphicsDevice::GetShaderMain(ShaderType Type)
+		{
+			switch (Type)
+			{
+				case Tomahawk::Graphics::ShaderType_Vertex:
+					return "vs_main";
+				case Tomahawk::Graphics::ShaderType_Pixel:
+					return "ps_main";
+				case Tomahawk::Graphics::ShaderType_Geometry:
+					return "gs_main";
+				case Tomahawk::Graphics::ShaderType_Hull:
+					return "hs_main";
+				case Tomahawk::Graphics::ShaderType_Domain:
+					return "ds_main";
+				case Tomahawk::Graphics::ShaderType_Compute:
+					return "cs_main";
+				default:
+					return "main";
+			}
 		}
 		ShaderModel GraphicsDevice::GetShaderModel()
 		{
@@ -1147,90 +1303,9 @@ namespace Tomahawk
 		{
 			return Backend;
 		}
-		unsigned int GraphicsDevice::GetPresentFlags()
-		{
-			return PresentFlags;
-		}
-		unsigned int GraphicsDevice::GetCompileFlags()
-		{
-			return CompileFlags;
-		}
-		bool GraphicsDevice::GetSection(const std::string& Name, std::string* Out, bool Internal)
-		{
-			if (Name.empty() || Sections.empty())
-			{
-				if (Internal)
-					return false;
-
-				TH_ERROR("\n\tcould not find shader: \"%s\"");
-				return false;
-			}
-
-			auto It = Sections.find(Name);
-			if (It != Sections.end())
-			{
-				if (Out != nullptr)
-					Out->assign(It->second->Code);
-
-				return true;
-			}
-
-			It = Sections.find(Name + ".hlsl");
-			if (It != Sections.end())
-			{
-				if (Out != nullptr)
-					Out->assign(It->second->Code);
-
-				return true;
-			}
-
-			It = Sections.find(Name + ".glsl");
-			if (It != Sections.end())
-			{
-				if (Out != nullptr)
-					Out->assign(It->second->Code);
-
-				return true;
-			}
-
-			if (Internal)
-				return false;
-
-			TH_ERROR("\n\tcould not find shader: \"%s\"", Name.c_str());
-			return false;
-		}
 		VSync GraphicsDevice::GetVSyncMode()
 		{
 			return VSyncMode;
-		}
-		bool GraphicsDevice::IsDebug()
-		{
-			return Debug;
-		}
-		void GraphicsDevice::FreeProxy()
-		{
-			for (auto It = DepthStencilStates.begin(); It != DepthStencilStates.end(); It++)
-				TH_RELEASE(It->second);
-			DepthStencilStates.clear();
-
-			for (auto It = RasterizerStates.begin(); It != RasterizerStates.end(); It++)
-				TH_RELEASE(It->second);
-			RasterizerStates.clear();
-
-			for (auto It = BlendStates.begin(); It != BlendStates.end(); It++)
-				TH_RELEASE(It->second);
-			BlendStates.clear();
-
-			for (auto It = SamplerStates.begin(); It != SamplerStates.end(); It++)
-				TH_RELEASE(It->second);
-			SamplerStates.clear();
-
-			for (auto It = InputLayouts.begin(); It != InputLayouts.end(); It++)
-				TH_RELEASE(It->second);
-			InputLayouts.clear();
-
-			TH_CLEAR(RenderTarget);
-			TH_CLEAR(BasicEffect);
 		}
 		GraphicsDevice* GraphicsDevice::Create(const Desc& I)
 		{

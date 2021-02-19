@@ -384,7 +384,7 @@ namespace Tomahawk
 				bool WebSocketReceive(const char* Pattern, WebSocketReadCallback Callback);
 			};
 
-			struct TH_OUT MapRouter : public SocketRouter
+			struct TH_OUT MapRouter final : public SocketRouter
 			{
 				std::vector<SiteEntry*> Sites;
 				std::string ModuleRoot;
@@ -395,7 +395,7 @@ namespace Tomahawk
 				SiteEntry* Site(const char* Host);
 			};
 
-			struct TH_OUT Connection : public SocketConnection
+			struct TH_OUT Connection final : public SocketConnection
 			{
 				Rest::Resource Resource;
 				WebSocketFrame* WebSocket = nullptr;
@@ -413,7 +413,7 @@ namespace Tomahawk
 				bool Store(const ResourceCallback& Callback = nullptr);
 			};
 
-			class TH_OUT QueryParameter : public Rest::Document
+			class TH_OUT QueryParameter final : public Rest::Document
 			{
 			public:
 				QueryParameter();
@@ -616,7 +616,7 @@ namespace Tomahawk
 				static bool ProcessWebSocketPass(Connection* Base);
 			};
 
-			class TH_OUT Server : public SocketServer
+			class TH_OUT Server final : public SocketServer
 			{
 				friend Connection;
 				friend Util;
@@ -637,7 +637,7 @@ namespace Tomahawk
 				SocketRouter* OnAllocateRouter() override;
 			};
 
-			class TH_OUT Client : public SocketClient
+			class TH_OUT Client final : public SocketClient
 			{
 			private:
 				RequestFrame Request;

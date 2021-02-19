@@ -1,0 +1,43 @@
+#include "std/layouts/vertex"
+#include "std/channels/depth"
+#include "std/buffers/object"
+#include "std/buffers/viewer"
+#include "std/buffers/cubic"
+
+[maxvertexcount(18)]
+void gs_main(triangle VOutputLinear V[3], inout TriangleStream<VOutputCubic> Stream)
+{
+	VOutputCubic Result = (VOutputCubic)0;
+	for (Result.RenderTarget = 0; Result.RenderTarget < 6; Result.RenderTarget++)
+	{
+		Result.Position = mul(V[0].Position, FaceViewProjection[Result.RenderTarget]);
+		Result.UV = V[0].UV;
+		Result.TexCoord = V[0].TexCoord;
+        Result.Normal = V[0].Normal;
+		Stream.Append(Result);
+
+		Result.Position = mul(V[1].Position, FaceViewProjection[Result.RenderTarget]);
+		Result.UV = V[1].UV;
+		Result.TexCoord = V[1].TexCoord;
+        Result.Normal = V[1].Normal;
+		Stream.Append(Result);
+
+		Result.Position = mul(V[2].Position, FaceViewProjection[Result.RenderTarget]);
+		Result.UV = V[2].UV;
+		Result.TexCoord = V[2].TexCoord;
+        Result.Normal = V[2].Normal;
+		Stream.Append(Result);
+
+		Stream.RestartStrip();
+	}
+}
+
+VOutputLinear vs_main(VInput V)
+{
+	VOutputLinear Result = (VOutputLinear)0;
+	Result.Position = Result.UV = mul(float4(V.Position, 1.0), World);
+	Result.Normal = normalize(mul(V.Normal, (float3x3)World));
+	Result.TexCoord = V.TexCoord * TexCoord;
+
+	return Result;
+}

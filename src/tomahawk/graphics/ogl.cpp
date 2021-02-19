@@ -468,17 +468,15 @@ namespace Tomahawk
 
 				SetShaderModel(I.ShaderMode == ShaderModel_Auto ? GetSupportedShaderModel() : I.ShaderMode);
 				ResizeBuffers(I.BufferWidth, I.BufferHeight);
-				InitStates();
+				CreateStates();
 
 				Shader::Desc F = Shader::Desc();
-				F.Filename = "basic";
-
-				if (GetSection("geometry/basic/geometry", &F.Data))
+				if (GetSection("geometry/basic/geometry", &F))
 					BasicEffect = CreateShader(F);
 			}
 			OGLDevice::~OGLDevice()
 			{
-				FreeProxy();
+				ReleaseProxy();
 				glDeleteShader(DirectRenderer.VertexShader);
 				glDeleteShader(DirectRenderer.PixelShader);
 				glDeleteProgram(DirectRenderer.Program);
@@ -2025,7 +2023,8 @@ namespace Tomahawk
 				uint64_t Length = Code.Size();
 				GLint StatusCode = 0;
 
-				if ((Start = Code.Find("VS_Main")).Found)
+				std::string VertexEntry = GetShaderMain(ShaderType_Vertex);
+				if ((Start = Code.Find(VertexEntry)).Found)
 				{
 					Rest::Stroke::Settle End = Code.Find("#program", Start.End);
 					if (!End.Found)
@@ -2053,7 +2052,8 @@ namespace Tomahawk
 					}
 				}
 
-				if ((Start = Code.Find("PS_Main")).Found)
+				std::string PixelEntry = GetShaderMain(ShaderType_Pixel);
+				if ((Start = Code.Find(PixelEntry)).Found)
 				{
 					Rest::Stroke::Settle End = Code.Find("#program", Start.End);
 					if (!End.Found)
@@ -2081,7 +2081,8 @@ namespace Tomahawk
 					}
 				}
 
-				if ((Start = Code.Find("GS_Main")).Found)
+				std::string GeometryEntry = GetShaderMain(ShaderType_Geometry);
+				if ((Start = Code.Find(GeometryEntry)).Found)
 				{
 					Rest::Stroke::Settle End = Code.Find("#program", Start.End);
 					if (!End.Found)
@@ -2109,7 +2110,8 @@ namespace Tomahawk
 					}
 				}
 
-				if ((Start = Code.Find("DS_Main")).Found)
+				std::string ComputeEntry = GetShaderMain(ShaderType_Compute);
+				if ((Start = Code.Find(ComputeEntry)).Found)
 				{
 					Rest::Stroke::Settle End = Code.Find("#program", Start.End);
 					if (!End.Found)
@@ -2122,22 +2124,23 @@ namespace Tomahawk
 					char* Buffer = Sub.Value();
 					GLint Size = Sub.Size();
 
-					Result->DomainShader = glCreateShader(GL_TESS_EVALUATION_SHADER);
-					glShaderSourceARB(Result->DomainShader, 1, (const char**)&Buffer, &Size);
-					glCompileShaderARB(Result->DomainShader);
-					glGetShaderiv(Result->DomainShader, GL_COMPILE_STATUS, &StatusCode);
+					Result->ComputeShader = glCreateShader(GL_COMPUTE_SHADER);
+					glShaderSourceARB(Result->ComputeShader, 1, (const char**)&Buffer, &Size);
+					glCompileShaderARB(Result->ComputeShader);
+					glGetShaderiv(Result->ComputeShader, GL_COMPILE_STATUS, &StatusCode);
 
 					if (StatusCode == GL_FALSE)
 					{
-						glGetShaderiv(Result->DomainShader, GL_INFO_LOG_LENGTH, &Size);
+						glGetShaderiv(Result->ComputeShader, GL_INFO_LOG_LENGTH, &Size);
 						Buffer = (char*)TH_MALLOC(sizeof(char) * (Size + 1));
-						glGetShaderInfoLog(Result->DomainShader, Size, &Size, Buffer);
-						TH_ERROR("couldn't compile domain shader\n\t%.*s", Size, Buffer);
+						glGetShaderInfoLog(Result->ComputeShader, Size, &Size, Buffer);
+						TH_ERROR("couldn't compile compute shader\n\t%.*s", Size, Buffer);
 						TH_FREE(Buffer);
 					}
 				}
 
-				if ((Start = Code.Find("HS_Main")).Found)
+				std::string DomainEntry = GetShaderMain(ShaderType_Domain);
+				if ((Start = Code.Find(DomainEntry)).Found)
 				{
 					Rest::Stroke::Settle End = Code.Find("#program", Start.End);
 					if (!End.Found)
@@ -2165,7 +2168,8 @@ namespace Tomahawk
 					}
 				}
 
-				if ((Start = Code.Find("CS_Main")).Found)
+				std::string HullEntry = GetShaderMain(ShaderType_Hull);
+				if ((Start = Code.Find(HullEntry)).Found)
 				{
 					Rest::Stroke::Settle End = Code.Find("#program", Start.End);
 					if (!End.Found)
@@ -2178,17 +2182,17 @@ namespace Tomahawk
 					char* Buffer = Sub.Value();
 					GLint Size = Sub.Size();
 
-					Result->ComputeShader = glCreateShader(GL_COMPUTE_SHADER);
-					glShaderSourceARB(Result->ComputeShader, 1, (const char**)&Buffer, &Size);
-					glCompileShaderARB(Result->ComputeShader);
-					glGetShaderiv(Result->ComputeShader, GL_COMPILE_STATUS, &StatusCode);
+					Result->DomainShader = glCreateShader(GL_TESS_EVALUATION_SHADER);
+					glShaderSourceARB(Result->DomainShader, 1, (const char**)&Buffer, &Size);
+					glCompileShaderARB(Result->DomainShader);
+					glGetShaderiv(Result->DomainShader, GL_COMPILE_STATUS, &StatusCode);
 
 					if (StatusCode == GL_FALSE)
 					{
-						glGetShaderiv(Result->ComputeShader, GL_INFO_LOG_LENGTH, &Size);
+						glGetShaderiv(Result->DomainShader, GL_INFO_LOG_LENGTH, &Size);
 						Buffer = (char*)TH_MALLOC(sizeof(char) * (Size + 1));
-						glGetShaderInfoLog(Result->ComputeShader, Size, &Size, Buffer);
-						TH_ERROR("couldn't compile compute shader\n\t%.*s", Size, Buffer);
+						glGetShaderInfoLog(Result->DomainShader, Size, &Size, Buffer);
+						TH_ERROR("couldn't compile domain shader\n\t%.*s", Size, Buffer);
 						TH_FREE(Buffer);
 					}
 				}

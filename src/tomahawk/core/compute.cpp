@@ -18,79 +18,84 @@ extern "C"
 #define MAKE_ADJ_TRI(x) (x&0x3fffffff)
 #define IS_BOUNDARY(x) (x==0xffffffff)
 
+namespace
+{
+	class FindContactsHandler : public btCollisionWorld::ContactResultCallback
+	{
+	public:
+		int(*Callback)(Tomahawk::Compute::ShapeContact*, const Tomahawk::Compute::CollisionBody&, const Tomahawk::Compute::CollisionBody&) = nullptr;
+
+	public:
+		btScalar addSingleResult(btManifoldPoint& Point, const btCollisionObjectWrapper* Object1, int PartId0, int Index0, const btCollisionObjectWrapper* Object2, int PartId1, int Index1)
+		{
+			using namespace Tomahawk::Compute;
+			if (!Callback || !Object1 || !Object1->getCollisionObject() || !Object2 || !Object2->getCollisionObject())
+				return 0;
+
+			ShapeContact Contact;
+			Contact.LocalPoint1 = Vector3(Point.m_localPointA.getX(), Point.m_localPointA.getY(), Point.m_localPointA.getZ());
+			Contact.LocalPoint2 = Vector3(Point.m_localPointB.getX(), Point.m_localPointB.getY(), Point.m_localPointB.getZ());
+			Contact.PositionWorld1 = Vector3(Point.getPositionWorldOnA().getX(), Point.getPositionWorldOnA().getY(), Point.getPositionWorldOnA().getZ());
+			Contact.PositionWorld2 = Vector3(Point.getPositionWorldOnB().getX(), Point.getPositionWorldOnB().getY(), Point.getPositionWorldOnB().getZ());
+			Contact.NormalWorld = Vector3(Point.m_normalWorldOnB.getX(), Point.m_normalWorldOnB.getY(), Point.m_normalWorldOnB.getZ());
+			Contact.LateralFrictionDirection1 = Vector3(Point.m_lateralFrictionDir1.getX(), Point.m_lateralFrictionDir1.getY(), Point.m_lateralFrictionDir1.getZ());
+			Contact.LateralFrictionDirection2 = Vector3(Point.m_lateralFrictionDir2.getX(), Point.m_lateralFrictionDir2.getY(), Point.m_lateralFrictionDir2.getZ());
+			Contact.Distance = Point.m_distance1;
+			Contact.CombinedFriction = Point.m_combinedFriction;
+			Contact.CombinedRollingFriction = Point.m_combinedRollingFriction;
+			Contact.CombinedSpinningFriction = Point.m_combinedSpinningFriction;
+			Contact.CombinedRestitution = Point.m_combinedRestitution;
+			Contact.AppliedImpulse = Point.m_appliedImpulse;
+			Contact.AppliedImpulseLateral1 = Point.m_appliedImpulseLateral1;
+			Contact.AppliedImpulseLateral2 = Point.m_appliedImpulseLateral2;
+			Contact.ContactMotion1 = Point.m_contactMotion1;
+			Contact.ContactMotion2 = Point.m_contactMotion2;
+			Contact.ContactCFM = Point.m_contactCFM;
+			Contact.CombinedContactStiffness = Point.m_combinedContactStiffness1;
+			Contact.ContactERP = Point.m_contactERP;
+			Contact.CombinedContactDamping = Point.m_combinedContactDamping1;
+			Contact.FrictionCFM = Point.m_frictionCFM;
+			Contact.PartId1 = Point.m_partId0;
+			Contact.PartId2 = Point.m_partId1;
+			Contact.Index1 = Point.m_index0;
+			Contact.Index2 = Point.m_index1;
+			Contact.ContactPointFlags = Point.m_contactPointFlags;
+			Contact.LifeTime = Point.m_lifeTime;
+
+			btCollisionObject* Body1 = (btCollisionObject*)Object1->getCollisionObject();
+			btCollisionObject* Body2 = (btCollisionObject*)Object2->getCollisionObject();
+			return (btScalar)Callback(&Contact, CollisionBody(Body1), CollisionBody(Body2));
+		}
+	};
+
+	class FindRayContactsHandler : public btCollisionWorld::RayResultCallback
+	{
+	public:
+		int(*Callback)(Tomahawk::Compute::RayContact*, const Tomahawk::Compute::CollisionBody&) = nullptr;
+
+	public:
+		btScalar addSingleResult(btCollisionWorld::LocalRayResult& RayResult, bool NormalInWorldSpace)
+		{
+			using namespace Tomahawk::Compute;
+			if (!Callback || !RayResult.m_collisionObject)
+				return 0;
+
+			RayContact Contact;
+			Contact.HitNormalLocal = V3Bt(RayResult.m_hitNormalLocal);
+			Contact.NormalInWorldSpace = NormalInWorldSpace;
+			Contact.HitFraction = RayResult.m_hitFraction;
+			Contact.ClosestHitFraction = m_closestHitFraction;
+
+			btCollisionObject* Body1 = (btCollisionObject*)RayResult.m_collisionObject;
+			return (btScalar)Callback(&Contact, CollisionBody(Body1));
+		}
+	};
+}
+
 namespace Tomahawk
 {
 	namespace Compute
 	{
-		class FindContactsHandler : public btCollisionWorld::ContactResultCallback
-		{
-		public:
-			int(*Callback)(ShapeContact*, const CollisionBody&, const CollisionBody&) = nullptr;
-
-		public:
-			btScalar addSingleResult(btManifoldPoint& Point, const btCollisionObjectWrapper* Object1, int PartId0, int Index0, const btCollisionObjectWrapper* Object2, int PartId1, int Index1)
-			{
-				if (!Callback || !Object1 || !Object1->getCollisionObject() || !Object2 || !Object2->getCollisionObject())
-					return 0;
-
-				ShapeContact Contact;
-				Contact.LocalPoint1 = Vector3(Point.m_localPointA.getX(), Point.m_localPointA.getY(), Point.m_localPointA.getZ());
-				Contact.LocalPoint2 = Vector3(Point.m_localPointB.getX(), Point.m_localPointB.getY(), Point.m_localPointB.getZ());
-				Contact.PositionWorld1 = Vector3(Point.getPositionWorldOnA().getX(), Point.getPositionWorldOnA().getY(), Point.getPositionWorldOnA().getZ());
-				Contact.PositionWorld2 = Vector3(Point.getPositionWorldOnB().getX(), Point.getPositionWorldOnB().getY(), Point.getPositionWorldOnB().getZ());
-				Contact.NormalWorld = Vector3(Point.m_normalWorldOnB.getX(), Point.m_normalWorldOnB.getY(), Point.m_normalWorldOnB.getZ());
-				Contact.LateralFrictionDirection1 = Vector3(Point.m_lateralFrictionDir1.getX(), Point.m_lateralFrictionDir1.getY(), Point.m_lateralFrictionDir1.getZ());
-				Contact.LateralFrictionDirection2 = Vector3(Point.m_lateralFrictionDir2.getX(), Point.m_lateralFrictionDir2.getY(), Point.m_lateralFrictionDir2.getZ());
-				Contact.Distance = Point.m_distance1;
-				Contact.CombinedFriction = Point.m_combinedFriction;
-				Contact.CombinedRollingFriction = Point.m_combinedRollingFriction;
-				Contact.CombinedSpinningFriction = Point.m_combinedSpinningFriction;
-				Contact.CombinedRestitution = Point.m_combinedRestitution;
-				Contact.AppliedImpulse = Point.m_appliedImpulse;
-				Contact.AppliedImpulseLateral1 = Point.m_appliedImpulseLateral1;
-				Contact.AppliedImpulseLateral2 = Point.m_appliedImpulseLateral2;
-				Contact.ContactMotion1 = Point.m_contactMotion1;
-				Contact.ContactMotion2 = Point.m_contactMotion2;
-				Contact.ContactCFM = Point.m_contactCFM;
-				Contact.CombinedContactStiffness = Point.m_combinedContactStiffness1;
-				Contact.ContactERP = Point.m_contactERP;
-				Contact.CombinedContactDamping = Point.m_combinedContactDamping1;
-				Contact.FrictionCFM = Point.m_frictionCFM;
-				Contact.PartId1 = Point.m_partId0;
-				Contact.PartId2 = Point.m_partId1;
-				Contact.Index1 = Point.m_index0;
-				Contact.Index2 = Point.m_index1;
-				Contact.ContactPointFlags = Point.m_contactPointFlags;
-				Contact.LifeTime = Point.m_lifeTime;
-
-				btCollisionObject* Body1 = (btCollisionObject*)Object1->getCollisionObject();
-				btCollisionObject* Body2 = (btCollisionObject*)Object2->getCollisionObject();
-				return (btScalar)Callback(&Contact, CollisionBody(Body1), CollisionBody(Body2));
-			}
-		};
-
-		class FindRayContactsHandler : public btCollisionWorld::RayResultCallback
-		{
-		public:
-			int(*Callback)(RayContact*, const CollisionBody&) = nullptr;
-
-		public:
-			btScalar addSingleResult(btCollisionWorld::LocalRayResult& RayResult, bool NormalInWorldSpace)
-			{
-				if (!Callback || !RayResult.m_collisionObject)
-					return 0;
-
-				RayContact Contact;
-				Contact.HitNormalLocal = V3Bt(RayResult.m_hitNormalLocal);
-				Contact.NormalInWorldSpace = NormalInWorldSpace;
-				Contact.HitFraction = RayResult.m_hitFraction;
-				Contact.ClosestHitFraction = m_closestHitFraction;
-
-				btCollisionObject* Body1 = (btCollisionObject*)RayResult.m_collisionObject;
-				return (btScalar)Callback(&Contact, CollisionBody(Body1));
-			}
-		};
-
 		Vector2::Vector2()
 		{
 			X = 0;

@@ -3078,6 +3078,13 @@ namespace Tomahawk
 				if (It == Queries->end())
 				{
 					Safe->unlock();
+					if (Once && Map != nullptr)
+					{
+						for (auto& Item : *Map)
+							TH_RELEASE(Item.second);
+						Map->clear();
+					}
+
 					return nullptr;
 				}
 
@@ -3086,13 +3093,27 @@ namespace Tomahawk
 					TDocument* Result = Document::Copy(It->second.Cache);
 					Safe->unlock();
 
+					if (Once && Map != nullptr)
+					{
+						for (auto& Item : *Map)
+							TH_RELEASE(Item.second);
+						Map->clear();
+					}
+
 					return Result;
 				}
 
-				if (!Map)
+				if (!Map || Map->empty())
 				{
 					TDocument* Result = Document::Create(It->second.Request);
 					Safe->unlock();
+
+					if (Once && Map != nullptr)
+					{
+						for (auto& Item : *Map)
+							TH_RELEASE(Item.second);
+						Map->clear();
+					}
 
 					return Result;
 				}
@@ -3108,7 +3129,7 @@ namespace Tomahawk
 						Result.Replace(TH_PREFIX_STR "<" + Sub.first + '>', Value);
 
 					if (Once)
-						delete Sub.second;
+						TH_RELEASE(Sub.second);
 				}
 
 				if (Once)
@@ -3117,6 +3138,52 @@ namespace Tomahawk
 				TDocument* Data = Document::Create(Origin.Request);
 				if (!Data)
 					TH_ERROR("could not construct query: \"%s\"", Name.c_str());
+
+				return Data;
+			}
+			TDocument* Driver::GetSubquery(const char* Buffer, QueryMap* Map, bool Once)
+			{
+				if (!Buffer || Buffer[0] == '\0')
+				{
+					if (Once && Map != nullptr)
+					{
+						for (auto& Item : *Map)
+							TH_RELEASE(Item.second);
+						Map->clear();
+					}
+
+					return nullptr;
+				}
+
+				if (!Map || Map->empty())
+				{
+					if (Once && Map != nullptr)
+					{
+						for (auto& Item : *Map)
+							TH_RELEASE(Item.second);
+						Map->clear();
+					}
+
+					return Document::Create((const unsigned char*)Buffer, strlen(Buffer));
+				}
+
+				Rest::Stroke Result(Buffer, strlen(Buffer));
+				for (auto& Sub : *Map)
+				{
+					std::string Value = GetJSON(Sub.second);
+					if (!Value.empty())
+						Result.Replace(TH_PREFIX_STR "<" + Sub.first + '>', Value);
+
+					if (Once)
+						TH_RELEASE(Sub.second);
+				}
+
+				if (Once)
+					Map->clear();
+
+				TDocument* Data = Document::Create(Result.R());
+				if (!Data)
+					TH_ERROR("could not construct subquery:\n%s", Result.Get());
 
 				return Data;
 			}

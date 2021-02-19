@@ -68,14 +68,14 @@ namespace Tomahawk
 				int64_t Index;
 			};
 
-			class TH_OUT Asset : public Processor
+			class TH_OUT Asset final : public Processor
 			{
 			public:
 				Asset(ContentManager* Manager);
 				void* Deserialize(Rest::Stream* Stream, uint64_t Length, uint64_t Offset, const Rest::VariantArgs& Args) override;
 			};
 
-			class TH_OUT SceneGraph : public Processor
+			class TH_OUT SceneGraph final : public Processor
 			{
 			public:
 				SceneGraph(ContentManager* Manager);
@@ -83,7 +83,7 @@ namespace Tomahawk
 				bool Serialize(Rest::Stream* Stream, void* Object, const Rest::VariantArgs& Args) override;
 			};
 
-			class TH_OUT AudioClip : public Processor
+			class TH_OUT AudioClip final : public Processor
 			{
 			public:
 				AudioClip(ContentManager* Manager);
@@ -95,7 +95,7 @@ namespace Tomahawk
 				void* DeserializeOGG(Rest::Stream* Stream, uint64_t Length, uint64_t Offset, const Rest::VariantArgs& Args);
 			};
 
-			class TH_OUT Texture2D : public Processor
+			class TH_OUT Texture2D final : public Processor
 			{
 			public:
 				Texture2D(ContentManager* Manager);
@@ -105,7 +105,7 @@ namespace Tomahawk
 				void* Deserialize(Rest::Stream* Stream, uint64_t Length, uint64_t Offset, const Rest::VariantArgs& Args) override;
 			};
 
-			class TH_OUT Shader : public Processor
+			class TH_OUT Shader final : public Processor
 			{
 			public:
 				Shader(ContentManager* Manager);
@@ -115,7 +115,7 @@ namespace Tomahawk
 				void* Deserialize(Rest::Stream* Stream, uint64_t Length, uint64_t Offset, const Rest::VariantArgs& Args) override;
 			};
 
-			class TH_OUT Model : public Processor
+			class TH_OUT Model final : public Processor
 			{
 			public:
 				Graphics::MeshBuffer::Desc Options;
@@ -137,7 +137,7 @@ namespace Tomahawk
 				static std::vector<std::pair<int64_t, Compute::Joint>>::iterator FindJoint(std::vector<std::pair<int64_t, Compute::Joint>>& Joints, const std::string& Name);
 			};
 
-			class TH_OUT SkinModel : public Processor
+			class TH_OUT SkinModel final : public Processor
 			{
 			public:
 				Graphics::SkinMeshBuffer::Desc Options;
@@ -158,7 +158,7 @@ namespace Tomahawk
 				static void ProcessKeys(std::vector<Compute::AnimatorKey>* Keys, std::unordered_map<std::string, MeshNode>* Joints);
 			};
 
-			class TH_OUT Document : public Processor
+			class TH_OUT Document final : public Processor
 			{
 			public:
 				Document(ContentManager* Manager);
@@ -166,7 +166,7 @@ namespace Tomahawk
 				bool Serialize(Rest::Stream* Stream, void* Object, const Rest::VariantArgs& Args) override;
 			};
 
-			class TH_OUT Server : public Processor
+			class TH_OUT Server final : public Processor
 			{
 			public:
 				std::function<void(void*, Rest::Document*)> Callback;
@@ -176,7 +176,7 @@ namespace Tomahawk
 				void* Deserialize(Rest::Stream* Stream, uint64_t Length, uint64_t Offset, const Rest::VariantArgs& Args) override;
 			};
 
-			class TH_OUT Shape : public Processor
+			class TH_OUT Shape final : public Processor
 			{
 			public:
 				Shape(ContentManager* Manager);

@@ -15,7 +15,7 @@ namespace Tomahawk
 				static void Create();
 			};
 
-			class TH_OUT Lowpass : public AudioFilter
+			class TH_OUT Lowpass final : public AudioFilter
 			{
 			public:
 				float GainHF = 1.0f;
@@ -33,7 +33,7 @@ namespace Tomahawk
 				TH_COMPONENT("lowpass-filter");
 			};
 
-			class TH_OUT Highpass : public AudioFilter
+			class TH_OUT Highpass final : public AudioFilter
 			{
 			public:
 				float GainLF = 1.0f;
@@ -51,7 +51,7 @@ namespace Tomahawk
 				TH_COMPONENT("highpass-filter");
 			};
 
-			class TH_OUT Bandpass : public AudioFilter
+			class TH_OUT Bandpass final : public AudioFilter
 			{
 			public:
 				float GainHF = 1.0f;

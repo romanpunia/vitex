@@ -1142,12 +1142,13 @@ namespace Tomahawk
 				for (auto It = Illuminators->Begin(); It != Illuminators->End(); It++)
 				{
 					Engine::Components::Illuminator* Area = (Engine::Components::Illuminator*)*It;
-					if (Area->GetEntity()->Distance >= Distance)
-						continue;
-
-					Distance = Area->GetEntity()->Distance;
-					if (System->PassCullable(Area, CullResult_Always, nullptr))
-						Src = Area;
+					float Subdistance = Area->GetEntity()->Distance;
+					if (Subdistance < Distance)
+					{
+						Distance = Subdistance;
+						if (System->PassCullable(Area, CullResult_Always, nullptr))
+							Src = Area;
+					}
 				}
 
 				if (!Src)
@@ -1163,8 +1164,9 @@ namespace Tomahawk
 				if (!Src->Tick.TickEvent(Time->GetElapsedTime()))
 					return nullptr;
 
-				VoxelBuffer.Center = Src->GetEntity()->Transform->Position.InvertZ();
-				VoxelBuffer.Scale = Src->GetEntity()->Transform->Scale;
+				Entity* Base = Src->GetEntity();
+				VoxelBuffer.Center = Base->Transform->Position.InvertZ();
+				VoxelBuffer.Scale = Base->Transform->Scale;
 				VoxelBuffer.MipLevels = (float)Src->GetMipLevels();
 				VoxelBuffer.Size = (float)Src->GetBufferSize();
 				VoxelBuffer.RayStep = Src->RayStep;
@@ -1417,17 +1419,17 @@ namespace Tomahawk
 				}
 
 				for (auto It = Shadows.PointLight.begin(); It != Shadows.PointLight.end(); It++)
-					delete *It;
+					TH_RELEASE(*It);
 
 				for (auto It = Shadows.SpotLight.begin(); It != Shadows.SpotLight.end(); It++)
-					delete *It;
+					TH_RELEASE(*It);
 
 				for (auto It = Shadows.LineLight.begin(); It != Shadows.LineLight.end(); It++)
 				{
 					if (*It != nullptr)
 					{
 						for (auto* Target : *(*It))
-							delete Target;
+							TH_RELEASE(Target);
 					}
 
 					delete *It;
@@ -1643,6 +1645,9 @@ namespace Tomahawk
 				if (!Inside && Storage.Area == Area && Storage.Inside == Inside)
 					return;
 
+				//if (!Application::Get()->Activity->IsKeyDown(Graphics::KeyCode_0))
+					//return;
+
 				Graphics::Texture3D* In[3], *Out[3];
 				if (!State.Scene->GetVoxelBuffer(In, Out))
 					return;
@@ -1681,6 +1686,7 @@ namespace Tomahawk
 				uint32_t Y = (uint32_t)(VoxelBuffer.Size.Y / 8.0f);
 				uint32_t Z = (uint32_t)(VoxelBuffer.Size.Z / 8.0f);
 
+				State.Distance = 1.0;
 				State.Device->ClearWritable(LightBuffer);
 				State.Device->SetWriteable(Out, 3, 1, false);
 				State.Device->SetWriteable(&LightBuffer, 1, 1, true);
@@ -1904,6 +1910,11 @@ namespace Tomahawk
 				State.Device->SetBuffer(Shaders.Ambient[0], 3, TH_VS | TH_PS);
 				State.Device->UpdateBuffer(Shaders.Ambient[0], &AmbientLight);
 				State.Device->Draw(6, 0);
+			}
+			void Lighting::ClearStorage()
+			{
+				Storage.Area = nullptr;
+				LightBuffer = nullptr;
 			}
 			void Lighting::SetSkyMap(Graphics::Texture2D* Cubemap)
 			{

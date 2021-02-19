@@ -6,54 +6,58 @@
 #include <iostream>
 #include <sstream>
 
+namespace
+{
+	class CByteCodeStream : public asIBinaryStream
+	{
+	private:
+		std::vector<asBYTE> Code;
+		int ReadPos, WritePos;
+
+	public:
+		CByteCodeStream() : ReadPos(0), WritePos(0)
+		{
+		}
+		CByteCodeStream(const std::vector<asBYTE>& Data) : Code(Data), ReadPos(0), WritePos(0)
+		{
+		}
+		int Read(void* Ptr, asUINT Size)
+		{
+			if (!Ptr || !Size)
+				return 0;
+
+			memcpy(Ptr, &Code[ReadPos], Size);
+			ReadPos += Size;
+
+			return 0;
+		}
+		int Write(const void* Ptr, asUINT Size)
+		{
+			if (!Ptr || !Size)
+				return 0;
+
+			Code.resize(Code.size() + Size);
+			memcpy(&Code[WritePos], Ptr, Size);
+			WritePos += Size;
+
+			return 0;
+		}
+		std::vector<asBYTE>& GetCode()
+		{
+			return Code;
+		}
+		asUINT GetSize()
+		{
+			return (asUINT)Code.size();
+		}
+	};
+
+}
+
 namespace Tomahawk
 {
 	namespace Script
 	{
-		class CByteCodeStream : public asIBinaryStream
-		{
-		private:
-			std::vector<asBYTE> Code;
-			int ReadPos, WritePos;
-
-		public:
-			CByteCodeStream() : ReadPos(0), WritePos(0)
-			{
-			}
-			CByteCodeStream(const std::vector<asBYTE>& Data) : Code(Data), ReadPos(0), WritePos(0)
-			{
-			}
-			int Read(void* Ptr, asUINT Size)
-			{
-				if (!Ptr || !Size)
-					return 0;
-
-				memcpy(Ptr, &Code[ReadPos], Size);
-				ReadPos += Size;
-
-				return 0;
-			}
-			int Write(const void* Ptr, asUINT Size)
-			{
-				if (!Ptr || !Size)
-					return 0;
-
-				Code.resize(Code.size() + Size);
-				memcpy(&Code[WritePos], Ptr, Size);
-				WritePos += Size;
-
-				return 0;
-			}
-			std::vector<asBYTE>& GetCode()
-			{
-				return Code;
-			}
-			asUINT GetSize()
-			{
-				return (asUINT)Code.size();
-			}
-		};
-
 		int VMFuncStore::AtomicNotifyGC(const char* TypeName, void* Object)
 		{
 			if (!TypeName || !Object)

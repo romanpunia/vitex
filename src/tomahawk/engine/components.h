@@ -11,7 +11,7 @@ namespace Tomahawk
 		{
 			typedef std::function<void(Script::VMContext*)> InvocationCallback;
 
-			class TH_OUT Model : public Drawable
+			class TH_OUT Model final : public Drawable
 			{
 			protected:
 				Graphics::Model* Instance = nullptr;
@@ -33,7 +33,7 @@ namespace Tomahawk
 				TH_COMPONENT("model");
 			};
 
-			class TH_OUT Skin : public Drawable
+			class TH_OUT Skin final : public Drawable
 			{
 			protected:
 				Graphics::SkinModel* Instance = nullptr;
@@ -59,7 +59,7 @@ namespace Tomahawk
 				TH_COMPONENT("skin");
 			};
 
-			class TH_OUT Emitter : public Drawable
+			class TH_OUT Emitter final : public Drawable
 			{
 			protected:
 				Graphics::InstanceBuffer* Instance = nullptr;
@@ -84,7 +84,7 @@ namespace Tomahawk
 				TH_COMPONENT("emitter");
 			};
 
-			class TH_OUT SoftBody : public Drawable
+			class TH_OUT SoftBody final : public Drawable
 			{
 			protected:
 				Compute::SoftBody* Instance = nullptr;
@@ -124,7 +124,7 @@ namespace Tomahawk
 				TH_COMPONENT("soft-body");
 			};
 
-			class TH_OUT Decal : public Drawable
+			class TH_OUT Decal final : public Drawable
 			{
 			public:
 				Compute::Matrix4x4 Projection;
@@ -147,7 +147,7 @@ namespace Tomahawk
 				TH_COMPONENT("decal");
 			};
 
-			class TH_OUT SkinAnimator : public Component
+			class TH_OUT SkinAnimator final : public Component
 			{
 			private:
 				Skin* Instance = nullptr;
@@ -187,7 +187,7 @@ namespace Tomahawk
 				TH_COMPONENT("skin-animator");
 			};
 
-			class TH_OUT KeyAnimator : public Component
+			class TH_OUT KeyAnimator final : public Component
 			{
 			private:
 				std::string Reference;
@@ -222,7 +222,7 @@ namespace Tomahawk
 				TH_COMPONENT("key-animator");
 			};
 
-			class TH_OUT EmitterAnimator : public Component
+			class TH_OUT EmitterAnimator final : public Component
 			{
 			private:
 				Emitter* Base = nullptr;
@@ -255,7 +255,7 @@ namespace Tomahawk
 				TH_COMPONENT("emitter-animator");
 			};
 
-			class TH_OUT RigidBody : public Component
+			class TH_OUT RigidBody final : public Component
 			{
 			private:
 				Compute::UnmanagedShape* Hull = nullptr;
@@ -285,7 +285,7 @@ namespace Tomahawk
 				TH_COMPONENT("rigid-body");
 			};
 
-			class TH_OUT Acceleration : public Component
+			class TH_OUT Acceleration final : public Component
 			{
 			private:
 				Compute::RigidBody* RigidBody = nullptr;
@@ -312,7 +312,7 @@ namespace Tomahawk
 				TH_COMPONENT("acceleration");
 			};
 
-			class TH_OUT SliderConstraint : public Component
+			class TH_OUT SliderConstraint final : public Component
 			{
 			private:
 				struct
@@ -342,7 +342,7 @@ namespace Tomahawk
 				TH_COMPONENT("slider-constraint");
 			};
 
-			class TH_OUT FreeLook : public Component
+			class TH_OUT FreeLook final : public Component
 			{
 			private:
 				Graphics::Activity* Activity;
@@ -364,7 +364,7 @@ namespace Tomahawk
 				TH_COMPONENT("free-look");
 			};
 
-			class TH_OUT Fly : public Component
+			class TH_OUT Fly final : public Component
 			{
 			private:
 				Graphics::Activity* Activity;
@@ -395,7 +395,7 @@ namespace Tomahawk
 				TH_COMPONENT("fly");
 			};
 
-			class TH_OUT AudioSource : public Component
+			class TH_OUT AudioSource final : public Component
 			{
 			private:
 				Compute::Vector3 LastPosition;
@@ -417,7 +417,7 @@ namespace Tomahawk
 				TH_COMPONENT("audio-source");
 			};
 
-			class TH_OUT AudioListener : public Component
+			class TH_OUT AudioListener final : public Component
 			{
 			private:
 				Compute::Vector3 LastPosition;
@@ -438,7 +438,7 @@ namespace Tomahawk
 				TH_COMPONENT("audio-listener");
 			};
 
-			class TH_OUT PointLight : public Cullable
+			class TH_OUT PointLight final : public Cullable
 			{
 			public:
 				struct
@@ -475,7 +475,7 @@ namespace Tomahawk
 				TH_COMPONENT("point-light");
 			};
 
-			class TH_OUT SpotLight : public Cullable
+			class TH_OUT SpotLight final : public Cullable
 			{
 			public:
 				struct
@@ -514,7 +514,7 @@ namespace Tomahawk
 				TH_COMPONENT("spot-light");
 			};
 
-			class TH_OUT LineLight : public Component
+			class TH_OUT LineLight final : public Component
 			{
 			public:
 				struct
@@ -560,7 +560,7 @@ namespace Tomahawk
 				TH_COMPONENT("line-light");
 			};
 
-			class TH_OUT SurfaceLight : public Cullable
+			class TH_OUT SurfaceLight final : public Cullable
 			{
 			private:
 				Graphics::Texture2D* DiffuseMapX[2] = { nullptr };
@@ -607,7 +607,7 @@ namespace Tomahawk
 				TH_COMPONENT("surface-light");
 			};
 
-			class TH_OUT Illuminator : public Cullable
+			class TH_OUT Illuminator final : public Cullable
 			{
 			private:
 				Graphics::Texture3D* Buffer;
@@ -628,6 +628,7 @@ namespace Tomahawk
 				virtual ~Illuminator() override;
 				virtual void Deserialize(ContentManager* Content, Rest::Document* Node) override;
 				virtual void Serialize(ContentManager* Content, Rest::Document* Node) override;
+				virtual void Asleep() override;
 				virtual float Cull(const Viewer& View) override;
 				virtual Component* Copy(Entity* New) override;
 				void SetBufferSize(size_t NewSize);
@@ -639,7 +640,7 @@ namespace Tomahawk
 				TH_COMPONENT("illuminator");
 			};
 
-			class TH_OUT Camera : public Component
+			class TH_OUT Camera final : public Component
 			{
 			public:
 				enum ProjectionMode
@@ -690,7 +691,7 @@ namespace Tomahawk
 				TH_COMPONENT("camera");
 			};
 
-			class TH_OUT Scriptable : public Component
+			class TH_OUT Scriptable final : public Component
 			{
 			public:
 				enum SourceType

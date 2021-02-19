@@ -15,7 +15,7 @@ namespace Tomahawk
 				static void Create();
 			};
 
-			class TH_OUT Reverb : public AudioEffect
+			class TH_OUT Reverb final : public AudioEffect
 			{
 			private:
 				bool EAX;
@@ -57,7 +57,7 @@ namespace Tomahawk
 				TH_COMPONENT("reverb-effect");
 			};
 
-			class TH_OUT Chorus : public AudioEffect
+			class TH_OUT Chorus final : public AudioEffect
 			{
 			public:
 				float Rate = 1.1f;
@@ -79,7 +79,7 @@ namespace Tomahawk
 				TH_COMPONENT("chorus-effect");
 			};
 
-			class TH_OUT Distortion : public AudioEffect
+			class TH_OUT Distortion final : public AudioEffect
 			{
 			public:
 				float Edge = 0.2f;
@@ -100,7 +100,7 @@ namespace Tomahawk
 				TH_COMPONENT("distortion-effect");
 			};
 
-			class TH_OUT Echo : public AudioEffect
+			class TH_OUT Echo final : public AudioEffect
 			{
 			public:
 				float Delay = 0.1f;
@@ -121,7 +121,7 @@ namespace Tomahawk
 				TH_COMPONENT("echo-effect");
 			};
 
-			class TH_OUT Flanger : public AudioEffect
+			class TH_OUT Flanger final : public AudioEffect
 			{
 			public:
 				float Rate = 0.27f;
@@ -143,7 +143,7 @@ namespace Tomahawk
 				TH_COMPONENT("flanger-effect");
 			};
 
-			class TH_OUT FrequencyShifter : public AudioEffect
+			class TH_OUT FrequencyShifter final : public AudioEffect
 			{
 			public:
 				float Frequency = 0.0f;
@@ -162,7 +162,7 @@ namespace Tomahawk
 				TH_COMPONENT("frequency-shifter-effect");
 			};
 
-			class TH_OUT VocalMorpher : public AudioEffect
+			class TH_OUT VocalMorpher final : public AudioEffect
 			{
 			public:
 				float Rate = 1.41f;
@@ -184,7 +184,7 @@ namespace Tomahawk
 				TH_COMPONENT("vocal-morpher-effect");
 			};
 
-			class TH_OUT PitchShifter : public AudioEffect
+			class TH_OUT PitchShifter final : public AudioEffect
 			{
 			public:
 				int CoarseTune = 12;
@@ -202,7 +202,7 @@ namespace Tomahawk
 				TH_COMPONENT("pitch-shifter-effect");
 			};
 
-			class TH_OUT RingModulator : public AudioEffect
+			class TH_OUT RingModulator final : public AudioEffect
 			{
 			public:
 				float Frequency = 440.0f;
@@ -221,7 +221,7 @@ namespace Tomahawk
 				TH_COMPONENT("ring-modulator-effect");
 			};
 
-			class TH_OUT Autowah : public AudioEffect
+			class TH_OUT Autowah final : public AudioEffect
 			{
 			public:
 				float AttackTime = 0.06f;
@@ -241,7 +241,7 @@ namespace Tomahawk
 				TH_COMPONENT("autowah-effect");
 			};
 
-			class TH_OUT Compressor : public AudioEffect
+			class TH_OUT Compressor final : public AudioEffect
 			{
 			public:
 				Compressor();
@@ -255,7 +255,7 @@ namespace Tomahawk
 				TH_COMPONENT("compressor-effect");
 			};
 
-			class TH_OUT Equalizer : public AudioEffect
+			class TH_OUT Equalizer final : public AudioEffect
 			{
 			public:
 				float LowGain = 1.0f;

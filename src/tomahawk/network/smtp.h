@@ -54,7 +54,7 @@ namespace Tomahawk
 				char RemoteAddress[48] = { 0 };
 			};
 
-			class TH_OUT Client : public SocketClient
+			class TH_OUT Client final : public SocketClient
 			{
 			private:
 				FILE* AttachmentFile;

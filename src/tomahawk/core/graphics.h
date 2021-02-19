@@ -723,6 +723,15 @@ namespace Tomahawk
 			ShaderType_All = ShaderType_Vertex | ShaderType_Pixel | ShaderType_Geometry | ShaderType_Hull | ShaderType_Domain | ShaderType_Compute
 		};
 
+		enum ShaderLang
+		{
+			ShaderLang_NONE,
+			ShaderLang_HLSL,
+			ShaderLang_GLSL,
+			ShaderLang_MSL,
+			ShaderLang_SPV
+		};
+
 		enum AttributeType
 		{
 			AttributeType_Byte,
@@ -1060,6 +1069,7 @@ namespace Tomahawk
 				std::vector<std::string> Defines;
 				std::string Filename;
 				std::string Data;
+				ShaderLang Lang = ShaderLang_NONE;
 			};
 
 		protected:
@@ -1561,6 +1571,7 @@ namespace Tomahawk
 			{
 				std::string Name;
 				std::string Code;
+				ShaderLang Lang;
 			};
 
 		protected:
@@ -1729,8 +1740,13 @@ namespace Tomahawk
 			virtual bool IsValid() = 0;
 			void Lock();
 			void Unlock();
-			void AddSection(const std::string& Name, const std::string& Code);
-			void RemoveSection(const std::string& Name);
+			bool Preprocess(Shader::Desc& Subresult);
+			bool Transpile(std::string* Source, ShaderLang From, ShaderLang To);
+			bool AddSection(const std::string& Name, const std::string& Code);
+			bool RemoveSection(const std::string& Name);
+			bool GetSection(const std::string& Name, Section** Result, bool Internal = false);
+			bool GetSection(const std::string& Name, Shader::Desc* Result);
+			std::string GetShaderMain(ShaderType Type);
 			DepthStencilState* GetDepthStencilState(const std::string& Name);
 			BlendState* GetBlendState(const std::string& Name);
 			RasterizerState* GetRasterizerState(const std::string& Name);
@@ -1743,16 +1759,14 @@ namespace Tomahawk
 			unsigned int GetPresentFlags();
 			unsigned int GetCompileFlags();
 			unsigned int GetMipLevel(unsigned int Width, unsigned int Height);
-			bool GetSection(const std::string& Name, std::string* Out, bool Internal = false);
 			VSync GetVSyncMode();
 			bool IsDebug();
 
 		protected:
 			virtual TextureCube* CreateTextureCubeInternal(void* Resource[6]) = 0;
-			bool Preprocess(Shader::Desc& ShaderCode);
-			void InitStates();
-			void InitSections();
-			void FreeProxy();
+			void CreateStates();
+			void CreateSections();
+			void ReleaseProxy();
 
 		public:
 			static GraphicsDevice* Create(const Desc& I);

@@ -21,52 +21,52 @@ static const float ConeWeights[] =
 
 float4 Raymarch(float3 Position, float3 Normal, float3 Direction, float Ratio)
 {
-	float3 Step = VxDistance / VxScale;
+	float3 Step = vxb_Distance / vxb_Scale;
     float3 Origin = Position + Normal * Step * 2.828426;
 	float3 Distance = Step * 0.5;
 	float4 Result = 0.0;
     float Count = 0.0;
 
-	while (Distance.x < VxScale.x && Result.w < 1.0)
+	while (Distance.x < vxb_Scale.x && Result.w < 1.0)
 	{
 		float3 Voxel = GetVoxel(Origin + Direction * Distance);
-        [branch] if (!IsInVoxelGrid(Voxel) || Count++ >= VxMaxSteps)
+        [branch] if (!IsInVoxelGrid(Voxel) || Count++ >= vxb_MaxSteps)
             break;
         
 		float3 Radius = max(2.0 * Distance * Ratio, Step);
-		float Level = GetAvg(log2(Radius * VxScale));
-        [branch] if (Level > VxMipLevels)
+		float Level = GetAvg(log2(Radius * vxb_Scale));
+        [branch] if (Level > vxb_Mips)
             break;
 
         float4 Diffuse = GetLight(Voxel, Level);
 		Result += Diffuse * (1.0 - Result.w);
-		Distance += Radius * VxStep / max(1.0, Level);
+		Distance += Radius * vxb_Step / max(1.0, Level);
 	}
 
 	return Result;
 }
 float4 RaymarchDensity(float3 Position, float3 Normal, float3 Direction, float Ratio, out float Occlusion)
 {
-	float3 Step = VxDistance / VxScale;
+	float3 Step = vxb_Distance / vxb_Scale;
     float3 Origin = Position + Normal * Step * 2.828426;
 	float3 Distance = Step * 0.5;
 	float4 Result = 0.0;
     float Count = 0.0;
 
-	while (Distance.x < VxScale.x && Result.w < 1.0)
+	while (Distance.x < vxb_Scale.x && Result.w < 1.0)
 	{
 		float3 Voxel = GetVoxel(Origin + Direction * Distance);
-        [branch] if (!IsInVoxelGrid(Voxel) || Count++ >= VxMaxSteps)
+        [branch] if (!IsInVoxelGrid(Voxel) || Count++ >= vxb_MaxSteps)
             break;
         
 		float3 Radius = max(2.0 * Distance * Ratio, Step);
-		float Level = GetAvg(log2(Radius * VxScale));
-        [branch] if (Level > VxMipLevels)
+		float Level = GetAvg(log2(Radius * vxb_Scale));
+        [branch] if (Level > vxb_Mips)
             break;
 
         float4 Diffuse = GetLight(Voxel, Level);
 		Result += Diffuse * (1.0 - Result.w);
-		Distance += Radius * VxStep / max(1.0, Level);
+		Distance += Radius * vxb_Step / max(1.0, Level);
         Occlusion += Diffuse.w / (1.0 + 0.03 * GetAvg(Radius));
 	}
 
@@ -95,8 +95,8 @@ float4 GetRadiance(float3 Position, float3 Normal, float3 Metallic, out float Sh
         Occlusion += ConeWeights[i] * Ambient;
 	}
 
-    Occlusion = saturate(1.0 - Occlusion * VxShadows);
-    Shadow = lerp(1.0, min(1.0, Occlusion), VxOcclusion);
+    Occlusion = saturate(1.0 - Occlusion * vxb_Shadows);
+    Shadow = lerp(1.0, min(1.0, Occlusion), vxb_Occlusion);
 	Result = saturate(Result / 6.0);
     
     return Result;

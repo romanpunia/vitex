@@ -46,7 +46,7 @@ float3 GetDirection(float3 Tangent, float3 Bitangent, float3 Normal, float4 Posi
     TangentSpace[2] = Normal;
     TangentSpace = transpose(TangentSpace);
 
-    return mul(normalize(ViewPosition - Position.xyz), TangentSpace) / float3(Scale, 1.0);
+    return mul(normalize(vb_Position - Position.xyz), TangentSpace) / float3(Scale, 1.0);
 }
 float3 GetNormal(float2 TexCoord, float3 Normal, float3 Tangent, float3 Bitangent)
 {
@@ -56,8 +56,4 @@ float3 GetNormal(float2 TexCoord, float3 Normal, float3 Tangent, float3 Bitangen
 float4 GetDiffuse(float2 TexCoord)
 {
     return DiffuseMap.Sample(Sampler, TexCoord);
-}
-Material GetMaterial(float Material_Id)
-{
-    return Materials[Material_Id];
 }

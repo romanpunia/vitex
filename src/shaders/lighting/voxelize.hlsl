@@ -8,7 +8,7 @@ static const float Alpha = 0.005;
 
 float GetDensity(float Density)
 {
-    return Density / max(1.0, VxLights.x + VxLights.y + VxLights.z);
+    return Density / max(1.0, vxb_Lights.x + vxb_Lights.y + vxb_Lights.z);
 }
 float GetShadow(float3 Position, float3 Direction, float Length) 
 {
@@ -27,7 +27,7 @@ float GetShadow(float3 Position, float3 Direction, float Length)
         Result += (1.0 - Result) * Density / Distance;
     }
 
-    return 1.0 - Result * Steps * VxBleeding;
+    return 1.0 - Result * Steps * vxb_Bleeding;
 }
 
 [numthreads(8, 8, 8)]
@@ -38,14 +38,14 @@ void cs_main(uint3 Voxel : SV_DispatchThreadID)
         return;
 
 	Fragment Frag = GetFragmentWithDiffuse(Diffuse, Voxel);
-	Material Mat = GetMaterial(Frag.Material);
+	Material Mat = Materials[Frag.Material];
 	float G = GetRoughness(Frag, Mat), i;
 	float3 M = GetMetallic(Frag, Mat);
-    float3 D = normalize(ViewPosition - Frag.Position);
+    float3 D = normalize(vb_Position - Frag.Position);
     float4 Result = float4(GetEmission(Frag, Mat), 0.0);
     float3 Origin = (float3)Voxel;
 
-    [loop] for (i = 0; i < VxLights.x; i++)
+    [loop] for (i = 0; i < vxb_Lights.x; i++)
     {
         PointLight Light = PointLights[i];
         float3 K = Light.Position - Frag.Position;
@@ -53,7 +53,7 @@ void cs_main(uint3 Voxel : SV_DispatchThreadID)
         [branch] if (A <= Alpha)
             continue;
         
-        [branch] if (Light.Softness > 0.0 && VxBleeding > 0.0)
+        [branch] if (Light.Softness > 0.0 && vxb_Bleeding > 0.0)
         {
             float3 V = GetVoxel(Light.Position) - Origin;
             A *= GetShadow(Origin, normalize(V), length(V));
@@ -66,7 +66,7 @@ void cs_main(uint3 Voxel : SV_DispatchThreadID)
         Result += float4(Light.Lighting * R, 1.0) * A;
     }
 
-    [loop] for (i = 0; i < VxLights.y; i++)
+    [loop] for (i = 0; i < vxb_Lights.y; i++)
     {
         SpotLight Light = SpotLights[i];
         float3 K = Light.Position - Frag.Position;
@@ -75,7 +75,7 @@ void cs_main(uint3 Voxel : SV_DispatchThreadID)
         [branch] if (A <= Alpha)
             continue;
         
-        [branch] if (Light.Softness > 0.0 && VxBleeding > 0.0)
+        [branch] if (Light.Softness > 0.0 && vxb_Bleeding > 0.0)
         {
             float3 V = GetVoxel(Light.Position) - Origin;
             A *= GetShadow(Origin, normalize(V), length(V));
@@ -87,15 +87,15 @@ void cs_main(uint3 Voxel : SV_DispatchThreadID)
         Result += float4(Light.Lighting * R, 1.0) * A;
     }
 
-    [loop] for (i = 0; i < VxLights.z; i++)
+    [loop] for (i = 0; i < vxb_Lights.z; i++)
     {
         LineLight Light = LineLights[i];
         float A = 1.0;
 
-        [branch] if (Light.Softness > 0.0 && VxBleeding > 0.0)
+        [branch] if (Light.Softness > 0.0 && vxb_Bleeding > 0.0)
         {
             float3 V = Light.Position * float3(1.0, -1.0, 1.0);
-            A = GetShadow(Origin, V, VxSize.x);
+            A = GetShadow(Origin, V, vxb_Size.x);
             [branch] if (A <= Alpha)
                 continue;
         }

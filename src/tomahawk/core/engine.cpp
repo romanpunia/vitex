@@ -15,246 +15,124 @@ namespace Tomahawk
 {
 	namespace Engine
 	{
-		Event::Event(const std::string& NewName, SceneGraph* Target, const Rest::VariantArgs& NewArgs) : Id(NewName), Args(NewArgs), TScene(Target), TEntity(nullptr), TComponent(nullptr)
+		AssetFile::AssetFile(char* SrcBuffer, size_t SrcSize) : Buffer(SrcBuffer), Size(SrcSize)
 		{
 		}
-		Event::Event(const std::string& NewName, Entity* Target, const Rest::VariantArgs& NewArgs) : Id(NewName), Args(NewArgs), TScene(nullptr), TEntity(Target), TComponent(nullptr)
+		AssetFile::~AssetFile()
 		{
+			if (Buffer != nullptr)
+				TH_FREE(Buffer);
 		}
-		Event::Event(const std::string& NewName, Component* Target, const Rest::VariantArgs& NewArgs) : Id(NewName), Args(NewArgs), TScene(nullptr), TEntity(nullptr), TComponent(Target)
+		char* AssetFile::GetBuffer()
 		{
+			return Buffer;
 		}
-		bool Event::Is(const std::string& Name)
+		size_t AssetFile::GetSize()
 		{
-			return Id == Name;
-		}
-		const std::string& Event::GetName()
-		{
-			return Id;
-		}
-		Component* Event::GetComponent()
-		{
-			return TComponent;
-		}
-		Entity* Event::GetEntity()
-		{
-			if (TComponent != nullptr)
-				return TComponent->GetEntity();
-
-			return TEntity;
-		}
-		SceneGraph* Event::GetScene()
-		{
-			if (TEntity != nullptr)
-				return TEntity->GetScene();
-
-			if (TComponent != nullptr)
-				return TComponent->GetEntity()->GetScene();
-
-			return TScene;
+			return Size;
 		}
 
-		Appearance::Appearance()
+		FragmentQuery::FragmentQuery() : Fragments(1), Satisfied(1), Query(nullptr)
 		{
+
 		}
-		Appearance::Appearance(const Appearance& Other)
+		FragmentQuery::~FragmentQuery()
 		{
-			if (Other.DiffuseMap != nullptr)
-				DiffuseMap = (Graphics::Texture2D*)Other.DiffuseMap->AddRef();
-
-			if (Other.NormalMap != nullptr)
-				NormalMap = (Graphics::Texture2D*)Other.NormalMap->AddRef();
-
-			if (Other.MetallicMap != nullptr)
-				MetallicMap = (Graphics::Texture2D*)Other.MetallicMap->AddRef();
-
-			if (Other.RoughnessMap != nullptr)
-				RoughnessMap = (Graphics::Texture2D*)Other.RoughnessMap->AddRef();
-
-			if (Other.HeightMap != nullptr)
-				HeightMap = (Graphics::Texture2D*)Other.HeightMap->AddRef();
-
-			if (Other.OcclusionMap != nullptr)
-				OcclusionMap = (Graphics::Texture2D*)Other.OcclusionMap->AddRef();
-
-			if (Other.EmissionMap != nullptr)
-				EmissionMap = (Graphics::Texture2D*)Other.EmissionMap->AddRef();
-
-			Diffuse = Other.Diffuse;
-			TexCoord = Other.TexCoord;
-			HeightAmount = Other.HeightAmount;
-			HeightBias = Other.HeightBias;
-			Material = Other.Material;
+			TH_RELEASE(Query);
 		}
-		Appearance::~Appearance()
+		bool FragmentQuery::Begin(Graphics::GraphicsDevice* Device)
 		{
-			TH_RELEASE(DiffuseMap);
-			TH_RELEASE(NormalMap);
-			TH_RELEASE(MetallicMap);
-			TH_RELEASE(RoughnessMap);
-			TH_RELEASE(HeightMap);
-			TH_RELEASE(OcclusionMap);
-			TH_RELEASE(EmissionMap);
-		}
-		bool Appearance::FillGeometry(Graphics::GraphicsDevice* Device) const
-		{
-			if (!Device || Material < 0)
+			if (!Device)
 				return false;
 
-			Device->Render.HasDiffuse = (float)(DiffuseMap != nullptr);
-			Device->Render.HasNormal = (float)(NormalMap != nullptr);
-			Device->Render.HasHeight = (float)(HeightMap != nullptr);
-			Device->Render.HeightAmount = HeightAmount;
-			Device->Render.HeightBias = HeightBias;
-			Device->Render.MaterialId = (float)Material;
-			Device->Render.Diffuse = Diffuse;
-			Device->Render.TexCoord = TexCoord;
-			Device->SetTexture2D(DiffuseMap, 1, TH_PS);
-			Device->SetTexture2D(NormalMap, 2, TH_PS);
-			Device->SetTexture2D(MetallicMap, 3, TH_PS);
-			Device->SetTexture2D(RoughnessMap, 4, TH_PS);
-			Device->SetTexture2D(HeightMap, 5, TH_PS);
-			Device->SetTexture2D(OcclusionMap, 6, TH_PS);
-			Device->SetTexture2D(EmissionMap, 7, TH_PS);
+			if (!Query)
+			{
+				Graphics::Query::Desc I;
+				I.Predicate = false;
+				I.AutoPass = false;
 
-			return true;
-		}
-		bool Appearance::FillVoxels(Graphics::GraphicsDevice* Device) const
-		{
-			if (!Device || Material < 0)
-				return false;
+				Query = Device->CreateQuery(I);
+			}
 
-			Device->Render.HasDiffuse = (float)(DiffuseMap != nullptr);
-			Device->Render.HasNormal = (float)(NormalMap != nullptr);
-			Device->Render.MaterialId = (float)Material;
-			Device->Render.Diffuse = Diffuse;
-			Device->Render.TexCoord = TexCoord;
-			Device->SetTexture2D(DiffuseMap, 4, TH_PS);
-			Device->SetTexture2D(NormalMap, 5, TH_PS);
-			Device->SetTexture2D(MetallicMap, 6, TH_PS);
-			Device->SetTexture2D(RoughnessMap, 7, TH_PS);
-			Device->SetTexture2D(OcclusionMap, 8, TH_PS);
-			Device->SetTexture2D(EmissionMap, 9, TH_PS);
+			if (Satisfied == 1)
+			{
+				Satisfied = 0;
+				Device->QueryBegin(Query);
+				return true;
+			}
 
-			return true;
-		}
-		bool Appearance::FillDepthLinear(Graphics::GraphicsDevice* Device) const
-		{
-			if (!Device || Material < 0)
-				return false;
+			if (Satisfied > 1)
+				Satisfied--;
 
-			Device->Render.HasDiffuse = (float)(DiffuseMap != nullptr);
-			Device->Render.MaterialId = Material;
-			Device->Render.TexCoord = TexCoord;
-			Device->SetTexture2D(DiffuseMap, 1, TH_PS);
+			return Fragments > 0;
+		}
+		void FragmentQuery::End(Graphics::GraphicsDevice* Device)
+		{
+			if (Device && Satisfied == 0)
+			{
+				Satisfied = -1;
+				Device->QueryEnd(Query);
+			}
+		}
+		void FragmentQuery::Clear()
+		{
+			Fragments = 1;
+		}
+		int FragmentQuery::Fetch(RenderSystem* System)
+		{
+			if (!System || !Query || Satisfied != -1)
+				return -1;
 
-			return true;
-		}
-		bool Appearance::FillDepthCubic(Graphics::GraphicsDevice* Device) const
-		{
-			if (!Device || Material < 0)
-				return false;
+			if (!System->GetDevice()->GetQueryData(Query, &Fragments))
+				return -1;
 
-			Device->Render.HasDiffuse = (float)(DiffuseMap != nullptr);
-			Device->Render.MaterialId = Material;
-			Device->Render.TexCoord = TexCoord;
-			Device->SetTexture2D(DiffuseMap, 1, TH_PS);
+			Satisfied = 1 + System->StallFrames;
+			return Fragments > 0;
+		}
+		uint64_t FragmentQuery::GetPassed()
+		{
+			return Fragments;
+		}
 
-			return true;
-		}
-		void Appearance::SetDiffuseMap(Graphics::Texture2D* New)
+		void Viewer::Set(const Compute::Matrix4x4& _View, const Compute::Matrix4x4& _Projection, const Compute::Vector3& _Position, float _Near, float _Far)
 		{
-			TH_RELEASE(DiffuseMap);
-			DiffuseMap = New;
+			View = _View;
+			Projection = _Projection;
+			ViewProjection = _View * _Projection;
+			InvViewProjection = ViewProjection.Invert();
+			InvViewPosition = _Position.InvertZ();
+			ViewPosition = InvViewPosition.Invert();
+			WorldPosition = _Position;
+			WorldRotation = -_View.Rotation();
+			FarPlane = (_Far < _Near ? 999999999 : _Far);
+			NearPlane = _Near;
+			CubicViewProjection[0] = Compute::Matrix4x4::CreateCubeMapLookAt(0, InvViewPosition) * Projection;
+			CubicViewProjection[1] = Compute::Matrix4x4::CreateCubeMapLookAt(1, InvViewPosition) * Projection;
+			CubicViewProjection[2] = Compute::Matrix4x4::CreateCubeMapLookAt(2, InvViewPosition) * Projection;
+			CubicViewProjection[3] = Compute::Matrix4x4::CreateCubeMapLookAt(3, InvViewPosition) * Projection;
+			CubicViewProjection[4] = Compute::Matrix4x4::CreateCubeMapLookAt(4, InvViewPosition) * Projection;
+			CubicViewProjection[5] = Compute::Matrix4x4::CreateCubeMapLookAt(5, InvViewPosition) * Projection;
 		}
-		Graphics::Texture2D* Appearance::GetDiffuseMap() const
-		{
-			return DiffuseMap;
-		}
-		void Appearance::SetNormalMap(Graphics::Texture2D* New)
-		{
-			TH_RELEASE(NormalMap);
-			NormalMap = New;
-		}
-		Graphics::Texture2D* Appearance::GetNormalMap() const
-		{
-			return NormalMap;
-		}
-		void Appearance::SetMetallicMap(Graphics::Texture2D* New)
-		{
-			TH_RELEASE(MetallicMap);
-			MetallicMap = New;
-		}
-		Graphics::Texture2D* Appearance::GetMetallicMap() const
-		{
-			return MetallicMap;
-		}
-		void Appearance::SetRoughnessMap(Graphics::Texture2D* New)
-		{
-			TH_RELEASE(RoughnessMap);
-			RoughnessMap = New;
-		}
-		Graphics::Texture2D* Appearance::GetRoughnessMap() const
-		{
-			return RoughnessMap;
-		}
-		void Appearance::SetHeightMap(Graphics::Texture2D* New)
-		{
-			TH_RELEASE(HeightMap);
-			HeightMap = New;
-		}
-		Graphics::Texture2D* Appearance::GetHeightMap() const
-		{
-			return HeightMap;
-		}
-		void Appearance::SetOcclusionMap(Graphics::Texture2D* New)
-		{
-			TH_RELEASE(OcclusionMap);
-			OcclusionMap = New;
-		}
-		Graphics::Texture2D* Appearance::GetOcclusionMap() const
-		{
-			return OcclusionMap;
-		}
-		void Appearance::SetEmissionMap(Graphics::Texture2D* New)
-		{
-			TH_RELEASE(EmissionMap);
-			EmissionMap = New;
-		}
-		Graphics::Texture2D* Appearance::GetEmissionMap() const
-		{
-			return EmissionMap;
-		}
-		Appearance& Appearance::operator= (const Appearance& Other)
-		{
-			if (Other.DiffuseMap != nullptr)
-				DiffuseMap = (Graphics::Texture2D*)Other.DiffuseMap->AddRef();
 
-			if (Other.NormalMap != nullptr)
-				NormalMap = (Graphics::Texture2D*)Other.NormalMap->AddRef();
-
-			if (Other.MetallicMap != nullptr)
-				MetallicMap = (Graphics::Texture2D*)Other.MetallicMap->AddRef();
-
-			if (Other.RoughnessMap != nullptr)
-				RoughnessMap = (Graphics::Texture2D*)Other.RoughnessMap->AddRef();
-
-			if (Other.HeightMap != nullptr)
-				HeightMap = (Graphics::Texture2D*)Other.HeightMap->AddRef();
-
-			if (Other.OcclusionMap != nullptr)
-				OcclusionMap = (Graphics::Texture2D*)Other.OcclusionMap->AddRef();
-
-			if (Other.EmissionMap != nullptr)
-				EmissionMap = (Graphics::Texture2D*)Other.EmissionMap->AddRef();
-
-			Diffuse = Other.Diffuse;
-			TexCoord = Other.TexCoord;
-			HeightAmount = Other.HeightAmount;
-			HeightBias = Other.HeightBias;
-			Material = Other.Material;
-
-			return *this;
+		Reactor::Reactor(Application* Ref, double Limit, JobCallback Callback) : App(Ref), Src(Callback)
+		{
+			Time = new Rest::Timer();
+			Time->FrameLimit = Limit;
+		}
+		Reactor::~Reactor()
+		{
+			TH_RELEASE(Time);
+		}
+		void Reactor::UpdateCore()
+		{
+			Time->Synchronize();
+			if (Src != nullptr)
+				Src(this, App);
+		}
+		void Reactor::UpdateTask()
+		{
+			Time->Synchronize();
+			Src(this, App);
 		}
 
 		void NMake::Pack(Rest::Document* V, bool Value)
@@ -359,23 +237,6 @@ namespace Tomahawk
 			NMake::Pack(V->Set("c1"), Value.C1);
 			NMake::Pack(V->Set("c2"), Value.C2);
 		}
-		void NMake::Pack(Rest::Document* V, const Material& Value)
-		{
-			if (!V)
-				return;
-
-			NMake::Pack(V->Set("emission"), Value.Emission);
-			NMake::Pack(V->Set("metallic"), Value.Metallic);
-			NMake::Pack(V->Set("scatter"), Value.Scatter);
-			NMake::Pack(V->Set("roughness"), Value.Roughness);
-			NMake::Pack(V->Set("fresnel"), Value.Fresnel);
-			NMake::Pack(V->Set("refraction"), Value.Refraction);
-			NMake::Pack(V->Set("transparency"), Value.Transparency);
-			NMake::Pack(V->Set("environment"), Value.Environment);
-			NMake::Pack(V->Set("occlusion"), Value.Occlusion);
-			NMake::Pack(V->Set("radius"), Value.Radius);
-			NMake::Pack(V->Set("id"), Value.Id);
-		}
 		void NMake::Pack(Rest::Document* V, const AnimatorState& Value)
 		{
 			if (!V)
@@ -439,44 +300,54 @@ namespace Tomahawk
 			NMake::Pack(Velocity->Set("min"), Value.Velocity.Min);
 			NMake::Pack(Velocity->Set("max"), Value.Velocity.Max);
 		}
-		void NMake::Pack(Rest::Document* V, const Appearance& Value, ContentManager* Content)
+		void NMake::Pack(Rest::Document* V, Material* Value, ContentManager* Content)
 		{
-			if (!V || !Content)
+			if (!V || !Value || !Content)
 				return;
 
-			AssetCache* Asset = Content->Find<Graphics::Texture2D>(Value.GetDiffuseMap());
+			AssetCache* Asset = Content->Find<Graphics::Texture2D>(Value->GetDiffuseMap());
 			if (Asset)
 				NMake::Pack(V->Set("diffuse-map"), Asset->Path);
 
-			Asset = Content->Find<Graphics::Texture2D>(Value.GetNormalMap());
+			Asset = Content->Find<Graphics::Texture2D>(Value->GetNormalMap());
 			if (Asset)
 				NMake::Pack(V->Set("normal-map"), Asset->Path);
 
-			Asset = Content->Find<Graphics::Texture2D>(Value.GetMetallicMap());
+			Asset = Content->Find<Graphics::Texture2D>(Value->GetMetallicMap());
 			if (Asset)
 				NMake::Pack(V->Set("metallic-map"), Asset->Path);
 
-			Asset = Content->Find<Graphics::Texture2D>(Value.GetRoughnessMap());
+			Asset = Content->Find<Graphics::Texture2D>(Value->GetRoughnessMap());
 			if (Asset)
 				NMake::Pack(V->Set("roughness-map"), Asset->Path);
 
-			Asset = Content->Find<Graphics::Texture2D>(Value.GetHeightMap());
+			Asset = Content->Find<Graphics::Texture2D>(Value->GetHeightMap());
 			if (Asset)
 				NMake::Pack(V->Set("height-map"), Asset->Path);
 
-			Asset = Content->Find<Graphics::Texture2D>(Value.GetOcclusionMap());
+			Asset = Content->Find<Graphics::Texture2D>(Value->GetOcclusionMap());
 			if (Asset)
 				NMake::Pack(V->Set("occlusion-map"), Asset->Path);
 
-			Asset = Content->Find<Graphics::Texture2D>(Value.GetEmissionMap());
+			Asset = Content->Find<Graphics::Texture2D>(Value->GetEmissionMap());
 			if (Asset)
 				NMake::Pack(V->Set("emission-map"), Asset->Path);
 
-			NMake::Pack(V->Set("diffuse"), Value.Diffuse);
-			NMake::Pack(V->Set("texcoord"), Value.TexCoord);
-			NMake::Pack(V->Set("height-amount"), Value.HeightAmount);
-			NMake::Pack(V->Set("height-bias"), Value.HeightBias);
-			NMake::Pack(V->Set("material"), Value.Material);
+			NMake::Pack(V->Set("emission"), Value->Surface.Emission);
+			NMake::Pack(V->Set("metallic"), Value->Surface.Metallic);
+			NMake::Pack(V->Set("diffuse"), Value->Surface.Diffuse);
+			NMake::Pack(V->Set("scatter"), Value->Surface.Scatter);
+			NMake::Pack(V->Set("roughness"), Value->Surface.Roughness);
+			NMake::Pack(V->Set("occlusion"), Value->Surface.Occlusion);
+			NMake::Pack(V->Set("fresnel"), Value->Surface.Fresnel);
+			NMake::Pack(V->Set("refraction"), Value->Surface.Refraction);
+			NMake::Pack(V->Set("transparency"), Value->Surface.Transparency);
+			NMake::Pack(V->Set("environment"), Value->Surface.Environment);
+			NMake::Pack(V->Set("radius"), Value->Surface.Radius);
+			NMake::Pack(V->Set("height"), Value->Surface.Height);
+			NMake::Pack(V->Set("bias"), Value->Surface.Bias);
+			NMake::Pack(V->Set("name"), Value->Name);
+			NMake::Pack(V->Set("slot"), Value->Slot);
 		}
 		void NMake::Pack(Rest::Document* V, const Compute::SkinAnimatorKey& Value)
 		{
@@ -1099,24 +970,6 @@ namespace Tomahawk
 			NMake::Unpack(V->Get("c1"), &O->C2);
 			return true;
 		}
-		bool NMake::Unpack(Rest::Document* V, Material* O)
-		{
-			if (!V || !O)
-				return false;
-
-			NMake::Unpack(V->Get("emission"), &O->Emission);
-			NMake::Unpack(V->Get("metallic"), &O->Metallic);
-			NMake::Unpack(V->Get("scatter"), &O->Scatter);
-			NMake::Unpack(V->Get("roughness"), &O->Roughness);
-			NMake::Unpack(V->Get("fresnel"), &O->Fresnel);
-			NMake::Unpack(V->Get("refraction"), &O->Refraction);
-			NMake::Unpack(V->Get("transparency"), &O->Transparency);
-			NMake::Unpack(V->Get("environment"), &O->Environment);
-			NMake::Unpack(V->Get("occlusion"), &O->Occlusion);
-			NMake::Unpack(V->Get("radius"), &O->Radius);
-			NMake::Unpack(V->Get("id"), &O->Id);
-			return true;
-		}
 		bool NMake::Unpack(Rest::Document* V, AnimatorState* O)
 		{
 			if (!V || !O)
@@ -1183,7 +1036,7 @@ namespace Tomahawk
 
 			return true;
 		}
-		bool NMake::Unpack(Rest::Document* V, Appearance* O, ContentManager* Content)
+		bool NMake::Unpack(Rest::Document* V, Material* O, ContentManager* Content)
 		{
 			if (!V || !O || !Content)
 				return false;
@@ -1210,11 +1063,22 @@ namespace Tomahawk
 			if (NMake::Unpack(V->Get("emission-map"), &Path))
 				O->SetEmissionMap(Content->Load<Graphics::Texture2D>(Path));
 
-			NMake::Unpack(V->Get("diffuse"), &O->Diffuse);
-			NMake::Unpack(V->Get("texcoord"), &O->TexCoord);
-			NMake::Unpack(V->Get("height-amount"), &O->HeightAmount);
-			NMake::Unpack(V->Get("height-bias"), &O->HeightBias);
-			NMake::Unpack(V->Get("material"), &O->Material);
+			NMake::Unpack(V->Get("emission"), &O->Surface.Emission);
+			NMake::Unpack(V->Get("metallic"), &O->Surface.Metallic);
+			NMake::Unpack(V->Get("diffuse"), &O->Surface.Diffuse);
+			NMake::Unpack(V->Get("scatter"), &O->Surface.Scatter);
+			NMake::Unpack(V->Get("roughness"), &O->Surface.Roughness);
+			NMake::Unpack(V->Get("occlusion"), &O->Surface.Occlusion);
+			NMake::Unpack(V->Get("fresnel"), &O->Surface.Fresnel);
+			NMake::Unpack(V->Get("refraction"), &O->Surface.Refraction);
+			NMake::Unpack(V->Get("transparency"), &O->Surface.Transparency);
+			NMake::Unpack(V->Get("environment"), &O->Surface.Environment);
+			NMake::Unpack(V->Get("radius"), &O->Surface.Radius);
+			NMake::Unpack(V->Get("height"), &O->Surface.Height);
+			NMake::Unpack(V->Get("bias"), &O->Surface.Bias);
+			NMake::Unpack(V->Get("name"), &O->Name);
+			NMake::Unpack(V->Get("slot"), &O->Slot);
+
 			return true;
 		}
 		bool NMake::Unpack(Rest::Document* V, Compute::SkinAnimatorKey* O)
@@ -1899,42 +1763,128 @@ namespace Tomahawk
 			return true;
 		}
 
-		AssetFile::AssetFile(char* SrcBuffer, size_t SrcSize) : Buffer(SrcBuffer), Size(SrcSize)
+		Event::Event(const std::string& NewName, SceneGraph* Target, const Rest::VariantArgs& NewArgs) : Id(NewName), Args(NewArgs), TScene(Target), TEntity(nullptr), TComponent(nullptr)
 		{
 		}
-		AssetFile::~AssetFile()
+		Event::Event(const std::string& NewName, Entity* Target, const Rest::VariantArgs& NewArgs) : Id(NewName), Args(NewArgs), TScene(nullptr), TEntity(Target), TComponent(nullptr)
 		{
-			if (Buffer != nullptr)
-				TH_FREE(Buffer);
 		}
-		char* AssetFile::GetBuffer()
+		Event::Event(const std::string& NewName, Component* Target, const Rest::VariantArgs& NewArgs) : Id(NewName), Args(NewArgs), TScene(nullptr), TEntity(nullptr), TComponent(Target)
 		{
-			return Buffer;
 		}
-		size_t AssetFile::GetSize()
+		bool Event::Is(const std::string& Name)
 		{
-			return Size;
+			return Id == Name;
+		}
+		const std::string& Event::GetName()
+		{
+			return Id;
+		}
+		Component* Event::GetComponent()
+		{
+			return TComponent;
+		}
+		Entity* Event::GetEntity()
+		{
+			if (TComponent != nullptr)
+				return TComponent->GetEntity();
+
+			return TEntity;
+		}
+		SceneGraph* Event::GetScene()
+		{
+			if (TEntity != nullptr)
+				return TEntity->GetScene();
+
+			if (TComponent != nullptr)
+				return TComponent->GetEntity()->GetScene();
+
+			return TScene;
 		}
 
-		Reactor::Reactor(Application* Ref, double Limit, JobCallback Callback) : App(Ref), Src(Callback)
+		Material::Material(SceneGraph* Src, const std::string& Alias) : Scene(Src), Name(Alias), Slot(0), DiffuseMap(nullptr), NormalMap(nullptr), MetallicMap(nullptr), RoughnessMap(nullptr), HeightMap(nullptr), OcclusionMap(nullptr), EmissionMap(nullptr)
 		{
-			Time = new Rest::Timer();
-			Time->FrameLimit = Limit;
 		}
-		Reactor::~Reactor()
+		Material::~Material()
 		{
-			TH_RELEASE(Time);
+			TH_RELEASE(DiffuseMap);
+			TH_RELEASE(NormalMap);
+			TH_RELEASE(MetallicMap);
+			TH_RELEASE(RoughnessMap);
+			TH_RELEASE(HeightMap);
+			TH_RELEASE(OcclusionMap);
+			TH_RELEASE(EmissionMap);
 		}
-		void Reactor::UpdateCore()
+		void Material::SetDiffuseMap(Graphics::Texture2D* New)
 		{
-			Time->Synchronize();
-			if (Src != nullptr)
-				Src(this, App);
+			TH_RELEASE(DiffuseMap);
+			DiffuseMap = New;
 		}
-		void Reactor::UpdateTask()
+		Graphics::Texture2D* Material::GetDiffuseMap() const
 		{
-			Time->Synchronize();
-			Src(this, App);
+			return DiffuseMap;
+		}
+		void Material::SetNormalMap(Graphics::Texture2D* New)
+		{
+			TH_RELEASE(NormalMap);
+			NormalMap = New;
+		}
+		Graphics::Texture2D* Material::GetNormalMap() const
+		{
+			return NormalMap;
+		}
+		void Material::SetMetallicMap(Graphics::Texture2D* New)
+		{
+			TH_RELEASE(MetallicMap);
+			MetallicMap = New;
+		}
+		Graphics::Texture2D* Material::GetMetallicMap() const
+		{
+			return MetallicMap;
+		}
+		void Material::SetRoughnessMap(Graphics::Texture2D* New)
+		{
+			TH_RELEASE(RoughnessMap);
+			RoughnessMap = New;
+		}
+		Graphics::Texture2D* Material::GetRoughnessMap() const
+		{
+			return RoughnessMap;
+		}
+		void Material::SetHeightMap(Graphics::Texture2D* New)
+		{
+			TH_RELEASE(HeightMap);
+			HeightMap = New;
+		}
+		Graphics::Texture2D* Material::GetHeightMap() const
+		{
+			return HeightMap;
+		}
+		void Material::SetOcclusionMap(Graphics::Texture2D* New)
+		{
+			TH_RELEASE(OcclusionMap);
+			OcclusionMap = New;
+		}
+		Graphics::Texture2D* Material::GetOcclusionMap() const
+		{
+			return OcclusionMap;
+		}
+		void Material::SetEmissionMap(Graphics::Texture2D* New)
+		{
+			TH_RELEASE(EmissionMap);
+			EmissionMap = New;
+		}
+		Graphics::Texture2D* Material::GetEmissionMap() const
+		{
+			return EmissionMap;
+		}
+		SceneGraph* Material::GetScene() const
+		{
+			return Scene;
+		}
+		uint64_t Material::GetSlot() const
+		{
+			return Slot;
 		}
 
 		Processor::Processor(ContentManager* NewContent) : Content(NewContent)
@@ -1961,26 +1911,6 @@ namespace Tomahawk
 		ContentManager* Processor::GetContent()
 		{
 			return Content;
-		}
-
-		void Viewer::Set(const Compute::Matrix4x4& _View, const Compute::Matrix4x4& _Projection, const Compute::Vector3& _Position, float _Near, float _Far)
-		{
-			View = _View;
-			Projection = _Projection;
-			ViewProjection = _View * _Projection;
-			InvViewProjection = ViewProjection.Invert();
-			InvViewPosition = _Position.InvertZ();
-			ViewPosition = InvViewPosition.Invert();
-			WorldPosition = _Position;
-			WorldRotation = -_View.Rotation();
-			FarPlane = (_Far < _Near ? 999999999 : _Far);
-			NearPlane = _Near;
-			CubicViewProjection[0] = Compute::Matrix4x4::CreateCubeMapLookAt(0, InvViewPosition) * Projection;
-			CubicViewProjection[1] = Compute::Matrix4x4::CreateCubeMapLookAt(1, InvViewPosition) * Projection;
-			CubicViewProjection[2] = Compute::Matrix4x4::CreateCubeMapLookAt(2, InvViewPosition) * Projection;
-			CubicViewProjection[3] = Compute::Matrix4x4::CreateCubeMapLookAt(3, InvViewPosition) * Projection;
-			CubicViewProjection[4] = Compute::Matrix4x4::CreateCubeMapLookAt(4, InvViewPosition) * Projection;
-			CubicViewProjection[5] = Compute::Matrix4x4::CreateCubeMapLookAt(5, InvViewPosition) * Projection;
 		}
 
 		Component::Component(Entity* Reference) : Active(true), Parent(Reference)
@@ -2076,14 +2006,13 @@ namespace Tomahawk
 			return Parent->Transform->Position.Distance(View.WorldPosition) <= View.FarPlane + Parent->Transform->Scale.Length();
 		}
 
-		Drawable::Drawable(Entity* Ref, uint64_t Hash, bool vComplex) : Cullable(Ref), Category(GeoCategory_Opaque), Fragments(1), Satisfied(1), Source(Hash), Complex(vComplex), Static(true), Query(nullptr)
+		Drawable::Drawable(Entity* Ref, uint64_t Hash, bool vComplex) : Cullable(Ref), Category(GeoCategory_Opaque), Source(Hash), Complex(vComplex), Static(true)
 		{
 			if (!Complex)
-				Surfaces[nullptr] = Appearance();
+				Materials[nullptr] = nullptr;
 		}
 		Drawable::~Drawable()
 		{
-			TH_RELEASE(Query);
 			Detach();
 		}
 		void Drawable::Message(Event* Value)
@@ -2091,20 +2020,25 @@ namespace Tomahawk
 			if (!Value || !Value->Is("materialchange"))
 				return;
 
-			Rest::Variant& MaterialId = Value->Args["material-id"];
-			if (MaterialId.IsEmpty())
-				return;
-
-			int64_t Material = MaterialId.GetInteger();
-			for (auto&& Surface : Surfaces)
+			Material* Ptr = (Material*)Value->Args["material-id"].GetPointer();
+			for (auto&& Surface : Materials)
 			{
-				if (Surface.second.Material == Material)
-					Surface.second.Material = -1;
+				if (Surface.second == Ptr)
+					Surface.second = nullptr;
 			}
 		}
 		void Drawable::ClearCull()
 		{
-			Fragments = 1;
+			Query.Clear();
+		}
+		void Drawable::Attach()
+		{
+			SetTransparency(false);
+		}
+		void Drawable::Detach()
+		{
+			if (Parent && Parent->GetScene())
+				Parent->GetScene()->RemoveDrawable(this, Category);
 		}
 		bool Drawable::SetTransparency(bool Enabled)
 		{
@@ -2127,101 +2061,63 @@ namespace Tomahawk
 			Parent->GetScene()->AddDrawable(this, Category);
 			return true;
 		}
-		bool Drawable::Begin(Graphics::GraphicsDevice* Device)
-		{
-			if (!Device)
-				return false;
-
-			if (!Query)
-			{
-				Graphics::Query::Desc I;
-				I.Predicate = false;
-				I.AutoPass = false;
-
-				Query = Device->CreateQuery(I);
-			}
-
-			if (Satisfied == 1)
-			{
-				Satisfied = 0;
-				Device->QueryBegin(Query);
-				return true;
-			}
-
-			if (Satisfied > 1)
-				Satisfied--;
-
-			return Fragments > 0;
-		}
-		void Drawable::End(Graphics::GraphicsDevice* Device)
-		{
-			if (Device && Satisfied == 0)
-			{
-				Satisfied = -1;
-				Device->QueryEnd(Query);
-			}
-		}
-		void Drawable::Attach()
-		{
-			SetTransparency(false);
-		}
-		void Drawable::Detach()
-		{
-			if (Parent && Parent->GetScene())
-				Parent->GetScene()->RemoveDrawable(this, Category);
-		}
-		int Drawable::Fetch(RenderSystem* System)
-		{
-			if (!System || !Query || Satisfied != -1)
-				return -1;
-
-			if (!System->GetDevice()->GetQueryData(Query, &Fragments))
-				return -1;
-
-			Satisfied = 1 + System->StallFrames;
-			return Fragments > 0;
-		}
-		uint64_t Drawable::GetFragmentsCount()
-		{
-			return Fragments;
-		}
-		const std::unordered_map<void*, Appearance>& Drawable::GetSurfaces()
-		{
-			return Surfaces;
-		}
-		Material* Drawable::GetMaterial(Appearance* Surface)
-		{
-			if (!Surface || Surface->Material < 0)
-				return nullptr;
-
-			return Parent->GetScene()->GetMaterialById((uint64_t)Surface->Material);
-		}
-		Material* Drawable::GetMaterial()
-		{
-			Appearance* Surface = GetSurface();
-			return GetMaterial(Surface);
-		}
-		Appearance* Drawable::GetSurface(void* Instance)
+		bool Drawable::SetMaterial(void* Instance, Material* Value)
 		{
 			if (!Complex)
-				return nullptr;
+			{
+				Materials[nullptr] = Value;
+				return (!Instance);
+			}
 
-			auto It = Surfaces.find(Instance);
-			if (It == Surfaces.end())
-				return &Surfaces[Instance];
-
-			return &It->second;
-		}
-		Appearance* Drawable::GetSurface()
-		{
-			if (Complex || Surfaces.empty())
-				return nullptr;
-
-			return &Surfaces.begin()->second;
+			auto It = Materials.find(Instance);
+			if (It == Materials.end())
+				Materials[Instance] = Value;
+			else
+				It->second = Value;
+	
+			return true;
 		}
 		bool Drawable::HasTransparency()
 		{
 			return Category == GeoCategory_Transparent;
+		}
+		int64_t Drawable::GetSlot(void* Surface)
+		{
+			Material* Base = GetMaterial(Surface);
+			if (Base != nullptr)
+				return (int64_t)Base->GetSlot();
+
+			return -1;
+		}
+		int64_t Drawable::GetSlot()
+		{
+			Material* Base = GetMaterial();
+			if (Base != nullptr)
+				return (int64_t)Base->GetSlot();
+
+			return -1;
+		}
+		Material* Drawable::GetMaterial(void* Instance)
+		{
+			if (!Complex)
+				return nullptr;
+
+			auto It = Materials.find(Instance);
+			if (It == Materials.end())
+				return nullptr;
+
+			return It->second;
+		}
+		Material* Drawable::GetMaterial()
+		{
+			if (Complex || Materials.empty())
+				return nullptr;
+
+			return Materials.begin()->second;
+		}
+		const std::unordered_map<void*, Material*>& Drawable::GetMaterials()
+		{
+			return Materials;
 		}
 
 		Entity::Entity(SceneGraph* Ref) : Scene(Ref), Id(-1), Tag(-1), Distance(0)
@@ -3163,7 +3059,7 @@ namespace Tomahawk
 			Safe.unlock();
 		}
 
-		RenderSystem::RenderSystem(Graphics::GraphicsDevice* Ref) : Device(Ref), Target(nullptr), Scene(nullptr), FrustumCulling(true), OcclusionCulling(false)
+		RenderSystem::RenderSystem(Graphics::GraphicsDevice* Ref) : Device(Ref), Target(nullptr), Scene(nullptr), BaseMaterial(nullptr), FrustumCulling(true), OcclusionCulling(false)
 		{
 			Occlusion.Delay = 5;
 			Sorting.Delay = 5;
@@ -3381,6 +3277,76 @@ namespace Tomahawk
 			TH_RELEASE(Buffers[0]);
 			TH_RELEASE(Buffers[1]);
 		}
+		void RenderSystem::ClearMaterials()
+		{
+			BaseMaterial = nullptr;
+		}
+		bool RenderSystem::PushGeometryBuffer(Material* Next)
+		{
+			bool R = (Next != nullptr);
+			if (!R || Next == BaseMaterial)
+				return R;
+
+			BaseMaterial = Next;
+			Device->SetTexture2D(Next->DiffuseMap, 1, TH_PS);
+			Device->SetTexture2D(Next->NormalMap, 2, TH_PS);
+			Device->SetTexture2D(Next->MetallicMap, 3, TH_PS);
+			Device->SetTexture2D(Next->RoughnessMap, 4, TH_PS);
+			Device->SetTexture2D(Next->HeightMap, 5, TH_PS);
+			Device->SetTexture2D(Next->OcclusionMap, 6, TH_PS);
+			Device->SetTexture2D(Next->EmissionMap, 7, TH_PS);
+			Device->Render.Diffuse = (float)(Next->DiffuseMap != nullptr);
+			Device->Render.Normal = (float)(Next->NormalMap != nullptr);
+			Device->Render.Height = (float)(Next->HeightMap != nullptr);
+			Device->Render.Mid = (float)Next->Slot;
+
+			return true;
+		}
+		bool RenderSystem::PushVoxelsBuffer(Material* Next)
+		{
+			bool R = (Next != nullptr);
+			if (!R || Next == BaseMaterial)
+				return R;
+
+			BaseMaterial = Next;
+			Device->SetTexture2D(Next->DiffuseMap, 4, TH_PS);
+			Device->SetTexture2D(Next->NormalMap, 5, TH_PS);
+			Device->SetTexture2D(Next->MetallicMap, 6, TH_PS);
+			Device->SetTexture2D(Next->RoughnessMap, 7, TH_PS);
+			Device->SetTexture2D(Next->OcclusionMap, 8, TH_PS);
+			Device->SetTexture2D(Next->EmissionMap, 9, TH_PS);
+			Device->Render.Diffuse = (float)(Next->DiffuseMap != nullptr);
+			Device->Render.Normal = (float)(Next->NormalMap != nullptr);
+			Device->Render.Mid = (float)Next->Slot;
+
+			return true;
+		}
+		bool RenderSystem::PushDepthLinearBuffer(Material* Next)
+		{
+			bool R = (Next != nullptr);
+			if (!R || Next == BaseMaterial)
+				return R;
+
+			BaseMaterial = Next;
+			Device->SetTexture2D(Next->DiffuseMap, 1, TH_PS);
+			Device->Render.Diffuse = (float)(Next->DiffuseMap != nullptr);
+			Device->Render.Mid = (float)Next->Slot;
+
+			return true;
+		}
+		bool RenderSystem::PushDepthCubicBuffer(Material* Next)
+		{
+			bool R = (Next != nullptr);
+			if (!R || Next == BaseMaterial)
+				return R;
+
+			BaseMaterial = Next;
+			Device->SetTexture2D(Next->DiffuseMap, 1, TH_PS);
+			Device->Render.Diffuse = (float)(Next->DiffuseMap != nullptr);
+			Device->Render.Mid = (float)Next->Slot;
+
+			return true;
+		}
 		bool RenderSystem::PassCullable(Cullable* Base, CullResult Mode, float* Result)
 		{
 			if (Mode == CullResult_Last)
@@ -3401,12 +3367,12 @@ namespace Tomahawk
 			{
 				if (OcclusionCulling)
 				{
-					int R = Base->Fetch(this);
+					int R = Base->Query.Fetch(this);
 					if (R != -1)
 						return R > 0;
 				}
 
-				if (!Base->GetFragmentsCount())
+				if (!Base->Query.GetPassed())
 					return false;
 			}
 
@@ -3609,7 +3575,10 @@ namespace Tomahawk
 					Geometry = GetOpaque();
 
 				if (Geometry != nullptr && Geometry->Size() > 0)
+				{
+					System->ClearMaterials();
 					RenderGeometryResult(TimeStep, Geometry, Options);
+				}
 			}
 			else if (State == RenderState_Geometry_Voxels)
 			{
@@ -3618,12 +3587,17 @@ namespace Tomahawk
 
 				Rest::Pool<Drawable*>* Geometry = GetOpaque();
 				if (Geometry != nullptr && Geometry->Size() > 0)
+				{
+					System->ClearMaterials();
 					RenderGeometryVoxels(TimeStep, Geometry, Options);
+				}
 			}
 			else if (State == RenderState_Depth_Linear)
 			{
 				if (!(Options & RenderOpt_Inner))
 					return;
+
+				System->ClearMaterials();
 
 				Rest::Pool<Drawable*>* Opaque = GetOpaque();
 				if (Opaque != nullptr && Opaque->Size() > 0)
@@ -3638,6 +3612,8 @@ namespace Tomahawk
 				Viewer& View = System->GetScene()->View;
 				if (!(Options & RenderOpt_Inner))
 					return;
+
+				System->ClearMaterials();
 
 				Rest::Pool<Drawable*>* Opaque = GetOpaque();
 				if (Opaque != nullptr && Opaque->Size() > 0)
@@ -3866,7 +3842,7 @@ namespace Tomahawk
 			return System->GetRT(TargetType_Main)->GetHeight();
 		}
 
-		SceneGraph::SceneGraph(const Desc& I) : Conf(I), Active(true), Invoked(false), Structure(nullptr), Simulator(nullptr), Camera(nullptr)
+		SceneGraph::SceneGraph(const Desc& I) : Conf(I), Surfaces(16), Active(true), Invoked(false), Simulator(nullptr), Camera(nullptr)
 		{
 			Sync.Count = 0; Sync.Locked = false;
 			for (unsigned int i = 0; i < ThreadId_Count; i++)
@@ -3881,6 +3857,7 @@ namespace Tomahawk
 			Display.VoxelBuffers[VoxelType_Diffuse] = nullptr;
 			Display.VoxelBuffers[VoxelType_Normal] = nullptr;
 			Display.VoxelBuffers[VoxelType_Surface] = nullptr;
+			Display.MaterialBuffer = nullptr;
 			Display.Merger = nullptr;
 			Display.DepthStencil = nullptr;
 			Display.Rasterizer = nullptr;
@@ -3889,11 +3866,9 @@ namespace Tomahawk
 			Display.Layout = nullptr;
 			Display.VoxelSize = 0;
 
-			Materials.reserve(16);
 			Configure(I);
-
 			Simulator = new Compute::Simulator(I.Simulator);
-			ExpandMaterialStructure();
+			ExpandMaterials();
 		}
 		SceneGraph::~SceneGraph()
 		{
@@ -3901,6 +3876,9 @@ namespace Tomahawk
 			Lock();
 
 			for (auto It = Entities.Begin(); It != Entities.End(); It++)
+				TH_RELEASE(*It);
+			
+			for (auto It = Materials.Begin(); It != Materials.End(); It++)
 				TH_RELEASE(*It);
 
 			TH_RELEASE(Display.VoxelBuffers[VoxelType_Diffuse]);
@@ -3914,7 +3892,7 @@ namespace Tomahawk
 				TH_RELEASE(Display.RT[i]);
 			}
 
-			TH_RELEASE(Structure);
+			TH_RELEASE(Display.MaterialBuffer);
 			TH_RELEASE(Simulator);
 
 			Unlock();
@@ -3932,6 +3910,7 @@ namespace Tomahawk
 
 			Lock();
 			Conf = NewConf;
+			Materials.Reserve(Conf.MaterialCount);
 			Entities.Reserve(Conf.EntityCount);
 			Pending.Reserve(Conf.ComponentCount);
 
@@ -3976,8 +3955,8 @@ namespace Tomahawk
 				return;
 
 			Conf.Device->SetTarget();
-			Conf.Device->Render.Diffuse = 1.0f;
-			Conf.Device->Render.WorldViewProjection.Identify();
+			Conf.Device->Render.TexCoord = 1.0f;
+			Conf.Device->Render.WorldViewProj.Identify();
 			Conf.Device->SetSamplerState(Display.Sampler, 0, TH_PS);
 			Conf.Device->SetDepthStencilState(Display.DepthStencil);
 			Conf.Device->SetBlendState(Display.Blend);
@@ -3996,8 +3975,7 @@ namespace Tomahawk
 			if (Camera != nullptr)
 			{
 				RestoreViewBuffer(nullptr);
-				Conf.Device->UpdateBuffer(Structure, Materials.data(), Materials.size() * sizeof(Material));
-				Conf.Device->SetStructureBuffer(Structure, 0, TH_PS | TH_CS);
+				FillMaterialBuffers();
 
 				SetMRT(TargetType_Main, true);
 				Render(Time, RenderState_Geometry_Result, RenderOpt_None);
@@ -4088,6 +4066,13 @@ namespace Tomahawk
 				(*It)->Id = Index;
 				Index++;
 			}
+
+			Index = 0;
+			for (auto It = Materials.Begin(); It != Materials.End(); It++)
+			{
+				(*It)->Slot = Index;
+				Index++;
+			}
 			Unlock();
 		}
 		void SceneGraph::SortOpaqueBackToFront(uint64_t Section)
@@ -4153,29 +4138,27 @@ namespace Tomahawk
 			TH_RELEASE(Entity);
 			Unlock();
 		}
-		void SceneGraph::RemoveMaterial(uint64_t Material)
+		void SceneGraph::RemoveMaterial(Material* Value)
 		{
-			if (Material >= Materials.size() || Material >= Names.size())
+			if (!Value)
 				return;
 
 			Rest::VariantArgs Args;
-			Args["material-id"] = Rest::Var::Integer((int64_t)Materials[Material].Id);
+			Args["material-id"] = Rest::Var::Pointer(Value);
 
 			if (!DispatchEvent("materialchange", Args))
 				return;
 
 			Lock();
-			Materials[Material] = Materials.back();
-			Names[Material] = Names.back();
-
-			if (!Names.empty())
-				Names.resize(Names.size() - 1);
-
-			if (!Materials.empty())
-				Materials.resize(Materials.size() - 1);
-
-			for (uint64_t i = 0; i < Materials.size(); i++)
-				Materials[i].Id = (float)i;
+			for (auto It = Materials.Begin(); It != Materials.End(); It++)
+			{
+				if (*It == Value)
+				{
+					TH_RELEASE(Value);
+					Materials.RemoveAt(It);
+					break;
+				}
+			}
 			Unlock();
 		}
 		void SceneGraph::RegisterEntity(Entity* In)
@@ -4270,36 +4253,31 @@ namespace Tomahawk
 					View = *iView;
 			}
 
-			Conf.Device->View.InvViewProjection = View.InvViewProjection;
-			Conf.Device->View.ViewProjection = View.ViewProjection;
-			Conf.Device->View.Projection = View.Projection;
+			Conf.Device->View.InvViewProj = View.InvViewProjection;
+			Conf.Device->View.ViewProj = View.ViewProjection;
+			Conf.Device->View.Proj = View.Projection;
 			Conf.Device->View.View = View.View;
-			Conf.Device->View.ViewPosition = View.InvViewPosition;
-			Conf.Device->View.ViewDirection = View.WorldRotation.DepthDirection();
-			Conf.Device->View.FarPlane = View.FarPlane;
-			Conf.Device->View.NearPlane = View.NearPlane;
+			Conf.Device->View.Position = View.InvViewPosition;
+			Conf.Device->View.Direction = View.WorldRotation.DepthDirection();
+			Conf.Device->View.Far = View.FarPlane;
+			Conf.Device->View.Near = View.NearPlane;
 			Conf.Device->UpdateBuffer(Graphics::RenderBufferType_View);
 		}
-		void SceneGraph::ExpandMaterialStructure()
+		void SceneGraph::ExpandMaterials()
 		{
 			Lock();
-
-			Materials.reserve(Materials.capacity() * 2);
-			for (size_t i = 0; i < Materials.size(); i++)
-				Materials[i].Id = (float)i;
-
 			Graphics::ElementBuffer::Desc F = Graphics::ElementBuffer::Desc();
 			F.AccessFlags = Graphics::CPUAccess_Write;
 			F.MiscFlags = Graphics::ResourceMisc_Buffer_Structured;
 			F.Usage = Graphics::ResourceUsage_Dynamic;
 			F.BindFlags = Graphics::ResourceBind_Shader_Input;
-			F.ElementCount = (unsigned int)Materials.capacity();
-			F.ElementWidth = sizeof(Material);
-			F.Elements = Materials.data();
+			F.ElementCount = (unsigned int)Surfaces;
+			F.ElementWidth = sizeof(Subsurface);
 			F.StructureByteStride = F.ElementWidth;
 
-			TH_RELEASE(Structure);
-			Structure = Conf.Device->CreateElementBuffer(F);
+			TH_RELEASE(Display.MaterialBuffer);
+			Display.MaterialBuffer = Conf.Device->CreateElementBuffer(F);
+			Surfaces *= 2;
 			Unlock();
 		}
 		void SceneGraph::Lock()
@@ -4406,6 +4384,26 @@ namespace Tomahawk
 				Display.RT[i] = Conf.Device->CreateRenderTarget2D(RT);
 			}
 		}
+		void SceneGraph::FillMaterialBuffers()
+		{
+			Graphics::MappedSubresource Stream;
+			if (!Conf.Device->Map(Display.MaterialBuffer, Graphics::ResourceMap_Write_Discard, &Stream))
+				return;
+
+			Subsurface* Array = (Subsurface*)Stream.Pointer; uint64_t Size = 0;
+			for (auto It = Materials.Begin(); It != Materials.End(); It++)
+			{
+				Subsurface& Next = Array[Size];
+				(*It)->Slot = (int64_t)Size;
+				Next = (*It)->Surface;
+
+				if (++Size >= Surfaces)
+					break;
+			}
+
+			Conf.Device->Unmap(Display.MaterialBuffer, &Stream);
+			Conf.Device->SetStructureBuffer(Display.MaterialBuffer, 0, TH_PS | TH_CS);
+		}
 		void SceneGraph::RayTest(uint64_t Section, const Compute::Ray& Origin, float MaxDistance, const RayCallback& Callback)
 		{
 			if (!Callback)
@@ -4455,13 +4453,6 @@ namespace Tomahawk
 			View.Set(_View, _Projection, _Position, _Near, _Far);
 			if (Upload)
 				RestoreViewBuffer(&View);
-		}
-		void SceneGraph::SetMaterialName(uint64_t Material, const std::string& Name)
-		{
-			if (Material >= Names.size())
-				return;
-
-			Names[Material] = Name;
 		}
 		void SceneGraph::SetVoxelBufferSize(size_t Size)
 		{
@@ -4704,26 +4695,51 @@ namespace Tomahawk
 			else if (Category == GeoCategory_Transparent)
 				GetTransparent(Source->Source)->Remove(Source);
 		}
-		Material* SceneGraph::AddMaterial(const std::string& Name, const Material& From)
+		Material* SceneGraph::AddMaterial(const std::string& Name)
 		{
-			Material Material = From;
-			Material.Id = (float)Materials.size();
+			if (Materials.Size() >= Materials.Capacity())
+				return nullptr;
 
-			Lock();
-			Names.push_back(Name);
+			if (Materials.Size() > Surfaces)
+				ExpandMaterials();
 
-			if (Materials.size() + 1 < Materials.capacity())
-			{
-				Materials.push_back(Material);
-				Unlock();
-				return &Materials.back();
-			}
+			Material* Result = new Material(this, Name);
+			Materials.Add(Result);
 
-			ExpandMaterialStructure();
-			Materials.push_back(Material);
-			Unlock();
+			return Result;
+		}
+		Material* SceneGraph::CloneMaterial(Material* Base, const std::string& Name)
+		{
+			if (!Base)
+				return nullptr;
 
-			return &Materials.back();
+			Material* Copy = AddMaterial(Name);
+			if (!Copy)
+				return nullptr;
+
+			memcpy(&Copy->Surface, &Base->Surface, sizeof(Subsurface));
+			if (Base->DiffuseMap != nullptr)
+				Copy->DiffuseMap = (Graphics::Texture2D*)Base->DiffuseMap->AddRef();
+
+			if (Base->NormalMap != nullptr)
+				Copy->NormalMap = (Graphics::Texture2D*)Base->NormalMap->AddRef();
+
+			if (Base->MetallicMap != nullptr)
+				Copy->MetallicMap = (Graphics::Texture2D*)Base->MetallicMap->AddRef();
+
+			if (Base->RoughnessMap != nullptr)
+				Copy->RoughnessMap = (Graphics::Texture2D*)Base->RoughnessMap->AddRef();
+
+			if (Base->HeightMap != nullptr)
+				Copy->HeightMap = (Graphics::Texture2D*)Base->HeightMap->AddRef();
+
+			if (Base->OcclusionMap != nullptr)
+				Copy->OcclusionMap = (Graphics::Texture2D*)Base->OcclusionMap->AddRef();
+
+			if (Base->EmissionMap != nullptr)
+				Copy->EmissionMap = (Graphics::Texture2D*)Base->EmissionMap->AddRef();
+
+			return Copy;
 		}
 		Component* SceneGraph::GetCamera()
 		{
@@ -4770,29 +4786,22 @@ namespace Tomahawk
 
 			return Camera->As<Components::Camera>()->GetViewer();
 		}
-		std::string SceneGraph::GetMaterialName(uint64_t Material)
+		Material* SceneGraph::GetMaterial(const std::string& Name)
 		{
-			if (Material >= Names.size())
-				return "";
-
-			return Names[Material];
-		}
-		Material* SceneGraph::GetMaterialByName(const std::string& Name)
-		{
-			for (size_t i = 0; i < Names.size(); i++)
+			for (auto It = Materials.Begin(); It != Materials.End(); It++)
 			{
-				if (Names[i] == Name)
-					return i >= Materials.size() ? nullptr : &Materials[i];
+				if ((*It)->Name == Name)
+					return *It;
 			}
 
 			return nullptr;
 		}
-		Material* SceneGraph::GetMaterialById(uint64_t Material)
+		Material* SceneGraph::GetMaterial(uint64_t Material)
 		{
-			if (Material >= Materials.size())
+			if (Material >= Materials.Size())
 				return nullptr;
 
-			return &Materials[Material];
+			return Materials[Material];
 		}
 		Entity* SceneGraph::GetEntity(uint64_t Entity)
 		{
@@ -5093,7 +5102,7 @@ namespace Tomahawk
 		}
 		uint64_t SceneGraph::GetMaterialCount()
 		{
-			return Materials.size();
+			return Materials.Size();
 		}
 		uint64_t SceneGraph::GetOpaqueCount()
 		{
@@ -5129,7 +5138,7 @@ namespace Tomahawk
 		}
 		Graphics::ElementBuffer* SceneGraph::GetStructure()
 		{
-			return Structure;
+			return Display.MaterialBuffer;
 		}
 		Graphics::GraphicsDevice* SceneGraph::GetDevice()
 		{

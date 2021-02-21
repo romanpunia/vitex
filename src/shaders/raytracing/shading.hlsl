@@ -43,9 +43,9 @@ float4 ps_main(VOutput V) : SV_TARGET0
     [branch] if (Frag.Depth >= 1.0)
         return float4(1.0, 1.0, 1.0, 1.0);
 
-    Material Mat = GetMaterial(Frag.Material);
+    Material Mat = Materials[Frag.Material];
     float2 Random = RandomFloat2(TexCoord);
-	float Vision = saturate(pow(abs(distance(ViewPosition, Frag.Position) / Distance), Fade));
+	float Vision = saturate(pow(abs(distance(vb_Position, Frag.Position) / Distance), Fade));
     float Power = Intensity * GetOcclusion(Frag, Mat);
     float Size = (Radius + Mat.Radius) / Frag.Depth;
     float Factor = 0.0;

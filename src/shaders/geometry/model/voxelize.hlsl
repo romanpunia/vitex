@@ -5,11 +5,11 @@
 VOutput vs_main(VInput V)
 {
 	VOutput Result = (VOutput)0;
-    Result.Position = Result.UV = GetVoxel(mul(float4(V.Position, 1.0), World));
-	Result.Normal = normalize(mul(V.Normal, (float3x3)World));
-	Result.Tangent = normalize(mul(V.Tangent, (float3x3)World));
-	Result.Bitangent = normalize(mul(V.Bitangent, (float3x3)World));
-	Result.TexCoord = V.TexCoord * TexCoord;
+    Result.Position = Result.UV = GetVoxel(mul(float4(V.Position, 1.0), ob_World));
+	Result.Normal = normalize(mul(V.Normal, (float3x3)ob_World));
+	Result.Tangent = normalize(mul(V.Tangent, (float3x3)ob_World));
+	Result.Bitangent = normalize(mul(V.Bitangent, (float3x3)ob_World));
+	Result.TexCoord = V.TexCoord * ob_TexCoord.xy;
 
 	return Result;
 }
@@ -28,13 +28,13 @@ void gs_main(triangle VOutput V[3], inout TriangleStream<VOutput> Stream)
 
 Lumina ps_main(VOutput V)
 {
-	float4 Color = float4(Diffuse, 1.0);
-	[branch] if (HasDiffuse > 0)
+	float4 Color = float4(Materials[ob_Mid].Diffuse, 1.0);
+	[branch] if (ob_Diffuse > 0)
 		Color *= GetDiffuse(V.TexCoord);
 
 	float3 Normal = V.Normal;
-	[branch] if (HasNormal > 0)
+	[branch] if (ob_Normal > 0)
         Normal = GetNormal(V.TexCoord, V.Normal, V.Tangent, V.Bitangent);
     
-    return Compose(V.TexCoord, Color, Normal, V.UV.xyz, MaterialId);
+    return Compose(V.TexCoord, Color, Normal, V.UV.xyz, ob_Mid);
 };

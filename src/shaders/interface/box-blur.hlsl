@@ -4,6 +4,7 @@
 
 cbuffer RenderConstant : register(b3)
 {
+    float4 Color;
     float4 Radius;
     float2 Texel;
     float2 Size;
@@ -22,8 +23,8 @@ float Rectangle(float2 Position, float2 Size, float4 Radius)
 VOutput vs_main(VInput V)
 {
 	VOutput Result;
-	Result.Position = mul(float4(V.Position.xy, 0.0, 1.0), WorldViewProjection);
-    Result.UV = mul(Result.Position, World);
+	Result.Position = mul(float4(V.Position.xy, 0.0, 1.0), ob_WorldViewProj);
+    Result.UV = mul(Result.Position, ob_World);
     Result.Color = float4(0.0, 0.0, 0.0, 0.0);
     Result.TexCoord = V.TexCoord;
 
@@ -39,14 +40,14 @@ float4 ps_main(VOutput V) : SV_Target
     const float Directions = 16.0;
     const float Quality = 3.0;
     float2 Cover = Softness;
-    float3 Color = DiffuseMap.Load(int3(V.Position.xy, 0)).xyz;
+    float3 Result = DiffuseMap.Load(int3(V.Position.xy, 0)).xyz;
 
     [unroll] for (float d = 0.0; d < 6.283185; d += 6.283185 / Directions)
     {
 		[unroll] for (float i = 1.0 / Quality; i <= 1.0; i += 1.0 / Quality)
-			Color += DiffuseMap.Load(int3(V.Position.xy + float2(cos(d), sin(d)) * Cover * i, 0)).xyz;	
+			Result += DiffuseMap.Load(int3(V.Position.xy + float2(cos(d), sin(d)) * Cover * i, 0)).xyz;	
     }
 
-    Color /= Quality * Directions;
-    return float4(Color * Diffuse, Alpha);
+    Result /= Quality * Directions;
+    return float4(Result * Color.xyz, Color.w * Alpha);
 };

@@ -8,7 +8,7 @@
 cbuffer RenderConstant : register(b3)
 {
 	float Samples;
-	float MipLevels;
+	float Mips;
 	float Intensity;
 	float Distance;
 }
@@ -28,7 +28,7 @@ float4 ps_main(VOutput V) : SV_TARGET0
     [branch] if (Frag.Depth >= 1.0)
         return float4(0.0, 0.0, 0.0, 1.0);
 
-    float3 E = normalize(Frag.Position - ViewPosition);
+    float3 E = normalize(Frag.Position - vb_Position);
 	float3 D = reflect(E, Frag.Normal);
     float A = Rayprefix(E, D);
     [branch] if (A <= 0.0)
@@ -38,12 +38,12 @@ float4 ps_main(VOutput V) : SV_TARGET0
     [branch] if (TexCoord.z < 0.0)
         return float4(0.0, 0.0, 0.0, 1.0);
 
-	Material Mat = GetMaterial(Frag.Material);
+	Material Mat = Materials[Frag.Material];
     float T = GetRoughnessMip(Frag, Mat, 1.0);
     float R = GetRoughness(Frag, Mat);
 	float3 M = GetMetallic(Frag, Mat);
     float G = Rayreduce(Frag.Position, TexCoord, T);
-    float3 L = GetDiffuse(TexCoord.xy, (1.0 - G) * T * MipLevels).xyz * Intensity;
+    float3 L = GetDiffuse(TexCoord.xy, (1.0 - G) * T * Mips).xyz * Intensity;
     float3 C = GetSpecularBRDF(Frag.Normal, -E, normalize(D), L, M, R); 
     A *= Raypostfix(TexCoord.xy, D) * pow(abs(G), 0.8);
 

@@ -89,8 +89,9 @@ namespace Tomahawk
 						NMake::Unpack(Simulator->Find("gravity"), &I.Simulator.Gravity);
 					}
 
-					NMake::Unpack(Metadata->Find("components"), &I.ComponentCount);
+					NMake::Unpack(Metadata->Find("materials"), &I.MaterialCount);
 					NMake::Unpack(Metadata->Find("entities"), &I.EntityCount);
+					NMake::Unpack(Metadata->Find("components"), &I.ComponentCount);
 					NMake::Unpack(Metadata->Find("render-quality"), &I.RenderQuality);
 					NMake::Unpack(Metadata->Find("enable-hdr"), &I.EnableHDR);
 				}
@@ -107,13 +108,8 @@ namespace Tomahawk
 					std::vector<Rest::Document*> Collection = Materials->FindCollection("material");
 					for (auto& It : Collection)
 					{
-						std::string Name;
-						NMake::Unpack(It->Find("name"), &Name);
-
-						Engine::Material Value;
-						NMake::Unpack(It, &Value);
-
-						Object->AddMaterial(Name, Value);
+						Engine::Material* Value = Object->AddMaterial("");
+						NMake::Unpack(It, Value, Content);
 					}
 				}
 
@@ -209,8 +205,9 @@ namespace Tomahawk
 				Document->Key = "scene";
 
 				Rest::Document* Metadata = Document->Set("metadata");
-				NMake::Pack(Metadata->Set("components"), Object->GetConf().ComponentCount);
+				NMake::Pack(Metadata->Set("materials"), Object->GetConf().MaterialCount);
 				NMake::Pack(Metadata->Set("entities"), Object->GetConf().EntityCount);
+				NMake::Pack(Metadata->Set("components"), Object->GetConf().ComponentCount);
 				NMake::Pack(Metadata->Set("render-quality"), Object->GetConf().RenderQuality);
 				NMake::Pack(Metadata->Set("enable-hdr"), Object->GetConf().EnableHDR);
 
@@ -226,12 +223,9 @@ namespace Tomahawk
 				Rest::Document* Materials = Document->Set("materials", std::move(Rest::Var::Array()));
 				for (uint64_t i = 0; i < Object->GetMaterialCount(); i++)
 				{
-					Rest::Document* Material = Materials->Set("material");
-					NMake::Pack(Material->Set("name"), Object->GetMaterialName(i));
-
-					Engine::Material* Ref = Object->GetMaterialById(i);
+					Engine::Material* Ref = Object->GetMaterial(i);
 					if (Ref != nullptr)
-						NMake::Pack(Material, *Ref);
+						NMake::Pack(Materials->Set("material"), Ref, Content);
 				}
 
 				Rest::Document* Entities = Document->Set("entities", std::move(Rest::Var::Array()));

@@ -1,12 +1,12 @@
 #include "std/channels/geometry"
 #include "std/objects/gbuffer"
 
-GBuffer Compose(float2 TexCoord, float4 Diffuse, float3 Normal, float Depth, float MaterialId)
+GBuffer Compose(float2 TexCoord, float4 Diffuse, float3 Normal, float Depth, float Mid)
 {
 	GBuffer Result;
     Result.DiffuseBuffer = Diffuse;
     Result.NormalBuffer.xyz = Normal;
-    Result.NormalBuffer.w = MaterialId;
+    Result.NormalBuffer.w = Mid;
     Result.DepthBuffer = Depth;
     Result.SurfaceBuffer.x = RoughnessMap.Sample(Sampler, TexCoord).x;
     Result.SurfaceBuffer.y = MetallicMap.Sample(Sampler, TexCoord).x;

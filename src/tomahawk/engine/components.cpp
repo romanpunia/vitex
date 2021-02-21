@@ -24,22 +24,20 @@ namespace Tomahawk
 					Instance = Content->Load<Graphics::Model>(Path);
 				}
 
-				std::vector<Rest::Document*> Faces = Node->FetchCollection("surfaces.surface");
-				for (auto&& Surface : Faces)
+				std::vector<Rest::Document*> Slots = Node->FetchCollection("materials.material");
+				for (auto&& Material : Slots)
 				{
-					if (!Instance || !NMake::Unpack(Surface->Find("name"), &Path))
-						continue;
+					uint64_t Slot = 0;
+					NMake::Unpack(Material->Find("name"), &Path);
+					NMake::Unpack(Material->Find("slot"), &Slot);
 
-					Graphics::MeshBuffer* Ref = Instance->Find(Path);
-					if (!Ref)
-						continue;
-
-					Appearance Face;
-					if (NMake::Unpack(Surface, &Face, Content))
-						Surfaces[Ref] = Face;
+					Graphics::MeshBuffer* Surface = (Instance ? Instance->FindMesh(Path) : nullptr);
+					if (Surface != nullptr)
+						Materials[Surface] = Parent->GetScene()->GetMaterial(Slot);
 				}
 
 				bool Transparent = false;
+				NMake::Unpack(Node->Find("texcoord"), &TexCoord);
 				NMake::Unpack(Node->Find("transparency"), &Transparent);
 				NMake::Unpack(Node->Find("static"), &Static);
 				SetTransparency(Transparent);
@@ -50,17 +48,20 @@ namespace Tomahawk
 				if (Asset != nullptr)
 					NMake::Pack(Node->Set("model"), Asset->Path);
 
-				Rest::Document* Faces = Node->Set("surfaces", std::move(Rest::Var::Array()));
-				for (auto&& It : Surfaces)
+				Rest::Document* Slots = Node->Set("materials", std::move(Rest::Var::Array()));
+				for (auto&& Slot : Materials)
 				{
-					Rest::Document* Surface = Faces->Set("surface");
-					if (It.first != nullptr)
+					if (Slot.first != nullptr)
 					{
-						NMake::Pack(Surface->Set("name"), ((Graphics::MeshBuffer*)It.first)->Name);
-						NMake::Pack(Surface, It.second, Content);
+						Rest::Document* Material = Slots->Set("material");
+						NMake::Pack(Material->Set("name"), ((Graphics::MeshBuffer*)Slot.first)->Name);
+
+						if (Slot.second != nullptr)
+							NMake::Pack(Material->Set("slot"), Slot.second->GetSlot());
 					}
 				}
 
+				NMake::Pack(Node->Set("texcoord"), TexCoord);
 				NMake::Pack(Node->Set("transparency"), HasTransparency());
 				NMake::Pack(Node->Set("static"), Static);
 			}
@@ -102,7 +103,7 @@ namespace Tomahawk
 				Target->SetTransparency(HasTransparency());
 				Target->Visibility = Visibility;
 				Target->Instance = Instance;
-				Target->Surfaces = Surfaces;
+				Target->Materials = Materials;
 
 				if (Target->Instance != nullptr)
 					Target->Instance->AddRef();
@@ -130,20 +131,18 @@ namespace Tomahawk
 					Instance = Content->Load<Graphics::SkinModel>(Path);
 				}
 
-				std::vector<Rest::Document*> Faces = Node->FetchCollection("surfaces.surface");
-				for (auto&& Surface : Faces)
+				std::vector<Rest::Document*> Slots = Node->FetchCollection("materials.material");
+				for (auto&& Material : Slots)
 				{
-					if (!Instance || !NMake::Unpack(Surface->Find("name"), &Path))
-						continue;
+					uint64_t Slot = 0;
+					NMake::Unpack(Material->Find("name"), &Path);
+					NMake::Unpack(Material->Find("slot"), &Slot);
 
-					Graphics::SkinMeshBuffer* Ref = Instance->FindMesh(Path);
-					if (!Ref)
-						continue;
-
-					Appearance Face;
-					if (NMake::Unpack(Surface, &Face, Content))
-						Surfaces[Ref] = Face;
+					Graphics::SkinMeshBuffer* Surface = (Instance ? Instance->FindMesh(Path) : nullptr);
+					if (Surface != nullptr)
+						Materials[Surface] = Parent->GetScene()->GetMaterial(Slot);
 				}
+
 
 				std::vector<Rest::Document*> Poses = Node->FetchCollection("poses.pose");
 				for (auto&& Pose : Poses)
@@ -157,6 +156,7 @@ namespace Tomahawk
 				}
 
 				bool Transparent = false;
+				NMake::Unpack(Node->Find("texcoord"), &TexCoord);
 				NMake::Unpack(Node->Find("transparency"), &Transparent);
 				NMake::Unpack(Node->Find("static"), &Static);
 				SetTransparency(Transparent);
@@ -167,17 +167,20 @@ namespace Tomahawk
 				if (Asset != nullptr)
 					NMake::Pack(Node->Set("skin-model"), Asset->Path);
 
-				Rest::Document* Faces = Node->Set("surfaces", std::move(Rest::Var::Array()));
-				for (auto&& It : Surfaces)
+				Rest::Document* Slots = Node->Set("materials", std::move(Rest::Var::Array()));
+				for (auto&& Slot : Materials)
 				{
-					Rest::Document* Surface = Faces->Set("surface");
-					if (It.first != nullptr)
+					if (Slot.first != nullptr)
 					{
-						NMake::Pack(Surface->Set("name"), ((Graphics::SkinMeshBuffer*)It.first)->Name);
-						NMake::Pack(Surface, It.second, Content);
+						Rest::Document* Material = Slots->Set("material");
+						NMake::Pack(Material->Set("name"), ((Graphics::MeshBuffer*)Slot.first)->Name);
+
+						if (Slot.second != nullptr)
+							NMake::Pack(Material->Set("slot"), Slot.second->GetSlot());
 					}
 				}
 
+				NMake::Pack(Node->Set("texcoord"), TexCoord);
 				NMake::Pack(Node->Set("transparency"), HasTransparency());
 				NMake::Pack(Node->Set("static"), Static);
 
@@ -233,7 +236,7 @@ namespace Tomahawk
 				Target->SetTransparency(HasTransparency());
 				Target->Visibility = Visibility;
 				Target->Instance = Instance;
-				Target->Surfaces = Surfaces;
+				Target->Materials = Materials;
 
 				if (Target->Instance != nullptr)
 					Target->Instance->AddRef();
@@ -254,8 +257,12 @@ namespace Tomahawk
 			}
 			void Emitter::Deserialize(ContentManager* Content, Rest::Document* Node)
 			{
+				uint64_t Slot = -1;
+				if (NMake::Unpack(Node->Find("material"), &Slot))
+					SetMaterial(nullptr, Parent->GetScene()->GetMaterial((uint64_t)Slot));
+
 				bool Transparent = false;
-				NMake::Unpack(Node->Find("surface"), &Surfaces.begin()->second, Content);
+				NMake::Unpack(Node->Find("texcoord"), &TexCoord);
 				NMake::Unpack(Node->Find("transparency"), &Transparent);
 				NMake::Unpack(Node->Find("quad-based"), &QuadBased);
 				NMake::Unpack(Node->Find("connected"), &Connected);
@@ -281,7 +288,11 @@ namespace Tomahawk
 			}
 			void Emitter::Serialize(ContentManager* Content, Rest::Document* Node)
 			{
-				NMake::Pack(Node->Set("surface"), Surfaces.begin()->second, Content);
+				Material* Slot = GetMaterial();
+				if (Slot != nullptr)
+					NMake::Pack(Node->Set("material"), Slot->GetSlot());
+
+				NMake::Pack(Node->Set("texcoord"), TexCoord);
 				NMake::Pack(Node->Set("transparency"), HasTransparency());
 				NMake::Pack(Node->Set("quad-based"), QuadBased);
 				NMake::Pack(Node->Set("connected"), Connected);
@@ -330,7 +341,7 @@ namespace Tomahawk
 				Target->Visibility = Visibility;
 				Target->Volume = Volume;
 				Target->Connected = Connected;
-				Target->Surfaces = Surfaces;
+				Target->Materials = Materials;
 				Target->Instance->GetArray()->Copy(*Instance->GetArray());
 
 				return Target;
@@ -349,16 +360,20 @@ namespace Tomahawk
 			}
 			void SoftBody::Deserialize(ContentManager* Content, Rest::Document* Node)
 			{
+				uint64_t Slot = -1;
+				if (NMake::Unpack(Node->Find("material"), &Slot))
+					SetMaterial(nullptr, Parent->GetScene()->GetMaterial((uint64_t)Slot));
+
 				bool Extended = false;
 				bool Transparent = false;
 				std::string Path;
 
+				NMake::Unpack(Node->Find("texcoord"), &TexCoord);
 				NMake::Unpack(Node->Find("extended"), &Extended);
 				NMake::Unpack(Node->Find("kinematic"), &Kinematic);
 				NMake::Unpack(Node->Find("manage"), &Manage);
 				NMake::Unpack(Node->Find("static"), &Static);
 				NMake::Unpack(Node->Find("transparency"), &Transparent);
-				NMake::Unpack(Node->Find("surface"), &Surfaces.begin()->second, Content);
 				SetTransparency(Transparent);
 
 				if (!Extended)
@@ -518,12 +533,16 @@ namespace Tomahawk
 			}
 			void SoftBody::Serialize(ContentManager* Content, Rest::Document* Node)
 			{
+				Material* Slot = GetMaterial();
+				if (Slot != nullptr)
+					NMake::Pack(Node->Set("material"), Slot->GetSlot());
+
+				NMake::Pack(Node->Set("texcoord"), TexCoord);
 				NMake::Pack(Node->Set("transparency"), HasTransparency());
 				NMake::Pack(Node->Set("kinematic"), Kinematic);
 				NMake::Pack(Node->Set("manage"), Manage);
 				NMake::Pack(Node->Set("extended"), Instance != nullptr);
 				NMake::Pack(Node->Set("static"), Static);
-				NMake::Pack(Node->Set("surface"), Surfaces.begin()->second, Content);
 
 				if (!Instance)
 					return;
@@ -893,25 +912,33 @@ namespace Tomahawk
 			}
 			void Decal::Deserialize(ContentManager* Content, Rest::Document* Node)
 			{
+				uint64_t Slot = -1;
+				if (NMake::Unpack(Node->Find("material"), &Slot))
+					SetMaterial(nullptr, Parent->GetScene()->GetMaterial((uint64_t)Slot));
+
 				bool Transparent = false;
+				NMake::Unpack(Node->Find("texcoord"), &TexCoord);
 				NMake::Unpack(Node->Find("projection"), &Projection);
 				NMake::Unpack(Node->Find("view"), &View);
 				NMake::Unpack(Node->Find("field-of-view"), &FieldOfView);
 				NMake::Unpack(Node->Find("distance"), &Distance);
 				NMake::Unpack(Node->Find("static"), &Static);
 				NMake::Unpack(Node->Find("transparency"), &Transparent);
-				NMake::Unpack(Node->Find("surface"), &Surfaces.begin()->second, Content);
 				SetTransparency(Transparent);
 			}
 			void Decal::Serialize(ContentManager* Content, Rest::Document* Node)
 			{
+				Material* Slot = GetMaterial();
+				if (Slot != nullptr)
+					NMake::Pack(Node->Set("material"), Slot->GetSlot());
+
+				NMake::Pack(Node->Set("texcoord"), TexCoord);
 				NMake::Pack(Node->Set("projection"), Projection);
 				NMake::Pack(Node->Set("view"), View);
 				NMake::Pack(Node->Set("field-of-view"), FieldOfView);
 				NMake::Pack(Node->Set("distance"), Distance);
 				NMake::Pack(Node->Set("static"), Static);
 				NMake::Pack(Node->Set("transparency"), HasTransparency());
-				NMake::Pack(Node->Set("surface"), Surfaces.begin()->second, Content);
 			}
 			void Decal::Synchronize(Rest::Timer* Time)
 			{
@@ -939,7 +966,7 @@ namespace Tomahawk
 			{
 				Decal* Target = new Decal(New);
 				Target->Visibility = Visibility;
-				Target->Surfaces = Surfaces;
+				Target->Materials = Materials;
 
 				return Target;
 			}

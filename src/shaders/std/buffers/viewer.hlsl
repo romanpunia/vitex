@@ -1,11 +1,11 @@
 cbuffer Viewer : register(b2)
 {
-    matrix InvViewProjection;
-    matrix ViewProjection;
-    matrix Projection;
-    matrix View;
-    float3 ViewPosition;
-    float FarPlane;
-    float3 ViewDirection;
-    float NearPlane;
+    matrix vb_InvViewProj;
+    matrix vb_ViewProj;
+    matrix vb_Proj;
+    matrix vb_View;
+    float3 vb_Position;
+    float vb_Far;
+    float3 vb_Direction;
+    float vb_Near;
 };

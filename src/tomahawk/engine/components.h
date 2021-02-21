@@ -17,6 +17,9 @@ namespace Tomahawk
 				Graphics::Model* Instance = nullptr;
 
 			public:
+				Compute::Vector2 TexCoord = 1.0f;
+
+			public:
 				Model(Entity* Ref);
 				virtual ~Model() override;
 				virtual void Deserialize(ContentManager* Content, Rest::Document* Node) override;
@@ -39,6 +42,7 @@ namespace Tomahawk
 				Graphics::SkinModel* Instance = nullptr;
 
 			public:
+				Compute::Vector2 TexCoord = 1.0f;
 				Graphics::PoseBuffer Skeleton;
 
 			public:
@@ -66,6 +70,7 @@ namespace Tomahawk
 
 			public:
 				Compute::Vector3 Volume = 1.0f;
+				Compute::Vector2 TexCoord = 1.0f;
 				bool Connected = false;
 				bool QuadBased = false;
 
@@ -92,6 +97,7 @@ namespace Tomahawk
 				std::vector<int> Indices;
 
 			public:
+				Compute::Vector2 TexCoord = 1.0f;
 				bool Kinematic = false;
 				bool Manage = true;
 
@@ -129,6 +135,7 @@ namespace Tomahawk
 			public:
 				Compute::Matrix4x4 Projection;
 				Compute::Matrix4x4 View;
+				Compute::Vector2 TexCoord = 1.0f;
 				float FieldOfView = 90.0f;
 				float Distance = 15.0f;
 

@@ -124,11 +124,11 @@ namespace Tomahawk
 					if (!Device || !Buffer)
 						return;
 
-					Device->Render.HasDiffuse = (Buffer->Texture != nullptr);
+					Device->Render.Diffuse = (Buffer->Texture != nullptr);
 					if (HasTransform)
-						Device->Render.WorldViewProjection = Compute::Matrix4x4::CreateTranslation(Compute::Vector3(Translation.x, Translation.y)) * Transform * Ortho;
+						Device->Render.WorldViewProj = Compute::Matrix4x4::CreateTranslation(Compute::Vector3(Translation.x, Translation.y)) * Transform * Ortho;
 					else
-						Device->Render.WorldViewProjection = Compute::Matrix4x4::CreateTranslation(Compute::Vector3(Translation.x, Translation.y)) * Ortho;
+						Device->Render.WorldViewProj = Compute::Matrix4x4::CreateTranslation(Compute::Vector3(Translation.x, Translation.y)) * Ortho;
 					
 					Device->SetTexture2D(Buffer->Texture, 1, TH_PS);
 					Device->SetShader(Shader, TH_VS | TH_PS);
@@ -214,7 +214,7 @@ namespace Tomahawk
 						Device->Unmap(VertexBuffer, &Subresource);
 					}
 
-					Device->Render.WorldViewProjection = Transform * Ortho;
+					Device->Render.WorldViewProj = Transform * Ortho;
 					Device->ClearDepth();
 					Device->SetBlendState(ColorlessBlend);
 					Device->SetShader(Shader, TH_VS | TH_PS);
@@ -1921,6 +1921,25 @@ namespace Tomahawk
 				Form->SetValue(*Ptr);
 				return false;
 			}
+			bool IElement::CastFormPointer(void** Ptr)
+			{
+				Rml::ElementFormControl* Form = (Rml::ElementFormControl*)Base;
+				if (!Form || !Ptr)
+					return false;
+
+				void* Value = ToPointer(Form->GetValue());
+				if (Value == *Ptr)
+					return false;
+
+				if (Form->IsPseudoClassSet("focus"))
+				{
+					*Ptr = Value;
+					return true;
+				}
+
+				Form->SetValue(FromPointer(*Ptr));
+				return false;
+			}
 			bool IElement::CastFormInt32(int32_t* Ptr)
 			{
 				Rml::ElementFormControl* Form = (Rml::ElementFormControl*)Base;
@@ -2246,6 +2265,24 @@ namespace Tomahawk
 			bool IElement::IsValid() const
 			{
 				return Base != nullptr;
+			}
+			std::string IElement::FromPointer(void* Ptr)
+			{
+				if (!Ptr)
+					return "0";
+
+				return std::to_string((intptr_t)(void*)Ptr);
+			}
+			void* IElement::ToPointer(const std::string& Value)
+			{
+				if (Value.empty())
+					return nullptr;
+
+				Rest::Stroke Buffer(&Value);
+				if (!Buffer.HasInteger())
+					return nullptr;
+
+				return (void*)(intptr_t)Buffer.ToInt64();
 			}
 
 			IElementDocument::IElementDocument(Rml::ElementDocument* Ref) : IElement((Rml::Element*)Ref)

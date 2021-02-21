@@ -15,7 +15,7 @@ bool IsInPixelGrid(float2 TexCoord)
 }
 float Linearize(float Depth)
 {
-    return NearPlane * FarPlane / (FarPlane + Depth * (NearPlane - FarPlane));
+    return vb_Near * vb_Far / (vb_Far + Depth * (vb_Near - vb_Far));
 }
 float GetDepth(float2 TexCoord)
 {
@@ -39,7 +39,7 @@ Fragment GetFragment(float2 TexCoord)
     float4 C1 = NormalBuffer.SampleLevel(Sampler, TexCoord, 0);
     float4 C2 = DepthBuffer.SampleLevel(Sampler, TexCoord, 0);
     float4 C3 = SurfaceBuffer.SampleLevel(Sampler, TexCoord, 0);
-    float4 Position = mul(float4(TexCoord.x * 2.0 - 1.0, 1.0 - TexCoord.y * 2.0, C2.x, 1.0), InvViewProjection);
+    float4 Position = mul(float4(TexCoord.x * 2.0 - 1.0, 1.0 - TexCoord.y * 2.0, C2.x, 1.0), vb_InvViewProj);
 
     Fragment Result;
     Result.Position = Position.xyz / Position.w;
@@ -54,8 +54,4 @@ Fragment GetFragment(float2 TexCoord)
     Result.Emission = C3.w;
 
     return Result;
-}
-Material GetMaterial(float Material_Id)
-{
-    return Materials[Material_Id];
 }

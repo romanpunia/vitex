@@ -25,7 +25,7 @@ VOutput vs_main(VInput V)
 float4 ps_main(VOutput V) : SV_TARGET0
 {
     Fragment Frag = GetFragment(V.TexCoord.xy);
-    Material Mat = GetMaterial(Frag.Material);
+    Material Mat = Materials[Frag.Material];
     float3 N = GetNormal(V.TexCoord.xy);
     float3 B = float3(0, 0, 0);
     float R = GetRoughnessMip(Frag, Mat, 1.0);

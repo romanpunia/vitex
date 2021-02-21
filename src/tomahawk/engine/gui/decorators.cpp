@@ -18,12 +18,12 @@ namespace Tomahawk
 				if (State != nullptr && State->GetTransform() != nullptr)
 				{
 					Compute::Matrix4x4 View = Subsystem::ToMatrix(State->GetTransform());
-					Device->Render.WorldViewProjection = Compute::Matrix4x4::CreateTranslatedScale(Offset, Scale + Mul) * View * Ortho;
+					Device->Render.WorldViewProj = Compute::Matrix4x4::CreateTranslatedScale(Offset, Scale + Mul) * View * Ortho;
 					Device->Render.World = (Compute::Matrix4x4::CreateTranslation(Compute::Vector2(Position.x, Position.y)) * View * Ortho).Invert();
 				}
 				else
 				{
-					Device->Render.WorldViewProjection = Compute::Matrix4x4::CreateTranslatedScale(Offset, Scale + Mul) * Ortho;
+					Device->Render.WorldViewProj = Compute::Matrix4x4::CreateTranslatedScale(Offset, Scale + Mul) * Ortho;
 					Device->Render.World = (Compute::Matrix4x4::CreateTranslation(Compute::Vector2(Position.x, Position.y)) * Ortho).Invert();
 				}
 			}
@@ -64,6 +64,7 @@ namespace Tomahawk
 			public:
 				struct RenderConstant
 				{
+					Compute::Vector4 Color;
 					Compute::Vector4 Radius;
 					Compute::Vector2 Texel;
 					Compute::Vector2 Size;
@@ -170,18 +171,18 @@ namespace Tomahawk
 					float Alpha = Element->GetProperty<float>("opacity");
 
 					Graphics::GraphicsDevice* Device = IBoxBlur->Device;
+					IBoxBlur->RenderPass.Color = Color;
 					IBoxBlur->RenderPass.Texel = Compute::Vector2(Screen.x, Screen.y);
 					IBoxBlur->RenderPass.Position = Compute::Vector2(Position.x, Position.y);
 					IBoxBlur->RenderPass.Size = Compute::Vector2(Size.x, Size.y);
 					IBoxBlur->RenderPass.Softness = Softness;
-					IBoxBlur->RenderPass.Alpha = Color.W * Alpha;
+					IBoxBlur->RenderPass.Alpha = Alpha;
 					IBoxBlur->RenderPass.Radius.X = Element->GetProperty<float>("border-bottom-left-radius");
 					IBoxBlur->RenderPass.Radius.Y = Element->GetProperty<float>("border-bottom-right-radius");
 					IBoxBlur->RenderPass.Radius.Z = Element->GetProperty<float>("border-top-right-radius");
 					IBoxBlur->RenderPass.Radius.W = Element->GetProperty<float>("border-top-left-radius");
 
 					SetWorldViewProjection(Device, Element, Position, Size);
-					Device->Render.Diffuse = Color;
 					Device->CopyTexture2D(Background, &IBoxBlur->Background);
 					Device->SetTexture2D(IBoxBlur->Background, 1, TH_PS);
 					Device->SetShader(IBoxBlur->Shader, TH_VS | TH_PS);

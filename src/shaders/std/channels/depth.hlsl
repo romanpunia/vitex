@@ -9,7 +9,3 @@ float4 GetDiffuse(float2 TexCoord)
 {
     return DiffuseMap.Sample(Sampler, TexCoord);
 }
-Material GetMaterial(float Material_Id)
-{
-    return Materials[Material_Id];
-}

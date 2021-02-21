@@ -13,7 +13,7 @@ VOutputCubic Make(VOutputLinear V, float2 Offset, float2 TexCoord2, uint i)
 	float Sin = sin(V.Rotation), Cos = cos(V.Rotation);
 	V.Position = mul(V.Position, FaceView[i]);
 	V.Position += float4(Offset.x * Cos - Offset.y * Sin, Offset.x * Sin + Offset.y * Cos, 0, 0);
-	V.Position = mul(V.Position, Projection);
+	V.Position = mul(V.Position, vb_Proj);
 
 	VOutputCubic Result = (VOutputCubic)0;
 	Result.Position = V.Position;
@@ -23,7 +23,7 @@ VOutputCubic Make(VOutputLinear V, float2 Offset, float2 TexCoord2, uint i)
 	Result.Scale = V.Scale;
 	Result.Alpha = V.Alpha;
 	Result.RenderTarget = i;
-	Result.TexCoord = TexCoord2;
+	Result.TexCoord = TexCoord2 * ob_TexCoord.xy;
 
 	return Result;
 }
@@ -44,7 +44,7 @@ void gs_main(point VOutputLinear V[1], inout TriangleStream<VOutputCubic> Stream
 VOutputLinear vs_main(VInput V)
 {
 	VOutputLinear Result = (VOutputLinear)0;
-	Result.Position = Result.UV = mul(float4(Elements[V.Position].Position, 1), World);
+	Result.Position = Result.UV = mul(float4(Elements[V.Position].Position, 1), ob_World);
     Result.Normal = float3(0, 0, 1);
 	Result.Rotation = Elements[V.Position].Rotation;
 	Result.Scale = Elements[V.Position].Scale;

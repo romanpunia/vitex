@@ -216,7 +216,7 @@ namespace Tomahawk
 					Compute::Vector3 Position;
 					float Range = 0.0f;
 					Compute::Vector3 Lighting;
-					float MipLevels = 0.0f;
+					float Mips = 0.0f;
 					Compute::Vector3 Scale;
 					float Parallax = 0.0f;
 					Compute::Vector3 Attenuation;
@@ -299,7 +299,7 @@ namespace Tomahawk
 					Compute::Vector3 Center;
 					float RayStep = 1.0f;
 					Compute::Vector3 Size;
-					float MipLevels = 8.0f;
+					float Mips = 8.0f;
 					Compute::Vector3 Scale;
 					float MaxSteps = 32.0f;
 					Compute::Vector3 Lights;
@@ -465,7 +465,7 @@ namespace Tomahawk
 			public:
 				struct RenderConstant
 				{
-					float MipLevels = 0.0f;
+					float Mips = 0.0f;
 					Compute::Vector3 Padding;
 				} RenderPass;
 
@@ -493,7 +493,7 @@ namespace Tomahawk
 				struct ReflectanceBuffer
 				{
 					float Samples = 32.0f;
-					float MipLevels = 0.0f;
+					float Mips = 0.0f;
 					float Intensity = 1.4f;
 					float Distance = 4.0f;
 				} Reflectance;
@@ -686,7 +686,7 @@ namespace Tomahawk
 				struct LuminanceBuffer
 				{
 					float Texel[2] = { 1.0f, 1.0f };
-					float MipLevels = 0.0f;
+					float Mips = 0.0f;
 					float Time = 0.0f;
 				} Luminance;
 

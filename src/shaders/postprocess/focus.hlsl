@@ -17,7 +17,7 @@ cbuffer RenderConstant : register(b3)
 
 float GetWeight(float2 TexCoord, float NearD, float NearR, float FarD, float FarR)
 {
-    float4 Position = mul(float4(GetPosition(TexCoord, GetDepth(TexCoord)), 1.0), ViewProjection);
+    float4 Position = mul(float4(GetPosition(TexCoord, GetDepth(TexCoord)), 1.0), vb_ViewProj);
 	float N = 1.0 - (Position.z - NearD) / NearR;
 	float F = (Position.z - (FarD - FarR)) / FarR;
 

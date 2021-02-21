@@ -58,7 +58,7 @@ float4 ps_main(AmbientVertexResult V) : SV_TARGET0
 {
     Fragment Frag = GetFragment(V.TexCoord.xy);
 	float4 R = GetSample(LightMap, V.TexCoord.xy) * LightEmission;
-    float L = distance(Frag.Position, ViewPosition);
+    float L = distance(Frag.Position, vb_Position);
 
     [branch] if (Frag.Depth >= 1.0)
     {
@@ -66,12 +66,12 @@ float4 ps_main(AmbientVertexResult V) : SV_TARGET0
         return float4(GetScattering(R.xyz, L), 1.0);
     }
 
-    Material Mat = GetMaterial(Frag.Material);
+    Material Mat = Materials[Frag.Material];
     float3 E = GetEmission(Frag, Mat);
     float3 O = GetOcclusion(Frag, Mat);
     float3 M = GetBaseReflectivity(Frag.Diffuse, GetMetallic(Frag, Mat));
 	float3 A = GetIllumination(HighEmission, LowEmission, Frag.Normal.y);
-    float3 F = GetFresnelSchlick(dot(normalize(Frag.Position - ViewPosition), Frag.Normal), M);
+    float3 F = GetFresnelSchlick(dot(normalize(Frag.Position - vb_Position), Frag.Normal), M);
     float3 D = lerp(Frag.Diffuse.xyz, F, F * Mat.Fresnel * 0.05);
     R.xyz += A * D * O + GetIllumination(E, E * 0.5, Frag.Normal.y) * O;
 

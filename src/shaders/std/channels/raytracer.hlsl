@@ -21,12 +21,12 @@ float GetAvg(float3 Value)
 }
 float3 GetVoxel(float3 Position)
 {
-    float3 Voxel = clamp(Position - VxCenter, -VxScale, VxScale) / VxScale;
+    float3 Voxel = clamp(Position - vxb_Center, -vxb_Scale, vxb_Scale) / vxb_Scale;
     return (float3(0.5, -0.5, 0.5) * Voxel + 0.5);
 }
 float3 GetFlatVoxel(float3 Voxel)
 {
-    return floor(Voxel * VxSize) / VxSize;
+    return floor(Voxel * vxb_Size) / vxb_Size;
 }
 float4 GetLight(float3 Voxel, float Level)
 {
@@ -42,7 +42,7 @@ Fragment GetFragment(float2 TexCoord)
     float4 C1 = NormalBuffer.SampleLevel(Sampler, TexCoord, 0);
     float4 C2 = DepthBuffer.SampleLevel(Sampler, TexCoord, 0);
     float4 C3 = SurfaceBuffer.SampleLevel(Sampler, TexCoord, 0);
-    float4 Position = mul(float4(TexCoord.x * 2.0 - 1.0, 1.0 - TexCoord.y * 2.0, C2.x, 1.0), InvViewProjection);
+    float4 Position = mul(float4(TexCoord.x * 2.0 - 1.0, 1.0 - TexCoord.y * 2.0, C2.x, 1.0), vb_InvViewProj);
     Position /= Position.w;
 
     bool Usable = IsInVoxelGrid(GetVoxel(Position.xyz));
@@ -60,8 +60,4 @@ Fragment GetFragment(float2 TexCoord)
     Result.Emission = C3.w;
 
     return Result;
-}
-Material GetMaterial(float Material_Id)
-{
-    return Materials[floor(Material_Id)];
 }

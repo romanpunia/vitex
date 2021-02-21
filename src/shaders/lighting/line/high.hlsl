@@ -29,7 +29,7 @@ float GetPenumbra(uniform uint I, float2 D, float L)
         return 1.0;
     
     Length /= Count;
-    return saturate(Umbra * FarPlane * (L - Length) / Length);
+    return saturate(Umbra * vb_Far * (L - Length) / Length);
 }
 float GetLightness(uniform uint I, float2 D, float L)
 {
@@ -88,11 +88,11 @@ float4 ps_main(VOutput V) : SV_TARGET0
         return float4(GetAtmosphere(TexCoord, SkyOffset, float3(0, 6372e3, 0), Position, A), 1.0);
     }
     
-	Material Mat = GetMaterial(Frag.Material);
+	Material Mat = Materials[Frag.Material];
 	float G = GetRoughness(Frag, Mat);
 	float3 M = GetMetallic(Frag, Mat);
     float3 E = GetSurface(Frag, Mat);
-    float3 D = normalize(ViewPosition - Frag.Position);
+    float3 D = normalize(vb_Position - Frag.Position);
     float3 R = GetCookTorranceBRDF(Frag.Normal, D, Position, Frag.Diffuse, M, G);
     float3 S = GetSubsurface(Frag.Normal, D, Position, Mat.Scatter) * E;
     R = Lighting * (R + S);

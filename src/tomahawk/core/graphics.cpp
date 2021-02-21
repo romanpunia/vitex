@@ -3142,7 +3142,7 @@ namespace Tomahawk
 			for (auto It = Meshes.begin(); It != Meshes.end(); It++)
 				delete (*It);
 		}
-		MeshBuffer* Model::Find(const std::string& Name)
+		MeshBuffer* Model::FindMesh(const std::string& Name)
 		{
 			for (auto&& It : Meshes)
 			{

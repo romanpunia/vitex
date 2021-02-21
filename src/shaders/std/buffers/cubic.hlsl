@@ -1,4 +1,4 @@
 cbuffer RenderConstant : register(b3)
 {
-	matrix FaceViewProjection[6];
+	matrix cb_ViewProjection[6];
 };

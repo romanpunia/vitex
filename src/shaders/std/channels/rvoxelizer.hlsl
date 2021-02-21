@@ -11,7 +11,7 @@ Texture3D<unorm float4> SurfaceBuffer : register(t4);
 
 bool IsInVoxelGrid(float3 Voxel)
 {
-    return (Voxel.x >= 0.0 && Voxel.x < VxSize.x && Voxel.y >= 0.0 && Voxel.y < VxSize.y && Voxel.z >= 0.0 && Voxel.z < VxSize.z);
+    return (Voxel.x >= 0.0 && Voxel.x < vxb_Size.x && Voxel.y >= 0.0 && Voxel.y < vxb_Size.y && Voxel.z >= 0.0 && Voxel.z < vxb_Size.z);
 }
 float GetAvg(float3 Value)
 {
@@ -19,13 +19,13 @@ float GetAvg(float3 Value)
 }
 float3 GetVoxel(float3 Position)
 {
-    float3 Voxel = clamp(Position - VxCenter, -VxScale, VxScale) / VxScale;
-    return (float3(0.5, -0.5, 0.5) * Voxel + 0.5) * VxSize;
+    float3 Voxel = clamp(Position - vxb_Center, -vxb_Scale, vxb_Scale) / vxb_Scale;
+    return (float3(0.5, -0.5, 0.5) * Voxel + 0.5) * vxb_Size;
 }
 float3 GetVoxelToWorld(uint3 Position)
 {
-    float3 Result = (float3)Position / VxSize;
-    Result = (2.0 * Result - 1.0) * VxScale - VxCenter;
+    float3 Result = (float3)Position / vxb_Size;
+    Result = (2.0 * Result - 1.0) * vxb_Scale - vxb_Center;
     return float3(Result.x, -Result.y, Result.z);
 }
 float4 GetDiffuse(uint3 Voxel)
@@ -64,8 +64,4 @@ Fragment GetFragment(uint3 Voxel)
 {
     float4 C0 = DiffuseBuffer.Load(int4((int3)Voxel.xyz, 0));
     return GetFragmentWithDiffuse(C0, Voxel);
-}
-Material GetMaterial(float Material_Id)
-{
-    return Materials[floor(Material_Id)];
 }

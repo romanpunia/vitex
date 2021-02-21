@@ -6,7 +6,7 @@
 cbuffer RenderConstant : register(b3)
 {
     float2 Texel;
-    float MipLevels;
+    float Mips;
     float Time;
 }
 

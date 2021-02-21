@@ -850,35 +850,31 @@ namespace Tomahawk
 		struct TH_OUT AnimationBuffer
 		{
 			Compute::Matrix4x4 Offsets[96];
-			float HasAnimation;
 			Compute::Vector3 Padding;
+			float Animated;
 		};
 
 		struct TH_OUT RenderBuffer
 		{
-			Compute::Matrix4x4 WorldViewProjection;
+			Compute::Matrix4x4 WorldViewProj;
 			Compute::Matrix4x4 World;
-			Compute::Vector3 Diffuse;
-			float HasDiffuse = 0.0f;
-			Compute::Vector2 TexCoord;
-			float HasNormal = 0.0f;
-			float MaterialId = 0.0f;
-			float HasHeight = 0.0f;
-			float HeightAmount = 0.0f;
-			float HeightBias = 0.0f;
-			float Alignment = 0.0f;
+			Compute::Vector4 TexCoord;
+			float Diffuse = 0.0f;
+			float Normal = 0.0f;
+			float Height = 0.0f;
+			float Mid = 0.0f;
 		};
 
 		struct TH_OUT ViewBuffer
 		{
-			Compute::Matrix4x4 InvViewProjection;
-			Compute::Matrix4x4 ViewProjection;
-			Compute::Matrix4x4 Projection;
+			Compute::Matrix4x4 InvViewProj;
+			Compute::Matrix4x4 ViewProj;
+			Compute::Matrix4x4 Proj;
 			Compute::Matrix4x4 View;
-			Compute::Vector3 ViewPosition;
-			float FarPlane;
-			Compute::Vector3 ViewDirection;
-			float NearPlane;
+			Compute::Vector3 Position;
+			float Far;
+			Compute::Vector3 Direction;
+			float Near;
 		};
 
 		struct TH_OUT PoseBuffer
@@ -1910,7 +1906,7 @@ namespace Tomahawk
 		public:
 			Model();
 			virtual ~Model() override;
-			MeshBuffer* Find(const std::string& Name);
+			MeshBuffer* FindMesh(const std::string& Name);
 		};
 
 		class TH_OUT SkinModel : public Rest::Object

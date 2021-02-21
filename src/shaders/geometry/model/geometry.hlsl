@@ -6,31 +6,33 @@
 VOutput vs_main(VInput V)
 {
 	VOutput Result = (VOutput)0;
-	Result.Position = Result.UV = mul(float4(V.Position, 1.0), WorldViewProjection);
-	Result.Normal = normalize(mul(V.Normal, (float3x3)World));
-	Result.Tangent = normalize(mul(V.Tangent, (float3x3)World));
-	Result.Bitangent = normalize(mul(V.Bitangent, (float3x3)World));
-	Result.TexCoord = V.TexCoord * TexCoord;
+	Result.Position = Result.UV = mul(float4(V.Position, 1.0), ob_WorldViewProj);
+	Result.Normal = normalize(mul(V.Normal, (float3x3)ob_World));
+	Result.Tangent = normalize(mul(V.Tangent, (float3x3)ob_World));
+	Result.Bitangent = normalize(mul(V.Bitangent, (float3x3)ob_World));
+	Result.TexCoord = V.TexCoord * ob_TexCoord.xy;
 
-    [branch] if (HasHeight > 0)
-        Result.Direction = GetDirection(Result.Tangent, Result.Bitangent, Result.Normal, mul(float4(V.Position, 1.0), World), TexCoord);
+    [branch] if (ob_Height > 0)
+        Result.Direction = GetDirection(Result.Tangent, Result.Bitangent, Result.Normal, mul(float4(V.Position, 1.0), ob_World), ob_TexCoord.xy);
 
 	return Result;
 }
 
 GBuffer ps_main(VOutput V)
 {
-    float2 TexCoord = V.TexCoord;
-    [branch] if (HasHeight > 0)
-        TexCoord = GetParallax(TexCoord, V.Direction, HeightAmount, HeightBias);
+    Material Mat = Materials[ob_Mid];
+    float2 Coord = V.TexCoord;
+
+    [branch] if (ob_Height > 0)
+        Coord = GetParallax(Coord, V.Direction, Mat.Height, Mat.Bias);
     
-	float4 Color = float4(Diffuse, 1.0);
-	[branch] if (HasDiffuse > 0)
-		Color *= GetDiffuse(TexCoord);
+	float4 Color = float4(Mat.Diffuse, 1.0);
+	[branch] if (ob_Diffuse > 0)
+		Color *= GetDiffuse(Coord);
 
 	float3 Normal = V.Normal;
-	[branch] if (HasNormal > 0)
-        Normal = GetNormal(TexCoord, V.Normal, V.Tangent, V.Bitangent);
+	[branch] if (ob_Normal > 0)
+        Normal = GetNormal(Coord, V.Normal, V.Tangent, V.Bitangent);
     
-    return Compose(TexCoord, Color, Normal, V.UV.z / V.UV.w, MaterialId);
+    return Compose(Coord, Color, Normal, V.UV.z / V.UV.w, ob_Mid);
 };

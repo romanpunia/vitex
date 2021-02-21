@@ -7,13 +7,13 @@ float2 GetTexCoord(float4 UV)
 float3 GetPosition(float2 TexCoord, float Depth)
 {
     float4 Position = float4(TexCoord.x * 2.0 - 1.0, 1.0 - TexCoord.y * 2.0, Depth, 1.0);
-    Position = mul(Position, InvViewProjection);
+    Position = mul(Position, vb_InvViewProj);
 
     return Position.xyz / Position.w;
 }
 float3 GetPositionUV(float3 Position)
 {
-    float4 Coord = mul(float4(Position, 1.0), ViewProjection);
+    float4 Coord = mul(float4(Position, 1.0), vb_ViewProj);
     Coord.xy = float2(0.5, 0.5) + float2(0.5, -0.5) * Coord.xy / Coord.w;
     Coord.z /= Coord.w;
     

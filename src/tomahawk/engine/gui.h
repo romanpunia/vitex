@@ -328,6 +328,7 @@ namespace Tomahawk
 				bool IsClippingEnabled();
 				bool CastFormColor(Compute::Vector4* Ptr, bool Alpha);
 				bool CastFormString(std::string* Ptr);
+				bool CastFormPointer(void** Ptr);
 				bool CastFormInt32(int32_t* Ptr);
 				bool CastFormUInt32(uint32_t* Ptr);
 				bool CastFormFlag32(uint32_t* Ptr, uint32_t Mask);
@@ -346,6 +347,10 @@ namespace Tomahawk
 				void SetFormDisabled(bool Disable);
 				Rml::Element* GetElement() const;
 				bool IsValid() const;
+
+			public:
+				static std::string FromPointer(void* Ptr);
+				static void* ToPointer(const std::string& Value);
 			};
 
 			class TH_OUT IElementDocument : public IElement

@@ -21,6 +21,8 @@ namespace Tomahawk
 		typedef std::function<bool(class Component*, const Compute::Vector3&)> RayCallback;
 		typedef std::function<bool(Graphics::RenderTarget*)> TargetCallback;
 
+		class NMake;
+
 		class SceneGraph;
 
 		class Application;
@@ -38,6 +40,8 @@ namespace Tomahawk
 		class Processor;
 
 		class RenderSystem;
+		
+		class Material;
 
 		enum ApplicationUse
 		{
@@ -114,28 +118,6 @@ namespace Tomahawk
 			VoxelType_Surface = 2
 		};
 
-		struct TH_OUT Attenuation
-		{
-			float Range = 10.0f;
-			float C1 = 0.6f;
-			float C2 = 0.6f;
-		};
-
-		struct TH_OUT Material
-		{
-			Compute::Vector4 Emission = { 0.0f, 0.0f, 0.0f, 0.0f };
-			Compute::Vector4 Metallic = { 0.0f, 0.0f, 0.0f, 0.0f };
-			Compute::Vector3 Scatter = { 0.1f, 16.0f, 0.0f };
-			Compute::Vector2 Roughness = { 1.0f, 0.0f };
-			Compute::Vector2 Occlusion = { 1.0f, 0.0f };
-			float Fresnel = 0.0f;
-			float Transparency = 0.0f;
-			float Refraction = 0.0f;
-			float Environment = 0.0f;
-			float Radius = 0.0f;
-			float Id = 0.0f;
-		};
-
 		struct TH_OUT AssetCache
 		{
 			std::string Path;
@@ -148,6 +130,36 @@ namespace Tomahawk
 			std::string Path;
 			uint64_t Length = 0;
 			uint64_t Offset = 0;
+		};
+
+		struct TH_OUT AssetFile : public Rest::Object
+		{
+		private:
+			char* Buffer;
+			size_t Size;
+
+		public:
+			AssetFile(char* SrcBuffer, size_t SrcSize);
+			virtual ~AssetFile() override;
+			char* GetBuffer();
+			size_t GetSize();
+		};
+
+		struct TH_OUT FragmentQuery
+		{
+		private:
+			Graphics::Query* Query;
+			uint64_t Fragments;
+			int Satisfied;
+
+		public:
+			FragmentQuery();
+			~FragmentQuery();
+			bool Begin(Graphics::GraphicsDevice* Device);
+			void End(Graphics::GraphicsDevice* Device);
+			void Clear();
+			int Fetch(RenderSystem* System);
+			uint64_t GetPassed();
 		};
 
 		struct TH_OUT AnimatorState
@@ -174,49 +186,6 @@ namespace Tomahawk
 			int Iterations = 1;
 		};
 
-		struct TH_OUT Appearance
-		{
-		private:
-			Graphics::Texture2D* DiffuseMap = nullptr;
-			Graphics::Texture2D* NormalMap = nullptr;
-			Graphics::Texture2D* MetallicMap = nullptr;
-			Graphics::Texture2D* RoughnessMap = nullptr;
-			Graphics::Texture2D* HeightMap = nullptr;
-			Graphics::Texture2D* OcclusionMap = nullptr;
-			Graphics::Texture2D* EmissionMap = nullptr;
-
-		public:
-			Compute::Vector3 Diffuse = 1;
-			Compute::Vector2 TexCoord = 1;
-			float HeightAmount = 0.0f;
-			float HeightBias = 0.0f;
-			int64_t Material = -1;
-
-		public:
-			Appearance();
-			Appearance(const Appearance& Other);
-			~Appearance();
-			bool FillGeometry(Graphics::GraphicsDevice* Device) const;
-			bool FillVoxels(Graphics::GraphicsDevice* Device) const;
-			bool FillDepthLinear(Graphics::GraphicsDevice* Device) const;
-			bool FillDepthCubic(Graphics::GraphicsDevice* Device) const;
-			void SetDiffuseMap(Graphics::Texture2D* New);
-			Graphics::Texture2D* GetDiffuseMap() const;
-			void SetNormalMap(Graphics::Texture2D* New);
-			Graphics::Texture2D* GetNormalMap() const;
-			void SetMetallicMap(Graphics::Texture2D* New);
-			Graphics::Texture2D* GetMetallicMap() const;
-			void SetRoughnessMap(Graphics::Texture2D* New);
-			Graphics::Texture2D* GetRoughnessMap() const;
-			void SetHeightMap(Graphics::Texture2D* New);
-			Graphics::Texture2D* GetHeightMap() const;
-			void SetOcclusionMap(Graphics::Texture2D* New);
-			Graphics::Texture2D* GetOcclusionMap() const;
-			void SetEmissionMap(Graphics::Texture2D* New);
-			Graphics::Texture2D* GetEmissionMap() const;
-			Appearance& operator= (const Appearance& Other);
-		};
-
 		struct TH_OUT Viewer
 		{
 			RenderSystem* Renderer = nullptr;
@@ -233,19 +202,6 @@ namespace Tomahawk
 			float NearPlane = 0.0f;
 
 			void Set(const Compute::Matrix4x4& View, const Compute::Matrix4x4& Projection, const Compute::Vector3& Position, float Near, float Far);
-		};
-
-		struct TH_OUT AssetFile : public Rest::Object
-		{
-		private:
-			char* Buffer;
-			size_t Size;
-
-		public:
-			AssetFile(char* SrcBuffer, size_t SrcSize);
-			virtual ~AssetFile() override;
-			char* GetBuffer();
-			size_t GetSize();
 		};
 
 		struct TH_OUT Reactor
@@ -266,6 +222,30 @@ namespace Tomahawk
 			void UpdateTask();
 		};
 
+		struct TH_OUT Attenuation
+		{
+			float Range = 10.0f;
+			float C1 = 0.6f;
+			float C2 = 0.6f;
+		};
+
+		struct TH_OUT Subsurface
+		{
+			Compute::Vector4 Emission = { 0.0f, 0.0f, 0.0f, 0.0f };
+			Compute::Vector4 Metallic = { 0.0f, 0.0f, 0.0f, 0.0f };
+			Compute::Vector3 Diffuse = { 1.0f, 1.0f, 1.0f };
+			Compute::Vector3 Scatter = { 0.1f, 16.0f, 0.0f };
+			Compute::Vector2 Roughness = { 1.0f, 0.0f };
+			Compute::Vector2 Occlusion = { 1.0f, 0.0f };
+			float Fresnel = 0.0f;
+			float Transparency = 0.0f;
+			float Refraction = 0.0f;
+			float Environment = 0.0f;
+			float Radius = 0.0f;
+			float Height = 0.0f;
+			float Bias = 0.0f;
+		};
+
 		class TH_OUT NMake
 		{
 		public:
@@ -283,10 +263,9 @@ namespace Tomahawk
 			static void Pack(Rest::Document* V, const Compute::Vector4& Value);
 			static void Pack(Rest::Document* V, const Compute::Matrix4x4& Value);
 			static void Pack(Rest::Document* V, const Attenuation& Value);
-			static void Pack(Rest::Document* V, const Material& Value);
 			static void Pack(Rest::Document* V, const AnimatorState& Value);
 			static void Pack(Rest::Document* V, const SpawnerProperties& Value);
-			static void Pack(Rest::Document* V, const Appearance& Value, ContentManager* Content);
+			static void Pack(Rest::Document* V, Material* Value, ContentManager* Content);
 			static void Pack(Rest::Document* V, const Compute::SkinAnimatorKey& Value);
 			static void Pack(Rest::Document* V, const Compute::SkinAnimatorClip& Value);
 			static void Pack(Rest::Document* V, const Compute::KeyAnimatorClip& Value);
@@ -333,10 +312,9 @@ namespace Tomahawk
 			static bool Unpack(Rest::Document* V, Compute::Vector4* O);
 			static bool Unpack(Rest::Document* V, Compute::Matrix4x4* O);
 			static bool Unpack(Rest::Document* V, Attenuation* O);
-			static bool Unpack(Rest::Document* V, Material* O);
 			static bool Unpack(Rest::Document* V, AnimatorState* O);
 			static bool Unpack(Rest::Document* V, SpawnerProperties* O);
-			static bool Unpack(Rest::Document* V, Appearance* O, ContentManager* Content);
+			static bool Unpack(Rest::Document* V, Material* O, ContentManager* Content);
 			static bool Unpack(Rest::Document* V, Compute::SkinAnimatorKey* O);
 			static bool Unpack(Rest::Document* V, Compute::SkinAnimatorClip* O);
 			static bool Unpack(Rest::Document* V, Compute::KeyAnimatorClip* O);
@@ -396,6 +374,50 @@ namespace Tomahawk
 			Component* GetComponent();
 			Entity* GetEntity();
 			SceneGraph* GetScene();
+		};
+
+		class TH_OUT Material : public Rest::Object
+		{
+			friend NMake;
+			friend RenderSystem;
+			friend SceneGraph;
+
+		private:
+			Graphics::Texture2D* DiffuseMap;
+			Graphics::Texture2D* NormalMap;
+			Graphics::Texture2D* MetallicMap;
+			Graphics::Texture2D* RoughnessMap;
+			Graphics::Texture2D* HeightMap;
+			Graphics::Texture2D* OcclusionMap;
+			Graphics::Texture2D* EmissionMap;
+			SceneGraph* Scene;
+			uint64_t Slot;
+
+		public:
+			Subsurface Surface;
+			std::string Name;
+
+		protected:
+			Material(SceneGraph* Src, const std::string& Alias);
+
+		public:
+			virtual ~Material() override;
+			void SetDiffuseMap(Graphics::Texture2D* New);
+			Graphics::Texture2D* GetDiffuseMap() const;
+			void SetNormalMap(Graphics::Texture2D* New);
+			Graphics::Texture2D* GetNormalMap() const;
+			void SetMetallicMap(Graphics::Texture2D* New);
+			Graphics::Texture2D* GetMetallicMap() const;
+			void SetRoughnessMap(Graphics::Texture2D* New);
+			Graphics::Texture2D* GetRoughnessMap() const;
+			void SetHeightMap(Graphics::Texture2D* New);
+			Graphics::Texture2D* GetHeightMap() const;
+			void SetOcclusionMap(Graphics::Texture2D* New);
+			Graphics::Texture2D* GetOcclusionMap() const;
+			void SetEmissionMap(Graphics::Texture2D* New);
+			Graphics::Texture2D* GetEmissionMap() const;
+			SceneGraph* GetScene() const;
+			uint64_t GetSlot() const;
 		};
 
 		class TH_OUT Processor : public Rest::Object
@@ -598,6 +620,7 @@ namespace Tomahawk
 			Graphics::SamplerState* Sampler;
 			Graphics::DepthBuffer* Target;
 			Graphics::GraphicsDevice* Device;
+			Material* BaseMaterial;
 			SceneGraph* Scene;
 			size_t DepthSize;
 			bool OcclusionCulling;
@@ -630,6 +653,11 @@ namespace Tomahawk
 			void FreeShader(Graphics::Shader* Shader);
 			void FreeBuffers(const std::string& Name, Graphics::ElementBuffer** Buffers);
 			void FreeBuffers(Graphics::ElementBuffer** Buffers);
+			void ClearMaterials();
+			bool PushGeometryBuffer(Material* Next);
+			bool PushVoxelsBuffer(Material* Next);
+			bool PushDepthLinearBuffer(Material* Next);
+			bool PushDepthCubicBuffer(Material* Next);
 			bool PassCullable(Cullable* Base, CullResult Mode, float* Result);
 			bool PassDrawable(Drawable* Base, CullResult Mode, float* Result);
 			bool HasOcclusionCulling();
@@ -721,18 +749,16 @@ namespace Tomahawk
 		{
 			friend SceneGraph;
 
+		protected:
+			std::unordered_map<void*, Material*> Materials;
+
 		private:
-			Graphics::Query* Query;
 			GeoCategory Category;
-			uint64_t Fragments;
 			uint64_t Source;
-			int Satisfied;
 			bool Complex;
 
-		protected:
-			std::unordered_map<void*, Appearance> Surfaces;
-
 		public:
+			FragmentQuery Query;
 			bool Static;
 
 		public:
@@ -742,16 +768,13 @@ namespace Tomahawk
 			virtual Component* Copy(Entity* New) override = 0;
 			virtual void ClearCull() override;
 			bool SetTransparency(bool Enabled);
-			bool Begin(Graphics::GraphicsDevice* Device);
-			void End(Graphics::GraphicsDevice* Device);
-			int Fetch(RenderSystem* System);
-			uint64_t GetFragmentsCount();
-			const std::unordered_map<void*, Appearance>& GetSurfaces();
-			Material* GetMaterial(Appearance* Surface);
-			Material* GetMaterial();
-			Appearance* GetSurface(void* Instance);
-			Appearance* GetSurface();
+			bool SetMaterial(void* Instance, Material* Value);
 			bool HasTransparency();
+			int64_t GetSlot(void* Surface);
+			int64_t GetSlot();
+			Material* GetMaterial(void* Surface);
+			Material* GetMaterial();
+			const std::unordered_map<void*, Material*>& GetMaterials();
 
 		protected:
 			void Attach();
@@ -834,6 +857,7 @@ namespace Tomahawk
 			{
 				bool EnableHDR = false;
 				float RenderQuality = 1.0f;
+				uint64_t MaterialCount = 1ll << 14;
 				uint64_t EntityCount = 1ll << 15;
 				uint64_t ComponentCount = 1ll << 16;
 				Compute::Simulator::Desc Simulator;
@@ -844,13 +868,13 @@ namespace Tomahawk
 				ShaderCache* Shaders = nullptr;
 			};
 
+		private:
 			struct Thread
 			{
 				std::atomic<std::thread::id> Id;
 				std::atomic<int> State;
 			};
 
-		private:
 			struct Geometry
 			{
 				Rest::Pool<Drawable*> Opaque;
@@ -875,6 +899,7 @@ namespace Tomahawk
 				Graphics::MultiRenderTarget2D* MRT[TargetType_Count * 2];
 				Graphics::RenderTarget2D* RT[TargetType_Count * 2];
 				Graphics::Texture3D* VoxelBuffers[3];
+				Graphics::ElementBuffer* MaterialBuffer;
 				Graphics::DepthStencilState* DepthStencil;
 				Graphics::RasterizerState* Rasterizer;
 				Graphics::BlendState* Blend;
@@ -888,15 +913,14 @@ namespace Tomahawk
 			std::unordered_map<std::string, std::pair<std::string, MessageCallback>> Listeners;
 			std::unordered_map<uint64_t, Rest::Pool<Component*>> Components;
 			std::unordered_map<uint64_t, Geometry> Drawables;
-			std::vector<Material> Materials;
-			std::vector<std::string> Names;
 			std::vector<Event*> Events;
+			Rest::Pool<Material*> Materials;
 			Rest::Pool<Component*> Pending;
 			Rest::Pool<Entity*> Entities;
-			Graphics::ElementBuffer* Structure;
 			Compute::Simulator* Simulator;
 			Component* Camera;
 			Desc Conf;
+			uint64_t Surfaces;
 			bool Invoked;
 			bool Active;
 
@@ -913,7 +937,7 @@ namespace Tomahawk
 			void Update(Rest::Timer* Time);
 			void Simulation(Rest::Timer* Time);
 			void Synchronize(Rest::Timer* Time);
-			void RemoveMaterial(uint64_t MaterialId);
+			void RemoveMaterial(Material* Value);
 			void RemoveEntity(Entity* Entity, bool Release);
 			void SetCamera(Entity* Camera);
 			void CloneEntities(Entity* Instance, std::vector<Entity*>* Array);
@@ -925,7 +949,7 @@ namespace Tomahawk
 			void Actualize();
 			void Redistribute();
 			void Reindex();
-			void ExpandMaterialStructure();
+			void ExpandMaterials();
 			void Lock();
 			void Unlock();
 			void ResizeBuffers();
@@ -933,7 +957,6 @@ namespace Tomahawk
 			void ScriptHook(const std::string& Name = "Main");
 			void SetActive(bool Enabled);
 			void SetView(const Compute::Matrix4x4& View, const Compute::Matrix4x4& Projection, const Compute::Vector3& Position, float Near, float Far, bool Upload);
-			void SetMaterialName(uint64_t Material, const std::string& Name);
 			void SetVoxelBufferSize(size_t Size);
 			void SetMRT(TargetType Type, bool Clear);
 			void SetRT(TargetType Type, bool Clear);
@@ -948,7 +971,8 @@ namespace Tomahawk
 			bool DispatchEvent(Component* Target, const std::string& EventName, const Rest::VariantArgs& Args);
 			bool DispatchEvent(Entity* Target, const std::string& EventName, const Rest::VariantArgs& Args);
 			void Dispatch();
-			Material* AddMaterial(const std::string& Name, const Material& Material);
+			Material* AddMaterial(const std::string& Name);
+			Material* CloneMaterial(Material* Base, const std::string& Name);
 			Entity* CloneEntities(Entity* Value);
 			Entity* FindNamedEntity(const std::string& Name);
 			Entity* FindEntityAt(const Compute::Vector3& Position, float Radius);
@@ -959,9 +983,8 @@ namespace Tomahawk
 			Component* GetCamera();
 			RenderSystem* GetRenderer();
 			Viewer GetCameraViewer();
-			std::string GetMaterialName(uint64_t Material);
-			Material* GetMaterialByName(const std::string& Material);
-			Material* GetMaterialById(uint64_t Material);
+			Material* GetMaterial(const std::string& Material);
+			Material* GetMaterial(uint64_t Material);
 			Rest::Pool<Component*>* GetComponents(uint64_t Section);
 			Graphics::RenderTarget2D::Desc GetDescRT();
 			Graphics::MultiRenderTarget2D::Desc GetDescMRT();
@@ -996,6 +1019,7 @@ namespace Tomahawk
 			Desc& GetConf();
 
 		protected:
+			void FillMaterialBuffers();
 			void ResizeRenderBuffers();
 			void AddDrawable(Drawable* Source, GeoCategory Category);
 			void RemoveDrawable(Drawable* Source, GeoCategory Category);

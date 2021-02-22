@@ -1051,9 +1051,9 @@ namespace Tomahawk
 		void Multiplexer::Dispatch()
 		{
 			if (!Loop)
-				Worker(nullptr, nullptr);
+				Worker(nullptr);
 		}
-		void Multiplexer::Worker(Rest::EventQueue* Queue, Rest::EventArgs* Args)
+		void Multiplexer::Worker(Rest::EventQueue* Queue)
 		{
 #ifdef TH_APPLE
 			struct kevent* Events = (struct kevent*)Array;
@@ -1117,9 +1117,7 @@ namespace Tomahawk
 
 				if (!Size)
 					std::this_thread::sleep_for(std::chrono::microseconds(100));
-			} while (Queue == Loop && Args);
-
-			return;
+			} while (Queue == Loop && Queue->IsBlockable());
 		}
 		bool Multiplexer::Create(int Length, int64_t Timeout, Rest::EventQueue* Queue)
 		{
@@ -1133,7 +1131,7 @@ namespace Tomahawk
 
 			PipeTimeout = Timeout;
 			if ((Loop = Queue) != nullptr)
-				Loop->Task<Multiplexer>(nullptr, Multiplexer::Worker);
+				Loop->SetTask(Multiplexer::Worker);
 
 			return true;
 		}
@@ -1585,10 +1583,10 @@ namespace Tomahawk
 				return false;
 
 			Rest::EventQueue* Last = Queue;
-			if (Queue != nullptr && Worker != nullptr)
+			if (Queue != nullptr)
 			{
-				Queue->Expire(Worker->Id);
-				Worker = nullptr;
+				Queue->ClearTimeout(Timer);
+				Timer = -1;
 			}
 
 			State = ServerState_Stopping;
@@ -1645,17 +1643,16 @@ namespace Tomahawk
 				return false;
 
 			Multiplexer::Create((int)Router->MaxEvents, Router->MasterTimeout, Queue);
-			Queue->Interval<SocketServer>(this, Router->CloseTimeout, [this](Rest::EventQueue*, Rest::EventArgs* Args)
+			Timer = Queue->SetInterval(Router->CloseTimeout, [this](Rest::EventQueue*)
 			{
 				FreeQueued();
-				if (State == ServerState_Working)
-					return;
-
-				Sync.lock();
-				State = ServerState_Idle;
-				Args->Alive = false;
-				Sync.unlock();
-			}, &Worker);
+				if (State == ServerState_Stopping)
+				{
+					Sync.lock();
+					State = ServerState_Idle;
+					Sync.unlock();
+				}
+			});
 
 			for (auto&& It : Listeners)
 			{
@@ -1735,9 +1732,9 @@ namespace Tomahawk
 			Good.insert(Base);
 			Sync.unlock();
 
-			return Queue->Callback<SocketConnection>(Base, [this](Rest::EventQueue*, Rest::EventArgs* Args)
+			return Queue->SetTask([this, Base](Rest::EventQueue*)
 			{
-				OnRequestBegin(Args->Get<SocketConnection>());
+				OnRequestBegin(Base);
 			});
 		}
 		bool SocketServer::Protect(Socket* Fd, Listener* Host)

@@ -302,7 +302,7 @@ namespace Tomahawk
 			static Rest::EventQueue* GetQueue();
 
 		private:
-			static void Worker(Rest::EventQueue* Queue, Rest::EventArgs* Args);
+			static void Worker(Rest::EventQueue* Queue);
 		};
 
 		class TH_OUT SocketServer : public Rest::Object
@@ -314,9 +314,9 @@ namespace Tomahawk
 			std::unordered_set<SocketConnection*> Bad;
 			std::vector<Listener*> Listeners;
 			Rest::EventQueue* Queue = nullptr;
-			Rest::EventTimer* Worker = nullptr;
 			SocketRouter* Router = nullptr;
 			ServerState State = ServerState_Idle;
+			Rest::EventId Timer = -1;
 			std::mutex Sync;
 
 		public:

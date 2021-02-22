@@ -57,19 +57,10 @@ namespace Tomahawk
 			}
 			void* SceneGraph::Deserialize(Rest::Stream* Stream, uint64_t Length, uint64_t Offset, const Rest::VariantArgs& Args)
 			{
-				Engine::SceneGraph::Desc I = Engine::SceneGraph::Desc();
-				I.Device = Content->GetDevice();
+				Engine::SceneGraph::Desc I = Engine::SceneGraph::Desc::Get(Application::Get());
+				if (!I.Device)
+					return nullptr;
 
-				Application* App = Application::Get();
-				if (App != nullptr)
-				{
-					I.Shaders = App->Cache.Shaders;
-					I.Primitives = App->Cache.Primitives;
-					I.Queue = App->Queue;
-					I.Manager = App->VM;
-				}
-
-				std::string Environment = Content->GetEnvironment();
 				Rest::Document* Document = Content->Load<Rest::Document>(Stream->GetSource());
 				if (!Document)
 					return nullptr;

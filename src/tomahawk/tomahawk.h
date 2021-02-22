@@ -38,8 +38,13 @@ namespace Tomahawk
 		TInit_Compute = 64,
 		TInit_Locale = 128,
 		TInit_Audio = 256,
-		TInit_GLEW = 512,
-		TInit_All = (TInit_Rest | TInit_Logger | TInit_Network | TInit_Crypto | TInit_SSL | TInit_SDL2 | TInit_Compute | TInit_Locale | TInit_Audio | TInit_GLEW)
+		TInit_GLEW = 512
+	};
+
+	enum TPreset
+	{
+		TPreset_Game = (TInit_Rest | TInit_Logger | TInit_Network | TInit_Crypto | TInit_SSL | TInit_SDL2 | TInit_Compute | TInit_Locale | TInit_Audio | TInit_GLEW),
+		TPreset_App = (TInit_Rest | TInit_Logger | TInit_Network | TInit_Crypto | TInit_SSL | TInit_Compute | TInit_Locale)
 	};
 
 	enum TMem
@@ -80,7 +85,7 @@ namespace Tomahawk
 		static const char* Platform();
 	};
 
-	TH_OUT bool Initialize(unsigned int Modules = TInit_All, size_t HeapSize = TMem_Heap);
+	TH_OUT bool Initialize(unsigned int Modules = TPreset_Game, size_t HeapSize = TMem_Heap);
 	TH_OUT bool Uninitialize();
 }
 #endif

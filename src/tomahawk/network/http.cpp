@@ -113,12 +113,13 @@ namespace Tomahawk
 					Base->Info.KeepAlive = 0;
 					Base->Unlock();
 
-					auto Queue = Base->Root->GetQueue();
+					auto* Queue = Base->Root->GetQueue();
 					if (Queue != nullptr)
 					{
-						return (void)Queue->Callback<HTTP::Connection>(Base, [](Rest::EventQueue*, Rest::EventArgs* Args)
+						auto* Store = Base;
+						return (void)Queue->SetTask([Store](Rest::EventQueue*)
 						{
-							Args->Get<HTTP::Connection>()->Finish();
+							Store->Finish();
 						});
 					}
 
@@ -202,12 +203,13 @@ namespace Tomahawk
 					return false;
 				}
 
-				auto Queue = Base->Root->GetQueue();
+				auto* Queue = Base->Root->GetQueue();
 				if (Queue != nullptr)
 				{
-					return Queue->Callback<HTTP::Connection>(Base, [](Rest::EventQueue*, Rest::EventArgs* Args)
+					auto* Store = Base;
+					return Queue->SetTask([Store](Rest::EventQueue*)
 					{
-						Args->Get<HTTP::Connection>()->Finish();
+						Store->Finish();
 					}) && false;
 				}
 
@@ -256,7 +258,7 @@ namespace Tomahawk
 				}
 
 				Base->Lock();
-				return Base->Root->GetQueue()->Task<GatewayFrame>(nullptr, [this](Rest::EventQueue*, Rest::EventArgs*)
+				return Base->Root->GetQueue()->SetTask([this](Rest::EventQueue*)
 				{
 					int Result = Compiler->LoadCode(Base->Request.Path, Buffer, Size);
 					if (Result < 0)
@@ -3901,9 +3903,9 @@ namespace Tomahawk
 					{
 						if (WebSocketUpgradeAllowed(Base))
 						{
-							return Base->Root->Queue->Callback<Connection>(Base, [](Rest::EventQueue*, Rest::EventArgs* Args)
+							return Base->Root->Queue->SetTask([Base](Rest::EventQueue*)
 							{
-								RouteWEBSOCKET(Args->Get<Connection>());
+								RouteWEBSOCKET(Base);
 							});
 						}
 
@@ -3915,9 +3917,9 @@ namespace Tomahawk
 
 				if (WebSocketUpgradeAllowed(Base))
 				{
-					return Base->Root->Queue->Callback<Connection>(Base, [](Rest::EventQueue*, Rest::EventArgs* Args)
+					return Base->Root->Queue->SetTask([Base](Rest::EventQueue*)
 					{
-						RouteWEBSOCKET(Args->Get<Connection>());
+						RouteWEBSOCKET(Base);
 					});
 				}
 
@@ -3928,9 +3930,9 @@ namespace Tomahawk
 				{
 					if (Base->Route->AllowDirectoryListing)
 					{
-						return Base->Root->Queue->Callback<Connection>(Base, [](Rest::EventQueue*, Rest::EventArgs* Args)
+						return Base->Root->Queue->SetTask([Base](Rest::EventQueue*)
 						{
-							ProcessDirectory(Args->Get<Connection>());
+							ProcessDirectory(Base);
 						});
 					}
 
@@ -3942,18 +3944,18 @@ namespace Tomahawk
 
 				if (Base->Route->StaticFileMaxAge > 0 && !ResourceModified(Base, &Base->Resource))
 				{
-					return Base->Root->Queue->Callback<Connection>(Base, [](Rest::EventQueue*, Rest::EventArgs* Args)
+					return Base->Root->Queue->SetTask([Base](Rest::EventQueue*)
 					{
-						ProcessResourceCache(Args->Get<Connection>());
+						ProcessResourceCache(Base);
 					});
 				}
 
 				if (Base->Resource.Size > Base->Root->Router->PayloadMaxLength)
 					return Base->Error(413, "Entity payload is too big to process.");
 
-				return Base->Root->Queue->Callback<Connection>(Base, [](Rest::EventQueue*, Rest::EventArgs* Args)
+				return Base->Root->Queue->SetTask([Base](Rest::EventQueue*)
 				{
-					ProcessResource(Args->Get<Connection>());
+					ProcessResource(Base);
 				});
 			}
 			bool Util::RoutePOST(Connection* Base)
@@ -3983,18 +3985,18 @@ namespace Tomahawk
 
 				if (Base->Route->StaticFileMaxAge > 0 && !ResourceModified(Base, &Base->Resource))
 				{
-					return Base->Root->Queue->Callback<Connection>(Base, [](Rest::EventQueue*, Rest::EventArgs* Args)
+					return Base->Root->Queue->SetTask([Base](Rest::EventQueue*)
 					{
-						ProcessResourceCache(Args->Get<Connection>());
+						ProcessResourceCache(Base);
 					});
 				}
 
 				if (Base->Resource.Size > Base->Root->Router->PayloadMaxLength)
 					return Base->Error(413, "Entity payload is too big to process.");
 
-				return Base->Root->Queue->Callback<Connection>(Base, [](Rest::EventQueue*, Rest::EventArgs* Args)
+				return Base->Root->Queue->SetTask([Base](Rest::EventQueue*)
 				{
-					ProcessResource(Args->Get<Connection>());
+					ProcessResource(Base);
 				});
 			}
 			bool Util::RoutePUT(Connection* Base)
@@ -4411,9 +4413,9 @@ namespace Tomahawk
 					else if (Size > 0)
 						return true;
 
-					return Base->Root->Queue->Task<HTTP::Connection>(Base, [ContentLength, Range1](Rest::EventQueue*, Rest::EventArgs* Args)
+					return Base->Root->Queue->SetTask([Base, ContentLength, Range1](Rest::EventQueue*)
 					{
-						Util::ProcessFile(Args->Get<HTTP::Connection>(), ContentLength, Range1);
+						Util::ProcessFile(Base, ContentLength, Range1);
 					});
 				});
 			}
@@ -4480,9 +4482,9 @@ namespace Tomahawk
 					else if (Size > 0)
 						return true;
 
-					return Base->Root->Queue->Task<HTTP::Connection>(Base, [Range, ContentLength, Gzip](Rest::EventQueue*, Rest::EventArgs* Args)
+					return Base->Root->Queue->SetTask([Base, Range, ContentLength, Gzip](Rest::EventQueue*)
 					{
-						Util::ProcessFileCompress(Args->Get<HTTP::Connection>(), ContentLength, Range, Gzip);
+						Util::ProcessFileCompress(Base, ContentLength, Range, Gzip);
 					});
 				});
 			}
@@ -4767,7 +4769,7 @@ namespace Tomahawk
 				if (!VM)
 					return Base->Error(500, "Gateway cannot be issued.") && false;
 
-				return Base->Root->Queue->Task<GatewayFrame>(nullptr, [=](Rest::EventQueue* Queue, Rest::EventArgs* Args)
+				return Base->Root->Queue->SetTask([=](Rest::EventQueue*)
 				{
 					Script::VMCompiler* Compiler = VM->CreateCompiler();
 					if (Compiler->Prepare(Rest::OS::GetFilename(Base->Request.Path), Base->Request.Path, true, true) < 0)

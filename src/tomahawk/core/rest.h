@@ -171,6 +171,7 @@ namespace Tomahawk
 		{
 			EventWorkflow_Multithreaded,
 			EventWorkflow_Singlethreaded,
+			EventWorkflow_Ticked,
 			EventWorkflow_Mixed
 		};
 
@@ -209,12 +210,14 @@ namespace Tomahawk
 			VarForm_Write_Tab,
 		};
 
-		typedef std::function<void(class EventQueue*, struct EventArgs*)> BaseCallback;
-		typedef std::function<bool(class EventQueue*, struct EventArgs*)> PullCallback;
+		typedef std::vector<struct Variant> VariantList;
+		typedef std::unordered_map<std::string, struct Variant> VariantArgs;
+		typedef std::function<void(class EventQueue*, VariantArgs&)> EventCallback;
+		typedef std::function<void(class EventQueue*)> TaskCallback;
+		typedef std::function<void(class EventQueue*)> TimerCallback;
 		typedef std::function<void(VarForm, const char*, int64_t)> NWriteCallback;
 		typedef std::function<bool(char*, int64_t)> NReadCallback;
-		typedef std::unordered_map<std::string, struct Variant> VariantArgs;
-		typedef std::vector<struct Variant> VariantList;
+		typedef uint64_t EventId;
 
 		struct TH_OUT Variant
 		{
@@ -280,61 +283,53 @@ namespace Tomahawk
 			bool Exists = false;
 		};
 
-		struct TH_OUT EventArgs
-		{
-			friend EventQueue;
-
-		private:
-			EventWorker* Worker = nullptr;
-
-		public:
-			void* Data = nullptr;
-			uint64_t Hash = 0;
-			bool Alive = true;
-
-		public:
-			bool Blockable();
-			template <typename T>
-			void Free()
-			{
-				if (Data != nullptr)
-				{
-					delete (T*)Data;
-					Data = nullptr;
-				}
-			}
-			template <typename T>
-			bool Is()
-			{
-				return typeid(T).hash_code() == Hash;
-			}
-			template <typename T>
-			T* Get()
-			{
-				return (T*)Data;
-			}
-		};
-
 		struct TH_OUT EventBase
 		{
-			uint64_t Type = 0;
-			EventArgs Args;
-			BaseCallback Callback;
+			std::string Name;
+			VariantArgs Args;
+
+			EventBase(const std::string& NewName);
+			EventBase(const std::string& NewName, const VariantArgs& NewArgs);
+			EventBase(const std::string& NewName, VariantArgs&& NewArgs);
+			EventBase(const EventBase& Other);
+			EventBase(EventBase&& Other);
+			EventBase& operator= (const EventBase& Other);
+			EventBase& operator= (EventBase&& Other);
+		};
+
+		struct TH_OUT EventTask
+		{
+			TaskCallback Callback;
+			bool Alive;
+
+			EventTask(const TaskCallback& NewCallback, bool NewAlive);
+			EventTask(TaskCallback&& NewCallback, bool NewAlive);
+			EventTask(const EventTask& Other);
+			EventTask(EventTask&& Other);
+			EventTask& operator= (const EventTask& Other);
+			EventTask& operator= (EventTask&& Other);
 		};
 
 		struct TH_OUT EventTimer
 		{
-			BaseCallback Callback;
-			EventArgs Args;
-			uint64_t Timeout = 0;
-			uint64_t Id = 0;
-			int64_t Time = 0;
+			TimerCallback Callback;
+			uint64_t Timeout;
+			int64_t Time;
+			EventId Id;
+			bool Alive;
+
+			EventTimer(const TimerCallback& NewCallback, uint64_t NewTimeout, int64_t NewTime, EventId NewId, bool NewAlive);
+			EventTimer(TimerCallback&& NewCallback, uint64_t NewTimeout, int64_t NewTime, EventId NewId, bool NewAlive);
+			EventTimer(const EventTimer& Other);
+			EventTimer(EventTimer&& Other);
+			EventTimer& operator= (const EventTimer& Other);
+			EventTimer& operator= (EventTimer&& Other);
 		};
 
 		struct TH_OUT EventListener
 		{
-			uint64_t Type = 0;
-			BaseCallback Callback;
+			std::unordered_map<EventId, EventCallback> Callbacks;
+			EventId Counter = 0;
 		};
 
 		struct TH_OUT Resource
@@ -1018,35 +1013,29 @@ namespace Tomahawk
 
 		class TH_OUT EventWorker : public Object
 		{
-			friend EventArgs;
 			friend EventQueue;
 
 		private:
 			EventQueue* Queue;
 			std::thread Thread;
-			bool Extended;
 
 		private:
-			EventWorker(EventQueue* Value, bool IsTask);
+			EventWorker(EventQueue* Value);
 			virtual ~EventWorker() override;
-
-		private:
-			bool QueueTask();
-			bool QueueEvent();
+			bool Loop();
 		};
 
 		class TH_OUT EventQueue : public Object
 		{
-			friend EventArgs;
 			friend EventWorker;
 
 		private:
 			struct
 			{
-				std::vector<EventWorker*> Workers[2];
-				std::condition_variable Condition[2];
+				std::vector<EventWorker*> Workers;
+				std::condition_variable Condition;
 				std::thread Thread[2];
-				std::mutex Safe[2];
+				std::mutex Safe;
 			} Async;
 
 			struct
@@ -1058,12 +1047,12 @@ namespace Tomahawk
 			} Sync;
 
 		private:
-			std::unordered_map<uint64_t, EventListener*> Listeners;
-			std::deque<EventBase*> Events;
-			std::deque<EventBase*> Tasks;
-			std::vector<EventTimer*> Timers;
+			std::unordered_map<std::string, EventListener> Listeners;
+			std::vector<EventTimer> Timers;
+			std::deque<EventTask> Tasks;
+			std::deque<EventBase> Events;
 			EventState State = EventState_Terminated;
-			uint64_t Timer = 0;
+			EventId Timer = 0;
 			int Synchronize = 0;
 
 		public:
@@ -1073,154 +1062,34 @@ namespace Tomahawk
 			EventQueue();
 			virtual ~EventQueue() override;
 			void SetState(EventState NewState);
+			EventId SetInterval(uint64_t Milliseconds, const TimerCallback& Callback);
+			EventId SetInterval(uint64_t Milliseconds, TimerCallback&& Callback);
+			EventId SetTimeout(uint64_t Milliseconds, const TimerCallback& Callback);
+			EventId SetTimeout(uint64_t Milliseconds, TimerCallback&& Callback);
+			EventId SetListener(const std::string& Name, const EventCallback& Callback);
+			EventId SetListener(const std::string& Name, EventCallback&& Callback);
+			bool SetTask(const TaskCallback& Callback, bool Looped = false);
+			bool SetTask(TaskCallback&& Callback, bool Looped = false);
+			bool SetEvent(const std::string& Name, const VariantArgs& Args);
+			bool SetEvent(const std::string& Name, VariantArgs&& Args);
+			bool SetEvent(const std::string& Name);
+			bool ClearListener(const std::string& Name, EventId ListenerId);
+			bool ClearTimeout(EventId TimerId);
+			bool Clear(EventType Type, bool NoCall);
+			bool Start(EventWorkflow Workflow, uint64_t Workers);
 			bool Tick();
-			bool Start(EventWorkflow Workflow, uint64_t TaskWorkers, uint64_t EventWorkers);
 			bool Stop();
-			bool Expire(uint64_t TimerId);
+			bool IsBlockable();
 			EventState GetState();
 
 		private:
-			bool MixedLoop();
-			bool DefaultLoop();
-			bool TimerLoop();
-			bool QueueEvent(EventWorker* Worker);
-			bool QueueTask(EventWorker* Worker);
-			bool QueueTimer(int64_t Time);
-			bool AddEvent(EventBase* Value);
-			bool AddTask(EventBase* Value);
-			bool AddTimer(EventTimer* Value);
-			bool AddListener(EventListener* Value);
-			bool RemoveCallback(EventBase* Value);
-			bool RemoveListener(uint64_t Value);
-			bool RemoveAny(EventType Type, uint64_t Hash, const PullCallback& Callback, bool NoCall);
-			int64_t Clock();
-
-		public:
-			template <typename T>
-			bool Task(T* Args, const BaseCallback& Callback, bool Keep = false, EventBase** Event = nullptr)
-			{
-				if (!Callback)
-					return false;
-
-				auto* Value = new EventBase();
-				Value->Type = typeid(T).hash_code();
-				Value->Args.Hash = Value->Type;
-				Value->Args.Data = (void*)Args;
-				Value->Args.Alive = Keep;
-				Value->Args.Worker = nullptr;
-				Value->Callback = Callback;
-
-				if (Event != nullptr)
-					*Event = Value;
-
-				return AddTask(Value);
-			}
-			template <typename T>
-			bool Event(T* Args, bool Keep = false, EventBase** Event = nullptr)
-			{
-				auto* Value = new EventBase();
-				Value->Type = typeid(T).hash_code();
-				Value->Args.Hash = Value->Type;
-				Value->Args.Data = (void*)Args;
-				Value->Args.Worker = nullptr;
-				Value->Args.Alive = Keep;
-
-				if (!RemoveCallback(Value))
-				{
-					delete Value;
-					if (Event != nullptr)
-						*Event = nullptr;
-
-					return false;
-				}
-				else if (Event != nullptr)
-					*Event = Value;
-
-				return AddEvent(Value);
-			}
-			template <typename T>
-			bool Callback(T* Args, const BaseCallback& Callback, bool Keep = false, EventBase** Event = nullptr)
-			{
-				if (!Callback)
-					return false;
-
-				auto* Value = new EventBase();
-				Value->Type = typeid(EventBase).hash_code();
-				Value->Args.Hash = typeid(T).hash_code();
-				Value->Args.Data = (void*)Args;
-				Value->Args.Alive = Keep;
-				Value->Args.Worker = nullptr;
-				Value->Callback = Callback;
-
-				if (Event != nullptr)
-					*Event = Value;
-
-				return AddEvent(Value);
-			}
-			template <typename T>
-			bool Interval(T* Args, uint64_t Milliseconds, const BaseCallback& Callback, EventTimer** Event = nullptr)
-			{
-				if (!Callback)
-					return false;
-
-				auto* Value = new EventTimer();
-				Value->Args.Hash = typeid(T).hash_code();
-				Value->Args.Data = (void*)Args;
-				Value->Args.Alive = true;
-				Value->Args.Worker = nullptr;
-				Value->Callback = Callback;
-				Value->Timeout = Milliseconds;
-				Value->Time = Clock();
-				Value->Id = Timer++;
-
-				if (Event != nullptr)
-					*Event = Value;
-
-				return AddTimer(Value);
-			}
-			template <typename T>
-			bool Timeout(T* Args, uint64_t Milliseconds, const BaseCallback& Callback, EventTimer** Event = nullptr)
-			{
-				if (!Callback)
-					return false;
-
-				auto* Value = new EventTimer();
-				Value->Args.Hash = typeid(T).hash_code();
-				Value->Args.Data = (void*)Args;
-				Value->Args.Alive = false;
-				Value->Args.Worker = nullptr;
-				Value->Callback = Callback;
-				Value->Timeout = Milliseconds;
-				Value->Time = Clock();
-				Value->Id = Timer++;
-
-				if (Event != nullptr)
-					*Event = Value;
-
-				return AddTimer(Value);
-			}
-			template <typename T>
-			bool Subscribe(const BaseCallback& Callback, EventListener** Event = nullptr)
-			{
-				if (!Callback)
-					return false;
-
-				auto* Value = new EventListener();
-				Value->Type = typeid(T).hash_code();
-				Value->Callback = Callback;
-
-				return AddListener(Value);
-			}
-			template <typename T>
-			bool Unsubscribe()
-			{
-				return RemoveListener(typeid(T).hash_code());
-			}
-			template <typename T>
-			bool Pull(EventType Type, const PullCallback& Callback = nullptr, bool NoCall = false)
-			{
-				return RemoveAny(Type, typeid(T).hash_code(), Callback, NoCall);
-			}
+			bool LoopMixed();
+			bool LoopTasks();
+			bool LoopCalls();
+			bool CallTask();
+			bool CallEvent();
+			bool CallTimer(int64_t Time);
+			int64_t GetClock();
 		};
 
 		class TH_OUT Document : public Object

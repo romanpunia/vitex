@@ -48,7 +48,7 @@ namespace Tomahawk
 			ApplicationUse_Graphics_Module = 1 << 0,
 			ApplicationUse_Activity_Module = 1 << 1,
 			ApplicationUse_Audio_Module = 1 << 3,
-			ApplicationUse_AngelScript_Module = 1 << 4,
+			ApplicationUse_Script_Module = 1 << 4,
 			ApplicationUse_Content_Module = 1 << 5
 		};
 
@@ -853,7 +853,7 @@ namespace Tomahawk
 			friend Drawable;
 
 		public:
-			struct Desc
+			struct TH_OUT Desc
 			{
 				bool EnableHDR = false;
 				float RenderQuality = 1.0f;
@@ -866,6 +866,8 @@ namespace Tomahawk
 				Rest::EventQueue* Queue = nullptr;
 				PrimitiveCache* Primitives = nullptr;
 				ShaderCache* Shaders = nullptr;
+
+				static Desc Get(Application* Base);
 			};
 
 		private:
@@ -918,6 +920,7 @@ namespace Tomahawk
 			Rest::Pool<Component*> Pending;
 			Rest::Pool<Entity*> Entities;
 			Compute::Simulator* Simulator;
+			Rest::EventId Listener;
 			Component* Camera;
 			Desc Conf;
 			uint64_t Surfaces;
@@ -1138,7 +1141,7 @@ namespace Tomahawk
 				if (!Queue)
 					return false;
 
-				return Queue->Task<ContentManager>(this, [this, Path, Callback, Keys](Rest::EventQueue*, Rest::EventArgs*)
+				return Queue->SetTask([this, Path, Callback, Keys](Rest::EventQueue*)
 				{
 					T* Result = (T*)LoadForward(Path, GetProcessor<T>(), Keys);
 					if (Callback)
@@ -1156,7 +1159,7 @@ namespace Tomahawk
 				if (!Queue)
 					return false;
 
-				return Queue->Task<ContentManager>(this, [this, Path, Callback, Object, Keys](Rest::EventQueue*, Rest::EventArgs*)
+				return Queue->SetTask([this, Path, Callback, Object, Keys](Rest::EventQueue*)
 				{
 					bool Result = SaveForward(Path, GetProcessor<T>(), Object, Keys);
 					if (Callback)
@@ -1242,12 +1245,11 @@ namespace Tomahawk
 				Rest::EventWorkflow Threading = Rest::EventWorkflow_Singlethreaded;
 				std::string Environment;
 				std::string Directory;
-				uint64_t TaskWorkersCount = 0;
-				uint64_t EventWorkersCount = 0;
+				uint64_t WorkersCount = 0;
 				double FrameLimit = 0;
 				double MaxFrames = 60;
 				double MinFrames = 10;
-				unsigned int Usage = ApplicationUse_Graphics_Module | ApplicationUse_Activity_Module | ApplicationUse_Audio_Module | ApplicationUse_AngelScript_Module | ApplicationUse_Content_Module;
+				unsigned int Usage = ApplicationUse_Graphics_Module | ApplicationUse_Activity_Module | ApplicationUse_Audio_Module | ApplicationUse_Script_Module | ApplicationUse_Content_Module;
 				bool DisableCursor = false;
 			};
 
@@ -1309,7 +1311,7 @@ namespace Tomahawk
 			}
 
 		private:
-			static void Callee(Rest::EventQueue* Queue, Rest::EventArgs* Args);
+			static void Callee(Rest::EventQueue* Queue, Reactor* Job);
 			static void Compose();
 
 		public:

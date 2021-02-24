@@ -5206,50 +5206,58 @@ namespace Tomahawk
 		EventId EventQueue::SetInterval(uint64_t Milliseconds, const TimerCallback& Callback)
 		{
 			if (State == EventState_Idle || !Callback)
-				return false;
+				return -1;
 
 			int64_t Clock = GetClock();
 			Sync.Timers.lock();
-			Timers.emplace_back(Callback, Milliseconds, Clock, Timer++, true);
+
+			EventId Id = Timer++;
+			Timers.emplace_back(Callback, Milliseconds, Clock, Id, true);
 			Sync.Timers.unlock();
 
-			return true;
+			return Id;
 		}
 		EventId EventQueue::SetInterval(uint64_t Milliseconds, TimerCallback&& Callback)
 		{
 			if (State == EventState_Idle || !Callback)
-				return false;
+				return -1;
 
 			int64_t Clock = GetClock();
 			Sync.Timers.lock();
-			Timers.emplace_back(std::move(Callback), Milliseconds, Clock, Timer++, true);
+
+			EventId Id = Timer++;
+			Timers.emplace_back(std::move(Callback), Milliseconds, Clock, Id, true);
 			Sync.Timers.unlock();
 
-			return true;
+			return Id;
 		}
 		EventId EventQueue::SetTimeout(uint64_t Milliseconds, const TimerCallback& Callback)
 		{
 			if (State == EventState_Idle || !Callback)
-				return false;
+				return -1;
 
 			int64_t Clock = GetClock();
 			Sync.Timers.lock();
-			Timers.emplace_back(Callback, Milliseconds, Clock, Timer++, false);
+
+			EventId Id = Timer++;
+			Timers.emplace_back(Callback, Milliseconds, Clock, Id, false);
 			Sync.Timers.unlock();
 
-			return true;
+			return Id;
 		}
 		EventId EventQueue::SetTimeout(uint64_t Milliseconds, TimerCallback&& Callback)
 		{
 			if (State == EventState_Idle || !Callback)
-				return false;
+				return -1;
 
 			int64_t Clock = GetClock();
 			Sync.Timers.lock();
-			Timers.emplace_back(std::move(Callback), Milliseconds, Clock, Timer++, false);
+
+			EventId Id = Timer++;
+			Timers.emplace_back(std::move(Callback), Milliseconds, Clock, Id, false);
 			Sync.Timers.unlock();
 
-			return true;
+			return Id;
 		}
 		EventId EventQueue::SetListener(const std::string& Name, const EventCallback& Callback)
 		{
@@ -5703,7 +5711,7 @@ namespace Tomahawk
 
 				Sync.Timers.unlock();
 				if (Callback)
-					SetTask(Callback, false);
+					Callback(this);
 
 				return true;
 			}

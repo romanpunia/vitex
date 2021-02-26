@@ -743,7 +743,7 @@ namespace Tomahawk
 
 				for (auto It = Headers.begin(); It != Headers.end(); It++)
 				{
-					if (It->Value != Value)
+					if (strcmp(It->Key.c_str(), Key) != 0)
 						continue;
 
 					It->Value = Value;
@@ -1111,9 +1111,9 @@ namespace Tomahawk
 					Resource.Length = Request.ContentLength;
 					Resource.Memory = false;
 					Resource.Type = (ContentType ? ContentType : "application/octet-stream");
-					Resource.Path = Rest::OS::GetDirectory() + Compute::Common::MD5Hash(Compute::Common::RandomBytes(16));
+					Resource.Path = Rest::OS::Directory::Get() + Compute::Common::MD5Hash(Compute::Common::RandomBytes(16));
 
-					FILE* File = (FILE*)Rest::OS::Open(Resource.Path.c_str(), "wb");
+					FILE* File = (FILE*)Rest::OS::File::Open(Resource.Path.c_str(), "wb");
 					if (!File)
 					{
 						Request.ContentState = Content_Save_Exception;
@@ -1825,7 +1825,7 @@ namespace Tomahawk
 
 				std::string Document = Base->Route->Site->Gateway.Session.DocumentRoot + FindSessionId(Base);
 
-				FILE* Stream = (FILE*)Rest::OS::Open(Document.c_str(), "wb");
+				FILE* Stream = (FILE*)Rest::OS::File::Open(Document.c_str(), "wb");
 				if (!Stream)
 					return false;
 
@@ -1848,7 +1848,7 @@ namespace Tomahawk
 
 				std::string Document = Base->Route->Site->Gateway.Session.DocumentRoot + FindSessionId(Base);
 
-				FILE* Stream = (FILE*)Rest::OS::Open(Document.c_str(), "rb");
+				FILE* Stream = (FILE*)Rest::OS::File::Open(Document.c_str(), "rb");
 				if (!Stream)
 					return false;
 
@@ -1871,7 +1871,7 @@ namespace Tomahawk
 					SessionId.clear();
 					fclose(Stream);
 
-					if (!Rest::OS::RemoveFile(Document.c_str()))
+					if (!Rest::OS::File::Remove(Document.c_str()))
 						TH_ERROR("session file %s cannot be deleted", Document.c_str());
 
 					return false;
@@ -1924,7 +1924,7 @@ namespace Tomahawk
 			bool Session::InvalidateCache(const std::string& Path)
 			{
 				std::vector<Rest::ResourceEntry> Entries;
-				if (!Rest::OS::ScanDir(Path, &Entries))
+				if (!Rest::OS::Directory::Scan(Path, &Entries))
 					return false;
 
 				for (auto It = Entries.begin(); It != Entries.end(); It++)
@@ -2973,7 +2973,7 @@ namespace Tomahawk
 				else
 					Base->Request.Path = Base->Route->DocumentRoot + Base->Request.Path;
 
-				Base->Request.Path = Rest::OS::Resolve(Base->Request.Path.c_str());
+				Base->Request.Path = Rest::OS::Path::Resolve(Base->Request.Path.c_str());
 				if (Rest::Stroke(&Base->Request.Path).EndsOf("/\\"))
 				{
 					if (!Rest::Stroke(&Base->Request.URI).EndsOf("/\\"))
@@ -3510,7 +3510,7 @@ namespace Tomahawk
 				if (Segment->Route)
 					Segment->Source.Path = Segment->Route->Site->ResourceRoot + Compute::Common::MD5Hash(Compute::Common::RandomBytes(16));
 
-				Segment->Stream = (FILE*)Rest::OS::Open(Segment->Source.Path.c_str(), "wb");
+				Segment->Stream = (FILE*)Rest::OS::File::Open(Segment->Source.Path.c_str(), "wb");
 				return Segment->Stream != nullptr;
 			}
 			bool Util::ParseMultipartResourceEnd(Parser* Parser)
@@ -3775,7 +3775,7 @@ namespace Tomahawk
 
 				for (auto It = Base->Route->IndexFiles.begin(); It != Base->Route->IndexFiles.end(); It++)
 				{
-					if (!Rest::OS::StateResource(Path + *It, Resource))
+					if (!Rest::OS::File::State(Path + *It, Resource))
 						continue;
 
 					Base->Request.Path.assign(Path.append(*It));
@@ -3821,7 +3821,7 @@ namespace Tomahawk
 				if (IfNoneMatch != nullptr)
 				{
 					char ETag[64];
-					Rest::OS::ConstructETag(ETag, sizeof(ETag), Resource);
+					Rest::OS::Net::GetETag(ETag, sizeof(ETag), Resource);
 					if (!Rest::Stroke::CaseCompare(ETag, IfNoneMatch))
 						return false;
 				}
@@ -3897,9 +3897,9 @@ namespace Tomahawk
 				if (!Base->Route)
 					return Base->Error(404, "Requested resource was not found.");
 
-				if (!Rest::OS::StateResource(Base->Request.Path, &Base->Resource))
+				if (!Rest::OS::File::State(Base->Request.Path, &Base->Resource))
 				{
-					if (Base->Route->Default.empty() || !Rest::OS::StateResource(Base->Route->Default, &Base->Resource))
+					if (Base->Route->Default.empty() || !Rest::OS::File::State(Base->Route->Default, &Base->Resource))
 					{
 						if (WebSocketUpgradeAllowed(Base))
 						{
@@ -3966,9 +3966,9 @@ namespace Tomahawk
 				if (!Base->Route)
 					return Base->Error(404, "Requested resource was not found.");
 
-				if (!Rest::OS::StateResource(Base->Request.Path, &Base->Resource))
+				if (!Rest::OS::File::State(Base->Request.Path, &Base->Resource))
 				{
-					if (Base->Route->Default.empty() || !Rest::OS::StateResource(Base->Route->Default, &Base->Resource))
+					if (Base->Route->Default.empty() || !Rest::OS::File::State(Base->Route->Default, &Base->Resource))
 						return Base->Error(404, "Requested resource was not found.");
 
 					Base->Request.Path.assign(Base->Route->Default);
@@ -4007,7 +4007,7 @@ namespace Tomahawk
 				if (!Base->Route || ResourceHidden(Base, nullptr))
 					return Base->Error(403, "Resource overwrite denied.");
 
-				if (!Rest::OS::StateResource(Base->Request.Path, &Base->Resource) || !Base->Resource.IsDirectory)
+				if (!Rest::OS::File::State(Base->Request.Path, &Base->Resource) || !Base->Resource.IsDirectory)
 					return Base->Error(403, "Directory overwrite denied.");
 
 				if (ResourceProvided(Base, &Base->Resource))
@@ -4016,7 +4016,7 @@ namespace Tomahawk
 				const char* Range = Base->Request.GetHeader("Range");
 				int64_t Range1 = 0, Range2 = 0;
 
-				FILE* Stream = (FILE*)Rest::OS::Open(Base->Request.Path.c_str(), "wb");
+				FILE* Stream = (FILE*)Rest::OS::File::Open(Base->Request.Path.c_str(), "wb");
 				if (!Stream)
 					return Base->Error(422, "Resource stream cannot be opened.");
 
@@ -4078,9 +4078,9 @@ namespace Tomahawk
 				if (!Base->Route || ResourceHidden(Base, nullptr))
 					return Base->Error(403, "Operation denied by server.");
 
-				if (!Rest::OS::StateResource(Base->Request.Path, &Base->Resource))
+				if (!Rest::OS::File::State(Base->Request.Path, &Base->Resource))
 				{
-					if (Base->Route->Default.empty() || !Rest::OS::StateResource(Base->Route->Default, &Base->Resource))
+					if (Base->Route->Default.empty() || !Rest::OS::File::State(Base->Route->Default, &Base->Resource))
 						return Base->Error(404, "Requested resource was not found.");
 
 					Base->Request.Path.assign(Base->Route->Default);
@@ -4091,10 +4091,10 @@ namespace Tomahawk
 
 				if (!Base->Resource.IsDirectory)
 				{
-					if (Rest::OS::RemoveFile(Base->Request.Path.c_str()) != 0)
+					if (Rest::OS::File::Remove(Base->Request.Path.c_str()) != 0)
 						return Base->Error(403, "Operation denied by system.");
 				}
-				else if (Rest::OS::RemoveDir(Base->Request.Path.c_str()) != 0)
+				else if (Rest::OS::Directory::Remove(Base->Request.Path.c_str()) != 0)
 					return Base->Error(403, "Operation denied by system.");
 
 				char Date[64];
@@ -4126,9 +4126,9 @@ namespace Tomahawk
 				if (!Base->Route)
 					return Base->Error(403, "Operation denied by server.");
 
-				if (!Rest::OS::StateResource(Base->Request.Path, &Base->Resource))
+				if (!Rest::OS::File::State(Base->Request.Path, &Base->Resource))
 				{
-					if (Base->Route->Default.empty() || !Rest::OS::StateResource(Base->Route->Default, &Base->Resource))
+					if (Base->Route->Default.empty() || !Rest::OS::File::State(Base->Route->Default, &Base->Resource))
 						return Base->Error(404, "Requested resource was not found.");
 
 					Base->Request.Path.assign(Base->Route->Default);
@@ -4196,7 +4196,7 @@ namespace Tomahawk
 					return false;
 
 				std::vector<Rest::ResourceEntry> Entries;
-				if (!Rest::OS::ScanDir(Base->Request.Path.c_str(), &Entries))
+				if (!Rest::OS::Directory::Scan(Base->Request.Path.c_str(), &Entries))
 					return Base->Error(500, "System denied to directory listing.");
 
 				char Date[64];
@@ -4217,7 +4217,10 @@ namespace Tomahawk
 				std::string Name = Compute::Common::URIDecode(Base->Request.URI);
 				std::string Parent(1, '/');
 				if (Base->Request.URI.size() > 1)
-					Parent = Rest::OS::FileDirectory(Base->Request.URI.substr(0, Base->Request.URI.size() - 1));
+				{
+					Parent = Base->Request.URI.substr(0, Base->Request.URI.size() - 1);
+					Parent = Rest::OS::Path::GetDirectory(Parent.c_str());
+				}
 
 				TextAssign(Base->Response.Buffer,
 					"<html><head><title>Index of " + Name + "</title>"
@@ -4376,7 +4379,7 @@ namespace Tomahawk
 				Rest::DateTime::TimeFormatGMT(LastModified, sizeof(LastModified), Base->Resource.LastModified);
 
 				char ETag[64];
-				Rest::OS::ConstructETag(ETag, sizeof(ETag), &Base->Resource);
+				Rest::OS::Net::GetETag(ETag, sizeof(ETag), &Base->Resource);
 
 				Rest::Stroke Content;
 				Content.fAppend("%s %d %s\r\n%s%s%sDate: %s\r\n", Base->Request.Version, Base->Response.StatusCode, StatusMessage, CORS1, CORS2, CORS3, Date);
@@ -4444,7 +4447,7 @@ namespace Tomahawk
 				Rest::DateTime::TimeFormatGMT(LastModified, sizeof(LastModified), Base->Resource.LastModified);
 
 				char ETag[64];
-				Rest::OS::ConstructETag(ETag, sizeof(ETag), &Base->Resource);
+				Rest::OS::Net::GetETag(ETag, sizeof(ETag), &Base->Resource);
 
 				Rest::Stroke Content;
 				Content.fAppend("%s %d %s\r\n%s%s%sDate: %s\r\n", Base->Request.Version, Base->Response.StatusCode, StatusMessage, CORS1, CORS2, CORS3, Date);
@@ -4500,7 +4503,7 @@ namespace Tomahawk
 				Rest::DateTime::TimeFormatGMT(LastModified, sizeof(LastModified), Base->Resource.LastModified);
 
 				char ETag[64];
-				Rest::OS::ConstructETag(ETag, sizeof(ETag), &Base->Resource);
+				Rest::OS::Net::GetETag(ETag, sizeof(ETag), &Base->Resource);
 
 				Rest::Stroke Content;
 				Content.fAppend("%s 304 %s\r\nDate: %s\r\n", Base->Request.Version, HTTP::Util::StatusMessage(304), Date);
@@ -4526,7 +4529,7 @@ namespace Tomahawk
 				if (!Base || !Base->Route)
 					return false;
 
-				FILE* Stream = (!Base->Resource.IsReferenced ? (FILE*)Rest::OS::Open(Base->Request.Path.c_str(), "rb") : nullptr);
+				FILE* Stream = (!Base->Resource.IsReferenced ? (FILE*)Rest::OS::File::Open(Base->Request.Path.c_str(), "rb") : nullptr);
 				if (!Stream && !Base->Resource.IsDirectory)
 					return Base->Error(500, "System denied to open resource stream.");
 
@@ -4575,7 +4578,7 @@ namespace Tomahawk
 				Base->Stream->SetBlocking(true);
 				Base->Stream->SetTimeout((int)Base->Root->Router->SocketTimeout);
 
-				if (Base->Route->AllowSendFile && Rest::OS::SendFile(Stream, Base->Stream->GetFd(), ContentLength))
+				if (Base->Route->AllowSendFile && Rest::OS::Net::SendFile(Stream, Base->Stream->GetFd(), ContentLength))
 				{
 					fclose(Stream);
 					if (Server->State != ServerState_Working)
@@ -4630,7 +4633,7 @@ namespace Tomahawk
 				if (!Base || !Base->Route)
 					return false;
 
-				FILE* Stream = (!Base->Resource.IsReferenced ? (FILE*)Rest::OS::Open(Base->Request.Path.c_str(), "rb") : nullptr);
+				FILE* Stream = (!Base->Resource.IsReferenced ? (FILE*)Rest::OS::File::Open(Base->Request.Path.c_str(), "rb") : nullptr);
 				if (!Stream && !Base->Resource.IsDirectory)
 					return Base->Error(500, "System denied to open resource stream.");
 
@@ -4772,7 +4775,7 @@ namespace Tomahawk
 				return Base->Root->Queue->SetTask([=](Rest::EventQueue*)
 				{
 					Script::VMCompiler* Compiler = VM->CreateCompiler();
-					if (Compiler->Prepare(Rest::OS::GetFilename(Base->Request.Path), Base->Request.Path, true, true) < 0)
+					if (Compiler->Prepare(Rest::OS::Path::GetFilename(Base->Request.Path.c_str()), Base->Request.Path, true, true) < 0)
 					{
 						TH_RELEASE(Compiler);
 						return (void)Base->Error(500, "Gateway module cannot be prepared.");
@@ -4791,7 +4794,7 @@ namespace Tomahawk
 					int64_t Size = -1;
 					if (!Compiler->IsCached())
 					{
-						FILE* Stream = (FILE*)Rest::OS::Open(Base->Request.Path.c_str(), "rb");
+						FILE* Stream = (FILE*)Rest::OS::File::Open(Base->Request.Path.c_str(), "rb");
 						if (!Stream)
 							return (void)Base->Error(404, "Gateway resource was not found.");
 
@@ -5030,17 +5033,17 @@ namespace Tomahawk
 			}
 			bool Server::OnConfigure(SocketRouter* NewRouter)
 			{
-				std::string Directory = Rest::OS::GetDirectory();
+				std::string Directory = Rest::OS::Directory::Get();
 				auto* Root = (MapRouter*)NewRouter;
 
-				Root->ModuleRoot = Rest::OS::ResolveDir(Root->ModuleRoot.c_str());
+				Root->ModuleRoot = Rest::OS::Path::ResolveDirectory(Root->ModuleRoot.c_str());
 				for (auto K = Root->Sites.begin(); K != Root->Sites.end(); K++)
 				{
 					SiteEntry* Entry = *K;
-					Entry->Gateway.Session.DocumentRoot = Rest::OS::ResolveDir(Entry->Gateway.Session.DocumentRoot.c_str());
-					Entry->ResourceRoot = Rest::OS::ResolveDir(Entry->ResourceRoot.c_str());
+					Entry->Gateway.Session.DocumentRoot = Rest::OS::Path::ResolveDirectory(Entry->Gateway.Session.DocumentRoot.c_str());
+					Entry->ResourceRoot = Rest::OS::Path::ResolveDirectory(Entry->ResourceRoot.c_str());
 					Entry->Base->URI.Regex = "/";
-					Entry->Base->DocumentRoot = Rest::OS::ResolveDir(Entry->Base->DocumentRoot.c_str());
+					Entry->Base->DocumentRoot = Rest::OS::Path::ResolveDirectory(Entry->Base->DocumentRoot.c_str());
 					Entry->Base->Site = Entry;
 					Entry->Router = Root;
 
@@ -5048,22 +5051,22 @@ namespace Tomahawk
 						TH_WARN("site \"%s\" has no hosts", Entry->SiteName.c_str());
 
 					if (!Entry->Base->Default.empty())
-						Entry->Base->Default = Rest::OS::Resolve((Entry->Base->DocumentRoot + Entry->Base->Default).c_str());
+						Entry->Base->Default = Rest::OS::Path::Resolve((Entry->Base->DocumentRoot + Entry->Base->Default).c_str());
 
 					for (auto It = Entry->Base->ErrorFiles.begin(); It < Entry->Base->ErrorFiles.end(); It++)
-						It->Pattern = Rest::OS::Resolve(It->Pattern.c_str());
+						It->Pattern = Rest::OS::Path::Resolve(It->Pattern.c_str());
 
 					for (auto It = Entry->Routes.begin(); It != Entry->Routes.end(); It++)
 					{
 						HTTP::RouteEntry* Route = *It;
-						Route->DocumentRoot = Rest::OS::ResolveDir(Route->DocumentRoot.c_str());
+						Route->DocumentRoot = Rest::OS::Path::ResolveDirectory(Route->DocumentRoot.c_str());
 						Route->Site = Entry;
 
 						if (!Route->Default.empty())
-							Route->Default = Rest::OS::Resolve((Route->DocumentRoot + Route->Default).c_str());
+							Route->Default = Rest::OS::Path::Resolve((Route->DocumentRoot + Route->Default).c_str());
 
 						for (auto J = Route->ErrorFiles.begin(); J < Route->ErrorFiles.end(); J++)
-							J->Pattern = Rest::OS::Resolve(J->Pattern.c_str());
+							J->Pattern = Rest::OS::Path::Resolve(J->Pattern.c_str());
 
 						if (!Root->VM || !Entry->Gateway.Enabled || !Entry->Gateway.Verify)
 							continue;
@@ -5124,7 +5127,7 @@ namespace Tomahawk
 				}
 
 				for (auto It = Base->Request.Resources.begin(); It != Base->Request.Resources.end(); It++)
-					(!It->Memory ? Rest::OS::RemoveFile(It->Path.c_str()) : false);
+					(!It->Memory ? Rest::OS::File::Remove(It->Path.c_str()) : false);
 
 				if (Base->Info.KeepAlive >= -1 && Base->Response.StatusCode >= 0 && Base->Route && Base->Route->Callbacks.Access)
 					Base->Route->Callbacks.Access(Base);
@@ -5311,10 +5314,10 @@ namespace Tomahawk
 					SiteEntry* Entry = *K;
 					if (!Entry->ResourceRoot.empty())
 					{
-						if (!Rest::OS::RemoveDir(Entry->ResourceRoot.c_str()))
+						if (!Rest::OS::Directory::Remove(Entry->ResourceRoot.c_str()))
 							TH_ERROR("resource directory %s cannot be deleted", Entry->ResourceRoot.c_str());
 
-						if (!Rest::OS::CreateDir(Entry->ResourceRoot.c_str()))
+						if (!Rest::OS::Directory::Create(Entry->ResourceRoot.c_str()))
 							TH_ERROR("resource directory %s cannot be created", Entry->ResourceRoot.c_str());
 					}
 

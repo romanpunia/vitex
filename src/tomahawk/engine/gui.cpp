@@ -345,14 +345,14 @@ namespace Tomahawk
 				virtual Rml::FileHandle Open(const Rml::String& Path) override
 				{
 					std::string Target = Path;
-					if (!Rest::OS::FileExists(Target.c_str()))
+					if (!Rest::OS::File::IsExists(Target.c_str()))
 					{
 						ContentManager* Content = (Subsystem::GetRenderInterface() ? Subsystem::GetRenderInterface()->GetContent() : nullptr);
-						Target = (Content ? Rest::OS::Resolve(Path, Content->GetEnvironment()) : Rest::OS::Resolve(Path.c_str()));
+						Target = (Content ? Rest::OS::Path::Resolve(Path, Content->GetEnvironment()) : Rest::OS::Path::Resolve(Path.c_str()));
 						Target = (Target.empty() ? Path.c_str() : Target.c_str());
 					}
 
-					return (Rml::FileHandle)Rest::OS::Open(Target, Rest::FileMode_Binary_Read_Only);
+					return (Rml::FileHandle)Rest::OS::File::Open(Target, Rest::FileMode_Binary_Read_Only);
 				}
 				virtual void Close(Rml::FileHandle File) override
 				{
@@ -476,9 +476,9 @@ namespace Tomahawk
 					}
 					else if (Proto1 == "file" && Proto2 == "file")
 					{
-						Result = Rest::OS::Resolve(Fixed2, Rest::OS::FileDirectory(Fixed1));
+						Result = Rest::OS::Path::Resolve(Fixed2, Rest::OS::Path::GetDirectory(Fixed1.c_str()));
 						if (Result.empty())
-							Result = (Content ? Rest::OS::Resolve(Fixed2, Content->GetEnvironment()) : Rest::OS::Resolve(Fixed2.c_str()));
+							Result = (Content ? Rest::OS::Path::Resolve(Fixed2, Content->GetEnvironment()) : Rest::OS::Path::Resolve(Fixed2.c_str()));
 					}
 					else if (Proto1 == "file" && Proto2 != "file")
 						Result = Rest::Stroke(Path2).Replace("/////", "//").R();
@@ -3315,7 +3315,7 @@ namespace Tomahawk
 				ClearVM();
 				Elements.clear();
 
-				unsigned char* Buffer = Rest::OS::ReadAllBytes(Path.c_str(), &Length);
+				unsigned char* Buffer = Rest::OS::File::ReadAll(Path.c_str(), &Length);
 				if (!Buffer)
 				{
 				ErrorState:
@@ -3372,7 +3372,7 @@ namespace Tomahawk
 					}
 
 					std::string Path = IPath->Value.Serialize();
-					std::string Target = Rest::OS::Resolve(Path, Relative);
+					std::string Target = Rest::OS::Path::Resolve(Path, Relative);
 
 					if (!AddFontFace(Target.empty() ? Path : Target, Face->GetAttribute("fallback") != nullptr))
 					{
@@ -3392,7 +3392,7 @@ namespace Tomahawk
 					}
 
 					std::string Path = IPath->Value.Serialize();
-					std::string Target = Rest::OS::Resolve(Path, Relative);
+					std::string Target = Rest::OS::Path::Resolve(Path, Relative);
 					IElementDocument Result = Construct(Target.empty() ? Path : Target);
 
 					if (!Result.IsValid())
@@ -3423,7 +3423,7 @@ namespace Tomahawk
 					return false;
 				}
 
-				bool Result = Inject(Sheet, Rest::OS::FileDirectory(ConfPath));
+				bool Result = Inject(Sheet, Rest::OS::Path::GetDirectory(ConfPath.c_str()));
 				TH_RELEASE(Sheet);
 
 				Loading = State;
@@ -3705,7 +3705,7 @@ namespace Tomahawk
 				Compute::IncludeDesc Desc = Compute::IncludeDesc();
 				Desc.Exts.push_back(".html");
 				Desc.Exts.push_back(".htm");
-				Desc.Root = Rest::OS::GetDirectory();
+				Desc.Root = Rest::OS::Directory::Get();
 
 				Compute::Preprocessor* Processor = new Compute::Preprocessor();
 				Processor->SetIncludeCallback([this](Compute::Preprocessor* P, const Compute::IncludeResult& File, std::string* Output)
@@ -3717,7 +3717,7 @@ namespace Tomahawk
 						return false;
 
 					uint64_t Length;
-					unsigned char* Data = Rest::OS::ReadAllBytes(File.Module.c_str(), &Length);
+					unsigned char* Data = Rest::OS::File::ReadAll(File.Module.c_str(), &Length);
 					if (!Data)
 						return false;
 

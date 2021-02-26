@@ -1765,7 +1765,7 @@ namespace Tomahawk
 		{
 			if (StartsOf("./\\"))
 			{
-				std::string Result = Rest::OS::Resolve(L->c_str(), Dir);
+				std::string Result = Rest::OS::Path::Resolve(L->c_str(), Dir);
 				if (!Result.empty())
 					Assign(Result);
 			}
@@ -2787,7 +2787,7 @@ namespace Tomahawk
 			static MemoryPage* Offset = nullptr;
 			bool Repeated = false;
 
-		Iterate:
+		Each:
 			if (!Offset)
 				Offset = Heap;
 
@@ -2808,7 +2808,7 @@ namespace Tomahawk
 				return nullptr;
 
 			Repeated = true;
-			goto Iterate;
+			goto Each;
 		}
 		void Mem::SplitPage(MemoryPage* Block, uint64_t Size)
 		{
@@ -2875,10 +2875,10 @@ namespace Tomahawk
 			char Buffer[8192];
 			if (Level == 1)
 			{
-				int ErrorCode = OS::GetError();
+				int ErrorCode = OS::Error::Get();
 #ifdef TH_MICROSOFT
 				if (ErrorCode != ERROR_SUCCESS)
-					snprintf(Buffer, sizeof(Buffer), "%s %s:%d [err] %s\n\tsystem: %s\n", Date, Source, Line, Format, OS::GetErrorName(ErrorCode).c_str());
+					snprintf(Buffer, sizeof(Buffer), "%s %s:%d [err] %s\n\tsystem: %s\n", Date, Source, Line, Format, OS::Error::GetName(ErrorCode).c_str());
 				else
 					snprintf(Buffer, sizeof(Buffer), "%s %s:%d [err] %s\n", Date, Source, Line, Format);
 #else
@@ -3413,51 +3413,51 @@ namespace Tomahawk
 		{
 			Close();
 			if (!Path.empty())
-				Resource = (FILE*)OS::Open(Path.c_str(), "w");
+				Resource = (FILE*)OS::File::Open(Path.c_str(), "w");
 		}
 		bool FileStream::Open(const char* File, FileMode Mode)
 		{
 			if (!File || !Close())
 				return false;
 
-			Path = OS::Resolve(File).c_str();
+			Path = OS::Path::Resolve(File).c_str();
 			switch (Mode)
 			{
 				case FileMode_Read_Only:
-					Resource = (FILE*)OS::Open(Path.c_str(), "r");
+					Resource = (FILE*)OS::File::Open(Path.c_str(), "r");
 					break;
 				case FileMode_Write_Only:
-					Resource = (FILE*)OS::Open(Path.c_str(), "w");
+					Resource = (FILE*)OS::File::Open(Path.c_str(), "w");
 					break;
 				case FileMode_Append_Only:
-					Resource = (FILE*)OS::Open(Path.c_str(), "a");
+					Resource = (FILE*)OS::File::Open(Path.c_str(), "a");
 					break;
 				case FileMode_Read_Write:
-					Resource = (FILE*)OS::Open(Path.c_str(), "r+");
+					Resource = (FILE*)OS::File::Open(Path.c_str(), "r+");
 					break;
 				case FileMode_Write_Read:
-					Resource = (FILE*)OS::Open(Path.c_str(), "w+");
+					Resource = (FILE*)OS::File::Open(Path.c_str(), "w+");
 					break;
 				case FileMode_Read_Append_Write:
-					Resource = (FILE*)OS::Open(Path.c_str(), "a+");
+					Resource = (FILE*)OS::File::Open(Path.c_str(), "a+");
 					break;
 				case FileMode_Binary_Read_Only:
-					Resource = (FILE*)OS::Open(Path.c_str(), "rb");
+					Resource = (FILE*)OS::File::Open(Path.c_str(), "rb");
 					break;
 				case FileMode_Binary_Write_Only:
-					Resource = (FILE*)OS::Open(Path.c_str(), "wb");
+					Resource = (FILE*)OS::File::Open(Path.c_str(), "wb");
 					break;
 				case FileMode_Binary_Append_Only:
-					Resource = (FILE*)OS::Open(Path.c_str(), "ab");
+					Resource = (FILE*)OS::File::Open(Path.c_str(), "ab");
 					break;
 				case FileMode_Binary_Read_Write:
-					Resource = (FILE*)OS::Open(Path.c_str(), "rb+");
+					Resource = (FILE*)OS::File::Open(Path.c_str(), "rb+");
 					break;
 				case FileMode_Binary_Write_Read:
-					Resource = (FILE*)OS::Open(Path.c_str(), "wb+");
+					Resource = (FILE*)OS::File::Open(Path.c_str(), "wb+");
 					break;
 				case FileMode_Binary_Read_Append_Write:
-					Resource = (FILE*)OS::Open(Path.c_str(), "ab+");
+					Resource = (FILE*)OS::File::Open(Path.c_str(), "ab+");
 					break;
 			}
 
@@ -3580,7 +3580,7 @@ namespace Tomahawk
 			Close();
 			if (!Path.empty())
 			{
-				fclose((FILE*)OS::Open(Path.c_str(), "w"));
+				fclose((FILE*)OS::File::Open(Path.c_str(), "w"));
 				Open(Path.c_str(), FileMode_Binary_Write_Only);
 			}
 		}
@@ -3590,7 +3590,7 @@ namespace Tomahawk
 				return false;
 
 #ifdef TH_HAS_ZLIB
-			Path = OS::Resolve(File).c_str();
+			Path = OS::Path::Resolve(File).c_str();
 			switch (Mode)
 			{
 				case FileMode_Binary_Read_Only:
@@ -3891,22 +3891,22 @@ namespace Tomahawk
 
 		FileTree::FileTree(const std::string& Folder)
 		{
-			Path = OS::Resolve(Folder.c_str());
+			Path = OS::Path::Resolve(Folder.c_str());
 			if (!Path.empty())
 			{
-				OS::Iterate(Path.c_str(), [this](DirectoryEntry* Entry) -> bool
+				OS::Directory::Each(Path.c_str(), [this](DirectoryEntry* Entry) -> bool
 				{
 					if (Entry->IsDirectory)
 						Directories.push_back(new FileTree(Entry->Path));
 					else
-						Files.push_back(OS::Resolve(Entry->Path.c_str()));
+						Files.push_back(OS::Path::Resolve(Entry->Path.c_str()));
 
 					return true;
 				});
 			}
 			else
 			{
-				std::vector<std::string> Drives = OS::GetDiskDrives();
+				std::vector<std::string> Drives = OS::Directory::GetMounts();
 				for (auto& Drive : Drives)
 					Directories.push_back(new FileTree(Drive));
 			}
@@ -3947,7 +3947,7 @@ namespace Tomahawk
 			return Count;
 		}
 
-		void OS::SetDirectory(const char* Path)
+		void OS::Directory::Set(const char* Path)
 		{
 			if (!Path)
 				return;
@@ -3960,68 +3960,93 @@ namespace Tomahawk
 				TH_ERROR("[dir] couldn't set current directory");
 #endif
 		}
-		void OS::SaveBitmap(const char* Path, int Width, int Height, unsigned char* Ptr)
+		bool OS::Directory::Scan(const std::string& Path, std::vector<ResourceEntry>* Entries)
 		{
-			unsigned char File[14] = { 'B', 'M', 0, 0, 0, 0, 0, 0, 0, 0, 40 + 14, 0, 0, 0 };
+			if (!Entries)
+				return false;
 
-			unsigned char Header[40] = { 40, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 1, 0, 24, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0x13, 0x0B, 0, 0, 0x13, 0x0B, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0 };
+			ResourceEntry Entry;
 
-			int PadSize = (4 - (Width * 3) % 4) % 4;
-			int DataSize = Width * Height * 3 + Height * PadSize;
-			int Size = DataSize + (int)sizeof(File) + (int)sizeof(Header);
-
-			File[2] = (unsigned char)(Size);
-			File[3] = (unsigned char)(Size >> 8);
-			File[4] = (unsigned char)(Size >> 16);
-			File[5] = (unsigned char)(Size >> 24);
-			Header[4] = (unsigned char)(Width);
-			Header[5] = (unsigned char)(Width >> 8);
-			Header[6] = (unsigned char)(Width >> 16);
-			Header[7] = (unsigned char)(Width >> 24);
-			Header[8] = (unsigned char)(Height);
-			Header[9] = (unsigned char)(Height >> 8);
-			Header[10] = (unsigned char)(Height >> 16);
-			Header[11] = (unsigned char)(Height >> 24);
-			Header[20] = (unsigned char)(DataSize);
-			Header[21] = (unsigned char)(DataSize >> 8);
-			Header[22] = (unsigned char)(DataSize >> 16);
-			Header[23] = (unsigned char)(DataSize >> 24);
-
-			FILE* Stream = (FILE*)Open(Path, "wb");
-			if (!Stream)
-				return;
-
-			fwrite((char*)File, sizeof(File), 1, Stream);
-			fwrite((char*)Header, sizeof(Header), 1, Stream);
-
-			unsigned char Padding[3] = { 0, 0, 0 };
-			uint64_t Offset = 0;
-
-			for (int y = 0; y < Width; y++)
+#if defined(TH_MICROSOFT)
+			struct Dirent
 			{
-				for (int x = 0; x < Height; x++)
-				{
-					unsigned char Pixel[3];
-					Pixel[0] = Ptr[Offset];
-					Pixel[1] = Ptr[Offset + 1];
-					Pixel[2] = Ptr[Offset + 2];
-					Offset += 3;
+				char Directory[1024];
+			};
 
-					fwrite((char*)Pixel, 3, 1, Stream);
-				}
-				fwrite((char*)Padding, PadSize, 1, Stream);
+			struct Directory
+			{
+				HANDLE Handle;
+				WIN32_FIND_DATAW Info;
+				Dirent Result;
+			};
+
+			wchar_t WPath[1024];
+			UnicodePath(Path.c_str(), WPath, sizeof(WPath) / sizeof(WPath[0]));
+
+			auto* Value = (Directory*)TH_MALLOC(sizeof(Directory));
+			DWORD Attributes = GetFileAttributesW(WPath);
+			if (Attributes != 0xFFFFFFFF && ((Attributes & FILE_ATTRIBUTE_DIRECTORY) == FILE_ATTRIBUTE_DIRECTORY))
+			{
+				wcscat(WPath, L"\\*");
+				Value->Handle = FindFirstFileW(WPath, &Value->Info);
+				Value->Result.Directory[0] = '\0';
+			}
+			else
+			{
+				TH_FREE(Value);
+				return false;
 			}
 
-			fclose(Stream);
+			while (true)
+			{
+				Dirent* Next = &Value->Result;
+				WideCharToMultiByte(CP_UTF8, 0, Value->Info.cFileName, -1, Next->Directory, sizeof(Next->Directory), nullptr, nullptr);
+				if (strcmp(Next->Directory, ".") != 0 && strcmp(Next->Directory, "..") != 0 && File::State(Path + '/' + Next->Directory, &Entry.Source))
+				{
+					Entry.Path = Next->Directory;
+					Entries->push_back(Entry);
+				}
+
+				if (!FindNextFileW(Value->Handle, &Value->Info))
+				{
+					FindClose(Value->Handle);
+					Value->Handle = INVALID_HANDLE_VALUE;
+					break;
+				}
+			}
+
+			if (Value->Handle != INVALID_HANDLE_VALUE)
+				FindClose(Value->Handle);
+
+			TH_FREE(Value);
+			return true;
+#else
+			DIR* Value = opendir(Path.c_str());
+			if (!Value)
+				return false;
+
+			dirent* Dirent = nullptr;
+			while ((Dirent = readdir(Value)) != nullptr)
+			{
+				if (strcmp(Dirent->d_name, ".") && strcmp(Dirent->d_name, "..") && File::State(Path + '/' + Dirent->d_name, &Entry.Source))
+				{
+					Entry.Path = Dirent->d_name;
+					Entries->push_back(Entry);
+				}
+			}
+
+			closedir(Value);
+#endif
+			return true;
 		}
-		bool OS::Iterate(const char* Path, const std::function<bool(DirectoryEntry*)>& Callback)
+		bool OS::Directory::Each(const char* Path, const std::function<bool(DirectoryEntry*)>& Callback)
 		{
 			if (!Path)
 				return false;
 
 			std::vector<ResourceEntry> Entries;
-			std::string Result = Resolve(Path);
-			ScanDir(Result, &Entries);
+			std::string Result = Path::Resolve(Path);
+			Scan(Result, &Entries);
 
 			Stroke R(&Result);
 			if (!R.EndsWith('/') && !R.EndsWith('\\'))
@@ -4042,71 +4067,40 @@ namespace Tomahawk
 
 			return true;
 		}
-		bool OS::FileRemote(const char* Path)
+		bool OS::Directory::Create(const char* Path)
 		{
-			return Path && Network::SourceURL(Path).Protocol != "file";
-		}
-		bool OS::FileExists(const char* Path)
-		{
-			struct stat Buffer
-			{
-			};
-			return (stat(Resolve(Path).c_str(), &Buffer) == 0);
-		}
-		bool OS::ExecExists(const char* Path)
-		{
-#ifdef TH_MICROSOFT
-			Stroke File = Path;
-			if (!File.EndsWith(".exe"))
-				File.Append(".exe");
+			if (!Path || Path[0] == '\0')
+				return false;
 
-			return FileExists(File.Get());
+#ifdef TH_MICROSOFT
+			wchar_t Buffer[1024];
+			UnicodePath(Path, Buffer, 1024);
+			if (::CreateDirectoryW(Buffer, nullptr) == TRUE || GetLastError() == ERROR_ALREADY_EXISTS)
+				return true;
+
+			size_t Index = wcslen(Buffer) - 1;
+			while (Index > 0 && Buffer[Index] != '/' && Buffer[Index] != '\\')
+				Index--;
+
+			if (Index > 0 && !Create(std::string(Path).substr(0, Index).c_str()))
+				return false;
+
+			return ::CreateDirectoryW(Buffer, nullptr) == TRUE || GetLastError() == ERROR_ALREADY_EXISTS;
 #else
-			return FileExists(Path);
+			if (mkdir(Path, S_IRWXU | S_IRWXG | S_IROTH | S_IXOTH) != -1 || errno == EEXIST)
+				return true;
+
+			size_t Index = strlen(Path) - 1;
+			while (Index > 0 && Path[Index] != '/' && Path[Index] != '\\')
+				Index--;
+
+			if (Index > 0 && !Create(std::string(Path).substr(0, Index).c_str()))
+				return false;
+
+			return mkdir(Path, S_IRWXU | S_IRWXG | S_IROTH | S_IXOTH) != -1 || errno == EEXIST;
 #endif
 		}
-		bool OS::DirExists(const char* Path)
-		{
-			struct stat Buffer
-			{
-			};
-			if (stat(Resolve(Path).c_str(), &Buffer) != 0)
-				return false;
-
-			return Buffer.st_mode & S_IFDIR;
-		}
-		bool OS::Write(const char* Path, const char* Data, uint64_t Length)
-		{
-			FILE* Stream = (FILE*)Open(Path, "wb");
-			if (!Stream)
-				return false;
-
-			fwrite((const void*)Data, (size_t)Length, 1, Stream);
-			fclose(Stream);
-
-			return true;
-		}
-		bool OS::Write(const char* Path, const std::string& Data)
-		{
-			FILE* Stream = (FILE*)Open(Path, "wb");
-			if (!Stream)
-				return false;
-
-			fwrite((const void*)Data.c_str(), (size_t)Data.size(), 1, Stream);
-			fclose(Stream);
-
-			return true;
-		}
-		bool OS::RemoveFile(const char* Path)
-		{
-#ifdef TH_MICROSOFT
-			SetFileAttributesA(Path, 0);
-			return DeleteFileA(Path) != 0;
-#elif defined TH_UNIX
-			return unlink(Path) == 0;
-#endif
-		}
-		bool OS::RemoveDir(const char* Path)
+		bool OS::Directory::Remove(const char* Path)
 		{
 #ifdef TH_MICROSOFT
 			WIN32_FIND_DATA FileInformation;
@@ -4123,7 +4117,7 @@ namespace Tomahawk
 
 				FilePath = std::string(Path) + "\\" + FileInformation.cFileName;
 				if (FileInformation.dwFileAttributes & FILE_ATTRIBUTE_DIRECTORY)
-					return RemoveDir(FilePath.c_str());
+					return Remove(FilePath.c_str());
 
 				if (::SetFileAttributes(FilePath.c_str(), FILE_ATTRIBUTE_NORMAL) == FALSE)
 					return false;
@@ -4166,7 +4160,7 @@ namespace Tomahawk
 				if (!stat(Buffer, &State))
 				{
 					if (S_ISDIR(State.st_mode))
-						Next = RemoveDir(Buffer);
+						Next = Remove(Buffer);
 					else
 						Next = (unlink(Buffer) == 0);
 				}
@@ -4180,134 +4174,75 @@ namespace Tomahawk
 			return (rmdir(Path) == 0);
 #endif
 		}
-		bool OS::CreateDir(const char* Path)
+		bool OS::Directory::IsExists(const char* Path)
 		{
-			if (!Path || Path[0] == '\0')
+			struct stat Buffer;
+			if (stat(Path::Resolve(Path).c_str(), &Buffer) != 0)
 				return false;
 
-#ifdef TH_MICROSOFT
-			wchar_t Buffer[1024];
-			UnicodePath(Path, Buffer, 1024);
-			if (::CreateDirectoryW(Buffer, nullptr) == TRUE || GetLastError() == ERROR_ALREADY_EXISTS)
-				return true;
-
-			size_t Index = wcslen(Buffer) - 1;
-			while (Index > 0 && Buffer[Index] != '/' && Buffer[Index] != '\\')
-				Index--;
-
-			if (Index > 0 && !CreateDir(std::string(Path).substr(0, Index).c_str()))
-				return false;
-
-			return ::CreateDirectoryW(Buffer, nullptr) == TRUE || GetLastError() == ERROR_ALREADY_EXISTS;
-#else
-			if (mkdir(Path, S_IRWXU | S_IRWXG | S_IROTH | S_IXOTH) != -1 || errno == EEXIST)
-				return true;
-
-			size_t Index = strlen(Path) - 1;
-			while (Index > 0 && Path[Index] != '/' && Path[Index] != '\\')
-				Index--;
-
-			if (Index > 0 && !CreateDir(std::string(Path).substr(0, Index).c_str()))
-				return false;
-
-			return mkdir(Path, S_IRWXU | S_IRWXG | S_IROTH | S_IXOTH) != -1 || errno == EEXIST;
-#endif
+			return Buffer.st_mode & S_IFDIR;
 		}
-		bool OS::Move(const char* From, const char* To)
+		std::string OS::Directory::Get()
 		{
+#ifndef TH_HAS_SDL2
+			char Buffer[TH_MAX_PATH + 1] = { 0 };
 #ifdef TH_MICROSOFT
-			return MoveFileA(From, To) != 0;
+			GetModuleFileNameA(nullptr, Buffer, TH_MAX_PATH);
+
+			std::string Result = Path::GetDirectory(Buffer);
+			memcpy(Buffer, Result.c_str(), sizeof(char) * Result.size());
+
+			if (Result.size() < TH_MAX_PATH)
+				Buffer[Result.size()] = '\0';
 #elif defined TH_UNIX
-			return !rename(From, To);
+			if (!getcwd(Buffer, TH_MAX_PATH))
+				return "";
 #endif
-		}
-		bool OS::ScanDir(const std::string& Path, std::vector<ResourceEntry>* Entries)
-		{
-			if (!Entries)
-				return false;
-
-			ResourceEntry Entry;
-
-#if defined(TH_MICROSOFT)
-			struct Dirent
+			int64_t Length = strlen(Buffer);
+			if (Length > 0 && Buffer[Length - 1] != '/' && Buffer[Length - 1] != '\\')
 			{
-				char Directory[1024];
-			};
-
-			struct Directory
-			{
-				HANDLE Handle;
-				WIN32_FIND_DATAW Info;
-				Dirent Result;
-			};
-
-			wchar_t WPath[1024];
-			UnicodePath(Path.c_str(), WPath, sizeof(WPath) / sizeof(WPath[0]));
-
-			auto* Value = (Directory*)TH_MALLOC(sizeof(Directory));
-			DWORD Attributes = GetFileAttributesW(WPath);
-			if (Attributes != 0xFFFFFFFF && ((Attributes & FILE_ATTRIBUTE_DIRECTORY) == FILE_ATTRIBUTE_DIRECTORY))
-			{
-				wcscat(WPath, L"\\*");
-				Value->Handle = FindFirstFileW(WPath, &Value->Info);
-				Value->Result.Directory[0] = '\0';
-			}
-			else
-			{
-				TH_FREE(Value);
-				return false;
+				Buffer[Length] = '/';
+				Length++;
 			}
 
-			while (true)
-			{
-				Dirent* Next = &Value->Result;
-				WideCharToMultiByte(CP_UTF8, 0, Value->Info.cFileName, -1, Next->Directory, sizeof(Next->Directory), nullptr, nullptr);
-				if (strcmp(Next->Directory, ".") != 0 && strcmp(Next->Directory, "..") != 0 && StateResource(Path + '/' + Next->Directory, &Entry.Source))
-				{
-					Entry.Path = Next->Directory;
-					Entries->push_back(Entry);
-				}
-
-				if (!FindNextFileW(Value->Handle, &Value->Info))
-				{
-					FindClose(Value->Handle);
-					Value->Handle = INVALID_HANDLE_VALUE;
-					break;
-				}
-			}
-
-			if (Value->Handle != INVALID_HANDLE_VALUE)
-				FindClose(Value->Handle);
-
-			TH_FREE(Value);
-			return true;
+			return std::string(Buffer, Length);
 #else
-			DIR* Value = opendir(Path.c_str());
-			if (!Value)
-				return false;
+			char* Base = SDL_GetBasePath();
+			std::string Result = Base;
+			SDL_free(Base);
 
-			dirent* Dirent = nullptr;
-			while ((Dirent = readdir(Value)) != nullptr)
+			return Result;
+#endif
+		}
+		std::vector<std::string> OS::Directory::GetMounts()
+		{
+			std::vector<std::string> Output;
+#ifdef TH_MICROSOFT
+			DWORD DriveMask = GetLogicalDrives();
+			int Offset = (int)'A';
+
+			while (DriveMask)
 			{
-				if (strcmp(Dirent->d_name, ".") && strcmp(Dirent->d_name, "..") && StateResource(Path + '/' + Dirent->d_name, &Entry.Source))
-				{
-					Entry.Path = Dirent->d_name;
-					Entries->push_back(Entry);
-				}
+				if (DriveMask & 1)
+					Output.push_back(std::string(1, (char)Offset) + '\\');
+				DriveMask >>= 1;
+				Offset++;
 			}
 
-			closedir(Value);
+			return Output;
+#else
+			Output.push_back("/");
+			return Output;
 #endif
-			return true;
 		}
-		bool OS::StateResource(const std::string& Path, Resource* Resource)
+
+		bool OS::File::State(const std::string& Path, Resource* Resource)
 		{
 			if (!Resource)
 				return false;
 
 			memset(Resource, 0, sizeof(*Resource));
 #if defined(TH_MICROSOFT)
-
 			wchar_t WBuffer[1024];
 			UnicodePath(Path.c_str(), WBuffer, sizeof(WBuffer) / sizeof(WBuffer[0]));
 
@@ -4317,7 +4252,6 @@ namespace Tomahawk
 
 			Resource->Size = MAKEUQUAD(Info.nFileSizeLow, Info.nFileSizeHigh);
 			Resource->LastModified = SYS2UNIX_TIME(Info.ftLastWriteTime.dwLowDateTime, Info.ftLastWriteTime.dwHighDateTime);
-
 			Resource->CreationTime = SYS2UNIX_TIME(Info.ftCreationTime.dwLowDateTime, Info.ftCreationTime.dwHighDateTime);
 			if (Resource->CreationTime > Resource->LastModified)
 				Resource->LastModified = Resource->CreationTime;
@@ -4336,9 +4270,7 @@ namespace Tomahawk
 			memset(Resource, 0, sizeof(*Resource));
 			return false;
 #else
-			struct stat State
-			{
-			};
+			struct stat State;
 			if (stat(Path.c_str(), &State) != 0)
 				return false;
 
@@ -4351,34 +4283,382 @@ namespace Tomahawk
 			return true;
 #endif
 		}
-		bool OS::ConstructETag(char* Buffer, uint64_t Length, Resource* Resource)
+		bool OS::File::Write(const char* Path, const char* Data, uint64_t Length)
 		{
-			if (Resource != nullptr)
-				ConstructETagManually(Buffer, Length, Resource->LastModified, Resource->Size);
+			FILE* Stream = (FILE*)Open(Path, "wb");
+			if (!Stream)
+				return false;
+
+			fwrite((const void*)Data, (size_t)Length, 1, Stream);
+			fclose(Stream);
 
 			return true;
 		}
-		bool OS::ConstructETagManually(char* Buffer, uint64_t Length, int64_t LastModified, uint64_t ContentLength)
+		bool OS::File::Write(const char* Path, const std::string& Data)
 		{
-			if (Buffer != nullptr && Length > 0)
-				snprintf(Buffer, (const size_t)Length, "\"%lx.%llu\"", (unsigned long)LastModified, ContentLength);
+			FILE* Stream = (FILE*)Open(Path, "wb");
+			if (!Stream)
+				return false;
+
+			fwrite((const void*)Data.c_str(), (size_t)Data.size(), 1, Stream);
+			fclose(Stream);
 
 			return true;
 		}
-		bool OS::UnloadObject(void* Handle)
+		bool OS::File::Move(const char* From, const char* To)
 		{
-			if (!Handle)
+#ifdef TH_MICROSOFT
+			return MoveFileA(From, To) != 0;
+#elif defined TH_UNIX
+			return !rename(From, To);
+#endif
+		}
+		bool OS::File::Remove(const char* Path)
+		{
+#ifdef TH_MICROSOFT
+			SetFileAttributesA(Path, 0);
+			return DeleteFileA(Path) != 0;
+#elif defined TH_UNIX
+			return unlink(Path) == 0;
+#endif
+		}
+		bool OS::File::IsExists(const char* Path)
+		{
+			struct stat Buffer;
+			return (stat(Path::Resolve(Path).c_str(), &Buffer) == 0);
+		}
+		uint64_t OS::File::GetCheckSum(const std::string& Data)
+		{
+			return Compute::Common::CRC32(Data);
+		}
+		FileState OS::File::GetState(const char* Path)
+		{
+			FileState State;
+			struct stat Buffer;
+
+			if (stat(Path, &Buffer) != 0)
+				return State;
+
+			State.Exists = true;
+			State.Size = Buffer.st_size;
+			State.Links = Buffer.st_nlink;
+			State.Permissions = Buffer.st_mode;
+			State.Device = Buffer.st_dev;
+			State.GroupId = Buffer.st_gid;
+			State.UserId = Buffer.st_uid;
+			State.IDocument = Buffer.st_ino;
+			State.LastAccess = Buffer.st_atime;
+			State.LastPermissionChange = Buffer.st_ctime;
+			State.LastModified = Buffer.st_mtime;
+
+			return State;
+		}
+		void* OS::File::Open(const char* Path, const char* Mode)
+		{
+			if (!Path || !Mode)
+				return nullptr;
+
+#ifdef TH_MICROSOFT
+			wchar_t WBuffer[1024], WMode[20];
+			UnicodePath(Path, WBuffer, sizeof(WBuffer) / sizeof(WBuffer[0]));
+			MultiByteToWideChar(CP_UTF8, 0, Mode, -1, WMode, sizeof(WMode) / sizeof(WMode[0]));
+
+			return (void*)_wfopen(WBuffer, WMode);
+#else
+			FILE* Stream = fopen(Path, Mode);
+			if (Stream != nullptr)
+				fcntl(fileno(Stream), F_SETFD, FD_CLOEXEC);
+
+			return (void*)Stream;
+#endif
+		}
+		Stream* OS::File::Open(const std::string& Path, FileMode Mode)
+		{
+			Network::SourceURL URL(Path);
+			if (URL.Protocol == "file")
+			{
+				Stream* Result = nullptr;
+				if (Stroke(&Path).EndsWith(".gz"))
+					Result = new GzStream();
+				else
+					Result = new FileStream();
+
+				if (Result->Open(Path.c_str(), Mode))
+					return Result;
+
+				TH_RELEASE(Result);
+			}
+			else if (URL.Protocol == "http" || URL.Protocol == "https")
+			{
+				Stream* Result = new WebStream();
+				if (Result->Open(Path.c_str(), Mode))
+					return Result;
+
+				TH_RELEASE(Result);
+			}
+
+			return nullptr;
+		}
+		unsigned char* OS::File::ReadAll(const char* Path, uint64_t* Length)
+		{
+			FILE* Stream = (FILE*)Open(Path, "rb");
+			if (!Stream)
+				return nullptr;
+
+			fseek(Stream, 0, SEEK_END);
+			uint64_t Size = ftell(Stream);
+			fseek(Stream, 0, SEEK_SET);
+
+			auto* Bytes = (unsigned char*)TH_MALLOC(sizeof(unsigned char) * (size_t)(Size + 1));
+			if (fread((char*)Bytes, sizeof(unsigned char), (size_t)Size, Stream) != (size_t)Size)
+			{
+				fclose(Stream);
+				TH_FREE(Bytes);
+
+				if (Length != nullptr)
+					*Length = 0;
+
+				return nullptr;
+			}
+
+			Bytes[Size] = '\0';
+			if (Length != nullptr)
+				*Length = Size;
+
+			fclose(Stream);
+			return Bytes;
+		}
+		unsigned char* OS::File::ReadAll(Stream* Stream, uint64_t* Length)
+		{
+			if (!Stream)
+				return nullptr;
+
+			uint64_t Size = Stream->GetSize();
+			auto* Bytes = new unsigned char[(size_t)(Size + 1)];
+			Stream->Read((char*)Bytes, Size * sizeof(unsigned char));
+			Bytes[Size] = '\0';
+
+			if (Length != nullptr)
+				*Length = Size;
+
+			return Bytes;
+		}
+		unsigned char* OS::File::ReadChunk(Stream* Stream, uint64_t Length)
+		{
+			auto* Bytes = (unsigned char*)TH_MALLOC((size_t)(Length + 1));
+			Stream->Read((char*)Bytes, Length);
+			Bytes[Length] = '\0';
+
+			return Bytes;
+		}
+		std::string OS::File::ReadAsString(const char* Path)
+		{
+			uint64_t Length = 0;
+			char* Data = (char*)ReadAll(Path, &Length);
+			if (!Data)
+				return std::string();
+
+			std::string Output = std::string(Data, Length);
+			TH_FREE(Data);
+
+			return Output;
+		}
+		std::vector<std::string> OS::File::ReadAsArray(const char* Path)
+		{
+			FILE* Stream = (FILE*)Open(Path, "rb");
+			if (!Stream)
+				return std::vector<std::string>();
+
+			fseek(Stream, 0, SEEK_END);
+			uint64_t Length = ftell(Stream);
+			fseek(Stream, 0, SEEK_SET);
+
+			char* Buffer = (char*)TH_MALLOC(sizeof(char) * Length);
+			if (fread(Buffer, sizeof(char), (size_t)Length, Stream) != (size_t)Length)
+			{
+				fclose(Stream);
+				TH_FREE(Buffer);
+				return std::vector<std::string>();
+			}
+
+			std::string Result(Buffer, Length);
+			fclose(Stream);
+			TH_FREE(Buffer);
+
+			return Stroke(&Result).Split('\n');
+		}
+
+		bool OS::Path::IsRemote(const char* Path)
+		{
+			return Path && Network::SourceURL(Path).Protocol != "file";
+		}
+		std::string OS::Path::Resolve(const char* Path)
+		{
+			if (!Path || Path[0] == '\0')
+				return "";
+
+#ifdef TH_MICROSOFT
+			char Buffer[2048] = { 0 };
+			GetFullPathNameA(Path, sizeof(Buffer), Buffer, nullptr);
+#elif defined TH_UNIX
+			char* Data = realpath(Path, nullptr);
+			if (!Data)
+				return Path;
+
+			std::string Buffer = Data;
+			TH_FREE(Data);
+#endif
+			return Buffer;
+		}
+		std::string OS::Path::Resolve(const std::string& Path, const std::string& Directory)
+		{
+			if (Path.empty() || Directory.empty())
+				return "";
+
+			if (Stroke(&Path).StartsOf("/\\"))
+				return Resolve(("." + Path).c_str());
+
+			if (Stroke(&Directory).EndsOf("/\\"))
+				return Resolve((Directory + Path).c_str());
+#ifdef TH_MICROSOFT
+			return Resolve((Directory + "\\" + Path).c_str());
+#else
+			return Resolve((Directory + "/" + Path).c_str());
+#endif
+		}
+		std::string OS::Path::ResolveDirectory(const char* Path)
+		{
+			std::string Result = Resolve(Path);
+			if (!Result.empty() && !Stroke(&Result).EndsOf("/\\"))
+				Result += '/';
+
+			return Result;
+			}
+		std::string OS::Path::ResolveDirectory(const std::string& Path, const std::string& Directory)
+		{
+			std::string Result = Resolve(Path, Directory);
+			if (!Result.empty() && !Stroke(&Result).EndsOf("/\\"))
+				Result += '/';
+
+			return Result;
+		}
+		std::string OS::Path::GetDirectory(const char* Path, uint32_t Level)
+		{
+			Stroke Buffer(Path);
+			Stroke::Settle Result = Buffer.ReverseFindOf("/\\");
+			if (!Result.Found)
+				return Path;
+
+			uint64_t Size = Buffer.Size();
+			for (uint32_t i = 0; i < Level; i++)
+			{
+				Stroke::Settle Current = Buffer.ReverseFindOf("/\\", Size - Result.Start);
+				if (!Current.Found)
+				{
+					if (Buffer.Splice(0, Result.End).Empty())
+						return "/";
+
+					return Buffer.R();
+				}
+
+				Result = Current;
+			}
+
+			if (Buffer.Splice(0, Result.End).Empty())
+				return "/";
+
+			return Buffer.R();
+		}
+		const char* OS::Path::GetFilename(const char* Path)
+		{
+			if (!Path)
+				return nullptr;
+
+			int64_t Size = (int64_t)strlen(Path);
+			for (int64_t i = Size; i-- > 0;)
+			{
+				if (Path[i] == '/' || Path[i] == '\\')
+					return Path + i + 1;
+			}
+
+			return Path;
+		}
+		const char* OS::Path::GetExtension(const char* Path)
+		{
+			if (!Path)
+				return nullptr;
+
+			const char* Buffer = Path;
+			while (*Buffer != '\0')
+				Buffer++;
+
+			while (*Buffer != '.' && Buffer != Path)
+				Buffer--;
+
+			if (Buffer == Path)
+				return nullptr;
+
+			return Buffer;
+		}
+
+		bool OS::Net::SendFile(FILE* Stream, socket_t Socket, int64_t Size)
+		{
+			if (!Stream || !Size)
 				return false;
 
 #ifdef TH_MICROSOFT
-			return (FreeLibrary((HMODULE)Handle) != 0);
+			return TransmitFile((SOCKET)Socket, (HANDLE)_get_osfhandle(_fileno(Stream)), (DWORD)Size, 16384, nullptr, nullptr, 0) > 0;
+#elif defined(TH_APPLE)
+			return sendfile(fileno(Stream), Socket, 0, (off_t*)&Size, nullptr, 0);
 #elif defined(TH_UNIX)
-			return (dlclose(Handle) == 0);
+			return sendfile(Socket, fileno(Stream), nullptr, (size_t)Size) > 0;
 #else
 			return false;
 #endif
 		}
-		bool OS::SpawnProcess(const std::string& Path, const std::vector<std::string>& Params, ChildProcess* Child)
+		bool OS::Net::GetETag(char* Buffer, uint64_t Length, Resource* Resource)
+		{
+			if (!Resource)
+				return false;
+
+			return GetETag(Buffer, Length, Resource->LastModified, Resource->Size);
+		}
+		bool OS::Net::GetETag(char* Buffer, uint64_t Length, int64_t LastModified, uint64_t ContentLength)
+		{
+			if (!Buffer || !Length)
+				return false;
+
+			snprintf(Buffer, (const size_t)Length, "\"%lx.%llu\"", (unsigned long)LastModified, ContentLength);
+			return true;
+		}
+		socket_t OS::Net::GetFd(FILE* Stream)
+		{
+			if (!Stream)
+				return -1;
+
+#ifdef TH_MICROSOFT
+			return _fileno(Stream);
+#else
+			return fileno(Stream);
+#endif
+		}
+
+		void OS::Process::Execute(const char* Format, ...)
+		{
+			char Buffer[16384];
+
+			va_list Args;
+			va_start(Args, Format);
+#ifdef TH_MICROSOFT
+			_vsnprintf(Buffer, sizeof(Buffer), Format, Args);
+#else
+			vsnprintf(Buffer, sizeof(Buffer), Format, Args);
+#endif
+			va_end(Args);
+			if (system(Buffer) == 0)
+				TH_ERROR("[sys] couldn't execute command");
+		}
+		bool OS::Process::Spawn(const std::string& Path, const std::vector<std::string>& Params, ChildProcess* Child)
 		{
 #ifdef TH_MICROSOFT
 			HANDLE Job = CreateJobObject(nullptr, nullptr);
@@ -4405,7 +4685,7 @@ namespace Tomahawk
 			PROCESS_INFORMATION Process;
 			ZeroMemory(&Process, sizeof(Process));
 
-			Stroke Exe = Resolve(Path.c_str());
+			Stroke Exe = Path::Resolve(Path.c_str());
 			if (!Exe.EndsWith(".exe"))
 				Exe.Append(".exe");
 
@@ -4430,7 +4710,7 @@ namespace Tomahawk
 
 			return true;
 #else
-			if (!FileExists(Path.c_str()))
+			if (!File::Exists(Path.c_str()))
 			{
 				TH_ERROR("cannot spawn process %s (file does not exists)", Path.c_str());
 				return false;
@@ -4456,7 +4736,36 @@ namespace Tomahawk
 			return (ProcessId > 0);
 #endif
 		}
-		bool OS::FreeProcess(ChildProcess* Child)
+		bool OS::Process::Await(ChildProcess* Process, int* ExitCode)
+		{
+			if (!Process || !Process->Valid)
+				return false;
+
+#ifdef TH_MICROSOFT
+			WaitForSingleObject(Process->Process, INFINITE);
+			if (ExitCode != nullptr)
+			{
+				DWORD Result;
+				if (!GetExitCodeProcess(Process->Process, &Result))
+				{
+					Free(Process);
+					return false;
+				}
+
+				*ExitCode = (int)Result;
+			}
+#else
+			int Status;
+			waitpid(Process->Process, &Status, 0);
+
+			if (ExitCode != nullptr)
+				*ExitCode = WEXITSTATUS(Status);
+#endif
+
+			Free(Process);
+			return true;
+		}
+		bool OS::Process::Free(ChildProcess* Child)
 		{
 			if (!Child || !Child->Valid)
 				return false;
@@ -4483,90 +4792,8 @@ namespace Tomahawk
 			Child->Valid = false;
 			return true;
 		}
-		bool OS::AwaitProcess(ChildProcess* Process, int* ExitCode)
-		{
-			if (!Process || !Process->Valid)
-				return false;
 
-#ifdef TH_MICROSOFT
-			WaitForSingleObject(Process->Process, INFINITE);
-			if (ExitCode != nullptr)
-			{
-				DWORD Result;
-				if (!GetExitCodeProcess(Process->Process, &Result))
-				{
-					FreeProcess(Process);
-					return false;
-				}
-
-				*ExitCode = (int)Result;
-			}
-#else
-			int Status;
-			waitpid(Process->Process, &Status, 0);
-
-			if (ExitCode != nullptr)
-				*ExitCode = WEXITSTATUS(Status);
-#endif
-
-			FreeProcess(Process);
-			return true;
-		}
-		socket_t OS::GetFD(FILE* Stream)
-		{
-			if (!Stream)
-				return -1;
-
-#ifdef TH_MICROSOFT
-			return _fileno(Stream);
-#else
-			return fileno(Stream);
-#endif
-		}
-		int OS::GetError()
-		{
-#ifdef TH_MICROSOFT
-			int ErrorCode = WSAGetLastError();
-			WSASetLastError(0);
-
-			return ErrorCode;
-#else
-			int ErrorCode = errno;
-			errno = 0;
-
-			return ErrorCode;
-#endif
-		}
-		std::string OS::GetErrorName(int Code)
-		{
-#ifdef TH_MICROSOFT
-			LPSTR Buffer = nullptr;
-			size_t Size = FormatMessageA(FORMAT_MESSAGE_ALLOCATE_BUFFER | FORMAT_MESSAGE_FROM_SYSTEM | FORMAT_MESSAGE_IGNORE_INSERTS, nullptr, Code, MAKELANGID(LANG_ENGLISH, SUBLANG_ENGLISH_US), (LPSTR)&Buffer, 0, nullptr);
-			std::string Result(Buffer, Size);
-			LocalFree(Buffer);
-
-			return Stroke(&Result).Replace("\r", "").Replace("\n", "").R();
-#else
-			char* Buffer = strerror(Code);
-			return Buffer ? Buffer : "";
-#endif
-		}
-		void OS::Run(const char* Format, ...)
-		{
-			char Buffer[16384];
-
-			va_list Args;
-			va_start(Args, Format);
-#ifdef TH_MICROSOFT
-			_vsnprintf(Buffer, sizeof(Buffer), Format, Args);
-#else
-			vsnprintf(Buffer, sizeof(Buffer), Format, Args);
-#endif
-			va_end(Args);
-			if (system(Buffer) == 0)
-				TH_ERROR("[sys] couldn't execute command");
-		}
-		void* OS::LoadObject(const std::string& Path)
+		void* OS::Symbol::Load(const std::string& Path)
 		{
 			Stroke Name(Path);
 #ifdef TH_MICROSOFT
@@ -4597,7 +4824,7 @@ namespace Tomahawk
 			return nullptr;
 #endif
 		}
-		void* OS::LoadObjectFunction(void* Handle, const std::string& Name)
+		void* OS::Symbol::LoadFunction(void* Handle, const std::string& Name)
 		{
 			if (!Handle || Name.empty())
 				return nullptr;
@@ -4629,344 +4856,22 @@ namespace Tomahawk
 #else
 			return nullptr;
 #endif
-	}
-		void* OS::Open(const char* Path, const char* Mode)
-		{
-			if (!Path || !Mode)
-				return nullptr;
-
-#ifdef TH_MICROSOFT
-			wchar_t WBuffer[1024], WMode[20];
-			UnicodePath(Path, WBuffer, sizeof(WBuffer) / sizeof(WBuffer[0]));
-			MultiByteToWideChar(CP_UTF8, 0, Mode, -1, WMode, sizeof(WMode) / sizeof(WMode[0]));
-
-			return (void*)_wfopen(WBuffer, WMode);
-#else
-			FILE* Stream = fopen(Path, Mode);
-			if (Stream != nullptr)
-				fcntl(fileno(Stream), F_SETFD, FD_CLOEXEC);
-
-			return (void*)Stream;
-#endif
 		}
-		Stream* OS::Open(const std::string& Path, FileMode Mode)
+		bool OS::Symbol::Unload(void* Handle)
 		{
-			Network::SourceURL URL(Path);
-			if (URL.Protocol == "file")
-			{
-				Stream* Result = nullptr;
-				if (Stroke(&Path).EndsWith(".gz"))
-					Result = new GzStream();
-				else
-					Result = new FileStream();
-
-				if (Result->Open(Path.c_str(), Mode))
-					return Result;
-
-				TH_RELEASE(Result);
-			}
-			else if (URL.Protocol == "http" || URL.Protocol == "https")
-			{
-				Stream* Result = new WebStream();
-				if (Result->Open(Path.c_str(), Mode))
-					return Result;
-
-				TH_RELEASE(Result);
-			}
-
-			return nullptr;
-		}
-		bool OS::SendFile(FILE* Stream, socket_t Socket, int64_t Size)
-		{
-			if (!Stream || !Size)
+			if (!Handle)
 				return false;
 
 #ifdef TH_MICROSOFT
-			return TransmitFile((SOCKET)Socket, (HANDLE)_get_osfhandle(_fileno(Stream)), (DWORD)Size, 16384, nullptr, nullptr, 0) > 0;
-#elif defined(TH_APPLE)
-			return sendfile(fileno(Stream), Socket, 0, (off_t*)&Size, nullptr, 0);
+			return (FreeLibrary((HMODULE)Handle) != 0);
 #elif defined(TH_UNIX)
-			return sendfile(Socket, fileno(Stream), nullptr, (size_t)Size) > 0;
+			return (dlclose(Handle) == 0);
 #else
 			return false;
 #endif
 		}
-		std::string OS::FileDirectory(const std::string& Path, int Level)
-		{
-			Stroke RV(Path);
-			Stroke::Settle Result = RV.ReverseFindOf("/\\");
-			if (!Result.Found)
-				return Path;
 
-			for (int i = 0; i < Level; i++)
-			{
-				Stroke::Settle Current = RV.ReverseFindOf("/\\", Path.size() - Result.Start);
-				if (!Current.Found)
-				{
-					if (RV.Splice(0, Result.End).Empty())
-						return "/";
-
-					return RV.R();
-				}
-
-				Result = Current;
-			}
-
-			if (RV.Splice(0, Result.End).Empty())
-				return "/";
-
-			return RV.R();
-		}
-		std::string OS::GetFilename(const std::string& Path)
-		{
-			Stroke RV(Path);
-			Stroke::Settle Result = RV.ReverseFindOf("/\\");
-			if (!Result.Found)
-				return Path;
-
-			return RV.Substring(Result.End).R();
-		}
-		std::string OS::Read(const char* Path)
-		{
-			uint64_t Length = 0;
-			char* Data = (char*)ReadAllBytes(Path, &Length);
-			if (!Data)
-				return std::string();
-
-			std::string Output = std::string(Data, Length);
-			TH_FREE(Data);
-
-			return Output;
-}
-		std::string OS::Resolve(const char* Path)
-		{
-			if (!Path || Path[0] == '\0')
-				return "";
-
-#ifdef TH_MICROSOFT
-			char Buffer[2048] = { 0 };
-			GetFullPathNameA(Path, sizeof(Buffer), Buffer, nullptr);
-#elif defined TH_UNIX
-			char* Data = realpath(Path, nullptr);
-			if (!Data)
-				return Path;
-
-			std::string Buffer = Data;
-			TH_FREE(Data);
-#endif
-			return Buffer;
-		}
-		std::string OS::Resolve(const std::string& Path, const std::string& Directory)
-		{
-			if (Path.empty() || Directory.empty())
-				return "";
-
-			if (Stroke(&Path).StartsOf("/\\"))
-				return Resolve(("." + Path).c_str());
-
-			if (Stroke(&Directory).EndsOf("/\\"))
-				return Resolve((Directory + Path).c_str());
-
-#ifdef TH_MICROSOFT
-			return Resolve((Directory + "\\" + Path).c_str());
-#else
-			return Resolve((Directory + "/" + Path).c_str());
-#endif
-		}
-		std::string OS::ResolveDir(const char* Path)
-		{
-			std::string Result = Resolve(Path);
-			if (!Result.empty() && !Stroke(&Result).EndsOf("/\\"))
-			{
-#ifdef TH_MICROSOFT
-				Result += '\\';
-#else
-				Result += '/';
-#endif
-			}
-
-			return Result;
-		}
-		std::string OS::ResolveDir(const std::string& Path, const std::string& Directory)
-		{
-			std::string Result = Resolve(Path, Directory);
-			if (!Result.empty() && !Stroke(&Result).EndsOf("/\\"))
-				Result += '/';
-
-			return Result;
-		}
-		std::string OS::GetDirectory()
-		{
-#ifndef TH_HAS_SDL2
-			char Buffer[TH_MAX_PATH + 1] = { 0 };
-#ifdef TH_MICROSOFT
-			GetModuleFileNameA(nullptr, Buffer, TH_MAX_PATH);
-
-			std::string Result = FileDirectory(Buffer);
-			memcpy(Buffer, Result.c_str(), sizeof(char) * Result.size());
-
-			if (Result.size() < TH_MAX_PATH)
-				Buffer[Result.size()] = '\0';
-#elif defined TH_UNIX
-			if (!getcwd(Buffer, TH_MAX_PATH))
-				return "";
-#endif
-			int64_t Length = strlen(Buffer);
-			if (Length > 0 && Buffer[Length - 1] != '/' && Buffer[Length - 1] != '\\')
-			{
-				Buffer[Length] = '/';
-				Length++;
-			}
-
-			return std::string(Buffer, Length);
-#else
-			char* Base = SDL_GetBasePath();
-			std::string Result = Base;
-			SDL_free(Base);
-
-			return Result;
-#endif
-		}
-		FileState OS::GetState(const char* Path)
-		{
-			FileState State{ };
-			struct stat Buffer
-			{
-			};
-
-			if (stat(Path, &Buffer) != 0)
-				return State;
-
-			State.Exists = true;
-			State.Size = Buffer.st_size;
-			State.Links = Buffer.st_nlink;
-			State.Permissions = Buffer.st_mode;
-			State.Device = Buffer.st_dev;
-			State.GroupId = Buffer.st_gid;
-			State.UserId = Buffer.st_uid;
-			State.IDocument = Buffer.st_ino;
-			State.LastAccess = Buffer.st_atime;
-			State.LastPermissionChange = Buffer.st_ctime;
-			State.LastModified = Buffer.st_mtime;
-
-			return State;
-		}
-		std::vector<std::string> OS::ReadAllLines(const char* Path)
-		{
-			FILE* Stream = (FILE*)Open(Path, "rb");
-			if (!Stream)
-				return std::vector<std::string>();
-
-			fseek(Stream, 0, SEEK_END);
-			uint64_t Length = ftell(Stream);
-			fseek(Stream, 0, SEEK_SET);
-
-			char* Buffer = (char*)TH_MALLOC(sizeof(char) * Length);
-			if (fread(Buffer, sizeof(char), (size_t)Length, Stream) != (size_t)Length)
-			{
-				fclose(Stream);
-				TH_FREE(Buffer);
-				return std::vector<std::string>();
-			}
-
-			std::string Result(Buffer, Length);
-			fclose(Stream);
-			TH_FREE(Buffer);
-
-			return Stroke(&Result).Split('\n');
-		}
-		std::vector<std::string> OS::GetDiskDrives()
-		{
-			std::vector<std::string> Output;
-#ifdef TH_MICROSOFT
-			DWORD DriveMask = GetLogicalDrives();
-			int Offset = (int)'A';
-
-			while (DriveMask)
-			{
-				if (DriveMask & 1)
-					Output.push_back(std::string(1, (char)Offset) + '\\');
-				DriveMask >>= 1;
-				Offset++;
-			}
-
-			return Output;
-#else
-			Output.push_back("/");
-			return Output;
-#endif
-		}
-		const char* OS::FileExtention(const char* Path)
-		{
-			if (!Path)
-				return nullptr;
-
-			const char* Buffer = Path;
-			while (*Buffer != '\0')
-				Buffer++;
-
-			while (*Buffer != '.' && Buffer != Path)
-				Buffer--;
-
-			if (Buffer == Path)
-				return nullptr;
-
-			return Buffer;
-		}
-		unsigned char* OS::ReadAllBytes(const char* Path, uint64_t* Length)
-		{
-			FILE* Stream = (FILE*)Open(Path, "rb");
-			if (!Stream)
-				return nullptr;
-
-			fseek(Stream, 0, SEEK_END);
-			uint64_t Size = ftell(Stream);
-			fseek(Stream, 0, SEEK_SET);
-
-			auto* Bytes = (unsigned char*)TH_MALLOC(sizeof(unsigned char) * (size_t)(Size + 1));
-			if (fread((char*)Bytes, sizeof(unsigned char), (size_t)Size, Stream) != (size_t)Size)
-			{
-				fclose(Stream);
-				TH_FREE(Bytes);
-
-				if (Length != nullptr)
-					*Length = 0;
-
-				return nullptr;
-			}
-
-			Bytes[Size] = '\0';
-			if (Length != nullptr)
-				*Length = Size;
-
-			fclose(Stream);
-			return Bytes;
-		}
-		unsigned char* OS::ReadAllBytes(Stream* Stream, uint64_t* Length)
-		{
-			if (!Stream)
-				return nullptr;
-
-			uint64_t Size = Stream->GetSize();
-
-			auto* Bytes = new unsigned char[(size_t)(Size + 1)];
-			Stream->Read((char*)Bytes, Size * sizeof(unsigned char));
-			Bytes[Size] = '\0';
-
-			if (Length != nullptr)
-				*Length = Size;
-
-			return Bytes;
-		}
-		unsigned char* OS::ReadByteChunk(Stream* Stream, uint64_t Length)
-		{
-			auto* Bytes = (unsigned char*)TH_MALLOC((size_t)(Length + 1));
-			Stream->Read((char*)Bytes, Length);
-
-			Bytes[Length] = '\0';
-			return Bytes;
-		}
-		bool OS::WantTextInput(const std::string& Title, const std::string& Message, const std::string& DefaultInput, std::string* Result)
+		bool OS::Input::Text(const std::string& Title, const std::string& Message, const std::string& DefaultInput, std::string* Result)
 		{
 			const char* Data = tinyfd_inputBox(Title.c_str(), Message.c_str(), DefaultInput.c_str());
 			if (!Data)
@@ -4977,7 +4882,7 @@ namespace Tomahawk
 
 			return true;
 		}
-		bool OS::WantPasswordInput(const std::string& Title, const std::string& Message, std::string* Result)
+		bool OS::Input::Password(const std::string& Title, const std::string& Message, std::string* Result)
 		{
 			const char* Data = tinyfd_inputBox(Title.c_str(), Message.c_str(), nullptr);
 			if (!Data)
@@ -4988,7 +4893,7 @@ namespace Tomahawk
 
 			return true;
 		}
-		bool OS::WantFileSave(const std::string& Title, const std::string& DefaultPath, const std::string& Filter, const std::string& FilterDescription, std::string* Result)
+		bool OS::Input::Save(const std::string& Title, const std::string& DefaultPath, const std::string& Filter, const std::string& FilterDescription, std::string* Result)
 		{
 			std::vector<char*> Patterns;
 			for (auto& It : Stroke(&Filter).Split(','))
@@ -5008,7 +4913,7 @@ namespace Tomahawk
 
 			return true;
 		}
-		bool OS::WantFileOpen(const std::string& Title, const std::string& DefaultPath, const std::string& Filter, const std::string& FilterDescription, bool Multiple, std::string* Result)
+		bool OS::Input::Open(const std::string& Title, const std::string& DefaultPath, const std::string& Filter, const std::string& FilterDescription, bool Multiple, std::string* Result)
 		{
 			std::vector<char*> Patterns;
 			for (auto& It : Stroke(&Filter).Split(','))
@@ -5028,7 +4933,7 @@ namespace Tomahawk
 
 			return true;
 		}
-		bool OS::WantFolder(const std::string& Title, const std::string& DefaultPath, std::string* Result)
+		bool OS::Input::Folder(const std::string& Title, const std::string& DefaultPath, std::string* Result)
 		{
 			const char* Data = tinyfd_selectFolderDialog(Title.c_str(), DefaultPath.c_str());
 			if (!Data)
@@ -5039,7 +4944,7 @@ namespace Tomahawk
 
 			return true;
 		}
-		bool OS::WantColor(const std::string& Title, const std::string& DefaultHexRGB, std::string* Result)
+		bool OS::Input::Color(const std::string& Title, const std::string& DefaultHexRGB, std::string* Result)
 		{
 			unsigned char RGB[3] = { 0, 0, 0 };
 			const char* Data = tinyfd_colorChooser(Title.c_str(), DefaultHexRGB.c_str(), RGB, RGB);
@@ -5051,29 +4956,34 @@ namespace Tomahawk
 
 			return true;
 		}
-		uint64_t OS::CheckSum(const std::string& Data)
+
+		int OS::Error::Get()
 		{
-			int64_t Result = 0xFFFFFFFF;
-			int64_t Index = 0;
-			int64_t Byte = 0;
-			int64_t Mask = 0;
-			int64_t It = 0;
+#ifdef TH_MICROSOFT
+			int ErrorCode = WSAGetLastError();
+			WSASetLastError(0);
 
-			while (Data[Index] != 0)
-			{
-				Byte = Data[Index];
-				Result = Result ^ Byte;
+			return ErrorCode;
+#else
+			int ErrorCode = errno;
+			errno = 0;
 
-				for (It = 7; It >= 0; It--)
-				{
-					Mask = -(Result & 1);
-					Result = (Result >> 1) ^ (0xEDB88320 & Mask);
-				}
+			return ErrorCode;
+#endif
+		}
+		std::string OS::Error::GetName(int Code)
+		{
+#ifdef TH_MICROSOFT
+			LPSTR Buffer = nullptr;
+			size_t Size = FormatMessageA(FORMAT_MESSAGE_ALLOCATE_BUFFER | FORMAT_MESSAGE_FROM_SYSTEM | FORMAT_MESSAGE_IGNORE_INSERTS, nullptr, Code, MAKELANGID(LANG_ENGLISH, SUBLANG_ENGLISH_US), (LPSTR)&Buffer, 0, nullptr);
+			std::string Result(Buffer, Size);
+			LocalFree(Buffer);
 
-				Index++;
-			}
-
-			return (uint64_t)~Result;
+			return Stroke(&Result).Replace("\r", "").Replace("\n", "").R();
+#else
+			char* Buffer = strerror(Code);
+			return Buffer ? Buffer : "";
+#endif
 		}
 
 		ChangeLog::ChangeLog(const std::string& Root) : Path(Root), Offset(-1)
@@ -6286,7 +6196,7 @@ namespace Tomahawk
 
 				return true;
 			}
-			
+
 			size_t Size = Base->Nodes.size(), Offset = 0;
 			bool Array = (Base->Value.Type == VarType_Array);
 
@@ -6465,7 +6375,7 @@ namespace Tomahawk
 
 			rapidjson::Document Base;
 			Base.Parse(Buffer.c_str(), Buffer.size());
-			
+
 			Rest::Document* Result = nullptr;
 			if (Base.HasParseError())
 			{
@@ -6990,5 +6900,5 @@ namespace Tomahawk
 
 			return Stroke(Buffer, Size > 16384 ? 16384 : (size_t)Size);
 		}
-	}
-}
+		}
+		}

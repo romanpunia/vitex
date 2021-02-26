@@ -3019,7 +3019,7 @@ namespace Tomahawk
 			bool Driver::AddDirectory(const std::string& Directory, const std::string& Origin)
 			{
 				std::vector<Rest::ResourceEntry> Entries;
-				if (!Rest::OS::ScanDir(Directory, &Entries))
+				if (!Rest::OS::Directory::Scan(Directory, &Entries))
 					return false;
 
 				std::string Path = Directory;
@@ -3039,7 +3039,7 @@ namespace Tomahawk
 					if (!Base.EndsWith(".json"))
 						continue;
 
-					char* Buffer = (char*)Rest::OS::ReadAllBytes(Base.Get(), &Size);
+					char* Buffer = (char*)Rest::OS::File::ReadAll(Base.Get(), &Size);
 					if (!Buffer)
 						continue;
 

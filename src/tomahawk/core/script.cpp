@@ -2270,7 +2270,7 @@ namespace Tomahawk
 					std::string Path = Args[0];
 					if (!Path.empty() && Path.front() == '.')
 					{
-						std::string Subpath = Rest::OS::Resolve(Path, Rest::OS::FileDirectory(Processor->GetCurrentFilePath()));
+						std::string Subpath = Rest::OS::Path::Resolve(Path, Rest::OS::Path::GetDirectory(Processor->GetCurrentFilePath().c_str()));
 						if (!Subpath.empty())
 							Path = Subpath;
 					}
@@ -2490,14 +2490,14 @@ namespace Tomahawk
 			if (VCache.Valid)
 				return 0;
 
-			std::string Source = Rest::OS::Resolve(Path.c_str());
-			if (!Rest::OS::FileExists(Source.c_str()))
+			std::string Source = Rest::OS::Path::Resolve(Path.c_str());
+			if (!Rest::OS::File::IsExists(Source.c_str()))
 			{
 				TH_ERROR("file not found");
 				return -1;
 			}
 
-			std::string Buffer = Rest::OS::Read(Source.c_str());
+			std::string Buffer = Rest::OS::File::ReadAsString(Source.c_str());
 			if (!Processor->Process(Source, Buffer))
 				return asINVALID_DECLARATION;
 
@@ -3226,7 +3226,7 @@ namespace Tomahawk
 		VMManager::VMManager() : Engine(asCreateScriptEngine()), Globals(this), Cached(true), Scope(0), JIT(nullptr), Nullable(0), Imports(VMImport_All)
 		{
 			Include.Exts.push_back(".as");
-			Include.Root = Rest::OS::GetDirectory();
+			Include.Root = Rest::OS::Directory::Get();
 
 			Engine->SetUserData(this, ManagerUD);
 			Engine->SetContextCallbacks(RequestContext, ReturnContext, nullptr);
@@ -3250,7 +3250,7 @@ namespace Tomahawk
 		VMManager::~VMManager()
 		{
 			for (auto& Core : Kernels)
-				Rest::OS::UnloadObject(Core.second.Handle);
+				Rest::OS::Symbol::Unload(Core.second.Handle);
 
 			for (auto& Context : Contexts)
 				Context->Release();
@@ -3715,11 +3715,11 @@ namespace Tomahawk
 		std::vector<std::string> VMManager::VerifyModules(const std::string& Directory, const Compute::RegExp& Exp)
 		{
 			std::vector<std::string> Result;
-			if (!Rest::OS::DirExists(Directory.c_str()))
+			if (!Rest::OS::Directory::IsExists(Directory.c_str()))
 				return Result;
 
 			std::vector<Rest::ResourceEntry> Entries;
-			if (!Rest::OS::ScanDir(Directory, &Entries))
+			if (!Rest::OS::Directory::Scan(Directory, &Entries))
 				return Result;
 
 			for (auto& Entry : Entries)
@@ -3752,7 +3752,7 @@ namespace Tomahawk
 			if (!Engine)
 				return false;
 
-			std::string Source = Rest::OS::Read(Path.c_str());
+			std::string Source = Rest::OS::File::ReadAsString(Path.c_str());
 			if (Source.empty())
 				return true;
 
@@ -3811,13 +3811,13 @@ namespace Tomahawk
 				return false;
 			}
 
-			if (!Rest::OS::FileExists(Path.c_str()))
+			if (!Rest::OS::File::IsExists(Path.c_str()))
 				return false;
 
 			if (!Cached)
 			{
 				if (Out != nullptr)
-					Out->assign(Rest::OS::Read(Path.c_str()));
+					Out->assign(Rest::OS::File::ReadAsString(Path.c_str()));
 
 				return true;
 			}
@@ -3834,7 +3834,7 @@ namespace Tomahawk
 			}
 
 			std::string& Result = Files[Path];
-			Result = Rest::OS::Read(Path.c_str());
+			Result = Rest::OS::File::ReadAsString(Path.c_str());
 			if (Out != nullptr)
 				Out->assign(Result);
 
@@ -3881,7 +3881,7 @@ namespace Tomahawk
 				return true;
 			}
 
-			VMObjectFunction Function = (VMObjectFunction)Rest::OS::LoadObjectFunction(Core->second.Handle, Func.c_str());
+			VMObjectFunction Function = (VMObjectFunction)Rest::OS::Symbol::LoadFunction(Core->second.Handle, Func.c_str());
 			if (!Function)
 			{
 				TH_ERROR("cannot load shared object function: %s", Func.c_str());
@@ -3922,7 +3922,7 @@ namespace Tomahawk
 			}
 			Safe.unlock();
 
-			void* Handle = Rest::OS::LoadObject(Path);
+			void* Handle = Rest::OS::Symbol::Load(Path);
 			if (!Handle)
 			{
 				TH_ERROR("cannot load shared object: %s", Path.c_str());
@@ -3987,17 +3987,17 @@ namespace Tomahawk
 				return nullptr;
 			}
 
-			std::string File = Rest::OS::Resolve(Path, Include.Root);
-			if (!Rest::OS::FileExists(File.c_str()))
+			std::string File = Rest::OS::Path::Resolve(Path, Include.Root);
+			if (!Rest::OS::File::IsExists(File.c_str()))
 			{
-				File = Rest::OS::Resolve(Path + ".json", Include.Root);
-				if (!Rest::OS::FileExists(File.c_str()))
+				File = Rest::OS::Path::Resolve(Path + ".json", Include.Root);
+				if (!Rest::OS::File::IsExists(File.c_str()))
 					return nullptr;
 			}
 
 			if (!Cached)
 			{
-				std::string Data = Rest::OS::Read(File.c_str());
+				std::string Data = Rest::OS::File::ReadAsString(File.c_str());
 				uint64_t Offset = 0;
 
 				return Rest::Document::ReadJSON(Data.size(), [&Data, &Offset](char* Buffer, int64_t Size)
@@ -4026,7 +4026,7 @@ namespace Tomahawk
 			}
 
 			Rest::Document*& Result = Datas[File];
-			std::string Data = Rest::OS::Read(File.c_str());
+			std::string Data = Rest::OS::File::ReadAsString(File.c_str());
 			uint64_t Offset = 0;
 
 			Result = Rest::Document::ReadJSON(Data.size(), [&Data, &Offset](char* Buffer, int64_t Size)

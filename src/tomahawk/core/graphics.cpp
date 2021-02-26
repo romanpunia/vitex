@@ -1032,7 +1032,7 @@ namespace Tomahawk
 		}
 		bool GraphicsDevice::AddSection(const std::string& Name, const std::string& Code)
 		{
-			Rest::Stroke Language(Rest::OS::FileExtention(Name.c_str()));
+			Rest::Stroke Language(Rest::OS::Path::GetExtension(Name.c_str()));
 			Language.Substring(1).Trim().ToLower();
 
 			ShaderLang Lang = ShaderLang_NONE;
@@ -1081,7 +1081,7 @@ namespace Tomahawk
 			Desc.Exts.push_back(".glsl");
 			Desc.Exts.push_back(".msl");
 			Desc.Exts.push_back(".spv");
-			Desc.Root = Rest::OS::GetDirectory();
+			Desc.Root = Rest::OS::Directory::Get();
 			Subresult.Features.Pragmas = false;
 
 			Compute::Preprocessor* Processor = new Compute::Preprocessor();
@@ -1110,7 +1110,7 @@ namespace Tomahawk
 				}
 
 				uint64_t Length;
-				unsigned char* Data = Rest::OS::ReadAllBytes(File.Module.c_str(), &Length);
+				unsigned char* Data = Rest::OS::File::ReadAll(File.Module.c_str(), &Length);
 				if (!Data)
 					return false;
 

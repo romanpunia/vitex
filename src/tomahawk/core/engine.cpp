@@ -2406,6 +2406,15 @@ namespace Tomahawk
 		}
 		PrimitiveCache::~PrimitiveCache()
 		{
+			TH_RELEASE(Sphere[BufferType_Index]);
+			TH_RELEASE(Sphere[BufferType_Vertex]);
+			TH_RELEASE(Cube[BufferType_Index]);
+			TH_RELEASE(Cube[BufferType_Vertex]);
+			TH_RELEASE(Box[BufferType_Index]);
+			TH_RELEASE(Box[BufferType_Vertex]);
+			TH_RELEASE(SkinBox[BufferType_Index]);
+			TH_RELEASE(SkinBox[BufferType_Vertex]);
+			TH_RELEASE(Quad);
 			ClearCache();
 		}
 		bool PrimitiveCache::Compile(Graphics::ElementBuffer** Results, const std::string& Name, size_t ElementSize, size_t ElementsCount)
@@ -5198,7 +5207,7 @@ namespace Tomahawk
 
 		ContentManager::ContentManager(Graphics::GraphicsDevice* NewDevice, Rest::EventQueue* NewQueue) : Device(NewDevice), Queue(NewQueue)
 		{
-			Base = Rest::OS::ResolveDir(Rest::OS::GetDirectory().c_str());
+			Base = Rest::OS::Path::ResolveDirectory(Rest::OS::Directory::Get().c_str());
 			SetEnvironment(Base);
 		}
 		ContentManager::~ContentManager()
@@ -5245,7 +5254,7 @@ namespace Tomahawk
 		}
 		void ContentManager::InvalidatePath(const std::string& Path)
 		{
-			std::string File = Rest::OS::Resolve(Path, Environment);
+			std::string File = Rest::OS::Path::Resolve(Path, Environment);
 			Mutex.lock();
 
 			auto It = Assets.find(Rest::Stroke(File).Replace(Environment, "./").Replace('\\', '/').R());
@@ -5257,8 +5266,8 @@ namespace Tomahawk
 		void ContentManager::SetEnvironment(const std::string& Path)
 		{
 			Mutex.lock();
-			Environment = Rest::OS::ResolveDir(Path.c_str());
-			Rest::OS::SetDirectory(Environment.c_str());
+			Environment = Rest::OS::Path::ResolveDirectory(Path.c_str());
+			Rest::OS::Directory::Set(Environment.c_str());
 			Mutex.unlock();
 		}
 		void* ContentManager::LoadForward(const std::string& Path, Processor* Processor, const Rest::VariantArgs& Map)
@@ -5277,16 +5286,16 @@ namespace Tomahawk
 				return Object;
 
 			std::string File = Path;
-			if (!Rest::OS::FileRemote(Path.c_str()))
+			if (!Rest::OS::Path::IsRemote(Path.c_str()))
 			{
 				Mutex.lock();
-				File = Rest::OS::Resolve(Path, Environment);
+				File = Rest::OS::Path::Resolve(Path, Environment);
 				Mutex.unlock();
 
 				Rest::Resource Source;
-				if (!Rest::OS::StateResource(File, &Source))
+				if (!Rest::OS::File::State(File, &Source))
 				{
-					if (!Rest::OS::StateResource(Path, &Source))
+					if (!Rest::OS::File::State(Path, &Source))
 					{
 						TH_ERROR("file \"%s\" wasn't found", File.c_str());
 						return nullptr;
@@ -5296,11 +5305,11 @@ namespace Tomahawk
 				}
 			}
 
-			AssetCache* Asset = Find(Processor, Path);
+			AssetCache* Asset = Find(Processor, File);
 			if (Asset != nullptr)
 				return Processor->Duplicate(Asset, Map);
 
-			auto* Stream = Rest::OS::Open(File, Rest::FileMode_Binary_Read_Only);
+			auto* Stream = Rest::OS::File::Open(File, Rest::FileMode_Binary_Read_Only);
 			if (!Stream)
 				return nullptr;
 
@@ -5314,11 +5323,14 @@ namespace Tomahawk
 			if (Path.empty())
 				return nullptr;
 
-			auto Docker = Dockers.find(Rest::Stroke(Path).Replace('\\', '/').Replace("./", "").R());
+			Rest::Stroke File(Path);
+			File.Replace('\\', '/').Replace("./", "");
+
+			auto Docker = Dockers.find(File.R());
 			if (Docker == Dockers.end() || !Docker->second || !Docker->second->Stream)
 				return nullptr;
 
-			AssetCache* Asset = Find(Processor, Path);
+			AssetCache* Asset = Find(Processor, File.R());
 			if (Asset != nullptr)
 				return Processor->Duplicate(Asset, Map);
 
@@ -5331,7 +5343,7 @@ namespace Tomahawk
 
 			auto* Stream = Docker->second->Stream;
 			Stream->Seek(Rest::FileSeek_Begin, It->second + Docker->second->Offset);
-			Stream->GetSource() = Path;
+			Stream->GetSource() = File.R();
 
 			return Processor->Deserialize(Stream, Docker->second->Length, It->second + Docker->second->Offset, Map);
 		}
@@ -5353,15 +5365,15 @@ namespace Tomahawk
 			}
 
 			Mutex.lock();
-			std::string Directory = Rest::OS::FileDirectory(Path);
-			std::string File = Rest::OS::Resolve(Directory, Environment);
+			std::string Directory = Rest::OS::Path::GetDirectory(Path.c_str());
+			std::string File = Rest::OS::Path::Resolve(Directory, Environment);
 			File.append(Path.substr(Directory.size()));
 			Mutex.unlock();
 
-			auto* Stream = Rest::OS::Open(File, Rest::FileMode_Binary_Write_Only);
+			auto* Stream = Rest::OS::File::Open(File, Rest::FileMode_Binary_Write_Only);
 			if (!Stream)
 			{
-				Stream = Rest::OS::Open(Path, Rest::FileMode_Binary_Write_Only);
+				Stream = Rest::OS::File::Open(Path, Rest::FileMode_Binary_Write_Only);
 				if (!Stream)
 				{
 					TH_ERROR("cannot open stream for writing at \"%s\" or \"%s\"", File.c_str(), Path.c_str());
@@ -5378,13 +5390,13 @@ namespace Tomahawk
 		bool ContentManager::Import(const std::string& Path)
 		{
 			Mutex.lock();
-			std::string File = Rest::OS::Resolve(Path, Environment);
+			std::string File = Rest::OS::Path::Resolve(Path, Environment);
 			Mutex.unlock();
 
 			Rest::Resource Source;
-			if (!Rest::OS::StateResource(File, &Source))
+			if (!Rest::OS::File::State(File, &Source))
 			{
-				if (!Rest::OS::StateResource(Path, &Source))
+				if (!Rest::OS::File::State(Path, &Source))
 				{
 					TH_ERROR("file \"%s\" wasn't found", Path.c_str());
 					return false;
@@ -5464,14 +5476,14 @@ namespace Tomahawk
 			}
 
 			auto* Stream = new Rest::GzStream();
-			if (!Stream->Open(Rest::OS::Resolve(Path, Environment).c_str(), Rest::FileMode_Write_Only))
+			if (!Stream->Open(Rest::OS::Path::Resolve(Path, Environment).c_str(), Rest::FileMode_Write_Only))
 			{
 				TH_ERROR("cannot open \"%s\" for writing", Path.c_str());
 				delete Stream;
 				return false;
 			}
 
-			std::string DBase = Rest::OS::Resolve(Directory, Environment);
+			std::string DBase = Rest::OS::Path::Resolve(Directory, Environment);
 			auto Tree = new Rest::FileTree(DBase);
 			Stream->Write("\0d\0o\0c\0k\0h\0e\0a\0d", sizeof(char) * 16);
 
@@ -5483,7 +5495,7 @@ namespace Tomahawk
 			{
 				for (auto& Resource : Tree->Files)
 				{
-					auto* File = Rest::OS::Open(Resource, Rest::FileMode_Binary_Read_Only);
+					auto* File = Rest::OS::File::Open(Resource, Rest::FileMode_Binary_Read_Only);
 					if (!File)
 						continue;
 
@@ -5511,7 +5523,7 @@ namespace Tomahawk
 			{
 				for (auto& Resource : Tree->Files)
 				{
-					auto* File = Rest::OS::Open(Resource, Rest::FileMode_Binary_Read_Only);
+					auto* File = Rest::OS::File::Open(Resource, Rest::FileMode_Binary_Read_Only);
 					if (!File)
 						continue;
 
@@ -5716,7 +5728,7 @@ namespace Tomahawk
 				Content->AddProcessor<Processors::Document, Rest::Document>();
 				Content->AddProcessor<Processors::Server, Network::HTTP::Server>();
 				Content->AddProcessor<Processors::Shape, Compute::UnmanagedShape>();
-				Content->SetEnvironment(I->Environment.empty() ? Rest::OS::GetDirectory() + I->Directory : I->Environment + I->Directory);
+				Content->SetEnvironment(I->Environment.empty() ? Rest::OS::Directory::Get() + I->Directory : I->Environment + I->Directory);
 			}
 
 			if (I->Usage & ApplicationUse_Script_Module)

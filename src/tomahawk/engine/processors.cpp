@@ -273,8 +273,8 @@ namespace Tomahawk
 			}
 			void AudioClip::Free(AssetCache* Asset)
 			{
-				if (Asset->Resource != nullptr)
-					delete ((Audio::AudioClip*)Asset->Resource);
+				TH_RELEASE((Audio::AudioClip*)Asset->Resource);
+				Asset->Resource = nullptr;
 			}
 			void* AudioClip::Duplicate(AssetCache* Asset, const Rest::VariantArgs& Args)
 			{
@@ -389,8 +389,8 @@ namespace Tomahawk
 			}
 			void Texture2D::Free(AssetCache* Asset)
 			{
-				if (Asset->Resource != nullptr)
-					delete ((Graphics::Texture2D*)Asset->Resource);
+				TH_RELEASE((Graphics::Texture2D*)Asset->Resource);
+				Asset->Resource = nullptr;
 			}
 			void* Texture2D::Duplicate(AssetCache* Asset, const Rest::VariantArgs& Args)
 			{
@@ -447,8 +447,8 @@ namespace Tomahawk
 			}
 			void Shader::Free(AssetCache* Asset)
 			{
-				if (Asset->Resource != nullptr)
-					delete ((Graphics::Shader*)Asset->Resource);
+				TH_RELEASE((Graphics::Shader*)Asset->Resource);
+				Asset->Resource = nullptr;
 			}
 			void* Shader::Duplicate(AssetCache* Asset, const Rest::VariantArgs& Args)
 			{
@@ -492,8 +492,8 @@ namespace Tomahawk
 			}
 			void Model::Free(AssetCache* Asset)
 			{
-				if (Asset->Resource != nullptr)
-					delete ((Graphics::MeshBuffer*)Asset->Resource);
+				TH_RELEASE((Graphics::Model*)Asset->Resource);
+				Asset->Resource = nullptr;
 			}
 			void* Model::Duplicate(AssetCache* Asset, const Rest::VariantArgs& Args)
 			{
@@ -805,8 +805,8 @@ namespace Tomahawk
 			}
 			void SkinModel::Free(AssetCache* Asset)
 			{
-				if (Asset->Resource != nullptr)
-					delete ((Graphics::SkinMeshBuffer*)Asset->Resource);
+				TH_RELEASE((Graphics::SkinModel*)Asset->Resource);
+				Asset->Resource = nullptr;
 			}
 			void* SkinModel::Duplicate(AssetCache* Asset, const Rest::VariantArgs& Args)
 			{
@@ -1136,8 +1136,7 @@ namespace Tomahawk
 			void* Server::Deserialize(Rest::Stream* Stream, uint64_t Length, uint64_t Offset, const Rest::VariantArgs& Args)
 			{
 				std::string N = Network::Socket::LocalIpAddress();
-				std::string D = Rest::OS::FileDirectory(Stream->GetSource());
-
+				std::string D = Rest::OS::Path::GetDirectory(Stream->GetSource().c_str());
 				auto* Document = Content->Load<Rest::Document>(Stream->GetSource());
 				auto* Object = new Network::HTTP::Server();
 				auto* Router = new Network::HTTP::MapRouter();

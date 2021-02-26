@@ -3491,7 +3491,7 @@ namespace Tomahawk
 				if (!NMake::Unpack(Node->Find("resource"), &Type))
 					return;
 
-				Resource = Rest::OS::Resolve(Type.c_str(), Content->GetEnvironment());
+				Resource = Rest::OS::Path::Resolve(Type.c_str(), Content->GetEnvironment());
 				if (Resource.empty())
 					Resource = Type;
 

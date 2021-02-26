@@ -688,7 +688,7 @@ namespace Tomahawk
 					else if (Size > 0)
 						return true;
 
-					AttachmentFile = (FILE*)Rest::OS::Open(Name, "rb");
+					AttachmentFile = (FILE*)Rest::OS::File::Open(Name, "rb");
 					if (!AttachmentFile)
 						return Error("cannot open attachment resource");
 

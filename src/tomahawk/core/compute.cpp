@@ -5500,7 +5500,27 @@ namespace Tomahawk
 		}
 		uint64_t Common::CRC32(const std::string& Data)
 		{
-			return Rest::OS::CheckSum(Data);
+			int64_t Result = 0xFFFFFFFF;
+			int64_t Index = 0;
+			int64_t Byte = 0;
+			int64_t Mask = 0;
+			int64_t It = 0;
+
+			while (Data[Index] != 0)
+			{
+				Byte = Data[Index];
+				Result = Result ^ Byte;
+
+				for (It = 7; It >= 0; It--)
+				{
+					Mask = -(Result & 1);
+					Result = (Result >> 1) ^ (0xEDB88320 & Mask);
+				}
+
+				Index++;
+			}
+
+			return (uint64_t)~Result;
 		}
 
 		Preprocessor::Preprocessor() : Nested(false)
@@ -5618,7 +5638,7 @@ namespace Tomahawk
 			Result.Start = Result.End = 0;
 			Result.Found = false;
 
-			std::string Dir = Path.empty() ? Rest::OS::GetDirectory() : Rest::OS::FileDirectory(Path);
+			std::string Dir = Path.empty() ? Rest::OS::Directory::Get() : Rest::OS::Path::GetDirectory(Path.c_str());
 			while (true)
 			{
 				Result = Buffer.Find("#include", Result.End);
@@ -5991,9 +6011,9 @@ namespace Tomahawk
 		{
 			std::string Base;
 			if (!Desc.From.empty())
-				Base.assign(Rest::OS::FileDirectory(Desc.From));
+				Base.assign(Rest::OS::Path::GetDirectory(Desc.From.c_str()));
 			else
-				Base.assign(Rest::OS::GetDirectory());
+				Base.assign(Rest::OS::Directory::Get());
 
 			IncludeResult Result;
 			if (!Rest::Stroke(Desc.Path).StartsOf("/."))
@@ -6006,8 +6026,8 @@ namespace Tomahawk
 					return Result;
 				}
 
-				Result.Module = Rest::OS::Resolve(Desc.Path, Desc.Root);
-				if (Rest::OS::FileExists(Result.Module.c_str()))
+				Result.Module = Rest::OS::Path::Resolve(Desc.Path, Desc.Root);
+				if (Rest::OS::File::IsExists(Result.Module.c_str()))
 				{
 					Result.IsSystem = true;
 					Result.IsFile = true;
@@ -6018,11 +6038,11 @@ namespace Tomahawk
 				{
 					std::string File(Result.Module);
 					if (Result.Module.empty())
-						File.assign(Rest::OS::Resolve(Desc.Path + It, Desc.Root));
+						File.assign(Rest::OS::Path::Resolve(Desc.Path + It, Desc.Root));
 					else
 						File.append(It);
 
-					if (!Rest::OS::FileExists(File.c_str()))
+					if (!Rest::OS::File::IsExists(File.c_str()))
 						continue;
 
 					Result.Module = File;
@@ -6037,8 +6057,8 @@ namespace Tomahawk
 				return Result;
 			}
 
-			Result.Module = Rest::OS::Resolve(Desc.Path, Base);
-			if (Rest::OS::FileExists(Result.Module.c_str()))
+			Result.Module = Rest::OS::Path::Resolve(Desc.Path, Base);
+			if (Rest::OS::File::IsExists(Result.Module.c_str()))
 			{
 				Result.IsSystem = false;
 				Result.IsFile = true;
@@ -6049,11 +6069,11 @@ namespace Tomahawk
 			{
 				std::string File(Result.Module);
 				if (Result.Module.empty())
-					File.assign(Rest::OS::Resolve(Desc.Path + It, Desc.Root));
+					File.assign(Rest::OS::Path::Resolve(Desc.Path + It, Desc.Root));
 				else
 					File.append(It);
 
-				if (!Rest::OS::FileExists(File.c_str()))
+				if (!Rest::OS::File::IsExists(File.c_str()))
 					continue;
 
 				Result.Module = File;

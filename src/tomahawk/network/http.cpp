@@ -5047,6 +5047,12 @@ namespace Tomahawk
 					Entry->Base->Site = Entry;
 					Entry->Router = Root;
 
+					if (!Entry->Gateway.Session.DocumentRoot.empty())
+						Rest::OS::Directory::Patch(Entry->Gateway.Session.DocumentRoot);
+
+					if (!Entry->ResourceRoot.empty())
+						Rest::OS::Directory::Patch(Entry->ResourceRoot);
+
 					if (Entry->Hosts.empty())
 						TH_WARN("site \"%s\" has no hosts", Entry->SiteName.c_str());
 
@@ -5127,7 +5133,10 @@ namespace Tomahawk
 				}
 
 				for (auto It = Base->Request.Resources.begin(); It != Base->Request.Resources.end(); It++)
-					(!It->Memory ? Rest::OS::File::Remove(It->Path.c_str()) : false);
+				{
+					if (!It->Memory)
+						Rest::OS::File::Remove(It->Path.c_str());
+				}
 
 				if (Base->Info.KeepAlive >= -1 && Base->Response.StatusCode >= 0 && Base->Route && Base->Route->Callbacks.Access)
 					Base->Route->Callbacks.Access(Base);
@@ -5139,25 +5148,15 @@ namespace Tomahawk
 				Base->Request.ContentState = Content_Not_Loaded;
 				Base->Response.StatusCode = -1;
 				Base->Response.Buffer.clear();
-				Base->Response.Buffer.shrink_to_fit();
 				Base->Response.Cookies.clear();
-				Base->Response.Cookies.shrink_to_fit();
 				Base->Response.Headers.clear();
-				Base->Response.Headers.shrink_to_fit();
 				Base->Request.Resources.clear();
-				Base->Request.Resources.shrink_to_fit();
 				Base->Request.Buffer.clear();
-				Base->Request.Buffer.shrink_to_fit();
 				Base->Request.Headers.clear();
-				Base->Request.Headers.shrink_to_fit();
 				Base->Request.Cookies.clear();
-				Base->Request.Cookies.shrink_to_fit();
 				Base->Request.Query.clear();
-				Base->Request.Query.shrink_to_fit();
 				Base->Request.Path.clear();
-				Base->Request.Path.shrink_to_fit();
 				Base->Request.URI.clear();
-				Base->Request.URI.shrink_to_fit();
 
 				memset(Base->Request.Method, 0, sizeof(Base->Request.Method));
 				memset(Base->Request.Version, 0, sizeof(Base->Request.Version));

@@ -657,6 +657,7 @@ namespace Tomahawk
 			{
 			public:
 				static void Set(const char* Path);
+				static void Patch(const std::string& Path);
 				static bool Scan(const std::string& Path, std::vector<ResourceEntry>* Entries);
 				static bool Each(const char* Path, const std::function<bool(DirectoryEntry*)>& Callback);
 				static bool Create(const char* Path);

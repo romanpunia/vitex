@@ -3960,6 +3960,11 @@ namespace Tomahawk
 				TH_ERROR("[dir] couldn't set current directory");
 #endif
 		}
+		void OS::Directory::Patch(const std::string& Path)
+		{
+			if (!IsExists(Path.c_str()))
+				Create(Path.c_str());
+		}
 		bool OS::Directory::Scan(const std::string& Path, std::vector<ResourceEntry>* Entries)
 		{
 			if (!Entries)
@@ -5498,7 +5503,7 @@ namespace Tomahawk
 					Overhead = (CallEvent() ? false : Overhead);
 
 				if (!Timers.empty())
-					Overhead = !CallTimer(GetClock());
+					Overhead = (CallTimer(GetClock()) ? false : Overhead);
 
 				if (Overhead)
 					std::this_thread::sleep_for(std::chrono::microseconds(100));
@@ -5532,7 +5537,7 @@ namespace Tomahawk
 					Overhead = (CallEvent() ? false : Overhead);
 
 				if (!Timers.empty())
-					Overhead = !CallTimer(GetClock());
+					Overhead = (CallTimer(GetClock()) ? false : Overhead);
 
 				if (Overhead)
 					std::this_thread::sleep_for(std::chrono::microseconds(100));
@@ -5627,7 +5632,7 @@ namespace Tomahawk
 			}
 
 			Sync.Timers.unlock();
-			return true;
+			return false;
 		}
 		bool EventQueue::IsBlockable()
 		{

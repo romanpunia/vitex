@@ -244,24 +244,34 @@ namespace Tomahawk
 
 			return 0;
 		}
-		int Socket::Clear()
+		int Socket::Clear(bool Gracefully)
 		{
-			Sync.IO.lock();
-			while (Input != nullptr)
-				ReadPop();
+			if (!Gracefully)
+			{
+				Sync.IO.lock();
+				while (Input != nullptr)
+					ReadPop();
 
-			while (Output != nullptr)
-				WritePop();
+				while (Output != nullptr)
+					WritePop();
 
-			Multiplexer::Unlisten(this);
-			Sync.IO.unlock();
+				Multiplexer::Unlisten(this);
+				Sync.IO.unlock();
+			}
+			else
+			{
+				Sync.IO.lock();
+				Multiplexer::Unlisten(this);
+				Sync.IO.unlock();
+				while (Skip(SocketEvent_Read | SocketEvent_Write, -2) == 1);
+			}
 
 			return 0;
 		}
 		int Socket::Close(bool Detach)
 		{
 			if (Detach)
-				Clear();
+				Clear(false);
 
 			if (Fd == INVALID_SOCKET)
 				return -1;
@@ -1050,7 +1060,7 @@ namespace Tomahawk
 		}
 		void Multiplexer::Dispatch()
 		{
-			if (!Loop)
+			if (!Loop || !Loop->IsBlockable())
 				Worker(nullptr);
 		}
 		void Multiplexer::Worker(Rest::EventQueue* Queue)
@@ -1077,8 +1087,7 @@ namespace Tomahawk
 				if (Count <= 0)
 					continue;
 
-				int64_t Time = Clock();
-				int Size = 0;
+				int64_t Time = Clock(); int Size = 0;
 				for (auto It = Events; It != Events + Count; It++)
 				{
 					int Flags = 0;
@@ -1117,7 +1126,7 @@ namespace Tomahawk
 
 				if (!Size)
 					std::this_thread::sleep_for(std::chrono::microseconds(100));
-			} while (Queue == Loop && Queue->IsBlockable());
+			} while (Queue == Loop && Queue != nullptr && Queue->IsBlockable());
 		}
 		bool Multiplexer::Create(int Length, int64_t Timeout, Rest::EventQueue* Queue)
 		{
@@ -1364,9 +1373,8 @@ namespace Tomahawk
 				*Events = SocketEvent_Timeout;
 			}
 
-			Multiplexer::Unlisten(Fd);
 			Fd->Sync.IO.unlock();
-			while (Fd->Skip(SocketEvent_Read | SocketEvent_Write, -2) == 1);
+			Fd->Clear(true);
 
 			return 1;
 		}
@@ -1589,26 +1597,28 @@ namespace Tomahawk
 				Timer = -1;
 			}
 
-			State = ServerState_Stopping;
-			Queue = nullptr;
-
 			Sync.lock();
+			State = ServerState_Stopping;
 			for (auto It = Good.begin(); It != Good.end(); It++)
 			{
 				SocketConnection* Base = *It;
 				Base->Info.KeepAlive = 0;
 				Base->Info.Error = true;
 				Base->Stream->SetAsyncTimeout(1);
-				Base->Stream->SetTimeWait(2);
+				Base->Stream->SetTimeWait(1);
 			}
 			Sync.unlock();
 
 			do
 			{
 				FreeQueued();
-				std::this_thread::sleep_for(std::chrono::milliseconds(100));
+				if (!Queue || Queue->IsBlockable() || Queue != Multiplexer::GetQueue())
+					std::this_thread::sleep_for(std::chrono::milliseconds(1));
+				else
+					Multiplexer::Dispatch();
 			} while (!Bad.empty() || !Good.empty());
 
+			Queue = nullptr;
 			if (!OnUnlisten())
 				return false;
 

@@ -125,7 +125,7 @@ namespace Tomahawk
 			int Close(bool Detach);
 			int CloseOnExec();
 			int Skip(int IO, int Code);
-			int Clear();
+			int Clear(bool Gracefully);
 			int Write(const char* Buffer, int Size);
 			int Write(const char* Buffer, int Size, const SocketWriteCallback& Callback);
 			int Write(const std::string& Buffer);

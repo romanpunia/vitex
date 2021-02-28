@@ -2883,7 +2883,7 @@ namespace Tomahawk
 					snprintf(Buffer, sizeof(Buffer), "%s %s:%d [err] %s\n", Date, Source, Line, Format);
 #else
 				if (ErrorCode > 0)
-					snprintf(Buffer, sizeof(Buffer), "%s %s:%d [err] %s\n\tsystem: %s\n", Date, Source, Line, Format, OS::GetErrorName(ErrorCode).c_str());
+					snprintf(Buffer, sizeof(Buffer), "%s %s:%d [err] %s\n\tsystem: %s\n", Date, Source, Line, Format, OS::Error::GetName(ErrorCode).c_str());
 				else
 					snprintf(Buffer, sizeof(Buffer), "%s %s:%d [err] %s\n", Date, Source, Line, Format);
 #endif

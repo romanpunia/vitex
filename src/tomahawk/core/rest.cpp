@@ -4715,7 +4715,7 @@ namespace Tomahawk
 
 			return true;
 #else
-			if (!File::Exists(Path.c_str()))
+			if (!File::IsExists(Path.c_str()))
 			{
 				TH_ERROR("cannot spawn process %s (file does not exists)", Path.c_str());
 				return false;

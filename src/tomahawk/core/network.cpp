@@ -1027,8 +1027,9 @@ namespace Tomahawk
 #endif
 		}
 
-		void Multiplexer::Create(int Length)
+		void Multiplexer::Create(int Length, int64_t Timeout)
 		{
+			PipeTimeout = Timeout;
 			if (Array != nullptr || Handle != INVALID_EPOLL)
 				return;
 
@@ -1040,9 +1041,15 @@ namespace Tomahawk
 			Handle = epoll_create(1);
 			Array = (epoll_event*)TH_MALLOC(sizeof(epoll_event) * ArraySize);
 #endif
+			if (!Bound)
+			{
+				Rest::Schedule::Get()->SetTask(Multiplexer::Loop);
+				Bound = true;
+			}
 		}
 		void Multiplexer::Release()
 		{
+			Bound = false;
 			if (Handle != INVALID_EPOLL)
 			{
 				epoll_close(Handle);
@@ -1054,17 +1061,16 @@ namespace Tomahawk
 				TH_FREE(Array);
 				Array = nullptr;
 			}
-
-			if (Loop != nullptr)
-				Loop = nullptr;
 		}
 		void Multiplexer::Dispatch()
 		{
-			if (!Loop || !Loop->IsBlockable())
-				Worker(nullptr);
+			auto* Queue = Rest::Schedule::Get();
+			if (!Bound || !Queue->IsBlockable())
+				Loop();
 		}
-		void Multiplexer::Worker(Rest::EventQueue* Queue)
+		void Multiplexer::Loop()
 		{
+			auto* Queue = Rest::Schedule::Get();
 #ifdef TH_APPLE
 			struct kevent* Events = (struct kevent*)Array;
 #else
@@ -1126,23 +1132,7 @@ namespace Tomahawk
 
 				if (!Size)
 					std::this_thread::sleep_for(std::chrono::microseconds(100));
-			} while (Queue == Loop && Queue != nullptr && Queue->IsBlockable());
-		}
-		bool Multiplexer::Create(int Length, int64_t Timeout, Rest::EventQueue* Queue)
-		{
-			Create(Length);
-			return Bind(Timeout, Queue);
-		}
-		bool Multiplexer::Bind(int64_t Timeout, Rest::EventQueue* Queue)
-		{
-			if (Loop != nullptr && Queue != nullptr)
-				return false;
-
-			PipeTimeout = Timeout;
-			if ((Loop = Queue) != nullptr)
-				Loop->SetTask(Multiplexer::Worker);
-
-			return true;
+			} while (Bound && Queue->IsBlockable());
 		}
 		int Multiplexer::Listen(Socket* Value)
 		{
@@ -1386,10 +1376,6 @@ namespace Tomahawk
 			return poll(Fd, FdCount, Timeout);
 #endif
 		}
-		Rest::EventQueue* Multiplexer::GetQueue()
-		{
-			return Loop;
-		}
 		int64_t Multiplexer::Clock()
 		{
 			return std::chrono::duration_cast<std::chrono::milliseconds>(std::chrono::system_clock::now().time_since_epoch()).count();
@@ -1399,10 +1385,10 @@ namespace Tomahawk
 #else
 		epoll_event* Multiplexer::Array = nullptr;
 #endif
-		Rest::EventQueue* Multiplexer::Loop = nullptr;
 		epoll_handle Multiplexer::Handle = INVALID_EPOLL;
 		int64_t Multiplexer::PipeTimeout = 200;
 		int Multiplexer::ArraySize = 0;
+		bool Multiplexer::Bound = false;
 
 		SocketServer::SocketServer()
 		{
@@ -1590,12 +1576,9 @@ namespace Tomahawk
 			if (!Router && State == ServerState_Idle)
 				return false;
 
-			Rest::EventQueue* Last = Queue;
-			if (Queue != nullptr)
-			{
-				Queue->ClearTimeout(Timer);
-				Timer = -1;
-			}
+			auto* Queue = Rest::Schedule::Get();
+			Queue->ClearTimeout(Timer);
+			Timer = -1;
 
 			Sync.lock();
 			State = ServerState_Stopping;
@@ -1612,13 +1595,12 @@ namespace Tomahawk
 			do
 			{
 				FreeQueued();
-				if (!Queue || Queue->IsBlockable() || Queue != Multiplexer::GetQueue())
-					std::this_thread::sleep_for(std::chrono::milliseconds(1));
+				if (Queue->IsBlockable())
+					std::this_thread::sleep_for(std::chrono::microseconds(100));
 				else
 					Multiplexer::Dispatch();
 			} while (!Bad.empty() || !Good.empty());
 
-			Queue = nullptr;
 			if (!OnUnlisten())
 				return false;
 
@@ -1634,26 +1616,23 @@ namespace Tomahawk
 				delete It;
 			}
 
-			if (Multiplexer::GetQueue() == Last)
-				Multiplexer::Bind(0, nullptr);
-
 			OnDeallocateRouter(Router);
-			Router = nullptr;
 			State = ServerState_Idle;
+			Router = nullptr;
 
 			return true;
 		}
-		bool SocketServer::Listen(Rest::EventQueue* Ref)
+		bool SocketServer::Listen()
 		{
-			if (Listeners.empty() || State != ServerState_Idle || !(Queue = Ref))
+			if (Listeners.empty() || State != ServerState_Idle)
 				return false;
 
 			State = ServerState_Working;
-			if (!OnListen(Ref))
+			if (!OnListen())
 				return false;
 
-			Multiplexer::Create((int)Router->MaxEvents, Router->MasterTimeout, Queue);
-			Timer = Queue->SetInterval(Router->CloseTimeout, [this](Rest::EventQueue*)
+			Multiplexer::Create((int)Router->MaxEvents, Router->MasterTimeout);
+			Timer = Rest::Schedule::Get()->SetInterval(Router->CloseTimeout, [this]()
 			{
 				FreeQueued();
 				if (State == ServerState_Stopping)
@@ -1742,7 +1721,7 @@ namespace Tomahawk
 			Good.insert(Base);
 			Sync.unlock();
 
-			return Queue->SetTask([this, Base](Rest::EventQueue*)
+			return Rest::Schedule::Get()->SetTask([this, Base]()
 			{
 				OnRequestBegin(Base);
 			});
@@ -1859,7 +1838,7 @@ namespace Tomahawk
 			delete Base;
 			return true;
 		}
-		bool SocketServer::OnListen(Rest::EventQueue*)
+		bool SocketServer::OnListen()
 		{
 			return true;
 		}
@@ -1898,10 +1877,6 @@ namespace Tomahawk
 		SocketRouter* SocketServer::GetRouter()
 		{
 			return Router;
-		}
-		Rest::EventQueue* SocketServer::GetQueue()
-		{
-			return Queue;
 		}
 
 		SocketClient::SocketClient(int64_t RequestTimeout) : Timeout(RequestTimeout), Context(nullptr), AutoCertify(true)

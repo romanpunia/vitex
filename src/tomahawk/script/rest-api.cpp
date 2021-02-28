@@ -752,7 +752,6 @@ namespace Tomahawk
 			VMGlobal& Register = Engine->Global();
 
 			VMRefClass VConsole = Register.SetClassUnmanaged<Rest::Console>("Console");
-			VConsole.SetUnmanagedConstructor<Rest::Console>("Console@ f()");
 			VConsole.SetMethod("void Hide()", &Rest::Console::Hide);
 			VConsole.SetMethod("void Show()", &Rest::Console::Show);
 			VConsole.SetMethod("void Clear()", &Rest::Console::Clear);

@@ -631,7 +631,7 @@ namespace Tomahawk
 				bool OnRequestBegin(SocketConnection* Base) override;
 				bool OnDeallocate(SocketConnection* Base) override;
 				bool OnDeallocateRouter(SocketRouter* Base) override;
-				bool OnListen(Rest::EventQueue* Loop) override;
+				bool OnListen() override;
 				bool OnUnlisten() override;
 				SocketConnection* OnAllocate(Listener* Host, Socket* Stream) override;
 				SocketRouter* OnAllocateRouter() override;

@@ -3858,7 +3858,6 @@ namespace Tomahawk
 			{
 				I.Shaders = Base->Cache.Shaders;
 				I.Primitives = Base->Cache.Primitives;
-				I.Queue = Base->Queue;
 				I.Device = Base->Renderer;
 				I.Manager = Base->VM;
 			}
@@ -3919,14 +3918,12 @@ namespace Tomahawk
 			TH_RELEASE(Display.MaterialBuffer);
 			TH_RELEASE(Simulator);
 
-			if (Conf.Queue != nullptr)
-				Conf.Queue->ClearListener("scene-event", Listener);
-
+			Rest::Schedule::Get()->ClearListener("scene-event", Listener);
 			Unlock();
 		}
 		void SceneGraph::Configure(const Desc& NewConf)
 		{
-			if (!Conf.Queue || !Conf.Device)
+			if (!Conf.Device)
 				return;
 
 			Display.DepthStencil = Conf.Device->GetDepthStencilState("none");
@@ -3964,8 +3961,9 @@ namespace Tomahawk
 				}
 			}
 
-			Conf.Queue->ClearListener("scene-event", Listener);
-			Listener = Conf.Queue->SetListener("scene-event", [this](Rest::EventQueue*, Rest::VariantArgs& Args)
+			auto* Queue = Rest::Schedule::Get();
+			Queue->ClearListener("scene-event", Listener);
+			Listener = Queue->SetListener("scene-event", [this](Rest::VariantArgs& Args)
 			{
 				Event* Message = (Event*)Args["event"].GetPointer();
 				if (Message != nullptr)
@@ -4379,9 +4377,8 @@ namespace Tomahawk
 		}
 		void SceneGraph::Dispatch()
 		{
-			if (Conf.Queue != nullptr)
-				while (Conf.Queue->Clear(Rest::EventType_Events, false));
-
+			auto* Queue = Rest::Schedule::Get();
+			while (Queue->Clear(Rest::EventType_Events, false));
 			while (DispatchLastEvent());
 		}
 		void SceneGraph::ResizeBuffers()
@@ -4644,7 +4641,7 @@ namespace Tomahawk
 			{
 				{ "event", Rest::Var::Pointer(new Event(EventName, this, Args)) }
 			};
-			return Conf.Queue ? Conf.Queue->SetEvent("scene-event", std::move(Subargs)) : false;
+			return Rest::Schedule::Get()->SetEvent("scene-event", std::move(Subargs));
 		}
 		bool SceneGraph::DispatchEvent(Component* Target, const std::string& EventName, const Rest::VariantArgs& Args)
 		{
@@ -4652,7 +4649,7 @@ namespace Tomahawk
 			{
 				{ "event", Rest::Var::Pointer(new Event(EventName, Target, Args)) }
 			};
-			return Conf.Queue ? Conf.Queue->SetEvent("scene-event", std::move(Subargs)) : false;
+			return Rest::Schedule::Get()->SetEvent("scene-event", std::move(Subargs));
 		}
 		bool SceneGraph::DispatchEvent(Entity* Target, const std::string& EventName, const Rest::VariantArgs& Args)
 		{
@@ -4660,7 +4657,7 @@ namespace Tomahawk
 			{
 				{ "event", Rest::Var::Pointer(new Event(EventName, Target, Args)) }
 			};
-			return Conf.Queue ? Conf.Queue->SetEvent("scene-event", std::move(Subargs)) : false;
+			return Rest::Schedule::Get()->SetEvent("scene-event", std::move(Subargs));
 		}
 		bool SceneGraph::DispatchLastEvent()
 		{
@@ -5184,10 +5181,6 @@ namespace Tomahawk
 		{
 			return Conf.Device;
 		}
-		Rest::EventQueue* SceneGraph::GetQueue()
-		{
-			return Conf.Queue;
-		}
 		ShaderCache* SceneGraph::GetShaders()
 		{
 			return Conf.Shaders;
@@ -5205,7 +5198,7 @@ namespace Tomahawk
 			return Conf;
 		}
 
-		ContentManager::ContentManager(Graphics::GraphicsDevice* NewDevice, Rest::EventQueue* NewQueue) : Device(NewDevice), Queue(NewQueue)
+		ContentManager::ContentManager(Graphics::GraphicsDevice* NewDevice) : Device(NewDevice)
 		{
 			Base = Rest::OS::Path::ResolveDirectory(Rest::OS::Directory::Get().c_str());
 			SetEnvironment(Base);
@@ -5606,10 +5599,6 @@ namespace Tomahawk
 		{
 			return Device;
 		}
-		Rest::EventQueue* ContentManager::GetQueue()
-		{
-			return Queue;
-		}
 		std::string ContentManager::GetEnvironment()
 		{
 			return Environment;
@@ -5642,7 +5631,7 @@ namespace Tomahawk
 					}
 
 					Activity->UserPointer = this;
-					Activity->SetCursorVisibility(!I->DisableCursor);
+					Activity->SetCursorVisibility(I->Cursor);
 					Activity->Callbacks.KeyState = [this](Graphics::KeyCode Key, Graphics::KeyMod Mod, int Virtual, int Repeat, bool Pressed)
 					{
 						GUI::Context* GUI = (GUI::Context*)GetGUI();
@@ -5704,7 +5693,6 @@ namespace Tomahawk
 					TH_ERROR("cannot detect display to create activity");
 			}
 #endif
-			Queue = new Rest::EventQueue();
 			if (I->Usage & ApplicationUse_Audio_Module)
 			{
 				Audio = new Audio::AudioDevice();
@@ -5717,7 +5705,7 @@ namespace Tomahawk
 
 			if (I->Usage & ApplicationUse_Content_Module)
 			{
-				Content = new ContentManager(Renderer, Queue);
+				Content = new ContentManager(Renderer);
 				Content->AddProcessor<Processors::Asset, Engine::AssetFile>();
 				Content->AddProcessor<Processors::SceneGraph, Engine::SceneGraph>();
 				Content->AddProcessor<Processors::AudioClip, Audio::AudioClip>();
@@ -5748,7 +5736,6 @@ namespace Tomahawk
 				Renderer->FlushState();
 
 			TH_RELEASE(Scene);
-			TH_RELEASE(Queue);
 			TH_RELEASE(VM);
 			TH_RELEASE(Audio);
 
@@ -5793,11 +5780,8 @@ namespace Tomahawk
 		}
 		void Application::Start(Desc* I)
 		{
-			if (!I || !Queue)
-			{
-				TH_ERROR("(CONF): event queue was not found");
+			if (I == nullptr)
 				return;
-			}
 
 			if (!ComposeEvent())
 				Compose();
@@ -5841,26 +5825,24 @@ namespace Tomahawk
 			if (Workers.empty())
 				Workers.push_back(new Reactor(this, 0.0, nullptr));
 
+			auto* Queue = Rest::Schedule::Get();
 			for (auto It = Workers.begin() + 1; It != Workers.end(); It++)
 			{
 				Reactor* Job = *It;
-				Queue->SetTask([Job](Rest::EventQueue* Queue) { Application::Callee(Queue, Job); });
+				Queue->SetTask([Job]() { Application::Callee(Job); });
 			}
 
 			Reactor* Job = Workers.front();
 			Job->Time->SetStepLimitation(I->MaxFrames, I->MinFrames);
-			Job->Time->FrameLimit = I->FrameLimit;
+			Job->Time->FrameLimit = I->Framerate;
 
 			if (Activity != nullptr && Renderer != nullptr && Content != nullptr)
 				GUI::Subsystem::SetMetadata(Activity, Content, Job->Time);
 
-			if (I->Threading != Rest::EventWorkflow_Singlethreaded)
+			if (I->Async)
 			{
-				if (!I->WorkersCount)
-					TH_WARN("tasks will not be processed (no workers)");
-
 				State = ApplicationState_Multithreaded;
-				Queue->Start(I->Threading, std::max((uint64_t)Workers.size(), I->WorkersCount));
+				Queue->Start(true, std::max((uint64_t)Workers.size(), I->Workers));
 
 				if (Activity != nullptr)
 				{
@@ -5876,19 +5858,17 @@ namespace Tomahawk
 					while (State == ApplicationState_Multithreaded)
 						Job->UpdateCore();
 				}
-
-				Queue->Stop();
 			}
 			else
 			{
 				State = ApplicationState_Singlethreaded;
-				Queue->SetState(Rest::EventState_Working);
+				Queue->Start(false, I->Workers);
 
 				if (Activity != nullptr)
 				{
 					while (State == ApplicationState_Singlethreaded)
 					{
-						Queue->Tick();
+						Queue->Dispatch();
 						Activity->Dispatch();
 						Job->UpdateCore();
 						Render(Job->Time);
@@ -5898,13 +5878,13 @@ namespace Tomahawk
 				{
 					while (State == ApplicationState_Singlethreaded)
 					{
-						Queue->Tick();
+						Queue->Dispatch();
 						Job->UpdateCore();
 					}
 				}
-
-				Queue->SetState(Rest::EventState_Idle);
 			}
+
+			Queue->Stop();
 		}
 		void Application::Stop()
 		{
@@ -5922,15 +5902,16 @@ namespace Tomahawk
 			Renderers::UserInterface* Result = BaseCamera->GetRenderer()->GetRenderer<Renderers::UserInterface>();
 			return Result != nullptr ? Result->GetContext() : nullptr;
 		}
-		void Application::Callee(Rest::EventQueue* Queue, Reactor* Job)
+		void Application::Callee(Reactor* Job)
 		{
+			auto* Queue = Rest::Schedule::Get();
 			do
 			{
 				Job->UpdateTask();
 			} while (Job->App->State == ApplicationState_Multithreaded && Queue->IsBlockable());
 
 			if (Job->App->State == ApplicationState_Singlethreaded)
-				Queue->SetTask([Job](Rest::EventQueue* Queue) { Callee(Queue, Job); });
+				Queue->SetTask([Job]() { Callee(Job); });
 		}
 		void Application::Compose()
 		{

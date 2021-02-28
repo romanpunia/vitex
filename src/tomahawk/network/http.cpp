@@ -113,17 +113,11 @@ namespace Tomahawk
 					Base->Info.KeepAlive = 0;
 					Base->Unlock();
 
-					auto* Queue = Base->Root->GetQueue();
-					if (Queue != nullptr)
+					auto* Store = Base;
+					return (void)Rest::Schedule::Get()->SetTask([Store]()
 					{
-						auto* Store = Base;
-						return (void)Queue->SetTask([Store](Rest::EventQueue*)
-						{
-							Store->Finish();
-						});
-					}
-
-					return (void)Base->Finish();
+						Store->Finish();
+					});
 				}
 				else if (State & WebSocketState_Handshake)
 				{
@@ -203,17 +197,11 @@ namespace Tomahawk
 					return false;
 				}
 
-				auto* Queue = Base->Root->GetQueue();
-				if (Queue != nullptr)
+				auto* Store = Base;
+				return Rest::Schedule::Get()->SetTask([Store]()
 				{
-					auto* Store = Base;
-					return Queue->SetTask([Store](Rest::EventQueue*)
-					{
-						Store->Finish();
-					}) && false;
-				}
-
-				return Base->Finish() && false;
+					Store->Finish();
+				}) && false;
 			}
 			bool GatewayFrame::Finish()
 			{
@@ -258,7 +246,7 @@ namespace Tomahawk
 				}
 
 				Base->Lock();
-				return Base->Root->GetQueue()->SetTask([this](Rest::EventQueue*)
+				return Rest::Schedule::Get()->SetTask([this]()
 				{
 					int Result = Compiler->LoadCode(Base->Request.Path, Buffer, Size);
 					if (Result < 0)
@@ -3903,7 +3891,7 @@ namespace Tomahawk
 					{
 						if (WebSocketUpgradeAllowed(Base))
 						{
-							return Base->Root->Queue->SetTask([Base](Rest::EventQueue*)
+							return Rest::Schedule::Get()->SetTask([Base]()
 							{
 								RouteWEBSOCKET(Base);
 							});
@@ -3917,7 +3905,7 @@ namespace Tomahawk
 
 				if (WebSocketUpgradeAllowed(Base))
 				{
-					return Base->Root->Queue->SetTask([Base](Rest::EventQueue*)
+					return Rest::Schedule::Get()->SetTask([Base]()
 					{
 						RouteWEBSOCKET(Base);
 					});
@@ -3930,7 +3918,7 @@ namespace Tomahawk
 				{
 					if (Base->Route->AllowDirectoryListing)
 					{
-						return Base->Root->Queue->SetTask([Base](Rest::EventQueue*)
+						return Rest::Schedule::Get()->SetTask([Base]()
 						{
 							ProcessDirectory(Base);
 						});
@@ -3944,7 +3932,7 @@ namespace Tomahawk
 
 				if (Base->Route->StaticFileMaxAge > 0 && !ResourceModified(Base, &Base->Resource))
 				{
-					return Base->Root->Queue->SetTask([Base](Rest::EventQueue*)
+					return Rest::Schedule::Get()->SetTask([Base]()
 					{
 						ProcessResourceCache(Base);
 					});
@@ -3953,7 +3941,7 @@ namespace Tomahawk
 				if (Base->Resource.Size > Base->Root->Router->PayloadMaxLength)
 					return Base->Error(413, "Entity payload is too big to process.");
 
-				return Base->Root->Queue->SetTask([Base](Rest::EventQueue*)
+				return Rest::Schedule::Get()->SetTask([Base]()
 				{
 					ProcessResource(Base);
 				});
@@ -3985,7 +3973,7 @@ namespace Tomahawk
 
 				if (Base->Route->StaticFileMaxAge > 0 && !ResourceModified(Base, &Base->Resource))
 				{
-					return Base->Root->Queue->SetTask([Base](Rest::EventQueue*)
+					return Rest::Schedule::Get()->SetTask([Base]()
 					{
 						ProcessResourceCache(Base);
 					});
@@ -3994,7 +3982,7 @@ namespace Tomahawk
 				if (Base->Resource.Size > Base->Root->Router->PayloadMaxLength)
 					return Base->Error(413, "Entity payload is too big to process.");
 
-				return Base->Root->Queue->SetTask([Base](Rest::EventQueue*)
+				return Rest::Schedule::Get()->SetTask([Base]()
 				{
 					ProcessResource(Base);
 				});
@@ -4416,7 +4404,7 @@ namespace Tomahawk
 					else if (Size > 0)
 						return true;
 
-					return Base->Root->Queue->SetTask([Base, ContentLength, Range1](Rest::EventQueue*)
+					return Rest::Schedule::Get()->SetTask([Base, ContentLength, Range1]()
 					{
 						Util::ProcessFile(Base, ContentLength, Range1);
 					});
@@ -4485,7 +4473,7 @@ namespace Tomahawk
 					else if (Size > 0)
 						return true;
 
-					return Base->Root->Queue->SetTask([Base, Range, ContentLength, Gzip](Rest::EventQueue*)
+					return Rest::Schedule::Get()->SetTask([Base, Range, ContentLength, Gzip]()
 					{
 						Util::ProcessFileCompress(Base, ContentLength, Range, Gzip);
 					});
@@ -4772,7 +4760,7 @@ namespace Tomahawk
 				if (!VM)
 					return Base->Error(500, "Gateway cannot be issued.") && false;
 
-				return Base->Root->Queue->SetTask([=](Rest::EventQueue*)
+				return Rest::Schedule::Get()->SetTask([=]()
 				{
 					Script::VMCompiler* Compiler = VM->CreateCompiler();
 					if (Compiler->Prepare(Rest::OS::Path::GetFilename(Base->Request.Path.c_str()), Base->Request.Path, true, true) < 0)
@@ -5301,7 +5289,7 @@ namespace Tomahawk
 				delete (HTTP::MapRouter*)Base;
 				return true;
 			}
-			bool Server::OnListen(Rest::EventQueue* Loop)
+			bool Server::OnListen()
 			{
 				return true;
 			}

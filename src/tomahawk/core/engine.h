@@ -863,7 +863,6 @@ namespace Tomahawk
 				Compute::Simulator::Desc Simulator;
 				Graphics::GraphicsDevice* Device = nullptr;
 				Script::VMManager* Manager = nullptr;
-				Rest::EventQueue* Queue = nullptr;
 				PrimitiveCache* Primitives = nullptr;
 				ShaderCache* Shaders = nullptr;
 
@@ -1015,7 +1014,6 @@ namespace Tomahawk
 			Graphics::Texture2D** GetMerger();
 			Graphics::ElementBuffer* GetStructure();
 			Graphics::GraphicsDevice* GetDevice();
-			Rest::EventQueue* GetQueue();
 			Compute::Simulator* GetSimulator();
 			ShaderCache* GetShaders();
 			PrimitiveCache* GetPrimitives();
@@ -1111,12 +1109,11 @@ namespace Tomahawk
 			std::unordered_map<int64_t, Processor*> Processors;
 			std::unordered_map<Rest::Stream*, int64_t> Streams;
 			Graphics::GraphicsDevice* Device;
-			Rest::EventQueue* Queue;
 			std::string Environment, Base;
 			std::mutex Mutex;
 
 		public:
-			ContentManager(Graphics::GraphicsDevice* NewDevice, Rest::EventQueue* NewQueue);
+			ContentManager(Graphics::GraphicsDevice* NewDevice);
 			virtual ~ContentManager() override;
 			void InvalidateDockers();
 			void InvalidateCache();
@@ -1126,7 +1123,6 @@ namespace Tomahawk
 			bool Export(const std::string& Path, const std::string& Directory, const std::string& Name = "");
 			bool Cache(Processor* Root, const std::string& Path, void* Resource);
 			Graphics::GraphicsDevice* GetDevice();
-			Rest::EventQueue* GetQueue();
 			std::string GetEnvironment();
 
 		public:
@@ -1138,10 +1134,7 @@ namespace Tomahawk
 			template <typename T>
 			bool LoadAsync(const std::string& Path, const Rest::VariantArgs& Keys, const std::function<void(class ContentManager*, T*)>& Callback)
 			{
-				if (!Queue)
-					return false;
-
-				return Queue->SetTask([this, Path, Callback, Keys](Rest::EventQueue*)
+				return Rest::Schedule::Get()->SetTask([this, Path, Callback, Keys]()
 				{
 					T* Result = (T*)LoadForward(Path, GetProcessor<T>(), Keys);
 					if (Callback)
@@ -1156,10 +1149,7 @@ namespace Tomahawk
 			template <typename T>
 			bool SaveAsync(const std::string& Path, T* Object, const Rest::VariantArgs& Keys, const SaveCallback& Callback)
 			{
-				if (!Queue)
-					return false;
-
-				return Queue->SetTask([this, Path, Callback, Object, Keys](Rest::EventQueue*)
+				return Rest::Schedule::Get()->SetTask([this, Path, Callback, Object, Keys]()
 				{
 					bool Result = SaveForward(Path, GetProcessor<T>(), Object, Keys);
 					if (Callback)
@@ -1242,15 +1232,15 @@ namespace Tomahawk
 			{
 				Graphics::GraphicsDevice::Desc GraphicsDevice;
 				Graphics::Activity::Desc Activity;
-				Rest::EventWorkflow Threading = Rest::EventWorkflow_Singlethreaded;
 				std::string Environment;
 				std::string Directory;
-				uint64_t WorkersCount = 0;
-				double FrameLimit = 0;
+				uint64_t Workers = 0;
+				double Framerate = 0;
 				double MaxFrames = 60;
 				double MinFrames = 10;
 				unsigned int Usage = ApplicationUse_Graphics_Module | ApplicationUse_Activity_Module | ApplicationUse_Audio_Module | ApplicationUse_Script_Module | ApplicationUse_Content_Module;
-				bool DisableCursor = false;
+				bool Cursor = true;
+				bool Async = false;
 			};
 
 		public:
@@ -1272,7 +1262,6 @@ namespace Tomahawk
 			Graphics::GraphicsDevice* Renderer = nullptr;
 			Graphics::Activity* Activity = nullptr;
 			Script::VMManager* VM = nullptr;
-			Rest::EventQueue* Queue = nullptr;
 			ContentManager* Content = nullptr;
 			SceneGraph* Scene = nullptr;
 
@@ -1311,7 +1300,7 @@ namespace Tomahawk
 			}
 
 		private:
-			static void Callee(Rest::EventQueue* Queue, Reactor* Job);
+			static void Callee(Reactor* Job);
 			static void Compose();
 
 		public:

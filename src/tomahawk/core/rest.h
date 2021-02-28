@@ -125,10 +125,6 @@ namespace Tomahawk
 {
 	namespace Rest
 	{
-		class EventWorker;
-
-		class EventQueue;
-
 		class Document;
 
 		class Object;
@@ -160,29 +156,11 @@ namespace Tomahawk
 			FileSeek_End
 		};
 
-		enum EventState
-		{
-			EventState_Working,
-			EventState_Idle,
-			EventState_Terminated
-		};
-
-		enum EventWorkflow
-		{
-			EventWorkflow_Multithreaded,
-			EventWorkflow_Singlethreaded,
-			EventWorkflow_Ticked,
-			EventWorkflow_Mixed
-		};
-
 		enum EventType
 		{
 			EventType_Events = (1 << 1),
 			EventType_Tasks = (1 << 2),
-			EventType_Timers = (1 << 3),
-			EventType_Subscribe = (1 << 4),
-			EventType_Unsubscribe = (1 << 5),
-			EventType_Pull = (1 << 6)
+			EventType_Timers = (1 << 3)
 		};
 
 		enum VarType
@@ -212,9 +190,9 @@ namespace Tomahawk
 
 		typedef std::vector<struct Variant> VariantList;
 		typedef std::unordered_map<std::string, struct Variant> VariantArgs;
-		typedef std::function<void(class EventQueue*, VariantArgs&)> EventCallback;
-		typedef std::function<void(class EventQueue*)> TaskCallback;
-		typedef std::function<void(class EventQueue*)> TimerCallback;
+		typedef std::function<void(VariantArgs&)> EventCallback;
+		typedef std::function<void()> TaskCallback;
+		typedef std::function<void()> TimerCallback;
 		typedef std::function<void(VarForm, const char*, int64_t)> NWriteCallback;
 		typedef std::function<bool(char*, int64_t)> NReadCallback;
 		typedef uint64_t EventId;
@@ -849,12 +827,14 @@ namespace Tomahawk
 		class TH_OUT Console : public Object
 		{
 		protected:
+			std::mutex Lock;
 			bool Handle;
 			double Time;
-			std::mutex Lock;
+
+		private:
+			Console();
 
 		public:
-			Console();
 			virtual ~Console() override;
 			void Hide();
 			void Show();
@@ -1049,39 +1029,22 @@ namespace Tomahawk
 			uint64_t GetFiles();
 		};
 
-		class TH_OUT EventWorker : public Object
+		class TH_OUT Schedule : public Object
 		{
-			friend EventQueue;
-
-		private:
-			EventQueue* Queue;
-			std::thread Thread;
-
-		private:
-			EventWorker(EventQueue* Value);
-			virtual ~EventWorker() override;
-			bool Loop();
-		};
-
-		class TH_OUT EventQueue : public Object
-		{
-			friend EventWorker;
-
 		private:
 			struct
 			{
-				std::vector<EventWorker*> Workers;
+				std::vector<std::thread> Childs;
 				std::condition_variable Condition;
-				std::thread Thread[2];
 				std::mutex Safe;
 			} Async;
 
 			struct
 			{
+				std::mutex Listeners;
 				std::mutex Events;
 				std::mutex Tasks;
 				std::mutex Timers;
-				std::mutex Listeners;
 			} Sync;
 
 		private:
@@ -1089,17 +1052,14 @@ namespace Tomahawk
 			std::vector<EventTimer> Timers;
 			std::deque<EventTask> Tasks;
 			std::deque<EventBase> Events;
-			EventState State = EventState_Terminated;
-			EventId Timer = 0;
-			int Synchronize = 0;
+			EventId Timer;
+			bool Active;
+
+		private:
+			Schedule();
 
 		public:
-			void* UserData = nullptr;
-
-		public:
-			EventQueue();
-			virtual ~EventQueue() override;
-			void SetState(EventState NewState);
+			virtual ~Schedule() override;
 			EventId SetInterval(uint64_t Milliseconds, const TimerCallback& Callback);
 			EventId SetInterval(uint64_t Milliseconds, TimerCallback&& Callback);
 			EventId SetTimeout(uint64_t Milliseconds, const TimerCallback& Callback);
@@ -1114,20 +1074,25 @@ namespace Tomahawk
 			bool ClearListener(const std::string& Name, EventId ListenerId);
 			bool ClearTimeout(EventId TimerId);
 			bool Clear(EventType Type, bool NoCall);
-			bool Start(EventWorkflow Workflow, uint64_t Workers);
-			bool Tick();
+			bool Start(bool Async, uint64_t Workers);
+			bool Dispatch();
 			bool Stop();
 			bool IsBlockable();
-			EventState GetState();
+			bool IsActive();
 
 		private:
-			bool LoopMixed();
-			bool LoopTasks();
-			bool LoopCalls();
-			bool CallTask();
-			bool CallEvent();
-			bool CallTimer(int64_t Time);
+			bool LoopIncome();
+			bool LoopCycle();
+			bool DispatchTask();
+			bool DispatchEvent();
+			bool DispatchTimer(int64_t Time);
 			int64_t GetClock();
+
+		public:
+			static Schedule* Get();
+
+		private:
+			static Schedule* Singleton;
 		};
 
 		class TH_OUT Document : public Object

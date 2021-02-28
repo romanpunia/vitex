@@ -4538,7 +4538,7 @@ namespace Tomahawk
 				Result += '/';
 
 			return Result;
-			}
+		}
 		std::string OS::Path::ResolveDirectory(const std::string& Path, const std::string& Directory)
 		{
 			std::string Result = Resolve(Path, Directory);
@@ -5061,66 +5061,18 @@ namespace Tomahawk
 			Offset = Length;
 		}
 
-		EventWorker::EventWorker(EventQueue* Value) : Queue(Value)
+		Schedule::Schedule() : Active(false), Timer(0)
 		{
-			Thread = std::thread(&EventWorker::Loop, this);
 		}
-		EventWorker::~EventWorker()
+		Schedule::~Schedule()
 		{
-			if (Thread.get_id() != std::this_thread::get_id() && Thread.joinable())
-				Thread.join();
+			Stop();
+			if (Singleton == this)
+				Singleton = nullptr;
 		}
-		bool EventWorker::Loop()
+		EventId Schedule::SetInterval(uint64_t Milliseconds, const TimerCallback& Callback)
 		{
-			if (!Queue)
-				return false;
-
-			std::condition_variable* Condition = &Queue->Async.Condition;
-			if (Queue->State == EventState_Idle)
-			{
-				std::unique_lock<std::mutex> Lock(Queue->Async.Safe);
-				Condition->wait(Lock);
-			}
-
-			do
-			{
-				if (!Queue->CallTask())
-				{
-					std::unique_lock<std::mutex> Lock(Queue->Async.Safe);
-					Condition->wait(Lock);
-				}
-			} while (Queue->State == EventState_Working);
-
-			return true;
-		}
-
-		EventQueue::EventQueue()
-		{
-			State = EventState_Terminated;
-		}
-		EventQueue::~EventQueue()
-		{
-			if (State == EventState_Terminated)
-			{
-				if (Async.Thread[0].get_id() != std::this_thread::get_id() && Async.Thread[0].joinable())
-					Async.Thread[0].join();
-
-				if (Synchronize == 0 && Async.Thread[1].get_id() != std::this_thread::get_id() && Async.Thread[1].joinable())
-					Async.Thread[1].join();
-			}
-			else
-			{
-				State = EventState_Idle;
-				Stop();
-			}
-		}
-		void EventQueue::SetState(EventState NewState)
-		{
-			State = NewState;
-		}
-		EventId EventQueue::SetInterval(uint64_t Milliseconds, const TimerCallback& Callback)
-		{
-			if (State == EventState_Idle || !Callback)
+			if (!Callback)
 				return -1;
 
 			int64_t Clock = GetClock();
@@ -5132,9 +5084,9 @@ namespace Tomahawk
 
 			return Id;
 		}
-		EventId EventQueue::SetInterval(uint64_t Milliseconds, TimerCallback&& Callback)
+		EventId Schedule::SetInterval(uint64_t Milliseconds, TimerCallback&& Callback)
 		{
-			if (State == EventState_Idle || !Callback)
+			if (!Callback)
 				return -1;
 
 			int64_t Clock = GetClock();
@@ -5146,9 +5098,9 @@ namespace Tomahawk
 
 			return Id;
 		}
-		EventId EventQueue::SetTimeout(uint64_t Milliseconds, const TimerCallback& Callback)
+		EventId Schedule::SetTimeout(uint64_t Milliseconds, const TimerCallback& Callback)
 		{
-			if (State == EventState_Idle || !Callback)
+			if (!Callback)
 				return -1;
 
 			int64_t Clock = GetClock();
@@ -5160,9 +5112,9 @@ namespace Tomahawk
 
 			return Id;
 		}
-		EventId EventQueue::SetTimeout(uint64_t Milliseconds, TimerCallback&& Callback)
+		EventId Schedule::SetTimeout(uint64_t Milliseconds, TimerCallback&& Callback)
 		{
-			if (State == EventState_Idle || !Callback)
+			if (!Callback)
 				return -1;
 
 			int64_t Clock = GetClock();
@@ -5174,9 +5126,9 @@ namespace Tomahawk
 
 			return Id;
 		}
-		EventId EventQueue::SetListener(const std::string& Name, const EventCallback& Callback)
+		EventId Schedule::SetListener(const std::string& Name, const EventCallback& Callback)
 		{
-			if (State == EventState_Idle || !Callback)
+			if (!Callback)
 				return std::numeric_limits<uint64_t>::max();
 
 			Sync.Listeners.lock();
@@ -5196,9 +5148,9 @@ namespace Tomahawk
 
 			return 0;
 		}
-		EventId EventQueue::SetListener(const std::string& Name, EventCallback&& Callback)
+		EventId Schedule::SetListener(const std::string& Name, EventCallback&& Callback)
 		{
-			if (State == EventState_Idle || !Callback)
+			if (!Callback)
 				return std::numeric_limits<uint64_t>::max();
 
 			Sync.Listeners.lock();
@@ -5218,74 +5170,59 @@ namespace Tomahawk
 
 			return 0;
 		}
-		bool EventQueue::SetTask(const TaskCallback& Callback, bool Looped)
+		bool Schedule::SetTask(const TaskCallback& Callback, bool Looped)
 		{
-			if (State == EventState_Idle || !Callback)
+			if (!Callback)
 				return false;
 
 			Sync.Tasks.lock();
 			Tasks.emplace_back(Callback, Looped);
 			Sync.Tasks.unlock();
 
-			if (State != EventState_Working)
-				return true;
-
-			if (!Async.Workers.empty())
+			if (!Async.Childs.empty())
 				Async.Condition.notify_one();
 
 			return true;
 		}
-		bool EventQueue::SetTask(TaskCallback&& Callback, bool Looped)
+		bool Schedule::SetTask(TaskCallback&& Callback, bool Looped)
 		{
-			if (State == EventState_Idle || !Callback)
+			if (!Callback)
 				return false;
 
 			Sync.Tasks.lock();
 			Tasks.emplace_back(std::move(Callback), Looped);
 			Sync.Tasks.unlock();
 
-			if (State != EventState_Working)
-				return true;
-
-			if (!Async.Workers.empty())
+			if (!Async.Childs.empty())
 				Async.Condition.notify_one();
 
 			return true;
 		}
-		bool EventQueue::SetEvent(const std::string& Name, const VariantArgs& Args)
+		bool Schedule::SetEvent(const std::string& Name, const VariantArgs& Args)
 		{
-			if (State == EventState_Idle)
-				return false;
-
 			Sync.Events.lock();
 			Events.emplace_back(Name, Args);
 			Sync.Events.unlock();
 
 			return true;
 		}
-		bool EventQueue::SetEvent(const std::string& Name, VariantArgs&& Args)
+		bool Schedule::SetEvent(const std::string& Name, VariantArgs&& Args)
 		{
-			if (State == EventState_Idle)
-				return false;
-
 			Sync.Events.lock();
 			Events.emplace_back(Name, std::move(Args));
 			Sync.Events.unlock();
 
 			return true;
 		}
-		bool EventQueue::SetEvent(const std::string& Name)
+		bool Schedule::SetEvent(const std::string& Name)
 		{
-			if (State == EventState_Idle)
-				return false;
-
 			Sync.Events.lock();
 			Events.emplace_back(Name);
 			Sync.Events.unlock();
 
 			return true;
 		}
-		bool EventQueue::ClearListener(const std::string& Name, EventId ListenerId)
+		bool Schedule::ClearListener(const std::string& Name, EventId ListenerId)
 		{
 			Sync.Listeners.lock();
 			auto It = Listeners.find(Name);
@@ -5304,7 +5241,7 @@ namespace Tomahawk
 			Sync.Listeners.unlock();
 			return false;
 		}
-		bool EventQueue::ClearTimeout(EventId TimerId)
+		bool Schedule::ClearTimeout(EventId TimerId)
 		{
 			Sync.Timers.lock();
 			for (auto It = Timers.begin(); It != Timers.end(); It++)
@@ -5321,7 +5258,7 @@ namespace Tomahawk
 			Sync.Timers.unlock();
 			return false;
 		}
-		bool EventQueue::Clear(EventType Type, bool NoCall)
+		bool Schedule::Clear(EventType Type, bool NoCall)
 		{
 			if ((Type & EventType_Tasks) && !Tasks.empty())
 			{
@@ -5333,7 +5270,7 @@ namespace Tomahawk
 					Sync.Tasks.unlock();
 
 					if (!NoCall && Value.Callback)
-						Value.Callback(this);
+						Value.Callback();
 
 					return true;
 				}
@@ -5366,7 +5303,7 @@ namespace Tomahawk
 					for (auto& Callback : Array)
 					{
 						if (Callback.second)
-							Callback.second(this, Value.Args);
+							Callback.second(Value.Args);
 					}
 
 					return true;
@@ -5384,7 +5321,7 @@ namespace Tomahawk
 					Sync.Timers.unlock();
 
 					if (!NoCall && Value.Callback)
-						Value.Callback(this);
+						Value.Callback();
 
 					return true;
 				}
@@ -5393,75 +5330,48 @@ namespace Tomahawk
 
 			return false;
 		}
-		bool EventQueue::Start(EventWorkflow Workflow, uint64_t Workers)
+		bool Schedule::Start(bool IsAsync, uint64_t Workers)
 		{
-			Synchronize = (int)Workflow;
-			if (State != EventState_Terminated || Async.Thread[0].joinable())
+			if (Active)
 				return false;
-			else
-				State = EventState_Idle;
 
-			Async.Workers.reserve(Workers);
+			Async.Childs.reserve(Workers + (IsAsync ? 1 : 0));
 			for (uint64_t i = 0; i < Workers; i++)
-				Async.Workers.push_back(new EventWorker(this));
+				Async.Childs.push_back(std::move(std::thread(&Schedule::LoopCycle, this)));
 
-			State = EventState_Working;
-			if (Workflow == EventWorkflow_Multithreaded)
-			{
-				Async.Thread[0] = std::thread(&EventQueue::LoopTasks, this);
-				Async.Thread[1] = std::thread(&EventQueue::LoopCalls, this);
-			}
-			else if (Workflow == EventWorkflow_Mixed)
-				Async.Thread[0] = std::thread(&EventQueue::LoopMixed, this);
-			else if (Workflow == EventWorkflow_Singlethreaded)
-				return LoopMixed();
-			else if (Workflow == EventWorkflow_Ticked)
-				return true;
-
-			return false;
-		}
-		bool EventQueue::Tick()
-		{
-			if (!Tasks.empty() && Async.Workers.empty())
-				CallTask();
-
-			if (!Events.empty())
-				CallEvent();
-
-			if (!Timers.empty())
-				CallTimer(GetClock());
+			Active = true;
+			if (IsAsync)
+				Async.Childs.push_back(std::move(std::thread(&Schedule::LoopIncome, this)));
 
 			return true;
 		}
-		bool EventQueue::Stop()
+		bool Schedule::Dispatch()
 		{
-			if (State != EventState_Idle && Synchronize != 1)
-			{
-				if (State == EventState_Terminated)
-					return false;
+			if (!Tasks.empty())
+				DispatchTask();
 
-				State = EventState_Idle;
+			if (!Events.empty())
+				DispatchEvent();
+
+			if (!Timers.empty())
+				DispatchTimer(GetClock());
+
+			return Active;
+		}
+		bool Schedule::Stop()
+		{
+			if (!Active)
 				return true;
-			}
 
-			State = EventState_Terminated;
-			if (Synchronize != 1)
-			{
-				if (Async.Thread[0].get_id() != std::this_thread::get_id() && Async.Thread[0].joinable())
-					Async.Thread[0].join();
-
-				if (Synchronize == 0)
-				{
-					if (Async.Thread[1].get_id() != std::this_thread::get_id() && Async.Thread[1].joinable())
-						Async.Thread[1].join();
-				}
-			}
-
-			State = EventState_Terminated;
+			Active = false;
 			Async.Condition.notify_all();
 
-			for (auto It = Async.Workers.begin(); It != Async.Workers.end(); It++)
-				delete *It;
+			auto Id = std::this_thread::get_id();
+			for (auto It = Async.Childs.begin(); It != Async.Childs.end(); It++)
+			{
+				if (It->get_id() != Id && It->joinable())
+					It->join();
+			}
 
 			while (!Tasks.empty())
 				Clear(EventType_Tasks, false);
@@ -5476,7 +5386,7 @@ namespace Tomahawk
 			Sync.Events.lock();
 			Sync.Listeners.lock();
 			Sync.Timers.lock();
-			Async.Workers.clear();
+			Async.Childs.clear();
 			Tasks.clear();
 			Events.clear();
 			Listeners.clear();
@@ -5488,56 +5398,19 @@ namespace Tomahawk
 
 			return true;
 		}
-		bool EventQueue::LoopMixed()
+		bool Schedule::LoopIncome()
 		{
-			if (!Async.Workers.empty())
+			if (!Async.Childs.empty())
 				Async.Condition.notify_all();
 
-			while (State == EventState_Working)
-			{
-				bool Overhead = true;
-				if (!Tasks.empty() && Async.Workers.empty())
-					Overhead = (CallTask() ? false : Overhead);
-
-				if (!Events.empty())
-					Overhead = (CallEvent() ? false : Overhead);
-
-				if (!Timers.empty())
-					Overhead = (CallTimer(GetClock()) ? false : Overhead);
-
-				if (Overhead)
-					std::this_thread::sleep_for(std::chrono::microseconds(100));
-			}
-
-			return true;
-		}
-		bool EventQueue::LoopTasks()
-		{
-			if (!Async.Workers.empty())
-				Async.Condition.notify_all();
-
-			while (State == EventState_Working)
-			{
-				bool Overhead = true;
-				if (!Tasks.empty() && Async.Workers.empty())
-					Overhead = !CallTask();
-
-				if (Overhead)
-					std::this_thread::sleep_for(std::chrono::microseconds(100));
-			}
-
-			return true;
-		}
-		bool EventQueue::LoopCalls()
-		{
-			while (State == EventState_Working)
+			while (Active)
 			{
 				bool Overhead = true;
 				if (!Events.empty())
-					Overhead = (CallEvent() ? false : Overhead);
+					Overhead = (DispatchEvent() ? false : Overhead);
 
 				if (!Timers.empty())
-					Overhead = (CallTimer(GetClock()) ? false : Overhead);
+					Overhead = (DispatchTimer(GetClock()) ? false : Overhead);
 
 				if (Overhead)
 					std::this_thread::sleep_for(std::chrono::microseconds(100));
@@ -5545,7 +5418,26 @@ namespace Tomahawk
 
 			return true;
 		}
-		bool EventQueue::CallEvent()
+		bool Schedule::LoopCycle()
+		{
+			if (!Active)
+			{
+				std::unique_lock<std::mutex> Lock(Async.Safe);
+				Async.Condition.wait(Lock);
+			}
+
+			do
+			{
+				if (!DispatchTask())
+				{
+					std::unique_lock<std::mutex> Lock(Async.Safe);
+					Async.Condition.wait(Lock);
+				}
+			} while (Active);
+
+			return true;
+		}
+		bool Schedule::DispatchEvent()
 		{
 			if (Events.empty())
 				return false;
@@ -5572,16 +5464,16 @@ namespace Tomahawk
 			auto Array = Base->second.Callbacks;
 			Sync.Listeners.unlock();
 
-			return SetTask([Src = std::move(Src), Array](EventQueue* Root) mutable
+			return SetTask([Src = std::move(Src), Array]() mutable
 			{
 				for (auto& Callback : Array)
 				{
 					if (Callback.second)
-						Callback.second(Root, Src.Args);
+						Callback.second(Src.Args);
 				}
 			});
 		}
-		bool EventQueue::CallTask()
+		bool Schedule::DispatchTask()
 		{
 			if (Tasks.empty())
 				return false;
@@ -5598,7 +5490,7 @@ namespace Tomahawk
 			Sync.Tasks.unlock();
 
 			if (Src.Callback)
-				Src.Callback(this);
+				Src.Callback();
 
 			if (!Src.Alive)
 				return true;
@@ -5609,7 +5501,7 @@ namespace Tomahawk
 
 			return true;
 		}
-		bool EventQueue::CallTimer(int64_t Time)
+		bool Schedule::DispatchTimer(int64_t Time)
 		{
 			Sync.Timers.lock();
 			for (auto It = Timers.begin(); It != Timers.end(); It++)
@@ -5626,7 +5518,7 @@ namespace Tomahawk
 
 				Sync.Timers.unlock();
 				if (Callback)
-					Callback(this);
+					Callback();
 
 				return true;
 			}
@@ -5634,18 +5526,26 @@ namespace Tomahawk
 			Sync.Timers.unlock();
 			return false;
 		}
-		bool EventQueue::IsBlockable()
+		bool Schedule::IsBlockable()
 		{
-			return State == EventState_Working && !Async.Workers.empty();
+			return Active && Async.Childs.size() > 1;
 		}
-		int64_t EventQueue::GetClock()
+		bool Schedule::IsActive()
+		{
+			return Active;
+		}
+		int64_t Schedule::GetClock()
 		{
 			return std::chrono::duration_cast<std::chrono::milliseconds>(std::chrono::system_clock::now().time_since_epoch()).count();
 		}
-		EventState EventQueue::GetState()
+		Schedule* Schedule::Get()
 		{
-			return State;
+			if (Singleton == nullptr)
+				Singleton = new Schedule();
+
+			return Singleton;
 		}
+		Schedule* Schedule::Singleton = nullptr;
 
 		Document::Document(const Variant& Base) : Parent(nullptr), Saved(true), Value(Base)
 		{
@@ -6905,5 +6805,5 @@ namespace Tomahawk
 
 			return Stroke(Buffer, Size > 16384 ? 16384 : (size_t)Size);
 		}
-		}
-		}
+	}
+}

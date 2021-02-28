@@ -283,26 +283,23 @@ namespace Tomahawk
 #else
 			static epoll_event* Array;
 #endif
-			static Rest::EventQueue* Loop;
 			static epoll_handle Handle;
 			static int64_t PipeTimeout;
 			static int ArraySize;
+			static bool Bound;
 
 		public:
-			static void Create(int MaxEvents);
+			static void Create(int MaxEvents, int64_t Timeout);
 			static void Release();
 			static void Dispatch();
-			static bool Create(int MaxEvents, int64_t Timeout, Rest::EventQueue* Queue);
-			static bool Bind(int64_t Timeout, Rest::EventQueue* Queue);
 			static int Listen(Socket* Value);
 			static int Unlisten(Socket* Value);
 			static int Dispatch(Socket* Value, int* Events, int64_t Time);
 			static int Poll(pollfd* Fd, int FdCount, int Timeout);
 			static int64_t Clock();
-			static Rest::EventQueue* GetQueue();
 
 		private:
-			static void Worker(Rest::EventQueue* Queue);
+			static void Loop();
 		};
 
 		class TH_OUT SocketServer : public Rest::Object
@@ -313,7 +310,6 @@ namespace Tomahawk
 			std::unordered_set<SocketConnection*> Good;
 			std::unordered_set<SocketConnection*> Bad;
 			std::vector<Listener*> Listeners;
-			Rest::EventQueue* Queue = nullptr;
 			SocketRouter* Router = nullptr;
 			ServerState State = ServerState_Idle;
 			Rest::EventId Timer = -1;
@@ -326,10 +322,9 @@ namespace Tomahawk
 			void Unlock();
 			bool Configure(SocketRouter* New);
 			bool Unlisten();
-			bool Listen(Rest::EventQueue* Loop);
+			bool Listen();
 			ServerState GetState();
 			SocketRouter* GetRouter();
-			Rest::EventQueue* GetQueue();
 			std::unordered_set<SocketConnection*>* GetClients();
 
 		protected:
@@ -338,7 +333,7 @@ namespace Tomahawk
 			virtual bool OnRequestBegin(SocketConnection* Base);
 			virtual bool OnDeallocate(SocketConnection* Base);
 			virtual bool OnDeallocateRouter(SocketRouter* Base);
-			virtual bool OnListen(Rest::EventQueue* Loop);
+			virtual bool OnListen();
 			virtual bool OnUnlisten();
 			virtual bool OnProtect(Socket* Fd, Listener* Host, ssl_ctx_st** Context);
 			virtual SocketConnection* OnAllocate(Listener* Host, Socket* Stream);

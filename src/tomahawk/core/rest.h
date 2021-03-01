@@ -1036,7 +1036,8 @@ namespace Tomahawk
 			{
 				std::vector<std::thread> Childs;
 				std::condition_variable Condition;
-				std::mutex Safe;
+				std::mutex Manage;
+				std::mutex Child;
 			} Async;
 
 			struct
@@ -1053,6 +1054,7 @@ namespace Tomahawk
 			std::deque<EventTask> Tasks;
 			std::deque<EventBase> Events;
 			EventId Timer;
+			bool Terminate;
 			bool Active;
 
 		private:
@@ -1429,6 +1431,11 @@ namespace Tomahawk
 		};
 
 		TH_OUT Stroke Form(const char* Format, ...);
+
+		inline EventType operator |(EventType A, EventType B)
+		{
+			return static_cast<EventType>(static_cast<uint64_t>(A) | static_cast<uint64_t>(B));
+		}
 	}
 }
 #endif

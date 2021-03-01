@@ -5061,7 +5061,7 @@ namespace Tomahawk
 			Offset = Length;
 		}
 
-		Schedule::Schedule() : Active(false), Timer(0)
+		Schedule::Schedule() : Active(false), Terminate(false), Timer(0)
 		{
 		}
 		Schedule::~Schedule()
@@ -5332,8 +5332,12 @@ namespace Tomahawk
 		}
 		bool Schedule::Start(bool IsAsync, uint64_t Workers)
 		{
+			Async.Manage.lock();
 			if (Active)
+			{
+				Async.Manage.unlock();
 				return false;
+			}
 
 			Async.Childs.reserve(Workers + (IsAsync ? 1 : 0));
 			for (uint64_t i = 0; i < Workers; i++)
@@ -5343,6 +5347,7 @@ namespace Tomahawk
 			if (IsAsync)
 				Async.Childs.push_back(std::move(std::thread(&Schedule::LoopIncome, this)));
 
+			Async.Manage.unlock();
 			return true;
 		}
 		bool Schedule::Dispatch()
@@ -5360,41 +5365,50 @@ namespace Tomahawk
 		}
 		bool Schedule::Stop()
 		{
-			if (!Active)
-				return true;
+			Async.Manage.lock();
+			if (!Active && !Terminate)
+			{
+				Async.Manage.unlock();
+				return false;
+			}
 
 			Active = false;
 			Async.Condition.notify_all();
-
-			auto Id = std::this_thread::get_id();
-			for (auto It = Async.Childs.begin(); It != Async.Childs.end(); It++)
+			for (auto& Thread : Async.Childs)
 			{
-				if (It->get_id() != Id && It->joinable())
-					It->join();
+				if (Thread.get_id() == std::this_thread::get_id())
+				{
+					Terminate = true;
+					Async.Manage.unlock();
+					return false;
+				}
+
+				if (Thread.joinable())
+					Thread.join();
 			}
 
-			while (!Tasks.empty())
-				Clear(EventType_Tasks, false);
-
-			while (!Events.empty())
-				Clear(EventType_Events, false);
-
-			while (!Timers.empty())
-				Clear(EventType_Timers, false);
+			Async.Childs.clear();
+			while (!Tasks.empty() || !Events.empty() || !Timers.empty())
+				Clear(EventType_Tasks | EventType_Events | EventType_Timers, false);
 
 			Sync.Tasks.lock();
-			Sync.Events.lock();
-			Sync.Listeners.lock();
-			Sync.Timers.lock();
-			Async.Childs.clear();
 			Tasks.clear();
-			Events.clear();
-			Listeners.clear();
-			Timers.clear();
 			Sync.Tasks.unlock();
+
+			Sync.Events.lock();
+			Events.clear();
 			Sync.Events.unlock();
+
+			Sync.Listeners.lock();
+			Listeners.clear();
 			Sync.Listeners.unlock();
+
+			Sync.Timers.lock();
+			Timers.clear();
 			Sync.Timers.unlock();
+
+			Terminate = false; Timer = 0;
+			Async.Manage.unlock();
 
 			return true;
 		}
@@ -5422,7 +5436,7 @@ namespace Tomahawk
 		{
 			if (!Active)
 			{
-				std::unique_lock<std::mutex> Lock(Async.Safe);
+				std::unique_lock<std::mutex> Lock(Async.Child);
 				Async.Condition.wait(Lock);
 			}
 
@@ -5430,7 +5444,7 @@ namespace Tomahawk
 			{
 				if (!DispatchTask())
 				{
-					std::unique_lock<std::mutex> Lock(Async.Safe);
+					std::unique_lock<std::mutex> Lock(Async.Child);
 					Async.Condition.wait(Lock);
 				}
 			} while (Active);
@@ -5476,13 +5490,13 @@ namespace Tomahawk
 		bool Schedule::DispatchTask()
 		{
 			if (Tasks.empty())
-				return false;
+				return !Active;
 
 			Sync.Tasks.lock();
 			if (Tasks.empty())
 			{
 				Sync.Tasks.unlock();
-				return false;
+				return !Active;
 			}
 
 			EventTask Src(std::move(Tasks.front()));

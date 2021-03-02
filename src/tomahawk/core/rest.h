@@ -195,6 +195,7 @@ namespace Tomahawk
 		typedef std::function<void()> TimerCallback;
 		typedef std::function<void(VarForm, const char*, int64_t)> NWriteCallback;
 		typedef std::function<bool(char*, int64_t)> NReadCallback;
+		typedef TaskCallback EventTask;
 		typedef uint64_t EventId;
 
 		struct TH_OUT Variant
@@ -273,19 +274,6 @@ namespace Tomahawk
 			EventBase(EventBase&& Other);
 			EventBase& operator= (const EventBase& Other);
 			EventBase& operator= (EventBase&& Other);
-		};
-
-		struct TH_OUT EventTask
-		{
-			TaskCallback Callback;
-			bool Alive;
-
-			EventTask(const TaskCallback& NewCallback, bool NewAlive);
-			EventTask(TaskCallback&& NewCallback, bool NewAlive);
-			EventTask(const EventTask& Other);
-			EventTask(EventTask&& Other);
-			EventTask& operator= (const EventTask& Other);
-			EventTask& operator= (EventTask&& Other);
 		};
 
 		struct TH_OUT EventTimer
@@ -1068,8 +1056,8 @@ namespace Tomahawk
 			EventId SetTimeout(uint64_t Milliseconds, TimerCallback&& Callback);
 			EventId SetListener(const std::string& Name, const EventCallback& Callback);
 			EventId SetListener(const std::string& Name, EventCallback&& Callback);
-			bool SetTask(const TaskCallback& Callback, bool Looped = false);
-			bool SetTask(TaskCallback&& Callback, bool Looped = false);
+			bool SetTask(const TaskCallback& Callback);
+			bool SetTask(TaskCallback&& Callback);
 			bool SetEvent(const std::string& Name, const VariantArgs& Args);
 			bool SetEvent(const std::string& Name, VariantArgs&& Args);
 			bool SetEvent(const std::string& Name);
@@ -1427,6 +1415,159 @@ namespace Tomahawk
 			{
 				uint64_t Alpha = Volume ? (Volume + Volume / 2) : 8;
 				return Alpha > NewSize ? Alpha : NewSize;
+			}
+		};
+
+		template <typename T>
+		class Async
+		{
+			static_assert(!std::is_same_v<T, void>, "async cannot be used with void type");
+
+		private:
+			struct Base
+			{
+				std::function<void()> Resolve;
+				std::atomic<int> Count;
+				std::atomic<bool> Set;
+				T Result;
+
+				Base* Copy()
+				{
+					Count++;
+					return this;
+				}
+				void Free()
+				{
+					if (!--Count)
+						delete this;
+				}
+			}* Next;
+
+		public:
+			Async() : Next(new Base())
+			{
+				Next->Count = 1;
+				Next->Set = false;
+			}
+			Async(Base* Context) : Next(Context)
+			{
+				if (Next != nullptr)
+					Next->Count++;
+			}
+			Async(const Async& Other) : Next(Other.Next)
+			{
+				if (Next != nullptr)
+					Next->Count++;
+			}
+			Async(Async&& Other) : Next(Other.Next)
+			{
+				Other.Next = nullptr;
+			}
+			~Async()
+			{
+				if (Next != nullptr)
+					Next->Free();
+			}
+			Async& operator= (const Async& Other)
+			{
+				if (Next == Other.Next)
+					return *this;
+
+				if (Next != nullptr)
+					Next->Free();
+
+				Next = Other.Next;
+				if (Next != nullptr)
+					Next->Count++;
+
+				return *this;
+			}
+			Async& operator= (Async&& Other)
+			{
+				if (Next == Other.Next)
+					return *this;
+
+				if (Next != nullptr)
+					Next->Free();
+
+				Next = Other.Next;
+				Other.Next = nullptr;
+				return *this;
+			}
+
+		public:
+			template <typename U = T>
+			void Set(const U& Value)
+			{
+				if (!Next)
+					return;
+
+				Next->Set = true;
+				Next->Result = Value;
+
+				if (Next->Resolve)
+					Next->Resolve();
+			}
+			template <typename U = T>
+			void Await(std::function<void(T&)>&& Callback)
+			{
+				if (!Callback || !Next)
+					return;
+
+				Base* Subresult = Next->Copy();
+				Next->Resolve = [Subresult, Callback = std::move(Callback)]()
+				{
+					Schedule::Get()->SetTask([Subresult, Callback]()
+					{
+						Callback(Subresult->Result);
+						Subresult->Free();
+					});
+				};
+
+				if (Next->Set)
+					Next->Resolve();
+			}
+			template <typename R>
+			Async<R> Then(std::function<void(Async<R>&, T&)>&& Callback)
+			{
+				if (!Callback || !Next)
+					return Async<R>(nullptr);
+
+				Async<R> Result; Base* Subresult = Next->Copy();
+				Next->Resolve = [Subresult, Result, Callback = std::move(Callback)]() mutable
+				{
+					Schedule::Get()->SetTask([Subresult, Result, Callback]() mutable
+					{
+						Callback(Result, Subresult->Result);
+						Subresult->Free();
+					});
+				};
+
+				if (Next->Set)
+					Next->Resolve();
+
+				return Result;
+			}
+			template <typename R>
+			Async<R> Then(std::function<R(T&)>&& Callback)
+			{
+				if (!Callback || !Next)
+					return Async<R>(nullptr);
+
+				Async<R> Result; Base* Subresult = Next->Copy();
+				Next->Resolve = [Subresult, Result, Callback = std::move(Callback)]() mutable
+				{
+					Schedule::Get()->SetTask([Subresult, Result, Callback]() mutable
+					{
+						Result.Set(Callback(Subresult->Result));
+						Subresult->Free();
+					});
+				};
+
+				if (Next->Set)
+					Next->Resolve();
+
+				return Result;
 			}
 		};
 

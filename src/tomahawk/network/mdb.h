@@ -70,17 +70,18 @@ namespace Tomahawk
 			{
 				std::string Name;
 				std::string String;
-				TDocument* Document = nullptr;
-				TDocument* Array = nullptr;
-				Type Mod = Type_Unknown;
-				int64_t Integer = 0;
-				uint64_t High = 0;
-				uint64_t Low = 0;
-				double Number = 0;
+				TDocument* Object;
+				TDocument* Array;
+				Type Mod;
+				int64_t Integer;
+				uint64_t High;
+				uint64_t Low;
+				double Number;
 				unsigned char ObjectId[12] = { 0 };
-				bool Boolean = false;
-				bool IsValid = false;
+				bool Boolean;
+				bool IsValid;
 
+				Property();
 				~Property();
 				void Release();
 				std::string& ToString();
@@ -89,47 +90,58 @@ namespace Tomahawk
 			class TH_OUT Util
 			{
 			public:
-				static bool ParseDecimal(const char* Value, int64_t* High, int64_t* Low);
-				static bool GenerateId(unsigned char* Id12);
+				static bool GetId(unsigned char* Id12);
+				static bool GetDecimal(const char* Value, int64_t* High, int64_t* Low);
 				static unsigned int GetHashId(unsigned char* Id12);
 				static int64_t GetTimeId(unsigned char* Id12);
-				static std::string OIdToString(unsigned char* Id12);
-				static std::string StringToOId(const std::string& Id24);
+				static std::string IdToString(unsigned char* Id12);
+				static std::string StringToId(const std::string& Id24);
 			};
 
 			class TH_OUT Document
 			{
+			private:
+				TDocument* Base;
+
 			public:
-				static TDocument* Create(bool Array = false);
-				static TDocument* Create(Rest::Document* Document);
-				static TDocument* Create(const std::string& JSON);
-				static TDocument* Create(const unsigned char* Buffer, uint64_t Length);
-				static void Release(TDocument** Document);
-				static void Loop(TDocument* Document, void* Context, const std::function<bool(TDocument*, Property*, void*)>& Callback);
-				static void Join(TDocument* Document, TDocument* Value);
-				static bool SetDocument(TDocument* Document, const char* Key, TDocument** Value, uint64_t ArrayId = 0);
-				static bool SetArray(TDocument* Document, const char* Key, TDocument** Array, uint64_t ArrayId = 0);
-				static bool SetString(TDocument* Document, const char* Key, const char* Value, uint64_t ArrayId = 0);
-				static bool SetStringBuffer(TDocument* Document, const char* Key, const char* Value, uint64_t Length, uint64_t ArrayId = 0);
-				static bool SetInteger(TDocument* Document, const char* Key, int64_t Value, uint64_t ArrayId = 0);
-				static bool SetNumber(TDocument* Document, const char* Key, double Value, uint64_t ArrayId = 0);
-				static bool SetDecimal(TDocument* Document, const char* Key, uint64_t High, uint64_t Low, uint64_t ArrayId = 0);
-				static bool SetDecimalString(TDocument* Document, const char* Key, const std::string& Value, uint64_t ArrayId = 0);
-				static bool SetDecimalInteger(TDocument* Document, const char* Key, int64_t Value, uint64_t ArrayId = 0);
-				static bool SetDecimalNumber(TDocument* Document, const char* Key, double Value, uint64_t ArrayId = 0);
-				static bool SetBoolean(TDocument* Document, const char* Key, bool Value, uint64_t ArrayId = 0);
-				static bool SetObjectId(TDocument* Document, const char* Key, unsigned char Value[12], uint64_t ArrayId = 0);
-				static bool SetNull(TDocument* Document, const char* Key, uint64_t ArrayId = 0);
-				static bool Set(TDocument* Document, const char* Key, Property* Value, uint64_t ArrayId = 0);
-				static bool Has(TDocument* Document, const char* Key);
-				static bool Get(TDocument* Document, const char* Key, Property* Output);
-				static bool Find(TDocument* Document, const char* Key, Property* Output);
-				static uint64_t Count(TDocument* Document);
-				static std::string ToRelaxedJSON(TDocument* Document);
-				static std::string ToExtendedJSON(TDocument* Document);
-				static std::string ToJSON(TDocument* Document);
-				static Rest::Document* ToDocument(TDocument* Document, bool IsArray = false);
-				static TDocument* Copy(TDocument* Document);
+				Document(TDocument* NewBase);
+				void Release();
+				void Join(const Document& Value);
+				void Loop(const std::function<bool(Property*)>& Callback) const;
+				bool SetDocument(const char* Key, Document* Value, uint64_t ArrayId = 0);
+				bool SetArray(const char* Key, Document* Array, uint64_t ArrayId = 0);
+				bool SetString(const char* Key, const char* Value, uint64_t ArrayId = 0);
+				bool SetBlob(const char* Key, const char* Value, uint64_t Length, uint64_t ArrayId = 0);
+				bool SetInteger(const char* Key, int64_t Value, uint64_t ArrayId = 0);
+				bool SetNumber(const char* Key, double Value, uint64_t ArrayId = 0);
+				bool SetDecimal(const char* Key, uint64_t High, uint64_t Low, uint64_t ArrayId = 0);
+				bool SetDecimalString(const char* Key, const std::string& Value, uint64_t ArrayId = 0);
+				bool SetDecimalInteger(const char* Key, int64_t Value, uint64_t ArrayId = 0);
+				bool SetDecimalNumber(const char* Key, double Value, uint64_t ArrayId = 0);
+				bool SetBoolean(const char* Key, bool Value, uint64_t ArrayId = 0);
+				bool SetObjectId(const char* Key, unsigned char Value[12], uint64_t ArrayId = 0);
+				bool SetNull(const char* Key, uint64_t ArrayId = 0);
+				bool Set(const char* Key, Property* Value, uint64_t ArrayId = 0);
+				bool Has(const char* Key) const;
+				bool Get(const char* Key, Property* Output) const;
+				bool Find(const char* Key, Property* Output) const;
+				uint64_t Count() const;
+				std::string ToRelaxedJSON() const;
+				std::string ToExtendedJSON() const;
+				std::string ToJSON() const;
+				Rest::Document* ToDocument(bool IsArray = false) const;
+				Document Copy() const;
+				TDocument* Get() const;
+				operator bool() const
+				{
+					return Base != nullptr;
+				}
+
+			public:
+				static Document FromDocument(Rest::Document* Document);
+				static Document FromEmpty(bool Array);
+				static Document FromJSON(const std::string& JSON);
+				static Document FromBuffer(const unsigned char* Buffer, uint64_t Length);
 
 			private:
 				static bool Clone(void* It, Property* Output);
@@ -137,129 +149,199 @@ namespace Tomahawk
 
 			class TH_OUT Address
 			{
+			private:
+				TAddress* Base;
+
 			public:
-				static TAddress* Create(const char* Uri);
-				static void Release(TAddress** URI);
-				static void SetOption(TAddress* URI, const char* Name, int64_t Value);
-				static void SetOption(TAddress* URI, const char* Name, bool Value);
-				static void SetOption(TAddress* URI, const char* Name, const char* Value);
-				static void SetAuthMechanism(TAddress* URI, const char* Value);
-				static void SetAuthSource(TAddress* URI, const char* Value);
-				static void SetCompressors(TAddress* URI, const char* Value);
-				static void SetDatabase(TAddress* URI, const char* Value);
-				static void SetUsername(TAddress* URI, const char* Value);
-				static void SetPassword(TAddress* URI, const char* Value);
+				Address(TAddress* NewBase);
+				void Release();
+				void SetOption(const char* Name, int64_t Value);
+				void SetOption(const char* Name, bool Value);
+				void SetOption(const char* Name, const char* Value);
+				void SetAuthMechanism(const char* Value);
+				void SetAuthSource(const char* Value);
+				void SetCompressors(const char* Value);
+				void SetDatabase(const char* Value);
+				void SetUsername(const char* Value);
+				void SetPassword(const char* Value);
+				TAddress* Get() const;
+				operator bool() const
+				{
+					return Base != nullptr;
+				}
+
+			public:
+				static Address FromURI(const char* Value);
 			};
 
 			class TH_OUT Stream
 			{
-			public:
-				static TStream* Create(bool IsOrdered);
-				static void Release(TStream** Operation);
-				static bool RemoveMany(TStream* Operation, TDocument** Selector, TDocument** Options);
-				static bool RemoveOne(TStream* Operation, TDocument** Selector, TDocument** Options);
-				static bool ReplaceOne(TStream* Operation, TDocument** Selector, TDocument** Replacement, TDocument** Options);
-				static bool Insert(TStream* Operation, TDocument** Document, TDocument** Options);
-				static bool UpdateOne(TStream* Operation, TDocument** Selector, TDocument** Document, TDocument** Options);
-				static bool UpdateMany(TStream* Operation, TDocument** Selector, TDocument** Document, TDocument** Options);
-				static bool RemoveMany(TStream* Operation, TDocument* Selector, TDocument* Options);
-				static bool RemoveOne(TStream* Operation, TDocument* Selector, TDocument* Options);
-				static bool ReplaceOne(TStream* Operation, TDocument* Selector, TDocument* Replacement, TDocument* Options);
-				static bool Insert(TStream* Operation, TDocument* Document, TDocument* Options);
-				static bool UpdateOne(TStream* Operation, TDocument* Selector, TDocument* Document, TDocument* Options);
-				static bool UpdateMany(TStream* Operation, TDocument* Selector, TDocument* Document, TDocument* Options);
-				static bool Execute(TStream** Operation, TDocument** Reply);
-				static bool Execute(TStream** Operation);
-				static uint64_t GetHint(TStream* Operation);
-			};
+			private:
+				TStream* Base;
 
-			class TH_OUT Watcher
-			{
 			public:
-				static TWatcher* Create(TConnection* Connection, TDocument** Pipeline, TDocument** Options);
-				static TWatcher* Create(TDatabase* Database, TDocument** Pipeline, TDocument** Options);
-				static TWatcher* Create(TCollection* Collection, TDocument** Pipeline, TDocument** Options);
-				static void Release(TWatcher** Stream);
-				static bool Next(TWatcher* Stream, TDocument** Result);
-				static bool Error(TWatcher* Stream, TDocument** Result);
+				Stream(TStream* NewBase);
+				void Release();
+				bool RemoveMany(Document* Selector, Document* Options);
+				bool RemoveOne(Document* Selector, Document* Options);
+				bool ReplaceOne(Document* Selector, Document* Replacement, Document* Options);
+				bool Insert(Document* Result, Document* Options);
+				bool UpdateOne(Document* Selector, Document* Result, Document* Options);
+				bool UpdateMany(Document* Selector, Document* Result, Document* Options);
+				bool RemoveMany(const Document& Selector, const Document& Options);
+				bool RemoveOne(const Document& Selector, const Document& Options);
+				bool ReplaceOne(const Document& Selector, const Document& Replacement, const Document& Options);
+				bool Insert(const Document& Result, const Document& Options);
+				bool UpdateOne(const Document& Selector, const Document& Result, const Document& Options);
+				bool UpdateMany(const Document& Selector, const Document& Result, const Document& Options);
+				bool Execute(Document* Reply);
+				bool Execute();
+				uint64_t GetHint() const;
+				TStream* Get() const;
+				operator bool() const
+				{
+					return Base != nullptr;
+				}
+
+			public:
+				static Stream FromEmpty(bool IsOrdered);
 			};
 
 			class TH_OUT Cursor
 			{
+			private:
+				TCursor* Base;
+
 			public:
-				static void Release(TCursor** Cursor);
-				static void SetMaxAwaitTime(TCursor* Cursor, uint64_t MaxAwaitTime);
-				static void SetBatchSize(TCursor* Cursor, uint64_t BatchSize);
-				static void Receive(TCursor* Cursor, void* Context, bool(* Next)(TCursor*, TDocument*, void*));
-				static bool Next(TCursor* Cursor);
-				static bool SetLimit(TCursor* Cursor, int64_t Limit);
-				static bool SetHint(TCursor* Cursor, uint64_t Hint);
-				static bool HasError(TCursor* Cursor);
-				static bool HasMoreData(TCursor* Cursor);
-				static int64_t GetId(TCursor* Cursor);
-				static int64_t GetLimit(TCursor* Cursor);
-				static uint64_t GetMaxAwaitTime(TCursor* Cursor);
-				static uint64_t GetBatchSize(TCursor* Cursor);
-				static uint64_t GetHint(TCursor* Cursor);
-				static TDocument* GetCurrent(TCursor* Cursor);
+				Cursor(TCursor* NewBase);
+				void Release();
+				void Receive(const std::function<bool(const Document&)>& Callback) const;
+				void SetMaxAwaitTime(uint64_t MaxAwaitTime);
+				void SetBatchSize(uint64_t BatchSize);
+				bool SetLimit(int64_t Limit);
+				bool SetHint(uint64_t Hint);
+				bool Next() const;
+				bool HasError() const;
+				bool HasMoreData() const;
+				int64_t GetId() const;
+				int64_t GetLimit() const;
+				uint64_t GetMaxAwaitTime() const;
+				uint64_t GetBatchSize() const;
+				uint64_t GetHint() const;
+				Document GetCurrent() const;
+				TCursor* Get() const;
+				operator bool() const
+				{
+					return Base != nullptr;
+				}
 			};
 
 			class TH_OUT Collection
 			{
+			private:
+				TCollection* Base;
+
 			public:
-				static void Release(TCollection** Collection);
-				static bool UpdateMany(TCollection* Collection, TDocument** Selector, TDocument** Update, TDocument** Options, TDocument** Reply);
-				static bool UpdateOne(TCollection* Collection, TDocument** Selector, TDocument** Update, TDocument** Options, TDocument** Reply);
-				static bool Rename(TCollection* Collection, const char* NewDatabaseName, const char* NewCollectionName);
-				static bool RenameWithOptions(TCollection* Collection, const char* NewDatabaseName, const char* NewCollectionName, TDocument** Options);
-				static bool RenameWithRemove(TCollection* Collection, const char* NewDatabaseName, const char* NewCollectionName);
-				static bool RenameWithOptionsAndRemove(TCollection* Collection, const char* NewDatabaseName, const char* NewCollectionName, TDocument** Options);
-				static bool Remove(TCollection* Collection, TDocument** Options = nullptr);
-				static bool RemoveMany(TCollection* Collection, TDocument** Selector, TDocument** Options, TDocument** Reply);
-				static bool RemoveOne(TCollection* Collection, TDocument** Selector, TDocument** Options, TDocument** Reply);
-				static bool RemoveIndex(TCollection* Collection, const char* Name, TDocument** Options = nullptr);
-				static bool ReplaceOne(TCollection* Collection, TDocument** Selector, TDocument** Replacement, TDocument** Options, TDocument** Reply);
-				static bool InsertMany(TCollection* Collection, TDocument** Documents, uint64_t Length, TDocument** Options, TDocument** Reply);
-				static bool InsertMany(TCollection* Collection, const std::vector<TDocument*>& Documents, TDocument** Options, TDocument** Reply);
-				static bool InsertOne(TCollection* Collection, TDocument** Document, TDocument** Options, TDocument** Reply);
-				static bool FindAndModify(TCollection* Collection, TDocument** Selector, TDocument** Sort, TDocument** Update, TDocument** Fields, TDocument** Reply, bool Remove, bool Upsert, bool New);
-				static uint64_t CountElementsInArray(TCollection* Collection, TDocument** Match, TDocument** Filter, TDocument** Options);
-				static uint64_t CountDocuments(TCollection* Collection, TDocument** Filter, TDocument** Options, TDocument** Reply);
-				static uint64_t CountDocumentsEstimated(TCollection* Collection, TDocument** Options, TDocument** Reply);
-				static std::string StringifyKeyIndexes(TCollection* Collection, TDocument** Keys);
-				static const char* GetName(TCollection* Collection);
-				static TCursor* FindIndexes(TCollection* Collection, TDocument** Options);
-				static TCursor* FindMany(TCollection* Collection, TDocument** Filter, TDocument** Options);
-				static TCursor* FindOne(TCollection* Collection, TDocument** Filter, TDocument** Options);
-				static TCursor* Aggregate(TCollection* Collection, Query Flags, TDocument** Pipeline, TDocument** Options);
-				static TStream* CreateStream(TCollection* Collection, TDocument** Options);
+				Collection(TCollection* NewBase);
+				void Release();
+				bool UpdateMany(Document* Selector, Document* Update, Document* Options, Document* Reply);
+				bool UpdateOne(Document* Selector, Document* Update, Document* Options, Document* Reply);
+				bool Rename(const char* NewDatabaseName, const char* NewCollectionName);
+				bool RenameWithOptions(const char* NewDatabaseName, const char* NewCollectionName, Document* Options);
+				bool RenameWithRemove(const char* NewDatabaseName, const char* NewCollectionName);
+				bool RenameWithOptionsAndRemove(const char* NewDatabaseName, const char* NewCollectionName, Document* Options);
+				bool Remove(Document* Options);
+				bool RemoveMany(Document* Selector, Document* Options, Document* Reply);
+				bool RemoveOne(Document* Selector, Document* Options, Document* Reply);
+				bool RemoveIndex(const char* Name, Document* Options);
+				bool ReplaceOne(Document* Selector, Document* Replacement, Document* Options, Document* Reply);
+				bool InsertMany(std::vector<Document>& List, Document* Options, Document* Reply);
+				bool InsertOne(Document* Result, Document* Options, Document* Reply);
+				bool FindAndModify(Document* Selector, Document* Sort, Document* Update, Document* Fields, Document* Reply, bool Remove, bool Upsert, bool New);
+				uint64_t CountElementsInArray(Document* Match, Document* Filter, Document* Options) const;
+				uint64_t CountDocuments(Document* Filter, Document* Options, Document* Reply) const;
+				uint64_t CountDocumentsEstimated(Document* Options, Document* Reply) const;
+				std::string StringifyKeyIndexes(Document* Keys) const;
+				const char* GetName() const;
+				Cursor FindIndexes(Document* Options) const;
+				Cursor FindMany(Document* Filter, Document* Options) const;
+				Cursor FindOne(Document* Filter, Document* Options) const;
+				Cursor Aggregate(Query Flags, Document* Pipeline, Document* Options) const;
+				Stream CreateStream(Document* Options);
+				TCollection* Get() const;
+				operator bool() const
+				{
+					return Base != nullptr;
+				}
 			};
 
 			class TH_OUT Database
 			{
+			private:
+				TDatabase* Base;
+
 			public:
-				static void Release(TDatabase** Database);
-				static bool HasCollection(TDatabase* Database, const char* Name);
-				static bool RemoveAllUsers(TDatabase* Database);
-				static bool RemoveUser(TDatabase* Database, const char* Name);
-				static bool Remove(TDatabase* Database);
-				static bool RemoveWithOptions(TDatabase* Database, TDocument** Options);
-				static bool AddUser(TDatabase* Database, const char* Username, const char* Password, TDocument** Roles, TDocument** Custom);
-				static std::vector<std::string> GetCollectionNames(TDatabase* Database, TDocument** Options);
-				static const char* GetName(TDatabase* Database);
-				static TCursor* FindCollections(TDatabase* Database, TDocument** Options);
-				static TCollection* CreateCollection(TDatabase* Database, const char* Name, TDocument** Options);
-				static TCollection* GetCollection(TDatabase* Database, const char* Name);
+				Database(TDatabase* NewBase);
+				void Release();
+				bool HasCollection(const char* Name) const;
+				bool RemoveAllUsers();
+				bool RemoveUser(const char* Name);
+				bool Remove();
+				bool RemoveWithOptions(Document* Options);
+				bool AddUser(const char* Username, const char* Password, Document* Roles, Document* Custom);
+				std::vector<std::string> GetCollectionNames(Document* Options) const;
+				const char* GetName() const;
+				Cursor FindCollections(Document* Options) const;
+				Collection CreateCollection(const char* Name, Document* Options);
+				Collection GetCollection(const char* Name) const;
+				TDatabase* Get() const;
+				operator bool() const
+				{
+					return Base != nullptr;
+				}
+			};
+
+			class TH_OUT Watcher
+			{
+			private:
+				TWatcher * Base;
+
+			public:
+				Watcher(TWatcher* NewBase);
+				void Release();
+				bool Next(Document& Result) const;
+				bool Error(Document& Result) const;
+				TWatcher* Get() const;
+				operator bool() const
+				{
+					return Base != nullptr;
+				}
+
+			public:
+				static Watcher FromConnection(Connection* Connection, Document* Pipeline, Document* Options);
+				static Watcher FromDatabase(Database& Src, Document* Pipeline, Document* Options);
+				static Watcher FromCollection(Collection& Src, Document* Pipeline, Document* Options);
 			};
 
 			class TH_OUT Transaction
 			{
+			private:
+				TTransaction* Base;
+
 			public:
-				static TTransaction* Create(Connection* Client, TDocument** NewUid);
-				static void Release(Connection* Client);
-				static bool Start(TTransaction* Session);
-				static bool Abort(TTransaction* Session);
-				static bool Commit(TTransaction* Session, TDocument** Reply);
+				Transaction(TTransaction* NewBase);
+				void Release();
+				bool Start();
+				bool Abort();
+				bool Commit(Document* Reply);
+				TTransaction* Get() const;
+				operator bool() const
+				{
+					return Base != nullptr;
+				}
+
+			public:
+				static TTransaction* FromConnection(Connection* Client, Document& NewUid);
 			};
 
 			class TH_OUT Connection : public Rest::Object
@@ -268,7 +350,7 @@ namespace Tomahawk
 				friend Transaction;
 
 			private:
-				TTransaction* Session;
+				Transaction Session;
 				TConnection* Base;
 				Queue* Master;
 				bool Connected;
@@ -279,16 +361,16 @@ namespace Tomahawk
 				void SetProfile(const char* Name);
 				bool SetServer(bool Writeable);
 				bool Connect(const std::string& Address);
-				bool Connect(TAddress* URI);
+				bool Connect(Address* URI);
 				bool Disconnect();
-				TCursor* FindDatabases(TDocument** Options);
-				TDatabase* GetDatabase(const char* Name);
-				TDatabase* GetDefaultDatabase();
-				TCollection* GetCollection(const char* DatabaseName, const char* Name);
-				TConnection* Get();
-				TAddress* GetAddress();
-				Queue* GetMaster();
-				std::vector<std::string> GetDatabaseNames(TDocument** Options);
+				Cursor FindDatabases(Document* Options) const;
+				Database GetDatabase(const char* Name) const;
+				Database GetDefaultDatabase() const;
+				Collection GetCollection(const char* DatabaseName, const char* Name) const;
+				Address GetAddress() const;
+				Queue* GetMaster() const;
+				TConnection* Get() const;
+				std::vector<std::string> GetDatabaseNames(Document* Options);
 				bool IsConnected();
 			};
 
@@ -296,7 +378,7 @@ namespace Tomahawk
 			{
 			private:
 				TConnectionPool* Pool;
-				TAddress* Address;
+				Address SrcAddress;
 				bool Connected;
 
 			public:
@@ -304,12 +386,12 @@ namespace Tomahawk
 				virtual ~Queue() override;
 				void SetProfile(const char* Name);
 				bool Connect(const std::string& Address);
-				bool Connect(TAddress* URI);
+				bool Connect(Address* URI);
 				bool Disconnect();
 				void Push(Connection** Client);
 				Connection* Pop();
-				TConnectionPool* Get();
-				TAddress* GetAddress();
+				TConnectionPool* Get() const;
+				Address GetAddress() const;
 			};
 
 			class TH_OUT Driver
@@ -317,8 +399,10 @@ namespace Tomahawk
 			private:
 				struct Sequence
 				{
-					TDocument* Cache = nullptr;
 					std::string Request;
+					Document Cache;
+
+					Sequence();
 				};
 
 			private:
@@ -332,8 +416,8 @@ namespace Tomahawk
 				static bool AddQuery(const std::string& Name, const char* Buffer, size_t Size);
 				static bool AddDirectory(const std::string& Directory, const std::string& Origin = "");
 				static bool RemoveQuery(const std::string& Name);
-				static TDocument* GetQuery(const std::string& Name, QueryMap* Map, bool Once = true);
-				static TDocument* GetSubquery(const char* Buffer, QueryMap* Map, bool Once = true);
+				static Document GetQuery(const std::string& Name, QueryMap* Map, bool Once = true);
+				static Document GetSubquery(const char* Buffer, QueryMap* Map, bool Once = true);
 				static std::vector<std::string> GetQueries();
 
 			private:

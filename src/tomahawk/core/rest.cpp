@@ -499,31 +499,6 @@ namespace Tomahawk
 			return *this;
 		}
 
-		EventTask::EventTask(const TaskCallback& NewCallback, bool NewAlive) : Callback(NewCallback), Alive(NewAlive)
-		{
-		}
-		EventTask::EventTask(TaskCallback&& NewCallback, bool NewAlive) : Callback(std::move(NewCallback)), Alive(NewAlive)
-		{
-		}
-		EventTask::EventTask(const EventTask& Other) : Callback(Other.Callback), Alive(Other.Alive)
-		{
-		}
-		EventTask::EventTask(EventTask&& Other) : Callback(std::move(Other.Callback)), Alive(Other.Alive)
-		{
-		}
-		EventTask& EventTask::operator= (const EventTask& Other)
-		{
-			Callback = Other.Callback;
-			Alive = Other.Alive;
-			return *this;
-		}
-		EventTask& EventTask::operator= (EventTask&& Other)
-		{
-			Callback = std::move(Other.Callback);
-			Alive = Other.Alive;
-			return *this;
-		}
-
 		EventTimer::EventTimer(const TimerCallback& NewCallback, uint64_t NewTimeout, int64_t NewTime, EventId NewId, bool NewAlive) : Callback(NewCallback), Timeout(NewTimeout), Time(NewTime), Id(NewId), Alive(NewAlive)
 		{
 		}
@@ -5170,13 +5145,13 @@ namespace Tomahawk
 
 			return 0;
 		}
-		bool Schedule::SetTask(const TaskCallback& Callback, bool Looped)
+		bool Schedule::SetTask(const TaskCallback& Callback)
 		{
 			if (!Callback)
 				return false;
 
 			Sync.Tasks.lock();
-			Tasks.emplace_back(Callback, Looped);
+			Tasks.emplace_back(Callback);
 			Sync.Tasks.unlock();
 
 			if (!Async.Childs.empty())
@@ -5184,13 +5159,13 @@ namespace Tomahawk
 
 			return true;
 		}
-		bool Schedule::SetTask(TaskCallback&& Callback, bool Looped)
+		bool Schedule::SetTask(TaskCallback&& Callback)
 		{
 			if (!Callback)
 				return false;
 
 			Sync.Tasks.lock();
-			Tasks.emplace_back(std::move(Callback), Looped);
+			Tasks.emplace_back(std::move(Callback));
 			Sync.Tasks.unlock();
 
 			if (!Async.Childs.empty())
@@ -5269,8 +5244,8 @@ namespace Tomahawk
 					Tasks.erase(It);
 					Sync.Tasks.unlock();
 
-					if (!NoCall && Value.Callback)
-						Value.Callback();
+					if (!NoCall && Value)
+						Value();
 
 					return true;
 				}
@@ -5503,15 +5478,8 @@ namespace Tomahawk
 			Tasks.pop_front();
 			Sync.Tasks.unlock();
 
-			if (Src.Callback)
-				Src.Callback();
-
-			if (!Src.Alive)
-				return true;
-
-			Sync.Tasks.lock();
-			Tasks.emplace_back(std::move(Src));
-			Sync.Tasks.unlock();
+			if (Src)
+				Src();
 
 			return true;
 		}

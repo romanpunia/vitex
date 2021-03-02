@@ -3,7 +3,8 @@ extern "C"
 {
 #ifdef TH_HAS_MONGOC
 #include <mongoc.h>
-#define BS(X) (X != nullptr ? *X : nullptr)
+#define MDB_POP(V) (V ? V->Get() : nullptr)
+#define MDB_FREE(V) { if (V != nullptr) V->Release(); }
 #endif
 }
 
@@ -13,17 +14,23 @@ namespace Tomahawk
 	{
 		namespace MDB
 		{
+			Property::Property() : Object(nullptr), Array(nullptr), Mod(Type_Unknown), Integer(0), High(0), Low(0), Number(0.0), Boolean(false), IsValid(false)
+			{
+			}
 			Property::~Property()
 			{
 				Release();
 			}
 			void Property::Release()
 			{
-				Document::Release(&Document);
-				Document::Release(&Array);
+				Document(Object).Release();
+				Object = nullptr;
+				
+				Document(Array).Release();
+				Array = nullptr;
+
 				Name.clear();
 				String.clear();
-
 				Integer = 0;
 				Number = 0;
 				Boolean = false;
@@ -72,7 +79,22 @@ namespace Tomahawk
 				return String;
 			}
 
-			bool Util::ParseDecimal(const char* Value, int64_t* High, int64_t* Low)
+			bool Util::GetId(unsigned char* Id12)
+			{
+#ifdef TH_HAS_MONGOC
+				if (Id12 == nullptr)
+					return false;
+
+				bson_oid_t ObjectId;
+				bson_oid_init(&ObjectId, nullptr);
+
+				memcpy((void*)Id12, (void*)ObjectId.bytes, sizeof(char) * 12);
+				return true;
+#else
+				return false;
+#endif
+			}
+			bool Util::GetDecimal(const char* Value, int64_t* High, int64_t* Low)
 			{
 				if (!Value || !High || !Low)
 					return false;
@@ -84,21 +106,6 @@ namespace Tomahawk
 
 				*High = Decimal.high;
 				*Low = Decimal.low;
-				return true;
-#else
-				return false;
-#endif
-			}
-			bool Util::GenerateId(unsigned char* Id12)
-			{
-#ifdef TH_HAS_MONGOC
-				if (Id12 == nullptr)
-					return false;
-
-				bson_oid_t ObjectId;
-				bson_oid_init(&ObjectId, nullptr);
-
-				memcpy((void*)Id12, (void*)ObjectId.bytes, sizeof(char) * 12);
 				return true;
 #else
 				return false;
@@ -132,7 +139,7 @@ namespace Tomahawk
 				return 0;
 #endif
 			}
-			std::string Util::OIdToString(unsigned char* Id12)
+			std::string Util::IdToString(unsigned char* Id12)
 			{
 #ifdef TH_HAS_MONGOC
 				if (!Id12)
@@ -149,7 +156,7 @@ namespace Tomahawk
 				return "";
 #endif
 			}
-			std::string Util::StringToOId(const std::string& Id24)
+			std::string Util::StringToId(const std::string& Id24)
 			{
 				if (Id24.size() != 24)
 					return "";
@@ -164,139 +171,47 @@ namespace Tomahawk
 #endif
 			}
 
-			TDocument* Document::Create(bool Array)
+			Document::Document(TDocument* NewBase) : Base(NewBase)
 			{
-#ifdef TH_HAS_MONGOC
-				if (!Array)
-					return bson_new();
-
-				return BCON_NEW("pipeline", "[", "]");
-#else
-				return nullptr;
-#endif
 			}
-			TDocument* Document::Create(Rest::Document* Document)
+			void Document::Release()
 			{
 #ifdef TH_HAS_MONGOC
-				if (!Document || !Document->Value.IsObject())
-					return nullptr;
-
-				TDocument* New = bson_new();
-				TDocument* Replica = nullptr;
-				uint64_t Index = 0;
-
-				bool Array = (Document->Value.GetType() == Rest::VarType_Array);
-				for (auto&& Node : *Document->GetNodes())
-				{
-					switch (Node->Value.GetType())
-					{
-						case Rest::VarType_Object:
-							Replica = Create(Node);
-							SetDocument(New, Array ? nullptr : Node->Key.c_str(), &Replica, Index);
-							break;
-						case Rest::VarType_Array:
-							Replica = Create(Node);
-							SetArray(New, Array ? nullptr : Node->Key.c_str(), &Replica, Index);
-							break;
-						case Rest::VarType_String:
-							SetStringBuffer(New, Array ? nullptr : Node->Key.c_str(), Node->Value.GetString(), Node->Value.GetSize(), Index);
-							break;
-						case Rest::VarType_Boolean:
-							SetBoolean(New, Array ? nullptr : Node->Key.c_str(), Node->Value.GetBoolean(), Index);
-							break;
-						case Rest::VarType_Decimal:
-							SetDecimalString(New, Array ? nullptr : Node->Key.c_str(), Node->Value.GetDecimal(), Index);
-							break;
-						case Rest::VarType_Number:
-							SetNumber(New, Array ? nullptr : Node->Key.c_str(), Node->Value.GetNumber(), Index);
-							break;
-						case Rest::VarType_Integer:
-							SetInteger(New, Array ? nullptr : Node->Key.c_str(), Node->Value.GetInteger(), Index);
-							break;
-						case Rest::VarType_Null:
-							SetNull(New, Array ? nullptr : Node->Key.c_str(), Index);
-							break;
-						case Rest::VarType_Base64:
-						{
-							if (Node->Value.GetSize() != 12)
-							{
-								std::string Base = Compute::Common::Base64Encode(Node->Value.GetBlob());
-								SetStringBuffer(New, Array ? nullptr : Node->Key.c_str(), Base.c_str(), Base.size(), Index);
-							}
-							else
-								SetObjectId(New, Array ? nullptr : Node->Key.c_str(), Node->Value.GetBase64(), Index);
-							break;
-						}
-						default:
-							break;
-					}
-				}
-
-				return New;
-#else
-				return nullptr;
-#endif
-			}
-			TDocument* Document::Create(const std::string& JSON)
-			{
-#ifdef TH_HAS_MONGOC
-				bson_error_t Error;
-				memset(&Error, 0, sizeof(bson_error_t));
-
-				TDocument* Document = bson_new_from_json((unsigned char*)JSON.c_str(), (ssize_t)JSON.size(), &Error);
-				if (!Document || Error.code != 0)
-				{
-					if (Document != nullptr)
-						bson_destroy(Document);
-
-					TH_ERROR("[json] %s", Error.message);
-					return nullptr;
-				}
-
-				return Document;
-#else
-				return nullptr;
-#endif
-			}
-			TDocument* Document::Create(const unsigned char* Buffer, uint64_t Length)
-			{
-#ifdef TH_HAS_MONGOC
-				return bson_new_from_data(Buffer, (size_t)Length);
-#else
-				return nullptr;
-#endif
-			}
-			void Document::Release(TDocument** Document)
-			{
-#ifdef TH_HAS_MONGOC
-				if (Document == nullptr || *Document == nullptr)
+				if (!Base)
 					return;
 
-				if ((*Document)->flags == 2)
+				if (Base->flags == 2)
 				{
-					bson_destroy(*Document);
-					bson_free(*Document);
+					bson_destroy(Base);
+					bson_free(Base);
 				}
 				else
-					bson_destroy(*Document);
+					bson_destroy(Base);
+				Base = nullptr;
 #endif
-				*Document = nullptr;
 			}
-			void Document::Loop(TDocument* Document, void* Context, const std::function<bool(TDocument*, Property*, void*)>& Callback)
+			void Document::Join(const Document& Value)
 			{
-				if (!Callback || !Document)
+#ifdef TH_HAS_MONGOC
+				if (Base != nullptr && Value.Base != nullptr)
+					bson_concat(Base, Value.Base);
+#endif
+			}
+			void Document::Loop(const std::function<bool(Property*)>& Callback) const
+			{
+				if (!Callback || !Base)
 					return;
 
 #ifdef TH_HAS_MONGOC
 				bson_iter_t It;
-				if (!bson_iter_init(&It, Document))
+				if (!bson_iter_init(&It, Base))
 					return;
 
 				Property Output;
 				while (bson_iter_next(&It))
 				{
 					Clone(&It, &Output);
-					bool Continue = Callback(Document, &Output, Context);
+					bool Continue = Callback(&Output);
 					Output.Release();
 
 					if (!Continue)
@@ -304,115 +219,106 @@ namespace Tomahawk
 				}
 #endif
 			}
-			void Document::Join(TDocument* Document, TDocument* Value)
+			bool Document::SetDocument(const char* Key, Document* Value, uint64_t ArrayId)
 			{
 #ifdef TH_HAS_MONGOC
-				if (Document != nullptr && Value != nullptr)
-					bson_concat(Document, Value);
-#endif
-			}
-			bool Document::SetDocument(TDocument* Document, const char* Key, TDocument** Value, uint64_t ArrayId)
-			{
-#ifdef TH_HAS_MONGOC
-				if (!Value || !*Value || !Document)
+				if (!Value || !Value->Base || !Base)
 					return false;
 
 				char Index[16];
 				if (Key == nullptr)
 					bson_uint32_to_string((uint32_t)ArrayId, &Key, Index, sizeof(Index));
 
-				bool Result = bson_append_document(Document, Key, -1, *Value);
-				bson_destroy(*Value);
-				*Value = nullptr;
+				bool Result = bson_append_document(Base, Key, -1, Value->Base);
+				Value->Release();
 
 				return Result;
 #else
 				return false;
 #endif
 			}
-			bool Document::SetArray(TDocument* Document, const char* Key, TDocument** Value, uint64_t ArrayId)
+			bool Document::SetArray(const char* Key, Document* Value, uint64_t ArrayId)
 			{
 #ifdef TH_HAS_MONGOC
-				if (!Value || !*Value || !Document)
+				if (!Value || !Value->Base || !Base)
 					return false;
 
 				char Index[16];
 				if (Key == nullptr)
 					bson_uint32_to_string((uint32_t)ArrayId, &Key, Index, sizeof(Index));
 
-				bool Result = bson_append_array(Document, Key, -1, *Value);
-				bson_destroy(*Value);
-				*Value = nullptr;
+				bool Result = bson_append_array(Base, Key, -1, Value->Base);
+				Value->Release();
 
 				return Result;
 #else
 				return false;
 #endif
 			}
-			bool Document::SetString(TDocument* Document, const char* Key, const char* Value, uint64_t ArrayId)
+			bool Document::SetString(const char* Key, const char* Value, uint64_t ArrayId)
 			{
 #ifdef TH_HAS_MONGOC
-				if (!Document)
+				if (!Base)
 					return false;
 
 				char Index[16];
 				if (Key == nullptr)
 					bson_uint32_to_string((uint32_t)ArrayId, &Key, Index, sizeof(Index));
 
-				return bson_append_utf8(Document, Key, -1, Value, -1);
+				return bson_append_utf8(Base, Key, -1, Value, -1);
 #else
 				return false;
 #endif
 			}
-			bool Document::SetStringBuffer(TDocument* Document, const char* Key, const char* Value, uint64_t Length, uint64_t ArrayId)
+			bool Document::SetBlob(const char* Key, const char* Value, uint64_t Length, uint64_t ArrayId)
 			{
 #ifdef TH_HAS_MONGOC
-				if (!Document)
+				if (!Base)
 					return false;
 
 				char Index[16];
 				if (Key == nullptr)
 					bson_uint32_to_string((uint32_t)ArrayId, &Key, Index, sizeof(Index));
 
-				return bson_append_utf8(Document, Key, -1, Value, (int)Length);
+				return bson_append_utf8(Base, Key, -1, Value, (int)Length);
 #else
 				return false;
 #endif
 			}
-			bool Document::SetInteger(TDocument* Document, const char* Key, int64_t Value, uint64_t ArrayId)
+			bool Document::SetInteger(const char* Key, int64_t Value, uint64_t ArrayId)
 			{
 #ifdef TH_HAS_MONGOC
-				if (!Document)
+				if (!Base)
 					return false;
 
 				char Index[16];
 				if (Key == nullptr)
 					bson_uint32_to_string((uint32_t)ArrayId, &Key, Index, sizeof(Index));
 
-				return bson_append_int64(Document, Key, -1, Value);
+				return bson_append_int64(Base, Key, -1, Value);
 #else
 				return false;
 #endif
 			}
-			bool Document::SetNumber(TDocument* Document, const char* Key, double Value, uint64_t ArrayId)
+			bool Document::SetNumber(const char* Key, double Value, uint64_t ArrayId)
 			{
 #ifdef TH_HAS_MONGOC
-				if (!Document)
+				if (!Base)
 					return false;
 
 				char Index[16];
 				if (Key == nullptr)
 					bson_uint32_to_string((uint32_t)ArrayId, &Key, Index, sizeof(Index));
 
-				return bson_append_double(Document, Key, -1, Value);
+				return bson_append_double(Base, Key, -1, Value);
 #else
 				return false;
 #endif
 			}
-			bool Document::SetDecimal(TDocument* Document, const char* Key, uint64_t High, uint64_t Low, uint64_t ArrayId)
+			bool Document::SetDecimal(const char* Key, uint64_t High, uint64_t Low, uint64_t ArrayId)
 			{
 #ifdef TH_HAS_MONGOC
-				if (!Document)
+				if (!Base)
 					return false;
 
 				char Index[16];
@@ -423,15 +329,15 @@ namespace Tomahawk
 				Decimal.high = (uint64_t)High;
 				Decimal.low = (uint64_t)Low;
 
-				return bson_append_decimal128(Document, Key, -1, &Decimal);
+				return bson_append_decimal128(Base, Key, -1, &Decimal);
 #else
 				return false;
 #endif
 			}
-			bool Document::SetDecimalString(TDocument* Document, const char* Key, const std::string& Value, uint64_t ArrayId)
+			bool Document::SetDecimalString(const char* Key, const std::string& Value, uint64_t ArrayId)
 			{
 #ifdef TH_HAS_MONGOC
-				if (!Document)
+				if (!Base)
 					return false;
 
 				char Index[16];
@@ -441,15 +347,15 @@ namespace Tomahawk
 				bson_decimal128_t Decimal;
 				bson_decimal128_from_string(Value.c_str(), &Decimal);
 
-				return bson_append_decimal128(Document, Key, -1, &Decimal);
+				return bson_append_decimal128(Base, Key, -1, &Decimal);
 #else
 				return false;
 #endif
 			}
-			bool Document::SetDecimalInteger(TDocument* Document, const char* Key, int64_t Value, uint64_t ArrayId)
+			bool Document::SetDecimalInteger(const char* Key, int64_t Value, uint64_t ArrayId)
 			{
 #ifdef TH_HAS_MONGOC
-				if (!Document)
+				if (!Base)
 					return false;
 
 				char Index[16];
@@ -462,15 +368,15 @@ namespace Tomahawk
 				bson_decimal128_t Decimal;
 				bson_decimal128_from_string(Data, &Decimal);
 
-				return bson_append_decimal128(Document, Key, -1, &Decimal);
+				return bson_append_decimal128(Base, Key, -1, &Decimal);
 #else
 				return false;
 #endif
 			}
-			bool Document::SetDecimalNumber(TDocument* Document, const char* Key, double Value, uint64_t ArrayId)
+			bool Document::SetDecimalNumber(const char* Key, double Value, uint64_t ArrayId)
 			{
 #ifdef TH_HAS_MONGOC
-				if (!Document)
+				if (!Base)
 					return false;
 
 				char Index[16];
@@ -486,30 +392,30 @@ namespace Tomahawk
 				bson_decimal128_t Decimal;
 				bson_decimal128_from_string(Data, &Decimal);
 
-				return bson_append_decimal128(Document, Key, -1, &Decimal);
+				return bson_append_decimal128(Base, Key, -1, &Decimal);
 #else
 				return false;
 #endif
 			}
-			bool Document::SetBoolean(TDocument* Document, const char* Key, bool Value, uint64_t ArrayId)
+			bool Document::SetBoolean(const char* Key, bool Value, uint64_t ArrayId)
 			{
 #ifdef TH_HAS_MONGOC
-				if (!Document)
+				if (!Base)
 					return false;
 
 				char Index[16];
 				if (Key == nullptr)
 					bson_uint32_to_string((uint32_t)ArrayId, &Key, Index, sizeof(Index));
 
-				return bson_append_bool(Document, Key, -1, Value);
+				return bson_append_bool(Base, Key, -1, Value);
 #else
 				return false;
 #endif
 			}
-			bool Document::SetObjectId(TDocument* Document, const char* Key, unsigned char Value[12], uint64_t ArrayId)
+			bool Document::SetObjectId(const char* Key, unsigned char Value[12], uint64_t ArrayId)
 			{
 #ifdef TH_HAS_MONGOC
-				if (!Document)
+				if (!Base)
 					return false;
 
 				bson_oid_t ObjectId;
@@ -519,57 +425,57 @@ namespace Tomahawk
 				if (Key == nullptr)
 					bson_uint32_to_string((uint32_t)ArrayId, &Key, Index, sizeof(Index));
 
-				return bson_append_oid(Document, Key, -1, &ObjectId);
+				return bson_append_oid(Base, Key, -1, &ObjectId);
 #else
 				return false;
 #endif
 			}
-			bool Document::SetNull(TDocument* Document, const char* Key, uint64_t ArrayId)
+			bool Document::SetNull(const char* Key, uint64_t ArrayId)
 			{
 #ifdef TH_HAS_MONGOC
-				if (!Document)
+				if (!Base)
 					return false;
 
 				char Index[16];
 				if (Key == nullptr)
 					bson_uint32_to_string((uint32_t)ArrayId, &Key, Index, sizeof(Index));
 
-				return bson_append_null(Document, Key, -1);
+				return bson_append_null(Base, Key, -1);
 #else
 				return false;
 #endif
 			}
-			bool Document::Set(TDocument* Document, const char* Key, Property* Value, uint64_t ArrayId)
+			bool Document::Set(const char* Key, Property* Value, uint64_t ArrayId)
 			{
 #ifdef TH_HAS_MONGOC
-				if (!Document || !Value)
+				if (!Base || !Value)
 					return false;
 
 				char Index[16];
 				if (Key == nullptr)
 					bson_uint32_to_string((uint32_t)ArrayId, &Key, Index, sizeof(Index));
 
-				TDocument* Object = nullptr;
+				Document Object(nullptr);
 				switch (Value->Mod)
 				{
 					case Type_Document:
-						Object = Copy(Value->Document);
-						return SetDocument(Document, Key, &Object);
+						Object = Document(Value->Object).Copy();
+						return SetDocument(Key, &Object);
 					case Type_Array:
-						Object = Copy(Value->Document);
-						return SetArray(Document, Key, &Object);
+						Object = Document(Value->Array).Copy();
+						return SetArray(Key, &Object);
 					case Type_String:
-						return SetString(Document, Key, Value->String.c_str());
+						return SetString(Key, Value->String.c_str());
 					case Type_Boolean:
-						return SetBoolean(Document, Key, Value->Boolean);
+						return SetBoolean(Key, Value->Boolean);
 					case Type_Number:
-						return SetNumber(Document, Key, Value->Number);
+						return SetNumber(Key, Value->Number);
 					case Type_Integer:
-						return SetInteger(Document, Key, Value->Integer);
+						return SetInteger(Key, Value->Integer);
 					case Type_Decimal:
-						return SetDecimal(Document, Key, Value->High, Value->Low);
+						return SetDecimal(Key, Value->High, Value->Low);
 					case Type_ObjectId:
-						return SetObjectId(Document, Key, Value->ObjectId);
+						return SetObjectId(Key, Value->ObjectId);
 					default:
 						break;
 				}
@@ -579,22 +485,22 @@ namespace Tomahawk
 				return false;
 #endif
 			}
-			bool Document::Has(TDocument* Document, const char* Key)
+			bool Document::Has(const char* Key) const
 			{
 #ifdef TH_HAS_MONGOC
-				if (!Document)
+				if (!Base)
 					return false;
 
-				return bson_has_field(Document, Key);
+				return bson_has_field(Base, Key);
 #else
 				return false;
 #endif
 			}
-			bool Document::Get(TDocument* Document, const char* Key, Property* Output)
+			bool Document::Get(const char* Key, Property* Output) const
 			{
 #ifdef TH_HAS_MONGOC
 				bson_iter_t It;
-				if (!Document || !bson_iter_init_find(&It, Document, Key))
+				if (!Base || !bson_iter_init_find(&It, Base, Key))
 					return false;
 
 				return Clone(&It, Output);
@@ -602,11 +508,11 @@ namespace Tomahawk
 				return false;
 #endif
 			}
-			bool Document::Find(TDocument* Document, const char* Key, Property* Output)
+			bool Document::Find(const char* Key, Property* Output) const
 			{
 #ifdef TH_HAS_MONGOC
 				bson_iter_t It, Value;
-				if (!Document || !bson_iter_init(&It, Document) || !bson_iter_find_descendant(&It, Key, &Value))
+				if (!Base || !bson_iter_init(&It, Base) || !bson_iter_find_descendant(&It, Key, &Value))
 					return false;
 
 				return Clone(&Value, Output);
@@ -628,11 +534,11 @@ namespace Tomahawk
 				{
 					case BSON_TYPE_DOCUMENT:
 						Output->Mod = Type_Document;
-						Output->Document = Create((const unsigned char*)Value->value.v_doc.data, (uint64_t)Value->value.v_doc.data_len);
+						Output->Object = Document::FromBuffer((const unsigned char*)Value->value.v_doc.data, (uint64_t)Value->value.v_doc.data_len).Get();
 						break;
 					case BSON_TYPE_ARRAY:
 						Output->Mod = Type_Array;
-						Output->Array = Create((const unsigned char*)Value->value.v_doc.data, (uint64_t)Value->value.v_doc.data_len);
+						Output->Array = Document::FromBuffer((const unsigned char*)Value->value.v_doc.data, (uint64_t)Value->value.v_doc.data_len).Get();
 						break;
 					case BSON_TYPE_BOOL:
 						Output->Mod = Type_Boolean;
@@ -711,25 +617,25 @@ namespace Tomahawk
 				return false;
 #endif
 			}
-			uint64_t Document::Count(TDocument* Document)
+			uint64_t Document::Count() const
 			{
 #ifdef TH_HAS_MONGOC
-				if (!Document)
+				if (!Base)
 					return 0;
 
-				return bson_count_keys(Document);
+				return bson_count_keys(Base);
 #else
 				return 0;
 #endif
 			}
-			std::string Document::ToRelaxedJSON(TDocument* Document)
+			std::string Document::ToRelaxedJSON() const
 			{
 #ifdef TH_HAS_MONGOC
-				if (!Document)
+				if (!Base)
 					return std::string();
 
 				size_t Length = 0;
-				char* Value = bson_as_relaxed_extended_json(Document, &Length);
+				char* Value = bson_as_relaxed_extended_json(Base, &Length);
 
 				std::string Output;
 				Output.assign(Value, (uint64_t)Length);
@@ -740,14 +646,14 @@ namespace Tomahawk
 				return "";
 #endif
 			}
-			std::string Document::ToExtendedJSON(TDocument* Document)
+			std::string Document::ToExtendedJSON() const
 			{
 #ifdef TH_HAS_MONGOC
-				if (!Document)
+				if (!Base)
 					return std::string();
 
 				size_t Length = 0;
-				char* Value = bson_as_canonical_extended_json(Document, &Length);
+				char* Value = bson_as_canonical_extended_json(Base, &Length);
 
 				std::string Output;
 				Output.assign(Value, (uint64_t)Length);
@@ -758,14 +664,14 @@ namespace Tomahawk
 				return "";
 #endif
 			}
-			std::string Document::ToJSON(TDocument* Document)
+			std::string Document::ToJSON() const
 			{
 #ifdef TH_HAS_MONGOC
-				if (!Document)
+				if (!Base)
 					return std::string();
 
 				size_t Length = 0;
-				char* Value = bson_as_json(Document, &Length);
+				char* Value = bson_as_json(Base, &Length);
 
 				std::string Output;
 				Output.assign(Value, (uint64_t)Length);
@@ -776,28 +682,26 @@ namespace Tomahawk
 				return "";
 #endif
 			}
-			Rest::Document* Document::ToDocument(TDocument* Document, bool IsArray)
+			Rest::Document* Document::ToDocument(bool IsArray) const
 			{
 #ifdef TH_HAS_MONGOC
-				if (!Document)
+				if (!Base)
 					return nullptr;
 
-				Rest::Document* New = (IsArray ? Rest::Document::Array() : Rest::Document::Object());
-				Loop(Document, New, [](TDocument* Base, Property* Key, void* UserData) -> bool
+				Rest::Document* Node = (IsArray ? Rest::Document::Array() : Rest::Document::Object());
+				Loop([Node](Property* Key) -> bool
 				{
-					Rest::Document* Node = (Rest::Document*)UserData;
 					std::string Name = (Node->Value.GetType() == Rest::VarType_Array ? "" : Key->Name);
-
 					switch (Key->Mod)
 					{
 						case Type_Document:
 						{
-							Node->Set(Name, ToDocument(Key->Document, false));
+							Node->Set(Name, Document(Key->Object).ToDocument(false));
 							break;
 						}
 						case Type_Array:
 						{
-							Node->Set(Name, ToDocument(Key->Array, true));
+							Node->Set(Name, Document(Key->Array).ToDocument(true));
 							break;
 						}
 						case Type_String:
@@ -834,106 +738,602 @@ namespace Tomahawk
 					return true;
 				});
 
-				return New;
+				return Node;
 #else
 				return nullptr;
 #endif
 			}
-			TDocument* Document::Copy(TDocument* Document)
+			TDocument* Document::Get() const
 			{
 #ifdef TH_HAS_MONGOC
-				if (!Document)
+				return Base;
+#else
+				return nullptr;
+#endif
+			}
+			Document Document::Copy() const
+			{
+#ifdef TH_HAS_MONGOC
+				if (!Base)
 					return nullptr;
 
-				return bson_copy(Document);
+				return Document(bson_copy(Base));
+#else
+				return nullptr;
+#endif
+			}
+			Document Document::FromDocument(Rest::Document* Src)
+			{
+#ifdef TH_HAS_MONGOC
+				if (!Src || !Src->Value.IsObject())
+					return nullptr;
+
+				bool Array = (Src->Value.GetType() == Rest::VarType_Array);
+				Document Result = bson_new();
+				Document Replica = nullptr;
+				uint64_t Index = 0;
+
+				for (auto&& Node : *Src->GetNodes())
+				{
+					switch (Node->Value.GetType())
+					{
+						case Rest::VarType_Object:
+							Replica = Document::FromDocument(Node);
+							Result.SetDocument(Array ? nullptr : Node->Key.c_str(), &Replica, Index);
+							break;
+						case Rest::VarType_Array:
+							Replica = Document::FromDocument(Node);
+							Result.SetArray(Array ? nullptr : Node->Key.c_str(), &Replica, Index);
+							break;
+						case Rest::VarType_String:
+							Result.SetBlob(Array ? nullptr : Node->Key.c_str(), Node->Value.GetString(), Node->Value.GetSize(), Index);
+							break;
+						case Rest::VarType_Boolean:
+							Result.SetBoolean(Array ? nullptr : Node->Key.c_str(), Node->Value.GetBoolean(), Index);
+							break;
+						case Rest::VarType_Decimal:
+							Result.SetDecimalString(Array ? nullptr : Node->Key.c_str(), Node->Value.GetDecimal(), Index);
+							break;
+						case Rest::VarType_Number:
+							Result.SetNumber(Array ? nullptr : Node->Key.c_str(), Node->Value.GetNumber(), Index);
+							break;
+						case Rest::VarType_Integer:
+							Result.SetInteger(Array ? nullptr : Node->Key.c_str(), Node->Value.GetInteger(), Index);
+							break;
+						case Rest::VarType_Null:
+							Result.SetNull(Array ? nullptr : Node->Key.c_str(), Index);
+							break;
+						case Rest::VarType_Base64:
+						{
+							if (Node->Value.GetSize() != 12)
+							{
+								std::string Base = Compute::Common::Base64Encode(Node->Value.GetBlob());
+								Result.SetBlob(Array ? nullptr : Node->Key.c_str(), Base.c_str(), Base.size(), Index);
+							}
+							else
+								Result.SetObjectId(Array ? nullptr : Node->Key.c_str(), Node->Value.GetBase64(), Index);
+							break;
+						}
+						default:
+							break;
+					}
+				}
+
+				return Result;
+#else
+				return nullptr;
+#endif
+			}
+			Document Document::FromEmpty(bool Array)
+			{
+#ifdef TH_HAS_MONGOC
+				if (Array)
+					return BCON_NEW("pipeline", "[", "]");
+				
+				return bson_new();
+#else
+				return nullptr;
+#endif
+			}
+			Document Document::FromJSON(const std::string& JSON)
+			{
+#ifdef TH_HAS_MONGOC
+				bson_error_t Error;
+				memset(&Error, 0, sizeof(bson_error_t));
+
+				TDocument* Result = bson_new_from_json((unsigned char*)JSON.c_str(), (ssize_t)JSON.size(), &Error);
+				if (Result != nullptr && Error.code == 0)
+					return Result;
+
+				if (Result != nullptr)
+					bson_destroy(Result);
+
+				TH_ERROR("[json] %s", Error.message);
+				return nullptr;
+#else
+				return nullptr;
+#endif
+			}
+			Document Document::FromBuffer(const unsigned char* Buffer, uint64_t Length)
+			{
+#ifdef TH_HAS_MONGOC
+				return bson_new_from_data(Buffer, (size_t)Length);
 #else
 				return nullptr;
 #endif
 			}
 
-			TAddress* Address::Create(const char* Uri)
+			Address::Address(TAddress* NewBase) : Base(NewBase)
 			{
-#ifdef TH_HAS_MONGOC
-				return mongoc_uri_new(Uri);
-#else
-				return nullptr;
-#endif
 			}
-			void Address::Release(TAddress** URI)
+			void Address::Release()
 			{
 #ifdef TH_HAS_MONGOC
-				if (!URI || !*URI)
+				if (!Base)
 					return;
 
-				mongoc_uri_destroy(*URI);
-				*URI = nullptr;
+				mongoc_uri_destroy(Base);
+				Base = nullptr;
 #endif
 			}
-			void Address::SetOption(TAddress* URI, const char* Name, int64_t Value)
+			void Address::SetOption(const char* Name, int64_t Value)
 			{
 #ifdef TH_HAS_MONGOC
-				if (URI != nullptr)
-					mongoc_uri_set_option_as_int32(URI, Name, (int32_t)Value);
+				if (Base != nullptr)
+					mongoc_uri_set_option_as_int32(Base, Name, (int32_t)Value);
 #endif
 			}
-			void Address::SetOption(TAddress* URI, const char* Name, bool Value)
+			void Address::SetOption(const char* Name, bool Value)
 			{
 #ifdef TH_HAS_MONGOC
-				if (URI != nullptr)
-					mongoc_uri_set_option_as_bool(URI, Name, Value);
+				if (Base != nullptr)
+					mongoc_uri_set_option_as_bool(Base, Name, Value);
 #endif
 			}
-			void Address::SetOption(TAddress* URI, const char* Name, const char* Value)
+			void Address::SetOption(const char* Name, const char* Value)
 			{
 #ifdef TH_HAS_MONGOC
-				if (URI != nullptr)
-					mongoc_uri_set_option_as_utf8(URI, Name, Value);
+				if (Base != nullptr)
+					mongoc_uri_set_option_as_utf8(Base, Name, Value);
 #endif
 			}
-			void Address::SetAuthMechanism(TAddress* URI, const char* Value)
+			void Address::SetAuthMechanism(const char* Value)
 			{
 #ifdef TH_HAS_MONGOC
-				if (URI != nullptr)
-					mongoc_uri_set_auth_mechanism(URI, Value);
+				if (Base != nullptr)
+					mongoc_uri_set_auth_mechanism(Base, Value);
 #endif
 			}
-			void Address::SetAuthSource(TAddress* URI, const char* Value)
+			void Address::SetAuthSource(const char* Value)
 			{
 #ifdef TH_HAS_MONGOC
-				if (URI != nullptr)
-					mongoc_uri_set_auth_source(URI, Value);
+				if (Base != nullptr)
+					mongoc_uri_set_auth_source(Base, Value);
 #endif
 			}
-			void Address::SetCompressors(TAddress* URI, const char* Value)
+			void Address::SetCompressors(const char* Value)
 			{
 #ifdef TH_HAS_MONGOC
-				if (URI != nullptr)
-					mongoc_uri_set_compressors(URI, Value);
+				if (Base != nullptr)
+					mongoc_uri_set_compressors(Base, Value);
 #endif
 			}
-			void Address::SetDatabase(TAddress* URI, const char* Value)
+			void Address::SetDatabase(const char* Value)
 			{
 #ifdef TH_HAS_MONGOC
-				if (URI != nullptr)
-					mongoc_uri_set_database(URI, Value);
+				if (Base != nullptr)
+					mongoc_uri_set_database(Base, Value);
 #endif
 			}
-			void Address::SetUsername(TAddress* URI, const char* Value)
+			void Address::SetUsername(const char* Value)
 			{
 #ifdef TH_HAS_MONGOC
-				if (URI != nullptr)
-					mongoc_uri_set_username(URI, Value);
+				if (Base != nullptr)
+					mongoc_uri_set_username(Base, Value);
 #endif
 			}
-			void Address::SetPassword(TAddress* URI, const char* Value)
+			void Address::SetPassword(const char* Value)
 			{
 #ifdef TH_HAS_MONGOC
-				if (URI != nullptr)
-					mongoc_uri_set_password(URI, Value);
+				if (Base != nullptr)
+					mongoc_uri_set_password(Base, Value);
+#endif
+			}
+			TAddress* Address::Get() const
+			{
+#ifdef TH_HAS_MONGOC
+				return Base;
+#else
+				return nullptr;
+#endif
+			}
+			Address Address::FromURI(const char* Value)
+			{
+#ifdef TH_HAS_MONGOC
+				return mongoc_uri_new(Value);
+#else
+				return nullptr;
 #endif
 			}
 
-			TStream* Stream::Create(bool IsOrdered)
+			Stream::Stream(TStream* NewBase) : Base(NewBase)
+			{
+			}
+			void Stream::Release()
+			{
+#ifdef TH_HAS_MONGOC
+				if (!Base)
+					return;
+
+				mongoc_bulk_operation_destroy(Base);
+				Base = nullptr;
+#endif
+			}
+			bool Stream::RemoveMany(Document* Selector, Document* Options)
+			{
+#ifdef TH_HAS_MONGOC
+				if (!Base)
+				{
+					MDB_FREE(Selector);
+					MDB_FREE(Options);
+					return false;
+				}
+
+				bson_error_t Error;
+				memset(&Error, 0, sizeof(bson_error_t));
+
+				if (!mongoc_bulk_operation_remove_many_with_opts(Base, MDB_POP(Selector), MDB_POP(Options), &Error))
+				{
+					MDB_FREE(Selector);
+					MDB_FREE(Options);
+					TH_ERROR("[mongoc] %s", Error.message);
+					return false;
+				}
+
+				MDB_FREE(Selector);
+				MDB_FREE(Options);
+				return true;
+#else
+				return false;
+#endif
+			}
+			bool Stream::RemoveOne(Document* Selector, Document* Options)
+			{
+#ifdef TH_HAS_MONGOC
+				if (!Base)
+				{
+					MDB_FREE(Selector);
+					MDB_FREE(Options);
+					return false;
+				}
+
+				bson_error_t Error;
+				memset(&Error, 0, sizeof(bson_error_t));
+
+				if (!mongoc_bulk_operation_remove_one_with_opts(Base, MDB_POP(Selector), MDB_POP(Options), &Error))
+				{
+					MDB_FREE(Selector);
+					MDB_FREE(Options);
+					TH_ERROR("[mongoc] %s", Error.message);
+					return false;
+				}
+
+				MDB_FREE(Selector);
+				MDB_FREE(Options);
+				return true;
+#else
+				return false;
+#endif
+			}
+			bool Stream::ReplaceOne(Document* Selector, Document* Replacement, Document* Options)
+			{
+#ifdef TH_HAS_MONGOC
+				if (!Base)
+				{
+					MDB_FREE(Selector);
+					MDB_FREE(Replacement);
+					MDB_FREE(Options);
+					return false;
+				}
+
+				bson_error_t Error;
+				memset(&Error, 0, sizeof(bson_error_t));
+
+				if (!mongoc_bulk_operation_replace_one_with_opts(Base, MDB_POP(Selector), MDB_POP(Replacement), MDB_POP(Options), &Error))
+				{
+					MDB_FREE(Selector);
+					MDB_FREE(Replacement);
+					MDB_FREE(Options);
+					TH_ERROR("[mongoc] %s", Error.message);
+					return false;
+				}
+
+				MDB_FREE(Selector);
+				MDB_FREE(Replacement);
+				MDB_FREE(Options);
+				return true;
+#else
+				return false;
+#endif
+			}
+			bool Stream::Insert(Document* Result, Document* Options)
+			{
+#ifdef TH_HAS_MONGOC
+				if (!Base)
+				{
+					MDB_FREE(Result);
+					MDB_FREE(Options);
+					return false;
+				}
+
+				bson_error_t Error;
+				memset(&Error, 0, sizeof(bson_error_t));
+
+				if (!mongoc_bulk_operation_insert_with_opts(Base, MDB_POP(Result), MDB_POP(Options), &Error))
+				{
+					MDB_FREE(Result);
+					MDB_FREE(Options);
+					TH_ERROR("[mongoc] %s", Error.message);
+					return false;
+				}
+
+				MDB_FREE(Result);
+				MDB_FREE(Options);
+				return true;
+#else
+				return false;
+#endif
+			}
+			bool Stream::UpdateOne(Document* Selector, Document* Result, Document* Options)
+			{
+#ifdef TH_HAS_MONGOC
+				if (!Base)
+				{
+					MDB_FREE(Selector);
+					MDB_FREE(Result);
+					MDB_FREE(Options);
+					return false;
+				}
+
+				bson_error_t Error;
+				memset(&Error, 0, sizeof(bson_error_t));
+
+				if (!mongoc_bulk_operation_update_one_with_opts(Base, MDB_POP(Selector), MDB_POP(Result), MDB_POP(Options), &Error))
+				{
+					MDB_FREE(Selector);
+					MDB_FREE(Result);
+					MDB_FREE(Options);
+					TH_ERROR("[mongoc] %s", Error.message);
+					return false;
+				}
+
+				MDB_FREE(Selector);
+				MDB_FREE(Result);
+				MDB_FREE(Options);
+				return true;
+#else
+				return false;
+#endif
+			}
+			bool Stream::UpdateMany(Document* Selector, Document* Result, Document* Options)
+			{
+#ifdef TH_HAS_MONGOC
+				if (!Base)
+				{
+					MDB_FREE(Selector);
+					MDB_FREE(Result);
+					MDB_FREE(Options);
+					return false;
+				}
+
+				bson_error_t Error;
+				memset(&Error, 0, sizeof(bson_error_t));
+
+				if (!mongoc_bulk_operation_update_many_with_opts(Base, MDB_POP(Selector), MDB_POP(Result), MDB_POP(Options), &Error))
+				{
+					MDB_FREE(Selector);
+					MDB_FREE(Result);
+					MDB_FREE(Options);
+					TH_ERROR("[mongoc] %s", Error.message);
+					return false;
+				}
+
+				MDB_FREE(Selector);
+				MDB_FREE(Result);
+				MDB_FREE(Options);
+				return true;
+#else
+				return false;
+#endif
+			}
+			bool Stream::RemoveMany(const Document& Selector, const Document& Options)
+			{
+#ifdef TH_HAS_MONGOC
+				if (!Base)
+					return false;
+
+				bson_error_t Error;
+				memset(&Error, 0, sizeof(bson_error_t));
+
+				if (!mongoc_bulk_operation_remove_many_with_opts(Base, Selector.Get(), Options.Get(), &Error))
+				{
+					TH_ERROR("[mongoc] %s", Error.message);
+					return false;
+				}
+
+				return true;
+#else
+				return false;
+#endif
+			}
+			bool Stream::RemoveOne(const Document& Selector, const Document& Options)
+			{
+#ifdef TH_HAS_MONGOC
+				if (!Base)
+					return false;
+
+				bson_error_t Error;
+				memset(&Error, 0, sizeof(bson_error_t));
+
+				if (!mongoc_bulk_operation_remove_one_with_opts(Base, Selector.Get(), Options.Get(), &Error))
+				{
+					TH_ERROR("[mongoc] %s", Error.message);
+					return false;
+				}
+
+				return true;
+#else
+				return false;
+#endif
+			}
+			bool Stream::ReplaceOne(const Document& Selector, const Document& Replacement, const Document& Options)
+			{
+#ifdef TH_HAS_MONGOC
+				if (!Base)
+					return false;
+
+				bson_error_t Error;
+				memset(&Error, 0, sizeof(bson_error_t));
+
+				if (!mongoc_bulk_operation_replace_one_with_opts(Base, Selector.Get(), Replacement.Get(), Options.Get(), &Error))
+				{
+					TH_ERROR("[mongoc] %s", Error.message);
+					return false;
+				}
+
+				return true;
+#else
+				return false;
+#endif
+			}
+			bool Stream::Insert(const Document& Result, const Document& Options)
+			{
+#ifdef TH_HAS_MONGOC
+				if (!Base)
+					return false;
+
+				bson_error_t Error;
+				memset(&Error, 0, sizeof(bson_error_t));
+
+				if (!mongoc_bulk_operation_insert_with_opts(Base, Result.Get(), Options.Get(), &Error))
+				{
+					TH_ERROR("[mongoc] %s", Error.message);
+					return false;
+				}
+
+				return true;
+#else
+				return false;
+#endif
+			}
+			bool Stream::UpdateOne(const Document& Selector, const Document& Result, const Document& Options)
+			{
+#ifdef TH_HAS_MONGOC
+				if (!Base)
+					return false;
+
+				bson_error_t Error;
+				memset(&Error, 0, sizeof(bson_error_t));
+
+				if (!mongoc_bulk_operation_update_one_with_opts(Base, Selector.Get(), Result.Get(), Options.Get(), &Error))
+				{
+					TH_ERROR("[mongoc] %s", Error.message);
+					return false;
+				}
+
+				return true;
+#else
+				return false;
+#endif
+			}
+			bool Stream::UpdateMany(const Document& Selector, const Document& Result, const Document& Options)
+			{
+#ifdef TH_HAS_MONGOC
+				if (!Base)
+					return false;
+
+				bson_error_t Error;
+				memset(&Error, 0, sizeof(bson_error_t));
+
+				if (!mongoc_bulk_operation_update_many_with_opts(Base, Selector.Get(), Result.Get(), Options.Get(), &Error))
+				{
+					TH_ERROR("[mongoc] %s", Error.message);
+					return false;
+				}
+
+				return true;
+#else
+				return false;
+#endif
+			}
+			bool Stream::Execute()
+			{
+#ifdef TH_HAS_MONGOC
+				if (!Base)
+					return false;
+
+				bson_error_t Error;
+				memset(&Error, 0, sizeof(bson_error_t));
+
+				TDocument Result;
+				if (!mongoc_bulk_operation_execute(Base, &Result, &Error))
+				{
+					Release();
+					bson_destroy(&Result);
+					return false;
+				}
+
+				Release();
+				bson_destroy(&Result);
+				return true;
+#else
+				return false;
+#endif
+			}
+			bool Stream::Execute(Document* Reply)
+			{
+#ifdef TH_HAS_MONGOC
+				if (!MDB_POP(Reply))
+					return Execute();
+
+				if (!Base)
+					return false;
+
+				bson_error_t Error;
+				memset(&Error, 0, sizeof(bson_error_t));
+
+				if (!mongoc_bulk_operation_execute(Base, MDB_POP(Reply), &Error))
+				{
+					Release();
+					return false;
+				}
+
+				Release();
+				return true;
+#else
+				return false;
+#endif
+			}
+			uint64_t Stream::GetHint() const
+			{
+#ifdef TH_HAS_MONGOC
+				if (!Base)
+					return 0;
+
+				return (uint64_t)mongoc_bulk_operation_get_hint(Base);
+#else
+				return 0;
+#endif
+			}
+			TStream* Stream::Get() const
+			{
+#ifdef TH_HAS_MONGOC
+				return Base;
+#else
+				return nullptr;
+#endif
+			}
+			Stream Stream::FromEmpty(bool IsOrdered)
 			{
 #ifdef TH_HAS_MONGOC
 				return mongoc_bulk_operation_new(IsOrdered);
@@ -941,762 +1341,269 @@ namespace Tomahawk
 				return nullptr;
 #endif
 			}
-			void Stream::Release(TStream** Operation)
-			{
-#ifdef TH_HAS_MONGOC
-				if (!Operation || !*Operation)
-					return;
 
-				mongoc_bulk_operation_destroy(*Operation);
-				*Operation = nullptr;
-#endif
+			Cursor::Cursor(TCursor* NewBase) : Base(NewBase)
+			{
 			}
-			bool Stream::RemoveMany(TStream* Operation, TDocument** Selector, TDocument** Options)
+			void Cursor::Release()
 			{
 #ifdef TH_HAS_MONGOC
-				if (!Operation)
-				{
-					Document::Release(Selector);
-					Document::Release(Options);
-					return false;
-				}
-
-				bson_error_t Error;
-				memset(&Error, 0, sizeof(bson_error_t));
-
-				if (!mongoc_bulk_operation_remove_many_with_opts(Operation, BS(Selector), BS(Options), &Error))
-				{
-					Document::Release(Selector);
-					Document::Release(Options);
-					TH_ERROR("[mongoc] %s", Error.message);
-					return false;
-				}
-
-				Document::Release(Selector);
-				Document::Release(Options);
-				return true;
-#else
-				return false;
-#endif
-			}
-			bool Stream::RemoveOne(TStream* Operation, TDocument** Selector, TDocument** Options)
-			{
-#ifdef TH_HAS_MONGOC
-				if (!Operation)
-				{
-					Document::Release(Selector);
-					Document::Release(Options);
-					return false;
-				}
-
-				bson_error_t Error;
-				memset(&Error, 0, sizeof(bson_error_t));
-
-				if (!mongoc_bulk_operation_remove_one_with_opts(Operation, BS(Selector), BS(Options), &Error))
-				{
-					Document::Release(Selector);
-					Document::Release(Options);
-					TH_ERROR("[mongoc] %s", Error.message);
-					return false;
-				}
-
-				Document::Release(Selector);
-				Document::Release(Options);
-				return true;
-#else
-				return false;
-#endif
-			}
-			bool Stream::ReplaceOne(TStream* Operation, TDocument** Selector, TDocument** Replacement, TDocument** Options)
-			{
-#ifdef TH_HAS_MONGOC
-				if (!Operation)
-				{
-					Document::Release(Selector);
-					Document::Release(Replacement);
-					Document::Release(Options);
-					return false;
-				}
-
-				bson_error_t Error;
-				memset(&Error, 0, sizeof(bson_error_t));
-
-				if (!mongoc_bulk_operation_replace_one_with_opts(Operation, BS(Selector), BS(Replacement), BS(Options), &Error))
-				{
-					Document::Release(Selector);
-					Document::Release(Replacement);
-					Document::Release(Options);
-					TH_ERROR("[mongoc] %s", Error.message);
-					return false;
-				}
-
-				Document::Release(Selector);
-				Document::Release(Replacement);
-				Document::Release(Options);
-				return true;
-#else
-				return false;
-#endif
-			}
-			bool Stream::Insert(TStream* Operation, TDocument** Document, TDocument** Options)
-			{
-#ifdef TH_HAS_MONGOC
-				if (!Operation)
-				{
-					Document::Release(Document);
-					Document::Release(Options);
-					return false;
-				}
-
-				bson_error_t Error;
-				memset(&Error, 0, sizeof(bson_error_t));
-
-				if (!mongoc_bulk_operation_insert_with_opts(Operation, BS(Document), BS(Options), &Error))
-				{
-					Document::Release(Document);
-					Document::Release(Options);
-					TH_ERROR("[mongoc] %s", Error.message);
-					return false;
-				}
-
-				Document::Release(Document);
-				Document::Release(Options);
-				return true;
-#else
-				return false;
-#endif
-			}
-			bool Stream::UpdateOne(TStream* Operation, TDocument** Selector, TDocument** Document, TDocument** Options)
-			{
-#ifdef TH_HAS_MONGOC
-				if (!Operation)
-				{
-					Document::Release(Selector);
-					Document::Release(Document);
-					Document::Release(Options);
-					return false;
-				}
-
-				bson_error_t Error;
-				memset(&Error, 0, sizeof(bson_error_t));
-
-				if (!mongoc_bulk_operation_update_one_with_opts(Operation, BS(Selector), BS(Document), BS(Options), &Error))
-				{
-					Document::Release(Selector);
-					Document::Release(Document);
-					Document::Release(Options);
-					TH_ERROR("[mongoc] %s", Error.message);
-					return false;
-				}
-
-				Document::Release(Selector);
-				Document::Release(Document);
-				Document::Release(Options);
-				return true;
-#else
-				return false;
-#endif
-			}
-			bool Stream::UpdateMany(TStream* Operation, TDocument** Selector, TDocument** Document, TDocument** Options)
-			{
-#ifdef TH_HAS_MONGOC
-				if (!Operation)
-				{
-					Document::Release(Selector);
-					Document::Release(Document);
-					Document::Release(Options);
-					return false;
-				}
-
-				bson_error_t Error;
-				memset(&Error, 0, sizeof(bson_error_t));
-
-				if (!mongoc_bulk_operation_update_many_with_opts(Operation, BS(Selector), BS(Document), BS(Options), &Error))
-				{
-					Document::Release(Selector);
-					Document::Release(Document);
-					Document::Release(Options);
-					TH_ERROR("[mongoc] %s", Error.message);
-					return false;
-				}
-
-				Document::Release(Selector);
-				Document::Release(Document);
-				Document::Release(Options);
-				return true;
-#else
-				return false;
-#endif
-			}
-			bool Stream::RemoveMany(TStream* Operation, TDocument* Selector, TDocument* Options)
-			{
-#ifdef TH_HAS_MONGOC
-				if (!Operation)
-					return false;
-
-				bson_error_t Error;
-				memset(&Error, 0, sizeof(bson_error_t));
-
-				if (!mongoc_bulk_operation_remove_many_with_opts(Operation, Selector, Options, &Error))
-				{
-					TH_ERROR("[mongoc] %s", Error.message);
-					return false;
-				}
-
-				return true;
-#else
-				return false;
-#endif
-			}
-			bool Stream::RemoveOne(TStream* Operation, TDocument* Selector, TDocument* Options)
-			{
-#ifdef TH_HAS_MONGOC
-				if (!Operation)
-					return false;
-
-				bson_error_t Error;
-				memset(&Error, 0, sizeof(bson_error_t));
-
-				if (!mongoc_bulk_operation_remove_one_with_opts(Operation, Selector, Options, &Error))
-				{
-					TH_ERROR("[mongoc] %s", Error.message);
-					return false;
-				}
-
-				return true;
-#else
-				return false;
-#endif
-			}
-			bool Stream::ReplaceOne(TStream* Operation, TDocument* Selector, TDocument* Replacement, TDocument* Options)
-			{
-#ifdef TH_HAS_MONGOC
-				if (!Operation)
-					return false;
-
-				bson_error_t Error;
-				memset(&Error, 0, sizeof(bson_error_t));
-
-				if (!mongoc_bulk_operation_replace_one_with_opts(Operation, Selector, Replacement, Options, &Error))
-				{
-					TH_ERROR("[mongoc] %s", Error.message);
-					return false;
-				}
-
-				return true;
-#else
-				return false;
-#endif
-			}
-			bool Stream::Insert(TStream* Operation, TDocument* Document, TDocument* Options)
-			{
-#ifdef TH_HAS_MONGOC
-				if (!Operation)
-					return false;
-
-				bson_error_t Error;
-				memset(&Error, 0, sizeof(bson_error_t));
-
-				if (!mongoc_bulk_operation_insert_with_opts(Operation, Document, Options, &Error))
-				{
-					TH_ERROR("[mongoc] %s", Error.message);
-					return false;
-				}
-
-				return true;
-#else
-				return false;
-#endif
-			}
-			bool Stream::UpdateOne(TStream* Operation, TDocument* Selector, TDocument* Document, TDocument* Options)
-			{
-#ifdef TH_HAS_MONGOC
-				if (!Operation)
-					return false;
-
-				bson_error_t Error;
-				memset(&Error, 0, sizeof(bson_error_t));
-
-				if (!mongoc_bulk_operation_update_one_with_opts(Operation, Selector, Document, Options, &Error))
-				{
-					TH_ERROR("[mongoc] %s", Error.message);
-					return false;
-				}
-
-				return true;
-#else
-				return false;
-#endif
-			}
-			bool Stream::UpdateMany(TStream* Operation, TDocument* Selector, TDocument* Document, TDocument* Options)
-			{
-#ifdef TH_HAS_MONGOC
-				if (!Operation)
-					return false;
-
-				bson_error_t Error;
-				memset(&Error, 0, sizeof(bson_error_t));
-
-				if (!mongoc_bulk_operation_update_many_with_opts(Operation, Selector, Document, Options, &Error))
-				{
-					TH_ERROR("[mongoc] %s", Error.message);
-					return false;
-				}
-
-				return true;
-#else
-				return false;
-#endif
-			}
-			bool Stream::Execute(TStream** Operation)
-			{
-#ifdef TH_HAS_MONGOC
-				if (!Operation || !*Operation)
-					return false;
-
-				bson_error_t Error;
-				memset(&Error, 0, sizeof(bson_error_t));
-
-				TDocument Result;
-				if (!mongoc_bulk_operation_execute(*Operation, &Result, &Error))
-				{
-					Release(Operation);
-					bson_destroy(&Result);
-					return false;
-				}
-
-				Release(Operation);
-				bson_destroy(&Result);
-				return true;
-#else
-				return false;
-#endif
-			}
-			bool Stream::Execute(TStream** Operation, TDocument** Reply)
-			{
-#ifdef TH_HAS_MONGOC
-				if (Reply == nullptr || *Reply == nullptr)
-					return Execute(Operation);
-
-				if (!Operation || !*Operation)
-					return false;
-
-				bson_error_t Error;
-				memset(&Error, 0, sizeof(bson_error_t));
-
-				if (!mongoc_bulk_operation_execute(*Operation, BS(Reply), &Error))
-				{
-					Release(Operation);
-					return false;
-				}
-
-				Release(Operation);
-				return true;
-#else
-				return false;
-#endif
-			}
-			uint64_t Stream::GetHint(TStream* Operation)
-			{
-#ifdef TH_HAS_MONGOC
-				if (!Operation)
-					return 0;
-
-				return (uint64_t)mongoc_bulk_operation_get_hint(Operation);
-#else
-				return 0;
-#endif
-			}
-
-			TWatcher* Watcher::Create(TConnection* Connection, TDocument** Pipeline, TDocument** Options)
-			{
-#ifdef TH_HAS_MONGOC
-				if (!Connection)
-				{
-					Document::Release(Pipeline);
-					Document::Release(Options);
-					return nullptr;
-				}
-
-				TWatcher* Stream = mongoc_client_watch(Connection, BS(Pipeline), BS(Options));
-				Document::Release(Pipeline);
-				Document::Release(Options);
-
-				return Stream;
-#else
-				return nullptr;
-#endif
-			}
-			TWatcher* Watcher::Create(TDatabase* Database, TDocument** Pipeline, TDocument** Options)
-			{
-#ifdef TH_HAS_MONGOC
-				if (!Database)
-				{
-					Document::Release(Pipeline);
-					Document::Release(Options);
-					return nullptr;
-				}
-
-				TWatcher* Stream = mongoc_database_watch(Database, BS(Pipeline), BS(Options));
-				Document::Release(Pipeline);
-				Document::Release(Options);
-
-				return Stream;
-#else
-				return nullptr;
-#endif
-			}
-			TWatcher* Watcher::Create(TCollection* Collection, TDocument** Pipeline, TDocument** Options)
-			{
-#ifdef TH_HAS_MONGOC
-				if (!Collection)
-				{
-					Document::Release(Pipeline);
-					Document::Release(Options);
-					return nullptr;
-				}
-
-				TWatcher* Stream = mongoc_collection_watch(Collection, BS(Pipeline), BS(Options));
-				Document::Release(Pipeline);
-				Document::Release(Options);
-
-				return Stream;
-#else
-				return nullptr;
-#endif
-			}
-			void Watcher::Release(TWatcher** Stream)
-			{
-#ifdef TH_HAS_MONGOC
-				if (!Stream || !*Stream)
-					return;
-
-				mongoc_change_stream_destroy(*Stream);
-				*Stream = nullptr;
-#endif
-			}
-			bool Watcher::Next(TWatcher* Stream, TDocument** Result)
-			{
-#ifdef TH_HAS_MONGOC
-				if (!Stream)
-				{
-					Document::Release(Result);
-					return false;
-				}
-
-				return mongoc_change_stream_next(Stream, (const TDocument**)Result);
-#else
-				return false;
-#endif
-			}
-			bool Watcher::Error(TWatcher* Stream, TDocument** Result)
-			{
-#ifdef TH_HAS_MONGOC
-				if (!Stream)
-				{
-					Document::Release(Result);
-					return false;
-				}
-
-				return mongoc_change_stream_error_document(Stream, nullptr, (const TDocument**)Result);
-#else
-				return false;
-#endif
-			}
-
-			void Cursor::Release(TCursor** Cursor)
-			{
-#ifdef TH_HAS_MONGOC
-				if (!Cursor || !*Cursor)
+				if (!Base)
 					return;
 
 				bson_error_t Error;
 				memset(&Error, 0, sizeof(bson_error_t));
 
-				if (mongoc_cursor_error(*Cursor, &Error))
+				if (mongoc_cursor_error(Base, &Error))
 					TH_ERROR("[mongoc] %s", Error.message);
 
-				mongoc_cursor_destroy(*Cursor);
-				*Cursor = nullptr;
+				mongoc_cursor_destroy(Base);
+				Base = nullptr;
 #endif
 			}
-			void Cursor::Receive(TCursor* Cursor, void* Context, bool(* Next)(TCursor*, TDocument*, void*))
+			void Cursor::Receive(const std::function<bool(const Document&)>& Callback) const
 			{
 #ifdef TH_HAS_MONGOC
-				if (!Next || !Cursor)
+				if (!Callback || !Base)
 					return;
 
 				TDocument* Query = nullptr;
-				while (mongoc_cursor_next(Cursor, (const TDocument**)&Query))
+				while (mongoc_cursor_next(Base, (const TDocument**)&Query))
 				{
-					if (!Next(Cursor, Query, Context))
+					if (!Callback(Query))
 						break;
 				}
 #endif
 			}
-			void Cursor::SetMaxAwaitTime(TCursor* Cursor, uint64_t MaxAwaitTime)
+			void Cursor::SetMaxAwaitTime(uint64_t MaxAwaitTime)
 			{
 #ifdef TH_HAS_MONGOC
-				if (Cursor != nullptr)
-					mongoc_cursor_set_max_await_time_ms(Cursor, (uint32_t)MaxAwaitTime);
+				if (Base != nullptr)
+					mongoc_cursor_set_max_await_time_ms(Base, (uint32_t)MaxAwaitTime);
 #endif
 			}
-			void Cursor::SetBatchSize(TCursor* Cursor, uint64_t BatchSize)
+			void Cursor::SetBatchSize(uint64_t BatchSize)
 			{
 #ifdef TH_HAS_MONGOC
-				if (Cursor != nullptr)
-					mongoc_cursor_set_batch_size(Cursor, (uint32_t)BatchSize);
+				if (Base != nullptr)
+					mongoc_cursor_set_batch_size(Base, (uint32_t)BatchSize);
 #endif
 			}
-			bool Cursor::Next(TCursor* Cursor)
+			bool Cursor::SetLimit(int64_t Limit)
 			{
 #ifdef TH_HAS_MONGOC
-				if (!Cursor)
+				if (!Base)
+					return false;
+
+				return mongoc_cursor_set_limit(Base, Limit);
+#else
+				return false;
+#endif
+			}
+			bool Cursor::SetHint(uint64_t Hint)
+			{
+#ifdef TH_HAS_MONGOC
+				if (!Base)
+					return false;
+
+				return mongoc_cursor_set_hint(Base, (uint32_t)Hint);
+#else
+				return false;
+#endif
+			}
+			bool Cursor::Next() const
+			{
+#ifdef TH_HAS_MONGOC
+				if (!Base)
 					return false;
 
 				TDocument* Query = nullptr;
-				return mongoc_cursor_next(Cursor, (const TDocument**)&Query);
+				return mongoc_cursor_next(Base, (const TDocument**)&Query);
 #else
 				return false;
 #endif
 			}
-			bool Cursor::SetLimit(TCursor* Cursor, int64_t Limit)
+			bool Cursor::HasError() const
 			{
 #ifdef TH_HAS_MONGOC
-				if (!Cursor)
+				if (!Base)
 					return false;
 
-				return mongoc_cursor_set_limit(Cursor, Limit);
+				return mongoc_cursor_error(Base, nullptr);
 #else
 				return false;
 #endif
 			}
-			bool Cursor::SetHint(TCursor* Cursor, uint64_t Hint)
+			bool Cursor::HasMoreData() const
 			{
 #ifdef TH_HAS_MONGOC
-				if (!Cursor)
+				if (!Base)
 					return false;
 
-				return mongoc_cursor_set_hint(Cursor, (uint32_t)Hint);
+				return mongoc_cursor_more(Base);
 #else
 				return false;
 #endif
 			}
-			bool Cursor::HasError(TCursor* Cursor)
+			int64_t Cursor::GetId() const
 			{
 #ifdef TH_HAS_MONGOC
-				if (!Cursor)
-					return false;
-
-				return mongoc_cursor_error(Cursor, nullptr);
-#else
-				return false;
-#endif
-			}
-			bool Cursor::HasMoreData(TCursor* Cursor)
-			{
-#ifdef TH_HAS_MONGOC
-				if (!Cursor)
-					return false;
-
-				return mongoc_cursor_more(Cursor);
-#else
-				return false;
-#endif
-			}
-			int64_t Cursor::GetId(TCursor* Cursor)
-			{
-#ifdef TH_HAS_MONGOC
-				if (!Cursor)
+				if (!Base)
 					return 0;
 
-				return (int64_t)mongoc_cursor_get_id(Cursor);
+				return (int64_t)mongoc_cursor_get_id(Base);
 #else
 				return 0;
 #endif
 			}
-			int64_t Cursor::GetLimit(TCursor* Cursor)
+			int64_t Cursor::GetLimit() const
 			{
 #ifdef TH_HAS_MONGOC
-				if (!Cursor)
+				if (!Base)
 					return 0;
 
-				return (int64_t)mongoc_cursor_get_limit(Cursor);
+				return (int64_t)mongoc_cursor_get_limit(Base);
 #else
 				return 0;
 #endif
 			}
-			uint64_t Cursor::GetMaxAwaitTime(TCursor* Cursor)
+			uint64_t Cursor::GetMaxAwaitTime() const
 			{
 #ifdef TH_HAS_MONGOC
-				if (!Cursor)
+				if (!Base)
 					return 0;
 
-				return (uint64_t)mongoc_cursor_get_max_await_time_ms(Cursor);
+				return (uint64_t)mongoc_cursor_get_max_await_time_ms(Base);
 #else
 				return 0;
 #endif
 			}
-			uint64_t Cursor::GetBatchSize(TCursor* Cursor)
+			uint64_t Cursor::GetBatchSize() const
 			{
 #ifdef TH_HAS_MONGOC
-				if (!Cursor)
+				if (!Base)
 					return 0;
 
-				return (uint64_t)mongoc_cursor_get_batch_size(Cursor);
+				return (uint64_t)mongoc_cursor_get_batch_size(Base);
 #else
 				return 0;
 #endif
 			}
-			uint64_t Cursor::GetHint(TCursor* Cursor)
+			uint64_t Cursor::GetHint() const
 			{
 #ifdef TH_HAS_MONGOC
-				if (!Cursor)
+				if (!Base)
 					return 0;
 
-				return (uint64_t)mongoc_cursor_get_hint(Cursor);
+				return (uint64_t)mongoc_cursor_get_hint(Base);
 #else
 				return 0;
 #endif
 			}
-			TDocument* Cursor::GetCurrent(TCursor* Cursor)
+			Document Cursor::GetCurrent() const
 			{
 #ifdef TH_HAS_MONGOC
-				if (!Cursor)
+				if (!Base)
 					return nullptr;
 
-				return (TDocument*)mongoc_cursor_current(Cursor);
+				return (TDocument*)mongoc_cursor_current(Base);
+#else
+				return nullptr;
+#endif
+			}
+			TCursor* Cursor::Get() const
+			{
+#ifdef TH_HAS_MONGOC
+				return Base;
 #else
 				return nullptr;
 #endif
 			}
 
-			void Collection::Release(TCollection** Collection)
+			Collection::Collection(TCollection* NewBase) : Base(NewBase)
+			{
+			}
+			void Collection::Release()
 			{
 #ifdef TH_HAS_MONGOC
-				if (!Collection || !*Collection)
+				if (!Base)
 					return;
 
-				mongoc_collection_destroy(*Collection);
-				*Collection = nullptr;
+				mongoc_collection_destroy(Base);
+				Base = nullptr;
 #endif
 			}
-			bool Collection::UpdateMany(TCollection* Collection, TDocument** Selector, TDocument** Update, TDocument** Options, TDocument** Reply)
+			bool Collection::UpdateMany(Document* Selector, Document* Update, Document* Options, Document* Reply)
 			{
 #ifdef TH_HAS_MONGOC
-				if (!Collection)
+				if (!Base)
 				{
-					Document::Release(Selector);
-					Document::Release(Update);
-					Document::Release(Options);
+					MDB_FREE(Selector);
+					MDB_FREE(Update);
+					MDB_FREE(Options);
 					return false;
 				}
 
 				bson_error_t Error;
 				memset(&Error, 0, sizeof(bson_error_t));
 
-				if (!mongoc_collection_update_many(Collection, BS(Selector), BS(Update), BS(Options), BS(Reply), &Error))
+				if (!mongoc_collection_update_many(Base, MDB_POP(Selector), MDB_POP(Update), MDB_POP(Options), MDB_POP(Reply), &Error))
 				{
-					Document::Release(Selector);
-					Document::Release(Update);
-					Document::Release(Options);
+					MDB_FREE(Selector);
+					MDB_FREE(Update);
+					MDB_FREE(Options);
 					return false;
 				}
 
-				Document::Release(Selector);
-				Document::Release(Update);
-				Document::Release(Options);
+				MDB_FREE(Selector);
+				MDB_FREE(Update);
+				MDB_FREE(Options);
 				return true;
 #else
 				return false;
 #endif
 			}
-			bool Collection::UpdateOne(TCollection* Collection, TDocument** Selector, TDocument** Update, TDocument** Options, TDocument** Reply)
+			bool Collection::UpdateOne(Document* Selector, Document* Update, Document* Options, Document* Reply)
 			{
 #ifdef TH_HAS_MONGOC
-				if (!Collection)
+				if (!Base)
 				{
-					Document::Release(Selector);
-					Document::Release(Update);
-					Document::Release(Options);
+					MDB_FREE(Selector);
+					MDB_FREE(Update);
+					MDB_FREE(Options);
 					return false;
 				}
 
 				bson_error_t Error;
 				memset(&Error, 0, sizeof(bson_error_t));
 
-				if (!mongoc_collection_update_one(Collection, BS(Selector), BS(Update), BS(Options), BS(Reply), &Error))
+				if (!mongoc_collection_update_one(Base, MDB_POP(Selector), MDB_POP(Update), MDB_POP(Options), MDB_POP(Reply), &Error))
 				{
-					Document::Release(Selector);
-					Document::Release(Update);
-					Document::Release(Options);
+					MDB_FREE(Selector);
+					MDB_FREE(Update);
+					MDB_FREE(Options);
 					TH_ERROR("[mongoc] %s", Error.message);
 					return false;
 				}
 
-				Document::Release(Selector);
-				Document::Release(Update);
-				Document::Release(Options);
+				MDB_FREE(Selector);
+				MDB_FREE(Update);
+				MDB_FREE(Options);
 				return true;
 #else
 				return false;
 #endif
 			}
-			bool Collection::Rename(TCollection* Collection, const char* NewDatabaseName, const char* NewCollectionName)
+			bool Collection::Rename(const char* NewDatabaseName, const char* NewCollectionName)
 			{
 #ifdef TH_HAS_MONGOC
-				if (!Collection)
+				if (!Base)
 					return false;
 
 				bson_error_t Error;
 				memset(&Error, 0, sizeof(bson_error_t));
 
-				if (!mongoc_collection_rename(Collection, NewDatabaseName, NewCollectionName, false, &Error))
-				{
-					TH_ERROR("[mongoc] %s", Error.message);
-					return false;
-				}
-
-				return true;
-#else
-				return false;
-#endif
-			}
-			bool Collection::RenameWithOptions(TCollection* Collection, const char* NewDatabaseName, const char* NewCollectionName, TDocument** Options)
-			{
-#ifdef TH_HAS_MONGOC
-				if (!Collection)
-				{
-					Document::Release(Options);
-					return false;
-				}
-
-				bson_error_t Error;
-				memset(&Error, 0, sizeof(bson_error_t));
-
-				if (!mongoc_collection_rename_with_opts(Collection, NewDatabaseName, NewCollectionName, false, BS(Options), &Error))
-				{
-					Document::Release(Options);
-					TH_ERROR("[mongoc] %s", Error.message);
-					return false;
-				}
-
-				Document::Release(Options);
-				return true;
-#else
-				return false;
-#endif
-			}
-			bool Collection::RenameWithRemove(TCollection* Collection, const char* NewDatabaseName, const char* NewCollectionName)
-			{
-#ifdef TH_HAS_MONGOC
-				if (!Collection)
-					return false;
-
-				bson_error_t Error;
-				memset(&Error, 0, sizeof(bson_error_t));
-
-				if (!mongoc_collection_rename(Collection, NewDatabaseName, NewCollectionName, true, &Error))
+				if (!mongoc_collection_rename(Base, NewDatabaseName, NewCollectionName, false, &Error))
 				{
 					TH_ERROR("[mongoc] %s", Error.message);
 					return false;
@@ -1707,540 +1614,576 @@ namespace Tomahawk
 				return false;
 #endif
 			}
-			bool Collection::RenameWithOptionsAndRemove(TCollection* Collection, const char* NewDatabaseName, const char* NewCollectionName, TDocument** Options)
+			bool Collection::RenameWithOptions(const char* NewDatabaseName, const char* NewCollectionName, Document* Options)
 			{
 #ifdef TH_HAS_MONGOC
-				if (!Collection)
+				if (!Base)
 				{
-					Document::Release(Options);
+					MDB_FREE(Options);
 					return false;
 				}
 
 				bson_error_t Error;
 				memset(&Error, 0, sizeof(bson_error_t));
 
-				if (!mongoc_collection_rename_with_opts(Collection, NewDatabaseName, NewCollectionName, true, BS(Options), &Error))
+				if (!mongoc_collection_rename_with_opts(Base, NewDatabaseName, NewCollectionName, false, MDB_POP(Options), &Error))
 				{
-					Document::Release(Options);
+					MDB_FREE(Options);
 					TH_ERROR("[mongoc] %s", Error.message);
 					return false;
 				}
 
-				Document::Release(Options);
+				MDB_FREE(Options);
 				return true;
 #else
 				return false;
 #endif
 			}
-			bool Collection::Remove(TCollection* Collection, TDocument** Options)
+			bool Collection::RenameWithRemove(const char* NewDatabaseName, const char* NewCollectionName)
 			{
 #ifdef TH_HAS_MONGOC
-				if (!Collection)
+				if (!Base)
+					return false;
+
+				bson_error_t Error;
+				memset(&Error, 0, sizeof(bson_error_t));
+
+				if (!mongoc_collection_rename(Base, NewDatabaseName, NewCollectionName, true, &Error))
 				{
-					Document::Release(Options);
+					TH_ERROR("[mongoc] %s", Error.message);
+					return false;
+				}
+
+				return true;
+#else
+				return false;
+#endif
+			}
+			bool Collection::RenameWithOptionsAndRemove(const char* NewDatabaseName, const char* NewCollectionName, Document* Options)
+			{
+#ifdef TH_HAS_MONGOC
+				if (!Base)
+				{
+					MDB_FREE(Options);
 					return false;
 				}
 
 				bson_error_t Error;
 				memset(&Error, 0, sizeof(bson_error_t));
 
-				if (!mongoc_collection_drop_with_opts(Collection, BS(Options), &Error))
+				if (!mongoc_collection_rename_with_opts(Base, NewDatabaseName, NewCollectionName, true, MDB_POP(Options), &Error))
 				{
-					Document::Release(Options);
+					MDB_FREE(Options);
 					TH_ERROR("[mongoc] %s", Error.message);
 					return false;
 				}
 
-				Document::Release(Options);
+				MDB_FREE(Options);
 				return true;
 #else
 				return false;
 #endif
 			}
-			bool Collection::RemoveMany(TCollection* Collection, TDocument** Selector, TDocument** Options, TDocument** Reply)
+			bool Collection::Remove(Document* Options)
 			{
 #ifdef TH_HAS_MONGOC
-				if (!Collection)
+				if (!Base)
 				{
-					Document::Release(Selector);
-					Document::Release(Options);
+					MDB_FREE(Options);
 					return false;
 				}
 
 				bson_error_t Error;
 				memset(&Error, 0, sizeof(bson_error_t));
 
-				if (!mongoc_collection_delete_many(Collection, BS(Selector), BS(Options), BS(Reply), &Error))
+				if (!mongoc_collection_drop_with_opts(Base, MDB_POP(Options), &Error))
 				{
-					Document::Release(Selector);
-					Document::Release(Options);
+					MDB_FREE(Options);
 					TH_ERROR("[mongoc] %s", Error.message);
 					return false;
 				}
 
-				Document::Release(Selector);
-				Document::Release(Options);
+				MDB_FREE(Options);
 				return true;
 #else
 				return false;
 #endif
 			}
-			bool Collection::RemoveOne(TCollection* Collection, TDocument** Selector, TDocument** Options, TDocument** Reply)
+			bool Collection::RemoveMany(Document* Selector, Document* Options, Document* Reply)
 			{
 #ifdef TH_HAS_MONGOC
-				if (!Collection)
+				if (!Base)
 				{
-					Document::Release(Selector);
-					Document::Release(Options);
+					MDB_FREE(Selector);
+					MDB_FREE(Options);
 					return false;
 				}
 
 				bson_error_t Error;
 				memset(&Error, 0, sizeof(bson_error_t));
 
-				if (!mongoc_collection_delete_one(Collection, BS(Selector), BS(Options), BS(Reply), &Error))
+				if (!mongoc_collection_delete_many(Base, MDB_POP(Selector), MDB_POP(Options), MDB_POP(Reply), &Error))
 				{
-					Document::Release(Selector);
-					Document::Release(Options);
+					MDB_FREE(Selector);
+					MDB_FREE(Options);
 					TH_ERROR("[mongoc] %s", Error.message);
 					return false;
 				}
 
-				Document::Release(Selector);
-				Document::Release(Options);
+				MDB_FREE(Selector);
+				MDB_FREE(Options);
 				return true;
 #else
 				return false;
 #endif
 			}
-			bool Collection::RemoveIndex(TCollection* Collection, const char* Name, TDocument** Options)
+			bool Collection::RemoveOne(Document* Selector, Document* Options, Document* Reply)
 			{
 #ifdef TH_HAS_MONGOC
-				if (!Collection)
+				if (!Base)
 				{
-					Document::Release(Options);
+					MDB_FREE(Selector);
+					MDB_FREE(Options);
 					return false;
 				}
 
 				bson_error_t Error;
 				memset(&Error, 0, sizeof(bson_error_t));
 
-				if (!mongoc_collection_drop_index_with_opts(Collection, Name, BS(Options), &Error))
+				if (!mongoc_collection_delete_one(Base, MDB_POP(Selector), MDB_POP(Options), MDB_POP(Reply), &Error))
 				{
-					Document::Release(Options);
+					MDB_FREE(Selector);
+					MDB_FREE(Options);
 					TH_ERROR("[mongoc] %s", Error.message);
 					return false;
 				}
 
-				Document::Release(Options);
+				MDB_FREE(Selector);
+				MDB_FREE(Options);
 				return true;
 #else
 				return false;
 #endif
 			}
-			bool Collection::ReplaceOne(TCollection* Collection, TDocument** Selector, TDocument** Replacement, TDocument** Options, TDocument** Reply)
+			bool Collection::RemoveIndex(const char* Name, Document* Options)
 			{
 #ifdef TH_HAS_MONGOC
-				if (!Collection)
+				if (!Base)
 				{
-					Document::Release(Selector);
-					Document::Release(Replacement);
-					Document::Release(Options);
+					MDB_FREE(Options);
 					return false;
 				}
 
 				bson_error_t Error;
 				memset(&Error, 0, sizeof(bson_error_t));
 
-				if (!mongoc_collection_replace_one(Collection, BS(Selector), BS(Replacement), BS(Options), BS(Reply), &Error))
+				if (!mongoc_collection_drop_index_with_opts(Base, Name, MDB_POP(Options), &Error))
 				{
-					Document::Release(Selector);
-					Document::Release(Replacement);
-					Document::Release(Options);
+					MDB_FREE(Options);
 					TH_ERROR("[mongoc] %s", Error.message);
 					return false;
 				}
 
-				Document::Release(Selector);
-				Document::Release(Replacement);
-				Document::Release(Options);
+				MDB_FREE(Options);
 				return true;
 #else
 				return false;
 #endif
 			}
-			bool Collection::InsertMany(TCollection* Collection, TDocument** Documents, uint64_t Length, TDocument** Options, TDocument** Reply)
+			bool Collection::ReplaceOne(Document* Selector, Document* Replacement, Document* Options, Document* Reply)
 			{
 #ifdef TH_HAS_MONGOC
-				if (!Collection || !Documents || !Length)
+				if (!Base)
 				{
-					Document::Release(Options);
+					MDB_FREE(Selector);
+					MDB_FREE(Replacement);
+					MDB_FREE(Options);
 					return false;
 				}
 
 				bson_error_t Error;
 				memset(&Error, 0, sizeof(bson_error_t));
 
-				if (!mongoc_collection_insert_many(Collection, (const TDocument**)Documents, (size_t)Length, BS(Options), BS(Reply), &Error))
+				if (!mongoc_collection_replace_one(Base, MDB_POP(Selector), MDB_POP(Replacement), MDB_POP(Options), MDB_POP(Reply), &Error))
 				{
-					Document::Release(Options);
+					MDB_FREE(Selector);
+					MDB_FREE(Replacement);
+					MDB_FREE(Options);
 					TH_ERROR("[mongoc] %s", Error.message);
 					return false;
 				}
 
-				Document::Release(Options);
+				MDB_FREE(Selector);
+				MDB_FREE(Replacement);
+				MDB_FREE(Options);
 				return true;
 #else
 				return false;
 #endif
 			}
-			bool Collection::InsertMany(TCollection* Collection, const std::vector<TDocument*>& Documents, TDocument** Options, TDocument** Reply)
+			bool Collection::InsertMany(std::vector<Document>& List, Document* Options, Document* Reply)
 			{
 #ifdef TH_HAS_MONGOC
-				if (!Collection || !Documents.size())
+				if (!Base || List.empty())
 				{
-					Document::Release(Options);
+					MDB_FREE(Options);
 					return false;
 				}
 
 				bson_error_t Error;
 				memset(&Error, 0, sizeof(bson_error_t));
 
-				if (!mongoc_collection_insert_many(Collection, (const TDocument**)Documents.data(), (size_t)Documents.size(), BS(Options), BS(Reply), &Error))
-				{
-					Document::Release(Options);
-					TH_ERROR("[mongoc] %s", Error.message);
-					return false;
-				}
+				TDocument** Array = (TDocument**)TH_MALLOC(sizeof(TDocument*) * List.size());
+				for (size_t i = 0; i < List.size(); i++)
+					Array[i] = List[i].Get();
 
-				Document::Release(Options);
+				bool Subresult = mongoc_collection_insert_many(Base, (const TDocument**)Array, (size_t)List.size(), MDB_POP(Options), MDB_POP(Reply), &Error);
+				if (!Subresult)
+					TH_ERROR("[mongoc] %s", Error.message);
+
+				for (auto& Item : List)
+					Item.Release();
+
+				MDB_FREE(Options);
+				List.clear();
 				return true;
 #else
 				return false;
 #endif
 			}
-			bool Collection::InsertOne(TCollection* Collection, TDocument** Document, TDocument** Options, TDocument** Reply)
+			bool Collection::InsertOne(Document* Result, Document* Options, Document* Reply)
 			{
 #ifdef TH_HAS_MONGOC
-				if (!Collection)
+				if (!Base)
 				{
-					Document::Release(Options);
-					Document::Release(Document);
+					MDB_FREE(Options);
+					MDB_FREE(Result);
 					return false;
 				}
 
 				bson_error_t Error;
 				memset(&Error, 0, sizeof(bson_error_t));
 
-				if (!mongoc_collection_insert_one(Collection, BS(Document), BS(Options), BS(Reply), &Error))
+				if (!mongoc_collection_insert_one(Base, MDB_POP(Result), MDB_POP(Options), MDB_POP(Reply), &Error))
 				{
-					Document::Release(Options);
-					Document::Release(Document);
+					MDB_FREE(Options);
+					MDB_FREE(Result);
 					TH_ERROR("[mongoc] %s", Error.message);
 					return false;
 				}
 
-				Document::Release(Options);
-				Document::Release(Document);
+				MDB_FREE(Options);
+				MDB_FREE(Result);
 				return true;
 #else
 				return false;
 #endif
 			}
-			bool Collection::FindAndModify(TCollection* Collection, TDocument** Query, TDocument** Sort, TDocument** Update, TDocument** Fields, TDocument** Reply, bool RemoveAt, bool Upsert, bool New)
+			bool Collection::FindAndModify(Document* Query, Document* Sort, Document* Update, Document* Fields, Document* Reply, bool RemoveAt, bool Upsert, bool New)
 			{
 #ifdef TH_HAS_MONGOC
 				bson_error_t Error;
 				memset(&Error, 0, sizeof(bson_error_t));
 
-				if (!Collection)
+				if (!Base)
 				{
-					Document::Release(Query);
-					Document::Release(Sort);
-					Document::Release(Update);
-					Document::Release(Fields);
+					MDB_FREE(Query);
+					MDB_FREE(Sort);
+					MDB_FREE(Update);
+					MDB_FREE(Fields);
 					return false;
 				}
 
-				if (!mongoc_collection_find_and_modify(Collection, BS(Query), BS(Sort), BS(Update), BS(Fields), RemoveAt, Upsert, New, BS(Reply), &Error))
+				if (!mongoc_collection_find_and_modify(Base, MDB_POP(Query), MDB_POP(Sort), MDB_POP(Update), MDB_POP(Fields), RemoveAt, Upsert, New, MDB_POP(Reply), &Error))
 				{
-					Document::Release(Query);
-					Document::Release(Sort);
-					Document::Release(Update);
-					Document::Release(Fields);
+					MDB_FREE(Query);
+					MDB_FREE(Sort);
+					MDB_FREE(Update);
+					MDB_FREE(Fields);
 					TH_ERROR("[mongoc] %s", Error.message);
 					return false;
 				}
 
-				Document::Release(Query);
-				Document::Release(Sort);
-				Document::Release(Update);
-				Document::Release(Fields);
+				MDB_FREE(Query);
+				MDB_FREE(Sort);
+				MDB_FREE(Update);
+				MDB_FREE(Fields);
 				return true;
 #else
 				return false;
 #endif
 			}
-			uint64_t Collection::CountElementsInArray(TCollection* Collection, TDocument** Match, TDocument** Filter, TDocument** Options)
+			uint64_t Collection::CountElementsInArray(Document* Match, Document* Filter, Document* Options) const
 			{
 #ifdef TH_HAS_MONGOC
-				if (!Collection || !Filter || !*Filter || !Match || !*Match)
+				if (!Base || !MDB_POP(Filter) || !MDB_POP(Match))
 				{
-					Document::Release(Filter);
-					Document::Release(Match);
-					Document::Release(Options);
+					MDB_FREE(Filter);
+					MDB_FREE(Match);
+					MDB_FREE(Options);
 					return 0;
 				}
 
-				TDocument* Pipeline = BCON_NEW("pipeline", "[", "{", "$match", BCON_DOCUMENT(*Match), "}", "{", "$project", "{", "Count", "{", "$Count", "{", "$filter", BCON_DOCUMENT(*Filter), "}", "}", "}", "}", "]");
-				if (!Pipeline)
+				Document Pipeline = BCON_NEW("pipeline", "[", "{", "$match", BCON_DOCUMENT(MDB_POP(Match)), "}", "{", "$project", "{", "Count", "{", "$Count", "{", "$filter", BCON_DOCUMENT(MDB_POP(Filter)), "}", "}", "}", "}", "]");
+				if (!Pipeline.Get())
 				{
-					Document::Release(Filter);
-					Document::Release(Match);
-					Document::Release(Options);
+					MDB_FREE(Filter);
+					MDB_FREE(Match);
+					MDB_FREE(Options);
 					return 0;
 				}
 
-				TCursor* Cursor = mongoc_collection_aggregate(Collection, MONGOC_QUERY_NONE, Pipeline, BS(Options), nullptr);
-				Document::Release(&Pipeline);
-				Document::Release(Filter);
-				Document::Release(Match);
-				Document::Release(Options);
+				Cursor Cursor = mongoc_collection_aggregate(Base, MONGOC_QUERY_NONE, Pipeline.Get(), MDB_POP(Options), nullptr);
+				Pipeline.Release();
+				MDB_FREE(Filter);
+				MDB_FREE(Match);
+				MDB_FREE(Options);
 
-				if (!Cursor || !Cursor::Next(Cursor))
+				if (!Cursor.Get() || !Cursor.Next())
 				{
-					Cursor::Release(&Cursor);
+					Cursor.Release();
 					return 0;
 				}
 
-				TDocument* Result = Cursor::GetCurrent(Cursor);
-				if (!Result)
+				Document Result = Cursor.GetCurrent();
+				if (!Result.Get())
 				{
-					Cursor::Release(&Cursor);
+					Cursor.Release();
 					return 0;
 				}
 
 				Property Count;
-				Document::Get(Result, "Count", &Count);
-				Cursor::Release(&Cursor);
+				Result.Get("Count", &Count);
+				Cursor.Release();
 
 				return (uint64_t)Count.Integer;
 #else
 				return 0;
 #endif
 			}
-			uint64_t Collection::CountDocuments(TCollection* Collection, TDocument** Filter, TDocument** Options, TDocument** Reply)
+			uint64_t Collection::CountDocuments(Document* Filter, Document* Options, Document* Reply) const
 			{
 #ifdef TH_HAS_MONGOC
 				bson_error_t Error;
 				memset(&Error, 0, sizeof(bson_error_t));
 
-				if (!Collection)
+				if (!Base)
 				{
-					Document::Release(Filter);
-					Document::Release(Options);
+					MDB_FREE(Filter);
+					MDB_FREE(Options);
 					return 0;
 				}
 
-				uint64_t Count = (uint64_t)mongoc_collection_count_documents(Collection, BS(Filter), BS(Options), nullptr, BS(Reply), &Error);
+				uint64_t Count = (uint64_t)mongoc_collection_count_documents(Base, MDB_POP(Filter), MDB_POP(Options), nullptr, MDB_POP(Reply), &Error);
 				if (Error.code != 0)
 				{
-					Document::Release(Filter);
-					Document::Release(Options);
+					MDB_FREE(Filter);
+					MDB_FREE(Options);
 					TH_ERROR("[mongoc] %s", Error.message);
 					return false;
 				}
 
-				Document::Release(Filter);
-				Document::Release(Options);
+				MDB_FREE(Filter);
+				MDB_FREE(Options);
 				return Count;
 #else
 				return 0;
 #endif
 			}
-			uint64_t Collection::CountDocumentsEstimated(TCollection* Collection, TDocument** Options, TDocument** Reply)
+			uint64_t Collection::CountDocumentsEstimated(Document* Options, Document* Reply) const
 			{
 #ifdef TH_HAS_MONGOC
 				bson_error_t Error;
 				memset(&Error, 0, sizeof(bson_error_t));
 
-				if (!Collection)
+				if (!Base)
 				{
-					Document::Release(Options);
+					MDB_FREE(Options);
 					return 0;
 				}
 
-				uint64_t Count = (uint64_t)mongoc_collection_estimated_document_count(Collection, BS(Options), nullptr, BS(Reply), &Error);
+				uint64_t Count = (uint64_t)mongoc_collection_estimated_document_count(Base, MDB_POP(Options), nullptr, MDB_POP(Reply), &Error);
 				if (Error.code != 0)
 				{
-					Document::Release(Options);
+					MDB_FREE(Options);
 					TH_ERROR("[mongoc] %s", Error.message);
 					return false;
 				}
 
-				Document::Release(Options);
+				MDB_FREE(Options);
 				return Count;
 #else
 				return 0;
 #endif
 			}
-			std::string Collection::StringifyKeyIndexes(TCollection* Collection, TDocument** Keys)
+			std::string Collection::StringifyKeyIndexes(Document* Keys) const
 			{
 #ifdef TH_HAS_MONGOC
-				if (!Collection || !*Keys)
+				if (!Base || !MDB_POP(Keys))
 					return std::string();
 
-				char* Value = mongoc_collection_keys_to_index_string(*Keys);
+				char* Value = mongoc_collection_keys_to_index_string(MDB_POP(Keys));
 				std::string Output = Value;
 				bson_free(Value);
 
-				Document::Release(Keys);
+				MDB_FREE(Keys);
 				return Output;
 #else
 				return "";
 #endif
 			}
-			const char* Collection::GetName(TCollection* Collection)
+			const char* Collection::GetName() const
 			{
 #ifdef TH_HAS_MONGOC
-				if (!Collection)
+				if (!Base)
 					return nullptr;
 
-				return mongoc_collection_get_name(Collection);
+				return mongoc_collection_get_name(Base);
 #else
 				return nullptr;
 #endif
 			}
-			TCursor* Collection::FindIndexes(TCollection* Collection, TDocument** Options)
+			Cursor Collection::FindIndexes(Document* Options) const
 			{
 #ifdef TH_HAS_MONGOC
-				if (!Collection)
+				if (!Base)
 				{
-					Document::Release(Options);
+					MDB_FREE(Options);
 					return nullptr;
 				}
 
 				bson_error_t Error;
 				memset(&Error, 0, sizeof(bson_error_t));
 
-				TCursor* Cursor = mongoc_collection_find_indexes_with_opts(Collection, BS(Options));
+				TCursor* Cursor = mongoc_collection_find_indexes_with_opts(Base, MDB_POP(Options));
 				if (Cursor == nullptr || Error.code != 0)
 				{
-					Document::Release(Options);
+					MDB_FREE(Options);
 					TH_ERROR("[mongoc] %s", Error.message);
 					return nullptr;
 				}
 
-				Document::Release(Options);
+				MDB_FREE(Options);
 				return Cursor;
 #else
 				return nullptr;
 #endif
 			}
-			TCursor* Collection::FindMany(TCollection* Collection, TDocument** Filter, TDocument** Options)
+			Cursor Collection::FindMany(Document* Filter, Document* Options) const
 			{
 #ifdef TH_HAS_MONGOC
-				if (!Collection)
+				if (!Base)
 				{
-					Document::Release(Options);
+					MDB_FREE(Options);
 					return nullptr;
 				}
 
-				TCursor* Result = mongoc_collection_find_with_opts(Collection, BS(Filter), BS(Options), nullptr);
-				Document::Release(Filter);
-				Document::Release(Options);
+				TCursor* Result = mongoc_collection_find_with_opts(Base, MDB_POP(Filter), MDB_POP(Options), nullptr);
+				MDB_FREE(Filter);
+				MDB_FREE(Options);
 
 				return Result;
 #else
 				return nullptr;
 #endif
 			}
-			TCursor* Collection::FindOne(TCollection* Collection, TDocument** Filter, TDocument** Options)
+			Cursor Collection::FindOne(Document* Filter, Document* Options) const
 			{
 #ifdef TH_HAS_MONGOC
-				if (!Collection)
+				if (!Base)
 				{
-					Document::Release(Filter);
-					Document::Release(Options);
+					MDB_FREE(Filter);
+					MDB_FREE(Options);
 					return nullptr;
 				}
 
-				TDocument* Settings = (Options ? *Options : nullptr);
-				if (Settings != nullptr)
-					Document::SetInteger(Settings, "limit", 1);
+				Document Settings = (Options ? *Options : nullptr);
+				if (Settings.Get() != nullptr)
+					Settings.SetInteger("limit", 1);
 				else
-					Settings = BCON_NEW("limit", BCON_INT32(1));
+					Settings = Document(BCON_NEW("limit", BCON_INT32(1)));
 
 
-				TCursor* Cursor = mongoc_collection_find_with_opts(Collection, BS(Filter), Settings, nullptr);
-				if (!Options && Settings)
-					bson_destroy(Settings);
+				TCursor* Cursor = mongoc_collection_find_with_opts(Base, MDB_POP(Filter), Settings.Get(), nullptr);
+				if ((!Options || !Options->Get()) && Settings.Get())
+					Settings.Release();
 
-				Document::Release(Filter);
-				Document::Release(Options);
+				MDB_FREE(Filter);
+				MDB_FREE(Options);
 				return Cursor;
 #else
 				return nullptr;
 #endif
 			}
-			TCursor* Collection::Aggregate(TCollection* Collection, Query Flags, TDocument** Pipeline, TDocument** Options)
+			Cursor Collection::Aggregate(Query Flags, Document* Pipeline, Document* Options) const
 			{
 #ifdef TH_HAS_MONGOC
-				if (!Collection)
+				if (!Base)
 				{
-					Document::Release(Pipeline);
-					Document::Release(Options);
+					MDB_FREE(Pipeline);
+					MDB_FREE(Options);
 					return nullptr;
 				}
 
-				TCursor* Result = mongoc_collection_aggregate(Collection, (mongoc_query_flags_t)Flags, BS(Pipeline), BS(Options), nullptr);
+				TCursor* Result = mongoc_collection_aggregate(Base, (mongoc_query_flags_t)Flags, MDB_POP(Pipeline), MDB_POP(Options), nullptr);
 
-				Document::Release(Pipeline);
-				Document::Release(Options);
+				MDB_FREE(Pipeline);
+				MDB_FREE(Options);
 
 				return Result;
 #else
 				return nullptr;
 #endif
 			}
-			TStream* Collection::CreateStream(TCollection* Collection, TDocument** Options)
+			Stream Collection::CreateStream(Document* Options)
 			{
 #ifdef TH_HAS_MONGOC
-				if (!Collection)
+				if (!Base)
 				{
-					Document::Release(Options);
+					MDB_FREE(Options);
 					return nullptr;
 				}
 
-				TStream* Operation = mongoc_collection_create_bulk_operation_with_opts(Collection, BS(Options));
-				Document::Release(Options);
+				TStream* Operation = mongoc_collection_create_bulk_operation_with_opts(Base, MDB_POP(Options));
+				MDB_FREE(Options);
 
 				return Operation;
 #else
 				return nullptr;
 #endif
 			}
-
-			void Database::Release(TDatabase** Database)
+			TCollection* Collection::Get() const
 			{
 #ifdef TH_HAS_MONGOC
-				if (!Database || !*Database)
+				return Base;
+#else
+				return nullptr;
+#endif
+			}
+
+			Database::Database(TDatabase* NewBase) : Base(NewBase)
+			{
+			}
+			void Database::Release()
+			{
+#ifdef TH_HAS_MONGOC
+				if (!Base)
 					return;
 
-				mongoc_database_destroy(*Database);
-				*Database = nullptr;
+				mongoc_database_destroy(Base);
+				Base = nullptr;
 #endif
 			}
-			bool Database::HasCollection(TDatabase* Database, const char* Name)
+			bool Database::HasCollection(const char* Name) const
 			{
 #ifdef TH_HAS_MONGOC
-				if (!Database)
+				if (!Base)
 					return false;
 
 				bson_error_t Error;
 				memset(&Error, 0, sizeof(bson_error_t));
 
-				if (!mongoc_database_has_collection(Database, Name, &Error))
+				if (!mongoc_database_has_collection(Base, Name, &Error))
 				{
 					TH_ERROR("[mongoc] %s", Error.message);
 					return false;
@@ -2251,16 +2194,16 @@ namespace Tomahawk
 				return false;
 #endif
 			}
-			bool Database::RemoveAllUsers(TDatabase* Database)
+			bool Database::RemoveAllUsers()
 			{
 #ifdef TH_HAS_MONGOC
-				if (!Database)
+				if (!Base)
 					return false;
 
 				bson_error_t Error;
 				memset(&Error, 0, sizeof(bson_error_t));
 
-				if (!mongoc_database_remove_all_users(Database, &Error))
+				if (!mongoc_database_remove_all_users(Base, &Error))
 				{
 					TH_ERROR("[mongoc] %s", Error.message);
 					return false;
@@ -2271,16 +2214,16 @@ namespace Tomahawk
 				return false;
 #endif
 			}
-			bool Database::RemoveUser(TDatabase* Database, const char* Name)
+			bool Database::RemoveUser(const char* Name)
 			{
 #ifdef TH_HAS_MONGOC
-				if (!Database)
+				if (!Base)
 					return false;
 
 				bson_error_t Error;
 				memset(&Error, 0, sizeof(bson_error_t));
 
-				if (!mongoc_database_remove_user(Database, Name, &Error))
+				if (!mongoc_database_remove_user(Base, Name, &Error))
 				{
 					TH_ERROR("[mongoc] %s", Error.message);
 					return false;
@@ -2291,16 +2234,16 @@ namespace Tomahawk
 				return false;
 #endif
 			}
-			bool Database::Remove(TDatabase* Database)
+			bool Database::Remove()
 			{
 #ifdef TH_HAS_MONGOC
-				if (!Database)
+				if (!Base)
 					return false;
 
 				bson_error_t Error;
 				memset(&Error, 0, sizeof(bson_error_t));
 
-				if (!mongoc_database_drop(Database, &Error))
+				if (!mongoc_database_drop(Base, &Error))
 				{
 					TH_ERROR("[mongoc] %s", Error.message);
 					return false;
@@ -2311,73 +2254,73 @@ namespace Tomahawk
 				return false;
 #endif
 			}
-			bool Database::RemoveWithOptions(TDatabase* Database, TDocument** Options)
+			bool Database::RemoveWithOptions(Document* Options)
 			{
 #ifdef TH_HAS_MONGOC
-				if (!Database)
+				if (!Base)
 				{
-					Document::Release(Options);
+					MDB_FREE(Options);
 					return false;
 				}
 
-				if (!Options)
-					return Remove(Database);
+				if (!MDB_POP(Options))
+					return Remove();
 
 				bson_error_t Error;
 				memset(&Error, 0, sizeof(bson_error_t));
 
-				if (!mongoc_database_drop_with_opts(Database, BS(Options), &Error))
+				if (!mongoc_database_drop_with_opts(Base, MDB_POP(Options), &Error))
 				{
-					Document::Release(Options);
+					MDB_FREE(Options);
 					TH_ERROR("[mongoc] %s", Error.message);
 					return false;
 				}
 
-				Document::Release(Options);
+				MDB_FREE(Options);
 				return true;
 #else
 				return false;
 #endif
 			}
-			bool Database::AddUser(TDatabase* Database, const char* Username, const char* Password, TDocument** Roles, TDocument** Custom)
+			bool Database::AddUser(const char* Username, const char* Password, Document* Roles, Document* Custom)
 			{
 #ifdef TH_HAS_MONGOC
-				if (!Database)
+				if (!Base)
 				{
-					Document::Release(Roles);
-					Document::Release(Custom);
+					MDB_FREE(Roles);
+					MDB_FREE(Custom);
 					return false;
 				}
 
 				bson_error_t Error;
 				memset(&Error, 0, sizeof(bson_error_t));
 
-				if (!mongoc_database_add_user(Database, Username, Password, BS(Roles), BS(Custom), &Error))
+				if (!mongoc_database_add_user(Base, Username, Password, MDB_POP(Roles), MDB_POP(Custom), &Error))
 				{
-					Document::Release(Roles);
-					Document::Release(Custom);
+					MDB_FREE(Roles);
+					MDB_FREE(Custom);
 					TH_ERROR("[mongoc] %s", Error.message);
 					return false;
 				}
 
-				Document::Release(Roles);
-				Document::Release(Custom);
+				MDB_FREE(Roles);
+				MDB_FREE(Custom);
 				return true;
 #else
 				return false;
 #endif
 			}
-			std::vector<std::string> Database::GetCollectionNames(TDatabase* Database, TDocument** Options)
+			std::vector<std::string> Database::GetCollectionNames(Document* Options) const
 			{
 #ifdef TH_HAS_MONGOC
 				bson_error_t Error;
 				memset(&Error, 0, sizeof(bson_error_t));
 
-				if (!Database)
+				if (!Base)
 					return std::vector<std::string>();
 
-				char** Names = mongoc_database_get_collection_names_with_opts(Database, BS(Options), &Error);
-				Document::Release(Options);
+				char** Names = mongoc_database_get_collection_names_with_opts(Base, MDB_POP(Options), &Error);
+				MDB_FREE(Options);
 
 				if (Names == nullptr)
 				{
@@ -2395,48 +2338,48 @@ namespace Tomahawk
 				return std::vector<std::string>();
 #endif
 			}
-			const char* Database::GetName(TDatabase* Database)
+			const char* Database::GetName() const
 			{
 #ifdef TH_HAS_MONGOC
-				if (!Database)
+				if (!Base)
 					return nullptr;
 
-				return mongoc_database_get_name(Database);
+				return mongoc_database_get_name(Base);
 #else
 				return nullptr;
 #endif
 			}
-			TCursor* Database::FindCollections(TDatabase* Database, TDocument** Options)
+			Cursor Database::FindCollections(Document* Options) const
 			{
 #ifdef TH_HAS_MONGOC
-				if (!Database)
+				if (!Base)
 				{
-					Document::Release(Options);
+					MDB_FREE(Options);
 					return nullptr;
 				}
 
-				TCursor* Cursor = mongoc_database_find_collections_with_opts(Database, BS(Options));
-				Document::Release(Options);
+				TCursor* Cursor = mongoc_database_find_collections_with_opts(Base, MDB_POP(Options));
+				MDB_FREE(Options);
 
 				return Cursor;
 #else
 				return nullptr;
 #endif
 			}
-			TCollection* Database::CreateCollection(TDatabase* Database, const char* Name, TDocument** Options)
+			Collection Database::CreateCollection(const char* Name, Document* Options)
 			{
 #ifdef TH_HAS_MONGOC
 				bson_error_t Error;
 				memset(&Error, 0, sizeof(bson_error_t));
 
-				if (!Database)
+				if (!Base)
 				{
-					Document::Release(Options);
+					MDB_FREE(Options);
 					return nullptr;
 				}
 
-				TCollection* Collection = mongoc_database_create_collection(Database, Name, BS(Options), &Error);
-				Document::Release(Options);
+				TCollection* Collection = mongoc_database_create_collection(Base, Name, MDB_POP(Options), &Error);
+				MDB_FREE(Options);
 
 				if (Collection == nullptr)
 					TH_ERROR("[mongoc] %s", Error.message);
@@ -2446,67 +2389,150 @@ namespace Tomahawk
 				return nullptr;
 #endif
 			}
-			TCollection* Database::GetCollection(TDatabase* Database, const char* Name)
+			Collection Database::GetCollection(const char* Name) const
 			{
 #ifdef TH_HAS_MONGOC
-				if (!Database)
+				if (!Base)
 					return nullptr;
 
-				return mongoc_database_get_collection(Database, Name);
+				return mongoc_database_get_collection(Base, Name);
+#else
+				return nullptr;
+#endif
+			}
+			TDatabase* Database::Get() const
+			{
+#ifdef TH_HAS_MONGOC
+				return Base;
 #else
 				return nullptr;
 #endif
 			}
 
-			TTransaction* Transaction::Create(Connection* Client, TDocument** Uid)
+			Watcher::Watcher(TWatcher* NewBase) : Base(NewBase)
+			{
+			}
+			void Watcher::Release()
 			{
 #ifdef TH_HAS_MONGOC
-				if (!Client || !Uid)
-					return nullptr;
+				if (!Base)
+					return;
 
-				bson_error_t Error;
-				if (!Client->Session)
-				{
-					Client->Session = mongoc_client_start_session(Client->Base, nullptr, &Error);
-					if (!Client->Session)
-					{
-						TH_ERROR("[mongoc] couldn't create transaction\n\t%s", Error.message);
-						return nullptr;
-					}
-				}
-
-				if (!*Uid)
-					*Uid = bson_new();
-
-				if (!mongoc_client_session_append(Client->Session, *Uid, &Error))
-				{
-					TH_ERROR("[mongoc] could not set session uid\n\t%s", Error.message);
+				mongoc_change_stream_destroy(Base);
+				Base = nullptr;
+#endif
+			}
+			bool Watcher::Next(Document& Result) const
+			{
+#ifdef TH_HAS_MONGOC
+				if (!Base || !Result.Get())
 					return false;
-				}
 
-				return Client->Session;
+				TDocument* Ptr = Result.Get();
+				return mongoc_change_stream_next(Base, (const TDocument**)&Ptr);
+#else
+				return false;
+#endif
+			}
+			bool Watcher::Error(Document& Result) const
+			{
+#ifdef TH_HAS_MONGOC
+				if (!Base || !Result.Get())
+					return false;
+
+				TDocument* Ptr = Result.Get();
+				return mongoc_change_stream_error_document(Base, nullptr, (const TDocument**)&Ptr);
+#else
+				return false;
+#endif
+			}
+			TWatcher* Watcher::Get() const
+			{
+#ifdef TH_HAS_MONGOC
+				return Base;
 #else
 				return nullptr;
 #endif
 			}
-			void Transaction::Release(Connection* Client)
+			Watcher Watcher::FromConnection(Connection* Connection, Document* Pipeline, Document* Options)
 			{
 #ifdef TH_HAS_MONGOC
-				if (Client != nullptr && Client->Session != nullptr)
+				if (!Connection)
 				{
-					mongoc_client_session_destroy(Client->Session);
-					Client->Session = nullptr;
+					MDB_FREE(Pipeline);
+					MDB_FREE(Options);
+					return nullptr;
 				}
+
+				TWatcher* Stream = mongoc_client_watch(Connection->Get(), MDB_POP(Pipeline), MDB_POP(Options));
+				MDB_FREE(Pipeline);
+				MDB_FREE(Options);
+
+				return Stream;
+#else
+				return nullptr;
 #endif
 			}
-			bool Transaction::Start(TTransaction* Session)
+			Watcher Watcher::FromDatabase(Database& Database, Document* Pipeline, Document* Options)
 			{
 #ifdef TH_HAS_MONGOC
-				if (!Session)
+				if (!Database.Get())
+				{
+					MDB_FREE(Pipeline);
+					MDB_FREE(Options);
+					return nullptr;
+				}
+
+				TWatcher* Stream = mongoc_database_watch(Database.Get(), MDB_POP(Pipeline), MDB_POP(Options));
+				MDB_FREE(Pipeline);
+				MDB_FREE(Options);
+
+				return Stream;
+#else
+				return nullptr;
+#endif
+			}
+			Watcher Watcher::FromCollection(Collection& Collection, Document* Pipeline, Document* Options)
+			{
+#ifdef TH_HAS_MONGOC
+				if (!Collection.Get())
+				{
+					MDB_FREE(Pipeline);
+					MDB_FREE(Options);
+					return nullptr;
+				}
+
+				TWatcher* Stream = mongoc_collection_watch(Collection.Get(), MDB_POP(Pipeline), MDB_POP(Options));
+				MDB_FREE(Pipeline);
+				MDB_FREE(Options);
+
+				return Stream;
+#else
+				return nullptr;
+#endif
+			}
+
+			Transaction::Transaction(TTransaction* NewBase) : Base(NewBase)
+			{
+			}
+			void Transaction::Release()
+			{
+#ifdef TH_HAS_MONGOC
+				if (!Base)
+					return;
+
+				mongoc_client_session_destroy(Base);
+				Base = nullptr;
+#endif
+			}
+			bool Transaction::Start()
+			{
+#ifdef TH_HAS_MONGOC
+				if (!Base)
 					return false;
 
 				bson_error_t Error;
-				if (!mongoc_client_session_start_transaction(Session, nullptr, &Error))
+				if (!mongoc_client_session_start_transaction(Base, nullptr, &Error))
 				{
 					TH_ERROR("[mongoc] failed to start transaction\n\t%s", Error.message);
 					return false;
@@ -2517,25 +2543,25 @@ namespace Tomahawk
 				return false;
 #endif
 			}
-			bool Transaction::Abort(TTransaction* Session)
+			bool Transaction::Abort()
 			{
 #ifdef TH_HAS_MONGOC
-				if (!Session)
+				if (!Base)
 					return false;
 
-				return mongoc_client_session_abort_transaction(Session, nullptr);
+				return mongoc_client_session_abort_transaction(Base, nullptr);
 #else
 				return false;
 #endif
 			}
-			bool Transaction::Commit(TTransaction* Session, TDocument** Reply)
+			bool Transaction::Commit(Document* Reply)
 			{
 #ifdef TH_HAS_MONGOC
-				if (!Session)
+				if (!Base)
 					return false;
 
 				bson_error_t Error;
-				if (!mongoc_client_session_commit_transaction(Session, BS(Reply), &Error))
+				if (!mongoc_client_session_commit_transaction(Base, MDB_POP(Reply), &Error))
 				{
 					TH_ERROR("[mongoc] could not commit transaction\n\t%s", Error.message);
 					return false;
@@ -2546,6 +2572,45 @@ namespace Tomahawk
 				return false;
 #endif
 			}
+			TTransaction* Transaction::Get() const
+			{
+#ifdef TH_HAS_MONGOC
+				return Base;
+#else
+				return nullptr;
+#endif
+			}
+			TTransaction* Transaction::FromConnection(Connection* Client, Document& Uid)
+			{
+#ifdef TH_HAS_MONGOC
+				if (!Client)
+					return nullptr;
+
+				bson_error_t Error;
+				if (!Client->Session.Get())
+				{
+					Client->Session = mongoc_client_start_session(Client->Base, nullptr, &Error);
+					if (!Client->Session.Get())
+					{
+						TH_ERROR("[mongoc] couldn't create transaction\n\t%s", Error.message);
+						return nullptr;
+					}
+				}
+
+				if (!Uid.Get())
+					Uid = bson_new();
+
+				if (!mongoc_client_session_append(Client->Session.Get(), Uid.Get(), &Error))
+				{
+					TH_ERROR("[mongoc] could not set session uid\n\t%s", Error.message);
+					return false;
+				}
+
+				return Client->Session.Get();
+#else
+				return nullptr;
+#endif
+				}
 
 			Connection::Connection() : Session(nullptr), Base(nullptr), Master(nullptr), Connected(false)
 			{
@@ -2553,7 +2618,7 @@ namespace Tomahawk
 			}
 			Connection::~Connection()
 			{
-				Transaction::Release(this);
+				Session.Release();
 				Disconnect();
 				Driver::Release();
 			}
@@ -2614,25 +2679,23 @@ namespace Tomahawk
 				return false;
 #endif
 			}
-			bool Connection::Connect(TAddress* URI)
+			bool Connection::Connect(Address* URI)
 			{
 #ifdef TH_HAS_MONGOC
-				if (Master != nullptr)
-					return false;
-
-				if (!URI)
+				if (Master != nullptr || !URI || !URI->Get())
 					return false;
 
 				if (Connected)
 					Disconnect();
 
-				Base = mongoc_client_new_from_uri(URI);
-				if (Base == nullptr)
+				Base = mongoc_client_new_from_uri(URI->Get());
+				if (!Base)
 				{
 					TH_ERROR("couldn't connect to requested URI");
 					return false;
 				}
 
+				*URI = nullptr;
 				Connected = true;
 				return true;
 #else
@@ -2664,18 +2727,18 @@ namespace Tomahawk
 				return false;
 #endif
 			}
-			TCursor* Connection::FindDatabases(TDocument** Options)
+			Cursor Connection::FindDatabases(Document* Options) const
 			{
 #ifdef TH_HAS_MONGOC
-				TCursor* Reference = mongoc_client_find_databases_with_opts(Base, BS(Options));
-				Document::Release(Options);
+				TCursor* Reference = mongoc_client_find_databases_with_opts(Base, MDB_POP(Options));
+				MDB_FREE(Options);
 
 				return Reference;
 #else
 				return nullptr;
 #endif
 			}
-			TDatabase* Connection::GetDatabase(const char* Name)
+			Database Connection::GetDatabase(const char* Name) const
 			{
 #ifdef TH_HAS_MONGOC
 				return mongoc_client_get_database(Base, Name);
@@ -2683,7 +2746,7 @@ namespace Tomahawk
 				return nullptr;
 #endif
 			}
-			TDatabase* Connection::GetDefaultDatabase()
+			Database Connection::GetDefaultDatabase() const
 			{
 #ifdef TH_HAS_MONGOC
 				return mongoc_client_get_default_database(Base);
@@ -2691,7 +2754,7 @@ namespace Tomahawk
 				return nullptr;
 #endif
 			}
-			TCollection* Connection::GetCollection(const char* DatabaseName, const char* Name)
+			Collection Connection::GetCollection(const char* DatabaseName, const char* Name) const
 			{
 #ifdef TH_HAS_MONGOC
 				return mongoc_client_get_collection(Base, DatabaseName, Name);
@@ -2699,11 +2762,7 @@ namespace Tomahawk
 				return nullptr;
 #endif
 			}
-			TConnection* Connection::Get()
-			{
-				return Base;
-			}
-			TAddress* Connection::GetAddress()
+			Address Connection::GetAddress() const
 			{
 #ifdef TH_HAS_MONGOC
 				return (TAddress*)mongoc_client_get_uri(Base);
@@ -2711,18 +2770,22 @@ namespace Tomahawk
 				return nullptr;
 #endif
 			}
-			Queue* Connection::GetMaster()
+			Queue* Connection::GetMaster() const
 			{
 				return Master;
 			}
-			std::vector<std::string> Connection::GetDatabaseNames(TDocument** Options)
+			TConnection* Connection::Get() const
+			{
+				return Base;
+			}
+			std::vector<std::string> Connection::GetDatabaseNames(Document* Options)
 			{
 #ifdef TH_HAS_MONGOC
 				bson_error_t Error;
 				memset(&Error, 0, sizeof(bson_error_t));
 
-				char** Names = mongoc_client_get_database_names_with_opts(Base, BS(Options), &Error);
-				Document::Release(Options);
+				char** Names = mongoc_client_get_database_names_with_opts(Base, MDB_POP(Options), &Error);
+				MDB_FREE(Options);
 
 				if (Names == nullptr)
 				{
@@ -2745,7 +2808,7 @@ namespace Tomahawk
 				return Connected;
 			}
 
-			Queue::Queue() : Pool(nullptr), Address(nullptr), Connected(false)
+			Queue::Queue() : Pool(nullptr), SrcAddress(nullptr), Connected(false)
 			{
 				Driver::Create();
 			}
@@ -2769,15 +2832,15 @@ namespace Tomahawk
 				if (Connected)
 					Disconnect();
 
-				Address = mongoc_uri_new_with_error(URI.c_str(), &Error);
-				if (!Address)
+				SrcAddress = mongoc_uri_new_with_error(URI.c_str(), &Error);
+				if (!SrcAddress.Get())
 				{
 					TH_ERROR("[urierr] %s", Error.message);
 					return false;
 				}
 
-				Pool = mongoc_client_pool_new(Address);
-				if (Pool == nullptr)
+				Pool = mongoc_client_pool_new(SrcAddress.Get());
+				if (!Pool)
 				{
 					TH_ERROR("couldn't connect to requested URI");
 					return false;
@@ -2789,22 +2852,24 @@ namespace Tomahawk
 				return false;
 #endif
 			}
-			bool Queue::Connect(TAddress* URI)
+			bool Queue::Connect(Address* URI)
 			{
 #ifdef TH_HAS_MONGOC
-				if (!URI)
+				if (!URI || !URI->Get())
 					return false;
 
 				if (Connected)
 					Disconnect();
 
-				Pool = mongoc_client_pool_new(Address = URI);
-				if (Pool == nullptr)
+				Pool = mongoc_client_pool_new(URI->Get());
+				if (!Pool)
 				{
 					TH_ERROR("couldn't connect to requested URI");
 					return false;
 				}
 
+				SrcAddress = URI->Get();
+				*URI = nullptr;
 				Connected = true;
 				return true;
 #else
@@ -2820,12 +2885,7 @@ namespace Tomahawk
 					Pool = nullptr;
 				}
 
-				if (Address != nullptr)
-				{
-					mongoc_uri_destroy(Address);
-					Address = nullptr;
-				}
-
+				SrcAddress.Release();
 				Connected = false;
 				return true;
 #else
@@ -2864,13 +2924,17 @@ namespace Tomahawk
 				return nullptr;
 #endif
 			}
-			TConnectionPool* Queue::Get()
+			TConnectionPool* Queue::Get() const
 			{
 				return Pool;
 			}
-			TAddress* Queue::GetAddress()
+			Address Queue::GetAddress() const
 			{
-				return Address;
+				return SrcAddress;
+			}
+
+			Driver::Sequence::Sequence() : Cache(nullptr)
+			{
 			}
 
 			void Driver::Create()
@@ -2899,7 +2963,7 @@ namespace Tomahawk
 					if (Queries != nullptr)
 					{
 						for (auto& Query : *Queries)
-							Document::Release(&Query.second.Cache);
+							Query.second.Cache.Release();
 
 						delete Queries;
 						Queries = nullptr;
@@ -3008,7 +3072,7 @@ namespace Tomahawk
 				}
 
 				if (Args < 1)
-					Result.Cache = Document::Create(Result.Request);
+					Result.Cache = Document::FromJSON(Result.Request);
 
 				Safe->lock();
 				(*Queries)[Name] = Result;
@@ -3063,12 +3127,12 @@ namespace Tomahawk
 					return false;
 				}
 
-				Document::Release(&It->second.Cache);
+				It->second.Cache.Release();
 				Queries->erase(It);
 				Safe->unlock();
 				return true;
 			}
-			TDocument* Driver::GetQuery(const std::string& Name, QueryMap* Map, bool Once)
+			Document Driver::GetQuery(const std::string& Name, QueryMap* Map, bool Once)
 			{
 				if (!Queries || !Safe)
 					return nullptr;
@@ -3088,9 +3152,9 @@ namespace Tomahawk
 					return nullptr;
 				}
 
-				if (It->second.Cache != nullptr)
+				if (It->second.Cache.Get() != nullptr)
 				{
-					TDocument* Result = Document::Copy(It->second.Cache);
+					Document Result = It->second.Cache.Copy();
 					Safe->unlock();
 
 					if (Once && Map != nullptr)
@@ -3105,7 +3169,7 @@ namespace Tomahawk
 
 				if (!Map || Map->empty())
 				{
-					TDocument* Result = Document::Create(It->second.Request);
+					Document Result = Document::FromJSON(It->second.Request);
 					Safe->unlock();
 
 					if (Once && Map != nullptr)
@@ -3135,13 +3199,13 @@ namespace Tomahawk
 				if (Once)
 					Map->clear();
 
-				TDocument* Data = Document::Create(Origin.Request);
-				if (!Data)
+				Document Data = Document::FromJSON(Origin.Request);
+				if (Data.Get())
 					TH_ERROR("could not construct query: \"%s\"", Name.c_str());
 
 				return Data;
 			}
-			TDocument* Driver::GetSubquery(const char* Buffer, QueryMap* Map, bool Once)
+			Document Driver::GetSubquery(const char* Buffer, QueryMap* Map, bool Once)
 			{
 				if (!Buffer || Buffer[0] == '\0')
 				{
@@ -3164,7 +3228,7 @@ namespace Tomahawk
 						Map->clear();
 					}
 
-					return Document::Create((const unsigned char*)Buffer, strlen(Buffer));
+					return Document::FromJSON(Buffer);
 				}
 
 				Rest::Stroke Result(Buffer, strlen(Buffer));
@@ -3181,8 +3245,8 @@ namespace Tomahawk
 				if (Once)
 					Map->clear();
 
-				TDocument* Data = Document::Create(Result.R());
-				if (!Data)
+				Document Data = Document::FromJSON(Result.R());
+				if (!Data.Get())
 					TH_ERROR("could not construct subquery:\n%s", Result.Get());
 
 				return Data;
@@ -3251,7 +3315,7 @@ namespace Tomahawk
 							return "\"" + Base + "\"";
 						}
 
-						return "{\"$oid\":\"" + Util::OIdToString(Source->Value.GetBase64()) + "\"}";
+						return "{\"$oid\":\"" + Util::IdToString(Source->Value.GetBase64()) + "\"}";
 					}
 					case Rest::VarType_Null:
 					case Rest::VarType_Undefined:

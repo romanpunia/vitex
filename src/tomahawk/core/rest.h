@@ -1421,7 +1421,7 @@ namespace Tomahawk
 		template <typename T>
 		class Async
 		{
-			static_assert(!std::is_same_v<T, void>, "async cannot be used with void type");
+			static_assert(!std::is_same<T, void>::value, "async cannot be used with void type");
 
 		private:
 			struct Base

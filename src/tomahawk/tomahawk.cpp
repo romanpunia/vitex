@@ -241,7 +241,7 @@ namespace Tomahawk
 	{
 		State++;
 		if (State > 1)
-			return State >= 0;
+			return true;
 
 		if (HeapSize > 0)
 			Rest::Mem::Create(HeapSize);

@@ -238,13 +238,22 @@ namespace assembler
 			{
 				++argCount;
 				if (*args == 'r')
+				{
 					arg_stack.push(va_arg(list, Register*));
+				}
 				else if (*args == 'm')
+				{
 					arg_stack.push(va_arg(list, MemAddress*));
+				}
 				else if (*args == 'c' || *args == 'p')
+				{
 					arg_stack.push(va_arg(list, unsigned int));
+				}
 				else
+				{
+					va_end(list);
 					throw 0;
+				}
 				++args;
 			}
 			va_end(list);

@@ -2473,7 +2473,7 @@ namespace Tomahawk
 				return nullptr;
 #endif
 			}
-			Watcher Watcher::FromDatabase(Database& Database, Document* Pipeline, Document* Options)
+			Watcher Watcher::FromDatabase(const Database& Database, Document* Pipeline, Document* Options)
 			{
 #ifdef TH_HAS_MONGOC
 				if (!Database.Get())
@@ -2492,7 +2492,7 @@ namespace Tomahawk
 				return nullptr;
 #endif
 			}
-			Watcher Watcher::FromCollection(Collection& Collection, Document* Pipeline, Document* Options)
+			Watcher Watcher::FromCollection(const Collection& Collection, Document* Pipeline, Document* Options)
 			{
 #ifdef TH_HAS_MONGOC
 				if (!Collection.Get())

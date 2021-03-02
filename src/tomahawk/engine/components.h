@@ -691,8 +691,8 @@ namespace Tomahawk
 				float GetWidth();
 				float GetHeight();
 				float GetAspect();
-				bool RayTest(Compute::Ray& Ray, Entity* Other);
-				bool RayTest(Compute::Ray& Ray, const Compute::Matrix4x4& World);
+				bool RayTest(const Compute::Ray& Ray, Entity* Other);
+				bool RayTest(const Compute::Ray& Ray, const Compute::Matrix4x4& World);
 
 			public:
 				TH_COMPONENT("camera");
@@ -775,21 +775,21 @@ namespace Tomahawk
 						return Script::VMResult_MODULE_IS_IN_USE;
 
 					Safe.lock();
-					Script::VMModule Module = Compiler->GetModule();
-					if (!Module.IsValid())
+					Script::VMModule Src = Compiler->GetModule();
+					if (!Src.IsValid())
 					{
 						Safe.unlock();
 						return 0;
 					}
 
-					int Index = Module.GetPropertyIndexByName(Name);
+					int Index = Src.GetPropertyIndexByName(Name);
 					if (Index < 0)
 					{
 						Safe.unlock();
 						return Index;
 					}
 
-					T* Address = (T*)Module.GetAddressOfProperty(Index);
+					T* Address = (T*)Src.GetAddressOfProperty(Index);
 					if (!Address)
 					{
 						Safe.unlock();
@@ -812,21 +812,21 @@ namespace Tomahawk
 						return Script::VMResult_MODULE_IS_IN_USE;
 
 					Safe.lock();
-					Script::VMModule Module = Compiler->GetModule();
-					if (!Module.IsValid())
+					Script::VMModule Src = Compiler->GetModule();
+					if (!Src.IsValid())
 					{
 						Safe.unlock();
 						return Script::VMResult_INVALID_CONFIGURATION;
 					}
 
-					int Index = Module.GetPropertyIndexByName(Name);
+					int Index = Src.GetPropertyIndexByName(Name);
 					if (Index < 0)
 					{
 						Safe.unlock();
 						return Index;
 					}
 
-					T** Address = (T**)Module.GetAddressOfProperty(Index);
+					T** Address = (T**)Src.GetAddressOfProperty(Index);
 					if (!Address)
 					{
 						Safe.unlock();
@@ -854,14 +854,14 @@ namespace Tomahawk
 						return Script::VMResult_MODULE_IS_IN_USE;
 
 					Safe.lock();
-					Script::VMModule Module = Compiler->GetModule();
-					if (!Module.IsValid())
+					Script::VMModule Src = Compiler->GetModule();
+					if (!Src.IsValid())
 					{
 						Safe.unlock();
 						return 0;
 					}
 
-					T* Address = (T*)Module.GetAddressOfProperty(Index);
+					T* Address = (T*)Src.GetAddressOfProperty(Index);
 					if (!Address)
 					{
 						Safe.unlock();
@@ -884,14 +884,14 @@ namespace Tomahawk
 						return Script::VMResult_MODULE_IS_IN_USE;
 
 					Safe.lock();
-					Script::VMModule Module = Compiler->GetModule();
-					if (!Module.IsValid())
+					Script::VMModule Src = Compiler->GetModule();
+					if (!Src.IsValid())
 					{
 						Safe.unlock();
 						return Script::VMResult_INVALID_CONFIGURATION;
 					}
 
-					T** Address = (T**)Module.GetAddressOfProperty(Index);
+					T** Address = (T**)Src.GetAddressOfProperty(Index);
 					if (!Address)
 					{
 						Safe.unlock();

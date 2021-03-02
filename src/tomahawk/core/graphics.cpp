@@ -419,6 +419,13 @@ namespace Tomahawk
 
 		Texture3D::Texture3D()
 		{
+			Width = 512;
+			Height = 512;
+			Depth = 1;
+			MipLevels = 1;
+			FormatMode = Graphics::Format_Unknown;
+			Usage = Graphics::ResourceUsage_Default;
+			AccessFlags = Graphics::CPUAccess_Invalid;
 		}
 		CPUAccess Texture3D::GetAccessFlags()
 		{
@@ -451,9 +458,21 @@ namespace Tomahawk
 
 		TextureCube::TextureCube()
 		{
+			Width = 512;
+			Height = 512;
+			MipLevels = 1;
+			FormatMode = Graphics::Format_Unknown;
+			Usage = Graphics::ResourceUsage_Default;
+			AccessFlags = Graphics::CPUAccess_Invalid;
 		}
 		TextureCube::TextureCube(const Desc& I)
 		{
+			Width = I.Width;
+			Height = I.Height;
+			MipLevels = I.MipLevels;
+			FormatMode = I.FormatMode;
+			Usage = I.Usage;
+			AccessFlags = I.AccessFlags;
 		}
 		CPUAccess TextureCube::GetAccessFlags()
 		{
@@ -480,9 +499,8 @@ namespace Tomahawk
 			return MipLevels;
 		}
 
-		DepthBuffer::DepthBuffer(const Desc& I) : Resource(nullptr)
+		DepthBuffer::DepthBuffer(const Desc& I) : Resource(nullptr), Viewarea({ 0, 0, 512, 512, 0, 1 })
 		{
-			Viewarea = { 0, 0, 512, 512, 0, 1 };
 		}
 		DepthBuffer::~DepthBuffer()
 		{
@@ -497,9 +515,8 @@ namespace Tomahawk
 			return Viewarea;
 		}
 
-		RenderTarget::RenderTarget() : DepthStencil(nullptr)
+		RenderTarget::RenderTarget() : DepthStencil(nullptr), Viewarea({ 0, 0, 512, 512, 0, 1 })
 		{
-			Viewarea = { 0, 0, 512, 512, 0, 1 };
 		}
 		RenderTarget::~RenderTarget()
 		{
@@ -1321,7 +1338,7 @@ namespace Tomahawk
 			return nullptr;
 		}
 
-		Activity::Activity(const Desc& I) : Handle(nullptr), Rest(I), Command(0), Message(this)
+		Activity::Activity(const Desc& I) : Handle(nullptr), Rest(I), Command(0), Message(this), CX(0), CY(0)
 		{
 #ifdef TH_HAS_SDL2
 			Cursors[DisplayCursor_Arrow] = SDL_CreateSystemCursor(SDL_SYSTEM_CURSOR_ARROW);
@@ -2026,7 +2043,7 @@ namespace Tomahawk
 		{
 			for (int i = 0; i < 1024; i++)
 			{
-				if (Keys[i])
+				if (Keys[0][i])
 					return true;
 			}
 

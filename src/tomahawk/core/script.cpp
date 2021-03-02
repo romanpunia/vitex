@@ -4885,19 +4885,17 @@ namespace Tomahawk
 			else if ((TypeId & asTYPEID_MASK_OBJECT) == 0)
 			{
 				Stream << *(asUINT*)Value;
-				if (Base != nullptr)
-				{
-					VMCTypeInfo* T = Base->GetTypeInfoById(TypeId);
-					for (int n = T->GetEnumValueCount(); n-- > 0;)
-					{
-						int EnumVal;
-						const char* EnumName = T->GetEnumValueByIndex(n, &EnumVal);
 
-						if (EnumVal == *(int*)Value)
-						{
-							Stream << ", " << EnumName;
-							break;
-						}
+				VMCTypeInfo* T = Base->GetTypeInfoById(TypeId);
+				for (int n = T->GetEnumValueCount(); n-- > 0;)
+				{
+					int EnumVal;
+					const char* EnumName = T->GetEnumValueByIndex(n, &EnumVal);
+
+					if (EnumVal == *(int*)Value)
+					{
+						Stream << ", " << EnumName;
+						break;
 					}
 				}
 			}
@@ -4928,36 +4926,31 @@ namespace Tomahawk
 				if (TypeId & asTYPEID_OBJHANDLE)
 					Value = *(void**)Value;
 
-				if (Engine != nullptr)
+				VMCTypeInfo* Type = Base->GetTypeInfoById(TypeId);
+				if (Type->GetFlags() & asOBJ_REF)
+					Stream << "{" << Value << "}";
+
+				if (Value != nullptr)
 				{
-					VMCTypeInfo* Type = Base->GetTypeInfoById(TypeId);
-					if (Type->GetFlags() & asOBJ_REF)
-						Stream << "{" << Value << "}";
-
-					if (Value)
+					auto It = ToStringCallbacks.find(Type);
+					if (It == ToStringCallbacks.end())
 					{
-						auto It = ToStringCallbacks.find(Type);
-						if (It == ToStringCallbacks.end())
+						if (Type->GetFlags() & asOBJ_TEMPLATE)
 						{
-							if (Type->GetFlags() & asOBJ_TEMPLATE)
-							{
-								VMCTypeInfo* TmpType = Base->GetTypeInfoByName(Type->GetName());
-								It = ToStringCallbacks.find(TmpType);
-							}
-						}
-
-						if (It != ToStringCallbacks.end())
-						{
-							if (Type->GetFlags() & asOBJ_REF)
-								Stream << " ";
-
-							std::string Text = It->second(Value, ExpandMembers, this);
-							Stream << Text;
+							VMCTypeInfo* TmpType = Base->GetTypeInfoByName(Type->GetName());
+							It = ToStringCallbacks.find(TmpType);
 						}
 					}
+
+					if (It != ToStringCallbacks.end())
+					{
+						if (Type->GetFlags() & asOBJ_REF)
+							Stream << " ";
+
+						std::string Text = It->second(Value, ExpandMembers, this);
+						Stream << Text;
+					}
 				}
-				else
-					Stream << "{no engine}";
 			}
 
 			return Stream.str();

@@ -774,7 +774,7 @@ namespace Tomahawk
 			float Accuracy;
 
 			RandomVector2();
-			RandomVector2(Vector2 MinV, Vector2 MaxV, bool IntensityV, float AccuracyV);
+			RandomVector2(const Vector2& MinV, const Vector2& MaxV, bool IntensityV, float AccuracyV);
 			Vector2 Generate();
 		};
 
@@ -785,7 +785,7 @@ namespace Tomahawk
 			float Accuracy;
 
 			RandomVector3();
-			RandomVector3(Vector3 MinV, Vector3 MaxV, bool IntensityV, float AccuracyV);
+			RandomVector3(const Vector3& MinV, const Vector3& MaxV, bool IntensityV, float AccuracyV);
 			Vector3 Generate();
 		};
 
@@ -796,7 +796,7 @@ namespace Tomahawk
 			float Accuracy;
 
 			RandomVector4();
-			RandomVector4(Vector4 MinV, Vector4 MaxV, bool IntensityV, float AccuracyV);
+			RandomVector4(const Vector4& MinV, const Vector4& MaxV, bool IntensityV, float AccuracyV);
 			Vector4 Generate();
 		};
 
@@ -1048,6 +1048,8 @@ namespace Tomahawk
 
 		public:
 			RadixSorter();
+			RadixSorter(const RadixSorter& Other);
+			RadixSorter(RadixSorter&& Other);
 			~RadixSorter();
 			RadixSorter& Sort(unsigned int* Input, unsigned int Nb, bool SignedValues = true);
 			RadixSorter& Sort(float* Input, unsigned int Nb);
@@ -1264,10 +1266,10 @@ namespace Tomahawk
 			}
 			static bool NearEqual(T A, T B, T Factor = (T)1.0f)
 			{
-				T Min = A - (A - std::nextafter(A, std::numeric_limits<T>::lowest())) * Factor;
-				T Max = A + (std::nextafter(A, std::numeric_limits<T>::max()) - A) * Factor;
+				T fMin = A - (A - std::nextafter(A, std::numeric_limits<T>::lowest())) * Factor;
+				T fMax = A + (std::nextafter(A, std::numeric_limits<T>::max()) - A) * Factor;
 
-				return Min <= B && Max >= B;
+				return fMin <= B && fMax >= B;
 			}
 			static void Swap(T& Value0, T& Value1)
 			{
@@ -1413,7 +1415,7 @@ namespace Tomahawk
 			bool ProcessDefineDirective(Rest::Stroke& Buffer, uint64_t Base, uint64_t& Offset, bool Endless);
 			int FindDefineDirective(Rest::Stroke& Buffer, uint64_t& Offset, uint64_t* Size);
 			int FindBlockDirective(Rest::Stroke& Buffer, uint64_t& Offset, bool Nested);
-			int FindBlockNesting(Rest::Stroke& Buffer, Rest::Stroke::Settle& Hash, uint64_t& Offset, bool Resolved);
+			int FindBlockNesting(Rest::Stroke& Buffer, const Rest::Stroke::Settle& Hash, uint64_t& Offset, bool Resolved);
 			int FindDirective(Rest::Stroke& Buffer, const char* V, uint64_t* Offset, uint64_t* Base, uint64_t* Start, uint64_t* End);
 			bool HasSet(const std::string& Path);
 

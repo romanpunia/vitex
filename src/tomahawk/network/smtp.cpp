@@ -372,7 +372,7 @@ namespace Tomahawk
 					if (strncmp(Keyword, Buffer.c_str() + i, (size_t)L2) || !i)
 						continue;
 #endif
-					if (Buffer[i - 1] != '-' && Buffer[i - 1] != ' ' && Buffer[i - 1] && '=')
+					if (Buffer[i - 1] != '-' && Buffer[i - 1] != ' ' && Buffer[i - 1] != '=')
 						continue;
 
 					if (i + L2 >= L1)
@@ -707,10 +707,10 @@ namespace Tomahawk
 				Content.append("\r\n");
 
 				It.Length -= Size;
-				if (It.Length <= 0)
+				if (!It.Length)
 					fclose(AttachmentFile);
 
-				bool Sent = (It.Length <= 0);
+				bool Sent = (!It.Length);
 				return Stream.WriteAsync(Content.c_str(), Content.size(), [this, Sent](Socket*, int64_t Size)
 				{
 					if (Size < 0)

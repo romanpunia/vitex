@@ -1262,8 +1262,8 @@ int VMCJITCompiler::CompileFunction(asIScriptFunction *function, asJITFunction *
 				as<asQWORD>(*esi + reservedPushBytes) = eax;
 #else
 				asDWORD* as_dword = (asDWORD*)&qword;
-				*esi + reservedPushBytes + 4 = as_dword[1];
-				*esi + reservedPushBytes = as_dword[0];
+				(*esi + reservedPushBytes + 4) = as_dword[1];
+				(*esi + reservedPushBytes) = as_dword[0];
 #endif
 			} break;
 			case asBC_PshVPtr:

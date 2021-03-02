@@ -370,6 +370,8 @@ namespace Tomahawk
 				MapRouter* Router = nullptr;
 
 				SiteEntry();
+				SiteEntry(const SiteEntry&) = delete;
+				SiteEntry(SiteEntry&&) = delete;
 				~SiteEntry();
 				RouteEntry* Route(const char* Pattern);
 				bool Get(const char* Pattern, SuccessCallback Callback);

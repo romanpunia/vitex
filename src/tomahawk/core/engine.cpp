@@ -3068,7 +3068,7 @@ namespace Tomahawk
 			Safe.unlock();
 		}
 
-		RenderSystem::RenderSystem(Graphics::GraphicsDevice* Ref) : Device(Ref), Target(nullptr), Scene(nullptr), BaseMaterial(nullptr), FrustumCulling(true), OcclusionCulling(false)
+		RenderSystem::RenderSystem(Graphics::GraphicsDevice* Ref) : Device(Ref), Target(nullptr), Scene(nullptr), BaseMaterial(nullptr), DepthStencil(nullptr), Blend(nullptr), Sampler(nullptr), FrustumCulling(true), OcclusionCulling(false)
 		{
 			Occlusion.Delay = 5;
 			Sorting.Delay = 5;
@@ -3185,7 +3185,7 @@ namespace Tomahawk
 			if (Sorting.TickEvent(ElapsedTime))
 			{
 				for (auto& Base : Cull)
-					Scene->SortOpaqueFrontToBack(Base);
+					Scene->SortFrontToBack(Scene->GetOpaque(Base));
 			}
 
 			if (!Occlusion.TickEvent(ElapsedTime))
@@ -3648,7 +3648,7 @@ namespace Tomahawk
 			return System->GetScene()->GetTransparent(Source);
 		}
 
-		EffectDraw::EffectDraw(RenderSystem* Lab) : Renderer(Lab), MaxSlot(0), Output(nullptr)
+		EffectDraw::EffectDraw(RenderSystem* Lab) : Renderer(Lab), MaxSlot(0), Output(nullptr), Swap(nullptr)
 		{
 			DepthStencil = Lab->GetDevice()->GetDepthStencilState("none");
 			Rasterizer = Lab->GetDevice()->GetRasterizerState("cull-back");
@@ -3658,7 +3658,7 @@ namespace Tomahawk
 		}
 		EffectDraw::~EffectDraw()
 		{
-			for (auto It = Shaders.begin(); It != Shaders.end(); It++)
+			for (auto It = Effects.begin(); It != Effects.end(); It++)
 				System->FreeShader(It->first, It->second);
 		}
 		void EffectDraw::ResizeBuffers()
@@ -3712,7 +3712,7 @@ namespace Tomahawk
 				return;
 
 			if (!Effect)
-				Effect = Shaders.begin()->second;
+				Effect = Effects.begin()->second;
 
 			Graphics::GraphicsDevice* Device = System->GetDevice();
 			Graphics::Texture2D** Merger = System->GetMerger();
@@ -3742,7 +3742,7 @@ namespace Tomahawk
 		void EffectDraw::RenderResult(Graphics::Shader* Effect, void* Buffer)
 		{
 			if (!Effect)
-				Effect = Shaders.begin()->second;
+				Effect = Effects.begin()->second;
 
 			Graphics::GraphicsDevice* Device = System->GetDevice();
 			Graphics::Texture2D** Merger = System->GetMerger();
@@ -3771,7 +3771,7 @@ namespace Tomahawk
 				return;
 
 			MaxSlot = 5;
-			if (Shaders.empty())
+			if (Effects.empty())
 				return;
 
 			Swap = nullptr;
@@ -3800,8 +3800,8 @@ namespace Tomahawk
 		}
 		Graphics::Shader* EffectDraw::GetEffect(const std::string& Name)
 		{
-			auto It = Shaders.find(Name);
-			if (It != Shaders.end())
+			auto It = Effects.find(Name);
+			if (It != Effects.end())
 				return It->second;
 
 			return nullptr;
@@ -3818,14 +3818,14 @@ namespace Tomahawk
 			if (!Shader)
 				return nullptr;
 
-			auto It = Shaders.find(Desc.Filename);
-			if (It != Shaders.end())
+			auto It = Effects.find(Desc.Filename);
+			if (It != Effects.end())
 			{
 				delete It->second;
 				It->second = Shader;
 			}
 			else
-				Shaders[Desc.Filename] = Shader;
+				Effects[Desc.Filename] = Shader;
 
 			return Shader;
 		}
@@ -4101,11 +4101,7 @@ namespace Tomahawk
 			}
 			Unlock();
 		}
-		void SceneGraph::SortOpaqueBackToFront(uint64_t Section)
-		{
-			SortOpaqueBackToFront(GetOpaque(Section));
-		}
-		void SceneGraph::SortOpaqueBackToFront(Rest::Pool<Drawable*>* Array)
+		void SceneGraph::SortBackToFront(Rest::Pool<Drawable*>* Array)
 		{
 			if (!Array)
 				return;
@@ -4115,11 +4111,7 @@ namespace Tomahawk
 				return A->Parent->Distance > B->Parent->Distance;
 			});
 		}
-		void SceneGraph::SortOpaqueFrontToBack(uint64_t Section)
-		{
-			SortOpaqueFrontToBack(GetOpaque(Section));
-		}
-		void SceneGraph::SortOpaqueFrontToBack(Rest::Pool<Drawable*>* Array)
+		void SceneGraph::SortFrontToBack(Rest::Pool<Drawable*>* Array)
 		{
 			if (!Array)
 				return;
@@ -4249,7 +4241,7 @@ namespace Tomahawk
 				Clone->Transform->GetRoot()->GetChilds()->push_back(Clone->Transform);
 
 			std::vector<Compute::Transform*>* Childs = Instance->Transform->GetChilds();
-			if (Instance->Transform->GetChildCount() <= 0)
+			if (!Instance->Transform->GetChildCount())
 				return Unlock();
 
 			Clone->Transform->GetChilds()->clear();
@@ -5198,9 +5190,8 @@ namespace Tomahawk
 			return Conf;
 		}
 
-		ContentManager::ContentManager(Graphics::GraphicsDevice* NewDevice) : Device(NewDevice)
+		ContentManager::ContentManager(Graphics::GraphicsDevice* NewDevice) : Device(NewDevice), Base(Rest::OS::Path::ResolveDirectory(Rest::OS::Directory::Get().c_str()))
 		{
-			Base = Rest::OS::Path::ResolveDirectory(Rest::OS::Directory::Get().c_str());
 			SetEnvironment(Base);
 		}
 		ContentManager::~ContentManager()
@@ -5613,7 +5604,7 @@ namespace Tomahawk
 #ifdef TH_HAS_SDL2
 			if (I->Usage & ApplicationUse_Activity_Module)
 			{
-				if (I->Activity.Width <= 0 || I->Activity.Height <= 0)
+				if (!I->Activity.Width || !I->Activity.Height)
 				{
 					SDL_DisplayMode Display;
 					SDL_GetCurrentDisplayMode(0, &Display);

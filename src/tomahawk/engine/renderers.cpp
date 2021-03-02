@@ -281,7 +281,7 @@ namespace Tomahawk
 
 					if (Base->Query.GetPassed() > 0)
 					{
-						Device->Animation.Animated = !Base->GetDrawable()->Joints.empty();
+						Device->Animation.Animated = (float)!Base->GetDrawable()->Joints.empty();
 						if (Device->Animation.Animated > 0)
 							memcpy(Device->Animation.Offsets, Base->Skeleton.Transform, 96 * sizeof(Compute::Matrix4x4));
 
@@ -296,7 +296,7 @@ namespace Tomahawk
 					}
 					else
 					{
-						Device->Animation.Animated = false;
+						Device->Animation.Animated = (float)false;
 						Device->Render.World = Base->GetBoundingBox();
 						Device->Render.WorldViewProj = Device->Render.World * View.ViewProjection;
 						Device->UpdateBuffer(Graphics::RenderBufferType_Animation);
@@ -332,7 +332,7 @@ namespace Tomahawk
 						continue;
 
 					Device->Render.TexCoord = Base->TexCoord;
-					Device->Animation.Animated = !Base->GetDrawable()->Joints.empty();
+					Device->Animation.Animated = (float)!Base->GetDrawable()->Joints.empty();
 
 					if (Device->Animation.Animated > 0)
 						memcpy(Device->Animation.Offsets, Base->Skeleton.Transform, 96 * sizeof(Compute::Matrix4x4));
@@ -372,7 +372,7 @@ namespace Tomahawk
 						continue;
 
 					Device->Render.TexCoord = Base->TexCoord;
-					Device->Animation.Animated = !Base->GetDrawable()->Joints.empty();
+					Device->Animation.Animated = (float)!Base->GetDrawable()->Joints.empty();
 
 					if (Device->Animation.Animated > 0)
 						memcpy(Device->Animation.Offsets, Base->Skeleton.Transform, 96 * sizeof(Compute::Matrix4x4));
@@ -411,7 +411,7 @@ namespace Tomahawk
 						continue;
 
 					Device->Render.TexCoord = Base->TexCoord;
-					Device->Animation.Animated = !Base->GetDrawable()->Joints.empty();
+					Device->Animation.Animated = (float)!Base->GetDrawable()->Joints.empty();
 
 					if (Device->Animation.Animated > 0)
 						memcpy(Device->Animation.Offsets, Base->Skeleton.Transform, 96 * sizeof(Compute::Matrix4x4));
@@ -452,7 +452,7 @@ namespace Tomahawk
 						continue;
 
 					Device->Render.TexCoord = Base->TexCoord;
-					Device->Animation.Animated = !Base->GetDrawable()->Joints.empty();
+					Device->Animation.Animated = (float)!Base->GetDrawable()->Joints.empty();
 
 					if (Device->Animation.Animated > 0)
 						memcpy(Device->Animation.Offsets, Base->Skeleton.Transform, 96 * sizeof(Compute::Matrix4x4));

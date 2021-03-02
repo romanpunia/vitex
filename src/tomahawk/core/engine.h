@@ -809,7 +809,7 @@ namespace Tomahawk
 		class TH_OUT EffectDraw : public Renderer
 		{
 		protected:
-			std::unordered_map<std::string, Graphics::Shader*> Shaders;
+			std::unordered_map<std::string, Graphics::Shader*> Effects;
 			Graphics::DepthStencilState* DepthStencil;
 			Graphics::RasterizerState* Rasterizer;
 			Graphics::BlendState* Blend;
@@ -944,10 +944,8 @@ namespace Tomahawk
 			void SetCamera(Entity* Camera);
 			void CloneEntities(Entity* Instance, std::vector<Entity*>* Array);
 			void RestoreViewBuffer(Viewer* View);
-			void SortOpaqueBackToFront(uint64_t Section);
-			void SortOpaqueBackToFront(Rest::Pool<Drawable*>* Array);
-			void SortOpaqueFrontToBack(uint64_t Section);
-			void SortOpaqueFrontToBack(Rest::Pool<Drawable*>* Array);
+			void SortBackToFront(Rest::Pool<Drawable*>* Array);
+			void SortFrontToBack(Rest::Pool<Drawable*>* Array);
 			void Actualize();
 			void Redistribute();
 			void Reindex();
@@ -1037,11 +1035,6 @@ namespace Tomahawk
 			void RayTest(const Compute::Ray& Origin, float MaxDistance, const RayCallback& Callback)
 			{
 				RayTest(T::GetTypeId(), Origin, MaxDistance, Callback);
-			}
-			template <typename T>
-			void SortEntitiesBackToFront()
-			{
-				SortEntitiesBackToFront(T::GetTypeId());
 			}
 			template <typename T>
 			uint64_t GetEntityCount()

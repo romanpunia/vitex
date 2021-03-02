@@ -12,7 +12,7 @@ namespace Tomahawk
 	{
 		namespace D3D11
 		{
-			D3D11DepthStencilState::D3D11DepthStencilState(const Desc& I) : DepthStencilState(I)
+			D3D11DepthStencilState::D3D11DepthStencilState(const Desc& I) : DepthStencilState(I), Resource(nullptr)
 			{
 			}
 			D3D11DepthStencilState::~D3D11DepthStencilState()
@@ -24,7 +24,7 @@ namespace Tomahawk
 				return Resource;
 			}
 
-			D3D11RasterizerState::D3D11RasterizerState(const Desc& I) : RasterizerState(I)
+			D3D11RasterizerState::D3D11RasterizerState(const Desc& I) : RasterizerState(I), Resource(nullptr)
 			{
 			}
 			D3D11RasterizerState::~D3D11RasterizerState()
@@ -36,7 +36,7 @@ namespace Tomahawk
 				return Resource;
 			}
 
-			D3D11BlendState::D3D11BlendState(const Desc& I) : BlendState(I)
+			D3D11BlendState::D3D11BlendState(const Desc& I) : BlendState(I), Resource(nullptr)
 			{
 			}
 			D3D11BlendState::~D3D11BlendState()
@@ -48,7 +48,7 @@ namespace Tomahawk
 				return Resource;
 			}
 
-			D3D11SamplerState::D3D11SamplerState(const Desc& I) : SamplerState(I)
+			D3D11SamplerState::D3D11SamplerState(const Desc& I) : SamplerState(I), Resource(nullptr)
 			{
 			}
 			D3D11SamplerState::~D3D11SamplerState()
@@ -147,7 +147,7 @@ namespace Tomahawk
 				return Vertices;
 			}
 
-			D3D11InstanceBuffer::D3D11InstanceBuffer(const Desc& I) : InstanceBuffer(I), Resource(nullptr)
+			D3D11InstanceBuffer::D3D11InstanceBuffer(const Desc& I) : InstanceBuffer(I), Resource(nullptr), Sync(true)
 			{
 			}
 			D3D11InstanceBuffer::~D3D11InstanceBuffer()
@@ -161,7 +161,7 @@ namespace Tomahawk
 			D3D11Texture2D::D3D11Texture2D() : Texture2D(), Resource(nullptr), View(nullptr), Access(nullptr)
 			{
 			}
-			D3D11Texture2D::D3D11Texture2D(const Desc& I) : Texture2D(I), Resource(nullptr), View(nullptr)
+			D3D11Texture2D::D3D11Texture2D(const Desc& I) : Texture2D(I), Resource(nullptr), View(nullptr), Access(nullptr)
 			{
 			}
 			D3D11Texture2D::~D3D11Texture2D()
@@ -192,7 +192,7 @@ namespace Tomahawk
 			D3D11TextureCube::D3D11TextureCube() : TextureCube(), Resource(nullptr), View(nullptr), Access(nullptr)
 			{
 			}
-			D3D11TextureCube::D3D11TextureCube(const Desc& I) : TextureCube(I), Resource(nullptr), View(nullptr)
+			D3D11TextureCube::D3D11TextureCube(const Desc& I) : TextureCube(I), Resource(nullptr), View(nullptr), Access(nullptr)
 			{
 			}
 			D3D11TextureCube::~D3D11TextureCube()
@@ -408,21 +408,18 @@ namespace Tomahawk
 				return (void*)Async;
 			}
 
-			D3D11Device::D3D11Device(const Desc& I) : GraphicsDevice(I), ImmediateContext(nullptr), SwapChain(nullptr), D3DDevice(nullptr)
+			D3D11Device::D3D11Device(const Desc& I) : GraphicsDevice(I), ImmediateContext(nullptr), SwapChain(nullptr), D3DDevice(nullptr), DriverType(D3D_DRIVER_TYPE_HARDWARE), FeatureLevel(D3D_FEATURE_LEVEL_11_0)
 			{
-				unsigned int CreationFlags = I.CreationFlags;
 				DirectRenderer.VertexShader = nullptr;
 				DirectRenderer.VertexLayout = nullptr;
 				DirectRenderer.ConstantBuffer = nullptr;
 				DirectRenderer.PixelShader = nullptr;
 				DirectRenderer.VertexBuffer = nullptr;
-				CreationFlags |= D3D11_CREATE_DEVICE_DISABLE_GPU_TIMEOUT;
-				DriverType = D3D_DRIVER_TYPE_HARDWARE;
-				FeatureLevel = D3D_FEATURE_LEVEL_11_0;
 				ConstantBuffer[0] = nullptr;
 				ConstantBuffer[1] = nullptr;
 				ConstantBuffer[2] = nullptr;
 
+				unsigned int CreationFlags = I.CreationFlags | D3D11_CREATE_DEVICE_DISABLE_GPU_TIMEOUT;
 				if (I.Debug)
 					CreationFlags |= D3D11_CREATE_DEVICE_DEBUG;
 
@@ -3045,7 +3042,6 @@ namespace Tomahawk
 				ZeroMemory(&Description, sizeof(Description));
 				Description.Width = I.Size;
 				Description.Height = I.Size;
-				Description.MipLevels = 1;
 				Description.ArraySize = 6;
 				Description.SampleDesc.Count = 1;
 				Description.SampleDesc.Quality = 0;

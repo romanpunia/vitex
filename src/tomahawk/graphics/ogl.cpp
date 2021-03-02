@@ -5,7 +5,7 @@
 #endif
 #ifdef TH_HAS_GL
 #define GLSL_INLINE(Code) #Code
-#define BUFFER_OFFSET(i) ((char*)NULL + (i))
+#define BUFFER_OFFSET(i) (GLvoid*)(i)
 
 namespace Tomahawk
 {
@@ -694,9 +694,9 @@ namespace Tomahawk
 					glGetProgramiv(Program, GL_ACTIVE_UNIFORMS, &Uniforms);
 					for (GLint i = 0; i < Uniforms; i++)
 					{
-						GLchar Name[64]; GLsizei Length; GLint Size; GLenum Type;
-						glGetActiveUniform(Program, (GLuint)i, 64, &Length, &Size, &Type, Name);
-						if (Type != GL_SAMPLER_1D && Type != GL_SAMPLER_2D && Type != GL_SAMPLER_3D && Type != GL_SAMPLER_CUBE)
+						GLchar Name[64]; GLsizei Length; GLint Size; GLenum Subtype;
+						glGetActiveUniform(Program, (GLuint)i, 64, &Length, &Size, &Subtype, Name);
+						if (Subtype != GL_SAMPLER_1D && Subtype != GL_SAMPLER_2D && Subtype != GL_SAMPLER_3D && Subtype != GL_SAMPLER_CUBE)
 							continue;
 
 						GLint Location = glGetUniformLocationARB(Program, Name);
@@ -745,7 +745,7 @@ namespace Tomahawk
 					IndexType = GL_UNSIGNED_INT;
 				else if (FormatMode == Format::Format_R16_Uint)
 					IndexType = GL_UNSIGNED_SHORT;
-				if (FormatMode == Format::Format_R8_Uint)
+				else if (FormatMode == Format::Format_R8_Uint)
 					IndexType = GL_UNSIGNED_BYTE;
 				else
 					IndexType = GL_UNSIGNED_INT;
@@ -865,7 +865,6 @@ namespace Tomahawk
 				}
 				else
 				{
-					GLenum Target = GL_COLOR_ATTACHMENT0;
 					glBindFramebuffer(GL_FRAMEBUFFER, 0);
 					glDrawBuffer(GL_FRONT_AND_BACK);
 				}
@@ -893,7 +892,6 @@ namespace Tomahawk
 				}
 				else
 				{
-					GLenum Target = GL_COLOR_ATTACHMENT0;
 					glBindFramebuffer(GL_FRAMEBUFFER, 0);
 					glDrawBuffer(GL_FRONT_AND_BACK);
 				}
@@ -916,7 +914,6 @@ namespace Tomahawk
 				}
 				else
 				{
-					GLenum Target = GL_COLOR_ATTACHMENT0;
 					glBindFramebuffer(GL_FRAMEBUFFER, 0);
 					glDrawBuffer(GL_FRONT_AND_BACK);
 				}
@@ -970,7 +967,6 @@ namespace Tomahawk
 				}
 				else
 				{
-					GLenum Target = GL_COLOR_ATTACHMENT0;
 					glBindFramebuffer(GL_FRAMEBUFFER, 0);
 					glDrawBuffer(GL_FRONT_AND_BACK);
 				}
@@ -1002,7 +998,7 @@ namespace Tomahawk
 			}
 			void OGLDevice::FlushTexture2D(unsigned int Slot, unsigned int Count, unsigned int Type)
 			{
-				if (Count <= 0 || Count > 31)
+				if (Count > 31)
 					return;
 
 				for (unsigned int i = 0; i < Count; i++)
@@ -1014,7 +1010,7 @@ namespace Tomahawk
 			}
 			void OGLDevice::FlushTexture3D(unsigned int Slot, unsigned int Count, unsigned int Type)
 			{
-				if (Count <= 0 || Count > 31)
+				if (Count > 31)
 					return;
 
 				for (unsigned int i = 0; i < Count; i++)
@@ -1026,7 +1022,7 @@ namespace Tomahawk
 			}
 			void OGLDevice::FlushTextureCube(unsigned int Slot, unsigned int Count, unsigned int Type)
 			{
-				if (Count <= 0 || Count > 31)
+				if (Count > 31)
 					return;
 
 				for (unsigned int i = 0; i < Count; i++)
@@ -2020,7 +2016,6 @@ namespace Tomahawk
 
 				Rest::Stroke::Settle Start;
 				Rest::Stroke Code(&F.Data);
-				uint64_t Length = Code.Size();
 				GLint StatusCode = 0;
 
 				std::string VertexEntry = GetShaderMain(ShaderType_Vertex);
@@ -2417,6 +2412,9 @@ namespace Tomahawk
 					TH_ERROR("couldn't create texture cube because width or height cannot be not divided");
 					return nullptr;
 				}
+
+				if (IResource->MipLevels > MipLevels)
+					IResource->MipLevels = MipLevels;
 
 				OGLTextureCube* Result = new OGLTextureCube();
 				glGenTextures(1, &Result->Resource);
@@ -3090,14 +3088,14 @@ namespace Tomahawk
 			{
 				return ShaderVersion;
 			}
-			void OGLDevice::CopyConstantBuffer(GLuint Id, void* Buffer, size_t Size)
+			void OGLDevice::CopyConstantBuffer(GLuint Buffer, void* Data, size_t Size)
 			{
-				if (!Buffer || !Size)
+				if (!Data || !Size)
 					return;
 
-				glBindBuffer(GL_UNIFORM_BUFFER, Id);
-				GLvoid* Data = glMapBuffer(GL_UNIFORM_BUFFER, GL_WRITE_ONLY);
-				memcpy(Data, Buffer, Size);
+				glBindBuffer(GL_UNIFORM_BUFFER, Buffer);
+				GLvoid* Subdata = glMapBuffer(GL_UNIFORM_BUFFER, GL_WRITE_ONLY);
+				memcpy(Subdata, Data, Size);
 				glUnmapBuffer(GL_UNIFORM_BUFFER);
 			}
 			int OGLDevice::CreateConstantBuffer(GLuint* Buffer, size_t Size)

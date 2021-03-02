@@ -359,7 +359,6 @@ namespace Tomahawk
             template <class M>
             static asSFuncPtr* Bind(M Value)
             {
-                int ERROR_UnsupportedMethodPtr[N - 100];
                 return VMFuncStore::CreateDummyBase();
             }
         };

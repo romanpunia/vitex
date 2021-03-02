@@ -294,9 +294,8 @@ namespace Tomahawk
 				return (Compiler ? Compiler->GetContext() : nullptr);
 			}
 
-			SiteEntry::SiteEntry()
+			SiteEntry::SiteEntry() : Base(new RouteEntry())
 			{
-				Base = new RouteEntry();
 				Base->URI.Regex.assign("/");
 				Base->Site = this;
 			}
@@ -753,15 +752,13 @@ namespace Tomahawk
 					if (strcmp(It->Name.c_str(), Key) != 0)
 						continue;
 
-					if (Value != nullptr)
-						It->Value = Value;
-
 					if (Domain != nullptr)
 						It->Domain = Domain;
 
 					if (Path != nullptr)
 						It->Path = Path;
 
+					It->Value = Value;
 					It->Secure = Secure;
 					It->Expires = Expires;
 					return;
@@ -770,12 +767,8 @@ namespace Tomahawk
 				Cookie Cookie;
 				Cookie.Secure = Secure;
 				Cookie.Expires = Expires;
-
-				if (Key != nullptr)
-					Cookie.Name = Key;
-
-				if (Value != nullptr)
-					Cookie.Value = Value;
+				Cookie.Name = Key;
+				Cookie.Value = Value;
 
 				if (Domain != nullptr)
 					Cookie.Domain = Domain;
@@ -1033,7 +1026,7 @@ namespace Tomahawk
 					return true;
 				}
 
-				const char* ContentType = Request.GetHeader("Content-Type"), * BoundaryName;
+				const char* ContentType = Request.GetHeader("Content-Type"), *BoundaryName;
 				if (ContentType && !strncmp(ContentType, "multipart/form-data", 19))
 					Request.ContentState = Content_Wants_Save;
 
@@ -1414,9 +1407,7 @@ namespace Tomahawk
 						return !Socket->WriteAsync(Base->Response.Buffer.data(), (int64_t)Base->Response.Buffer.size(), [](Network::Socket* Socket, int64_t Size)
 						{
 							auto Base = Socket->Context<HTTP::Connection>();
-							if (Size <= 0)
-								return Base->Root->Manage(Base);
-							else if (Size > 0)
+							if (Size > 0)
 								return true;
 
 							return Base->Root->Manage(Base);
@@ -1467,7 +1458,7 @@ namespace Tomahawk
 					*SerialBuffer = '\0';
 
 				unsigned int Size = 0;
-				ASN1_digest((int (*)(void*, unsigned char**))i2d_X509, Digest, (char*)Certificate, Buffer, &Size);
+				ASN1_digest((int(*)(void*, unsigned char**))i2d_X509, Digest, (char*)Certificate, Buffer, &Size);
 
 				char FingerBuffer[1024];
 				if (!Compute::Common::HexToString(Buffer, (uint64_t)Size, FingerBuffer, sizeof(FingerBuffer)))
@@ -1570,9 +1561,8 @@ namespace Tomahawk
 				return New;
 			}
 
-			Query::Query()
+			Query::Query() : Object(new QueryParameter())
 			{
-				Object = new QueryParameter();
 			}
 			Query::~Query()
 			{
@@ -2328,10 +2318,10 @@ namespace Tomahawk
 					}
 				}
 
-				Complete:
+			Complete:
 				Result = Size - Src;
 
-				Exit:
+			Exit:
 				if (Dest != Src)
 					memmove(Buffer + Dest, Buffer + Src, Size - Src);
 
@@ -2351,7 +2341,7 @@ namespace Tomahawk
 					}
 
 					continue;
-					NonPrintable:
+				NonPrintable:
 					if (((unsigned char)*Buffer < '\040' && *Buffer != '\011') || *Buffer == '\177')
 						goto FoundControl;
 					++Buffer;
@@ -2372,7 +2362,7 @@ namespace Tomahawk
 					}
 				}
 
-				FoundControl:
+			FoundControl:
 				if (*Buffer == '\015')
 				{
 					++Buffer;
@@ -2504,7 +2494,6 @@ namespace Tomahawk
 
 				if (*Buffer < '0' || '9' < *Buffer)
 				{
-					Buffer++;
 					*Out = -1;
 					return nullptr;
 				}
@@ -2520,14 +2509,15 @@ namespace Tomahawk
 			}
 			const char* Parser::ProcessHeaders(const char* Buffer, const char* BufferEnd, int* Out)
 			{
-				static const char* Mapping = "\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0"
-											 "\0\1\0\1\1\1\1\1\0\0\1\1\0\1\1\0\1\1\1\1\1\1\1\1\1\1\0\0\0\0\0\0"
-											 "\0\1\1\1\1\1\1\1\1\1\1\1\1\1\1\1\1\1\1\1\1\1\1\1\1\1\1\0\0\0\1\1"
-											 "\1\1\1\1\1\1\1\1\1\1\1\1\1\1\1\1\1\1\1\1\1\1\1\1\1\1\1\0\1\0\1\0"
-											 "\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0"
-											 "\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0"
-											 "\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0"
-											 "\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0";
+				static const char* Mapping =
+					"\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0"
+					"\0\1\0\1\1\1\1\1\0\0\1\1\0\1\1\0\1\1\1\1\1\1\1\1\1\1\0\0\0\0\0\0"
+					"\0\1\1\1\1\1\1\1\1\1\1\1\1\1\1\1\1\1\1\1\1\1\1\1\1\1\1\0\0\0\1\1"
+					"\1\1\1\1\1\1\1\1\1\1\1\1\1\1\1\1\1\1\1\1\1\1\1\1\1\1\1\0\1\0\1\0"
+					"\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0"
+					"\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0"
+					"\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0"
+					"\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0";
 
 				while (true)
 				{
@@ -2720,7 +2710,7 @@ namespace Tomahawk
 				do
 				{
 					++Buffer;
-				}while (*Buffer == ' ');
+				} while (*Buffer == ' ');
 
 				TokenStart = Buffer;
 				if (Buffer == BufferEnd)
@@ -2779,7 +2769,7 @@ namespace Tomahawk
 				do
 				{
 					++Buffer;
-				}while (*Buffer == ' ');
+				} while (*Buffer == ' ');
 				if ((Buffer = ProcessVersion(Buffer, BufferEnd, Out)) == nullptr)
 					return nullptr;
 
@@ -2822,7 +2812,7 @@ namespace Tomahawk
 				do
 				{
 					++Buffer;
-				}while (*Buffer == ' ');
+				} while (*Buffer == ' ');
 				if (BufferEnd - Buffer < 4)
 				{
 					*Out = -2;
@@ -2832,7 +2822,6 @@ namespace Tomahawk
 				int Result = 0, Status = 0;
 				if (*Buffer < '0' || '9' < *Buffer)
 				{
-					Buffer++;
 					*Out = -1;
 					return nullptr;
 				}
@@ -2841,7 +2830,6 @@ namespace Tomahawk
 				Status = Result;
 				if (*Buffer < '0' || '9' < *Buffer)
 				{
-					Buffer++;
 					*Out = -1;
 					return nullptr;
 				}
@@ -2850,7 +2838,6 @@ namespace Tomahawk
 				Status += Result;
 				if (*Buffer < '0' || '9' < *Buffer)
 				{
-					Buffer++;
 					*Out = -1;
 					return nullptr;
 				}
@@ -2881,7 +2868,7 @@ namespace Tomahawk
 				{
 					++Message;
 					--MessageLength;
-				}while (*Message == ' ');
+				} while (*Message == ' ');
 				if (OnStatusMessage && !OnStatusMessage(this, Message, MessageLength))
 				{
 					*Out = -1;
@@ -3001,7 +2988,7 @@ namespace Tomahawk
 				if (!Base || !Base->Route || !Buffer)
 					return;
 
-				if (Base->Route->StaticFileMaxAge <= 0)
+				if (!Base->Route->StaticFileMaxAge)
 					return ConstructHeadUncache(Base, Buffer);
 
 				Buffer->fAppend("Cache-Control: max-age=%llu\r\n", Base->Route->StaticFileMaxAge);
@@ -3012,8 +2999,8 @@ namespace Tomahawk
 					return;
 
 				Buffer->Append("Cache-Control: no-cache, no-store, must-revalidate, private, max-age=0\r\n"
-							   "Pragma: no-cache\r\n"
-							   "Expires: 0\r\n", 102);
+					"Pragma: no-cache\r\n"
+					"Expires: 0\r\n", 102);
 			}
 			bool Util::ConstructRoute(MapRouter* Router, Connection* Base)
 			{
@@ -3651,14 +3638,16 @@ namespace Tomahawk
 				if (!IsSupported && !Base->Route->Auth.Methods.empty())
 				{
 					Base->Request.User.Type = Auth_Denied;
-					return Base->Error(401, "Authorization method is not allowed") ? false : false;
+					Base->Error(401, "Authorization method is not allowed");
+					return false;
 				}
 
 				const char* Authorization = Base->Request.GetHeader("Authorization");
 				if (!Authorization)
 				{
 					Base->Request.User.Type = Auth_Denied;
-					return Base->Error(401, "Provide authorization header to continue.") ? false : false;
+					Base->Error(401, "Provide authorization header to continue.");
+					return false;
 				}
 
 				uint64_t Index = 0;
@@ -3683,7 +3672,8 @@ namespace Tomahawk
 				if (Type != Base->Route->Auth.Type)
 				{
 					Base->Request.User.Type = Auth_Denied;
-					return Base->Error(401, "Authorization type \"%s\" is not allowed.", Type.c_str()) ? false : false;
+					Base->Error(401, "Authorization type \"%s\" is not allowed.", Type.c_str());
+					return false;
 				}
 
 				for (auto It = Base->Route->Auth.Users.begin(); It != Base->Route->Auth.Users.end(); It++)
@@ -3696,7 +3686,8 @@ namespace Tomahawk
 				}
 
 				Base->Request.User.Type = Auth_Denied;
-				return Base->Error(401, "Invalid user access credentials were provided. Access denied.") ? false : false;
+				Base->Error(401, "Invalid user access credentials were provided. Access denied.");
+				return false;
 			}
 			bool Util::MethodAllowed(Connection* Base)
 			{
@@ -3737,7 +3728,7 @@ namespace Tomahawk
 				if (!Base || !Base->Route || Base->Route->HiddenFiles.empty())
 					return false;
 
-				std::string& Value = (Path ? *Path : Base->Request.Path);
+				const std::string& Value = (Path ? *Path : Base->Request.Path);
 				for (auto It = Base->Route->HiddenFiles.begin(); It != Base->Route->HiddenFiles.end(); It++)
 				{
 					if (Compute::Regex::Match(&(*It), nullptr, Value))
@@ -4015,11 +4006,11 @@ namespace Tomahawk
 					if (_lseeki64(_fileno(Stream), Range1, SEEK_SET) != 0)
 						return Base->Error(416, "Invalid content range offset (%lld) was specified.", Range1);
 #elif defined(TH_APPLE)
-																																			if (fseek(Stream, Range1, SEEK_SET) != 0)
-                        return Base->Error(416, "Invalid content range offset (%lld) was specified.", Range1);
+					if (fseek(Stream, Range1, SEEK_SET) != 0)
+						return Base->Error(416, "Invalid content range offset (%lld) was specified.", Range1);
 #else
-                    if (lseek64(fileno(Stream), Range1, SEEK_SET) != 0)
-                        return Base->Error(416, "Invalid content range offset (%lld) was specified.", Range1);
+					if (lseek64(fileno(Stream), Range1, SEEK_SET) != 0)
+						return Base->Error(416, "Invalid content range offset (%lld) was specified.", Range1);
 #endif
 				}
 				else
@@ -4033,7 +4024,10 @@ namespace Tomahawk
 						return Base->Break();
 					}
 					else if (Size > 0)
-						return fwrite(Buffer, sizeof(char) * (size_t)Size, 1, Stream) >= 0;
+					{
+						fwrite(Buffer, sizeof(char) * (size_t)Size, 1, Stream);
+						return true;
+					}
 
 					char Date[64];
 					Rest::DateTime::TimeFormatGMT(Date, sizeof(Date), Base->Info.Start / 1000);
@@ -4230,30 +4224,30 @@ namespace Tomahawk
 					if (ResourceHidden(Base, &It->Path))
 						continue;
 
-					char Size[64];
+					char dSize[64];
 					if (!It->Source.IsDirectory)
 					{
 						if (It->Source.Size < 1024)
-							snprintf(Size, sizeof(Size), "%db", (int)It->Source.Size);
+							snprintf(dSize, sizeof(dSize), "%db", (int)It->Source.Size);
 						else if (It->Source.Size < 0x100000)
-							snprintf(Size, sizeof(Size), "%.1fk", ((double)It->Source.Size) / 1024.0);
+							snprintf(dSize, sizeof(dSize), "%.1fk", ((double)It->Source.Size) / 1024.0);
 						else if (It->Source.Size < 0x40000000)
-							snprintf(Size, sizeof(Size), "%.1fM", ((double)It->Source.Size) / 1048576.0);
+							snprintf(dSize, sizeof(Size), "%.1fM", ((double)It->Source.Size) / 1048576.0);
 						else
-							snprintf(Size, sizeof(Size), "%.1fG", ((double)It->Source.Size) / 1073741824.0);
+							snprintf(dSize, sizeof(dSize), "%.1fG", ((double)It->Source.Size) / 1073741824.0);
 					}
 					else
-						strcpy(Size, "[DIRECTORY]");
+						strcpy(dSize, "[DIRECTORY]");
 
-					char Date[64];
-					Rest::DateTime::TimeFormatLCL(Date, sizeof(Date), It->Source.LastModified);
+					char dDate[64];
+					Rest::DateTime::TimeFormatLCL(dDate, sizeof(dDate), It->Source.LastModified);
 
 					std::string URI = Compute::Common::URIEncode(It->Path);
 					std::string HREF = (Base->Request.URI + ((*(Base->Request.URI.c_str() + 1) != '\0' && Base->Request.URI[Base->Request.URI.size() - 1] != '/') ? "/" : "") + URI);
 					if (It->Source.IsDirectory && !Rest::Stroke(&HREF).EndsOf("/\\"))
 						HREF.append(1, '/');
 
-					TextAppend(Base->Response.Buffer, "<tr><td><a href=\"" + HREF + "\">" + It->Path + "</a></td><td>&nbsp;" + Date + "</td><td>&nbsp;&nbsp;" + Size + "</td></tr>\n");
+					TextAppend(Base->Response.Buffer, "<tr><td><a href=\"" + HREF + "\">" + It->Path + "</a></td><td>&nbsp;" + Date + "</td><td>&nbsp;&nbsp;" + dSize + "</td></tr>\n");
 				}
 				TextAppend(Base->Response.Buffer, "</table></pre></body></html>");
 
@@ -4352,7 +4346,7 @@ namespace Tomahawk
 				}
 #endif
 				const char* Origin = Base->Request.GetHeader("Origin");
-				const char* CORS1 = "", * CORS2 = "", * CORS3 = "";
+				const char* CORS1 = "", *CORS2 = "", *CORS3 = "";
 				if (Origin != nullptr)
 				{
 					CORS1 = "Access-Control-Allow-Origin: ";
@@ -4377,10 +4371,10 @@ namespace Tomahawk
 					Base->Route->Callbacks.Headers(Base, &Content);
 
 				Content.fAppend("Accept-Ranges: bytes\r\n"
-								"Last-Modified: %s\r\nEtag: %s\r\n"
-								"Content-Type: %s; charset=%s\r\n"
-								"Content-Length: %lld\r\n"
-								"%s%s\r\n", LastModified, ETag, ContentType, Base->Route->CharSet.c_str(), ContentLength, Util::ConnectionResolve(Base).c_str(), ContentRange);
+					"Last-Modified: %s\r\nEtag: %s\r\n"
+					"Content-Type: %s; charset=%s\r\n"
+					"Content-Length: %lld\r\n"
+					"%s%s\r\n", LastModified, ETag, ContentType, Base->Route->CharSet.c_str(), ContentLength, Util::ConnectionResolve(Base).c_str(), ContentRange);
 
 				if (!ContentLength || !strcmp(Base->Request.Method, "HEAD"))
 				{
@@ -4420,7 +4414,7 @@ namespace Tomahawk
 				int64_t ContentLength = Base->Resource.Size;
 
 				const char* Origin = Base->Request.GetHeader("Origin");
-				const char* CORS1 = "", * CORS2 = "", * CORS3 = "";
+				const char* CORS1 = "", *CORS2 = "", *CORS3 = "";
 				if (Origin != nullptr)
 				{
 					CORS1 = "Access-Control-Allow-Origin: ";
@@ -4445,11 +4439,11 @@ namespace Tomahawk
 					Base->Route->Callbacks.Headers(Base, &Content);
 
 				Content.fAppend("Accept-Ranges: bytes\r\n"
-								"Last-Modified: %s\r\nEtag: %s\r\n"
-								"Content-Type: %s; charset=%s\r\n"
-								"Content-Encoding: %s\r\n"
-								"Transfer-Encoding: chunked\r\n"
-								"%s%s\r\n", LastModified, ETag, ContentType, Base->Route->CharSet.c_str(), (Gzip ? "gzip" : "deflate"), Util::ConnectionResolve(Base).c_str(), ContentRange);
+					"Last-Modified: %s\r\nEtag: %s\r\n"
+					"Content-Type: %s; charset=%s\r\n"
+					"Content-Encoding: %s\r\n"
+					"Transfer-Encoding: chunked\r\n"
+					"%s%s\r\n", LastModified, ETag, ContentType, Base->Route->CharSet.c_str(), (Gzip ? "gzip" : "deflate"), Util::ConnectionResolve(Base).c_str(), ContentRange);
 
 				if (!ContentLength || !strcmp(Base->Request.Method, "HEAD"))
 				{
@@ -4521,7 +4515,7 @@ namespace Tomahawk
 				if (!Stream && !Base->Resource.IsDirectory)
 					return Base->Error(500, "System denied to open resource stream.");
 
-				Range = (Range < 0) ? 0 : ((Range > Base->Resource.Size) ? Base->Resource.Size : Range);
+				Range = (Range > Base->Resource.Size ? Base->Resource.Size : Range);
 				if (ContentLength > 0 && Base->Resource.IsReferenced && Base->Resource.Size > 0)
 				{
 					if (ContentLength > Base->Resource.Size - Range)
@@ -4550,17 +4544,17 @@ namespace Tomahawk
 					return Base->Error(400, "Provided content range offset (%llu) is invalid", Range);
 				}
 #elif defined(TH_APPLE)
-																																		if (Range > 0 && fseek(Stream, Range, SEEK_SET) == -1)
-                {
-                    fclose(Stream);
-                    return Base->Error(400, "Provided content range offset (%llu) is invalid", Range);
-                }
+				if (Range > 0 && fseek(Stream, Range, SEEK_SET) == -1)
+				{
+					fclose(Stream);
+					return Base->Error(400, "Provided content range offset (%llu) is invalid", Range);
+				}
 #else
-                if (Range > 0 && lseek64(fileno(Stream), Range, SEEK_SET) == -1)
-                {
-                    fclose(Stream);
-                    return Base->Error(400, "Provided content range offset (%llu) is invalid", Range);
-                }
+				if (Range > 0 && lseek64(fileno(Stream), Range, SEEK_SET) == -1)
+				{
+					fclose(Stream);
+					return Base->Error(400, "Provided content range offset (%llu) is invalid", Range);
+				}
 #endif
 				Server* Server = Base->Root;
 				Base->Stream->SetBlocking(true);
@@ -4625,7 +4619,7 @@ namespace Tomahawk
 				if (!Stream && !Base->Resource.IsDirectory)
 					return Base->Error(500, "System denied to open resource stream.");
 
-				Range = (Range < 0) ? 0 : ((Range > Base->Resource.Size) ? Base->Resource.Size : Range);
+				Range = (Range > Base->Resource.Size ? Base->Resource.Size : Range);
 				if (ContentLength > 0 && Base->Resource.IsReferenced && Base->Resource.Size > 0)
 				{
 					if (Base->Response.Buffer.size() >= ContentLength)
@@ -4668,17 +4662,17 @@ namespace Tomahawk
 					return Base->Error(400, "Provided content range offset (%llu) is invalid", Range);
 				}
 #elif defined(TH_APPLE)
-																																		if (Range > 0 && fseek(Stream, Range, SEEK_SET) == -1)
-                {
-                    fclose(Stream);
-                    return Base->Error(400, "Provided content range offset (%llu) is invalid", Range);
-                }
+				if (Range > 0 && fseek(Stream, Range, SEEK_SET) == -1)
+				{
+					fclose(Stream);
+					return Base->Error(400, "Provided content range offset (%llu) is invalid", Range);
+				}
 #else
-                if (Range > 0 && lseek64(fileno(Stream), Range, SEEK_SET) == -1)
-                {
-                    fclose(Stream);
-                    return Base->Error(400, "Provided content range offset (%llu) is invalid", Range);
-                }
+				if (Range > 0 && lseek64(fileno(Stream), Range, SEEK_SET) == -1)
+				{
+					fclose(Stream);
+					return Base->Error(400, "Provided content range offset (%llu) is invalid", Range);
+				}
 #endif
 #ifdef TH_HAS_ZLIB
 				Server* Server = Base->Root;
@@ -4714,7 +4708,7 @@ namespace Tomahawk
 					ZStream.next_in = (Bytef*)Buffer;
 					ZStream.avail_out = (uInt)sizeof(Deflate);
 					ZStream.next_out = (Bytef*)Deflate;
-					deflate(&ZStream, (ContentLength - Read <= 0) ? Z_FINISH : Z_SYNC_FLUSH);
+					deflate(&ZStream, (ContentLength <= Read) ? Z_FINISH : Z_SYNC_FLUSH);
 					Read = (int)sizeof(Deflate) - (int)ZStream.avail_out;
 					Base->Stream->fWrite("%X\r\n", Read);
 
@@ -4825,9 +4819,9 @@ namespace Tomahawk
 
 				Rest::Stroke Content;
 				Content.fAppend("HTTP/1.1 101 Switching Protocols\r\n"
-								"Upgrade: websocket\r\n"
-								"Connection: Upgrade\r\n"
-								"Sec-WebSocket-Accept: %s\r\n", Compute::Common::Base64Encode((const unsigned char*)Encoded20, 20).c_str());
+					"Upgrade: websocket\r\n"
+					"Connection: Upgrade\r\n"
+					"Sec-WebSocket-Accept: %s\r\n", Compute::Common::Base64Encode((const unsigned char*)Encoded20, 20).c_str());
 
 				const char* Protocol = Base->Request.GetHeader("Sec-WebSocket-Protocol");
 				if (Protocol != nullptr)
@@ -5088,12 +5082,12 @@ namespace Tomahawk
 					{
 						HTTP::RouteEntry* A = *(HTTP::RouteEntry**)B1;
 						A->URI.Flags = Compute::RegexFlags_IgnoreCase;
-						if (!A || A->URI.Regex.empty())
+						if (A->URI.Regex.empty())
 							return -1;
 
 						HTTP::RouteEntry* B = *(HTTP::RouteEntry**)A1;
 						B->URI.Flags = Compute::RegexFlags_IgnoreCase;
-						if (!B || B->URI.Regex.empty())
+						if (B->URI.Regex.empty())
 							return 1;
 
 						return (int)A->URI.Regex.size() - (int)B->URI.Regex.size();

@@ -319,8 +319,8 @@ namespace Tomahawk
 
 			public:
 				static Watcher FromConnection(Connection* Connection, Document* Pipeline, Document* Options);
-				static Watcher FromDatabase(Database& Src, Document* Pipeline, Document* Options);
-				static Watcher FromCollection(Collection& Src, Document* Pipeline, Document* Options);
+				static Watcher FromDatabase(const Database& Src, Document* Pipeline, Document* Options);
+				static Watcher FromCollection(const Collection& Src, Document* Pipeline, Document* Options);
 			};
 
 			class TH_OUT Transaction

@@ -150,9 +150,9 @@ namespace Tomahawk
 					int64_t Index;
 					NMake::Unpack(Pose->Find("index"), &Index);
 
-					auto& Node = Skeleton.Pose[Index];
-					NMake::Unpack(Pose->Find("position"), &Node.Position);
-					NMake::Unpack(Pose->Find("rotation"), &Node.Rotation);
+					auto& Offset = Skeleton.Pose[Index];
+					NMake::Unpack(Pose->Find("position"), &Offset.Position);
+					NMake::Unpack(Pose->Find("rotation"), &Offset.Rotation);
 				}
 
 				bool Transparent = false;
@@ -2800,7 +2800,6 @@ namespace Tomahawk
 			{
 				auto* Viewer = Parent->GetScene()->GetCamera()->As<Camera>();
 				auto* Transform = Viewer->GetEntity()->Transform;
-				Compute::Vector3 Direction = -Parent->Transform->Position.NormalizeSafe();
 				Compute::Vector3 Eye = Transform->Position * Compute::Vector3(1.0f, 0.1f, 1.0f);
 				Compute::Vector3 Up = Transform->GetWorld().Right();
 				Compute::Matrix4x4 Look = Compute::Matrix4x4::CreateLockedLookAt(Parent->Transform->Position, Eye, Up);
@@ -2819,9 +2818,8 @@ namespace Tomahawk
 				}
 			}
 
-			SurfaceLight::SurfaceLight(Entity* Ref) : Cullable(Ref)
+			SurfaceLight::SurfaceLight(Entity* Ref) : Cullable(Ref), Projection(Compute::Matrix4x4::CreatePerspectiveRad(1.57079632679f, 1, 0.01f, 100.0f))
 			{
-				Projection = Compute::Matrix4x4::CreatePerspectiveRad(1.57079632679f, 1, 0.01f, 100.0f);
 			}
 			SurfaceLight::~SurfaceLight()
 			{
@@ -3204,7 +3202,7 @@ namespace Tomahawk
 				return MipLevels;
 			}
 
-			Camera::Camera(Entity* Ref) : Component(Ref), Mode(ProjectionMode_Perspective)
+			Camera::Camera(Entity* Ref) : Component(Ref), Mode(ProjectionMode_Perspective), Viewport({ 0, 0, 512, 512, 0, 1 })
 			{
 			}
 			Camera::~Camera()
@@ -3437,14 +3435,14 @@ namespace Tomahawk
 
 				return W / H;
 			}
-			bool Camera::RayTest(Compute::Ray& Ray, Entity* Other)
+			bool Camera::RayTest(const Compute::Ray& Ray, Entity* Other)
 			{
 				if (!Other)
 					return false;
 
 				return Compute::Common::CursorRayTest(Ray, Other->Transform->GetWorld());
 			}
-			bool Camera::RayTest(Compute::Ray& Ray, const Compute::Matrix4x4& World)
+			bool Camera::RayTest(const Compute::Ray& Ray, const Compute::Matrix4x4& World)
 			{
 				return Compute::Common::CursorRayTest(Ray, World);
 			}

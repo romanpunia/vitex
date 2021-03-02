@@ -845,13 +845,6 @@ namespace Tomahawk
 			static Console* Get();
 			static void Trace(const char* Format, ...);
 
-		public:
-			template <typename T>
-			T* GetHandle()
-			{
-				return Handle;
-			}
-
 		private:
 			static Console* Singleton;
 		};
@@ -922,19 +915,19 @@ namespace Tomahawk
 		public:
 			FileStream();
 			virtual ~FileStream() override;
-			virtual void Clear();
-			virtual bool Open(const char* File, FileMode Mode);
-			virtual bool Close();
-			virtual bool Seek(FileSeek Mode, int64_t Offset);
-			virtual bool Move(int64_t Offset);
-			virtual int Flush();
-			virtual uint64_t ReadAny(const char* Format, ...);
-			virtual uint64_t Read(char* Buffer, uint64_t Length);
-			virtual uint64_t WriteAny(const char* Format, ...);
-			virtual uint64_t Write(const char* Buffer, uint64_t Length);
-			virtual uint64_t Tell();
-			virtual int GetFd();
-			virtual void* GetBuffer();
+			virtual void Clear() override;
+			virtual bool Open(const char* File, FileMode Mode) override;
+			virtual bool Close() override;
+			virtual bool Seek(FileSeek Mode, int64_t Offset) override;
+			virtual bool Move(int64_t Offset) override;
+			virtual int Flush() override;
+			virtual uint64_t ReadAny(const char* Format, ...) override;
+			virtual uint64_t Read(char* Buffer, uint64_t Length) override;
+			virtual uint64_t WriteAny(const char* Format, ...) override;
+			virtual uint64_t Write(const char* Buffer, uint64_t Length) override;
+			virtual uint64_t Tell() override;
+			virtual int GetFd() override;
+			virtual void* GetBuffer() override;
 		};
 
 		class TH_OUT GzStream : public Stream
@@ -945,19 +938,19 @@ namespace Tomahawk
 		public:
 			GzStream();
 			virtual ~GzStream() override;
-			virtual void Clear();
-			virtual bool Open(const char* File, FileMode Mode);
-			virtual bool Close();
-			virtual bool Seek(FileSeek Mode, int64_t Offset);
-			virtual bool Move(int64_t Offset);
-			virtual int Flush();
-			virtual uint64_t ReadAny(const char* Format, ...);
-			virtual uint64_t Read(char* Buffer, uint64_t Length);
-			virtual uint64_t WriteAny(const char* Format, ...);
-			virtual uint64_t Write(const char* Buffer, uint64_t Length);
-			virtual uint64_t Tell();
-			virtual int GetFd();
-			virtual void* GetBuffer();
+			virtual void Clear() override;
+			virtual bool Open(const char* File, FileMode Mode) override;
+			virtual bool Close() override;
+			virtual bool Seek(FileSeek Mode, int64_t Offset) override;
+			virtual bool Move(int64_t Offset) override;
+			virtual int Flush() override;
+			virtual uint64_t ReadAny(const char* Format, ...) override;
+			virtual uint64_t Read(char* Buffer, uint64_t Length) override;
+			virtual uint64_t WriteAny(const char* Format, ...) override;
+			virtual uint64_t Write(const char* Buffer, uint64_t Length) override;
+			virtual uint64_t Tell() override;
+			virtual int GetFd() override;
+			virtual void* GetBuffer() override;
 		};
 
 		class TH_OUT WebStream : public Stream
@@ -971,19 +964,19 @@ namespace Tomahawk
 		public:
 			WebStream();
 			virtual ~WebStream() override;
-			virtual void Clear();
-			virtual bool Open(const char* File, FileMode Mode);
-			virtual bool Close();
-			virtual bool Seek(FileSeek Mode, int64_t Offset);
-			virtual bool Move(int64_t Offset);
-			virtual int Flush();
-			virtual uint64_t ReadAny(const char* Format, ...);
-			virtual uint64_t Read(char* Buffer, uint64_t Length);
-			virtual uint64_t WriteAny(const char* Format, ...);
-			virtual uint64_t Write(const char* Buffer, uint64_t Length);
-			virtual uint64_t Tell();
-			virtual int GetFd();
-			virtual void* GetBuffer();
+			virtual void Clear() override;
+			virtual bool Open(const char* File, FileMode Mode) override;
+			virtual bool Close() override;
+			virtual bool Seek(FileSeek Mode, int64_t Offset) override;
+			virtual bool Move(int64_t Offset) override;
+			virtual int Flush() override;
+			virtual uint64_t ReadAny(const char* Format, ...) override;
+			virtual uint64_t Read(char* Buffer, uint64_t Length) override;
+			virtual uint64_t WriteAny(const char* Format, ...) override;
+			virtual uint64_t Write(const char* Buffer, uint64_t Length) override;
+			virtual uint64_t Tell() override;
+			virtual int GetFd() override;
+			virtual void* GetBuffer() override;
 		};
 
 		class TH_OUT ChangeLog : public Object
@@ -1255,7 +1248,7 @@ namespace Tomahawk
 			}
 			void Copy(const Pool<T>& Raw)
 			{
-				if (Data == nullptr || (Data != nullptr && Volume >= Raw.Volume))
+				if (Data == nullptr || Volume >= Raw.Volume)
 				{
 					Data = (T*)TH_MALLOC((size_t)(Raw.Count * SizeOf(Data)));
 					memset(Data, 0, (size_t)(Raw.Count * SizeOf(Data)));
@@ -1305,7 +1298,7 @@ namespace Tomahawk
 			}
 			Iterator At(uint64_t Index) const
 			{
-				if (Index < 0 || Index >= Count)
+				if (Index >= Count)
 					return End();
 
 				return Data + Index;
@@ -1387,7 +1380,7 @@ namespace Tomahawk
 			}
 			bool Empty() const
 			{
-				return Count <= 0;
+				return !Count;
 			}
 
 		protected:
@@ -1499,7 +1492,7 @@ namespace Tomahawk
 			template <typename U = T>
 			void Set(const U& Value)
 			{
-				if (!Next)
+				if (!Next || Next->Set)
 					return;
 
 				Next->Set = true;
@@ -1517,11 +1510,20 @@ namespace Tomahawk
 				Base* Subresult = Next->Copy();
 				Next->Resolve = [Subresult, Callback = std::move(Callback)]()
 				{
-					Schedule::Get()->SetTask([Subresult, Callback]()
+					Schedule* Queue = Schedule::Get();
+					if (Queue->IsActive())
+					{
+						Queue->SetTask([Subresult, Callback = std::move(Callback)]()
+						{
+							Callback(Subresult->Result);
+							Subresult->Free();
+						});
+					}
+					else
 					{
 						Callback(Subresult->Result);
 						Subresult->Free();
-					});
+					}
 				};
 
 				if (Next->Set)
@@ -1536,11 +1538,20 @@ namespace Tomahawk
 				Async<R> Result; Base* Subresult = Next->Copy();
 				Next->Resolve = [Subresult, Result, Callback = std::move(Callback)]() mutable
 				{
-					Schedule::Get()->SetTask([Subresult, Result, Callback]() mutable
+					Schedule* Queue = Schedule::Get();
+					if (Queue->IsActive())
+					{
+						Queue->SetTask([Subresult, Result, Callback = std::move(Callback)]() mutable
+						{
+							Callback(Result, Subresult->Result);
+							Subresult->Free();
+						});
+					}
+					else
 					{
 						Callback(Result, Subresult->Result);
 						Subresult->Free();
-					});
+					}
 				};
 
 				if (Next->Set)
@@ -1557,11 +1568,20 @@ namespace Tomahawk
 				Async<R> Result; Base* Subresult = Next->Copy();
 				Next->Resolve = [Subresult, Result, Callback = std::move(Callback)]() mutable
 				{
-					Schedule::Get()->SetTask([Subresult, Result, Callback]() mutable
+					Schedule* Queue = Schedule::Get();
+					if (Queue->IsActive())
+					{
+						Queue->SetTask([Subresult, Result, Callback = std::move(Callback)]() mutable
+						{
+							Result.Set(Callback(Subresult->Result));
+							Subresult->Free();
+						});
+					}
+					else
 					{
 						Result.Set(Callback(Subresult->Result));
 						Subresult->Free();
-					});
+					}
 				};
 
 				if (Next->Set)

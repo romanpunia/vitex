@@ -246,7 +246,7 @@ namespace Tomahawk
 						NMake::Pack(Parent->Set("world"), Ref->Transform->GetWorld());
 					}
 
-					if (Ref->GetComponentCount() <= 0)
+					if (!Ref->GetComponentCount())
 						continue;
 
 					Rest::Document* Components = Entity->Set("components", std::move(Rest::Var::Array()));

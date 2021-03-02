@@ -26,7 +26,7 @@ namespace
 		int(*Callback)(Tomahawk::Compute::ShapeContact*, const Tomahawk::Compute::CollisionBody&, const Tomahawk::Compute::CollisionBody&) = nullptr;
 
 	public:
-		btScalar addSingleResult(btManifoldPoint& Point, const btCollisionObjectWrapper* Object1, int PartId0, int Index0, const btCollisionObjectWrapper* Object2, int PartId1, int Index1)
+		btScalar addSingleResult(btManifoldPoint& Point, const btCollisionObjectWrapper* Object1, int PartId0, int Index0, const btCollisionObjectWrapper* Object2, int PartId1, int Index1) override
 		{
 			using namespace Tomahawk::Compute;
 			if (!Callback || !Object1 || !Object1->getCollisionObject() || !Object2 || !Object2->getCollisionObject())
@@ -74,7 +74,7 @@ namespace
 		int(*Callback)(Tomahawk::Compute::RayContact*, const Tomahawk::Compute::CollisionBody&) = nullptr;
 
 	public:
-		btScalar addSingleResult(btCollisionWorld::LocalRayResult& RayResult, bool NormalInWorldSpace)
+		btScalar addSingleResult(btCollisionWorld::LocalRayResult& RayResult, bool NormalInWorldSpace) override
 		{
 			using namespace Tomahawk::Compute;
 			if (!Callback || !RayResult.m_collisionObject)
@@ -1257,16 +1257,9 @@ namespace Tomahawk
 			float A = Direction.DotProduct(Direction);
 			float B = 2 * R.DotProduct(Direction);
 			float C = R.DotProduct(R) - Radius * Radius;
-
 			float D = (B * B) - (4 * A * C);
-			if (D < 0)
-				return false;
 
-			float T = (-B - Mathf::Sqrt(D)) / (2 * A);
-			if (T < 0)
-				T = (-B + Mathf::Sqrt(D)) / (2 * A);
-
-			return true;
+			return D >= 0.0f;
 		}
 		bool Ray::IntersectsAABBAt(const Vector3& Min, const Vector3& Max, Vector3* Hit) const
 		{
@@ -2170,11 +2163,11 @@ namespace Tomahawk
 				}
 			}
 
-			float length = std::sqrt(X * X + Y * Y + Z * Z + W * W);
-			X /= length;
-			Y /= length;
-			Z /= length;
-			W /= length;
+			float Len = std::sqrt(X * X + Y * Y + Z * Z + W * W);
+			X /= Len;
+			Y /= Len;
+			Z /= Len;
+			W /= Len;
 		}
 		void Quaternion::Set(const Quaternion& Value)
 		{
@@ -2223,9 +2216,8 @@ namespace Tomahawk
 		}
 		Quaternion Quaternion::Normalize() const
 		{
-			float length = Length();
-
-			return Quaternion(X / length, Y / length, Z / length, W / length);
+			float Len = Length();
+			return Quaternion(X / Len, Y / Len, Z / Len, W / Len);
 		}
 		Quaternion Quaternion::Conjugate() const
 		{
@@ -2360,11 +2352,11 @@ namespace Tomahawk
 				}
 			}
 
-			float length = std::sqrt(Q.X * Q.X + Q.Y * Q.Y + Q.Z * Q.Z + Q.W * Q.W);
-			Q.X /= length;
-			Q.Y /= length;
-			Q.Z /= length;
-			Q.W /= length;
+			float Len = std::sqrt(Q.X * Q.X + Q.Y * Q.Y + Q.Z * Q.Z + Q.W * Q.W);
+			Q.X /= Len;
+			Q.Y /= Len;
+			Q.Z /= Len;
+			Q.W /= Len;
 
 			return Q;
 		}
@@ -2403,76 +2395,44 @@ namespace Tomahawk
 			return std::sqrt(X * X + Y * Y + Z * Z + W * W);
 		}
 
-		RandomVector2::RandomVector2()
+		RandomVector2::RandomVector2() : Min(0), Max(1), Intensity(false), Accuracy(1)
 		{
-			Min = 0;
-			Max = 1;
-			Intensity = false;
-			Accuracy = 1;
 		}
-		RandomVector2::RandomVector2(Vector2 MinV, Vector2 MaxV, bool IntensityV, float AccuracyV)
+		RandomVector2::RandomVector2(const Vector2& MinV, const Vector2& MaxV, bool IntensityV, float AccuracyV) : Min(MinV), Max(MaxV), Intensity(IntensityV), Accuracy(AccuracyV)
 		{
-			Min = MinV;
-			Max = MaxV;
-			Intensity = IntensityV;
-			Accuracy = AccuracyV;
 		}
 		Vector2 RandomVector2::Generate()
 		{
 			return Vector2(Mathf::Random(Min.X * Accuracy, Max.X * Accuracy) / Accuracy, Mathf::Random(Min.Y * Accuracy, Max.Y * Accuracy) / Accuracy) * (Intensity ? Mathf::Random() : 1);
 		}
 
-		RandomVector3::RandomVector3()
+		RandomVector3::RandomVector3() : Min(0), Max(1), Intensity(false), Accuracy(1)
 		{
-			Min = 0;
-			Max = 1;
-			Intensity = false;
-			Accuracy = 1;
 		}
-		RandomVector3::RandomVector3(Vector3 MinV, Vector3 MaxV, bool IntensityV, float AccuracyV)
+		RandomVector3::RandomVector3(const Vector3& MinV, const Vector3& MaxV, bool IntensityV, float AccuracyV) : Min(MinV), Max(MaxV), Intensity(IntensityV), Accuracy(AccuracyV)
 		{
-			Min = MinV;
-			Max = MaxV;
-			Intensity = IntensityV;
-			Accuracy = AccuracyV;
 		}
 		Vector3 RandomVector3::Generate()
 		{
 			return Vector3(Mathf::Random(Min.X * Accuracy, Max.X * Accuracy) / Accuracy, Mathf::Random(Min.Y * Accuracy, Max.Y * Accuracy) / Accuracy, Mathf::Random(Min.Z * Accuracy, Max.Z * Accuracy) / Accuracy) * (Intensity ? Mathf::Random() : 1);
 		}
 
-		RandomVector4::RandomVector4()
+		RandomVector4::RandomVector4() : Min(0), Max(1), Intensity(false), Accuracy(1)
 		{
-			Min = 0;
-			Max = 1;
-			Intensity = false;
-			Accuracy = 1;
 		}
-		RandomVector4::RandomVector4(Vector4 MinV, Vector4 MaxV, bool IntensityV, float AccuracyV)
+		RandomVector4::RandomVector4(const Vector4& MinV, const Vector4& MaxV, bool IntensityV, float AccuracyV) : Min(MinV), Max(MaxV), Intensity(IntensityV), Accuracy(AccuracyV)
 		{
-			Min = MinV;
-			Max = MaxV;
-			Intensity = IntensityV;
-			Accuracy = AccuracyV;
 		}
 		Vector4 RandomVector4::Generate()
 		{
 			return Vector4(Mathf::Random(Min.X * Accuracy, Max.X * Accuracy) / Accuracy, Mathf::Random(Min.Y * Accuracy, Max.Y * Accuracy) / Accuracy, Mathf::Random(Min.Z * Accuracy, Max.Z * Accuracy) / Accuracy, Mathf::Random(Min.W * Accuracy, Max.W * Accuracy) / Accuracy) * (Intensity ? Mathf::Random() : 1);
 		}
 
-		RandomFloat::RandomFloat()
+		RandomFloat::RandomFloat() : Min(0), Max(1), Intensity(false), Accuracy(1)
 		{
-			Min = 0;
-			Max = 1;
-			Intensity = false;
-			Accuracy = 1;
 		}
-		RandomFloat::RandomFloat(float MinV, float MaxV, bool IntensityV, float AccuracyV)
+		RandomFloat::RandomFloat(float MinV, float MaxV, bool IntensityV, float AccuracyV) : Min(MinV), Max(MaxV), Intensity(IntensityV), Accuracy(AccuracyV)
 		{
-			Min = MinV;
-			Max = MaxV;
-			Intensity = IntensityV;
-			Accuracy = AccuracyV;
 		}
 		float RandomFloat::Generate()
 		{
@@ -2957,7 +2917,10 @@ namespace Tomahawk
 			if (Info->Matches.empty() && result >= 0 && i >= 0)
 			{
 				RegexMatch Match;
+				Match.Start = 0;
+				Match.End = 0;
 				Match.Steps = Info->Steps;
+
 				if (result == Info->Expression->Regex.size())
 				{
 					Match.Length = result;
@@ -3160,11 +3123,18 @@ namespace Tomahawk
 
 			unsigned int* VRefs0 = new unsigned int[NbEdges];
 			if (!VRefs0)
+			{
+				delete[] FaceNb;
 				return false;
+			}
 
 			unsigned int* VRefs1 = new unsigned int[NbEdges];
 			if (!VRefs1)
+			{
+				delete[] FaceNb;
+				delete[] VRefs1;
 				return false;
+			}
 
 			for (unsigned int i = 0; i < NbEdges; i++)
 			{
@@ -3331,7 +3301,7 @@ namespace Tomahawk
 			return true;
 		}
 
-		TriangleStrip::TriangleStrip() : Adj(nullptr), Tags(nullptr)
+		TriangleStrip::TriangleStrip() : Adj(nullptr), Tags(nullptr), NbStrips(0), TotalLength(0), OneSided(false), SGIAlgorithm(false), ConnectAllStrips(false)
 		{
 		}
 		TriangleStrip::~TriangleStrip()
@@ -3404,7 +3374,10 @@ namespace Tomahawk
 
 			unsigned int* Connectivity = new unsigned int[Adj->NbFaces];
 			if (!Connectivity)
+			{
+				delete[] Tags;
 				return false;
+			}
 
 			memset(Tags, 0, Adj->NbFaces * sizeof(bool));
 			memset(Connectivity, 0, Adj->NbFaces * sizeof(unsigned int));
@@ -3448,17 +3421,8 @@ namespace Tomahawk
 				NbStrips++;
 			}
 
-			if (Connectivity != nullptr)
-			{
-				delete[] Connectivity;
-				Connectivity = nullptr;
-			}
-
-			if (Tags != nullptr)
-			{
-				delete[] Tags;
-				Tags = nullptr;
-			}
+			delete[] Connectivity;
+			delete[] Tags;
 
 			result.Groups = StripLengths;
 			result.Strips = StripRuns;
@@ -3674,11 +3638,10 @@ namespace Tomahawk
 
 		std::vector<int> TriangleStrip::Result::GetIndices(int Group)
 		{
+			std::vector<int> Indices;
 			if (Group < 0)
 			{
-				std::vector<int> Indices;
 				Indices.reserve(Strips.size());
-
 				for (auto& Index : Strips)
 					Indices.push_back(Index);
 
@@ -3687,7 +3650,6 @@ namespace Tomahawk
 			else if (Group < (int)Groups.size())
 			{
 				size_t Size = Groups[Group];
-				std::vector<int> Indices;
 				Indices.reserve(Size);
 
 				size_t Off = 0, Idx = 0;
@@ -3701,7 +3663,7 @@ namespace Tomahawk
 				return Indices;
 			}
 
-			return std::vector<int>();
+			return Indices;
 		}
 		std::vector<int> TriangleStrip::Result::GetInvIndices(int Group)
 		{
@@ -3711,14 +3673,25 @@ namespace Tomahawk
 			return Indices;
 		}
 
-		RadixSorter::RadixSorter()
+		RadixSorter::RadixSorter() : Indices(nullptr), Indices2(nullptr), CurrentSize(0)
 		{
-			Indices = nullptr;
-			Indices2 = nullptr;
-			CurrentSize = 0;
 			Histogram = new unsigned int[256 * 4];
 			Offset = new unsigned int[256];
 			ResetIndices();
+		}
+		RadixSorter::RadixSorter(const RadixSorter& Other) : Indices(nullptr), Indices2(nullptr), CurrentSize(0)
+		{
+			Histogram = new unsigned int[256 * 4];
+			Offset = new unsigned int[256];
+			ResetIndices();
+		}
+		RadixSorter::RadixSorter(RadixSorter&& Other) : Indices(Other.Indices), Indices2(Other.Indices2), CurrentSize(Other.CurrentSize), Histogram(Other.Histogram), Offset(Other.Offset)
+		{
+			Other.Indices = nullptr;
+			Other.Indices2 = nullptr;
+			Other.CurrentSize = 0;
+			Other.Histogram = nullptr;
+			Other.Offset = nullptr;
 		}
 		RadixSorter::~RadixSorter()
 		{
@@ -3818,9 +3791,9 @@ namespace Tomahawk
 			unsigned int NbNegativeValues = 0;
 			if (signedvalues)
 			{
-				unsigned int* h3 = &Histogram[768];
+				unsigned int* h4 = &Histogram[768];
 				for (unsigned int i = 128; i < 256; i++)
-					NbNegativeValues += h3[i];
+					NbNegativeValues += h4[i];
 			}
 
 			for (unsigned int j = 0; j < 4; j++)
@@ -4185,7 +4158,7 @@ namespace Tomahawk
 				return nullptr;
 
 			UInt1* Output = (UInt1*)TH_MALLOC(sizeof(UInt1) * 17);
-			memcpy(Output, Digest, 17);
+			memcpy(Output, Digest, 16);
 			Output[16] = '\0';
 
 			return Output;
@@ -4208,7 +4181,7 @@ namespace Tomahawk
 				return std::string();
 
 			UInt1 Data[17];
-			memcpy(Data, Digest, 17);
+			memcpy(Data, Digest, 16);
 			Data[16] = '\0';
 
 			return (const char*)Data;
@@ -5451,11 +5424,17 @@ namespace Tomahawk
 
 			TriangleStrip Strip;
 			if (!Strip.Fill(Desc))
-				return std::vector<int>();
+			{
+				std::vector<int> Empty;
+				return Empty;
+			}
 
 			TriangleStrip::Result Result;
 			if (!Strip.Resolve(Result))
-				return std::vector<int>();
+			{
+				std::vector<int> Empty;
+				return Empty;
+			}
 
 			return Result.GetIndices();
 		}
@@ -5929,7 +5908,7 @@ namespace Tomahawk
 
 			return 1;
 		}
-		int Preprocessor::FindBlockNesting(Rest::Stroke& Buffer, Rest::Stroke::Settle& Hash, uint64_t& Offset, bool Resolved)
+		int Preprocessor::FindBlockNesting(Rest::Stroke& Buffer, const Rest::Stroke::Settle& Hash, uint64_t& Offset, bool Resolved)
 		{
 			if (!Hash.Found)
 				return -1;
@@ -6194,19 +6173,8 @@ namespace Tomahawk
 			return nullptr;
 		}
 
-		Transform::Transform()
+		Transform::Transform() : Root(nullptr), UserPointer(nullptr), LocalTransform(nullptr), LocalPosition(nullptr), LocalRotation(nullptr), LocalScale(nullptr), Childs(nullptr), Position(0.0f), Rotation(0.0f), Scale(1), ConstantScale(false)
 		{
-			Root = nullptr;
-			UserPointer = nullptr;
-			LocalTransform = nullptr;
-			LocalPosition = nullptr;
-			LocalRotation = nullptr;
-			LocalScale = nullptr;
-			Position = 0.0f;
-			Rotation = 0.0f;
-			Childs = nullptr;
-			Scale = 1;
-			ConstantScale = false;
 		}
 		Transform::~Transform()
 		{
@@ -6522,7 +6490,7 @@ namespace Tomahawk
 			if (!Childs)
 				return nullptr;
 
-			if (Child < 0 || Child >= Childs->size())
+			if (Child >= Childs->size())
 				return nullptr;
 
 			return (*Childs)[Child];

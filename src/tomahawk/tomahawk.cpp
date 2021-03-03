@@ -417,6 +417,8 @@ namespace Tomahawk
 			return State >= 0;
 
 		TH_RELEASE(Rest::Schedule::Get());
+		TH_RELEASE(Rest::Console::Get());
+
 		if (Modes & TInit_Audio)
 			Audio::AudioContext::Release();
 

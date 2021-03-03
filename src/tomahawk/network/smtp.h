@@ -9,7 +9,6 @@ namespace Tomahawk
 	{
 		namespace SMTP
 		{
-			typedef std::function<void(class Client*, struct RequestFrame*, int)> ResponseCallback;
 			typedef std::function<void()> ReplyCallback;
 
 			enum Priority
@@ -69,7 +68,7 @@ namespace Tomahawk
 			public:
 				Client(int64_t ReadTimeout);
 				virtual ~Client() override;
-				bool Send(RequestFrame* Root, const ResponseCallback& Callback);
+				Rest::Async<int> Send(RequestFrame* Root);
 				RequestFrame* GetRequest();
 
 			private:

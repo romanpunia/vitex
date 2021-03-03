@@ -235,10 +235,10 @@ namespace Tomahawk
 			Output->Active = Output->Host;
 			return 0;
 		}
-		int Socket::AcceptAsync(const SocketAcceptCallback& Callback)
+		int Socket::AcceptAsync(SocketAcceptCallback&& Callback)
 		{
 			Sync.IO.lock();
-			Listener = Callback;
+			Listener = std::move(Callback);
 			Multiplexer::Listen(this);
 			Sync.IO.unlock();
 
@@ -363,7 +363,7 @@ namespace Tomahawk
 		{
 			return Write(Buffer.c_str(), (int)Buffer.size());
 		}
-		int Socket::WriteAsync(const char* Buffer, int64_t Size, const SocketWriteCallback& Callback)
+		int Socket::WriteAsync(const char* Buffer, int64_t Size, SocketWriteCallback&& Callback)
 		{
 			if (Listener)
 				return 0;
@@ -371,7 +371,7 @@ namespace Tomahawk
 			if (Output != nullptr)
 			{
 				Sync.IO.lock();
-				WritePush(Callback, Buffer, Size);
+				WritePush(std::move(Callback), Buffer, Size);
 				Sync.IO.unlock();
 
 				return 0;
@@ -384,7 +384,7 @@ namespace Tomahawk
 				if (Length == -2)
 				{
 					Sync.IO.lock();
-					WritePush(Callback, Buffer + Offset, Size);
+					WritePush(std::move(Callback), Buffer + Offset, Size);
 					Multiplexer::Listen(this);
 					Sync.IO.unlock();
 
@@ -421,16 +421,16 @@ namespace Tomahawk
 
 			return Write(Buffer, (uint64_t)Count);
 		}
-		int Socket::fWriteAsync(const SocketWriteCallback& Callback, const char* Format, ...)
+		int Socket::fWriteAsync(SocketWriteCallback&& Callback, const char* Format, ...)
 		{
 			char Buffer[8192];
 
 			va_list Args;
-					va_start(Args, Format);
+			va_start(Args, Format);
 			int Count = vsnprintf(Buffer, sizeof(Buffer), Format, Args);
-					va_end(Args);
+			va_end(Args);
 
-			return WriteAsync(Buffer, (int64_t)Count, Callback);
+			return WriteAsync(Buffer, (int64_t)Count, std::move(Callback));
 		}
 		int Socket::Read(char* Buffer, int Size)
 		{
@@ -481,12 +481,12 @@ namespace Tomahawk
 
 			return Size;
 		}
-		int Socket::ReadAsync(int64_t Size, const SocketReadCallback& Callback)
+		int Socket::ReadAsync(int64_t Size, SocketReadCallback&& Callback)
 		{
 			if (Input != nullptr)
 			{
 				Sync.IO.lock();
-				ReadPush(Callback, nullptr, Size, 0);
+				ReadPush(std::move(Callback), nullptr, Size, 0);
 				Sync.IO.unlock();
 
 				return 0;
@@ -499,7 +499,7 @@ namespace Tomahawk
 				if (Length == -2)
 				{
 					Sync.IO.lock();
-					ReadPush(Callback, nullptr, Size, 0);
+					ReadPush(std::move(Callback), nullptr, Size, 0);
 					Multiplexer::Listen(this);
 					Sync.IO.unlock();
 
@@ -564,7 +564,7 @@ namespace Tomahawk
 
 			return 0;
 		}
-		int Socket::ReadUntilAsync(const char* Match, const SocketReadCallback& Callback)
+		int Socket::ReadUntilAsync(const char* Match, SocketReadCallback&& Callback)
 		{
 			int64_t Size = (int64_t)(Match ? strlen(Match) : 0);
 			if (!Size)
@@ -574,7 +574,7 @@ namespace Tomahawk
 			if (Input != nullptr)
 			{
 				Sync.IO.lock();
-				ReadPush(Callback, Match, Size, 0);
+				ReadPush(std::move(Callback), Match, Size, 0);
 				Sync.IO.unlock();
 
 				return 0;
@@ -587,7 +587,7 @@ namespace Tomahawk
 				if (Length == -2)
 				{
 					Sync.IO.lock();
-					ReadPush(Callback, Match, Size, Index);
+					ReadPush(std::move(Callback), Match, Size, Index);
 					Multiplexer::Listen(this);
 					Sync.IO.unlock();
 
@@ -792,10 +792,10 @@ namespace Tomahawk
 		{
 			return Output || Input;
 		}
-		void Socket::ReadPush(const SocketReadCallback& Callback, const char* Match, int64_t Size, int64_t Index)
+		void Socket::ReadPush(SocketReadCallback&& Callback, const char* Match, int64_t Size, int64_t Index)
 		{
 			ReadEvent* Event = new ReadEvent();
-			Event->Callback = Callback;
+			Event->Callback = std::move(Callback);
 			Event->Size = Size;
 			Event->Index = Index;
 			Event->Match = (Match ? strdup(Match) : nullptr);
@@ -835,10 +835,10 @@ namespace Tomahawk
 
 			delete It;
 		}
-		void Socket::WritePush(const SocketWriteCallback& Callback, const char* Buffer, int64_t Size)
+		void Socket::WritePush(SocketWriteCallback&& Callback, const char* Buffer, int64_t Size)
 		{
 			WriteEvent* Event = new WriteEvent();
-			Event->Callback = Callback;
+			Event->Callback = std::move(Callback);
 			Event->Size = Size;
 			Event->Buffer = (char*)TH_MALLOC((size_t)Size);
 			memcpy(Event->Buffer, Buffer, (size_t)Size);
@@ -1133,6 +1133,9 @@ namespace Tomahawk
 				if (!Size)
 					std::this_thread::sleep_for(std::chrono::microseconds(100));
 			} while (Bound && Queue->IsBlockable());
+
+			if (Bound && !Queue->IsBlockable() && Queue->IsActive())
+				Queue->SetTask(Multiplexer::Loop);
 		}
 		int Multiplexer::Listen(Socket* Value)
 		{
@@ -1899,34 +1902,40 @@ namespace Tomahawk
 			}
 #endif
 		}
-		bool SocketClient::Connect(Host* Address, bool Async, const SocketClientCallback& Callback)
+		Rest::Async<int> SocketClient::Connect(Host* Address, bool Async)
 		{
 			if (!Address || Address->Hostname.empty() || Stream.IsValid())
-			{
-				if (Callback)
-					Callback(this, -2);
+				return Rest::Async<int>::Store(-2);
 
-				return false;
-			}
+			Rest::Async<int> Result;
+			Done = [Result](SocketClient*, int Code) mutable
+			{
+				Result.Set(Code);
+			};
 
 			Stage("socket dns resolve");
-			Done = Callback;
-
 			if (!OnResolveHost(Address))
-				return Error("cannot resolve host %s:%i", Address->Hostname.c_str(), (int)Address->Port);
+			{
+				Error("cannot resolve host %s:%i", Address->Hostname.c_str(), (int)Address->Port);
+				return Result;
+			}
 
 			Hostname = *Address;
 			Stage("socket open");
 
 			Tomahawk::Network::Address Host;
 			if (Stream.Open(Hostname.Hostname.c_str(), Hostname.Port, &Host) == -1)
-				return Error("cannot open %s:%i", Hostname.Hostname.c_str(), (int)Hostname.Port);
+			{
+				Error("cannot open %s:%i", Hostname.Hostname.c_str(), (int)Hostname.Port);
+				return Result;
+			}
 
 			Stage("socket connect");
 			if (Stream.Connect(&Host) == -1)
 			{
 				Address::Free(&Host);
-				return Error("cannot connect to %s:%i", Hostname.Hostname.c_str(), (int)Hostname.Port);
+				Error("cannot connect to %s:%i", Hostname.Hostname.c_str(), (int)Hostname.Port);
+				return Result;
 			}
 
 			Address::Free(&Host);
@@ -1939,27 +1948,31 @@ namespace Tomahawk
 			{
 				Stage("socket ssl handshake");
 				if (!Context && !(Context = SSL_CTX_new(SSLv23_client_method())))
-					return Error("cannot create ssl context");
+				{
+					Error("cannot create ssl context");
+					return Result;
+				}
 
 				if (AutoCertify && !Certify())
-					return false;
+					return Result;
 			}
 #endif
-
-			return OnConnect();
+			OnConnect();
+			return Result;
 		}
-		bool SocketClient::Close(const SocketClientCallback& Callback)
+		Rest::Async<int> SocketClient::Close()
 		{
 			if (!Stream.IsValid())
+				return Rest::Async<int>::Store(-2);
+
+			Rest::Async<int> Result;
+			Done = [Result](SocketClient*, int Code) mutable
 			{
-				if (Callback)
-					Callback(this, -2);
+				Result.Set(Code);
+			};
 
-				return false;
-			}
-
-			Done = Callback;
-			return OnClose();
+			OnClose();
+			return Result;
 		}
 		bool SocketClient::OnResolveHost(Host* Address)
 		{
@@ -2039,9 +2052,7 @@ namespace Tomahawk
 		}
 		bool SocketClient::Success(int Code)
 		{
-			auto Callback = Done;
-			Done = nullptr;
-
+			SocketClientCallback Callback(std::move(Done));
 			if (Callback)
 				Callback(this, Code);
 

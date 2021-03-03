@@ -121,7 +121,7 @@ namespace Tomahawk
 			int Connect(Address* Address);
 			int Listen(int Backlog);
 			int Accept(Socket* Connection, Address* Output);
-			int AcceptAsync(const SocketAcceptCallback& Callback);
+			int AcceptAsync(SocketAcceptCallback&& Callback);
 			int Close(bool Detach);
 			int CloseOnExec();
 			int Skip(int IO, int Code);
@@ -129,14 +129,14 @@ namespace Tomahawk
 			int Write(const char* Buffer, int Size);
 			int Write(const char* Buffer, int Size, const SocketWriteCallback& Callback);
 			int Write(const std::string& Buffer);
-			int WriteAsync(const char* Buffer, int64_t Size, const SocketWriteCallback& Callback);
+			int WriteAsync(const char* Buffer, int64_t Size, SocketWriteCallback&& Callback);
 			int fWrite(const char* Format, ...);
-			int fWriteAsync(const SocketWriteCallback& Callback, const char* Format, ...);
+			int fWriteAsync(SocketWriteCallback&& Callback, const char* Format, ...);
 			int Read(char* Buffer, int Size);
 			int Read(char* Buffer, int Size, const SocketReadCallback& Callback);
-			int ReadAsync(int64_t Size, const SocketReadCallback& Callback);
+			int ReadAsync(int64_t Size, SocketReadCallback&& Callback);
 			int ReadUntil(const char* Match, const SocketReadCallback& Callback);
-			int ReadUntilAsync(const char* Match, const SocketReadCallback& Callback);
+			int ReadUntilAsync(const char* Match, SocketReadCallback&& Callback);
 			int SetTimeWait(int Timeout);
 			int SetSocket(int Option, void* Value, int Size);
 			int SetAny(int Level, int Option, void* Value, int Size);
@@ -164,9 +164,9 @@ namespace Tomahawk
 			int64_t GetAsyncTimeout();
 
 		private:
-			void ReadPush(const SocketReadCallback& Callback, const char* Match, int64_t Size, int64_t Index);
+			void ReadPush(SocketReadCallback&& Callback, const char* Match, int64_t Size, int64_t Index);
 			void ReadPop();
-			void WritePush(const SocketWriteCallback& Callback, const char* Buffer, int64_t Size);
+			void WritePush(SocketWriteCallback&& Callback, const char* Buffer, int64_t Size);
 			void WritePop();
 
 		public:
@@ -360,8 +360,8 @@ namespace Tomahawk
 		public:
 			SocketClient(int64_t RequestTimeout);
 			virtual ~SocketClient() override;
-			bool Connect(Host* Address, bool Async, const SocketClientCallback& Callback);
-			bool Close(const SocketClientCallback& Callback);
+			Rest::Async<int> Connect(Host* Address, bool Async);
+			Rest::Async<int> Close();
 			Socket* GetStream();
 
 		protected:

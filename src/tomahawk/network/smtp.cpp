@@ -100,38 +100,49 @@ namespace Tomahawk
 					return (void)Success(0);
 				}) || true;
 			}
-			bool Client::Send(RequestFrame* Root, const ResponseCallback& Callback)
+			Rest::Async<int> Client::Send(RequestFrame* Root)
 			{
 				if ((!Staging && !Root) || !Stream.IsValid())
 					return false;
 
+				Rest::Async<int> Result;
 				if (!Staging)
 				{
 					Request = *Root;
-					Done = [Callback](SocketClient* Client, int Code)
+					Done = [Result](SocketClient* Client, int Code) mutable
 					{
 						SMTP::Client* Base = Client->As<SMTP::Client>();
-						if (Callback)
-							Callback(Base, Base->GetRequest(), Code);
+						Result.Set(Code);
 					};
 				}
 
 				if (!Authorized && Request.Authenticate && CanRequest("AUTH"))
 				{
 					Staging = true;
-					return Authorize([this]()
+					Authorize([this, Result]() mutable
 					{
-						Send(nullptr, nullptr);
+						Send(nullptr).Await([Result](int Code) mutable
+						{
+							Result.Set(Code);
+						});
 					});
+
+					return Result;
 				}
 
 				Staging = false;
 				Stage("request dispatching");
 				if (Request.SenderAddress.empty())
-					return Error("empty sender address");
+				{
+					Error("empty sender address");
+					return Result;
+				}
 
 				if (Request.Recipients.empty())
-					return Error("no recipients selected");
+				{
+					Error("no recipients selected");
+					return Result;
+				}
 
 				if (!Request.Attachments.empty())
 					Boundary = Compute::Common::MD5Hash(Compute::Common::RandomBytes(64));
@@ -148,7 +159,7 @@ namespace Tomahawk
 				for (auto It = Request.BCCRecipients.begin(); It != Request.BCCRecipients.end(); It++)
 					Content.fAppend("RCPT TO: <%s>\r\n", It->Address.c_str());
 
-				return Stream.WriteAsync(Content.Get(), Content.Size(), [this](Socket*, int64_t Size)
+				Stream.WriteAsync(Content.Get(), Content.Size(), [this](Socket*, int64_t Size)
 				{
 					if (Size < 0)
 						return Error("cannot write data to smtp server");
@@ -295,7 +306,9 @@ namespace Tomahawk
 							});
 						});
 					});
-				}) || true;
+				});
+
+				return Result;
 			}
 			bool Client::ReadResponses(int Code, const ReplyCallback& Callback)
 			{

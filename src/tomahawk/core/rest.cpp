@@ -3722,46 +3722,50 @@ namespace Tomahawk
 			Address.Secure = (URL.Protocol == "https");
 			Address.Port = (URL.Port < 0 ? (Address.Secure ? 443 : 80) : URL.Port);
 
-			Network::HTTP::RequestFrame Request;
-			strcpy(Request.Version, "HTTP/1.1");
-			strcpy(Request.Method, "GET");
-			Request.URI.assign('/' + URL.Path);
-
-			for (auto& Item : URL.Query)
-				Request.Query += Item.first + "=" + Item.second;
-
 			switch (Mode)
 			{
 				case FileMode_Binary_Read_Only:
 				case FileMode_Read_Only:
 				{
 					auto* Client = new Network::HTTP::Client(30000);
-					Client->Connect(&Address, false, [this, &Client, &Request](Network::SocketClient*, int Code)
+					Client->Connect(&Address, false).Then<Rest::Async<Network::HTTP::ResponseFrame*>, false>([Client, URL](int Code)
 					{
-						Client->Send(&Request, [this](Network::HTTP::Client* Result, Network::HTTP::RequestFrame* Request, Network::HTTP::ResponseFrame* Response)
+						if (Code < 0)
+							return Rest::Async<Network::HTTP::ResponseFrame*>::Store(nullptr);
+
+						Network::HTTP::RequestFrame Request;
+						strcpy(Request.Version, "HTTP/1.1");
+						strcpy(Request.Method, "GET");
+						Request.URI.assign('/' + URL.Path);
+
+						for (auto& Item : URL.Query)
+							Request.Query += Item.first + "=" + Item.second;
+
+						return Client->Send(&Request);
+					}).Then<Rest::Async<Network::HTTP::ResponseFrame*>, false>([this, Client](Network::HTTP::ResponseFrame* Response)
+					{
+						if (!Response || Response->StatusCode < 0)
+							return Rest::Async<Network::HTTP::ResponseFrame*>::Store(nullptr);
+
+						const char* ContentLength = Response->GetHeader("Content-Length");
+						if (ContentLength != nullptr)
 						{
-							const char* ContentLength = Response->GetHeader("Content-Length");
-							if (!ContentLength)
-							{
-								Result->Consume(1024 * 1024 * 16, [this](Network::HTTP::Client*, Network::HTTP::RequestFrame*, Network::HTTP::ResponseFrame* Response)
-								{
-									this->Buffer.assign(Response->Buffer.begin(), Response->Buffer.end());
-									this->Size = Response->Buffer.size();
-								});
-							}
-							else
-								this->Size = Stroke(ContentLength).ToUInt64();
+							this->Size = Stroke(ContentLength).ToUInt64();
+							return Rest::Async<Network::HTTP::ResponseFrame*>::Store(Response);
+						}
 
-							if (Response->StatusCode > 0)
-								this->Resource = Result;
-						});
-					});
-
-					if (!Resource)
+						return Client->Consume(1024 * 1024 * 16);
+					}).Await<false>([this, Client](Network::HTTP::ResponseFrame* Response)
 					{
-						TH_RELEASE(Client);
-						return false;
-					}
+						if (Response != nullptr && Response->StatusCode >= 0)
+						{
+							this->Buffer.assign(Response->Buffer.begin(), Response->Buffer.end());
+							this->Size = Response->Buffer.size();
+							this->Resource = Client;
+						}
+						else
+							TH_RELEASE(Client);
+					});
 					break;
 				}
 				case FileMode_Binary_Write_Only:
@@ -3834,7 +3838,7 @@ namespace Tomahawk
 				return Result;
 			}
 
-			((Network::HTTP::Client*)Resource)->Consume(Length, [this, &Data, &Length, &Result](Network::HTTP::Client*, Network::HTTP::RequestFrame*, Network::HTTP::ResponseFrame* Response)
+			((Network::HTTP::Client*)Resource)->Consume(Length).Await<false>([this, &Data, &Length, &Result](Network::HTTP::ResponseFrame* Response)
 			{
 				Result = std::min(Length, (uint64_t)Response->Buffer.size());
 				memcpy(Data, Response->Buffer.data(), Result);
@@ -5305,7 +5309,7 @@ namespace Tomahawk
 
 			return false;
 		}
-		bool Schedule::Start(bool IsAsync, uint64_t Workers)
+		bool Schedule::Start(bool IsAsync, uint64_t WorkersCount)
 		{
 			Async.Manage.lock();
 			if (Active)
@@ -5314,6 +5318,7 @@ namespace Tomahawk
 				return false;
 			}
 
+			Workers = WorkersCount;
 			Async.Childs.reserve(Workers + (IsAsync ? 1 : 0));
 			for (uint64_t i = 0; i < Workers; i++)
 				Async.Childs.push_back(std::move(std::thread(&Schedule::LoopCycle, this)));
@@ -5382,7 +5387,8 @@ namespace Tomahawk
 			Timers.clear();
 			Sync.Timers.unlock();
 
-			Terminate = false; Timer = 0;
+			Terminate = false;
+			Workers = Timer = 0;
 			Async.Manage.unlock();
 
 			return true;
@@ -5395,6 +5401,9 @@ namespace Tomahawk
 			while (Active)
 			{
 				bool Overhead = true;
+				if (!Workers && !Tasks.empty())
+					Overhead = (DispatchTask() ? false : Overhead);
+
 				if (!Events.empty())
 					Overhead = (DispatchEvent() ? false : Overhead);
 
@@ -5410,15 +5419,13 @@ namespace Tomahawk
 		bool Schedule::LoopCycle()
 		{
 			if (!Active)
-			{
-				std::unique_lock<std::mutex> Lock(Async.Child);
-				Async.Condition.wait(Lock);
-			}
+				goto Wait;
 
 			do
 			{
 				if (!DispatchTask())
 				{
+				Wait:
 					std::unique_lock<std::mutex> Lock(Async.Child);
 					Async.Condition.wait(Lock);
 				}
@@ -5510,7 +5517,7 @@ namespace Tomahawk
 		}
 		bool Schedule::IsBlockable()
 		{
-			return Active && Async.Childs.size() > 1;
+			return Active && Workers > 1;
 		}
 		bool Schedule::IsActive()
 		{

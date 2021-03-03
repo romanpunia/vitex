@@ -5326,22 +5326,23 @@ namespace Tomahawk
 			Client::~Client()
 			{
 			}
-			bool Client::Send(HTTP::RequestFrame* Root, const ResponseCallback& Callback)
+			Rest::Async<ResponseFrame*> Client::Send(HTTP::RequestFrame* Root)
 			{
 				if (!Root || !Stream.IsValid())
-					return false;
+					return Rest::Async<ResponseFrame*>::Store(nullptr);
 
+				Rest::Async<ResponseFrame*> Result;
 				Stage("request delivery");
+
 				Request = *Root;
 				Request.ContentState = Content_Not_Loaded;
-				Done = [Callback](SocketClient* Client, int Code)
+				Done = [Result](SocketClient* Client, int Code) mutable
 				{
 					HTTP::Client* Base = Client->As<HTTP::Client>();
 					if (Code < 0)
 						Base->GetResponse()->StatusCode = -1;
 
-					if (Callback)
-						Callback(Base, Base->GetRequest(), Base->GetResponse());
+					Result.Set(Base->GetResponse());
 				};
 
 				Rest::Stroke Content;
@@ -5398,7 +5399,7 @@ namespace Tomahawk
 				Content.Append("\r\n");
 
 				Response.Buffer.clear();
-				return !Stream.WriteAsync(Content.Get(), (int64_t)Content.Size(), [this](Socket*, int64_t Size)
+				Stream.WriteAsync(Content.Get(), (int64_t)Content.Size(), [this](Socket*, int64_t Size)
 				{
 					if (Size < 0)
 						return Error("http socket write %s", (Size == -2 ? "timeout" : "error"));
@@ -5438,32 +5439,19 @@ namespace Tomahawk
 						});
 					});
 				});
+
+				return Result;
 			}
-			bool Client::Consume(int64_t MaxSize, const ResponseCallback& Callback)
+			Rest::Async<ResponseFrame*> Client::Consume(int64_t MaxSize)
 			{
 				if (Request.ContentState == Content_Lost || Request.ContentState == Content_Empty || Request.ContentState == Content_Saved || Request.ContentState == Content_Wants_Save)
-				{
-					if (Callback)
-						Callback(this, &Request, &Response);
-
-					return true;
-				}
+					return Rest::Async<ResponseFrame*>::Store(GetResponse());
 
 				if (Request.ContentState == Content_Corrupted || Request.ContentState == Content_Payload_Exceeded || Request.ContentState == Content_Save_Exception)
-				{
-					if (Callback)
-						Callback(this, &Request, &Response);
-
-					return true;
-				}
+					return Rest::Async<ResponseFrame*>::Store(GetResponse());
 
 				if (Request.ContentState == Content_Cached)
-				{
-					if (Callback)
-						Callback(this, &Request, &Response);
-
-					return true;
-				}
+					return Rest::Async<ResponseFrame*>::Store(GetResponse());
 
 				Response.Buffer.clear();
 
@@ -5471,38 +5459,35 @@ namespace Tomahawk
 				if (ContentType && !strncmp(ContentType, "multipart/form-data", 19))
 				{
 					Request.ContentState = Content_Wants_Save;
-					if (Callback)
-						Callback(this, &Request, &Response);
-
-					return true;
+					return Rest::Async<ResponseFrame*>::Store(GetResponse());
 				}
 
 				const char* TransferEncoding = Response.GetHeader("Transfer-Encoding");
 				if (TransferEncoding && !Rest::Stroke::CaseCompare(TransferEncoding, "chunked"))
 				{
+					Rest::Async<ResponseFrame*> Result;
 					Parser* Parser = new HTTP::Parser();
-					return Stream.ReadAsync(MaxSize, [this, Parser, Callback, MaxSize](Network::Socket* Socket, const char* Buffer, int64_t Size)
+
+					Stream.ReadAsync(MaxSize, [this, Parser, Result, MaxSize](Network::Socket* Socket, const char* Buffer, int64_t Size) mutable
 					{
 						if (Size > 0)
 						{
-							int64_t Result = Parser->ParseDecodeChunked((char*)Buffer, &Size);
-							if (Result == -1)
+							int64_t Subresult = Parser->ParseDecodeChunked((char*)Buffer, &Size);
+							if (Subresult == -1)
 							{
 								TH_RELEASE(Parser);
 								Request.ContentState = Content_Corrupted;
-
-								if (Callback)
-									Callback(this, &Request, &Response);
+								Result.Set(GetResponse());
 
 								return false;
 							}
-							else if (Result >= 0 || Result == -2)
+							else if (Subresult >= 0 || Subresult == -2)
 							{
 								if (Response.Buffer.size() < MaxSize)
 									TextAppend(Response.Buffer, Buffer, Size);
 							}
 
-							return Result == -2;
+							return Subresult == -2;
 						}
 
 						TH_RELEASE(Parser);
@@ -5516,15 +5501,16 @@ namespace Tomahawk
 						else
 							Request.ContentState = Content_Corrupted;
 
-						if (Callback)
-							Callback(this, &Request, &Response);
-
+						Result.Set(GetResponse());
 						return true;
-					}) > 0;
+					});
+
+					return Result;
 				}
 				else if (!Response.GetHeader("Content-Length"))
 				{
-					return Stream.ReadAsync(MaxSize, [this, Callback, MaxSize](Network::Socket* Socket, const char* Buffer, int64_t Size)
+					Rest::Async<ResponseFrame*> Result;
+					Stream.ReadAsync(MaxSize, [this, Result, MaxSize](Network::Socket* Socket, const char* Buffer, int64_t Size) mutable
 					{
 						if (Size <= 0)
 						{
@@ -5533,62 +5519,48 @@ namespace Tomahawk
 							else
 								Request.ContentState = Content_Lost;
 
-							if (Callback)
-								Callback(this, &Request, &Response);
-
+							Result.Set(GetResponse());
 							return false;
 						}
 
 						if (Response.Buffer.size() < MaxSize)
 							TextAppend(Response.Buffer, Buffer, Size);
 
-						if (Callback)
-							Callback(this, &Request, &Response);
-
 						return true;
-					}) > 0;
+					});
+
+					return Result;
 				}
 
 				const char* HContentLength = Response.GetHeader("Content-Length");
 				if (!HContentLength)
 				{
 					Request.ContentState = Content_Corrupted;
-					if (Callback)
-						Callback(this, &Request, &Response);
-
-					return false;
+					return Rest::Async<ResponseFrame*>::Store(GetResponse());
 				}
 
 				Rest::Stroke HLength = HContentLength;
 				if (!HLength.HasInteger())
 				{
 					Request.ContentState = Content_Corrupted;
-					if (Callback)
-						Callback(this, &Request, &Response);
-
-					return false;
+					return Rest::Async<ResponseFrame*>::Store(GetResponse());
 				}
 
 				int64_t Length = HLength.ToInt64();
 				if (Length <= 0)
 				{
 					Request.ContentState = Content_Empty;
-					if (Callback)
-						Callback(this, &Request, &Response);
-
-					return false;
+					return Rest::Async<ResponseFrame*>::Store(GetResponse());
 				}
 
 				if (Length > MaxSize)
 				{
 					Request.ContentState = Content_Wants_Save;
-					if (Callback)
-						Callback(this, &Request, &Response);
-
-					return false;
+					return Rest::Async<ResponseFrame*>::Store(GetResponse());
 				}
 
-				return Stream.ReadAsync(Length, [this, Callback, MaxSize](Network::Socket* Socket, const char* Buffer, int64_t Size)
+				Rest::Async<ResponseFrame*> Result;
+				Stream.ReadAsync(Length, [this, Result, MaxSize](Network::Socket* Socket, const char* Buffer, int64_t Size) mutable
 				{
 					if (Size <= 0)
 					{
@@ -5602,9 +5574,7 @@ namespace Tomahawk
 						else
 							Request.ContentState = Content_Corrupted;
 
-						if (Callback)
-							Callback(this, &Request, &Response);
-
+						Result.Set(GetResponse());
 						return false;
 					}
 
@@ -5612,7 +5582,9 @@ namespace Tomahawk
 						TextAppend(Response.Buffer, Buffer, Size);
 
 					return true;
-				}) > 0;
+				});
+
+				return Result;
 			}
 			bool Client::Receive()
 			{

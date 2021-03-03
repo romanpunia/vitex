@@ -1125,14 +1125,12 @@ namespace Tomahawk
 				return (T*)LoadForward(Path, GetProcessor<T>(), Keys);
 			}
 			template <typename T>
-			bool LoadAsync(const std::string& Path, const Rest::VariantArgs& Keys, const std::function<void(class ContentManager*, T*)>& Callback)
+			Rest::Async<T*> LoadAsync(const std::string& Path, const Rest::VariantArgs& Keys = Rest::VariantArgs())
 			{
-				return Rest::Schedule::Get()->SetTask([this, Path, Callback, Keys]()
+				return [this, Path, Keys](Rest::Async<T*>& Base)
 				{
-					T* Result = (T*)LoadForward(Path, GetProcessor<T>(), Keys);
-					if (Callback)
-						Callback(this, Result);
-				});
+					Base.Set((T*)LoadForward(Path, GetProcessor<T>(), Keys))
+				};
 			}
 			template <typename T>
 			bool Save(const std::string& Path, T* Object, const Rest::VariantArgs& Keys = Rest::VariantArgs())
@@ -1140,14 +1138,12 @@ namespace Tomahawk
 				return SaveForward(Path, GetProcessor<T>(), Object, Keys);
 			}
 			template <typename T>
-			bool SaveAsync(const std::string& Path, T* Object, const Rest::VariantArgs& Keys, const SaveCallback& Callback)
+			Rest::Async<bool> SaveAsync(const std::string& Path, T* Object, const Rest::VariantArgs& Keys = Rest::VariantArgs())
 			{
-				return Rest::Schedule::Get()->SetTask([this, Path, Callback, Object, Keys]()
+				return [this, Path, Object, Keys](Rest::Async<bool>& Base)
 				{
-					bool Result = SaveForward(Path, GetProcessor<T>(), Object, Keys);
-					if (Callback)
-						Callback(this, Result);
-				});
+					Base.Set(SaveForward(Path, GetProcessor<T>(), Object, Keys))
+				};
 			}
 			template <typename T>
 			bool RemoveProcessor()

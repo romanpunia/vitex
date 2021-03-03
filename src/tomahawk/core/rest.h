@@ -1035,6 +1035,7 @@ namespace Tomahawk
 			std::deque<EventTask> Tasks;
 			std::deque<EventBase> Events;
 			EventId Timer;
+			uint64_t Workers;
 			bool Terminate;
 			bool Active;
 
@@ -1415,13 +1416,27 @@ namespace Tomahawk
 		class Async
 		{
 			static_assert(!std::is_same<T, void>::value, "async cannot be used with void type");
+			typedef T value_type;
+
+		private:
+			template <typename F>
+			struct Future
+			{
+				typedef F type;
+			};
+
+			template <typename F>
+			struct Future<Async<F>>
+			{
+				typedef F type;
+			};
 
 		private:
 			struct Base
 			{
 				std::function<void()> Resolve;
 				std::atomic<int> Count;
-				std::atomic<bool> Set;
+				std::atomic<int> Set;
 				T Result;
 
 				Base* Copy()
@@ -1440,7 +1455,25 @@ namespace Tomahawk
 			Async() : Next(new Base())
 			{
 				Next->Count = 1;
-				Next->Set = false;
+				Next->Set = -1;
+			}
+			Async(std::function<void(Async&)>&& Executor) : Async()
+			{
+				if (!Executor)
+					return;
+
+				Schedule* Queue = Schedule::Get();
+				if (Queue->IsActive())
+				{
+					Base* Subresult = Next->Copy();
+					Queue->SetTask([this, Subresult, Executor = std::move(Executor)]() mutable
+					{
+						Executor(*this);
+						Subresult->Free();
+					});
+				}
+				else
+					Executor(*this);
 			}
 			Async(Base* Context) : Next(Context)
 			{
@@ -1461,48 +1494,65 @@ namespace Tomahawk
 				if (Next != nullptr)
 					Next->Free();
 			}
-			Async& operator= (const Async& Other)
+			Async& operator= (const Async&) = delete;
+			Async& operator= (Async&&) = delete;
+			Async& operator= (const T& Other)
 			{
-				if (Next == Other.Next)
-					return *this;
-
-				if (Next != nullptr)
-					Next->Free();
-
-				Next = Other.Next;
-				if (Next != nullptr)
-					Next->Count++;
-
+				Set(Other);
 				return *this;
 			}
-			Async& operator= (Async&& Other)
+			Async& operator= (T&& Other)
 			{
-				if (Next == Other.Next)
-					return *this;
-
-				if (Next != nullptr)
-					Next->Free();
-
-				Next = Other.Next;
-				Other.Next = nullptr;
+				Set(Other);
 				return *this;
 			}
 
 		public:
-			template <typename U = T>
-			void Set(const U& Value)
+			template <bool Deferred = true>
+			void Set(const T& Value)
 			{
-				if (!Next || Next->Set)
+				if (!Next || Next->Set != -1)
 					return;
 
-				Next->Set = true;
+				Next->Set = 1;
 				Next->Result = Value;
 
 				if (Next->Resolve)
 					Next->Resolve();
 			}
-			template <typename U = T>
-			void Await(std::function<void(T&)>&& Callback)
+			template <bool Deferred = true>
+			void Set(T&& Value)
+			{
+				if (!Next || Next->Set != -1)
+					return;
+
+				Next->Set = 1;
+				Next->Result = std::move(Value);
+
+				if (Next->Resolve)
+					Next->Resolve();
+			}
+			template <bool Deferred = true>
+			void Set(Async& Other)
+			{
+				if (!Next || Next->Set != -1)
+					return;
+
+				Base* Subresult = Next->Copy();
+				Subresult->Set = 0;
+
+				Other.Await<Deferred>([Subresult](T&& Value) mutable
+				{
+					Subresult->Set = 1;
+					Subresult->Result = std::move(Value);
+
+					if (Subresult->Resolve)
+						Subresult->Resolve();
+					Subresult->Free();
+				});
+			}
+			template <bool Deferred = true>
+			void Await(std::function<void(T&&)>&& Callback)
 			{
 				if (!Callback || !Next)
 					return;
@@ -1511,26 +1561,26 @@ namespace Tomahawk
 				Next->Resolve = [Subresult, Callback = std::move(Callback)]()
 				{
 					Schedule* Queue = Schedule::Get();
-					if (Queue->IsActive())
+					if (Queue->IsActive() && Deferred)
 					{
 						Queue->SetTask([Subresult, Callback = std::move(Callback)]()
 						{
-							Callback(Subresult->Result);
+							Callback(std::move(Subresult->Result));
 							Subresult->Free();
 						});
 					}
 					else
 					{
-						Callback(Subresult->Result);
+						Callback(std::move(Subresult->Result));
 						Subresult->Free();
 					}
 				};
 
-				if (Next->Set)
+				if (Next->Set > 0)
 					Next->Resolve();
 			}
-			template <typename R>
-			Async<R> Then(std::function<void(Async<R>&, T&)>&& Callback)
+			template <typename R, bool Deferred = true>
+			Async<R> Then(std::function<void(Async<R>&, T&&)>&& Callback)
 			{
 				if (!Callback || !Next)
 					return Async<R>(nullptr);
@@ -1539,53 +1589,72 @@ namespace Tomahawk
 				Next->Resolve = [Subresult, Result, Callback = std::move(Callback)]() mutable
 				{
 					Schedule* Queue = Schedule::Get();
-					if (Queue->IsActive())
+					if (Queue->IsActive() && Deferred)
 					{
 						Queue->SetTask([Subresult, Result, Callback = std::move(Callback)]() mutable
 						{
-							Callback(Result, Subresult->Result);
+							Callback(Result, std::move(Subresult->Result));
 							Subresult->Free();
 						});
 					}
 					else
 					{
-						Callback(Result, Subresult->Result);
+						Callback(Result, std::move(Subresult->Result));
 						Subresult->Free();
 					}
 				};
 
-				if (Next->Set)
+				if (Next->Set > 0)
 					Next->Resolve();
 
 				return Result;
 			}
-			template <typename R>
-			Async<R> Then(std::function<R(T&)>&& Callback)
+			template <typename R, bool Deferred = true>
+			Async<typename Future<R>::type> Then(std::function<R(T&&)>&& Callback)
 			{
+				using F = typename Future<R>::type;
 				if (!Callback || !Next)
-					return Async<R>(nullptr);
+					return Async<F>(nullptr);
 
-				Async<R> Result; Base* Subresult = Next->Copy();
+				Async<F> Result; Base* Subresult = Next->Copy();
 				Next->Resolve = [Subresult, Result, Callback = std::move(Callback)]() mutable
 				{
 					Schedule* Queue = Schedule::Get();
-					if (Queue->IsActive())
+					if (Queue->IsActive() && Deferred)
 					{
 						Queue->SetTask([Subresult, Result, Callback = std::move(Callback)]() mutable
 						{
-							Result.Set(Callback(Subresult->Result));
+							Result.Set<Deferred>(Callback(std::move(Subresult->Result)));
 							Subresult->Free();
 						});
 					}
 					else
 					{
-						Result.Set(Callback(Subresult->Result));
+						Result.Set<Deferred>(Callback(std::move(Subresult->Result)));
 						Subresult->Free();
 					}
 				};
 
-				if (Next->Set)
+				if (Next->Set > 0)
 					Next->Resolve();
+
+				return Result;
+			}
+
+		public:
+			static Async Store(const T& Value)
+			{
+				Async Result;
+				Result.Next->Result = Value;
+				Result.Next->Set = 1;
+
+				return Result;
+			}
+			static Async Store(T&& Value)
+			{
+				Async Result;
+				Result.Next->Result = std::move(Value);
+				Result.Next->Set = 1;
 
 				return Result;
 			}

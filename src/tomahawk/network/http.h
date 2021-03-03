@@ -79,7 +79,6 @@ namespace Tomahawk
 			typedef std::function<bool(class Parser*, int64_t)> ParserCodeCallback;
 			typedef std::function<bool(class Parser*, const char*, int64_t)> ParserDataCallback;
 			typedef std::function<bool(class Parser*)> ParserNotifyCallback;
-			typedef std::function<void(class Client*, struct RequestFrame*, struct ResponseFrame*)> ResponseCallback;
 
 			struct Connection;
 
@@ -648,8 +647,8 @@ namespace Tomahawk
 			public:
 				Client(int64_t ReadTimeout);
 				virtual ~Client() override;
-				bool Send(HTTP::RequestFrame* Root, const ResponseCallback& Callback);
-				bool Consume(int64_t MaxSize, const ResponseCallback& Callback);
+				Rest::Async<ResponseFrame*> Send(HTTP::RequestFrame* Root);
+				Rest::Async<ResponseFrame*> Consume(int64_t MaxSize);
 				RequestFrame* GetRequest();
 				ResponseFrame* GetResponse();
 

@@ -5901,7 +5901,7 @@ namespace Tomahawk
 				Job->UpdateTask();
 			} while (Job->App->State == ApplicationState_Multithreaded && Queue->IsBlockable());
 
-			if (Job->App->State == ApplicationState_Singlethreaded)
+			if (Job->App->State == ApplicationState_Singlethreaded && Queue->IsActive() && !Queue->IsBlockable())
 				Queue->SetTask([Job]() { Callee(Job); });
 		}
 		void Application::Compose()

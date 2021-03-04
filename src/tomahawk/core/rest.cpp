@@ -3169,8 +3169,7 @@ namespace Tomahawk
 		}
 		void Console::Trace(const char* Format, ...)
 		{
-			char Buffer[2048] = { '\0' };
-
+			char Buffer[2048];
 			va_list Args;
 			va_start(Args, Format);
 #ifdef TH_MICROSOFT
@@ -3722,13 +3721,14 @@ namespace Tomahawk
 			Address.Secure = (URL.Protocol == "https");
 			Address.Port = (URL.Port < 0 ? (Address.Secure ? 443 : 80) : URL.Port);
 
+			bool Chunked = false;
 			switch (Mode)
 			{
 				case FileMode_Binary_Read_Only:
 				case FileMode_Read_Only:
 				{
 					auto* Client = new Network::HTTP::Client(30000);
-					Client->Connect(&Address, false).Then<Rest::Async<Network::HTTP::ResponseFrame*>, false>([Client, URL](int Code)
+					Client->Connect(&Address, false).Sync().Then<Rest::Async<Network::HTTP::ResponseFrame*>>([Client, URL](int Code)
 					{
 						if (Code < 0)
 							return Rest::Async<Network::HTTP::ResponseFrame*>::Store(nullptr);
@@ -3742,7 +3742,7 @@ namespace Tomahawk
 							Request.Query += Item.first + "=" + Item.second;
 
 						return Client->Send(&Request);
-					}).Then<Rest::Async<Network::HTTP::ResponseFrame*>, false>([this, Client](Network::HTTP::ResponseFrame* Response)
+					}).Then<Rest::Async<Network::HTTP::ResponseFrame*>>([this, Client, &Chunked](Network::HTTP::ResponseFrame* Response)
 					{
 						if (!Response || Response->StatusCode < 0)
 							return Rest::Async<Network::HTTP::ResponseFrame*>::Store(nullptr);
@@ -3754,14 +3754,18 @@ namespace Tomahawk
 							return Rest::Async<Network::HTTP::ResponseFrame*>::Store(Response);
 						}
 
+						Chunked = true;
 						return Client->Consume(1024 * 1024 * 16);
-					}).Await<false>([this, Client](Network::HTTP::ResponseFrame* Response)
+					}).Await([this, Client, &Chunked](Network::HTTP::ResponseFrame* Response)
 					{
 						if (Response != nullptr && Response->StatusCode >= 0)
 						{
+							this->Resource = Client;
+							if (!Chunked)
+								return;
+
 							this->Buffer.assign(Response->Buffer.begin(), Response->Buffer.end());
 							this->Size = Response->Buffer.size();
-							this->Resource = Client;
 						}
 						else
 							TH_RELEASE(Client);
@@ -3838,7 +3842,7 @@ namespace Tomahawk
 				return Result;
 			}
 
-			((Network::HTTP::Client*)Resource)->Consume(Length).Await<false>([this, &Data, &Length, &Result](Network::HTTP::ResponseFrame* Response)
+			((Network::HTTP::Client*)Resource)->Consume(Length).Sync().Await([this, &Data, &Length, &Result](Network::HTTP::ResponseFrame* Response)
 			{
 				Result = std::min(Length, (uint64_t)Response->Buffer.size());
 				memcpy(Data, Response->Buffer.data(), Result);

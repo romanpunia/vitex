@@ -4425,7 +4425,7 @@ namespace Tomahawk
 				return 0;
 			}
 
-			if (Context->GetState() == Script::VMExecState_FINISHED)
+			if (Context->GetState() == asEXECUTION_FINISHED)
 				return asEXECUTION_FINISHED;
 
 			return Context->Execute();

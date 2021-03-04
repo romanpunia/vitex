@@ -2603,7 +2603,7 @@ namespace Tomahawk
 				if (!mongoc_client_session_append(Client->Session.Get(), Uid.Get(), &Error))
 				{
 					TH_ERROR("[mongoc] could not set session uid\n\t%s", Error.message);
-					return false;
+					return nullptr;
 				}
 
 				return Client->Session.Get();

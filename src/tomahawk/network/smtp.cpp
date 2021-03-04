@@ -103,7 +103,7 @@ namespace Tomahawk
 			Rest::Async<int> Client::Send(RequestFrame* Root)
 			{
 				if ((!Staging && !Root) || !Stream.IsValid())
-					return false;
+					return Rest::Async<int>::Store(-1);
 
 				Rest::Async<int> Result;
 				if (!Staging)

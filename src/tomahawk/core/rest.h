@@ -1437,8 +1437,12 @@ namespace Tomahawk
 				std::function<void()> Resolve;
 				std::atomic<int> Count;
 				std::atomic<int> Set;
+				bool Deferred;
 				T Result;
 
+				Base() : Count(1), Set(-1), Deferred(true)
+				{
+				}
 				Base* Copy()
 				{
 					Count++;
@@ -1454,8 +1458,6 @@ namespace Tomahawk
 		public:
 			Async() : Next(new Base())
 			{
-				Next->Count = 1;
-				Next->Set = -1;
 			}
 			Async(std::function<void(Async&)>&& Executor) : Async()
 			{
@@ -1506,9 +1508,13 @@ namespace Tomahawk
 				Set(Other);
 				return *this;
 			}
+			Async& Sync(bool Blocking = true)
+			{
+				if (Next != nullptr)
+					Next->Deferred = !Blocking;
 
-		public:
-			template <bool Deferred = true>
+				return *this;
+			}
 			void Set(const T& Value)
 			{
 				if (!Next || Next->Set != -1)
@@ -1520,7 +1526,6 @@ namespace Tomahawk
 				if (Next->Resolve)
 					Next->Resolve();
 			}
-			template <bool Deferred = true>
 			void Set(T&& Value)
 			{
 				if (!Next || Next->Set != -1)
@@ -1532,8 +1537,7 @@ namespace Tomahawk
 				if (Next->Resolve)
 					Next->Resolve();
 			}
-			template <bool Deferred = true>
-			void Set(Async& Other)
+			void Set(Async&& Other)
 			{
 				if (!Next || Next->Set != -1)
 					return;
@@ -1541,7 +1545,7 @@ namespace Tomahawk
 				Base* Subresult = Next->Copy();
 				Subresult->Set = 0;
 
-				Other.Await<Deferred>([Subresult](T&& Value) mutable
+				Other.Sync(!Subresult->Deferred).Await([Subresult](T&& Value) mutable
 				{
 					Subresult->Set = 1;
 					Subresult->Result = std::move(Value);
@@ -1551,8 +1555,7 @@ namespace Tomahawk
 					Subresult->Free();
 				});
 			}
-			template <bool Deferred = true>
-			void Await(std::function<void(T&&)>&& Callback)
+			void Await(std::function<void(T&&)>&& Callback) const
 			{
 				if (!Callback || !Next)
 					return;
@@ -1561,7 +1564,7 @@ namespace Tomahawk
 				Next->Resolve = [Subresult, Callback = std::move(Callback)]()
 				{
 					Schedule* Queue = Schedule::Get();
-					if (Queue->IsActive() && Deferred)
+					if (Queue->IsActive() && Subresult->Deferred)
 					{
 						Queue->SetTask([Subresult, Callback = std::move(Callback)]()
 						{
@@ -1579,8 +1582,10 @@ namespace Tomahawk
 				if (Next->Set > 0)
 					Next->Resolve();
 			}
-			template <typename R, bool Deferred = true>
-			Async<R> Then(std::function<void(Async<R>&, T&&)>&& Callback)
+
+		public:
+			template <typename R>
+			Async<R> Then(std::function<void(Async<R>&, T&&)>&& Callback) const
 			{
 				if (!Callback || !Next)
 					return Async<R>(nullptr);
@@ -1589,7 +1594,7 @@ namespace Tomahawk
 				Next->Resolve = [Subresult, Result, Callback = std::move(Callback)]() mutable
 				{
 					Schedule* Queue = Schedule::Get();
-					if (Queue->IsActive() && Deferred)
+					if (Queue->IsActive() && Subresult->Deferred)
 					{
 						Queue->SetTask([Subresult, Result, Callback = std::move(Callback)]() mutable
 						{
@@ -1609,8 +1614,8 @@ namespace Tomahawk
 
 				return Result;
 			}
-			template <typename R, bool Deferred = true>
-			Async<typename Future<R>::type> Then(std::function<R(T&&)>&& Callback)
+			template <typename R>
+			Async<typename Future<R>::type> Then(std::function<R(T&&)>&& Callback) const
 			{
 				using F = typename Future<R>::type;
 				if (!Callback || !Next)
@@ -1620,17 +1625,17 @@ namespace Tomahawk
 				Next->Resolve = [Subresult, Result, Callback = std::move(Callback)]() mutable
 				{
 					Schedule* Queue = Schedule::Get();
-					if (Queue->IsActive() && Deferred)
+					if (Queue->IsActive() && Subresult->Deferred)
 					{
 						Queue->SetTask([Subresult, Result, Callback = std::move(Callback)]() mutable
 						{
-							Result.Set<Deferred>(Callback(std::move(Subresult->Result)));
+							Result.Set(std::move(Callback(std::move(Subresult->Result))));
 							Subresult->Free();
 						});
 					}
 					else
 					{
-						Result.Set<Deferred>(Callback(std::move(Subresult->Result)));
+						Result.Set(std::move(Callback(std::move(Subresult->Result))));
 						Subresult->Free();
 					}
 				};

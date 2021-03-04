@@ -1129,7 +1129,7 @@ namespace Tomahawk
 			{
 				return [this, Path, Keys](Rest::Async<T*>& Base)
 				{
-					Base.Set((T*)LoadForward(Path, GetProcessor<T>(), Keys))
+					Base.Set((T*)LoadForward(Path, GetProcessor<T>(), Keys));
 				};
 			}
 			template <typename T>
@@ -1142,7 +1142,7 @@ namespace Tomahawk
 			{
 				return [this, Path, Object, Keys](Rest::Async<bool>& Base)
 				{
-					Base.Set(SaveForward(Path, GetProcessor<T>(), Object, Keys))
+					Base.Set(SaveForward(Path, GetProcessor<T>(), Object, Keys));
 				};
 			}
 			template <typename T>

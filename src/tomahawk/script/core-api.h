@@ -565,12 +565,12 @@ namespace Tomahawk
 			bool GetAny(void* Ref, int TypeId) const;
 			VMCAny* Get() const;
 			VMCAsync* Await();
+			VMCAsync* Then(AsyncDoneCallback&& DoneCallback);
 
 		private:
 			void Finish();
 
 		public:
-			static VMCAsync* Promise(const AsyncWorkCallback& WorkCallback, const AsyncDoneCallback& DoneCallback);
 			static VMCAsync* Promise();
 			static VMCAsync* Reject();
 			static VMCAsync* Fulfill(void* Ref, int TypeId);

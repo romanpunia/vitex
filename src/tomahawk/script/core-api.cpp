@@ -4420,9 +4420,15 @@ namespace Tomahawk
 
 			AsyncDoneCallback Callback = Done;
 			if (Callback)
+			{
 				Callback(VMContext::Get(Context));
+				return 0;
+			}
 
-			return 0;
+			if (Context->GetState() == Script::VMExecState_FINISHED)
+				return asEXECUTION_FINISHED;
+
+			return Context->Execute();
 		}
 		int VMCAsync::Set(void* Ref, int TypeId)
 		{
@@ -4475,24 +4481,10 @@ namespace Tomahawk
 
 			return this;
 		}
-		VMCAsync* VMCAsync::Promise(const AsyncWorkCallback& WorkCallback, const AsyncDoneCallback& DoneCallback)
+		VMCAsync* VMCAsync::Then(AsyncDoneCallback&& DoneCallback)
 		{
-			VMCContext* Context = asGetActiveContext();
-			if (!Context)
-				return nullptr;
-
-			VMCManager* Engine = Context->GetEngine();
-			if (!Engine)
-				return nullptr;
-
-			VMCAsync* Async = new VMCAsync(Context);
-			Engine->NotifyGarbageCollectorOfNewObject(Async, Engine->GetTypeInfoByName("Async"));
-
-			Async->Done = DoneCallback;
-			if (WorkCallback)
-				WorkCallback(Async);
-
-			return Async;
+			Done = std::move(DoneCallback);
+			return this;
 		}
 		VMCAsync* VMCAsync::Promise()
 		{

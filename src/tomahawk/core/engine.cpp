@@ -5959,6 +5959,10 @@ namespace Tomahawk
 			Rest::Composer::Push<Audio::Filters::Bandpass>();
 			Rest::Composer::Push<Audio::Filters::Highpass>();
 		}
+		Rest::Schedule* Application::Queue()
+		{
+			return Rest::Schedule::Get();
+		}
 		Application* Application::Get()
 		{
 			return Host;

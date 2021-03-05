@@ -5504,13 +5504,20 @@ namespace Tomahawk
 					continue;
 
 				TimerCallback Callback = Element.Callback;
-				if (Element.Alive)
+				bool Deferred = Element.Alive;
+
+				if (Deferred)
 					Element.Time = Time;
 				else
 					Timers.erase(It);
 
 				Sync.Timers.unlock();
-				if (Callback)
+				if (!Callback)
+					return false;
+
+				if (Deferred)
+					SetTask(std::move(Callback));
+				else
 					Callback();
 
 				return true;

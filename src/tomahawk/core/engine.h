@@ -1293,6 +1293,7 @@ namespace Tomahawk
 			static void Compose();
 
 		public:
+			static Rest::Schedule* Queue();
 			static Application* Get();
 		};
 

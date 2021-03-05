@@ -102,11 +102,13 @@ namespace Tomahawk
 			{
 			private:
 				TDocument* Base;
+				bool Store;
 
 			public:
 				Document(TDocument* NewBase);
 				void Release();
-				void Join(const Document& Value);
+				void Clear();
+				void Join(Document* Value);
 				void Loop(const std::function<bool(Property*)>& Callback) const;
 				bool SetDocument(const char* Key, Document* Value, uint64_t ArrayId = 0);
 				bool SetArray(const char* Key, Document* Array, uint64_t ArrayId = 0);
@@ -131,6 +133,7 @@ namespace Tomahawk
 				std::string ToJSON() const;
 				Rest::Document* ToDocument(bool IsArray = false) const;
 				Document Copy() const;
+				Document& Persist();
 				TDocument* Get() const;
 				operator bool() const
 				{
@@ -188,12 +191,6 @@ namespace Tomahawk
 				bool Insert(Document* Result, Document* Options);
 				bool UpdateOne(Document* Selector, Document* Result, Document* Options);
 				bool UpdateMany(Document* Selector, Document* Result, Document* Options);
-				bool RemoveMany(const Document& Selector, const Document& Options);
-				bool RemoveOne(const Document& Selector, const Document& Options);
-				bool ReplaceOne(const Document& Selector, const Document& Replacement, const Document& Options);
-				bool Insert(const Document& Result, const Document& Options);
-				bool UpdateOne(const Document& Selector, const Document& Result, const Document& Options);
-				bool UpdateMany(const Document& Selector, const Document& Result, const Document& Options);
 				bool Execute(Document* Reply);
 				bool Execute();
 				uint64_t GetHint() const;
@@ -215,7 +212,7 @@ namespace Tomahawk
 			public:
 				Cursor(TCursor* NewBase);
 				void Release();
-				void Receive(const std::function<bool(const Document&)>& Callback) const;
+				void Receive(const std::function<bool(Document*)>& Callback) const;
 				void SetMaxAwaitTime(uint64_t MaxAwaitTime);
 				void SetBatchSize(uint64_t BatchSize);
 				bool SetLimit(int64_t Limit);

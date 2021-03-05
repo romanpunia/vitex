@@ -4,7 +4,7 @@ extern "C"
 #ifdef TH_HAS_MONGOC
 #include <mongoc.h>
 #define MDB_POP(V) (V ? V->Get() : nullptr)
-#define MDB_FREE(V) { if (V != nullptr) V->Release(); }
+#define MDB_FREE(V) { if (V != nullptr) V->Clear(); }
 #endif
 }
 
@@ -171,7 +171,7 @@ namespace Tomahawk
 #endif
 			}
 
-			Document::Document(TDocument* NewBase) : Base(NewBase)
+			Document::Document(TDocument* NewBase) : Base(NewBase), Store(false)
 			{
 			}
 			void Document::Release()
@@ -190,11 +190,19 @@ namespace Tomahawk
 				Base = nullptr;
 #endif
 			}
-			void Document::Join(const Document& Value)
+			void Document::Clear()
+			{
+				if (!Store)
+					Release();
+			}
+			void Document::Join(Document* Value)
 			{
 #ifdef TH_HAS_MONGOC
-				if (Base != nullptr && Value.Base != nullptr)
-					bson_concat(Base, Value.Base);
+				if (Base != nullptr && Value != nullptr && Value->Base != nullptr)
+				{
+					bson_concat(Base, Value->Base);
+					Value->Clear();
+				}
 #endif
 			}
 			void Document::Loop(const std::function<bool(Property*)>& Callback) const
@@ -751,6 +759,11 @@ namespace Tomahawk
 				return nullptr;
 #endif
 			}
+			Document& Document::Persist()
+			{
+				Store = false;
+				return *this;
+			}
 			Document Document::Copy() const
 			{
 #ifdef TH_HAS_MONGOC
@@ -1146,126 +1159,6 @@ namespace Tomahawk
 				return false;
 #endif
 			}
-			bool Stream::RemoveMany(const Document& Selector, const Document& Options)
-			{
-#ifdef TH_HAS_MONGOC
-				if (!Base)
-					return false;
-
-				bson_error_t Error;
-				memset(&Error, 0, sizeof(bson_error_t));
-
-				if (!mongoc_bulk_operation_remove_many_with_opts(Base, Selector.Get(), Options.Get(), &Error))
-				{
-					TH_ERROR("[mongoc] %s", Error.message);
-					return false;
-				}
-
-				return true;
-#else
-				return false;
-#endif
-			}
-			bool Stream::RemoveOne(const Document& Selector, const Document& Options)
-			{
-#ifdef TH_HAS_MONGOC
-				if (!Base)
-					return false;
-
-				bson_error_t Error;
-				memset(&Error, 0, sizeof(bson_error_t));
-
-				if (!mongoc_bulk_operation_remove_one_with_opts(Base, Selector.Get(), Options.Get(), &Error))
-				{
-					TH_ERROR("[mongoc] %s", Error.message);
-					return false;
-				}
-
-				return true;
-#else
-				return false;
-#endif
-			}
-			bool Stream::ReplaceOne(const Document& Selector, const Document& Replacement, const Document& Options)
-			{
-#ifdef TH_HAS_MONGOC
-				if (!Base)
-					return false;
-
-				bson_error_t Error;
-				memset(&Error, 0, sizeof(bson_error_t));
-
-				if (!mongoc_bulk_operation_replace_one_with_opts(Base, Selector.Get(), Replacement.Get(), Options.Get(), &Error))
-				{
-					TH_ERROR("[mongoc] %s", Error.message);
-					return false;
-				}
-
-				return true;
-#else
-				return false;
-#endif
-			}
-			bool Stream::Insert(const Document& Result, const Document& Options)
-			{
-#ifdef TH_HAS_MONGOC
-				if (!Base)
-					return false;
-
-				bson_error_t Error;
-				memset(&Error, 0, sizeof(bson_error_t));
-
-				if (!mongoc_bulk_operation_insert_with_opts(Base, Result.Get(), Options.Get(), &Error))
-				{
-					TH_ERROR("[mongoc] %s", Error.message);
-					return false;
-				}
-
-				return true;
-#else
-				return false;
-#endif
-			}
-			bool Stream::UpdateOne(const Document& Selector, const Document& Result, const Document& Options)
-			{
-#ifdef TH_HAS_MONGOC
-				if (!Base)
-					return false;
-
-				bson_error_t Error;
-				memset(&Error, 0, sizeof(bson_error_t));
-
-				if (!mongoc_bulk_operation_update_one_with_opts(Base, Selector.Get(), Result.Get(), Options.Get(), &Error))
-				{
-					TH_ERROR("[mongoc] %s", Error.message);
-					return false;
-				}
-
-				return true;
-#else
-				return false;
-#endif
-			}
-			bool Stream::UpdateMany(const Document& Selector, const Document& Result, const Document& Options)
-			{
-#ifdef TH_HAS_MONGOC
-				if (!Base)
-					return false;
-
-				bson_error_t Error;
-				memset(&Error, 0, sizeof(bson_error_t));
-
-				if (!mongoc_bulk_operation_update_many_with_opts(Base, Selector.Get(), Result.Get(), Options.Get(), &Error))
-				{
-					TH_ERROR("[mongoc] %s", Error.message);
-					return false;
-				}
-
-				return true;
-#else
-				return false;
-#endif
-			}
 			bool Stream::Execute()
 			{
 #ifdef TH_HAS_MONGOC
@@ -1361,7 +1254,7 @@ namespace Tomahawk
 				Base = nullptr;
 #endif
 			}
-			void Cursor::Receive(const std::function<bool(const Document&)>& Callback) const
+			void Cursor::Receive(const std::function<bool(Document*)>& Callback) const
 			{
 #ifdef TH_HAS_MONGOC
 				if (!Callback || !Base)
@@ -1370,7 +1263,8 @@ namespace Tomahawk
 				TDocument* Query = nullptr;
 				while (mongoc_cursor_next(Base, (const TDocument**)&Query))
 				{
-					if (!Callback(Query))
+					Document Subquery = Query;
+					if (!Callback(&Subquery))
 						break;
 				}
 #endif

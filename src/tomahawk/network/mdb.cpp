@@ -14,6 +14,34 @@ namespace Tomahawk
 	{
 		namespace MDB
 		{
+			template <typename R, typename T, typename... Args>
+			bool MDB_EXEC(R&& Function, T* Base, Args&&... Data)
+			{
+				if (!Base)
+					return false;
+
+				bson_error_t Error;
+				memset(&Error, 0, sizeof(bson_error_t));
+
+				bool Result = Function(Base, Data..., &Error);
+				if (!Result && Error.code != 0)
+					TH_ERROR("[mongoc:%i] %s", (int)Error.code, Error.message);
+
+				return Result;
+			}
+			template <typename R, typename T, typename... Args>
+			Cursor MDB_EXEC_CUR(R&& Function, T* Base, Args&&... Data)
+			{
+				if (!Base)
+					return nullptr;
+
+				TCursor* Result = Function(Base, Data...);
+				if (!Result)
+					TH_ERROR("[mongoc] cursor cannot be fetched");
+
+				return Result;
+			}
+
 			Property::Property() : Object(nullptr), Array(nullptr), Mod(Type_Unknown), Integer(0), High(0), Low(0), Number(0.0), Boolean(false), IsValid(false)
 			{
 			}
@@ -690,6 +718,24 @@ namespace Tomahawk
 				return "";
 #endif
 			}
+			std::string Document::ToIndices() const
+			{
+#ifdef TH_HAS_MONGOC
+				if (!Base)
+					return std::string();
+
+				char* Value = mongoc_collection_keys_to_index_string(Base);
+				if (!Value)
+					return std::string();
+
+				std::string Output(Value);
+				bson_free(Value);
+
+				return Output;
+#else
+				return "";
+#endif
+			}
 			Rest::Document* Document::ToDocument(bool IsArray) const
 			{
 #ifdef TH_HAS_MONGOC
@@ -985,27 +1031,11 @@ namespace Tomahawk
 			bool Stream::RemoveMany(Document* Selector, Document* Options)
 			{
 #ifdef TH_HAS_MONGOC
-				if (!Base)
-				{
-					MDB_FREE(Selector);
-					MDB_FREE(Options);
-					return false;
-				}
-
-				bson_error_t Error;
-				memset(&Error, 0, sizeof(bson_error_t));
-
-				if (!mongoc_bulk_operation_remove_many_with_opts(Base, MDB_POP(Selector), MDB_POP(Options), &Error))
-				{
-					MDB_FREE(Selector);
-					MDB_FREE(Options);
-					TH_ERROR("[mongoc] %s", Error.message);
-					return false;
-				}
-
+				bool Subresult = MDB_EXEC(&mongoc_bulk_operation_remove_many_with_opts, Base, MDB_POP(Selector), MDB_POP(Options));
 				MDB_FREE(Selector);
 				MDB_FREE(Options);
-				return true;
+
+				return Subresult;
 #else
 				return false;
 #endif
@@ -1013,27 +1043,11 @@ namespace Tomahawk
 			bool Stream::RemoveOne(Document* Selector, Document* Options)
 			{
 #ifdef TH_HAS_MONGOC
-				if (!Base)
-				{
-					MDB_FREE(Selector);
-					MDB_FREE(Options);
-					return false;
-				}
-
-				bson_error_t Error;
-				memset(&Error, 0, sizeof(bson_error_t));
-
-				if (!mongoc_bulk_operation_remove_one_with_opts(Base, MDB_POP(Selector), MDB_POP(Options), &Error))
-				{
-					MDB_FREE(Selector);
-					MDB_FREE(Options);
-					TH_ERROR("[mongoc] %s", Error.message);
-					return false;
-				}
-
+				bool Subresult = MDB_EXEC(&mongoc_bulk_operation_remove_one_with_opts, Base, MDB_POP(Selector), MDB_POP(Options));
 				MDB_FREE(Selector);
 				MDB_FREE(Options);
-				return true;
+
+				return Subresult;
 #else
 				return false;
 #endif
@@ -1041,30 +1055,12 @@ namespace Tomahawk
 			bool Stream::ReplaceOne(Document* Selector, Document* Replacement, Document* Options)
 			{
 #ifdef TH_HAS_MONGOC
-				if (!Base)
-				{
-					MDB_FREE(Selector);
-					MDB_FREE(Replacement);
-					MDB_FREE(Options);
-					return false;
-				}
-
-				bson_error_t Error;
-				memset(&Error, 0, sizeof(bson_error_t));
-
-				if (!mongoc_bulk_operation_replace_one_with_opts(Base, MDB_POP(Selector), MDB_POP(Replacement), MDB_POP(Options), &Error))
-				{
-					MDB_FREE(Selector);
-					MDB_FREE(Replacement);
-					MDB_FREE(Options);
-					TH_ERROR("[mongoc] %s", Error.message);
-					return false;
-				}
-
+				bool Subresult = MDB_EXEC(&mongoc_bulk_operation_replace_one_with_opts, Base, MDB_POP(Selector), MDB_POP(Replacement), MDB_POP(Options));
 				MDB_FREE(Selector);
 				MDB_FREE(Replacement);
 				MDB_FREE(Options);
-				return true;
+
+				return Subresult;
 #else
 				return false;
 #endif
@@ -1072,27 +1068,11 @@ namespace Tomahawk
 			bool Stream::Insert(Document* Result, Document* Options)
 			{
 #ifdef TH_HAS_MONGOC
-				if (!Base)
-				{
-					MDB_FREE(Result);
-					MDB_FREE(Options);
-					return false;
-				}
-
-				bson_error_t Error;
-				memset(&Error, 0, sizeof(bson_error_t));
-
-				if (!mongoc_bulk_operation_insert_with_opts(Base, MDB_POP(Result), MDB_POP(Options), &Error))
-				{
-					MDB_FREE(Result);
-					MDB_FREE(Options);
-					TH_ERROR("[mongoc] %s", Error.message);
-					return false;
-				}
-
+				bool Subresult = MDB_EXEC(&mongoc_bulk_operation_insert_with_opts, Base, MDB_POP(Result), MDB_POP(Options));
 				MDB_FREE(Result);
 				MDB_FREE(Options);
-				return true;
+
+				return Subresult;
 #else
 				return false;
 #endif
@@ -1100,30 +1080,12 @@ namespace Tomahawk
 			bool Stream::UpdateOne(Document* Selector, Document* Result, Document* Options)
 			{
 #ifdef TH_HAS_MONGOC
-				if (!Base)
-				{
-					MDB_FREE(Selector);
-					MDB_FREE(Result);
-					MDB_FREE(Options);
-					return false;
-				}
-
-				bson_error_t Error;
-				memset(&Error, 0, sizeof(bson_error_t));
-
-				if (!mongoc_bulk_operation_update_one_with_opts(Base, MDB_POP(Selector), MDB_POP(Result), MDB_POP(Options), &Error))
-				{
-					MDB_FREE(Selector);
-					MDB_FREE(Result);
-					MDB_FREE(Options);
-					TH_ERROR("[mongoc] %s", Error.message);
-					return false;
-				}
-
+				bool Subresult = MDB_EXEC(&mongoc_bulk_operation_update_one_with_opts, Base, MDB_POP(Selector), MDB_POP(Result), MDB_POP(Options));
 				MDB_FREE(Selector);
 				MDB_FREE(Result);
 				MDB_FREE(Options);
-				return true;
+
+				return Subresult;
 #else
 				return false;
 #endif
@@ -1131,80 +1093,56 @@ namespace Tomahawk
 			bool Stream::UpdateMany(Document* Selector, Document* Result, Document* Options)
 			{
 #ifdef TH_HAS_MONGOC
-				if (!Base)
-				{
-					MDB_FREE(Selector);
-					MDB_FREE(Result);
-					MDB_FREE(Options);
-					return false;
-				}
-
-				bson_error_t Error;
-				memset(&Error, 0, sizeof(bson_error_t));
-
-				if (!mongoc_bulk_operation_update_many_with_opts(Base, MDB_POP(Selector), MDB_POP(Result), MDB_POP(Options), &Error))
-				{
-					MDB_FREE(Selector);
-					MDB_FREE(Result);
-					MDB_FREE(Options);
-					TH_ERROR("[mongoc] %s", Error.message);
-					return false;
-				}
-
+				bool Subresult = MDB_EXEC(&mongoc_bulk_operation_update_many_with_opts, Base, MDB_POP(Selector), MDB_POP(Result), MDB_POP(Options));
 				MDB_FREE(Selector);
 				MDB_FREE(Result);
 				MDB_FREE(Options);
-				return true;
+
+				return Subresult;
 #else
 				return false;
 #endif
 			}
-			bool Stream::Execute()
+			Rest::Async<bool> Stream::Execute()
 			{
 #ifdef TH_HAS_MONGOC
 				if (!Base)
-					return false;
+					return Rest::Async<bool>::Store(false);
 
-				bson_error_t Error;
-				memset(&Error, 0, sizeof(bson_error_t));
+				Stream Sub = *this;
+				Base = nullptr;
 
-				TDocument Result;
-				if (!mongoc_bulk_operation_execute(Base, &Result, &Error))
+				return [Sub](Rest::Async<bool>& Future) mutable
 				{
-					Release();
+					TDocument Result;
+					bool Subresult = MDB_EXEC(&mongoc_bulk_operation_execute, Sub.Get(), &Result);
 					bson_destroy(&Result);
-					return false;
-				}
+					Sub.Release();
 
-				Release();
-				bson_destroy(&Result);
-				return true;
+					Future.Set(Subresult);
+				};
 #else
-				return false;
+				return Rest::Async<bool>::Store(false);
 #endif
 			}
-			bool Stream::Execute(Document* Reply)
+			Rest::Async<bool> Stream::Execute(Document* Reply)
 			{
 #ifdef TH_HAS_MONGOC
-				if (!MDB_POP(Reply))
+				if (!Base || !MDB_POP(Reply))
 					return Execute();
 
-				if (!Base)
-					return false;
+				Stream Sub = *this;
+				Base = nullptr;
 
-				bson_error_t Error;
-				memset(&Error, 0, sizeof(bson_error_t));
-
-				if (!mongoc_bulk_operation_execute(Base, MDB_POP(Reply), &Error))
+				return [Sub, Reply](Rest::Async<bool>& Future) mutable
 				{
-					Release();
-					return false;
-				}
+					bool Subresult = MDB_EXEC(&mongoc_bulk_operation_execute, Sub.Get(), MDB_POP(Reply));
+					Sub.Release();
 
-				Release();
-				return true;
+					Future.Set(Subresult);
+				};
 #else
-				return false;
+				return Rest::Async<bool>::Store(false);
 #endif
 			}
 			uint64_t Stream::GetHint() const
@@ -1235,6 +1173,10 @@ namespace Tomahawk
 #endif
 			}
 
+
+			Cursor::Cursor() : Base(nullptr)
+			{
+			}
 			Cursor::Cursor(TCursor* NewBase) : Base(NewBase)
 			{
 			}
@@ -1427,387 +1369,235 @@ namespace Tomahawk
 				Base = nullptr;
 #endif
 			}
-			bool Collection::UpdateMany(Document* Selector, Document* Update, Document* Options, Document* Reply)
+			Rest::Async<bool> Collection::UpdateMany(Document* Selector, Document* Update, Document* Options, Document* Reply)
 			{
 #ifdef TH_HAS_MONGOC
-				if (!Base)
+				auto* Sub = Base;
+				return [Sub, Selector, Update, Options, Reply](Rest::Async<bool>& Future)
 				{
+					bool Subresult = MDB_EXEC(&mongoc_collection_update_many, Sub, MDB_POP(Selector), MDB_POP(Update), MDB_POP(Options), MDB_POP(Reply));
 					MDB_FREE(Selector);
 					MDB_FREE(Update);
 					MDB_FREE(Options);
-					return false;
-				}
 
-				bson_error_t Error;
-				memset(&Error, 0, sizeof(bson_error_t));
-
-				if (!mongoc_collection_update_many(Base, MDB_POP(Selector), MDB_POP(Update), MDB_POP(Options), MDB_POP(Reply), &Error))
+					Future.Set(Subresult);
+				};
+#else
+				return Rest::Async<bool>::Store(false);
+#endif
+			}
+			Rest::Async<bool> Collection::UpdateOne(Document* Selector, Document* Update, Document* Options, Document* Reply)
+			{
+#ifdef TH_HAS_MONGOC
+				auto* Sub = Base;
+				return [Sub, Selector, Update, Options, Reply](Rest::Async<bool>& Future)
 				{
+					bool Subresult = MDB_EXEC(&mongoc_collection_update_one, Sub, MDB_POP(Selector), MDB_POP(Update), MDB_POP(Options), MDB_POP(Reply));
 					MDB_FREE(Selector);
 					MDB_FREE(Update);
 					MDB_FREE(Options);
-					return false;
-				}
 
-				MDB_FREE(Selector);
-				MDB_FREE(Update);
-				MDB_FREE(Options);
-				return true;
+					Future.Set(Subresult);
+				};
 #else
-				return false;
+				return Rest::Async<bool>::Store(false);
 #endif
 			}
-			bool Collection::UpdateOne(Document* Selector, Document* Update, Document* Options, Document* Reply)
+			Rest::Async<bool> Collection::Rename(const std::string& NewDatabaseName, const std::string& NewCollectionName)
 			{
 #ifdef TH_HAS_MONGOC
-				if (!Base)
+				auto* Sub = Base;
+				return [Sub, NewDatabaseName, NewCollectionName](Rest::Async<bool>& Future)
 				{
-					MDB_FREE(Selector);
-					MDB_FREE(Update);
-					MDB_FREE(Options);
-					return false;
-				}
-
-				bson_error_t Error;
-				memset(&Error, 0, sizeof(bson_error_t));
-
-				if (!mongoc_collection_update_one(Base, MDB_POP(Selector), MDB_POP(Update), MDB_POP(Options), MDB_POP(Reply), &Error))
-				{
-					MDB_FREE(Selector);
-					MDB_FREE(Update);
-					MDB_FREE(Options);
-					TH_ERROR("[mongoc] %s", Error.message);
-					return false;
-				}
-
-				MDB_FREE(Selector);
-				MDB_FREE(Update);
-				MDB_FREE(Options);
-				return true;
+					Future.Set(MDB_EXEC(&mongoc_collection_rename, Sub, NewDatabaseName.c_str(), NewCollectionName.c_str(), false));
+				};
 #else
-				return false;
+				return Rest::Async<bool>::Store(false);
 #endif
 			}
-			bool Collection::Rename(const char* NewDatabaseName, const char* NewCollectionName)
+			Rest::Async<bool> Collection::RenameWithOptions(const std::string& NewDatabaseName, const std::string& NewCollectionName, Document* Options)
 			{
 #ifdef TH_HAS_MONGOC
-				if (!Base)
-					return false;
-
-				bson_error_t Error;
-				memset(&Error, 0, sizeof(bson_error_t));
-
-				if (!mongoc_collection_rename(Base, NewDatabaseName, NewCollectionName, false, &Error))
+				auto* Sub = Base;
+				return [Sub, NewDatabaseName, NewCollectionName, Options](Rest::Async<bool>& Future)
 				{
-					TH_ERROR("[mongoc] %s", Error.message);
-					return false;
-				}
+					bool Subresult = MDB_EXEC(&mongoc_collection_rename_with_opts, Sub, NewDatabaseName.c_str(), NewCollectionName.c_str(), false, MDB_POP(Options));
+					MDB_FREE(Options);
 
-				return true;
+					Future.Set(Subresult);
+				};
 #else
-				return false;
+				return Rest::Async<bool>::Store(false);
 #endif
 			}
-			bool Collection::RenameWithOptions(const char* NewDatabaseName, const char* NewCollectionName, Document* Options)
+			Rest::Async<bool> Collection::RenameWithRemove(const std::string& NewDatabaseName, const std::string& NewCollectionName)
 			{
 #ifdef TH_HAS_MONGOC
-				if (!Base)
+				auto* Sub = Base;
+				return [Sub, NewDatabaseName, NewCollectionName](Rest::Async<bool>& Future)
 				{
-					MDB_FREE(Options);
-					return false;
-				}
-
-				bson_error_t Error;
-				memset(&Error, 0, sizeof(bson_error_t));
-
-				if (!mongoc_collection_rename_with_opts(Base, NewDatabaseName, NewCollectionName, false, MDB_POP(Options), &Error))
-				{
-					MDB_FREE(Options);
-					TH_ERROR("[mongoc] %s", Error.message);
-					return false;
-				}
-
-				MDB_FREE(Options);
-				return true;
+					Future.Set(MDB_EXEC(&mongoc_collection_rename, Sub, NewDatabaseName.c_str(), NewCollectionName.c_str(), true));
+				};
 #else
-				return false;
+				return Rest::Async<bool>::Store(false);
 #endif
 			}
-			bool Collection::RenameWithRemove(const char* NewDatabaseName, const char* NewCollectionName)
+			Rest::Async<bool> Collection::RenameWithOptionsAndRemove(const std::string& NewDatabaseName, const std::string& NewCollectionName, Document* Options)
 			{
 #ifdef TH_HAS_MONGOC
-				if (!Base)
-					return false;
-
-				bson_error_t Error;
-				memset(&Error, 0, sizeof(bson_error_t));
-
-				if (!mongoc_collection_rename(Base, NewDatabaseName, NewCollectionName, true, &Error))
+				auto* Sub = Base;
+				return [Sub, NewDatabaseName, NewCollectionName, Options](Rest::Async<bool>& Future)
 				{
-					TH_ERROR("[mongoc] %s", Error.message);
-					return false;
-				}
+					bool Subresult = MDB_EXEC(&mongoc_collection_rename_with_opts, Sub, NewDatabaseName.c_str(), NewCollectionName.c_str(), true, MDB_POP(Options));
+					MDB_FREE(Options);
 
-				return true;
+					Future.Set(Subresult);
+				};
 #else
-				return false;
+				return Rest::Async<bool>::Store(false);
 #endif
 			}
-			bool Collection::RenameWithOptionsAndRemove(const char* NewDatabaseName, const char* NewCollectionName, Document* Options)
+			Rest::Async<bool> Collection::Remove(Document* Options)
 			{
 #ifdef TH_HAS_MONGOC
-				if (!Base)
+				auto* Sub = Base;
+				return [Sub, Options](Rest::Async<bool>& Future)
 				{
+					bool Subresult = MDB_EXEC(&mongoc_collection_drop_with_opts, Sub, MDB_POP(Options));
 					MDB_FREE(Options);
-					return false;
-				}
 
-				bson_error_t Error;
-				memset(&Error, 0, sizeof(bson_error_t));
-
-				if (!mongoc_collection_rename_with_opts(Base, NewDatabaseName, NewCollectionName, true, MDB_POP(Options), &Error))
-				{
-					MDB_FREE(Options);
-					TH_ERROR("[mongoc] %s", Error.message);
-					return false;
-				}
-
-				MDB_FREE(Options);
-				return true;
+					Future.Set(Subresult);
+				};
 #else
-				return false;
+				return Rest::Async<bool>::Store(false);
 #endif
 			}
-			bool Collection::Remove(Document* Options)
+			Rest::Async<bool> Collection::RemoveMany(Document* Selector, Document* Options, Document* Reply)
 			{
 #ifdef TH_HAS_MONGOC
-				if (!Base)
+				auto* Sub = Base;
+				return [Sub, Selector, Options, Reply](Rest::Async<bool>& Future)
 				{
-					MDB_FREE(Options);
-					return false;
-				}
-
-				bson_error_t Error;
-				memset(&Error, 0, sizeof(bson_error_t));
-
-				if (!mongoc_collection_drop_with_opts(Base, MDB_POP(Options), &Error))
-				{
-					MDB_FREE(Options);
-					TH_ERROR("[mongoc] %s", Error.message);
-					return false;
-				}
-
-				MDB_FREE(Options);
-				return true;
-#else
-				return false;
-#endif
-			}
-			bool Collection::RemoveMany(Document* Selector, Document* Options, Document* Reply)
-			{
-#ifdef TH_HAS_MONGOC
-				if (!Base)
-				{
+					bool Subresult = MDB_EXEC(&mongoc_collection_delete_many, Sub, MDB_POP(Selector), MDB_POP(Options), MDB_POP(Reply));
 					MDB_FREE(Selector);
 					MDB_FREE(Options);
-					return false;
-				}
 
-				bson_error_t Error;
-				memset(&Error, 0, sizeof(bson_error_t));
-
-				if (!mongoc_collection_delete_many(Base, MDB_POP(Selector), MDB_POP(Options), MDB_POP(Reply), &Error))
-				{
-					MDB_FREE(Selector);
-					MDB_FREE(Options);
-					TH_ERROR("[mongoc] %s", Error.message);
-					return false;
-				}
-
-				MDB_FREE(Selector);
-				MDB_FREE(Options);
-				return true;
+					Future.Set(Subresult);
+				};
 #else
-				return false;
+				return Rest::Async<bool>::Store(false);
 #endif
 			}
-			bool Collection::RemoveOne(Document* Selector, Document* Options, Document* Reply)
+			Rest::Async<bool> Collection::RemoveOne(Document* Selector, Document* Options, Document* Reply)
 			{
 #ifdef TH_HAS_MONGOC
-				if (!Base)
+				auto* Sub = Base;
+				return [Sub, Selector, Options, Reply](Rest::Async<bool>& Future)
 				{
+					bool Subresult = MDB_EXEC(&mongoc_collection_delete_one, Sub, MDB_POP(Selector), MDB_POP(Options), MDB_POP(Reply));
 					MDB_FREE(Selector);
 					MDB_FREE(Options);
-					return false;
-				}
 
-				bson_error_t Error;
-				memset(&Error, 0, sizeof(bson_error_t));
-
-				if (!mongoc_collection_delete_one(Base, MDB_POP(Selector), MDB_POP(Options), MDB_POP(Reply), &Error))
-				{
-					MDB_FREE(Selector);
-					MDB_FREE(Options);
-					TH_ERROR("[mongoc] %s", Error.message);
-					return false;
-				}
-
-				MDB_FREE(Selector);
-				MDB_FREE(Options);
-				return true;
+					Future.Set(Subresult);
+				};
 #else
-				return false;
+				return Rest::Async<bool>::Store(false);
 #endif
 			}
-			bool Collection::RemoveIndex(const char* Name, Document* Options)
+			Rest::Async<bool> Collection::RemoveIndex(const std::string& Name, Document* Options)
 			{
 #ifdef TH_HAS_MONGOC
-				if (!Base)
+				auto* Sub = Base;
+				return [Sub, Name, Options](Rest::Async<bool>& Future)
 				{
+					bool Subresult = MDB_EXEC(&mongoc_collection_drop_index_with_opts, Sub, Name.c_str(), MDB_POP(Options));
 					MDB_FREE(Options);
-					return false;
-				}
 
-				bson_error_t Error;
-				memset(&Error, 0, sizeof(bson_error_t));
-
-				if (!mongoc_collection_drop_index_with_opts(Base, Name, MDB_POP(Options), &Error))
-				{
-					MDB_FREE(Options);
-					TH_ERROR("[mongoc] %s", Error.message);
-					return false;
-				}
-
-				MDB_FREE(Options);
-				return true;
+					Future.Set(Subresult);
+				};
 #else
-				return false;
+				return Rest::Async<bool>::Store(false);
 #endif
 			}
-			bool Collection::ReplaceOne(Document* Selector, Document* Replacement, Document* Options, Document* Reply)
+			Rest::Async<bool> Collection::ReplaceOne(Document* Selector, Document* Replacement, Document* Options, Document* Reply)
 			{
 #ifdef TH_HAS_MONGOC
-				if (!Base)
+				auto* Sub = Base;
+				return [Sub, Selector, Replacement, Options, Reply](Rest::Async<bool>& Future)
 				{
+					bool Subresult = MDB_EXEC(&mongoc_collection_replace_one, Sub, MDB_POP(Selector), MDB_POP(Replacement), MDB_POP(Options), MDB_POP(Reply));
 					MDB_FREE(Selector);
 					MDB_FREE(Replacement);
 					MDB_FREE(Options);
-					return false;
-				}
 
-				bson_error_t Error;
-				memset(&Error, 0, sizeof(bson_error_t));
-
-				if (!mongoc_collection_replace_one(Base, MDB_POP(Selector), MDB_POP(Replacement), MDB_POP(Options), MDB_POP(Reply), &Error))
-				{
-					MDB_FREE(Selector);
-					MDB_FREE(Replacement);
-					MDB_FREE(Options);
-					TH_ERROR("[mongoc] %s", Error.message);
-					return false;
-				}
-
-				MDB_FREE(Selector);
-				MDB_FREE(Replacement);
-				MDB_FREE(Options);
-				return true;
+					Future.Set(Subresult);
+				};
 #else
-				return false;
+				return Rest::Async<bool>::Store(false);
 #endif
 			}
-			bool Collection::InsertMany(std::vector<Document>& List, Document* Options, Document* Reply)
+			Rest::Async<bool> Collection::InsertMany(std::vector<Document>& List, Document* Options, Document* Reply)
 			{
 #ifdef TH_HAS_MONGOC
-				if (!Base || List.empty())
+				if (List.empty())
+					return Rest::Async<bool>::Store(false);
+
+				std::vector<Document> Array(std::move(List));
+				auto* Sub = Base;
+
+				return [Sub, Array = std::move(Array), Options, Reply](Rest::Async<bool>& Future) mutable
 				{
+					TDocument** Subarray = (TDocument**)TH_MALLOC(sizeof(TDocument*) * Array.size());
+					for (size_t i = 0; i < Array.size(); i++)
+						Subarray[i] = Array[i].Get();
+
+					bool Subresult = MDB_EXEC(&mongoc_collection_insert_many, Sub, (const TDocument**)Subarray, (size_t)Array.size(), MDB_POP(Options), MDB_POP(Reply));
+					for (auto& Item : Array)
+						Item.Release();
 					MDB_FREE(Options);
-					return false;
-				}
+					TH_FREE(Subarray);
 
-				bson_error_t Error;
-				memset(&Error, 0, sizeof(bson_error_t));
-
-				TDocument** Array = (TDocument**)TH_MALLOC(sizeof(TDocument*) * List.size());
-				for (size_t i = 0; i < List.size(); i++)
-					Array[i] = List[i].Get();
-
-				bool Subresult = mongoc_collection_insert_many(Base, (const TDocument**)Array, (size_t)List.size(), MDB_POP(Options), MDB_POP(Reply), &Error);
-				if (!Subresult)
-					TH_ERROR("[mongoc] %s", Error.message);
-
-				for (auto& Item : List)
-					Item.Release();
-
-				MDB_FREE(Options);
-				List.clear();
-				return true;
+					Future.Set(Subresult);
+				};
 #else
-				return false;
+				return Rest::Async<bool>::Store(false);
 #endif
 			}
-			bool Collection::InsertOne(Document* Result, Document* Options, Document* Reply)
+			Rest::Async<bool> Collection::InsertOne(Document* Result, Document* Options, Document* Reply)
 			{
 #ifdef TH_HAS_MONGOC
-				if (!Base)
+				auto* Sub = Base;
+				return [Sub, Result, Options, Reply](Rest::Async<bool>& Future)
 				{
+					bool Subresult = MDB_EXEC(&mongoc_collection_insert_one, Sub, MDB_POP(Result), MDB_POP(Options), MDB_POP(Reply));
 					MDB_FREE(Options);
 					MDB_FREE(Result);
-					return false;
-				}
 
-				bson_error_t Error;
-				memset(&Error, 0, sizeof(bson_error_t));
-
-				if (!mongoc_collection_insert_one(Base, MDB_POP(Result), MDB_POP(Options), MDB_POP(Reply), &Error))
-				{
-					MDB_FREE(Options);
-					MDB_FREE(Result);
-					TH_ERROR("[mongoc] %s", Error.message);
-					return false;
-				}
-
-				MDB_FREE(Options);
-				MDB_FREE(Result);
-				return true;
+					Future.Set(Subresult);
+				};
 #else
-				return false;
+				return Rest::Async<bool>::Store(false);
 #endif
 			}
-			bool Collection::FindAndModify(Document* Query, Document* Sort, Document* Update, Document* Fields, Document* Reply, bool RemoveAt, bool Upsert, bool New)
+			Rest::Async<bool> Collection::FindAndModify(Document* Query, Document* Sort, Document* Update, Document* Fields, Document* Reply, bool RemoveAt, bool Upsert, bool New)
 			{
 #ifdef TH_HAS_MONGOC
-				bson_error_t Error;
-				memset(&Error, 0, sizeof(bson_error_t));
-
-				if (!Base)
+				auto* Sub = Base;
+				return [Sub, Query, Sort, Update, Fields, Reply, RemoveAt, Upsert, New](Rest::Async<bool>& Future)
 				{
+					bool Subresult = MDB_EXEC(&mongoc_collection_find_and_modify, Sub, MDB_POP(Query), MDB_POP(Sort), MDB_POP(Update), MDB_POP(Fields), RemoveAt, Upsert, New, MDB_POP(Reply));
 					MDB_FREE(Query);
 					MDB_FREE(Sort);
 					MDB_FREE(Update);
 					MDB_FREE(Fields);
-					return false;
-				}
 
-				if (!mongoc_collection_find_and_modify(Base, MDB_POP(Query), MDB_POP(Sort), MDB_POP(Update), MDB_POP(Fields), RemoveAt, Upsert, New, MDB_POP(Reply), &Error))
-				{
-					MDB_FREE(Query);
-					MDB_FREE(Sort);
-					MDB_FREE(Update);
-					MDB_FREE(Fields);
-					TH_ERROR("[mongoc] %s", Error.message);
-					return false;
-				}
-
-				MDB_FREE(Query);
-				MDB_FREE(Sort);
-				MDB_FREE(Update);
-				MDB_FREE(Fields);
-				return true;
+					Future.Set(Subresult);
+				};
 #else
-				return false;
+				return Rest::Async<bool>::Store(false);
 #endif
 			}
-			uint64_t Collection::CountElementsInArray(Document* Match, Document* Filter, Document* Options) const
+			Rest::Async<uint64_t> Collection::CountElementsInArray(Document* Match, Document* Filter, Document* Options) const
 			{
 #ifdef TH_HAS_MONGOC
 				if (!Base || !MDB_POP(Filter) || !MDB_POP(Match))
@@ -1815,115 +1605,135 @@ namespace Tomahawk
 					MDB_FREE(Filter);
 					MDB_FREE(Match);
 					MDB_FREE(Options);
-					return 0;
+					return Rest::Async<uint64_t>::Store(0);
 				}
 
-				Document Pipeline = BCON_NEW("pipeline", "[", "{", "$match", BCON_DOCUMENT(MDB_POP(Match)), "}", "{", "$project", "{", "Count", "{", "$Count", "{", "$filter", BCON_DOCUMENT(MDB_POP(Filter)), "}", "}", "}", "}", "]");
-				if (!Pipeline.Get())
+				auto* Sub = Base;
+				return [Sub, Match, Filter, Options](Rest::Async<uint64_t>& Future)
 				{
+					Document Pipeline = BCON_NEW("pipeline", "[", "{", "$match", BCON_DOCUMENT(MDB_POP(Match)), "}", "{", "$project", "{", "Count", "{", "$Count", "{", "$filter", BCON_DOCUMENT(MDB_POP(Filter)), "}", "}", "}", "}", "]");
+					Cursor Subresult = MDB_EXEC_CUR(&mongoc_collection_aggregate, Sub, MONGOC_QUERY_NONE, Pipeline.Get(), MDB_POP(Options), nullptr);	
+					Property Count;
+
+					if (Subresult.Next())
+					{
+						Document Result = Subresult.GetCurrent();
+						if (Result.Get())
+							Result.Get("Count", &Count);
+					}
+
+					Subresult.Release();
+					Pipeline.Release();
 					MDB_FREE(Filter);
 					MDB_FREE(Match);
 					MDB_FREE(Options);
-					return 0;
-				}
 
-				Cursor Cursor = mongoc_collection_aggregate(Base, MONGOC_QUERY_NONE, Pipeline.Get(), MDB_POP(Options), nullptr);
-				Pipeline.Release();
-				MDB_FREE(Filter);
-				MDB_FREE(Match);
-				MDB_FREE(Options);
-
-				if (!Cursor.Get() || !Cursor.Next())
-				{
-					Cursor.Release();
-					return 0;
-				}
-
-				Document Result = Cursor.GetCurrent();
-				if (!Result.Get())
-				{
-					Cursor.Release();
-					return 0;
-				}
-
-				Property Count;
-				Result.Get("Count", &Count);
-				Cursor.Release();
-
-				return (uint64_t)Count.Integer;
+					Future.Set((uint64_t)Count.Integer);
+				};
 #else
-				return 0;
+				return Rest::Async<uint64_t>::Store(0);
 #endif
 			}
-			uint64_t Collection::CountDocuments(Document* Filter, Document* Options, Document* Reply) const
+			Rest::Async<uint64_t> Collection::CountDocuments(Document* Filter, Document* Options, Document* Reply) const
 			{
 #ifdef TH_HAS_MONGOC
-				bson_error_t Error;
-				memset(&Error, 0, sizeof(bson_error_t));
-
-				if (!Base)
+				auto* Sub = Base;
+				return [Sub, Filter, Options, Reply](Rest::Async<uint64_t>& Future)
 				{
+					uint64_t Subresult = (uint64_t)MDB_EXEC(&mongoc_collection_count_documents, Sub, MDB_POP(Filter), MDB_POP(Options), nullptr, MDB_POP(Reply));
 					MDB_FREE(Filter);
 					MDB_FREE(Options);
-					return 0;
-				}
 
-				uint64_t Count = (uint64_t)mongoc_collection_count_documents(Base, MDB_POP(Filter), MDB_POP(Options), nullptr, MDB_POP(Reply), &Error);
-				if (Error.code != 0)
+					Future.Set(Subresult);
+				};
+#else
+				return Rest::Async<uint64_t>::Store(0);
+#endif
+			}
+			Rest::Async<uint64_t> Collection::CountDocumentsEstimated(Document* Options, Document* Reply) const
+			{
+#ifdef TH_HAS_MONGOC
+				auto* Sub = Base;
+				return [Sub, Options, Reply](Rest::Async<uint64_t>& Future)
 				{
+					uint64_t Subresult = (uint64_t)MDB_EXEC(&mongoc_collection_estimated_document_count, Sub, MDB_POP(Options), nullptr, MDB_POP(Reply));
+					MDB_FREE(Options);
+
+					Future.Set(Subresult);
+				};
+#else
+				return Rest::Async<uint64_t>::Store(0);
+#endif
+			}
+			Rest::Async<Cursor> Collection::FindIndexes(Document* Options) const
+			{
+#ifdef TH_HAS_MONGOC
+				auto* Sub = Base;
+				return [Sub, Options](Rest::Async<Cursor>& Future)
+				{
+					Cursor Subresult = MDB_EXEC_CUR(&mongoc_collection_find_indexes_with_opts, Sub, MDB_POP(Options));
+					MDB_FREE(Options);
+
+					Future.Set(Subresult);
+				};
+#else
+				return Rest::Async<Cursor>::Store(nullptr);
+#endif
+			}
+			Rest::Async<Cursor> Collection::FindMany(Document* Filter, Document* Options) const
+			{
+#ifdef TH_HAS_MONGOC
+				auto* Sub = Base;
+				return [Sub, Filter, Options](Rest::Async<Cursor>& Future)
+				{
+					Cursor Subresult = MDB_EXEC_CUR(&mongoc_collection_find_with_opts, Sub, MDB_POP(Filter), MDB_POP(Options), nullptr);
 					MDB_FREE(Filter);
 					MDB_FREE(Options);
-					TH_ERROR("[mongoc] %s", Error.message);
-					return false;
-				}
 
-				MDB_FREE(Filter);
-				MDB_FREE(Options);
-				return Count;
+					Future.Set(Subresult);
+				};
 #else
-				return 0;
+				return Rest::Async<Cursor>::Store(nullptr);
 #endif
 			}
-			uint64_t Collection::CountDocumentsEstimated(Document* Options, Document* Reply) const
+			Rest::Async<Cursor> Collection::FindOne(Document* Filter, Document* Options) const
 			{
 #ifdef TH_HAS_MONGOC
-				bson_error_t Error;
-				memset(&Error, 0, sizeof(bson_error_t));
-
-				if (!Base)
+				auto* Sub = Base;
+				return [Sub, Filter, Options](Rest::Async<Cursor>& Future)
 				{
-					MDB_FREE(Options);
-					return 0;
-				}
+					Document Settings = (Options ? *Options : nullptr);
+					if (Settings.Get() != nullptr)
+						Settings.SetInteger("limit", 1);
+					else
+						Settings = Document(BCON_NEW("limit", BCON_INT32(1)));
 
-				uint64_t Count = (uint64_t)mongoc_collection_estimated_document_count(Base, MDB_POP(Options), nullptr, MDB_POP(Reply), &Error);
-				if (Error.code != 0)
-				{
+					Cursor Subresult = MDB_EXEC_CUR(&mongoc_collection_find_with_opts, Sub, MDB_POP(Filter), Settings.Get(), nullptr);
+					if ((!Options || !Options->Get()) && Settings.Get())
+						Settings.Release();
+					MDB_FREE(Filter);
 					MDB_FREE(Options);
-					TH_ERROR("[mongoc] %s", Error.message);
-					return false;
-				}
 
-				MDB_FREE(Options);
-				return Count;
+					Future.Set(Subresult);
+				};
 #else
-				return 0;
+				return Rest::Async<Cursor>::Store(nullptr);
 #endif
 			}
-			std::string Collection::StringifyKeyIndexes(Document* Keys) const
+			Rest::Async<Cursor> Collection::Aggregate(Query Flags, Document* Pipeline, Document* Options) const
 			{
 #ifdef TH_HAS_MONGOC
-				if (!Base || !MDB_POP(Keys))
-					return std::string();
+				auto* Sub = Base;
+				return [Sub, Flags, Pipeline, Options](Rest::Async<Cursor>& Future)
+				{
+					Cursor Subresult = MDB_EXEC_CUR(&mongoc_collection_aggregate, Sub, (mongoc_query_flags_t)Flags, MDB_POP(Pipeline), MDB_POP(Options), nullptr);
+					MDB_FREE(Pipeline);
+					MDB_FREE(Options);
 
-				char* Value = mongoc_collection_keys_to_index_string(MDB_POP(Keys));
-				std::string Output = Value;
-				bson_free(Value);
-
-				MDB_FREE(Keys);
-				return Output;
+					Future.Set(Subresult);
+				};
 #else
-				return "";
+				return Rest::Async<Cursor>::Store(nullptr);
 #endif
 			}
 			const char* Collection::GetName() const
@@ -1933,98 +1743,6 @@ namespace Tomahawk
 					return nullptr;
 
 				return mongoc_collection_get_name(Base);
-#else
-				return nullptr;
-#endif
-			}
-			Cursor Collection::FindIndexes(Document* Options) const
-			{
-#ifdef TH_HAS_MONGOC
-				if (!Base)
-				{
-					MDB_FREE(Options);
-					return nullptr;
-				}
-
-				bson_error_t Error;
-				memset(&Error, 0, sizeof(bson_error_t));
-
-				TCursor* Cursor = mongoc_collection_find_indexes_with_opts(Base, MDB_POP(Options));
-				if (Cursor == nullptr || Error.code != 0)
-				{
-					MDB_FREE(Options);
-					TH_ERROR("[mongoc] %s", Error.message);
-					return nullptr;
-				}
-
-				MDB_FREE(Options);
-				return Cursor;
-#else
-				return nullptr;
-#endif
-			}
-			Cursor Collection::FindMany(Document* Filter, Document* Options) const
-			{
-#ifdef TH_HAS_MONGOC
-				if (!Base)
-				{
-					MDB_FREE(Options);
-					return nullptr;
-				}
-
-				TCursor* Result = mongoc_collection_find_with_opts(Base, MDB_POP(Filter), MDB_POP(Options), nullptr);
-				MDB_FREE(Filter);
-				MDB_FREE(Options);
-
-				return Result;
-#else
-				return nullptr;
-#endif
-			}
-			Cursor Collection::FindOne(Document* Filter, Document* Options) const
-			{
-#ifdef TH_HAS_MONGOC
-				if (!Base)
-				{
-					MDB_FREE(Filter);
-					MDB_FREE(Options);
-					return nullptr;
-				}
-
-				Document Settings = (Options ? *Options : nullptr);
-				if (Settings.Get() != nullptr)
-					Settings.SetInteger("limit", 1);
-				else
-					Settings = Document(BCON_NEW("limit", BCON_INT32(1)));
-
-
-				TCursor* Cursor = mongoc_collection_find_with_opts(Base, MDB_POP(Filter), Settings.Get(), nullptr);
-				if ((!Options || !Options->Get()) && Settings.Get())
-					Settings.Release();
-
-				MDB_FREE(Filter);
-				MDB_FREE(Options);
-				return Cursor;
-#else
-				return nullptr;
-#endif
-			}
-			Cursor Collection::Aggregate(Query Flags, Document* Pipeline, Document* Options) const
-			{
-#ifdef TH_HAS_MONGOC
-				if (!Base)
-				{
-					MDB_FREE(Pipeline);
-					MDB_FREE(Options);
-					return nullptr;
-				}
-
-				TCursor* Result = mongoc_collection_aggregate(Base, (mongoc_query_flags_t)Flags, MDB_POP(Pipeline), MDB_POP(Options), nullptr);
-
-				MDB_FREE(Pipeline);
-				MDB_FREE(Options);
-
-				return Result;
 #else
 				return nullptr;
 #endif
@@ -2068,138 +1786,101 @@ namespace Tomahawk
 				Base = nullptr;
 #endif
 			}
-			bool Database::HasCollection(const char* Name) const
+			Rest::Async<bool> Database::RemoveAllUsers()
 			{
 #ifdef TH_HAS_MONGOC
-				if (!Base)
-					return false;
-
-				bson_error_t Error;
-				memset(&Error, 0, sizeof(bson_error_t));
-
-				if (!mongoc_database_has_collection(Base, Name, &Error))
+				auto* Sub = Base;
+				return [Sub](Rest::Async<bool>& Future)
 				{
-					TH_ERROR("[mongoc] %s", Error.message);
-					return false;
-				}
-
-				return true;
+					Future.Set(MDB_EXEC(&mongoc_database_remove_all_users, Sub));
+				};
 #else
-				return false;
+				return Rest::Async<bool>::Store(false);
 #endif
 			}
-			bool Database::RemoveAllUsers()
+			Rest::Async<bool> Database::RemoveUser(const std::string& Name)
 			{
 #ifdef TH_HAS_MONGOC
-				if (!Base)
-					return false;
-
-				bson_error_t Error;
-				memset(&Error, 0, sizeof(bson_error_t));
-
-				if (!mongoc_database_remove_all_users(Base, &Error))
+				auto* Sub = Base;
+				return [Sub, Name](Rest::Async<bool>& Future)
 				{
-					TH_ERROR("[mongoc] %s", Error.message);
-					return false;
-				}
-
-				return true;
+					Future.Set(MDB_EXEC(&mongoc_database_remove_user, Sub, Name.c_str()));
+				};
 #else
-				return false;
+				return Rest::Async<bool>::Store(false);
 #endif
 			}
-			bool Database::RemoveUser(const char* Name)
+			Rest::Async<bool> Database::Remove()
 			{
 #ifdef TH_HAS_MONGOC
-				if (!Base)
-					return false;
-
-				bson_error_t Error;
-				memset(&Error, 0, sizeof(bson_error_t));
-
-				if (!mongoc_database_remove_user(Base, Name, &Error))
+				auto* Sub = Base;
+				return [Sub](Rest::Async<bool>& Future)
 				{
-					TH_ERROR("[mongoc] %s", Error.message);
-					return false;
-				}
-
-				return true;
+					Future.Set(MDB_EXEC(&mongoc_database_drop, Sub));
+				};
 #else
-				return false;
+				return Rest::Async<bool>::Store(false);
 #endif
 			}
-			bool Database::Remove()
+			Rest::Async<bool> Database::RemoveWithOptions(Document* Options)
 			{
 #ifdef TH_HAS_MONGOC
-				if (!Base)
-					return false;
-
-				bson_error_t Error;
-				memset(&Error, 0, sizeof(bson_error_t));
-
-				if (!mongoc_database_drop(Base, &Error))
-				{
-					TH_ERROR("[mongoc] %s", Error.message);
-					return false;
-				}
-
-				return true;
-#else
-				return false;
-#endif
-			}
-			bool Database::RemoveWithOptions(Document* Options)
-			{
-#ifdef TH_HAS_MONGOC
-				if (!Base)
-				{
-					MDB_FREE(Options);
-					return false;
-				}
-
 				if (!MDB_POP(Options))
 					return Remove();
 
-				bson_error_t Error;
-				memset(&Error, 0, sizeof(bson_error_t));
-
-				if (!mongoc_database_drop_with_opts(Base, MDB_POP(Options), &Error))
+				auto* Sub = Base;
+				return [Sub, Options](Rest::Async<bool>& Future)
 				{
+					bool Subresult = MDB_EXEC(&mongoc_database_drop_with_opts, Sub, MDB_POP(Options));
 					MDB_FREE(Options);
-					TH_ERROR("[mongoc] %s", Error.message);
-					return false;
-				}
 
-				MDB_FREE(Options);
-				return true;
+					Future.Set(Subresult);
+				};
 #else
-				return false;
+				return Rest::Async<bool>::Store(false);
 #endif
 			}
-			bool Database::AddUser(const char* Username, const char* Password, Document* Roles, Document* Custom)
+			Rest::Async<bool> Database::AddUser(const std::string& Username, const std::string& Password, Document* Roles, Document* Custom)
 			{
 #ifdef TH_HAS_MONGOC
-				if (!Base)
+				auto* Sub = Base;
+				return [Sub, Username, Password, Roles, Custom](Rest::Async<bool>& Future)
 				{
+					bool Subresult = MDB_EXEC(&mongoc_database_add_user, Sub, Username.c_str(), Password.c_str(), MDB_POP(Roles), MDB_POP(Custom));
 					MDB_FREE(Roles);
 					MDB_FREE(Custom);
-					return false;
-				}
 
+					Future.Set(Subresult);
+				};
+#else
+				return Rest::Async<bool>::Store(false);
+#endif
+			}
+			Rest::Async<Cursor> Database::FindCollections(Document* Options) const
+			{
+#ifdef TH_HAS_MONGOC
+				auto* Sub = Base;
+				return [Sub, Options](Rest::Async<Cursor>& Future)
+				{
+					Cursor Subresult = MDB_EXEC_CUR(&mongoc_database_find_collections_with_opts, Sub, MDB_POP(Options));
+					MDB_FREE(Options);
+
+					Future.Set(Subresult);
+				};
+#else
+				return Rest::Async<Cursor>::Store(nullptr);
+#endif
+			}
+			bool Database::HasCollection(const std::string& Name) const
+			{
+#ifdef TH_HAS_MONGOC
 				bson_error_t Error;
 				memset(&Error, 0, sizeof(bson_error_t));
+				bool Subresult = mongoc_database_has_collection(Base, Name.c_str(), &Error);
+				if (!Subresult && Error.code != 0)
+					TH_ERROR("[mongoc:%i] %s", (int)Error.code, Error.message);
 
-				if (!mongoc_database_add_user(Base, Username, Password, MDB_POP(Roles), MDB_POP(Custom), &Error))
-				{
-					MDB_FREE(Roles);
-					MDB_FREE(Custom);
-					TH_ERROR("[mongoc] %s", Error.message);
-					return false;
-				}
-
-				MDB_FREE(Roles);
-				MDB_FREE(Custom);
-				return true;
+				return Subresult;
 #else
 				return false;
 #endif
@@ -2243,24 +1924,7 @@ namespace Tomahawk
 				return nullptr;
 #endif
 			}
-			Cursor Database::FindCollections(Document* Options) const
-			{
-#ifdef TH_HAS_MONGOC
-				if (!Base)
-				{
-					MDB_FREE(Options);
-					return nullptr;
-				}
-
-				TCursor* Cursor = mongoc_database_find_collections_with_opts(Base, MDB_POP(Options));
-				MDB_FREE(Options);
-
-				return Cursor;
-#else
-				return nullptr;
-#endif
-			}
-			Collection Database::CreateCollection(const char* Name, Document* Options)
+			Collection Database::CreateCollection(const std::string& Name, Document* Options)
 			{
 #ifdef TH_HAS_MONGOC
 				bson_error_t Error;
@@ -2272,7 +1936,7 @@ namespace Tomahawk
 					return nullptr;
 				}
 
-				TCollection* Collection = mongoc_database_create_collection(Base, Name, MDB_POP(Options), &Error);
+				TCollection* Collection = mongoc_database_create_collection(Base, Name.c_str(), MDB_POP(Options), &Error);
 				MDB_FREE(Options);
 
 				if (Collection == nullptr)
@@ -2283,13 +1947,13 @@ namespace Tomahawk
 				return nullptr;
 #endif
 			}
-			Collection Database::GetCollection(const char* Name) const
+			Collection Database::GetCollection(const std::string& Name) const
 			{
 #ifdef TH_HAS_MONGOC
 				if (!Base)
 					return nullptr;
 
-				return mongoc_database_get_collection(Base, Name);
+				return mongoc_database_get_collection(Base, Name.c_str());
 #else
 				return nullptr;
 #endif
@@ -2419,51 +2083,40 @@ namespace Tomahawk
 				Base = nullptr;
 #endif
 			}
-			bool Transaction::Start()
+			Rest::Async<bool> Transaction::Start()
 			{
 #ifdef TH_HAS_MONGOC
-				if (!Base)
-					return false;
-
-				bson_error_t Error;
-				if (!mongoc_client_session_start_transaction(Base, nullptr, &Error))
+				auto* Sub = Base;
+				return [Sub](Rest::Async<bool>& Future)
 				{
-					TH_ERROR("[mongoc] failed to start transaction\n\t%s", Error.message);
-					return false;
-				}
-
-				return true;
+					Future.Set(MDB_EXEC(&mongoc_client_session_start_transaction, Sub, nullptr));
+				};
 #else
-				return false;
+				return Rest::Async<bool>::Store(false);
 #endif
 			}
-			bool Transaction::Abort()
+			Rest::Async<bool> Transaction::Abort()
 			{
 #ifdef TH_HAS_MONGOC
-				if (!Base)
-					return false;
-
-				return mongoc_client_session_abort_transaction(Base, nullptr);
+				auto* Sub = Base;
+				return [Sub](Rest::Async<bool>& Future)
+				{
+					Future.Set(MDB_EXEC(&mongoc_client_session_abort_transaction, Sub));
+				};
 #else
-				return false;
+				return Rest::Async<bool>::Store(false);
 #endif
 			}
-			bool Transaction::Commit(Document* Reply)
+			Rest::Async<bool> Transaction::Commit(Document* Reply)
 			{
 #ifdef TH_HAS_MONGOC
-				if (!Base)
-					return false;
-
-				bson_error_t Error;
-				if (!mongoc_client_session_commit_transaction(Base, MDB_POP(Reply), &Error))
+				auto* Sub = Base;
+				return [Sub, Reply](Rest::Async<bool>& Future)
 				{
-					TH_ERROR("[mongoc] could not commit transaction\n\t%s", Error.message);
-					return false;
-				}
-				
-				return true;
+					Future.Set(MDB_EXEC(&mongoc_client_session_commit_transaction, Sub, MDB_POP(Reply)));
+				};
 #else
-				return false;
+				return Rest::Async<bool>::Store(false);
 #endif
 			}
 			TTransaction* Transaction::Get() const
@@ -2516,10 +2169,123 @@ namespace Tomahawk
 				Disconnect();
 				Driver::Release();
 			}
-			void Connection::SetProfile(const char* Name)
+			Rest::Async<bool> Connection::Connect(const std::string& Address)
 			{
 #ifdef TH_HAS_MONGOC
-				mongoc_client_set_appname(Base, Name);
+				if (Master != nullptr)
+					return Rest::Async<bool>::Store(false);
+
+				if (Connected)
+				{
+					return Disconnect().Then<Rest::Async<bool>>([this, Address](bool)
+					{
+						return this->Connect(Address);
+					});
+				}
+
+				return [this, Address](Rest::Async<bool>& Future)
+				{
+					bson_error_t Error;
+					memset(&Error, 0, sizeof(bson_error_t));
+
+					TAddress* URI = mongoc_uri_new_with_error(Address.c_str(), &Error);
+					if (!URI)
+					{
+						TH_ERROR("[urierr] %s", Error.message);
+						return Future.Set(false);
+					}
+
+					Base = mongoc_client_new_from_uri(URI);
+					if (!Base)
+					{
+						TH_ERROR("couldn't connect to requested URI");
+						return Future.Set(false);
+					}
+
+					Connected = true;
+					Future.Set(true);
+				};
+#else
+				return Rest::Async<bool>::Store(false);
+#endif
+			}
+			Rest::Async<bool> Connection::Connect(Address* URL)
+			{
+#ifdef TH_HAS_MONGOC
+				if (Master != nullptr || !URL || !URL->Get())
+					return Rest::Async<bool>::Store(false);
+
+				if (Connected)
+				{
+					return Disconnect().Then<Rest::Async<bool>>([this, URL](bool)
+					{
+						return this->Connect(URL);
+					});
+				}
+
+				TAddress* URI = URL->Get();
+				return [this, URI](Rest::Async<bool>& Future)
+				{
+					Base = mongoc_client_new_from_uri(URI);
+					if (!Base)
+					{
+						TH_ERROR("couldn't connect to requested URI");
+						return Future.Set(false);
+					}
+
+					Connected = true;
+					Future.Set(true);
+				};
+#else
+				return Rest::Async<bool>::Store(false);
+#endif
+			}
+			Rest::Async<bool> Connection::Disconnect()
+			{
+#ifdef TH_HAS_MONGOC
+				return [this](Rest::Async<bool>& Future)
+				{
+					Connected = false;
+					if (Master != nullptr)
+					{
+						if (Base != nullptr)
+						{
+							mongoc_client_pool_push(Master->Get(), Base);
+							Base = nullptr;
+						}
+
+						Master = nullptr;
+					}
+					else if (Base != nullptr)
+					{
+						mongoc_client_destroy(Base);
+						Base = nullptr;
+					}
+
+					Future.Set(true);
+				};
+#else
+				return Rest::Async<bool>::Store(false);
+#endif
+			}
+			Rest::Async<Cursor> Connection::FindDatabases(Document* Options) const
+			{
+#ifdef TH_HAS_MONGOC
+				return [this, Options](Rest::Async<Cursor>& Future)
+				{
+					TCursor* Subresult = mongoc_client_find_databases_with_opts(Base, MDB_POP(Options));
+					MDB_FREE(Options);
+
+					Future.Set(Subresult);
+				};
+#else
+				return Rest::Async<Cursor>::Store(nullptr);
+#endif
+			}
+			void Connection::SetProfile(const std::string& Name)
+			{
+#ifdef TH_HAS_MONGOC
+				mongoc_client_set_appname(Base, Name.c_str());
 #endif
 			}
 			bool Connection::SetServer(bool ForWrites)
@@ -2541,101 +2307,10 @@ namespace Tomahawk
 				return false;
 #endif
 			}
-			bool Connection::Connect(const std::string& Address)
+			Database Connection::GetDatabase(const std::string& Name) const
 			{
 #ifdef TH_HAS_MONGOC
-				if (Master != nullptr)
-					return false;
-
-				bson_error_t Error;
-				memset(&Error, 0, sizeof(bson_error_t));
-
-				if (Connected)
-					Disconnect();
-
-				TAddress* URI = mongoc_uri_new_with_error(Address.c_str(), &Error);
-				if (URI == nullptr)
-				{
-					TH_ERROR("[urierr] %s", Error.message);
-					return false;
-				}
-
-				Base = mongoc_client_new_from_uri(URI);
-				if (Base == nullptr)
-				{
-					TH_ERROR("couldn't connect to requested URI");
-					return false;
-				}
-
-				Connected = true;
-				return true;
-#else
-				return false;
-#endif
-			}
-			bool Connection::Connect(Address* URI)
-			{
-#ifdef TH_HAS_MONGOC
-				if (Master != nullptr || !URI || !URI->Get())
-					return false;
-
-				if (Connected)
-					Disconnect();
-
-				Base = mongoc_client_new_from_uri(URI->Get());
-				if (!Base)
-				{
-					TH_ERROR("couldn't connect to requested URI");
-					return false;
-				}
-
-				*URI = nullptr;
-				Connected = true;
-				return true;
-#else
-				return false;
-#endif
-			}
-			bool Connection::Disconnect()
-			{
-#ifdef TH_HAS_MONGOC
-				Connected = false;
-				if (Master != nullptr)
-				{
-					if (Base != nullptr)
-					{
-						mongoc_client_pool_push(Master->Get(), Base);
-						Base = nullptr;
-					}
-
-					Master = nullptr;
-				}
-				else if (Base != nullptr)
-				{
-					mongoc_client_destroy(Base);
-					Base = nullptr;
-				}
-
-				return true;
-#else
-				return false;
-#endif
-			}
-			Cursor Connection::FindDatabases(Document* Options) const
-			{
-#ifdef TH_HAS_MONGOC
-				TCursor* Reference = mongoc_client_find_databases_with_opts(Base, MDB_POP(Options));
-				MDB_FREE(Options);
-
-				return Reference;
-#else
-				return nullptr;
-#endif
-			}
-			Database Connection::GetDatabase(const char* Name) const
-			{
-#ifdef TH_HAS_MONGOC
-				return mongoc_client_get_database(Base, Name);
+				return mongoc_client_get_database(Base, Name.c_str());
 #else
 				return nullptr;
 #endif
@@ -2672,7 +2347,7 @@ namespace Tomahawk
 			{
 				return Base;
 			}
-			std::vector<std::string> Connection::GetDatabaseNames(Document* Options)
+			std::vector<std::string> Connection::GetDatabaseNames(Document* Options) const
 			{
 #ifdef TH_HAS_MONGOC
 				bson_error_t Error;
@@ -2697,7 +2372,7 @@ namespace Tomahawk
 				return std::vector<std::string>();
 #endif
 			}
-			bool Connection::IsConnected()
+			bool Connection::IsConnected() const
 			{
 				return Connected;
 			}
@@ -2711,79 +2386,96 @@ namespace Tomahawk
 				Disconnect();
 				Driver::Release();
 			}
+			Rest::Async<bool> Queue::Connect(const std::string& URI)
+			{
+#ifdef TH_HAS_MONGOC
+				if (Connected)
+				{
+					return Disconnect().Then<Rest::Async<bool>>([this, URI](bool)
+					{
+						return this->Connect(URI);
+					});
+				}
+
+				return [this, URI](Rest::Async<bool>& Future)
+				{
+					bson_error_t Error;
+					memset(&Error, 0, sizeof(bson_error_t));
+
+					SrcAddress = mongoc_uri_new_with_error(URI.c_str(), &Error);
+					if (!SrcAddress.Get())
+					{
+						TH_ERROR("[urierr] %s", Error.message);
+						return Future.Set(false);
+					}
+
+					Pool = mongoc_client_pool_new(SrcAddress.Get());
+					if (!Pool)
+					{
+						TH_ERROR("couldn't connect to requested URI");
+						return Future.Set(false);
+					}
+
+					Connected = true;
+					Future.Set(true);
+				};
+#else
+				return Rest::Async<bool>::Store(false);
+#endif
+			}
+			Rest::Async<bool> Queue::Connect(Address* URI)
+			{
+#ifdef TH_HAS_MONGOC
+				if (Connected)
+				{
+					return Disconnect().Then<Rest::Async<bool>>([this, URI](bool)
+					{
+						return this->Connect(URI);
+					});
+				}
+
+				auto* Sub = MDB_POP(URI);
+				*URI = nullptr;
+
+				return [this, Sub](Rest::Async<bool>& Future)
+				{
+					SrcAddress = Sub;
+					Pool = mongoc_client_pool_new(SrcAddress.Get());
+					if (!Pool)
+					{
+						TH_ERROR("couldn't connect to requested URI");
+						return Future.Set(false);
+					}
+
+					Connected = true;
+					Future.Set(true);
+				};
+#else
+				return Rest::Async<bool>::Store(false);
+#endif
+			}
+			Rest::Async<bool> Queue::Disconnect()
+			{
+#ifdef TH_HAS_MONGOC
+				return [this](Rest::Async<bool>& Future)
+				{
+					if (Pool != nullptr)
+					{
+						mongoc_client_pool_destroy(Pool);
+						Pool = nullptr;
+					}
+
+					SrcAddress.Release();
+					Connected = false;
+				};
+#else
+				return Rest::Async<bool>::Store(false);
+#endif
+			}
 			void Queue::SetProfile(const char* Name)
 			{
 #ifdef TH_HAS_MONGOC
 				mongoc_client_pool_set_appname(Pool, Name);
-#endif
-			}
-			bool Queue::Connect(const std::string& URI)
-			{
-#ifdef TH_HAS_MONGOC
-				bson_error_t Error;
-				memset(&Error, 0, sizeof(bson_error_t));
-
-				if (Connected)
-					Disconnect();
-
-				SrcAddress = mongoc_uri_new_with_error(URI.c_str(), &Error);
-				if (!SrcAddress.Get())
-				{
-					TH_ERROR("[urierr] %s", Error.message);
-					return false;
-				}
-
-				Pool = mongoc_client_pool_new(SrcAddress.Get());
-				if (!Pool)
-				{
-					TH_ERROR("couldn't connect to requested URI");
-					return false;
-				}
-
-				Connected = true;
-				return true;
-#else
-				return false;
-#endif
-			}
-			bool Queue::Connect(Address* URI)
-			{
-#ifdef TH_HAS_MONGOC
-				if (!URI || !URI->Get())
-					return false;
-
-				if (Connected)
-					Disconnect();
-
-				Pool = mongoc_client_pool_new(URI->Get());
-				if (!Pool)
-				{
-					TH_ERROR("couldn't connect to requested URI");
-					return false;
-				}
-
-				SrcAddress = URI->Get();
-				*URI = nullptr;
-				Connected = true;
-				return true;
-#else
-				return false;
-#endif
-			}
-			bool Queue::Disconnect()
-			{
-#ifdef TH_HAS_MONGOC
-				if (Pool != nullptr)
-				{
-					mongoc_client_pool_destroy(Pool);
-					Pool = nullptr;
-				}
-
-				SrcAddress.Release();
-				Connected = false;
-				return true;
-#else
-				return false;
 #endif
 			}
 			void Queue::Push(Connection** Client)

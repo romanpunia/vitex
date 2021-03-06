@@ -131,6 +131,7 @@ namespace Tomahawk
 				std::string ToRelaxedJSON() const;
 				std::string ToExtendedJSON() const;
 				std::string ToJSON() const;
+				std::string ToIndices() const;
 				Rest::Document* ToDocument(bool IsArray = false) const;
 				Document Copy() const;
 				Document& Persist();
@@ -191,8 +192,8 @@ namespace Tomahawk
 				bool Insert(Document* Result, Document* Options);
 				bool UpdateOne(Document* Selector, Document* Result, Document* Options);
 				bool UpdateMany(Document* Selector, Document* Result, Document* Options);
-				bool Execute(Document* Reply);
-				bool Execute();
+				Rest::Async<bool> Execute(Document* Reply);
+				Rest::Async<bool> Execute();
 				uint64_t GetHint() const;
 				TStream* Get() const;
 				operator bool() const
@@ -210,6 +211,7 @@ namespace Tomahawk
 				TCursor* Base;
 
 			public:
+				Cursor();
 				Cursor(TCursor* NewBase);
 				void Release();
 				void Receive(const std::function<bool(Document*)>& Callback) const;
@@ -241,29 +243,28 @@ namespace Tomahawk
 			public:
 				Collection(TCollection* NewBase);
 				void Release();
-				bool UpdateMany(Document* Selector, Document* Update, Document* Options, Document* Reply);
-				bool UpdateOne(Document* Selector, Document* Update, Document* Options, Document* Reply);
-				bool Rename(const char* NewDatabaseName, const char* NewCollectionName);
-				bool RenameWithOptions(const char* NewDatabaseName, const char* NewCollectionName, Document* Options);
-				bool RenameWithRemove(const char* NewDatabaseName, const char* NewCollectionName);
-				bool RenameWithOptionsAndRemove(const char* NewDatabaseName, const char* NewCollectionName, Document* Options);
-				bool Remove(Document* Options);
-				bool RemoveMany(Document* Selector, Document* Options, Document* Reply);
-				bool RemoveOne(Document* Selector, Document* Options, Document* Reply);
-				bool RemoveIndex(const char* Name, Document* Options);
-				bool ReplaceOne(Document* Selector, Document* Replacement, Document* Options, Document* Reply);
-				bool InsertMany(std::vector<Document>& List, Document* Options, Document* Reply);
-				bool InsertOne(Document* Result, Document* Options, Document* Reply);
-				bool FindAndModify(Document* Selector, Document* Sort, Document* Update, Document* Fields, Document* Reply, bool Remove, bool Upsert, bool New);
-				uint64_t CountElementsInArray(Document* Match, Document* Filter, Document* Options) const;
-				uint64_t CountDocuments(Document* Filter, Document* Options, Document* Reply) const;
-				uint64_t CountDocumentsEstimated(Document* Options, Document* Reply) const;
-				std::string StringifyKeyIndexes(Document* Keys) const;
+				Rest::Async<bool> UpdateMany(Document* Selector, Document* Update, Document* Options, Document* Reply);
+				Rest::Async<bool> UpdateOne(Document* Selector, Document* Update, Document* Options, Document* Reply);
+				Rest::Async<bool> Rename(const std::string& NewDatabaseName, const std::string& NewCollectionName);
+				Rest::Async<bool> RenameWithOptions(const std::string& NewDatabaseName, const std::string& NewCollectionName, Document* Options);
+				Rest::Async<bool> RenameWithRemove(const std::string& NewDatabaseName, const std::string& NewCollectionName);
+				Rest::Async<bool> RenameWithOptionsAndRemove(const std::string& NewDatabaseName, const std::string& NewCollectionName, Document* Options);
+				Rest::Async<bool> Remove(Document* Options);
+				Rest::Async<bool> RemoveMany(Document* Selector, Document* Options, Document* Reply);
+				Rest::Async<bool> RemoveOne(Document* Selector, Document* Options, Document* Reply);
+				Rest::Async<bool> RemoveIndex(const std::string& Name, Document* Options);
+				Rest::Async<bool> ReplaceOne(Document* Selector, Document* Replacement, Document* Options, Document* Reply);
+				Rest::Async<bool> InsertMany(std::vector<Document>& List, Document* Options, Document* Reply);
+				Rest::Async<bool> InsertOne(Document* Result, Document* Options, Document* Reply);
+				Rest::Async<bool> FindAndModify(Document* Selector, Document* Sort, Document* Update, Document* Fields, Document* Reply, bool Remove, bool Upsert, bool New);
+				Rest::Async<uint64_t> CountElementsInArray(Document* Match, Document* Filter, Document* Options) const;
+				Rest::Async<uint64_t> CountDocuments(Document* Filter, Document* Options, Document* Reply) const;
+				Rest::Async<uint64_t> CountDocumentsEstimated(Document* Options, Document* Reply) const;
+				Rest::Async<Cursor> FindIndexes(Document* Options) const;
+				Rest::Async<Cursor> FindMany(Document* Filter, Document* Options) const;
+				Rest::Async<Cursor> FindOne(Document* Filter, Document* Options) const;
+				Rest::Async<Cursor> Aggregate(Query Flags, Document* Pipeline, Document* Options) const;
 				const char* GetName() const;
-				Cursor FindIndexes(Document* Options) const;
-				Cursor FindMany(Document* Filter, Document* Options) const;
-				Cursor FindOne(Document* Filter, Document* Options) const;
-				Cursor Aggregate(Query Flags, Document* Pipeline, Document* Options) const;
 				Stream CreateStream(Document* Options);
 				TCollection* Get() const;
 				operator bool() const
@@ -280,17 +281,17 @@ namespace Tomahawk
 			public:
 				Database(TDatabase* NewBase);
 				void Release();
-				bool HasCollection(const char* Name) const;
-				bool RemoveAllUsers();
-				bool RemoveUser(const char* Name);
-				bool Remove();
-				bool RemoveWithOptions(Document* Options);
-				bool AddUser(const char* Username, const char* Password, Document* Roles, Document* Custom);
+				Rest::Async<bool> RemoveAllUsers();
+				Rest::Async<bool> RemoveUser(const std::string& Name);
+				Rest::Async<bool> Remove();
+				Rest::Async<bool> RemoveWithOptions(Document* Options);
+				Rest::Async<bool> AddUser(const std::string& Username, const std::string& Password, Document* Roles, Document* Custom);
+				Rest::Async<Cursor> FindCollections(Document* Options) const;
+				bool HasCollection(const std::string& Name) const;
 				std::vector<std::string> GetCollectionNames(Document* Options) const;
 				const char* GetName() const;
-				Cursor FindCollections(Document* Options) const;
-				Collection CreateCollection(const char* Name, Document* Options);
-				Collection GetCollection(const char* Name) const;
+				Collection CreateCollection(const std::string& Name, Document* Options);
+				Collection GetCollection(const std::string& Name) const;
 				TDatabase* Get() const;
 				operator bool() const
 				{
@@ -328,9 +329,9 @@ namespace Tomahawk
 			public:
 				Transaction(TTransaction* NewBase);
 				void Release();
-				bool Start();
-				bool Abort();
-				bool Commit(Document* Reply);
+				Rest::Async<bool> Start();
+				Rest::Async<bool> Abort();
+				Rest::Async<bool> Commit(Document* Reply);
 				TTransaction* Get() const;
 				operator bool() const
 				{
@@ -355,20 +356,20 @@ namespace Tomahawk
 			public:
 				Connection();
 				virtual ~Connection() override;
-				void SetProfile(const char* Name);
+				Rest::Async<bool> Connect(const std::string& Address);
+				Rest::Async<bool> Connect(Address* URI);
+				Rest::Async<bool> Disconnect();
+				Rest::Async<Cursor> FindDatabases(Document* Options) const;
+				void SetProfile(const std::string& Name);
 				bool SetServer(bool Writeable);
-				bool Connect(const std::string& Address);
-				bool Connect(Address* URI);
-				bool Disconnect();
-				Cursor FindDatabases(Document* Options) const;
-				Database GetDatabase(const char* Name) const;
+				Database GetDatabase(const std::string& Name) const;
 				Database GetDefaultDatabase() const;
 				Collection GetCollection(const char* DatabaseName, const char* Name) const;
 				Address GetAddress() const;
 				Queue* GetMaster() const;
 				TConnection* Get() const;
-				std::vector<std::string> GetDatabaseNames(Document* Options);
-				bool IsConnected();
+				std::vector<std::string> GetDatabaseNames(Document* Options) const;
+				bool IsConnected() const;
 			};
 
 			class TH_OUT Queue : public Rest::Object
@@ -381,10 +382,10 @@ namespace Tomahawk
 			public:
 				Queue();
 				virtual ~Queue() override;
+				Rest::Async<bool> Connect(const std::string& Address);
+				Rest::Async<bool> Connect(Address* URI);
+				Rest::Async<bool> Disconnect();
 				void SetProfile(const char* Name);
-				bool Connect(const std::string& Address);
-				bool Connect(Address* URI);
-				bool Disconnect();
 				void Push(Connection** Client);
 				Connection* Pop();
 				TConnectionPool* Get() const;

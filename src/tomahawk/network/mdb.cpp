@@ -14,6 +14,7 @@ namespace Tomahawk
 	{
 		namespace MDB
 		{
+#ifdef TH_HAS_MONGOC
 			template <typename R, typename T, typename... Args>
 			bool MDB_EXEC(R&& Function, T* Base, Args&&... Data)
 			{
@@ -41,7 +42,7 @@ namespace Tomahawk
 
 				return Result;
 			}
-
+#endif
 			Property::Property() : Object(nullptr), Array(nullptr), Mod(Type_Unknown), Integer(0), High(0), Low(0), Number(0.0), Boolean(false), IsValid(false)
 			{
 			}

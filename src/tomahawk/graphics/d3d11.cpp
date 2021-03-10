@@ -2028,7 +2028,7 @@ namespace Tomahawk
 					return Result;
 				}
 
-				Rest::Stroke Code(&F.Data);
+				Core::Parser Code(&F.Data);
 				uint64_t Length = Code.Size();
 
 				std::string VertexEntry = GetShaderMain(ShaderType_Vertex);

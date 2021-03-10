@@ -1,7 +1,7 @@
-#ifndef TH_SCRIPT_REST_H
-#define TH_SCRIPT_REST_H
+#ifndef TH_SCRIPT_GUI_API_H
+#define TH_SCRIPT_GUI_API_H
 
-#include "core-api.h"
+#include "std-lib.h"
 #include "../engine/gui.h"
 
 namespace Tomahawk

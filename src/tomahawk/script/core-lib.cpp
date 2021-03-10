@@ -1,4 +1,4 @@
-#include "rest-api.h"
+#include "core-lib.h"
 #ifndef ANGELSCRIPT_H 
 #include <angelscript.h>
 #endif
@@ -28,7 +28,7 @@ namespace Tomahawk
 				int TypeId = *(int*)Buffer;
 				Buffer += sizeof(int);
 
-				Rest::Stroke Result; std::string Offset;
+				Core::Parser Result; std::string Offset;
 				FormatBuffer(Global, Result, Offset, (void*)Buffer, TypeId);
 				Args.push_back(Result.R()[0] == '\n' ? Result.Substring(1).R() : Result.R());
 
@@ -53,14 +53,14 @@ namespace Tomahawk
 				return "{}";
 
 			VMGlobal& Global = Context->GetManager()->Global();
-			Rest::Stroke Result;
+			Core::Parser Result;
 
 			FormatJSON(Global, Result, Ref, TypeId);
 			return Result.R();
 		}
 		std::string VMCFormat::Form(const std::string& F, const VMCFormat& Form)
 		{
-			Rest::Stroke Buffer = F;
+			Core::Parser Buffer = F;
 			uint64_t Offset = 0;
 
 			for (auto& Item : Form.Args)
@@ -75,9 +75,9 @@ namespace Tomahawk
 
 			return Buffer.R();
 		}
-		void VMCFormat::WriteLine(Rest::Console* Base, const std::string& F, VMCFormat* Form)
+		void VMCFormat::WriteLine(Core::Console* Base, const std::string& F, VMCFormat* Form)
 		{
-			Rest::Stroke Buffer = F;
+			Core::Parser Buffer = F;
 			uint64_t Offset = 0;
 
 			if (Form != nullptr)
@@ -95,9 +95,9 @@ namespace Tomahawk
 
 			Base->sWriteLine(Buffer.R());
 		}
-		void VMCFormat::Write(Rest::Console* Base, const std::string& F, VMCFormat* Form)
+		void VMCFormat::Write(Core::Console* Base, const std::string& F, VMCFormat* Form)
 		{
-			Rest::Stroke Buffer = F;
+			Core::Parser Buffer = F;
 			uint64_t Offset = 0;
 
 			if (Form != nullptr)
@@ -115,7 +115,7 @@ namespace Tomahawk
 
 			Base->sWrite(Buffer.R());
 		}
-		void VMCFormat::FormatBuffer(VMGlobal& Global, Rest::Stroke& Result, std::string& Offset, void* Ref, int TypeId)
+		void VMCFormat::FormatBuffer(VMGlobal& Global, Core::Parser& Result, std::string& Offset, void* Ref, int TypeId)
 		{
 			if (TypeId < VMTypeId_BOOL || TypeId > VMTypeId_DOUBLE)
 			{
@@ -136,7 +136,7 @@ namespace Tomahawk
 				else if (VMTypeInfo::IsScriptObject(TypeId))
 				{
 					VMObject VObject = *(VMCObject**)Ref;
-					Rest::Stroke Decl;
+					Core::Parser Decl;
 
 					Offset += '\t';
 					for (unsigned int i = 0; i < VObject.GetPropertiesCount(); i++)
@@ -156,7 +156,7 @@ namespace Tomahawk
 				else if (strcmp(Type.GetName(), "Map") == 0)
 				{
 					VMCMap* Map = *(VMCMap**)Ref;
-					Rest::Stroke Decl; std::string Name;
+					Core::Parser Decl; std::string Name;
 
 					Offset += '\t';
 					for (unsigned int i = 0; i < Map->GetSize(); i++)
@@ -180,7 +180,7 @@ namespace Tomahawk
 				{
 					VMCArray* Array = *(VMCArray**)Ref;
 					int ArrayTypeId = Array->GetElementTypeId();
-					Rest::Stroke Decl;
+					Core::Parser Decl;
 
 					Offset += '\t';
 					for (unsigned int i = 0; i < Array->GetSize(); i++)
@@ -198,7 +198,7 @@ namespace Tomahawk
 				}
 				else if (strcmp(Type.GetName(), "String") != 0)
 				{
-					Rest::Stroke Decl;
+					Core::Parser Decl;
 					Offset += '\t';
 
 					Type.ForEachProperty([&Decl, &Global, &Offset, Ref, TypeId](VMTypeInfo* Base, VMFuncProperty* Prop)
@@ -260,7 +260,7 @@ namespace Tomahawk
 				}
 			}
 		}
-		void VMCFormat::FormatJSON(VMGlobal& Global, Rest::Stroke& Result, void* Ref, int TypeId)
+		void VMCFormat::FormatJSON(VMGlobal& Global, Core::Parser& Result, void* Ref, int TypeId)
 		{
 			if (TypeId < VMTypeId_BOOL || TypeId > VMTypeId_DOUBLE)
 			{
@@ -276,7 +276,7 @@ namespace Tomahawk
 				if (VMTypeInfo::IsScriptObject(TypeId))
 				{
 					VMObject VObject = (VMCObject*)Object;
-					Rest::Stroke Decl;
+					Core::Parser Decl;
 
 					for (unsigned int i = 0; i < VObject.GetPropertiesCount(); i++)
 					{
@@ -294,7 +294,7 @@ namespace Tomahawk
 				else if (strcmp(Type.GetName(), "Map") == 0)
 				{
 					VMCMap* Map = (VMCMap*)Object;
-					Rest::Stroke Decl; std::string Name;
+					Core::Parser Decl; std::string Name;
 
 					for (unsigned int i = 0; i < Map->GetSize(); i++)
 					{
@@ -316,7 +316,7 @@ namespace Tomahawk
 				{
 					VMCArray* Array = (VMCArray*)Object;
 					int ArrayTypeId = Array->GetElementTypeId();
-					Rest::Stroke Decl;
+					Core::Parser Decl;
 
 					for (unsigned int i = 0; i < Array->GetSize(); i++)
 					{
@@ -331,7 +331,7 @@ namespace Tomahawk
 				}
 				else if (strcmp(Type.GetName(), "String") != 0)
 				{
-					Rest::Stroke Decl;
+					Core::Parser Decl;
 					Type.ForEachProperty([&Decl, &Global, Ref, TypeId](VMTypeInfo* Base, VMFuncProperty* Prop)
 					{
 						Decl.fAppend("\"%s\":", Prop->Name ? Prop->Name : "");
@@ -388,15 +388,15 @@ namespace Tomahawk
 			}
 		}
 
-		uint64_t VMCVariant::GetSize(Rest::Variant& Base)
+		uint64_t VMCVariant::GetSize(Core::Variant& Base)
 		{
 			return (uint64_t)Base.GetSize();
 		}
-		bool VMCVariant::Equals(Rest::Variant& Base, const Rest::Variant& Other)
+		bool VMCVariant::Equals(Core::Variant& Base, const Core::Variant& Other)
 		{
 			return Base == Other;
 		}
-		bool VMCVariant::ImplCast(Rest::Variant& Base)
+		bool VMCVariant::ImplCast(Core::Variant& Base)
 		{
 			return Base;
 		}
@@ -404,14 +404,14 @@ namespace Tomahawk
 		void VMCDocument::Construct(VMCGeneric* Generic)
 		{
 			unsigned char* Buffer = (unsigned char*)Generic->GetArgAddress(0);
-			*(Rest::Document**)Generic->GetAddressOfReturnLocation() = ConstructBuffer(Buffer);
+			*(Core::Document**)Generic->GetAddressOfReturnLocation() = ConstructBuffer(Buffer);
 		}
-		Rest::Document* VMCDocument::ConstructBuffer(unsigned char* Buffer)
+		Core::Document* VMCDocument::ConstructBuffer(unsigned char* Buffer)
 		{
 			if (!Buffer)
 				return nullptr;
 
-			Rest::Document* Result = Rest::Document::Object();
+			Core::Document* Result = Core::Document::Object();
 			VMCContext* Context = asGetActiveContext();
 			VMCManager* Manager = Context->GetEngine();
 			asUINT Length = *(asUINT*)Buffer;
@@ -434,37 +434,37 @@ namespace Tomahawk
 					switch (TypeId)
 					{
 						case asTYPEID_BOOL:
-							Result->Set(Name, std::move(Rest::Var::Boolean(*(bool*)Ref)));
+							Result->Set(Name, std::move(Core::Var::Boolean(*(bool*)Ref)));
 							break;
 						case asTYPEID_INT8:
-							Result->Set(Name, std::move(Rest::Var::Integer(*(char*)Ref)));
+							Result->Set(Name, std::move(Core::Var::Integer(*(char*)Ref)));
 							break;
 						case asTYPEID_INT16:
-							Result->Set(Name, std::move(Rest::Var::Integer(*(short*)Ref)));
+							Result->Set(Name, std::move(Core::Var::Integer(*(short*)Ref)));
 							break;
 						case asTYPEID_INT32:
-							Result->Set(Name, std::move(Rest::Var::Integer(*(int*)Ref)));
+							Result->Set(Name, std::move(Core::Var::Integer(*(int*)Ref)));
 							break;
 						case asTYPEID_INT64:
-							Result->Set(Name, std::move(Rest::Var::Integer(*(asINT64*)Ref)));
+							Result->Set(Name, std::move(Core::Var::Integer(*(asINT64*)Ref)));
 							break;
 						case asTYPEID_UINT8:
-							Result->Set(Name, std::move(Rest::Var::Integer(*(unsigned char*)Ref)));
+							Result->Set(Name, std::move(Core::Var::Integer(*(unsigned char*)Ref)));
 							break;
 						case asTYPEID_UINT16:
-							Result->Set(Name, std::move(Rest::Var::Integer(*(unsigned short*)Ref)));
+							Result->Set(Name, std::move(Core::Var::Integer(*(unsigned short*)Ref)));
 							break;
 						case asTYPEID_UINT32:
-							Result->Set(Name, std::move(Rest::Var::Integer(*(unsigned int*)Ref)));
+							Result->Set(Name, std::move(Core::Var::Integer(*(unsigned int*)Ref)));
 							break;
 						case asTYPEID_UINT64:
-							Result->Set(Name, std::move(Rest::Var::Integer(*(asINT64*)Ref)));
+							Result->Set(Name, std::move(Core::Var::Integer(*(asINT64*)Ref)));
 							break;
 						case asTYPEID_FLOAT:
-							Result->Set(Name, std::move(Rest::Var::Number(*(float*)Ref)));
+							Result->Set(Name, std::move(Core::Var::Number(*(float*)Ref)));
 							break;
 						case asTYPEID_DOUBLE:
-							Result->Set(Name, std::move(Rest::Var::Number(*(double*)Ref)));
+							Result->Set(Name, std::move(Core::Var::Number(*(double*)Ref)));
 							break;
 					}
 				}
@@ -479,17 +479,17 @@ namespace Tomahawk
 
 					if (VMManager::Get(Manager)->IsNullable(TypeId) || !Ref)
 					{
-						Result->Set(Name, std::move(Rest::Var::Null()));
+						Result->Set(Name, std::move(Core::Var::Null()));
 					}
 					else if (Type && !strcmp("Document", Type->GetName()))
 					{
-						Rest::Document* Base = (Rest::Document*)Ref;
+						Core::Document* Base = (Core::Document*)Ref;
 						Base->AddRef();
 
 						Result->Set(Name, Base);
 					}
 					else if (Type && !strcmp("String", Type->GetName()))
-						Result->Set(Name, std::move(Rest::Var::String(*(std::string*)Ref)));
+						Result->Set(Name, std::move(Core::Var::String(*(std::string*)Ref)));
 				}
 
 				if (TypeId & asTYPEID_MASK_OBJECT)
@@ -511,33 +511,33 @@ namespace Tomahawk
 
 			return Result;
 		}
-		Rest::Document* VMCDocument::GetIndex(Rest::Document* Base, const std::string& Name)
+		Core::Document* VMCDocument::GetIndex(Core::Document* Base, const std::string& Name)
 		{
-			Rest::Document* Result = Base->Fetch(Name);
+			Core::Document* Result = Base->Fetch(Name);
 			if (Result != nullptr)
 				return Result;
 
-			return Base->Set(Name, std::move(Rest::Var::Undefined()));
+			return Base->Set(Name, std::move(Core::Var::Undefined()));
 		}
-		Rest::Document* VMCDocument::GetIndexOffset(Rest::Document* Base, uint64_t Offset)
+		Core::Document* VMCDocument::GetIndexOffset(Core::Document* Base, uint64_t Offset)
 		{
 			return Base->Get(Offset);
 		}
-		Rest::Document* VMCDocument::Set(Rest::Document* Base, const std::string& Name, Rest::Document* Value)
+		Core::Document* VMCDocument::Set(Core::Document* Base, const std::string& Name, Core::Document* Value)
 		{
 			if (Value != nullptr)
 				Value->AddRef();
 
 			return Base->Set(Name, Value);
 		}
-		Rest::Document* VMCDocument::Push(Rest::Document* Base, Rest::Document* Value)
+		Core::Document* VMCDocument::Push(Core::Document* Base, Core::Document* Value)
 		{
 			if (Value != nullptr)
 				Value->AddRef();
 
 			return Base->Push(Value);
 		}
-		VMCArray* VMCDocument::GetCollection(Rest::Document* Base, const std::string& Name, bool Deep)
+		VMCArray* VMCDocument::GetCollection(Core::Document* Base, const std::string& Name, bool Deep)
 		{
 			VMContext* Context = VMContext::Get();
 			if (!Context)
@@ -547,14 +547,14 @@ namespace Tomahawk
 			if (!Manager)
 				return nullptr;
 
-			std::vector<Rest::Document*> Nodes = Base->FetchCollection(Name, Deep);
+			std::vector<Core::Document*> Nodes = Base->FetchCollection(Name, Deep);
 			for (auto& Node : Nodes)
 				Node->AddRef();
 
 			VMTypeInfo Type = Manager->Global().GetTypeInfoByDecl("Array<Document@>@");
 			return VMCArray::ComposeFromPointers(Type.GetTypeInfo(), Nodes);
 		}
-		VMCArray* VMCDocument::GetNodes(Rest::Document* Base)
+		VMCArray* VMCDocument::GetNodes(Core::Document* Base)
 		{
 			VMContext* Context = VMContext::Get();
 			if (!Context)
@@ -567,7 +567,7 @@ namespace Tomahawk
 			VMTypeInfo Type = Manager->Global().GetTypeInfoByDecl("Array<Document@>@");
 			return VMCArray::ComposeFromPointers(Type.GetTypeInfo(), *Base->GetNodes());
 		}
-		VMCArray* VMCDocument::GetAttributes(Rest::Document* Base)
+		VMCArray* VMCDocument::GetAttributes(Core::Document* Base)
 		{
 			VMContext* Context = VMContext::Get();
 			if (!Context)
@@ -580,7 +580,7 @@ namespace Tomahawk
 			VMTypeInfo Type = Manager->Global().GetTypeInfoByDecl("Array<Document@>@");
 			return VMCArray::ComposeFromPointers(Type.GetTypeInfo(), Base->GetAttributes());
 		}
-		VMCMap* VMCDocument::GetNames(Rest::Document* Base)
+		VMCMap* VMCDocument::GetNames(Core::Document* Base)
 		{
 			VMContext* Context = VMContext::Get();
 			if (!Context)
@@ -601,10 +601,10 @@ namespace Tomahawk
 
 			return Map;
 		}
-		std::string VMCDocument::ToJSON(Rest::Document* Base)
+		std::string VMCDocument::ToJSON(Core::Document* Base)
 		{
 			std::string Stream;
-			Rest::Document::WriteJSON(Base, [&Stream](Rest::VarForm, const char* Buffer, int64_t Length)
+			Core::Document::WriteJSON(Base, [&Stream](Core::VarForm, const char* Buffer, int64_t Length)
 			{
 				if (Buffer != nullptr && Length > 0)
 					Stream.append(Buffer, Length);
@@ -612,10 +612,10 @@ namespace Tomahawk
 
 			return Stream;
 		}
-		std::string VMCDocument::ToXML(Rest::Document* Base)
+		std::string VMCDocument::ToXML(Core::Document* Base)
 		{
 			std::string Stream;
-			Rest::Document::WriteXML(Base, [&Stream](Rest::VarForm, const char* Buffer, int64_t Length)
+			Core::Document::WriteXML(Base, [&Stream](Core::VarForm, const char* Buffer, int64_t Length)
 			{
 				if (Buffer != nullptr && Length > 0)
 					Stream.append(Buffer, Length);
@@ -623,55 +623,55 @@ namespace Tomahawk
 
 			return Stream;
 		}
-		std::string VMCDocument::ToString(Rest::Document* Base)
+		std::string VMCDocument::ToString(Core::Document* Base)
 		{
 			switch (Base->Value.GetType())
 			{
-				case Rest::VarType_Null:
-				case Rest::VarType_Undefined:
-				case Rest::VarType_Object:
-				case Rest::VarType_Array:
-				case Rest::VarType_Pointer:
+				case Core::VarType_Null:
+				case Core::VarType_Undefined:
+				case Core::VarType_Object:
+				case Core::VarType_Array:
+				case Core::VarType_Pointer:
 					break;
-				case Rest::VarType_String:
-				case Rest::VarType_Base64:
+				case Core::VarType_String:
+				case Core::VarType_Base64:
 					return Base->Value.GetBlob();
-				case Rest::VarType_Integer:
+				case Core::VarType_Integer:
 					return std::to_string(Base->Value.GetInteger());
-				case Rest::VarType_Number:
+				case Core::VarType_Number:
 					return std::to_string(Base->Value.GetNumber());
-				case Rest::VarType_Decimal:
+				case Core::VarType_Decimal:
 					return Base->Value.GetDecimal();
-				case Rest::VarType_Boolean:
+				case Core::VarType_Boolean:
 					return Base->Value.GetBoolean() ? "1" : "0";
 			}
 
 			return "";
 		}
-		std::string VMCDocument::ToBase64(Rest::Document* Base)
+		std::string VMCDocument::ToBase64(Core::Document* Base)
 		{
 			return Base->Value.GetBlob();
 		}
-		int64_t VMCDocument::ToInteger(Rest::Document* Base)
+		int64_t VMCDocument::ToInteger(Core::Document* Base)
 		{
 			return Base->Value.GetInteger();
 		}
-		double VMCDocument::ToNumber(Rest::Document* Base)
+		double VMCDocument::ToNumber(Core::Document* Base)
 		{
 			return Base->Value.GetNumber();
 		}
-		std::string VMCDocument::ToDecimal(Rest::Document* Base)
+		std::string VMCDocument::ToDecimal(Core::Document* Base)
 		{
 			return Base->Value.GetDecimal();
 		}
-		bool VMCDocument::ToBoolean(Rest::Document* Base)
+		bool VMCDocument::ToBoolean(Core::Document* Base)
 		{
 			return Base->Value.GetBoolean();
 		}
-		Rest::Document* VMCDocument::FromJSON(const std::string& Value)
+		Core::Document* VMCDocument::FromJSON(const std::string& Value)
 		{
 			size_t Offset = 0;
-			return Rest::Document::ReadJSON(Value.size(), [&Value, &Offset](char* Buffer, int64_t Size)
+			return Core::Document::ReadJSON(Value.size(), [&Value, &Offset](char* Buffer, int64_t Size)
 			{
 				if (!Buffer || !Size)
 					return true;
@@ -688,10 +688,10 @@ namespace Tomahawk
 				return true;
 			});
 		}
-		Rest::Document* VMCDocument::FromXML(const std::string& Value)
+		Core::Document* VMCDocument::FromXML(const std::string& Value)
 		{
 			size_t Offset = 0;
-			return Rest::Document::ReadXML(Value.size(), [&Value, &Offset](char* Buffer, int64_t Size)
+			return Core::Document::ReadXML(Value.size(), [&Value, &Offset](char* Buffer, int64_t Size)
 			{
 				if (!Buffer || !Size)
 					return true;
@@ -708,7 +708,7 @@ namespace Tomahawk
 				return true;
 			});
 		}
-		Rest::Document* VMCDocument::Import(const std::string& Value)
+		Core::Document* VMCDocument::Import(const std::string& Value)
 		{
 			VMManager* Manager = VMManager::Get();
 			if (!Manager)
@@ -716,18 +716,18 @@ namespace Tomahawk
 
 			return Manager->ImportJSON(Value);
 		}
-		Rest::Document* VMCDocument::CopyAssign(Rest::Document* Base, const Rest::Variant& Other)
+		Core::Document* VMCDocument::CopyAssign(Core::Document* Base, const Core::Variant& Other)
 		{
 			Base->Value = Other;
 			return Base;
 		}
-		bool VMCDocument::Equals(Rest::Document* Base, Rest::Document* Other)
+		bool VMCDocument::Equals(Core::Document* Base, Core::Document* Other)
 		{
 			if (Other != nullptr)
 				return Base->Value == Other->Value;
 
-			Rest::VarType Type = Base->Value.GetType();
-			return (Type == Rest::VarType_Null || Type == Rest::VarType_Undefined);
+			Core::VarType Type = Base->Value.GetType();
+			return (Type == Core::VarType_Null || Type == Core::VarType_Undefined);
 		}
 
 		bool RegisterFormatAPI(VMManager* Engine)
@@ -751,18 +751,18 @@ namespace Tomahawk
 
 			VMGlobal& Register = Engine->Global();
 
-			VMRefClass VConsole = Register.SetClassUnmanaged<Rest::Console>("Console");
-			VConsole.SetMethod("void Hide()", &Rest::Console::Hide);
-			VConsole.SetMethod("void Show()", &Rest::Console::Show);
-			VConsole.SetMethod("void Clear()", &Rest::Console::Clear);
-			VConsole.SetMethod("void Flush()", &Rest::Console::Flush);
-			VConsole.SetMethod("void FlushWrite()", &Rest::Console::FlushWrite);
-			VConsole.SetMethod("void CaptureTime()", &Rest::Console::CaptureTime);
-			VConsole.SetMethod("void WriteLine(const String &in)", &Rest::Console::sWriteLine);
-			VConsole.SetMethod("void Write(const String &in)", &Rest::Console::sWrite);
-			VConsole.SetMethod("double GetCapturedTime()", &Rest::Console::GetCapturedTime);
-			VConsole.SetMethod("String Read(uint64)", &Rest::Console::Read);
-			VConsole.SetMethodStatic("Console@+ Get()", &Rest::Console::Get);
+			VMRefClass VConsole = Register.SetClassUnmanaged<Core::Console>("Console");
+			VConsole.SetMethod("void Hide()", &Core::Console::Hide);
+			VConsole.SetMethod("void Show()", &Core::Console::Show);
+			VConsole.SetMethod("void Clear()", &Core::Console::Clear);
+			VConsole.SetMethod("void Flush()", &Core::Console::Flush);
+			VConsole.SetMethod("void FlushWrite()", &Core::Console::FlushWrite);
+			VConsole.SetMethod("void CaptureTime()", &Core::Console::CaptureTime);
+			VConsole.SetMethod("void WriteLine(const String &in)", &Core::Console::sWriteLine);
+			VConsole.SetMethod("void Write(const String &in)", &Core::Console::sWrite);
+			VConsole.SetMethod("double GetCapturedTime()", &Core::Console::GetCapturedTime);
+			VConsole.SetMethod("String Read(uint64)", &Core::Console::Read);
+			VConsole.SetMethodStatic("Console@+ Get()", &Core::Console::Get);
 			VConsole.SetMethodEx("void WriteLine(const String &in, Format@+)", &VMCFormat::WriteLine);
 			VConsole.SetMethodEx("void Write(const String &in, Format@+)", &VMCFormat::Write);
 
@@ -776,47 +776,47 @@ namespace Tomahawk
 			VMGlobal& Register = Engine->Global();
 
 			VMEnum VVarType = Register.SetEnum("VarType");
-			VVarType.SetValue("Null", Rest::VarType_Null);
-			VVarType.SetValue("Undefined", Rest::VarType_Undefined);
-			VVarType.SetValue("Object", Rest::VarType_Object);
-			VVarType.SetValue("Array", Rest::VarType_Array);
-			VVarType.SetValue("String", Rest::VarType_String);
-			VVarType.SetValue("Base64", Rest::VarType_Base64);
-			VVarType.SetValue("Integer", Rest::VarType_Integer);
-			VVarType.SetValue("Number", Rest::VarType_Number);
-			VVarType.SetValue("Decimal", Rest::VarType_Decimal);
-			VVarType.SetValue("Boolean", Rest::VarType_Boolean);
+			VVarType.SetValue("Null", Core::VarType_Null);
+			VVarType.SetValue("Undefined", Core::VarType_Undefined);
+			VVarType.SetValue("Object", Core::VarType_Object);
+			VVarType.SetValue("Array", Core::VarType_Array);
+			VVarType.SetValue("String", Core::VarType_String);
+			VVarType.SetValue("Base64", Core::VarType_Base64);
+			VVarType.SetValue("Integer", Core::VarType_Integer);
+			VVarType.SetValue("Number", Core::VarType_Number);
+			VVarType.SetValue("Decimal", Core::VarType_Decimal);
+			VVarType.SetValue("Boolean", Core::VarType_Boolean);
 
-			VMTypeClass VVariant = Register.SetStructUnmanaged<Rest::Variant>("Variant");
-			VVariant.SetConstructor<Rest::Variant, const Rest::Variant&>("void f(const Variant &in)");
-			VVariant.SetMethod("bool Deserialize(const String &in, bool = false)", &Rest::Variant::Deserialize);
-			VVariant.SetMethod("String Serialize() const", &Rest::Variant::Serialize);
-			VVariant.SetMethod("String GetDecimal() const", &Rest::Variant::GetDecimal);
-			VVariant.SetMethod("String GetBlob() const", &Rest::Variant::GetBlob);
-			VVariant.SetMethod("Address@ GetPointer() const", &Rest::Variant::GetPointer);
-			VVariant.SetMethod("int64 GetInteger() const", &Rest::Variant::GetInteger);
-			VVariant.SetMethod("double GetNumber() const", &Rest::Variant::GetNumber);
-			VVariant.SetMethod("bool GetBoolean() const", &Rest::Variant::GetBoolean);
-			VVariant.SetMethod("VarType GetType() const", &Rest::Variant::GetType);
-			VVariant.SetMethod("bool IsObject() const", &Rest::Variant::IsObject);
-			VVariant.SetMethod("bool IsEmpty() const", &Rest::Variant::IsEmpty);
+			VMTypeClass VVariant = Register.SetStructUnmanaged<Core::Variant>("Variant");
+			VVariant.SetConstructor<Core::Variant, const Core::Variant&>("void f(const Variant &in)");
+			VVariant.SetMethod("bool Deserialize(const String &in, bool = false)", &Core::Variant::Deserialize);
+			VVariant.SetMethod("String Serialize() const", &Core::Variant::Serialize);
+			VVariant.SetMethod("String GetDecimal() const", &Core::Variant::GetDecimal);
+			VVariant.SetMethod("String GetBlob() const", &Core::Variant::GetBlob);
+			VVariant.SetMethod("Address@ GetPointer() const", &Core::Variant::GetPointer);
+			VVariant.SetMethod("int64 GetInteger() const", &Core::Variant::GetInteger);
+			VVariant.SetMethod("double GetNumber() const", &Core::Variant::GetNumber);
+			VVariant.SetMethod("bool GetBoolean() const", &Core::Variant::GetBoolean);
+			VVariant.SetMethod("VarType GetType() const", &Core::Variant::GetType);
+			VVariant.SetMethod("bool IsObject() const", &Core::Variant::IsObject);
+			VVariant.SetMethod("bool IsEmpty() const", &Core::Variant::IsEmpty);
 			VVariant.SetMethodEx("uint64 GetSize() const", &VMCVariant::GetSize);
 			VVariant.SetOperatorEx(VMOpFunc_Equals, VMOp_Left | VMOp_Const, "bool", "const Variant &in", &VMCVariant::Equals);
 			VVariant.SetOperatorEx(VMOpFunc_ImplCast, VMOp_Left | VMOp_Const, "bool", "", &VMCVariant::ImplCast);
 
 			Engine->BeginNamespace("Var");
-			Register.SetFunction("Variant Auto(const String &in, bool = false)", &Rest::Var::Auto);
-			Register.SetFunction("Variant Null()", &Rest::Var::Null);
-			Register.SetFunction("Variant Undefined()", &Rest::Var::Undefined);
-			Register.SetFunction("Variant Object()", &Rest::Var::Object);
-			Register.SetFunction("Variant Array()", &Rest::Var::Array);
-			Register.SetFunction("Variant Pointer(Address@)", &Rest::Var::Pointer);
-			Register.SetFunction("Variant Integer(int64)", &Rest::Var::Integer);
-			Register.SetFunction("Variant Number(double)", &Rest::Var::Number);
-			Register.SetFunction("Variant Boolean(bool)", &Rest::Var::Boolean);
-			Register.SetFunction<Rest::Variant(const std::string&)>("Variant String(const String &in)", &Rest::Var::String);
-			Register.SetFunction<Rest::Variant(const std::string&)>("Variant Base64(const String &in)", &Rest::Var::Base64);
-			Register.SetFunction<Rest::Variant(const std::string&)>("Variant Decimal(const String &in)", &Rest::Var::Decimal);
+			Register.SetFunction("Variant Auto(const String &in, bool = false)", &Core::Var::Auto);
+			Register.SetFunction("Variant Null()", &Core::Var::Null);
+			Register.SetFunction("Variant Undefined()", &Core::Var::Undefined);
+			Register.SetFunction("Variant Object()", &Core::Var::Object);
+			Register.SetFunction("Variant Array()", &Core::Var::Array);
+			Register.SetFunction("Variant Pointer(Address@)", &Core::Var::Pointer);
+			Register.SetFunction("Variant Integer(int64)", &Core::Var::Integer);
+			Register.SetFunction("Variant Number(double)", &Core::Var::Number);
+			Register.SetFunction("Variant Boolean(bool)", &Core::Var::Boolean);
+			Register.SetFunction<Core::Variant(const std::string&)>("Variant String(const String &in)", &Core::Var::String);
+			Register.SetFunction<Core::Variant(const std::string&)>("Variant Base64(const String &in)", &Core::Var::Base64);
+			Register.SetFunction<Core::Variant(const std::string&)>("Variant Decimal(const String &in)", &Core::Var::Decimal);
 			Engine->EndNamespace();
 
 			return true;
@@ -826,33 +826,33 @@ namespace Tomahawk
 			if (!Engine)
 				return false;
 
-			VMRefClass VDocument = Engine->Global().SetClassUnmanaged<Rest::Document>("Document");
-			VDocument.SetProperty<Rest::Document>("String Key", &Rest::Document::Key);
-			VDocument.SetProperty<Rest::Document>("Variant Value", &Rest::Document::Value);
-			VDocument.SetUnmanagedConstructor<Rest::Document, const Rest::Variant&>("Document@ f(const Variant &in)");
-			VDocument.SetUnmanagedConstructorListEx<Rest::Document>("Document@ f(int &in) {repeat {String, ?}}", &VMCDocument::Construct);	
-			VDocument.SetMethod<Rest::Document, Rest::Variant, size_t>("Variant GetVar(uint) const", &Rest::Document::GetVar);
-			VDocument.SetMethod<Rest::Document, Rest::Variant, const std::string&>("Variant GetVar(const String &in) const", &Rest::Document::GetVar);
-			VDocument.SetMethod("Document@+ GetParent() const", &Rest::Document::GetParent);
-			VDocument.SetMethod("Document@+ GetAttribute(const String &in) const", &Rest::Document::GetAttribute);
-			VDocument.SetMethod<Rest::Document, Rest::Document*, size_t>("Document@+ Get(uint) const", &Rest::Document::Get);
-			VDocument.SetMethod<Rest::Document, Rest::Document*, const std::string&, bool>("Document@+ Get(const String &in, bool = false) const", &Rest::Document::Fetch);
-			VDocument.SetMethod<Rest::Document, Rest::Document*, const std::string&>("Document@+ Set(const String &in)", &Rest::Document::Set);
-			VDocument.SetMethod<Rest::Document, Rest::Document*, const std::string&, const Rest::Variant&>("Document@+ Set(const String &in, const Variant &in)", &Rest::Document::Set);
-			VDocument.SetMethod<Rest::Document, Rest::Document*, const std::string&, const Rest::Variant&>("Document@+ SetAttribute(const String& in, const Variant &in)", &Rest::Document::SetAttribute);
-			VDocument.SetMethod<Rest::Document, Rest::Document*, const Rest::Variant&>("Document@+ Push(const Variant &in)", &Rest::Document::Push);
-			VDocument.SetMethod<Rest::Document, Rest::Document*, size_t>("Document@+ Pop(uint)", &Rest::Document::Pop);
-			VDocument.SetMethod<Rest::Document, Rest::Document*, const std::string&>("Document@+ Pop(const String &in)", &Rest::Document::Pop);
-			VDocument.SetMethod("Document@ Copy() const", &Rest::Document::Copy);
-			VDocument.SetMethod("bool Has(const String &in) const", &Rest::Document::Has);
-			VDocument.SetMethod("bool Has64(const String &in, uint = 12) const", &Rest::Document::Has64);
-			VDocument.SetMethod("bool IsAttribute() const", &Rest::Document::IsAttribute);
-			VDocument.SetMethod("bool IsSaved() const", &Rest::Document::IsAttribute);
-			VDocument.SetMethod("int64 Size() const", &Rest::Document::Size);
-			VDocument.SetMethod("String GetName() const", &Rest::Document::GetName);
-			VDocument.SetMethod("void Join(Document@+)", &Rest::Document::Join);
-			VDocument.SetMethod("void Clear()", &Rest::Document::Clear);
-			VDocument.SetMethod("void Save()", &Rest::Document::Save);
+			VMRefClass VDocument = Engine->Global().SetClassUnmanaged<Core::Document>("Document");
+			VDocument.SetProperty<Core::Document>("String Key", &Core::Document::Key);
+			VDocument.SetProperty<Core::Document>("Variant Value", &Core::Document::Value);
+			VDocument.SetUnmanagedConstructor<Core::Document, const Core::Variant&>("Document@ f(const Variant &in)");
+			VDocument.SetUnmanagedConstructorListEx<Core::Document>("Document@ f(int &in) {repeat {String, ?}}", &VMCDocument::Construct);	
+			VDocument.SetMethod<Core::Document, Core::Variant, size_t>("Variant GetVar(uint) const", &Core::Document::GetVar);
+			VDocument.SetMethod<Core::Document, Core::Variant, const std::string&>("Variant GetVar(const String &in) const", &Core::Document::GetVar);
+			VDocument.SetMethod("Document@+ GetParent() const", &Core::Document::GetParent);
+			VDocument.SetMethod("Document@+ GetAttribute(const String &in) const", &Core::Document::GetAttribute);
+			VDocument.SetMethod<Core::Document, Core::Document*, size_t>("Document@+ Get(uint) const", &Core::Document::Get);
+			VDocument.SetMethod<Core::Document, Core::Document*, const std::string&, bool>("Document@+ Get(const String &in, bool = false) const", &Core::Document::Fetch);
+			VDocument.SetMethod<Core::Document, Core::Document*, const std::string&>("Document@+ Set(const String &in)", &Core::Document::Set);
+			VDocument.SetMethod<Core::Document, Core::Document*, const std::string&, const Core::Variant&>("Document@+ Set(const String &in, const Variant &in)", &Core::Document::Set);
+			VDocument.SetMethod<Core::Document, Core::Document*, const std::string&, const Core::Variant&>("Document@+ SetAttribute(const String& in, const Variant &in)", &Core::Document::SetAttribute);
+			VDocument.SetMethod<Core::Document, Core::Document*, const Core::Variant&>("Document@+ Push(const Variant &in)", &Core::Document::Push);
+			VDocument.SetMethod<Core::Document, Core::Document*, size_t>("Document@+ Pop(uint)", &Core::Document::Pop);
+			VDocument.SetMethod<Core::Document, Core::Document*, const std::string&>("Document@+ Pop(const String &in)", &Core::Document::Pop);
+			VDocument.SetMethod("Document@ Copy() const", &Core::Document::Copy);
+			VDocument.SetMethod("bool Has(const String &in) const", &Core::Document::Has);
+			VDocument.SetMethod("bool Has64(const String &in, uint = 12) const", &Core::Document::Has64);
+			VDocument.SetMethod("bool IsAttribute() const", &Core::Document::IsAttribute);
+			VDocument.SetMethod("bool IsSaved() const", &Core::Document::IsAttribute);
+			VDocument.SetMethod("int64 Size() const", &Core::Document::Size);
+			VDocument.SetMethod("String GetName() const", &Core::Document::GetName);
+			VDocument.SetMethod("void Join(Document@+)", &Core::Document::Join);
+			VDocument.SetMethod("void Clear()", &Core::Document::Clear);
+			VDocument.SetMethod("void Save()", &Core::Document::Save);
 			VDocument.SetMethodEx("Document@+ Set(const String &in, Document@+)", &VMCDocument::Set);
 			VDocument.SetMethodEx("Document@+ Push(Document@+)", &VMCDocument::Push);
 			VDocument.SetMethodEx("Array<Document@>@ GetCollection(const String &in, bool = false) const", &VMCDocument::GetCollection);
@@ -867,8 +867,8 @@ namespace Tomahawk
 			VDocument.SetMethodEx("double Num() const", &VMCDocument::ToNumber);
 			VDocument.SetMethodEx("String Dec() const", &VMCDocument::ToDecimal);
 			VDocument.SetMethodEx("bool Bool() const", &VMCDocument::ToBoolean);
-			VDocument.SetMethodStatic("Document@ Object()", &Rest::Document::Object);
-			VDocument.SetMethodStatic("Document@ Array()", &Rest::Document::Array);
+			VDocument.SetMethodStatic("Document@ Object()", &Core::Document::Object);
+			VDocument.SetMethodStatic("Document@ Array()", &Core::Document::Array);
 			VDocument.SetMethodStatic("Document@ FromJSON(const String &in)", &VMCDocument::FromJSON);
 			VDocument.SetMethodStatic("Document@ FromXML(const String &in)", &VMCDocument::FromXML);
 			VDocument.SetMethodStatic("Document@ Import(const String &in)", &VMCDocument::Import);

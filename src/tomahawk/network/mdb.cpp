@@ -3,8 +3,6 @@ extern "C"
 {
 #ifdef TH_HAS_MONGOC
 #include <mongoc.h>
-#define MDB_POP(V) (V ? V->Get() : nullptr)
-#define MDB_FREE(V) { if (V != nullptr) V->Clear(); }
 #endif
 }
 
@@ -200,13 +198,16 @@ namespace Tomahawk
 #endif
 			}
 
+			Document::Document() : Base(nullptr), Store(false)
+			{
+			}
 			Document::Document(TDocument* NewBase) : Base(NewBase), Store(false)
 			{
 			}
-			void Document::Release()
+			void Document::Release() const
 			{
 #ifdef TH_HAS_MONGOC
-				if (!Base)
+				if (!Base || Store)
 					return;
 
 				if (Base->flags == 2)
@@ -215,22 +216,17 @@ namespace Tomahawk
 					bson_free(Base);
 				}
 				else
-					bson_destroy(Base);
-				Base = nullptr;
+					bson_destroy(Base);		
+				*((TDocument**)&Base) = nullptr;
 #endif
 			}
-			void Document::Clear()
-			{
-				if (!Store)
-					Release();
-			}
-			void Document::Join(Document* Value)
+			void Document::Join(const Document& Value)
 			{
 #ifdef TH_HAS_MONGOC
-				if (Base != nullptr && Value != nullptr && Value->Base != nullptr)
+				if (Base != nullptr && Value.Base != nullptr)
 				{
-					bson_concat(Base, Value->Base);
-					Value->Clear();
+					bson_concat(Base, Value.Base);
+					Value.Release();
 				}
 #endif
 			}
@@ -256,36 +252,36 @@ namespace Tomahawk
 				}
 #endif
 			}
-			bool Document::SetDocument(const char* Key, Document* Value, uint64_t ArrayId)
+			bool Document::SetDocument(const char* Key, const Document& Value, uint64_t ArrayId)
 			{
 #ifdef TH_HAS_MONGOC
-				if (!Value || !Value->Base || !Base)
+				if (!Value.Base || !Base)
 					return false;
 
 				char Index[16];
 				if (Key == nullptr)
 					bson_uint32_to_string((uint32_t)ArrayId, &Key, Index, sizeof(Index));
 
-				bool Result = bson_append_document(Base, Key, -1, Value->Base);
-				Value->Release();
+				bool Result = bson_append_document(Base, Key, -1, Value.Base);
+				Value.Release();
 
 				return Result;
 #else
 				return false;
 #endif
 			}
-			bool Document::SetArray(const char* Key, Document* Value, uint64_t ArrayId)
+			bool Document::SetArray(const char* Key, const Document& Value, uint64_t ArrayId)
 			{
 #ifdef TH_HAS_MONGOC
-				if (!Value || !Value->Base || !Base)
+				if (!Value.Base || !Base)
 					return false;
 
 				char Index[16];
 				if (Key == nullptr)
 					bson_uint32_to_string((uint32_t)ArrayId, &Key, Index, sizeof(Index));
 
-				bool Result = bson_append_array(Base, Key, -1, Value->Base);
-				Value->Release();
+				bool Result = bson_append_array(Base, Key, -1, Value.Base);
+				Value.Release();
 
 				return Result;
 #else
@@ -492,15 +488,12 @@ namespace Tomahawk
 				if (Key == nullptr)
 					bson_uint32_to_string((uint32_t)ArrayId, &Key, Index, sizeof(Index));
 
-				Document Object(nullptr);
 				switch (Value->Mod)
 				{
 					case Type_Document:
-						Object = Document(Value->Object).Copy();
-						return SetDocument(Key, &Object);
+						return SetDocument(Key, Document(Value->Object).Copy());
 					case Type_Array:
-						Object = Document(Value->Array).Copy();
-						return SetArray(Key, &Object);
+						return SetArray(Key, Document(Value->Array).Copy());
 					case Type_String:
 						return SetString(Key, Value->String.c_str());
 					case Type_Boolean:
@@ -514,10 +507,8 @@ namespace Tomahawk
 					case Type_ObjectId:
 						return SetObjectId(Key, Value->ObjectId);
 					default:
-						break;
+						return false;
 				}
-
-				return false;
 #else
 				return false;
 #endif
@@ -737,16 +728,16 @@ namespace Tomahawk
 				return "";
 #endif
 			}
-			Rest::Document* Document::ToDocument(bool IsArray) const
+			Core::Document* Document::ToDocument(bool IsArray) const
 			{
 #ifdef TH_HAS_MONGOC
 				if (!Base)
 					return nullptr;
 
-				Rest::Document* Node = (IsArray ? Rest::Document::Array() : Rest::Document::Object());
+				Core::Document* Node = (IsArray ? Core::Document::Array() : Core::Document::Object());
 				Loop([Node](Property* Key) -> bool
 				{
-					std::string Name = (Node->Value.GetType() == Rest::VarType_Array ? "" : Key->Name);
+					std::string Name = (Node->Value.GetType() == Core::VarType_Array ? "" : Key->Name);
 					switch (Key->Mod)
 					{
 						case Type_Document:
@@ -760,31 +751,31 @@ namespace Tomahawk
 							break;
 						}
 						case Type_String:
-							Node->Set(Name, Rest::Var::String(Key->String));
+							Node->Set(Name, Core::Var::String(Key->String));
 							break;
 						case Type_Boolean:
-							Node->Set(Name, Rest::Var::Boolean(Key->Boolean));
+							Node->Set(Name, Core::Var::Boolean(Key->Boolean));
 							break;
 						case Type_Number:
-							Node->Set(Name, Rest::Var::Number(Key->Number));
+							Node->Set(Name, Core::Var::Number(Key->Number));
 							break;
 						case Type_Decimal:
 						{
-							double Decimal = Rest::Stroke(&Key->ToString()).ToDouble();
+							double Decimal = Core::Parser(&Key->ToString()).ToDouble();
 							if (Decimal != (int64_t)Decimal)
-								Node->Set(Name, Rest::Var::Number(Decimal));
+								Node->Set(Name, Core::Var::Number(Decimal));
 							else
-								Node->Set(Name, Rest::Var::Integer((int64_t)Decimal));
+								Node->Set(Name, Core::Var::Integer((int64_t)Decimal));
 							break;
 						}
 						case Type_Integer:
-							Node->Set(Name, Rest::Var::Integer(Key->Integer));
+							Node->Set(Name, Core::Var::Integer(Key->Integer));
 							break;
 						case Type_ObjectId:
-							Node->Set(Name, Rest::Var::Base64(Key->ObjectId, 12));
+							Node->Set(Name, Core::Var::Base64(Key->ObjectId, 12));
 							break;
 						case Type_Null:
-							Node->Set(Name, Rest::Var::Null());
+							Node->Set(Name, Core::Var::Null());
 							break;
 						default:
 							break;
@@ -806,11 +797,6 @@ namespace Tomahawk
 				return nullptr;
 #endif
 			}
-			Document& Document::Persist()
-			{
-				Store = false;
-				return *this;
-			}
 			Document Document::Copy() const
 			{
 #ifdef TH_HAS_MONGOC
@@ -822,48 +808,50 @@ namespace Tomahawk
 				return nullptr;
 #endif
 			}
-			Document Document::FromDocument(Rest::Document* Src)
+			Document& Document::Persist(bool Keep)
+			{
+				Store = Keep;
+				return *this;
+			}
+			Document Document::FromDocument(Core::Document* Src)
 			{
 #ifdef TH_HAS_MONGOC
 				if (!Src || !Src->Value.IsObject())
 					return nullptr;
 
-				bool Array = (Src->Value.GetType() == Rest::VarType_Array);
+				bool Array = (Src->Value.GetType() == Core::VarType_Array);
 				Document Result = bson_new();
-				Document Replica = nullptr;
 				uint64_t Index = 0;
 
 				for (auto&& Node : *Src->GetNodes())
 				{
 					switch (Node->Value.GetType())
 					{
-						case Rest::VarType_Object:
-							Replica = Document::FromDocument(Node);
-							Result.SetDocument(Array ? nullptr : Node->Key.c_str(), &Replica, Index);
+						case Core::VarType_Object:
+							Result.SetDocument(Array ? nullptr : Node->Key.c_str(), Document::FromDocument(Node), Index);
 							break;
-						case Rest::VarType_Array:
-							Replica = Document::FromDocument(Node);
-							Result.SetArray(Array ? nullptr : Node->Key.c_str(), &Replica, Index);
+						case Core::VarType_Array:
+							Result.SetArray(Array ? nullptr : Node->Key.c_str(), Document::FromDocument(Node), Index);
 							break;
-						case Rest::VarType_String:
+						case Core::VarType_String:
 							Result.SetBlob(Array ? nullptr : Node->Key.c_str(), Node->Value.GetString(), Node->Value.GetSize(), Index);
 							break;
-						case Rest::VarType_Boolean:
+						case Core::VarType_Boolean:
 							Result.SetBoolean(Array ? nullptr : Node->Key.c_str(), Node->Value.GetBoolean(), Index);
 							break;
-						case Rest::VarType_Decimal:
+						case Core::VarType_Decimal:
 							Result.SetDecimalString(Array ? nullptr : Node->Key.c_str(), Node->Value.GetDecimal(), Index);
 							break;
-						case Rest::VarType_Number:
+						case Core::VarType_Number:
 							Result.SetNumber(Array ? nullptr : Node->Key.c_str(), Node->Value.GetNumber(), Index);
 							break;
-						case Rest::VarType_Integer:
+						case Core::VarType_Integer:
 							Result.SetInteger(Array ? nullptr : Node->Key.c_str(), Node->Value.GetInteger(), Index);
 							break;
-						case Rest::VarType_Null:
+						case Core::VarType_Null:
 							Result.SetNull(Array ? nullptr : Node->Key.c_str(), Index);
 							break;
-						case Rest::VarType_Base64:
+						case Core::VarType_Base64:
 						{
 							if (Node->Value.GetSize() != 12)
 							{
@@ -877,6 +865,7 @@ namespace Tomahawk
 						default:
 							break;
 					}
+					Index++;
 				}
 
 				return Result;
@@ -921,6 +910,12 @@ namespace Tomahawk
 #else
 				return nullptr;
 #endif
+			}
+			Document Document::FromSource(TDocument* Src)
+			{
+				TDocument* Dest = bson_new();
+				bson_steal(Dest, Src);
+				return Dest;
 			}
 
 			Address::Address(TAddress* NewBase) : Base(NewBase)
@@ -1029,121 +1024,118 @@ namespace Tomahawk
 				Base = nullptr;
 #endif
 			}
-			bool Stream::RemoveMany(Document* Selector, Document* Options)
+			bool Stream::RemoveMany(const Document& Select, const Document& Options)
 			{
 #ifdef TH_HAS_MONGOC
-				bool Subresult = MDB_EXEC(&mongoc_bulk_operation_remove_many_with_opts, Base, MDB_POP(Selector), MDB_POP(Options));
-				MDB_FREE(Selector);
-				MDB_FREE(Options);
+				bool Subresult = MDB_EXEC(&mongoc_bulk_operation_remove_many_with_opts, Base, Select.Get(), Options.Get());
+				Select.Release();
+				Options.Release();
 
 				return Subresult;
 #else
 				return false;
 #endif
 			}
-			bool Stream::RemoveOne(Document* Selector, Document* Options)
+			bool Stream::RemoveOne(const Document& Select, const Document& Options)
 			{
 #ifdef TH_HAS_MONGOC
-				bool Subresult = MDB_EXEC(&mongoc_bulk_operation_remove_one_with_opts, Base, MDB_POP(Selector), MDB_POP(Options));
-				MDB_FREE(Selector);
-				MDB_FREE(Options);
+				bool Subresult = MDB_EXEC(&mongoc_bulk_operation_remove_one_with_opts, Base, Select.Get(), Options.Get());
+				Select.Release();
+				Options.Release();
 
 				return Subresult;
 #else
 				return false;
 #endif
 			}
-			bool Stream::ReplaceOne(Document* Selector, Document* Replacement, Document* Options)
+			bool Stream::ReplaceOne(const Document& Select, const Document& Replacement, const Document& Options)
 			{
 #ifdef TH_HAS_MONGOC
-				bool Subresult = MDB_EXEC(&mongoc_bulk_operation_replace_one_with_opts, Base, MDB_POP(Selector), MDB_POP(Replacement), MDB_POP(Options));
-				MDB_FREE(Selector);
-				MDB_FREE(Replacement);
-				MDB_FREE(Options);
+				bool Subresult = MDB_EXEC(&mongoc_bulk_operation_replace_one_with_opts, Base, Select.Get(), Replacement.Get(), Options.Get());
+				Select.Release();
+				Replacement.Release();
+				Options.Release();
 
 				return Subresult;
 #else
 				return false;
 #endif
 			}
-			bool Stream::Insert(Document* Result, Document* Options)
+			bool Stream::Insert(const Document& Result, const Document& Options)
 			{
 #ifdef TH_HAS_MONGOC
-				bool Subresult = MDB_EXEC(&mongoc_bulk_operation_insert_with_opts, Base, MDB_POP(Result), MDB_POP(Options));
-				MDB_FREE(Result);
-				MDB_FREE(Options);
+				bool Subresult = MDB_EXEC(&mongoc_bulk_operation_insert_with_opts, Base, Result.Get(), Options.Get());
+				Result.Release();
+				Options.Release();
 
 				return Subresult;
 #else
 				return false;
 #endif
 			}
-			bool Stream::UpdateOne(Document* Selector, Document* Result, Document* Options)
+			bool Stream::UpdateOne(const Document& Select, const Document& Result, const Document& Options)
 			{
 #ifdef TH_HAS_MONGOC
-				bool Subresult = MDB_EXEC(&mongoc_bulk_operation_update_one_with_opts, Base, MDB_POP(Selector), MDB_POP(Result), MDB_POP(Options));
-				MDB_FREE(Selector);
-				MDB_FREE(Result);
-				MDB_FREE(Options);
+				bool Subresult = MDB_EXEC(&mongoc_bulk_operation_update_one_with_opts, Base, Select.Get(), Result.Get(), Options.Get());
+				Select.Release();
+				Result.Release();
+				Options.Release();
 
 				return Subresult;
 #else
 				return false;
 #endif
 			}
-			bool Stream::UpdateMany(Document* Selector, Document* Result, Document* Options)
+			bool Stream::UpdateMany(const Document& Select, const Document& Result, const Document& Options)
 			{
 #ifdef TH_HAS_MONGOC
-				bool Subresult = MDB_EXEC(&mongoc_bulk_operation_update_many_with_opts, Base, MDB_POP(Selector), MDB_POP(Result), MDB_POP(Options));
-				MDB_FREE(Selector);
-				MDB_FREE(Result);
-				MDB_FREE(Options);
+				bool Subresult = MDB_EXEC(&mongoc_bulk_operation_update_many_with_opts, Base, Select.Get(), Result.Get(), Options.Get());
+				Select.Release();
+				Result.Release();
+				Options.Release();
 
 				return Subresult;
 #else
 				return false;
 #endif
 			}
-			Rest::Async<bool> Stream::Execute()
+			Core::Async<Document> Stream::ExecuteWithReply()
 			{
 #ifdef TH_HAS_MONGOC
 				if (!Base)
-					return Rest::Async<bool>::Store(false);
+					return Core::Async<Document>(nullptr);
 
-				Stream Sub = *this;
-				Base = nullptr;
-
-				return [Sub](Rest::Async<bool>& Future) mutable
+				Stream Context = *this; Base = nullptr;
+				return [Context](Core::Async<Document>& Future) mutable
 				{
-					TDocument Result;
-					bool Subresult = MDB_EXEC(&mongoc_bulk_operation_execute, Sub.Get(), &Result);
-					bson_destroy(&Result);
-					Sub.Release();
+					TDocument Subresult;
+					MDB_EXEC(&mongoc_bulk_operation_execute, Context.Get(), &Subresult);
+					Context.Release();
 
-					Future.Set(Subresult);
+					Future.Set(Document::FromSource(&Subresult));
 				};
 #else
-				return Rest::Async<bool>::Store(false);
+				return Core::Async<Document>::Store(nullptr);
 #endif
 			}
-			Rest::Async<bool> Stream::Execute(Document* Reply)
+			Core::Async<bool> Stream::Execute()
 			{
 #ifdef TH_HAS_MONGOC
-				if (!Base || !MDB_POP(Reply))
-					return Execute();
+				if (!Base)
+					return Core::Async<bool>::Store(true);
 
-				Stream Sub = *this;
-				Base = nullptr;
-
-				return [Sub, Reply](Rest::Async<bool>& Future) mutable
+				Stream Context = *this; Base = nullptr;
+				return [Context](Core::Async<bool>& Future) mutable
 				{
-					bool Subresult = MDB_EXEC(&mongoc_bulk_operation_execute, Sub.Get(), MDB_POP(Reply));
-					Sub.Release();
+					TDocument Result;
+					bool Subresult = MDB_EXEC(&mongoc_bulk_operation_execute, Context.Get(), &Result);
+					bson_destroy(&Result);
+					Context.Release();
 
 					Future.Set(Subresult);
 				};
 #else
-				return Rest::Async<bool>::Store(false);
+				return Core::Async<bool>::Store(false);
 #endif
 			}
 			uint64_t Stream::GetHint() const
@@ -1197,7 +1189,7 @@ namespace Tomahawk
 				Base = nullptr;
 #endif
 			}
-			void Cursor::Receive(const std::function<bool(Document*)>& Callback) const
+			void Cursor::Receive(const std::function<bool(const Document&)>& Callback) const
 			{
 #ifdef TH_HAS_MONGOC
 				if (!Callback || !Base)
@@ -1206,8 +1198,7 @@ namespace Tomahawk
 				TDocument* Query = nullptr;
 				while (mongoc_cursor_next(Base, (const TDocument**)&Query))
 				{
-					Document Subquery = Query;
-					if (!Callback(&Subquery))
+					if (!Callback(Query))
 						break;
 				}
 #endif
@@ -1370,250 +1361,258 @@ namespace Tomahawk
 				Base = nullptr;
 #endif
 			}
-			Rest::Async<bool> Collection::UpdateMany(Document* Selector, Document* Update, Document* Options, Document* Reply)
+			Core::Async<bool> Collection::Rename(const std::string& NewDatabaseName, const std::string& NewCollectionName)
 			{
 #ifdef TH_HAS_MONGOC
-				auto* Sub = Base;
-				return [Sub, Selector, Update, Options, Reply](Rest::Async<bool>& Future)
+				auto* Context = Base;
+				return [Context, NewDatabaseName, NewCollectionName](Core::Async<bool>& Future)
 				{
-					bool Subresult = MDB_EXEC(&mongoc_collection_update_many, Sub, MDB_POP(Selector), MDB_POP(Update), MDB_POP(Options), MDB_POP(Reply));
-					MDB_FREE(Selector);
-					MDB_FREE(Update);
-					MDB_FREE(Options);
+					Future.Set(MDB_EXEC(&mongoc_collection_rename, Context, NewDatabaseName.c_str(), NewCollectionName.c_str(), false));
+				};
+#else
+				return Core::Async<bool>::Store(false);
+#endif
+			}
+			Core::Async<bool> Collection::RenameWithOptions(const std::string& NewDatabaseName, const std::string& NewCollectionName, const Document& Options)
+			{
+#ifdef TH_HAS_MONGOC
+				auto* Context = Base;
+				return [Context, NewDatabaseName, NewCollectionName, Options](Core::Async<bool>& Future)
+				{
+					bool Subresult = MDB_EXEC(&mongoc_collection_rename_with_opts, Context, NewDatabaseName.c_str(), NewCollectionName.c_str(), false, Options.Get());
+					Options.Release();
 
 					Future.Set(Subresult);
 				};
 #else
-				return Rest::Async<bool>::Store(false);
+				return Core::Async<bool>::Store(false);
 #endif
 			}
-			Rest::Async<bool> Collection::UpdateOne(Document* Selector, Document* Update, Document* Options, Document* Reply)
+			Core::Async<bool> Collection::RenameWithRemove(const std::string& NewDatabaseName, const std::string& NewCollectionName)
 			{
 #ifdef TH_HAS_MONGOC
-				auto* Sub = Base;
-				return [Sub, Selector, Update, Options, Reply](Rest::Async<bool>& Future)
+				auto* Context = Base;
+				return [Context, NewDatabaseName, NewCollectionName](Core::Async<bool>& Future)
 				{
-					bool Subresult = MDB_EXEC(&mongoc_collection_update_one, Sub, MDB_POP(Selector), MDB_POP(Update), MDB_POP(Options), MDB_POP(Reply));
-					MDB_FREE(Selector);
-					MDB_FREE(Update);
-					MDB_FREE(Options);
+					Future.Set(MDB_EXEC(&mongoc_collection_rename, Context, NewDatabaseName.c_str(), NewCollectionName.c_str(), true));
+				};
+#else
+				return Core::Async<bool>::Store(false);
+#endif
+			}
+			Core::Async<bool> Collection::RenameWithOptionsAndRemove(const std::string& NewDatabaseName, const std::string& NewCollectionName, const Document& Options)
+			{
+#ifdef TH_HAS_MONGOC
+				auto* Context = Base;
+				return [Context, NewDatabaseName, NewCollectionName, Options](Core::Async<bool>& Future)
+				{
+					bool Subresult = MDB_EXEC(&mongoc_collection_rename_with_opts, Context, NewDatabaseName.c_str(), NewCollectionName.c_str(), true, Options.Get());
+					Options.Release();
 
 					Future.Set(Subresult);
 				};
 #else
-				return Rest::Async<bool>::Store(false);
+				return Core::Async<bool>::Store(false);
 #endif
 			}
-			Rest::Async<bool> Collection::Rename(const std::string& NewDatabaseName, const std::string& NewCollectionName)
+			Core::Async<bool> Collection::Remove(const Document& Options)
 			{
 #ifdef TH_HAS_MONGOC
-				auto* Sub = Base;
-				return [Sub, NewDatabaseName, NewCollectionName](Rest::Async<bool>& Future)
+				auto* Context = Base;
+				return [Context, Options](Core::Async<bool>& Future)
 				{
-					Future.Set(MDB_EXEC(&mongoc_collection_rename, Sub, NewDatabaseName.c_str(), NewCollectionName.c_str(), false));
-				};
-#else
-				return Rest::Async<bool>::Store(false);
-#endif
-			}
-			Rest::Async<bool> Collection::RenameWithOptions(const std::string& NewDatabaseName, const std::string& NewCollectionName, Document* Options)
-			{
-#ifdef TH_HAS_MONGOC
-				auto* Sub = Base;
-				return [Sub, NewDatabaseName, NewCollectionName, Options](Rest::Async<bool>& Future)
-				{
-					bool Subresult = MDB_EXEC(&mongoc_collection_rename_with_opts, Sub, NewDatabaseName.c_str(), NewCollectionName.c_str(), false, MDB_POP(Options));
-					MDB_FREE(Options);
+					bool Subresult = MDB_EXEC(&mongoc_collection_drop_with_opts, Context, Options.Get());
+					Options.Release();
 
 					Future.Set(Subresult);
 				};
 #else
-				return Rest::Async<bool>::Store(false);
+				return Core::Async<bool>::Store(false);
 #endif
 			}
-			Rest::Async<bool> Collection::RenameWithRemove(const std::string& NewDatabaseName, const std::string& NewCollectionName)
+			Core::Async<bool> Collection::RemoveIndex(const std::string& Name, const Document& Options)
 			{
 #ifdef TH_HAS_MONGOC
-				auto* Sub = Base;
-				return [Sub, NewDatabaseName, NewCollectionName](Rest::Async<bool>& Future)
+				auto* Context = Base;
+				return [Context, Name, Options](Core::Async<bool>& Future)
 				{
-					Future.Set(MDB_EXEC(&mongoc_collection_rename, Sub, NewDatabaseName.c_str(), NewCollectionName.c_str(), true));
-				};
-#else
-				return Rest::Async<bool>::Store(false);
-#endif
-			}
-			Rest::Async<bool> Collection::RenameWithOptionsAndRemove(const std::string& NewDatabaseName, const std::string& NewCollectionName, Document* Options)
-			{
-#ifdef TH_HAS_MONGOC
-				auto* Sub = Base;
-				return [Sub, NewDatabaseName, NewCollectionName, Options](Rest::Async<bool>& Future)
-				{
-					bool Subresult = MDB_EXEC(&mongoc_collection_rename_with_opts, Sub, NewDatabaseName.c_str(), NewCollectionName.c_str(), true, MDB_POP(Options));
-					MDB_FREE(Options);
+					bool Subresult = MDB_EXEC(&mongoc_collection_drop_index_with_opts, Context, Name.c_str(), Options.Get());
+					Options.Release();
 
 					Future.Set(Subresult);
 				};
 #else
-				return Rest::Async<bool>::Store(false);
+				return Core::Async<bool>::Store(false);
 #endif
 			}
-			Rest::Async<bool> Collection::Remove(Document* Options)
+			Core::Async<Document> Collection::RemoveMany(const Document& Select, const Document& Options)
 			{
 #ifdef TH_HAS_MONGOC
-				auto* Sub = Base;
-				return [Sub, Options](Rest::Async<bool>& Future)
+				auto* Context = Base;
+				return [Context, Select, Options](Core::Async<Document>& Future)
 				{
-					bool Subresult = MDB_EXEC(&mongoc_collection_drop_with_opts, Sub, MDB_POP(Options));
-					MDB_FREE(Options);
+					TDocument Subresult;
+					MDB_EXEC(&mongoc_collection_delete_many, Context, Select.Get(), Options.Get(), &Subresult);
+					Select.Release();
+					Options.Release();
 
-					Future.Set(Subresult);
+					Future.Set(Document::FromSource(&Subresult));
 				};
 #else
-				return Rest::Async<bool>::Store(false);
+				return Core::Async<Document>::Store(nullptr);
 #endif
 			}
-			Rest::Async<bool> Collection::RemoveMany(Document* Selector, Document* Options, Document* Reply)
+			Core::Async<Document> Collection::RemoveOne(const Document& Select, const Document& Options)
 			{
 #ifdef TH_HAS_MONGOC
-				auto* Sub = Base;
-				return [Sub, Selector, Options, Reply](Rest::Async<bool>& Future)
+				auto* Context = Base;
+				return [Context, Select, Options](Core::Async<Document>& Future)
 				{
-					bool Subresult = MDB_EXEC(&mongoc_collection_delete_many, Sub, MDB_POP(Selector), MDB_POP(Options), MDB_POP(Reply));
-					MDB_FREE(Selector);
-					MDB_FREE(Options);
+					TDocument Subresult;
+					MDB_EXEC(&mongoc_collection_delete_one, Context, Select.Get(), Options.Get(), &Subresult);
+					Select.Release();
+					Options.Release();
 
-					Future.Set(Subresult);
+					Future.Set(Document::FromSource(&Subresult));
 				};
 #else
-				return Rest::Async<bool>::Store(false);
+				return Core::Async<Document>::Store(nullptr);
 #endif
 			}
-			Rest::Async<bool> Collection::RemoveOne(Document* Selector, Document* Options, Document* Reply)
+			Core::Async<Document> Collection::ReplaceOne(const Document& Select, const Document& Replacement, const Document& Options)
 			{
 #ifdef TH_HAS_MONGOC
-				auto* Sub = Base;
-				return [Sub, Selector, Options, Reply](Rest::Async<bool>& Future)
+				auto* Context = Base;
+				return [Context, Select, Replacement, Options](Core::Async<Document>& Future)
 				{
-					bool Subresult = MDB_EXEC(&mongoc_collection_delete_one, Sub, MDB_POP(Selector), MDB_POP(Options), MDB_POP(Reply));
-					MDB_FREE(Selector);
-					MDB_FREE(Options);
+					TDocument Subresult;
+					MDB_EXEC(&mongoc_collection_replace_one, Context, Select.Get(), Replacement.Get(), Options.Get(), &Subresult);
+					Select.Release();
+					Replacement.Release();
+					Options.Release();
 
-					Future.Set(Subresult);
+					Future.Set(Document::FromSource(&Subresult));
 				};
 #else
-				return Rest::Async<bool>::Store(false);
+				return Core::Async<Document>::Store(nullptr);
 #endif
 			}
-			Rest::Async<bool> Collection::RemoveIndex(const std::string& Name, Document* Options)
-			{
-#ifdef TH_HAS_MONGOC
-				auto* Sub = Base;
-				return [Sub, Name, Options](Rest::Async<bool>& Future)
-				{
-					bool Subresult = MDB_EXEC(&mongoc_collection_drop_index_with_opts, Sub, Name.c_str(), MDB_POP(Options));
-					MDB_FREE(Options);
-
-					Future.Set(Subresult);
-				};
-#else
-				return Rest::Async<bool>::Store(false);
-#endif
-			}
-			Rest::Async<bool> Collection::ReplaceOne(Document* Selector, Document* Replacement, Document* Options, Document* Reply)
-			{
-#ifdef TH_HAS_MONGOC
-				auto* Sub = Base;
-				return [Sub, Selector, Replacement, Options, Reply](Rest::Async<bool>& Future)
-				{
-					bool Subresult = MDB_EXEC(&mongoc_collection_replace_one, Sub, MDB_POP(Selector), MDB_POP(Replacement), MDB_POP(Options), MDB_POP(Reply));
-					MDB_FREE(Selector);
-					MDB_FREE(Replacement);
-					MDB_FREE(Options);
-
-					Future.Set(Subresult);
-				};
-#else
-				return Rest::Async<bool>::Store(false);
-#endif
-			}
-			Rest::Async<bool> Collection::InsertMany(std::vector<Document>& List, Document* Options, Document* Reply)
+			Core::Async<Document> Collection::InsertMany(std::vector<Document>& List, const Document& Options)
 			{
 #ifdef TH_HAS_MONGOC
 				if (List.empty())
-					return Rest::Async<bool>::Store(false);
+					return Core::Async<Document>::Store(nullptr);
 
 				std::vector<Document> Array(std::move(List));
-				auto* Sub = Base;
+				auto* Context = Base;
 
-				return [Sub, Array = std::move(Array), Options, Reply](Rest::Async<bool>& Future) mutable
+				return [Context, Array = std::move(Array), Options](Core::Async<Document>& Future) mutable
 				{
 					TDocument** Subarray = (TDocument**)TH_MALLOC(sizeof(TDocument*) * Array.size());
 					for (size_t i = 0; i < Array.size(); i++)
 						Subarray[i] = Array[i].Get();
 
-					bool Subresult = MDB_EXEC(&mongoc_collection_insert_many, Sub, (const TDocument**)Subarray, (size_t)Array.size(), MDB_POP(Options), MDB_POP(Reply));
+					TDocument Subresult;
+					MDB_EXEC(&mongoc_collection_insert_many, Context, (const TDocument**)Subarray, (size_t)Array.size(), Options.Get(), &Subresult);
 					for (auto& Item : Array)
 						Item.Release();
-					MDB_FREE(Options);
+					Options.Release();
 					TH_FREE(Subarray);
 
-					Future.Set(Subresult);
+					Future.Set(Document::FromSource(&Subresult));
 				};
 #else
-				return Rest::Async<bool>::Store(false);
+				return Core::Async<Document>::Store(nullptr);
 #endif
 			}
-			Rest::Async<bool> Collection::InsertOne(Document* Result, Document* Options, Document* Reply)
+			Core::Async<Document> Collection::InsertOne(const Document& Result, const Document& Options)
 			{
 #ifdef TH_HAS_MONGOC
-				auto* Sub = Base;
-				return [Sub, Result, Options, Reply](Rest::Async<bool>& Future)
+				auto* Context = Base;
+				return [Context, Result, Options](Core::Async<Document>& Future)
 				{
-					bool Subresult = MDB_EXEC(&mongoc_collection_insert_one, Sub, MDB_POP(Result), MDB_POP(Options), MDB_POP(Reply));
-					MDB_FREE(Options);
-					MDB_FREE(Result);
+					TDocument Subresult;
+					MDB_EXEC(&mongoc_collection_insert_one, Context, Result.Get(), Options.Get(), &Subresult);
+					Options.Release();
+					Result.Release();
 
-					Future.Set(Subresult);
+					Future.Set(Document::FromSource(&Subresult));
 				};
 #else
-				return Rest::Async<bool>::Store(false);
+				return Core::Async<Document>::Store(nullptr);
 #endif
 			}
-			Rest::Async<bool> Collection::FindAndModify(Document* Query, Document* Sort, Document* Update, Document* Fields, Document* Reply, bool RemoveAt, bool Upsert, bool New)
+			Core::Async<Document> Collection::UpdateMany(const Document& Select, const Document& Update, const Document& Options)
 			{
 #ifdef TH_HAS_MONGOC
-				auto* Sub = Base;
-				return [Sub, Query, Sort, Update, Fields, Reply, RemoveAt, Upsert, New](Rest::Async<bool>& Future)
+				auto* Context = Base;
+				return [Context, Select, Update, Options](Core::Async<Document>& Future)
 				{
-					bool Subresult = MDB_EXEC(&mongoc_collection_find_and_modify, Sub, MDB_POP(Query), MDB_POP(Sort), MDB_POP(Update), MDB_POP(Fields), RemoveAt, Upsert, New, MDB_POP(Reply));
-					MDB_FREE(Query);
-					MDB_FREE(Sort);
-					MDB_FREE(Update);
-					MDB_FREE(Fields);
+					TDocument Subresult;	
+					MDB_EXEC(&mongoc_collection_update_many, Context, Select.Get(), Update.Get(), Options.Get(), &Subresult);
+					Select.Release();
+					Update.Release();
+					Options.Release();
 
-					Future.Set(Subresult);
+					Future.Set(Document::FromSource(&Subresult));
 				};
 #else
-				return Rest::Async<bool>::Store(false);
+				return Core::Async<Document>::Store(nullptr);
 #endif
 			}
-			Rest::Async<uint64_t> Collection::CountElementsInArray(Document* Match, Document* Filter, Document* Options) const
+			Core::Async<Document> Collection::UpdateOne(const Document& Select, const Document& Update, const Document& Options)
 			{
 #ifdef TH_HAS_MONGOC
-				if (!Base || !MDB_POP(Filter) || !MDB_POP(Match))
+				auto* Context = Base;
+				return [Context, Select, Update, Options](Core::Async<Document>& Future)
 				{
-					MDB_FREE(Filter);
-					MDB_FREE(Match);
-					MDB_FREE(Options);
-					return Rest::Async<uint64_t>::Store(0);
+					TDocument Subresult;
+					MDB_EXEC(&mongoc_collection_update_one, Context, Select.Get(), Update.Get(), Options.Get(), &Subresult);
+					Select.Release();
+					Update.Release();
+					Options.Release();
+
+					Future.Set(Document::FromSource(&Subresult));
+				};
+#else
+				return Core::Async<Document>::Store(nullptr);
+#endif
+			}
+			Core::Async<Document> Collection::FindAndModify(const Document& Query, const Document& Sort, const Document& Update, const Document& Fields, bool RemoveAt, bool Upsert, bool New)
+			{
+#ifdef TH_HAS_MONGOC
+				auto* Context = Base;
+				return [Context, Query, Sort, Update, Fields, RemoveAt, Upsert, New](Core::Async<Document>& Future)
+				{
+					TDocument Subresult;
+					MDB_EXEC(&mongoc_collection_find_and_modify, Context, Query.Get(), Sort.Get(), Update.Get(), Fields.Get(), RemoveAt, Upsert, New, &Subresult);
+					Query.Release();
+					Sort.Release();
+					Update.Release();
+					Fields.Release();
+
+					Future.Set(Document::FromSource(&Subresult));
+				};
+#else
+				return Core::Async<Document>::Store(nullptr);
+#endif
+			}
+			Core::Async<uint64_t> Collection::CountElementsInArray(const Document& Match, const Document& Filter, const Document& Options) const
+			{
+#ifdef TH_HAS_MONGOC
+				if (!Base || !Filter.Get() || !Match.Get())
+				{
+					Filter.Release();
+					Match.Release();
+					Options.Release();
+					return Core::Async<uint64_t>::Store(0);
 				}
 
-				auto* Sub = Base;
-				return [Sub, Match, Filter, Options](Rest::Async<uint64_t>& Future)
+				auto* Context = Base;
+				return [Context, Match, Filter, Options](Core::Async<uint64_t>& Future)
 				{
-					Document Pipeline = BCON_NEW("pipeline", "[", "{", "$match", BCON_DOCUMENT(MDB_POP(Match)), "}", "{", "$project", "{", "Count", "{", "$Count", "{", "$filter", BCON_DOCUMENT(MDB_POP(Filter)), "}", "}", "}", "}", "]");
-					Cursor Subresult = MDB_EXEC_CUR(&mongoc_collection_aggregate, Sub, MONGOC_QUERY_NONE, Pipeline.Get(), MDB_POP(Options), nullptr);	
+					Document Pipeline = BCON_NEW("pipeline", "[", "{", "$match", BCON_DOCUMENT(Match.Get()), "}", "{", "$project", "{", "Count", "{", "$Count", "{", "$filter", BCON_DOCUMENT(Filter.Get()), "}", "}", "}", "}", "]");
+					Cursor Subresult = MDB_EXEC_CUR(&mongoc_collection_aggregate, Context, MONGOC_QUERY_NONE, Pipeline.Get(), Options.Get(), nullptr);	
 					Property Count;
 
 					if (Subresult.Next())
@@ -1625,116 +1624,116 @@ namespace Tomahawk
 
 					Subresult.Release();
 					Pipeline.Release();
-					MDB_FREE(Filter);
-					MDB_FREE(Match);
-					MDB_FREE(Options);
+					Filter.Release();
+					Match.Release();
+					Options.Release();
 
 					Future.Set((uint64_t)Count.Integer);
 				};
 #else
-				return Rest::Async<uint64_t>::Store(0);
+				return Core::Async<uint64_t>::Store(0);
 #endif
 			}
-			Rest::Async<uint64_t> Collection::CountDocuments(Document* Filter, Document* Options, Document* Reply) const
+			Core::Async<uint64_t> Collection::CountDocuments(const Document& Select, const Document& Options) const
 			{
 #ifdef TH_HAS_MONGOC
-				auto* Sub = Base;
-				return [Sub, Filter, Options, Reply](Rest::Async<uint64_t>& Future)
+				auto* Context = Base;
+				return [Context, Select, Options](Core::Async<uint64_t>& Future)
 				{
-					uint64_t Subresult = (uint64_t)MDB_EXEC(&mongoc_collection_count_documents, Sub, MDB_POP(Filter), MDB_POP(Options), nullptr, MDB_POP(Reply));
-					MDB_FREE(Filter);
-					MDB_FREE(Options);
+					uint64_t Subresult = (uint64_t)MDB_EXEC(&mongoc_collection_count_documents, Context, Select.Get(), Options.Get(), nullptr, nullptr);
+					Select.Release();
+					Options.Release();
 
 					Future.Set(Subresult);
 				};
 #else
-				return Rest::Async<uint64_t>::Store(0);
+				return Core::Async<uint64_t>::Store(0);
 #endif
 			}
-			Rest::Async<uint64_t> Collection::CountDocumentsEstimated(Document* Options, Document* Reply) const
+			Core::Async<uint64_t> Collection::CountDocumentsEstimated(const Document& Options) const
 			{
 #ifdef TH_HAS_MONGOC
-				auto* Sub = Base;
-				return [Sub, Options, Reply](Rest::Async<uint64_t>& Future)
+				auto* Context = Base;
+				return [Context, Options](Core::Async<uint64_t>& Future)
 				{
-					uint64_t Subresult = (uint64_t)MDB_EXEC(&mongoc_collection_estimated_document_count, Sub, MDB_POP(Options), nullptr, MDB_POP(Reply));
-					MDB_FREE(Options);
+					uint64_t Subresult = (uint64_t)MDB_EXEC(&mongoc_collection_estimated_document_count, Context, Options.Get(), nullptr, nullptr);
+					Options.Release();
 
 					Future.Set(Subresult);
 				};
 #else
-				return Rest::Async<uint64_t>::Store(0);
+				return Core::Async<uint64_t>::Store(0);
 #endif
 			}
-			Rest::Async<Cursor> Collection::FindIndexes(Document* Options) const
+			Core::Async<Cursor> Collection::FindIndexes(const Document& Options) const
 			{
 #ifdef TH_HAS_MONGOC
-				auto* Sub = Base;
-				return [Sub, Options](Rest::Async<Cursor>& Future)
+				auto* Context = Base;
+				return [Context, Options](Core::Async<Cursor>& Future)
 				{
-					Cursor Subresult = MDB_EXEC_CUR(&mongoc_collection_find_indexes_with_opts, Sub, MDB_POP(Options));
-					MDB_FREE(Options);
+					Cursor Subresult = MDB_EXEC_CUR(&mongoc_collection_find_indexes_with_opts, Context, Options.Get());
+					Options.Release();
 
 					Future.Set(Subresult);
 				};
 #else
-				return Rest::Async<Cursor>::Store(nullptr);
+				return Core::Async<Cursor>::Store(nullptr);
 #endif
 			}
-			Rest::Async<Cursor> Collection::FindMany(Document* Filter, Document* Options) const
+			Core::Async<Cursor> Collection::FindMany(const Document& Select, const Document& Options) const
 			{
 #ifdef TH_HAS_MONGOC
-				auto* Sub = Base;
-				return [Sub, Filter, Options](Rest::Async<Cursor>& Future)
+				auto* Context = Base;
+				return [Context, Select, Options](Core::Async<Cursor>& Future)
 				{
-					Cursor Subresult = MDB_EXEC_CUR(&mongoc_collection_find_with_opts, Sub, MDB_POP(Filter), MDB_POP(Options), nullptr);
-					MDB_FREE(Filter);
-					MDB_FREE(Options);
+					Cursor Subresult = MDB_EXEC_CUR(&mongoc_collection_find_with_opts, Context, Select.Get(), Options.Get(), nullptr);
+					Select.Release();
+					Options.Release();
 
 					Future.Set(Subresult);
 				};
 #else
-				return Rest::Async<Cursor>::Store(nullptr);
+				return Core::Async<Cursor>::Store(nullptr);
 #endif
 			}
-			Rest::Async<Cursor> Collection::FindOne(Document* Filter, Document* Options) const
+			Core::Async<Cursor> Collection::FindOne(const Document& Select, const Document& Options) const
 			{
 #ifdef TH_HAS_MONGOC
-				auto* Sub = Base;
-				return [Sub, Filter, Options](Rest::Async<Cursor>& Future)
+				auto* Context = Base;
+				return [Context, Select, Options](Core::Async<Cursor>& Future)
 				{
-					Document Settings = (Options ? *Options : nullptr);
+					Document Settings = Options;
 					if (Settings.Get() != nullptr)
 						Settings.SetInteger("limit", 1);
 					else
 						Settings = Document(BCON_NEW("limit", BCON_INT32(1)));
 
-					Cursor Subresult = MDB_EXEC_CUR(&mongoc_collection_find_with_opts, Sub, MDB_POP(Filter), Settings.Get(), nullptr);
-					if ((!Options || !Options->Get()) && Settings.Get())
+					Cursor Subresult = MDB_EXEC_CUR(&mongoc_collection_find_with_opts, Context, Select.Get(), Settings.Get(), nullptr);
+					if (!Options.Get() && Settings.Get())
 						Settings.Release();
-					MDB_FREE(Filter);
-					MDB_FREE(Options);
+					Select.Release();
+					Options.Release();
 
 					Future.Set(Subresult);
 				};
 #else
-				return Rest::Async<Cursor>::Store(nullptr);
+				return Core::Async<Cursor>::Store(nullptr);
 #endif
 			}
-			Rest::Async<Cursor> Collection::Aggregate(Query Flags, Document* Pipeline, Document* Options) const
+			Core::Async<Cursor> Collection::Aggregate(Query Flags, const Document& Pipeline, const Document& Options) const
 			{
 #ifdef TH_HAS_MONGOC
-				auto* Sub = Base;
-				return [Sub, Flags, Pipeline, Options](Rest::Async<Cursor>& Future)
+				auto* Context = Base;
+				return [Context, Flags, Pipeline, Options](Core::Async<Cursor>& Future)
 				{
-					Cursor Subresult = MDB_EXEC_CUR(&mongoc_collection_aggregate, Sub, (mongoc_query_flags_t)Flags, MDB_POP(Pipeline), MDB_POP(Options), nullptr);
-					MDB_FREE(Pipeline);
-					MDB_FREE(Options);
+					Cursor Subresult = MDB_EXEC_CUR(&mongoc_collection_aggregate, Context, (mongoc_query_flags_t)Flags, Pipeline.Get(), Options.Get(), nullptr);
+					Pipeline.Release();
+					Options.Release();
 
 					Future.Set(Subresult);
 				};
 #else
-				return Rest::Async<Cursor>::Store(nullptr);
+				return Core::Async<Cursor>::Store(nullptr);
 #endif
 			}
 			const char* Collection::GetName() const
@@ -1748,17 +1747,17 @@ namespace Tomahawk
 				return nullptr;
 #endif
 			}
-			Stream Collection::CreateStream(Document* Options)
+			Stream Collection::CreateStream(const Document& Options)
 			{
 #ifdef TH_HAS_MONGOC
 				if (!Base)
 				{
-					MDB_FREE(Options);
+					Options.Release();
 					return nullptr;
 				}
 
-				TStream* Operation = mongoc_collection_create_bulk_operation_with_opts(Base, MDB_POP(Options));
-				MDB_FREE(Options);
+				TStream* Operation = mongoc_collection_create_bulk_operation_with_opts(Base, Options.Get());
+				Options.Release();
 
 				return Operation;
 #else
@@ -1787,89 +1786,89 @@ namespace Tomahawk
 				Base = nullptr;
 #endif
 			}
-			Rest::Async<bool> Database::RemoveAllUsers()
+			Core::Async<bool> Database::RemoveAllUsers()
 			{
 #ifdef TH_HAS_MONGOC
-				auto* Sub = Base;
-				return [Sub](Rest::Async<bool>& Future)
+				auto* Context = Base;
+				return [Context](Core::Async<bool>& Future)
 				{
-					Future.Set(MDB_EXEC(&mongoc_database_remove_all_users, Sub));
+					Future.Set(MDB_EXEC(&mongoc_database_remove_all_users, Context));
 				};
 #else
-				return Rest::Async<bool>::Store(false);
+				return Core::Async<bool>::Store(false);
 #endif
 			}
-			Rest::Async<bool> Database::RemoveUser(const std::string& Name)
+			Core::Async<bool> Database::RemoveUser(const std::string& Name)
 			{
 #ifdef TH_HAS_MONGOC
-				auto* Sub = Base;
-				return [Sub, Name](Rest::Async<bool>& Future)
+				auto* Context = Base;
+				return [Context, Name](Core::Async<bool>& Future)
 				{
-					Future.Set(MDB_EXEC(&mongoc_database_remove_user, Sub, Name.c_str()));
+					Future.Set(MDB_EXEC(&mongoc_database_remove_user, Context, Name.c_str()));
 				};
 #else
-				return Rest::Async<bool>::Store(false);
+				return Core::Async<bool>::Store(false);
 #endif
 			}
-			Rest::Async<bool> Database::Remove()
+			Core::Async<bool> Database::Remove()
 			{
 #ifdef TH_HAS_MONGOC
-				auto* Sub = Base;
-				return [Sub](Rest::Async<bool>& Future)
+				auto* Context = Base;
+				return [Context](Core::Async<bool>& Future)
 				{
-					Future.Set(MDB_EXEC(&mongoc_database_drop, Sub));
+					Future.Set(MDB_EXEC(&mongoc_database_drop, Context));
 				};
 #else
-				return Rest::Async<bool>::Store(false);
+				return Core::Async<bool>::Store(false);
 #endif
 			}
-			Rest::Async<bool> Database::RemoveWithOptions(Document* Options)
+			Core::Async<bool> Database::RemoveWithOptions(const Document& Options)
 			{
 #ifdef TH_HAS_MONGOC
-				if (!MDB_POP(Options))
+				if (!Options.Get())
 					return Remove();
 
-				auto* Sub = Base;
-				return [Sub, Options](Rest::Async<bool>& Future)
+				auto* Context = Base;
+				return [Context, Options](Core::Async<bool>& Future)
 				{
-					bool Subresult = MDB_EXEC(&mongoc_database_drop_with_opts, Sub, MDB_POP(Options));
-					MDB_FREE(Options);
+					bool Subresult = MDB_EXEC(&mongoc_database_drop_with_opts, Context, Options.Get());
+					Options.Release();
 
 					Future.Set(Subresult);
 				};
 #else
-				return Rest::Async<bool>::Store(false);
+				return Core::Async<bool>::Store(false);
 #endif
 			}
-			Rest::Async<bool> Database::AddUser(const std::string& Username, const std::string& Password, Document* Roles, Document* Custom)
+			Core::Async<bool> Database::AddUser(const std::string& Username, const std::string& Password, const Document& Roles, const Document& Custom)
 			{
 #ifdef TH_HAS_MONGOC
-				auto* Sub = Base;
-				return [Sub, Username, Password, Roles, Custom](Rest::Async<bool>& Future)
+				auto* Context = Base;
+				return [Context, Username, Password, Roles, Custom](Core::Async<bool>& Future)
 				{
-					bool Subresult = MDB_EXEC(&mongoc_database_add_user, Sub, Username.c_str(), Password.c_str(), MDB_POP(Roles), MDB_POP(Custom));
-					MDB_FREE(Roles);
-					MDB_FREE(Custom);
+					bool Subresult = MDB_EXEC(&mongoc_database_add_user, Context, Username.c_str(), Password.c_str(), Roles.Get(), Custom.Get());
+					Roles.Release();
+					Custom.Release();
 
 					Future.Set(Subresult);
 				};
 #else
-				return Rest::Async<bool>::Store(false);
+				return Core::Async<bool>::Store(false);
 #endif
 			}
-			Rest::Async<Cursor> Database::FindCollections(Document* Options) const
+			Core::Async<Cursor> Database::FindCollections(const Document& Options) const
 			{
 #ifdef TH_HAS_MONGOC
-				auto* Sub = Base;
-				return [Sub, Options](Rest::Async<Cursor>& Future)
+				auto* Context = Base;
+				return [Context, Options](Core::Async<Cursor>& Future)
 				{
-					Cursor Subresult = MDB_EXEC_CUR(&mongoc_database_find_collections_with_opts, Sub, MDB_POP(Options));
-					MDB_FREE(Options);
+					Cursor Subresult = MDB_EXEC_CUR(&mongoc_database_find_collections_with_opts, Context, Options.Get());
+					Options.Release();
 
 					Future.Set(Subresult);
 				};
 #else
-				return Rest::Async<Cursor>::Store(nullptr);
+				return Core::Async<Cursor>::Store(nullptr);
 #endif
 			}
 			bool Database::HasCollection(const std::string& Name) const
@@ -1886,7 +1885,7 @@ namespace Tomahawk
 				return false;
 #endif
 			}
-			std::vector<std::string> Database::GetCollectionNames(Document* Options) const
+			std::vector<std::string> Database::GetCollectionNames(const Document& Options) const
 			{
 #ifdef TH_HAS_MONGOC
 				bson_error_t Error;
@@ -1895,8 +1894,8 @@ namespace Tomahawk
 				if (!Base)
 					return std::vector<std::string>();
 
-				char** Names = mongoc_database_get_collection_names_with_opts(Base, MDB_POP(Options), &Error);
-				MDB_FREE(Options);
+				char** Names = mongoc_database_get_collection_names_with_opts(Base, Options.Get(), &Error);
+				Options.Release();
 
 				if (Names == nullptr)
 				{
@@ -1925,7 +1924,7 @@ namespace Tomahawk
 				return nullptr;
 #endif
 			}
-			Collection Database::CreateCollection(const std::string& Name, Document* Options)
+			Collection Database::CreateCollection(const std::string& Name, const Document& Options)
 			{
 #ifdef TH_HAS_MONGOC
 				bson_error_t Error;
@@ -1933,12 +1932,12 @@ namespace Tomahawk
 
 				if (!Base)
 				{
-					MDB_FREE(Options);
+					Options.Release();
 					return nullptr;
 				}
 
-				TCollection* Collection = mongoc_database_create_collection(Base, Name.c_str(), MDB_POP(Options), &Error);
-				MDB_FREE(Options);
+				TCollection* Collection = mongoc_database_create_collection(Base, Name.c_str(), Options.Get(), &Error);
+				Options.Release();
 
 				if (Collection == nullptr)
 					TH_ERROR("[mongoc] %s", Error.message);
@@ -1981,7 +1980,7 @@ namespace Tomahawk
 				Base = nullptr;
 #endif
 			}
-			bool Watcher::Next(Document& Result) const
+			bool Watcher::Next(const Document& Result) const
 			{
 #ifdef TH_HAS_MONGOC
 				if (!Base || !Result.Get())
@@ -1993,7 +1992,7 @@ namespace Tomahawk
 				return false;
 #endif
 			}
-			bool Watcher::Error(Document& Result) const
+			bool Watcher::Error(const Document& Result) const
 			{
 #ifdef TH_HAS_MONGOC
 				if (!Base || !Result.Get())
@@ -2013,57 +2012,57 @@ namespace Tomahawk
 				return nullptr;
 #endif
 			}
-			Watcher Watcher::FromConnection(Connection* Connection, Document* Pipeline, Document* Options)
+			Watcher Watcher::FromConnection(Connection* Connection, const Document& Pipeline, const Document& Options)
 			{
 #ifdef TH_HAS_MONGOC
 				if (!Connection)
 				{
-					MDB_FREE(Pipeline);
-					MDB_FREE(Options);
+					Pipeline.Release();
+					Options.Release();
 					return nullptr;
 				}
 
-				TWatcher* Stream = mongoc_client_watch(Connection->Get(), MDB_POP(Pipeline), MDB_POP(Options));
-				MDB_FREE(Pipeline);
-				MDB_FREE(Options);
+				TWatcher* Stream = mongoc_client_watch(Connection->Get(), Pipeline.Get(), Options.Get());
+				Pipeline.Release();
+				Options.Release();
 
 				return Stream;
 #else
 				return nullptr;
 #endif
 			}
-			Watcher Watcher::FromDatabase(const Database& Database, Document* Pipeline, Document* Options)
+			Watcher Watcher::FromDatabase(const Database& Database, const Document& Pipeline, const Document& Options)
 			{
 #ifdef TH_HAS_MONGOC
 				if (!Database.Get())
 				{
-					MDB_FREE(Pipeline);
-					MDB_FREE(Options);
+					Pipeline.Release();
+					Options.Release();
 					return nullptr;
 				}
 
-				TWatcher* Stream = mongoc_database_watch(Database.Get(), MDB_POP(Pipeline), MDB_POP(Options));
-				MDB_FREE(Pipeline);
-				MDB_FREE(Options);
+				TWatcher* Stream = mongoc_database_watch(Database.Get(), Pipeline.Get(), Options.Get());
+				Pipeline.Release();
+				Options.Release();
 
 				return Stream;
 #else
 				return nullptr;
 #endif
 			}
-			Watcher Watcher::FromCollection(const Collection& Collection, Document* Pipeline, Document* Options)
+			Watcher Watcher::FromCollection(const Collection& Collection, const Document& Pipeline, const Document& Options)
 			{
 #ifdef TH_HAS_MONGOC
 				if (!Collection.Get())
 				{
-					MDB_FREE(Pipeline);
-					MDB_FREE(Options);
+					Pipeline.Release();
+					Options.Release();
 					return nullptr;
 				}
 
-				TWatcher* Stream = mongoc_collection_watch(Collection.Get(), MDB_POP(Pipeline), MDB_POP(Options));
-				MDB_FREE(Pipeline);
-				MDB_FREE(Options);
+				TWatcher* Stream = mongoc_collection_watch(Collection.Get(), Pipeline.Get(), Options.Get());
+				Pipeline.Release();
+				Options.Release();
 
 				return Stream;
 #else
@@ -2084,40 +2083,42 @@ namespace Tomahawk
 				Base = nullptr;
 #endif
 			}
-			Rest::Async<bool> Transaction::Start()
+			Core::Async<bool> Transaction::Start()
 			{
 #ifdef TH_HAS_MONGOC
-				auto* Sub = Base;
-				return [Sub](Rest::Async<bool>& Future)
+				auto* Context = Base;
+				return [Context](Core::Async<bool>& Future)
 				{
-					Future.Set(MDB_EXEC(&mongoc_client_session_start_transaction, Sub, nullptr));
+					Future.Set(MDB_EXEC(&mongoc_client_session_start_transaction, Context, nullptr));
 				};
 #else
-				return Rest::Async<bool>::Store(false);
+				return Core::Async<bool>::Store(false);
 #endif
 			}
-			Rest::Async<bool> Transaction::Abort()
+			Core::Async<bool> Transaction::Abort()
 			{
 #ifdef TH_HAS_MONGOC
-				auto* Sub = Base;
-				return [Sub](Rest::Async<bool>& Future)
+				auto* Context = Base;
+				return [Context](Core::Async<bool>& Future)
 				{
-					Future.Set(MDB_EXEC(&mongoc_client_session_abort_transaction, Sub));
+					Future.Set(MDB_EXEC(&mongoc_client_session_abort_transaction, Context));
 				};
 #else
-				return Rest::Async<bool>::Store(false);
+				return Core::Async<bool>::Store(false);
 #endif
 			}
-			Rest::Async<bool> Transaction::Commit(Document* Reply)
+			Core::Async<Document> Transaction::Commit()
 			{
 #ifdef TH_HAS_MONGOC
-				auto* Sub = Base;
-				return [Sub, Reply](Rest::Async<bool>& Future)
+				auto* Context = Base;
+				return [Context](Core::Async<Document>& Future)
 				{
-					Future.Set(MDB_EXEC(&mongoc_client_session_commit_transaction, Sub, MDB_POP(Reply)));
+					TDocument Subresult;
+					MDB_EXEC(&mongoc_client_session_commit_transaction, Context, &Subresult);
+					Future.Set(Document::FromSource(&Subresult));
 				};
 #else
-				return Rest::Async<bool>::Store(false);
+				return Core::Async<Document>::Store(nullptr);
 #endif
 			}
 			TTransaction* Transaction::Get() const
@@ -2170,21 +2171,21 @@ namespace Tomahawk
 				Disconnect();
 				Driver::Release();
 			}
-			Rest::Async<bool> Connection::Connect(const std::string& Address)
+			Core::Async<bool> Connection::Connect(const std::string& Address)
 			{
 #ifdef TH_HAS_MONGOC
 				if (Master != nullptr)
-					return Rest::Async<bool>::Store(false);
+					return Core::Async<bool>::Store(false);
 
 				if (Connected)
 				{
-					return Disconnect().Then<Rest::Async<bool>>([this, Address](bool)
+					return Disconnect().Then<Core::Async<bool>>([this, Address](bool)
 					{
 						return this->Connect(Address);
 					});
 				}
 
-				return [this, Address](Rest::Async<bool>& Future)
+				return [this, Address](Core::Async<bool>& Future)
 				{
 					bson_error_t Error;
 					memset(&Error, 0, sizeof(bson_error_t));
@@ -2207,25 +2208,25 @@ namespace Tomahawk
 					Future.Set(true);
 				};
 #else
-				return Rest::Async<bool>::Store(false);
+				return Core::Async<bool>::Store(false);
 #endif
 			}
-			Rest::Async<bool> Connection::Connect(Address* URL)
+			Core::Async<bool> Connection::Connect(Address* URL)
 			{
 #ifdef TH_HAS_MONGOC
 				if (Master != nullptr || !URL || !URL->Get())
-					return Rest::Async<bool>::Store(false);
+					return Core::Async<bool>::Store(false);
 
 				if (Connected)
 				{
-					return Disconnect().Then<Rest::Async<bool>>([this, URL](bool)
+					return Disconnect().Then<Core::Async<bool>>([this, URL](bool)
 					{
 						return this->Connect(URL);
 					});
 				}
 
 				TAddress* URI = URL->Get();
-				return [this, URI](Rest::Async<bool>& Future)
+				return [this, URI](Core::Async<bool>& Future)
 				{
 					Base = mongoc_client_new_from_uri(URI);
 					if (!Base)
@@ -2238,13 +2239,13 @@ namespace Tomahawk
 					Future.Set(true);
 				};
 #else
-				return Rest::Async<bool>::Store(false);
+				return Core::Async<bool>::Store(false);
 #endif
 			}
-			Rest::Async<bool> Connection::Disconnect()
+			Core::Async<bool> Connection::Disconnect()
 			{
 #ifdef TH_HAS_MONGOC
-				return [this](Rest::Async<bool>& Future)
+				return [this](Core::Async<bool>& Future)
 				{
 					Connected = false;
 					if (Master != nullptr)
@@ -2266,21 +2267,21 @@ namespace Tomahawk
 					Future.Set(true);
 				};
 #else
-				return Rest::Async<bool>::Store(false);
+				return Core::Async<bool>::Store(false);
 #endif
 			}
-			Rest::Async<Cursor> Connection::FindDatabases(Document* Options) const
+			Core::Async<Cursor> Connection::FindDatabases(const Document& Options) const
 			{
 #ifdef TH_HAS_MONGOC
-				return [this, Options](Rest::Async<Cursor>& Future)
+				return [this, Options](Core::Async<Cursor>& Future)
 				{
-					TCursor* Subresult = mongoc_client_find_databases_with_opts(Base, MDB_POP(Options));
-					MDB_FREE(Options);
+					TCursor* Subresult = mongoc_client_find_databases_with_opts(Base, Options.Get());
+					Options.Release();
 
 					Future.Set(Subresult);
 				};
 #else
-				return Rest::Async<Cursor>::Store(nullptr);
+				return Core::Async<Cursor>::Store(nullptr);
 #endif
 			}
 			void Connection::SetProfile(const std::string& Name)
@@ -2348,14 +2349,14 @@ namespace Tomahawk
 			{
 				return Base;
 			}
-			std::vector<std::string> Connection::GetDatabaseNames(Document* Options) const
+			std::vector<std::string> Connection::GetDatabaseNames(const Document& Options) const
 			{
 #ifdef TH_HAS_MONGOC
 				bson_error_t Error;
 				memset(&Error, 0, sizeof(bson_error_t));
 
-				char** Names = mongoc_client_get_database_names_with_opts(Base, MDB_POP(Options), &Error);
-				MDB_FREE(Options);
+				char** Names = mongoc_client_get_database_names_with_opts(Base, Options.Get(), &Error);
+				Options.Release();
 
 				if (Names == nullptr)
 				{
@@ -2387,18 +2388,18 @@ namespace Tomahawk
 				Disconnect();
 				Driver::Release();
 			}
-			Rest::Async<bool> Queue::Connect(const std::string& URI)
+			Core::Async<bool> Queue::Connect(const std::string& URI)
 			{
 #ifdef TH_HAS_MONGOC
 				if (Connected)
 				{
-					return Disconnect().Then<Rest::Async<bool>>([this, URI](bool)
+					return Disconnect().Then<Core::Async<bool>>([this, URI](bool)
 					{
 						return this->Connect(URI);
 					});
 				}
 
-				return [this, URI](Rest::Async<bool>& Future)
+				return [this, URI](Core::Async<bool>& Future)
 				{
 					bson_error_t Error;
 					memset(&Error, 0, sizeof(bson_error_t));
@@ -2421,26 +2422,29 @@ namespace Tomahawk
 					Future.Set(true);
 				};
 #else
-				return Rest::Async<bool>::Store(false);
+				return Core::Async<bool>::Store(false);
 #endif
 			}
-			Rest::Async<bool> Queue::Connect(Address* URI)
+			Core::Async<bool> Queue::Connect(Address* URI)
 			{
 #ifdef TH_HAS_MONGOC
+				if (!URI || !URI->Get())
+					return Core::Async<bool>::Store(false);
+
 				if (Connected)
 				{
-					return Disconnect().Then<Rest::Async<bool>>([this, URI](bool)
+					return Disconnect().Then<Core::Async<bool>>([this, URI](bool)
 					{
 						return this->Connect(URI);
 					});
 				}
 
-				auto* Sub = MDB_POP(URI);
+				TAddress* Context = URI->Get();
 				*URI = nullptr;
 
-				return [this, Sub](Rest::Async<bool>& Future)
+				return [this, Context](Core::Async<bool>& Future)
 				{
-					SrcAddress = Sub;
+					SrcAddress = Context;
 					Pool = mongoc_client_pool_new(SrcAddress.Get());
 					if (!Pool)
 					{
@@ -2452,13 +2456,13 @@ namespace Tomahawk
 					Future.Set(true);
 				};
 #else
-				return Rest::Async<bool>::Store(false);
+				return Core::Async<bool>::Store(false);
 #endif
 			}
-			Rest::Async<bool> Queue::Disconnect()
+			Core::Async<bool> Queue::Disconnect()
 			{
 #ifdef TH_HAS_MONGOC
-				return [this](Rest::Async<bool>& Future)
+				return [this](Core::Async<bool>& Future)
 				{
 					if (Pool != nullptr)
 					{
@@ -2470,7 +2474,7 @@ namespace Tomahawk
 					Connected = false;
 				};
 #else
-				return Rest::Async<bool>::Store(false);
+				return Core::Async<bool>::Store(false);
 #endif
 			}
 			void Queue::SetProfile(const char* Name)
@@ -2578,7 +2582,7 @@ namespace Tomahawk
 				Sequence Result;
 				Result.Request.assign(Buffer, Size);
 
-				Rest::Stroke Base(&Result.Request);
+				Core::Parser Base(&Result.Request);
 				Base.Trim();
 
 				uint64_t Args = 0;
@@ -2669,8 +2673,8 @@ namespace Tomahawk
 			}
 			bool Driver::AddDirectory(const std::string& Directory, const std::string& Origin)
 			{
-				std::vector<Rest::ResourceEntry> Entries;
-				if (!Rest::OS::Directory::Scan(Directory, &Entries))
+				std::vector<Core::ResourceEntry> Entries;
+				if (!Core::OS::Directory::Scan(Directory, &Entries))
 					return false;
 
 				std::string Path = Directory;
@@ -2680,7 +2684,7 @@ namespace Tomahawk
 				uint64_t Size = 0;
 				for (auto& File : Entries)
 				{
-					Rest::Stroke Base(Path + File.Path);
+					Core::Parser Base(Path + File.Path);
 					if (File.Source.IsDirectory)
 					{
 						AddDirectory(Base.R(), Origin.empty() ? Directory : Origin);
@@ -2690,7 +2694,7 @@ namespace Tomahawk
 					if (!Base.EndsWith(".json"))
 						continue;
 
-					char* Buffer = (char*)Rest::OS::File::ReadAll(Base.Get(), &Size);
+					char* Buffer = (char*)Core::OS::File::ReadAll(Base.Get(), &Size);
 					if (!Buffer)
 						continue;
 
@@ -2772,15 +2776,15 @@ namespace Tomahawk
 				Sequence Origin = It->second;
 				Safe->unlock();
 
-				Rest::Stroke Result(&Origin.Request);
-				for (auto& Sub : *Map)
+				Core::Parser Result(&Origin.Request);
+				for (auto& Context : *Map)
 				{
-					std::string Value = GetJSON(Sub.second);
+					std::string Value = GetJSON(Context.second);
 					if (!Value.empty())
-						Result.Replace(TH_PREFIX_STR "<" + Sub.first + '>', Value);
+						Result.Replace(TH_PREFIX_STR "<" + Context.first + '>', Value);
 
 					if (Once)
-						TH_RELEASE(Sub.second);
+						TH_RELEASE(Context.second);
 				}
 
 				if (Once)
@@ -2818,15 +2822,15 @@ namespace Tomahawk
 					return Document::FromJSON(Buffer);
 				}
 
-				Rest::Stroke Result(Buffer, strlen(Buffer));
-				for (auto& Sub : *Map)
+				Core::Parser Result(Buffer, strlen(Buffer));
+				for (auto& Context : *Map)
 				{
-					std::string Value = GetJSON(Sub.second);
+					std::string Value = GetJSON(Context.second);
 					if (!Value.empty())
-						Result.Replace(TH_PREFIX_STR "<" + Sub.first + '>', Value);
+						Result.Replace(TH_PREFIX_STR "<" + Context.first + '>', Value);
 
 					if (Once)
-						TH_RELEASE(Sub.second);
+						TH_RELEASE(Context.second);
 				}
 
 				if (Once)
@@ -2852,14 +2856,14 @@ namespace Tomahawk
 
 				return Result;
 			}
-			std::string Driver::GetJSON(Rest::Document* Source)
+			std::string Driver::GetJSON(Core::Document* Source)
 			{
 				if (!Source)
 					return "";
 
 				switch (Source->Value.GetType())
 				{
-					case Rest::VarType_Object:
+					case Core::VarType_Object:
 					{
 						std::string Result = "{";
 						for (auto* Node : *Source->GetNodes())
@@ -2873,7 +2877,7 @@ namespace Tomahawk
 
 						return Result + "}";
 					}
-					case Rest::VarType_Array:
+					case Core::VarType_Array:
 					{
 						std::string Result = "[";
 						for (auto* Node : *Source->GetNodes())
@@ -2884,17 +2888,17 @@ namespace Tomahawk
 
 						return Result + "]";
 					}
-					case Rest::VarType_String:
+					case Core::VarType_String:
 						return "\"" + Source->Value.GetBlob() + "\"";
-					case Rest::VarType_Integer:
+					case Core::VarType_Integer:
 						return std::to_string(Source->Value.GetInteger());
-					case Rest::VarType_Number:
+					case Core::VarType_Number:
 						return std::to_string(Source->Value.GetNumber());
-					case Rest::VarType_Boolean:
+					case Core::VarType_Boolean:
 						return Source->Value.GetBoolean() ? "true" : "false";
-					case Rest::VarType_Decimal:
+					case Core::VarType_Decimal:
 						return "{\"$numberDouble\":\"" + Source->Value.GetDecimal() + "\"}";
-					case Rest::VarType_Base64:
+					case Core::VarType_Base64:
 					{
 						if (Source->Value.GetSize() != 12)
 						{
@@ -2904,8 +2908,8 @@ namespace Tomahawk
 
 						return "{\"$oid\":\"" + Util::IdToString(Source->Value.GetBase64()) + "\"}";
 					}
-					case Rest::VarType_Null:
-					case Rest::VarType_Undefined:
+					case Core::VarType_Null:
+					case Core::VarType_Undefined:
 						return "null";
 					default:
 						break;

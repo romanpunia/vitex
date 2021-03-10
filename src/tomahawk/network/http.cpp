@@ -73,6 +73,13 @@ namespace Tomahawk
 			{
 				Util::WebSocketWriteMask(Base, Data, Length, OpCode, 0, Callback);
 			}
+			void WebSocketFrame::Execute(bool Failed)
+			{
+				if (Failed)
+					Finish();
+				else
+					Next();
+			}
 			void WebSocketFrame::Finish()
 			{
 				if (Error || State == WebSocketState_Close)
@@ -114,7 +121,7 @@ namespace Tomahawk
 					Base->Unlock();
 
 					auto* Store = Base;
-					return (void)Rest::Schedule::Get()->SetTask([Store]()
+					return (void)Core::Schedule::Get()->SetTask([Store]()
 					{
 						Store->Finish();
 					});
@@ -140,23 +147,6 @@ namespace Tomahawk
 				else
 					Util::ProcessWebSocketPass(Base);
 			}
-			void WebSocketFrame::Execute(Script::VMContext* Context)
-			{
-				if (!Context || Context->GetState() == Script::VMExecState_ACTIVE)
-					return;
-
-				if (Context->GetState() == Script::VMExecState_FINISHED)
-					return Finish();
-
-				int R = Context->Execute();
-				if (R != Script::VMExecState_FINISHED)
-				{
-					if (R != Script::VMExecState_SUSPENDED)
-						return Finish();
-				}
-
-				Next();
-			}
 			void WebSocketFrame::Notify()
 			{
 				Notified = true;
@@ -169,6 +159,11 @@ namespace Tomahawk
 
 			GatewayFrame::GatewayFrame(char* Data, int64_t DataSize) : Buffer(Data), Size(DataSize), Compiler(nullptr), Base(nullptr), Save(false)
 			{
+			}
+			void GatewayFrame::Execute(bool Failed)
+			{
+				if (Failed)
+					Finish();
 			}
 			bool GatewayFrame::Done(bool Normal)
 			{
@@ -198,7 +193,7 @@ namespace Tomahawk
 				}
 
 				auto* Store = Base;
-				return Rest::Schedule::Get()->SetTask([Store]()
+				return Core::Schedule::Get()->SetTask([Store]()
 				{
 					Store->Finish();
 				}) && false;
@@ -246,7 +241,7 @@ namespace Tomahawk
 				}
 
 				Base->Lock();
-				return Rest::Schedule::Get()->SetTask([this]()
+				return Core::Schedule::Get()->SetTask([this]()
 				{
 					int Result = Compiler->LoadCode(Base->Request.Path, Buffer, Size);
 					if (Result < 0)
@@ -257,33 +252,20 @@ namespace Tomahawk
 						return Finish();
 
 					Script::VMFunction Main = Compiler->GetModule().GetFunctionByName("Main");
-					if (Main.IsValid())
-					{
-						Script::VMContext* Context = Compiler->GetContext();
+					if (!Main.IsValid())
+						return Finish();
 
-						Result = Context->Prepare(Main);
-						if (Result < 0)
-							return Finish();
+					Script::VMContext* Context = Compiler->GetContext();
+					Result = Context->Prepare(Main);
+					if (Result < 0)
+						return Finish();
 
-						return Execute(Context);
-					}
+					Result = Context->Execute();
+					if (Result == Script::VMExecState_FINISHED || Result != Script::VMExecState_SUSPENDED)
+						return Finish();
 
-					return Finish();
+					return true;
 				});
-			}
-			bool GatewayFrame::Execute(Script::VMContext* Context)
-			{
-				if (!Context || Context->GetState() == Script::VMExecState_ACTIVE)
-					return false;
-
-				if (Context->GetState() == Script::VMExecState_FINISHED)
-					return Finish();
-
-				int R = Context->Execute();
-				if (R != Script::VMExecState_SUSPENDED)
-					return Finish();
-
-				return true;
 			}
 			bool GatewayFrame::IsDone()
 			{
@@ -330,13 +312,13 @@ namespace Tomahawk
 				}
 
 				HTTP::RouteEntry* From = Base;
-				Rest::Stroke RV(Pattern);
+				Core::Parser RV(Pattern);
 				RV.ToLower();
 
 				for (auto It = Routes.begin(); It != Routes.end(); It++)
 				{
 					RouteEntry* Entry = *It;
-					if (!RV.Find(Rest::Stroke(Entry->URI.Regex).ToLower().R()).Found)
+					if (!RV.Find(Core::Parser(Entry->URI.Regex).ToLower().R()).Found)
 						continue;
 
 					From = Entry;
@@ -464,7 +446,7 @@ namespace Tomahawk
 				}
 
 				HTTP::SiteEntry* Result = new HTTP::SiteEntry();
-				Result->SiteName = Rest::Stroke(Pattern).ToLower().R();
+				Result->SiteName = Core::Parser(Pattern).ToLower().R();
 				Sites.push_back(Result);
 
 				return Result;
@@ -522,7 +504,7 @@ namespace Tomahawk
 
 				for (auto It = Headers.begin(); It != Headers.end(); It++)
 				{
-					if (!Rest::Stroke::CaseCompare(It->Key.c_str(), Key))
+					if (!Core::Parser::CaseCompare(It->Key.c_str(), Key))
 						return It->Value.c_str();
 				}
 
@@ -634,7 +616,7 @@ namespace Tomahawk
 
 				for (auto It = Headers.begin(); It != Headers.end(); It++)
 				{
-					if (!Rest::Stroke::CaseCompare(It->Key.c_str(), Key))
+					if (!Core::Parser::CaseCompare(It->Key.c_str(), Key))
 						return It->Value.c_str();
 				}
 
@@ -646,12 +628,12 @@ namespace Tomahawk
 				if (Range == nullptr)
 					return std::vector<std::pair<int64_t, int64_t>>();
 
-				std::vector<std::string> Bases = Rest::Stroke(Range).Split(',');
+				std::vector<std::string> Bases = Core::Parser(Range).Split(',');
 				std::vector<std::pair<int64_t, int64_t>> Ranges;
 
 				for (auto It = Bases.begin(); It != Bases.end(); It++)
 				{
-					Rest::Stroke::Settle Result = Rest::Stroke(&(*It)).Find('-');
+					Core::Parser::Settle Result = Core::Parser(&(*It)).Find('-');
 					if (!Result.Found)
 						continue;
 
@@ -785,7 +767,7 @@ namespace Tomahawk
 
 				for (auto It = Headers.begin(); It != Headers.end(); It++)
 				{
-					if (!Rest::Stroke::CaseCompare(It->Key.c_str(), Key))
+					if (!Core::Parser::CaseCompare(It->Key.c_str(), Key))
 						return It->Value.c_str();
 				}
 
@@ -799,7 +781,7 @@ namespace Tomahawk
 				for (uint64_t i = 0; i < Cookies.size(); i++)
 				{
 					Cookie* Result = &Cookies[i];
-					if (!Rest::Stroke::CaseCompare(Result->Name.c_str(), Key))
+					if (!Core::Parser::CaseCompare(Result->Name.c_str(), Key))
 						return Result;
 				}
 
@@ -863,7 +845,7 @@ namespace Tomahawk
 				}
 
 				const char* TransferEncoding = Request.GetHeader("Transfer-Encoding");
-				if (TransferEncoding && !Rest::Stroke::CaseCompare(TransferEncoding, "chunked"))
+				if (TransferEncoding && !Core::Parser::CaseCompare(TransferEncoding, "chunked"))
 				{
 					Parser* Parser = new HTTP::Parser();
 					return Stream->ReadAsync((int64_t)Root->Router->PayloadMaxLength, [Parser, Callback](Network::Socket* Socket, const char* Buffer, int64_t Size)
@@ -1092,9 +1074,9 @@ namespace Tomahawk
 					Resource.Length = Request.ContentLength;
 					Resource.Memory = false;
 					Resource.Type = (ContentType ? ContentType : "application/octet-stream");
-					Resource.Path = Rest::OS::Directory::Get() + Compute::Common::MD5Hash(Compute::Common::RandomBytes(16));
+					Resource.Path = Core::OS::Directory::Get() + Compute::Common::MD5Hash(Compute::Common::RandomBytes(16));
 
-					FILE* File = (FILE*)Rest::OS::File::Open(Resource.Path.c_str(), "wb");
+					FILE* File = (FILE*)Core::OS::File::Open(Resource.Path.c_str(), "wb");
 					if (!File)
 					{
 						Request.ContentState = Content_Save_Exception;
@@ -1197,7 +1179,7 @@ namespace Tomahawk
 					}
 
 					const char* StatusText = Util::StatusMessage(Response.StatusCode);
-					Rest::Stroke Content;
+					Core::Parser Content;
 					Content.fAppend("%s %d %s\r\n", Request.Version, Response.StatusCode, StatusText);
 
 					Util::ConstructHeadUncache(this, &Content);
@@ -1205,7 +1187,7 @@ namespace Tomahawk
 						Route->Callbacks.Headers(this, nullptr);
 
 					char Date[64];
-					Rest::DateTime::TimeFormatGMT(Date, sizeof(Date), Info.Start / 1000);
+					Core::DateTime::TimeFormatGMT(Date, sizeof(Date), Info.Start / 1000);
 
 					std::string Auth;
 					if (Route && Request.User.Type == Auth_Denied)
@@ -1242,7 +1224,7 @@ namespace Tomahawk
 					});
 				}
 
-				Rest::Stroke Content;
+				Core::Parser Content;
 				std::string Boundary;
 				const char* ContentType;
 				Content.fAppend("%s %d %s\r\n", Request.Version, Response.StatusCode, Util::StatusMessage(Response.StatusCode));
@@ -1250,7 +1232,7 @@ namespace Tomahawk
 				if (!Response.GetHeader("Date"))
 				{
 					char Buffer[64];
-					Rest::DateTime::TimeFormatGMT(Buffer, sizeof(Buffer), Info.Start / 1000);
+					Core::DateTime::TimeFormatGMT(Buffer, sizeof(Buffer), Info.Start / 1000);
 					Content.fAppend("Date: %s\r\n", Buffer);
 				}
 
@@ -1384,7 +1366,7 @@ namespace Tomahawk
 					if (!It->Path.empty())
 						It->Path.insert(0, "; path=");
 
-					Content.fAppend("Set-Cookie: %s=%s; expires=%s%s%s%s\r\n", It->Name.c_str(), It->Value.c_str(), Rest::DateTime::GetGMTBasedString(It->Expires).c_str(), It->Path.c_str(), It->Domain.c_str(), It->Secure ? "; secure" : "");
+					Content.fAppend("Set-Cookie: %s=%s; expires=%s%s%s%s\r\n", It->Name.c_str(), It->Value.c_str(), Core::DateTime::GetGMTBasedString(It->Expires).c_str(), It->Path.c_str(), It->Domain.c_str(), It->Secure ? "; secure" : "");
 				}
 
 				if (Route && Route->Callbacks.Headers)
@@ -1476,7 +1458,7 @@ namespace Tomahawk
 #endif
 			}
 
-			QueryParameter::QueryParameter() : Rest::Document(std::move(Rest::Var::Object()))
+			QueryParameter::QueryParameter() : Core::Document(std::move(Core::Var::Object()))
 			{
 			}
 			std::string QueryParameter::Build()
@@ -1543,18 +1525,18 @@ namespace Tomahawk
 				if (Name->Length > 0)
 				{
 					New->Key.assign(Name->Value, Name->Length);
-					if (!Rest::Stroke(&New->Key).HasInteger())
-						Value = Rest::Var::Object();
+					if (!Core::Parser(&New->Key).HasInteger())
+						Value = Core::Var::Object();
 					else
-						Value = Rest::Var::Array();
+						Value = Core::Var::Array();
 				}
 				else
 				{
 					New->Key.assign(std::to_string(Nodes.size()));
-					Value = Rest::Var::Array();
+					Value = Core::Var::Array();
 				}
 
-				New->Value = std::move(Rest::Var::String("", 0));
+				New->Value = std::move(Core::Var::String("", 0));
 				New->Parent = this;
 				Nodes.push_back(New);
 
@@ -1637,9 +1619,9 @@ namespace Tomahawk
 				if (!Type || URI.empty())
 					return;
 
-				if (!Rest::Stroke::CaseCompare(Type, "application/x-www-form-urlencoded"))
+				if (!Core::Parser::CaseCompare(Type, "application/x-www-form-urlencoded"))
 					DecodeAXWFD(URI);
-				else if (!Rest::Stroke::CaseCompare(Type, "application/json"))
+				else if (!Core::Parser::CaseCompare(Type, "application/json"))
 					DecodeAJSON(URI);
 			}
 			void Query::DecodeAXWFD(const std::string& URI)
@@ -1679,7 +1661,7 @@ namespace Tomahawk
 				size_t Offset = 0;
 				TH_CLEAR(Object);
 
-				Object = (QueryParameter*)Rest::Document::ReadJSON(URI.size(), [&URI, &Offset](char* Buffer, int64_t Size)
+				Object = (QueryParameter*)Core::Document::ReadJSON(URI.size(), [&URI, &Offset](char* Buffer, int64_t Size)
 				{
 					if (!Buffer || !Size)
 						return true;
@@ -1700,10 +1682,10 @@ namespace Tomahawk
 			{
 				if (Type != nullptr)
 				{
-					if (!Rest::Stroke::CaseCompare(Type, "application/x-www-form-urlencoded"))
+					if (!Core::Parser::CaseCompare(Type, "application/x-www-form-urlencoded"))
 						return EncodeAXWFD();
 
-					if (!Rest::Stroke::CaseCompare(Type, "application/json"))
+					if (!Core::Parser::CaseCompare(Type, "application/json"))
 						return EncodeAJSON();
 				}
 
@@ -1725,7 +1707,7 @@ namespace Tomahawk
 			std::string Query::EncodeAJSON()
 			{
 				std::string Stream;
-				Rest::Document::WriteJSON(Object, [&Stream](Rest::VarForm, const char* Buffer, int64_t Length)
+				Core::Document::WriteJSON(Object, [&Stream](Core::VarForm, const char* Buffer, int64_t Length)
 				{
 					if (Buffer != nullptr && Length > 0)
 						Stream.append(Buffer, Length);
@@ -1739,11 +1721,11 @@ namespace Tomahawk
 			}
 			QueryParameter* Query::Set(const char* Name)
 			{
-				return (QueryParameter*)Object->Set(Name, std::move(Rest::Var::String("", 0)));
+				return (QueryParameter*)Object->Set(Name, std::move(Core::Var::String("", 0)));
 			}
 			QueryParameter* Query::Set(const char* Name, const char* Value)
 			{
-				return (QueryParameter*)Object->Set(Name, std::move(Rest::Var::String(Value)));
+				return (QueryParameter*)Object->Set(Name, std::move(Core::Var::String(Value)));
 			}
 			QueryParameter* Query::GetParameter(QueryToken* Name)
 			{
@@ -1766,18 +1748,18 @@ namespace Tomahawk
 				if (Name->Length > 0)
 				{
 					New->Key.assign(Name->Value, Name->Length);
-					if (!Rest::Stroke(&New->Key).HasInteger())
-						Object->Value = Rest::Var::Object();
+					if (!Core::Parser(&New->Key).HasInteger())
+						Object->Value = Core::Var::Object();
 					else
-						Object->Value = Rest::Var::Array();
+						Object->Value = Core::Var::Array();
 				}
 				else
 				{
 					New->Key.assign(std::to_string(Object->GetNodes()->size()));
-					Object->Value = Rest::Var::Array();
+					Object->Value = Core::Var::Array();
 				}
 
-				New->Value = std::move(Rest::Var::String("", 0));
+				New->Value = std::move(Core::Var::String("", 0));
 				Object->GetNodes()->push_back(New);
 
 				return New;
@@ -1785,7 +1767,7 @@ namespace Tomahawk
 
 			Session::Session()
 			{
-				Query = Rest::Document::Object();
+				Query = Core::Document::Object();
 			}
 			Session::~Session()
 			{
@@ -1803,14 +1785,14 @@ namespace Tomahawk
 
 				std::string Document = Base->Route->Site->Gateway.Session.DocumentRoot + FindSessionId(Base);
 
-				FILE* Stream = (FILE*)Rest::OS::File::Open(Document.c_str(), "wb");
+				FILE* Stream = (FILE*)Core::OS::File::Open(Document.c_str(), "wb");
 				if (!Stream)
 					return false;
 
 				SessionExpires = time(nullptr) + Base->Route->Site->Gateway.Session.Expires;
 				fwrite(&SessionExpires, sizeof(int64_t), 1, Stream);
 
-				Query->WriteJSONB(Query, [Stream](Rest::VarForm, const char* Buffer, int64_t Size)
+				Query->WriteJSONB(Query, [Stream](Core::VarForm, const char* Buffer, int64_t Size)
 				{
 					if (Buffer != nullptr && Size > 0)
 						fwrite(Buffer, Size, 1, Stream);
@@ -1826,7 +1808,7 @@ namespace Tomahawk
 
 				std::string Document = Base->Route->Site->Gateway.Session.DocumentRoot + FindSessionId(Base);
 
-				FILE* Stream = (FILE*)Rest::OS::File::Open(Document.c_str(), "rb");
+				FILE* Stream = (FILE*)Core::OS::File::Open(Document.c_str(), "rb");
 				if (!Stream)
 					return false;
 
@@ -1849,14 +1831,14 @@ namespace Tomahawk
 					SessionId.clear();
 					fclose(Stream);
 
-					if (!Rest::OS::File::Remove(Document.c_str()))
+					if (!Core::OS::File::Remove(Document.c_str()))
 						TH_ERROR("session file %s cannot be deleted", Document.c_str());
 
 					return false;
 				}
 
 
-				Rest::Document* V = Rest::Document::ReadJSONB([Stream](char* Buffer, int64_t Size)
+				Core::Document* V = Core::Document::ReadJSONB([Stream](char* Buffer, int64_t Size)
 				{
 					if (!Buffer || !Size)
 						return true;
@@ -1901,8 +1883,8 @@ namespace Tomahawk
 			}
 			bool Session::InvalidateCache(const std::string& Path)
 			{
-				std::vector<Rest::ResourceEntry> Entries;
-				if (!Rest::OS::Directory::Scan(Path, &Entries))
+				std::vector<Core::ResourceEntry> Entries;
+				if (!Core::OS::Directory::Scan(Path, &Entries))
 					return false;
 
 				for (auto It = Entries.begin(); It != Entries.end(); It++)
@@ -2944,23 +2926,23 @@ namespace Tomahawk
 
 				*Next = '\0';
 				if (Base->Request.Match.HasMatch())
-					Base->Request.Path = Base->Route->DocumentRoot + Rest::Stroke(Base->Request.Path).RemovePart(Base->Request.Match.Start(), Base->Request.Match.Length()).R();
+					Base->Request.Path = Base->Route->DocumentRoot + Core::Parser(Base->Request.Path).RemovePart(Base->Request.Match.Start(), Base->Request.Match.Length()).R();
 				else
 					Base->Request.Path = Base->Route->DocumentRoot + Base->Request.Path;
 
-				Base->Request.Path = Rest::OS::Path::Resolve(Base->Request.Path.c_str());
-				if (Rest::Stroke(&Base->Request.Path).EndsOf("/\\"))
+				Base->Request.Path = Core::OS::Path::Resolve(Base->Request.Path.c_str());
+				if (Core::Parser(&Base->Request.Path).EndsOf("/\\"))
 				{
-					if (!Rest::Stroke(&Base->Request.URI).EndsOf("/\\"))
+					if (!Core::Parser(&Base->Request.URI).EndsOf("/\\"))
 						Base->Request.Path.erase(Base->Request.Path.size() - 1, 1);
 				}
-				else if (Rest::Stroke(&Base->Request.URI).EndsOf("/\\"))
+				else if (Core::Parser(&Base->Request.URI).EndsOf("/\\"))
 					Base->Request.Path.append(1, '/');
 
 				if (Base->Route->Site->Callbacks.OnRewriteURL)
 					Base->Route->Site->Callbacks.OnRewriteURL(Base);
 			}
-			void Util::ConstructHeadFull(RequestFrame* Request, ResponseFrame* Response, bool IsRequest, Rest::Stroke* Buffer)
+			void Util::ConstructHeadFull(RequestFrame* Request, ResponseFrame* Response, bool IsRequest, Core::Parser* Buffer)
 			{
 				if (!Request || !Response || !Buffer)
 					return;
@@ -2980,10 +2962,10 @@ namespace Tomahawk
 					if (!It->Path.empty())
 						It->Path.insert(0, "; path=");
 
-					Buffer->fAppend("Set-Cookie: %s=%s; expires=%s%s%s%s\r\n", It->Name.c_str(), It->Value.c_str(), Rest::DateTime::GetGMTBasedString(It->Expires).c_str(), It->Path.c_str(), It->Domain.c_str(), It->Secure ? "; secure" : "");
+					Buffer->fAppend("Set-Cookie: %s=%s; expires=%s%s%s%s\r\n", It->Name.c_str(), It->Value.c_str(), Core::DateTime::GetGMTBasedString(It->Expires).c_str(), It->Path.c_str(), It->Domain.c_str(), It->Secure ? "; secure" : "");
 				}
 			}
-			void Util::ConstructHeadCache(Connection* Base, Rest::Stroke* Buffer)
+			void Util::ConstructHeadCache(Connection* Base, Core::Parser* Buffer)
 			{
 				if (!Base || !Base->Route || !Buffer)
 					return;
@@ -2993,7 +2975,7 @@ namespace Tomahawk
 
 				Buffer->fAppend("Cache-Control: max-age=%llu\r\n", Base->Route->StaticFileMaxAge);
 			}
-			void Util::ConstructHeadUncache(Connection* Base, Rest::Stroke* Buffer)
+			void Util::ConstructHeadUncache(Connection* Base, Core::Parser* Buffer)
 			{
 				if (!Base || !Buffer)
 					return;
@@ -3010,7 +2992,7 @@ namespace Tomahawk
 				std::string* Host = nullptr;
 				for (auto& Header : Base->Request.Headers)
 				{
-					if (Rest::Stroke::CaseCompare(Header.Key.c_str(), "Host"))
+					if (Core::Parser::CaseCompare(Header.Key.c_str(), "Host"))
 						continue;
 
 					Host = &Header.Value;
@@ -3020,7 +3002,7 @@ namespace Tomahawk
 				if (!Host)
 					return false;
 
-				Rest::Stroke(Host).ToLower();
+				Core::Parser(Host).ToLower();
 				for (auto Entry : Router->Sites)
 				{
 					if (Entry->SiteName != "*" && Entry->SiteName.find(*Host) == std::string::npos)
@@ -3128,7 +3110,7 @@ namespace Tomahawk
 					});
 				});
 			}
-			bool Util::ConstructDirectoryEntries(const Rest::ResourceEntry& A, const Rest::ResourceEntry& B)
+			bool Util::ConstructDirectoryEntries(const Core::ResourceEntry& A, const Core::ResourceEntry& B)
 			{
 				if (A.Source.IsDirectory && !B.Source.IsDirectory)
 					return true;
@@ -3176,7 +3158,7 @@ namespace Tomahawk
 					return "Connection: Close\r\n";
 
 				const char* Connection = Base->Request.GetHeader("Connection");
-				if (Connection != nullptr && Rest::Stroke::CaseCompare(Connection, "keep-alive"))
+				if (Connection != nullptr && Core::Parser::CaseCompare(Connection, "keep-alive"))
 					return "Connection: Close\r\n";
 
 				if (!Connection && strcmp(Base->Request.Version, "1.1"))
@@ -3213,7 +3195,7 @@ namespace Tomahawk
 				while (End - Start > 1)
 				{
 					Index = (Start + End) >> 1;
-					if ((Result = Rest::Stroke::CaseCompare(Ext, MimeTypes[Index].Extension)) == 0)
+					if ((Result = Core::Parser::CaseCompare(Ext, MimeTypes[Index].Extension)) == 0)
 						return MimeTypes[Index].Type;
 
 					if (Result < 0)
@@ -3222,14 +3204,14 @@ namespace Tomahawk
 						Start = Index;
 				}
 
-				if (!Rest::Stroke::CaseCompare(Ext, MimeTypes[Start].Extension))
+				if (!Core::Parser::CaseCompare(Ext, MimeTypes[Start].Extension))
 					return MimeTypes[Start].Type;
 
 				if (Types != nullptr && !Types->empty())
 				{
 					for (auto It = Types->begin(); It != Types->end(); It++)
 					{
-						if (!Rest::Stroke::CaseCompare(Ext, It->Extension.c_str()))
+						if (!Core::Parser::CaseCompare(Ext, It->Extension.c_str()))
 							return It->Type.c_str();
 					}
 				}
@@ -3414,18 +3396,18 @@ namespace Tomahawk
 					std::string Value(Data, Length);
 					if (Segment->Header == "Content-Disposition")
 					{
-						Rest::Stroke::Settle Start = Rest::Stroke(&Value).Find("name=\"");
+						Core::Parser::Settle Start = Core::Parser(&Value).Find("name=\"");
 						if (Start.Found)
 						{
-							Rest::Stroke::Settle End = Rest::Stroke(&Value).Find('\"', Start.End);
+							Core::Parser::Settle End = Core::Parser(&Value).Find('\"', Start.End);
 							if (End.Found)
 								Segment->Source.Key = Value.substr(Start.End, End.End - Start.End - 1);
 						}
 
-						Start = Rest::Stroke(&Value).Find("filename=\"");
+						Start = Core::Parser(&Value).Find("filename=\"");
 						if (Start.Found)
 						{
-							Rest::Stroke::Settle End = Rest::Stroke(&Value).Find('\"', Start.End);
+							Core::Parser::Settle End = Core::Parser(&Value).Find('\"', Start.End);
 							if (End.Found)
 								Segment->Source.Name = Value.substr(Start.End, End.End - Start.End - 1);
 						}
@@ -3485,7 +3467,7 @@ namespace Tomahawk
 				if (Segment->Route)
 					Segment->Source.Path = Segment->Route->Site->ResourceRoot + Compute::Common::MD5Hash(Compute::Common::RandomBytes(16));
 
-				Segment->Stream = (FILE*)Rest::OS::File::Open(Segment->Source.Path.c_str(), "wb");
+				Segment->Stream = (FILE*)Core::OS::File::Open(Segment->Source.Path.c_str(), "wb");
 				return Segment->Stream != nullptr;
 			}
 			bool Util::ParseMultipartResourceEnd(Parser* Parser)
@@ -3711,14 +3693,14 @@ namespace Tomahawk
 				if (!Upgrade)
 					return false;
 
-				if (Rest::Stroke::CaseCompare(Upgrade, "websocket") != 0)
+				if (Core::Parser::CaseCompare(Upgrade, "websocket") != 0)
 					return false;
 
 				const char* Connection = Base->Request.GetHeader("Connection");
 				if (!Connection)
 					return false;
 
-				if (Rest::Stroke::CaseCompare(Connection, "upgrade") != 0)
+				if (Core::Parser::CaseCompare(Connection, "upgrade") != 0)
 					return false;
 
 				return true;
@@ -3737,13 +3719,13 @@ namespace Tomahawk
 
 				return false;
 			}
-			bool Util::ResourceIndexed(Connection* Base, Rest::Resource* Resource)
+			bool Util::ResourceIndexed(Connection* Base, Core::Resource* Resource)
 			{
 				if (!Base || !Base->Route || !Resource || Base->Route->IndexFiles.empty())
 					return false;
 
 				std::string Path = Base->Request.Path;
-				if (!Rest::Stroke(&Path).EndsOf("/\\"))
+				if (!Core::Parser(&Path).EndsOf("/\\"))
 				{
 #ifdef TH_MICROSOFT
 					Path.append(1, '\\');
@@ -3754,7 +3736,7 @@ namespace Tomahawk
 
 				for (auto It = Base->Route->IndexFiles.begin(); It != Base->Route->IndexFiles.end(); It++)
 				{
-					if (!Rest::OS::File::State(Path + *It, Resource))
+					if (!Core::OS::File::State(Path + *It, Resource))
 						continue;
 
 					Base->Request.Path.assign(Path.append(*It));
@@ -3763,7 +3745,7 @@ namespace Tomahawk
 
 				return false;
 			}
-			bool Util::ResourceProvided(Connection* Base, Rest::Resource* Resource)
+			bool Util::ResourceProvided(Connection* Base, Core::Resource* Resource)
 			{
 				if (!Base || !Base->Route || !Base->Route->Site->Gateway.Enabled || !Resource)
 					return false;
@@ -3790,23 +3772,23 @@ namespace Tomahawk
 
 				return false;
 			}
-			bool Util::ResourceModified(Connection* Base, Rest::Resource* Resource)
+			bool Util::ResourceModified(Connection* Base, Core::Resource* Resource)
 			{
 				const char* CacheControl = Base->Request.GetHeader("Cache-Control");
-				if (CacheControl != nullptr && (!Rest::Stroke::CaseCompare("no-cache", CacheControl) || !Rest::Stroke::CaseCompare("max-age=0", CacheControl)))
+				if (CacheControl != nullptr && (!Core::Parser::CaseCompare("no-cache", CacheControl) || !Core::Parser::CaseCompare("max-age=0", CacheControl)))
 					return true;
 
 				const char* IfNoneMatch = Base->Request.GetHeader("If-None-Match");
 				if (IfNoneMatch != nullptr)
 				{
 					char ETag[64];
-					Rest::OS::Net::GetETag(ETag, sizeof(ETag), Resource);
-					if (!Rest::Stroke::CaseCompare(ETag, IfNoneMatch))
+					Core::OS::Net::GetETag(ETag, sizeof(ETag), Resource);
+					if (!Core::Parser::CaseCompare(ETag, IfNoneMatch))
 						return false;
 				}
 
 				const char* IfModifiedSince = Base->Request.GetHeader("If-Modified-Since");
-				return !(IfModifiedSince != nullptr && Resource->LastModified <= Rest::DateTime::ReadGMTBasedString(IfModifiedSince));
+				return !(IfModifiedSince != nullptr && Resource->LastModified <= Core::DateTime::ReadGMTBasedString(IfModifiedSince));
 
 			}
 			bool Util::ResourceCompressed(Connection* Base, uint64_t Size)
@@ -3876,13 +3858,13 @@ namespace Tomahawk
 				if (!Base->Route)
 					return Base->Error(404, "Requested resource was not found.");
 
-				if (!Rest::OS::File::State(Base->Request.Path, &Base->Resource))
+				if (!Core::OS::File::State(Base->Request.Path, &Base->Resource))
 				{
-					if (Base->Route->Default.empty() || !Rest::OS::File::State(Base->Route->Default, &Base->Resource))
+					if (Base->Route->Default.empty() || !Core::OS::File::State(Base->Route->Default, &Base->Resource))
 					{
 						if (WebSocketUpgradeAllowed(Base))
 						{
-							return Rest::Schedule::Get()->SetTask([Base]()
+							return Core::Schedule::Get()->SetTask([Base]()
 							{
 								RouteWEBSOCKET(Base);
 							});
@@ -3896,7 +3878,7 @@ namespace Tomahawk
 
 				if (WebSocketUpgradeAllowed(Base))
 				{
-					return Rest::Schedule::Get()->SetTask([Base]()
+					return Core::Schedule::Get()->SetTask([Base]()
 					{
 						RouteWEBSOCKET(Base);
 					});
@@ -3909,7 +3891,7 @@ namespace Tomahawk
 				{
 					if (Base->Route->AllowDirectoryListing)
 					{
-						return Rest::Schedule::Get()->SetTask([Base]()
+						return Core::Schedule::Get()->SetTask([Base]()
 						{
 							ProcessDirectory(Base);
 						});
@@ -3923,7 +3905,7 @@ namespace Tomahawk
 
 				if (Base->Route->StaticFileMaxAge > 0 && !ResourceModified(Base, &Base->Resource))
 				{
-					return Rest::Schedule::Get()->SetTask([Base]()
+					return Core::Schedule::Get()->SetTask([Base]()
 					{
 						ProcessResourceCache(Base);
 					});
@@ -3932,7 +3914,7 @@ namespace Tomahawk
 				if (Base->Resource.Size > Base->Root->Router->PayloadMaxLength)
 					return Base->Error(413, "Entity payload is too big to process.");
 
-				return Rest::Schedule::Get()->SetTask([Base]()
+				return Core::Schedule::Get()->SetTask([Base]()
 				{
 					ProcessResource(Base);
 				});
@@ -3945,9 +3927,9 @@ namespace Tomahawk
 				if (!Base->Route)
 					return Base->Error(404, "Requested resource was not found.");
 
-				if (!Rest::OS::File::State(Base->Request.Path, &Base->Resource))
+				if (!Core::OS::File::State(Base->Request.Path, &Base->Resource))
 				{
-					if (Base->Route->Default.empty() || !Rest::OS::File::State(Base->Route->Default, &Base->Resource))
+					if (Base->Route->Default.empty() || !Core::OS::File::State(Base->Route->Default, &Base->Resource))
 						return Base->Error(404, "Requested resource was not found.");
 
 					Base->Request.Path.assign(Base->Route->Default);
@@ -3964,7 +3946,7 @@ namespace Tomahawk
 
 				if (Base->Route->StaticFileMaxAge > 0 && !ResourceModified(Base, &Base->Resource))
 				{
-					return Rest::Schedule::Get()->SetTask([Base]()
+					return Core::Schedule::Get()->SetTask([Base]()
 					{
 						ProcessResourceCache(Base);
 					});
@@ -3973,7 +3955,7 @@ namespace Tomahawk
 				if (Base->Resource.Size > Base->Root->Router->PayloadMaxLength)
 					return Base->Error(413, "Entity payload is too big to process.");
 
-				return Rest::Schedule::Get()->SetTask([Base]()
+				return Core::Schedule::Get()->SetTask([Base]()
 				{
 					ProcessResource(Base);
 				});
@@ -3986,7 +3968,7 @@ namespace Tomahawk
 				if (!Base->Route || ResourceHidden(Base, nullptr))
 					return Base->Error(403, "Resource overwrite denied.");
 
-				if (!Rest::OS::File::State(Base->Request.Path, &Base->Resource) || !Base->Resource.IsDirectory)
+				if (!Core::OS::File::State(Base->Request.Path, &Base->Resource) || !Base->Resource.IsDirectory)
 					return Base->Error(403, "Directory overwrite denied.");
 
 				if (ResourceProvided(Base, &Base->Resource))
@@ -3995,7 +3977,7 @@ namespace Tomahawk
 				const char* Range = Base->Request.GetHeader("Range");
 				int64_t Range1 = 0, Range2 = 0;
 
-				FILE* Stream = (FILE*)Rest::OS::File::Open(Base->Request.Path.c_str(), "wb");
+				FILE* Stream = (FILE*)Core::OS::File::Open(Base->Request.Path.c_str(), "wb");
 				if (!Stream)
 					return Base->Error(422, "Resource stream cannot be opened.");
 
@@ -4030,9 +4012,9 @@ namespace Tomahawk
 					}
 
 					char Date[64];
-					Rest::DateTime::TimeFormatGMT(Date, sizeof(Date), Base->Info.Start / 1000);
+					Core::DateTime::TimeFormatGMT(Date, sizeof(Date), Base->Info.Start / 1000);
 
-					Rest::Stroke Content;
+					Core::Parser Content;
 					Content.fAppend("%s 204 No Content\r\nDate: %s\r\n%sContent-Location: %s\r\n", Base->Request.Version, Date, Util::ConnectionResolve(Base).c_str(), Base->Request.URI.c_str());
 
 					fclose(Stream);
@@ -4060,9 +4042,9 @@ namespace Tomahawk
 				if (!Base->Route || ResourceHidden(Base, nullptr))
 					return Base->Error(403, "Operation denied by server.");
 
-				if (!Rest::OS::File::State(Base->Request.Path, &Base->Resource))
+				if (!Core::OS::File::State(Base->Request.Path, &Base->Resource))
 				{
-					if (Base->Route->Default.empty() || !Rest::OS::File::State(Base->Route->Default, &Base->Resource))
+					if (Base->Route->Default.empty() || !Core::OS::File::State(Base->Route->Default, &Base->Resource))
 						return Base->Error(404, "Requested resource was not found.");
 
 					Base->Request.Path.assign(Base->Route->Default);
@@ -4073,16 +4055,16 @@ namespace Tomahawk
 
 				if (!Base->Resource.IsDirectory)
 				{
-					if (Rest::OS::File::Remove(Base->Request.Path.c_str()) != 0)
+					if (Core::OS::File::Remove(Base->Request.Path.c_str()) != 0)
 						return Base->Error(403, "Operation denied by system.");
 				}
-				else if (Rest::OS::Directory::Remove(Base->Request.Path.c_str()) != 0)
+				else if (Core::OS::Directory::Remove(Base->Request.Path.c_str()) != 0)
 					return Base->Error(403, "Operation denied by system.");
 
 				char Date[64];
-				Rest::DateTime::TimeFormatGMT(Date, sizeof(Date), Base->Info.Start / 1000);
+				Core::DateTime::TimeFormatGMT(Date, sizeof(Date), Base->Info.Start / 1000);
 
-				Rest::Stroke Content;
+				Core::Parser Content;
 				Content.fAppend("%s 204 No Content\r\nDate: %s\r\n%s", Base->Request.Version, Date, Util::ConnectionResolve(Base).c_str());
 
 				if (Base->Route->Callbacks.Headers)
@@ -4108,9 +4090,9 @@ namespace Tomahawk
 				if (!Base->Route)
 					return Base->Error(403, "Operation denied by server.");
 
-				if (!Rest::OS::File::State(Base->Request.Path, &Base->Resource))
+				if (!Core::OS::File::State(Base->Request.Path, &Base->Resource))
 				{
-					if (Base->Route->Default.empty() || !Rest::OS::File::State(Base->Route->Default, &Base->Resource))
+					if (Base->Route->Default.empty() || !Core::OS::File::State(Base->Route->Default, &Base->Resource))
 						return Base->Error(404, "Requested resource was not found.");
 
 					Base->Request.Path.assign(Base->Route->Default);
@@ -4126,9 +4108,9 @@ namespace Tomahawk
 					return ProcessGateway(Base);
 
 				char Date[64];
-				Rest::DateTime::TimeFormatGMT(Date, sizeof(Date), Base->Info.Start / 1000);
+				Core::DateTime::TimeFormatGMT(Date, sizeof(Date), Base->Info.Start / 1000);
 
-				Rest::Stroke Content;
+				Core::Parser Content;
 				Content.fAppend("%s 204 No Content\r\nDate: %s\r\n%sContent-Location: %s\r\n", Base->Request.Version, Date, Util::ConnectionResolve(Base).c_str(), Base->Request.URI.c_str());
 
 				if (Base->Route->Callbacks.Headers)
@@ -4152,9 +4134,9 @@ namespace Tomahawk
 					return false;
 
 				char Date[64];
-				Rest::DateTime::TimeFormatGMT(Date, sizeof(Date), Base->Info.Start / 1000);
+				Core::DateTime::TimeFormatGMT(Date, sizeof(Date), Base->Info.Start / 1000);
 
-				Rest::Stroke Content;
+				Core::Parser Content;
 				Content.fAppend("%s 204 No Content\r\nDate: %s\r\n%sAllow: GET, POST, HEAD, PUT, DELETE, OPTIONS\r\n", Base->Request.Version, Date, Util::ConnectionResolve(Base).c_str());
 
 				if (Base->Route && Base->Route->Callbacks.Headers)
@@ -4177,14 +4159,14 @@ namespace Tomahawk
 				if (!Base || !Base->Route)
 					return false;
 
-				std::vector<Rest::ResourceEntry> Entries;
-				if (!Rest::OS::Directory::Scan(Base->Request.Path.c_str(), &Entries))
+				std::vector<Core::ResourceEntry> Entries;
+				if (!Core::OS::Directory::Scan(Base->Request.Path.c_str(), &Entries))
 					return Base->Error(500, "System denied to directory listing.");
 
 				char Date[64];
-				Rest::DateTime::TimeFormatGMT(Date, sizeof(Date), Base->Info.Start / 1000);
+				Core::DateTime::TimeFormatGMT(Date, sizeof(Date), Base->Info.Start / 1000);
 
-				Rest::Stroke Content;
+				Core::Parser Content;
 				Content.fAppend("%s 200 OK\r\nDate: %s\r\n%sContent-Type: text/html; charset=%s\r\nAccept-Ranges: bytes\r\n", Base->Request.Version, Date, ConnectionResolve(Base).c_str(), Base->Route->CharSet.c_str());
 
 				ConstructHeadCache(Base, &Content);
@@ -4201,7 +4183,7 @@ namespace Tomahawk
 				if (Base->Request.URI.size() > 1)
 				{
 					Parent = Base->Request.URI.substr(0, Base->Request.URI.size() - 1);
-					Parent = Rest::OS::Path::GetDirectory(Parent.c_str());
+					Parent = Core::OS::Path::GetDirectory(Parent.c_str());
 				}
 
 				TextAssign(Base->Response.Buffer,
@@ -4240,11 +4222,11 @@ namespace Tomahawk
 						strcpy(dSize, "[DIRECTORY]");
 
 					char dDate[64];
-					Rest::DateTime::TimeFormatLCL(dDate, sizeof(dDate), It->Source.LastModified);
+					Core::DateTime::TimeFormatLCL(dDate, sizeof(dDate), It->Source.LastModified);
 
 					std::string URI = Compute::Common::URIEncode(It->Path);
 					std::string HREF = (Base->Request.URI + ((*(Base->Request.URI.c_str() + 1) != '\0' && Base->Request.URI[Base->Request.URI.size() - 1] != '/') ? "/" : "") + URI);
-					if (It->Source.IsDirectory && !Rest::Stroke(&HREF).EndsOf("/\\"))
+					if (It->Source.IsDirectory && !Core::Parser(&HREF).EndsOf("/\\"))
 						HREF.append(1, '/');
 
 					TextAppend(Base->Response.Buffer, "<tr><td><a href=\"" + HREF + "\">" + It->Path + "</a></td><td>&nbsp;" + Date + "</td><td>&nbsp;&nbsp;" + dSize + "</td></tr>\n");
@@ -4355,15 +4337,15 @@ namespace Tomahawk
 				}
 
 				char Date[64];
-				Rest::DateTime::TimeFormatGMT(Date, sizeof(Date), Base->Info.Start / 1000);
+				Core::DateTime::TimeFormatGMT(Date, sizeof(Date), Base->Info.Start / 1000);
 
 				char LastModified[64];
-				Rest::DateTime::TimeFormatGMT(LastModified, sizeof(LastModified), Base->Resource.LastModified);
+				Core::DateTime::TimeFormatGMT(LastModified, sizeof(LastModified), Base->Resource.LastModified);
 
 				char ETag[64];
-				Rest::OS::Net::GetETag(ETag, sizeof(ETag), &Base->Resource);
+				Core::OS::Net::GetETag(ETag, sizeof(ETag), &Base->Resource);
 
-				Rest::Stroke Content;
+				Core::Parser Content;
 				Content.fAppend("%s %d %s\r\n%s%s%sDate: %s\r\n", Base->Request.Version, Base->Response.StatusCode, StatusMessage, CORS1, CORS2, CORS3, Date);
 
 				Util::ConstructHeadCache(Base, &Content);
@@ -4398,7 +4380,7 @@ namespace Tomahawk
 					else if (Size > 0)
 						return true;
 
-					return Rest::Schedule::Get()->SetTask([Base, ContentLength, Range1]()
+					return Core::Schedule::Get()->SetTask([Base, ContentLength, Range1]()
 					{
 						Util::ProcessFile(Base, ContentLength, Range1);
 					});
@@ -4423,15 +4405,15 @@ namespace Tomahawk
 				}
 
 				char Date[64];
-				Rest::DateTime::TimeFormatGMT(Date, sizeof(Date), Base->Info.Start / 1000);
+				Core::DateTime::TimeFormatGMT(Date, sizeof(Date), Base->Info.Start / 1000);
 
 				char LastModified[64];
-				Rest::DateTime::TimeFormatGMT(LastModified, sizeof(LastModified), Base->Resource.LastModified);
+				Core::DateTime::TimeFormatGMT(LastModified, sizeof(LastModified), Base->Resource.LastModified);
 
 				char ETag[64];
-				Rest::OS::Net::GetETag(ETag, sizeof(ETag), &Base->Resource);
+				Core::OS::Net::GetETag(ETag, sizeof(ETag), &Base->Resource);
 
-				Rest::Stroke Content;
+				Core::Parser Content;
 				Content.fAppend("%s %d %s\r\n%s%s%sDate: %s\r\n", Base->Request.Version, Base->Response.StatusCode, StatusMessage, CORS1, CORS2, CORS3, Date);
 
 				Util::ConstructHeadCache(Base, &Content);
@@ -4467,7 +4449,7 @@ namespace Tomahawk
 					else if (Size > 0)
 						return true;
 
-					return Rest::Schedule::Get()->SetTask([Base, Range, ContentLength, Gzip]()
+					return Core::Schedule::Get()->SetTask([Base, Range, ContentLength, Gzip]()
 					{
 						Util::ProcessFileCompress(Base, ContentLength, Range, Gzip);
 					});
@@ -4479,15 +4461,15 @@ namespace Tomahawk
 					return false;
 
 				char Date[64];
-				Rest::DateTime::TimeFormatGMT(Date, sizeof(Date), Base->Info.Start / 1000);
+				Core::DateTime::TimeFormatGMT(Date, sizeof(Date), Base->Info.Start / 1000);
 
 				char LastModified[64];
-				Rest::DateTime::TimeFormatGMT(LastModified, sizeof(LastModified), Base->Resource.LastModified);
+				Core::DateTime::TimeFormatGMT(LastModified, sizeof(LastModified), Base->Resource.LastModified);
 
 				char ETag[64];
-				Rest::OS::Net::GetETag(ETag, sizeof(ETag), &Base->Resource);
+				Core::OS::Net::GetETag(ETag, sizeof(ETag), &Base->Resource);
 
-				Rest::Stroke Content;
+				Core::Parser Content;
 				Content.fAppend("%s 304 %s\r\nDate: %s\r\n", Base->Request.Version, HTTP::Util::StatusMessage(304), Date);
 
 				Util::ConstructHeadCache(Base, &Content);
@@ -4511,7 +4493,7 @@ namespace Tomahawk
 				if (!Base || !Base->Route)
 					return false;
 
-				FILE* Stream = (!Base->Resource.IsReferenced ? (FILE*)Rest::OS::File::Open(Base->Request.Path.c_str(), "rb") : nullptr);
+				FILE* Stream = (!Base->Resource.IsReferenced ? (FILE*)Core::OS::File::Open(Base->Request.Path.c_str(), "rb") : nullptr);
 				if (!Stream && !Base->Resource.IsDirectory)
 					return Base->Error(500, "System denied to open resource stream.");
 
@@ -4560,7 +4542,7 @@ namespace Tomahawk
 				Base->Stream->SetBlocking(true);
 				Base->Stream->SetTimeout((int)Base->Root->Router->SocketTimeout);
 
-				if (Base->Route->AllowSendFile && Rest::OS::Net::SendFile(Stream, Base->Stream->GetFd(), ContentLength))
+				if (Base->Route->AllowSendFile && Core::OS::Net::SendFile(Stream, Base->Stream->GetFd(), ContentLength))
 				{
 					fclose(Stream);
 					if (Server->State != ServerState_Working)
@@ -4615,7 +4597,7 @@ namespace Tomahawk
 				if (!Base || !Base->Route)
 					return false;
 
-				FILE* Stream = (!Base->Resource.IsReferenced ? (FILE*)Rest::OS::File::Open(Base->Request.Path.c_str(), "rb") : nullptr);
+				FILE* Stream = (!Base->Resource.IsReferenced ? (FILE*)Core::OS::File::Open(Base->Request.Path.c_str(), "rb") : nullptr);
 				if (!Stream && !Base->Resource.IsDirectory)
 					return Base->Error(500, "System denied to open resource stream.");
 
@@ -4754,10 +4736,10 @@ namespace Tomahawk
 				if (!VM)
 					return Base->Error(500, "Gateway cannot be issued.") && false;
 
-				return Rest::Schedule::Get()->SetTask([=]()
+				return Core::Schedule::Get()->SetTask([=]()
 				{
 					Script::VMCompiler* Compiler = VM->CreateCompiler();
-					if (Compiler->Prepare(Rest::OS::Path::GetFilename(Base->Request.Path.c_str()), Base->Request.Path, true, true) < 0)
+					if (Compiler->Prepare(Core::OS::Path::GetFilename(Base->Request.Path.c_str()), Base->Request.Path, true, true) < 0)
 					{
 						TH_RELEASE(Compiler);
 						return (void)Base->Error(500, "Gateway module cannot be prepared.");
@@ -4776,7 +4758,7 @@ namespace Tomahawk
 					int64_t Size = -1;
 					if (!Compiler->IsCached())
 					{
-						FILE* Stream = (FILE*)Rest::OS::File::Open(Base->Request.Path.c_str(), "rb");
+						FILE* Stream = (FILE*)Core::OS::File::Open(Base->Request.Path.c_str(), "rb");
 						if (!Stream)
 							return (void)Base->Error(404, "Gateway resource was not found.");
 
@@ -4817,7 +4799,7 @@ namespace Tomahawk
 				char Encoded20[20];
 				Compute::Common::Sha1Compute(Buffer, (int)strlen(Buffer), (unsigned char*)Encoded20);
 
-				Rest::Stroke Content;
+				Core::Parser Content;
 				Content.fAppend("HTTP/1.1 101 Switching Protocols\r\n"
 					"Upgrade: websocket\r\n"
 					"Connection: Upgrade\r\n"
@@ -5015,46 +4997,46 @@ namespace Tomahawk
 			}
 			bool Server::OnConfigure(SocketRouter* NewRouter)
 			{
-				std::string Directory = Rest::OS::Directory::Get();
+				std::string Directory = Core::OS::Directory::Get();
 				auto* Root = (MapRouter*)NewRouter;
 
-				Root->ModuleRoot = Rest::OS::Path::ResolveDirectory(Root->ModuleRoot.c_str());
+				Root->ModuleRoot = Core::OS::Path::ResolveDirectory(Root->ModuleRoot.c_str());
 				for (auto K = Root->Sites.begin(); K != Root->Sites.end(); K++)
 				{
 					SiteEntry* Entry = *K;
-					Entry->Gateway.Session.DocumentRoot = Rest::OS::Path::ResolveDirectory(Entry->Gateway.Session.DocumentRoot.c_str());
-					Entry->ResourceRoot = Rest::OS::Path::ResolveDirectory(Entry->ResourceRoot.c_str());
+					Entry->Gateway.Session.DocumentRoot = Core::OS::Path::ResolveDirectory(Entry->Gateway.Session.DocumentRoot.c_str());
+					Entry->ResourceRoot = Core::OS::Path::ResolveDirectory(Entry->ResourceRoot.c_str());
 					Entry->Base->URI.Regex = "/";
-					Entry->Base->DocumentRoot = Rest::OS::Path::ResolveDirectory(Entry->Base->DocumentRoot.c_str());
+					Entry->Base->DocumentRoot = Core::OS::Path::ResolveDirectory(Entry->Base->DocumentRoot.c_str());
 					Entry->Base->Site = Entry;
 					Entry->Router = Root;
 
 					if (!Entry->Gateway.Session.DocumentRoot.empty())
-						Rest::OS::Directory::Patch(Entry->Gateway.Session.DocumentRoot);
+						Core::OS::Directory::Patch(Entry->Gateway.Session.DocumentRoot);
 
 					if (!Entry->ResourceRoot.empty())
-						Rest::OS::Directory::Patch(Entry->ResourceRoot);
+						Core::OS::Directory::Patch(Entry->ResourceRoot);
 
 					if (Entry->Hosts.empty())
 						TH_WARN("site \"%s\" has no hosts", Entry->SiteName.c_str());
 
 					if (!Entry->Base->Default.empty())
-						Entry->Base->Default = Rest::OS::Path::Resolve((Entry->Base->DocumentRoot + Entry->Base->Default).c_str());
+						Entry->Base->Default = Core::OS::Path::Resolve((Entry->Base->DocumentRoot + Entry->Base->Default).c_str());
 
 					for (auto It = Entry->Base->ErrorFiles.begin(); It < Entry->Base->ErrorFiles.end(); It++)
-						It->Pattern = Rest::OS::Path::Resolve(It->Pattern.c_str());
+						It->Pattern = Core::OS::Path::Resolve(It->Pattern.c_str());
 
 					for (auto It = Entry->Routes.begin(); It != Entry->Routes.end(); It++)
 					{
 						HTTP::RouteEntry* Route = *It;
-						Route->DocumentRoot = Rest::OS::Path::ResolveDirectory(Route->DocumentRoot.c_str());
+						Route->DocumentRoot = Core::OS::Path::ResolveDirectory(Route->DocumentRoot.c_str());
 						Route->Site = Entry;
 
 						if (!Route->Default.empty())
-							Route->Default = Rest::OS::Path::Resolve((Route->DocumentRoot + Route->Default).c_str());
+							Route->Default = Core::OS::Path::Resolve((Route->DocumentRoot + Route->Default).c_str());
 
 						for (auto J = Route->ErrorFiles.begin(); J < Route->ErrorFiles.end(); J++)
-							J->Pattern = Rest::OS::Path::Resolve(J->Pattern.c_str());
+							J->Pattern = Core::OS::Path::Resolve(J->Pattern.c_str());
 
 						if (!Root->VM || !Entry->Gateway.Enabled || !Entry->Gateway.Verify)
 							continue;
@@ -5117,7 +5099,7 @@ namespace Tomahawk
 				for (auto It = Base->Request.Resources.begin(); It != Base->Request.Resources.end(); It++)
 				{
 					if (!It->Memory)
-						Rest::OS::File::Remove(It->Path.c_str());
+						Core::OS::File::Remove(It->Path.c_str());
 				}
 
 				if (Base->Info.KeepAlive >= -1 && Base->Response.StatusCode >= 0 && Base->Route && Base->Route->Callbacks.Access)
@@ -5295,10 +5277,10 @@ namespace Tomahawk
 					SiteEntry* Entry = *K;
 					if (!Entry->ResourceRoot.empty())
 					{
-						if (!Rest::OS::Directory::Remove(Entry->ResourceRoot.c_str()))
+						if (!Core::OS::Directory::Remove(Entry->ResourceRoot.c_str()))
 							TH_ERROR("resource directory %s cannot be deleted", Entry->ResourceRoot.c_str());
 
-						if (!Rest::OS::Directory::Create(Entry->ResourceRoot.c_str()))
+						if (!Core::OS::Directory::Create(Entry->ResourceRoot.c_str()))
 							TH_ERROR("resource directory %s cannot be created", Entry->ResourceRoot.c_str());
 					}
 
@@ -5326,12 +5308,12 @@ namespace Tomahawk
 			Client::~Client()
 			{
 			}
-			Rest::Async<ResponseFrame*> Client::Send(HTTP::RequestFrame* Root)
+			Core::Async<ResponseFrame*> Client::Send(HTTP::RequestFrame* Root)
 			{
 				if (!Root || !Stream.IsValid())
-					return Rest::Async<ResponseFrame*>::Store(nullptr);
+					return Core::Async<ResponseFrame*>::Store(nullptr);
 
-				Rest::Async<ResponseFrame*> Result;
+				Core::Async<ResponseFrame*> Result;
 				Stage("request delivery");
 
 				Request = *Root;
@@ -5345,7 +5327,7 @@ namespace Tomahawk
 					Result.Set(Base->GetResponse());
 				};
 
-				Rest::Stroke Content;
+				Core::Parser Content;
 				if (!Request.GetHeader("Host"))
 				{
 					if (Context != nullptr)
@@ -5442,16 +5424,16 @@ namespace Tomahawk
 
 				return Result;
 			}
-			Rest::Async<ResponseFrame*> Client::Consume(int64_t MaxSize)
+			Core::Async<ResponseFrame*> Client::Consume(int64_t MaxSize)
 			{
 				if (Request.ContentState == Content_Lost || Request.ContentState == Content_Empty || Request.ContentState == Content_Saved || Request.ContentState == Content_Wants_Save)
-					return Rest::Async<ResponseFrame*>::Store(GetResponse());
+					return Core::Async<ResponseFrame*>::Store(GetResponse());
 
 				if (Request.ContentState == Content_Corrupted || Request.ContentState == Content_Payload_Exceeded || Request.ContentState == Content_Save_Exception)
-					return Rest::Async<ResponseFrame*>::Store(GetResponse());
+					return Core::Async<ResponseFrame*>::Store(GetResponse());
 
 				if (Request.ContentState == Content_Cached)
-					return Rest::Async<ResponseFrame*>::Store(GetResponse());
+					return Core::Async<ResponseFrame*>::Store(GetResponse());
 
 				Response.Buffer.clear();
 
@@ -5459,13 +5441,13 @@ namespace Tomahawk
 				if (ContentType && !strncmp(ContentType, "multipart/form-data", 19))
 				{
 					Request.ContentState = Content_Wants_Save;
-					return Rest::Async<ResponseFrame*>::Store(GetResponse());
+					return Core::Async<ResponseFrame*>::Store(GetResponse());
 				}
 
 				const char* TransferEncoding = Response.GetHeader("Transfer-Encoding");
-				if (TransferEncoding && !Rest::Stroke::CaseCompare(TransferEncoding, "chunked"))
+				if (TransferEncoding && !Core::Parser::CaseCompare(TransferEncoding, "chunked"))
 				{
-					Rest::Async<ResponseFrame*> Result;
+					Core::Async<ResponseFrame*> Result;
 					Parser* Parser = new HTTP::Parser();
 
 					Stream.ReadAsync(MaxSize, [this, Parser, Result, MaxSize](Network::Socket* Socket, const char* Buffer, int64_t Size) mutable
@@ -5509,7 +5491,7 @@ namespace Tomahawk
 				}
 				else if (!Response.GetHeader("Content-Length"))
 				{
-					Rest::Async<ResponseFrame*> Result;
+					Core::Async<ResponseFrame*> Result;
 					Stream.ReadAsync(MaxSize, [this, Result, MaxSize](Network::Socket* Socket, const char* Buffer, int64_t Size) mutable
 					{
 						if (Size <= 0)
@@ -5536,30 +5518,30 @@ namespace Tomahawk
 				if (!HContentLength)
 				{
 					Request.ContentState = Content_Corrupted;
-					return Rest::Async<ResponseFrame*>::Store(GetResponse());
+					return Core::Async<ResponseFrame*>::Store(GetResponse());
 				}
 
-				Rest::Stroke HLength = HContentLength;
+				Core::Parser HLength = HContentLength;
 				if (!HLength.HasInteger())
 				{
 					Request.ContentState = Content_Corrupted;
-					return Rest::Async<ResponseFrame*>::Store(GetResponse());
+					return Core::Async<ResponseFrame*>::Store(GetResponse());
 				}
 
 				int64_t Length = HLength.ToInt64();
 				if (Length <= 0)
 				{
 					Request.ContentState = Content_Empty;
-					return Rest::Async<ResponseFrame*>::Store(GetResponse());
+					return Core::Async<ResponseFrame*>::Store(GetResponse());
 				}
 
 				if (Length > MaxSize)
 				{
 					Request.ContentState = Content_Wants_Save;
-					return Rest::Async<ResponseFrame*>::Store(GetResponse());
+					return Core::Async<ResponseFrame*>::Store(GetResponse());
 				}
 
-				Rest::Async<ResponseFrame*> Result;
+				Core::Async<ResponseFrame*> Result;
 				Stream.ReadAsync(Length, [this, Result, MaxSize](Network::Socket* Socket, const char* Buffer, int64_t Size) mutable
 				{
 					if (Size <= 0)

@@ -5182,7 +5182,7 @@ namespace Tomahawk
 			unsigned char Row3[3];
 
 			std::string Base64 = "ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789+/";
-			Rest::Stroke Base(&Base64);
+			Core::Parser Base(&Base64);
 
 			while (Length-- && (Value[Focus] != '=') && IsBase64(Value[Focus]))
 			{
@@ -5565,7 +5565,7 @@ namespace Tomahawk
 			if (!Path.empty() && HasSet(Path))
 				return ReturnResult(true, Nesting);
 
-			Rest::Stroke Buffer(&Data);
+			Core::Parser Buffer(&Data);
 			if (Features.Conditions && !ProcessBlockDirective(Buffer))
 				return ReturnResult(false, Nesting);
 
@@ -5608,16 +5608,16 @@ namespace Tomahawk
 
 			return Result;
 		}
-		bool Preprocessor::ProcessIncludeDirective(const std::string& Path, Rest::Stroke& Buffer)
+		bool Preprocessor::ProcessIncludeDirective(const std::string& Path, Core::Parser& Buffer)
 		{
 			if (Buffer.Empty())
 				return true;
 
-			Rest::Stroke::Settle Result;
+			Core::Parser::Settle Result;
 			Result.Start = Result.End = 0;
 			Result.Found = false;
 
-			std::string Dir = Path.empty() ? Rest::OS::Directory::Get() : Rest::OS::Path::GetDirectory(Path.c_str());
+			std::string Dir = Path.empty() ? Core::OS::Directory::Get() : Core::OS::Path::GetDirectory(Path.c_str());
 			while (true)
 			{
 				Result = Buffer.Find("#include", Result.End);
@@ -5646,7 +5646,7 @@ namespace Tomahawk
 					return false;
 				}
 
-				Rest::Stroke Section(Buffer.Get() + Start, End - Start);
+				Core::Parser Section(Buffer.Get() + Start, End - Start);
 				Section.Trim();
 				End++;
 
@@ -5675,7 +5675,7 @@ namespace Tomahawk
 				Result.End = Result.Start + 1;
 			}
 		}
-		bool Preprocessor::ProcessPragmaDirective(const std::string& Path, Rest::Stroke& Buffer)
+		bool Preprocessor::ProcessPragmaDirective(const std::string& Path, Core::Parser& Buffer)
 		{
 			if (Buffer.Empty())
 				return true;
@@ -5695,7 +5695,7 @@ namespace Tomahawk
 				else if (R == 0)
 					return true;
 
-				Rest::Stroke Value(Buffer.Get() + Start, End - Start);
+				Core::Parser Value(Buffer.Get() + Start, End - Start);
 				Value.Trim().Replace("  ", " ");
 				Args.clear();
 
@@ -5714,7 +5714,7 @@ namespace Tomahawk
 							char V = Value.R()[Index];
 							if (!Quoted && (V == ',' || V == ')'))
 							{
-								Rest::Stroke(&Subvalue).Trim().Replace("\\\"", "\"");
+								Core::Parser(&Subvalue).Trim().Replace("\\\"", "\"");
 								Args.push_back(Subvalue);
 								Subvalue.clear();
 							}
@@ -5737,7 +5737,7 @@ namespace Tomahawk
 				Buffer.ReplacePart(Base, End, "");
 			}
 		}
-		bool Preprocessor::ProcessBlockDirective(Rest::Stroke& Buffer)
+		bool Preprocessor::ProcessBlockDirective(Core::Parser& Buffer)
 		{
 			if (Buffer.Empty())
 				return true;
@@ -5755,7 +5755,7 @@ namespace Tomahawk
 					return true;
 			}
 		}
-		bool Preprocessor::ProcessDefineDirective(Rest::Stroke& Buffer, uint64_t Base, uint64_t& Offset, bool Endless)
+		bool Preprocessor::ProcessDefineDirective(Core::Parser& Buffer, uint64_t Base, uint64_t& Offset, bool Endless)
 		{
 			if (Buffer.Empty())
 				return true;
@@ -5777,7 +5777,7 @@ namespace Tomahawk
 
 			return true;
 		}
-		int Preprocessor::FindDefineDirective(Rest::Stroke& Buffer, uint64_t& Offset, uint64_t* Size)
+		int Preprocessor::FindDefineDirective(Core::Parser& Buffer, uint64_t& Offset, uint64_t* Size)
 		{
 			uint64_t Base, Start, End;
 			Offset--;
@@ -5790,7 +5790,7 @@ namespace Tomahawk
 			else if (R == 0)
 				return 0;
 
-			Rest::Stroke Value(Buffer.Get() + Start, End - Start);
+			Core::Parser Value(Buffer.Get() + Start, End - Start);
 			Define(Value.Trim().Replace("  ", " ").R());
 			Buffer.ReplacePart(Base, End, "");
 
@@ -5799,7 +5799,7 @@ namespace Tomahawk
 
 			return 1;
 		}
-		int Preprocessor::FindBlockDirective(Rest::Stroke& Buffer, uint64_t& Offset, bool Nested)
+		int Preprocessor::FindBlockDirective(Core::Parser& Buffer, uint64_t& Offset, bool Nested)
 		{
 			uint64_t B1Start = 0, B1End = 0;
 			uint64_t B2Start = 0, B2End = 0;
@@ -5831,7 +5831,7 @@ namespace Tomahawk
 			End -= Size;
 			Offset = Base;
 
-			Rest::Stroke Name(Buffer.Get() + Start, End - Start);
+			Core::Parser Name(Buffer.Get() + Start, End - Start);
 			Name.Trim().Replace("  ", " ");
 			Resolved = IsDefined(Name.Get());
 			Start = Offset - 1;
@@ -5843,7 +5843,7 @@ namespace Tomahawk
 			}
 
 		ResolveDirective:
-			Rest::Stroke::Settle Cond = Buffer.Find('#', Offset);
+			Core::Parser::Settle Cond = Buffer.Find('#', Offset);
 			R = FindBlockNesting(Buffer, Cond, Offset, B1Start + B1End == 0 ? Resolved : !Resolved);
 			if (R < 0)
 			{
@@ -5887,7 +5887,7 @@ namespace Tomahawk
 
 			if (Resolved)
 			{
-				Rest::Stroke Section(Buffer.Get() + B1Start, B1End - B1Start);
+				Core::Parser Section(Buffer.Get() + B1Start, B1End - B1Start);
 				if (B2Start + B2End != 0)
 					Buffer.ReplacePart(Start, B2End + 6, Section.R());
 				else
@@ -5896,7 +5896,7 @@ namespace Tomahawk
 			}
 			else if (B2Start + B2End != 0)
 			{
-				Rest::Stroke Section(Buffer.Get() + B2Start, B2End - B2Start);
+				Core::Parser Section(Buffer.Get() + B2Start, B2End - B2Start);
 				Buffer.ReplacePart(Start, B2End + 6, Section.R());
 				Offset = Start + Section.Size() - 1;
 			}
@@ -5908,7 +5908,7 @@ namespace Tomahawk
 
 			return 1;
 		}
-		int Preprocessor::FindBlockNesting(Rest::Stroke& Buffer, const Rest::Stroke::Settle& Hash, uint64_t& Offset, bool Resolved)
+		int Preprocessor::FindBlockNesting(Core::Parser& Buffer, const Core::Parser::Settle& Hash, uint64_t& Offset, bool Resolved)
 		{
 			if (!Hash.Found)
 				return -1;
@@ -5941,7 +5941,7 @@ namespace Tomahawk
 			int R = FindDefineDirective(Buffer, Offset, nullptr);
 			return R == 1 ? 0 : R;
 		}
-		int Preprocessor::FindDirective(Rest::Stroke& Buffer, const char* V, uint64_t* SOffset, uint64_t* SBase, uint64_t* SStart, uint64_t* SEnd)
+		int Preprocessor::FindDirective(Core::Parser& Buffer, const char* V, uint64_t* SOffset, uint64_t* SBase, uint64_t* SStart, uint64_t* SEnd)
 		{
 			auto Result = Buffer.Find(V, SOffset ? *SOffset : 0);
 			if (!Result.Found)
@@ -5990,23 +5990,23 @@ namespace Tomahawk
 		{
 			std::string Base;
 			if (!Desc.From.empty())
-				Base.assign(Rest::OS::Path::GetDirectory(Desc.From.c_str()));
+				Base.assign(Core::OS::Path::GetDirectory(Desc.From.c_str()));
 			else
-				Base.assign(Rest::OS::Directory::Get());
+				Base.assign(Core::OS::Directory::Get());
 
 			IncludeResult Result;
-			if (!Rest::Stroke(Desc.Path).StartsOf("/."))
+			if (!Core::Parser(Desc.Path).StartsOf("/."))
 			{
 				if (Desc.Root.empty())
 				{
-					Result.Module = Rest::Stroke(Desc.Path).Replace('\\', '/').R();
+					Result.Module = Core::Parser(Desc.Path).Replace('\\', '/').R();
 					Result.IsSystem = true;
 					Result.IsFile = false;
 					return Result;
 				}
 
-				Result.Module = Rest::OS::Path::Resolve(Desc.Path, Desc.Root);
-				if (Rest::OS::File::IsExists(Result.Module.c_str()))
+				Result.Module = Core::OS::Path::Resolve(Desc.Path, Desc.Root);
+				if (Core::OS::File::IsExists(Result.Module.c_str()))
 				{
 					Result.IsSystem = true;
 					Result.IsFile = true;
@@ -6017,11 +6017,11 @@ namespace Tomahawk
 				{
 					std::string File(Result.Module);
 					if (Result.Module.empty())
-						File.assign(Rest::OS::Path::Resolve(Desc.Path + It, Desc.Root));
+						File.assign(Core::OS::Path::Resolve(Desc.Path + It, Desc.Root));
 					else
 						File.append(It);
 
-					if (!Rest::OS::File::IsExists(File.c_str()))
+					if (!Core::OS::File::IsExists(File.c_str()))
 						continue;
 
 					Result.Module = File;
@@ -6030,14 +6030,14 @@ namespace Tomahawk
 					return Result;
 				}
 
-				Result.Module = Rest::Stroke(Desc.Path).Replace('\\', '/').R();;
+				Result.Module = Core::Parser(Desc.Path).Replace('\\', '/').R();;
 				Result.IsSystem = true;
 				Result.IsFile = false;
 				return Result;
 			}
 
-			Result.Module = Rest::OS::Path::Resolve(Desc.Path, Base);
-			if (Rest::OS::File::IsExists(Result.Module.c_str()))
+			Result.Module = Core::OS::Path::Resolve(Desc.Path, Base);
+			if (Core::OS::File::IsExists(Result.Module.c_str()))
 			{
 				Result.IsSystem = false;
 				Result.IsFile = true;
@@ -6048,11 +6048,11 @@ namespace Tomahawk
 			{
 				std::string File(Result.Module);
 				if (Result.Module.empty())
-					File.assign(Rest::OS::Path::Resolve(Desc.Path + It, Desc.Root));
+					File.assign(Core::OS::Path::Resolve(Desc.Path + It, Desc.Root));
 				else
 					File.append(It);
 
-				if (!Rest::OS::File::IsExists(File.c_str()))
+				if (!Core::OS::File::IsExists(File.c_str()))
 					continue;
 
 				Result.Module = File;

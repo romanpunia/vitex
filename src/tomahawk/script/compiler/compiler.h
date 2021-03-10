@@ -1,6 +1,6 @@
 #ifndef SCRIPT_COMPILER_H
 #define SCRIPT_COMPILER_H
-#include "core.h"
+#include "interpreter.h"
 #ifndef ANGELSCRIPT_H
 #include <angelscript.h>
 #endif

@@ -1,4 +1,4 @@
-#include "gui-api.h"
+#include "gui-lib.h"
 #ifndef ANGELSCRIPT_H 
 #include <angelscript.h>
 #endif

@@ -68,7 +68,7 @@ namespace Tomahawk
 				Authorized = Staging = false;
 				return ReadResponse(220, [this]()
 				{
-					SendRequest(250, Rest::Form("EHLO %s\r\n", Request.Hostname.empty() ? "domain" : Request.Hostname.c_str()).R(), [this]()
+					SendRequest(250, Core::Form("EHLO %s\r\n", Request.Hostname.empty() ? "domain" : Request.Hostname.c_str()).R(), [this]()
 					{
 						if (this->Hostname.Secure)
 						{
@@ -80,7 +80,7 @@ namespace Tomahawk
 								if (!Certify())
 									return;
 
-								SendRequest(250, Rest::Form("EHLO %s\r\n", Request.Hostname.empty() ? "domain" : Request.Hostname.c_str()).R(), [this]()
+								SendRequest(250, Core::Form("EHLO %s\r\n", Request.Hostname.empty() ? "domain" : Request.Hostname.c_str()).R(), [this]()
 								{
 									Success(0);
 								});
@@ -100,12 +100,12 @@ namespace Tomahawk
 					return (void)Success(0);
 				}) || true;
 			}
-			Rest::Async<int> Client::Send(RequestFrame* Root)
+			Core::Async<int> Client::Send(RequestFrame* Root)
 			{
 				if ((!Staging && !Root) || !Stream.IsValid())
-					return Rest::Async<int>::Store(-1);
+					return Core::Async<int>::Store(-1);
 
-				Rest::Async<int> Result;
+				Core::Async<int> Result;
 				if (!Staging)
 				{
 					Request = *Root;
@@ -147,7 +147,7 @@ namespace Tomahawk
 				if (!Request.Attachments.empty())
 					Boundary = Compute::Common::MD5Hash(Compute::Common::RandomBytes(64));
 
-				Rest::Stroke Content;
+				Core::Parser Content;
 				Content.fAppend("MAIL FROM: <%s>\r\n", Request.SenderAddress.c_str());
 
 				for (auto It = Request.Recipients.begin(); It != Request.Recipients.end(); It++)
@@ -172,8 +172,8 @@ namespace Tomahawk
 						Pending = Request.Attachments.size();
 						SendRequest(354, "DATA\r\n", [this]()
 						{
-							Rest::Stroke Content;
-							Content.fAppend("Date: %s\r\nFrom: ", Rest::DateTime::GetGMTBasedString(time(nullptr)).c_str());
+							Core::Parser Content;
+							Content.fAppend("Date: %s\r\nFrom: ", Core::DateTime::GetGMTBasedString(time(nullptr)).c_str());
 
 							if (!Request.SenderName.empty())
 								Content.Append(Request.SenderName.c_str());
@@ -286,7 +286,7 @@ namespace Tomahawk
 								else if (Size > 0)
 									return true;
 
-								Rest::Stroke Content;
+								Core::Parser Content;
 								for (auto It = Request.Messages.begin(); It != Request.Messages.end(); It++)
 									Content.fAppend("%s\r\n", It->c_str());
 
@@ -436,7 +436,7 @@ namespace Tomahawk
 				}
 				else if (CanRequest("PLAIN"))
 				{
-					std::string Hash = Rest::Form("%s^%s^%s", Request.Login.c_str(), Request.Login.c_str(), Request.Password.c_str()).R();
+					std::string Hash = Core::Form("%s^%s^%s", Request.Login.c_str(), Request.Login.c_str(), Request.Password.c_str()).R();
 					char* Escape = (char*)Hash.c_str();
 
 					for (uint64_t i = 0; i < Hash.size(); i++)
@@ -445,7 +445,7 @@ namespace Tomahawk
 							Escape[i] = 0;
 					}
 
-					return SendRequest(235, Rest::Form("AUTH PLAIN %s\r\n", Compute::Common::Base64Encode(Hash).c_str()).R(), [this, Callback]()
+					return SendRequest(235, Core::Form("AUTH PLAIN %s\r\n", Compute::Common::Base64Encode(Hash).c_str()).R(), [this, Callback]()
 					{
 						Authorized = true;
 						Callback();
@@ -511,7 +511,7 @@ namespace Tomahawk
 						EncodedChallenge = Compute::Common::Base64Encode(reinterpret_cast<const unsigned char*>(DecodedChallenge.c_str()), DecodedChallenge.size());
 
 						delete UserBase;
-						SendRequest(235, Rest::Form("%s\r\n", EncodedChallenge.c_str()).R(), [this, Callback]()
+						SendRequest(235, Core::Form("%s\r\n", EncodedChallenge.c_str()).R(), [this, Callback]()
 						{
 							Authorized = true;
 							Callback();
@@ -523,13 +523,13 @@ namespace Tomahawk
 					return SendRequest(334, "AUTH DIGEST-MD5\r\n", [this, Callback]()
 					{
 						std::string EncodedChallenge = Command.c_str() + 4;
-						Rest::Stroke DecodedChallenge = Compute::Common::Base64Decode(EncodedChallenge);
+						Core::Parser DecodedChallenge = Compute::Common::Base64Decode(EncodedChallenge);
 
-						Rest::Stroke::Settle Result1 = DecodedChallenge.Find("nonce");
+						Core::Parser::Settle Result1 = DecodedChallenge.Find("nonce");
 						if (!Result1.Found)
 							return (void)Error("smtp has delivered bad digest");
 
-						Rest::Stroke::Settle Result2 = DecodedChallenge.Find("\"", Result1.Start + 7);
+						Core::Parser::Settle Result2 = DecodedChallenge.Find("\"", Result1.Start + 7);
 						if (!Result2.Found)
 							return (void)Error("smtp has delivered bad digest");
 
@@ -628,7 +628,7 @@ namespace Tomahawk
 						delete UserA2A;
 						delete UserA2B;
 
-						Rest::Stroke Content;
+						Core::Parser Content;
 						if (strstr(Command.c_str(), "charset") != nullptr)
 							Content.fAppend("charset=utf-8,username=\"%s\"", Request.Login.c_str());
 						else
@@ -645,7 +645,7 @@ namespace Tomahawk
 										",qop=auth", Nonce.c_str(), NC, CNonce, URI.c_str(), DecodedChallenge.Get());
 
 						EncodedChallenge = Compute::Common::Base64Encode(Content.R());
-						SendRequest(334, Rest::Form("%s\r\n", EncodedChallenge.c_str()).R(), [this, Callback]()
+						SendRequest(334, Core::Form("%s\r\n", EncodedChallenge.c_str()).R(), [this, Callback]()
 						{
 							SendRequest(235, "\r\n", [this, Callback]()
 							{
@@ -664,7 +664,7 @@ namespace Tomahawk
 				{
 					Stage("smtp request delivery");
 
-					Rest::Stroke Content;
+					Core::Parser Content;
 					if (!Request.Attachments.empty())
 						Content.fAppend("\r\n--%s--\r\n", Boundary.c_str());
 
@@ -687,8 +687,8 @@ namespace Tomahawk
 				if (Id > 0 && (Name[Id] == '\\' || Name[Id] == '/'))
 					Name = Name - 1;
 
-				std::string Hash = Rest::Form("=?UTF-8?B?%s?=", Compute::Common::Base64Encode((unsigned char*)Name, Id + 1).c_str()).R();
-				Rest::Stroke Content;
+				std::string Hash = Core::Form("=?UTF-8?B?%s?=", Compute::Common::Base64Encode((unsigned char*)Name, Id + 1).c_str()).R();
+				Core::Parser Content;
 				Content.fAppend("--%s\r\n", Boundary.c_str());
 				Content.fAppend("Content-Type: application/x-msdownload; name=\"%s\"\r\n", Hash.c_str());
 				Content.fAppend("Content-Transfer-Encoding: base64\r\n");
@@ -701,7 +701,7 @@ namespace Tomahawk
 					else if (Size > 0)
 						return true;
 
-					AttachmentFile = (FILE*)Rest::OS::File::Open(Name, "rb");
+					AttachmentFile = (FILE*)Core::OS::File::Open(Name, "rb");
 					if (!AttachmentFile)
 						return Error("cannot open attachment resource");
 

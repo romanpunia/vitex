@@ -856,7 +856,7 @@ namespace Tomahawk
 			VMManager* GetManager() const;
 
 		private:
-			static Rest::Stroke GetOperator(VMOpFunc Op, const char* Out, const char* Args, bool Const, bool Right);
+			static Core::Parser GetOperator(VMOpFunc Op, const char* Out, const char* Args, bool Const, bool Right);
 
 		public:
 			template <typename T>
@@ -891,7 +891,7 @@ namespace Tomahawk
 			int SetGetter(const char* Type, const char* Name, R(T::*Value)())
 			{
 				asSFuncPtr* Ptr = VMBridge::Method<T, R>(Value);
-				int Result = SetMethodAddress(Rest::Form("%s get_%s()", Type, Name).Get(), Ptr, VMCall_THISCALL);
+				int Result = SetMethodAddress(Core::Form("%s get_%s()", Type, Name).Get(), Ptr, VMCall_THISCALL);
                 VMFuncStore::ReleaseFunctor(&Ptr);
 
 				return Result;
@@ -900,7 +900,7 @@ namespace Tomahawk
 			int SetGetterEx(const char* Type, const char* Name, R(*Value)(T*))
 			{
 				asSFuncPtr* Ptr = VMBridge::Function(Value);
-				int Result = SetMethodAddress(Rest::Form("%s get_%s()", Type, Name).Get(), Ptr, VMCall_CDECL_OBJFIRST);
+				int Result = SetMethodAddress(Core::Form("%s get_%s()", Type, Name).Get(), Ptr, VMCall_CDECL_OBJFIRST);
                 VMFuncStore::ReleaseFunctor(&Ptr);
 
 				return Result;
@@ -909,7 +909,7 @@ namespace Tomahawk
 			int SetSetter(const char* Type, const char* Name, void(T::*Value)(R))
 			{
 				asSFuncPtr* Ptr = VMBridge::Method<T, void, R>(Value);
-				int Result = SetMethodAddress(Rest::Form("void set_%s(%s)", Name, Type).Get(), Ptr, VMCall_THISCALL);
+				int Result = SetMethodAddress(Core::Form("void set_%s(%s)", Name, Type).Get(), Ptr, VMCall_THISCALL);
                 VMFuncStore::ReleaseFunctor(&Ptr);
 
 				return Result;
@@ -918,7 +918,7 @@ namespace Tomahawk
 			int SetSetterEx(const char* Type, const char* Name, void(*Value)(T*, R))
 			{
 				asSFuncPtr* Ptr = VMBridge::Function(Value);
-				int Result = SetMethodAddress(Rest::Form("void set_%s(%s)", Name, Type).Get(), Ptr, VMCall_CDECL_OBJFIRST);
+				int Result = SetMethodAddress(Core::Form("void set_%s(%s)", Name, Type).Get(), Ptr, VMCall_CDECL_OBJFIRST);
                 VMFuncStore::ReleaseFunctor(&Ptr);
 
 				return Result;
@@ -927,7 +927,7 @@ namespace Tomahawk
 			int SetArrayGetter(const char* Type, const char* Name, R(T::*Value)(unsigned int))
 			{
 				asSFuncPtr* Ptr = VMBridge::Method<T, R, unsigned int>(Value);
-				int Result = SetMethodAddress(Rest::Form("%s get_%s(uint)", Type, Name).Get(), Ptr, VMCall_THISCALL);
+				int Result = SetMethodAddress(Core::Form("%s get_%s(uint)", Type, Name).Get(), Ptr, VMCall_THISCALL);
                 VMFuncStore::ReleaseFunctor(&Ptr);
 
 				return Result;
@@ -936,7 +936,7 @@ namespace Tomahawk
 			int SetArrayGetterEx(const char* Type, const char* Name, R(*Value)(T*, unsigned int))
 			{
 				asSFuncPtr* Ptr = VMBridge::Function(Value);
-				int Result = SetMethodAddress(Rest::Form("%s get_%s(uint)", Type, Name).Get(), Ptr, VMCall_CDECL_OBJFIRST);
+				int Result = SetMethodAddress(Core::Form("%s get_%s(uint)", Type, Name).Get(), Ptr, VMCall_CDECL_OBJFIRST);
                 VMFuncStore::ReleaseFunctor(&Ptr);
 
 				return Result;
@@ -945,7 +945,7 @@ namespace Tomahawk
 			int SetArraySetter(const char* Type, const char* Name, void(T::*Value)(unsigned int, R))
 			{
 				asSFuncPtr* Ptr = VMBridge::Method<T, void, unsigned int, R>(Value);
-				int Result = SetMethodAddress(Rest::Form("void set_%s(uint, %s)", Name, Type).Get(), Ptr, VMCall_THISCALL);
+				int Result = SetMethodAddress(Core::Form("void set_%s(uint, %s)", Name, Type).Get(), Ptr, VMCall_THISCALL);
                 VMFuncStore::ReleaseFunctor(&Ptr);
 
 				return Result;
@@ -954,7 +954,7 @@ namespace Tomahawk
 			int SetArraySetterEx(const char* Type, const char* Name, void(*Value)(T*, unsigned int, R))
 			{
 				asSFuncPtr* Ptr = VMBridge::Function(Value);
-				int Result = SetMethodAddress(Rest::Form("void set_%s(uint, %s)", Name, Type).Get(), Ptr, VMCall_CDECL_OBJFIRST);
+				int Result = SetMethodAddress(Core::Form("void set_%s(uint, %s)", Name, Type).Get(), Ptr, VMCall_CDECL_OBJFIRST);
                 VMFuncStore::ReleaseFunctor(&Ptr);
 
 				return Result;
@@ -965,7 +965,7 @@ namespace Tomahawk
 				if (!Out)
 					return -1;
 
-				Rest::Stroke Operator = GetOperator(Type, Out, Args, Opts & VMOp_Const, Opts & VMOp_Right);
+				Core::Parser Operator = GetOperator(Type, Out, Args, Opts & VMOp_Const, Opts & VMOp_Right);
 				if (Operator.Empty())
 					return -1;
 
@@ -981,7 +981,7 @@ namespace Tomahawk
 				if (!Out)
 					return -1;
 
-				Rest::Stroke Operator = GetOperator(Type, Out, Args, Opts & VMOp_Const, Opts & VMOp_Right);
+				Core::Parser Operator = GetOperator(Type, Out, Args, Opts & VMOp_Const, Opts & VMOp_Right);
 				if (Operator.Empty())
 					return -1;
 
@@ -1124,7 +1124,7 @@ namespace Tomahawk
 			template <typename T>
 			int SetAddRef()
 			{
-				asSFuncPtr* AddRef = VMBridge::Function(&Rest::Composer::AddRef);
+				asSFuncPtr* AddRef = VMBridge::Function(&Core::Composer::AddRef);
 				int Result = SetBehaviourAddress("void f()", VMBehave_ADDREF, AddRef, VMCall_CDECL_OBJFIRST);
 				VMFuncStore::ReleaseFunctor(&AddRef);
 
@@ -1133,7 +1133,7 @@ namespace Tomahawk
 			template <typename T>
 			int SetRelease()
 			{
-				asSFuncPtr* Release = VMBridge::Function(&Rest::Composer::Release);
+				asSFuncPtr* Release = VMBridge::Function(&Core::Composer::Release);
 				int Result = SetBehaviourAddress("void f()", VMBehave_RELEASE, Release, VMCall_CDECL_OBJFIRST);
 				VMFuncStore::ReleaseFunctor(&Release);
 
@@ -1142,7 +1142,7 @@ namespace Tomahawk
 			template <typename T>
 			int SetGetRefCount()
 			{
-				asSFuncPtr* GetRefCount = VMBridge::Function(&Rest::Composer::GetRefCount);
+				asSFuncPtr* GetRefCount = VMBridge::Function(&Core::Composer::GetRefCount);
 				int Result = SetBehaviourAddress("int f()", VMBehave_GETREFCOUNT, GetRefCount, VMCall_CDECL_OBJFIRST);
 				VMFuncStore::ReleaseFunctor(&GetRefCount);
 
@@ -1151,7 +1151,7 @@ namespace Tomahawk
 			template <typename T>
 			int SetSetGCFlag()
 			{
-				asSFuncPtr* SetGCFlag = VMBridge::Function(&Rest::Composer::SetFlag);
+				asSFuncPtr* SetGCFlag = VMBridge::Function(&Core::Composer::SetFlag);
 				int Result = SetBehaviourAddress("void f()", VMBehave_SETGCFLAG, SetGCFlag, VMCall_CDECL_OBJFIRST);
 				VMFuncStore::ReleaseFunctor(&SetGCFlag);
 
@@ -1160,7 +1160,7 @@ namespace Tomahawk
 			template <typename T>
 			int SetGetGCFlag()
 			{
-				asSFuncPtr* GetGCFlag = VMBridge::Function(&Rest::Composer::GetFlag);
+				asSFuncPtr* GetGCFlag = VMBridge::Function(&Core::Composer::GetFlag);
 				int Result = SetBehaviourAddress("bool f()", VMBehave_GETGCFLAG, GetGCFlag, VMCall_CDECL_OBJFIRST);
 				VMFuncStore::ReleaseFunctor(&GetGCFlag);
 
@@ -1512,7 +1512,7 @@ namespace Tomahawk
 			}
 		};
 
-		class TH_OUT VMCompiler : public Rest::Object
+		class TH_OUT VMCompiler : public Core::Object
 		{
 		private:
 			static int CompilerUD;
@@ -1562,7 +1562,7 @@ namespace Tomahawk
 			static VMCompiler* Get(VMContext* Context);
 		};
 
-		class TH_OUT VMContext : public Rest::Object
+		class TH_OUT VMContext : public Core::Object
 		{
 		private:
 			static int ContextUD;
@@ -1653,7 +1653,7 @@ namespace Tomahawk
 			static void ExceptionLogger(VMCContext* Context, void* Object);
 		};
 
-		class TH_OUT VMManager : public Rest::Object
+		class TH_OUT VMManager : public Core::Object
 		{
 		private:
 			struct Kernel
@@ -1674,7 +1674,7 @@ namespace Tomahawk
 
 		private:
 			std::unordered_map<std::string, std::string> Files;
-			std::unordered_map<std::string, Rest::Document*> Datas;
+			std::unordered_map<std::string, Core::Document*> Datas;
 			std::unordered_map<std::string, VMByteCode> Opcodes;
 			std::unordered_map<std::string, Kernel> Kernels;
 			std::unordered_map<std::string, Submodule> Modules;
@@ -1757,7 +1757,7 @@ namespace Tomahawk
 			bool ImportSymbol(const std::vector<std::string>& Sources, const std::string& Name, const std::string& Decl);
 			bool ImportLibrary(const std::string& Path);
 			bool ImportSubmodule(const std::string& Name);
-			Rest::Document* ImportJSON(const std::string& Path);
+			Core::Document* ImportJSON(const std::string& Path);
 
 		public:
 			static void SetMemoryFunctions(void*(*Alloc)(size_t), void(*Free)(void*));
@@ -1775,7 +1775,7 @@ namespace Tomahawk
 			static void* GetNullable();
 		};
 
-		class TH_OUT VMDebugger : public Rest::Object
+		class TH_OUT VMDebugger : public Core::Object
 		{
 		public:
 			typedef std::string(* ToStringCallback)(void* Object, int ExpandLevel, VMDebugger* Dbg);

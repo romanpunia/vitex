@@ -15,7 +15,7 @@ namespace Tomahawk
 		typedef Graphics::RenderTarget2D LinearDepthMap;
 		typedef std::vector<LinearDepthMap*> CascadedDepthMap;
 		typedef void(*JobCallback)(struct Reactor*, class Application*);
-		typedef std::function<void(Rest::Timer*, struct Viewer*)> RenderCallback;
+		typedef std::function<void(Core::Timer*, struct Viewer*)> RenderCallback;
 		typedef std::function<void(class ContentManager*, bool)> SaveCallback;
 		typedef std::function<void(class Event*)> MessageCallback;
 		typedef std::function<bool(class Component*, const Compute::Vector3&)> RayCallback;
@@ -126,13 +126,13 @@ namespace Tomahawk
 
 		struct TH_OUT AssetArchive
 		{
-			Rest::Stream* Stream = nullptr;
+			Core::Stream* Stream = nullptr;
 			std::string Path;
 			uint64_t Length = 0;
 			uint64_t Offset = 0;
 		};
 
-		struct TH_OUT AssetFile : public Rest::Object
+		struct TH_OUT AssetFile : public Core::Object
 		{
 		private:
 			char* Buffer;
@@ -213,7 +213,7 @@ namespace Tomahawk
 			JobCallback Src;
 
 		public:
-			Rest::Timer* Time;
+			Core::Timer* Time;
 
 		private:
 			Reactor(Application* Ref, double Limit, JobCallback Callback);
@@ -249,105 +249,105 @@ namespace Tomahawk
 		class TH_OUT NMake
 		{
 		public:
-			static void Pack(Rest::Document* V, bool Value);
-			static void Pack(Rest::Document* V, int Value);
-			static void Pack(Rest::Document* V, unsigned int Value);
-			static void Pack(Rest::Document* V, float Value);
-			static void Pack(Rest::Document* V, double Value);
-			static void Pack(Rest::Document* V, int64_t Value);
-			static void Pack(Rest::Document* V, long double Value);
-			static void Pack(Rest::Document* V, uint64_t Value);
-			static void Pack(Rest::Document* V, const char* Value);
-			static void Pack(Rest::Document* V, const Compute::Vector2& Value);
-			static void Pack(Rest::Document* V, const Compute::Vector3& Value);
-			static void Pack(Rest::Document* V, const Compute::Vector4& Value);
-			static void Pack(Rest::Document* V, const Compute::Matrix4x4& Value);
-			static void Pack(Rest::Document* V, const Attenuation& Value);
-			static void Pack(Rest::Document* V, const AnimatorState& Value);
-			static void Pack(Rest::Document* V, const SpawnerProperties& Value);
-			static void Pack(Rest::Document* V, Material* Value, ContentManager* Content);
-			static void Pack(Rest::Document* V, const Compute::SkinAnimatorKey& Value);
-			static void Pack(Rest::Document* V, const Compute::SkinAnimatorClip& Value);
-			static void Pack(Rest::Document* V, const Compute::KeyAnimatorClip& Value);
-			static void Pack(Rest::Document* V, const Compute::AnimatorKey& Value);
-			static void Pack(Rest::Document* V, const Compute::ElementVertex& Value);
-			static void Pack(Rest::Document* V, const Compute::Joint& Value);
-			static void Pack(Rest::Document* V, const Compute::Vertex& Value);
-			static void Pack(Rest::Document* V, const Compute::SkinVertex& Value);
-			static void Pack(Rest::Document* V, const Rest::TickTimer& Value);
-			static void Pack(Rest::Document* V, const std::string& Value);
-			static void Pack(Rest::Document* V, const std::vector<bool>& Value);
-			static void Pack(Rest::Document* V, const std::vector<int>& Value);
-			static void Pack(Rest::Document* V, const std::vector<unsigned int>& Value);
-			static void Pack(Rest::Document* V, const std::vector<float>& Value);
-			static void Pack(Rest::Document* V, const std::vector<double>& Value);
-			static void Pack(Rest::Document* V, const std::vector<int64_t>& Value);
-			static void Pack(Rest::Document* V, const std::vector<long double>& Value);
-			static void Pack(Rest::Document* V, const std::vector<uint64_t>& Value);
-			static void Pack(Rest::Document* V, const std::vector<Compute::Vector2>& Value);
-			static void Pack(Rest::Document* V, const std::vector<Compute::Vector3>& Value);
-			static void Pack(Rest::Document* V, const std::vector<Compute::Vector4>& Value);
-			static void Pack(Rest::Document* V, const std::vector<Compute::Matrix4x4>& Value);
-			static void Pack(Rest::Document* V, const std::vector<AnimatorState>& Value);
-			static void Pack(Rest::Document* V, const std::vector<SpawnerProperties>& Value);
-			static void Pack(Rest::Document* V, const std::vector<Compute::SkinAnimatorClip>& Value);
-			static void Pack(Rest::Document* V, const std::vector<Compute::KeyAnimatorClip>& Value);
-			static void Pack(Rest::Document* V, const std::vector<Compute::AnimatorKey>& Value);
-			static void Pack(Rest::Document* V, const std::vector<Compute::ElementVertex>& Value);
-			static void Pack(Rest::Document* V, const std::vector<Compute::Joint>& Value);
-			static void Pack(Rest::Document* V, const std::vector<Compute::Vertex>& Value);
-			static void Pack(Rest::Document* V, const std::vector<Compute::SkinVertex>& Value);
-			static void Pack(Rest::Document* V, const std::vector<Rest::TickTimer>& Value);
-			static void Pack(Rest::Document* V, const std::vector<std::string>& Value);
-			static bool Unpack(Rest::Document* V, bool* O);
-			static bool Unpack(Rest::Document* V, int* O);
-			static bool Unpack(Rest::Document* V, unsigned int* O);
-			static bool Unpack(Rest::Document* V, float* O);
-			static bool Unpack(Rest::Document* V, double* O);
-			static bool Unpack(Rest::Document* V, int64_t* O);
-			static bool Unpack(Rest::Document* V, long double* O);
-			static bool Unpack(Rest::Document* V, uint64_t* O);
-			static bool Unpack(Rest::Document* V, Compute::Vector2* O);
-			static bool Unpack(Rest::Document* V, Compute::Vector3* O);
-			static bool Unpack(Rest::Document* V, Compute::Vector4* O);
-			static bool Unpack(Rest::Document* V, Compute::Matrix4x4* O);
-			static bool Unpack(Rest::Document* V, Attenuation* O);
-			static bool Unpack(Rest::Document* V, AnimatorState* O);
-			static bool Unpack(Rest::Document* V, SpawnerProperties* O);
-			static bool Unpack(Rest::Document* V, Material* O, ContentManager* Content);
-			static bool Unpack(Rest::Document* V, Compute::SkinAnimatorKey* O);
-			static bool Unpack(Rest::Document* V, Compute::SkinAnimatorClip* O);
-			static bool Unpack(Rest::Document* V, Compute::KeyAnimatorClip* O);
-			static bool Unpack(Rest::Document* V, Compute::AnimatorKey* O);
-			static bool Unpack(Rest::Document* V, Compute::ElementVertex* O);
-			static bool Unpack(Rest::Document* V, Compute::Joint* O);
-			static bool Unpack(Rest::Document* V, Compute::Vertex* O);
-			static bool Unpack(Rest::Document* V, Compute::SkinVertex* O);
-			static bool Unpack(Rest::Document* V, Rest::TickTimer* O);
-			static bool Unpack(Rest::Document* V, std::string* O);
-			static bool Unpack(Rest::Document* V, std::vector<bool>* O);
-			static bool Unpack(Rest::Document* V, std::vector<int>* O);
-			static bool Unpack(Rest::Document* V, std::vector<unsigned int>* O);
-			static bool Unpack(Rest::Document* V, std::vector<float>* O);
-			static bool Unpack(Rest::Document* V, std::vector<double>* O);
-			static bool Unpack(Rest::Document* V, std::vector<int64_t>* O);
-			static bool Unpack(Rest::Document* V, std::vector<long double>* O);
-			static bool Unpack(Rest::Document* V, std::vector<uint64_t>* O);
-			static bool Unpack(Rest::Document* V, std::vector<Compute::Vector2>* O);
-			static bool Unpack(Rest::Document* V, std::vector<Compute::Vector3>* O);
-			static bool Unpack(Rest::Document* V, std::vector<Compute::Vector4>* O);
-			static bool Unpack(Rest::Document* V, std::vector<Compute::Matrix4x4>* O);
-			static bool Unpack(Rest::Document* V, std::vector<AnimatorState>* O);
-			static bool Unpack(Rest::Document* V, std::vector<SpawnerProperties>* O);
-			static bool Unpack(Rest::Document* V, std::vector<Compute::SkinAnimatorClip>* O);
-			static bool Unpack(Rest::Document* V, std::vector<Compute::KeyAnimatorClip>* O);
-			static bool Unpack(Rest::Document* V, std::vector<Compute::AnimatorKey>* O);
-			static bool Unpack(Rest::Document* V, std::vector<Compute::ElementVertex>* O);
-			static bool Unpack(Rest::Document* V, std::vector<Compute::Joint>* O);
-			static bool Unpack(Rest::Document* V, std::vector<Compute::Vertex>* O);
-			static bool Unpack(Rest::Document* V, std::vector<Compute::SkinVertex>* O);
-			static bool Unpack(Rest::Document* V, std::vector<Rest::TickTimer>* O);
-			static bool Unpack(Rest::Document* V, std::vector<std::string>* O);
+			static void Pack(Core::Document* V, bool Value);
+			static void Pack(Core::Document* V, int Value);
+			static void Pack(Core::Document* V, unsigned int Value);
+			static void Pack(Core::Document* V, float Value);
+			static void Pack(Core::Document* V, double Value);
+			static void Pack(Core::Document* V, int64_t Value);
+			static void Pack(Core::Document* V, long double Value);
+			static void Pack(Core::Document* V, uint64_t Value);
+			static void Pack(Core::Document* V, const char* Value);
+			static void Pack(Core::Document* V, const Compute::Vector2& Value);
+			static void Pack(Core::Document* V, const Compute::Vector3& Value);
+			static void Pack(Core::Document* V, const Compute::Vector4& Value);
+			static void Pack(Core::Document* V, const Compute::Matrix4x4& Value);
+			static void Pack(Core::Document* V, const Attenuation& Value);
+			static void Pack(Core::Document* V, const AnimatorState& Value);
+			static void Pack(Core::Document* V, const SpawnerProperties& Value);
+			static void Pack(Core::Document* V, Material* Value, ContentManager* Content);
+			static void Pack(Core::Document* V, const Compute::SkinAnimatorKey& Value);
+			static void Pack(Core::Document* V, const Compute::SkinAnimatorClip& Value);
+			static void Pack(Core::Document* V, const Compute::KeyAnimatorClip& Value);
+			static void Pack(Core::Document* V, const Compute::AnimatorKey& Value);
+			static void Pack(Core::Document* V, const Compute::ElementVertex& Value);
+			static void Pack(Core::Document* V, const Compute::Joint& Value);
+			static void Pack(Core::Document* V, const Compute::Vertex& Value);
+			static void Pack(Core::Document* V, const Compute::SkinVertex& Value);
+			static void Pack(Core::Document* V, const Core::TickTimer& Value);
+			static void Pack(Core::Document* V, const std::string& Value);
+			static void Pack(Core::Document* V, const std::vector<bool>& Value);
+			static void Pack(Core::Document* V, const std::vector<int>& Value);
+			static void Pack(Core::Document* V, const std::vector<unsigned int>& Value);
+			static void Pack(Core::Document* V, const std::vector<float>& Value);
+			static void Pack(Core::Document* V, const std::vector<double>& Value);
+			static void Pack(Core::Document* V, const std::vector<int64_t>& Value);
+			static void Pack(Core::Document* V, const std::vector<long double>& Value);
+			static void Pack(Core::Document* V, const std::vector<uint64_t>& Value);
+			static void Pack(Core::Document* V, const std::vector<Compute::Vector2>& Value);
+			static void Pack(Core::Document* V, const std::vector<Compute::Vector3>& Value);
+			static void Pack(Core::Document* V, const std::vector<Compute::Vector4>& Value);
+			static void Pack(Core::Document* V, const std::vector<Compute::Matrix4x4>& Value);
+			static void Pack(Core::Document* V, const std::vector<AnimatorState>& Value);
+			static void Pack(Core::Document* V, const std::vector<SpawnerProperties>& Value);
+			static void Pack(Core::Document* V, const std::vector<Compute::SkinAnimatorClip>& Value);
+			static void Pack(Core::Document* V, const std::vector<Compute::KeyAnimatorClip>& Value);
+			static void Pack(Core::Document* V, const std::vector<Compute::AnimatorKey>& Value);
+			static void Pack(Core::Document* V, const std::vector<Compute::ElementVertex>& Value);
+			static void Pack(Core::Document* V, const std::vector<Compute::Joint>& Value);
+			static void Pack(Core::Document* V, const std::vector<Compute::Vertex>& Value);
+			static void Pack(Core::Document* V, const std::vector<Compute::SkinVertex>& Value);
+			static void Pack(Core::Document* V, const std::vector<Core::TickTimer>& Value);
+			static void Pack(Core::Document* V, const std::vector<std::string>& Value);
+			static bool Unpack(Core::Document* V, bool* O);
+			static bool Unpack(Core::Document* V, int* O);
+			static bool Unpack(Core::Document* V, unsigned int* O);
+			static bool Unpack(Core::Document* V, float* O);
+			static bool Unpack(Core::Document* V, double* O);
+			static bool Unpack(Core::Document* V, int64_t* O);
+			static bool Unpack(Core::Document* V, long double* O);
+			static bool Unpack(Core::Document* V, uint64_t* O);
+			static bool Unpack(Core::Document* V, Compute::Vector2* O);
+			static bool Unpack(Core::Document* V, Compute::Vector3* O);
+			static bool Unpack(Core::Document* V, Compute::Vector4* O);
+			static bool Unpack(Core::Document* V, Compute::Matrix4x4* O);
+			static bool Unpack(Core::Document* V, Attenuation* O);
+			static bool Unpack(Core::Document* V, AnimatorState* O);
+			static bool Unpack(Core::Document* V, SpawnerProperties* O);
+			static bool Unpack(Core::Document* V, Material* O, ContentManager* Content);
+			static bool Unpack(Core::Document* V, Compute::SkinAnimatorKey* O);
+			static bool Unpack(Core::Document* V, Compute::SkinAnimatorClip* O);
+			static bool Unpack(Core::Document* V, Compute::KeyAnimatorClip* O);
+			static bool Unpack(Core::Document* V, Compute::AnimatorKey* O);
+			static bool Unpack(Core::Document* V, Compute::ElementVertex* O);
+			static bool Unpack(Core::Document* V, Compute::Joint* O);
+			static bool Unpack(Core::Document* V, Compute::Vertex* O);
+			static bool Unpack(Core::Document* V, Compute::SkinVertex* O);
+			static bool Unpack(Core::Document* V, Core::TickTimer* O);
+			static bool Unpack(Core::Document* V, std::string* O);
+			static bool Unpack(Core::Document* V, std::vector<bool>* O);
+			static bool Unpack(Core::Document* V, std::vector<int>* O);
+			static bool Unpack(Core::Document* V, std::vector<unsigned int>* O);
+			static bool Unpack(Core::Document* V, std::vector<float>* O);
+			static bool Unpack(Core::Document* V, std::vector<double>* O);
+			static bool Unpack(Core::Document* V, std::vector<int64_t>* O);
+			static bool Unpack(Core::Document* V, std::vector<long double>* O);
+			static bool Unpack(Core::Document* V, std::vector<uint64_t>* O);
+			static bool Unpack(Core::Document* V, std::vector<Compute::Vector2>* O);
+			static bool Unpack(Core::Document* V, std::vector<Compute::Vector3>* O);
+			static bool Unpack(Core::Document* V, std::vector<Compute::Vector4>* O);
+			static bool Unpack(Core::Document* V, std::vector<Compute::Matrix4x4>* O);
+			static bool Unpack(Core::Document* V, std::vector<AnimatorState>* O);
+			static bool Unpack(Core::Document* V, std::vector<SpawnerProperties>* O);
+			static bool Unpack(Core::Document* V, std::vector<Compute::SkinAnimatorClip>* O);
+			static bool Unpack(Core::Document* V, std::vector<Compute::KeyAnimatorClip>* O);
+			static bool Unpack(Core::Document* V, std::vector<Compute::AnimatorKey>* O);
+			static bool Unpack(Core::Document* V, std::vector<Compute::ElementVertex>* O);
+			static bool Unpack(Core::Document* V, std::vector<Compute::Joint>* O);
+			static bool Unpack(Core::Document* V, std::vector<Compute::Vertex>* O);
+			static bool Unpack(Core::Document* V, std::vector<Compute::SkinVertex>* O);
+			static bool Unpack(Core::Document* V, std::vector<Core::TickTimer>* O);
+			static bool Unpack(Core::Document* V, std::vector<std::string>* O);
 		};
 
 		class TH_OUT Event
@@ -361,12 +361,12 @@ namespace Tomahawk
 			std::string Id;
 
 		public:
-			Rest::VariantArgs Args;
+			Core::VariantArgs Args;
 
 		private:
-			Event(const std::string& NewName, SceneGraph* Target, const Rest::VariantArgs& NewArgs);
-			Event(const std::string& NewName, Entity* Target, const Rest::VariantArgs& NewArgs);
-			Event(const std::string& NewName, Component* Target, const Rest::VariantArgs& NewArgs);
+			Event(const std::string& NewName, SceneGraph* Target, const Core::VariantArgs& NewArgs);
+			Event(const std::string& NewName, Entity* Target, const Core::VariantArgs& NewArgs);
+			Event(const std::string& NewName, Component* Target, const Core::VariantArgs& NewArgs);
 
 		public:
 			bool Is(const std::string& Name);
@@ -376,7 +376,7 @@ namespace Tomahawk
 			SceneGraph* GetScene();
 		};
 
-		class TH_OUT Material : public Rest::Object
+		class TH_OUT Material : public Core::Object
 		{
 			friend NMake;
 			friend RenderSystem;
@@ -420,7 +420,7 @@ namespace Tomahawk
 			uint64_t GetSlot() const;
 		};
 
-		class TH_OUT Processor : public Rest::Object
+		class TH_OUT Processor : public Core::Object
 		{
 			friend ContentManager;
 
@@ -431,13 +431,13 @@ namespace Tomahawk
 			Processor(ContentManager* NewContent);
 			virtual ~Processor() override;
 			virtual void Free(AssetCache* Asset);
-			virtual void* Duplicate(AssetCache* Asset, const Rest::VariantArgs& Keys);
-			virtual void* Deserialize(Rest::Stream* Stream, uint64_t Length, uint64_t Offset, const Rest::VariantArgs& Keys);
-			virtual bool Serialize(Rest::Stream* Stream, void* Instance, const Rest::VariantArgs& Keys);
+			virtual void* Duplicate(AssetCache* Asset, const Core::VariantArgs& Keys);
+			virtual void* Deserialize(Core::Stream* Stream, uint64_t Length, uint64_t Offset, const Core::VariantArgs& Keys);
+			virtual bool Serialize(Core::Stream* Stream, void* Instance, const Core::VariantArgs& Keys);
 			ContentManager* GetContent();
 		};
 
-		class TH_OUT Component : public Rest::Object
+		class TH_OUT Component : public Core::Object
 		{
 			friend SceneGraph;
 			friend Entity;
@@ -451,12 +451,12 @@ namespace Tomahawk
 		public:
 			Component(Entity* Ref);
 			virtual ~Component() override;
-			virtual void Serialize(ContentManager* Content, Rest::Document* Node);
-			virtual void Deserialize(ContentManager* Content, Rest::Document* Node);
+			virtual void Serialize(ContentManager* Content, Core::Document* Node);
+			virtual void Deserialize(ContentManager* Content, Core::Document* Node);
 			virtual void Awake(Component* New);
 			virtual void Asleep();
-			virtual void Synchronize(Rest::Timer* Time);
-			virtual void Update(Rest::Timer* Time);
+			virtual void Synchronize(Core::Timer* Time);
+			virtual void Update(Core::Timer* Time);
 			virtual void Message(Event* Value);
 			virtual Component* Copy(Entity* New) = 0;
 			virtual Compute::Matrix4x4 GetBoundingBox();
@@ -468,7 +468,7 @@ namespace Tomahawk
 			TH_COMPONENT("component");
 		};
 
-		class TH_OUT Entity : public Rest::Object
+		class TH_OUT Entity : public Core::Object
 		{
 			friend SceneGraph;
 
@@ -519,7 +519,7 @@ namespace Tomahawk
 			}
 		};
 
-		class TH_OUT Renderer : public Rest::Object
+		class TH_OUT Renderer : public Core::Object
 		{
 			friend SceneGraph;
 
@@ -532,13 +532,13 @@ namespace Tomahawk
 		public:
 			Renderer(RenderSystem* Lab);
 			virtual ~Renderer() override;
-			virtual void Serialize(ContentManager* Content, Rest::Document* Node);
-			virtual void Deserialize(ContentManager* Content, Rest::Document* Node);
+			virtual void Serialize(ContentManager* Content, Core::Document* Node);
+			virtual void Deserialize(ContentManager* Content, Core::Document* Node);
 			virtual void CullGeometry(const Viewer& View);
 			virtual void ResizeBuffers();
 			virtual void Activate();
 			virtual void Deactivate();
-			virtual void Render(Rest::Timer* TimeStep, RenderState State, RenderOpt Options);
+			virtual void Render(Core::Timer* TimeStep, RenderState State, RenderOpt Options);
 			void SetRenderer(RenderSystem* NewSystem);
 			RenderSystem* GetRenderer();
 
@@ -546,7 +546,7 @@ namespace Tomahawk
 			TH_COMPONENT("renderer");
 		};
 
-		class TH_OUT ShaderCache : public Rest::Object
+		class TH_OUT ShaderCache : public Core::Object
 		{
 		private:
 			struct SCache
@@ -571,7 +571,7 @@ namespace Tomahawk
 			void ClearCache();
 		};
 
-		class TH_OUT PrimitiveCache : public Rest::Object
+		class TH_OUT PrimitiveCache : public Core::Object
 		{
 		private:
 			struct SCache
@@ -610,7 +610,7 @@ namespace Tomahawk
 			void ClearCache();
 		};
 
-		class TH_OUT RenderSystem : public Rest::Object
+		class TH_OUT RenderSystem : public Core::Object
 		{
 		protected:
 			std::vector<Renderer*> Renderers;
@@ -628,8 +628,8 @@ namespace Tomahawk
 			bool Satisfied;
 
 		public:
-			Rest::TickTimer Occlusion;
-			Rest::TickTimer Sorting;
+			Core::TickTimer Occlusion;
+			Core::TickTimer Sorting;
 			size_t StallFrames;
 
 		public:
@@ -644,8 +644,8 @@ namespace Tomahawk
 			void Mount();
 			void Unmount();
 			void ClearCull();
-			void CullGeometry(Rest::Timer* Time, const Viewer& View);
-			void Synchronize(Rest::Timer* Time, const Viewer& View);
+			void CullGeometry(Core::Timer* Time, const Viewer& View);
+			void Synchronize(Core::Timer* Time, const Viewer& View);
 			void MoveRenderer(uint64_t Id, int64_t Offset);
 			void RemoveRenderer(uint64_t Id);
 			void RestoreOutput();
@@ -678,7 +678,7 @@ namespace Tomahawk
 			SceneGraph* GetScene();
 
 		private:
-			Rest::Pool<Component*>* GetSceneComponents(uint64_t Section);
+			Core::Pool<Component*>* GetSceneComponents(uint64_t Section);
 
 		public:
 			template <typename In>
@@ -702,7 +702,7 @@ namespace Tomahawk
 				return (In*)GetRenderer(In::GetTypeId());
 			}
 			template <typename T>
-			Rest::Pool<Component*>* AddCull()
+			Core::Pool<Component*>* AddCull()
 			{
 				static_assert(std::is_base_of<Cullable, T>::value,
 					"component is not cullable");
@@ -711,7 +711,7 @@ namespace Tomahawk
 				return GetSceneComponents(T::GetTypeId());
 			}
 			template <typename T>
-			Rest::Pool<Component*>* RemoveCull()
+			Core::Pool<Component*>* RemoveCull()
 			{
 				static_assert(std::is_base_of<Cullable, T>::value,
 					"component is not cullable");
@@ -792,15 +792,15 @@ namespace Tomahawk
 		public:
 			GeometryDraw(RenderSystem* Lab, uint64_t Hash);
 			virtual ~GeometryDraw() override;
-			virtual void CullGeometry(const Viewer& View, Rest::Pool<Drawable*>* Geometry);
-			virtual void RenderGeometryResult(Rest::Timer* TimeStep, Rest::Pool<Drawable*>* Geometry, RenderOpt Options) = 0;
-			virtual void RenderGeometryVoxels(Rest::Timer* TimeStep, Rest::Pool<Drawable*>* Geometry, RenderOpt Options) = 0;
-			virtual void RenderDepthLinear(Rest::Timer* TimeStep, Rest::Pool<Drawable*>* Geometry) = 0;
-			virtual void RenderDepthCubic(Rest::Timer* TimeStep, Rest::Pool<Drawable*>* Geometry, Compute::Matrix4x4* ViewProjection) = 0;
+			virtual void CullGeometry(const Viewer& View, Core::Pool<Drawable*>* Geometry);
+			virtual void RenderGeometryResult(Core::Timer* TimeStep, Core::Pool<Drawable*>* Geometry, RenderOpt Options) = 0;
+			virtual void RenderGeometryVoxels(Core::Timer* TimeStep, Core::Pool<Drawable*>* Geometry, RenderOpt Options) = 0;
+			virtual void RenderDepthLinear(Core::Timer* TimeStep, Core::Pool<Drawable*>* Geometry) = 0;
+			virtual void RenderDepthCubic(Core::Timer* TimeStep, Core::Pool<Drawable*>* Geometry, Compute::Matrix4x4* ViewProjection) = 0;
 			void CullGeometry(const Viewer& View) override;
-			void Render(Rest::Timer* TimeStep, RenderState State, RenderOpt Options) override;
-			Rest::Pool<Drawable*>* GetOpaque();
-			Rest::Pool<Drawable*>* GetTransparent();
+			void Render(Core::Timer* TimeStep, RenderState State, RenderOpt Options) override;
+			Core::Pool<Drawable*>* GetOpaque();
+			Core::Pool<Drawable*>* GetTransparent();
 
 		public:
 			TH_COMPONENT("geometry-draw");
@@ -823,8 +823,8 @@ namespace Tomahawk
 			EffectDraw(RenderSystem* Lab);
 			virtual ~EffectDraw() override;
 			virtual void ResizeEffect();
-			virtual void RenderEffect(Rest::Timer* Time);
-			void Render(Rest::Timer* Time, RenderState State, RenderOpt Options) override;
+			virtual void RenderEffect(Core::Timer* Time);
+			void Render(Core::Timer* Time, RenderState State, RenderOpt Options) override;
 			void ResizeBuffers() override;
 			unsigned int GetMipLevels();
 			unsigned int GetWidth();
@@ -845,7 +845,7 @@ namespace Tomahawk
 			TH_COMPONENT("effect-draw");
 		};
 
-		class TH_OUT SceneGraph : public Rest::Object
+		class TH_OUT SceneGraph : public Core::Object
 		{
 			friend Renderer;
 			friend Component;
@@ -878,8 +878,8 @@ namespace Tomahawk
 
 			struct Geometry
 			{
-				Rest::Pool<Drawable*> Opaque;
-				Rest::Pool<Drawable*> Transparent;
+				Core::Pool<Drawable*> Opaque;
+				Core::Pool<Drawable*> Transparent;
 			};
 
 		private:
@@ -912,14 +912,14 @@ namespace Tomahawk
 
 		protected:
 			std::unordered_map<std::string, std::pair<std::string, MessageCallback>> Listeners;
-			std::unordered_map<uint64_t, Rest::Pool<Component*>> Components;
+			std::unordered_map<uint64_t, Core::Pool<Component*>> Components;
 			std::unordered_map<uint64_t, Geometry> Drawables;
 			std::vector<Event*> Events;
-			Rest::Pool<Material*> Materials;
-			Rest::Pool<Component*> Pending;
-			Rest::Pool<Entity*> Entities;
+			Core::Pool<Material*> Materials;
+			Core::Pool<Component*> Pending;
+			Core::Pool<Entity*> Entities;
 			Compute::Simulator* Simulator;
-			Rest::EventId Listener;
+			Core::EventId Listener;
 			Component* Camera;
 			Desc Conf;
 			uint64_t Surfaces;
@@ -934,18 +934,18 @@ namespace Tomahawk
 			virtual ~SceneGraph() override;
 			void Configure(const Desc& Conf);
 			void Submit();
-			void Render(Rest::Timer* Time);
-			void Render(Rest::Timer* Time, RenderState Stage, RenderOpt Options);
-			void Update(Rest::Timer* Time);
-			void Simulation(Rest::Timer* Time);
-			void Synchronize(Rest::Timer* Time);
+			void Render(Core::Timer* Time);
+			void Render(Core::Timer* Time, RenderState Stage, RenderOpt Options);
+			void Update(Core::Timer* Time);
+			void Simulation(Core::Timer* Time);
+			void Synchronize(Core::Timer* Time);
 			void RemoveMaterial(Material* Value);
 			void RemoveEntity(Entity* Entity, bool Release);
 			void SetCamera(Entity* Camera);
 			void CloneEntities(Entity* Instance, std::vector<Entity*>* Array);
 			void RestoreViewBuffer(Viewer* View);
-			void SortBackToFront(Rest::Pool<Drawable*>* Array);
-			void SortFrontToBack(Rest::Pool<Drawable*>* Array);
+			void SortBackToFront(Core::Pool<Drawable*>* Array);
+			void SortFrontToBack(Core::Pool<Drawable*>* Array);
 			void Actualize();
 			void Redistribute();
 			void Reindex();
@@ -967,9 +967,9 @@ namespace Tomahawk
 			bool GetVoxelBuffer(Graphics::Texture3D** In, Graphics::Texture3D** Out);
 			bool AddEventListener(const std::string& Name, const std::string& Event, const MessageCallback& Callback);
 			bool RemoveEventListener(const std::string& Name);
-			bool DispatchEvent(const std::string& EventName, const Rest::VariantArgs& Args);
-			bool DispatchEvent(Component* Target, const std::string& EventName, const Rest::VariantArgs& Args);
-			bool DispatchEvent(Entity* Target, const std::string& EventName, const Rest::VariantArgs& Args);
+			bool DispatchEvent(const std::string& EventName, const Core::VariantArgs& Args);
+			bool DispatchEvent(Component* Target, const std::string& EventName, const Core::VariantArgs& Args);
+			bool DispatchEvent(Entity* Target, const std::string& EventName, const Core::VariantArgs& Args);
 			void Dispatch();
 			Material* AddMaterial(const std::string& Name);
 			Material* CloneMaterial(Material* Base, const std::string& Name);
@@ -985,7 +985,7 @@ namespace Tomahawk
 			Viewer GetCameraViewer();
 			Material* GetMaterial(const std::string& Material);
 			Material* GetMaterial(uint64_t Material);
-			Rest::Pool<Component*>* GetComponents(uint64_t Section);
+			Core::Pool<Component*>* GetComponents(uint64_t Section);
 			Graphics::RenderTarget2D::Desc GetDescRT();
 			Graphics::MultiRenderTarget2D::Desc GetDescMRT();
 			Graphics::Format GetFormatMRT(unsigned int Target);
@@ -1005,8 +1005,8 @@ namespace Tomahawk
 			size_t GetVoxelBufferSize();
 			bool HasEntity(Entity* Entity);
 			bool HasEntity(uint64_t Entity);
-			Rest::Pool<Drawable*>* GetOpaque(uint64_t Section);
-			Rest::Pool<Drawable*>* GetTransparent(uint64_t Section);
+			Core::Pool<Drawable*>* GetOpaque(uint64_t Section);
+			Core::Pool<Drawable*>* GetTransparent(uint64_t Section);
 			Graphics::MultiRenderTarget2D* GetMRT(TargetType Type);
 			Graphics::RenderTarget2D* GetRT(TargetType Type);
 			Graphics::Texture2D** GetMerger();
@@ -1064,17 +1064,17 @@ namespace Tomahawk
 				return nullptr;
 			}
 			template <typename T>
-			Rest::Pool<Component*>* GetComponents()
+			Core::Pool<Component*>* GetComponents()
 			{
 				return GetComponents(T::GetTypeId());
 			}
 			template <typename T>
-			Rest::Pool<Drawable*>* GetOpaque()
+			Core::Pool<Drawable*>* GetOpaque()
 			{
 				return GetOpaque(T::GetTypeId());
 			}
 			template <typename T>
-			Rest::Pool<Drawable*>* GetTransparent()
+			Core::Pool<Drawable*>* GetTransparent()
 			{
 				return GetTransparent(T::GetTypeId());
 			}
@@ -1094,13 +1094,13 @@ namespace Tomahawk
 			}
 		};
 
-		class TH_OUT ContentManager : public Rest::Object
+		class TH_OUT ContentManager : public Core::Object
 		{
 		private:
 			std::unordered_map<std::string, std::unordered_map<Processor*, AssetCache*>> Assets;
 			std::unordered_map<std::string, AssetArchive*> Dockers;
 			std::unordered_map<int64_t, Processor*> Processors;
-			std::unordered_map<Rest::Stream*, int64_t> Streams;
+			std::unordered_map<Core::Stream*, int64_t> Streams;
 			Graphics::GraphicsDevice* Device;
 			std::string Environment, Base;
 			std::mutex Mutex;
@@ -1120,27 +1120,27 @@ namespace Tomahawk
 
 		public:
 			template <typename T>
-			T* Load(const std::string& Path, const Rest::VariantArgs& Keys = Rest::VariantArgs())
+			T* Load(const std::string& Path, const Core::VariantArgs& Keys = Core::VariantArgs())
 			{
 				return (T*)LoadForward(Path, GetProcessor<T>(), Keys);
 			}
 			template <typename T>
-			Rest::Async<T*> LoadAsync(const std::string& Path, const Rest::VariantArgs& Keys = Rest::VariantArgs())
+			Core::Async<T*> LoadAsync(const std::string& Path, const Core::VariantArgs& Keys = Core::VariantArgs())
 			{
-				return [this, Path, Keys](Rest::Async<T*>& Base)
+				return [this, Path, Keys](Core::Async<T*>& Base)
 				{
 					Base.Set((T*)LoadForward(Path, GetProcessor<T>(), Keys));
 				};
 			}
 			template <typename T>
-			bool Save(const std::string& Path, T* Object, const Rest::VariantArgs& Keys = Rest::VariantArgs())
+			bool Save(const std::string& Path, T* Object, const Core::VariantArgs& Keys = Core::VariantArgs())
 			{
 				return SaveForward(Path, GetProcessor<T>(), Object, Keys);
 			}
 			template <typename T>
-			Rest::Async<bool> SaveAsync(const std::string& Path, T* Object, const Rest::VariantArgs& Keys = Rest::VariantArgs())
+			Core::Async<bool> SaveAsync(const std::string& Path, T* Object, const Core::VariantArgs& Keys = Core::VariantArgs())
 			{
-				return [this, Path, Object, Keys](Rest::Async<bool>& Base)
+				return [this, Path, Object, Keys](Core::Async<bool>& Base)
 				{
 					Base.Set(SaveForward(Path, GetProcessor<T>(), Object, Keys));
 				};
@@ -1207,14 +1207,14 @@ namespace Tomahawk
 			}
 
 		private:
-			void* LoadForward(const std::string& Path, Processor* Processor, const Rest::VariantArgs& Keys);
-			void* LoadStreaming(const std::string& Path, Processor* Processor, const Rest::VariantArgs& Keys);
-			bool SaveForward(const std::string& Path, Processor* Processor, void* Object, const Rest::VariantArgs& Keys);
+			void* LoadForward(const std::string& Path, Processor* Processor, const Core::VariantArgs& Keys);
+			void* LoadStreaming(const std::string& Path, Processor* Processor, const Core::VariantArgs& Keys);
+			bool SaveForward(const std::string& Path, Processor* Processor, void* Object, const Core::VariantArgs& Keys);
 			AssetCache* Find(Processor* Target, const std::string& Path);
 			AssetCache* Find(Processor* Target, void* Resource);
 		};
 
-		class TH_OUT Application : public Rest::Object
+		class TH_OUT Application : public Core::Object
 		{
 		public:
 			struct Desc
@@ -1263,14 +1263,14 @@ namespace Tomahawk
 			virtual void WindowEvent(Graphics::WindowState NewState, int X, int Y);
 			virtual void ScriptHook(Script::VMGlobal* Global);
 			virtual bool ComposeEvent();
-			virtual void Render(Rest::Timer* Time);
+			virtual void Render(Core::Timer* Time);
 			virtual void Initialize(Desc* I);
 			virtual void* GetGUI();
 			void Start(Desc* I);
 			void Stop();
 
 		public:
-			template <typename T, void(T::*Event)(Rest::Timer*)>
+			template <typename T, void(T::*Event)(Core::Timer*)>
 			Reactor* Enqueue(double UpdateLimit = 0.0)
 			{
 				static_assert(std::is_base_of<Application, T>::value,
@@ -1293,7 +1293,7 @@ namespace Tomahawk
 			static void Compose();
 
 		public:
-			static Rest::Schedule* Queue();
+			static Core::Schedule* Queue();
 			static Application* Get();
 		};
 

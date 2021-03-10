@@ -59,7 +59,7 @@ namespace Tomahawk
 	{
 		SourceURL::SourceURL(const std::string& Src) : URL(Src)
 		{
-			Rml::URL Fixed(Rest::Stroke(&URL).Find("://").Found ? URL : "file:///" + URL);
+			Rml::URL Fixed(Core::Parser(&URL).Find("://").Found ? URL : "file:///" + URL);
 			Path = Fixed.GetPath() + Fixed.GetFileName() + (Fixed.GetExtension().empty() ? "" : "." + Fixed.GetExtension());
 			Host = Fixed.GetHost();
 			Login = Fixed.GetLogin();
@@ -119,7 +119,7 @@ namespace Tomahawk
 			}
 
 			struct addrinfo* Address;
-			if (getaddrinfo(Host, Rest::Stroke(Port).Get(), &Hints, &Address))
+			if (getaddrinfo(Host, Core::Parser(Port).Get(), &Hints, &Address))
 				return -1;
 
 			for (auto It = Address; It; It = It->ai_next)
@@ -229,7 +229,7 @@ namespace Tomahawk
 			Hints.ai_family = AF_UNSPEC;
 			Hints.ai_socktype = SOCK_STREAM;
 
-			if (getaddrinfo(Address.sa_data, Rest::Stroke((((struct sockaddr_in*)&Address)->sin_port)).Get(), &Hints, &Output->Host))
+			if (getaddrinfo(Address.sa_data, Core::Parser((((struct sockaddr_in*)&Address)->sin_port)).Get(), &Hints, &Output->Host))
 				return -1;
 
 			Output->Active = Output->Host;
@@ -903,7 +903,7 @@ namespace Tomahawk
 				return std::string();
 
 #ifdef TH_MICROSOFT
-			return Rest::Form("%i.%i.%i.%i", (int)((struct in_addr*)(Host->h_addr))->S_un.S_un_b.s_b1, (int)((struct in_addr*)(Host->h_addr))->S_un.S_un_b.s_b2, (int)((struct in_addr*)(Host->h_addr))->S_un.S_un_b.s_b3, (int)((struct in_addr*)(Host->h_addr))->S_un.S_un_b.s_b4).R();
+			return Core::Form("%i.%i.%i.%i", (int)((struct in_addr*)(Host->h_addr))->S_un.S_un_b.s_b1, (int)((struct in_addr*)(Host->h_addr))->S_un.S_un_b.s_b2, (int)((struct in_addr*)(Host->h_addr))->S_un.S_un_b.s_b3, (int)((struct in_addr*)(Host->h_addr))->S_un.S_un_b.s_b4).R();
 #else
 			return inet_ntoa(*(struct in_addr *)Host->h_addr_list[0]);
 #endif
@@ -1043,7 +1043,7 @@ namespace Tomahawk
 #endif
 			if (!Bound)
 			{
-				Rest::Schedule::Get()->SetTask(Multiplexer::Loop);
+				Core::Schedule::Get()->SetTask(Multiplexer::Loop);
 				Bound = true;
 			}
 		}
@@ -1064,13 +1064,13 @@ namespace Tomahawk
 		}
 		void Multiplexer::Dispatch()
 		{
-			auto* Queue = Rest::Schedule::Get();
+			auto* Queue = Core::Schedule::Get();
 			if (!Bound || !Queue->IsBlockable())
 				Loop();
 		}
 		void Multiplexer::Loop()
 		{
-			auto* Queue = Rest::Schedule::Get();
+			auto* Queue = Core::Schedule::Get();
 #ifdef TH_APPLE
 			struct kevent* Events = (struct kevent*)Array;
 #else
@@ -1520,7 +1520,7 @@ namespace Tomahawk
 #ifdef SSL_CTX_set_ecdh_auto
 				SSL_CTX_set_ecdh_auto(It.second.Context, 1);
 #endif
-				std::string ContextId = Compute::Common::MD5Hash(Rest::Stroke((int64_t)time(nullptr)).R());
+				std::string ContextId = Compute::Common::MD5Hash(Core::Parser((int64_t)time(nullptr)).R());
 				SSL_CTX_set_session_id_context(It.second.Context, (const unsigned char*)ContextId.c_str(), (unsigned int)ContextId.size());
 
 				if (!It.second.Chain.empty() && !It.second.Key.empty())
@@ -1579,7 +1579,7 @@ namespace Tomahawk
 			if (!Router && State == ServerState_Idle)
 				return false;
 
-			auto* Queue = Rest::Schedule::Get();
+			auto* Queue = Core::Schedule::Get();
 			Queue->ClearTimeout(Timer);
 			Timer = -1;
 
@@ -1635,7 +1635,7 @@ namespace Tomahawk
 				return false;
 
 			Multiplexer::Create((int)Router->MaxEvents, Router->MasterTimeout);
-			Timer = Rest::Schedule::Get()->SetInterval(Router->CloseTimeout, [this]()
+			Timer = Core::Schedule::Get()->SetInterval(Router->CloseTimeout, [this]()
 			{
 				FreeQueued();
 				if (State == ServerState_Stopping)
@@ -1724,7 +1724,7 @@ namespace Tomahawk
 			Good.insert(Base);
 			Sync.unlock();
 
-			return Rest::Schedule::Get()->SetTask([this, Base]()
+			return Core::Schedule::Get()->SetTask([this, Base]()
 			{
 				OnRequestBegin(Base);
 			});
@@ -1902,12 +1902,12 @@ namespace Tomahawk
 			}
 #endif
 		}
-		Rest::Async<int> SocketClient::Connect(Host* Address, bool Async)
+		Core::Async<int> SocketClient::Connect(Host* Address, bool Async)
 		{
 			if (!Address || Address->Hostname.empty() || Stream.IsValid())
-				return Rest::Async<int>::Store(-2);
+				return Core::Async<int>::Store(-2);
 
-			Rest::Async<int> Result;
+			Core::Async<int> Result;
 			Done = [Result](SocketClient*, int Code) mutable
 			{
 				Result.Set(Code);
@@ -1960,12 +1960,12 @@ namespace Tomahawk
 			OnConnect();
 			return Result;
 		}
-		Rest::Async<int> SocketClient::Close()
+		Core::Async<int> SocketClient::Close()
 		{
 			if (!Stream.IsValid())
-				return Rest::Async<int>::Store(-2);
+				return Core::Async<int>::Store(-2);
 
-			Rest::Async<int> Result;
+			Core::Async<int> Result;
 			Done = [Result](SocketClient*, int Code) mutable
 			{
 				Result.Set(Code);

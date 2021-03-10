@@ -111,12 +111,12 @@ namespace Tomahawk
 				AudioContext::Unlock();
 #endif
 			}
-			void Lowpass::Deserialize(Rest::Document* Node)
+			void Lowpass::Deserialize(Core::Document* Node)
 			{
 				Engine::NMake::Unpack(Node->Find("gain"), &Gain);
 				Engine::NMake::Unpack(Node->Find("gain-hf"), &GainHF);
 			}
-			void Lowpass::Serialize(Rest::Document* Node)
+			void Lowpass::Serialize(Core::Document* Node)
 			{
 				Engine::NMake::Pack(Node->Set("gain"), Gain);
 				Engine::NMake::Pack(Node->Set("gain-hf"), GainHF);
@@ -152,12 +152,12 @@ namespace Tomahawk
 				AudioContext::Unlock();
 #endif
 			}
-			void Highpass::Deserialize(Rest::Document* Node)
+			void Highpass::Deserialize(Core::Document* Node)
 			{
 				Engine::NMake::Unpack(Node->Find("gain"), &Gain);
 				Engine::NMake::Unpack(Node->Find("gain-lf"), &GainLF);
 			}
-			void Highpass::Serialize(Rest::Document* Node)
+			void Highpass::Serialize(Core::Document* Node)
 			{
 				Engine::NMake::Pack(Node->Set("gain"), Gain);
 				Engine::NMake::Pack(Node->Set("gain-lf"), GainLF);
@@ -194,13 +194,13 @@ namespace Tomahawk
 				AudioContext::Unlock();
 #endif
 			}
-			void Bandpass::Deserialize(Rest::Document* Node)
+			void Bandpass::Deserialize(Core::Document* Node)
 			{
 				Engine::NMake::Unpack(Node->Find("gain"), &Gain);
 				Engine::NMake::Unpack(Node->Find("gain-lf"), &GainLF);
 				Engine::NMake::Unpack(Node->Find("gain-hf"), &GainHF);
 			}
-			void Bandpass::Serialize(Rest::Document* Node)
+			void Bandpass::Serialize(Core::Document* Node)
 			{
 				Engine::NMake::Pack(Node->Set("gain"), Gain);
 				Engine::NMake::Pack(Node->Set("gain-lf"), GainLF);

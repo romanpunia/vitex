@@ -72,7 +72,7 @@ namespace Tomahawk
 			typedef std::function<bool(struct Connection*, const char*, int64_t)> ContentCallback;
 			typedef std::function<bool(struct Connection*, struct Resource*, int64_t)> ResourceCallback;
 			typedef std::function<bool(struct Connection*, struct Credentials*, const std::string&)> AuthorizeCallback;
-			typedef std::function<bool(struct Connection*, Rest::Stroke*)> HeaderCallback;
+			typedef std::function<bool(struct Connection*, Core::Parser*)> HeaderCallback;
 			typedef std::function<void(struct WebSocketFrame*)> WebSocketCallback;
 			typedef std::function<void(struct WebSocketFrame*, const char*, int64_t, enum WebSocketOp)> WebSocketReadCallback;
 			typedef std::function<bool(struct Connection*, Script::VMCompiler*)> GatewayCallback;
@@ -218,9 +218,9 @@ namespace Tomahawk
 
 			public:
 				void Write(const char* Buffer, int64_t Length, WebSocketOp OpCode, const SuccessCallback& Callback);
+				void Execute(bool Failed);
 				void Finish();
 				void Next();
-				void Execute(Script::VMContext* Context);
 				void Notify();
 				bool IsFinished();
 			};
@@ -242,10 +242,10 @@ namespace Tomahawk
 
 			public:
 				GatewayFrame(char* Data, int64_t DataSize);
+				void Execute(bool Failed);
 				bool Finish();
 				bool Error();
 				bool Start();
-				bool Execute(Script::VMContext* Context);
 				bool IsDone();
 				Script::VMContext* GetContext();
 
@@ -398,7 +398,7 @@ namespace Tomahawk
 
 			struct TH_OUT Connection final : public SocketConnection
 			{
-				Rest::Resource Resource;
+				Core::Resource Resource;
 				WebSocketFrame* WebSocket = nullptr;
 				GatewayFrame* Gateway = nullptr;
 				RouteEntry* Route = nullptr;
@@ -414,7 +414,7 @@ namespace Tomahawk
 				bool Store(const ResourceCallback& Callback = nullptr);
 			};
 
-			class TH_OUT QueryParameter final : public Rest::Document
+			class TH_OUT QueryParameter final : public Core::Document
 			{
 			public:
 				QueryParameter();
@@ -423,7 +423,7 @@ namespace Tomahawk
 				QueryParameter* Find(QueryToken* Name);
 			};
 
-			class TH_OUT Query : public Rest::Object
+			class TH_OUT Query : public Core::Object
 			{
 			public:
 				QueryParameter* Object;
@@ -447,10 +447,10 @@ namespace Tomahawk
 				QueryParameter* GetParameter(QueryToken* Name);
 			};
 
-			class TH_OUT Session : public Rest::Object
+			class TH_OUT Session : public Core::Object
 			{
 			public:
-				Rest::Document* Query = nullptr;
+				Core::Document* Query = nullptr;
 				std::string SessionId;
 				int64_t SessionExpires = 0;
 				bool IsNewSession = false;
@@ -470,7 +470,7 @@ namespace Tomahawk
 				static bool InvalidateCache(const std::string& Path);
 			};
 
-			class TH_OUT Parser : public Rest::Object
+			class TH_OUT Parser : public Core::Object
 			{
 			private:
 				enum MultipartState
@@ -556,13 +556,13 @@ namespace Tomahawk
 			{
 			public:
 				static void ConstructPath(Connection* Base);
-				static void ConstructHeadFull(RequestFrame* Request, ResponseFrame* Response, bool IsRequest, Rest::Stroke* Buffer);
-				static void ConstructHeadCache(Connection* Base, Rest::Stroke* Buffer);
-				static void ConstructHeadUncache(Connection* Base, Rest::Stroke* Buffer);
+				static void ConstructHeadFull(RequestFrame* Request, ResponseFrame* Response, bool IsRequest, Core::Parser* Buffer);
+				static void ConstructHeadCache(Connection* Base, Core::Parser* Buffer);
+				static void ConstructHeadUncache(Connection* Base, Core::Parser* Buffer);
 				static bool ConstructRoute(MapRouter* Router, Connection* Base);
 				static bool WebSocketWrite(Connection* Base, const char* Buffer, int64_t Length, WebSocketOp Type, const SuccessCallback& Callback);
 				static bool WebSocketWriteMask(Connection* Base, const char* Buffer, int64_t Length, WebSocketOp Type, unsigned int Mask, const SuccessCallback& Callback);
-				static bool ConstructDirectoryEntries(const Rest::ResourceEntry& A, const Rest::ResourceEntry& B);
+				static bool ConstructDirectoryEntries(const Core::ResourceEntry& A, const Core::ResourceEntry& B);
 				static std::string ConnectionResolve(Connection* Base);
 				static std::string ConstructContentRange(uint64_t Offset, uint64_t Length, uint64_t ContenLength);
 				static const char* ContentType(const std::string& Path, std::vector<MimeType>* MimeTypes);
@@ -591,9 +591,9 @@ namespace Tomahawk
 
 			public:
 				static bool ResourceHidden(Connection* Base, std::string* Path);
-				static bool ResourceIndexed(Connection* Base, Rest::Resource* Resource);
-				static bool ResourceProvided(Connection* Base, Rest::Resource* Resource);
-				static bool ResourceModified(Connection* Base, Rest::Resource* Resource);
+				static bool ResourceIndexed(Connection* Base, Core::Resource* Resource);
+				static bool ResourceProvided(Connection* Base, Core::Resource* Resource);
+				static bool ResourceModified(Connection* Base, Core::Resource* Resource);
 				static bool ResourceCompressed(Connection* Base, uint64_t Size);
 
 			public:
@@ -647,8 +647,8 @@ namespace Tomahawk
 			public:
 				Client(int64_t ReadTimeout);
 				virtual ~Client() override;
-				Rest::Async<ResponseFrame*> Send(HTTP::RequestFrame* Root);
-				Rest::Async<ResponseFrame*> Consume(int64_t MaxSize);
+				Core::Async<ResponseFrame*> Send(HTTP::RequestFrame* Root);
+				Core::Async<ResponseFrame*> Consume(int64_t MaxSize);
 				RequestFrame* GetRequest();
 				ResponseFrame* GetResponse();
 

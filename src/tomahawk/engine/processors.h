@@ -72,15 +72,15 @@ namespace Tomahawk
 			{
 			public:
 				Asset(ContentManager* Manager);
-				void* Deserialize(Rest::Stream* Stream, uint64_t Length, uint64_t Offset, const Rest::VariantArgs& Args) override;
+				void* Deserialize(Core::Stream* Stream, uint64_t Length, uint64_t Offset, const Core::VariantArgs& Args) override;
 			};
 
 			class TH_OUT SceneGraph final : public Processor
 			{
 			public:
 				SceneGraph(ContentManager* Manager);
-				void* Deserialize(Rest::Stream* Stream, uint64_t Length, uint64_t Offset, const Rest::VariantArgs& Args) override;
-				bool Serialize(Rest::Stream* Stream, void* Object, const Rest::VariantArgs& Args) override;
+				void* Deserialize(Core::Stream* Stream, uint64_t Length, uint64_t Offset, const Core::VariantArgs& Args) override;
+				bool Serialize(Core::Stream* Stream, void* Object, const Core::VariantArgs& Args) override;
 			};
 
 			class TH_OUT AudioClip final : public Processor
@@ -89,10 +89,10 @@ namespace Tomahawk
 				AudioClip(ContentManager* Manager);
 				virtual ~AudioClip() override;
 				void Free(AssetCache* Asset) override;
-				void* Duplicate(AssetCache* Asset, const Rest::VariantArgs& Args) override;
-				void* Deserialize(Rest::Stream* Stream, uint64_t Length, uint64_t Offset, const Rest::VariantArgs& Args) override;
-				void* DeserializeWAVE(Rest::Stream* Stream, uint64_t Length, uint64_t Offset, const Rest::VariantArgs& Args);
-				void* DeserializeOGG(Rest::Stream* Stream, uint64_t Length, uint64_t Offset, const Rest::VariantArgs& Args);
+				void* Duplicate(AssetCache* Asset, const Core::VariantArgs& Args) override;
+				void* Deserialize(Core::Stream* Stream, uint64_t Length, uint64_t Offset, const Core::VariantArgs& Args) override;
+				void* DeserializeWAVE(Core::Stream* Stream, uint64_t Length, uint64_t Offset, const Core::VariantArgs& Args);
+				void* DeserializeOGG(Core::Stream* Stream, uint64_t Length, uint64_t Offset, const Core::VariantArgs& Args);
 			};
 
 			class TH_OUT Texture2D final : public Processor
@@ -101,8 +101,8 @@ namespace Tomahawk
 				Texture2D(ContentManager* Manager);
 				virtual ~Texture2D() override;
 				void Free(AssetCache* Asset) override;
-				void* Duplicate(AssetCache* Asset, const Rest::VariantArgs& Args) override;
-				void* Deserialize(Rest::Stream* Stream, uint64_t Length, uint64_t Offset, const Rest::VariantArgs& Args) override;
+				void* Duplicate(AssetCache* Asset, const Core::VariantArgs& Args) override;
+				void* Deserialize(Core::Stream* Stream, uint64_t Length, uint64_t Offset, const Core::VariantArgs& Args) override;
 			};
 
 			class TH_OUT Shader final : public Processor
@@ -111,8 +111,8 @@ namespace Tomahawk
 				Shader(ContentManager* Manager);
 				virtual ~Shader() override;
 				void Free(AssetCache* Asset) override;
-				void* Duplicate(AssetCache* Asset, const Rest::VariantArgs& Args) override;
-				void* Deserialize(Rest::Stream* Stream, uint64_t Length, uint64_t Offset, const Rest::VariantArgs& Args) override;
+				void* Duplicate(AssetCache* Asset, const Core::VariantArgs& Args) override;
+				void* Deserialize(Core::Stream* Stream, uint64_t Length, uint64_t Offset, const Core::VariantArgs& Args) override;
 			};
 
 			class TH_OUT Model final : public Processor
@@ -124,11 +124,11 @@ namespace Tomahawk
 				Model(ContentManager* Manager);
 				virtual ~Model() override;
 				void Free(AssetCache* Asset) override;
-				void* Duplicate(AssetCache* Asset, const Rest::VariantArgs& Args) override;
-				void* Deserialize(Rest::Stream* Stream, uint64_t Length, uint64_t Offset, const Rest::VariantArgs& Args) override;
+				void* Duplicate(AssetCache* Asset, const Core::VariantArgs& Args) override;
+				void* Deserialize(Core::Stream* Stream, uint64_t Length, uint64_t Offset, const Core::VariantArgs& Args) override;
 
 			public:
-				static Rest::Document* Import(const std::string& Path, unsigned int Opts = MeshOpt_CalcTangentSpace | MeshOpt_GenSmoothNormals | MeshOpt_JoinIdenticalVertices | MeshOpt_ImproveCacheLocality | MeshOpt_LimitBoneWeights | MeshOpt_RemoveRedundantMaterials | MeshOpt_SplitLargeMeshes | MeshOpt_Triangulate | MeshOpt_GenUVCoords | MeshOpt_SortByPType | MeshOpt_RemoveDegenerates | MeshOpt_RemoveInvalidData | MeshOpt_RemoveInstances | MeshOpt_ValidateDataStructure | MeshOpt_OptimizeMeshes | MeshOpt_TransformUVCoords | 0);
+				static Core::Document* Import(const std::string& Path, unsigned int Opts = MeshOpt_CalcTangentSpace | MeshOpt_GenSmoothNormals | MeshOpt_JoinIdenticalVertices | MeshOpt_ImproveCacheLocality | MeshOpt_LimitBoneWeights | MeshOpt_RemoveRedundantMaterials | MeshOpt_SplitLargeMeshes | MeshOpt_Triangulate | MeshOpt_GenUVCoords | MeshOpt_SortByPType | MeshOpt_RemoveDegenerates | MeshOpt_RemoveInvalidData | MeshOpt_RemoveInstances | MeshOpt_ValidateDataStructure | MeshOpt_OptimizeMeshes | MeshOpt_TransformUVCoords | 0);
 
 			private:
 				static void ProcessNode(void* Scene, void* Node, MeshInfo* Info, const Compute::Matrix4x4& Global);
@@ -146,11 +146,11 @@ namespace Tomahawk
 				SkinModel(ContentManager* Manager);
 				virtual ~SkinModel() override;
 				void Free(AssetCache* Asset) override;
-				void* Duplicate(AssetCache* Asset, const Rest::VariantArgs& Args) override;
-				void* Deserialize(Rest::Stream* Stream, uint64_t Length, uint64_t Offset, const Rest::VariantArgs& Args) override;
+				void* Duplicate(AssetCache* Asset, const Core::VariantArgs& Args) override;
+				void* Deserialize(Core::Stream* Stream, uint64_t Length, uint64_t Offset, const Core::VariantArgs& Args) override;
 
 			public:
-				static Rest::Document* ImportAnimation(const std::string& Path, unsigned int Opts = MeshOpt_CalcTangentSpace | MeshOpt_GenSmoothNormals | MeshOpt_JoinIdenticalVertices | MeshOpt_ImproveCacheLocality | MeshOpt_LimitBoneWeights | MeshOpt_RemoveRedundantMaterials | MeshOpt_SplitLargeMeshes | MeshOpt_Triangulate | MeshOpt_GenUVCoords | MeshOpt_SortByPType | MeshOpt_RemoveDegenerates | MeshOpt_RemoveInvalidData | MeshOpt_RemoveInstances | MeshOpt_ValidateDataStructure | MeshOpt_OptimizeMeshes | MeshOpt_TransformUVCoords | 0);
+				static Core::Document* ImportAnimation(const std::string& Path, unsigned int Opts = MeshOpt_CalcTangentSpace | MeshOpt_GenSmoothNormals | MeshOpt_JoinIdenticalVertices | MeshOpt_ImproveCacheLocality | MeshOpt_LimitBoneWeights | MeshOpt_RemoveRedundantMaterials | MeshOpt_SplitLargeMeshes | MeshOpt_Triangulate | MeshOpt_GenUVCoords | MeshOpt_SortByPType | MeshOpt_RemoveDegenerates | MeshOpt_RemoveInvalidData | MeshOpt_RemoveInstances | MeshOpt_ValidateDataStructure | MeshOpt_OptimizeMeshes | MeshOpt_TransformUVCoords | 0);
 
 			private:
 				static void ProcessNode(void* Scene, void* Node, std::unordered_map<std::string, MeshNode>* Joints, int64_t& Index);
@@ -162,18 +162,18 @@ namespace Tomahawk
 			{
 			public:
 				Document(ContentManager* Manager);
-				void* Deserialize(Rest::Stream* Stream, uint64_t Length, uint64_t Offset, const Rest::VariantArgs& Args) override;
-				bool Serialize(Rest::Stream* Stream, void* Object, const Rest::VariantArgs& Args) override;
+				void* Deserialize(Core::Stream* Stream, uint64_t Length, uint64_t Offset, const Core::VariantArgs& Args) override;
+				bool Serialize(Core::Stream* Stream, void* Object, const Core::VariantArgs& Args) override;
 			};
 
 			class TH_OUT Server final : public Processor
 			{
 			public:
-				std::function<void(void*, Rest::Document*)> Callback;
+				std::function<void(void*, Core::Document*)> Callback;
 
 			public:
 				Server(ContentManager* Manager);
-				void* Deserialize(Rest::Stream* Stream, uint64_t Length, uint64_t Offset, const Rest::VariantArgs& Args) override;
+				void* Deserialize(Core::Stream* Stream, uint64_t Length, uint64_t Offset, const Core::VariantArgs& Args) override;
 			};
 
 			class TH_OUT Shape final : public Processor
@@ -182,8 +182,8 @@ namespace Tomahawk
 				Shape(ContentManager* Manager);
 				virtual ~Shape() override;
 				void Free(AssetCache* Asset) override;
-				void* Duplicate(AssetCache* Asset, const Rest::VariantArgs& Args) override;
-				void* Deserialize(Rest::Stream* Stream, uint64_t Length, uint64_t Offset, const Rest::VariantArgs& Args) override;
+				void* Duplicate(AssetCache* Asset, const Core::VariantArgs& Args) override;
+				void* Deserialize(Core::Stream* Stream, uint64_t Length, uint64_t Offset, const Core::VariantArgs& Args) override;
 			};
 		}
 	}

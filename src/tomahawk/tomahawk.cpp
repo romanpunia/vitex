@@ -244,13 +244,13 @@ namespace Tomahawk
 			return true;
 
 		if (HeapSize > 0)
-			Rest::Mem::Create(HeapSize);
+			Core::Mem::Create(HeapSize);
 
 		Modes = Modules;
 		if (Modes & TInit_Rest)
 		{
 			if (Modes & TInit_Logger)
-				Rest::Debug::AttachStream();
+				Core::Debug::AttachStream();
 		}
 
 		if (Modes & TInit_Network)
@@ -404,7 +404,7 @@ namespace Tomahawk
 		if (Modes & TInit_Audio)
 			Audio::AudioContext::Create();
 
-		Script::VMManager::SetMemoryFunctions(Rest::Mem::Malloc, Rest::Mem::Free);
+		Script::VMManager::SetMemoryFunctions(Core::Mem::Malloc, Core::Mem::Free);
 #ifndef TH_MICROSOFT
 		signal(SIGPIPE, SIG_IGN);
 #endif
@@ -416,8 +416,8 @@ namespace Tomahawk
 		if (State > 0 || State < 0)
 			return State >= 0;
 
-		TH_RELEASE(Rest::Schedule::Get());
-		TH_RELEASE(Rest::Console::Get());
+		TH_RELEASE(Core::Schedule::Get());
+		TH_RELEASE(Core::Console::Get());
 
 		if (Modes & TInit_Audio)
 			Audio::AudioContext::Release();
@@ -470,13 +470,13 @@ namespace Tomahawk
 		}
 
 		Script::VMManager::FreeProxy();
-		Rest::Composer::Clear();
-		Rest::Mem::Release();
+		Core::Composer::Clear();
+		Core::Mem::Release();
 
 		if (Modes & TInit_Rest)
 		{
 			if (Modes & TInit_Logger)
-				Rest::Debug::DetachStream();
+				Core::Debug::DetachStream();
 		}
 #ifdef TH_HAS_ASSIMP
 		Assimp::DefaultLogger::kill();

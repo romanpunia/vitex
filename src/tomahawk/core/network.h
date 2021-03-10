@@ -302,7 +302,7 @@ namespace Tomahawk
 			static void Loop();
 		};
 
-		class TH_OUT SocketServer : public Rest::Object
+		class TH_OUT SocketServer : public Core::Object
 		{
 			friend SocketConnection;
 
@@ -312,7 +312,7 @@ namespace Tomahawk
 			std::vector<Listener*> Listeners;
 			SocketRouter* Router = nullptr;
 			ServerState State = ServerState_Idle;
-			Rest::EventId Timer = -1;
+			Core::EventId Timer = -1;
 			std::mutex Sync;
 
 		public:
@@ -346,7 +346,7 @@ namespace Tomahawk
 			bool Manage(SocketConnection* Base);
 		};
 
-		class TH_OUT SocketClient : public Rest::Object
+		class TH_OUT SocketClient : public Core::Object
 		{
 		protected:
 			SocketClientCallback Done;
@@ -360,8 +360,8 @@ namespace Tomahawk
 		public:
 			SocketClient(int64_t RequestTimeout);
 			virtual ~SocketClient() override;
-			Rest::Async<int> Connect(Host* Address, bool Async);
-			Rest::Async<int> Close();
+			Core::Async<int> Connect(Host* Address, bool Async);
+			Core::Async<int> Close();
 			Socket* GetStream();
 
 		protected:

@@ -2014,18 +2014,18 @@ namespace Tomahawk
 					return Result;
 				}
 
-				Rest::Stroke::Settle Start;
-				Rest::Stroke Code(&F.Data);
+				Core::Parser::Settle Start;
+				Core::Parser Code(&F.Data);
 				GLint StatusCode = 0;
 
 				std::string VertexEntry = GetShaderMain(ShaderType_Vertex);
 				if ((Start = Code.Find(VertexEntry)).Found)
 				{
-					Rest::Stroke::Settle End = Code.Find("#program", Start.End);
+					Core::Parser::Settle End = Code.Find("#program", Start.End);
 					if (!End.Found)
 						End.Start = Code.Size() - 1;
 
-					Rest::Stroke Sub(F.Data);
+					Core::Parser Sub(F.Data);
 					Sub.Splice(Start.End, End.Start);
 					Sub.Insert(ShaderVersion, 0);
 
@@ -2050,11 +2050,11 @@ namespace Tomahawk
 				std::string PixelEntry = GetShaderMain(ShaderType_Pixel);
 				if ((Start = Code.Find(PixelEntry)).Found)
 				{
-					Rest::Stroke::Settle End = Code.Find("#program", Start.End);
+					Core::Parser::Settle End = Code.Find("#program", Start.End);
 					if (!End.Found)
 						End.Start = Code.Size() - 1;
 
-					Rest::Stroke Sub(F.Data);
+					Core::Parser Sub(F.Data);
 					Sub.Splice(Start.End, End.Start);
 					Sub.Insert(ShaderVersion, 0);
 
@@ -2079,11 +2079,11 @@ namespace Tomahawk
 				std::string GeometryEntry = GetShaderMain(ShaderType_Geometry);
 				if ((Start = Code.Find(GeometryEntry)).Found)
 				{
-					Rest::Stroke::Settle End = Code.Find("#program", Start.End);
+					Core::Parser::Settle End = Code.Find("#program", Start.End);
 					if (!End.Found)
 						End.Start = Code.Size() - 1;
 
-					Rest::Stroke Sub(F.Data);
+					Core::Parser Sub(F.Data);
 					Sub.Splice(Start.End, End.Start);
 					Sub.Insert(ShaderVersion, 0);
 
@@ -2108,11 +2108,11 @@ namespace Tomahawk
 				std::string ComputeEntry = GetShaderMain(ShaderType_Compute);
 				if ((Start = Code.Find(ComputeEntry)).Found)
 				{
-					Rest::Stroke::Settle End = Code.Find("#program", Start.End);
+					Core::Parser::Settle End = Code.Find("#program", Start.End);
 					if (!End.Found)
 						End.Start = Code.Size() - 1;
 
-					Rest::Stroke Sub(F.Data);
+					Core::Parser Sub(F.Data);
 					Sub.Splice(Start.End, End.Start);
 					Sub.Insert(ShaderVersion, 0);
 
@@ -2137,11 +2137,11 @@ namespace Tomahawk
 				std::string DomainEntry = GetShaderMain(ShaderType_Domain);
 				if ((Start = Code.Find(DomainEntry)).Found)
 				{
-					Rest::Stroke::Settle End = Code.Find("#program", Start.End);
+					Core::Parser::Settle End = Code.Find("#program", Start.End);
 					if (!End.Found)
 						End.Start = Code.Size() - 1;
 
-					Rest::Stroke Sub(F.Data);
+					Core::Parser Sub(F.Data);
 					Sub.Splice(Start.End, End.Start);
 					Sub.Insert(ShaderVersion, 0);
 
@@ -2166,11 +2166,11 @@ namespace Tomahawk
 				std::string HullEntry = GetShaderMain(ShaderType_Hull);
 				if ((Start = Code.Find(HullEntry)).Found)
 				{
-					Rest::Stroke::Settle End = Code.Find("#program", Start.End);
+					Core::Parser::Settle End = Code.Find("#program", Start.End);
 					if (!End.Found)
 						End.Start = Code.Size() - 1;
 
-					Rest::Stroke Sub(F.Data);
+					Core::Parser Sub(F.Data);
 					Sub.Splice(Start.End, End.Start);
 					Sub.Insert(ShaderVersion, 0);
 

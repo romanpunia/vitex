@@ -1,5 +1,5 @@
-#ifndef TH_REST_H
-#define TH_REST_H
+#ifndef TH_CORE_H
+#define TH_CORE_H
 #pragma warning(disable: 4251)
 #pragma warning(disable: 4996)
 #include <thread>
@@ -88,32 +88,32 @@ typedef int socket_t;
 typedef socklen_t socket_size_t;
 #endif
 #if TH_DLEVEL >= 3
-#define TH_INFO(Format, ...) Tomahawk::Rest::Debug::Log(3, TH_LINE, TH_FILE, Format, ##__VA_ARGS__)
-#define TH_WARN(Format, ...) Tomahawk::Rest::Debug::Log(2, TH_LINE, TH_FILE, Format, ##__VA_ARGS__)
-#define TH_ERROR(Format, ...) Tomahawk::Rest::Debug::Log(1, TH_LINE, TH_FILE, Format, ##__VA_ARGS__)
+#define TH_INFO(Format, ...) Tomahawk::Core::Debug::Log(3, TH_LINE, TH_FILE, Format, ##__VA_ARGS__)
+#define TH_WARN(Format, ...) Tomahawk::Core::Debug::Log(2, TH_LINE, TH_FILE, Format, ##__VA_ARGS__)
+#define TH_ERROR(Format, ...) Tomahawk::Core::Debug::Log(1, TH_LINE, TH_FILE, Format, ##__VA_ARGS__)
 #elif TH_DLEVEL >= 2
 #define TH_INFO(Format, ...)
-#define TH_WARN(Format, ...) Tomahawk::Rest::Debug::Log(2, TH_LINE, TH_FILE, Format, ##__VA_ARGS__)
-#define TH_ERROR(Format, ...) Tomahawk::Rest::Debug::Log(1, TH_LINE, TH_FILE, Format, ##__VA_ARGS__)
+#define TH_WARN(Format, ...) Tomahawk::Core::Debug::Log(2, TH_LINE, TH_FILE, Format, ##__VA_ARGS__)
+#define TH_ERROR(Format, ...) Tomahawk::Core::Debug::Log(1, TH_LINE, TH_FILE, Format, ##__VA_ARGS__)
 #elif TH_DLEVEL >= 1
 #define TH_INFO(Format, ...)
 #define TH_WARN(Format, ...)
-#define TH_ERROR(Format, ...) Tomahawk::Rest::Debug::Log(1, TH_LINE, TH_FILE, Format, ##__VA_ARGS__)
+#define TH_ERROR(Format, ...) Tomahawk::Core::Debug::Log(1, TH_LINE, TH_FILE, Format, ##__VA_ARGS__)
 #else
 #define TH_INFO(...)
 #define TH_WARN(...)
 #define TH_ERROR(...)
 #endif
 #define TH_COUT extern "C" TH_OUT
-#define TH_MALLOC(Size) Tomahawk::Rest::Mem::Malloc(Size)
-#define TH_REALLOC(Ptr, Size) Tomahawk::Rest::Mem::Realloc(Ptr, Size)
-#define TH_FREE(Ptr) Tomahawk::Rest::Mem::Free(Ptr)
+#define TH_MALLOC(Size) Tomahawk::Core::Mem::Malloc(Size)
+#define TH_REALLOC(Ptr, Size) Tomahawk::Core::Mem::Realloc(Ptr, Size)
+#define TH_FREE(Ptr) Tomahawk::Core::Mem::Free(Ptr)
 #define TH_RELEASE(Ptr) { if (Ptr != nullptr) (Ptr)->Release(); }
 #define TH_CLEAR(Ptr) { if (Ptr != nullptr) { (Ptr)->Release(); Ptr = nullptr; } }
 #define TH_PREFIX_CHAR '@'
 #define TH_PREFIX_STR "@"
-#define TH_LOG(Format, ...) Tomahawk::Rest::Debug::Log(0, TH_LINE, TH_FILE, Format, ##__VA_ARGS__)
-#define TH_COMPONENT_HASH(Name) Tomahawk::Rest::OS::File::GetCheckSum(Name)
+#define TH_LOG(Format, ...) Tomahawk::Core::Debug::Log(0, TH_LINE, TH_FILE, Format, ##__VA_ARGS__)
+#define TH_COMPONENT_HASH(Name) Tomahawk::Core::OS::File::GetCheckSum(Name)
 #define TH_COMPONENT_IS(Source, Name) (Source->GetId() == TH_COMPONENT_HASH(Name))
 #define TH_COMPONENT(Name) \
 virtual const char* GetName() { return Name; } \
@@ -123,7 +123,7 @@ static uint64_t GetTypeId() { static uint64_t V = TH_COMPONENT_HASH(Name); retur
 
 namespace Tomahawk
 {
-	namespace Rest
+	namespace Core
 	{
 		class Document;
 
@@ -398,7 +398,7 @@ namespace Tomahawk
 			static int64_t ReadGMTBasedString(const char* Date);
 		};
 
-		struct TH_OUT Stroke
+		struct TH_OUT Parser
 		{
 		public:
 			struct Settle
@@ -413,87 +413,87 @@ namespace Tomahawk
 			bool Safe;
 
 		public:
-			Stroke();
-			Stroke(int Value);
-			Stroke(unsigned int Value);
-			Stroke(int64_t Value);
-			Stroke(uint64_t Value);
-			Stroke(float Value);
-			Stroke(double Value);
-			Stroke(long double Value);
-			Stroke(const std::string& Buffer);
-			Stroke(std::string* Buffer);
-			Stroke(const std::string* Buffer);
-			Stroke(const char* Buffer);
-			Stroke(const char* Buffer, int64_t Length);
-			Stroke(const Stroke& Value);
-			~Stroke();
-			Stroke& EscapePrint();
-			Stroke& Escape();
-			Stroke& Unescape();
-			Stroke& Reserve(uint64_t Count = 1);
-			Stroke& Resize(uint64_t Count);
-			Stroke& Resize(uint64_t Count, char Char);
-			Stroke& Clear();
-			Stroke& ToUtf8();
-			Stroke& ToUpper();
-			Stroke& ToLower();
-			Stroke& Clip(uint64_t Length);
-			Stroke& ReplaceOf(const char* Chars, const char* To, uint64_t Start = 0U);
-			Stroke& ReplaceNotOf(const char* Chars, const char* To, uint64_t Start = 0U);
-			Stroke& Replace(const std::string& From, const std::string& To, uint64_t Start = 0U);
-			Stroke& Replace(const char* From, const char* To, uint64_t Start = 0U);
-			Stroke& Replace(const char& From, const char& To, uint64_t Position = 0U);
-			Stroke& Replace(const char& From, const char& To, uint64_t Position, uint64_t Count);
-			Stroke& ReplacePart(uint64_t Start, uint64_t End, const std::string& Value);
-			Stroke& ReplacePart(uint64_t Start, uint64_t End, const char* Value);
-			Stroke& RemovePart(uint64_t Start, uint64_t End);
-			Stroke& Reverse();
-			Stroke& Reverse(uint64_t Start, uint64_t End);
-			Stroke& Substring(uint64_t Start);
-			Stroke& Substring(uint64_t Start, uint64_t Count);
-			Stroke& Substring(const Stroke::Settle& Result);
-			Stroke& Splice(uint64_t Start, uint64_t End);
-			Stroke& Trim();
-			Stroke& Fill(const char& Char);
-			Stroke& Fill(const char& Char, uint64_t Count);
-			Stroke& Fill(const char& Char, uint64_t Start, uint64_t Count);
-			Stroke& Assign(const char* Raw);
-			Stroke& Assign(const char* Raw, uint64_t Length);
-			Stroke& Assign(const std::string& Raw);
-			Stroke& Assign(const std::string& Raw, uint64_t Start, uint64_t Count);
-			Stroke& Assign(const char* Raw, uint64_t Start, uint64_t Count);
-			Stroke& Append(const char* Raw);
-			Stroke& Append(const char& Char);
-			Stroke& Append(const char& Char, uint64_t Count);
-			Stroke& Append(const std::string& Raw);
-			Stroke& Append(const char* Raw, uint64_t Count);
-			Stroke& Append(const char* Raw, uint64_t Start, uint64_t Count);
-			Stroke& Append(const std::string& Raw, uint64_t Start, uint64_t Count);
-			Stroke& fAppend(const char* Format, ...);
-			Stroke& Insert(const std::string& Raw, uint64_t Position);
-			Stroke& Insert(const std::string& Raw, uint64_t Position, uint64_t Start, uint64_t Count);
-			Stroke& Insert(const std::string& Raw, uint64_t Position, uint64_t Count);
-			Stroke& Insert(const char& Char, uint64_t Position, uint64_t Count);
-			Stroke& Insert(const char& Char, uint64_t Position);
-			Stroke& Erase(uint64_t Position);
-			Stroke& Erase(uint64_t Position, uint64_t Count);
-			Stroke& EraseOffsets(uint64_t Start, uint64_t End);
-			Stroke& Path(const std::string& Net, const std::string& Dir);
-			Stroke::Settle ReverseFind(const std::string& Needle, uint64_t Offset = 0U) const;
-			Stroke::Settle ReverseFind(const char* Needle, uint64_t Offset = 0U) const;
-			Stroke::Settle ReverseFind(const char& Needle, uint64_t Offset = 0U) const;
-			Stroke::Settle ReverseFindUnescaped(const char& Needle, uint64_t Offset = 0U) const;
-			Stroke::Settle ReverseFindOf(const std::string& Needle, uint64_t Offset = 0U) const;
-			Stroke::Settle ReverseFindOf(const char* Needle, uint64_t Offset = 0U) const;
-			Stroke::Settle Find(const std::string& Needle, uint64_t Offset = 0U) const;
-			Stroke::Settle Find(const char* Needle, uint64_t Offset = 0U) const;
-			Stroke::Settle Find(const char& Needle, uint64_t Offset = 0U) const;
-			Stroke::Settle FindUnescaped(const char& Needle, uint64_t Offset = 0U) const;
-			Stroke::Settle FindOf(const std::string& Needle, uint64_t Offset = 0U) const;
-			Stroke::Settle FindOf(const char* Needle, uint64_t Offset = 0U) const;
-			Stroke::Settle FindNotOf(const std::string& Needle, uint64_t Offset = 0U) const;
-			Stroke::Settle FindNotOf(const char* Needle, uint64_t Offset = 0U) const;
+			Parser();
+			Parser(int Value);
+			Parser(unsigned int Value);
+			Parser(int64_t Value);
+			Parser(uint64_t Value);
+			Parser(float Value);
+			Parser(double Value);
+			Parser(long double Value);
+			Parser(const std::string& Buffer);
+			Parser(std::string* Buffer);
+			Parser(const std::string* Buffer);
+			Parser(const char* Buffer);
+			Parser(const char* Buffer, int64_t Length);
+			Parser(const Parser& Value);
+			~Parser();
+			Parser& EscapePrint();
+			Parser& Escape();
+			Parser& Unescape();
+			Parser& Reserve(uint64_t Count = 1);
+			Parser& Resize(uint64_t Count);
+			Parser& Resize(uint64_t Count, char Char);
+			Parser& Clear();
+			Parser& ToUtf8();
+			Parser& ToUpper();
+			Parser& ToLower();
+			Parser& Clip(uint64_t Length);
+			Parser& ReplaceOf(const char* Chars, const char* To, uint64_t Start = 0U);
+			Parser& ReplaceNotOf(const char* Chars, const char* To, uint64_t Start = 0U);
+			Parser& Replace(const std::string& From, const std::string& To, uint64_t Start = 0U);
+			Parser& Replace(const char* From, const char* To, uint64_t Start = 0U);
+			Parser& Replace(const char& From, const char& To, uint64_t Position = 0U);
+			Parser& Replace(const char& From, const char& To, uint64_t Position, uint64_t Count);
+			Parser& ReplacePart(uint64_t Start, uint64_t End, const std::string& Value);
+			Parser& ReplacePart(uint64_t Start, uint64_t End, const char* Value);
+			Parser& RemovePart(uint64_t Start, uint64_t End);
+			Parser& Reverse();
+			Parser& Reverse(uint64_t Start, uint64_t End);
+			Parser& Substring(uint64_t Start);
+			Parser& Substring(uint64_t Start, uint64_t Count);
+			Parser& Substring(const Parser::Settle& Result);
+			Parser& Splice(uint64_t Start, uint64_t End);
+			Parser& Trim();
+			Parser& Fill(const char& Char);
+			Parser& Fill(const char& Char, uint64_t Count);
+			Parser& Fill(const char& Char, uint64_t Start, uint64_t Count);
+			Parser& Assign(const char* Raw);
+			Parser& Assign(const char* Raw, uint64_t Length);
+			Parser& Assign(const std::string& Raw);
+			Parser& Assign(const std::string& Raw, uint64_t Start, uint64_t Count);
+			Parser& Assign(const char* Raw, uint64_t Start, uint64_t Count);
+			Parser& Append(const char* Raw);
+			Parser& Append(const char& Char);
+			Parser& Append(const char& Char, uint64_t Count);
+			Parser& Append(const std::string& Raw);
+			Parser& Append(const char* Raw, uint64_t Count);
+			Parser& Append(const char* Raw, uint64_t Start, uint64_t Count);
+			Parser& Append(const std::string& Raw, uint64_t Start, uint64_t Count);
+			Parser& fAppend(const char* Format, ...);
+			Parser& Insert(const std::string& Raw, uint64_t Position);
+			Parser& Insert(const std::string& Raw, uint64_t Position, uint64_t Start, uint64_t Count);
+			Parser& Insert(const std::string& Raw, uint64_t Position, uint64_t Count);
+			Parser& Insert(const char& Char, uint64_t Position, uint64_t Count);
+			Parser& Insert(const char& Char, uint64_t Position);
+			Parser& Erase(uint64_t Position);
+			Parser& Erase(uint64_t Position, uint64_t Count);
+			Parser& EraseOffsets(uint64_t Start, uint64_t End);
+			Parser& Path(const std::string& Net, const std::string& Dir);
+			Parser::Settle ReverseFind(const std::string& Needle, uint64_t Offset = 0U) const;
+			Parser::Settle ReverseFind(const char* Needle, uint64_t Offset = 0U) const;
+			Parser::Settle ReverseFind(const char& Needle, uint64_t Offset = 0U) const;
+			Parser::Settle ReverseFindUnescaped(const char& Needle, uint64_t Offset = 0U) const;
+			Parser::Settle ReverseFindOf(const std::string& Needle, uint64_t Offset = 0U) const;
+			Parser::Settle ReverseFindOf(const char* Needle, uint64_t Offset = 0U) const;
+			Parser::Settle Find(const std::string& Needle, uint64_t Offset = 0U) const;
+			Parser::Settle Find(const char* Needle, uint64_t Offset = 0U) const;
+			Parser::Settle Find(const char& Needle, uint64_t Offset = 0U) const;
+			Parser::Settle FindUnescaped(const char& Needle, uint64_t Offset = 0U) const;
+			Parser::Settle FindOf(const std::string& Needle, uint64_t Offset = 0U) const;
+			Parser::Settle FindOf(const char* Needle, uint64_t Offset = 0U) const;
+			Parser::Settle FindNotOf(const std::string& Needle, uint64_t Offset = 0U) const;
+			Parser::Settle FindNotOf(const char* Needle, uint64_t Offset = 0U) const;
 			bool StartsWith(const std::string& Value, uint64_t Offset = 0U) const;
 			bool StartsWith(const char* Value, uint64_t Offset = 0U) const;
 			bool StartsOf(const char* Value, uint64_t Offset = 0U) const;
@@ -528,7 +528,7 @@ namespace Tomahawk
 			std::vector<std::string> SplitMax(char With, uint64_t MaxCount, uint64_t Start = 0U) const;
 			std::vector<std::string> SplitOf(const char* With, uint64_t Start = 0U) const;
 			std::vector<std::string> SplitNotOf(const char* With, uint64_t Start = 0U) const;
-			Stroke& operator = (const Stroke& New);
+			Parser& operator = (const Parser& New);
 
 		public:
 			static bool IsDigit(char Char);
@@ -1665,7 +1665,80 @@ namespace Tomahawk
 			}
 		};
 
-		TH_OUT Stroke Form(const char* Format, ...);
+		class Concurrent
+		{
+		private:
+			struct Condition
+			{
+				std::atomic<size_t> Count;
+				std::atomic<bool> Match;
+				Async<bool> Value;
+				bool Reverse;
+
+				Condition(bool Default, size_t Size) : Count(Size + 1), Match(Default), Reverse(Default)
+				{
+				}
+				void Next(bool Statement)
+				{
+					if (Statement != Reverse)
+						Match = !Reverse;
+
+					if (!--Count)
+						Value.Set(Match);
+
+					delete this;
+				}
+				Async<bool> Get()
+				{
+					Async<bool> Result = Value;
+					if (!--Count)
+						Value.Set(Match);
+
+					delete this;
+					return Result;
+				}
+			};
+
+		public:
+			template <typename T>
+			static bool ForEach(const std::vector<Async<T>>& Array, std::function<void(T&&)>&& Callback)
+			{
+				if (!Callback || Array.empty())
+					return false;
+
+				for (auto& Item : Array)
+				{
+					std::function<void(T&&)> Actor = Callback;
+					Item.Await(std::move(Actor));
+				}
+
+				return true;
+			}
+			template <typename T>
+			static Async<bool> And(T&& Value, const std::vector<Async<T>>& Array)
+			{
+				Condition* State = new Condition(true, Array.size());
+				ForEach<T>(Array, [State, Value = std::move(Value)](T&& Result)
+				{
+					State->Next(Result == Value);
+				});
+
+				return State->Get();
+			}
+			template <typename T>
+			static Async<bool> Or(T&& Value, const std::vector<Async<T>>& Array)
+			{
+				Condition* State = new Condition(false, Array.size());
+				ForEach<T>(Array, [State, Value = std::move(Value)](T&& Result)
+				{
+					State->Next(Result == Value);
+				});
+
+				return State->Get();
+			}
+		};
+
+		TH_OUT Parser Form(const char* Format, ...);
 
 		inline EventType operator |(EventType A, EventType B)
 		{

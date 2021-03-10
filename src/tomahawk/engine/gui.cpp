@@ -345,23 +345,23 @@ namespace Tomahawk
 				virtual Rml::FileHandle Open(const Rml::String& Path) override
 				{
 					std::string Target = Path;
-					if (!Rest::OS::File::IsExists(Target.c_str()))
+					if (!Core::OS::File::IsExists(Target.c_str()))
 					{
 						ContentManager* Content = (Subsystem::GetRenderInterface() ? Subsystem::GetRenderInterface()->GetContent() : nullptr);
-						Target = (Content ? Rest::OS::Path::Resolve(Path, Content->GetEnvironment()) : Rest::OS::Path::Resolve(Path.c_str()));
+						Target = (Content ? Core::OS::Path::Resolve(Path, Content->GetEnvironment()) : Core::OS::Path::Resolve(Path.c_str()));
 						Target = (Target.empty() ? Path.c_str() : Target.c_str());
 					}
 
-					return (Rml::FileHandle)Rest::OS::File::Open(Target, Rest::FileMode_Binary_Read_Only);
+					return (Rml::FileHandle)Core::OS::File::Open(Target, Core::FileMode_Binary_Read_Only);
 				}
 				virtual void Close(Rml::FileHandle File) override
 				{
-					Rest::Stream* Stream = (Rest::Stream*)File;
+					Core::Stream* Stream = (Core::Stream*)File;
 					TH_RELEASE(Stream);
 				}
 				virtual size_t Read(void* Buffer, size_t Size, Rml::FileHandle File) override
 				{
-					Rest::Stream* Stream = (Rest::Stream*)File;
+					Core::Stream* Stream = (Core::Stream*)File;
 					if (!Stream)
 						return 0;
 
@@ -369,15 +369,15 @@ namespace Tomahawk
 				}
 				virtual bool Seek(Rml::FileHandle File, long Offset, int Origin) override
 				{
-					Rest::Stream* Stream = (Rest::Stream*)File;
+					Core::Stream* Stream = (Core::Stream*)File;
 					if (!Stream)
 						return false;
 
-					return Stream->Seek((Rest::FileSeek)Origin, Offset) == 0;
+					return Stream->Seek((Core::FileSeek)Origin, Offset) == 0;
 				}
 				virtual size_t Tell(Rml::FileHandle File) override
 				{
-					Rest::Stream* Stream = (Rest::Stream*)File;
+					Core::Stream* Stream = (Core::Stream*)File;
 					if (!Stream)
 						return 0;
 
@@ -391,7 +391,7 @@ namespace Tomahawk
 				std::unordered_map<std::string, TranslationCallback> Translators;
 				std::unordered_map<std::string, bool> Fonts;
 				Graphics::Activity* Activity;
-				Rest::Timer* Time;
+				Core::Timer* Time;
 
 			public:
 				MainSubsystem() : Rml::SystemInterface(), Time(nullptr), Activity(nullptr)
@@ -466,22 +466,22 @@ namespace Tomahawk
 
 					if (Proto1 != "file" && Proto2 == "file")
 					{
-						Rest::Stroke Buffer(&Result);
+						Core::Parser Buffer(&Result);
 						if (!Buffer.Assign(Path1).EndsWith('/'))
 							Buffer.Append('/');
 
 						Buffer.Append(Fixed2).Replace("/////", "//");
-						Rest::Stroke::Settle Idx = Buffer.Find("://");
+						Core::Parser::Settle Idx = Buffer.Find("://");
 						Buffer.Replace("//", "/", Idx.Found ? Idx.End : 0);
 					}
 					else if (Proto1 == "file" && Proto2 == "file")
 					{
-						Result = Rest::OS::Path::Resolve(Fixed2, Rest::OS::Path::GetDirectory(Fixed1.c_str()));
+						Result = Core::OS::Path::Resolve(Fixed2, Core::OS::Path::GetDirectory(Fixed1.c_str()));
 						if (Result.empty())
-							Result = (Content ? Rest::OS::Path::Resolve(Fixed2, Content->GetEnvironment()) : Rest::OS::Path::Resolve(Fixed2.c_str()));
+							Result = (Content ? Core::OS::Path::Resolve(Fixed2, Content->GetEnvironment()) : Core::OS::Path::Resolve(Fixed2.c_str()));
 					}
 					else if (Proto1 == "file" && Proto2 != "file")
-						Result = Rest::Stroke(Path2).Replace("/////", "//").R();
+						Result = Core::Parser(Path2).Replace("/////", "//").R();
 				}
 				virtual bool LogMessage(Rml::Log::Type Type, const Rml::String& Message) override
 				{
@@ -524,7 +524,7 @@ namespace Tomahawk
 
 					return Time->GetElapsedTime() / 1000.0;
 				}
-				void Attach(Graphics::Activity* NewActivity, Rest::Timer* NewTime)
+				void Attach(Graphics::Activity* NewActivity, Core::Timer* NewTime)
 				{
 					Activity = NewActivity;
 					Time = NewTime;
@@ -555,7 +555,7 @@ namespace Tomahawk
 				}
 				std::string GetFixedURL(const std::string& URL, std::string& Proto)
 				{
-					if (!Rest::Stroke(&URL).Find("://").Found)
+					if (!Core::Parser(&URL).Find("://").Found)
 					{
 						Proto = "file";
 						return URL;
@@ -617,7 +617,7 @@ namespace Tomahawk
 						if (Compiler->LoadCode("__main__", Buffer.c_str(), Buffer.size()) < 0)
 							return;
 					}
-					else if (Compiler->LoadFile(Rest::Stroke(SourceName).Replace('|', ':').R()) < 0)
+					else if (Compiler->LoadFile(Core::Parser(SourceName).Replace('|', ':').R()) < 0)
 						return;
 
 					if (Compiler->Compile(true) < 0)
@@ -803,7 +803,7 @@ namespace Tomahawk
 				}
 			};
 
-			void IVariant::Convert(Rml::Variant* From, Rest::Variant* To)
+			void IVariant::Convert(Rml::Variant* From, Core::Variant* To)
 			{
 				if (!From || !To)
 					return;
@@ -811,60 +811,60 @@ namespace Tomahawk
 				switch (From->GetType())
 				{
 					case Rml::Variant::BOOL:
-						*To = std::move(Rest::Var::Boolean(From->Get<bool>()));
+						*To = std::move(Core::Var::Boolean(From->Get<bool>()));
 						break;
 					case Rml::Variant::FLOAT:
 					case Rml::Variant::DOUBLE:
-						*To = std::move(Rest::Var::Number(From->Get<double>()));
+						*To = std::move(Core::Var::Number(From->Get<double>()));
 						break;
 					case Rml::Variant::BYTE:
 					case Rml::Variant::CHAR:
 					case Rml::Variant::INT:
 					case Rml::Variant::INT64:
-						*To = std::move(Rest::Var::Integer(From->Get<int64_t>()));
+						*To = std::move(Core::Var::Integer(From->Get<int64_t>()));
 						break;
 					case Rml::Variant::VECTOR2:
 					{
 						Rml::Vector2f T = From->Get<Rml::Vector2f>();
-						*To = std::move(Rest::Var::String(FromVector2(Compute::Vector2(T.x, T.y))));
+						*To = std::move(Core::Var::String(FromVector2(Compute::Vector2(T.x, T.y))));
 						break;
 					}
 					case Rml::Variant::VECTOR3:
 					{
 						Rml::Vector3f T = From->Get<Rml::Vector3f>();
-						*To = std::move(Rest::Var::String(FromVector3(Compute::Vector3(T.x, T.y, T.z))));
+						*To = std::move(Core::Var::String(FromVector3(Compute::Vector3(T.x, T.y, T.z))));
 						break;
 					}
 					case Rml::Variant::VECTOR4:
 					{
 						Rml::Vector4f T = From->Get<Rml::Vector4f>();
-						*To = std::move(Rest::Var::String(FromVector4(Compute::Vector4(T.x, T.y, T.z, T.w))));
+						*To = std::move(Core::Var::String(FromVector4(Compute::Vector4(T.x, T.y, T.z, T.w))));
 						break;
 					}
 					case Rml::Variant::STRING:
 					case Rml::Variant::COLOURF:
 					case Rml::Variant::COLOURB:
-						*To = std::move(Rest::Var::String(From->Get<std::string>()));
+						*To = std::move(Core::Var::String(From->Get<std::string>()));
 						break;
 					case Rml::Variant::VOIDPTR:
-						*To = std::move(Rest::Var::Pointer(From->Get<void*>()));
+						*To = std::move(Core::Var::Pointer(From->Get<void*>()));
 						break;
 					default:
-						*To = std::move(Rest::Var::Undefined());
+						*To = std::move(Core::Var::Undefined());
 						break;
 				}
 			}
-			void IVariant::Revert(Rest::Variant* From, Rml::Variant* To)
+			void IVariant::Revert(Core::Variant* From, Rml::Variant* To)
 			{
 				if (!From || !To)
 					return;
 
 				switch (From->GetType())
 				{
-					case Rest::VarType_Null:
+					case Core::VarType_Null:
 						*To = Rml::Variant((void*)nullptr);
 						break;
-					case Rest::VarType_String:
+					case Core::VarType_String:
 					{
 						std::string Blob = From->GetBlob();
 						int Type = IVariant::GetVectorType(Blob);
@@ -887,16 +887,16 @@ namespace Tomahawk
 							*To = Rml::Variant(From->GetBlob());
 						break;
 					}
-					case Rest::VarType_Integer:
+					case Core::VarType_Integer:
 						*To = Rml::Variant(From->GetInteger());
 						break;
-					case Rest::VarType_Number:
+					case Core::VarType_Number:
 						*To = Rml::Variant(From->GetNumber());
 						break;
-					case Rest::VarType_Boolean:
+					case Core::VarType_Boolean:
 						*To = Rml::Variant(From->GetBoolean());
 						break;
-					case Rest::VarType_Pointer:
+					case Core::VarType_Pointer:
 						*To = Rml::Variant(From->GetPointer());
 						break;
 					default:
@@ -955,9 +955,9 @@ namespace Tomahawk
 			std::string IVariant::FromColor4(const Compute::Vector4& Base, bool HEX)
 			{
 				if (!HEX)
-					return Rest::Form("%d %d %d %d", (unsigned int)(Base.X * 255.0f), (unsigned int)(Base.Y * 255.0f), (unsigned int)(Base.Z * 255.0f), (unsigned int)(Base.W * 255.0f)).R();
+					return Core::Form("%d %d %d %d", (unsigned int)(Base.X * 255.0f), (unsigned int)(Base.Y * 255.0f), (unsigned int)(Base.Z * 255.0f), (unsigned int)(Base.W * 255.0f)).R();
 				
-				return Rest::Form("#%02x%02x%02x%02x",
+				return Core::Form("#%02x%02x%02x%02x",
 					(unsigned int)(Base.X * 255.0f),
 					(unsigned int)(Base.Y * 255.0f),
 					(unsigned int)(Base.Z * 255.0f),
@@ -1005,9 +1005,9 @@ namespace Tomahawk
 			std::string IVariant::FromColor3(const Compute::Vector4& Base, bool HEX)
 			{
 				if (!HEX)
-					return Rest::Form("%d %d %d", (unsigned int)(Base.X * 255.0f), (unsigned int)(Base.Y * 255.0f), (unsigned int)(Base.Z * 255.0f)).R();
+					return Core::Form("%d %d %d", (unsigned int)(Base.X * 255.0f), (unsigned int)(Base.Y * 255.0f), (unsigned int)(Base.Z * 255.0f)).R();
 
-				return Rest::Form("#%02x%02x%02x",
+				return Core::Form("#%02x%02x%02x",
 					(unsigned int)(Base.X * 255.0f),
 					(unsigned int)(Base.Y * 255.0f),
 					(unsigned int)(Base.Z * 255.0f)).R();
@@ -1037,7 +1037,7 @@ namespace Tomahawk
 			}
 			std::string IVariant::FromVector4(const Compute::Vector4& Base)
 			{
-				return Rest::Form("v4 %f %f %f %f", Base.X, Base.Y, Base.Z, Base.W).R();
+				return Core::Form("v4 %f %f %f %f", Base.X, Base.Y, Base.Z, Base.W).R();
 			}
 			Compute::Vector3 IVariant::ToVector3(const std::string& Base)
 			{
@@ -1048,7 +1048,7 @@ namespace Tomahawk
 			}
 			std::string IVariant::FromVector3(const Compute::Vector3& Base)
 			{
-				return Rest::Form("v3 %f %f %f %f", Base.X, Base.Y, Base.Z).R();
+				return Core::Form("v3 %f %f %f %f", Base.X, Base.Y, Base.Z).R();
 			}
 			Compute::Vector2 IVariant::ToVector2(const std::string& Base)
 			{
@@ -1059,7 +1059,7 @@ namespace Tomahawk
 			}
 			std::string IVariant::FromVector2(const Compute::Vector2& Base)
 			{
-				return Rest::Form("v2 %f %f %f %f", Base.X, Base.Y).R();
+				return Core::Form("v2 %f %f %f %f", Base.X, Base.Y).R();
 			}
 
 			IEvent::IEvent(Rml::Event* Ref) : Base(Ref)
@@ -1736,7 +1736,7 @@ namespace Tomahawk
 				if (IsValid() && Listener != nullptr && Listener->Base != nullptr)
 					Base->RemoveEventListener(Event, Listener->Base, InCapturePhase);
 			}
-			bool IElement::DispatchEvent(const std::string& Type, const Rest::VariantArgs& Args)
+			bool IElement::DispatchEvent(const std::string& Type, const Core::VariantArgs& Args)
 			{
 				if (!IsValid())
 					return false;
@@ -1745,7 +1745,7 @@ namespace Tomahawk
 				for (auto& Item : Args)
 				{
 					Rml::Variant& Prop = Props[Item.first];
-					IVariant::Revert((Rest::Variant*)&Item.second, &Prop);
+					IVariant::Revert((Core::Variant*)&Item.second, &Prop);
 				}
 
 				return Base->DispatchEvent(Type, Props);
@@ -1946,7 +1946,7 @@ namespace Tomahawk
 				if (!Form || !Ptr)
 					return false;
 
-				Rest::Stroke Value(Form->GetValue());
+				Core::Parser Value(Form->GetValue());
 				if (Value.Empty())
 				{
 					if (Form->IsPseudoClassSet("focus"))
@@ -1981,7 +1981,7 @@ namespace Tomahawk
 				if (!Form || !Ptr)
 					return false;
 
-				Rest::Stroke Value(Form->GetValue());
+				Core::Parser Value(Form->GetValue());
 				if (Value.Empty())
 				{
 					if (Form->IsPseudoClassSet("focus"))
@@ -2032,7 +2032,7 @@ namespace Tomahawk
 				if (!Form || !Ptr)
 					return false;
 
-				Rest::Stroke Value(Form->GetValue());
+				Core::Parser Value(Form->GetValue());
 				if (Value.Empty())
 				{
 					if (Form->IsPseudoClassSet("focus"))
@@ -2067,7 +2067,7 @@ namespace Tomahawk
 				if (!Form || !Ptr)
 					return false;
 
-				Rest::Stroke Value(Form->GetValue());
+				Core::Parser Value(Form->GetValue());
 				if (Value.Empty())
 				{
 					if (Form->IsPseudoClassSet("focus"))
@@ -2118,13 +2118,13 @@ namespace Tomahawk
 				if (!Form || !Ptr)
 					return false;
 
-				Rest::Stroke Value(Form->GetValue());
+				Core::Parser Value(Form->GetValue());
 				if (Value.Empty())
 				{
 					if (Form->IsPseudoClassSet("focus"))
 						return false;
 
-					Form->SetValue(Rest::Stroke::ToStringAutoPrec(*Ptr));
+					Form->SetValue(Core::Parser::ToStringAutoPrec(*Ptr));
 					return false;
 				}
 
@@ -2144,7 +2144,7 @@ namespace Tomahawk
 					return true;
 				}
 
-				Form->SetValue(Rest::Stroke::ToStringAutoPrec(*Ptr));
+				Form->SetValue(Core::Parser::ToStringAutoPrec(*Ptr));
 				return false;
 			}
 			bool IElement::CastFormFloat(float* Ptr, float Mult)
@@ -2164,13 +2164,13 @@ namespace Tomahawk
 				if (!Form || !Ptr)
 					return false;
 
-				Rest::Stroke Value(Form->GetValue());
+				Core::Parser Value(Form->GetValue());
 				if (Value.Empty())
 				{
 					if (Form->IsPseudoClassSet("focus"))
 						return false;
 
-					Form->SetValue(Rest::Stroke::ToStringAutoPrec(*Ptr));
+					Form->SetValue(Core::Parser::ToStringAutoPrec(*Ptr));
 					return false;
 				}
 
@@ -2190,7 +2190,7 @@ namespace Tomahawk
 					return true;
 				}
 
-				Form->SetValue(Rest::Stroke::ToStringAutoPrec(*Ptr));
+				Form->SetValue(Core::Parser::ToStringAutoPrec(*Ptr));
 				return false;
 			}
 			bool IElement::CastFormBoolean(bool* Ptr)
@@ -2278,7 +2278,7 @@ namespace Tomahawk
 				if (Value.empty())
 					return nullptr;
 
-				Rest::Stroke Buffer(&Value);
+				Core::Parser Buffer(&Value);
 				if (!Buffer.HasInteger())
 					return nullptr;
 
@@ -2425,7 +2425,7 @@ namespace Tomahawk
 				ScriptInterface = nullptr;
 				return true;
 			}
-			void Subsystem::SetMetadata(Graphics::Activity* Activity, ContentManager* Content, Rest::Timer* Time)
+			void Subsystem::SetMetadata(Graphics::Activity* Activity, ContentManager* Content, Core::Timer* Time)
 			{
 				if (State == 0 && !Create())
 					return;
@@ -2521,7 +2521,7 @@ namespace Tomahawk
 			}
 			std::string Subsystem::EscapeHTML(const std::string& Text)
 			{
-				return Rest::Stroke(&Text).Replace("\r\n", "&nbsp;").Replace("\n", "&nbsp;").Replace("<", "&lt;").Replace(">", "&gt;").R();
+				return Core::Parser(&Text).Replace("\r\n", "&nbsp;").Replace("\n", "&nbsp;").Replace("<", "&lt;").Replace(">", "&gt;").R();
 			}
 			std::unordered_map<std::string, DataSource*>* Subsystem::Sources = nullptr;
 			Script::VMManager* Subsystem::ScriptInterface = nullptr;
@@ -2535,13 +2535,13 @@ namespace Tomahawk
 			bool Subsystem::HasDecorators = false;
 			int Subsystem::State = 0;
 
-			DataNode::DataNode(DataModel* Model, std::string* TopName, const Rest::Variant& Initial) : Handle(Model), Safe(true)
+			DataNode::DataNode(DataModel* Model, std::string* TopName, const Core::Variant& Initial) : Handle(Model), Safe(true)
 			{
-				Ref = new Rest::Variant(Initial);
+				Ref = new Core::Variant(Initial);
 				if (TopName != nullptr)
 					Name = new std::string(*TopName);
 			}
-			DataNode::DataNode(DataModel* Model, std::string* TopName, Rest::Variant* Reference) : Handle(Model), Safe(false), Ref(Reference)
+			DataNode::DataNode(DataModel* Model, std::string* TopName, Core::Variant* Reference) : Handle(Model), Safe(false), Ref(Reference)
 			{
 				if (TopName != nullptr)
 					Name = new std::string(*TopName);
@@ -2549,7 +2549,7 @@ namespace Tomahawk
 			DataNode::DataNode(const DataNode& Other) : Childs(Other.Childs), Handle(Other.Handle), Safe(Other.Safe)
 			{
 				if (Safe)
-					Ref = new Rest::Variant(*Other.Ref);
+					Ref = new Core::Variant(*Other.Ref);
 				else
 					Ref = Other.Ref;
 
@@ -2563,9 +2563,9 @@ namespace Tomahawk
 
 				delete Name;
 			}
-			DataNode& DataNode::Add(const Rest::VariantList& Initial)
+			DataNode& DataNode::Add(const Core::VariantList& Initial)
 			{
-				Childs.push_back(DataNode(Handle, Name, Rest::Var::Undefined()));
+				Childs.push_back(DataNode(Handle, Name, Core::Var::Undefined()));
 				if (Handle != nullptr && Name != nullptr)
 					Handle->Change(*Name);
 				
@@ -2575,7 +2575,7 @@ namespace Tomahawk
 
 				return Result;
 			}
-			DataNode& DataNode::Add(const Rest::Variant& Initial)
+			DataNode& DataNode::Add(const Core::Variant& Initial)
 			{
 				Childs.push_back(DataNode(Handle, Name, Initial));
 				if (Handle != nullptr && Name != nullptr)
@@ -2583,7 +2583,7 @@ namespace Tomahawk
 
 				return Childs.back();
 			}
-			DataNode& DataNode::Add(Rest::Variant* Reference)
+			DataNode& DataNode::Add(Core::Variant* Reference)
 			{
 				Childs.push_back(DataNode(Handle, Name, Reference));
 				if (Handle != nullptr && Name != nullptr)
@@ -2618,7 +2618,7 @@ namespace Tomahawk
 				Childs.clear();
 				return true;
 			}
-			void DataNode::Set(const Rest::Variant& NewValue)
+			void DataNode::Set(const Core::Variant& NewValue)
 			{
 				if (*Ref == NewValue)
 					return;
@@ -2627,7 +2627,7 @@ namespace Tomahawk
 				if (Handle != nullptr && Name != nullptr)
 					Handle->Change(*Name);
 			}
-			void DataNode::Set(Rest::Variant* NewReference)
+			void DataNode::Set(Core::Variant* NewReference)
 			{
 				if (!NewReference || NewReference == Ref)
 					return;
@@ -2643,41 +2643,41 @@ namespace Tomahawk
 			}
 			void DataNode::SetString(const std::string& Value)
 			{
-				Set(Rest::Var::String(Value));
+				Set(Core::Var::String(Value));
 			}
 			void DataNode::SetVector2(const Compute::Vector2& Value)
 			{
-				Set(Rest::Var::String(IVariant::FromVector2(Value)));
+				Set(Core::Var::String(IVariant::FromVector2(Value)));
 			}
 			void DataNode::SetVector3(const Compute::Vector3& Value)
 			{
-				Set(Rest::Var::String(IVariant::FromVector3(Value)));
+				Set(Core::Var::String(IVariant::FromVector3(Value)));
 			}
 			void DataNode::SetVector4(const Compute::Vector4& Value)
 			{
-				Set(Rest::Var::String(IVariant::FromVector4(Value)));
+				Set(Core::Var::String(IVariant::FromVector4(Value)));
 			}
 			void DataNode::SetInteger(int64_t Value)
 			{
-				Set(Rest::Var::Integer(Value));
+				Set(Core::Var::Integer(Value));
 			}
 			void DataNode::SetFloat(float Value)
 			{
-				Set(Rest::Var::Number(Value));
+				Set(Core::Var::Number(Value));
 			}
 			void DataNode::SetDouble(double Value)
 			{
-				Set(Rest::Var::Number(Value));
+				Set(Core::Var::Number(Value));
 			}
 			void DataNode::SetBoolean(bool Value)
 			{
-				Set(Rest::Var::Boolean(Value));
+				Set(Core::Var::Boolean(Value));
 			}
 			void DataNode::SetPointer(void* Value)
 			{
-				Set(Rest::Var::Pointer(Value));
+				Set(Core::Var::Pointer(Value));
 			}
-			const Rest::Variant& DataNode::Get()
+			const Core::Variant& DataNode::Get()
 			{
 				return *Ref;
 			}
@@ -2733,7 +2733,7 @@ namespace Tomahawk
 			{
 				this->~DataNode();
 				if (Safe)
-					Ref = new Rest::Variant(*Other.Ref);
+					Ref = new Core::Variant(*Other.Ref);
 				else
 					Ref = Other.Ref;
 
@@ -2747,7 +2747,7 @@ namespace Tomahawk
 			{
 				Base->Nodes[Name] = this;
 			}
-			DataRow::DataRow(DataRow* Parent, void* NewTarget) : Base(Parent->Base), Parent(Parent), Target(NewTarget), Depth(Parent->Depth + 1), Name(Rest::Form("%p", (void*)this).R())
+			DataRow::DataRow(DataRow* Parent, void* NewTarget) : Base(Parent->Base), Parent(Parent), Target(NewTarget), Depth(Parent->Depth + 1), Name(Core::Form("%p", (void*)this).R())
 			{
 				Parent->Childs.push_back(this);
 				Base->Nodes[Name] = this;
@@ -2893,7 +2893,7 @@ namespace Tomahawk
 
 				delete Base;
 			}
-			DataNode* DataModel::SetProperty(const std::string& Name, const Rest::Variant& Value)
+			DataNode* DataModel::SetProperty(const std::string& Name, const Core::Variant& Value)
 			{
 				if (!IsValid())
 					return nullptr;
@@ -2906,7 +2906,7 @@ namespace Tomahawk
 				}
 
 				Result = new DataNode(this, (std::string*)&Name, Value);
-				if (Value.GetType() != Rest::VarType_Null)
+				if (Value.GetType() != Core::VarType_Null)
 				{
 					if (Base->BindFunc(Name, std::bind(&DataNode::GetValue, Result, std::placeholders::_1), std::bind(&DataNode::SetValue, Result, std::placeholders::_1)))
 					{
@@ -2923,7 +2923,7 @@ namespace Tomahawk
 				delete Result;
 				return nullptr;
 			}
-			DataNode* DataModel::SetProperty(const std::string& Name, Rest::Variant* Value)
+			DataNode* DataModel::SetProperty(const std::string& Name, Core::Variant* Value)
 			{
 				if (!IsValid() || !Value)
 					return nullptr;
@@ -2947,31 +2947,31 @@ namespace Tomahawk
 			}
 			DataNode* DataModel::SetArray(const std::string& Name)
 			{
-				return SetProperty(Name, Rest::Var::Array());
+				return SetProperty(Name, Core::Var::Array());
 			}
 			DataNode* DataModel::SetString(const std::string& Name, const std::string& Value)
 			{
-				return SetProperty(Name, Rest::Var::String(Value));
+				return SetProperty(Name, Core::Var::String(Value));
 			}
 			DataNode* DataModel::SetInteger(const std::string& Name, int64_t Value)
 			{
-				return SetProperty(Name, Rest::Var::Integer(Value));
+				return SetProperty(Name, Core::Var::Integer(Value));
 			}
 			DataNode* DataModel::SetFloat(const std::string& Name, float Value)
 			{
-				return SetProperty(Name, Rest::Var::Number(Value));
+				return SetProperty(Name, Core::Var::Number(Value));
 			}
 			DataNode* DataModel::SetDouble(const std::string& Name, double Value)
 			{
-				return SetProperty(Name, Rest::Var::Number(Value));
+				return SetProperty(Name, Core::Var::Number(Value));
 			}
 			DataNode* DataModel::SetBoolean(const std::string& Name, bool Value)
 			{
-				return SetProperty(Name, Rest::Var::Boolean(Value));
+				return SetProperty(Name, Core::Var::Boolean(Value));
 			}
 			DataNode* DataModel::SetPointer(const std::string& Name, void* Value)
 			{
-				return SetProperty(Name, Rest::Var::Pointer(Value));
+				return SetProperty(Name, Core::Var::Pointer(Value));
 			}
 			DataNode* DataModel::GetProperty(const std::string& Name)
 			{
@@ -3036,7 +3036,7 @@ namespace Tomahawk
 
 				return Base->BindEventCallback(Name, [Callback](Rml::DataModelHandle Handle, Rml::Event& Event, const Rml::VariantList& Props)
 				{
-					Rest::VariantList Args;
+					Core::VariantList Args;
 					Args.resize(Props.size());
 
 					size_t i = 0;
@@ -3315,7 +3315,7 @@ namespace Tomahawk
 				ClearVM();
 				Elements.clear();
 
-				unsigned char* Buffer = Rest::OS::File::ReadAll(Path.c_str(), &Length);
+				unsigned char* Buffer = Core::OS::File::ReadAll(Path.c_str(), &Length);
 				if (!Buffer)
 				{
 				ErrorState:
@@ -3332,7 +3332,7 @@ namespace Tomahawk
 				if (!Preprocess(Path, Data))
 					goto ErrorState;
 
-				Rest::Stroke URL(Path);
+				Core::Parser URL(Path);
 				URL.Replace('\\', '/');
 				URL.Insert("file:///", 0);
 
@@ -3353,7 +3353,7 @@ namespace Tomahawk
 
 				return true;
 			}
-			bool Context::Inject(Rest::Document* Conf, const std::string& Relative)
+			bool Context::Inject(Core::Document* Conf, const std::string& Relative)
 			{
 				if (!Conf)
 					return false;
@@ -3364,7 +3364,7 @@ namespace Tomahawk
 				auto FontFaces = Conf->FindCollection("font-face", true);
 				for (auto* Face : FontFaces)
 				{
-					Rest::Document* IPath = Face->GetAttribute("path");
+					Core::Document* IPath = Face->GetAttribute("path");
 					if (!IPath)
 					{
 						TH_ERROR("path is required for font face");
@@ -3372,7 +3372,7 @@ namespace Tomahawk
 					}
 
 					std::string Path = IPath->Value.Serialize();
-					std::string Target = Rest::OS::Path::Resolve(Path, Relative);
+					std::string Target = Core::OS::Path::Resolve(Path, Relative);
 
 					if (!AddFontFace(Target.empty() ? Path : Target, Face->GetAttribute("fallback") != nullptr))
 					{
@@ -3384,7 +3384,7 @@ namespace Tomahawk
 				auto Documents = Conf->FindCollection("document", true);
 				for (auto* Document : Documents)
 				{
-					Rest::Document* IPath = Document->GetAttribute("path");
+					Core::Document* IPath = Document->GetAttribute("path");
 					if (!IPath)
 					{
 						TH_ERROR("path is required for document");
@@ -3392,7 +3392,7 @@ namespace Tomahawk
 					}
 
 					std::string Path = IPath->Value.Serialize();
-					std::string Target = Rest::OS::Path::Resolve(Path, Relative);
+					std::string Target = Core::OS::Path::Resolve(Path, Relative);
 					IElementDocument Result = Construct(Target.empty() ? Path : Target);
 
 					if (!Result.IsValid())
@@ -3416,14 +3416,14 @@ namespace Tomahawk
 				bool State = Loading;
 				Loading = true;
 
-				Rest::Document* Sheet = Subsystem::RenderInterface->GetContent()->Load<Rest::Document>(ConfPath);
+				Core::Document* Sheet = Subsystem::RenderInterface->GetContent()->Load<Core::Document>(ConfPath);
 				if (!Sheet)
 				{
 					Loading = State;
 					return false;
 				}
 
-				bool Result = Inject(Sheet, Rest::OS::Path::GetDirectory(ConfPath.c_str()));
+				bool Result = Inject(Sheet, Core::OS::Path::GetDirectory(ConfPath.c_str()));
 				TH_RELEASE(Sheet);
 
 				Loading = State;
@@ -3705,7 +3705,7 @@ namespace Tomahawk
 				Compute::IncludeDesc Desc = Compute::IncludeDesc();
 				Desc.Exts.push_back(".html");
 				Desc.Exts.push_back(".htm");
-				Desc.Root = Rest::OS::Directory::Get();
+				Desc.Root = Core::OS::Directory::Get();
 
 				Compute::Preprocessor* Processor = new Compute::Preprocessor();
 				Processor->SetIncludeCallback([this](Compute::Preprocessor* P, const Compute::IncludeResult& File, std::string* Output)
@@ -3717,7 +3717,7 @@ namespace Tomahawk
 						return false;
 
 					uint64_t Length;
-					unsigned char* Data = Rest::OS::File::ReadAll(File.Module.c_str(), &Length);
+					unsigned char* Data = Core::OS::File::ReadAll(File.Module.c_str(), &Length);
 					if (!Data)
 						return false;
 
@@ -3737,8 +3737,8 @@ namespace Tomahawk
 			}
 			void Context::Decompose(std::string& Data)
 			{
-				Rest::Stroke::Settle Result, Start, End;
-				Rest::Stroke Buffer(&Data);
+				Core::Parser::Settle Result, Start, End;
+				Core::Parser Buffer(&Data);
 				Result.End = End.End = 0;
 
 				while (Result.End < Buffer.Size())

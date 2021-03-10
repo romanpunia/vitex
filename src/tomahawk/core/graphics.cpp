@@ -357,7 +357,7 @@ namespace Tomahawk
 		{
 			TH_RELEASE(Elements);
 		}
-		Rest::Pool<Compute::ElementVertex>* InstanceBuffer::GetArray()
+		Core::Pool<Compute::ElementVertex>* InstanceBuffer::GetArray()
 		{
 			return &Array;
 		}
@@ -1049,7 +1049,7 @@ namespace Tomahawk
 		}
 		bool GraphicsDevice::AddSection(const std::string& Name, const std::string& Code)
 		{
-			Rest::Stroke Language(Rest::OS::Path::GetExtension(Name.c_str()));
+			Core::Parser Language(Core::OS::Path::GetExtension(Name.c_str()));
 			Language.Substring(1).Trim().ToLower();
 
 			ShaderLang Lang = ShaderLang_NONE;
@@ -1098,7 +1098,7 @@ namespace Tomahawk
 			Desc.Exts.push_back(".glsl");
 			Desc.Exts.push_back(".msl");
 			Desc.Exts.push_back(".spv");
-			Desc.Root = Rest::OS::Directory::Get();
+			Desc.Root = Core::OS::Directory::Get();
 			Subresult.Features.Pragmas = false;
 
 			Compute::Preprocessor* Processor = new Compute::Preprocessor();
@@ -1127,7 +1127,7 @@ namespace Tomahawk
 				}
 
 				uint64_t Length;
-				unsigned char* Data = Rest::OS::File::ReadAll(File.Module.c_str(), &Length);
+				unsigned char* Data = Core::OS::File::ReadAll(File.Module.c_str(), &Length);
 				if (!Data)
 					return false;
 
@@ -1338,7 +1338,7 @@ namespace Tomahawk
 			return nullptr;
 		}
 
-		Activity::Activity(const Desc& I) : Handle(nullptr), Rest(I), Command(0), Message(this), CX(0), CY(0)
+		Activity::Activity(const Desc& I) : Handle(nullptr), Descriptor(I), Command(0), Message(this), CX(0), CY(0)
 		{
 #ifdef TH_HAS_SDL2
 			Cursors[DisplayCursor_Arrow] = SDL_CreateSystemCursor(SDL_SYSTEM_CURSOR_ARROW);
@@ -1485,42 +1485,42 @@ namespace Tomahawk
 			}
 
 			Uint32 Flags = SDL_WINDOW_OPENGL;
-			if (Rest.Fullscreen)
+			if (Descriptor.Fullscreen)
 				Flags |= SDL_WINDOW_FULLSCREEN;
 
-			if (Rest.Hidden)
+			if (Descriptor.Hidden)
 				Flags |= SDL_WINDOW_HIDDEN;
 
-			if (Rest.Borderless)
+			if (Descriptor.Borderless)
 				Flags |= SDL_WINDOW_BORDERLESS;
 
-			if (Rest.Resizable)
+			if (Descriptor.Resizable)
 				Flags |= SDL_WINDOW_RESIZABLE;
 
-			if (Rest.Minimized)
+			if (Descriptor.Minimized)
 				Flags |= SDL_WINDOW_MINIMIZED;
 
-			if (Rest.Maximized)
+			if (Descriptor.Maximized)
 				Flags |= SDL_WINDOW_MAXIMIZED;
 
-			if (Rest.Focused)
+			if (Descriptor.Focused)
 				Flags |= SDL_WINDOW_INPUT_GRABBED;
 
-			if (Rest.AllowHighDPI)
+			if (Descriptor.AllowHighDPI)
 				Flags |= SDL_WINDOW_ALLOW_HIGHDPI;
 
-			if (Rest.Centered)
+			if (Descriptor.Centered)
 			{
-				Rest.X = SDL_WINDOWPOS_CENTERED;
-				Rest.Y = SDL_WINDOWPOS_CENTERED;
+				Descriptor.X = SDL_WINDOWPOS_CENTERED;
+				Descriptor.Y = SDL_WINDOWPOS_CENTERED;
 			}
-			else if (Rest.FreePosition)
+			else if (Descriptor.FreePosition)
 			{
-				Rest.X = SDL_WINDOWPOS_UNDEFINED;
-				Rest.Y = SDL_WINDOWPOS_UNDEFINED;
+				Descriptor.X = SDL_WINDOWPOS_UNDEFINED;
+				Descriptor.Y = SDL_WINDOWPOS_UNDEFINED;
 			}
 
-			Handle = SDL_CreateWindow(Rest.Title, Rest.X, Rest.Y, Rest.Width, Rest.Height, Flags);
+			Handle = SDL_CreateWindow(Descriptor.Title, Descriptor.X, Descriptor.Y, Descriptor.Width, Descriptor.Height, Flags);
 #endif
 		}
 		void Activity::Hide()

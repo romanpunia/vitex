@@ -78,9 +78,9 @@ namespace Tomahawk
 			typedef std::function<void(void*)> DestroyCallback;
 			typedef std::function<void(DataRow*)> ChangeCallback;
 			typedef std::function<void(IEvent&)> EventCallback;
-			typedef std::function<void(IEvent&, const Rest::VariantList&)> DataCallback;
-			typedef std::function<void(Rest::Variant&)> GetterCallback;
-			typedef std::function<void(const Rest::Variant&)> SetterCallback;
+			typedef std::function<void(IEvent&, const Core::VariantList&)> DataCallback;
+			typedef std::function<void(Core::Variant&)> GetterCallback;
+			typedef std::function<void(const Core::Variant&)> SetterCallback;
 			typedef std::function<void(Context*)> ModelCallback;
 
 			enum ModalFlag
@@ -179,8 +179,8 @@ namespace Tomahawk
 			class TH_OUT IVariant
 			{
 			public:
-				static void Convert(Rml::Variant* From, Rest::Variant* To);
-				static void Revert(Rest::Variant* From, Rml::Variant* To);
+				static void Convert(Rml::Variant* From, Core::Variant* To);
+				static void Revert(Core::Variant* From, Rml::Variant* To);
 				static Compute::Vector4 ToColor4(const std::string& Value);
 				static std::string FromColor4(const Compute::Vector4& Base, bool HEX);
 				static Compute::Vector4 ToColor3(const std::string& Value);
@@ -314,7 +314,7 @@ namespace Tomahawk
 				void Click();
 				void AddEventListener(const std::string& Event, Handler* Listener, bool InCapturePhase = false);
 				void RemoveEventListener(const std::string& Event, Handler* Listener, bool InCapturePhase = false);
-				bool DispatchEvent(const std::string& Type, const Rest::VariantArgs& Args);
+				bool DispatchEvent(const std::string& Type, const Core::VariantArgs& Args);
 				void ScrollIntoView(bool AlignWithTop = true);
 				IElement AppendChild(const IElement& Element, bool DOMElement = true);
 				IElement InsertBefore(const IElement& Element, const IElement& AdjacentElement);
@@ -394,7 +394,7 @@ namespace Tomahawk
 			public:
 				static bool Create();
 				static bool Release();
-				static void SetMetadata(Graphics::Activity* Activity, ContentManager* Content, Rest::Timer* Time);
+				static void SetMetadata(Graphics::Activity* Activity, ContentManager* Content, Core::Timer* Time);
 				static void SetTranslator(const std::string& Name, const TranslationCallback& Callback);
 				static void SetManager(Script::VMManager* Manager);
 				static RenderSubsystem* GetRenderInterface();
@@ -420,27 +420,27 @@ namespace Tomahawk
 
 			private:
 				std::vector<DataNode> Childs;
-				Rest::Variant* Ref;
+				Core::Variant* Ref;
 				DataModel* Handle;
 				std::string* Name;
 				bool Safe;
 
 			private:
-				DataNode(DataModel* Model, std::string* TopName, const Rest::Variant& Initial);
-				DataNode(DataModel* Model, std::string* TopName, Rest::Variant* Reference);
+				DataNode(DataModel* Model, std::string* TopName, const Core::Variant& Initial);
+				DataNode(DataModel* Model, std::string* TopName, Core::Variant* Reference);
 
 			public:
 				DataNode(const DataNode& Other);
 				~DataNode();
-				DataNode& Add(const Rest::VariantList& Initial);
-				DataNode& Add(const Rest::Variant& Initial);
-				DataNode& Add(Rest::Variant* Reference);
+				DataNode& Add(const Core::VariantList& Initial);
+				DataNode& Add(const Core::Variant& Initial);
+				DataNode& Add(Core::Variant* Reference);
 				DataNode& At(size_t Index);
 				size_t GetSize();
 				bool Remove(size_t Index);
 				bool Clear();
-				void Set(const Rest::Variant& NewValue);
-				void Set(Rest::Variant* NewReference);
+				void Set(const Core::Variant& NewValue);
+				void Set(Core::Variant* NewReference);
 				void SetString(const std::string& Value);
 				void SetVector2(const Compute::Vector2& Value);
 				void SetVector3(const Compute::Vector3& Value);
@@ -450,7 +450,7 @@ namespace Tomahawk
 				void SetDouble(double Value);
 				void SetBoolean(bool Value);
 				void SetPointer(void* Value);
-				const Rest::Variant& Get();
+				const Core::Variant& Get();
 				std::string GetString();
 				Compute::Vector2 GetVector2();
 				Compute::Vector3 GetVector3();
@@ -507,7 +507,7 @@ namespace Tomahawk
 				}
 			};
 			
-			class TH_OUT DataModel : public Rest::Object
+			class TH_OUT DataModel : public Core::Object
 			{
 				friend Context;
 
@@ -521,8 +521,8 @@ namespace Tomahawk
 
 			public:
 				virtual ~DataModel() override;
-				DataNode* SetProperty(const std::string& Name, const Rest::Variant& Value);
-				DataNode* SetProperty(const std::string& Name, Rest::Variant* Reference);
+				DataNode* SetProperty(const std::string& Name, const Core::Variant& Value);
+				DataNode* SetProperty(const std::string& Name, Core::Variant* Reference);
 				DataNode* SetArray(const std::string& Name);
 				DataNode* SetString(const std::string& Name, const std::string& Value);
 				DataNode* SetInteger(const std::string& Name, int64_t Value);
@@ -544,7 +544,7 @@ namespace Tomahawk
 				bool IsValid() const;
 			};
 
-			class TH_OUT DataSource : public Rest::Object
+			class TH_OUT DataSource : public Core::Object
 			{
 				friend DataSourceSubsystem;
 				friend DataFormatterSubsystem;
@@ -582,7 +582,7 @@ namespace Tomahawk
 				void RowChange(const std::string& Table);
 			};
 
-			class TH_OUT Handler : public Rest::Object
+			class TH_OUT Handler : public Core::Object
 			{
 				friend IElement;
 				friend Context;
@@ -596,7 +596,7 @@ namespace Tomahawk
 				virtual ~Handler() override;
 			};
 
-			class TH_OUT Context : public Rest::Object
+			class TH_OUT Context : public Core::Object
 			{
 				friend DocumentSubsystem;
 				friend ListenerSubsystem;
@@ -672,7 +672,7 @@ namespace Tomahawk
 				const std::string& GetDocumentsBaseTag();
 
 			private:
-				bool Inject(Rest::Document* Conf, const std::string& Relative);
+				bool Inject(Core::Document* Conf, const std::string& Relative);
 				bool Preprocess(const std::string& Path, std::string& Buffer);
 				void Decompose(std::string& Buffer);
 				void CreateVM();

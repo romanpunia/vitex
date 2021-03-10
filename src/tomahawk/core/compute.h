@@ -1,7 +1,7 @@
 #ifndef TH_COMPUTE_H
 #define TH_COMPUTE_H
 
-#include "rest.h"
+#include "core.h"
 #include <cmath>
 #include <map>
 #include <stack>
@@ -1371,7 +1371,7 @@ namespace Tomahawk
 			static const char* Syntax();
 		};
 
-		class TH_OUT Preprocessor : public Rest::Object
+		class TH_OUT Preprocessor : public Core::Object
 		{
 		public:
 			struct Desc
@@ -1409,21 +1409,21 @@ namespace Tomahawk
 		private:
 			bool SaveResult();
 			bool ReturnResult(bool Result, bool WasNested);
-			bool ProcessIncludeDirective(const std::string& Path, Rest::Stroke& Buffer);
-			bool ProcessPragmaDirective(const std::string& Path, Rest::Stroke& Buffer);
-			bool ProcessBlockDirective(Rest::Stroke& Buffer);
-			bool ProcessDefineDirective(Rest::Stroke& Buffer, uint64_t Base, uint64_t& Offset, bool Endless);
-			int FindDefineDirective(Rest::Stroke& Buffer, uint64_t& Offset, uint64_t* Size);
-			int FindBlockDirective(Rest::Stroke& Buffer, uint64_t& Offset, bool Nested);
-			int FindBlockNesting(Rest::Stroke& Buffer, const Rest::Stroke::Settle& Hash, uint64_t& Offset, bool Resolved);
-			int FindDirective(Rest::Stroke& Buffer, const char* V, uint64_t* Offset, uint64_t* Base, uint64_t* Start, uint64_t* End);
+			bool ProcessIncludeDirective(const std::string& Path, Core::Parser& Buffer);
+			bool ProcessPragmaDirective(const std::string& Path, Core::Parser& Buffer);
+			bool ProcessBlockDirective(Core::Parser& Buffer);
+			bool ProcessDefineDirective(Core::Parser& Buffer, uint64_t Base, uint64_t& Offset, bool Endless);
+			int FindDefineDirective(Core::Parser& Buffer, uint64_t& Offset, uint64_t* Size);
+			int FindBlockDirective(Core::Parser& Buffer, uint64_t& Offset, bool Nested);
+			int FindBlockNesting(Core::Parser& Buffer, const Core::Parser::Settle& Hash, uint64_t& Offset, bool Resolved);
+			int FindDirective(Core::Parser& Buffer, const char* V, uint64_t* Offset, uint64_t* Base, uint64_t* Start, uint64_t* End);
 			bool HasSet(const std::string& Path);
 
 		public:
 			static IncludeResult ResolveInclude(const IncludeDesc& Desc);
 		};
 
-		class TH_OUT FiniteState : public Rest::Object
+		class TH_OUT FiniteState : public Core::Object
 		{
 		private:
 			std::unordered_map<std::string, ActionCallback*> Actions;
@@ -1444,7 +1444,7 @@ namespace Tomahawk
 			ActionCallback* Find(const std::string& Name);
 		};
 
-		class TH_OUT Transform : public Rest::Object
+		class TH_OUT Transform : public Core::Object
 		{
 			friend Common;
 
@@ -1510,7 +1510,7 @@ namespace Tomahawk
 			}
 		};
 
-		class TH_OUT RigidBody : public Rest::Object
+		class TH_OUT RigidBody : public Core::Object
 		{
 			friend Simulator;
 
@@ -1618,7 +1618,7 @@ namespace Tomahawk
 			static RigidBody* Get(btRigidBody* From);
 		};
 
-		class TH_OUT SoftBody : public Rest::Object
+		class TH_OUT SoftBody : public Core::Object
 		{
 			friend Simulator;
 
@@ -1824,7 +1824,7 @@ namespace Tomahawk
 			static SoftBody* Get(btSoftBody* From);
 		};
 
-		class TH_OUT SliderConstraint : public Rest::Object
+		class TH_OUT SliderConstraint : public Core::Object
 		{
 			friend RigidBody;
 			friend Simulator;
@@ -1921,7 +1921,7 @@ namespace Tomahawk
 			Simulator* GetSimulator();
 		};
 
-		class TH_OUT Simulator : public Rest::Object
+		class TH_OUT Simulator : public Core::Object
 		{
 		public:
 			struct Desc

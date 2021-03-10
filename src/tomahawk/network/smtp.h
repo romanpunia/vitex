@@ -68,7 +68,7 @@ namespace Tomahawk
 			public:
 				Client(int64_t ReadTimeout);
 				virtual ~Client() override;
-				Rest::Async<int> Send(RequestFrame* Root);
+				Core::Async<int> Send(RequestFrame* Root);
 				RequestFrame* GetRequest();
 
 			private:

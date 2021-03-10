@@ -1,4 +1,4 @@
-#include "rest.h"
+#include "core.h"
 #include "../network/http.h"
 #include <cctype>
 #include <ctime>
@@ -121,7 +121,7 @@ namespace
 
 namespace Tomahawk
 {
-	namespace Rest
+	namespace Core
 	{
 		Variant::Variant() : Type(VarType_Undefined), Data(nullptr)
 		{
@@ -189,7 +189,7 @@ namespace Tomahawk
 					return true;
 				}
 
-				Stroke Buffer(&Value);
+				Parser Buffer(&Value);
 				if (Buffer.HasNumber())
 				{
 					if (Buffer.HasDecimal())
@@ -570,7 +570,7 @@ namespace Tomahawk
 		}
 		std::string DateTime::Format(const std::string& Value)
 		{
-			return Stroke(Value).Replace("{ns}", std::to_string(Nanoseconds())).Replace("{us}", std::to_string(Microseconds())).Replace("{ms}", std::to_string(Milliseconds())).Replace("{s}", std::to_string(Seconds())).Replace("{m}", std::to_string(Minutes())).Replace("{h}", std::to_string(Hours())).Replace("{D}", std::to_string(Days())).Replace("{W}", std::to_string(Weeks())).Replace("{M}", std::to_string(Months())).Replace("{Y}", std::to_string(Years())).R();
+			return Parser(Value).Replace("{ns}", std::to_string(Nanoseconds())).Replace("{us}", std::to_string(Microseconds())).Replace("{ms}", std::to_string(Milliseconds())).Replace("{s}", std::to_string(Seconds())).Replace("{m}", std::to_string(Minutes())).Replace("{h}", std::to_string(Hours())).Replace("{D}", std::to_string(Days())).Replace("{W}", std::to_string(Weeks())).Replace("{M}", std::to_string(Months())).Replace("{Y}", std::to_string(Years())).R();
 		}
 		std::string DateTime::Date(const std::string& Value)
 		{
@@ -582,7 +582,7 @@ namespace Tomahawk
 			T->tm_mon++;
 			T->tm_year += 1900;
 
-			return Stroke(Value).Replace("{s}", T->tm_sec < 10 ? Form("0%i", T->tm_sec).R() : std::to_string(T->tm_sec)).Replace("{m}", T->tm_min < 10 ? Form("0%i", T->tm_min).R() : std::to_string(T->tm_min)).Replace("{h}", std::to_string(T->tm_hour)).Replace("{D}", std::to_string(T->tm_yday)).Replace("{MD}", T->tm_mday < 10 ? Form("0%i", T->tm_mday).R() : std::to_string(T->tm_mday)).Replace("{WD}", std::to_string(T->tm_wday + 1)).Replace("{M}", T->tm_mon < 10 ? Form("0%i", T->tm_mon).R() : std::to_string(T->tm_mon)).Replace("{Y}", std::to_string(T->tm_year)).R();
+			return Parser(Value).Replace("{s}", T->tm_sec < 10 ? Form("0%i", T->tm_sec).R() : std::to_string(T->tm_sec)).Replace("{m}", T->tm_min < 10 ? Form("0%i", T->tm_min).R() : std::to_string(T->tm_min)).Replace("{h}", std::to_string(T->tm_hour)).Replace("{D}", std::to_string(T->tm_yday)).Replace("{MD}", T->tm_mday < 10 ? Form("0%i", T->tm_mday).R() : std::to_string(T->tm_mday)).Replace("{WD}", std::to_string(T->tm_wday + 1)).Replace("{M}", T->tm_mon < 10 ? Form("0%i", T->tm_mon).R() : std::to_string(T->tm_mon)).Replace("{Y}", std::to_string(T->tm_year)).R();
 		}
 		DateTime DateTime::Now()
 		{
@@ -1088,79 +1088,79 @@ namespace Tomahawk
 			return 0;
 		}
 
-		Stroke::Stroke() : Safe(true)
+		Parser::Parser() : Safe(true)
 		{
 			L = new std::string();
 		}
-		Stroke::Stroke(int Value) : Safe(true)
+		Parser::Parser(int Value) : Safe(true)
 		{
 			L = new std::string(std::to_string(Value));
 		}
-		Stroke::Stroke(unsigned int Value) : Safe(true)
+		Parser::Parser(unsigned int Value) : Safe(true)
 		{
 			L = new std::string(std::to_string(Value));
 		}
-		Stroke::Stroke(int64_t Value) : Safe(true)
+		Parser::Parser(int64_t Value) : Safe(true)
 		{
 			L = new std::string(std::to_string(Value));
 		}
-		Stroke::Stroke(uint64_t Value) : Safe(true)
+		Parser::Parser(uint64_t Value) : Safe(true)
 		{
 			L = new std::string(std::to_string(Value));
 		}
-		Stroke::Stroke(float Value) : Safe(true)
+		Parser::Parser(float Value) : Safe(true)
 		{
 			L = new std::string(std::to_string(Value));
 		}
-		Stroke::Stroke(double Value) : Safe(true)
+		Parser::Parser(double Value) : Safe(true)
 		{
 			L = new std::string(std::to_string(Value));
 		}
-		Stroke::Stroke(long double Value) : Safe(true)
+		Parser::Parser(long double Value) : Safe(true)
 		{
 			L = new std::string(std::to_string(Value));
 		}
-		Stroke::Stroke(const std::string& Buffer) : Safe(true)
+		Parser::Parser(const std::string& Buffer) : Safe(true)
 		{
 			L = new std::string(Buffer);
 		}
-		Stroke::Stroke(std::string* Buffer)
+		Parser::Parser(std::string* Buffer)
 		{
 			Safe = (!Buffer);
 			L = (Safe ? new std::string() : Buffer);
 		}
-		Stroke::Stroke(const std::string* Buffer)
+		Parser::Parser(const std::string* Buffer)
 		{
 			Safe = (!Buffer);
 			L = (Safe ? new std::string() : (std::string*)Buffer);
 		}
-		Stroke::Stroke(const char* Buffer) : Safe(true)
+		Parser::Parser(const char* Buffer) : Safe(true)
 		{
 			if (Buffer != nullptr)
 				L = new std::string(Buffer);
 			else
 				L = new std::string();
 		}
-		Stroke::Stroke(const char* Buffer, int64_t Length) : Safe(true)
+		Parser::Parser(const char* Buffer, int64_t Length) : Safe(true)
 		{
 			if (Buffer != nullptr)
 				L = new std::string(Buffer, Length);
 			else
 				L = new std::string();
 		}
-		Stroke::Stroke(const Stroke& Value) : Safe(true)
+		Parser::Parser(const Parser& Value) : Safe(true)
 		{
 			if (Value.L != nullptr)
 				L = new std::string(*Value.L);
 			else
 				L = new std::string();
 		}
-		Stroke::~Stroke()
+		Parser::~Parser()
 		{
 			if (Safe)
 				delete L;
 		}
-		Stroke& Stroke::EscapePrint()
+		Parser& Parser::EscapePrint()
 		{
 			for (size_t i = 0; i < L->size(); i++)
 			{
@@ -1184,7 +1184,7 @@ namespace Tomahawk
 
 			return *this;
 		}
-		Stroke& Stroke::Escape()
+		Parser& Parser::Escape()
 		{
 			for (size_t i = 0; i < L->size(); i++)
 			{
@@ -1212,7 +1212,7 @@ namespace Tomahawk
 
 			return *this;
 		}
-		Stroke& Stroke::Unescape()
+		Parser& Parser::Unescape()
 		{
 			for (size_t i = 0; i < L->size(); i++)
 			{
@@ -1242,27 +1242,27 @@ namespace Tomahawk
 
 			return *this;
 		}
-		Stroke& Stroke::Reserve(uint64_t Count)
+		Parser& Parser::Reserve(uint64_t Count)
 		{
 			L->reserve(L->capacity() + Count);
 			return *this;
 		}
-		Stroke& Stroke::Resize(uint64_t Count)
+		Parser& Parser::Resize(uint64_t Count)
 		{
 			L->resize(Count);
 			return *this;
 		}
-		Stroke& Stroke::Resize(uint64_t Count, char Char)
+		Parser& Parser::Resize(uint64_t Count, char Char)
 		{
 			L->resize(Count, Char);
 			return *this;
 		}
-		Stroke& Stroke::Clear()
+		Parser& Parser::Clear()
 		{
 			L->clear();
 			return *this;
 		}
-		Stroke& Stroke::ToUtf8()
+		Parser& Parser::ToUtf8()
 		{
 #pragma warning(push)
 #pragma warning(disable: 4333)
@@ -1315,29 +1315,29 @@ namespace Tomahawk
 			L->assign(Output);
 			return *this;
 		}
-		Stroke& Stroke::ToUpper()
+		Parser& Parser::ToUpper()
 		{
 			std::transform(L->begin(), L->end(), L->begin(), ::toupper);
 			return *this;
 		}
-		Stroke& Stroke::ToLower()
+		Parser& Parser::ToLower()
 		{
 			std::transform(L->begin(), L->end(), L->begin(), ::tolower);
 			return *this;
 		}
-		Stroke& Stroke::Clip(uint64_t Length)
+		Parser& Parser::Clip(uint64_t Length)
 		{
 			if (Length < L->size())
 				L->erase(Length, L->size() - Length);
 
 			return *this;
 		}
-		Stroke& Stroke::ReplaceOf(const char* Chars, const char* To, uint64_t Start)
+		Parser& Parser::ReplaceOf(const char* Chars, const char* To, uint64_t Start)
 		{
 			if (!Chars || Chars[0] == '\0' || !To)
 				return *this;
 
-			Stroke::Settle Result{ };
+			Parser::Settle Result{ };
 			uint64_t Offset = Start, ToSize = (uint64_t)strlen(To);
 			while ((Result = FindOf(Chars, Offset)).Found)
 			{
@@ -1348,12 +1348,12 @@ namespace Tomahawk
 
 			return *this;
 		}
-		Stroke& Stroke::ReplaceNotOf(const char* Chars, const char* To, uint64_t Start)
+		Parser& Parser::ReplaceNotOf(const char* Chars, const char* To, uint64_t Start)
 		{
 			if (!Chars || Chars[0] == '\0' || !To)
 				return *this;
 
-			Stroke::Settle Result{};
+			Parser::Settle Result{};
 			uint64_t Offset = Start, ToSize = (uint64_t)strlen(To);
 			while ((Result = FindNotOf(Chars, Offset)).Found)
 			{
@@ -1364,10 +1364,10 @@ namespace Tomahawk
 
 			return *this;
 		}
-		Stroke& Stroke::Replace(const std::string& From, const std::string& To, uint64_t Start)
+		Parser& Parser::Replace(const std::string& From, const std::string& To, uint64_t Start)
 		{
 			uint64_t Offset = Start;
-			Stroke::Settle Result{ };
+			Parser::Settle Result{ };
 
 			while ((Result = Find(From, Offset)).Found)
 			{
@@ -1378,14 +1378,14 @@ namespace Tomahawk
 
 			return *this;
 		}
-		Stroke& Stroke::Replace(const char* From, const char* To, uint64_t Start)
+		Parser& Parser::Replace(const char* From, const char* To, uint64_t Start)
 		{
 			if (!From || !To)
 				return *this;
 
 			uint64_t Offset = Start;
 			auto Size = (uint64_t)strlen(To);
-			Stroke::Settle Result{ };
+			Parser::Settle Result{ };
 
 			while ((Result = Find(From, Offset)).Found)
 			{
@@ -1396,7 +1396,7 @@ namespace Tomahawk
 
 			return *this;
 		}
-		Stroke& Stroke::Replace(const char& From, const char& To, uint64_t Position)
+		Parser& Parser::Replace(const char& From, const char& To, uint64_t Position)
 		{
 			for (uint64_t i = Position; i < L->size(); i++)
 			{
@@ -1406,7 +1406,7 @@ namespace Tomahawk
 
 			return *this;
 		}
-		Stroke& Stroke::Replace(const char& From, const char& To, uint64_t Position, uint64_t Count)
+		Parser& Parser::Replace(const char& From, const char& To, uint64_t Position, uint64_t Count)
 		{
 			if (L->size() < (Position + Count))
 				return *this;
@@ -1419,11 +1419,11 @@ namespace Tomahawk
 
 			return *this;
 		}
-		Stroke& Stroke::ReplacePart(uint64_t Start, uint64_t End, const std::string& Value)
+		Parser& Parser::ReplacePart(uint64_t Start, uint64_t End, const std::string& Value)
 		{
 			return ReplacePart(Start, End, Value.c_str());
 		}
-		Stroke& Stroke::ReplacePart(uint64_t Start, uint64_t End, const char* Value)
+		Parser& Parser::ReplacePart(uint64_t Start, uint64_t End, const char* Value)
 		{
 			if (Start >= L->size() || End > L->size() || Start >= End || !Value)
 				return *this;
@@ -1439,7 +1439,7 @@ namespace Tomahawk
 
 			return *this;
 		}
-		Stroke& Stroke::RemovePart(uint64_t Start, uint64_t End)
+		Parser& Parser::RemovePart(uint64_t Start, uint64_t End)
 		{
 			if (Start >= L->size() || End > L->size() || Start >= End)
 				return *this;
@@ -1455,11 +1455,11 @@ namespace Tomahawk
 
 			return *this;
 		}
-		Stroke& Stroke::Reverse()
+		Parser& Parser::Reverse()
 		{
 			return Reverse(0, L->size() - 1);
 		}
-		Stroke& Stroke::Reverse(uint64_t Start, uint64_t End)
+		Parser& Parser::Reverse(uint64_t Start, uint64_t End)
 		{
 			if (Start == End || L->size() < 2 || End > (L->size() - 1) || Start > (L->size() - 1))
 				return *this;
@@ -1467,7 +1467,7 @@ namespace Tomahawk
 			std::reverse(L->begin() + Start, L->begin() + End + 1);
 			return *this;
 		}
-		Stroke& Stroke::Substring(uint64_t Start)
+		Parser& Parser::Substring(uint64_t Start)
 		{
 			if (Start >= L->size())
 			{
@@ -1478,7 +1478,7 @@ namespace Tomahawk
 			L->assign(L->substr(Start));
 			return *this;
 		}
-		Stroke& Stroke::Substring(uint64_t Start, uint64_t Count)
+		Parser& Parser::Substring(uint64_t Start, uint64_t Count)
 		{
 			if (Start >= L->size() || !Count)
 			{
@@ -1489,7 +1489,7 @@ namespace Tomahawk
 			L->assign(L->substr(Start, Count));
 			return *this;
 		}
-		Stroke& Stroke::Substring(const Stroke::Settle& Result)
+		Parser& Parser::Substring(const Parser::Settle& Result)
 		{
 			if (!Result.Found)
 			{
@@ -1508,7 +1508,7 @@ namespace Tomahawk
 			L->assign(L->substr(Result.Start, (uint64_t)(Offset < 0 ? -Offset : Offset)));
 			return *this;
 		}
-		Stroke& Stroke::Splice(uint64_t Start, uint64_t End)
+		Parser& Parser::Splice(uint64_t Start, uint64_t End)
 		{
 			if (Start > (L->size() - 1))
 				return (*this);
@@ -1520,7 +1520,7 @@ namespace Tomahawk
 			L->assign(L->substr(Start, (uint64_t)(Offset < 0 ? -Offset : Offset)));
 			return *this;
 		}
-		Stroke& Stroke::Trim()
+		Parser& Parser::Trim()
 		{
 			L->erase(L->begin(), std::find_if(L->begin(), L->end(), [](int C) -> int
 			{
@@ -1539,7 +1539,7 @@ namespace Tomahawk
 
 			return *this;
 		}
-		Stroke& Stroke::Fill(const char& Char)
+		Parser& Parser::Fill(const char& Char)
 		{
 			if (L->empty())
 				return (*this);
@@ -1549,7 +1549,7 @@ namespace Tomahawk
 
 			return *this;
 		}
-		Stroke& Stroke::Fill(const char& Char, uint64_t Count)
+		Parser& Parser::Fill(const char& Char, uint64_t Count)
 		{
 			if (L->empty())
 				return (*this);
@@ -1557,7 +1557,7 @@ namespace Tomahawk
 			L->assign(Count, Char);
 			return *this;
 		}
-		Stroke& Stroke::Fill(const char& Char, uint64_t Start, uint64_t Count)
+		Parser& Parser::Fill(const char& Char, uint64_t Start, uint64_t Count)
 		{
 			if (L->empty() || Start > L->size())
 				return (*this);
@@ -1570,7 +1570,7 @@ namespace Tomahawk
 
 			return *this;
 		}
-		Stroke& Stroke::Assign(const char* Raw)
+		Parser& Parser::Assign(const char* Raw)
 		{
 			if (Raw != nullptr)
 				L->assign(Raw);
@@ -1579,7 +1579,7 @@ namespace Tomahawk
 
 			return *this;
 		}
-		Stroke& Stroke::Assign(const char* Raw, uint64_t Length)
+		Parser& Parser::Assign(const char* Raw, uint64_t Length)
 		{
 			if (Raw != nullptr)
 				L->assign(Raw, Length);
@@ -1588,17 +1588,17 @@ namespace Tomahawk
 
 			return *this;
 		}
-		Stroke& Stroke::Assign(const std::string& Raw)
+		Parser& Parser::Assign(const std::string& Raw)
 		{
 			L->assign(Raw);
 			return *this;
 		}
-		Stroke& Stroke::Assign(const std::string& Raw, uint64_t Start, uint64_t Count)
+		Parser& Parser::Assign(const std::string& Raw, uint64_t Start, uint64_t Count)
 		{
 			L->assign(Raw.substr(Start, Count));
 			return *this;
 		}
-		Stroke& Stroke::Assign(const char* Raw, uint64_t Start, uint64_t Count)
+		Parser& Parser::Assign(const char* Raw, uint64_t Start, uint64_t Count)
 		{
 			if (!Raw)
 			{
@@ -1609,36 +1609,36 @@ namespace Tomahawk
 			L->assign(Raw);
 			return Substring(Start, Count);
 		}
-		Stroke& Stroke::Append(const char* Raw)
+		Parser& Parser::Append(const char* Raw)
 		{
 			if (Raw != nullptr)
 				L->append(Raw);
 
 			return *this;
 		}
-		Stroke& Stroke::Append(const char& Char)
+		Parser& Parser::Append(const char& Char)
 		{
 			L->append(1, Char);
 			return *this;
 		}
-		Stroke& Stroke::Append(const char& Char, uint64_t Count)
+		Parser& Parser::Append(const char& Char, uint64_t Count)
 		{
 			L->append(Count, Char);
 			return *this;
 		}
-		Stroke& Stroke::Append(const std::string& Raw)
+		Parser& Parser::Append(const std::string& Raw)
 		{
 			L->append(Raw);
 			return *this;
 		}
-		Stroke& Stroke::Append(const char* Raw, uint64_t Count)
+		Parser& Parser::Append(const char* Raw, uint64_t Count)
 		{
 			if (Raw != nullptr)
 				L->append(Raw, Count);
 
 			return *this;
 		}
-		Stroke& Stroke::Append(const char* Raw, uint64_t Start, uint64_t Count)
+		Parser& Parser::Append(const char* Raw, uint64_t Start, uint64_t Count)
 		{
 			if (!Raw)
 				return *this;
@@ -1650,7 +1650,7 @@ namespace Tomahawk
 			L->append(V.substr(Start, Count));
 			return *this;
 		}
-		Stroke& Stroke::Append(const std::string& Raw, uint64_t Start, uint64_t Count)
+		Parser& Parser::Append(const std::string& Raw, uint64_t Start, uint64_t Count)
 		{
 			if (!Count || Raw.size() < Start + Count)
 				return *this;
@@ -1658,7 +1658,7 @@ namespace Tomahawk
 			L->append(Raw.substr(Start, Count));
 			return *this;
 		}
-		Stroke& Stroke::fAppend(const char* Format, ...)
+		Parser& Parser::fAppend(const char* Format, ...)
 		{
 			if (!Format)
 				return *this;
@@ -1671,7 +1671,7 @@ namespace Tomahawk
 
 			return Append(Buffer, Count);
 		}
-		Stroke& Stroke::Insert(const std::string& Raw, uint64_t Position)
+		Parser& Parser::Insert(const std::string& Raw, uint64_t Position)
 		{
 			if (Position >= L->size())
 				Position = L->size();
@@ -1679,7 +1679,7 @@ namespace Tomahawk
 			L->insert(Position, Raw);
 			return *this;
 		}
-		Stroke& Stroke::Insert(const std::string& Raw, uint64_t Position, uint64_t Start, uint64_t Count)
+		Parser& Parser::Insert(const std::string& Raw, uint64_t Position, uint64_t Start, uint64_t Count)
 		{
 			if (Position >= L->size())
 				Position = L->size();
@@ -1689,7 +1689,7 @@ namespace Tomahawk
 
 			return *this;
 		}
-		Stroke& Stroke::Insert(const std::string& Raw, uint64_t Position, uint64_t Count)
+		Parser& Parser::Insert(const std::string& Raw, uint64_t Position, uint64_t Count)
 		{
 			if (Position >= L->size())
 				Position = L->size();
@@ -1700,7 +1700,7 @@ namespace Tomahawk
 			L->insert(Position, Raw.substr(0, Count));
 			return *this;
 		}
-		Stroke& Stroke::Insert(const char& Char, uint64_t Position, uint64_t Count)
+		Parser& Parser::Insert(const char& Char, uint64_t Position, uint64_t Count)
 		{
 			if (Position >= L->size())
 				return *this;
@@ -1708,7 +1708,7 @@ namespace Tomahawk
 			L->insert(Position, Count, Char);
 			return *this;
 		}
-		Stroke& Stroke::Insert(const char& Char, uint64_t Position)
+		Parser& Parser::Insert(const char& Char, uint64_t Position)
 		{
 			if (Position >= L->size())
 				return *this;
@@ -1716,7 +1716,7 @@ namespace Tomahawk
 			L->insert(L->begin() + Position, Char);
 			return *this;
 		}
-		Stroke& Stroke::Erase(uint64_t Position)
+		Parser& Parser::Erase(uint64_t Position)
 		{
 			if (Position >= L->size())
 				return *this;
@@ -1724,7 +1724,7 @@ namespace Tomahawk
 			L->erase(Position);
 			return *this;
 		}
-		Stroke& Stroke::Erase(uint64_t Position, uint64_t Count)
+		Parser& Parser::Erase(uint64_t Position, uint64_t Count)
 		{
 			if (Position >= L->size())
 				return *this;
@@ -1732,15 +1732,15 @@ namespace Tomahawk
 			L->erase(Position, Count);
 			return *this;
 		}
-		Stroke& Stroke::EraseOffsets(uint64_t Start, uint64_t End)
+		Parser& Parser::EraseOffsets(uint64_t Start, uint64_t End)
 		{
 			return Erase(Start, End - Start);
 		}
-		Stroke& Stroke::Path(const std::string& Net, const std::string& Dir)
+		Parser& Parser::Path(const std::string& Net, const std::string& Dir)
 		{
 			if (StartsOf("./\\"))
 			{
-				std::string Result = Rest::OS::Path::Resolve(L->c_str(), Dir);
+				std::string Result = Core::OS::Path::Resolve(L->c_str(), Dir);
 				if (!Result.empty())
 					Assign(Result);
 			}
@@ -1749,7 +1749,7 @@ namespace Tomahawk
 
 			return *this;
 		}
-		Stroke::Settle Stroke::ReverseFind(const std::string& Needle, uint64_t Offset) const
+		Parser::Settle Parser::ReverseFind(const std::string& Needle, uint64_t Offset) const
 		{
 			if (L->empty())
 				return { L->size() - 1, L->size(), false };
@@ -1767,7 +1767,7 @@ namespace Tomahawk
 
 			return { L->size() - 1, L->size(), false };
 		}
-		Stroke::Settle Stroke::ReverseFind(const char* Needle, uint64_t Offset) const
+		Parser::Settle Parser::ReverseFind(const char* Needle, uint64_t Offset) const
 		{
 			if (L->empty())
 				return { L->size() - 1, L->size(), false };
@@ -1789,7 +1789,7 @@ namespace Tomahawk
 
 			return { L->size() - 1, L->size(), false };
 		}
-		Stroke::Settle Stroke::ReverseFind(const char& Needle, uint64_t Offset) const
+		Parser::Settle Parser::ReverseFind(const char& Needle, uint64_t Offset) const
 		{
 			if (L->empty())
 				return { L->size() - 1, L->size(), false };
@@ -1805,7 +1805,7 @@ namespace Tomahawk
 
 			return { L->size() - 1, L->size(), false };
 		}
-		Stroke::Settle Stroke::ReverseFindUnescaped(const char& Needle, uint64_t Offset) const
+		Parser::Settle Parser::ReverseFindUnescaped(const char& Needle, uint64_t Offset) const
 		{
 			if (L->empty())
 				return { L->size() - 1, L->size(), false };
@@ -1821,7 +1821,7 @@ namespace Tomahawk
 
 			return { L->size() - 1, L->size(), false };
 		}
-		Stroke::Settle Stroke::ReverseFindOf(const std::string& Needle, uint64_t Offset) const
+		Parser::Settle Parser::ReverseFindOf(const std::string& Needle, uint64_t Offset) const
 		{
 			if (L->empty())
 				return { L->size() - 1, L->size(), false };
@@ -1840,7 +1840,7 @@ namespace Tomahawk
 
 			return { L->size() - 1, L->size(), false };
 		}
-		Stroke::Settle Stroke::ReverseFindOf(const char* Needle, uint64_t Offset) const
+		Parser::Settle Parser::ReverseFindOf(const char* Needle, uint64_t Offset) const
 		{
 			if (L->empty())
 				return { L->size() - 1, L->size(), false };
@@ -1863,7 +1863,7 @@ namespace Tomahawk
 
 			return { L->size() - 1, L->size(), false };
 		}
-		Stroke::Settle Stroke::Find(const std::string& Needle, uint64_t Offset) const
+		Parser::Settle Parser::Find(const std::string& Needle, uint64_t Offset) const
 		{
 			const char* It = strstr(L->c_str() + Offset, Needle.c_str());
 			if (It == nullptr)
@@ -1871,7 +1871,7 @@ namespace Tomahawk
 
 			return { (uint64_t)(It - L->c_str()), (uint64_t)(It - L->c_str() + Needle.size()), true };
 		}
-		Stroke::Settle Stroke::Find(const char* Needle, uint64_t Offset) const
+		Parser::Settle Parser::Find(const char* Needle, uint64_t Offset) const
 		{
 			if (!Needle)
 				return { L->size() - 1, L->size(), false };
@@ -1882,7 +1882,7 @@ namespace Tomahawk
 
 			return { (uint64_t)(It - L->c_str()), (uint64_t)(It - L->c_str() + strlen(Needle)), true };
 		}
-		Stroke::Settle Stroke::Find(const char& Needle, uint64_t Offset) const
+		Parser::Settle Parser::Find(const char& Needle, uint64_t Offset) const
 		{
 			for (uint64_t i = Offset; i < L->size(); i++)
 			{
@@ -1892,7 +1892,7 @@ namespace Tomahawk
 
 			return { L->size() - 1, L->size(), false };
 		}
-		Stroke::Settle Stroke::FindUnescaped(const char& Needle, uint64_t Offset) const
+		Parser::Settle Parser::FindUnescaped(const char& Needle, uint64_t Offset) const
 		{
 			for (uint64_t i = Offset; i < L->size(); i++)
 			{
@@ -1902,7 +1902,7 @@ namespace Tomahawk
 
 			return { L->size() - 1, L->size(), false };
 		}
-		Stroke::Settle Stroke::FindOf(const std::string& Needle, uint64_t Offset) const
+		Parser::Settle Parser::FindOf(const std::string& Needle, uint64_t Offset) const
 		{
 			for (uint64_t i = Offset; i < L->size(); i++)
 			{
@@ -1915,7 +1915,7 @@ namespace Tomahawk
 
 			return { L->size() - 1, L->size(), false };
 		}
-		Stroke::Settle Stroke::FindOf(const char* Needle, uint64_t Offset) const
+		Parser::Settle Parser::FindOf(const char* Needle, uint64_t Offset) const
 		{
 			if (!Needle)
 				return { L->size() - 1, L->size(), false };
@@ -1932,7 +1932,7 @@ namespace Tomahawk
 
 			return { L->size() - 1, L->size(), false };
 		}
-		Stroke::Settle Stroke::FindNotOf(const std::string& Needle, uint64_t Offset) const
+		Parser::Settle Parser::FindNotOf(const std::string& Needle, uint64_t Offset) const
 		{
 			for (uint64_t i = Offset; i < L->size(); i++)
 			{
@@ -1952,7 +1952,7 @@ namespace Tomahawk
 
 			return { L->size() - 1, L->size(), false };
 		}
-		Stroke::Settle Stroke::FindNotOf(const char* Needle, uint64_t Offset) const
+		Parser::Settle Parser::FindNotOf(const char* Needle, uint64_t Offset) const
 		{
 			if (!Needle)
 				return { L->size() - 1, L->size(), false };
@@ -1976,7 +1976,7 @@ namespace Tomahawk
 
 			return { L->size() - 1, L->size(), false };
 		}
-		bool Stroke::StartsWith(const std::string& Value, uint64_t Offset) const
+		bool Parser::StartsWith(const std::string& Value, uint64_t Offset) const
 		{
 			if (L->size() < Value.size())
 				return false;
@@ -1989,7 +1989,7 @@ namespace Tomahawk
 
 			return true;
 		}
-		bool Stroke::StartsWith(const char* Value, uint64_t Offset) const
+		bool Parser::StartsWith(const char* Value, uint64_t Offset) const
 		{
 			if (!Value)
 				return false;
@@ -2006,7 +2006,7 @@ namespace Tomahawk
 
 			return true;
 		}
-		bool Stroke::StartsOf(const char* Value, uint64_t Offset) const
+		bool Parser::StartsOf(const char* Value, uint64_t Offset) const
 		{
 			if (!Value)
 				return false;
@@ -2023,7 +2023,7 @@ namespace Tomahawk
 
 			return false;
 		}
-		bool Stroke::StartsNotOf(const char* Value, uint64_t Offset) const
+		bool Parser::StartsNotOf(const char* Value, uint64_t Offset) const
 		{
 			if (!Value)
 				return false;
@@ -2044,25 +2044,25 @@ namespace Tomahawk
 
 			return Result;
 		}
-		bool Stroke::EndsWith(const std::string& Value) const
+		bool Parser::EndsWith(const std::string& Value) const
 		{
 			if (L->empty())
 				return false;
 
 			return strcmp(L->c_str() + L->size() - Value.size(), Value.c_str()) == 0;
 		}
-		bool Stroke::EndsWith(const char* Value) const
+		bool Parser::EndsWith(const char* Value) const
 		{
 			if (L->empty() || !Value)
 				return false;
 
 			return strcmp(L->c_str() + L->size() - strlen(Value), Value) == 0;
 		}
-		bool Stroke::EndsWith(const char& Value) const
+		bool Parser::EndsWith(const char& Value) const
 		{
 			return !L->empty() && L->back() == Value;
 		}
-		bool Stroke::EndsOf(const char* Value) const
+		bool Parser::EndsOf(const char* Value) const
 		{
 			if (!Value)
 				return false;
@@ -2076,7 +2076,7 @@ namespace Tomahawk
 
 			return false;
 		}
-		bool Stroke::EndsNotOf(const char* Value) const
+		bool Parser::EndsNotOf(const char* Value) const
 		{
 			if (!Value)
 				return false;
@@ -2095,11 +2095,11 @@ namespace Tomahawk
 
 			return Result;
 		}
-		bool Stroke::Empty() const
+		bool Parser::Empty() const
 		{
 			return L->empty();
 		}
-		bool Stroke::HasInteger() const
+		bool Parser::HasInteger() const
 		{
 			if (L->empty())
 				return false;
@@ -2118,7 +2118,7 @@ namespace Tomahawk
 
 			return true;
 		}
-		bool Stroke::HasNumber() const
+		bool Parser::HasNumber() const
 		{
 			if (L->empty() || (L->size() == 1 && L->front() == '.'))
 				return false;
@@ -2142,16 +2142,16 @@ namespace Tomahawk
 
 			return true;
 		}
-		bool Stroke::HasDecimal() const
+		bool Parser::HasDecimal() const
 		{
 			auto F = Find('.');
 			if (F.Found)
 			{
-				auto D1 = Stroke(L->c_str(), F.End);
+				auto D1 = Parser(L->c_str(), F.End);
 				if (D1.Empty() || !D1.HasInteger())
 					return false;
 
-				auto D2 = Stroke(L->c_str() + F.End + 1, L->size() - F.End);
+				auto D2 = Parser(L->c_str() + F.End + 1, L->size() - F.End);
 				if (D2.Empty() || !D2.HasInteger())
 					return false;
 
@@ -2160,15 +2160,15 @@ namespace Tomahawk
 
 			return HasInteger() && L->size() > 19;
 		}
-		bool Stroke::ToBoolean() const
+		bool Parser::ToBoolean() const
 		{
 			return !strncmp(L->c_str(), "true", 4) || !strncmp(L->c_str(), "1", 1);
 		}
-		bool Stroke::IsDigit(char Char)
+		bool Parser::IsDigit(char Char)
 		{
 			return Char == '0' || Char == '1' || Char == '2' || Char == '3' || Char == '4' || Char == '5' || Char == '6' || Char == '7' || Char == '8' || Char == '9';
 		}
-		int Stroke::CaseCompare(const char* Value1, const char* Value2)
+		int Parser::CaseCompare(const char* Value1, const char* Value2)
 		{
 			if (!Value1 || !Value2)
 				return 0;
@@ -2181,11 +2181,11 @@ namespace Tomahawk
 
 			return Result;
 		}
-		int Stroke::Match(const char* Pattern, const char* Text)
+		int Parser::Match(const char* Pattern, const char* Text)
 		{
 			return Match(Pattern, strlen(Pattern), Text);
 		}
-		int Stroke::Match(const char* Pattern, uint64_t Length, const char* Text)
+		int Parser::Match(const char* Pattern, uint64_t Length, const char* Text)
 		{
 			if (!Pattern || !Text)
 				return -1;
@@ -2238,63 +2238,63 @@ namespace Tomahawk
 
 			return j;
 		}
-		int Stroke::ToInt() const
+		int Parser::ToInt() const
 		{
 			return (int)strtol(L->c_str(), nullptr, 10);
 		}
-		long Stroke::ToLong() const
+		long Parser::ToLong() const
 		{
 			return strtol(L->c_str(), nullptr, 10);
 		}
-		float Stroke::ToFloat() const
+		float Parser::ToFloat() const
 		{
 			return strtof(L->c_str(), nullptr);
 		}
-		unsigned int Stroke::ToUInt() const
+		unsigned int Parser::ToUInt() const
 		{
 			return (unsigned int)ToULong();
 		}
-		unsigned long Stroke::ToULong() const
+		unsigned long Parser::ToULong() const
 		{
 			return strtoul(L->c_str(), nullptr, 10);
 		}
-		int64_t Stroke::ToInt64() const
+		int64_t Parser::ToInt64() const
 		{
 			return strtoll(L->c_str(), nullptr, 10);
 		}
-		double Stroke::ToDouble() const
+		double Parser::ToDouble() const
 		{
 			return strtod(L->c_str(), nullptr);
 		}
-		long double Stroke::ToLDouble() const
+		long double Parser::ToLDouble() const
 		{
 			return strtold(L->c_str(), nullptr);
 		}
-		uint64_t Stroke::ToUInt64() const
+		uint64_t Parser::ToUInt64() const
 		{
 			return strtoull(L->c_str(), nullptr, 10);
 		}
-		uint64_t Stroke::Size() const
+		uint64_t Parser::Size() const
 		{
 			return L->size();
 		}
-		uint64_t Stroke::Capacity() const
+		uint64_t Parser::Capacity() const
 		{
 			return L->capacity();
 		}
-		char* Stroke::Value() const
+		char* Parser::Value() const
 		{
 			return (char*)L->data();
 		}
-		const char* Stroke::Get() const
+		const char* Parser::Get() const
 		{
 			return L->c_str();
 		}
-		std::string& Stroke::R()
+		std::string& Parser::R()
 		{
 			return *L;
 		}
-		std::basic_string<wchar_t> Stroke::ToUnicode() const
+		std::basic_string<wchar_t> Parser::ToUnicode() const
 		{
 #pragma warning(push)
 #pragma warning(disable: 4333)
@@ -2356,9 +2356,9 @@ namespace Tomahawk
 #pragma warning(pop)
 			return Output;
 		}
-		std::vector<std::string> Stroke::Split(const std::string& With, uint64_t Start) const
+		std::vector<std::string> Parser::Split(const std::string& With, uint64_t Start) const
 		{
-			Stroke::Settle Result = Find(With, Start);
+			Parser::Settle Result = Find(With, Start);
 			uint64_t Offset = Start;
 
 			std::vector<std::string> Output;
@@ -2373,9 +2373,9 @@ namespace Tomahawk
 
 			return Output;
 		}
-		std::vector<std::string> Stroke::Split(char With, uint64_t Start) const
+		std::vector<std::string> Parser::Split(char With, uint64_t Start) const
 		{
-			Stroke::Settle Result = Find(With, Start);
+			Parser::Settle Result = Find(With, Start);
 			uint64_t Offset = Start;
 
 			std::vector<std::string> Output;
@@ -2390,9 +2390,9 @@ namespace Tomahawk
 
 			return Output;
 		}
-		std::vector<std::string> Stroke::SplitMax(char With, uint64_t Count, uint64_t Start) const
+		std::vector<std::string> Parser::SplitMax(char With, uint64_t Count, uint64_t Start) const
 		{
-			Stroke::Settle Result = Find(With, Start);
+			Parser::Settle Result = Find(With, Start);
 			uint64_t Offset = Start;
 
 			std::vector<std::string> Output;
@@ -2407,9 +2407,9 @@ namespace Tomahawk
 
 			return Output;
 		}
-		std::vector<std::string> Stroke::SplitOf(const char* With, uint64_t Start) const
+		std::vector<std::string> Parser::SplitOf(const char* With, uint64_t Start) const
 		{
-			Stroke::Settle Result = FindOf(With, Start);
+			Parser::Settle Result = FindOf(With, Start);
 			uint64_t Offset = Start;
 
 			std::vector<std::string> Output;
@@ -2424,9 +2424,9 @@ namespace Tomahawk
 
 			return Output;
 		}
-		std::vector<std::string> Stroke::SplitNotOf(const char* With, uint64_t Start) const
+		std::vector<std::string> Parser::SplitNotOf(const char* With, uint64_t Start) const
 		{
-			Stroke::Settle Result = FindNotOf(With, Start);
+			Parser::Settle Result = FindNotOf(With, Start);
 			uint64_t Offset = Start;
 
 			std::vector<std::string> Output;
@@ -2441,7 +2441,7 @@ namespace Tomahawk
 
 			return Output;
 		}
-		Stroke& Stroke::operator= (const Stroke& Value)
+		Parser& Parser::operator= (const Parser& Value)
 		{
 			if (&Value == this)
 				return *this;
@@ -2457,7 +2457,7 @@ namespace Tomahawk
 
 			return *this;
 		}
-		std::string Stroke::ToStringAutoPrec(float Number)
+		std::string Parser::ToStringAutoPrec(float Number)
 		{
 			std::string Result(std::to_string(Number));
 			Result.erase(Result.find_last_not_of('0') + 1, std::string::npos);
@@ -2466,7 +2466,7 @@ namespace Tomahawk
 
 			return Result;
 		}
-		std::string Stroke::ToStringAutoPrec(double Number)
+		std::string Parser::ToStringAutoPrec(double Number)
 		{
 			std::string Result(std::to_string(Number));
 			Result.erase(Result.find_last_not_of('0') + 1, std::string::npos);
@@ -3728,10 +3728,10 @@ namespace Tomahawk
 				case FileMode_Read_Only:
 				{
 					auto* Client = new Network::HTTP::Client(30000);
-					Client->Connect(&Address, false).Sync().Then<Rest::Async<Network::HTTP::ResponseFrame*>>([Client, URL](int Code)
+					Client->Connect(&Address, false).Sync().Then<Core::Async<Network::HTTP::ResponseFrame*>>([Client, URL](int Code)
 					{
 						if (Code < 0)
-							return Rest::Async<Network::HTTP::ResponseFrame*>::Store(nullptr);
+							return Core::Async<Network::HTTP::ResponseFrame*>::Store(nullptr);
 
 						Network::HTTP::RequestFrame Request;
 						strcpy(Request.Version, "HTTP/1.1");
@@ -3742,16 +3742,16 @@ namespace Tomahawk
 							Request.Query += Item.first + "=" + Item.second;
 
 						return Client->Send(&Request);
-					}).Then<Rest::Async<Network::HTTP::ResponseFrame*>>([this, Client, &Chunked](Network::HTTP::ResponseFrame* Response)
+					}).Then<Core::Async<Network::HTTP::ResponseFrame*>>([this, Client, &Chunked](Network::HTTP::ResponseFrame* Response)
 					{
 						if (!Response || Response->StatusCode < 0)
-							return Rest::Async<Network::HTTP::ResponseFrame*>::Store(nullptr);
+							return Core::Async<Network::HTTP::ResponseFrame*>::Store(nullptr);
 
 						const char* ContentLength = Response->GetHeader("Content-Length");
 						if (ContentLength != nullptr)
 						{
-							this->Size = Stroke(ContentLength).ToUInt64();
-							return Rest::Async<Network::HTTP::ResponseFrame*>::Store(Response);
+							this->Size = Parser(ContentLength).ToUInt64();
+							return Core::Async<Network::HTTP::ResponseFrame*>::Store(Response);
 						}
 
 						Chunked = true;
@@ -4036,7 +4036,7 @@ namespace Tomahawk
 			std::string Result = Path::Resolve(Path);
 			Scan(Result, &Entries);
 
-			Stroke R(&Result);
+			Parser R(&Result);
 			if (!R.EndsWith('/') && !R.EndsWith('\\'))
 				Result += '/';
 
@@ -4366,7 +4366,7 @@ namespace Tomahawk
 			if (URL.Protocol == "file")
 			{
 				Stream* Result = nullptr;
-				if (Stroke(&Path).EndsWith(".gz"))
+				if (Parser(&Path).EndsWith(".gz"))
 					Result = new GzStream();
 				else
 					Result = new FileStream();
@@ -4473,7 +4473,7 @@ namespace Tomahawk
 			fclose(Stream);
 			TH_FREE(Buffer);
 
-			return Stroke(&Result).Split('\n');
+			return Parser(&Result).Split('\n');
 		}
 
 		bool OS::Path::IsRemote(const char* Path)
@@ -4503,10 +4503,10 @@ namespace Tomahawk
 			if (Path.empty() || Directory.empty())
 				return "";
 
-			if (Stroke(&Path).StartsOf("/\\"))
+			if (Parser(&Path).StartsOf("/\\"))
 				return Resolve(("." + Path).c_str());
 
-			if (Stroke(&Directory).EndsOf("/\\"))
+			if (Parser(&Directory).EndsOf("/\\"))
 				return Resolve((Directory + Path).c_str());
 #ifdef TH_MICROSOFT
 			return Resolve((Directory + "\\" + Path).c_str());
@@ -4517,7 +4517,7 @@ namespace Tomahawk
 		std::string OS::Path::ResolveDirectory(const char* Path)
 		{
 			std::string Result = Resolve(Path);
-			if (!Result.empty() && !Stroke(&Result).EndsOf("/\\"))
+			if (!Result.empty() && !Parser(&Result).EndsOf("/\\"))
 				Result += '/';
 
 			return Result;
@@ -4525,22 +4525,22 @@ namespace Tomahawk
 		std::string OS::Path::ResolveDirectory(const std::string& Path, const std::string& Directory)
 		{
 			std::string Result = Resolve(Path, Directory);
-			if (!Result.empty() && !Stroke(&Result).EndsOf("/\\"))
+			if (!Result.empty() && !Parser(&Result).EndsOf("/\\"))
 				Result += '/';
 
 			return Result;
 		}
 		std::string OS::Path::GetDirectory(const char* Path, uint32_t Level)
 		{
-			Stroke Buffer(Path);
-			Stroke::Settle Result = Buffer.ReverseFindOf("/\\");
+			Parser Buffer(Path);
+			Parser::Settle Result = Buffer.ReverseFindOf("/\\");
 			if (!Result.Found)
 				return Path;
 
 			uint64_t Size = Buffer.Size();
 			for (uint32_t i = 0; i < Level; i++)
 			{
-				Stroke::Settle Current = Buffer.ReverseFindOf("/\\", Size - Result.Start);
+				Parser::Settle Current = Buffer.ReverseFindOf("/\\", Size - Result.Start);
 				if (!Current.Found)
 				{
 					if (Buffer.Splice(0, Result.End).Empty())
@@ -4673,11 +4673,11 @@ namespace Tomahawk
 			PROCESS_INFORMATION Process;
 			ZeroMemory(&Process, sizeof(Process));
 
-			Stroke Exe = Path::Resolve(Path.c_str());
+			Parser Exe = Path::Resolve(Path.c_str());
 			if (!Exe.EndsWith(".exe"))
 				Exe.Append(".exe");
 
-			Stroke Args = Form("\"%s\"", Exe.Get());
+			Parser Args = Form("\"%s\"", Exe.Get());
 			for (const auto& Param : Params)
 				Args.Append(' ').Append(Param);
 
@@ -4783,7 +4783,7 @@ namespace Tomahawk
 
 		void* OS::Symbol::Load(const std::string& Path)
 		{
-			Stroke Name(Path);
+			Parser Name(Path);
 #ifdef TH_MICROSOFT
 			if (Path.empty())
 				return GetModuleHandle(nullptr);
@@ -4884,7 +4884,7 @@ namespace Tomahawk
 		bool OS::Input::Save(const std::string& Title, const std::string& DefaultPath, const std::string& Filter, const std::string& FilterDescription, std::string* Result)
 		{
 			std::vector<char*> Patterns;
-			for (auto& It : Stroke(&Filter).Split(','))
+			for (auto& It : Parser(&Filter).Split(','))
 				Patterns.push_back(strdup(It.c_str()));
 
 			const char* Data = tinyfd_saveFileDialog(Title.c_str(), DefaultPath.c_str(), Patterns.size(),
@@ -4904,7 +4904,7 @@ namespace Tomahawk
 		bool OS::Input::Open(const std::string& Title, const std::string& DefaultPath, const std::string& Filter, const std::string& FilterDescription, bool Multiple, std::string* Result)
 		{
 			std::vector<char*> Patterns;
-			for (auto& It : Stroke(&Filter).Split(','))
+			for (auto& It : Parser(&Filter).Split(','))
 				Patterns.push_back(strdup(It.c_str()));
 
 			const char* Data = tinyfd_openFileDialog(Title.c_str(), DefaultPath.c_str(), Patterns.size(),
@@ -4967,7 +4967,7 @@ namespace Tomahawk
 			std::string Result(Buffer, Size);
 			LocalFree(Buffer);
 
-			return Stroke(&Result).Replace("\r", "").Replace("\n", "").R();
+			return Parser(&Result).Replace("\r", "").Replace("\n", "").R();
 #else
 			char* Buffer = strerror(Code);
 			return Buffer ? Buffer : "";
@@ -4977,7 +4977,7 @@ namespace Tomahawk
 		ChangeLog::ChangeLog(const std::string& Root) : Path(Root), Offset(-1)
 		{
 			Source = new FileStream();
-			auto V = Stroke(&Path).Replace("/", "\\").Split('\\');
+			auto V = Parser(&Path).Replace("/", "\\").Split('\\');
 			if (!V.empty())
 				Name = V.back();
 		}
@@ -5016,7 +5016,7 @@ namespace Tomahawk
 			if (ValueLength == -1)
 				ValueLength = Value.size();
 
-			auto V = Stroke(&Value).Substring(0, ValueLength).Replace("\t", "\n").Replace("\n\n", "\n").Replace("\r", "");
+			auto V = Parser(&Value).Substring(0, ValueLength).Replace("\t", "\n").Replace("\n\n", "\n").Replace("\r", "");
 			TH_FREE(Data);
 
 			if (Value == LastValue)
@@ -5599,7 +5599,7 @@ namespace Tomahawk
 		}
 		std::vector<Document*> Document::FetchCollection(const std::string& Notation, bool Deep) const
 		{
-			std::vector<std::string> Names = Stroke(Notation).Split('.');
+			std::vector<std::string> Names = Parser(Notation).Split('.');
 			if (Names.empty())
 				return std::vector<Document*>();
 
@@ -5638,7 +5638,7 @@ namespace Tomahawk
 		{
 			if (Value.Type == VarType_Array)
 			{
-				Rest::Stroke Number(&Name);
+				Core::Parser Number(&Name);
 				if (Number.HasInteger())
 				{
 					int64_t Index = Number.ToInt64();
@@ -5664,7 +5664,7 @@ namespace Tomahawk
 		}
 		Document* Document::Fetch(const std::string& Notation, bool Deep) const
 		{
-			std::vector<std::string> Names = Stroke(Notation).Split('.');
+			std::vector<std::string> Names = Parser(Notation).Split('.');
 			if (Names.empty())
 				return nullptr;
 
@@ -6082,7 +6082,7 @@ namespace Tomahawk
 			if (!Base->Parent && !Base->Value.IsObject())
 			{
 				std::string Value = Base->Value.Serialize();
-				Rest::Stroke Safe(&Value);
+				Core::Parser Safe(&Value);
 				Safe.Escape();
 
 				if (Base->Value.Type != VarType_String && Base->Value.Type != VarType_Base64)
@@ -6126,7 +6126,7 @@ namespace Tomahawk
 				if (!Document->Value.IsObject())
 				{
 					std::string Value = Document->Value.Serialize();
-					Rest::Stroke Safe(&Value);
+					Core::Parser Safe(&Value);
 					Safe.Escape();
 
 					if (Array)
@@ -6281,7 +6281,7 @@ namespace Tomahawk
 			rapidjson::Document Base;
 			Base.Parse(Buffer.c_str(), Buffer.size());
 
-			Rest::Document* Result = nullptr;
+			Core::Document* Result = nullptr;
 			if (Base.HasParseError())
 			{
 				if (!Assert)
@@ -6792,18 +6792,18 @@ namespace Tomahawk
 			return true;
 		}
 
-		Stroke Form(const char* Format, ...)
+		Parser Form(const char* Format, ...)
 		{
 			char Buffer[16384];
 			if (!Format)
-				return Stroke();
+				return Parser();
 
 			va_list Args;
 			va_start(Args, Format);
 			int Size = vsnprintf(Buffer, sizeof(Buffer), Format, Args);
 			va_end(Args);
 
-			return Stroke(Buffer, Size > 16384 ? 16384 : (size_t)Size);
+			return Parser(Buffer, Size > 16384 ? 16384 : (size_t)Size);
 		}
 	}
 }

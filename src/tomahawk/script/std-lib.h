@@ -1,5 +1,5 @@
-#ifndef TH_SCRIPT_CORE_API_H
-#define TH_SCRIPT_CORE_API_H
+#ifndef TH_SCRIPT_STD_API_H
+#define TH_SCRIPT_STD_API_H
 
 #include "../core/script.h"
 
@@ -7,8 +7,7 @@ namespace Tomahawk
 {
 	namespace Script
 	{
-		typedef std::function<void(class VMCAsync*)> AsyncWorkCallback;
-		typedef std::function<void(VMContext*)> AsyncDoneCallback;
+		typedef std::function<void(bool Failed)> AsyncResumeCallback;
 
 		class TH_OUT VMCException
 		{
@@ -540,16 +539,17 @@ namespace Tomahawk
 		class TH_OUT VMCAsync
 		{
 		private:
-			AsyncDoneCallback Done;
+			AsyncResumeCallback Resolve;
 			VMCContext* Context;
 			VMCAny* Any;
-			std::mutex Mutex;
-			bool Rejected;
+			std::mutex Safe;
+			bool Stored;
 			bool GCFlag;
 			int Ref;
 
 		private:
 			VMCAsync(VMCContext* Base);
+			void Finish();
 
 		public:
 			void EnumReferences(VMCManager* Engine);
@@ -559,25 +559,65 @@ namespace Tomahawk
 			void SetGCFlag();
 			bool GetGCFlag();
 			int GetRefCount();
+
+		public:
 			int Set(VMCAny* Value);
 			int Set(void* Ref, int TypeId);
 			int Set(void* Ref, const char* TypeName);
-			bool GetAny(void* Ref, int TypeId) const;
-			VMCAny* Get() const;
+			void* Get() const;
 			VMCAsync* Await();
-			VMCAsync* Then(AsyncDoneCallback&& DoneCallback);
-
-		private:
-			void Finish();
+			VMCAsync* Resume(AsyncResumeCallback&& Callback);
 
 		public:
-			static VMCAsync* Promise();
-			static VMCAsync* Reject();
-			static VMCAsync* Fulfill(void* Ref, int TypeId);
-			static VMCAsync* Fulfill(void* Ref, const char* TypeName);
-			static VMCAsync* Fulfill(bool Value);
-			static VMCAsync* Fulfill(int64_t Value);
-			static VMCAsync* Fulfill(double Value);
+			template <typename T>
+			VMCAsync* SetCast(const T& Ref, int TypeId)
+			{
+				return Set((void*)&Ref, TypeId);
+			}
+			template <typename T>
+			VMCAsync* SetCast(const T& Ref, const char* TypeName)
+			{
+				return Set((void*)&Ref, TypeName);
+			}
+
+		public:
+			static VMCAsync* Promise(VMCTypeInfo* Type = nullptr);
+			static VMCAsync* Store(void* Ref, int TypeId);
+			static VMCAsync* Store(void* Ref, const char* TypeName);
+
+		public:
+			template <typename T>
+			static VMCAsync* Promise(int TypeId, Core::Async<T>&& Base)
+			{
+				VMCAsync* Future = Promise();
+				Base.Await([Future, TypeId](T&& Result)
+				{
+					Future->Set(&Result, TypeId);
+				});
+
+				return Future;
+			}
+			template <typename T>
+			static VMCAsync* Promise(const std::string& TypeName, Core::Async<T>&& Base)
+			{
+				VMCAsync* Future = Promise();
+				Base.Await([Future, TypeName](T&& Result)
+				{
+					Future->Set(&Result, TypeName.c_str());
+				});
+
+				return Future;
+			}
+			template <typename T>
+			static VMCAsync* Cast(const T& Ref, int TypeId)
+			{
+				return Store((void*)&Ref, TypeId);
+			}
+			template <typename T>
+			static VMCAsync* Cast(const T& Ref, const char* TypeName)
+			{
+				return Store((void*)&Ref, TypeName);
+			}
 		};
 
 		TH_OUT bool RegisterAnyAPI(VMManager* Manager);

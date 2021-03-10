@@ -15,7 +15,7 @@ namespace Tomahawk
 			{
 				TH_RELEASE(Instance);
 			}
-			void Model::Deserialize(ContentManager* Content, Rest::Document* Node)
+			void Model::Deserialize(ContentManager* Content, Core::Document* Node)
 			{
 				std::string Path;
 				if (NMake::Unpack(Node->Find("model"), &Path))
@@ -24,7 +24,7 @@ namespace Tomahawk
 					Instance = Content->Load<Graphics::Model>(Path);
 				}
 
-				std::vector<Rest::Document*> Slots = Node->FetchCollection("materials.material");
+				std::vector<Core::Document*> Slots = Node->FetchCollection("materials.material");
 				for (auto&& Material : Slots)
 				{
 					uint64_t Slot = 0;
@@ -42,18 +42,18 @@ namespace Tomahawk
 				NMake::Unpack(Node->Find("static"), &Static);
 				SetTransparency(Transparent);
 			}
-			void Model::Serialize(ContentManager* Content, Rest::Document* Node)
+			void Model::Serialize(ContentManager* Content, Core::Document* Node)
 			{
 				AssetCache* Asset = Content->Find<Graphics::Model>(Instance);
 				if (Asset != nullptr)
 					NMake::Pack(Node->Set("model"), Asset->Path);
 
-				Rest::Document* Slots = Node->Set("materials", std::move(Rest::Var::Array()));
+				Core::Document* Slots = Node->Set("materials", std::move(Core::Var::Array()));
 				for (auto&& Slot : Materials)
 				{
 					if (Slot.first != nullptr)
 					{
-						Rest::Document* Material = Slots->Set("material");
+						Core::Document* Material = Slots->Set("material");
 						NMake::Pack(Material->Set("name"), ((Graphics::MeshBuffer*)Slot.first)->Name);
 
 						if (Slot.second != nullptr)
@@ -122,7 +122,7 @@ namespace Tomahawk
 			{
 				TH_RELEASE(Instance);
 			}
-			void Skin::Deserialize(ContentManager* Content, Rest::Document* Node)
+			void Skin::Deserialize(ContentManager* Content, Core::Document* Node)
 			{
 				std::string Path;
 				if (NMake::Unpack(Node->Find("skin-model"), &Path))
@@ -131,7 +131,7 @@ namespace Tomahawk
 					Instance = Content->Load<Graphics::SkinModel>(Path);
 				}
 
-				std::vector<Rest::Document*> Slots = Node->FetchCollection("materials.material");
+				std::vector<Core::Document*> Slots = Node->FetchCollection("materials.material");
 				for (auto&& Material : Slots)
 				{
 					uint64_t Slot = 0;
@@ -144,7 +144,7 @@ namespace Tomahawk
 				}
 
 
-				std::vector<Rest::Document*> Poses = Node->FetchCollection("poses.pose");
+				std::vector<Core::Document*> Poses = Node->FetchCollection("poses.pose");
 				for (auto&& Pose : Poses)
 				{
 					int64_t Index;
@@ -161,18 +161,18 @@ namespace Tomahawk
 				NMake::Unpack(Node->Find("static"), &Static);
 				SetTransparency(Transparent);
 			}
-			void Skin::Serialize(ContentManager* Content, Rest::Document* Node)
+			void Skin::Serialize(ContentManager* Content, Core::Document* Node)
 			{
 				AssetCache* Asset = Content->Find<Graphics::SkinModel>(Instance);
 				if (Asset != nullptr)
 					NMake::Pack(Node->Set("skin-model"), Asset->Path);
 
-				Rest::Document* Slots = Node->Set("materials", std::move(Rest::Var::Array()));
+				Core::Document* Slots = Node->Set("materials", std::move(Core::Var::Array()));
 				for (auto&& Slot : Materials)
 				{
 					if (Slot.first != nullptr)
 					{
-						Rest::Document* Material = Slots->Set("material");
+						Core::Document* Material = Slots->Set("material");
 						NMake::Pack(Material->Set("name"), ((Graphics::MeshBuffer*)Slot.first)->Name);
 
 						if (Slot.second != nullptr)
@@ -184,16 +184,16 @@ namespace Tomahawk
 				NMake::Pack(Node->Set("transparency"), HasTransparency());
 				NMake::Pack(Node->Set("static"), Static);
 
-				Rest::Document* Poses = Node->Set("poses", std::move(Rest::Var::Array()));
+				Core::Document* Poses = Node->Set("poses", std::move(Core::Var::Array()));
 				for (auto&& Pose : Skeleton.Pose)
 				{
-					Rest::Document* Value = Poses->Set("pose");
+					Core::Document* Value = Poses->Set("pose");
 					NMake::Pack(Value->Set("index"), Pose.first);
 					NMake::Pack(Value->Set("position"), Pose.second.Position);
 					NMake::Pack(Value->Set("rotation"), Pose.second.Rotation);
 				}
 			}
-			void Skin::Synchronize(Rest::Timer* Time)
+			void Skin::Synchronize(Core::Timer* Time)
 			{
 				if (Instance != nullptr)
 					Instance->ComputePose(&Skeleton);
@@ -255,7 +255,7 @@ namespace Tomahawk
 			{
 				TH_RELEASE(Instance);
 			}
-			void Emitter::Deserialize(ContentManager* Content, Rest::Document* Node)
+			void Emitter::Deserialize(ContentManager* Content, Core::Document* Node)
 			{
 				uint64_t Slot = -1;
 				if (NMake::Unpack(Node->Find("material"), &Slot))
@@ -286,7 +286,7 @@ namespace Tomahawk
 					}
 				}
 			}
-			void Emitter::Serialize(ContentManager* Content, Rest::Document* Node)
+			void Emitter::Serialize(ContentManager* Content, Core::Document* Node)
 			{
 				Material* Slot = GetMaterial();
 				if (Slot != nullptr)
@@ -358,7 +358,7 @@ namespace Tomahawk
 			{
 				TH_RELEASE(Instance);
 			}
-			void SoftBody::Deserialize(ContentManager* Content, Rest::Document* Node)
+			void SoftBody::Deserialize(ContentManager* Content, Core::Document* Node)
 			{
 				uint64_t Slot = -1;
 				if (NMake::Unpack(Node->Find("material"), &Slot))
@@ -382,7 +382,7 @@ namespace Tomahawk
 				float CcdMotionThreshold = 0;
 				NMake::Unpack(Node->Find("ccd-motion-threshold"), &CcdMotionThreshold);
 
-				Rest::Document* CV = nullptr;
+				Core::Document* CV = nullptr;
 				if ((CV = Node->Find("shape")) != nullptr)
 				{
 					if (NMake::Unpack(Node->Find("path"), &Path))
@@ -430,7 +430,7 @@ namespace Tomahawk
 				if (!Instance)
 					return;
 
-				Rest::Document* Conf = Node->Get("config");
+				Core::Document* Conf = Node->Get("config");
 				if (Conf != nullptr)
 				{
 					Compute::SoftBody::Desc::SConfig I;
@@ -528,10 +528,10 @@ namespace Tomahawk
 					Instance->SetTotalMass(TotalMass);
 
 				float RestLengthScale;
-				if (NMake::Unpack(Node->Find("rest-length-scale"), &RestLengthScale))
+				if (NMake::Unpack(Node->Find("core-length-scale"), &RestLengthScale))
 					Instance->SetRestLengthScale(RestLengthScale);
 			}
-			void SoftBody::Serialize(ContentManager* Content, Rest::Document* Node)
+			void SoftBody::Serialize(ContentManager* Content, Core::Document* Node)
 			{
 				Material* Slot = GetMaterial();
 				if (Slot != nullptr)
@@ -548,7 +548,7 @@ namespace Tomahawk
 					return;
 
 				Compute::SoftBody::Desc& I = Instance->GetInitialState();
-				Rest::Document* Conf = Node->Set("config");
+				Core::Document* Conf = Node->Set("config");
 				NMake::Pack(Conf->Set("aero-model"), (uint64_t)I.Config.AeroModel);
 				NMake::Pack(Conf->Set("vcf"), I.Config.VCF);
 				NMake::Pack(Conf->Set("dp"), I.Config.DP);
@@ -588,21 +588,21 @@ namespace Tomahawk
 						AssetCache* Asset = Content->Find<Compute::UnmanagedShape>(Desc.Shape.Convex.Hull);
 						if (Asset != nullptr)
 						{
-							Rest::Document* Shape = Node->Set("shape");
+							Core::Document* Shape = Node->Set("shape");
 							NMake::Pack(Shape->Set("path"), Asset->Path);
 						}
 					}
 				}
 				else if (Desc.Shape.Ellipsoid.Enabled)
 				{
-					Rest::Document* Shape = Node->Set("ellipsoid");
+					Core::Document* Shape = Node->Set("ellipsoid");
 					NMake::Pack(Shape->Set("center"), Desc.Shape.Ellipsoid.Center);
 					NMake::Pack(Shape->Set("radius"), Desc.Shape.Ellipsoid.Radius);
 					NMake::Pack(Shape->Set("count"), Desc.Shape.Ellipsoid.Count);
 				}
 				else if (Desc.Shape.Patch.Enabled)
 				{
-					Rest::Document* Shape = Node->Set("patch");
+					Core::Document* Shape = Node->Set("patch");
 					NMake::Pack(Shape->Set("corner-00"), Desc.Shape.Patch.Corner00);
 					NMake::Pack(Shape->Set("corner-00-fixed"), Desc.Shape.Patch.Corner00Fixed);
 					NMake::Pack(Shape->Set("corner-01"), Desc.Shape.Patch.Corner01);
@@ -617,7 +617,7 @@ namespace Tomahawk
 				}
 				else if (Desc.Shape.Rope.Enabled)
 				{
-					Rest::Document* Shape = Node->Set("rope");
+					Core::Document* Shape = Node->Set("rope");
 					NMake::Pack(Shape->Set("start"), Desc.Shape.Rope.Start);
 					NMake::Pack(Shape->Set("start-fixed"), Desc.Shape.Rope.StartFixed);
 					NMake::Pack(Shape->Set("end"), Desc.Shape.Rope.End);
@@ -643,9 +643,9 @@ namespace Tomahawk
 				NMake::Pack(Node->Set("collision-flags"), (uint64_t)Instance->GetCollisionFlags());
 				NMake::Pack(Node->Set("wind-velocity"), Instance->GetWindVelocity());
 				NMake::Pack(Node->Set("total-mass"), Instance->GetTotalMass());
-				NMake::Pack(Node->Set("rest-length-scale"), Instance->GetRestLengthScale());
+				NMake::Pack(Node->Set("core-length-scale"), Instance->GetRestLengthScale());
 			}
-			void SoftBody::Synchronize(Rest::Timer* Time)
+			void SoftBody::Synchronize(Core::Timer* Time)
 			{
 				if (!Instance)
 					return;
@@ -910,7 +910,7 @@ namespace Tomahawk
 			Decal::Decal(Entity* Ref) : Drawable(Ref, Decal::GetTypeId(), false)
 			{
 			}
-			void Decal::Deserialize(ContentManager* Content, Rest::Document* Node)
+			void Decal::Deserialize(ContentManager* Content, Core::Document* Node)
 			{
 				uint64_t Slot = -1;
 				if (NMake::Unpack(Node->Find("material"), &Slot))
@@ -926,7 +926,7 @@ namespace Tomahawk
 				NMake::Unpack(Node->Find("transparency"), &Transparent);
 				SetTransparency(Transparent);
 			}
-			void Decal::Serialize(ContentManager* Content, Rest::Document* Node)
+			void Decal::Serialize(ContentManager* Content, Core::Document* Node)
 			{
 				Material* Slot = GetMaterial();
 				if (Slot != nullptr)
@@ -940,7 +940,7 @@ namespace Tomahawk
 				NMake::Pack(Node->Set("static"), Static);
 				NMake::Pack(Node->Set("transparency"), HasTransparency());
 			}
-			void Decal::Synchronize(Rest::Timer* Time)
+			void Decal::Synchronize(Core::Timer* Time)
 			{
 				Projection = Compute::Matrix4x4::CreatePerspective(FieldOfView, 1, 0.1f, Distance);
 				View = Compute::Matrix4x4::CreateTranslation(-Parent->Transform->Position) * Compute::Matrix4x4::CreateCameraRotation(-Parent->Transform->Rotation);
@@ -980,7 +980,7 @@ namespace Tomahawk
 			SkinAnimator::~SkinAnimator()
 			{
 			}
-			void SkinAnimator::Deserialize(ContentManager* Content, Rest::Document* Node)
+			void SkinAnimator::Deserialize(ContentManager* Content, Core::Document* Node)
 			{
 				std::string Path;
 				if (!NMake::Unpack(Node->Find("path"), &Path))
@@ -992,7 +992,7 @@ namespace Tomahawk
 				NMake::Unpack(Node->Find("bind"), &Bind);
 				NMake::Unpack(Node->Find("current"), &Current);
 			}
-			void SkinAnimator::Serialize(ContentManager* Content, Rest::Document* Node)
+			void SkinAnimator::Serialize(ContentManager* Content, Core::Document* Node)
 			{
 				if (!Reference.empty())
 					NMake::Pack(Node->Set("path"), Reference);
@@ -1016,7 +1016,7 @@ namespace Tomahawk
 
 				SetActive(Instance != nullptr);
 			}
-			void SkinAnimator::Synchronize(Rest::Timer* Time)
+			void SkinAnimator::Synchronize(Core::Timer* Time)
 			{
 				if (!Parent->GetScene()->IsActive())
 					return;
@@ -1114,13 +1114,13 @@ namespace Tomahawk
 				if (!Content)
 					return false;
 
-				Rest::Document* Result = Content->Load<Rest::Document>(Path);
+				Core::Document* Result = Content->Load<Core::Document>(Path);
 				if (!Result)
 					return false;
 
 				ClearAnimation();
 				if (NMake::Unpack(Result, &Clips))
-					Reference = Rest::Stroke(Path).Replace(Content->GetEnvironment(), "./").Replace('\\', '/').R();
+					Reference = Core::Parser(Path).Replace(Content->GetEnvironment(), "./").Replace('\\', '/').R();
 
 				TH_RELEASE(Result);
 				return true;
@@ -1236,7 +1236,7 @@ namespace Tomahawk
 			KeyAnimator::~KeyAnimator()
 			{
 			}
-			void KeyAnimator::Deserialize(ContentManager* Content, Rest::Document* Node)
+			void KeyAnimator::Deserialize(ContentManager* Content, Core::Document* Node)
 			{
 				std::string Path;
 				if (!NMake::Unpack(Node->Find("path"), &Path))
@@ -1248,7 +1248,7 @@ namespace Tomahawk
 				NMake::Unpack(Node->Find("bind"), &Bind);
 				NMake::Unpack(Node->Find("current"), &Current);
 			}
-			void KeyAnimator::Serialize(ContentManager* Content, Rest::Document* Node)
+			void KeyAnimator::Serialize(ContentManager* Content, Core::Document* Node)
 			{
 				if (Reference.empty())
 					NMake::Pack(Node->Set("animation"), Clips);
@@ -1259,7 +1259,7 @@ namespace Tomahawk
 				NMake::Pack(Node->Set("bind"), Bind);
 				NMake::Pack(Node->Set("current"), Current);
 			}
-			void KeyAnimator::Synchronize(Rest::Timer* Time)
+			void KeyAnimator::Synchronize(Core::Timer* Time)
 			{
 				if (!Parent->GetScene()->IsActive())
 					return;
@@ -1328,13 +1328,13 @@ namespace Tomahawk
 				if (!Content)
 					return false;
 
-				Rest::Document* Result = Content->Load<Rest::Document>(Path);
+				Core::Document* Result = Content->Load<Core::Document>(Path);
 				if (!Result)
 					return false;
 
 				ClearAnimation();
 				if (NMake::Unpack(Result, &Clips))
-					Reference = Rest::Stroke(Path).Replace(Content->GetEnvironment(), "./").Replace('\\', '/').R();
+					Reference = Core::Parser(Path).Replace(Content->GetEnvironment(), "./").Replace('\\', '/').R();
 
 				TH_RELEASE(Result);
 				return true;
@@ -1466,7 +1466,7 @@ namespace Tomahawk
 				Spawner.Noise.Max = 1;
 				Spawner.Iterations = 1;
 			}
-			void EmitterAnimator::Deserialize(ContentManager* Content, Rest::Document* Node)
+			void EmitterAnimator::Deserialize(ContentManager* Content, Core::Document* Node)
 			{
 				NMake::Unpack(Node->Find("diffuse"), &Diffuse);
 				NMake::Unpack(Node->Find("position"), &Position);
@@ -1477,7 +1477,7 @@ namespace Tomahawk
 				NMake::Unpack(Node->Find("scale-speed"), &ScaleSpeed);
 				NMake::Unpack(Node->Find("simulate"), &Simulate);
 			}
-			void EmitterAnimator::Serialize(ContentManager* Content, Rest::Document* Node)
+			void EmitterAnimator::Serialize(ContentManager* Content, Core::Document* Node)
 			{
 				NMake::Pack(Node->Set("diffuse"), Diffuse);
 				NMake::Pack(Node->Set("position"), Position);
@@ -1493,7 +1493,7 @@ namespace Tomahawk
 				Base = Parent->GetComponent<Emitter>();
 				SetActive(Base != nullptr);
 			}
-			void EmitterAnimator::Synchronize(Rest::Timer* Time)
+			void EmitterAnimator::Synchronize(Core::Timer* Time)
 			{
 				if (!Parent->GetScene()->IsActive())
 					return;
@@ -1501,7 +1501,7 @@ namespace Tomahawk
 				if (!Base || !Base->GetBuffer())
 					return;
 
-				Rest::Pool<Compute::ElementVertex>* Array = Base->GetBuffer()->GetArray();
+				Core::Pool<Compute::ElementVertex>* Array = Base->GetBuffer()->GetArray();
 				for (int i = 0; i < Spawner.Iterations; i++)
 				{
 					if (Array->Size() >= Array->Capacity())
@@ -1539,7 +1539,7 @@ namespace Tomahawk
 			}
 			void EmitterAnimator::AccurateSynchronization(float DeltaTime)
 			{
-				Rest::Pool<Compute::ElementVertex>* Array = Base->GetBuffer()->GetArray();
+				Core::Pool<Compute::ElementVertex>* Array = Base->GetBuffer()->GetArray();
 				float L = Velocity.Length();
 
 				for (auto It = Array->Begin(); It != Array->End(); It++)
@@ -1571,7 +1571,7 @@ namespace Tomahawk
 			}
 			void EmitterAnimator::FastSynchronization(float DeltaTime)
 			{
-				Rest::Pool<Compute::ElementVertex>* Array = Base->GetBuffer()->GetArray();
+				Core::Pool<Compute::ElementVertex>* Array = Base->GetBuffer()->GetArray();
 				float L = Velocity.Length();
 
 				for (auto It = Array->Begin(); It != Array->End(); It++)
@@ -1626,7 +1626,7 @@ namespace Tomahawk
 			{
 				TH_RELEASE(Instance);
 			}
-			void RigidBody::Deserialize(ContentManager* Content, Rest::Document* Node)
+			void RigidBody::Deserialize(ContentManager* Content, Core::Document* Node)
 			{
 				bool Extended = false;
 				NMake::Unpack(Node->Find("extended"), &Extended);
@@ -1640,7 +1640,7 @@ namespace Tomahawk
 				NMake::Unpack(Node->Find("mass"), &Mass);
 				NMake::Unpack(Node->Find("ccd-motion-threshold"), &CcdMotionThreshold);
 
-				Rest::Document* CV = nullptr;
+				Core::Document* CV = nullptr;
 				if ((CV = Node->Find("shape")) != nullptr)
 				{
 					std::string Path;
@@ -1760,7 +1760,7 @@ namespace Tomahawk
 				if (NMake::Unpack(Node->Find("collision-flags"), &CollisionFlags))
 					Instance->SetCollisionFlags(CollisionFlags);
 			}
-			void RigidBody::Serialize(ContentManager* Content, Rest::Document* Node)
+			void RigidBody::Serialize(ContentManager* Content, Core::Document* Node)
 			{
 				NMake::Pack(Node->Set("kinematic"), Kinematic);
 				NMake::Pack(Node->Set("manage"), Manage);
@@ -1768,7 +1768,7 @@ namespace Tomahawk
 				if (!Instance)
 					return;
 
-				Rest::Document* CV = Node->Set("shape");
+				Core::Document* CV = Node->Set("shape");
 				if (Instance->GetCollisionShapeType() == Compute::Shape_Convex_Hull)
 				{
 					AssetCache* Asset = Content->Find<Compute::UnmanagedShape>(Hull);
@@ -1808,7 +1808,7 @@ namespace Tomahawk
 				NMake::Pack(Node->Set("linear-velocity"), Instance->GetLinearVelocity());
 				NMake::Pack(Node->Set("collision-flags"), (uint64_t)Instance->GetCollisionFlags());
 			}
-			void RigidBody::Synchronize(Rest::Timer* Time)
+			void RigidBody::Synchronize(Core::Timer* Time)
 			{
 				if (Instance && Manage)
 					Instance->Synchronize(Parent->Transform, Kinematic);
@@ -1913,7 +1913,7 @@ namespace Tomahawk
 			Acceleration::Acceleration(Entity* Ref) : Component(Ref)
 			{
 			}
-			void Acceleration::Deserialize(ContentManager* Content, Rest::Document* Node)
+			void Acceleration::Deserialize(ContentManager* Content, Core::Document* Node)
 			{
 				NMake::Unpack(Node->Find("amplitude-velocity"), &AmplitudeVelocity);
 				NMake::Unpack(Node->Find("amplitude-torque"), &AmplitudeTorque);
@@ -1922,7 +1922,7 @@ namespace Tomahawk
 				NMake::Unpack(Node->Find("constant-center"), &ConstantCenter);
 				NMake::Unpack(Node->Find("kinematic"), &Kinematic);
 			}
-			void Acceleration::Serialize(ContentManager* Content, Rest::Document* Node)
+			void Acceleration::Serialize(ContentManager* Content, Core::Document* Node)
 			{
 				NMake::Pack(Node->Set("amplitude-velocity"), AmplitudeVelocity);
 				NMake::Pack(Node->Set("amplitude-torque"), AmplitudeTorque);
@@ -1940,7 +1940,7 @@ namespace Tomahawk
 				if (Component != nullptr)
 					RigidBody = Component->GetBody();
 			}
-			void Acceleration::Update(Rest::Timer* Time)
+			void Acceleration::Update(Core::Timer* Time)
 			{
 				if (!RigidBody)
 					return;
@@ -2014,7 +2014,7 @@ namespace Tomahawk
 			{
 				TH_RELEASE(Instance);
 			}
-			void SliderConstraint::Deserialize(ContentManager* Content, Rest::Document* Node)
+			void SliderConstraint::Deserialize(ContentManager* Content, Core::Document* Node)
 			{
 				bool Extended;
 				NMake::Unpack(Node->Find("extended"), &Extended);
@@ -2148,7 +2148,7 @@ namespace Tomahawk
 				if (NMake::Unpack(Node->Find("enabled"), &Enabled))
 					Instance->SetEnabled(Enabled);
 			}
-			void SliderConstraint::Serialize(ContentManager* Content, Rest::Document* Node)
+			void SliderConstraint::Serialize(ContentManager* Content, Core::Document* Node)
 			{
 				NMake::Pack(Node->Set("extended"), Instance != nullptr);
 				if (!Instance)
@@ -2188,7 +2188,7 @@ namespace Tomahawk
 				NMake::Pack(Node->Set("powered-linear-motor"), Instance->GetPoweredLinearMotor());
 				NMake::Pack(Node->Set("enabled"), Instance->IsEnabled());
 			}
-			void SliderConstraint::Synchronize(Rest::Timer* Time)
+			void SliderConstraint::Synchronize(Core::Timer* Time)
 			{
 				if (Wanted.Connection < 0)
 					return;
@@ -2280,7 +2280,7 @@ namespace Tomahawk
 				Activity = App->Activity;
 				SetActive(Activity != nullptr);
 			}
-			void FreeLook::Update(Rest::Timer* Time)
+			void FreeLook::Update(Core::Timer* Time)
 			{
 				if (!Activity)
 					return;
@@ -2329,7 +2329,7 @@ namespace Tomahawk
 				Activity = App->Activity;
 				SetActive(Activity != nullptr);
 			}
-			void Fly::Update(Rest::Timer* Time)
+			void Fly::Update(Core::Timer* Time)
 			{
 				if (!Activity)
 					return;
@@ -2393,7 +2393,7 @@ namespace Tomahawk
 			{
 				TH_RELEASE(Source);
 			}
-			void AudioSource::Deserialize(ContentManager* Content, Rest::Document* Node)
+			void AudioSource::Deserialize(ContentManager* Content, Core::Document* Node)
 			{
 				std::string Path;
 				if (NMake::Unpack(Node->Find("audio-clip"), &Path))
@@ -2416,21 +2416,21 @@ namespace Tomahawk
 				NMake::Unpack(Node->Find("air-absorption"), &Sync.AirAbsorption);
 				NMake::Unpack(Node->Find("room-roll-off"), &Sync.RoomRollOff);
 
-				std::vector<Rest::Document*> Effects = Node->FetchCollection("effects.effect");
+				std::vector<Core::Document*> Effects = Node->FetchCollection("effects.effect");
 				for (auto& Effect : Effects)
 				{
 					uint64_t Id;
 					if (!NMake::Unpack(Effect->Find("id"), &Id))
 						continue;
 
-					Audio::AudioEffect* Target = Rest::Composer::Create<Audio::AudioEffect>(Id);
+					Audio::AudioEffect* Target = Core::Composer::Create<Audio::AudioEffect>(Id);
 					if (!Target)
 					{
 						TH_WARN("audio effect with id %llu cannot be created", Id);
 						continue;
 					}
 
-					Rest::Document* Meta = Effect->Find("metadata");
+					Core::Document* Meta = Effect->Find("metadata");
 					if (!Meta)
 						Meta = Effect->Set("metadata");
 
@@ -2445,19 +2445,19 @@ namespace Tomahawk
 				ApplyPlayingPosition();
 				Synchronize(nullptr);
 			}
-			void AudioSource::Serialize(ContentManager* Content, Rest::Document* Node)
+			void AudioSource::Serialize(ContentManager* Content, Core::Document* Node)
 			{
 				AssetCache* Asset = Content->Find<Audio::AudioClip>(Source->GetClip());
 				if (Asset != nullptr)
 					NMake::Pack(Node->Set("audio-clip"), Asset->Path);
 
-				Rest::Document* Effects = Node->Set("effects", std::move(Rest::Var::Array()));
+				Core::Document* Effects = Node->Set("effects", std::move(Core::Var::Array()));
 				for (auto* Effect : *Source->GetEffects())
 				{
 					if (!Effect)
 						continue;
 
-					Rest::Document* Element = Effects->Set("effect");
+					Core::Document* Element = Effects->Set("effect");
 					NMake::Pack(Element->Set("id"), Effect->GetId());
 					Effect->Serialize(Element->Set("metadata"));
 				}
@@ -2480,7 +2480,7 @@ namespace Tomahawk
 				NMake::Pack(Node->Set("air-absorption"), Sync.AirAbsorption);
 				NMake::Pack(Node->Set("room-roll-off"), Sync.RoomRollOff);
 			}
-			void AudioSource::Synchronize(Rest::Timer* Time)
+			void AudioSource::Synchronize(Core::Timer* Time)
 			{
 				if (Time != nullptr && Time->GetDeltaTime() > 0.0)
 				{
@@ -2526,15 +2526,15 @@ namespace Tomahawk
 			{
 				Asleep();
 			}
-			void AudioListener::Deserialize(ContentManager* Content, Rest::Document* Node)
+			void AudioListener::Deserialize(ContentManager* Content, Core::Document* Node)
 			{
 				NMake::Unpack(Node->Find("gain"), &Gain);
 			}
-			void AudioListener::Serialize(ContentManager* Content, Rest::Document* Node)
+			void AudioListener::Serialize(ContentManager* Content, Core::Document* Node)
 			{
 				NMake::Pack(Node->Set("gain"), Gain);
 			}
-			void AudioListener::Synchronize(Rest::Timer* Time)
+			void AudioListener::Synchronize(Core::Timer* Time)
 			{
 				Compute::Vector3 Velocity;
 				if (Time != nullptr && Time->GetDeltaTime() > 0.0)
@@ -2572,7 +2572,7 @@ namespace Tomahawk
 			PointLight::PointLight(Entity* Ref) : Cullable(Ref)
 			{
 			}
-			void PointLight::Deserialize(ContentManager* Content, Rest::Document* Node)
+			void PointLight::Deserialize(ContentManager* Content, Core::Document* Node)
 			{
 				NMake::Unpack(Node->Find("projection"), &Projection);
 				NMake::Unpack(Node->Find("view"), &View);
@@ -2586,7 +2586,7 @@ namespace Tomahawk
 				NMake::Unpack(Node->Find("shadow-iterations"), &Shadow.Iterations);
 				NMake::Unpack(Node->Find("shadow-enabled"), &Shadow.Enabled);
 			}
-			void PointLight::Serialize(ContentManager* Content, Rest::Document* Node)
+			void PointLight::Serialize(ContentManager* Content, Core::Document* Node)
 			{
 				NMake::Pack(Node->Set("projection"), Projection);
 				NMake::Pack(Node->Set("view"), View);
@@ -2645,7 +2645,7 @@ namespace Tomahawk
 			SpotLight::SpotLight(Entity* Ref) : Cullable(Ref)
 			{
 			}
-			void SpotLight::Deserialize(ContentManager* Content, Rest::Document* Node)
+			void SpotLight::Deserialize(ContentManager* Content, Core::Document* Node)
 			{
 				NMake::Unpack(Node->Find("projection"), &Projection);
 				NMake::Unpack(Node->Find("view"), &View);
@@ -2660,7 +2660,7 @@ namespace Tomahawk
 				NMake::Unpack(Node->Find("shadow-iterations"), &Shadow.Iterations);
 				NMake::Unpack(Node->Find("shadow-enabled"), &Shadow.Enabled);
 			}
-			void SpotLight::Serialize(ContentManager* Content, Rest::Document* Node)
+			void SpotLight::Serialize(ContentManager* Content, Core::Document* Node)
 			{
 				NMake::Pack(Node->Set("projection"), Projection);
 				NMake::Pack(Node->Set("view"), View);
@@ -2675,7 +2675,7 @@ namespace Tomahawk
 				NMake::Pack(Node->Set("shadow-iterations"), Shadow.Iterations);
 				NMake::Pack(Node->Set("shadow-enabled"), Shadow.Enabled);
 			}
-			void SpotLight::Synchronize(Rest::Timer* Time)
+			void SpotLight::Synchronize(Core::Timer* Time)
 			{
 				Cutoff = Compute::Mathf::Clamp(Cutoff, 0.0f, 180.0f);
 			}
@@ -2724,7 +2724,7 @@ namespace Tomahawk
 			LineLight::LineLight(Entity* Ref) : Component(Ref)
 			{
 			}
-			void LineLight::Deserialize(ContentManager* Content, Rest::Document* Node)
+			void LineLight::Deserialize(ContentManager* Content, Core::Document* Node)
 			{
 				NMake::Unpack(Node->Find("diffuse"), &Diffuse);
 				NMake::Unpack(Node->Find("emission"), &Emission);
@@ -2754,7 +2754,7 @@ namespace Tomahawk
 				NMake::Unpack(Node->Find("outer-radius"), &Sky.OuterRadius);
 				NMake::Unpack(Node->Find("sky-intensity"), &Sky.Intensity);
 			}
-			void LineLight::Serialize(ContentManager* Content, Rest::Document* Node)
+			void LineLight::Serialize(ContentManager* Content, Core::Document* Node)
 			{
 				NMake::Pack(Node->Set("diffuse"), Diffuse);
 				NMake::Pack(Node->Set("emission"), Emission);
@@ -2832,7 +2832,7 @@ namespace Tomahawk
 				TH_RELEASE(DiffuseMap);
 				TH_RELEASE(Probe);
 			}
-			void SurfaceLight::Deserialize(ContentManager* Content, Rest::Document* Node)
+			void SurfaceLight::Deserialize(ContentManager* Content, Core::Document* Node)
 			{
 				std::string Path;
 				if (!NMake::Unpack(Node->Find("diffuse-map"), &Path))
@@ -2906,7 +2906,7 @@ namespace Tomahawk
 				else
 					SetDiffuseMap(DiffuseMap);
 			}
-			void SurfaceLight::Serialize(ContentManager* Content, Rest::Document* Node)
+			void SurfaceLight::Serialize(ContentManager* Content, Core::Document* Node)
 			{
 				AssetCache* Asset = nullptr;
 				if (!DiffuseMap)
@@ -3108,7 +3108,7 @@ namespace Tomahawk
 			{
 				TH_RELEASE(Buffer);
 			}
-			void Illuminator::Deserialize(ContentManager* Content, Rest::Document* Node)
+			void Illuminator::Deserialize(ContentManager* Content, Core::Document* Node)
 			{
 				NMake::Unpack(Node->Find("size"), &Size);
 				NMake::Unpack(Node->Find("ray-step"), &RayStep);
@@ -3120,7 +3120,7 @@ namespace Tomahawk
 				NMake::Unpack(Node->Find("bleeding"), &Bleeding);
 				SetBufferSize(Size);
 			}
-			void Illuminator::Serialize(ContentManager* Content, Rest::Document* Node)
+			void Illuminator::Serialize(ContentManager* Content, Core::Document* Node)
 			{
 				NMake::Pack(Node->Set("size"), Size);
 				NMake::Pack(Node->Set("ray-step"), RayStep);
@@ -3240,7 +3240,7 @@ namespace Tomahawk
 				if (Parent && Parent->GetScene() && Parent->GetScene()->GetCamera() == this)
 					Parent->GetScene()->SetCamera(nullptr);
 			}
-			void Camera::Deserialize(ContentManager* Content, Rest::Document* Node)
+			void Camera::Deserialize(ContentManager* Content, Core::Document* Node)
 			{
 				int _Mode = 0;
 				if (NMake::Unpack(Node->Find("mode"), &_Mode))
@@ -3274,7 +3274,7 @@ namespace Tomahawk
 				Renderer->SetFrustumCulling(FC);
 				Renderer->SetOcclusionCulling(OC);
 
-				std::vector<Rest::Document*> Renderers = Node->FetchCollection("renderers.renderer");
+				std::vector<Core::Document*> Renderers = Node->FetchCollection("renderers.renderer");
 				Renderer->SetScene(Parent->GetScene());
 				Renderer->SetDepthSize(Size);
 
@@ -3284,14 +3284,14 @@ namespace Tomahawk
 					if (!NMake::Unpack(Render->Find("id"), &Id))
 						continue;
 
-					Engine::Renderer* Target = Rest::Composer::Create<Engine::Renderer>(Id, Renderer);
+					Engine::Renderer* Target = Core::Composer::Create<Engine::Renderer>(Id, Renderer);
 					if (!Renderer || !Renderer->AddRenderer(Target))
 					{
 						TH_WARN("cannot create renderer with id %llu", Id);
 						continue;
 					}
 
-					Rest::Document* Meta = Render->Find("metadata");
+					Core::Document* Meta = Render->Find("metadata");
 					if (!Meta)
 						Meta = Render->Set("metadata");
 
@@ -3302,7 +3302,7 @@ namespace Tomahawk
 					NMake::Unpack(Render->Find("active"), &Target->Active);
 				}
 			}
-			void Camera::Serialize(ContentManager* Content, Rest::Document* Node)
+			void Camera::Serialize(ContentManager* Content, Core::Document* Node)
 			{
 				NMake::Pack(Node->Set("mode"), (int)Mode);
 				NMake::Pack(Node->Set("projection"), Projection);
@@ -3318,16 +3318,16 @@ namespace Tomahawk
 				NMake::Pack(Node->Set("frustum-cull"), Renderer->HasFrustumCulling());
 				NMake::Pack(Node->Set("occlusion-cull"), Renderer->HasOcclusionCulling());
 
-				Rest::Document* Renderers = Node->Set("renderers", std::move(Rest::Var::Array()));
+				Core::Document* Renderers = Node->Set("renderers", std::move(Core::Var::Array()));
 				for (auto& Ref : *Renderer->GetRenderers())
 				{
-					Rest::Document* Render = Renderers->Set("renderer");
+					Core::Document* Render = Renderers->Set("renderer");
 					NMake::Pack(Render->Set("id"), Ref->GetId());
 					NMake::Pack(Render->Set("active"), Ref->Active);
 					Ref->Serialize(Content, Render->Set("metadata"));
 				}
 			}
-			void Camera::Synchronize(Rest::Timer* Time)
+			void Camera::Synchronize(Core::Timer* Time)
 			{
 				float W = Width, H = Height;
 				if (W <= 0 || H <= 0)
@@ -3467,7 +3467,7 @@ namespace Tomahawk
 			{
 				TH_RELEASE(Compiler);
 			}
-			void Scriptable::Deserialize(ContentManager* Content, Rest::Document* Node)
+			void Scriptable::Deserialize(ContentManager* Content, Core::Document* Node)
 			{
 				std::string Type;
 				if (NMake::Unpack(Node->Find("source"), &Type))
@@ -3489,14 +3489,14 @@ namespace Tomahawk
 				if (!NMake::Unpack(Node->Find("resource"), &Type))
 					return;
 
-				Resource = Rest::OS::Path::Resolve(Type.c_str(), Content->GetEnvironment());
+				Resource = Core::OS::Path::Resolve(Type.c_str(), Content->GetEnvironment());
 				if (Resource.empty())
 					Resource = Type;
 
 				if (SetSource() < 0)
 					return;
 
-				Rest::Document* Cache = Node->Find("cache");
+				Core::Document* Cache = Node->Find("cache");
 				if (Cache != nullptr)
 				{
 					for (auto& Var : *Cache->GetNodes())
@@ -3606,7 +3606,7 @@ namespace Tomahawk
 					Context->SetArgObject(2, Node);
 				});
 			}
-			void Scriptable::Serialize(ContentManager* Content, Rest::Document* Node)
+			void Scriptable::Serialize(ContentManager* Content, Core::Document* Node)
 			{
 				if (Source == SourceType_Memory)
 					NMake::Pack(Node->Set("source"), "memory");
@@ -3619,16 +3619,16 @@ namespace Tomahawk
 					NMake::Pack(Node->Set("invoke"), "normal");
 
 				int Count = GetPropertiesCount();
-				NMake::Pack(Node->Set("resource"), Rest::Stroke(Resource).Replace(Content->GetEnvironment(), "./").Replace('\\', '/').R());
+				NMake::Pack(Node->Set("resource"), Core::Parser(Resource).Replace(Content->GetEnvironment(), "./").Replace('\\', '/').R());
 
-				Rest::Document* Cache = Node->Set("cache");
+				Core::Document* Cache = Node->Set("cache");
 				for (int i = 0; i < Count; i++)
 				{
 					Script::VMProperty Result;
 					if (!GetPropertyByIndex(i, &Result) || !Result.Name || !Result.Pointer)
 						continue;
 
-					Rest::Document* Var = Rest::Document::Object();
+					Core::Document* Var = Core::Document::Object();
 					NMake::Pack(Var->Set("type"), Result.TypeId);
 
 					switch (Result.TypeId)
@@ -3707,7 +3707,7 @@ namespace Tomahawk
 					Context->SetArgObject(1, New);
 				});
 			}
-			void Scriptable::Synchronize(Rest::Timer* Time)
+			void Scriptable::Synchronize(Core::Timer* Time)
 			{
 				Call(Entry.Synchronize, [this, &Time](Script::VMContext* Context)
 				{
@@ -3730,7 +3730,7 @@ namespace Tomahawk
 					Context->SetArgObject(0, Current);
 				});
 			}
-			void Scriptable::Update(Rest::Timer* Time)
+			void Scriptable::Update(Core::Timer* Time)
 			{
 				Call(Entry.Update, [this, &Time](Script::VMContext* Context)
 				{

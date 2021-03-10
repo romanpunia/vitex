@@ -911,7 +911,7 @@ namespace Tomahawk
 			void* GetResource();
 		};
 
-		class TH_OUT DepthStencilState : public Rest::Object
+		class TH_OUT DepthStencilState : public Core::Object
 		{
 		public:
 			struct Desc
@@ -944,7 +944,7 @@ namespace Tomahawk
 			Desc GetState();
 		};
 
-		class TH_OUT RasterizerState : public Rest::Object
+		class TH_OUT RasterizerState : public Core::Object
 		{
 		public:
 			struct Desc
@@ -973,7 +973,7 @@ namespace Tomahawk
 			Desc GetState();
 		};
 
-		class TH_OUT BlendState : public Rest::Object
+		class TH_OUT BlendState : public Core::Object
 		{
 		public:
 			struct Desc
@@ -995,7 +995,7 @@ namespace Tomahawk
 			Desc GetState();
 		};
 
-		class TH_OUT SamplerState : public Rest::Object
+		class TH_OUT SamplerState : public Core::Object
 		{
 		public:
 			struct Desc
@@ -1024,7 +1024,7 @@ namespace Tomahawk
 			Desc GetState();
 		};
 
-		class TH_OUT InputLayout : public Rest::Object
+		class TH_OUT InputLayout : public Core::Object
 		{
 		public:
 			struct Attribute
@@ -1055,7 +1055,7 @@ namespace Tomahawk
 			const std::vector<Attribute>& GetAttributes();
 		};
 
-		class TH_OUT Shader : public Rest::Object
+		class TH_OUT Shader : public Core::Object
 		{
 		public:
 			struct Desc
@@ -1076,7 +1076,7 @@ namespace Tomahawk
 			virtual bool IsValid() = 0;
 		};
 
-		class TH_OUT ElementBuffer : public Rest::Object
+		class TH_OUT ElementBuffer : public Core::Object
 		{
 		public:
 			struct Desc
@@ -1106,7 +1106,7 @@ namespace Tomahawk
 			uint64_t GetStride();
 		};
 
-		class TH_OUT MeshBuffer : public Rest::Object
+		class TH_OUT MeshBuffer : public Core::Object
 		{
 		public:
 			struct Desc
@@ -1135,7 +1135,7 @@ namespace Tomahawk
 			ElementBuffer* GetIndexBuffer();
 		};
 
-		class TH_OUT SkinMeshBuffer : public Rest::Object
+		class TH_OUT SkinMeshBuffer : public Core::Object
 		{
 		public:
 			struct Desc
@@ -1164,7 +1164,7 @@ namespace Tomahawk
 			ElementBuffer* GetIndexBuffer();
 		};
 
-		class TH_OUT InstanceBuffer : public Rest::Object
+		class TH_OUT InstanceBuffer : public Core::Object
 		{
 		public:
 			struct Desc
@@ -1175,7 +1175,7 @@ namespace Tomahawk
 			};
 
 		protected:
-			Rest::Pool<Compute::ElementVertex> Array;
+			Core::Pool<Compute::ElementVertex> Array;
 			ElementBuffer* Elements;
 			GraphicsDevice* Device;
 			uint64_t ElementLimit;
@@ -1187,13 +1187,13 @@ namespace Tomahawk
 
 		public:
 			virtual ~InstanceBuffer();
-			Rest::Pool <Compute::ElementVertex>* GetArray();
+			Core::Pool <Compute::ElementVertex>* GetArray();
 			ElementBuffer* GetElements();
 			GraphicsDevice* GetDevice();
 			uint64_t GetElementLimit();
 		};
 
-		class TH_OUT Texture2D : public Rest::Object
+		class TH_OUT Texture2D : public Core::Object
 		{
 		public:
 			struct Desc
@@ -1234,7 +1234,7 @@ namespace Tomahawk
 			unsigned int GetMipLevels();
 		};
 
-		class TH_OUT Texture3D : public Rest::Object
+		class TH_OUT Texture3D : public Core::Object
 		{
 		public:
 			struct Desc
@@ -1274,7 +1274,7 @@ namespace Tomahawk
 			unsigned int GetMipLevels();
 		};
 
-		class TH_OUT TextureCube : public Rest::Object
+		class TH_OUT TextureCube : public Core::Object
 		{
 		public:
 			struct Desc
@@ -1312,7 +1312,7 @@ namespace Tomahawk
 			unsigned int GetMipLevels();
 		};
 
-		class TH_OUT DepthBuffer : public Rest::Object
+		class TH_OUT DepthBuffer : public Core::Object
 		{
 		public:
 			struct Desc
@@ -1339,7 +1339,7 @@ namespace Tomahawk
 			const Graphics::Viewport& GetViewport();
 		};
 
-		class TH_OUT RenderTarget : public Rest::Object
+		class TH_OUT RenderTarget : public Core::Object
 		{
 		protected:
 			Texture2D* DepthStencil;
@@ -1491,7 +1491,7 @@ namespace Tomahawk
 			Texture2D* GetTarget(unsigned int Index);
 		};
 
-		class TH_OUT Cubemap : public Rest::Object
+		class TH_OUT Cubemap : public Core::Object
 		{
 		public:
 			struct Desc
@@ -1513,7 +1513,7 @@ namespace Tomahawk
 			bool IsValid();
 		};
 
-		class TH_OUT Query : public Rest::Object
+		class TH_OUT Query : public Core::Object
 		{
 		public:
 			struct Desc
@@ -1530,7 +1530,7 @@ namespace Tomahawk
 			virtual void* GetResource() = 0;
 		};
 
-		class TH_OUT GraphicsDevice : public Rest::Object
+		class TH_OUT GraphicsDevice : public Core::Object
 		{
 		protected:
 			struct DirectBuffer
@@ -1768,7 +1768,7 @@ namespace Tomahawk
 			static GraphicsDevice* Create(const Desc& I);
 		};
 
-		class TH_OUT Activity : public Rest::Object
+		class TH_OUT Activity : public Core::Object
 		{
 		public:
 			struct Desc
@@ -1826,7 +1826,7 @@ namespace Tomahawk
 		private:
 			SDL_Cursor* Cursors[DisplayCursor_Count];
 			SDL_Window* Handle;
-			Desc Rest;
+			Desc Descriptor;
 			bool Keys[2][1024];
 			int Command, CX, CY;
 
@@ -1895,7 +1895,7 @@ namespace Tomahawk
 			static const char* GetKeyModName(KeyMod Code);
 		};
 
-		class TH_OUT Model : public Rest::Object
+		class TH_OUT Model : public Core::Object
 		{
 		public:
 			std::vector<MeshBuffer*> Meshes;
@@ -1909,7 +1909,7 @@ namespace Tomahawk
 			MeshBuffer* FindMesh(const std::string& Name);
 		};
 
-		class TH_OUT SkinModel : public Rest::Object
+		class TH_OUT SkinModel : public Core::Object
 		{
 		public:
 			std::vector<SkinMeshBuffer*> Meshes;

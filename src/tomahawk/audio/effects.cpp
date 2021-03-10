@@ -90,9 +90,9 @@ namespace Tomahawk
 #endif
 			}
 
-			AudioFilter* GetFilterDeserialized(Rest::Document* Node)
+			AudioFilter* GetFilterDeserialized(Core::Document* Node)
 			{
-				Rest::Document* Filter = Node->Find("filter");
+				Core::Document* Filter = Node->Find("filter");
 				if (!Filter)
 					return nullptr;
 
@@ -100,14 +100,14 @@ namespace Tomahawk
 				if (!Engine::NMake::Unpack(Filter->Find("id"), &Id))
 					return nullptr;
 
-				AudioFilter* Target = Rest::Composer::Create<AudioFilter>(Id);
+				AudioFilter* Target = Core::Composer::Create<AudioFilter>(Id);
 				if (!Target)
 				{
 					TH_WARN("audio filter with id %llu cannot be created", Id);
 					return nullptr;
 				}
 
-				Rest::Document* Meta = Filter->Find("metadata");
+				Core::Document* Meta = Filter->Find("metadata");
 				if (!Meta)
 					Meta = Filter->Set("metadata");
 
@@ -187,7 +187,7 @@ namespace Tomahawk
 				AudioContext::Unlock();
 #endif
 			}
-			void Reverb::Deserialize(Rest::Document* Node)
+			void Reverb::Deserialize(Core::Document* Node)
 			{
 				AudioFilter* NewFilter = GetFilterDeserialized(Node);
 				if (NewFilter != nullptr)
@@ -217,7 +217,7 @@ namespace Tomahawk
 				Engine::NMake::Unpack(Node->Find("room-rolloff-factor"), &RoomRolloffFactor);
 				Engine::NMake::Unpack(Node->Find("decay-hf-limited"), &IsDecayHFLimited);
 			}
-			void Reverb::Serialize(Rest::Document* Node)
+			void Reverb::Serialize(Core::Document* Node)
 			{
 				if (Filter != nullptr)
 					Filter->Serialize(Node->Set("filter"));
@@ -303,7 +303,7 @@ namespace Tomahawk
 				AudioContext::Unlock();
 #endif
 			}
-			void Chorus::Deserialize(Rest::Document* Node)
+			void Chorus::Deserialize(Core::Document* Node)
 			{
 				AudioFilter* NewFilter = GetFilterDeserialized(Node);
 				if (NewFilter != nullptr)
@@ -316,7 +316,7 @@ namespace Tomahawk
 				Engine::NMake::Unpack(Node->Find("waveform"), &Waveform);
 				Engine::NMake::Unpack(Node->Find("phase"), &Phase);
 			}
-			void Chorus::Serialize(Rest::Document* Node)
+			void Chorus::Serialize(Core::Document* Node)
 			{
 				if (Filter != nullptr)
 					Filter->Serialize(Node->Set("filter"));
@@ -367,7 +367,7 @@ namespace Tomahawk
 				AudioContext::Unlock();
 #endif
 			}
-			void Distortion::Deserialize(Rest::Document* Node)
+			void Distortion::Deserialize(Core::Document* Node)
 			{
 				AudioFilter* NewFilter = GetFilterDeserialized(Node);
 				if (NewFilter != nullptr)
@@ -379,7 +379,7 @@ namespace Tomahawk
 				Engine::NMake::Unpack(Node->Find("eq-center"), &EQCenter);
 				Engine::NMake::Unpack(Node->Find("eq-bandwidth"), &EQBandwidth);
 			}
-			void Distortion::Serialize(Rest::Document* Node)
+			void Distortion::Serialize(Core::Document* Node)
 			{
 				if (Filter != nullptr)
 					Filter->Serialize(Node->Set("filter"));
@@ -428,7 +428,7 @@ namespace Tomahawk
 				AudioContext::Unlock();
 #endif
 			}
-			void Echo::Deserialize(Rest::Document* Node)
+			void Echo::Deserialize(Core::Document* Node)
 			{
 				AudioFilter* NewFilter = GetFilterDeserialized(Node);
 				if (NewFilter != nullptr)
@@ -440,7 +440,7 @@ namespace Tomahawk
 				Engine::NMake::Unpack(Node->Find("feedback"), &Feedback);
 				Engine::NMake::Unpack(Node->Find("spread"), &Spread);
 			}
-			void Echo::Serialize(Rest::Document* Node)
+			void Echo::Serialize(Core::Document* Node)
 			{
 				if (Filter != nullptr)
 					Filter->Serialize(Node->Set("filter"));
@@ -490,7 +490,7 @@ namespace Tomahawk
 				AudioContext::Unlock();
 #endif
 			}
-			void Flanger::Deserialize(Rest::Document* Node)
+			void Flanger::Deserialize(Core::Document* Node)
 			{
 				AudioFilter* NewFilter = GetFilterDeserialized(Node);
 				if (NewFilter != nullptr)
@@ -503,7 +503,7 @@ namespace Tomahawk
 				Engine::NMake::Unpack(Node->Find("waveform"), &Waveform);
 				Engine::NMake::Unpack(Node->Find("phase"), &Phase);
 			}
-			void Flanger::Serialize(Rest::Document* Node)
+			void Flanger::Serialize(Core::Document* Node)
 			{
 				if (Filter != nullptr)
 					Filter->Serialize(Node->Set("filter"));
@@ -552,7 +552,7 @@ namespace Tomahawk
 				AudioContext::Unlock();
 #endif
 			}
-			void FrequencyShifter::Deserialize(Rest::Document* Node)
+			void FrequencyShifter::Deserialize(Core::Document* Node)
 			{
 				AudioFilter* NewFilter = GetFilterDeserialized(Node);
 				if (NewFilter != nullptr)
@@ -562,7 +562,7 @@ namespace Tomahawk
 				Engine::NMake::Unpack(Node->Find("left-direction"), &LeftDirection);
 				Engine::NMake::Unpack(Node->Find("right-direction"), &RightDirection);
 			}
-			void FrequencyShifter::Serialize(Rest::Document* Node)
+			void FrequencyShifter::Serialize(Core::Document* Node)
 			{
 				if (Filter != nullptr)
 					Filter->Serialize(Node->Set("filter"));
@@ -608,7 +608,7 @@ namespace Tomahawk
 				AudioContext::Unlock();
 #endif
 			}
-			void VocalMorpher::Deserialize(Rest::Document* Node)
+			void VocalMorpher::Deserialize(Core::Document* Node)
 			{
 				AudioFilter* NewFilter = GetFilterDeserialized(Node);
 				if (NewFilter != nullptr)
@@ -621,7 +621,7 @@ namespace Tomahawk
 				Engine::NMake::Unpack(Node->Find("phonemeb-coarse-tuning"), &PhonemebCoarseTuning);
 				Engine::NMake::Unpack(Node->Find("waveform"), &Waveform);
 			}
-			void VocalMorpher::Serialize(Rest::Document* Node)
+			void VocalMorpher::Serialize(Core::Document* Node)
 			{
 				if (Filter != nullptr)
 					Filter->Serialize(Node->Set("filter"));
@@ -669,7 +669,7 @@ namespace Tomahawk
 				AudioContext::Unlock();
 #endif
 			}
-			void PitchShifter::Deserialize(Rest::Document* Node)
+			void PitchShifter::Deserialize(Core::Document* Node)
 			{
 				AudioFilter* NewFilter = GetFilterDeserialized(Node);
 				if (NewFilter != nullptr)
@@ -678,7 +678,7 @@ namespace Tomahawk
 				Engine::NMake::Unpack(Node->Find("coarse-tune"), &CoarseTune);
 				Engine::NMake::Unpack(Node->Find("fine-tune"), &FineTune);
 			}
-			void PitchShifter::Serialize(Rest::Document* Node)
+			void PitchShifter::Serialize(Core::Document* Node)
 			{
 				if (Filter != nullptr)
 					Filter->Serialize(Node->Set("filter"));
@@ -719,7 +719,7 @@ namespace Tomahawk
 				AudioContext::Unlock();
 #endif
 			}
-			void RingModulator::Deserialize(Rest::Document* Node)
+			void RingModulator::Deserialize(Core::Document* Node)
 			{
 				AudioFilter* NewFilter = GetFilterDeserialized(Node);
 				if (NewFilter != nullptr)
@@ -729,7 +729,7 @@ namespace Tomahawk
 				Engine::NMake::Unpack(Node->Find("highpass-cut-off"), &HighpassCutOff);
 				Engine::NMake::Unpack(Node->Find("waveform"), &Waveform);
 			}
-			void RingModulator::Serialize(Rest::Document* Node)
+			void RingModulator::Serialize(Core::Document* Node)
 			{
 				if (Filter != nullptr)
 					Filter->Serialize(Node->Set("filter"));
@@ -773,7 +773,7 @@ namespace Tomahawk
 				AudioContext::Unlock();
 #endif
 			}
-			void Autowah::Deserialize(Rest::Document* Node)
+			void Autowah::Deserialize(Core::Document* Node)
 			{
 				AudioFilter* NewFilter = GetFilterDeserialized(Node);
 				if (NewFilter != nullptr)
@@ -784,7 +784,7 @@ namespace Tomahawk
 				Engine::NMake::Unpack(Node->Find("resonance"), &Resonance);
 				Engine::NMake::Unpack(Node->Find("peak-gain"), &PeakGain);
 			}
-			void Autowah::Serialize(Rest::Document* Node)
+			void Autowah::Serialize(Core::Document* Node)
 			{
 				if (Filter != nullptr)
 					Filter->Serialize(Node->Set("filter"));
@@ -822,13 +822,13 @@ namespace Tomahawk
 			void Compressor::Synchronize()
 			{
 			}
-			void Compressor::Deserialize(Rest::Document* Node)
+			void Compressor::Deserialize(Core::Document* Node)
 			{
 				AudioFilter* NewFilter = GetFilterDeserialized(Node);
 				if (NewFilter != nullptr)
 					SetFilter(&Filter);
 			}
-			void Compressor::Serialize(Rest::Document* Node)
+			void Compressor::Serialize(Core::Document* Node)
 			{
 				if (Filter != nullptr)
 					Filter->Serialize(Node->Set("filter"));
@@ -868,7 +868,7 @@ namespace Tomahawk
 				AudioContext::Unlock();
 #endif
 			}
-			void Equalizer::Deserialize(Rest::Document* Node)
+			void Equalizer::Deserialize(Core::Document* Node)
 			{
 				AudioFilter* NewFilter = GetFilterDeserialized(Node);
 				if (NewFilter != nullptr)
@@ -885,7 +885,7 @@ namespace Tomahawk
 				Engine::NMake::Unpack(Node->Find("high-gain"), &HighGain);
 				Engine::NMake::Unpack(Node->Find("high-cut-off"), &HighCutOff);
 			}
-			void Equalizer::Serialize(Rest::Document* Node)
+			void Equalizer::Serialize(Core::Document* Node)
 			{
 				if (Filter != nullptr)
 					Filter->Serialize(Node->Set("filter"));

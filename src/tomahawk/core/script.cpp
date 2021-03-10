@@ -1,8 +1,8 @@
 #include "script.h"
 #include "../script/compiler/compiler.h"
-#include "../script/core-api.h"
-#include "../script/rest-api.h"
-#include "../script/gui-api.h"
+#include "../script/std-lib.h"
+#include "../script/core-lib.h"
+#include "../script/gui-lib.h"
 #include <iostream>
 #include <sstream>
 
@@ -1099,7 +1099,7 @@ namespace Tomahawk
 			if (!Engine)
 				return -1;
 
-			Rest::Stroke Decl = Rest::Form("%s& opAssign(const %s &in)", Object.c_str(), Object.c_str());
+			Core::Parser Decl = Core::Form("%s& opAssign(const %s &in)", Object.c_str(), Object.c_str());
 			return Engine->RegisterObjectMethod(Object.c_str(), Decl.Get(), *Value, asCALL_THISCALL);
 		}
 		int VMClass::SetBehaviourAddress(const char* Decl, VMBehave Behave, asSFuncPtr* Value, VMCall Type)
@@ -1227,7 +1227,7 @@ namespace Tomahawk
 		{
 			return Manager;
 		}
-		Rest::Stroke VMClass::GetOperator(VMOpFunc Op, const char* Out, const char* Args, bool Const, bool Right)
+		Core::Parser VMClass::GetOperator(VMOpFunc Op, const char* Out, const char* Args, bool Const, bool Right)
 		{
 			switch (Op)
 			{
@@ -1235,151 +1235,151 @@ namespace Tomahawk
 					if (Right)
 						return "";
 
-					return Rest::Form("%s opNeg()%s", Out, Const ? " const" : "");
+					return Core::Form("%s opNeg()%s", Out, Const ? " const" : "");
 				case VMOpFunc_Com:
 					if (Right)
 						return "";
 
-					return Rest::Form("%s opCom()%s", Out, Const ? " const" : "");
+					return Core::Form("%s opCom()%s", Out, Const ? " const" : "");
 				case VMOpFunc_PreInc:
 					if (Right)
 						return "";
 
-					return Rest::Form("%s opPreInc()%s", Out, Const ? " const" : "");
+					return Core::Form("%s opPreInc()%s", Out, Const ? " const" : "");
 				case VMOpFunc_PreDec:
 					if (Right)
 						return "";
 
-					return Rest::Form("%s opPreDec()%s", Out, Const ? " const" : "");
+					return Core::Form("%s opPreDec()%s", Out, Const ? " const" : "");
 				case VMOpFunc_PostInc:
 					if (Right)
 						return "";
 
-					return Rest::Form("%s opPostInc()%s", Out, Const ? " const" : "");
+					return Core::Form("%s opPostInc()%s", Out, Const ? " const" : "");
 				case VMOpFunc_PostDec:
 					if (Right)
 						return "";
 
-					return Rest::Form("%s opPostDec()%s", Out, Const ? " const" : "");
+					return Core::Form("%s opPostDec()%s", Out, Const ? " const" : "");
 				case VMOpFunc_Equals:
 					if (Right)
 						return "";
 
-					return Rest::Form("%s opEquals(%s)%s", Out, Args ? Args : "", Const ? " const" : "");
+					return Core::Form("%s opEquals(%s)%s", Out, Args ? Args : "", Const ? " const" : "");
 				case VMOpFunc_Cmp:
 					if (Right)
 						return "";
 
-					return Rest::Form("%s opCmp(%s)%s", Out, Args ? Args : "", Const ? " const" : "");
+					return Core::Form("%s opCmp(%s)%s", Out, Args ? Args : "", Const ? " const" : "");
 				case VMOpFunc_Assign:
 					if (Right)
 						return "";
 
-					return Rest::Form("%s opAssign(%s)%s", Out, Args ? Args : "", Const ? " const" : "");
+					return Core::Form("%s opAssign(%s)%s", Out, Args ? Args : "", Const ? " const" : "");
 				case VMOpFunc_AddAssign:
 					if (Right)
 						return "";
 
-					return Rest::Form("%s opAddAssign(%s)%s", Out, Args ? Args : "", Const ? " const" : "");
+					return Core::Form("%s opAddAssign(%s)%s", Out, Args ? Args : "", Const ? " const" : "");
 				case VMOpFunc_SubAssign:
 					if (Right)
 						return "";
 
-					return Rest::Form("%s opSubAssign(%s)%s", Out, Args ? Args : "", Const ? " const" : "");
+					return Core::Form("%s opSubAssign(%s)%s", Out, Args ? Args : "", Const ? " const" : "");
 				case VMOpFunc_MulAssign:
 					if (Right)
 						return "";
 
-					return Rest::Form("%s opMulAssign(%s)%s", Out, Args ? Args : "", Const ? " const" : "");
+					return Core::Form("%s opMulAssign(%s)%s", Out, Args ? Args : "", Const ? " const" : "");
 				case VMOpFunc_DivAssign:
 					if (Right)
 						return "";
 
-					return Rest::Form("%s opDivAssign(%s)%s", Out, Args ? Args : "", Const ? " const" : "");
+					return Core::Form("%s opDivAssign(%s)%s", Out, Args ? Args : "", Const ? " const" : "");
 				case VMOpFunc_ModAssign:
 					if (Right)
 						return "";
 
-					return Rest::Form("%s opModAssign(%s)%s", Out, Args ? Args : "", Const ? " const" : "");
+					return Core::Form("%s opModAssign(%s)%s", Out, Args ? Args : "", Const ? " const" : "");
 				case VMOpFunc_PowAssign:
 					if (Right)
 						return "";
 
-					return Rest::Form("%s opPowAssign(%s)%s", Out, Args ? Args : "", Const ? " const" : "");
+					return Core::Form("%s opPowAssign(%s)%s", Out, Args ? Args : "", Const ? " const" : "");
 				case VMOpFunc_AndAssign:
 					if (Right)
 						return "";
 
-					return Rest::Form("%s opAndAssign(%s)%s", Out, Args ? Args : "", Const ? " const" : "");
+					return Core::Form("%s opAndAssign(%s)%s", Out, Args ? Args : "", Const ? " const" : "");
 				case VMOpFunc_OrAssign:
 					if (Right)
 						return "";
 
-					return Rest::Form("%s opOrAssign(%s)%s", Out, Args ? Args : "", Const ? " const" : "");
+					return Core::Form("%s opOrAssign(%s)%s", Out, Args ? Args : "", Const ? " const" : "");
 				case VMOpFunc_XOrAssign:
 					if (Right)
 						return "";
 
-					return Rest::Form("%s opXorAssign(%s)%s", Out, Args ? Args : "", Const ? " const" : "");
+					return Core::Form("%s opXorAssign(%s)%s", Out, Args ? Args : "", Const ? " const" : "");
 				case VMOpFunc_ShlAssign:
 					if (Right)
 						return "";
 
-					return Rest::Form("%s opShlAssign(%s)%s", Out, Args ? Args : "", Const ? " const" : "");
+					return Core::Form("%s opShlAssign(%s)%s", Out, Args ? Args : "", Const ? " const" : "");
 				case VMOpFunc_ShrAssign:
 					if (Right)
 						return "";
 
-					return Rest::Form("%s opShrAssign(%s)%s", Out, Args ? Args : "", Const ? " const" : "");
+					return Core::Form("%s opShrAssign(%s)%s", Out, Args ? Args : "", Const ? " const" : "");
 				case VMOpFunc_UshrAssign:
 					if (Right)
 						return "";
 
-					return Rest::Form("%s opUshrAssign(%s)%s", Out, Args ? Args : "", Const ? " const" : "");
+					return Core::Form("%s opUshrAssign(%s)%s", Out, Args ? Args : "", Const ? " const" : "");
 				case VMOpFunc_Add:
-					return Rest::Form("%s opAdd%s(%s)%s", Out, Right ? "_r" : "", Args ? Args : "", Const ? " const" : "");
+					return Core::Form("%s opAdd%s(%s)%s", Out, Right ? "_r" : "", Args ? Args : "", Const ? " const" : "");
 				case VMOpFunc_Sub:
-					return Rest::Form("%s opSub%s(%s)%s", Out, Right ? "_r" : "", Args ? Args : "", Const ? " const" : "");
+					return Core::Form("%s opSub%s(%s)%s", Out, Right ? "_r" : "", Args ? Args : "", Const ? " const" : "");
 				case VMOpFunc_Mul:
-					return Rest::Form("%s opMul%s(%s)%s", Out, Right ? "_r" : "", Args ? Args : "", Const ? " const" : "");
+					return Core::Form("%s opMul%s(%s)%s", Out, Right ? "_r" : "", Args ? Args : "", Const ? " const" : "");
 				case VMOpFunc_Div:
-					return Rest::Form("%s opDiv%s(%s)%s", Out, Right ? "_r" : "", Args ? Args : "", Const ? " const" : "");
+					return Core::Form("%s opDiv%s(%s)%s", Out, Right ? "_r" : "", Args ? Args : "", Const ? " const" : "");
 				case VMOpFunc_Mod:
-					return Rest::Form("%s opMod%s(%s)%s", Out, Right ? "_r" : "", Args ? Args : "", Const ? " const" : "");
+					return Core::Form("%s opMod%s(%s)%s", Out, Right ? "_r" : "", Args ? Args : "", Const ? " const" : "");
 				case VMOpFunc_Pow:
-					return Rest::Form("%s opPow%s(%s)%s", Out, Right ? "_r" : "", Args ? Args : "", Const ? " const" : "");
+					return Core::Form("%s opPow%s(%s)%s", Out, Right ? "_r" : "", Args ? Args : "", Const ? " const" : "");
 				case VMOpFunc_And:
-					return Rest::Form("%s opAnd%s(%s)%s", Out, Right ? "_r" : "", Args ? Args : "", Const ? " const" : "");
+					return Core::Form("%s opAnd%s(%s)%s", Out, Right ? "_r" : "", Args ? Args : "", Const ? " const" : "");
 				case VMOpFunc_Or:
-					return Rest::Form("%s opOr%s(%s)%s", Out, Right ? "_r" : "", Args ? Args : "", Const ? " const" : "");
+					return Core::Form("%s opOr%s(%s)%s", Out, Right ? "_r" : "", Args ? Args : "", Const ? " const" : "");
 				case VMOpFunc_XOr:
-					return Rest::Form("%s opXor%s(%s)%s", Out, Right ? "_r" : "", Args ? Args : "", Const ? " const" : "");
+					return Core::Form("%s opXor%s(%s)%s", Out, Right ? "_r" : "", Args ? Args : "", Const ? " const" : "");
 				case VMOpFunc_Shl:
-					return Rest::Form("%s opShl%s(%s)%s", Out, Right ? "_r" : "", Args ? Args : "", Const ? " const" : "");
+					return Core::Form("%s opShl%s(%s)%s", Out, Right ? "_r" : "", Args ? Args : "", Const ? " const" : "");
 				case VMOpFunc_Shr:
-					return Rest::Form("%s opShr%s(%s)%s", Out, Right ? "_r" : "", Args ? Args : "", Const ? " const" : "");
+					return Core::Form("%s opShr%s(%s)%s", Out, Right ? "_r" : "", Args ? Args : "", Const ? " const" : "");
 				case VMOpFunc_Ushr:
-					return Rest::Form("%s opUshr%s(%s)%s", Out, Right ? "_r" : "", Args ? Args : "", Const ? " const" : "");
+					return Core::Form("%s opUshr%s(%s)%s", Out, Right ? "_r" : "", Args ? Args : "", Const ? " const" : "");
 				case VMOpFunc_Index:
 					if (Right)
 						return "";
 
-					return Rest::Form("%s opIndex(%s)%s", Out, Args ? Args : "", Const ? " const" : "");
+					return Core::Form("%s opIndex(%s)%s", Out, Args ? Args : "", Const ? " const" : "");
 				case VMOpFunc_Call:
 					if (Right)
 						return "";
 
-					return Rest::Form("%s opCall(%s)%s", Out, Args ? Args : "", Const ? " const" : "");
+					return Core::Form("%s opCall(%s)%s", Out, Args ? Args : "", Const ? " const" : "");
 				case VMOpFunc_Cast:
 					if (Right)
 						return "";
 
-					return Rest::Form("%s opCast()%s", Out, Const ? " const" : "");
+					return Core::Form("%s opCast()%s", Out, Const ? " const" : "");
 				case VMOpFunc_ImplCast:
 					if (Right)
 						return "";
 
-					return Rest::Form("%s opImplCast()%s", Out, Const ? " const" : "");
+					return Core::Form("%s opImplCast()%s", Out, Const ? " const" : "");
 				default:
 					return "";
 			}
@@ -2095,7 +2095,7 @@ namespace Tomahawk
 			VMCTypeInfo* Type = Manager->GetEngine()->GetTypeInfoById(TypeId);
 			const char* Name = Type->GetName();
 
-			return Rest::Form("%s(%d)", Object, Name ? Name : "any").R();
+			return Core::Form("%s(%d)", Object, Name ? Name : "any").R();
 		}
 		VMTypeInfo VMGlobal::GetTypeInfoById(int TypeId) const
 		{
@@ -2168,7 +2168,7 @@ namespace Tomahawk
 				if (Name == "compile" && Args.size() == 2)
 				{
 					const std::string& Key = Args[0];
-					Rest::Stroke Value(&Args[1]);
+					Core::Parser Value(&Args[1]);
 
 					size_t Result = Value.HasInteger() ? Value.ToUInt64() : 0;
 					if (Key == "ALLOW_UNSAFE_REFERENCES")
@@ -2247,7 +2247,7 @@ namespace Tomahawk
 				else if (Name == "modify" && Args.size() == 2)
 				{
 					const std::string& Key = Args[0];
-					Rest::Stroke Value(&Args[1]);
+					Core::Parser Value(&Args[1]);
 
 					size_t Result = Value.HasInteger() ? Value.ToUInt64() : 0;
 					if (Key == "NAME")
@@ -2270,7 +2270,7 @@ namespace Tomahawk
 					std::string Path = Args[0];
 					if (!Path.empty() && Path.front() == '.')
 					{
-						std::string Subpath = Rest::OS::Path::Resolve(Path, Rest::OS::Path::GetDirectory(Processor->GetCurrentFilePath().c_str()));
+						std::string Subpath = Core::OS::Path::Resolve(Path, Core::OS::Path::GetDirectory(Processor->GetCurrentFilePath().c_str()));
 						if (!Subpath.empty())
 							Path = Subpath;
 					}
@@ -2490,14 +2490,14 @@ namespace Tomahawk
 			if (VCache.Valid)
 				return 0;
 
-			std::string Source = Rest::OS::Path::Resolve(Path.c_str());
-			if (!Rest::OS::File::IsExists(Source.c_str()))
+			std::string Source = Core::OS::Path::Resolve(Path.c_str());
+			if (!Core::OS::File::IsExists(Source.c_str()))
 			{
 				TH_ERROR("file not found");
 				return -1;
 			}
 
-			std::string Buffer = Rest::OS::File::ReadAsString(Source.c_str());
+			std::string Buffer = Core::OS::File::ReadAsString(Source.c_str());
 			if (!Processor->Process(Source, Buffer))
 				return asINVALID_DECLARATION;
 
@@ -3226,7 +3226,7 @@ namespace Tomahawk
 		VMManager::VMManager() : Engine(asCreateScriptEngine()), Globals(this), Cached(true), Scope(0), JIT(nullptr), Nullable(0), Imports(VMImport_All)
 		{
 			Include.Exts.push_back(".as");
-			Include.Root = Rest::OS::Directory::Get();
+			Include.Root = Core::OS::Directory::Get();
 
 			Engine->SetUserData(this, ManagerUD);
 			Engine->SetContextCallbacks(RequestContext, ReturnContext, nullptr);
@@ -3250,7 +3250,7 @@ namespace Tomahawk
 		VMManager::~VMManager()
 		{
 			for (auto& Core : Kernels)
-				Rest::OS::Symbol::Unload(Core.second.Handle);
+				Core::OS::Symbol::Unload(Core.second.Handle);
 
 			for (auto& Context : Contexts)
 				Context->Release();
@@ -3687,7 +3687,7 @@ namespace Tomahawk
 			if (Include.Root.empty())
 				return Safe.unlock();
 
-			if (!Rest::Stroke(&Include.Root).EndsOf("/\\"))
+			if (!Core::Parser(&Include.Root).EndsOf("/\\"))
 			{
 #ifdef TH_MICROSOFT
 				Include.Root.append(1, '\\');
@@ -3715,11 +3715,11 @@ namespace Tomahawk
 		std::vector<std::string> VMManager::VerifyModules(const std::string& Directory, const Compute::RegExp& Exp)
 		{
 			std::vector<std::string> Result;
-			if (!Rest::OS::Directory::IsExists(Directory.c_str()))
+			if (!Core::OS::Directory::IsExists(Directory.c_str()))
 				return Result;
 
-			std::vector<Rest::ResourceEntry> Entries;
-			if (!Rest::OS::Directory::Scan(Directory, &Entries))
+			std::vector<Core::ResourceEntry> Entries;
+			if (!Core::OS::Directory::Scan(Directory, &Entries))
 				return Result;
 
 			for (auto& Entry : Entries)
@@ -3752,7 +3752,7 @@ namespace Tomahawk
 			if (!Engine)
 				return false;
 
-			std::string Source = Rest::OS::File::ReadAsString(Path.c_str());
+			std::string Source = Core::OS::File::ReadAsString(Path.c_str());
 			if (Source.empty())
 				return true;
 
@@ -3811,13 +3811,13 @@ namespace Tomahawk
 				return false;
 			}
 
-			if (!Rest::OS::File::IsExists(Path.c_str()))
+			if (!Core::OS::File::IsExists(Path.c_str()))
 				return false;
 
 			if (!Cached)
 			{
 				if (Out != nullptr)
-					Out->assign(Rest::OS::File::ReadAsString(Path.c_str()));
+					Out->assign(Core::OS::File::ReadAsString(Path.c_str()));
 
 				return true;
 			}
@@ -3834,7 +3834,7 @@ namespace Tomahawk
 			}
 
 			std::string& Result = Files[Path];
-			Result = Rest::OS::File::ReadAsString(Path.c_str());
+			Result = Core::OS::File::ReadAsString(Path.c_str());
 			if (Out != nullptr)
 				Out->assign(Result);
 
@@ -3881,7 +3881,7 @@ namespace Tomahawk
 				return true;
 			}
 
-			VMObjectFunction Function = (VMObjectFunction)Rest::OS::Symbol::LoadFunction(Core->second.Handle, Func.c_str());
+			VMObjectFunction Function = (VMObjectFunction)Core::OS::Symbol::LoadFunction(Core->second.Handle, Func.c_str());
 			if (!Function)
 			{
 				TH_ERROR("cannot load shared object function: %s", Func.c_str());
@@ -3922,7 +3922,7 @@ namespace Tomahawk
 			}
 			Safe.unlock();
 
-			void* Handle = Rest::OS::Symbol::Load(Path);
+			void* Handle = Core::OS::Symbol::Load(Path);
 			if (!Handle)
 			{
 				TH_ERROR("cannot load shared object: %s", Path.c_str());
@@ -3979,7 +3979,7 @@ namespace Tomahawk
 
 			return true;
 		}
-		Rest::Document* VMManager::ImportJSON(const std::string& Path)
+		Core::Document* VMManager::ImportJSON(const std::string& Path)
 		{
 			if (!(Imports & VMImport_JSON))
 			{
@@ -3987,20 +3987,20 @@ namespace Tomahawk
 				return nullptr;
 			}
 
-			std::string File = Rest::OS::Path::Resolve(Path, Include.Root);
-			if (!Rest::OS::File::IsExists(File.c_str()))
+			std::string File = Core::OS::Path::Resolve(Path, Include.Root);
+			if (!Core::OS::File::IsExists(File.c_str()))
 			{
-				File = Rest::OS::Path::Resolve(Path + ".json", Include.Root);
-				if (!Rest::OS::File::IsExists(File.c_str()))
+				File = Core::OS::Path::Resolve(Path + ".json", Include.Root);
+				if (!Core::OS::File::IsExists(File.c_str()))
 					return nullptr;
 			}
 
 			if (!Cached)
 			{
-				std::string Data = Rest::OS::File::ReadAsString(File.c_str());
+				std::string Data = Core::OS::File::ReadAsString(File.c_str());
 				uint64_t Offset = 0;
 
-				return Rest::Document::ReadJSON(Data.size(), [&Data, &Offset](char* Buffer, int64_t Size)
+				return Core::Document::ReadJSON(Data.size(), [&Data, &Offset](char* Buffer, int64_t Size)
 				{
 					if (!Buffer || !Size)
 						return true;
@@ -4019,17 +4019,17 @@ namespace Tomahawk
 			auto It = Datas.find(File);
 			if (It != Datas.end())
 			{
-				Rest::Document* Result = It->second ? It->second->Copy() : nullptr;
+				Core::Document* Result = It->second ? It->second->Copy() : nullptr;
 				Safe.unlock();
 
 				return Result;
 			}
 
-			Rest::Document*& Result = Datas[File];
-			std::string Data = Rest::OS::File::ReadAsString(File.c_str());
+			Core::Document*& Result = Datas[File];
+			std::string Data = Core::OS::File::ReadAsString(File.c_str());
 			uint64_t Offset = 0;
 
-			Result = Rest::Document::ReadJSON(Data.size(), [&Data, &Offset](char* Buffer, int64_t Size)
+			Result = Core::Document::ReadJSON(Data.size(), [&Data, &Offset](char* Buffer, int64_t Size)
 			{
 				if (!Buffer || !Size)
 					return true;
@@ -4043,7 +4043,7 @@ namespace Tomahawk
 				return true;
 			});
 
-			Rest::Document* Copy = nullptr;
+			Core::Document* Copy = nullptr;
 			if (Result != nullptr)
 				Copy = Result->Copy();
 
@@ -4087,12 +4087,12 @@ namespace Tomahawk
 			if (Path.empty())
 				return Path;
 
-			Rest::Stroke Src(Path);
-			Rest::Stroke::Settle Start = Src.ReverseFindOf("\\/");
+			Core::Parser Src(Path);
+			Core::Parser::Settle Start = Src.ReverseFindOf("\\/");
 			if (Start.Found)
 				Src.Substring(Start.End);
 
-			Rest::Stroke::Settle End = Src.ReverseFind('.');
+			Core::Parser::Settle End = Src.ReverseFind('.');
 			if (End.Found)
 				Src.Substring(0, End.End);
 
@@ -4173,16 +4173,16 @@ namespace Tomahawk
 				"std/async"
 			}, nullptr);
 
-			Engine->AddSubmodule("rest/format", { "std/string" }, RegisterFormatAPI);
-			Engine->AddSubmodule("rest/console", { "rest/format" }, RegisterConsoleAPI);
-			Engine->AddSubmodule("rest/variant", { }, RegisterVariantAPI);
-			Engine->AddSubmodule("rest/document", { "std/array", "std/string", "std/map", "rest/variant" }, RegisterDocumentAPI);
-			Engine->AddSubmodule("rest",
+			Engine->AddSubmodule("core/format", { "std/string" }, RegisterFormatAPI);
+			Engine->AddSubmodule("core/console", { "core/format" }, RegisterConsoleAPI);
+			Engine->AddSubmodule("core/variant", { }, RegisterVariantAPI);
+			Engine->AddSubmodule("core/document", { "std/array", "std/string", "std/map", "core/variant" }, RegisterDocumentAPI);
+			Engine->AddSubmodule("core",
 			{
-				"rest/format",
-				"rest/console",
-				"rest/variant",
-				"rest/document"
+				"core/format",
+				"core/console",
+				"core/variant",
+				"core/document"
 			}, nullptr);
 
 			Engine->AddSubmodule("gui/element", { }, RegisterGuiElementAPI);

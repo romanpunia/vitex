@@ -1,4 +1,4 @@
-#include "core-api.h"
+#include "std-lib.h"
 #include <new>
 #include <assert.h>
 #include <string.h>
@@ -610,7 +610,7 @@ namespace Tomahawk
 		}
 		static std::string StringReverse(const std::string& Value)
 		{
-			Rest::Stroke Result(Value);
+			Core::Parser Result(Value);
 			Result.Reverse();
 			return Result.R();
 		}
@@ -809,7 +809,7 @@ namespace Tomahawk
 		}
 		static std::string StringReplace(const std::string& a, const std::string& b, uint64_t o, const std::string& base)
 		{
-			return Tomahawk::Rest::Stroke(base).Replace(a, b, o).R();
+			return Tomahawk::Core::Parser(base).Replace(a, b, o).R();
 		}
 		static as_int64_t StringToInt(const std::string &val, as_size_t base, as_size_t *byteCount)
 		{
@@ -933,11 +933,11 @@ namespace Tomahawk
 		}
 		static std::string StringToLower(const std::string& Symbol)
 		{
-			return Tomahawk::Rest::Stroke(Symbol).ToLower().R();
+			return Tomahawk::Core::Parser(Symbol).ToLower().R();
 		}
 		static std::string StringToUpper(const std::string& Symbol)
 		{
-			return Tomahawk::Rest::Stroke(Symbol).ToUpper().R();
+			return Tomahawk::Core::Parser(Symbol).ToUpper().R();
 		}
 		static std::string ToStringInt8(char Value)
 		{
@@ -4334,7 +4334,7 @@ namespace Tomahawk
 		int VMCThread::ContextUD = 550;
 		int VMCThread::EngineListUD = 551;
 
-		VMCAsync::VMCAsync(VMCContext* Base) : Context(Base), Any(nullptr), Rejected(false), Ref(2), GCFlag(false)
+		VMCAsync::VMCAsync(VMCContext* Base) : Context(Base), Any(nullptr), Stored(false), Ref(2), GCFlag(false)
 		{
 			if (Context != nullptr)
 			{
@@ -4361,17 +4361,17 @@ namespace Tomahawk
 		}
 		void VMCAsync::EnumReferences(VMCManager* Engine)
 		{
-			Mutex.lock();
+			Safe.lock();
 			if (Context != nullptr)
 				Engine->GCEnumCallback(Context);
 
 			if (Any != nullptr)
 				Engine->GCEnumCallback(Any);
-			Mutex.unlock();
+			Safe.unlock();
 		}
 		void VMCAsync::ReleaseReferences(VMCManager*)
 		{
-			Mutex.lock();
+			Safe.lock();
 			if (Any != nullptr)
 			{
 				Any->Release();
@@ -4383,7 +4383,7 @@ namespace Tomahawk
 				Context->Release();
 				Context = nullptr;
 			}
-			Mutex.unlock();
+			Safe.unlock();
 		}
 		void VMCAsync::SetGCFlag()
 		{
@@ -4399,36 +4399,42 @@ namespace Tomahawk
 		}
 		int VMCAsync::Set(VMCAny* Value)
 		{
-			if (!Context)
+			if (!Context || Stored)
 				return -1;
 
-			Mutex.lock();
+			Safe.lock();
 			if (Any != nullptr)
 				Any->Release();
 
 			if (Value != nullptr)
 				Value->AddRef();
-			else
-				Rejected = true;
 
+			Stored = true;
 			Any = Value;
-			Mutex.unlock();
-
+			Safe.unlock();
 			Finish();
-			if (Context->GetState() == asEXECUTION_ACTIVE)
+
+			asEContextState State = Context->GetState();
+			if (State == asEXECUTION_ACTIVE)
 				return asEXECUTION_FINISHED;
 
-			AsyncDoneCallback Callback = Done;
-			if (Callback)
+			if (!Resolve)
 			{
-				Callback(VMContext::Get(Context));
-				return 0;
+				if (State == asEXECUTION_FINISHED)
+					return asEXECUTION_FINISHED;
+
+				return Context->Execute();
 			}
 
-			if (Context->GetState() == asEXECUTION_FINISHED)
-				return asEXECUTION_FINISHED;
+			if (State != asEXECUTION_FINISHED)
+			{
+				State = (asEContextState)Context->Execute();
+				Resolve(State != asEXECUTION_FINISHED && State != asEXECUTION_SUSPENDED);
+			}
+			else
+				Resolve(true);
 
-			return Context->Execute();
+			return State;
 		}
 		int VMCAsync::Set(void* Ref, int TypeId)
 		{
@@ -4450,43 +4456,47 @@ namespace Tomahawk
 
 			return Set(Ref, Engine->Global().GetTypeIdByDecl(TypeName));
 		}
-		bool VMCAsync::GetAny(void* Ref, int TypeId) const
-		{
-			if (!Any)
-				return true;
-
-			return Any->Retrieve(Ref, TypeId);
-		}
 		void VMCAsync::Finish()
 		{
-			Mutex.lock();
+			Safe.lock();
 			VMContext* Base = VMContext::Get(Context);
 			if (Base != nullptr)
 				Base->PopAsync();
 
-			Mutex.unlock();
+			Safe.unlock();
 			Release();
 		}
-		VMCAny* VMCAsync::Get() const
+		void* VMCAsync::Get() const
 		{
-			return Any;
+			if (!Any)
+				return nullptr;
+
+			int TypeId = Any->GetTypeId();
+			void* Result = nullptr;
+
+			if (TypeId & asTYPEID_OBJHANDLE)
+				Any->Retrieve(&Result, TypeId);
+			else
+				Any->Retrieve(Result, TypeId);
+
+			return Result;
 		}
 		VMCAsync* VMCAsync::Await()
 		{
 			if (!Context)
 				return this;
 
-			if (!Any && !Rejected)
+			if (!Any && !Stored)
 				Context->Suspend();
 
 			return this;
 		}
-		VMCAsync* VMCAsync::Then(AsyncDoneCallback&& DoneCallback)
+		VMCAsync* VMCAsync::Resume(AsyncResumeCallback&& DoneCallback)
 		{
-			Done = std::move(DoneCallback);
+			Resolve = std::move(DoneCallback);
 			return this;
 		}
-		VMCAsync* VMCAsync::Promise()
+		VMCAsync* VMCAsync::Promise(VMCTypeInfo*)
 		{
 			VMCContext* Context = asGetActiveContext();
 			if (!Context)
@@ -4501,7 +4511,7 @@ namespace Tomahawk
 
 			return Async;
 		}
-		VMCAsync* VMCAsync::Fulfill(void* Ref, int TypeId)
+		VMCAsync* VMCAsync::Store(void* Ref, int TypeId)
 		{
 			VMCContext* Context = asGetActiveContext();
 			if (!Context)
@@ -4517,7 +4527,7 @@ namespace Tomahawk
 
 			return Async;
 		}
-		VMCAsync* VMCAsync::Fulfill(void* Ref, const char* TypeName)
+		VMCAsync* VMCAsync::Store(void* Ref, const char* TypeName)
 		{
 			VMCContext* Context = asGetActiveContext();
 			if (!Context)
@@ -4530,34 +4540,6 @@ namespace Tomahawk
 			VMCAsync* Async = new VMCAsync(Context);
 			Engine->NotifyGarbageCollectorOfNewObject(Async, Engine->GetTypeInfoByName("Async"));
 			Async->Set(Ref, TypeName);
-
-			return Async;
-		}
-		VMCAsync* VMCAsync::Fulfill(bool Value)
-		{
-			return Fulfill(&Value, VMTypeId_BOOL);
-		}
-		VMCAsync* VMCAsync::Fulfill(int64_t Value)
-		{
-			return Fulfill(&Value, VMTypeId_INT64);
-		}
-		VMCAsync* VMCAsync::Fulfill(double Value)
-		{
-			return Fulfill(&Value, VMTypeId_DOUBLE);
-		}
-		VMCAsync* VMCAsync::Reject()
-		{
-			VMCContext* Context = asGetActiveContext();
-			if (!Context)
-				return nullptr;
-
-			VMCManager* Engine = Context->GetEngine();
-			if (!Engine)
-				return nullptr;
-
-			VMCAsync* Async = new VMCAsync(Context);
-			Engine->NotifyGarbageCollectorOfNewObject(Async, Engine->GetTypeInfoByName("Async"));
-			Async->Set(nullptr);
 
 			return Async;
 		}
@@ -4990,19 +4972,18 @@ namespace Tomahawk
 			if (!Engine)
 				return false;
 
-			Engine->RegisterObjectType("Async", 0, asOBJ_REF | asOBJ_GC);
-			Engine->RegisterObjectBehaviour("Async", asBEHAVE_FACTORY, "Async@ f()", asFUNCTIONPR(VMCAsync::Promise, (), VMCAsync*), asCALL_CDECL);
-			Engine->RegisterObjectBehaviour("Async", asBEHAVE_ADDREF, "void f()", asMETHOD(VMCAsync, AddRef), asCALL_THISCALL);
-			Engine->RegisterObjectBehaviour("Async", asBEHAVE_RELEASE, "void f()", asMETHOD(VMCAsync, Release), asCALL_THISCALL);
-			Engine->RegisterObjectBehaviour("Async", asBEHAVE_SETGCFLAG, "void f()", asMETHOD(VMCAsync, SetGCFlag), asCALL_THISCALL);
-			Engine->RegisterObjectBehaviour("Async", asBEHAVE_GETGCFLAG, "bool f()", asMETHOD(VMCAsync, GetGCFlag), asCALL_THISCALL);
-			Engine->RegisterObjectBehaviour("Async", asBEHAVE_GETREFCOUNT, "int f()", asMETHOD(VMCAsync, GetRefCount), asCALL_THISCALL);
-			Engine->RegisterObjectBehaviour("Async", asBEHAVE_ENUMREFS, "void f(int&in)", asMETHOD(VMCAsync, EnumReferences), asCALL_THISCALL);
-			Engine->RegisterObjectBehaviour("Async", asBEHAVE_RELEASEREFS, "void f(int&in)", asMETHOD(VMCAsync, ReleaseReferences), asCALL_THISCALL);
-			Engine->RegisterObjectMethod("Async", "void Set(const ?&in)", asMETHODPR(VMCAsync, Set, (void*, int), int), asCALL_THISCALL);
-			Engine->RegisterObjectMethod("Async", "Any@+ Get()", asMETHOD(VMCAsync, Get), asCALL_THISCALL);
-			Engine->RegisterObjectMethod("Async", "bool Get(?&out)", asMETHODPR(VMCAsync, GetAny, (void*, int) const, bool), asCALL_THISCALL);
-			Engine->RegisterObjectMethod("Async", "Async@+ Await()", asMETHOD(VMCAsync, Await), asCALL_THISCALL);
+			Engine->RegisterObjectType("Async<class T>", 0, asOBJ_REF | asOBJ_GC);
+			Engine->RegisterObjectBehaviour("Async<T>", asBEHAVE_FACTORY, "Async<T>@ f()", asFUNCTIONPR(VMCAsync::Promise, (VMCTypeInfo*), VMCAsync*), asCALL_CDECL);
+			Engine->RegisterObjectBehaviour("Async<T>", asBEHAVE_ADDREF, "void f()", asMETHOD(VMCAsync, AddRef), asCALL_THISCALL);
+			Engine->RegisterObjectBehaviour("Async<T>", asBEHAVE_RELEASE, "void f()", asMETHOD(VMCAsync, Release), asCALL_THISCALL);
+			Engine->RegisterObjectBehaviour("Async<T>", asBEHAVE_SETGCFLAG, "void f()", asMETHOD(VMCAsync, SetGCFlag), asCALL_THISCALL);
+			Engine->RegisterObjectBehaviour("Async<T>", asBEHAVE_GETGCFLAG, "bool f()", asMETHOD(VMCAsync, GetGCFlag), asCALL_THISCALL);
+			Engine->RegisterObjectBehaviour("Async<T>", asBEHAVE_GETREFCOUNT, "int f()", asMETHOD(VMCAsync, GetRefCount), asCALL_THISCALL);
+			Engine->RegisterObjectBehaviour("Async<T>", asBEHAVE_ENUMREFS, "void f(int&in)", asMETHOD(VMCAsync, EnumReferences), asCALL_THISCALL);
+			Engine->RegisterObjectBehaviour("Async<T>", asBEHAVE_RELEASEREFS, "void f(int&in)", asMETHOD(VMCAsync, ReleaseReferences), asCALL_THISCALL);
+			Engine->RegisterObjectMethod("Async<T>", "void Set(const T& in)", asMETHODPR(VMCAsync, Set, (void*, int), int), asCALL_THISCALL);
+			Engine->RegisterObjectMethod("Async<T>", "const T& Get() const", asMETHOD(VMCAsync, Get), asCALL_THISCALL);
+			Engine->RegisterObjectMethod("Async<T>", "Async<T>@+ Await() const", asMETHOD(VMCAsync, Await), asCALL_THISCALL);
 			return true;
 		}
 		bool FreeCoreAPI()

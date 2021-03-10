@@ -141,7 +141,7 @@ namespace Tomahawk
 			static void GetListenerData1I(unsigned int Listener, int* F1);
 		};
 
-		class TH_OUT AudioFilter : public Rest::Object
+		class TH_OUT AudioFilter : public Core::Object
 		{
 			friend AudioEffect;
 			friend AudioSource;
@@ -154,8 +154,8 @@ namespace Tomahawk
 			AudioFilter();
 			virtual ~AudioFilter() override;
 			virtual void Synchronize() = 0;
-			virtual void Deserialize(Rest::Document* Node) = 0;
-			virtual void Serialize(Rest::Document* Node) = 0;
+			virtual void Deserialize(Core::Document* Node) = 0;
+			virtual void Serialize(Core::Document* Node) = 0;
 			virtual AudioFilter* Copy() = 0;
 			AudioSource* GetSource();
 
@@ -166,7 +166,7 @@ namespace Tomahawk
 			TH_COMPONENT("audio-filter");
 		};
 
-		class TH_OUT AudioEffect : public Rest::Object
+		class TH_OUT AudioEffect : public Core::Object
 		{
 			friend AudioSource;
 
@@ -183,8 +183,8 @@ namespace Tomahawk
 			AudioEffect();
 			virtual ~AudioEffect() override;
 			virtual void Synchronize() = 0;
-			virtual void Deserialize(Rest::Document* Node) = 0;
-			virtual void Serialize(Rest::Document* Node) = 0;
+			virtual void Deserialize(Core::Document* Node) = 0;
+			virtual void Serialize(Core::Document* Node) = 0;
 			virtual AudioEffect* Copy() = 0;
 			bool SetFilter(AudioFilter** Filter);
 			AudioFilter* GetFilter();
@@ -201,7 +201,7 @@ namespace Tomahawk
 			TH_COMPONENT("audio-effect");
 		};
 
-		class TH_OUT AudioClip : public Rest::Object
+		class TH_OUT AudioClip : public Core::Object
 		{
 		private:
 			unsigned int Buffer = 0;
@@ -216,7 +216,7 @@ namespace Tomahawk
 			int GetFormat();
 		};
 
-		class TH_OUT AudioSource : public Rest::Object
+		class TH_OUT AudioSource : public Core::Object
 		{
 			friend class AudioDevice;
 
@@ -251,7 +251,7 @@ namespace Tomahawk
 			}
 		};
 
-		class TH_OUT AudioDevice : public Rest::Object
+		class TH_OUT AudioDevice : public Core::Object
 		{
 		public:
 			void* Context = nullptr;

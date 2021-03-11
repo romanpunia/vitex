@@ -417,6 +417,7 @@ namespace Tomahawk
 			{
 			public:
 				QueryParameter();
+				virtual ~QueryParameter() = default;
 				std::string Build();
 				std::string BuildFromBase();
 				QueryParameter* Find(QueryToken* Name);

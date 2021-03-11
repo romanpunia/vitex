@@ -540,6 +540,7 @@ namespace Tomahawk
 			VMCContext* Context;
 			VMCAny* Any;
 			std::mutex Safe;
+			void* Refers;
 			bool Stored;
 			bool GCFlag;
 			int Ref;
@@ -555,24 +556,25 @@ namespace Tomahawk
 			void SetGCFlag();
 			bool GetGCFlag();
 			int GetRefCount();
-
-		public:
-			int Set(VMCAny* Value);
+			int Acquire(VMCAny* Value);
 			int Set(void* Ref, int TypeId);
-			int Set(void* Ref, const char* TypeName);
-			void* Get() const;
+			int Set(void* Ref, const char* TypeId);
+			bool Retrieve(void* Ref, int TypeId);
+			VMCAny* Get();
 			VMCAsync* Await();
 
 		public:
 			template <typename T>
 			VMCAsync* SetCast(const T& Ref, int TypeId)
 			{
-				return Set((void*)&Ref, TypeId);
+				Set((void*)&Ref, TypeId);
+				return this;
 			}
 			template <typename T>
 			VMCAsync* SetCast(const T& Ref, const char* TypeName)
 			{
-				return Set((void*)&Ref, TypeName);
+				Set((void*)&Ref, TypeName);
+				return this;
 			}
 
 		public:
@@ -587,7 +589,7 @@ namespace Tomahawk
 				VMCAsync* Future = Promise();
 				Base.Await([Future, TypeId](T&& Result)
 				{
-					Future->Set(&Result, TypeId);
+					Future->Set((void*)&Result, TypeId);
 				});
 
 				return Future;
@@ -598,7 +600,7 @@ namespace Tomahawk
 				VMCAsync* Future = Promise();
 				Base.Await([Future, TypeName](T&& Result)
 				{
-					Future->Set(&Result, TypeName.c_str());
+					Future->Set((void*)&Result, TypeName.c_str());
 				});
 
 				return Future;

@@ -484,7 +484,8 @@ namespace Tomahawk
 					else if (Type && !strcmp("Document", Type->GetName()))
 					{
 						Core::Document* Base = (Core::Document*)Ref;
-						Base->AddRef();
+						if (Base->GetParent() != Result)
+							Base->AddRef();
 
 						Result->Set(Name, Base);
 					}
@@ -525,7 +526,7 @@ namespace Tomahawk
 		}
 		Core::Document* VMCDocument::Set(Core::Document* Base, const std::string& Name, Core::Document* Value)
 		{
-			if (Value != nullptr)
+			if (Value != nullptr && Value->GetParent() != Base)
 				Value->AddRef();
 
 			return Base->Set(Name, Value);

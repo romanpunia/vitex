@@ -5798,6 +5798,9 @@ namespace Tomahawk
 					if ((*It)->Key != Name)
 						continue;
 
+					if (*It == Base)
+						return Base;
+
 					(*It)->Parent = nullptr;
 					TH_RELEASE(*It);
 					*It = Base;

@@ -1582,6 +1582,22 @@ namespace Tomahawk
 				if (Next->Set > 0)
 					Next->Resolve();
 			}
+			bool IsPending()
+			{
+				return (Next != nullptr && Next->Set != 1);
+			}
+			T& Get()
+			{
+				while (IsPending())
+					std::this_thread::sleep_for(std::chrono::microseconds(100));
+
+				if (Next != nullptr)
+					return Next->Result;
+
+				Next = new Base();
+				Next->Set = 1;
+				return Next->Result;
+			}
 
 		public:
 			template <typename R>

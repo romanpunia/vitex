@@ -3812,14 +3812,14 @@ namespace Tomahawk
 				Safe.unlock();
 				return Target;
 			}
-			int Scriptable::Call(const std::string& Name, unsigned int Args, const InvocationCallback& ArgCallback)
+			int Scriptable::Call(const std::string& Name, unsigned int Args, Script::ArgsCallback&& ArgCallback)
 			{
 				if (!Compiler)
 					return Script::VMResult_INVALID_CONFIGURATION;
 
-				return Call(GetFunctionByName(Name, Args).GetFunction(), ArgCallback);
+				return Call(GetFunctionByName(Name, Args).GetFunction(), std::move(ArgCallback));
 			}
-			int Scriptable::Call(Script::VMCFunction* Function, const InvocationCallback& ArgCallback)
+			int Scriptable::Call(Script::VMCFunction* Function, Script::ArgsCallback&& ArgCallback)
 			{
 				if (!Compiler)
 					return Script::VMResult_INVALID_CONFIGURATION;
@@ -3827,25 +3827,14 @@ namespace Tomahawk
 				if (!Function)
 					return Script::VMResult_INVALID_ARG;
 
-				auto* VM = Compiler->GetContext();
-				if (VM->GetState() == Script::VMExecState_ACTIVE)
-					return Script::VMResult_MODULE_IS_IN_USE;
-
 				Safe.lock();
-				int Result = VM->Prepare(Function);
-				if (Result < 0)
-				{
-					Safe.unlock();
-					return Result;
-				}
-
-				if (ArgCallback)
-					ArgCallback(VM);
-
-				Result = VM->Execute();
+				Core::Async<int> Result = Compiler->GetContext()->Execute(Function, false, std::move(ArgCallback));
 				Safe.unlock();
 
-				return Result;
+				if (Result.IsPending())
+					return Script::VMResult_CONTEXT_ACTIVE;
+
+				return Result.Get();
 			}
 			int Scriptable::CallEntry(const std::string& Name)
 			{

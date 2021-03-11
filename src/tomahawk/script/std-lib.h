@@ -7,8 +7,6 @@ namespace Tomahawk
 {
 	namespace Script
 	{
-		typedef std::function<void(bool Failed)> AsyncResumeCallback;
-
 		class TH_OUT VMCException
 		{
 		public:
@@ -539,7 +537,6 @@ namespace Tomahawk
 		class TH_OUT VMCAsync
 		{
 		private:
-			AsyncResumeCallback Resolve;
 			VMCContext* Context;
 			VMCAny* Any;
 			std::mutex Safe;
@@ -549,7 +546,6 @@ namespace Tomahawk
 
 		private:
 			VMCAsync(VMCContext* Base);
-			void Finish();
 
 		public:
 			void EnumReferences(VMCManager* Engine);
@@ -566,7 +562,6 @@ namespace Tomahawk
 			int Set(void* Ref, const char* TypeName);
 			void* Get() const;
 			VMCAsync* Await();
-			VMCAsync* Resume(AsyncResumeCallback&& Callback);
 
 		public:
 			template <typename T>

@@ -73,13 +73,6 @@ namespace Tomahawk
 			{
 				Util::WebSocketWriteMask(Base, Data, Length, OpCode, 0, Callback);
 			}
-			void WebSocketFrame::Execute(bool Failed)
-			{
-				if (Failed)
-					Finish();
-				else
-					Next();
-			}
 			void WebSocketFrame::Finish()
 			{
 				if (Error || State == WebSocketState_Close)
@@ -162,7 +155,14 @@ namespace Tomahawk
 			}
 			void GatewayFrame::Execute(bool Failed)
 			{
-				if (Failed)
+				if (Base->WebSocket != nullptr)
+				{
+					if (Failed)
+						Base->WebSocket->Finish();
+					else
+						Base->WebSocket->Next();
+				}
+				else if (Failed)
 					Finish();
 			}
 			bool GatewayFrame::Done(bool Normal)
@@ -256,6 +256,8 @@ namespace Tomahawk
 						return Finish();
 
 					Script::VMContext* Context = Compiler->GetContext();
+					Context->SetResumeCallback(std::bind(&GatewayFrame::Execute, this, std::placeholders::_1));
+
 					Result = Context->Prepare(Main);
 					if (Result < 0)
 						return Finish();
@@ -4690,7 +4692,7 @@ namespace Tomahawk
 					ZStream.next_in = (Bytef*)Buffer;
 					ZStream.avail_out = (uInt)sizeof(Deflate);
 					ZStream.next_out = (Bytef*)Deflate;
-					deflate(&ZStream, (ContentLength <= Read) ? Z_FINISH : Z_SYNC_FLUSH);
+					deflate(&ZStream, Z_SYNC_FLUSH);
 					Read = (int)sizeof(Deflate) - (int)ZStream.avail_out;
 					Base->Stream->fWrite("%X\r\n", Read);
 

@@ -218,7 +218,6 @@ namespace Tomahawk
 
 			public:
 				void Write(const char* Buffer, int64_t Length, WebSocketOp OpCode, const SuccessCallback& Callback);
-				void Execute(bool Failed);
 				void Finish();
 				void Next();
 				void Notify();

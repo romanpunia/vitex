@@ -628,11 +628,10 @@ namespace Tomahawk
 						return;
 
 					Script::VMContext* Context = Compiler->GetContext();
-					if (Context->Prepare(Main) >= 0)
+					Context->Execute(Main, false, [Scope](Script::VMContext* Context)
 					{
 						Context->SetArgObject(0, Scope->Basis);
-						Context->Execute();
-					}
+					});
 				}
 			};
 

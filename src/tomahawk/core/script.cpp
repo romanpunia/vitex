@@ -2579,45 +2579,40 @@ namespace Tomahawk
 		{
 			return ExecuteEntry(Name, Return, ReturnTypeId, nullptr);
 		}
-		int VMCompiler::ExecuteEntry(const char* Name, void* Return, int ReturnTypeId, const std::function<void(VMContext*)>& ArgsCallback)
+		int VMCompiler::ExecuteEntry(const char* Name, void* Return, int ReturnTypeId, ArgsCallback&& Callback)
 		{
 			if (!BuiltOK || !Manager || !Context || !Name || !Module)
-				return -1;
+				return asINVALID_ARG;
 
 			VMCManager* Engine = Manager->GetEngine();
 			if (!Engine)
-				return -1;
+				return asINVALID_CONFIGURATION;
 
 			VMCFunction* Function = Module->GetFunctionByName(Name);
 			if (!Function)
-				return -1;
+				return asNO_FUNCTION;
 
-			VMCContext* VM = Context->GetContext();
-			int R = VM->Prepare(Function);
-			if (R < 0)
-				return R;
+			Core::Async<int> Result = Context->Execute(Function, false, std::move(Callback));
+			if (Result.IsPending())
+				return asEXECUTION_ACTIVE;
 
-			if (ArgsCallback)
-				ArgsCallback(Context);
+			if (Return == 0 || ReturnTypeId == asTYPEID_VOID)
+				return Result.Get();
 
-			R = VM->Execute();
-			if (Return != 0 && ReturnTypeId != asTYPEID_VOID)
+			if (ReturnTypeId & asTYPEID_OBJHANDLE)
 			{
-				if (ReturnTypeId & asTYPEID_OBJHANDLE)
+				if (*reinterpret_cast<void**>(Return) == nullptr)
 				{
-					if (*reinterpret_cast<void**>(Return) == nullptr)
-					{
-						*reinterpret_cast<void**>(Return) = *reinterpret_cast<void**>(Context->GetAddressOfReturnValue());
-						Engine->AddRefScriptObject(*reinterpret_cast<void**>(Return), Engine->GetTypeInfoById(ReturnTypeId));
-					}
+					*reinterpret_cast<void**>(Return) = *reinterpret_cast<void**>(Context->GetAddressOfReturnValue());
+					Engine->AddRefScriptObject(*reinterpret_cast<void**>(Return), Engine->GetTypeInfoById(ReturnTypeId));
 				}
-				else if (ReturnTypeId & asTYPEID_MASK_OBJECT)
-					Engine->AssignScriptObject(Return, Context->GetAddressOfReturnValue(), Engine->GetTypeInfoById(ReturnTypeId));
-				else
-					memcpy(Return, Context->GetAddressOfReturnValue(), Engine->GetSizeOfPrimitiveType(ReturnTypeId));
 			}
-
-			return R;
+			else if (ReturnTypeId & asTYPEID_MASK_OBJECT)
+				Engine->AssignScriptObject(Return, Context->GetAddressOfReturnValue(), Engine->GetTypeInfoById(ReturnTypeId));
+			else
+				memcpy(Return, Context->GetAddressOfReturnValue(), Engine->GetSizeOfPrimitiveType(ReturnTypeId));
+				
+			return Result.Get();
 		}
 		int VMCompiler::ExecuteScoped(const std::string& Code, void* Return, int ReturnTypeId)
 		{
@@ -2654,33 +2649,34 @@ namespace Tomahawk
 			if (R < 0)
 				return R;
 
-			VMCContext* VM = Context->GetContext();
-			R = VM->Prepare(Function);
-			if (R < 0)
+			Core::Async<int> Result = Context->Execute(Function, false, nullptr);
+			if (Result.IsPending())
+			{
+				Result.Await([Function](int) { Function->Release(); });
+				return asEXECUTION_ACTIVE;
+			}
+
+			if (Return == 0 || ReturnTypeId == asTYPEID_VOID)
 			{
 				Function->Release();
-				return R;
+				return Result.Get();
 			}
 
-			R = VM->Execute();
-			if (Return != 0 && ReturnTypeId != asTYPEID_VOID)
+			if (ReturnTypeId & asTYPEID_OBJHANDLE)
 			{
-				if (ReturnTypeId & asTYPEID_OBJHANDLE)
+				if (*reinterpret_cast<void**>(Return) == nullptr)
 				{
-					if (*reinterpret_cast<void**>(Return) == 0)
-					{
-						*reinterpret_cast<void**>(Return) = *reinterpret_cast<void**>(Context->GetAddressOfReturnValue());
-						Engine->AddRefScriptObject(*reinterpret_cast<void**>(Return), Engine->GetTypeInfoById(ReturnTypeId));
-					}
+					*reinterpret_cast<void**>(Return) = *reinterpret_cast<void**>(Context->GetAddressOfReturnValue());
+					Engine->AddRefScriptObject(*reinterpret_cast<void**>(Return), Engine->GetTypeInfoById(ReturnTypeId));
 				}
-				else if (ReturnTypeId & asTYPEID_MASK_OBJECT)
-					Engine->AssignScriptObject(Return, Context->GetAddressOfReturnValue(), Engine->GetTypeInfoById(ReturnTypeId));
-				else
-					memcpy(Return, Context->GetAddressOfReturnValue(), Engine->GetSizeOfPrimitiveType(ReturnTypeId));
 			}
+			else if (ReturnTypeId & asTYPEID_MASK_OBJECT)
+				Engine->AssignScriptObject(Return, Context->GetAddressOfReturnValue(), Engine->GetTypeInfoById(ReturnTypeId));
+			else
+				memcpy(Return, Context->GetAddressOfReturnValue(), Engine->GetSizeOfPrimitiveType(ReturnTypeId));
 
 			Function->Release();
-			return R;
+			return Result.Get();
 		}
 		VMManager* VMCompiler::GetManager() const
 		{
@@ -2730,6 +2726,51 @@ namespace Tomahawk
 			}
 			asThreadCleanup();
 		}
+		Core::Async<int> VMContext::Execute(const VMFunction& Function, bool Nested, ArgsCallback&& Callback)
+		{
+			asEContextState State = Context->GetState();
+			if (State != asEXECUTION_ACTIVE)
+				return Core::Async<int>::Store(ExecuteDeferred(Function, Nested, std::move(Callback)));
+
+			Core::Async<int> Result;
+			Safe.lock();
+			Events.push({ Function, std::move(Callback), Result });
+			Safe.unlock();
+
+			return Result;
+		}
+		int VMContext::ExecuteDeferred(const VMFunction& Function, bool Nested, ArgsCallback&& Callback)
+		{
+			if (Nested)
+				Context->PushState();
+
+			int Result = Context->Prepare(Function.GetFunction());
+			if (Result < 0)
+			{
+				if (Nested)
+					Context->PopState();
+
+				Safe.unlock();
+				return Result;
+			}
+
+			if (Callback)
+				Callback(this);
+
+			Result = Resume(true);
+			if (Nested)
+				Context->PopState();
+
+			return Result;
+		}
+		int VMContext::SetResumeCallback(ResumeCallback&& Callback)
+		{
+			Safe.lock();
+			Resolve = std::move(Callback);
+			Safe.unlock();
+
+			return 0;
+		}
 		int VMContext::SetExceptionCallback(void(*Callback)(VMCContext* Context, void* Object), void* Object)
 		{
 			if (!Context)
@@ -2774,14 +2815,50 @@ namespace Tomahawk
 			if (!Context)
 				return -1;
 
-			return Context->Execute();
-		}
-		int VMContext::Resume()
-		{
-			if (!IsSuspended())
-				return asCONTEXT_ACTIVE;
+			int Result = Context->Execute();
+			if (Result != asEXECUTION_FINISHED || Events.empty())
+				return Result;
 
-			return Execute();
+			Safe.lock();
+			if (Events.empty())
+			{
+				Safe.unlock();
+				return Result;
+			}
+
+			Event Next = Events.front();
+			Events.pop();
+			Safe.unlock();
+
+			Result = ExecuteDeferred(Next.Function, false, std::move(Next.Callback));
+			Next.Result.Set(Result);
+
+			return Result;
+		}
+		int VMContext::Resume(bool Forced)
+		{
+			asEContextState State = Context->GetState();
+			if (State == asEXECUTION_ACTIVE)
+				return asEXECUTION_ABORTED;
+
+			if (!Resolve)
+			{
+				if (!Forced && State == asEXECUTION_FINISHED)
+					return asEXECUTION_ABORTED;
+
+				return Context->Execute();
+			}
+
+			if (!Forced && State == asEXECUTION_FINISHED)
+			{
+				Resolve(true);
+				return asEXECUTION_ABORTED;
+			}
+
+			State = (asEContextState)Context->Execute();
+			Resolve(State != asEXECUTION_FINISHED && State != asEXECUTION_SUSPENDED);
+
+			return State;
 		}
 		int VMContext::Abort()
 		{
@@ -2849,12 +2926,12 @@ namespace Tomahawk
 
 			return Context->PopState();
 		}
-		int VMContext::PushAsync()
+		int VMContext::PushCoroutine()
 		{
 			Async++;
 			return 0;
 		}
-		int VMContext::PopAsync()
+		int VMContext::PopCoroutine()
 		{
 			if (!Async)
 				return VMResult_INVALID_ARG;

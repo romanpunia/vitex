@@ -3,6 +3,7 @@
 #include "compute.h"
 #include <type_traits>
 #include <random>
+#include <queue>
 #ifdef __LP64__
 typedef unsigned int as_uint32_t;
 typedef unsigned long as_uint64_t;
@@ -342,6 +343,8 @@ namespace Tomahawk
 		typedef std::function<void(struct VMTypeInfo*, struct VMFuncProperty*)> PropertyCallback;
 		typedef std::function<void(struct VMTypeInfo*, struct VMFunction*)> MethodCallback;
 		typedef std::function<void(class VMManager*)> SubmoduleCallback;
+		typedef std::function<void(class VMContext*)> ArgsCallback;
+		typedef std::function<void(bool Failed)> ResumeCallback;
 
         class TH_OUT VMFuncStore
         {
@@ -1550,7 +1553,7 @@ namespace Tomahawk
 			int ExecuteFile(const char* Name, const char* ModuleName, const char* EntryName, void* Return = nullptr, int ReturnTypeId = VMTypeId_VOID);
 			int ExecuteMemory(const std::string& Buffer, const char* ModuleName, const char* EntryName, void* Return = nullptr, int ReturnTypeId = VMTypeId_VOID);
 			int ExecuteEntry(const char* Name, void* Return = nullptr, int ReturnTypeId = VMTypeId_VOID);
-			int ExecuteEntry(const char* Name, void* Return, int ReturnTypeId, const std::function<void(VMContext*)>& ArgsCallback);
+			int ExecuteEntry(const char* Name, void* Return, int ReturnTypeId, ArgsCallback&& Callback);
 			int ExecuteScoped(const std::string& Code, void* Return = nullptr, int ReturnTypeId = VMTypeId_VOID);
 			int ExecuteScoped(const char* Buffer, uint64_t Length, void* Return = nullptr, int ReturnTypeId = VMTypeId_VOID);
 			VMModule GetModule() const;
@@ -1568,28 +1571,41 @@ namespace Tomahawk
 			static int ContextUD;
 
 		private:
+			struct Event
+			{
+				VMFunction Function;
+				ArgsCallback Callback;
+				Core::Async<int> Result;
+			};
+
+		private:
+			std::queue<Event> Events;
 			std::atomic<uint64_t> Async;
+			std::mutex Safe;
+			ResumeCallback Resolve;
 			VMCContext* Context;
 			VMManager* Manager;
 
 		public:
 			VMContext(VMCContext* Base);
 			~VMContext();
+			Core::Async<int> Execute(const VMFunction& Function, bool Nested, ArgsCallback&& ArgsSetup);
+			int SetResumeCallback(ResumeCallback&& Callback);
 			int SetExceptionCallback(void(* Callback)(VMCContext* Context, void* Object), void* Object);
 			int AddRefVM() const;
 			int ReleaseVM();
 			int Prepare(const VMFunction& Function);
 			int Unprepare();
 			int Execute();
-			int Resume();
+			int Resume(bool Forced = false);
 			int Abort();
 			int Suspend();
 			VMExecState GetState() const;
 			std::string GetStackTrace() const;
 			int PushState();
 			int PopState();
-			int PushAsync();
-			int PopAsync();
+			int PushCoroutine();
+			int PopCoroutine();
 			bool IsPending();
 			bool IsNested(unsigned int* NestCount = 0) const;
 			int SetObject(void* Object);
@@ -1637,6 +1653,9 @@ namespace Tomahawk
 			void* GetUserData(uint64_t Type = 0) const;
 			VMCContext* GetContext();
 			VMManager* GetManager();
+
+		private:
+			int ExecuteDeferred(const VMFunction& Function, bool Nested, ArgsCallback&& Callback);
 
 		public:
 			template <typename T>

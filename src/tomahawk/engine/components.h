@@ -9,8 +9,6 @@ namespace Tomahawk
 	{
 		namespace Components
 		{
-			typedef std::function<void(Script::VMContext*)> InvocationCallback;
-
 			class TH_OUT Model final : public Drawable
 			{
 			protected:
@@ -744,8 +742,8 @@ namespace Tomahawk
 				virtual void Update(Core::Timer* Time) override;
 				virtual void Message(Event* Value) override;
 				virtual Component* Copy(Entity* New) override;
-				int Call(const std::string& Name, unsigned int Args, const InvocationCallback& ArgCallback);
-				int Call(Tomahawk::Script::VMCFunction* Entry, const InvocationCallback& ArgCallback);
+				int Call(const std::string& Name, unsigned int Args, Script::ArgsCallback&& ArgCallback);
+				int Call(Tomahawk::Script::VMCFunction* Entry, Script::ArgsCallback&& ArgCallback);
 				int CallEntry(const std::string& Name);
 				int SetSource();
 				int SetSource(SourceType Type, const std::string& Source);

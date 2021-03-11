@@ -4340,7 +4340,7 @@ namespace Tomahawk
 			{
 				VMContext* Base = VMContext::Get(Context);
 				if (Base != nullptr)
-					Base->PushAsync();
+					Base->PushCoroutine();
 
 				Context->AddRef();
 			}
@@ -4400,7 +4400,7 @@ namespace Tomahawk
 		int VMCAsync::Set(VMCAny* Value)
 		{
 			if (!Context || Stored)
-				return -1;
+				return asEXECUTION_UNINITIALIZED;
 
 			Safe.lock();
 			if (Any != nullptr)
@@ -4412,29 +4412,18 @@ namespace Tomahawk
 			Stored = true;
 			Any = Value;
 			Safe.unlock();
-			Finish();
 
-			asEContextState State = Context->GetState();
-			if (State == asEXECUTION_ACTIVE)
-				return asEXECUTION_FINISHED;
-
-			if (!Resolve)
+			VMContext* Base = VMContext::Get(Context);
+			if (!Base)
 			{
-				if (State == asEXECUTION_FINISHED)
-					return asEXECUTION_FINISHED;
-
-				return Context->Execute();
+				Release();
+				return asEXECUTION_ERROR;
 			}
 
-			if (State != asEXECUTION_FINISHED)
-			{
-				State = (asEContextState)Context->Execute();
-				Resolve(State != asEXECUTION_FINISHED && State != asEXECUTION_SUSPENDED);
-			}
-			else
-				Resolve(true);
+			Base->PopCoroutine();
+			Release();
 
-			return State;
+			return Base->Resume();
 		}
 		int VMCAsync::Set(void* Ref, int TypeId)
 		{
@@ -4455,16 +4444,6 @@ namespace Tomahawk
 				return -1;
 
 			return Set(Ref, Engine->Global().GetTypeIdByDecl(TypeName));
-		}
-		void VMCAsync::Finish()
-		{
-			Safe.lock();
-			VMContext* Base = VMContext::Get(Context);
-			if (Base != nullptr)
-				Base->PopAsync();
-
-			Safe.unlock();
-			Release();
 		}
 		void* VMCAsync::Get() const
 		{
@@ -4489,11 +4468,6 @@ namespace Tomahawk
 			if (!Any && !Stored)
 				Context->Suspend();
 
-			return this;
-		}
-		VMCAsync* VMCAsync::Resume(AsyncResumeCallback&& DoneCallback)
-		{
-			Resolve = std::move(DoneCallback);
 			return this;
 		}
 		VMCAsync* VMCAsync::Promise(VMCTypeInfo*)
@@ -4972,8 +4946,9 @@ namespace Tomahawk
 			if (!Engine)
 				return false;
 
-			Engine->RegisterObjectType("Async<class T>", 0, asOBJ_REF | asOBJ_GC);
-			Engine->RegisterObjectBehaviour("Async<T>", asBEHAVE_FACTORY, "Async<T>@ f()", asFUNCTIONPR(VMCAsync::Promise, (VMCTypeInfo*), VMCAsync*), asCALL_CDECL);
+			Engine->RegisterObjectType("Async<class T>", 0, asOBJ_REF | asOBJ_GC | asOBJ_TEMPLATE);
+			Engine->RegisterObjectBehaviour("Async<T>", asBEHAVE_TEMPLATE_CALLBACK, "bool f(int&in, bool&out)", asFUNCTION(ArrayTemplateCallback), asCALL_CDECL);
+			Engine->RegisterObjectBehaviour("Async<T>", asBEHAVE_FACTORY, "Async<T>@ f(int&in)", asFUNCTIONPR(VMCAsync::Promise, (VMCTypeInfo*), VMCAsync*), asCALL_CDECL);
 			Engine->RegisterObjectBehaviour("Async<T>", asBEHAVE_ADDREF, "void f()", asMETHOD(VMCAsync, AddRef), asCALL_THISCALL);
 			Engine->RegisterObjectBehaviour("Async<T>", asBEHAVE_RELEASE, "void f()", asMETHOD(VMCAsync, Release), asCALL_THISCALL);
 			Engine->RegisterObjectBehaviour("Async<T>", asBEHAVE_SETGCFLAG, "void f()", asMETHOD(VMCAsync, SetGCFlag), asCALL_THISCALL);

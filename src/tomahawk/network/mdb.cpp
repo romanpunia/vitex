@@ -913,9 +913,13 @@ namespace Tomahawk
 			}
 			Document Document::FromSource(TDocument* Src)
 			{
+#ifdef TH_HAS_MONGOC
 				TDocument* Dest = bson_new();
 				bson_steal(Dest, Src);
 				return Dest;
+#else
+				return nullptr;
+#endif
 			}
 
 			Address::Address(TAddress* NewBase) : Base(NewBase)

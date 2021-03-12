@@ -5159,7 +5159,7 @@ namespace Tomahawk
 				return false;
 
 			Sync.Tasks.lock();
-			Tasks.emplace_back(Callback);
+			Tasks.emplace(Callback);
 			Sync.Tasks.unlock();
 
 			if (!Async.Childs.empty())
@@ -5173,7 +5173,7 @@ namespace Tomahawk
 				return false;
 
 			Sync.Tasks.lock();
-			Tasks.emplace_back(std::move(Callback));
+			Tasks.emplace(std::move(Callback));
 			Sync.Tasks.unlock();
 
 			if (!Async.Childs.empty())
@@ -5184,7 +5184,7 @@ namespace Tomahawk
 		bool Schedule::SetEvent(const std::string& Name, const VariantArgs& Args)
 		{
 			Sync.Events.lock();
-			Events.emplace_back(Name, Args);
+			Events.emplace(Name, Args);
 			Sync.Events.unlock();
 
 			return true;
@@ -5192,7 +5192,7 @@ namespace Tomahawk
 		bool Schedule::SetEvent(const std::string& Name, VariantArgs&& Args)
 		{
 			Sync.Events.lock();
-			Events.emplace_back(Name, std::move(Args));
+			Events.emplace(Name, std::move(Args));
 			Sync.Events.unlock();
 
 			return true;
@@ -5200,7 +5200,7 @@ namespace Tomahawk
 		bool Schedule::SetEvent(const std::string& Name)
 		{
 			Sync.Events.lock();
-			Events.emplace_back(Name);
+			Events.emplace(Name);
 			Sync.Events.unlock();
 
 			return true;
@@ -5246,12 +5246,12 @@ namespace Tomahawk
 			if ((Type & EventType_Tasks) && !Tasks.empty())
 			{
 				Sync.Tasks.lock();
-				for (auto It = Tasks.begin(); It != Tasks.end(); It++)
+				while (!Tasks.empty())
 				{
-					EventTask Value(std::move(*It));
-					Tasks.erase(It);
-					Sync.Tasks.unlock();
+					EventTask Value(std::move(Tasks.front()));
+					Tasks.pop();
 
+					Sync.Tasks.unlock();
 					if (!NoCall && Value)
 						Value();
 
@@ -5263,12 +5263,12 @@ namespace Tomahawk
 			if ((Type & EventType_Events) && !Events.empty())
 			{
 				Sync.Events.lock();
-				for (auto It = Events.begin(); It != Events.end(); It++)
+				while (!Events.empty())
 				{
-					EventBase Value(std::move(*It));
-					Events.erase(It);
-					Sync.Events.unlock();
+					EventBase Value(std::move(Events.front()));
+					Events.pop();
 
+					Sync.Events.unlock();
 					if (NoCall)
 						return true;
 
@@ -5376,11 +5376,11 @@ namespace Tomahawk
 				Clear(EventType_Tasks | EventType_Events | EventType_Timers, false);
 
 			Sync.Tasks.lock();
-			Tasks.clear();
+			std::queue<EventTask>().swap(Tasks);
 			Sync.Tasks.unlock();
 
 			Sync.Events.lock();
-			Events.clear();
+			std::queue<EventBase>().swap(Events);
 			Sync.Events.unlock();
 
 			Sync.Listeners.lock();
@@ -5450,7 +5450,7 @@ namespace Tomahawk
 			}
 
 			EventBase Src(std::move(Events.front()));
-			Events.pop_front();
+			Events.pop();
 			Sync.Events.unlock();
 
 			Sync.Listeners.lock();
@@ -5486,9 +5486,9 @@ namespace Tomahawk
 			}
 
 			EventTask Src(std::move(Tasks.front()));
-			Tasks.pop_front();
-			Sync.Tasks.unlock();
+			Tasks.pop();
 
+			Sync.Tasks.unlock();
 			if (Src)
 				Src();
 
@@ -5504,21 +5504,14 @@ namespace Tomahawk
 					continue;
 
 				TimerCallback Callback = Element.Callback;
-				bool Deferred = Element.Alive;
-
-				if (Deferred)
+				if (Element.Alive)
 					Element.Time = Time;
 				else
 					Timers.erase(It);
 
 				Sync.Timers.unlock();
-				if (!Callback)
-					return false;
-
-				if (Deferred)
+				if (Callback)
 					SetTask(std::move(Callback));
-				else
-					Callback();
 
 				return true;
 			}

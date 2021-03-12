@@ -464,6 +464,7 @@ namespace Tomahawk
 		{
 			Network::Multiplexer::Release();
 			Network::MDB::Driver::Release();
+			Network::PDB::Driver::Release();
 #ifdef TH_MICROSOFT
 			WSACleanup();
 #endif

@@ -33,7 +33,6 @@ namespace Tomahawk
 			typedef _mongoc_client_t TConnection;
 			typedef _mongoc_change_stream_t TWatcher;
 			typedef _mongoc_client_session_t TTransaction;
-			typedef std::unordered_map<std::string, Core::Document*> QueryMap;
 
 			class Connection;
 
@@ -415,8 +414,8 @@ namespace Tomahawk
 				static bool AddQuery(const std::string& Name, const char* Buffer, size_t Size);
 				static bool AddDirectory(const std::string& Directory, const std::string& Origin = "");
 				static bool RemoveQuery(const std::string& Name);
-				static Document GetQuery(const std::string& Name, QueryMap* Map, bool Once = true);
-				static Document GetSubquery(const char* Buffer, QueryMap* Map, bool Once = true);
+				static Document GetQuery(const std::string& Name, Core::DocumentArgs* Map, bool Once = true);
+				static Document GetSubquery(const char* Buffer, Core::DocumentArgs* Map, bool Once = true);
 				static std::vector<std::string> GetQueries();
 
 			private:

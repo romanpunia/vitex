@@ -11,7 +11,7 @@
 #include <cstring>
 #include <functional>
 #include <vector>
-#include <deque>
+#include <queue>
 #include <string>
 #include <condition_variable>
 #include <atomic>
@@ -190,6 +190,7 @@ namespace Tomahawk
 
 		typedef std::vector<struct Variant> VariantList;
 		typedef std::unordered_map<std::string, struct Variant> VariantArgs;
+		typedef std::unordered_map<std::string, Document*> DocumentArgs;
 		typedef std::function<void(VariantArgs&)> EventCallback;
 		typedef std::function<void()> TaskCallback;
 		typedef std::function<void()> TimerCallback;
@@ -1031,9 +1032,9 @@ namespace Tomahawk
 
 		private:
 			std::unordered_map<std::string, EventListener> Listeners;
-			std::vector<EventTimer> Timers;
-			std::deque<EventTask> Tasks;
-			std::deque<EventBase> Events;
+			std::deque<EventTimer> Timers;
+			std::queue<EventTask> Tasks;
+			std::queue<EventBase> Events;
 			EventId Timer;
 			uint64_t Workers;
 			bool Terminate;

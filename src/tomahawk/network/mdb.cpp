@@ -2539,7 +2539,6 @@ namespace Tomahawk
 				{
 					Queries = new std::unordered_map<std::string, Sequence>();
 					Safe = new std::mutex();
-
 					mongoc_init();
 					State = 1;
 				}
@@ -2555,6 +2554,7 @@ namespace Tomahawk
 					if (Safe != nullptr)
 						Safe->lock();
 
+					State = 0;
 					if (Queries != nullptr)
 					{
 						for (auto& Query : *Queries)
@@ -2572,7 +2572,6 @@ namespace Tomahawk
 					}
 
 					mongoc_cleanup();
-					State = 0;
 				}
 				else if (State > 0)
 					State--;
@@ -2727,7 +2726,7 @@ namespace Tomahawk
 				Safe->unlock();
 				return true;
 			}
-			Document Driver::GetQuery(const std::string& Name, QueryMap* Map, bool Once)
+			Document Driver::GetQuery(const std::string& Name, Core::DocumentArgs* Map, bool Once)
 			{
 				if (!Queries || !Safe)
 					return nullptr;
@@ -2800,7 +2799,7 @@ namespace Tomahawk
 
 				return Data;
 			}
-			Document Driver::GetSubquery(const char* Buffer, QueryMap* Map, bool Once)
+			Document Driver::GetSubquery(const char* Buffer, Core::DocumentArgs* Map, bool Once)
 			{
 				if (!Buffer || Buffer[0] == '\0')
 				{

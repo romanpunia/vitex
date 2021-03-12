@@ -15,6 +15,7 @@
 #include "network/http.h"
 #include "network/smtp.h"
 #include "network/mdb.h"
+#include "network/pdb.h"
 #include "audio/effects.h"
 #include "audio/filters.h"
 #include "engine/components.h"

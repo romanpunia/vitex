@@ -16,6 +16,8 @@ namespace Tomahawk
 
 		class TH_OUT VMCAny
 		{
+			friend class VMCAsync;
+
 		protected:
 			struct ValueStruct
 			{
@@ -42,11 +44,7 @@ namespace Tomahawk
 			VMCAny& operator= (const VMCAny&);
 			int CopyFrom(const VMCAny* Other);
 			void Store(void* Ref, int RefTypeId);
-			void Store(as_int64_t& Value);
-			void Store(double& Value);
 			bool Retrieve(void* Ref, int RefTypeId) const;
-			bool Retrieve(as_int64_t& Value) const;
-			bool Retrieve(double& Value) const;
 			int GetTypeId() const;
 			int GetRefCount();
 			void SetFlag();
@@ -220,12 +218,8 @@ namespace Tomahawk
 			VMCMapKey(VMCManager* Engine, void* Value, int TypeId);
 			~VMCMapKey();
 			void Set(VMCManager* Engine, void* Value, int TypeId);
-			void Set(VMCManager* Engine, const as_int64_t& Value);
-			void Set(VMCManager* Engine, const double& Value);
 			void Set(VMCManager* Engine, VMCMapKey& Value);
 			bool Get(VMCManager* Engine, void* Value, int TypeId) const;
-			bool Get(VMCManager* Engine, as_int64_t& Value) const;
-			bool Get(VMCManager* Engine, double& Value) const;
 			const void* GetAddressOfValue() const;
 			int GetTypeId() const;
 			void FreeValue(VMCManager* Engine);
@@ -255,8 +249,6 @@ namespace Tomahawk
 				bool operator!=(const Iterator& Other) const;
 				const std::string& GetKey() const;
 				int GetTypeId() const;
-				bool GetValue(as_int64_t& Value) const;
-				bool GetValue(double& Value) const;
 				bool GetValue(void* Value, int TypeId) const;
 				const void* GetAddressOfValue() const;
 
@@ -287,11 +279,7 @@ namespace Tomahawk
 			void Release() const;
 			VMCMap& operator= (const VMCMap& Other);
 			void Set(const std::string& Key, void* Value, int TypeId);
-			void Set(const std::string& Key, const as_int64_t& Value);
-			void Set(const std::string& Key, const double& Value);
 			bool Get(const std::string& Key, void* Value, int TypeId) const;
-			bool Get(const std::string& Key, as_int64_t& Value) const;
-			bool Get(const std::string& Key, double& Value) const;
 			bool GetIndex(size_t Index, std::string* Key, void** Value, int* TypeId) const;
 			VMCMapKey* operator[](const std::string& Key);
 			const VMCMapKey* operator[](const std::string& Key) const;
@@ -539,6 +527,7 @@ namespace Tomahawk
 		private:
 			VMCContext* Context;
 			VMCAny* Any;
+			VMCTypeInfo* Type;
 			std::mutex Safe;
 			void* Refers;
 			bool Stored;
@@ -546,7 +535,7 @@ namespace Tomahawk
 			int Ref;
 
 		private:
-			VMCAsync(VMCContext* Base);
+			VMCAsync(VMCContext* Base, VMCTypeInfo* Info);
 
 		public:
 			void EnumReferences(VMCManager* Engine);
@@ -560,7 +549,8 @@ namespace Tomahawk
 			int Set(void* Ref, int TypeId);
 			int Set(void* Ref, const char* TypeId);
 			bool Retrieve(void* Ref, int TypeId);
-			VMCAny* Get();
+			void* Get();
+			VMCAny* GetSrc();
 			VMCAsync* Await();
 
 		public:

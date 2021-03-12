@@ -344,7 +344,7 @@ namespace Tomahawk
 		typedef std::function<void(struct VMTypeInfo*, struct VMFunction*)> MethodCallback;
 		typedef std::function<void(class VMManager*)> SubmoduleCallback;
 		typedef std::function<void(class VMContext*)> ArgsCallback;
-		typedef std::function<void(bool Failed)> ResumeCallback;
+		typedef std::function<void(bool Finished)> ResumeCallback;
 
         class TH_OUT VMFuncStore
         {

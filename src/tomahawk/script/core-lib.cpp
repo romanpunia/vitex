@@ -595,10 +595,7 @@ namespace Tomahawk
 			VMCMap* Map = VMCMap::Create(Manager->GetEngine());
 
 			for (auto& Item : Mapping)
-			{
-				as_int64_t V = Item.second;
-				Map->Set(Item.first, V);
-			}
+				Map->Set(Item.first, &Item.second, VMTypeId_INT64);
 
 			return Map;
 		}

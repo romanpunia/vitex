@@ -241,7 +241,7 @@ namespace Tomahawk
 
 			public:
 				GatewayFrame(char* Data, int64_t DataSize);
-				void Execute(bool Failed);
+				void Execute(bool Finished);
 				bool Finish();
 				bool Error();
 				bool Start();

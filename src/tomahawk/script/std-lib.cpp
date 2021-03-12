@@ -1099,7 +1099,6 @@ namespace Tomahawk
 		}
 		void VMCAny::Store(void* Ref, int RefTypeId)
 		{
-			assert(RefTypeId > asTYPEID_DOUBLE || RefTypeId == asTYPEID_VOID || RefTypeId == asTYPEID_BOOL || RefTypeId == asTYPEID_INT64 || RefTypeId == asTYPEID_DOUBLE);
 			if ((RefTypeId & asTYPEID_MASK_OBJECT))
 			{
 				VMCTypeInfo* T = Engine->GetTypeInfoById(RefTypeId);
@@ -1127,17 +1126,8 @@ namespace Tomahawk
 				memcpy(&Value.ValueInt, Ref, Size);
 			}
 		}
-		void VMCAny::Store(double& Ref)
-		{
-			Store(&Ref, asTYPEID_DOUBLE);
-		}
-		void VMCAny::Store(as_int64_t& Ref)
-		{
-			Store(&Ref, asTYPEID_INT64);
-		}
 		bool VMCAny::Retrieve(void* Ref, int RefTypeId) const
 		{
-			assert(RefTypeId > asTYPEID_DOUBLE || RefTypeId == asTYPEID_BOOL || RefTypeId == asTYPEID_INT64 || RefTypeId == asTYPEID_DOUBLE);
 			if (RefTypeId & asTYPEID_OBJHANDLE)
 			{
 				if ((Value.TypeId & asTYPEID_MASK_OBJECT))
@@ -1162,34 +1152,17 @@ namespace Tomahawk
 			}
 			else
 			{
-				if (Value.TypeId == RefTypeId)
-				{
-					int Size = Engine->GetSizeOfPrimitiveType(RefTypeId);
-					memcpy(Ref, &Value.ValueInt, Size);
-					return true;
-				}
+				int Size1 = Engine->GetSizeOfPrimitiveType(Value.TypeId);
+				int Size2 = Engine->GetSizeOfPrimitiveType(RefTypeId);
 
-				if (Value.TypeId == asTYPEID_INT64 && RefTypeId == asTYPEID_DOUBLE)
+				if (Size1 == Size2)
 				{
-					*(double*)Ref = double(Value.ValueInt);
-					return true;
-				}
-				else if (Value.TypeId == asTYPEID_DOUBLE && RefTypeId == asTYPEID_INT64)
-				{
-					*(as_int64_t*)Ref = as_int64_t(Value.ValueFlt);
+					memcpy(Ref, &Value.ValueInt, Size1);
 					return true;
 				}
 			}
 
 			return false;
-		}
-		bool VMCAny::Retrieve(as_int64_t& OutValue) const
-		{
-			return Retrieve(&OutValue, asTYPEID_INT64);
-		}
-		bool VMCAny::Retrieve(double& OutValue) const
-		{
-			return Retrieve(&OutValue, asTYPEID_DOUBLE);
 		}
 		int VMCAny::GetTypeId() const
 		{
@@ -2578,14 +2551,6 @@ namespace Tomahawk
 			else
 				Set(engine, (void*)&value.ValueInt, value.TypeId);
 		}
-		void VMCMapKey::Set(VMCManager *engine, const as_int64_t &value)
-		{
-			Set(engine, const_cast<as_int64_t*>(&value), asTYPEID_INT64);
-		}
-		void VMCMapKey::Set(VMCManager *engine, const double &value)
-		{
-			Set(engine, const_cast<double*>(&value), asTYPEID_DOUBLE);
-		}
 		bool VMCMapKey::Get(VMCManager *engine, void *value, int typeId) const
 		{
 			if (typeId & asTYPEID_OBJHANDLE)
@@ -2732,14 +2697,6 @@ namespace Tomahawk
 
 			return reinterpret_cast<const void*>(&ValueObj);
 		}
-		bool VMCMapKey::Get(VMCManager *engine, as_int64_t &value) const
-		{
-			return Get(engine, &value, asTYPEID_INT64);
-		}
-		bool VMCMapKey::Get(VMCManager *engine, double &value) const
-		{
-			return Get(engine, &value, asTYPEID_DOUBLE);
-		}
 		int VMCMapKey::GetTypeId() const
 		{
 			return TypeId;
@@ -2775,14 +2732,6 @@ namespace Tomahawk
 		int VMCMap::Iterator::GetTypeId() const
 		{
 			return It->second.TypeId;
-		}
-		bool VMCMap::Iterator::GetValue(as_int64_t &value) const
-		{
-			return It->second.Get(Dict.Engine, &value, asTYPEID_INT64);
-		}
-		bool VMCMap::Iterator::GetValue(double &value) const
-		{
-			return It->second.Get(Dict.Engine, &value, asTYPEID_DOUBLE);
 		}
 		bool VMCMap::Iterator::GetValue(void *value, int typeId) const
 		{
@@ -2869,9 +2818,9 @@ namespace Tomahawk
 					}
 
 					if (typeId >= asTYPEID_FLOAT)
-						Set(name, d);
+						Set(name, &d, asTYPEID_DOUBLE);
 					else
-						Set(name, i64);
+						Set(name, &i64, asTYPEID_INT64);
 				}
 				else
 				{
@@ -2990,14 +2939,6 @@ namespace Tomahawk
 
 			it->second.Set(Engine, value, typeId);
 		}
-		void VMCMap::Set(const std::string &key, const as_int64_t &value)
-		{
-			Set(key, const_cast<as_int64_t*>(&value), asTYPEID_INT64);
-		}
-		void VMCMap::Set(const std::string &key, const double &value)
-		{
-			Set(key, const_cast<double*>(&value), asTYPEID_DOUBLE);
-		}
 		bool VMCMap::Get(const std::string &key, void *value, int typeId) const
 		{
 			Map::const_iterator it;
@@ -3040,14 +2981,6 @@ namespace Tomahawk
 				return it->second.TypeId;
 
 			return -1;
-		}
-		bool VMCMap::Get(const std::string &key, as_int64_t &value) const
-		{
-			return Get(key, &value, asTYPEID_INT64);
-		}
-		bool VMCMap::Get(const std::string &key, double &value) const
-		{
-			return Get(key, &value, asTYPEID_DOUBLE);
 		}
 		bool VMCMap::Exists(const std::string &key) const
 		{
@@ -4333,7 +4266,7 @@ namespace Tomahawk
 		int VMCThread::ContextUD = 550;
 		int VMCThread::EngineListUD = 551;
 
-		VMCAsync::VMCAsync(VMCContext* Base) : Context(Base), Any(nullptr), Stored(false), Ref(2), GCFlag(false), Refers(nullptr)
+		VMCAsync::VMCAsync(VMCContext* Base, VMCTypeInfo* Info) : Context(Base), Type(Info), Refers(nullptr), Any(nullptr), Stored(false), Ref(2), GCFlag(false)
 		{
 			if (!Context)
 				return;
@@ -4450,7 +4383,33 @@ namespace Tomahawk
 
 			return Any->Retrieve(Ref, TypeId);
 		}
-		VMCAny* VMCAsync::Get()
+		void* VMCAsync::Get()
+		{
+			if (!Any)
+				return nullptr;
+
+			int TypeId = Any->GetTypeId(), RefTypeId = (Type ? Type->GetTypeId() : -1);
+			if (RefTypeId != -1 && RefTypeId != TypeId)
+			{
+				VMCManager* Engine = Context->GetEngine();
+				const char* From = Engine->GetTypeDeclaration(TypeId);
+				const char* To = Engine->GetTypeDeclaration(RefTypeId);
+
+				Context->SetException(Core::Form("cannot convert from %s to %s", (From ? From : "[undefined]"), (To ? To : "[undefined]")).Get());
+				return nullptr;
+			}
+
+			if (TypeId & asTYPEID_OBJHANDLE)
+				return &Any->Value.ValueObj;
+			else if (TypeId & asTYPEID_MASK_OBJECT)
+				return Any->Value.ValueObj;
+			else if (TypeId <= asTYPEID_DOUBLE)
+				return &Any->Value.ValueInt;
+
+			Context->SetException("retrieve this object explicitly with To(T& out)");
+			return nullptr;
+		}
+		VMCAny* VMCAsync::GetSrc()
 		{
 			return Any;
 		}
@@ -4464,7 +4423,7 @@ namespace Tomahawk
 
 			return this;
 		}
-		VMCAsync* VMCAsync::Promise(VMCTypeInfo*)
+		VMCAsync* VMCAsync::Promise(VMCTypeInfo* Info)
 		{
 			VMCContext* Context = asGetActiveContext();
 			if (!Context)
@@ -4474,7 +4433,7 @@ namespace Tomahawk
 			if (!Engine)
 				return nullptr;
 
-			VMCAsync* Async = new VMCAsync(Context);
+			VMCAsync* Async = new VMCAsync(Context, Info);
 			Engine->NotifyGarbageCollectorOfNewObject(Async, Engine->GetTypeInfoByName("Async"));
 
 			return Async;
@@ -4489,7 +4448,7 @@ namespace Tomahawk
 			if (!Engine)
 				return nullptr;
 
-			VMCAsync* Async = new VMCAsync(Context);
+			VMCAsync* Async = new VMCAsync(Context, nullptr);
 			Engine->NotifyGarbageCollectorOfNewObject(Async, Engine->GetTypeInfoByName("Async"));
 			Async->Set(Ref, TypeId);
 
@@ -4505,7 +4464,7 @@ namespace Tomahawk
 			if (!Engine)
 				return nullptr;
 
-			VMCAsync* Async = new VMCAsync(Context);
+			VMCAsync* Async = new VMCAsync(Context, nullptr);
 			Engine->NotifyGarbageCollectorOfNewObject(Async, Engine->GetTypeInfoByName("Async"));
 			Async->Set(Ref, Engine->GetTypeIdByDecl(TypeName));
 
@@ -4532,11 +4491,7 @@ namespace Tomahawk
 			Engine->RegisterObjectBehaviour("Any", asBEHAVE_RELEASEREFS, "void f(int&in)", asMETHOD(VMCAny, ReleaseAllHandles), asCALL_THISCALL);
 			Engine->RegisterObjectMethod("Any", "Any &opAssign(Any&in)", asFUNCTION(AnyAssignment), asCALL_CDECL_OBJLAST);
 			Engine->RegisterObjectMethod("Any", "void Store(?&in)", asMETHODPR(VMCAny, Store, (void*, int), void), asCALL_THISCALL);
-			Engine->RegisterObjectMethod("Any", "void Store(const int64&in)", asMETHODPR(VMCAny, Store, (as_int64_t&), void), asCALL_THISCALL);
-			Engine->RegisterObjectMethod("Any", "void Store(const double&in)", asMETHODPR(VMCAny, Store, (double&), void), asCALL_THISCALL);
 			Engine->RegisterObjectMethod("Any", "bool Retrieve(?&out)", asMETHODPR(VMCAny, Retrieve, (void*, int) const, bool), asCALL_THISCALL);
-			Engine->RegisterObjectMethod("Any", "bool Retrieve(int64&out)", asMETHODPR(VMCAny, Retrieve, (as_int64_t&) const, bool), asCALL_THISCALL);
-			Engine->RegisterObjectMethod("Any", "bool Retrieve(double&out)", asMETHODPR(VMCAny, Retrieve, (double&) const, bool), asCALL_THISCALL);
 			return true;
 		}
 		bool RegisterArrayAPI(VMManager* Manager)
@@ -4647,10 +4602,6 @@ namespace Tomahawk
 			Engine->RegisterObjectMethod("Map", "Map &opAssign(const Map &in)", asMETHODPR(VMCMap, operator=, (const VMCMap &), VMCMap&), asCALL_THISCALL);
 			Engine->RegisterObjectMethod("Map", "void Set(const String &in, const ?&in)", asMETHODPR(VMCMap, Set, (const std::string&, void*, int), void), asCALL_THISCALL);
 			Engine->RegisterObjectMethod("Map", "bool Get(const String &in, ?&out) const", asMETHODPR(VMCMap, Get, (const std::string&, void*, int) const, bool), asCALL_THISCALL);
-			Engine->RegisterObjectMethod("Map", "void Set(const String &in, const int64&in)", asMETHODPR(VMCMap, Set, (const std::string&, const as_int64_t&), void), asCALL_THISCALL);
-			Engine->RegisterObjectMethod("Map", "bool Get(const String &in, int64&out) const", asMETHODPR(VMCMap, Get, (const std::string&, as_int64_t&) const, bool), asCALL_THISCALL);
-			Engine->RegisterObjectMethod("Map", "void Set(const String &in, const double&in)", asMETHODPR(VMCMap, Set, (const std::string&, const double&), void), asCALL_THISCALL);
-			Engine->RegisterObjectMethod("Map", "bool Get(const String &in, double&out) const", asMETHODPR(VMCMap, Get, (const std::string&, double&) const, bool), asCALL_THISCALL);
 			Engine->RegisterObjectMethod("Map", "bool Exists(const String &in) const", asMETHOD(VMCMap, Exists), asCALL_THISCALL);
 			Engine->RegisterObjectMethod("Map", "bool IsEmpty() const", asMETHOD(VMCMap, IsEmpty), asCALL_THISCALL);
 			Engine->RegisterObjectMethod("Map", "uint GetSize() const", asMETHOD(VMCMap, GetSize), asCALL_THISCALL);
@@ -4951,7 +4902,8 @@ namespace Tomahawk
 			Engine->RegisterObjectBehaviour("Async<T>", asBEHAVE_ENUMREFS, "void f(int&in)", asMETHOD(VMCAsync, EnumReferences), asCALL_THISCALL);
 			Engine->RegisterObjectBehaviour("Async<T>", asBEHAVE_RELEASEREFS, "void f(int&in)", asMETHOD(VMCAsync, ReleaseReferences), asCALL_THISCALL);
 			Engine->RegisterObjectMethod("Async<T>", "void Set(const ?&in)", asMETHODPR(VMCAsync, Set, (void*, int), int), asCALL_THISCALL);
-			Engine->RegisterObjectMethod("Async<T>", "Any@+ Get()", asMETHOD(VMCAsync, Get), asCALL_THISCALL);
+			Engine->RegisterObjectMethod("Async<T>", "Any@+ GetSrc()", asMETHOD(VMCAsync, GetSrc), asCALL_THISCALL);
+			Engine->RegisterObjectMethod("Async<T>", "const T& Get()", asMETHOD(VMCAsync, Get), asCALL_THISCALL);
 			Engine->RegisterObjectMethod("Async<T>", "bool To(?&out)", asMETHODPR(VMCAsync, Retrieve, (void*, int), bool), asCALL_THISCALL);
 			Engine->RegisterObjectMethod("Async<T>", "Async<T>@+ Await()", asMETHOD(VMCAsync, Await), asCALL_THISCALL);
 			return true;

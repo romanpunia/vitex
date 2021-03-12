@@ -153,16 +153,16 @@ namespace Tomahawk
 			GatewayFrame::GatewayFrame(char* Data, int64_t DataSize) : Buffer(Data), Size(DataSize), Compiler(nullptr), Base(nullptr), Save(false)
 			{
 			}
-			void GatewayFrame::Execute(bool Failed)
+			void GatewayFrame::Execute(bool Finished)
 			{
 				if (Base->WebSocket != nullptr)
 				{
-					if (Failed)
+					if (Finished)
 						Base->WebSocket->Finish();
 					else
 						Base->WebSocket->Next();
 				}
-				else if (Failed)
+				else if (Finished)
 					Finish();
 			}
 			bool GatewayFrame::Done(bool Normal)

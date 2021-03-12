@@ -2856,7 +2856,7 @@ namespace Tomahawk
 			}
 
 			State = (asEContextState)Context->Execute();
-			Resolve(State != asEXECUTION_FINISHED && State != asEXECUTION_SUSPENDED);
+			Resolve(State == asEXECUTION_FINISHED || State == asEXECUTION_ABORTED || State == asEXECUTION_EXCEPTION || State == asEXECUTION_ERROR);
 
 			return State;
 		}

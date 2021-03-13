@@ -353,6 +353,7 @@ namespace Tomahawk
 			}
 			std::string Driver::GetCharArray(Connection* Base, const std::string& Src)
 			{
+#ifdef TH_HAS_POSTGRESQL
 				if (Src.empty())
 					return "''";
 
@@ -364,14 +365,18 @@ namespace Tomahawk
 				PQfreemem(Subresult);
 
 				return Result;
+#else
+				return "'" + Src + "'";
+#endif
 			}
 			std::string Driver::GetByteArray(Connection* Base, const char* Src, size_t Size)
 			{
+#ifdef TH_HAS_POSTGRESQL
 				if (!Src || !Size)
 					return "''";
 
 				if (!Base || !Base->Get())
-					return "'" + std::string(Src, Size) + "'";
+					return "'\\x" + Compute::Common::BinToHex(Src, Size) + "'::bytea";
 
 				size_t Length = 0;
 				char* Subresult = (char*)PQescapeByteaConn(Base->Get(), (unsigned char*)Src, Size, &Length);
@@ -379,6 +384,9 @@ namespace Tomahawk
 				PQfreemem((unsigned char*)Subresult);
 
 				return Result;
+#else
+				return "'\\x" + Compute::Common::BinToHex(Src, Size) + "'::bytea";
+#endif
 			}
 			std::string Driver::GetSQL(Connection* Base, Core::Document* Source)
 			{

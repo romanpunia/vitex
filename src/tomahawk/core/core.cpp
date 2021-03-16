@@ -116,6 +116,18 @@ namespace
 		if (Length >= (sizeof(WBuffer) / sizeof(WBuffer[0])) || UnicodeCompare(Input, WBuffer) != 0)
 			Input[0] = L'\0';
 	}
+	bool LocalTime(time_t const* const A, struct tm* const B)
+	{
+		return localtime_s(B, A) == 0;
+	}
+}
+#else
+namespace
+{
+	bool LocalTime(time_t const* const A, struct tm* const B)
+	{
+		return localtime_r(A, B) != nullptr;
+	}
 }
 #endif
 
@@ -574,13 +586,14 @@ namespace Tomahawk
 		}
 		std::string DateTime::Date(const std::string& Value)
 		{
+			auto Offset = std::chrono::system_clock::to_time_t(std::chrono::system_clock::time_point(Time));
 			if (DateRebuild)
 				Rebuild();
 
 			struct tm T;
-			auto Offset = std::chrono::system_clock::to_time_t(std::chrono::system_clock::time_point(Time));
+			if (!LocalTime(&Offset, &T))
+				return Value;
 
-			localtime_s(&T, &Offset);
 			T.tm_mon++;
 			T.tm_year += 1900;
 
@@ -701,7 +714,7 @@ namespace Tomahawk
 				{
 					time_t TimeNow;
 					time(&TimeNow);
-					localtime_s(&DateValue, &TimeNow);
+					LocalTime(&TimeNow, &DateValue);
 				}
 				DateRebuild = true;
 			}
@@ -720,7 +733,7 @@ namespace Tomahawk
 				{
 					time_t TimeNow;
 					time(&TimeNow);
-					localtime_s(&DateValue, &TimeNow);
+					LocalTime(&TimeNow, &DateValue);
 				}
 				DateRebuild = true;
 			}
@@ -741,7 +754,7 @@ namespace Tomahawk
 				{
 					time_t TimeNow;
 					time(&TimeNow);
-					localtime_s(&DateValue, &TimeNow);
+					LocalTime(&TimeNow, &DateValue);
 				}
 				DateRebuild = true;
 			}
@@ -762,7 +775,7 @@ namespace Tomahawk
 				{
 					time_t TimeNow;
 					time(&TimeNow);
-					localtime_s(&DateValue, &TimeNow);
+					LocalTime(&TimeNow, &DateValue);
 				}
 				DateRebuild = true;
 			}
@@ -797,7 +810,7 @@ namespace Tomahawk
 				{
 					time_t TimeNow;
 					time(&TimeNow);
-					localtime_s(&DateValue, &TimeNow);
+					LocalTime(&TimeNow, &DateValue);
 				}
 				DateRebuild = true;
 			}
@@ -818,7 +831,7 @@ namespace Tomahawk
 				{
 					time_t TimeNow;
 					time(&TimeNow);
-					localtime_s(&DateValue, &TimeNow);
+					LocalTime(&TimeNow, &DateValue);
 				}
 				DateRebuild = true;
 			}
@@ -839,7 +852,7 @@ namespace Tomahawk
 				{
 					time_t TimeNow;
 					time(&TimeNow);
-					localtime_s(&DateValue, &TimeNow);
+					LocalTime(&TimeNow, &DateValue);
 				}
 				DateRebuild = true;
 			}
@@ -1006,7 +1019,7 @@ namespace Tomahawk
 		}
 		bool DateTime::TimeFormatLCL(char* Buffer, uint64_t Length, int64_t Time)
 		{
-			auto TimeStamp = (time_t)Time;
+			time_t TimeStamp = (time_t)Time;
 			struct tm Date
 			{
 			};
@@ -1041,12 +1054,12 @@ namespace Tomahawk
 			Date.tm_yday = doy;
 			strftime(Buffer, Length, "%d-%b-%Y %H:%M", &Date);
 #elif defined(_WIN32)
-			if (localtime_s(&Date, &TimeStamp) != 0)
+			if (!LocalTime(&TimeStamp, &Date))
 				strncpy(Buffer, "01-Jan-1970 00:00", (size_t)Length);
 			else
 				strftime(Buffer, (size_t)Length, "%d-%b-%Y %H:%M", &Date);
 #else
-			if (localtime_r(&TimeStamp, &Date) == nullptr)
+			if (!LocalTime(&TimeStamp, &Date))
 				strncpy(Buffer, "01-Jan-1970 00:00", Length);
 			else
 				strftime(Buffer, Length, "%d-%b-%Y %H:%M", &Date);
@@ -4265,7 +4278,7 @@ namespace Tomahawk
 				return false;
 
 			struct tm Time;
-			localtime_s(&Time, &State.st_ctime);
+			LocalTime(&State.st_ctime, &Time);
 			Resource->CreationTime = mktime(&Time);
 			Resource->Size = (uint64_t)(State.st_size);
 			Resource->LastModified = State.st_mtime;

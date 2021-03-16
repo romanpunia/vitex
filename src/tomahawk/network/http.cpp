@@ -1889,12 +1889,15 @@ namespace Tomahawk
 				if (!Core::OS::Directory::Scan(Path, &Entries))
 					return false;
 
+				bool Split = (Path.back() != '\\' && Path.back() != '/');
 				for (auto It = Entries.begin(); It != Entries.end(); It++)
 				{
 					if (It->Source.IsDirectory)
 						continue;
 
-					// TODO: Invalidate session cache
+					std::string Filename = (Split ? Path + '/' : Path) + It->Path;
+					if (!Core::OS::File::Remove(Filename.c_str()))
+						TH_ERROR("couldn't invalidate session\n\t%s", It->Path.c_str());
 				}
 
 				return true;
@@ -1905,11 +1908,7 @@ namespace Tomahawk
 			}
 			Parser::~Parser()
 			{
-				if (Multipart.Boundary)
-				{
-					delete Multipart.Boundary;
-					Multipart.Boundary = nullptr;
-				}
+				TH_FREE(Multipart.Boundary);
 			}
 			int64_t Parser::MultipartParse(const char* Boundary, const char* Buffer, int64_t Length)
 			{
@@ -1919,7 +1918,7 @@ namespace Tomahawk
 						return -1;
 
 					if (Multipart.Boundary)
-						delete Multipart.Boundary;
+						TH_FREE(Multipart.Boundary);
 
 					Multipart.Length = strlen(Boundary);
 					Multipart.Boundary = (char*)TH_MALLOC(sizeof(char) * (size_t)(Multipart.Length * 2 + 9));
@@ -4802,7 +4801,8 @@ namespace Tomahawk
 				Compute::Common::Sha1Compute(Buffer, (int)strlen(Buffer), (unsigned char*)Encoded20);
 
 				Core::Parser Content;
-				Content.fAppend("HTTP/1.1 101 Switching Protocols\r\n"
+				Content.fAppend(
+					"HTTP/1.1 101 Switching Protocols\r\n"
 					"Upgrade: websocket\r\n"
 					"Connection: Upgrade\r\n"
 					"Sec-WebSocket-Accept: %s\r\n", Compute::Common::Base64Encode((const unsigned char*)Encoded20, 20).c_str());
@@ -4812,7 +4812,7 @@ namespace Tomahawk
 				{
 					const char* Offset = strchr(Protocol, ',');
 					if (Offset != nullptr)
-						Content.fAppend("Sec-WebSocket-Protocol: %.*s\r\n", (size_t)(Offset - Protocol), Protocol);
+						Content.fAppend("Sec-WebSocket-Protocol: %.*s\r\n", (int)(Offset - Protocol), Protocol);
 					else
 						Content.fAppend("Sec-WebSocket-Protocol: %s\r\n", Protocol);
 				}

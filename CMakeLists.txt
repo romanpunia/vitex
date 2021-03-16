@@ -1,8 +1,10 @@
 cmake_minimum_required(VERSION 3.6)
 cmake_policy(SET CMP0054 NEW)
 
-#Project's package support for non-UNIX platforms
-include(lib/package/CMakeLists.txt)
+#Set standard toolchain file if any
+if (DEFINED ENV{VCPKG_ROOT} AND NOT DEFINED CMAKE_TOOLCHAIN_FILE)
+    set(CMAKE_TOOLCHAIN_FILE "$ENV{VCPKG_ROOT}/scripts/buildsystems/vcpkg.cmake" CACHE STRING "")
+endif()
 
 #Project's metadata
 project(tomahawk)
@@ -22,13 +24,13 @@ if (NOT DEFINED CMAKE_LIBRARY_OUTPUT_DIRECTORY)
 	set(CMAKE_LIBRARY_OUTPUT_DIRECTORY_RELEASE ${CMAKE_SOURCE_DIR}/bin)
 endif()
 
-#Global option required to process RmlUi
+#RmlUi's FreeType resolver
 set(TH_USE_FREETYPE ON CACHE BOOL "Enable FreeType library")
 
-#Project's source resolver
-include(lib/source/CMakeLists.txt)
+#Project's inputs
+include(lib/targets.cmake)
 
-#Project's compile options
+#Project's outputs
 add_library(tomahawk SHARED ${SOURCE})
 set_target_properties(tomahawk PROPERTIES
         OUTPUT_NAME "tomahawk"
@@ -36,16 +38,14 @@ set_target_properties(tomahawk PROPERTIES
         VERSION ${PROJECT_VERSION}
         SOVERSION ${PROJECT_VERSION})
 target_compile_definitions(tomahawk PRIVATE
-		-DNOMINMAX
 		-D_GNU_SOURCE
-		-DTH_EXPORT)
+		-DTH_EXPORT
+		-DNOMINMAX)
 
-#Project's options
-set(TH_INFO true CACHE BOOL "allow to log info messages")
-set(TH_WARN true CACHE BOOL "allow to log warning messages")
-set(TH_ERROR true CACHE BOOL "allow to log error messages")
-
-#Project's log level
+#Project's logging
+set(TH_INFO true CACHE BOOL "Allow to log info messages")
+set(TH_WARN true CACHE BOOL "Allow to log warning messages")
+set(TH_ERROR true CACHE BOOL "Allow to log error messages")
 if (TH_INFO AND TH_WARN AND TH_ERROR)
     target_compile_definitions(tomahawk PUBLIC -DTH_DLEVEL=3)
 elseif (TH_WARN AND TH_ERROR)
@@ -56,32 +56,29 @@ else()
     target_compile_definitions(tomahawk PUBLIC -DTH_DLEVEL=0)
 endif()
 
-#Project's compiler support for non-UNIX platforms
-include(lib/compiler/CMakeLists.txt)
+#Project's options
+include(lib/options.cmake)
 
-#Project's external dependency resolvers
-include(lib/external/openssl/CMakeLists.txt)
-include(lib/external/openal/CMakeLists.txt)
-include(lib/external/opengl/CMakeLists.txt)
-include(lib/external/d3d11/CMakeLists.txt)
-include(lib/external/glew/CMakeLists.txt)
-include(lib/external/zlib/CMakeLists.txt)
-include(lib/external/sdl2/CMakeLists.txt)
-include(lib/external/freetype/CMakeLists.txt)
-include(lib/external/assimp/CMakeLists.txt)
-include(lib/external/mongoc/CMakeLists.txt)
-include(lib/external/pq/CMakeLists.txt)
+#Project's dependency resolvers
+include(lib/openssl/CMakeLists.txt)
+include(lib/openal/CMakeLists.txt)
+include(lib/opengl/CMakeLists.txt)
+include(lib/d3d11/CMakeLists.txt)
+include(lib/glew/CMakeLists.txt)
+include(lib/zlib/CMakeLists.txt)
+include(lib/sdl2/CMakeLists.txt)
+include(lib/freetype/CMakeLists.txt)
+include(lib/assimp/CMakeLists.txt)
+include(lib/mongoc/CMakeLists.txt)
+include(lib/pq/CMakeLists.txt)
 
-#Project's internal dependency resolvers
-include(src/internal/angelscript/CMakeLists.txt)
-include(src/internal/bullet3/CMakeLists.txt)
-include(src/internal/rmlui/CMakeLists.txt)
-include(src/internal/tinyfiledialogs/CMakeLists.txt)
-include(src/internal/rapidxml/CMakeLists.txt)
-include(src/internal/rapidjson/CMakeLists.txt)
-include(src/internal/stb/CMakeLists.txt)
-include(src/internal/wepoll/CMakeLists.txt)
-
-#Project's target and installation
+#Project's source resolvers
+include(src/supplies/angelscript/CMakeLists.txt)
+include(src/supplies/bullet3/CMakeLists.txt)
+include(src/supplies/rmlui/CMakeLists.txt)
+include(src/supplies/tinyfiledialogs/CMakeLists.txt)
+include(src/supplies/rapidxml/CMakeLists.txt)
+include(src/supplies/rapidjson/CMakeLists.txt)
+include(src/supplies/stb/CMakeLists.txt)
+include(src/supplies/wepoll/CMakeLists.txt)
 include(src/tomahawk/CMakeLists.txt)
-include(lib/install/CMakeLists.txt)

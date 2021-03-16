@@ -462,8 +462,8 @@ namespace Tomahawk
 
 						if (!UserChallenge || !UserPassword)
 						{
-							delete UserChallenge;
-							delete UserPassword;
+							TH_FREE(UserChallenge);
+							TH_FREE(UserPassword);
 							return (void)Error("smtp password cannot be used");
 						}
 
@@ -474,7 +474,7 @@ namespace Tomahawk
 							PasswordMD5.Update(UserPassword, (unsigned int)PasswordLength);
 							PasswordMD5.Finalize();
 
-							delete UserPassword;
+							TH_FREE(UserPassword);
 							UserPassword = PasswordMD5.RawDigest();
 							PasswordLength = 16;
 						}
@@ -503,14 +503,14 @@ namespace Tomahawk
 						MD5Pass2.Finalize();
 						const char* UserBase = MD5Pass2.HexDigest();
 
-						delete UserChallenge;
-						delete UserPassword;
-						delete UserResult;
+						TH_FREE(UserChallenge);
+						TH_FREE(UserPassword);
+						TH_FREE(UserResult);
 
 						DecodedChallenge = Request.Login + ' ' + UserBase;
 						EncodedChallenge = Compute::Common::Base64Encode(reinterpret_cast<const unsigned char*>(DecodedChallenge.c_str()), DecodedChallenge.size());
 
-						delete UserBase;
+						TH_FREE((void*)UserBase);
 						SendRequest(235, Core::Form("%s\r\n", EncodedChallenge.c_str()).R(), [this, Callback]()
 						{
 							Authorized = true;
@@ -596,7 +596,7 @@ namespace Tomahawk
 						MD5A2.Finalize();
 						char* UserA2A = MD5A2.HexDigest();
 
-						delete UserA1A;
+						TH_FREE(UserA1A);
 						UserA1A = Unicode(UserA1B);
 						unsigned char* UserA2B = Unicode(UserA2A);
 
@@ -615,18 +615,18 @@ namespace Tomahawk
 						MD5Pass.Finalize();
 						DecodedChallenge = MD5Pass.HexDigest();
 
-						delete UserRealm;
-						delete UserUsername;
-						delete UserPassword;
-						delete UserNonce;
-						delete UserCNonce;
-						delete UserUri;
-						delete UserNc;
-						delete UserQop;
-						delete UserA1A;
-						delete UserA1B;
-						delete UserA2A;
-						delete UserA2B;
+						TH_FREE(UserRealm);
+						TH_FREE(UserUsername);
+						TH_FREE(UserPassword);
+						TH_FREE(UserNonce);
+						TH_FREE(UserCNonce);
+						TH_FREE(UserUri);
+						TH_FREE(UserNc);
+						TH_FREE(UserQop);
+						TH_FREE(UserA1A);
+						TH_FREE(UserA1B);
+						TH_FREE(UserA2A);
+						TH_FREE(UserA2B);
 
 						Core::Parser Content;
 						if (strstr(Command.c_str(), "charset") != nullptr)

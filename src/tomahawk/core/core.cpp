@@ -577,12 +577,14 @@ namespace Tomahawk
 			if (DateRebuild)
 				Rebuild();
 
+			struct tm T;
 			auto Offset = std::chrono::system_clock::to_time_t(std::chrono::system_clock::time_point(Time));
-			tm* T = std::localtime(&Offset);
-			T->tm_mon++;
-			T->tm_year += 1900;
 
-			return Parser(Value).Replace("{s}", T->tm_sec < 10 ? Form("0%i", T->tm_sec).R() : std::to_string(T->tm_sec)).Replace("{m}", T->tm_min < 10 ? Form("0%i", T->tm_min).R() : std::to_string(T->tm_min)).Replace("{h}", std::to_string(T->tm_hour)).Replace("{D}", std::to_string(T->tm_yday)).Replace("{MD}", T->tm_mday < 10 ? Form("0%i", T->tm_mday).R() : std::to_string(T->tm_mday)).Replace("{WD}", std::to_string(T->tm_wday + 1)).Replace("{M}", T->tm_mon < 10 ? Form("0%i", T->tm_mon).R() : std::to_string(T->tm_mon)).Replace("{Y}", std::to_string(T->tm_year)).R();
+			localtime_s(&T, &Offset);
+			T.tm_mon++;
+			T.tm_year += 1900;
+
+			return Parser(Value).Replace("{s}", T.tm_sec < 10 ? Form("0%i", T.tm_sec).R() : std::to_string(T.tm_sec)).Replace("{m}", T.tm_min < 10 ? Form("0%i", T.tm_min).R() : std::to_string(T.tm_min)).Replace("{h}", std::to_string(T.tm_hour)).Replace("{D}", std::to_string(T.tm_yday)).Replace("{MD}", T.tm_mday < 10 ? Form("0%i", T.tm_mday).R() : std::to_string(T.tm_mday)).Replace("{WD}", std::to_string(T.tm_wday + 1)).Replace("{M}", T.tm_mon < 10 ? Form("0%i", T.tm_mon).R() : std::to_string(T.tm_mon)).Replace("{Y}", std::to_string(T.tm_year)).R();
 		}
 		DateTime DateTime::Now()
 		{
@@ -699,7 +701,7 @@ namespace Tomahawk
 				{
 					time_t TimeNow;
 					time(&TimeNow);
-					DateValue = *localtime(&TimeNow);
+					localtime_s(&DateValue, &TimeNow);
 				}
 				DateRebuild = true;
 			}
@@ -718,7 +720,7 @@ namespace Tomahawk
 				{
 					time_t TimeNow;
 					time(&TimeNow);
-					DateValue = *localtime(&TimeNow);
+					localtime_s(&DateValue, &TimeNow);
 				}
 				DateRebuild = true;
 			}
@@ -739,7 +741,7 @@ namespace Tomahawk
 				{
 					time_t TimeNow;
 					time(&TimeNow);
-					DateValue = *localtime(&TimeNow);
+					localtime_s(&DateValue, &TimeNow);
 				}
 				DateRebuild = true;
 			}
@@ -760,7 +762,7 @@ namespace Tomahawk
 				{
 					time_t TimeNow;
 					time(&TimeNow);
-					DateValue = *localtime(&TimeNow);
+					localtime_s(&DateValue, &TimeNow);
 				}
 				DateRebuild = true;
 			}
@@ -795,7 +797,7 @@ namespace Tomahawk
 				{
 					time_t TimeNow;
 					time(&TimeNow);
-					DateValue = *localtime(&TimeNow);
+					localtime_s(&DateValue, &TimeNow);
 				}
 				DateRebuild = true;
 			}
@@ -816,7 +818,7 @@ namespace Tomahawk
 				{
 					time_t TimeNow;
 					time(&TimeNow);
-					DateValue = *localtime(&TimeNow);
+					localtime_s(&DateValue, &TimeNow);
 				}
 				DateRebuild = true;
 			}
@@ -837,7 +839,7 @@ namespace Tomahawk
 				{
 					time_t TimeNow;
 					time(&TimeNow);
-					DateValue = *localtime(&TimeNow);
+					localtime_s(&DateValue, &TimeNow);
 				}
 				DateRebuild = true;
 			}
@@ -4262,8 +4264,9 @@ namespace Tomahawk
 			if (stat(Path.c_str(), &State) != 0)
 				return false;
 
-			struct tm* Time = localtime(&State.st_ctime);
-			Resource->CreationTime = mktime(Time);
+			struct tm Time;
+			localtime_s(&Time, &State.st_ctime);
+			Resource->CreationTime = mktime(&Time);
 			Resource->Size = (uint64_t)(State.st_size);
 			Resource->LastModified = State.st_mtime;
 			Resource->IsDirectory = S_ISDIR(State.st_mode);

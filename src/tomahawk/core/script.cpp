@@ -3,6 +3,7 @@
 #include "../script/std-lib.h"
 #include "../script/core-lib.h"
 #include "../script/gui-lib.h"
+#include <inttypes.h>
 #include <iostream>
 #include <sstream>
 
@@ -2095,7 +2096,7 @@ namespace Tomahawk
 			VMCTypeInfo* Type = Manager->GetEngine()->GetTypeInfoById(TypeId);
 			const char* Name = Type->GetName();
 
-			return Core::Form("%s(%d)", Object, Name ? Name : "any").R();
+			return Core::Form("%s(0x%" PRIXPTR ")", Name ? Name : "unknown", (uintptr_t)Object).R();
 		}
 		VMTypeInfo VMGlobal::GetTypeInfoById(int TypeId) const
 		{

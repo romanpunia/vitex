@@ -1047,7 +1047,7 @@ namespace Tomahawk
 			}
 			std::string IVariant::FromVector3(const Compute::Vector3& Base)
 			{
-				return Core::Form("v3 %f %f %f %f", Base.X, Base.Y, Base.Z).R();
+				return Core::Form("v3 %f %f %f", Base.X, Base.Y, Base.Z).R();
 			}
 			Compute::Vector2 IVariant::ToVector2(const std::string& Base)
 			{
@@ -1058,7 +1058,7 @@ namespace Tomahawk
 			}
 			std::string IVariant::FromVector2(const Compute::Vector2& Base)
 			{
-				return Core::Form("v2 %f %f %f %f", Base.X, Base.Y).R();
+				return Core::Form("v2 %f %f", Base.X, Base.Y).R();
 			}
 
 			IEvent::IEvent(Rml::Event* Ref) : Base(Ref)

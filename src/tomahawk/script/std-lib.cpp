@@ -161,7 +161,7 @@ namespace Tomahawk
 
 				return asSUCCESS;
 			}
-		}* StringFactory = 0;
+		}*StringFactory = 0;
 
 #if !defined(_WIN32_WCE)
 		static float MathFractionf(float v)
@@ -1264,15 +1264,15 @@ namespace Tomahawk
 			{
 				CreateBuffer(&Buffer, length);
 				if (length > 0)
-					memcpy(At(0), (((as_size_t*)buf) + 1), length * ElementSize);
+					memcpy(At(0), (((as_size_t*)buf) + 1), length * (as_size_t)ElementSize);
 			}
 			else if (TI->GetSubTypeId() & asTYPEID_OBJHANDLE)
 			{
 				CreateBuffer(&Buffer, length);
 				if (length > 0)
-					memcpy(At(0), (((as_size_t*)buf) + 1), length * ElementSize);
+					memcpy(At(0), (((as_size_t*)buf) + 1), length * (as_size_t)ElementSize);
 
-				memset((((as_size_t*)buf) + 1), 0, length * ElementSize);
+				memset((((as_size_t*)buf) + 1), 0, length * (as_size_t)ElementSize);
 			}
 			else if (TI->GetSubType()->GetFlags() & asOBJ_REF)
 			{
@@ -1281,9 +1281,9 @@ namespace Tomahawk
 				SubTypeId &= ~asTYPEID_OBJHANDLE;
 
 				if (length > 0)
-					memcpy(Buffer->Data, (((as_size_t*)buf) + 1), length * ElementSize);
+					memcpy(Buffer->Data, (((as_size_t*)buf) + 1), length * (as_size_t)ElementSize);
 
-				memset((((as_size_t*)buf) + 1), 0, length * ElementSize);
+				memset((((as_size_t*)buf) + 1), 0, length * (as_size_t)ElementSize);
 			}
 			else
 			{
@@ -1422,7 +1422,7 @@ namespace Tomahawk
 			if (!CheckMaxSize(MaxElements))
 				return;
 
-			SBuffer* newBuffer = reinterpret_cast<SBuffer*>(asAllocMem(sizeof(SBuffer) - 1 + ElementSize * MaxElements));
+			SBuffer* newBuffer = reinterpret_cast<SBuffer*>(asAllocMem(sizeof(SBuffer) - 1 + (as_size_t)ElementSize * MaxElements));
 			if (newBuffer)
 			{
 				newBuffer->NumElements = Buffer->NumElements;
@@ -1436,7 +1436,7 @@ namespace Tomahawk
 				return;
 			}
 
-			memcpy(newBuffer->Data, Buffer->Data, Buffer->NumElements * ElementSize);
+			memcpy(newBuffer->Data, Buffer->Data, Buffer->NumElements * (as_size_t)ElementSize);
 			asFreeMem(Buffer);
 			Buffer = newBuffer;
 		}
@@ -1464,7 +1464,7 @@ namespace Tomahawk
 				count = Buffer->NumElements - start;
 
 			Destruct(Buffer, start, start + count);
-			memmove(Buffer->Data + start * ElementSize, Buffer->Data + (start + count) * ElementSize, (Buffer->NumElements - start - count) * ElementSize);
+			memmove(Buffer->Data + start * (as_size_t)ElementSize, Buffer->Data + (start + count) * (as_size_t)ElementSize, (Buffer->NumElements - start - count) * (as_size_t)ElementSize);
 			Buffer->NumElements -= count;
 		}
 		void VMCArray::Resize(int delta, as_size_t at)
@@ -1490,7 +1490,7 @@ namespace Tomahawk
 
 			if (Buffer->MaxElements < Buffer->NumElements + delta)
 			{
-				SBuffer *newBuffer = reinterpret_cast<SBuffer*>(asAllocMem(sizeof(SBuffer) - 1 + ElementSize * (Buffer->NumElements + delta)));
+				SBuffer *newBuffer = reinterpret_cast<SBuffer*>(asAllocMem(sizeof(SBuffer) - 1 + (as_size_t)ElementSize * (Buffer->NumElements + delta)));
 				if (newBuffer)
 				{
 					newBuffer->NumElements = Buffer->NumElements + delta;
@@ -1504,9 +1504,9 @@ namespace Tomahawk
 					return;
 				}
 
-				memcpy(newBuffer->Data, Buffer->Data, at*ElementSize);
+				memcpy(newBuffer->Data, Buffer->Data, at * (as_size_t)ElementSize);
 				if (at < Buffer->NumElements)
-					memcpy(newBuffer->Data + (at + delta)*ElementSize, Buffer->Data + at * ElementSize, (Buffer->NumElements - at)*ElementSize);
+					memcpy(newBuffer->Data + (at + delta) * (as_size_t)ElementSize, Buffer->Data + at * (as_size_t)ElementSize, (Buffer->NumElements - at) * (as_size_t)ElementSize);
 
 				Construct(newBuffer, at, at + delta);
 				asFreeMem(Buffer);
@@ -1515,12 +1515,12 @@ namespace Tomahawk
 			else if (delta < 0)
 			{
 				Destruct(Buffer, at, at - delta);
-				memmove(Buffer->Data + at * ElementSize, Buffer->Data + (at - delta)*ElementSize, (Buffer->NumElements - (at - delta))*ElementSize);
+				memmove(Buffer->Data + at * (as_size_t)ElementSize, Buffer->Data + (at - delta) * (as_size_t)ElementSize, (Buffer->NumElements - (at - delta)) * (as_size_t)ElementSize);
 				Buffer->NumElements += delta;
 			}
 			else
 			{
-				memmove(Buffer->Data + (at + delta)*ElementSize, Buffer->Data + at * ElementSize, (Buffer->NumElements - at)*ElementSize);
+				memmove(Buffer->Data + (at + delta) * (as_size_t)ElementSize, Buffer->Data + at * (as_size_t)ElementSize, (Buffer->NumElements - at) * (as_size_t)ElementSize);
 				Construct(Buffer, at, at + delta);
 				Buffer->NumElements += delta;
 			}
@@ -1529,7 +1529,7 @@ namespace Tomahawk
 		{
 			as_size_t maxSize = 0xFFFFFFFFul - sizeof(SBuffer) + 1;
 			if (ElementSize > 0)
-				maxSize /= ElementSize;
+				maxSize /= (as_size_t)ElementSize;
 
 			if (NumElements > maxSize)
 			{
@@ -1641,9 +1641,9 @@ namespace Tomahawk
 			}
 
 			if ((SubTypeId & asTYPEID_MASK_OBJECT) && !(SubTypeId & asTYPEID_OBJHANDLE))
-				return *(void**)(Buffer->Data + ElementSize * index);
+				return *(void**)(Buffer->Data + (as_size_t)ElementSize * index);
 			else
-				return Buffer->Data + ElementSize * index;
+				return Buffer->Data + (as_size_t)ElementSize * index;
 		}
 		void *VMCArray::At(as_size_t index)
 		{
@@ -1655,7 +1655,7 @@ namespace Tomahawk
 		}
 		void VMCArray::CreateBuffer(SBuffer **buf, as_size_t NumElements)
 		{
-			*buf = reinterpret_cast<SBuffer*>(asAllocMem(sizeof(SBuffer) - 1 + ElementSize * NumElements));
+			*buf = reinterpret_cast<SBuffer*>(asAllocMem(sizeof(SBuffer) - 1 + (as_size_t)ElementSize * NumElements));
 			if (*buf)
 			{
 				(*buf)->NumElements = NumElements;
@@ -1696,8 +1696,8 @@ namespace Tomahawk
 			}
 			else
 			{
-				void *d = (void*)(buf->Data + start * ElementSize);
-				memset(d, 0, (end - start)*ElementSize);
+				void *d = (void*)(buf->Data + start * (as_size_t)ElementSize);
+				memset(d, 0, (end - start) * (as_size_t)ElementSize);
 			}
 		}
 		void VMCArray::Destruct(SBuffer *buf, as_size_t start, as_size_t end)
@@ -2262,7 +2262,7 @@ namespace Tomahawk
 							engine->AssignScriptObject(*d, *s, subType);
 					}
 					else
-						memcpy(dst->Data, src->Data, count * ElementSize);
+						memcpy(dst->Data, src->Data, count * (as_size_t)ElementSize);
 				}
 			}
 		}
@@ -3103,9 +3103,9 @@ namespace Tomahawk
 				{
 					buf = (as_size_t*)(buf)+1;
 					if (Width > 0)
-						memcpy(At(0, y), buf, Width*ElementSize);
+						memcpy(At(0, y), buf, Width * (as_size_t)ElementSize);
 
-					buf = (char*)(buf)+Width * ElementSize;
+					buf = (char*)(buf) + Width * (as_size_t)ElementSize;
 					if (asPWORD(buf) & 0x3)
 						buf = (char*)(buf)+4 - (asPWORD(buf) & 0x3);
 				}
@@ -3117,10 +3117,10 @@ namespace Tomahawk
 				{
 					buf = (as_size_t*)(buf)+1;
 					if (Width > 0)
-						memcpy(At(0, y), buf, Width*ElementSize);
+						memcpy(At(0, y), buf, Width * (as_size_t)ElementSize);
 
-					memset(buf, 0, Width*ElementSize);
-					buf = (char*)(buf)+Width * ElementSize;
+					memset(buf, 0, Width * (as_size_t)ElementSize);
+					buf = (char*)(buf) + Width * (as_size_t)ElementSize;
 
 					if (asPWORD(buf) & 0x3)
 						buf = (char*)(buf)+4 - (asPWORD(buf) & 0x3);
@@ -3136,10 +3136,10 @@ namespace Tomahawk
 				{
 					buf = (as_size_t*)(buf)+1;
 					if (Width > 0)
-						memcpy(At(0, y), buf, Width*ElementSize);
+						memcpy(At(0, y), buf, Width * (as_size_t)ElementSize);
 
-					memset(buf, 0, Width*ElementSize);
-					buf = (char*)(buf)+Width * ElementSize;
+					memset(buf, 0, Width * (as_size_t)ElementSize);
+					buf = (char*)(buf) + Width * (as_size_t)ElementSize;
 
 					if (asPWORD(buf) & 0x3)
 						buf = (char*)(buf)+4 - (asPWORD(buf) & 0x3);
@@ -3309,10 +3309,10 @@ namespace Tomahawk
 		{
 			as_size_t maxSize = 0xFFFFFFFFul - sizeof(SBuffer) + 1;
 			if (ElementSize > 0)
-				maxSize /= ElementSize;
+				maxSize /= (as_size_t)ElementSize;
 
-			as_int64_t numElements = Width * Height;
-			if ((numElements >> 32) || numElements > maxSize)
+			as_uint64_t numElements = (as_uint64_t)(Width * Height);
+			if ((numElements >> 32) || numElements > (as_uint64_t)maxSize)
 			{
 				VMCContext *ctx = asGetActiveContext();
 				if (ctx)
@@ -3350,9 +3350,9 @@ namespace Tomahawk
 
 			as_size_t index = x + y * buf->Width;
 			if ((SubTypeId & asTYPEID_MASK_OBJECT) && !(SubTypeId & asTYPEID_OBJHANDLE))
-				return *(void**)(buf->Data + ElementSize * index);
+				return *(void**)(buf->Data + (as_size_t)ElementSize * index);
 			else
-				return buf->Data + ElementSize * index;
+				return buf->Data + (as_size_t)ElementSize * index;
 		}
 		const void *VMCGrid::At(as_size_t x, as_size_t y) const
 		{
@@ -3361,7 +3361,7 @@ namespace Tomahawk
 		void VMCGrid::CreateBuffer(SBuffer **buf, as_size_t w, as_size_t h)
 		{
 			as_size_t numElements = w * h;
-			*buf = reinterpret_cast<SBuffer*>(asAllocMem(sizeof(SBuffer) - 1 + ElementSize * numElements));
+			*buf = reinterpret_cast<SBuffer*>(asAllocMem(sizeof(SBuffer) - 1 + (as_size_t)ElementSize * numElements));
 
 			if (*buf)
 			{

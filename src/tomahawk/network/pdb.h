@@ -15,6 +15,51 @@ namespace Tomahawk
 
 			class Queue;
 
+			enum AddressOp
+			{
+				AddressOp_Host,
+				AddressOp_Ip,
+				AddressOp_Port,
+				AddressOp_Database,
+				AddressOp_User,
+				AddressOp_Password,
+				AddressOp_Timeout,
+				AddressOp_Encoding,
+				AddressOp_Options,
+				AddressOp_Profile,
+				AddressOp_Fallback_Profile,
+				AddressOp_KeepAlive,
+				AddressOp_KeepAlive_Idle,
+				AddressOp_KeepAlive_Interval,
+				AddressOp_KeepAlive_Count,
+				AddressOp_TTY,
+				AddressOp_SSL,
+				AddressOp_SSL_Compression,
+				AddressOp_SSL_Cert,
+				AddressOp_SSL_Root_Cert,
+				AddressOp_SSL_Key,
+				AddressOp_SSL_CRL,
+				AddressOp_Require_Peer,
+				AddressOp_Require_SSL,
+				AddressOp_KRB_Server_Name,
+				AddressOp_Service
+			};
+
+			class TH_OUT Address
+			{
+			private:
+				std::unordered_map<std::string, std::string> Params;
+
+			public:
+				void Override(const std::string& Key, const std::string& Value);
+				bool Set(AddressOp Key, const std::string& Value);
+				std::string Get(AddressOp Key) const;
+				const std::unordered_map<std::string, std::string>& Get() const;
+
+			private:
+				static std::string GetKeyName(AddressOp Key);
+			};
+
 			class TH_OUT Connection : public Core::Object
 			{
 				friend Queue;
@@ -27,25 +72,52 @@ namespace Tomahawk
 			public:
 				Connection();
 				virtual ~Connection() override;
+				Core::Async<bool> Connect(const std::string& Address);
+				Core::Async<bool> Connect(const Address& URI);
+				Core::Async<bool> Disconnect();
 				TConnection* Get() const;
 				bool IsConnected() const;
 			};
 
 			class TH_OUT Queue : public Core::Object
 			{
+				friend Connection;
+
 			private:
+				std::unordered_set<Connection*> Active;
+				std::unordered_set<Connection*> Inactive;
+				std::string BaseAddress;
+				std::mutex Safe;
+				Address BaseURI;
+				bool HasParams;
 				bool Connected;
 
 			public:
 				Queue();
 				virtual ~Queue() override;
+				bool Connect(const std::string& Address);
+				bool Connect(const Address& URI);
+				bool Disconnect();
+				bool Push(Connection** Client);
+				Core::Async<Connection*> Pop();
+
+			private:
+				void Clear(Connection* Client);
 			};
 
 			class TH_OUT Driver
 			{
 			private:
+				struct Pose
+				{
+					std::string Key;
+					size_t Offset;
+					bool Escape;
+				};
+
 				struct Sequence
 				{
+					std::vector<Pose> Positions;
 					std::string Request;
 					std::string Cache;
 				};
@@ -62,13 +134,12 @@ namespace Tomahawk
 				static bool AddDirectory(const std::string& Directory, const std::string& Origin = "");
 				static bool RemoveQuery(const std::string& Name);
 				static std::string GetQuery(Connection* Base, const std::string& Name, Core::DocumentArgs* Map, bool Once = true);
-				static std::string GetSubquery(Connection* Base, const char* Buffer, Core::DocumentArgs* Map, bool Once = true);
 				static std::vector<std::string> GetQueries();
 
 			private:
 				static std::string GetCharArray(Connection* Base, const std::string& Src);
 				static std::string GetByteArray(Connection* Base, const char* Src, size_t Size);
-				static std::string GetSQL(Connection* Base, Core::Document* Source);
+				static std::string GetSQL(Connection* Base, Core::Document* Source, bool Escape);
 			};
 		}
 	}

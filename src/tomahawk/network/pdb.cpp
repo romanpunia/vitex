@@ -9,11 +9,197 @@ namespace Tomahawk
 	{
 		namespace PDB
 		{
+			void Address::Override(const std::string& Key, const std::string& Value)
+			{
+				Params[Key] = Value;
+			}
+			bool Address::Set(AddressOp Key, const std::string& Value)
+			{
+				std::string Name = GetKeyName(Key);
+				if (Name.empty())
+					return false;
+
+				Params[Name] = Value;
+				return true;
+			}
+			std::string Address::Get(AddressOp Key) const
+			{
+				auto It = Params.find(GetKeyName(Key));
+				if (It == Params.end())
+					return "";
+
+				return It->second;
+			}
+			const std::unordered_map<std::string, std::string>& Address::Get() const
+			{
+				return Params;
+			}
+			std::string Address::GetKeyName(AddressOp Key)
+			{
+				switch (Key)
+				{
+					case AddressOp_Host:
+						return "host";
+					case AddressOp_Ip:
+						return "hostaddr";
+					case AddressOp_Port:
+						return "port";
+					case AddressOp_Database:
+						return "db_name";
+					case AddressOp_User:
+						return "user";
+					case AddressOp_Password:
+						return "password";
+					case AddressOp_Timeout:
+						return "connect_timeout";
+					case AddressOp_Encoding:
+						return "client_encoding";
+					case AddressOp_Options:
+						return "options";
+					case AddressOp_Profile:
+						return "application_name";
+					case AddressOp_Fallback_Profile:
+						return "fallback_application_name";
+					case AddressOp_KeepAlive:
+						return "keepalives";
+					case AddressOp_KeepAlive_Idle:
+						return "keepalives_idle";
+					case AddressOp_KeepAlive_Interval:
+						return "keepalives_interval";
+					case AddressOp_KeepAlive_Count:
+						return "keepalives_count";
+					case AddressOp_TTY:
+						return "tty";
+					case AddressOp_SSL:
+						return "sslmode";
+					case AddressOp_SSL_Compression:
+						return "sslcompression";
+					case AddressOp_SSL_Cert:
+						return "sslcert";
+					case AddressOp_SSL_Root_Cert:
+						return "sslrootcert";
+					case AddressOp_SSL_Key:
+						return "sslkey";
+					case AddressOp_SSL_CRL:
+						return "sslcrl";
+					case AddressOp_Require_Peer:
+						return "requirepeer";
+					case AddressOp_Require_SSL:
+						return "requiressl";
+					case AddressOp_KRB_Server_Name:
+						return "krbservname";
+					case AddressOp_Service:
+						return "service";
+					default:
+						return "";
+				}
+			}
+
 			Connection::Connection() : Base(nullptr), Master(nullptr), Connected(false)
 			{
+				Driver::Create();
 			}
 			Connection::~Connection()
 			{
+				Driver::Release();
+			}
+			Core::Async<bool> Connection::Connect(const std::string& Address)
+			{
+#ifdef TH_HAS_POSTGRESQL
+				if (Master != nullptr)
+					return Core::Async<bool>::Store(false);
+
+				if (Connected)
+				{
+					return Disconnect().Then<Core::Async<bool>>([this, Address](bool)
+					{
+						return this->Connect(Address);
+					});
+				}
+
+				return [this, Address](Core::Async<bool>& Future)
+				{
+					Base = PQconnectdb(Address.c_str());
+					if (!Base)
+					{
+						TH_ERROR("couldn't connect to requested URI");
+						return Future.Set(false);
+					}
+
+					Connected = true;
+					Future.Set(true);
+				};
+#else
+				return Core::Async<bool>::Store(false);
+#endif
+			}
+			Core::Async<bool> Connection::Connect(const Address& URI)
+			{
+#ifdef TH_HAS_POSTGRESQL
+				if (Master != nullptr)
+					return Core::Async<bool>::Store(false);
+
+				if (Connected)
+				{
+					return Disconnect().Then<Core::Async<bool>>([this, URI](bool)
+					{
+						return this->Connect(URI);
+					});
+				}
+
+				return [this, URI](Core::Async<bool>& Future)
+				{
+					auto& Args = URI.Get();
+					const char** Keys = (const char**)TH_MALLOC(sizeof(const char*) * Args.size());
+					const char** Values = (const char**)TH_MALLOC(sizeof(const char*) * Args.size());
+					size_t Index = 0;
+
+					for (auto& Key : Args)
+					{
+						Keys[Index] = Key.first.c_str();
+						Values[Index] = Key.second.c_str();
+						Index++;
+					}
+
+					Base = PQconnectdbParams(Keys, Values, 0);
+					TH_FREE(Keys);
+					TH_FREE(Values);
+
+					if (!Base)
+					{
+						TH_ERROR("couldn't connect to requested URI");
+						return Future.Set(false);
+					}
+
+					Connected = true;
+					Future.Set(true);
+				};
+#else
+				return Core::Async<bool>::Store(false);
+#endif
+			}
+			Core::Async<bool> Connection::Disconnect()
+			{
+#ifdef TH_HAS_MONGOC
+				return [this](Core::Async<bool>& Future)
+				{
+					Connected = false;
+					if (!Base)
+						return Future.Set(true);
+
+					if (!Master)
+					{
+						PQfinish(Base);
+						Base = nullptr;
+					}
+					else
+						Master->Clear(this);
+
+					Future.Set(true);
+				};
+#else
+				return Core::Async<bool>::Store(false);
+#endif
 			}
 			TConnection* Connection::Get() const
 			{
@@ -26,9 +212,125 @@ namespace Tomahawk
 
 			Queue::Queue() : Connected(false)
 			{
+				Driver::Create();
 			}
 			Queue::~Queue()
 			{
+				Disconnect();
+				Driver::Release();
+			}
+			bool Queue::Connect(const std::string& Address)
+			{
+				if (Connected || Address.empty())
+					return false;
+
+				BaseAddress = Address;
+				HasParams = false;
+				Connected = true;
+
+				return true;
+			}
+			bool Queue::Connect(const Address& URI)
+			{
+				if (Connected || URI.Get().empty())
+					return false;
+
+				BaseURI = URI;
+				HasParams = true;
+				Connected = true;
+
+				return true;
+			}
+			bool Queue::Disconnect()
+			{
+				if (!Connected)
+					return false;
+
+				Safe.lock();
+				for (auto& Base : Active)
+					Clear(Base);
+
+				for (auto& Base : Inactive)
+				{
+					Clear(Base);
+					TH_RELEASE(Base);
+				}
+
+				Connected = false;
+				Active.clear();
+				Inactive.clear();
+				Safe.unlock();
+
+				return true;
+			}
+			void Queue::Clear(Connection* Client)
+			{
+				if (!Client)
+					return;
+#ifdef TH_HAS_POSTGRESQL
+				if (Client->Base != nullptr)
+					PQfinish(Client->Base);
+#endif
+				Client->Base = nullptr;
+				Client->Master = nullptr;
+				Client->Connected = false;
+			}
+			bool Queue::Push(Connection** Client)
+			{
+				if (!Client || !*Client)
+					return false;
+
+				Safe.lock();
+				Clear(*Client);
+				TH_RELEASE(*Client);
+				Safe.unlock();
+
+				return true;
+			}
+			Core::Async<Connection*> Queue::Pop()
+			{
+#ifdef TH_HAS_POSTGRESQL
+				if (!Connected)
+					return Core::Async<Connection*>::Store(nullptr);
+
+				Safe.lock();
+				if (!Inactive.empty())
+				{
+					Connection* Result = *Inactive.begin();
+					Inactive.erase(Inactive.begin());
+					Active.insert(Result);
+					Safe.unlock();
+
+					return Core::Async<Connection*>::Store(Result);
+				}
+
+				Connection* Result = new Connection();
+				Active.insert(Result);
+				Safe.unlock();
+
+				auto Callback = [this, Result](bool&& Subresult)
+				{
+					if (Subresult)
+					{
+						Result->Master = this;
+						return Core::Async<Connection*>::Store(Result);
+					}
+
+					this->Safe.lock();
+					this->Active.erase(Result);
+					this->Safe.unlock();
+
+					TH_RELEASE(Result);
+					return Core::Async<Connection*>::Store(nullptr);
+				};
+
+				if (HasParams)
+					return Result->Connect(BaseURI).Then<Core::Async<Connection*>>(Callback);
+
+				return Result->Connect(BaseAddress).Then<Core::Async<Connection*>>(Callback);
+#else
+				return Core::Async<Connection*>::Store(nullptr);
+#endif
 			}
 
 			void Driver::Create()
@@ -86,11 +388,13 @@ namespace Tomahawk
 				int64_t Arg = -1;
 				bool Spec = false;
 				bool Lock = false;
-
+				
 				while (Index < Base.Size())
 				{
 					char V = Base.R()[Index];
-					if (V == '"')
+					char L = Base.R()[!Index ? Index : Index - 1];
+
+					if (V == '\'')
 					{
 						if (Lock)
 						{
@@ -111,8 +415,13 @@ namespace Tomahawk
 						{
 							if (Arg < Base.Size())
 							{
-								Base.Insert(TH_PREFIX_CHAR, Arg);
-								Args++; Index++;
+								Pose Next;
+								Next.Escape = (Base.R()[Arg] == '$');
+								Next.Key = std::move(Base.R().substr((size_t)Arg + 2, (size_t)Index - (size_t)Arg - 2));
+								Next.Offset = (size_t)Arg;
+								Result.Positions.push_back(std::move(Next));
+								Base.RemovePart(Arg, Index + 1);
+								Index -= Index - Arg - 1; Args++;
 							}
 
 							Spec = false;
@@ -127,11 +436,11 @@ namespace Tomahawk
 						else
 							Index++;
 					}
-					else if (V == '<')
+					else if ((L == '@' || L == '$') && V == '<')
 					{
 						if (!Spec && Arg < 0)
 						{
-							Arg = Index;
+							Arg = (!Index ? Index : Index - 1);
 							Index++;
 						}
 						else if (Spec)
@@ -147,7 +456,7 @@ namespace Tomahawk
 						Spec = true;
 						Index++;
 					}
-					else if (!Lock && (V == '\n' || V == '\r' || V == '\t' || V == ' '))
+					else if (!Lock && (V == '\n' || V == '\r' || V == '\t' || (L == ' ' && V == ' ')))
 					{
 						Base.Erase(Index, 1);
 					}
@@ -269,71 +578,34 @@ namespace Tomahawk
 				}
 
 				Sequence Origin = It->second;
+				size_t Offset = 0;
 				Safe->unlock();
 
 				Core::Parser Result(&Origin.Request);
-				for (auto& Context : *Map)
+				for (auto& Word : Origin.Positions)
 				{
-					std::string Value = GetSQL(Base, Context.second);
-					if (!Value.empty())
-						Result.Replace(TH_PREFIX_STR "<" + Context.first + '>', Value);
+					auto It = Map->find(Word.Key);
+					if (It == Map->end())
+						continue;
 
-					if (Once)
-						TH_RELEASE(Context.second);
+					std::string Value = GetSQL(Base, It->second, Word.Escape);
+					if (Value.empty())
+						continue;
+
+					Result.Insert(Value, Word.Offset + Offset);
+					Offset += Value.size();
 				}
 
 				if (Once)
+				{
+					for (auto& Item : *Map)
+						TH_RELEASE(Item.second);
 					Map->clear();
+				}
 
 				std::string Data = Origin.Request;
 				if (Data.empty())
 					TH_ERROR("could not construct query: \"%s\"", Name.c_str());
-
-				return Data;
-			}
-			std::string Driver::GetSubquery(Connection* Base, const char* Buffer, Core::DocumentArgs* Map, bool Once)
-			{
-				if (!Buffer || Buffer[0] == '\0')
-				{
-					if (Once && Map != nullptr)
-					{
-						for (auto& Item : *Map)
-							TH_RELEASE(Item.second);
-						Map->clear();
-					}
-
-					return "";
-				}
-
-				if (!Map || Map->empty())
-				{
-					if (Once && Map != nullptr)
-					{
-						for (auto& Item : *Map)
-							TH_RELEASE(Item.second);
-						Map->clear();
-					}
-
-					return Buffer;
-				}
-
-				Core::Parser Result(Buffer, strlen(Buffer));
-				for (auto& Context : *Map)
-				{
-					std::string Value = GetSQL(Base, Context.second);
-					if (!Value.empty())
-						Result.Replace(TH_PREFIX_STR "<" + Context.first + '>', Value);
-
-					if (Once)
-						TH_RELEASE(Context.second);
-				}
-
-				if (Once)
-					Map->clear();
-
-				std::string Data = Result.R();
-				if (Data.empty())
-					TH_ERROR("could not construct subquery:\n%s", Result.Get());
 
 				return Data;
 			}
@@ -358,12 +630,17 @@ namespace Tomahawk
 					return "''";
 
 				if (!Base || !Base->Get())
-					return "'" + Src + "'";
+				{
+					Core::Parser Dest(Src);
+					Dest.Replace(TH_PREFIX_STR, TH_PREFIX_STR "\\");
+					return Dest.Insert('\'', 0).Append('\'').R();
+				}
 
 				char* Subresult = PQescapeLiteral(Base->Get(), Src.c_str(), Src.size());
 				std::string Result(Subresult);
 				PQfreemem(Subresult);
 
+				Core::Parser(&Result).Replace(TH_PREFIX_STR, TH_PREFIX_STR "\\");
 				return Result;
 #else
 				return "'" + Src + "'";
@@ -388,13 +665,13 @@ namespace Tomahawk
 				return "'\\x" + Compute::Common::BinToHex(Src, Size) + "'::bytea";
 #endif
 			}
-			std::string Driver::GetSQL(Connection* Base, Core::Document* Source)
+			std::string Driver::GetSQL(Connection* Base, Core::Document* Source, bool Escape)
 			{
 				if (!Source)
 					return "NULL";
 
 				Core::Document* Parent = Source->GetParent();
-				bool Array = (Parent->Value.GetType() == Core::VarType_Array);
+				bool Array = (Parent && Parent->Value.GetType() == Core::VarType_Array);
 
 				switch (Source->Value.GetType())
 				{
@@ -416,7 +693,7 @@ namespace Tomahawk
 					{
 						std::string Result = (Array ? "[" : "ARRAY[");
 						for (auto* Node : *Source->GetNodes())
-							Result.append(GetSQL(Base, Node)).append(1, ',');
+							Result.append(GetSQL(Base, Node, true)).append(1, ',');
 
 						if (!Source->GetNodes()->empty())
 							Result = Result.substr(0, Result.size() - 1);
@@ -424,7 +701,20 @@ namespace Tomahawk
 						return Result + "]";
 					}
 					case Core::VarType_String:
-						return GetCharArray(Base, Source->Value.GetBlob());
+					{
+						std::string Result(GetCharArray(Base, Source->Value.GetBlob()));
+						if (Escape)
+							return Result;
+
+						if (Result.front() != '\'' || Result.back() != '\'')
+							return Result;
+
+						if (Result.size() == 2)
+							return "";
+
+						Result = std::move(Result.substr(1, Result.size() - 2));
+						return Result;
+					}
 					case Core::VarType_Integer:
 						return std::to_string(Source->Value.GetInteger());
 					case Core::VarType_Number:

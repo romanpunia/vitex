@@ -2597,7 +2597,9 @@ namespace Tomahawk
 				while (Index < Base.Size())
 				{
 					char V = Base.R()[Index];
-					if (V == '"')
+					char L = Base.R()[!Index ? Index : Index - 1];
+
+					if (V == '\'')
 					{
 						if (Lock)
 						{
@@ -2618,8 +2620,13 @@ namespace Tomahawk
 						{
 							if (Arg < Base.Size())
 							{
-								Base.Insert(TH_PREFIX_CHAR, Arg);
-								Args++; Index++;
+								Pose Next;
+								Next.Escape = (Base.R()[Arg] == '$');
+								Next.Key = std::move(Base.R().substr((size_t)Arg + 2, (size_t)Index - (size_t)Arg - 2));
+								Next.Offset = (size_t)Arg;
+								Result.Positions.push_back(std::move(Next));
+								Base.RemovePart(Arg, Index + 1);
+								Index -= Index - Arg + 1; Args++;
 							}
 
 							Spec = false;
@@ -2634,11 +2641,11 @@ namespace Tomahawk
 						else
 							Index++;
 					}
-					else if (V == '<')
+					else if ((L == '@' || L == '$') && V == '<')
 					{
 						if (!Spec && Arg < 0)
 						{
-							Arg = Index;
+							Arg = (!Index ? Index : Index - 1);
 							Index++;
 						}
 						else if (Spec)
@@ -2777,71 +2784,34 @@ namespace Tomahawk
 				}
 
 				Sequence Origin = It->second;
+				size_t Offset = 0;
 				Safe->unlock();
 
 				Core::Parser Result(&Origin.Request);
-				for (auto& Context : *Map)
+				for (auto& Word : Origin.Positions)
 				{
-					std::string Value = GetJSON(Context.second);
-					if (!Value.empty())
-						Result.Replace(TH_PREFIX_STR "<" + Context.first + '>', Value);
+					auto It = Map->find(Word.Key);
+					if (It == Map->end())
+						continue;
 
-					if (Once)
-						TH_RELEASE(Context.second);
+					std::string Value = GetJSON(It->second, Word.Escape);
+					if (Value.empty())
+						continue;
+
+					Result.Insert(Value, Word.Offset + Offset);
+					Offset += Value.size();
 				}
 
 				if (Once)
+				{
+					for (auto& Item : *Map)
+						TH_RELEASE(Item.second);
 					Map->clear();
+				}
 
 				Document Data = Document::FromJSON(Origin.Request);
 				if (Data.Get())
 					TH_ERROR("could not construct query: \"%s\"", Name.c_str());
-
-				return Data;
-			}
-			Document Driver::GetSubquery(const char* Buffer, Core::DocumentArgs* Map, bool Once)
-			{
-				if (!Buffer || Buffer[0] == '\0')
-				{
-					if (Once && Map != nullptr)
-					{
-						for (auto& Item : *Map)
-							TH_RELEASE(Item.second);
-						Map->clear();
-					}
-
-					return nullptr;
-				}
-
-				if (!Map || Map->empty())
-				{
-					if (Once && Map != nullptr)
-					{
-						for (auto& Item : *Map)
-							TH_RELEASE(Item.second);
-						Map->clear();
-					}
-
-					return Document::FromJSON(Buffer);
-				}
-
-				Core::Parser Result(Buffer, strlen(Buffer));
-				for (auto& Context : *Map)
-				{
-					std::string Value = GetJSON(Context.second);
-					if (!Value.empty())
-						Result.Replace(TH_PREFIX_STR "<" + Context.first + '>', Value);
-
-					if (Once)
-						TH_RELEASE(Context.second);
-				}
-
-				if (Once)
-					Map->clear();
-
-				Document Data = Document::FromJSON(Result.R());
-				if (!Data.Get())
-					TH_ERROR("could not construct subquery:\n%s", Result.Get());
 
 				return Data;
 			}
@@ -2859,7 +2829,7 @@ namespace Tomahawk
 
 				return Result;
 			}
-			std::string Driver::GetJSON(Core::Document* Source)
+			std::string Driver::GetJSON(Core::Document* Source, bool Escape)
 			{
 				if (!Source)
 					return "";
@@ -2872,7 +2842,7 @@ namespace Tomahawk
 						for (auto* Node : *Source->GetNodes())
 						{
 							Result.append(1, '\"').append(Node->Key).append("\":");
-							Result.append(GetJSON(Node)).append(1, ',');
+							Result.append(GetJSON(Node, true)).append(1, ',');
 						}
 
 						if (!Source->GetNodes()->empty())
@@ -2884,7 +2854,7 @@ namespace Tomahawk
 					{
 						std::string Result = "[";
 						for (auto* Node : *Source->GetNodes())
-							Result.append(GetJSON(Node)).append(1, ',');
+							Result.append(GetJSON(Node, true)).append(1, ',');
 
 						if (!Source->GetNodes()->empty())
 							Result = Result.substr(0, Result.size() - 1);
@@ -2892,7 +2862,15 @@ namespace Tomahawk
 						return Result + "]";
 					}
 					case Core::VarType_String:
-						return "\"" + Source->Value.GetBlob() + "\"";
+					{
+						std::string Result = std::move(Source->Value.GetBlob());
+						if (!Escape)
+							return Result;
+
+						Result.insert(Result.begin(), '\"');
+						Result.append(1, '\"');
+						return Result;
+					}
 					case Core::VarType_Integer:
 						return std::to_string(Source->Value.GetInteger());
 					case Core::VarType_Number:
@@ -2900,7 +2878,7 @@ namespace Tomahawk
 					case Core::VarType_Boolean:
 						return Source->Value.GetBoolean() ? "true" : "false";
 					case Core::VarType_Decimal:
-						return "{\"$numberDouble\":\"" + Source->Value.GetDecimal() + "\"}";
+						return "{\"$numberDouble\":\"" + Core::Parser(Source->Value.GetDecimal()).R() + "\"}";
 					case Core::VarType_Base64:
 					{
 						if (Source->Value.GetSize() != 12)

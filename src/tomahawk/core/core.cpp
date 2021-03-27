@@ -1358,7 +1358,7 @@ namespace Tomahawk
 			{
 				EraseOffsets(Result.Start, Result.End);
 				Insert(To, Result.Start);
-				Offset += ToSize;
+				Offset = Result.Start + ToSize;
 			}
 
 			return *this;
@@ -1374,7 +1374,7 @@ namespace Tomahawk
 			{
 				EraseOffsets(Result.Start, Result.End);
 				Insert(To, Result.Start);
-				Offset += ToSize;
+				Offset = Result.Start + ToSize;
 			}
 
 			return *this;
@@ -1388,7 +1388,7 @@ namespace Tomahawk
 			{
 				EraseOffsets(Result.Start, Result.End);
 				Insert(To, Result.Start);
-				Offset += To.size();
+				Offset = Result.Start + To.size();
 			}
 
 			return *this;
@@ -1406,7 +1406,7 @@ namespace Tomahawk
 			{
 				EraseOffsets(Result.Start, Result.End);
 				Insert(To, Result.Start);
-				Offset += Size;
+				Offset = Result.Start + Size;
 			}
 
 			return *this;

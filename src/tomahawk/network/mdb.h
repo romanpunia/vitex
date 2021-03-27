@@ -14,9 +14,6 @@ struct _mongoc_client_pool_t;
 struct _mongoc_change_stream_t;
 struct _mongoc_client_session_t;
 
-#define TH_MDB_COMPILE(Args, Code) Tomahawk::Network::MDB::Driver::GetSubquery(#Code, Args, true)
-#define TH_MDB_RECOMPILE(Args, Code) Tomahawk::Network::MDB::Driver::GetSubquery(#Code, Args, false)
-
 namespace Tomahawk
 {
 	namespace Network
@@ -395,8 +392,16 @@ namespace Tomahawk
 			class TH_OUT Driver
 			{
 			private:
+				struct Pose
+				{
+					std::string Key;
+					size_t Offset;
+					bool Escape;
+				};
+
 				struct Sequence
 				{
+					std::vector<Pose> Positions;
 					std::string Request;
 					Document Cache;
 
@@ -415,11 +420,10 @@ namespace Tomahawk
 				static bool AddDirectory(const std::string& Directory, const std::string& Origin = "");
 				static bool RemoveQuery(const std::string& Name);
 				static Document GetQuery(const std::string& Name, Core::DocumentArgs* Map, bool Once = true);
-				static Document GetSubquery(const char* Buffer, Core::DocumentArgs* Map, bool Once = true);
 				static std::vector<std::string> GetQueries();
 
 			private:
-				static std::string GetJSON(Core::Document* Source);
+				static std::string GetJSON(Core::Document* Source, bool Escape);
 			};
 		}
 	}

@@ -4495,7 +4495,7 @@ namespace Tomahawk
 					return false;
 
 				FILE* Stream = (!Base->Resource.IsReferenced ? (FILE*)Core::OS::File::Open(Base->Request.Path.c_str(), "rb") : nullptr);
-				if (!Stream && !Base->Resource.IsDirectory)
+				if (!Stream && !Base->Resource.IsReferenced)
 					return Base->Error(500, "System denied to open resource stream.");
 
 				Range = (Range > Base->Resource.Size ? Base->Resource.Size : Range);
@@ -4518,8 +4518,6 @@ namespace Tomahawk
 						});
 					}
 				}
-
-				char Buffer[8192];
 #ifdef TH_MICROSOFT
 				if (Range > 0 && _lseeki64(_fileno(Stream), Range, SEEK_SET) == -1)
 				{
@@ -4539,59 +4537,67 @@ namespace Tomahawk
 					return Base->Error(400, "Provided content range offset (%llu) is invalid", Range);
 				}
 #endif
-				Server* Server = Base->Root;
+				Server* Router = Base->Root;
+				if (!Base->Route->AllowSendFile)
+					return ProcessFileChunk(Base, Router, Stream, ContentLength);
+
 				Base->Stream->SetBlocking(true);
 				Base->Stream->SetTimeout((int)Base->Root->Router->SocketTimeout);
-
-				if (Base->Route->AllowSendFile && Core::OS::Net::SendFile(Stream, Base->Stream->GetFd(), ContentLength))
-				{
-					fclose(Stream);
-					if (Server->State != ServerState_Working)
-						return false;
-
-					Base->Stream->SetTimeout(0);
-					Base->Stream->SetBlocking(false);
-
-					return Base->Finish();
-				}
-
-				while (ContentLength > 0 && Server->State == ServerState_Working)
-				{
-					int Read = sizeof(Buffer);
-					if ((Read = (int)fread(Buffer, 1, (size_t)(Read > ContentLength ? ContentLength : Read), Stream)) <= 0)
-						break;
-
-					int Offset = 0;
-					ContentLength -= Read;
-
-					while (Read > 0 && Server->State == ServerState_Working)
-					{
-						int Size = Base->Stream->Write(Buffer + Offset, Read);
-						if (Size < 0)
-						{
-							fclose(Stream);
-							if (Server->State != ServerState_Working)
-								return false;
-
-							Base->Stream->SetTimeout(0);
-							Base->Stream->SetBlocking(false);
-
-							return Base->Break();
-						}
-
-						Read -= Size;
-						Offset += Size;
-					}
-				}
-
-				fclose(Stream);
-				if (Server->State != ServerState_Working)
-					return false;
-
+				bool Result = Core::OS::Net::SendFile(Stream, Base->Stream->GetFd(), ContentLength);
 				Base->Stream->SetTimeout(0);
 				Base->Stream->SetBlocking(false);
 
+				if (Router->State != ServerState_Working)
+				{
+					fclose(Stream);
+					return Base->Break();
+				}
+
+				if (!Result)
+					return ProcessFileChunk(Base, Router, Stream, ContentLength);
+
+				fclose(Stream);
 				return Base->Finish();
+			}
+			bool Util::ProcessFileChunk(Connection* Base, Server* Router, FILE* Stream, uint64_t ContentLength)
+			{
+				if (!ContentLength || Router->State != ServerState_Working)
+				{
+					fclose(Stream);
+					if (Router->State != ServerState_Working)
+						return Base->Break();
+
+					return Base->Finish() || true;
+				}
+
+				char Buffer[8192]; int Read = sizeof(Buffer);
+				if ((Read = (int)fread(Buffer, 1, (size_t)(Read > ContentLength ? ContentLength : Read), Stream)) <= 0)
+				{
+					fclose(Stream);
+					if (Router->State != ServerState_Working)
+						return Base->Break();
+
+					return Base->Finish() || true;
+				}
+
+				ContentLength -= (int64_t)Read;
+				Base->Stream->WriteAsync(Buffer, Read, [Base, Router, Stream, ContentLength](Socket*, int64_t Size)
+				{
+					if (Size < 0)
+					{
+						fclose(Stream);
+						return Base->Break() && false;
+					}
+					else if (Size > 0)
+						return true;
+
+					return Core::Schedule::Get()->SetTask([Base, Router, Stream, ContentLength]()
+					{
+						ProcessFileChunk(Base, Router, Stream, ContentLength);
+					});
+				});
+
+				return false;
 			}
 			bool Util::ProcessFileCompress(Connection* Base, uint64_t ContentLength, uint64_t Range, bool Gzip)
 			{
@@ -4670,9 +4676,6 @@ namespace Tomahawk
 				if (deflateInit2(&ZStream, Base->Route->Compression.QualityLevel, Z_DEFLATED, (Gzip ? MAX_WBITS + 16 : MAX_WBITS), Base->Route->Compression.MemoryLevel, (int)Base->Route->Compression.Tune) != Z_OK)
 				{
 					fclose(Stream);
-					if (Server->State != ServerState_Working)
-						return false;
-
 					Base->Stream->SetTimeout(0);
 					Base->Stream->SetBlocking(false);
 
@@ -4702,9 +4705,6 @@ namespace Tomahawk
 						{
 							fclose(Stream);
 							deflateEnd(&ZStream);
-							if (Server->State != ServerState_Working)
-								return false;
-
 							Base->Stream->SetTimeout(0);
 							Base->Stream->SetBlocking(false);
 
@@ -4719,8 +4719,13 @@ namespace Tomahawk
 
 				fclose(Stream);
 				deflateEnd(&ZStream);
+
 				if (Server->State != ServerState_Working)
-					return false;
+				{
+					Base->Stream->SetTimeout(0);
+					Base->Stream->SetBlocking(false);
+					return Base->Break();
+				}
 
 				Base->Stream->Write("0\r\n\r\n", 5);
 				Base->Stream->SetTimeout(0);

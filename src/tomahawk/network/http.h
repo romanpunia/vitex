@@ -611,6 +611,7 @@ namespace Tomahawk
 				static bool ProcessResourceCompress(Connection* Base, bool Deflate, bool Gzip, const char* ContentRange, uint64_t Range);
 				static bool ProcessResourceCache(Connection* Base);
 				static bool ProcessFile(Connection* Base, uint64_t ContentLength, uint64_t Range);
+				static bool ProcessFileChunk(Connection* Base, Server* Router, FILE* Stream, uint64_t ContentLength);
 				static bool ProcessFileCompress(Connection* Base, uint64_t ContentLength, uint64_t Range, bool Gzip);
 				static bool ProcessGateway(Connection* Base);
 				static bool ProcessWebSocket(Connection* Base, const char* Key);

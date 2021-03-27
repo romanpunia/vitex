@@ -4,6 +4,7 @@
 #pragma warning(disable: 4996)
 #include <thread>
 #include <algorithm>
+#include <map>
 #include <unordered_map>
 #include <unordered_set>
 #include <mutex>
@@ -281,12 +282,11 @@ namespace Tomahawk
 		{
 			TimerCallback Callback;
 			uint64_t Timeout;
-			int64_t Time;
 			EventId Id;
 			bool Alive;
 
-			EventTimer(const TimerCallback& NewCallback, uint64_t NewTimeout, int64_t NewTime, EventId NewId, bool NewAlive);
-			EventTimer(TimerCallback&& NewCallback, uint64_t NewTimeout, int64_t NewTime, EventId NewId, bool NewAlive);
+			EventTimer(const TimerCallback& NewCallback, uint64_t NewTimeout, EventId NewId, bool NewAlive);
+			EventTimer(TimerCallback&& NewCallback, uint64_t NewTimeout, EventId NewId, bool NewAlive);
 			EventTimer(const EventTimer& Other);
 			EventTimer(EventTimer&& Other);
 			EventTimer& operator= (const EventTimer& Other);
@@ -1032,7 +1032,7 @@ namespace Tomahawk
 
 		private:
 			std::unordered_map<std::string, EventListener> Listeners;
-			std::deque<EventTimer> Timers;
+			std::map<int64_t, EventTimer> Timers;
 			std::queue<EventTask> Tasks;
 			std::queue<EventBase> Events;
 			EventId Timer;
@@ -1070,7 +1070,8 @@ namespace Tomahawk
 			bool LoopCycle();
 			bool DispatchTask();
 			bool DispatchEvent();
-			bool DispatchTimer(int64_t Time);
+			bool DispatchTimer();
+			int64_t GetTimeout(int64_t Clock);
 			int64_t GetClock();
 
 		public:

@@ -1339,6 +1339,9 @@ namespace Tomahawk
 								break;
 						}
 
+						if (Result == -1)
+							break;
+
 						Fd->WritePop();
 						Fd->Sync.IO.unlock();
 						if (Callback)
@@ -1598,6 +1601,9 @@ namespace Tomahawk
 			do
 			{
 				FreeQueued();
+				if (!Queue->IsActive())
+					Queue->Clear(Core::EventType_Tasks, false);
+
 				if (Queue->IsBlockable())
 					std::this_thread::sleep_for(std::chrono::microseconds(100));
 				else

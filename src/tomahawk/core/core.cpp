@@ -511,23 +511,22 @@ namespace Tomahawk
 			return *this;
 		}
 
-		EventTimer::EventTimer(const TimerCallback& NewCallback, uint64_t NewTimeout, int64_t NewTime, EventId NewId, bool NewAlive) : Callback(NewCallback), Timeout(NewTimeout), Time(NewTime), Id(NewId), Alive(NewAlive)
+		EventTimer::EventTimer(const TimerCallback& NewCallback, uint64_t NewTimeout, EventId NewId, bool NewAlive) : Callback(NewCallback), Timeout(NewTimeout), Id(NewId), Alive(NewAlive)
 		{
 		}
-		EventTimer::EventTimer(TimerCallback&& NewCallback, uint64_t NewTimeout, int64_t NewTime, EventId NewId, bool NewAlive) : Callback(std::move(NewCallback)), Timeout(NewTimeout), Time(NewTime), Id(NewId), Alive(NewAlive)
+		EventTimer::EventTimer(TimerCallback&& NewCallback, uint64_t NewTimeout, EventId NewId, bool NewAlive) : Callback(std::move(NewCallback)), Timeout(NewTimeout), Id(NewId), Alive(NewAlive)
 		{
 		}
-		EventTimer::EventTimer(const EventTimer& Other) : Callback(Other.Callback), Timeout(Other.Timeout), Time(Other.Time), Id(Other.Id), Alive(Other.Alive)
+		EventTimer::EventTimer(const EventTimer& Other) : Callback(Other.Callback), Timeout(Other.Timeout), Id(Other.Id), Alive(Other.Alive)
 		{
 		}
-		EventTimer::EventTimer(EventTimer&& Other) : Callback(std::move(Other.Callback)), Timeout(Other.Timeout), Time(Other.Time), Id(Other.Id), Alive(Other.Alive)
+		EventTimer::EventTimer(EventTimer&& Other) : Callback(std::move(Other.Callback)), Timeout(Other.Timeout), Id(Other.Id), Alive(Other.Alive)
 		{
 		}
 		EventTimer& EventTimer::operator= (const EventTimer& Other)
 		{
 			Callback = Other.Callback;
 			Timeout = Other.Timeout;
-			Time = Other.Time;
 			Id = Other.Id;
 			Alive = Other.Alive;
 			return *this;
@@ -536,7 +535,6 @@ namespace Tomahawk
 		{
 			Callback = std::move(Other.Callback);
 			Timeout = Other.Timeout;
-			Time = Other.Time;
 			Id = Other.Id;
 			Alive = Other.Alive;
 			return *this;
@@ -5077,8 +5075,8 @@ namespace Tomahawk
 			int64_t Clock = GetClock();
 			Sync.Timers.lock();
 
-			EventId Id = Timer++;
-			Timers.emplace_back(Callback, Milliseconds, Clock, Id, true);
+			EventId Id = Timer++; int64_t Time = GetTimeout(Clock + Milliseconds);
+			Timers.insert(std::make_pair(Time, EventTimer(Callback, Milliseconds, Id, true)));
 			Sync.Timers.unlock();
 
 			return Id;
@@ -5091,8 +5089,8 @@ namespace Tomahawk
 			int64_t Clock = GetClock();
 			Sync.Timers.lock();
 
-			EventId Id = Timer++;
-			Timers.emplace_back(std::move(Callback), Milliseconds, Clock, Id, true);
+			EventId Id = Timer++; int64_t Time = GetTimeout(Clock + Milliseconds);
+			Timers.insert(std::make_pair(Time, EventTimer(std::move(Callback), Milliseconds, Id, true)));
 			Sync.Timers.unlock();
 
 			return Id;
@@ -5105,8 +5103,8 @@ namespace Tomahawk
 			int64_t Clock = GetClock();
 			Sync.Timers.lock();
 
-			EventId Id = Timer++;
-			Timers.emplace_back(Callback, Milliseconds, Clock, Id, false);
+			EventId Id = Timer++; int64_t Time = GetTimeout(Clock + Milliseconds);
+			Timers.insert(std::make_pair(Time, EventTimer(Callback, Milliseconds, Id, false)));
 			Sync.Timers.unlock();
 
 			return Id;
@@ -5119,8 +5117,8 @@ namespace Tomahawk
 			int64_t Clock = GetClock();
 			Sync.Timers.lock();
 
-			EventId Id = Timer++;
-			Timers.emplace_back(std::move(Callback), Milliseconds, Clock, Id, false);
+			EventId Id = Timer++; int64_t Time = GetTimeout(Clock + Milliseconds);
+			Timers.insert(std::make_pair(Time, EventTimer(std::move(Callback), Milliseconds, Id, false)));
 			Sync.Timers.unlock();
 
 			return Id;
@@ -5245,13 +5243,12 @@ namespace Tomahawk
 			Sync.Timers.lock();
 			for (auto It = Timers.begin(); It != Timers.end(); It++)
 			{
-				EventTimer& Value = *It;
-				if (Value.Id == TimerId)
-				{
-					Timers.erase(It);
-					Sync.Timers.unlock();
-					return true;
-				}
+				if (It->second.Id != TimerId)
+					continue;
+
+				Timers.erase(It);
+				Sync.Timers.unlock();
+				return true;
 			}
 
 			Sync.Timers.unlock();
@@ -5315,7 +5312,7 @@ namespace Tomahawk
 				Sync.Timers.lock();
 				for (auto It = Timers.begin(); It != Timers.end(); It++)
 				{
-					EventTimer Value(std::move(*It));
+					EventTimer Value(std::move(It->second));
 					Timers.erase(It);
 					Sync.Timers.unlock();
 
@@ -5359,7 +5356,7 @@ namespace Tomahawk
 				DispatchEvent();
 
 			if (!Timers.empty())
-				DispatchTimer(GetClock());
+				DispatchTimer();
 
 			return Active;
 		}
@@ -5428,7 +5425,7 @@ namespace Tomahawk
 					Overhead = (DispatchEvent() ? false : Overhead);
 
 				if (!Timers.empty())
-					Overhead = (DispatchTimer(GetClock()) ? false : Overhead);
+					Overhead = (DispatchTimer() ? false : Overhead);
 
 				if (Overhead)
 					std::this_thread::sleep_for(std::chrono::microseconds(100));
@@ -5458,82 +5455,83 @@ namespace Tomahawk
 			if (Events.empty())
 				return false;
 
+			std::queue<EventBase> Queue;
 			Sync.Events.lock();
-			if (Events.empty())
-			{
-				Sync.Events.unlock();
-				return false;
-			}
-
-			EventBase Src(std::move(Events.front()));
-			Events.pop();
+			if (!Events.empty())
+				Events.swap(Queue);
 			Sync.Events.unlock();
 
-			Sync.Listeners.lock();
-			auto Base = Listeners.find(Src.Name);
-			if (Base == Listeners.end())
+			bool Wasted = Queue.empty();
+			while (!Queue.empty())
 			{
+				EventBase Src(std::move(Queue.front()));
+				Queue.pop();
+
+				Sync.Listeners.lock();
+				auto Base = Listeners.find(Src.Name);
+				if (Base != Listeners.end())
+				{
+					auto Array = Base->second.Callbacks;
+					SetTask([Src = std::move(Src), Array]() mutable
+					{
+						for (auto& Callback : Array)
+							Callback.second(Src.Args);
+					});
+				}
 				Sync.Listeners.unlock();
-				return false;
 			}
 
-			auto Array = Base->second.Callbacks;
-			Sync.Listeners.unlock();
-
-			return SetTask([Src = std::move(Src), Array]() mutable
-			{
-				for (auto& Callback : Array)
-				{
-					if (Callback.second)
-						Callback.second(Src.Args);
-				}
-			});
+			return !Wasted;
 		}
 		bool Schedule::DispatchTask()
 		{
 			if (Tasks.empty())
 				return !Active;
 
+			std::queue<EventTask> Queue;
 			Sync.Tasks.lock();
-			if (Tasks.empty())
+			if (!Tasks.empty())
+				Tasks.swap(Queue);
+			Sync.Tasks.unlock();
+
+			bool Wasted = Queue.empty();
+			while (!Queue.empty())
 			{
-				Sync.Tasks.unlock();
-				return !Active;
+				Queue.front()();
+				Queue.pop();
 			}
 
-			EventTask Src(std::move(Tasks.front()));
-			Tasks.pop();
-
-			Sync.Tasks.unlock();
-			if (Src)
-				Src();
-
-			return true;
+			return !Wasted;
 		}
-		bool Schedule::DispatchTimer(int64_t Time)
+		bool Schedule::DispatchTimer()
 		{
+			int64_t Clock = GetClock();
 			Sync.Timers.lock();
-			for (auto It = Timers.begin(); It != Timers.end(); It++)
+
+			auto It = Timers.begin();
+			if (It == Timers.end() || It->first >= Clock)
 			{
-				EventTimer& Element = *It;
-				if (Time - Element.Time < (int64_t)Element.Timeout)
-					continue;
-
-				TimerCallback Callback = Element.Callback;
-				if (Element.Alive)
-					Element.Time = Time;
-				else
-					Timers.erase(It);
-
 				Sync.Timers.unlock();
-				if (Callback)
-					SetTask(std::move(Callback));
+				return false;
+			}
 
+			if (!It->second.Alive)
+			{
+				SetTask(std::move(It->second.Callback));
+				Timers.erase(It);
+				Sync.Timers.unlock();
 				return true;
 			}
 
+			EventTimer Next(std::move(It->second));
+			Timers.erase(It);
+
+			SetTask((const TaskCallback&)Next.Callback);
+
+			int64_t Time = GetTimeout(Clock + Next.Timeout);
+			Timers.insert(std::make_pair(Time, std::move(Next)));
 			Sync.Timers.unlock();
-			return false;
+			return true;
 		}
 		bool Schedule::IsBlockable()
 		{
@@ -5546,6 +5544,13 @@ namespace Tomahawk
 		int64_t Schedule::GetClock()
 		{
 			return std::chrono::duration_cast<std::chrono::milliseconds>(std::chrono::system_clock::now().time_since_epoch()).count();
+		}
+		int64_t Schedule::GetTimeout(int64_t Clock)
+		{
+			while (Timers.find(Clock) != Timers.end())
+				Clock++;
+
+			return Clock;
 		}
 		Schedule* Schedule::Get()
 		{

@@ -2249,6 +2249,9 @@ namespace Tomahawk
 			Core::Async<bool> Connection::Disconnect()
 			{
 #ifdef TH_HAS_MONGOC
+				if (!Connected || !Base)
+					return Core::Async<bool>::Store(false);
+
 				return [this](Core::Async<bool>& Future)
 				{
 					Connected = false;
@@ -2466,6 +2469,9 @@ namespace Tomahawk
 			Core::Async<bool> Queue::Disconnect()
 			{
 #ifdef TH_HAS_MONGOC
+				if (!Connected || !Pool)
+					return false;
+
 				return [this](Core::Async<bool>& Future)
 				{
 					if (Pool != nullptr)

@@ -247,7 +247,7 @@ namespace Tomahawk
 			Core::Mem::Create(HeapSize);
 
 		Modes = Modules;
-		if (Modes & TInit_Rest)
+		if (Modes & TInit_Core)
 		{
 			if (Modes & TInit_Logger)
 				Core::Debug::AttachStream();
@@ -474,7 +474,7 @@ namespace Tomahawk
 		Core::Composer::Clear();
 		Core::Mem::Release();
 
-		if (Modes & TInit_Rest)
+		if (Modes & TInit_Core)
 		{
 			if (Modes & TInit_Logger)
 				Core::Debug::DetachStream();

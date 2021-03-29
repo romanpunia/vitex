@@ -4403,7 +4403,7 @@ namespace Tomahawk
 				return &Any->Value.ValueObj;
 			else if (TypeId & asTYPEID_MASK_OBJECT)
 				return Any->Value.ValueObj;
-			else if (TypeId <= asTYPEID_DOUBLE)
+			else if (TypeId <= asTYPEID_DOUBLE || TypeId & asTYPEID_MASK_SEQNBR)
 				return &Any->Value.ValueInt;
 
 			Context->SetException("retrieve this object explicitly with To(T& out)");

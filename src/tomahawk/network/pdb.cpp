@@ -181,6 +181,9 @@ namespace Tomahawk
 			Core::Async<bool> Connection::Disconnect()
 			{
 #ifdef TH_HAS_MONGOC
+				if (!Connected || !Base)
+					return Core::Async<bool>::Store(false);
+
 				return [this](Core::Async<bool>& Future)
 				{
 					Connected = false;

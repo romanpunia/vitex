@@ -1470,10 +1470,11 @@ namespace Tomahawk
 				if (Queue->IsActive())
 				{
 					Base* Subresult = Next->Copy();
-					Queue->SetTask([this, Subresult, Executor = std::move(Executor)]() mutable
+					Queue->SetTask([Subresult, Executor = std::move(Executor)]() mutable
 					{
-						Executor(*this);
+						Async Copy(Subresult);
 						Subresult->Free();
+						Executor(Copy);
 					});
 				}
 				else
@@ -1696,23 +1697,25 @@ namespace Tomahawk
 				Condition(bool Default, size_t Size) : Count(Size + 1), Match(Default), Reverse(Default)
 				{
 				}
+				void Free()
+				{
+					Value.Set(Match);
+					delete this;
+				}
 				void Next(bool Statement)
 				{
 					if (Statement != Reverse)
 						Match = !Reverse;
 
 					if (!--Count)
-						Value.Set(Match);
-
-					delete this;
+						Free();
 				}
 				Async<bool> Get()
 				{
 					Async<bool> Result = Value;
 					if (!--Count)
-						Value.Set(Match);
+						Free();
 
-					delete this;
 					return Result;
 				}
 			};

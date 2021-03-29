@@ -4142,6 +4142,10 @@ namespace Tomahawk
 		void VMManager::FreeProxy()
 		{
 			FreeCoreAPI();
+			FreeThread();
+		}
+		void VMManager::FreeThread()
+		{
 			asThreadCleanup();
 		}
 		VMManager* VMManager::Get(VMCManager* Engine)

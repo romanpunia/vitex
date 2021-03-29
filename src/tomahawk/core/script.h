@@ -1784,6 +1784,7 @@ namespace Tomahawk
 			static VMManager* Get();
 			static size_t GetDefaultAccessMask();
 			static void FreeProxy();
+			static void FreeThread();
 
 		private:
 			static std::string GetLibraryName(const std::string& Path);

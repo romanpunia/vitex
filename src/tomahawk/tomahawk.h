@@ -30,7 +30,7 @@ namespace Tomahawk
 {
 	enum TInit
 	{
-		TInit_Rest = 1,
+		TInit_Core = 1,
 		TInit_Logger = 2,
 		TInit_Network = 4,
 		TInit_Crypto = 8,
@@ -44,8 +44,8 @@ namespace Tomahawk
 
 	enum TPreset
 	{
-		TPreset_Game = (TInit_Rest | TInit_Logger | TInit_Network | TInit_Crypto | TInit_SSL | TInit_SDL2 | TInit_Compute | TInit_Locale | TInit_Audio | TInit_GLEW),
-		TPreset_App = (TInit_Rest | TInit_Logger | TInit_Network | TInit_Crypto | TInit_SSL | TInit_Compute | TInit_Locale)
+		TPreset_Game = (TInit_Core | TInit_Logger | TInit_Network | TInit_Crypto | TInit_SSL | TInit_SDL2 | TInit_Compute | TInit_Locale | TInit_Audio | TInit_GLEW),
+		TPreset_App = (TInit_Core | TInit_Logger | TInit_Network | TInit_Crypto | TInit_SSL | TInit_Compute | TInit_Locale)
 	};
 
 	enum TMem

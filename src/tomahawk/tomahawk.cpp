@@ -263,6 +263,16 @@ namespace Tomahawk
 #endif
 		}
 
+		if (Modes & TInit_SSL)
+		{
+#ifdef TH_HAS_OPENSSL
+			SSL_library_init();
+			SSL_load_error_strings();
+#else
+			TH_WARN("openssl ssl cannot be initialized");
+#endif
+		}
+
 		if (Modes & TInit_Crypto)
 		{
 #ifdef TH_HAS_OPENSSL
@@ -290,18 +300,9 @@ namespace Tomahawk
 				return (unsigned long)syscall(SYS_gettid);
 #endif
 			});
+			RAND_poll();
 #else
 			TH_WARN("openssl crypto cannot be initialized");
-#endif
-		}
-
-		if (Modes & TInit_SSL)
-		{
-#ifdef TH_HAS_OPENSSL
-			SSL_library_init();
-			SSL_load_error_strings();
-#else
-			TH_WARN("openssl ssl cannot be initialized");
 #endif
 		}
 
@@ -405,6 +406,13 @@ namespace Tomahawk
 			Audio::AudioContext::Create();
 
 		Script::VMManager::SetMemoryFunctions(Core::Mem::Malloc, Core::Mem::Free);
+#ifdef TH_HAS_OPENSSL
+		if (Modes & TInit_Crypto)
+		{
+			int64_t Raw = 0;
+			RAND_bytes((unsigned char*)&Raw, sizeof(int64_t));
+		}
+#endif
 #ifndef TH_MICROSOFT
 		signal(SIGPIPE, SIG_IGN);
 #endif

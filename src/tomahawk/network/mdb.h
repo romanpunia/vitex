@@ -225,6 +225,7 @@ namespace Tomahawk
 				uint64_t GetBatchSize() const;
 				uint64_t GetHint() const;
 				Document GetCurrent() const;
+				Cursor Clone();
 				TCursor* Get() const;
 				operator bool() const
 				{

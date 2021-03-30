@@ -577,7 +577,7 @@ namespace Tomahawk
 			static VMCAsync* Promise(int TypeId, Core::Async<T>&& Base)
 			{
 				VMCAsync* Future = Promise();
-				Base.Await([Future, TypeId](T&& Result)
+				Base.Await([Base, Future, TypeId](T&& Result)
 				{
 					Future->Set((void*)&Result, TypeId);
 				});
@@ -588,7 +588,7 @@ namespace Tomahawk
 			static VMCAsync* Promise(const std::string& TypeName, Core::Async<T>&& Base)
 			{
 				VMCAsync* Future = Promise();
-				Base.Await([Future, TypeName](T&& Result)
+				Base.Await([Base, Future, TypeName](T&& Result)
 				{
 					Future->Set((void*)&Result, TypeName.c_str());
 				});

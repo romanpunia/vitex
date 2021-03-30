@@ -1343,6 +1343,17 @@ namespace Tomahawk
 				return nullptr;
 #endif
 			}
+			Cursor Cursor::Clone()
+			{
+#ifdef TH_HAS_MONGOC
+				if (!Base)
+					return nullptr;
+
+				return mongoc_cursor_clone(Base);
+#else
+				return nullptr;
+#endif
+			}
 			TCursor* Cursor::Get() const
 			{
 #ifdef TH_HAS_MONGOC
@@ -1678,7 +1689,7 @@ namespace Tomahawk
 					Cursor Subresult = MDB_EXEC_CUR(&mongoc_collection_find_indexes_with_opts, Context, Options.Get());
 					Options.Release();
 
-					Future.Set(Subresult);
+					Future.Sync(true).Set(Subresult);
 				};
 #else
 				return Core::Async<Cursor>::Store(nullptr);
@@ -1694,7 +1705,7 @@ namespace Tomahawk
 					Select.Release();
 					Options.Release();
 
-					Future.Set(Subresult);
+					Future.Sync(true).Set(Subresult);
 				};
 #else
 				return Core::Async<Cursor>::Store(nullptr);
@@ -1718,7 +1729,7 @@ namespace Tomahawk
 					Select.Release();
 					Options.Release();
 
-					Future.Set(Subresult);
+					Future.Sync(true).Set(Subresult);
 				};
 #else
 				return Core::Async<Cursor>::Store(nullptr);
@@ -1734,7 +1745,7 @@ namespace Tomahawk
 					Pipeline.Release();
 					Options.Release();
 
-					Future.Set(Subresult);
+					Future.Sync(true).Set(Subresult);
 				};
 #else
 				return Core::Async<Cursor>::Store(nullptr);
@@ -1869,7 +1880,7 @@ namespace Tomahawk
 					Cursor Subresult = MDB_EXEC_CUR(&mongoc_database_find_collections_with_opts, Context, Options.Get());
 					Options.Release();
 
-					Future.Set(Subresult);
+					Future.Sync(true).Set(Subresult);
 				};
 #else
 				return Core::Async<Cursor>::Store(nullptr);
@@ -2285,7 +2296,7 @@ namespace Tomahawk
 					TCursor* Subresult = mongoc_client_find_databases_with_opts(Base, Options.Get());
 					Options.Release();
 
-					Future.Set(Subresult);
+					Future.Sync(true).Set(Subresult);
 				};
 #else
 				return Core::Async<Cursor>::Store(nullptr);
@@ -2816,7 +2827,7 @@ namespace Tomahawk
 				}
 
 				Document Data = Document::FromJSON(Origin.Request);
-				if (Data.Get())
+				if (!Data.Get())
 					TH_ERROR("could not construct query: \"%s\"", Name.c_str());
 
 				return Data;

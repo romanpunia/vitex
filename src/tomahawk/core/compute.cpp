@@ -4787,15 +4787,17 @@ namespace Tomahawk
 			static const char Alphabet[] = "0123456789ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz";
 			return Alphabet[rand() % (sizeof(Alphabet) - 1)];
 		}
-		int64_t Common::RandomNumber(int64_t Min, int64_t Max)
+		uint64_t Common::RandomNumber(uint64_t Min, uint64_t Max)
 		{
-			int64_t Raw = 0;
+			uint64_t Raw = 0;
+			if (Min > Max)
+				return Raw;
 #ifdef TH_HAS_OPENSSL
-			RAND_bytes((unsigned char*)&Raw, sizeof(int64_t));
+			RAND_bytes((unsigned char*)&Raw, sizeof(uint64_t));
 #else
 			Raw = (int64_t)rand();
 #endif
-			return Min + (Raw % static_cast<int64_t>(Max - Min + 1));
+			return Raw % (Max - Min + 1) + Min;
 		}
 		uint64_t Common::Utf8(int code, char* Buffer)
 		{

@@ -1684,17 +1684,17 @@ namespace Tomahawk
 			}
 		};
 
-		class Concurrent
+		class Conditional
 		{
 		private:
-			struct Condition
+			struct Output
 			{
 				std::atomic<size_t> Count;
 				std::atomic<bool> Match;
 				Async<bool> Value;
 				bool Reverse;
 
-				Condition(bool Default, size_t Size) : Count(Size + 1), Match(Default), Reverse(Default)
+				Output(bool Default, size_t Size) : Count(Size + 1), Match(Default), Reverse(Default)
 				{
 				}
 				void Free()
@@ -1738,7 +1738,7 @@ namespace Tomahawk
 			template <typename T>
 			static Async<bool> And(T&& Value, const std::vector<Async<T>>& Array)
 			{
-				Condition* State = new Condition(true, Array.size());
+				Output* State = new Output(true, Array.size());
 				ForEach<T>(Array, [State, Value = std::move(Value)](T&& Result)
 				{
 					State->Next(Result == Value);
@@ -1749,7 +1749,7 @@ namespace Tomahawk
 			template <typename T>
 			static Async<bool> Or(T&& Value, const std::vector<Async<T>>& Array)
 			{
-				Condition* State = new Condition(false, Array.size());
+				Output* State = new Output(false, Array.size());
 				ForEach<T>(Array, [State, Value = std::move(Value)](T&& Result)
 				{
 					State->Next(Result == Value);

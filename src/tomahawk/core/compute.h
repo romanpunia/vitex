@@ -1334,7 +1334,7 @@ namespace Tomahawk
 			static std::string DecimalToHex(uint64_t V);
 			static Hybi10Request Hybi10Decode(const std::string& Data);
 			static unsigned char RandomUC();
-			static int64_t RandomNumber(int64_t Begin, int64_t End);
+			static uint64_t RandomNumber(uint64_t Begin, uint64_t End);
 			static uint64_t Utf8(int code, char* Buffer);
 			static std::vector<int> CreateTriangleStrip(TriangleStrip::Desc& Desc, const std::vector<int>& Indices);
 			static std::vector<int> CreateTriangleList(const std::vector<int>& Indices);

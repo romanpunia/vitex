@@ -52,7 +52,7 @@ namespace Tomahawk
 			{
 				Document(Object).Release();
 				Object = nullptr;
-				
+
 				Document(Array).Release();
 				Array = nullptr;
 
@@ -216,7 +216,7 @@ namespace Tomahawk
 					bson_free(Base);
 				}
 				else
-					bson_destroy(Base);		
+					bson_destroy(Base);
 				*((TDocument**)&Base) = nullptr;
 #endif
 			}
@@ -878,7 +878,7 @@ namespace Tomahawk
 #ifdef TH_HAS_MONGOC
 				if (Array)
 					return BCON_NEW("pipeline", "[", "]");
-				
+
 				return bson_new();
 #else
 				return nullptr;
@@ -1107,17 +1107,17 @@ namespace Tomahawk
 			{
 #ifdef TH_HAS_MONGOC
 				if (!Base)
-					return Core::Async<Document>(nullptr);
+					return Core::Async<Document>::Store(nullptr);
 
 				Stream Context = *this; Base = nullptr;
-				return [Context](Core::Async<Document>& Future) mutable
+				return Core::Async<Document>([Context](Core::Async<Document>& Future) mutable
 				{
 					TDocument Subresult;
 					MDB_EXEC(&mongoc_bulk_operation_execute, Context.Get(), &Subresult);
 					Context.Release();
 
 					Future.Set(Document::FromSource(&Subresult));
-				};
+				});
 #else
 				return Core::Async<Document>::Store(nullptr);
 #endif
@@ -1129,7 +1129,7 @@ namespace Tomahawk
 					return Core::Async<bool>::Store(true);
 
 				Stream Context = *this; Base = nullptr;
-				return [Context](Core::Async<bool>& Future) mutable
+				return Core::Async<bool>([Context](Core::Async<bool>& Future) mutable
 				{
 					TDocument Result;
 					bool Subresult = MDB_EXEC(&mongoc_bulk_operation_execute, Context.Get(), &Result);
@@ -1137,7 +1137,7 @@ namespace Tomahawk
 					Context.Release();
 
 					Future.Set(Subresult);
-				};
+				});
 #else
 				return Core::Async<bool>::Store(false);
 #endif
@@ -1380,10 +1380,10 @@ namespace Tomahawk
 			{
 #ifdef TH_HAS_MONGOC
 				auto* Context = Base;
-				return [Context, NewDatabaseName, NewCollectionName](Core::Async<bool>& Future)
+				return Core::Async<bool>([Context, NewDatabaseName, NewCollectionName](Core::Async<bool>& Future)
 				{
 					Future.Set(MDB_EXEC(&mongoc_collection_rename, Context, NewDatabaseName.c_str(), NewCollectionName.c_str(), false));
-				};
+				});
 #else
 				return Core::Async<bool>::Store(false);
 #endif
@@ -1392,13 +1392,13 @@ namespace Tomahawk
 			{
 #ifdef TH_HAS_MONGOC
 				auto* Context = Base;
-				return [Context, NewDatabaseName, NewCollectionName, Options](Core::Async<bool>& Future)
+				return Core::Async<bool>([Context, NewDatabaseName, NewCollectionName, Options](Core::Async<bool>& Future)
 				{
 					bool Subresult = MDB_EXEC(&mongoc_collection_rename_with_opts, Context, NewDatabaseName.c_str(), NewCollectionName.c_str(), false, Options.Get());
 					Options.Release();
 
 					Future.Set(Subresult);
-				};
+				});
 #else
 				return Core::Async<bool>::Store(false);
 #endif
@@ -1407,10 +1407,10 @@ namespace Tomahawk
 			{
 #ifdef TH_HAS_MONGOC
 				auto* Context = Base;
-				return [Context, NewDatabaseName, NewCollectionName](Core::Async<bool>& Future)
+				return Core::Async<bool>([Context, NewDatabaseName, NewCollectionName](Core::Async<bool>& Future)
 				{
 					Future.Set(MDB_EXEC(&mongoc_collection_rename, Context, NewDatabaseName.c_str(), NewCollectionName.c_str(), true));
-				};
+				});
 #else
 				return Core::Async<bool>::Store(false);
 #endif
@@ -1419,13 +1419,13 @@ namespace Tomahawk
 			{
 #ifdef TH_HAS_MONGOC
 				auto* Context = Base;
-				return [Context, NewDatabaseName, NewCollectionName, Options](Core::Async<bool>& Future)
+				return Core::Async<bool>([Context, NewDatabaseName, NewCollectionName, Options](Core::Async<bool>& Future)
 				{
 					bool Subresult = MDB_EXEC(&mongoc_collection_rename_with_opts, Context, NewDatabaseName.c_str(), NewCollectionName.c_str(), true, Options.Get());
 					Options.Release();
 
 					Future.Set(Subresult);
-				};
+				});
 #else
 				return Core::Async<bool>::Store(false);
 #endif
@@ -1434,13 +1434,13 @@ namespace Tomahawk
 			{
 #ifdef TH_HAS_MONGOC
 				auto* Context = Base;
-				return [Context, Options](Core::Async<bool>& Future)
+				return Core::Async<bool>([Context, Options](Core::Async<bool>& Future)
 				{
 					bool Subresult = MDB_EXEC(&mongoc_collection_drop_with_opts, Context, Options.Get());
 					Options.Release();
 
 					Future.Set(Subresult);
-				};
+				});
 #else
 				return Core::Async<bool>::Store(false);
 #endif
@@ -1449,13 +1449,13 @@ namespace Tomahawk
 			{
 #ifdef TH_HAS_MONGOC
 				auto* Context = Base;
-				return [Context, Name, Options](Core::Async<bool>& Future)
+				return Core::Async<bool>([Context, Name, Options](Core::Async<bool>& Future)
 				{
 					bool Subresult = MDB_EXEC(&mongoc_collection_drop_index_with_opts, Context, Name.c_str(), Options.Get());
 					Options.Release();
 
 					Future.Set(Subresult);
-				};
+				});
 #else
 				return Core::Async<bool>::Store(false);
 #endif
@@ -1464,7 +1464,7 @@ namespace Tomahawk
 			{
 #ifdef TH_HAS_MONGOC
 				auto* Context = Base;
-				return [Context, Select, Options](Core::Async<Document>& Future)
+				return Core::Async<Document>([Context, Select, Options](Core::Async<Document>& Future)
 				{
 					TDocument Subresult;
 					MDB_EXEC(&mongoc_collection_delete_many, Context, Select.Get(), Options.Get(), &Subresult);
@@ -1472,7 +1472,7 @@ namespace Tomahawk
 					Options.Release();
 
 					Future.Set(Document::FromSource(&Subresult));
-				};
+				});
 #else
 				return Core::Async<Document>::Store(nullptr);
 #endif
@@ -1481,7 +1481,7 @@ namespace Tomahawk
 			{
 #ifdef TH_HAS_MONGOC
 				auto* Context = Base;
-				return [Context, Select, Options](Core::Async<Document>& Future)
+				return Core::Async<Document>([Context, Select, Options](Core::Async<Document>& Future)
 				{
 					TDocument Subresult;
 					MDB_EXEC(&mongoc_collection_delete_one, Context, Select.Get(), Options.Get(), &Subresult);
@@ -1489,7 +1489,7 @@ namespace Tomahawk
 					Options.Release();
 
 					Future.Set(Document::FromSource(&Subresult));
-				};
+				});
 #else
 				return Core::Async<Document>::Store(nullptr);
 #endif
@@ -1498,7 +1498,7 @@ namespace Tomahawk
 			{
 #ifdef TH_HAS_MONGOC
 				auto* Context = Base;
-				return [Context, Select, Replacement, Options](Core::Async<Document>& Future)
+				return Core::Async<Document>([Context, Select, Replacement, Options](Core::Async<Document>& Future)
 				{
 					TDocument Subresult;
 					MDB_EXEC(&mongoc_collection_replace_one, Context, Select.Get(), Replacement.Get(), Options.Get(), &Subresult);
@@ -1507,7 +1507,7 @@ namespace Tomahawk
 					Options.Release();
 
 					Future.Set(Document::FromSource(&Subresult));
-				};
+				});
 #else
 				return Core::Async<Document>::Store(nullptr);
 #endif
@@ -1521,7 +1521,7 @@ namespace Tomahawk
 				std::vector<Document> Array(std::move(List));
 				auto* Context = Base;
 
-				return [Context, Array = std::move(Array), Options](Core::Async<Document>& Future) mutable
+				return Core::Async<Document>([Context, Array = std::move(Array), Options](Core::Async<Document>& Future) mutable
 				{
 					TDocument** Subarray = (TDocument**)TH_MALLOC(sizeof(TDocument*) * Array.size());
 					for (size_t i = 0; i < Array.size(); i++)
@@ -1535,7 +1535,7 @@ namespace Tomahawk
 					TH_FREE(Subarray);
 
 					Future.Set(Document::FromSource(&Subresult));
-				};
+				});
 #else
 				return Core::Async<Document>::Store(nullptr);
 #endif
@@ -1544,7 +1544,7 @@ namespace Tomahawk
 			{
 #ifdef TH_HAS_MONGOC
 				auto* Context = Base;
-				return [Context, Result, Options](Core::Async<Document>& Future)
+				return Core::Async<Document>([Context, Result, Options](Core::Async<Document>& Future)
 				{
 					TDocument Subresult;
 					MDB_EXEC(&mongoc_collection_insert_one, Context, Result.Get(), Options.Get(), &Subresult);
@@ -1552,7 +1552,7 @@ namespace Tomahawk
 					Result.Release();
 
 					Future.Set(Document::FromSource(&Subresult));
-				};
+				});
 #else
 				return Core::Async<Document>::Store(nullptr);
 #endif
@@ -1561,16 +1561,16 @@ namespace Tomahawk
 			{
 #ifdef TH_HAS_MONGOC
 				auto* Context = Base;
-				return [Context, Select, Update, Options](Core::Async<Document>& Future)
+				return Core::Async<Document>([Context, Select, Update, Options](Core::Async<Document>& Future)
 				{
-					TDocument Subresult;	
+					TDocument Subresult;
 					MDB_EXEC(&mongoc_collection_update_many, Context, Select.Get(), Update.Get(), Options.Get(), &Subresult);
 					Select.Release();
 					Update.Release();
 					Options.Release();
 
 					Future.Set(Document::FromSource(&Subresult));
-				};
+				});
 #else
 				return Core::Async<Document>::Store(nullptr);
 #endif
@@ -1579,7 +1579,7 @@ namespace Tomahawk
 			{
 #ifdef TH_HAS_MONGOC
 				auto* Context = Base;
-				return [Context, Select, Update, Options](Core::Async<Document>& Future)
+				return Core::Async<Document>([Context, Select, Update, Options](Core::Async<Document>& Future)
 				{
 					TDocument Subresult;
 					MDB_EXEC(&mongoc_collection_update_one, Context, Select.Get(), Update.Get(), Options.Get(), &Subresult);
@@ -1588,7 +1588,7 @@ namespace Tomahawk
 					Options.Release();
 
 					Future.Set(Document::FromSource(&Subresult));
-				};
+				});
 #else
 				return Core::Async<Document>::Store(nullptr);
 #endif
@@ -1597,7 +1597,7 @@ namespace Tomahawk
 			{
 #ifdef TH_HAS_MONGOC
 				auto* Context = Base;
-				return [Context, Query, Sort, Update, Fields, RemoveAt, Upsert, New](Core::Async<Document>& Future)
+				return Core::Async<Document>([Context, Query, Sort, Update, Fields, RemoveAt, Upsert, New](Core::Async<Document>& Future)
 				{
 					TDocument Subresult;
 					MDB_EXEC(&mongoc_collection_find_and_modify, Context, Query.Get(), Sort.Get(), Update.Get(), Fields.Get(), RemoveAt, Upsert, New, &Subresult);
@@ -1607,7 +1607,7 @@ namespace Tomahawk
 					Fields.Release();
 
 					Future.Set(Document::FromSource(&Subresult));
-				};
+				});
 #else
 				return Core::Async<Document>::Store(nullptr);
 #endif
@@ -1624,10 +1624,10 @@ namespace Tomahawk
 				}
 
 				auto* Context = Base;
-				return [Context, Match, Filter, Options](Core::Async<uint64_t>& Future)
+				return Core::Async<uint64_t>([Context, Match, Filter, Options](Core::Async<uint64_t>& Future)
 				{
 					Document Pipeline = BCON_NEW("pipeline", "[", "{", "$match", BCON_DOCUMENT(Match.Get()), "}", "{", "$project", "{", "Count", "{", "$Count", "{", "$filter", BCON_DOCUMENT(Filter.Get()), "}", "}", "}", "}", "]");
-					Cursor Subresult = MDB_EXEC_CUR(&mongoc_collection_aggregate, Context, MONGOC_QUERY_NONE, Pipeline.Get(), Options.Get(), nullptr);	
+					Cursor Subresult = MDB_EXEC_CUR(&mongoc_collection_aggregate, Context, MONGOC_QUERY_NONE, Pipeline.Get(), Options.Get(), nullptr);
 					Property Count;
 
 					if (Subresult.Next())
@@ -1644,7 +1644,7 @@ namespace Tomahawk
 					Options.Release();
 
 					Future.Set((uint64_t)Count.Integer);
-				};
+				});
 #else
 				return Core::Async<uint64_t>::Store(0);
 #endif
@@ -1653,14 +1653,14 @@ namespace Tomahawk
 			{
 #ifdef TH_HAS_MONGOC
 				auto* Context = Base;
-				return [Context, Select, Options](Core::Async<uint64_t>& Future)
+				return Core::Async<uint64_t>([Context, Select, Options](Core::Async<uint64_t>& Future)
 				{
 					uint64_t Subresult = (uint64_t)MDB_EXEC(&mongoc_collection_count_documents, Context, Select.Get(), Options.Get(), nullptr, nullptr);
 					Select.Release();
 					Options.Release();
 
 					Future.Set(Subresult);
-				};
+				});
 #else
 				return Core::Async<uint64_t>::Store(0);
 #endif
@@ -1669,13 +1669,13 @@ namespace Tomahawk
 			{
 #ifdef TH_HAS_MONGOC
 				auto* Context = Base;
-				return [Context, Options](Core::Async<uint64_t>& Future)
+				return Core::Async<uint64_t>([Context, Options](Core::Async<uint64_t>& Future)
 				{
 					uint64_t Subresult = (uint64_t)MDB_EXEC(&mongoc_collection_estimated_document_count, Context, Options.Get(), nullptr, nullptr);
 					Options.Release();
 
 					Future.Set(Subresult);
-				};
+				});
 #else
 				return Core::Async<uint64_t>::Store(0);
 #endif
@@ -1684,13 +1684,13 @@ namespace Tomahawk
 			{
 #ifdef TH_HAS_MONGOC
 				auto* Context = Base;
-				return [Context, Options](Core::Async<Cursor>& Future)
+				return Core::Async<Cursor>([Context, Options](Core::Async<Cursor>& Future)
 				{
 					Cursor Subresult = MDB_EXEC_CUR(&mongoc_collection_find_indexes_with_opts, Context, Options.Get());
 					Options.Release();
 
 					Future.Sync(true).Set(Subresult);
-				};
+				});
 #else
 				return Core::Async<Cursor>::Store(nullptr);
 #endif
@@ -1699,14 +1699,14 @@ namespace Tomahawk
 			{
 #ifdef TH_HAS_MONGOC
 				auto* Context = Base;
-				return [Context, Select, Options](Core::Async<Cursor>& Future)
+				return Core::Async<Cursor>([Context, Select, Options](Core::Async<Cursor>& Future)
 				{
 					Cursor Subresult = MDB_EXEC_CUR(&mongoc_collection_find_with_opts, Context, Select.Get(), Options.Get(), nullptr);
 					Select.Release();
 					Options.Release();
 
 					Future.Sync(true).Set(Subresult);
-				};
+				});
 #else
 				return Core::Async<Cursor>::Store(nullptr);
 #endif
@@ -1715,7 +1715,7 @@ namespace Tomahawk
 			{
 #ifdef TH_HAS_MONGOC
 				auto* Context = Base;
-				return [Context, Select, Options](Core::Async<Cursor>& Future)
+				return Core::Async<Cursor>([Context, Select, Options](Core::Async<Cursor>& Future)
 				{
 					Document Settings = Options;
 					if (Settings.Get() != nullptr)
@@ -1730,7 +1730,7 @@ namespace Tomahawk
 					Options.Release();
 
 					Future.Sync(true).Set(Subresult);
-				};
+				});
 #else
 				return Core::Async<Cursor>::Store(nullptr);
 #endif
@@ -1739,14 +1739,14 @@ namespace Tomahawk
 			{
 #ifdef TH_HAS_MONGOC
 				auto* Context = Base;
-				return [Context, Flags, Pipeline, Options](Core::Async<Cursor>& Future)
+				return Core::Async<Cursor>([Context, Flags, Pipeline, Options](Core::Async<Cursor>& Future)
 				{
 					Cursor Subresult = MDB_EXEC_CUR(&mongoc_collection_aggregate, Context, (mongoc_query_flags_t)Flags, Pipeline.Get(), Options.Get(), nullptr);
 					Pipeline.Release();
 					Options.Release();
 
 					Future.Sync(true).Set(Subresult);
-				};
+				});
 #else
 				return Core::Async<Cursor>::Store(nullptr);
 #endif
@@ -1805,10 +1805,10 @@ namespace Tomahawk
 			{
 #ifdef TH_HAS_MONGOC
 				auto* Context = Base;
-				return [Context](Core::Async<bool>& Future)
+				return Core::Async<bool>([Context](Core::Async<bool>& Future)
 				{
 					Future.Set(MDB_EXEC(&mongoc_database_remove_all_users, Context));
-				};
+				});
 #else
 				return Core::Async<bool>::Store(false);
 #endif
@@ -1817,10 +1817,10 @@ namespace Tomahawk
 			{
 #ifdef TH_HAS_MONGOC
 				auto* Context = Base;
-				return [Context, Name](Core::Async<bool>& Future)
+				return Core::Async<bool>([Context, Name](Core::Async<bool>& Future)
 				{
 					Future.Set(MDB_EXEC(&mongoc_database_remove_user, Context, Name.c_str()));
-				};
+				});
 #else
 				return Core::Async<bool>::Store(false);
 #endif
@@ -1829,10 +1829,10 @@ namespace Tomahawk
 			{
 #ifdef TH_HAS_MONGOC
 				auto* Context = Base;
-				return [Context](Core::Async<bool>& Future)
+				return Core::Async<bool>([Context](Core::Async<bool>& Future)
 				{
 					Future.Set(MDB_EXEC(&mongoc_database_drop, Context));
-				};
+				});
 #else
 				return Core::Async<bool>::Store(false);
 #endif
@@ -1844,13 +1844,13 @@ namespace Tomahawk
 					return Remove();
 
 				auto* Context = Base;
-				return [Context, Options](Core::Async<bool>& Future)
+				return Core::Async<bool>([Context, Options](Core::Async<bool>& Future)
 				{
 					bool Subresult = MDB_EXEC(&mongoc_database_drop_with_opts, Context, Options.Get());
 					Options.Release();
 
 					Future.Set(Subresult);
-				};
+				});
 #else
 				return Core::Async<bool>::Store(false);
 #endif
@@ -1859,14 +1859,14 @@ namespace Tomahawk
 			{
 #ifdef TH_HAS_MONGOC
 				auto* Context = Base;
-				return [Context, Username, Password, Roles, Custom](Core::Async<bool>& Future)
+				return Core::Async<bool>([Context, Username, Password, Roles, Custom](Core::Async<bool>& Future)
 				{
 					bool Subresult = MDB_EXEC(&mongoc_database_add_user, Context, Username.c_str(), Password.c_str(), Roles.Get(), Custom.Get());
 					Roles.Release();
 					Custom.Release();
 
 					Future.Set(Subresult);
-				};
+				});
 #else
 				return Core::Async<bool>::Store(false);
 #endif
@@ -1875,13 +1875,13 @@ namespace Tomahawk
 			{
 #ifdef TH_HAS_MONGOC
 				auto* Context = Base;
-				return [Context, Options](Core::Async<Cursor>& Future)
+				return Core::Async<Cursor>([Context, Options](Core::Async<Cursor>& Future)
 				{
 					Cursor Subresult = MDB_EXEC_CUR(&mongoc_database_find_collections_with_opts, Context, Options.Get());
 					Options.Release();
 
 					Future.Sync(true).Set(Subresult);
-				};
+				});
 #else
 				return Core::Async<Cursor>::Store(nullptr);
 #endif
@@ -2102,10 +2102,10 @@ namespace Tomahawk
 			{
 #ifdef TH_HAS_MONGOC
 				auto* Context = Base;
-				return [Context](Core::Async<bool>& Future)
+				return Core::Async<bool>([Context](Core::Async<bool>& Future)
 				{
 					Future.Set(MDB_EXEC(&mongoc_client_session_start_transaction, Context, nullptr));
-				};
+				});
 #else
 				return Core::Async<bool>::Store(false);
 #endif
@@ -2114,10 +2114,10 @@ namespace Tomahawk
 			{
 #ifdef TH_HAS_MONGOC
 				auto* Context = Base;
-				return [Context](Core::Async<bool>& Future)
+				return Core::Async<bool>([Context](Core::Async<bool>& Future)
 				{
 					Future.Set(MDB_EXEC(&mongoc_client_session_abort_transaction, Context));
-				};
+				});
 #else
 				return Core::Async<bool>::Store(false);
 #endif
@@ -2126,12 +2126,12 @@ namespace Tomahawk
 			{
 #ifdef TH_HAS_MONGOC
 				auto* Context = Base;
-				return [Context](Core::Async<Document>& Future)
+				return Core::Async<Document>([Context](Core::Async<Document>& Future)
 				{
 					TDocument Subresult;
 					MDB_EXEC(&mongoc_client_session_commit_transaction, Context, &Subresult);
 					Future.Set(Document::FromSource(&Subresult));
-				};
+				});
 #else
 				return Core::Async<Document>::Store(nullptr);
 #endif
@@ -2174,7 +2174,7 @@ namespace Tomahawk
 #else
 				return nullptr;
 #endif
-				}
+			}
 
 			Connection::Connection() : Session(nullptr), Base(nullptr), Master(nullptr), Connected(false)
 			{
@@ -2200,7 +2200,7 @@ namespace Tomahawk
 					});
 				}
 
-				return [this, Address](Core::Async<bool>& Future)
+				return Core::Async<bool>([this, Address](Core::Async<bool>& Future)
 				{
 					bson_error_t Error;
 					memset(&Error, 0, sizeof(bson_error_t));
@@ -2221,7 +2221,7 @@ namespace Tomahawk
 
 					Connected = true;
 					Future.Set(true);
-				};
+				});
 #else
 				return Core::Async<bool>::Store(false);
 #endif
@@ -2241,7 +2241,7 @@ namespace Tomahawk
 				}
 
 				TAddress* URI = URL->Get();
-				return [this, URI](Core::Async<bool>& Future)
+				return Core::Async<bool>([this, URI](Core::Async<bool>& Future)
 				{
 					Base = mongoc_client_new_from_uri(URI);
 					if (!Base)
@@ -2252,7 +2252,7 @@ namespace Tomahawk
 
 					Connected = true;
 					Future.Set(true);
-				};
+				});
 #else
 				return Core::Async<bool>::Store(false);
 #endif
@@ -2263,7 +2263,7 @@ namespace Tomahawk
 				if (!Connected || !Base)
 					return Core::Async<bool>::Store(false);
 
-				return [this](Core::Async<bool>& Future)
+				return Core::Async<bool>([this](Core::Async<bool>& Future)
 				{
 					Connected = false;
 					if (Master != nullptr)
@@ -2283,7 +2283,7 @@ namespace Tomahawk
 					}
 
 					Future.Set(true);
-				};
+				});
 #else
 				return Core::Async<bool>::Store(false);
 #endif
@@ -2291,13 +2291,13 @@ namespace Tomahawk
 			Core::Async<Cursor> Connection::FindDatabases(const Document& Options) const
 			{
 #ifdef TH_HAS_MONGOC
-				return [this, Options](Core::Async<Cursor>& Future)
+				return Core::Async<Cursor>([this, Options](Core::Async<Cursor>& Future)
 				{
 					TCursor* Subresult = mongoc_client_find_databases_with_opts(Base, Options.Get());
 					Options.Release();
 
 					Future.Sync(true).Set(Subresult);
-				};
+				});
 #else
 				return Core::Async<Cursor>::Store(nullptr);
 #endif
@@ -2417,7 +2417,7 @@ namespace Tomahawk
 					});
 				}
 
-				return [this, URI](Core::Async<bool>& Future)
+				return Core::Async<bool>([this, URI](Core::Async<bool>& Future)
 				{
 					bson_error_t Error;
 					memset(&Error, 0, sizeof(bson_error_t));
@@ -2438,7 +2438,7 @@ namespace Tomahawk
 
 					Connected = true;
 					Future.Set(true);
-				};
+				});
 #else
 				return Core::Async<bool>::Store(false);
 #endif
@@ -2460,7 +2460,7 @@ namespace Tomahawk
 				TAddress* Context = URI->Get();
 				*URI = nullptr;
 
-				return [this, Context](Core::Async<bool>& Future)
+				return Core::Async<bool>([this, Context](Core::Async<bool>& Future)
 				{
 					SrcAddress = Context;
 					Pool = mongoc_client_pool_new(SrcAddress.Get());
@@ -2472,7 +2472,7 @@ namespace Tomahawk
 
 					Connected = true;
 					Future.Set(true);
-				};
+				});
 #else
 				return Core::Async<bool>::Store(false);
 #endif
@@ -2483,7 +2483,7 @@ namespace Tomahawk
 				if (!Connected || !Pool)
 					return false;
 
-				return [this](Core::Async<bool>& Future)
+				return Core::Async<bool>([this](Core::Async<bool>& Future)
 				{
 					if (Pool != nullptr)
 					{
@@ -2493,7 +2493,7 @@ namespace Tomahawk
 
 					SrcAddress.Release();
 					Connected = false;
-				};
+				});
 #else
 				return Core::Async<bool>::Store(false);
 #endif

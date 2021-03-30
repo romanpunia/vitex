@@ -1615,7 +1615,7 @@ namespace Tomahawk
 					Schedule* Queue = Schedule::Get();
 					if (Queue->IsActive() && Subresult->Deferred)
 					{
-						Queue->SetTask([Subresult, Result, Callback = std::move(Callback)]() mutable
+						Queue->SetTask([Subresult, Result = std::move(Result), Callback = std::move(Callback)]() mutable
 						{
 							Callback(Result, std::move(Subresult->Result));
 							Subresult->Free();
@@ -1646,7 +1646,7 @@ namespace Tomahawk
 					Schedule* Queue = Schedule::Get();
 					if (Queue->IsActive() && Subresult->Deferred)
 					{
-						Queue->SetTask([Subresult, Result, Callback = std::move(Callback)]() mutable
+						Queue->SetTask([Subresult, Result = std::move(Result), Callback = std::move(Callback)]() mutable
 						{
 							Result.Set(std::move(Callback(std::move(Subresult->Result))));
 							Subresult->Free();

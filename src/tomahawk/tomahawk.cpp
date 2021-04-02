@@ -280,7 +280,7 @@ namespace Tomahawk
 			if (Count < 0)
 				Count = 0;
 
-			CryptoLocks = new std::vector<std::shared_ptr<std::mutex>>();
+			CryptoLocks = TH_NEW(std::vector<std::shared_ptr<std::mutex>>);
 			CryptoLocks->reserve(Count);
 			for (int i = 0; i < Count; i++)
 				CryptoLocks->push_back(std::make_shared<std::mutex>());
@@ -439,7 +439,7 @@ namespace Tomahawk
 
 			if (CryptoLocks != nullptr)
 			{
-				delete CryptoLocks;
+				TH_DELETE(vector, CryptoLocks);
 				CryptoLocks = nullptr;
 			}
 #else

@@ -249,12 +249,8 @@ namespace Tomahawk
 			if (!Gracefully)
 			{
 				Sync.IO.lock();
-				while (Input != nullptr)
-					ReadPop();
-
-				while (Output != nullptr)
-					WritePop();
-
+				ReadFlush();
+				WriteFlush();
 				Multiplexer::Unlisten(this);
 				Sync.IO.unlock();
 			}
@@ -370,11 +366,10 @@ namespace Tomahawk
 
 			if (Output != nullptr)
 			{
-				Sync.IO.lock();
-				WritePush(std::move(Callback), Buffer, Size);
-				Sync.IO.unlock();
+				if (Callback)
+					Callback(this, -1);
 
-				return 0;
+				return -1;
 			}
 
 			int64_t Offset = 0;
@@ -384,9 +379,12 @@ namespace Tomahawk
 				if (Length == -2)
 				{
 					Sync.IO.lock();
-					WritePush(std::move(Callback), Buffer + Offset, Size);
+					bool OK = WriteSet(std::move(Callback), Buffer + Offset, Size);
 					Multiplexer::Listen(this);
 					Sync.IO.unlock();
+
+					if (!OK && Callback)
+						Callback(this, -1);
 
 					return -2;
 				}
@@ -485,11 +483,10 @@ namespace Tomahawk
 		{
 			if (Input != nullptr)
 			{
-				Sync.IO.lock();
-				ReadPush(std::move(Callback), nullptr, Size, 0);
-				Sync.IO.unlock();
+				if (!Callback)
+					Callback(this, nullptr, -1);
 
-				return 0;
+				return -1;
 			}
 
 			char Buffer[8192];
@@ -499,9 +496,12 @@ namespace Tomahawk
 				if (Length == -2)
 				{
 					Sync.IO.lock();
-					ReadPush(std::move(Callback), nullptr, Size, 0);
+					bool OK = ReadSet(std::move(Callback), nullptr, Size, 0);
 					Multiplexer::Listen(this);
 					Sync.IO.unlock();
+
+					if (!OK && Callback)
+						Callback(this, nullptr, -1);
 
 					return -2;
 				}
@@ -570,16 +570,15 @@ namespace Tomahawk
 			if (!Size)
 				return 0;
 
-			char Buffer = 0;
 			if (Input != nullptr)
 			{
-				Sync.IO.lock();
-				ReadPush(std::move(Callback), Match, Size, 0);
-				Sync.IO.unlock();
+				if (!Callback)
+					Callback(this, nullptr, -1);
 
-				return 0;
+				return -1;
 			}
 
+			char Buffer = 0;
 			int64_t Index = 0;
 			while (true)
 			{
@@ -587,9 +586,12 @@ namespace Tomahawk
 				if (Length == -2)
 				{
 					Sync.IO.lock();
-					ReadPush(std::move(Callback), Match, Size, Index);
+					bool OK = ReadSet(std::move(Callback), Match, Size, Index);
 					Multiplexer::Listen(this);
 					Sync.IO.unlock();
+
+					if (!OK && Callback)
+						Callback(this, nullptr, -1);
 
 					return -2;
 				}
@@ -630,7 +632,7 @@ namespace Tomahawk
 			if (IO & SocketEvent_Read && Input != nullptr)
 			{
 				auto Callback = Input->Callback;
-				ReadPop();
+				ReadFlush();
 				Sync.IO.unlock();
 				if (Callback)
 					Callback(this, nullptr, Code);
@@ -640,7 +642,7 @@ namespace Tomahawk
 			if (IO & SocketEvent_Write && Output != nullptr)
 			{
 				auto Callback = Output->Callback;
-				WritePop();
+				WriteFlush();
 				Sync.IO.unlock();
 				if (Callback)
 					Callback(this, Code);
@@ -792,91 +794,64 @@ namespace Tomahawk
 		{
 			return Output || Input;
 		}
-		void Socket::ReadPush(SocketReadCallback&& Callback, const char* Match, int64_t Size, int64_t Index)
+		bool Socket::ReadSet(SocketReadCallback&& Callback, const char* Match, int64_t Size, int64_t Index)
 		{
-			ReadEvent* Event = new ReadEvent();
-			Event->Callback = std::move(Callback);
-			Event->Size = Size;
-			Event->Index = Index;
-			Event->Match = (Match ? strdup(Match) : nullptr);
-
 			if (Input != nullptr)
 			{
-				ReadEvent* It = Input;
-				while (It != nullptr && It->Next != nullptr)
-					It = It->Next;
-
-				Event->Prev = It;
-				Event->Next = nullptr;
-				It->Next = Event;
-			}
-			else
-			{
-				Event->Prev = nullptr;
-				Event->Next = nullptr;
-				Input = Event;
+				TH_ERROR("cannot request read op while another already bound");
+				return false;
 			}
 
+			Input = TH_NEW(ReadEvent);
+			Input->Callback = std::move(Callback);
+			Input->Size = Size;
+			Input->Index = Index;
+			Input->Match = (Match ? strdup(Match) : nullptr);
 			Sync.Time = Multiplexer::Clock();
+
+			return true;
 		}
-		void Socket::ReadPop()
+		bool Socket::ReadFlush()
 		{
 			if (!Input)
-				return;
+				return false;
 
 			ReadEvent* It = Input;
-			Input = It->Next;
-
-			if (Input != nullptr)
-				Input->Prev = nullptr;
-
-			if (It->Match)
+			Input = nullptr;
+			if (It->Match != nullptr)
 				free((void*)It->Match);
 
-			delete It;
+			TH_DELETE(ReadEvent, It);
+			return true;
 		}
-		void Socket::WritePush(SocketWriteCallback&& Callback, const char* Buffer, int64_t Size)
+		bool Socket::WriteSet(SocketWriteCallback&& Callback, const char* Buffer, int64_t Size)
 		{
-			WriteEvent* Event = new WriteEvent();
-			Event->Callback = std::move(Callback);
-			Event->Size = Size;
-			Event->Buffer = (char*)TH_MALLOC((size_t)Size);
-			memcpy(Event->Buffer, Buffer, (size_t)Size);
-
 			if (Output != nullptr)
 			{
-				WriteEvent* It = Output;
-				while (It != nullptr && It->Next != nullptr)
-					It = It->Next;
-
-				Event->Prev = It;
-				Event->Next = nullptr;
-				It->Next = Event;
-			}
-			else
-			{
-				Event->Prev = nullptr;
-				Event->Next = nullptr;
-				Output = Event;
+				TH_ERROR("cannot request write op while another already bound");
+				return false;
 			}
 
+			Output = TH_NEW(WriteEvent);
+			Output->Callback = std::move(Callback);
+			Output->Size = Size;
+			Output->Buffer = (char*)TH_MALLOC((size_t)Size);
+			memcpy(Output->Buffer, Buffer, (size_t)Size);
 			Sync.Time = Multiplexer::Clock();
+
+			return true;
 		}
-		void Socket::WritePop()
+		bool Socket::WriteFlush()
 		{
 			if (!Output)
-				return;
+				return false;
 
 			WriteEvent* It = Output;
-			Output = It->Next;
+			Output = nullptr;
+			TH_FREE((void*)It->Buffer);
 
-			if (Output != nullptr)
-				Input->Prev = nullptr;
-
-			if (It->Buffer)
-				TH_FREE((void*)It->Buffer);
-
-			delete It;
+			TH_DELETE(WriteEvent, It);
+			return true;
 		}
 		std::string Socket::GetRemoteAddress()
 		{
@@ -915,11 +890,7 @@ namespace Tomahawk
 
 		SocketConnection::~SocketConnection()
 		{
-			if (Stream != nullptr)
-			{
-				delete Stream;
-				Stream = nullptr;
-			}
+			TH_DELETE(Socket, Stream);
 		}
 		void SocketConnection::Lock()
 		{
@@ -948,9 +919,9 @@ namespace Tomahawk
 				return Finish();
 
 			va_list Args;
-					va_start(Args, ErrorMessage);
+			va_start(Args, ErrorMessage);
 			int Count = vsnprintf(Buffer, sizeof(Buffer), ErrorMessage, Args);
-					va_end(Args);
+			va_end(Args);
 
 			Info.Message.assign(Buffer, Count);
 			return Finish(StatusCode);
@@ -1209,9 +1180,7 @@ namespace Tomahawk
 							int Size = Fd->Read(Buffer, Event->Match ? 1 : (int)std::min(Event->Size, (int64_t)sizeof(Buffer)));
 							if (Size == -1)
 							{
-								while (Fd->Input != nullptr)
-									Fd->ReadPop();
-
+								Fd->ReadFlush();
 								Fd->Sync.IO.unlock();
 								if (Callback)
 									Callback(Fd, nullptr, -1);
@@ -1261,7 +1230,7 @@ namespace Tomahawk
 						if (Result == -1)
 							break;
 
-						Fd->ReadPop();
+						Fd->ReadFlush();
 						Fd->Sync.IO.unlock();
 						if (Callback)
 							Callback(Fd, nullptr, 0);
@@ -1305,9 +1274,7 @@ namespace Tomahawk
 							int Size = Fd->Write(Event->Buffer + Offset, (int)Event->Size);
 							if (Size == -1)
 							{
-								while (Fd->Output != nullptr)
-									Fd->WritePop();
-
+								Fd->WriteFlush();
 								Fd->Sync.IO.unlock();
 								if (Callback)
 									Callback(Fd, -1);
@@ -1342,7 +1309,7 @@ namespace Tomahawk
 						if (Result == -1)
 							break;
 
-						Fd->WritePop();
+						Fd->WriteFlush();
 						Fd->Sync.IO.unlock();
 						if (Callback)
 							Callback(Fd, 0);
@@ -1456,10 +1423,10 @@ namespace Tomahawk
 				if (It.second.Hostname.empty())
 					continue;
 
-				Listener* Value = new Listener();
+				Listener* Value = TH_NEW(Listener);
 				Value->Hostname = &It.second;
 				Value->Name = It.first;
-				Value->Base = new Socket();
+				Value->Base = TH_NEW(Socket);
 				Value->Base->UserData = this;
 
 				if (Value->Base->Open(It.second.Hostname.c_str(), It.second.Port, &Value->Source))
@@ -1618,11 +1585,11 @@ namespace Tomahawk
 				if (It->Base != nullptr)
 				{
 					It->Base->Close(true);
-					delete It->Base;
+					TH_DELETE(Socket, It->Base);
 				}
 
 				Address::Free(&It->Source);
-				delete It;
+				TH_DELETE(Listener, It);
 			}
 
 			OnDeallocateRouter(Router);
@@ -1682,10 +1649,10 @@ namespace Tomahawk
 		}
 		bool SocketServer::Accept(Listener* Host)
 		{
-			auto Connection = new Socket();
+			auto Connection = TH_NEW(Socket);
 			if (Host->Base->Accept(Connection, nullptr) == -1)
 			{
-				delete Connection;
+				TH_DELETE(Socket, Connection);
 				return false;
 			}
 
@@ -1693,7 +1660,7 @@ namespace Tomahawk
 			{
 				Connection->SetTimeWait(0);
 				Connection->Close(true);
-				delete Connection;
+				TH_DELETE(Socket, Connection);
 
 				return false;
 			}
@@ -1707,7 +1674,7 @@ namespace Tomahawk
 			if (Host->Hostname->Secure && !Protect(Connection, Host))
 			{
 				Connection->Close(true);
-				delete Connection;
+				TH_DELETE(Socket, Connection);
 
 				return false;
 			}
@@ -1716,7 +1683,7 @@ namespace Tomahawk
 			if (!Base)
 			{
 				Connection->Close(true);
-				delete Connection;
+				TH_DELETE(Socket, Connection);
 
 				return false;
 			}
@@ -1836,7 +1803,7 @@ namespace Tomahawk
 			if (!Base)
 				return false;
 
-			delete Base;
+			TH_DELETE(SocketConnection, Base);
 			return true;
 		}
 		bool SocketServer::OnDeallocateRouter(SocketRouter* Base)
@@ -1844,7 +1811,7 @@ namespace Tomahawk
 			if (!Base)
 				return false;
 
-			delete Base;
+			TH_DELETE(SocketRouter, Base);
 			return true;
 		}
 		bool SocketServer::OnListen()
@@ -1869,11 +1836,11 @@ namespace Tomahawk
 		}
 		SocketConnection* SocketServer::OnAllocate(Listener*, Socket*)
 		{
-			return new SocketConnection();
+			return TH_NEW(SocketConnection);
 		}
 		SocketRouter* SocketServer::OnAllocateRouter()
 		{
-			return new SocketRouter();
+			return TH_NEW(SocketRouter);
 		}
 		std::unordered_set<SocketConnection*>* SocketServer::GetClients()
 		{

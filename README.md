@@ -42,6 +42,7 @@ Tomahawk is a cross-platform C++14 framework to create any type of application f
 + Mesh evaluation
 + File preprocessor (include, pragma, define, ifdef/else/endif)
 + Transform hierarchy system
++ SIMD optimisations included
 #### Audio
 + Configurable audio playback
 + Positional sound with optional velocity
@@ -73,6 +74,8 @@ Tomahawk is a cross-platform C++14 framework to create any type of application f
 + Socket client abstraction
 + BSON type support for data transfer
 + MongoDB support for database manipulations
++ PostgreSQL support for database manipulations
++ File transfer compression
 + Async/sync HTTP 1.1 server/client support
 + Async/sync WebSocket server support
 + Connection session support
@@ -209,6 +212,7 @@ These are used widely and presents useful features
 * [RapidXML](https://github.com/discordapp/rapidxml)
 * [RapidJSON](https://github.com/tencent/rapidjson)
 * [STB](https://github.com/nothings/stb)
+* [Vector Class](https://github.com/vectorclass/version1)
 
 ## Optional dependencies from **/lib/external**
 These are recommended to be installed, but are not required to. Every entry has **install.sh** script.
@@ -217,6 +221,7 @@ These are recommended to be installed, but are not required to. Every entry has 
 * [Zlib](https://github.com/madler/zlib)
 * [Assimp](https://github.com/assimp/assimp)
 * [MongoC](https://github.com/mongodb/mongo-c-driver)
+* [Libpq](https://github.com/postgres/postgres/tree/master/src/interfaces/libpq)
 * [OpenAL Soft](https://github.com/kcat/openal-soft)
 * [SDL2](https://www.libsdl.org/download-2.0.php)
 

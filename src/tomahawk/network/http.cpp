@@ -153,16 +153,31 @@ namespace Tomahawk
 			GatewayFrame::GatewayFrame(char* Data, int64_t DataSize) : Buffer(Data), Size(DataSize), Compiler(nullptr), Base(nullptr), Save(false)
 			{
 			}
-			void GatewayFrame::Execute(bool Finished)
+			void GatewayFrame::Execute(Script::VMResume State)
 			{
+				if (State == Script::VMResume_Finish_With_Error)
+				{
+					Base->Response.StatusCode = 500;
+					if (Base->Route->Gateway.ReportErrors)
+					{
+						Script::VMContext* Context = Compiler->GetContext();
+						const char* Exception = Context->GetExceptionString();
+						const char* Function = Context->GetExceptionFunction().GetName();
+						int Column = 0; int Line = Context->GetExceptionLineNumber(&Column, nullptr);
+						Base->Info.Message = Core::Form("exception at line %i (col. %i) from %s: %s", Line, Column, Function ? Function : "anonymous", Exception ? Exception : "uncaught empty exception").R();
+					}
+					else
+						Base->Info.Message.assign("Internal processing error occurred.");
+				}
+
 				if (Base->WebSocket != nullptr)
 				{
-					if (Finished)
+					if (State != Script::VMResume_Continue)
 						Base->WebSocket->Finish();
 					else
 						Base->WebSocket->Next();
 				}
-				else if (Finished)
+				else if (State != Script::VMResume_Continue)
 					Finish();
 			}
 			bool GatewayFrame::Done(bool Normal)
@@ -214,6 +229,12 @@ namespace Tomahawk
 				Base->WebSocket->Next();
 				return true;
 			}
+			bool GatewayFrame::Error(int StatusCode, const char* Text)
+			{
+				Base->Response.StatusCode = StatusCode;
+				Base->Info.Message.assign(Text);
+				return Error();
+			}
 			bool GatewayFrame::Error()
 			{
 				Base->Unlock();
@@ -245,26 +266,34 @@ namespace Tomahawk
 				{
 					int Result = Compiler->LoadCode(Base->Request.Path, Buffer, Size);
 					if (Result < 0)
-						return Finish();
+						return Error(500, "Module cannot be loaded.");
 
 					Result = Compiler->Compile(true);
 					if (Result < 0)
-						return Finish();
+						return Error(500, "Module cannot be compiled.");
 
-					Script::VMFunction Main = Compiler->GetModule().GetFunctionByName("Main");
+					Script::VMFunction Main = GetMain(Compiler->GetModule());
 					if (!Main.IsValid())
-						return Finish();
+						return Error(400, "Requested method is not allowed.");
 
 					Script::VMContext* Context = Compiler->GetContext();
 					Context->SetResumeCallback(std::bind(&GatewayFrame::Execute, this, std::placeholders::_1));
 
 					Result = Context->Prepare(Main);
 					if (Result < 0)
-						return Finish();
+						return Error(500, "Module execution cannot be prepared.");
 
 					Result = Context->Execute();
-					if (Result == Script::VMExecState_FINISHED || Result != Script::VMExecState_SUSPENDED)
-						return Finish();
+					if (Result == Script::VMExecState_FINISHED || Result == Script::VMExecState_ABORTED)
+					{
+						Execute(Script::VMResume_Finish);
+						return true;
+					}
+					else if (Result == Script::VMExecState_EXCEPTION || Result == Script::VMExecState_ERROR)
+					{
+						Execute(Script::VMResume_Finish_With_Error);
+						return true;
+					}
 
 					return true;
 				});
@@ -273,12 +302,20 @@ namespace Tomahawk
 			{
 				return Save;
 			}
+			Script::VMFunction GatewayFrame::GetMain(const Script::VMModule& Mod)
+			{
+				Script::VMFunction Result = Mod.GetFunctionByName("Main");
+				if (Result.IsValid())
+					return Result;
+
+				return Mod.GetFunctionByName(Base->Request.Method);
+			}
 			Script::VMContext* GatewayFrame::GetContext()
 			{
 				return (Compiler ? Compiler->GetContext() : nullptr);
 			}
 
-			SiteEntry::SiteEntry() : Base(new RouteEntry())
+			SiteEntry::SiteEntry() : Base(TH_NEW(RouteEntry))
 			{
 				Base->URI.Regex.assign("/");
 				Base->Site = this;
@@ -288,15 +325,12 @@ namespace Tomahawk
 				for (auto It = Routes.begin(); It != Routes.end(); It++)
 				{
 					RouteEntry* Entry = *It;
-					delete Entry;
+					TH_DELETE(RouteEntry, Entry);
 				}
 				Routes.clear();
 
-				if (Base != nullptr)
-				{
-					delete Base;
-					Base = nullptr;
-				}
+				TH_DELETE(RouteEntry, Base);
+				Base = nullptr;
 			}
 			RouteEntry* SiteEntry::Route(const char* Pattern)
 			{
@@ -327,7 +361,7 @@ namespace Tomahawk
 					break;
 				}
 
-				HTTP::RouteEntry* Result = new HTTP::RouteEntry(*From);
+				HTTP::RouteEntry* Result = TH_NEW(HTTP::RouteEntry, *From);
 				Result->URI.Regex = Pattern;
 				Routes.push_back(Result);
 
@@ -432,7 +466,7 @@ namespace Tomahawk
 				for (auto It = Sites.begin(); It != Sites.end(); It++)
 				{
 					SiteEntry* Entry = *It;
-					delete Entry;
+					TH_DELETE(SiteEntry, Entry);
 				}
 			}
 			SiteEntry* MapRouter::Site(const char* Pattern)
@@ -447,7 +481,7 @@ namespace Tomahawk
 						return Entry;
 				}
 
-				HTTP::SiteEntry* Result = new HTTP::SiteEntry();
+				HTTP::SiteEntry* Result = TH_NEW(HTTP::SiteEntry);
 				Result->SiteName = Core::Parser(Pattern).ToLower().R();
 				Sites.push_back(Result);
 
@@ -790,14 +824,6 @@ namespace Tomahawk
 				return nullptr;
 			}
 
-			Connection::~Connection()
-			{
-				if (Stream != nullptr)
-				{
-					delete Stream;
-					Stream = nullptr;
-				}
-			}
 			bool Connection::Consume(const ContentCallback& Callback)
 			{
 				if (Request.ContentState == Content_Lost || Request.ContentState == Content_Empty || Request.ContentState == Content_Saved || Request.ContentState == Content_Wants_Save)
@@ -1019,7 +1045,7 @@ namespace Tomahawk
 					std::string Boundary("--");
 					Boundary.append(BoundaryName + 9);
 
-					ParserFrame* Segment = new ParserFrame();
+					ParserFrame* Segment = TH_NEW(ParserFrame);
 					Segment->Route = Route;
 					Segment->Request = &Request;
 					Segment->Response = &Response;
@@ -1050,7 +1076,7 @@ namespace Tomahawk
 								Segment->Callback(Base, nullptr, Size);
 
 							TH_RELEASE(Parser);
-							delete Segment;
+							TH_DELETE(ParserFrame, Segment);
 
 							return true;
 						}
@@ -1062,7 +1088,7 @@ namespace Tomahawk
 								Segment->Callback(Base, nullptr, 0);
 
 							TH_RELEASE(Parser);
-							delete Segment;
+							TH_DELETE(ParserFrame, Segment);
 
 							return false;
 						}
@@ -1146,7 +1172,7 @@ namespace Tomahawk
 						return true;
 					}
 
-					delete WebSocket;
+					TH_DELETE(WebSocketFrame, WebSocket);
 					WebSocket = nullptr;
 				}
 
@@ -1158,7 +1184,7 @@ namespace Tomahawk
 						return true;
 					}
 
-					delete Gateway;
+					TH_DELETE(GatewayFrame, Gateway);
 					Gateway = nullptr;
 				}
 
@@ -1176,6 +1202,7 @@ namespace Tomahawk
 								continue;
 
 							Request.Path = It->Pattern;
+							Response.SetHeader("X-Error", Info.Message);
 							return Util::RouteGET(this);
 						}
 					}
@@ -4174,6 +4201,10 @@ namespace Tomahawk
 				if (Base->Route->Callbacks.Headers)
 					Base->Route->Callbacks.Headers(Base, &Content);
 
+				const char* Message = Base->Response.GetHeader("X-Error");
+				if (Message != nullptr)
+					Content.fAppend("X-Error: %s\n\r", Message);
+
 				uint64_t Size = Base->Request.URI.size() - 1;
 				while (Base->Request.URI[Size] != '/')
 					Size--;
@@ -4230,7 +4261,7 @@ namespace Tomahawk
 					if (It->Source.IsDirectory && !Core::Parser(&HREF).EndsOf("/\\"))
 						HREF.append(1, '/');
 
-					TextAppend(Base->Response.Buffer, "<tr><td><a href=\"" + HREF + "\">" + It->Path + "</a></td><td>&nbsp;" + Date + "</td><td>&nbsp;&nbsp;" + dSize + "</td></tr>\n");
+					TextAppend(Base->Response.Buffer, "<tr><td><a href=\"" + HREF + "\">" + It->Path + "</a></td><td>&nbsp;" + dDate + "</td><td>&nbsp;&nbsp;" + dSize + "</td></tr>\n");
 				}
 				TextAppend(Base->Response.Buffer, "</table></pre></body></html>");
 
@@ -4353,6 +4384,10 @@ namespace Tomahawk
 				if (Base->Route->Callbacks.Headers)
 					Base->Route->Callbacks.Headers(Base, &Content);
 
+				const char* Message = Base->Response.GetHeader("X-Error");
+				if (Message != nullptr)
+					Content.fAppend("X-Error: %s\n\r", Message);
+
 				Content.fAppend("Accept-Ranges: bytes\r\n"
 					"Last-Modified: %s\r\nEtag: %s\r\n"
 					"Content-Type: %s; charset=%s\r\n"
@@ -4420,6 +4455,10 @@ namespace Tomahawk
 				Util::ConstructHeadCache(Base, &Content);
 				if (Base->Route->Callbacks.Headers)
 					Base->Route->Callbacks.Headers(Base, &Content);
+
+				const char* Message = Base->Response.GetHeader("X-Error");
+				if (Message != nullptr)
+					Content.fAppend("X-Error: %s\n\r", Message);
 
 				Content.fAppend("Accept-Ranges: bytes\r\n"
 					"Last-Modified: %s\r\nEtag: %s\r\n"
@@ -4563,6 +4602,7 @@ namespace Tomahawk
 			{
 				if (!ContentLength || Router->State != ServerState_Working)
 				{
+				Cleanup:
 					fclose(Stream);
 					if (Router->State != ServerState_Working)
 						return Base->Break();
@@ -4572,13 +4612,7 @@ namespace Tomahawk
 
 				char Buffer[8192]; int Read = sizeof(Buffer);
 				if ((Read = (int)fread(Buffer, 1, (size_t)(Read > ContentLength ? ContentLength : Read), Stream)) <= 0)
-				{
-					fclose(Stream);
-					if (Router->State != ServerState_Working)
-						return Base->Break();
-
-					return Base->Finish() || true;
-				}
+					goto Cleanup;
 
 				ContentLength -= (int64_t)Read;
 				Base->Stream->WriteAsync(Buffer, Read, [Base, Router, Stream, ContentLength](Socket*, int64_t Size)
@@ -4665,73 +4699,102 @@ namespace Tomahawk
 #endif
 #ifdef TH_HAS_ZLIB
 				Server* Server = Base->Root;
-				Base->Stream->SetBlocking(true);
-				Base->Stream->SetTimeout((int)Base->Root->Router->SocketTimeout);
+				z_stream* ZStream = (z_stream*)TH_MALLOC(sizeof(z_stream));
+				ZStream->zalloc = Z_NULL;
+				ZStream->zfree = Z_NULL;
+				ZStream->opaque = Z_NULL;
 
-				z_stream ZStream;
-				ZStream.zalloc = Z_NULL;
-				ZStream.zfree = Z_NULL;
-				ZStream.opaque = Z_NULL;
-
-				if (deflateInit2(&ZStream, Base->Route->Compression.QualityLevel, Z_DEFLATED, (Gzip ? MAX_WBITS + 16 : MAX_WBITS), Base->Route->Compression.MemoryLevel, (int)Base->Route->Compression.Tune) != Z_OK)
+				if (deflateInit2(ZStream, Base->Route->Compression.QualityLevel, Z_DEFLATED, (Gzip ? MAX_WBITS + 16 : MAX_WBITS), Base->Route->Compression.MemoryLevel, (int)Base->Route->Compression.Tune) != Z_OK)
 				{
 					fclose(Stream);
-					Base->Stream->SetTimeout(0);
-					Base->Stream->SetBlocking(false);
-
+					TH_FREE(ZStream);
 					return Base->Break();
 				}
 
-				char Buffer[8192], Deflate[8192];
-				while (ContentLength > 0 && Server->State == ServerState_Working)
+				return ProcessFileCompressChunk(Base, Server, Stream, ZStream, ContentLength);
+#else
+				fclose(Stream);
+				return Base->Error(500, "Cannot process gzip stream.");
+#endif
+			}
+			bool Util::ProcessFileCompressChunk(Connection* Base, Server* Router, FILE* Stream, void* CStream, uint64_t ContentLength)
+			{
+#ifdef TH_HAS_ZLIB
+#define FREE_STREAMING { fclose(Stream); deflateEnd(ZStream); TH_FREE(ZStream); }
+				z_stream* ZStream = (z_stream*)CStream;
+				if (!ContentLength || Router->State != ServerState_Working)
 				{
-					int Read = sizeof(Buffer), Offset = 0;
-					if ((Read = (int)fread(Buffer, 1, (size_t)(Read > ContentLength ? ContentLength : Read), Stream)) <= 0)
-						break;
+				Cleanup:
+					FREE_STREAMING;
+					if (Router->State != ServerState_Working)
+						return Base->Break();
 
-					ContentLength -= Read;
-					ZStream.avail_in = (uInt)Read;
-					ZStream.next_in = (Bytef*)Buffer;
-					ZStream.avail_out = (uInt)sizeof(Deflate);
-					ZStream.next_out = (Bytef*)Deflate;
-					deflate(&ZStream, Z_SYNC_FLUSH);
-					Read = (int)sizeof(Deflate) - (int)ZStream.avail_out;
-					Base->Stream->fWrite("%X\r\n", Read);
-
-					while (Read > 0 && Server->State == ServerState_Working)
+					return Base->Stream->WriteAsync("0\r\n\r\n", 5, [Base](Socket*, int64_t Size)
 					{
-						int Size = Base->Stream->Write(Deflate + Offset, Read);
+						if (Size < 0)
+							return Base->Break() && false;
+						else if (Size > 0)
+							return true;
+
+						return Base->Finish() || true;
+					}) || true;
+				}
+
+				char Buffer[8192], Deflate[8192]; int Read = sizeof(Buffer);
+				if ((Read = (int)fread(Buffer, 1, (size_t)(Read > ContentLength ? ContentLength : Read), Stream)) <= 0)
+					goto Cleanup;
+
+				ContentLength -= (int64_t)Read;
+				ZStream->avail_in = (uInt)Read;
+				ZStream->next_in = (Bytef*)Buffer;
+				ZStream->avail_out = (uInt)sizeof(Deflate);
+				ZStream->next_out = (Bytef*)Deflate;
+				deflate(ZStream, Z_SYNC_FLUSH);
+				Read = (int)sizeof(Deflate) - (int)ZStream->avail_out;
+
+				Base->Stream->fWriteAsync([=](Socket*, int64_t Size)
+				{
+					if (Size < 0)
+					{
+						FREE_STREAMING;
+						return Base->Break() && false;
+					}
+					else if (Size > 0)
+						return true;
+		
+					return Base->Stream->WriteAsync(Deflate, Read, [=](Socket*, int64_t Size)
+					{
 						if (Size < 0)
 						{
-							fclose(Stream);
-							deflateEnd(&ZStream);
-							Base->Stream->SetTimeout(0);
-							Base->Stream->SetBlocking(false);
-
-							return Base->Break();
+							FREE_STREAMING;
+							return Base->Break() && false;
 						}
+						else if (Size > 0)
+							return true;
 
-						Read -= Size;
-						Offset += Size;
-					}
-					Base->Stream->Write("\r\n", 2);
-				}
+						return Base->Stream->WriteAsync("\r\n", 2, [=](Socket*, int64_t Size)
+						{
+							if (Size < 0)
+							{
+								FREE_STREAMING;
+								return Base->Break() && false;
+							}
+							else if (Size > 0)
+								return true;
 
-				fclose(Stream);
-				deflateEnd(&ZStream);
+							return Core::Schedule::Get()->SetTask([=]()
+							{
+								ProcessFileCompressChunk(Base, Router, Stream, ZStream, ContentLength);
+							});
+						}) || true;
+					}) || true;
+				}, "%X\r\n", Read);
 
-				if (Server->State != ServerState_Working)
-				{
-					Base->Stream->SetTimeout(0);
-					Base->Stream->SetBlocking(false);
-					return Base->Break();
-				}
-
-				Base->Stream->Write("0\r\n\r\n", 5);
-				Base->Stream->SetTimeout(0);
-				Base->Stream->SetBlocking(false);
-#endif
+				return false;
+#undef FREE_STREAMING
+#else
 				return Base->Finish();
+#endif
 			}
 			bool Util::ProcessGateway(Connection* Base)
 			{
@@ -4782,7 +4845,7 @@ namespace Tomahawk
 						fclose(Stream);
 					}
 
-					Base->Gateway = new GatewayFrame(Buffer, Size);
+					Base->Gateway = TH_NEW(GatewayFrame, Buffer, Size);
 					Base->Gateway->Base = Base;
 					Base->Gateway->Compiler = Compiler;
 					Base->Gateway->Start();
@@ -4834,7 +4897,7 @@ namespace Tomahawk
 					else if (Size > 0)
 						return true;
 
-					Base->WebSocket = new WebSocketFrame();
+					Base->WebSocket = TH_NEW(WebSocketFrame);
 					Base->WebSocket->Connect = Base->Route->Callbacks.WebSocket.Connect;
 					Base->WebSocket->Receive = Base->Route->Callbacks.WebSocket.Receive;
 					Base->WebSocket->Disconnect = Base->Route->Callbacks.WebSocket.Disconnect;
@@ -5261,7 +5324,8 @@ namespace Tomahawk
 				if (!Base)
 					return false;
 
-				delete (HTTP::Connection*)Base;
+				HTTP::Connection* sBase = (HTTP::Connection*)Base;
+				TH_DELETE(Connection, sBase);
 				return true;
 			}
 			bool Server::OnDeallocateRouter(SocketRouter* Base)
@@ -5269,7 +5333,8 @@ namespace Tomahawk
 				if (!Base)
 					return false;
 
-				delete (HTTP::MapRouter*)Base;
+				HTTP::MapRouter* sBase = (HTTP::MapRouter*)Base;
+				TH_DELETE(MapRouter, sBase);
 				return true;
 			}
 			bool Server::OnListen()
@@ -5299,14 +5364,14 @@ namespace Tomahawk
 			}
 			SocketConnection* Server::OnAllocate(Listener* Host, Socket* Stream)
 			{
-				auto Base = new HTTP::Connection();
+				auto Base = TH_NEW(HTTP::Connection);
 				Base->Root = this;
 
 				return Base;
 			}
 			SocketRouter* Server::OnAllocateRouter()
 			{
-				return new MapRouter();
+				return TH_NEW(MapRouter);
 			}
 
 			Client::Client(int64_t ReadTimeout) : SocketClient(ReadTimeout)

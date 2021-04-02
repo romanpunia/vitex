@@ -9,6 +9,35 @@ namespace Tomahawk
 	{
 		namespace PDB
 		{
+			Address::Address()
+			{
+			}
+			Address::Address(const std::string& URI)
+			{
+#ifdef TH_HAS_POSTGRESQL
+				char* Message = nullptr;
+				PQconninfoOption* Result = PQconninfoParse(URI.c_str(), &Message);
+				if (Result != nullptr)
+				{
+					size_t Index = 0;
+					while (Result[Index].keyword != nullptr)
+					{
+						auto& Info = Result[Index];
+						Params[Info.keyword] = Info.val;
+						Index++;
+					}
+					PQconninfoFree(Result);
+				}
+				else
+				{
+					if (Message != nullptr)
+					{
+						TH_ERROR("[pg] couldn't parse URI string\n\t%s", Message);
+						PQfreemem(Message);
+					}
+				}
+#endif
+			}
 			void Address::Override(const std::string& Key, const std::string& Value)
 			{
 				Params[Key] = Value;
@@ -45,7 +74,7 @@ namespace Tomahawk
 					case AddressOp_Port:
 						return "port";
 					case AddressOp_Database:
-						return "db_name";
+						return "dbname";
 					case AddressOp_User:
 						return "user";
 					case AddressOp_Password:
@@ -94,6 +123,28 @@ namespace Tomahawk
 						return "";
 				}
 			}
+			const char** Address::CreateKeys() const
+			{
+				const char** Result = (const char**)TH_MALLOC(sizeof(const char*) * (Params.size() + 1));
+				size_t Index = 0;
+
+				for (auto& Key : Params)
+					Result[Index++] = Key.first.c_str();
+
+				Result[Index] = nullptr;
+				return Result;
+			}
+			const char** Address::CreateValues() const
+			{
+				const char** Result = (const char**)TH_MALLOC(sizeof(const char*) * (Params.size() + 1));
+				size_t Index = 0;
+
+				for (auto& Key : Params)
+					Result[Index++] = Key.second.c_str();
+
+				Result[Index] = nullptr;
+				return Result;
+			}
 
 			Connection::Connection() : Base(nullptr), Master(nullptr), Connected(false)
 			{
@@ -102,36 +153,6 @@ namespace Tomahawk
 			Connection::~Connection()
 			{
 				Driver::Release();
-			}
-			Core::Async<bool> Connection::Connect(const std::string& Address)
-			{
-#ifdef TH_HAS_POSTGRESQL
-				if (Master != nullptr)
-					return Core::Async<bool>::Store(false);
-
-				if (Connected)
-				{
-					return Disconnect().Then<Core::Async<bool>>([this, Address](bool)
-					{
-						return this->Connect(Address);
-					});
-				}
-
-				return [this, Address](Core::Async<bool>& Future)
-				{
-					Base = PQconnectdb(Address.c_str());
-					if (!Base)
-					{
-						TH_ERROR("couldn't connect to requested URI");
-						return Future.Set(false);
-					}
-
-					Connected = true;
-					Future.Set(true);
-				};
-#else
-				return Core::Async<bool>::Store(false);
-#endif
 			}
 			Core::Async<bool> Connection::Connect(const Address& URI)
 			{
@@ -149,18 +170,8 @@ namespace Tomahawk
 
 				return [this, URI](Core::Async<bool>& Future)
 				{
-					auto& Args = URI.Get();
-					const char** Keys = (const char**)TH_MALLOC(sizeof(const char*) * Args.size());
-					const char** Values = (const char**)TH_MALLOC(sizeof(const char*) * Args.size());
-					size_t Index = 0;
-
-					for (auto& Key : Args)
-					{
-						Keys[Index] = Key.first.c_str();
-						Values[Index] = Key.second.c_str();
-						Index++;
-					}
-
+					const char** Keys = URI.CreateKeys();
+					const char** Values = URI.CreateValues();
 					Base = PQconnectdbParams(Keys, Values, 0);
 					TH_FREE(Keys);
 					TH_FREE(Values);
@@ -222,27 +233,39 @@ namespace Tomahawk
 				Disconnect();
 				Driver::Release();
 			}
-			bool Queue::Connect(const std::string& Address)
-			{
-				if (Connected || Address.empty())
-					return false;
-
-				BaseAddress = Address;
-				HasParams = false;
-				Connected = true;
-
-				return true;
-			}
 			bool Queue::Connect(const Address& URI)
 			{
+#ifdef TH_HAS_POSTGRESQL
 				if (Connected || URI.Get().empty())
 					return false;
 
-				BaseURI = URI;
-				HasParams = true;
-				Connected = true;
-
-				return true;
+				const char** Keys = URI.CreateKeys();
+				const char** Values = URI.CreateValues();
+				PGPing Result = PQpingParams(Keys, Values, 0);
+				TH_FREE(Keys);
+				TH_FREE(Values);
+				
+				switch (Result)
+				{
+					case PGPing::PQPING_OK:
+						Source = URI;
+						Connected = true;
+						return true;
+					case PGPing::PQPING_REJECT:
+						TH_ERROR("[pg] server connection rejected");
+						return false;
+					case PGPing::PQPING_NO_ATTEMPT:
+						TH_ERROR("[pg] invalid params");
+						return false;
+					case PGPing::PQPING_NO_RESPONSE:
+						TH_ERROR("[pg] couldn't connect to server");
+						return false;
+					default:
+						return false;
+				}
+#else
+				return false;
+#endif
 			}
 			bool Queue::Disconnect()
 			{
@@ -311,7 +334,7 @@ namespace Tomahawk
 				Active.insert(Result);
 				Safe.unlock();
 
-				auto Callback = [this, Result](bool&& Subresult)
+				return Result->Connect(Source).Then<Core::Async<Connection*>>([this, Result](bool&& Subresult)
 				{
 					if (Subresult)
 					{
@@ -325,12 +348,7 @@ namespace Tomahawk
 
 					TH_RELEASE(Result);
 					return Core::Async<Connection*>::Store(nullptr);
-				};
-
-				if (HasParams)
-					return Result->Connect(BaseURI).Then<Core::Async<Connection*>>(Callback);
-
-				return Result->Connect(BaseAddress).Then<Core::Async<Connection*>>(Callback);
+				});
 #else
 				return Core::Async<Connection*>::Store(nullptr);
 #endif
@@ -342,7 +360,7 @@ namespace Tomahawk
 				if (State <= 0)
 				{
 					Queries = new std::unordered_map<std::string, Sequence>();
-					Safe = new std::mutex();
+					Safe = TH_NEW(std::mutex);
 					State = 1;
 				}
 				else
@@ -367,7 +385,7 @@ namespace Tomahawk
 					if (Safe != nullptr)
 					{
 						Safe->unlock();
-						delete Safe;
+						TH_DELETE(mutex, Safe);
 						Safe = nullptr;
 					}
 				}

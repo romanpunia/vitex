@@ -271,7 +271,7 @@ namespace Tomahawk
 				SetTransparency(Transparent);
 
 				uint64_t Limit;
-				if (!NMake::Unpack(Node->Find("limit"), &Limit))
+				if (NMake::Unpack(Node->Find("limit"), &Limit))
 				{
 					std::vector<Compute::ElementVertex> Vertices;
 					if (Instance != nullptr)
@@ -1044,7 +1044,7 @@ namespace Tomahawk
 						Set->Position = Prev->Position.Lerp(Next->Position, T);
 						Pose.second.Position = Set->Position;
 
-						Set->Rotation = Prev->Rotation.AngularLerp(Next->Rotation, T);
+						Set->Rotation = Prev->Rotation.aLerp(Next->Rotation, T);
 						Pose.second.Rotation = Set->Rotation;
 					}
 
@@ -1078,7 +1078,7 @@ namespace Tomahawk
 						Compute::AnimatorKey* Next = &Key->Pose[Pose.first];
 
 						Pose.second.Position = Prev->Position.Lerp(Next->Position, T);
-						Pose.second.Rotation = Prev->Rotation.AngularLerp(Next->Rotation, T);
+						Pose.second.Rotation = Prev->Rotation.aLerp(Next->Rotation, T);
 					}
 				}
 				else
@@ -1283,7 +1283,7 @@ namespace Tomahawk
 
 					float T = Compute::Mathf::Min(State.Time / State.Duration, 1.0f);
 					Position = Current.Position = PrevKey.Position.Lerp(NextKey.Position, T);
-					Rotation = Current.Rotation = PrevKey.Rotation.AngularLerp(NextKey.Rotation, T);
+					Rotation = Current.Rotation = PrevKey.Rotation.aLerp(NextKey.Rotation, T);
 					Scale = Current.Scale = PrevKey.Scale.Lerp(NextKey.Scale, T);
 
 					if (State.Time >= State.Duration)
@@ -1314,7 +1314,7 @@ namespace Tomahawk
 					float T = Compute::Mathf::Min(State.Time / State.Duration, 1.0f);
 
 					Position = Current.Position.Lerp(Key->Position, T);
-					Rotation = Current.Rotation.AngularLerp(Key->Rotation, T);
+					Rotation = Current.Rotation.aLerp(Key->Rotation, T);
 					Scale = Current.Scale.Lerp(Key->Scale, T);
 				}
 				else
@@ -1505,23 +1505,16 @@ namespace Tomahawk
 				for (int i = 0; i < Spawner.Iterations; i++)
 				{
 					if (Array->Size() >= Array->Capacity())
-						continue;
+						break;
 
-					Compute::Vector3 FPosition = (Base->Connected ? Spawner.Position.Generate() : Spawner.Position.Generate() + Parent->Transform->Position.InvertZ());
+					Compute::Vector3 FPosition = (Base->Connected ? Spawner.Position.Generate() : Spawner.Position.Generate() + Parent->Transform->Position.InvZ());
 					Compute::Vector3 FVelocity = Spawner.Velocity.Generate();
 					Compute::Vector4 FDiffusion = Spawner.Diffusion.Generate();
 
 					Compute::ElementVertex Element;
-					Element.PositionX = FPosition.X;
-					Element.PositionY = FPosition.Y;
-					Element.PositionZ = FPosition.Z;
-					Element.VelocityX = FVelocity.X;
-					Element.VelocityY = FVelocity.Y;
-					Element.VelocityZ = FVelocity.Z;
-					Element.ColorX = FDiffusion.X;
-					Element.ColorY = FDiffusion.Y;
-					Element.ColorZ = FDiffusion.Z;
-					Element.ColorW = FDiffusion.W;
+					memcpy(&Element.PositionX, &FPosition, sizeof(float) * 3);
+					memcpy(&Element.VelocityX, &FVelocity, sizeof(float) * 3);
+					memcpy(&Element.ColorX, &FDiffusion, sizeof(float) * 4);
 					Element.Angular = Spawner.Angular.Generate();
 					Element.Rotation = Spawner.Rotation.Generate();
 					Element.Scale = Spawner.Scale.Generate();
@@ -1544,22 +1537,21 @@ namespace Tomahawk
 
 				for (auto It = Array->Begin(); It != Array->End(); It++)
 				{
-					Compute::Vector3 Noise = Spawner.Noise.Generate() / Noise;
-					It->PositionX += (It->VelocityX + Position.X + Noise.X) * DeltaTime;
-					It->PositionY += (It->VelocityY + Position.Y + Noise.Y) * DeltaTime;
-					It->PositionZ += (It->VelocityZ + Position.Z + Noise.Z) * DeltaTime;
-					It->ColorX += Diffuse.X * DeltaTime;
-					It->ColorY += Diffuse.Y * DeltaTime;
-					It->ColorZ += Diffuse.Z * DeltaTime;
-					It->ColorW += Diffuse.W * DeltaTime;
-					It->Scale += ScaleSpeed * DeltaTime;
+					Compute::Vector3 NextVelocity(It->VelocityX, It->VelocityY, It->VelocityZ);
+					Compute::Vector3 NextNoise = Spawner.Noise.Generate() / Noise;
+					Compute::Vector3 NextPosition(It->PositionX, It->PositionY, It->PositionZ);
+					Compute::Vector4 NextDiffuse(It->ColorX, It->ColorY, It->ColorZ, It->ColorW);
+					NextPosition += (NextVelocity + Position + NextNoise) * DeltaTime;
+					NextDiffuse += Diffuse * DeltaTime;
+					memcpy(&It->PositionX, &NextPosition, sizeof(float) * 3);
+					memcpy(&It->ColorX, &NextDiffuse, sizeof(float) * 4);
 					It->Rotation += (It->Angular + RotationSpeed) * DeltaTime;
+					It->Scale += ScaleSpeed * DeltaTime;
 
 					if (L > 0)
 					{
-						It->VelocityX -= (It->VelocityX / Velocity.X) * DeltaTime;
-						It->VelocityY -= (It->VelocityY / Velocity.Y) * DeltaTime;
-						It->VelocityZ -= (It->VelocityZ / Velocity.Z) * DeltaTime;
+						NextVelocity -= (NextVelocity / Velocity) * DeltaTime;
+						memcpy(&It->VelocityX, &NextVelocity, sizeof(float) * 3);
 					}
 
 					if (It->ColorW <= 0 || It->Scale <= 0)
@@ -1576,21 +1568,20 @@ namespace Tomahawk
 
 				for (auto It = Array->Begin(); It != Array->End(); It++)
 				{
-					It->PositionX += (It->VelocityX + Position.X) * DeltaTime;
-					It->PositionY += (It->VelocityY + Position.Y) * DeltaTime;
-					It->PositionZ += (It->VelocityZ + Position.Z) * DeltaTime;
-					It->ColorX += Diffuse.X * DeltaTime;
-					It->ColorY += Diffuse.Y * DeltaTime;
-					It->ColorZ += Diffuse.Z * DeltaTime;
-					It->ColorW += Diffuse.W * DeltaTime;
-					It->Scale += ScaleSpeed * DeltaTime;
+					Compute::Vector3 NextVelocity(It->VelocityX, It->VelocityY, It->VelocityZ);
+					Compute::Vector3 NextPosition(It->PositionX, It->PositionY, It->PositionZ);
+					Compute::Vector4 NextDiffuse(It->ColorX, It->ColorY, It->ColorZ, It->ColorW);
+					NextPosition += (NextVelocity + Position) * DeltaTime;
+					NextDiffuse += Diffuse * DeltaTime;
+					memcpy(&It->PositionX, &NextPosition, sizeof(float) * 3);
+					memcpy(&It->ColorX, &NextDiffuse, sizeof(float) * 4);
 					It->Rotation += (It->Angular + RotationSpeed) * DeltaTime;
+					It->Scale += ScaleSpeed * DeltaTime;
 
 					if (L > 0)
 					{
-						It->VelocityX -= (It->VelocityX / Velocity.X) * DeltaTime;
-						It->VelocityY -= (It->VelocityY / Velocity.Y) * DeltaTime;
-						It->VelocityZ -= (It->VelocityZ / Velocity.Z) * DeltaTime;
+						NextVelocity -= (NextVelocity / Velocity) * DeltaTime;
+						memcpy(&It->VelocityX, &NextVelocity, sizeof(float) * 3);
 					}
 
 					if (It->ColorW <= 0 || It->Scale <= 0)
@@ -1643,8 +1634,7 @@ namespace Tomahawk
 				Core::Document* CV = nullptr;
 				if ((CV = Node->Find("shape")) != nullptr)
 				{
-					std::string Path;
-					uint64_t Type;
+					std::string Path; uint64_t Type;
 					if (NMake::Unpack(Node->Find("path"), &Path))
 					{
 						auto* Shape = Content->Load<Compute::UnmanagedShape>(Path);
@@ -2290,9 +2280,8 @@ namespace Tomahawk
 					Compute::Vector2 Cursor = Activity->GetGlobalCursorPosition();
 					if (!Activity->IsKeyDownHit(Rotate))
 					{
-						float X = (Cursor.Y - Position.Y) * Sensivity;
-						float Y = (Cursor.X - Position.X) * Sensivity;
-						Parent->Transform->Rotation += Compute::Vector3(X, Y);
+						Compute::Vector2 Next = (Cursor - Position) * Sensivity;
+						Parent->Transform->Rotation += Compute::Vector3(Next.Y, Next.X);
 						Parent->Transform->Rotation.X = Compute::Mathf::Clamp(Parent->Transform->Rotation.X, -1.57079632679f, 1.57079632679f);
 					}
 					else
@@ -2543,7 +2532,7 @@ namespace Tomahawk
 					LastPosition = Parent->Transform->Position;
 				}
 
-				Compute::Vector3 Rotation = Parent->Transform->Rotation.DepthDirection();
+				Compute::Vector3 Rotation = Parent->Transform->Rotation.dDirection();
 				float LookAt[6] = { Rotation.X, Rotation.Y, Rotation.Z, 0.0f, 1.0f, 0.0f };
 
 				Audio::AudioContext::SetListenerData3F(Audio::SoundEx_Velocity, Velocity.X, Velocity.Y, Velocity.Z);
@@ -2635,7 +2624,7 @@ namespace Tomahawk
 			void PointLight::AssembleDepthOrigin()
 			{
 				Projection = Compute::Matrix4x4::CreatePerspective(90.0f, 1.0f, 0.1f, Shadow.Distance);
-				View = Compute::Matrix4x4::CreateCubeMapLookAt(0, Parent->Transform->Position.InvertZ());
+				View = Compute::Matrix4x4::CreateCubeMapLookAt(0, Parent->Transform->Position.InvZ());
 			}
 			float PointLight::GetBoxRange() const
 			{
@@ -3349,7 +3338,7 @@ namespace Tomahawk
 				if (!View)
 					return;
 
-				Compute::Vector3 Position = Parent->Transform->Position.InvertX().InvertY();
+				Compute::Vector3 Position = Parent->Transform->Position.InvX().InvY();
 				Compute::Matrix4x4 World = Compute::Matrix4x4::CreateCamera(Position, -Parent->Transform->Rotation);
 				View->Set(World, Projection, Parent->Transform->Position, NearPlane, FarPlane);
 				View->WorldRotation = Parent->Transform->Rotation;
@@ -3399,7 +3388,7 @@ namespace Tomahawk
 					W = V.Width; H = V.Height;
 				}
 
-				return Compute::Common::CreateCursorRay(Parent->Transform->Position, Position, Compute::Vector2(W, H), Projection.Invert(), GetView().Invert());
+				return Compute::Common::CreateCursorRay(Parent->Transform->Position, Position, Compute::Vector2(W, H), Projection.Inv(), GetView().Inv());
 			}
 			float Camera::GetDistance(Entity* Other)
 			{

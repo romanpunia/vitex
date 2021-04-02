@@ -95,7 +95,7 @@ namespace Tomahawk
 					if (!Device)
 						return (Rml::CompiledGeometryHandle)nullptr;
 
-					GeometryBuffer* Result = new GeometryBuffer();
+					GeometryBuffer* Result = TH_NEW(GeometryBuffer);
 					Result->Texture = (Graphics::Texture2D*)Handle;
 
 					Graphics::ElementBuffer::Desc F = Graphics::ElementBuffer::Desc();
@@ -140,7 +140,7 @@ namespace Tomahawk
 				virtual void ReleaseCompiledGeometry(Rml::CompiledGeometryHandle Handle) override
 				{
 					GeometryBuffer* Resource = (GeometryBuffer*)Handle;
-					delete Resource;
+					TH_DELETE(GeometryBuffer, Resource);
 				}
 				virtual void EnableScissorRegion(bool Enable) override
 				{
@@ -583,15 +583,16 @@ namespace Tomahawk
 			public:
 				virtual Rml::ContextPtr InstanceContext(const Rml::String& Name) override
 				{
-					return Rml::ContextPtr(new ScopedContext(Name));
+					return Rml::ContextPtr(TH_NEW(ScopedContext, Name));
 				}
 				virtual void ReleaseContext(Rml::Context* Context) override
 				{
-					delete (ScopedContext*)Context;
+					ScopedContext* Item = (ScopedContext*)Context;
+					TH_DELETE(ScopedContext, Item);
 				}
 				virtual void Release() override
 				{
-					delete this;
+					TH_DELETE(ContextInstancer, this);
 				}
 			};
 
@@ -640,11 +641,11 @@ namespace Tomahawk
 			public:
 				Rml::ElementPtr InstanceElement(Rml::Element*, const Rml::String& Tag, const Rml::XMLAttributes&) override
 				{
-					return Rml::ElementPtr(new DocumentSubsystem(Tag));
+					return Rml::ElementPtr(TH_NEW(DocumentSubsystem, Tag));
 				}
 				void ReleaseElement(Rml::Element* Element) override
 				{
-					delete Element;
+					TH_DELETE(Element, Element);
 				}
 			};
 
@@ -660,7 +661,7 @@ namespace Tomahawk
 				}
 				void OnDetach(Rml::Element* Element) override
 				{
-					delete this;
+					TH_DELETE(ListenerSubsystem, this);
 				}
 				void ProcessEvent(Rml::Event& Event) override
 				{
@@ -686,7 +687,7 @@ namespace Tomahawk
 			public:
 				Rml::EventListener* InstanceEventListener(const Rml::String& Value, Rml::Element* Element) override
 				{
-					return new ListenerSubsystem(Value, Element, true);
+					return TH_NEW(ListenerSubsystem, Value, Element, true);
 				}
 			};
 
@@ -710,7 +711,7 @@ namespace Tomahawk
 				{
 					RefCount = false;
 					if (!--RefCount)
-						delete this;
+						TH_DELETE(EventSubsystem, this);
 				}
 				virtual void ProcessEvent(Rml::Event& Event) override
 				{
@@ -1206,7 +1207,7 @@ namespace Tomahawk
 			}
 			void IElement::Release()
 			{
-				delete Base;
+				TH_DELETE(Element, Base);
 				Base = nullptr;
 			}
 			IElement IElement::Clone() const
@@ -2289,7 +2290,8 @@ namespace Tomahawk
 			}
 			void IElementDocument::Release()
 			{
-				delete (Rml::ElementDocument*)Base;
+				Rml::ElementDocument* Item = (Rml::ElementDocument*)Base;
+				TH_DELETE(ElementDocument, Item);
 				Base = nullptr;
 			}
 			void IElementDocument::SetTitle(const std::string& Title)
@@ -2365,24 +2367,24 @@ namespace Tomahawk
 				if (State > 1)
 					return State >= 0;
 
-				RenderInterface = new RenderSubsystem();
+				RenderInterface = TH_NEW(RenderSubsystem);
 				Rml::SetRenderInterface(RenderInterface);
 
-				FileInterface = new FileSubsystem();
+				FileInterface = TH_NEW(FileSubsystem);
 				Rml::SetFileInterface(FileInterface);
 
-				SystemInterface = new MainSubsystem();
+				SystemInterface = TH_NEW(MainSubsystem);
 				Rml::SetSystemInterface(SystemInterface);
 				
 				bool Result = Rml::Initialise();
 
-				ContextFactory = new ContextInstancer();
+				ContextFactory = TH_NEW(ContextInstancer);
 				Rml::Factory::RegisterContextInstancer(ContextFactory);
 
-				ListenerFactory = new ListenerInstancer();
+				ListenerFactory = TH_NEW(ListenerInstancer);
 				Rml::Factory::RegisterEventListenerInstancer(ListenerFactory);
 
-				DocumentFactory = new DocumentInstancer();
+				DocumentFactory = TH_NEW(DocumentInstancer);
 				Rml::Factory::RegisterElementInstancer("body", DocumentFactory);
 
 				return Result;
@@ -2400,25 +2402,25 @@ namespace Tomahawk
 					ReleaseDecorators();
 				}
 
-				delete SystemInterface;
+				TH_DELETE(MainSubsystem, SystemInterface);
 				SystemInterface = nullptr;
 				Rml::SetSystemInterface(nullptr);
 
-				delete FileInterface;
+				TH_DELETE(FileSubsystem, FileInterface);
 				FileInterface = nullptr;
 				Rml::SetFileInterface(nullptr);
 
-				delete RenderInterface;
+				TH_DELETE(RenderSubsystem, RenderInterface);
 				RenderInterface = nullptr;
 				Rml::SetRenderInterface(nullptr);
 
-				delete DocumentFactory;
+				TH_DELETE(DocumentInstancer, DocumentFactory);
 				DocumentFactory = nullptr;
 
-				delete ListenerFactory;
+				TH_DELETE(ListenerInstancer, ListenerFactory);
 				ListenerFactory = nullptr;
-				
-				delete ContextFactory;
+
+				TH_DELETE(ContextInstancer, ContextFactory);
 				ContextFactory = nullptr;
 
 				ScriptInterface = nullptr;
@@ -2536,31 +2538,31 @@ namespace Tomahawk
 
 			DataNode::DataNode(DataModel* Model, std::string* TopName, const Core::Variant& Initial) : Handle(Model), Safe(true)
 			{
-				Ref = new Core::Variant(Initial);
+				Ref = TH_NEW(Core::Variant, Initial);
 				if (TopName != nullptr)
-					Name = new std::string(*TopName);
+					Name = TH_NEW(std::string, *TopName);
 			}
 			DataNode::DataNode(DataModel* Model, std::string* TopName, Core::Variant* Reference) : Handle(Model), Safe(false), Ref(Reference)
 			{
 				if (TopName != nullptr)
-					Name = new std::string(*TopName);
+					Name = TH_NEW(std::string, *TopName);
 			}
 			DataNode::DataNode(const DataNode& Other) : Childs(Other.Childs), Handle(Other.Handle), Safe(Other.Safe)
 			{
 				if (Safe)
-					Ref = new Core::Variant(*Other.Ref);
+					Ref = TH_NEW(Core::Variant, *Other.Ref);
 				else
 					Ref = Other.Ref;
 
 				if (Other.Name != nullptr)
-					Name = new std::string(*Other.Name);
+					Name = TH_NEW(std::string, *Other.Name);
 			}
 			DataNode::~DataNode()
 			{
 				if (Safe)
-					delete Ref;
+					TH_DELETE(Variant, Ref);
 
-				delete Name;
+				TH_DELETE(basic_string, Name);
 			}
 			DataNode& DataNode::Add(const Core::VariantList& Initial)
 			{
@@ -2632,7 +2634,7 @@ namespace Tomahawk
 					return;
 
 				if (Safe)
-					delete Ref;
+					TH_DELETE(Variant, Ref);
 
 				Ref = NewReference;
 				Safe = false;
@@ -2732,12 +2734,12 @@ namespace Tomahawk
 			{
 				this->~DataNode();
 				if (Safe)
-					Ref = new Core::Variant(*Other.Ref);
+					Ref = TH_NEW(Core::Variant, *Other.Ref);
 				else
 					Ref = Other.Ref;
 
 				if (Other.Name != nullptr)
-					Name = new std::string(*Other.Name);
+					Name = TH_NEW(std::string, *Other.Name);
 
 				return *this;
 			}
@@ -2764,11 +2766,11 @@ namespace Tomahawk
 					Base->OnDestroy(Target);
 
 				for (auto& It : Childs)
-					delete It;
+					TH_DELETE(DataRow, It);
 			}
 			DataRow* DataRow::AddChild(void* Target)
 			{
-				DataRow* Result = new DataRow(this, Target);
+				DataRow* Result = TH_NEW(DataRow, this, Target);
 				Base->RowAdd(Name, Childs.size() - 1, 1);
 
 				return Result;
@@ -2832,7 +2834,7 @@ namespace Tomahawk
 
 				DataRow* Child = Childs[Index];
 				Childs.erase(Childs.begin() + Index);
-				delete Child;
+				TH_DELETE(DataRow, Child);
 
 				Base->RowRemove(Name, Index, 1);
 				return true;
@@ -2841,7 +2843,7 @@ namespace Tomahawk
 			{
 				size_t Size = Childs.size();
 				for (auto& It : Childs)
-					delete It;
+					TH_DELETE(DataRow, It);
 				Childs.clear();
 
 				if (Size > 0)
@@ -2883,14 +2885,14 @@ namespace Tomahawk
 				if (!Ref)
 					return;
 
-				Base = new Rml::DataModelConstructor(*Ref);
+				Base = TH_NEW(Rml::DataModelConstructor, *Ref);
 			}
 			DataModel::~DataModel()
 			{
 				for (auto Item : Props)
-					delete Item.second;
+					TH_DELETE(DataNode, Item.second);
 
-				delete Base;
+				TH_DELETE(DataModelConstructor, Base);
 			}
 			DataNode* DataModel::SetProperty(const std::string& Name, const Core::Variant& Value)
 			{
@@ -2904,7 +2906,7 @@ namespace Tomahawk
 					return Result;
 				}
 
-				Result = new DataNode(this, (std::string*)&Name, Value);
+				Result = TH_NEW(DataNode, this, (std::string*)&Name, Value);
 				if (Value.GetType() != Core::VarType_Null)
 				{
 					if (Base->BindFunc(Name, std::bind(&DataNode::GetValue, Result, std::placeholders::_1), std::bind(&DataNode::SetValue, Result, std::placeholders::_1)))
@@ -2919,7 +2921,7 @@ namespace Tomahawk
 					return Result;
 				}
 
-				delete Result;
+				TH_DELETE(DataNode, Result);
 				return nullptr;
 			}
 			DataNode* DataModel::SetProperty(const std::string& Name, Core::Variant* Value)
@@ -2934,14 +2936,14 @@ namespace Tomahawk
 					return Sub;
 				}
 
-				DataNode* Result = new DataNode(this, (std::string*)&Name, Value);
+				DataNode* Result = TH_NEW(DataNode, this, (std::string*)&Name, Value);
 				if (Base->Bind(Name, Result))
 				{
 					Props[Name] = Result;
 					return Result;
 				}
 
-				delete Result;
+				TH_DELETE(DataNode, Result);
 				return nullptr;
 			}
 			DataNode* DataModel::SetArray(const std::string& Name)
@@ -3068,22 +3070,22 @@ namespace Tomahawk
 				return Base != nullptr;
 			}
 
-			DataSource::DataSource(const std::string& NewName) : Name(NewName), DSS(nullptr), DFS(nullptr), Root(new DataRow(this, nullptr))
+			DataSource::DataSource(const std::string& NewName) : Name(NewName), DSS(nullptr), DFS(nullptr), Root(TH_NEW(DataRow, this, nullptr))
 			{
 				if (Name.empty())
 					return;
 
 				if (!DSS)
-					DSS = new DataSourceSubsystem(this);
+					DSS = TH_NEW(DataSourceSubsystem, this);
 
 				if (!DFS)
-					DFS = new DataFormatterSubsystem(this);
+					DFS = TH_NEW(DataFormatterSubsystem, this);
 			}
 			DataSource::~DataSource()
 			{
-				delete DSS;
-				delete DFS;
-				delete Root;
+				TH_DELETE(DataSourceSubsystem, DSS);
+				TH_DELETE(DataFormatterSubsystem, DFS);
+				TH_DELETE(DataRow, Root);
 			}
 			void DataSource::SetFormatCallback(const FormatCallback& Callback)
 			{
@@ -3150,11 +3152,11 @@ namespace Tomahawk
 
 			Handler::Handler(const EventCallback& NewCallback)
 			{
-				Base = new EventSubsystem(NewCallback);
+				Base = TH_NEW(EventSubsystem, NewCallback);
 			}
 			Handler::Handler(const std::string& FunctionName)
 			{
-				Base = new ListenerSubsystem(FunctionName, nullptr, false);
+				Base = TH_NEW(ListenerSubsystem, FunctionName, nullptr, false);
 			}
 			Handler::~Handler()
 			{
@@ -3200,7 +3202,7 @@ namespace Tomahawk
 						}
 					}
 
-					delete Item.second;
+					TH_RELEASE(Item.second);
 				}
 
 				Rml::RemoveContext(Base->GetName());
@@ -3666,7 +3668,7 @@ namespace Tomahawk
 					if (It->second->OnUnmount)
 						It->second->OnUnmount(this);
 
-					delete It->second;
+					TH_RELEASE(It->second);
 					Models.erase(It);
 				}
 			
@@ -3680,7 +3682,7 @@ namespace Tomahawk
 				for (auto Item : Models)
 				{
 					Base->RemoveDataModel(Item.first);
-					delete Item.second;
+					TH_RELEASE(Item.second);
 				}
 
 				Models.clear();

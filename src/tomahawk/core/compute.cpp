@@ -5,6 +5,7 @@
 #include <BulletSoftBody/btDefaultSoftBodySolver.h>
 #include <BulletSoftBody/btSoftBodyHelpers.h>
 #include <BulletSoftBody/btSoftBodyRigidBodyCollisionConfiguration.h>
+#include <vsimd.h>
 #ifdef TH_HAS_OPENSSL
 extern "C"
 {
@@ -12,8 +13,8 @@ extern "C"
 #include <openssl/rand.h>
 }
 #endif
-#define BtV3(V) btVector3(V.X, V.Y, V.Z)
-#define V3Bt(V) Vector3(V.getX(), V.getY(), V.getZ())
+#define V3_TO_BT(V) btVector3(V.X, V.Y, V.Z)
+#define BT_TO_V3(V) Vector3(V.getX(), V.getY(), V.getZ())
 #define REGEX_FAIL(A, B) if (A) return (B)
 #define MAKE_ADJ_TRI(x) (x&0x3fffffff)
 #define IS_BOUNDARY(x) (x==0xffffffff)
@@ -81,7 +82,7 @@ namespace
 				return 0;
 
 			RayContact Contact;
-			Contact.HitNormalLocal = V3Bt(RayResult.m_hitNormalLocal);
+			Contact.HitNormalLocal = BT_TO_V3(RayResult.m_hitNormalLocal);
 			Contact.NormalInWorldSpace = NormalInWorldSpace;
 			Contact.HitFraction = RayResult.m_hitFraction;
 			Contact.ClosestHitFraction = m_closestHitFraction;
@@ -96,100 +97,242 @@ namespace Tomahawk
 {
 	namespace Compute
 	{
-		Vector2::Vector2()
+		Vector2::Vector2() : X(0.0f), Y(0.0f)
 		{
-			X = 0;
-			Y = 0;
 		}
-		Vector2::Vector2(float x, float y)
+		Vector2::Vector2(float x, float y) : X(x), Y(y)
 		{
-			X = x;
-			Y = y;
 		}
-		Vector2::Vector2(float xy)
+		Vector2::Vector2(float xy) : X(xy), Y(xy)
 		{
-			X = xy;
-			Y = xy;
 		}
-		Vector2::Vector2(const Vector3& Value)
+		Vector2::Vector2(const Vector3& Value) : X(Value.X), Y(Value.Y)
 		{
-			X = Value.X;
-			Y = Value.Y;
 		}
-		Vector2::Vector2(const Vector4& Value)
+		Vector2::Vector2(const Vector4& Value) : X(Value.X), Y(Value.Y)
 		{
-			X = Value.X;
-			Y = Value.Y;
-		}
-		float Vector2::Hypotenuse() const
-		{
-			return Mathf::Sqrt(X * X + Y * Y);
-		}
-		float Vector2::LookAt(const Vector2& At) const
-		{
-			return Mathf::Atan2(At.X - X, At.Y - Y);
-		}
-		float Vector2::Distance(const Vector2& Point) const
-		{
-			float x = X - Point.X;
-			float y = Y - Point.Y;
-
-			return Mathf::Sqrt(x * x + y * y);
 		}
 		float Vector2::Length() const
 		{
-			return Mathf::Sqrt(X * X + Y * Y);
+#ifdef TH_HAS_SIMD
+			LOD_FV2(_r1);
+			return sqrt(horizontal_add(square(_r1)));
+#else
+			return sqrt(X * X + Y * Y);
+#endif
 		}
-		float Vector2::ModLength() const
+		float Vector2::Sum() const
 		{
+#ifdef TH_HAS_SIMD
+			LOD_FV2(_r1);
+			return horizontal_add(_r1);
+#else
 			return X + Y;
+#endif
 		}
-		float Vector2::DotProduct(const Vector2& B) const
+		float Vector2::Dot(const Vector2& B) const
 		{
+#ifdef TH_HAS_SIMD
+			LOD_FV2(_r1); LOD_V2(_r2, B);
+			return horizontal_add(_r1 * _r2);
+#else
 			return X * B.X + Y * B.Y;
+#endif
 		}
-		float Vector2::Cross(const Vector2& Vector1) const
+		float Vector2::Distance(const Vector2& Point) const
 		{
-			return X * Vector1.Y - Y * Vector1.X;
+#ifdef TH_HAS_SIMD
+			LOD_FV2(_r1); LOD_V2(_r2, Point);
+			return sqrt(horizontal_add(square(_r1 - _r2)));
+#else
+			float X1 = X - Point.X, Y1 = Y - Point.Y;
+			return sqrt(X1 * X1 + Y1 * Y1);
+#endif
+		}
+		float Vector2::Hypotenuse() const
+		{
+#ifdef TH_HAS_SIMD
+			LOD_FV2(_r1);
+			return sqrt(horizontal_add(square(_r1)));
+#else
+			return sqrt(X * X + Y * Y);
+#endif
+		}
+		float Vector2::LookAt(const Vector2& At) const
+		{
+#ifdef TH_HAS_SIMD
+			LOD_FV2(_r1); LOD_V2(_r2, At); _r1 = _r2 - _r1;
+			return atan2f(_r1.extract(0), _r1.extract(1));
+#else
+			return atan2f(At.X - X, At.Y - Y);
+#endif
+		}
+		float Vector2::Cross(const Vector2& B) const
+		{
+#ifdef TH_HAS_SIMD
+			LOD_FV2(_r1); LOD_V2(_r2, B); _r1 = _r1 * _r2;
+			return _r1.extract(0) - _r1.extract(1);
+#else
+			return X * B.Y - Y * B.X;
+#endif
+		}
+		Vector2 Vector2::Transform(const Matrix4x4& Matrix) const
+		{
+#ifdef TH_HAS_SIMD
+			LOD_VAL(_r1, X);
+			LOD_VAL(_r2, Y);
+			LOD_VAR(_r3, Matrix.Row);
+			LOD_VAR(_r4, Matrix.Row + 4);
+
+			_r1 = _r1 * _r3 + _r2 * _r4;
+			return Vector2(_r1.extract(0), _r1.extract(1));
+#else
+			return Vector2(
+				X * Matrix.Row[0] + Y * Matrix.Row[4],
+				X * Matrix.Row[1] + Y * Matrix.Row[5]);
+#endif
 		}
 		Vector2 Vector2::Direction(float Rotation) const
 		{
 			return Vector2(cos(-Rotation), sin(-Rotation));
 		}
-		Vector2 Vector2::SaturateRotation() const
+		Vector2 Vector2::Inv() const
+		{
+			return Vector2(-X, -Y);
+		}
+		Vector2 Vector2::InvX() const
+		{
+			return Vector2(-X, Y);
+		}
+		Vector2 Vector2::InvY() const
+		{
+			return Vector2(X, -Y);
+		}
+		Vector2 Vector2::Normalize() const
+		{
+#ifdef TH_HAS_SIMD
+			LOD_FV2(_r1);
+			_r1 = _r1 * Common::FastInvSqrt(horizontal_add(square(_r1)));
+			return Vector2(_r1.extract(0), _r1.extract(1));
+#else
+			float F = Length();
+			return Vector2(X / F, Y / F);
+#endif
+		}
+		Vector2 Vector2::sNormalize() const
+		{
+#ifdef TH_HAS_SIMD
+			LOD_FV2(_r1);
+			float F = sqrt(horizontal_add(square(_r1)));
+			if (F == 0.0f)
+				return Vector2();
+
+			_r1 = _r1 / F;
+			return Vector2(_r1.extract(0), _r1.extract(1));
+#else
+			float F = Length();
+			if (F == 0.0f)
+				return Vector2();
+
+			return Vector2(X / F, Y / F);
+#endif
+		}
+		Vector2 Vector2::Lerp(const Vector2& B, float DeltaTime) const
+		{
+#ifdef TH_HAS_SIMD
+			LOD_FV2(_r1); LOD_V2(_r2, B);
+			_r1 = _r1 + (_r2 - _r1) * DeltaTime;
+			return Vector2(_r1.extract(0), _r1.extract(1));
+#else
+			return *this + (B - *this) * DeltaTime;
+#endif
+		}
+		Vector2 Vector2::sLerp(const Vector2& B, float DeltaTime) const
+		{
+			return Quaternion(Vector3()).sLerp(B.XYZ(), DeltaTime).GetEuler().XY();
+		}
+		Vector2 Vector2::aLerp(const Vector2& B, float DeltaTime) const
+		{
+			float Ax = Mathf::AngluarLerp(X, B.X, DeltaTime);
+			float Ay = Mathf::AngluarLerp(Y, B.Y, DeltaTime);
+
+			return Vector2(Ax, Ay);
+		}
+		Vector2 Vector2::rLerp() const
 		{
 			float Ax = Mathf::SaturateAngle(X);
 			float Ay = Mathf::SaturateAngle(Y);
 
 			return Vector2(Ax, Ay);
 		}
-		Vector2 Vector2::Invert() const
+		Vector2 Vector2::Abs() const
 		{
-			return Vector2(-X, -Y);
+#ifdef TH_HAS_SIMD
+			LOD_FV2(_r1); _r1 = abs(_r1);
+			return Vector2(_r1.extract(0), _r1.extract(1));
+#else
+			return Vector2(X < 0 ? -X : X, Y < 0 ? -Y : Y);
+#endif
 		}
-		Vector2 Vector2::InvertX() const
+		Vector2 Vector2::Radians() const
 		{
-			return Vector2(-X, Y);
+			return (*this) * Mathf::Deg2Rad();
 		}
-		Vector2 Vector2::InvertY() const
+		Vector2 Vector2::Degrees() const
 		{
-			return Vector2(X, -Y);
+			return (*this) * Mathf::Rad2Deg();
 		}
-		Vector2 Vector2::Normalize() const
+		Vector2 Vector2::XY() const
 		{
-			float Factor = 1.0f / Length();
-
-			return Vector2(X * Factor, Y * Factor);
+			return *this;
 		}
-		Vector2 Vector2::NormalizeSafe() const
+		Vector3 Vector2::XYZ() const
 		{
-			float LengthZero = Length();
-			float Factor = 1.0f / LengthZero;
-
-			if (LengthZero == 0.0f)
-				Factor = 0.0f;
-
-			return Vector2(X * Factor, Y * Factor);
+			return Vector3(X, Y, 0);
+		}
+		Vector4 Vector2::XYZW() const
+		{
+			return Vector4(X, Y, 0, 0);
+		}
+		Vector2 Vector2::Mul(float xy) const
+		{
+#ifdef TH_HAS_SIMD
+			LOD_FV2(_r1); _r1 = _r1 * xy;
+			return Vector2(_r1.extract(0), _r1.extract(1));
+#else
+			return Vector2(X * xy, Y * xy);
+#endif
+		}
+		Vector2 Vector2::Mul(float x, float y) const
+		{
+#ifdef TH_HAS_SIMD
+			LOD_FV2(_r1); LOD_AV2(_r2, x, y); _r1 = _r1 * _r2;
+			return Vector2(_r1.extract(0), _r1.extract(1));
+#else
+			return Vector2(X * x, Y * y);
+#endif
+		}
+		Vector2 Vector2::Mul(const Vector2& Value) const
+		{
+			return Mul(Value.X, Value.Y);
+		}
+		Vector2 Vector2::Div(const Vector2& Value) const
+		{
+#ifdef TH_HAS_SIMD
+			LOD_FV2(_r1); LOD_V2(_r2, Value); _r1 = _r1 / _r2;
+			return Vector2(_r1.extract(0), _r1.extract(1));
+#else
+			return Vector2(X / Value.X, Y / Value.Y);
+#endif
+		}
+		Vector2 Vector2::Add(const Vector2& Value) const
+		{
+#ifdef TH_HAS_SIMD
+			LOD_FV2(_r1); LOD_V2(_r2, Value); _r1 = _r1 + _r2;
+			return Vector2(_r1.extract(0), _r1.extract(1));
+#else
+			return Vector2(X + Value.X, Y + Value.Y);
+#endif
 		}
 		Vector2 Vector2::SetX(float Xf) const
 		{
@@ -198,45 +341,6 @@ namespace Tomahawk
 		Vector2 Vector2::SetY(float Yf) const
 		{
 			return Vector2(X, Yf);
-		}
-		Vector2 Vector2::Mul(float x, float y) const
-		{
-			return Vector2(X * x, Y * y);
-		}
-		Vector2 Vector2::Mul(const Vector2& Value) const
-		{
-			return *this * Value;
-		}
-		Vector2 Vector2::Add(const Vector2& Value) const
-		{
-			return *this + Value;
-		}
-		Vector2 Vector2::Div(const Vector2& Value) const
-		{
-			return *this / Value;
-		}
-		Vector2 Vector2::Lerp(const Vector2& B, float DeltaTime) const
-		{
-			return *this + (B - *this) * DeltaTime;
-		}
-		Vector2 Vector2::SphericalLerp(const Vector2& B, float DeltaTime) const
-		{
-			return Quaternion(Vector3()).SphericalLerp(B.XYZ(), DeltaTime).GetEuler().XY();
-		}
-		Vector2 Vector2::AngularLerp(const Vector2& B, float DeltaTime) const
-		{
-			float Ax = Mathf::AngluarLerp(X, B.X, DeltaTime);
-			float Ay = Mathf::AngluarLerp(Y, B.Y, DeltaTime);
-
-			return Vector2(Ax, Ay);
-		}
-		Vector2 Vector2::Abs() const
-		{
-			return Vector2(X < 0 ? -X : X, Y < 0 ? -Y : Y);
-		}
-		Vector2 Vector2::Transform(const Matrix4x4& Matrix) const
-		{
-			return Vector2(X * Matrix.Row[0] + Y * Matrix.Row[4], X * Matrix.Row[1] + Y * Matrix.Row[5]);
 		}
 		void Vector2::Set(const Vector2& Value)
 		{
@@ -248,98 +352,137 @@ namespace Tomahawk
 			In[0] = X;
 			In[1] = Y;
 		}
-		Vector2& Vector2::operator -=(const Vector2& V)
-		{
-			X -= V.X;
-			Y -= V.Y;
-			return *this;
-		}
-		Vector2& Vector2::operator -=(float V)
-		{
-			X -= V;
-			Y -= V;
-			return *this;
-		}
 		Vector2& Vector2::operator *=(const Vector2& V)
 		{
+#ifdef TH_HAS_SIMD
+			LOD_FV2(_r1); LOD_V2(_r2, V);
+			_r1 = _r1 * _r2;
+			_r1.store_partial(2, (float*)this);
+#else
 			X *= V.X;
 			Y *= V.Y;
+#endif
 			return *this;
 		}
 		Vector2& Vector2::operator *=(float V)
 		{
+#ifdef TH_HAS_SIMD
+			LOD_FV2(_r1);
+			_r1 = _r1 * V;
+			_r1.store_partial(2, (float*)this);
+#else
 			X *= V;
 			Y *= V;
+#endif
 			return *this;
 		}
 		Vector2& Vector2::operator /=(const Vector2& V)
 		{
+#ifdef TH_HAS_SIMD
+			LOD_FV2(_r1); LOD_V2(_r2, V);
+			_r1 = _r1 / _r2;
+			_r1.store_partial(2, (float*)this);
+#else
 			X /= V.X;
 			Y /= V.Y;
+#endif
 			return *this;
 		}
 		Vector2& Vector2::operator /=(float V)
 		{
+#ifdef TH_HAS_SIMD
+			LOD_FV2(_r1);
+			_r1 = _r1 / V;
+			_r1.store_partial(2, (float*)this);
+#else
 			X /= V;
 			Y /= V;
+#endif
 			return *this;
 		}
 		Vector2& Vector2::operator +=(const Vector2& V)
 		{
+#ifdef TH_HAS_SIMD
+			LOD_FV2(_r1); LOD_V2(_r2, V);
+			_r1 = _r1 + _r2;
+			_r1.store_partial(2, (float*)this);
+#else
 			X += V.X;
 			Y += V.Y;
+#endif
 			return *this;
 		}
 		Vector2& Vector2::operator +=(float V)
 		{
+#ifdef TH_HAS_SIMD
+			LOD_FV2(_r1);
+			_r1 = _r1 + V;
+			_r1.store_partial(2, (float*)this);
+#else
 			X += V;
 			Y += V;
+#endif
+			return *this;
+		}
+		Vector2& Vector2::operator -=(const Vector2& V)
+		{
+#ifdef TH_HAS_SIMD
+			LOD_FV2(_r1); LOD_V2(_r2, V);
+			_r1 = _r1 - _r2;
+			_r1.store_partial(2, (float*)this);
+#else
+			X -= V.X;
+			Y -= V.Y;
+#endif
+			return *this;
+		}
+		Vector2& Vector2::operator -=(float V)
+		{
+#ifdef TH_HAS_SIMD
+			LOD_FV2(_r1);
+			_r1 = _r1 - V;
+			_r1.store_partial(2, (float*)this);
+#else
+			X -= V;
+			Y -= V;
+#endif
 			return *this;
 		}
 		Vector2 Vector2::operator *(const Vector2& V) const
 		{
-			return Vector2(X * V.X, Y * V.Y);
+			return Mul(V);
 		}
 		Vector2 Vector2::operator *(float V) const
 		{
-			return Vector2(X * V, Y * V);
+			return Mul(V);
 		}
 		Vector2 Vector2::operator /(const Vector2& V) const
 		{
-			return Vector2(X / V.X, Y / V.Y);
+			return Div(V);
 		}
 		Vector2 Vector2::operator /(float V) const
 		{
-			return Vector2(X / V, Y / V);
+			return Div(V);
 		}
 		Vector2 Vector2::operator +(const Vector2& V) const
 		{
-			return Vector2(X + V.X, Y + V.Y);
+			return Add(V);
 		}
 		Vector2 Vector2::operator +(float V) const
 		{
-			return Vector2(X + V, Y + V);
+			return Add(V);
 		}
 		Vector2 Vector2::operator -(const Vector2& V) const
 		{
-			return Vector2(X - V.X, Y - V.Y);
+			return Add(-V);
 		}
 		Vector2 Vector2::operator -(float V) const
 		{
-			return Vector2(X - V, Y - V);
+			return Add(-V);
 		}
 		Vector2 Vector2::operator -() const
 		{
-			return Invert();
-		}
-		void Vector2::ToInt32(unsigned int& Value) const
-		{
-			unsigned char Bytes[4];
-			Bytes[0] = static_cast<unsigned char>(X * 255.0f + 0.5f);
-			Bytes[1] = static_cast<unsigned char>(Y * 255.0f + 0.5f);
-			Bytes[2] = Bytes[3] = 0;
-
-			Value = (unsigned int)(unsigned long long)Bytes;
+			return Inv();
 		}
 		Vector2& Vector2::operator =(const Vector2& V)
 		{
@@ -389,18 +532,6 @@ namespace Tomahawk
 
 			return X;
 		}
-		Vector2 Vector2::XY() const
-		{
-			return *this;
-		}
-		Vector3 Vector2::XYZ() const
-		{
-			return Vector3(X, Y, 0);
-		}
-		Vector4 Vector2::XYZW() const
-		{
-			return Vector4(X, Y, 0, 0);
-		}
 		Vector2 Vector2::Random()
 		{
 			return Vector2(Mathf::RandomMag(), Mathf::RandomMag());
@@ -409,130 +540,283 @@ namespace Tomahawk
 		{
 			return Vector2(Mathf::Random(), Mathf::Random());
 		}
-		Vector2 Vector2::Radians() const
-		{
-			return (*this) * Mathf::Deg2Rad();
-		}
-		Vector2 Vector2::Degrees() const
-		{
-			return (*this) * Mathf::Rad2Deg();
-		}
 
-		Vector3::Vector3()
+		Vector3::Vector3() : X(0.0f), Y(0.0f), Z(0.0f)
 		{
-			X = 0;
-			Y = 0;
-			Z = 0;
 		}
-		Vector3::Vector3(float x, float y)
+		Vector3::Vector3(float x, float y) : X(x), Y(y), Z(0.0f)
 		{
-			X = x;
-			Y = y;
-			Z = 0;
 		}
-		Vector3::Vector3(float x, float y, float z)
+		Vector3::Vector3(float x, float y, float z) : X(x), Y(y), Z(z)
 		{
-			X = x;
-			Y = y;
-			Z = z;
 		}
-		Vector3::Vector3(float xyzw)
+		Vector3::Vector3(float xyzw) : X(xyzw), Y(xyzw), Z(xyzw)
 		{
-			X = Y = Z = xyzw;
 		}
-		Vector3::Vector3(const Vector2& Value)
+		Vector3::Vector3(const Vector2& Value) : X(Value.X), Y(Value.Y), Z(0.0f)
 		{
-			X = Value.X;
-			Y = Value.Y;
-			Z = 0;
 		}
-		Vector3::Vector3(const Vector4& Value)
+		Vector3::Vector3(const Vector4& Value) : X(Value.X), Y(Value.Y), Z(Value.Z)
 		{
-			X = Value.X;
-			Y = Value.Y;
-			Z = Value.Z;
 		}
 		float Vector3::Length() const
 		{
-			return Mathf::Sqrt(X * X + Y * Y + Z * Z);
+#ifdef TH_HAS_SIMD
+			LOD_FV3(_r1);
+			return sqrt(horizontal_add(square(_r1)));
+#else
+			return sqrt(X * X + Y * Y + Z * Z);
+#endif
 		}
-		float Vector3::ModLength() const
+		float Vector3::Sum() const
 		{
+#ifdef TH_HAS_SIMD
+			LOD_FV3(_r1);
+			return horizontal_add(_r1);
+#else
 			return X + Y + Z;
+#endif
 		}
-		float Vector3::DotProduct(const Vector3& B) const
+		float Vector3::Dot(const Vector3& B) const
 		{
+#ifdef TH_HAS_SIMD
+			LOD_FV3(_r1); LOD_V3(_r2, B);
+			return horizontal_add(_r1 * _r2);
+#else
 			return X * B.X + Y * B.Y + Z * B.Z;
+#endif
 		}
 		float Vector3::Distance(const Vector3& Point) const
 		{
-			float x = X - Point.X;
-			float y = Y - Point.Y;
-			float z = Z - Point.Z;
-
-			return Mathf::Sqrt(x * x + y * y + z * z);
+#ifdef TH_HAS_SIMD
+			LOD_FV3(_r1); LOD_V3(_r2, Point);
+			return sqrt(horizontal_add(square(_r1 - _r2)));
+#else
+			float X1 = X - Point.X, Y1 = Y - Point.Y, Z1 = Z - Point.Z;
+			return sqrt(X1 * X1 + Y1 * Y1 + Z1 * Z1);
+#endif
 		}
 		float Vector3::Hypotenuse() const
 		{
-			float R = Mathf::Sqrt(X * X + Z * Z);
-			return Mathf::Sqrt(R * R + Y * Y);
+#ifdef TH_HAS_SIMD
+			LOD_AV2(_r1, X, Z);
+			float R = sqrt(horizontal_add(square(_r1)));
+
+			LOD_AV2(_r2, R, Y);
+			return sqrt(horizontal_add(square(_r2)));
+#else
+			float R = sqrt(X * X + Z * Z);
+			return sqrt(R * R + Y * Y);
+#endif
 		}
 		float Vector3::LookAtXY(const Vector3& At) const
 		{
-			return Mathf::Atan2(At.X - X, At.Y - Y);
+#ifdef TH_HAS_SIMD
+			LOD_FV3(_r1); LOD_V3(_r2, At); _r1 = _r2 - _r1;
+			return atan2f(_r1.extract(0), _r1.extract(1));
+#else
+			return atan2f(At.X - X, At.Y - Y);
+#endif
 		}
 		float Vector3::LookAtXZ(const Vector3& At) const
 		{
-			return Mathf::Atan2(At.X - X, At.Z - Z);
+#ifdef TH_HAS_SIMD
+			LOD_FV3(_r1); LOD_V3(_r2, At); _r1 = _r2 - _r1;
+			return atan2f(_r1.extract(0), _r1.extract(2));
+#else
+			return atan2f(At.X - X, At.Y - Y);
+#endif
+		}
+		Vector3 Vector3::Cross(const Vector3& B) const
+		{
+#ifdef TH_HAS_SIMD
+			LOD_AV3(_r1, Y, Z, X);
+			LOD_AV3(_r2, Z, X, Y);
+			LOD_AV3(_r3, B.Z, B.X, B.Y);
+			LOD_AV3(_r4, B.Y, B.Z, B.X);
+
+			_r1 = _r1 * _r3 - _r2 * _r4;
+			return Vector3(_r1.extract(0), _r1.extract(1), _r1.extract(2));
+#else
+			return Vector3(Y * B.Z - Z * B.Y, Z * B.X - X * B.Z, X * B.Y - Y * B.X);
+#endif
 		}
 		Vector3 Vector3::Transform(const Matrix4x4& Matrix) const
 		{
-			return Vector3(X * Matrix.Row[0] + Y * Matrix.Row[4] + Z * Matrix.Row[8], X * Matrix.Row[1] + Y * Matrix.Row[5] + Z * Matrix.Row[9], X * Matrix.Row[2] + Y * Matrix.Row[6] + Z * Matrix.Row[10]);
+#ifdef TH_HAS_SIMD
+			LOD_VAL(_r1, X);
+			LOD_VAL(_r2, Y);
+			LOD_VAL(_r3, Z);
+			LOD_VAR(_r4, Matrix.Row);
+			LOD_VAR(_r5, Matrix.Row + 4);
+			LOD_VAR(_r6, Matrix.Row + 8);
+
+			_r1 = _r1 * _r4 + _r2 * _r5 + _r3 * _r6;
+			return Vector3(_r1.extract(0), _r1.extract(1), _r1.extract(2));
+#else
+			return Vector3(
+				X * Matrix.Row[0] + Y * Matrix.Row[4] + Z * Matrix.Row[8],
+				X * Matrix.Row[1] + Y * Matrix.Row[5] + Z * Matrix.Row[9],
+				X * Matrix.Row[2] + Y * Matrix.Row[6] + Z * Matrix.Row[10]);
+#endif
 		}
-		Vector3 Vector3::DepthDirection() const
+		Vector3 Vector3::dDirection() const
 		{
 			float CosX = cos(X);
 			return Vector3(sin(Y) * CosX, -sin(X), cos(Y) * CosX);
 		}
-		Vector3 Vector3::HorizontalDirection() const
+		Vector3 Vector3::hDirection() const
 		{
 			return Vector3(-cos(Y), 0, sin(Y));
 		}
-		Vector3 Vector3::Invert() const
+		Vector3 Vector3::Inv() const
 		{
 			return Vector3(-X, -Y, -Z);
 		}
-		Vector3 Vector3::InvertX() const
+		Vector3 Vector3::InvX() const
 		{
 			return Vector3(-X, Y, Z);
 		}
-		Vector3 Vector3::InvertY() const
+		Vector3 Vector3::InvY() const
 		{
 			return Vector3(X, -Y, Z);
 		}
-		Vector3 Vector3::InvertZ() const
+		Vector3 Vector3::InvZ() const
 		{
 			return Vector3(X, Y, -Z);
 		}
-		Vector3 Vector3::Cross(const Vector3& Vector1) const
-		{
-			return Vector3(Y * Vector1.Z - Z * Vector1.Y, Z * Vector1.X - X * Vector1.Z, X * Vector1.Y - Y * Vector1.X);
-		}
 		Vector3 Vector3::Normalize() const
 		{
-			float Factor = 1.0f / Length();
-
-			return Vector3(X * Factor, Y * Factor, Z * Factor);
+#ifdef TH_HAS_SIMD
+			LOD_FV3(_r1);
+			_r1 = _r1 * Common::FastInvSqrt(horizontal_add(square(_r1)));
+			return Vector3(_r1.extract(0), _r1.extract(1), _r1.extract(2));
+#else
+			float F = Length();
+			return Vector3(X / F, Y / F, Z / F);
+#endif
 		}
-		Vector3 Vector3::NormalizeSafe() const
+		Vector3 Vector3::sNormalize() const
 		{
-			float LengthZero = Length();
-			float Factor = 1.0f / LengthZero;
+#ifdef TH_HAS_SIMD
+			LOD_FV3(_r1);
+			float F = sqrt(horizontal_add(square(_r1)));
+			if (F == 0.0f)
+				return Vector3();
 
-			if (LengthZero == 0.0f)
-				Factor = 0.0f;
+			_r1 = _r1 / F;
+			return Vector3(_r1.extract(0), _r1.extract(1), _r1.extract(2));
+#else
+			float F = Length();
+			if (F == 0.0f)
+				return Vector3();
 
-			return Vector3(X * Factor, Y * Factor, Z * Factor);
+			return Vector3(X / F, Y / F, Z / F);
+#endif
+		}
+		Vector3 Vector3::Lerp(const Vector3& B, float DeltaTime) const
+		{
+#ifdef TH_HAS_SIMD
+			LOD_FV3(_r1); LOD_V3(_r2, B);
+			_r1 = _r1 + (_r2 - _r1) * DeltaTime;
+			return Vector3(_r1.extract(0), _r1.extract(1), _r1.extract(2));
+#else
+			return *this + (B - *this) * DeltaTime;
+#endif
+		}
+		Vector3 Vector3::sLerp(const Vector3& B, float DeltaTime) const
+		{
+			return Quaternion(*this).sLerp(B, DeltaTime).GetEuler();
+		}
+		Vector3 Vector3::aLerp(const Vector3& B, float DeltaTime) const
+		{
+			float Ax = Mathf::AngluarLerp(X, B.X, DeltaTime);
+			float Ay = Mathf::AngluarLerp(Y, B.Y, DeltaTime);
+			float Az = Mathf::AngluarLerp(Z, B.Z, DeltaTime);
+
+			return Vector3(Ax, Ay, Az);
+		}
+		Vector3 Vector3::rLerp() const
+		{
+			float Ax = Mathf::SaturateAngle(X);
+			float Ay = Mathf::SaturateAngle(Y);
+			float Az = Mathf::SaturateAngle(Z);
+
+			return Vector3(Ax, Ay, Az);
+		}
+		Vector3 Vector3::Abs() const
+		{
+#ifdef TH_HAS_SIMD
+			LOD_FV3(_r1); _r1 = abs(_r1);
+			return Vector3(_r1.extract(0), _r1.extract(1), _r1.extract(2));
+#else
+			return Vector3(X < 0 ? -X : X, Y < 0 ? -Y : Y, Z < 0 ? -Z : Z);
+#endif
+		}
+		Vector3 Vector3::Radians() const
+		{
+			return (*this) * Mathf::Deg2Rad();
+		}
+		Vector3 Vector3::Degrees() const
+		{
+			return (*this) * Mathf::Rad2Deg();
+		}
+		Vector2 Vector3::XY() const
+		{
+			return Vector2(X, Y);
+		}
+		Vector3 Vector3::XYZ() const
+		{
+			return *this;
+		}
+		Vector4 Vector3::XYZW() const
+		{
+			return Vector4(X, Y, Z, 0);
+		}
+		Vector3 Vector3::Mul(float xyz) const
+		{
+#ifdef TH_HAS_SIMD
+			LOD_FV3(_r1); _r1 = _r1 * xyz;
+			return Vector3(_r1.extract(0), _r1.extract(1), _r1.extract(2));
+#else
+			return Vector3(X * xyz, Y * xyz, Z * xyz);
+#endif
+		}
+		Vector3 Vector3::Mul(const Vector2& XY, float z) const
+		{
+#ifdef TH_HAS_SIMD
+			LOD_FV3(_r1); LOD_AV3(_r2, XY.X, XY.Y, z); _r1 = _r1 * _r2;
+			return Vector3(_r1.extract(0), _r1.extract(1), _r1.extract(2));
+#else
+			return Vector3(X * XY.X, Y * XY.Y, Z * z);
+#endif
+		}
+		Vector3 Vector3::Mul(const Vector3& Value) const
+		{
+#ifdef TH_HAS_SIMD
+			LOD_FV3(_r1); LOD_V3(_r2, Value); _r1 = _r1 * _r2;
+			return Vector3(_r1.extract(0), _r1.extract(1), _r1.extract(2));
+#else
+			return Vector3(X * Value.X, Y * Value.Y, Z * Value.Z);
+#endif
+		}
+		Vector3 Vector3::Div(const Vector3& Value) const
+		{
+#ifdef TH_HAS_SIMD
+			LOD_FV3(_r1); LOD_V3(_r2, Value); _r1 = _r1 / _r2;
+			return Vector3(_r1.extract(0), _r1.extract(1), _r1.extract(2));
+#else
+			return Vector3(X / Value.X, Y / Value.Y, Z / Value.Z);
+#endif
+		}
+		Vector3 Vector3::Add(const Vector3& Value) const
+		{
+#ifdef TH_HAS_SIMD
+			LOD_FV3(_r1); LOD_V3(_r2, Value); _r1 = _r1 + _r2;
+			return Vector3(_r1.extract(0), _r1.extract(1), _r1.extract(2));
+#else
+			return Vector3(X + Value.X, Y + Value.Y, Z + Value.Z);
+#endif
 		}
 		Vector3 Vector3::SetX(float Xf) const
 		{
@@ -545,50 +829,6 @@ namespace Tomahawk
 		Vector3 Vector3::SetZ(float Zf) const
 		{
 			return Vector3(X, Y, Zf);
-		}
-		Vector3 Vector3::Mul(const Vector2& XY, float z) const
-		{
-			return Vector3(X * XY.X, Y * XY.Y, Z * z);
-		}
-		Vector3 Vector3::Mul(const Vector3& Value) const
-		{
-			return *this * Value;
-		}
-		Vector3 Vector3::Add(const Vector3& Value) const
-		{
-			return *this + Value;
-		}
-		Vector3 Vector3::Div(const Vector3& Value) const
-		{
-			return *this / Value;
-		}
-		Vector3 Vector3::Lerp(const Vector3& B, float DeltaTime) const
-		{
-			return *this + (B - *this) * DeltaTime;
-		}
-		Vector3 Vector3::SphericalLerp(const Vector3& B, float DeltaTime) const
-		{
-			return Quaternion(*this).SphericalLerp(B, DeltaTime).GetEuler();
-		}
-		Vector3 Vector3::AngularLerp(const Vector3& B, float DeltaTime) const
-		{
-			float Ax = Mathf::AngluarLerp(X, B.X, DeltaTime);
-			float Ay = Mathf::AngluarLerp(Y, B.Y, DeltaTime);
-			float Az = Mathf::AngluarLerp(Z, B.Z, DeltaTime);
-
-			return Vector3(Ax, Ay, Az);
-		}
-		Vector3 Vector3::SaturateRotation() const
-		{
-			float Ax = Mathf::SaturateAngle(X);
-			float Ay = Mathf::SaturateAngle(Y);
-			float Az = Mathf::SaturateAngle(Z);
-
-			return Vector3(Ax, Ay, Az);
-		}
-		Vector3 Vector3::Abs() const
-		{
-			return Vector3(X < 0 ? -X : X, Y < 0 ? -Y : Y, Z < 0 ? -Z : Z);
 		}
 		void Vector3::Set(const Vector3& Value)
 		{
@@ -607,107 +847,145 @@ namespace Tomahawk
 			In[1] = Y;
 			In[2] = Z;
 		}
-		Vector3& Vector3::operator -=(const Vector3& V)
-		{
-			X -= V.X;
-			Y -= V.Y;
-			Z -= V.Z;
-			return *this;
-		}
-		Vector3& Vector3::operator -=(float V)
-		{
-			X -= V;
-			Y -= V;
-			Z -= V;
-			return *this;
-		}
 		Vector3& Vector3::operator *=(const Vector3& V)
 		{
+#ifdef TH_HAS_SIMD
+			LOD_FV3(_r1); LOD_V3(_r2, V);
+			_r1 = _r1 * _r2;
+			_r1.store_partial(3, (float*)this);
+#else
 			X *= V.X;
 			Y *= V.Y;
 			Z *= V.Z;
+#endif
 			return *this;
 		}
 		Vector3& Vector3::operator *=(float V)
 		{
+#ifdef TH_HAS_SIMD
+			LOD_FV3(_r1); LOD_VAL(_r2, V);
+			_r1 = _r1 * _r2;
+			_r1.store_partial(3, (float*)this);
+#else
 			X *= V;
 			Y *= V;
 			Z *= V;
+#endif
 			return *this;
 		}
 		Vector3& Vector3::operator /=(const Vector3& V)
 		{
+#ifdef TH_HAS_SIMD
+			LOD_FV3(_r1); LOD_V3(_r2, V);
+			_r1 = _r1 / _r2;
+			_r1.store_partial(3, (float*)this);
+#else
 			X /= V.X;
 			Y /= V.Y;
 			Z /= V.Z;
+#endif
 			return *this;
 		}
 		Vector3& Vector3::operator /=(float V)
 		{
-			X /= V;
-			Y /= V;
-			Z /= V;
+#ifdef TH_HAS_SIMD
+			LOD_FV3(_r1); LOD_VAL(_r2, V);
+			_r1 = _r1 / _r2;
+			_r1.store_partial(3, (float*)this);
+#else
+			X *= V;
+			Y *= V;
+			Z *= V;
+#endif
 			return *this;
 		}
 		Vector3& Vector3::operator +=(const Vector3& V)
 		{
+#ifdef TH_HAS_SIMD
+			LOD_FV3(_r1); LOD_V3(_r2, V);
+			_r1 = _r1 + _r2;
+			_r1.store_partial(3, (float*)this);
+#else
 			X += V.X;
 			Y += V.Y;
 			Z += V.Z;
+#endif
 			return *this;
 		}
 		Vector3& Vector3::operator +=(float V)
 		{
+#ifdef TH_HAS_SIMD
+			LOD_FV3(_r1); LOD_VAL(_r2, V);
+			_r1 = _r1 + _r2;
+			_r1.store_partial(3, (float*)this);
+#else
 			X += V;
 			Y += V;
 			Z += V;
+#endif
+			return *this;
+		}
+		Vector3& Vector3::operator -=(const Vector3& V)
+		{
+#ifdef TH_HAS_SIMD
+			LOD_FV3(_r1); LOD_V3(_r2, V);
+			_r1 = _r1 - _r2;
+			_r1.store_partial(3, (float*)this);
+#else
+			X -= V.X;
+			Y -= V.Y;
+			Z -= V.Z;
+#endif
+			return *this;
+		}
+		Vector3& Vector3::operator -=(float V)
+		{
+#ifdef TH_HAS_SIMD
+			LOD_FV3(_r1); LOD_VAL(_r2, V);
+			_r1 = _r1 - _r2;
+			_r1.store_partial(3, (float*)this);
+#else
+			X -= V;
+			Y -= V;
+			Z -= V;
+#endif
 			return *this;
 		}
 		Vector3 Vector3::operator *(const Vector3& V) const
 		{
-			return Vector3(X * V.X, Y * V.Y, Z * V.Z);
+			return Mul(V);
 		}
 		Vector3 Vector3::operator *(float V) const
 		{
-			return Vector3(X * V, Y * V, Z * V);
+			return Mul(V);
 		}
 		Vector3 Vector3::operator /(const Vector3& V) const
 		{
-			return Vector3(X / V.X, Y / V.Y, Z / V.Z);
+			return Div(V);
 		}
 		Vector3 Vector3::operator /(float V) const
 		{
-			return Vector3(X / V, Y / V, Z / V);
+			return Div(V);
 		}
 		Vector3 Vector3::operator +(const Vector3& V) const
 		{
-			return Vector3(X + V.X, Y + V.Y, Z + V.Z);
+			return Add(V);
 		}
 		Vector3 Vector3::operator +(float V) const
 		{
-			return Vector3(X + V, Y + V, Z + V);
+			return Add(V);
 		}
 		Vector3 Vector3::operator -(const Vector3& V) const
 		{
-			return Vector3(X - V.X, Y - V.Y, Z - V.Z);
+			return Add(-V);
 		}
 		Vector3 Vector3::operator -(float V) const
 		{
-			return Vector3(X - V, Y - V, Z - V);
+			return Add(-V);
 		}
 		Vector3 Vector3::operator -() const
 		{
-			return Invert();
-		}
-		void Vector3::ToInt32(unsigned int& Value) const
-		{
-			unsigned char Bytes[4];
-			Bytes[0] = static_cast<unsigned char>(X * 255.0f + 0.5f);
-			Bytes[1] = static_cast<unsigned char>(Y * 255.0f + 0.5f);
-			Bytes[2] = static_cast<unsigned char>(Z * 255.0f + 0.5f);
-			Bytes[3] = 0;
-
-			Value = (unsigned int)(unsigned long long)Bytes;
+			return Inv();
 		}
 		Vector3& Vector3::operator =(const Vector3& V)
 		{
@@ -762,33 +1040,13 @@ namespace Tomahawk
 
 			return X;
 		}
-		Vector2 Vector3::XY() const
-		{
-			return Vector2(X, Y);
-		}
-		Vector3 Vector3::XYZ() const
-		{
-			return *this;
-		}
-		Vector4 Vector3::XYZW() const
-		{
-			return Vector4(X, Y, Z, 0);
-		}
 		Vector3 Vector3::Random()
 		{
 			return Vector3(Mathf::RandomMag(), Mathf::RandomMag(), Mathf::RandomMag());
 		}
-		Vector3 Vector3::Radians() const
-		{
-			return (*this) * Mathf::Deg2Rad();
-		}
 		Vector3 Vector3::RandomAbs()
 		{
 			return Vector3(Mathf::Random(), Mathf::Random(), Mathf::Random());
-		}
-		Vector3 Vector3::Degrees() const
-		{
-			return (*this) * Mathf::Rad2Deg();
 		}
 		void Vector3::ToBtVector3(const Vector3& In, btVector3* Out)
 		{
@@ -809,92 +1067,165 @@ namespace Tomahawk
 			}
 		}
 
-		Vector4::Vector4()
+		Vector4::Vector4() : X(0.0f), Y(0.0f), Z(0.0f), W(0.0f)
 		{
-			X = 0;
-			Y = 0;
-			Z = 0;
-			W = 0;
 		}
-		Vector4::Vector4(float x, float y)
+		Vector4::Vector4(float x, float y) : X(x), Y(y), Z(0.0f), W(0.0f)
 		{
-			X = x;
-			Y = y;
-			Z = 0;
-			W = 0;
 		}
-		Vector4::Vector4(float x, float y, float z)
+		Vector4::Vector4(float x, float y, float z) : X(x), Y(y), Z(z), W(0.0f)
 		{
-			X = x;
-			Y = y;
-			Z = z;
-			W = 0;
 		}
-		Vector4::Vector4(float x, float y, float z, float w)
+		Vector4::Vector4(float x, float y, float z, float w) : X(x), Y(y), Z(z), W(w)
 		{
-			X = x;
-			Y = y;
-			Z = z;
-			W = w;
 		}
-		Vector4::Vector4(float xyzw)
+		Vector4::Vector4(float xyzw) : X(xyzw), Y(xyzw), Z(xyzw), W(xyzw)
 		{
-			X = Y = Z = W = xyzw;
 		}
-		Vector4::Vector4(const Vector2& Value)
+		Vector4::Vector4(const Vector2& Value) : X(Value.X), Y(Value.Y), Z(0.0f), W(0.0f)
 		{
-			X = Value.X;
-			Y = Value.Y;
-			Z = 0;
-			W = 0;
 		}
-		Vector4::Vector4(const Vector3& Value)
+		Vector4::Vector4(const Vector3& Value) : X(Value.X), Y(Value.Y), Z(Value.Z), W(0.0f)
 		{
-			X = Value.X;
-			Y = Value.Y;
-			Z = Value.Z;
-			W = 0;
 		}
 		float Vector4::Length() const
 		{
-			return Mathf::Sqrt(X * X + Y * Y + Z * Z + W * W);
+#ifdef TH_HAS_SIMD
+			LOD_FV4(_r1);
+			return sqrt(horizontal_add(square(_r1)));
+#else
+			return sqrt(X * X + Y * Y + Z * Z + W * W);
+#endif
 		}
-		float Vector4::ModLength() const
+		float Vector4::Sum() const
 		{
+#ifdef TH_HAS_SIMD
+			LOD_FV4(_r1);
+			return horizontal_add(_r1);
+#else
 			return X + Y + Z + W;
+#endif
 		}
-		float Vector4::DotProduct(const Vector4& B) const
+		float Vector4::Dot(const Vector4& B) const
 		{
+#ifdef TH_HAS_SIMD
+			LOD_FV4(_r1); LOD_V4(_r2, B);
+			return horizontal_add(_r1 * _r2);
+#else
 			return X * B.X + Y * B.Y + Z * B.Z + W * B.W;
+#endif
 		}
 		float Vector4::Distance(const Vector4& Point) const
 		{
-			float x = X - Point.X;
-			float y = Y - Point.Y;
-			float z = Z - Point.Z;
-			float w = W - Point.W;
-
-			return Mathf::Sqrt(x * x + y * y + z * z + w * w);
+#ifdef TH_HAS_SIMD
+			LOD_FV4(_r1); LOD_V4(_r2, Point);
+			return sqrt(horizontal_add(square(_r1 - _r2)));
+#else
+			float X1 = X - Point.X, Y1 = Y - Point.Y, Z1 = Z - Point.Z, W1 = W - Point.W;
+			return sqrt(X1 * X1 + Y1 * Y1 + Z1 * Z1);
+#endif
 		}
-		Vector4 Vector4::SaturateRotation() const
+		Vector4 Vector4::Cross(const Vector4& B) const
 		{
-			float Ax = Mathf::SaturateAngle(X);
-			float Ay = Mathf::SaturateAngle(Y);
-			float Az = Mathf::SaturateAngle(Z);
-			float Aw = Mathf::SaturateAngle(W);
+#ifdef TH_HAS_SIMD
+			LOD_AV3(_r1, Y, Z, X);
+			LOD_AV3(_r2, Z, X, Y);
+			LOD_AV3(_r3, B.Z, B.X, B.Y);
+			LOD_AV3(_r4, B.Y, B.Z, B.X);
 
-			return Vector4(Ax, Ay, Az, Aw);
+			_r1 = _r1 * _r3 - _r2 * _r4;
+			return Vector3(_r1.extract(0), _r1.extract(1), _r1.extract(2));
+#else
+			return Vector4(Y * B.Z - Z * B.Y, Z * B.X - X * B.Z, X * B.Y - Y * B.X);
+#endif
+		}
+		Vector4 Vector4::Transform(const Matrix4x4& Matrix) const
+		{
+#ifdef TH_HAS_SIMD
+			LOD_VAL(_r1, X);
+			LOD_VAL(_r2, Y);
+			LOD_VAL(_r3, Z);
+			LOD_VAL(_r4, W);
+			LOD_VAR(_r5, Matrix.Row);
+			LOD_VAR(_r6, Matrix.Row + 4);
+			LOD_VAR(_r7, Matrix.Row + 8);
+			LOD_VAR(_r8, Matrix.Row + 12);
+
+			_r1 = _r1 * _r5 + _r2 * _r6 + _r3 * _r7 + _r4 * _r8;
+			return Vector4(_r1.extract(0), _r1.extract(1), _r1.extract(2), _r1.extract(3));
+#else
+			return Vector4(
+				X * Matrix.Row[0] + Y * Matrix.Row[4] + Z * Matrix.Row[8] + W * Matrix.Row[12],
+				X * Matrix.Row[1] + Y * Matrix.Row[5] + Z * Matrix.Row[9] + W * Matrix.Row[13],
+				X * Matrix.Row[2] + Y * Matrix.Row[6] + Z * Matrix.Row[10] + W * Matrix.Row[14],
+				X * Matrix.Row[3] + Y * Matrix.Row[7] + Z * Matrix.Row[11] + W * Matrix.Row[15]);
+#endif
+		}
+		Vector4 Vector4::Inv() const
+		{
+			return Vector4(-X, -Y, -Z, -W);
+		}
+		Vector4 Vector4::InvX() const
+		{
+			return Vector4(-X, Y, Z, W);
+		}
+		Vector4 Vector4::InvY() const
+		{
+			return Vector4(X, -Y, Z, W);
+		}
+		Vector4 Vector4::InvZ() const
+		{
+			return Vector4(X, Y, -Z, W);
+		}
+		Vector4 Vector4::InvW() const
+		{
+			return Vector4(X, Y, Z, -W);
+		}
+		Vector4 Vector4::Normalize() const
+		{
+#ifdef TH_HAS_SIMD
+			LOD_FV4(_r1);
+			_r1 = _r1 * Common::FastInvSqrt(horizontal_add(square(_r1)));
+			return Vector4(_r1.extract(0), _r1.extract(1), _r1.extract(2), _r1.extract(3));
+#else
+			float F = Length();
+			return Vector4(X / F, Y / F, Z / F, W / F);
+#endif
+		}
+		Vector4 Vector4::sNormalize() const
+		{
+#ifdef TH_HAS_SIMD
+			LOD_FV4(_r1);
+			float F = sqrt(horizontal_add(square(_r1)));
+			if (F == 0.0f)
+				return Vector4();
+
+			_r1 = _r1 / F;
+			return Vector4(_r1.extract(0), _r1.extract(1), _r1.extract(2), _r1.extract(3));
+#else
+			float F = Length();
+			if (F == 0.0f)
+				return Vector4();
+
+			return Vector4(X / F, Y / F, Z / F, W / F);
+#endif
 		}
 		Vector4 Vector4::Lerp(const Vector4& B, float DeltaTime) const
 		{
+#ifdef TH_HAS_SIMD
+			LOD_FV4(_r1); LOD_V4(_r2, B);
+			_r1 = _r1 + (_r2 - _r1) * DeltaTime;
+			return Vector3(_r1.extract(0), _r1.extract(1), _r1.extract(2));
+#else
 			return *this + (B - *this) * DeltaTime;
+#endif
 		}
-		Vector4 Vector4::SphericalLerp(const Vector4& B, float DeltaTime) const
+		Vector4 Vector4::sLerp(const Vector4& B, float DeltaTime) const
 		{
-			Vector3 Lerp = Quaternion(Vector3()).SphericalLerp(B.XYZ(), DeltaTime).GetEuler();
+			Vector3 Lerp = Quaternion(Vector3()).sLerp(B.XYZ(), DeltaTime).GetEuler();
 			return Vector4(Lerp.X, Lerp.Y, Lerp.Z, W + (B.W - W) * DeltaTime);
 		}
-		Vector4 Vector4::AngularLerp(const Vector4& B, float DeltaTime) const
+		Vector4 Vector4::aLerp(const Vector4& B, float DeltaTime) const
 		{
 			float Ax = Mathf::AngluarLerp(X, B.X, DeltaTime);
 			float Ay = Mathf::AngluarLerp(Y, B.Y, DeltaTime);
@@ -903,53 +1234,43 @@ namespace Tomahawk
 
 			return Vector4(Ax, Ay, Az, Aw);
 		}
-		Vector4 Vector4::Invert() const
+		Vector4 Vector4::rLerp() const
 		{
-			return Vector4(-X, -Y, -Z, -W);
-		}
-		Vector4 Vector4::InvertX() const
-		{
-			return Vector4(-X, Y, Z, W);
-		}
-		Vector4 Vector4::InvertY() const
-		{
-			return Vector4(X, -Y, Z, W);
-		}
-		Vector4 Vector4::InvertZ() const
-		{
-			return Vector4(X, Y, -Z, W);
-		}
-		Vector4 Vector4::InvertW() const
-		{
-			return Vector4(X, Y, Z, -W);
-		}
-		Vector4 Vector4::Cross(const Vector4& Vector1) const
-		{
-			return Vector4(Y * Vector1.Z - Z * Vector1.Y, Z * Vector1.X - X * Vector1.Z, X * Vector1.Y - Y * Vector1.X);
-		}
-		Vector4 Vector4::Normalize() const
-		{
-			float Factor = 1.0f / Length();
+			float Ax = Mathf::SaturateAngle(X);
+			float Ay = Mathf::SaturateAngle(Y);
+			float Az = Mathf::SaturateAngle(Z);
+			float Aw = Mathf::SaturateAngle(W);
 
-			return Vector4(X * Factor, Y * Factor, Z * Factor, W * Factor);
+			return Vector4(Ax, Ay, Az, Aw);
 		}
-		Vector4 Vector4::NormalizeSafe() const
+		Vector4 Vector4::Abs() const
 		{
-			float LengthZero = Length();
-			float Factor = 1.0f / LengthZero;
-
-			if (LengthZero == 0.0f)
-				Factor = 0.0f;
-
-			return Vector4(X * Factor, Y * Factor, Z * Factor, W * Factor);
+#ifdef TH_HAS_SIMD
+			LOD_FV4(_r1); _r1 = abs(_r1);
+			return Vector4(_r1.extract(0), _r1.extract(1), _r1.extract(2), _r1.extract(3));
+#else
+			return Vector4(X < 0 ? -X : X, Y < 0 ? -Y : Y, Z < 0 ? -Z : Z, W < 0 ? -W : W);
+#endif
 		}
-		Vector4 Vector4::Transform(const Matrix4x4& Matrix) const
+		Vector4 Vector4::Radians() const
 		{
-			return Vector4(
-				X * Matrix.Row[0] + Y * Matrix.Row[4] + Z * Matrix.Row[8] + W * Matrix.Row[12],
-				X * Matrix.Row[1] + Y * Matrix.Row[5] + Z * Matrix.Row[9] + W * Matrix.Row[13],
-				X * Matrix.Row[2] + Y * Matrix.Row[6] + Z * Matrix.Row[10] + W * Matrix.Row[14],
-				X * Matrix.Row[3] + Y * Matrix.Row[7] + Z * Matrix.Row[11] + W * Matrix.Row[15]);
+			return (*this) * Mathf::Deg2Rad();
+		}
+		Vector4 Vector4::Degrees() const
+		{
+			return (*this) * Mathf::Rad2Deg();
+		}
+		Vector2 Vector4::XY() const
+		{
+			return Vector2(X, Y);
+		}
+		Vector3 Vector4::XYZ() const
+		{
+			return Vector3(X, Y, Z);
+		}
+		Vector4 Vector4::XYZW() const
+		{
+			return *this;
 		}
 		Vector4 Vector4::SetX(float TexCoordX) const
 		{
@@ -967,29 +1288,59 @@ namespace Tomahawk
 		{
 			return Vector4(X, Y, Z, TW);
 		}
+		Vector4 Vector4::Mul(float xyzw) const
+		{
+#ifdef TH_HAS_SIMD
+			LOD_FV4(_r1); _r1 = _r1 * xyzw;
+			return Vector4(_r1.extract(0), _r1.extract(1), _r1.extract(2), _r1.extract(3));
+#else
+			return Vector4(X * xyzw, Y * xyzw, Z * xyzw, W * xyzw);
+#endif
+		}
 		Vector4 Vector4::Mul(const Vector2& XY, float z, float w) const
 		{
+#ifdef TH_HAS_SIMD
+			LOD_FV4(_r1); LOD_AV4(_r2, XY.X, XY.Y, z, w); _r1 = _r1 * _r2;
+			return Vector4(_r1.extract(0), _r1.extract(1), _r1.extract(2), _r1.extract(3));
+#else
 			return Vector4(X * XY.X, Y * XY.Y, Z * z, W * w);
+#endif
 		}
 		Vector4 Vector4::Mul(const Vector3& XYZ, float w) const
 		{
+#ifdef TH_HAS_SIMD
+			LOD_FV4(_r1); LOD_AV4(_r2, XYZ.X, XYZ.Y, XYZ.Z, w); _r1 = _r1 * _r2;
+			return Vector4(_r1.extract(0), _r1.extract(1), _r1.extract(2), _r1.extract(3));
+#else
 			return Vector4(X * XYZ.X, Y * XYZ.Y, Z * XYZ.Z, W * w);
+#endif
 		}
 		Vector4 Vector4::Mul(const Vector4& Value) const
 		{
-			return *this * Value;
-		}
-		Vector4 Vector4::Add(const Vector4& Value) const
-		{
-			return *this + Value;
+#ifdef TH_HAS_SIMD
+			LOD_FV4(_r1); LOD_V4(_r2, Value); _r1 = _r1 * _r2;
+			return Vector4(_r1.extract(0), _r1.extract(1), _r1.extract(2), _r1.extract(3));
+#else
+			return Vector4(X * Value.X, Y * Value.Y, Z * Value.Z, W * Value.W);
+#endif
 		}
 		Vector4 Vector4::Div(const Vector4& Value) const
 		{
-			return *this / Value;
+#ifdef TH_HAS_SIMD
+			LOD_FV4(_r1); LOD_V4(_r2, Value); _r1 = _r1 / _r2;
+			return Vector4(_r1.extract(0), _r1.extract(1), _r1.extract(2), _r1.extract(3));
+#else
+			return Vector4(X / Value.X, Y / Value.Y, Z / Value.Z, W / Value.W);
+#endif
 		}
-		Vector4 Vector4::Abs() const
+		Vector4 Vector4::Add(const Vector4& Value) const
 		{
-			return Vector4(X < 0 ? -X : X, Y < 0 ? -Y : Y, Z < 0 ? -Z : Z, W < 0 ? -W : W);
+#ifdef TH_HAS_SIMD
+			LOD_FV4(_r1); LOD_V4(_r2, Value); _r1 = _r1 + _r2;
+			return Vector4(_r1.extract(0), _r1.extract(1), _r1.extract(2), _r1.extract(3));
+#else
+			return Vector4(X + Value.X, Y + Value.Y, Z + Value.Z, W + Value.W);
+#endif
 		}
 		void Vector4::Set(const Vector4& Value)
 		{
@@ -1016,22 +1367,6 @@ namespace Tomahawk
 			In[2] = Z;
 			In[3] = W;
 		}
-		Vector4& Vector4::operator -=(const Vector4& V)
-		{
-			X -= V.X;
-			Y -= V.Y;
-			Z -= V.Z;
-			W -= V.W;
-			return *this;
-		}
-		Vector4& Vector4::operator -=(float V)
-		{
-			X -= V;
-			Y -= V;
-			Z -= V;
-			W -= V;
-			return *this;
-		}
 		Vector4& Vector4::operator *=(const Matrix4x4& V)
 		{
 			Set(Transform(V));
@@ -1039,50 +1374,114 @@ namespace Tomahawk
 		}
 		Vector4& Vector4::operator *=(const Vector4& V)
 		{
+#ifdef TH_HAS_SIMD
+			LOD_FV4(_r1); LOD_V4(_r2, V);
+			_r1 = _r1 * _r2;
+			_r1.store((float*)this);
+#else
 			X *= V.X;
 			Y *= V.Y;
 			Z *= V.Z;
 			W *= V.W;
+#endif
 			return *this;
 		}
 		Vector4& Vector4::operator *=(float V)
 		{
+#ifdef TH_HAS_SIMD
+			LOD_FV4(_r1); LOD_VAL(_r2, V);
+			_r1 = _r1 * _r2;
+			_r1.store((float*)this);
+#else
 			X *= V;
 			Y *= V;
 			Z *= V;
 			W *= V;
+#endif
 			return *this;
 		}
 		Vector4& Vector4::operator /=(const Vector4& V)
 		{
+#ifdef TH_HAS_SIMD
+			LOD_FV4(_r1); LOD_V4(_r2, V);
+			_r1 = _r1 / _r2;
+			_r1.store((float*)this);
+#else
 			X /= V.X;
 			Y /= V.Y;
 			Z /= V.Z;
 			W /= V.W;
+#endif
 			return *this;
 		}
 		Vector4& Vector4::operator /=(float V)
 		{
+#ifdef TH_HAS_SIMD
+			LOD_FV4(_r1); LOD_VAL(_r2, V);
+			_r1 = _r1 / _r2;
+			_r1.store((float*)this);
+#else
 			X /= V;
 			Y /= V;
 			Z /= V;
 			W /= V;
+#endif
 			return *this;
 		}
 		Vector4& Vector4::operator +=(const Vector4& V)
 		{
+#ifdef TH_HAS_SIMD
+			LOD_FV4(_r1); LOD_V4(_r2, V);
+			_r1 = _r1 + _r2;
+			_r1.store((float*)this);
+#else
 			X += V.X;
 			Y += V.Y;
 			Z += V.Z;
 			W += V.W;
+#endif
 			return *this;
 		}
 		Vector4& Vector4::operator +=(float V)
 		{
+#ifdef TH_HAS_SIMD
+			LOD_FV4(_r1); LOD_VAL(_r2, V);
+			_r1 = _r1 + _r2;
+			_r1.store((float*)this);
+#else
 			X += V;
 			Y += V;
 			Z += V;
 			W += V;
+#endif
+			return *this;
+		}
+		Vector4& Vector4::operator -=(const Vector4& V)
+		{
+#ifdef TH_HAS_SIMD
+			LOD_FV4(_r1); LOD_V4(_r2, V);
+			_r1 = _r1 - _r2;
+			_r1.store((float*)this);
+#else
+			X -= V.X;
+			Y -= V.Y;
+			Z -= V.Z;
+			W -= V.W;
+#endif
+			return *this;
+		}
+		Vector4& Vector4::operator -=(float V)
+		{
+#ifdef TH_HAS_SIMD
+			LOD_FV4(_r1); LOD_VAL(_r2, V);
+			_r1 = _r1 - _r2;
+			_r1.store((float*)this);
+#else
+			X -= V;
+			Y -= V;
+			Z -= V;
+			W -= V;
+#endif
 			return *this;
 		}
 		Vector4 Vector4::operator *(const Matrix4x4& V) const
@@ -1091,49 +1490,39 @@ namespace Tomahawk
 		}
 		Vector4 Vector4::operator *(const Vector4& V) const
 		{
-			return Vector4(X * V.X, Y * V.Y, Z * V.Z, W * V.W);
+			return Mul(V);
 		}
 		Vector4 Vector4::operator *(float V) const
 		{
-			return Vector4(X * V, Y * V, Z * V, W * V);
+			return Mul(V);
 		}
 		Vector4 Vector4::operator /(const Vector4& V) const
 		{
-			return Vector4(X / V.X, Y / V.Y, Z / V.Z, W / V.W);
+			return Div(V);
 		}
 		Vector4 Vector4::operator /(float V) const
 		{
-			return Vector4(X / V, Y / V, Z / V, W / V);
+			return Div(V);
 		}
 		Vector4 Vector4::operator +(const Vector4& V) const
 		{
-			return Vector4(X + V.X, Y + V.Y, Z + V.Z, W + V.W);
+			return Add(V);
 		}
 		Vector4 Vector4::operator +(float V) const
 		{
-			return Vector4(X + V, Y + V, Z + V, W + V);
+			return Add(V);
 		}
 		Vector4 Vector4::operator -(const Vector4& V) const
 		{
-			return Vector4(X - V.X, Y - V.Y, Z - V.Z, W - V.W);
+			return Add(-V);
 		}
 		Vector4 Vector4::operator -(float V) const
 		{
-			return Vector4(X - V, Y - V, Z - V, W - V);
+			return Add(-V);
 		}
 		Vector4 Vector4::operator -() const
 		{
-			return Invert();
-		}
-		void Vector4::ToInt32(unsigned int& Value) const
-		{
-			unsigned char Bytes[4];
-			Bytes[0] = static_cast<unsigned char>(X * 255.0f + 0.5f);
-			Bytes[1] = static_cast<unsigned char>(Y * 255.0f + 0.5f);
-			Bytes[2] = static_cast<unsigned char>(Z * 255.0f + 0.5f);
-			Bytes[3] = static_cast<unsigned char>(W * 255.0f + 0.5f);
-
-			Value = (unsigned int)(unsigned long long)Bytes;
+			return Inv();
 		}
 		Vector4& Vector4::operator =(const Vector4& V)
 		{
@@ -1193,18 +1582,6 @@ namespace Tomahawk
 
 			return X;
 		}
-		Vector2 Vector4::XY() const
-		{
-			return Vector2(X, Y);
-		}
-		Vector3 Vector4::XYZ() const
-		{
-			return Vector3(X, Y, Z);
-		}
-		Vector4 Vector4::XYZW() const
-		{
-			return *this;
-		}
 		Vector4 Vector4::Random()
 		{
 			return Vector4(Mathf::RandomMag(), Mathf::RandomMag(), Mathf::RandomMag(), Mathf::RandomMag());
@@ -1212,14 +1589,6 @@ namespace Tomahawk
 		Vector4 Vector4::RandomAbs()
 		{
 			return Vector4(Mathf::Random(), Mathf::Random(), Mathf::Random(), Mathf::Random());
-		}
-		Vector4 Vector4::Radians() const
-		{
-			return (*this) * Mathf::Deg2Rad();
-		}
-		Vector4 Vector4::Degrees() const
-		{
-			return (*this) * Mathf::Rad2Deg();
 		}
 
 		Ray::Ray() : Direction(0, 0, 1)
@@ -1238,11 +1607,11 @@ namespace Tomahawk
 		}
 		bool Ray::IntersectsPlane(const Vector3& Normal, float Diameter) const
 		{
-			float D = Normal.DotProduct(Direction);
+			float D = Normal.Dot(Direction);
 			if (Mathf::Abs(D) < std::numeric_limits<float>::epsilon())
 				return false;
 
-			float N = Normal.DotProduct(Origin) + Diameter;
+			float N = Normal.Dot(Origin) + Diameter;
 			float T = -(N / D);
 			return T >= 0;
 		}
@@ -1254,9 +1623,9 @@ namespace Tomahawk
 			if (L * L <= Radius * Radius && DiscardInside)
 				return true;
 
-			float A = Direction.DotProduct(Direction);
-			float B = 2 * R.DotProduct(Direction);
-			float C = R.DotProduct(R) - Radius * Radius;
+			float A = Direction.Dot(Direction);
+			float B = 2 * R.Dot(Direction);
+			float C = R.Dot(R) - Radius * Radius;
 			float D = (B * B) - (4 * A * C);
 
 			return D >= 0.0f;
@@ -1362,13 +1731,13 @@ namespace Tomahawk
 		}
 		bool Ray::IntersectsOBB(const Matrix4x4& World, Vector3* Hit) const
 		{
-			Matrix4x4 Offset = World.Invert();
+			Matrix4x4 Offset = World.Inv();
 			Vector3 Min = -1.0f, Max = 1.0f;
 			Vector3 O = (Vector4(Origin.X, Origin.Y, Origin.Z, 1.0f)  * Offset).XYZ();
 			if (O > Min && O < Max)
 				return true;
 
-			Vector3 D = (Direction.XYZW() * Offset).NormalizeSafe().XYZ();
+			Vector3 D = (Direction.XYZW() * Offset).sNormalize().XYZ();
 			Vector3 HitPoint; float T;
 
 			if (O.X <= Min.X && D.X > 0)
@@ -1458,24 +1827,8 @@ namespace Tomahawk
 			return false;
 		}
 
-		Matrix4x4::Matrix4x4()
+		Matrix4x4::Matrix4x4() : Row{ 1, 0, 0, 0, 0, 1, 0, 0, 0, 0, 1, 0, 0, 0, 0, 1 }
 		{
-			Row[0] = 1;
-			Row[1] = 0;
-			Row[2] = 0;
-			Row[3] = 0;
-			Row[4] = 0;
-			Row[5] = 1;
-			Row[6] = 0;
-			Row[7] = 0;
-			Row[8] = 0;
-			Row[9] = 0;
-			Row[10] = 1;
-			Row[11] = 0;
-			Row[12] = 0;
-			Row[13] = 0;
-			Row[14] = 0;
-			Row[15] = 1;
 		}
 		Matrix4x4::Matrix4x4(btTransform* In)
 		{
@@ -1495,63 +1848,21 @@ namespace Tomahawk
 		}
 		Matrix4x4::Matrix4x4(float Array[16])
 		{
-			Row[0] = Array[0];
-			Row[1] = Array[1];
-			Row[2] = Array[2];
-			Row[3] = Array[3];
-
-			Row[4] = Array[4];
-			Row[5] = Array[5];
-			Row[6] = Array[6];
-			Row[7] = Array[7];
-
-			Row[8] = Array[8];
-			Row[9] = Array[9];
-			Row[10] = Array[10];
-			Row[11] = Array[11];
-
-			Row[12] = Array[12];
-			Row[13] = Array[13];
-			Row[14] = Array[14];
-			Row[15] = Array[15];
+			memcpy(Row, Array, sizeof(float) * 16);
 		}
 		Matrix4x4::Matrix4x4(const Vector4& row0, const Vector4& row1, const Vector4& row2, const Vector4& row3)
 		{
-			Row[0] = row0.X;
-			Row[1] = row0.Y;
-			Row[2] = row0.Z;
-			Row[3] = row0.W;
-			Row[4] = row1.X;
-			Row[5] = row1.Y;
-			Row[6] = row1.Z;
-			Row[7] = row1.W;
-			Row[8] = row2.X;
-			Row[9] = row2.Y;
-			Row[10] = row2.Z;
-			Row[11] = row2.W;
-			Row[12] = row3.X;
-			Row[13] = row3.Y;
-			Row[14] = row3.Z;
-			Row[15] = row3.W;
+			memcpy(Row + 0, &row0, sizeof(Vector4));
+			memcpy(Row + 4, &row1, sizeof(Vector4));
+			memcpy(Row + 8, &row2, sizeof(Vector4));
+			memcpy(Row + 12, &row3, sizeof(Vector4));
 		}
-		Matrix4x4::Matrix4x4(float row00, float row01, float row02, float row03, float row10, float row11, float row12, float row13, float row20, float row21, float row22, float row23, float row30, float row31, float row32, float row33)
+		Matrix4x4::Matrix4x4(float row00, float row01, float row02, float row03, float row10, float row11, float row12, float row13, float row20, float row21, float row22, float row23, float row30, float row31, float row32, float row33) :
+			Row{ row00, row01, row02, row03, row10, row11, row12, row13, row20, row21, row22, row23, row30, row31, row32, row33 }
 		{
-			Row[0] = row00;
-			Row[1] = row01;
-			Row[2] = row02;
-			Row[3] = row03;
-			Row[4] = row10;
-			Row[5] = row11;
-			Row[6] = row12;
-			Row[7] = row13;
-			Row[8] = row20;
-			Row[9] = row21;
-			Row[10] = row22;
-			Row[11] = row23;
-			Row[12] = row30;
-			Row[13] = row31;
-			Row[14] = row32;
-			Row[15] = row33;
+		}
+		Matrix4x4::Matrix4x4(bool)
+		{
 		}
 		float& Matrix4x4::operator [](int Index)
 		{
@@ -1563,23 +1874,11 @@ namespace Tomahawk
 		}
 		bool Matrix4x4::operator ==(const Matrix4x4& Equal) const
 		{
-			for (int i = 0; i < 16; i++)
-			{
-				if (Row[i] != Equal.Row[i])
-					return false;
-			}
-
-			return true;
+			return memcmp(Row, Equal.Row, sizeof(float) * 16) == 0;
 		}
 		bool Matrix4x4::operator !=(const Matrix4x4& Equal) const
 		{
-			for (int i = 0; i < 16; i++)
-			{
-				if (Row[i] != Equal.Row[i])
-					return true;
-			}
-
-			return false;
+			return memcmp(Row, Equal.Row, sizeof(float) * 16) != 0;
 		}
 		Matrix4x4 Matrix4x4::operator *(const Matrix4x4& V) const
 		{
@@ -1591,23 +1890,7 @@ namespace Tomahawk
 		}
 		Matrix4x4& Matrix4x4::operator =(const Matrix4x4& V)
 		{
-			Row[0] = V.Row[0];
-			Row[1] = V.Row[1];
-			Row[2] = V.Row[2];
-			Row[3] = V.Row[3];
-			Row[4] = V.Row[4];
-			Row[5] = V.Row[5];
-			Row[6] = V.Row[6];
-			Row[7] = V.Row[7];
-			Row[8] = V.Row[8];
-			Row[9] = V.Row[9];
-			Row[10] = V.Row[10];
-			Row[11] = V.Row[11];
-			Row[12] = V.Row[12];
-			Row[13] = V.Row[13];
-			Row[14] = V.Row[14];
-			Row[15] = V.Row[15];
-
+			memcpy(Row, V.Row, sizeof(float) * 16);
 			return *this;
 		}
 		Vector4 Matrix4x4::Row11() const
@@ -1638,65 +1921,127 @@ namespace Tomahawk
 		{
 			return Vector3(Row[8], Row[9], Row[10]);
 		}
-		Matrix4x4 Matrix4x4::Invert() const
+		Matrix4x4 Matrix4x4::Inv() const
 		{
-			Matrix4x4 Result = Identity();
+			Matrix4x4 Result(true);
+			float A2323 = Row[10] * Row[15] - Row[11] * Row[14];
+			float A1323 = Row[9] * Row[15] - Row[11] * Row[13];
+			float A1223 = Row[9] * Row[14] - Row[10] * Row[13];
+			float A0323 = Row[8] * Row[15] - Row[11] * Row[12];
+			float A0223 = Row[8] * Row[14] - Row[10] * Row[12];
+			float A0123 = Row[8] * Row[13] - Row[9] * Row[12];
+			float A2313 = Row[6] * Row[15] - Row[7] * Row[14];
+			float A1313 = Row[5] * Row[15] - Row[7] * Row[13];
+			float A1213 = Row[5] * Row[14] - Row[6] * Row[13];
+			float A2312 = Row[6] * Row[11] - Row[7] * Row[10];
+			float A1312 = Row[5] * Row[11] - Row[7] * Row[9];
+			float A1212 = Row[5] * Row[10] - Row[6] * Row[9];
+			float A0313 = Row[4] * Row[15] - Row[7] * Row[12];
+			float A0213 = Row[4] * Row[14] - Row[6] * Row[12];
+			float A0312 = Row[4] * Row[11] - Row[7] * Row[8];
+			float A0212 = Row[4] * Row[10] - Row[6] * Row[8];
+			float A0113 = Row[4] * Row[13] - Row[5] * Row[12];
+			float A0112 = Row[4] * Row[9] - Row[5] * Row[8];
+#ifdef TH_HAS_SIMD
+			LOD_AV4(_r1, Row[5], Row[4], Row[4], Row[4]);
+			LOD_AV4(_r2, A2323, A2323, A1323, A1223);
+			LOD_AV4(_r3, Row[6], Row[6], Row[5], Row[5]);
+			LOD_AV4(_r4, A1323, A0323, A0323, A0223);
+			LOD_AV4(_r5, Row[7], Row[7], Row[7], Row[6]);
+			LOD_AV4(_r6, A1223, A0223, A0123, A0123);
+			LOD_AV4(_r7, Row[0], -Row[1], Row[2], -Row[3]);
+			LOD_AV4(_r8, 1.0f, -1.0f, 1.0f, -1.0f);
+			_r7 *= _r1 * _r2 - _r3 * _r4 + _r5 * _r6;
+			float F = horizontal_add(_r7);
+			F = 1.0f / (F != 0.0f ? F : 1.0f);
+			_r1 = Vec4f(Row[5], Row[1], Row[1], Row[1]);
+			_r2 = Vec4f(A2323, A2323, A2313, A2312);
+			_r3 = Vec4f(Row[6], Row[2], Row[2], Row[2]);
+			_r4 = Vec4f(A1323, A1323, A1313, A1312);
+			_r5 = Vec4f(Row[7], Row[3], Row[3], Row[3]);
+			_r6 = Vec4f(A1223, A1223, A1213, A1212);
+			_r7 = (_r1 * _r2 - _r3 * _r4 + _r5 * _r6) * _r8 * F;
+			_r7.store(Result.Row + 0);
+			_r1 = Vec4f(Row[4], Row[0], Row[0], Row[0]);
+			_r4 = Vec4f(A0323, A0323, A0313, A0312);
+			_r6 = Vec4f(A0223, A0223, A0213, A0212);
+			_r7 = (_r1 * _r2 - _r3 * _r4 + _r5 * _r6) * -_r8 * F;
+			_r7.store(Result.Row + 4);
+			_r2 = Vec4f(A1323, A1323, A1313, A1312);
+			_r3 = Vec4f(Row[5], Row[1], Row[1], Row[1]);
+			_r6 = Vec4f(A0123, A0123, A0113, A0112);
+			_r7 = (_r1 * _r2 - _r3 * _r4 + _r5 * _r6) * _r8 * F;
+			_r7.store(Result.Row + 8);
+			_r2 = Vec4f(A1223, A1223, A1213, A1212);
+			_r4 = Vec4f(A0223, A0223, A0213, A0212);
+			_r5 = Vec4f(Row[6], Row[2], Row[2], Row[2]);
+			_r7 = (_r1 * _r2 - _r3 * _r4 + _r5 * _r6) * -_r8 * F;
+			_r7.store(Result.Row + 12);
+#else
+			float F =
+				Row[0] * (Row[5] * A2323 - Row[6] * A1323 + Row[7] * A1223)
+				- Row[1] * (Row[4] * A2323 - Row[6] * A0323 + Row[7] * A0223)
+				+ Row[2] * (Row[4] * A1323 - Row[5] * A0323 + Row[7] * A0123)
+				- Row[3] * (Row[4] * A1223 - Row[5] * A0223 + Row[6] * A0123);
+			F = 1.0f / (F != 0.0f ? F : 1.0f);
 
-			Result.Row[0] = Row[5] * Row[10] * Row[15] - Row[5] * Row[11] * Row[14] - Row[9] * Row[6] * Row[15] + Row[9] * Row[7] * Row[14] + Row[13] * Row[6] * Row[11] - Row[13] * Row[7] * Row[10];
-
-			Result.Row[4] = -Row[4] * Row[10] * Row[15] + Row[4] * Row[11] * Row[14] + Row[8] * Row[6] * Row[15] - Row[8] * Row[7] * Row[14] - Row[12] * Row[6] * Row[11] + Row[12] * Row[7] * Row[10];
-
-			Result.Row[8] = Row[4] * Row[9] * Row[15] - Row[4] * Row[11] * Row[13] - Row[8] * Row[5] * Row[15] + Row[8] * Row[7] * Row[13] + Row[12] * Row[5] * Row[11] - Row[12] * Row[7] * Row[9];
-
-			Result.Row[12] = -Row[4] * Row[9] * Row[14] + Row[4] * Row[10] * Row[13] + Row[8] * Row[5] * Row[14] - Row[8] * Row[6] * Row[13] - Row[12] * Row[5] * Row[10] + Row[12] * Row[6] * Row[9];
-
-			Result.Row[1] = -Row[1] * Row[10] * Row[15] + Row[1] * Row[11] * Row[14] + Row[9] * Row[2] * Row[15] - Row[9] * Row[3] * Row[14] - Row[13] * Row[2] * Row[11] + Row[13] * Row[3] * Row[10];
-
-			Result.Row[5] = Row[0] * Row[10] * Row[15] - Row[0] * Row[11] * Row[14] - Row[8] * Row[2] * Row[15] + Row[8] * Row[3] * Row[14] + Row[12] * Row[2] * Row[11] - Row[12] * Row[3] * Row[10];
-
-			Result.Row[9] = -Row[0] * Row[9] * Row[15] + Row[0] * Row[11] * Row[13] + Row[8] * Row[1] * Row[15] - Row[8] * Row[3] * Row[13] - Row[12] * Row[1] * Row[11] + Row[12] * Row[3] * Row[9];
-
-			Result.Row[13] = Row[0] * Row[9] * Row[14] - Row[0] * Row[10] * Row[13] - Row[8] * Row[1] * Row[14] + Row[8] * Row[2] * Row[13] + Row[12] * Row[1] * Row[10] - Row[12] * Row[2] * Row[9];
-
-			Result.Row[2] = Row[1] * Row[6] * Row[15] - Row[1] * Row[7] * Row[14] - Row[5] * Row[2] * Row[15] + Row[5] * Row[3] * Row[14] + Row[13] * Row[2] * Row[7] - Row[13] * Row[3] * Row[6];
-
-			Result.Row[6] = -Row[0] * Row[6] * Row[15] + Row[0] * Row[7] * Row[14] + Row[4] * Row[2] * Row[15] - Row[4] * Row[3] * Row[14] - Row[12] * Row[2] * Row[7] + Row[12] * Row[3] * Row[6];
-
-			Result.Row[10] = Row[0] * Row[5] * Row[15] - Row[0] * Row[7] * Row[13] - Row[4] * Row[1] * Row[15] + Row[4] * Row[3] * Row[13] + Row[12] * Row[1] * Row[7] - Row[12] * Row[3] * Row[5];
-
-			Result.Row[14] = -Row[0] * Row[5] * Row[14] + Row[0] * Row[6] * Row[13] + Row[4] * Row[1] * Row[14] - Row[4] * Row[2] * Row[13] - Row[12] * Row[1] * Row[6] + Row[12] * Row[2] * Row[5];
-
-			Result.Row[3] = -Row[1] * Row[6] * Row[11] + Row[1] * Row[7] * Row[10] + Row[5] * Row[2] * Row[11] - Row[5] * Row[3] * Row[10] - Row[9] * Row[2] * Row[7] + Row[9] * Row[3] * Row[6];
-
-			Result.Row[7] = Row[0] * Row[6] * Row[11] - Row[0] * Row[7] * Row[10] - Row[4] * Row[2] * Row[11] + Row[4] * Row[3] * Row[10] + Row[8] * Row[2] * Row[7] - Row[8] * Row[3] * Row[6];
-
-			Result.Row[11] = -Row[0] * Row[5] * Row[11] + Row[0] * Row[7] * Row[9] + Row[4] * Row[1] * Row[11] - Row[4] * Row[3] * Row[9] - Row[8] * Row[1] * Row[7] + Row[8] * Row[3] * Row[5];
-
-			Result.Row[15] = Row[0] * Row[5] * Row[10] - Row[0] * Row[6] * Row[9] - Row[4] * Row[1] * Row[10] + Row[4] * Row[2] * Row[9] + Row[8] * Row[1] * Row[6] - Row[8] * Row[2] * Row[5];
-
-			float Determinant = Row[0] * Result.Row[0] + Row[1] * Result.Row[4] + Row[2] * Result.Row[8] + Row[3] * Result.Row[12];
-
-			if (Determinant == 0)
-				return Identity();
-
-			Determinant = 1.0f / Determinant;
-
-			for (int i = 0; i < 16; i++)
-				Result.Row[i] *= Determinant;
-
+			Result.Row[0] = F * (Row[5] * A2323 - Row[6] * A1323 + Row[7] * A1223);
+			Result.Row[1] = F * -(Row[1] * A2323 - Row[2] * A1323 + Row[3] * A1223);
+			Result.Row[2] = F * (Row[1] * A2313 - Row[2] * A1313 + Row[3] * A1213);
+			Result.Row[3] = F * -(Row[1] * A2312 - Row[2] * A1312 + Row[3] * A1212);
+			Result.Row[4] = F * -(Row[4] * A2323 - Row[6] * A0323 + Row[7] * A0223);
+			Result.Row[5] = F * (Row[0] * A2323 - Row[2] * A0323 + Row[3] * A0223);
+			Result.Row[6] = F * -(Row[0] * A2313 - Row[2] * A0313 + Row[3] * A0213);
+			Result.Row[7] = F * (Row[0] * A2312 - Row[2] * A0312 + Row[3] * A0212);
+			Result.Row[8] = F * (Row[4] * A1323 - Row[5] * A0323 + Row[7] * A0123);
+			Result.Row[9] = F * -(Row[0] * A1323 - Row[1] * A0323 + Row[3] * A0123);
+			Result.Row[10] = F * (Row[0] * A1313 - Row[1] * A0313 + Row[3] * A0113);
+			Result.Row[11] = F * -(Row[0] * A1312 - Row[1] * A0312 + Row[3] * A0112);
+			Result.Row[12] = F * -(Row[4] * A1223 - Row[5] * A0223 + Row[6] * A0123);
+			Result.Row[13] = F * (Row[0] * A1223 - Row[1] * A0223 + Row[2] * A0123);
+			Result.Row[14] = F * -(Row[0] * A1213 - Row[1] * A0213 + Row[2] * A0113);
+			Result.Row[15] = F * (Row[0] * A1212 - Row[1] * A0212 + Row[2] * A0112);
+#endif
 			return Result;
 		}
 		Matrix4x4 Matrix4x4::Transpose() const
 		{
-			return Matrix4x4(Vector4(Row[0], Row[4], Row[8], Row[12]), Vector4(Row[1], Row[5], Row[9], Row[13]), Vector4(Row[2], Row[6], Row[10], Row[14]), Vector4(Row[3], Row[7], Row[11], Row[15]));
+#ifdef TH_HAS_SIMD
+			LOD_FV16(_r1);
+			_r1 = permute16f<0, 4, 8, 12, 1, 5, 9, 13, 2, 6, 10, 14, 3, 7, 11, 15>(_r1);
+
+			Matrix4x4 Result(true);
+			_r1.store(Result.Row);
+
+			return Result;
+#else
+			return Matrix4x4(
+				Vector4(Row[0], Row[4], Row[8], Row[12]),
+				Vector4(Row[1], Row[5], Row[9], Row[13]),
+				Vector4(Row[2], Row[6], Row[10], Row[14]),
+				Vector4(Row[3], Row[7], Row[11], Row[15]));
+#endif
 		}
 		Vector3 Matrix4x4::Rotation() const
 		{
-			Vector3 Result = 0;
-			Result.X = atan2(-Row[6], Row[10]);
-			Result.Y = atan2(Row[2], sqrt(Row[0] * Row[0] + Row[1] * Row[1]));
-			Result.Z = atan2(cos(Result.X) * Row[4] + sin(Result.X) * Row[8], cos(Result.X) * Row[5] + sin(Result.X) * Row[9]);
-			return -Result;
+#ifdef TH_HAS_SIMD
+			float X = -atan2(-Row[6], Row[10]);
+			float sX = sin(X), cX = cos(X);
+			LOD_AV2(_r1, Row[0], Row[1]);
+			LOD_AV2(_r2, Row[4], Row[8]);
+			LOD_AV2(_r3, Row[5], Row[9]);
+			LOD_AV2(_r4, cX, sX);
+
+			return Vector3(X,
+				-atan2(Row[2], sqrt(horizontal_add(square(_r1)))),
+				-atan2(horizontal_add(_r4 * _r2), horizontal_add(_r4 * _r3)));
+#else
+			float X = -atan2(-Row[6], Row[10]);
+			float sX = sin(X), cX = cos(X);
+			return Vector3(X,
+				-atan2(Row[2], sqrt(Row[0] * Row[0] + Row[1] * Row[1])),
+				-atan2(cX * Row[4] + sX * Row[8], cX * Row[5] + sX * Row[9]));
+#endif
 		}
 		Vector3 Matrix4x4::Position() const
 		{
@@ -1717,85 +2062,136 @@ namespace Tomahawk
 		Matrix4x4 Matrix4x4::Mul(const Matrix4x4& V) const
 		{
 			Matrix4x4 Result;
+#ifdef TH_HAS_SIMD
+			LOD_VAR(_r1, V.Row + 0);
+			LOD_VAR(_r2, V.Row + 4);
+			LOD_VAR(_r3, V.Row + 8);
+			LOD_VAR(_r4, V.Row + 12);
+			LOD_VAL(_r5, 0.0f);
 
+			_r5 += _r1 * Row[0];
+			_r5 += _r2 * Row[1];
+			_r5 += _r3 * Row[2];
+			_r5 += _r4 * Row[3];
+			_r5.store(Result.Row + 0);
+			_r5 = Vec4f(0.0f);
+			_r5 += _r1 * Row[4];
+			_r5 += _r2 * Row[5];
+			_r5 += _r3 * Row[6];
+			_r5 += _r4 * Row[7];
+			_r5.store(Result.Row + 4);
+			_r5 = Vec4f(0.0f);
+			_r5 += _r1 * Row[8];
+			_r5 += _r2 * Row[9];
+			_r5 += _r3 * Row[10];
+			_r5 += _r4 * Row[11];
+			_r5.store(Result.Row + 8);
+			_r5 = Vec4f(0.0f);
+			_r5 += _r1 * Row[12];
+			_r5 += _r2 * Row[13];
+			_r5 += _r3 * Row[14];
+			_r5 += _r4 * Row[15];
+			_r5.store(Result.Row + 12);
+#else
 			Result.Row[0] = (Row[0] * V.Row[0]) + (Row[1] * V.Row[4]) + (Row[2] * V.Row[8]) + (Row[3] * V.Row[12]);
 			Result.Row[1] = (Row[0] * V.Row[1]) + (Row[1] * V.Row[5]) + (Row[2] * V.Row[9]) + (Row[3] * V.Row[13]);
 			Result.Row[2] = (Row[0] * V.Row[2]) + (Row[1] * V.Row[6]) + (Row[2] * V.Row[10]) + (Row[3] * V.Row[14]);
 			Result.Row[3] = (Row[0] * V.Row[3]) + (Row[1] * V.Row[7]) + (Row[2] * V.Row[11]) + (Row[3] * V.Row[15]);
-
 			Result.Row[4] = (Row[4] * V.Row[0]) + (Row[5] * V.Row[4]) + (Row[6] * V.Row[8]) + (Row[7] * V.Row[12]);
 			Result.Row[5] = (Row[4] * V.Row[1]) + (Row[5] * V.Row[5]) + (Row[6] * V.Row[9]) + (Row[7] * V.Row[13]);
 			Result.Row[6] = (Row[4] * V.Row[2]) + (Row[5] * V.Row[6]) + (Row[6] * V.Row[10]) + (Row[7] * V.Row[14]);
 			Result.Row[7] = (Row[4] * V.Row[3]) + (Row[5] * V.Row[7]) + (Row[6] * V.Row[11]) + (Row[7] * V.Row[15]);
-
 			Result.Row[8] = (Row[8] * V.Row[0]) + (Row[9] * V.Row[4]) + (Row[10] * V.Row[8]) + (Row[11] * V.Row[12]);
 			Result.Row[9] = (Row[8] * V.Row[1]) + (Row[9] * V.Row[5]) + (Row[10] * V.Row[9]) + (Row[11] * V.Row[13]);
 			Result.Row[10] = (Row[8] * V.Row[2]) + (Row[9] * V.Row[6]) + (Row[10] * V.Row[10]) + (Row[11] * V.Row[14]);
 			Result.Row[11] = (Row[8] * V.Row[3]) + (Row[9] * V.Row[7]) + (Row[10] * V.Row[11]) + (Row[11] * V.Row[15]);
-
 			Result.Row[12] = (Row[12] * V.Row[0]) + (Row[13] * V.Row[4]) + (Row[14] * V.Row[8]) + (Row[15] * V.Row[12]);
 			Result.Row[13] = (Row[12] * V.Row[1]) + (Row[13] * V.Row[5]) + (Row[14] * V.Row[9]) + (Row[15] * V.Row[13]);
 			Result.Row[14] = (Row[12] * V.Row[2]) + (Row[13] * V.Row[6]) + (Row[14] * V.Row[10]) + (Row[15] * V.Row[14]);
 			Result.Row[15] = (Row[12] * V.Row[3]) + (Row[13] * V.Row[7]) + (Row[14] * V.Row[11]) + (Row[15] * V.Row[15]);
-
+#endif
 			return Result;
 		}
 		Matrix4x4 Matrix4x4::Mul(const Vector4& V) const
 		{
 			Matrix4x4 Result;
+#ifdef TH_HAS_SIMD
+			LOD_V4(_r1, V);
+			LOD_VAR(_r2, Row + 0);
+			LOD_VAR(_r3, Row + 4);
+			LOD_VAR(_r4, Row + 8);
+			LOD_VAR(_r5, Row + 12);
+			LOD_VAL(_r6, 0.0f);
 
-			Result.Row[0] = (Row[0] * V.X) + (Row[1] * V.Y) + (Row[2] * V.Z) + (Row[3] * V.W);
-			Result.Row[1] = (Row[0] * V.X) + (Row[1] * V.Y) + (Row[2] * V.Z) + (Row[3] * V.W);
-			Result.Row[2] = (Row[0] * V.X) + (Row[1] * V.Y) + (Row[2] * V.Z) + (Row[3] * V.W);
-			Result.Row[3] = (Row[0] * V.X) + (Row[1] * V.Y) + (Row[2] * V.Z) + (Row[3] * V.W);
+			_r6 = horizontal_add(_r1 * _r2);
+			_r6.store(Result.Row + 0);
+			_r6 = horizontal_add(_r1 * _r3);
+			_r6.store(Result.Row + 4);
+			_r6 = horizontal_add(_r1 * _r4);
+			_r6.store(Result.Row + 8);
+			_r6 = horizontal_add(_r1 * _r5);
+			_r6.store(Result.Row + 12);
+#else
+			float X = (Row[0] * V.X) + (Row[1] * V.Y) + (Row[2] * V.Z) + (Row[3] * V.W);
+			Result.Row[0] = Result.Row[1] = Result.Row[2] = Result.Row[3] = X;
 
-			Result.Row[4] = (Row[4] * V.X) + (Row[5] * V.Y) + (Row[6] * V.Z) + (Row[7] * V.W);
-			Result.Row[5] = (Row[4] * V.X) + (Row[5] * V.Y) + (Row[6] * V.Z) + (Row[7] * V.W);
-			Result.Row[6] = (Row[4] * V.X) + (Row[5] * V.Y) + (Row[6] * V.Z) + (Row[7] * V.W);
-			Result.Row[7] = (Row[4] * V.X) + (Row[5] * V.Y) + (Row[6] * V.Z) + (Row[7] * V.W);
+			float Y = (Row[4] * V.X) + (Row[5] * V.Y) + (Row[6] * V.Z) + (Row[7] * V.W);
+			Result.Row[4] = Result.Row[5] = Result.Row[6] = Result.Row[7] = Y;
 
-			Result.Row[8] = (Row[8] * V.X) + (Row[9] * V.Y) + (Row[10] * V.Z) + (Row[11] * V.W);
-			Result.Row[9] = (Row[8] * V.X) + (Row[9] * V.Y) + (Row[10] * V.Z) + (Row[11] * V.W);
-			Result.Row[10] = (Row[8] * V.X) + (Row[9] * V.Y) + (Row[10] * V.Z) + (Row[11] * V.W);
-			Result.Row[11] = (Row[8] * V.X) + (Row[9] * V.Y) + (Row[10] * V.Z) + (Row[11] * V.W);
+			float Z = (Row[8] * V.X) + (Row[9] * V.Y) + (Row[10] * V.Z) + (Row[11] * V.W);
+			Result.Row[8] = Result.Row[9] = Result.Row[10] = Result.Row[11] = Z;
 
-			Result.Row[12] = (Row[12] * V.X) + (Row[13] * V.Y) + (Row[14] * V.Z) + (Row[15] * V.W);
-			Result.Row[13] = (Row[12] * V.X) + (Row[13] * V.Y) + (Row[14] * V.Z) + (Row[15] * V.W);
-			Result.Row[14] = (Row[12] * V.X) + (Row[13] * V.Y) + (Row[14] * V.Z) + (Row[15] * V.W);
-			Result.Row[15] = (Row[12] * V.X) + (Row[13] * V.Y) + (Row[14] * V.Z) + (Row[15] * V.W);
-
+			float W = (Row[12] * V.X) + (Row[13] * V.Y) + (Row[14] * V.Z) + (Row[15] * V.W);
+			Result.Row[12] = Result.Row[13] = Result.Row[14] = Result.Row[15] = W;
+#endif
 			return Result;
 		}
 		Vector2 Matrix4x4::XY() const
 		{
-			return Vector2(Row[0] + Row[4] + Row[8] + Row[12], Row[1] + Row[5] + Row[9] + Row[13]);
+#ifdef TH_HAS_SIMD
+			LOD_AV4(_r1, Row[0], Row[4], Row[8], Row[12]);
+			LOD_AV4(_r2, Row[1], Row[5], Row[9], Row[13]);
+			return Vector2(horizontal_add(_r1), horizontal_add(_r2));
+#else
+			return Vector2(
+				Row[0] + Row[4] + Row[8] + Row[12],
+				Row[1] + Row[5] + Row[9] + Row[13]);
+#endif
 		}
 		Vector3 Matrix4x4::XYZ() const
 		{
-			return Vector3(Row[0] + Row[4] + Row[8] + Row[12], Row[1] + Row[5] + Row[9] + Row[13], Row[2] + Row[6] + Row[10] + Row[14]);
+#ifdef TH_HAS_SIMD
+			LOD_AV4(_r1, Row[0], Row[4], Row[8], Row[12]);
+			LOD_AV4(_r2, Row[1], Row[5], Row[9], Row[13]);
+			LOD_AV4(_r3, Row[2], Row[6], Row[10], Row[14]);
+			return Vector3(horizontal_add(_r1), horizontal_add(_r2), horizontal_add(_r3));
+#else
+			return Vector3(
+				Row[0] + Row[4] + Row[8] + Row[12],
+				Row[1] + Row[5] + Row[9] + Row[13],
+				Row[2] + Row[6] + Row[10] + Row[14]);
+#endif
 		}
 		Vector4 Matrix4x4::XYZW() const
 		{
-			return Vector4(Row[0] + Row[4] + Row[8] + Row[12], Row[1] + Row[5] + Row[9] + Row[13], Row[2] + Row[6] + Row[10] + Row[14], Row[3] + Row[7] + Row[11] + Row[15]);
+#ifdef TH_HAS_SIMD
+			LOD_AV4(_r1, Row[0], Row[4], Row[8], Row[12]);
+			LOD_AV4(_r2, Row[1], Row[5], Row[9], Row[13]);
+			LOD_AV4(_r3, Row[2], Row[6], Row[10], Row[14]);
+			LOD_AV4(_r4, Row[3], Row[7], Row[11], Row[15]);
+			return Vector4(horizontal_add(_r1), horizontal_add(_r2), horizontal_add(_r3), horizontal_add(_r4));
+#else
+			return Vector4(
+				Row[0] + Row[4] + Row[8] + Row[12],
+				Row[1] + Row[5] + Row[9] + Row[13],
+				Row[2] + Row[6] + Row[10] + Row[14],
+				Row[3] + Row[7] + Row[11] + Row[15]);
+#endif
 		}
 		void Matrix4x4::Identify()
 		{
-			Row[0] = 1;
-			Row[1] = 0;
-			Row[2] = 0;
-			Row[3] = 0;
-			Row[4] = 0;
-			Row[5] = 1;
-			Row[6] = 0;
-			Row[7] = 0;
-			Row[8] = 0;
-			Row[9] = 0;
-			Row[10] = 1;
-			Row[11] = 0;
-			Row[12] = 0;
-			Row[13] = 0;
-			Row[14] = 0;
-			Row[15] = 1;
+			static float Base[16] = { 1, 0, 0, 0, 0, 1, 0, 0, 0, 0, 1, 0, 0, 0, 0, 1 };
+			memcpy(Row, Base, sizeof(float) * 16);
 		}
 		void Matrix4x4::Set(const Matrix4x4& Value)
 		{
@@ -1815,11 +2211,9 @@ namespace Tomahawk
 		}
 		Matrix4x4 Matrix4x4::CreateRotationX(float Rotation)
 		{
-			Matrix4x4 X = Identity();
-
-			float Cos = Mathf::Cos(Rotation);
-			float Sin = Mathf::Sin(Rotation);
-
+			float Cos = cos(Rotation);
+			float Sin = sin(Rotation);
+			Matrix4x4 X;
 			X.Row[5] = Cos;
 			X.Row[6] = Sin;
 			X.Row[9] = -Sin;
@@ -1829,11 +2223,9 @@ namespace Tomahawk
 		}
 		Matrix4x4 Matrix4x4::CreateRotationY(float Rotation)
 		{
-			Matrix4x4 Y = Identity();
-
-			float Cos = Mathf::Cos(Rotation);
-			float Sin = Mathf::Sin(Rotation);
-
+			float Cos = cos(Rotation);
+			float Sin = sin(Rotation);
+			Matrix4x4 Y;
 			Y.Row[0] = Cos;
 			Y.Row[2] = -Sin;
 			Y.Row[8] = Sin;
@@ -1843,11 +2235,9 @@ namespace Tomahawk
 		}
 		Matrix4x4 Matrix4x4::CreateRotationZ(float Rotation)
 		{
-			Matrix4x4 Z = Identity();
-
-			float Cos = Mathf::Cos(Rotation);
-			float Sin = Mathf::Sin(Rotation);
-
+			float Cos = cos(Rotation);
+			float Sin = sin(Rotation);
+			Matrix4x4 Z;
 			Z.Row[0] = Cos;
 			Z.Row[1] = Sin;
 			Z.Row[4] = -Sin;
@@ -1865,7 +2255,7 @@ namespace Tomahawk
 		}
 		Matrix4x4 Matrix4x4::CreateScale(const Vector3& Scale)
 		{
-			Matrix4x4 Result = Identity();
+			Matrix4x4 Result;
 			Result.Row[0] = Scale.X;
 			Result.Row[5] = Scale.Y;
 			Result.Row[10] = Scale.Z;
@@ -1874,7 +2264,7 @@ namespace Tomahawk
 		}
 		Matrix4x4 Matrix4x4::CreateTranslation(const Vector3& Position)
 		{
-			Matrix4x4 Result = Identity();
+			Matrix4x4 Result;
 			Result.Row[12] = Position.X;
 			Result.Row[13] = Position.Y;
 			Result.Row[14] = -Position.Z;
@@ -1953,7 +2343,7 @@ namespace Tomahawk
 		}
 		Matrix4x4 Matrix4x4::CreateCamera(const Vector3& Position, const Vector3& Rotation)
 		{
-			return Matrix4x4::CreateTranslation(Position.InvertZ()) * Matrix4x4::CreateCameraRotation(Rotation);
+			return Matrix4x4::CreateTranslation(Position.InvZ()) * Matrix4x4::CreateCameraRotation(Rotation);
 		}
 		Matrix4x4 Matrix4x4::CreateLookAt(const Vector3& Position, const Vector3& Target, const Vector3& Up)
 		{
@@ -1961,7 +2351,7 @@ namespace Tomahawk
 			Vector3 X = Up.Cross(Z).Normalize();
 			Vector3 Y = Z.Cross(X);
 
-			Matrix4x4 Result = Matrix4x4::Identity();
+			Matrix4x4 Result(true);
 			Result.Row[0] = X.X;
 			Result.Row[1] = Y.X;
 			Result.Row[2] = Z.X;
@@ -1974,21 +2364,21 @@ namespace Tomahawk
 			Result.Row[9] = Y.Z;
 			Result.Row[10] = Z.Z;
 			Result.Row[11] = 0;
-			Result.Row[12] = -X.DotProduct(Position);
-			Result.Row[13] = -Y.DotProduct(Position);
-			Result.Row[14] = -Z.DotProduct(Position);
+			Result.Row[12] = -X.Dot(Position);
+			Result.Row[13] = -Y.Dot(Position);
+			Result.Row[14] = -Z.Dot(Position);
 			Result.Row[15] = 1;
 
 			return Result;
 		}
 		Matrix4x4 Matrix4x4::CreateLockedLookAt(const Vector3& Position, const Vector3& Camera, const Vector3& Up)
 		{
-			Vector3 APosition = (Position + Camera).InvertZ();
+			Vector3 APosition = (Position + Camera).InvZ();
 			Vector3 Z = (Position * Vector3(-1, -1, 1)).Normalize();
 			Vector3 X = Up.Cross(Z).Normalize();
 			Vector3 Y = Z.Cross(X);
 
-			Matrix4x4 Result = Matrix4x4::Identity();
+			Matrix4x4 Result(true);
 			Result.Row[0] = X.X;
 			Result.Row[1] = Y.X;
 			Result.Row[2] = Z.X;
@@ -2001,9 +2391,9 @@ namespace Tomahawk
 			Result.Row[9] = Y.Z;
 			Result.Row[10] = Z.Z;
 			Result.Row[11] = 0;
-			Result.Row[12] = -X.DotProduct(APosition);
-			Result.Row[13] = -Y.DotProduct(APosition);
-			Result.Row[14] = -Z.DotProduct(APosition);
+			Result.Row[12] = -X.Dot(APosition);
+			Result.Row[13] = -Y.Dot(APosition);
+			Result.Row[14] = -Z.Dot(APosition);
 			Result.Row[15] = 1;
 
 			return Result;
@@ -2014,7 +2404,7 @@ namespace Tomahawk
 		}
 		Matrix4x4 Matrix4x4::CreateRotation(const Vector3& Forward, const Vector3& Up, const Vector3& Right)
 		{
-			Matrix4x4 Rotation;
+			Matrix4x4 Rotation(true);
 			Rotation.Row[0] = Right.X;
 			Rotation.Row[1] = Right.Y;
 			Rotation.Row[2] = Right.Z;
@@ -2057,117 +2447,184 @@ namespace Tomahawk
 			return Matrix4x4::Identity();
 		}
 
-		Quaternion::Quaternion()
+		Quaternion::Quaternion() : X(0.0f), Y(0.0f), Z(0.0f), W(0.0f)
 		{
-			X = 0;
-			Y = 0;
-			Z = 0;
-			W = 0;
 		}
-		Quaternion::Quaternion(float x, float y, float z, float w)
+		Quaternion::Quaternion(float x, float y, float z, float w) : X(x), Y(y), Z(z), W(w)
 		{
-			X = x;
-			Y = y;
-			Z = z;
-			W = w;
 		}
-		Quaternion::Quaternion(const Quaternion& In)
+		Quaternion::Quaternion(const Quaternion& In) : X(In.X), Y(In.Y), Z(In.Z), W(In.W)
 		{
-			X = In.X;
-			Y = In.Y;
-			Z = In.Z;
-			W = In.W;
 		}
 		Quaternion::Quaternion(const Vector3& Axis, float Angle)
 		{
-			Set(Axis, Angle);
+			SetAxis(Axis, Angle);
 		}
-		Quaternion::Quaternion(const Vector3& GetEuler)
+		Quaternion::Quaternion(const Vector3& Euler)
 		{
-			Set(GetEuler);
+			SetEuler(Euler);
 		}
 		Quaternion::Quaternion(const Matrix4x4& Value)
 		{
-			Set(Value);
+			SetMatrix(Value);
 		}
-		void Quaternion::Set(const Vector3& Axis, float Angle)
+		void Quaternion::SetAxis(const Vector3& Axis, float Angle)
 		{
+#ifdef TH_HAS_SIMD
+			LOD_V3(_r1, Axis);
+			_r1 *= std::sin(Angle / 2);
+			_r1.insert(3, std::cos(Angle / 2));
+			_r1.store((float*)this);
+#else
 			float Sin = std::sin(Angle / 2);
-
 			X = Axis.X * Sin;
 			Y = Axis.Y * Sin;
 			Z = Axis.Z * Sin;
 			W = std::cos(Angle / 2);
+#endif
 		}
-		void Quaternion::Set(const Vector3& GetEuler)
+		void Quaternion::SetEuler(const Vector3& V)
 		{
-			float SinX = std::sin(GetEuler.X / 2);
-			float CosX = std::cos(GetEuler.X / 2);
-			float SinY = std::sin(GetEuler.Y / 2);
-			float CosY = std::cos(GetEuler.Y / 2);
-			float SinZ = std::sin(GetEuler.Z / 2);
-			float CosZ = std::cos(GetEuler.Z / 2);
+#ifdef TH_HAS_SIMD
+			float _sx[4], _cx[4];
+			LOD_V3(_r1, V);
+			LOD_VAL(_r2, 0.0f);
+			_r1 *= 0.5f;
+			_r2 = cos(_r1);
+			_r1 = sin(_r1);
+			_r1.store(_sx);
+			_r2.store(_cx);
 
-			W = CosX * CosY;
+			LOD_AV4(_r3, _sx[0], _cx[0], _sx[0], _cx[0]);
+			LOD_AV4(_r4, _cx[1], _sx[1], _sx[1], _cx[1]);
+			LOD_AV4(_r5, 1.0f, -1.0f, 1.0f, -1.0f);
+			_r3 *= _r4;
+			_r1 = _r3 * _cx[2];
+			_r2 = _r3 * _sx[2];
+			_r2 = permute4f<1, 0, 3, 2>(_r2);
+			_r1 += _r2 * _r5;
+			_r1.store((float*)this);
+#else
+			float SinX = std::sin(V.X / 2);
+			float CosX = std::cos(V.X / 2);
+			float SinY = std::sin(V.Y / 2);
+			float CosY = std::cos(V.Y / 2);
+			float SinZ = std::sin(V.Z / 2);
+			float CosZ = std::cos(V.Z / 2);
 			X = SinX * CosY;
 			Y = CosX * SinY;
 			Z = SinX * SinY;
+			W = CosX * CosY;
 
-			float FinalW = W * CosZ - Z * SinZ;
-			float FinalX = X * CosZ + Y * SinZ;
-			float FinalY = Y * CosZ - X * SinZ;
-			float FinalZ = Z * CosZ + W * SinZ;
-
-			X = FinalX;
-			Y = FinalY;
-			Z = FinalZ;
-			W = FinalW;
+			float fX = X * CosZ + Y * SinZ;
+			float fY = Y * CosZ - X * SinZ;
+			float fZ = Z * CosZ + W * SinZ;
+			float fW = W * CosZ - Z * SinZ;
+			X = fX;
+			Y = fY;
+			Z = fZ;
+			W = fW;
+#endif
 		}
-		void Quaternion::Set(const Matrix4x4& Value)
+		void Quaternion::SetMatrix(const Matrix4x4& Value)
 		{
-			float trace = Value[0] + Value[5] + Value[9];
-
-			if (trace > 0)
-			{
-				float s = 0.5f / std::sqrt(trace + 1.0f);
-				X = 0.25f / s;
-				Y = (Value[6] - Value[8]) * s;
-				Z = (Value[7] - Value[2]) * s;
-				W = (Value[1] - Value[4]) * s;
-			}
-			else
+#ifdef TH_HAS_SIMD
+			LOD_AV3(_r1, Value[0], Value[5], Value[9]);
+			float T = horizontal_add(_r1);
+			if (T <= 0.0f)
 			{
 				if (Value[0] > Value[5] && Value[0] > Value[9])
 				{
-					float s = 2.0f * std::sqrt(1.0f + Value[0] - Value[5] - Value[9]);
-					W = (Value[6] - Value[8]) / s;
-					X = 0.25f * s;
-					Y = (Value[4] + Value[1]) / s;
-					Z = (Value[7] + Value[2]) / s;
+					LOD_AV4(_r2, 1.0f, Value[0], -Value[5], -Value[9]);
+					LOD_AV4(_r3, 0.25f, Value[4], Value[7], Value[6]);
+					LOD_AV4(_r4, 0.0f, Value[1], Value[2], -Value[8]);
+					float F = 0.5f / sqrt(horizontal_add(_r2));
+					_r3 += _r4;
+					_r3 *= F;
+					_r3.store((float*)this);
+					X = 0.25f / F;
 				}
 				else if (Value[5] > Value[9])
 				{
-					float s = 2.0f * std::sqrt(1.0f + Value[5] - Value[0] - Value[9]);
-					W = (Value[7] - Value[2]) / s;
-					X = (Value[4] + Value[1]) / s;
-					Y = 0.25f * s;
-					Z = (Value[8] + Value[6]) / s;
+					LOD_AV4(_r2, 1.0f, Value[5], -Value[0], -Value[9]);
+					LOD_AV4(_r3, Value[4], 0.25f, Value[8], Value[7]);
+					LOD_AV4(_r4, Value[1], 0.0f, Value[6], -Value[2]);
+					float F = 0.5f / sqrt(horizontal_add(_r2));
+					_r3 += _r4;
+					_r3 *= F;
+					_r3.store((float*)this);
+					Y = 0.25f / F;
 				}
 				else
 				{
-					float s = 2.0f * std::sqrt(1.0f + Value[9] - Value[0] - Value[5]);
-					W = (Value[1] - Value[4]) / s;
-					X = (Value[7] + Value[2]) / s;
-					Y = (Value[6] + Value[8]) / s;
-					Z = 0.25f * s;
+					LOD_AV4(_r2, 1.0f, Value[9], -Value[0], -Value[5]);
+					LOD_AV4(_r3, Value[7], Value[6], 0.25f, Value[1]);
+					LOD_AV4(_r4, Value[2], Value[8], 0.0f, -Value[4]);
+					float F = 0.5f / sqrt(horizontal_add(_r2));
+					_r3 += _r4;
+					_r3 *= F;
+					_r3.store((float*)this);
+					Z = 0.25f / F;
 				}
 			}
+			else
+			{
+				LOD_AV4(_r2, 0.0f, Value[8], Value[2], Value[4]);
+				LOD_AV4(_r3, 0.0f, Value[6], Value[7], Value[1]);
+				float F = 0.5f / sqrt(T + 1.0f);
+				_r3 -= _r2;
+				_r3 *= F;
+				_r3.store((float*)this);
+				X = 0.25f / F;
+			}
 
-			float Len = std::sqrt(X * X + Y * Y + Z * Z + W * W);
-			X /= Len;
-			Y /= Len;
-			Z /= Len;
-			W /= Len;
+			LOD_FV4(_r4);
+			_r4 /= sqrt(horizontal_add(square(_r4)));
+			_r4.store((float*)this);
+#else
+			float T = Value[0] + Value[5] + Value[9];
+			if (T <= 0.0f)
+			{
+				if (Value[0] > Value[5] && Value[0] > Value[9])
+				{
+					float F = 2.0f * std::sqrt(1.0f + Value[0] - Value[5] - Value[9]);
+					X = 0.25f * F;
+					Y = (Value[4] + Value[1]) / F;
+					Z = (Value[7] + Value[2]) / F;
+					W = (Value[6] - Value[8]) / F;
+				}
+				else if (Value[5] > Value[9])
+				{
+					float F = 2.0f * std::sqrt(1.0f + Value[5] - Value[0] - Value[9]);
+					X = (Value[4] + Value[1]) / F;
+					Y = 0.25f * F;
+					Z = (Value[8] + Value[6]) / F;
+					W = (Value[7] - Value[2]) / F;
+				}
+				else
+				{
+					float F = 2.0f * std::sqrt(1.0f + Value[9] - Value[0] - Value[5]);
+					X = (Value[7] + Value[2]) / F;
+					Y = (Value[6] + Value[8]) / F;
+					Z = 0.25f * F;
+					W = (Value[1] - Value[4]) / F;
+				}
+			}
+			else
+			{
+				float F = 0.5f / std::sqrt(T + 1.0f);
+				X = 0.25f / F;
+				Y = (Value[6] - Value[8]) * F;
+				Z = (Value[7] - Value[2]) * F;
+				W = (Value[1] - Value[4]) * F;
+			}
+
+			float F = std::sqrt(X * X + Y * Y + Z * Z + W * W);
+			X /= F;
+			Y /= F;
+			Z /= F;
+			W /= F;
+#endif
 		}
 		void Quaternion::Set(const Quaternion& Value)
 		{
@@ -2176,98 +2633,173 @@ namespace Tomahawk
 			Z = Value.Z;
 			W = Value.W;
 		}
-		Quaternion Quaternion::operator *(float r) const
+		Quaternion Quaternion::operator *(float R) const
 		{
-			return Quaternion(X * r, Y * r, Z * r, W * r);
+			return Mul(R);
 		}
-		Quaternion Quaternion::operator *(const Vector3& r) const
+		Quaternion Quaternion::operator *(const Vector3& R) const
 		{
-			float w_ = -X * r.X - Y * r.Y - Z * r.Z;
-			float x_ = W * r.X + Y * r.Z - Z * r.Y;
-			float y_ = W * r.Y + Z * r.X - X * r.Z;
-			float z_ = W * r.Z + X * r.Y - Y * r.X;
-
-			return Quaternion(x_, y_, z_, w_);
+			return Mul(R);
 		}
-		Quaternion Quaternion::operator *(const Quaternion& r) const
+		Quaternion Quaternion::operator *(const Quaternion& R) const
 		{
-			float w_ = W * r.W - X * r.X - Y * r.Y - Z * r.Z;
-			float x_ = X * r.W + W * r.X + Y * r.Z - Z * r.Y;
-			float y_ = Y * r.W + W * r.Y + Z * r.X - X * r.Z;
-			float z_ = Z * r.W + W * r.Z + X * r.Y - Y * r.X;
-
-			return Quaternion(x_, y_, z_, w_);
+			return Mul(R);
 		}
-		Quaternion Quaternion::operator -(const Quaternion& r) const
+		Quaternion Quaternion::operator -(const Quaternion& R) const
 		{
-			return Quaternion(X - r.X, Y - r.Y, Z - r.Z, W - r.W);
+			return Sub(R);
 		}
-		Quaternion Quaternion::operator +(const Quaternion& r) const
+		Quaternion Quaternion::operator +(const Quaternion& R) const
 		{
-			return Quaternion(X + r.X, Y + r.Y, Z + r.Z, W + r.W);
+			return Add(R);
 		}
-		Quaternion& Quaternion::operator =(const Quaternion& r)
+		Quaternion& Quaternion::operator =(const Quaternion& R)
 		{
-			this->X = r.X;
-			this->Y = r.Y;
-			this->Z = r.Z;
-			this->W = r.W;
+			this->X = R.X;
+			this->Y = R.Y;
+			this->Z = R.Z;
+			this->W = R.W;
 			return *this;
 		}
 		Quaternion Quaternion::Normalize() const
 		{
-			float Len = Length();
-			return Quaternion(X / Len, Y / Len, Z / Len, W / Len);
+#ifdef TH_HAS_SIMD
+			LOD_FV4(_r1);
+			_r1 /= sqrt(horizontal_add(square(_r1)));
+
+			Quaternion Result;
+			_r1.store((float*)&Result);
+			return Result;
+#else
+			float F = Length();
+			return Quaternion(X / F, Y / F, Z / F, W / F);
+#endif
+		}
+		Quaternion Quaternion::sNormalize() const
+		{
+#ifdef TH_HAS_SIMD
+			LOD_FV4(_r1);
+			float F = sqrt(horizontal_add(square(_r1)));
+			if (F == 0.0f)
+				return Quaternion();
+
+			Quaternion Result;
+			_r1 /= F;
+			_r1.store((float*)&Result);
+			return Result;
+#else
+			float F = Length();
+			if (F == 0.0f)
+				return Quaternion();
+
+			return Quaternion(X / F, Y / F, Z / F, W / F);
+#endif
 		}
 		Quaternion Quaternion::Conjugate() const
 		{
 			return Quaternion(-X, -Y, -Z, W);
 		}
-		Quaternion Quaternion::Mul(float r) const
+		Quaternion Quaternion::Mul(float R) const
 		{
-			return Quaternion(X * r, Y * r, Z * r, W * r);
-		}
-		Quaternion Quaternion::Mul(const Quaternion& r) const
-		{
-			float w_ = W * r.W - X * r.X - Y * r.Y - Z * r.Z;
-			float x_ = X * r.W + W * r.X + Y * r.Z - Z * r.Y;
-			float y_ = Y * r.W + W * r.Y + Z * r.X - X * r.Z;
-			float z_ = Z * r.W + W * r.Z + X * r.Y - Y * r.X;
+#ifdef TH_HAS_SIMD
+			LOD_FV4(_r1);
+			_r1 *= R;
 
-			return Quaternion(x_, y_, z_, w_);
+			Quaternion Result;
+			_r1.store((float*)&Result);
+			return Result;
+#else
+			return Quaternion(X * R, Y * R, Z * R, W * R);
+#endif
 		}
-		Quaternion Quaternion::Mul(const Vector3& r) const
+		Quaternion Quaternion::Mul(const Quaternion& R) const
 		{
-			float w_ = -X * r.X - Y * r.Y - Z * r.Z;
-			float x_ = W * r.X + Y * r.Z - Z * r.Y;
-			float y_ = W * r.Y + Z * r.X - X * r.Z;
-			float z_ = W * r.Z + X * r.Y - Y * r.X;
+#ifdef TH_HAS_SIMD
+			LOD_AV4(_r1, W, -X, -Y, -Z);
+			LOD_AV4(_r2, X, W, Y, -Z);
+			LOD_AV4(_r3, Y, W, Z, -X);
+			LOD_AV4(_r4, Z, W, X, -Y);
+			LOD_AV4(_r5, R.W, R.X, R.Y, R.Z);
+			LOD_AV4(_r6, R.W, R.X, R.Z, R.Y);
+			LOD_AV4(_r7, R.W, R.Y, R.X, R.Z);
+			LOD_AV4(_r8, R.W, R.Z, R.Y, R.X);
+			float W1 = horizontal_add(_r1 * _r5);
+			float X1 = horizontal_add(_r2 * _r6);
+			float Y1 = horizontal_add(_r3 * _r7);
+			float Z1 = horizontal_add(_r4 * _r8);
+#else
+			float W1 = W * R.W - X * R.X - Y * R.Y - Z * R.Z;
+			float X1 = X * R.W + W * R.X + Y * R.Z - Z * R.Y;
+			float Y1 = Y * R.W + W * R.Y + Z * R.X - X * R.Z;
+			float Z1 = Z * R.W + W * R.Z + X * R.Y - Y * R.X;
+#endif
+			return Quaternion(X1, Y1, Z1, W1);
+		}
+		Quaternion Quaternion::Mul(const Vector3& R) const
+		{
+#ifdef TH_HAS_SIMD
+			LOD_AV3(_r1, -X, -Y, -Z);
+			LOD_AV3(_r2, W, Y, Z);
+			LOD_AV3(_r3, W, Z, -X);
+			LOD_AV3(_r4, W, X, -Y);
+			LOD_AV3(_r5, R.X, R.Y, R.Z);
+			LOD_AV3(_r6, R.X, R.Z, R.Y);
+			LOD_AV3(_r7, R.Y, R.X, R.Z);
+			LOD_AV3(_r8, R.Z, R.Y, R.X);
+			float W1 = horizontal_add(_r1 * _r5);
+			float X1 = horizontal_add(_r2 * _r6);
+			float Y1 = horizontal_add(_r3 * _r7);
+			float Z1 = horizontal_add(_r4 * _r8);
+#else
+			float W1 = -X * R.X - Y * R.Y - Z * R.Z;
+			float X1 = W * R.X + Y * R.Z - Z * R.Y;
+			float Y1 = W * R.Y + Z * R.X - X * R.Z;
+			float Z1 = W * R.Z + X * R.Y - Y * R.X;
+#endif
+			return Quaternion(X1, Y1, Z1, W1);
+		}
+		Quaternion Quaternion::Sub(const Quaternion& R) const
+		{
+#ifdef TH_HAS_SIMD
+			LOD_FV4(_r1);
+			LOD_V4(_r2, R);
+			_r1 -= _r2;
 
-			return Quaternion(x_, y_, z_, w_);
+			Quaternion Result;
+			_r1.store((float*)&Result);
+			return Result;
+#else
+			return Quaternion(X - R.X, Y - R.Y, Z - R.Z, W - R.W);
+#endif
 		}
-		Quaternion Quaternion::Sub(const Quaternion& r) const
+		Quaternion Quaternion::Add(const Quaternion& R) const
 		{
-			return Quaternion(X - r.X, Y - r.Y, Z - r.Z, W - r.W);
-		}
-		Quaternion Quaternion::Add(const Quaternion& r) const
-		{
-			return Quaternion(X + r.X, Y + r.Y, Z + r.Z, W + r.W);
+#ifdef TH_HAS_SIMD
+			LOD_FV4(_r1);
+			LOD_V4(_r2, R);
+			_r1 += _r2;
+
+			Quaternion Result;
+			_r1.store((float*)&Result);
+			return Result;
+#else
+			return Quaternion(X + R.X, Y + R.Y, Z + R.Z, W + R.W);
+#endif
 		}
 		Quaternion Quaternion::Lerp(const Quaternion& B, float DeltaTime) const
 		{
 			Quaternion Correction = B;
-
-			if (DotProduct(B) < 0)
+			if (Dot(B) < 0.0f)
 				Correction = Quaternion(-B.X, -B.Y, -B.Z, -B.W);
 
 			return (Correction - *this) * DeltaTime + Normalize();
 		}
-		Quaternion Quaternion::SphericalLerp(const Quaternion& B, float DeltaTime) const
+		Quaternion Quaternion::sLerp(const Quaternion& B, float DeltaTime) const
 		{
 			Quaternion Correction = B;
-			float Cos = DotProduct(B);
+			float Cos = Dot(B);
 
-			if (Cos < 0)
+			if (Cos < 0.0f)
 			{
 				Correction = Quaternion(-B.X, -B.Y, -B.Z, -B.W);
 				Cos = -Cos;
@@ -2278,98 +2810,125 @@ namespace Tomahawk
 
 			float Sin = std::sqrt(1.0f - Cos * Cos);
 			float Angle = std::atan2(Sin, Cos);
-			float InvertedSin = 1.0f / Sin;
-
-			float Source = std::sin(Angle - DeltaTime * Angle) * InvertedSin;
-			float Destination = std::sin(DeltaTime * Angle) * InvertedSin;
+			float InvedSin = 1.0f / Sin;
+			float Source = std::sin(Angle - DeltaTime * Angle) * InvedSin;
+			float Destination = std::sin(DeltaTime * Angle) * InvedSin;
 
 			return Mul(Source).Add(Correction.Mul(Destination));
 		}
-		Quaternion Quaternion::CreateEulerRotation(const Vector3& GetEuler)
+		Quaternion Quaternion::CreateEulerRotation(const Vector3& V)
 		{
-			float SinX = std::sin(GetEuler.X / 2);
-			float CosX = std::cos(GetEuler.X / 2);
-			float SinY = std::sin(GetEuler.Y / 2);
-			float CosY = std::cos(GetEuler.Y / 2);
-			float SinZ = std::sin(GetEuler.Z / 2);
-			float CosZ = std::cos(GetEuler.Z / 2);
-
-			Quaternion Q;
-			Q.W = CosX * CosY;
-			Q.X = SinX * CosY;
-			Q.Y = CosX * SinY;
-			Q.Z = SinX * SinY;
-
-			float FinalW = Q.W * CosZ - Q.Z * SinZ;
-			float FinalX = Q.X * CosZ + Q.Y * SinZ;
-			float FinalY = Q.Y * CosZ - Q.X * SinZ;
-			float FinalZ = Q.Z * CosZ + Q.W * SinZ;
-
-			Q.X = FinalX;
-			Q.Y = FinalY;
-			Q.Z = FinalZ;
-			Q.W = FinalW;
-			return Q;
+			Quaternion Result;
+			Result.SetEuler(V);
+			return Result;
 		}
-		Quaternion Quaternion::CreateRotation(const Matrix4x4& Transform)
+		Quaternion Quaternion::CreateRotation(const Matrix4x4& V)
 		{
-			Quaternion Q;
-			float trace = Transform[0] + Transform[5] + Transform[9];
+			Quaternion Result;
+			Result.SetMatrix(V);
+			return Result;
+		}
+		Vector3 Quaternion::Forward() const
+		{
+#ifdef TH_HAS_SIMD
+			LOD_AV4(_r1, X, -W, Y, W);
+			LOD_AV4(_r2, Z, Y, Z, X);
+			LOD_AV2(_r3, X, Y);
+			_r1 *= _r2;
+			_r2 = permute4f<-1, -1, 2, 3>(_r1);
+			_r1 = permute4f<0, 1, -1, -1>(_r1);
+			_r3 = square(_r3);
 
-			if (trace > 0)
-			{
-				float s = 0.5f / std::sqrt(trace + 1.0f);
-				Q.X = 0.25f / s;
-				Q.Y = (Transform[6] - Transform[8]) * s;
-				Q.Z = (Transform[7] - Transform[2]) * s;
-				Q.W = (Transform[1] - Transform[4]) * s;
-			}
-			else
-			{
-				if (Transform[0] > Transform[5] && Transform[0] > Transform[9])
-				{
-					float s = 2.0f * std::sqrt(1.0f + Transform[0] - Transform[5] - Transform[9]);
-					Q.W = (Transform[6] - Transform[8]) / s;
-					Q.X = 0.25f * s;
-					Q.Y = (Transform[4] + Transform[1]) / s;
-					Q.Z = (Transform[7] + Transform[2]) / s;
-				}
-				else if (Transform[5] > Transform[9])
-				{
-					float s = 2.0f * std::sqrt(1.0f + Transform[5] - Transform[0] - Transform[9]);
-					Q.W = (Transform[7] - Transform[2]) / s;
-					Q.X = (Transform[4] + Transform[1]) / s;
-					Q.Y = 0.25f * s;
-					Q.Z = (Transform[8] + Transform[6]) / s;
-				}
-				else
-				{
-					float s = 2.0f * std::sqrt(1.0f + Transform[9] - Transform[0] - Transform[5]);
-					Q.W = (Transform[1] - Transform[4]) / s;
-					Q.X = (Transform[7] + Transform[2]) / s;
-					Q.Y = (Transform[6] + Transform[8]) / s;
-					Q.Z = 0.25f * s;
-				}
-			}
+			Vector3 Result(horizontal_add(_r1), horizontal_add(_r2), horizontal_add(_r3));
+			Result *= 2.0f;
+			Result.Z = 1.0f - Result.Z;
+			return Result;
+#else
+			return Vector3(
+				2.0f * (X * Z - W * Y),
+				2.0f * (Y * Z + W * X),
+				1.0f - 2.0f * (X * X + Y * Y));
+#endif
+		}
+		Vector3 Quaternion::Up() const
+		{
+#ifdef TH_HAS_SIMD
+			LOD_AV4(_r1, X, W, Y, -W);
+			LOD_AV4(_r2, Y, Z, Z, X);
+			LOD_AV2(_r3, X, Z);
+			_r1 *= _r2;
+			_r2 = permute4f<-1, -1, 2, 3>(_r1);
+			_r1 = permute4f<0, 1, -1, -1>(_r1);
+			_r3 = square(_r3);
 
-			float Len = std::sqrt(Q.X * Q.X + Q.Y * Q.Y + Q.Z * Q.Z + Q.W * Q.W);
-			Q.X /= Len;
-			Q.Y /= Len;
-			Q.Z /= Len;
-			Q.W /= Len;
+			Vector3 Result(horizontal_add(_r1), horizontal_add(_r3), horizontal_add(_r2));
+			Result *= 2.0f;
+			Result.Y = 1.0f - Result.Y;
+			return Result;
+#else
+			return Vector3(
+				2.0f * (X * Y + W * Z),
+				1.0f - 2.0f * (X * X + Z * Z),
+				2.0f * (Y * Z - W * X));
+#endif
+		}
+		Vector3 Quaternion::Right() const
+		{
+#ifdef TH_HAS_SIMD
+			LOD_AV4(_r1, X, -W, X, W);
+			LOD_AV4(_r2, Y, Z, Z, Y);
+			LOD_AV2(_r3, Y, Z);
+			_r1 *= _r2;
+			_r2 = permute4f<-1, -1, 2, 3>(_r1);
+			_r1 = permute4f<0, 1, -1, -1>(_r1);
+			_r3 = square(_r3);
 
-			return Q;
+			Vector3 Result(horizontal_add(_r3), horizontal_add(_r1), horizontal_add(_r2));
+			Result *= 2.0f;
+			Result.X = 1.0f - Result.X;
+			return Result;
+#else
+			return Vector3(
+				1.0f - 2.0f * (Y * Y + Z * Z),
+				2.0f * (X * Y - W * Z),
+				2.0f * (X * Z + W * Y));
+#endif
 		}
 		Matrix4x4 Quaternion::GetMatrix() const
 		{
-			Vector3 Forward = Vector3(2.0f * (X * Z - W * Y), 2.0f * (Y * Z + W * X), 1.0f - 2.0f * (X * X + Y * Y));
-			Vector3 Up = Vector3(2.0f * (X * Y + W * Z), 1.0f - 2.0f * (X * X + Z * Z), 2.0f * (Y * Z - W * X));
-			Vector3 Right = Vector3(1.0f - 2.0f * (Y * Y + Z * Z), 2.0f * (X * Y - W * Z), 2.0f * (X * Z + W * Y));
-
-			return Matrix4x4::CreateRotation(Forward, Up, Right);
+			return Matrix4x4::CreateRotation(Forward(), Up(), Right());
 		}
 		Vector3 Quaternion::GetEuler() const
 		{
+#ifdef TH_HAS_SIMD
+			LOD_AV4(_r1, W, Y, W, -Z);
+			LOD_AV4(_r2, X, Z, Y, X);
+			LOD_FV3(_r3);
+			LOD_AV2(_r4, W, Z);
+			LOD_AV2(_r5, X, Y);
+			float XYZW[4];
+			_r1 *= _r2;
+			_r4 *= _r5;
+			_r2 = permute4f<-1, -1, 2, 3>(_r1);
+			_r1 = permute4f<0, 1, -1, -1>(_r1);
+			_r3 = square(_r3);
+			_r3.store(XYZW);
+
+			float T0 = +2.0f * horizontal_add(_r1);
+			float T1 = +1.0f - 2.0f * (XYZW[0] + XYZW[1]);
+			float Roll = Mathf::Atan2(T0, T1);
+
+			float T2 = +2.0f * horizontal_add(_r2);
+			T2 = ((T2 > 1.0f) ? 1.0f : T2);
+			T2 = ((T2 < -1.0f) ? -1.0f : T2);
+			float Pitch = Mathf::Asin(T2);
+
+			float T3 = +2.0f * horizontal_add(_r4);
+			float T4 = +1.0f - 2.0f * (XYZW[1] + XYZW[2]);
+			float Yaw = Mathf::Atan2(T3, T4);
+
+			return Vector3(Roll, Pitch, Yaw);
+#else
 			float Y2 = Y * Y;
 			float T0 = +2.0f * (W * X + Y * Z);
 			float T1 = +1.0f - 2.0f * (X * X + Y2);
@@ -2385,14 +2944,27 @@ namespace Tomahawk
 			float Yaw = Mathf::Atan2(T3, T4);
 
 			return Vector3(Roll, Pitch, Yaw);
+#endif
 		}
-		float Quaternion::DotProduct(const Quaternion& r) const
+		float Quaternion::Dot(const Quaternion& R) const
 		{
-			return X * r.X + Y * r.Y + Z * r.Z + W * r.W;
+#ifdef TH_HAS_SIMD
+			LOD_FV4(_r1);
+			LOD_V4(_r2, R);
+			_r1 *= _r2;
+			return horizontal_add(_r1);
+#else
+			return X * R.X + Y * R.Y + Z * R.Z + W * R.W;
+#endif
 		}
 		float Quaternion::Length() const
 		{
+#ifdef TH_HAS_SIMD
+			LOD_FV4(_r1);
+			return sqrt(horizontal_add(square(_r1)));
+#else
 			return std::sqrt(X * X + Y * Y + Z * Z + W * W);
+#endif
 		}
 
 		RandomVector2::RandomVector2() : Min(0), Max(1), Intensity(false), Accuracy(1)
@@ -2403,7 +2975,15 @@ namespace Tomahawk
 		}
 		Vector2 RandomVector2::Generate()
 		{
-			return Vector2(Mathf::Random(Min.X * Accuracy, Max.X * Accuracy) / Accuracy, Mathf::Random(Min.Y * Accuracy, Max.Y * Accuracy) / Accuracy) * (Intensity ? Mathf::Random() : 1);
+			Vector2 fMin = Min * Accuracy;
+			Vector2 fMax = Max * Accuracy;
+			float InvAccuracy = 1.0f / Accuracy;
+			if (Intensity)
+				InvAccuracy *= Mathf::Random();
+
+			return Vector2(
+				Mathf::Random(fMin.X, fMax.X),
+				Mathf::Random(fMin.Y, fMax.Y)) * InvAccuracy;
 		}
 
 		RandomVector3::RandomVector3() : Min(0), Max(1), Intensity(false), Accuracy(1)
@@ -2414,7 +2994,16 @@ namespace Tomahawk
 		}
 		Vector3 RandomVector3::Generate()
 		{
-			return Vector3(Mathf::Random(Min.X * Accuracy, Max.X * Accuracy) / Accuracy, Mathf::Random(Min.Y * Accuracy, Max.Y * Accuracy) / Accuracy, Mathf::Random(Min.Z * Accuracy, Max.Z * Accuracy) / Accuracy) * (Intensity ? Mathf::Random() : 1);
+			Vector3 fMin = Min * Accuracy;
+			Vector3 fMax = Max * Accuracy;
+			float InvAccuracy = 1.0f / Accuracy;
+			if (Intensity)
+				InvAccuracy *= Mathf::Random();
+
+			return Vector3(
+				Mathf::Random(fMin.X, fMax.X),
+				Mathf::Random(fMin.Y, fMax.Y),
+				Mathf::Random(fMin.Z, fMax.Z)) * InvAccuracy;
 		}
 
 		RandomVector4::RandomVector4() : Min(0), Max(1), Intensity(false), Accuracy(1)
@@ -2425,7 +3014,17 @@ namespace Tomahawk
 		}
 		Vector4 RandomVector4::Generate()
 		{
-			return Vector4(Mathf::Random(Min.X * Accuracy, Max.X * Accuracy) / Accuracy, Mathf::Random(Min.Y * Accuracy, Max.Y * Accuracy) / Accuracy, Mathf::Random(Min.Z * Accuracy, Max.Z * Accuracy) / Accuracy, Mathf::Random(Min.W * Accuracy, Max.W * Accuracy) / Accuracy) * (Intensity ? Mathf::Random() : 1);
+			Vector4 fMin = Min * Accuracy;
+			Vector4 fMax = Max * Accuracy;
+			float InvAccuracy = 1.0f / Accuracy;
+			if (Intensity)
+				InvAccuracy *= Mathf::Random();
+
+			return Vector4(
+				Mathf::Random(fMin.X, fMax.X),
+				Mathf::Random(fMin.Y, fMax.Y),
+				Mathf::Random(fMin.Z, fMax.Z),
+				Mathf::Random(fMin.W, fMax.W)) * InvAccuracy;
 		}
 
 		RandomFloat::RandomFloat() : Min(0), Max(1), Intensity(false), Accuracy(1)
@@ -3081,26 +3680,17 @@ namespace Tomahawk
 		}
 		Adjacencies::~Adjacencies()
 		{
-			if (Edges != nullptr)
-			{
-				delete[] Edges;
-				Edges = nullptr;
-			}
-
-			if (Faces != nullptr)
-			{
-				delete[] Faces;
-				Faces = nullptr;
-			}
+			TH_FREE(Faces);
+			TH_FREE(Edges);
 		}
 		bool Adjacencies::Fill(Adjacencies::Desc& create)
 		{
 			NbFaces = create.NbFaces;
-			Faces = new AdjTriangle[NbFaces];
+			Faces = (AdjTriangle*)TH_MALLOC(sizeof(AdjTriangle) * NbFaces);
 			if (!Faces)
 				return false;
 
-			Edges = new AdjEdge[NbFaces * 3];
+			Edges = (AdjEdge*)TH_MALLOC(sizeof(AdjEdge) * NbFaces * 3);
 			if (!Edges)
 				return false;
 
@@ -3117,22 +3707,22 @@ namespace Tomahawk
 		bool Adjacencies::Resolve()
 		{
 			RadixSorter Core;
-			unsigned int* FaceNb = new unsigned int[NbEdges];
+			unsigned int* FaceNb = (unsigned int*)TH_MALLOC(sizeof(unsigned int) * NbEdges);
 			if (!FaceNb)
 				return false;
 
-			unsigned int* VRefs0 = new unsigned int[NbEdges];
+			unsigned int* VRefs0 = (unsigned int*)TH_MALLOC(sizeof(unsigned int) * NbEdges);
 			if (!VRefs0)
 			{
-				delete[] FaceNb;
+				TH_FREE(FaceNb);
 				return false;
 			}
 
-			unsigned int* VRefs1 = new unsigned int[NbEdges];
+			unsigned int* VRefs1 = (unsigned int*)TH_MALLOC(sizeof(unsigned int) * NbEdges);
 			if (!VRefs1)
 			{
-				delete[] FaceNb;
-				delete[] VRefs1;
+				TH_FREE(FaceNb);
+				TH_FREE(VRefs1);
 				return false;
 			}
 
@@ -3160,24 +3750,9 @@ namespace Tomahawk
 					TmpBuffer[Count++] = Face;
 					if (Count == 3)
 					{
-						if (VRefs1 != nullptr)
-						{
-							delete[] VRefs1;
-							VRefs1 = nullptr;
-						}
-
-						if (VRefs0 != nullptr)
-						{
-							delete[] VRefs0;
-							VRefs0 = nullptr;
-						}
-
-						if (FaceNb != nullptr)
-						{
-							delete[] FaceNb;
-							FaceNb = nullptr;
-						}
-
+						TH_FREE(FaceNb);
+						TH_FREE(VRefs0);
+						TH_FREE(VRefs1);
 						return false;
 					}
 				}
@@ -3188,24 +3763,9 @@ namespace Tomahawk
 						bool Status = UpdateLink(TmpBuffer[0], TmpBuffer[1], LastRef0, LastRef1);
 						if (!Status)
 						{
-							if (VRefs1 != nullptr)
-							{
-								delete[] VRefs1;
-								VRefs1 = nullptr;
-							}
-
-							if (VRefs0 != nullptr)
-							{
-								delete[] VRefs0;
-								VRefs0 = nullptr;
-							}
-
-							if (FaceNb != nullptr)
-							{
-								delete[] FaceNb;
-								FaceNb = nullptr;
-							}
-
+							TH_FREE(FaceNb);
+							TH_FREE(VRefs0);
+							TH_FREE(VRefs1);
 							return Status;
 						}
 					}
@@ -3221,29 +3781,10 @@ namespace Tomahawk
 			if (Count == 2)
 				Status = UpdateLink(TmpBuffer[0], TmpBuffer[1], LastRef0, LastRef1);
 
-			if (VRefs1 != nullptr)
-			{
-				delete[] VRefs1;
-				VRefs1 = nullptr;
-			}
-
-			if (VRefs0 != nullptr)
-			{
-				delete[] VRefs0;
-				VRefs0 = nullptr;
-			}
-
-			if (FaceNb != nullptr)
-			{
-				delete[] FaceNb;
-				FaceNb = nullptr;
-			}
-
-			if (Edges != nullptr)
-			{
-				delete[] Edges;
-				Edges = nullptr;
-			}
+			TH_FREE(FaceNb);
+			TH_FREE(VRefs0);
+			TH_FREE(VRefs1);
+			TH_FREE(Edges);
 
 			return Status;
 		}
@@ -3313,18 +3854,11 @@ namespace Tomahawk
 			std::vector<unsigned int>().swap(SingleStrip);
 			std::vector<unsigned int>().swap(StripRuns);
 			std::vector<unsigned int>().swap(StripLengths);
+			TH_FREE(Tags);
+			Tags = nullptr;
 
-			if (Tags != nullptr)
-			{
-				delete[] Tags;
-				Tags = nullptr;
-			}
-
-			if (Adj != nullptr)
-			{
-				delete Adj;
-				Adj = nullptr;
-			}
+			TH_DELETE(Adjacencies, Adj);
+			Adj = nullptr;
 
 			return *this;
 		}
@@ -3332,7 +3866,7 @@ namespace Tomahawk
 		{
 			FreeBuffers();
 			{
-				Adj = new Adjacencies();
+				Adj = TH_NEW(Adjacencies);
 				if (!Adj)
 					return false;
 
@@ -3342,17 +3876,15 @@ namespace Tomahawk
 
 				if (!Adj->Fill(ac))
 				{
-					delete Adj;
+					TH_DELETE(Adjacencies, Adj);
 					Adj = nullptr;
-
 					return false;
 				}
 
 				if (!Adj->Resolve())
 				{
-					delete Adj;
+					TH_DELETE(Adjacencies, Adj);
 					Adj = nullptr;
-
 					return false;
 				}
 
@@ -3368,14 +3900,14 @@ namespace Tomahawk
 			if (!Adj)
 				return false;
 
-			Tags = new bool[Adj->NbFaces];
+			Tags = (bool*)TH_MALLOC(sizeof(bool) * Adj->NbFaces);
 			if (!Tags)
 				return false;
 
-			unsigned int* Connectivity = new unsigned int[Adj->NbFaces];
+			unsigned int* Connectivity = (unsigned int*)TH_MALLOC(sizeof(unsigned int) * Adj->NbFaces);
 			if (!Connectivity)
 			{
-				delete[] Tags;
+				TH_FREE(Tags);
 				return false;
 			}
 
@@ -3421,9 +3953,8 @@ namespace Tomahawk
 				NbStrips++;
 			}
 
-			delete[] Connectivity;
-			delete[] Tags;
-
+			TH_FREE(Connectivity);
+			TH_FREE(Tags);
 			result.Groups = StripLengths;
 			result.Strips = StripRuns;
 
@@ -3452,12 +3983,12 @@ namespace Tomahawk
 
 			for (unsigned int j = 0; j < 3; j++)
 			{
-				Strip[j] = new unsigned int[Adj->NbFaces + 2 + 1 + 2];
-				Faces[j] = new unsigned int[Adj->NbFaces + 2];
+				Strip[j] = (unsigned int*)TH_MALLOC(sizeof(unsigned int) * (Adj->NbFaces + 2 + 1 + 2));
+				Faces[j] = (unsigned int*)TH_MALLOC(sizeof(unsigned int) * (Adj->NbFaces + 2));
 				memset(Strip[j], 0xff, (Adj->NbFaces + 2 + 1 + 2) * sizeof(unsigned int));
 				memset(Faces[j], 0xff, (Adj->NbFaces + 2) * sizeof(unsigned int));
 
-				bool* vTags = new bool[Adj->NbFaces];
+				bool* vTags = (bool*)TH_MALLOC(sizeof(bool) * Adj->NbFaces);
 				memcpy(vTags, Tags, Adj->NbFaces * sizeof(bool));
 
 				Length[j] = TrackStrip(face, Refs0[j], Refs1[j], &Strip[j][0], &Faces[j][0], vTags);
@@ -3481,7 +4012,7 @@ namespace Tomahawk
 				unsigned int NewRef1 = Strip[j][Length[j] - 2];
 				unsigned int ExtraLength = TrackStrip(face, NewRef0, NewRef1, &Strip[j][Length[j] - 3], &Faces[j][Length[j] - 3], vTags);
 				Length[j] += ExtraLength - 3;
-				delete[] vTags;
+				TH_FREE(vTags);
 			}
 
 			unsigned int Longest = Length[0];
@@ -3538,17 +4069,8 @@ namespace Tomahawk
 			StripLengths.push_back(Longest);
 			for (unsigned int j = 0; j < 3; j++)
 			{
-				if (Faces[j] != nullptr)
-				{
-					delete[] Faces[j];
-					Faces[j] = nullptr;
-				}
-
-				if (Strip[j] != nullptr)
-				{
-					delete[] Strip[j];
-					Strip[j] = nullptr;
-				}
+				TH_FREE(Faces[j]);
+				TH_FREE(Strip[j]);
 			}
 
 			return NbFaces;
@@ -3675,14 +4197,14 @@ namespace Tomahawk
 
 		RadixSorter::RadixSorter() : Indices(nullptr), Indices2(nullptr), CurrentSize(0)
 		{
-			Histogram = new unsigned int[256 * 4];
-			Offset = new unsigned int[256];
+			Histogram = (unsigned int*)TH_MALLOC(sizeof(unsigned int) * 256 * 4);
+			Offset = (unsigned int*)TH_MALLOC(sizeof(unsigned int) * 256);
 			ResetIndices();
 		}
 		RadixSorter::RadixSorter(const RadixSorter& Other) : Indices(nullptr), Indices2(nullptr), CurrentSize(0)
 		{
-			Histogram = new unsigned int[256 * 4];
-			Offset = new unsigned int[256];
+			Histogram = (unsigned int*)TH_MALLOC(sizeof(unsigned int) * 256 * 4);
+			Offset = (unsigned int*)TH_MALLOC(sizeof(unsigned int) * 256);
 			ResetIndices();
 		}
 		RadixSorter::RadixSorter(RadixSorter&& Other) : Indices(Other.Indices), Indices2(Other.Indices2), CurrentSize(Other.CurrentSize), Histogram(Other.Histogram), Offset(Other.Offset)
@@ -3695,48 +4217,19 @@ namespace Tomahawk
 		}
 		RadixSorter::~RadixSorter()
 		{
-			if (Offset != nullptr)
-			{
-				delete[] Offset;
-				Offset = nullptr;
-			}
-
-			if (Histogram != nullptr)
-			{
-				delete[] Histogram;
-				Histogram = nullptr;
-			}
-
-			if (Indices2 != nullptr)
-			{
-				delete[] Indices2;
-				Indices2 = nullptr;
-			}
-
-			if (Indices != nullptr)
-			{
-				delete[] Indices;
-				Indices = nullptr;
-			}
+			TH_FREE(Offset);
+			TH_FREE(Histogram);
+			TH_FREE(Indices2);
+			TH_FREE(Indices);
 		}
 		RadixSorter& RadixSorter::Sort(unsigned int* input, unsigned int nb, bool signedvalues)
 		{
 			if (nb > CurrentSize)
 			{
-				if (Indices2 != nullptr)
-				{
-					delete[] Indices2;
-					Indices2 = nullptr;
-				}
-
-				if (Indices != nullptr)
-				{
-					delete[] Indices;
-					Indices = nullptr;
-				}
-
-				Indices = new unsigned int[nb];
-				Indices2 = new unsigned int[nb];
+				TH_FREE(Indices2);
+				TH_FREE(Indices);
+				Indices = (unsigned int*)TH_MALLOC(sizeof(unsigned int) * nb);
+				Indices2 = (unsigned int*)TH_MALLOC(sizeof(unsigned int) * nb);
 				CurrentSize = nb;
 				ResetIndices();
 			}
@@ -3856,20 +4349,10 @@ namespace Tomahawk
 			unsigned int* input = (unsigned int*)input2;
 			if (nb > CurrentSize)
 			{
-				if (Indices2 != nullptr)
-				{
-					delete[] Indices2;
-					Indices2 = nullptr;
-				}
-
-				if (Indices != nullptr)
-				{
-					delete[] Indices;
-					Indices = nullptr;
-				}
-
-				Indices = new unsigned int[nb];
-				Indices2 = new unsigned int[nb];
+				TH_FREE(Indices2);
+				TH_FREE(Indices);
+				Indices = (unsigned int*)TH_MALLOC(sizeof(unsigned int) * nb);
+				Indices2 = (unsigned int*)TH_MALLOC(sizeof(unsigned int) * nb);
 				CurrentSize = nb;
 				ResetIndices();
 			}
@@ -4121,7 +4604,6 @@ namespace Tomahawk
 		void MD5Hasher::Finalize()
 		{
 			static unsigned char Padding[64] = { 0x80, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0 };
-
 			if (Finalized)
 				return;
 
@@ -4225,6 +4707,49 @@ namespace Tomahawk
 
 		float Common::IsCubeInFrustum(const Matrix4x4& WVP, float Radius)
 		{
+			Radius = -Radius;
+#ifdef TH_HAS_SIMD
+			LOD_AV4(_r1, WVP.Row[3], WVP.Row[7], WVP.Row[11], WVP.Row[15]);
+			LOD_AV4(_r2, WVP.Row[0], WVP.Row[4], WVP.Row[8], WVP.Row[12]);
+			LOD_VAL(_r3, _r1 + _r2);
+			float F = _r3.extract(3); _r3.cutoff(3);
+			F /= sqrt(horizontal_add(square(_r3)));
+			if (F <= Radius)
+				return F;
+
+			_r3 = _r1 - _r2;
+			F = _r3.extract(3); _r3.cutoff(3);
+			F /= sqrt(horizontal_add(square(_r3)));
+			if (F <= Radius)
+				return F;
+
+			_r2 = Vec4f(WVP.Row[1], WVP.Row[5], WVP.Row[9], WVP.Row[13]);
+			_r3 = _r1 + _r2;
+			F = _r3.extract(3); _r3.cutoff(3);
+			F /= sqrt(horizontal_add(square(_r3)));
+			if (F <= Radius)
+				return F;
+
+			_r3 = _r1 - _r2;
+			F = _r3.extract(3); _r3.cutoff(3);
+			F /= sqrt(horizontal_add(square(_r3)));
+			if (F <= Radius)
+				return F;
+
+			_r2 = Vec4f(WVP.Row[2], WVP.Row[6], WVP.Row[10], WVP.Row[14]);
+			_r3 = _r1 + _r2;
+			F = _r3.extract(3); _r3.cutoff(3);
+			F /= sqrt(horizontal_add(square(_r3)));
+			if (F <= Radius)
+				return F;
+
+			_r2 = Vec4f(WVP.Row[2], WVP.Row[6], WVP.Row[10], WVP.Row[14]);
+			_r3 = _r1 - _r2;
+			F = _r3.extract(3); _r3.cutoff(3);
+			F /= sqrt(horizontal_add(square(_r3)));
+			if (F <= Radius)
+				return F;
+#else
 			float Plane[4];
 			Plane[0] = WVP.Row[3] + WVP.Row[0];
 			Plane[1] = WVP.Row[7] + WVP.Row[4];
@@ -4232,7 +4757,7 @@ namespace Tomahawk
 			Plane[3] = WVP.Row[15] + WVP.Row[12];
 
 			Plane[3] /= sqrtf(Plane[0] * Plane[0] + Plane[1] * Plane[1] + Plane[2] * Plane[2]);
-			if (Plane[3] <= -Radius)
+			if (Plane[3] <= Radius)
 				return Plane[3];
 
 			Plane[0] = WVP.Row[3] - WVP.Row[0];
@@ -4241,7 +4766,7 @@ namespace Tomahawk
 			Plane[3] = WVP.Row[15] - WVP.Row[12];
 
 			Plane[3] /= sqrtf(Plane[0] * Plane[0] + Plane[1] * Plane[1] + Plane[2] * Plane[2]);
-			if (Plane[3] <= -Radius)
+			if (Plane[3] <= Radius)
 				return Plane[3];
 
 			Plane[0] = WVP.Row[3] + WVP.Row[1];
@@ -4250,7 +4775,7 @@ namespace Tomahawk
 			Plane[3] = WVP.Row[15] + WVP.Row[13];
 
 			Plane[3] /= sqrtf(Plane[0] * Plane[0] + Plane[1] * Plane[1] + Plane[2] * Plane[2]);
-			if (Plane[3] <= -Radius)
+			if (Plane[3] <= Radius)
 				return Plane[3];
 
 			Plane[0] = WVP.Row[3] - WVP.Row[1];
@@ -4259,7 +4784,7 @@ namespace Tomahawk
 			Plane[3] = WVP.Row[15] - WVP.Row[13];
 
 			Plane[3] /= sqrtf(Plane[0] * Plane[0] + Plane[1] * Plane[1] + Plane[2] * Plane[2]);
-			if (Plane[3] <= -Radius)
+			if (Plane[3] <= Radius)
 				return Plane[3];
 
 			Plane[0] = WVP.Row[3] + WVP.Row[2];
@@ -4268,7 +4793,7 @@ namespace Tomahawk
 			Plane[3] = WVP.Row[15] + WVP.Row[14];
 
 			Plane[3] /= sqrtf(Plane[0] * Plane[0] + Plane[1] * Plane[1] + Plane[2] * Plane[2]);
-			if (Plane[3] <= -Radius)
+			if (Plane[3] <= Radius)
 				return Plane[3];
 
 			Plane[0] = WVP.Row[3] - WVP.Row[2];
@@ -4277,10 +4802,10 @@ namespace Tomahawk
 			Plane[3] = WVP.Row[15] - WVP.Row[14];
 
 			Plane[3] /= sqrtf(Plane[0] * Plane[0] + Plane[1] * Plane[1] + Plane[2] * Plane[2]);
-			if (Plane[3] <= -Radius)
+			if (Plane[3] <= Radius)
 				return Plane[3];
-
-			return -1;
+#endif
+			return -1.0f;
 		}
 		bool Common::HasSphereIntersected(const Vector3& PositionR0, float RadiusR0, const Vector3& PositionR1, float RadiusR1)
 		{
@@ -4362,7 +4887,7 @@ namespace Tomahawk
 			if (R1->Rotation + R0->Rotation == 0)
 				return HasAABBIntersected(R0, R1);
 
-			Matrix4x4 Temp0 = Matrix4x4::Create(R0->Position - R1->Position, R0->Scale, R0->Rotation) * Matrix4x4::CreateRotation(R1->Rotation).Invert();
+			Matrix4x4 Temp0 = Matrix4x4::Create(R0->Position - R1->Position, R0->Scale, R0->Rotation) * Matrix4x4::CreateRotation(R1->Rotation).Inv();
 			if (HasLineIntersectedCube(-R1->Scale, R1->Scale, Vector4(1, 1, 1, 1).Transform(Temp0.Row).XYZ(), Vector4(-1, -1, -1, 1).Transform(Temp0.Row).XYZ()))
 				return true;
 
@@ -4384,7 +4909,7 @@ namespace Tomahawk
 			if (HasLineIntersectedCube(-R1->Scale, R1->Scale, Vector4(0, 0, 1, 1).Transform(Temp0.Row).XYZ(), Vector4(0, 0, -1, 1).Transform(Temp0.Row).XYZ()))
 				return true;
 
-			Temp0 = Matrix4x4::Create(R1->Position - R0->Position, R1->Scale, R1->Rotation) * Matrix4x4::CreateRotation(R0->Rotation).Invert();
+			Temp0 = Matrix4x4::Create(R1->Position - R0->Position, R1->Scale, R1->Rotation) * Matrix4x4::CreateRotation(R0->Rotation).Inv();
 			if (HasLineIntersectedCube(-R0->Scale, R0->Scale, Vector4(1, 1, 1, 1).Transform(Temp0.Row).XYZ(), Vector4(-1, -1, -1, 1).Transform(Temp0.Row).XYZ()))
 				return true;
 
@@ -4486,9 +5011,8 @@ namespace Tomahawk
 		void Common::ComputeMatrixOrientation(Compute::Matrix4x4* Matrix, bool LeftHanded)
 		{
 			Compute::Matrix4x4 Coord(1, 0, 0, 0, 0, 1, 0, 0, 0, 0, -1, 0, 0, 0, 0, 1);
-
 			if (!LeftHanded)
-				Coord = Coord.Invert();
+				Coord = Coord.Inv();
 
 			if (Matrix != nullptr)
 				*Matrix = *Matrix * Coord;
@@ -4496,9 +5020,8 @@ namespace Tomahawk
 		void Common::ComputePositionOrientation(Compute::Vector3* Position, bool LeftHanded)
 		{
 			Compute::Matrix4x4 Coord(1, 0, 0, 0, 0, 1, 0, 0, 0, 0, -1, 0, 0, 0, 0, 1);
-
 			if (!LeftHanded)
-				Coord = Coord.Invert();
+				Coord = Coord.Inv();
 
 			if (Position != nullptr)
 				*Position = (Coord * Compute::Matrix4x4::CreateTranslation(*Position)).Position();
@@ -4510,15 +5033,13 @@ namespace Tomahawk
 		void Common::ComputeVertexOrientation(std::vector<Vertex>& Vertices, bool LeftHanded)
 		{
 			Compute::Matrix4x4 Coord(1, 0, 0, 0, 0, 1, 0, 0, 0, 0, -1, 0, 0, 0, 0, 1);
-
 			if (!LeftHanded)
-				Coord = Coord.Invert();
+				Coord = Coord.Inv();
 
 			for (auto It = Vertices.begin(); It != Vertices.end(); It++)
 			{
 				Compute::Vector3 Position(It->PositionX, It->PositionY, It->PositionZ);
 				Position = (Coord * Compute::Matrix4x4::CreateTranslation(Position)).Position();
-
 				It->PositionX = Position.X;
 				It->PositionY = Position.Y;
 				It->PositionZ = Position.Z;
@@ -4527,15 +5048,13 @@ namespace Tomahawk
 		void Common::ComputeInfluenceOrientation(std::vector<SkinVertex>& Vertices, bool LeftHanded)
 		{
 			Compute::Matrix4x4 Coord(1, 0, 0, 0, 0, 1, 0, 0, 0, 0, -1, 0, 0, 0, 0, 1);
-
 			if (!LeftHanded)
-				Coord = Coord.Invert();
+				Coord = Coord.Inv();
 
 			for (auto It = Vertices.begin(); It != Vertices.end(); It++)
 			{
 				Compute::Vector3 Position(It->PositionX, It->PositionY, It->PositionZ);
 				Position = (Coord * Compute::Matrix4x4::CreateTranslation(Position)).Position();
-
 				It->PositionX = Position.X;
 				It->PositionY = Position.Y;
 				It->PositionZ = Position.Z;
@@ -4548,7 +5067,6 @@ namespace Tomahawk
 			{
 				SkinVertex& V1 = Vertices[i], &V2 = Vertices[i + 1], &V3 = Vertices[i + 2];
 				ComputeInfluenceTangentBitangent(V1, V2, V3, Tangent, Bitangent);
-
 				V1.TangentX = Tangent.X;
 				V1.TangentY = Tangent.Y;
 				V1.TangentZ = Tangent.Z;
@@ -4576,7 +5094,6 @@ namespace Tomahawk
 			{
 				SkinVertex& V1 = Vertices[i], &V2 = Vertices[i + 1], &V3 = Vertices[i + 2];
 				ComputeInfluenceTangentBitangent(V1, V2, V3, Tangent, Bitangent);
-
 				V1.TangentX = Tangent.X;
 				V1.TangentY = Tangent.Y;
 				V1.TangentZ = Tangent.Z;
@@ -4603,23 +5120,22 @@ namespace Tomahawk
 			Vector3 Face2 = Vector3(V3.PositionX - V1.PositionX, V3.PositionY - V1.PositionY, V3.PositionZ - V1.PositionZ);
 			Vector2 Coord1 = Vector2(V2.TexCoordX - V1.TexCoordX, V3.TexCoordX - V1.TexCoordX);
 			Vector2 Coord2 = Vector2(V2.TexCoordY - V1.TexCoordY, V3.TexCoordY - V1.TexCoordY);
-
 			float Ray = 1.0f / (Coord1.X * Coord2.Y - Coord1.Y * Coord2.X);
 
 			Tangent.X = (Coord1.Y * Face1.X - Coord1.X * Face2.X) * Ray;
 			Tangent.Y = (Coord1.Y * Face1.Y - Coord1.X * Face2.Y) * Ray;
 			Tangent.Z = (Coord1.Y * Face1.Z - Coord1.X * Face2.Z) * Ray;
-			Tangent = Tangent.NormalizeSafe();
+			Tangent = Tangent.sNormalize();
 
 			Bitangent.X = (Coord2.X * Face2.X - Coord2.Y * Face1.X) * Ray;
 			Bitangent.Y = (Coord2.X * Face2.Y - Coord2.Y * Face1.Y) * Ray;
 			Bitangent.Z = (Coord2.X * Face2.Z - Coord2.Y * Face1.Z) * Ray;
-			Bitangent = Bitangent.NormalizeSafe();
+			Bitangent = Bitangent.sNormalize();
 
 			Normal.X = (Tangent.Y * Bitangent.Z) - (Tangent.Z * Bitangent.Y);
 			Normal.Y = (Tangent.Z * Bitangent.X) - (Tangent.X * Bitangent.Z);
 			Normal.Z = (Tangent.X * Bitangent.Y) - (Tangent.Y * Bitangent.X);
-			Normal = -Normal.NormalizeSafe();
+			Normal = -Normal.sNormalize();
 		}
 		void Common::ComputeInfluenceTangentBitangent(SkinVertex V1, SkinVertex V2, SkinVertex V3, Vector3& Tangent, Vector3& Bitangent)
 		{
@@ -4627,18 +5143,17 @@ namespace Tomahawk
 			Vector3 Face2 = Vector3(V3.PositionX - V1.PositionX, V3.PositionY - V1.PositionY, V3.PositionZ - V1.PositionZ);
 			Vector2 Coord1 = Vector2(V2.TexCoordX - V1.TexCoordX, V3.TexCoordX - V1.TexCoordX);
 			Vector2 Coord2 = Vector2(V2.TexCoordY - V1.TexCoordY, V3.TexCoordY - V1.TexCoordY);
-
 			float Ray = 1.0f / (Coord1.X * Coord2.Y - Coord1.Y * Coord2.X);
 
 			Tangent.X = (Coord1.Y * Face1.X - Coord1.X * Face2.X) * Ray;
 			Tangent.Y = (Coord1.Y * Face1.Y - Coord1.X * Face2.Y) * Ray;
 			Tangent.Z = (Coord1.Y * Face1.Z - Coord1.X * Face2.Z) * Ray;
-			Tangent = Tangent.NormalizeSafe();
+			Tangent = Tangent.sNormalize();
 
 			Bitangent.X = (Coord2.X * Face2.X - Coord2.Y * Face1.X) * Ray;
 			Bitangent.Y = (Coord2.X * Face2.Y - Coord2.Y * Face1.Y) * Ray;
 			Bitangent.Z = (Coord2.X * Face2.Z - Coord2.Y * Face1.Z) * Ray;
-			Bitangent = Bitangent.NormalizeSafe();
+			Bitangent = Bitangent.sNormalize();
 		}
 		void Common::Randomize()
 		{
@@ -4652,20 +5167,16 @@ namespace Tomahawk
 			if (!In)
 				return;
 
-			if (In->LocalTransform)
-				delete In->LocalTransform;
+			TH_DELETE(Matrix4x4, In->LocalTransform);
 			In->LocalTransform = LocalTransform;
 
-			if (In->LocalPosition)
-				delete In->LocalPosition;
+			TH_DELETE(Vector3, In->LocalPosition);
 			In->LocalPosition = LocalPosition;
 
-			if (In->LocalRotation)
-				delete In->LocalRotation;
+			TH_DELETE(Vector3, In->LocalRotation);
 			In->LocalRotation = LocalRotation;
 
-			if (In->LocalScale)
-				delete In->LocalScale;
+			TH_DELETE(Vector3, In->LocalScale);
 			In->LocalScale = LocalScale;
 		}
 		void Common::SetRootUnsafe(Transform* In, Transform* Root)
@@ -4741,9 +5252,7 @@ namespace Tomahawk
 			{
 				EndCurrentBlock = CurrentBlock + 64;
 				for (int i = 0; CurrentBlock < EndCurrentBlock; CurrentBlock += 4)
-				{
 					W[i++] = (unsigned int)ValueCUC[CurrentBlock + 3] | (((unsigned int)ValueCUC[CurrentBlock + 2]) << 8) | (((unsigned int)ValueCUC[CurrentBlock + 1]) << 16) | (((unsigned int)ValueCUC[CurrentBlock]) << 24);
-				}
 				Sha1ComputeHashBlock(Result, W);
 			}
 
@@ -4941,25 +5450,25 @@ namespace Tomahawk
 			}
 
 			int Size1 = (int)strlen(Value), Size2 = 0;
-			unsigned char* Buffer = new unsigned char[Size1 + 2048];
+			unsigned char* Buffer = (unsigned char*)TH_MALLOC(sizeof(unsigned char) * (Size1 + 2048));
 
 			if (1 != EVP_EncryptUpdate(Context, Buffer, &Size2, (const unsigned char*)Value, Size1))
 			{
 				EVP_CIPHER_CTX_free(Context);
-				delete[] Buffer;
+				TH_FREE(Buffer);
 				return "";
 			}
 
 			if (1 != EVP_EncryptFinal_ex(Context, Buffer + Size2, &Size1))
 			{
 				EVP_CIPHER_CTX_free(Context);
-				delete[] Buffer;
+				TH_FREE(Buffer);
 				return "";
 			}
 
 			std::string Output((const char*)Buffer, Size1 + Size2);
 			EVP_CIPHER_CTX_free(Context);
-			delete[] Buffer;
+			TH_FREE(Buffer);
 
 			return Output;
 #else
@@ -4980,25 +5489,25 @@ namespace Tomahawk
 			}
 
 			int Size1 = (int)strlen(Value), Size2 = 0;
-			unsigned char* Buffer = new unsigned char[Size1 + 2048];
+			unsigned char* Buffer = (unsigned char*)TH_MALLOC(sizeof(unsigned char) * (Size1 + 2048));
 
 			if (1 != EVP_DecryptUpdate(Context, Buffer, &Size2, (const unsigned char*)Value, Size1))
 			{
 				EVP_CIPHER_CTX_free(Context);
-				delete[] Buffer;
+				TH_FREE(Buffer);
 				return "";
 			}
 
 			if (1 != EVP_DecryptFinal_ex(Context, Buffer + Size2, &Size1))
 			{
 				EVP_CIPHER_CTX_free(Context);
-				delete[] Buffer;
+				TH_FREE(Buffer);
 				return "";
 			}
 
 			std::string Output((const char*)Buffer, Size1 + Size2);
 			EVP_CIPHER_CTX_free(Context);
-			delete[] Buffer;
+			TH_FREE(Buffer);
 
 			return Output;
 		}
@@ -5015,25 +5524,25 @@ namespace Tomahawk
 			}
 
 			int Size1 = (int)Value.size(), Size2 = 0;
-			unsigned char* Buffer = new unsigned char[Size1 + 2048];
+			unsigned char* Buffer = (unsigned char*)TH_MALLOC(sizeof(unsigned char) * (Size1 + 2048));
 
 			if (1 != EVP_EncryptUpdate(Context, Buffer, &Size2, (const unsigned char*)Value.c_str(), Size1))
 			{
 				EVP_CIPHER_CTX_free(Context);
-				delete[] Buffer;
+				TH_FREE(Buffer);
 				return "";
 			}
 
 			if (1 != EVP_EncryptFinal_ex(Context, Buffer + Size2, &Size1))
 			{
 				EVP_CIPHER_CTX_free(Context);
-				delete[] Buffer;
+				TH_FREE(Buffer);
 				return "";
 			}
 
 			std::string Output((const char*)Buffer, Size1 + Size2);
 			EVP_CIPHER_CTX_free(Context);
-			delete[] Buffer;
+			TH_FREE(Buffer);
 
 			return Output;
 #else
@@ -5054,25 +5563,25 @@ namespace Tomahawk
 			}
 
 			int Size1 = (int)Value.size(), Size2 = 0;
-			unsigned char* Buffer = new unsigned char[Size1 + 2048];
+			unsigned char* Buffer = (unsigned char*)TH_MALLOC(sizeof(unsigned char) * (Size1 + 2048));
 
 			if (1 != EVP_DecryptUpdate(Context, Buffer, &Size2, (const unsigned char*)Value.c_str(), Size1))
 			{
 				EVP_CIPHER_CTX_free(Context);
-				delete[] Buffer;
+				TH_FREE(Buffer);
 				return "";
 			}
 
 			if (1 != EVP_DecryptFinal_ex(Context, Buffer + Size2, &Size1))
 			{
 				EVP_CIPHER_CTX_free(Context);
-				delete[] Buffer;
+				TH_FREE(Buffer);
 				return "";
 			}
 
 			std::string Output((const char*)Buffer, Size1 + Size2);
 			EVP_CIPHER_CTX_free(Context);
-			delete[] Buffer;
+			TH_FREE(Buffer);
 
 			return Output;
 #else
@@ -5466,14 +5975,16 @@ namespace Tomahawk
 		}
 		Ray Common::CreateCursorRay(const Vector3& Origin, const Vector2& Cursor, const Vector2& Screen, const Matrix4x4& InvProjection, const Matrix4x4& InvView)
 		{
-			Vector4 Eye = Vector4((2.0f * Cursor.X) / Screen.X - 1.0f, 1.0f - (2.0f * Cursor.Y) / Screen.Y, 1.0f, 1.0f) * InvProjection;
+			Vector2 Tmp = Cursor * 2.0f;
+			Tmp /= Screen;
 
-			Eye = (Vector4(Eye.X, Eye.Y, 1.0f, 0.0f) * InvView).NormalizeSafe();
-			return Ray(Origin.InvertZ(), Vector3(Eye.X, Eye.Y, Eye.Z));
+			Vector4 Eye = Vector4(Tmp.X - 1.0f, 1.0f - Tmp.Y, 1.0f, 1.0f) * InvProjection;
+			Eye = (Vector4(Eye.X, Eye.Y, 1.0f, 0.0f) * InvView).sNormalize();
+			return Ray(Origin.InvZ(), Vector3(Eye.X, Eye.Y, Eye.Z));
 		}
 		bool Common::CursorRayTest(const Ray& Cursor, const Vector3& Position, const Vector3& Scale, Vector3* Hit)
 		{
-			return Cursor.IntersectsAABB(Position.InvertZ(), Scale, Hit);
+			return Cursor.IntersectsAABB(Position.InvZ(), Scale, Hit);
 		}
 		bool Common::CursorRayTest(const Ray& Cursor, const Matrix4x4& World, Vector3* Hit)
 		{
@@ -5502,6 +6013,20 @@ namespace Tomahawk
 			}
 
 			return (uint64_t)~Result;
+		}
+		float Common::FastInvSqrt(float Value)
+		{
+			union
+			{
+				float F;
+				uint32_t I;
+			} Cast;
+
+			float X = Value * 0.5f;
+			Cast.F = Value;
+			Cast.I = 0x5f3759df - (Cast.I >> 1);
+			Cast.F = Cast.F * (1.5f - (X * Cast.F * Cast.F));
+			return Cast.F;
 		}
 
 		Preprocessor::Preprocessor() : Nested(false)
@@ -6075,20 +6600,19 @@ namespace Tomahawk
 		FiniteState::~FiniteState()
 		{
 			for (auto& Action : Actions)
-				delete Action.second;
+				TH_DELETE(ActionCallback, Action.second);
 		}
 		FiniteState* FiniteState::Bind(const std::string& Name, const ActionCallback& Callback)
 		{
 			if (!Callback)
 				return this;
 
-			ActionCallback* Result = new ActionCallback(Callback);
-
+			ActionCallback* Result = TH_NEW(ActionCallback, Callback);
 			Mutex.lock();
 			auto It = Actions.find(Name);
 			if (It != Actions.end())
 			{
-				delete It->second;
+				TH_DELETE(ActionCallback, It->second);
 				It->second = Result;
 				Mutex.unlock();
 
@@ -6110,7 +6634,7 @@ namespace Tomahawk
 				return this;
 			}
 
-			delete It->second;
+			TH_DELETE(ActionCallback, It->second);
 			Actions.erase(It);
 			Mutex.unlock();
 
@@ -6184,76 +6708,49 @@ namespace Tomahawk
 			RemoveChilds();
 			UserPointer = nullptr;
 
-			if (LocalTransform != nullptr)
-			{
-				delete LocalTransform;
-				LocalTransform = nullptr;
-			}
+			TH_DELETE(Matrix4x4, LocalTransform);
+			LocalTransform = nullptr;
 
-			if (LocalPosition != nullptr)
-			{
-				delete LocalPosition;
-				LocalPosition = nullptr;
-			}
+			TH_DELETE(Vector3, LocalPosition);
+			LocalPosition = nullptr;
 
-			if (LocalRotation != nullptr)
-			{
-				delete LocalRotation;
-				LocalRotation = nullptr;
-			}
+			TH_DELETE(Vector3, LocalRotation);
+			LocalRotation = nullptr;
 
-			if (LocalScale != nullptr)
-			{
-				delete LocalScale;
-				LocalScale = nullptr;
-			}
+			TH_DELETE(Vector3, LocalScale);
+			LocalScale = nullptr;
 		}
 		void Transform::Copy(Transform* Target)
 		{
 			if (!Target->Root)
 			{
-				if (LocalTransform != nullptr)
-				{
-					delete LocalTransform;
-					LocalTransform = nullptr;
-				}
+				TH_DELETE(Matrix4x4, LocalTransform);
+				LocalTransform = nullptr;
 
-				if (LocalPosition != nullptr)
-				{
-					delete LocalPosition;
-					LocalPosition = nullptr;
-				}
+				TH_DELETE(Vector3, LocalPosition);
+				LocalPosition = nullptr;
 
-				if (LocalRotation != nullptr)
-				{
-					delete LocalRotation;
-					LocalRotation = nullptr;
-				}
+				TH_DELETE(Vector3, LocalRotation);
+				LocalRotation = nullptr;
 
-				if (LocalScale != nullptr)
-				{
-					delete LocalScale;
-					LocalScale = nullptr;
-				}
+				TH_DELETE(Vector3, LocalScale);
+				LocalScale = nullptr;
 				Root = nullptr;
 			}
 			else
 			{
-				LocalTransform = new Matrix4x4(*Target->LocalTransform);
-				LocalPosition = new Vector3(*Target->LocalPosition);
-				LocalRotation = new Vector3(*Target->LocalRotation);
-				LocalScale = new Vector3(*Target->LocalScale);
+				LocalTransform = TH_NEW(Matrix4x4, *Target->LocalTransform);
+				LocalPosition = TH_NEW(Vector3, *Target->LocalPosition);
+				LocalRotation = TH_NEW(Vector3, *Target->LocalRotation);
+				LocalScale = TH_NEW(Vector3, *Target->LocalScale);
 				Root = Target->Root;
 			}
 
-			if (Childs)
-			{
-				delete Childs;
+			TH_DELETE(vector, Childs);
+			if (Target->Childs != nullptr)
+				Childs = TH_NEW(std::vector<Transform*>, *Target->Childs);
+			else
 				Childs = nullptr;
-			}
-
-			if (Target->Childs)
-				Childs = new std::vector<Transform*>(*Target->Childs);
 
 			UserPointer = Target->UserPointer;
 			Position = Target->Position;
@@ -6275,14 +6772,14 @@ namespace Tomahawk
 		{
 			if (Childs != nullptr)
 			{
-				for (auto It = Childs->begin(); It != Childs->end(); It++)
+				for (auto* Item : *Childs)
 				{
-					if (*It == Child)
+					if (Item == Child)
 						return;
 				}
 			}
 			else
-				Childs = new std::vector<Transform*>();
+				Childs = TH_NEW(std::vector<Transform*>);
 
 			Childs->push_back(Child);
 		}
@@ -6296,7 +6793,7 @@ namespace Tomahawk
 
 			if (Childs->empty())
 			{
-				delete Childs;
+				TH_DELETE(vector, Childs);
 				Childs = nullptr;
 			}
 		}
@@ -6312,7 +6809,7 @@ namespace Tomahawk
 					Child->SetRoot(nullptr);
 			}
 
-			delete Childs;
+			TH_DELETE(vector, Childs);
 			Childs = nullptr;
 		}
 		void Transform::Localize(Vector3* _Position, Vector3* _Scale, Vector3* _Rotation)
@@ -6320,7 +6817,7 @@ namespace Tomahawk
 			if (!Root)
 				return;
 
-			Matrix4x4 Result = Matrix4x4::Create(_Position ? *_Position : 0, _Rotation ? *_Rotation : 0) * Root->GetWorldUnscaled().Invert();
+			Matrix4x4 Result = Matrix4x4::Create(_Position ? *_Position : 0, _Rotation ? *_Rotation : 0) * Root->GetWorldUnscaled().Inv();
 			if (_Position != nullptr)
 				*_Position = Result.Position();
 
@@ -6372,29 +6869,17 @@ namespace Tomahawk
 			if (Root != nullptr)
 			{
 				GetRootBasis(&Position, &Scale, &Rotation);
-				if (LocalTransform != nullptr)
-				{
-					delete LocalTransform;
-					LocalTransform = nullptr;
-				}
+				TH_DELETE(Matrix4x4, LocalTransform);
+				LocalTransform = nullptr;
 
-				if (LocalPosition != nullptr)
-				{
-					delete LocalPosition;
-					LocalPosition = nullptr;
-				}
+				TH_DELETE(Vector3, LocalPosition);
+				LocalPosition = nullptr;
 
-				if (LocalRotation != nullptr)
-				{
-					delete LocalRotation;
-					LocalRotation = nullptr;
-				}
+				TH_DELETE(Vector3, LocalRotation);
+				LocalRotation = nullptr;
 
-				if (LocalScale != nullptr)
-				{
-					delete LocalScale;
-					LocalScale = nullptr;
-				}
+				TH_DELETE(Vector3, LocalScale);
+				LocalScale = nullptr;
 
 				if (Root->Childs != nullptr)
 				{
@@ -6409,7 +6894,7 @@ namespace Tomahawk
 
 					if (Root->Childs->empty())
 					{
-						delete Root->Childs;
+						TH_DELETE(vector, Childs);
 						Root->Childs = nullptr;
 					}
 				}
@@ -6420,10 +6905,10 @@ namespace Tomahawk
 				return;
 
 			Root->AddChild(this);
-			LocalTransform = new Matrix4x4(Matrix4x4::Create(Position, Rotation) * Root->GetWorldUnscaled().Invert());
-			LocalPosition = new Vector3(LocalTransform->Position());
-			LocalRotation = new Vector3(LocalTransform->Rotation());
-			LocalScale = new Vector3(ConstantScale ? Scale : Scale / Root->Scale);
+			LocalTransform = TH_NEW(Matrix4x4, Matrix4x4::Create(Position, Rotation) * Root->GetWorldUnscaled().Inv());
+			LocalPosition = TH_NEW(Vector3, LocalTransform->Position());
+			LocalRotation = TH_NEW(Vector3, LocalTransform->Rotation());
+			LocalScale = TH_NEW(Vector3, ConstantScale ? Scale : Scale / Root->Scale);
 		}
 		void Transform::GetRootBasis(Vector3* _Position, Vector3* _Scale, Vector3* _Rotation)
 		{
@@ -6655,7 +7140,7 @@ namespace Tomahawk
 			}
 
 			btVector3 LocalInertia(0, 0, 0);
-			Initial.Shape->setLocalScaling(BtV3(Initial.Scale));
+			Initial.Shape->setLocalScaling(V3_TO_BT(Initial.Scale));
 			if (Initial.Mass > 0)
 				Initial.Shape->calculateLocalInertia(Initial.Mass, LocalInertia);
 
@@ -6663,8 +7148,8 @@ namespace Tomahawk
 			Rotation.setEulerZYX(Initial.Rotation.Z, Initial.Rotation.Y, Initial.Rotation.X);
 
 			btTransform BtTransform(Rotation, btVector3(Initial.Position.X, Initial.Position.Y, Initial.Position.Z));
-			btRigidBody::btRigidBodyConstructionInfo Info(Initial.Mass, new btDefaultMotionState(BtTransform), Initial.Shape, LocalInertia);
-			Instance = new btRigidBody(Info);
+			btRigidBody::btRigidBodyConstructionInfo Info(Initial.Mass, TH_NEW(btDefaultMotionState, BtTransform), Initial.Shape, LocalInertia);
+			Instance = TH_NEW(btRigidBody, Info);
 			Instance->setUserPointer(this);
 			Instance->setGravity(Engine->GetWorld()->getGravity());
 
@@ -6713,7 +7198,7 @@ namespace Tomahawk
 			if (Instance->getMotionState())
 			{
 				btMotionState* Object = Instance->getMotionState();
-				delete Object;
+				TH_DELETE(btMotionState, Object);
 				Instance->setMotionState(nullptr);
 			}
 
@@ -6725,7 +7210,7 @@ namespace Tomahawk
 			if (Initial.Shape)
 				Engine->FreeShape(&Initial.Shape);
 
-			delete Instance;
+			TH_DELETE(btRigidBody, Instance);
 		}
 		RigidBody* RigidBody::Copy()
 		{
@@ -6769,22 +7254,22 @@ namespace Tomahawk
 		void RigidBody::Push(const Vector3& Velocity)
 		{
 			if (Instance)
-				Instance->applyCentralImpulse(BtV3(Velocity));
+				Instance->applyCentralImpulse(V3_TO_BT(Velocity));
 		}
 		void RigidBody::Push(const Vector3& Velocity, const Vector3& Torque)
 		{
 			if (Instance)
 			{
-				Instance->applyCentralImpulse(BtV3(Velocity));
-				Instance->applyTorqueImpulse(BtV3(Torque));
+				Instance->applyCentralImpulse(V3_TO_BT(Velocity));
+				Instance->applyTorqueImpulse(V3_TO_BT(Torque));
 			}
 		}
 		void RigidBody::Push(const Vector3& Velocity, const Vector3& Torque, const Vector3& Center)
 		{
 			if (Instance)
 			{
-				Instance->applyImpulse(BtV3(Velocity), BtV3(Center));
-				Instance->applyTorqueImpulse(BtV3(Torque));
+				Instance->applyImpulse(V3_TO_BT(Velocity), V3_TO_BT(Center));
+				Instance->applyTorqueImpulse(V3_TO_BT(Torque));
 			}
 		}
 		void RigidBody::PushKinematic(const Vector3& Velocity)
@@ -6835,13 +7320,13 @@ namespace Tomahawk
 				btScalar X, Y, Z;
 
 				Base.getRotation().getEulerZYX(Z, Y, X);
-				Transform->SetTransform(TransformSpace_Global, V3Bt(Position), V3Bt(Scale), Vector3(-X, -Y, Z));
+				Transform->SetTransform(TransformSpace_Global, BT_TO_V3(Position), BT_TO_V3(Scale), Vector3(-X, -Y, Z));
 			}
 			else
 			{
 				Base.setOrigin(btVector3(Transform->Position.X, Transform->Position.Y, Transform->Position.Z));
 				Base.getBasis().setEulerZYX(Transform->Rotation.X, Transform->Rotation.Y, Transform->Rotation.Z);
-				Instance->getCollisionShape()->setLocalScaling(BtV3(Transform->Scale));
+				Instance->getCollisionShape()->setLocalScaling(V3_TO_BT(Transform->Scale));
 			}
 		}
 		void RigidBody::SetActivity(bool Active)
@@ -6960,32 +7445,32 @@ namespace Tomahawk
 		void RigidBody::SetAngularFactor(const Vector3& Value)
 		{
 			if (Instance)
-				Instance->setAngularFactor(BtV3(Value));
+				Instance->setAngularFactor(V3_TO_BT(Value));
 		}
 		void RigidBody::SetAnisotropicFriction(const Vector3& Value)
 		{
 			if (Instance)
-				Instance->setAnisotropicFriction(BtV3(Value));
+				Instance->setAnisotropicFriction(V3_TO_BT(Value));
 		}
 		void RigidBody::SetGravity(const Vector3& Value)
 		{
 			if (Instance)
-				Instance->setGravity(BtV3(Value));
+				Instance->setGravity(V3_TO_BT(Value));
 		}
 		void RigidBody::SetLinearFactor(const Vector3& Value)
 		{
 			if (Instance)
-				Instance->setLinearFactor(BtV3(Value));
+				Instance->setLinearFactor(V3_TO_BT(Value));
 		}
 		void RigidBody::SetLinearVelocity(const Vector3& Value)
 		{
 			if (Instance)
-				Instance->setLinearVelocity(BtV3(Value));
+				Instance->setLinearVelocity(V3_TO_BT(Value));
 		}
 		void RigidBody::SetAngularVelocity(const Vector3& Value)
 		{
 			if (Instance)
-				Instance->setAngularVelocity(BtV3(Value));
+				Instance->setAngularVelocity(V3_TO_BT(Value));
 		}
 		void RigidBody::SetCollisionShape(btCollisionShape* Shape, Transform* Transform)
 		{
@@ -6993,8 +7478,7 @@ namespace Tomahawk
 				return;
 
 			btCollisionShape* Collision = Instance->getCollisionShape();
-			if (Collision != nullptr)
-				delete Collision;
+			TH_DELETE(btCollisionShape, Collision);
 
 			Instance->setCollisionShape(Shape);
 			if (Transform)
@@ -7312,7 +7796,7 @@ namespace Tomahawk
 			}
 			else if (Initial.Shape.Ellipsoid.Enabled)
 			{
-				Instance = btSoftBodyHelpers::CreateEllipsoid(Info, BtV3(Initial.Shape.Ellipsoid.Center), BtV3(Initial.Shape.Ellipsoid.Radius), Initial.Shape.Ellipsoid.Count);
+				Instance = btSoftBodyHelpers::CreateEllipsoid(Info, V3_TO_BT(Initial.Shape.Ellipsoid.Center), V3_TO_BT(Initial.Shape.Ellipsoid.Radius), Initial.Shape.Ellipsoid.Count);
 			}
 			else if (Initial.Shape.Rope.Enabled)
 			{
@@ -7323,7 +7807,7 @@ namespace Tomahawk
 				if (Initial.Shape.Rope.EndFixed)
 					FixedAnchors |= 2;
 
-				Instance = btSoftBodyHelpers::CreateRope(Info, BtV3(Initial.Shape.Rope.Start), BtV3(Initial.Shape.Rope.End), Initial.Shape.Rope.Count, FixedAnchors);
+				Instance = btSoftBodyHelpers::CreateRope(Info, V3_TO_BT(Initial.Shape.Rope.Start), V3_TO_BT(Initial.Shape.Rope.End), Initial.Shape.Rope.Count, FixedAnchors);
 			}
 			else
 			{
@@ -7340,7 +7824,7 @@ namespace Tomahawk
 				if (Initial.Shape.Patch.Corner11Fixed)
 					FixedCorners |= 8;
 
-				Instance = btSoftBodyHelpers::CreatePatch(Info, BtV3(Initial.Shape.Patch.Corner00), BtV3(Initial.Shape.Patch.Corner10), BtV3(Initial.Shape.Patch.Corner01), BtV3(Initial.Shape.Patch.Corner11), Initial.Shape.Patch.CountX, Initial.Shape.Patch.CountY, FixedCorners, Initial.Shape.Patch.GenerateDiagonals);
+				Instance = btSoftBodyHelpers::CreatePatch(Info, V3_TO_BT(Initial.Shape.Patch.Corner00), V3_TO_BT(Initial.Shape.Patch.Corner10), V3_TO_BT(Initial.Shape.Patch.Corner01), V3_TO_BT(Initial.Shape.Patch.Corner11), Initial.Shape.Patch.CountX, Initial.Shape.Patch.CountY, FixedCorners, Initial.Shape.Patch.GenerateDiagonals);
 			}
 
 			if (Initial.Anticipation > 0)
@@ -7370,7 +7854,7 @@ namespace Tomahawk
 				World->removeSoftBody(Instance);
 
 			Instance->setUserPointer(nullptr);
-			delete Instance;
+			TH_DELETE(btSoftBody, Instance);
 		}
 		SoftBody* SoftBody::Copy()
 		{
@@ -7414,6 +7898,18 @@ namespace Tomahawk
 			if (!Instance)
 				return;
 
+#ifdef TH_HAS_SIMD
+			LOD_VAL(_r1, 0.0f); LOD_VAL(_r2, 0.0f);
+			for (int i = 0; i < Instance->m_nodes.size(); i++)
+			{
+				auto& Node = Instance->m_nodes[i];
+				_r2.store(Node.m_x.get128().m128_f32);
+				_r1 += _r2;
+			}
+
+			_r1 /= (float)Instance->m_nodes.size();
+			_r1.store_partial(3, (float*)&Center);
+#else
 			Center.Set(0);
 			for (int i = 0; i < Instance->m_nodes.size(); i++)
 			{
@@ -7422,19 +7918,19 @@ namespace Tomahawk
 				Center.Y += Node.m_x.y();
 				Center.Z += Node.m_x.z();
 			}
-
 			Center /= (float)Instance->m_nodes.size();
+#endif
 			if (!Kinematic)
 			{
 				btScalar X, Y, Z;
 				Instance->getWorldTransform().getRotation().getEulerZYX(Z, Y, X);
-				Transform->SetTransform(TransformSpace_Global, Center.InvertZ(), 1.0f, Vector3(-X, -Y, Z));
+				Transform->SetTransform(TransformSpace_Global, Center.InvZ(), 1.0f, Vector3(-X, -Y, Z));
 			}
 			else
 			{
-				Vector3 Position = Transform->Position.InvertZ() - Center;
+				Vector3 Position = Transform->Position.InvZ() - Center;
 				if (Position.Length() > 0.005f)
-					Instance->translate(BtV3(Position));
+					Instance->translate(V3_TO_BT(Position));
 			}
 		}
 		void SoftBody::GetIndices(std::vector<int>* Result)
@@ -7449,7 +7945,7 @@ namespace Tomahawk
 			for (int i = 0; i < Instance->m_faces.size(); i++)
 			{
 				btSoftBody::Face& Face = Instance->m_faces[i];
-				for (int j = 0; j < 3; j++)
+				for (unsigned int j = 0; j < 3; j++)
 				{
 					auto It = Nodes.find(Face.m_n[j]);
 					if (It != Nodes.end())
@@ -7473,14 +7969,9 @@ namespace Tomahawk
 
 			for (size_t i = 0; i < Size; i++)
 			{
-				auto* Node = &Instance->m_nodes[i];
-				Vertex& Position = Result->at(i);
-				Position.PositionX = Node->m_x.x();
-				Position.PositionY = Node->m_x.y();
-				Position.PositionZ = Node->m_x.z();
-				Position.NormalX = Node->m_n.x();
-				Position.NormalY = Node->m_n.y();
-				Position.NormalZ = Node->m_n.z();
+				auto* Node = &Instance->m_nodes[i]; Vertex& Position = Result->at(i);
+				memcpy(&Position.PositionX, Node->m_x.get128().m128_f32, sizeof(float) * 3);
+				memcpy(&Position.NormalX, Node->m_n.get128().m128_f32, sizeof(float) * 3);
 			}
 		}
 		void SoftBody::GetBoundingBox(Vector3* Min, Vector3* Max)
@@ -7490,12 +7981,11 @@ namespace Tomahawk
 
 			btVector3 bMin, bMax;
 			Instance->getAabb(bMin, bMax);
-
 			if (Min != nullptr)
-				*Min = V3Bt(bMin).InvertZ();
+				*Min = BT_TO_V3(bMin).InvZ();
 
 			if (Max != nullptr)
-				*Max = V3Bt(bMax).InvertZ();
+				*Max = BT_TO_V3(bMax).InvZ();
 		}
 		void SoftBody::SetContactStiffnessAndDamping(float Stiffness, float Damping)
 		{
@@ -7510,42 +8000,42 @@ namespace Tomahawk
 		void SoftBody::AddAnchor(int Node, RigidBody* Body, const Vector3& LocalPivot, bool DisableCollisionBetweenLinkedBodies, float Influence)
 		{
 			if (Instance && Body)
-				Instance->appendAnchor(Node, Body->Bullet(), BtV3(LocalPivot), DisableCollisionBetweenLinkedBodies, Influence);
+				Instance->appendAnchor(Node, Body->Bullet(), V3_TO_BT(LocalPivot), DisableCollisionBetweenLinkedBodies, Influence);
 		}
 		void SoftBody::AddForce(const Vector3& Force)
 		{
 			if (Instance)
-				Instance->addForce(BtV3(Force));
+				Instance->addForce(V3_TO_BT(Force));
 		}
 		void SoftBody::AddForce(const Vector3& Force, int Node)
 		{
 			if (Instance)
-				Instance->addForce(BtV3(Force), Node);
+				Instance->addForce(V3_TO_BT(Force), Node);
 		}
 		void SoftBody::AddAeroForceToNode(const Vector3& WindVelocity, int NodeIndex)
 		{
 			if (Instance)
-				Instance->addAeroForceToNode(BtV3(WindVelocity), NodeIndex);
+				Instance->addAeroForceToNode(V3_TO_BT(WindVelocity), NodeIndex);
 		}
 		void SoftBody::AddAeroForceToFace(const Vector3& WindVelocity, int FaceIndex)
 		{
 			if (Instance)
-				Instance->addAeroForceToFace(BtV3(WindVelocity), FaceIndex);
+				Instance->addAeroForceToFace(V3_TO_BT(WindVelocity), FaceIndex);
 		}
 		void SoftBody::AddVelocity(const Vector3& Velocity)
 		{
 			if (Instance)
-				Instance->addVelocity(BtV3(Velocity));
+				Instance->addVelocity(V3_TO_BT(Velocity));
 		}
 		void SoftBody::SetVelocity(const Vector3& Velocity)
 		{
 			if (Instance)
-				Instance->setVelocity(BtV3(Velocity));
+				Instance->setVelocity(V3_TO_BT(Velocity));
 		}
 		void SoftBody::AddVelocity(const Vector3& Velocity, int Node)
 		{
 			if (Instance)
-				Instance->addVelocity(BtV3(Velocity), Node);
+				Instance->addVelocity(V3_TO_BT(Velocity), Node);
 		}
 		void SoftBody::SetMass(int Node, float Mass)
 		{
@@ -7589,7 +8079,7 @@ namespace Tomahawk
 		void SoftBody::Scale(const Vector3& Scale)
 		{
 			if (Instance)
-				Instance->scale(BtV3(Scale));
+				Instance->scale(V3_TO_BT(Scale));
 		}
 		void SoftBody::SetRestLengthScale(float RestLength)
 		{
@@ -7654,7 +8144,7 @@ namespace Tomahawk
 				return false;
 
 			btSoftBody::sRayCast Cast;
-			bool R = Instance->rayTest(BtV3(From), BtV3(To), Cast);
+			bool R = Instance->rayTest(V3_TO_BT(From), V3_TO_BT(To), Cast);
 			Result.Body = Get(Cast.body);
 			Result.Feature = (SoftFeature)Cast.feature;
 			Result.Index = Cast.index;
@@ -7665,7 +8155,7 @@ namespace Tomahawk
 		void SoftBody::SetWindVelocity(const Vector3& Velocity)
 		{
 			if (Instance)
-				Instance->setWindVelocity(BtV3(Velocity));
+				Instance->setWindVelocity(V3_TO_BT(Velocity));
 		}
 		Vector3 SoftBody::GetWindVelocity()
 		{
@@ -7673,7 +8163,7 @@ namespace Tomahawk
 				return 0;
 
 			btVector3 Value = Instance->getWindVelocity();
-			return V3Bt(Value);
+			return BT_TO_V3(Value);
 		}
 		void SoftBody::GetAabb(Vector3& Min, Vector3& Max) const
 		{
@@ -7682,8 +8172,8 @@ namespace Tomahawk
 
 			btVector3 BMin, BMax;
 			Instance->getAabb(BMin, BMax);
-			Min = V3Bt(BMin);
-			Max = V3Bt(BMax);
+			Min = BT_TO_V3(BMin);
+			Max = BT_TO_V3(BMax);
 		}
 		void SoftBody::IndicesToPointers(const int* Map)
 		{
@@ -7803,7 +8293,7 @@ namespace Tomahawk
 		void SoftBody::SetAnisotropicFriction(const Vector3& Value)
 		{
 			if (Instance)
-				Instance->setAnisotropicFriction(BtV3(Value));
+				Instance->setAnisotropicFriction(V3_TO_BT(Value));
 		}
 		void SoftBody::SetConfig(const Desc::SConfig& Conf)
 		{
@@ -7875,9 +8365,8 @@ namespace Tomahawk
 
 			btVector3 bMin, bMax;
 			Instance->getAabb(bMin, bMax);
-
 			btVector3 bScale = bMax - bMin;
-			Vector3 Scale = V3Bt(bScale);
+			Vector3 Scale = BT_TO_V3(bScale);
 
 			return Scale.Div(2.0f).Abs();
 		}
@@ -8043,7 +8532,7 @@ namespace Tomahawk
 
 			First = I.Target1->Bullet();
 			Second = I.Target2->Bullet();
-			Instance = new btSliderConstraint(*First, *Second, btTransform::getIdentity(), btTransform::getIdentity(), I.UseLinearPower);
+			Instance = TH_NEW(btSliderConstraint, *First, *Second, btTransform::getIdentity(), btTransform::getIdentity(), I.UseLinearPower);
 			Instance->setUserConstraintPtr(this);
 			Instance->setUpperLinLimit(20);
 			Instance->setLowerLinLimit(10);
@@ -8053,7 +8542,7 @@ namespace Tomahawk
 		SliderConstraint::~SliderConstraint()
 		{
 			Engine->RemoveSliderConstraint(this);
-			delete Instance;
+			TH_DELETE(btSliderConstraint, Instance);
 		}
 		SliderConstraint* SliderConstraint::Copy()
 		{
@@ -8503,22 +8992,22 @@ namespace Tomahawk
 
 		Simulator::Simulator(const Desc& I) : SoftSolver(nullptr), TimeSpeed(1), Interpolate(1), Active(true)
 		{
-			Broadphase = new btDbvtBroadphase();
-			Solver = new btSequentialImpulseConstraintSolver();
+			Broadphase = TH_NEW(btDbvtBroadphase);
+			Solver = TH_NEW(btSequentialImpulseConstraintSolver);
 
 			if (I.EnableSoftBody)
 			{
-				SoftSolver = new btDefaultSoftBodySolver();
-				Collision = new btSoftBodyRigidBodyCollisionConfiguration();
-				Dispatcher = new btCollisionDispatcher(Collision);
-				World = new btSoftRigidDynamicsWorld(Dispatcher, Broadphase, Solver, Collision, SoftSolver);
+				SoftSolver = TH_NEW(btDefaultSoftBodySolver);
+				Collision = TH_NEW(btSoftBodyRigidBodyCollisionConfiguration);
+				Dispatcher = TH_NEW(btCollisionDispatcher, Collision);
+				World = TH_NEW(btSoftRigidDynamicsWorld, Dispatcher, Broadphase, Solver, Collision, SoftSolver);
 
 				btSoftRigidDynamicsWorld* SoftWorld = (btSoftRigidDynamicsWorld*)World;
 				SoftWorld->getDispatchInfo().m_enableSPU = true;
 
 				btSoftBodyWorldInfo& Info = SoftWorld->getWorldInfo();
-				Info.m_gravity = BtV3(I.Gravity);
-				Info.water_normal = BtV3(I.WaterNormal);
+				Info.m_gravity = V3_TO_BT(I.Gravity);
+				Info.water_normal = V3_TO_BT(I.WaterNormal);
 				Info.water_density = I.WaterDensity;
 				Info.water_offset = I.WaterOffset;
 				Info.air_density = I.AirDensity;
@@ -8526,13 +9015,13 @@ namespace Tomahawk
 			}
 			else
 			{
-				Collision = new btDefaultCollisionConfiguration();
-				Dispatcher = new btCollisionDispatcher(Collision);
-				World = new btDiscreteDynamicsWorld(Dispatcher, Broadphase, Solver, Collision);
+				Collision = TH_NEW(btDefaultCollisionConfiguration);
+				Dispatcher = TH_NEW(btCollisionDispatcher, Collision);
+				World = TH_NEW(btDiscreteDynamicsWorld, Dispatcher, Broadphase, Solver, Collision);
 			}
 
 			World->setWorldUserInfo(this);
-			World->setGravity(BtV3(I.Gravity));
+			World->setGravity(V3_TO_BT(I.Gravity));
 			gContactAddedCallback = nullptr;
 			gContactDestroyedCallback = nullptr;
 			gContactProcessedCallback = nullptr;
@@ -8578,30 +9067,29 @@ namespace Tomahawk
 		Simulator::~Simulator()
 		{
 			RemoveAll();
-
 			for (auto It = Shapes.begin(); It != Shapes.end(); It++)
 			{
-				btCollisionShape* Object = (btCollisionShape*)It->first;
-				delete Object;
+				btCollisionShape* Item = (btCollisionShape*)It->first;
+				TH_DELETE(btCollisionShape, Item);
 			}
 
-			delete Dispatcher;
-			delete Collision;
-			delete Solver;
-			delete Broadphase;
-			delete SoftSolver;
-			delete World;
+			TH_DELETE(btCollisionDispatcher, Dispatcher);
+			TH_DELETE(btCollisionConfiguration, Collision);
+			TH_DELETE(btConstraintSolver, Solver);
+			TH_DELETE(btBroadphaseInterface, Broadphase);
+			TH_DELETE(btSoftBodySolver, SoftSolver);
+			TH_DELETE(btDiscreteDynamicsWorld, World);
 		}
 		void Simulator::SetGravity(const Vector3& Gravity)
 		{
-			World->setGravity(BtV3(Gravity));
+			World->setGravity(V3_TO_BT(Gravity));
 		}
 		void Simulator::SetLinearImpulse(const Vector3& Impulse, bool RandomFactor)
 		{
 			for (int i = 0; i < World->getNumCollisionObjects(); i++)
 			{
 				Vector3 Velocity = Impulse * (RandomFactor ? Vector3::Random() : 1);
-				btRigidBody::upcast(World->getCollisionObjectArray()[i])->setLinearVelocity(BtV3(Velocity));
+				btRigidBody::upcast(World->getCollisionObjectArray()[i])->setLinearVelocity(V3_TO_BT(Velocity));
 			}
 		}
 		void Simulator::SetLinearImpulse(const Vector3& Impulse, int Start, int End, bool RandomFactor)
@@ -8611,7 +9099,7 @@ namespace Tomahawk
 				for (int i = Start; i < End; i++)
 				{
 					Vector3 Velocity = Impulse * (RandomFactor ? Vector3::Random() : 1);
-					btRigidBody::upcast(World->getCollisionObjectArray()[i])->setLinearVelocity(BtV3(Velocity));
+					btRigidBody::upcast(World->getCollisionObjectArray()[i])->setLinearVelocity(V3_TO_BT(Velocity));
 				}
 			}
 		}
@@ -8620,7 +9108,7 @@ namespace Tomahawk
 			for (int i = 0; i < World->getNumCollisionObjects(); i++)
 			{
 				Vector3 Velocity = Impulse * (RandomFactor ? Vector3::Random() : 1);
-				btRigidBody::upcast(World->getCollisionObjectArray()[i])->setAngularVelocity(BtV3(Velocity));
+				btRigidBody::upcast(World->getCollisionObjectArray()[i])->setAngularVelocity(V3_TO_BT(Velocity));
 			}
 		}
 		void Simulator::SetAngularImpulse(const Vector3& Impulse, int Start, int End, bool RandomFactor)
@@ -8630,7 +9118,7 @@ namespace Tomahawk
 				for (int i = Start; i < End; i++)
 				{
 					Vector3 Velocity = Impulse * (RandomFactor ? Vector3::Random() : 1);
-					btRigidBody::upcast(World->getCollisionObjectArray()[i])->setAngularVelocity(BtV3(Velocity));
+					btRigidBody::upcast(World->getCollisionObjectArray()[i])->setAngularVelocity(V3_TO_BT(Velocity));
 				}
 			}
 		}
@@ -8736,15 +9224,17 @@ namespace Tomahawk
 				btRigidBody* Body = btRigidBody::upcast(Object);
 				if (Body != nullptr)
 				{
-					delete Body->getMotionState();
+					auto* State = Body->getMotionState();
+					TH_DELETE(btMotionState, State);
 					Body->setMotionState(nullptr);
 
-					delete Body->getCollisionShape();
+					auto* Shape = Body->getCollisionShape();
+					TH_DELETE(btCollisionShape, Shape);
 					Body->setCollisionShape(nullptr);
 				}
 
 				World->removeCollisionObject(Object);
-				delete Object;
+				TH_DELETE(btCollisionObject, Object);
 			}
 		}
 		void Simulator::Simulate(float TimeStep)
@@ -8813,7 +9303,7 @@ namespace Tomahawk
 		}
 		btCollisionShape* Simulator::CreateCube(const Vector3& Scale)
 		{
-			btCollisionShape* Shape = new btBoxShape(BtV3(Scale));
+			btCollisionShape* Shape = TH_NEW(btBoxShape, V3_TO_BT(Scale));
 			Safe.lock();
 			Shapes[Shape] = 1;
 			Safe.unlock();
@@ -8822,7 +9312,7 @@ namespace Tomahawk
 		}
 		btCollisionShape* Simulator::CreateSphere(float Radius)
 		{
-			btCollisionShape* Shape = new btSphereShape(Radius);
+			btCollisionShape* Shape = TH_NEW(btSphereShape, Radius);
 			Safe.lock();
 			Shapes[Shape] = 1;
 			Safe.unlock();
@@ -8831,7 +9321,7 @@ namespace Tomahawk
 		}
 		btCollisionShape* Simulator::CreateCapsule(float Radius, float Height)
 		{
-			btCollisionShape* Shape = new btCapsuleShape(Radius, Height);
+			btCollisionShape* Shape = TH_NEW(btCapsuleShape, Radius, Height);
 			Safe.lock();
 			Shapes[Shape] = 1;
 			Safe.unlock();
@@ -8840,7 +9330,7 @@ namespace Tomahawk
 		}
 		btCollisionShape* Simulator::CreateCone(float Radius, float Height)
 		{
-			btCollisionShape* Shape = new btConeShape(Radius, Height);
+			btCollisionShape* Shape = TH_NEW(btConeShape, Radius, Height);
 			Safe.lock();
 			Shapes[Shape] = 1;
 			Safe.unlock();
@@ -8849,7 +9339,7 @@ namespace Tomahawk
 		}
 		btCollisionShape* Simulator::CreateCylinder(const Vector3& Scale)
 		{
-			btCollisionShape* Shape = new btCylinderShape(BtV3(Scale));
+			btCollisionShape* Shape = TH_NEW(btCylinderShape, V3_TO_BT(Scale));
 			Safe.lock();
 			Shapes[Shape] = 1;
 			Safe.unlock();
@@ -8858,7 +9348,7 @@ namespace Tomahawk
 		}
 		btCollisionShape* Simulator::CreateConvexHull(std::vector<SkinVertex>& Vertices)
 		{
-			btConvexHullShape* Shape = new btConvexHullShape();
+			btConvexHullShape* Shape = TH_NEW(btConvexHullShape);
 			for (auto It = Vertices.begin(); It != Vertices.end(); It++)
 				Shape->addPoint(btVector3(It->PositionX, It->PositionY, It->PositionZ), false);
 
@@ -8874,7 +9364,7 @@ namespace Tomahawk
 		}
 		btCollisionShape* Simulator::CreateConvexHull(std::vector<Vertex>& Vertices)
 		{
-			btConvexHullShape* Shape = new btConvexHullShape();
+			btConvexHullShape* Shape = TH_NEW(btConvexHullShape);
 			for (auto It = Vertices.begin(); It != Vertices.end(); It++)
 				Shape->addPoint(btVector3(It->PositionX, It->PositionY, It->PositionZ), false);
 
@@ -8890,7 +9380,7 @@ namespace Tomahawk
 		}
 		btCollisionShape* Simulator::CreateConvexHull(std::vector<Vector2>& Vertices)
 		{
-			btConvexHullShape* Shape = new btConvexHullShape();
+			btConvexHullShape* Shape = TH_NEW(btConvexHullShape);
 			for (auto It = Vertices.begin(); It != Vertices.end(); It++)
 				Shape->addPoint(btVector3(It->X, It->Y, 0), false);
 
@@ -8906,7 +9396,7 @@ namespace Tomahawk
 		}
 		btCollisionShape* Simulator::CreateConvexHull(std::vector<Vector3>& Vertices)
 		{
-			btConvexHullShape* Shape = new btConvexHullShape();
+			btConvexHullShape* Shape = TH_NEW(btConvexHullShape);
 			for (auto It = Vertices.begin(); It != Vertices.end(); It++)
 				Shape->addPoint(btVector3(It->X, It->Y, It->Z), false);
 
@@ -8922,7 +9412,7 @@ namespace Tomahawk
 		}
 		btCollisionShape* Simulator::CreateConvexHull(std::vector<Vector4>& Vertices)
 		{
-			btConvexHullShape* Shape = new btConvexHullShape();
+			btConvexHullShape* Shape = TH_NEW(btConvexHullShape);
 			for (auto It = Vertices.begin(); It != Vertices.end(); It++)
 				Shape->addPoint(btVector3(It->X, It->Y, It->Z), false);
 
@@ -8941,7 +9431,7 @@ namespace Tomahawk
 			if (!From || From->getShapeType() != Shape_Convex_Hull)
 				return nullptr;
 
-			btConvexHullShape* Hull = new btConvexHullShape();
+			btConvexHullShape* Hull = TH_NEW(btConvexHullShape);
 			btConvexHullShape* Base = (btConvexHullShape*)From;
 
 			for (size_t i = 0; i < Base->getNumPoints(); i++)
@@ -8985,7 +9475,7 @@ namespace Tomahawk
 			{
 				btBoxShape* Box = (btBoxShape*)Value;
 				btVector3 Size = Box->getHalfExtentsWithMargin() / Box->getLocalScaling();
-				return CreateCube(V3Bt(Size));
+				return CreateCube(BT_TO_V3(Size));
 			}
 			else if (Type == Shape_Sphere)
 			{
@@ -9006,7 +9496,7 @@ namespace Tomahawk
 			{
 				btCylinderShape* Cylinder = (btCylinderShape*)Value;
 				btVector3 Size = Cylinder->getHalfExtentsWithMargin() / Cylinder->getLocalScaling();
-				return CreateCylinder(V3Bt(Size));
+				return CreateCylinder(BT_TO_V3(Size));
 			}
 			else if (Type == Shape_Convex_Hull)
 				return CreateConvexHull(Value);
@@ -9042,7 +9532,8 @@ namespace Tomahawk
 				*Value = nullptr;
 				if (It->second-- <= 1)
 				{
-					delete (btCollisionShape*)It->first;
+					btCollisionShape* Item = (btCollisionShape*)It->first;
+					TH_DELETE(btCollisionShape, Item);
 					Shapes.erase(It);
 				}
 			}
@@ -9117,7 +9608,7 @@ namespace Tomahawk
 				return 0;
 
 			btVector3 Value = ((btSoftRigidDynamicsWorld*)World)->getWorldInfo().water_normal;
-			return V3Bt(Value);
+			return BT_TO_V3(Value);
 		}
 		Vector3 Simulator::GetGravity()
 		{
@@ -9125,7 +9616,7 @@ namespace Tomahawk
 				return 0;
 
 			btVector3 Value = World->getGravity();
-			return V3Bt(Value);
+			return BT_TO_V3(Value);
 		}
 		ContactStartedCallback Simulator::GetOnCollisionEnter()
 		{
@@ -9172,8 +9663,7 @@ namespace Tomahawk
 		}
 		void Simulator::FreeUnmanagedShape(btCollisionShape* Shape)
 		{
-			if (Shape != nullptr)
-				delete Shape;
+			TH_DELETE(btCollisionShape, Shape);
 		}
 		Simulator* Simulator::Get(btDiscreteDynamicsWorld* From)
 		{
@@ -9184,7 +9674,7 @@ namespace Tomahawk
 		}
 		btCollisionShape* Simulator::CreateUnmanagedShape(std::vector<Vertex>& Vertices)
 		{
-			btConvexHullShape* Shape = new btConvexHullShape();
+			btConvexHullShape* Shape = TH_NEW(btConvexHullShape);
 			for (auto It = Vertices.begin(); It != Vertices.end(); It++)
 				Shape->addPoint(btVector3(It->PositionX, It->PositionY, It->PositionZ), false);
 
@@ -9199,7 +9689,7 @@ namespace Tomahawk
 			if (!From || From->getShapeType() != Shape_Convex_Hull)
 				return nullptr;
 
-			btConvexHullShape* Hull = new btConvexHullShape();
+			btConvexHullShape* Hull = TH_NEW(btConvexHullShape);
 			btConvexHullShape* Base = (btConvexHullShape*)From;
 
 			for (size_t i = 0; i < Base->getNumPoints(); i++)

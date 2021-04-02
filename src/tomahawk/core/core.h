@@ -107,6 +107,8 @@ typedef socklen_t socket_size_t;
 #endif
 #define TH_COUT extern "C" TH_OUT
 #define TH_MALLOC(Size) Tomahawk::Core::Mem::Malloc(Size)
+#define TH_NEW(Type, ...) new(TH_MALLOC(sizeof(Type))) Type(##__VA_ARGS__)
+#define TH_DELETE(Destructor, Var) { if (Var != nullptr) { (Var)->~Destructor(); TH_FREE(Var); } }
 #define TH_REALLOC(Ptr, Size) Tomahawk::Core::Mem::Realloc(Ptr, Size)
 #define TH_FREE(Ptr) Tomahawk::Core::Mem::Free(Ptr)
 #define TH_RELEASE(Ptr) { if (Ptr != nullptr) (Ptr)->Release(); }
@@ -1453,12 +1455,12 @@ namespace Tomahawk
 				void Free()
 				{
 					if (!--Count)
-						delete this;
+						TH_DELETE(Base, this);
 				}
 			}* Next;
 
 		public:
-			Async() : Next(new Base())
+			Async() : Next(TH_NEW(Base))
 			{
 			}
 			Async(std::function<void(Async&)>&& Executor) : Async()
@@ -1597,7 +1599,7 @@ namespace Tomahawk
 				if (Next != nullptr)
 					return Next->Result;
 
-				Next = new Base();
+				Next = TH_NEW(Base);
 				Next->Set = 1;
 				return Next->Result;
 			}
@@ -1700,7 +1702,7 @@ namespace Tomahawk
 				void Free()
 				{
 					Value.Set(Match);
-					delete this;
+					TH_DELETE(Output, this);
 				}
 				void Next(bool Statement)
 				{
@@ -1738,7 +1740,7 @@ namespace Tomahawk
 			template <typename T>
 			static Async<bool> And(T&& Value, const std::vector<Async<T>>& Array)
 			{
-				Output* State = new Output(true, Array.size());
+				Output* State = TH_NEW(Output, true, Array.size());
 				ForEach<T>(Array, [State, Value = std::move(Value)](T&& Result)
 				{
 					State->Next(Result == Value);
@@ -1749,7 +1751,7 @@ namespace Tomahawk
 			template <typename T>
 			static Async<bool> Or(T&& Value, const std::vector<Async<T>>& Array)
 			{
-				Output* State = new Output(false, Array.size());
+				Output* State = TH_NEW(Output, false, Array.size());
 				ForEach<T>(Array, [State, Value = std::move(Value)](T&& Result)
 				{
 					State->Next(Result == Value);

@@ -7,11 +7,107 @@ namespace Tomahawk
 {
 	namespace Script
 	{
+		class VMCArray;
+
 		class TH_OUT VMCException
 		{
 		public:
 			static void Throw(const std::string& In);
 			static std::string GetException();
+		};
+
+		class TH_OUT VMCString
+		{
+		public:
+			static void Construct(std::string *thisPointer);
+			static void CopyConstruct(const std::string &other, std::string *thisPointer);
+			static void Destruct(std::string *thisPointer);
+			static std::string &AddAssignTo(const std::string &str, std::string &dest);
+			static bool IsEmpty(const std::string &str);
+			static void* ToPtr(const std::string& Value);
+			static std::string Reverse(const std::string& Value);
+			static std::string& AssignUInt64To(as_uint64_t i, std::string &dest);
+			static std::string& AddAssignUInt64To(as_uint64_t i, std::string &dest);
+			static std::string AddUInt641(const std::string &str, as_uint64_t i);
+			static std::string AddInt641(as_int64_t i, const std::string &str);
+			static std::string& AssignInt64To(as_int64_t i, std::string &dest);
+			static std::string& AddAssignInt64To(as_int64_t i, std::string &dest);
+			static std::string AddInt642(const std::string &str, as_int64_t i);
+			static std::string AddUInt642(as_uint64_t i, const std::string &str);
+			static std::string& AssignDoubleTo(double f, std::string &dest);
+			static std::string& AddAssignDoubleTo(double f, std::string &dest);
+			static std::string& AssignFloatTo(float f, std::string &dest);
+			static std::string& AddAssignFloatTo(float f, std::string &dest);
+			static std::string& AssignBoolTo(bool b, std::string &dest);
+			static std::string& AddAssignBoolTo(bool b, std::string &dest);
+			static std::string AddDouble1(const std::string &str, double f);
+			static std::string AddDouble2(double f, const std::string &str);
+			static std::string AddFloat1(const std::string &str, float f);
+			static std::string AddFloat2(float f, const std::string &str);
+			static std::string AddBool1(const std::string &str, bool b);
+			static std::string AddBool2(bool b, const std::string &str);
+			static char *CharAt(unsigned int i, std::string &str);
+			static int Cmp(const std::string &a, const std::string &b);
+			static int FindFirst(const std::string &sub, as_size_t start, const std::string &str);
+			static int FindFirstOf(const std::string &sub, as_size_t start, const std::string &str);
+			static int FindLastOf(const std::string &sub, as_size_t start, const std::string &str);
+			static int FindFirstNotOf(const std::string &sub, as_size_t start, const std::string &str);
+			static int FindLastNotOf(const std::string &sub, as_size_t start, const std::string &str);
+			static int FindLast(const std::string &sub, int start, const std::string &str);
+			static void Insert(unsigned int pos, const std::string &other, std::string &str);
+			static void Erase(unsigned int pos, int count, std::string &str);
+			static as_size_t Length(const std::string &str);
+			static void Resize(as_size_t l, std::string &str);
+			static std::string Replace(const std::string& a, const std::string& b, uint64_t o, const std::string& base);
+			static as_int64_t IntStore(const std::string &val, as_size_t base, as_size_t *byteCount);
+			static as_uint64_t UIntStore(const std::string &val, as_size_t base, as_size_t *byteCount);
+			static double FloatStore(const std::string &val, as_size_t *byteCount);
+			static std::string Sub(as_size_t start, int count, const std::string &str);
+			static bool Equals(const std::string& lhs, const std::string& rhs);
+			static std::string ToLower(const std::string& Symbol);
+			static std::string ToUpper(const std::string& Symbol);
+			static std::string ToInt8(char Value);
+			static std::string ToInt16(short Value);
+			static std::string ToInt(int Value);
+			static std::string ToInt64(int64_t Value);
+			static std::string ToUInt8(unsigned char Value);
+			static std::string ToUInt16(unsigned short Value);
+			static std::string ToUInt(unsigned int Value);
+			static std::string ToUInt64(uint64_t Value);
+			static std::string ToFloat(float Value);
+			static std::string ToDouble(double Value);
+			static VMCArray* Split(const std::string &delim, const std::string &str);
+			static std::string Join(const VMCArray &array, const std::string &delim);
+			static char ToChar(const std::string& Symbol);
+		};
+
+		class TH_OUT VMCMutex
+		{
+		private:
+			std::mutex Base;
+			int Ref;
+
+		public:
+			VMCMutex();
+			void AddRef();
+			void Release();
+			bool TryLock();
+			void Lock();
+			void Unlock();
+			
+		public:
+			static VMCMutex* Factory();
+		};
+
+		class TH_OUT VMCMath
+		{
+		public:
+			static float FpFromIEEE(as_size_t raw);
+			static as_size_t FpToIEEE(float fp);
+			static double FpFromIEEE(as_uint64_t raw);
+			static as_uint64_t FpToIEEE(double fp);
+			static bool CloseTo(float a, float b, float epsilon);
+			static bool CloseTo(double a, double b, double epsilon);
 		};
 
 		class TH_OUT VMCAny
@@ -55,6 +151,11 @@ namespace Tomahawk
 		protected:
 			virtual ~VMCAny();
 			void FreeObject();
+
+		public:
+			static void Factory1(VMCGeneric* G);
+			static void Factory2(VMCGeneric* G);
+			static VMCAny& Assignment(VMCAny* Other, VMCAny* Self);
 		};
 
 		class TH_OUT VMCArray
@@ -147,6 +248,8 @@ namespace Tomahawk
 			static VMCArray* Create(VMCTypeInfo* T, as_size_t Length);
 			static VMCArray* Create(VMCTypeInfo* T, as_size_t Length, void* DefaultValue);
 			static VMCArray* Create(VMCTypeInfo* T, void* ListBuffer);
+			static void CleanupTypeInfoCache(VMCTypeInfo* Type);
+			static bool TemplateCallback(VMCTypeInfo* T, bool& DontGarbageCollect);
 
 		public:
 			template <typename T>
@@ -308,6 +411,19 @@ namespace Tomahawk
 		public:
 			static VMCMap* Create(VMCManager* Engine);
 			static VMCMap* Create(unsigned char* Buffer);
+			static void Cleanup(VMCManager *engine);
+			static void Setup(VMCManager *engine);
+			static void Factory(VMCGeneric *gen);
+			static void ListFactory(VMCGeneric *gen);
+			static void KeyConstruct(void *mem);
+			static void KeyDestruct(VMCMapKey *obj);
+			static VMCMapKey &KeyopAssign(void *ref, int typeId, VMCMapKey *obj);
+			static VMCMapKey &KeyopAssign(const VMCMapKey &other, VMCMapKey *obj);
+			static VMCMapKey &KeyopAssign(double val, VMCMapKey *obj);
+			static VMCMapKey &KeyopAssign(as_int64_t val, VMCMapKey *obj);
+			static void KeyopCast(void *ref, int typeId, VMCMapKey *obj);
+			static as_int64_t KeyopConvInt(VMCMapKey *obj);
+			static double KeyopConvDouble(VMCMapKey *obj);
 		};
 
 		class TH_OUT VMCGrid
@@ -364,6 +480,7 @@ namespace Tomahawk
 			static VMCGrid* Create(VMCTypeInfo* T, as_size_t Width, as_size_t Height);
 			static VMCGrid* Create(VMCTypeInfo* T, as_size_t Width, as_size_t Height, void* DefaultValue);
 			static VMCGrid* Create(VMCTypeInfo* T, void* ListBuffer);
+			static bool TemplateCallback(VMCTypeInfo *TI, bool &DontGarbageCollect);
 		};
 
 		class TH_OUT VMCRef
@@ -394,6 +511,12 @@ namespace Tomahawk
 		protected:
 			void ReleaseHandle();
 			void AddRefHandle();
+
+		public:
+			static void Construct(VMCRef *self);
+			static void Construct(VMCRef *self, const VMCRef &o);
+			static void Construct(VMCRef *self, void *ref, int typeId);
+			static void Destruct(VMCRef *self);
 		};
 
 		class TH_OUT VMCWeakRef
@@ -415,6 +538,12 @@ namespace Tomahawk
 			void* Get() const;
 			bool Equals(void* Ref) const;
 			VMCTypeInfo* GetRefType() const;
+
+		public:
+			static void Construct(VMCTypeInfo *type, void *mem);
+			static void Construct2(VMCTypeInfo *type, void *ref, void *mem);
+			static void Destruct(VMCWeakRef *obj);
+			static bool TemplateCallback(VMCTypeInfo *TI, bool&);
 		};
 
 		class TH_OUT VMCComplex
@@ -444,6 +573,13 @@ namespace Tomahawk
 			VMCComplex operator- (const VMCComplex& Other) const;
 			VMCComplex operator* (const VMCComplex& Other) const;
 			VMCComplex operator/ (const VMCComplex& Other) const;
+
+		public:
+			static void DefaultConstructor(VMCComplex *self);
+			static void CopyConstructor(const VMCComplex &other, VMCComplex *self);
+			static void ConvConstructor(float r, VMCComplex *self);
+			static void InitConstructor(float r, float i, VMCComplex *self);
+			static void ListConstructor(float *list, VMCComplex *self);
 		};
 
 		class TH_OUT VMCThread
@@ -529,10 +665,10 @@ namespace Tomahawk
 			VMCAny* Any;
 			VMCTypeInfo* Type;
 			std::mutex Safe;
+			int Ref;
 			void* Refers;
 			bool Stored;
 			bool GCFlag;
-			int Ref;
 
 		private:
 			VMCAsync(VMCContext* Base, VMCTypeInfo* Info);
@@ -617,6 +753,7 @@ namespace Tomahawk
 		TH_OUT bool RegisterMathAPI(VMManager* Manager);
 		TH_OUT bool RegisterStringAPI(VMManager* Manager);
 		TH_OUT bool RegisterExceptionAPI(VMManager* Manager);
+		TH_OUT bool RegisterMutexAPI(VMManager* Manager);
 		TH_OUT bool RegisterThreadAPI(VMManager* Manager);
 		TH_OUT bool RegisterRandomAPI(VMManager* Manager);
 		TH_OUT bool RegisterAsyncAPI(VMManager* Manager);

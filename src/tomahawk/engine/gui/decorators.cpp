@@ -19,12 +19,12 @@ namespace Tomahawk
 				{
 					Compute::Matrix4x4 View = Subsystem::ToMatrix(State->GetTransform());
 					Device->Render.WorldViewProj = Compute::Matrix4x4::CreateTranslatedScale(Offset, Scale + Mul) * View * Ortho;
-					Device->Render.World = (Compute::Matrix4x4::CreateTranslation(Compute::Vector2(Position.x, Position.y)) * View * Ortho).Invert();
+					Device->Render.World = (Compute::Matrix4x4::CreateTranslation(Compute::Vector2(Position.x, Position.y)) * View * Ortho).Inv();
 				}
 				else
 				{
 					Device->Render.WorldViewProj = Compute::Matrix4x4::CreateTranslatedScale(Offset, Scale + Mul) * Ortho;
-					Device->Render.World = (Compute::Matrix4x4::CreateTranslation(Compute::Vector2(Position.x, Position.y)) * Ortho).Invert();
+					Device->Render.World = (Compute::Matrix4x4::CreateTranslation(Compute::Vector2(Position.x, Position.y)) * Ortho).Inv();
 				}
 			}
 
@@ -308,22 +308,22 @@ namespace Tomahawk
 			{
 				if (!IBoxShadow)
 				{
-					IBoxShadow = new BoxShadowInstancer(Device);
+					IBoxShadow = TH_NEW(BoxShadowInstancer, Device);
 					Rml::Factory::RegisterDecoratorInstancer("box-shadow", IBoxShadow);
 				}
 
 				if (!IBoxBlur)
 				{
-					IBoxBlur = new BoxBlurInstancer(Device);
+					IBoxBlur = TH_NEW(BoxBlurInstancer, Device);
 					Rml::Factory::RegisterDecoratorInstancer("box-blur", IBoxBlur);
 				}
 			}
 			void Subsystem::ReleaseDecorators()
 			{
-				delete IBoxShadow;
+				TH_DELETE(BoxShadowInstancer, IBoxShadow);
 				IBoxShadow = nullptr;
 
-				delete IBoxBlur;
+				TH_DELETE(BoxBlurInstancer, IBoxBlur);
 				IBoxBlur = nullptr;
 			}
 		}

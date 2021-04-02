@@ -160,7 +160,7 @@ namespace Tomahawk
 				MappedSubresource Resource;
 				Device->Map(VertexBuffer, ResourceMap_Write, &Resource);
 
-				Compute::Vertex* Vertices = new Compute::Vertex[(unsigned int)VertexBuffer->GetElements()];
+				Compute::Vertex* Vertices = (Compute::Vertex*)TH_MALLOC(sizeof(Compute::Vertex) * (unsigned int)VertexBuffer->GetElements());
 				memcpy(Vertices, Resource.Pointer, (size_t)VertexBuffer->GetElements() * sizeof(Compute::Vertex));
 
 				Device->Unmap(VertexBuffer, &Resource);
@@ -175,7 +175,7 @@ namespace Tomahawk
 				MappedSubresource Resource;
 				Device->Map(VertexBuffer, ResourceMap_Write, &Resource);
 
-				Compute::SkinVertex* Vertices = new Compute::SkinVertex[(unsigned int)VertexBuffer->GetElements()];
+				Compute::SkinVertex* Vertices = (Compute::SkinVertex*)TH_MALLOC(sizeof(Compute::SkinVertex) * (unsigned int)VertexBuffer->GetElements());
 				memcpy(Vertices, Resource.Pointer, (size_t)VertexBuffer->GetElements() * sizeof(Compute::SkinVertex));
 
 				Device->Unmap(VertexBuffer, &Resource);
@@ -1141,7 +1141,7 @@ namespace Tomahawk
 					return false;
 
 				ClearBuffer(IResource);
-				delete IResource->Elements;
+				TH_RELEASE(IResource->Elements);
 
 				IResource->ElementLimit = Size;
 				if (IResource->ElementLimit < 1)

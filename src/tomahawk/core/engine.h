@@ -1157,7 +1157,7 @@ namespace Tomahawk
 				}
 
 				if (It->second != nullptr)
-					delete It->second;
+					TH_RELEASE(It->second);
 
 				Processors.erase(It);
 				Mutex.unlock();
@@ -1172,7 +1172,7 @@ namespace Tomahawk
 				if (It != Processors.end())
 				{
 					if (It->second != nullptr)
-						delete It->second;
+						TH_RELEASE(It->second);
 					It->second = Instance;
 				}
 				else
@@ -1279,7 +1279,7 @@ namespace Tomahawk
 				if (!Event)
 					return nullptr;
 
-				Reactor* Result = new Reactor(this, UpdateLimit, [](Reactor* Job, Application* App)
+				Reactor* Result = TH_NEW(Reactor, this, UpdateLimit, [](Reactor* Job, Application* App)
 				{
 					(((T*)App)->*Event)(Job->Time);
 				});

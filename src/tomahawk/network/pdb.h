@@ -51,10 +51,14 @@ namespace Tomahawk
 				std::unordered_map<std::string, std::string> Params;
 
 			public:
+				Address();
+				Address(const std::string& URI);
 				void Override(const std::string& Key, const std::string& Value);
 				bool Set(AddressOp Key, const std::string& Value);
 				std::string Get(AddressOp Key) const;
 				const std::unordered_map<std::string, std::string>& Get() const;
+				const char** CreateKeys() const;
+				const char** CreateValues() const;
 
 			private:
 				static std::string GetKeyName(AddressOp Key);
@@ -72,7 +76,6 @@ namespace Tomahawk
 			public:
 				Connection();
 				virtual ~Connection() override;
-				Core::Async<bool> Connect(const std::string& Address);
 				Core::Async<bool> Connect(const Address& URI);
 				Core::Async<bool> Disconnect();
 				TConnection* Get() const;
@@ -86,16 +89,13 @@ namespace Tomahawk
 			private:
 				std::unordered_set<Connection*> Active;
 				std::unordered_set<Connection*> Inactive;
-				std::string BaseAddress;
 				std::mutex Safe;
-				Address BaseURI;
-				bool HasParams;
+				Address Source;
 				bool Connected;
 
 			public:
 				Queue();
 				virtual ~Queue() override;
-				bool Connect(const std::string& Address);
 				bool Connect(const Address& URI);
 				bool Disconnect();
 				bool Push(Connection** Client);

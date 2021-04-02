@@ -241,14 +241,16 @@ namespace Tomahawk
 
 			public:
 				GatewayFrame(char* Data, int64_t DataSize);
-				void Execute(bool Finished);
+				void Execute(Script::VMResume State);
 				bool Finish();
+				bool Error(int StatusCode, const char* Text);
 				bool Error();
 				bool Start();
 				bool IsDone();
 				Script::VMContext* GetContext();
 
 			private:
+				Script::VMFunction GetMain(const Script::VMModule& Mod);
 				bool Done(bool Normal);
 			};
 
@@ -297,6 +299,7 @@ namespace Tomahawk
 				{
 					std::vector<Compute::RegExp> Files;
 					std::vector<std::string> Methods;
+					bool ReportErrors = false;
 				} Gateway;
 				struct
 				{
@@ -405,7 +408,7 @@ namespace Tomahawk
 				RequestFrame Request;
 				ResponseFrame Response;
 
-				virtual ~Connection() override;
+				virtual ~Connection() = default;
 				bool Finish() override;
 				bool Finish(int StatusCode) override;
 				bool Certify(Certificate* Output) override;
@@ -613,6 +616,7 @@ namespace Tomahawk
 				static bool ProcessFile(Connection* Base, uint64_t ContentLength, uint64_t Range);
 				static bool ProcessFileChunk(Connection* Base, Server* Router, FILE* Stream, uint64_t ContentLength);
 				static bool ProcessFileCompress(Connection* Base, uint64_t ContentLength, uint64_t Range, bool Gzip);
+				static bool ProcessFileCompressChunk(Connection* Base, Server* Router, FILE* Stream, void* CStream, uint64_t ContentLength);
 				static bool ProcessGateway(Connection* Base);
 				static bool ProcessWebSocket(Connection* Base, const char* Key);
 				static bool ProcessWebSocketPass(Connection* Base);

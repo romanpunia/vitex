@@ -330,6 +330,13 @@ namespace Tomahawk
 			VMImport_All = (VMImport_CLibraries | VMImport_CSymbols | VMImport_Submodules | VMImport_Files | VMImport_JSON)
 		};
 
+		enum VMResume
+		{
+			VMResume_Continue,
+			VMResume_Finish,
+			VMResume_Finish_With_Error
+		};
+
 		typedef asIScriptEngine VMCManager;
 		typedef asIScriptContext VMCContext;
 		typedef asIScriptModule VMCModule;
@@ -344,7 +351,7 @@ namespace Tomahawk
 		typedef std::function<void(struct VMTypeInfo*, struct VMFunction*)> MethodCallback;
 		typedef std::function<void(class VMManager*)> SubmoduleCallback;
 		typedef std::function<void(class VMContext*)> ArgsCallback;
-		typedef std::function<void(bool Finished)> ResumeCallback;
+		typedef std::function<void(VMResume)> ResumeCallback;
 
         class TH_OUT VMFuncStore
         {
@@ -1608,6 +1615,7 @@ namespace Tomahawk
 			int PopCoroutine();
 			bool IsPending();
 			bool IsNested(unsigned int* NestCount = 0) const;
+			bool IsThrown() const;
 			int SetObject(void* Object);
 			int SetArg8(unsigned int Arg, unsigned char Value);
 			int SetArg16(unsigned int Arg, unsigned short Value);

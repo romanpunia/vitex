@@ -125,7 +125,7 @@ namespace Tomahawk
 				MappedSubresource Resource;
 				Device->Map(VertexBuffer, ResourceMap_Write, &Resource);
 
-				Compute::Vertex* Vertices = new Compute::Vertex[(unsigned int)VertexBuffer->GetElements()];
+				Compute::Vertex* Vertices = (Compute::Vertex*)TH_MALLOC(sizeof(Compute::Vertex) * (unsigned int)VertexBuffer->GetElements());
 				memcpy(Vertices, Resource.Pointer, (size_t)VertexBuffer->GetElements() * sizeof(Compute::Vertex));
 
 				Device->Unmap(VertexBuffer, &Resource);
@@ -140,7 +140,7 @@ namespace Tomahawk
 				MappedSubresource Resource;
 				Device->Map(VertexBuffer, ResourceMap_Write, &Resource);
 
-				Compute::SkinVertex* Vertices = new Compute::SkinVertex[(unsigned int)VertexBuffer->GetElements()];
+				Compute::SkinVertex* Vertices = (Compute::SkinVertex*)TH_MALLOC(sizeof(Compute::SkinVertex) * (unsigned int)VertexBuffer->GetElements());
 				memcpy(Vertices, Resource.Pointer, (size_t)VertexBuffer->GetElements() * sizeof(Compute::SkinVertex));
 
 				Device->Unmap(VertexBuffer, &Resource);
@@ -1122,7 +1122,7 @@ namespace Tomahawk
 					return false;
 
 				ClearBuffer(IResource);
-				delete IResource->Elements;
+				TH_RELEASE(IResource->Elements);
 
 				ReleaseCom(IResource->Resource);
 				IResource->ElementLimit = Size;
@@ -3381,7 +3381,7 @@ namespace Tomahawk
 				if (!Shader->Signature || !Layout || Layout->Layout.empty())
 					return nullptr;
 
-				D3D11_INPUT_ELEMENT_DESC* Result = new D3D11_INPUT_ELEMENT_DESC[Layout->Layout.size()];
+				D3D11_INPUT_ELEMENT_DESC* Result = (D3D11_INPUT_ELEMENT_DESC*)TH_MALLOC(sizeof(D3D11_INPUT_ELEMENT_DESC) * Layout->Layout.size());
 				for (size_t i = 0; i < Layout->Layout.size(); i++)
 				{
 					const InputLayout::Attribute& It = Layout->Layout[i];
@@ -3398,7 +3398,7 @@ namespace Tomahawk
 							if (It.Components == 3)
 							{
 								TH_ERROR("D3D11 does not support 24bit format for this type");
-								delete[] Result;
+								TH_FREE(Result);
 								return nullptr;
 							}
 							else if (It.Components == 1)
@@ -3412,7 +3412,7 @@ namespace Tomahawk
 							if (It.Components == 3)
 							{
 								TH_ERROR("D3D11 does not support 24bit format for this type");
-								delete[] Result;
+								TH_FREE(Result);
 								return nullptr;
 							}
 							else if (It.Components == 1)
@@ -3469,8 +3469,8 @@ namespace Tomahawk
 
 				if (D3DDevice->CreateInputLayout(Result, Layout->Layout.size(), Shader->Signature->GetBufferPointer(), Shader->Signature->GetBufferSize(), &Shader->VertexLayout) != S_OK)
 					TH_ERROR("couldn't generate input layout for specified shader");
-				
-				delete[] Result;
+
+				TH_FREE(Result);
 				return Shader->VertexLayout;
 			}
 			int D3D11Device::CreateConstantBuffer(ID3D11Buffer** Buffer, size_t Size)

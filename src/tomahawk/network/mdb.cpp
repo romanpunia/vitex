@@ -2515,7 +2515,7 @@ namespace Tomahawk
 				(*Client)->Connected = false;
 				(*Client)->Master = nullptr;
 
-				delete *Client;
+				TH_RELEASE(*Client);
 				*Client = nullptr;
 #endif
 			}
@@ -2555,7 +2555,7 @@ namespace Tomahawk
 				if (State <= 0)
 				{
 					Queries = new std::unordered_map<std::string, Sequence>();
-					Safe = new std::mutex();
+					Safe = TH_NEW(std::mutex);
 					mongoc_init();
 					State = 1;
 				}
@@ -2584,7 +2584,7 @@ namespace Tomahawk
 					if (Safe != nullptr)
 					{
 						Safe->unlock();
-						delete Safe;
+						TH_DELETE(mutex, Safe);
 						Safe = nullptr;
 					}
 

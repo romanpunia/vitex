@@ -1103,75 +1103,75 @@ namespace Tomahawk
 
 		Parser::Parser() : Safe(true)
 		{
-			L = new std::string();
+			L = TH_NEW(std::string);
 		}
 		Parser::Parser(int Value) : Safe(true)
 		{
-			L = new std::string(std::to_string(Value));
+			L = TH_NEW(std::string, std::to_string(Value));
 		}
 		Parser::Parser(unsigned int Value) : Safe(true)
 		{
-			L = new std::string(std::to_string(Value));
+			L = TH_NEW(std::string, std::to_string(Value));
 		}
 		Parser::Parser(int64_t Value) : Safe(true)
 		{
-			L = new std::string(std::to_string(Value));
+			L = TH_NEW(std::string, std::to_string(Value));
 		}
 		Parser::Parser(uint64_t Value) : Safe(true)
 		{
-			L = new std::string(std::to_string(Value));
+			L = TH_NEW(std::string, std::to_string(Value));
 		}
 		Parser::Parser(float Value) : Safe(true)
 		{
-			L = new std::string(std::to_string(Value));
+			L = TH_NEW(std::string, std::to_string(Value));
 		}
 		Parser::Parser(double Value) : Safe(true)
 		{
-			L = new std::string(std::to_string(Value));
+			L = TH_NEW(std::string, std::to_string(Value));
 		}
 		Parser::Parser(long double Value) : Safe(true)
 		{
-			L = new std::string(std::to_string(Value));
+			L = TH_NEW(std::string, std::to_string(Value));
 		}
 		Parser::Parser(const std::string& Buffer) : Safe(true)
 		{
-			L = new std::string(Buffer);
+			L = TH_NEW(std::string, Buffer);
 		}
 		Parser::Parser(std::string* Buffer)
 		{
 			Safe = (!Buffer);
-			L = (Safe ? new std::string() : Buffer);
+			L = (Safe ? TH_NEW(std::string) : Buffer);
 		}
 		Parser::Parser(const std::string* Buffer)
 		{
 			Safe = (!Buffer);
-			L = (Safe ? new std::string() : (std::string*)Buffer);
+			L = (Safe ? TH_NEW(std::string) : (std::string*)Buffer);
 		}
 		Parser::Parser(const char* Buffer) : Safe(true)
 		{
 			if (Buffer != nullptr)
-				L = new std::string(Buffer);
+				L = TH_NEW(std::string, Buffer);
 			else
-				L = new std::string();
+				L = TH_NEW(std::string);
 		}
 		Parser::Parser(const char* Buffer, int64_t Length) : Safe(true)
 		{
 			if (Buffer != nullptr)
-				L = new std::string(Buffer, Length);
+				L = TH_NEW(std::string, Buffer, Length);
 			else
-				L = new std::string();
+				L = TH_NEW(std::string);
 		}
 		Parser::Parser(const Parser& Value) : Safe(true)
 		{
 			if (Value.L != nullptr)
-				L = new std::string(*Value.L);
+				L = TH_NEW(std::string, *Value.L);
 			else
-				L = new std::string();
+				L = TH_NEW(std::string);
 		}
 		Parser::~Parser()
 		{
 			if (Safe)
-				delete L;
+				TH_DELETE(basic_string, L);
 		}
 		Parser& Parser::EscapePrint()
 		{
@@ -2460,13 +2460,13 @@ namespace Tomahawk
 				return *this;
 
 			if (Safe)
-				delete L;
+				TH_DELETE(basic_string, L);
 
 			Safe = true;
 			if (Value.L != nullptr)
-				L = new std::string(*Value.L);
+				L = TH_NEW(std::string, *Value.L);
 			else
-				L = new std::string();
+				L = TH_NEW(std::string);
 
 			return *this;
 		}
@@ -3209,13 +3209,13 @@ namespace Tomahawk
 			if (Size < 2)
 				Size = 2;
 
-			char* Value = new char[(size_t)(Size + 1)];
+			char* Value = (char*)TH_MALLOC(sizeof(char) * (size_t)(Size + 1));
 			memset(Value, 0, (size_t)Size * sizeof(char));
 			Value[Size] = '\0';
 
 			std::cin.getline(Value, Size);
 			std::string Output = Value;
-			delete[] Value;
+			TH_FREE(Value);
 
 			return Output;
 		}
@@ -3251,22 +3251,22 @@ namespace Tomahawk
 		Timer::Timer() : FrameLimit(0), TickCounter(16), TimeIncrement(0.0), CapturedTime(0.0)
 		{
 #ifdef TH_MICROSOFT
-			Frequency = new LARGE_INTEGER();
+			Frequency = TH_NEW(LARGE_INTEGER);
 			QueryPerformanceFrequency((LARGE_INTEGER*)Frequency);
 
-			TimeLimit = new LARGE_INTEGER();
+			TimeLimit = TH_NEW(LARGE_INTEGER);
 			QueryPerformanceCounter((LARGE_INTEGER*)TimeLimit);
 
-			PastTime = new LARGE_INTEGER();
+			PastTime = TH_NEW(LARGE_INTEGER);
 			QueryPerformanceCounter((LARGE_INTEGER*)PastTime);
 #elif defined TH_UNIX
-			Frequency = new timespec();
+			Frequency = TH_NEW(timespec);
 			clock_gettime(CLOCK_REALTIME, (timespec*)Frequency);
 
-			TimeLimit = new timespec();
+			TimeLimit = TH_NEW(timespec);
 			clock_gettime(CLOCK_REALTIME, (timespec*)TimeLimit);
 
-			PastTime = new timespec();
+			PastTime = TH_NEW(timespec);
 			clock_gettime(CLOCK_REALTIME, (timespec*)PastTime);
 #endif
 			SetStepLimitation(60.0f, 10.0f);
@@ -3274,28 +3274,23 @@ namespace Tomahawk
 		Timer::~Timer()
 		{
 #ifdef TH_MICROSOFT
-			if (PastTime != nullptr)
-				delete (LARGE_INTEGER*)PastTime;
-			PastTime = nullptr;
+			LARGE_INTEGER* sPastTime = (LARGE_INTEGER*)PastTime;
+			TH_DELETE(LARGE_INTEGER, sPastTime);
 
-			if (TimeLimit != nullptr)
-				delete (LARGE_INTEGER*)TimeLimit;
-			TimeLimit = nullptr;
+			LARGE_INTEGER* sTimeLimit = (LARGE_INTEGER*)TimeLimit;
+			TH_DELETE(LARGE_INTEGER, sTimeLimit);
 
-			if (Frequency != nullptr)
-				delete (LARGE_INTEGER*)Frequency;
-			Frequency = nullptr;
+			LARGE_INTEGER* sFrequency = (LARGE_INTEGER*)Frequency;
+			TH_DELETE(LARGE_INTEGER, sFrequency);
 #elif defined TH_UNIX
-			if (PastTime != nullptr)
-				delete (timespec*)PastTime;
-			PastTime = nullptr;
+			timespec* sPastTime = (timespec*)PastTime;
+			TH_DELETE(timespec, sPastTime);
 
-			if (TimeLimit != nullptr)
-				delete (timespec*)TimeLimit;
-			TimeLimit = nullptr;
+			timespec* sTimeLimit = (timespec*)TimeLimit;
+			TH_DELETE(timespec, sTimeLimit);
 
-			if (Frequency != nullptr)
-				delete (timespec*)Frequency;
+			timespec* sFrequency = (timespec*)Frequency;
+			TH_DELETE(timespec, sFrequency);
 #endif
 		}
 		double Timer::GetTimeIncrement()
@@ -3967,7 +3962,6 @@ namespace Tomahawk
 				return false;
 
 			ResourceEntry Entry;
-
 #if defined(TH_MICROSOFT)
 			struct Dirent
 			{
@@ -4436,7 +4430,7 @@ namespace Tomahawk
 				return nullptr;
 
 			uint64_t Size = Stream->GetSize();
-			auto* Bytes = new unsigned char[(size_t)(Size + 1)];
+			auto* Bytes = (unsigned char*)TH_MALLOC(sizeof(unsigned char) * (size_t)(Size + 1));
 			Stream->Read((char*)Bytes, Size * sizeof(unsigned char));
 			Bytes[Size] = '\0';
 
@@ -6222,14 +6216,14 @@ namespace Tomahawk
 				return nullptr;
 			}
 
-			auto iDocument = new rapidxml::xml_document<>();
+			auto iDocument = TH_NEW(rapidxml::xml_document<>);
 			try
 			{
 				iDocument->parse<rapidxml::parse_trim_whitespace>((char*)Buffer.c_str());
 			}
 			catch (const std::runtime_error& e)
 			{
-				delete iDocument;
+				TH_DELETE(xml_document, iDocument);
 				if (Assert)
 					TH_ERROR("[xml] %s", e.what());
 
@@ -6237,7 +6231,7 @@ namespace Tomahawk
 			}
 			catch (const rapidxml::parse_error& e)
 			{
-				delete iDocument;
+				TH_DELETE(xml_document, iDocument);
 				if (Assert)
 					TH_ERROR("[xml] %s", e.what());
 
@@ -6245,7 +6239,7 @@ namespace Tomahawk
 			}
 			catch (const std::exception& e)
 			{
-				delete iDocument;
+				TH_DELETE(xml_document, iDocument);
 				if (Assert)
 					TH_ERROR("[xml] %s", e.what());
 
@@ -6253,7 +6247,7 @@ namespace Tomahawk
 			}
 			catch (...)
 			{
-				delete iDocument;
+				TH_DELETE(xml_document, iDocument);
 				if (Assert)
 					TH_ERROR("[xml] parse error");
 
@@ -6264,7 +6258,7 @@ namespace Tomahawk
 			if (!Base)
 			{
 				iDocument->clear();
-				delete iDocument;
+				TH_DELETE(xml_document, iDocument);
 
 				return nullptr;
 			}
@@ -6276,7 +6270,7 @@ namespace Tomahawk
 				TH_CLEAR(Result);
 
 			iDocument->clear();
-			delete iDocument;
+			TH_DELETE(xml_document, iDocument);
 
 			return Result;
 		}

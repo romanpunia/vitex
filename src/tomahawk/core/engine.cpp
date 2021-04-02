@@ -99,9 +99,9 @@ namespace Tomahawk
 			View = _View;
 			Projection = _Projection;
 			ViewProjection = _View * _Projection;
-			InvViewProjection = ViewProjection.Invert();
-			InvViewPosition = _Position.InvertZ();
-			ViewPosition = InvViewPosition.Invert();
+			InvViewProjection = ViewProjection.Inv();
+			InvViewPosition = _Position.InvZ();
+			ViewPosition = InvViewPosition.Inv();
 			WorldPosition = _Position;
 			WorldRotation = -_View.Rotation();
 			FarPlane = (_Far < _Near ? 999999999 : _Far);
@@ -1242,7 +1242,7 @@ namespace Tomahawk
 				return false;
 
 			std::string Array(std::move(V->GetVar("b-array").GetBlob()));
-			int64_t Size = V->GetVar("[size]").GetInteger();
+			int64_t Size = V->GetVar("size").GetInteger();
 			if (Array.empty() || !Size)
 				return false;
 
@@ -1264,7 +1264,7 @@ namespace Tomahawk
 				return false;
 
 			std::string Array(std::move(V->GetVar("i-array").GetBlob()));
-			int64_t Size = V->GetVar("[size]").GetInteger();
+			int64_t Size = V->GetVar("size").GetInteger();
 			if (Array.empty() || !Size)
 				return false;
 
@@ -1286,7 +1286,7 @@ namespace Tomahawk
 				return false;
 
 			std::string Array(std::move(V->GetVar("i-array").GetBlob()));
-			int64_t Size = V->GetVar("[size]").GetInteger();
+			int64_t Size = V->GetVar("size").GetInteger();
 			if (Array.empty() || !Size)
 				return false;
 
@@ -1308,7 +1308,7 @@ namespace Tomahawk
 				return false;
 
 			std::string Array(std::move(V->GetVar("n-array").GetBlob()));
-			int64_t Size = V->GetVar("[size]").GetInteger();
+			int64_t Size = V->GetVar("size").GetInteger();
 			if (Array.empty() || !Size)
 				return false;
 
@@ -1330,7 +1330,7 @@ namespace Tomahawk
 				return false;
 
 			std::string Array(std::move(V->GetVar("n-array").GetBlob()));
-			int64_t Size = V->GetVar("[size]").GetInteger();
+			int64_t Size = V->GetVar("size").GetInteger();
 			if (Array.empty() || !Size)
 				return false;
 
@@ -1352,7 +1352,7 @@ namespace Tomahawk
 				return false;
 
 			std::string Array(std::move(V->GetVar("i-array").GetBlob()));
-			int64_t Size = V->GetVar("[size]").GetInteger();
+			int64_t Size = V->GetVar("size").GetInteger();
 			if (Array.empty() || !Size)
 				return false;
 
@@ -1374,7 +1374,7 @@ namespace Tomahawk
 				return false;
 
 			std::string Array(std::move(V->GetVar("n-array").GetBlob()));
-			int64_t Size = V->GetVar("[size]").GetInteger();
+			int64_t Size = V->GetVar("size").GetInteger();
 			if (Array.empty() || !Size)
 				return false;
 
@@ -1396,7 +1396,7 @@ namespace Tomahawk
 				return false;
 
 			std::string Array(std::move(V->GetVar("i-array").GetBlob()));
-			int64_t Size = V->GetVar("[size]").GetInteger();
+			int64_t Size = V->GetVar("size").GetInteger();
 			if (Array.empty() || !Size)
 				return false;
 
@@ -1418,7 +1418,7 @@ namespace Tomahawk
 				return false;
 
 			std::string Array(std::move(V->GetVar("v2-array").GetBlob()));
-			int64_t Size = V->GetVar("[size]").GetInteger();
+			int64_t Size = V->GetVar("size").GetInteger();
 			if (Array.empty() || !Size)
 				return false;
 
@@ -1436,7 +1436,7 @@ namespace Tomahawk
 				return false;
 
 			std::string Array(std::move(V->GetVar("v3-array").GetBlob()));
-			int64_t Size = V->GetVar("[size]").GetInteger();
+			int64_t Size = V->GetVar("size").GetInteger();
 			if (Array.empty() || !Size)
 				return false;
 
@@ -1454,7 +1454,7 @@ namespace Tomahawk
 				return false;
 
 			std::string Array(std::move(V->GetVar("v4-array").GetBlob()));
-			int64_t Size = V->GetVar("[size]").GetInteger();
+			int64_t Size = V->GetVar("size").GetInteger();
 			if (Array.empty() || !Size)
 				return false;
 
@@ -1472,7 +1472,7 @@ namespace Tomahawk
 				return false;
 
 			std::string Array(std::move(V->GetVar("m4x4-array").GetBlob()));
-			int64_t Size = V->GetVar("[size]").GetInteger();
+			int64_t Size = V->GetVar("size").GetInteger();
 			if (Array.empty() || !Size)
 				return false;
 
@@ -1493,7 +1493,7 @@ namespace Tomahawk
 				return false;
 
 			std::string Array(std::move(V->GetVar("as-array").GetBlob()));
-			int64_t Size = V->GetVar("[size]").GetInteger();
+			int64_t Size = V->GetVar("size").GetInteger();
 			if (Array.empty() || !Size)
 				return false;
 
@@ -1520,7 +1520,7 @@ namespace Tomahawk
 				return false;
 
 			std::string Array(std::move(V->GetVar("sp-array").GetBlob()));
-			int64_t Size = V->GetVar("[size]").GetInteger();
+			int64_t Size = V->GetVar("size").GetInteger();
 			if (Array.empty() || !Size)
 				return false;
 
@@ -1583,7 +1583,7 @@ namespace Tomahawk
 				return false;
 
 			std::string Array(std::move(V->GetVar("ak-array").GetBlob()));
-			int64_t Size = V->GetVar("[size]").GetInteger();
+			int64_t Size = V->GetVar("size").GetInteger();
 			if (Array.empty() || !Size)
 				return false;
 
@@ -1604,7 +1604,7 @@ namespace Tomahawk
 				return false;
 
 			std::string Array(std::move(V->GetVar("ev-array").GetBlob()));
-			int64_t Size = V->GetVar("[size]").GetInteger();
+			int64_t Size = V->GetVar("size").GetInteger();
 			if (Array.empty() || !Size)
 				return false;
 
@@ -1650,7 +1650,7 @@ namespace Tomahawk
 				return false;
 
 			std::string Array(std::move(V->GetVar("iv-array").GetBlob()));
-			int64_t Size = V->GetVar("[size]").GetInteger();
+			int64_t Size = V->GetVar("size").GetInteger();
 			if (Array.empty() || !Size)
 				return false;
 
@@ -1692,7 +1692,7 @@ namespace Tomahawk
 				return false;
 
 			std::string Array(std::move(V->GetVar("iv-array").GetBlob()));
-			int64_t Size = V->GetVar("[size]").GetInteger();
+			int64_t Size = V->GetVar("size").GetInteger();
 			if (Array.empty() || !Size)
 				return false;
 
@@ -1733,7 +1733,7 @@ namespace Tomahawk
 				return false;
 
 			std::string Array(std::move(V->GetVar("tt-array").GetBlob()));
-			int64_t Size = V->GetVar("[size]").GetInteger();
+			int64_t Size = V->GetVar("size").GetInteger();
 			if (Array.empty() || !Size)
 				return false;
 
@@ -2133,7 +2133,7 @@ namespace Tomahawk
 					continue;
 
 				Component.second->SetActive(false);
-				delete Component.second;
+				TH_RELEASE(Component.second);
 			}
 
 			TH_RELEASE(Transform);
@@ -2152,7 +2152,7 @@ namespace Tomahawk
 					Scene->Camera = nullptr;
 			}
 
-			delete It->second;
+			TH_RELEASE(It->second);
 			Components.erase(It);
 			if (Scene != nullptr)
 			{
@@ -3229,7 +3229,7 @@ namespace Tomahawk
 				if (*It && (*It)->GetId() == Id)
 				{
 					(*It)->Deactivate();
-					delete *It;
+					TH_RELEASE(*It);
 					Renderers.erase(It);
 					break;
 				}
@@ -3486,7 +3486,7 @@ namespace Tomahawk
 						return In;
 
 					(*It)->Deactivate();
-					delete (*It);
+					TH_RELEASE(*It);
 					Renderers.erase(It);
 					break;
 				}
@@ -3821,7 +3821,7 @@ namespace Tomahawk
 			auto It = Effects.find(Desc.Filename);
 			if (It != Effects.end())
 			{
-				delete It->second;
+				TH_RELEASE(It->second);
 				It->second = Shader;
 			}
 			else
@@ -4276,7 +4276,7 @@ namespace Tomahawk
 			Conf.Device->View.Proj = View.Projection;
 			Conf.Device->View.View = View.View;
 			Conf.Device->View.Position = View.InvViewPosition;
-			Conf.Device->View.Direction = View.WorldRotation.DepthDirection();
+			Conf.Device->View.Direction = View.WorldRotation.dDirection();
 			Conf.Device->View.Far = View.FarPlane;
 			Conf.Device->View.Near = View.NearPlane;
 			Conf.Device->UpdateBuffer(Graphics::RenderBufferType_View);
@@ -4631,7 +4631,7 @@ namespace Tomahawk
 		{
 			Core::VariantArgs Subargs =
 			{
-				{ "event", Core::Var::Pointer(new Event(EventName, this, Args)) }
+				{ "event", Core::Var::Pointer(TH_NEW(Event, EventName, this, Args)) }
 			};
 			return Core::Schedule::Get()->SetEvent("scene-event", std::move(Subargs));
 		}
@@ -4639,7 +4639,7 @@ namespace Tomahawk
 		{
 			Core::VariantArgs Subargs =
 			{
-				{ "event", Core::Var::Pointer(new Event(EventName, Target, Args)) }
+				{ "event", Core::Var::Pointer(TH_NEW(Event, EventName, Target, Args)) }
 			};
 			return Core::Schedule::Get()->SetEvent("scene-event", std::move(Subargs));
 		}
@@ -4647,7 +4647,7 @@ namespace Tomahawk
 		{
 			Core::VariantArgs Subargs =
 			{
-				{ "event", Core::Var::Pointer(new Event(EventName, Target, Args)) }
+				{ "event", Core::Var::Pointer(TH_NEW(Event, EventName, Target, Args)) }
 			};
 			return Core::Schedule::Get()->SetEvent("scene-event", std::move(Subargs));
 		}
@@ -4693,7 +4693,7 @@ namespace Tomahawk
 				Sync.Listener.unlock();
 			}
 
-			delete Message;
+			TH_DELETE(Event, Message);
 			return Result;
 		}
 		void SceneGraph::Mutate(Entity* Target, bool Added)
@@ -5200,16 +5200,16 @@ namespace Tomahawk
 			InvalidateDockers();
 
 			for (auto It = Streams.begin(); It != Streams.end(); It++)
-				delete It->first;
+				TH_RELEASE(It->first);
 
 			for (auto It = Processors.begin(); It != Processors.end(); It++)
-				delete It->second;
+				TH_RELEASE(It->second);
 		}
 		void ContentManager::InvalidateDockers()
 		{
 			Mutex.lock();
 			for (auto It = Dockers.begin(); It != Dockers.end(); It++)
-				delete It->second;
+				TH_DELETE(AssetArchive, It->second);
 
 			Dockers.clear();
 			Mutex.unlock();
@@ -5229,7 +5229,7 @@ namespace Tomahawk
 						Entry.first->Free(Entry.second);
 					Mutex.lock();
 
-					delete Entry.second;
+					TH_DELETE(AssetCache, Entry.second);
 				}
 			}
 
@@ -5241,7 +5241,7 @@ namespace Tomahawk
 			std::string File = Core::OS::Path::Resolve(Path, Environment);
 			Mutex.lock();
 
-			auto It = Assets.find(Core::Parser(File).Replace(Environment, "./").Replace('\\', '/').R());
+			auto It = Assets.find(Core::Parser(File).Replace('\\', '/').Replace(Environment, "./").R());
 			if (It != Assets.end())
 				Assets.erase(It);
 
@@ -5251,6 +5251,7 @@ namespace Tomahawk
 		{
 			Mutex.lock();
 			Environment = Core::OS::Path::ResolveDirectory(Path.c_str());
+			Core::Parser(&Environment).Replace('\\', '/');
 			Core::OS::Directory::Set(Environment.c_str());
 			Mutex.unlock();
 		}
@@ -5427,7 +5428,7 @@ namespace Tomahawk
 			Mutex.lock();
 			for (uint64_t i = 0; i < Size; i++)
 			{
-				AssetArchive* Docker = new AssetArchive();
+				AssetArchive* Docker = TH_NEW(AssetArchive);
 				Docker->Stream = Stream;
 
 				uint64_t Length;
@@ -5437,7 +5438,7 @@ namespace Tomahawk
 
 				if (!Length)
 				{
-					delete Docker;
+					TH_DELETE(AssetArchive, Docker);
 					continue;
 				}
 
@@ -5463,7 +5464,7 @@ namespace Tomahawk
 			if (!Stream->Open(Core::OS::Path::Resolve(Path, Environment).c_str(), Core::FileMode_Write_Only))
 			{
 				TH_ERROR("cannot open \"%s\" for writing", Path.c_str());
-				delete Stream;
+				TH_RELEASE(Stream);
 				return false;
 			}
 
@@ -5539,8 +5540,8 @@ namespace Tomahawk
 			if (Find(Root, Path) != nullptr)
 				return false;
 
-			AssetCache* Asset = new AssetCache();
-			Asset->Path = Core::Parser(Path).Replace(Environment, "./").Replace('\\', '/').R();
+			AssetCache* Asset = TH_NEW(AssetCache);
+			Asset->Path = Core::Parser(Path).Replace('\\', '/').Replace(Environment, "./").R();
 			Asset->Resource = Resource;
 
 			Mutex.lock();
@@ -5553,7 +5554,7 @@ namespace Tomahawk
 		AssetCache* ContentManager::Find(Processor* Target, const std::string& Path)
 		{
 			Mutex.lock();
-			auto It = Assets.find(Core::Parser(Path).Replace(Environment, "./").Replace('\\', '/').R());
+			auto It = Assets.find(Core::Parser(Path).Replace('\\', '/').Replace(Environment, "./").R());
 			if (It != Assets.end())
 			{
 				auto KIt = It->second.find(Target);
@@ -5740,7 +5741,7 @@ namespace Tomahawk
 			TH_RELEASE(Activity);
 
 			for (auto& Job : Workers)
-				delete Job;
+				TH_DELETE(Reactor, Job);
 
 			Host = nullptr;
 		}
@@ -5814,7 +5815,7 @@ namespace Tomahawk
 				Scene->Dispatch();
 
 			if (Workers.empty())
-				Workers.push_back(new Reactor(this, 0.0, nullptr));
+				Workers.push_back(TH_NEW(Reactor, this, 0.0, nullptr));
 
 			auto* Queue = Core::Schedule::Get();
 			for (auto It = Workers.begin() + 1; It != Workers.end(); It++)

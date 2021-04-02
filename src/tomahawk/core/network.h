@@ -70,8 +70,6 @@ namespace Tomahawk
 
 		struct TH_OUT WriteEvent
 		{
-			WriteEvent* Prev = nullptr;
-			WriteEvent* Next = nullptr;
 			char* Buffer = nullptr;
 			int64_t Size = 0;
 			SocketWriteCallback Callback;
@@ -79,8 +77,6 @@ namespace Tomahawk
 
 		struct TH_OUT ReadEvent
 		{
-			ReadEvent* Prev = nullptr;
-			ReadEvent* Next = nullptr;
 			const char* Match = nullptr;
 			int64_t Size = 0, Index = 0;
 			SocketReadCallback Callback;
@@ -164,10 +160,10 @@ namespace Tomahawk
 			int64_t GetAsyncTimeout();
 
 		private:
-			void ReadPush(SocketReadCallback&& Callback, const char* Match, int64_t Size, int64_t Index);
-			void ReadPop();
-			void WritePush(SocketWriteCallback&& Callback, const char* Buffer, int64_t Size);
-			void WritePop();
+			bool ReadSet(SocketReadCallback&& Callback, const char* Match, int64_t Size, int64_t Index);
+			bool ReadFlush();
+			bool WriteSet(SocketWriteCallback&& Callback, const char* Buffer, int64_t Size);
+			bool WriteFlush();
 
 		public:
 			template <typename T>

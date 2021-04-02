@@ -556,7 +556,7 @@ namespace Tomahawk
 		MultiRenderTarget2D::~MultiRenderTarget2D()
 		{
 			for (int i = 0; i < Target; i++)
-				delete Resource[i];
+				TH_RELEASE(Resource[i]);
 		}
 		uint32_t MultiRenderTarget2D::GetTargetCount()
 		{
@@ -595,7 +595,7 @@ namespace Tomahawk
 		MultiRenderTargetCube::~MultiRenderTargetCube()
 		{
 			for (int i = 0; i < Target; i++)
-				delete Resource[i];
+				TH_RELEASE(Resource[i]);
 		}
 		uint32_t MultiRenderTargetCube::GetTargetCount()
 		{
@@ -635,7 +635,7 @@ namespace Tomahawk
 		{
 			ReleaseProxy();
 			for (auto It = Sections.begin(); It != Sections.end(); It++)
-				delete It->second;
+				TH_DELETE(Section, It->second);
 			Sections.clear();
 		}
 		void GraphicsDevice::Lock()
@@ -1069,7 +1069,7 @@ namespace Tomahawk
 				return false;
 			}
 
-			Section* Include = new Section();
+			Section* Include = TH_NEW(Section);
 			Include->Code = Code;
 			Include->Name = Name;
 			Include->Lang = Lang;
@@ -1083,7 +1083,7 @@ namespace Tomahawk
 			if (It == Sections.end())
 				return false;
 
-			delete It->second;
+			TH_DELETE(Section, It->second);
 			Sections.erase(It);
 
 			return true;
@@ -2270,7 +2270,7 @@ namespace Tomahawk
 		{
 #ifdef TH_HAS_SDL2
 			Compute::Vector2 Size = GetSize();
-			return GetCursorPosition() * Compute::Vector2(ScreenWidth / Size.X, ScreenHeight / Size.Y);
+			return GetCursorPosition() * Compute::Vector2(ScreenWidth, ScreenHeight) / Size;
 #else
 			return Compute::Vector2();
 #endif
@@ -2279,7 +2279,7 @@ namespace Tomahawk
 		{
 #ifdef TH_HAS_SDL2
 			Compute::Vector2 Size = GetSize();
-			return GetCursorPosition() * Compute::Vector2(ScreenDimensions.X / Size.X, ScreenDimensions.Y / Size.Y);
+			return GetCursorPosition() * ScreenDimensions / Size;
 #else
 			return Compute::Vector2();
 #endif
@@ -3157,7 +3157,7 @@ namespace Tomahawk
 		Model::~Model()
 		{
 			for (auto It = Meshes.begin(); It != Meshes.end(); It++)
-				delete (*It);
+				TH_RELEASE(*It);
 		}
 		MeshBuffer* Model::FindMesh(const std::string& Name)
 		{
@@ -3176,7 +3176,7 @@ namespace Tomahawk
 		SkinModel::~SkinModel()
 		{
 			for (auto It = Meshes.begin(); It != Meshes.end(); It++)
-				delete (*It);
+				TH_RELEASE(*It);
 		}
 		void SkinModel::ComputePose(PoseBuffer* Map)
 		{

@@ -77,26 +77,26 @@ namespace Tomahawk
 		}
 		asSFuncPtr* VMFuncStore::CreateFunctionBase(void(*Base)(), int Type)
 		{
-			asSFuncPtr* Ptr = new asSFuncPtr(Type);
+			asSFuncPtr* Ptr = TH_NEW(asSFuncPtr, Type);
 			Ptr->ptr.f.func = reinterpret_cast<asFUNCTION_t>(Base);
 			return Ptr;
 		}
 		asSFuncPtr* VMFuncStore::CreateMethodBase(const void* Base, size_t Size, int Type)
 		{
-			asSFuncPtr* Ptr = new asSFuncPtr(Type);
+			asSFuncPtr* Ptr = TH_NEW(asSFuncPtr, Type);
 			Ptr->CopyMethodPtr(Base, Size);
 			return Ptr;
 		}
 		asSFuncPtr* VMFuncStore::CreateDummyBase()
 		{
-			return new asSFuncPtr(0);
+			return TH_NEW(asSFuncPtr, 0);
 		}
 		void VMFuncStore::ReleaseFunctor(asSFuncPtr** Ptr)
 		{
 			if (!Ptr || !*Ptr)
 				return;
 
-			delete *Ptr;
+			TH_DELETE(asSFuncPtr, *Ptr);
 			*Ptr = nullptr;
 		}
 
@@ -1499,9 +1499,9 @@ namespace Tomahawk
 
 			Manager->Lock();
 			{
-				CByteCodeStream* Stream = new CByteCodeStream(Info->Data);
+				CByteCodeStream* Stream = TH_NEW(CByteCodeStream, Info->Data);
 				R = Mod->LoadByteCode(Stream, &Info->Debug);
-				delete Stream;
+				TH_DELETE(CByteCodeStream, Stream);
 			}
 			Manager->Unlock();
 
@@ -1653,10 +1653,10 @@ namespace Tomahawk
 
 			Manager->Lock();
 			{
-				CByteCodeStream* Stream = new CByteCodeStream();
+				CByteCodeStream* Stream = TH_NEW(CByteCodeStream);
 				R = Mod->SaveByteCode(Stream, Info->Debug);
 				Info->Data = Stream->GetCode();
-				delete Stream;
+				TH_DELETE(CByteCodeStream, Stream);
 			}
 			Manager->Unlock();
 
@@ -2456,10 +2456,10 @@ namespace Tomahawk
 				return -1;
 			}
 
-			CByteCodeStream* Stream = new CByteCodeStream();
+			CByteCodeStream* Stream = TH_NEW(CByteCodeStream);
 			int R = Module->SaveByteCode(Stream, Info->Debug);
 			Info->Data = Stream->GetCode();
-			delete Stream;
+			TH_DELETE(CByteCodeStream, Stream);
 
 			Manager->Unlock();
 			return R;
@@ -2473,9 +2473,9 @@ namespace Tomahawk
 				return -1;
 			}
 
-			CByteCodeStream* Stream = new CByteCodeStream(Info->Data);
+			CByteCodeStream* Stream = TH_NEW(CByteCodeStream, Info->Data);
 			int R = Module->LoadByteCode(Stream, &Info->Debug);
-			delete Stream;
+			TH_DELETE(CByteCodeStream, Stream);
 
 			Manager->Unlock();
 			return R;
@@ -2852,12 +2852,19 @@ namespace Tomahawk
 
 			if (!Forced && State == asEXECUTION_FINISHED)
 			{
-				Resolve(true);
+				Resolve(VMResume_Finish);
 				return asEXECUTION_ABORTED;
 			}
 
 			State = (asEContextState)Context->Execute();
-			Resolve(State == asEXECUTION_FINISHED || State == asEXECUTION_ABORTED || State == asEXECUTION_EXCEPTION || State == asEXECUTION_ERROR);
+			if (State == asEXECUTION_FINISHED || State == asEXECUTION_ABORTED)
+				Resolve(VMResume_Finish);
+			else if (State == asEXECUTION_ERROR)
+				Resolve(VMResume_Finish_With_Error);
+			else if (State == asEXECUTION_EXCEPTION)
+				Resolve(IsThrown() ? VMResume_Finish_With_Error : VMResume_Finish);
+			else
+				Resolve(VMResume_Continue);
 
 			return State;
 		}
@@ -2950,6 +2957,17 @@ namespace Tomahawk
 				return false;
 
 			return Context->IsNested(NestCount);
+		}
+		bool VMContext::IsThrown() const
+		{
+			if (!Context)
+				return false;
+
+			const char* Exception = Context->GetExceptionString();
+			if (!Exception)
+				return false;
+
+			return Exception[0] != '\0';
 		}
 		int VMContext::SetObject(void* Object)
 		{
@@ -3303,6 +3321,7 @@ namespace Tomahawk
 
 		VMManager::VMManager() : Engine(asCreateScriptEngine()), Globals(this), Cached(true), Scope(0), JIT(nullptr), Nullable(0), Imports(VMImport_All)
 		{
+			asSetGlobalMemoryFunctions(Tomahawk::Core::Mem::Malloc, Tomahawk::Core::Mem::Free);
 			Include.Exts.push_back(".as");
 			Include.Root = Core::OS::Directory::Get();
 
@@ -3336,7 +3355,8 @@ namespace Tomahawk
 			if (Engine != nullptr)
 				Engine->ShutDownAndRelease();
 #ifdef HAS_AS_JIT
-			delete (VMCJITCompiler*)JIT;
+			VMCJITCompiler* CJit = (VMCJITCompiler*)JIT;
+			TH_DELETE(VMCJITCompiler, CJit);
 #endif
 			ClearCache();
 		}
@@ -3349,10 +3369,10 @@ namespace Tomahawk
 #ifdef HAS_AS_JIT
 			if (!JIT)
 				Engine->SetEngineProperty(asEP_INCLUDE_JIT_INSTRUCTIONS, 1);
-			else
-				delete (VMCJITCompiler*)JIT;
 
-			JIT = new VMCJITCompiler(JITOpts);
+			VMCJITCompiler* CJit = (VMCJITCompiler*)JIT;
+			TH_DELETE(VMCJITCompiler, CJit);
+			JIT = TH_NEW(VMCJITCompiler, JITOpts);
 			Engine->SetJITCompiler((VMCJITCompiler*)JIT);
 #else
 			TH_ERROR("JIT compiler is not supported on this platform");
@@ -3366,7 +3386,7 @@ namespace Tomahawk
 		{
 			Safe.lock();
 			for (auto Data : Datas)
-				delete Data.second;
+				TH_RELEASE(Data.second);
 
 			Opcodes.clear();
 			Datas.clear();
@@ -4236,6 +4256,7 @@ namespace Tomahawk
 			Engine->AddSubmodule("std/string", { "std/array" }, RegisterStringAPI);
 			Engine->AddSubmodule("std/map", { "std/array", "std/string" }, RegisterMapAPI);
 			Engine->AddSubmodule("std/exception", { "std/string" }, RegisterExceptionAPI);
+			Engine->AddSubmodule("std/mutex", { }, RegisterMutexAPI);
 			Engine->AddSubmodule("std/thread", { "std/any" }, RegisterThreadAPI);
 			Engine->AddSubmodule("std/async", { "std/any" }, RegisterAsyncAPI);
 			Engine->AddSubmodule("std",
@@ -4251,6 +4272,7 @@ namespace Tomahawk
 				"std/string",
 				"std/map",
 				"std/exception",
+				"std/mutex",
 				"std/thread",
 				"std/async"
 			}, nullptr);

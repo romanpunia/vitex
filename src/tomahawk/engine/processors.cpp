@@ -128,10 +128,10 @@ namespace Tomahawk
 						Core::Document* Parent = It->Find("parent");
 						if (Parent != nullptr)
 						{
-							Compute::Vector3* Position = new Compute::Vector3();
-							Compute::Vector3* Rotation = new Compute::Vector3();
-							Compute::Vector3* Scale = new Compute::Vector3();
-							Compute::Matrix4x4* World = new Compute::Matrix4x4();
+							Compute::Vector3* Position = TH_NEW(Compute::Vector3);
+							Compute::Vector3* Rotation = TH_NEW(Compute::Vector3);
+							Compute::Vector3* Scale = TH_NEW(Compute::Vector3);
+							Compute::Matrix4x4* World = TH_NEW(Compute::Matrix4x4);
 
 							NMake::Unpack(Parent->Find("id"), &Entity->Id);
 							NMake::Unpack(Parent->Find("position"), Position);
@@ -463,7 +463,7 @@ namespace Tomahawk
 					return nullptr;
 				}
 
-				char* Code = new char[(unsigned int)Length];
+				char* Code = (char*)TH_MALLOC(sizeof(char) * (unsigned int)Length);
 				Stream->Read(Code, Length);
 
 				Graphics::Shader::Desc I = Graphics::Shader::Desc();
@@ -473,8 +473,8 @@ namespace Tomahawk
 				Content->GetDevice()->Unlock();
 				Graphics::Shader* Object = Content->GetDevice()->CreateShader(I);
 				Content->GetDevice()->Lock();
+				TH_FREE(Code);
 
-				delete[] Code;
 				if (!Object)
 					return nullptr;
 
@@ -932,7 +932,7 @@ namespace Tomahawk
 							aiQuaternion Q1 = Channel->mRotationKeys[k].mValue;
 							Compute::Quaternion Q2(Q1.x, Q1.y, Q1.z, Q1.w);
 
-							Keys[It->second.Index].Rotation = Q2.GetEuler().SaturateRotation();
+							Keys[It->second.Index].Rotation = Q2.GetEuler().rLerp();
 						}
 
 						for (int64_t k = 0; k < Channel->mNumScalingKeys; k++)
@@ -1138,8 +1138,8 @@ namespace Tomahawk
 				std::string N = Network::Socket::LocalIpAddress();
 				std::string D = Core::OS::Path::GetDirectory(Stream->GetSource().c_str());
 				auto* Document = Content->Load<Core::Document>(Stream->GetSource());
+				auto* Router = TH_NEW(Network::HTTP::MapRouter);
 				auto* Object = new Network::HTTP::Server();
-				auto* Router = new Network::HTTP::MapRouter();
 
 				Application* App = Application::Get();
 				if (App != nullptr)
@@ -1147,7 +1147,7 @@ namespace Tomahawk
 
 				if (Document == nullptr)
 				{
-					delete Router;
+					TH_DELETE(MapRouter, Router);
 					return (void*)Object;
 				}
 				else if (Callback)
@@ -1315,6 +1315,9 @@ namespace Tomahawk
 							continue;
 
 						std::vector<Core::Document*> GatewayFiles = Base->FetchCollection("gateway.files.file");
+						if (Base->Fetch("gateway.files.[clear]") != nullptr)
+							Route->Gateway.Files.clear();
+
 						for (auto& File : GatewayFiles)
 						{
 							std::string Pattern;
@@ -1323,6 +1326,9 @@ namespace Tomahawk
 						}
 
 						std::vector<Core::Document*> GatewayMethods = Base->FetchCollection("gateway.methods.method");
+						if (Base->Fetch("gateway.methods.[clear]") != nullptr)
+							Route->Gateway.Methods.clear();
+
 						for (auto& Method : GatewayMethods)
 						{
 							std::string Value;
@@ -1331,6 +1337,9 @@ namespace Tomahawk
 						}
 
 						std::vector<Core::Document*> AuthUsers = Base->FetchCollection("auth.users.user");
+						if (Base->Fetch("auth.users.[clear]") != nullptr)
+							Route->Auth.Users.clear();
+
 						for (auto& User : AuthUsers)
 						{
 							Network::HTTP::Credentials Credentials;
@@ -1340,6 +1349,9 @@ namespace Tomahawk
 						}
 
 						std::vector<Core::Document*> AuthMethods = Base->FetchCollection("auth.methods.method");
+						if (Base->Fetch("auth.methods.[clear]") != nullptr)
+							Route->Auth.Methods.clear();
+
 						for (auto& Method : AuthMethods)
 						{
 							std::string Value;
@@ -1348,6 +1360,9 @@ namespace Tomahawk
 						}
 
 						std::vector<Core::Document*> CompressionFiles = Base->FetchCollection("compression.files.file");
+						if (Base->Fetch("compression.files.[clear]") != nullptr)
+							Route->Compression.Files.clear();
+
 						for (auto& File : CompressionFiles)
 						{
 							std::string Value;
@@ -1356,6 +1371,9 @@ namespace Tomahawk
 						}
 
 						std::vector<Core::Document*> HiddenFiles = Base->FetchCollection("hidden-files.hide");
+						if (Base->Fetch("hidden-files.[clear]") != nullptr)
+							Route->HiddenFiles.clear();
+
 						for (auto& File : HiddenFiles)
 						{
 							std::string Value;
@@ -1364,6 +1382,9 @@ namespace Tomahawk
 						}
 
 						std::vector<Core::Document*> IndexFiles = Base->FetchCollection("index-files.index");
+						if (Base->Fetch("index-files.[clear]") != nullptr)
+							Route->IndexFiles.clear();
+
 						for (auto& File : IndexFiles)
 						{
 							std::string Value;
@@ -1372,6 +1393,9 @@ namespace Tomahawk
 						}
 
 						std::vector<Core::Document*> ErrorFiles = Base->FetchCollection("error-files.error");
+						if (Base->Fetch("error-files.[clear]") != nullptr)
+							Route->ErrorFiles.clear();
+
 						for (auto& File : ErrorFiles)
 						{
 							Network::HTTP::ErrorFile Pattern;
@@ -1381,6 +1405,9 @@ namespace Tomahawk
 						}
 
 						std::vector<Core::Document*> MimeTypes = Base->FetchCollection("mime-types.file");
+						if (Base->Fetch("mime-types.[clear]") != nullptr)
+							Route->MimeTypes.clear();
+
 						for (auto& Type : MimeTypes)
 						{
 							Network::HTTP::MimeType Pattern;
@@ -1390,6 +1417,9 @@ namespace Tomahawk
 						}
 
 						std::vector<Core::Document*> DisallowedMethods = Base->FetchCollection("disallowed-methods.method");
+						if (Base->Fetch("disallowed-methods.[clear]") != nullptr)
+							Route->DisallowedMethods.clear();
+
 						for (auto& Method : DisallowedMethods)
 						{
 							std::string Value;
@@ -1424,6 +1454,7 @@ namespace Tomahawk
 						if (NMake::Unpack(Base->Find("default"), &Route->Default))
 							Core::Parser(&Route->Default).Path(N, D);
 
+						NMake::Unpack(Base->Fetch("gateway.report-errors"), &Route->Gateway.ReportErrors);
 						NMake::Unpack(Base->Fetch("auth.type"), &Route->Auth.Type);
 						NMake::Unpack(Base->Fetch("auth.realm"), &Route->Auth.Realm);
 						NMake::Unpack(Base->Fetch("compression.min-length"), &Route->Compression.MinLength);
@@ -1460,7 +1491,7 @@ namespace Tomahawk
 				{
 					Compute::UnmanagedShape* Shape = (Compute::UnmanagedShape*)Asset->Resource;
 					Compute::Simulator::FreeUnmanagedShape(Shape->Shape);
-					delete Shape;
+					TH_DELETE(UnmanagedShape, Shape);
 				}
 			}
 			void* Shape::Duplicate(AssetCache* Asset, const Core::VariantArgs& Args)
@@ -1473,21 +1504,21 @@ namespace Tomahawk
 				if (!Document)
 					return nullptr;
 
-				Compute::UnmanagedShape* Object = new Compute::UnmanagedShape();
+				Compute::UnmanagedShape* Object = TH_NEW(Compute::UnmanagedShape);
 				std::vector<Core::Document*> Meshes = Document->FetchCollection("meshes.mesh");
 				for (auto&& Mesh : Meshes)
 				{
 					if (!NMake::Unpack(Mesh->Find("indices"), &Object->Indices))
 					{
 						TH_RELEASE(Document);
-						delete Object;
+						TH_DELETE(UnmanagedShape, Object);
 						return nullptr;
 					}
 
 					if (!NMake::Unpack(Mesh->Find("vertices"), &Object->Vertices))
 					{
 						TH_RELEASE(Document);
-						delete Object;
+						TH_DELETE(UnmanagedShape, Object);
 						return nullptr;
 					}
 				}
@@ -1497,7 +1528,7 @@ namespace Tomahawk
 
 				if (!Object->Shape)
 				{
-					delete Object;
+					TH_DELETE(UnmanagedShape, Object);
 					return nullptr;
 				}
 

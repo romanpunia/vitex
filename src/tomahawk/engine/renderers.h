@@ -150,8 +150,6 @@ namespace Tomahawk
 				} Depth;
 
 			private:
-				Core::Pool<Engine::Component*>* Opaque = nullptr;
-				Core::Pool<Engine::Component*>* Limpid = nullptr;
 				Graphics::DepthStencilState* DepthStencilOpaque = nullptr;
 				Graphics::DepthStencilState* DepthStencilLimpid = nullptr;
 				Graphics::RasterizerState* BackRasterizer = nullptr;
@@ -184,8 +182,6 @@ namespace Tomahawk
 				} RenderPass;
 
 			private:
-				Core::Pool<Engine::Component*>* Opaque = nullptr;
-				Core::Pool<Engine::Component*>* Limpid = nullptr;
 				Graphics::DepthStencilState* DepthStencil = nullptr;
 				Graphics::RasterizerState* Rasterizer = nullptr;
 				Graphics::BlendState* Blend = nullptr;

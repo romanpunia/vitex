@@ -53,7 +53,7 @@ namespace Tomahawk
 		void AudioContext::Create()
 		{
 			if (!Mutex)
-				Mutex = new std::mutex();
+				Mutex = TH_NEW(std::mutex);
 
 #ifdef TH_HAS_OPENAL
 			LOAD_PROC(LPALGENFILTERS, alGenFilters);
@@ -95,7 +95,7 @@ namespace Tomahawk
 		}
 		void AudioContext::Release()
 		{
-			delete Mutex;
+			TH_DELETE(mutex, Mutex);
 			Mutex = nullptr;
 		}
 		void AudioContext::Lock()
@@ -664,7 +664,6 @@ namespace Tomahawk
 					alAuxiliaryEffectSloti(Effect->Slot, AL_EFFECTSLOT_EFFECT, (ALint)Effect->Effect);
 #endif
 			}
-
 #ifdef TH_HAS_OPENAL
 			AudioContext::Lock();
 			if (!Sync->IsRelative)

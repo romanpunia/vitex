@@ -7903,7 +7903,7 @@ namespace Tomahawk
 			for (int i = 0; i < Instance->m_nodes.size(); i++)
 			{
 				auto& Node = Instance->m_nodes[i];
-				_r2.store(Node.m_x.get128().m128_f32);
+				_r2.store(Node.m_x.m_floats);
 				_r1 += _r2;
 			}
 
@@ -7970,8 +7970,8 @@ namespace Tomahawk
 			for (size_t i = 0; i < Size; i++)
 			{
 				auto* Node = &Instance->m_nodes[i]; Vertex& Position = Result->at(i);
-				memcpy(&Position.PositionX, Node->m_x.get128().m128_f32, sizeof(float) * 3);
-				memcpy(&Position.NormalX, Node->m_n.get128().m128_f32, sizeof(float) * 3);
+				memcpy(&Position.PositionX, Node->m_x.m_floats, sizeof(float) * 3);
+				memcpy(&Position.NormalX, Node->m_n.m_floats, sizeof(float) * 3);
 			}
 		}
 		void SoftBody::GetBoundingBox(Vector3* Min, Vector3* Max)

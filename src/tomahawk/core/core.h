@@ -105,9 +105,10 @@ typedef socklen_t socket_size_t;
 #define TH_WARN(...)
 #define TH_ERROR(...)
 #endif
+#define TH_LOG(Format, ...) Tomahawk::Core::Debug::Log(0, TH_LINE, TH_FILE, Format, ##__VA_ARGS__)
 #define TH_COUT extern "C" TH_OUT
 #define TH_MALLOC(Size) Tomahawk::Core::Mem::Malloc(Size)
-#define TH_NEW(Type, ...) new(TH_MALLOC(sizeof(Type))) Type(##__VA_ARGS__)
+#define TH_NEW(Type, ...) new(TH_MALLOC(sizeof(Type))) Type(__VA_ARGS__)
 #define TH_DELETE(Destructor, Var) { if (Var != nullptr) { (Var)->~Destructor(); TH_FREE(Var); } }
 #define TH_REALLOC(Ptr, Size) Tomahawk::Core::Mem::Realloc(Ptr, Size)
 #define TH_FREE(Ptr) Tomahawk::Core::Mem::Free(Ptr)
@@ -115,7 +116,6 @@ typedef socklen_t socket_size_t;
 #define TH_CLEAR(Ptr) { if (Ptr != nullptr) { (Ptr)->Release(); Ptr = nullptr; } }
 #define TH_PREFIX_CHAR '@'
 #define TH_PREFIX_STR "@"
-#define TH_LOG(Format, ...) Tomahawk::Core::Debug::Log(0, TH_LINE, TH_FILE, Format, ##__VA_ARGS__)
 #define TH_COMPONENT_HASH(Name) Tomahawk::Core::OS::File::GetCheckSum(Name)
 #define TH_COMPONENT_IS(Source, Name) (Source->GetId() == TH_COMPONENT_HASH(Name))
 #define TH_COMPONENT(Name) \

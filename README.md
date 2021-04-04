@@ -85,7 +85,7 @@ Tomahawk is a cross-platform C++14 framework to create any type of application f
 + Angel Script packed into library
 + Template abstraction over virtual machine
 + Support for real threads
-+ Compiler with simple preprocessor (defines, include, pragmas)
++ Compiler with preprocessor from Compute module
 + Built-in switchable default interfaces
 + Promise-like async data type support
 + JIT compiler support for non-ARM platforms
@@ -106,7 +106,7 @@ Tomahawk is a cross-platform C++14 framework to create any type of application f
 + Default and skinned meshes
 + Element instancing for big particle systems
 + Renderer without shaders
-+ Simple shader preprocessor for include/pragma directives
++ Shader preprocessor from Compute module
 + Switchable render backend
 #### GUI
 + Serializable GUI system
@@ -186,13 +186,20 @@ Tomahawk is a cross-platform C++14 framework to create any type of application f
 ## Building (standalone)
 *Tomahawk uses CMake as building system. Because windows doesn't have default include/src folders [Microsoft's vcpkg](https://github.com/Microsoft/vcpkg) is suggested but not required.*
 1. Install [CMake](https://cmake.org/install/).
-2. Install dependencies listed below to have all the functionality. If you use vcpkg, execute **/lib/install.sh $triplet** where $triplet is a target platform, for example, x86-windows.
+2. Install dependencies listed below to have all the functionality. If you use vcpkg, execute
+> /lib/install.sh $triplet
+where $triplet is a target platform, for example, x86-windows.
 3. Execute CMake command to generate the files or use CMake GUI if you have one.
-If you want to use vcpkg then add VCPKG_ROOT environment variable and if you want to execute install script, add vcpkg executable to PATH environment variable. It should contain full path to vcpkg executable. Another option is to set CMAKE_TOOLCHAIN_FILE option (standard workflow for vcpkg). For example, **cmake -DCMAKE_TOOLCHAIN_FILE=/path/to/vcpkg/scripts/buildsystems/vcpkg.cmake** ...
+If you want to use vcpkg then add VCPKG_ROOT environment variable and if you want to execute install script, add vcpkg executable to PATH environment variable. It should contain full path to vcpkg executable. Another option is to set CMAKE_TOOLCHAIN_FILE option (standard workflow for vcpkg). For example,
+> cmake -DCMAKE_TOOLCHAIN_FILE=/path/to/vcpkg/scripts/buildsystems/vcpkg.cmake ...
 
 ## Building (subproject)
-1-2. Same steps
-3. Add toolchain before first **project(app_name)**. This will apply vcpkg toolchain file if it can be located and none CMAKE_TOOLCHAIN_FILE was set before. This step is not required if you don't use vcpkg at all.
+1-2. Same steps.
+3. Add toolchain before first
+```cmake
+project(app_name)
+```
+This will apply vcpkg toolchain file if it can be located and none CMAKE_TOOLCHAIN_FILE was set before. This step is not required if you don't use vcpkg at all.
 ```cmake
 include(path/to/th/lib/toolchain.cmake)
 ```
@@ -211,8 +218,18 @@ There are several build options for this project.
 + **TH_WARN** to allow warning logs, defaults to true
 + **TH_ERROR** to allow error logs, defaults to true
 + **TH_SHADERS** to embed shaders from **/src/shaders** to this project, defaults to true
++ **TH_EXPORT** to export all symbols
 + **TH_USE_SIMD** to allow SIMD optimisations
-+ **TH_USE_...** can be used to force some packages to be ignored
++ **TH_USE_ASSIMP** will enable Assimp library if any
++ **TH_USE_FREETYPE** will enable FreeType library if any
++ **TH_USE_GLEW** will enable GLEW library if any
++ **TH_USE_MONGOC** will enable MongoDB library if any
++ **TH_USE_POSTGRESQL** will enable PostgreSQL library if any
++ **TH_USE_OPENAL** will enable OpenAL library if any
++ **TH_USE_OPENGL** will enable OpenGL library if any
++ **TH_USE_OPENSSL** will enable OpenSSL library if any
++ **TH_USE_SDL2** will enable SDL2 library if any
++ **TH_USE_ZLIB** will enable zlib library if any
 
 ## Core built-in dependencies from **/src/supplies**
 These are used widely and presents useful features

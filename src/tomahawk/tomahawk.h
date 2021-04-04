@@ -1,8 +1,8 @@
 #ifndef TOMAHAWK_H
 #define TOMAHAWK_H
 #define TH_MAJOR_VERSION 3
-#define TH_MINOR_VERSION 0
-#define TH_PATCH_LEVEL 0
+#define TH_MINOR_VERSION 1
+#define TH_PATCH_LEVEL 1
 #define TH_VERSION(X, Y, Z) ((X) * 1000 + (Y) * 100 + (Z))
 #define TH_AT_LEAST(X, Y, Z) (TH_VERSION(TH_MAJOR_VERSION, TH_MINOR_VERSION, TH_PATCH_LEVEL) >= TH_VERSION(X, Y, Z))
 #include "core/core.h"
@@ -33,19 +33,18 @@ namespace Tomahawk
 		TInit_Core = 1,
 		TInit_Logger = 2,
 		TInit_Network = 4,
-		TInit_Crypto = 8,
-		TInit_SSL = 16,
-		TInit_SDL2 = 32,
-		TInit_Compute = 64,
-		TInit_Locale = 128,
-		TInit_Audio = 256,
-		TInit_GLEW = 512
+		TInit_SSL = 8,
+		TInit_SDL2 = 16,
+		TInit_Compute = 32,
+		TInit_Locale = 64,
+		TInit_Audio = 128,
+		TInit_GLEW = 256
 	};
 
 	enum TPreset
 	{
-		TPreset_Game = (TInit_Core | TInit_Logger | TInit_Network | TInit_Crypto | TInit_SSL | TInit_SDL2 | TInit_Compute | TInit_Locale | TInit_Audio | TInit_GLEW),
-		TPreset_App = (TInit_Core | TInit_Logger | TInit_Network | TInit_Crypto | TInit_SSL | TInit_Compute | TInit_Locale)
+		TPreset_Game = (TInit_Core | TInit_Logger | TInit_Network | TInit_SSL | TInit_SDL2 | TInit_Compute | TInit_Locale | TInit_Audio | TInit_GLEW),
+		TPreset_App = (TInit_Core | TInit_Logger | TInit_Network | TInit_SSL | TInit_Compute | TInit_Locale)
 	};
 
 	enum TMem

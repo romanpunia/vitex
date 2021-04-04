@@ -1,1 +1,0 @@
-#!/bin/bashif [ -x "$(command -v vcpkg)" ]; then	vcpkg install assimp	exit 0fiif [ -x "$(command -v git)" ]; then	git clone https://github.com/assimp/assimp && cd assimp && mkdir make && cd make && cmake .. && make && sudo make install	exit 0fiecho "install cannot be done automatically"exit 1

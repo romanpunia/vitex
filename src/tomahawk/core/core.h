@@ -1438,10 +1438,11 @@ namespace Tomahawk
 		private:
 			struct Base
 			{
+				std::atomic<uint32_t> Count;
+				std::atomic<int32_t> Set;
+				std::atomic<bool> Deferred;
 				std::function<void()> Resolve;
-				std::atomic<int> Count;
-				std::atomic<int> Set;
-				bool Deferred;
+				std::mutex RW;
 				T Result;
 
 				Base() : Count(1), Set(-1), Deferred(true)
@@ -1451,6 +1452,40 @@ namespace Tomahawk
 				{
 					Count++;
 					return this;
+				}
+				void Put(std::function<void()>&& Callback)
+				{
+					if (Set > 0)
+						return Callback();
+
+					RW.lock();
+					Resolve = std::move(Callback);
+					RW.unlock();
+				}
+				void React()
+				{
+					RW.lock();
+					if (Resolve)
+						Resolve();
+					RW.unlock();
+				}
+				void React(T&& Value)
+				{
+					Set = 1;
+					RW.lock();
+					Result = std::move(Value);
+					if (Resolve)
+						Resolve();
+					RW.unlock();
+				}
+				void React(const T& Value)
+				{
+					Set = 1;
+					RW.lock();
+					Result = Value;
+					if (Resolve)
+						Resolve();
+					RW.unlock();
 				}
 				void Free()
 				{
@@ -1522,25 +1557,13 @@ namespace Tomahawk
 			}
 			void Set(const T& Value)
 			{
-				if (!Next || Next->Set != -1)
-					return;
-
-				Next->Set = 1;
-				Next->Result = Value;
-
-				if (Next->Resolve)
-					Next->Resolve();
+				if (Next != nullptr && Next->Set == -1)
+					Next->React(Value);
 			}
 			void Set(T&& Value)
 			{
-				if (!Next || Next->Set != -1)
-					return;
-
-				Next->Set = 1;
-				Next->Result = std::move(Value);
-
-				if (Next->Resolve)
-					Next->Resolve();
+				if (Next != nullptr && Next->Set == -1)
+					Next->React(std::move(Value));
 			}
 			void Set(Async&& Other)
 			{
@@ -1552,11 +1575,7 @@ namespace Tomahawk
 
 				Other.Sync(!Subresult->Deferred).Await([Subresult](T&& Value) mutable
 				{
-					Subresult->Set = 1;
-					Subresult->Result = std::move(Value);
-
-					if (Subresult->Resolve)
-						Subresult->Resolve();
+					Subresult->React(std::move(Value));
 					Subresult->Free();
 				});
 			}
@@ -1566,7 +1585,7 @@ namespace Tomahawk
 					return;
 
 				Base* Subresult = Next->Copy();
-				Next->Resolve = [Subresult, Callback = std::move(Callback)]()
+				Next->Put([Subresult, Callback = std::move(Callback)]()
 				{
 					Schedule* Queue = Schedule::Get();
 					if (Queue->IsActive() && Subresult->Deferred)
@@ -1582,10 +1601,7 @@ namespace Tomahawk
 						Callback(std::move(Subresult->Result));
 						Subresult->Free();
 					}
-				};
-
-				if (Next->Set > 0)
-					Next->Resolve();
+				});
 			}
 			bool IsPending()
 			{
@@ -1612,7 +1628,7 @@ namespace Tomahawk
 					return Async<R>(nullptr);
 
 				Async<R> Result; Base* Subresult = Next->Copy();
-				Next->Resolve = [Subresult, Result, Callback = std::move(Callback)]() mutable
+				Next->Put([Subresult, Result, Callback = std::move(Callback)]() mutable
 				{
 					Schedule* Queue = Schedule::Get();
 					if (Queue->IsActive() && Subresult->Deferred)
@@ -1628,10 +1644,7 @@ namespace Tomahawk
 						Callback(Result, std::move(Subresult->Result));
 						Subresult->Free();
 					}
-				};
-
-				if (Next->Set > 0)
-					Next->Resolve();
+				});
 
 				return Result;
 			}
@@ -1643,7 +1656,7 @@ namespace Tomahawk
 					return Async<F>(nullptr);
 
 				Async<F> Result; Base* Subresult = Next->Copy();
-				Next->Resolve = [Subresult, Result, Callback = std::move(Callback)]() mutable
+				Next->Put([Subresult, Result, Callback = std::move(Callback)]() mutable
 				{
 					Schedule* Queue = Schedule::Get();
 					if (Queue->IsActive() && Subresult->Deferred)
@@ -1659,10 +1672,7 @@ namespace Tomahawk
 						Result.Set(std::move(Callback(std::move(Subresult->Result))));
 						Subresult->Free();
 					}
-				};
-
-				if (Next->Set > 0)
-					Next->Resolve();
+				});
 
 				return Result;
 			}

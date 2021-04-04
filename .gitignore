@@ -3,3 +3,4 @@
 debug/
 release/
 bin/
+vcpkg_installed/

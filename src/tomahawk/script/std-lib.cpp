@@ -2872,8 +2872,8 @@ namespace Tomahawk
 			GCFlag = false;
 			Engine = e;
 
-			VMCMap::SCache *cache = reinterpret_cast<VMCMap::SCache*>(Engine->GetUserData(MAP_CACHE));
-			Engine->NotifyGarbageCollectorOfNewObject(this, cache->DictType);
+			VMCMap::SCache* Cache = reinterpret_cast<VMCMap::SCache*>(Engine->GetUserData(MAP_CACHE));
+			Engine->NotifyGarbageCollectorOfNewObject(this, Cache->DictType);
 		}
 		void VMCMap::Cleanup(VMCManager *engine)
 		{
@@ -4335,7 +4335,9 @@ namespace Tomahawk
 			if (Next != nullptr)
 				Next->PushCoroutine();
 
+			VMCManager* Engine = Context->GetEngine();
 			Context->AddRef();
+			Engine->NotifyGarbageCollectorOfNewObject(this, Engine->GetTypeInfoByName("Async"));
 		}
 		void VMCAsync::Release()
 		{
@@ -4494,12 +4496,8 @@ namespace Tomahawk
 			VMCManager* Engine = Context->GetEngine();
 			if (!Engine)
 				return nullptr;
-
-			void* Data = asAllocMem(sizeof(VMCAsync));
-			VMCAsync* Async = new(Data) VMCAsync(Context, Info);
-			Engine->NotifyGarbageCollectorOfNewObject(Async, Engine->GetTypeInfoByName("Async"));
-
-			return Async;
+			
+			return new(asAllocMem(sizeof(VMCAsync))) VMCAsync(Context, Info);
 		}
 		VMCAsync* VMCAsync::Store(void* Ref, int TypeId)
 		{
@@ -4511,9 +4509,7 @@ namespace Tomahawk
 			if (!Engine)
 				return nullptr;
 
-			void* Data = asAllocMem(sizeof(VMCAsync));
-			VMCAsync* Async = new(Data) VMCAsync(Context, nullptr);
-			Engine->NotifyGarbageCollectorOfNewObject(Async, Engine->GetTypeInfoByName("Async"));
+			VMCAsync* Async = new(asAllocMem(sizeof(VMCAsync))) VMCAsync(Context, nullptr);
 			Async->Set(Ref, TypeId);
 
 			return Async;
@@ -4528,9 +4524,7 @@ namespace Tomahawk
 			if (!Engine)
 				return nullptr;
 
-			void* Data = asAllocMem(sizeof(VMCAsync));
-			VMCAsync* Async = new(Data) VMCAsync(Context, nullptr);
-			Engine->NotifyGarbageCollectorOfNewObject(Async, Engine->GetTypeInfoByName("Async"));
+			VMCAsync* Async = new(asAllocMem(sizeof(VMCAsync))) VMCAsync(Context, nullptr);
 			Async->Set(Ref, Engine->GetTypeIdByDecl(TypeName));
 
 			return Async;

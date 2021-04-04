@@ -1,1 +1,0 @@
-#!/bin/bashif [ -x "$(command -v apt-get)" ]; then	sudo apt-get install libglu1-mesa-dev mesa-common-dev	exit 0fiecho "OpenGL is probably already installed"exit 1

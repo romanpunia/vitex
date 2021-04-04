@@ -289,9 +289,14 @@ namespace Tomahawk
 						Execute(Script::VMResume_Finish);
 						return true;
 					}
-					else if (Result == Script::VMExecState_EXCEPTION || Result == Script::VMExecState_ERROR)
+					else if (Result == Script::VMExecState_ERROR)
 					{
 						Execute(Script::VMResume_Finish_With_Error);
+						return true;
+					}
+					else if (Result == Script::VMExecState_EXCEPTION)
+					{
+						Execute(Context->IsThrown() ? Script::VMResume_Finish_With_Error : Script::VMResume_Finish);
 						return true;
 					}
 
@@ -4740,7 +4745,10 @@ namespace Tomahawk
 					}) || true;
 				}
 
-				char Buffer[8192], Deflate[8192]; int Read = sizeof(Buffer);
+				static const int Head = 17;
+				char Buffer[8192 + Head], Deflate[8192];
+				int Read = sizeof(Buffer) - Head;
+
 				if ((Read = (int)fread(Buffer, 1, (size_t)(Read > ContentLength ? ContentLength : Read), Stream)) <= 0)
 					goto Cleanup;
 
@@ -4752,7 +4760,22 @@ namespace Tomahawk
 				deflate(ZStream, Z_SYNC_FLUSH);
 				Read = (int)sizeof(Deflate) - (int)ZStream->avail_out;
 
-				Base->Stream->fWriteAsync([=](Socket*, int64_t Size)
+				int Next = snprintf(Buffer, sizeof(Buffer), "%X\r\n", Read);
+				memcpy(Buffer + Next, Deflate, Read);
+				Read += Next;
+
+				if (!ContentLength)
+				{
+					memcpy(Buffer + Read, "\r\n0\r\n\r\n", sizeof(char) * 7);
+					Read += sizeof(char) * 7;
+				}
+				else
+				{
+					memcpy(Buffer + Read, "\r\n", sizeof(char) * 2);
+					Read += sizeof(char) * 2;
+				}
+
+				Base->Stream->WriteAsync(Buffer, Read, [Base, Router, Stream, ZStream, ContentLength](Socket*, int64_t Size)
 				{
 					if (Size < 0)
 					{
@@ -4762,33 +4785,17 @@ namespace Tomahawk
 					else if (Size > 0)
 						return true;
 		
-					return Base->Stream->WriteAsync(Deflate, Read, [=](Socket*, int64_t Size)
+					if (ContentLength > 0)
 					{
-						if (Size < 0)
+						return Core::Schedule::Get()->SetTask([Base, Router, Stream, ZStream, ContentLength]()
 						{
-							FREE_STREAMING;
-							return Base->Break() && false;
-						}
-						else if (Size > 0)
-							return true;
+							ProcessFileCompressChunk(Base, Router, Stream, ZStream, ContentLength);
+						});
+					}
 
-						return Base->Stream->WriteAsync("\r\n", 2, [=](Socket*, int64_t Size)
-						{
-							if (Size < 0)
-							{
-								FREE_STREAMING;
-								return Base->Break() && false;
-							}
-							else if (Size > 0)
-								return true;
-
-							return Core::Schedule::Get()->SetTask([=]()
-							{
-								ProcessFileCompressChunk(Base, Router, Stream, ZStream, ContentLength);
-							});
-						}) || true;
-					}) || true;
-				}, "%X\r\n", Read);
+					FREE_STREAMING;
+					return (Router->State == ServerState_Working ? Base->Finish() : Base->Break()) && false;
+				});
 
 				return false;
 #undef FREE_STREAMING

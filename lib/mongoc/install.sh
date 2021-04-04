@@ -1,1 +1,0 @@
-#!/bin/bashif [ -x "$(command -v vcpkg)" ]; then	vcpkg install mongo-c-driver	exit 0fiif [ -x "$(command -v git)" ]; then	git clone https://github.com/mongodb/mongo-c-driver mongodb && cd mongodb && mkdir make && cd make && cmake -DENABLE_AUTOMATIC_INIT_AND_CLEANUP=OFF .. && make && sudo make install	exit 0fiecho "install cannot be done automatically"exit 1

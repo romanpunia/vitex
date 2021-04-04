@@ -183,55 +183,65 @@ Tomahawk is a cross-platform C++14 framework to create any type of application f
 + Ubuntu 16.04+ x64/x86
 + MacOS Catalina 10.15+ x64
 
-## Building
-*Tomahawk uses CMake as building system. Because windows doesn't have default include/src folders [Microsoft's Vcpkg](https://github.com/Microsoft/vcpkg) is suggested but not required.*
+## Building (standalone)
+*Tomahawk uses CMake as building system. Because windows doesn't have default include/src folders [Microsoft's vcpkg](https://github.com/Microsoft/vcpkg) is suggested but not required.*
 1. Install [CMake](https://cmake.org/install/).
-2. Install dependencies listed below to have all the functionality.
+2. Install dependencies listed below to have all the functionality. If you use vcpkg, execute **/lib/install.sh $triplet** where $triplet is a target platform, for example, x86-windows.
 3. Execute CMake command to generate the files or use CMake GUI if you have one.
-> cmake [params] [tomahawk's directory]
+If you want to use vcpkg then add VCPKG_ROOT environment variable and if you want to execute install script, add vcpkg executable to PATH environment variable. It should contain full path to vcpkg executable. Another option is to set CMAKE_TOOLCHAIN_FILE option (standard workflow for vcpkg). For example, **cmake -DCMAKE_TOOLCHAIN_FILE=/path/to/vcpkg/scripts/buildsystems/vcpkg.cmake** ...
+
+## Building (subproject)
+1-2. Same steps
+3. Add toolchain before first **project(app_name)**. This will apply vcpkg toolchain file if it can be located and none CMAKE_TOOLCHAIN_FILE was set before. This step is not required if you don't use vcpkg at all.
+```cmake
+include(path/to/th/lib/toolchain.cmake)
+```
+4. Add subproject. This will link you application with Tomahawk.
+```cmake
+add_subdirectory(/path/to/th tomahawk)
+link_directories(/path/to/th)
+target_include_directories(app_name PRIVATE /path/to/th)
+target_link_libraries(app_name PRIVATE tomahawk)
+```
+5. Execute CMake command to generate the files or use CMake GUI if you have one.
+You can look at [Lynx's CMakeLists.txt](https://github.com/romanpunia/lynx/blob/master/CMakeLists.txt) to find out how it should be used in practice
 
 There are several build options for this project.
 + **TH_INFO** to allow informational logs, defaults to true
 + **TH_WARN** to allow warning logs, defaults to true
 + **TH_ERROR** to allow error logs, defaults to true
-+ **TH_RESOURCE** to embed resources from **/lib/shaders** to this project, defaults to true 
++ **TH_SHADERS** to embed shaders from **/src/shaders** to this project, defaults to true
++ **TH_USE_SIMD** to allow SIMD optimisations
++ **TH_USE_...** can be used to force some packages to be ignored
 
-## Linking
-Tomahawk has support for CMake's install command, to link it with your project you can use CMake as usual.
-
-## Resources
-Tomahawk has embedded resources. They are located at **/lib/shaders**. Resources will be packed to **/src/core/shaders.h** and **/src/core/shaders.cpp** at CMake's configuration stage. If you want to disable resource embedding then shaders must not use standard library otherwise error will be raised.
-
-## Core built-in dependencies from **/lib/internal**
+## Core built-in dependencies from **/src/supplies**
 These are used widely and presents useful features
-* [Bullet Physics](https://github.com/bulletphysics/bullet3)
-* [AngelScript](https://sourceforge.net/projects/angelscript/)
-* [Wepoll](https://github.com/piscisaureus/wepoll)
-* [RmlUi](https://github.com/mikke89/RmlUi)
-* [Tiny File Dialogs](https://github.com/native-toolkit/tinyfiledialogs)
-* [RapidXML](https://github.com/discordapp/rapidxml)
-* [RapidJSON](https://github.com/tencent/rapidjson)
-* [STB](https://github.com/nothings/stb)
-* [Vector Class](https://github.com/vectorclass/version1)
+* [bullet3](https://github.com/bulletphysics/bullet3)
+* [angelscript](https://sourceforge.net/projects/angelscript/)
+* [wepoll](https://github.com/piscisaureus/wepoll)
+* [rmlui](https://github.com/mikke89/RmlUi)
+* [tinyfiledialogs](https://github.com/native-toolkit/tinyfiledialogs)
+* [rapidxml](https://github.com/discordapp/rapidxml)
+* [rapidjson](https://github.com/tencent/rapidjson)
+* [stb](https://github.com/nothings/stb)
+* [vectorclass](https://github.com/vectorclass/version1)
 
-## Optional dependencies from **/lib/external**
-These are recommended to be installed, but are not required to. Every entry has **install.sh** script.
-* [OpenSSL](https://github.com/openssl/openssl)
-* [GLEW](https://github.com/nigels-com/glew)
-* [Zlib](https://github.com/madler/zlib)
-* [Assimp](https://github.com/assimp/assimp)
-* [MongoC](https://github.com/mongodb/mongo-c-driver)
-* [Libpq](https://github.com/postgres/postgres/tree/master/src/interfaces/libpq)
-* [OpenAL Soft](https://github.com/kcat/openal-soft)
-* [SDL2](https://www.libsdl.org/download-2.0.php)
-
-## Platform dependencies from **/lib/external**
-These are resolved automatically.
-* [OpenGL](https://github.com/KhronosGroup/OpenGL-Registry)
-* [D3D11](https://www.microsoft.com/en-us/download/details.aspx?id=6812)
+## Optional dependencies from **/lib**
+These are recommended to be installed, but are not required to.
+* [d3d11](https://www.microsoft.com/en-us/download/details.aspx?id=6812)
+* [opengl](https://github.com/KhronosGroup/OpenGL-Registry)
+* [openssl](https://github.com/openssl/openssl)
+* [openal-soft](https://github.com/kcat/openal-soft)
+* [glew](https://github.com/nigels-com/glew)
+* [zlib](https://github.com/madler/zlib)
+* [assimp](https://github.com/assimp/assimp)
+* [mongo-c-driver](https://github.com/mongodb/mongo-c-driver)
+* [libpq](https://github.com/postgres/postgres/tree/master/src/interfaces/libpq)
+* [freetype](https://github.com/freetype/freetype)
+* [sdl2](https://www.libsdl.org/download-2.0.php)
 
 ## License
 Tomahawk is licensed under the MIT license
 
 ## Known Issues
-This project is under development, bugs aren't the rare thing. Also dependency installation process can by quite tricky on some platforms like MacOS. OpenGL is not working properly, sooner or later it will be fully implemented, but it requires too much work for one person. There is about 60 shaders written in HLSL, they must be also implemented in GLSL for OpenGL to work properly. Script interface covers less than 5% of Tomahawk's abilities, bindings are wasting too much time to write, sorry :)
+This project is under development, bugs aren't the rare thing. Also dependency installation process can by quite tricky on some platforms like MacOS. OpenGL is not working properly, sooner or later it will be fully implemented, SPIRV-Cross will help with that. Script interface covers less than 5% of Tomahawk's abilities, bindings are wasting too much time to write, sorry :)

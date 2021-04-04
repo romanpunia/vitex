@@ -413,9 +413,9 @@ namespace Tomahawk
 			char Buffer[8192];
 
 			va_list Args;
-					va_start(Args, Format);
+			va_start(Args, Format);
 			int Count = vsnprintf(Buffer, sizeof(Buffer), Format, Args);
-					va_end(Args);
+			va_end(Args);
 
 			return Write(Buffer, (uint64_t)Count);
 		}

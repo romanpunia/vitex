@@ -268,14 +268,8 @@ namespace Tomahawk
 #ifdef TH_HAS_OPENSSL
 			SSL_library_init();
 			SSL_load_error_strings();
-#else
-			TH_WARN("openssl ssl cannot be initialized");
-#endif
-		}
+			FIPS_mode_set(1);
 
-		if (Modes & TInit_Crypto)
-		{
-#ifdef TH_HAS_OPENSSL
 			int Count = CRYPTO_num_locks();
 			if (Count < 0)
 				Count = 0;
@@ -285,13 +279,6 @@ namespace Tomahawk
 			for (int i = 0; i < Count; i++)
 				CryptoLocks->push_back(std::make_shared<std::mutex>());
 
-			CRYPTO_set_locking_callback([](int Mode, int Id, const char* File, int Line)
-			{
-				if (Mode & CRYPTO_LOCK)
-					CryptoLocks->at(Id)->lock();
-				else
-					CryptoLocks->at(Id)->unlock();
-			});
 			CRYPTO_set_id_callback([]() -> long unsigned int
 			{
 #ifdef TH_MICROSOFT
@@ -300,9 +287,15 @@ namespace Tomahawk
 				return (unsigned long)syscall(SYS_gettid);
 #endif
 			});
-			RAND_poll();
+			CRYPTO_set_locking_callback([](int Mode, int Id, const char* File, int Line)
+			{
+				if (Mode & CRYPTO_LOCK)
+					CryptoLocks->at(Id)->lock();
+				else
+					CryptoLocks->at(Id)->unlock();
+			});
 #else
-			TH_WARN("openssl crypto cannot be initialized");
+			TH_WARN("openssl ssl cannot be initialized");
 #endif
 		}
 
@@ -407,7 +400,7 @@ namespace Tomahawk
 
 		Script::VMManager::SetMemoryFunctions(Core::Mem::Malloc, Core::Mem::Free);
 #ifdef TH_HAS_OPENSSL
-		if (Modes & TInit_Crypto)
+		if (Modes & TInit_SSL)
 		{
 			int64_t Raw = 0;
 			RAND_bytes((unsigned char*)&Raw, sizeof(int64_t));
@@ -430,11 +423,20 @@ namespace Tomahawk
 		if (Modes & TInit_Audio)
 			Audio::AudioContext::Release();
 
-		if (Modes & TInit_Crypto)
+		if (Modes & TInit_SSL)
 		{
 #ifdef TH_HAS_OPENSSL
+			FIPS_mode_set(0);
 			CRYPTO_set_locking_callback(nullptr);
 			CRYPTO_set_id_callback(nullptr);
+			ERR_remove_state(0);
+			SSL_COMP_free_compression_methods();
+			ENGINE_cleanup();
+			CONF_modules_free();
+			CONF_modules_unload(1);
+			COMP_zlib_cleanup();
+			ERR_free_strings();
+			EVP_cleanup();
 			CRYPTO_cleanup_all_ex_data();
 
 			if (CryptoLocks != nullptr)
@@ -442,18 +444,6 @@ namespace Tomahawk
 				TH_DELETE(vector, CryptoLocks);
 				CryptoLocks = nullptr;
 			}
-#else
-			TH_WARN("openssl ssl cannot be uninitialized");
-#endif
-		}
-
-		if (Modes & TInit_SSL)
-		{
-#ifdef TH_HAS_OPENSSL
-			ENGINE_cleanup();
-			CONF_modules_unload(1);
-			ERR_free_strings();
-			EVP_cleanup();
 #else
 			TH_WARN("openssl ssl cannot be uninitialized");
 #endif

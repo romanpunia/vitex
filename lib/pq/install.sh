@@ -1,1 +1,0 @@
-#!/bin/bashif [ -x "$(command -v vcpkg)" ]; then	vcpkg install libpq	exit 0fiif [ -x "$(command -v apt-get)" ]; then	sudo apt-get install libpq-dev	exit 0fiif [ -x "$(command -v brew)" ]; then	sudo brew install libpq	exit 0fiecho "install cannot be done automatically"exit 1

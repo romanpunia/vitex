@@ -38,8 +38,8 @@ namespace Tomahawk
 					Compute::Vector2 Size;
 					Compute::Vector2 Position;
 					Compute::Vector2 Offset;
-					float Softness;
-					float Padding;
+					float Softness = 0.0f;
+					float Padding = 0.0f;
 				} RenderPass;
 
 			public:
@@ -69,8 +69,8 @@ namespace Tomahawk
 					Compute::Vector2 Texel;
 					Compute::Vector2 Size;
 					Compute::Vector2 Position;
-					float Softness;
-					float Alpha;
+					float Softness = 0.0f;
+					float Alpha = 1.0f;
 				} RenderPass;
 
 			public:
@@ -204,13 +204,13 @@ namespace Tomahawk
 						Device->UpdateBufferSize(Shader, sizeof(RenderPass));
 				}
 
-				std::vector<Rml::Vertex> Elements;
-				Elements.push_back({ Rml::Vector2f(-1.0f, -1.0f), Rml::Colourb(0, 0, 0, 0), Rml::Vector2f(-1, 0) });
-				Elements.push_back({ Rml::Vector2f(-1.0f, 1.0f), Rml::Colourb(0, 0, 0, 0), Rml::Vector2f(-1, 1) });
-				Elements.push_back({ Rml::Vector2f(1.0f, 1.0f), Rml::Colourb(0, 0, 0, 0), Rml::Vector2f(0, 1) });
-				Elements.push_back({ Rml::Vector2f(-1.0f, -1.0f), Rml::Colourb(0, 0, 0, 0), Rml::Vector2f(-1, 0) });
-				Elements.push_back({ Rml::Vector2f(1.0f, 1.0f), Rml::Colourb(0, 0, 0, 0), Rml::Vector2f(0, 1) });
-				Elements.push_back({ Rml::Vector2f(1.0f, -1.0f), Rml::Colourb(0, 0, 0, 0), Rml::Vector2f(0, 0) });
+				Rml::Vertex Elements[6];
+				Elements[0] = { Rml::Vector2f(-1.0f, -1.0f), Rml::Colourb(0, 0, 0, 0), Rml::Vector2f(-1, 0) };
+				Elements[1] = { Rml::Vector2f(-1.0f, 1.0f), Rml::Colourb(0, 0, 0, 0), Rml::Vector2f(-1, 1) };
+				Elements[2] = { Rml::Vector2f(1.0f, 1.0f), Rml::Colourb(0, 0, 0, 0), Rml::Vector2f(0, 1) };
+				Elements[3] = { Rml::Vector2f(-1.0f, -1.0f), Rml::Colourb(0, 0, 0, 0), Rml::Vector2f(-1, 0) };
+				Elements[4] = { Rml::Vector2f(1.0f, 1.0f), Rml::Colourb(0, 0, 0, 0), Rml::Vector2f(0, 1) };
+				Elements[5] = { Rml::Vector2f(1.0f, -1.0f), Rml::Colourb(0, 0, 0, 0), Rml::Vector2f(0, 0) };
 
 				Graphics::ElementBuffer::Desc F = Graphics::ElementBuffer::Desc();
 				F.AccessFlags = Graphics::CPUAccess_Invalid;
@@ -260,13 +260,13 @@ namespace Tomahawk
 						Device->UpdateBufferSize(Shader, sizeof(RenderPass));
 				}
 
-				std::vector<Rml::Vertex> Elements;
-				Elements.push_back({ Rml::Vector2f(-1.0f, -1.0f), Rml::Colourb(0, 0, 0, 0), Rml::Vector2f(-1, 0) });
-				Elements.push_back({ Rml::Vector2f(-1.0f, 1.0f), Rml::Colourb(0, 0, 0, 0), Rml::Vector2f(-1, 1) });
-				Elements.push_back({ Rml::Vector2f(1.0f, 1.0f), Rml::Colourb(0, 0, 0, 0), Rml::Vector2f(0, 1) });
-				Elements.push_back({ Rml::Vector2f(-1.0f, -1.0f), Rml::Colourb(0, 0, 0, 0), Rml::Vector2f(-1, 0) });
-				Elements.push_back({ Rml::Vector2f(1.0f, 1.0f), Rml::Colourb(0, 0, 0, 0), Rml::Vector2f(0, 1) });
-				Elements.push_back({ Rml::Vector2f(1.0f, -1.0f), Rml::Colourb(0, 0, 0, 0), Rml::Vector2f(0, 0) });
+				Rml::Vertex Elements[6];
+				Elements[0] = { Rml::Vector2f(-1.0f, -1.0f), Rml::Colourb(0, 0, 0, 0), Rml::Vector2f(-1, 0) };
+				Elements[1] = { Rml::Vector2f(-1.0f, 1.0f), Rml::Colourb(0, 0, 0, 0), Rml::Vector2f(-1, 1) };
+				Elements[2] = { Rml::Vector2f(1.0f, 1.0f), Rml::Colourb(0, 0, 0, 0), Rml::Vector2f(0, 1) };
+				Elements[3] = { Rml::Vector2f(-1.0f, -1.0f), Rml::Colourb(0, 0, 0, 0), Rml::Vector2f(-1, 0) };
+				Elements[4] = { Rml::Vector2f(1.0f, 1.0f), Rml::Colourb(0, 0, 0, 0), Rml::Vector2f(0, 1) };
+				Elements[5] = { Rml::Vector2f(1.0f, -1.0f), Rml::Colourb(0, 0, 0, 0), Rml::Vector2f(0, 0) };
 
 				Graphics::ElementBuffer::Desc F = Graphics::ElementBuffer::Desc();
 				F.AccessFlags = Graphics::CPUAccess_Invalid;

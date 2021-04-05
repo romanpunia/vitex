@@ -23,7 +23,7 @@ namespace Tomahawk
 
 			struct OGLFrameBuffer
 			{
-				GLenum Format[8] = { GL_COLOR_ATTACHMENT0 };
+				GLenum Format[8] = { GL_COLOR_ATTACHMENT0, GL_NONE, GL_NONE, GL_NONE, GL_NONE, GL_NONE, GL_NONE, GL_NONE };
 				GLuint Texture[8] = { GL_NONE };
 				GLuint Buffer = GL_NONE;
 				GLuint Count = 1;

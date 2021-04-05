@@ -1663,7 +1663,7 @@ namespace Tomahawk
 			VMManager* GetManager();
 
 		private:
-			int ExecuteDeferred(const VMFunction& Function, bool Nested, ArgsCallback&& Callback);
+			int ExecuteDeferred(const VMFunction& Function, bool Nested, const ArgsCallback& Callback);
 
 		public:
 			template <typename T>

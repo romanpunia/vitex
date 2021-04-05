@@ -83,16 +83,13 @@ namespace
 		char Buffer1[1024];
 		strncpy(Buffer1, Path, sizeof(Buffer1));
 
-		for (int i = 0; Buffer1[i] != '\0'; i++)
+		for (unsigned int i = 0; Buffer1[i] != '\0'; i++)
 		{
-			if (Buffer1[i] == '/')
-				Buffer1[i] = '\\';
+			if (!i || (Buffer1[i] != '/' && Buffer1[i] != '\\'))
+				continue;
 
-			if (Buffer1[i] == '\\' && i > 0)
-			{
-				while (Buffer1[i + 1] == '\\' || Buffer1[i + 1] == '/')
-					memmove(Buffer1 + i + 1, Buffer1 + i + 2, strlen(Buffer1 + i + 1));
-			}
+			while (Buffer1[i + 1] == '\\' || Buffer1[i + 1] == '/')
+				memmove(Buffer1 + i + 1, Buffer1 + i + 2, strlen(Buffer1 + i + 1));
 		}
 
 		memset(Input, 0, InputSize * sizeof(wchar_t));
@@ -382,9 +379,9 @@ namespace Tomahawk
 					return GetNumber() > 0.0;
 				case VarType_Boolean:
 					return GetBoolean();
+				default:
+					return Data != nullptr;
 			}
-
-			return Data != nullptr;
 		}
 		bool Variant::IsObject() const
 		{
@@ -409,19 +406,26 @@ namespace Tomahawk
 				case VarType_String:
 				case VarType_Base64:
 				case VarType_Decimal:
+				{
 					if (GetSize() != Value.GetSize())
 						return false;
 
-					return strncmp(GetString(), Value.GetString(), sizeof(char) * GetSize()) == 0;
+					const char* Src1 = GetString();
+					const char* Src2 = Value.GetString();
+					if (!Src1 || !Src2)
+						return false;
+
+					return strncmp(Src1, Src2, sizeof(char) * GetSize()) == 0;
+				}
 				case VarType_Integer:
 					return GetInteger() == Value.GetInteger();
 				case VarType_Number:
 					return GetNumber() == Value.GetNumber();
 				case VarType_Boolean:
 					return GetBoolean() == Value.GetBoolean();
+				default:
+					return false;
 			}
-
-			return false;
 		}
 		void Variant::Copy(const Variant& Other)
 		{
@@ -540,11 +544,21 @@ namespace Tomahawk
 			return *this;
 		}
 
-		DateTime::DateTime() : Time(std::chrono::system_clock::now().time_since_epoch())
+		DateTime::DateTime() : Time(std::chrono::system_clock::now().time_since_epoch()), DateRebuild(false)
 		{
+#ifdef TH_MICROSOFT
+			RtlSecureZeroMemory(&DateValue, sizeof(DateValue));
+#else
+			memset(&DateValue, 0, sizeof(DateValue));
+#endif
 		}
-		DateTime::DateTime(const DateTime& Value) : Time(Value.Time)
+		DateTime::DateTime(const DateTime& Value) : Time(Value.Time), DateRebuild(false)
 		{
+#ifdef TH_MICROSOFT
+			RtlSecureZeroMemory(&DateValue, sizeof(DateValue));
+#else
+			memset(&DateValue, 0, sizeof(DateValue));
+#endif
 		}
 		void DateTime::Rebuild()
 		{
@@ -553,6 +567,17 @@ namespace Tomahawk
 
 			Time = std::chrono::duration_cast<std::chrono::system_clock::duration>(std::chrono::seconds(mktime(&DateValue)));
 			DateRebuild = false;
+		}
+		DateTime& DateTime::operator= (const DateTime& Other)
+		{
+			Time = Other.Time;
+			DateRebuild = false;
+#ifdef TH_MICROSOFT
+			RtlSecureZeroMemory(&DateValue, sizeof(DateValue));
+#else
+			memset(&DateValue, 0, sizeof(DateValue));
+#endif
+			return *this;
 		}
 		void DateTime::operator +=(const DateTime& Right)
 		{
@@ -790,11 +815,11 @@ namespace Tomahawk
 
 			if (Value <= 7)
 				DateValue.tm_wday = (int)Value - 1;
-			else if (Value > 7 && Value <= 14)
+			else if (Value <= 14)
 				DateValue.tm_wday = (int)Value - 8;
-			else if (Value > 14 && Value <= 21)
+			else if (Value <= 21)
 				DateValue.tm_wday = (int)Value - 15;
-			else if (Value > 21 && Value <= 31)
+			else if (Value <= 31)
 				DateValue.tm_wday = (int)Value - 22;
 
 			DateValue.tm_mday = (int)Value;
@@ -1275,59 +1300,6 @@ namespace Tomahawk
 			L->clear();
 			return *this;
 		}
-		Parser& Parser::ToUtf8()
-		{
-#pragma warning(push)
-#pragma warning(disable: 4333)
-			std::string Output;
-			for (char i : *L)
-			{
-				auto V = (wchar_t)i;
-				if (0 <= V && V <= 0x7f)
-				{
-					Output += V;
-				}
-				else if (0x80 <= V && V <= 0x7ff)
-				{
-					Output += (wchar_t)((0xc0 | (V >> 6)));
-					Output += (wchar_t)((0x80 | (V & 0x3f)));
-				}
-				else if (0x800 <= V && V <= 0xffff)
-				{
-					Output += (wchar_t)((0xe0 | (V >> 12)));
-					Output += (wchar_t)((0x80 | ((V >> 6) & 0x3f)));
-					Output += (wchar_t)((0x80 | (V & 0x3f)));
-				}
-				else if (0x10000 <= V && V <= 0x1fffff)
-				{
-					Output += (wchar_t)((0xf0 | (V >> 18)));
-					Output += (wchar_t)((0x80 | ((V >> 12) & 0x3f)));
-					Output += (wchar_t)((0x80 | ((V >> 6) & 0x3f)));
-					Output += (wchar_t)((0x80 | (V & 0x3f)));
-				}
-				else if (0x200000 <= V && V <= 0x3ffffff)
-				{
-					Output += (wchar_t)((0xf8 | (V >> 24)));
-					Output += (wchar_t)((0x80 | ((V >> 18) & 0x3f)));
-					Output += (wchar_t)((0x80 | ((V >> 12) & 0x3f)));
-					Output += (wchar_t)((0x80 | ((V >> 6) & 0x3f)));
-					Output += (wchar_t)((0x80 | (V & 0x3f)));
-				}
-				else if (0x4000000 <= V && V <= 0x7fffffff)
-				{
-					Output += (wchar_t)((0xfc | (V >> 30)));
-					Output += (wchar_t)((0x80 | ((V >> 24) & 0x3f)));
-					Output += (wchar_t)((0x80 | ((V >> 18) & 0x3f)));
-					Output += (wchar_t)((0x80 | ((V >> 12) & 0x3f)));
-					Output += (wchar_t)(0x80 | ((V >> 6) & 0x3f));
-					Output += (wchar_t)((0x80 | (V & 0x3f)));
-				}
-			}
-#pragma warning(pop)
-
-			L->assign(Output);
-			return *this;
-		}
 		Parser& Parser::ToUpper()
 		{
 			std::transform(L->begin(), L->end(), L->begin(), ::toupper);
@@ -1538,14 +1510,14 @@ namespace Tomahawk
 			L->erase(L->begin(), std::find_if(L->begin(), L->end(), [](int C) -> int
 			{
 				if (C < -1 || C > 255)
-					return true;
+					return 1;
 
 				return !std::isspace(C);
 			}));
 			L->erase(std::find_if(L->rbegin(), L->rend(), [](int C) -> int
 			{
 				if (C < -1 || C > 255)
-					return true;
+					return 1;
 
 				return !std::isspace(C);
 			}).base(), L->end());
@@ -1775,7 +1747,10 @@ namespace Tomahawk
 			for (It = Ptr + L->size() - Needle.size(); It > Ptr; --It)
 			{
 				if (strncmp(Ptr, Needle.c_str(), (size_t)Needle.size()) == 0)
-					return { (uint64_t)(It - Ptr), (uint64_t)(It - Ptr + Needle.size()), true };
+				{
+					uint64_t Set = (uint64_t)(It - Ptr);
+					return { Set, Set + (uint64_t)Needle.size(), true };
+				}
 			}
 
 			return { L->size() - 1, L->size(), false };
@@ -1793,7 +1768,7 @@ namespace Tomahawk
 				return { L->size() - 1, L->size(), false };
 
 			const char* It = nullptr;
-			auto Length = (uint64_t)strlen(Needle);
+			uint64_t Length = (uint64_t)strlen(Needle);
 			for (It = Ptr + L->size() - Length; It > Ptr; --It)
 			{
 				if (strncmp(Ptr, Needle, (size_t)Length) == 0)
@@ -1807,13 +1782,11 @@ namespace Tomahawk
 			if (L->empty())
 				return { L->size() - 1, L->size(), false };
 
-			for (uint64_t i = L->size() - 1 - Offset; i >= 0; i--)
+			uint64_t Size = L->size() - 1 - Offset;
+			for (int64_t i = Size; i > -1; i--)
 			{
 				if (L->at(i) == Needle)
-					return { i, i + 1, true };
-
-				if (i == 0)
-					break;
+					return { (uint64_t)i, (uint64_t)i + 1, true };
 			}
 
 			return { L->size() - 1, L->size(), false };
@@ -1823,13 +1796,11 @@ namespace Tomahawk
 			if (L->empty())
 				return { L->size() - 1, L->size(), false };
 
-			for (uint64_t i = L->size() - 1 - Offset; i >= 0; i--)
+			uint64_t Size = L->size() - 1 - Offset;
+			for (int64_t i = Size; i > -1; i--)
 			{
 				if (L->at(i) == Needle && ((int64_t)i - 1 < 0 || L->at(i - 1) != '\\'))
-					return { i, i + 1, true };
-
-				if (i == 0)
-					break;
+					return { (uint64_t)i, (uint64_t)i + 1, true };
 			}
 
 			return { L->size() - 1, L->size(), false };
@@ -1839,16 +1810,14 @@ namespace Tomahawk
 			if (L->empty())
 				return { L->size() - 1, L->size(), false };
 
-			for (uint64_t i = L->size() - 1 - Offset; i >= 0; i--)
+			uint64_t Size = L->size() - 1 - Offset;
+			for (int64_t i = Size; i > -1; i--)
 			{
 				for (char k : Needle)
 				{
 					if (L->at(i) == k)
-						return { i, i + 1, true };
+						return { (uint64_t)i, (uint64_t)i + 1, true };
 				}
-
-				if (i == 0)
-					break;
 			}
 
 			return { L->size() - 1, L->size(), false };
@@ -1862,16 +1831,14 @@ namespace Tomahawk
 				return { L->size() - 1, L->size(), false };
 
 			uint64_t Length = strlen(Needle);
-			for (uint64_t i = L->size() - 1 - Offset; i >= 0; i--)
+			uint64_t Size = L->size() - 1 - Offset;
+			for (int64_t i = Size; i > -1; i--)
 			{
 				for (uint64_t k = 0; k < Length; k++)
 				{
 					if (L->at(i) == Needle[k])
-						return { i, i + 1, true };
+						return { (uint64_t)i, (uint64_t)i + 1, true };
 				}
-
-				if (i == 0)
-					break;
 			}
 
 			return { L->size() - 1, L->size(), false };
@@ -1882,7 +1849,8 @@ namespace Tomahawk
 			if (It == nullptr)
 				return { L->size() - 1, L->size(), false };
 
-			return { (uint64_t)(It - L->c_str()), (uint64_t)(It - L->c_str() + Needle.size()), true };
+			uint64_t Set = (uint64_t)(It - L->c_str());
+			return { Set, Set + (uint64_t)Needle.size(), true };
 		}
 		Parser::Settle Parser::Find(const char* Needle, uint64_t Offset) const
 		{
@@ -1893,7 +1861,8 @@ namespace Tomahawk
 			if (It == nullptr)
 				return { L->size() - 1, L->size(), false };
 
-			return { (uint64_t)(It - L->c_str()), (uint64_t)(It - L->c_str() + strlen(Needle)), true };
+			uint64_t Set = (uint64_t)(It - L->c_str());
+			return { Set, Set + (uint64_t)strlen(Needle), true };
 		}
 		Parser::Settle Parser::Find(const char& Needle, uint64_t Offset) const
 		{
@@ -2377,12 +2346,12 @@ namespace Tomahawk
 			std::vector<std::string> Output;
 			while (Result.Found)
 			{
-				Output.push_back(L->substr(Offset, Result.Start - Offset));
+				Output.emplace_back(std::move(L->substr(Offset, Result.Start - Offset)));
 				Result = Find(With, Offset = Result.End);
 			}
 
 			if (Offset < L->size())
-				Output.push_back(L->substr(Offset));
+				Output.emplace_back(std::move(L->substr(Offset)));
 
 			return Output;
 		}
@@ -2394,12 +2363,12 @@ namespace Tomahawk
 			std::vector<std::string> Output;
 			while (Result.Found)
 			{
-				Output.push_back(L->substr(Offset, Result.Start - Offset));
+				Output.emplace_back(std::move(L->substr(Offset, Result.Start - Offset)));
 				Result = Find(With, Offset = Result.End);
 			}
 
 			if (Offset < L->size())
-				Output.push_back(L->substr(Offset));
+				Output.emplace_back(std::move(L->substr(Offset)));
 
 			return Output;
 		}
@@ -2411,12 +2380,12 @@ namespace Tomahawk
 			std::vector<std::string> Output;
 			while (Result.Found && Output.size() < Count)
 			{
-				Output.push_back(L->substr(Offset, Result.Start - Offset));
+				Output.emplace_back(std::move(L->substr(Offset, Result.Start - Offset)));
 				Result = Find(With, Offset = Result.End);
 			}
 
 			if (Offset < L->size() && Output.size() < Count)
-				Output.push_back(L->substr(Offset));
+				Output.emplace_back(std::move(L->substr(Offset)));
 
 			return Output;
 		}
@@ -2428,12 +2397,12 @@ namespace Tomahawk
 			std::vector<std::string> Output;
 			while (Result.Found)
 			{
-				Output.push_back(L->substr(Offset, Result.Start - Offset));
+				Output.emplace_back(std::move(L->substr(Offset, Result.Start - Offset)));
 				Result = FindOf(With, Offset = Result.End);
 			}
 
 			if (Offset < L->size())
-				Output.push_back(L->substr(Offset));
+				Output.emplace_back(std::move(L->substr(Offset)));
 
 			return Output;
 		}
@@ -2445,12 +2414,12 @@ namespace Tomahawk
 			std::vector<std::string> Output;
 			while (Result.Found)
 			{
-				Output.push_back(L->substr(Offset, Result.Start - Offset));
+				Output.emplace_back(std::move(L->substr(Offset, Result.Start - Offset)));
 				Result = FindNotOf(With, Offset = Result.End);
 			}
 
 			if (Offset < L->size())
-				Output.push_back(L->substr(Offset));
+				Output.emplace_back(std::move(L->substr(Offset)));
 
 			return Output;
 		}
@@ -2805,7 +2774,7 @@ namespace Tomahawk
 			uint64_t BlockSize = Block->Size;
 
 			Block->Allocated = false;
-			if (!((char*)Next + HeadSize < (char*)Base && (char*)Next + HeadSize >= (char*)nullptr))
+			if ((char*)Next + HeadSize >= (char*)Base)
 				return;
 
 			if (!((char*)Next + sizeof(MemoryPage) < (char*)Heap + HeapSize && (char*)Next + sizeof(MemoryPage) >= (char*)Heap))
@@ -2998,6 +2967,9 @@ namespace Tomahawk
 		}
 
 		Console::Console() : Handle(false), Time(0)
+#ifdef TH_MICROSOFT
+			, Conin(nullptr), Conout(nullptr), Conerr(nullptr)
+#endif
 		{
 		}
 		Console::~Console()
@@ -3032,9 +3004,9 @@ namespace Tomahawk
 			if (AllocConsole() == 0)
 				return;
 
-			freopen("conin$", "r", stdin);
-			freopen("conout$", "w", stdout);
-			freopen("conout$", "w", stderr);
+			Conin = freopen("conin$", "r", stdin);
+			Conout = freopen("conout$", "w", stdout);
+			Conerr = freopen("conout$", "w", stderr);
 			SetConsoleCtrlHandler(ConsoleEventHandler, true);
 #else
 			if (Handle)
@@ -3210,6 +3182,9 @@ namespace Tomahawk
 				Size = 2;
 
 			char* Value = (char*)TH_MALLOC(sizeof(char) * (size_t)(Size + 1));
+			if (!Value)
+				return "";
+
 			memset(Value, 0, (size_t)Size * sizeof(char));
 			Value[Size] = '\0';
 
@@ -3248,26 +3223,32 @@ namespace Tomahawk
 			return Time;
 		}
 
-		Timer::Timer() : FrameLimit(0), TickCounter(16), TimeIncrement(0.0), CapturedTime(0.0)
+		Timer::Timer() : FrameLimit(0), TickCounter(16), TimeIncrement(0.0), CapturedTime(0.0), FrameCount(0.0)
 		{
 #ifdef TH_MICROSOFT
 			Frequency = TH_NEW(LARGE_INTEGER);
-			QueryPerformanceFrequency((LARGE_INTEGER*)Frequency);
+			if (Frequency != nullptr)
+				QueryPerformanceFrequency((LARGE_INTEGER*)Frequency);
 
 			TimeLimit = TH_NEW(LARGE_INTEGER);
-			QueryPerformanceCounter((LARGE_INTEGER*)TimeLimit);
+			if (TimeLimit != nullptr)
+				QueryPerformanceCounter((LARGE_INTEGER*)TimeLimit);
 
 			PastTime = TH_NEW(LARGE_INTEGER);
-			QueryPerformanceCounter((LARGE_INTEGER*)PastTime);
+			if (PastTime != nullptr)
+				QueryPerformanceCounter((LARGE_INTEGER*)PastTime);
 #elif defined TH_UNIX
 			Frequency = TH_NEW(timespec);
-			clock_gettime(CLOCK_REALTIME, (timespec*)Frequency);
+			if (Frequency != nullptr)
+				clock_gettime(CLOCK_REALTIME, (timespec*)Frequency);
 
 			TimeLimit = TH_NEW(timespec);
-			clock_gettime(CLOCK_REALTIME, (timespec*)TimeLimit);
+			if (TimeLimit != nullptr)
+				clock_gettime(CLOCK_REALTIME, (timespec*)TimeLimit);
 
 			PastTime = TH_NEW(timespec);
-			clock_gettime(CLOCK_REALTIME, (timespec*)PastTime);
+			if (PastTime != nullptr)
+				clock_gettime(CLOCK_REALTIME, (timespec*)PastTime);
 #endif
 			SetStepLimitation(60.0f, 10.0f);
 		}
@@ -3402,7 +3383,7 @@ namespace Tomahawk
 			if (!File || !Close())
 				return false;
 
-			Path = OS::Path::Resolve(File).c_str();
+			Path = OS::Path::Resolve(File);
 			switch (Mode)
 			{
 				case FileMode_Read_Only:
@@ -3572,7 +3553,7 @@ namespace Tomahawk
 				return false;
 
 #ifdef TH_HAS_ZLIB
-			Path = OS::Path::Resolve(File).c_str();
+			Path = OS::Path::Resolve(File);
 			switch (Mode)
 			{
 				case FileMode_Binary_Read_Only:
@@ -3890,7 +3871,7 @@ namespace Tomahawk
 					if (Entry->IsDirectory)
 						Directories.push_back(new FileTree(Entry->Path));
 					else
-						Files.push_back(OS::Path::Resolve(Entry->Path.c_str()));
+						Files.emplace_back(std::move(OS::Path::Resolve(Entry->Path.c_str())));
 
 					return true;
 				});
@@ -3979,6 +3960,9 @@ namespace Tomahawk
 			UnicodePath(Path.c_str(), WPath, sizeof(WPath) / sizeof(WPath[0]));
 
 			auto* Value = (Directory*)TH_MALLOC(sizeof(Directory));
+			if (!Value)
+				return false;
+
 			DWORD Attributes = GetFileAttributesW(WPath);
 			if (Attributes != 0xFFFFFFFF && ((Attributes & FILE_ATTRIBUTE_DIRECTORY) == FILE_ATTRIBUTE_DIRECTORY))
 			{
@@ -4047,14 +4031,14 @@ namespace Tomahawk
 			if (!R.EndsWith('/') && !R.EndsWith('\\'))
 				Result += '/';
 
-			for (auto& Entrie : Entries)
+			for (auto& Dir : Entries)
 			{
 				DirectoryEntry Entry;
-				Entry.Path = Result + Entrie.Path;
+				Entry.Path = Result + Dir.Path;
 				Entry.IsGood = true;
-				Entry.IsDirectory = Entrie.Source.IsDirectory;
+				Entry.IsDirectory = Dir.Source.IsDirectory;
 				if (!Entry.IsDirectory)
-					Entry.Length = Entrie.Source.Size;
+					Entry.Length = Dir.Source.Size;
 
 				if (!Callback(&Entry))
 					break;
@@ -4070,7 +4054,7 @@ namespace Tomahawk
 #ifdef TH_MICROSOFT
 			wchar_t Buffer[1024];
 			UnicodePath(Path, Buffer, 1024);
-			if (::CreateDirectoryW(Buffer, nullptr) == TRUE || GetLastError() == ERROR_ALREADY_EXISTS)
+			if (::CreateDirectoryW(Buffer, nullptr) != FALSE || GetLastError() == ERROR_ALREADY_EXISTS)
 				return true;
 
 			size_t Index = wcslen(Buffer) - 1;
@@ -4080,7 +4064,7 @@ namespace Tomahawk
 			if (Index > 0 && !Create(std::string(Path).substr(0, Index).c_str()))
 				return false;
 
-			return ::CreateDirectoryW(Buffer, nullptr) == TRUE || GetLastError() == ERROR_ALREADY_EXISTS;
+			return ::CreateDirectoryW(Buffer, nullptr) != FALSE || GetLastError() == ERROR_ALREADY_EXISTS;
 #else
 			if (mkdir(Path, S_IRWXU | S_IRWXG | S_IROTH | S_IXOTH) != -1 || errno == EEXIST)
 				return true;
@@ -4103,7 +4087,10 @@ namespace Tomahawk
 			HANDLE Handle = ::FindFirstFile(Pattern.c_str(), &FileInformation);
 
 			if (Handle == INVALID_HANDLE_VALUE)
+			{
+				::FindClose(Handle);
 				return false;
+			}
 
 			do
 			{
@@ -4112,14 +4099,23 @@ namespace Tomahawk
 
 				FilePath = std::string(Path) + "\\" + FileInformation.cFileName;
 				if (FileInformation.dwFileAttributes & FILE_ATTRIBUTE_DIRECTORY)
+				{
+					::FindClose(Handle);
 					return Remove(FilePath.c_str());
+				}
 
 				if (::SetFileAttributes(FilePath.c_str(), FILE_ATTRIBUTE_NORMAL) == FALSE)
+				{
+					::FindClose(Handle);
 					return false;
+				}
 
 				if (::DeleteFile(FilePath.c_str()) == FALSE)
+				{
+					::FindClose(Handle);
 					return false;
-			} while (::FindNextFile(Handle, &FileInformation) == TRUE);
+				}
+			} while (::FindNextFile(Handle, &FileInformation) != FALSE);
 			::FindClose(Handle);
 
 			if (::GetLastError() != ERROR_NO_MORE_FILES)
@@ -4406,6 +4402,12 @@ namespace Tomahawk
 			fseek(Stream, 0, SEEK_SET);
 
 			auto* Bytes = (unsigned char*)TH_MALLOC(sizeof(unsigned char) * (size_t)(Size + 1));
+			if (!Bytes)
+			{
+				fclose(Stream);
+				return nullptr;
+			}
+
 			if (fread((char*)Bytes, sizeof(unsigned char), (size_t)Size, Stream) != (size_t)Size)
 			{
 				fclose(Stream);
@@ -4431,6 +4433,9 @@ namespace Tomahawk
 
 			uint64_t Size = Stream->GetSize();
 			auto* Bytes = (unsigned char*)TH_MALLOC(sizeof(unsigned char) * (size_t)(Size + 1));
+			if (!Bytes)
+				return nullptr;
+
 			Stream->Read((char*)Bytes, Size * sizeof(unsigned char));
 			Bytes[Size] = '\0';
 
@@ -4442,6 +4447,9 @@ namespace Tomahawk
 		unsigned char* OS::File::ReadChunk(Stream* Stream, uint64_t Length)
 		{
 			auto* Bytes = (unsigned char*)TH_MALLOC((size_t)(Length + 1));
+			if (!Bytes)
+				return nullptr;
+
 			Stream->Read((char*)Bytes, Length);
 			Bytes[Length] = '\0';
 
@@ -4470,6 +4478,12 @@ namespace Tomahawk
 			fseek(Stream, 0, SEEK_SET);
 
 			char* Buffer = (char*)TH_MALLOC(sizeof(char) * Length);
+			if (!Buffer)
+			{
+				fclose(Stream);
+				return std::vector<std::string>();
+			}
+
 			if (fread(Buffer, sizeof(char), (size_t)Length, Stream) != (size_t)Length)
 			{
 				fclose(Stream);
@@ -4716,7 +4730,7 @@ namespace Tomahawk
 			if (ProcessId == 0)
 			{
 				std::vector<char*> Args;
-				for (auto It = Params.begin(); It != Params.end(); It++)
+				for (auto It = Params.begin(); It != Params.end(); ++It)
 					Args.push_back((char*)It->c_str());
 				Args.push_back(nullptr);
 
@@ -4873,7 +4887,7 @@ namespace Tomahawk
 			if (!Data)
 				return false;
 
-			if (!Result)
+			if (Result != nullptr)
 				*Result = Data;
 
 			return true;
@@ -5008,6 +5022,9 @@ namespace Tomahawk
 			Source->Seek(FileSeek_Begin, Length - Delta);
 
 			char* Data = (char*)TH_MALLOC(sizeof(char) * ((size_t)Delta + 1));
+			if (!Data)
+				return;
+			
 			Source->Read(Data, sizeof(char) * Delta);
 
 			std::string Value = Data;
@@ -5052,7 +5069,7 @@ namespace Tomahawk
 			Offset = Length;
 		}
 
-		Schedule::Schedule() : Active(false), Terminate(false), Timer(0)
+		Schedule::Schedule() : Active(false), Terminate(false), Timer(0), Workers(0)
 		{
 		}
 		Schedule::~Schedule()
@@ -5070,7 +5087,7 @@ namespace Tomahawk
 			Sync.Timers.lock();
 
 			EventId Id = Timer++; int64_t Time = GetTimeout(Clock + Milliseconds);
-			Timers.insert(std::make_pair(Time, EventTimer(Callback, Milliseconds, Id, true)));
+			Timers.emplace(std::move(std::make_pair(Time, EventTimer(Callback, Milliseconds, Id, true))));
 			Sync.Timers.unlock();
 
 			return Id;
@@ -5084,7 +5101,7 @@ namespace Tomahawk
 			Sync.Timers.lock();
 
 			EventId Id = Timer++; int64_t Time = GetTimeout(Clock + Milliseconds);
-			Timers.insert(std::make_pair(Time, EventTimer(std::move(Callback), Milliseconds, Id, true)));
+			Timers.emplace(std::move(std::make_pair(Time, EventTimer(std::move(Callback), Milliseconds, Id, true))));
 			Sync.Timers.unlock();
 
 			return Id;
@@ -5098,7 +5115,7 @@ namespace Tomahawk
 			Sync.Timers.lock();
 
 			EventId Id = Timer++; int64_t Time = GetTimeout(Clock + Milliseconds);
-			Timers.insert(std::make_pair(Time, EventTimer(Callback, Milliseconds, Id, false)));
+			Timers.emplace(std::move(std::make_pair(Time, EventTimer(Callback, Milliseconds, Id, false))));
 			Sync.Timers.unlock();
 
 			return Id;
@@ -5112,7 +5129,7 @@ namespace Tomahawk
 			Sync.Timers.lock();
 
 			EventId Id = Timer++; int64_t Time = GetTimeout(Clock + Milliseconds);
-			Timers.insert(std::make_pair(Time, EventTimer(std::move(Callback), Milliseconds, Id, false)));
+			Timers.emplace(std::move(std::make_pair(Time, EventTimer(std::move(Callback), Milliseconds, Id, false))));
 			Sync.Timers.unlock();
 
 			return Id;
@@ -5235,7 +5252,7 @@ namespace Tomahawk
 		bool Schedule::ClearTimeout(EventId TimerId)
 		{
 			Sync.Timers.lock();
-			for (auto It = Timers.begin(); It != Timers.end(); It++)
+			for (auto It = Timers.begin(); It != Timers.end(); ++It)
 			{
 				if (It->second.Id != TimerId)
 					continue;
@@ -5253,7 +5270,7 @@ namespace Tomahawk
 			if ((Type & EventType_Tasks) && !Tasks.empty())
 			{
 				Sync.Tasks.lock();
-				while (!Tasks.empty())
+				if (!Tasks.empty())
 				{
 					EventTask Value(std::move(Tasks.front()));
 					Tasks.pop();
@@ -5270,7 +5287,7 @@ namespace Tomahawk
 			if ((Type & EventType_Events) && !Events.empty())
 			{
 				Sync.Events.lock();
-				while (!Events.empty())
+				if (!Events.empty())
 				{
 					EventBase Value(std::move(Events.front()));
 					Events.pop();
@@ -5304,10 +5321,10 @@ namespace Tomahawk
 			if ((Type & EventType_Timers) && !Timers.empty())
 			{
 				Sync.Timers.lock();
-				for (auto It = Timers.begin(); It != Timers.end(); It++)
+				if (!Timers.empty())
 				{
-					EventTimer Value(std::move(It->second));
-					Timers.erase(It);
+					EventTimer Value(std::move(Timers.begin()->second));
+					Timers.erase(Timers.begin());
 					Sync.Timers.unlock();
 
 					if (!NoCall && Value.Callback)
@@ -5523,7 +5540,7 @@ namespace Tomahawk
 			SetTask((const TaskCallback&)Next.Callback);
 
 			int64_t Time = GetTimeout(Clock + Next.Timeout);
-			Timers.insert(std::make_pair(Time, std::move(Next)));
+			Timers.emplace(std::move(std::make_pair(Time, std::move(Next))));
 			Sync.Timers.unlock();
 			return true;
 		}
@@ -5565,7 +5582,7 @@ namespace Tomahawk
 		{
 			if (Parent != nullptr)
 			{
-				for (auto It = Parent->Nodes.begin(); It != Parent->Nodes.end(); It++)
+				for (auto It = Parent->Nodes.begin(); It != Parent->Nodes.end(); ++It)
 				{
 					if (*It != this)
 						continue;
@@ -5618,7 +5635,7 @@ namespace Tomahawk
 			if (!Current)
 				return std::vector<Document*>();
 
-			for (auto It = Names.begin() + 1; It != Names.end() - 1; It++)
+			for (auto It = Names.begin() + 1; It != Names.end() - 1; ++It)
 			{
 				Current = Current->Find(*It, Deep);
 				if (!Current)
@@ -5680,7 +5697,7 @@ namespace Tomahawk
 			if (!Current)
 				return nullptr;
 
-			for (auto It = Names.begin() + 1; It != Names.end(); It++)
+			for (auto It = Names.begin() + 1; It != Names.end(); ++It)
 			{
 				Current = Current->Find(*It, Deep);
 				if (!Current)
@@ -5705,9 +5722,9 @@ namespace Tomahawk
 
 			return Result->Value;
 		}
-		Variant Document::GetVar(const std::string& Key) const
+		Variant Document::GetVar(const std::string& fKey) const
 		{
-			Document* Result = Get(Key);
+			Document* Result = Get(fKey);
 			if (!Result)
 				return Var::Undefined();
 
@@ -5715,7 +5732,7 @@ namespace Tomahawk
 		}
 		Document* Document::Get(size_t Index) const
 		{
-			if (Index < 0 || Index >= Nodes.size())
+			if (Index >= Nodes.size())
 				return nullptr;
 
 			return Nodes[Index];
@@ -5801,7 +5818,7 @@ namespace Tomahawk
 
 			if (Value.Type == VarType_Object)
 			{
-				for (auto It = Nodes.begin(); It != Nodes.end(); It++)
+				for (auto It = Nodes.begin(); It != Nodes.end(); ++It)
 				{
 					if ((*It)->Key != Name)
 						continue;
@@ -5820,13 +5837,13 @@ namespace Tomahawk
 			Nodes.push_back(Base);
 			return Base;
 		}
-		Document* Document::SetAttribute(const std::string& Name, const Variant& Value)
+		Document* Document::SetAttribute(const std::string& Name, const Variant& fValue)
 		{
-			return Set("[" + Name + "]", Value);
+			return Set("[" + Name + "]", fValue);
 		}
-		Document* Document::SetAttribute(const std::string& Name, Variant&& Value)
+		Document* Document::SetAttribute(const std::string& Name, Variant&& fValue)
 		{
-			return Set("[" + Name + "]", std::move(Value));
+			return Set("[" + Name + "]", std::move(fValue));
 		}
 		Document* Document::Push(const Variant& Base)
 		{
@@ -5862,7 +5879,7 @@ namespace Tomahawk
 		}
 		Document* Document::Pop(size_t Index)
 		{
-			if (Index < 0 || Index >= Nodes.size())
+			if (Index >= Nodes.size())
 				return nullptr;
 
 			Document* Base = Nodes[Index];
@@ -5874,7 +5891,7 @@ namespace Tomahawk
 		}
 		Document* Document::Pop(const std::string& Name)
 		{
-			for (auto It = Nodes.begin(); It != Nodes.end(); It++)
+			for (auto It = Nodes.begin(); It != Nodes.end(); ++It)
 			{
 				if (!*It || (*It)->Key != Name)
 					continue;
@@ -5895,7 +5912,7 @@ namespace Tomahawk
 			New->Saved = Saved;
 			New->Nodes = Nodes;
 
-			for (auto It = New->Nodes.begin(); It != New->Nodes.end(); It++)
+			for (auto It = New->Nodes.begin(); It != New->Nodes.end(); ++It)
 			{
 				if (*It != nullptr)
 					*It = (*It)->Copy();
@@ -5953,7 +5970,7 @@ namespace Tomahawk
 				}
 
 				bool Exists = false;
-				for (auto It = Nodes.begin(); It != Nodes.end(); It++)
+				for (auto It = Nodes.begin(); It != Nodes.end(); ++It)
 				{
 					if (!*It || (*It)->Key != Copy->Key)
 						continue;
@@ -6023,7 +6040,7 @@ namespace Tomahawk
 			else
 				Callback(VarForm_Dummy, " ", 1);
 
-			for (auto It = Attributes.begin(); It != Attributes.end(); It++)
+			for (auto It = Attributes.begin(); It != Attributes.end(); ++It)
 			{
 				std::string Key = (*It)->GetName();
 				std::string Value = (*It)->Value.Serialize();
@@ -6031,7 +6048,7 @@ namespace Tomahawk
 				Callback(VarForm_Dummy, Key.c_str(), (int64_t)Key.size());
 				Callback(VarForm_Dummy, "=\"", 2);
 				Callback(VarForm_Dummy, Value.c_str(), (int64_t)Value.size());
-				It++;
+				++It;
 
 				if (It == Attributes.end())
 				{
@@ -6046,7 +6063,7 @@ namespace Tomahawk
 				else
 					Callback(VarForm_Write_Space, "\"", 1);
 
-				It--;
+				--It;
 			}
 
 			Callback(VarForm_Tab_Increase, "", 0);
@@ -6188,7 +6205,7 @@ namespace Tomahawk
 			Callback(VarForm_Dummy, "\0b\0i\0n\0h\0e\0a\0d\r\n", sizeof(char) * 16);
 			Callback(VarForm_Dummy, (const char*)&Set, sizeof(uint64_t));
 
-			for (auto It = Mapping.begin(); It != Mapping.end(); It++)
+			for (auto It = Mapping.begin(); It != Mapping.end(); ++It)
 			{
 				uint64_t Size = (uint64_t)It->first.size();
 				Callback(VarForm_Dummy, (const char*)&It->second, sizeof(uint64_t));
@@ -6516,7 +6533,7 @@ namespace Tomahawk
 				Current->Value.Type = VarType_Array;
 
 				std::string Name;
-				for (auto It = Ref->MemberBegin(); It != Ref->MemberEnd(); It++)
+				for (auto It = Ref->MemberBegin(); It != Ref->MemberEnd(); ++It)
 				{
 					if (!It->name.IsString())
 						continue;
@@ -6558,7 +6575,7 @@ namespace Tomahawk
 			}
 			else
 			{
-				for (auto It = Ref->Begin(); It != Ref->End(); It++)
+				for (auto It = Ref->Begin(); It != Ref->End(); ++It)
 				{
 					switch (It->GetType())
 					{
@@ -6639,6 +6656,8 @@ namespace Tomahawk
 					Callback(VarForm_Dummy, (const char*)&Copy, sizeof(bool));
 					break;
 				}
+				default:
+					break;
 			}
 
 			return true;
@@ -6678,13 +6697,13 @@ namespace Tomahawk
 						break;
 
 					Current->Nodes.resize(Count);
-					for (auto K = Current->Nodes.begin(); K != Current->Nodes.end(); K++)
+					for (auto&& Item : Current->Nodes)
 					{
-						*K = Document::Object();
-						(*K)->Parent = Current;
-						(*K)->Saved = true;
+						Item = Document::Object();
+						Item->Parent = Current;
+						Item->Saved = true;
 
-						ProcessJSONBRead(*K, Map, Callback);
+						ProcessJSONBRead(Item, Map, Callback);
 					}
 					break;
 				}
@@ -6787,6 +6806,8 @@ namespace Tomahawk
 					Current->Value = std::move(Var::Boolean(Boolean));
 					break;
 				}
+				default:
+					break;
 			}
 
 			return true;

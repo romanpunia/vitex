@@ -138,9 +138,6 @@ namespace Tomahawk
 			{
 				friend D3D11Device;
 
-			private:
-				bool Sync;
-
 			public:
 				ID3D11ShaderResourceView* Resource;
 

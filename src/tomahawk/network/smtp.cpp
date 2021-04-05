@@ -108,7 +108,9 @@ namespace Tomahawk
 				Core::Async<int> Result;
 				if (!Staging)
 				{
-					Request = *Root;
+					if (Root != nullptr)
+						Request = *Root;
+
 					Done = [Result](SocketClient* Client, int Code) mutable
 					{
 						SMTP::Client* Base = Client->As<SMTP::Client>();
@@ -150,14 +152,14 @@ namespace Tomahawk
 				Core::Parser Content;
 				Content.fAppend("MAIL FROM: <%s>\r\n", Request.SenderAddress.c_str());
 
-				for (auto It = Request.Recipients.begin(); It != Request.Recipients.end(); It++)
-					Content.fAppend("RCPT TO: <%s>\r\n", It->Address.c_str());
+				for (auto& Item : Request.Recipients)
+					Content.fAppend("RCPT TO: <%s>\r\n", Item.Address.c_str());
 
-				for (auto It = Request.CCRecipients.begin(); It != Request.CCRecipients.end(); It++)
-					Content.fAppend("RCPT TO: <%s>\r\n", It->Address.c_str());
+				for (auto& Item : Request.CCRecipients)
+					Content.fAppend("RCPT TO: <%s>\r\n", Item.Address.c_str());
 
-				for (auto It = Request.BCCRecipients.begin(); It != Request.BCCRecipients.end(); It++)
-					Content.fAppend("RCPT TO: <%s>\r\n", It->Address.c_str());
+				for (auto& Item : Request.BCCRecipients)
+					Content.fAppend("RCPT TO: <%s>\r\n", Item.Address.c_str());
 
 				Stream.WriteAsync(Content.Get(), Content.Size(), [this](Socket*, int64_t Size)
 				{
@@ -287,8 +289,8 @@ namespace Tomahawk
 									return true;
 
 								Core::Parser Content;
-								for (auto It = Request.Messages.begin(); It != Request.Messages.end(); It++)
-									Content.fAppend("%s\r\n", It->c_str());
+								for (auto& Item : Request.Messages)
+									Content.fAppend("%s\r\n", Item.c_str());
 
 								if (Request.Messages.empty())
 									Content.Assign(" \r\n");
@@ -379,10 +381,10 @@ namespace Tomahawk
 				for (uint64_t i = 0; i < L1 - L2 + 1; i++)
 				{
 #ifdef TH_MICROSOFT
-					if (_strnicmp(Keyword, Buffer.c_str() + i, (size_t)L2) || !i)
+					if (_strnicmp(Keyword, Buffer.c_str() + i, (size_t)L2) != 0 || !i)
 						continue;
 #else
-					if (strncmp(Keyword, Buffer.c_str() + i, (size_t)L2) || !i)
+					if (strncmp(Keyword, Buffer.c_str() + i, (size_t)L2) != 0 || !i)
 						continue;
 #endif
 					if (Buffer[i - 1] != '-' && Buffer[i - 1] != ' ' && Buffer[i - 1] != '=')
@@ -479,9 +481,8 @@ namespace Tomahawk
 							PasswordLength = 16;
 						}
 
-						unsigned char IPad[65], OPad[65];
-						memset(IPad, 0, 64);
-						memset(OPad, 0, 64);
+						unsigned char IPad[65] = { 0 };
+						unsigned char OPad[65] = { 0 };
 						memcpy(IPad, UserPassword, (size_t)PasswordLength);
 						memcpy(OPad, UserPassword, (size_t)PasswordLength);
 
@@ -710,10 +711,11 @@ namespace Tomahawk
 			}
 			bool Client::ProcessAttachment()
 			{
-				Attachment& It = Request.Attachments.at(Request.Attachments.size() - Pending);
 				char Data[8192];
-				int64_t Size = fread(Data, sizeof(char), It.Length > 8192 ? 8192 : It.Length, AttachmentFile);
-				if (Size == -1)
+				Attachment& It = Request.Attachments.at(Request.Attachments.size() - Pending);
+				size_t Count = It.Length > 8192 ? 8192 : It.Length;
+				int64_t Size = fread(Data, sizeof(char), Count, AttachmentFile);
+				if (Size != Count)
 					return Error("cannot read attachment block from %s", It.Path.c_str());
 
 				std::string Content = Compute::Common::Base64Encode((const unsigned char*)Data, Size);

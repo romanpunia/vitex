@@ -182,7 +182,7 @@ namespace Tomahawk
 
 			Device = SSL_new(Context);
 #ifndef OPENSSL_NO_TLSEXT
-			if (Hostname != nullptr)
+			if (Device != nullptr && Hostname != nullptr)
 				SSL_set_tlsext_host_name(Device, Hostname);
 #endif
 			Sync.Device.unlock();
@@ -210,7 +210,7 @@ namespace Tomahawk
 		{
 			return listen(Fd, Backlog);
 		}
-		int Socket::Accept(Socket* Connection, Address* Output)
+		int Socket::Accept(Socket* Connection, Address* OutAddr)
 		{
 			if (!Connection)
 				return -1;
@@ -221,7 +221,7 @@ namespace Tomahawk
 			if (Connection->Fd == INVALID_SOCKET)
 				return -1;
 
-			if (!Output)
+			if (!OutAddr)
 				return 0;
 
 			struct addrinfo Hints;
@@ -229,10 +229,10 @@ namespace Tomahawk
 			Hints.ai_family = AF_UNSPEC;
 			Hints.ai_socktype = SOCK_STREAM;
 
-			if (getaddrinfo(Address.sa_data, Core::Parser((((struct sockaddr_in*)&Address)->sin_port)).Get(), &Hints, &Output->Host))
+			if (getaddrinfo(Address.sa_data, Core::Parser((((struct sockaddr_in*)&Address)->sin_port)).Get(), &Hints, &OutAddr->Host))
 				return -1;
 
-			Output->Active = Output->Host;
+			OutAddr->Active = OutAddr->Host;
 			return 0;
 		}
 		int Socket::AcceptAsync(SocketAcceptCallback&& Callback)
@@ -1465,12 +1465,16 @@ namespace Tomahawk
 				{
 					case Secure_SSL_V2:
 						Protocol = SSL_OP_ALL | SSL_OP_NO_SSLv2;
+						break;
 					case Secure_SSL_V3:
 						Protocol = SSL_OP_ALL | SSL_OP_NO_SSLv3;
+						break;
 					case Secure_TLS_V1:
 						Protocol = SSL_OP_ALL | SSL_OP_NO_TLSv1;
+						break;
 					case Secure_TLS_V1_1:
 						Protocol = SSL_OP_ALL | SSL_OP_NO_TLSv1_1;
+						break;
 					case Secure_Any:
 					default:
 						Protocol = SSL_OP_ALL;

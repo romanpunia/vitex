@@ -227,17 +227,18 @@ namespace Tomahawk
 			struct TH_OUT GatewayFrame
 			{
 				friend WebSocketFrame;
-
 				friend class Util;
 
 			private:
-				char* Buffer;
 				int64_t Size;
-				bool Save;
 
 			public:
 				Script::VMCompiler* Compiler;
 				Connection* Base;
+
+			public:
+				char* Buffer;
+				bool Save;
 
 			public:
 				GatewayFrame(char* Data, int64_t DataSize);

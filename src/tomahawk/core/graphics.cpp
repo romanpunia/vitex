@@ -29,9 +29,9 @@ namespace Tomahawk
 			if (View == AlertType_None || Buttons.size() >= 16)
 				return;
 
-			for (auto It = Buttons.begin(); It != Buttons.end(); It++)
+			for (auto& Item : Buttons)
 			{
-				if (It->Id == Id)
+				if (Item.Id == Id)
 					return;
 			}
 
@@ -665,100 +665,29 @@ namespace Tomahawk
 			DepthStencil.BackFaceStencilFunction = Graphics::Comparison_Always;
 			DepthStencilStates["less"] = CreateDepthStencilState(DepthStencil);
 
-			DepthStencil.DepthEnable = true;
 			DepthStencil.DepthWriteMask = Graphics::DepthWrite_Zero;
-			DepthStencil.DepthFunction = Graphics::Comparison_Less;
-			DepthStencil.StencilEnable = true;
-			DepthStencil.StencilReadMask = 0xFF;
 			DepthStencil.StencilWriteMask = 0x0;
-			DepthStencil.FrontFaceStencilFailOperation = Graphics::StencilOperation_Keep;
-			DepthStencil.FrontFaceStencilDepthFailOperation = Graphics::StencilOperation_Add;
-			DepthStencil.FrontFaceStencilPassOperation = Graphics::StencilOperation_Keep;
-			DepthStencil.FrontFaceStencilFunction = Graphics::Comparison_Always;
-			DepthStencil.BackFaceStencilFailOperation = Graphics::StencilOperation_Keep;
-			DepthStencil.BackFaceStencilDepthFailOperation = Graphics::StencilOperation_Subtract;
-			DepthStencil.BackFaceStencilPassOperation = Graphics::StencilOperation_Keep;
-			DepthStencil.BackFaceStencilFunction = Graphics::Comparison_Always;
 			DepthStencilStates["less-read-only"] = CreateDepthStencilState(DepthStencil);
 
-			DepthStencil.DepthEnable = true;
-			DepthStencil.DepthWriteMask = Graphics::DepthWrite_Zero;
 			DepthStencil.DepthFunction = Graphics::Comparison_Greater_Equal;
-			DepthStencil.StencilEnable = true;
-			DepthStencil.StencilReadMask = 0xFF;
-			DepthStencil.StencilWriteMask = 0x0;
-			DepthStencil.FrontFaceStencilFailOperation = Graphics::StencilOperation_Keep;
-			DepthStencil.FrontFaceStencilDepthFailOperation = Graphics::StencilOperation_Add;
-			DepthStencil.FrontFaceStencilPassOperation = Graphics::StencilOperation_Keep;
-			DepthStencil.FrontFaceStencilFunction = Graphics::Comparison_Always;
-			DepthStencil.BackFaceStencilFailOperation = Graphics::StencilOperation_Keep;
-			DepthStencil.BackFaceStencilDepthFailOperation = Graphics::StencilOperation_Subtract;
-			DepthStencil.BackFaceStencilPassOperation = Graphics::StencilOperation_Keep;
-			DepthStencil.BackFaceStencilFunction = Graphics::Comparison_Always;
 			DepthStencilStates["greater-read-only"] = CreateDepthStencilState(DepthStencil);
 
-			DepthStencil.DepthEnable = true;
 			DepthStencil.DepthWriteMask = Graphics::DepthWrite_All;
-			DepthStencil.DepthFunction = Graphics::Comparison_Greater_Equal;
-			DepthStencil.StencilEnable = true;
-			DepthStencil.StencilReadMask = 0xFF;
 			DepthStencil.StencilWriteMask = 0xFF;
-			DepthStencil.FrontFaceStencilFailOperation = Graphics::StencilOperation_Keep;
-			DepthStencil.FrontFaceStencilDepthFailOperation = Graphics::StencilOperation_Add;
-			DepthStencil.FrontFaceStencilPassOperation = Graphics::StencilOperation_Keep;
-			DepthStencil.FrontFaceStencilFunction = Graphics::Comparison_Always;
-			DepthStencil.BackFaceStencilFailOperation = Graphics::StencilOperation_Keep;
-			DepthStencil.BackFaceStencilDepthFailOperation = Graphics::StencilOperation_Subtract;
-			DepthStencil.BackFaceStencilPassOperation = Graphics::StencilOperation_Keep;
-			DepthStencil.BackFaceStencilFunction = Graphics::Comparison_Always;
 			DepthStencilStates["greater-equal"] = CreateDepthStencilState(DepthStencil);
 
 			DepthStencil.DepthEnable = false;
-			DepthStencil.DepthWriteMask = Graphics::DepthWrite_All;
 			DepthStencil.DepthFunction = Graphics::Comparison_Less;
 			DepthStencil.StencilEnable = false;
-			DepthStencil.StencilReadMask = 0xFF;
-			DepthStencil.StencilWriteMask = 0xFF;
-			DepthStencil.FrontFaceStencilFailOperation = Graphics::StencilOperation_Keep;
-			DepthStencil.FrontFaceStencilDepthFailOperation = Graphics::StencilOperation_Add;
-			DepthStencil.FrontFaceStencilPassOperation = Graphics::StencilOperation_Keep;
-			DepthStencil.FrontFaceStencilFunction = Graphics::Comparison_Always;
-			DepthStencil.BackFaceStencilFailOperation = Graphics::StencilOperation_Keep;
-			DepthStencil.BackFaceStencilDepthFailOperation = Graphics::StencilOperation_Subtract;
-			DepthStencil.BackFaceStencilPassOperation = Graphics::StencilOperation_Keep;
-			DepthStencil.BackFaceStencilFunction = Graphics::Comparison_Always;
 			DepthStencilStates["none"] = CreateDepthStencilState(DepthStencil);
 
 			DepthStencil.DepthEnable = true;
 			DepthStencil.DepthWriteMask = Graphics::DepthWrite_Zero;
-			DepthStencil.DepthFunction = Graphics::Comparison_Less;
 			DepthStencil.StencilEnable = true;
-			DepthStencil.StencilReadMask = 0xFF;
-			DepthStencil.StencilWriteMask = 0xFF;
-			DepthStencil.FrontFaceStencilFailOperation = Graphics::StencilOperation_Keep;
-			DepthStencil.FrontFaceStencilDepthFailOperation = Graphics::StencilOperation_Add;
-			DepthStencil.FrontFaceStencilPassOperation = Graphics::StencilOperation_Keep;
-			DepthStencil.FrontFaceStencilFunction = Graphics::Comparison_Always;
-			DepthStencil.BackFaceStencilFailOperation = Graphics::StencilOperation_Keep;
-			DepthStencil.BackFaceStencilDepthFailOperation = Graphics::StencilOperation_Subtract;
-			DepthStencil.BackFaceStencilPassOperation = Graphics::StencilOperation_Keep;
-			DepthStencil.BackFaceStencilFunction = Graphics::Comparison_Always;
 			DepthStencilStates["less-none"] = CreateDepthStencilState(DepthStencil);
 
-			DepthStencil.DepthEnable = true;
 			DepthStencil.DepthWriteMask = Graphics::DepthWrite_All;
-			DepthStencil.DepthFunction = Graphics::Comparison_Less;
 			DepthStencil.StencilEnable = false;
-			DepthStencil.StencilReadMask = 0xFF;
-			DepthStencil.StencilWriteMask = 0xFF;
-			DepthStencil.FrontFaceStencilFailOperation = Graphics::StencilOperation_Keep;
-			DepthStencil.FrontFaceStencilDepthFailOperation = Graphics::StencilOperation_Add;
-			DepthStencil.FrontFaceStencilPassOperation = Graphics::StencilOperation_Keep;
-			DepthStencil.FrontFaceStencilFunction = Graphics::Comparison_Always;
-			DepthStencil.BackFaceStencilFailOperation = Graphics::StencilOperation_Keep;
-			DepthStencil.BackFaceStencilDepthFailOperation = Graphics::StencilOperation_Subtract;
-			DepthStencil.BackFaceStencilPassOperation = Graphics::StencilOperation_Keep;
-			DepthStencil.BackFaceStencilFunction = Graphics::Comparison_Always;
 			DepthStencilStates["less-no-stencil"] = CreateDepthStencilState(DepthStencil);
 
 			Graphics::RasterizerState::Desc Rasterizer;
@@ -774,52 +703,16 @@ namespace Tomahawk
 			Rasterizer.SlopeScaledDepthBias = 0.0f;
 			RasterizerStates["cull-back"] = CreateRasterizerState(Rasterizer);
 
-			Rasterizer.AntialiasedLineEnable = false;
 			Rasterizer.CullMode = Graphics::VertexCull_Front;
-			Rasterizer.DepthBias = 0;
-			Rasterizer.DepthBiasClamp = 0;
-			Rasterizer.DepthClipEnable = true;
-			Rasterizer.FillMode = Graphics::SurfaceFill_Solid;
-			Rasterizer.FrontCounterClockwise = false;
-			Rasterizer.MultisampleEnable = false;
-			Rasterizer.ScissorEnable = false;
-			Rasterizer.SlopeScaledDepthBias = 0.0f;
 			RasterizerStates["cull-front"] = CreateRasterizerState(Rasterizer);
 
-			Rasterizer.AntialiasedLineEnable = false;
 			Rasterizer.CullMode = Graphics::VertexCull_Disabled;
-			Rasterizer.DepthBias = 0;
-			Rasterizer.DepthBiasClamp = 0;
-			Rasterizer.DepthClipEnable = true;
-			Rasterizer.FillMode = Graphics::SurfaceFill_Solid;
-			Rasterizer.FrontCounterClockwise = false;
-			Rasterizer.MultisampleEnable = false;
-			Rasterizer.ScissorEnable = false;
-			Rasterizer.SlopeScaledDepthBias = 0.0f;
 			RasterizerStates["cull-none"] = CreateRasterizerState(Rasterizer);
 
-			Rasterizer.AntialiasedLineEnable = false;
-			Rasterizer.CullMode = Graphics::VertexCull_Disabled;
-			Rasterizer.DepthBias = 0;
-			Rasterizer.DepthBiasClamp = 0;
-			Rasterizer.DepthClipEnable = true;
-			Rasterizer.FillMode = Graphics::SurfaceFill_Solid;
-			Rasterizer.FrontCounterClockwise = false;
-			Rasterizer.MultisampleEnable = false;
 			Rasterizer.ScissorEnable = true;
-			Rasterizer.SlopeScaledDepthBias = 0.0f;
 			RasterizerStates["cull-none-scissor"] = CreateRasterizerState(Rasterizer);
 
-			Rasterizer.AntialiasedLineEnable = false;
 			Rasterizer.CullMode = Graphics::VertexCull_Back;
-			Rasterizer.DepthBias = 0;
-			Rasterizer.DepthBiasClamp = 0;
-			Rasterizer.DepthClipEnable = true;
-			Rasterizer.FillMode = Graphics::SurfaceFill_Solid;
-			Rasterizer.FrontCounterClockwise = false;
-			Rasterizer.MultisampleEnable = false;
-			Rasterizer.ScissorEnable = true;
-			Rasterizer.SlopeScaledDepthBias = 0.0f;
 			RasterizerStates["cull-back-scissor"] = CreateRasterizerState(Rasterizer);
 
 			Graphics::BlendState::Desc Blend;
@@ -829,20 +722,12 @@ namespace Tomahawk
 			Blend.RenderTarget[0].RenderTargetWriteMask = Graphics::ColorWriteEnable_All;
 			BlendStates["overwrite"] = CreateBlendState(Blend);
 
-			Blend.AlphaToCoverageEnable = false;
-			Blend.IndependentBlendEnable = false;
-			Blend.RenderTarget[0].BlendEnable = false;
 			Blend.RenderTarget[0].RenderTargetWriteMask = Graphics::ColorWriteEnable_Red | Graphics::ColorWriteEnable_Green | Graphics::ColorWriteEnable_Blue;
 			BlendStates["overwrite-opaque"] = CreateBlendState(Blend);
 
-			Blend.AlphaToCoverageEnable = false;
-			Blend.IndependentBlendEnable = false;
-			Blend.RenderTarget[0].BlendEnable = false;
 			Blend.RenderTarget[0].RenderTargetWriteMask = 0;
 			BlendStates["overwrite-colorless"] = CreateBlendState(Blend);
 
-			Blend.AlphaToCoverageEnable = false;
-			Blend.IndependentBlendEnable = false;
 			Blend.RenderTarget[0].BlendEnable = true;
 			Blend.RenderTarget[0].SrcBlend = Graphics::Blend_One;
 			Blend.RenderTarget[0].DestBlend = Graphics::Blend_One;
@@ -853,23 +738,13 @@ namespace Tomahawk
 			Blend.RenderTarget[0].RenderTargetWriteMask = Graphics::ColorWriteEnable_All;
 			BlendStates["additive"] = CreateBlendState(Blend);
 
-			Blend.AlphaToCoverageEnable = false;
-			Blend.IndependentBlendEnable = false;
-			Blend.RenderTarget[0].BlendEnable = true;
-			Blend.RenderTarget[0].SrcBlend = Graphics::Blend_One;
-			Blend.RenderTarget[0].DestBlend = Graphics::Blend_One;
-			Blend.RenderTarget[0].BlendOperationMode = Graphics::BlendOperation_Add;
-			Blend.RenderTarget[0].SrcBlendAlpha = Graphics::Blend_One;
-			Blend.RenderTarget[0].DestBlendAlpha = Graphics::Blend_One;
-			Blend.RenderTarget[0].BlendOperationAlpha = Graphics::BlendOperation_Add;
 			Blend.RenderTarget[0].RenderTargetWriteMask = Graphics::ColorWriteEnable_Red | Graphics::ColorWriteEnable_Green | Graphics::ColorWriteEnable_Blue;
 			BlendStates["additive-opaque"] = CreateBlendState(Blend);
 
-			Blend.AlphaToCoverageEnable = false;
 			Blend.IndependentBlendEnable = true;
 			for (unsigned int i = 0; i < 8; i++)
 			{
-				Blend.RenderTarget[i].BlendEnable = true;
+				Blend.RenderTarget[i].BlendEnable = (i != 1 && i != 2);
 				Blend.RenderTarget[i].SrcBlend = Graphics::Blend_One;
 				Blend.RenderTarget[i].DestBlend = Graphics::Blend_One;
 				Blend.RenderTarget[i].BlendOperationMode = Graphics::BlendOperation_Add;
@@ -878,32 +753,16 @@ namespace Tomahawk
 				Blend.RenderTarget[i].BlendOperationAlpha = Graphics::BlendOperation_Add;
 				Blend.RenderTarget[i].RenderTargetWriteMask = Graphics::ColorWriteEnable_All;
 			}
-			Blend.RenderTarget[1].BlendEnable = false;
-			Blend.RenderTarget[2].BlendEnable = false;
 			BlendStates["additive-gbuffer"] = CreateBlendState(Blend);
 
-			Blend.AlphaToCoverageEnable = false;
 			Blend.IndependentBlendEnable = false;
 			Blend.RenderTarget[0].BlendEnable = true;
 			Blend.RenderTarget[0].SrcBlend = Graphics::Blend_Source_Alpha;
-			Blend.RenderTarget[0].DestBlend = Graphics::Blend_One;
-			Blend.RenderTarget[0].BlendOperationMode = Graphics::BlendOperation_Add;
-			Blend.RenderTarget[0].SrcBlendAlpha = Graphics::Blend_One;
-			Blend.RenderTarget[0].DestBlendAlpha = Graphics::Blend_One;
-			Blend.RenderTarget[0].BlendOperationAlpha = Graphics::BlendOperation_Add;
-			Blend.RenderTarget[0].RenderTargetWriteMask = Graphics::ColorWriteEnable_All;
 			BlendStates["additive-alpha"] = CreateBlendState(Blend);
 
-			Blend.AlphaToCoverageEnable = false;
-			Blend.IndependentBlendEnable = false;
-			Blend.RenderTarget[0].BlendEnable = true;
-			Blend.RenderTarget[0].SrcBlend = Graphics::Blend_Source_Alpha;
 			Blend.RenderTarget[0].DestBlend = Graphics::Blend_Source_Alpha_Invert;
-			Blend.RenderTarget[0].BlendOperationMode = Graphics::BlendOperation_Add;
 			Blend.RenderTarget[0].SrcBlendAlpha = Graphics::Blend_Source_Alpha_Invert;
 			Blend.RenderTarget[0].DestBlendAlpha = Graphics::Blend_Zero;
-			Blend.RenderTarget[0].BlendOperationAlpha = Graphics::BlendOperation_Add;
-			Blend.RenderTarget[0].RenderTargetWriteMask = Graphics::ColorWriteEnable_All;
 			BlendStates["additive-source"] = CreateBlendState(Blend);
 
 			Graphics::SamplerState::Desc Sampler;
@@ -926,35 +785,16 @@ namespace Tomahawk
 			Sampler.AddressU = Graphics::TextureAddress_Clamp;
 			Sampler.AddressV = Graphics::TextureAddress_Clamp;
 			Sampler.AddressW = Graphics::TextureAddress_Clamp;
-			Sampler.MipLODBias = 0.0f;
 			Sampler.ComparisonFunction = Graphics::Comparison_Always;
-			Sampler.MinLOD = 0.0f;
-			Sampler.MaxLOD = std::numeric_limits<float>::max();
 			SamplerStates["linear"] = CreateSamplerState(Sampler);
 
 			Sampler.Filter = Graphics::PixelFilter_Min_Mag_Mip_Point;
-			Sampler.AddressU = Graphics::TextureAddress_Clamp;
-			Sampler.AddressV = Graphics::TextureAddress_Clamp;
-			Sampler.AddressW = Graphics::TextureAddress_Clamp;
-			Sampler.MipLODBias = 0.0f;
 			Sampler.ComparisonFunction = Graphics::Comparison_Never;
-			Sampler.MinLOD = 0.0f;
-			Sampler.MaxLOD = std::numeric_limits<float>::max();
 			SamplerStates["point"] = CreateSamplerState(Sampler);
 
-			Sampler.Filter = Graphics::PixelFilter_Min_Mag_Mip_Point;
 			Sampler.AddressU = Graphics::TextureAddress_Mirror;
 			Sampler.AddressV = Graphics::TextureAddress_Mirror;
 			Sampler.AddressW = Graphics::TextureAddress_Mirror;
-			Sampler.MipLODBias = 0.0f;
-			Sampler.MaxAnisotropy = 16;
-			Sampler.ComparisonFunction = Graphics::Comparison_Never;
-			Sampler.BorderColor[0] = 0.0f;
-			Sampler.BorderColor[1] = 0.0f;
-			Sampler.BorderColor[2] = 0.0f;
-			Sampler.BorderColor[3] = 0.0f;
-			Sampler.MinLOD = 0.0f;
-			Sampler.MaxLOD = std::numeric_limits<float>::max();
 			SamplerStates["shadow"] = CreateSamplerState(Sampler);
 
 			InputLayout::Desc Layout;
@@ -1864,10 +1704,10 @@ namespace Tomahawk
 				case SDL_MOUSEWHEEL:
 #if SDL_VERSION_ATLEAST(2, 0, 4)
 					if (Callbacks.CursorWheelState && Id == Event.window.windowID)
-						Callbacks.CursorWheelState((int)Event.wheel.x, (int)Event.wheel.y, Event.wheel.direction & SDL_MOUSEWHEEL_NORMAL);
+						Callbacks.CursorWheelState((int)Event.wheel.x, (int)Event.wheel.y, Event.wheel.direction == SDL_MOUSEWHEEL_NORMAL);
 #else
 					if (Callbacks.CursorWheelState && Id == Event.window.windowID)
-						Callbacks.CursorWheelState((int)Event.wheel.x, (int)Event.wheel.y, 0);
+						Callbacks.CursorWheelState((int)Event.wheel.x, (int)Event.wheel.y, 1);
 #endif
 					return true;
 				case SDL_JOYAXISMOTION:
@@ -1927,7 +1767,7 @@ namespace Tomahawk
 					return true;
 				case SDL_JOYDEVICEREMOVED:
 					if (Callbacks.JoyStickState && Id == Event.window.windowID)
-						Callbacks.JoyStickState((int)Event.jdevice.which, true);
+						Callbacks.JoyStickState((int)Event.jdevice.which, false);
 					return true;
 				case SDL_CONTROLLERAXISMOTION:
 					if (Callbacks.ControllerAxisMove && Id == Event.window.windowID)
@@ -2345,24 +2185,6 @@ namespace Tomahawk
 			const char* Name;
 			switch (Code)
 			{
-				case KeyCode_A:
-					Name = "A";
-					break;
-				case KeyCode_B:
-					Name = "B";
-					break;
-				case KeyCode_C:
-					Name = "C";
-					break;
-				case KeyCode_D:
-					Name = "D";
-					break;
-				case KeyCode_E:
-					Name = "E";
-					break;
-				case KeyCode_F:
-					Name = "F";
-					break;
 				case KeyCode_G:
 					Name = "G";
 					break;
@@ -2423,56 +2245,11 @@ namespace Tomahawk
 				case KeyCode_Z:
 					Name = "Z";
 					break;
-				case KeyCode_1:
-					Name = "1";
-					break;
-				case KeyCode_2:
-					Name = "2";
-					break;
-				case KeyCode_3:
-					Name = "3";
-					break;
-				case KeyCode_4:
-					Name = "4";
-					break;
-				case KeyCode_5:
-					Name = "5";
-					break;
-				case KeyCode_6:
-					Name = "6";
-					break;
-				case KeyCode_7:
-					Name = "7";
-					break;
-				case KeyCode_8:
-					Name = "8";
-					break;
-				case KeyCode_9:
-					Name = "9";
-					break;
-				case KeyCode_0:
-					Name = "0";
-					break;
 				case KeyCode_RETURN:
 					Name = "Return";
 					break;
 				case KeyCode_ESCAPE:
 					Name = "Escape";
-					break;
-				case KeyCode_BACKSPACE:
-					Name = "Backspace";
-					break;
-				case KeyCode_TAB:
-					Name = "Tab";
-					break;
-				case KeyCode_SPACE:
-					Name = "Space";
-					break;
-				case KeyCode_MINUS:
-					Name = "Minus";
-					break;
-				case KeyCode_EQUALS:
-					Name = "Equals";
 					break;
 				case KeyCode_LEFTBRACKET:
 					Name = "Left Bracket";
@@ -2494,12 +2271,6 @@ namespace Tomahawk
 					break;
 				case KeyCode_GRAVE:
 					Name = "Grave";
-					break;
-				case KeyCode_COMMA:
-					Name = "Comma";
-					break;
-				case KeyCode_PERIOD:
-					Name = "Period";
 					break;
 				case KeyCode_SLASH:
 					Name = "Slash";
@@ -2591,6 +2362,7 @@ namespace Tomahawk
 				case KeyCode_KP_MULTIPLY:
 					Name = "Multiply";
 					break;
+				case KeyCode_MINUS:
 				case KeyCode_KP_MINUS:
 					Name = "Minus";
 					break;
@@ -2600,36 +2372,47 @@ namespace Tomahawk
 				case KeyCode_KP_ENTER:
 					Name = "Enter";
 					break;
+				case KeyCode_1:
 				case KeyCode_KP_1:
 					Name = "1";
 					break;
+				case KeyCode_2:
 				case KeyCode_KP_2:
 					Name = "2";
 					break;
+				case KeyCode_3:
 				case KeyCode_KP_3:
 					Name = "3";
 					break;
+				case KeyCode_4:
 				case KeyCode_KP_4:
 					Name = "4";
 					break;
+				case KeyCode_5:
 				case KeyCode_KP_5:
 					Name = "5";
 					break;
+				case KeyCode_6:
 				case KeyCode_KP_6:
 					Name = "6";
 					break;
+				case KeyCode_7:
 				case KeyCode_KP_7:
 					Name = "7";
 					break;
+				case KeyCode_8:
 				case KeyCode_KP_8:
 					Name = "8";
 					break;
+				case KeyCode_9:
 				case KeyCode_KP_9:
 					Name = "9";
 					break;
+				case KeyCode_0:
 				case KeyCode_KP_0:
 					Name = "0";
 					break;
+				case KeyCode_PERIOD:
 				case KeyCode_KP_PERIOD:
 					Name = "Period";
 					break;
@@ -2639,9 +2422,7 @@ namespace Tomahawk
 				case KeyCode_APPLICATION:
 					Name = "Application";
 					break;
-				case KeyCode_POWER:
-					Name = "Power";
-					break;
+				case KeyCode_EQUALS:
 				case KeyCode_KP_EQUALS:
 					Name = "Equals";
 					break;
@@ -2723,6 +2504,7 @@ namespace Tomahawk
 				case KeyCode_VOLUMEDOWN:
 					Name = "Volume Down";
 					break;
+				case KeyCode_COMMA:
 				case KeyCode_KP_COMMA:
 					Name = "Comma";
 					break;
@@ -2792,9 +2574,6 @@ namespace Tomahawk
 				case KeyCode_CANCEL:
 					Name = "Cancel";
 					break;
-				case KeyCode_CLEAR:
-					Name = "Clear";
-					break;
 				case KeyCode_PRIOR:
 					Name = "Prior";
 					break;
@@ -2849,33 +2628,42 @@ namespace Tomahawk
 				case KeyCode_KP_RIGHTBRACE:
 					Name = "Right Brace";
 					break;
+				case KeyCode_TAB:
 				case KeyCode_KP_TAB:
 					Name = "Tab";
 					break;
+				case KeyCode_BACKSPACE:
 				case KeyCode_KP_BACKSPACE:
 					Name = "Backspace";
 					break;
+				case KeyCode_A:
 				case KeyCode_KP_A:
 					Name = "A";
 					break;
+				case KeyCode_B:
 				case KeyCode_KP_B:
 					Name = "B";
 					break;
+				case KeyCode_C:
 				case KeyCode_KP_C:
 					Name = "C";
 					break;
+				case KeyCode_D:
 				case KeyCode_KP_D:
 					Name = "D";
 					break;
+				case KeyCode_E:
 				case KeyCode_KP_E:
 					Name = "E";
 					break;
+				case KeyCode_F:
 				case KeyCode_KP_F:
 					Name = "F";
 					break;
 				case KeyCode_KP_XOR:
 					Name = "Xor";
 					break;
+				case KeyCode_POWER:
 				case KeyCode_KP_POWER:
 					Name = "Power";
 					break;
@@ -2906,6 +2694,7 @@ namespace Tomahawk
 				case KeyCode_KP_HASH:
 					Name = "Hash";
 					break;
+				case KeyCode_SPACE:
 				case KeyCode_KP_SPACE:
 					Name = "Space";
 					break;
@@ -2939,6 +2728,7 @@ namespace Tomahawk
 				case KeyCode_KP_PLUSMINUS:
 					Name = "Plus-Minus";
 					break;
+				case KeyCode_CLEAR:
 				case KeyCode_KP_CLEAR:
 					Name = "Clear";
 					break;
@@ -3156,8 +2946,8 @@ namespace Tomahawk
 		}
 		Model::~Model()
 		{
-			for (auto It = Meshes.begin(); It != Meshes.end(); It++)
-				TH_RELEASE(*It);
+			for (auto* Item : Meshes)
+				TH_RELEASE(Item);
 		}
 		MeshBuffer* Model::FindMesh(const std::string& Name)
 		{
@@ -3175,8 +2965,8 @@ namespace Tomahawk
 		}
 		SkinModel::~SkinModel()
 		{
-			for (auto It = Meshes.begin(); It != Meshes.end(); It++)
-				TH_RELEASE(*It);
+			for (auto* Item : Meshes)
+				TH_RELEASE(Item);
 		}
 		void SkinModel::ComputePose(PoseBuffer* Map)
 		{

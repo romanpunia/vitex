@@ -49,7 +49,6 @@ namespace Tomahawk
 			{
 				Graphics::Query::Desc I;
 				I.Predicate = false;
-				I.AutoPass = false;
 
 				Query = Device->CreateQuery(I);
 			}
@@ -1249,7 +1248,7 @@ namespace Tomahawk
 			std::stringstream Stream(Array);
 			O->resize((size_t)Size);
 
-			for (auto It = O->begin(); It != O->end(); It++)
+			for (auto It = O->begin(); It != O->end(); ++It)
 			{
 				bool Item;
 				Stream >> Item;
@@ -1271,7 +1270,7 @@ namespace Tomahawk
 			std::stringstream Stream(Array);
 			O->resize((size_t)Size);
 
-			for (auto It = O->begin(); It != O->end(); It++)
+			for (auto It = O->begin(); It != O->end(); ++It)
 			{
 				int Item;
 				Stream >> Item;
@@ -1293,7 +1292,7 @@ namespace Tomahawk
 			std::stringstream Stream(Array);
 			O->resize((size_t)Size);
 
-			for (auto It = O->begin(); It != O->end(); It++)
+			for (auto It = O->begin(); It != O->end(); ++It)
 			{
 				unsigned int Item;
 				Stream >> Item;
@@ -1315,7 +1314,7 @@ namespace Tomahawk
 			std::stringstream Stream(Array);
 			O->resize((size_t)Size);
 
-			for (auto It = O->begin(); It != O->end(); It++)
+			for (auto It = O->begin(); It != O->end(); ++It)
 			{
 				float Item;
 				Stream >> Item;
@@ -1337,7 +1336,7 @@ namespace Tomahawk
 			std::stringstream Stream(Array);
 			O->resize((size_t)Size);
 
-			for (auto It = O->begin(); It != O->end(); It++)
+			for (auto It = O->begin(); It != O->end(); ++It)
 			{
 				double Item;
 				Stream >> Item;
@@ -1359,7 +1358,7 @@ namespace Tomahawk
 			std::stringstream Stream(Array);
 			O->resize((size_t)Size);
 
-			for (auto It = O->begin(); It != O->end(); It++)
+			for (auto It = O->begin(); It != O->end(); ++It)
 			{
 				int64_t Item;
 				Stream >> Item;
@@ -1381,7 +1380,7 @@ namespace Tomahawk
 			std::stringstream Stream(Array);
 			O->resize((size_t)Size);
 
-			for (auto It = O->begin(); It != O->end(); It++)
+			for (auto It = O->begin(); It != O->end(); ++It)
 			{
 				long double Item;
 				Stream >> Item;
@@ -1403,7 +1402,7 @@ namespace Tomahawk
 			std::stringstream Stream(Array);
 			O->resize((size_t)Size);
 
-			for (auto It = O->begin(); It != O->end(); It++)
+			for (auto It = O->begin(); It != O->end(); ++It)
 			{
 				uint64_t Item;
 				Stream >> Item;
@@ -1999,7 +1998,7 @@ namespace Tomahawk
 			if (Parent->Transform->Position.Distance(View.WorldPosition) > View.FarPlane + Parent->Transform->Scale.Length())
 				return false;
 
-			return Compute::Common::IsCubeInFrustum((World ? *World : Parent->Transform->GetWorld()) * View.ViewProjection, 1.65f) == -1;
+			return Compute::Common::IsCubeInFrustum((World ? *World : Parent->Transform->GetWorld()) * View.ViewProjection, 1.65f) < 0.0f;
 		}
 		bool Cullable::IsNear(const Viewer& View)
 		{
@@ -2138,9 +2137,9 @@ namespace Tomahawk
 
 			TH_RELEASE(Transform);
 		}
-		void Entity::RemoveComponent(uint64_t Id)
+		void Entity::RemoveComponent(uint64_t fId)
 		{
-			std::unordered_map<uint64_t, Component*>::iterator It = Components.find(Id);
+			std::unordered_map<uint64_t, Component*>::iterator It = Components.find(fId);
 			if (It == Components.end())
 				return;
 
@@ -2234,9 +2233,9 @@ namespace Tomahawk
 
 			return In;
 		}
-		Component* Entity::GetComponent(uint64_t Id)
+		Component* Entity::GetComponent(uint64_t fId)
 		{
-			std::unordered_map<uint64_t, Component*>::iterator It = Components.find(Id);
+			std::unordered_map<uint64_t, Component*>::iterator It = Components.find(fId);
 			if (It != Components.end())
 				return It->second;
 
@@ -2366,7 +2365,10 @@ namespace Tomahawk
 			Safe.lock();
 			auto It = Cache.find(Name);
 			if (It == Cache.end())
+			{
+				Safe.unlock();
 				return false;
+			}
 
 			if (Shader != nullptr && Shader != It->second.Shader)
 			{
@@ -2390,7 +2392,7 @@ namespace Tomahawk
 		void ShaderCache::ClearCache()
 		{
 			Safe.lock();
-			for (auto It = Cache.begin(); It != Cache.end(); It++)
+			for (auto It = Cache.begin(); It != Cache.end(); ++It)
 				TH_CLEAR(It->second.Shader);
 
 			Cache.clear();
@@ -2494,7 +2496,10 @@ namespace Tomahawk
 			Safe.lock();
 			auto It = Cache.find(Name);
 			if (It == Cache.end())
+			{
+				Safe.unlock();
 				return false;
+			}
 
 			if (Buffers != nullptr)
 			{
@@ -2546,13 +2551,13 @@ namespace Tomahawk
 			if (!Device)
 				return nullptr;
 
-			std::vector<Compute::ShapeVertex> Elements;
-			Elements.push_back({ -1.0f, -1.0f, 0, -1, 0 });
-			Elements.push_back({ -1.0f, 1.0f, 0, -1, -1 });
-			Elements.push_back({ 1.0f, 1.0f, 0, 0, -1 });
-			Elements.push_back({ -1.0f, -1.0f, 0, -1, 0 });
-			Elements.push_back({ 1.0f, 1.0f, 0, 0, -1 });
-			Elements.push_back({ 1.0f, -1.0f, 0, 0, 0 });
+			Compute::ShapeVertex Elements[6];
+			Elements[0] = { -1.0f, -1.0f, 0, -1, 0 };
+			Elements[1] = { -1.0f, 1.0f, 0, -1, -1 };
+			Elements[2] = { 1.0f, 1.0f, 0, 0, -1 };
+			Elements[3] = { -1.0f, -1.0f, 0, -1, 0 };
+			Elements[4] = { 1.0f, 1.0f, 0, 0, -1 };
+			Elements[5] = { 1.0f, -1.0f, 0, 0, 0 };
 
 			Graphics::ElementBuffer::Desc F = Graphics::ElementBuffer::Desc();
 			F.AccessFlags = Graphics::CPUAccess_Invalid;
@@ -3049,7 +3054,7 @@ namespace Tomahawk
 		void PrimitiveCache::ClearCache()
 		{
 			Safe.lock();
-			for (auto It = Cache.begin(); It != Cache.end(); It++)
+			for (auto It = Cache.begin(); It != Cache.end(); ++It)
 			{
 				TH_CLEAR(It->second.Buffers[0]);
 				TH_CLEAR(It->second.Buffers[1]);
@@ -3112,7 +3117,7 @@ namespace Tomahawk
 			DepthSize = Size;
 
 			Graphics::MultiRenderTarget2D* MRT = Scene->GetMRT(TargetType_Main);
-			float Aspect = MRT->GetWidth() / MRT->GetHeight();
+			float Aspect = (float)MRT->GetWidth() / MRT->GetHeight();
 
 			Graphics::DepthBuffer::Desc I;
 			I.Width = (size_t)((float)Size * Aspect);
@@ -3126,15 +3131,15 @@ namespace Tomahawk
 			Scene = NewScene;
 			SetDepthSize(DepthSize);
 		}
-		void RenderSystem::Remount(Renderer* Target)
+		void RenderSystem::Remount(Renderer* fTarget)
 		{
-			if (!Target)
+			if (!fTarget)
 				return;
 
-			Target->Deactivate();
-			Target->SetRenderer(this);
-			Target->Activate();
-			Target->ResizeBuffers();
+			fTarget->Deactivate();
+			fTarget->SetRenderer(this);
+			fTarget->Activate();
+			fTarget->ResizeBuffers();
 		}
 		void RenderSystem::Remount()
 		{
@@ -3224,7 +3229,7 @@ namespace Tomahawk
 		}
 		void RenderSystem::RemoveRenderer(uint64_t Id)
 		{
-			for (auto It = Renderers.begin(); It != Renderers.end(); It++)
+			for (auto It = Renderers.begin(); It != Renderers.end(); ++It)
 			{
 				if (*It && (*It)->GetId() == Id)
 				{
@@ -3345,16 +3350,7 @@ namespace Tomahawk
 		}
 		bool RenderSystem::PushDepthCubicBuffer(Material* Next)
 		{
-			bool R = (Next != nullptr);
-			if (!R || Next == BaseMaterial)
-				return R;
-
-			BaseMaterial = Next;
-			Device->SetTexture2D(Next->DiffuseMap, 1, TH_PS);
-			Device->Render.Diffuse = (float)(Next->DiffuseMap != nullptr);
-			Device->Render.Mid = (float)Next->Slot;
-
-			return true;
+			return PushDepthLinearBuffer(Next);
 		}
 		bool RenderSystem::PassCullable(Cullable* Base, CullResult Mode, float* Result)
 		{
@@ -3478,7 +3474,7 @@ namespace Tomahawk
 			if (!In)
 				return nullptr;
 
-			for (auto It = Renderers.begin(); It != Renderers.end(); It++)
+			for (auto It = Renderers.begin(); It != Renderers.end(); ++It)
 			{
 				if (*It && (*It)->GetId() == In->GetId())
 				{
@@ -3650,15 +3646,16 @@ namespace Tomahawk
 
 		EffectDraw::EffectDraw(RenderSystem* Lab) : Renderer(Lab), MaxSlot(0), Output(nullptr), Swap(nullptr)
 		{
-			DepthStencil = Lab->GetDevice()->GetDepthStencilState("none");
-			Rasterizer = Lab->GetDevice()->GetRasterizerState("cull-back");
-			Blend = Lab->GetDevice()->GetBlendState("overwrite-opaque");
-			Sampler = Lab->GetDevice()->GetSamplerState("trilinear-x16");
-			Layout = Lab->GetDevice()->GetInputLayout("shape-vertex");
+			auto* Device = Lab->GetDevice();
+			DepthStencil = Device->GetDepthStencilState("none");
+			Rasterizer = Device->GetRasterizerState("cull-back");
+			Blend = Device->GetBlendState("overwrite-opaque");
+			Sampler = Device->GetSamplerState("trilinear-x16");
+			Layout = Device->GetInputLayout("shape-vertex");
 		}
 		EffectDraw::~EffectDraw()
 		{
-			for (auto It = Effects.begin(); It != Effects.end(); It++)
+			for (auto It = Effects.begin(); It != Effects.end(); ++It)
 				System->FreeShader(It->first, It->second);
 		}
 		void EffectDraw::ResizeBuffers()
@@ -3719,7 +3716,7 @@ namespace Tomahawk
 
 			if (Swap != nullptr && Output != Swap)
 				Device->SetTexture2D(Swap->GetTarget(0), 5, TH_PS);
-			else
+			else if (Merger != nullptr)
 				Device->SetTexture2D(*Merger, 5, TH_PS);
 				
 			Device->SetShader(Effect, TH_VS | TH_PS);
@@ -3749,7 +3746,7 @@ namespace Tomahawk
 
 			if (Swap != nullptr && Output != Swap)
 				Device->SetTexture2D(Swap->GetTarget(0), 5, TH_PS);
-			else
+			else if (Merger != nullptr)
 				Device->SetTexture2D(*Merger, 5, TH_PS);
 
 			Device->SetShader(Effect, TH_VS | TH_PS);
@@ -3779,6 +3776,10 @@ namespace Tomahawk
 				Output = System->GetRT(TargetType_Main);
 
 			Graphics::MultiRenderTarget2D* Input = System->GetMRT(TargetType_Main);
+			PrimitiveCache* Cache = System->GetPrimitives();
+			if (!Input || !Cache)
+				return;
+
 			Graphics::GraphicsDevice* Device = System->GetDevice();
 			Device->SetSamplerState(Sampler, 0, TH_PS);
 			Device->SetDepthStencilState(DepthStencil);
@@ -3790,7 +3791,7 @@ namespace Tomahawk
 			Device->SetTexture2D(Input->GetTarget(1), 2, TH_PS);
 			Device->SetTexture2D(Input->GetTarget(2), 3, TH_PS);
 			Device->SetTexture2D(Input->GetTarget(3), 4, TH_PS);
-			Device->SetVertexBuffer(System->GetPrimitives()->GetQuad(), 0);
+			Device->SetVertexBuffer(Cache->GetQuad(), 0);
 
 			RenderEffect(Time);
 
@@ -3840,15 +3841,26 @@ namespace Tomahawk
 		unsigned int EffectDraw::GetMipLevels()
 		{
 			Graphics::RenderTarget2D* RT = System->GetRT(TargetType_Main);
+			if (!RT)
+				return 0;
+
 			return System->GetDevice()->GetMipLevel(RT->GetWidth(), RT->GetHeight());
 		}
 		unsigned int EffectDraw::GetWidth()
 		{
-			return System->GetRT(TargetType_Main)->GetWidth();
+			Graphics::RenderTarget2D* RT = System->GetRT(TargetType_Main);
+			if (!RT)
+				return 0;
+
+			return RT->GetWidth();
 		}
 		unsigned int EffectDraw::GetHeight()
 		{
-			return System->GetRT(TargetType_Main)->GetHeight();
+			Graphics::RenderTarget2D* RT = System->GetRT(TargetType_Main);
+			if (!RT)
+				return 0;
+
+			return RT->GetHeight();
 		}
 
 		SceneGraph::Desc SceneGraph::Desc::Get(Application* Base)
@@ -3898,10 +3910,10 @@ namespace Tomahawk
 			Dispatch();
 			Lock();
 
-			for (auto It = Entities.Begin(); It != Entities.End(); It++)
+			for (auto It = Entities.Begin(); It != Entities.End(); ++It)
 				TH_RELEASE(*It);
 			
-			for (auto It = Materials.Begin(); It != Materials.End(); It++)
+			for (auto It = Materials.Begin(); It != Materials.End(); ++It)
 				TH_RELEASE(*It);
 
 			TH_RELEASE(Display.VoxelBuffers[VoxelType_Diffuse]);
@@ -3954,7 +3966,7 @@ namespace Tomahawk
 			Core::Pool<Component*>* Cameras = GetComponents<Components::Camera>();
 			if (Cameras != nullptr)
 			{
-				for (auto It = Cameras->Begin(); It != Cameras->End(); It++)
+				for (auto It = Cameras->Begin(); It != Cameras->End(); ++It)
 				{
 					Components::Camera* Base = (*It)->As<Components::Camera>();
 					Base->GetRenderer()->Remount();
@@ -3980,6 +3992,10 @@ namespace Tomahawk
 			if (!View.Renderer)
 				return;
 
+			PrimitiveCache* Cache = View.Renderer->GetPrimitives();
+			if (!Cache)
+				return;
+
 			Conf.Device->SetTarget();
 			Conf.Device->Render.TexCoord = 1.0f;
 			Conf.Device->Render.WorldViewProj.Identify();
@@ -3989,7 +4005,7 @@ namespace Tomahawk
 			Conf.Device->SetRasterizerState(Display.Rasterizer);
 			Conf.Device->SetInputLayout(Display.Layout);
 			Conf.Device->SetShader(Conf.Device->GetBasicEffect(), TH_VS | TH_PS);
-			Conf.Device->SetVertexBuffer(View.Renderer->GetPrimitives()->GetQuad(), 0);
+			Conf.Device->SetVertexBuffer(Cache->GetQuad(), 0);
 			Conf.Device->SetTexture2D(Display.MRT[TargetType_Main]->GetTarget(0), 1, TH_PS);
 			Conf.Device->UpdateBuffer(Graphics::RenderBufferType_Render);
 			Conf.Device->Draw(6, 0);
@@ -4033,11 +4049,11 @@ namespace Tomahawk
 		void SceneGraph::Synchronize(Core::Timer* Time)
 		{
 			BeginThread(ThreadId_Synchronize);
-			for (auto It = Pending.Begin(); It != Pending.End(); It++)
+			for (auto It = Pending.Begin(); It != Pending.End(); ++It)
 				(*It)->Synchronize(Time);
 
 			uint64_t Index = 0;
-			for (auto It = Entities.Begin(); It != Entities.End(); It++)
+			for (auto It = Entities.Begin(); It != Entities.End(); ++It)
 			{
 				Entity* Base = *It;
 				Base->Transform->Synchronize();
@@ -4050,7 +4066,7 @@ namespace Tomahawk
 			BeginThread(ThreadId_Update);
 			if (Active)
 			{
-				for (auto It = Pending.Begin(); It != Pending.End(); It++)
+				for (auto It = Pending.Begin(); It != Pending.End(); ++It)
 					(*It)->Update(Time);
 			}
 
@@ -4058,7 +4074,7 @@ namespace Tomahawk
 			if (Camera != nullptr)
 				Far = Camera->Parent->Transform->Position;
 
-			for (auto It = Entities.Begin(); It != Entities.End(); It++)
+			for (auto It = Entities.Begin(); It != Entities.End(); ++It)
 				(*It)->Distance = (*It)->Transform->Position.Distance(Far);
 
 			DispatchLastEvent();
@@ -4077,7 +4093,7 @@ namespace Tomahawk
 				Component.second.Clear();
 
 			Pending.Clear();
-			for (auto It = Entities.Begin(); It != Entities.End(); It++)
+			for (auto It = Entities.Begin(); It != Entities.End(); ++It)
 				RegisterEntity(*It);
 
 			GetCamera();
@@ -4087,14 +4103,14 @@ namespace Tomahawk
 		{
 			Lock();
 			int64_t Index = 0;
-			for (auto It = Entities.Begin(); It != Entities.End(); It++)
+			for (auto It = Entities.Begin(); It != Entities.End(); ++It)
 			{
 				(*It)->Id = Index;
 				Index++;
 			}
 
 			Index = 0;
-			for (auto It = Materials.Begin(); It != Materials.End(); It++)
+			for (auto It = Materials.Begin(); It != Materials.End(); ++It)
 			{
 				(*It)->Slot = Index;
 				Index++;
@@ -4168,7 +4184,7 @@ namespace Tomahawk
 				return;
 
 			Lock();
-			for (auto It = Materials.Begin(); It != Materials.End(); It++)
+			for (auto It = Materials.Begin(); It != Materials.End(); ++It)
 			{
 				if (*It == Value)
 				{
@@ -4382,7 +4398,7 @@ namespace Tomahawk
 			ResizeRenderBuffers();
 
 			auto* Array = GetComponents<Components::Camera>();
-			for (auto It = Array->Begin(); It != Array->End(); It++)
+			for (auto It = Array->Begin(); It != Array->End(); ++It)
 				(*It)->As<Components::Camera>()->ResizeBuffers();
 			Unlock();
 		}
@@ -4408,7 +4424,7 @@ namespace Tomahawk
 				return;
 
 			Subsurface* Array = (Subsurface*)Stream.Pointer; uint64_t Size = 0;
-			for (auto It = Materials.Begin(); It != Materials.End(); It++)
+			for (auto It = Materials.Begin(); It != Materials.End(); ++It)
 			{
 				Subsurface& Next = Array[Size];
 				(*It)->Slot = (int64_t)Size;
@@ -4430,7 +4446,7 @@ namespace Tomahawk
 			Compute::Ray Base = Origin;
 			Compute::Vector3 Hit;
 
-			for (auto It = Array->Begin(); It != Array->End(); It++)
+			for (auto It = Array->Begin(); It != Array->End(); ++It)
 			{
 				Component* Current = *It;
 				if (MaxDistance > 0.0f && Current->Parent->Distance > MaxDistance)
@@ -4443,7 +4459,7 @@ namespace Tomahawk
 		void SceneGraph::ScriptHook(const std::string& Name)
 		{
 			auto* Array = GetComponents<Components::Scriptable>();
-			for (auto It = Array->Begin(); It != Array->End(); It++)
+			for (auto It = Array->Begin(); It != Array->End(); ++It)
 			{
 				Components::Scriptable* Base = (Components::Scriptable*)*It;
 				Base->CallEntry(Name);
@@ -4455,7 +4471,7 @@ namespace Tomahawk
 			if (!Active)
 				return;
 
-			for (auto It = Entities.Begin(); It != Entities.End(); It++)
+			for (auto It = Entities.Begin(); It != Entities.End(); ++It)
 			{
 				Entity* V = *It;
 				for (auto& Base : V->Components)
@@ -4481,7 +4497,6 @@ namespace Tomahawk
 			I.MipLevels = 0;
 			I.Writable = true;
 
-			I.FormatMode = Graphics::Format_R8G8B8A8_Unorm;
 			TH_RELEASE(Display.VoxelBuffers[VoxelType_Diffuse]);
 			Display.VoxelBuffers[VoxelType_Diffuse] = Conf.Device->CreateTexture3D(I);
 
@@ -4668,7 +4683,7 @@ namespace Tomahawk
 
 			if (Message->TScene != nullptr)
 			{
-				for (auto It = Entities.Begin(); It != Entities.End(); It++)
+				for (auto It = Entities.Begin(); It != Entities.End(); ++It)
 				{
 					for (auto& Item : (*It)->Components)
 						Item.second->Message(Message);
@@ -4817,7 +4832,7 @@ namespace Tomahawk
 		}
 		Material* SceneGraph::GetMaterial(const std::string& Name)
 		{
-			for (auto It = Materials.Begin(); It != Materials.End(); It++)
+			for (auto It = Materials.Begin(); It != Materials.End(); ++It)
 			{
 				if ((*It)->Name == Name)
 					return *It;
@@ -4849,7 +4864,7 @@ namespace Tomahawk
 		Entity* SceneGraph::FindNamedEntity(const std::string& Name)
 		{
 			Lock();
-			for (auto It = Entities.Begin(); It != Entities.End(); It++)
+			for (auto It = Entities.Begin(); It != Entities.End(); ++It)
 			{
 				if ((*It)->Name == Name)
 				{
@@ -4864,7 +4879,7 @@ namespace Tomahawk
 		Entity* SceneGraph::FindEntityAt(const Compute::Vector3& Position, float Radius)
 		{
 			Lock();
-			for (auto It = Entities.Begin(); It != Entities.End(); It++)
+			for (auto It = Entities.Begin(); It != Entities.End(); ++It)
 			{
 				if ((*It)->Transform->Position.Distance(Position) <= Radius + (*It)->Transform->Scale.Length())
 				{
@@ -4879,7 +4894,7 @@ namespace Tomahawk
 		Entity* SceneGraph::FindTaggedEntity(uint64_t Tag)
 		{
 			Lock();
-			for (auto It = Entities.Begin(); It != Entities.End(); It++)
+			for (auto It = Entities.Begin(); It != Entities.End(); ++It)
 			{
 				if ((*It)->Tag == Tag)
 				{
@@ -5018,7 +5033,7 @@ namespace Tomahawk
 				return Array;
 
 			Lock();
-			for (auto It = Entities.Begin(); It != Entities.End(); It++)
+			for (auto It = Entities.Begin(); It != Entities.End(); ++It)
 			{
 				if (*It == Entity)
 					continue;
@@ -5035,7 +5050,7 @@ namespace Tomahawk
 			std::vector<Entity*> Array;
 			Lock();
 
-			for (auto It = Entities.Begin(); It != Entities.End(); It++)
+			for (auto It = Entities.Begin(); It != Entities.End(); ++It)
 			{
 				if ((*It)->Name == Name)
 					Array.push_back(*It);
@@ -5049,7 +5064,7 @@ namespace Tomahawk
 			std::vector<Entity*> Array;
 			Lock();
 
-			for (auto It = Entities.Begin(); It != Entities.End(); It++)
+			for (auto It = Entities.Begin(); It != Entities.End(); ++It)
 			{
 				if ((*It)->Transform->Position.Distance(Position) <= Radius + (*It)->Transform->Scale.Length())
 					Array.push_back(*It);
@@ -5063,7 +5078,7 @@ namespace Tomahawk
 			std::vector<Entity*> Array;
 			Lock();
 
-			for (auto It = Entities.Begin(); It != Entities.End(); It++)
+			for (auto It = Entities.Begin(); It != Entities.End(); ++It)
 			{
 				if ((*It)->Tag == Tag)
 					Array.push_back(*It);
@@ -5077,14 +5092,14 @@ namespace Tomahawk
 			if (!Camera || !Entity || Entity->Transform->Position.Distance(Camera->Parent->Transform->Position) > View.FarPlane + Entity->Transform->Scale.Length())
 				return false;
 
-			return (Compute::Common::IsCubeInFrustum(Entity->Transform->GetWorld() * ViewProjection, 2) == -1);
+			return (Compute::Common::IsCubeInFrustum(Entity->Transform->GetWorld() * ViewProjection, 2) < 0.0f);
 		}
 		bool SceneGraph::IsEntityVisible(Entity* Entity, const Compute::Matrix4x4& ViewProjection, const Compute::Vector3& ViewPosition, float DrawDistance)
 		{
 			if (!Entity || Entity->Transform->Position.Distance(ViewPosition) > DrawDistance + Entity->Transform->Scale.Length())
 				return false;
 
-			return (Compute::Common::IsCubeInFrustum(Entity->Transform->GetWorld() * ViewProjection, 2) == -1);
+			return (Compute::Common::IsCubeInFrustum(Entity->Transform->GetWorld() * ViewProjection, 2) < 0.0f);
 		}
 		bool SceneGraph::AddEntity(Entity* Entity)
 		{
@@ -5100,22 +5115,17 @@ namespace Tomahawk
 		}
 		bool SceneGraph::HasEntity(Entity* Entity)
 		{
-			Lock();
 			for (uint64_t i = 0; i < Entities.Size(); i++)
 			{
 				if (Entities[i] == Entity)
-				{
-					Unlock();
-					return i + 1;
-				}
+					return true;
 			}
 
-			Unlock();
-			return 0;
+			return false;
 		}
 		bool SceneGraph::HasEntity(uint64_t Entity)
 		{
-			return (Entity >= 0 && Entity < Entities.Size()) ? Entity : -1;
+			return Entity < Entities.Size() ? Entity : -1;
 		}
 		bool SceneGraph::IsActive()
 		{
@@ -5199,16 +5209,16 @@ namespace Tomahawk
 			InvalidateCache();
 			InvalidateDockers();
 
-			for (auto It = Streams.begin(); It != Streams.end(); It++)
+			for (auto It = Streams.begin(); It != Streams.end(); ++It)
 				TH_RELEASE(It->first);
 
-			for (auto It = Processors.begin(); It != Processors.end(); It++)
+			for (auto It = Processors.begin(); It != Processors.end(); ++It)
 				TH_RELEASE(It->second);
 		}
 		void ContentManager::InvalidateDockers()
 		{
 			Mutex.lock();
-			for (auto It = Dockers.begin(); It != Dockers.end(); It++)
+			for (auto It = Dockers.begin(); It != Dockers.end(); ++It)
 				TH_DELETE(AssetArchive, It->second);
 
 			Dockers.clear();
@@ -5818,7 +5828,7 @@ namespace Tomahawk
 				Workers.push_back(TH_NEW(Reactor, this, 0.0, nullptr));
 
 			auto* Queue = Core::Schedule::Get();
-			for (auto It = Workers.begin() + 1; It != Workers.end(); It++)
+			for (auto It = Workers.begin() + 1; It != Workers.end(); ++It)
 			{
 				Reactor* Job = *It;
 				Queue->SetTask([Job]() { Application::Callee(Job); });

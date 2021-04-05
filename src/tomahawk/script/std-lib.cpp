@@ -377,27 +377,27 @@ namespace Tomahawk
 		}
 		int VMCString::FindFirst(const std::string &sub, as_size_t start, const std::string &str)
 		{
-			return (int)str.find(sub, (size_t)(start < 0 ? std::string::npos : start));
+			return (int)str.find(sub, (size_t)start);
 		}
 		int VMCString::FindFirstOf(const std::string &sub, as_size_t start, const std::string &str)
 		{
-			return (int)str.find_first_of(sub, (size_t)(start < 0 ? std::string::npos : start));
+			return (int)str.find_first_of(sub, (size_t)start);
 		}
 		int VMCString::FindLastOf(const std::string &sub, as_size_t start, const std::string &str)
 		{
-			return (int)str.find_last_of(sub, (size_t)(start < 0 ? std::string::npos : start));
+			return (int)str.find_last_of(sub, (size_t)start);
 		}
 		int VMCString::FindFirstNotOf(const std::string &sub, as_size_t start, const std::string &str)
 		{
-			return (int)str.find_first_not_of(sub, (size_t)(start < 0 ? std::string::npos : start));
+			return (int)str.find_first_not_of(sub, (size_t)start);
 		}
 		int VMCString::FindLastNotOf(const std::string &sub, as_size_t start, const std::string &str)
 		{
-			return (int)str.find_last_not_of(sub, (size_t)(start < 0 ? std::string::npos : start));
+			return (int)str.find_last_not_of(sub, (size_t)start);
 		}
 		int VMCString::FindLast(const std::string &sub, int start, const std::string &str)
 		{
-			return (int)str.rfind(sub, (size_t)(start < 0 ? std::string::npos : start));
+			return (int)str.rfind(sub, (size_t)start);
 		}
 		void VMCString::Insert(unsigned int pos, const std::string &other, std::string &str)
 		{
@@ -448,7 +448,7 @@ namespace Tomahawk
 					res += *end++ - '0';
 				}
 			}
-			else if (base == 16)
+			else
 			{
 				while ((*end >= '0' && *end <= '9') || (*end >= 'a' && *end <= 'f') || (*end >= 'A' && *end <= 'F'))
 				{
@@ -490,7 +490,7 @@ namespace Tomahawk
 					res += *end++ - '0';
 				}
 			}
-			else if (base == 16)
+			else
 			{
 				while ((*end >= '0' && *end <= '9') || (*end >= 'a' && *end <= 'f') || (*end >= 'A' && *end <= 'F'))
 				{
@@ -728,20 +728,19 @@ namespace Tomahawk
 			return Message;
 		}
 
-		VMCAny::VMCAny(VMCManager* Engine)
+		VMCAny::VMCAny(VMCManager* fEngine)
 		{
-			this->Engine = Engine;
+			Engine = fEngine;
 			RefCount = 1;
 			GCFlag = false;
-
 			Value.TypeId = 0;
 			Value.ValueInt = 0;
 
 			Engine->NotifyGarbageCollectorOfNewObject(this, Engine->GetTypeInfoByName("Any"));
 		}
-		VMCAny::VMCAny(void* Ref, int RefTypeId, VMCManager* Engine)
+		VMCAny::VMCAny(void* Ref, int RefTypeId, VMCManager* fEngine)
 		{
-			this->Engine = Engine;
+			Engine = fEngine;
 			RefCount = 1;
 			GCFlag = false;
 			Value.TypeId = 0;
@@ -749,6 +748,33 @@ namespace Tomahawk
 
 			Engine->NotifyGarbageCollectorOfNewObject(this, Engine->GetTypeInfoByName("Any"));
 			Store(Ref, RefTypeId);
+		}
+		VMCAny::VMCAny(const VMCAny& Other)
+		{
+			Engine = Other.Engine;
+			RefCount = 1;
+			GCFlag = false;
+			Value.TypeId = 0;
+			Value.ValueInt = 0;
+
+			Engine->NotifyGarbageCollectorOfNewObject(this, Engine->GetTypeInfoByName("Any"));
+			if ((Other.Value.TypeId & asTYPEID_MASK_OBJECT))
+			{
+				VMCTypeInfo* T = Engine->GetTypeInfoById(Other.Value.TypeId);
+				if (T)
+					T->AddRef();
+			}
+
+			Value.TypeId = Other.Value.TypeId;
+			if (Value.TypeId & asTYPEID_OBJHANDLE)
+			{
+				Value.ValueObj = Other.Value.ValueObj;
+				Engine->AddRefScriptObject(Value.ValueObj, Engine->GetTypeInfoById(Value.TypeId));
+			}
+			else if (Value.TypeId & asTYPEID_MASK_OBJECT)
+				Value.ValueObj = Engine->CreateScriptObjectCopy(Other.Value.ValueObj, Engine->GetTypeInfoById(Value.TypeId));
+			else
+				Value.ValueInt = Other.Value.ValueInt;
 		}
 		VMCAny::~VMCAny()
 		{
@@ -1187,7 +1213,7 @@ namespace Tomahawk
 			}
 			else if (delta > 0)
 			{
-				if (delta > 0 && !CheckMaxSize(Buffer->NumElements + delta))
+				if (!CheckMaxSize(Buffer->NumElements + delta))
 					return;
 
 				if (at > Buffer->NumElements)
@@ -1891,6 +1917,9 @@ namespace Tomahawk
 			if (cmpContext == 0)
 				cmpContext = ObjType->GetEngine()->RequestContext();
 
+			if (!cmpContext)
+				return;
+
 			for (as_size_t i = start + 1; i < end; i++)
 			{
 				Copy(tmp, GetArrayItemPointer(i));
@@ -1917,18 +1946,15 @@ namespace Tomahawk
 				Copy(GetArrayItemPointer(j + 1), tmp);
 			}
 
-			if (cmpContext)
+			if (isNested)
 			{
-				if (isNested)
-				{
-					asEContextState state = cmpContext->GetState();
-					cmpContext->PopState();
-					if (state == asEXECUTION_ABORTED)
-						cmpContext->Abort();
-				}
-				else
-					ObjType->GetEngine()->ReturnContext(cmpContext);
+				asEContextState state = cmpContext->GetState();
+				cmpContext->PopState();
+				if (state == asEXECUTION_ABORTED)
+					cmpContext->Abort();
 			}
+			else
+				ObjType->GetEngine()->ReturnContext(cmpContext);
 		}
 		void VMCArray::CopyBuffer(SBuffer *dst, SBuffer *src)
 		{
@@ -2200,7 +2226,8 @@ namespace Tomahawk
 
 			if ((TypeId & asTYPEID_MASK_OBJECT) && !(TypeId & asTYPEID_OBJHANDLE))
 			{
-				VMCTypeInfo* Subtype = T->GetEngine()->GetTypeInfoById(TypeId);
+				VMCManager* Engine = T->GetEngine();
+				VMCTypeInfo* Subtype = Engine->GetTypeInfoById(TypeId);
 				asDWORD Flags = Subtype->GetFlags();
 
 				if ((Flags & asOBJ_VALUE) && !(Flags & asOBJ_POD))
@@ -2222,14 +2249,14 @@ namespace Tomahawk
 
 					if (!Found)
 					{
-						T->GetEngine()->WriteMessage("Array", 0, 0, asMSGTYPE_ERROR, "The subtype has no default constructor");
+						Engine->WriteMessage("Array", 0, 0, asMSGTYPE_ERROR, "The subtype has no default constructor");
 						return false;
 					}
 				}
 				else if ((Flags & asOBJ_REF))
 				{
 					bool Found = false;
-					if (!T->GetEngine()->GetEngineProperty(asEP_DISALLOW_VALUE_ASSIGN_FOR_REF_TYPE))
+					if (!Engine->GetEngineProperty(asEP_DISALLOW_VALUE_ASSIGN_FOR_REF_TYPE))
 					{
 						for (as_size_t n = 0; n < Subtype->GetFactoryCount(); n++)
 						{
@@ -2244,7 +2271,7 @@ namespace Tomahawk
 
 					if (!Found)
 					{
-						T->GetEngine()->WriteMessage("Array", 0, 0, asMSGTYPE_ERROR, "The subtype has no default factory");
+						Engine->WriteMessage("Array", 0, 0, asMSGTYPE_ERROR, "The subtype has no default factory");
 						return false;
 					}
 				}
@@ -2596,9 +2623,6 @@ namespace Tomahawk
 						case asTYPEID_INT32:
 							i64 = *(int*)ref;
 							break;
-						case asTYPEID_INT64:
-							i64 = *(as_int64_t*)ref;
-							break;
 						case asTYPEID_UINT8:
 							i64 = *(unsigned char*)ref;
 							break;
@@ -2608,6 +2632,7 @@ namespace Tomahawk
 						case asTYPEID_UINT32:
 							i64 = *(unsigned int*)ref;
 							break;
+						case asTYPEID_INT64:
 						case asTYPEID_UINT64:
 							i64 = *(as_int64_t*)ref;
 							break;
@@ -2649,6 +2674,21 @@ namespace Tomahawk
 					buffer += Engine->GetSizeOfPrimitiveType(typeId);
 			}
 		}
+		VMCMap::VMCMap(const VMCMap& other)
+		{
+			Init(other.Engine);
+
+			Map::const_iterator it;
+			for (it = other.Dict.begin(); it != other.Dict.end(); ++it)
+			{
+				if (it->second.TypeId & asTYPEID_OBJHANDLE)
+					Set(it->first, (void*)&it->second.ValueObj, it->second.TypeId);
+				else if (it->second.TypeId & asTYPEID_MASK_OBJECT)
+					Set(it->first, (void*)it->second.ValueObj, it->second.TypeId);
+				else
+					Set(it->first, (void*)&it->second.ValueInt, it->second.TypeId);
+			}
+		}
 		VMCMap::~VMCMap()
 		{
 			DeleteAll();
@@ -2682,7 +2722,7 @@ namespace Tomahawk
 		void VMCMap::EnumReferences(VMCManager *inEngine)
 		{
 			Map::iterator it;
-			for (it = Dict.begin(); it != Dict.end(); it++)
+			for (it = Dict.begin(); it != Dict.end(); ++it)
 			{
 				if (it->second.TypeId & asTYPEID_MASK_OBJECT)
 				{
@@ -2703,7 +2743,7 @@ namespace Tomahawk
 			DeleteAll();
 
 			Map::const_iterator it;
-			for (it = other.Dict.begin(); it != other.Dict.end(); it++)
+			for (it = other.Dict.begin(); it != other.Dict.end(); ++it)
 			{
 				if (it->second.TypeId & asTYPEID_OBJHANDLE)
 					Set(it->first, (void*)&it->second.ValueObj, it->second.TypeId);
@@ -2760,8 +2800,8 @@ namespace Tomahawk
 
 			while (Offset != Index)
 			{
-				Offset++;
-				It++;
+				++Offset;
+				++It;
 			}
 
 			if (Key != nullptr)
@@ -2820,7 +2860,7 @@ namespace Tomahawk
 		void VMCMap::DeleteAll()
 		{
 			Map::iterator it;
-			for (it = Dict.begin(); it != Dict.end(); it++)
+			for (it = Dict.begin(); it != Dict.end(); ++it)
 				it->second.FreeValue(Engine);
 
 			Dict.clear();
@@ -2834,7 +2874,7 @@ namespace Tomahawk
 			Map::const_iterator it;
 			long current = -1;
 
-			for (it = Dict.begin(); it != Dict.end(); it++)
+			for (it = Dict.begin(); it != Dict.end(); ++it)
 			{
 				current++;
 				*(std::string*)Array->At(current) = it->first;
@@ -3205,7 +3245,7 @@ namespace Tomahawk
 			if (ElementSize > 0)
 				maxSize /= (as_size_t)ElementSize;
 
-			as_uint64_t numElements = (as_uint64_t)(Width * Height);
+			as_uint64_t numElements = (as_uint64_t)Width * (as_uint64_t)Height;
 			if ((numElements >> 32) || numElements > (as_uint64_t)maxSize)
 			{
 				VMCContext *ctx = asGetActiveContext();
@@ -4496,7 +4536,7 @@ namespace Tomahawk
 			VMCManager* Engine = Context->GetEngine();
 			if (!Engine)
 				return nullptr;
-			
+
 			return new(asAllocMem(sizeof(VMCAsync))) VMCAsync(Context, Info);
 		}
 		VMCAsync* VMCAsync::Store(void* Ref, int TypeId)

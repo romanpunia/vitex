@@ -24,6 +24,7 @@ namespace Tomahawk
 					Instance = Content->Load<Graphics::Model>(Path);
 				}
 
+				SceneGraph* Scene = Parent->GetScene();
 				std::vector<Core::Document*> Slots = Node->FetchCollection("materials.material");
 				for (auto&& Material : Slots)
 				{
@@ -33,7 +34,7 @@ namespace Tomahawk
 
 					Graphics::MeshBuffer* Surface = (Instance ? Instance->FindMesh(Path) : nullptr);
 					if (Surface != nullptr)
-						Materials[Surface] = Parent->GetScene()->GetMaterial(Slot);
+						Materials[Surface] = Scene->GetMaterial(Slot);
 				}
 
 				bool Transparent = false;
@@ -85,7 +86,7 @@ namespace Tomahawk
 				if (Instance != nullptr)
 				{
 					Compute::Matrix4x4 Box = GetBoundingBox();
-					Result = IsVisible(View, &Box);
+					Result = IsVisible(View, &Box) ? 1.0f : 0.0f;
 				}
 
 				return Result;
@@ -131,6 +132,7 @@ namespace Tomahawk
 					Instance = Content->Load<Graphics::SkinModel>(Path);
 				}
 
+				SceneGraph* Scene = Parent->GetScene();
 				std::vector<Core::Document*> Slots = Node->FetchCollection("materials.material");
 				for (auto&& Material : Slots)
 				{
@@ -140,7 +142,7 @@ namespace Tomahawk
 
 					Graphics::SkinMeshBuffer* Surface = (Instance ? Instance->FindMesh(Path) : nullptr);
 					if (Surface != nullptr)
-						Materials[Surface] = Parent->GetScene()->GetMaterial(Slot);
+						Materials[Surface] = Scene->GetMaterial(Slot);
 				}
 
 
@@ -218,7 +220,7 @@ namespace Tomahawk
 				if (Instance != nullptr)
 				{
 					Compute::Matrix4x4 Box = GetBoundingBox();
-					Result = IsVisible(View, &Box);
+					Result = IsVisible(View, &Box) ? 1.0f : 0.0f;
 				}
 
 				return Result;
@@ -257,9 +259,9 @@ namespace Tomahawk
 			}
 			void Emitter::Deserialize(ContentManager* Content, Core::Document* Node)
 			{
-				uint64_t Slot = -1;
+				SceneGraph* Scene = Parent->GetScene(); uint64_t Slot = -1;
 				if (NMake::Unpack(Node->Find("material"), &Slot))
-					SetMaterial(nullptr, Parent->GetScene()->GetMaterial((uint64_t)Slot));
+					SetMaterial(nullptr, Scene->GetMaterial((uint64_t)Slot));
 
 				bool Transparent = false;
 				NMake::Unpack(Node->Find("texcoord"), &TexCoord);
@@ -276,7 +278,7 @@ namespace Tomahawk
 					std::vector<Compute::ElementVertex> Vertices;
 					if (Instance != nullptr)
 					{
-						Parent->GetScene()->GetDevice()->UpdateBufferSize(Instance, Limit);
+						Scene->GetDevice()->UpdateBufferSize(Instance, Limit);
 						if (NMake::Unpack(Node->Find("elements"), &Vertices))
 						{
 							Instance->GetArray()->Reserve(Vertices.size());
@@ -301,10 +303,11 @@ namespace Tomahawk
 
 				if (Instance != nullptr)
 				{
+					auto* fArray = Instance->GetArray();
 					std::vector<Compute::ElementVertex> Vertices;
-					Vertices.reserve(Instance->GetArray()->Size());
+					Vertices.reserve(fArray->Size());
 
-					for (auto It = Instance->GetArray()->Begin(); It != Instance->GetArray()->End(); It++)
+					for (auto It = fArray->Begin(); It != fArray->End(); It++)
 						Vertices.emplace_back(*It);
 
 					NMake::Pack(Node->Set("limit"), Instance->GetElementLimit());
@@ -313,13 +316,17 @@ namespace Tomahawk
 			}
 			void Emitter::Awake(Component* New)
 			{
-				if (Instance || !Parent || !Parent->GetScene())
+				if (Instance || !Parent)
+					return;
+
+				SceneGraph* Scene = Parent->GetScene();
+				if (!Scene)
 					return;
 
 				Graphics::InstanceBuffer::Desc I = Graphics::InstanceBuffer::Desc();
 				I.ElementLimit = 1 << 10;
 
-				Instance = Parent->GetScene()->GetDevice()->CreateInstanceBuffer(I);
+				Instance = Scene->GetDevice()->CreateInstanceBuffer(I);
 				Attach();
 			}
 			void Emitter::Asleep()
@@ -673,10 +680,14 @@ namespace Tomahawk
 			}
 			void SoftBody::Create(Compute::UnmanagedShape* Shape, float Anticipation)
 			{
-				if (!Shape || !Parent || !Parent->GetScene() || !Parent->GetScene()->GetSimulator())
+				if (!Shape || !Parent)
 					return;
 
-				Parent->GetScene()->Lock();
+				SceneGraph* Scene = Parent->GetScene();
+				if (!Scene || !Scene->GetSimulator())
+					return;
+
+				Scene->Lock();
 				TH_RELEASE(Instance);
 
 				Compute::SoftBody::Desc I;
@@ -684,11 +695,11 @@ namespace Tomahawk
 				I.Shape.Convex.Hull = Shape;
 				I.Shape.Convex.Enabled = true;
 
-				Instance = Parent->GetScene()->GetSimulator()->CreateSoftBody(I, Parent->Transform);
+				Instance = Scene->GetSimulator()->CreateSoftBody(I, Parent->Transform);
 				if (!Instance)
 				{
 					TH_ERROR("cannot create soft body");
-					return Parent->GetScene()->Unlock();
+					return Scene->Unlock();
 				}
 
 				Vertices.clear();
@@ -696,7 +707,7 @@ namespace Tomahawk
 
 				Instance->UserPointer = this;
 				Instance->SetActivity(true);
-				Parent->GetScene()->Unlock();
+				Scene->Unlock();
 			}
 			void SoftBody::Create(ContentManager* Content, const std::string& Path, float Anticipation)
 			{
@@ -709,10 +720,14 @@ namespace Tomahawk
 			}
 			void SoftBody::CreateEllipsoid(const Compute::SoftBody::Desc::CV::SEllipsoid& Shape, float Anticipation)
 			{
-				if (!Parent || !Parent->GetScene() || !Parent->GetScene()->GetSimulator())
+				if (!Parent)
 					return;
 
-				Parent->GetScene()->Lock();
+				SceneGraph* Scene = Parent->GetScene();
+				if (!Scene || !Scene->GetSimulator())
+					return;
+
+				Scene->Lock();
 				TH_RELEASE(Instance);
 
 				Compute::SoftBody::Desc I;
@@ -720,11 +735,11 @@ namespace Tomahawk
 				I.Shape.Ellipsoid = Shape;
 				I.Shape.Ellipsoid.Enabled = true;
 
-				Instance = Parent->GetScene()->GetSimulator()->CreateSoftBody(I, Parent->Transform);
+				Instance = Scene->GetSimulator()->CreateSoftBody(I, Parent->Transform);
 				if (!Instance)
 				{
 					TH_ERROR("cannot create soft body");
-					return Parent->GetScene()->Unlock();
+					return Scene->Unlock();
 				}
 
 				Vertices.clear();
@@ -732,14 +747,18 @@ namespace Tomahawk
 
 				Instance->UserPointer = this;
 				Instance->SetActivity(true);
-				Parent->GetScene()->Unlock();
+				Scene->Unlock();
 			}
 			void SoftBody::CreatePatch(const Compute::SoftBody::Desc::CV::SPatch& Shape, float Anticipation)
 			{
-				if (!Parent || !Parent->GetScene() || !Parent->GetScene()->GetSimulator())
+				if (!Parent)
 					return;
 
-				Parent->GetScene()->Lock();
+				SceneGraph* Scene = Parent->GetScene();
+				if (!Scene || !Scene->GetSimulator())
+					return;
+
+				Scene->Lock();
 				TH_RELEASE(Instance);
 
 				Compute::SoftBody::Desc I;
@@ -747,11 +766,11 @@ namespace Tomahawk
 				I.Shape.Patch = Shape;
 				I.Shape.Patch.Enabled = true;
 
-				Instance = Parent->GetScene()->GetSimulator()->CreateSoftBody(I, Parent->Transform);
+				Instance = Scene->GetSimulator()->CreateSoftBody(I, Parent->Transform);
 				if (!Instance)
 				{
 					TH_ERROR("cannot create soft body");
-					return Parent->GetScene()->Unlock();
+					return Scene->Unlock();
 				}
 
 				Vertices.clear();
@@ -759,14 +778,18 @@ namespace Tomahawk
 
 				Instance->UserPointer = this;
 				Instance->SetActivity(true);
-				Parent->GetScene()->Unlock();
+				Scene->Unlock();
 			}
 			void SoftBody::CreateRope(const Compute::SoftBody::Desc::CV::SRope& Shape, float Anticipation)
 			{
-				if (!Parent || !Parent->GetScene() || !Parent->GetScene()->GetSimulator())
+				if (!Parent)
 					return;
 
-				Parent->GetScene()->Lock();
+				SceneGraph* Scene = Parent->GetScene();
+				if (!Scene || !Scene->GetSimulator())
+					return;
+
+				Scene->Lock();
 				TH_RELEASE(Instance);
 
 				Compute::SoftBody::Desc I;
@@ -774,11 +797,11 @@ namespace Tomahawk
 				I.Shape.Rope = Shape;
 				I.Shape.Rope.Enabled = true;
 
-				Instance = Parent->GetScene()->GetSimulator()->CreateSoftBody(I, Parent->Transform);
+				Instance = Scene->GetSimulator()->CreateSoftBody(I, Parent->Transform);
 				if (!Instance)
 				{
 					TH_ERROR("cannot create soft body");
-					return Parent->GetScene()->Unlock();
+					return Scene->Unlock();
 				}
 
 				Vertices.clear();
@@ -786,7 +809,7 @@ namespace Tomahawk
 
 				Instance->UserPointer = this;
 				Instance->SetActivity(true);
-				Parent->GetScene()->Unlock();
+				Scene->Unlock();
 			}
 			void SoftBody::Fill(Graphics::GraphicsDevice* Device, Graphics::ElementBuffer* IndexBuffer, Graphics::ElementBuffer* VertexBuffer)
 			{
@@ -807,57 +830,65 @@ namespace Tomahawk
 			}
 			void SoftBody::Regenerate()
 			{
-				if (!Instance || !Parent || !Parent->GetScene() || !Parent->GetScene()->GetSimulator())
+				if (!Instance || !Parent)
 					return;
 
-				Parent->GetScene()->Lock();
+				SceneGraph* Scene = Parent->GetScene();
+				if (!Scene || !Scene->GetSimulator())
+					return;
 
+				Scene->Lock();
 				Compute::SoftBody::Desc I = Instance->GetInitialState();
 				TH_RELEASE(Instance);
 
-				Instance = Parent->GetScene()->GetSimulator()->CreateSoftBody(I, Parent->Transform);
+				Instance = Scene->GetSimulator()->CreateSoftBody(I, Parent->Transform);
 				if (!Instance)
 					TH_ERROR("cannot regenerate soft body");
-
-				Parent->GetScene()->Unlock();
+				Scene->Unlock();
 			}
 			void SoftBody::Clear()
 			{
-				if (!Instance || !Parent || !Parent->GetScene() || !Parent->GetScene()->GetSimulator())
+				if (!Instance || !Parent)
 					return;
 
-				Parent->GetScene()->Lock();
+				SceneGraph* Scene = Parent->GetScene();
+				if (!Scene || !Scene->GetSimulator())
+					return;
+
+				Scene->Lock();
 				TH_CLEAR(Instance);
-				Parent->GetScene()->Unlock();
+				Scene->Unlock();
 			}
 			void SoftBody::SetTransform(const Compute::Vector3& Position, const Compute::Vector3& Scale, const Compute::Vector3& Rotation)
 			{
-				if (!Instance)
+				if (!Instance || !Parent)
 					return;
 
-				if (Parent && Parent->GetScene())
-					Parent->GetScene()->Lock();
+				SceneGraph* Scene = Parent->GetScene();
+				if (Scene != nullptr)
+					Scene->Lock();
 
 				Parent->Transform->SetTransform(Compute::TransformSpace_Global, Position, Scale, Rotation);
 				Instance->Synchronize(Parent->Transform, true);
 				Instance->SetActivity(true);
 
-				if (Parent && Parent->GetScene())
-					Parent->GetScene()->Unlock();
+				if (Scene != nullptr)
+					Scene->Unlock();
 			}
 			void SoftBody::SetTransform(bool Kinematics)
 			{
-				if (!Instance)
+				if (!Instance || !Parent)
 					return;
 
-				if (Parent && Parent->GetScene())
-					Parent->GetScene()->Lock();
+				SceneGraph* Scene = Parent->GetScene();
+				if (Scene != nullptr)
+					Scene->Lock();
 
 				Instance->Synchronize(Parent->Transform, Kinematics);
 				Instance->SetActivity(true);
 
-				if (Parent && Parent->GetScene())
-					Parent->GetScene()->Unlock();
+				if (Scene != nullptr)
+					Scene->Unlock();
 			}
 			float SoftBody::Cull(const Viewer& View)
 			{
@@ -865,7 +896,7 @@ namespace Tomahawk
 				if (Instance != nullptr)
 				{
 					Compute::Matrix4x4 Box = GetBoundingBox();
-					Result = IsVisible(View, &Box);
+					Result = IsVisible(View, &Box) ? 1.0f : 0.0f;
 				}
 
 				return Result;
@@ -954,11 +985,11 @@ namespace Tomahawk
 			{
 				Detach();
 			}
-			float Decal::Cull(const Viewer& View)
+			float Decal::Cull(const Viewer& fView)
 			{
-				float Result = 1.0f - Parent->Transform->Position.Distance(View.WorldPosition) / View.FarPlane;
+				float Result = 1.0f - Parent->Transform->Position.Distance(fView.WorldPosition) / fView.FarPlane;
 				if (Result > 0.0f)
-					Result = Compute::Common::IsCubeInFrustum(Parent->Transform->GetWorld() * View.ViewProjection, GetRange()) == -1 ? Result : 0.0f;
+					Result = Compute::Common::IsCubeInFrustum(Parent->Transform->GetWorld() * fView.ViewProjection, GetRange()) == -1 ? Result : 0.0f;
 
 				return Result;
 			}
@@ -1495,10 +1526,11 @@ namespace Tomahawk
 			}
 			void EmitterAnimator::Synchronize(Core::Timer* Time)
 			{
-				if (!Parent->GetScene()->IsActive())
-					return;
+				static size_t PositionX = offsetof(Compute::ElementVertex, PositionX);
+				static size_t VelocityX = offsetof(Compute::ElementVertex, VelocityX);
+				static size_t ColorX = offsetof(Compute::ElementVertex, ColorX);
 
-				if (!Base || !Base->GetBuffer())
+				if (!Parent->GetScene()->IsActive() || !Base || !Base->GetBuffer())
 					return;
 
 				Core::Pool<Compute::ElementVertex>* Array = Base->GetBuffer()->GetArray();
@@ -1512,9 +1544,9 @@ namespace Tomahawk
 					Compute::Vector4 FDiffusion = Spawner.Diffusion.Generate();
 
 					Compute::ElementVertex Element;
-					memcpy(&Element.PositionX, &FPosition, sizeof(float) * 3);
-					memcpy(&Element.VelocityX, &FVelocity, sizeof(float) * 3);
-					memcpy(&Element.ColorX, &FDiffusion, sizeof(float) * 4);
+					memcpy(&Element + PositionX, &FPosition, sizeof(float) * 3);
+					memcpy(&Element + VelocityX, &FVelocity, sizeof(float) * 3);
+					memcpy(&Element + ColorX, &FDiffusion, sizeof(float) * 4);
 					Element.Angular = Spawner.Angular.Generate();
 					Element.Rotation = Spawner.Rotation.Generate();
 					Element.Scale = Spawner.Scale.Generate();
@@ -1624,6 +1656,7 @@ namespace Tomahawk
 				NMake::Unpack(Node->Find("kinematic"), &Kinematic);
 				NMake::Unpack(Node->Find("manage"), &Manage);
 
+				SceneGraph* Scene = Parent->GetScene();
 				if (!Extended)
 					return;
 
@@ -1646,14 +1679,14 @@ namespace Tomahawk
 						std::vector<Compute::Vector3> Vertices;
 						if (NMake::Unpack(CV->Find("data"), &Vertices))
 						{
-							btCollisionShape* Shape = Parent->GetScene()->GetSimulator()->CreateConvexHull(Vertices);
+							btCollisionShape* Shape = Scene->GetSimulator()->CreateConvexHull(Vertices);
 							if (Shape != nullptr)
 								Create(Shape, Mass, CcdMotionThreshold);
 						}
 					}
 					else
 					{
-						btCollisionShape* Shape = Parent->GetScene()->GetSimulator()->CreateShape((Compute::Shape)Type);
+						btCollisionShape* Shape = Scene->GetSimulator()->CreateShape((Compute::Shape)Type);
 						if (Shape != nullptr)
 							Create(Shape, Mass, CcdMotionThreshold);
 					}
@@ -1752,6 +1785,7 @@ namespace Tomahawk
 			}
 			void RigidBody::Serialize(ContentManager* Content, Core::Document* Node)
 			{
+				SceneGraph* Scene = Parent->GetScene();
 				NMake::Pack(Node->Set("kinematic"), Kinematic);
 				NMake::Pack(Node->Set("manage"), Manage);
 				NMake::Pack(Node->Set("extended"), Instance != nullptr);
@@ -1764,7 +1798,7 @@ namespace Tomahawk
 					AssetCache* Asset = Content->Find<Compute::UnmanagedShape>(Hull);
 					if (!Asset || !Hull)
 					{
-						std::vector<Compute::Vector3> Vertices = Parent->GetScene()->GetSimulator()->GetShapeVertices(Instance->GetCollisionShape());
+						std::vector<Compute::Vector3> Vertices = Scene->GetSimulator()->GetShapeVertices(Instance->GetCollisionShape());
 						NMake::Pack(CV->Set("data"), Vertices);
 					}
 					else
@@ -1810,10 +1844,14 @@ namespace Tomahawk
 			}
 			void RigidBody::Create(btCollisionShape* Shape, float Mass, float Anticipation)
 			{
-				if (!Shape || !Parent || !Parent->GetScene() || !Parent->GetScene()->GetSimulator())
+				if (!Shape || !Parent)
 					return;
 
-				Parent->GetScene()->Lock();
+				SceneGraph* Scene = Parent->GetScene();
+				if (!Scene || !Scene->GetSimulator())
+					return;
+
+				Scene->Lock();
 				TH_RELEASE(Instance);
 
 				Compute::RigidBody::Desc I;
@@ -1821,10 +1859,10 @@ namespace Tomahawk
 				I.Mass = Mass;
 				I.Shape = Shape;
 
-				Instance = Parent->GetScene()->GetSimulator()->CreateRigidBody(I, Parent->Transform);
+				Instance = Scene->GetSimulator()->CreateRigidBody(I, Parent->Transform);
 				Instance->UserPointer = this;
 				Instance->SetActivity(true);
-				Parent->GetScene()->Unlock();
+				Scene->Unlock();
 			}
 			void RigidBody::Create(ContentManager* Content, const std::string& Path, float Mass, float Anticipation)
 			{
@@ -1837,50 +1875,60 @@ namespace Tomahawk
 			}
 			void RigidBody::Clear()
 			{
-				if (!Instance || !Parent || !Parent->GetScene() || !Parent->GetScene()->GetSimulator())
+				if (!Instance || !Parent)
 					return;
 
-				Parent->GetScene()->Lock();
+				SceneGraph* Scene = Parent->GetScene();
+				if (!Scene || !Scene->GetSimulator())
+					return;
+
+				Scene->Lock();
 				TH_CLEAR(Instance);
-				Parent->GetScene()->Unlock();
+				Scene->Unlock();
 			}
 			void RigidBody::SetTransform(const Compute::Vector3& Position, const Compute::Vector3& Scale, const Compute::Vector3& Rotation)
 			{
-				if (!Instance)
+				if (!Instance || !Parent)
 					return;
 
-				if (Parent && Parent->GetScene())
-					Parent->GetScene()->Lock();
+				SceneGraph* Scene = Parent->GetScene();
+				if (Scene != nullptr)
+					Scene->Lock();
 
 				Parent->Transform->SetTransform(Compute::TransformSpace_Global, Position, Scale, Rotation);
 				Instance->Synchronize(Parent->Transform, true);
 				Instance->SetActivity(true);
 
-				if (Parent && Parent->GetScene())
-					Parent->GetScene()->Unlock();
+				if (Scene != nullptr)
+					Scene->Unlock();
 			}
 			void RigidBody::SetTransform(bool Kinematics)
 			{
-				if (!Instance)
+				if (!Instance || !Parent)
 					return;
 
-				if (Parent && Parent->GetScene())
-					Parent->GetScene()->Lock();
+				SceneGraph* Scene = Parent->GetScene();
+				if (Scene != nullptr)
+					Scene->Lock();
 
 				Instance->Synchronize(Parent->Transform, Kinematics);
 				Instance->SetActivity(true);
 
-				if (Parent && Parent->GetScene())
-					Parent->GetScene()->Unlock();
+				if (Scene != nullptr)
+					Scene->Unlock();
 			}
 			void RigidBody::SetMass(float Mass)
 			{
-				if (!Parent || !Parent->GetScene() || !Instance)
+				if (!Instance || !Parent)
 					return;
 
-				Parent->GetScene()->Lock();
+				SceneGraph* Scene = Parent->GetScene();
+				if (!Scene)
+					return;
+
+				Scene->Lock();
 				Instance->SetMass(Mass);
-				Parent->GetScene()->Unlock();
+				Scene->Unlock();
 			}
 			Component* RigidBody::Copy(Entity* New)
 			{
@@ -2190,20 +2238,24 @@ namespace Tomahawk
 			}
 			void SliderConstraint::Create(Entity* Other, bool IsGhosted, bool IsLinear)
 			{
-				if (Parent == Other || !Parent || !Parent->GetScene())
+				if (Parent == Other || !Parent)
 					return;
 
-				Parent->GetScene()->Lock();
+				SceneGraph* Scene = Parent->GetScene();
+				if (!Scene || !Scene->GetSimulator())
+					return;
+
+				Scene->Lock();
 				TH_RELEASE(Instance);
 
 				Connection = Other;
 				if (!Connection)
-					return Parent->GetScene()->Unlock();
+					return Scene->Unlock();
 
 				RigidBody* FirstBody = Parent->GetComponent<RigidBody>();
 				RigidBody* SecondBody = Connection->GetComponent<RigidBody>();
 				if (!FirstBody || !SecondBody)
-					return Parent->GetScene()->Unlock();
+					return Scene->Unlock();
 
 				Compute::SliderConstraint::Desc I;
 				I.Target1 = FirstBody->GetBody();
@@ -2212,20 +2264,24 @@ namespace Tomahawk
 				I.UseLinearPower = IsLinear;
 
 				if (!I.Target1 || !I.Target2)
-					return Parent->GetScene()->Unlock();
+					return Scene->Unlock();
 
-				Instance = Parent->GetScene()->GetSimulator()->CreateSliderConstraint(I);
-				Parent->GetScene()->Unlock();
+				Instance = Scene->GetSimulator()->CreateSliderConstraint(I);
+				Scene->Unlock();
 			}
 			void SliderConstraint::Clear()
 			{
-				if (!Instance || !Parent || !Parent->GetScene() || !Parent->GetScene()->GetSimulator())
+				if (!Instance || !Parent)
 					return;
 
-				Parent->GetScene()->Lock();
+				SceneGraph* Scene = Parent->GetScene();
+				if (!Scene || !Scene->GetSimulator())
+					return;
+
+				Scene->Lock();
 				TH_CLEAR(Instance);
 				Connection = nullptr;
-				Parent->GetScene()->Unlock();
+				Scene->Unlock();
 			}
 			Component* SliderConstraint::Copy(Entity* New)
 			{
@@ -2597,16 +2653,16 @@ namespace Tomahawk
 
 				return Result;
 			}
-			bool PointLight::IsVisible(const Viewer& View, Compute::Matrix4x4* World)
+			bool PointLight::IsVisible(const Viewer& fView, Compute::Matrix4x4* World)
 			{
-				if (Parent->Transform->Position.Distance(View.WorldPosition) > View.FarPlane + GetBoxRange())
+				if (Parent->Transform->Position.Distance(fView.WorldPosition) > fView.FarPlane + GetBoxRange())
 					return false;
 
-				return Compute::Common::IsCubeInFrustum((World ? *World : Parent->Transform->GetWorld()) * View.ViewProjection, 1.65f) == -1;
+				return Compute::Common::IsCubeInFrustum((World ? *World : Parent->Transform->GetWorld()) * fView.ViewProjection, 1.65f) == -1;
 			}
-			bool PointLight::IsNear(const Viewer& View)
+			bool PointLight::IsNear(const Viewer& fView)
 			{
-				return Parent->Transform->Position.Distance(View.WorldPosition) <= View.FarPlane + GetBoxRange();
+				return Parent->Transform->Position.Distance(fView.WorldPosition) <= fView.FarPlane + GetBoxRange();
 			}
 			Component* PointLight::Copy(Entity* New)
 			{
@@ -2668,24 +2724,24 @@ namespace Tomahawk
 			{
 				Cutoff = Compute::Mathf::Clamp(Cutoff, 0.0f, 180.0f);
 			}
-			float SpotLight::Cull(const Viewer& View)
+			float SpotLight::Cull(const Viewer& fView)
 			{
-				float Result = 1.0f - Parent->Transform->Position.Distance(View.WorldPosition) / View.FarPlane;
+				float Result = 1.0f - Parent->Transform->Position.Distance(fView.WorldPosition) / fView.FarPlane;
 				if (Result > 0.0f)
-					Result = Compute::Common::IsCubeInFrustum(Parent->Transform->GetWorldUnscaled() * View.ViewProjection, GetBoxRange()) == -1 ? Result : 0.0f;
+					Result = Compute::Common::IsCubeInFrustum(Parent->Transform->GetWorldUnscaled() * fView.ViewProjection, GetBoxRange()) == -1 ? Result : 0.0f;
 
 				return Result;
 			}
-			bool SpotLight::IsVisible(const Viewer& View, Compute::Matrix4x4* World)
+			bool SpotLight::IsVisible(const Viewer& fView, Compute::Matrix4x4* World)
 			{
-				if (Parent->Transform->Position.Distance(View.WorldPosition) > View.FarPlane + GetBoxRange())
+				if (Parent->Transform->Position.Distance(fView.WorldPosition) > fView.FarPlane + GetBoxRange())
 					return false;
 
-				return Compute::Common::IsCubeInFrustum((World ? *World : Parent->Transform->GetWorld()) * View.ViewProjection, 1.65f) == -1;
+				return Compute::Common::IsCubeInFrustum((World ? *World : Parent->Transform->GetWorld()) * fView.ViewProjection, 1.65f) == -1;
 			}
-			bool SpotLight::IsNear(const Viewer& View)
+			bool SpotLight::IsNear(const Viewer& fView)
 			{
-				return Parent->Transform->Position.Distance(View.WorldPosition) <= View.FarPlane + GetBoxRange();
+				return Parent->Transform->Position.Distance(fView.WorldPosition) <= fView.FarPlane + GetBoxRange();
 			}
 			Component* SpotLight::Copy(Entity* New)
 			{
@@ -2945,14 +3001,14 @@ namespace Tomahawk
 				NMake::Pack(Node->Set("parallax"), Parallax);
 				NMake::Pack(Node->Set("static-mask"), StaticMask);
 			}
-			float SurfaceLight::Cull(const Viewer& View)
+			float SurfaceLight::Cull(const Viewer& fView)
 			{
 				float Result = 1.0f;
 				if (Infinity <= 0.0f)
 				{
-					Result = 1.0f - Parent->Transform->Position.Distance(View.WorldPosition) / View.FarPlane;
+					Result = 1.0f - Parent->Transform->Position.Distance(fView.WorldPosition) / fView.FarPlane;
 					if (Result > 0.0f)
-						Result = Compute::Common::IsCubeInFrustum(Parent->Transform->GetWorldUnscaled() * View.ViewProjection, GetBoxRange()) == -1 ? Result : 0.0f;
+						Result = Compute::Common::IsCubeInFrustum(Parent->Transform->GetWorldUnscaled() * fView.ViewProjection, GetBoxRange()) == -1 ? Result : 0.0f;
 				}
 
 				return Result;
@@ -3122,10 +3178,14 @@ namespace Tomahawk
 			}
 			void Illuminator::Asleep()
 			{
-				if (!Parent || !Parent->GetScene())
+				if (!Parent)
 					return;
 
-				RenderSystem* System = (RenderSystem*)Parent->GetScene()->GetRenderer();
+				SceneGraph* Scene = Parent->GetScene();
+				if (!Scene)
+					return;
+
+				RenderSystem* System = (RenderSystem*)Scene->GetRenderer();
 				if (System != nullptr)
 				{
 					auto* Lighting = System->GetRenderer<Renderers::Lighting>();
@@ -3136,7 +3196,7 @@ namespace Tomahawk
 			float Illuminator::Cull(const Viewer& View)
 			{
 				Compute::Matrix4x4 Box = Parent->Transform->GetWorld();
-				return IsVisible(View, &Box);
+				return IsVisible(View, &Box) ? 1.0f : 0.0f;
 			}
 			Component* Illuminator::Copy(Entity* New)
 			{
@@ -3169,7 +3229,6 @@ namespace Tomahawk
 				Graphics::Texture3D::Desc I;
 				I.Width = I.Height = I.Depth = Size = NewSize;
 				I.MipLevels = MipLevels = Device->GetMipLevel(Size, Size);
-				I.FormatMode = Graphics::Format_R8G8B8A8_Unorm;
 				I.Writable = true;
 
 				TH_RELEASE(Buffer);
@@ -3200,19 +3259,23 @@ namespace Tomahawk
 			}
 			void Camera::Awake(Component* New)
 			{
-				if (!Parent || !Parent->GetScene())
+				if (!Parent)
 					return;
 
-				Viewport = Parent->GetScene()->GetDevice()->GetRenderTarget()->GetViewport();
+				SceneGraph* Scene = Parent->GetScene();
+				if (!Scene)
+					return;
+
+				Viewport = Scene->GetDevice()->GetRenderTarget()->GetViewport();
 				if (New && New != this)
 					return;
 
 				if (!Renderer)
-					Renderer = new RenderSystem(Parent->GetScene()->GetDevice());
+					Renderer = new RenderSystem(Scene->GetDevice());
 
-				if (Renderer->GetScene() != Parent->GetScene())
+				if (Renderer->GetScene() != Scene)
 				{
-					Renderer->SetScene(Parent->GetScene());
+					Renderer->SetScene(Scene);
 					Renderer->Remount();
 				}
 				
@@ -3223,11 +3286,12 @@ namespace Tomahawk
 			}
 			void Camera::Asleep()
 			{
-				if (!Renderer)
+				if (!Renderer || !Parent)
 					return;
 
-				if (Parent && Parent->GetScene() && Parent->GetScene()->GetCamera() == this)
-					Parent->GetScene()->SetCamera(nullptr);
+				SceneGraph* Scene = Parent->GetScene();
+				if (Scene != nullptr && Scene->GetCamera() == this)
+					Scene->SetCamera(nullptr);
 			}
 			void Camera::Deserialize(ContentManager* Content, Core::Document* Node)
 			{
@@ -3242,10 +3306,11 @@ namespace Tomahawk
 				NMake::Unpack(Node->Find("width"), &Width);
 				NMake::Unpack(Node->Find("height"), &Height);
 
+				SceneGraph* Scene = Parent->GetScene();
 				if (!Renderer)
 				{
-					if (Parent->GetScene() && Parent->GetScene()->GetDevice())
-						Renderer = new RenderSystem(Parent->GetScene()->GetDevice());
+					if (Scene != nullptr && Scene->GetDevice())
+						Renderer = new RenderSystem(Scene->GetDevice());
 					else
 						Renderer = new RenderSystem(Content->GetDevice());
 				}
@@ -3264,7 +3329,7 @@ namespace Tomahawk
 				Renderer->SetOcclusionCulling(OC);
 
 				std::vector<Core::Document*> Renderers = Node->FetchCollection("renderers.renderer");
-				Renderer->SetScene(Parent->GetScene());
+				Renderer->SetScene(Scene);
 				Renderer->SetDepthSize(Size);
 
 				for (auto& Render : Renderers)
@@ -3330,7 +3395,8 @@ namespace Tomahawk
 				else if (Mode == ProjectionMode_Orthographic)
 					Projection = Compute::Matrix4x4::CreateOrthographic(W, H, NearPlane, FarPlane);
 
-				if (Parent->GetScene()->GetCamera() == this)
+				SceneGraph* Scene = Parent->GetScene();
+				if (Scene != nullptr && Scene->GetCamera() == this)
 					Renderer->Synchronize(Time, FieldView);
 			}
 			void Camera::GetViewer(Viewer* View)
@@ -3352,8 +3418,8 @@ namespace Tomahawk
 
 				Renderer->SetScene(Parent->GetScene());
 				auto* RenderStages = Renderer->GetRenderers();
-				for (auto It = RenderStages->begin(); It != RenderStages->end(); It++)
-					(*It)->ResizeBuffers();
+				for (auto* Item : *RenderStages)
+					Item->ResizeBuffers();
 			}
 			Viewer Camera::GetViewer()
 			{
@@ -3480,7 +3546,7 @@ namespace Tomahawk
 
 				Resource = Core::OS::Path::Resolve(Type.c_str(), Content->GetEnvironment());
 				if (Resource.empty())
-					Resource = Type;
+					Resource = std::move(Type);
 
 				if (SetSource() < 0)
 					return;
@@ -3769,32 +3835,32 @@ namespace Tomahawk
 				int Count = From.GetPropertiesCount();
 				for (int i = 0; i < Count; i++)
 				{
-					Script::VMProperty Source;
-					if (From.GetProperty(i, &Source) < 0)
+					Script::VMProperty fSource;
+					if (From.GetProperty(i, &fSource) < 0)
 						continue;
 
 					Script::VMProperty Dest;
 					if (To.GetProperty(i, &Dest) < 0)
 						continue;
 
-					if (Source.TypeId != Dest.TypeId)
+					if (fSource.TypeId != Dest.TypeId)
 						continue;
 
-					if (Source.TypeId < Script::VMTypeId_BOOL || Source.TypeId > Script::VMTypeId_DOUBLE)
+					if (fSource.TypeId < Script::VMTypeId_BOOL || fSource.TypeId > Script::VMTypeId_DOUBLE)
 					{
-						Script::VMTypeInfo Type = Manager->Global().GetTypeInfoById(Source.TypeId);
-						if (Source.Pointer != nullptr && Type.IsValid())
+						Script::VMTypeInfo Type = Manager->Global().GetTypeInfoById(fSource.TypeId);
+						if (fSource.Pointer != nullptr && Type.IsValid())
 						{
-							void* Object = Manager->CreateObjectCopy(Source.Pointer, Type);
+							void* Object = Manager->CreateObjectCopy(fSource.Pointer, Type);
 							if (Object != nullptr)
 								Manager->AssignObject(Dest.Pointer, Object, Type);
 						}
 					}
 					else
 					{
-						int Size = Manager->Global().GetSizeOfPrimitiveType(Source.TypeId);
+						int Size = Manager->Global().GetSizeOfPrimitiveType(fSource.TypeId);
 						if (Size > 0)
-							memcpy(Dest.Pointer, Source.Pointer, (size_t)Size);
+							memcpy(Dest.Pointer, fSource.Pointer, (size_t)Size);
 					}
 				}
 
@@ -3943,7 +4009,10 @@ namespace Tomahawk
 				Safe.lock();
 				auto Result = Compiler->GetModule().GetFunctionByName(Name.c_str());
 				if (Result.IsValid() && Result.GetArgsCount() != Args)
+				{
+					Safe.unlock();
 					return nullptr;
+				}
 
 				Safe.unlock();
 				return Result;
@@ -3960,7 +4029,10 @@ namespace Tomahawk
 				Safe.lock();
 				auto Result = Compiler->GetModule().GetFunctionByIndex(Index);
 				if (Result.IsValid() && Result.GetArgsCount() != Args)
+				{
+					Safe.unlock();
 					return nullptr;
+				}
 
 				Safe.unlock();
 				return Result;
@@ -3975,21 +4047,21 @@ namespace Tomahawk
 					return false;
 
 				Safe.lock();
-				Script::VMModule Module = Compiler->GetModule();
-				if (!Module.IsValid())
+				Script::VMModule fModule = Compiler->GetModule();
+				if (!fModule.IsValid())
 				{
 					Safe.unlock();
 					return false;
 				}
 
-				int Index = Module.GetPropertyIndexByName(Name);
+				int Index = fModule.GetPropertyIndexByName(Name);
 				if (Index < 0)
 				{
 					Safe.unlock();
 					return false;
 				}
 
-				if (Module.GetProperty(Index, Result) < 0)
+				if (fModule.GetProperty(Index, Result) < 0)
 				{
 					Safe.unlock();
 					return false;
@@ -4008,14 +4080,14 @@ namespace Tomahawk
 					return false;
 
 				Safe.lock();
-				Script::VMModule Module = Compiler->GetModule();
-				if (!Module.IsValid())
+				Script::VMModule fModule = Compiler->GetModule();
+				if (!fModule.IsValid())
 				{
 					Safe.unlock();
 					return false;
 				}
 
-				if (Module.GetProperty(Index, Result) < 0)
+				if (fModule.GetProperty(Index, Result) < 0)
 				{
 					Safe.unlock();
 					return false;
@@ -4042,14 +4114,14 @@ namespace Tomahawk
 					return Script::VMResult_MODULE_IS_IN_USE;
 
 				Safe.lock();
-				Script::VMModule Module = Compiler->GetModule();
-				if (!Module.IsValid())
+				Script::VMModule fModule = Compiler->GetModule();
+				if (!fModule.IsValid())
 				{
 					Safe.unlock();
 					return 0;
 				}
 
-				int Result = Module.GetPropertiesCount();
+				int Result = fModule.GetPropertiesCount();
 				Safe.unlock();
 
 				return Result;
@@ -4064,14 +4136,14 @@ namespace Tomahawk
 					return Script::VMResult_MODULE_IS_IN_USE;
 
 				Safe.lock();
-				Script::VMModule Module = Compiler->GetModule();
-				if (!Module.IsValid())
+				Script::VMModule fModule = Compiler->GetModule();
+				if (!fModule.IsValid())
 				{
 					Safe.unlock();
 					return 0;
 				}
 
-				int Result = Module.GetFunctionCount();
+				int Result = fModule.GetFunctionCount();
 				Safe.unlock();
 
 				return Result;

@@ -610,7 +610,7 @@ namespace Tomahawk
 			if (!IsValid())
 				return false;
 
-			return Function->IsPrivate();
+			return Function->IsReadOnly();
 		}
 		bool VMFunction::IsPrivate() const
 		{
@@ -1884,14 +1884,7 @@ namespace Tomahawk
 		}
 		VMTypeClass VMGlobal::SetPodAddress(const char* Name, size_t Size, uint64_t Flags)
 		{
-			if (!Manager || !Name)
-				return VMTypeClass(Manager, "", -1);
-
-			VMCManager* Engine = Manager->GetEngine();
-			if (!Engine)
-				return VMTypeClass(Manager, Name, -1);
-
-			return VMTypeClass(Manager, Name, Engine->RegisterObjectType(Name, Size, (asDWORD)Flags));
+			return SetStructAddress(Name, Size, Flags);
 		}
 		VMRefClass VMGlobal::SetClassAddress(const char* Name, uint64_t Flags)
 		{
@@ -2360,9 +2353,9 @@ namespace Tomahawk
 				Module->Discard();
 
 			if (Scoped)
-				Module = Manager->CreateScopedModule(ModuleName.c_str(), false);
+				Module = Manager->CreateScopedModule(ModuleName, false);
 			else
-				Module = Manager->CreateModule(ModuleName.c_str(), false);
+				Module = Manager->CreateModule(ModuleName, false);
 			Manager->Unlock();
 
 			if (!Module)
@@ -2638,13 +2631,13 @@ namespace Tomahawk
 					Type->AddRef();
 			}
 
-			VMCModule* Module = GetModule().GetModule();
+			VMCModule* fModule = GetModule().GetModule();
 			if (Type)
 				Type->Release();
 
 			VMCFunction* Function = nullptr;
 			Manager->Lock();
-			int R = Module->CompileFunction("__vfbdy", Eval.c_str(), -1, asCOMP_ADD_TO_MODULE, &Function);
+			int R = fModule->CompileFunction("__vfbdy", Eval.c_str(), -1, asCOMP_ADD_TO_MODULE, &Function);
 			Manager->Unlock();
 
 			if (R < 0)
@@ -2740,7 +2733,7 @@ namespace Tomahawk
 
 			return Result;
 		}
-		int VMContext::ExecuteDeferred(const VMFunction& Function, bool Nested, ArgsCallback&& Callback)
+		int VMContext::ExecuteDeferred(const VMFunction& Function, bool Nested, const ArgsCallback& Callback)
 		{
 			if (Nested)
 				Context->PushState();
@@ -3308,7 +3301,7 @@ namespace Tomahawk
 			const char* Mod = Function->GetModuleName();
 			const char* Source = Function->GetScriptSectionName();
 			int Line = Context->GetExceptionLineNumber();
-			std::string Stack = Api ? Api->GetStackTrace() : "";
+			std::string Stack = Api->GetStackTrace();
 
 			TH_ERROR("uncaught exception raised"
 				"\n\tdescription: %s"
@@ -3328,9 +3321,9 @@ namespace Tomahawk
 			Engine->SetUserData(this, ManagerUD);
 			Engine->SetContextCallbacks(RequestContext, ReturnContext, nullptr);
 			Engine->SetMessageCallback(asFUNCTION(CompileLogger), this, asCALL_CDECL);
-			Engine->SetEngineProperty(asEP_INIT_GLOBAL_VARS_AFTER_BUILD, false);
-			Engine->SetEngineProperty(asEP_USE_CHARACTER_LITERALS, true);
-			Engine->SetEngineProperty(asEP_DISALLOW_EMPTY_LIST_ELEMENTS, true);
+			Engine->SetEngineProperty(asEP_INIT_GLOBAL_VARS_AFTER_BUILD, 0);
+			Engine->SetEngineProperty(asEP_USE_CHARACTER_LITERALS, 1);
+			Engine->SetEngineProperty(asEP_DISALLOW_EMPTY_LIST_ELEMENTS, 1);
 			Engine->SetEngineProperty(asEP_COMPILER_WARNINGS, 1);
 
 			if (Engine->RegisterObjectType("Nullable", 0, asOBJ_REF | asOBJ_NOCOUNT) >= 0)
@@ -3493,7 +3486,7 @@ namespace Tomahawk
 
 
 			std::string Result;
-			while (true)
+			while (Result.size() < 1024)
 			{
 				Result = Name + std::to_string(Scope++);
 				if (!Engine->GetModule(Result.c_str()))
@@ -3967,6 +3960,7 @@ namespace Tomahawk
 
 				if (Failed || (Core = Kernels.find("")) == Kernels.end())
 				{
+					Safe.unlock();
 					TH_ERROR("cannot load find function in any of presented libraries:\n\t%s", Func.c_str());
 					return false;
 				}
@@ -3979,7 +3973,7 @@ namespace Tomahawk
 				return true;
 			}
 
-			VMObjectFunction Function = (VMObjectFunction)Core::OS::Symbol::LoadFunction(Core->second.Handle, Func.c_str());
+			VMObjectFunction Function = (VMObjectFunction)Core::OS::Symbol::LoadFunction(Core->second.Handle, Func);
 			if (!Function)
 			{
 				TH_ERROR("cannot load shared object function: %s", Func.c_str());
@@ -4405,16 +4399,16 @@ namespace Tomahawk
 			{
 				if (T == asTC_KEYWORD)
 				{
-					if (Scope == "" && Name == "")
+					if (Scope.empty() && Name.empty())
 						Scope = "::";
-					else if (Scope == "::" || Scope == "")
+					else if (Scope == "::" || Scope.empty())
 						Scope = Name;
 					else
 						Scope += "::" + Name;
 
 					Name.clear();
 				}
-				else if (T == asTC_IDENTIFIER)
+				else
 					Name.assign(Text.c_str(), Length);
 
 				Text = Text.substr(Length);
@@ -4430,7 +4424,7 @@ namespace Tomahawk
 				if (!Function)
 					return;
 
-				if (Scope == "")
+				if (Scope.empty())
 				{
 					for (asUINT n = Function->GetVarCount(); n-- > 0;)
 					{
@@ -4483,7 +4477,7 @@ namespace Tomahawk
 					if (Scope.empty())
 						Scope = Function->GetNamespace();
 					else if (Scope == "::")
-						Scope = "";
+						Scope.clear();
 
 					VMCModule* Mod = Function->GetModule();
 					if (Mod != nullptr)
@@ -4708,8 +4702,7 @@ namespace Tomahawk
 					Manager->GetEngine()->Release();
 
 				Manager = Engine;
-				if (Manager != nullptr)
-					Manager->GetEngine()->AddRef();
+				Manager->GetEngine()->AddRef();
 			}
 		}
 		bool VMDebugger::CheckBreakPoint(VMContext* Context)
@@ -4923,12 +4916,6 @@ namespace Tomahawk
 					PrintCallstack(Context);
 					return false;
 				case 'a':
-					if (Base == 0)
-					{
-						Output("No script is running\n");
-						return false;
-					}
-
 					Base->Abort();
 					break;
 				default:

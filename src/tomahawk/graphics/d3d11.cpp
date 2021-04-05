@@ -147,7 +147,7 @@ namespace Tomahawk
 				return Vertices;
 			}
 
-			D3D11InstanceBuffer::D3D11InstanceBuffer(const Desc& I) : InstanceBuffer(I), Resource(nullptr), Sync(true)
+			D3D11InstanceBuffer::D3D11InstanceBuffer(const Desc& I) : InstanceBuffer(I), Resource(nullptr)
 			{
 			}
 			D3D11InstanceBuffer::~D3D11InstanceBuffer()
@@ -258,7 +258,8 @@ namespace Tomahawk
 
 			D3D11MultiRenderTarget2D::D3D11MultiRenderTarget2D(const Desc& I) : MultiRenderTarget2D(I), DepthStencilView(nullptr)
 			{
-				for (int i = 0; i < 8; i++)
+				ZeroMemory(&Information, sizeof(Information));
+				for (unsigned int i = 0; i < 8; i++)
 				{
 					RenderTargetView[i] = nullptr;
 					Texture[i] = nullptr;
@@ -267,7 +268,7 @@ namespace Tomahawk
 			D3D11MultiRenderTarget2D::~D3D11MultiRenderTarget2D()
 			{
 				ReleaseCom(DepthStencilView);
-				for (int i = 0; i < 8; i++)
+				for (unsigned int i = 0; i < 8; i++)
 				{
 					ReleaseCom(Texture[i]);
 					ReleaseCom(RenderTargetView[i]);
@@ -321,7 +322,7 @@ namespace Tomahawk
 
 			D3D11MultiRenderTargetCube::D3D11MultiRenderTargetCube(const Desc& I) : MultiRenderTargetCube(I), DepthStencilView(nullptr)
 			{
-				for (int i = 0; i < 8; i++)
+				for (unsigned int i = 0; i < 8; i++)
 				{
 					RenderTargetView[i] = nullptr;
 					Texture[i] = nullptr;
@@ -330,7 +331,7 @@ namespace Tomahawk
 			}
 			D3D11MultiRenderTargetCube::~D3D11MultiRenderTargetCube()
 			{
-				for (int i = 0; i < Target; i++)
+				for (unsigned int i = 0; i < Target; i++)
 				{
 					ReleaseCom(RenderTargetView[i]);
 					ReleaseCom(Texture[i]);
@@ -1099,9 +1100,9 @@ namespace Tomahawk
 				ImmediateContext->Unmap(Element->Element, 0);
 				return true;
 			}
-			bool D3D11Device::UpdateBuffer(RenderBufferType Buffer)
+			bool D3D11Device::UpdateBuffer(RenderBufferType fBuffer)
 			{
-				ImmediateContext->UpdateSubresource(ConstantBuffer[Buffer], 0, nullptr, Constants[Buffer], 0, 0);
+				ImmediateContext->UpdateSubresource(ConstantBuffer[fBuffer], 0, nullptr, Constants[fBuffer], 0, 0);
 				return true;
 			}
 			bool D3D11Device::UpdateBufferSize(Shader* Resource, size_t Size)
@@ -1110,9 +1111,7 @@ namespace Tomahawk
 				if (!IResource || !Size)
 					return false;
 
-				if (IResource->ConstantBuffer != nullptr)
-					ReleaseCom(IResource->ConstantBuffer);
-
+				ReleaseCom(IResource->ConstantBuffer);
 				return CreateConstantBuffer(&IResource->ConstantBuffer, Size) == S_OK;
 			}
 			bool D3D11Device::UpdateBufferSize(InstanceBuffer* Resource, uint64_t Size)
@@ -1392,14 +1391,17 @@ namespace Tomahawk
 				IResource->Texture->GetDesc(&Information);
 				Information.BindFlags |= D3D11_BIND_SHADER_RESOURCE;
 
-				void* Resources[6];
+				void* Resources[6] = { nullptr };
 				for (unsigned int i = 0; i < 6; i++)
 				{
 					ID3D11Texture2D* Subresource;
 					if (D3DDevice->CreateTexture2D(&Information, nullptr, &Subresource) != S_OK)
 					{
-						for (unsigned int j = 0; j <= i; j++)
-							((ID3D11Texture2D*)Resources[j])->Release();
+						for (unsigned int j = 0; j < 6; j++)
+						{
+							ID3D11Texture2D* Src = (ID3D11Texture2D*)Resources[j];
+							ReleaseCom(Src);
+						}
 
 						return false;
 					}
@@ -1421,14 +1423,17 @@ namespace Tomahawk
 				IResource->Texture[Cube]->GetDesc(&Information);
 				Information.BindFlags |= D3D11_BIND_SHADER_RESOURCE;
 
-				void* Resources[6];
+				void* Resources[6] = { nullptr };
 				for (unsigned int i = 0; i < 6; i++)
 				{
 					ID3D11Texture2D* Subresource;
 					if (D3DDevice->CreateTexture2D(&Information, nullptr, &Subresource) != S_OK)
 					{
-						for (unsigned int j = 0; j <= i; j++)
-							((ID3D11Texture2D*)Resources[j])->Release();
+						for (unsigned int j = 0; j < 6; j++)
+						{
+							ID3D11Texture2D* Src = (ID3D11Texture2D*)Resources[j];
+							ReleaseCom(Src);
+						}
 
 						return false;
 					}
@@ -1929,7 +1934,7 @@ namespace Tomahawk
 				State.AlphaToCoverageEnable = I.AlphaToCoverageEnable;
 				State.IndependentBlendEnable = I.IndependentBlendEnable;
 
-				for (int i = 0; i < 8; i++)
+				for (unsigned int i = 0; i < 8; i++)
 				{
 					State.RenderTarget[i].BlendEnable = I.RenderTarget[i].BlendEnable;
 					State.RenderTarget[i].BlendOp = (D3D11_BLEND_OP)I.RenderTarget[i].BlendOperationMode;
@@ -2142,14 +2147,14 @@ namespace Tomahawk
 			}
 			ElementBuffer* D3D11Device::CreateElementBuffer(const ElementBuffer::Desc& I)
 			{
-				D3D11_BUFFER_DESC Buffer;
-				ZeroMemory(&Buffer, sizeof(Buffer));
-				Buffer.Usage = (D3D11_USAGE)I.Usage;
-				Buffer.ByteWidth = (unsigned int)I.ElementCount * I.ElementWidth;
-				Buffer.BindFlags = I.BindFlags;
-				Buffer.CPUAccessFlags = I.AccessFlags;
-				Buffer.MiscFlags = I.MiscFlags;
-				Buffer.StructureByteStride = I.StructureByteStride;
+				D3D11_BUFFER_DESC BufferDesc;
+				ZeroMemory(&BufferDesc, sizeof(BufferDesc));
+				BufferDesc.Usage = (D3D11_USAGE)I.Usage;
+				BufferDesc.ByteWidth = (unsigned int)I.ElementCount * I.ElementWidth;
+				BufferDesc.BindFlags = I.BindFlags;
+				BufferDesc.CPUAccessFlags = I.AccessFlags;
+				BufferDesc.MiscFlags = I.MiscFlags;
+				BufferDesc.StructureByteStride = I.StructureByteStride;
 
 				D3D11ElementBuffer* Result = new D3D11ElementBuffer(I);
 				if (I.Elements != nullptr)
@@ -2158,10 +2163,10 @@ namespace Tomahawk
 					ZeroMemory(&Subresource, sizeof(Subresource));
 					Subresource.pSysMem = I.Elements;
 
-					D3DDevice->CreateBuffer(&Buffer, &Subresource, &Result->Element);
+					D3DDevice->CreateBuffer(&BufferDesc, &Subresource, &Result->Element);
 				}
 				else
-					D3DDevice->CreateBuffer(&Buffer, nullptr, &Result->Element);
+					D3DDevice->CreateBuffer(&BufferDesc, nullptr, &Result->Element);
 
 				if (I.Writable)
 				{
@@ -2487,14 +2492,15 @@ namespace Tomahawk
 			}
 			TextureCube* D3D11Device::CreateTextureCube(Graphics::Texture2D* Resource)
 			{
-				if (!Resource || !Resource->As<D3D11Texture2D>()->View)
+				ID3D11Texture2D* Src = (Resource ? Resource->As<D3D11Texture2D>()->View : nullptr);
+				if (!Src)
 				{
 					TH_ERROR("couldn't create texture cube without proper mapping");
 					return nullptr;
 				}
 
 				D3D11_TEXTURE2D_DESC Description;
-				Resource->As<D3D11Texture2D>()->View->GetDesc(&Description);
+				Src->GetDesc(&Description);
 				Description.ArraySize = 6;
 				Description.Usage = D3D11_USAGE_DEFAULT;
 				Description.BindFlags = D3D11_BIND_SHADER_RESOURCE | D3D11_BIND_RENDER_TARGET;
@@ -2543,20 +2549,17 @@ namespace Tomahawk
 				Region.bottom = Region.top + Description.Height;
 				ImmediateContext->CopySubresourceRegion(Result->View, D3D11CalcSubresource(0, 2, Description.MipLevels), 0, 0, 0, Resource->As<D3D11Texture2D>()->View, 0, &Region);
 
-				Region.left = Description.Width;
 				Region.top = Description.Height * 2;
 				Region.right = Region.left + Description.Width;
 				Region.bottom = Region.top + Description.Height;
 				ImmediateContext->CopySubresourceRegion(Result->View, D3D11CalcSubresource(0, 3, Description.MipLevels), 0, 0, 0, Resource->As<D3D11Texture2D>()->View, 0, &Region);
 
-				Region.left = Description.Width;
 				Region.top = Description.Height;
 				Region.right = Region.left + Description.Width;
 				Region.bottom = Region.top + Description.Height;
 				ImmediateContext->CopySubresourceRegion(Result->View, D3D11CalcSubresource(0, 4, Description.MipLevels), 0, 0, 0, Resource->As<D3D11Texture2D>()->View, 0, &Region);
 
 				Region.left = Description.Width * 3;
-				Region.top = Description.Height;
 				Region.right = Region.left + Description.Width;
 				Region.bottom = Region.top + Description.Height;
 				ImmediateContext->CopySubresourceRegion(Result->View, D3D11CalcSubresource(0, 5, Description.MipLevels), 0, 0, 0, Resource->As<D3D11Texture2D>()->View, 0, &Region);
@@ -2839,19 +2842,11 @@ namespace Tomahawk
 				Result->Information.MiscFlags = (unsigned int)I.MiscFlags;
 
 				D3D11_RENDER_TARGET_VIEW_DESC RTV;
-				if (Result->Information.SampleDesc.Count > 1)
-				{
-					RTV.ViewDimension = D3D11_RTV_DIMENSION_TEXTURE2DMS;
-					RTV.Texture2DMSArray.ArraySize = 1;
-				}
-				else
-				{
-					RTV.ViewDimension = D3D11_RTV_DIMENSION_TEXTURE2D;
-					RTV.Texture2DArray.MipSlice = 0;
-					RTV.Texture2DArray.ArraySize = 1;
-				}
+				RTV.ViewDimension = D3D11_RTV_DIMENSION_TEXTURE2D;
+				RTV.Texture2DArray.MipSlice = 0;
+				RTV.Texture2DArray.ArraySize = 1;
 
-				for (int i = 0; i < Result->Target; i++)
+				for (unsigned int i = 0; i < Result->Target; i++)
 				{
 					Result->Information.Format = (DXGI_FORMAT)I.FormatMode[i];
 					if (D3DDevice->CreateTexture2D(&Result->Information, nullptr, &Result->Texture[i]) != S_OK)
@@ -3051,7 +3046,7 @@ namespace Tomahawk
 				Description.BindFlags = I.BindFlags;
 				Description.MipLevels = MipLevels;
 
-				for (int i = 0; i < Result->Target; i++)
+				for (unsigned int i = 0; i < Result->Target; i++)
 				{
 					Description.Format = (DXGI_FORMAT)I.FormatMode[i];
 					if (D3DDevice->CreateTexture2D(&Description, nullptr, &Result->Texture[i]) != S_OK)
@@ -3068,7 +3063,7 @@ namespace Tomahawk
 				RTV.Texture2DArray.ArraySize = 6;
 				RTV.Texture2DArray.MipSlice = 0;
 
-				for (int i = 0; i < Result->Target; i++)
+				for (unsigned int i = 0; i < Result->Target; i++)
 				{
 					RTV.Format = (DXGI_FORMAT)I.FormatMode[i];
 					if (D3DDevice->CreateRenderTargetView(Result->Texture[i], &RTV, &Result->RenderTargetView[i]) != S_OK)
@@ -3085,7 +3080,7 @@ namespace Tomahawk
 				SRV.TextureCube.MostDetailedMip = 0;
 				SRV.TextureCube.MipLevels = MipLevels;
 
-				for (int i = 0; i < Result->Target; i++)
+				for (unsigned int i = 0; i < Result->Target; i++)
 				{
 					Result->Resource[i] = CreateTexture2D();
 					Result->Resource[i]->As<D3D11Texture2D>()->View = Result->Texture[i];
@@ -3168,14 +3163,14 @@ namespace Tomahawk
 				MaxElements = Size + 1;
 				ReleaseCom(DirectRenderer.VertexBuffer);
 
-				D3D11_BUFFER_DESC Buffer;
-				ZeroMemory(&Buffer, sizeof(Buffer));
-				Buffer.Usage = D3D11_USAGE_DYNAMIC;
-				Buffer.ByteWidth = (unsigned int)MaxElements * sizeof(Vertex);
-				Buffer.BindFlags = D3D11_BIND_VERTEX_BUFFER;
-				Buffer.CPUAccessFlags = D3D11_CPU_ACCESS_WRITE;
+				D3D11_BUFFER_DESC BufferDesc;
+				ZeroMemory(&BufferDesc, sizeof(BufferDesc));
+				BufferDesc.Usage = D3D11_USAGE_DYNAMIC;
+				BufferDesc.ByteWidth = (unsigned int)MaxElements * sizeof(Vertex);
+				BufferDesc.BindFlags = D3D11_BIND_VERTEX_BUFFER;
+				BufferDesc.CPUAccessFlags = D3D11_CPU_ACCESS_WRITE;
 
-				if (D3DDevice->CreateBuffer(&Buffer, nullptr, &DirectRenderer.VertexBuffer) != S_OK)
+				if (D3DDevice->CreateBuffer(&BufferDesc, nullptr, &DirectRenderer.VertexBuffer) != S_OK)
 				{
 					TH_ERROR("couldn't create vertex buffer");
 					return false;
@@ -3233,8 +3228,13 @@ namespace Tomahawk
 						return false;
 					}
 
-					D3D11_INPUT_ELEMENT_DESC Layout[] = { { "POSITION", 0, DXGI_FORMAT_R32G32B32_FLOAT, 0, 0, D3D11_INPUT_PER_VERTEX_DATA, 0 }, { "TEXCOORD", 0, DXGI_FORMAT_R32G32_FLOAT, 0, 3 * sizeof(float), D3D11_INPUT_PER_VERTEX_DATA, 0 }, { "COLOR", 0, DXGI_FORMAT_R32G32B32A32_FLOAT, 0, 5 * sizeof(float), D3D11_INPUT_PER_VERTEX_DATA, 0 }, };
-					if (D3DDevice->CreateInputLayout(Layout, 3, Blob->GetBufferPointer(), Blob->GetBufferSize(), &DirectRenderer.VertexLayout) != S_OK)
+					D3D11_INPUT_ELEMENT_DESC LayoutDesc[] =
+					{
+						{ "POSITION", 0, DXGI_FORMAT_R32G32B32_FLOAT, 0, 0, D3D11_INPUT_PER_VERTEX_DATA, 0 },
+						{ "TEXCOORD", 0, DXGI_FORMAT_R32G32_FLOAT, 0, 3 * sizeof(float), D3D11_INPUT_PER_VERTEX_DATA, 0 },
+						{ "COLOR", 0, DXGI_FORMAT_R32G32B32A32_FLOAT, 0, 5 * sizeof(float), D3D11_INPUT_PER_VERTEX_DATA, 0 }
+					};
+					if (D3DDevice->CreateInputLayout(LayoutDesc, 3, Blob->GetBufferPointer(), Blob->GetBufferSize(), &DirectRenderer.VertexLayout) != S_OK)
 					{
 						ReleaseCom(Blob);
 						TH_ERROR("couldn't create input layout");
@@ -3473,7 +3473,7 @@ namespace Tomahawk
 				TH_FREE(Result);
 				return Shader->VertexLayout;
 			}
-			int D3D11Device::CreateConstantBuffer(ID3D11Buffer** Buffer, size_t Size)
+			int D3D11Device::CreateConstantBuffer(ID3D11Buffer** fBuffer, size_t Size)
 			{
 				D3D11_BUFFER_DESC Description;
 				ZeroMemory(&Description, sizeof(Description));
@@ -3482,7 +3482,7 @@ namespace Tomahawk
 				Description.BindFlags = D3D11_BIND_CONSTANT_BUFFER;
 				Description.CPUAccessFlags = 0;
 
-				return D3DDevice->CreateBuffer(&Description, nullptr, Buffer);
+				return D3DDevice->CreateBuffer(&Description, nullptr, fBuffer);
 			}
 			char* D3D11Device::GetCompileState(ID3DBlob* Error)
 			{

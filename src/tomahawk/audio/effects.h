@@ -18,7 +18,7 @@ namespace Tomahawk
 			class TH_OUT Reverb final : public AudioEffect
 			{
 			private:
-				bool EAX;
+				bool EAX = false;
 
 			public:
 				Compute::Vector3 LateReverbPan;

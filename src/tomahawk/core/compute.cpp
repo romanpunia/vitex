@@ -6,6 +6,9 @@
 #include <BulletSoftBody/btSoftBodyHelpers.h>
 #include <BulletSoftBody/btSoftBodyRigidBodyCollisionConfiguration.h>
 #include <vsimd.h>
+#ifdef TH_MICROSOFT
+#include <Windows.h>
+#endif
 #ifdef TH_HAS_OPENSSL
 extern "C"
 {
@@ -33,11 +36,13 @@ namespace
 			if (!Callback || !Object1 || !Object1->getCollisionObject() || !Object2 || !Object2->getCollisionObject())
 				return 0;
 
+			auto& PWOA = Point.getPositionWorldOnA();
+			auto& PWOB = Point.getPositionWorldOnB();
 			ShapeContact Contact;
 			Contact.LocalPoint1 = Vector3(Point.m_localPointA.getX(), Point.m_localPointA.getY(), Point.m_localPointA.getZ());
 			Contact.LocalPoint2 = Vector3(Point.m_localPointB.getX(), Point.m_localPointB.getY(), Point.m_localPointB.getZ());
-			Contact.PositionWorld1 = Vector3(Point.getPositionWorldOnA().getX(), Point.getPositionWorldOnA().getY(), Point.getPositionWorldOnA().getZ());
-			Contact.PositionWorld2 = Vector3(Point.getPositionWorldOnB().getX(), Point.getPositionWorldOnB().getY(), Point.getPositionWorldOnB().getZ());
+			Contact.PositionWorld1 = Vector3(PWOA.getX(), PWOA.getY(), PWOA.getZ());
+			Contact.PositionWorld2 = Vector3(PWOB.getX(), PWOB.getY(), PWOB.getZ());
 			Contact.NormalWorld = Vector3(Point.m_normalWorldOnB.getX(), Point.m_normalWorldOnB.getY(), Point.m_normalWorldOnB.getZ());
 			Contact.LateralFrictionDirection1 = Vector3(Point.m_lateralFrictionDir1.getX(), Point.m_lateralFrictionDir1.getY(), Point.m_lateralFrictionDir1.getZ());
 			Contact.LateralFrictionDirection2 = Vector3(Point.m_lateralFrictionDir2.getX(), Point.m_lateralFrictionDir2.getY(), Point.m_lateralFrictionDir2.getZ());
@@ -106,6 +111,9 @@ namespace Tomahawk
 		Vector2::Vector2(float xy) : X(xy), Y(xy)
 		{
 		}
+		Vector2::Vector2(const Vector2& Value) : X(Value.X), Y(Value.Y)
+		{
+		}
 		Vector2::Vector2(const Vector3& Value) : X(Value.X), Y(Value.Y)
 		{
 		}
@@ -151,12 +159,7 @@ namespace Tomahawk
 		}
 		float Vector2::Hypotenuse() const
 		{
-#ifdef TH_HAS_SIMD
-			LOD_FV2(_r1);
-			return sqrt(horizontal_add(square(_r1)));
-#else
-			return sqrt(X * X + Y * Y);
-#endif
+			return Length();
 		}
 		float Vector2::LookAt(const Vector2& At) const
 		{
@@ -554,6 +557,9 @@ namespace Tomahawk
 		{
 		}
 		Vector3::Vector3(const Vector2& Value) : X(Value.X), Y(Value.Y), Z(0.0f)
+		{
+		}
+		Vector3::Vector3(const Vector3& Value) : X(Value.X), Y(Value.Y), Z(Value.Z)
 		{
 		}
 		Vector3::Vector3(const Vector4& Value) : X(Value.X), Y(Value.Y), Z(Value.Z)
@@ -1086,6 +1092,9 @@ namespace Tomahawk
 		{
 		}
 		Vector4::Vector4(const Vector3& Value) : X(Value.X), Y(Value.Y), Z(Value.Z), W(0.0f)
+		{
+		}
+		Vector4::Vector4(const Vector4& Value) : X(Value.X), Y(Value.Y), Z(Value.Z), W(Value.W)
 		{
 		}
 		float Vector4::Length() const
@@ -1863,6 +1872,10 @@ namespace Tomahawk
 		}
 		Matrix4x4::Matrix4x4(bool)
 		{
+		}
+		Matrix4x4::Matrix4x4(const Matrix4x4& V)
+		{
+			memcpy(Row, V.Row, sizeof(float) * 16);
 		}
 		float& Matrix4x4::operator [](int Index)
 		{
@@ -3043,7 +3056,7 @@ namespace Tomahawk
 			Type = -1;
 			ExitCode = 0;
 		}
-		std::string Hybi10Request::GetTextType()
+		std::string Hybi10Request::GetTextType() const
 		{
 			if (Type == 0 || Type == 1 || Type == 2)
 				return "text";
@@ -3059,7 +3072,7 @@ namespace Tomahawk
 
 			return "unknown";
 		}
-		Hybi10_Opcode Hybi10Request::GetEnumType()
+		Hybi10_Opcode Hybi10Request::GetEnumType() const
 		{
 			if (Type == 0 || Type == 1 || Type == 2)
 				return Hybi10_Opcode_Text;
@@ -3148,11 +3161,13 @@ namespace Tomahawk
 
 			for (i = j = 0; i < (int64_t)Info->Brackets.size(); i++)
 			{
-				Info->Brackets[i].BranchesCount = 0;
-				Info->Brackets[i].Branches = j;
+				auto& Bracket = Info->Brackets[i];
+				Bracket.BranchesCount = 0;
+				Bracket.Branches = j;
+
 				while (j < (int64_t)Info->Branches.size() && Info->Branches[j].BracketIndex == i)
 				{
-					Info->Brackets[i].BranchesCount++;
+					Bracket.BranchesCount++;
 					j++;
 				}
 			}
@@ -3175,7 +3190,7 @@ namespace Tomahawk
 			int64_t Code = Parse(Value->Regex.c_str(), (int64_t)Value->Regex.size(), Buffer, Length, &R);
 			if (Code > 0)
 			{
-				for (auto It = R.Matches.begin(); It != R.Matches.end(); It++)
+				for (auto It = R.Matches.begin(); It != R.Matches.end(); ++It)
 				{
 					It->Start = It->Pointer - Buffer;
 					It->End = It->Start + It->Length;
@@ -3211,7 +3226,7 @@ namespace Tomahawk
 
 			while ((Code = Parse(Value->Regex.c_str(), (int64_t)Value->Regex.size(), Buffer + Offset, Length - Offset, &R)) >= 0)
 			{
-				for (auto It = R.Matches.begin(); It != R.Matches.end(); It++)
+				for (auto It = R.Matches.begin(); It != R.Matches.end(); ++It)
 				{
 					RegexMatch Match = *It;
 					Match.Start = It->Pointer - Buffer;
@@ -3227,7 +3242,7 @@ namespace Tomahawk
 			}
 
 			R.State = (Steps > 0 ? RegexState_Match_Found : (RegexState)Code);
-			R.Matches = Matches;
+			R.Matches = std::move(Matches);
 			if (Result != nullptr)
 				*Result = R;
 
@@ -3451,8 +3466,8 @@ namespace Tomahawk
 						RegexMatch* Match;
 						if (Case - 1 >= (int64_t)Info->Matches.size())
 						{
-							Info->Matches.push_back(RegexMatch());
-							Match = &Info->Matches.at(Info->Matches.size() - 1);
+							Info->Matches.emplace_back();
+							Match = &Info->Matches[Info->Matches.size() - 1];
 						}
 						else
 							Match = &Info->Matches.at(Case - 1);
@@ -3513,26 +3528,26 @@ namespace Tomahawk
 					break;
 			}
 
-			if (Info->Matches.empty() && result >= 0 && i >= 0)
+			if (!Info->Matches.empty() || result < 0)
+				return result;
+
+			RegexMatch Match;
+			Match.Start = 0;
+			Match.End = 0;
+			Match.Steps = Info->Steps;
+
+			if (result == Info->Expression->Regex.size())
 			{
-				RegexMatch Match;
-				Match.Start = 0;
-				Match.End = 0;
-				Match.Steps = Info->Steps;
-
-				if (result == Info->Expression->Regex.size())
-				{
-					Match.Length = result;
-					Match.Pointer = Buffer;
-				}
-				else
-				{
-					Match.Length = result - Info->Expression->Regex.size();
-					Match.Pointer = Buffer + Match.Length;
-				}
-
-				Info->Matches.push_back(Match);
+				Match.Length = result;
+				Match.Pointer = Buffer;
 			}
+			else
+			{
+				Match.Length = result - Info->Expression->Regex.size();
+				Match.Pointer = Buffer + Match.Length;
+			}
+
+			Info->Matches.push_back(Match);
 
 			return result;
 		}
@@ -3559,8 +3574,8 @@ namespace Tomahawk
 					REGEX_FAIL(i >= ValueLength - 1, RegexState_Invalid_Metacharacter);
 					if (Value[i + 1] == 'x')
 					{
-						REGEX_FAIL(Value[i + 1] == 'x' && i >= ValueLength - 3, RegexState_Invalid_Metacharacter);
-						REGEX_FAIL(Value[i + 1] == 'x' && !(isxdigit(Value[i + 2]) && isxdigit(Value[i + 3])), RegexState_Invalid_Metacharacter);
+						REGEX_FAIL(i >= ValueLength - 3, RegexState_Invalid_Metacharacter);
+						REGEX_FAIL(!(isxdigit(Value[i + 2]) && isxdigit(Value[i + 3])), RegexState_Invalid_Metacharacter);
 					}
 					else
 					{
@@ -4110,9 +4125,6 @@ namespace Tomahawk
 		bool TriangleStrip::ConnectStrips(TriangleStrip::Result& result)
 		{
 			unsigned int* drefs = (unsigned int*)result.Strips.data();
-			if (!drefs)
-				return false;
-
 			SingleStrip.clear();
 			TotalLength = 0;
 
@@ -4221,6 +4233,36 @@ namespace Tomahawk
 			TH_FREE(Histogram);
 			TH_FREE(Indices2);
 			TH_FREE(Indices);
+		}
+		RadixSorter& RadixSorter::operator =(const RadixSorter& V)
+		{
+			TH_FREE(Histogram);
+			Histogram = (unsigned int*)TH_MALLOC(sizeof(unsigned int) * 256 * 4);
+
+			TH_FREE(Offset);
+			Offset = (unsigned int*)TH_MALLOC(sizeof(unsigned int) * 256);
+			ResetIndices();
+
+			return *this;
+		}
+		RadixSorter& RadixSorter::operator =(RadixSorter&& Other)
+		{
+			TH_FREE(Offset);
+			TH_FREE(Histogram);
+			TH_FREE(Indices2);
+			TH_FREE(Indices);
+			Indices = Other.Indices;
+			Indices2 = Other.Indices2;
+			CurrentSize = Other.CurrentSize;
+			Histogram = Other.Histogram;
+			Offset = Other.Offset;
+			Other.Indices = nullptr;
+			Other.Indices2 = nullptr;
+			Other.CurrentSize = 0;
+			Other.Histogram = nullptr;
+			Other.Offset = nullptr;
+
+			return *this;
 		}
 		RadixSorter& RadixSorter::Sort(unsigned int* input, unsigned int nb, bool signedvalues)
 		{
@@ -4472,6 +4514,8 @@ namespace Tomahawk
 
 		MD5Hasher::MD5Hasher()
 		{
+			memset(Buffer, 0, sizeof(Buffer));
+			memset(Digest, 0, sizeof(Digest));
 			Finalized = false;
 			Count[0] = 0;
 			Count[1] = 0;
@@ -4569,7 +4613,11 @@ namespace Tomahawk
 			State[1] += B;
 			State[2] += C;
 			State[3] += D;
+#ifdef TH_MICROSOFT
+			RtlSecureZeroMemory(X, sizeof(X));
+#else
 			memset(X, 0, sizeof(X));
+#endif
 		}
 		void MD5Hasher::Update(const std::string& Input, unsigned int BlockSize)
 		{
@@ -4578,10 +4626,11 @@ namespace Tomahawk
 		void MD5Hasher::Update(const unsigned char* Input, unsigned int Length, unsigned int BlockSize)
 		{
 			unsigned int Index = Count[0] / 8 % BlockSize;
-			if ((Count[0] += (Length << 3)) < (Length << 3))
+			Count[0] += (Length << 3);
+			if (Count[0] < Length << 3)
 				Count[1]++;
-			Count[1] += (Length >> 29);
 
+			Count[1] += (Length >> 29);
 			unsigned int Chunk = 64 - Index, i = 0;
 			if (Length >= Chunk)
 			{
@@ -5036,13 +5085,13 @@ namespace Tomahawk
 			if (!LeftHanded)
 				Coord = Coord.Inv();
 
-			for (auto It = Vertices.begin(); It != Vertices.end(); It++)
+			for (auto& Item : Vertices)
 			{
-				Compute::Vector3 Position(It->PositionX, It->PositionY, It->PositionZ);
+				Compute::Vector3 Position(Item.PositionX, Item.PositionY, Item.PositionZ);
 				Position = (Coord * Compute::Matrix4x4::CreateTranslation(Position)).Position();
-				It->PositionX = Position.X;
-				It->PositionY = Position.Y;
-				It->PositionZ = Position.Z;
+				Item.PositionX = Position.X;
+				Item.PositionY = Position.Y;
+				Item.PositionZ = Position.Z;
 			}
 		}
 		void Common::ComputeInfluenceOrientation(std::vector<SkinVertex>& Vertices, bool LeftHanded)
@@ -5051,13 +5100,13 @@ namespace Tomahawk
 			if (!LeftHanded)
 				Coord = Coord.Inv();
 
-			for (auto It = Vertices.begin(); It != Vertices.end(); It++)
+			for (auto& Item : Vertices)
 			{
-				Compute::Vector3 Position(It->PositionX, It->PositionY, It->PositionZ);
+				Compute::Vector3 Position(Item.PositionX, Item.PositionY, Item.PositionZ);
 				Position = (Coord * Compute::Matrix4x4::CreateTranslation(Position)).Position();
-				It->PositionX = Position.X;
-				It->PositionY = Position.Y;
-				It->PositionZ = Position.Z;
+				Item.PositionX = Position.X;
+				Item.PositionY = Position.Y;
+				Item.PositionZ = Position.Z;
 			}
 		}
 		void Common::ComputeInfluenceNormals(std::vector<SkinVertex>& Vertices)
@@ -5114,12 +5163,12 @@ namespace Tomahawk
 				V3.BitangentZ = Bitangent.Z;
 			}
 		}
-		void Common::ComputeInfluenceTangentBitangent(SkinVertex V1, SkinVertex V2, SkinVertex V3, Vector3& Tangent, Vector3& Bitangent, Vector3& Normal)
+		void Common::ComputeInfluenceTangentBitangent(const SkinVertex& V1, const SkinVertex& V2, const SkinVertex& V3, Vector3& Tangent, Vector3& Bitangent, Vector3& Normal)
 		{
-			Vector3 Face1 = Vector3(V2.PositionX - V1.PositionX, V2.PositionY - V1.PositionY, V2.PositionZ - V1.PositionZ);
-			Vector3 Face2 = Vector3(V3.PositionX - V1.PositionX, V3.PositionY - V1.PositionY, V3.PositionZ - V1.PositionZ);
-			Vector2 Coord1 = Vector2(V2.TexCoordX - V1.TexCoordX, V3.TexCoordX - V1.TexCoordX);
-			Vector2 Coord2 = Vector2(V2.TexCoordY - V1.TexCoordY, V3.TexCoordY - V1.TexCoordY);
+			Vector3 Face1(V2.PositionX - V1.PositionX, V2.PositionY - V1.PositionY, V2.PositionZ - V1.PositionZ);
+			Vector3 Face2(V3.PositionX - V1.PositionX, V3.PositionY - V1.PositionY, V3.PositionZ - V1.PositionZ);
+			Vector2 Coord1(V2.TexCoordX - V1.TexCoordX, V3.TexCoordX - V1.TexCoordX);
+			Vector2 Coord2(V2.TexCoordY - V1.TexCoordY, V3.TexCoordY - V1.TexCoordY);
 			float Ray = 1.0f / (Coord1.X * Coord2.Y - Coord1.Y * Coord2.X);
 
 			Tangent.X = (Coord1.Y * Face1.X - Coord1.X * Face2.X) * Ray;
@@ -5137,12 +5186,12 @@ namespace Tomahawk
 			Normal.Z = (Tangent.X * Bitangent.Y) - (Tangent.Y * Bitangent.X);
 			Normal = -Normal.sNormalize();
 		}
-		void Common::ComputeInfluenceTangentBitangent(SkinVertex V1, SkinVertex V2, SkinVertex V3, Vector3& Tangent, Vector3& Bitangent)
+		void Common::ComputeInfluenceTangentBitangent(const SkinVertex& V1, const SkinVertex& V2, const SkinVertex& V3, Vector3& Tangent, Vector3& Bitangent)
 		{
-			Vector3 Face1 = Vector3(V2.PositionX - V1.PositionX, V2.PositionY - V1.PositionY, V2.PositionZ - V1.PositionZ);
-			Vector3 Face2 = Vector3(V3.PositionX - V1.PositionX, V3.PositionY - V1.PositionY, V3.PositionZ - V1.PositionZ);
-			Vector2 Coord1 = Vector2(V2.TexCoordX - V1.TexCoordX, V3.TexCoordX - V1.TexCoordX);
-			Vector2 Coord2 = Vector2(V2.TexCoordY - V1.TexCoordY, V3.TexCoordY - V1.TexCoordY);
+			Vector3 Face1(V2.PositionX - V1.PositionX, V2.PositionY - V1.PositionY, V2.PositionZ - V1.PositionZ);
+			Vector3 Face2(V3.PositionX - V1.PositionX, V3.PositionY - V1.PositionY, V3.PositionZ - V1.PositionZ);
+			Vector2 Coord1(V2.TexCoordX - V1.TexCoordX, V3.TexCoordX - V1.TexCoordX);
+			Vector2 Coord2(V2.TexCoordY - V1.TexCoordY, V3.TexCoordY - V1.TexCoordY);
 			float Ray = 1.0f / (Coord1.X * Coord2.Y - Coord1.Y * Coord2.X);
 
 			Tangent.X = (Coord1.Y * Face1.X - Coord1.X * Face2.X) * Ray;
@@ -5796,7 +5845,7 @@ namespace Tomahawk
 
 			return Value;
 		}
-		std::string Common::Hybi10Encode(Hybi10Request Request, bool Masked)
+		std::string Common::Hybi10Encode(const Hybi10Request& Request, bool Masked)
 		{
 			std::string Stream;
 			size_t Length = (size_t)Request.Payload.size();
@@ -5823,18 +5872,17 @@ namespace Tomahawk
 			Stream += (char)Head;
 			if (Length > 65535)
 			{
-				unsigned long Offset = (unsigned long)Length;
+				unsigned long long Offset = (unsigned long long)Length;
 				Stream += (char)(unsigned char)(Masked ? 255 : 127);
 
-				for (int i = 7; i > 0; i--)
+				for (unsigned int i = 7; i > 0; i--)
 				{
 					unsigned char Block = 0;
-					for (int j = 0; j < 8; j++)
+					for (unsigned int j = 0; j < 8; j++)
 					{
-						unsigned char Shift = 0x01 << j;
+						unsigned long long Shift = 0x01ull << j;
 						Shift = Shift << (8 * i);
-
-						Block += (unsigned char)pow(2, j) * (Offset & Shift);
+						Block += (unsigned char)((unsigned long long)(1ull << j) * (Offset & Shift));
 					}
 
 					if (i == 7 && Block > 127)
@@ -6055,7 +6103,7 @@ namespace Tomahawk
 		}
 		void Preprocessor::Undefine(const std::string& Name)
 		{
-			for (auto It = Defines.begin(); It != Defines.end(); It++)
+			for (auto It = Defines.begin(); It != Defines.end(); ++It)
 			{
 				if (*It == Name)
 				{
@@ -6144,7 +6192,6 @@ namespace Tomahawk
 			Result.Start = Result.End = 0;
 			Result.Found = false;
 
-			std::string Dir = Path.empty() ? Core::OS::Directory::Get() : Core::OS::Path::GetDirectory(Path.c_str());
 			while (true)
 			{
 				Result = Buffer.Find("#include", Result.End);
@@ -6346,7 +6393,7 @@ namespace Tomahawk
 				else if (R == 0)
 					return 0;
 
-				Resolved = !Resolved;
+				Resolved = true;
 			}
 			else if (R == 0)
 				return 0;
@@ -6528,7 +6575,6 @@ namespace Tomahawk
 				{
 					Result.Module = Core::Parser(Desc.Path).Replace('\\', '/').R();
 					Result.IsSystem = true;
-					Result.IsFile = false;
 					return Result;
 				}
 
@@ -6551,7 +6597,7 @@ namespace Tomahawk
 					if (!Core::OS::File::IsExists(File.c_str()))
 						continue;
 
-					Result.Module = File;
+					Result.Module = std::move(File);
 					Result.IsSystem = true;
 					Result.IsFile = true;
 					return Result;
@@ -6559,14 +6605,12 @@ namespace Tomahawk
 
 				Result.Module = Core::Parser(Desc.Path).Replace('\\', '/').R();;
 				Result.IsSystem = true;
-				Result.IsFile = false;
 				return Result;
 			}
 
 			Result.Module = Core::OS::Path::Resolve(Desc.Path, Base);
 			if (Core::OS::File::IsExists(Result.Module.c_str()))
 			{
-				Result.IsSystem = false;
 				Result.IsFile = true;
 				return Result;
 			}
@@ -6582,15 +6626,12 @@ namespace Tomahawk
 				if (!Core::OS::File::IsExists(File.c_str()))
 					continue;
 
-				Result.Module = File;
-				Result.IsSystem = false;
+				Result.Module = std::move(File);
 				Result.IsFile = true;
 				return Result;
 			}
 
 			Result.Module.clear();
-			Result.IsFile = false;
-			Result.IsSystem = false;
 			return Result;
 		}
 
@@ -6883,7 +6924,7 @@ namespace Tomahawk
 
 				if (Root->Childs != nullptr)
 				{
-					for (auto It = Root->Childs->begin(); It != Root->Childs->end(); It++)
+					for (auto It = Root->Childs->begin(); It != Root->Childs->end(); ++It)
 					{
 						if ((*It) == this)
 						{
@@ -6957,7 +6998,7 @@ namespace Tomahawk
 			if (!Childs)
 				return false;
 
-			for (auto It = Childs->begin(); It != Childs->end(); It++)
+			for (auto It = Childs->begin(); It != Childs->end(); ++It)
 			{
 				if (*It == Target)
 					return true;
@@ -7738,7 +7779,7 @@ namespace Tomahawk
 		}
 		float RigidBody::GetMass()
 		{
-			if (Instance && Instance->getInvMass() != 0)
+			if (Instance && Instance->getInvMass() != 0.0f)
 				return 1.0f / Instance->getInvMass();
 
 			return 0;
@@ -7955,6 +7996,9 @@ namespace Tomahawk
 		}
 		void SoftBody::GetVertices(std::vector<Vertex>* Result)
 		{
+			static size_t PositionX = offsetof(Compute::Vertex, PositionX);
+			static size_t NormalX = offsetof(Compute::Vertex, NormalX);
+
 			if (!Instance || !Result)
 				return;
 
@@ -7970,8 +8014,8 @@ namespace Tomahawk
 			for (size_t i = 0; i < Size; i++)
 			{
 				auto* Node = &Instance->m_nodes[i]; Vertex& Position = Result->at(i);
-				memcpy(&Position.PositionX, Node->m_x.m_floats, sizeof(float) * 3);
-				memcpy(&Position.NormalX, Node->m_n.m_floats, sizeof(float) * 3);
+				memcpy(&Position + PositionX, Node->m_x.m_floats, sizeof(float) * 3);
+				memcpy(&Position + NormalX, Node->m_n.m_floats, sizeof(float) * 3);
 			}
 		}
 		void SoftBody::GetBoundingBox(Vector3* Min, Vector3* Max)
@@ -8591,7 +8635,7 @@ namespace Tomahawk
 		void SliderConstraint::SetLinearMotorVelocity(float Value)
 		{
 			if (Instance)
-				Instance->setTargetAngMotorVelocity(Value);
+				Instance->setTargetLinMotorVelocity(Value);
 		}
 		void SliderConstraint::SetUpperLinearLimit(float Value)
 		{
@@ -9067,7 +9111,7 @@ namespace Tomahawk
 		Simulator::~Simulator()
 		{
 			RemoveAll();
-			for (auto It = Shapes.begin(); It != Shapes.end(); It++)
+			for (auto It = Shapes.begin(); It != Shapes.end(); ++It)
 			{
 				btCollisionShape* Item = (btCollisionShape*)It->first;
 				TH_DELETE(btCollisionShape, Item);
@@ -9349,7 +9393,7 @@ namespace Tomahawk
 		btCollisionShape* Simulator::CreateConvexHull(std::vector<SkinVertex>& Vertices)
 		{
 			btConvexHullShape* Shape = TH_NEW(btConvexHullShape);
-			for (auto It = Vertices.begin(); It != Vertices.end(); It++)
+			for (auto It = Vertices.begin(); It != Vertices.end(); ++It)
 				Shape->addPoint(btVector3(It->PositionX, It->PositionY, It->PositionZ), false);
 
 			Shape->recalcLocalAabb();
@@ -9365,7 +9409,7 @@ namespace Tomahawk
 		btCollisionShape* Simulator::CreateConvexHull(std::vector<Vertex>& Vertices)
 		{
 			btConvexHullShape* Shape = TH_NEW(btConvexHullShape);
-			for (auto It = Vertices.begin(); It != Vertices.end(); It++)
+			for (auto It = Vertices.begin(); It != Vertices.end(); ++It)
 				Shape->addPoint(btVector3(It->PositionX, It->PositionY, It->PositionZ), false);
 
 			Shape->recalcLocalAabb();
@@ -9381,7 +9425,7 @@ namespace Tomahawk
 		btCollisionShape* Simulator::CreateConvexHull(std::vector<Vector2>& Vertices)
 		{
 			btConvexHullShape* Shape = TH_NEW(btConvexHullShape);
-			for (auto It = Vertices.begin(); It != Vertices.end(); It++)
+			for (auto It = Vertices.begin(); It != Vertices.end(); ++It)
 				Shape->addPoint(btVector3(It->X, It->Y, 0), false);
 
 			Shape->recalcLocalAabb();
@@ -9397,7 +9441,7 @@ namespace Tomahawk
 		btCollisionShape* Simulator::CreateConvexHull(std::vector<Vector3>& Vertices)
 		{
 			btConvexHullShape* Shape = TH_NEW(btConvexHullShape);
-			for (auto It = Vertices.begin(); It != Vertices.end(); It++)
+			for (auto It = Vertices.begin(); It != Vertices.end(); ++It)
 				Shape->addPoint(btVector3(It->X, It->Y, It->Z), false);
 
 			Shape->recalcLocalAabb();
@@ -9413,7 +9457,7 @@ namespace Tomahawk
 		btCollisionShape* Simulator::CreateConvexHull(std::vector<Vector4>& Vertices)
 		{
 			btConvexHullShape* Shape = TH_NEW(btConvexHullShape);
-			for (auto It = Vertices.begin(); It != Vertices.end(); It++)
+			for (auto It = Vertices.begin(); It != Vertices.end(); ++It)
 				Shape->addPoint(btVector3(It->X, It->Y, It->Z), false);
 
 			Shape->recalcLocalAabb();
@@ -9675,7 +9719,7 @@ namespace Tomahawk
 		btCollisionShape* Simulator::CreateUnmanagedShape(std::vector<Vertex>& Vertices)
 		{
 			btConvexHullShape* Shape = TH_NEW(btConvexHullShape);
-			for (auto It = Vertices.begin(); It != Vertices.end(); It++)
+			for (auto It = Vertices.begin(); It != Vertices.end(); ++It)
 				Shape->addPoint(btVector3(It->PositionX, It->PositionY, It->PositionZ), false);
 
 			Shape->recalcLocalAabb();

@@ -50,7 +50,7 @@ namespace Tomahawk
 				Device->SetShader(nullptr, TH_PS);
 				Device->SetShader(Shaders.Occlusion, TH_VS);
 
-				for (auto It = Geometry->Begin(); It != Geometry->End(); It++)
+				for (auto It = Geometry->Begin(); It != Geometry->End(); ++It)
 				{
 					Components::Model* Base = (Components::Model*)*It;
 					if (!System->PassCullable(Base, CullResult_Last, nullptr))
@@ -266,7 +266,7 @@ namespace Tomahawk
 				Device->SetShader(nullptr, TH_PS);
 				Device->SetShader(Shaders.Occlusion, TH_VS);
 
-				for (auto It = Geometry->Begin(); It != Geometry->End(); It++)
+				for (auto It = Geometry->Begin(); It != Geometry->End(); ++It)
 				{
 					Components::Skin* Base = (Components::Skin*)*It;
 					if (!System->PassCullable(Base, CullResult_Last, nullptr))
@@ -527,7 +527,7 @@ namespace Tomahawk
 				Device->SetShader(nullptr, TH_PS);
 				Device->SetShader(Shaders.Occlusion, TH_VS);
 
-				for (auto It = Geometry->Begin(); It != Geometry->End(); It++)
+				for (auto It = Geometry->Begin(); It != Geometry->End(); ++It)
 				{
 					Components::SoftBody* Base = (Components::SoftBody*)*It;
 					if (!System->PassCullable(Base, CullResult_Last, nullptr))
@@ -738,7 +738,7 @@ namespace Tomahawk
 				Graphics::GraphicsDevice* Device = System->GetDevice();
 				Graphics::Shader* BaseShader = nullptr;
 				Graphics::PrimitiveTopology T = Device->GetPrimitiveTopology();
-				Compute::Matrix4x4& View = System->GetScene()->View.View;
+				Viewer& View = System->GetScene()->View;
 				CullResult Cull = (Options & RenderOpt_Inner ? CullResult_Always : CullResult_Last);
 				bool Static = (Options & RenderOpt_Static);
 
@@ -774,8 +774,8 @@ namespace Tomahawk
 					if (!System->PushGeometryBuffer(Base->GetMaterial()))
 						continue;
 
-					Device->Render.World = System->GetScene()->View.Projection;
-					Device->Render.WorldViewProj = (Base->QuadBased ? View : System->GetScene()->View.ViewProjection);
+					Device->Render.World = View.Projection;
+					Device->Render.WorldViewProj = (Base->QuadBased ? View.View : View.ViewProjection);
 					Device->Render.TexCoord = Base->TexCoord;
 					if (Base->Connected)
 						Device->Render.WorldViewProj = Base->GetEntity()->Transform->GetWorld() * Device->Render.WorldViewProj;
@@ -798,7 +798,7 @@ namespace Tomahawk
 			{
 				Graphics::GraphicsDevice* Device = System->GetDevice();
 				Graphics::PrimitiveTopology T = Device->GetPrimitiveTopology();
-				Compute::Matrix4x4& View = System->GetScene()->View.View;
+				Viewer& View = System->GetScene()->View;
 
 				Device->SetPrimitiveTopology(Graphics::PrimitiveTopology_Point_List);
 				Device->SetDepthStencilState(DepthStencilLimpid);
@@ -818,8 +818,8 @@ namespace Tomahawk
 					if (!System->PushDepthLinearBuffer(Base->GetMaterial()))
 						continue;
 
-					Device->Render.World = Base->QuadBased ? System->GetScene()->View.Projection : Compute::Matrix4x4::Identity();
-					Device->Render.WorldViewProj = (Base->QuadBased ? View : System->GetScene()->View.ViewProjection);
+					Device->Render.World = Base->QuadBased ? View.Projection : Compute::Matrix4x4::Identity();
+					Device->Render.WorldViewProj = (Base->QuadBased ? View.View : View.ViewProjection);
 					Device->Render.TexCoord = Base->TexCoord;
 					if (Base->Connected)
 						Device->Render.WorldViewProj = Base->GetEntity()->Transform->GetWorld() * Device->Render.WorldViewProj;
@@ -837,12 +837,13 @@ namespace Tomahawk
 			void Emitter::RenderDepthCubic(Core::Timer* Time, Core::Pool<Drawable*>* Geometry, Compute::Matrix4x4* ViewProjection)
 			{
 				Graphics::GraphicsDevice* Device = System->GetDevice();
-				Depth.FaceView[0] = Compute::Matrix4x4::CreateCubeMapLookAt(0, System->GetScene()->View.InvViewPosition);
-				Depth.FaceView[1] = Compute::Matrix4x4::CreateCubeMapLookAt(1, System->GetScene()->View.InvViewPosition);
-				Depth.FaceView[2] = Compute::Matrix4x4::CreateCubeMapLookAt(2, System->GetScene()->View.InvViewPosition);
-				Depth.FaceView[3] = Compute::Matrix4x4::CreateCubeMapLookAt(3, System->GetScene()->View.InvViewPosition);
-				Depth.FaceView[4] = Compute::Matrix4x4::CreateCubeMapLookAt(4, System->GetScene()->View.InvViewPosition);
-				Depth.FaceView[5] = Compute::Matrix4x4::CreateCubeMapLookAt(5, System->GetScene()->View.InvViewPosition);
+				auto& Source = System->GetScene()->View;
+				Depth.FaceView[0] = Compute::Matrix4x4::CreateCubeMapLookAt(0, Source.InvViewPosition);
+				Depth.FaceView[1] = Compute::Matrix4x4::CreateCubeMapLookAt(1, Source.InvViewPosition);
+				Depth.FaceView[2] = Compute::Matrix4x4::CreateCubeMapLookAt(2, Source.InvViewPosition);
+				Depth.FaceView[3] = Compute::Matrix4x4::CreateCubeMapLookAt(3, Source.InvViewPosition);
+				Depth.FaceView[4] = Compute::Matrix4x4::CreateCubeMapLookAt(4, Source.InvViewPosition);
+				Depth.FaceView[5] = Compute::Matrix4x4::CreateCubeMapLookAt(5, Source.InvViewPosition);
 
 				Graphics::PrimitiveTopology T = Device->GetPrimitiveTopology();
 				Device->SetDepthStencilState(DepthStencilLimpid);
@@ -1083,7 +1084,7 @@ namespace Tomahawk
 				FlushDepthBuffersAndCache();
 
 				Shadows.PointLight.resize(Shadows.PointLightLimits);
-				for (auto It = Shadows.PointLight.begin(); It != Shadows.PointLight.end(); It++)
+				for (auto It = Shadows.PointLight.begin(); It != Shadows.PointLight.end(); ++It)
 				{
 					Graphics::RenderTargetCube::Desc F = Graphics::RenderTargetCube::Desc();
 					F.Size = (unsigned int)Shadows.PointLightResolution;
@@ -1093,7 +1094,7 @@ namespace Tomahawk
 				}
 
 				Shadows.SpotLight.resize(Shadows.SpotLightLimits);
-				for (auto It = Shadows.SpotLight.begin(); It != Shadows.SpotLight.end(); It++)
+				for (auto It = Shadows.SpotLight.begin(); It != Shadows.SpotLight.end(); ++It)
 				{
 					Graphics::RenderTarget2D::Desc F = Graphics::RenderTarget2D::Desc();
 					F.Width = (unsigned int)Shadows.SpotLightResolution;
@@ -1104,7 +1105,7 @@ namespace Tomahawk
 				}
 
 				Shadows.LineLight.resize(Shadows.LineLightLimits);
-				for (auto It = Shadows.LineLight.begin(); It != Shadows.LineLight.end(); It++)
+				for (auto It = Shadows.LineLight.begin(); It != Shadows.LineLight.end(); ++It)
 					*It = nullptr;
 			}
 			Component* Lighting::GetIlluminator(Core::Timer* Time)
@@ -1112,7 +1113,7 @@ namespace Tomahawk
 				Engine::Components::Illuminator* Src = nullptr;
 				float Distance = std::numeric_limits<float>::max();
 
-				for (auto It = Illuminators->Begin(); It != Illuminators->End(); It++)
+				for (auto It = Illuminators->Begin(); It != Illuminators->End(); ++It)
 				{
 					Engine::Components::Illuminator* Area = (Engine::Components::Illuminator*)*It;
 					float Subdistance = Area->GetEntity()->Distance;
@@ -1301,11 +1302,11 @@ namespace Tomahawk
 			void Lighting::GenerateCascadeMap(CascadedDepthMap** Result, uint32_t Size)
 			{
 				CascadedDepthMap* Target = (*Result ? *Result : TH_NEW(CascadedDepthMap));
-				for (auto It = Target->begin(); It != Target->end(); It++)
+				for (auto It = Target->begin(); It != Target->end(); ++It)
 					TH_RELEASE(*It);
 
 				Target->resize(Size);
-				for (auto It = Target->begin(); It != Target->end(); It++)
+				for (auto It = Target->begin(); It != Target->end(); ++It)
 				{
 					Graphics::RenderTarget2D::Desc F = Graphics::RenderTarget2D::Desc();
 					F.Width = (unsigned int)Shadows.LineLightResolution;
@@ -1376,28 +1377,32 @@ namespace Tomahawk
 			}
 			void Lighting::FlushDepthBuffersAndCache()
 			{
-				if (System != nullptr && System->GetScene())
+				if (System != nullptr)
 				{
-					Core::Pool<Component*>* Lights = System->GetScene()->GetComponents<Components::PointLight>();
-					for (auto It = Lights->Begin(); It != Lights->End(); It++)
-						(*It)->As<Components::PointLight>()->DepthMap = nullptr;
+					SceneGraph* Scene = System->GetScene();
+					if (Scene != nullptr)
+					{
+						Core::Pool<Component*>* Lights = Scene->GetComponents<Components::PointLight>();
+						for (auto It = Lights->Begin(); It != Lights->End(); ++It)
+							(*It)->As<Components::PointLight>()->DepthMap = nullptr;
 
-					Lights = System->GetScene()->GetComponents<Components::SpotLight>();
-					for (auto It = Lights->Begin(); It != Lights->End(); It++)
-						(*It)->As<Components::SpotLight>()->DepthMap = nullptr;
+						Lights = Scene->GetComponents<Components::SpotLight>();
+						for (auto It = Lights->Begin(); It != Lights->End(); ++It)
+							(*It)->As<Components::SpotLight>()->DepthMap = nullptr;
 
-					Lights = System->GetScene()->GetComponents<Components::LineLight>();
-					for (auto It = Lights->Begin(); It != Lights->End(); It++)
-						(*It)->As<Components::LineLight>()->DepthMap = nullptr;
+						Lights = Scene->GetComponents<Components::LineLight>();
+						for (auto It = Lights->Begin(); It != Lights->End(); ++It)
+							(*It)->As<Components::LineLight>()->DepthMap = nullptr;
+					}
 				}
 
-				for (auto It = Shadows.PointLight.begin(); It != Shadows.PointLight.end(); It++)
+				for (auto It = Shadows.PointLight.begin(); It != Shadows.PointLight.end(); ++It)
 					TH_RELEASE(*It);
 
-				for (auto It = Shadows.SpotLight.begin(); It != Shadows.SpotLight.end(); It++)
+				for (auto It = Shadows.SpotLight.begin(); It != Shadows.SpotLight.end(); ++It)
 					TH_RELEASE(*It);
 
-				for (auto It = Shadows.LineLight.begin(); It != Shadows.LineLight.end(); It++)
+				for (auto It = Shadows.LineLight.begin(); It != Shadows.LineLight.end(); ++It)
 				{
 					if (*It != nullptr)
 					{
@@ -1474,7 +1479,7 @@ namespace Tomahawk
 			void Lighting::RenderShadowMaps(Core::Timer* Time)
 			{
 				uint64_t Counter = 0; float D = 0.0f;
-				for (auto It = PointLights->Begin(); It != PointLights->End(); It++)
+				for (auto It = PointLights->Begin(); It != PointLights->End(); ++It)
 				{
 					Engine::Components::PointLight* Light = (Engine::Components::PointLight*)*It;
 					if (Counter >= Shadows.PointLight.size())
@@ -1500,7 +1505,7 @@ namespace Tomahawk
 				}
 
 				Counter = 0;
-				for (auto It = SpotLights->Begin(); It != SpotLights->End(); It++)
+				for (auto It = SpotLights->Begin(); It != SpotLights->End(); ++It)
 				{
 					Engine::Components::SpotLight* Light = (Engine::Components::SpotLight*)*It;
 					if (Counter >= Shadows.SpotLight.size())
@@ -1526,7 +1531,7 @@ namespace Tomahawk
 				}
 
 				Counter = 0;
-				for (auto It = LineLights->Begin(); It != LineLights->End(); It++)
+				for (auto It = LineLights->Begin(); It != LineLights->End(); ++It)
 				{
 					Engine::Components::LineLight* Light = (Engine::Components::LineLight*)*It;
 					if (Counter >= Shadows.LineLight.size())
@@ -1573,7 +1578,7 @@ namespace Tomahawk
 				State.Scene->SetMRT(TargetType_Main, false);
 
 				double ElapsedTime = Time->GetElapsedTime();
-				for (auto It = SurfaceLights->Begin(); It != SurfaceLights->End(); It++)
+				for (auto It = SurfaceLights->Begin(); It != SurfaceLights->End(); ++It)
 				{
 					Engine::Components::SurfaceLight* Light = (Engine::Components::SurfaceLight*)*It;
 					if (Light->IsImageBased() || !System->PassCullable(Light, CullResult_Always, nullptr))
@@ -1751,7 +1756,7 @@ namespace Tomahawk
 				Graphics::ElementBuffer* Cube[2];
 				System->GetPrimitives()->GetCubeBuffers(Cube);
 
-				Graphics::Shader* Active = nullptr;
+				Graphics::Shader* fActive = nullptr;
 				State.Device->SetShader(Shaders.Point[0], TH_VS);
 				State.Device->SetBuffer(Shaders.Point[0], 3, TH_VS | TH_PS);
 
@@ -1765,13 +1770,13 @@ namespace Tomahawk
 					GetLightCulling(Light, Light->GetBoxRange(), &Position, &Scale);
 					if (GetPointLight(&PointLight, Light, Position, Scale))
 					{
-						Active = Shaders.Point[1];
+						fActive = Shaders.Point[1];
 						State.Device->SetTexture2D(Light->DepthMap->GetTarget(0), 5, TH_PS);
 					}
 					else
-						Active = Shaders.Point[0];
+						fActive = Shaders.Point[0];
 
-					State.Device->SetShader(Active, TH_PS);
+					State.Device->SetShader(fActive, TH_PS);
 					State.Device->UpdateBuffer(Shaders.Point[0], &PointLight);
 					State.Device->DrawIndexed((unsigned int)Cube[BufferType_Index]->GetElements(), 0, 0);
 				}
@@ -1781,7 +1786,7 @@ namespace Tomahawk
 				Graphics::ElementBuffer* Cube[2];
 				System->GetPrimitives()->GetCubeBuffers(Cube);
 
-				Graphics::Shader* Active = nullptr;
+				Graphics::Shader* fActive = nullptr;
 				State.Device->SetShader(Shaders.Spot[0], TH_VS);
 				State.Device->SetBuffer(Shaders.Spot[0], 3, TH_VS | TH_PS);
 
@@ -1795,20 +1800,20 @@ namespace Tomahawk
 					GetLightCulling(Light, Light->GetBoxRange(), &Position, &Scale);
 					if (GetSpotLight(&SpotLight, Light, Position, Scale))
 					{
-						Active = Shaders.Spot[1];
+						fActive = Shaders.Spot[1];
 						State.Device->SetTexture2D(Light->DepthMap->GetTarget(0), 5, TH_PS);
 					}
 					else
-						Active = Shaders.Spot[0];
+						fActive = Shaders.Spot[0];
 
-					State.Device->SetShader(Active, TH_PS);
+					State.Device->SetShader(fActive, TH_PS);
 					State.Device->UpdateBuffer(Shaders.Spot[0], &SpotLight);
 					State.Device->DrawIndexed((unsigned int)Cube[BufferType_Index]->GetElements(), 0, 0);
 				}
 			}
 			void Lighting::RenderLineLights()
 			{
-				Graphics::Shader* Active = nullptr;
+				Graphics::Shader* fActive = nullptr;
 				if (!State.Backcull)
 				{
 					State.Device->SetRasterizerState(BackRasterizer);
@@ -1825,14 +1830,14 @@ namespace Tomahawk
 					Engine::Components::LineLight* Light = (Engine::Components::LineLight*)*It;
 					if (GetLineLight(&LineLight, Light))
 					{
-						Active = Shaders.Line[1];
+						fActive = Shaders.Line[1];
 						for (size_t i = 0; i < Light->DepthMap->size(); i++)
 							State.Device->SetTexture2D((*Light->DepthMap)[i]->GetTarget(0), 5 + i, TH_PS);
 					}
 					else
-						Active = Shaders.Line[0];
+						fActive = Shaders.Line[0];
 
-					State.Device->SetShader(Active, TH_PS);
+					State.Device->SetShader(fActive, TH_PS);
 					State.Device->UpdateBuffer(Shaders.Line[0], &LineLight);
 					State.Device->Draw(6, 0);
 				}
@@ -1900,15 +1905,16 @@ namespace Tomahawk
 			}
 			void Lighting::SetSurfaceBufferSize(size_t NewSize)
 			{
+				Graphics::GraphicsDevice* Device = System->GetDevice();
 				Graphics::MultiRenderTarget2D::Desc F1 = System->GetScene()->GetDescMRT();
-				F1.MipLevels = System->GetDevice()->GetMipLevel((unsigned int)Surfaces.Size, (unsigned int)Surfaces.Size);
+				F1.MipLevels = Device->GetMipLevel((unsigned int)Surfaces.Size, (unsigned int)Surfaces.Size);
 				F1.Width = (unsigned int)Surfaces.Size;
 				F1.Height = (unsigned int)Surfaces.Size;
 				SurfaceLight.Mips = (float)F1.MipLevels;
 				Surfaces.Size = NewSize;
 
 				TH_RELEASE(Surfaces.Merger);
-				Surfaces.Merger = System->GetDevice()->CreateMultiRenderTarget2D(F1);
+				Surfaces.Merger = Device->CreateMultiRenderTarget2D(F1);
 
 				Graphics::Cubemap::Desc I;
 				I.Source = Surfaces.Merger;
@@ -1916,7 +1922,7 @@ namespace Tomahawk
 				I.Size = Surfaces.Size;
 
 				TH_RELEASE(Surfaces.Subresource);
-				Surfaces.Subresource = System->GetDevice()->CreateCubemap(I);
+				Surfaces.Subresource = Device->CreateCubemap(I);
 
 				Graphics::RenderTarget2D::Desc F2 = System->GetScene()->GetDescRT();
 				F2.MipLevels = F1.MipLevels;
@@ -1924,10 +1930,10 @@ namespace Tomahawk
 				F2.Height = F1.Height;
 
 				TH_RELEASE(Surfaces.Output);
-				Surfaces.Output = System->GetDevice()->CreateRenderTarget2D(F2);
+				Surfaces.Output = Device->CreateRenderTarget2D(F2);
 
 				TH_RELEASE(Surfaces.Input);
-				Surfaces.Input = System->GetDevice()->CreateRenderTarget2D(F2);
+				Surfaces.Input = Device->CreateRenderTarget2D(F2);
 			}
 			void Lighting::SetVoxelBuffer(RenderSystem* System, Graphics::Shader* Src, unsigned int Slot)
 			{
@@ -1978,25 +1984,26 @@ namespace Tomahawk
 			{
 				Graphics::MultiRenderTarget2D::Desc F1 = System->GetScene()->GetDescMRT();
 				Graphics::RenderTarget2D::Desc F2 = System->GetScene()->GetDescRT();
+				Graphics::GraphicsDevice* Device = System->GetDevice();
 				MipLevels[TargetType_Main] = (float)F1.MipLevels;
 
 				auto* Renderer = System->GetRenderer<Lighting>();
 				if (Renderer != nullptr)
 				{
-					MipLevels[TargetType_Secondary] = (float)System->GetDevice()->GetMipLevel((unsigned int)Renderer->Surfaces.Size, (unsigned int)Renderer->Surfaces.Size);
+					MipLevels[TargetType_Secondary] = (float)Device->GetMipLevel((unsigned int)Renderer->Surfaces.Size, (unsigned int)Renderer->Surfaces.Size);
 					F1.MipLevels = (unsigned int)MipLevels[TargetType_Secondary];
 					F1.Width = (unsigned int)Renderer->Surfaces.Size;
 					F1.Height = (unsigned int)Renderer->Surfaces.Size;
 					F2.MipLevels = F1.MipLevels;
 					F2.Width = F1.Width;
-					F2.Height = F1.Width;
+					F2.Height = F1.Height;
 				}
 
 				TH_RELEASE(Merger);
-				Merger = System->GetDevice()->CreateMultiRenderTarget2D(F1);
+				Merger = Device->CreateMultiRenderTarget2D(F1);
 
 				TH_RELEASE(Input);
-				Input = System->GetDevice()->CreateRenderTarget2D(F2);
+				Input = Device->CreateRenderTarget2D(F2);
 			}
 			void Transparency::Render(Core::Timer* Time, RenderState State, RenderOpt Options)
 			{
@@ -2156,10 +2163,10 @@ namespace Tomahawk
 				NMake::Pack(Node->Set("far-distance"), Focus.FarDistance);
 				NMake::Pack(Node->Set("far-range"), Focus.FarRange);
 			}
-			void DoF::RenderEffect(Core::Timer* Time)
+			void DoF::RenderEffect(Core::Timer* fTime)
 			{
 				if (Distance > 0.0f)
-					FocusAtNearestTarget(Time->GetDeltaTime());
+					FocusAtNearestTarget(fTime->GetDeltaTime());
 				
 				Focus.Texel[0] = 1.0f / GetWidth();
 				Focus.Texel[1] = 1.0f / GetHeight();
@@ -2167,12 +2174,13 @@ namespace Tomahawk
 			}
 			void DoF::FocusAtNearestTarget(float DeltaTime)
 			{
+				SceneGraph* Scene = System->GetScene();
 				Compute::Ray Origin;
-				Origin.Origin = System->GetScene()->View.WorldPosition.InvZ();
-				Origin.Direction = System->GetScene()->View.WorldRotation.dDirection();
+				Origin.Origin = Scene->View.WorldPosition.InvZ();
+				Origin.Direction = Scene->View.WorldRotation.dDirection();
 
 				bool Change = false;
-				System->GetScene()->RayTest<Components::Model>(Origin, Distance, [this, &Origin, &Change](Component* Result, const Compute::Vector3& Hit)
+				Scene->RayTest<Components::Model>(Origin, Distance, [this, &Origin, &Change](Component* Result, const Compute::Vector3& Hit)
 				{
 					float NextRange = Result->As<Components::Model>()->GetRange();
 					float NextDistance = Origin.Origin.Distance(Hit) + NextRange / 2.0f;

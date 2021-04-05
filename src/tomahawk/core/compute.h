@@ -283,6 +283,7 @@ namespace Tomahawk
 			Vector2();
 			Vector2(float x, float y);
 			Vector2(float xy);
+			Vector2(const Vector2& Value);
 			Vector2(const Vector3& Value);
 			Vector2(const Vector4& Value);
 			float Length() const;
@@ -381,6 +382,7 @@ namespace Tomahawk
 
 			Vector3();
 			Vector3(const Vector2& Value);
+			Vector3(const Vector3& Value);
 			Vector3(const Vector4& Value);
 			Vector3(float x, float y);
 			Vector3(float x, float y, float z);
@@ -498,6 +500,7 @@ namespace Tomahawk
 			Vector4();
 			Vector4(const Vector2& Value);
 			Vector4(const Vector3& Value);
+			Vector4(const Vector4& Value);
 			Vector4(float x, float y);
 			Vector4(float x, float y, float z);
 			Vector4(float x, float y, float z, float w);
@@ -635,6 +638,7 @@ namespace Tomahawk
 			Matrix4x4(float Array[16]);
 			Matrix4x4(const Vector4& Row0, const Vector4& Row1, const Vector4& Row2, const Vector4& Row3);
 			Matrix4x4(float Row00, float Row01, float Row02, float Row03, float Row10, float Row11, float Row12, float Row13, float Row20, float Row21, float Row22, float Row23, float Row30, float Row31, float Row32, float Row33);
+			Matrix4x4(const Matrix4x4& Other);
 			float& operator [](int Index);
 			float operator [](int Index) const;
 			bool operator ==(const Matrix4x4& Index) const;
@@ -838,8 +842,8 @@ namespace Tomahawk
 			int ExitCode, Type;
 
 			Hybi10Request();
-			std::string GetTextType();
-			Hybi10_Opcode GetEnumType();
+			std::string GetTextType() const;
+			Hybi10_Opcode GetEnumType() const;
 		};
 
 		struct TH_OUT ShapeContact
@@ -1061,6 +1065,8 @@ namespace Tomahawk
 			RadixSorter(const RadixSorter& Other);
 			RadixSorter(RadixSorter&& Other);
 			~RadixSorter();
+			RadixSorter& operator =(const RadixSorter& V);
+			RadixSorter& operator =(RadixSorter&& V);
 			RadixSorter& Sort(unsigned int* Input, unsigned int Nb, bool SignedValues = true);
 			RadixSorter& Sort(float* Input, unsigned int Nb);
 			RadixSorter& ResetIndices();
@@ -1321,8 +1327,8 @@ namespace Tomahawk
 			static void ComputeInfluenceOrientation(std::vector<SkinVertex>& Vertices, bool LeftHanded);
 			static void ComputeInfluenceNormals(std::vector<SkinVertex>& Vertices);
 			static void ComputeInfluenceNormalsArray(SkinVertex* Vertices, uint64_t Count);
-			static void ComputeInfluenceTangentBitangent(SkinVertex V1, SkinVertex V2, SkinVertex V3, Vector3& Tangent, Vector3& Bitangent, Vector3& Normal);
-			static void ComputeInfluenceTangentBitangent(SkinVertex V1, SkinVertex V2, SkinVertex V3, Vector3& Tangent, Vector3& Bitangent);
+			static void ComputeInfluenceTangentBitangent(const SkinVertex& V1, const SkinVertex& V2, const SkinVertex& V3, Vector3& Tangent, Vector3& Bitangent, Vector3& Normal);
+			static void ComputeInfluenceTangentBitangent(const SkinVertex& V1, const SkinVertex& V2, const SkinVertex& V3, Vector3& Tangent, Vector3& Bitangent);
 			static void ConfigurateUnsafe(Transform* In, Matrix4x4* LocalTransform, Vector3* LocalPosition, Vector3* LocalRotation, Vector3* LocalScale);
 			static void SetRootUnsafe(Transform* In, Transform* Root);
 			static void Randomize();
@@ -1340,7 +1346,7 @@ namespace Tomahawk
 			static std::string Base64Encode(const unsigned char* Value, uint64_t Length);
 			static std::string Base64Encode(const std::string& Value);
 			static std::string Base64Decode(const std::string& Value);
-			static std::string Hybi10Encode(Hybi10Request hRequest, bool Masked);
+			static std::string Hybi10Encode(const Hybi10Request& hRequest, bool Masked);
 			static std::string DecimalToHex(uint64_t V);
 			static Hybi10Request Hybi10Decode(const std::string& Data);
 			static unsigned char RandomUC();
@@ -1640,7 +1646,7 @@ namespace Tomahawk
 				{
 					struct SConvex
 					{
-						Compute::UnmanagedShape* Hull;
+						Compute::UnmanagedShape* Hull = nullptr;
 						bool Enabled = false;
 					} Convex;
 

@@ -110,6 +110,7 @@ typedef socklen_t socket_size_t;
 #define TH_MALLOC(Size) Tomahawk::Core::Mem::Malloc(Size)
 #define TH_NEW(Type, ...) new(TH_MALLOC(sizeof(Type))) Type(__VA_ARGS__)
 #define TH_DELETE(Destructor, Var) { if (Var != nullptr) { (Var)->~Destructor(); TH_FREE(Var); } }
+#define TH_DELETE_THIS(Destructor) { (this)->~Destructor(); TH_FREE((void*)this); }
 #define TH_REALLOC(Ptr, Size) Tomahawk::Core::Mem::Realloc(Ptr, Size)
 #define TH_FREE(Ptr) Tomahawk::Core::Mem::Free(Ptr)
 #define TH_RELEASE(Ptr) { if (Ptr != nullptr) (Ptr)->Release(); }
@@ -347,11 +348,12 @@ namespace Tomahawk
 		private:
 			std::chrono::system_clock::duration Time;
 			struct tm DateValue;
-			bool DateRebuild = false;
+			bool DateRebuild;
 
 		public:
 			DateTime();
 			DateTime(const DateTime& Value);
+			DateTime& operator= (const DateTime& Other);
 			void operator +=(const DateTime& Right);
 			void operator -=(const DateTime& Right);
 			bool operator >=(const DateTime& Right);
@@ -438,7 +440,6 @@ namespace Tomahawk
 			Parser& Resize(uint64_t Count);
 			Parser& Resize(uint64_t Count, char Char);
 			Parser& Clear();
-			Parser& ToUtf8();
 			Parser& ToUpper();
 			Parser& ToLower();
 			Parser& Clip(uint64_t Length);
@@ -818,6 +819,11 @@ namespace Tomahawk
 		class TH_OUT Console : public Object
 		{
 		protected:
+#ifdef TH_MICROSOFT
+			FILE* Conin;
+			FILE* Conout;
+			FILE* Conerr;
+#endif
 			std::mutex Lock;
 			bool Handle;
 			double Time;
@@ -1219,16 +1225,19 @@ namespace Tomahawk
 				T* Raw = (T*)TH_MALLOC((size_t)(Volume * SizeOf(Data)));
 				memset(Raw, 0, (size_t)(Volume * SizeOf(Data)));
 
+				if (!Data)
+				{
+					Data = Raw;
+					return;
+				}
+
 				if (!Assign(Begin(), End(), Raw))
 					memcpy(Raw, Data, (size_t)(Count * SizeOf(Data)));
 
-				if (Data != nullptr)
-				{
-					for (auto It = Begin(); It != End(); It++)
-						Dispose(It);
+				for (auto It = Begin(); It != End(); It++)
+					Dispose(It);
 
-					TH_FREE(Data);
-				}
+				TH_FREE(Data);
 				Data = Raw;
 			}
 			void Release()
@@ -1490,7 +1499,7 @@ namespace Tomahawk
 				void Free()
 				{
 					if (!--Count)
-						TH_DELETE(Base, this);
+						TH_DELETE_THIS(Base);
 				}
 			}* Next;
 
@@ -1712,7 +1721,7 @@ namespace Tomahawk
 				void Free()
 				{
 					Value.Set(Match);
-					TH_DELETE(Output, this);
+					TH_DELETE_THIS(Output);
 				}
 				void Next(bool Statement)
 				{

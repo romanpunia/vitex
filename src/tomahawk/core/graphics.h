@@ -831,7 +831,6 @@ namespace Tomahawk
 
 		struct TH_OUT RenderTargetBlendState
 		{
-			bool BlendEnable;
 			Blend SrcBlend;
 			Blend DestBlend;
 			BlendOperation BlendOperationMode;
@@ -839,6 +838,7 @@ namespace Tomahawk
 			Blend DestBlendAlpha;
 			BlendOperation BlendOperationAlpha;
 			unsigned char RenderTargetWriteMask;
+			bool BlendEnable;
 		};
 
 		struct TH_OUT PoseNode
@@ -1400,7 +1400,7 @@ namespace Tomahawk
 			{
 				CPUAccess AccessFlags = CPUAccess_Invalid;
 				SurfaceTarget Target = SurfaceTarget0;
-				Format FormatMode[8] = { Format_R8G8B8A8_Unorm };
+				Format FormatMode[8] = { Format_R8G8B8A8_Unorm, Format_Unknown, Format_Unknown, Format_Unknown, Format_Unknown, Format_Unknown, Format_Unknown, Format_Unknown };
 				ResourceUsage Usage = ResourceUsage_Default;
 				ResourceBind BindFlags = (ResourceBind)(ResourceBind_Render_Target | ResourceBind_Shader_Input);
 				ResourceMisc MiscFlags = ResourceMisc_None;
@@ -1465,7 +1465,7 @@ namespace Tomahawk
 			{
 				CPUAccess AccessFlags = CPUAccess_Invalid;
 				SurfaceTarget Target = SurfaceTarget0;
-				Format FormatMode[8] = { Format_R8G8B8A8_Unorm };
+				Format FormatMode[8] = { Format_R8G8B8A8_Unorm, Format_Unknown, Format_Unknown, Format_Unknown, Format_Unknown, Format_Unknown, Format_Unknown, Format_Unknown };
 				ResourceUsage Usage = ResourceUsage_Default;
 				ResourceBind BindFlags = (ResourceBind)(ResourceBind_Render_Target | ResourceBind_Shader_Input);
 				ResourceMisc MiscFlags = (ResourceMisc)(ResourceMisc_Generate_Mips | ResourceMisc_Texture_Cube);

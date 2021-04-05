@@ -445,9 +445,6 @@ namespace Tomahawk
 						case asTYPEID_INT32:
 							Result->Set(Name, std::move(Core::Var::Integer(*(int*)Ref)));
 							break;
-						case asTYPEID_INT64:
-							Result->Set(Name, std::move(Core::Var::Integer(*(asINT64*)Ref)));
-							break;
 						case asTYPEID_UINT8:
 							Result->Set(Name, std::move(Core::Var::Integer(*(unsigned char*)Ref)));
 							break;
@@ -457,6 +454,7 @@ namespace Tomahawk
 						case asTYPEID_UINT32:
 							Result->Set(Name, std::move(Core::Var::Integer(*(unsigned int*)Ref)));
 							break;
+						case asTYPEID_INT64:
 						case asTYPEID_UINT64:
 							Result->Set(Name, std::move(Core::Var::Integer(*(asINT64*)Ref)));
 							break;

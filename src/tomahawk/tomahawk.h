@@ -85,7 +85,7 @@ namespace Tomahawk
 		static const char* Platform();
 	};
 
-	TH_OUT bool Initialize(unsigned int Modules = TPreset_Game, size_t HeapSize = TMem_Heap);
+	TH_OUT bool Initialize(unsigned int Modules = TPreset_App, size_t HeapSize = TMem_Heap);
 	TH_OUT bool Uninitialize();
 }
 #endif

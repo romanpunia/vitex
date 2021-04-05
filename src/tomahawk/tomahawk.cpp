@@ -271,9 +271,6 @@ namespace Tomahawk
 			FIPS_mode_set(1);
 
 			int Count = CRYPTO_num_locks();
-			if (Count < 0)
-				Count = 0;
-
 			CryptoLocks = TH_NEW(std::vector<std::shared_ptr<std::mutex>>);
 			CryptoLocks->reserve(Count);
 			for (int i = 0; i < Count; i++)

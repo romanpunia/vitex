@@ -135,6 +135,7 @@ namespace Tomahawk
 		public:
 			VMCAny(VMCManager* Engine);
 			VMCAny(void* Ref, int RefTypeId, VMCManager* Engine);
+			VMCAny(const VMCAny&);
 			int AddRef() const;
 			int Release() const;
 			VMCAny& operator= (const VMCAny&);
@@ -405,6 +406,7 @@ namespace Tomahawk
 		protected:
 			VMCMap(VMCManager* Engine);
 			VMCMap(unsigned char* Buffer);
+			VMCMap(const VMCMap&);
 			virtual ~VMCMap();
 			void Init(VMCManager* Engine);
 
@@ -691,15 +693,15 @@ namespace Tomahawk
 
 		public:
 			template <typename T>
-			VMCAsync* SetCast(const T& Ref, int TypeId)
+			VMCAsync* SetCast(const T& fRef, int TypeId)
 			{
-				Set((void*)&Ref, TypeId);
+				Set((void*)&fRef, TypeId);
 				return this;
 			}
 			template <typename T>
-			VMCAsync* SetCast(const T& Ref, const char* TypeName)
+			VMCAsync* SetCast(const T& fRef, const char* TypeName)
 			{
-				Set((void*)&Ref, TypeName);
+				Set((void*)&fRef, TypeName);
 				return this;
 			}
 

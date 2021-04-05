@@ -1650,7 +1650,7 @@ namespace Tomahawk
 			}
 			bool OGLDevice::CopyBackBufferNoAA(Texture2D** Result)
 			{
-				return CopyBackBuffer(Result);
+				return CopyBackBufferMSAA(Result);
 			}
 			void OGLDevice::GetViewports(unsigned int* Count, Viewport* Out)
 			{
@@ -2888,7 +2888,7 @@ namespace Tomahawk
 				if (sscanf(Version, "%i.%i", &Major, &Minor) != 2)
 					return ShaderModel_Invalid;
 
-				if (Major >= 1 && Major <= 2)
+				if (Major == 1)
 				{
 					if (Minor <= 10)
 						return ShaderModel_GLSL_1_1_0;
@@ -2907,14 +2907,14 @@ namespace Tomahawk
 
 					return ShaderModel_GLSL_1_5_0;
 				}
-				else if (Major >= 2 && Major <= 3)
+				else if (Major == 2 || Major == 3)
 				{
 					if (Minor <= 30)
 						return ShaderModel_GLSL_3_3_0;
 
 					return ShaderModel_GLSL_1_5_0;
 				}
-				else if (Major >= 3 && Major <= 4)
+				else if (Major == 4)
 				{
 					if (Minor <= 10)
 						return ShaderModel_GLSL_4_1_0;

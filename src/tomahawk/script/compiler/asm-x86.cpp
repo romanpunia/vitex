@@ -72,10 +72,10 @@ namespace assembler
 		Register* reg;
 		MemAddress* mem;
 		unsigned int constant;
-		Argument(Register* r) : reg(r), mem(0)
+		Argument(Register* r) : reg(r), mem(0), constant(0)
 		{
 		}
-		Argument(MemAddress* m) : reg(0), mem(m)
+		Argument(MemAddress* m) : reg(0), mem(m), constant(0)
 		{
 		}
 		Argument(unsigned int Constant) : reg(0), mem(0), constant(Constant)
@@ -296,6 +296,7 @@ namespace assembler
 		lastBitMode = bitMode;
 		stackDepth = 4;
 		jumpSpace = 0;
+		jumpPtr = nullptr;
 	}
 	void Processor::migrate(CodePage& prevPage, CodePage& newPage)
 	{
@@ -525,17 +526,17 @@ namespace assembler
 
 	MemAddress::MemAddress(Processor& CPU, void* address)
 		: cpu(CPU), code(ESP), absolute_address(address), other(NONE),
-		offset(0), bitMode(cpu.bitMode), Signed(false), scaleFactor(0)
+		offset(0), bitMode(cpu.bitMode), Signed(false), Float(true), scaleFactor(0), scaleReg(NONE)
 	{
 	}
 	MemAddress::MemAddress(Processor& CPU, RegCode Code)
 		: cpu(CPU), code(Code), absolute_address(0), other(NONE),
-		offset(0), bitMode(cpu.bitMode), Signed(false), scaleFactor(0)
+		offset(0), bitMode(cpu.bitMode), Signed(false), Float(true), scaleFactor(0), scaleReg(NONE)
 	{
 	}
 	MemAddress::MemAddress(Processor& CPU, RegCode Code, int Offset)
 		: cpu(CPU), code(Code), absolute_address(0), other(NONE),
-		offset(Offset), bitMode(cpu.bitMode), Signed(false), scaleFactor(0)
+		offset(Offset), bitMode(cpu.bitMode), Signed(false), Float(true), scaleFactor(0), scaleReg(NONE)
 	{
 	}
 	MemAddress MemAddress::operator+(ScaledIndex scale)

@@ -213,7 +213,7 @@ namespace Tomahawk
 			if (Mutex != nullptr)
 				Mutex->lock();
 #ifdef TH_HAS_OPENAL
-			alGetSourceiv(Source, Value, FS);
+			alSourceiv(Source, Value, FS);
 #endif
 			if (Mutex != nullptr)
 				Mutex->unlock();
@@ -333,7 +333,7 @@ namespace Tomahawk
 			if (Mutex != nullptr)
 				Mutex->lock();
 #ifdef TH_HAS_OPENAL
-			alGetListeneriv(Listener, FS);
+			alListeneriv(Listener, FS);
 #endif
 			if (Mutex != nullptr)
 				Mutex->unlock();

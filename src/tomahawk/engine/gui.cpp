@@ -54,8 +54,9 @@ namespace Tomahawk
 					Shader = nullptr;
 					VertexBuffer = nullptr;
 					Layout = nullptr;
-					ScissorNoneRasterizer = nullptr;
 					NoneRasterizer = nullptr;
+					ScissorNoneRasterizer = nullptr;
+					ScissorDepthStencil = nullptr;
 					LessDepthStencil = nullptr;
 					NoneDepthStencil = nullptr;
 					AlphaBlend = nullptr;
@@ -124,7 +125,7 @@ namespace Tomahawk
 					if (!Device || !Buffer)
 						return;
 
-					Device->Render.Diffuse = (Buffer->Texture != nullptr);
+					Device->Render.Diffuse = (Buffer->Texture != nullptr ? 1.0f : 0.0f);
 					if (HasTransform)
 						Device->Render.WorldViewProj = Compute::Matrix4x4::CreateTranslation(Compute::Vector3(Translation.x, Translation.y)) * Transform * Ortho;
 					else
@@ -592,7 +593,7 @@ namespace Tomahawk
 				}
 				virtual void Release() override
 				{
-					TH_DELETE(ContextInstancer, this);
+					TH_DELETE_THIS(ContextInstancer);
 				}
 			};
 
@@ -661,7 +662,7 @@ namespace Tomahawk
 				}
 				void OnDetach(Rml::Element* Element) override
 				{
-					TH_DELETE(ListenerSubsystem, this);
+					TH_DELETE_THIS(ListenerSubsystem);
 				}
 				void ProcessEvent(Rml::Event& Event) override
 				{
@@ -697,7 +698,7 @@ namespace Tomahawk
 
 			private:
 				EventCallback Handler;
-				int RefCount;
+				std::atomic<int> RefCount;
 
 			public:
 				EventSubsystem(const EventCallback& Callback) : Rml::EventListener(), Handler(Callback), RefCount(1)
@@ -709,9 +710,8 @@ namespace Tomahawk
 				}
 				virtual void OnDetach(Rml::Element*)
 				{
-					RefCount = false;
 					if (!--RefCount)
-						TH_DELETE(EventSubsystem, this);
+						TH_DELETE_THIS(EventSubsystem);
 				}
 				virtual void ProcessEvent(Rml::Event& Event) override
 				{
@@ -755,9 +755,9 @@ namespace Tomahawk
 					for (auto& Column : Columns)
 					{
 						if (Column == Rml::DataSource::DEPTH || Column == "depth")
-							Row.push_back(std::to_string(Target->Depth));
+							Row.emplace_back(std::move(std::to_string(Target->Depth)));
 						else if (Column == Rml::DataSource::NUM_CHILDREN)
-							Row.push_back(std::to_string(Target->Childs.size()));
+							Row.emplace_back(std::move(std::to_string(Target->Childs.size())));
 						else if (Column == Rml::DataSource::CHILD_SOURCE)
 							Row.push_back(Source->Name + "." + Target->Name);
 						else if (Source->OnColumn)
@@ -1366,7 +1366,7 @@ namespace Tomahawk
 			float IElement::ResolveNumericProperty(const std::string& PropertyName)
 			{
 				if (!IsValid())
-					return false;
+					return 0.0f;
 
 				return Base->ResolveNumericProperty(PropertyName);
 			}
@@ -1458,7 +1458,7 @@ namespace Tomahawk
 			bool IElement::HasAttribute(const std::string& Name) const
 			{
 				if (!IsValid())
-					return "";
+					return false;
 
 				return Base->HasAttribute(Name);
 			}
@@ -1914,7 +1914,7 @@ namespace Tomahawk
 
 				if (Form->IsPseudoClassSet("focus"))
 				{
-					*Ptr = Value;
+					*Ptr = std::move(Value);
 					return true;
 				}
 					
@@ -2365,7 +2365,7 @@ namespace Tomahawk
 			{
 				State++;
 				if (State > 1)
-					return State >= 0;
+					return true;
 
 				RenderInterface = TH_NEW(RenderSubsystem);
 				Rml::SetRenderInterface(RenderInterface);
@@ -2566,7 +2566,7 @@ namespace Tomahawk
 			}
 			DataNode& DataNode::Add(const Core::VariantList& Initial)
 			{
-				Childs.push_back(DataNode(Handle, Name, Core::Var::Undefined()));
+				Childs.emplace_back(std::move(DataNode(Handle, Name, Core::Var::Undefined())));
 				if (Handle != nullptr && Name != nullptr)
 					Handle->Change(*Name);
 				
@@ -2578,7 +2578,7 @@ namespace Tomahawk
 			}
 			DataNode& DataNode::Add(const Core::Variant& Initial)
 			{
-				Childs.push_back(DataNode(Handle, Name, Initial));
+				Childs.emplace_back(std::move(DataNode(Handle, Name, Initial)));
 				if (Handle != nullptr && Name != nullptr)
 					Handle->Change(*Name);
 
@@ -2586,7 +2586,7 @@ namespace Tomahawk
 			}
 			DataNode& DataNode::Add(Core::Variant* Reference)
 			{
-				Childs.push_back(DataNode(Handle, Name, Reference));
+				Childs.emplace_back(std::move(DataNode(Handle, Name, Reference)));
 				if (Handle != nullptr && Name != nullptr)
 					Handle->Change(*Name);
 
@@ -2732,6 +2732,9 @@ namespace Tomahawk
 			}
 			DataNode& DataNode::operator= (const DataNode& Other)
 			{
+				if (this == &Other)
+					return *this;
+
 				this->~DataNode();
 				if (Safe)
 					Ref = TH_NEW(Core::Variant, *Other.Ref);
@@ -2768,18 +2771,18 @@ namespace Tomahawk
 				for (auto& It : Childs)
 					TH_DELETE(DataRow, It);
 			}
-			DataRow* DataRow::AddChild(void* Target)
+			DataRow* DataRow::AddChild(void* fTarget)
 			{
-				DataRow* Result = TH_NEW(DataRow, this, Target);
+				DataRow* Result = TH_NEW(DataRow, this, fTarget);
 				Base->RowAdd(Name, Childs.size() - 1, 1);
 
 				return Result;
 			}
-			DataRow* DataRow::GetChild(void* Target)
+			DataRow* DataRow::GetChild(void* fTarget)
 			{
 				for (auto& Child : Childs)
 				{
-					if (Child->Target == Target)
+					if (Child->Target == fTarget)
 						return Child;
 				}
 
@@ -2796,14 +2799,14 @@ namespace Tomahawk
 			{
 				return Parent;
 			}
-			DataRow* DataRow::FindChild(void* Target)
+			DataRow* DataRow::FindChild(void* fTarget)
 			{
 				for (auto& Child : Childs)
 				{
-					if (Child->Target == Target)
+					if (Child->Target == fTarget)
 						return Child;
 
-					DataRow* Result = Child->FindChild(Target);
+					DataRow* Result = Child->FindChild(fTarget);
 					if (Result != nullptr)
 						return Result;
 				}
@@ -2814,12 +2817,12 @@ namespace Tomahawk
 			{
 				return Childs.size();
 			}
-			bool DataRow::RemoveChild(void* Target)
+			bool DataRow::RemoveChild(void* fTarget)
 			{
 				for (size_t i = 0; i < Childs.size(); i++)
 				{
 					DataRow* Child = Childs[i];
-					if (Child->Target != Target)
+					if (Child->Target != fTarget)
 						continue;
 
 					return RemoveChildByIndex(i);

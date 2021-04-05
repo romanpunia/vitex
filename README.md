@@ -188,6 +188,7 @@ Tomahawk is a cross-platform C++14 framework to create any type of application f
 1. Install [CMake](https://cmake.org/install/).
 2. Install dependencies listed below to have all the functionality. If you use vcpkg, execute
 > /lib/install.sh $triplet
+
 where $triplet is a target platform, for example, x86-windows.
 3. Execute CMake command to generate the files or use CMake GUI if you have one.
 If you want to use vcpkg then add VCPKG_ROOT environment variable and if you want to execute install script, add vcpkg executable to PATH environment variable. It should contain full path to vcpkg executable. Another option is to set CMAKE_TOOLCHAIN_FILE option (standard workflow for vcpkg). For example,
@@ -261,4 +262,4 @@ These are recommended to be installed, but are not required to.
 Tomahawk is licensed under the MIT license
 
 ## Known Issues
-This project is under development, bugs aren't the rare thing. Also dependency installation process can by quite tricky on some platforms like MacOS. OpenGL is not working properly, sooner or later it will be fully implemented, SPIRV-Cross will help with that. Script interface covers less than 5% of Tomahawk's abilities, bindings are wasting too much time to write, sorry :)
+This project is under development, bugs aren't the rare thing, THX to PVS-Studio, they became less often. Also dependency installation process can by quite tricky on some platforms like MacOS. OpenGL is not working properly, sooner or later it will be fully implemented, SPIRV-Cross will help with that. Script interface covers less than 5% of Tomahawk's abilities, bindings are wasting too much time to write, sorry :)

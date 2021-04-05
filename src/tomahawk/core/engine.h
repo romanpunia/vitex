@@ -148,8 +148,8 @@ namespace Tomahawk
 		struct TH_OUT FragmentQuery
 		{
 		private:
-			Graphics::Query* Query;
 			uint64_t Fragments;
+			Graphics::Query* Query;
 			int Satisfied;
 
 		public:
@@ -1156,9 +1156,7 @@ namespace Tomahawk
 					return false;
 				}
 
-				if (It->second != nullptr)
-					TH_RELEASE(It->second);
-
+				TH_RELEASE(It->second);
 				Processors.erase(It);
 				Mutex.unlock();
 				return true;
@@ -1171,8 +1169,7 @@ namespace Tomahawk
 				auto It = Processors.find(typeid(T).hash_code());
 				if (It != Processors.end())
 				{
-					if (It->second != nullptr)
-						TH_RELEASE(It->second);
+					TH_RELEASE(It->second);
 					It->second = Instance;
 				}
 				else

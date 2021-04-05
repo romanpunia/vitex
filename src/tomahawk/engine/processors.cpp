@@ -195,21 +195,23 @@ namespace Tomahawk
 				Core::Document* Document = Core::Document::Object();
 				Document->Key = "scene";
 
+				auto& Conf = Object->GetConf();
 				Core::Document* Metadata = Document->Set("metadata");
-				NMake::Pack(Metadata->Set("materials"), Object->GetConf().MaterialCount);
-				NMake::Pack(Metadata->Set("entities"), Object->GetConf().EntityCount);
-				NMake::Pack(Metadata->Set("components"), Object->GetConf().ComponentCount);
-				NMake::Pack(Metadata->Set("render-quality"), Object->GetConf().RenderQuality);
-				NMake::Pack(Metadata->Set("enable-hdr"), Object->GetConf().EnableHDR);
+				NMake::Pack(Metadata->Set("materials"), Conf.MaterialCount);
+				NMake::Pack(Metadata->Set("entities"), Conf.EntityCount);
+				NMake::Pack(Metadata->Set("components"), Conf.ComponentCount);
+				NMake::Pack(Metadata->Set("render-quality"), Conf.RenderQuality);
+				NMake::Pack(Metadata->Set("enable-hdr"), Conf.EnableHDR);
 
+				auto* fSimulator = Object->GetSimulator();
 				Core::Document* Simulator = Metadata->Set("simulator");
-				NMake::Pack(Simulator->Set("enable-soft-body"), Object->GetSimulator()->HasSoftBodySupport());
-				NMake::Pack(Simulator->Set("max-displacement"), Object->GetSimulator()->GetMaxDisplacement());
-				NMake::Pack(Simulator->Set("air-density"), Object->GetSimulator()->GetAirDensity());
-				NMake::Pack(Simulator->Set("water-offset"), Object->GetSimulator()->GetWaterOffset());
-				NMake::Pack(Simulator->Set("water-density"), Object->GetSimulator()->GetWaterDensity());
-				NMake::Pack(Simulator->Set("water-normal"), Object->GetSimulator()->GetWaterNormal());
-				NMake::Pack(Simulator->Set("gravity"), Object->GetSimulator()->GetGravity());
+				NMake::Pack(Simulator->Set("enable-soft-body"), fSimulator->HasSoftBodySupport());
+				NMake::Pack(Simulator->Set("max-displacement"), fSimulator->GetMaxDisplacement());
+				NMake::Pack(Simulator->Set("air-density"), fSimulator->GetAirDensity());
+				NMake::Pack(Simulator->Set("water-offset"), fSimulator->GetWaterOffset());
+				NMake::Pack(Simulator->Set("water-density"), fSimulator->GetWaterDensity());
+				NMake::Pack(Simulator->Set("water-normal"), fSimulator->GetWaterNormal());
+				NMake::Pack(Simulator->Set("gravity"), fSimulator->GetGravity());
 
 				Core::Document* Materials = Document->Set("materials", std::move(Core::Var::Array()));
 				for (uint64_t i = 0; i < Object->GetMaterialCount(); i++)
@@ -250,7 +252,7 @@ namespace Tomahawk
 						continue;
 
 					Core::Document* Components = Entity->Set("components", std::move(Core::Var::Array()));
-					for (auto It = Ref->First(); It != Ref->Last(); It++)
+					for (auto It = Ref->First(); It != Ref->Last(); ++It)
 					{
 						Core::Document* Component = Components->Set("component");
 						NMake::Pack(Component->Set("id"), It->second->GetId());
@@ -415,17 +417,18 @@ namespace Tomahawk
 					return nullptr;
 				}
 
+				auto* Device = Content->GetDevice();
 				Graphics::Texture2D::Desc F = Graphics::Texture2D::Desc();
 				F.Data = (void*)Resource;
 				F.Width = (unsigned int)Width;
 				F.Height = (unsigned int)Height;
 				F.RowPitch = (Width * 32 + 7) / 8;
 				F.DepthPitch = F.RowPitch * Height;
-				F.MipLevels = Content->GetDevice()->GetMipLevel(F.Width, F.Height);
+				F.MipLevels = Device->GetMipLevel(F.Width, F.Height);
 
-				Content->GetDevice()->Lock();
-				Graphics::Texture2D* Object = Content->GetDevice()->CreateTexture2D(F);
-				Content->GetDevice()->Unlock();
+				Device->Lock();
+				Graphics::Texture2D* Object = Device->CreateTexture2D(F);
+				Device->Unlock();
 
 				stbi_image_free(Resource);
 				TH_FREE(Binary);
@@ -470,9 +473,10 @@ namespace Tomahawk
 				I.Filename = Stream->GetSource();
 				I.Data = Code;
 
-				Content->GetDevice()->Unlock();
-				Graphics::Shader* Object = Content->GetDevice()->CreateShader(I);
-				Content->GetDevice()->Lock();
+				Graphics::GraphicsDevice* Device = Content->GetDevice();
+				Device->Unlock();
+				Graphics::Shader* Object = Device->CreateShader(I);
+				Device->Lock();
 				TH_FREE(Code);
 
 				if (!Object)
@@ -530,21 +534,23 @@ namespace Tomahawk
 						return nullptr;
 					}
 
-					if (Content->GetDevice()->GetBackend() == Graphics::RenderBackend_D3D11)
+					auto* Device = Content->GetDevice();
+					if (Device->GetBackend() == Graphics::RenderBackend_D3D11)
 					{
 						Compute::Common::ComputeIndexWindingOrderFlip(F.Indices);
 						Compute::Common::ComputeVertexOrientation(F.Elements, true);
 					}
 
-					Content->GetDevice()->Lock();
-					Object->Meshes.push_back(Content->GetDevice()->CreateMeshBuffer(F));
-					Content->GetDevice()->Unlock();
+					Device->Lock();
+					Object->Meshes.push_back(Device->CreateMeshBuffer(F));
+					Device->Unlock();
 
-					NMake::Unpack(Mesh->Find("name"), &Object->Meshes.back()->Name);
-					NMake::Unpack(Mesh->Find("world"), &Object->Meshes.back()->World);
+					auto* Sub = Object->Meshes.back();
+					NMake::Unpack(Mesh->Find("name"), &Sub->Name);
+					NMake::Unpack(Mesh->Find("world"), &Sub->World);
 
 					if (Content->GetDevice()->GetBackend() == Graphics::RenderBackend_D3D11)
-						Compute::Common::ComputeMatrixOrientation(&Object->Meshes.back()->World, true);
+						Compute::Common::ComputeMatrixOrientation(&Sub->World, true);
 				}
 
 				Content->Cache(this, Stream->GetSource(), Object);
@@ -729,7 +735,7 @@ namespace Tomahawk
 						Element.Index = Info->Weights;
 						Index = Info->Weights;
 						Info->Weights++;
-						Info->Joints.push_back(std::make_pair(Index, Element));
+						Info->Joints.emplace_back(std::move(std::make_pair(Index, Element)));
 					}
 					else
 						Index = It->first;
@@ -788,7 +794,7 @@ namespace Tomahawk
 			}
 			std::vector<std::pair<int64_t, Compute::Joint>>::iterator Model::FindJoint(std::vector<std::pair<int64_t, Compute::Joint>>& Joints, const std::string& Name)
 			{
-				for (auto It = Joints.begin(); It != Joints.end(); It++)
+				for (auto It = Joints.begin(); It != Joints.end(); ++It)
 				{
 					if (It->second.Name == Name)
 						return It;
@@ -844,21 +850,23 @@ namespace Tomahawk
 						return nullptr;
 					}
 
-					if (Content->GetDevice()->GetBackend() == Graphics::RenderBackend_D3D11)
+					auto* Device = Content->GetDevice();
+					if (Device->GetBackend() == Graphics::RenderBackend_D3D11)
 					{
 						Compute::Common::ComputeIndexWindingOrderFlip(F.Indices);
 						Compute::Common::ComputeInfluenceOrientation(F.Elements, true);
 					}
 
-					Content->GetDevice()->Lock();
-					Object->Meshes.push_back(Content->GetDevice()->CreateSkinMeshBuffer(F));
-					Content->GetDevice()->Unlock();
+					Device->Lock();
+					Object->Meshes.push_back(Device->CreateSkinMeshBuffer(F));
+					Device->Unlock();
 
-					NMake::Unpack(Mesh->Find("name"), &Object->Meshes.back()->Name);
-					NMake::Unpack(Mesh->Find("world"), &Object->Meshes.back()->World);
+					auto* Sub = Object->Meshes.back();
+					NMake::Unpack(Mesh->Find("name"), &Sub->Name);
+					NMake::Unpack(Mesh->Find("world"), &Sub->World);
 
 					if (Content->GetDevice()->GetBackend() == Graphics::RenderBackend_D3D11)
-						Compute::Common::ComputeMatrixOrientation(&Object->Meshes.back()->World, true);
+						Compute::Common::ComputeMatrixOrientation(&Sub->World, true);
 				}
 
 				Content->Cache(this, Stream->GetSource(), Object);
@@ -894,7 +902,7 @@ namespace Tomahawk
 					Clip->Name = Animation->mName.C_Str();
 					Clip->Duration = Animation->mDuration;
 
-					if (Animation->mTicksPerSecond != 0.0f)
+					if (Animation->mTicksPerSecond > 0.0f)
 						Clip->Rate = Animation->mTicksPerSecond;
 
 					for (int64_t j = 0; j < Animation->mNumChannels; j++)
@@ -1008,7 +1016,7 @@ namespace Tomahawk
 				if (Keys->size() < Joints->size())
 				{
 					Keys->resize(Joints->size());
-					for (auto It = Joints->begin(); It != Joints->end(); It++)
+					for (auto It = Joints->begin(); It != Joints->end(); ++It)
 					{
 						auto* Key = &Keys->at(It->second.Index);
 						Key->Position = It->second.Transform.Position();
@@ -1193,9 +1201,6 @@ namespace Tomahawk
 						Name = "*";
 
 					Network::SocketCertificate* Cert = &Router->Certificates[Core::Parser(&Name).Path(N, D).R()];
-					if (Cert == nullptr)
-						continue;
-
 					if (NMake::Unpack(It->Find("protocol"), &Name))
 					{
 						if (!strcmp(Name.c_str(), "SSL_V2"))
@@ -1237,9 +1242,6 @@ namespace Tomahawk
 						Name = "*";
 
 					Network::Host* Host = &Router->Listeners[Core::Parser(&Name).Path(N, D).R()];
-					if (Host == nullptr)
-						continue;
-
 					if (!NMake::Unpack(It->Find("hostname"), &Host->Hostname))
 						Host->Hostname = N;
 					

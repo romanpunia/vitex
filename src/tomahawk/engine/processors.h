@@ -59,7 +59,7 @@ namespace Tomahawk
 				float PX = 0, PY = 0, PZ = 0;
 				float NX = 0, NY = 0, NZ = 0;
 				unsigned int Weights = 0;
-				bool Flip, Inv;
+				bool Flip = false, Inv = false;
 			};
 
 			struct TH_OUT MeshNode

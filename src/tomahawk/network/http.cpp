@@ -1,4 +1,5 @@
 #include "http.h"
+#include "../script/std-lib.h"
 #ifdef TH_MICROSOFT
 #include <WS2tcpip.h>
 #include <io.h>
@@ -322,7 +323,7 @@ namespace Tomahawk
 
 			SiteEntry::SiteEntry() : Base(TH_NEW(RouteEntry))
 			{
-				Base->URI.Regex.assign("/");
+				Base->URI = std::move(Compute::RegexSource("/"));
 				Base->Site = this;
 			}
 			SiteEntry::~SiteEntry()
@@ -334,38 +335,59 @@ namespace Tomahawk
 				TH_DELETE(RouteEntry, Base);
 				Base = nullptr;
 			}
-			RouteEntry* SiteEntry::Route(const char* Pattern)
+			RouteEntry* SiteEntry::Route(const std::string& Pattern)
 			{
-				if (!Pattern)
-					return nullptr;
-
-				if (Pattern[0] == '/' && Pattern[1] == '\0')
+				if (Pattern.empty() || Pattern == "/")
 					return Base;
 
 				for (auto* Entry : Routes)
 				{
-					if (Entry->URI.Regex == Pattern)
+					if (Entry->URI.GetRegex() == Pattern)
 						return Entry;
 				}
 
 				HTTP::RouteEntry* From = Base;
-				Core::Parser RV(Pattern);
-				RV.ToLower();
+				Compute::RegexResult Result;
+				Core::Parser Src(Pattern);
+				Src.ToLower();
 
 				for (auto* Entry : Routes)
 				{
-					if (!RV.Find(Core::Parser(Entry->URI.Regex).ToLower().R()).Found)
+					Core::Parser Dest(Entry->URI.GetRegex());
+					Dest.ToLower();
+
+					if (Dest.StartsWith("...") && Dest.EndsWith("..."))
 						continue;
 
-					From = Entry;
-					break;
+					if (Src.Find(Dest.R()).Found || Compute::Regex::Match(&Entry->URI, Result, Src.R()))
+					{
+						From = Entry;
+						break;
+					}
 				}
 
+				return Route(Pattern, From);
+			}
+			RouteEntry* SiteEntry::Route(const std::string& Pattern, RouteEntry* From)
+			{
 				HTTP::RouteEntry* Result = TH_NEW(HTTP::RouteEntry, *From);
-				Result->URI.Regex = Pattern;
+				Result->URI = std::move(Compute::RegexSource(Pattern));
 				Routes.push_back(Result);
 
 				return Result;
+			}
+			bool SiteEntry::Remove(RouteEntry* Source)
+			{
+				if (!Source)
+					return false;
+
+				auto It = std::find(Routes.begin(), Routes.end(), Source);
+				if (It == Routes.end())
+					return false;
+
+				TH_DELETE(RouteEntry, *It);
+				Routes.erase(It);
+				return true;
 			}
 			bool SiteEntry::Get(const char* Pattern, SuccessCallback Callback)
 			{
@@ -2941,8 +2963,11 @@ namespace Tomahawk
 				}
 
 				*Next = '\0';
-				if (Base->Request.Match.HasMatch())
-					Base->Request.Path = Base->Route->DocumentRoot + Core::Parser(Base->Request.Path).RemovePart(Base->Request.Match.Start(), Base->Request.Match.Length()).R();
+				if (!Base->Request.Match.Empty())
+				{
+					auto& Match = Base->Request.Match.Get()[0];
+					Base->Request.Path = Base->Route->DocumentRoot + Core::Parser(Base->Request.Path).RemovePart(Match.Start, Match.Length).R();
+				}
 				else
 					Base->Request.Path = Base->Route->DocumentRoot + Base->Request.Path;
 
@@ -3019,22 +3044,22 @@ namespace Tomahawk
 					return false;
 
 				Core::Parser(Host).ToLower();
-				for (auto Entry : Router->Sites)
+				for (auto* Entry : Router->Sites)
 				{
 					if (Entry->SiteName != "*" && Entry->SiteName.find(*Host) == std::string::npos)
 						continue;
 
-					auto&& Hostname = Entry->Hosts.find(Base->Host->Name);
+					auto Hostname = Entry->Hosts.find(Base->Host->Name);
 					if (Hostname == Entry->Hosts.end())
 						return false;
 
-					for (auto Basis : Entry->Routes)
+					for (auto* Basis : Entry->Routes)
 					{
-						if (!Compute::Regex::Match(&Basis->URI, &Base->Request.Match, Base->Request.URI))
-							continue;
-
-						Base->Route = Basis;
-						return true;
+						if (Compute::Regex::Match(&Basis->URI, Base->Request.Match, Base->Request.URI))
+						{
+							Base->Route = Basis;
+							return true;
+						}
 					}
 
 					Base->Route = Entry->Base;
@@ -3719,9 +3744,11 @@ namespace Tomahawk
 					return false;
 
 				const std::string& Value = (Path ? *Path : Base->Request.Path);
+				Compute::RegexResult Result;
+
 				for (auto& Item : Base->Route->HiddenFiles)
 				{
-					if (Compute::Regex::Match(&Item, nullptr, Value))
+					if (Compute::Regex::Match(&Item, Result, Value))
 						return true;
 				}
 
@@ -3770,9 +3797,10 @@ namespace Tomahawk
 				if (Base->Route->Gateway.Files.empty())
 					return false;
 
+				Compute::RegexResult Result;
 				for (auto& Item : Base->Route->Gateway.Files)
 				{
-					if (!Compute::Regex::Match(&Item, nullptr, Base->Request.Path))
+					if (!Compute::Regex::Match(&Item, Result, Base->Request.Path))
 						continue;
 
 					return Resource->Size > 0;
@@ -3811,9 +3839,10 @@ namespace Tomahawk
 				if (Base->Route->Compression.Files.empty())
 					return true;
 
+				Compute::RegexResult Result;
 				for (auto& Item : Base->Route->Compression.Files)
 				{
-					if (Compute::Regex::Match(&Item, nullptr, Base->Request.Path))
+					if (Compute::Regex::Match(&Item, Result, Base->Request.Path))
 						return true;
 				}
 
@@ -3974,11 +4003,19 @@ namespace Tomahawk
 				if (!Base->Route || ResourceHidden(Base, nullptr))
 					return Base->Error(403, "Resource overwrite denied.");
 
-				if (!Core::OS::File::State(Base->Request.Path, &Base->Resource) || !Base->Resource.IsDirectory)
-					return Base->Error(403, "Directory overwrite denied.");
+				if (!Core::OS::File::State(Base->Request.Path, &Base->Resource))
+				{
+					if (Base->Route->Default.empty() || !Core::OS::File::State(Base->Route->Default, &Base->Resource))
+						return Base->Error(403, "Directory overwrite denied.");
+
+					Base->Request.Path.assign(Base->Route->Default);
+				}
 
 				if (ResourceProvided(Base, &Base->Resource))
 					return ProcessGateway(Base);
+
+				if (!Base->Resource.IsDirectory)
+					return Base->Error(403, "Directory overwrite denied.");
 
 				const char* Range = Base->Request.GetHeader("Range");
 				int64_t Range1 = 0, Range2 = 0;
@@ -4040,6 +4077,52 @@ namespace Tomahawk
 					});
 				});
 			}
+			bool Util::RoutePATCH(Connection* Base)
+			{
+				if (!Base)
+					return false;
+
+				if (!Base->Route)
+					return Base->Error(403, "Operation denied by server.");
+
+				if (!Core::OS::File::State(Base->Request.Path, &Base->Resource))
+				{
+					if (Base->Route->Default.empty() || !Core::OS::File::State(Base->Route->Default, &Base->Resource))
+						return Base->Error(404, "Requested resource was not found.");
+
+					Base->Request.Path.assign(Base->Route->Default);
+				}
+
+				if (ResourceHidden(Base, nullptr))
+					return Base->Error(404, "Requested resource was not found.");
+
+				if (Base->Resource.IsDirectory && !ResourceIndexed(Base, &Base->Resource))
+					return Base->Error(404, "Requested resource cannot be directory.");
+
+				if (ResourceProvided(Base, &Base->Resource))
+					return ProcessGateway(Base);
+
+				char Date[64];
+				Core::DateTime::TimeFormatGMT(Date, sizeof(Date), Base->Info.Start / 1000);
+
+				Core::Parser Content;
+				Content.fAppend("%s 204 No Content\r\nDate: %s\r\n%sContent-Location: %s\r\n", Base->Request.Version, Date, Util::ConnectionResolve(Base).c_str(), Base->Request.URI.c_str());
+
+				if (Base->Route->Callbacks.Headers)
+					Base->Route->Callbacks.Headers(Base, nullptr);
+
+				Content.Append("\r\n", 2);
+				return Base->Stream->WriteAsync(Content.Get(), (int64_t)Content.Size(), [](Socket* Socket, int64_t Size)
+				{
+					auto Base = Socket->Context<HTTP::Connection>();
+					if (Size < 0)
+						return Base->Break();
+					else if (Size > 0)
+						return true;
+
+					return Base->Finish(204);
+				});
+			}
 			bool Util::RouteDELETE(Connection* Base)
 			{
 				if (!Base)
@@ -4088,52 +4171,6 @@ namespace Tomahawk
 					return Base->Finish(204);
 				});
 			}
-			bool Util::RoutePATCH(Connection* Base)
-			{
-				if (!Base)
-					return false;
-
-				if (!Base->Route)
-					return Base->Error(403, "Operation denied by server.");
-
-				if (!Core::OS::File::State(Base->Request.Path, &Base->Resource))
-				{
-					if (Base->Route->Default.empty() || !Core::OS::File::State(Base->Route->Default, &Base->Resource))
-						return Base->Error(404, "Requested resource was not found.");
-
-					Base->Request.Path.assign(Base->Route->Default);
-				}
-
-				if (ResourceHidden(Base, nullptr))
-					return Base->Error(404, "Requested resource was not found.");
-
-				if (Base->Resource.IsDirectory && !ResourceIndexed(Base, &Base->Resource))
-					return Base->Error(404, "Requested resource cannot be directory.");
-
-				if (ResourceProvided(Base, &Base->Resource))
-					return ProcessGateway(Base);
-
-				char Date[64];
-				Core::DateTime::TimeFormatGMT(Date, sizeof(Date), Base->Info.Start / 1000);
-
-				Core::Parser Content;
-				Content.fAppend("%s 204 No Content\r\nDate: %s\r\n%sContent-Location: %s\r\n", Base->Request.Version, Date, Util::ConnectionResolve(Base).c_str(), Base->Request.URI.c_str());
-
-				if (Base->Route->Callbacks.Headers)
-					Base->Route->Callbacks.Headers(Base, nullptr);
-
-				Content.Append("\r\n", 2);
-				return Base->Stream->WriteAsync(Content.Get(), (int64_t)Content.Size(), [](Socket* Socket, int64_t Size)
-				{
-					auto Base = Socket->Context<HTTP::Connection>();
-					if (Size < 0)
-						return Base->Break();
-					else if (Size > 0)
-						return true;
-
-					return Base->Finish(204);
-				});
-			}
 			bool Util::RouteOPTIONS(Connection* Base)
 			{
 				if (!Base)
@@ -4143,7 +4180,7 @@ namespace Tomahawk
 				Core::DateTime::TimeFormatGMT(Date, sizeof(Date), Base->Info.Start / 1000);
 
 				Core::Parser Content;
-				Content.fAppend("%s 204 No Content\r\nDate: %s\r\n%sAllow: GET, POST, HEAD, PUT, DELETE, OPTIONS\r\n", Base->Request.Version, Date, Util::ConnectionResolve(Base).c_str());
+				Content.fAppend("%s 204 No Content\r\nDate: %s\r\n%sAllow: GET, POST, PUT, PATCH, DELETE, OPTIONS, HEAD\r\n", Base->Request.Version, Date, Util::ConnectionResolve(Base).c_str());
 
 				if (Base->Route && Base->Route->Callbacks.Headers)
 					Base->Route->Callbacks.Headers(Base, &Content);
@@ -4786,7 +4823,7 @@ namespace Tomahawk
 				if (!VM)
 					return Base->Error(500, "Gateway cannot be issued.") && false;
 
-				return Core::Schedule::Get()->SetTask([=]()
+				return Core::Schedule::Get()->SetTask([Base, VM]()
 				{
 					Script::VMCompiler* Compiler = VM->CreateCompiler();
 					if (Compiler->Prepare(Core::OS::Path::GetFilename(Base->Request.Path.c_str()), Base->Request.Path, true, true) < 0)
@@ -4827,8 +4864,8 @@ namespace Tomahawk
 					}
 
 					Base->Gateway = TH_NEW(GatewayFrame, Buffer, Size);
-					Base->Gateway->Base = Base;
 					Base->Gateway->Compiler = Compiler;
+					Base->Gateway->Base = Base;
 					Base->Gateway->Start();
 				});
 			}
@@ -5050,8 +5087,8 @@ namespace Tomahawk
 				{
 					Entry->Gateway.Session.DocumentRoot = Core::OS::Path::ResolveDirectory(Entry->Gateway.Session.DocumentRoot.c_str());
 					Entry->ResourceRoot = Core::OS::Path::ResolveDirectory(Entry->ResourceRoot.c_str());
-					Entry->Base->URI.Regex = "/";
 					Entry->Base->DocumentRoot = Core::OS::Path::ResolveDirectory(Entry->Base->DocumentRoot.c_str());
+					Entry->Base->URI = std::move(Compute::RegexSource("/"));
 					Entry->Base->Site = Entry;
 					Entry->Router = Root;
 
@@ -5065,7 +5102,7 @@ namespace Tomahawk
 						TH_WARN("site \"%s\" has no hosts", Entry->SiteName.c_str());
 
 					if (!Entry->Base->Default.empty())
-						Entry->Base->Default = Core::OS::Path::Resolve((Entry->Base->DocumentRoot + Entry->Base->Default).c_str());
+						Entry->Base->Default = Core::OS::Path::ResolveResource(Entry->Base->Default, Entry->Base->DocumentRoot);
 
 					for (auto& Item : Entry->Base->ErrorFiles)
 						Item.Pattern = Core::OS::Path::Resolve(Item.Pattern.c_str());
@@ -5076,7 +5113,7 @@ namespace Tomahawk
 						Route->Site = Entry;
 
 						if (!Route->Default.empty())
-							Route->Default = Core::OS::Path::Resolve((Route->DocumentRoot + Route->Default).c_str());
+							Route->Default = Core::OS::Path::ResolveResource(Route->Default, Route->DocumentRoot);
 
 						for (auto& File : Route->ErrorFiles)
 							File.Pattern = Core::OS::Path::Resolve(File.Pattern.c_str());
@@ -5107,15 +5144,21 @@ namespace Tomahawk
 					{
 						HTTP::RouteEntry* A = *(HTTP::RouteEntry**)B1;
 						A->URI.Flags = Compute::RegexFlags_IgnoreCase;
-						if (A->URI.Regex.empty())
+						if (A->URI.GetRegex().empty())
 							return -1;
 
 						HTTP::RouteEntry* B = *(HTTP::RouteEntry**)A1;
 						B->URI.Flags = Compute::RegexFlags_IgnoreCase;
-						if (B->URI.Regex.empty())
+						if (B->URI.GetRegex().empty())
 							return 1;
 
-						return (int)A->URI.Regex.size() - (int)B->URI.Regex.size();
+						bool fA = A->URI.IsSimple(), fB = B->URI.IsSimple();
+						if (fA && !fB)
+							return -1;
+						else if (!fA && fB)
+							return 1;
+
+						return (int)A->URI.GetRegex().size() - (int)B->URI.GetRegex().size();
 					});
 				}
 

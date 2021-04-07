@@ -2262,13 +2262,9 @@ namespace Tomahawk
 				else if (Name == "clibrary" && Args.size() == 1)
 				{
 					std::string Path = Args[0];
-					if (!Path.empty() && Path.front() == '.')
-					{
-						std::string Subpath = Core::OS::Path::Resolve(Path, Core::OS::Path::GetDirectory(Processor->GetCurrentFilePath().c_str()));
-						if (!Subpath.empty())
-							Path = Subpath;
-					}
-
+					if (!Path.empty())
+						Path = Core::OS::Path::ResolveResource(Path, Core::OS::Path::GetDirectory(Processor->GetCurrentFilePath().c_str()));
+					
 					Manager->ImportLibrary(Path);
 				}
 				else if (Name == "define" && Args.size() == 1)
@@ -3803,7 +3799,7 @@ namespace Tomahawk
 
 			return Result;
 		}
-		std::vector<std::string> VMManager::VerifyModules(const std::string& Directory, const Compute::RegExp& Exp)
+		std::vector<std::string> VMManager::VerifyModules(const std::string& Directory, const Compute::RegexSource& Exp)
 		{
 			std::vector<std::string> Result;
 			if (!Core::OS::Directory::IsExists(Directory.c_str()))
@@ -3812,7 +3808,8 @@ namespace Tomahawk
 			std::vector<Core::ResourceEntry> Entries;
 			if (!Core::OS::Directory::Scan(Directory, &Entries))
 				return Result;
-
+			
+			Compute::RegexResult fResult;
 			for (auto& Entry : Entries)
 			{
 				if (Directory.back() != '/' && Directory.back() != '\\')
@@ -3822,7 +3819,7 @@ namespace Tomahawk
 
 				if (!Entry.Source.IsDirectory)
 				{
-					if (!Compute::Regex::Match((Compute::RegExp*)&Exp, nullptr, Entry.Path))
+					if (!Compute::Regex::Match((Compute::RegexSource*)&Exp, fResult, Entry.Path))
 						continue;
 
 					if (!VerifyModule(Entry.Path))

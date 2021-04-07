@@ -298,7 +298,7 @@ namespace Tomahawk
 				} Callbacks;
 				struct
 				{
-					std::vector<Compute::RegExp> Files;
+					std::vector<Compute::RegexSource> Files;
 					std::vector<std::string> Methods;
 					bool ReportErrors = false;
 				} Gateway;
@@ -311,7 +311,7 @@ namespace Tomahawk
 				} Auth;
 				struct
 				{
-					std::vector<Compute::RegExp> Files;
+					std::vector<Compute::RegexSource> Files;
 					CompressionTune Tune = CompressionTune_Default;
 					int QualityLevel = 8;
 					int MemoryLevel = 8;
@@ -319,7 +319,7 @@ namespace Tomahawk
 					bool Enabled = false;
 				} Compression;
 
-				std::vector<Compute::RegExp> HiddenFiles;
+				std::vector<Compute::RegexSource> HiddenFiles;
 				std::vector<ErrorFile> ErrorFiles;
 				std::vector<MimeType> MimeTypes;
 				std::vector<std::string> IndexFiles;
@@ -337,7 +337,7 @@ namespace Tomahawk
 				bool AllowDirectoryListing = true;
 				bool AllowWebSocket = false;
 				bool AllowSendFile = false;
-				Compute::RegExp URI;
+				Compute::RegexSource URI;
 				SiteEntry* Site = nullptr;
 			};
 
@@ -375,7 +375,9 @@ namespace Tomahawk
 				SiteEntry(const SiteEntry&) = delete;
 				SiteEntry(SiteEntry&&) = delete;
 				~SiteEntry();
-				RouteEntry* Route(const char* Pattern);
+				RouteEntry* Route(const std::string& Pattern);
+				RouteEntry* Route(const std::string& Pattern, RouteEntry* From);
+				bool Remove(RouteEntry* Source);
 				bool Get(const char* Pattern, SuccessCallback Callback);
 				bool Post(const char* Pattern, SuccessCallback Callback);
 				bool Put(const char* Pattern, SuccessCallback Callback);
@@ -605,8 +607,8 @@ namespace Tomahawk
 				static bool RouteGET(Connection* Base);
 				static bool RoutePOST(Connection* Base);
 				static bool RoutePUT(Connection* Base);
-				static bool RouteDELETE(Connection* Base);
 				static bool RoutePATCH(Connection* Base);
+				static bool RouteDELETE(Connection* Base);
 				static bool RouteOPTIONS(Connection* Base);
 
 			public:
@@ -625,6 +627,7 @@ namespace Tomahawk
 
 			class TH_OUT Server final : public SocketServer
 			{
+				friend GatewayFrame;
 				friend Connection;
 				friend Util;
 

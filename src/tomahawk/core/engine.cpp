@@ -5248,13 +5248,14 @@ namespace Tomahawk
 		}
 		void ContentManager::InvalidatePath(const std::string& Path)
 		{
-			std::string File = Core::OS::Path::Resolve(Path, Environment);
-			Mutex.lock();
+			std::string File = Core::OS::Path::ResolveResource(Path, Environment);
+			if (File.empty())
+				return;
 
+			Mutex.lock();
 			auto It = Assets.find(Core::Parser(File).Replace('\\', '/').Replace(Environment, "./").R());
 			if (It != Assets.end())
 				Assets.erase(It);
-
 			Mutex.unlock();
 		}
 		void ContentManager::SetEnvironment(const std::string& Path)
@@ -5284,19 +5285,13 @@ namespace Tomahawk
 			if (!Core::OS::Path::IsRemote(Path.c_str()))
 			{
 				Mutex.lock();
-				File = Core::OS::Path::Resolve(Path, Environment);
+				File = Core::OS::Path::ResolveResource(Path, Environment);
 				Mutex.unlock();
 
-				Core::Resource Source;
-				if (!Core::OS::File::State(File, &Source))
+				if (File.empty())
 				{
-					if (!Core::OS::File::State(Path, &Source))
-					{
-						TH_ERROR("file \"%s\" wasn't found", File.c_str());
-						return nullptr;
-					}
-
-					File = Path;
+					TH_ERROR("file \"%s\" wasn't found", Path.c_str());
+					return nullptr;
 				}
 			}
 
@@ -5385,19 +5380,13 @@ namespace Tomahawk
 		bool ContentManager::Import(const std::string& Path)
 		{
 			Mutex.lock();
-			std::string File = Core::OS::Path::Resolve(Path, Environment);
+			std::string File = Core::OS::Path::ResolveResource(Path, Environment);
 			Mutex.unlock();
 
-			Core::Resource Source;
-			if (!Core::OS::File::State(File, &Source))
+			if (File.empty())
 			{
-				if (!Core::OS::File::State(Path, &Source))
-				{
-					TH_ERROR("file \"%s\" wasn't found", Path.c_str());
-					return false;
-				}
-
-				File = Path;
+				TH_ERROR("file \"%s\" wasn't found", Path.c_str());
+				return false;
 			}
 
 			auto* Stream = new Core::GzStream();

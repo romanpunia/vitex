@@ -109,7 +109,7 @@ typedef socklen_t socket_size_t;
 #define TH_COUT extern "C" TH_OUT
 #define TH_MALLOC(Size) Tomahawk::Core::Mem::Malloc(Size)
 #define TH_NEW(Type, ...) new(TH_MALLOC(sizeof(Type))) Type(__VA_ARGS__)
-#define TH_DELETE(Destructor, Var) { if (Var != nullptr) { (Var)->~Destructor(); TH_FREE(Var); } }
+#define TH_DELETE(Destructor, Var) { if (Var != nullptr) { (Var)->~Destructor(); TH_FREE((void*)Var); } }
 #define TH_DELETE_THIS(Destructor) { (this)->~Destructor(); TH_FREE((void*)this); }
 #define TH_REALLOC(Ptr, Size) Tomahawk::Core::Mem::Realloc(Ptr, Size)
 #define TH_FREE(Ptr) Tomahawk::Core::Mem::Free(Ptr)
@@ -665,6 +665,8 @@ namespace Tomahawk
 				static std::string Resolve(const std::string& Path, const std::string& Directory);
 				static std::string ResolveDirectory(const char* Path);
 				static std::string ResolveDirectory(const std::string& Path, const std::string& Directory);
+				static std::string ResolveResource(const std::string& Path);
+				static std::string ResolveResource(const std::string& Path, const std::string& Directory);
 				static std::string GetDirectory(const char* Path, uint32_t Level = 0);
 				static const char* GetFilename(const char* Path);
 				static const char* GetExtension(const char* Path);

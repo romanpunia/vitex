@@ -1256,9 +1256,8 @@ namespace Tomahawk
 				std::vector<Core::Document*> Sites = Document->FindCollection("site", true);
 				for (auto&& It : Sites)
 				{
-					std::string Name;
-					if (!NMake::Unpack(It, &Name))
-						Name = "*";
+					std::string Name = "*";
+					NMake::Unpack(It, &Name);
 
 					Network::HTTP::SiteEntry* Site = Router->Site(Core::Parser(&Name).Path(N, D).Get());
 					if (Site == nullptr)
@@ -1294,6 +1293,7 @@ namespace Tomahawk
 					if (!NMake::Unpack(It->Find("max-resources"), &Site->MaxResources))
 						Site->MaxResources = 5;
 
+					std::unordered_map<std::string, Network::HTTP::RouteEntry*> Aliases;
 					Core::Parser(&Site->Gateway.Session.DocumentRoot).Path(N, D);
 					Core::Parser(&Site->ResourceRoot).Path(N, D);
 
@@ -1308,12 +1308,26 @@ namespace Tomahawk
 					std::vector<Core::Document*> Routes = It->FindCollection("route", true);
 					for (auto&& Base : Routes)
 					{
-						std::string BaseName;
-						if (!NMake::Unpack(Base, &BaseName))
-							BaseName = "*";
+						std::string SourceURL = "*";
+						NMake::Unpack(Base, &SourceURL);
 
-						Network::HTTP::RouteEntry* Route = Site->Route(BaseName.c_str());
-						if (Route == nullptr)
+						Network::HTTP::RouteEntry* Route = nullptr;
+						Core::Document* For = Base->GetAttribute("for");
+						Core::Document* From = Base->GetAttribute("from");
+						if (From != nullptr && From->Value.GetType() == Core::VarType_String)
+						{
+							auto Subalias = Aliases.find(From->Value.GetBlob());
+							if (Subalias != Aliases.end())
+								Route = Site->Route(SourceURL, Subalias->second);
+							else
+								Route = Site->Route(SourceURL);
+						}
+						else if (For != nullptr && For->Value.GetType() == Core::VarType_String && SourceURL.empty())
+							Route = Site->Route("..." + For->Value.GetBlob() + "...");
+						else
+							Route = Site->Route(SourceURL);
+
+						if (!Route)
 							continue;
 
 						std::vector<Core::Document*> GatewayFiles = Base->FetchCollection("gateway.files.file");
@@ -1324,7 +1338,7 @@ namespace Tomahawk
 						{
 							std::string Pattern;
 							if (NMake::Unpack(File, &Pattern))
-								Route->Gateway.Files.push_back(Compute::Regex::Create(Pattern, Compute::RegexFlags_IgnoreCase));
+								Route->Gateway.Files.emplace_back(Pattern, Compute::RegexFlags_IgnoreCase);
 						}
 
 						std::vector<Core::Document*> GatewayMethods = Base->FetchCollection("gateway.methods.method");
@@ -1369,7 +1383,7 @@ namespace Tomahawk
 						{
 							std::string Value;
 							if (NMake::Unpack(File, &Value))
-								Route->Compression.Files.push_back(Compute::Regex::Create(Value, Compute::RegexFlags_IgnoreCase));
+								Route->Compression.Files.emplace_back(Value, Compute::RegexFlags_IgnoreCase);
 						}
 
 						std::vector<Core::Document*> HiddenFiles = Base->FetchCollection("hidden-files.hide");
@@ -1380,7 +1394,7 @@ namespace Tomahawk
 						{
 							std::string Value;
 							if (NMake::Unpack(File, &Value))
-								Route->HiddenFiles.push_back(Compute::Regex::Create(Value, Compute::RegexFlags_IgnoreCase));
+								Route->HiddenFiles.emplace_back(Value, Compute::RegexFlags_IgnoreCase);
 						}
 
 						std::vector<Core::Document*> IndexFiles = Base->FetchCollection("index-files.index");
@@ -1453,9 +1467,7 @@ namespace Tomahawk
 						if (NMake::Unpack(Base->Find("document-root"), &Route->DocumentRoot))
 							Core::Parser(&Route->DocumentRoot).Path(N, D);
 
-						if (NMake::Unpack(Base->Find("default"), &Route->Default))
-							Core::Parser(&Route->Default).Path(N, D);
-
+						NMake::Unpack(Base->Find("default"), &Route->Default);
 						NMake::Unpack(Base->Fetch("gateway.report-errors"), &Route->Gateway.ReportErrors);
 						NMake::Unpack(Base->Fetch("auth.type"), &Route->Auth.Type);
 						NMake::Unpack(Base->Fetch("auth.realm"), &Route->Auth.Realm);
@@ -1472,7 +1484,18 @@ namespace Tomahawk
 						NMake::Unpack(Base->Find("allow-web-socket"), &Route->AllowWebSocket);
 						NMake::Unpack(Base->Find("allow-send-file"), &Route->AllowSendFile);
 						NMake::Unpack(Base->Find("proxy-ip-address"), &Route->ProxyIpAddress);
+
+						if (!For || For->Value.GetType() != Core::VarType_String)
+							continue;
+
+						std::string Alias = For->Value.GetBlob();
+						auto Subalias = Aliases.find(Alias);
+						if (Subalias == Aliases.end())
+							Aliases[Alias] = Route;
 					}
+
+					for (auto Item : Aliases)
+						Site->Remove(Item.second);
 				}
 
 				Object->Configure(Router);

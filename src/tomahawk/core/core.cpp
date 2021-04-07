@@ -310,7 +310,13 @@ namespace Tomahawk
 			if (Type == VarType_Boolean)
 				return (Data != nullptr);
 
-			return false;
+			if (Type == VarType_Number)
+				return GetNumber() > 0.0;
+
+			if (Type == VarType_Integer)
+				return GetInteger() > 0;
+
+			return GetSize() > 0;
 		}
 		VarType Variant::GetType() const
 		{
@@ -4054,10 +4060,14 @@ namespace Tomahawk
 #ifdef TH_MICROSOFT
 			wchar_t Buffer[1024];
 			UnicodePath(Path, Buffer, 1024);
+			size_t Length = wcslen(Buffer);
+			if (!Length)
+				return false;
+
 			if (::CreateDirectoryW(Buffer, nullptr) != FALSE || GetLastError() == ERROR_ALREADY_EXISTS)
 				return true;
 
-			size_t Index = wcslen(Buffer) - 1;
+			size_t Index = Length - 1;
 			while (Index > 0 && Buffer[Index] != '/' && Buffer[Index] != '\\')
 				Index--;
 
@@ -4509,7 +4519,8 @@ namespace Tomahawk
 
 #ifdef TH_MICROSOFT
 			char Buffer[2048] = { 0 };
-			GetFullPathNameA(Path, sizeof(Buffer), Buffer, nullptr);
+			if (GetFullPathNameA(Path, sizeof(Buffer), Buffer, nullptr) == 0)
+				return Path;
 #elif defined TH_UNIX
 			char* Data = realpath(Path, nullptr);
 			if (!Data)
@@ -4551,6 +4562,37 @@ namespace Tomahawk
 				Result += '/';
 
 			return Result;
+		}
+		std::string OS::Path::ResolveResource(const std::string& Path)
+		{
+			if (Path.empty() || OS::File::IsExists(Path.c_str()))
+				return Path;
+
+			std::string fPath = Resolve(Path.c_str());
+			if (!fPath.empty() && OS::File::IsExists(fPath.c_str()))
+				return fPath;
+
+			fPath.clear();
+			return fPath;
+		}
+		std::string OS::Path::ResolveResource(const std::string& Path, const std::string& Directory)
+		{
+			if (Path.empty() || OS::File::IsExists(Path.c_str()))
+				return Path;
+
+			std::string fPath = Resolve(Path.c_str());
+			if (!fPath.empty() && OS::File::IsExists(fPath.c_str()))
+				return fPath;
+
+			if (!Directory.empty())
+			{
+				fPath = Resolve(Path.c_str(), Directory);
+				if (!fPath.empty() && OS::File::IsExists(fPath.c_str()))
+					return fPath;
+			}
+
+			fPath.clear();
+			return fPath;
 		}
 		std::string OS::Path::GetDirectory(const char* Path, uint32_t Level)
 		{

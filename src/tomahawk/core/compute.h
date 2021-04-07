@@ -116,6 +116,7 @@ namespace Tomahawk
 
 		enum RegexState
 		{
+			RegexState_Preprocessed = 0,
 			RegexState_Match_Found = -1,
 			RegexState_No_Match = -2,
 			RegexState_Unexpected_Quantifier = -3,
@@ -913,13 +914,39 @@ namespace Tomahawk
 			int64_t Steps;
 		};
 
-		struct TH_OUT RegExp
+		struct TH_OUT RegexSource
 		{
-			std::string Regex;
-			int64_t MaxBranches = 128;
-			int64_t MaxBrackets = 128;
-			int64_t MaxMatches = 128;
-			RegexFlags Flags = RegexFlags_None;
+			friend class Regex;
+
+		private:
+			std::string Expression;
+			std::vector<RegexBracket> Brackets;
+			std::vector<RegexBranch> Branches;
+			int64_t MaxBranches;
+			int64_t MaxBrackets;
+			int64_t MaxMatches;
+			RegexState State;
+
+		public:
+			RegexFlags Flags;
+
+		public:
+			RegexSource();
+			RegexSource(const std::string& Regexp, RegexFlags fFlags = RegexFlags_None, int64_t fMaxMatches = -1, int64_t fMaxBranches = -1, int64_t fMaxBrackets = -1);
+			RegexSource(const RegexSource& Other);
+			RegexSource(RegexSource&& Other);
+			RegexSource& operator =(const RegexSource& V);
+			RegexSource& operator =(RegexSource&& V);
+			const std::string& GetRegex() const;
+			int64_t GetMaxBranches() const;
+			int64_t GetMaxBrackets() const;
+			int64_t GetMaxMatches() const;
+			int64_t GetComplexity() const;
+			RegexState GetState() const;
+			bool IsSimple() const;
+
+		private:
+			void Compile();
 		};
 
 		struct TH_OUT RegexResult
@@ -928,27 +955,23 @@ namespace Tomahawk
 
 		private:
 			std::vector<RegexMatch> Matches;
-			std::vector<RegexBracket> Brackets;
-			std::vector<RegexBranch> Branches;
-			int64_t NextMatch = 0, Steps = 0;
-			RegexState State = RegexState_No_Match;
+			RegexState State;
+			int64_t Steps;
 
 		public:
-			RegExp* Expression = nullptr;
+			RegexSource* Src;
 
 		public:
-			void ResetNextMatch();
-			bool HasMatch();
-			bool IsMatch(std::vector<RegexMatch>::iterator It);
-			int64_t Start();
-			int64_t End();
-			int64_t Length();
-			int64_t GetSteps();
-			int64_t GetMatchesCount();
-			RegexState GetState();
-			std::vector<RegexMatch>::iterator GetMatch(int64_t Id);
-			std::vector<RegexMatch>::iterator GetNextMatch();
-			const char* Pointer();
+			RegexResult();
+			RegexResult(const RegexResult& Other);
+			RegexResult(RegexResult&& Other);
+			RegexResult& operator =(const RegexResult& V);
+			RegexResult& operator =(RegexResult&& V);
+			bool Empty() const;
+			int64_t GetSteps() const;
+			RegexState GetState() const;
+			const std::vector<RegexMatch>& Get() const;
+			std::vector<std::string> ToArray() const;
 		};
 
 		struct TH_OUT CollisionBody
@@ -1363,8 +1386,9 @@ namespace Tomahawk
 
 		class TH_OUT Regex
 		{
+			friend RegexSource;
+
 		private:
-			static void Setup(RegexResult* Info);
 			static int64_t Meta(const unsigned char* Buffer);
 			static int64_t OpLength(const char* Value);
 			static int64_t SetLength(const char* Value, int64_t ValueLength);
@@ -1376,15 +1400,11 @@ namespace Tomahawk
 			static int64_t MatchSet(const char* Value, int64_t ValueLength, const char* Buffer, RegexResult* Info);
 			static int64_t ParseDOH(const char* Buffer, int64_t BufferLength, RegexResult* Info, int64_t Case);
 			static int64_t ParseInner(const char* Value, int64_t ValueLength, const char* Buffer, int64_t BufferLength, RegexResult* Info, int64_t Case);
-			static int64_t ParseOuter(const char* Buffer, int64_t BufferLength, RegexResult* Info);
-			static int64_t Parse(const char* Value, int64_t ValueLength, const char* Buffer, int64_t BufferLength, RegexResult* Info);
+			static int64_t Parse(const char* Buffer, int64_t BufferLength, RegexResult* Info);
 
 		public:
-			static bool Match(RegExp* Value, RegexResult* Result, const std::string& Buffer);
-			static bool Match(RegExp* Value, RegexResult* Result, const char* Buffer, int64_t Length);
-			static bool MatchAll(RegExp* Value, RegexResult* Result, const std::string& Buffer);
-			static bool MatchAll(RegExp* Value, RegexResult* Result, const char* Buffer, int64_t Length);
-			static RegExp Create(const std::string& Regexp, RegexFlags Flags = RegexFlags_None, int64_t MaxMatches = -1, int64_t MaxBranches = -1, int64_t MaxBrackets = -1);
+			static bool Match(RegexSource* Value, RegexResult& Result, const std::string& Buffer);
+			static bool Match(RegexSource* Value, RegexResult& Result, const char* Buffer, int64_t Length);
 			static const char* Syntax();
 		};
 

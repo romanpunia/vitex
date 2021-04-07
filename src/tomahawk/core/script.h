@@ -1776,7 +1776,7 @@ namespace Tomahawk
 			VMCManager* GetEngine() const;
 			std::string GetDocumentRoot() const;
 			std::vector<std::string> GetSubmodules() const;
-			std::vector<std::string> VerifyModules(const std::string& Directory, const Compute::RegExp& Exp);
+			std::vector<std::string> VerifyModules(const std::string& Directory, const Compute::RegexSource& Exp);
 			bool VerifyModule(const std::string& Path);
 			bool IsNullable(int TypeId);
 			bool AddSubmodule(const std::string& Name, const std::vector<std::string>& Dependencies, const SubmoduleCallback& Callback);

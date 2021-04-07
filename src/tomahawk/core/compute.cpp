@@ -19,6 +19,7 @@ extern "C"
 #define V3_TO_BT(V) btVector3(V.X, V.Y, V.Z)
 #define BT_TO_V3(V) Vector3(V.getX(), V.getY(), V.getZ())
 #define REGEX_FAIL(A, B) if (A) return (B)
+#define REGEX_FAIL_IN(A, B) if (A) { State = B; return; }
 #define MAKE_ADJ_TRI(x) (x&0x3fffffff)
 #define IS_BOUNDARY(x) (x==0xffffffff)
 
@@ -3089,169 +3090,274 @@ namespace Tomahawk
 			return Hybi10_Opcode_Invalid;
 		}
 
-		void RegexResult::ResetNextMatch()
+		RegexSource::RegexSource() :
+			Flags(RegexFlags_None), State(RegexState_No_Match),
+			MaxBrackets(128), MaxBranches(128), MaxMatches(128)
 		{
-			NextMatch = -1;
 		}
-		bool RegexResult::HasMatch()
+		RegexSource::RegexSource(const std::string& Regexp, RegexFlags fFlags, int64_t fMaxMatches, int64_t fMaxBranches, int64_t fMaxBrackets) :
+			Expression(Regexp), Flags(fFlags), State(RegexState_Preprocessed),
+			MaxBrackets(fMaxBrackets >= 1 ? fMaxBrackets : 128),
+			MaxBranches(fMaxBranches >= 1 ? fMaxBranches : 128),
+			MaxMatches(fMaxMatches >= 1 ? fMaxMatches : 128)
 		{
-			return !Matches.empty();
+			Compile();
 		}
-		bool RegexResult::IsMatch(std::vector<RegexMatch>::iterator It)
+		RegexSource::RegexSource(const RegexSource& Other) :
+			Expression(Other.Expression), Flags(Other.Flags), State(Other.State),
+			MaxBrackets(Other.MaxBrackets), MaxBranches(Other.MaxBranches), MaxMatches(Other.MaxMatches)
 		{
-			return It != Matches.end();
+			Compile();
 		}
-		int64_t RegexResult::Start()
+		RegexSource::RegexSource(RegexSource&& Other) :
+			Expression(std::move(Other.Expression)), Flags(Other.Flags),
+			State(Other.State), MaxBrackets(Other.MaxBrackets), MaxBranches(Other.MaxBranches), MaxMatches(Other.MaxMatches)
 		{
-			auto Match = GetMatch(NextMatch);
-			return (Match != Matches.end() ? Match->Start : -1);
+			Brackets.reserve(Other.Brackets.capacity());
+			Branches.reserve(Other.Branches.capacity());
+			Compile();
 		}
-		int64_t RegexResult::End()
+		RegexSource& RegexSource::operator=(const RegexSource& V)
 		{
-			auto Match = GetMatch(NextMatch);
-			return (Match != Matches.end() ? Match->End : -1);
+			Brackets.clear();
+			Brackets.reserve(V.Brackets.capacity());
+			Branches.clear();
+			Branches.reserve(V.Branches.capacity());
+			Expression = V.Expression;
+			Flags = V.Flags;
+			State = V.State;
+			MaxBrackets = V.MaxBrackets;
+			MaxBranches = V.MaxBranches;
+			MaxMatches = V.MaxMatches;
+			Compile();
+
+			return *this;
 		}
-		int64_t RegexResult::Length()
+		RegexSource& RegexSource::operator=(RegexSource&& V)
 		{
-			auto Match = GetMatch(NextMatch);
-			return (Match != Matches.end() ? Match->Length : -1);
+			Brackets.clear();
+			Brackets.reserve(V.Brackets.capacity());
+			Branches.clear();
+			Branches.reserve(V.Branches.capacity());
+			Expression = std::move(V.Expression);
+			Flags = V.Flags;
+			State = V.State;
+			MaxBrackets = V.MaxBrackets;
+			MaxBranches = V.MaxBranches;
+			MaxMatches = V.MaxMatches;
+			Compile();
+
+			return *this;
 		}
-		int64_t RegexResult::GetSteps()
+		const std::string& RegexSource::GetRegex() const
 		{
-			return Steps;
+			return Expression;
 		}
-		int64_t RegexResult::GetMatchesCount()
+		int64_t RegexSource::GetMaxBranches() const
 		{
-			return Matches.size();
+			return MaxBranches;
 		}
-		RegexState RegexResult::GetState()
+		int64_t RegexSource::GetMaxBrackets() const
+		{
+			return MaxBrackets;
+		}
+		int64_t RegexSource::GetMaxMatches() const
+		{
+			return MaxMatches;
+		}
+		int64_t RegexSource::GetComplexity() const
+		{
+			int64_t A = (int64_t)Branches.size() + 1;
+			int64_t B = (int64_t)Brackets.size();
+			int64_t C = 0;
+
+			for (size_t i = 0; i < B; i++)
+				C += Brackets[i].Length;
+
+			return (int64_t)Expression.size() + A * B * C;
+		}
+		RegexState RegexSource::GetState() const
 		{
 			return State;
 		}
-		std::vector<RegexMatch>::iterator RegexResult::GetMatch(int64_t Id)
+		bool RegexSource::IsSimple() const
 		{
-			return (Id >= 0 && Id < (int64_t)Matches.size() ? Matches.begin() + Id : Matches.end());
+			Core::Parser Tx(&Expression);
+			return !Tx.FindOf("\\+*?|[]").Found;
 		}
-		std::vector<RegexMatch>::iterator RegexResult::GetNextMatch()
+		void RegexSource::Compile()
 		{
-			return GetMatch(NextMatch++);
-		}
-		const char* RegexResult::Pointer()
-		{
-			auto Match = GetMatch(NextMatch);
-			return (Match != Matches.end() ? Match->Pointer : nullptr);
-		}
+			const char* vPtr = Expression.c_str();
+			int64_t vSize = (int64_t)Expression.size();
+			Brackets.reserve(8);
+			Branches.reserve(8);
 
-		void Regex::Setup(RegexResult* Info)
-		{
-			int64_t i, j;
-			RegexBranch tmp;
-			for (i = 0; i < (int64_t)Info->Branches.size(); i++)
+			RegexBracket Bracket;
+			Bracket.Pointer = vPtr;
+			Bracket.Length = vSize;
+			Brackets.push_back(Bracket);
+
+			int64_t Step = 0, Depth = 0;
+			for (int64_t i = 0; i < vSize; i += Step)
 			{
-				for (j = i + 1; j < (int64_t)Info->Branches.size(); j++)
+				Step = Regex::GetOpLength(vPtr + i, vSize - i);
+				if (vPtr[i] == '|')
 				{
-					if (Info->Branches[i].BracketIndex > Info->Branches[j].BracketIndex)
+					RegexBranch Branch;
+					Branch.BracketIndex = (Brackets.back().Length == -1 ? Brackets.size() - 1 : Depth);
+					Branch.Pointer = &vPtr[i];
+					Branches.push_back(Branch);
+				}
+				else if (vPtr[i] == '\\')
+				{
+					REGEX_FAIL_IN(i >= vSize - 1, RegexState_Invalid_Metacharacter);
+					if (vPtr[i + 1] == 'x')
 					{
-						tmp = Info->Branches[i];
-						Info->Branches[i] = Info->Branches[j];
-						Info->Branches[j] = tmp;
+						REGEX_FAIL_IN(i >= vSize - 3, RegexState_Invalid_Metacharacter);
+						REGEX_FAIL_IN(!(isxdigit(vPtr[i + 2]) && isxdigit(vPtr[i + 3])), RegexState_Invalid_Metacharacter);
+					}
+					else
+					{
+						REGEX_FAIL_IN(!Regex::Meta((const unsigned char*)vPtr + i + 1), RegexState_Invalid_Metacharacter);
+					}
+				}
+				else if (vPtr[i] == '(')
+				{
+					Depth++;
+					Bracket.Pointer = vPtr + i + 1;
+					Bracket.Length = -1;
+					Brackets.push_back(Bracket);
+				}
+				else if (vPtr[i] == ')')
+				{
+					int64_t Idx = (Brackets[Brackets.size() - 1].Length == -1 ? Brackets.size() - 1 : Depth);
+					Brackets[Idx].Length = (int64_t)(&vPtr[i] - Brackets[Idx].Pointer); Depth--;
+					REGEX_FAIL_IN(Depth < 0, RegexState_Unbalanced_Brackets);
+					REGEX_FAIL_IN(i > 0 && vPtr[i - 1] == '(', RegexState_No_Match);
+				}
+			}
+
+			REGEX_FAIL_IN(Depth != 0, RegexState_Unbalanced_Brackets);
+
+			RegexBranch Branch;
+			int64_t i, j;
+
+			for (i = 0; i < (int64_t)Branches.size(); i++)
+			{
+				for (j = i + 1; j < (int64_t)Branches.size(); j++)
+				{
+					if (Branches[i].BracketIndex > Branches[j].BracketIndex)
+					{
+						Branch = Branches[i];
+						Branches[i] = Branches[j];
+						Branches[j] = Branch;
 					}
 				}
 			}
 
-			for (i = j = 0; i < (int64_t)Info->Brackets.size(); i++)
+			for (i = j = 0; i < (int64_t)Brackets.size(); i++)
 			{
-				auto& Bracket = Info->Brackets[i];
+				auto& Bracket = Brackets[i];
 				Bracket.BranchesCount = 0;
 				Bracket.Branches = j;
 
-				while (j < (int64_t)Info->Branches.size() && Info->Branches[j].BracketIndex == i)
+				while (j < (int64_t)Branches.size() && Branches[j].BracketIndex == i)
 				{
 					Bracket.BranchesCount++;
 					j++;
 				}
 			}
 		}
-		bool Regex::Match(RegExp* Value, RegexResult* Result, const std::string& Buffer)
+
+		RegexResult::RegexResult() : Steps(0), State(RegexState_No_Match), Src(nullptr)
+		{
+		}
+		RegexResult::RegexResult(const RegexResult& Other) : Matches(Other.Matches), Steps(Other.Steps), State(Other.State), Src(Other.Src)
+		{
+		}
+		RegexResult::RegexResult(RegexResult&& Other) : Matches(std::move(Other.Matches)), Steps(Other.Steps), State(Other.State), Src(Other.Src)
+		{
+		}
+		RegexResult& RegexResult::operator =(const RegexResult& V)
+		{
+			Matches = V.Matches;
+			Src = V.Src;
+			Steps = V.Steps;
+			State = V.State;
+
+			return *this;
+		}
+		RegexResult& RegexResult::operator =(RegexResult&& V)
+		{
+			Matches.swap(V.Matches);
+			Src = V.Src;
+			Steps = V.Steps;
+			State = V.State;
+
+			return *this;
+		}
+		bool RegexResult::Empty() const
+		{
+			return Matches.empty();
+		}
+		int64_t RegexResult::GetSteps() const
+		{
+			return Steps;
+		}
+		RegexState RegexResult::GetState() const
+		{
+			return State;
+		}
+		const std::vector<RegexMatch>& RegexResult::Get() const
+		{
+			return Matches;
+		}
+		std::vector<std::string> RegexResult::ToArray() const
+		{
+			std::vector<std::string> Array;
+			Array.reserve(Matches.size());
+
+			for (auto& Item : Matches)
+				Array.emplace_back(Item.Pointer, (size_t)Item.Length);
+
+			return Array;
+		}
+
+		bool Regex::Match(RegexSource* Value, RegexResult& Result, const std::string& Buffer)
 		{
 			return Match(Value, Result, Buffer.c_str(), Buffer.size());
 		}
-		bool Regex::Match(RegExp* Value, RegexResult* Result, const char* Buffer, int64_t Length)
+		bool Regex::Match(RegexSource* Value, RegexResult& Result, const char* Buffer, int64_t Length)
 		{
-			if (!Value || !Buffer || !Length)
+			if (!Value || Value->State != RegexState_Preprocessed || !Buffer || !Length)
 				return false;
 
-			RegexResult R;
-			R.Expression = Value;
-			R.Matches.reserve(8);
-			R.Brackets.reserve(8);
-			R.Branches.reserve(8);
+			Result.Src = Value;
+			Result.State = RegexState_Preprocessed;
+			Result.Matches.clear();
+			Result.Matches.reserve(8);
 
-			int64_t Code = Parse(Value->Regex.c_str(), (int64_t)Value->Regex.size(), Buffer, Length, &R);
-			if (Code > 0)
+			int64_t Code = Parse(Buffer, Length, &Result);
+			if (Code <= 0)
 			{
-				for (auto It = R.Matches.begin(); It != R.Matches.end(); ++It)
-				{
-					It->Start = It->Pointer - Buffer;
-					It->End = It->Start + It->Length;
-				}
-
-				R.State = RegexState_Match_Found;
-			}
-			else
-				R.State = (RegexState)Code;
-
-			if (Result != nullptr)
-				*Result = R;
-
-			return Code > 0;
-		}
-		bool Regex::MatchAll(RegExp* Value, RegexResult* Result, const std::string& Buffer)
-		{
-			return MatchAll(Value, Result, Buffer.c_str(), Buffer.size());
-		}
-		bool Regex::MatchAll(RegExp* Value, RegexResult* Result, const char* Buffer, int64_t Length)
-		{
-			if (!Value || !Buffer || !Length)
+				Result.State = (RegexState)Code;
+				Result.Matches.clear();
 				return false;
-
-			RegexResult R;
-			R.Expression = Value;
-			R.Matches.reserve(16);
-			R.Brackets.reserve(16);
-			R.Branches.reserve(16);
-
-			int64_t Code = 0, Offset = 0, Steps = 0;
-			std::vector<RegexMatch> Matches;
-
-			while ((Code = Parse(Value->Regex.c_str(), (int64_t)Value->Regex.size(), Buffer + Offset, Length - Offset, &R)) >= 0)
-			{
-				for (auto It = R.Matches.begin(); It != R.Matches.end(); ++It)
-				{
-					RegexMatch Match = *It;
-					Match.Start = It->Pointer - Buffer;
-					Match.End = It->Start + It->Length;
-					Matches.push_back(Match);
-				}
-
-				R.Matches.clear();
-				R.Brackets.clear();
-				R.Branches.clear();
-				Offset += Code;
-				Steps++;
 			}
 
-			R.State = (Steps > 0 ? RegexState_Match_Found : (RegexState)Code);
-			R.Matches = std::move(Matches);
-			if (Result != nullptr)
-				*Result = R;
+			for (auto It = Result.Matches.begin(); It != Result.Matches.end(); ++It)
+			{
+				It->Start = It->Pointer - Buffer;
+				It->End = It->Start + It->Length;
+			}
 
-			return R.Steps > 0;
+			Result.State = RegexState_Match_Found;
+			return true;
 		}
 		int64_t Regex::Meta(const unsigned char* Buffer)
 		{
-			static const char* metacharacters = "^$().[]*+?|\\Ssdbfnrtv";
-			return strchr(metacharacters, *Buffer) != nullptr;
+			static const char* Chars = "^$().[]*+?|\\Ssdbfnrtv";
+			return strchr(Chars, *Buffer) != nullptr;
 		}
 		int64_t Regex::OpLength(const char* Value)
 		{
@@ -3283,7 +3389,7 @@ namespace Tomahawk
 		}
 		int64_t Regex::MatchOp(const unsigned char* Value, const unsigned char* Buffer, RegexResult* Info)
 		{
-			int64_t result = 0;
+			int64_t Result = 0;
 			switch (*Value)
 			{
 				case '\\':
@@ -3291,47 +3397,47 @@ namespace Tomahawk
 					{
 						case 'S':
 							REGEX_FAIL(isspace(*Buffer), RegexState_No_Match);
-							result++;
+							Result++;
 							break;
 						case 's':
 							REGEX_FAIL(!isspace(*Buffer), RegexState_No_Match);
-							result++;
+							Result++;
 							break;
 						case 'd':
 							REGEX_FAIL(!isdigit(*Buffer), RegexState_No_Match);
-							result++;
+							Result++;
 							break;
 						case 'b':
 							REGEX_FAIL(*Buffer != '\b', RegexState_No_Match);
-							result++;
+							Result++;
 							break;
 						case 'f':
 							REGEX_FAIL(*Buffer != '\f', RegexState_No_Match);
-							result++;
+							Result++;
 							break;
 						case 'n':
 							REGEX_FAIL(*Buffer != '\n', RegexState_No_Match);
-							result++;
+							Result++;
 							break;
 						case 'r':
 							REGEX_FAIL(*Buffer != '\r', RegexState_No_Match);
-							result++;
+							Result++;
 							break;
 						case 't':
 							REGEX_FAIL(*Buffer != '\t', RegexState_No_Match);
-							result++;
+							Result++;
 							break;
 						case 'v':
 							REGEX_FAIL(*Buffer != '\v', RegexState_No_Match);
-							result++;
+							Result++;
 							break;
 						case 'x':
 							REGEX_FAIL((unsigned char)HexToInt(Value + 2) != *Buffer, RegexState_No_Match);
-							result++;
+							Result++;
 							break;
 						default:
 							REGEX_FAIL(Value[1] != Buffer[0], RegexState_No_Match);
-							result++;
+							Result++;
 							break;
 					}
 					break;
@@ -3342,10 +3448,10 @@ namespace Tomahawk
 					REGEX_FAIL(1, RegexState_No_Match);
 					break;
 				case '.':
-					result++;
+					Result++;
 					break;
 				default:
-					if (Info->Expression->Flags & RegexFlags_IgnoreCase)
+					if (Info->Src->Flags & RegexFlags_IgnoreCase)
 					{
 						REGEX_FAIL(tolower(*Value) != tolower(*Buffer), RegexState_No_Match);
 					}
@@ -3353,56 +3459,56 @@ namespace Tomahawk
 					{
 						REGEX_FAIL(*Value != *Buffer, RegexState_No_Match);
 					}
-					result++;
+					Result++;
 					break;
 			}
 
-			return result;
+			return Result;
 		}
 		int64_t Regex::MatchSet(const char* Value, int64_t ValueLength, const char* Buffer, RegexResult* Info)
 		{
-			int64_t Length = 0, result = -1, invert = Value[0] == '^';
-			if (invert)
+			int64_t Length = 0, Result = -1, Invert = Value[0] == '^';
+			if (Invert)
 				Value++, ValueLength--;
 
-			while (Length <= ValueLength && Value[Length] != ']' && result <= 0)
+			while (Length <= ValueLength && Value[Length] != ']' && Result <= 0)
 			{
 				if (Value[Length] != '-' && Value[Length + 1] == '-' && Value[Length + 2] != ']' && Value[Length + 2] != '\0')
 				{
-					result = (Info->Expression->Flags & RegexFlags_IgnoreCase) ? tolower(*Buffer) >= tolower(Value[Length]) && tolower(*Buffer) <= tolower(Value[Length + 2]) : *Buffer >= Value[Length] && *Buffer <= Value[Length + 2];
+					Result = (Info->Src->Flags & RegexFlags_IgnoreCase) ? tolower(*Buffer) >= tolower(Value[Length]) && tolower(*Buffer) <= tolower(Value[Length + 2]) : *Buffer >= Value[Length] && *Buffer <= Value[Length + 2];
 					Length += 3;
 				}
 				else
 				{
-					result = MatchOp((const unsigned char*)Value + Length, (const unsigned char*)Buffer, Info);
+					Result = MatchOp((const unsigned char*)Value + Length, (const unsigned char*)Buffer, Info);
 					Length += OpLength(Value + Length);
 				}
 			}
 
-			return (!invert && result > 0) || (invert && result <= 0) ? 1 : -1;
+			return (!Invert && Result > 0) || (Invert && Result <= 0) ? 1 : -1;
 		}
 		int64_t Regex::ParseInner(const char* Value, int64_t ValueLength, const char* Buffer, int64_t BufferLength, RegexResult* Info, int64_t Case)
 		{
-			int64_t i, j, n, step;
-			for (i = j = 0; i < ValueLength && j <= BufferLength; i += step)
+			int64_t i, j, n, Step;
+			for (i = j = 0; i < ValueLength && j <= BufferLength; i += Step)
 			{
-				step = Value[i] == '(' ? Info->Brackets[Case + 1].Length + 2 : GetOpLength(Value + i, ValueLength - i);
+				Step = Value[i] == '(' ? Info->Src->Brackets[Case + 1].Length + 2 : GetOpLength(Value + i, ValueLength - i);
 				REGEX_FAIL(Quantifier(&Value[i]), RegexState_Unexpected_Quantifier);
-				REGEX_FAIL(step <= 0, RegexState_Invalid_Character_Set);
+				REGEX_FAIL(Step <= 0, RegexState_Invalid_Character_Set);
 				Info->Steps++;
 
-				if (i + step < ValueLength && Quantifier(Value + i + step))
+				if (i + Step < ValueLength && Quantifier(Value + i + Step))
 				{
-					if (Value[i + step] == '?')
+					if (Value[i + Step] == '?')
 					{
-						int64_t result = ParseInner(Value + i, step, Buffer + j, BufferLength - j, Info, Case);
+						int64_t result = ParseInner(Value + i, Step, Buffer + j, BufferLength - j, Info, Case);
 						j += result > 0 ? result : 0;
 						i++;
 					}
-					else if (Value[i + step] == '+' || Value[i + step] == '*')
+					else if (Value[i + Step] == '+' || Value[i + Step] == '*')
 					{
 						int64_t j2 = j, nj = j, n1, n2 = -1, ni, non_greedy = 0;
-						ni = i + step + 1;
+						ni = i + Step + 1;
 						if (ni < ValueLength && Value[ni] == '?')
 						{
 							non_greedy = 1;
@@ -3411,10 +3517,10 @@ namespace Tomahawk
 
 						do
 						{
-							if ((n1 = ParseInner(Value + i, step, Buffer + j2, BufferLength - j2, Info, Case)) > 0)
+							if ((n1 = ParseInner(Value + i, Step, Buffer + j2, BufferLength - j2, Info, Case)) > 0)
 								j2 += n1;
 
-							if (Value[i + step] == '+' && n1 < 0)
+							if (Value[i + Step] == '+' && n1 < 0)
 								break;
 
 							if (ni >= ValueLength)
@@ -3426,10 +3532,10 @@ namespace Tomahawk
 								break;
 						} while (n1 > 0);
 
-						if (n1 < 0 && n2 < 0 && Value[i + step] == '*' && (n2 = ParseInner(Value + ni, ValueLength - ni, Buffer + j, BufferLength - j, Info, Case)) > 0)
+						if (n1 < 0 && n2 < 0 && Value[i + Step] == '*' && (n2 = ParseInner(Value + ni, ValueLength - ni, Buffer + j, BufferLength - j, Info, Case)) > 0)
 							nj = j + n2;
 
-						REGEX_FAIL(Value[i + step] == '+' && nj == j, RegexState_No_Match);
+						REGEX_FAIL(Value[i + Step] == '+' && nj == j, RegexState_No_Match);
 						REGEX_FAIL(nj == j && ni < ValueLength && n2 < 0, RegexState_No_Match);
 						return nj;
 					}
@@ -3447,13 +3553,13 @@ namespace Tomahawk
 				{
 					n = RegexState_No_Match;
 					Case++;
-					REGEX_FAIL(Case >= (int64_t)Info->Brackets.size(), RegexState_Internal_Error);
-					if (ValueLength - (i + step) > 0)
+					REGEX_FAIL(Case >= (int64_t)Info->Src->Brackets.size(), RegexState_Internal_Error);
+					if (ValueLength - (i + Step) > 0)
 					{
 						int64_t j2;
 						for (j2 = 0; j2 <= BufferLength - j; j2++)
 						{
-							if ((n = ParseDOH(Buffer + j, BufferLength - (j + j2), Info, Case)) >= 0 && ParseInner(Value + i + step, ValueLength - (i + step), Buffer + j + n, BufferLength - (j + n), Info, Case) >= 0)
+							if ((n = ParseDOH(Buffer + j, BufferLength - (j + j2), Info, Case)) >= 0 && ParseInner(Value + i + Step, ValueLength - (i + Step), Buffer + j + n, BufferLength - (j + n), Info, Case) >= 0)
 								break;
 						}
 					}
@@ -3499,22 +3605,22 @@ namespace Tomahawk
 		}
 		int64_t Regex::ParseDOH(const char* Buffer, int64_t BufferLength, RegexResult* Info, int64_t Case)
 		{
-			const RegexBracket* b = &Info->Brackets[Case];
-			int64_t i = 0, Length, result;
-			const char* p;
+			const RegexBracket* Bk = &Info->Src->Brackets[Case];
+			int64_t i = 0, Length, Result;
+			const char* Ptr;
 
 			do
 			{
-				p = i == 0 ? b->Pointer : Info->Branches[b->Branches + i - 1].Pointer + 1;
-				Length = b->BranchesCount == 0 ? b->Length : i == b->BranchesCount ? (int64_t)(b->Pointer + b->Length - p) : (int64_t)(Info->Branches[b->Branches + i].Pointer - p);
-				result = ParseInner(p, Length, Buffer, BufferLength, Info, Case);
-			} while (result <= 0 && i++ < b->BranchesCount);
+				Ptr = i == 0 ? Bk->Pointer : Info->Src->Branches[Bk->Branches + i - 1].Pointer + 1;
+				Length = Bk->BranchesCount == 0 ? Bk->Length : i == Bk->BranchesCount ? (int64_t)(Bk->Pointer + Bk->Length - Ptr) : (int64_t)(Info->Src->Branches[Bk->Branches + i].Pointer - Ptr);
+				Result = ParseInner(Ptr, Length, Buffer, BufferLength, Info, Case);
+			} while (Result <= 0 && i++ < Bk->BranchesCount);
 
-			return result;
+			return Result;
 		}
-		int64_t Regex::ParseOuter(const char* Buffer, int64_t BufferLength, RegexResult* Info)
+		int64_t Regex::Parse(const char* Buffer, int64_t BufferLength, RegexResult* Info)
 		{
-			int64_t is_anchored = Info->Brackets[0].Pointer[0] == '^', i, result = -1;
+			int64_t is_anchored = Info->Src->Brackets[0].Pointer[0] == '^', i, result = -1;
 			for (i = 0; i <= BufferLength; i++)
 			{
 				result = ParseDOH(Buffer + i, BufferLength - i, Info, 0);
@@ -3528,97 +3634,12 @@ namespace Tomahawk
 					break;
 			}
 
-			if (!Info->Matches.empty() || result < 0)
-				return result;
-
-			RegexMatch Match;
-			Match.Start = 0;
-			Match.End = 0;
-			Match.Steps = Info->Steps;
-
-			if (result == Info->Expression->Regex.size())
-			{
-				Match.Length = result;
-				Match.Pointer = Buffer;
-			}
-			else
-			{
-				Match.Length = result - Info->Expression->Regex.size();
-				Match.Pointer = Buffer + Match.Length;
-			}
-
-			Info->Matches.push_back(Match);
-
 			return result;
-		}
-		int64_t Regex::Parse(const char* Value, int64_t ValueLength, const char* Buffer, int64_t BufferLength, RegexResult* Info)
-		{
-			RegexBracket Bracket;
-			Bracket.Pointer = Value;
-			Bracket.Length = ValueLength;
-			Info->Brackets.push_back(Bracket);
-
-			int64_t i, step, depth = 0;
-			for (i = 0; i < ValueLength; i += step)
-			{
-				step = GetOpLength(Value + i, ValueLength - i);
-				if (Value[i] == '|')
-				{
-					RegexBranch Branch;
-					Branch.BracketIndex = (Info->Brackets.back().Length == -1 ? Info->Brackets.size() - 1 : depth);
-					Branch.Pointer = &Value[i];
-					Info->Branches.push_back(Branch);
-				}
-				else if (Value[i] == '\\')
-				{
-					REGEX_FAIL(i >= ValueLength - 1, RegexState_Invalid_Metacharacter);
-					if (Value[i + 1] == 'x')
-					{
-						REGEX_FAIL(i >= ValueLength - 3, RegexState_Invalid_Metacharacter);
-						REGEX_FAIL(!(isxdigit(Value[i + 2]) && isxdigit(Value[i + 3])), RegexState_Invalid_Metacharacter);
-					}
-					else
-					{
-						REGEX_FAIL(!Meta((const unsigned char*)Value + i + 1), RegexState_Invalid_Metacharacter);
-					}
-				}
-				else if (Value[i] == '(')
-				{
-					depth++;
-					Bracket.Pointer = Value + i + 1;
-					Bracket.Length = -1;
-					Info->Brackets.push_back(Bracket);
-					REGEX_FAIL(Info->Matches.size() > 0 && Info->Brackets.size() - 1 > Info->Matches.size(), RegexState_Sumatch_Array_Too_Small);
-				}
-				else if (Value[i] == ')')
-				{
-					int64_t ind = (Info->Brackets[Info->Brackets.size() - 1].Length == -1 ? Info->Brackets.size() - 1 : depth);
-					Info->Brackets[ind].Length = (int64_t)(&Value[i] - Info->Brackets[ind].Pointer);
-					depth--;
-					REGEX_FAIL(depth < 0, RegexState_Unbalanced_Brackets);
-					REGEX_FAIL(i > 0 && Value[i - 1] == '(', RegexState_No_Match);
-				}
-			}
-
-			REGEX_FAIL(depth != 0, RegexState_Unbalanced_Brackets);
-			Setup(Info);
-
-			return ParseOuter(Buffer, BufferLength, Info);
-		}
-		RegExp Regex::Create(const std::string& Regexp, RegexFlags Flags, int64_t MaxMatches, int64_t MaxBranches, int64_t MaxBrackets)
-		{
-			RegExp Value;
-			Value.Regex = Regexp;
-			Value.Flags = Flags;
-			Value.MaxBrackets = (MaxBrackets >= 1 ? MaxBrackets : 128);
-			Value.MaxBranches = (MaxBranches >= 1 ? MaxBranches : 128);
-			Value.MaxMatches = (MaxMatches >= 1 ? MaxMatches : 128);
-
-			return Value;
 		}
 		const char* Regex::Syntax()
 		{
-			return "\"^\" - Match beginning of a buffer\n"
+			return
+				"\"^\" - Match beginning of a buffer\n"
 				"\"$\" - Match end of a buffer\n"
 				"\"()\" - Grouping and substring capturing\n"
 				"\"\\s\" - Match whitespace\n"

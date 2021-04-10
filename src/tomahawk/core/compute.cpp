@@ -14,6 +14,7 @@ extern "C"
 {
 #include <openssl/evp.h>
 #include <openssl/rand.h>
+#include <openssl/hmac.h>
 }
 #endif
 #define V3_TO_BT(V) btVector3(V.X, V.Y, V.Z)
@@ -97,6 +98,17 @@ namespace
 			return (btScalar)Callback(&Contact, CollisionBody(Body1));
 		}
 	};
+
+	size_t OffsetOf64(const char* Source, char Dest)
+	{
+		for (size_t i = 0; i < 64; i++)
+		{
+			if (Source[i] == Dest)
+				return i;
+		}
+
+		return 63;
+	}
 }
 
 namespace Tomahawk
@@ -3878,7 +3890,7 @@ namespace Tomahawk
 			return true;
 		}
 
-		TriangleStrip::TriangleStrip() : Adj(nullptr), Tags(nullptr), NbStrips(0), TotalLength(0), OneSided(false), SGIAlgorithm(false), ConnectAllStrips(false)
+		TriangleStrip::TriangleStrip() : Adj(nullptr), Tags(nullptr), NbStrips(0), TotalLength(0), OneSided(false), SGICipher(false), ConnectAllStrips(false)
 		{
 		}
 		TriangleStrip::~TriangleStrip()
@@ -3925,7 +3937,7 @@ namespace Tomahawk
 				}
 
 				OneSided = create.OneSided;
-				SGIAlgorithm = create.SGIAlgorithm;
+				SGICipher = create.SGICipher;
 				ConnectAllStrips = create.ConnectAllStrips;
 			}
 
@@ -3950,7 +3962,7 @@ namespace Tomahawk
 			memset(Tags, 0, Adj->NbFaces * sizeof(bool));
 			memset(Connectivity, 0, Adj->NbFaces * sizeof(unsigned int));
 
-			if (SGIAlgorithm)
+			if (SGICipher)
 			{
 				for (unsigned int i = 0; i < Adj->NbFaces; i++)
 				{
@@ -4775,6 +4787,1836 @@ namespace Tomahawk
 			A = L(A + I(B, C, D) + X + AC, S) + B;
 		}
 
+		Cipher Ciphers::DES_ECB()
+		{
+#ifdef TH_HAS_OPENSSL
+#ifndef OPENSSL_NO_DES
+			return (Cipher)EVP_des_ecb();
+#else
+			return nullptr;
+#endif
+#else
+			return nullptr;
+#endif
+		}
+		Cipher Ciphers::DES_EDE()
+		{
+#ifdef TH_HAS_OPENSSL
+#ifndef OPENSSL_NO_DES
+			return (Cipher)EVP_des_ede();
+#else
+			return nullptr;
+#endif
+#else
+			return nullptr;
+#endif
+		}
+		Cipher Ciphers::DES_EDE3()
+		{
+#ifdef TH_HAS_OPENSSL
+#ifndef OPENSSL_NO_DES
+			return (Cipher)EVP_des_ede3();
+#else
+			return nullptr;
+#endif
+#else
+			return nullptr;
+#endif
+		}
+		Cipher Ciphers::DES_EDE_ECB()
+		{
+#ifdef TH_HAS_OPENSSL
+#ifndef OPENSSL_NO_DES
+			return (Cipher)EVP_des_ede_ecb();
+#else
+			return nullptr;
+#endif
+#else
+			return nullptr;
+#endif
+		}
+		Cipher Ciphers::DES_EDE3_ECB()
+		{
+#ifdef TH_HAS_OPENSSL
+#ifndef OPENSSL_NO_DES
+			return (Cipher)EVP_des_ede3_ecb();
+#else
+			return nullptr;
+#endif
+#else
+			return nullptr;
+#endif
+		}
+		Cipher Ciphers::DES_CFB64()
+		{
+#ifdef TH_HAS_OPENSSL
+#ifndef OPENSSL_NO_DES
+			return (Cipher)EVP_des_cfb64();
+#else
+			return nullptr;
+#endif
+#else
+			return nullptr;
+#endif
+		}
+		Cipher Ciphers::DES_CFB1()
+		{
+#ifdef TH_HAS_OPENSSL
+#ifndef OPENSSL_NO_DES
+			return (Cipher)EVP_des_cfb1();
+#else
+			return nullptr;
+#endif
+#else
+			return nullptr;
+#endif
+		}
+		Cipher Ciphers::DES_CFB8()
+		{
+#ifdef TH_HAS_OPENSSL
+#ifndef OPENSSL_NO_DES
+			return (Cipher)EVP_des_cfb8();
+#else
+			return nullptr;
+#endif
+#else
+			return nullptr;
+#endif
+		}
+		Cipher Ciphers::DES_EDE_CFB64()
+		{
+#ifdef TH_HAS_OPENSSL
+#ifndef OPENSSL_NO_DES
+			return (Cipher)EVP_des_ede_cfb64();
+#else
+			return nullptr;
+#endif
+#else
+			return nullptr;
+#endif
+		}
+		Cipher Ciphers::DES_EDE3_CFB64()
+		{
+#ifdef TH_HAS_OPENSSL
+#ifndef OPENSSL_NO_DES
+			return (Cipher)EVP_des_ede3_cfb64();
+#else
+			return nullptr;
+#endif
+#else
+			return nullptr;
+#endif
+		}
+		Cipher Ciphers::DES_EDE3_CFB1()
+		{
+#ifdef TH_HAS_OPENSSL
+#ifndef OPENSSL_NO_DES
+			return (Cipher)EVP_des_ede3_cfb1();
+#else
+			return nullptr;
+#endif
+#else
+			return nullptr;
+#endif
+		}
+		Cipher Ciphers::DES_EDE3_CFB8()
+		{
+#ifdef TH_HAS_OPENSSL
+#ifndef OPENSSL_NO_DES
+			return (Cipher)EVP_des_ede3_cfb8();
+#else
+			return nullptr;
+#endif
+#else
+			return nullptr;
+#endif
+		}
+		Cipher Ciphers::DES_OFB()
+		{
+#ifdef TH_HAS_OPENSSL
+#ifndef OPENSSL_NO_DES
+			return (Cipher)EVP_des_ofb();
+#else
+			return nullptr;
+#endif
+#else
+			return nullptr;
+#endif
+		}
+		Cipher Ciphers::DES_EDE_OFB()
+		{
+#ifdef TH_HAS_OPENSSL
+#ifndef OPENSSL_NO_DES
+			return (Cipher)EVP_des_ede_ofb();
+#else
+			return nullptr;
+#endif
+#else
+			return nullptr;
+#endif
+		}
+		Cipher Ciphers::DES_EDE3_OFB()
+		{
+#ifdef TH_HAS_OPENSSL
+#ifndef OPENSSL_NO_DES
+			return (Cipher)EVP_des_ede3_ofb();
+#else
+			return nullptr;
+#endif
+#else
+			return nullptr;
+#endif
+		}
+		Cipher Ciphers::DES_CBC()
+		{
+#ifdef TH_HAS_OPENSSL
+#ifndef OPENSSL_NO_DES
+			return (Cipher)EVP_des_cbc();
+#else
+			return nullptr;
+#endif
+#else
+			return nullptr;
+#endif
+		}
+		Cipher Ciphers::DES_EDE_CBC()
+		{
+#ifdef TH_HAS_OPENSSL
+#ifndef OPENSSL_NO_DES
+			return (Cipher)EVP_des_ede_cbc();
+#else
+			return nullptr;
+#endif
+#else
+			return nullptr;
+#endif
+		}
+		Cipher Ciphers::DES_EDE3_CBC()
+		{
+#ifdef TH_HAS_OPENSSL
+#ifndef OPENSSL_NO_DES
+			return (Cipher)EVP_des_ede3_cbc();
+#else
+			return nullptr;
+#endif
+#else
+			return nullptr;
+#endif
+		}
+		Cipher Ciphers::DES_EDE3_Wrap()
+		{
+#ifdef TH_HAS_OPENSSL
+#ifndef OPENSSL_NO_DES
+			return (Cipher)EVP_des_ede3_wrap();
+#else
+			return nullptr;
+#endif
+#else
+			return nullptr;
+#endif
+		}
+		Cipher Ciphers::DESX_CBC()
+		{
+#ifdef TH_HAS_OPENSSL
+#ifndef OPENSSL_NO_DES
+			return (Cipher)EVP_desx_cbc();
+#else
+			return nullptr;
+#endif
+#else
+			return nullptr;
+#endif
+		}
+		Cipher Ciphers::RC4()
+		{
+#ifdef TH_HAS_OPENSSL
+#ifndef OPENSSL_NO_RC4
+			return (Cipher)EVP_rc4();
+#else
+			return nullptr;
+#endif
+#else
+			return nullptr;
+#endif
+		}
+		Cipher Ciphers::RC4_40()
+		{
+#ifdef TH_HAS_OPENSSL
+#ifndef OPENSSL_NO_RC4
+			return (Cipher)EVP_rc4_40();
+#else
+			return nullptr;
+#endif
+#else
+			return nullptr;
+#endif
+		}
+		Cipher Ciphers::RC4_HMAC_MD5()
+		{
+#ifdef TH_HAS_OPENSSL
+#ifndef OPENSSL_NO_RC4
+#ifndef OPENSSL_NO_MD5
+			return (Cipher)EVP_rc4_hmac_md5();
+#else
+			return nullptr;
+#endif
+#else
+			return nullptr;
+#endif
+#else
+			return nullptr;
+#endif
+		}
+		Cipher Ciphers::IDEA_ECB()
+		{
+#ifdef TH_HAS_OPENSSL
+#ifndef OPENSSL_NO_IDEA
+			return (Cipher)EVP_idea_ecb();
+#else
+			return nullptr;
+#endif
+#else
+			return nullptr;
+#endif
+		}
+		Cipher Ciphers::IDEA_CFB64()
+		{
+#ifdef TH_HAS_OPENSSL
+#ifndef OPENSSL_NO_IDEA
+			return (Cipher)EVP_idea_cfb64();
+#else
+			return nullptr;
+#endif
+#else
+			return nullptr;
+#endif
+		}
+		Cipher Ciphers::IDEA_OFB()
+		{
+#ifdef TH_HAS_OPENSSL
+#ifndef OPENSSL_NO_IDEA
+			return (Cipher)EVP_idea_ofb();
+#else
+			return nullptr;
+#endif
+#else
+			return nullptr;
+#endif
+		}
+		Cipher Ciphers::IDEA_CBC()
+		{
+#ifdef TH_HAS_OPENSSL
+#ifndef OPENSSL_NO_IDEA
+			return (Cipher)EVP_idea_cbc();
+#else
+			return nullptr;
+#endif
+#else
+			return nullptr;
+#endif
+		}
+		Cipher Ciphers::RC2_ECB()
+		{
+#ifdef TH_HAS_OPENSSL
+#ifndef OPENSSL_NO_RC2
+			return (Cipher)EVP_rc2_ecb();
+#else
+			return nullptr;
+#endif
+#else
+			return nullptr;
+#endif
+		}
+		Cipher Ciphers::RC2_CBC()
+		{
+#ifdef TH_HAS_OPENSSL
+#ifndef OPENSSL_NO_RC2
+			return (Cipher)EVP_rc2_cbc();
+#else
+			return nullptr;
+#endif
+#else
+			return nullptr;
+#endif
+		}
+		Cipher Ciphers::RC2_40_CBC()
+		{
+#ifdef TH_HAS_OPENSSL
+#ifndef OPENSSL_NO_RC2
+			return (Cipher)EVP_rc2_40_cbc();
+#else
+			return nullptr;
+#endif
+#else
+			return nullptr;
+#endif
+		}
+		Cipher Ciphers::RC2_64_CBC()
+		{
+#ifdef TH_HAS_OPENSSL
+#ifndef OPENSSL_NO_RC2
+			return (Cipher)EVP_rc2_64_cbc();
+#else
+			return nullptr;
+#endif
+#else
+			return nullptr;
+#endif
+		}
+		Cipher Ciphers::RC2_CFB64()
+		{
+#ifdef TH_HAS_OPENSSL
+#ifndef OPENSSL_NO_RC2
+			return (Cipher)EVP_rc2_cfb64();
+#else
+			return nullptr;
+#endif
+#else
+			return nullptr;
+#endif
+		}
+		Cipher Ciphers::RC2_OFB()
+		{
+#ifdef TH_HAS_OPENSSL
+#ifndef OPENSSL_NO_RC2
+			return (Cipher)EVP_rc2_ofb();
+#else
+			return nullptr;
+#endif
+#else
+			return nullptr;
+#endif
+		}
+		Cipher Ciphers::BF_ECB()
+		{
+#ifdef TH_HAS_OPENSSL
+#ifndef OPENSSL_NO_BF
+			return (Cipher)EVP_bf_ecb();
+#else
+			return nullptr;
+#endif
+#else
+			return nullptr;
+#endif
+		}
+		Cipher Ciphers::BF_CBC()
+		{
+#ifdef TH_HAS_OPENSSL
+#ifndef OPENSSL_NO_BF
+			return (Cipher)EVP_bf_cbc();
+#else
+			return nullptr;
+#endif
+#else
+			return nullptr;
+#endif
+		}
+		Cipher Ciphers::BF_CFB64()
+		{
+#ifdef TH_HAS_OPENSSL
+#ifndef OPENSSL_NO_BF
+			return (Cipher)EVP_bf_cfb64();
+#else
+			return nullptr;
+#endif
+#else
+			return nullptr;
+#endif
+		}
+		Cipher Ciphers::BF_OFB()
+		{
+#ifdef TH_HAS_OPENSSL
+#ifndef OPENSSL_NO_BF
+			return (Cipher)EVP_bf_ofb();
+#else
+			return nullptr;
+#endif
+#else
+			return nullptr;
+#endif
+		}
+		Cipher Ciphers::CAST5_ECB()
+		{
+#ifdef TH_HAS_OPENSSL
+#ifndef OPENSSL_NO_CAST
+			return (Cipher)EVP_cast5_ecb();
+#else
+			return nullptr;
+#endif
+#else
+			return nullptr;
+#endif
+		}
+		Cipher Ciphers::CAST5_CBC()
+		{
+#ifdef TH_HAS_OPENSSL
+#ifndef OPENSSL_NO_CAST
+			return (Cipher)EVP_cast5_cbc();
+#else
+			return nullptr;
+#endif
+#else
+			return nullptr;
+#endif
+		}
+		Cipher Ciphers::CAST5_CFB64()
+		{
+#ifdef TH_HAS_OPENSSL
+#ifndef OPENSSL_NO_CAST
+			return (Cipher)EVP_cast5_cfb64();
+#else
+			return nullptr;
+#endif
+#else
+			return nullptr;
+#endif
+		}
+		Cipher Ciphers::CAST5_OFB()
+		{
+#ifdef TH_HAS_OPENSSL
+#ifndef OPENSSL_NO_CAST
+			return (Cipher)EVP_cast5_ofb();
+#else
+			return nullptr;
+#endif
+#else
+			return nullptr;
+#endif
+		}
+		Cipher Ciphers::RC5_32_12_16_CBC()
+		{
+#ifdef TH_HAS_OPENSSL
+#ifndef OPENSSL_NO_RC5
+			return (Cipher)EVP_rc5_32_12_16_cbc();
+#else
+			return nullptr;
+#endif
+#else
+			return nullptr;
+#endif
+		}
+		Cipher Ciphers::RC5_32_12_16_ECB()
+		{
+#ifdef TH_HAS_OPENSSL
+#ifndef OPENSSL_NO_RC5
+			return (Cipher)EVP_rc5_32_12_16_ecb();
+#else
+			return nullptr;
+#endif
+#else
+			return nullptr;
+#endif
+		}
+		Cipher Ciphers::RC5_32_12_16_CFB64()
+		{
+#ifdef TH_HAS_OPENSSL
+#ifndef OPENSSL_NO_RC5
+			return (Cipher)EVP_rc5_32_12_16_cfb64();
+#else
+			return nullptr;
+#endif
+#else
+			return nullptr;
+#endif
+		}
+		Cipher Ciphers::RC5_32_12_16_OFB()
+		{
+#ifdef TH_HAS_OPENSSL
+#ifndef OPENSSL_NO_RC5
+			return (Cipher)EVP_rc5_32_12_16_ofb();
+#else
+			return nullptr;
+#endif
+#else
+			return nullptr;
+#endif
+		}
+		Cipher Ciphers::AES_128_ECB()
+		{
+#ifdef TH_HAS_OPENSSL
+			return (Cipher)EVP_aes_128_ecb();
+#else
+			return nullptr;
+#endif
+		}
+		Cipher Ciphers::AES_128_CBC()
+		{
+#ifdef TH_HAS_OPENSSL
+			return (Cipher)EVP_aes_128_cbc();
+#else
+			return nullptr;
+#endif
+		}
+		Cipher Ciphers::AES_128_CFB1()
+		{
+#ifdef TH_HAS_OPENSSL
+			return (Cipher)EVP_aes_128_cfb();
+#else
+			return nullptr;
+#endif
+		}
+		Cipher Ciphers::AES_128_CFB8()
+		{
+#ifdef TH_HAS_OPENSSL
+			return (Cipher)EVP_aes_128_cfb8();
+#else
+			return nullptr;
+#endif
+		}
+		Cipher Ciphers::AES_128_CFB128()
+		{
+#ifdef TH_HAS_OPENSSL
+			return (Cipher)EVP_aes_128_cfb128();
+#else
+			return nullptr;
+#endif
+		}
+		Cipher Ciphers::AES_128_OFB()
+		{
+#ifdef TH_HAS_OPENSSL
+			return (Cipher)EVP_aes_128_ofb();
+#else
+			return nullptr;
+#endif
+		}
+		Cipher Ciphers::AES_128_CTR()
+		{
+#ifdef TH_HAS_OPENSSL
+			return (Cipher)EVP_aes_128_ctr();
+#else
+			return nullptr;
+#endif
+		}
+		Cipher Ciphers::AES_128_CCM()
+		{
+#ifdef TH_HAS_OPENSSL
+			return (Cipher)EVP_aes_128_ccm();
+#else
+			return nullptr;
+#endif
+		}
+		Cipher Ciphers::AES_128_GCM()
+		{
+#ifdef TH_HAS_OPENSSL
+			return (Cipher)EVP_aes_128_gcm();
+#else
+			return nullptr;
+#endif
+		}
+		Cipher Ciphers::AES_128_XTS()
+		{
+#ifdef TH_HAS_OPENSSL
+			return (Cipher)EVP_aes_128_xts();
+#else
+			return nullptr;
+#endif
+		}
+		Cipher Ciphers::AES_128_Wrap()
+		{
+#ifdef TH_HAS_OPENSSL
+			return (Cipher)EVP_aes_128_wrap();
+#else
+			return nullptr;
+#endif
+		}
+		Cipher Ciphers::AES_128_WrapPad()
+		{
+#ifdef TH_HAS_OPENSSL
+			return (Cipher)EVP_aes_128_wrap_pad();
+#else
+			return nullptr;
+#endif
+		}
+		Cipher Ciphers::AES_128_OCB()
+		{
+#ifdef TH_HAS_OPENSSL
+#ifndef OPENSSL_NO_OCB
+			return (Cipher)EVP_aes_128_ocb();
+#else
+			return nullptr;
+#endif
+#else
+			return nullptr;
+#endif
+		}
+		Cipher Ciphers::AES_192_ECB()
+		{
+#ifdef TH_HAS_OPENSSL
+			return (Cipher)EVP_aes_192_ecb();
+#else
+			return nullptr;
+#endif
+		}
+		Cipher Ciphers::AES_192_CBC()
+		{
+#ifdef TH_HAS_OPENSSL
+			return (Cipher)EVP_aes_192_cbc();
+#else
+			return nullptr;
+#endif
+		}
+		Cipher Ciphers::AES_192_CFB1()
+		{
+#ifdef TH_HAS_OPENSSL
+			return (Cipher)EVP_aes_192_cfb1();
+#else
+			return nullptr;
+#endif
+		}
+		Cipher Ciphers::AES_192_CFB8()
+		{
+#ifdef TH_HAS_OPENSSL
+			return (Cipher)EVP_aes_192_cfb8();
+#else
+			return nullptr;
+#endif
+		}
+		Cipher Ciphers::AES_192_CFB128()
+		{
+#ifdef TH_HAS_OPENSSL
+			return (Cipher)EVP_aes_192_cfb128();
+#else
+			return nullptr;
+#endif
+		}
+		Cipher Ciphers::AES_192_OFB()
+		{
+#ifdef TH_HAS_OPENSSL
+			return (Cipher)EVP_aes_192_ofb();
+#else
+			return nullptr;
+#endif
+		}
+		Cipher Ciphers::AES_192_CTR()
+		{
+#ifdef TH_HAS_OPENSSL
+			return (Cipher)EVP_aes_192_ctr();
+#else
+			return nullptr;
+#endif
+		}
+		Cipher Ciphers::AES_192_CCM()
+		{
+#ifdef TH_HAS_OPENSSL
+			return (Cipher)EVP_aes_192_ccm();
+#else
+			return nullptr;
+#endif
+		}
+		Cipher Ciphers::AES_192_GCM()
+		{
+#ifdef TH_HAS_OPENSSL
+			return (Cipher)EVP_aes_192_gcm();
+#else
+			return nullptr;
+#endif
+		}
+		Cipher Ciphers::AES_192_Wrap()
+		{
+#ifdef TH_HAS_OPENSSL
+			return (Cipher)EVP_aes_192_wrap();
+#else
+			return nullptr;
+#endif
+		}
+		Cipher Ciphers::AES_192_WrapPad()
+		{
+#ifdef TH_HAS_OPENSSL
+			return (Cipher)EVP_aes_192_wrap_pad();
+#else
+			return nullptr;
+#endif
+		}
+		Cipher Ciphers::AES_192_OCB()
+		{
+#ifdef TH_HAS_OPENSSL
+#ifndef OPENSSL_NO_OCB
+			return (Cipher)EVP_aes_192_ocb();
+#else
+			return nullptr;
+#endif
+#else
+			return nullptr;
+#endif
+		}
+		Cipher Ciphers::AES_256_ECB()
+		{
+#ifdef TH_HAS_OPENSSL
+			return (Cipher)EVP_aes_256_ecb();
+#else
+			return nullptr;
+#endif
+		}
+		Cipher Ciphers::AES_256_CBC()
+		{
+#ifdef TH_HAS_OPENSSL
+			return (Cipher)EVP_aes_256_cbc();
+#else
+			return nullptr;
+#endif
+		}
+		Cipher Ciphers::AES_256_CFB1()
+		{
+#ifdef TH_HAS_OPENSSL
+			return (Cipher)EVP_aes_256_cfb1();
+#else
+			return nullptr;
+#endif
+		}
+		Cipher Ciphers::AES_256_CFB8()
+		{
+#ifdef TH_HAS_OPENSSL
+			return (Cipher)EVP_aes_256_cfb8();
+#else
+			return nullptr;
+#endif
+		}
+		Cipher Ciphers::AES_256_CFB128()
+		{
+#ifdef TH_HAS_OPENSSL
+			return (Cipher)EVP_aes_256_cfb128();
+#else
+			return nullptr;
+#endif
+		}
+		Cipher Ciphers::AES_256_OFB()
+		{
+#ifdef TH_HAS_OPENSSL
+			return (Cipher)EVP_aes_256_ofb();
+#else
+			return nullptr;
+#endif
+		}
+		Cipher Ciphers::AES_256_CTR()
+		{
+#ifdef TH_HAS_OPENSSL
+			return (Cipher)EVP_aes_256_ctr();
+#else
+			return nullptr;
+#endif
+		}
+		Cipher Ciphers::AES_256_CCM()
+		{
+#ifdef TH_HAS_OPENSSL
+			return (Cipher)EVP_aes_256_ccm();
+#else
+			return nullptr;
+#endif
+		}
+		Cipher Ciphers::AES_256_GCM()
+		{
+#ifdef TH_HAS_OPENSSL
+			return (Cipher)EVP_aes_256_gcm();
+#else
+			return nullptr;
+#endif
+		}
+		Cipher Ciphers::AES_256_XTS()
+		{
+#ifdef TH_HAS_OPENSSL
+			return (Cipher)EVP_aes_256_xts();
+#else
+			return nullptr;
+#endif
+		}
+		Cipher Ciphers::AES_256_Wrap()
+		{
+#ifdef TH_HAS_OPENSSL
+			return (Cipher)EVP_aes_256_wrap();
+#else
+			return nullptr;
+#endif
+		}
+		Cipher Ciphers::AES_256_WrapPad()
+		{
+#ifdef TH_HAS_OPENSSL
+			return (Cipher)EVP_aes_256_wrap_pad();
+#else
+			return nullptr;
+#endif
+		}
+		Cipher Ciphers::AES_256_OCB()
+		{
+#ifdef TH_HAS_OPENSSL
+#ifndef OPENSSL_NO_OCB
+			return (Cipher)EVP_aes_256_ocb();
+#else
+			return nullptr;
+#endif
+#else
+			return nullptr;
+#endif
+		}
+		Cipher Ciphers::AES_128_CBC_HMAC_SHA1()
+		{
+#ifdef TH_HAS_OPENSSL
+			return (Cipher)EVP_aes_128_cbc_hmac_sha1();
+#else
+			return nullptr;
+#endif
+		}
+		Cipher Ciphers::AES_256_CBC_HMAC_SHA1()
+		{
+#ifdef TH_HAS_OPENSSL
+			return (Cipher)EVP_aes_256_cbc_hmac_sha1();
+#else
+			return nullptr;
+#endif
+		}
+		Cipher Ciphers::AES_128_CBC_HMAC_SHA256()
+		{
+#ifdef TH_HAS_OPENSSL
+			return (Cipher)EVP_aes_128_cbc_hmac_sha256();
+#else
+			return nullptr;
+#endif
+		}
+		Cipher Ciphers::AES_256_CBC_HMAC_SHA256()
+		{
+#ifdef TH_HAS_OPENSSL
+			return (Cipher)EVP_aes_256_cbc_hmac_sha256();
+#else
+			return nullptr;
+#endif
+		}
+		Cipher Ciphers::ARIA_128_ECB()
+		{
+#ifdef TH_HAS_OPENSSL
+#ifndef OPENSSL_NO_ARIA
+			return (Cipher)EVP_aria_128_ecb();
+#else
+			return nullptr;
+#endif
+#else
+			return nullptr;
+#endif
+		}
+		Cipher Ciphers::ARIA_128_CBC()
+		{
+#ifdef TH_HAS_OPENSSL
+#ifndef OPENSSL_NO_ARIA
+			return (Cipher)EVP_aria_128_cbc();
+#else
+			return nullptr;
+#endif
+#else
+			return nullptr;
+#endif
+		}
+		Cipher Ciphers::ARIA_128_CFB1()
+		{
+#ifdef TH_HAS_OPENSSL
+#ifndef OPENSSL_NO_ARIA
+			return (Cipher)EVP_aria_128_cfb1();
+#else
+			return nullptr;
+#endif
+#else
+			return nullptr;
+#endif
+		}
+		Cipher Ciphers::ARIA_128_CFB8()
+		{
+#ifdef TH_HAS_OPENSSL
+#ifndef OPENSSL_NO_ARIA
+			return (Cipher)EVP_aria_128_cfb8();
+#else
+			return nullptr;
+#endif
+#else
+			return nullptr;
+#endif
+		}
+		Cipher Ciphers::ARIA_128_CFB128()
+		{
+#ifdef TH_HAS_OPENSSL
+#ifndef OPENSSL_NO_ARIA
+			return (Cipher)EVP_aria_128_cfb128();
+#else
+			return nullptr;
+#endif
+#else
+			return nullptr;
+#endif
+		}
+		Cipher Ciphers::ARIA_128_CTR()
+		{
+#ifdef TH_HAS_OPENSSL
+#ifndef OPENSSL_NO_ARIA
+			return (Cipher)EVP_aria_128_ctr();
+#else
+			return nullptr;
+#endif
+#else
+			return nullptr;
+#endif
+		}
+		Cipher Ciphers::ARIA_128_OFB()
+		{
+#ifdef TH_HAS_OPENSSL
+#ifndef OPENSSL_NO_ARIA
+			return (Cipher)EVP_aria_128_ofb();
+#else
+			return nullptr;
+#endif
+#else
+			return nullptr;
+#endif
+		}
+		Cipher Ciphers::ARIA_128_GCM()
+		{
+#ifdef TH_HAS_OPENSSL
+#ifndef OPENSSL_NO_ARIA
+			return (Cipher)EVP_aria_128_gcm();
+#else
+			return nullptr;
+#endif
+#else
+			return nullptr;
+#endif
+		}
+		Cipher Ciphers::ARIA_128_CCM()
+		{
+#ifdef TH_HAS_OPENSSL
+#ifndef OPENSSL_NO_ARIA
+			return (Cipher)EVP_aria_128_ccm();
+#else
+			return nullptr;
+#endif
+#else
+			return nullptr;
+#endif
+		}
+		Cipher Ciphers::ARIA_192_ECB()
+		{
+#ifdef TH_HAS_OPENSSL
+#ifndef OPENSSL_NO_ARIA
+			return (Cipher)EVP_aria_192_ecb();
+#else
+			return nullptr;
+#endif
+#else
+			return nullptr;
+#endif
+		}
+		Cipher Ciphers::ARIA_192_CBC()
+		{
+#ifdef TH_HAS_OPENSSL
+#ifndef OPENSSL_NO_ARIA
+			return (Cipher)EVP_aria_192_cbc();
+#else
+			return nullptr;
+#endif
+#else
+			return nullptr;
+#endif
+		}
+		Cipher Ciphers::ARIA_192_CFB1()
+		{
+#ifdef TH_HAS_OPENSSL
+#ifndef OPENSSL_NO_ARIA
+			return (Cipher)EVP_aria_192_cfb1();
+#else
+			return nullptr;
+#endif
+#else
+			return nullptr;
+#endif
+		}
+		Cipher Ciphers::ARIA_192_CFB8()
+		{
+#ifdef TH_HAS_OPENSSL
+#ifndef OPENSSL_NO_ARIA
+			return (Cipher)EVP_aria_192_cfb8();
+#else
+			return nullptr;
+#endif
+#else
+			return nullptr;
+#endif
+		}
+		Cipher Ciphers::ARIA_192_CFB128()
+		{
+#ifdef TH_HAS_OPENSSL
+#ifndef OPENSSL_NO_ARIA
+			return (Cipher)EVP_aria_192_cfb128();
+#else
+			return nullptr;
+#endif
+#else
+			return nullptr;
+#endif
+		}
+		Cipher Ciphers::ARIA_192_CTR()
+		{
+#ifdef TH_HAS_OPENSSL
+#ifndef OPENSSL_NO_ARIA
+			return (Cipher)EVP_aria_192_ctr();
+#else
+			return nullptr;
+#endif
+#else
+			return nullptr;
+#endif
+		}
+		Cipher Ciphers::ARIA_192_OFB()
+		{
+#ifdef TH_HAS_OPENSSL
+#ifndef OPENSSL_NO_ARIA
+			return (Cipher)EVP_aria_192_ofb();
+#else
+			return nullptr;
+#endif
+#else
+			return nullptr;
+#endif
+		}
+		Cipher Ciphers::ARIA_192_GCM()
+		{
+#ifdef TH_HAS_OPENSSL
+#ifndef OPENSSL_NO_ARIA
+			return (Cipher)EVP_aria_192_gcm();
+#else
+			return nullptr;
+#endif
+#else
+			return nullptr;
+#endif
+		}
+		Cipher Ciphers::ARIA_192_CCM()
+		{
+#ifdef TH_HAS_OPENSSL
+#ifndef OPENSSL_NO_ARIA
+			return (Cipher)EVP_aria_192_ccm();
+#else
+			return nullptr;
+#endif
+#else
+			return nullptr;
+#endif
+		}
+		Cipher Ciphers::ARIA_256_ECB()
+		{
+#ifdef TH_HAS_OPENSSL
+#ifndef OPENSSL_NO_ARIA
+			return (Cipher)EVP_aria_256_ecb();
+#else
+			return nullptr;
+#endif
+#else
+			return nullptr;
+#endif
+		}
+		Cipher Ciphers::ARIA_256_CBC()
+		{
+#ifdef TH_HAS_OPENSSL
+#ifndef OPENSSL_NO_ARIA
+			return (Cipher)EVP_aria_256_cbc();
+#else
+			return nullptr;
+#endif
+#else
+			return nullptr;
+#endif
+		}
+		Cipher Ciphers::ARIA_256_CFB1()
+		{
+#ifdef TH_HAS_OPENSSL
+#ifndef OPENSSL_NO_ARIA
+			return (Cipher)EVP_aria_256_cfb1();
+#else
+			return nullptr;
+#endif
+#else
+			return nullptr;
+#endif
+		}
+		Cipher Ciphers::ARIA_256_CFB8()
+		{
+#ifdef TH_HAS_OPENSSL
+#ifndef OPENSSL_NO_ARIA
+			return (Cipher)EVP_aria_256_cfb8();
+#else
+			return nullptr;
+#endif
+#else
+			return nullptr;
+#endif
+		}
+		Cipher Ciphers::ARIA_256_CFB128()
+		{
+#ifdef TH_HAS_OPENSSL
+#ifndef OPENSSL_NO_ARIA
+			return (Cipher)EVP_aria_256_cfb128();
+#else
+			return nullptr;
+#endif
+#else
+			return nullptr;
+#endif
+		}
+		Cipher Ciphers::ARIA_256_CTR()
+		{
+#ifdef TH_HAS_OPENSSL
+#ifndef OPENSSL_NO_ARIA
+			return (Cipher)EVP_aria_256_ctr();
+#else
+			return nullptr;
+#endif
+#else
+			return nullptr;
+#endif
+		}
+		Cipher Ciphers::ARIA_256_OFB()
+		{
+#ifdef TH_HAS_OPENSSL
+#ifndef OPENSSL_NO_ARIA
+			return (Cipher)EVP_aria_256_ofb();
+#else
+			return nullptr;
+#endif
+#else
+			return nullptr;
+#endif
+		}
+		Cipher Ciphers::ARIA_256_GCM()
+		{
+#ifdef TH_HAS_OPENSSL
+#ifndef OPENSSL_NO_ARIA
+			return (Cipher)EVP_aria_256_gcm();
+#else
+			return nullptr;
+#endif
+#else
+			return nullptr;
+#endif
+		}
+		Cipher Ciphers::ARIA_256_CCM()
+		{
+#ifdef TH_HAS_OPENSSL
+#ifndef OPENSSL_NO_ARIA
+			return (Cipher)EVP_aria_256_ccm();
+#else
+			return nullptr;
+#endif
+#else
+			return nullptr;
+#endif
+		}
+		Cipher Ciphers::Camellia_128_ECB()
+		{
+#ifdef TH_HAS_OPENSSL
+#ifndef OPENSSL_NO_CAMELLIA
+			return (Cipher)EVP_camellia_128_ecb();
+#else
+			return nullptr;
+#endif
+#else
+			return nullptr;
+#endif
+		}
+		Cipher Ciphers::Camellia_128_CBC()
+		{
+#ifdef TH_HAS_OPENSSL
+#ifndef OPENSSL_NO_CAMELLIA
+			return (Cipher)EVP_camellia_128_cbc();
+#else
+			return nullptr;
+#endif
+#else
+			return nullptr;
+#endif
+		}
+		Cipher Ciphers::Camellia_128_CFB1()
+		{
+#ifdef TH_HAS_OPENSSL
+#ifndef OPENSSL_NO_CAMELLIA
+			return (Cipher)EVP_camellia_128_cfb1();
+#else
+			return nullptr;
+#endif
+#else
+			return nullptr;
+#endif
+		}
+		Cipher Ciphers::Camellia_128_CFB8()
+		{
+#ifdef TH_HAS_OPENSSL
+#ifndef OPENSSL_NO_CAMELLIA
+			return (Cipher)EVP_camellia_128_cfb8();
+#else
+			return nullptr;
+#endif
+#else
+			return nullptr;
+#endif
+		}
+		Cipher Ciphers::Camellia_128_CFB128()
+		{
+#ifdef TH_HAS_OPENSSL
+#ifndef OPENSSL_NO_CAMELLIA
+			return (Cipher)EVP_camellia_128_cfb128();
+#else
+			return nullptr;
+#endif
+#else
+			return nullptr;
+#endif
+		}
+		Cipher Ciphers::Camellia_128_OFB()
+		{
+#ifdef TH_HAS_OPENSSL
+#ifndef OPENSSL_NO_CAMELLIA
+			return (Cipher)EVP_camellia_128_ofb();
+#else
+			return nullptr;
+#endif
+#else
+			return nullptr;
+#endif
+		}
+		Cipher Ciphers::Camellia_128_CTR()
+		{
+#ifdef TH_HAS_OPENSSL
+#ifndef OPENSSL_NO_CAMELLIA
+			return (Cipher)EVP_camellia_128_ctr();
+#else
+			return nullptr;
+#endif
+#else
+			return nullptr;
+#endif
+		}
+		Cipher Ciphers::Camellia_192_ECB()
+		{
+#ifdef TH_HAS_OPENSSL
+#ifndef OPENSSL_NO_CAMELLIA
+			return (Cipher)EVP_camellia_192_ecb();
+#else
+			return nullptr;
+#endif
+#else
+			return nullptr;
+#endif
+		}
+		Cipher Ciphers::Camellia_192_CBC()
+		{
+#ifdef TH_HAS_OPENSSL
+#ifndef OPENSSL_NO_CAMELLIA
+			return (Cipher)EVP_camellia_192_cbc();
+#else
+			return nullptr;
+#endif
+#else
+			return nullptr;
+#endif
+		}
+		Cipher Ciphers::Camellia_192_CFB1()
+		{
+#ifdef TH_HAS_OPENSSL
+#ifndef OPENSSL_NO_CAMELLIA
+			return (Cipher)EVP_camellia_192_cfb1();
+#else
+			return nullptr;
+#endif
+#else
+			return nullptr;
+#endif
+		}
+		Cipher Ciphers::Camellia_192_CFB8()
+		{
+#ifdef TH_HAS_OPENSSL
+#ifndef OPENSSL_NO_CAMELLIA
+			return (Cipher)EVP_camellia_192_cfb8();
+#else
+			return nullptr;
+#endif
+#else
+			return nullptr;
+#endif
+		}
+		Cipher Ciphers::Camellia_192_CFB128()
+		{
+#ifdef TH_HAS_OPENSSL
+#ifndef OPENSSL_NO_CAMELLIA
+			return (Cipher)EVP_camellia_192_cfb128();
+#else
+			return nullptr;
+#endif
+#else
+			return nullptr;
+#endif
+		}
+		Cipher Ciphers::Camellia_192_OFB()
+		{
+#ifdef TH_HAS_OPENSSL
+#ifndef OPENSSL_NO_CAMELLIA
+			return (Cipher)EVP_camellia_192_ofb();
+#else
+			return nullptr;
+#endif
+#else
+			return nullptr;
+#endif
+		}
+		Cipher Ciphers::Camellia_192_CTR()
+		{
+#ifdef TH_HAS_OPENSSL
+#ifndef OPENSSL_NO_CAMELLIA
+			return (Cipher)EVP_camellia_192_ctr();
+#else
+			return nullptr;
+#endif
+#else
+			return nullptr;
+#endif
+		}
+		Cipher Ciphers::Camellia_256_ECB()
+		{
+#ifdef TH_HAS_OPENSSL
+#ifndef OPENSSL_NO_CAMELLIA
+			return (Cipher)EVP_camellia_256_ecb();
+#else
+			return nullptr;
+#endif
+#else
+			return nullptr;
+#endif
+		}
+		Cipher Ciphers::Camellia_256_CBC()
+		{
+#ifdef TH_HAS_OPENSSL
+#ifndef OPENSSL_NO_CAMELLIA
+			return (Cipher)EVP_camellia_256_cbc();
+#else
+			return nullptr;
+#endif
+#else
+			return nullptr;
+#endif
+		}
+		Cipher Ciphers::Camellia_256_CFB1()
+		{
+#ifdef TH_HAS_OPENSSL
+#ifndef OPENSSL_NO_CAMELLIA
+			return (Cipher)EVP_camellia_256_cfb1();
+#else
+			return nullptr;
+#endif
+#else
+			return nullptr;
+#endif
+		}
+		Cipher Ciphers::Camellia_256_CFB8()
+		{
+#ifdef TH_HAS_OPENSSL
+#ifndef OPENSSL_NO_CAMELLIA
+			return (Cipher)EVP_camellia_256_cfb8();
+#else
+			return nullptr;
+#endif
+#else
+			return nullptr;
+#endif
+		}
+		Cipher Ciphers::Camellia_256_CFB128()
+		{
+#ifdef TH_HAS_OPENSSL
+#ifndef OPENSSL_NO_CAMELLIA
+			return (Cipher)EVP_camellia_256_cfb128();
+#else
+			return nullptr;
+#endif
+#else
+			return nullptr;
+#endif
+		}
+		Cipher Ciphers::Camellia_256_OFB()
+		{
+#ifdef TH_HAS_OPENSSL
+#ifndef OPENSSL_NO_CAMELLIA
+			return (Cipher)EVP_camellia_256_ofb();
+#else
+			return nullptr;
+#endif
+#else
+			return nullptr;
+#endif
+		}
+		Cipher Ciphers::Camellia_256_CTR()
+		{
+#ifdef TH_HAS_OPENSSL
+#ifndef OPENSSL_NO_CAMELLIA
+			return (Cipher)EVP_camellia_256_ctr();
+#else
+			return nullptr;
+#endif
+#else
+			return nullptr;
+#endif
+		}
+		Cipher Ciphers::Chacha20()
+		{
+#ifdef TH_HAS_OPENSSL
+#ifndef OPENSSL_NO_CHACHA
+			return (Cipher)EVP_chacha20();
+#else
+			return nullptr;
+#endif
+#else
+			return nullptr;
+#endif
+		}
+		Cipher Ciphers::Chacha20_Poly1305()
+		{
+#ifdef TH_HAS_OPENSSL
+#ifndef OPENSSL_NO_CHACHA
+#ifndef OPENSSL_NO_POLY1305
+			return (Cipher)EVP_chacha20_poly1305();
+#else
+			return nullptr;
+#endif
+#else
+			return nullptr;
+#endif
+#else
+			return nullptr;
+#endif
+		}
+		Cipher Ciphers::Seed_ECB()
+		{
+#ifdef TH_HAS_OPENSSL
+#ifndef OPENSSL_NO_SEED
+			return (Cipher)EVP_seed_ecb();
+#else
+			return nullptr;
+#endif
+#else
+			return nullptr;
+#endif
+		}
+		Cipher Ciphers::Seed_CBC()
+		{
+#ifdef TH_HAS_OPENSSL
+#ifndef OPENSSL_NO_SEED
+			return (Cipher)EVP_seed_cbc();
+#else
+			return nullptr;
+#endif
+#else
+			return nullptr;
+#endif
+		}
+		Cipher Ciphers::Seed_CFB128()
+		{
+#ifdef TH_HAS_OPENSSL
+#ifndef OPENSSL_NO_SEED
+			return (Cipher)EVP_seed_cfb128();
+#else
+			return nullptr;
+#endif
+#else
+			return nullptr;
+#endif
+		}
+		Cipher Ciphers::Seed_OFB()
+		{
+#ifdef TH_HAS_OPENSSL
+#ifndef OPENSSL_NO_SEED
+			return (Cipher)EVP_seed_ofb();
+#else
+			return nullptr;
+#endif
+#else
+			return nullptr;
+#endif
+		}
+		Cipher Ciphers::SM4_ECB()
+		{
+#ifdef TH_HAS_OPENSSL
+#ifndef OPENSSL_NO_SM4
+			return (Cipher)EVP_sm4_ecb();
+#else
+			return nullptr;
+#endif
+#else
+			return nullptr;
+#endif
+		}
+		Cipher Ciphers::SM4_CBC()
+		{
+#ifdef TH_HAS_OPENSSL
+#ifndef OPENSSL_NO_SM4
+			return (Cipher)EVP_sm4_cbc();
+#else
+			return nullptr;
+#endif
+#else
+			return nullptr;
+#endif
+		}
+		Cipher Ciphers::SM4_CFB128()
+		{
+#ifdef TH_HAS_OPENSSL
+#ifndef OPENSSL_NO_SM4
+			return (Cipher)EVP_sm4_cfb128();
+#else
+			return nullptr;
+#endif
+#else
+			return nullptr;
+#endif
+		}
+		Cipher Ciphers::SM4_OFB()
+		{
+#ifdef TH_HAS_OPENSSL
+#ifndef OPENSSL_NO_SM4
+			return (Cipher)EVP_sm4_ofb();
+#else
+			return nullptr;
+#endif
+#else
+			return nullptr;
+#endif
+		}
+		Cipher Ciphers::SM4_CTR()
+		{
+#ifdef TH_HAS_OPENSSL
+#ifndef OPENSSL_NO_SM4
+			return (Cipher)EVP_sm4_ctr();
+#else
+			return nullptr;
+#endif
+#else
+			return nullptr;
+#endif
+		}
+
+		Digest Digests::MD2()
+		{
+#ifdef TH_HAS_OPENSSL
+#ifndef OPENSSL_NO_MD2
+			return (Cipher)EVP_md2();
+#else
+			return nullptr;
+#endif
+#else
+			return nullptr;
+#endif
+		}
+		Digest Digests::MD4()
+		{
+#ifdef TH_HAS_OPENSSL
+#ifndef OPENSSL_NO_MD4
+			return (Cipher)EVP_md4();
+#else
+			return nullptr;
+#endif
+#else
+			return nullptr;
+#endif
+		}
+		Digest Digests::MD5()
+		{
+#ifdef TH_HAS_OPENSSL
+#ifndef OPENSSL_NO_MD5
+			return (Cipher)EVP_md5();
+#else
+			return nullptr;
+#endif
+#else
+			return nullptr;
+#endif
+		}
+		Digest Digests::MD5_SHA1()
+		{
+#ifdef TH_HAS_OPENSSL
+#ifndef OPENSSL_NO_MD5
+			return (Cipher)EVP_md5_sha1();
+#else
+			return nullptr;
+#endif
+#else
+			return nullptr;
+#endif
+		}
+		Digest Digests::Blake2B512()
+		{
+#ifdef TH_HAS_OPENSSL
+#ifndef OPENSSL_NO_BLAKE2
+			return (Cipher)EVP_blake2b512();
+#else
+			return nullptr;
+#endif
+#else
+			return nullptr;
+#endif
+		}
+		Digest Digests::Blake2S256()
+		{
+#ifdef TH_HAS_OPENSSL
+#ifndef OPENSSL_NO_BLAKE2
+			return (Cipher)EVP_blake2s256();
+#else
+			return nullptr;
+#endif
+#else
+			return nullptr;
+#endif
+		}
+		Digest Digests::SHA1()
+		{
+#ifdef TH_HAS_OPENSSL
+			return (Cipher)EVP_sha1();
+#else
+			return nullptr;
+#endif
+		}
+		Digest Digests::SHA224()
+		{
+#ifdef TH_HAS_OPENSSL
+			return (Cipher)EVP_sha224();
+#else
+			return nullptr;
+#endif
+		}
+		Digest Digests::SHA256()
+		{
+#ifdef TH_HAS_OPENSSL
+			return (Cipher)EVP_sha256();
+#else
+			return nullptr;
+#endif
+		}
+		Digest Digests::SHA384()
+		{
+#ifdef TH_HAS_OPENSSL
+			return (Cipher)EVP_sha384();
+#else
+			return nullptr;
+#endif
+		}
+		Digest Digests::SHA512()
+		{
+#ifdef TH_HAS_OPENSSL
+			return (Cipher)EVP_sha512();
+#else
+			return nullptr;
+#endif
+		}
+		Digest Digests::SHA512_224()
+		{
+#ifdef TH_HAS_OPENSSL
+			return (Cipher)EVP_sha512_224();
+#else
+			return nullptr;
+#endif
+		}
+		Digest Digests::SHA512_256()
+		{
+#ifdef TH_HAS_OPENSSL
+			return (Cipher)EVP_sha512_256();
+#else
+			return nullptr;
+#endif
+		}
+		Digest Digests::SHA3_224()
+		{
+#ifdef TH_HAS_OPENSSL
+			return (Cipher)EVP_sha3_224();
+#else
+			return nullptr;
+#endif
+		}
+		Digest Digests::SHA3_256()
+		{
+#ifdef TH_HAS_OPENSSL
+			return (Cipher)EVP_sha3_256();
+#else
+			return nullptr;
+#endif
+		}
+		Digest Digests::SHA3_384()
+		{
+#ifdef TH_HAS_OPENSSL
+			return (Cipher)EVP_sha3_384();
+#else
+			return nullptr;
+#endif
+		}
+		Digest Digests::SHA3_512()
+		{
+#ifdef TH_HAS_OPENSSL
+			return (Cipher)EVP_sha3_512();
+#else
+			return nullptr;
+#endif
+		}
+		Digest Digests::Shake128()
+		{
+#ifdef TH_HAS_OPENSSL
+			return (Cipher)EVP_shake128();
+#else
+			return nullptr;
+#endif
+		}
+		Digest Digests::Shake256()
+		{
+#ifdef TH_HAS_OPENSSL
+			return (Cipher)EVP_shake256();
+#else
+			return nullptr;
+#endif
+		}
+		Digest Digests::MDC2()
+		{
+#ifdef TH_HAS_OPENSSL
+#ifndef OPENSSL_NO_MDC2
+			return (Cipher)EVP_mdc2();
+#else
+			return nullptr;
+#endif
+#else
+			return nullptr;
+#endif
+		}
+		Digest Digests::RipeMD160()
+		{
+#ifdef TH_HAS_OPENSSL
+#ifndef OPENSSL_NO_RMD160
+			return (Cipher)EVP_ripemd160();
+#else
+			return nullptr;
+#endif
+#else
+			return nullptr;
+#endif
+		}
+		Digest Digests::Whirlpool()
+		{
+#ifdef TH_HAS_OPENSSL
+#ifndef OPENSSL_NO_WHIRLPOOL
+			return (Cipher)EVP_whirlpool();
+#else
+			return nullptr;
+#endif
+#else
+			return nullptr;
+#endif
+		}
+		Digest Digests::SM3()
+		{
+#ifdef TH_HAS_OPENSSL
+#ifndef OPENSSL_NO_SM3
+			return (Cipher)EVP_sm3();
+#else
+			return nullptr;
+#endif
+#else
+			return nullptr;
+#endif
+		}
+
 		float Common::IsCubeInFrustum(const Matrix4x4& WVP, float Radius)
 		{
 			Radius = -Radius;
@@ -4876,6 +6718,14 @@ namespace Tomahawk
 				return Plane[3];
 #endif
 			return -1.0f;
+		}
+		bool Common::IsBase64(unsigned char Value)
+		{
+			return (isalnum(Value) || (Value == '+') || (Value == '/'));
+		}
+		bool Common::IsBase64URL(unsigned char Value)
+		{
+			return (isalnum(Value) || (Value == '-') || (Value == '_'));
 		}
 		bool Common::HasSphereIntersected(const Vector3& PositionR0, float RadiusR0, const Vector3& PositionR1, float RadiusR1)
 		{
@@ -5007,6 +6857,26 @@ namespace Tomahawk
 		{
 			return (R0->Position.X - R0->Scale.X) <= (R1->Position.X + R1->Scale.X) && (R1->Position.X - R1->Scale.X) <= (R0->Position.X + R0->Scale.X) && (R0->Position.Y - R0->Scale.Y) <= (R1->Position.Y + R1->Scale.Y) && (R1->Position.Y - R1->Scale.Y) <= (R0->Position.Y + R0->Scale.Y) && (R0->Position.Z - R0->Scale.Z) <= (R1->Position.Z + R1->Scale.Z) && (R1->Position.Z - R1->Scale.Z) <= (R0->Position.Z + R0->Scale.Z);
 		}
+		bool Common::Hex(char c, int& v)
+		{
+			if (0x20 <= c && isdigit(c))
+			{
+				v = c - '0';
+				return true;
+			}
+			else if ('A' <= c && c <= 'F')
+			{
+				v = c - 'A' + 10;
+				return true;
+			}
+			else if ('a' <= c && c <= 'f')
+			{
+				v = c - 'a' + 10;
+				return true;
+			}
+
+			return false;
+		}
 		bool Common::HexToString(void* Data, uint64_t Length, char* Buffer, uint64_t BufferLength)
 		{
 			if (!Data || !Length || !Buffer || !BufferLength)
@@ -5027,26 +6897,6 @@ namespace Tomahawk
 
 			Buffer[3 * Length - 1] = 0;
 			return true;
-		}
-		bool Common::Hex(char c, int& v)
-		{
-			if (0x20 <= c && isdigit(c))
-			{
-				v = c - '0';
-				return true;
-			}
-			else if ('A' <= c && c <= 'F')
-			{
-				v = c - 'A' + 10;
-				return true;
-			}
-			else if ('a' <= c && c <= 'f')
-			{
-				v = c - 'a' + 10;
-				return true;
-			}
-
-			return false;
 		}
 		bool Common::HexToDecimal(const std::string& s, uint64_t i, uint64_t cnt, int& Value)
 		{
@@ -5357,10 +7207,6 @@ namespace Tomahawk
 
 			HexString[40] = 0;
 		}
-		bool Common::IsBase64(unsigned char Value)
-		{
-			return (isalnum(Value) || (Value == '+') || (Value == '/'));
-		}
 		unsigned char Common::RandomUC()
 		{
 			static const char Alphabet[] = "0123456789ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz";
@@ -5420,6 +7266,117 @@ namespace Tomahawk
 
 			return 0;
 		}
+		std::string Common::JWTSign(const std::string& Alg, const std::string& Payload, const char* Key)
+		{
+			Digest Hash = nullptr;
+			if (Alg == "HS256")
+				Hash = Digests::SHA256();
+			else if (Alg == "HS384")
+				Hash = Digests::SHA384();
+			else if (Alg == "HS512")
+				Hash = Digests::SHA512();
+
+			return Common::HMAC(Hash, Payload, Key);
+		}
+		std::string Common::JWTEncode(WebToken* Src, const char* Key)
+		{
+			if (!Key || !Src || !Src->Header || !Src->Payload)
+				return "";
+
+			std::string Alg = Src->Header->GetVar("alg").GetBlob();
+			if (Alg.empty())
+				return "";
+
+			std::string Header;
+			Core::Document::WriteJSON(Src->Header, [&Header](Core::VarForm, const char* Buffer, int64_t Size)
+			{
+				Header.append(Buffer, Size);
+			});
+
+			std::string Payload;
+			Core::Document::WriteJSON(Src->Payload, [&Payload](Core::VarForm, const char* Buffer, int64_t Size)
+			{
+				Payload.append(Buffer, Size);
+			});
+
+			std::string Data = Base64URLEncode(Header) + '.' + Base64URLEncode(Payload);
+			Src->Signature = JWTSign(Alg, Data, Key);
+
+			return Data + '.' + Base64URLEncode(Src->Signature);
+		}
+		WebToken* Common::JWTDecode(const std::string& Value, const char* Key)
+		{
+			if (!Key || Value.empty())
+				return nullptr;
+
+			std::vector<std::string> Source = Core::Parser(&Value).Split('.');
+			if (Source.size() != 3)
+				return nullptr;
+
+			size_t Offset = Source[0].size() + Source[1].size() + 1;
+			Source[0] = std::move(Base64URLDecode(Source[0]));
+			Core::Document* Header = Core::Document::ReadJSON((int64_t)Source[0].size(), [&Source](char* Buffer, int64_t Size)
+			{
+				memcpy(Buffer, Source[0].c_str(), Size);
+				return true;
+			});
+
+			if (!Header)
+				return nullptr;
+
+			Source[1] = std::move(Base64URLDecode(Source[1]));
+			Core::Document* Payload = Core::Document::ReadJSON((int64_t)Source[1].size(), [&Source](char* Buffer, int64_t Size)
+			{
+				memcpy(Buffer, Source[1].c_str(), Size);
+				return true;
+			});
+
+			if (!Payload)
+			{
+				TH_RELEASE(Header);
+				return nullptr;
+			}
+
+			Source[0] = std::move(Header->GetVar("alg").GetBlob());
+			if (Base64URLEncode(JWTSign(Source[0], Value.substr(0, Offset), Key)) != Source[2])
+			{
+				TH_RELEASE(Header);
+				return nullptr;
+			}
+
+			WebToken* Result = new WebToken();
+			Result->Signature = std::move(Base64URLDecode(Source[2]));
+			Result->Header = Header;
+			Result->Payload = Payload;
+
+			return Result;
+		}
+		std::string Common::DocEncrypt(Core::Document* Src, const char* Key, const char* Salt)
+		{
+			if (!Src || !Key || !Salt)
+				return "";
+
+			std::string Result;
+			Core::Document::WriteJSON(Src, [&Result](Core::VarForm, const char* Buffer, int64_t Size)
+			{
+				Result.append(Buffer, Size);
+			});
+
+			Result = std::move(Base64Encode(Encrypt(Ciphers::AES_256_CBC(), Result, Key, Salt)));
+			return Result;
+		}
+		Core::Document* Common::DocDecrypt(const std::string& Value, const char* Key, const char* Salt)
+		{
+			if (Value.empty() || !Key || !Salt)
+				return nullptr;
+
+			std::string Source = std::move(Decrypt(Ciphers::AES_256_CBC(), Base64Decode(Value), Key, Salt));
+			return Core::Document::ReadJSON((int64_t)Source.size(), [&Source](char* Buffer, int64_t Size)
+			{
+				memcpy(Buffer, Source.c_str(), Size);
+				return true;
+			});
+		}
 		std::string Common::Base10ToBaseN(uint64_t Value, unsigned int BaseLessThan65)
 		{
 			static const char* Base62 = "0123456789ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz+/";
@@ -5441,48 +7398,18 @@ namespace Tomahawk
 
 			return Output;
 		}
-		std::string Common::Encrypt(const std::string& Text, int Offset)
+		std::string Common::DecimalToHex(uint64_t n)
 		{
+			const char* Set = "0123456789abcdef";
 			std::string Result;
-			for (uint64_t i = 0; i < (uint64_t)Text.size(); i++)
+
+			do
 			{
-				if (Text[i] != 0)
-					Result += char(Text[i] + Offset);
-				else
-					Result += " ";
-			}
+				Result = Set[n & 15] + Result;
+				n >>= 4;
+			} while (n > 0);
 
 			return Result;
-		}
-		std::string Common::Decrypt(const std::string& Text, int Offset)
-		{
-			std::string Result;
-			for (uint64_t i = 0; i < (uint64_t)Text.size(); i++)
-			{
-				if (Text[i] != 0)
-					Result += char(Text[i] - Offset);
-				else
-					Result += " ";
-			}
-
-			return Result;
-		}
-		std::string Common::BinToHex(const char* Value, size_t Size)
-		{
-			const char Hex[] = "0123456789abcdef";
-			std::string Output;
-
-			if (!Value)
-				return Output;
-
-			for (size_t i = 0; i < Size; i++)
-			{
-				unsigned char C = static_cast<unsigned char>(Value[i]);
-				Output += Hex[C >> 4];
-				Output += Hex[C & 0xf];
-			}
-
-			return Output;
 		}
 		std::string Common::RandomBytes(uint64_t Length)
 		{
@@ -5498,6 +7425,19 @@ namespace Tomahawk
 			return "";
 #endif
 		}
+		std::string Common::Move(const std::string& Text, int Offset)
+		{
+			std::string Result;
+			for (uint64_t i = 0; i < (uint64_t)Text.size(); i++)
+			{
+				if (Text[i] != 0)
+					Result += char(Text[i] + Offset);
+				else
+					Result += " ";
+			}
+
+			return Result;
+		}
 		std::string Common::MD5Hash(const std::string& Value)
 		{
 			MD5Hasher Hasher;
@@ -5506,23 +7446,84 @@ namespace Tomahawk
 
 			return Hasher.ToHex();
 		}
-		std::string Common::Sha256Encode(const char* Value, const char* Key, const char* IV)
+		std::string Common::Sign(Digest Type, const unsigned char* Value, uint64_t Length, const char* Key)
+		{
+#ifdef TH_HAS_OPENSSL
+			HMAC_CTX* Context;
+			if (!Type || !Value || !Length || !Key || !(Context = HMAC_CTX_new()))
+				return "";
+
+			unsigned char Result[EVP_MAX_MD_SIZE];
+			if (1 != HMAC_Init_ex(Context, Key, (int)strlen(Key), (const EVP_MD*)Type, nullptr))
+			{
+				HMAC_CTX_free(Context);
+				return "";
+			}
+
+			if (1 != HMAC_Update(Context, Value, (int)Length))
+			{
+				HMAC_CTX_free(Context);
+				return "";
+			}
+
+			unsigned int Size = sizeof(Result);
+			if (1 != HMAC_Final(Context, Result, &Size))
+			{
+				HMAC_CTX_free(Context);
+				return "";
+			}
+
+			std::string Output((const char*)Result, Size);
+			HMAC_CTX_free(Context);
+
+			return Output;
+#else
+			return (Value ? (const char*)Value : "");
+#endif
+		}
+		std::string Common::Sign(Digest Type, const std::string& Value, const char* Key)
+		{
+			return Sign(Type, (const unsigned char*)Value.c_str(), (uint64_t)Value.size(), Key);
+		}
+		std::string Common::HMAC(Digest Type, const unsigned char* Value, uint64_t Length, const char* Key)
+		{
+#ifdef TH_HAS_OPENSSL
+			if (!Type || !Value || !Length || !Key)
+				return "";
+
+			unsigned char Result[EVP_MAX_MD_SIZE];
+			unsigned int Size = sizeof(Result);
+
+			if (!::HMAC((const EVP_MD*)Type, Key, (int)strlen(Key), Value, (size_t)Length, Result, &Size))
+				return "";
+
+			std::string Output((const char*)Result, Size);
+			return Output;
+#else
+			return (Value ? (const char*)Value : "");
+#endif
+		}
+		std::string Common::HMAC(Digest Type, const std::string& Value, const char* Key)
+		{
+			return Common::HMAC(Type, (const unsigned char*)Value.c_str(), (uint64_t)Value.size(), Key);
+		}
+		std::string Common::Encrypt(Cipher Type, const unsigned char* Value, uint64_t Length, const char* Key, const char* Salt)
 		{
 #ifdef TH_HAS_OPENSSL
 			EVP_CIPHER_CTX* Context;
-			if (!Value || !Key || !IV || !(Context = EVP_CIPHER_CTX_new()))
+			if (!Type || !Value || !Length || !(Context = EVP_CIPHER_CTX_new()))
 				return "";
 
-			if (1 != EVP_EncryptInit_ex(Context, EVP_aes_256_cbc(), nullptr, (const unsigned char*)Key, (const unsigned char*)IV))
+			if (1 != EVP_EncryptInit_ex(Context, (const EVP_CIPHER*)Type, nullptr, (const unsigned char*)Key, (const unsigned char*)Salt))
 			{
 				EVP_CIPHER_CTX_free(Context);
 				return "";
 			}
 
-			int Size1 = (int)strlen(Value), Size2 = 0;
+			int Size1 = (int)Length, Size2 = 0;
 			unsigned char* Buffer = (unsigned char*)TH_MALLOC(sizeof(unsigned char) * (Size1 + 2048));
 
-			if (1 != EVP_EncryptUpdate(Context, Buffer, &Size2, (const unsigned char*)Value, Size1))
+			if (1 != EVP_EncryptUpdate(Context, Buffer, &Size2, Value, Size1))
 			{
 				EVP_CIPHER_CTX_free(Context);
 				TH_FREE(Buffer);
@@ -5542,100 +7543,30 @@ namespace Tomahawk
 
 			return Output;
 #else
-			return Value;
+			return (Value ? (const char*)Value : "");
 #endif
 		}
-		std::string Common::Sha256Decode(const char* Value, const char* Key, const char* IV)
+		std::string Common::Encrypt(Cipher Type, const std::string& Value, const char* Key, const char* Salt)
+		{
+			return Encrypt(Type, (const unsigned char*)Value.c_str(), (uint64_t)Value.size(), Key, Salt);
+		}
+		std::string Common::Decrypt(Cipher Type, const unsigned char* Value, uint64_t Length, const char* Key, const char* Salt)
 		{
 #ifdef TH_HAS_OPENSSL
 			EVP_CIPHER_CTX* Context;
-			if (!Value || !Key || !IV || !(Context = EVP_CIPHER_CTX_new()))
+			if (!Type || !Value || !Length || !(Context = EVP_CIPHER_CTX_new()))
 				return "";
 
-			if (1 != EVP_DecryptInit_ex(Context, EVP_aes_256_cbc(), nullptr, (const unsigned char*)Key, (const unsigned char*)IV))
+			if (1 != EVP_DecryptInit_ex(Context, (const EVP_CIPHER*)Type, nullptr, (const unsigned char*)Key, (const unsigned char*)Salt))
 			{
 				EVP_CIPHER_CTX_free(Context);
 				return "";
 			}
 
-			int Size1 = (int)strlen(Value), Size2 = 0;
+			int Size1 = (int)Length, Size2 = 0;
 			unsigned char* Buffer = (unsigned char*)TH_MALLOC(sizeof(unsigned char) * (Size1 + 2048));
 
-			if (1 != EVP_DecryptUpdate(Context, Buffer, &Size2, (const unsigned char*)Value, Size1))
-			{
-				EVP_CIPHER_CTX_free(Context);
-				TH_FREE(Buffer);
-				return "";
-			}
-
-			if (1 != EVP_DecryptFinal_ex(Context, Buffer + Size2, &Size1))
-			{
-				EVP_CIPHER_CTX_free(Context);
-				TH_FREE(Buffer);
-				return "";
-			}
-
-			std::string Output((const char*)Buffer, Size1 + Size2);
-			EVP_CIPHER_CTX_free(Context);
-			TH_FREE(Buffer);
-
-			return Output;
-		}
-		std::string Common::Aes256Encode(const std::string& Value, const char* Key, const char* IV)
-		{
-			EVP_CIPHER_CTX* Context;
-			if (Value.empty() || !Key || !IV || !(Context = EVP_CIPHER_CTX_new()))
-				return "";
-
-			if (1 != EVP_EncryptInit_ex(Context, EVP_aes_256_cbc(), nullptr, (const unsigned char*)Key, (const unsigned char*)IV))
-			{
-				EVP_CIPHER_CTX_free(Context);
-				return "";
-			}
-
-			int Size1 = (int)Value.size(), Size2 = 0;
-			unsigned char* Buffer = (unsigned char*)TH_MALLOC(sizeof(unsigned char) * (Size1 + 2048));
-
-			if (1 != EVP_EncryptUpdate(Context, Buffer, &Size2, (const unsigned char*)Value.c_str(), Size1))
-			{
-				EVP_CIPHER_CTX_free(Context);
-				TH_FREE(Buffer);
-				return "";
-			}
-
-			if (1 != EVP_EncryptFinal_ex(Context, Buffer + Size2, &Size1))
-			{
-				EVP_CIPHER_CTX_free(Context);
-				TH_FREE(Buffer);
-				return "";
-			}
-
-			std::string Output((const char*)Buffer, Size1 + Size2);
-			EVP_CIPHER_CTX_free(Context);
-			TH_FREE(Buffer);
-
-			return Output;
-#else
-			return Value;
-#endif
-		}
-		std::string Common::Aes256Decode(const std::string& Value, const char* Key, const char* IV)
-		{
-#ifdef TH_HAS_OPENSSL
-			EVP_CIPHER_CTX* Context;
-			if (Value.empty() || !Key || !IV || !(Context = EVP_CIPHER_CTX_new()))
-				return "";
-
-			if (1 != EVP_DecryptInit_ex(Context, EVP_aes_256_cbc(), nullptr, (const unsigned char*)Key, (const unsigned char*)IV))
-			{
-				EVP_CIPHER_CTX_free(Context);
-				return "";
-			}
-
-			int Size1 = (int)Value.size(), Size2 = 0;
-			unsigned char* Buffer = (unsigned char*)TH_MALLOC(sizeof(unsigned char) * (Size1 + 2048));
-
-			if (1 != EVP_DecryptUpdate(Context, Buffer, &Size2, (const unsigned char*)Value.c_str(), Size1))
+			if (1 != EVP_DecryptUpdate(Context, Buffer, &Size2, Value, Size1))
 			{
 				EVP_CIPHER_CTX_free(Context);
 				TH_FREE(Buffer);
@@ -5655,20 +7586,23 @@ namespace Tomahawk
 
 			return Output;
 #else
-			return Value;
+			return (Value ? (const char*)Value : "");
 #endif
 		}
-		std::string Common::Base64Encode(const unsigned char* Value, uint64_t Length)
+		std::string Common::Decrypt(Cipher Type, const std::string& Value, const char* Key, const char* Salt)
 		{
-			if (!Value)
+			return Decrypt(Type, (const unsigned char*)Value.c_str(), (uint64_t)Value.size(), Key, Salt);
+		}
+		std::string Common::Encode64(const char Alphabet[65], const unsigned char* Value, uint64_t Length, bool Padding)
+		{
+			if (!Value || !Length)
 				return "";
 
-			std::string Encoded;
+			std::string Result;
 			unsigned char Row3[3];
 			unsigned char Row4[4];
-			int Offset = 0, Step = 0;
+			uint32_t Offset = 0, Step = 0;
 
-			std::string Base64 = "ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789+/";
 			while (Length--)
 			{
 				Row3[Offset++] = *(Value++);
@@ -5681,13 +7615,13 @@ namespace Tomahawk
 				Row4[3] = Row3[2] & 0x3f;
 
 				for (Offset = 0; Offset < 4; Offset++)
-					Encoded += Base64[Row4[Offset]];
+					Result += Alphabet[Row4[Offset]];
 
 				Offset = 0;
 			}
 
 			if (!Offset)
-				return Encoded;
+				return Result;
 
 			for (Step = Offset; Step < 3; Step++)
 				Row3[Step] = '\0';
@@ -5698,110 +7632,148 @@ namespace Tomahawk
 			Row4[3] = Row3[2] & 0x3f;
 
 			for (Step = 0; (Step < Offset + 1); Step++)
-				Encoded += Base64[Row4[Step]];
+				Result += Alphabet[Row4[Step]];
+
+			if (!Padding)
+				return Result;
 
 			while (Offset++ < 3)
-				Encoded += '=';
+				Result += '=';
 
-			return Encoded;
-
+			return Result;
 		}
-		std::string Common::Base64Encode(const std::string& Text)
+		std::string Common::Decode64(const char Alphabet[65], const unsigned char* Value, uint64_t Length, bool(*IsAlphabetic)(unsigned char))
 		{
-			std::string Encoded;
-			unsigned char Row3[3];
-			unsigned char Row4[4];
-			const char* Value = Text.c_str();
-			unsigned int Length = (unsigned int)Text.size();
-			int Offset = 0, Step = 0;
+			if (!Value || !Length || !IsAlphabetic)
+				return "";
 
-			std::string Base64 = "ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789+/";
-			while (Length--)
-			{
-				Row3[Offset++] = *(Value++);
-				if (Offset != 3)
-					continue;
-
-				Row4[0] = (Row3[0] & 0xfc) >> 2;
-				Row4[1] = ((Row3[0] & 0x03) << 4) + ((Row3[1] & 0xf0) >> 4);
-				Row4[2] = ((Row3[1] & 0x0f) << 2) + ((Row3[2] & 0xc0) >> 6);
-				Row4[3] = Row3[2] & 0x3f;
-
-				for (Offset = 0; Offset < 4; Offset++)
-					Encoded += Base64[Row4[Offset]];
-
-				Offset = 0;
-			}
-
-			if (!Offset)
-				return Encoded;
-
-			for (Step = Offset; Step < 3; Step++)
-				Row3[Step] = '\0';
-
-			Row4[0] = (Row3[0] & 0xfc) >> 2;
-			Row4[1] = ((Row3[0] & 0x03) << 4) + ((Row3[1] & 0xf0) >> 4);
-			Row4[2] = ((Row3[1] & 0x0f) << 2) + ((Row3[2] & 0xc0) >> 6);
-			Row4[3] = Row3[2] & 0x3f;
-
-			for (Step = 0; (Step < Offset + 1); Step++)
-				Encoded += Base64[Row4[Step]];
-
-			while (Offset++ < 3)
-				Encoded += '=';
-
-			return Encoded;
-		}
-		std::string Common::Base64Decode(const std::string& Value)
-		{
-			int Length = (int)Value.size();
-			int Offset = 0, Step = 0;
-			int Focus = 0;
-
-			std::string Decoded;
+			std::string Result;
 			unsigned char Row4[4];
 			unsigned char Row3[3];
+			uint32_t Offset = 0, Step = 0;
+			uint32_t Focus = 0;
 
-			std::string Base64 = "ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789+/";
-			Core::Parser Base(&Base64);
-
-			while (Length-- && (Value[Focus] != '=') && IsBase64(Value[Focus]))
+			while (Length-- && (Value[Focus] != '=') && IsAlphabetic(Value[Focus]))
 			{
-				Row4[Offset++] = Value[Focus];
-				Focus++;
+				Row4[Offset++] = Value[Focus]; Focus++;
 				if (Offset != 4)
 					continue;
 
 				for (Offset = 0; Offset < 4; Offset++)
-					Row4[Offset] = (unsigned char)Base.Find(Row4[Offset]).Start;
+					Row4[Offset] = (unsigned char)OffsetOf64(Alphabet, Row4[Offset]);
 
 				Row3[0] = (Row4[0] << 2) + ((Row4[1] & 0x30) >> 4);
 				Row3[1] = ((Row4[1] & 0xf) << 4) + ((Row4[2] & 0x3c) >> 2);
 				Row3[2] = ((Row4[2] & 0x3) << 6) + Row4[3];
 
 				for (Offset = 0; (Offset < 3); Offset++)
-					Decoded += Row3[Offset];
+					Result += Row3[Offset];
 
 				Offset = 0;
 			}
 
 			if (!Offset)
-				return Decoded;
+				return Result;
 
 			for (Step = Offset; Step < 4; Step++)
 				Row4[Step] = 0;
 
 			for (Step = 0; Step < 4; Step++)
-				Row4[Step] = (unsigned char)Base.Find(Row4[Step]).Start;
+				Row4[Step] = (unsigned char)OffsetOf64(Alphabet, Row4[Step]);
 
 			Row3[0] = (Row4[0] << 2) + ((Row4[1] & 0x30) >> 4);
 			Row3[1] = ((Row4[1] & 0xf) << 4) + ((Row4[2] & 0x3c) >> 2);
 			Row3[2] = ((Row4[2] & 0x3) << 6) + Row4[3];
 
 			for (Step = 0; (Step < Offset - 1); Step++)
-				Decoded += Row3[Step];
+				Result += Row3[Step];
 
-			return Decoded;
+			return Result;
+		}
+		std::string Common::Base64Encode(const unsigned char* Value, uint64_t Length)
+		{
+			static const char Set[65] = "ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789+/";
+			return Encode64(Set, Value, Length, true);
+		}
+		std::string Common::Base64Encode(const std::string& Value)
+		{
+			return Base64Encode((const unsigned char*)Value.c_str(), (uint64_t)Value.size());
+		}
+		std::string Common::Base64Decode(const unsigned char* Value, uint64_t Length)
+		{
+			static const char Set[65] = "ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789+/";
+			return Decode64(Set, Value, Length, IsBase64);
+		}
+		std::string Common::Base64Decode(const std::string& Value)
+		{
+			return Base64Decode((const unsigned char*)Value.c_str(), (uint64_t)Value.size());
+		}
+		std::string Common::Base64URLEncode(const unsigned char* Value, uint64_t Length)
+		{
+			static const char Set[65] = "ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789-_";
+			return Encode64(Set, Value, Length, false);
+		}
+		std::string Common::Base64URLEncode(const std::string& Value)
+		{
+			return Base64URLEncode((const unsigned char*)Value.c_str(), (uint64_t)Value.size());
+		}
+		std::string Common::Base64URLDecode(const unsigned char* Value, uint64_t Length)
+		{
+			static const char Set[65] = "ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789-_";
+			int64_t Padding = (int64_t)Length % 4;
+			if (Padding == 0)
+				return Decode64(Set, Value, Length, IsBase64URL);
+
+			std::string Padded((const char*)Value, (size_t)Length);
+			Padded.append((size_t)(4 - Padding), '=');
+			return Decode64(Set, (const unsigned char*)Padded.c_str(), (uint64_t)Padded.size(), IsBase64URL);
+		}
+		std::string Common::Base64URLDecode(const std::string& Value)
+		{
+			return Base64URLDecode((const unsigned char*)Value.c_str(), (uint64_t)Value.size());
+		}
+		std::string Common::HexEncode(const char* Value, size_t Size)
+		{
+			static const char Hex[17] = "0123456789abcdef";
+			if (!Value || !Size)
+				return "";
+
+			std::string Output;
+			Output.reserve(Size * 2);
+
+			for (size_t i = 0; i < Size; i++)
+			{
+				unsigned char C = static_cast<unsigned char>(Value[i]);
+				Output += Hex[C >> 4];
+				Output += Hex[C & 0xf];
+			}
+
+			return Output;
+		}
+		std::string Common::HexEncode(const std::string& Value)
+		{
+			return HexEncode(Value.c_str(), Value.size());
+		}
+		std::string Common::HexDecode(const char* Value, size_t Size)
+		{
+			if (!Value || !Size)
+				return "";
+
+			std::string Output;
+			Output.reserve(Size / 2);
+
+			char Hex[3] = { 0, 0, 0 };
+			for (size_t i = 0; i < Size; i += 2)
+			{
+				memcpy(Hex, Value + i, sizeof(char) * 2);
+				Output.push_back((char)(int)strtol(Hex, nullptr, 16));
+			}
+
+			return Output;
+		}
+		std::string Common::HexDecode(const std::string& Value)
+		{
+			return HexDecode(Value.c_str(), Value.size());
 		}
 		std::string Common::URIEncode(const std::string& Text)
 		{
@@ -5943,19 +7915,6 @@ namespace Tomahawk
 
 			return Stream;
 		}
-		std::string Common::DecimalToHex(uint64_t n)
-		{
-			const char* Set = "0123456789abcdef";
-			std::string Result;
-
-			do
-			{
-				Result = Set[n & 15] + Result;
-				n >>= 4;
-			} while (n > 0);
-
-			return Result;
-		}
 		Hybi10Request Common::Hybi10Decode(const std::string& Value)
 		{
 			Hybi10PayloadHeader* Payload = (Hybi10PayloadHeader*)Value.substr(0, 2).c_str();
@@ -6096,6 +8055,120 @@ namespace Tomahawk
 			Cast.I = 0x5f3759df - (Cast.I >> 1);
 			Cast.F = Cast.F * (1.5f - (X * Cast.F * Cast.F));
 			return Cast.F;
+		}
+
+		WebToken::WebToken() : Header(nullptr), Payload(nullptr), Token(nullptr)
+		{
+		}
+		WebToken::WebToken(const std::string& Issuer, const std::string& Subject, int64_t Expiration) : Header(Core::Document::Object()), Payload(Core::Document::Object()), Token(nullptr)
+		{
+			Header->Set("alg", std::move(Core::Var::String("HS256")));
+			Header->Set("typ", std::move(Core::Var::String("JWT")));
+			Payload->Set("iss", std::move(Core::Var::String(Issuer)));
+			Payload->Set("sub", std::move(Core::Var::String(Subject)));
+			Payload->Set("exp", std::move(Core::Var::Integer(Expiration)));
+		}
+		WebToken::~WebToken()
+		{
+			TH_RELEASE(Header);
+			TH_RELEASE(Payload);
+			TH_RELEASE(Token);
+		}
+		void WebToken::SetAlgorithm(const std::string& Value)
+		{
+			if (!Header)
+				Header = Core::Document::Object();
+			Header->Set("alg", Core::Var::String(Value));
+			Signature.clear();
+		}
+		void WebToken::SetType(const std::string& Value)
+		{
+			if (!Header)
+				Header = Core::Document::Object();
+			Header->Set("typ", Core::Var::String(Value));
+			Signature.clear();
+		}
+		void WebToken::SetContentType(const std::string& Value)
+		{
+			if (!Header)
+				Header = Core::Document::Object();
+			Header->Set("cty", Core::Var::String(Value));
+			Signature.clear();
+		}
+		void WebToken::SetIssuer(const std::string& Value)
+		{
+			if (!Payload)
+				Payload = Core::Document::Object();
+			Payload->Set("iss", Core::Var::String(Value));
+			Signature.clear();
+		}
+		void WebToken::SetSubject(const std::string& Value)
+		{
+			if (!Payload)
+				Payload = Core::Document::Object();
+			Payload->Set("sub", Core::Var::String(Value));
+			Signature.clear();
+		}
+		void WebToken::SetId(const std::string& Value)
+		{
+			if (!Payload)
+				Payload = Core::Document::Object();
+			Payload->Set("jti", Core::Var::String(Value));
+			Signature.clear();
+		}
+		void WebToken::SetAudience(const std::vector<std::string>& Value)
+		{
+			Core::Document* Array = Core::Document::Array();
+			for (auto& Item : Value)
+				Array->Push(Core::Var::String(Item));
+
+			if (!Payload)
+				Payload = Core::Document::Object();
+			Payload->Set("aud", Array);
+			Signature.clear();
+		}
+		void WebToken::SetExpiration(int64_t Value)
+		{
+			if (!Payload)
+				Payload = Core::Document::Object();
+			Payload->Set("exp", Core::Var::Integer(Value));
+			Signature.clear();
+		}
+		void WebToken::SetNotBefore(int64_t Value)
+		{
+			if (!Payload)
+				Payload = Core::Document::Object();
+			Payload->Set("nbf", Core::Var::Integer(Value));
+			Signature.clear();
+		}
+		void WebToken::SetCreated(int64_t Value)
+		{
+			if (!Payload)
+				Payload = Core::Document::Object();
+			Payload->Set("iat", Core::Var::Integer(Value));
+			Signature.clear();
+		}
+		void WebToken::SetRefreshToken(const std::string& Value, const char* Key, const char* Salt)
+		{
+			TH_RELEASE(Token);
+			Token = Common::DocDecrypt(Value, Key, Salt);
+			Cache.clear();
+		}
+		std::string WebToken::GetRefreshToken(const char* Key, const char* Salt)
+		{
+			if (!Cache.empty() || !Key || !Salt)
+				return Cache;
+
+			Cache = Common::DocEncrypt(Token, Key, Salt);
+			return Cache;
+		}
+		bool WebToken::IsValid() const
+		{
+			if (!Header || !Payload || !Signature.c_str())
+				return false;
+
+			int64_t Expires = Payload->GetVar("exp").GetInteger();
+			return time(nullptr) < Expires;
 		}
 
 		Preprocessor::Preprocessor() : Nested(false)

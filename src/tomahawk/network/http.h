@@ -148,6 +148,7 @@ namespace Tomahawk
 				std::string Path;
 				uint64_t Expires = 0;
 				bool Secure = false;
+				bool HTTPOnly = false;
 			};
 
 			struct TH_OUT RequestFrame
@@ -184,7 +185,7 @@ namespace Tomahawk
 
 				void SetHeader(const char* Key, const char* Value);
 				void SetHeader(const char* Key, const std::string& Value);
-				void SetCookie(const char* Key, const char* Value, const char* Domain, const char* Path, uint64_t Expires, bool Secure);
+				void SetCookie(const char* Key, const char* Value, uint64_t Expires = 0, const char* Domain = nullptr, const char* Path = nullptr, bool Secure = false, bool HTTPOnly = false);
 				const char* GetHeader(const char* Key);
 				Cookie* GetCookie(const char* Key);
 			};

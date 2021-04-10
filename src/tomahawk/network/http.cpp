@@ -778,7 +778,7 @@ namespace Tomahawk
 				Header.Value = Value;
 				Headers.push_back(Header);
 			}
-			void ResponseFrame::SetCookie(const char* Key, const char* Value, const char* Domain, const char* Path, uint64_t Expires, bool Secure)
+			void ResponseFrame::SetCookie(const char* Key, const char* Value, uint64_t Expires, const char* Domain, const char* Path, bool Secure, bool HTTPOnly)
 			{
 				if (!Key || !Value)
 					return;
@@ -796,15 +796,17 @@ namespace Tomahawk
 						Cookie.Value = Value;
 						Cookie.Secure = Secure;
 						Cookie.Expires = Expires;
+						Cookie.HTTPOnly = HTTPOnly;
 						return;
 					}
 				}
 
 				Cookie Cookie;
-				Cookie.Secure = Secure;
-				Cookie.Expires = Expires;
 				Cookie.Name = Key;
 				Cookie.Value = Value;
+				Cookie.Secure = Secure;
+				Cookie.Expires = Expires;
+				Cookie.HTTPOnly = HTTPOnly;
 
 				if (Domain != nullptr)
 					Cookie.Domain = Domain;
@@ -812,7 +814,7 @@ namespace Tomahawk
 				if (Path != nullptr)
 					Cookie.Path = Path;
 
-				Cookies.push_back(Cookie);
+				Cookies.emplace_back(std::move(Cookie));
 			}
 			const char* ResponseFrame::GetHeader(const char* Key)
 			{
@@ -1412,7 +1414,7 @@ namespace Tomahawk
 					if (!Item.Path.empty())
 						Item.Path.insert(0, "; path=");
 
-					Content.fAppend("Set-Cookie: %s=%s; expires=%s%s%s%s\r\n", Item.Name.c_str(), Item.Value.c_str(), Core::DateTime::GetGMTBasedString(Item.Expires).c_str(), Item.Path.c_str(), Item.Domain.c_str(), Item.Secure ? "; secure" : "");
+					Content.fAppend("Set-Cookie: %s=%s; expires=%s%s%s%s%s\r\n", Item.Name.c_str(), Item.Value.c_str(), Core::DateTime::GetGMTBasedString(Item.Expires).c_str(), Item.Path.c_str(), Item.Domain.c_str(), Item.Secure ? "; secure" : "", Item.HTTPOnly ? "; HTTPOnly" : "");
 				}
 
 				if (Route && Route->Callbacks.Headers)
@@ -1924,7 +1926,7 @@ namespace Tomahawk
 				if (SessionExpires == 0)
 					SessionExpires = Time + Base->Route->Site->Gateway.Session.Expires;
 
-				Base->Response.SetCookie(Base->Route->Site->Gateway.Session.Name.c_str(), SessionId.c_str(), Base->Route->Site->Gateway.Session.Domain.c_str(), Base->Route->Site->Gateway.Session.Path.c_str(), Time + (int64_t)Base->Route->Site->Gateway.Session.CookieExpires, false);
+				Base->Response.SetCookie(Base->Route->Site->Gateway.Session.Name.c_str(), SessionId.c_str(), Time + (int64_t)Base->Route->Site->Gateway.Session.CookieExpires, Base->Route->Site->Gateway.Session.Domain.c_str(), Base->Route->Site->Gateway.Session.Path.c_str(), false);
 				return SessionId;
 			}
 			bool Session::InvalidateCache(const std::string& Path)
@@ -3003,7 +3005,7 @@ namespace Tomahawk
 					if (!Item.Path.empty())
 						Item.Path.insert(0, "; path=");
 
-					Buffer->fAppend("Set-Cookie: %s=%s; expires=%s%s%s%s\r\n", Item.Name.c_str(), Item.Value.c_str(), Core::DateTime::GetGMTBasedString(Item.Expires).c_str(), Item.Path.c_str(), Item.Domain.c_str(), Item.Secure ? "; secure" : "");
+					Buffer->fAppend("Set-Cookie: %s=%s; expires=%s%s%s%s%s\r\n", Item.Name.c_str(), Item.Value.c_str(), Core::DateTime::GetGMTBasedString(Item.Expires).c_str(), Item.Path.c_str(), Item.Domain.c_str(), Item.Secure ? "; secure" : "", Item.HTTPOnly ? "; HTTPOnly" : "");
 				}
 			}
 			void Util::ConstructHeadCache(Connection* Base, Core::Parser* Buffer)
@@ -5079,6 +5081,7 @@ namespace Tomahawk
 			}
 			bool Server::OnConfigure(SocketRouter* NewRouter)
 			{
+				std::unordered_set<std::string> Modules;
 				std::string Directory = Core::OS::Directory::Get();
 				auto* Root = (MapRouter*)NewRouter;
 
@@ -5121,6 +5124,10 @@ namespace Tomahawk
 						if (!Root->VM || !Entry->Gateway.Enabled || !Entry->Gateway.Verify)
 							continue;
 
+						if (Modules.find(Route->DocumentRoot) != Modules.end())
+							continue;
+
+						Modules.insert(Route->DocumentRoot);
 						for (auto& Exp : Route->Gateway.Files)
 						{
 							std::vector<std::string> Result = Root->VM->VerifyModules(Route->DocumentRoot, Exp);

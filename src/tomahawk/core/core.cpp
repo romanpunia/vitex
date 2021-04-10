@@ -5471,7 +5471,7 @@ namespace Tomahawk
 			while (Active)
 			{
 				bool Overhead = true;
-				if (!Workers && !Tasks.empty())
+				if (!Tasks.empty())
 					Overhead = (DispatchTask() ? false : Overhead);
 
 				if (!Events.empty())
@@ -6453,9 +6453,6 @@ namespace Tomahawk
 					Result = new Document(std::move(Var::Undefined()));
 					break;
 			}
-
-			if (Result != nullptr && Result->Key.empty())
-				Result->Key.assign("document");
 
 			return Result;
 		}

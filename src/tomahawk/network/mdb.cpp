@@ -873,12 +873,9 @@ namespace Tomahawk
 				return nullptr;
 #endif
 			}
-			Document Document::FromEmpty(bool Array)
+			Document Document::FromEmpty()
 			{
 #ifdef TH_HAS_MONGOC
-				if (Array)
-					return BCON_NEW("pipeline", "[", "]");
-
 				return bson_new();
 #else
 				return nullptr;

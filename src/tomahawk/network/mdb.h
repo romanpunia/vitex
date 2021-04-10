@@ -138,8 +138,8 @@ namespace Tomahawk
 				}
 
 			public:
+				static Document FromEmpty();
 				static Document FromDocument(Core::Document* Document);
-				static Document FromEmpty(bool Array);
 				static Document FromJSON(const std::string& JSON);
 				static Document FromBuffer(const unsigned char* Buffer, uint64_t Length);
 				static Document FromSource(TDocument* Src);

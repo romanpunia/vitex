@@ -674,7 +674,7 @@ namespace Tomahawk
 					return "''";
 
 				if (!Base || !Base->Get())
-					return "'\\x" + Compute::Common::BinToHex(Src, Size) + "'::bytea";
+					return "'\\x" + Compute::Common::HexEncode(Src, Size) + "'::bytea";
 
 				size_t Length = 0;
 				char* Subresult = (char*)PQescapeByteaConn(Base->Get(), (unsigned char*)Src, Size, &Length);
@@ -683,7 +683,7 @@ namespace Tomahawk
 
 				return Result;
 #else
-				return "'\\x" + Compute::Common::BinToHex(Src, Size) + "'::bytea";
+				return "'\\x" + Compute::Common::HexEncode(Src, Size) + "'::bytea";
 #endif
 			}
 			std::string Driver::GetSQL(Connection* Base, Core::Document* Source, bool Escape)

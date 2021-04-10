@@ -34,6 +34,8 @@ namespace Tomahawk
 {
 	namespace Compute
 	{
+		class WebToken;
+
 		class RigidBody;
 		
 		class SoftBody;
@@ -54,6 +56,8 @@ namespace Tomahawk
 		typedef std::function<bool(class Preprocessor*, const struct IncludeResult& File, std::string* Out)> ProcIncludeCallback;
 		typedef std::function<bool(class Preprocessor*, const std::string& Name, const std::vector<std::string>& Args)> ProcPragmaCallback;
 		typedef std::function<void(const struct CollisionBody&)> CollisionCallback;
+		typedef void* Cipher;
+		typedef void* Digest;
 
 		enum Hybi10_Opcode
 		{
@@ -1036,7 +1040,7 @@ namespace Tomahawk
 				unsigned int NbFaces = 0;
 				unsigned int* Faces = nullptr;
 				bool OneSided = true;
-				bool SGIAlgorithm = true;
+				bool SGICipher = true;
 				bool ConnectAllStrips = false;
 			};
 
@@ -1058,7 +1062,7 @@ namespace Tomahawk
 			unsigned int NbStrips;
 			unsigned int TotalLength;
 			bool OneSided;
-			bool SGIAlgorithm;
+			bool SGICipher;
 			bool ConnectAllStrips;
 
 		public:
@@ -1318,17 +1322,192 @@ namespace Tomahawk
 			}
 		};
 
+		class TH_OUT Ciphers
+		{
+		public:
+			static Cipher DES_ECB();
+			static Cipher DES_EDE();
+			static Cipher DES_EDE3();
+			static Cipher DES_EDE_ECB();
+			static Cipher DES_EDE3_ECB();
+			static Cipher DES_CFB64();
+			static Cipher DES_CFB1();
+			static Cipher DES_CFB8();
+			static Cipher DES_EDE_CFB64();
+			static Cipher DES_EDE3_CFB64();
+			static Cipher DES_EDE3_CFB1();
+			static Cipher DES_EDE3_CFB8();
+			static Cipher DES_OFB();
+			static Cipher DES_EDE_OFB();
+			static Cipher DES_EDE3_OFB();
+			static Cipher DES_CBC();
+			static Cipher DES_EDE_CBC();
+			static Cipher DES_EDE3_CBC();
+			static Cipher DES_EDE3_Wrap();
+			static Cipher DESX_CBC();
+			static Cipher RC4();
+			static Cipher RC4_40();
+			static Cipher RC4_HMAC_MD5();
+			static Cipher IDEA_ECB();
+			static Cipher IDEA_CFB64();
+			static Cipher IDEA_OFB();
+			static Cipher IDEA_CBC();
+			static Cipher RC2_ECB();
+			static Cipher RC2_CBC();
+			static Cipher RC2_40_CBC();
+			static Cipher RC2_64_CBC();
+			static Cipher RC2_CFB64();
+			static Cipher RC2_OFB();
+			static Cipher BF_ECB();
+			static Cipher BF_CBC();
+			static Cipher BF_CFB64();
+			static Cipher BF_OFB();
+			static Cipher CAST5_ECB();
+			static Cipher CAST5_CBC();
+			static Cipher CAST5_CFB64();
+			static Cipher CAST5_OFB();
+			static Cipher RC5_32_12_16_CBC();
+			static Cipher RC5_32_12_16_ECB();
+			static Cipher RC5_32_12_16_CFB64();
+			static Cipher RC5_32_12_16_OFB();
+			static Cipher AES_128_ECB();
+			static Cipher AES_128_CBC();
+			static Cipher AES_128_CFB1();
+			static Cipher AES_128_CFB8();
+			static Cipher AES_128_CFB128();
+			static Cipher AES_128_OFB();
+			static Cipher AES_128_CTR();
+			static Cipher AES_128_CCM();
+			static Cipher AES_128_GCM();
+			static Cipher AES_128_XTS();
+			static Cipher AES_128_Wrap();
+			static Cipher AES_128_WrapPad();
+			static Cipher AES_128_OCB();
+			static Cipher AES_192_ECB();
+			static Cipher AES_192_CBC();
+			static Cipher AES_192_CFB1();
+			static Cipher AES_192_CFB8();
+			static Cipher AES_192_CFB128();
+			static Cipher AES_192_OFB();
+			static Cipher AES_192_CTR();
+			static Cipher AES_192_CCM();
+			static Cipher AES_192_GCM();
+			static Cipher AES_192_Wrap();
+			static Cipher AES_192_WrapPad();
+			static Cipher AES_192_OCB();
+			static Cipher AES_256_ECB();
+			static Cipher AES_256_CBC();
+			static Cipher AES_256_CFB1();
+			static Cipher AES_256_CFB8();
+			static Cipher AES_256_CFB128();
+			static Cipher AES_256_OFB();
+			static Cipher AES_256_CTR();
+			static Cipher AES_256_CCM();
+			static Cipher AES_256_GCM();
+			static Cipher AES_256_XTS();
+			static Cipher AES_256_Wrap();
+			static Cipher AES_256_WrapPad();
+			static Cipher AES_256_OCB();
+			static Cipher AES_128_CBC_HMAC_SHA1();
+			static Cipher AES_256_CBC_HMAC_SHA1();
+			static Cipher AES_128_CBC_HMAC_SHA256();
+			static Cipher AES_256_CBC_HMAC_SHA256();
+			static Cipher ARIA_128_ECB();
+			static Cipher ARIA_128_CBC();
+			static Cipher ARIA_128_CFB1();
+			static Cipher ARIA_128_CFB8();
+			static Cipher ARIA_128_CFB128();
+			static Cipher ARIA_128_CTR();
+			static Cipher ARIA_128_OFB();
+			static Cipher ARIA_128_GCM();
+			static Cipher ARIA_128_CCM();
+			static Cipher ARIA_192_ECB();
+			static Cipher ARIA_192_CBC();
+			static Cipher ARIA_192_CFB1();
+			static Cipher ARIA_192_CFB8();
+			static Cipher ARIA_192_CFB128();
+			static Cipher ARIA_192_CTR();
+			static Cipher ARIA_192_OFB();
+			static Cipher ARIA_192_GCM();
+			static Cipher ARIA_192_CCM();
+			static Cipher ARIA_256_ECB();
+			static Cipher ARIA_256_CBC();
+			static Cipher ARIA_256_CFB1();
+			static Cipher ARIA_256_CFB8();
+			static Cipher ARIA_256_CFB128();
+			static Cipher ARIA_256_CTR();
+			static Cipher ARIA_256_OFB();
+			static Cipher ARIA_256_GCM();
+			static Cipher ARIA_256_CCM();
+			static Cipher Camellia_128_ECB();
+			static Cipher Camellia_128_CBC();
+			static Cipher Camellia_128_CFB1();
+			static Cipher Camellia_128_CFB8();
+			static Cipher Camellia_128_CFB128();
+			static Cipher Camellia_128_OFB();
+			static Cipher Camellia_128_CTR();
+			static Cipher Camellia_192_ECB();
+			static Cipher Camellia_192_CBC();
+			static Cipher Camellia_192_CFB1();
+			static Cipher Camellia_192_CFB8();
+			static Cipher Camellia_192_CFB128();
+			static Cipher Camellia_192_OFB();
+			static Cipher Camellia_192_CTR();
+			static Cipher Camellia_256_ECB();
+			static Cipher Camellia_256_CBC();
+			static Cipher Camellia_256_CFB1();
+			static Cipher Camellia_256_CFB8();
+			static Cipher Camellia_256_CFB128();
+			static Cipher Camellia_256_OFB();
+			static Cipher Camellia_256_CTR();
+			static Cipher Chacha20();
+			static Cipher Chacha20_Poly1305();
+			static Cipher Seed_ECB();
+			static Cipher Seed_CBC();
+			static Cipher Seed_CFB128();
+			static Cipher Seed_OFB();
+			static Cipher SM4_ECB();
+			static Cipher SM4_CBC();
+			static Cipher SM4_CFB128();
+			static Cipher SM4_OFB();
+			static Cipher SM4_CTR();
+		};
+
+		class TH_OUT Digests
+		{
+		public:
+			static Digest MD2();
+			static Digest MD4();
+			static Digest MD5();
+			static Digest MD5_SHA1();
+			static Digest Blake2B512();
+			static Digest Blake2S256();
+			static Digest SHA1();
+			static Digest SHA224();
+			static Digest SHA256();
+			static Digest SHA384();
+			static Digest SHA512();
+			static Digest SHA512_224();
+			static Digest SHA512_256();
+			static Digest SHA3_224();
+			static Digest SHA3_256();
+			static Digest SHA3_384();
+			static Digest SHA3_512();
+			static Digest Shake128();
+			static Digest Shake256();
+			static Digest MDC2();
+			static Digest RipeMD160();
+			static Digest Whirlpool();
+			static Digest SM3();
+		};
+
 		class TH_OUT Common
 		{
 		public:
 			static std::string Base10ToBaseN(uint64_t Value, unsigned int BaseLessThan65);
-			static std::string URIEncode(const std::string& Text);
-			static std::string URIEncode(const char* Text, uint64_t Length);
-			static std::string URIDecode(const std::string& Text);
-			static std::string URIDecode(const char* Text, uint64_t Length);
-			static std::string Encrypt(const std::string& Text, int Offset);
-			static std::string Decrypt(const std::string& Text, int Offset);
 			static float IsCubeInFrustum(const Matrix4x4& WorldViewProjection, float Radius);
+			static bool IsBase64URL(unsigned char Value);
+			static bool IsBase64(unsigned char Value);
 			static bool HasSphereIntersected(const Vector3& PositionR0, float RadiusR0, const Vector3& PositionR1, float RadiusR1);
 			static bool HasLineIntersected(float DistanceF, float DistanceD, const Vector3& Start, const Vector3& End, Vector3& Hit);
 			static bool HasLineIntersectedCube(const Vector3& Min, const Vector3& Max, const Vector3& Start, const Vector3& End);
@@ -1338,9 +1517,8 @@ namespace Tomahawk
 			static bool HasSBIntersected(Transform* BoxR0, Transform* BoxR1);
 			static bool HasOBBIntersected(Transform* BoxR0, Transform* BoxR1);
 			static bool HasAABBIntersected(Transform* BoxR0, Transform* BoxR1);
-			static bool IsBase64(unsigned char Value);
-			static bool HexToString(void* Data, uint64_t Length, char* Buffer, uint64_t BufferLength);
 			static bool Hex(char c, int& v);
+			static bool HexToString(void* Data, uint64_t Length, char* Buffer, uint64_t BufferLength);
 			static bool HexToDecimal(const std::string& s, uint64_t i, uint64_t cnt, int& Value);
 			static void ComputeJointOrientation(Compute::Joint* Matrix, bool LeftHanded);
 			static void ComputeMatrixOrientation(Compute::Matrix4x4* Matrix, bool LeftHanded);
@@ -1359,22 +1537,46 @@ namespace Tomahawk
 			static void Sha1ComputeHashBlock(unsigned int* Result, unsigned int* W);
 			static void Sha1Compute(const void* Value, int Length, unsigned char* Hash20);
 			static void Sha1Hash20ToHex(const unsigned char* Hash20, char* HexString);
-			static std::string BinToHex(const char* Value, size_t Size);
+			static std::string JWTSign(const std::string& Algo, const std::string& Payload, const char* Key);
+			static std::string JWTEncode(WebToken* Src, const char* Key);
+			static WebToken* JWTDecode(const std::string& Value, const char* Key);
+			static std::string DocEncrypt(Core::Document* Src, const char* Key, const char* Salt);
+			static Core::Document* DocDecrypt(const std::string& Value, const char* Key, const char* Salt);
 			static std::string RandomBytes(uint64_t Length);
 			static std::string MD5Hash(const std::string& Value);
-			static std::string Sha256Encode(const char* Value, const char* Key, const char* IV);
-			static std::string Sha256Decode(const char* Value, const char* Key, const char* IV);
-			static std::string Aes256Encode(const std::string& Value, const char* Key, const char* IV);
-			static std::string Aes256Decode(const std::string& Value, const char* Key, const char* IV);
+			static std::string Move(const std::string& Text, int Offset);
+			static std::string Sign(Digest Type, const unsigned char* Value, uint64_t Length, const char* Key);
+			static std::string Sign(Digest Type, const std::string& Value, const char* Key);
+			static std::string HMAC(Digest Type, const unsigned char* Value, uint64_t Length, const char* Key);
+			static std::string HMAC(Digest Type, const std::string& Value, const char* Key);
+			static std::string Encrypt(Cipher Type, const unsigned char* Value, uint64_t Length, const char* Key, const char* Salt);
+			static std::string Encrypt(Cipher Type, const std::string& Value, const char* Key, const char* Salt);
+			static std::string Decrypt(Cipher Type, const unsigned char* Value, uint64_t Length, const char* Key, const char* Salt);
+			static std::string Decrypt(Cipher Type, const std::string& Value, const char* Key, const char* Salt);
+			static std::string Encode64(const char Alphabet[65], const unsigned char* Value, uint64_t Length, bool Padding);
+			static std::string Decode64(const char Alphabet[65], const unsigned char* Value, uint64_t Length, bool(*IsAlphabetic)(unsigned char));
 			static std::string Base64Encode(const unsigned char* Value, uint64_t Length);
 			static std::string Base64Encode(const std::string& Value);
+			static std::string Base64Decode(const unsigned char* Value, uint64_t Length);
 			static std::string Base64Decode(const std::string& Value);
+			static std::string Base64URLEncode(const unsigned char* Value, uint64_t Length);
+			static std::string Base64URLEncode(const std::string& Value);
+			static std::string Base64URLDecode(const unsigned char* Value, uint64_t Length);
+			static std::string Base64URLDecode(const std::string& Value);
+			static std::string HexEncode(const char* Value, size_t Size);
+			static std::string HexEncode(const std::string& Value);
+			static std::string HexDecode(const char* Value, size_t Size);
+			static std::string HexDecode(const std::string& Value);
+			static std::string URIEncode(const std::string& Text);
+			static std::string URIEncode(const char* Text, uint64_t Length);
+			static std::string URIDecode(const std::string& Text);
+			static std::string URIDecode(const char* Text, uint64_t Length);
 			static std::string Hybi10Encode(const Hybi10Request& hRequest, bool Masked);
 			static std::string DecimalToHex(uint64_t V);
 			static Hybi10Request Hybi10Decode(const std::string& Data);
 			static unsigned char RandomUC();
-			static uint64_t RandomNumber(uint64_t Begin, uint64_t End);
 			static uint64_t Utf8(int code, char* Buffer);
+			static uint64_t RandomNumber(uint64_t Begin, uint64_t End);
 			static std::vector<int> CreateTriangleStrip(TriangleStrip::Desc& Desc, const std::vector<int>& Indices);
 			static std::vector<int> CreateTriangleList(const std::vector<int>& Indices);
 			static Ray CreateCursorRay(const Vector3& Origin, const Vector2& Cursor, const Vector2& Screen, const Matrix4x4& InvProjection, const Matrix4x4& InvView);
@@ -1406,6 +1608,36 @@ namespace Tomahawk
 			static bool Match(RegexSource* Value, RegexResult& Result, const std::string& Buffer);
 			static bool Match(RegexSource* Value, RegexResult& Result, const char* Buffer, int64_t Length);
 			static const char* Syntax();
+		};
+
+		class TH_OUT WebToken : public Core::Object
+		{
+		private:
+			std::string Cache;
+
+		public:
+			Core::Document* Header;
+			Core::Document* Payload;
+			Core::Document* Token;
+			std::string Signature;
+
+		public:
+			WebToken();
+			WebToken(const std::string& Issuer, const std::string& Subject, int64_t Expiration);
+			virtual ~WebToken() override;
+			void SetAlgorithm(const std::string& Value);
+			void SetType(const std::string& Value);
+			void SetContentType(const std::string& Value);
+			void SetIssuer(const std::string& Value);
+			void SetSubject(const std::string& Value);
+			void SetId(const std::string& Value);
+			void SetAudience(const std::vector<std::string>& Value);
+			void SetExpiration(int64_t Value);
+			void SetNotBefore(int64_t Value);
+			void SetCreated(int64_t Value);
+			void SetRefreshToken(const std::string& Value, const char* Key, const char* Salt);
+			std::string GetRefreshToken(const char* Key, const char* Salt);
+			bool IsValid() const;
 		};
 
 		class TH_OUT Preprocessor : public Core::Object

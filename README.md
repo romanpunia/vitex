@@ -32,9 +32,9 @@ Tomahawk is a cross-platform C++14 framework to create any type of application f
 + Soft body physics
 + Constraint physics
 + Physics simulator
-+ Regular expressions (custom)
-+ Cryptography (MD5, SHA1, SHA256, AES256)
-+ Encoding (HYBI10, Base64, URI)
++ Regular expressions (custom, 4x faster than STL regex)
++ Cryptography and hashes (MD5, SHA1, AES256 and 166 more)
++ Encoding (HYBI10, Base64, Base64URL, URI)
 + Templated math utils
 + Common utils for computations
 + Strong random functions

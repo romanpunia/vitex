@@ -1612,13 +1612,11 @@ namespace Tomahawk
 
 		class TH_OUT WebToken : public Core::Object
 		{
-		private:
-			std::string Cache;
-
 		public:
 			Core::Document* Header;
 			Core::Document* Payload;
 			Core::Document* Token;
+			std::string Refresher;
 			std::string Signature;
 
 		public:

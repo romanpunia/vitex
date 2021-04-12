@@ -374,7 +374,7 @@ namespace Tomahawk
 				{
 					if (Safe != nullptr)
 						Safe->lock();
-
+					
 					State = 0;
 					if (Queries != nullptr)
 					{

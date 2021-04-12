@@ -8152,15 +8152,15 @@ namespace Tomahawk
 		{
 			TH_RELEASE(Token);
 			Token = Common::DocDecrypt(Value, Key, Salt);
-			Cache.clear();
+			Refresher.assign(Value);
 		}
 		std::string WebToken::GetRefreshToken(const char* Key, const char* Salt)
 		{
-			if (!Cache.empty() || !Key || !Salt)
-				return Cache;
+			if (!Key || !Salt)
+				return Refresher;
 
-			Cache = Common::DocEncrypt(Token, Key, Salt);
-			return Cache;
+			Refresher = Common::DocEncrypt(Token, Key, Salt);
+			return Refresher;
 		}
 		bool WebToken::IsValid() const
 		{

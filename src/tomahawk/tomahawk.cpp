@@ -18,6 +18,9 @@
 #ifdef TH_HAS_SDL2
 #include <SDL2/SDL.h>
 #endif
+#ifdef TH_HAS_POSTGRESQL
+#include <libpq-fe.h>
+#endif
 #ifdef TH_HAS_ASSIMP
 #include <assimp/DefaultLogger.hpp>
 #endif
@@ -49,19 +52,19 @@ namespace Tomahawk
 	void Library::Describe()
 	{
 		TH_INFO("tomahawk info"
-				   "\n\tbuild version"
-				   "\n\t\t%i.%i.%i on %s (%s)"
-				   "\n\tfeatured with"
-				   "\n\t\tDirectX: %s"
-				   "\n\t\tOpenGL: %s"
-				   "\n\t\tOpenSSL: %s"
-				   "\n\t\tGLEW: %s"
-				   "\n\t\tZLib: %s"
-				   "\n\t\tAssimp: %s"
-				   "\n\t\tMongoDB: %s"
-				   "\n\t\tPostgreSQL: %s"
-				   "\n\t\tOpenAL: %s"
-				   "\n\t\tSDL2: %s", TH_MAJOR_VERSION, TH_MINOR_VERSION, TH_PATCH_LEVEL, Platform(), Compiler(), HasDirectX() ? "ON" : "OFF", HasOpenGL() ? "ON" : "OFF", HasOpenSSL() ? "ON" : "OFF", HasGLEW() ? "ON" : "OFF", HasZLib() ? "ON" : "OFF", HasAssimp() ? "ON" : "OFF", HasMongoDB() ? "ON" : "OFF", HasPostgreSQL() ? "ON" : "OFF", HasOpenAL() ? "ON" : "OFF", HasSDL2() ? "ON" : "OFF");
+			"\n\tbuild version"
+			"\n\t\t%i.%i.%i on %s (%s)"
+			"\n\tfeatured with"
+			"\n\t\tDirectX: %s"
+			"\n\t\tOpenGL: %s"
+			"\n\t\tOpenSSL: %s"
+			"\n\t\tGLEW: %s"
+			"\n\t\tZLib: %s"
+			"\n\t\tAssimp: %s"
+			"\n\t\tMongoDB: %s"
+			"\n\t\tPostgreSQL: %s"
+			"\n\t\tOpenAL: %s"
+			"\n\t\tSDL2: %s", TH_MAJOR_VERSION, TH_MINOR_VERSION, TH_PATCH_LEVEL, Platform(), Compiler(), HasDirectX() ? "ON" : "OFF", HasOpenGL() ? "ON" : "OFF", HasOpenSSL() ? "ON" : "OFF", HasGLEW() ? "ON" : "OFF", HasZLib() ? "ON" : "OFF", HasAssimp() ? "ON" : "OFF", HasMongoDB() ? "ON" : "OFF", HasPostgreSQL() ? "ON" : "OFF", HasOpenAL() ? "ON" : "OFF", HasSDL2() ? "ON" : "OFF");
 	}
 	bool Library::HasDirectX()
 	{
@@ -401,6 +404,9 @@ namespace Tomahawk
 		{
 			int64_t Raw = 0;
 			RAND_bytes((unsigned char*)&Raw, sizeof(int64_t));
+#ifdef TH_HAS_POSTGRESQL
+			PQinitOpenSSL(0, 0);
+#endif
 		}
 #endif
 #ifndef TH_MICROSOFT

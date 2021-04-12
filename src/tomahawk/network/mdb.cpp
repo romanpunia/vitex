@@ -2553,6 +2553,29 @@ namespace Tomahawk
 				{
 					Queries = new std::unordered_map<std::string, Sequence>();
 					Safe = TH_NEW(std::mutex);
+					mongoc_log_set_handler([](mongoc_log_level_t Level, const char* Domain, const char* Message, void*)
+					{
+						switch (Level)
+						{
+							case MONGOC_LOG_LEVEL_ERROR:
+								TH_ERROR("[mongoc] [%s] %s", Domain, Message);
+								break;
+							case MONGOC_LOG_LEVEL_WARNING:
+								TH_WARN("[mongoc] [%s] %s", Domain, Message);
+								break;
+							case MONGOC_LOG_LEVEL_INFO:
+								TH_INFO("[mongoc] [%s] %s", Domain, Message);
+								break;
+							case MONGOC_LOG_LEVEL_CRITICAL:
+								TH_ERROR("[mongocerr] [%s] %s", Domain, Message);
+								break;
+							case MONGOC_LOG_LEVEL_MESSAGE:
+								TH_LOG("[mongoc] [%s] %s", Domain, Message);
+								break;
+							default:
+								break;
+						}
+					}, nullptr);
 					mongoc_init();
 					State = 1;
 				}

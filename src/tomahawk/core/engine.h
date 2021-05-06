@@ -257,7 +257,7 @@ namespace Tomahawk
 			static void Pack(Core::Document* V, double Value);
 			static void Pack(Core::Document* V, int64_t Value);
 			static void Pack(Core::Document* V, long double Value);
-			static void Pack(Core::Document* V, uint64_t Value);
+			static void Pack(Core::Document* V, unsigned long long Value);
 			static void Pack(Core::Document* V, const char* Value);
 			static void Pack(Core::Document* V, const Compute::Vector2& Value);
 			static void Pack(Core::Document* V, const Compute::Vector3& Value);
@@ -308,7 +308,7 @@ namespace Tomahawk
 			static bool Unpack(Core::Document* V, double* O);
 			static bool Unpack(Core::Document* V, int64_t* O);
 			static bool Unpack(Core::Document* V, long double* O);
-			static bool Unpack(Core::Document* V, uint64_t* O);
+			static bool Unpack(Core::Document* V, unsigned long long* O);
 			static bool Unpack(Core::Document* V, Compute::Vector2* O);
 			static bool Unpack(Core::Document* V, Compute::Vector3* O);
 			static bool Unpack(Core::Document* V, Compute::Vector4* O);

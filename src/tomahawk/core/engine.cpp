@@ -174,7 +174,7 @@ namespace Tomahawk
 			if (V != nullptr)
                 V->SetAttribute("n", Core::Var::Number(Value));
 		}
-		void NMake::Pack(Core::Document* V, uint64_t Value)
+		void NMake::Pack(Core::Document* V, unsigned long long Value)
 		{
 			if (V != nullptr)
                 V->SetAttribute("i", Core::Var::Integer(Value));
@@ -911,12 +911,12 @@ namespace Tomahawk
 			*O = V->GetVar("[i]").GetInteger();
 			return true;
 		}
-		bool NMake::Unpack(Core::Document* V, uint64_t* O)
+		bool NMake::Unpack(Core::Document* V, unsigned long long* O)
 		{
 			if (!V || !O)
 				return false;
 
-			*O = V->GetVar("[i]").GetInteger();
+			*O = (unsigned long long)V->GetVar("[i]").GetInteger();
 			return true;
 		}
 		bool NMake::Unpack(Core::Document* V, Compute::Vector2* O)

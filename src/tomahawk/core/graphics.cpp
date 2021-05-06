@@ -343,7 +343,7 @@ namespace Tomahawk
 			return IndexBuffer;
 		}
 
-		InstanceBuffer::InstanceBuffer(const Desc& I) : Device(I.Device), Elements(nullptr), Sync(false)
+		InstanceBuffer::InstanceBuffer(const Desc& I) : Elements(nullptr), Device(I.Device), Sync(false)
 		{
 			ElementLimit = I.ElementLimit;
 			ElementWidth = I.ElementWidth;
@@ -621,7 +621,7 @@ namespace Tomahawk
 		{
 		}
 
-		GraphicsDevice::GraphicsDevice(const Desc& I) : MaxElements(1), ViewResource(nullptr), Primitives(PrimitiveTopology_Triangle_List)
+		GraphicsDevice::GraphicsDevice(const Desc& I) : Primitives(PrimitiveTopology_Triangle_List), ViewResource(nullptr), MaxElements(1)
 		{
 			ShaderModelType = Graphics::ShaderModel_Invalid;
 			VSyncMode = I.VSyncMode;
@@ -1178,7 +1178,7 @@ namespace Tomahawk
 			return nullptr;
 		}
 
-		Activity::Activity(const Desc& I) : Handle(nullptr), Descriptor(I), Command(0), Message(this), CX(0), CY(0)
+		Activity::Activity(const Desc& I) : Handle(nullptr), Descriptor(I), Command(0), CX(0), CY(0), Message(this)
 		{
 #ifdef TH_HAS_SDL2
 			Cursors[DisplayCursor_Arrow] = SDL_CreateSystemCursor(SDL_SYSTEM_CURSOR_ARROW);

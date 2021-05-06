@@ -668,7 +668,6 @@ namespace Tomahawk
 			VMCTypeInfo* Type;
 			std::mutex Safe;
 			int Ref;
-			void* Refers;
 			bool Stored;
 			bool GCFlag;
 

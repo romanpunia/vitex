@@ -26,33 +26,44 @@
  *
  */
 
-#ifndef RMLUI_CORE_MATHTYPES_H
-#define RMLUI_CORE_MATHTYPES_H
-
-#include "Header.h"
-#include "Vector2.h"
-#include "Vector3.h"
-#include "Vector4.h"
+#include "../../Include/RmlUi/Core/DataModelHandle.h"
+#include "DataModel.h"
 
 namespace Rml {
 
-// Define common Vector2 types.
-typedef Vector2< int > Vector2i;
-typedef Vector2< float > Vector2f;
-RMLUICORE_API Vector2i operator*(int lhs, const Vector2i& rhs);
-RMLUICORE_API Vector2f operator*(float lhs, const Vector2f& rhs);
 
-// Define common Vector3 types.
-typedef Vector3< int > Vector3i;
-typedef Vector3< float > Vector3f;
-RMLUICORE_API Vector3i operator*(int lhs, const Vector3i& rhs);
-RMLUICORE_API Vector3f operator*(float lhs, const Vector3f& rhs);
+DataModelHandle::DataModelHandle(DataModel* model) : model(model)
+{}
 
-// Define common Vector4 types.
-typedef Vector4< int > Vector4i;
-typedef Vector4< float > Vector4f;
-RMLUICORE_API Vector4i operator*(int lhs, const Vector4i& rhs);
-RMLUICORE_API Vector4f operator*(float lhs, const Vector4f& rhs);
+bool DataModelHandle::IsVariableDirty(const String& variable_name) {
+	return model->IsVariableDirty(variable_name);
+}
+
+void DataModelHandle::DirtyVariable(const String& variable_name) {
+	model->DirtyVariable(variable_name);
+}
+
+
+DataModelConstructor::DataModelConstructor() : model(nullptr), type_register(nullptr) {}
+
+DataModelConstructor::DataModelConstructor(DataModel* model, DataTypeRegister* type_register) : model(model), type_register(type_register) {
+	RMLUI_ASSERT(model && type_register);
+}
+
+DataModelHandle DataModelConstructor::GetModelHandle() const {
+	return DataModelHandle(model);
+}
+
+bool DataModelConstructor::BindFunc(const String& name, DataGetFunc get_func, DataSetFunc set_func) {
+	return model->BindFunc(name, std::move(get_func), std::move(set_func));
+}
+
+bool DataModelConstructor::BindEventCallback(const String& name, DataEventFunc event_func) {
+	return model->BindEventCallback(name, std::move(event_func));
+}
+
+bool DataModelConstructor::BindVariable(const String& name, DataVariable data_variable) {
+	return model->BindVariable(name, data_variable);
+}
 
 } // namespace Rml
-#endif

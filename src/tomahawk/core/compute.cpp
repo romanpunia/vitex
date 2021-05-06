@@ -3103,27 +3103,34 @@ namespace Tomahawk
 		}
 
 		RegexSource::RegexSource() :
-			Flags(RegexFlags_None), State(RegexState_No_Match),
-			MaxBrackets(128), MaxBranches(128), MaxMatches(128)
+            MaxBranches(128), MaxBrackets(128), MaxMatches(128),
+            State(RegexState_No_Match), Flags(RegexFlags_None)
 		{
 		}
 		RegexSource::RegexSource(const std::string& Regexp, RegexFlags fFlags, int64_t fMaxMatches, int64_t fMaxBranches, int64_t fMaxBrackets) :
-			Expression(Regexp), Flags(fFlags), State(RegexState_Preprocessed),
-			MaxBrackets(fMaxBrackets >= 1 ? fMaxBrackets : 128),
+			Expression(Regexp),
 			MaxBranches(fMaxBranches >= 1 ? fMaxBranches : 128),
-			MaxMatches(fMaxMatches >= 1 ? fMaxMatches : 128)
+			MaxBrackets(fMaxBrackets >= 1 ? fMaxBrackets : 128),
+            MaxMatches(fMaxMatches >= 1 ? fMaxMatches : 128),
+            State(RegexState_Preprocessed), Flags(fFlags)
 		{
 			Compile();
 		}
 		RegexSource::RegexSource(const RegexSource& Other) :
-			Expression(Other.Expression), Flags(Other.Flags), State(Other.State),
-			MaxBrackets(Other.MaxBrackets), MaxBranches(Other.MaxBranches), MaxMatches(Other.MaxMatches)
+			Expression(Other.Expression),
+            MaxBranches(Other.MaxBranches),
+            MaxBrackets(Other.MaxBrackets),
+            MaxMatches(Other.MaxMatches),
+            State(Other.State), Flags(Other.Flags)
 		{
 			Compile();
 		}
 		RegexSource::RegexSource(RegexSource&& Other) :
-			Expression(std::move(Other.Expression)), Flags(Other.Flags),
-			State(Other.State), MaxBrackets(Other.MaxBrackets), MaxBranches(Other.MaxBranches), MaxMatches(Other.MaxMatches)
+			Expression(std::move(Other.Expression)),
+            MaxBranches(Other.MaxBranches),
+            MaxBrackets(Other.MaxBrackets),
+            MaxMatches(Other.MaxMatches),
+            State(Other.State), Flags(Other.Flags)
 		{
 			Brackets.reserve(Other.Brackets.capacity());
 			Branches.reserve(Other.Branches.capacity());
@@ -3281,13 +3288,13 @@ namespace Tomahawk
 			}
 		}
 
-		RegexResult::RegexResult() : Steps(0), State(RegexState_No_Match), Src(nullptr)
+		RegexResult::RegexResult() : State(RegexState_No_Match), Steps(0), Src(nullptr)
 		{
 		}
-		RegexResult::RegexResult(const RegexResult& Other) : Matches(Other.Matches), Steps(Other.Steps), State(Other.State), Src(Other.Src)
+		RegexResult::RegexResult(const RegexResult& Other) : Matches(Other.Matches), State(Other.State), Steps(Other.Steps), Src(Other.Src)
 		{
 		}
-		RegexResult::RegexResult(RegexResult&& Other) : Matches(std::move(Other.Matches)), Steps(Other.Steps), State(Other.State), Src(Other.Src)
+		RegexResult::RegexResult(RegexResult&& Other) : Matches(std::move(Other.Matches)), State(Other.State), Steps(Other.Steps), Src(Other.Src)
 		{
 		}
 		RegexResult& RegexResult::operator =(const RegexResult& V)
@@ -4240,19 +4247,19 @@ namespace Tomahawk
 			return Indices;
 		}
 
-		RadixSorter::RadixSorter() : Indices(nullptr), Indices2(nullptr), CurrentSize(0)
+		RadixSorter::RadixSorter() : CurrentSize(0), Indices(nullptr), Indices2(nullptr)
 		{
 			Histogram = (unsigned int*)TH_MALLOC(sizeof(unsigned int) * 256 * 4);
 			Offset = (unsigned int*)TH_MALLOC(sizeof(unsigned int) * 256);
 			ResetIndices();
 		}
-		RadixSorter::RadixSorter(const RadixSorter& Other) : Indices(nullptr), Indices2(nullptr), CurrentSize(0)
+		RadixSorter::RadixSorter(const RadixSorter& Other) : CurrentSize(0), Indices(nullptr), Indices2(nullptr)
 		{
 			Histogram = (unsigned int*)TH_MALLOC(sizeof(unsigned int) * 256 * 4);
 			Offset = (unsigned int*)TH_MALLOC(sizeof(unsigned int) * 256);
 			ResetIndices();
 		}
-		RadixSorter::RadixSorter(RadixSorter&& Other) : Indices(Other.Indices), Indices2(Other.Indices2), CurrentSize(Other.CurrentSize), Histogram(Other.Histogram), Offset(Other.Offset)
+		RadixSorter::RadixSorter(RadixSorter&& Other) : Histogram(Other.Histogram), Offset(Other.Offset), CurrentSize(Other.CurrentSize), Indices(Other.Indices), Indices2(Other.Indices2)
 		{
 			Other.Indices = nullptr;
 			Other.Indices2 = nullptr;
@@ -7314,7 +7321,7 @@ namespace Tomahawk
 				return nullptr;
 
 			size_t Offset = Source[0].size() + Source[1].size() + 1;
-			Source[0] = std::move(Base64URLDecode(Source[0]));
+            Source[0] = Base64URLDecode(Source[0]);
 			Core::Document* Header = Core::Document::ReadJSON((int64_t)Source[0].size(), [&Source](char* Buffer, int64_t Size)
 			{
 				memcpy(Buffer, Source[0].c_str(), Size);
@@ -7324,7 +7331,7 @@ namespace Tomahawk
 			if (!Header)
 				return nullptr;
 
-			Source[1] = std::move(Base64URLDecode(Source[1]));
+            Source[1] = Base64URLDecode(Source[1]);
 			Core::Document* Payload = Core::Document::ReadJSON((int64_t)Source[1].size(), [&Source](char* Buffer, int64_t Size)
 			{
 				memcpy(Buffer, Source[1].c_str(), Size);
@@ -7337,7 +7344,7 @@ namespace Tomahawk
 				return nullptr;
 			}
 
-			Source[0] = std::move(Header->GetVar("alg").GetBlob());
+            Source[0] = Header->GetVar("alg").GetBlob();
 			if (Base64URLEncode(JWTSign(Source[0], Value.substr(0, Offset), Key)) != Source[2])
 			{
 				TH_RELEASE(Header);
@@ -7345,7 +7352,7 @@ namespace Tomahawk
 			}
 
 			WebToken* Result = new WebToken();
-			Result->Signature = std::move(Base64URLDecode(Source[2]));
+            Result->Signature = Base64URLDecode(Source[2]);
 			Result->Header = Header;
 			Result->Payload = Payload;
 
@@ -7362,7 +7369,7 @@ namespace Tomahawk
 				Result.append(Buffer, Size);
 			});
 
-			Result = std::move(Base64Encode(Encrypt(Ciphers::AES_256_CBC(), Result, Key, Salt)));
+            Result = Base64Encode(Encrypt(Ciphers::AES_256_CBC(), Result, Key, Salt));
 			return Result;
 		}
 		Core::Document* Common::DocDecrypt(const std::string& Value, const char* Key, const char* Salt)
@@ -7370,7 +7377,7 @@ namespace Tomahawk
 			if (Value.empty() || !Key || !Salt)
 				return nullptr;
 
-			std::string Source = std::move(Decrypt(Ciphers::AES_256_CBC(), Base64Decode(Value), Key, Salt));
+            std::string Source = Decrypt(Ciphers::AES_256_CBC(), Base64Decode(Value), Key, Salt);
 			return Core::Document::ReadJSON((int64_t)Source.size(), [&Source](char* Buffer, int64_t Size)
 			{
 				memcpy(Buffer, Source.c_str(), Size);
@@ -8062,11 +8069,11 @@ namespace Tomahawk
 		}
 		WebToken::WebToken(const std::string& Issuer, const std::string& Subject, int64_t Expiration) : Header(Core::Document::Object()), Payload(Core::Document::Object()), Token(nullptr)
 		{
-			Header->Set("alg", std::move(Core::Var::String("HS256")));
-			Header->Set("typ", std::move(Core::Var::String("JWT")));
-			Payload->Set("iss", std::move(Core::Var::String(Issuer)));
-			Payload->Set("sub", std::move(Core::Var::String(Subject)));
-			Payload->Set("exp", std::move(Core::Var::Integer(Expiration)));
+            Header->Set("alg", Core::Var::String("HS256"));
+            Header->Set("typ", Core::Var::String("JWT"));
+            Payload->Set("iss", Core::Var::String(Issuer));
+            Payload->Set("sub", Core::Var::String(Subject));
+            Payload->Set("exp", Core::Var::Integer(Expiration));
 		}
 		WebToken::~WebToken()
 		{
@@ -8834,7 +8841,7 @@ namespace Tomahawk
 			return nullptr;
 		}
 
-		Transform::Transform() : Root(nullptr), UserPointer(nullptr), LocalTransform(nullptr), LocalPosition(nullptr), LocalRotation(nullptr), LocalScale(nullptr), Childs(nullptr), Position(0.0f), Rotation(0.0f), Scale(1), ConstantScale(false)
+		Transform::Transform() : Childs(nullptr), LocalTransform(nullptr), LocalPosition(nullptr), LocalRotation(nullptr), LocalScale(nullptr), Root(nullptr), Scale(1), ConstantScale(false), UserPointer(nullptr)
 		{
 		}
 		Transform::~Transform()

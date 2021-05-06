@@ -194,7 +194,7 @@ namespace Tomahawk
 				}
 			};
 
-			BoxShadowInstancer::BoxShadowInstancer(Graphics::GraphicsDevice* NewDevice) : Device(NewDevice), Shader(nullptr)
+			BoxShadowInstancer::BoxShadowInstancer(Graphics::GraphicsDevice* NewDevice) : Shader(nullptr), Device(NewDevice)
 			{
 				Graphics::Shader::Desc I = Graphics::Shader::Desc();
 				if (Device->GetSection("interface/box-shadow", &I))
@@ -250,7 +250,7 @@ namespace Tomahawk
 					Compute::Vector2(IOffsetX, IOffsetY), ISoftness);
 			}
 
-			BoxBlurInstancer::BoxBlurInstancer(Graphics::GraphicsDevice* NewDevice) : Device(NewDevice), Shader(nullptr), Background(nullptr)
+			BoxBlurInstancer::BoxBlurInstancer(Graphics::GraphicsDevice* NewDevice) : Background(nullptr), Shader(nullptr), Device(NewDevice)
 			{
 				Graphics::Shader::Desc I = Graphics::Shader::Desc();
 				if (Device->GetSection("interface/box-blur", &I))

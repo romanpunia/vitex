@@ -236,6 +236,7 @@ namespace Tomahawk
 
 			public:
 				IElement(Rml::Element* Ref);
+                virtual ~IElement() = default;
 				virtual void Release();
 				IElement Clone() const;
 				void SetClass(const std::string& ClassName, bool Activate);
@@ -357,6 +358,7 @@ namespace Tomahawk
 			{
 			public:
 				IElementDocument(Rml::ElementDocument* Ref);
+                virtual ~IElementDocument() = default;
 				virtual void Release() override;
 				void SetTitle(const std::string& Title);
 				void PullToFront();
@@ -465,7 +467,7 @@ namespace Tomahawk
 			private:
 				void GetValue(Rml::Variant& Result);
 				void SetValue(const Rml::Variant& Result);
-				void GetValueSize(Rml::Variant& Result);
+				int64_t GetValueSize();
 			};
 
 			class TH_OUT DataRow

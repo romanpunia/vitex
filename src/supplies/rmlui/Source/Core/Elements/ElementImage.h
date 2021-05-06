@@ -81,6 +81,12 @@ protected:
 
 	/// Regenerates the element's geometry.
 	void OnResize() override;
+	
+	/// Our intrinsic dimensions may change with the dp-ratio.
+	void OnDpRatioChange() override;
+
+	/// The sprite may have changed when the style sheet is recompiled.
+	void OnStyleSheetChange() override;
 
 	/// Checks for changes to the image's source or dimensions.
 	/// @param[in] changed_attributes A list of attributes changed on the element.
@@ -89,6 +95,9 @@ protected:
 	/// Called when properties on the element are changed.
 	/// @param[in] changed_properties The properties changed on the element.
 	void OnPropertyChange(const PropertyIdSet& changed_properties) override;
+
+	/// Detect when we have been added to the document.
+	void OnChildAdd(Element* child) override;
 
 private:
 	// Generates the element's geometry.
@@ -102,6 +111,8 @@ private:
 	Texture texture;
 	// True if we need to refetch the texture's source from the element's attributes.
 	bool texture_dirty;
+	// A factor which scales the intrinsic dimensions based on the dp-ratio and image scale.
+	float dimensions_scale;
 	// The element's computed intrinsic dimensions. If either of these values are set to -1, then
 	// that dimension has not been computed yet.
 	Vector2f dimensions;

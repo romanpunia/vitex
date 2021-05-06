@@ -163,7 +163,7 @@ namespace Tomahawk
 			bool CreateLocked(const std::function<bool()>& Callback);
 
 		public:
-			TH_COMPONENT("audio-filter");
+			TH_COMPONENT_ROOT("audio-filter");
 		};
 
 		class TH_OUT AudioEffect : public Core::Object
@@ -198,7 +198,7 @@ namespace Tomahawk
 			bool Unbind();
 
 		public:
-			TH_COMPONENT("audio-effect");
+			TH_COMPONENT_ROOT("audio-effect");
 		};
 
 		class TH_OUT AudioClip : public Core::Object

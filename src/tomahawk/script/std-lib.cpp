@@ -4086,7 +4086,7 @@ namespace Tomahawk
 			return new(Data) VMCRandom();
 		}
 
-		VMCThread::VMCThread(VMCManager* Engine, VMCFunction* Func) : Manager(VMManager::Get(Engine)), Function(Func), Context(nullptr), Ref(1), GCFlag(false)
+		VMCThread::VMCThread(VMCManager* Engine, VMCFunction* Func) : Function(Func), Manager(VMManager::Get(Engine)), Context(nullptr), GCFlag(false), Ref(1)
 		{
 			Engine->NotifyGarbageCollectorOfNewObject(this, Engine->GetTypeInfoByName("Thread"));
 		}
@@ -4366,7 +4366,7 @@ namespace Tomahawk
 		int VMCThread::ContextUD = 550;
 		int VMCThread::EngineListUD = 551;
 
-		VMCAsync::VMCAsync(VMCContext* Base, VMCTypeInfo* Info) : Context(Base), Type(Info), Refers(nullptr), Any(nullptr), Stored(false), Ref(2), GCFlag(false)
+		VMCAsync::VMCAsync(VMCContext* Base, VMCTypeInfo* Info) : Context(Base), Any(nullptr), Type(Info), Ref(2), Stored(false), GCFlag(false)
 		{
 			if (!Context)
 				return;

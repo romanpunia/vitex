@@ -252,6 +252,7 @@ namespace Tomahawk
 			static void Pack(Core::Document* V, bool Value);
 			static void Pack(Core::Document* V, int Value);
 			static void Pack(Core::Document* V, unsigned int Value);
+            static void Pack(Core::Document* V, unsigned long Value);
 			static void Pack(Core::Document* V, float Value);
 			static void Pack(Core::Document* V, double Value);
 			static void Pack(Core::Document* V, int64_t Value);
@@ -302,7 +303,8 @@ namespace Tomahawk
 			static bool Unpack(Core::Document* V, bool* O);
 			static bool Unpack(Core::Document* V, int* O);
 			static bool Unpack(Core::Document* V, unsigned int* O);
-			static bool Unpack(Core::Document* V, float* O);
+			static bool Unpack(Core::Document* V, unsigned long* O);
+            static bool Unpack(Core::Document* V, float* O);
 			static bool Unpack(Core::Document* V, double* O);
 			static bool Unpack(Core::Document* V, int64_t* O);
 			static bool Unpack(Core::Document* V, long double* O);
@@ -465,7 +467,7 @@ namespace Tomahawk
 			bool IsActive();
 
 		public:
-			TH_COMPONENT("component");
+			TH_COMPONENT_ROOT("component");
 		};
 
 		class TH_OUT Entity : public Core::Object
@@ -543,7 +545,7 @@ namespace Tomahawk
 			RenderSystem* GetRenderer();
 
 		public:
-			TH_COMPONENT("renderer");
+			TH_COMPONENT_ROOT("renderer");
 		};
 
 		class TH_OUT ShaderCache : public Core::Object

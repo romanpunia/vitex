@@ -188,13 +188,13 @@ namespace Tomahawk
 
 				if (Value == "true")
 				{
-					Copy(std::move(Var::Boolean(true)));
+					Copy(Var::Boolean(true));
 					return true;
 				}
 
 				if (Value == "false")
 				{
-					Copy(std::move(Var::Boolean(false)));
+					Copy(Var::Boolean(false));
 					return true;
 				}
 
@@ -202,11 +202,11 @@ namespace Tomahawk
 				if (Buffer.HasNumber())
 				{
 					if (Buffer.HasDecimal())
-						Copy(std::move(Var::Decimal(Buffer.R())));
+						Copy(Var::Decimal(Buffer.R()));
 					else if (Buffer.HasInteger())
-						Copy(std::move(Var::Integer(Buffer.ToInt64())));
+						Copy(Var::Integer(Buffer.ToInt64()));
 					else
-						Copy(std::move(Var::Number(Buffer.ToDouble())));
+						Copy(Var::Number(Buffer.ToDouble()));
 
 					return true;
 				}
@@ -214,11 +214,11 @@ namespace Tomahawk
 
 			if (Value.size() > 2 && Value.front() == TH_PREFIX_CHAR && Value.back() == TH_PREFIX_CHAR)
 			{
-				Copy(std::move(Var::Base64(Compute::Common::Base64Decode(std::string(Value.substr(1).c_str(), Value.size() - 2)))));
+				Copy(Var::Base64(Compute::Common::Base64Decode(std::string(Value.substr(1).c_str(), Value.size() - 2))));
 				return true;
 			}
 
-			Copy(std::move(Var::String(Value)));
+			Copy(Var::String(Value));
 			return true;
 		}
 		std::string Variant::Serialize() const
@@ -2352,12 +2352,12 @@ namespace Tomahawk
 			std::vector<std::string> Output;
 			while (Result.Found)
 			{
-				Output.emplace_back(std::move(L->substr(Offset, Result.Start - Offset)));
+				Output.emplace_back(L->substr(Offset, Result.Start - Offset));
 				Result = Find(With, Offset = Result.End);
 			}
 
 			if (Offset < L->size())
-				Output.emplace_back(std::move(L->substr(Offset)));
+				Output.emplace_back(L->substr(Offset));
 
 			return Output;
 		}
@@ -2369,12 +2369,12 @@ namespace Tomahawk
 			std::vector<std::string> Output;
 			while (Result.Found)
 			{
-				Output.emplace_back(std::move(L->substr(Offset, Result.Start - Offset)));
+				Output.emplace_back(L->substr(Offset, Result.Start - Offset));
 				Result = Find(With, Offset = Result.End);
 			}
 
 			if (Offset < L->size())
-				Output.emplace_back(std::move(L->substr(Offset)));
+				Output.emplace_back(L->substr(Offset));
 
 			return Output;
 		}
@@ -2386,12 +2386,12 @@ namespace Tomahawk
 			std::vector<std::string> Output;
 			while (Result.Found && Output.size() < Count)
 			{
-				Output.emplace_back(std::move(L->substr(Offset, Result.Start - Offset)));
+				Output.emplace_back(L->substr(Offset, Result.Start - Offset));
 				Result = Find(With, Offset = Result.End);
 			}
 
 			if (Offset < L->size() && Output.size() < Count)
-				Output.emplace_back(std::move(L->substr(Offset)));
+				Output.emplace_back(L->substr(Offset));
 
 			return Output;
 		}
@@ -2403,12 +2403,12 @@ namespace Tomahawk
 			std::vector<std::string> Output;
 			while (Result.Found)
 			{
-				Output.emplace_back(std::move(L->substr(Offset, Result.Start - Offset)));
+				Output.emplace_back(L->substr(Offset, Result.Start - Offset));
 				Result = FindOf(With, Offset = Result.End);
 			}
 
 			if (Offset < L->size())
-				Output.emplace_back(std::move(L->substr(Offset)));
+				Output.emplace_back(L->substr(Offset));
 
 			return Output;
 		}
@@ -2420,12 +2420,12 @@ namespace Tomahawk
 			std::vector<std::string> Output;
 			while (Result.Found)
 			{
-				Output.emplace_back(std::move(L->substr(Offset, Result.Start - Offset)));
+				Output.emplace_back(L->substr(Offset, Result.Start - Offset));
 				Result = FindNotOf(With, Offset = Result.End);
 			}
 
 			if (Offset < L->size())
-				Output.emplace_back(std::move(L->substr(Offset)));
+				Output.emplace_back(L->substr(Offset));
 
 			return Output;
 		}
@@ -3229,7 +3229,7 @@ namespace Tomahawk
 			return Time;
 		}
 
-		Timer::Timer() : FrameLimit(0), TickCounter(16), TimeIncrement(0.0), CapturedTime(0.0), FrameCount(0.0)
+		Timer::Timer() : TimeIncrement(0.0), TickCounter(16), FrameCount(0.0), CapturedTime(0.0), FrameLimit(0)
 		{
 #ifdef TH_MICROSOFT
 			Frequency = TH_NEW(LARGE_INTEGER);
@@ -3837,7 +3837,7 @@ namespace Tomahawk
 				return Result;
 			}
 
-			((Network::HTTP::Client*)Resource)->Consume(Length).Sync().Await([this, &Data, &Length, &Result](Network::HTTP::ResponseFrame* Response)
+			((Network::HTTP::Client*)Resource)->Consume(Length).Sync().Await([&Data, &Length, &Result](Network::HTTP::ResponseFrame* Response)
 			{
 				Result = std::min(Length, (uint64_t)Response->Buffer.size());
 				memcpy(Data, Response->Buffer.data(), Result);
@@ -3877,7 +3877,7 @@ namespace Tomahawk
 					if (Entry->IsDirectory)
 						Directories.push_back(new FileTree(Entry->Path));
 					else
-						Files.emplace_back(std::move(OS::Path::Resolve(Entry->Path.c_str())));
+                        Files.emplace_back(OS::Path::Resolve(Entry->Path.c_str()));
 
 					return true;
 				});
@@ -4905,6 +4905,8 @@ namespace Tomahawk
 				if (Text != nullptr)
 					TH_ERROR("so symload error: %s", Text);
 			}
+            
+            return Result;
 #else
 			return nullptr;
 #endif
@@ -5038,7 +5040,7 @@ namespace Tomahawk
 #endif
 		}
 
-		ChangeLog::ChangeLog(const std::string& Root) : Path(Root), Offset(-1)
+		ChangeLog::ChangeLog(const std::string& Root) : Offset(-1), Path(Root)
 		{
 			Source = new FileStream();
 			auto V = Parser(&Path).Replace("/", "\\").Split('\\');
@@ -5111,7 +5113,7 @@ namespace Tomahawk
 			Offset = Length;
 		}
 
-		Schedule::Schedule() : Active(false), Terminate(false), Timer(0), Workers(0)
+		Schedule::Schedule() : Timer(0), Workers(0), Terminate(false), Active(false)
 		{
 		}
 		Schedule::~Schedule()
@@ -5129,7 +5131,7 @@ namespace Tomahawk
 			Sync.Timers.lock();
 
 			EventId Id = Timer++; int64_t Time = GetTimeout(Clock + Milliseconds);
-			Timers.emplace(std::move(std::make_pair(Time, EventTimer(Callback, Milliseconds, Id, true))));
+            Timers.emplace(std::make_pair(Time, EventTimer(Callback, Milliseconds, Id, true)));
 			Sync.Timers.unlock();
 
 			return Id;
@@ -5143,7 +5145,7 @@ namespace Tomahawk
 			Sync.Timers.lock();
 
 			EventId Id = Timer++; int64_t Time = GetTimeout(Clock + Milliseconds);
-			Timers.emplace(std::move(std::make_pair(Time, EventTimer(std::move(Callback), Milliseconds, Id, true))));
+            Timers.emplace(std::make_pair(Time, EventTimer(std::move(Callback), Milliseconds, Id, true)));
 			Sync.Timers.unlock();
 
 			return Id;
@@ -5157,7 +5159,7 @@ namespace Tomahawk
 			Sync.Timers.lock();
 
 			EventId Id = Timer++; int64_t Time = GetTimeout(Clock + Milliseconds);
-			Timers.emplace(std::move(std::make_pair(Time, EventTimer(Callback, Milliseconds, Id, false))));
+            Timers.emplace(std::make_pair(Time, EventTimer(Callback, Milliseconds, Id, false)));
 			Sync.Timers.unlock();
 
 			return Id;
@@ -5171,7 +5173,7 @@ namespace Tomahawk
 			Sync.Timers.lock();
 
 			EventId Id = Timer++; int64_t Time = GetTimeout(Clock + Milliseconds);
-			Timers.emplace(std::move(std::make_pair(Time, EventTimer(std::move(Callback), Milliseconds, Id, false))));
+            Timers.emplace(std::make_pair(Time, EventTimer(std::move(Callback), Milliseconds, Id, false)));
 			Sync.Timers.unlock();
 
 			return Id;
@@ -5391,11 +5393,11 @@ namespace Tomahawk
 			Workers = WorkersCount;
 			Async.Childs.reserve(Workers + (IsAsync ? 1 : 0));
 			for (uint64_t i = 0; i < Workers; i++)
-				Async.Childs.push_back(std::move(std::thread(&Schedule::LoopCycle, this)));
+                Async.Childs.push_back(std::thread(&Schedule::LoopCycle, this));
 
 			Active = true;
 			if (IsAsync)
-				Async.Childs.push_back(std::move(std::thread(&Schedule::LoopIncome, this)));
+                Async.Childs.push_back(std::thread(&Schedule::LoopIncome, this));
 
 			Async.Manage.unlock();
 			return true;
@@ -5582,7 +5584,7 @@ namespace Tomahawk
 			SetTask((const TaskCallback&)Next.Callback);
 
 			int64_t Time = GetTimeout(Clock + Next.Timeout);
-			Timers.emplace(std::move(std::make_pair(Time, std::move(Next))));
+            Timers.emplace(std::make_pair(Time, std::move(Next)));
 			Sync.Timers.unlock();
 			return true;
 		}
@@ -5794,7 +5796,7 @@ namespace Tomahawk
 		}
 		Document* Document::Set(const std::string& Name)
 		{
-			return Set(Name, std::move(Var::Object()));
+            return Set(Name, Var::Object());
 		}
 		Document* Document::Set(const std::string& Name, const Variant& Base)
 		{
@@ -5851,7 +5853,7 @@ namespace Tomahawk
 		Document* Document::Set(const std::string& Name, Document* Base)
 		{
 			if (!Base)
-				return Set(Name, std::move(Var::Null()));
+                return Set(Name, Var::Null());
 
 			Base->Key.assign(Name);
 			Base->Saved = false;
@@ -5910,7 +5912,7 @@ namespace Tomahawk
 		Document* Document::Push(Document* Base)
 		{
 			if (!Base)
-				return Push(std::move(Var::Null()));
+                return Push(Var::Null());
 
 			Base->Saved = false;
 			Base->Parent = this;
@@ -6055,11 +6057,11 @@ namespace Tomahawk
 		}
 		Document* Document::Object()
 		{
-			return new Document(std::move(Var::Object()));
+            return new Document(Var::Object());
 		}
 		Document* Document::Array()
 		{
-			return new Document(std::move(Var::Array()));
+            return new Document(Var::Array());
 		}
 		bool Document::WriteXML(Document* Base, const NWriteCallback& Callback)
 		{
@@ -6422,13 +6424,13 @@ namespace Tomahawk
 			switch (Type)
 			{
 				case rapidjson::kNullType:
-					Result = new Document(std::move(Var::Null()));
+                    Result = new Document(Var::Null());
 					break;
 				case rapidjson::kFalseType:
-					Result = new Document(std::move(Var::Boolean(false)));
+                    Result = new Document(Var::Boolean(false));
 					break;
 				case rapidjson::kTrueType:
-					Result = new Document(std::move(Var::Boolean(true)));
+                    Result = new Document(Var::Boolean(true));
 					break;
 				case rapidjson::kObjectType:
 					Result = Document::Object();
@@ -6441,16 +6443,16 @@ namespace Tomahawk
 						TH_CLEAR(Result);
 					break;
 				case rapidjson::kStringType:
-					Result = new Document(std::move(Var::Auto(std::string(Base.GetString(), Base.GetStringLength()), true)));
+                    Result = new Document(Var::Auto(std::string(Base.GetString(), Base.GetStringLength()), true));
 					break;
 				case rapidjson::kNumberType:
 					if (Base.IsInt())
-						Result = new Document(std::move(Var::Integer(Base.GetInt64())));
+                        Result = new Document(Var::Integer(Base.GetInt64()));
 					else
-						Result = new Document(std::move(Var::Number(Base.GetDouble())));
+                        Result = new Document(Var::Number(Base.GetDouble()));
 					break;
 				default:
-					Result = new Document(std::move(Var::Undefined()));
+                    Result = new Document(Var::Undefined());
 					break;
 			}
 
@@ -6542,7 +6544,7 @@ namespace Tomahawk
 			for (rapidxml::xml_attribute<>* It = Ref->first_attribute(); It; It = It->next_attribute())
 			{
 				if (It->name()[0] != '\0')
-					Current->SetAttribute(It->name(), std::move(Var::Auto(It->value())));
+                    Current->SetAttribute(It->name(), Var::Auto(It->value()));
 			}
 
 			for (rapidxml::xml_node<>* It = Ref->first_node(); It; It = It->next_sibling())
@@ -6581,29 +6583,29 @@ namespace Tomahawk
 					switch (It->value.GetType())
 					{
 						case rapidjson::kNullType:
-							Current->Set(Name, std::move(Var::Null()));
+							Current->Set(Name, Var::Null());
 							break;
 						case rapidjson::kFalseType:
-							Current->Set(Name, std::move(Var::Boolean(false)));
+							Current->Set(Name, Var::Boolean(false));
 							break;
 						case rapidjson::kTrueType:
-							Current->Set(Name, std::move(Var::Boolean(true)));
+							Current->Set(Name, Var::Boolean(true));
 							break;
 						case rapidjson::kObjectType:
 							ProcessJSONRead((void*)&It->value, Current->Set(Name));
 							break;
 						case rapidjson::kArrayType:
-							ProcessJSONRead((void*)&It->value, Current->Set(Name, std::move(Var::Array())));
+							ProcessJSONRead((void*)&It->value, Current->Set(Name, Var::Array()));
 							break;
 						case rapidjson::kStringType:
 							Value.assign(It->value.GetString(), It->value.GetStringLength());
-							Current->Set(Name, std::move(Var::Auto(Value, true)));
+							Current->Set(Name, Var::Auto(Value, true));
 							break;
 						case rapidjson::kNumberType:
 							if (It->value.IsInt())
-								Current->Set(Name, std::move(Var::Integer(It->value.GetInt64())));
+								Current->Set(Name, Var::Integer(It->value.GetInt64()));
 							else
-								Current->Set(Name, std::move(Var::Number(It->value.GetDouble())));
+								Current->Set(Name, Var::Number(It->value.GetDouble()));
 							break;
 						default:
 							break;
@@ -6619,29 +6621,29 @@ namespace Tomahawk
 					switch (It->GetType())
 					{
 						case rapidjson::kNullType:
-							Current->Push(std::move(Var::Null()));
+							Current->Push(Var::Null());
 							break;
 						case rapidjson::kFalseType:
-							Current->Push(std::move(Var::Boolean(false)));
+							Current->Push(Var::Boolean(false));
 							break;
 						case rapidjson::kTrueType:
-							Current->Push(std::move(Var::Boolean(true)));
+							Current->Push(Var::Boolean(true));
 							break;
 						case rapidjson::kObjectType:
-							ProcessJSONRead((void*)It, Current->Push(std::move(Var::Object())));
+							ProcessJSONRead((void*)It, Current->Push(Var::Object()));
 							break;
 						case rapidjson::kArrayType:
-							ProcessJSONRead((void*)It, Current->Push(std::move(Var::Array())));
+							ProcessJSONRead((void*)It, Current->Push(Var::Array()));
 							break;
 						case rapidjson::kStringType:
 							Value.assign(It->GetString(), It->GetStringLength());
-							Current->Push(std::move(Var::Auto(Value, true)));
+							Current->Push(Var::Auto(Value, true));
 							break;
 						case rapidjson::kNumberType:
 							if (It->IsInt())
-								Current->Push(std::move(Var::Integer(It->GetInt64())));
+								Current->Push(Var::Integer(It->GetInt64()));
 							else
-								Current->Push(std::move(Var::Number(It->GetDouble())));
+								Current->Push(Var::Number(It->GetDouble()));
 							break;
 						default:
 							break;
@@ -6764,7 +6766,7 @@ namespace Tomahawk
 						return false;
 					}
 
-					Current->Value = std::move(Var::String(Buffer));
+                    Current->Value = Var::String(Buffer);
 					break;
 				}
 				case VarType_Base64:
@@ -6785,7 +6787,7 @@ namespace Tomahawk
 						return false;
 					}
 
-					Current->Value = std::move(Var::Base64(Buffer));
+                    Current->Value = Var::Base64(Buffer);
 					break;
 				}
 				case VarType_Integer:
@@ -6797,7 +6799,7 @@ namespace Tomahawk
 						return false;
 					}
 
-					Current->Value = std::move(Var::Integer(Integer));
+                    Current->Value = Var::Integer(Integer);
 					break;
 				}
 				case VarType_Number:
@@ -6809,7 +6811,7 @@ namespace Tomahawk
 						return false;
 					}
 
-					Current->Value = std::move(Var::Number(Number));
+                    Current->Value = Var::Number(Number);
 					break;
 				}
 				case VarType_Decimal:
@@ -6830,7 +6832,7 @@ namespace Tomahawk
 						return false;
 					}
 
-					Current->Value = std::move(Var::Decimal(Buffer));
+                    Current->Value = Var::Decimal(Buffer);
 					break;
 				}
 				case VarType_Boolean:
@@ -6842,7 +6844,7 @@ namespace Tomahawk
 						return false;
 					}
 
-					Current->Value = std::move(Var::Boolean(Boolean));
+                    Current->Value = Var::Boolean(Boolean);
 					break;
 				}
 				default:

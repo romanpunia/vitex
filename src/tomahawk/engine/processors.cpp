@@ -213,7 +213,7 @@ namespace Tomahawk
 				NMake::Pack(Simulator->Set("water-normal"), fSimulator->GetWaterNormal());
 				NMake::Pack(Simulator->Set("gravity"), fSimulator->GetGravity());
 
-				Core::Document* Materials = Document->Set("materials", std::move(Core::Var::Array()));
+                Core::Document* Materials = Document->Set("materials", Core::Var::Array());
 				for (uint64_t i = 0; i < Object->GetMaterialCount(); i++)
 				{
 					Engine::Material* Ref = Object->GetMaterial(i);
@@ -221,7 +221,7 @@ namespace Tomahawk
 						NMake::Pack(Materials->Set("material"), Ref, Content);
 				}
 
-				Core::Document* Entities = Document->Set("entities", std::move(Core::Var::Array()));
+                Core::Document* Entities = Document->Set("entities", Core::Var::Array());
 				for (uint64_t i = 0; i < Object->GetEntityCount(); i++)
 				{
 					Entity* Ref = Object->GetEntity(i);
@@ -251,7 +251,7 @@ namespace Tomahawk
 					if (!Ref->GetComponentCount())
 						continue;
 
-					Core::Document* Components = Entity->Set("components", std::move(Core::Var::Array()));
+                    Core::Document* Components = Entity->Set("components", Core::Var::Array());
 					for (auto It = Ref->First(); It != Ref->Last(); ++It)
 					{
 						Core::Document* Component = Components->Set("component");
@@ -608,9 +608,9 @@ namespace Tomahawk
 				NMake::Pack(Document->Set("root"), ToMatrix(Scene->mRootNode->mTransformation.Inverse()).Transpose());
 				NMake::Pack(Document->Set("max"), Compute::Vector4(Info.PX, Info.PY, Info.PZ, Max));
 				NMake::Pack(Document->Set("min"), Compute::Vector4(Info.NX, Info.NY, Info.NZ, Min));
-				NMake::Pack(Document->Set("joints", std::move(Core::Var::Array())), Joints);
+                NMake::Pack(Document->Set("joints", Core::Var::Array()), Joints);
 
-				Core::Document* Meshes = Document->Set("meshes", std::move(Core::Var::Array()));
+                Core::Document* Meshes = Document->Set("meshes", Core::Var::Array());
 				for (auto&& It : Info.Meshes)
 				{
 					Core::Document* Mesh = Meshes->Set("mesh");
@@ -639,10 +639,9 @@ namespace Tomahawk
 					ProcessNode(Scene, Node->mChildren[n], Info, World);
 #endif
 			}
-			void Model::ProcessMesh(void* Scene_, void* Mesh_, MeshInfo* Info, const Compute::Matrix4x4& Global)
+			void Model::ProcessMesh(void*, void* Mesh_, MeshInfo* Info, const Compute::Matrix4x4& Global)
 			{
 #ifdef TH_HAS_ASSIMP
-				auto* Scene = (aiScene*)Scene_;
 				auto* Mesh = (aiMesh*)Mesh_;
 
 				MeshBlob Blob;
@@ -735,7 +734,7 @@ namespace Tomahawk
 						Element.Index = Info->Weights;
 						Index = Info->Weights;
 						Info->Weights++;
-						Info->Joints.emplace_back(std::move(std::make_pair(Index, Element)));
+                        Info->Joints.emplace_back(std::make_pair(Index, Element));
 					}
 					else
 						Index = It->first;

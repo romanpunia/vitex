@@ -434,35 +434,35 @@ namespace Tomahawk
 					switch (TypeId)
 					{
 						case asTYPEID_BOOL:
-							Result->Set(Name, std::move(Core::Var::Boolean(*(bool*)Ref)));
+                            Result->Set(Name, Core::Var::Boolean(*(bool*)Ref));
 							break;
 						case asTYPEID_INT8:
-							Result->Set(Name, std::move(Core::Var::Integer(*(char*)Ref)));
+                            Result->Set(Name, Core::Var::Integer(*(char*)Ref));
 							break;
 						case asTYPEID_INT16:
-							Result->Set(Name, std::move(Core::Var::Integer(*(short*)Ref)));
+                            Result->Set(Name, Core::Var::Integer(*(short*)Ref));
 							break;
 						case asTYPEID_INT32:
-							Result->Set(Name, std::move(Core::Var::Integer(*(int*)Ref)));
+                            Result->Set(Name, Core::Var::Integer(*(int*)Ref));
 							break;
 						case asTYPEID_UINT8:
-							Result->Set(Name, std::move(Core::Var::Integer(*(unsigned char*)Ref)));
+                            Result->Set(Name, Core::Var::Integer(*(unsigned char*)Ref));
 							break;
 						case asTYPEID_UINT16:
-							Result->Set(Name, std::move(Core::Var::Integer(*(unsigned short*)Ref)));
+                            Result->Set(Name, Core::Var::Integer(*(unsigned short*)Ref));
 							break;
 						case asTYPEID_UINT32:
-							Result->Set(Name, std::move(Core::Var::Integer(*(unsigned int*)Ref)));
+                            Result->Set(Name, Core::Var::Integer(*(unsigned int*)Ref));
 							break;
 						case asTYPEID_INT64:
 						case asTYPEID_UINT64:
-							Result->Set(Name, std::move(Core::Var::Integer(*(asINT64*)Ref)));
+                            Result->Set(Name, Core::Var::Integer(*(asINT64*)Ref));
 							break;
 						case asTYPEID_FLOAT:
-							Result->Set(Name, std::move(Core::Var::Number(*(float*)Ref)));
+                            Result->Set(Name, Core::Var::Number(*(float*)Ref));
 							break;
 						case asTYPEID_DOUBLE:
-							Result->Set(Name, std::move(Core::Var::Number(*(double*)Ref)));
+                            Result->Set(Name, Core::Var::Number(*(double*)Ref));
 							break;
 					}
 				}
@@ -477,7 +477,7 @@ namespace Tomahawk
 
 					if (VMManager::Get(Manager)->IsNullable(TypeId) || !Ref)
 					{
-						Result->Set(Name, std::move(Core::Var::Null()));
+                        Result->Set(Name, Core::Var::Null());
 					}
 					else if (Type && !strcmp("Document", Type->GetName()))
 					{
@@ -488,7 +488,7 @@ namespace Tomahawk
 						Result->Set(Name, Base);
 					}
 					else if (Type && !strcmp("String", Type->GetName()))
-						Result->Set(Name, std::move(Core::Var::String(*(std::string*)Ref)));
+                        Result->Set(Name, Core::Var::String(*(std::string*)Ref));
 				}
 
 				if (TypeId & asTYPEID_MASK_OBJECT)
@@ -516,7 +516,7 @@ namespace Tomahawk
 			if (Result != nullptr)
 				return Result;
 
-			return Base->Set(Name, std::move(Core::Var::Undefined()));
+            return Base->Set(Name, Core::Var::Undefined());
 		}
 		Core::Document* VMCDocument::GetIndexOffset(Core::Document* Base, uint64_t Offset)
 		{

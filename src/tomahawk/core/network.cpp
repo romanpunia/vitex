@@ -1859,7 +1859,7 @@ namespace Tomahawk
 			return Router;
 		}
 
-		SocketClient::SocketClient(int64_t RequestTimeout) : Timeout(RequestTimeout), Context(nullptr), AutoCertify(true)
+		SocketClient::SocketClient(int64_t RequestTimeout) : Context(nullptr), Timeout(RequestTimeout), AutoCertify(true)
 		{
 			Stream.UserData = this;
 		}

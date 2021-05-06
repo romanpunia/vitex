@@ -43,7 +43,7 @@ namespace Tomahawk
 	{
 		namespace SMTP
 		{
-			Client::Client(int64_t ReadTimeout) : SocketClient(ReadTimeout), AttachmentFile(nullptr), Authorized(false), Staging(false), Pending(false)
+			Client::Client(int64_t ReadTimeout) : SocketClient(ReadTimeout), AttachmentFile(nullptr), Pending(false), Staging(false), Authorized(false)
 			{
 				AutoCertify = false;
 			}
@@ -111,9 +111,8 @@ namespace Tomahawk
 					if (Root != nullptr)
 						Request = *Root;
 
-					Done = [Result](SocketClient* Client, int Code) mutable
+					Done = [Result](SocketClient*, int Code) mutable
 					{
-						SMTP::Client* Base = Client->As<SMTP::Client>();
 						Result.Set(Code);
 					};
 				}

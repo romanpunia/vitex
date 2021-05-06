@@ -151,7 +151,7 @@ namespace Tomahawk
 				return Save;
 			}
 
-			GatewayFrame::GatewayFrame(char* Data, int64_t DataSize) : Buffer(Data), Size(DataSize), Compiler(nullptr), Base(nullptr), Save(false)
+			GatewayFrame::GatewayFrame(char* Data, int64_t DataSize) : Size(DataSize), Compiler(nullptr), Base(nullptr), Buffer(Data), Save(false)
 			{
 			}
 			void GatewayFrame::Execute(Script::VMResume State)
@@ -323,7 +323,7 @@ namespace Tomahawk
 
 			SiteEntry::SiteEntry() : Base(TH_NEW(RouteEntry))
 			{
-				Base->URI = std::move(Compute::RegexSource("/"));
+                Base->URI = Compute::RegexSource("/");
 				Base->Site = this;
 			}
 			SiteEntry::~SiteEntry()
@@ -371,7 +371,7 @@ namespace Tomahawk
 			RouteEntry* SiteEntry::Route(const std::string& Pattern, RouteEntry* From)
 			{
 				HTTP::RouteEntry* Result = TH_NEW(HTTP::RouteEntry, *From);
-				Result->URI = std::move(Compute::RegexSource(Pattern));
+                Result->URI = Compute::RegexSource(Pattern);
 				Routes.push_back(Result);
 
 				return Result;
@@ -1506,7 +1506,7 @@ namespace Tomahawk
 #endif
 			}
 
-			QueryParameter::QueryParameter() : Core::Document(std::move(Core::Var::Object()))
+        QueryParameter::QueryParameter() : Core::Document(Core::Var::Object())
 			{
 			}
 			std::string QueryParameter::Build()
@@ -1584,7 +1584,7 @@ namespace Tomahawk
 					Value = Core::Var::Array();
 				}
 
-				New->Value = std::move(Core::Var::String("", 0));
+                New->Value = Core::Var::String("", 0);
 				New->Parent = this;
 				Nodes.push_back(New);
 
@@ -1769,11 +1769,11 @@ namespace Tomahawk
 			}
 			QueryParameter* Query::Set(const char* Name)
 			{
-				return (QueryParameter*)Object->Set(Name, std::move(Core::Var::String("", 0)));
+                return (QueryParameter*)Object->Set(Name, Core::Var::String("", 0));
 			}
 			QueryParameter* Query::Set(const char* Name, const char* Value)
 			{
-				return (QueryParameter*)Object->Set(Name, std::move(Core::Var::String(Value)));
+                return (QueryParameter*)Object->Set(Name, Core::Var::String(Value));
 			}
 			QueryParameter* Query::GetParameter(QueryToken* Name)
 			{
@@ -1807,7 +1807,7 @@ namespace Tomahawk
 					Object->Value = Core::Var::Array();
 				}
 
-				New->Value = std::move(Core::Var::String("", 0));
+                New->Value = Core::Var::String("", 0);
 				Object->GetNodes()->push_back(New);
 
 				return New;
@@ -5091,7 +5091,7 @@ namespace Tomahawk
 					Entry->Gateway.Session.DocumentRoot = Core::OS::Path::ResolveDirectory(Entry->Gateway.Session.DocumentRoot.c_str());
 					Entry->ResourceRoot = Core::OS::Path::ResolveDirectory(Entry->ResourceRoot.c_str());
 					Entry->Base->DocumentRoot = Core::OS::Path::ResolveDirectory(Entry->Base->DocumentRoot.c_str());
-					Entry->Base->URI = std::move(Compute::RegexSource("/"));
+                    Entry->Base->URI = Compute::RegexSource("/");
 					Entry->Base->Site = Entry;
 					Entry->Router = Root;
 

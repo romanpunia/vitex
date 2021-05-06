@@ -29,10 +29,10 @@
 #ifndef RMLUI_CORE_DATAVIEW_H
 #define RMLUI_CORE_DATAVIEW_H
 
-#include "Header.h"
-#include "Types.h"
-#include "Traits.h"
-#include "DataTypes.h"
+#include "../../Include/RmlUi/Core/Header.h"
+#include "../../Include/RmlUi/Core/Types.h"
+#include "../../Include/RmlUi/Core/Traits.h"
+#include "../../Include/RmlUi/Core/DataTypes.h"
 
 namespace Rml {
 
@@ -40,7 +40,7 @@ class Element;
 class DataModel;
 
 
-class RMLUICORE_API DataViewInstancer : public NonCopyMoveable {
+class DataViewInstancer : public NonCopyMoveable {
 public:
 	DataViewInstancer() {}
 	virtual ~DataViewInstancer() {}
@@ -66,7 +66,7 @@ public:
 	The modifier may or may not be required depending on the data view.
  */
 
-class RMLUICORE_API DataView : public Releasable {
+class DataView : public Releasable {
 public:
 	virtual ~DataView();
 
@@ -88,23 +88,27 @@ public:
 	// Returns the attached element if it still exists.
 	Element* GetElement() const;
 
-	// Returns the depth of the attached element in the document tree.
-	int GetElementDepth() const;
+	// Data views are first sorted by the depth of the attached element in the
+	// document tree, then optionally by an offset specified for each data view.
+	int GetSortOrder() const;
 	
 	// Returns true if the element still exists.
 	bool IsValid() const;
 	
 protected:
-	DataView(Element* element);
+	// @param[in] element The element this data view is attached to.
+	// @param[in] sort_offset A number [-1000, 999] specifying the update order of this
+	//            data view at the same tree depth, negative numbers are updated first.
+	DataView(Element* element, int sort_offset);
 
 private:
 	ObserverPtr<Element> attached_element;
-	int element_depth;
+	int sort_order;
 };
 
 
 
-class RMLUICORE_API DataViews : NonCopyMoveable {
+class DataViews : NonCopyMoveable {
 public:
 	DataViews();
 	~DataViews();

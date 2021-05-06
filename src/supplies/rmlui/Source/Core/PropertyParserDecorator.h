@@ -1,9 +1,9 @@
 /*
- * This source file is part of rmlui, the HTML/CSS Interface Middleware
+ * This source file is part of RmlUi, the HTML/CSS Interface Middleware
  *
  * For the latest information, see http://github.com/mikke89/RmlUi
  *
- * Copyright (c) 2014 Markus Schöngart
+ * Copyright (c) 2008-2010 CodePoint Ltd, Shift Technology Ltd
  * Copyright (c) 2019 The RmlUi Team, and contributors
  *
  * Permission is hereby granted, free of charge, to any person obtaining a copy
@@ -26,28 +26,26 @@
  *
  */
 
-#include "../../Include/RmlUi/Core/Types.h"
+#ifndef RMLUI_CORE_PROPERTYPARSERDECORATOR_H
+#define RMLUI_CORE_PROPERTYPARSERDECORATOR_H
+
+#include "../../Include/RmlUi/Core/PropertyParser.h"
 
 namespace Rml {
 
-Vector4i operator*(int lhs, const Vector4i& rhs)
-{
-	return Vector4i(lhs * rhs.x, lhs * rhs.y, lhs * rhs.z, lhs * rhs.w);
-}
+/**
+	A property parser for the decorator property.
+ */
 
-Vector4f operator*(float lhs, const Vector4f& rhs)
+class PropertyParserDecorator : public PropertyParser
 {
-	return Vector4f(lhs * rhs.x, lhs * rhs.y, lhs * rhs.z, lhs * rhs.w);
-}
+public:
+	PropertyParserDecorator();
+	virtual ~PropertyParserDecorator();
 
-template <>
-Vector4< float > Vector4< float >::Normalise() const
-{
-	float magnitude = Magnitude();
-	if (Math::IsZero(magnitude))
-		return *this;
-
-	return *this / magnitude;
-}
+	/// Called to parse a decorator declaration.
+	bool ParseValue(Property& property, const String& value, const ParameterMap& parameters) const override;
+};
 
 } // namespace Rml
+#endif

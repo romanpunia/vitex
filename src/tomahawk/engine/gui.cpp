@@ -395,7 +395,7 @@ namespace Tomahawk
 				Core::Timer* Time;
 
 			public:
-				MainSubsystem() : Rml::SystemInterface(), Time(nullptr), Activity(nullptr)
+				MainSubsystem() : Rml::SystemInterface(), Activity(nullptr), Time(nullptr)
 				{
 				}
 				virtual void SetMouseCursor(const Rml::String& CursorName) override
@@ -604,37 +604,38 @@ namespace Tomahawk
 				{
 				}
 				virtual ~DocumentSubsystem() = default;
-				void LoadScript(Rml::Stream* Stream, const Rml::String& SourceName) override
-				{
-					ScopedContext* Scope = (ScopedContext*)GetContext();
-					if (!Scope || !Scope->Basis || !Scope->Basis->Compiler)
-						return;
+                void LoadInlineScript(const Rml::String& Content, const Rml::String& Path, int Line) override
+                {
+                    ScopedContext* Scope = (ScopedContext*)GetContext();
+                    if (!Scope || !Scope->Basis || !Scope->Basis->Compiler)
+                        return;
 
-					Script::VMCompiler* Compiler = Scope->Basis->Compiler;
-					if (SourceName.empty())
-					{
-						Rml::String Buffer;
-						Stream->Read(Buffer, Stream->Length());
+                    Script::VMCompiler* Compiler = Scope->Basis->Compiler;
+                    Compiler->ExecuteScoped(Content.c_str(), Content.size());
+                }
+                void LoadExternalScript(const Rml::String& Path) override
+                {
+                    ScopedContext* Scope = (ScopedContext*)GetContext();
+                    if (!Scope || !Scope->Basis || !Scope->Basis->Compiler)
+                        return;
 
-						if (Compiler->LoadCode("__main__", Buffer.c_str(), Buffer.size()) < 0)
-							return;
-					}
-					else if (Compiler->LoadFile(Core::Parser(SourceName).Replace('|', ':').R()) < 0)
-						return;
+                    Script::VMCompiler* Compiler = Scope->Basis->Compiler;
+                    if (Compiler->LoadFile(Core::Parser(Path).Replace('|', ':').R()) < 0)
+                        return;
 
-					if (Compiler->Compile(true) < 0)
-						return;
+                    if (Compiler->Compile(true) < 0)
+                        return;
 
-					Script::VMFunction Main = Compiler->GetModule().GetFunctionByName("Main");
-					if (!Main.IsValid())
-						return;
+                    Script::VMFunction Main = Compiler->GetModule().GetFunctionByName("Main");
+                    if (!Main.IsValid())
+                        return;
 
-					Script::VMContext* Context = Compiler->GetContext();
-					Context->Execute(Main, false, [Scope](Script::VMContext* Context)
-					{
-						Context->SetArgObject(0, Scope->Basis);
-					});
-				}
+                    Script::VMContext* Context = Compiler->GetContext();
+                    Context->Execute(Main, false, [Scope](Script::VMContext* Context)
+                    {
+                        Context->SetArgObject(0, Scope->Basis);
+                    });
+                }
 			};
 
 			class DocumentInstancer : public Rml::ElementInstancer
@@ -673,7 +674,7 @@ namespace Tomahawk
 					Script::VMCompiler* Compiler = Scope->Basis->Compiler;
 					if (!IsFunction)
 					{
-						Compiler->ExecuteEntry(Memory.c_str(), nullptr, Script::VMTypeId_VOID, [this, &Event](Script::VMContext* Context)
+						Compiler->ExecuteEntry(Memory.c_str(), nullptr, Script::VMTypeId_VOID, [&Event](Script::VMContext* Context)
 						{
 							Context->SetArgObject(0, &Event);
 						});
@@ -704,11 +705,11 @@ namespace Tomahawk
 				EventSubsystem(const EventCallback& Callback) : Rml::EventListener(), Handler(Callback), RefCount(1)
 				{
 				}
-				virtual void OnAttach(Rml::Element*)
+				virtual void OnAttach(Rml::Element*) override
 				{
 					RefCount++;
 				}
-				virtual void OnDetach(Rml::Element*)
+				virtual void OnDetach(Rml::Element*) override
 				{
 					if (!--RefCount)
 						TH_DELETE_THIS(EventSubsystem);
@@ -755,9 +756,9 @@ namespace Tomahawk
 					for (auto& Column : Columns)
 					{
 						if (Column == Rml::DataSource::DEPTH || Column == "depth")
-							Row.emplace_back(std::move(std::to_string(Target->Depth)));
+                            Row.emplace_back(std::to_string(Target->Depth));
 						else if (Column == Rml::DataSource::NUM_CHILDREN)
-							Row.emplace_back(std::move(std::to_string(Target->Childs.size())));
+                            Row.emplace_back(std::to_string(Target->Childs.size()));
 						else if (Column == Rml::DataSource::CHILD_SOURCE)
 							Row.push_back(Source->Name + "." + Target->Name);
 						else if (Source->OnColumn)
@@ -811,46 +812,46 @@ namespace Tomahawk
 				switch (From->GetType())
 				{
 					case Rml::Variant::BOOL:
-						*To = std::move(Core::Var::Boolean(From->Get<bool>()));
+                        *To = Core::Var::Boolean(From->Get<bool>());
 						break;
 					case Rml::Variant::FLOAT:
 					case Rml::Variant::DOUBLE:
-						*To = std::move(Core::Var::Number(From->Get<double>()));
+                        *To = Core::Var::Number(From->Get<double>());
 						break;
 					case Rml::Variant::BYTE:
 					case Rml::Variant::CHAR:
 					case Rml::Variant::INT:
 					case Rml::Variant::INT64:
-						*To = std::move(Core::Var::Integer(From->Get<int64_t>()));
+                        *To = Core::Var::Integer(From->Get<int64_t>());
 						break;
 					case Rml::Variant::VECTOR2:
 					{
 						Rml::Vector2f T = From->Get<Rml::Vector2f>();
-						*To = std::move(Core::Var::String(FromVector2(Compute::Vector2(T.x, T.y))));
+                        *To = Core::Var::String(FromVector2(Compute::Vector2(T.x, T.y)));
 						break;
 					}
 					case Rml::Variant::VECTOR3:
 					{
 						Rml::Vector3f T = From->Get<Rml::Vector3f>();
-						*To = std::move(Core::Var::String(FromVector3(Compute::Vector3(T.x, T.y, T.z))));
+                        *To = Core::Var::String(FromVector3(Compute::Vector3(T.x, T.y, T.z)));
 						break;
 					}
 					case Rml::Variant::VECTOR4:
 					{
 						Rml::Vector4f T = From->Get<Rml::Vector4f>();
-						*To = std::move(Core::Var::String(FromVector4(Compute::Vector4(T.x, T.y, T.z, T.w))));
+                        *To = Core::Var::String(FromVector4(Compute::Vector4(T.x, T.y, T.z, T.w)));
 						break;
 					}
 					case Rml::Variant::STRING:
 					case Rml::Variant::COLOURF:
 					case Rml::Variant::COLOURB:
-						*To = std::move(Core::Var::String(From->Get<std::string>()));
+                        *To = Core::Var::String(From->Get<std::string>());
 						break;
 					case Rml::Variant::VOIDPTR:
-						*To = std::move(Core::Var::Pointer(From->Get<void*>()));
+                        *To = Core::Var::Pointer(From->Get<void*>());
 						break;
 					default:
-						*To = std::move(Core::Var::Undefined());
+                        *To = Core::Var::Undefined();
 						break;
 				}
 			}
@@ -2542,7 +2543,7 @@ namespace Tomahawk
 				if (TopName != nullptr)
 					Name = TH_NEW(std::string, *TopName);
 			}
-			DataNode::DataNode(DataModel* Model, std::string* TopName, Core::Variant* Reference) : Handle(Model), Safe(false), Ref(Reference)
+			DataNode::DataNode(DataModel* Model, std::string* TopName, Core::Variant* Reference) : Ref(Reference), Handle(Model), Safe(false)
 			{
 				if (TopName != nullptr)
 					Name = TH_NEW(std::string, *TopName);
@@ -2566,7 +2567,7 @@ namespace Tomahawk
 			}
 			DataNode& DataNode::Add(const Core::VariantList& Initial)
 			{
-				Childs.emplace_back(std::move(DataNode(Handle, Name, Core::Var::Undefined())));
+                Childs.emplace_back(DataNode(Handle, Name, Core::Var::Undefined()));
 				if (Handle != nullptr && Name != nullptr)
 					Handle->Change(*Name);
 				
@@ -2578,7 +2579,7 @@ namespace Tomahawk
 			}
 			DataNode& DataNode::Add(const Core::Variant& Initial)
 			{
-				Childs.emplace_back(std::move(DataNode(Handle, Name, Initial)));
+                Childs.emplace_back(DataNode(Handle, Name, Initial));
 				if (Handle != nullptr && Name != nullptr)
 					Handle->Change(*Name);
 
@@ -2586,7 +2587,7 @@ namespace Tomahawk
 			}
 			DataNode& DataNode::Add(Core::Variant* Reference)
 			{
-				Childs.emplace_back(std::move(DataNode(Handle, Name, Reference)));
+                Childs.emplace_back(DataNode(Handle, Name, Reference));
 				if (Handle != nullptr && Name != nullptr)
 					Handle->Change(*Name);
 
@@ -2726,9 +2727,9 @@ namespace Tomahawk
 			{
 				IVariant::Convert((Rml::Variant*)&Result, Ref);
 			}
-			void DataNode::GetValueSize(Rml::Variant& Result)
+			int64_t DataNode::GetValueSize()
 			{
-				Result = (int64_t)GetSize();
+				return (int64_t)GetSize();
 			}
 			DataNode& DataNode::operator= (const DataNode& Other)
 			{
@@ -2747,11 +2748,11 @@ namespace Tomahawk
 				return *this;
 			}
 
-			DataRow::DataRow(DataSource* NewBase, void* NewTarget) : Base(NewBase), Parent(nullptr), Target(NewTarget), Depth(0), Name("root")
+			DataRow::DataRow(DataSource* NewBase, void* NewTarget) : Name("root"), Base(NewBase), Parent(nullptr), Target(NewTarget), Depth(0)
 			{
 				Base->Nodes[Name] = this;
 			}
-			DataRow::DataRow(DataRow* Parent, void* NewTarget) : Base(Parent->Base), Parent(Parent), Target(NewTarget), Depth(Parent->Depth + 1), Name(Core::Form("%p", (void*)this).R())
+			DataRow::DataRow(DataRow* Parent, void* NewTarget) : Name(Core::Form("%p", (void*)this).R()), Base(Parent->Base), Parent(Parent), Target(NewTarget), Depth(Parent->Depth + 1)
 			{
 				Parent->Childs.push_back(this);
 				Base->Nodes[Name] = this;
@@ -3073,7 +3074,7 @@ namespace Tomahawk
 				return Base != nullptr;
 			}
 
-			DataSource::DataSource(const std::string& NewName) : Name(NewName), DSS(nullptr), DFS(nullptr), Root(TH_NEW(DataRow, this, nullptr))
+			DataSource::DataSource(const std::string& NewName) : DFS(nullptr), DSS(nullptr), Name(NewName), Root(TH_NEW(DataRow, this, nullptr))
 			{
 				if (Name.empty())
 					return;
@@ -3166,12 +3167,12 @@ namespace Tomahawk
 				Base->OnDetach(nullptr);
 			}
 
-			Context::Context(const Compute::Vector2& Size) : Loading(false), Compiler(nullptr), Cursor(-1.0f)
+			Context::Context(const Compute::Vector2& Size) : Compiler(nullptr), Cursor(-1.0f), Loading(false)
 			{
 				Base = (ScopedContext*)Rml::CreateContext(std::to_string(Subsystem::Id++), Rml::Vector2i(Size.X, Size.Y));
 				Base->Basis = this; CreateVM();
 			}
-			Context::Context(Graphics::GraphicsDevice* Device) : Loading(false), Compiler(nullptr), Cursor(-1.0f)
+			Context::Context(Graphics::GraphicsDevice* Device) : Compiler(nullptr), Cursor(-1.0f), Loading(false)
 			{
 				if (Device != nullptr)
 				{
@@ -3288,9 +3289,6 @@ namespace Tomahawk
 					if (Base->ProcessMouseMove((int)Cursor.X, (int)Cursor.Y, GetKeyMod(Activity->GetKeyModState())))
 						Inputs.Cursor = true;
 				}
-
-				for (auto& Item : Models)
-					Item.second->Base->GetModelHandle().Update();
 
 				Base->Update();
 			}
@@ -3607,7 +3605,7 @@ namespace Tomahawk
 				{
 					Result.RegisterArray<std::vector<DataNode>>();
 					Type.RegisterMember("at", &DataNode::Childs);
-					Type.RegisterMemberFunc("size", &DataNode::GetValueSize);
+					Type.RegisterMember("size", &DataNode::GetValueSize);
 				}
 				
 				Models[Name] = Handle;

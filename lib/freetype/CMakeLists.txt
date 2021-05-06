@@ -1,6 +1,6 @@
 #Resolve headers, refs and linkage
 if (TH_USE_FREETYPE)
-	find_path(FREETYPE_LOCATION ft2build.h)
+	find_path(FREETYPE_LOCATION ft2build.h PATH_SUFFIXES "freetype2")
 	if (FREETYPE_LOCATION)
 		target_include_directories(tomahawk PRIVATE ${FREETYPE_LOCATION})
 		find_package(Freetype QUIET)

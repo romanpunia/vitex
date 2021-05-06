@@ -42,12 +42,21 @@
 #include "GeometryDatabase.h"
 #include "PluginRegistry.h"
 #include "StyleSheetFactory.h"
+#include "StyleSheetParser.h"
 #include "TemplateCache.h"
 #include "TextureDatabase.h"
 #include "EventSpecification.h"
 
 #ifndef RMLUI_NO_FONT_INTERFACE_DEFAULT
 #include "FontEngineDefault/FontEngineInterfaceDefault.h"
+#endif
+
+#ifdef RMLUI_ENABLE_LOTTIE_PLUGIN
+#include "../Lottie/LottiePlugin.h"
+#endif
+
+#ifdef RMLUI_ENABLE_SVG_PLUGIN
+#include "../SVG/SVGPlugin.h"
 #endif
 
 
@@ -116,11 +125,20 @@ bool Initialise()
 	}
 
 	StyleSheetSpecification::Initialise();
+	StyleSheetParser::Initialise();
 	StyleSheetFactory::Initialise();
 
 	TemplateCache::Initialise();
 
 	Factory::Initialise();
+
+	// Initialise plugins integrated with Core.
+#ifdef RMLUI_ENABLE_LOTTIE_PLUGIN
+	Lottie::Initialise();
+#endif
+#ifdef RMLUI_ENABLE_SVG_PLUGIN
+	SVG::Initialise();
+#endif
 
 	// Notify all plugins we're starting up.
 	PluginRegistry::NotifyInitialise();
@@ -143,6 +161,7 @@ void Shutdown()
 	Factory::Shutdown();
 	TemplateCache::Shutdown();
 	StyleSheetFactory::Shutdown();
+	StyleSheetParser::Shutdown();
 	StyleSheetSpecification::Shutdown();
 
 	font_interface = nullptr;
@@ -216,7 +235,7 @@ FontEngineInterface* GetFontEngineInterface()
 }
 
 // Creates a new element context.
-Context* CreateContext(const String& name, const Vector2i& dimensions, RenderInterface* custom_render_interface)
+Context* CreateContext(const String& name, const Vector2i dimensions, RenderInterface* custom_render_interface)
 {
 	if (!initialised)
 		return nullptr;
@@ -282,9 +301,9 @@ Context* GetContext(int index)
 {
 	ContextMap::iterator i = contexts.begin();
 	int count = 0;
-
-	if (index >= GetNumContexts())
-		index = GetNumContexts() - 1;
+	
+	if (index < 0 || index >= GetNumContexts())
+		return nullptr;
 
 	while (count < index)
 	{
@@ -326,6 +345,11 @@ void RegisterPlugin(Plugin* plugin)
 EventId RegisterEventType(const String& type, bool interruptible, bool bubbles, DefaultActionPhase default_action_phase)
 {
 	return EventSpecificationInterface::InsertOrReplaceCustom(type, interruptible, bubbles, default_action_phase);
+}
+
+StringList GetTextureSourceList()
+{
+	return TextureDatabase::GetSourceList();
 }
 
 void ReleaseTextures()

@@ -26,44 +26,25 @@
  *
  */
 
-#ifndef RMLUI_CORE_ELEMENTS_SELECTOPTION_H
-#define RMLUI_CORE_ELEMENTS_SELECTOPTION_H
+#ifndef RMLUI_CORE_PROPERTYPARSERFONTEFFECT_H
+#define RMLUI_CORE_PROPERTYPARSERFONTEFFECT_H
 
-#include "../Header.h"
-#include "../Types.h"
+#include "../../Include/RmlUi/Core/PropertyParser.h"
 
 namespace Rml {
 
-class Element;
-
-
 /**
-	Represents individual options within a select control.
-
-	@author Peter Curry
+	A property parser for the font-effect property.
  */
 
-class RMLUICORE_API SelectOption
+class PropertyParserFontEffect : public PropertyParser
 {
 public:
-	SelectOption(Element* element, const String& value, bool selectable);
-	~SelectOption();
+	PropertyParserFontEffect();
+	virtual ~PropertyParserFontEffect();
 
-	/// Returns the element that represents the option visually.
-	/// @return The option's element.
-	Element* GetElement();
-	/// Returns the value of the option.
-	/// @return The option's value.
-	const String& GetValue() const;
-
-	/// Returns true if the item is selectable.
-	/// @return True if the item is selectable.
-	bool IsSelectable() { return selectable; }
-
-private:
-	Element* element;
-	String value;
-	bool selectable;
+	/// Called to parse a font-effect declaration.
+	bool ParseValue(Property& property, const String& value, const ParameterMap& parameters) const override;
 };
 
 } // namespace Rml

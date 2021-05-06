@@ -2478,7 +2478,7 @@ namespace Tomahawk
 			{
 #ifdef TH_HAS_MONGOC
 				if (!Connected || !Pool)
-					return false;
+					return Core::Async<bool>::Store(false);
 
 				return Core::Async<bool>([this](Core::Async<bool>& Future)
 				{
@@ -2659,7 +2659,7 @@ namespace Tomahawk
 							{
 								Pose Next;
 								Next.Escape = (Base.R()[Arg] == '$');
-								Next.Key = std::move(Base.R().substr((size_t)Arg + 2, (size_t)Index - (size_t)Arg - 2));
+                                Next.Key = Base.R().substr((size_t)Arg + 2, (size_t)Index - (size_t)Arg - 2);
 								Next.Offset = (size_t)Arg;
 								Result.Positions.push_back(std::move(Next));
 								Base.RemovePart(Arg, Index + 1);
@@ -2900,7 +2900,7 @@ namespace Tomahawk
 					}
 					case Core::VarType_String:
 					{
-						std::string Result = std::move(Source->Value.GetBlob());
+                        std::string Result = Source->Value.GetBlob();
 						if (!Escape)
 							return Result;
 

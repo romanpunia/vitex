@@ -119,9 +119,15 @@ typedef socklen_t socket_size_t;
 #define TH_PREFIX_STR "@"
 #define TH_COMPONENT_HASH(Name) Tomahawk::Core::OS::File::GetCheckSum(Name)
 #define TH_COMPONENT_IS(Source, Name) (Source->GetId() == TH_COMPONENT_HASH(Name))
-#define TH_COMPONENT(Name) \
+#define TH_COMPONENT_ROOT(Name) \
 virtual const char* GetName() { return Name; } \
 virtual uint64_t GetId() { static uint64_t V = TH_COMPONENT_HASH(Name); return V; } \
+static const char* GetTypeName() { return Name; } \
+static uint64_t GetTypeId() { static uint64_t V = TH_COMPONENT_HASH(Name); return V; }
+
+#define TH_COMPONENT(Name) \
+virtual const char* GetName() override { return Name; } \
+virtual uint64_t GetId() override { static uint64_t V = TH_COMPONENT_HASH(Name); return V; } \
 static const char* GetTypeName() { return Name; } \
 static uint64_t GetTypeId() { static uint64_t V = TH_COMPONENT_HASH(Name); return V; }
 
@@ -1511,22 +1517,22 @@ namespace Tomahawk
 			}
 			Async(std::function<void(Async&)>&& Executor) : Async()
 			{
-				if (!Executor)
-					return;
+                if (!Executor)
+                    return;
 
-				Schedule* Queue = Schedule::Get();
-				if (Queue->IsActive())
-				{
-					Base* Subresult = Next->Copy();
-					Queue->SetTask([Subresult, Executor = std::move(Executor)]() mutable
-					{
-						Async Copy(Subresult);
-						Subresult->Free();
-						Executor(Copy);
-					});
-				}
-				else
-					Executor(*this);
+                Schedule* Queue = Schedule::Get();
+                if (Queue->IsActive())
+                {
+                    Base* Subresult = Next->Copy();
+                    Queue->SetTask([Subresult, Executor = std::move(Executor)]() mutable
+                    {
+                        Async Copy(Subresult);
+                        Subresult->Free();
+                        Executor(Copy);
+                    });
+                }
+                else
+                    Executor(*this);
 			}
 			Async(Base* Context) : Next(Context)
 			{

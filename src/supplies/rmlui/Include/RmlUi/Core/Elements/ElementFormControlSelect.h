@@ -31,7 +31,6 @@
 
 #include "../Header.h"
 #include "ElementFormControl.h"
-#include "SelectOption.h"
 
 namespace Rml {
 
@@ -46,6 +45,8 @@ class WidgetDropDown;
 class RMLUICORE_API ElementFormControlSelect : public ElementFormControl
 {
 public:
+	RMLUI_RTTI_DefineWithParent(ElementFormControlSelect, ElementFormControl)
+
 	/// Constructs a new ElementFormControlSelect. This should not be called directly; use the
 	/// Factory instead.
 	/// @param[in] tag The tag the element was declared as in RML.
@@ -67,9 +68,9 @@ public:
 	int GetSelection() const;
 
 	/// Returns one of the select control's option elements.
-	/// @param[in] The index of the desired option element.
-	/// @return The option element at the given index. This will be nullptr if the index is out of bounds.
-	SelectOption* GetOption(int index);
+	/// @param[in] The index of the desired option.
+	/// @return The option element or nullptr if the index was out of bounds.
+	Element* GetOption(int index);
 	/// Returns the number of options in the select control.
 	/// @return The number of options.
 	int GetNumOptions();
@@ -81,6 +82,11 @@ public:
 	/// @param[in] selectable If true this option can be selected. If false, this option is not selectable.
 	/// @return The index of the new option.
 	int Add(const String& rml, const String& value, int before = -1, bool selectable = true);
+	/// Adds a new option to the select control.
+	/// @param[in] element The element to add, must be an 'option' element.
+	/// @param[in] before The index of the element to insert the new option before.
+	/// @return The index of the new option.
+	int Add(ElementPtr element, int before = -1);
 	/// Removes an option from the select control.
 	/// @param[in] index The index of the option to remove. If this is outside of the bounds of the control's option list, no option will be removed.
 	void Remove(int index);
@@ -97,11 +103,20 @@ protected:
 	/// Forces an internal layout.
 	void OnLayout() override;
 
+	void OnChildAdd(Element* child) override;
+	
+	void OnChildRemove(Element* child) override;
+
 	/// Returns true to mark this element as replaced.
 	/// @param[out] intrinsic_dimensions Set to the arbitrary dimensions of 128 x 16 just to give this element a size. Resize with the 'width' and 'height' properties.
 	/// @param[out] intrinsic_ratio Ignored.
 	/// @return True.
 	bool GetIntrinsicDimensions(Vector2f& intrinsic_dimensions, float& intrinsic_ratio) override;
+
+	/// Respond to changed value attribute.
+	void OnAttributeChange(const ElementAttributes& changed_attributes) override;
+
+	void MoveChildren();
 
 	WidgetDropDown* widget;
 };

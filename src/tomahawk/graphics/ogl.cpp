@@ -392,7 +392,7 @@ namespace Tomahawk
 				return (void*)(intptr_t)Async;
 			}
 
-			OGLDevice::OGLDevice(const Desc& I) : GraphicsDevice(I), Window(I.Window), Context(nullptr), Layout(nullptr), ShaderVersion(nullptr)
+			OGLDevice::OGLDevice(const Desc& I) : GraphicsDevice(I), ShaderVersion(nullptr), Layout(nullptr), Window(I.Window), Context(nullptr)
 			{
 				DirectRenderer.VertexShader = GL_NONE;
 				DirectRenderer.PixelShader = GL_NONE;
@@ -938,7 +938,6 @@ namespace Tomahawk
 				}
 				else
 				{
-					GLenum Target = GL_COLOR_ATTACHMENT0;
 					glBindFramebuffer(GL_FRAMEBUFFER, 0);
 					glDrawBuffer(GL_FRONT_AND_BACK);
 				}

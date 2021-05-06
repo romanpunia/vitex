@@ -31,8 +31,8 @@
 
 #include "../../Include/RmlUi/Core/Header.h"
 #include "../../Include/RmlUi/Core/Types.h"
-#include "../../Include/RmlUi/Core/DataView.h"
 #include "../../Include/RmlUi/Core/Variant.h"
+#include "DataView.h"
 
 namespace Rml {
 
@@ -43,7 +43,7 @@ using DataExpressionPtr = UniquePtr<DataExpression>;
 
 class DataViewCommon : public DataView {
 public:
-	DataViewCommon(Element* element, String override_modifier = String());
+	DataViewCommon(Element* element, String override_modifier = String(), int sort_offset = 0);
 
 	bool Initialize(DataModel& model, Element* element, const String& expression, const String& modifier) override;
 
@@ -65,7 +65,7 @@ private:
 class DataViewAttribute : public DataViewCommon {
 public:
 	DataViewAttribute(Element* element);
-	DataViewAttribute(Element* element, String override_attribute);
+	DataViewAttribute(Element* element, String override_attribute, int sort_offset);
 
 	bool Update(DataModel& model) override;
 };
@@ -80,6 +80,13 @@ public:
 class DataViewValue final : public DataViewAttribute {
 public:
 	DataViewValue(Element* element);
+};
+
+class DataViewChecked final : public DataViewCommon {
+public:
+	DataViewChecked(Element* element);
+
+	bool Update(DataModel& model) override;
 };
 
 class DataViewStyle final : public DataViewCommon {

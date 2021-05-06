@@ -168,7 +168,7 @@ namespace Tomahawk
 					});
 				}
 
-				return [this, URI](Core::Async<bool>& Future)
+				return Core::Async<bool>([this, URI](Core::Async<bool>& Future)
 				{
 					const char** Keys = URI.CreateKeys();
 					const char** Values = URI.CreateValues();
@@ -184,7 +184,7 @@ namespace Tomahawk
 
 					Connected = true;
 					Future.Set(true);
-				};
+				});
 #else
 				return Core::Async<bool>::Store(false);
 #endif
@@ -195,7 +195,7 @@ namespace Tomahawk
 				if (!Connected || !Base)
 					return Core::Async<bool>::Store(false);
 
-				return [this](Core::Async<bool>& Future)
+				return Core::Async<bool>([this](Core::Async<bool>& Future)
 				{
 					Connected = false;
 					if (!Base)
@@ -210,7 +210,7 @@ namespace Tomahawk
 						Master->Clear(this);
 
 					Future.Set(true);
-				};
+				});
 #else
 				return Core::Async<bool>::Store(false);
 #endif
@@ -438,7 +438,7 @@ namespace Tomahawk
 							{
 								Pose Next;
 								Next.Escape = (Base.R()[Arg] == '$');
-								Next.Key = std::move(Base.R().substr((size_t)Arg + 2, (size_t)Index - (size_t)Arg - 2));
+                                Next.Key = Base.R().substr((size_t)Arg + 2, (size_t)Index - (size_t)Arg - 2);
 								Next.Offset = (size_t)Arg;
 								Result.Positions.push_back(std::move(Next));
 								Base.RemovePart(Arg, Index + 1);
@@ -733,7 +733,7 @@ namespace Tomahawk
 						if (Result.size() == 2)
 							return "";
 
-						Result = std::move(Result.substr(1, Result.size() - 2));
+                        Result = Result.substr(1, Result.size() - 2);
 						return Result;
 					}
 					case Core::VarType_Integer:
@@ -744,7 +744,7 @@ namespace Tomahawk
 						return Source->Value.GetBoolean() ? "TRUE" : "FALSE";
 					case Core::VarType_Decimal:
 					{
-						std::string Result(std::move(GetCharArray(Base, Source->Value.GetDecimal())));
+                        std::string Result(GetCharArray(Base, Source->Value.GetDecimal()));
 						return (Result.size() >= 2 ? Result.substr(1, Result.size() - 2) : Result);
 					}
 					case Core::VarType_Base64:

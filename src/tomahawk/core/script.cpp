@@ -2128,7 +2128,7 @@ namespace Tomahawk
 			return Manager;
 		}
 
-		VMCompiler::VMCompiler(VMManager* Engine) : Manager(Engine), Context(nullptr), Module(nullptr), BuiltOK(false)
+		VMCompiler::VMCompiler(VMManager* Engine) : Module(nullptr), Manager(Engine), Context(nullptr), BuiltOK(false)
 		{
 			Processor = new Compute::Preprocessor();
 			Processor->SetIncludeCallback([this](Compute::Preprocessor* C, const Compute::IncludeResult& File, std::string* Out)
@@ -2693,7 +2693,7 @@ namespace Tomahawk
 		}
 		int VMCompiler::CompilerUD = 154;
 
-		VMContext::VMContext(VMCContext* Base) : Manager(nullptr), Context(Base), Async(0)
+		VMContext::VMContext(VMCContext* Base) : Async(0), Context(Base), Manager(nullptr)
 		{
 			if (Context != nullptr)
 			{
@@ -3308,7 +3308,7 @@ namespace Tomahawk
 		}
 		int VMContext::ContextUD = 152;
 
-		VMManager::VMManager() : Engine(asCreateScriptEngine()), Globals(this), Cached(true), Scope(0), JIT(nullptr), Nullable(0), Imports(VMImport_All)
+		VMManager::VMManager() : Scope(0), Engine(asCreateScriptEngine()), Globals(this), Imports(VMImport_All), Nullable(0), JIT(nullptr), Cached(true)
 		{
 			asSetGlobalMemoryFunctions(Tomahawk::Core::Mem::Malloc, Tomahawk::Core::Mem::Free);
 			Include.Exts.push_back(".as");
@@ -3347,6 +3347,7 @@ namespace Tomahawk
 			VMCJITCompiler* CJit = (VMCJITCompiler*)JIT;
 			TH_DELETE(VMCJITCompiler, CJit);
 #endif
+            JIT = nullptr;
 			ClearCache();
 		}
 		void VMManager::SetImports(unsigned int Opts)
@@ -4302,7 +4303,7 @@ namespace Tomahawk
 		}
 		int VMManager::ManagerUD = 553;
 
-		VMDebugger::VMDebugger() : Action(CONTINUE), LastFunction(nullptr), Manager(nullptr)
+		VMDebugger::VMDebugger() : LastFunction(nullptr), Manager(nullptr), Action(CONTINUE)
 		{
 			LastCommandAtStackLevel = 0;
 		}

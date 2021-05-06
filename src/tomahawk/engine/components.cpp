@@ -49,7 +49,7 @@ namespace Tomahawk
 				if (Asset != nullptr)
 					NMake::Pack(Node->Set("model"), Asset->Path);
 
-				Core::Document* Slots = Node->Set("materials", std::move(Core::Var::Array()));
+                Core::Document* Slots = Node->Set("materials", Core::Var::Array());
 				for (auto&& Slot : Materials)
 				{
 					if (Slot.first != nullptr)
@@ -169,7 +169,7 @@ namespace Tomahawk
 				if (Asset != nullptr)
 					NMake::Pack(Node->Set("skin-model"), Asset->Path);
 
-				Core::Document* Slots = Node->Set("materials", std::move(Core::Var::Array()));
+                Core::Document* Slots = Node->Set("materials", Core::Var::Array());
 				for (auto&& Slot : Materials)
 				{
 					if (Slot.first != nullptr)
@@ -186,7 +186,7 @@ namespace Tomahawk
 				NMake::Pack(Node->Set("transparency"), HasTransparency());
 				NMake::Pack(Node->Set("static"), Static);
 
-				Core::Document* Poses = Node->Set("poses", std::move(Core::Var::Array()));
+                Core::Document* Poses = Node->Set("poses", Core::Var::Array());
 				for (auto&& Pose : Skeleton.Pose)
 				{
 					Core::Document* Value = Poses->Set("pose");
@@ -2496,7 +2496,7 @@ namespace Tomahawk
 				if (Asset != nullptr)
 					NMake::Pack(Node->Set("audio-clip"), Asset->Path);
 
-				Core::Document* Effects = Node->Set("effects", std::move(Core::Var::Array()));
+                Core::Document* Effects = Node->Set("effects", Core::Var::Array());
 				for (auto* Effect : *Source->GetEffects())
 				{
 					if (!Effect)
@@ -3372,7 +3372,7 @@ namespace Tomahawk
 				NMake::Pack(Node->Set("frustum-cull"), Renderer->HasFrustumCulling());
 				NMake::Pack(Node->Set("occlusion-cull"), Renderer->HasOcclusionCulling());
 
-				Core::Document* Renderers = Node->Set("renderers", std::move(Core::Var::Array()));
+                Core::Document* Renderers = Node->Set("renderers", Core::Var::Array());
 				for (auto& Ref : *Renderer->GetRenderers())
 				{
 					Core::Document* Render = Renderers->Set("renderer");

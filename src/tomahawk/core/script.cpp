@@ -4082,7 +4082,10 @@ namespace Tomahawk
 			{
 				File = Core::OS::Path::Resolve(Path + ".json", Include.Root);
 				if (!Core::OS::File::IsExists(File.c_str()))
+                {
+                    TH_ERROR("%s resource was not found", Path.c_str());
 					return nullptr;
+                }
 			}
 
 			if (!Cached)

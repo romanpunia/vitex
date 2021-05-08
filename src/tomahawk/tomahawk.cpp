@@ -429,10 +429,15 @@ namespace Tomahawk
 		if (Modes & TInit_SSL)
 		{
 #ifdef TH_HAS_OPENSSL
+            OPENSSL_VERSION_NUMBER;
 			FIPS_mode_set(0);
 			CRYPTO_set_locking_callback(nullptr);
 			CRYPTO_set_id_callback(nullptr);
-			ERR_remove_state(0);
+#if OPENSSL_VERSION_NUMBER >= 0x10000000L && OPENSSL_VERSION_NUMBER < 0x10100000L
+            ERR_remove_thread_state(NULL);
+#elif OPENSSL_VERSION_NUMBER < 0x10000000L
+            ERR_remove_state(0);
+#endif
 			SSL_COMP_free_compression_methods();
 			ENGINE_cleanup();
 			CONF_modules_free();

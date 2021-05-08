@@ -2093,16 +2093,20 @@ namespace Tomahawk
 				return false;
 
 			bool HadSign = false;
-			for (char i : *L)
-			{
-				if (IsDigit(i))
-					continue;
+            for (size_t i = 0; i < L->size(); i++)
+            {
+                char& V = (*L)[i];
+                if (IsDigit(V))
+                    continue;
 
-				if (i != '-' || HadSign)
-					return false;
-
-				HadSign = true;
-			}
+                if (V == '-' && i == 0 && !HadSign)
+                {
+                    HadSign = true;
+                    continue;
+                }
+                
+                return false;
+            }
 
 			return true;
 		}
@@ -2112,21 +2116,26 @@ namespace Tomahawk
 				return false;
 
 			bool HadPoint = false, HadSign = false;
-			for (char i : *L)
-			{
-				if (IsDigit(i))
-					continue;
+            for (size_t i = 0; i < L->size(); i++)
+            {
+                char& V = (*L)[i];
+                if (IsDigit(V))
+                    continue;
 
-				if (i != '.' || HadPoint)
-				{
-					if (i != '-' || HadSign)
-						return false;
-
-					HadSign = true;
-				}
-				else
-					HadPoint = true;
-			}
+                if (V == '-' && i == 0 && !HadSign)
+                {
+                    HadSign = true;
+                    continue;
+                }
+                
+                if (V == '.' && !HadPoint)
+                {
+                    HadPoint = true;
+                    continue;
+                }
+                
+                return false;
+            }
 
 			return true;
 		}

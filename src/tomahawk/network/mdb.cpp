@@ -760,14 +760,8 @@ namespace Tomahawk
 							Node->Set(Name, Core::Var::Number(Key->Number));
 							break;
 						case Type_Decimal:
-						{
-							double Decimal = Core::Parser(&Key->ToString()).ToDouble();
-							if (Decimal != (int64_t)Decimal)
-								Node->Set(Name, Core::Var::Number(Decimal));
-							else
-								Node->Set(Name, Core::Var::Integer((int64_t)Decimal));
+                            Node->Set(Name, Core::Var::Decimal(Key->ToString()));
 							break;
-						}
 						case Type_Integer:
 							Node->Set(Name, Core::Var::Integer(Key->Integer));
 							break;

@@ -2,5 +2,13 @@
 .git/
 debug/
 release/
-bin/
+bin/*.so
+bin/*.a
+bin/*.dylib
+bin/*.dll
+bin/*.lib
+bin/*.pdb
+bin/*.exe
+bin/*.ilk
+bin/*.exp
 vcpkg_installed/

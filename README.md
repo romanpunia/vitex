@@ -190,12 +190,14 @@ Tomahawk is a cross-platform C++14 framework to create any type of application f
 > /lib/install.sh $triplet
 
 where $triplet is a target platform, for example, x86-windows.
+
 3. Execute CMake command to generate the files or use CMake GUI if you have one.
 If you want to use vcpkg then add VCPKG_ROOT environment variable and if you want to execute install script, add vcpkg executable to PATH environment variable. It should contain full path to vcpkg executable. Another option is to set CMAKE_TOOLCHAIN_FILE option (standard workflow for vcpkg). For example,
 > cmake -DCMAKE_TOOLCHAIN_FILE=/path/to/vcpkg/scripts/buildsystems/vcpkg.cmake ...
 
 ## Building (subproject)
 1-2. Same steps.
+
 3. Add toolchain before first
 ```cmake
 project(app_name)

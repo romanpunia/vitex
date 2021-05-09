@@ -143,6 +143,8 @@ namespace Tomahawk
 
 		class Var;
 
+        class Decimal;
+    
 		enum FileMode
 		{
 			FileMode_Read_Only,
@@ -208,6 +210,93 @@ namespace Tomahawk
 		typedef std::function<bool(char*, int64_t)> NReadCallback;
 		typedef TaskCallback EventTask;
 		typedef uint64_t EventId;
+        typedef Decimal BigNumber;
+
+        class TH_OUT Decimal
+        {
+        private:
+            std::deque<char> Source;
+            int Length;
+            char Sign;
+            bool NaN;
+            
+        public:
+            Decimal();
+            Decimal(const char* Value);
+            Decimal(const std::string& Value);
+            Decimal(int Value);
+            Decimal(double Value);
+            Decimal(const Decimal& Value);
+            Decimal(Decimal&& Value);
+            void SetPrecision(int Value);
+            void TrimLead();
+            void TrimTrail();
+            double ToDouble() const;
+            float ToFloat() const;
+            std::string ToString() const;
+            std::string Exp() const;
+            int Decimals() const;
+            int Ints() const;
+            int Size() const;
+            Decimal& operator= (const char* Value);
+            Decimal& operator= (const std::string& Value);
+            Decimal& operator= (int Value);
+            Decimal& operator= (double Value);
+            Decimal& operator= (const Decimal& Value);
+            Decimal& operator= (Decimal&& Value);
+            friend std::ostream& operator << (std::ostream& Left, const Decimal& Right);
+            friend std::istream& operator >> (std::istream& Left, Decimal& Right);
+            friend Decimal operator + (const Decimal& Left, const Decimal& Right);
+            friend Decimal operator + (const Decimal& Left, const int& Right);
+            friend Decimal operator + (const Decimal& Left, const double& Right);
+            friend Decimal operator - (const Decimal& Left, const Decimal& Right);
+            friend Decimal operator - (const Decimal& Left, const int& Right);
+            friend Decimal operator - (const Decimal& Left, const double& Right);
+            friend Decimal operator * (const Decimal& Left, const Decimal& Right);
+            friend Decimal operator * (const Decimal& Left, const int& Right);
+            friend Decimal operator * (const Decimal& Left, const double& Right);
+            friend Decimal operator / (const Decimal& Left, const Decimal& Right);
+            friend Decimal operator / (const Decimal& Left, const int& Right);
+            friend Decimal operator / (const Decimal& Left, const double& Right);
+            friend Decimal operator % (const Decimal& Left, const Decimal& Right);
+            friend Decimal operator % (const Decimal& Left, const int& Right);
+            Decimal& operator++ (int);
+            Decimal& operator++ ();
+            Decimal& operator-- (int);
+            Decimal& operator-- ();
+            bool operator== (const Decimal& Right) const;
+            bool operator== (const int& Right) const;
+            bool operator== (const double& Right) const;
+            bool operator!= (const Decimal& Right) const;
+            bool operator!= (const int& Right) const;
+            bool operator!= (const double& Right) const;
+            bool operator> (const Decimal& Right) const;
+            bool operator> (const int& Right) const;
+            bool operator> (const double& Right) const;
+            bool operator>= (const Decimal& Right) const;
+            bool operator>= (const int& Right) const;
+            bool operator>= (const double& Right) const;
+            bool operator< (const Decimal& Right) const;
+            bool operator< (const int& Right) const;
+            bool operator< (const double& Right) const;
+            bool operator<= (const Decimal& Right) const;
+            bool operator<= (const int& Right) const;
+            bool operator<= (const double& Right) const;
+        
+        public:
+            static Decimal PrecDiv(const Decimal& Left, const Decimal& Right, int Precision);
+            static Decimal PrecDiv(const Decimal& Left, const int& Right, int Precision);
+            static Decimal PrecDiv(const Decimal& Left, const double& Right, int Precision);
+            static Decimal Empty();
+            
+        private:
+            static Decimal Sum(const Decimal& Left, const Decimal& Right);
+            static Decimal Subtract(const Decimal& Left, const Decimal& Right);
+            static Decimal Multiply(const Decimal& Left, const Decimal& Right);
+            static int CompareNum(const Decimal& Left, const Decimal& Right);
+            static int CharToInt(const char& Value);
+            static char IntToChar(const int& Value);
+        };
 
 		struct TH_OUT Variant
 		{
@@ -232,8 +321,8 @@ namespace Tomahawk
 			~Variant();
 			bool Deserialize(const std::string& Value, bool Strict = false);
 			std::string Serialize() const;
-			std::string GetDecimal() const;
 			std::string GetBlob() const;
+            Decimal GetDecimal() const;
 			void* GetPointer() const;
 			const char* GetString() const;
 			unsigned char* GetBase64() const;
@@ -590,8 +679,9 @@ namespace Tomahawk
 			static Variant Base64(const char* Value, size_t Size);
 			static Variant Integer(int64_t Value);
 			static Variant Number(double Value);
-			static Variant Decimal(const std::string& Value);
-			static Variant Decimal(const char* Value, size_t Size);
+			static Variant Decimal(const BigNumber& Value);
+            static Variant Decimal(BigNumber&& Value);
+            static Variant DecimalString(const std::string& Value);
 			static Variant Boolean(bool Value);
 		};
 
@@ -1137,6 +1227,7 @@ namespace Tomahawk
 			Document* Pop(size_t Index);
 			Document* Pop(const std::string& Name);
 			Document* Copy() const;
+            bool Rename(const std::string& Name, const std::string& NewName);
 			bool Has(const std::string& Name) const;
 			bool Has64(const std::string& Name, size_t Size = 12) const;
 			bool IsAttribute() const;

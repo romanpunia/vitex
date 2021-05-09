@@ -327,8 +327,19 @@ namespace Tomahawk
 			public:
 				Transaction(TTransaction* NewBase);
 				void Release();
-				Core::Async<bool> Start();
-				Core::Async<bool> Abort();
+                bool Push(Document& QueryOptions) const;
+				bool Start();
+                bool Abort();
+                Document RemoveMany(const Collection& Base, const Document& Select, const Document& Options);
+                Document RemoveOne(const Collection& Base, const Document& Select, const Document& Options);
+                Document ReplaceOne(const Collection& Base, const Document& Select, const Document& Replacement, const Document& Options);
+                Document InsertMany(const Collection& Base, std::vector<Document>& List, const Document& Options);
+                Document InsertOne(const Collection& Base, const Document& Result, const Document& Options);
+                Document UpdateMany(const Collection& Base, const Document& Select, const Document& Update, const Document& Options);
+                Document UpdateOne(const Collection& Base, const Document& Select, const Document& Update, const Document& Options);
+                Cursor FindMany(const Collection& Base, const Document& Select, const Document& Options) const;
+                Cursor FindOne(const Collection& Base, const Document& Select, const Document& Options) const;
+                Cursor Aggregate(const Collection& Base, Query Flags, const Document& Pipeline, const Document& Options) const;
 				Core::Async<Document> Commit();
 				TTransaction* Get() const;
 				operator bool() const
@@ -337,7 +348,7 @@ namespace Tomahawk
 				}
 
 			public:
-				static TTransaction* FromConnection(Connection* Client, Document& NewUid);
+				static TTransaction* FromConnection(Connection* Client);
 			};
 
 			class TH_OUT Connection : public Core::Object

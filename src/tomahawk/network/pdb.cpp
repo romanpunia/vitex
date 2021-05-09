@@ -744,7 +744,7 @@ namespace Tomahawk
 						return Source->Value.GetBoolean() ? "TRUE" : "FALSE";
 					case Core::VarType_Decimal:
 					{
-                        std::string Result(GetCharArray(Base, Source->Value.GetDecimal()));
+                        std::string Result(GetCharArray(Base, Source->Value.GetDecimal().ToString()));
 						return (Result.size() >= 2 ? Result.substr(1, Result.size() - 2) : Result);
 					}
 					case Core::VarType_Base64:

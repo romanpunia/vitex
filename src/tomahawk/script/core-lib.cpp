@@ -637,7 +637,7 @@ namespace Tomahawk
 				case Core::VarType_Number:
 					return std::to_string(Base->Value.GetNumber());
 				case Core::VarType_Decimal:
-					return Base->Value.GetDecimal();
+                    return Base->Value.GetDecimal().ToString();
 				case Core::VarType_Boolean:
 					return Base->Value.GetBoolean() ? "1" : "0";
 			}
@@ -658,7 +658,7 @@ namespace Tomahawk
 		}
 		std::string VMCDocument::ToDecimal(Core::Document* Base)
 		{
-			return Base->Value.GetDecimal();
+            return Base->Value.GetDecimal().ToString();
 		}
 		bool VMCDocument::ToBoolean(Core::Document* Base)
 		{
@@ -812,7 +812,7 @@ namespace Tomahawk
 			Register.SetFunction("Variant Boolean(bool)", &Core::Var::Boolean);
 			Register.SetFunction<Core::Variant(const std::string&)>("Variant String(const String &in)", &Core::Var::String);
 			Register.SetFunction<Core::Variant(const std::string&)>("Variant Base64(const String &in)", &Core::Var::Base64);
-			Register.SetFunction<Core::Variant(const std::string&)>("Variant Decimal(const String &in)", &Core::Var::Decimal);
+			Register.SetFunction<Core::Variant(const std::string&)>("Variant Decimal(const String &in)", &Core::Var::DecimalString);
 			Engine->EndNamespace();
 
 			return true;

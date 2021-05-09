@@ -760,7 +760,7 @@ namespace Tomahawk
 							Node->Set(Name, Core::Var::Number(Key->Number));
 							break;
 						case Type_Decimal:
-                            Node->Set(Name, Core::Var::Decimal(Key->ToString()));
+                            Node->Set(Name, Core::Var::DecimalString(Key->ToString()));
 							break;
 						case Type_Integer:
 							Node->Set(Name, Core::Var::Integer(Key->Integer));
@@ -834,7 +834,7 @@ namespace Tomahawk
 							Result.SetBoolean(Array ? nullptr : Node->Key.c_str(), Node->Value.GetBoolean(), Index);
 							break;
 						case Core::VarType_Decimal:
-							Result.SetDecimalString(Array ? nullptr : Node->Key.c_str(), Node->Value.GetDecimal(), Index);
+                            Result.SetDecimalString(Array ? nullptr : Node->Key.c_str(), Node->Value.GetDecimal().ToString(), Index);
 							break;
 						case Core::VarType_Number:
 							Result.SetNumber(Array ? nullptr : Node->Key.c_str(), Node->Value.GetNumber(), Index);
@@ -1104,10 +1104,16 @@ namespace Tomahawk
 				return Core::Async<Document>([Context](Core::Async<Document>& Future) mutable
 				{
 					TDocument Subresult;
-					MDB_EXEC(&mongoc_bulk_operation_execute, Context.Get(), &Subresult);
+                    bool fResult = MDB_EXEC(&mongoc_bulk_operation_execute, Context.Get(), &Subresult);
 					Context.Release();
 
-					Future.Set(Document::FromSource(&Subresult));
+                    if (!fResult)
+                    {
+                        bson_free(&Subresult);
+                        Future.Set(Document(nullptr));
+                    }
+                    else
+                        Future.Set(Document::FromSource(&Subresult));
 				});
 #else
 				return Core::Async<Document>::Store(nullptr);
@@ -1458,11 +1464,17 @@ namespace Tomahawk
 				return Core::Async<Document>([Context, Select, Options](Core::Async<Document>& Future)
 				{
 					TDocument Subresult;
-					MDB_EXEC(&mongoc_collection_delete_many, Context, Select.Get(), Options.Get(), &Subresult);
+					bool fResult = MDB_EXEC(&mongoc_collection_delete_many, Context, Select.Get(), Options.Get(), &Subresult);
 					Select.Release();
 					Options.Release();
-
-					Future.Set(Document::FromSource(&Subresult));
+                    
+                    if (!fResult)
+                    {
+                        bson_free(&Subresult);
+                        Future.Set(Document(nullptr));
+                    }
+                    else
+                        Future.Set(Document::FromSource(&Subresult));
 				});
 #else
 				return Core::Async<Document>::Store(nullptr);
@@ -1475,11 +1487,17 @@ namespace Tomahawk
 				return Core::Async<Document>([Context, Select, Options](Core::Async<Document>& Future)
 				{
 					TDocument Subresult;
-					MDB_EXEC(&mongoc_collection_delete_one, Context, Select.Get(), Options.Get(), &Subresult);
+					bool fResult = MDB_EXEC(&mongoc_collection_delete_one, Context, Select.Get(), Options.Get(), &Subresult);
 					Select.Release();
 					Options.Release();
-
-					Future.Set(Document::FromSource(&Subresult));
+                    
+                    if (!fResult)
+                    {
+                        bson_free(&Subresult);
+                        Future.Set(Document(nullptr));
+                    }
+                    else
+                        Future.Set(Document::FromSource(&Subresult));
 				});
 #else
 				return Core::Async<Document>::Store(nullptr);
@@ -1492,12 +1510,18 @@ namespace Tomahawk
 				return Core::Async<Document>([Context, Select, Replacement, Options](Core::Async<Document>& Future)
 				{
 					TDocument Subresult;
-					MDB_EXEC(&mongoc_collection_replace_one, Context, Select.Get(), Replacement.Get(), Options.Get(), &Subresult);
+					bool fResult = MDB_EXEC(&mongoc_collection_replace_one, Context, Select.Get(), Replacement.Get(), Options.Get(), &Subresult);
 					Select.Release();
 					Replacement.Release();
 					Options.Release();
-
-					Future.Set(Document::FromSource(&Subresult));
+                    
+                    if (!fResult)
+                    {
+                        bson_free(&Subresult);
+                        Future.Set(Document(nullptr));
+                    }
+                    else
+                        Future.Set(Document::FromSource(&Subresult));
 				});
 #else
 				return Core::Async<Document>::Store(nullptr);
@@ -1519,13 +1543,19 @@ namespace Tomahawk
 						Subarray[i] = Array[i].Get();
 
 					TDocument Subresult;
-					MDB_EXEC(&mongoc_collection_insert_many, Context, (const TDocument**)Subarray, (size_t)Array.size(), Options.Get(), &Subresult);
+					bool fResult = MDB_EXEC(&mongoc_collection_insert_many, Context, (const TDocument**)Subarray, (size_t)Array.size(), Options.Get(), &Subresult);
 					for (auto& Item : Array)
 						Item.Release();
 					Options.Release();
 					TH_FREE(Subarray);
-
-					Future.Set(Document::FromSource(&Subresult));
+                    
+                    if (!fResult)
+                    {
+                        bson_free(&Subresult);
+                        Future.Set(Document(nullptr));
+                    }
+                    else
+                        Future.Set(Document::FromSource(&Subresult));
 				});
 #else
 				return Core::Async<Document>::Store(nullptr);
@@ -1538,11 +1568,17 @@ namespace Tomahawk
 				return Core::Async<Document>([Context, Result, Options](Core::Async<Document>& Future)
 				{
 					TDocument Subresult;
-					MDB_EXEC(&mongoc_collection_insert_one, Context, Result.Get(), Options.Get(), &Subresult);
+					bool fResult = MDB_EXEC(&mongoc_collection_insert_one, Context, Result.Get(), Options.Get(), &Subresult);
 					Options.Release();
 					Result.Release();
-
-					Future.Set(Document::FromSource(&Subresult));
+                    
+                    if (!fResult)
+                    {
+                        bson_free(&Subresult);
+                        Future.Set(Document(nullptr));
+                    }
+                    else
+                        Future.Set(Document::FromSource(&Subresult));
 				});
 #else
 				return Core::Async<Document>::Store(nullptr);
@@ -1555,12 +1591,18 @@ namespace Tomahawk
 				return Core::Async<Document>([Context, Select, Update, Options](Core::Async<Document>& Future)
 				{
 					TDocument Subresult;
-					MDB_EXEC(&mongoc_collection_update_many, Context, Select.Get(), Update.Get(), Options.Get(), &Subresult);
+					bool fResult = MDB_EXEC(&mongoc_collection_update_many, Context, Select.Get(), Update.Get(), Options.Get(), &Subresult);
 					Select.Release();
 					Update.Release();
 					Options.Release();
-
-					Future.Set(Document::FromSource(&Subresult));
+                    
+                    if (!fResult)
+                    {
+                        bson_free(&Subresult);
+                        Future.Set(Document(nullptr));
+                    }
+                    else
+                        Future.Set(Document::FromSource(&Subresult));
 				});
 #else
 				return Core::Async<Document>::Store(nullptr);
@@ -1573,12 +1615,18 @@ namespace Tomahawk
 				return Core::Async<Document>([Context, Select, Update, Options](Core::Async<Document>& Future)
 				{
 					TDocument Subresult;
-					MDB_EXEC(&mongoc_collection_update_one, Context, Select.Get(), Update.Get(), Options.Get(), &Subresult);
+					bool fResult = MDB_EXEC(&mongoc_collection_update_one, Context, Select.Get(), Update.Get(), Options.Get(), &Subresult);
 					Select.Release();
 					Update.Release();
 					Options.Release();
-
-					Future.Set(Document::FromSource(&Subresult));
+                    
+                    if (!fResult)
+                    {
+                        bson_free(&Subresult);
+                        Future.Set(Document(nullptr));
+                    }
+                    else
+                        Future.Set(Document::FromSource(&Subresult));
 				});
 #else
 				return Core::Async<Document>::Store(nullptr);
@@ -1591,13 +1639,19 @@ namespace Tomahawk
 				return Core::Async<Document>([Context, Query, Sort, Update, Fields, RemoveAt, Upsert, New](Core::Async<Document>& Future)
 				{
 					TDocument Subresult;
-					MDB_EXEC(&mongoc_collection_find_and_modify, Context, Query.Get(), Sort.Get(), Update.Get(), Fields.Get(), RemoveAt, Upsert, New, &Subresult);
+					bool fResult = MDB_EXEC(&mongoc_collection_find_and_modify, Context, Query.Get(), Sort.Get(), Update.Get(), Fields.Get(), RemoveAt, Upsert, New, &Subresult);
 					Query.Release();
 					Sort.Release();
 					Update.Release();
 					Fields.Release();
-
-					Future.Set(Document::FromSource(&Subresult));
+                    
+                    if (!fResult)
+                    {
+                        bson_free(&Subresult);
+                        Future.Set(Document(nullptr));
+                    }
+                    else
+                        Future.Set(Document::FromSource(&Subresult));
 				});
 #else
 				return Core::Async<Document>::Store(nullptr);
@@ -2089,39 +2143,314 @@ namespace Tomahawk
 				Base = nullptr;
 #endif
 			}
-			Core::Async<bool> Transaction::Start()
+            bool Transaction::Push(Document& QueryOptions) const
+            {
+                if (!QueryOptions.Get())
+                    QueryOptions = bson_new();
+                
+                bson_error_t Error;
+                bool Result = mongoc_client_session_append(Base, QueryOptions.Get(), &Error);
+                if (!Result && Error.code != 0)
+                    TH_ERROR("[mongoc:%i] %s", (int)Error.code, Error.message);
+                
+                return Result;
+            }
+            bool Transaction::Start()
 			{
 #ifdef TH_HAS_MONGOC
-				auto* Context = Base;
-				return Core::Async<bool>([Context](Core::Async<bool>& Future)
-				{
-					Future.Set(MDB_EXEC(&mongoc_client_session_start_transaction, Context, nullptr));
-				});
+                return MDB_EXEC(&mongoc_client_session_start_transaction, Base, nullptr);
 #else
-				return Core::Async<bool>::Store(false);
+				return false;
 #endif
 			}
-			Core::Async<bool> Transaction::Abort()
+            bool Transaction::Abort()
 			{
 #ifdef TH_HAS_MONGOC
-				auto* Context = Base;
-				return Core::Async<bool>([Context](Core::Async<bool>& Future)
-				{
-					Future.Set(MDB_EXEC(&mongoc_client_session_abort_transaction, Context));
-				});
+                return MDB_EXEC(&mongoc_client_session_abort_transaction, Base);
 #else
-				return Core::Async<bool>::Store(false);
+                return false;
 #endif
 			}
-			Core::Async<Document> Transaction::Commit()
-			{
+            Document Transaction::RemoveMany(const Collection& fBase, const Document& Select, const Document& fOptions)
+            {
 #ifdef TH_HAS_MONGOC
-				auto* Context = Base;
-				return Core::Async<Document>([Context](Core::Async<Document>& Future)
-				{
+                Document Options = fOptions;
+                if (!Push(Options))
+                {
+                    Select.Release();
+                    Options.Release();
+                    return nullptr;
+                }
+                
+                TDocument Subresult;
+                bool fResult = MDB_EXEC(&mongoc_collection_delete_many, fBase.Get(), Select.Get(), Options.Get(), &Subresult);
+                Select.Release();
+                Options.Release();
+
+                if (!fResult)
+                {
+                    bson_free(&Subresult);
+                    return nullptr;
+                }
+                
+                return Document::FromSource(&Subresult);
+#else
+                return nullptr;
+#endif
+            }
+            Document Transaction::RemoveOne(const Collection& fBase, const Document& Select, const Document& fOptions)
+            {
+#ifdef TH_HAS_MONGOC
+                Document Options = fOptions;
+                if (!Push(Options))
+                {
+                    Select.Release();
+                    Options.Release();
+                    return nullptr;
+                }
+                                
+                TDocument Subresult;
+                bool fResult = MDB_EXEC(&mongoc_collection_delete_one, fBase.Get(), Select.Get(), Options.Get(), &Subresult);
+                Select.Release();
+                Options.Release();
+                
+                if (!fResult)
+                {
+                    bson_free(&Subresult);
+                    return nullptr;
+                }
+                
+                return Document::FromSource(&Subresult);
+#else
+                return nullptr;
+#endif
+            }
+            Document Transaction::ReplaceOne(const Collection& fBase, const Document& Select, const Document& Replacement, const Document& fOptions)
+            {
+#ifdef TH_HAS_MONGOC
+                Document Options = fOptions;
+                if (!Push(Options))
+                {
+                    Select.Release();
+                    Replacement.Release();
+                    Options.Release();
+                    return nullptr;
+                }
+                
+                TDocument Subresult;
+                bool fResult = MDB_EXEC(&mongoc_collection_replace_one, fBase.Get(), Select.Get(), Replacement.Get(), Options.Get(), &Subresult);
+                Select.Release();
+                Replacement.Release();
+                Options.Release();
+
+                if (!fResult)
+                {
+                    bson_free(&Subresult);
+                    return nullptr;
+                }
+                
+                return Document::FromSource(&Subresult);
+#else
+                return nullptr;
+#endif
+            }
+            Document Transaction::InsertMany(const Collection& fBase, std::vector<Document>& List, const Document& fOptions)
+            {
+#ifdef TH_HAS_MONGOC
+                if (List.empty())
+                    return nullptr;
+                
+                Document Options = fOptions;
+                if (!Push(Options))
+                {
+                    Options.Release();
+                    return nullptr;
+                }
+                
+                std::vector<Document> Array(std::move(List));
+                TDocument** Subarray = (TDocument**)TH_MALLOC(sizeof(TDocument*) * Array.size());
+                for (size_t i = 0; i < Array.size(); i++)
+                    Subarray[i] = Array[i].Get();
+
+                TDocument Subresult;
+                bool fResult = MDB_EXEC(&mongoc_collection_insert_many, fBase.Get(), (const TDocument**)Subarray, (size_t)Array.size(), Options.Get(), &Subresult);
+                for (auto& Item : Array)
+                    Item.Release();
+                Options.Release();
+                TH_FREE(Subarray);
+                
+                if (!fResult)
+                {
+                    bson_free(&Subresult);
+                    return nullptr;
+                }
+                
+                return Document::FromSource(&Subresult);
+#else
+                return nullptr;
+#endif
+            }
+            Document Transaction::InsertOne(const Collection& fBase, const Document& Result, const Document& fOptions)
+            {
+#ifdef TH_HAS_MONGOC
+                Document Options = fOptions;
+                if (!Push(Options))
+                {
+                    Result.Release();
+                    Options.Release();
+                    return nullptr;
+                }
+
+                TDocument Subresult;
+                bool fResult = MDB_EXEC(&mongoc_collection_insert_one, fBase.Get(), Result.Get(), Options.Get(), &Subresult);
+                Options.Release();
+                Result.Release();
+
+                if (!fResult)
+                {
+                    bson_free(&Subresult);
+                    return nullptr;
+                }
+                
+                return Document::FromSource(&Subresult);
+#else
+                return nullptr;
+#endif
+            }
+            Document Transaction::UpdateMany(const Collection& fBase, const Document& Select, const Document& Update, const Document& fOptions)
+            {
+#ifdef TH_HAS_MONGOC
+                Document Options = fOptions;
+                if (!Push(Options))
+                {
+                    Select.Release();
+                    Update.Release();
+                    Options.Release();
+                    return nullptr;
+                }
+
+                TDocument Subresult;
+                bool fResult = MDB_EXEC(&mongoc_collection_update_many, fBase.Get(), Select.Get(), Update.Get(), Options.Get(), &Subresult);
+                Select.Release();
+                Update.Release();
+                Options.Release();
+                
+                if (!fResult)
+                {
+                    bson_free(&Subresult);
+                    return nullptr;
+                }
+                
+                return Document::FromSource(&Subresult);
+#else
+                return nullptr;
+#endif
+            }
+            Document Transaction::UpdateOne(const Collection& fBase, const Document& Select, const Document& Update, const Document& fOptions)
+            {
+#ifdef TH_HAS_MONGOC
+                Document Options = fOptions;
+                if (!Push(Options))
+                {
+                    Select.Release();
+                    Update.Release();
+                    Options.Release();
+                    return nullptr;
+                }
+
+                TDocument Subresult;
+                bool fResult = MDB_EXEC(&mongoc_collection_update_one, fBase.Get(), Select.Get(), Update.Get(), Options.Get(), &Subresult);
+                Select.Release();
+                Update.Release();
+                Options.Release();
+                
+                if (!fResult)
+                {
+                    bson_free(&Subresult);
+                    return nullptr;
+                }
+                
+                return Document::FromSource(&Subresult);
+#else
+                return nullptr;
+#endif
+            }
+            Cursor Transaction::FindMany(const Collection& fBase, const Document& Select, const Document& fOptions) const
+            {
+#ifdef TH_HAS_MONGOC
+                Document Options = fOptions;
+                if (!Push(Options))
+                {
+                    Select.Release();
+                    Options.Release();
+                    return nullptr;
+                }
+
+                Cursor Subresult = MDB_EXEC_CUR(&mongoc_collection_find_with_opts, fBase.Get(), Select.Get(), Options.Get(), nullptr);
+                Select.Release();
+                Options.Release();
+            
+                return Subresult;
+#else
+                return nullptr;
+#endif
+            }
+            Cursor Transaction::FindOne(const Collection& fBase, const Document& Select, const Document& Options) const
+            {
+#ifdef TH_HAS_MONGOC
+                Document Settings = Options;
+                if (!Push(Settings))
+                {
+                    Select.Release();
+                    Options.Release();
+                    return nullptr;
+                }
+
+                Settings.SetInteger("limit", 1);
+                Cursor Subresult = MDB_EXEC_CUR(&mongoc_collection_find_with_opts, fBase.Get(), Select.Get(), Settings.Get(), nullptr);
+                Settings.Release();
+                Select.Release();
+                Options.Release();
+
+                return Subresult;
+#else
+                return nullptr;
+#endif
+            }
+            Cursor Transaction::Aggregate(const Collection& fBase, Query Flags, const Document& Pipeline, const Document& fOptions) const
+            {
+#ifdef TH_HAS_MONGOC
+                Document Options = fOptions;
+                if (!Push(Options))
+                {
+                    Pipeline.Release();
+                    Options.Release();
+                    return nullptr;
+                }
+
+                Cursor Subresult = MDB_EXEC_CUR(&mongoc_collection_aggregate, fBase.Get(), (mongoc_query_flags_t)Flags, Pipeline.Get(), Options.Get(), nullptr);
+                Pipeline.Release();
+                Options.Release();
+
+                return Subresult;
+#else
+                return nullptr;
+#endif
+            }
+            Core::Async<Document> Transaction::Commit()
+            {
+#ifdef TH_HAS_MONGOC
+                auto* Context = Base;
+                return Core::Async<Document>([Context](Core::Async<Document>& Future)
+                {
 					TDocument Subresult;
-					MDB_EXEC(&mongoc_client_session_commit_transaction, Context, &Subresult);
-					Future.Set(Document::FromSource(&Subresult));
+                    if (!MDB_EXEC(&mongoc_client_session_commit_transaction, Context, &Subresult))
+                    {
+                        bson_free(&Subresult);
+                        Future.Set(Document(nullptr));
+                    }
+                    else
+                        Future.Set(Document::FromSource(&Subresult));
 				});
 #else
 				return Core::Async<Document>::Store(nullptr);
@@ -2135,7 +2464,7 @@ namespace Tomahawk
 				return nullptr;
 #endif
 			}
-			TTransaction* Transaction::FromConnection(Connection* Client, Document& Uid)
+			TTransaction* Transaction::FromConnection(Connection* Client)
 			{
 #ifdef TH_HAS_MONGOC
 				if (!Client)
@@ -2150,15 +2479,6 @@ namespace Tomahawk
 						TH_ERROR("[mongoc] couldn't create transaction\n\t%s", Error.message);
 						return nullptr;
 					}
-				}
-
-				if (!Uid.Get())
-					Uid = bson_new();
-
-				if (!mongoc_client_session_append(Client->Session.Get(), Uid.Get(), &Error))
-				{
-					TH_ERROR("[mongoc] could not set session uid\n\t%s", Error.message);
-					return nullptr;
 				}
 
 				return Client->Session.Get();
@@ -2909,7 +3229,7 @@ namespace Tomahawk
 					case Core::VarType_Boolean:
 						return Source->Value.GetBoolean() ? "true" : "false";
 					case Core::VarType_Decimal:
-						return "{\"$numberDouble\":\"" + Core::Parser(Source->Value.GetDecimal()).R() + "\"}";
+                        return "{\"$numberDouble\":\"" + Source->Value.GetDecimal().ToString() + "\"}";
 					case Core::VarType_Base64:
 					{
 						if (Source->Value.GetSize() != 12)

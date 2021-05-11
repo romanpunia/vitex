@@ -228,9 +228,10 @@ namespace Tomahawk
             Decimal(double Value);
             Decimal(const Decimal& Value);
             Decimal(Decimal&& Value);
-            void SetPrecision(int Value);
-            void TrimLead();
-            void TrimTrail();
+			Decimal& Precise(int Value);
+			Decimal& Trim();
+			Decimal& Unlead();
+			Decimal& Untrail();
 			bool IsNaN() const;
             double ToDouble() const;
             float ToFloat() const;
@@ -287,9 +288,9 @@ namespace Tomahawk
 			TH_OUT friend Decimal operator % (const Decimal& Left, const int& Right);
 
         public:
-            static Decimal PrecDiv(const Decimal& Left, const Decimal& Right, int Precision);
-            static Decimal PrecDiv(const Decimal& Left, const int& Right, int Precision);
-            static Decimal PrecDiv(const Decimal& Left, const double& Right, int Precision);
+            static Decimal PreciseDiv(const Decimal& Left, const Decimal& Right, int Precision);
+            static Decimal PreciseDiv(const Decimal& Left, const int& Right, int Precision);
+            static Decimal PreciseDiv(const Decimal& Left, const double& Right, int Precision);
             static Decimal Empty();
             
         private:

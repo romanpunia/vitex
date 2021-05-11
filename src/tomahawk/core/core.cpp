@@ -158,10 +158,10 @@ namespace Tomahawk
 		Decimal::Decimal(Decimal&& Value) : Source(std::move(Value.Source)), Length(Value.Length), Sign(Value.Sign), NaN(Value.NaN)
 		{
 		}
-		void Decimal::SetPrecision(int prec)
+		Decimal& Decimal::Precise(int prec)
 		{
 			if ((NaN) || (prec < 0))
-				return;
+				return *this;
 
 			if (this->Length < prec)
 			{
@@ -198,8 +198,14 @@ namespace Tomahawk
 						++(*this);
 				}
 			}
+
+			return *this;
 		}
-		void Decimal::TrimLead()
+		Decimal& Decimal::Trim()
+		{
+			return Unlead().Untrail();
+		}
+		Decimal& Decimal::Unlead()
 		{
 			for (int i = Source.size() - 1; i > Length; --i)
 			{
@@ -208,17 +214,21 @@ namespace Tomahawk
 
 				Source.pop_back();
 			}
+
+			return *this;
 		}
-		void Decimal::TrimTrail()
+		Decimal& Decimal::Untrail()
 		{
-			if (NaN)
-				return;
+			if (NaN || Source.empty())
+				return *this;
 
 			while ((Source[0] == '0') && (Length > 0))
 			{
 				Source.pop_front();
 				Length--;
 			}
+
+			return *this;
 		}
 		bool Decimal::IsNaN() const
 		{
@@ -282,17 +292,24 @@ namespace Tomahawk
 		}
 		std::string Decimal::ToString() const
 		{
-			if (NaN)
+			if (NaN || Source.empty())
 				return "NaN";
 
 			std::stringstream ss;
 			if (Sign == '-')
 				ss << Sign;
 
-			for (int i = Source.size() - 1; i >= 0; i--)
+			int Offset = 0, Size = Length;
+			while ((Source[Offset] == '0') && (Size > 0))
+			{
+				Offset++;
+				Size--;
+			}
+
+			for (int i = Source.size() - 1; i >= Offset; i--)
 			{
 				ss << Source[i];
-				if ((i == Length) && (i != 0))
+				if ((i == Length) && (i != 0) && Offset != Length)
 					ss << ".";
 			}
 
@@ -432,7 +449,7 @@ namespace Tomahawk
 				}
 			}
 
-			this->TrimLead();
+			this->Unlead();
 			return *this;
 		}
 		Decimal& Decimal::operator=(const std::string& strNum)
@@ -697,7 +714,7 @@ namespace Tomahawk
 					tmp = Decimal::Subtract(left, right);
 					tmp.Sign = '+';
 					tmp.Length = left.Length;
-					tmp.TrimLead();
+					tmp.Unlead();
 					tmp.NaN = 0;
 					return tmp;
 				}
@@ -707,7 +724,7 @@ namespace Tomahawk
 					tmp = Decimal::Subtract(right, left);
 					tmp.Sign = '-';
 					tmp.Length = left.Length;
-					tmp.TrimLead();
+					tmp.Unlead();
 					tmp.NaN = 0;
 					return tmp;
 				}
@@ -727,7 +744,7 @@ namespace Tomahawk
 					tmp = Decimal::Subtract(left, right);
 					tmp.Sign = '-';
 					tmp.Length = left.Length;
-					tmp.TrimLead();
+					tmp.Unlead();
 					tmp.NaN = 0;
 					return tmp;
 				}
@@ -737,7 +754,7 @@ namespace Tomahawk
 					tmp = Decimal::Subtract(right, left);
 					tmp.Sign = '+';
 					tmp.Length = left.Length;
-					tmp.TrimLead();
+					tmp.Unlead();
 					tmp.NaN = 0;
 					return tmp;
 				}
@@ -829,7 +846,7 @@ namespace Tomahawk
 					tmp = Decimal::Subtract(left, right);
 					tmp.Sign = '+';
 					tmp.Length = left.Length;
-					tmp.TrimLead();
+					tmp.Unlead();
 					tmp.NaN = 0;
 					return tmp;
 				}
@@ -839,7 +856,7 @@ namespace Tomahawk
 					tmp = Decimal::Subtract(right, left);
 					tmp.Sign = '-';
 					tmp.Length = left.Length;
-					tmp.TrimLead();
+					tmp.Unlead();
 					tmp.NaN = 0;
 					return tmp;
 				}
@@ -859,7 +876,7 @@ namespace Tomahawk
 					tmp = Decimal::Subtract(left, right);
 					tmp.Sign = '-';
 					tmp.Length = left.Length;
-					tmp.TrimLead();
+					tmp.Unlead();
 					tmp.NaN = 0;
 					return tmp;
 				}
@@ -869,7 +886,7 @@ namespace Tomahawk
 					tmp = Decimal::Subtract(right, left);
 					tmp.Sign = '+';
 					tmp.Length = left.Length;
-					tmp.TrimLead();
+					tmp.Unlead();
 					tmp.NaN = 0;
 					return tmp;
 				}
@@ -903,7 +920,7 @@ namespace Tomahawk
 
 			tmp.Length = left.Length + right.Length;
 			tmp.NaN = 0;
-			tmp.TrimLead();
+			tmp.Unlead();
 
 			return tmp;
 		}
@@ -949,8 +966,8 @@ namespace Tomahawk
 					D.Length--;
 			}
 
-			N.TrimLead();
-			D.TrimLead();
+			N.Unlead();
+			D.Unlead();
 
 			int div_precision = (left.Length > right.Length) ? (left.Length) : (right.Length);
 			for (int i = 0; i < div_precision; i++)
@@ -1026,7 +1043,7 @@ namespace Tomahawk
 
 			tmp.Length = div_precision;
 			tmp.NaN = 0;
-			tmp.TrimLead();
+			tmp.Unlead();
 
 			return tmp;
 		}
@@ -1129,8 +1146,8 @@ namespace Tomahawk
 				}
 			}
 
-			Q.TrimLead();
-			ret.TrimLead();
+			Q.Unlead();
+			ret.Unlead();
 			tmp = ret;
 
 			if (((left.Sign == '-') && (right.Sign == '-')) || ((left.Sign == '+') && (right.Sign == '+')))
@@ -1150,7 +1167,7 @@ namespace Tomahawk
 			right = int_right;
 			return left % right;
 		}
-		Decimal Decimal::PrecDiv(const Decimal& left, const Decimal& right, int div_precision)
+		Decimal Decimal::PreciseDiv(const Decimal& left, const Decimal& right, int div_precision)
 		{
 			Decimal tmp;
 			Decimal Q, R, D, N, zero;
@@ -1177,8 +1194,8 @@ namespace Tomahawk
 					D.Length--;
 			}
 
-			N.TrimLead();
-			D.TrimLead();
+			N.Unlead();
+			D.Unlead();
 
 			for (int i = 0; i < div_precision; i++)
 				N.Source.push_front('0');
@@ -1254,21 +1271,21 @@ namespace Tomahawk
 
 			tmp.Length = div_precision;
 			tmp.NaN = 0;
-			tmp.TrimLead();
+			tmp.Unlead();
 
 			return tmp;
 		}
-		Decimal Decimal::PrecDiv(const Decimal& left, const int& int_right, int div_precision)
+		Decimal Decimal::PreciseDiv(const Decimal& left, const int& int_right, int div_precision)
 		{
 			Decimal right;
 			right = int_right;
-			return Decimal::PrecDiv(left, right, div_precision);
+			return Decimal::PreciseDiv(left, right, div_precision);
 		}
-		Decimal Decimal::PrecDiv(const Decimal& left, const double& double_right, int div_precision)
+		Decimal Decimal::PreciseDiv(const Decimal& left, const double& double_right, int div_precision)
 		{
 			Decimal right;
 			right = double_right;
-			return Decimal::PrecDiv(left, right, div_precision);
+			return Decimal::PreciseDiv(left, right, div_precision);
 		}
 		Decimal Decimal::Empty()
 		{
@@ -3434,7 +3451,7 @@ namespace Tomahawk
 				if (IsDigit(V))
 					continue;
 
-				if (V == '-' && i == 0 && !HadSign)
+				if ((V == '+' || V == '-') && i == 0 && !HadSign)
 				{
 					HadSign = true;
 					continue;
@@ -3457,7 +3474,7 @@ namespace Tomahawk
 				if (IsDigit(V))
 					continue;
 
-				if (V == '-' && i == 0 && !HadSign)
+				if ((V == '+' || V == '-') && i == 0 && !HadSign)
 				{
 					HadSign = true;
 					continue;

@@ -231,6 +231,7 @@ namespace Tomahawk
             void SetPrecision(int Value);
             void TrimLead();
             void TrimTrail();
+			bool IsNaN() const;
             double ToDouble() const;
             float ToFloat() const;
             std::string ToString() const;
@@ -244,22 +245,6 @@ namespace Tomahawk
             Decimal& operator= (double Value);
             Decimal& operator= (const Decimal& Value);
             Decimal& operator= (Decimal&& Value);
-            friend std::ostream& operator << (std::ostream& Left, const Decimal& Right);
-            friend std::istream& operator >> (std::istream& Left, Decimal& Right);
-            friend Decimal operator + (const Decimal& Left, const Decimal& Right);
-            friend Decimal operator + (const Decimal& Left, const int& Right);
-            friend Decimal operator + (const Decimal& Left, const double& Right);
-            friend Decimal operator - (const Decimal& Left, const Decimal& Right);
-            friend Decimal operator - (const Decimal& Left, const int& Right);
-            friend Decimal operator - (const Decimal& Left, const double& Right);
-            friend Decimal operator * (const Decimal& Left, const Decimal& Right);
-            friend Decimal operator * (const Decimal& Left, const int& Right);
-            friend Decimal operator * (const Decimal& Left, const double& Right);
-            friend Decimal operator / (const Decimal& Left, const Decimal& Right);
-            friend Decimal operator / (const Decimal& Left, const int& Right);
-            friend Decimal operator / (const Decimal& Left, const double& Right);
-            friend Decimal operator % (const Decimal& Left, const Decimal& Right);
-            friend Decimal operator % (const Decimal& Left, const int& Right);
             Decimal& operator++ (int);
             Decimal& operator++ ();
             Decimal& operator-- (int);
@@ -283,6 +268,24 @@ namespace Tomahawk
             bool operator<= (const int& Right) const;
             bool operator<= (const double& Right) const;
         
+		public:
+			TH_OUT friend std::ostream& operator << (std::ostream& Left, const Decimal& Right);
+			TH_OUT friend std::istream& operator >> (std::istream& Left, Decimal& Right);
+			TH_OUT friend Decimal operator + (const Decimal& Left, const Decimal& Right);
+			TH_OUT friend Decimal operator + (const Decimal& Left, const int& Right);
+			TH_OUT friend Decimal operator + (const Decimal& Left, const double& Right);
+			TH_OUT friend Decimal operator - (const Decimal& Left, const Decimal& Right);
+			TH_OUT friend Decimal operator - (const Decimal& Left, const int& Right);
+			TH_OUT friend Decimal operator - (const Decimal& Left, const double& Right);
+			TH_OUT friend Decimal operator * (const Decimal& Left, const Decimal& Right);
+			TH_OUT friend Decimal operator * (const Decimal& Left, const int& Right);
+			TH_OUT friend Decimal operator * (const Decimal& Left, const double& Right);
+			TH_OUT friend Decimal operator / (const Decimal& Left, const Decimal& Right);
+			TH_OUT friend Decimal operator / (const Decimal& Left, const int& Right);
+			TH_OUT friend Decimal operator / (const Decimal& Left, const double& Right);
+			TH_OUT friend Decimal operator % (const Decimal& Left, const Decimal& Right);
+			TH_OUT friend Decimal operator % (const Decimal& Left, const int& Right);
+
         public:
             static Decimal PrecDiv(const Decimal& Left, const Decimal& Right, int Precision);
             static Decimal PrecDiv(const Decimal& Left, const int& Right, int Precision);

@@ -1266,12 +1266,12 @@ namespace Tomahawk
 #ifdef TH_HAS_SDL2
 			if (Style != DisplayCursor_None)
 			{
-				SDL_ShowCursor(true);
+				SDL_ShowCursor(1);
 				SDL_SetCursor(Cursors[Style]);
 			}
 			else
 			{
-				SDL_ShowCursor(false);
+				SDL_ShowCursor(0);
 				SDL_SetCursor(Cursors[DisplayCursor_Arrow]);
 			}
 #endif

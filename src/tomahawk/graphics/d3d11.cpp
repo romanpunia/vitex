@@ -2535,34 +2535,34 @@ namespace Tomahawk
 				Region.top = Description.Height - 1;
 				Region.right = Region.left + Description.Width;
 				Region.bottom = Region.top + Description.Height;
-				ImmediateContext->CopySubresourceRegion(Result->View, D3D11CalcSubresource(0, 0, Description.MipLevels), 0, 0, 0, Resource->As<D3D11Texture2D>()->View, 0, &Region);
+				ImmediateContext->CopySubresourceRegion(Result->View, D3D11CalcSubresource(0, 0, Description.MipLevels), 0, 0, 0, Src, 0, &Region);
 
 				Region.left = 0;
 				Region.top = Description.Height;
 				Region.right = Region.left + Description.Width;
 				Region.bottom = Region.top + Description.Height;
-				ImmediateContext->CopySubresourceRegion(Result->View, D3D11CalcSubresource(0, 1, Description.MipLevels), 0, 0, 0, Resource->As<D3D11Texture2D>()->View, 0, &Region);
+				ImmediateContext->CopySubresourceRegion(Result->View, D3D11CalcSubresource(0, 1, Description.MipLevels), 0, 0, 0, Src, 0, &Region);
 
 				Region.left = Description.Width;
 				Region.top = 0;
 				Region.right = Region.left + Description.Width;
 				Region.bottom = Region.top + Description.Height;
-				ImmediateContext->CopySubresourceRegion(Result->View, D3D11CalcSubresource(0, 2, Description.MipLevels), 0, 0, 0, Resource->As<D3D11Texture2D>()->View, 0, &Region);
+				ImmediateContext->CopySubresourceRegion(Result->View, D3D11CalcSubresource(0, 2, Description.MipLevels), 0, 0, 0, Src, 0, &Region);
 
 				Region.top = Description.Height * 2;
 				Region.right = Region.left + Description.Width;
 				Region.bottom = Region.top + Description.Height;
-				ImmediateContext->CopySubresourceRegion(Result->View, D3D11CalcSubresource(0, 3, Description.MipLevels), 0, 0, 0, Resource->As<D3D11Texture2D>()->View, 0, &Region);
+				ImmediateContext->CopySubresourceRegion(Result->View, D3D11CalcSubresource(0, 3, Description.MipLevels), 0, 0, 0, Src, 0, &Region);
 
 				Region.top = Description.Height;
 				Region.right = Region.left + Description.Width;
 				Region.bottom = Region.top + Description.Height;
-				ImmediateContext->CopySubresourceRegion(Result->View, D3D11CalcSubresource(0, 4, Description.MipLevels), 0, 0, 0, Resource->As<D3D11Texture2D>()->View, 0, &Region);
+				ImmediateContext->CopySubresourceRegion(Result->View, D3D11CalcSubresource(0, 4, Description.MipLevels), 0, 0, 0, Src, 0, &Region);
 
 				Region.left = Description.Width * 3;
 				Region.right = Region.left + Description.Width;
 				Region.bottom = Region.top + Description.Height;
-				ImmediateContext->CopySubresourceRegion(Result->View, D3D11CalcSubresource(0, 5, Description.MipLevels), 0, 0, 0, Resource->As<D3D11Texture2D>()->View, 0, &Region);
+				ImmediateContext->CopySubresourceRegion(Result->View, D3D11CalcSubresource(0, 5, Description.MipLevels), 0, 0, 0, Src, 0, &Region);
 
 				GenerateTexture(Result);
 				if (Description.MipLevels > 0)

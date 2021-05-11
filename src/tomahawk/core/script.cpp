@@ -4396,7 +4396,7 @@ namespace Tomahawk
 			asUINT Length = 0;
 
 			asETokenClass T = Engine->ParseToken(Text.c_str(), 0, &Length);
-			while (T == asTC_IDENTIFIER || (T == asTC_KEYWORD && Length == 2 && Text.compare("::")))
+			while (T == asTC_IDENTIFIER || (T == asTC_KEYWORD && Length == 2 && Text.compare("::") != 0))
 			{
 				if (T == asTC_KEYWORD)
 				{

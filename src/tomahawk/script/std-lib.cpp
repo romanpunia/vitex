@@ -2681,12 +2681,13 @@ namespace Tomahawk
 			Map::const_iterator it;
 			for (it = other.Dict.begin(); it != other.Dict.end(); ++it)
 			{
-				if (it->second.TypeId & asTYPEID_OBJHANDLE)
-					Set(it->first, (void*)&it->second.ValueObj, it->second.TypeId);
-				else if (it->second.TypeId & asTYPEID_MASK_OBJECT)
-					Set(it->first, (void*)it->second.ValueObj, it->second.TypeId);
+				auto& Key = it->second;
+				if (Key.TypeId & asTYPEID_OBJHANDLE)
+					Set(it->first, (void*)&Key.ValueObj, Key.TypeId);
+				else if (Key.TypeId & asTYPEID_MASK_OBJECT)
+					Set(it->first, (void*)Key.ValueObj, Key.TypeId);
 				else
-					Set(it->first, (void*)&it->second.ValueInt, it->second.TypeId);
+					Set(it->first, (void*)&Key.ValueInt, Key.TypeId);
 			}
 		}
 		VMCMap::~VMCMap()
@@ -2724,13 +2725,14 @@ namespace Tomahawk
 			Map::iterator it;
 			for (it = Dict.begin(); it != Dict.end(); ++it)
 			{
-				if (it->second.TypeId & asTYPEID_MASK_OBJECT)
+				auto& Key = it->second;
+				if (Key.TypeId & asTYPEID_MASK_OBJECT)
 				{
-					VMCTypeInfo *subType = Engine->GetTypeInfoById(it->second.TypeId);
+					VMCTypeInfo *subType = Engine->GetTypeInfoById(Key.TypeId);
 					if ((subType->GetFlags() & asOBJ_VALUE) && (subType->GetFlags() & asOBJ_GC))
-						Engine->ForwardGCEnumReferences(it->second.ValueObj, subType);
+						Engine->ForwardGCEnumReferences(Key.ValueObj, subType);
 					else
-						inEngine->GCEnumCallback(it->second.ValueObj);
+						inEngine->GCEnumCallback(Key.ValueObj);
 				}
 			}
 		}
@@ -2745,12 +2747,13 @@ namespace Tomahawk
 			Map::const_iterator it;
 			for (it = other.Dict.begin(); it != other.Dict.end(); ++it)
 			{
-				if (it->second.TypeId & asTYPEID_OBJHANDLE)
-					Set(it->first, (void*)&it->second.ValueObj, it->second.TypeId);
-				else if (it->second.TypeId & asTYPEID_MASK_OBJECT)
-					Set(it->first, (void*)it->second.ValueObj, it->second.TypeId);
+				auto& Key = it->second;
+				if (Key.TypeId & asTYPEID_OBJHANDLE)
+					Set(it->first, (void*)&Key.ValueObj, Key.TypeId);
+				else if (Key.TypeId & asTYPEID_MASK_OBJECT)
+					Set(it->first, (void*)Key.ValueObj, Key.TypeId);
 				else
-					Set(it->first, (void*)&it->second.ValueInt, it->second.TypeId);
+					Set(it->first, (void*)&Key.ValueInt, Key.TypeId);
 			}
 
 			return *this;
@@ -3477,9 +3480,10 @@ namespace Tomahawk
 			if (typeId == asTYPEID_VOID)
 				return false;
 
+			VMCManager* Engine = TI->GetEngine();
 			if ((typeId & asTYPEID_MASK_OBJECT) && !(typeId & asTYPEID_OBJHANDLE))
 			{
-				VMCTypeInfo *subtype = TI->GetEngine()->GetTypeInfoById(typeId);
+				VMCTypeInfo *subtype = Engine->GetTypeInfoById(typeId);
 				asDWORD flags = subtype->GetFlags();
 
 				if ((flags & asOBJ_VALUE) && !(flags & asOBJ_POD))
@@ -3501,14 +3505,14 @@ namespace Tomahawk
 
 					if (!found)
 					{
-						TI->GetEngine()->WriteMessage("Array", 0, 0, asMSGTYPE_ERROR, "The subtype has no default constructor");
+						Engine->WriteMessage("Array", 0, 0, asMSGTYPE_ERROR, "The subtype has no default constructor");
 						return false;
 					}
 				}
 				else if ((flags & asOBJ_REF))
 				{
 					bool found = false;
-					if (!TI->GetEngine()->GetEngineProperty(asEP_DISALLOW_VALUE_ASSIGN_FOR_REF_TYPE))
+					if (!Engine->GetEngineProperty(asEP_DISALLOW_VALUE_ASSIGN_FOR_REF_TYPE))
 					{
 						for (as_size_t n = 0; n < subtype->GetFactoryCount(); n++)
 						{
@@ -3523,7 +3527,7 @@ namespace Tomahawk
 
 					if (!found)
 					{
-						TI->GetEngine()->WriteMessage("Array", 0, 0, asMSGTYPE_ERROR, "The subtype has no default factory");
+						Engine->WriteMessage("Array", 0, 0, asMSGTYPE_ERROR, "The subtype has no default factory");
 						return false;
 					}
 				}
@@ -3538,7 +3542,7 @@ namespace Tomahawk
 			else
 			{
 				assert(typeId & asTYPEID_OBJHANDLE);
-				VMCTypeInfo *subtype = TI->GetEngine()->GetTypeInfoById(typeId);
+				VMCTypeInfo *subtype = Engine->GetTypeInfoById(typeId);
 				asDWORD flags = subtype->GetFlags();
 
 				if (!(flags & asOBJ_GC))
@@ -3682,7 +3686,11 @@ namespace Tomahawk
 
 			if (typeId & asTYPEID_OBJHANDLE)
 			{
-				ref = *(void**)ref;
+				void** Sub = (void**)ref;
+				if (!Sub)
+					return false;
+
+				ref = *Sub;
 				typeId &= ~asTYPEID_OBJHANDLE;
 			}
 
@@ -4225,30 +4233,30 @@ namespace Tomahawk
 
 			return 0;
 		}
-		void VMCThread::Push(void* Ref, int TypeId)
+		void VMCThread::Push(void* fRef, int TypeId)
 		{
-			auto* Thread = GetThread();
-			int Id = (Thread == this ? 1 : 0);
+			auto* fThread = GetThread();
+			int Id = (fThread == this ? 1 : 0);
 
 			void* Data = asAllocMem(sizeof(VMCAny));
-			VMCAny* Any = new(Data) VMCAny(Ref, TypeId, VMManager::Get()->GetEngine());
+			VMCAny* Any = new(Data) VMCAny(fRef, TypeId, VMManager::Get()->GetEngine());
 			Pipe[Id].Mutex.lock();
 			Pipe[Id].Queue.push_back(Any);
 			Pipe[Id].Mutex.unlock();
 			Pipe[Id].CV.notify_one();
 		}
-		bool VMCThread::Pop(void* Ref, int TypeId)
+		bool VMCThread::Pop(void* fRef, int TypeId)
 		{
 			bool Resolved = false;
 			while (!Resolved)
-				Resolved = Pop(Ref, TypeId, 1000);
+				Resolved = Pop(fRef, TypeId, 1000);
 
 			return true;
 		}
-		bool VMCThread::Pop(void* Ref, int TypeId, uint64_t Timeout)
+		bool VMCThread::Pop(void* fRef, int TypeId, uint64_t Timeout)
 		{
-			auto* Thread = GetThread();
-			int Id = (Thread == this ? 0 : 1);
+			auto* fThread = GetThread();
+			int Id = (fThread == this ? 0 : 1);
 
 			std::unique_lock<std::mutex> Guard(Pipe[Id].Mutex);
 			if (!CV.wait_for(Guard, std::chrono::milliseconds(Timeout), [&]
@@ -4258,7 +4266,7 @@ namespace Tomahawk
 				return false;
 
 			VMCAny* Result = Pipe[Id].Queue.front();
-			if (!Result->Retrieve(Ref, TypeId))
+			if (!Result->Retrieve(fRef, TypeId))
 				return false;
 
 			Pipe[Id].Queue.erase(Pipe[Id].Queue.begin());
@@ -4456,36 +4464,36 @@ namespace Tomahawk
 			Base->PopCoroutine();
 			return Base->Resume();
 		}
-		int VMCAsync::Set(void* Ref, int TypeId)
+		int VMCAsync::Set(void* fRef, int TypeId)
 		{
 			if (!Context)
 				return -1;
 
 			void* Data = asAllocMem(sizeof(VMCAny));
-			VMCAny* Result = new(Data) VMCAny(Ref, TypeId, Context->GetEngine());
+			VMCAny* Result = new(Data) VMCAny(fRef, TypeId, Context->GetEngine());
 			Result->Release();
 
 			if (TypeId & asTYPEID_OBJHANDLE)
 			{
 				VMCManager* Manager = Context->GetEngine();
-				Manager->ReleaseScriptObject(*(void**)Ref, Manager->GetTypeInfoById(TypeId));
+				Manager->ReleaseScriptObject(*(void**)fRef, Manager->GetTypeInfoById(TypeId));
 			}
 
 			return Acquire(Result);
 		}
-		int VMCAsync::Set(void* Ref, const char* TypeName)
+		int VMCAsync::Set(void* fRef, const char* TypeName)
 		{
 			if (!Context)
 				return -1;
 
-			return Set(Ref, Context->GetEngine()->GetTypeIdByDecl(TypeName));
+			return Set(fRef, Context->GetEngine()->GetTypeIdByDecl(TypeName));
 		}
-		bool VMCAsync::Retrieve(void* Ref, int TypeId)
+		bool VMCAsync::Retrieve(void* fRef, int TypeId)
 		{
 			if (!Any)
 				return Stored;
 
-			return Any->Retrieve(Ref, TypeId);
+			return Any->Retrieve(fRef, TypeId);
 		}
 		void* VMCAsync::Get()
 		{

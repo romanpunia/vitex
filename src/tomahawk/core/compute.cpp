@@ -3138,6 +3138,9 @@ namespace Tomahawk
 		}
 		RegexSource& RegexSource::operator=(const RegexSource& V)
 		{
+			if (this == &V)
+				return *this;
+
 			Brackets.clear();
 			Brackets.reserve(V.Brackets.capacity());
 			Branches.clear();
@@ -3154,6 +3157,9 @@ namespace Tomahawk
 		}
 		RegexSource& RegexSource::operator=(RegexSource&& V)
 		{
+			if (this == &V)
+				return *this;
+
 			Brackets.clear();
 			Brackets.reserve(V.Brackets.capacity());
 			Branches.clear();
@@ -5357,7 +5363,7 @@ namespace Tomahawk
 		Cipher Ciphers::AES_128_CFB1()
 		{
 #ifdef TH_HAS_OPENSSL
-			return (Cipher)EVP_aes_128_cfb();
+			return (Cipher)EVP_aes_128_cfb1();
 #else
 			return nullptr;
 #endif
@@ -8171,7 +8177,7 @@ namespace Tomahawk
 		}
 		bool WebToken::IsValid() const
 		{
-			if (!Header || !Payload || !Signature.c_str())
+			if (!Header || !Payload || Signature.empty())
 				return false;
 
 			int64_t Expires = Payload->GetVar("exp").GetInteger();

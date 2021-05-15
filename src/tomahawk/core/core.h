@@ -75,14 +75,22 @@
 #undef max
 #endif
 #ifdef TH_MICROSOFT
+#define TH_COCALL __stdcall
+#define TH_CODATA void* Context
 #ifdef TH_64
 typedef uint64_t socket_t;
-#elif defined(TH_32)
+#else
 typedef int socket_t;
 #endif
 typedef int socket_size_t;
 typedef void* epoll_handle;
 #else
+#define TH_COCALL
+#ifdef TH_64
+#define TH_CODATA int X, int Y
+#else
+#define TH_CODATA int X
+#endif
 #include <sys/socket.h>
 typedef int epoll_handle;
 typedef int socket_t;
@@ -135,6 +143,12 @@ namespace Tomahawk
 {
 	namespace Core
 	{
+		struct Decimal;
+
+		struct Cocontext;
+
+		class Costate;
+
 		class Document;
 
 		class Object;
@@ -143,8 +157,6 @@ namespace Tomahawk
 
 		class Var;
 
-        class Decimal;
-    
 		enum FileMode
 		{
 			FileMode_Read_Only,
@@ -166,13 +178,6 @@ namespace Tomahawk
 			FileSeek_Begin,
 			FileSeek_Current,
 			FileSeek_End
-		};
-
-		enum EventType
-		{
-			EventType_Events = (1 << 1),
-			EventType_Tasks = (1 << 2),
-			EventType_Timers = (1 << 3)
 		};
 
 		enum VarType
@@ -205,14 +210,29 @@ namespace Tomahawk
 		typedef std::unordered_map<std::string, Document*> DocumentArgs;
 		typedef std::function<void(VariantArgs&)> EventCallback;
 		typedef std::function<void()> TaskCallback;
-		typedef std::function<void()> TimerCallback;
 		typedef std::function<void(VarForm, const char*, int64_t)> NWriteCallback;
 		typedef std::function<bool(char*, int64_t)> NReadCallback;
 		typedef TaskCallback EventTask;
 		typedef uint64_t EventId;
         typedef Decimal BigNumber;
 
-        class TH_OUT Decimal
+		struct TH_OUT Coroutine
+		{
+			friend Costate;
+
+		private:
+			TaskCallback Callback;
+			Cocontext* Switch;
+			Costate* Master;
+			bool Resolved;
+
+		private:
+			Coroutine(Costate* Base, const TaskCallback& Procedure);
+			Coroutine(Costate* Base, TaskCallback&& Procedure);
+			~Coroutine();
+		};
+
+        struct TH_OUT Decimal
         {
         private:
             std::deque<char> Source;
@@ -382,13 +402,13 @@ namespace Tomahawk
 
 		struct TH_OUT EventTimer
 		{
-			TimerCallback Callback;
+			TaskCallback Callback;
 			uint64_t Timeout;
 			EventId Id;
 			bool Alive;
 
-			EventTimer(const TimerCallback& NewCallback, uint64_t NewTimeout, EventId NewId, bool NewAlive);
-			EventTimer(TimerCallback&& NewCallback, uint64_t NewTimeout, EventId NewId, bool NewAlive);
+			EventTimer(const TaskCallback& NewCallback, uint64_t NewTimeout, EventId NewId, bool NewAlive);
+			EventTimer(TaskCallback&& NewCallback, uint64_t NewTimeout, EventId NewId, bool NewAlive);
 			EventTimer(const EventTimer& Other);
 			EventTimer(EventTimer&& Other);
 			EventTimer& operator= (const EventTimer& Other);
@@ -1121,32 +1141,80 @@ namespace Tomahawk
 			uint64_t GetFiles();
 		};
 
+		class TH_OUT Costate : public Object
+		{
+		private:
+			std::unordered_set<Coroutine*> Cached;
+			std::unordered_set<Coroutine*> Used;
+			std::thread::id Thread;
+			Coroutine* Current;
+			Cocontext* Switch;
+			std::mutex Safe;
+			size_t Size;
+
+		public:
+			Costate(size_t StackSize = 1024 * 1024);
+			virtual ~Costate() override;
+			Costate(const Costate&) = delete;
+			Costate(Costate&&) = delete;
+			Costate& operator= (const Costate&) = delete;
+			Costate& operator= (Costate&&) = delete;
+			Coroutine* Pop(const TaskCallback& Procedure);
+			Coroutine* Pop(TaskCallback&& Procedure);
+			bool Reuse(Coroutine* Routine, const TaskCallback& Procedure);
+			bool Reuse(Coroutine* Routine, TaskCallback&& Procedure);
+			bool Reuse(Coroutine* Routine);
+			bool Push(Coroutine* Routine);
+			bool Resume(Coroutine* Routine);
+			bool Resume(bool Restore = true);
+			bool Dispatch(bool Restore = true);
+			bool Suspend();
+			void Clear();
+			Coroutine* GetCurrent() const;
+			uint64_t GetCount() const;
+
+		private:
+			bool Swap(Coroutine* Routine);
+
+		public:
+			static Costate* Get();
+
+		private:
+			static void TH_COCALL Execute(TH_CODATA);
+		};
+
 		class TH_OUT Schedule : public Object
 		{
 		private:
 			struct
 			{
-				std::vector<std::thread> Childs;
-				std::condition_variable Condition;
-				std::mutex Manage;
-				std::mutex Child;
-			} Async;
+				std::condition_variable Publish;
+				std::condition_variable Consume;
+			} Queue;
 
 			struct
 			{
+				std::mutex Basement;
 				std::mutex Listeners;
-				std::mutex Events;
+				std::mutex Threads;
+				std::mutex Asyncs;
 				std::mutex Tasks;
+				std::mutex Events;
 				std::mutex Timers;
-			} Sync;
+			} Race;
 
 		private:
 			std::unordered_map<std::string, EventListener> Listeners;
 			std::map<int64_t, EventTimer> Timers;
+			std::queue<EventTask> Asyncs;
 			std::queue<EventTask> Tasks;
 			std::queue<EventBase> Events;
+			std::vector<std::thread> Childs;
+			Costate* Comain;
+			uint64_t Coroutines;
+			uint64_t Threads;
+			uint64_t Stack;
 			EventId Timer;
-			uint64_t Workers;
 			bool Terminate;
 			bool Active;
 
@@ -1155,32 +1223,35 @@ namespace Tomahawk
 
 		public:
 			virtual ~Schedule() override;
-			EventId SetInterval(uint64_t Milliseconds, const TimerCallback& Callback);
-			EventId SetInterval(uint64_t Milliseconds, TimerCallback&& Callback);
-			EventId SetTimeout(uint64_t Milliseconds, const TimerCallback& Callback);
-			EventId SetTimeout(uint64_t Milliseconds, TimerCallback&& Callback);
 			EventId SetListener(const std::string& Name, const EventCallback& Callback);
 			EventId SetListener(const std::string& Name, EventCallback&& Callback);
+			EventId SetInterval(uint64_t Milliseconds, const TaskCallback& Callback);
+			EventId SetInterval(uint64_t Milliseconds, TaskCallback&& Callback);
+			EventId SetTimeout(uint64_t Milliseconds, const TaskCallback& Callback);
+			EventId SetTimeout(uint64_t Milliseconds, TaskCallback&& Callback);
 			bool SetTask(const TaskCallback& Callback);
 			bool SetTask(TaskCallback&& Callback);
+			bool SetAsync(const TaskCallback& Callback);
+			bool SetAsync(TaskCallback&& Callback);
 			bool SetEvent(const std::string& Name, const VariantArgs& Args);
 			bool SetEvent(const std::string& Name, VariantArgs&& Args);
 			bool SetEvent(const std::string& Name);
 			bool ClearListener(const std::string& Name, EventId ListenerId);
 			bool ClearTimeout(EventId TimerId);
-			bool Clear(EventType Type, bool NoCall);
-			bool Start(bool Async, uint64_t Workers);
-			bool Dispatch();
+			bool Start(bool IsAsync, uint64_t Threads, uint64_t Coroutines = 16, uint64_t StackSize = 1024 * 1024);
 			bool Stop();
+			bool Dispatch();
 			bool IsBlockable();
 			bool IsActive();
+			bool IsProcessing();
 
 		private:
-			bool LoopIncome();
-			bool LoopCycle();
-			bool DispatchTask();
-			bool DispatchEvent();
-			bool DispatchTimer();
+			bool Publish();
+			bool Consume();
+			int DispatchAsync(Costate* State, bool Reconsume);
+			int DispatchTask();
+			int DispatchEvent();
+			int DispatchTimer();
 			int64_t GetTimeout(int64_t Clock);
 			int64_t GetClock();
 
@@ -1567,10 +1638,13 @@ namespace Tomahawk
 				}
 				void Put(std::function<void()>&& Callback)
 				{
-					if (Set > 0)
-						return Callback();
-
 					RW.lock();
+					if (Set > 0)
+					{
+						RW.unlock();
+						return Callback();
+					}
+
 					Resolve = std::move(Callback);
 					RW.unlock();
 				}
@@ -1583,8 +1657,8 @@ namespace Tomahawk
 				}
 				void React(T&& Value)
 				{
-					Set = 1;
 					RW.lock();
+					Set = 1;
 					Result = std::move(Value);
 					if (Resolve)
 						Resolve();
@@ -1592,8 +1666,8 @@ namespace Tomahawk
 				}
 				void React(const T& Value)
 				{
-					Set = 1;
 					RW.lock();
+					Set = 1;
 					Result = Value;
 					if (Resolve)
 						Resolve();
@@ -1683,7 +1757,9 @@ namespace Tomahawk
 					return;
 
 				Base* Subresult = Next->Copy();
+				Subresult->RW.lock();
 				Subresult->Set = 0;
+				Subresult->RW.unlock();
 
 				Other.Sync(!Subresult->Deferred).Await([Subresult](T&& Value) mutable
 				{
@@ -1715,21 +1791,33 @@ namespace Tomahawk
 					}
 				});
 			}
-			bool IsPending()
+			bool IsPending() const
 			{
-				return (Next != nullptr && Next->Set != 1);
+				if (!Next)
+					return false;
+
+				Next->RW.lock();
+				bool Result = (Next->Set != 1);
+				Next->RW.unlock();
+				return Result;
+			}
+			T& GetOrSet()
+			{
+				if (Next != nullptr)
+					return Next->Result;
+
+				Next = TH_NEW(Base);
+				Next->RW.lock();
+				Next->Set = 1;
+				Next->RW.unlock();
+				return Next->Result;
 			}
 			T& Get()
 			{
 				while (IsPending())
 					std::this_thread::sleep_for(std::chrono::microseconds(100));
 
-				if (Next != nullptr)
-					return Next->Result;
-
-				Next = TH_NEW(Base);
-				Next->Set = 1;
-				return Next->Result;
+				return GetOrSet();
 			}
 
 		public:
@@ -1805,6 +1893,10 @@ namespace Tomahawk
 				Result.Next->Set = 1;
 
 				return Result;
+			}
+			static Async Empty()
+			{
+				return Async((Base*)nullptr);
 			}
 		};
 
@@ -1885,9 +1977,53 @@ namespace Tomahawk
 
 		TH_OUT Parser Form(const char* Format, ...);
 
-		inline EventType operator |(EventType A, EventType B)
+		template <typename T>
+		inline T& Coawait(Async<T>&& Future)
 		{
-			return static_cast<EventType>(static_cast<uint64_t>(A) | static_cast<uint64_t>(B));
+			Costate* State = Costate::Get();
+			if (State != nullptr)
+			{
+				while (Future.IsPending())
+					State->Suspend();
+			}
+
+			return Future.GetOrSet();
+		}
+		template <typename T>
+		inline Async<T> Coasync(const std::function<T()>& Callback)
+		{
+			if (!Callback)
+				return Async<T>::Empty();
+
+			Async<T> Result;
+			Schedule::Get()->SetAsync([Result, Callback]() mutable
+			{
+				Result.Set(Callback());
+			});
+
+			return Result;
+		}
+		template <typename T>
+		inline Async<T> Coasync(std::function<T()>&& Callback)
+		{
+			if (!Callback)
+				return Async<T>::Empty();
+
+			Async<T> Result;
+			Schedule::Get()->SetAsync([Result, Callback = std::move(Callback)]() mutable
+			{
+				Result.Set(Callback());
+			});
+
+			return Result;
+		}
+		inline bool Coasync(const TaskCallback& Callback)
+		{
+			return Schedule::Get()->SetAsync(Callback);
+		}
+		inline bool Coasync(TaskCallback&& Callback)
+		{
+			return Schedule::Get()->SetAsync(std::move(Callback));
 		}
 	}
 }

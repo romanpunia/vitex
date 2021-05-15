@@ -233,61 +233,71 @@ namespace Tomahawk
 				Disconnect();
 				Driver::Release();
 			}
-			bool Queue::Connect(const Address& URI)
+			Core::Async<bool> Queue::Connect(const Address& URI)
 			{
 #ifdef TH_HAS_POSTGRESQL
 				if (Connected || URI.Get().empty())
-					return false;
+					return Core::Async<bool>::Store(false);
 
-				const char** Keys = URI.CreateKeys();
-				const char** Values = URI.CreateValues();
-				PGPing Result = PQpingParams(Keys, Values, 0);
-				TH_FREE(Keys);
-				TH_FREE(Values);
-				
-				switch (Result)
+				return Core::Async<bool>([this, URI](Core::Async<bool>& Future)
 				{
-					case PGPing::PQPING_OK:
-						Source = URI;
-						Connected = true;
-						return true;
-					case PGPing::PQPING_REJECT:
-						TH_ERROR("[pg] server connection rejected");
-						return false;
-					case PGPing::PQPING_NO_ATTEMPT:
-						TH_ERROR("[pg] invalid params");
-						return false;
-					case PGPing::PQPING_NO_RESPONSE:
-						TH_ERROR("[pg] couldn't connect to server");
-						return false;
-					default:
-						return false;
-				}
+					const char** Keys = URI.CreateKeys();
+					const char** Values = URI.CreateValues();
+					PGPing Result = PQpingParams(Keys, Values, 0);
+					TH_FREE(Keys);
+					TH_FREE(Values);
+
+					switch (Result)
+					{
+						case PGPing::PQPING_OK:
+							Source = URI;
+							Connected = true;
+							Future.Set(true);
+							break;
+						case PGPing::PQPING_REJECT:
+							TH_ERROR("[pg] server connection rejected");
+							Future.Set(false);
+							break;
+						case PGPing::PQPING_NO_ATTEMPT:
+							TH_ERROR("[pg] invalid params");
+							Future.Set(false);
+							break;
+						case PGPing::PQPING_NO_RESPONSE:
+							TH_ERROR("[pg] couldn't connect to server");
+							Future.Set(false);
+							break;
+						default:
+							Future.Set(false);
+							break;
+					}
+				});
 #else
 				return false;
 #endif
 			}
-			bool Queue::Disconnect()
+			Core::Async<bool> Queue::Disconnect()
 			{
 				if (!Connected)
-					return false;
+					return Core::Async<bool>::Store(false);
 
-				Safe.lock();
-				for (auto& Base : Active)
-					Clear(Base);
-
-				for (auto& Base : Inactive)
+				return Core::Async<bool>([this](Core::Async<bool>& Future)
 				{
-					Clear(Base);
-					TH_RELEASE(Base);
-				}
+					Safe.lock();
+					for (auto& Base : Active)
+						Clear(Base);
 
-				Connected = false;
-				Active.clear();
-				Inactive.clear();
-				Safe.unlock();
+					for (auto& Base : Inactive)
+					{
+						Clear(Base);
+						TH_RELEASE(Base);
+					}
 
-				return true;
+					Connected = false;
+					Active.clear();
+					Inactive.clear();
+					Safe.unlock();
+					Future.Set(true);
+				});
 			}
 			void Queue::Clear(Connection* Client)
 			{

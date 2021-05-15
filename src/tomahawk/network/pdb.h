@@ -96,8 +96,8 @@ namespace Tomahawk
 			public:
 				Queue();
 				virtual ~Queue() override;
-				bool Connect(const Address& URI);
-				bool Disconnect();
+				Core::Async<bool> Connect(const Address& URI);
+				Core::Async<bool> Disconnect();
 				bool Push(Connection** Client);
 				Core::Async<Connection*> Pop();
 

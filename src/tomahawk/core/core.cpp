@@ -30,6 +30,12 @@
 #include <stdio.h>
 #include <fcntl.h>
 #include <dlfcn.h>
+#if defined(__APPLE__) && defined(__MACH__)
+#define _XOPEN_SOURCE
+#include <ucontext.h>
+#else
+#include <ucontext.h>
+#endif
 #endif
 #ifdef TH_HAS_SDL2
 #include <SDL2/SDL.h>
@@ -129,10 +135,86 @@ namespace
 }
 #endif
 
+int Pack1_32(void* Value)
+{
+	return (int)(uintptr_t)Value;
+}
+void* Unpack1_32(int Value)
+{
+	return (void*)(uintptr_t)Value;
+}
+void Pack2_64(void* Value, int* X, int* Y)
+{
+	uint64_t Subvalue = (uint64_t)Value;
+	*X = (int)(uint32_t)((Subvalue & 0xFFFFFFFF00000000LL) >> 32);
+	*Y = (int)(uint32_t)(Subvalue & 0xFFFFFFFFLL);
+}
+void* Unpack2_64(int X, int Y)
+{
+	uint64_t Subvalue = ((uint64_t)(uint32_t)X) << 32 | (uint32_t)Y;
+	return (void*)Subvalue;
+	}
 namespace Tomahawk
 {
 	namespace Core
 	{
+		struct Cocontext
+		{
+#ifndef TH_MICROSOFT
+			ucontext_t Context;
+			char* Stack = nullptr;
+#else
+			LPVOID Context = nullptr;
+#endif
+			bool Swapchain;
+
+			Cocontext(bool Swap) : Swapchain(Swap),
+#ifdef TH_MICROSOFT
+				Context(nullptr)
+#else
+				Stack(nullptr)
+#endif
+			{
+#ifdef TH_MICROSOFT
+				if (Swapchain)
+					Context = ConvertThreadToFiber(nullptr);
+#endif
+			}
+			~Cocontext()
+			{
+#ifdef TH_MICROSOFT
+				if (Swapchain)
+				{
+					ConvertFiberToThread();
+					return;
+				}
+
+				if (Context != nullptr)
+				{
+					DeleteFiber(Context);
+					Context = nullptr;
+				}
+#else
+				if (Swapchain)
+					return;
+
+				TH_FREE(Stack);
+				Stack = nullptr;
+#endif
+			}
+		};
+
+		Coroutine::Coroutine(Costate* Base, const TaskCallback& Procedure) : Callback(Procedure), Switch(TH_NEW(Cocontext, false)), Master(Base), Resolved(false)
+		{
+		}
+		Coroutine::Coroutine(Costate* Base, TaskCallback&& Procedure) : Callback(std::move(Procedure)), Switch(TH_NEW(Cocontext, false)), Master(Base), Resolved(false)
+		{
+		}
+		Coroutine::~Coroutine()
+		{
+			TH_DELETE(Cocontext, Switch);
+		}
+
 		Decimal::Decimal() : Length(0), Sign('\0'), NaN(true)
 		{
 		}
@@ -1873,10 +1955,10 @@ namespace Tomahawk
 			return *this;
 		}
 
-		EventTimer::EventTimer(const TimerCallback& NewCallback, uint64_t NewTimeout, EventId NewId, bool NewAlive) : Callback(NewCallback), Timeout(NewTimeout), Id(NewId), Alive(NewAlive)
+		EventTimer::EventTimer(const TaskCallback& NewCallback, uint64_t NewTimeout, EventId NewId, bool NewAlive) : Callback(NewCallback), Timeout(NewTimeout), Id(NewId), Alive(NewAlive)
 		{
 		}
-		EventTimer::EventTimer(TimerCallback&& NewCallback, uint64_t NewTimeout, EventId NewId, bool NewAlive) : Callback(std::move(NewCallback)), Timeout(NewTimeout), Id(NewId), Alive(NewAlive)
+		EventTimer::EventTimer(TaskCallback&& NewCallback, uint64_t NewTimeout, EventId NewId, bool NewAlive) : Callback(std::move(NewCallback)), Timeout(NewTimeout), Id(NewId), Alive(NewAlive)
 		{
 		}
 		EventTimer::EventTimer(const EventTimer& Other) : Callback(Other.Callback), Timeout(Other.Timeout), Id(Other.Id), Alive(Other.Alive)
@@ -6467,7 +6549,279 @@ namespace Tomahawk
 			Offset = Length;
 		}
 
-		Schedule::Schedule() : Timer(0), Workers(0), Terminate(false), Active(false)
+		static thread_local Costate* Cothread = nullptr;
+		Costate::Costate(size_t StackSize) : Size(StackSize), Thread(std::this_thread::get_id()), Current(nullptr), Switch(TH_NEW(Cocontext, true))
+		{
+		}
+		Costate::~Costate()
+		{
+			if (Cothread == this)
+				Cothread = nullptr;
+
+			Safe.lock();
+			for (auto& Routine : Cached)
+				TH_DELETE(Coroutine, Routine);
+
+			for (auto& Routine : Used)
+				TH_DELETE(Coroutine, Routine);
+
+			TH_DELETE(Cocontext, Switch);
+			Safe.unlock();
+		}
+		Coroutine* Costate::Pop(const TaskCallback& Procedure)
+		{
+			Coroutine* Routine = nullptr;
+			Safe.lock();
+			if (!Cached.empty())
+			{
+				Routine = *Cached.begin();
+				Routine->Callback = Procedure;
+				Cached.erase(Cached.begin());
+			}
+			else
+				Routine = TH_NEW(Coroutine, this, Procedure);
+
+			Used.emplace(Routine);
+			Safe.unlock();
+
+			return Routine;
+		}
+		Coroutine* Costate::Pop(TaskCallback&& Procedure)
+		{
+			Coroutine* Routine = nullptr;
+			Safe.lock();
+			if (!Cached.empty())
+			{
+				Routine = *Cached.begin();
+				Routine->Callback = std::move(Procedure);
+				Cached.erase(Cached.begin());
+			}
+			else
+				Routine = TH_NEW(Coroutine, this, std::move(Procedure));
+
+			Used.emplace(Routine);
+			Safe.unlock();
+
+			return Routine;
+		}
+		bool Costate::Reuse(Coroutine* Routine, const TaskCallback& Procedure)
+		{
+			if (!Routine || Routine->Master != this || !Routine->Resolved)
+				return false;
+
+			Routine->Callback = Procedure;
+			Routine->Resolved = false;
+			return true;
+		}
+		bool Costate::Reuse(Coroutine* Routine, TaskCallback&& Procedure)
+		{
+			if (!Routine || Routine->Master != this || !Routine->Resolved)
+				return false;
+
+			Routine->Callback = std::move(Procedure);
+			Routine->Resolved = false;
+			return true;
+		}
+		bool Costate::Reuse(Coroutine* Routine)
+		{
+			if (!Routine || Routine->Master != this || !Routine->Resolved)
+				return false;
+
+			Routine->Callback = nullptr;
+			Routine->Resolved = false;
+			Safe.lock();
+			Used.erase(Routine);
+			Cached.emplace(Routine);
+			Safe.unlock();
+
+			return true;
+		}
+		bool Costate::Swap(Coroutine* Routine)
+		{
+			if (!Routine || Routine->Resolved)
+				return false;
+
+#ifdef TH_MICROSOFT
+			if (Routine->Switch->Context == nullptr)
+#else
+			if (Routine->Switch->Stack == nullptr)
+#endif
+			{
+#ifndef TH_MICROSOFT
+				getcontext(&Routine->Switch->Context);
+				Routine->Switch->Stack = (char*)TH_MALLOC(sizeof(char) * Size);
+				Routine->Switch->Context.uc_stack.ss_sp = Routine->Switch->Stack;
+				Routine->Switch->Context.uc_stack.ss_size = Size;
+				Routine->Switch->Context.uc_link = &Switch->Context;
+				Current = Routine;
+#ifdef TH_64
+				int X, Y;
+				Pack2_64((void*)this, &X, &Y);
+				makecontext(&Routine->Switch->Context, reinterpret_cast<void(*)(void)>(Execute), 2, X, Y);
+#else
+				int X = Pack1_32((void*)this);
+				makecontext(&Routine->Switch->Context, reinterpret_cast<void(*)(void)>(Execute), 1, X);
+#endif
+				swapcontext(&Switch->Context, &Routine->Switch->Context);
+#else
+				Routine->Switch->Context = CreateFiber(Size, Execute, (LPVOID)this);
+				Current = Routine;
+				SwitchToFiber(Routine->Switch->Context);
+#endif
+			}
+			else
+			{
+				Current = Routine;
+#ifndef TH_MICROSOFT
+				swapcontext(&Switch->Context, &Routine->Switch->Context);
+#else
+				SwitchToFiber(Routine->Switch->Context);
+#endif
+			}
+
+			return true;
+		}
+		bool Costate::Push(Coroutine* Routine)
+		{
+			if (!Routine || Routine->Master != this || !Routine->Resolved)
+				return false;
+
+			Safe.lock();
+			Used.erase(Routine);
+			Safe.unlock();
+
+			TH_DELETE(Coroutine, Routine);
+			return true;
+		}
+		bool Costate::Resume(Coroutine* Routine)
+		{
+			if (Thread != std::this_thread::get_id() || !Routine || Routine->Master != this)
+				return false;
+
+			return Swap(Routine);
+		}
+		bool Costate::Resume(bool Restore)
+		{
+			if (Used.empty() || Thread != std::this_thread::get_id())
+				return false;
+
+			Safe.lock();
+			Coroutine* Routine = (Used.empty() ? nullptr : *Used.begin());
+			Safe.unlock();
+
+			if (!Routine)
+				return false;
+
+			if (Swap(Routine))
+				return true;
+
+			if (Restore)
+				Reuse(Routine);
+			else
+				Push(Routine);
+
+			return !Used.empty();
+		}
+		bool Costate::Dispatch(bool Restore)
+		{
+			if (Used.empty() || Thread != std::this_thread::get_id())
+				return false;
+
+			Safe.lock();
+			auto Sources = Used;
+			Safe.unlock();
+
+			for (auto* Routine : Sources)
+			{
+				if (Swap(Routine))
+					continue;
+
+				if (Restore)
+					Reuse(Routine);
+				else
+					Push(Routine);
+				break;
+			}
+
+			return !Used.empty();
+		}
+		bool Costate::Suspend()
+		{
+			if (Thread != std::this_thread::get_id())
+				return false;
+
+			Coroutine* Routine = Current;
+			if (!Routine || Routine->Master != this)
+				return false;
+
+#ifndef TH_MICROSOFT
+			char Bottom = 0;
+			char* Top = Routine->Switch->Stack + Size;
+			if (size_t(Top - &Bottom) > Size)
+				return false;
+
+			Current = nullptr;
+			swapcontext(&Routine->Switch->Context, &Switch->Context);
+#else
+			Current = nullptr;
+			SwitchToFiber(Switch->Context);
+#endif
+			return true;
+		}
+		void Costate::Clear()
+		{
+			Safe.lock();
+			for (auto& Routine : Cached)
+				TH_DELETE(Coroutine, Routine);
+			Cached.clear();
+			Safe.unlock();
+		}
+		Coroutine* Costate::GetCurrent() const
+		{
+			return Current;
+		}
+		uint64_t Costate::GetCount() const
+		{
+			return Used.size();
+		}
+		Costate* Costate::Get()
+		{
+			return Cothread;
+		}
+		void TH_COCALL Costate::Execute(TH_CODATA)
+		{
+#ifndef TH_MICROSOFT
+#ifdef TH_64
+			Cothread = (Costate*)Unpack2_64(X, Y);
+#else
+			Cothread = (Costate*)Unpack1_32(X);
+#endif
+#else
+			Cothread = (Costate*)Context;
+#endif
+			if (!Cothread)
+				return;
+
+			Coroutine* Routine = Cothread->Current;
+			if (Routine != nullptr)
+			{
+			Reuse:
+				if (Routine->Callback)
+					Routine->Callback();
+				Routine->Resolved = true;
+			}
+
+			Cothread->Current = nullptr;
+#ifndef TH_MICROSOFT
+			swapcontext(&Routine->Switch->Context, &Cothread->Switch->Context);
+#else
+			SwitchToFiber(Cothread->Switch->Context);
+#endif
+			if (Routine->Callback)
+				goto Reuse;
+		}
+		
+		Schedule::Schedule() : Comain(nullptr), Coroutines(0), Threads(0), Stack(0), Timer(0), Terminate(false), Active(false)
 		{
 		}
 		Schedule::~Schedule()
@@ -6476,81 +6830,25 @@ namespace Tomahawk
 			if (Singleton == this)
 				Singleton = nullptr;
 		}
-		EventId Schedule::SetInterval(uint64_t Milliseconds, const TimerCallback& Callback)
-		{
-			if (!Callback)
-				return -1;
-
-			int64_t Clock = GetClock();
-			Sync.Timers.lock();
-
-			EventId Id = Timer++; int64_t Time = GetTimeout(Clock + Milliseconds);
-			Timers.emplace(std::make_pair(Time, EventTimer(Callback, Milliseconds, Id, true)));
-			Sync.Timers.unlock();
-
-			return Id;
-		}
-		EventId Schedule::SetInterval(uint64_t Milliseconds, TimerCallback&& Callback)
-		{
-			if (!Callback)
-				return -1;
-
-			int64_t Clock = GetClock();
-			Sync.Timers.lock();
-
-			EventId Id = Timer++; int64_t Time = GetTimeout(Clock + Milliseconds);
-			Timers.emplace(std::make_pair(Time, EventTimer(std::move(Callback), Milliseconds, Id, true)));
-			Sync.Timers.unlock();
-
-			return Id;
-		}
-		EventId Schedule::SetTimeout(uint64_t Milliseconds, const TimerCallback& Callback)
-		{
-			if (!Callback)
-				return -1;
-
-			int64_t Clock = GetClock();
-			Sync.Timers.lock();
-
-			EventId Id = Timer++; int64_t Time = GetTimeout(Clock + Milliseconds);
-			Timers.emplace(std::make_pair(Time, EventTimer(Callback, Milliseconds, Id, false)));
-			Sync.Timers.unlock();
-
-			return Id;
-		}
-		EventId Schedule::SetTimeout(uint64_t Milliseconds, TimerCallback&& Callback)
-		{
-			if (!Callback)
-				return -1;
-
-			int64_t Clock = GetClock();
-			Sync.Timers.lock();
-
-			EventId Id = Timer++; int64_t Time = GetTimeout(Clock + Milliseconds);
-			Timers.emplace(std::make_pair(Time, EventTimer(std::move(Callback), Milliseconds, Id, false)));
-			Sync.Timers.unlock();
-
-			return Id;
-		}
 		EventId Schedule::SetListener(const std::string& Name, const EventCallback& Callback)
 		{
 			if (!Callback)
 				return std::numeric_limits<uint64_t>::max();
 
-			Sync.Listeners.lock();
+			Race.Listeners.lock();
 			auto It = Listeners.find(Name);
 			if (It != Listeners.end())
 			{
 				uint64_t Id = It->second.Counter++;
 				It->second.Callbacks[Id] = Callback;
-				Sync.Listeners.unlock();
+				Race.Listeners.unlock();
 
 				return Id;
 			}
 
 			EventListener& Src = Listeners[Name];
 			Src.Callbacks[Src.Counter++] = Callback;
-			Sync.Listeners.unlock();
+			Race.Listeners.unlock();
 
 			return 0;
 		}
@@ -6559,34 +6857,102 @@ namespace Tomahawk
 			if (!Callback)
 				return std::numeric_limits<uint64_t>::max();
 
-			Sync.Listeners.lock();
+			Race.Listeners.lock();
 			auto It = Listeners.find(Name);
 			if (It != Listeners.end())
 			{
 				uint64_t Id = It->second.Counter++;
 				It->second.Callbacks[Id] = std::move(Callback);
-				Sync.Listeners.unlock();
+				Race.Listeners.unlock();
 
 				return Id;
 			}
 
 			EventListener& Src = Listeners[Name];
 			Src.Callbacks[Src.Counter++] = std::move(Callback);
-			Sync.Listeners.unlock();
+			Race.Listeners.unlock();
 
 			return 0;
+		}
+		EventId Schedule::SetInterval(uint64_t Milliseconds, const TaskCallback& Callback)
+		{
+			if (!Callback)
+				return -1;
+
+			int64_t Clock = GetClock();
+			Race.Timers.lock();
+
+			EventId Id = Timer++; int64_t Time = GetTimeout(Clock + Milliseconds);
+			Timers.emplace(std::make_pair(Time, EventTimer(Callback, Milliseconds, Id, true)));
+			Race.Timers.unlock();
+
+			if (!Childs.empty())
+				Queue.Publish.notify_one();
+
+			return Id;
+		}
+		EventId Schedule::SetInterval(uint64_t Milliseconds, TaskCallback&& Callback)
+		{
+			if (!Callback)
+				return -1;
+
+			int64_t Clock = GetClock();
+			Race.Timers.lock();
+
+			EventId Id = Timer++; int64_t Time = GetTimeout(Clock + Milliseconds);
+			Timers.emplace(std::make_pair(Time, EventTimer(std::move(Callback), Milliseconds, Id, true)));
+			Race.Timers.unlock();
+
+			if (!Childs.empty())
+				Queue.Publish.notify_one();
+
+			return Id;
+		}
+		EventId Schedule::SetTimeout(uint64_t Milliseconds, const TaskCallback& Callback)
+		{
+			if (!Callback)
+				return -1;
+
+			int64_t Clock = GetClock();
+			Race.Timers.lock();
+
+			EventId Id = Timer++; int64_t Time = GetTimeout(Clock + Milliseconds);
+			Timers.emplace(std::make_pair(Time, EventTimer(Callback, Milliseconds, Id, false)));
+			Race.Timers.unlock();
+
+			if (!Childs.empty())
+				Queue.Publish.notify_one();
+
+			return Id;
+		}
+		EventId Schedule::SetTimeout(uint64_t Milliseconds, TaskCallback&& Callback)
+		{
+			if (!Callback)
+				return -1;
+
+			int64_t Clock = GetClock();
+			Race.Timers.lock();
+
+			EventId Id = Timer++; int64_t Time = GetTimeout(Clock + Milliseconds);
+			Timers.emplace(std::make_pair(Time, EventTimer(std::move(Callback), Milliseconds, Id, false)));
+			Race.Timers.unlock();
+
+			if (!Childs.empty())
+				Queue.Publish.notify_one();
+
+			return Id;
 		}
 		bool Schedule::SetTask(const TaskCallback& Callback)
 		{
 			if (!Callback)
 				return false;
 
-			Sync.Tasks.lock();
+			Race.Tasks.lock();
 			Tasks.emplace(Callback);
-			Sync.Tasks.unlock();
+			Race.Tasks.unlock();
 
-			if (!Async.Childs.empty())
-				Async.Condition.notify_one();
+			if (!Childs.empty())
+				Queue.Consume.notify_one();
 
 			return true;
 		}
@@ -6595,42 +6961,79 @@ namespace Tomahawk
 			if (!Callback)
 				return false;
 
-			Sync.Tasks.lock();
+			Race.Tasks.lock();
 			Tasks.emplace(std::move(Callback));
-			Sync.Tasks.unlock();
+			Race.Tasks.unlock();
 
-			if (!Async.Childs.empty())
-				Async.Condition.notify_one();
+			if (!Childs.empty())
+				Queue.Consume.notify_one();
+
+			return true;
+		}
+		bool Schedule::SetAsync(const TaskCallback& Callback)
+		{
+			if (!Callback)
+				return false;
+
+			Race.Asyncs.lock();
+			Asyncs.emplace(Callback);
+			Race.Asyncs.unlock();
+
+			if (!Childs.empty())
+				Queue.Consume.notify_one();
+
+			return true;
+		}
+		bool Schedule::SetAsync(TaskCallback&& Callback)
+		{
+			if (!Callback)
+				return false;
+
+			Race.Asyncs.lock();
+			Asyncs.emplace(std::move(Callback));
+			Race.Asyncs.unlock();
+
+			if (!Childs.empty())
+				Queue.Consume.notify_one();
 
 			return true;
 		}
 		bool Schedule::SetEvent(const std::string& Name, const VariantArgs& Args)
 		{
-			Sync.Events.lock();
+			Race.Events.lock();
 			Events.emplace(Name, Args);
-			Sync.Events.unlock();
+			Race.Events.unlock();
+
+			if (!Childs.empty())
+				Queue.Publish.notify_one();
 
 			return true;
 		}
 		bool Schedule::SetEvent(const std::string& Name, VariantArgs&& Args)
 		{
-			Sync.Events.lock();
+			Race.Events.lock();
 			Events.emplace(Name, std::move(Args));
-			Sync.Events.unlock();
+			Race.Events.unlock();
+
+			if (!Childs.empty())
+				Queue.Publish.notify_one();
 
 			return true;
 		}
 		bool Schedule::SetEvent(const std::string& Name)
 		{
-			Sync.Events.lock();
+			Race.Events.lock();
 			Events.emplace(Name);
-			Sync.Events.unlock();
+			Race.Events.unlock();
+
+			if (!Childs.empty())
+				Queue.Publish.notify_one();
 
 			return true;
 		}
 		bool Schedule::ClearListener(const std::string& Name, EventId ListenerId)
 		{
-			Sync.Listeners.lock();
+			Race.Listeners.lock();
 			auto It = Listeners.find(Name);
 			if (It != Listeners.end())
 			{
@@ -6638,154 +7041,82 @@ namespace Tomahawk
 				if (Callback != It->second.Callbacks.end())
 				{
 					It->second.Callbacks.erase(Callback);
-					Sync.Listeners.unlock();
+					Race.Listeners.unlock();
 
 					return true;
 				}
 			}
 
-			Sync.Listeners.unlock();
+			Race.Listeners.unlock();
 			return false;
 		}
 		bool Schedule::ClearTimeout(EventId TimerId)
 		{
-			Sync.Timers.lock();
+			Race.Timers.lock();
 			for (auto It = Timers.begin(); It != Timers.end(); ++It)
 			{
 				if (It->second.Id != TimerId)
 					continue;
 
 				Timers.erase(It);
-				Sync.Timers.unlock();
+				Race.Timers.unlock();
 				return true;
 			}
 
-			Sync.Timers.unlock();
+			Race.Timers.unlock();
 			return false;
 		}
-		bool Schedule::Clear(EventType Type, bool NoCall)
+		bool Schedule::Start(bool IsAsync, uint64_t ThreadsCount, uint64_t CoroutinesCount, uint64_t StackSize)
 		{
-			if ((Type & EventType_Tasks) && !Tasks.empty())
-			{
-				Sync.Tasks.lock();
-				if (!Tasks.empty())
-				{
-					EventTask Value(std::move(Tasks.front()));
-					Tasks.pop();
-
-					Sync.Tasks.unlock();
-					if (!NoCall && Value)
-						Value();
-
-					return true;
-				}
-				Sync.Tasks.unlock();
-			}
-
-			if ((Type & EventType_Events) && !Events.empty())
-			{
-				Sync.Events.lock();
-				if (!Events.empty())
-				{
-					EventBase Value(std::move(Events.front()));
-					Events.pop();
-
-					Sync.Events.unlock();
-					if (NoCall)
-						return true;
-
-					Sync.Listeners.lock();
-					auto Base = Listeners.find(Value.Name);
-					if (Base == Listeners.end())
-					{
-						Sync.Listeners.unlock();
-						return true;
-					}
-
-					auto Array = Base->second.Callbacks;
-					Sync.Listeners.unlock();
-
-					for (auto& Callback : Array)
-					{
-						if (Callback.second)
-							Callback.second(Value.Args);
-					}
-
-					return true;
-				}
-				Sync.Events.unlock();
-			}
-
-			if ((Type & EventType_Timers) && !Timers.empty())
-			{
-				Sync.Timers.lock();
-				if (!Timers.empty())
-				{
-					EventTimer Value(std::move(Timers.begin()->second));
-					Timers.erase(Timers.begin());
-					Sync.Timers.unlock();
-
-					if (!NoCall && Value.Callback)
-						Value.Callback();
-
-					return true;
-				}
-				Sync.Timers.unlock();
-			}
-
-			return false;
-		}
-		bool Schedule::Start(bool IsAsync, uint64_t WorkersCount)
-		{
-			Async.Manage.lock();
+			Race.Basement.lock();
 			if (Active)
 			{
-				Async.Manage.unlock();
+				Race.Basement.unlock();
 				return false;
 			}
 
-			Workers = WorkersCount;
-			Async.Childs.reserve(Workers + (IsAsync ? 1 : 0));
-			for (uint64_t i = 0; i < Workers; i++)
-				Async.Childs.emplace_back(std::thread(&Schedule::LoopCycle, this));
+			Coroutines = CoroutinesCount;
+			Threads = ThreadsCount;
+			Stack = StackSize;
+
+			if (IsAsync)
+			{
+				Childs.reserve(Threads + 1);
+				Childs.emplace_back(std::thread(&Schedule::Publish, this));
+				for (uint64_t i = 0; i < Threads; i++)
+					Childs.emplace_back(std::thread(&Schedule::Consume, this));
+			}
 
 			Active = true;
+			Race.Basement.unlock();
+
 			if (IsAsync)
-				Async.Childs.emplace_back(std::thread(&Schedule::LoopIncome, this));
+			{
+				Queue.Publish.notify_one();
+				Queue.Consume.notify_one();
+			}
 
-			Async.Manage.unlock();
 			return true;
-		}
-		bool Schedule::Dispatch()
-		{
-			if (!Tasks.empty())
-				DispatchTask();
-
-			if (!Events.empty())
-				DispatchEvent();
-
-			if (!Timers.empty())
-				DispatchTimer();
-
-			return Active;
 		}
 		bool Schedule::Stop()
 		{
-			Async.Manage.lock();
+			Race.Basement.lock();
 			if (!Active && !Terminate)
 			{
-				Async.Manage.unlock();
+				Race.Basement.unlock();
 				return false;
 			}
 
 			Active = false;
-			Async.Condition.notify_all();
-			for (auto& Thread : Async.Childs)
+			Queue.Publish.notify_all();
+			Queue.Consume.notify_all();
+
+			for (auto& Thread : Childs)
 			{
 				if (Thread.get_id() == std::this_thread::get_id())
 				{
 					Terminate = true;
-					Async.Manage.unlock();
+					Race.Basement.unlock();
 					return false;
 				}
 
@@ -6793,90 +7124,179 @@ namespace Tomahawk
 					Thread.join();
 			}
 
-			Async.Childs.clear();
-			while (!Tasks.empty() || !Events.empty() || !Timers.empty())
-				Clear(EventType_Tasks | EventType_Events | EventType_Timers, false);
+			Childs.clear();
+			while (Dispatch());
 
-			Sync.Tasks.lock();
+			Race.Asyncs.lock();
+			std::queue<EventTask>().swap(Asyncs);
+			Race.Asyncs.unlock();
+
+			Race.Tasks.lock();
 			std::queue<EventTask>().swap(Tasks);
-			Sync.Tasks.unlock();
+			Race.Tasks.unlock();
 
-			Sync.Events.lock();
+			Race.Events.lock();
 			std::queue<EventBase>().swap(Events);
-			Sync.Events.unlock();
+			Race.Events.unlock();
 
-			Sync.Listeners.lock();
+			Race.Listeners.lock();
 			Listeners.clear();
-			Sync.Listeners.unlock();
+			Race.Listeners.unlock();
 
-			Sync.Timers.lock();
+			Race.Timers.lock();
 			Timers.clear();
-			Sync.Timers.unlock();
+			Race.Timers.unlock();
 
+			TH_CLEAR(Comain);
 			Terminate = false;
-			Workers = Timer = 0;
-			Async.Manage.unlock();
+			Threads = Stack = Timer = 0;
+			Race.Basement.unlock();
 
 			return true;
 		}
-		bool Schedule::LoopIncome()
+		bool Schedule::Dispatch()
 		{
-			if (!Async.Childs.empty())
-				Async.Condition.notify_all();
+			if (!Comain && Stack > 0 && Coroutines > 0)
+				Comain = new Costate(Stack);
 
-			while (Active)
-			{
-				bool Overhead = true;
-				if (!Tasks.empty())
-					Overhead = (DispatchTask() ? false : Overhead);
+			int Asyncs = DispatchAsync(Comain, true);
+			int Events = DispatchEvent();
+			int Timers = DispatchTimer();
+			int Tasks = DispatchTask();
 
-				if (!Events.empty())
-					Overhead = (DispatchEvent() ? false : Overhead);
-
-				if (!Timers.empty())
-					Overhead = (DispatchTimer() ? false : Overhead);
-
-				if (Overhead)
-					std::this_thread::sleep_for(std::chrono::microseconds(100));
-			}
-
-			return true;
+			return Asyncs != -1 || Events != -1 || Timers != -1 || Tasks != -1;
 		}
-		bool Schedule::LoopCycle()
+		bool Schedule::Publish()
 		{
 			if (!Active)
 				goto Wait;
 
 			do
 			{
-				if (!DispatchTask())
-				{
-				Wait:
-					std::unique_lock<std::mutex> Lock(Async.Child);
-					Async.Condition.wait(Lock);
-				}
+				int Events = DispatchEvent();
+				int Timers = DispatchTimer();
+
+				if (Events == -1 && Timers == 0)
+					std::this_thread::sleep_for(std::chrono::microseconds(100));
+
+				if (Events != -1 || Timers != -1)
+					continue;
+			Wait:
+				std::unique_lock<std::mutex> Lock(Race.Threads);
+				Queue.Publish.wait(Lock);
 			} while (Active);
 
 			return true;
 		}
-		bool Schedule::DispatchEvent()
+		bool Schedule::Consume()
+		{
+			Costate* State = (Stack > 0 && Coroutines > 0 ? new Costate(Stack) : nullptr);
+			if (!Active)
+				goto Wait;
+
+			do
+			{
+				int Asyncs = DispatchAsync(State, false);
+				int Tasks = DispatchTask();
+
+				if (Asyncs != -1 || Tasks != -1)
+					continue;
+			Wait:
+				std::unique_lock<std::mutex> Lock(Race.Threads);
+				Queue.Consume.wait(Lock);
+			} while (Active);
+
+			TH_RELEASE(State);
+			return true;
+		}
+		int Schedule::DispatchAsync(Costate* State, bool Reconsume)
+		{
+			if (Asyncs.empty())
+				return -1;
+
+			std::queue<EventTask> Queue;
+			if (!State)
+			{
+				Race.Asyncs.lock();
+				if (!Asyncs.empty())
+					Asyncs.swap(Queue);
+				Race.Asyncs.unlock();
+
+				int Code = (Queue.empty() ? -1 : 1);
+				while (!Queue.empty())
+				{
+					Queue.front()();
+					Queue.pop();
+				}
+
+				return Code;
+			}
+
+			Race.Asyncs.lock();
+			while (!Asyncs.empty() && Queue.size() < Coroutines)
+			{
+				Queue.push(Asyncs.front());
+				Asyncs.pop();
+			}
+			Race.Asyncs.unlock();
+
+			int Code = (Queue.empty() ? -1 : 1);
+			while (!Queue.empty())
+			{
+				State->Pop(std::move(Queue.front()));
+				Queue.pop();
+			}
+
+			while (State->Dispatch())
+			{
+				if (Reconsume)
+				{
+					DispatchEvent();
+					DispatchTimer();
+				}
+				DispatchTask();
+			}
+
+			return Code;
+		}
+		int Schedule::DispatchTask()
+		{
+			if (Tasks.empty())
+				return -1;
+
+			std::queue<EventTask> Queue;
+			Race.Tasks.lock();
+			if (!Tasks.empty())
+				Tasks.swap(Queue);
+			Race.Tasks.unlock();
+
+			int Code = (Queue.empty() ? -1 : 1);
+			while (!Queue.empty())
+			{
+				Queue.front()();
+				Queue.pop();
+			}
+
+			return Code;
+		}
+		int Schedule::DispatchEvent()
 		{
 			if (Events.empty())
-				return false;
+				return -1;
 
 			std::queue<EventBase> Queue;
-			Sync.Events.lock();
+			Race.Events.lock();
 			if (!Events.empty())
 				Events.swap(Queue);
-			Sync.Events.unlock();
+			Race.Events.unlock();
 
-			bool Wasted = Queue.empty();
+			int Code = (Queue.empty() ? -1 : 1);
 			while (!Queue.empty())
 			{
 				EventBase Src(std::move(Queue.front()));
 				Queue.pop();
 
-				Sync.Listeners.lock();
+				Race.Listeners.lock();
 				auto Base = Listeners.find(Src.Name);
 				if (Base != Listeners.end())
 				{
@@ -6887,49 +7307,38 @@ namespace Tomahawk
 							Callback.second(Src.Args);
 					});
 				}
-				Sync.Listeners.unlock();
+				Race.Listeners.unlock();
 			}
 
-			return !Wasted;
+			return Code;
 		}
-		bool Schedule::DispatchTask()
+		int Schedule::DispatchTimer()
 		{
-			if (Tasks.empty())
-				return !Active;
+			if (Timers.empty())
+				return -1;
 
-			std::queue<EventTask> Queue;
-			Sync.Tasks.lock();
-			if (!Tasks.empty())
-				Tasks.swap(Queue);
-			Sync.Tasks.unlock();
-
-			bool Wasted = Queue.empty();
-			while (!Queue.empty())
-			{
-				Queue.front()();
-				Queue.pop();
-			}
-
-			return !Wasted;
-		}
-		bool Schedule::DispatchTimer()
-		{
 			int64_t Clock = GetClock();
-			Sync.Timers.lock();
+			Race.Timers.lock();
 
 			auto It = Timers.begin();
-			if (It == Timers.end() || It->first >= Clock)
+			if (It == Timers.end())
 			{
-				Sync.Timers.unlock();
-				return false;
+				Race.Timers.unlock();
+				return -1;
 			}
 
-			if (!It->second.Alive)
+			if (It->first >= Clock)
+			{
+				Race.Timers.unlock();
+				return 0;
+			}
+
+			if (!It->second.Alive || !Active)
 			{
 				SetTask(std::move(It->second.Callback));
 				Timers.erase(It);
-				Sync.Timers.unlock();
-				return true;
+				Race.Timers.unlock();
+				return 1;
 			}
 
 			EventTimer Next(std::move(It->second));
@@ -6939,16 +7348,20 @@ namespace Tomahawk
 
 			int64_t Time = GetTimeout(Clock + Next.Timeout);
 			Timers.emplace(std::make_pair(Time, std::move(Next)));
-			Sync.Timers.unlock();
-			return true;
+			Race.Timers.unlock();
+			return 1;
 		}
 		bool Schedule::IsBlockable()
 		{
-			return Active && Workers > 1;
+			return Active && Threads > 0;
 		}
 		bool Schedule::IsActive()
 		{
 			return Active;
+		}
+		bool Schedule::IsProcessing()
+		{
+			return !Asyncs.empty() || !Tasks.empty() || !Events.empty() || !Timers.empty();
 		}
 		int64_t Schedule::GetClock()
 		{

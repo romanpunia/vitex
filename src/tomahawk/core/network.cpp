@@ -1573,7 +1573,7 @@ namespace Tomahawk
 			{
 				FreeQueued();
 				if (!Queue->IsActive())
-					Queue->Clear(Core::EventType_Tasks, false);
+					Queue->Dispatch();
 
 				if (Queue->IsBlockable())
 					std::this_thread::sleep_for(std::chrono::microseconds(100));

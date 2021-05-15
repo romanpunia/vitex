@@ -4399,7 +4399,7 @@ namespace Tomahawk
 		void SceneGraph::Dispatch()
 		{
 			auto* Queue = Core::Schedule::Get();
-			while (Queue->Clear(Core::EventType_Events, false));
+			while (Queue->Dispatch());
 			while (DispatchLastEvent());
 		}
 		void SceneGraph::ResizeBuffers()
@@ -5846,7 +5846,7 @@ namespace Tomahawk
 			if (I->Async)
 			{
 				State = ApplicationState_Multithreaded;
-				Queue->Start(true, std::max((uint64_t)Workers.size(), I->Workers));
+				Queue->Start(true, std::max((uint64_t)Workers.size(), I->Threads), I->Coroutines, I->Stack);
 
 				if (Activity != nullptr)
 				{
@@ -5866,7 +5866,7 @@ namespace Tomahawk
 			else
 			{
 				State = ApplicationState_Singlethreaded;
-				Queue->Start(false, I->Workers);
+				Queue->Start(false, I->Threads, I->Coroutines, I->Stack);
 
 				if (Activity != nullptr)
 				{

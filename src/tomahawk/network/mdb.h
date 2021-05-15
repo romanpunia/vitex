@@ -284,11 +284,11 @@ namespace Tomahawk
 				Core::Async<bool> Remove();
 				Core::Async<bool> RemoveWithOptions(const Document& Options);
 				Core::Async<bool> AddUser(const std::string& Username, const std::string& Password, const Document& Roles, const Document& Custom);
+				Core::Async<bool> HasCollection(const std::string& Name) const;
+				Core::Async<Collection> CreateCollection(const std::string& Name, const Document& Options);
 				Core::Async<Cursor> FindCollections(const Document& Options) const;
-				bool HasCollection(const std::string& Name) const;
 				std::vector<std::string> GetCollectionNames(const Document& Options) const;
 				const char* GetName() const;
-				Collection CreateCollection(const std::string& Name, const Document& Options);
 				Collection GetCollection(const std::string& Name) const;
 				TDatabase* Get() const;
 				operator bool() const
@@ -328,18 +328,18 @@ namespace Tomahawk
 				Transaction(TTransaction* NewBase);
 				void Release();
                 bool Push(Document& QueryOptions) const;
-				bool Start();
-                bool Abort();
-                Document RemoveMany(const Collection& Base, const Document& Select, const Document& Options);
-                Document RemoveOne(const Collection& Base, const Document& Select, const Document& Options);
-                Document ReplaceOne(const Collection& Base, const Document& Select, const Document& Replacement, const Document& Options);
-                Document InsertMany(const Collection& Base, std::vector<Document>& List, const Document& Options);
-                Document InsertOne(const Collection& Base, const Document& Result, const Document& Options);
-                Document UpdateMany(const Collection& Base, const Document& Select, const Document& Update, const Document& Options);
-                Document UpdateOne(const Collection& Base, const Document& Select, const Document& Update, const Document& Options);
-                Cursor FindMany(const Collection& Base, const Document& Select, const Document& Options) const;
-                Cursor FindOne(const Collection& Base, const Document& Select, const Document& Options) const;
-                Cursor Aggregate(const Collection& Base, Query Flags, const Document& Pipeline, const Document& Options) const;
+				Core::Async<bool> Start();
+				Core::Async<bool> Abort();
+				Core::Async<Document> RemoveMany(const Collection& Base, const Document& Select, const Document& Options);
+				Core::Async<Document> RemoveOne(const Collection& Base, const Document& Select, const Document& Options);
+				Core::Async<Document> ReplaceOne(const Collection& Base, const Document& Select, const Document& Replacement, const Document& Options);
+				Core::Async<Document> InsertMany(const Collection& Base, std::vector<Document>& List, const Document& Options);
+				Core::Async<Document> InsertOne(const Collection& Base, const Document& Result, const Document& Options);
+				Core::Async<Document> UpdateMany(const Collection& Base, const Document& Select, const Document& Update, const Document& Options);
+				Core::Async<Document> UpdateOne(const Collection& Base, const Document& Select, const Document& Update, const Document& Options);
+				Core::Async<Cursor> FindMany(const Collection& Base, const Document& Select, const Document& Options) const;
+				Core::Async<Cursor> FindOne(const Collection& Base, const Document& Select, const Document& Options) const;
+				Core::Async<Cursor> Aggregate(const Collection& Base, Query Flags, const Document& Pipeline, const Document& Options) const;
 				Core::Async<Document> Commit();
 				TTransaction* Get() const;
 				operator bool() const

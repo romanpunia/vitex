@@ -1933,7 +1933,7 @@ namespace Tomahawk
 					Future.Set(Subresult);
 				});
 #else
-				return false;
+				return Core::Async<bool>::Store(false);
 #endif
 			}
 			Core::Async<Cursor> Database::FindCollections(const Document& Options) const
@@ -2178,7 +2178,7 @@ namespace Tomahawk
 					Future.Set(MDB_EXEC(&mongoc_client_session_start_transaction, Context, nullptr));
 				});
 #else
-				return false;
+                return Core::Async<bool>::Store(false);
 #endif
 			}
 			Core::Async<bool> Transaction::Abort()
@@ -2190,7 +2190,7 @@ namespace Tomahawk
 					Future.Set(MDB_EXEC(&mongoc_client_session_abort_transaction, Context));
 				});
 #else
-				return false;
+                return Core::Async<bool>::Store(false);
 #endif
 			}
 			Core::Async<Document> Transaction::RemoveMany(const Collection& fBase, const Document& Select, const Document& fOptions)

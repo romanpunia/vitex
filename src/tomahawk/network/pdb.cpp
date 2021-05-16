@@ -272,7 +272,7 @@ namespace Tomahawk
 					}
 				});
 #else
-				return false;
+                return Core::Async<bool>::Store(false);
 #endif
 			}
 			Core::Async<bool> Queue::Disconnect()

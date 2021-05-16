@@ -1984,11 +1984,11 @@ namespace Tomahawk
 		inline T& Coawait(Async<T>&& Future)
 		{
 			Costate* State = Costate::Get();
-			if (State != nullptr)
-			{
-				while (Future.IsPending())
-					State->Suspend();
-			}
+			if (!State)
+                return Future.Get();
+        
+            while (Future.IsPending())
+                State->Suspend();
 
 			return Future.GetOrSet();
 		}
@@ -2028,6 +2028,14 @@ namespace Tomahawk
 		{
 			return Schedule::Get()->SetAsync(std::move(Callback));
 		}
+        inline bool Cosuspend()
+        {
+            Costate* State = Costate::Get();
+            if (!State)
+                return false;
+            
+            return State->Suspend();
+        }
 	}
 }
 #endif

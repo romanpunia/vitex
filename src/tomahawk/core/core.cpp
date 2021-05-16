@@ -6677,7 +6677,7 @@ namespace Tomahawk
 #endif
 			}
 
-			return true;
+			return !Routine->Dead;
 		}
 		bool Costate::Push(Coroutine* Routine)
 		{

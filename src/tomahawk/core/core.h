@@ -1,5 +1,8 @@
 #ifndef TH_CORE_H
 #define TH_CORE_H
+#ifdef __APPLE__
+#define _XOPEN_SOURCE
+#endif
 #pragma warning(disable: 4251)
 #pragma warning(disable: 4996)
 #include <thread>
@@ -224,7 +227,7 @@ namespace Tomahawk
 			TaskCallback Callback;
 			Cocontext* Switch;
 			Costate* Master;
-			bool Resolved;
+			bool Dead;
 
 		private:
 			Coroutine(Costate* Base, const TaskCallback& Procedure);
@@ -1251,7 +1254,7 @@ namespace Tomahawk
 			int DispatchAsync(Costate* State, bool Reconsume);
 			int DispatchTask();
 			int DispatchEvent();
-			int DispatchTimer();
+			int DispatchTimer(int64_t* When);
 			int64_t GetTimeout(int64_t Clock);
 			int64_t GetClock();
 

@@ -1012,15 +1012,10 @@ namespace Tomahawk
 			Handle = epoll_create(1);
 			Array = (epoll_event*)TH_MALLOC(sizeof(epoll_event) * ArraySize);
 #endif
-			if (!Bound)
-			{
-				Core::Schedule::Get()->SetTask(Multiplexer::Loop);
-				Bound = true;
-			}
+            Assign(Core::Schedule::Get());
 		}
 		void Multiplexer::Release()
 		{
-			Bound = false;
 			if (Handle != INVALID_EPOLL)
 			{
 				epoll_close(Handle);
@@ -1033,126 +1028,135 @@ namespace Tomahawk
 				Array = nullptr;
 			}
 		}
-		void Multiplexer::Dispatch()
+        void Multiplexer::Assign(Core::Schedule* Queue)
+        {
+            if (Queue != nullptr)
+            {
+                if (!Assigned)
+                {
+                    Queue->SetTask(Multiplexer::Resolve);
+                    Assigned = true;
+                }
+            }
+            else if (Assigned)
+                Assigned = false;
+        }
+        int Multiplexer::Listen(Socket* Value)
+        {
+            if (!Handle || !Value || Value->Sync.Await || Value->Fd == INVALID_SOCKET)
+                return -1;
+
+            Value->Sync.Time = Clock();
+            Value->Sync.Await = true;
+
+#ifdef TH_APPLE
+            struct kevent Event;
+            EV_SET(&Event, Value->Fd, EVFILT_READ, EV_ADD, 0, 0, (void*)Value);
+            kevent(Handle, &Event, 1, nullptr, 0, nullptr);
+
+            EV_SET(&Event, Value->Fd, EVFILT_WRITE, EV_ADD, 0, 0, (void*)Value);
+            return kevent(Handle, &Event, 1, nullptr, 0, nullptr);
+#else
+            epoll_event Event;
+            Event.data.ptr = (void*)Value;
+            if (!Value->Listener)
+                Event.events = EPOLLRDHUP | EPOLLIN | EPOLLOUT;
+            else
+                Event.events = EPOLLIN;
+            
+            return epoll_ctl(Handle, EPOLL_CTL_ADD, Value->Fd, &Event);
+#endif
+        }
+        int Multiplexer::Unlisten(Socket* Value)
+        {
+            if (!Handle || !Value || Value->Fd == INVALID_SOCKET || !Value->Sync.Await)
+                return -1;
+
+            Value->Sync.Await = false;
+#ifdef TH_APPLE
+            struct kevent Event;
+            EV_SET(&Event, Value->Fd, EVFILT_READ, EV_DELETE, 0, 0, nullptr);
+            kevent(Handle, &Event, 1, nullptr, 0, nullptr);
+            EV_SET(&Event, Value->Fd, EVFILT_WRITE, EV_DELETE, 0, 0, nullptr);
+            kevent(Handle, &Event, 1, nullptr, 0, nullptr);
+
+            return 0;
+#else
+            epoll_event Event;
+            return epoll_ctl(Handle, EPOLL_CTL_DEL, Value->Fd, &Event);
+#endif
+        }
+        void Multiplexer::Resolve()
+        {
+            Core::Schedule* Queue = Core::Schedule::Get();
+            if (!Queue)
+                return;
+            
+            Dispatch();
+            if (Queue->IsActive() && Assigned)
+                Queue->SetTask(Multiplexer::Resolve);
+        }
+		int Multiplexer::Dispatch()
 		{
-			auto* Queue = Core::Schedule::Get();
-			if (!Bound || !Queue->IsBlockable())
-				Loop();
-		}
-		void Multiplexer::Loop()
-		{
-			auto* Queue = Core::Schedule::Get();
 #ifdef TH_APPLE
 			struct kevent* Events = (struct kevent*)Array;
 #else
 			epoll_event* Events = (epoll_event*)Array;
 #endif
 			if (!Events)
-				return;
-
-			do
-			{
-#ifdef TH_APPLE
-				struct timespec Wait;
-				Wait.tv_sec = (int)PipeTimeout / 1000;
-				Wait.tv_nsec = ((int)PipeTimeout % 1000) * 1000000;
-
-				int Count = kevent(Handle, nullptr, 0, Events, ArraySize, &Wait);
-#else
-				int Count = epoll_wait(Handle, Events, ArraySize, (int)PipeTimeout);
-#endif
-				if (Count <= 0)
-					continue;
-
-				int64_t Time = Clock(); int Size = 0;
-				for (auto It = Events; It != Events + Count; It++)
-				{
-					int Flags = 0;
-#ifdef TH_APPLE
-					if (It->filter == EVFILT_READ)
-						Flags |= SocketEvent_Read;
-
-					if (It->filter == EVFILT_WRITE)
-						Flags |= SocketEvent_Write;
-
-					if (It->flags & EV_EOF)
-						Flags |= SocketEvent_Close;
-
-					Socket* Value = (Socket*)It->udata;
-#else
-					if (It->events & EPOLLIN)
-						Flags |= SocketEvent_Read;
-
-					if (It->events & EPOLLOUT)
-						Flags |= SocketEvent_Write;
-
-					if (It->events & EPOLLHUP)
-						Flags |= SocketEvent_Close;
-
-					if (It->events & EPOLLRDHUP)
-						Flags |= SocketEvent_Close;
-
-					if (It->events & EPOLLERR)
-						Flags |= SocketEvent_Close;
-
-					Socket* Value = (Socket*)It->data.ptr;
-#endif
-					if (Dispatch(Value, &Flags, Time) != 0)
-						Size++;
-				}
-
-				if (!Size)
-					std::this_thread::sleep_for(std::chrono::microseconds(100));
-			} while (Bound && Queue->IsBlockable());
-
-			if (Bound && !Queue->IsBlockable() && Queue->IsActive())
-				Queue->SetTask(Multiplexer::Loop);
-		}
-		int Multiplexer::Listen(Socket* Value)
-		{
-			if (!Handle || !Value || Value->Sync.Await || Value->Fd == INVALID_SOCKET)
 				return -1;
-
-			Value->Sync.Time = Clock();
-			Value->Sync.Await = true;
-
+            
 #ifdef TH_APPLE
-			struct kevent Event;
-			EV_SET(&Event, Value->Fd, EVFILT_READ, EV_ADD, 0, 0, (void*)Value);
-			kevent(Handle, &Event, 1, nullptr, 0, nullptr);
+            struct timespec Wait;
+            Wait.tv_sec = (int)PipeTimeout / 1000;
+            Wait.tv_nsec = ((int)PipeTimeout % 1000) * 1000000;
 
-			EV_SET(&Event, Value->Fd, EVFILT_WRITE, EV_ADD, 0, 0, (void*)Value);
-			return kevent(Handle, &Event, 1, nullptr, 0, nullptr);
+            int Count = kevent(Handle, nullptr, 0, Events, ArraySize, &Wait);
 #else
-			epoll_event Event;
-			Event.data.ptr = (void*)Value;
-			if (!Value->Listener)
-				Event.events = EPOLLRDHUP | EPOLLIN | EPOLLOUT;
-			else
-				Event.events = EPOLLIN;
-			
-			return epoll_ctl(Handle, EPOLL_CTL_ADD, Value->Fd, &Event);
+            int Count = epoll_wait(Handle, Events, ArraySize, (int)PipeTimeout);
 #endif
-		}
-		int Multiplexer::Unlisten(Socket* Value)
-		{
-			if (!Handle || !Value || Value->Fd == INVALID_SOCKET || !Value->Sync.Await)
-				return -1;
+            if (Count <= 0)
+                return 0;
 
-			Value->Sync.Await = false;
+            int64_t Time = Clock(); int Size = 0;
+            for (auto It = Events; It != Events + Count; It++)
+            {
+                int Flags = 0;
 #ifdef TH_APPLE
-			struct kevent Event;
-			EV_SET(&Event, Value->Fd, EVFILT_READ, EV_DELETE, 0, 0, nullptr);
-			kevent(Handle, &Event, 1, nullptr, 0, nullptr);
-			EV_SET(&Event, Value->Fd, EVFILT_WRITE, EV_DELETE, 0, 0, nullptr);
-			kevent(Handle, &Event, 1, nullptr, 0, nullptr);
+                if (It->filter == EVFILT_READ)
+                    Flags |= SocketEvent_Read;
 
-			return 0;
+                if (It->filter == EVFILT_WRITE)
+                    Flags |= SocketEvent_Write;
+
+                if (It->flags & EV_EOF)
+                    Flags |= SocketEvent_Close;
+
+                Socket* Value = (Socket*)It->udata;
 #else
-			epoll_event Event;
-			return epoll_ctl(Handle, EPOLL_CTL_DEL, Value->Fd, &Event);
+                if (It->events & EPOLLIN)
+                    Flags |= SocketEvent_Read;
+
+                if (It->events & EPOLLOUT)
+                    Flags |= SocketEvent_Write;
+
+                if (It->events & EPOLLHUP)
+                    Flags |= SocketEvent_Close;
+
+                if (It->events & EPOLLRDHUP)
+                    Flags |= SocketEvent_Close;
+
+                if (It->events & EPOLLERR)
+                    Flags |= SocketEvent_Close;
+
+                Socket* Value = (Socket*)It->data.ptr;
 #endif
-		}
+                if (Dispatch(Value, &Flags, Time) != 0)
+                    Size++;
+            }
+            
+            return Size;
+        }
 		int Multiplexer::Dispatch(Socket* Fd, int* Events, int64_t Time)
 		{
 			if (!Fd || Fd->Fd == INVALID_SOCKET)
@@ -1353,6 +1357,7 @@ namespace Tomahawk
 		{
 			return std::chrono::duration_cast<std::chrono::milliseconds>(std::chrono::system_clock::now().time_since_epoch()).count();
 		}
+        bool Multiplexer::Assigned = false;
 #ifdef TH_APPLE
 		struct kevent* Multiplexer::Array = nullptr;
 #else
@@ -1361,7 +1366,6 @@ namespace Tomahawk
 		epoll_handle Multiplexer::Handle = INVALID_EPOLL;
 		int64_t Multiplexer::PipeTimeout = 200;
 		int Multiplexer::ArraySize = 0;
-		bool Multiplexer::Bound = false;
 
 		SocketServer::SocketServer()
 		{
@@ -1573,12 +1577,7 @@ namespace Tomahawk
 			{
 				FreeQueued();
 				if (!Queue->IsActive())
-					Queue->Dispatch();
-
-				if (Queue->IsBlockable())
-					std::this_thread::sleep_for(std::chrono::microseconds(100));
-				else
-					Multiplexer::Dispatch();
+                    Multiplexer::Dispatch();
 			} while (!Bad.empty() || !Good.empty());
 
 			if (!OnUnlisten())

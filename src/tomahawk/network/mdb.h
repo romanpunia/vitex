@@ -239,6 +239,7 @@ namespace Tomahawk
 				TCollection* Base;
 
 			public:
+                Collection();
 				Collection(TCollection* NewBase);
 				void Release();
 				Core::Async<bool> Rename(const std::string& NewDatabaseName, const std::string& NewCollectionName);

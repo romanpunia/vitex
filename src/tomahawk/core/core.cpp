@@ -30,12 +30,7 @@
 #include <stdio.h>
 #include <fcntl.h>
 #include <dlfcn.h>
-#if defined(__APPLE__) && defined(__MACH__)
-#define _XOPEN_SOURCE
 #include <ucontext.h>
-#else
-#include <ucontext.h>
-#endif
 #endif
 #ifdef TH_HAS_SDL2
 #include <SDL2/SDL.h>
@@ -128,32 +123,35 @@ namespace
 #else
 namespace
 {
-	bool LocalTime(time_t const* const A, struct tm* const B)
-	{
-		return localtime_r(A, B) != nullptr;
-	}
+#ifndef TH_64
+    int Pack1_32(void* Value)
+    {
+        return (int)(uintptr_t)Value;
+    }
+    void* Unpack1_32(int Value)
+    {
+        return (void*)(uintptr_t)Value;
+    }
+#else
+    void Pack2_64(void* Value, int* X, int* Y)
+    {
+        uint64_t Subvalue = (uint64_t)Value;
+        *X = (int)(uint32_t)((Subvalue & 0xFFFFFFFF00000000LL) >> 32);
+        *Y = (int)(uint32_t)(Subvalue & 0xFFFFFFFFLL);
+    }
+    void* Unpack2_64(int X, int Y)
+    {
+        uint64_t Subvalue = ((uint64_t)(uint32_t)X) << 32 | (uint32_t)Y;
+        return (void*)Subvalue;
+        }
+#endif
+    bool LocalTime(time_t const* const A, struct tm* const B)
+    {
+        return localtime_r(A, B) != nullptr;
+    }
 }
 #endif
 
-int Pack1_32(void* Value)
-{
-	return (int)(uintptr_t)Value;
-}
-void* Unpack1_32(int Value)
-{
-	return (void*)(uintptr_t)Value;
-}
-void Pack2_64(void* Value, int* X, int* Y)
-{
-	uint64_t Subvalue = (uint64_t)Value;
-	*X = (int)(uint32_t)((Subvalue & 0xFFFFFFFF00000000LL) >> 32);
-	*Y = (int)(uint32_t)(Subvalue & 0xFFFFFFFFLL);
-}
-void* Unpack2_64(int X, int Y)
-{
-	uint64_t Subvalue = ((uint64_t)(uint32_t)X) << 32 | (uint32_t)Y;
-	return (void*)Subvalue;
-	}
 namespace Tomahawk
 {
 	namespace Core
@@ -168,11 +166,11 @@ namespace Tomahawk
 #endif
 			bool Swapchain;
 
-			Cocontext(bool Swap) : Swapchain(Swap),
+			Cocontext(bool Swap) :
 #ifdef TH_MICROSOFT
-				Context(nullptr)
+				Context(nullptr), Swapchain(Swap)
 #else
-				Stack(nullptr)
+				Stack(nullptr), Swapchain(Swap)
 #endif
 			{
 #ifdef TH_MICROSOFT
@@ -204,10 +202,10 @@ namespace Tomahawk
 			}
 		};
 
-		Coroutine::Coroutine(Costate* Base, const TaskCallback& Procedure) : Callback(Procedure), Switch(TH_NEW(Cocontext, false)), Master(Base), Resolved(false)
+		Coroutine::Coroutine(Costate* Base, const TaskCallback& Procedure) : Callback(Procedure), Switch(TH_NEW(Cocontext, false)), Master(Base), Dead(false)
 		{
 		}
-		Coroutine::Coroutine(Costate* Base, TaskCallback&& Procedure) : Callback(std::move(Procedure)), Switch(TH_NEW(Cocontext, false)), Master(Base), Resolved(false)
+		Coroutine::Coroutine(Costate* Base, TaskCallback&& Procedure) : Callback(std::move(Procedure)), Switch(TH_NEW(Cocontext, false)), Master(Base), Dead(false)
 		{
 		}
 		Coroutine::~Coroutine()
@@ -6550,7 +6548,7 @@ namespace Tomahawk
 		}
 
 		static thread_local Costate* Cothread = nullptr;
-		Costate::Costate(size_t StackSize) : Size(StackSize), Thread(std::this_thread::get_id()), Current(nullptr), Switch(TH_NEW(Cocontext, true))
+		Costate::Costate(size_t StackSize) : Thread(std::this_thread::get_id()), Current(nullptr), Switch(TH_NEW(Cocontext, true)), Size(StackSize)
 		{
 		}
 		Costate::~Costate()
@@ -6606,29 +6604,29 @@ namespace Tomahawk
 		}
 		bool Costate::Reuse(Coroutine* Routine, const TaskCallback& Procedure)
 		{
-			if (!Routine || Routine->Master != this || !Routine->Resolved)
+			if (!Routine || Routine->Master != this || !Routine->Dead)
 				return false;
 
 			Routine->Callback = Procedure;
-			Routine->Resolved = false;
+            Routine->Dead = false;
 			return true;
 		}
 		bool Costate::Reuse(Coroutine* Routine, TaskCallback&& Procedure)
 		{
-			if (!Routine || Routine->Master != this || !Routine->Resolved)
+			if (!Routine || Routine->Master != this || !Routine->Dead)
 				return false;
 
 			Routine->Callback = std::move(Procedure);
-			Routine->Resolved = false;
+            Routine->Dead = false;
 			return true;
 		}
 		bool Costate::Reuse(Coroutine* Routine)
 		{
-			if (!Routine || Routine->Master != this || !Routine->Resolved)
+			if (!Routine || Routine->Master != this || !Routine->Dead)
 				return false;
 
 			Routine->Callback = nullptr;
-			Routine->Resolved = false;
+            Routine->Dead = false;
 			Safe.lock();
 			Used.erase(Routine);
 			Cached.emplace(Routine);
@@ -6638,44 +6636,44 @@ namespace Tomahawk
 		}
 		bool Costate::Swap(Coroutine* Routine)
 		{
-			if (!Routine || Routine->Resolved)
+			if (!Routine || Routine->Dead)
 				return false;
 
+            Cocontext* Fiber = Routine->Switch;
+            Current = Routine;
 #ifdef TH_MICROSOFT
-			if (Routine->Switch->Context == nullptr)
+			if (Fiber->Context == nullptr)
 #else
-			if (Routine->Switch->Stack == nullptr)
+			if (Fiber->Stack == nullptr)
 #endif
 			{
 #ifndef TH_MICROSOFT
-				getcontext(&Routine->Switch->Context);
-				Routine->Switch->Stack = (char*)TH_MALLOC(sizeof(char) * Size);
-				Routine->Switch->Context.uc_stack.ss_sp = Routine->Switch->Stack;
-				Routine->Switch->Context.uc_stack.ss_size = Size;
-				Routine->Switch->Context.uc_link = &Switch->Context;
-				Current = Routine;
+				getcontext(&Fiber->Context);
+				Fiber->Stack = (char*)TH_MALLOC(sizeof(char) * Size);
+				Fiber->Context.uc_stack.ss_sp = Fiber->Stack;
+				Fiber->Context.uc_stack.ss_size = Size;
+                Fiber->Context.uc_stack.ss_flags = 0;
+				Fiber->Context.uc_link = &Switch->Context;
 #ifdef TH_64
 				int X, Y;
 				Pack2_64((void*)this, &X, &Y);
-				makecontext(&Routine->Switch->Context, reinterpret_cast<void(*)(void)>(Execute), 2, X, Y);
+				makecontext(&Fiber->Context, (void(*)())Execute, 2, X, Y);
 #else
 				int X = Pack1_32((void*)this);
-				makecontext(&Routine->Switch->Context, reinterpret_cast<void(*)(void)>(Execute), 1, X);
+				makecontext(&Fiber->Context, (void(*)())Execute, 1, X);
 #endif
-				swapcontext(&Switch->Context, &Routine->Switch->Context);
+				swapcontext(&Switch->Context, &Fiber->Context);
 #else
-				Routine->Switch->Context = CreateFiber(Size, Execute, (LPVOID)this);
-				Current = Routine;
-				SwitchToFiber(Routine->Switch->Context);
+				Fiber->Context = CreateFiber(Size, Execute, (LPVOID)this);
+				SwitchToFiber(Fiber->Context);
 #endif
 			}
 			else
 			{
-				Current = Routine;
 #ifndef TH_MICROSOFT
-				swapcontext(&Switch->Context, &Routine->Switch->Context);
+				swapcontext(&Switch->Context, &Fiber->Context);
 #else
-				SwitchToFiber(Routine->Switch->Context);
+				SwitchToFiber(Fiber->Context);
 #endif
 			}
 
@@ -6683,10 +6681,11 @@ namespace Tomahawk
 		}
 		bool Costate::Push(Coroutine* Routine)
 		{
-			if (!Routine || Routine->Master != this || !Routine->Resolved)
+			if (!Routine || Routine->Master != this || !Routine->Dead)
 				return false;
 
 			Safe.lock();
+            Cached.erase(Routine);
 			Used.erase(Routine);
 			Safe.unlock();
 
@@ -6695,7 +6694,7 @@ namespace Tomahawk
 		}
 		bool Costate::Resume(Coroutine* Routine)
 		{
-			if (Thread != std::this_thread::get_id() || !Routine || Routine->Master != this)
+			if (Thread != std::this_thread::get_id() || Current == Routine || !Routine || Routine->Master != this)
 				return false;
 
 			return Swap(Routine);
@@ -6792,30 +6791,31 @@ namespace Tomahawk
 		{
 #ifndef TH_MICROSOFT
 #ifdef TH_64
-			Cothread = (Costate*)Unpack2_64(X, Y);
+			Costate* State = (Costate*)Unpack2_64(X, Y);
 #else
-			Cothread = (Costate*)Unpack1_32(X);
+			Costate* State = (Costate*)Unpack1_32(X);
 #endif
 #else
-			Cothread = (Costate*)Context;
+			Costate* State = (Costate*)Context;
 #endif
-			if (!Cothread)
+            Cothread = State;
+			if (!State)
 				return;
 
-			Coroutine* Routine = Cothread->Current;
-			if (Routine != nullptr)
+			Coroutine* Routine = State->Current;
+            if (Routine != nullptr)
 			{
 			Reuse:
 				if (Routine->Callback)
 					Routine->Callback();
-				Routine->Resolved = true;
+				Routine->Dead = true;
 			}
 
-			Cothread->Current = nullptr;
+			State->Current = nullptr;
 #ifndef TH_MICROSOFT
-			swapcontext(&Routine->Switch->Context, &Cothread->Switch->Context);
+			swapcontext(&Routine->Switch->Context, &State->Switch->Context);
 #else
-			SwitchToFiber(Cothread->Switch->Context);
+			SwitchToFiber(State->Switch->Context);
 #endif
 			if (Routine->Callback)
 				goto Reuse;
@@ -7161,24 +7161,30 @@ namespace Tomahawk
 
 			int Asyncs = DispatchAsync(Comain, true);
 			int Events = DispatchEvent();
-			int Timers = DispatchTimer();
+			int Timers = DispatchTimer(nullptr);
 			int Tasks = DispatchTask();
 
 			return Asyncs != -1 || Events != -1 || Timers != -1 || Tasks != -1;
 		}
 		bool Schedule::Publish()
 		{
+            int Events = -1, Timers = -1;
+            int64_t When = -1;
+            
 			if (!Active)
 				goto Wait;
 
 			do
 			{
-				int Events = DispatchEvent();
-				int Timers = DispatchTimer();
-
+                Events = DispatchEvent();
+				Timers = DispatchTimer(&When);
+                
 				if (Events == -1 && Timers == 0)
-					std::this_thread::sleep_for(std::chrono::microseconds(100));
-
+                {
+                    std::unique_lock<std::mutex> Lock(Race.Threads);
+                    Queue.Publish.wait_for(Lock, std::chrono::milliseconds(When));
+                }
+                
 				if (Events != -1 || Timers != -1)
 					continue;
 			Wait:
@@ -7191,13 +7197,15 @@ namespace Tomahawk
 		bool Schedule::Consume()
 		{
 			Costate* State = (Stack > 0 && Coroutines > 0 ? new Costate(Stack) : nullptr);
-			if (!Active)
+            int Asyncs = -1, Tasks = -1;
+            
+            if (!Active)
 				goto Wait;
 
 			do
 			{
-				int Asyncs = DispatchAsync(State, false);
-				int Tasks = DispatchTask();
+                Asyncs = DispatchAsync(State, false);
+				Tasks = DispatchTask();
 
 				if (Asyncs != -1 || Tasks != -1)
 					continue;
@@ -7252,7 +7260,7 @@ namespace Tomahawk
 				if (Reconsume)
 				{
 					DispatchEvent();
-					DispatchTimer();
+					DispatchTimer(nullptr);
 				}
 				DispatchTask();
 			}
@@ -7312,7 +7320,7 @@ namespace Tomahawk
 
 			return Code;
 		}
-		int Schedule::DispatchTimer()
+		int Schedule::DispatchTimer(int64_t* When)
 		{
 			if (Timers.empty())
 				return -1;
@@ -7329,6 +7337,8 @@ namespace Tomahawk
 
 			if (It->first >= Clock)
 			{
+                if (When != nullptr)
+                    *When = It->first - Clock;
 				Race.Timers.unlock();
 				return 0;
 			}

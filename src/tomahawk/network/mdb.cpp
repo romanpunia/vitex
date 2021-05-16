@@ -1359,6 +1359,9 @@ namespace Tomahawk
 #endif
 			}
 
+            Collection::Collection() : Base(nullptr)
+            {
+            }
 			Collection::Collection(TCollection* NewBase) : Base(NewBase)
 			{
 			}

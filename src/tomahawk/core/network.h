@@ -282,20 +282,21 @@ namespace Tomahawk
 			static epoll_handle Handle;
 			static int64_t PipeTimeout;
 			static int ArraySize;
-			static bool Bound;
+            static bool Assigned;
 
 		public:
 			static void Create(int MaxEvents, int64_t Timeout);
 			static void Release();
-			static void Dispatch();
+            static void Assign(Core::Schedule* Queue);
+			static int Dispatch();
 			static int Listen(Socket* Value);
 			static int Unlisten(Socket* Value);
 			static int Dispatch(Socket* Value, int* Events, int64_t Time);
 			static int Poll(pollfd* Fd, int FdCount, int Timeout);
 			static int64_t Clock();
-
-		private:
-			static void Loop();
+            
+        private:
+            static void Resolve();
 		};
 
 		class TH_OUT SocketServer : public Core::Object

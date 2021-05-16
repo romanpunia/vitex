@@ -1189,20 +1189,6 @@ namespace Tomahawk
 				Base = nullptr;
 #endif
 			}
-			void Cursor::Receive(const std::function<bool(const Document&)>& Callback) const
-			{
-#ifdef TH_HAS_MONGOC
-				if (!Callback || !Base)
-					return;
-
-				TDocument* Query = nullptr;
-				while (mongoc_cursor_next(Base, (const TDocument**)&Query))
-				{
-					if (!Callback(Query))
-						break;
-				}
-#endif
-			}
 			void Cursor::SetMaxAwaitTime(uint64_t MaxAwaitTime)
 			{
 #ifdef TH_HAS_MONGOC
@@ -1239,18 +1225,6 @@ namespace Tomahawk
 				return false;
 #endif
 			}
-			bool Cursor::Next() const
-			{
-#ifdef TH_HAS_MONGOC
-				if (!Base)
-					return false;
-
-				TDocument* Query = nullptr;
-				return mongoc_cursor_next(Base, (const TDocument**)&Query);
-#else
-				return false;
-#endif
-			}
 			bool Cursor::HasError() const
 			{
 #ifdef TH_HAS_MONGOC
@@ -1271,6 +1245,34 @@ namespace Tomahawk
 				return mongoc_cursor_more(Base);
 #else
 				return false;
+#endif
+			}
+			bool Cursor::NextSync() const
+			{
+#ifdef TH_HAS_MONGOC
+				if (!Base)
+					return false;
+
+				TDocument* Query = nullptr;
+				return mongoc_cursor_next(Base, (const TDocument**)&Query);
+#else
+				return false;
+#endif
+			}
+			Core::Async<bool> Cursor::Next() const
+			{
+#ifdef TH_HAS_MONGOC
+				if (!Base)
+					return Core::Async<bool>::Store(false);
+
+				auto* Context = Base;
+				return Core::Async<bool>([Context](Core::Async<bool>& Future)
+				{
+					TDocument* Query = nullptr;
+					Future.Set(mongoc_cursor_next(Context, (const TDocument**)&Query));
+				});
+#else
+				return Core::Async<bool>::Store(false);
 #endif
 			}
 			int64_t Cursor::GetId() const
@@ -1677,7 +1679,7 @@ namespace Tomahawk
 					Cursor Subresult = MDB_EXEC_CUR(&mongoc_collection_aggregate, Context, MONGOC_QUERY_NONE, Pipeline.Get(), Options.Get(), nullptr);
 					Property Count;
 
-					if (Subresult.Next())
+					if (Subresult.NextSync())
 					{
 						Document Result = Subresult.GetCurrent();
 						if (Result.Get())
@@ -2050,7 +2052,39 @@ namespace Tomahawk
 				Base = nullptr;
 #endif
 			}
-			bool Watcher::Next(const Document& Result) const
+			Core::Async<bool> Watcher::Next(const Document& Result) const
+			{
+#ifdef TH_HAS_MONGOC
+				if (!Base || !Result.Get())
+					return Core::Async<bool>::Store(false);
+
+				auto* Context = Base;
+				return Core::Async<bool>([Context, Result](Core::Async<bool>& Future)
+				{
+					TDocument* Ptr = Result.Get();
+					Future.Set(mongoc_change_stream_next(Context, (const TDocument**)&Ptr));
+				});
+#else
+				return Core::Async<bool>::Store(false);
+#endif
+			}
+			Core::Async<bool> Watcher::Error(const Document& Result) const
+			{
+#ifdef TH_HAS_MONGOC
+				if (!Base || !Result.Get())
+					return Core::Async<bool>::Store(false);
+
+				auto* Context = Base;
+				return Core::Async<bool>([Context, Result](Core::Async<bool>& Future)
+				{
+					TDocument* Ptr = Result.Get();
+					Future.Set(mongoc_change_stream_error_document(Context, nullptr, (const TDocument**)&Ptr));
+				});
+#else
+				return Core::Async<bool>::Store(false);
+#endif
+			}
+			bool Watcher::NextSync(const Document& Result) const
 			{
 #ifdef TH_HAS_MONGOC
 				if (!Base || !Result.Get())
@@ -2062,7 +2096,7 @@ namespace Tomahawk
 				return false;
 #endif
 			}
-			bool Watcher::Error(const Document& Result) const
+			bool Watcher::ErrorSync(const Document& Result) const
 			{
 #ifdef TH_HAS_MONGOC
 				if (!Base || !Result.Get())

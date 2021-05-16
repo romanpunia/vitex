@@ -211,14 +211,14 @@ namespace Tomahawk
 				Cursor();
 				Cursor(TCursor* NewBase);
 				void Release();
-				void Receive(const std::function<bool(const Document&)>& Callback) const;
 				void SetMaxAwaitTime(uint64_t MaxAwaitTime);
 				void SetBatchSize(uint64_t BatchSize);
 				bool SetLimit(int64_t Limit);
 				bool SetHint(uint64_t Hint);
-				bool Next() const;
 				bool HasError() const;
 				bool HasMoreData() const;
+				bool NextSync() const;
+				Core::Async<bool> Next() const;
 				int64_t GetId() const;
 				int64_t GetLimit() const;
 				uint64_t GetMaxAwaitTime() const;
@@ -306,8 +306,10 @@ namespace Tomahawk
 			public:
 				Watcher(TWatcher* NewBase);
 				void Release();
-				bool Next(const Document& Result) const;
-				bool Error(const Document& Result) const;
+				Core::Async<bool> Next(const Document& Result) const;
+				Core::Async<bool> Error(const Document& Result) const;
+				bool NextSync(const Document& Result) const;
+				bool ErrorSync(const Document& Result) const;
 				TWatcher* Get() const;
 				operator bool() const
 				{

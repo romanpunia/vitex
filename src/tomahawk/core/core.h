@@ -2036,6 +2036,16 @@ namespace Tomahawk
             
             return State->Suspend();
         }
+		inline bool Cosleep(uint64_t Ms)
+		{
+			Async<bool> Result;
+			Schedule::Get()->SetTimeout(Ms, [Result]() mutable
+			{
+				Result.Set(true);
+			});
+
+			return Coawait(std::move(Result));
+		}
 	}
 }
 #endif

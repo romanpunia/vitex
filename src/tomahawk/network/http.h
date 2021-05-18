@@ -182,6 +182,7 @@ namespace Tomahawk
 				std::vector<Header> Headers;
 				std::vector<char> Buffer;
 				int StatusCode = -1;
+				bool Error = false;
 
 				void SetHeader(const char* Key, const char* Value);
 				void SetHeader(const char* Key, const std::string& Value);

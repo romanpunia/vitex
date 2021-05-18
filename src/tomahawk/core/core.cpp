@@ -265,14 +265,13 @@ namespace Tomahawk
 				{
 					if (prec != 0)
 					{
-						std::stringstream ss;
-						ss << "0.";
+						std::string Result = "0.";
 						for (int i = 1; i < prec; i++)
-							ss << "0";
+							Result += '0';
+						Result += '1';
 
-						ss << "1";
-						Decimal aus(ss.str());
-						*this = *this + aus;
+						Decimal Temp(Result);
+						*this = *this + Temp;
 					}
 					else
 						++(*this);
@@ -375,9 +374,9 @@ namespace Tomahawk
 			if (NaN || Source.empty())
 				return "NaN";
 
-			std::stringstream ss;
+			std::string Result;
 			if (Sign == '-')
-				ss << Sign;
+				Result += Sign;
 
 			int Offset = 0, Size = Length;
 			while ((Source[Offset] == '0') && (Size > 0))
@@ -388,46 +387,42 @@ namespace Tomahawk
 
 			for (int i = Source.size() - 1; i >= Offset; i--)
 			{
-				ss << Source[i];
+				Result += Source[i];
 				if ((i == Length) && (i != 0) && Offset != Length)
-					ss << ".";
+					Result += '.';
 			}
 
-			std::string var;
-			ss >> var;
-
-			return var;
+			return Result;
 		}
 		std::string Decimal::Exp() const
 		{
 			if (NaN)
 				return "NaN";
 
-			std::stringstream out;
-			int check = Decimal::CompareNum(*this, Decimal(1));
-			if (check == 0)
+			std::string Result;
+			int Compare = Decimal::CompareNum(*this, Decimal(1));
+			if (Compare == 0)
 			{
-				out << Sign;
-				out << "1e+0";
+				Result += Sign;
+				Result += "1e+0";
 			}
-
-			if (check == 1)
+			else if (Compare == 1)
 			{
-				out << Sign;
+				Result += Sign;
 				int i = Source.size() - 1;
-				out << Source[i];
+				Result += Source[i];
 				i--;
 
 				if (i > 0)
 				{
-					out << '.';
+					Result += '.';
 					for (; (i >= (int)Source.size() - 6) && (i >= 0); --i)
-						out << Source[i];
+						Result += Source[i];
 				}
-				out << "e+" << Ints() - 1;
+				Result += "e+";
+				Result += std::to_string(Ints() - 1);
 			}
-
-			if (check == 2)
+			else if (Compare == 2)
 			{
 				int exp = 0, count = Source.size() - 1;
 				while (count > 0 && Source[count] == '0')
@@ -438,22 +433,31 @@ namespace Tomahawk
 
 				if (count == 0)
 				{
-					if (Source[count] == '0')
-						out << "+0";
+					if (Source[count] != '0')
+					{
+						Result += Sign;
+						Result += Source[count];
+						Result += "e-";
+						Result += std::to_string(exp);
+					}
 					else
-						out << Sign << Source[count] << "e-" << exp;
+						Result += "+0";
 				}
 				else
 				{
-					out << Sign << Source[count] << '.';
-					for (int i = count - 1; (i >= (int)count - 5) && (i >= 0); --i)
-						out << Source[i];
+					Result += Sign;
+					Result += Source[count];
+					Result += '.';
 
-					out << "e-" << exp;
+					for (int i = count - 1; (i >= (int)count - 5) && (i >= 0); --i)
+						Result += Source[i];
+
+					Result += "e-";
+					Result += std::to_string(exp);
 				}
 			}
 
-			return out.str();
+			return Result;
 		}
 		int Decimal::Decimals() const
 		{

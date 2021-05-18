@@ -221,7 +221,7 @@ namespace Tomahawk
 			int64_t Finish = 0;
 			int64_t Timeout = 0;
 			int KeepAlive = 1;
-			bool Error = false;
+			bool Close = false;
 			bool Await = false;
 		};
 

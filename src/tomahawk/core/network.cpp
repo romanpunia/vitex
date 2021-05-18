@@ -915,7 +915,7 @@ namespace Tomahawk
 		bool SocketConnection::Error(int StatusCode, const char* ErrorMessage, ...)
 		{
 			char Buffer[8192];
-			if (Info.Error)
+			if (Info.Close)
 				return Finish();
 
 			va_list Args;
@@ -1561,7 +1561,7 @@ namespace Tomahawk
 			{
 				SocketConnection* Base = *It;
 				Base->Info.KeepAlive = 0;
-				Base->Info.Error = true;
+				Base->Info.Close = true;
 				Base->Stream->SetAsyncTimeout(1);
 				Base->Stream->SetTimeWait(1);
 			}
@@ -1767,7 +1767,7 @@ namespace Tomahawk
 			Base->Stream->Income = 0;
 			Base->Stream->Outcome = 0;
 
-			if (!Base->Info.Error && Base->Info.KeepAlive > -1 && Base->Stream->IsValid())
+			if (!Base->Info.Close && Base->Info.KeepAlive > -1 && Base->Stream->IsValid())
 				return OnRequestBegin(Base);
 
 			Base->Stream->Close(true);

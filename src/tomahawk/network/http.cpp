@@ -1210,9 +1210,9 @@ namespace Tomahawk
 				if (Response.StatusCode < 0 || Stream->Outcome > 0 || !Stream->IsValid())
 					return Root->Manage(this);
 
-				if (Response.StatusCode >= 400 && !Info.Error)
+				if (Response.StatusCode >= 400 && !Response.Error)
 				{
-					Info.Error = true;
+					Response.Error = true;
 					if (Route != nullptr)
 					{
 						for (auto& Page : Route->ErrorFiles)
@@ -4346,7 +4346,7 @@ namespace Tomahawk
 
 				const char* ContentType = Util::ContentType(Base->Request.Path, &Base->Route->MimeTypes);
 				const char* Range = Base->Request.GetHeader("Range");
-				const char* StatusMessage = Util::StatusMessage(Base->Info.Error ? Base->Response.StatusCode : Base->Response.StatusCode = 200);
+				const char* StatusMessage = Util::StatusMessage(Base->Response.StatusCode = 200);
 				int64_t Range1 = 0, Range2 = 0, Count = 0;
 				int64_t ContentLength = Base->Resource.Size;
 
@@ -4445,7 +4445,7 @@ namespace Tomahawk
 					return false;
 
 				const char* ContentType = Util::ContentType(Base->Request.Path, &Base->Route->MimeTypes);
-				const char* StatusMessage = Util::StatusMessage(Base->Info.Error ? Base->Response.StatusCode : Base->Response.StatusCode = 200);
+				const char* StatusMessage = Util::StatusMessage(Base->Response.StatusCode = 200);
 				int64_t ContentLength = Base->Resource.Size;
 
 				const char* Origin = Base->Request.GetHeader("Origin");
@@ -5201,8 +5201,9 @@ namespace Tomahawk
 				Base->Route = nullptr;
 				Base->Stream->Income = 0;
 				Base->Stream->Outcome = 0;
-				Base->Info.Error = (Base->Info.Error || Base->Response.StatusCode < 0);
+				Base->Info.Close = (Base->Info.Close || Base->Response.StatusCode < 0);
 				Base->Request.ContentState = Content_Not_Loaded;
+				Base->Response.Error = false;
 				Base->Response.StatusCode = -1;
 				Base->Response.Buffer.clear();
 				Base->Response.Cookies.clear();

@@ -1140,13 +1140,7 @@ namespace Tomahawk
                 if (It->events & EPOLLOUT)
                     Flags |= SocketEvent_Write;
 
-                if (It->events & EPOLLHUP)
-                    Flags |= SocketEvent_Close;
-
-                if (It->events & EPOLLRDHUP)
-                    Flags |= SocketEvent_Close;
-
-                if (It->events & EPOLLERR)
+                if (It->events & EPOLLHUP || It->events & EPOLLRDHUP || It->events & EPOLLERR)
                     Flags |= SocketEvent_Close;
 
                 Socket* Value = (Socket*)It->data.ptr;

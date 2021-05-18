@@ -117,6 +117,7 @@ typedef socklen_t socket_size_t;
 #define TH_ERROR(...)
 #endif
 #define TH_LOG(Format, ...) Tomahawk::Core::Debug::Log(0, TH_LINE, TH_FILE, Format, ##__VA_ARGS__)
+#define TH_STACKSIZE 64 * 1024
 #define TH_COUT extern "C" TH_OUT
 #define TH_MALLOC(Size) Tomahawk::Core::Mem::Malloc(Size)
 #define TH_NEW(Type, ...) new(TH_MALLOC(sizeof(Type))) Type(__VA_ARGS__)
@@ -1156,7 +1157,7 @@ namespace Tomahawk
 			size_t Size;
 
 		public:
-			Costate(size_t StackSize = 1024 * 1024);
+			Costate(size_t StackSize = TH_STACKSIZE);
 			virtual ~Costate() override;
 			Costate(const Costate&) = delete;
 			Costate(Costate&&) = delete;
@@ -1241,7 +1242,7 @@ namespace Tomahawk
 			bool SetEvent(const std::string& Name);
 			bool ClearListener(const std::string& Name, EventId ListenerId);
 			bool ClearTimeout(EventId TimerId);
-			bool Start(bool IsAsync, uint64_t Threads, uint64_t Coroutines = 16, uint64_t StackSize = 1024 * 1024);
+			bool Start(bool IsAsync, uint64_t Threads, uint64_t Coroutines = 16, uint64_t StackSize = TH_STACKSIZE);
 			bool Stop();
 			bool Dispatch();
 			bool IsBlockable();

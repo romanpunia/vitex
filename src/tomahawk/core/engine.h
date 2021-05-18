@@ -1222,7 +1222,7 @@ namespace Tomahawk
 				Graphics::Activity::Desc Activity;
 				std::string Environment;
 				std::string Directory;
-				uint64_t Stack = 1024 * 1024;
+				uint64_t Stack = TH_STACKSIZE;
 				uint64_t Coroutines = 16;
 				uint64_t Threads = 0;
 				double Framerate = 0;

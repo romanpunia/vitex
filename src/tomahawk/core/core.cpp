@@ -7230,9 +7230,9 @@ namespace Tomahawk
 			if (Asyncs.empty())
 				return -1;
 
-			std::queue<EventTask> Queue;
 			if (!State)
 			{
+				std::queue<EventTask> Queue;
 				Race.Asyncs.lock();
 				if (!Asyncs.empty())
 					Asyncs.swap(Queue);
@@ -7249,19 +7249,16 @@ namespace Tomahawk
 			}
 
 			Race.Asyncs.lock();
-			while (!Asyncs.empty() && Queue.size() < Coroutines)
+			int Code = (Asyncs.empty() ? -1 : 1);
+			while (!Asyncs.empty() && State->GetCount() < Coroutines)
 			{
-				Queue.push(Asyncs.front());
+				State->Pop(std::move(Asyncs.front()));
 				Asyncs.pop();
 			}
 			Race.Asyncs.unlock();
 
-			int Code = (Queue.empty() ? -1 : 1);
-			while (!Queue.empty())
-			{
-				State->Pop(std::move(Queue.front()));
-				Queue.pop();
-			}
+			if (!State->GetCount())
+				return Code;
 
 			while (State->Dispatch())
 			{
@@ -7270,7 +7267,18 @@ namespace Tomahawk
 					DispatchEvent();
 					DispatchTimer(nullptr);
 				}
+
 				DispatchTask();
+				if (!Asyncs.empty())
+				{
+					Race.Asyncs.lock();
+					while (State->GetCount() < Coroutines)
+					{
+						State->Pop(std::move(Asyncs.front()));
+						Asyncs.pop();
+					}
+					Race.Asyncs.unlock();
+				}
 			}
 
 			return Code;

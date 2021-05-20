@@ -242,7 +242,7 @@ namespace Tomahawk
             std::deque<char> Source;
             int Length;
             char Sign;
-            bool NaN;
+            bool Invalid;
             
         public:
             Decimal();
@@ -315,7 +315,7 @@ namespace Tomahawk
             static Decimal PreciseDiv(const Decimal& Left, const Decimal& Right, int Precision);
             static Decimal PreciseDiv(const Decimal& Left, const int& Right, int Precision);
             static Decimal PreciseDiv(const Decimal& Left, const double& Right, int Precision);
-            static Decimal Empty();
+            static Decimal NaN();
             
         private:
             static Decimal Sum(const Decimal& Left, const Decimal& Right);

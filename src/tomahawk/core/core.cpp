@@ -213,7 +213,7 @@ namespace Tomahawk
 			TH_DELETE(Cocontext, Switch);
 		}
 
-		Decimal::Decimal() : Length(0), Sign('\0'), NaN(true)
+		Decimal::Decimal() : Length(0), Sign('\0'), Invalid(true)
 		{
 		}
 		Decimal::Decimal(const char* Value)
@@ -232,15 +232,15 @@ namespace Tomahawk
 		{
 			*this = Value;
 		}
-		Decimal::Decimal(const Decimal& Value) : Source(Value.Source), Length(Value.Length), Sign(Value.Sign), NaN(Value.NaN)
+		Decimal::Decimal(const Decimal& Value) : Source(Value.Source), Length(Value.Length), Sign(Value.Sign), Invalid(Value.Invalid)
 		{
 		}
-		Decimal::Decimal(Decimal&& Value) : Source(std::move(Value.Source)), Length(Value.Length), Sign(Value.Sign), NaN(Value.NaN)
+		Decimal::Decimal(Decimal&& Value) : Source(std::move(Value.Source)), Length(Value.Length), Sign(Value.Sign), Invalid(Value.Invalid)
 		{
 		}
 		Decimal& Decimal::Precise(int prec)
 		{
-			if ((NaN) || (prec < 0))
+			if (Invalid || prec < 0)
 				return *this;
 
 			if (this->Length < prec)
@@ -298,7 +298,7 @@ namespace Tomahawk
 		}
 		Decimal& Decimal::Untrail()
 		{
-			if (NaN || Source.empty())
+			if (Invalid || Source.empty())
 				return *this;
 
 			while ((Source[0] == '0') && (Length > 0))
@@ -311,11 +311,11 @@ namespace Tomahawk
 		}
 		bool Decimal::IsNaN() const
 		{
-			return NaN;
+			return Invalid;
 		}
 		double Decimal::ToDouble() const
 		{
-			if (NaN)
+			if (Invalid)
 				return std::nan("");
 
 			double dec = 1;
@@ -343,7 +343,7 @@ namespace Tomahawk
 		}
 		float Decimal::ToFloat() const
 		{
-			if (NaN)
+			if (Invalid)
 				return std::nan("");
 
 			float dec = 1;
@@ -371,7 +371,7 @@ namespace Tomahawk
 		}
 		std::string Decimal::ToString() const
 		{
-			if (NaN || Source.empty())
+			if (Invalid || Source.empty())
 				return "NaN";
 
 			std::string Result;
@@ -396,7 +396,7 @@ namespace Tomahawk
 		}
 		std::string Decimal::Exp() const
 		{
-			if (NaN)
+			if (Invalid)
 				return "NaN";
 
 			std::string Result;
@@ -476,7 +476,7 @@ namespace Tomahawk
 			Source.clear();
 			Length = 0;
 			Sign = '\0';
-			NaN = 0;
+			Invalid = 0;
 
 			int count = 0;
 			if (strNum[count] == '+')
@@ -495,7 +495,7 @@ namespace Tomahawk
 			}
 			else
 			{
-				NaN = 1;
+				Invalid = 1;
 				return *this;
 			}
 
@@ -507,7 +507,7 @@ namespace Tomahawk
 					if (Source.empty())
 					{
 						Sign = '\0';
-						NaN = 1;
+						Invalid = 1;
 						return *this;
 					}
 
@@ -528,7 +528,7 @@ namespace Tomahawk
 					Sign = '\0';
 					Source.clear();
 					Length = 0;
-					NaN = 1;
+					Invalid = 1;
 					return *this;
 				}
 			}
@@ -556,7 +556,7 @@ namespace Tomahawk
 			Source = Value.Source;
 			Length = Value.Length;
 			Sign = Value.Sign;
-			NaN = Value.NaN;
+			Invalid = Value.Invalid;
 
 			return *this;
 		}
@@ -565,7 +565,7 @@ namespace Tomahawk
 			Source = std::move(Value.Source);
 			Length = Value.Length;
 			Sign = Value.Sign;
-			NaN = Value.NaN;
+			Invalid = Value.Invalid;
 
 			return *this;
 		}
@@ -591,7 +591,7 @@ namespace Tomahawk
 		}
 		bool Decimal::operator==(const Decimal& right) const
 		{
-			if ((NaN) || (right.NaN))
+			if (Invalid || right.Invalid)
 				return false;
 
 			int check = CompareNum(*this, right);
@@ -612,7 +612,7 @@ namespace Tomahawk
 		}
 		bool Decimal::operator!=(const Decimal& right) const
 		{
-			if ((NaN) || (right.NaN))
+			if (Invalid || right.Invalid)
 				return false;
 
 			return !(*this == right);
@@ -629,7 +629,7 @@ namespace Tomahawk
 		}
 		bool Decimal::operator>(const Decimal& right) const
 		{
-			if ((NaN) || (right.NaN))
+			if (Invalid || right.Invalid)
 				return false;
 
 			if (((Sign == '+') && (right.Sign == '+')))
@@ -664,7 +664,7 @@ namespace Tomahawk
 		}
 		bool Decimal::operator>=(const Decimal& right) const
 		{
-			if ((NaN) || (right.NaN))
+			if (Invalid || right.Invalid)
 				return false;
 
 			return !(*this < right);
@@ -681,7 +681,7 @@ namespace Tomahawk
 		}
 		bool Decimal::operator<(const Decimal& right) const
 		{
-			if ((NaN) || (right.NaN))
+			if (Invalid || right.Invalid)
 				return false;
 
 			if (((Sign == '+') && (right.Sign == '+')))
@@ -716,7 +716,7 @@ namespace Tomahawk
 		}
 		bool Decimal::operator<=(const Decimal& right) const
 		{
-			if ((NaN) || (right.NaN))
+			if (Invalid || right.Invalid)
 				return false;
 
 			return !(*this > right);
@@ -733,7 +733,7 @@ namespace Tomahawk
 		}
 		std::ostream& operator<<(std::ostream& out, const Decimal& right)
 		{
-			if (right.NaN)
+			if (right.Invalid)
 			{
 				out << "NaN";
 				return out;
@@ -760,7 +760,7 @@ namespace Tomahawk
 		Decimal operator+(const Decimal& left_, const Decimal& right_)
 		{
 			Decimal tmp;
-			if ((left_.NaN) || (right_.NaN))
+			if (left_.Invalid || right_.Invalid)
 				return tmp;
 
 			Decimal left, right;
@@ -799,7 +799,7 @@ namespace Tomahawk
 					tmp.Sign = '+';
 					tmp.Length = left.Length;
 					tmp.Unlead();
-					tmp.NaN = 0;
+					tmp.Invalid = 0;
 					return tmp;
 				}
 
@@ -809,7 +809,7 @@ namespace Tomahawk
 					tmp.Sign = '-';
 					tmp.Length = left.Length;
 					tmp.Unlead();
-					tmp.NaN = 0;
+					tmp.Invalid = 0;
 					return tmp;
 				}
 			}
@@ -829,7 +829,7 @@ namespace Tomahawk
 					tmp.Sign = '-';
 					tmp.Length = left.Length;
 					tmp.Unlead();
-					tmp.NaN = 0;
+					tmp.Invalid = 0;
 					return tmp;
 				}
 
@@ -839,7 +839,7 @@ namespace Tomahawk
 					tmp.Sign = '+';
 					tmp.Length = left.Length;
 					tmp.Unlead();
-					tmp.NaN = 0;
+					tmp.Invalid = 0;
 					return tmp;
 				}
 			}
@@ -849,7 +849,7 @@ namespace Tomahawk
 				tmp = Decimal::Sum(left, right);
 				tmp.Sign = '+';
 				tmp.Length = left.Length;
-				tmp.NaN = 0;
+				tmp.Invalid = 0;
 				return tmp;
 			}
 
@@ -858,7 +858,7 @@ namespace Tomahawk
 				tmp = Decimal::Sum(left, right);
 				tmp.Sign = '-';
 				tmp.Length = left.Length;
-				tmp.NaN = 0;
+				tmp.Invalid = 0;
 				return tmp;
 			}
 
@@ -879,7 +879,7 @@ namespace Tomahawk
 		Decimal operator-(const Decimal& left_, const Decimal& right_)
 		{
 			Decimal tmp;
-			if ((left_.NaN) || (right_.NaN))
+			if (left_.Invalid || right_.Invalid)
 				return tmp;
 
 			Decimal left, right;
@@ -887,24 +887,28 @@ namespace Tomahawk
 			right = right_;
 
 			if (left.Length > right.Length)
+			{
 				while (left.Length > right.Length)
 				{
 					right.Length++;
 					right.Source.push_front('0');
 				}
+			}
 			else if (left.Length < right.Length)
+			{
 				while (left.Length < right.Length)
 				{
 					left.Length++;
 					left.Source.push_front('0');
 				}
+			}
 
 			if ((left.Sign == '+') && (right.Sign == '-'))
 			{
 				tmp = Decimal::Sum(left, right);
 				tmp.Sign = '+';
 				tmp.Length = left.Length;
-				tmp.NaN = 0;
+				tmp.Invalid = 0;
 				return tmp;
 			}
 			if ((left.Sign == '-') && (right.Sign == '+'))
@@ -912,7 +916,7 @@ namespace Tomahawk
 				tmp = Decimal::Sum(left, right);
 				tmp.Sign = '-';
 				tmp.Length = left.Length;
-				tmp.NaN = 0;
+				tmp.Invalid = 0;
 				return tmp;
 			}
 
@@ -931,7 +935,7 @@ namespace Tomahawk
 					tmp.Sign = '+';
 					tmp.Length = left.Length;
 					tmp.Unlead();
-					tmp.NaN = 0;
+					tmp.Invalid = 0;
 					return tmp;
 				}
 
@@ -941,7 +945,7 @@ namespace Tomahawk
 					tmp.Sign = '-';
 					tmp.Length = left.Length;
 					tmp.Unlead();
-					tmp.NaN = 0;
+					tmp.Invalid = 0;
 					return tmp;
 				}
 			}
@@ -961,7 +965,7 @@ namespace Tomahawk
 					tmp.Sign = '-';
 					tmp.Length = left.Length;
 					tmp.Unlead();
-					tmp.NaN = 0;
+					tmp.Invalid = 0;
 					return tmp;
 				}
 
@@ -971,7 +975,7 @@ namespace Tomahawk
 					tmp.Sign = '+';
 					tmp.Length = left.Length;
 					tmp.Unlead();
-					tmp.NaN = 0;
+					tmp.Invalid = 0;
 					return tmp;
 				}
 			}
@@ -993,7 +997,7 @@ namespace Tomahawk
 		Decimal operator*(const Decimal& left, const Decimal& right)
 		{
 			Decimal tmp;
-			if ((left.NaN) || (right.NaN))
+			if (left.Invalid || right.Invalid)
 				return tmp;
 
 			tmp = Decimal::Multiply(left, right);
@@ -1003,7 +1007,7 @@ namespace Tomahawk
 				tmp.Sign = '-';
 
 			tmp.Length = left.Length + right.Length;
-			tmp.NaN = 0;
+			tmp.Invalid = 0;
 			tmp.Unlead();
 
 			return tmp;
@@ -1023,7 +1027,7 @@ namespace Tomahawk
 		Decimal operator/(const Decimal& left, const Decimal& right)
 		{
 			Decimal tmp;
-			if ((left.NaN) || (right.NaN))
+			if (left.Invalid || right.Invalid)
 				return tmp;
 
 			Decimal Q, R, D, N, zero;
@@ -1035,7 +1039,7 @@ namespace Tomahawk
 			N = (left > zero) ? (left) : (left * (-1));
 			D = (right > zero) ? (right) : (right * (-1));
 			R.Sign = '+';
-			R.NaN = 0;
+			R.Invalid = 0;
 
 			while ((N.Length != 0) || (D.Length != 0))
 			{
@@ -1126,7 +1130,7 @@ namespace Tomahawk
 				tmp.Sign = '-';
 
 			tmp.Length = div_precision;
-			tmp.NaN = 0;
+			tmp.Invalid = 0;
 			tmp.Unlead();
 
 			return tmp;
@@ -1146,7 +1150,7 @@ namespace Tomahawk
 		Decimal operator%(const Decimal& left, const Decimal& right)
 		{
 			Decimal tmp;
-			if ((left.NaN) || (right.NaN))
+			if (left.Invalid || right.Invalid)
 				return tmp;
 
 			if ((left.Length != 0) || (right.Length != 0))
@@ -1161,7 +1165,7 @@ namespace Tomahawk
 			N = (left > zero) ? (left) : (left * (-1));
 			D = (right > zero) ? (right) : (right * (-1));
 			R.Sign = '+';
-			R.NaN = 0;
+			R.Invalid = 0;
 
 			int check = Decimal::CompareNum(N, D);
 
@@ -1242,7 +1246,7 @@ namespace Tomahawk
 			if (!Decimal::CompareNum(tmp, zero))
 				tmp.Sign = '+';
 
-			tmp.NaN = 0;
+			tmp.Invalid = 0;
 			return tmp;
 		}
 		Decimal operator%(const Decimal& left, const int& int_right)
@@ -1263,7 +1267,7 @@ namespace Tomahawk
 			N = (left > zero) ? (left) : (left * (-1));
 			D = (right > zero) ? (right) : (right * (-1));
 			R.Sign = '+';
-			R.NaN = 0;
+			R.Invalid = 0;
 
 			while ((N.Length != 0) || (D.Length != 0))
 			{
@@ -1354,7 +1358,7 @@ namespace Tomahawk
 				tmp.Sign = '-';
 
 			tmp.Length = div_precision;
-			tmp.NaN = 0;
+			tmp.Invalid = 0;
 			tmp.Unlead();
 
 			return tmp;
@@ -1371,10 +1375,10 @@ namespace Tomahawk
 			right = double_right;
 			return Decimal::PreciseDiv(left, right, div_precision);
 		}
-		Decimal Decimal::Empty()
+		Decimal Decimal::NaN()
 		{
 			Decimal Result;
-			Result.NaN = true;
+			Result.Invalid = true;
 
 			return Result;
 		}
@@ -1675,7 +1679,7 @@ namespace Tomahawk
 		Decimal Variant::GetDecimal() const
 		{
 			if (Type != VarType_Decimal)
-				return Decimal::Empty();
+				return Decimal::NaN();
 
 			return *(Decimal*)Data;
 		}

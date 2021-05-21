@@ -5558,7 +5558,7 @@ namespace Tomahawk
 
 								return false;
 							}
-							else if (Subresult >= 0)
+							else if (Subresult >= 0 || Subresult == -2)
 							{
 								if (Response.Buffer.size() < MaxSize)
 									TextAppend(Response.Buffer, Buffer, Size);

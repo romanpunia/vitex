@@ -1313,7 +1313,7 @@ namespace Tomahawk
 			bool IsSaved() const;
 			int64_t Size() const;
 			std::string GetName() const;
-			void Join(Document* Other);
+			void Join(Document* Other, bool Copy = true, bool Fast = true);
 			void Clear();
 			void Save();
 

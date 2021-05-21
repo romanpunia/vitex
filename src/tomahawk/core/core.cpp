@@ -7272,7 +7272,7 @@ namespace Tomahawk
 				if (!Asyncs.empty())
 				{
 					Race.Asyncs.lock();
-					while (State->GetCount() < Coroutines)
+					while (!Asyncs.empty() && State->GetCount() < Coroutines)
 					{
 						State->Pop(std::move(Asyncs.front()));
 						Asyncs.pop();
@@ -7800,39 +7800,49 @@ namespace Tomahawk
 		{
 			return IsAttribute() ? Key.substr(1, Key.size() - 2) : Key;
 		}
-		void Document::Join(Document* Other)
+		void Document::Join(Document* Other, bool Copy, bool Fast)
 		{
-			if (!Other)
+			if (!Other || !Value.IsObject())
 				return;
 
-			for (auto& Node : Other->Nodes)
+			Saved = false;
+			Nodes.reserve(Nodes.size() + Other->Nodes.size());
+			if (Copy)
 			{
-				Document* Copy = Node->Copy();
-				Copy->Saved = false;
-				Copy->Parent = this;
-				Saved = false;
-
-				if (Value.Type == VarType_Array)
+				for (auto& Node : Other->Nodes)
 				{
-					Nodes.push_back(Copy);
-					continue;
-				}
+					Document* Result = Node->Copy();
+					Result->Saved = false;
+					Result->Parent = this;
+					Saved = false;
 
-				bool Exists = false;
-				for (auto It = Nodes.begin(); It != Nodes.end(); ++It)
+					if (Value.Type == VarType_Array && !Fast)
+					{
+						for (auto It = Nodes.begin(); It != Nodes.end(); ++It)
+						{
+							if ((*It)->Key == Result->Key)
+							{
+								(*It)->Parent = nullptr;
+								TH_RELEASE(*It);
+								*It = Result;
+								break;
+							}
+						}
+					}
+					else
+						Nodes.push_back(Result);
+				}
+			}
+			else
+			{
+				Nodes.insert(Nodes.end(), Other->Nodes.begin(), Other->Nodes.end());
+				Other->Nodes.clear();
+
+				for (auto& Node : Nodes)
 				{
-					if (!*It || (*It)->Key != Copy->Key)
-						continue;
-
-					(*It)->Parent = nullptr;
-					TH_RELEASE(*It);
-					*It = Copy;
-					Exists = true;
-					break;
+					Node->Saved = false;
+					Node->Parent = this;
 				}
-
-				if (!Exists)
-					Nodes.push_back(Copy);
 			}
 		}
 		void Document::Clear()

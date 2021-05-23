@@ -214,8 +214,11 @@ namespace Tomahawk
 		typedef std::unordered_map<std::string, Document*> DocumentArgs;
 		typedef std::function<void(VariantArgs&)> EventCallback;
 		typedef std::function<void()> TaskCallback;
-		typedef std::function<void(VarForm, const char*, int64_t)> NWriteCallback;
-		typedef std::function<bool(char*, int64_t)> NReadCallback;
+		typedef std::function<void(VarForm, const char*, int64_t)> DocWriteCallback;
+		typedef std::function<bool(char*, int64_t)> DocReadCallback;
+		typedef std::function<void*(size_t)> AllocCallback;
+		typedef std::function<void*(void*, size_t)> ReallocCallback;
+		typedef std::function<void(void*)> FreeCallback;
 		typedef TaskCallback EventTask;
 		typedef uint64_t EventId;
         typedef Decimal BigNumber;
@@ -716,32 +719,17 @@ namespace Tomahawk
 		class TH_OUT Mem
 		{
 		private:
-			struct MemoryPage
-			{
-				uint64_t Size;
-				bool Allocated;
-				char Data;
-			};
-
-		private:
-			static MemoryPage* Heap;
-			static std::mutex* Mutex;
-			static SpinLock Atom;
-			static uint64_t HeadSize;
-			static uint64_t HeapSize;
+			static AllocCallback OnAlloc;
+			static ReallocCallback OnRealloc;
+			static FreeCallback OnFree;
 
 		public:
-			static void Create(size_t InitialSize);
-			static void Release();
+			static void SetAlloc(const AllocCallback& Callback);
+			static void SetRealloc(const ReallocCallback& Callback);
+			static void SetFree(const FreeCallback& Callback);
 			static void* Malloc(size_t Size);
 			static void* Realloc(void* Ptr, size_t Size);
 			static void Free(void* Ptr);
-			static void Interrupt();
-
-		private:
-			static void ConcatSequentialPages(MemoryPage* Block, bool IsAllocated);
-			static MemoryPage* FindFirstPage(uint64_t MinSize);
-			static void SplitPage(MemoryPage* Block, uint64_t Size);
 		};
 
 		class TH_OUT OS
@@ -808,6 +796,7 @@ namespace Tomahawk
 			class TH_OUT Process
 			{
 			public:
+				static void Interrupt();
 				static void Execute(const char* Format, ...);
 				static bool Spawn(const std::string& Path, const std::vector<std::string>& Params, ChildProcess* Result);
 				static bool Await(ChildProcess* Process, int* ExitCode);
@@ -853,6 +842,7 @@ namespace Tomahawk
 			static void AttachStream();
 			static void DetachCallback();
 			static void DetachStream();
+			static void Pause();
 		};
 
 		class TH_OUT Composer
@@ -1208,7 +1198,7 @@ namespace Tomahawk
 			} Race;
 
 		private:
-			std::unordered_map<std::string, EventListener> Listeners;
+			std::unordered_map<std::string, EventListener*> Listeners;
 			std::map<int64_t, EventTimer> Timers;
 			std::queue<EventTask> Asyncs;
 			std::queue<EventTask> Tasks;
@@ -1320,18 +1310,18 @@ namespace Tomahawk
 		public:
 			static Document* Object();
 			static Document* Array();
-			static bool WriteXML(Document* Value, const NWriteCallback& Callback);
-			static bool WriteJSON(Document* Value, const NWriteCallback& Callback);
-			static bool WriteJSONB(Document* Value, const NWriteCallback& Callback);
-			static Document* ReadXML(int64_t Size, const NReadCallback& Callback, bool Assert = true);
-			static Document* ReadJSON(int64_t Size, const NReadCallback& Callback, bool Assert = true);
-			static Document* ReadJSONB(const NReadCallback& Callback, bool Assert = true);
+			static bool WriteXML(Document* Value, const DocWriteCallback& Callback);
+			static bool WriteJSON(Document* Value, const DocWriteCallback& Callback);
+			static bool WriteJSONB(Document* Value, const DocWriteCallback& Callback);
+			static Document* ReadXML(int64_t Size, const DocReadCallback& Callback, bool Assert = true);
+			static Document* ReadJSON(int64_t Size, const DocReadCallback& Callback, bool Assert = true);
+			static Document* ReadJSONB(const DocReadCallback& Callback, bool Assert = true);
 
 		private:
 			static bool ProcessXMLRead(void* Base, Document* Current);
 			static bool ProcessJSONRead(void* Base, Document* Current);
-			static bool ProcessJSONBWrite(Document* Current, std::unordered_map<std::string, uint64_t>* Map, const NWriteCallback& Callback);
-			static bool ProcessJSONBRead(Document* Current, std::unordered_map<uint64_t, std::string>* Map, const NReadCallback& Callback);
+			static bool ProcessJSONBWrite(Document* Current, std::unordered_map<std::string, uint64_t>* Map, const DocWriteCallback& Callback);
+			static bool ProcessJSONBRead(Document* Current, std::unordered_map<uint64_t, std::string>* Map, const DocReadCallback& Callback);
 			static bool ProcessNames(const Document* Current, std::unordered_map<std::string, uint64_t>* Map, uint64_t& Index);
 		};
 

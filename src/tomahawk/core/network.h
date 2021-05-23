@@ -91,7 +91,7 @@ namespace Tomahawk
 			{
 				std::mutex IO;
 				std::mutex Device;
-				std::atomic_uint32_t Events;
+				std::atomic<bool> Poll;
 				int64_t Time, Timeout;
 			} Sync;
 
@@ -298,7 +298,7 @@ namespace Tomahawk
 			static void Release();
             static void Assign(Core::Schedule* Queue);
 			static int Dispatch();
-			static int Listen(Socket* Value, uint32_t Events);
+			static int Listen(Socket* Value);
 			static int Unlisten(Socket* Value);
 			static int Dispatch(Socket* Value, int* Events, int64_t Time);
 			static int Poll(pollfd* Fd, int FdCount, int Timeout);

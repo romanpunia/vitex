@@ -1,6 +1,7 @@
 #include "components.h"
 #include "renderers.h"
 #include "../audio/effects.h"
+#include <cstddef>
 
 namespace Tomahawk
 {

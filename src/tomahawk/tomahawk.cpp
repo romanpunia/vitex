@@ -146,6 +146,38 @@ namespace Tomahawk
 		return false;
 #endif
 	}
+	bool Library::WithSIMD()
+	{
+#ifdef TH_WITH_SIMD
+		return true;
+#else
+		return false;
+#endif
+	}
+	bool Library::WithBullet3()
+	{
+#ifdef TH_WITH_BULLET3
+		return true;
+#else
+		return false;
+#endif
+	}
+	bool Library::WithRmlUi()
+	{
+#ifdef TH_WITH_RMLUI
+		return true;
+#else
+		return false;
+#endif
+	}
+	bool Library::WithWepoll()
+	{
+#ifdef TH_WITH_WEPOLL
+		return true;
+#else
+		return false;
+#endif
+	}
 	int Library::Version()
 	{
 		return TH_VERSION(TH_MAJOR_VERSION, TH_MINOR_VERSION, TH_PATCH_LEVEL);
@@ -240,19 +272,16 @@ namespace Tomahawk
 		return "OS with C/C++ support";
 	}
 
-	bool Initialize(unsigned int Modules, size_t HeapSize)
+	bool Initialize(unsigned int Modules)
 	{
 		State++;
 		if (State > 1)
 			return true;
 
-		if (HeapSize > 0)
-			Core::Mem::Create(HeapSize);
-
 		Modes = Modules;
 		if (Modes & TInit_Core)
 		{
-			if (Modes & TInit_Logger)
+			if (Modes & TInit_Debug)
 				Core::Debug::AttachStream();
 		}
 
@@ -438,7 +467,9 @@ namespace Tomahawk
 #elif OPENSSL_VERSION_NUMBER < 0x10000000L
             ERR_remove_state(0);
 #endif
+#ifdef SSL_COMP_free_compression_methods
 			SSL_COMP_free_compression_methods();
+#endif
 			ENGINE_cleanup();
 			CONF_modules_free();
 			CONF_modules_unload(1);
@@ -478,11 +509,10 @@ namespace Tomahawk
 
 		Script::VMManager::FreeProxy();
 		Core::Composer::Clear();
-		Core::Mem::Release();
 
 		if (Modes & TInit_Core)
 		{
-			if (Modes & TInit_Logger)
+			if (Modes & TInit_Debug)
 				Core::Debug::DetachStream();
 		}
 #ifdef TH_HAS_ASSIMP

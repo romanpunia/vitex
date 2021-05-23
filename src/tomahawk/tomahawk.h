@@ -31,7 +31,7 @@ namespace Tomahawk
 	enum TInit
 	{
 		TInit_Core = 1,
-		TInit_Logger = 2,
+		TInit_Debug = 2,
 		TInit_Network = 4,
 		TInit_SSL = 8,
 		TInit_SDL2 = 16,
@@ -43,24 +43,8 @@ namespace Tomahawk
 
 	enum TPreset
 	{
-		TPreset_Game = (TInit_Core | TInit_Logger | TInit_Network | TInit_SSL | TInit_SDL2 | TInit_Compute | TInit_Locale | TInit_Audio | TInit_GLEW),
-		TPreset_App = (TInit_Core | TInit_Logger | TInit_Network | TInit_SSL | TInit_Compute | TInit_Locale)
-	};
-
-	enum TMem
-	{
-		TMem_Heap = 0,
-		TMem_1MB = 1024 * 1024 * 1,
-		TMem_2MB = 1024 * 1024 * 2,
-		TMem_4MB = 1024 * 1024 * 4,
-		TMem_8MB = 1024 * 1024 * 8,
-		TMem_16MB = 1024 * 1024 * 16,
-		TMem_32MB = 1024 * 1024 * 32,
-		TMem_64MB = 1024 * 1024 * 64,
-		TMem_128MB = 1024 * 1024 * 128,
-		TMem_256MB = 1024 * 1024 * 256,
-		TMem_512MB = 1024 * 1024 * 512,
-		TMem_1GB = 1024 * 1024 * 1024
+		TPreset_Game = (TInit_Core | TInit_Debug | TInit_Network | TInit_SSL | TInit_SDL2 | TInit_Compute | TInit_Locale | TInit_Audio | TInit_GLEW),
+		TPreset_App = (TInit_Core | TInit_Debug | TInit_Network | TInit_SSL | TInit_Compute | TInit_Locale)
 	};
 
 	class TH_OUT Library
@@ -77,6 +61,10 @@ namespace Tomahawk
 		static bool HasPostgreSQL();
 		static bool HasOpenAL();
 		static bool HasSDL2();
+		static bool WithSIMD();
+		static bool WithBullet3();
+		static bool WithRmlUi();
+		static bool WithWepoll();
 		static int Version();
 		static int DebugLevel();
 		static int Architecture();
@@ -85,7 +73,7 @@ namespace Tomahawk
 		static const char* Platform();
 	};
 
-	TH_OUT bool Initialize(unsigned int Modules = TPreset_App, size_t HeapSize = TMem_Heap);
+	TH_OUT bool Initialize(unsigned int Modules = TPreset_App);
 	TH_OUT bool Uninitialize();
 }
 #endif

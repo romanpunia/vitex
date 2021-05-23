@@ -18,7 +18,6 @@ Tomahawk is a cross-platform C++14 framework to create any type of application f
 + Switchable logging system
 + Adaptable dependency system
 + Fast spinlock mutex without CPU time wasting
-+ Switchable thread-safe fixed-size memory pool (malloc, realloc, free)
 + Ref. counting (opt. with new/delete) for ownership management
 + Coroutines via native fibers
 + Async/await promise-like object to handle chains of async data

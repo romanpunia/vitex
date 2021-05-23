@@ -5025,7 +5025,7 @@ namespace Tomahawk
 		}
 		Cipher Ciphers::DES_EDE3_Wrap()
 		{
-#ifdef TH_HAS_OPENSSL
+#if TH_HAS_OPENSSL && OPENSSL_VERSION_NUMBER >= 0x1010000fL
 #ifndef OPENSSL_NO_DES
 			return (Cipher)EVP_des_ede3_wrap();
 #else
@@ -5433,7 +5433,7 @@ namespace Tomahawk
 		}
 		Cipher Ciphers::AES_128_Wrap()
 		{
-#ifdef TH_HAS_OPENSSL
+#if TH_HAS_OPENSSL && OPENSSL_VERSION_NUMBER >= 0x1010000fL
 			return (Cipher)EVP_aes_128_wrap();
 #else
 			return nullptr;
@@ -5441,7 +5441,7 @@ namespace Tomahawk
 		}
 		Cipher Ciphers::AES_128_WrapPad()
 		{
-#ifdef TH_HAS_OPENSSL
+#if TH_HAS_OPENSSL && OPENSSL_VERSION_NUMBER >= 0x1010000fL
 			return (Cipher)EVP_aes_128_wrap_pad();
 #else
 			return nullptr;
@@ -5449,7 +5449,7 @@ namespace Tomahawk
 		}
 		Cipher Ciphers::AES_128_OCB()
 		{
-#ifdef TH_HAS_OPENSSL
+#if TH_HAS_OPENSSL && OPENSSL_VERSION_NUMBER >= 0x1010000fL
 #ifndef OPENSSL_NO_OCB
 			return (Cipher)EVP_aes_128_ocb();
 #else
@@ -5533,7 +5533,7 @@ namespace Tomahawk
 		}
 		Cipher Ciphers::AES_192_Wrap()
 		{
-#ifdef TH_HAS_OPENSSL
+#if TH_HAS_OPENSSL && OPENSSL_VERSION_NUMBER >= 0x1010000fL
 			return (Cipher)EVP_aes_192_wrap();
 #else
 			return nullptr;
@@ -5541,7 +5541,7 @@ namespace Tomahawk
 		}
 		Cipher Ciphers::AES_192_WrapPad()
 		{
-#ifdef TH_HAS_OPENSSL
+#if TH_HAS_OPENSSL && OPENSSL_VERSION_NUMBER >= 0x1010000fL
 			return (Cipher)EVP_aes_192_wrap_pad();
 #else
 			return nullptr;
@@ -5549,7 +5549,7 @@ namespace Tomahawk
 		}
 		Cipher Ciphers::AES_192_OCB()
 		{
-#ifdef TH_HAS_OPENSSL
+#if TH_HAS_OPENSSL && OPENSSL_VERSION_NUMBER >= 0x1010000fL
 #ifndef OPENSSL_NO_OCB
 			return (Cipher)EVP_aes_192_ocb();
 #else
@@ -5641,7 +5641,7 @@ namespace Tomahawk
 		}
 		Cipher Ciphers::AES_256_Wrap()
 		{
-#ifdef TH_HAS_OPENSSL
+#if TH_HAS_OPENSSL && OPENSSL_VERSION_NUMBER >= 0x1010000fL
 			return (Cipher)EVP_aes_256_wrap();
 #else
 			return nullptr;
@@ -5649,7 +5649,7 @@ namespace Tomahawk
 		}
 		Cipher Ciphers::AES_256_WrapPad()
 		{
-#ifdef TH_HAS_OPENSSL
+#if TH_HAS_OPENSSL && OPENSSL_VERSION_NUMBER >= 0x1010000fL
 			return (Cipher)EVP_aes_256_wrap_pad();
 #else
 			return nullptr;
@@ -5657,7 +5657,7 @@ namespace Tomahawk
 		}
 		Cipher Ciphers::AES_256_OCB()
 		{
-#ifdef TH_HAS_OPENSSL
+#if TH_HAS_OPENSSL && OPENSSL_VERSION_NUMBER >= 0x1010000fL
 #ifndef OPENSSL_NO_OCB
 			return (Cipher)EVP_aes_256_ocb();
 #else
@@ -5685,7 +5685,7 @@ namespace Tomahawk
 		}
 		Cipher Ciphers::AES_128_CBC_HMAC_SHA256()
 		{
-#ifdef TH_HAS_OPENSSL
+#if TH_HAS_OPENSSL && OPENSSL_VERSION_NUMBER >= 0x1010000fL
 			return (Cipher)EVP_aes_128_cbc_hmac_sha256();
 #else
 			return nullptr;
@@ -5693,7 +5693,7 @@ namespace Tomahawk
 		}
 		Cipher Ciphers::AES_256_CBC_HMAC_SHA256()
 		{
-#ifdef TH_HAS_OPENSSL
+#if TH_HAS_OPENSSL && OPENSSL_VERSION_NUMBER >= 0x1010000fL
 			return (Cipher)EVP_aes_256_cbc_hmac_sha256();
 #else
 			return nullptr;
@@ -5701,7 +5701,7 @@ namespace Tomahawk
 		}
 		Cipher Ciphers::ARIA_128_ECB()
 		{
-#ifdef TH_HAS_OPENSSL
+#if TH_HAS_OPENSSL && OPENSSL_VERSION_NUMBER >= 0x1010000fL
 #ifndef OPENSSL_NO_ARIA
 			return (Cipher)EVP_aria_128_ecb();
 #else
@@ -5713,7 +5713,7 @@ namespace Tomahawk
 		}
 		Cipher Ciphers::ARIA_128_CBC()
 		{
-#ifdef TH_HAS_OPENSSL
+#if TH_HAS_OPENSSL && OPENSSL_VERSION_NUMBER >= 0x1010000fL
 #ifndef OPENSSL_NO_ARIA
 			return (Cipher)EVP_aria_128_cbc();
 #else
@@ -5725,7 +5725,7 @@ namespace Tomahawk
 		}
 		Cipher Ciphers::ARIA_128_CFB1()
 		{
-#ifdef TH_HAS_OPENSSL
+#if TH_HAS_OPENSSL && OPENSSL_VERSION_NUMBER >= 0x1010000fL
 #ifndef OPENSSL_NO_ARIA
 			return (Cipher)EVP_aria_128_cfb1();
 #else
@@ -5737,7 +5737,7 @@ namespace Tomahawk
 		}
 		Cipher Ciphers::ARIA_128_CFB8()
 		{
-#ifdef TH_HAS_OPENSSL
+#if TH_HAS_OPENSSL && OPENSSL_VERSION_NUMBER >= 0x1010000fL
 #ifndef OPENSSL_NO_ARIA
 			return (Cipher)EVP_aria_128_cfb8();
 #else
@@ -5749,7 +5749,7 @@ namespace Tomahawk
 		}
 		Cipher Ciphers::ARIA_128_CFB128()
 		{
-#ifdef TH_HAS_OPENSSL
+#if TH_HAS_OPENSSL && OPENSSL_VERSION_NUMBER >= 0x1010000fL
 #ifndef OPENSSL_NO_ARIA
 			return (Cipher)EVP_aria_128_cfb128();
 #else
@@ -5761,7 +5761,7 @@ namespace Tomahawk
 		}
 		Cipher Ciphers::ARIA_128_CTR()
 		{
-#ifdef TH_HAS_OPENSSL
+#if TH_HAS_OPENSSL && OPENSSL_VERSION_NUMBER >= 0x1010000fL
 #ifndef OPENSSL_NO_ARIA
 			return (Cipher)EVP_aria_128_ctr();
 #else
@@ -5773,7 +5773,7 @@ namespace Tomahawk
 		}
 		Cipher Ciphers::ARIA_128_OFB()
 		{
-#ifdef TH_HAS_OPENSSL
+#if TH_HAS_OPENSSL && OPENSSL_VERSION_NUMBER >= 0x1010000fL
 #ifndef OPENSSL_NO_ARIA
 			return (Cipher)EVP_aria_128_ofb();
 #else
@@ -5785,7 +5785,7 @@ namespace Tomahawk
 		}
 		Cipher Ciphers::ARIA_128_GCM()
 		{
-#ifdef TH_HAS_OPENSSL
+#if TH_HAS_OPENSSL && OPENSSL_VERSION_NUMBER >= 0x1010000fL
 #ifndef OPENSSL_NO_ARIA
 			return (Cipher)EVP_aria_128_gcm();
 #else
@@ -5797,7 +5797,7 @@ namespace Tomahawk
 		}
 		Cipher Ciphers::ARIA_128_CCM()
 		{
-#ifdef TH_HAS_OPENSSL
+#if TH_HAS_OPENSSL && OPENSSL_VERSION_NUMBER >= 0x1010000fL
 #ifndef OPENSSL_NO_ARIA
 			return (Cipher)EVP_aria_128_ccm();
 #else
@@ -5809,7 +5809,7 @@ namespace Tomahawk
 		}
 		Cipher Ciphers::ARIA_192_ECB()
 		{
-#ifdef TH_HAS_OPENSSL
+#if TH_HAS_OPENSSL && OPENSSL_VERSION_NUMBER >= 0x1010000fL
 #ifndef OPENSSL_NO_ARIA
 			return (Cipher)EVP_aria_192_ecb();
 #else
@@ -5821,7 +5821,7 @@ namespace Tomahawk
 		}
 		Cipher Ciphers::ARIA_192_CBC()
 		{
-#ifdef TH_HAS_OPENSSL
+#if TH_HAS_OPENSSL && OPENSSL_VERSION_NUMBER >= 0x1010000fL
 #ifndef OPENSSL_NO_ARIA
 			return (Cipher)EVP_aria_192_cbc();
 #else
@@ -5833,7 +5833,7 @@ namespace Tomahawk
 		}
 		Cipher Ciphers::ARIA_192_CFB1()
 		{
-#ifdef TH_HAS_OPENSSL
+#if TH_HAS_OPENSSL && OPENSSL_VERSION_NUMBER >= 0x1010000fL
 #ifndef OPENSSL_NO_ARIA
 			return (Cipher)EVP_aria_192_cfb1();
 #else
@@ -5845,7 +5845,7 @@ namespace Tomahawk
 		}
 		Cipher Ciphers::ARIA_192_CFB8()
 		{
-#ifdef TH_HAS_OPENSSL
+#if TH_HAS_OPENSSL && OPENSSL_VERSION_NUMBER >= 0x1010000fL
 #ifndef OPENSSL_NO_ARIA
 			return (Cipher)EVP_aria_192_cfb8();
 #else
@@ -5857,7 +5857,7 @@ namespace Tomahawk
 		}
 		Cipher Ciphers::ARIA_192_CFB128()
 		{
-#ifdef TH_HAS_OPENSSL
+#if TH_HAS_OPENSSL && OPENSSL_VERSION_NUMBER >= 0x1010000fL
 #ifndef OPENSSL_NO_ARIA
 			return (Cipher)EVP_aria_192_cfb128();
 #else
@@ -5869,7 +5869,7 @@ namespace Tomahawk
 		}
 		Cipher Ciphers::ARIA_192_CTR()
 		{
-#ifdef TH_HAS_OPENSSL
+#if TH_HAS_OPENSSL && OPENSSL_VERSION_NUMBER >= 0x1010000fL
 #ifndef OPENSSL_NO_ARIA
 			return (Cipher)EVP_aria_192_ctr();
 #else
@@ -5881,7 +5881,7 @@ namespace Tomahawk
 		}
 		Cipher Ciphers::ARIA_192_OFB()
 		{
-#ifdef TH_HAS_OPENSSL
+#if TH_HAS_OPENSSL && OPENSSL_VERSION_NUMBER >= 0x1010000fL
 #ifndef OPENSSL_NO_ARIA
 			return (Cipher)EVP_aria_192_ofb();
 #else
@@ -5893,7 +5893,7 @@ namespace Tomahawk
 		}
 		Cipher Ciphers::ARIA_192_GCM()
 		{
-#ifdef TH_HAS_OPENSSL
+#if TH_HAS_OPENSSL && OPENSSL_VERSION_NUMBER >= 0x1010000fL
 #ifndef OPENSSL_NO_ARIA
 			return (Cipher)EVP_aria_192_gcm();
 #else
@@ -5905,7 +5905,7 @@ namespace Tomahawk
 		}
 		Cipher Ciphers::ARIA_192_CCM()
 		{
-#ifdef TH_HAS_OPENSSL
+#if TH_HAS_OPENSSL && OPENSSL_VERSION_NUMBER >= 0x1010000fL
 #ifndef OPENSSL_NO_ARIA
 			return (Cipher)EVP_aria_192_ccm();
 #else
@@ -5917,7 +5917,7 @@ namespace Tomahawk
 		}
 		Cipher Ciphers::ARIA_256_ECB()
 		{
-#ifdef TH_HAS_OPENSSL
+#if TH_HAS_OPENSSL && OPENSSL_VERSION_NUMBER >= 0x1010000fL
 #ifndef OPENSSL_NO_ARIA
 			return (Cipher)EVP_aria_256_ecb();
 #else
@@ -5929,7 +5929,7 @@ namespace Tomahawk
 		}
 		Cipher Ciphers::ARIA_256_CBC()
 		{
-#ifdef TH_HAS_OPENSSL
+#if TH_HAS_OPENSSL && OPENSSL_VERSION_NUMBER >= 0x1010000fL
 #ifndef OPENSSL_NO_ARIA
 			return (Cipher)EVP_aria_256_cbc();
 #else
@@ -5941,7 +5941,7 @@ namespace Tomahawk
 		}
 		Cipher Ciphers::ARIA_256_CFB1()
 		{
-#ifdef TH_HAS_OPENSSL
+#if TH_HAS_OPENSSL && OPENSSL_VERSION_NUMBER >= 0x1010000fL
 #ifndef OPENSSL_NO_ARIA
 			return (Cipher)EVP_aria_256_cfb1();
 #else
@@ -5953,7 +5953,7 @@ namespace Tomahawk
 		}
 		Cipher Ciphers::ARIA_256_CFB8()
 		{
-#ifdef TH_HAS_OPENSSL
+#if TH_HAS_OPENSSL && OPENSSL_VERSION_NUMBER >= 0x1010000fL
 #ifndef OPENSSL_NO_ARIA
 			return (Cipher)EVP_aria_256_cfb8();
 #else
@@ -5965,7 +5965,7 @@ namespace Tomahawk
 		}
 		Cipher Ciphers::ARIA_256_CFB128()
 		{
-#ifdef TH_HAS_OPENSSL
+#if TH_HAS_OPENSSL && OPENSSL_VERSION_NUMBER >= 0x1010000fL
 #ifndef OPENSSL_NO_ARIA
 			return (Cipher)EVP_aria_256_cfb128();
 #else
@@ -5977,7 +5977,7 @@ namespace Tomahawk
 		}
 		Cipher Ciphers::ARIA_256_CTR()
 		{
-#ifdef TH_HAS_OPENSSL
+#if TH_HAS_OPENSSL && OPENSSL_VERSION_NUMBER >= 0x1010000fL
 #ifndef OPENSSL_NO_ARIA
 			return (Cipher)EVP_aria_256_ctr();
 #else
@@ -5989,7 +5989,7 @@ namespace Tomahawk
 		}
 		Cipher Ciphers::ARIA_256_OFB()
 		{
-#ifdef TH_HAS_OPENSSL
+#if TH_HAS_OPENSSL && OPENSSL_VERSION_NUMBER >= 0x1010000fL
 #ifndef OPENSSL_NO_ARIA
 			return (Cipher)EVP_aria_256_ofb();
 #else
@@ -6001,7 +6001,7 @@ namespace Tomahawk
 		}
 		Cipher Ciphers::ARIA_256_GCM()
 		{
-#ifdef TH_HAS_OPENSSL
+#if TH_HAS_OPENSSL && OPENSSL_VERSION_NUMBER >= 0x1010000fL
 #ifndef OPENSSL_NO_ARIA
 			return (Cipher)EVP_aria_256_gcm();
 #else
@@ -6013,7 +6013,7 @@ namespace Tomahawk
 		}
 		Cipher Ciphers::ARIA_256_CCM()
 		{
-#ifdef TH_HAS_OPENSSL
+#if TH_HAS_OPENSSL && OPENSSL_VERSION_NUMBER >= 0x1010000fL
 #ifndef OPENSSL_NO_ARIA
 			return (Cipher)EVP_aria_256_ccm();
 #else
@@ -6097,7 +6097,7 @@ namespace Tomahawk
 		}
 		Cipher Ciphers::Camellia_128_CTR()
 		{
-#ifdef TH_HAS_OPENSSL
+#if TH_HAS_OPENSSL && OPENSSL_VERSION_NUMBER >= 0x1010000fL
 #ifndef OPENSSL_NO_CAMELLIA
 			return (Cipher)EVP_camellia_128_ctr();
 #else
@@ -6181,7 +6181,7 @@ namespace Tomahawk
 		}
 		Cipher Ciphers::Camellia_192_CTR()
 		{
-#ifdef TH_HAS_OPENSSL
+#if TH_HAS_OPENSSL && OPENSSL_VERSION_NUMBER >= 0x1010000fL
 #ifndef OPENSSL_NO_CAMELLIA
 			return (Cipher)EVP_camellia_192_ctr();
 #else
@@ -6265,7 +6265,7 @@ namespace Tomahawk
 		}
 		Cipher Ciphers::Camellia_256_CTR()
 		{
-#ifdef TH_HAS_OPENSSL
+#if TH_HAS_OPENSSL && OPENSSL_VERSION_NUMBER >= 0x1010000fL
 #ifndef OPENSSL_NO_CAMELLIA
 			return (Cipher)EVP_camellia_256_ctr();
 #else
@@ -6277,7 +6277,7 @@ namespace Tomahawk
 		}
 		Cipher Ciphers::Chacha20()
 		{
-#ifdef TH_HAS_OPENSSL
+#if TH_HAS_OPENSSL && OPENSSL_VERSION_NUMBER >= 0x1010000fL
 #ifndef OPENSSL_NO_CHACHA
 			return (Cipher)EVP_chacha20();
 #else
@@ -6289,7 +6289,7 @@ namespace Tomahawk
 		}
 		Cipher Ciphers::Chacha20_Poly1305()
 		{
-#ifdef TH_HAS_OPENSSL
+#if TH_HAS_OPENSSL && OPENSSL_VERSION_NUMBER >= 0x1010000fL
 #ifndef OPENSSL_NO_CHACHA
 #ifndef OPENSSL_NO_POLY1305
 			return (Cipher)EVP_chacha20_poly1305();
@@ -6353,7 +6353,7 @@ namespace Tomahawk
 		}
 		Cipher Ciphers::SM4_ECB()
 		{
-#ifdef TH_HAS_OPENSSL
+#if TH_HAS_OPENSSL && OPENSSL_VERSION_NUMBER >= 0x1010000fL
 #ifndef OPENSSL_NO_SM4
 			return (Cipher)EVP_sm4_ecb();
 #else
@@ -6365,7 +6365,7 @@ namespace Tomahawk
 		}
 		Cipher Ciphers::SM4_CBC()
 		{
-#ifdef TH_HAS_OPENSSL
+#if TH_HAS_OPENSSL && OPENSSL_VERSION_NUMBER >= 0x1010000fL
 #ifndef OPENSSL_NO_SM4
 			return (Cipher)EVP_sm4_cbc();
 #else
@@ -6377,7 +6377,7 @@ namespace Tomahawk
 		}
 		Cipher Ciphers::SM4_CFB128()
 		{
-#ifdef TH_HAS_OPENSSL
+#if TH_HAS_OPENSSL && OPENSSL_VERSION_NUMBER >= 0x1010000fL
 #ifndef OPENSSL_NO_SM4
 			return (Cipher)EVP_sm4_cfb128();
 #else
@@ -6389,7 +6389,7 @@ namespace Tomahawk
 		}
 		Cipher Ciphers::SM4_OFB()
 		{
-#ifdef TH_HAS_OPENSSL
+#if TH_HAS_OPENSSL && OPENSSL_VERSION_NUMBER >= 0x1010000fL
 #ifndef OPENSSL_NO_SM4
 			return (Cipher)EVP_sm4_ofb();
 #else
@@ -6401,7 +6401,7 @@ namespace Tomahawk
 		}
 		Cipher Ciphers::SM4_CTR()
 		{
-#ifdef TH_HAS_OPENSSL
+#if TH_HAS_OPENSSL && OPENSSL_VERSION_NUMBER >= 0x1010000fL
 #ifndef OPENSSL_NO_SM4
 			return (Cipher)EVP_sm4_ctr();
 #else
@@ -6450,7 +6450,7 @@ namespace Tomahawk
 		}
 		Digest Digests::MD5_SHA1()
 		{
-#ifdef TH_HAS_OPENSSL
+#if TH_HAS_OPENSSL && OPENSSL_VERSION_NUMBER >= 0x1010000fL
 #ifndef OPENSSL_NO_MD5
 			return (Cipher)EVP_md5_sha1();
 #else
@@ -6462,7 +6462,7 @@ namespace Tomahawk
 		}
 		Digest Digests::Blake2B512()
 		{
-#ifdef TH_HAS_OPENSSL
+#if TH_HAS_OPENSSL && OPENSSL_VERSION_NUMBER >= 0x1010000fL
 #ifndef OPENSSL_NO_BLAKE2
 			return (Cipher)EVP_blake2b512();
 #else
@@ -6474,7 +6474,7 @@ namespace Tomahawk
 		}
 		Digest Digests::Blake2S256()
 		{
-#ifdef TH_HAS_OPENSSL
+#if TH_HAS_OPENSSL && OPENSSL_VERSION_NUMBER >= 0x1010000fL
 #ifndef OPENSSL_NO_BLAKE2
 			return (Cipher)EVP_blake2s256();
 #else
@@ -6526,7 +6526,7 @@ namespace Tomahawk
 		}
 		Digest Digests::SHA512_224()
 		{
-#ifdef TH_HAS_OPENSSL
+#if TH_HAS_OPENSSL && OPENSSL_VERSION_NUMBER >= 0x1010000fL
 			return (Cipher)EVP_sha512_224();
 #else
 			return nullptr;
@@ -6534,7 +6534,7 @@ namespace Tomahawk
 		}
 		Digest Digests::SHA512_256()
 		{
-#ifdef TH_HAS_OPENSSL
+#if TH_HAS_OPENSSL && OPENSSL_VERSION_NUMBER >= 0x1010000fL
 			return (Cipher)EVP_sha512_256();
 #else
 			return nullptr;
@@ -6542,7 +6542,7 @@ namespace Tomahawk
 		}
 		Digest Digests::SHA3_224()
 		{
-#ifdef TH_HAS_OPENSSL
+#if TH_HAS_OPENSSL && OPENSSL_VERSION_NUMBER >= 0x1010000fL
 			return (Cipher)EVP_sha3_224();
 #else
 			return nullptr;
@@ -6550,7 +6550,7 @@ namespace Tomahawk
 		}
 		Digest Digests::SHA3_256()
 		{
-#ifdef TH_HAS_OPENSSL
+#if TH_HAS_OPENSSL && OPENSSL_VERSION_NUMBER >= 0x1010000fL
 			return (Cipher)EVP_sha3_256();
 #else
 			return nullptr;
@@ -6558,7 +6558,7 @@ namespace Tomahawk
 		}
 		Digest Digests::SHA3_384()
 		{
-#ifdef TH_HAS_OPENSSL
+#if TH_HAS_OPENSSL && OPENSSL_VERSION_NUMBER >= 0x1010000fL
 			return (Cipher)EVP_sha3_384();
 #else
 			return nullptr;
@@ -6566,7 +6566,7 @@ namespace Tomahawk
 		}
 		Digest Digests::SHA3_512()
 		{
-#ifdef TH_HAS_OPENSSL
+#if TH_HAS_OPENSSL && OPENSSL_VERSION_NUMBER >= 0x1010000fL
 			return (Cipher)EVP_sha3_512();
 #else
 			return nullptr;
@@ -6574,7 +6574,7 @@ namespace Tomahawk
 		}
 		Digest Digests::Shake128()
 		{
-#ifdef TH_HAS_OPENSSL
+#if TH_HAS_OPENSSL && OPENSSL_VERSION_NUMBER >= 0x1010000fL
 			return (Cipher)EVP_shake128();
 #else
 			return nullptr;
@@ -6582,7 +6582,7 @@ namespace Tomahawk
 		}
 		Digest Digests::Shake256()
 		{
-#ifdef TH_HAS_OPENSSL
+#if TH_HAS_OPENSSL && OPENSSL_VERSION_NUMBER >= 0x1010000fL
 			return (Cipher)EVP_shake256();
 #else
 			return nullptr;
@@ -6626,7 +6626,7 @@ namespace Tomahawk
 		}
 		Digest Digests::SM3()
 		{
-#ifdef TH_HAS_OPENSSL
+#if TH_HAS_OPENSSL && OPENSSL_VERSION_NUMBER >= 0x1010000fL
 #ifndef OPENSSL_NO_SM3
 			return (Cipher)EVP_sm3();
 #else
@@ -7469,6 +7469,7 @@ namespace Tomahawk
 		std::string Common::Sign(Digest Type, const unsigned char* Value, uint64_t Length, const char* Key)
 		{
 #ifdef TH_HAS_OPENSSL
+#if OPENSSL_VERSION_NUMBER >= 0x1010000fL
 			HMAC_CTX* Context;
 			if (!Type || !Value || !Length || !Key || !(Context = HMAC_CTX_new()))
 				return "";
@@ -7497,6 +7498,38 @@ namespace Tomahawk
 			HMAC_CTX_free(Context);
 
 			return Output;
+#else
+			if (!Type || !Value || !Length || !Key)
+				return "";
+
+			HMAC_CTX Context;
+			HMAC_CTX_init(&Context);
+
+			unsigned char Result[EVP_MAX_MD_SIZE];
+			if (1 != HMAC_Init_ex(&Context, Key, (int)strlen(Key), (const EVP_MD*)Type, nullptr))
+			{
+				HMAC_CTX_cleanup(&Context);
+				return "";
+			}
+
+			if (1 != HMAC_Update(&Context, Value, (int)Length))
+			{
+				HMAC_CTX_cleanup(&Context);
+				return "";
+			}
+
+			unsigned int Size = sizeof(Result);
+			if (1 != HMAC_Final(&Context, Result, &Size))
+			{
+				HMAC_CTX_cleanup(&Context);
+				return "";
+			}
+
+			std::string Output((const char*)Result, Size);
+			HMAC_CTX_cleanup(&Context);
+
+			return Output;
+#endif
 #else
 			return (Value ? (const char*)Value : "");
 #endif

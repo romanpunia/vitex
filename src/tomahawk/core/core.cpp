@@ -4045,198 +4045,48 @@ namespace Tomahawk
 			return Variant(VarType_Boolean, (char*)Ptr);
 		}
 
-		void Mem::Create(size_t InitialSize)
+		void Mem::SetAlloc(const AllocCallback& Callback)
 		{
-			if (!InitialSize)
-				return;
-
-			if (!Mutex)
-				Mutex = new std::mutex();
-
-			Heap = (MemoryPage*)malloc(InitialSize);
-			if (Heap != nullptr)
-			{
-				Heap->Size = InitialSize - HeadSize;
-				Heap->Allocated = false;
-				HeapSize = InitialSize;
-			}
-			else
-				TH_ERROR("[memerr] couldn't allocate page of size %llu", (uint64_t)InitialSize);
+			OnAlloc = Callback;
 		}
-		void Mem::Release()
+		void Mem::SetRealloc(const ReallocCallback& Callback)
 		{
-			if (Mutex != nullptr)
-				Mutex->lock();
-
-			HeapSize = 0;
-			if (Heap != nullptr)
-			{
-				free(Heap);
-				Heap = nullptr;
-			}
-
-			if (Mutex != nullptr)
-			{
-				Mutex->unlock();
-				delete Mutex;
-				Mutex = nullptr;
-			}
+			OnRealloc = Callback;
+		}
+		void Mem::SetFree(const FreeCallback& Callback)
+		{
+			OnFree = Callback;
 		}
 		void* Mem::Malloc(size_t Size)
 		{
-			if (!Heap)
+			if (!OnAlloc)
 				return malloc(Size);
 
-			Atom.Acquire();
-			MemoryPage* Result = FindFirstPage(Size);
-			if (!Result)
-			{
-				Atom.Release();
-				TH_ERROR("[memerr] out of memory");
-				return nullptr;
-			}
-
-			SplitPage(Result, Size);
-			Result->Allocated = true;
-			Atom.Release();
-
-			return (void*)&(Result->Data);
+			return OnAlloc(Size);
 		}
 		void* Mem::Realloc(void* Ptr, size_t Size)
 		{
 			if (!Ptr)
 				return Malloc(Size);
 
-			if (!Heap)
+			if (!OnRealloc)
 				return realloc(Ptr, Size);
 
-			Atom.Acquire();
-			MemoryPage* Block = (MemoryPage*)(static_cast<char*>(Ptr) - HeadSize);
-			uint64_t BlockSize = Block->Size;
-
-			Block->Allocated = false;
-			ConcatSequentialPages(Block, Block->Allocated);
-			Block->Allocated = true;
-
-			if (Block->Size >= Size)
-			{
-				SplitPage(Block, Size);
-				Block->Allocated = true;
-				Atom.Release();
-				return (void*)&(Block->Data);
-			}
-
-			SplitPage(Block, BlockSize);
-			Block->Allocated = true;
-
-			MemoryPage* NewBlock = FindFirstPage(Size);
-			if (!NewBlock)
-			{
-				Atom.Release();
-				TH_ERROR("[memerr] out of memory");
-				return nullptr;
-			}
-
-			SplitPage(NewBlock, Size);
-			memcpy(&(NewBlock->Data), &(Block->Data), Block->Size);
-			NewBlock->Allocated = true;
-			Block->Allocated = false;
-			Atom.Release();
-
-			return (void*)&(NewBlock->Data);
+			return OnRealloc(Ptr, Size);
 		}
 		void Mem::Free(void* Ptr)
 		{
 			if (!Ptr)
 				return;
 
-			if (!Heap)
+			if (!OnFree)
 				return free(Ptr);
 
-			Atom.Acquire();
-			MemoryPage* Block = (MemoryPage*)(static_cast<char*>(Ptr) - HeadSize);
-			Block->Allocated = false;
-			Atom.Release();
+			return OnFree(Ptr);
 		}
-		void Mem::Interrupt()
-		{
-#ifndef NDEBUG
-#ifndef TH_MICROSOFT
-#ifndef SIGTRAP
-			__debugbreak();
-#else
-			raise(SIGTRAP);
-#endif
-#else
-			if (!IsDebuggerPresent())
-				TH_ERROR("[dbg] cannot interrupt");
-			else
-				DebugBreak();
-#endif
-			TH_INFO("[dbg] process interruption called");
-#endif
-		}
-		void Mem::ConcatSequentialPages(MemoryPage* Block, bool IsAllocated)
-		{
-			MemoryPage* Next = nullptr;
-			while ((Next = (MemoryPage*)((char*)Block + Block->Size + HeadSize)))
-			{
-				if (!((char*)Next + HeadSize < (char*)Heap + HeapSize && (char*)Next + HeadSize >= (char*)Heap) || Next->Allocated != IsAllocated)
-					break;
-
-				Block->Size += Next->Size + HeadSize;
-			}
-		}
-		Mem::MemoryPage* Mem::FindFirstPage(uint64_t MinSize)
-		{
-			static MemoryPage* Offset = nullptr;
-			bool Repeated = false;
-
-		Each:
-			if (!Offset)
-				Offset = Heap;
-
-			while ((char*)Offset + sizeof(MemoryPage) < (char*)Heap + HeapSize && (char*)Offset + sizeof(MemoryPage) >= (char*)Heap)
-			{
-				if (!Offset->Allocated)
-				{
-					ConcatSequentialPages(Offset, false);
-					if (Offset->Size >= MinSize)
-						return Offset;
-				}
-
-				Offset = (MemoryPage*)((char*)Offset + Offset->Size + HeadSize);
-			}
-
-			Offset = nullptr;
-			if (Repeated)
-				return nullptr;
-
-			Repeated = true;
-			goto Each;
-		}
-		void Mem::SplitPage(MemoryPage* Block, uint64_t Size)
-		{
-			MemoryPage* Next = (MemoryPage*)((char*)Block + Size + HeadSize);
-			MemoryPage* Base = (MemoryPage*)((char*)Block + Block->Size + HeadSize);
-			uint64_t BlockSize = Block->Size;
-
-			Block->Allocated = false;
-			if ((char*)Next + HeadSize >= (char*)Base)
-				return;
-
-			if (!((char*)Next + sizeof(MemoryPage) < (char*)Heap + HeapSize && (char*)Next + sizeof(MemoryPage) >= (char*)Heap))
-				return;
-
-			Block->Size = Size;
-			Next->Size = BlockSize - (Size + HeadSize);
-			Next->Allocated = false;
-		}
-		Mem::MemoryPage* Mem::Heap = nullptr;
-		SpinLock Mem::Atom;
-		uint64_t Mem::HeadSize = offsetof(Mem::MemoryPage, Data);
-		uint64_t Mem::HeapSize = 0;
-		std::mutex* Mem::Mutex = nullptr;
+		AllocCallback Mem::OnAlloc;
+		ReallocCallback Mem::OnRealloc;
+		FreeCallback Mem::OnFree;
 
 		void Debug::AttachCallback(const std::function<void(const char*, int)>& _Callback)
 		{
@@ -4315,6 +4165,10 @@ namespace Tomahawk
 			}
 
 			va_end(Args);
+		}
+		void Debug::Pause()
+		{
+			OS::Process::Interrupt();
 		}
 		std::function<void(const char*, int)> Debug::Callback;
 		bool Debug::Enabled = false;
@@ -6137,6 +5991,24 @@ namespace Tomahawk
 #endif
 		}
 
+		void OS::Process::Interrupt()
+		{
+#ifndef NDEBUG
+#ifndef TH_MICROSOFT
+#ifndef SIGTRAP
+			__debugbreak();
+#else
+			raise(SIGTRAP);
+#endif
+#else
+			if (!IsDebuggerPresent())
+				TH_ERROR("[dbg] cannot interrupt");
+			else
+				DebugBreak();
+#endif
+			TH_INFO("[dbg] process interruption called");
+#endif
+		}
 		void OS::Process::Execute(const char* Format, ...)
 		{
 			char Buffer[16384];
@@ -6852,15 +6724,16 @@ namespace Tomahawk
 			auto It = Listeners.find(Name);
 			if (It != Listeners.end())
 			{
-				uint64_t Id = It->second.Counter++;
-				It->second.Callbacks[Id] = Callback;
+				uint64_t Id = It->second->Counter++;
+				It->second->Callbacks[Id] = Callback;
 				Race.Listeners.unlock();
 
 				return Id;
 			}
 
-			EventListener& Src = Listeners[Name];
-			Src.Callbacks[Src.Counter++] = Callback;
+			EventListener*& Src = Listeners[Name];
+			Src = TH_NEW(EventListener);
+			Src->Callbacks[Src->Counter++] = Callback;
 			Race.Listeners.unlock();
 
 			return 0;
@@ -6874,15 +6747,16 @@ namespace Tomahawk
 			auto It = Listeners.find(Name);
 			if (It != Listeners.end())
 			{
-				uint64_t Id = It->second.Counter++;
-				It->second.Callbacks[Id] = std::move(Callback);
+				uint64_t Id = It->second->Counter++;
+				It->second->Callbacks[Id] = std::move(Callback);
 				Race.Listeners.unlock();
 
 				return Id;
 			}
 
-			EventListener& Src = Listeners[Name];
-			Src.Callbacks[Src.Counter++] = std::move(Callback);
+			EventListener*& Src = Listeners[Name];
+			Src = TH_NEW(EventListener);
+			Src->Callbacks[Src->Counter++] = std::move(Callback);
 			Race.Listeners.unlock();
 
 			return 0;
@@ -7050,10 +6924,10 @@ namespace Tomahawk
 			auto It = Listeners.find(Name);
 			if (It != Listeners.end())
 			{
-				auto Callback = It->second.Callbacks.find(ListenerId);
-				if (Callback != It->second.Callbacks.end())
+				auto Callback = It->second->Callbacks.find(ListenerId);
+				if (Callback != It->second->Callbacks.end())
 				{
-					It->second.Callbacks.erase(Callback);
+					It->second->Callbacks.erase(Callback);
 					Race.Listeners.unlock();
 
 					return true;
@@ -7153,6 +7027,8 @@ namespace Tomahawk
 			Race.Events.unlock();
 
 			Race.Listeners.lock();
+			for (auto& Listener : Listeners)
+				TH_DELETE(EventListener, Listener.second);
 			Listeners.clear();
 			Race.Listeners.unlock();
 
@@ -7329,7 +7205,7 @@ namespace Tomahawk
 				auto Base = Listeners.find(Src.Name);
 				if (Base != Listeners.end())
 				{
-					auto Array = Base->second.Callbacks;
+					auto Array = Base->second->Callbacks;
 					SetTask([Src = std::move(Src), Array]() mutable
 					{
 						for (auto& Callback : Array)
@@ -7883,7 +7759,7 @@ namespace Tomahawk
 		{
 			return new Document(Var::Array());
 		}
-		bool Document::WriteXML(Document* Base, const NWriteCallback& Callback)
+		bool Document::WriteXML(Document* Base, const DocWriteCallback& Callback)
 		{
 			if (!Base || !Callback)
 				return false;
@@ -7966,7 +7842,7 @@ namespace Tomahawk
 
 			return true;
 		}
-		bool Document::WriteJSON(Document* Base, const NWriteCallback& Callback)
+		bool Document::WriteJSON(Document* Base, const DocWriteCallback& Callback)
 		{
 			if (!Base || !Callback)
 				return false;
@@ -8058,7 +7934,7 @@ namespace Tomahawk
 			Callback(VarForm_Dummy, Array ? "]" : "}", 1);
 			return true;
 		}
-		bool Document::WriteJSONB(Document* Base, const NWriteCallback& Callback)
+		bool Document::WriteJSONB(Document* Base, const DocWriteCallback& Callback)
 		{
 			if (!Base || !Callback)
 				return false;
@@ -8082,7 +7958,7 @@ namespace Tomahawk
 			ProcessJSONBWrite(Base, &Mapping, Callback);
 			return true;
 		}
-		Document* Document::ReadXML(int64_t Size, const NReadCallback& Callback, bool Assert)
+		Document* Document::ReadXML(int64_t Size, const DocReadCallback& Callback, bool Assert)
 		{
 			if (!Callback || !Size)
 				return nullptr;
@@ -8158,7 +8034,7 @@ namespace Tomahawk
 
 			return Result;
 		}
-		Document* Document::ReadJSON(int64_t Size, const NReadCallback& Callback, bool Assert)
+		Document* Document::ReadJSON(int64_t Size, const DocReadCallback& Callback, bool Assert)
 		{
 			if (!Callback || !Size)
 				return nullptr;
@@ -8281,7 +8157,7 @@ namespace Tomahawk
 
 			return Result;
 		}
-		Document* Document::ReadJSONB(const NReadCallback& Callback, bool Assert)
+		Document* Document::ReadJSONB(const DocReadCallback& Callback, bool Assert)
 		{
 			if (!Callback)
 				return nullptr;
@@ -8476,7 +8352,7 @@ namespace Tomahawk
 
 			return true;
 		}
-		bool Document::ProcessJSONBWrite(Document* Current, std::unordered_map<std::string, uint64_t>* Map, const NWriteCallback& Callback)
+		bool Document::ProcessJSONBWrite(Document* Current, std::unordered_map<std::string, uint64_t>* Map, const DocWriteCallback& Callback)
 		{
 			uint64_t Id = Map->at(Current->Key);
 			Callback(VarForm_Dummy, (const char*)&Id, sizeof(uint64_t));
@@ -8533,7 +8409,7 @@ namespace Tomahawk
 
 			return true;
 		}
-		bool Document::ProcessJSONBRead(Document* Current, std::unordered_map<uint64_t, std::string>* Map, const NReadCallback& Callback)
+		bool Document::ProcessJSONBRead(Document* Current, std::unordered_map<uint64_t, std::string>* Map, const DocReadCallback& Callback)
 		{
 			uint64_t Id = 0;
 			if (!Callback((char*)&Id, sizeof(uint64_t)))

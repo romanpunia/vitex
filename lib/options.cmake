@@ -2,20 +2,21 @@
 if (NOT MSVC)
     set(CMAKE_CXX_FLAGS_DEBUG "-g")
     set(CMAKE_CXX_FLAGS_RELEASE "-O3 -DNDEBUG")
-    if (WIN32 AND MINGW)
+    if (NOT (WIN32 AND MINGW))
+		set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -Wformat=0 -std=c++14 -fexceptions")
+		set(CMAKE_C_FLAGS "${CMAKE_C_FLAGS} -Wno-implicit-function-declaration -fexceptions")
+		if (CMAKE_CXX_COMPILER_ID STREQUAL "GNU")
+			if (${CMAKE_SYSTEM_PROCESSOR} MATCHES "arm")
+				set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -O0")
+				set(CMAKE_C_FLAGS "${CMAKE_C_FLAGS} -O0")
+			else()
+				set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -msse2")
+				set(CMAKE_C_FLAGS "${CMAKE_C_FLAGS} -msse2")
+			endif()
+		endif()
+	else()
         set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -mwindows -D_WIN32_WINNT=0x0600")
         set(CMAKE_C_FLAGS "${CMAKE_C_FLAGS} -mwindows -D_WIN32_WINNT=0x0600")
-    elseif (CMAKE_CXX_COMPILER_ID STREQUAL "GNU")
-		if (${CMAKE_SYSTEM_PROCESSOR} MATCHES "arm")
-			set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -Wformat=0 -O0 -fexceptions -fno-strict-aliasing")
-			set(CMAKE_C_FLAGS "${CMAKE_C_FLAGS} -Wno-implicit-function-declaration -lz -O0 -fexceptions -fno-strict-aliasing")
-		else()
-			set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -Wformat=0 -fexceptions -fno-strict-aliasing")
-			set(CMAKE_C_FLAGS "${CMAKE_C_FLAGS} -Wno-implicit-function-declaration -lz -fexceptions -fno-strict-aliasing")
-		endif()
-    elseif (CMAKE_CXX_COMPILER_ID STREQUAL "AppleClang")
-        set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -Wformat=0 -fexceptions")
-        set(CMAKE_C_FLAGS "${CMAKE_C_FLAGS} -Wno-implicit-function-declaration -fexceptions")
     endif()
 else()
     set(CMAKE_SHARED_LINKER_FLAGS "/SUBSYSTEM:WINDOWS")
@@ -37,11 +38,15 @@ else()
 	endif()
 endif()
 
-#Network libraries for Windows
+#Link system libraries libraries
 if (WIN32)
-    target_link_libraries(tomahawk PRIVATE
+    target_link_libraries(tomahawk PUBLIC
             ws2_32.lib
             mswsock.lib)
+elseif (CMAKE_CXX_COMPILER_ID STREQUAL "GNU")
+	target_link_libraries(tomahawk PUBLIC
+		${CMAKE_DL_LIBS}
+		pthread)
 endif()
 
 #ASM support for script compiler

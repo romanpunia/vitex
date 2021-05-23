@@ -1031,7 +1031,7 @@ namespace Tomahawk
 			}
 			void* Document::Deserialize(Core::Stream* Stream, uint64_t Length, uint64_t Offset, const Core::VariantArgs& Args)
 			{
-				Core::NReadCallback Callback = [Stream](char* Buffer, int64_t Size)
+				Core::DocReadCallback Callback = [Stream](char* Buffer, int64_t Size)
 				{
 					if (!Buffer || !Size)
 						return true;

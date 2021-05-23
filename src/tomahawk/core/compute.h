@@ -5,7 +5,7 @@
 #include <cmath>
 #include <map>
 #include <stack>
-
+#ifdef TH_WITH_BULLET3
 class btCollisionConfiguration;
 class btBroadphaseInterface;
 class btConstraintSolver;
@@ -24,23 +24,24 @@ class btConeShape;
 class btCylinderShape;
 class btCollisionShape;
 class btVector3;
-
 typedef bool(* ContactDestroyedCallback)(void*);
 typedef bool(* ContactProcessedCallback)(class btManifoldPoint&, void*, void*);
 typedef void(* ContactStartedCallback)(class btPersistentManifold* const&);
 typedef void(* ContactEndedCallback)(class btPersistentManifold* const&);
+#endif
 
 namespace Tomahawk
 {
 	namespace Compute
 	{
-		class WebToken;
-
+#ifdef TH_WITH_BULLET3
 		class RigidBody;
-		
+
 		class SoftBody;
 
 		class Simulator;
+#endif
+		class WebToken;
 
 		class Transform;
 
@@ -265,13 +266,6 @@ namespace Tomahawk
 			float Angular;
 		};
 
-		struct TH_OUT UnmanagedShape
-		{
-			std::vector<Vertex> Vertices;
-			std::vector<int> Indices;
-			btCollisionShape* Shape;
-		};
-
 		struct TH_OUT Rectangle
 		{
 			long Left;
@@ -348,8 +342,8 @@ namespace Tomahawk
 			bool operator >=(const Vector2& V) const;
 			bool operator >(const Vector2& V) const;
 			bool operator <(const Vector2& V) const;
-			float& operator [](int Axis);
-			float operator [](int Axis) const;
+			float& operator [](uint32_t Axis);
+			float operator [](uint32_t Axis) const;
 
 			static Vector2 Random();
 			static Vector2 RandomAbs();
@@ -454,11 +448,13 @@ namespace Tomahawk
 			bool operator >=(const Vector3& V) const;
 			bool operator >(const Vector3& V) const;
 			bool operator <(const Vector3& V) const;
-			float& operator [](int Axis);
-			float operator [](int Axis) const;
+			float& operator [](uint32_t Axis);
+			float operator [](uint32_t Axis) const;
 
+#ifdef TH_WITH_BULLET3
 			static void ToBtVector3(const Vector3& In, btVector3* Out);
 			static void FromBtVector3(const btVector3& In, Vector3* Out);
+#endif
 			static Vector3 Random();
 			static Vector3 RandomAbs();
 			static Vector3 One()
@@ -573,8 +569,8 @@ namespace Tomahawk
 			bool operator >=(const Vector4& V) const;
 			bool operator >(const Vector4& V) const;
 			bool operator <(const Vector4& V) const;
-			float& operator [](int Axis);
-			float operator [](int Axis) const;
+			float& operator [](uint32_t Axis);
+			float operator [](uint32_t Axis) const;
 
 			static Vector4 Random();
 			static Vector4 RandomAbs();
@@ -639,13 +635,15 @@ namespace Tomahawk
 
 		public:
 			Matrix4x4();
+#ifdef TH_WITH_BULLET3
 			Matrix4x4(btTransform* In);
+#endif
 			Matrix4x4(float Array[16]);
 			Matrix4x4(const Vector4& Row0, const Vector4& Row1, const Vector4& Row2, const Vector4& Row3);
 			Matrix4x4(float Row00, float Row01, float Row02, float Row03, float Row10, float Row11, float Row12, float Row13, float Row20, float Row21, float Row22, float Row23, float Row30, float Row31, float Row32, float Row33);
 			Matrix4x4(const Matrix4x4& Other);
-			float& operator [](int Index);
-			float operator [](int Index) const;
+			float& operator [](uint32_t Index);
+			float operator [](uint32_t Index) const;
 			bool operator ==(const Matrix4x4& Index) const;
 			bool operator !=(const Matrix4x4& Index) const;
 			Matrix4x4 operator *(const Matrix4x4& V) const;
@@ -938,9 +936,9 @@ namespace Tomahawk
 			RegexSource();
 			RegexSource(const std::string& Regexp, RegexFlags fFlags = RegexFlags_None, int64_t fMaxMatches = -1, int64_t fMaxBranches = -1, int64_t fMaxBrackets = -1);
 			RegexSource(const RegexSource& Other);
-			RegexSource(RegexSource&& Other);
+			RegexSource(RegexSource&& Other) noexcept;
 			RegexSource& operator =(const RegexSource& V);
-			RegexSource& operator =(RegexSource&& V);
+			RegexSource& operator =(RegexSource&& V) noexcept;
 			const std::string& GetRegex() const;
 			int64_t GetMaxBranches() const;
 			int64_t GetMaxBrackets() const;
@@ -968,22 +966,14 @@ namespace Tomahawk
 		public:
 			RegexResult();
 			RegexResult(const RegexResult& Other);
-			RegexResult(RegexResult&& Other);
+			RegexResult(RegexResult&& Other) noexcept;
 			RegexResult& operator =(const RegexResult& V);
-			RegexResult& operator =(RegexResult&& V);
+			RegexResult& operator =(RegexResult&& V) noexcept;
 			bool Empty() const;
 			int64_t GetSteps() const;
 			RegexState GetState() const;
 			const std::vector<RegexMatch>& Get() const;
 			std::vector<std::string> ToArray() const;
-		};
-
-		struct TH_OUT CollisionBody
-		{
-			RigidBody* Rigid = nullptr;
-			SoftBody* Soft = nullptr;
-
-			CollisionBody(btCollisionObject* Object);
 		};
 
 		struct TH_OUT AdjTriangle
@@ -1001,7 +991,21 @@ namespace Tomahawk
 			unsigned int Ref1;
 			unsigned int FaceNb;
 		};
+#ifdef TH_WITH_BULLET3
+		struct TH_OUT UnmanagedShape
+		{
+			std::vector<Vertex> Vertices;
+			std::vector<int> Indices;
+			btCollisionShape* Shape = nullptr;
+		};
 
+		struct TH_OUT CollisionBody
+		{
+			RigidBody* Rigid = nullptr;
+			SoftBody* Soft = nullptr;
+			CollisionBody(btCollisionObject* Object);
+		};
+#endif
 		class TH_OUT Adjacencies
 		{
 		public:
@@ -1037,8 +1041,8 @@ namespace Tomahawk
 		public:
 			struct Desc
 			{
-				unsigned int NbFaces = 0;
 				unsigned int* Faces = nullptr;
+				unsigned int NbFaces = 0;
 				bool OneSided = true;
 				bool SGICipher = true;
 				bool ConnectAllStrips = false;
@@ -1090,10 +1094,10 @@ namespace Tomahawk
 		public:
 			RadixSorter();
 			RadixSorter(const RadixSorter& Other);
-			RadixSorter(RadixSorter&& Other);
+			RadixSorter(RadixSorter&& Other) noexcept;
 			~RadixSorter();
 			RadixSorter& operator =(const RadixSorter& V);
-			RadixSorter& operator =(RadixSorter&& V);
+			RadixSorter& operator =(RadixSorter&& V) noexcept;
 			RadixSorter& Sort(unsigned int* Input, unsigned int Nb, bool SignedValues = true);
 			RadixSorter& Sort(float* Input, unsigned int Nb);
 			RadixSorter& ResetIndices();
@@ -1321,6 +1325,10 @@ namespace Tomahawk
 				Value1 = Value2;
 			}
 		};
+
+		typedef Math<float> Mathf;
+		typedef Math<double> Mathd;
+		typedef Math<int> Mathi;
 
 		class TH_OUT Ciphers
 		{
@@ -1777,6 +1785,7 @@ namespace Tomahawk
 			}
 		};
 
+#ifdef TH_WITH_BULLET3
 		class TH_OUT RigidBody : public Core::Object
 		{
 			friend Simulator;
@@ -2286,10 +2295,7 @@ namespace Tomahawk
 			static btCollisionShape* CreateUnmanagedShape(std::vector<Vertex>& Mesh);
 			static btCollisionShape* CreateUnmanagedShape(btCollisionShape* From);
 		};
-
-		typedef Math<float> Mathf;
-		typedef Math<double> Mathd;
-		typedef Math<int> Mathi;
+#endif
 	}
 }
 #endif

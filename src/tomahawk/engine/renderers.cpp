@@ -7,6 +7,234 @@ namespace Tomahawk
 	{
 		namespace Renderers
 		{
+#ifdef TH_WITH_BULLET3
+			SoftBody::SoftBody(Engine::RenderSystem* Lab) : GeometryDraw(Lab, Components::SoftBody::GetTypeId()), VertexBuffer(nullptr), IndexBuffer(nullptr)
+			{
+				Graphics::GraphicsDevice* Device = System->GetDevice();
+				DepthStencil = Device->GetDepthStencilState("less");
+				Rasterizer = Device->GetRasterizerState("cull-none");
+				Blend = Device->GetBlendState("overwrite");
+				Sampler = Device->GetSamplerState("trilinear-x16");
+				Layout = Device->GetInputLayout("vertex");
+
+				Shaders.Geometry = System->CompileShader("geometry/model/geometry");
+				Shaders.Voxelize = System->CompileShader("geometry/model/voxelize", sizeof(Lighting::VoxelBuffer));
+				Shaders.Occlusion = System->CompileShader("geometry/model/occlusion");
+				Shaders.Depth.Linear = System->CompileShader("geometry/model/depth/linear");
+				Shaders.Depth.Cubic = System->CompileShader("geometry/model/depth/cubic", sizeof(Compute::Matrix4x4) * 6);
+
+				Graphics::ElementBuffer* Buffers[2];
+				if (Lab->CompileBuffers(Buffers, "soft-body", sizeof(Compute::Vertex), 16384))
+				{
+					IndexBuffer = Buffers[BufferType_Index];
+					VertexBuffer = Buffers[BufferType_Vertex];
+				}
+			}
+			SoftBody::~SoftBody()
+			{
+				Graphics::ElementBuffer* Buffers[2];
+				Buffers[BufferType_Index] = IndexBuffer;
+				Buffers[BufferType_Vertex] = VertexBuffer;
+
+				System->FreeBuffers(Buffers);
+				System->FreeShader(Shaders.Geometry);
+				System->FreeShader(Shaders.Voxelize);
+				System->FreeShader(Shaders.Occlusion);
+				System->FreeShader(Shaders.Depth.Linear);
+				System->FreeShader(Shaders.Depth.Cubic);
+			}
+			void SoftBody::Activate()
+			{
+				System->AddCull<Engine::Components::SoftBody>();
+			}
+			void SoftBody::Deactivate()
+			{
+				System->RemoveCull<Engine::Components::SoftBody>();
+			}
+			void SoftBody::CullGeometry(const Viewer& View, Core::Pool<Drawable*>* Geometry)
+			{
+				Graphics::ElementBuffer* Box[2];
+				System->GetPrimitives()->GetBoxBuffers(Box);
+
+				Graphics::GraphicsDevice* Device = System->GetDevice();
+				Device->SetRasterizerState(Rasterizer);
+				Device->SetInputLayout(Layout);
+				Device->SetShader(nullptr, TH_PS);
+				Device->SetShader(Shaders.Occlusion, TH_VS);
+
+				for (auto It = Geometry->Begin(); It != Geometry->End(); ++It)
+				{
+					Components::SoftBody* Base = (Components::SoftBody*)*It;
+					if (!System->PassCullable(Base, CullResult_Last, nullptr))
+						continue;
+
+					if (Base->GetIndices().empty())
+						continue;
+
+					if (!Base->Query.Begin(Device))
+						continue;
+
+					if (Base->Query.GetPassed() > 0)
+					{
+						Base->Fill(Device, IndexBuffer, VertexBuffer);
+						Device->Render.World.Identify();
+						Device->Render.WorldViewProj = Device->Render.World * View.ViewProjection;
+						Device->UpdateBuffer(Graphics::RenderBufferType_Render);
+						Device->SetVertexBuffer(VertexBuffer, 0);
+						Device->SetIndexBuffer(IndexBuffer, Graphics::Format_R32_Uint);
+						Device->DrawIndexed((unsigned int)Base->GetIndices().size(), 0, 0);
+					}
+					else
+					{
+						Device->Render.World = Base->GetEntity()->Transform->GetWorld();
+						Device->Render.WorldViewProj = Device->Render.World * View.ViewProjection;
+						Device->UpdateBuffer(Graphics::RenderBufferType_Render);
+						Device->SetIndexBuffer(Box[BufferType_Index], Graphics::Format_R32_Uint);
+						Device->SetVertexBuffer(Box[BufferType_Vertex], 0);
+						Device->DrawIndexed(Box[BufferType_Index]->GetElements(), 0, 0);
+					}
+					Base->Query.End(Device);
+				}
+			}
+			void SoftBody::RenderGeometryResult(Core::Timer* Time, Core::Pool<Drawable*>* Geometry, RenderOpt Options)
+			{
+				Graphics::GraphicsDevice* Device = System->GetDevice();
+				CullResult Cull = (Options & RenderOpt_Inner ? CullResult_Always : CullResult_Last);
+				bool Static = (Options & RenderOpt_Static);
+
+				Device->SetDepthStencilState(DepthStencil);
+				Device->SetBlendState(Blend);
+				Device->SetRasterizerState(Rasterizer);
+				Device->SetInputLayout(Layout);
+				Device->SetSamplerState(Sampler, 0, TH_PS);
+				Device->SetShader(Shaders.Geometry, TH_VS | TH_PS);
+
+				for (auto It = Geometry->Begin(); It != Geometry->End(); ++It)
+				{
+					Engine::Components::SoftBody* Base = (Engine::Components::SoftBody*)*It;
+					if ((Static && !Base->Static) || Base->GetIndices().empty())
+						continue;
+
+					if (!System->PassDrawable(Base, Cull, nullptr))
+						continue;
+
+					if (!System->PushGeometryBuffer(Base->GetMaterial()))
+						continue;
+
+					Base->Fill(Device, IndexBuffer, VertexBuffer);
+					Device->Render.World.Identify();
+					Device->Render.WorldViewProj = System->GetScene()->View.ViewProjection;
+					Device->Render.TexCoord = Base->TexCoord;
+					Device->UpdateBuffer(Graphics::RenderBufferType_Render);
+					Device->SetVertexBuffer(VertexBuffer, 0);
+					Device->SetIndexBuffer(IndexBuffer, Graphics::Format_R32_Uint);
+					Device->DrawIndexed((unsigned int)Base->GetIndices().size(), 0, 0);
+				}
+
+				Device->FlushTexture2D(1, 7, TH_PS);
+			}
+			void SoftBody::RenderGeometryVoxels(Core::Timer* Time, Core::Pool<Drawable*>* Geometry, RenderOpt Options)
+			{
+				Graphics::GraphicsDevice* Device = System->GetDevice();
+				Device->SetSamplerState(Sampler, 0, TH_PS);
+				Device->SetInputLayout(Layout);
+				Device->SetShader(Shaders.Voxelize, TH_VS | TH_PS | TH_GS);
+				Lighting::SetVoxelBuffer(System, Shaders.Voxelize, 3);
+
+				Viewer& View = System->GetScene()->View;
+				for (auto It = Geometry->Begin(); It != Geometry->End(); ++It)
+				{
+					Engine::Components::SoftBody* Base = (Engine::Components::SoftBody*)*It;
+					if (!Base->Static || Base->GetIndices().empty())
+						continue;
+
+					if (!Base->IsNear(View))
+						continue;
+
+					if (!System->PushVoxelsBuffer(Base->GetMaterial()))
+						continue;
+
+					Base->Fill(Device, IndexBuffer, VertexBuffer);
+					Device->Render.World.Identify();
+					Device->Render.WorldViewProj.Identify();
+					Device->Render.TexCoord = Base->TexCoord;
+					Device->UpdateBuffer(Graphics::RenderBufferType_Render);
+					Device->SetVertexBuffer(VertexBuffer, 0);
+					Device->SetIndexBuffer(IndexBuffer, Graphics::Format_R32_Uint);
+					Device->DrawIndexed((unsigned int)Base->GetIndices().size(), 0, 0);
+				}
+
+				Device->FlushTexture2D(5, 6, TH_PS);
+				Device->SetShader(nullptr, TH_GS);
+			}
+			void SoftBody::RenderDepthLinear(Core::Timer* Time, Core::Pool<Drawable*>* Geometry)
+			{
+				Graphics::GraphicsDevice* Device = System->GetDevice();
+				Device->SetDepthStencilState(DepthStencil);
+				Device->SetBlendState(Blend);
+				Device->SetRasterizerState(Rasterizer);
+				Device->SetInputLayout(Layout);
+				Device->SetSamplerState(Sampler, 0, TH_PS);
+				Device->SetShader(Shaders.Depth.Linear, TH_VS | TH_PS);
+
+				for (auto It = Geometry->Begin(); It != Geometry->End(); ++It)
+				{
+					Engine::Components::SoftBody* Base = (Engine::Components::SoftBody*)*It;
+					if (Base->GetIndices().empty())
+						continue;
+
+					if (!System->PassDrawable(Base, CullResult_Always, nullptr))
+						continue;
+
+					if (!System->PushDepthLinearBuffer(Base->GetMaterial()))
+						continue;
+
+					Base->Fill(Device, IndexBuffer, VertexBuffer);
+					Device->Render.World.Identify();
+					Device->Render.WorldViewProj = System->GetScene()->View.ViewProjection;
+					Device->Render.TexCoord = Base->TexCoord;
+					Device->UpdateBuffer(Graphics::RenderBufferType_Render);
+					Device->SetVertexBuffer(VertexBuffer, 0);
+					Device->SetIndexBuffer(IndexBuffer, Graphics::Format_R32_Uint);
+					Device->DrawIndexed((unsigned int)Base->GetIndices().size(), 0, 0);
+				}
+
+				Device->SetTexture2D(nullptr, 1, TH_PS);
+			}
+			void SoftBody::RenderDepthCubic(Core::Timer* Time, Core::Pool<Drawable*>* Geometry, Compute::Matrix4x4* ViewProjection)
+			{
+				Graphics::GraphicsDevice* Device = System->GetDevice();
+				Device->SetDepthStencilState(DepthStencil);
+				Device->SetBlendState(Blend);
+				Device->SetRasterizerState(Rasterizer);
+				Device->SetInputLayout(Layout);
+				Device->SetSamplerState(Sampler, 0, TH_PS);
+				Device->SetShader(Shaders.Depth.Linear, TH_VS | TH_PS | TH_GS);
+				Device->SetBuffer(Shaders.Depth.Cubic, 3, TH_VS | TH_PS | TH_GS);
+				Device->UpdateBuffer(Shaders.Depth.Cubic, ViewProjection);
+
+				for (auto It = Geometry->Begin(); It != Geometry->End(); ++It)
+				{
+					Engine::Components::SoftBody* Base = (Engine::Components::SoftBody*)*It;
+					if (!Base->GetBody() || Base->GetEntity()->Transform->Position.Distance(System->GetScene()->View.WorldPosition) >= System->GetScene()->View.FarPlane + Base->GetEntity()->Transform->Scale.Length())
+						continue;
+
+					if (!System->PushDepthCubicBuffer(Base->GetMaterial()))
+						continue;
+
+					Base->Fill(Device, IndexBuffer, VertexBuffer);
+					Device->Render.World.Identify();
+					Device->Render.TexCoord = Base->TexCoord;
+					Device->UpdateBuffer(Graphics::RenderBufferType_Render);
+					Device->SetVertexBuffer(VertexBuffer, 0);
+					Device->SetIndexBuffer(IndexBuffer, Graphics::Format_R32_Uint);
+					Device->DrawIndexed((unsigned int)Base->GetIndices().size(), 0, 0);
+				}
+
+				Device->SetTexture2D(nullptr, 1, TH_PS);
+				Device->SetShader(nullptr, TH_GS);
+			}
+#endif
 			Model::Model(Engine::RenderSystem* Lab) : GeometryDraw(Lab, Components::Model::GetTypeId())
 			{
 				Graphics::GraphicsDevice* Device = System->GetDevice();
@@ -467,233 +695,6 @@ namespace Tomahawk
 						Device->UpdateBuffer(Graphics::RenderBufferType_Render);
 						Device->DrawIndexed(Mesh);
 					}
-				}
-
-				Device->SetTexture2D(nullptr, 1, TH_PS);
-				Device->SetShader(nullptr, TH_GS);
-			}
-
-			SoftBody::SoftBody(Engine::RenderSystem* Lab) : GeometryDraw(Lab, Components::SoftBody::GetTypeId()), VertexBuffer(nullptr), IndexBuffer(nullptr)
-			{
-				Graphics::GraphicsDevice* Device = System->GetDevice();
-				DepthStencil = Device->GetDepthStencilState("less");
-				Rasterizer = Device->GetRasterizerState("cull-none");
-				Blend = Device->GetBlendState("overwrite");
-				Sampler = Device->GetSamplerState("trilinear-x16");
-				Layout = Device->GetInputLayout("vertex");
-
-				Shaders.Geometry = System->CompileShader("geometry/model/geometry");
-				Shaders.Voxelize = System->CompileShader("geometry/model/voxelize", sizeof(Lighting::VoxelBuffer));
-				Shaders.Occlusion = System->CompileShader("geometry/model/occlusion");
-				Shaders.Depth.Linear = System->CompileShader("geometry/model/depth/linear");
-				Shaders.Depth.Cubic = System->CompileShader("geometry/model/depth/cubic", sizeof(Compute::Matrix4x4) * 6);
-
-				Graphics::ElementBuffer* Buffers[2];
-				if (Lab->CompileBuffers(Buffers, "soft-body", sizeof(Compute::Vertex), 16384))
-				{
-					IndexBuffer = Buffers[BufferType_Index];
-					VertexBuffer = Buffers[BufferType_Vertex];
-				}
-			}
-			SoftBody::~SoftBody()
-			{
-				Graphics::ElementBuffer* Buffers[2];
-				Buffers[BufferType_Index] = IndexBuffer;
-				Buffers[BufferType_Vertex] = VertexBuffer;
-
-				System->FreeBuffers(Buffers);
-				System->FreeShader(Shaders.Geometry);
-				System->FreeShader(Shaders.Voxelize);
-				System->FreeShader(Shaders.Occlusion);
-				System->FreeShader(Shaders.Depth.Linear);
-				System->FreeShader(Shaders.Depth.Cubic);
-			}
-			void SoftBody::Activate()
-			{
-				System->AddCull<Engine::Components::SoftBody>();
-			}
-			void SoftBody::Deactivate()
-			{
-				System->RemoveCull<Engine::Components::SoftBody>();
-			}
-			void SoftBody::CullGeometry(const Viewer& View, Core::Pool<Drawable*>* Geometry)
-			{
-				Graphics::ElementBuffer* Box[2];
-				System->GetPrimitives()->GetBoxBuffers(Box);
-
-				Graphics::GraphicsDevice* Device = System->GetDevice();
-				Device->SetRasterizerState(Rasterizer);
-				Device->SetInputLayout(Layout);
-				Device->SetShader(nullptr, TH_PS);
-				Device->SetShader(Shaders.Occlusion, TH_VS);
-
-				for (auto It = Geometry->Begin(); It != Geometry->End(); ++It)
-				{
-					Components::SoftBody* Base = (Components::SoftBody*)*It;
-					if (!System->PassCullable(Base, CullResult_Last, nullptr))
-						continue;
-
-					if (Base->GetIndices().empty())
-						continue;
-
-					if (!Base->Query.Begin(Device))
-						continue;
-
-					if (Base->Query.GetPassed() > 0)
-					{
-						Base->Fill(Device, IndexBuffer, VertexBuffer);
-						Device->Render.World.Identify();
-						Device->Render.WorldViewProj = Device->Render.World * View.ViewProjection;
-						Device->UpdateBuffer(Graphics::RenderBufferType_Render);
-						Device->SetVertexBuffer(VertexBuffer, 0);
-						Device->SetIndexBuffer(IndexBuffer, Graphics::Format_R32_Uint);
-						Device->DrawIndexed((unsigned int)Base->GetIndices().size(), 0, 0);
-					}
-					else
-					{
-						Device->Render.World = Base->GetEntity()->Transform->GetWorld();
-						Device->Render.WorldViewProj = Device->Render.World * View.ViewProjection;
-						Device->UpdateBuffer(Graphics::RenderBufferType_Render);
-						Device->SetIndexBuffer(Box[BufferType_Index], Graphics::Format_R32_Uint);
-						Device->SetVertexBuffer(Box[BufferType_Vertex], 0);
-						Device->DrawIndexed(Box[BufferType_Index]->GetElements(), 0, 0);
-					}
-					Base->Query.End(Device);
-				}
-			}
-			void SoftBody::RenderGeometryResult(Core::Timer* Time, Core::Pool<Drawable*>* Geometry, RenderOpt Options)
-			{
-				Graphics::GraphicsDevice* Device = System->GetDevice();
-				CullResult Cull = (Options & RenderOpt_Inner ? CullResult_Always : CullResult_Last);
-				bool Static = (Options & RenderOpt_Static);
-
-				Device->SetDepthStencilState(DepthStencil);
-				Device->SetBlendState(Blend);
-				Device->SetRasterizerState(Rasterizer);
-				Device->SetInputLayout(Layout);
-				Device->SetSamplerState(Sampler, 0, TH_PS);
-				Device->SetShader(Shaders.Geometry, TH_VS | TH_PS);
-
-				for (auto It = Geometry->Begin(); It != Geometry->End(); ++It)
-				{
-					Engine::Components::SoftBody* Base = (Engine::Components::SoftBody*)*It;
-					if ((Static && !Base->Static) || Base->GetIndices().empty())
-						continue;
-
-					if (!System->PassDrawable(Base, Cull, nullptr))
-						continue;
-
-					if (!System->PushGeometryBuffer(Base->GetMaterial()))
-						continue;
-
-					Base->Fill(Device, IndexBuffer, VertexBuffer);
-					Device->Render.World.Identify();
-					Device->Render.WorldViewProj = System->GetScene()->View.ViewProjection;
-					Device->Render.TexCoord = Base->TexCoord;
-					Device->UpdateBuffer(Graphics::RenderBufferType_Render);
-					Device->SetVertexBuffer(VertexBuffer, 0);
-					Device->SetIndexBuffer(IndexBuffer, Graphics::Format_R32_Uint);
-					Device->DrawIndexed((unsigned int)Base->GetIndices().size(), 0, 0);
-				}
-
-				Device->FlushTexture2D(1, 7, TH_PS);
-			}
-			void SoftBody::RenderGeometryVoxels(Core::Timer* Time, Core::Pool<Drawable*>* Geometry, RenderOpt Options)
-			{
-				Graphics::GraphicsDevice* Device = System->GetDevice();
-				Device->SetSamplerState(Sampler, 0, TH_PS);
-				Device->SetInputLayout(Layout);
-				Device->SetShader(Shaders.Voxelize, TH_VS | TH_PS | TH_GS);
-				Lighting::SetVoxelBuffer(System, Shaders.Voxelize, 3);
-
-				Viewer& View = System->GetScene()->View;
-				for (auto It = Geometry->Begin(); It != Geometry->End(); ++It)
-				{
-					Engine::Components::SoftBody* Base = (Engine::Components::SoftBody*)*It;
-					if (!Base->Static || Base->GetIndices().empty())
-						continue;
-
-					if (!Base->IsNear(View))
-						continue;
-
-					if (!System->PushVoxelsBuffer(Base->GetMaterial()))
-						continue;
-
-					Base->Fill(Device, IndexBuffer, VertexBuffer);
-					Device->Render.World.Identify();
-					Device->Render.WorldViewProj.Identify();
-					Device->Render.TexCoord = Base->TexCoord;
-					Device->UpdateBuffer(Graphics::RenderBufferType_Render);
-					Device->SetVertexBuffer(VertexBuffer, 0);
-					Device->SetIndexBuffer(IndexBuffer, Graphics::Format_R32_Uint);
-					Device->DrawIndexed((unsigned int)Base->GetIndices().size(), 0, 0);
-				}
-
-				Device->FlushTexture2D(5, 6, TH_PS);
-				Device->SetShader(nullptr, TH_GS);
-			}
-			void SoftBody::RenderDepthLinear(Core::Timer* Time, Core::Pool<Drawable*>* Geometry)
-			{
-				Graphics::GraphicsDevice* Device = System->GetDevice();
-				Device->SetDepthStencilState(DepthStencil);
-				Device->SetBlendState(Blend);
-				Device->SetRasterizerState(Rasterizer);
-				Device->SetInputLayout(Layout);
-				Device->SetSamplerState(Sampler, 0, TH_PS);
-				Device->SetShader(Shaders.Depth.Linear, TH_VS | TH_PS);
-
-				for (auto It = Geometry->Begin(); It != Geometry->End(); ++It)
-				{
-					Engine::Components::SoftBody* Base = (Engine::Components::SoftBody*)*It;
-					if (Base->GetIndices().empty())
-						continue;
-
-					if (!System->PassDrawable(Base, CullResult_Always, nullptr))
-						continue;
-
-					if (!System->PushDepthLinearBuffer(Base->GetMaterial()))
-						continue;
-
-					Base->Fill(Device, IndexBuffer, VertexBuffer);
-					Device->Render.World.Identify();
-					Device->Render.WorldViewProj = System->GetScene()->View.ViewProjection;
-					Device->Render.TexCoord = Base->TexCoord;
-					Device->UpdateBuffer(Graphics::RenderBufferType_Render);
-					Device->SetVertexBuffer(VertexBuffer, 0);
-					Device->SetIndexBuffer(IndexBuffer, Graphics::Format_R32_Uint);
-					Device->DrawIndexed((unsigned int)Base->GetIndices().size(), 0, 0);
-				}
-
-				Device->SetTexture2D(nullptr, 1, TH_PS);
-			}
-			void SoftBody::RenderDepthCubic(Core::Timer* Time, Core::Pool<Drawable*>* Geometry, Compute::Matrix4x4* ViewProjection)
-			{
-				Graphics::GraphicsDevice* Device = System->GetDevice();
-				Device->SetDepthStencilState(DepthStencil);
-				Device->SetBlendState(Blend);
-				Device->SetRasterizerState(Rasterizer);
-				Device->SetInputLayout(Layout);
-				Device->SetSamplerState(Sampler, 0, TH_PS);
-				Device->SetShader(Shaders.Depth.Linear, TH_VS | TH_PS | TH_GS);
-				Device->SetBuffer(Shaders.Depth.Cubic, 3, TH_VS | TH_PS | TH_GS);
-				Device->UpdateBuffer(Shaders.Depth.Cubic, ViewProjection);
-
-				for (auto It = Geometry->Begin(); It != Geometry->End(); ++It)
-				{
-					Engine::Components::SoftBody* Base = (Engine::Components::SoftBody*)*It;
-					if (!Base->GetBody() || Base->GetEntity()->Transform->Position.Distance(System->GetScene()->View.WorldPosition) >= System->GetScene()->View.FarPlane + Base->GetEntity()->Transform->Scale.Length())
-						continue;
-
-					if (!System->PushDepthCubicBuffer(Base->GetMaterial()))
-						continue;
-
-					Base->Fill(Device, IndexBuffer, VertexBuffer);
-					Device->Render.World.Identify();
-					Device->Render.TexCoord = Base->TexCoord;
-					Device->UpdateBuffer(Graphics::RenderBufferType_Render);
-					Device->SetVertexBuffer(VertexBuffer, 0);
-					Device->SetIndexBuffer(IndexBuffer, Graphics::Format_R32_Uint);
-					Device->DrawIndexed((unsigned int)Base->GetIndices().size(), 0, 0);
 				}
 
 				Device->SetTexture2D(nullptr, 1, TH_PS);
@@ -2443,25 +2444,33 @@ namespace Tomahawk
 			}
 			UserInterface::UserInterface(RenderSystem* Lab, Graphics::Activity* NewActivity) : Renderer(Lab), Activity(NewActivity)
 			{
+#ifdef TH_WITH_RMLUI
 				Context = new GUI::Context(System->GetDevice());
+#endif
 			}
 			UserInterface::~UserInterface()
 			{
+#ifdef TH_WITH_RMLUI
 				TH_RELEASE(Context);
+#endif
 			}
 			void UserInterface::Render(Core::Timer* Timer, RenderState State, RenderOpt Options)
 			{
+#ifdef TH_WITH_RMLUI
 				if (!Context || State != RenderState_Geometry_Result || Options & RenderOpt_Inner || Options & RenderOpt_Transparent)
 					return;
 
 				Context->UpdateEvents(Activity);
 				Context->RenderLists(System->GetMRT(TargetType_Main)->GetTarget(0));
 				System->RestoreOutput();
+#endif
 			}
+#ifdef TH_WITH_RMLUI
 			GUI::Context* UserInterface::GetContext()
 			{
 				return Context;
 			}
+#endif
 		}
 	}
 }

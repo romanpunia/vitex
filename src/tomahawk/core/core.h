@@ -117,7 +117,7 @@ typedef socklen_t socket_size_t;
 #define TH_ERROR(...)
 #endif
 #define TH_LOG(Format, ...) Tomahawk::Core::Debug::Log(0, TH_LINE, TH_FILE, Format, ##__VA_ARGS__)
-#define TH_STACKSIZE 64 * 1024
+#define TH_STACKSIZE (64 * 1024)
 #define TH_COUT extern "C" TH_OUT
 #define TH_MALLOC(Size) Tomahawk::Core::Mem::Malloc(Size)
 #define TH_NEW(Type, ...) new(TH_MALLOC(sizeof(Type))) Type(__VA_ARGS__)
@@ -1607,6 +1607,7 @@ namespace Tomahawk
 		class Async
 		{
 			static_assert(!std::is_same<T, void>::value, "async cannot be used with void type");
+			static_assert(std::is_default_constructible<T>::value, "async cannot be used with non default constructible type");
 			typedef T value_type;
 
 		private:
@@ -1632,7 +1633,7 @@ namespace Tomahawk
 				std::mutex RW;
 				T Result;
 
-				Base() : Count(1), Set(-1), Deferred(true)
+				Base() : Count(1), Set(-1), Deferred(true), Result()
 				{
 				}
 				Base* Copy()
@@ -1685,10 +1686,10 @@ namespace Tomahawk
 			}* Next;
 
 		public:
-			Async() : Next(TH_NEW(Base))
+			Async() noexcept : Next(TH_NEW(Base))
 			{
 			}
-			Async(std::function<void(Async&)>&& Executor) : Async()
+			Async(std::function<void(Async&)>&& Executor) noexcept : Async()
 			{
                 if (!Executor)
                     return;
@@ -1707,17 +1708,17 @@ namespace Tomahawk
                 else
                     Executor(*this);
 			}
-			Async(Base* Context) : Next(Context)
+			Async(Base* Context) noexcept : Next(Context)
 			{
 				if (Next != nullptr)
 					Next->Count++;
 			}
-			Async(const Async& Other) : Next(Other.Next)
+			Async(const Async& Other) noexcept : Next(Other.Next)
 			{
 				if (Next != nullptr)
 					Next->Count++;
 			}
-			Async(Async&& Other) : Next(Other.Next)
+			Async(Async&& Other) noexcept : Next(Other.Next)
 			{
 				Other.Next = nullptr;
 			}
@@ -1979,8 +1980,6 @@ namespace Tomahawk
 			}
 		};
 
-		TH_OUT Parser Form(const char* Format, ...);
-
 		template <typename T>
 		inline T& Coawait(Async<T>&& Future)
 		{
@@ -2046,6 +2045,20 @@ namespace Tomahawk
 			});
 
 			return Coawait(std::move(Result));
+		}
+		inline Parser Form(const char* Format, ...)
+		{
+			if (!Format)
+				return Parser();
+
+			va_list Args;
+			va_start(Args, Format);
+
+			char Buffer[10240];
+			int Size = vsnprintf(Buffer, sizeof(Buffer), Format, Args);
+			va_end(Args);
+
+			return Parser(Buffer, Size > 16384 ? 16384 : (size_t)Size);
 		}
 	}
 }

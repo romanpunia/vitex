@@ -68,6 +68,7 @@ namespace Tomahawk
 				Core::Document* Metadata = Document->Find("metadata");
 				if (Metadata != nullptr)
 				{
+#ifdef TH_WITH_BULLET3
 					Core::Document* Simulator = Metadata->Find("simulator");
 					if (Simulator != nullptr)
 					{
@@ -79,7 +80,7 @@ namespace Tomahawk
 						NMake::Unpack(Simulator->Find("water-normal"), &I.Simulator.WaterNormal);
 						NMake::Unpack(Simulator->Find("gravity"), &I.Simulator.Gravity);
 					}
-
+#endif
 					NMake::Unpack(Metadata->Find("materials"), &I.MaterialCount);
 					NMake::Unpack(Metadata->Find("entities"), &I.EntityCount);
 					NMake::Unpack(Metadata->Find("components"), &I.ComponentCount);
@@ -202,7 +203,7 @@ namespace Tomahawk
 				NMake::Pack(Metadata->Set("components"), Conf.ComponentCount);
 				NMake::Pack(Metadata->Set("render-quality"), Conf.RenderQuality);
 				NMake::Pack(Metadata->Set("enable-hdr"), Conf.EnableHDR);
-
+#ifdef TH_WITH_BULLET3
 				auto* fSimulator = Object->GetSimulator();
 				Core::Document* Simulator = Metadata->Set("simulator");
 				NMake::Pack(Simulator->Set("enable-soft-body"), fSimulator->HasSoftBodySupport());
@@ -212,7 +213,7 @@ namespace Tomahawk
 				NMake::Pack(Simulator->Set("water-density"), fSimulator->GetWaterDensity());
 				NMake::Pack(Simulator->Set("water-normal"), fSimulator->GetWaterNormal());
 				NMake::Pack(Simulator->Set("gravity"), fSimulator->GetGravity());
-
+#endif
                 Core::Document* Materials = Document->Set("materials", Core::Var::Array());
 				for (uint64_t i = 0; i < Object->GetMaterialCount(); i++)
 				{
@@ -742,22 +743,22 @@ namespace Tomahawk
 					for (unsigned int w = 0; w < Joint->mNumWeights; w++)
 					{
 						auto& Element = Blob.Vertices[Joint->mWeights[w].mVertexId];
-						if (Element.JointIndex0 == -1)
+						if (Element.JointIndex0 == -1.0f)
 						{
 							Element.JointIndex0 = (float)Index;
 							Element.JointBias0 = Joint->mWeights[w].mWeight;
 						}
-						else if (Element.JointIndex1 == -1)
+						else if (Element.JointIndex1 == -1.0f)
 						{
 							Element.JointIndex1 = (float)Index;
 							Element.JointBias1 = Joint->mWeights[w].mWeight;
 						}
-						else if (Element.JointIndex2 == -1)
+						else if (Element.JointIndex2 == -1.0f)
 						{
 							Element.JointIndex2 = (float)Index;
 							Element.JointBias2 = Joint->mWeights[w].mWeight;
 						}
-						else if (Element.JointIndex3 == -1)
+						else if (Element.JointIndex3 == -1.0f)
 						{
 							Element.JointIndex3 = (float)Index;
 							Element.JointBias3 = Joint->mWeights[w].mWeight;
@@ -1502,7 +1503,7 @@ namespace Tomahawk
 
 				return (void*)Object;
 			}
-
+#ifdef TH_WITH_BULLET3
 			Shape::Shape(ContentManager* Manager) : Processor(Manager)
 			{
 			}
@@ -1559,6 +1560,7 @@ namespace Tomahawk
 				Content->Cache(this, Stream->GetSource(), Object);
 				return (void*)Object;
 			}
+#endif
 		}
 	}
 }

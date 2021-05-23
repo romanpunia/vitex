@@ -1,11 +1,15 @@
 #include "compute.h"
 #include <cctype>
+#ifdef TH_WITH_BULLET3
 #include <btBulletDynamicsCommon.h>
 #include <BulletSoftBody/btSoftRigidDynamicsWorld.h>
 #include <BulletSoftBody/btDefaultSoftBodySolver.h>
 #include <BulletSoftBody/btSoftBodyHelpers.h>
 #include <BulletSoftBody/btSoftBodyRigidBodyCollisionConfiguration.h>
+#endif
+#ifdef TH_WITH_SIMD
 #include <vsimd.h>
+#endif
 #ifdef TH_MICROSOFT
 #include <Windows.h>
 #endif
@@ -21,11 +25,12 @@ extern "C"
 #define BT_TO_V3(V) Vector3(V.getX(), V.getY(), V.getZ())
 #define REGEX_FAIL(A, B) if (A) return (B)
 #define REGEX_FAIL_IN(A, B) if (A) { State = B; return; }
-#define MAKE_ADJ_TRI(x) (x&0x3fffffff)
-#define IS_BOUNDARY(x) (x==0xffffffff)
+#define MAKE_ADJ_TRI(x) ((x) & 0x3fffffff)
+#define IS_BOUNDARY(x) ((x) == 0xffffffff)
 
 namespace
 {
+#ifdef TH_WITH_BULLET3
 	class FindContactsHandler : public btCollisionWorld::ContactResultCallback
 	{
 	public:
@@ -98,7 +103,7 @@ namespace
 			return (btScalar)Callback(&Contact, CollisionBody(Body1));
 		}
 	};
-
+#endif
 	size_t OffsetOf64(const char* Source, char Dest)
 	{
 		for (size_t i = 0; i < 64; i++)
@@ -135,7 +140,7 @@ namespace Tomahawk
 		}
 		float Vector2::Length() const
 		{
-#ifdef TH_HAS_SIMD
+#ifdef TH_WITH_SIMD
 			LOD_FV2(_r1);
 			return sqrt(horizontal_add(square(_r1)));
 #else
@@ -144,7 +149,7 @@ namespace Tomahawk
 		}
 		float Vector2::Sum() const
 		{
-#ifdef TH_HAS_SIMD
+#ifdef TH_WITH_SIMD
 			LOD_FV2(_r1);
 			return horizontal_add(_r1);
 #else
@@ -153,7 +158,7 @@ namespace Tomahawk
 		}
 		float Vector2::Dot(const Vector2& B) const
 		{
-#ifdef TH_HAS_SIMD
+#ifdef TH_WITH_SIMD
 			LOD_FV2(_r1); LOD_V2(_r2, B);
 			return horizontal_add(_r1 * _r2);
 #else
@@ -162,7 +167,7 @@ namespace Tomahawk
 		}
 		float Vector2::Distance(const Vector2& Point) const
 		{
-#ifdef TH_HAS_SIMD
+#ifdef TH_WITH_SIMD
 			LOD_FV2(_r1); LOD_V2(_r2, Point);
 			return sqrt(horizontal_add(square(_r1 - _r2)));
 #else
@@ -176,7 +181,7 @@ namespace Tomahawk
 		}
 		float Vector2::LookAt(const Vector2& At) const
 		{
-#ifdef TH_HAS_SIMD
+#ifdef TH_WITH_SIMD
 			LOD_FV2(_r1); LOD_V2(_r2, At); _r1 = _r2 - _r1;
 			return atan2f(_r1.extract(0), _r1.extract(1));
 #else
@@ -185,7 +190,7 @@ namespace Tomahawk
 		}
 		float Vector2::Cross(const Vector2& B) const
 		{
-#ifdef TH_HAS_SIMD
+#ifdef TH_WITH_SIMD
 			LOD_FV2(_r1); LOD_V2(_r2, B); _r1 = _r1 * _r2;
 			return _r1.extract(0) - _r1.extract(1);
 #else
@@ -194,7 +199,7 @@ namespace Tomahawk
 		}
 		Vector2 Vector2::Transform(const Matrix4x4& Matrix) const
 		{
-#ifdef TH_HAS_SIMD
+#ifdef TH_WITH_SIMD
 			LOD_VAL(_r1, X);
 			LOD_VAL(_r2, Y);
 			LOD_VAR(_r3, Matrix.Row);
@@ -226,7 +231,7 @@ namespace Tomahawk
 		}
 		Vector2 Vector2::Normalize() const
 		{
-#ifdef TH_HAS_SIMD
+#ifdef TH_WITH_SIMD
 			LOD_FV2(_r1);
 			_r1 = _r1 * Common::FastInvSqrt(horizontal_add(square(_r1)));
 			return Vector2(_r1.extract(0), _r1.extract(1));
@@ -237,7 +242,7 @@ namespace Tomahawk
 		}
 		Vector2 Vector2::sNormalize() const
 		{
-#ifdef TH_HAS_SIMD
+#ifdef TH_WITH_SIMD
 			LOD_FV2(_r1);
 			float F = sqrt(horizontal_add(square(_r1)));
 			if (F == 0.0f)
@@ -255,7 +260,7 @@ namespace Tomahawk
 		}
 		Vector2 Vector2::Lerp(const Vector2& B, float DeltaTime) const
 		{
-#ifdef TH_HAS_SIMD
+#ifdef TH_WITH_SIMD
 			LOD_FV2(_r1); LOD_V2(_r2, B);
 			_r1 = _r1 + (_r2 - _r1) * DeltaTime;
 			return Vector2(_r1.extract(0), _r1.extract(1));
@@ -283,7 +288,7 @@ namespace Tomahawk
 		}
 		Vector2 Vector2::Abs() const
 		{
-#ifdef TH_HAS_SIMD
+#ifdef TH_WITH_SIMD
 			LOD_FV2(_r1); _r1 = abs(_r1);
 			return Vector2(_r1.extract(0), _r1.extract(1));
 #else
@@ -312,7 +317,7 @@ namespace Tomahawk
 		}
 		Vector2 Vector2::Mul(float xy) const
 		{
-#ifdef TH_HAS_SIMD
+#ifdef TH_WITH_SIMD
 			LOD_FV2(_r1); _r1 = _r1 * xy;
 			return Vector2(_r1.extract(0), _r1.extract(1));
 #else
@@ -321,7 +326,7 @@ namespace Tomahawk
 		}
 		Vector2 Vector2::Mul(float x, float y) const
 		{
-#ifdef TH_HAS_SIMD
+#ifdef TH_WITH_SIMD
 			LOD_FV2(_r1); LOD_AV2(_r2, x, y); _r1 = _r1 * _r2;
 			return Vector2(_r1.extract(0), _r1.extract(1));
 #else
@@ -334,7 +339,7 @@ namespace Tomahawk
 		}
 		Vector2 Vector2::Div(const Vector2& Value) const
 		{
-#ifdef TH_HAS_SIMD
+#ifdef TH_WITH_SIMD
 			LOD_FV2(_r1); LOD_V2(_r2, Value); _r1 = _r1 / _r2;
 			return Vector2(_r1.extract(0), _r1.extract(1));
 #else
@@ -343,7 +348,7 @@ namespace Tomahawk
 		}
 		Vector2 Vector2::Add(const Vector2& Value) const
 		{
-#ifdef TH_HAS_SIMD
+#ifdef TH_WITH_SIMD
 			LOD_FV2(_r1); LOD_V2(_r2, Value); _r1 = _r1 + _r2;
 			return Vector2(_r1.extract(0), _r1.extract(1));
 #else
@@ -370,7 +375,7 @@ namespace Tomahawk
 		}
 		Vector2& Vector2::operator *=(const Vector2& V)
 		{
-#ifdef TH_HAS_SIMD
+#ifdef TH_WITH_SIMD
 			LOD_FV2(_r1); LOD_V2(_r2, V);
 			_r1 = _r1 * _r2;
 			_r1.store_partial(2, (float*)this);
@@ -382,7 +387,7 @@ namespace Tomahawk
 		}
 		Vector2& Vector2::operator *=(float V)
 		{
-#ifdef TH_HAS_SIMD
+#ifdef TH_WITH_SIMD
 			LOD_FV2(_r1);
 			_r1 = _r1 * V;
 			_r1.store_partial(2, (float*)this);
@@ -394,7 +399,7 @@ namespace Tomahawk
 		}
 		Vector2& Vector2::operator /=(const Vector2& V)
 		{
-#ifdef TH_HAS_SIMD
+#ifdef TH_WITH_SIMD
 			LOD_FV2(_r1); LOD_V2(_r2, V);
 			_r1 = _r1 / _r2;
 			_r1.store_partial(2, (float*)this);
@@ -406,7 +411,7 @@ namespace Tomahawk
 		}
 		Vector2& Vector2::operator /=(float V)
 		{
-#ifdef TH_HAS_SIMD
+#ifdef TH_WITH_SIMD
 			LOD_FV2(_r1);
 			_r1 = _r1 / V;
 			_r1.store_partial(2, (float*)this);
@@ -418,7 +423,7 @@ namespace Tomahawk
 		}
 		Vector2& Vector2::operator +=(const Vector2& V)
 		{
-#ifdef TH_HAS_SIMD
+#ifdef TH_WITH_SIMD
 			LOD_FV2(_r1); LOD_V2(_r2, V);
 			_r1 = _r1 + _r2;
 			_r1.store_partial(2, (float*)this);
@@ -430,7 +435,7 @@ namespace Tomahawk
 		}
 		Vector2& Vector2::operator +=(float V)
 		{
-#ifdef TH_HAS_SIMD
+#ifdef TH_WITH_SIMD
 			LOD_FV2(_r1);
 			_r1 = _r1 + V;
 			_r1.store_partial(2, (float*)this);
@@ -442,7 +447,7 @@ namespace Tomahawk
 		}
 		Vector2& Vector2::operator -=(const Vector2& V)
 		{
-#ifdef TH_HAS_SIMD
+#ifdef TH_WITH_SIMD
 			LOD_FV2(_r1); LOD_V2(_r2, V);
 			_r1 = _r1 - _r2;
 			_r1.store_partial(2, (float*)this);
@@ -454,7 +459,7 @@ namespace Tomahawk
 		}
 		Vector2& Vector2::operator -=(float V)
 		{
-#ifdef TH_HAS_SIMD
+#ifdef TH_WITH_SIMD
 			LOD_FV2(_r1);
 			_r1 = _r1 - V;
 			_r1.store_partial(2, (float*)this);
@@ -530,7 +535,7 @@ namespace Tomahawk
 		{
 			return X > R.X && Y > R.Y;
 		}
-		float& Vector2::operator [](int Axis)
+		float& Vector2::operator [](uint32_t Axis)
 		{
 			if (Axis == 0)
 				return X;
@@ -539,7 +544,7 @@ namespace Tomahawk
 
 			return X;
 		}
-		float Vector2::operator [](int Axis) const
+		float Vector2::operator [](uint32_t Axis) const
 		{
 			if (Axis == 0)
 				return X;
@@ -580,7 +585,7 @@ namespace Tomahawk
 		}
 		float Vector3::Length() const
 		{
-#ifdef TH_HAS_SIMD
+#ifdef TH_WITH_SIMD
 			LOD_FV3(_r1);
 			return sqrt(horizontal_add(square(_r1)));
 #else
@@ -589,7 +594,7 @@ namespace Tomahawk
 		}
 		float Vector3::Sum() const
 		{
-#ifdef TH_HAS_SIMD
+#ifdef TH_WITH_SIMD
 			LOD_FV3(_r1);
 			return horizontal_add(_r1);
 #else
@@ -598,7 +603,7 @@ namespace Tomahawk
 		}
 		float Vector3::Dot(const Vector3& B) const
 		{
-#ifdef TH_HAS_SIMD
+#ifdef TH_WITH_SIMD
 			LOD_FV3(_r1); LOD_V3(_r2, B);
 			return horizontal_add(_r1 * _r2);
 #else
@@ -607,7 +612,7 @@ namespace Tomahawk
 		}
 		float Vector3::Distance(const Vector3& Point) const
 		{
-#ifdef TH_HAS_SIMD
+#ifdef TH_WITH_SIMD
 			LOD_FV3(_r1); LOD_V3(_r2, Point);
 			return sqrt(horizontal_add(square(_r1 - _r2)));
 #else
@@ -617,7 +622,7 @@ namespace Tomahawk
 		}
 		float Vector3::Hypotenuse() const
 		{
-#ifdef TH_HAS_SIMD
+#ifdef TH_WITH_SIMD
 			LOD_AV2(_r1, X, Z);
 			float R = sqrt(horizontal_add(square(_r1)));
 
@@ -630,7 +635,7 @@ namespace Tomahawk
 		}
 		float Vector3::LookAtXY(const Vector3& At) const
 		{
-#ifdef TH_HAS_SIMD
+#ifdef TH_WITH_SIMD
 			LOD_FV3(_r1); LOD_V3(_r2, At); _r1 = _r2 - _r1;
 			return atan2f(_r1.extract(0), _r1.extract(1));
 #else
@@ -639,7 +644,7 @@ namespace Tomahawk
 		}
 		float Vector3::LookAtXZ(const Vector3& At) const
 		{
-#ifdef TH_HAS_SIMD
+#ifdef TH_WITH_SIMD
 			LOD_FV3(_r1); LOD_V3(_r2, At); _r1 = _r2 - _r1;
 			return atan2f(_r1.extract(0), _r1.extract(2));
 #else
@@ -648,7 +653,7 @@ namespace Tomahawk
 		}
 		Vector3 Vector3::Cross(const Vector3& B) const
 		{
-#ifdef TH_HAS_SIMD
+#ifdef TH_WITH_SIMD
 			LOD_AV3(_r1, Y, Z, X);
 			LOD_AV3(_r2, Z, X, Y);
 			LOD_AV3(_r3, B.Z, B.X, B.Y);
@@ -662,7 +667,7 @@ namespace Tomahawk
 		}
 		Vector3 Vector3::Transform(const Matrix4x4& Matrix) const
 		{
-#ifdef TH_HAS_SIMD
+#ifdef TH_WITH_SIMD
 			LOD_VAL(_r1, X);
 			LOD_VAL(_r2, Y);
 			LOD_VAL(_r3, Z);
@@ -706,7 +711,7 @@ namespace Tomahawk
 		}
 		Vector3 Vector3::Normalize() const
 		{
-#ifdef TH_HAS_SIMD
+#ifdef TH_WITH_SIMD
 			LOD_FV3(_r1);
 			_r1 = _r1 * Common::FastInvSqrt(horizontal_add(square(_r1)));
 			return Vector3(_r1.extract(0), _r1.extract(1), _r1.extract(2));
@@ -717,7 +722,7 @@ namespace Tomahawk
 		}
 		Vector3 Vector3::sNormalize() const
 		{
-#ifdef TH_HAS_SIMD
+#ifdef TH_WITH_SIMD
 			LOD_FV3(_r1);
 			float F = sqrt(horizontal_add(square(_r1)));
 			if (F == 0.0f)
@@ -735,7 +740,7 @@ namespace Tomahawk
 		}
 		Vector3 Vector3::Lerp(const Vector3& B, float DeltaTime) const
 		{
-#ifdef TH_HAS_SIMD
+#ifdef TH_WITH_SIMD
 			LOD_FV3(_r1); LOD_V3(_r2, B);
 			_r1 = _r1 + (_r2 - _r1) * DeltaTime;
 			return Vector3(_r1.extract(0), _r1.extract(1), _r1.extract(2));
@@ -765,7 +770,7 @@ namespace Tomahawk
 		}
 		Vector3 Vector3::Abs() const
 		{
-#ifdef TH_HAS_SIMD
+#ifdef TH_WITH_SIMD
 			LOD_FV3(_r1); _r1 = abs(_r1);
 			return Vector3(_r1.extract(0), _r1.extract(1), _r1.extract(2));
 #else
@@ -794,7 +799,7 @@ namespace Tomahawk
 		}
 		Vector3 Vector3::Mul(float xyz) const
 		{
-#ifdef TH_HAS_SIMD
+#ifdef TH_WITH_SIMD
 			LOD_FV3(_r1); _r1 = _r1 * xyz;
 			return Vector3(_r1.extract(0), _r1.extract(1), _r1.extract(2));
 #else
@@ -803,7 +808,7 @@ namespace Tomahawk
 		}
 		Vector3 Vector3::Mul(const Vector2& XY, float z) const
 		{
-#ifdef TH_HAS_SIMD
+#ifdef TH_WITH_SIMD
 			LOD_FV3(_r1); LOD_AV3(_r2, XY.X, XY.Y, z); _r1 = _r1 * _r2;
 			return Vector3(_r1.extract(0), _r1.extract(1), _r1.extract(2));
 #else
@@ -812,7 +817,7 @@ namespace Tomahawk
 		}
 		Vector3 Vector3::Mul(const Vector3& Value) const
 		{
-#ifdef TH_HAS_SIMD
+#ifdef TH_WITH_SIMD
 			LOD_FV3(_r1); LOD_V3(_r2, Value); _r1 = _r1 * _r2;
 			return Vector3(_r1.extract(0), _r1.extract(1), _r1.extract(2));
 #else
@@ -821,7 +826,7 @@ namespace Tomahawk
 		}
 		Vector3 Vector3::Div(const Vector3& Value) const
 		{
-#ifdef TH_HAS_SIMD
+#ifdef TH_WITH_SIMD
 			LOD_FV3(_r1); LOD_V3(_r2, Value); _r1 = _r1 / _r2;
 			return Vector3(_r1.extract(0), _r1.extract(1), _r1.extract(2));
 #else
@@ -830,7 +835,7 @@ namespace Tomahawk
 		}
 		Vector3 Vector3::Add(const Vector3& Value) const
 		{
-#ifdef TH_HAS_SIMD
+#ifdef TH_WITH_SIMD
 			LOD_FV3(_r1); LOD_V3(_r2, Value); _r1 = _r1 + _r2;
 			return Vector3(_r1.extract(0), _r1.extract(1), _r1.extract(2));
 #else
@@ -868,7 +873,7 @@ namespace Tomahawk
 		}
 		Vector3& Vector3::operator *=(const Vector3& V)
 		{
-#ifdef TH_HAS_SIMD
+#ifdef TH_WITH_SIMD
 			LOD_FV3(_r1); LOD_V3(_r2, V);
 			_r1 = _r1 * _r2;
 			_r1.store_partial(3, (float*)this);
@@ -881,7 +886,7 @@ namespace Tomahawk
 		}
 		Vector3& Vector3::operator *=(float V)
 		{
-#ifdef TH_HAS_SIMD
+#ifdef TH_WITH_SIMD
 			LOD_FV3(_r1); LOD_VAL(_r2, V);
 			_r1 = _r1 * _r2;
 			_r1.store_partial(3, (float*)this);
@@ -894,7 +899,7 @@ namespace Tomahawk
 		}
 		Vector3& Vector3::operator /=(const Vector3& V)
 		{
-#ifdef TH_HAS_SIMD
+#ifdef TH_WITH_SIMD
 			LOD_FV3(_r1); LOD_V3(_r2, V);
 			_r1 = _r1 / _r2;
 			_r1.store_partial(3, (float*)this);
@@ -907,7 +912,7 @@ namespace Tomahawk
 		}
 		Vector3& Vector3::operator /=(float V)
 		{
-#ifdef TH_HAS_SIMD
+#ifdef TH_WITH_SIMD
 			LOD_FV3(_r1); LOD_VAL(_r2, V);
 			_r1 = _r1 / _r2;
 			_r1.store_partial(3, (float*)this);
@@ -920,7 +925,7 @@ namespace Tomahawk
 		}
 		Vector3& Vector3::operator +=(const Vector3& V)
 		{
-#ifdef TH_HAS_SIMD
+#ifdef TH_WITH_SIMD
 			LOD_FV3(_r1); LOD_V3(_r2, V);
 			_r1 = _r1 + _r2;
 			_r1.store_partial(3, (float*)this);
@@ -933,7 +938,7 @@ namespace Tomahawk
 		}
 		Vector3& Vector3::operator +=(float V)
 		{
-#ifdef TH_HAS_SIMD
+#ifdef TH_WITH_SIMD
 			LOD_FV3(_r1); LOD_VAL(_r2, V);
 			_r1 = _r1 + _r2;
 			_r1.store_partial(3, (float*)this);
@@ -946,7 +951,7 @@ namespace Tomahawk
 		}
 		Vector3& Vector3::operator -=(const Vector3& V)
 		{
-#ifdef TH_HAS_SIMD
+#ifdef TH_WITH_SIMD
 			LOD_FV3(_r1); LOD_V3(_r2, V);
 			_r1 = _r1 - _r2;
 			_r1.store_partial(3, (float*)this);
@@ -959,7 +964,7 @@ namespace Tomahawk
 		}
 		Vector3& Vector3::operator -=(float V)
 		{
-#ifdef TH_HAS_SIMD
+#ifdef TH_WITH_SIMD
 			LOD_FV3(_r1); LOD_VAL(_r2, V);
 			_r1 = _r1 - _r2;
 			_r1.store_partial(3, (float*)this);
@@ -1037,7 +1042,7 @@ namespace Tomahawk
 		{
 			return X > R.X && Y > R.Y && Z > R.Z;
 		}
-		float& Vector3::operator [](int Axis)
+		float& Vector3::operator [](uint32_t Axis)
 		{
 			if (Axis == 0)
 				return X;
@@ -1048,7 +1053,7 @@ namespace Tomahawk
 
 			return X;
 		}
-		float Vector3::operator [](int Axis) const
+		float Vector3::operator [](uint32_t Axis) const
 		{
 			if (Axis == 0)
 				return X;
@@ -1067,6 +1072,7 @@ namespace Tomahawk
 		{
 			return Vector3(Mathf::Random(), Mathf::Random(), Mathf::Random());
 		}
+#ifdef TH_WITH_BULLET3
 		void Vector3::ToBtVector3(const Vector3& In, btVector3* Out)
 		{
 			if (Out != nullptr)
@@ -1085,7 +1091,7 @@ namespace Tomahawk
 				Out->Z = In.getZ();
 			}
 		}
-
+#endif
 		Vector4::Vector4() : X(0.0f), Y(0.0f), Z(0.0f), W(0.0f)
 		{
 		}
@@ -1112,7 +1118,7 @@ namespace Tomahawk
 		}
 		float Vector4::Length() const
 		{
-#ifdef TH_HAS_SIMD
+#ifdef TH_WITH_SIMD
 			LOD_FV4(_r1);
 			return sqrt(horizontal_add(square(_r1)));
 #else
@@ -1121,7 +1127,7 @@ namespace Tomahawk
 		}
 		float Vector4::Sum() const
 		{
-#ifdef TH_HAS_SIMD
+#ifdef TH_WITH_SIMD
 			LOD_FV4(_r1);
 			return horizontal_add(_r1);
 #else
@@ -1130,7 +1136,7 @@ namespace Tomahawk
 		}
 		float Vector4::Dot(const Vector4& B) const
 		{
-#ifdef TH_HAS_SIMD
+#ifdef TH_WITH_SIMD
 			LOD_FV4(_r1); LOD_V4(_r2, B);
 			return horizontal_add(_r1 * _r2);
 #else
@@ -1139,7 +1145,7 @@ namespace Tomahawk
 		}
 		float Vector4::Distance(const Vector4& Point) const
 		{
-#ifdef TH_HAS_SIMD
+#ifdef TH_WITH_SIMD
 			LOD_FV4(_r1); LOD_V4(_r2, Point);
 			return sqrt(horizontal_add(square(_r1 - _r2)));
 #else
@@ -1149,7 +1155,7 @@ namespace Tomahawk
 		}
 		Vector4 Vector4::Cross(const Vector4& B) const
 		{
-#ifdef TH_HAS_SIMD
+#ifdef TH_WITH_SIMD
 			LOD_AV3(_r1, Y, Z, X);
 			LOD_AV3(_r2, Z, X, Y);
 			LOD_AV3(_r3, B.Z, B.X, B.Y);
@@ -1163,7 +1169,7 @@ namespace Tomahawk
 		}
 		Vector4 Vector4::Transform(const Matrix4x4& Matrix) const
 		{
-#ifdef TH_HAS_SIMD
+#ifdef TH_WITH_SIMD
 			LOD_VAL(_r1, X);
 			LOD_VAL(_r2, Y);
 			LOD_VAL(_r3, Z);
@@ -1205,7 +1211,7 @@ namespace Tomahawk
 		}
 		Vector4 Vector4::Normalize() const
 		{
-#ifdef TH_HAS_SIMD
+#ifdef TH_WITH_SIMD
 			LOD_FV4(_r1);
 			_r1 = _r1 * Common::FastInvSqrt(horizontal_add(square(_r1)));
 			return Vector4(_r1.extract(0), _r1.extract(1), _r1.extract(2), _r1.extract(3));
@@ -1216,7 +1222,7 @@ namespace Tomahawk
 		}
 		Vector4 Vector4::sNormalize() const
 		{
-#ifdef TH_HAS_SIMD
+#ifdef TH_WITH_SIMD
 			LOD_FV4(_r1);
 			float F = sqrt(horizontal_add(square(_r1)));
 			if (F == 0.0f)
@@ -1234,7 +1240,7 @@ namespace Tomahawk
 		}
 		Vector4 Vector4::Lerp(const Vector4& B, float DeltaTime) const
 		{
-#ifdef TH_HAS_SIMD
+#ifdef TH_WITH_SIMD
 			LOD_FV4(_r1); LOD_V4(_r2, B);
 			_r1 = _r1 + (_r2 - _r1) * DeltaTime;
 			return Vector3(_r1.extract(0), _r1.extract(1), _r1.extract(2));
@@ -1267,7 +1273,7 @@ namespace Tomahawk
 		}
 		Vector4 Vector4::Abs() const
 		{
-#ifdef TH_HAS_SIMD
+#ifdef TH_WITH_SIMD
 			LOD_FV4(_r1); _r1 = abs(_r1);
 			return Vector4(_r1.extract(0), _r1.extract(1), _r1.extract(2), _r1.extract(3));
 #else
@@ -1312,7 +1318,7 @@ namespace Tomahawk
 		}
 		Vector4 Vector4::Mul(float xyzw) const
 		{
-#ifdef TH_HAS_SIMD
+#ifdef TH_WITH_SIMD
 			LOD_FV4(_r1); _r1 = _r1 * xyzw;
 			return Vector4(_r1.extract(0), _r1.extract(1), _r1.extract(2), _r1.extract(3));
 #else
@@ -1321,7 +1327,7 @@ namespace Tomahawk
 		}
 		Vector4 Vector4::Mul(const Vector2& XY, float z, float w) const
 		{
-#ifdef TH_HAS_SIMD
+#ifdef TH_WITH_SIMD
 			LOD_FV4(_r1); LOD_AV4(_r2, XY.X, XY.Y, z, w); _r1 = _r1 * _r2;
 			return Vector4(_r1.extract(0), _r1.extract(1), _r1.extract(2), _r1.extract(3));
 #else
@@ -1330,7 +1336,7 @@ namespace Tomahawk
 		}
 		Vector4 Vector4::Mul(const Vector3& XYZ, float w) const
 		{
-#ifdef TH_HAS_SIMD
+#ifdef TH_WITH_SIMD
 			LOD_FV4(_r1); LOD_AV4(_r2, XYZ.X, XYZ.Y, XYZ.Z, w); _r1 = _r1 * _r2;
 			return Vector4(_r1.extract(0), _r1.extract(1), _r1.extract(2), _r1.extract(3));
 #else
@@ -1339,7 +1345,7 @@ namespace Tomahawk
 		}
 		Vector4 Vector4::Mul(const Vector4& Value) const
 		{
-#ifdef TH_HAS_SIMD
+#ifdef TH_WITH_SIMD
 			LOD_FV4(_r1); LOD_V4(_r2, Value); _r1 = _r1 * _r2;
 			return Vector4(_r1.extract(0), _r1.extract(1), _r1.extract(2), _r1.extract(3));
 #else
@@ -1348,7 +1354,7 @@ namespace Tomahawk
 		}
 		Vector4 Vector4::Div(const Vector4& Value) const
 		{
-#ifdef TH_HAS_SIMD
+#ifdef TH_WITH_SIMD
 			LOD_FV4(_r1); LOD_V4(_r2, Value); _r1 = _r1 / _r2;
 			return Vector4(_r1.extract(0), _r1.extract(1), _r1.extract(2), _r1.extract(3));
 #else
@@ -1357,7 +1363,7 @@ namespace Tomahawk
 		}
 		Vector4 Vector4::Add(const Vector4& Value) const
 		{
-#ifdef TH_HAS_SIMD
+#ifdef TH_WITH_SIMD
 			LOD_FV4(_r1); LOD_V4(_r2, Value); _r1 = _r1 + _r2;
 			return Vector4(_r1.extract(0), _r1.extract(1), _r1.extract(2), _r1.extract(3));
 #else
@@ -1396,7 +1402,7 @@ namespace Tomahawk
 		}
 		Vector4& Vector4::operator *=(const Vector4& V)
 		{
-#ifdef TH_HAS_SIMD
+#ifdef TH_WITH_SIMD
 			LOD_FV4(_r1); LOD_V4(_r2, V);
 			_r1 = _r1 * _r2;
 			_r1.store((float*)this);
@@ -1410,7 +1416,7 @@ namespace Tomahawk
 		}
 		Vector4& Vector4::operator *=(float V)
 		{
-#ifdef TH_HAS_SIMD
+#ifdef TH_WITH_SIMD
 			LOD_FV4(_r1); LOD_VAL(_r2, V);
 			_r1 = _r1 * _r2;
 			_r1.store((float*)this);
@@ -1424,7 +1430,7 @@ namespace Tomahawk
 		}
 		Vector4& Vector4::operator /=(const Vector4& V)
 		{
-#ifdef TH_HAS_SIMD
+#ifdef TH_WITH_SIMD
 			LOD_FV4(_r1); LOD_V4(_r2, V);
 			_r1 = _r1 / _r2;
 			_r1.store((float*)this);
@@ -1438,7 +1444,7 @@ namespace Tomahawk
 		}
 		Vector4& Vector4::operator /=(float V)
 		{
-#ifdef TH_HAS_SIMD
+#ifdef TH_WITH_SIMD
 			LOD_FV4(_r1); LOD_VAL(_r2, V);
 			_r1 = _r1 / _r2;
 			_r1.store((float*)this);
@@ -1452,7 +1458,7 @@ namespace Tomahawk
 		}
 		Vector4& Vector4::operator +=(const Vector4& V)
 		{
-#ifdef TH_HAS_SIMD
+#ifdef TH_WITH_SIMD
 			LOD_FV4(_r1); LOD_V4(_r2, V);
 			_r1 = _r1 + _r2;
 			_r1.store((float*)this);
@@ -1466,7 +1472,7 @@ namespace Tomahawk
 		}
 		Vector4& Vector4::operator +=(float V)
 		{
-#ifdef TH_HAS_SIMD
+#ifdef TH_WITH_SIMD
 			LOD_FV4(_r1); LOD_VAL(_r2, V);
 			_r1 = _r1 + _r2;
 			_r1.store((float*)this);
@@ -1480,7 +1486,7 @@ namespace Tomahawk
 		}
 		Vector4& Vector4::operator -=(const Vector4& V)
 		{
-#ifdef TH_HAS_SIMD
+#ifdef TH_WITH_SIMD
 			LOD_FV4(_r1); LOD_V4(_r2, V);
 			_r1 = _r1 - _r2;
 			_r1.store((float*)this);
@@ -1494,7 +1500,7 @@ namespace Tomahawk
 		}
 		Vector4& Vector4::operator -=(float V)
 		{
-#ifdef TH_HAS_SIMD
+#ifdef TH_WITH_SIMD
 			LOD_FV4(_r1); LOD_VAL(_r2, V);
 			_r1 = _r1 - _r2;
 			_r1.store((float*)this);
@@ -1578,7 +1584,7 @@ namespace Tomahawk
 		{
 			return X > R.X && Y > R.Y && Z > R.Z && W > R.W;
 		}
-		float& Vector4::operator [](int Axis)
+		float& Vector4::operator [](uint32_t Axis)
 		{
 			if (Axis == 0)
 				return X;
@@ -1591,7 +1597,7 @@ namespace Tomahawk
 
 			return X;
 		}
-		float Vector4::operator [](int Axis) const
+		float Vector4::operator [](uint32_t Axis) const
 		{
 			if (Axis == 0)
 				return X;
@@ -1852,6 +1858,7 @@ namespace Tomahawk
 		Matrix4x4::Matrix4x4() : Row{ 1, 0, 0, 0, 0, 1, 0, 0, 0, 0, 1, 0, 0, 0, 0, 1 }
 		{
 		}
+#ifdef TH_WITH_BULLET3
 		Matrix4x4::Matrix4x4(btTransform* In)
 		{
 			if (!In)
@@ -1868,6 +1875,7 @@ namespace Tomahawk
 			Row[9] = Offset[1][2];
 			Row[10] = Offset[2][2];
 		}
+#endif
 		Matrix4x4::Matrix4x4(float Array[16])
 		{
 			memcpy(Row, Array, sizeof(float) * 16);
@@ -1890,11 +1898,11 @@ namespace Tomahawk
 		{
 			memcpy(Row, V.Row, sizeof(float) * 16);
 		}
-		float& Matrix4x4::operator [](int Index)
+		float& Matrix4x4::operator [](uint32_t Index)
 		{
 			return Row[Index];
 		}
-		float Matrix4x4::operator [](int Index) const
+		float Matrix4x4::operator [](uint32_t Index) const
 		{
 			return Row[Index];
 		}
@@ -1968,7 +1976,7 @@ namespace Tomahawk
 			float A0212 = Row[4] * Row[10] - Row[6] * Row[8];
 			float A0113 = Row[4] * Row[13] - Row[5] * Row[12];
 			float A0112 = Row[4] * Row[9] - Row[5] * Row[8];
-#ifdef TH_HAS_SIMD
+#ifdef TH_WITH_SIMD
 			LOD_AV4(_r1, Row[5], Row[4], Row[4], Row[4]);
 			LOD_AV4(_r2, A2323, A2323, A1323, A1223);
 			LOD_AV4(_r3, Row[6], Row[6], Row[5], Row[5]);
@@ -2032,7 +2040,7 @@ namespace Tomahawk
 		}
 		Matrix4x4 Matrix4x4::Transpose() const
 		{
-#ifdef TH_HAS_SIMD
+#ifdef TH_WITH_SIMD
 			LOD_FV16(_r1);
 			_r1 = permute16f<0, 4, 8, 12, 1, 5, 9, 13, 2, 6, 10, 14, 3, 7, 11, 15>(_r1);
 
@@ -2050,7 +2058,7 @@ namespace Tomahawk
 		}
 		Vector3 Matrix4x4::Rotation() const
 		{
-#ifdef TH_HAS_SIMD
+#ifdef TH_WITH_SIMD
 			float X = -atan2(-Row[6], Row[10]);
 			float sX = sin(X), cX = cos(X);
 			LOD_AV2(_r1, Row[0], Row[1]);
@@ -2088,7 +2096,7 @@ namespace Tomahawk
 		Matrix4x4 Matrix4x4::Mul(const Matrix4x4& V) const
 		{
 			Matrix4x4 Result;
-#ifdef TH_HAS_SIMD
+#ifdef TH_WITH_SIMD
 			LOD_VAR(_r1, V.Row + 0);
 			LOD_VAR(_r2, V.Row + 4);
 			LOD_VAR(_r3, V.Row + 8);
@@ -2141,7 +2149,7 @@ namespace Tomahawk
 		Matrix4x4 Matrix4x4::Mul(const Vector4& V) const
 		{
 			Matrix4x4 Result;
-#ifdef TH_HAS_SIMD
+#ifdef TH_WITH_SIMD
 			LOD_V4(_r1, V);
 			LOD_VAR(_r2, Row + 0);
 			LOD_VAR(_r3, Row + 4);
@@ -2174,7 +2182,7 @@ namespace Tomahawk
 		}
 		Vector2 Matrix4x4::XY() const
 		{
-#ifdef TH_HAS_SIMD
+#ifdef TH_WITH_SIMD
 			LOD_AV4(_r1, Row[0], Row[4], Row[8], Row[12]);
 			LOD_AV4(_r2, Row[1], Row[5], Row[9], Row[13]);
 			return Vector2(horizontal_add(_r1), horizontal_add(_r2));
@@ -2186,7 +2194,7 @@ namespace Tomahawk
 		}
 		Vector3 Matrix4x4::XYZ() const
 		{
-#ifdef TH_HAS_SIMD
+#ifdef TH_WITH_SIMD
 			LOD_AV4(_r1, Row[0], Row[4], Row[8], Row[12]);
 			LOD_AV4(_r2, Row[1], Row[5], Row[9], Row[13]);
 			LOD_AV4(_r3, Row[2], Row[6], Row[10], Row[14]);
@@ -2200,7 +2208,7 @@ namespace Tomahawk
 		}
 		Vector4 Matrix4x4::XYZW() const
 		{
-#ifdef TH_HAS_SIMD
+#ifdef TH_WITH_SIMD
 			LOD_AV4(_r1, Row[0], Row[4], Row[8], Row[12]);
 			LOD_AV4(_r2, Row[1], Row[5], Row[9], Row[13]);
 			LOD_AV4(_r3, Row[2], Row[6], Row[10], Row[14]);
@@ -2496,7 +2504,7 @@ namespace Tomahawk
 		}
 		void Quaternion::SetAxis(const Vector3& Axis, float Angle)
 		{
-#ifdef TH_HAS_SIMD
+#ifdef TH_WITH_SIMD
 			LOD_V3(_r1, Axis);
 			_r1 *= std::sin(Angle / 2);
 			_r1.insert(3, std::cos(Angle / 2));
@@ -2511,7 +2519,7 @@ namespace Tomahawk
 		}
 		void Quaternion::SetEuler(const Vector3& V)
 		{
-#ifdef TH_HAS_SIMD
+#ifdef TH_WITH_SIMD
 			float _sx[4], _cx[4];
 			LOD_V3(_r1, V);
 			LOD_VAL(_r2, 0.0f);
@@ -2554,7 +2562,7 @@ namespace Tomahawk
 		}
 		void Quaternion::SetMatrix(const Matrix4x4& Value)
 		{
-#ifdef TH_HAS_SIMD
+#ifdef TH_WITH_SIMD
 			LOD_AV3(_r1, Value[0], Value[5], Value[9]);
 			float T = horizontal_add(_r1);
 			if (T <= 0.0f)
@@ -2689,7 +2697,7 @@ namespace Tomahawk
 		}
 		Quaternion Quaternion::Normalize() const
 		{
-#ifdef TH_HAS_SIMD
+#ifdef TH_WITH_SIMD
 			LOD_FV4(_r1);
 			_r1 /= sqrt(horizontal_add(square(_r1)));
 
@@ -2703,7 +2711,7 @@ namespace Tomahawk
 		}
 		Quaternion Quaternion::sNormalize() const
 		{
-#ifdef TH_HAS_SIMD
+#ifdef TH_WITH_SIMD
 			LOD_FV4(_r1);
 			float F = sqrt(horizontal_add(square(_r1)));
 			if (F == 0.0f)
@@ -2727,7 +2735,7 @@ namespace Tomahawk
 		}
 		Quaternion Quaternion::Mul(float R) const
 		{
-#ifdef TH_HAS_SIMD
+#ifdef TH_WITH_SIMD
 			LOD_FV4(_r1);
 			_r1 *= R;
 
@@ -2740,7 +2748,7 @@ namespace Tomahawk
 		}
 		Quaternion Quaternion::Mul(const Quaternion& R) const
 		{
-#ifdef TH_HAS_SIMD
+#ifdef TH_WITH_SIMD
 			LOD_AV4(_r1, W, -X, -Y, -Z);
 			LOD_AV4(_r2, X, W, Y, -Z);
 			LOD_AV4(_r3, Y, W, Z, -X);
@@ -2763,7 +2771,7 @@ namespace Tomahawk
 		}
 		Quaternion Quaternion::Mul(const Vector3& R) const
 		{
-#ifdef TH_HAS_SIMD
+#ifdef TH_WITH_SIMD
 			LOD_AV3(_r1, -X, -Y, -Z);
 			LOD_AV3(_r2, W, Y, Z);
 			LOD_AV3(_r3, W, Z, -X);
@@ -2786,7 +2794,7 @@ namespace Tomahawk
 		}
 		Quaternion Quaternion::Sub(const Quaternion& R) const
 		{
-#ifdef TH_HAS_SIMD
+#ifdef TH_WITH_SIMD
 			LOD_FV4(_r1);
 			LOD_V4(_r2, R);
 			_r1 -= _r2;
@@ -2800,7 +2808,7 @@ namespace Tomahawk
 		}
 		Quaternion Quaternion::Add(const Quaternion& R) const
 		{
-#ifdef TH_HAS_SIMD
+#ifdef TH_WITH_SIMD
 			LOD_FV4(_r1);
 			LOD_V4(_r2, R);
 			_r1 += _r2;
@@ -2856,7 +2864,7 @@ namespace Tomahawk
 		}
 		Vector3 Quaternion::Forward() const
 		{
-#ifdef TH_HAS_SIMD
+#ifdef TH_WITH_SIMD
 			LOD_AV4(_r1, X, -W, Y, W);
 			LOD_AV4(_r2, Z, Y, Z, X);
 			LOD_AV2(_r3, X, Y);
@@ -2878,7 +2886,7 @@ namespace Tomahawk
 		}
 		Vector3 Quaternion::Up() const
 		{
-#ifdef TH_HAS_SIMD
+#ifdef TH_WITH_SIMD
 			LOD_AV4(_r1, X, W, Y, -W);
 			LOD_AV4(_r2, Y, Z, Z, X);
 			LOD_AV2(_r3, X, Z);
@@ -2900,7 +2908,7 @@ namespace Tomahawk
 		}
 		Vector3 Quaternion::Right() const
 		{
-#ifdef TH_HAS_SIMD
+#ifdef TH_WITH_SIMD
 			LOD_AV4(_r1, X, -W, X, W);
 			LOD_AV4(_r2, Y, Z, Z, Y);
 			LOD_AV2(_r3, Y, Z);
@@ -2926,7 +2934,7 @@ namespace Tomahawk
 		}
 		Vector3 Quaternion::GetEuler() const
 		{
-#ifdef TH_HAS_SIMD
+#ifdef TH_WITH_SIMD
 			LOD_AV4(_r1, W, Y, W, -Z);
 			LOD_AV4(_r2, X, Z, Y, X);
 			LOD_FV3(_r3);
@@ -2974,7 +2982,7 @@ namespace Tomahawk
 		}
 		float Quaternion::Dot(const Quaternion& R) const
 		{
-#ifdef TH_HAS_SIMD
+#ifdef TH_WITH_SIMD
 			LOD_FV4(_r1);
 			LOD_V4(_r2, R);
 			_r1 *= _r2;
@@ -2985,7 +2993,7 @@ namespace Tomahawk
 		}
 		float Quaternion::Length() const
 		{
-#ifdef TH_HAS_SIMD
+#ifdef TH_WITH_SIMD
 			LOD_FV4(_r1);
 			return sqrt(horizontal_add(square(_r1)));
 #else
@@ -3125,7 +3133,7 @@ namespace Tomahawk
 		{
 			Compile();
 		}
-		RegexSource::RegexSource(RegexSource&& Other) :
+		RegexSource::RegexSource(RegexSource&& Other) noexcept :
 			Expression(std::move(Other.Expression)),
             MaxBranches(Other.MaxBranches),
             MaxBrackets(Other.MaxBrackets),
@@ -3155,7 +3163,7 @@ namespace Tomahawk
 
 			return *this;
 		}
-		RegexSource& RegexSource::operator=(RegexSource&& V)
+		RegexSource& RegexSource::operator=(RegexSource&& V) noexcept
 		{
 			if (this == &V)
 				return *this;
@@ -3300,7 +3308,7 @@ namespace Tomahawk
 		RegexResult::RegexResult(const RegexResult& Other) : Matches(Other.Matches), State(Other.State), Steps(Other.Steps), Src(Other.Src)
 		{
 		}
-		RegexResult::RegexResult(RegexResult&& Other) : Matches(std::move(Other.Matches)), State(Other.State), Steps(Other.Steps), Src(Other.Src)
+		RegexResult::RegexResult(RegexResult&& Other) noexcept : Matches(std::move(Other.Matches)), State(Other.State), Steps(Other.Steps), Src(Other.Src)
 		{
 		}
 		RegexResult& RegexResult::operator =(const RegexResult& V)
@@ -3312,7 +3320,7 @@ namespace Tomahawk
 
 			return *this;
 		}
-		RegexResult& RegexResult::operator =(RegexResult&& V)
+		RegexResult& RegexResult::operator =(RegexResult&& V) noexcept
 		{
 			Matches.swap(V.Matches);
 			Src = V.Src;
@@ -3688,17 +3696,6 @@ namespace Tomahawk
 				"\"[^...]\" - Match any character but ones from set\n";
 		}
 
-		CollisionBody::CollisionBody(btCollisionObject* Object)
-		{
-			btRigidBody* RigidObject = btRigidBody::upcast(Object);
-			if (RigidObject != nullptr)
-				Rigid = (RigidBody*)RigidObject->getUserPointer();
-
-			btSoftBody* SoftObject = btSoftBody::upcast(Object);
-			if (SoftObject != nullptr)
-				Soft = (SoftBody*)SoftObject->getUserPointer();
-		}
-
 		unsigned char AdjTriangle::FindEdge(unsigned int vref0, unsigned int vref1)
 		{
 			unsigned char EdgeNb = 0xff;
@@ -3735,7 +3732,18 @@ namespace Tomahawk
 
 			return Ref;
 		}
+#ifdef TH_WITH_BULLET3
+		CollisionBody::CollisionBody(btCollisionObject* Object)
+		{
+			btRigidBody* RigidObject = btRigidBody::upcast(Object);
+			if (RigidObject != nullptr)
+				Rigid = (RigidBody*)RigidObject->getUserPointer();
 
+			btSoftBody* SoftObject = btSoftBody::upcast(Object);
+			if (SoftObject != nullptr)
+				Soft = (SoftBody*)SoftObject->getUserPointer();
+		}
+#endif
 		Adjacencies::Adjacencies() : NbEdges(0), CurrentNbFaces(0), Edges(nullptr), NbFaces(0), Faces(nullptr)
 		{
 		}
@@ -4151,10 +4159,9 @@ namespace Tomahawk
 				tags[face] = true;
 
 				unsigned char CurEdge = Adj->Faces[face].FindEdge(middle, Newest);
-				unsigned int Link = Adj->Faces[face].ATri[CurEdge];
-
-				if (!IS_BOUNDARY(Link))
+				if (!IS_BOUNDARY(CurEdge))
 				{
+					unsigned int Link = Adj->Faces[face].ATri[CurEdge];
 					face = MAKE_ADJ_TRI(Link);
 					if (tags[face])
 						DoTheStrip = false;
@@ -4265,7 +4272,7 @@ namespace Tomahawk
 			Offset = (unsigned int*)TH_MALLOC(sizeof(unsigned int) * 256);
 			ResetIndices();
 		}
-		RadixSorter::RadixSorter(RadixSorter&& Other) : Histogram(Other.Histogram), Offset(Other.Offset), CurrentSize(Other.CurrentSize), Indices(Other.Indices), Indices2(Other.Indices2)
+		RadixSorter::RadixSorter(RadixSorter&& Other) noexcept : Histogram(Other.Histogram), Offset(Other.Offset), CurrentSize(Other.CurrentSize), Indices(Other.Indices), Indices2(Other.Indices2)
 		{
 			Other.Indices = nullptr;
 			Other.Indices2 = nullptr;
@@ -4291,7 +4298,7 @@ namespace Tomahawk
 
 			return *this;
 		}
-		RadixSorter& RadixSorter::operator =(RadixSorter&& Other)
+		RadixSorter& RadixSorter::operator =(RadixSorter&& Other) noexcept
 		{
 			TH_FREE(Offset);
 			TH_FREE(Histogram);
@@ -6633,7 +6640,7 @@ namespace Tomahawk
 		float Common::IsCubeInFrustum(const Matrix4x4& WVP, float Radius)
 		{
 			Radius = -Radius;
-#ifdef TH_HAS_SIMD
+#ifdef TH_WITH_SIMD
 			LOD_AV4(_r1, WVP.Row[3], WVP.Row[7], WVP.Row[11], WVP.Row[15]);
 			LOD_AV4(_r2, WVP.Row[0], WVP.Row[4], WVP.Row[8], WVP.Row[12]);
 			LOD_VAL(_r3, _r1 + _r2);
@@ -7133,8 +7140,8 @@ namespace Tomahawk
 			unsigned int E = Result[4];
 			int R = 0;
 
-#define Sha1Roll(A1, A2) ((A1 << A2) | (A1 >> (32 - A2)))
-#define Sha1Make(F, V) {const unsigned int T=Sha1Roll(A,5)+(F)+E+V+W[R];E=D;D=C;C=Sha1Roll(B,30);B=A;A=T;R++;}
+#define Sha1Roll(A1, A2) (((A1) << (A2)) | ((A1) >> (32 - (A2))))
+#define Sha1Make(F, V) {const unsigned int T = Sha1Roll(A, 5) + (F) + E + V + W[R]; E = D; D = C; C = Sha1Roll(B, 30); B = A; A = T; R++;}
 
 			while (R < 16)
 				Sha1Make((B & C) | (~B & D), 0x5a827999);
@@ -8499,8 +8506,6 @@ namespace Tomahawk
 				}
 				else if (R == 0)
 					return 0;
-
-				Resolved = true;
 			}
 			else if (R == 0)
 				return 0;
@@ -9273,7 +9278,7 @@ namespace Tomahawk
 
 			return true;
 		}
-
+#ifdef TH_WITH_BULLET3
 		RigidBody::RigidBody(Simulator* Refer, const Desc& I) : Instance(nullptr), Engine(Refer), Initial(I), UserPointer(nullptr)
 		{
 			if (!Initial.Shape || !Engine)
@@ -10046,7 +10051,7 @@ namespace Tomahawk
 			if (!Instance)
 				return;
 
-#ifdef TH_HAS_SIMD
+#ifdef TH_WITH_SIMD
 			LOD_VAL(_r1, 0.0f); LOD_VAL(_r2, 0.0f);
 			for (int i = 0; i < Instance->m_nodes.size(); i++)
 			{
@@ -11852,5 +11857,6 @@ namespace Tomahawk
 
 			return Hull;
 		}
+#endif
 	}
 }

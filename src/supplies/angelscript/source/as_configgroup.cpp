@@ -1,6 +1,6 @@
 /*
    AngelCode Scripting Library
-   Copyright (c) 2003-2017 Andreas Jonsson
+   Copyright (c) 2003-2020 Andreas Jonsson
 
    This software is provided 'as-is', without any express or implied 
    warranty. In no event will the authors be held liable for any 
@@ -21,7 +21,7 @@
    3. This notice may not be removed or altered from any source 
       distribution.
 
-   The original version of this refs can be located at:
+   The original version of this library can be located at:
    http://www.angelcode.com/angelscript/
 
    Andreas Jonsson
@@ -130,7 +130,6 @@ void asCConfigGroup::RemoveConfiguration(asCScriptEngine *engine, bool notUsed)
 		{
 			globalProps[n]->Release();
 
-			// TODO: global: Should compact the registeredGlobalProps array
 			engine->registeredGlobalProps.Erase(index);
 		}
 	}

@@ -9,6 +9,135 @@ namespace Tomahawk
 	{
 		namespace Components
 		{
+#ifdef TH_WITH_BULLET3
+			class TH_OUT SoftBody final : public Drawable
+			{
+			protected:
+				Compute::SoftBody * Instance = nullptr;
+				std::vector<Compute::Vertex> Vertices;
+				std::vector<int> Indices;
+
+			public:
+				Compute::Vector2 TexCoord = 1.0f;
+				bool Kinematic = false;
+				bool Manage = true;
+
+			public:
+				SoftBody(Entity* Ref);
+				virtual ~SoftBody() override;
+				virtual void Deserialize(ContentManager* Content, Core::Document* Node) override;
+				virtual void Serialize(ContentManager* Content, Core::Document* Node) override;
+				virtual void Synchronize(Core::Timer* Time) override;
+				virtual void Awake(Component* New) override;
+				virtual void Asleep() override;
+				virtual float Cull(const Viewer& View) override;
+				virtual Component* Copy(Entity* New) override;
+				virtual Compute::Matrix4x4 GetBoundingBox() override;
+				void Create(Compute::UnmanagedShape* Shape, float Anticipation);
+				void Create(ContentManager* Content, const std::string& Path, float Anticipation);
+				void CreateEllipsoid(const Compute::SoftBody::Desc::CV::SEllipsoid& Shape, float Anticipation);
+				void CreatePatch(const Compute::SoftBody::Desc::CV::SPatch& Shape, float Anticipation);
+				void CreateRope(const Compute::SoftBody::Desc::CV::SRope& Shape, float Anticipation);
+				void Fill(Graphics::GraphicsDevice* Device, Graphics::ElementBuffer* IndexBuffer, Graphics::ElementBuffer* VertexBuffer);
+				void Regenerate();
+				void Clear();
+				void SetTransform(const Compute::Vector3& Position, const Compute::Vector3& Scale, const Compute::Vector3& Rotation);
+				void SetTransform(bool Kinematic);
+				Compute::SoftBody* GetBody();
+				std::vector<Compute::Vertex>& GetVertices();
+				std::vector<int>& GetIndices();
+
+			public:
+				TH_COMPONENT("soft-body");
+			};
+
+			class TH_OUT RigidBody final : public Component
+			{
+			private:
+				Compute::UnmanagedShape * Hull = nullptr;
+				Compute::RigidBody* Instance = nullptr;
+
+			public:
+				bool Kinematic = false;
+				bool Manage = true;
+
+			public:
+				RigidBody(Entity* Ref);
+				virtual ~RigidBody() override;
+				virtual void Deserialize(ContentManager* Content, Core::Document* Node) override;
+				virtual void Serialize(ContentManager* Content, Core::Document* Node) override;
+				virtual void Synchronize(Core::Timer* Time) override;
+				virtual void Asleep() override;
+				virtual Component* Copy(Entity* New) override;
+				void Create(btCollisionShape* Shape, float Mass, float Anticipation);
+				void Create(ContentManager* Content, const std::string& Path, float Mass, float Anticipation);
+				void Clear();
+				void SetTransform(const Compute::Vector3& Position, const Compute::Vector3& Scale, const Compute::Vector3& Rotation);
+				void SetTransform(bool Kinematic);
+				void SetMass(float Mass);
+				Compute::RigidBody* GetBody() const;
+
+			public:
+				TH_COMPONENT("rigid-body");
+			};
+
+			class TH_OUT SliderConstraint final : public Component
+			{
+			private:
+				struct
+				{
+					int64_t Connection = -1;
+					bool Ghost = true;
+					bool Linear = true;
+				} Wanted;
+
+			private:
+				Compute::SliderConstraint* Instance;
+				Entity* Connection;
+
+			public:
+				SliderConstraint(Entity* Ref);
+				virtual ~SliderConstraint() override;
+				virtual void Deserialize(ContentManager* Content, Core::Document* Node) override;
+				virtual void Serialize(ContentManager* Content, Core::Document* Node) override;
+				virtual void Synchronize(Core::Timer* Time) override;
+				virtual Component* Copy(Entity* New) override;
+				void Create(Entity* Other, bool IsGhosted, bool IsLinear);
+				void Clear();
+				Compute::SliderConstraint* GetConstraint() const;
+				Entity* GetConnection() const;
+
+			public:
+				TH_COMPONENT("slider-constraint");
+			};
+
+			class TH_OUT Acceleration final : public Component
+			{
+			private:
+				Compute::RigidBody * RigidBody = nullptr;
+
+			public:
+				Compute::Vector3 AmplitudeVelocity;
+				Compute::Vector3 AmplitudeTorque;
+				Compute::Vector3 ConstantVelocity;
+				Compute::Vector3 ConstantTorque;
+				Compute::Vector3 ConstantCenter;
+				bool Kinematic = true;
+
+			public:
+				Acceleration(Entity* Ref);
+				virtual ~Acceleration() = default;
+				virtual void Deserialize(ContentManager * Content, Core::Document * Node) override;
+				virtual void Serialize(ContentManager * Content, Core::Document * Node) override;
+				virtual void Awake(Component * New) override;
+				virtual void Update(Core::Timer * Time) override;
+				virtual Component* Copy(Entity * New) override;
+				Compute::RigidBody* GetBody() const;
+
+			public:
+				TH_COMPONENT("acceleration");
+			};
+#endif
 			class TH_OUT Model final : public Drawable
 			{
 			protected:
@@ -85,47 +214,6 @@ namespace Tomahawk
 
 			public:
 				TH_COMPONENT("emitter");
-			};
-
-			class TH_OUT SoftBody final : public Drawable
-			{
-			protected:
-				Compute::SoftBody* Instance = nullptr;
-				std::vector<Compute::Vertex> Vertices;
-				std::vector<int> Indices;
-
-			public:
-				Compute::Vector2 TexCoord = 1.0f;
-				bool Kinematic = false;
-				bool Manage = true;
-
-			public:
-				SoftBody(Entity* Ref);
-				virtual ~SoftBody() override;
-				virtual void Deserialize(ContentManager* Content, Core::Document* Node) override;
-				virtual void Serialize(ContentManager* Content, Core::Document* Node) override;
-				virtual void Synchronize(Core::Timer* Time) override;
-				virtual void Awake(Component* New) override;
-				virtual void Asleep() override;
-				virtual float Cull(const Viewer& View) override;
-				virtual Component* Copy(Entity* New) override;
-				virtual Compute::Matrix4x4 GetBoundingBox() override;
-				void Create(Compute::UnmanagedShape* Shape, float Anticipation);
-				void Create(ContentManager* Content, const std::string& Path, float Anticipation);
-				void CreateEllipsoid(const Compute::SoftBody::Desc::CV::SEllipsoid& Shape, float Anticipation);
-				void CreatePatch(const Compute::SoftBody::Desc::CV::SPatch& Shape, float Anticipation);
-				void CreateRope(const Compute::SoftBody::Desc::CV::SRope& Shape, float Anticipation);
-				void Fill(Graphics::GraphicsDevice* Device, Graphics::ElementBuffer* IndexBuffer, Graphics::ElementBuffer* VertexBuffer);
-				void Regenerate();
-				void Clear();
-				void SetTransform(const Compute::Vector3& Position, const Compute::Vector3& Scale, const Compute::Vector3& Rotation);
-				void SetTransform(bool Kinematic);
-				Compute::SoftBody* GetBody();
-				std::vector<Compute::Vertex>& GetVertices();
-				std::vector<int>& GetIndices();
-
-			public:
-				TH_COMPONENT("soft-body");
 			};
 
 			class TH_OUT Decal final : public Drawable
@@ -258,93 +346,6 @@ namespace Tomahawk
 
 			public:
 				TH_COMPONENT("emitter-animator");
-			};
-
-			class TH_OUT RigidBody final : public Component
-			{
-			private:
-				Compute::UnmanagedShape* Hull = nullptr;
-				Compute::RigidBody* Instance = nullptr;
-
-			public:
-				bool Kinematic = false;
-				bool Manage = true;
-
-			public:
-				RigidBody(Entity* Ref);
-				virtual ~RigidBody() override;
-				virtual void Deserialize(ContentManager* Content, Core::Document* Node) override;
-				virtual void Serialize(ContentManager* Content, Core::Document* Node) override;
-				virtual void Synchronize(Core::Timer* Time) override;
-				virtual void Asleep() override;
-				virtual Component* Copy(Entity* New) override;
-				void Create(btCollisionShape* Shape, float Mass, float Anticipation);
-				void Create(ContentManager* Content, const std::string& Path, float Mass, float Anticipation);
-				void Clear();
-				void SetTransform(const Compute::Vector3& Position, const Compute::Vector3& Scale, const Compute::Vector3& Rotation);
-				void SetTransform(bool Kinematic);
-				void SetMass(float Mass);
-				Compute::RigidBody* GetBody() const;
-
-			public:
-				TH_COMPONENT("rigid-body");
-			};
-
-			class TH_OUT Acceleration final : public Component
-			{
-			private:
-				Compute::RigidBody* RigidBody = nullptr;
-
-			public:
-				Compute::Vector3 AmplitudeVelocity;
-				Compute::Vector3 AmplitudeTorque;
-				Compute::Vector3 ConstantVelocity;
-				Compute::Vector3 ConstantTorque;
-				Compute::Vector3 ConstantCenter;
-				bool Kinematic = true;
-
-			public:
-				Acceleration(Entity* Ref);
-				virtual ~Acceleration() = default;
-				virtual void Deserialize(ContentManager* Content, Core::Document* Node) override;
-				virtual void Serialize(ContentManager* Content, Core::Document* Node) override;
-				virtual void Awake(Component* New) override;
-				virtual void Update(Core::Timer* Time) override;
-				virtual Component* Copy(Entity* New) override;
-				Compute::RigidBody* GetBody() const;
-
-			public:
-				TH_COMPONENT("acceleration");
-			};
-
-			class TH_OUT SliderConstraint final : public Component
-			{
-			private:
-				struct
-				{
-					int64_t Connection = -1;
-					bool Ghost = true;
-					bool Linear = true;
-				} Wanted;
-
-			private:
-				Compute::SliderConstraint* Instance;
-				Entity* Connection;
-
-			public:
-				SliderConstraint(Entity* Ref);
-				virtual ~SliderConstraint() override;
-				virtual void Deserialize(ContentManager* Content, Core::Document* Node) override;
-				virtual void Serialize(ContentManager* Content, Core::Document* Node) override;
-				virtual void Synchronize(Core::Timer* Time) override;
-				virtual Component* Copy(Entity* New) override;
-				void Create(Entity* Other, bool IsGhosted, bool IsLinear);
-				void Clear();
-				Compute::SliderConstraint* GetConstraint() const;
-				Entity* GetConnection() const;
-
-			public:
-				TH_COMPONENT("slider-constraint");
 			};
 
 			class TH_OUT FreeLook final : public Component

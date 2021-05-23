@@ -1,6 +1,6 @@
 /*
    AngelCode Scripting Library
-   Copyright (c) 2003-2019 Andreas Jonsson
+   Copyright (c) 2003-2020 Andreas Jonsson
 
    This software is provided 'as-is', without any express or implied
    warranty. In no event will the authors be held liable for any
@@ -21,7 +21,7 @@
    3. This notice may not be removed or altered from any source
       distribution.
 
-   The original version of this refs can be located at:
+   The original version of this library can be located at:
    http://www.angelcode.com/angelscript/
 
    Andreas Jonsson
@@ -144,7 +144,7 @@ AS_API asIScriptContext *asGetActiveContext()
 
 	// tld can be 0 if asGetActiveContext is called before any engine has been created.
 
-	// Observe! I've seen a case where an application linked with the refs twice
+	// Observe! I've seen a case where an application linked with the library twice
 	// and thus ended up with two separate instances of the code and global variables.
 	// The application somehow mixed the two instances so that a function called from
 	// a script ended up calling asGetActiveContext from the other instance that had
@@ -1188,7 +1188,7 @@ int asCContext::Abort()
 int asCContext::Suspend()
 {
 	// This function just sets some internal flags and is safe
-	// to call from a secondary thread, even if the refs has
+	// to call from a secondary thread, even if the library has
 	// been built without multi-thread support.
 
 	if( m_engine == 0 ) return asERROR;
@@ -4404,7 +4404,23 @@ void asCContext::ExecuteNext()
 
 				// Call the method
 				m_callingSystemFunction = m_engine->scriptFunctions[i];
-				void *ptr = m_engine->CallObjectMethodRetPtr(obj, arg, m_callingSystemFunction);
+				void *ptr = 0;
+#ifdef AS_NO_EXCEPTIONS
+				ptr = m_engine->CallObjectMethodRetPtr(obj, arg, m_callingSystemFunction);
+#else
+				// This try/catch block is to catch potential exception that may 
+				// be thrown by the registered function. 
+				try
+				{
+					ptr = m_engine->CallObjectMethodRetPtr(obj, arg, m_callingSystemFunction);
+				}
+				catch (...)
+				{
+					// Convert the exception to a script exception so the VM can 
+					// properly report the error to the application and then clean up
+					HandleAppException();
+				}
+#endif
 				m_callingSystemFunction = 0;
 				*(asPWORD*)&m_regs.valueRegister = (asPWORD)ptr;
 			}
@@ -4815,6 +4831,9 @@ void asCContext::DetermineLiveObjects(asCArray<int> &liveObjects, asUINT stackLe
 								nested--;
 						}
 					}
+					break;
+				case asOBJ_VARDECL: // A variable was declared
+					// We don't really care about the variable declarations at this moment
 					break;
 				}
 			}

@@ -3890,7 +3890,12 @@ namespace Tomahawk
 			return I;
 		}
 
-		SceneGraph::SceneGraph(const Desc& I) : Simulator(nullptr), Camera(nullptr), Conf(I), Surfaces(16), Invoked(false), Active(true)
+		SceneGraph::SceneGraph(const Desc& I) :
+#ifdef TH_WITH_BULLET3
+			Simulator(nullptr),
+#endif
+			Camera(nullptr), Conf(I), Surfaces(16),
+			Invoked(false), Active(true)
 		{
 			Sync.Count = 0; Sync.Locked = false;
 			for (unsigned int i = 0; i < ThreadId_Count; i++)
@@ -3915,7 +3920,9 @@ namespace Tomahawk
 			Display.VoxelSize = 0;
 
 			Configure(I);
+#ifdef TH_WITH_BULLET3
 			Simulator = new Compute::Simulator(I.Simulator);
+#endif
 			ExpandMaterials();
 		}
 		SceneGraph::~SceneGraph()
@@ -3941,8 +3948,9 @@ namespace Tomahawk
 			}
 
 			TH_RELEASE(Display.MaterialBuffer);
+#ifdef TH_WITH_BULLET3
 			TH_RELEASE(Simulator);
-
+#endif
 			Core::Schedule::Get()->ClearListener("scene-event", Listener);
 			Unlock();
 		}
@@ -4052,12 +4060,14 @@ namespace Tomahawk
 		}
 		void SceneGraph::Simulation(Core::Timer* Time)
 		{
+#ifdef TH_WITH_BULLET3
 			if (!Active)
 				return;
 
 			BeginThread(ThreadId_Simulation);
 			Simulator->Simulate((float)Time->GetTimeStep());
 			EndThread(ThreadId_Simulation);
+#endif
 		}
 		void SceneGraph::Synchronize(Core::Timer* Time)
 		{
@@ -5204,10 +5214,12 @@ namespace Tomahawk
 		{
 			return Conf.Primitives;
 		}
+#ifdef TH_WITH_BULLET3
 		Compute::Simulator* SceneGraph::GetSimulator()
 		{
 			return Simulator;
 		}
+#endif
 		SceneGraph::Desc& SceneGraph::GetConf()
 		{
 			return Conf;
@@ -5638,37 +5650,41 @@ namespace Tomahawk
 					Activity->SetCursorVisibility(I->Cursor);
 					Activity->Callbacks.KeyState = [this](Graphics::KeyCode Key, Graphics::KeyMod Mod, int Virtual, int Repeat, bool Pressed)
 					{
+#ifdef TH_WITH_RMLUI
 						GUI::Context* GUI = (GUI::Context*)GetGUI();
 						if (GUI != nullptr)
 							GUI->EmitKey(Key, Mod, Virtual, Repeat, Pressed);
-
+#endif
 						KeyEvent(Key, Mod, Virtual, Repeat, Pressed);
 					};
 					Activity->Callbacks.Input = [this](char* Buffer, int Length)
 					{
+#ifdef TH_WITH_RMLUI
 						GUI::Context* GUI = (GUI::Context*)GetGUI();
 						if (GUI != nullptr)
 							GUI->EmitInput(Buffer, Length);
-
+#endif
 						InputEvent(Buffer, Length);
 					};
 					Activity->Callbacks.CursorWheelState = [this](int X, int Y, bool Normal)
 					{
+#ifdef TH_WITH_RMLUI
 						GUI::Context* GUI = (GUI::Context*)GetGUI();
 						if (GUI != nullptr)
 							GUI->EmitWheel(X, Y, Normal, Activity->GetKeyModState());
-
+#endif
 						WheelEvent(X, Y, Normal);
 					};
 					Activity->Callbacks.WindowStateChange = [this](Graphics::WindowState NewState, int X, int Y)
 					{
+#ifdef TH_WITH_RMLUI
 						if (NewState == Graphics::WindowState_Resize)
 						{
 							GUI::Context* GUI = (GUI::Context*)GetGUI();
 							if (GUI != nullptr)
 								GUI->EmitResize(X, Y);
 						}
-
+#endif
 						WindowEvent(NewState, X, Y);
 					};
 
@@ -5719,19 +5735,22 @@ namespace Tomahawk
 				Content->AddProcessor<Processors::SkinModel, Graphics::SkinModel>();
 				Content->AddProcessor<Processors::Document, Core::Document>();
 				Content->AddProcessor<Processors::Server, Network::HTTP::Server>();
+#ifdef TH_WITH_BULLET3
 				Content->AddProcessor<Processors::Shape, Compute::UnmanagedShape>();
+#endif
 				Content->SetEnvironment(I->Environment.empty() ? Core::OS::Directory::Get() + I->Directory : I->Environment + I->Directory);
 			}
 
 			if (I->Usage & ApplicationUse_Script_Module)
 				VM = new Script::VMManager();
 
+#ifdef TH_WITH_RMLUI
 			if (Activity != nullptr && Renderer != nullptr && Content != nullptr)
 			{
 				GUI::Subsystem::SetMetadata(Activity, Content, nullptr);
 				GUI::Subsystem::SetManager(VM);
 			}
-
+#endif
 			State = ApplicationState_Staging;
 		}
 		Application::~Application()
@@ -5742,10 +5761,10 @@ namespace Tomahawk
 			TH_RELEASE(Scene);
 			TH_RELEASE(VM);
 			TH_RELEASE(Audio);
-
+#ifdef TH_WITH_RMLUI
 			if (Activity != nullptr && Renderer != nullptr && Content != nullptr)
 				Engine::GUI::Subsystem::Release();
-
+#endif
 			TH_RELEASE(Cache.Shaders);
 			TH_RELEASE(Cache.Primitives);
 			TH_RELEASE(Content);
@@ -5839,10 +5858,10 @@ namespace Tomahawk
 			Reactor* Job = Workers.front();
 			Job->Time->SetStepLimitation(I->MaxFrames, I->MinFrames);
 			Job->Time->FrameLimit = I->Framerate;
-
+#ifdef TH_WITH_RMLUI
 			if (Activity != nullptr && Renderer != nullptr && Content != nullptr)
 				GUI::Subsystem::SetMetadata(Activity, Content, Job->Time);
-
+#endif
 			if (I->Async)
 			{
 				State = ApplicationState_Multithreaded;
@@ -5896,6 +5915,7 @@ namespace Tomahawk
 		}
 		void* Application::GetGUI()
 		{
+#ifdef TH_WITH_RMLUI
 			if (!Scene)
 				return nullptr;
 
@@ -5905,6 +5925,9 @@ namespace Tomahawk
 
 			Renderers::UserInterface* Result = BaseCamera->GetRenderer()->GetRenderer<Renderers::UserInterface>();
 			return Result != nullptr ? Result->GetContext() : nullptr;
+#else
+			return nullptr;
+#endif
 		}
 		void Application::Callee(Reactor* Job)
 		{
@@ -5919,17 +5942,20 @@ namespace Tomahawk
 		}
 		void Application::Compose()
 		{
+#ifdef TH_WITH_BULLET3
+			Core::Composer::Push<Components::RigidBody, Entity*>();
+			Core::Composer::Push<Components::SoftBody, Entity*>();
+			Core::Composer::Push<Components::Acceleration, Entity*>();
+			Core::Composer::Push<Components::SliderConstraint, Entity*>();
+			Core::Composer::Push<Renderers::SoftBody, RenderSystem*>();
+#endif
 			Core::Composer::Push<Components::Model, Entity*>();
 			Core::Composer::Push<Components::Skin, Entity*>();
 			Core::Composer::Push<Components::Emitter, Entity*>();
-			Core::Composer::Push<Components::SoftBody, Entity*>();
 			Core::Composer::Push<Components::Decal, Entity*>();
 			Core::Composer::Push<Components::SkinAnimator, Entity*>();
 			Core::Composer::Push<Components::KeyAnimator, Entity*>();
 			Core::Composer::Push<Components::EmitterAnimator, Entity*>();
-			Core::Composer::Push<Components::RigidBody, Entity*>();
-			Core::Composer::Push<Components::Acceleration, Entity*>();
-			Core::Composer::Push<Components::SliderConstraint, Entity*>();
 			Core::Composer::Push<Components::FreeLook, Entity*>();
 			Core::Composer::Push<Components::Fly, Entity*>();
 			Core::Composer::Push<Components::AudioSource, Entity*>();
@@ -5943,7 +5969,6 @@ namespace Tomahawk
 			Core::Composer::Push<Components::Scriptable, Entity*>();
 			Core::Composer::Push<Renderers::Model, RenderSystem*>();
 			Core::Composer::Push<Renderers::Skin, RenderSystem*>();
-			Core::Composer::Push<Renderers::SoftBody, RenderSystem*>();
 			Core::Composer::Push<Renderers::Emitter, RenderSystem*>();
 			Core::Composer::Push<Renderers::Decal, RenderSystem*>();
 			Core::Composer::Push<Renderers::Lighting, RenderSystem*>();

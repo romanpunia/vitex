@@ -1,12 +1,13 @@
 #include "network.h"
 #include "../network/http.h"
-#include <RmlUi/Core/URL.h>
 #ifdef TH_MICROSOFT
 #include <winsock2.h>
 #include <windows.h>
 #include <ws2tcpip.h>
 #include <io.h>
+#ifdef TH_WITH_WEPOLL
 #include <wepoll.h>
+#endif
 #define ERRNO WSAGetLastError()
 #define ERRWOULDBLOCK WSAEWOULDBLOCK
 #define INVALID_EPOLL nullptr
@@ -57,19 +58,157 @@ namespace Tomahawk
 {
 	namespace Network
 	{
-		SourceURL::SourceURL(const std::string& Src) : URL(Src)
+		SourceURL::SourceURL(const std::string& Src) noexcept : URL(Src), Port(0), Protocol("file")
 		{
-			Rml::URL Fixed(Core::Parser(&URL).Find("://").Found ? URL : "file:///" + URL);
-			Path = Fixed.GetPath() + Fixed.GetFileName() + (Fixed.GetExtension().empty() ? "" : "." + Fixed.GetExtension());
-			Host = Fixed.GetHost();
-			Login = Fixed.GetLogin();
-			Password = Fixed.GetPassword();
-			Protocol = Fixed.GetProtocol();
-			Port = Fixed.GetPort();
+			if (URL.empty())
+				return;
+			
+			Core::Parser fURL(&URL);
+			fURL.Replace('\\', '/');
 
-			const auto& Parameters = Fixed.GetParameters();
-			for (auto& Item : Parameters)
-				Query.insert(std::make_pair(Item.first, Item.second));
+			const char* HostBegin = strchr(URL.c_str(), ':');
+			if (HostBegin != nullptr)
+			{
+				if (strncmp(HostBegin, "://", 3) != 0)
+				{
+					char Malformed[4] = { 0, 0, 0, 0 };
+					strncpy(Malformed, HostBegin, 3);
+					return;
+				}
+				else
+				{
+					Protocol = std::string(URL.c_str(), HostBegin);
+					HostBegin += 3;
+				}
+			}
+			else
+				HostBegin = URL.c_str();
+
+			const char* PathBegin;
+			if (HostBegin != URL.c_str())
+			{
+				const char* AtSymbol = strchr(HostBegin, '@');
+				if (AtSymbol)
+				{
+					std::string LoginPassword;
+					LoginPassword = std::string(HostBegin, AtSymbol);
+					HostBegin = AtSymbol + 1;
+
+					const char* PasswordPtr = strchr(LoginPassword.c_str(), ':');
+					if (PasswordPtr)
+					{
+						Login = std::string(LoginPassword.c_str(), PasswordPtr);
+						Password = std::string(PasswordPtr + 1);
+					}
+					else
+						Login = LoginPassword;
+				}
+
+				PathBegin = strchr(HostBegin, '/');
+				const char* PortBegin = strchr(HostBegin, ':');
+				if (PortBegin != nullptr && (PathBegin == nullptr || PortBegin < PathBegin))
+				{
+					if (1 != sscanf(PortBegin, ":%d", &Port))
+					{
+						MakePath();
+						return;
+					}
+
+					Host = std::string(HostBegin, PortBegin);
+					if (nullptr == PathBegin)
+					{
+						MakePath();
+						return;
+					}
+
+					++PathBegin;
+				}
+				else
+				{
+					Port = -1;
+					if (PathBegin == nullptr)
+					{
+						Host = HostBegin;
+						MakePath();
+						return;
+					}
+
+					Host = std::string(HostBegin, PathBegin);
+					++PathBegin;
+				}
+			}
+			else
+				PathBegin = URL.c_str();
+
+			std::string PathSegment;
+			const char* Parameters = strchr(PathBegin, '?');
+			if (Parameters != nullptr)
+			{
+				PathSegment = std::string(PathBegin, Parameters);
+				PathBegin = PathSegment.c_str();
+
+				Core::Parser fParameters(Parameters + 1);
+				std::vector<std::string> Array = fParameters.Split('&');
+				for (size_t i = 0; i < Array.size(); i++)
+				{
+					Core::Parser fParameter(Array[i]);
+					std::vector<std::string> KeyValue = fParameters.Split('=');
+					KeyValue[0] = Compute::Common::URIDecode(KeyValue[0]);
+
+					if (KeyValue.size() >= 2)
+						Query[KeyValue[0]] = Compute::Common::URIDecode(KeyValue[1]);
+					else
+						Query[KeyValue[0]] = "";
+				}
+			}
+
+			const char* FilenameBegin = strrchr(PathBegin, '/');
+			if (FilenameBegin != nullptr)
+			{
+				Path = std::string(PathBegin, ++FilenameBegin);
+				size_t ParentPos = std::string::npos;
+
+				while ((ParentPos = Path.find("/../")) != std::string::npos && ParentPos != 0)
+				{
+					size_t ParentStartPos = Path.rfind('/', ParentPos - 1);
+					if (ParentStartPos == std::string::npos)
+						ParentStartPos = 0;
+					else
+						ParentStartPos += 1;
+
+					Path.erase(ParentStartPos, ParentPos - ParentStartPos + 4);
+				}
+			}
+			else
+				FilenameBegin = PathBegin;
+
+			const char* ExtensionBegin = strrchr(FilenameBegin, '.');
+			if (nullptr != ExtensionBegin)
+			{
+				Filename = std::string(FilenameBegin, ExtensionBegin);
+				Extension = ExtensionBegin + 1;
+			}
+			else
+				Filename = FilenameBegin;
+		}
+		SourceURL::SourceURL(const SourceURL& Other) noexcept :
+			Query(Other.Query), URL(Other.URL), Protocol(Other.Protocol),
+			Login(Other.Login), Password(Other.Password), Host(Other.Host),
+			Path(Other.Path), Filename(Other.Filename), Extension(Other.Extension), Port(Other.Port)
+		{
+		}
+		SourceURL::SourceURL(SourceURL&& Other) noexcept :
+			Query(std::move(Other.Query)), URL(std::move(Other.URL)), Protocol(std::move(Other.Protocol)),
+			Login(std::move(Other.Login)), Password(std::move(Other.Password)), Host(std::move(Other.Host)),
+			Path(std::move(Other.Path)), Filename(std::move(Other.Filename)), Extension(std::move(Other.Extension)), Port(Other.Port)
+		{
+		}
+		void SourceURL::MakePath()
+		{
+			if (Filename.empty() && Extension.empty())
+				return;
+
+			Path += Filename + (Extension.empty() ? "" : '.' + Extension);
 		}
 
 		bool Address::Free(Network::Address* Address)
@@ -86,7 +225,7 @@ namespace Tomahawk
 
 		Socket::Socket() : Input(nullptr), Output(nullptr), Device(nullptr), Fd(INVALID_SOCKET), Income(0), Outcome(0), UserData(nullptr)
 		{
-			Sync.Await = false;
+			Sync.Events = 0;
 			Sync.Timeout = 0;
 			Sync.Time = 0;
 		}
@@ -239,7 +378,7 @@ namespace Tomahawk
 		{
 			Sync.IO.lock();
 			Listener = std::move(Callback);
-			Multiplexer::Listen(this);
+			Multiplexer::Listen(this, SocketEvent_Read);
 			Sync.IO.unlock();
 
 			return 0;
@@ -380,7 +519,7 @@ namespace Tomahawk
 				{
 					Sync.IO.lock();
 					bool OK = WriteSet(std::move(Callback), Buffer + Offset, Size);
-					Multiplexer::Listen(this);
+					Multiplexer::Listen(this, SocketEvent_Write);
 					Sync.IO.unlock();
 
 					if (!OK && Callback)
@@ -497,7 +636,7 @@ namespace Tomahawk
 				{
 					Sync.IO.lock();
 					bool OK = ReadSet(std::move(Callback), nullptr, Size, 0);
-					Multiplexer::Listen(this);
+					Multiplexer::Listen(this, SocketEvent_Read);
 					Sync.IO.unlock();
 
 					if (!OK && Callback)
@@ -587,7 +726,7 @@ namespace Tomahawk
 				{
 					Sync.IO.lock();
 					bool OK = ReadSet(std::move(Callback), Match, Size, Index);
-					Multiplexer::Listen(this);
+					Multiplexer::Listen(this, SocketEvent_Read);
 					Sync.IO.unlock();
 
 					if (!OK && Callback)
@@ -780,7 +919,7 @@ namespace Tomahawk
 		}
 		bool Socket::IsAwaiting()
 		{
-			return Sync.Await;
+			return Sync.Events != 0;
 		}
 		bool Socket::HasIncomingData()
 		{
@@ -1041,49 +1180,88 @@ namespace Tomahawk
             else if (Assigned)
                 Assigned = false;
         }
-        int Multiplexer::Listen(Socket* Value)
+        int Multiplexer::Listen(Socket* Value, uint32_t Events)
         {
-            if (!Handle || !Value || Value->Sync.Await || Value->Fd == INVALID_SOCKET)
+            if (!Handle || !Value || Value->Sync.Events & Events || Value->Fd == INVALID_SOCKET)
                 return -1;
 
+			uint32_t fEvents = Value->Sync.Events;
             Value->Sync.Time = Clock();
-            Value->Sync.Await = true;
+            Value->Sync.Events = Events;
 
 #ifdef TH_APPLE
-            struct kevent Event;
-            EV_SET(&Event, Value->Fd, EVFILT_READ, EV_ADD, 0, 0, (void*)Value);
-            kevent(Handle, &Event, 1, nullptr, 0, nullptr);
+			struct kevent Event;
+			if (Events & SocketEvent_Read || Value->Listener)
+			{
+				EV_SET(&Event, Value->Fd, EVFILT_READ, EV_ADD, 0, 0, (void*)Value);
+				int Result = kevent(Handle, &Event, 1, nullptr, 0, nullptr);
+				if (Result != 1)
+					return Result;
+			}
 
-            EV_SET(&Event, Value->Fd, EVFILT_WRITE, EV_ADD, 0, 0, (void*)Value);
-            return kevent(Handle, &Event, 1, nullptr, 0, nullptr);
+			if (Events & SocketEvent_Write)
+			{
+				EV_SET(&Event, Value->Fd, EVFILT_WRITE, EV_ADD, 0, 0, (void*)Value);
+				int Result = kevent(Handle, &Event, 1, nullptr, 0, nullptr);
+				if (Result != 1)
+					return Result;
+			}
+
+			return 0;
 #else
             epoll_event Event;
             Event.data.ptr = (void*)Value;
-            if (!Value->Listener)
-                Event.events = EPOLLRDHUP | EPOLLIN | EPOLLOUT;
+			if (!Value->Listener)
+			{
+#ifndef TH_MICROSOFT
+				Event.events = EPOLLRDHUP;
+				if (Events & SocketEvent_Read)
+					Event.events |= EPOLLIN;
+
+				if (Events & SocketEvent_Write)
+					Event.events |= EPOLLOUT;
+#else
+				Event.events = EPOLLRDHUP | EPOLLIN | EPOLLOUT;
+#endif
+			}
             else
                 Event.events = EPOLLIN;
             
-            return epoll_ctl(Handle, EPOLL_CTL_ADD, Value->Fd, &Event);
+			int Result = epoll_ctl(Handle, fEvents != 0 ? EPOLL_CTL_MOD : EPOLL_CTL_ADD, Value->Fd, &Event);
+			if (fEvents != 0 && Result == EINVAL)
+				Result = epoll_ctl(Handle, EPOLL_CTL_ADD, Value->Fd, &Event);
+
+            return Result;
 #endif
         }
         int Multiplexer::Unlisten(Socket* Value)
         {
-            if (!Handle || !Value || Value->Fd == INVALID_SOCKET || !Value->Sync.Await)
+            if (!Handle || !Value || Value->Fd == INVALID_SOCKET || Value->Sync.Events == 0)
                 return -1;
 
-            Value->Sync.Await = false;
+			uint32_t Events = Value->Sync.Events;
+			Value->Sync.Events = 0;
+
 #ifdef TH_APPLE
             struct kevent Event;
-            EV_SET(&Event, Value->Fd, EVFILT_READ, EV_DELETE, 0, 0, nullptr);
-            kevent(Handle, &Event, 1, nullptr, 0, nullptr);
-            EV_SET(&Event, Value->Fd, EVFILT_WRITE, EV_DELETE, 0, 0, nullptr);
-            kevent(Handle, &Event, 1, nullptr, 0, nullptr);
+			if (Events & SocketEvent_Read)
+			{
+				EV_SET(&Event, Value->Fd, EVFILT_READ, EV_DELETE, 0, 0, nullptr);
+				kevent(Handle, &Event, 1, nullptr, 0, nullptr);
+			}
+
+			if (Events & SocketEvent_Write)
+			{
+				EV_SET(&Event, Value->Fd, EVFILT_WRITE, EV_DELETE, 0, 0, nullptr);
+				kevent(Handle, &Event, 1, nullptr, 0, nullptr);
+			}
 
             return 0;
 #else
             epoll_event Event;
-            return epoll_ctl(Handle, EPOLL_CTL_DEL, Value->Fd, &Event);
+            int Result = epoll_ctl(Handle, EPOLL_CTL_DEL, Value->Fd, &Event);
+
+			return Result;
 #endif
         }
         void Multiplexer::Resolve()
@@ -1148,7 +1326,10 @@ namespace Tomahawk
                 if (Dispatch(Value, &Flags, Time) != 0)
                     Size++;
             }
-            
+#ifdef TH_MICROSOFT
+			if (Size == 0)
+				std::this_thread::sleep_for(std::chrono::microseconds(100));
+#endif
             return Size;
         }
 		int Multiplexer::Dispatch(Socket* Fd, int* Events, int64_t Time)

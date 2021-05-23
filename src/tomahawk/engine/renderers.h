@@ -10,6 +10,47 @@ namespace Tomahawk
 	{
 		namespace Renderers
 		{
+#ifdef TH_WITH_BULLET3
+			class TH_OUT SoftBody final : public GeometryDraw
+			{
+			private:
+				struct
+				{
+					struct
+					{
+						Graphics::Shader* Linear = nullptr;
+						Graphics::Shader* Cubic = nullptr;
+					} Depth;
+
+					Graphics::Shader* Geometry = nullptr;
+					Graphics::Shader* Voxelize = nullptr;
+					Graphics::Shader* Occlusion = nullptr;
+				} Shaders;
+
+			private:
+				Graphics::DepthStencilState* DepthStencil = nullptr;
+				Graphics::RasterizerState* Rasterizer = nullptr;
+				Graphics::BlendState* Blend = nullptr;
+				Graphics::SamplerState* Sampler = nullptr;
+				Graphics::InputLayout* Layout = nullptr;
+				Graphics::ElementBuffer* VertexBuffer = nullptr;
+				Graphics::ElementBuffer* IndexBuffer = nullptr;
+
+			public:
+				SoftBody(RenderSystem* Lab);
+				virtual ~SoftBody();
+				void Activate() override;
+				void Deactivate() override;
+				void CullGeometry(const Viewer& View, Core::Pool<Drawable*>* Geometry) override;
+				void RenderGeometryResult(Core::Timer* Time, Core::Pool<Drawable*>* Geometry, RenderOpt Options) override;
+				void RenderGeometryVoxels(Core::Timer* Time, Core::Pool<Drawable*>* Geometry, RenderOpt Options) override;
+				void RenderDepthLinear(Core::Timer* Time, Core::Pool<Drawable*>* Geometry) override;
+				void RenderDepthCubic(Core::Timer* Time, Core::Pool<Drawable*>* Geometry, Compute::Matrix4x4* ViewProjection) override;
+
+			public:
+				TH_COMPONENT("soft-body-renderer");
+			};
+#endif
 			class TH_OUT Model final : public GeometryDraw
 			{
 			private:
@@ -86,46 +127,6 @@ namespace Tomahawk
 
 			public:
 				TH_COMPONENT("skin-renderer");
-			};
-
-			class TH_OUT SoftBody final : public GeometryDraw
-			{
-			private:
-				struct
-				{
-					struct
-					{
-						Graphics::Shader* Linear = nullptr;
-						Graphics::Shader* Cubic = nullptr;
-					} Depth;
-
-					Graphics::Shader* Geometry = nullptr;
-					Graphics::Shader* Voxelize = nullptr;
-					Graphics::Shader* Occlusion = nullptr;
-				} Shaders;
-
-			private:
-				Graphics::DepthStencilState* DepthStencil = nullptr;
-				Graphics::RasterizerState* Rasterizer = nullptr;
-				Graphics::BlendState* Blend = nullptr;
-				Graphics::SamplerState* Sampler = nullptr;
-				Graphics::InputLayout* Layout = nullptr;
-				Graphics::ElementBuffer* VertexBuffer = nullptr;
-				Graphics::ElementBuffer* IndexBuffer = nullptr;
-
-			public:
-				SoftBody(RenderSystem* Lab);
-				virtual ~SoftBody();
-				void Activate() override;
-				void Deactivate() override;
-				void CullGeometry(const Viewer& View, Core::Pool<Drawable*>* Geometry) override;
-				void RenderGeometryResult(Core::Timer* Time, Core::Pool<Drawable*>* Geometry, RenderOpt Options) override;
-				void RenderGeometryVoxels(Core::Timer* Time, Core::Pool<Drawable*>* Geometry, RenderOpt Options) override;
-				void RenderDepthLinear(Core::Timer* Time, Core::Pool<Drawable*>* Geometry) override;
-				void RenderDepthCubic(Core::Timer* Time, Core::Pool<Drawable*>* Geometry, Compute::Matrix4x4* ViewProjection) override;
-
-			public:
-				TH_COMPONENT("soft-body-renderer");
 			};
 
 			class TH_OUT Emitter final : public GeometryDraw
@@ -767,16 +768,19 @@ namespace Tomahawk
 			class TH_OUT UserInterface final : public Renderer
 			{
 			private:
-				Graphics::Activity* Activity;
+#ifdef TH_WITH_RMLUI
 				GUI::Context* Context;
+#endif
+				Graphics::Activity* Activity;
 
 			public:
 				UserInterface(RenderSystem* Lab);
 				UserInterface(RenderSystem* Lab, Graphics::Activity* NewActivity);
 				virtual ~UserInterface() override;
 				void Render(Core::Timer* Time, RenderState State, RenderOpt Options) override;
+#ifdef TH_WITH_RMLUI
 				GUI::Context* GetContext();
-
+#endif
 			public:
 				TH_COMPONENT("user-interface-renderer");
 			};

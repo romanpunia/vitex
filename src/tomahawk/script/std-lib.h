@@ -258,7 +258,7 @@ namespace Tomahawk
 			{
 				VMCArray* Array = Create(ArrayType, (unsigned int)Objects.size());
 				for (size_t i = 0; i < Objects.size(); i++)
-					Array->SetValue(i, (void*)&Objects[i]);
+					Array->SetValue((as_size_t)i, (void*)&Objects[i]);
 
 				return Array;
 			}

@@ -24,6 +24,7 @@ Tomahawk is a cross-platform C++14 framework to create any type of application f
 + Async/await promise-like object to handle chains of async data
 + Coasync/Coawait primitives to handle async functions like in JS
 + BigNumber for accuracy sensitive operations of any precision
++ Modular dependencies, can be disabled if not needed
 #### Math
 + Vertices
 + Vectors
@@ -220,22 +221,27 @@ target_link_libraries(app_name PRIVATE tomahawk)
 You can look at [Lynx's CMakeLists.txt](https://github.com/romanpunia/lynx/blob/master/CMakeLists.txt) to find out how it should be used in practice
 
 There are several build options for this project.
-+ **TH_INFO** to allow informational logs, defaults to true
-+ **TH_WARN** to allow warning logs, defaults to true
-+ **TH_ERROR** to allow error logs, defaults to true
-+ **TH_SHADERS** to embed shaders from **/src/shaders** to this project, defaults to true
-+ **TH_EXPORT** to export all symbols
-+ **TH_USE_SIMD** to allow SIMD optimisations
-+ **TH_USE_ASSIMP** will enable Assimp library if any
-+ **TH_USE_FREETYPE** will enable FreeType library if any
-+ **TH_USE_GLEW** will enable GLEW library if any
-+ **TH_USE_MONGOC** will enable MongoDB library if any
-+ **TH_USE_POSTGRESQL** will enable PostgreSQL library if any
-+ **TH_USE_OPENAL** will enable OpenAL library if any
-+ **TH_USE_OPENGL** will enable OpenGL library if any
-+ **TH_USE_OPENSSL** will enable OpenSSL library if any
-+ **TH_USE_SDL2** will enable SDL2 library if any
-+ **TH_USE_ZLIB** will enable zlib library if any
++ **TH_MSG_INFO** to allow informational logs, defaults to true
++ **TH_MSG_WARN** to allow warning logs, defaults to true
++ **TH_MSG_ERROR** to allow error logs, defaults to true
+
+These **will not** alter any interfaces
++ **TH_USE_ASSIMP** will enable Assimp library if any, defaults to true
++ **TH_USE_FREETYPE** will enable FreeType library if any, defaults to true
++ **TH_USE_GLEW** will enable GLEW library if any, defaults to true
++ **TH_USE_MONGOC** will enable MongoDB library if any, defaults to true
++ **TH_USE_POSTGRESQL** will enable PostgreSQL library if any, defaults to true
++ **TH_USE_OPENAL** will enable OpenAL library if any, defaults to true
++ **TH_USE_OPENGL** will enable OpenGL library if any, defaults to true
++ **TH_USE_OPENSSL** will enable OpenSSL library if any, defaults to true
++ **TH_USE_SDL2** will enable SDL2 library if any, defaults to true
++ **TH_USE_ZLIB** will enable zlib library if any, defaults to true
+
+These **will** alter some interfaces like GUI and Compute
++ **TH_WITH_SHADERS** to embed shaders from **/src/shaders** to this project, defaults to true
++ **TH_WITH_SIMD** will enable simd optimisations (processor-specific), defaults to false
++ **TH_WITH_BULLET3** will enable Bullet3 library and physics interfaces, defaults to true
++ **TH_WITH_RMLUI** will enable RmlUi library and gui interfaces, defaults to true
 
 ## Core built-in dependencies from **/src/supplies**
 These are used widely and presents useful features

@@ -1,6 +1,6 @@
 /*
    AngelCode Scripting Library
-   Copyright (c) 2003-2019 Andreas Jonsson
+   Copyright (c) 2003-2020 Andreas Jonsson
 
    This software is provided 'as-is', without any express or implied
    warranty. In no event will the authors be held liable for any
@@ -21,7 +21,7 @@
    3. This notice may not be removed or altered from any source
       distribution.
 
-   The original version of this refs can be located at:
+   The original version of this library can be located at:
    http://www.angelcode.com/angelscript/
 
    Andreas Jonsson
@@ -33,7 +33,7 @@
 //
 // as_config.h
 //
-// this file is used for configuring the compilation of the refs
+// this file is used for configuring the compilation of the library
 //
 
 #ifndef AS_CONFIG_H
@@ -50,17 +50,17 @@
 // this when it's not needed a bit of performance is gained.
 
 // AS_WINDOWS_THREADS
-// If the refs should be compiled using windows threads.
+// If the library should be compiled using windows threads.
 
 // AS_POSIX_THREADS
-// If the refs should be compiled using posix threads.
+// If the library should be compiled using posix threads.
 
 // AS_NO_ATOMIC
 // If the compiler/platform doesn't support atomic instructions
 // then this should be defined to use critical sections instead.
 
 // AS_DEBUG
-// This flag can be defined to make the refs write some extra output when
+// This flag can be defined to make the library write some extra output when
 // compiling and executing scripts.
 
 // AS_DEPRECATED
@@ -70,7 +70,7 @@
 
 // AS_NO_CLASS_METHODS
 // Disables the possibility to add class methods. Can increase the
-// portability of the refs.
+// portability of the library.
 
 // AS_MAX_PORTABILITY
 // Disables all platform specific code. Only the asCALL_GENERIC calling
@@ -88,7 +88,7 @@
 // preprocessor flag.
 
 // AS_NO_COMPILER
-// Compiles the refs without support for compiling scripts. This is intended
+// Compiles the library without support for compiling scripts. This is intended
 // for those applications that will load pre-compiled bytecode and wants to decrease
 // the size of the executable.
 
@@ -111,15 +111,15 @@
 //------------------------------------------
 
 // ANGELSCRIPT_EXPORT
-// This flag should be defined when compiling the refs as a lib or dll.
+// This flag should be defined when compiling the library as a lib or dll.
 
 // ANGELSCRIPT_DLL_LIBRARY_IMPORT
 // This flag should be defined when using AngelScript as a dll with automatic
-// refs import.
+// library import.
 
 // ANGELSCRIPT_DLL_MANUAL_IMPORT
 // This flag should be defined when using AngelScript as a dll with manual
-// loading of the refs.
+// loading of the library.
 
 
 
@@ -177,6 +177,14 @@
 // Oracle Solaris Studio (previously known as Sun CC compiler)
 // __SUNPRO_CC is defined
 
+// Local (or Little) C Compiler
+// __LCC__ is defined
+// __e2k__ is not defined
+
+// MCST eLbrus C Compiler
+// __LCC__ is defined
+// __e2k__ is defined
+
 
 
 //
@@ -208,6 +216,9 @@
 // AS_ARM
 // Use assembler code for the ARM CPU family
 
+// AS_ARM64
+// Use assembler code for the ARM64/AArch64 CPU family
+
 // AS_SOFTFP
 // Use to tell compiler that ARM soft-float ABI
 // should be used instead of ARM hard-float ABI
@@ -226,6 +237,10 @@
 
 // AS_SPARC
 // Define this for SPARC CPU family
+
+// AS_E2K
+// Define this for MCST Elbrus 2000 CPU family
+
 
 
 
@@ -359,6 +374,14 @@
 #define AS_NO_THISCALL_FUNCTOR_METHOD
 
 
+// Emscripten compiler toolchain
+// ref: https://emscripten.org/
+#if defined(__EMSCRIPTEN__)
+  #define AS_MAX_PORTABILITY
+#endif
+
+
+
 // Embarcadero C++Builder
 #if defined(__BORLANDC__)
  #ifndef _Windows
@@ -482,7 +505,7 @@
 			#define AS_CALLEE_DESTROY_OBJ_BY_VAL
 			#define AS_LARGE_OBJS_PASSED_BY_REF
 			#define AS_LARGE_OBJ_MIN_SIZE 3
-			#define COMPLEX_RETURN_MASK (asOBJ_APP_CLASS_CONSTRUCTOR | asOBJ_APP_CLASS_DESTRUCTOR | asOBJ_APP_CLASS_ASSIGNMENT | asOBJ_APP_CLASS_COPY_CONSTRUCTOR | asOBJ_APP_ARRAY)
+			#define COMPLEX_RETURN_MASK (asOBJ_APP_CLASS_CONSTRUCTOR | asOBJ_APP_CLASS_DESTRUCTOR | asOBJ_APP_CLASS_ASSIGNMENT | asOBJ_APP_CLASS_COPY_CONSTRUCTOR | asOBJ_APP_ARRAY | asOBJ_APP_CLASS_MORE_CONSTRUCTORS)
 			#define COMPLEX_MASK (asOBJ_APP_CLASS_COPY_CONSTRUCTOR | asOBJ_APP_ARRAY)
 		#endif
 	#endif
@@ -502,12 +525,18 @@
 		#endif
 	#endif
 
+	#if defined(_M_ARM64)
+		#define AS_ARM64
+
+		// TODO: MORE HERE
+	#endif
+
 	#ifndef COMPLEX_MASK
 		#define COMPLEX_MASK (asOBJ_APP_ARRAY)
 	#endif
 
 	#ifndef COMPLEX_RETURN_MASK
-		#define COMPLEX_RETURN_MASK (asOBJ_APP_CLASS_CONSTRUCTOR | asOBJ_APP_CLASS_DESTRUCTOR | asOBJ_APP_CLASS_ASSIGNMENT | asOBJ_APP_ARRAY)
+		#define COMPLEX_RETURN_MASK (asOBJ_APP_CLASS_CONSTRUCTOR | asOBJ_APP_CLASS_DESTRUCTOR | asOBJ_APP_CLASS_ASSIGNMENT | asOBJ_APP_ARRAY | asOBJ_APP_CLASS_MORE_CONSTRUCTORS)
 	#endif
 
 	#define UNREACHABLE_RETURN
@@ -643,7 +672,7 @@
 		#define AS_NO_THREADS
 		#define AS_NO_ATOMIC
 
-		// Identify for which CPU the refs is being built
+		// Identify for which CPU the library is being built
 		#if defined(I3D_ARCH_X86)
 			#define AS_X86
 		#elif defined(I3D_ARCH_ARM)
@@ -864,7 +893,7 @@
 		#elif defined(__ARMEL__) || defined(__arm__) || defined(__aarch64__) || defined(__AARCH64EL__)
 			// arm 
 
-			// The assembler code currently doesn't support arm v4, nor 64bit (v8)
+			// The assembler code currently doesn't support arm v4
 			#if !defined(__ARM_ARCH_4__) && !defined(__ARM_ARCH_4T__) && !defined(__LP64__)
 				#define AS_ARM
 
@@ -894,13 +923,35 @@
 				#endif
 
 				// Verify if soft-float or hard-float ABI is used
-				#if defined(__SOFTFP__) && __SOFTFP__ == 1
+				#if (defined(__SOFTFP__) && __SOFTFP__ == 1) || defined(__ARM_PCS)
 					// -ffloat-abi=softfp or -ffloat-abi=soft
 					#define AS_SOFTFP
 				#endif
 
 				// Tested with both hard float and soft float abi
 				#undef AS_NO_THISCALL_FUNCTOR_METHOD
+			#elif defined(__LP64__) || defined(__aarch64__)
+				#define AS_ARM64
+
+				#undef STDCALL
+				#define STDCALL
+
+				#undef GNU_STYLE_VIRTUAL_METHOD
+				#undef AS_NO_THISCALL_FUNCTOR_METHOD
+
+				#define HAS_128_BIT_PRIMITIVES
+
+				#define CDECL_RETURN_SIMPLE_IN_MEMORY
+				#define STDCALL_RETURN_SIMPLE_IN_MEMORY
+				#define THISCALL_RETURN_SIMPLE_IN_MEMORY
+
+				#undef THISCALL_RETURN_SIMPLE_IN_MEMORY_MIN_SIZE
+				#undef CDECL_RETURN_SIMPLE_IN_MEMORY_MIN_SIZE
+				#undef STDCALL_RETURN_SIMPLE_IN_MEMORY_MIN_SIZE
+
+				#define THISCALL_RETURN_SIMPLE_IN_MEMORY_MIN_SIZE 5
+				#define CDECL_RETURN_SIMPLE_IN_MEMORY_MIN_SIZE    5
+				#define STDCALL_RETURN_SIMPLE_IN_MEMORY_MIN_SIZE  5
 			#endif
 
 		#elif defined(__mips__)
@@ -932,6 +983,17 @@
 			// although use 64bit PPC only uses 32bit pointers.
 			// TODO: Add support for native calling conventions on Linux with PPC 64bit
 			#define AS_MAX_PORTABILITY
+		#elif defined(__e2k__)
+			// 64bit MCST Elbrus 2000
+			// ref: https://en.wikipedia.org/wiki/Elbrus_2000
+			#define AS_E2K
+			// AngelScript currently doesn't support native calling
+			// for MCST Elbrus 2000 processor so it's necessary to turn on
+			// portability mode
+			#define AS_MAX_PORTABILITY
+			// STDCALL is not available on 64bit Linux
+			#undef STDCALL
+			#define STDCALL
 		#else
 			#define AS_MAX_PORTABILITY
 		#endif
@@ -1085,23 +1147,26 @@
 	// Haiku OS
 	#elif __HAIKU__
 		#define AS_HAIKU
-		// Only x86-32 is currently supported by Haiku, but they do plan to support
-		// x86-64 and PowerPC in the future, so should go ahead and check the platform
-		// for future compatibility
 		#if (defined(i386) || defined(__i386) || defined(__i386__)) && !defined(__LP64__)
 			#define AS_X86
 			#define THISCALL_PASS_OBJECT_POINTER_ON_THE_STACK
 			#define THISCALL_RETURN_SIMPLE_IN_MEMORY
 			#define CDECL_RETURN_SIMPLE_IN_MEMORY
 			#define STDCALL_RETURN_SIMPLE_IN_MEMORY
+		#elif defined(__x86_64__)
+			#define AS_X64_GCC
+			#define HAS_128_BIT_PRIMITIVES
+			#define SPLIT_OBJS_BY_MEMBER_TYPES
+			#undef COMPLEX_MASK
+			#define COMPLEX_MASK (asOBJ_APP_CLASS_DESTRUCTOR | asOBJ_APP_CLASS_COPY_CONSTRUCTOR | asOBJ_APP_ARRAY)
+			#undef COMPLEX_RETURN_MASK
+			#define COMPLEX_RETURN_MASK (asOBJ_APP_CLASS_DESTRUCTOR | asOBJ_APP_CLASS_COPY_CONSTRUCTOR | asOBJ_APP_ARRAY)
+			#define AS_LARGE_OBJS_PASSED_BY_REF
+			#define AS_LARGE_OBJ_MIN_SIZE 5
+			#undef STDCALL
+			#define STDCALL
 		#else
 			#define AS_MAX_PORTABILITY
-		#endif
-
-		#define AS_POSIX_THREADS
-		#if !( ( (__GNUC__ == 4) && (__GNUC_MINOR__ >= 1) || __GNUC__ > 4) )
-			// Only with GCC 4.1 was the atomic instructions available
-			#define AS_NO_ATOMIC
 		#endif
 
 	// Illumos
@@ -1193,7 +1258,7 @@
 
 // If there are no current support for native calling
 // conventions, then compile with AS_MAX_PORTABILITY
-#if (!defined(AS_X86) && !defined(AS_SH4) && !defined(AS_MIPS) && !defined(AS_PPC) && !defined(AS_PPC_64) && !defined(AS_XENON) && !defined(AS_X64_GCC) && !defined(AS_X64_MSVC) && !defined(AS_ARM) && !defined(AS_X64_MINGW))
+#if (!defined(AS_X86) && !defined(AS_SH4) && !defined(AS_MIPS) && !defined(AS_PPC) && !defined(AS_PPC_64) && !defined(AS_XENON) && !defined(AS_X64_GCC) && !defined(AS_X64_MSVC) && !defined(AS_ARM) && !defined(AS_ARM64) && !defined(AS_X64_MINGW))
 	#ifndef AS_MAX_PORTABILITY
 		#define AS_MAX_PORTABILITY
 	#endif
@@ -1206,7 +1271,7 @@
 #endif
 
 // If the form of threads to use hasn't been chosen
-// then the refs will be compiled without support
+// then the library will be compiled without support
 // for multithreading
 #if !defined(AS_POSIX_THREADS) && !defined(AS_WINDOWS_THREADS)
 	#define AS_NO_THREADS

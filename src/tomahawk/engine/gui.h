@@ -1,8 +1,7 @@
 #ifndef TH_ENGINE_GUI_H
 #define TH_ENGINE_GUI_H
-
 #include "../core/engine.h"
-
+#ifdef TH_WITH_RMLUI
 namespace Rml
 {
 	class Context;
@@ -23,6 +22,7 @@ namespace Rml
 
 	class Variant;
 }
+#endif
 
 namespace Tomahawk
 {
@@ -30,6 +30,7 @@ namespace Tomahawk
 	{
 		namespace GUI
 		{
+#ifdef TH_WITH_RMLUI
 			class RenderSubsystem;
 
 			class FileSubsystem;
@@ -684,6 +685,7 @@ namespace Tomahawk
 				static int GetKeyCode(Graphics::KeyCode Key);
 				static int GetKeyMod(Graphics::KeyMod Mod);
 			};
+#endif
 		}
 	}
 }

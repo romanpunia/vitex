@@ -1,13 +1,5 @@
 #Query all sources
 file(GLOB_RECURSE SOURCE
-		${PROJECT_SOURCE_DIR}/src/supplies/*.inl*
-		${PROJECT_SOURCE_DIR}/src/supplies/*.h*
-		${PROJECT_SOURCE_DIR}/src/supplies/*.c*
-		${PROJECT_SOURCE_DIR}/src/supplies/*.cc*
-		${PROJECT_SOURCE_DIR}/src/supplies/*.hpp*
-		${PROJECT_SOURCE_DIR}/src/supplies/*.cpp*
-		${PROJECT_SOURCE_DIR}/src/supplies/*.hxx*
-		${PROJECT_SOURCE_DIR}/src/supplies/*.cxx*
 		${PROJECT_SOURCE_DIR}/src/tomahawk/*.inl*
 		${PROJECT_SOURCE_DIR}/src/tomahawk/*.h*
 		${PROJECT_SOURCE_DIR}/src/tomahawk/*.c*
@@ -17,42 +9,9 @@ file(GLOB_RECURSE SOURCE
 		${PROJECT_SOURCE_DIR}/src/tomahawk/*.hxx*
 		${PROJECT_SOURCE_DIR}/src/tomahawk/*.cxx*)
 
-#AngelScript specifics (ASM sources)
-if (MSVC)
-	if (CMAKE_SIZEOF_VOID_P EQUAL 8)
-		list(APPEND SOURCE "${PROJECT_SOURCE_DIR}/src/supplies/angelscript/source/as_callfunc_x64_msvc_asm.asm")
-	elseif (${CMAKE_SYSTEM_PROCESSOR} MATCHES "arm")
-		list(APPEND SOURCE "${PROJECT_SOURCE_DIR}/src/supplies/angelscript/source/as_callfunc_arm_msvc.asm")
-	endif()
-else()
-	list(APPEND SOURCE "${PROJECT_SOURCE_DIR}/src/supplies/angelscript/source/as_callfunc_arm_gcc.S")
-	list(APPEND SOURCE "${PROJECT_SOURCE_DIR}/src/supplies/angelscript/source/as_callfunc_arm_vita.S")
-	list(APPEND SOURCE "${PROJECT_SOURCE_DIR}/src/supplies/angelscript/source/as_callfunc_arm_xcode.S")
-endif()
-
-#RmlUi specifics (FreeType sources)
-if (TH_USE_FREETYPE)
-	find_path(FREETYPE_LOCATION ft2build.h PATH_SUFFIXES "freetype2")
-	if (FREETYPE_LOCATION)
-		find_package(Freetype QUIET)
-		if (NOT Freetype_FOUND)
-			find_library(Freetype_FOUND "freetype")
-		endif()
-	endif()
-	unset(FREETYPE_LOCATION CACHE)
-	unset(Freetype_FOUND CACHE)
-	unset(FREETYPE_LIBRARIES CACHE)
-	unset(FREETYPE_DIR CACHE)
-	unset(FREETYPE_LOCATION CACHE)
-endif()
-if (NOT Freetype_FOUND AND NOT FREETYPE_LIBRARIES)
-	list(FILTER SOURCE EXCLUDE REGEX "rmlui[\\\/]Source[\\\/]Core[\\\/]FontEngineDefault")
-    message(STATUS "Default font engine will not be used")
-endif()
-
 #Shader embedding specifics (with compilation)
-set(TH_SHADERS true CACHE BOOL "Allow to compile embedded shaders")
-if (TH_SHADERS)
+set(TH_WITH_SHADERS true CACHE BOOL "Enable built-in shaders")
+if (TH_WITH_SHADERS)
 	set(BUFFER_DIR "${PROJECT_SOURCE_DIR}/src/shaders")
 	set(BUFFER_OUT "${PROJECT_SOURCE_DIR}/src/tomahawk/core/shaders")
     set(BUFFER_H "#ifndef HAS_SHADER_BATCH\n#define HAS_SHADER_BATCH\n\nnamespace shader_batch\n{\n\textern void foreach(void* context, void(*callback)(void*, const char*, const unsigned char*, unsigned))\;\n}\n#endif")
@@ -85,11 +44,3 @@ else()
     file(WRITE "${PROJECT_SOURCE_DIR}/src/tomahawk/core/shaders.cpp" "")
 	message(STATUS "Shaders file has been cleared")
 endif()
-
-#Group sources to their virtual directories
-foreach(ITEM IN ITEMS ${SOURCE})
-    get_filename_component(ITEM_PATH "${ITEM}" PATH)
-    string(REPLACE "${PROJECT_SOURCE_DIR}" "" ITEM_GROUP "${ITEM_PATH}")
-    string(REPLACE "/" "\\" ITEM_GROUP "${ITEM_GROUP}")
-    source_group("${ITEM_GROUP}" FILES "${ITEM}")
-endforeach()

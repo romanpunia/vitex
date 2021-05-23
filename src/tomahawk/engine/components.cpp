@@ -8,6 +8,1259 @@ namespace Tomahawk
 	{
 		namespace Components
 		{
+#ifdef TH_WITH_BULLET3
+			RigidBody::RigidBody(Entity* Ref) : Component(Ref)
+			{
+			}
+			RigidBody::~RigidBody()
+			{
+				TH_RELEASE(Instance);
+			}
+			void RigidBody::Deserialize(ContentManager* Content, Core::Document* Node)
+			{
+				bool Extended = false;
+				NMake::Unpack(Node->Find("extended"), &Extended);
+				NMake::Unpack(Node->Find("kinematic"), &Kinematic);
+				NMake::Unpack(Node->Find("manage"), &Manage);
+
+				SceneGraph* Scene = Parent->GetScene();
+				if (!Extended)
+					return;
+
+				float Mass = 0, CcdMotionThreshold = 0;
+				NMake::Unpack(Node->Find("mass"), &Mass);
+				NMake::Unpack(Node->Find("ccd-motion-threshold"), &CcdMotionThreshold);
+
+				Core::Document* CV = nullptr;
+				if ((CV = Node->Find("shape")) != nullptr)
+				{
+					std::string Path; uint64_t Type;
+					if (NMake::Unpack(Node->Find("path"), &Path))
+					{
+						auto* Shape = Content->Load<Compute::UnmanagedShape>(Path);
+						if (Shape != nullptr)
+							Create(Shape->Shape, Mass, CcdMotionThreshold);
+					}
+					else if (!NMake::Unpack(CV->Find("type"), &Type))
+					{
+						std::vector<Compute::Vector3> Vertices;
+						if (NMake::Unpack(CV->Find("data"), &Vertices))
+						{
+							btCollisionShape* Shape = Scene->GetSimulator()->CreateConvexHull(Vertices);
+							if (Shape != nullptr)
+								Create(Shape, Mass, CcdMotionThreshold);
+						}
+					}
+					else
+					{
+						btCollisionShape* Shape = Scene->GetSimulator()->CreateShape((Compute::Shape)Type);
+						if (Shape != nullptr)
+							Create(Shape, Mass, CcdMotionThreshold);
+					}
+				}
+
+				if (!Instance)
+					return;
+
+				uint64_t ActivationState;
+				if (NMake::Unpack(Node->Find("activation-state"), &ActivationState))
+					Instance->SetActivationState((Compute::MotionState)ActivationState);
+
+				float AngularDamping;
+				if (NMake::Unpack(Node->Find("angular-damping"), &AngularDamping))
+					Instance->SetAngularDamping(AngularDamping);
+
+				float AngularSleepingThreshold;
+				if (NMake::Unpack(Node->Find("angular-sleeping-threshold"), &AngularSleepingThreshold))
+					Instance->SetAngularSleepingThreshold(AngularSleepingThreshold);
+
+				float Friction;
+				if (NMake::Unpack(Node->Find("friction"), &Friction))
+					Instance->SetFriction(Friction);
+
+				float Restitution;
+				if (NMake::Unpack(Node->Find("restitution"), &Restitution))
+					Instance->SetRestitution(Restitution);
+
+				float HitFraction;
+				if (NMake::Unpack(Node->Find("hit-fraction"), &HitFraction))
+					Instance->SetHitFraction(HitFraction);
+
+				float LinearDamping;
+				if (NMake::Unpack(Node->Find("linear-damping"), &LinearDamping))
+					Instance->SetLinearDamping(LinearDamping);
+
+				float LinearSleepingThreshold;
+				if (NMake::Unpack(Node->Find("linear-sleeping-threshold"), &LinearSleepingThreshold))
+					Instance->SetLinearSleepingThreshold(LinearSleepingThreshold);
+
+				float CcdSweptSphereRadius;
+				if (NMake::Unpack(Node->Find("ccd-swept-sphere-radius"), &CcdSweptSphereRadius))
+					Instance->SetCcdSweptSphereRadius(CcdSweptSphereRadius);
+
+				float ContactProcessingThreshold;
+				if (NMake::Unpack(Node->Find("contact-processing-threshold"), &ContactProcessingThreshold))
+					Instance->SetContactProcessingThreshold(ContactProcessingThreshold);
+
+				float DeactivationTime;
+				if (NMake::Unpack(Node->Find("deactivation-time"), &DeactivationTime))
+					Instance->SetDeactivationTime(DeactivationTime);
+
+				float RollingFriction;
+				if (NMake::Unpack(Node->Find("rolling-friction"), &RollingFriction))
+					Instance->SetRollingFriction(RollingFriction);
+
+				float SpinningFriction;
+				if (NMake::Unpack(Node->Find("spinning-friction"), &SpinningFriction))
+					Instance->SetSpinningFriction(SpinningFriction);
+
+				float ContactStiffness;
+				if (NMake::Unpack(Node->Find("contact-stiffness"), &ContactStiffness))
+					Instance->SetContactStiffness(ContactStiffness);
+
+				float ContactDamping;
+				if (NMake::Unpack(Node->Find("contact-damping"), &ContactDamping))
+					Instance->SetContactDamping(ContactDamping);
+
+				Compute::Vector3 AngularFactor;
+				if (NMake::Unpack(Node->Find("angular-factor"), &AngularFactor))
+					Instance->SetAngularFactor(AngularFactor);
+
+				Compute::Vector3 AngularVelocity;
+				if (NMake::Unpack(Node->Find("angular-velocity"), &AngularVelocity))
+					Instance->SetAngularVelocity(AngularVelocity);
+
+				Compute::Vector3 AnisotropicFriction;
+				if (NMake::Unpack(Node->Find("anisotropic-friction"), &AnisotropicFriction))
+					Instance->SetAnisotropicFriction(AnisotropicFriction);
+
+				Compute::Vector3 Gravity;
+				if (NMake::Unpack(Node->Find("gravity"), &Gravity))
+					Instance->SetGravity(Gravity);
+
+				Compute::Vector3 LinearFactor;
+				if (NMake::Unpack(Node->Find("linear-factor"), &LinearFactor))
+					Instance->SetLinearFactor(LinearFactor);
+
+				Compute::Vector3 LinearVelocity;
+				if (NMake::Unpack(Node->Find("linear-velocity"), &LinearVelocity))
+					Instance->SetLinearVelocity(LinearVelocity);
+
+				uint64_t CollisionFlags;
+				if (NMake::Unpack(Node->Find("collision-flags"), &CollisionFlags))
+					Instance->SetCollisionFlags(CollisionFlags);
+			}
+			void RigidBody::Serialize(ContentManager* Content, Core::Document* Node)
+			{
+				SceneGraph* Scene = Parent->GetScene();
+				NMake::Pack(Node->Set("kinematic"), Kinematic);
+				NMake::Pack(Node->Set("manage"), Manage);
+				NMake::Pack(Node->Set("extended"), Instance != nullptr);
+				if (!Instance)
+					return;
+
+				Core::Document* CV = Node->Set("shape");
+				if (Instance->GetCollisionShapeType() == Compute::Shape_Convex_Hull)
+				{
+					AssetCache* Asset = Content->Find<Compute::UnmanagedShape>(Hull);
+					if (!Asset || !Hull)
+					{
+						std::vector<Compute::Vector3> Vertices = Scene->GetSimulator()->GetShapeVertices(Instance->GetCollisionShape());
+						NMake::Pack(CV->Set("data"), Vertices);
+					}
+					else
+						NMake::Pack(CV->Set("path"), Asset->Path);
+				}
+				else
+					NMake::Pack(CV->Set("type"), (uint64_t)Instance->GetCollisionShapeType());
+
+				NMake::Pack(Node->Set("mass"), Instance->GetMass());
+				NMake::Pack(Node->Set("ccd-motion-threshold"), Instance->GetCcdMotionThreshold());
+				NMake::Pack(Node->Set("activation-state"), (uint64_t)Instance->GetActivationState());
+				NMake::Pack(Node->Set("angular-damping"), Instance->GetAngularDamping());
+				NMake::Pack(Node->Set("angular-sleeping-threshold"), Instance->GetAngularSleepingThreshold());
+				NMake::Pack(Node->Set("friction"), Instance->GetFriction());
+				NMake::Pack(Node->Set("restitution"), Instance->GetRestitution());
+				NMake::Pack(Node->Set("hit-fraction"), Instance->GetHitFraction());
+				NMake::Pack(Node->Set("linear-damping"), Instance->GetLinearDamping());
+				NMake::Pack(Node->Set("linear-sleeping-threshold"), Instance->GetLinearSleepingThreshold());
+				NMake::Pack(Node->Set("ccd-swept-sphere-radius"), Instance->GetCcdSweptSphereRadius());
+				NMake::Pack(Node->Set("contact-processing-threshold"), Instance->GetContactProcessingThreshold());
+				NMake::Pack(Node->Set("deactivation-time"), Instance->GetDeactivationTime());
+				NMake::Pack(Node->Set("rolling-friction"), Instance->GetRollingFriction());
+				NMake::Pack(Node->Set("spinning-friction"), Instance->GetSpinningFriction());
+				NMake::Pack(Node->Set("contact-stiffness"), Instance->GetContactStiffness());
+				NMake::Pack(Node->Set("contact-damping"), Instance->GetContactDamping());
+				NMake::Pack(Node->Set("angular-factor"), Instance->GetAngularFactor());
+				NMake::Pack(Node->Set("angular-velocity"), Instance->GetAngularVelocity());
+				NMake::Pack(Node->Set("anisotropic-friction"), Instance->GetAnisotropicFriction());
+				NMake::Pack(Node->Set("gravity"), Instance->GetGravity());
+				NMake::Pack(Node->Set("linear-factor"), Instance->GetLinearFactor());
+				NMake::Pack(Node->Set("linear-velocity"), Instance->GetLinearVelocity());
+				NMake::Pack(Node->Set("collision-flags"), (uint64_t)Instance->GetCollisionFlags());
+			}
+			void RigidBody::Synchronize(Core::Timer* Time)
+			{
+				if (Instance && Manage)
+					Instance->Synchronize(Parent->Transform, Kinematic);
+			}
+			void RigidBody::Asleep()
+			{
+				if (Instance != nullptr)
+					Instance->SetAsGhost();
+			}
+			void RigidBody::Create(btCollisionShape* Shape, float Mass, float Anticipation)
+			{
+				if (!Shape || !Parent)
+					return;
+
+				SceneGraph* Scene = Parent->GetScene();
+				if (!Scene || !Scene->GetSimulator())
+					return;
+
+				Scene->Lock();
+				TH_RELEASE(Instance);
+
+				Compute::RigidBody::Desc I;
+				I.Anticipation = Anticipation;
+				I.Mass = Mass;
+				I.Shape = Shape;
+
+				Instance = Scene->GetSimulator()->CreateRigidBody(I, Parent->Transform);
+				Instance->UserPointer = this;
+				Instance->SetActivity(true);
+				Scene->Unlock();
+			}
+			void RigidBody::Create(ContentManager* Content, const std::string& Path, float Mass, float Anticipation)
+			{
+				if (Content != nullptr)
+				{
+					Hull = Content->Load<Compute::UnmanagedShape>(Path);
+					if (Hull != nullptr)
+						Create(Hull->Shape, Mass, Anticipation);
+				}
+			}
+			void RigidBody::Clear()
+			{
+				if (!Instance || !Parent)
+					return;
+
+				SceneGraph* Scene = Parent->GetScene();
+				if (!Scene || !Scene->GetSimulator())
+					return;
+
+				Scene->Lock();
+				TH_CLEAR(Instance);
+				Scene->Unlock();
+			}
+			void RigidBody::SetTransform(const Compute::Vector3& Position, const Compute::Vector3& Scale, const Compute::Vector3& Rotation)
+			{
+				if (!Instance || !Parent)
+					return;
+
+				SceneGraph* Scene = Parent->GetScene();
+				if (Scene != nullptr)
+					Scene->Lock();
+
+				Parent->Transform->SetTransform(Compute::TransformSpace_Global, Position, Scale, Rotation);
+				Instance->Synchronize(Parent->Transform, true);
+				Instance->SetActivity(true);
+
+				if (Scene != nullptr)
+					Scene->Unlock();
+			}
+			void RigidBody::SetTransform(bool Kinematics)
+			{
+				if (!Instance || !Parent)
+					return;
+
+				SceneGraph* Scene = Parent->GetScene();
+				if (Scene != nullptr)
+					Scene->Lock();
+
+				Instance->Synchronize(Parent->Transform, Kinematics);
+				Instance->SetActivity(true);
+
+				if (Scene != nullptr)
+					Scene->Unlock();
+			}
+			void RigidBody::SetMass(float Mass)
+			{
+				if (!Instance || !Parent)
+					return;
+
+				SceneGraph* Scene = Parent->GetScene();
+				if (!Scene)
+					return;
+
+				Scene->Lock();
+				Instance->SetMass(Mass);
+				Scene->Unlock();
+			}
+			Component* RigidBody::Copy(Entity* New)
+			{
+				RigidBody* Target = new RigidBody(New);
+				Target->Kinematic = Kinematic;
+
+				if (Instance != nullptr)
+				{
+					Target->Instance = Instance->Copy();
+					Target->Instance->UserPointer = Target;
+				}
+
+				return Target;
+			}
+			Compute::RigidBody* RigidBody::GetBody() const
+			{
+				return Instance;
+			}
+
+			SoftBody::SoftBody(Entity* Ref) : Drawable(Ref, SoftBody::GetTypeId(), false)
+			{
+			}
+			SoftBody::~SoftBody()
+			{
+				TH_RELEASE(Instance);
+			}
+			void SoftBody::Deserialize(ContentManager* Content, Core::Document* Node)
+			{
+				uint64_t Slot = -1;
+				if (NMake::Unpack(Node->Find("material"), &Slot))
+					SetMaterial(nullptr, Parent->GetScene()->GetMaterial((uint64_t)Slot));
+
+				bool Extended = false;
+				bool Transparent = false;
+				std::string Path;
+
+				NMake::Unpack(Node->Find("texcoord"), &TexCoord);
+				NMake::Unpack(Node->Find("extended"), &Extended);
+				NMake::Unpack(Node->Find("kinematic"), &Kinematic);
+				NMake::Unpack(Node->Find("manage"), &Manage);
+				NMake::Unpack(Node->Find("static"), &Static);
+				NMake::Unpack(Node->Find("transparency"), &Transparent);
+				SetTransparency(Transparent);
+
+				if (!Extended)
+					return;
+
+				float CcdMotionThreshold = 0;
+				NMake::Unpack(Node->Find("ccd-motion-threshold"), &CcdMotionThreshold);
+
+				Core::Document* CV = nullptr;
+				if ((CV = Node->Find("shape")) != nullptr)
+				{
+					if (NMake::Unpack(Node->Find("path"), &Path))
+					{
+						auto* Shape = Content->Load<Compute::UnmanagedShape>(Path);
+						if (Shape != nullptr)
+							Create(Shape, CcdMotionThreshold);
+					}
+				}
+				else if ((CV = Node->Find("ellipsoid")) != nullptr)
+				{
+					Compute::SoftBody::Desc::CV::SEllipsoid Shape;
+					NMake::Unpack(CV->Get("center"), &Shape.Center);
+					NMake::Unpack(CV->Get("radius"), &Shape.Radius);
+					NMake::Unpack(CV->Get("count"), &Shape.Count);
+					CreateEllipsoid(Shape, CcdMotionThreshold);
+				}
+				else if ((CV = Node->Find("patch")) != nullptr)
+				{
+					Compute::SoftBody::Desc::CV::SPatch Shape;
+					NMake::Unpack(CV->Get("corner-00"), &Shape.Corner00);
+					NMake::Unpack(CV->Get("corner-00-fixed"), &Shape.Corner00Fixed);
+					NMake::Unpack(CV->Get("corner-01"), &Shape.Corner01);
+					NMake::Unpack(CV->Get("corner-01-fixed"), &Shape.Corner01Fixed);
+					NMake::Unpack(CV->Get("corner-10"), &Shape.Corner10);
+					NMake::Unpack(CV->Get("corner-10-fixed"), &Shape.Corner10Fixed);
+					NMake::Unpack(CV->Get("corner-11"), &Shape.Corner11);
+					NMake::Unpack(CV->Get("corner-11-fixed"), &Shape.Corner11Fixed);
+					NMake::Unpack(CV->Get("count-x"), &Shape.CountX);
+					NMake::Unpack(CV->Get("count-y"), &Shape.CountY);
+					NMake::Unpack(CV->Get("diagonals"), &Shape.GenerateDiagonals);
+					CreatePatch(Shape, CcdMotionThreshold);
+				}
+				else if ((CV = Node->Find("rope")) != nullptr)
+				{
+					Compute::SoftBody::Desc::CV::SRope Shape;
+					NMake::Unpack(CV->Get("start"), &Shape.Start);
+					NMake::Unpack(CV->Get("start-fixed"), &Shape.StartFixed);
+					NMake::Unpack(CV->Get("end"), &Shape.End);
+					NMake::Unpack(CV->Get("end-fixed"), &Shape.EndFixed);
+					NMake::Unpack(CV->Get("count"), &Shape.Count);
+					CreateRope(Shape, CcdMotionThreshold);
+				}
+
+				if (!Instance)
+					return;
+
+				Core::Document* Conf = Node->Get("config");
+				if (Conf != nullptr)
+				{
+					Compute::SoftBody::Desc::SConfig I;
+					NMake::Unpack(Conf->Get("vcf"), &I.VCF);
+					NMake::Unpack(Conf->Get("dp"), &I.DP);
+					NMake::Unpack(Conf->Get("dg"), &I.DG);
+					NMake::Unpack(Conf->Get("lf"), &I.LF);
+					NMake::Unpack(Conf->Get("pr"), &I.PR);
+					NMake::Unpack(Conf->Get("vc"), &I.VC);
+					NMake::Unpack(Conf->Get("df"), &I.DF);
+					NMake::Unpack(Conf->Get("mt"), &I.MT);
+					NMake::Unpack(Conf->Get("chr"), &I.CHR);
+					NMake::Unpack(Conf->Get("khr"), &I.KHR);
+					NMake::Unpack(Conf->Get("shr"), &I.SHR);
+					NMake::Unpack(Conf->Get("ahr"), &I.AHR);
+					NMake::Unpack(Conf->Get("srhr-cl"), &I.SRHR_CL);
+					NMake::Unpack(Conf->Get("skhr-cl"), &I.SKHR_CL);
+					NMake::Unpack(Conf->Get("sshr-cl"), &I.SSHR_CL);
+					NMake::Unpack(Conf->Get("sr-splt-cl"), &I.SR_SPLT_CL);
+					NMake::Unpack(Conf->Get("sk-splt-cl"), &I.SK_SPLT_CL);
+					NMake::Unpack(Conf->Get("ss-splt-cl"), &I.SS_SPLT_CL);
+					NMake::Unpack(Conf->Get("max-volume"), &I.MaxVolume);
+					NMake::Unpack(Conf->Get("time-scale"), &I.TimeScale);
+					NMake::Unpack(Conf->Get("drag"), &I.Drag);
+					NMake::Unpack(Conf->Get("max-stress"), &I.MaxStress);
+					NMake::Unpack(Conf->Get("constraints"), &I.Constraints);
+					NMake::Unpack(Conf->Get("clusters"), &I.Clusters);
+					NMake::Unpack(Conf->Get("v-it"), &I.VIterations);
+					NMake::Unpack(Conf->Get("p-it"), &I.PIterations);
+					NMake::Unpack(Conf->Get("d-it"), &I.DIterations);
+					NMake::Unpack(Conf->Get("c-it"), &I.CIterations);
+					NMake::Unpack(Conf->Get("collisions"), &I.Collisions);
+
+					uint64_t AeroModel;
+					if (NMake::Unpack(Conf->Get("aero-model"), &AeroModel))
+						I.AeroModel = (Compute::SoftAeroModel)AeroModel;
+
+					Instance->SetConfig(I);
+				}
+
+				uint64_t ActivationState;
+				if (NMake::Unpack(Node->Find("activation-state"), &ActivationState))
+					Instance->SetActivationState((Compute::MotionState)ActivationState);
+
+				float Friction;
+				if (NMake::Unpack(Node->Find("friction"), &Friction))
+					Instance->SetFriction(Friction);
+
+				float Restitution;
+				if (NMake::Unpack(Node->Find("restitution"), &Restitution))
+					Instance->SetRestitution(Restitution);
+
+				float HitFraction;
+				if (NMake::Unpack(Node->Find("hit-fraction"), &HitFraction))
+					Instance->SetHitFraction(HitFraction);
+
+				float CcdSweptSphereRadius;
+				if (NMake::Unpack(Node->Find("ccd-swept-sphere-radius"), &CcdSweptSphereRadius))
+					Instance->SetCcdSweptSphereRadius(CcdSweptSphereRadius);
+
+				float ContactProcessingThreshold;
+				if (NMake::Unpack(Node->Find("contact-processing-threshold"), &ContactProcessingThreshold))
+					Instance->SetContactProcessingThreshold(ContactProcessingThreshold);
+
+				float DeactivationTime;
+				if (NMake::Unpack(Node->Find("deactivation-time"), &DeactivationTime))
+					Instance->SetDeactivationTime(DeactivationTime);
+
+				float RollingFriction;
+				if (NMake::Unpack(Node->Find("rolling-friction"), &RollingFriction))
+					Instance->SetRollingFriction(RollingFriction);
+
+				float SpinningFriction;
+				if (NMake::Unpack(Node->Find("spinning-friction"), &SpinningFriction))
+					Instance->SetSpinningFriction(SpinningFriction);
+
+				float ContactStiffness;
+				if (NMake::Unpack(Node->Find("contact-stiffness"), &ContactStiffness))
+					Instance->SetContactStiffness(ContactStiffness);
+
+				float ContactDamping;
+				if (NMake::Unpack(Node->Find("contact-damping"), &ContactDamping))
+					Instance->SetContactDamping(ContactDamping);
+
+				Compute::Vector3 AnisotropicFriction;
+				if (NMake::Unpack(Node->Find("anisotropic-friction"), &AnisotropicFriction))
+					Instance->SetAnisotropicFriction(AnisotropicFriction);
+
+				Compute::Vector3 WindVelocity;
+				if (NMake::Unpack(Node->Find("wind-velocity"), &WindVelocity))
+					Instance->SetWindVelocity(WindVelocity);
+
+				float TotalMass;
+				if (NMake::Unpack(Node->Find("total-mass"), &TotalMass))
+					Instance->SetTotalMass(TotalMass);
+
+				float RestLengthScale;
+				if (NMake::Unpack(Node->Find("core-length-scale"), &RestLengthScale))
+					Instance->SetRestLengthScale(RestLengthScale);
+			}
+			void SoftBody::Serialize(ContentManager* Content, Core::Document* Node)
+			{
+				Material* Slot = GetMaterial();
+				if (Slot != nullptr)
+					NMake::Pack(Node->Set("material"), Slot->GetSlot());
+
+				NMake::Pack(Node->Set("texcoord"), TexCoord);
+				NMake::Pack(Node->Set("transparency"), HasTransparency());
+				NMake::Pack(Node->Set("kinematic"), Kinematic);
+				NMake::Pack(Node->Set("manage"), Manage);
+				NMake::Pack(Node->Set("extended"), Instance != nullptr);
+				NMake::Pack(Node->Set("static"), Static);
+
+				if (!Instance)
+					return;
+
+				Compute::SoftBody::Desc& I = Instance->GetInitialState();
+				Core::Document* Conf = Node->Set("config");
+				NMake::Pack(Conf->Set("aero-model"), (uint64_t)I.Config.AeroModel);
+				NMake::Pack(Conf->Set("vcf"), I.Config.VCF);
+				NMake::Pack(Conf->Set("dp"), I.Config.DP);
+				NMake::Pack(Conf->Set("dg"), I.Config.DG);
+				NMake::Pack(Conf->Set("lf"), I.Config.LF);
+				NMake::Pack(Conf->Set("pr"), I.Config.PR);
+				NMake::Pack(Conf->Set("vc"), I.Config.VC);
+				NMake::Pack(Conf->Set("df"), I.Config.DF);
+				NMake::Pack(Conf->Set("mt"), I.Config.MT);
+				NMake::Pack(Conf->Set("chr"), I.Config.CHR);
+				NMake::Pack(Conf->Set("khr"), I.Config.KHR);
+				NMake::Pack(Conf->Set("shr"), I.Config.SHR);
+				NMake::Pack(Conf->Set("ahr"), I.Config.AHR);
+				NMake::Pack(Conf->Set("srhr-cl"), I.Config.SRHR_CL);
+				NMake::Pack(Conf->Set("skhr-cl"), I.Config.SKHR_CL);
+				NMake::Pack(Conf->Set("sshr-cl"), I.Config.SSHR_CL);
+				NMake::Pack(Conf->Set("sr-splt-cl"), I.Config.SR_SPLT_CL);
+				NMake::Pack(Conf->Set("sk-splt-cl"), I.Config.SK_SPLT_CL);
+				NMake::Pack(Conf->Set("ss-splt-cl"), I.Config.SS_SPLT_CL);
+				NMake::Pack(Conf->Set("max-volume"), I.Config.MaxVolume);
+				NMake::Pack(Conf->Set("time-scale"), I.Config.TimeScale);
+				NMake::Pack(Conf->Set("drag"), I.Config.Drag);
+				NMake::Pack(Conf->Set("max-stress"), I.Config.MaxStress);
+				NMake::Pack(Conf->Set("constraints"), I.Config.Constraints);
+				NMake::Pack(Conf->Set("clusters"), I.Config.Clusters);
+				NMake::Pack(Conf->Set("v-it"), I.Config.VIterations);
+				NMake::Pack(Conf->Set("p-it"), I.Config.PIterations);
+				NMake::Pack(Conf->Set("d-it"), I.Config.DIterations);
+				NMake::Pack(Conf->Set("c-it"), I.Config.CIterations);
+				NMake::Pack(Conf->Set("collisions"), I.Config.Collisions);
+
+				auto& Desc = Instance->GetInitialState();
+				if (Desc.Shape.Convex.Enabled)
+				{
+					if (Instance->GetCollisionShapeType() == Compute::Shape_Convex_Hull)
+					{
+						AssetCache* Asset = Content->Find<Compute::UnmanagedShape>(Desc.Shape.Convex.Hull);
+						if (Asset != nullptr)
+						{
+							Core::Document* Shape = Node->Set("shape");
+							NMake::Pack(Shape->Set("path"), Asset->Path);
+						}
+					}
+				}
+				else if (Desc.Shape.Ellipsoid.Enabled)
+				{
+					Core::Document* Shape = Node->Set("ellipsoid");
+					NMake::Pack(Shape->Set("center"), Desc.Shape.Ellipsoid.Center);
+					NMake::Pack(Shape->Set("radius"), Desc.Shape.Ellipsoid.Radius);
+					NMake::Pack(Shape->Set("count"), Desc.Shape.Ellipsoid.Count);
+				}
+				else if (Desc.Shape.Patch.Enabled)
+				{
+					Core::Document* Shape = Node->Set("patch");
+					NMake::Pack(Shape->Set("corner-00"), Desc.Shape.Patch.Corner00);
+					NMake::Pack(Shape->Set("corner-00-fixed"), Desc.Shape.Patch.Corner00Fixed);
+					NMake::Pack(Shape->Set("corner-01"), Desc.Shape.Patch.Corner01);
+					NMake::Pack(Shape->Set("corner-01-fixed"), Desc.Shape.Patch.Corner01Fixed);
+					NMake::Pack(Shape->Set("corner-10"), Desc.Shape.Patch.Corner10);
+					NMake::Pack(Shape->Set("corner-10-fixed"), Desc.Shape.Patch.Corner10Fixed);
+					NMake::Pack(Shape->Set("corner-11"), Desc.Shape.Patch.Corner11);
+					NMake::Pack(Shape->Set("corner-11-fixed"), Desc.Shape.Patch.Corner11Fixed);
+					NMake::Pack(Shape->Set("count-x"), Desc.Shape.Patch.CountX);
+					NMake::Pack(Shape->Set("count-y"), Desc.Shape.Patch.CountY);
+					NMake::Pack(Shape->Set("diagonals"), Desc.Shape.Patch.GenerateDiagonals);
+				}
+				else if (Desc.Shape.Rope.Enabled)
+				{
+					Core::Document* Shape = Node->Set("rope");
+					NMake::Pack(Shape->Set("start"), Desc.Shape.Rope.Start);
+					NMake::Pack(Shape->Set("start-fixed"), Desc.Shape.Rope.StartFixed);
+					NMake::Pack(Shape->Set("end"), Desc.Shape.Rope.End);
+					NMake::Pack(Shape->Set("end-fixed"), Desc.Shape.Rope.EndFixed);
+					NMake::Pack(Shape->Set("count"), Desc.Shape.Rope.Count);
+				}
+
+				NMake::Pack(Node->Set("ccd-motion-threshold"), Instance->GetCcdMotionThreshold());
+				NMake::Pack(Node->Set("activation-state"), (uint64_t)Instance->GetActivationState());
+				NMake::Pack(Node->Set("friction"), Instance->GetFriction());
+				NMake::Pack(Node->Set("restitution"), Instance->GetRestitution());
+				NMake::Pack(Node->Set("hit-fraction"), Instance->GetHitFraction());
+				NMake::Pack(Node->Set("ccd-swept-sphere-radius"), Instance->GetCcdSweptSphereRadius());
+				NMake::Pack(Node->Set("contact-processing-threshold"), Instance->GetContactProcessingThreshold());
+				NMake::Pack(Node->Set("deactivation-time"), Instance->GetDeactivationTime());
+				NMake::Pack(Node->Set("rolling-friction"), Instance->GetRollingFriction());
+				NMake::Pack(Node->Set("spinning-friction"), Instance->GetSpinningFriction());
+				NMake::Pack(Node->Set("contact-stiffness"), Instance->GetContactStiffness());
+				NMake::Pack(Node->Set("contact-damping"), Instance->GetContactDamping());
+				NMake::Pack(Node->Set("angular-velocity"), Instance->GetAngularVelocity());
+				NMake::Pack(Node->Set("anisotropic-friction"), Instance->GetAnisotropicFriction());
+				NMake::Pack(Node->Set("linear-velocity"), Instance->GetLinearVelocity());
+				NMake::Pack(Node->Set("collision-flags"), (uint64_t)Instance->GetCollisionFlags());
+				NMake::Pack(Node->Set("wind-velocity"), Instance->GetWindVelocity());
+				NMake::Pack(Node->Set("total-mass"), Instance->GetTotalMass());
+				NMake::Pack(Node->Set("core-length-scale"), Instance->GetRestLengthScale());
+			}
+			void SoftBody::Synchronize(Core::Timer* Time)
+			{
+				if (!Instance)
+					return;
+
+				if (Manage)
+					Instance->Synchronize(Parent->Transform, Kinematic);
+
+				if (Visibility <= 0.0f)
+					return;
+
+				Instance->GetVertices(&Vertices);
+				if (Indices.empty())
+					Instance->GetIndices(&Indices);
+			}
+			void SoftBody::Awake(Component* New)
+			{
+				if (!New)
+					Attach();
+			}
+			void SoftBody::Asleep()
+			{
+				Detach();
+				if (Instance != nullptr)
+					Instance->SetAsGhost();
+			}
+			void SoftBody::Create(Compute::UnmanagedShape* Shape, float Anticipation)
+			{
+				if (!Shape || !Parent)
+					return;
+
+				SceneGraph* Scene = Parent->GetScene();
+				if (!Scene || !Scene->GetSimulator())
+					return;
+
+				Scene->Lock();
+				TH_RELEASE(Instance);
+
+				Compute::SoftBody::Desc I;
+				I.Anticipation = Anticipation;
+				I.Shape.Convex.Hull = Shape;
+				I.Shape.Convex.Enabled = true;
+
+				Instance = Scene->GetSimulator()->CreateSoftBody(I, Parent->Transform);
+				if (!Instance)
+				{
+					TH_ERROR("cannot create soft body");
+					return Scene->Unlock();
+				}
+
+				Vertices.clear();
+				Indices.clear();
+
+				Instance->UserPointer = this;
+				Instance->SetActivity(true);
+				Scene->Unlock();
+			}
+			void SoftBody::Create(ContentManager* Content, const std::string& Path, float Anticipation)
+			{
+				if (Content != nullptr)
+				{
+					Compute::UnmanagedShape* Hull = Content->Load<Compute::UnmanagedShape>(Path);
+					if (Hull != nullptr)
+						Create(Hull, Anticipation);
+				}
+			}
+			void SoftBody::CreateEllipsoid(const Compute::SoftBody::Desc::CV::SEllipsoid& Shape, float Anticipation)
+			{
+				if (!Parent)
+					return;
+
+				SceneGraph* Scene = Parent->GetScene();
+				if (!Scene || !Scene->GetSimulator())
+					return;
+
+				Scene->Lock();
+				TH_RELEASE(Instance);
+
+				Compute::SoftBody::Desc I;
+				I.Anticipation = Anticipation;
+				I.Shape.Ellipsoid = Shape;
+				I.Shape.Ellipsoid.Enabled = true;
+
+				Instance = Scene->GetSimulator()->CreateSoftBody(I, Parent->Transform);
+				if (!Instance)
+				{
+					TH_ERROR("cannot create soft body");
+					return Scene->Unlock();
+				}
+
+				Vertices.clear();
+				Indices.clear();
+
+				Instance->UserPointer = this;
+				Instance->SetActivity(true);
+				Scene->Unlock();
+			}
+			void SoftBody::CreatePatch(const Compute::SoftBody::Desc::CV::SPatch& Shape, float Anticipation)
+			{
+				if (!Parent)
+					return;
+
+				SceneGraph* Scene = Parent->GetScene();
+				if (!Scene || !Scene->GetSimulator())
+					return;
+
+				Scene->Lock();
+				TH_RELEASE(Instance);
+
+				Compute::SoftBody::Desc I;
+				I.Anticipation = Anticipation;
+				I.Shape.Patch = Shape;
+				I.Shape.Patch.Enabled = true;
+
+				Instance = Scene->GetSimulator()->CreateSoftBody(I, Parent->Transform);
+				if (!Instance)
+				{
+					TH_ERROR("cannot create soft body");
+					return Scene->Unlock();
+				}
+
+				Vertices.clear();
+				Indices.clear();
+
+				Instance->UserPointer = this;
+				Instance->SetActivity(true);
+				Scene->Unlock();
+			}
+			void SoftBody::CreateRope(const Compute::SoftBody::Desc::CV::SRope& Shape, float Anticipation)
+			{
+				if (!Parent)
+					return;
+
+				SceneGraph* Scene = Parent->GetScene();
+				if (!Scene || !Scene->GetSimulator())
+					return;
+
+				Scene->Lock();
+				TH_RELEASE(Instance);
+
+				Compute::SoftBody::Desc I;
+				I.Anticipation = Anticipation;
+				I.Shape.Rope = Shape;
+				I.Shape.Rope.Enabled = true;
+
+				Instance = Scene->GetSimulator()->CreateSoftBody(I, Parent->Transform);
+				if (!Instance)
+				{
+					TH_ERROR("cannot create soft body");
+					return Scene->Unlock();
+				}
+
+				Vertices.clear();
+				Indices.clear();
+
+				Instance->UserPointer = this;
+				Instance->SetActivity(true);
+				Scene->Unlock();
+			}
+			void SoftBody::Fill(Graphics::GraphicsDevice* Device, Graphics::ElementBuffer* IndexBuffer, Graphics::ElementBuffer* VertexBuffer)
+			{
+				Graphics::MappedSubresource Map;
+				if (VertexBuffer != nullptr && !Vertices.empty())
+				{
+					Device->Map(VertexBuffer, Graphics::ResourceMap_Write_Discard, &Map);
+					memcpy(Map.Pointer, (void*)Vertices.data(), Vertices.size() * sizeof(Compute::Vertex));
+					Device->Unmap(VertexBuffer, &Map);
+				}
+
+				if (IndexBuffer != nullptr && !Indices.empty())
+				{
+					Device->Map(IndexBuffer, Graphics::ResourceMap_Write_Discard, &Map);
+					memcpy(Map.Pointer, (void*)Indices.data(), Indices.size() * sizeof(int));
+					Device->Unmap(IndexBuffer, &Map);
+				}
+			}
+			void SoftBody::Regenerate()
+			{
+				if (!Instance || !Parent)
+					return;
+
+				SceneGraph* Scene = Parent->GetScene();
+				if (!Scene || !Scene->GetSimulator())
+					return;
+
+				Scene->Lock();
+				Compute::SoftBody::Desc I = Instance->GetInitialState();
+				TH_RELEASE(Instance);
+
+				Instance = Scene->GetSimulator()->CreateSoftBody(I, Parent->Transform);
+				if (!Instance)
+					TH_ERROR("cannot regenerate soft body");
+				Scene->Unlock();
+			}
+			void SoftBody::Clear()
+			{
+				if (!Instance || !Parent)
+					return;
+
+				SceneGraph* Scene = Parent->GetScene();
+				if (!Scene || !Scene->GetSimulator())
+					return;
+
+				Scene->Lock();
+				TH_CLEAR(Instance);
+				Scene->Unlock();
+			}
+			void SoftBody::SetTransform(const Compute::Vector3& Position, const Compute::Vector3& Scale, const Compute::Vector3& Rotation)
+			{
+				if (!Instance || !Parent)
+					return;
+
+				SceneGraph* Scene = Parent->GetScene();
+				if (Scene != nullptr)
+					Scene->Lock();
+
+				Parent->Transform->SetTransform(Compute::TransformSpace_Global, Position, Scale, Rotation);
+				Instance->Synchronize(Parent->Transform, true);
+				Instance->SetActivity(true);
+
+				if (Scene != nullptr)
+					Scene->Unlock();
+			}
+			void SoftBody::SetTransform(bool Kinematics)
+			{
+				if (!Instance || !Parent)
+					return;
+
+				SceneGraph* Scene = Parent->GetScene();
+				if (Scene != nullptr)
+					Scene->Lock();
+
+				Instance->Synchronize(Parent->Transform, Kinematics);
+				Instance->SetActivity(true);
+
+				if (Scene != nullptr)
+					Scene->Unlock();
+			}
+			float SoftBody::Cull(const Viewer& View)
+			{
+				float Result = 0.0f;
+				if (Instance != nullptr)
+				{
+					Compute::Matrix4x4 Box = GetBoundingBox();
+					Result = IsVisible(View, &Box) ? 1.0f : 0.0f;
+				}
+
+				return Result;
+			}
+			Compute::Matrix4x4 SoftBody::GetBoundingBox()
+			{
+				if (!Instance)
+					return Parent->Transform->GetWorld();
+
+				Compute::Vector3 Min, Max;
+				Instance->GetBoundingBox(&Min, &Max);
+
+				return Compute::Matrix4x4::Create((Max + Min).Div(2.0f), Parent->Transform->Scale * Instance->GetScale(), Parent->Transform->Rotation);
+			}
+			Component* SoftBody::Copy(Entity* New)
+			{
+				SoftBody* Target = new SoftBody(New);
+				Target->SetTransparency(HasTransparency());
+				Target->Kinematic = Kinematic;
+
+				if (Instance != nullptr)
+				{
+					Target->Instance = Instance->Copy();
+					Target->Instance->UserPointer = Target;
+				}
+
+				return Target;
+			}
+			Compute::SoftBody* SoftBody::GetBody()
+			{
+				return Instance;
+			}
+			std::vector<Compute::Vertex>& SoftBody::GetVertices()
+			{
+				return Vertices;
+			}
+			std::vector<int>& SoftBody::GetIndices()
+			{
+				return Indices;
+			}
+
+			SliderConstraint::SliderConstraint(Entity* Ref) : Component(Ref), Instance(nullptr), Connection(nullptr)
+			{
+			}
+			SliderConstraint::~SliderConstraint()
+			{
+				TH_RELEASE(Instance);
+			}
+			void SliderConstraint::Deserialize(ContentManager* Content, Core::Document* Node)
+			{
+				bool Extended;
+				NMake::Unpack(Node->Find("extended"), &Extended);
+				if (!Extended)
+					return;
+
+				uint64_t Index;
+				if (NMake::Unpack(Node->Find("connection"), &Index))
+					Wanted.Connection = Index;
+
+				NMake::Unpack(Node->Find("collision-state"), &Wanted.Ghost);
+				NMake::Unpack(Node->Find("linear-power-state"), &Wanted.Linear);
+				Create(Connection, Wanted.Ghost, Wanted.Linear);
+
+				if (!Instance)
+					return;
+
+				float AngularMotorVelocity;
+				if (NMake::Unpack(Node->Find("angular-motor-velocity"), &AngularMotorVelocity))
+					Instance->SetAngularMotorVelocity(AngularMotorVelocity);
+
+				float LinearMotorVelocity;
+				if (NMake::Unpack(Node->Find("linear-motor-velocity"), &LinearMotorVelocity))
+					Instance->SetLinearMotorVelocity(LinearMotorVelocity);
+
+				float UpperLinearLimit;
+				if (NMake::Unpack(Node->Find("upper-linear-limit"), &UpperLinearLimit))
+					Instance->SetUpperLinearLimit(UpperLinearLimit);
+
+				float LowerLinearLimit;
+				if (NMake::Unpack(Node->Find("lower-linear-limit"), &LowerLinearLimit))
+					Instance->SetLowerLinearLimit(LowerLinearLimit);
+
+				float AngularDampingDirection;
+				if (NMake::Unpack(Node->Find("angular-damping-direction"), &AngularDampingDirection))
+					Instance->SetAngularDampingDirection(AngularDampingDirection);
+
+				float LinearDampingDirection;
+				if (NMake::Unpack(Node->Find("linear-damping-direction"), &LinearDampingDirection))
+					Instance->SetLinearDampingDirection(LinearDampingDirection);
+
+				float AngularDampingLimit;
+				if (NMake::Unpack(Node->Find("angular-damping-limit"), &AngularDampingLimit))
+					Instance->SetAngularDampingLimit(AngularDampingLimit);
+
+				float LinearDampingLimit;
+				if (NMake::Unpack(Node->Find("linear-damping-limit"), &LinearDampingLimit))
+					Instance->SetLinearDampingLimit(LinearDampingLimit);
+
+				float AngularDampingOrtho;
+				if (NMake::Unpack(Node->Find("angular-damping-ortho"), &AngularDampingOrtho))
+					Instance->SetAngularDampingOrtho(AngularDampingOrtho);
+
+				float LinearDampingOrtho;
+				if (NMake::Unpack(Node->Find("linear-damping-ortho"), &LinearDampingOrtho))
+					Instance->SetLinearDampingOrtho(LinearDampingOrtho);
+
+				float UpperAngularLimit;
+				if (NMake::Unpack(Node->Find("upper-angular-limit"), &UpperAngularLimit))
+					Instance->SetUpperAngularLimit(UpperAngularLimit);
+
+				float LowerAngularLimit;
+				if (NMake::Unpack(Node->Find("lower-angular-limit"), &LowerAngularLimit))
+					Instance->SetLowerAngularLimit(LowerAngularLimit);
+
+				float MaxAngularMotorForce;
+				if (NMake::Unpack(Node->Find("max-angular-motor-force"), &MaxAngularMotorForce))
+					Instance->SetMaxAngularMotorForce(MaxAngularMotorForce);
+
+				float MaxLinearMotorForce;
+				if (NMake::Unpack(Node->Find("max-linear-motor-force"), &MaxLinearMotorForce))
+					Instance->SetMaxLinearMotorForce(MaxLinearMotorForce);
+
+				float AngularRestitutionDirection;
+				if (NMake::Unpack(Node->Find("angular-restitution-direction"), &AngularRestitutionDirection))
+					Instance->SetAngularRestitutionDirection(AngularRestitutionDirection);
+
+				float LinearRestitutionDirection;
+				if (NMake::Unpack(Node->Find("linear-restitution-direction"), &LinearRestitutionDirection))
+					Instance->SetLinearRestitutionDirection(LinearRestitutionDirection);
+
+				float AngularRestitutionLimit;
+				if (NMake::Unpack(Node->Find("angular-restitution-limit"), &AngularRestitutionLimit))
+					Instance->SetAngularRestitutionLimit(AngularRestitutionLimit);
+
+				float LinearRestitutionLimit;
+				if (NMake::Unpack(Node->Find("linear-restitution-limit"), &LinearRestitutionLimit))
+					Instance->SetLinearRestitutionLimit(LinearRestitutionLimit);
+
+				float AngularRestitutionOrtho;
+				if (NMake::Unpack(Node->Find("angular-restitution-ortho"), &AngularRestitutionOrtho))
+					Instance->SetAngularRestitutionOrtho(AngularRestitutionOrtho);
+
+				float LinearRestitutionOrtho;
+				if (NMake::Unpack(Node->Find("linear-restitution-ortho"), &LinearRestitutionOrtho))
+					Instance->SetLinearRestitutionOrtho(LinearRestitutionOrtho);
+
+				float AngularSoftnessDirection;
+				if (NMake::Unpack(Node->Find("angular-softness-direction"), &AngularSoftnessDirection))
+					Instance->SetAngularSoftnessDirection(AngularSoftnessDirection);
+
+				float LinearSoftnessDirection;
+				if (NMake::Unpack(Node->Find("linear-softness-direction"), &LinearSoftnessDirection))
+					Instance->SetLinearSoftnessDirection(LinearSoftnessDirection);
+
+				float AngularSoftnessLimit;
+				if (NMake::Unpack(Node->Find("angular-softness-limit"), &AngularSoftnessLimit))
+					Instance->SetAngularSoftnessLimit(AngularSoftnessLimit);
+
+				float LinearSoftnessLimit;
+				if (NMake::Unpack(Node->Find("linear-softness-limit"), &LinearSoftnessLimit))
+					Instance->SetLinearSoftnessLimit(LinearSoftnessLimit);
+
+				float AngularSoftnessOrtho;
+				if (NMake::Unpack(Node->Find("angular-softness-ortho"), &AngularSoftnessOrtho))
+					Instance->SetAngularSoftnessOrtho(AngularSoftnessOrtho);
+
+				float LinearSoftnessOrtho;
+				if (NMake::Unpack(Node->Find("linear-softness-ortho"), &LinearSoftnessOrtho))
+					Instance->SetLinearSoftnessOrtho(LinearSoftnessOrtho);
+
+				bool PoweredAngularMotor;
+				if (NMake::Unpack(Node->Find("powered-angular-motor"), &PoweredAngularMotor))
+					Instance->SetPoweredAngularMotor(PoweredAngularMotor);
+
+				bool PoweredLinearMotor;
+				if (NMake::Unpack(Node->Find("powered-linear-motor"), &PoweredLinearMotor))
+					Instance->SetPoweredLinearMotor(PoweredLinearMotor);
+
+				bool Enabled;
+				if (NMake::Unpack(Node->Find("enabled"), &Enabled))
+					Instance->SetEnabled(Enabled);
+			}
+			void SliderConstraint::Serialize(ContentManager* Content, Core::Document* Node)
+			{
+				NMake::Pack(Node->Set("extended"), Instance != nullptr);
+				if (!Instance)
+					return;
+
+				NMake::Pack(Node->Set("collision-state"), Instance->GetInitialState().UseCollisions);
+				NMake::Pack(Node->Set("linear-power-state"), Instance->GetInitialState().UseLinearPower);
+				NMake::Pack(Node->Set("connection"), (uint64_t)(Connection ? Connection->Id : -1));
+				NMake::Pack(Node->Set("angular-motor-velocity"), Instance->GetAngularMotorVelocity());
+				NMake::Pack(Node->Set("linear-motor-velocity"), Instance->GetLinearMotorVelocity());
+				NMake::Pack(Node->Set("upper-linear-limit"), Instance->GetUpperLinearLimit());
+				NMake::Pack(Node->Set("lower-linear-limit"), Instance->GetLowerLinearLimit());
+				NMake::Pack(Node->Set("breaking-impulse-threshold"), Instance->GetBreakingImpulseThreshold());
+				NMake::Pack(Node->Set("angular-damping-direction"), Instance->GetAngularDampingDirection());
+				NMake::Pack(Node->Set("linear-amping-direction"), Instance->GetLinearDampingDirection());
+				NMake::Pack(Node->Set("angular-damping-limit"), Instance->GetAngularDampingLimit());
+				NMake::Pack(Node->Set("linear-damping-limit"), Instance->GetLinearDampingLimit());
+				NMake::Pack(Node->Set("angular-damping-ortho"), Instance->GetAngularDampingOrtho());
+				NMake::Pack(Node->Set("linear-damping-ortho"), Instance->GetLinearDampingOrtho());
+				NMake::Pack(Node->Set("upper-angular-limit"), Instance->GetUpperAngularLimit());
+				NMake::Pack(Node->Set("lower-angular-limit"), Instance->GetLowerAngularLimit());
+				NMake::Pack(Node->Set("max-angular-motor-force"), Instance->GetMaxAngularMotorForce());
+				NMake::Pack(Node->Set("max-linear-motor-force"), Instance->GetMaxLinearMotorForce());
+				NMake::Pack(Node->Set("angular-restitution-direction"), Instance->GetAngularRestitutionDirection());
+				NMake::Pack(Node->Set("linear-restitution-direction"), Instance->GetLinearRestitutionDirection());
+				NMake::Pack(Node->Set("angular-restitution-limit"), Instance->GetAngularRestitutionLimit());
+				NMake::Pack(Node->Set("linear-restitution-limit"), Instance->GetLinearRestitutionLimit());
+				NMake::Pack(Node->Set("angular-restitution-ortho"), Instance->GetAngularRestitutionOrtho());
+				NMake::Pack(Node->Set("linear-restitution-ortho"), Instance->GetLinearRestitutionOrtho());
+				NMake::Pack(Node->Set("angular-softness-direction"), Instance->GetAngularSoftnessDirection());
+				NMake::Pack(Node->Set("linear-softness-direction"), Instance->GetLinearSoftnessDirection());
+				NMake::Pack(Node->Set("angular-softness-limit"), Instance->GetAngularSoftnessLimit());
+				NMake::Pack(Node->Set("linear-softness-limit"), Instance->GetLinearSoftnessLimit());
+				NMake::Pack(Node->Set("angular-softness-ortho"), Instance->GetAngularSoftnessOrtho());
+				NMake::Pack(Node->Set("linear-softness-ortho"), Instance->GetLinearSoftnessOrtho());
+				NMake::Pack(Node->Set("powered-angular-motor"), Instance->GetPoweredAngularMotor());
+				NMake::Pack(Node->Set("powered-linear-motor"), Instance->GetPoweredLinearMotor());
+				NMake::Pack(Node->Set("enabled"), Instance->IsEnabled());
+			}
+			void SliderConstraint::Synchronize(Core::Timer* Time)
+			{
+				if (Wanted.Connection < 0)
+					return;
+
+				if (!Connection)
+					Create(Parent->GetScene()->GetEntity(Wanted.Connection), Wanted.Ghost, Wanted.Linear);
+
+				Wanted.Connection = -1;
+			}
+			void SliderConstraint::Create(Entity* Other, bool IsGhosted, bool IsLinear)
+			{
+				if (Parent == Other || !Parent)
+					return;
+
+				SceneGraph* Scene = Parent->GetScene();
+				if (!Scene || !Scene->GetSimulator())
+					return;
+
+				Scene->Lock();
+				TH_RELEASE(Instance);
+
+				Connection = Other;
+				if (!Connection)
+					return Scene->Unlock();
+
+				RigidBody* FirstBody = Parent->GetComponent<RigidBody>();
+				RigidBody* SecondBody = Connection->GetComponent<RigidBody>();
+				if (!FirstBody || !SecondBody)
+					return Scene->Unlock();
+
+				Compute::SliderConstraint::Desc I;
+				I.Target1 = FirstBody->GetBody();
+				I.Target2 = SecondBody->GetBody();
+				I.UseCollisions = !IsGhosted;
+				I.UseLinearPower = IsLinear;
+
+				if (!I.Target1 || !I.Target2)
+					return Scene->Unlock();
+
+				Instance = Scene->GetSimulator()->CreateSliderConstraint(I);
+				Scene->Unlock();
+			}
+			void SliderConstraint::Clear()
+			{
+				if (!Instance || !Parent)
+					return;
+
+				SceneGraph* Scene = Parent->GetScene();
+				if (!Scene || !Scene->GetSimulator())
+					return;
+
+				Scene->Lock();
+				TH_CLEAR(Instance);
+				Connection = nullptr;
+				Scene->Unlock();
+			}
+			Component* SliderConstraint::Copy(Entity* New)
+			{
+				SliderConstraint* Target = new SliderConstraint(New);
+				Target->Connection = Connection;
+
+				if (!Instance)
+					return Target;
+
+				RigidBody* FirstBody = New->GetComponent<RigidBody>();
+				if (!FirstBody)
+					FirstBody = Parent->GetComponent<RigidBody>();
+
+				if (!FirstBody)
+					return Target;
+
+				Compute::SliderConstraint::Desc I(Instance->GetInitialState());
+				Instance->GetInitialState().Target1 = FirstBody->GetBody();
+				Target->Instance = Instance->Copy();
+				Instance->GetInitialState() = I;
+
+				return Target;
+			}
+			Compute::SliderConstraint* SliderConstraint::GetConstraint() const
+			{
+				return Instance;
+			}
+			Entity* SliderConstraint::GetConnection() const
+			{
+				return Connection;
+			}
+
+			Acceleration::Acceleration(Entity* Ref) : Component(Ref)
+			{
+			}
+			void Acceleration::Deserialize(ContentManager* Content, Core::Document* Node)
+			{
+				NMake::Unpack(Node->Find("amplitude-velocity"), &AmplitudeVelocity);
+				NMake::Unpack(Node->Find("amplitude-torque"), &AmplitudeTorque);
+				NMake::Unpack(Node->Find("constant-velocity"), &ConstantVelocity);
+				NMake::Unpack(Node->Find("constant-torque"), &ConstantTorque);
+				NMake::Unpack(Node->Find("constant-center"), &ConstantCenter);
+				NMake::Unpack(Node->Find("kinematic"), &Kinematic);
+			}
+			void Acceleration::Serialize(ContentManager* Content, Core::Document* Node)
+			{
+				NMake::Pack(Node->Set("amplitude-velocity"), AmplitudeVelocity);
+				NMake::Pack(Node->Set("amplitude-torque"), AmplitudeTorque);
+				NMake::Pack(Node->Set("constant-velocity"), ConstantVelocity);
+				NMake::Pack(Node->Set("constant-torque"), ConstantTorque);
+				NMake::Pack(Node->Set("constant-center"), ConstantCenter);
+				NMake::Pack(Node->Set("kinematic"), Kinematic);
+			}
+			void Acceleration::Awake(Component* New)
+			{
+				if (RigidBody)
+					return;
+
+				Components::RigidBody* Component = Parent->GetComponent<Components::RigidBody>();
+				if (Component != nullptr)
+					RigidBody = Component->GetBody();
+			}
+			void Acceleration::Update(Core::Timer* Time)
+			{
+				if (!RigidBody)
+					return;
+
+				float DeltaTime = (float)Time->GetDeltaTime();
+				if (Kinematic)
+				{
+					RigidBody->SetLinearVelocity(ConstantVelocity);
+					RigidBody->SetAngularVelocity(ConstantTorque);
+				}
+				else
+					RigidBody->Push(ConstantVelocity * DeltaTime, ConstantTorque * DeltaTime, ConstantCenter);
+
+				Compute::Vector3 Force = RigidBody->GetLinearVelocity();
+				Compute::Vector3 Torque = RigidBody->GetAngularVelocity();
+				Compute::Vector3 ACT = ConstantTorque.Abs();
+				Compute::Vector3 ACV = ConstantVelocity.Abs();
+
+				if (AmplitudeVelocity.X > 0 && Force.X > AmplitudeVelocity.X)
+					ConstantVelocity.X = -ACV.X;
+				else if (AmplitudeVelocity.X > 0 && Force.X < -AmplitudeVelocity.X)
+					ConstantVelocity.X = ACV.X;
+
+				if (AmplitudeVelocity.Y > 0 && Force.Y > AmplitudeVelocity.Y)
+					ConstantVelocity.Y = -ACV.Y;
+				else if (AmplitudeVelocity.Y > 0 && Force.Y < -AmplitudeVelocity.Y)
+					ConstantVelocity.Y = ACV.Y;
+
+				if (AmplitudeVelocity.Z > 0 && Force.Z > AmplitudeVelocity.Z)
+					ConstantVelocity.Z = -ACV.Z;
+				else if (AmplitudeVelocity.Z > 0 && Force.Z < -AmplitudeVelocity.Z)
+					ConstantVelocity.Z = ACV.Z;
+
+				if (AmplitudeTorque.X > 0 && Torque.X > AmplitudeTorque.X)
+					ConstantTorque.X = -ACT.X;
+				else if (AmplitudeTorque.X > 0 && Torque.X < -AmplitudeTorque.X)
+					ConstantTorque.X = ACT.X;
+
+				if (AmplitudeTorque.Y > 0 && Torque.Y > AmplitudeTorque.Y)
+					ConstantTorque.Y = -ACT.Y;
+				else if (AmplitudeTorque.Y > 0 && Torque.Y < -AmplitudeTorque.Y)
+					ConstantTorque.Y = ACT.Y;
+
+				if (AmplitudeTorque.Z > 0 && Torque.Z > AmplitudeTorque.Z)
+					ConstantTorque.Z = -ACT.Z;
+				else if (AmplitudeTorque.Z > 0 && Torque.Z < -AmplitudeTorque.Z)
+					ConstantTorque.Z = ACT.Z;
+			}
+			Component* Acceleration::Copy(Entity* New)
+			{
+				Acceleration* Target = new Acceleration(New);
+				Target->Kinematic = Kinematic;
+				Target->AmplitudeTorque = AmplitudeTorque;
+				Target->AmplitudeVelocity = AmplitudeVelocity;
+				Target->ConstantCenter = ConstantCenter;
+				Target->ConstantTorque = ConstantTorque;
+				Target->ConstantVelocity = ConstantVelocity;
+				Target->RigidBody = RigidBody;
+
+				return Target;
+			}
+			Compute::RigidBody* Acceleration::GetBody() const
+			{
+				return RigidBody;
+			}
+#endif
 			Model::Model(Entity* Ref) : Drawable(Ref, Model::GetTypeId(), true)
 			{
 			}
@@ -337,7 +1590,7 @@ namespace Tomahawk
 			{
 				float Result = 1.0f - Parent->Transform->Position.Distance(View.WorldPosition) / (View.FarPlane);
 				if (Result > 0.0f)
-					Result = Compute::Common::IsCubeInFrustum(Compute::Matrix4x4::CreateScale(Volume) * Parent->Transform->GetWorldUnscaled() * View.ViewProjection, 1.5f) == -1 ? Result : 0.0f;
+					Result = Compute::Common::IsCubeInFrustum(Compute::Matrix4x4::CreateScale(Volume) * Parent->Transform->GetWorldUnscaled() * View.ViewProjection, 1.5f) == -1.0f ? Result : 0.0f;
 
 				return Result;
 			}
@@ -356,586 +1609,6 @@ namespace Tomahawk
 			Graphics::InstanceBuffer* Emitter::GetBuffer()
 			{
 				return Instance;
-			}
-
-			SoftBody::SoftBody(Entity* Ref) : Drawable(Ref, SoftBody::GetTypeId(), false)
-			{
-			}
-			SoftBody::~SoftBody()
-			{
-				TH_RELEASE(Instance);
-			}
-			void SoftBody::Deserialize(ContentManager* Content, Core::Document* Node)
-			{
-				uint64_t Slot = -1;
-				if (NMake::Unpack(Node->Find("material"), &Slot))
-					SetMaterial(nullptr, Parent->GetScene()->GetMaterial((uint64_t)Slot));
-
-				bool Extended = false;
-				bool Transparent = false;
-				std::string Path;
-
-				NMake::Unpack(Node->Find("texcoord"), &TexCoord);
-				NMake::Unpack(Node->Find("extended"), &Extended);
-				NMake::Unpack(Node->Find("kinematic"), &Kinematic);
-				NMake::Unpack(Node->Find("manage"), &Manage);
-				NMake::Unpack(Node->Find("static"), &Static);
-				NMake::Unpack(Node->Find("transparency"), &Transparent);
-				SetTransparency(Transparent);
-
-				if (!Extended)
-					return;
-
-				float CcdMotionThreshold = 0;
-				NMake::Unpack(Node->Find("ccd-motion-threshold"), &CcdMotionThreshold);
-
-				Core::Document* CV = nullptr;
-				if ((CV = Node->Find("shape")) != nullptr)
-				{
-					if (NMake::Unpack(Node->Find("path"), &Path))
-					{
-						auto* Shape = Content->Load<Compute::UnmanagedShape>(Path);
-						if (Shape != nullptr)
-							Create(Shape, CcdMotionThreshold);
-					}
-				}
-				else if ((CV = Node->Find("ellipsoid")) != nullptr)
-				{
-					Compute::SoftBody::Desc::CV::SEllipsoid Shape;
-					NMake::Unpack(CV->Get("center"), &Shape.Center);
-					NMake::Unpack(CV->Get("radius"), &Shape.Radius);
-					NMake::Unpack(CV->Get("count"), &Shape.Count);
-					CreateEllipsoid(Shape, CcdMotionThreshold);
-				}
-				else if ((CV = Node->Find("patch")) != nullptr)
-				{
-					Compute::SoftBody::Desc::CV::SPatch Shape;
-					NMake::Unpack(CV->Get("corner-00"), &Shape.Corner00);
-					NMake::Unpack(CV->Get("corner-00-fixed"), &Shape.Corner00Fixed);
-					NMake::Unpack(CV->Get("corner-01"), &Shape.Corner01);
-					NMake::Unpack(CV->Get("corner-01-fixed"), &Shape.Corner01Fixed);
-					NMake::Unpack(CV->Get("corner-10"), &Shape.Corner10);
-					NMake::Unpack(CV->Get("corner-10-fixed"), &Shape.Corner10Fixed);
-					NMake::Unpack(CV->Get("corner-11"), &Shape.Corner11);
-					NMake::Unpack(CV->Get("corner-11-fixed"), &Shape.Corner11Fixed);
-					NMake::Unpack(CV->Get("count-x"), &Shape.CountX);
-					NMake::Unpack(CV->Get("count-y"), &Shape.CountY);
-					NMake::Unpack(CV->Get("diagonals"), &Shape.GenerateDiagonals);
-					CreatePatch(Shape, CcdMotionThreshold);
-				}
-				else if ((CV = Node->Find("rope")) != nullptr)
-				{
-					Compute::SoftBody::Desc::CV::SRope Shape;
-					NMake::Unpack(CV->Get("start"), &Shape.Start);
-					NMake::Unpack(CV->Get("start-fixed"), &Shape.StartFixed);
-					NMake::Unpack(CV->Get("end"), &Shape.End);
-					NMake::Unpack(CV->Get("end-fixed"), &Shape.EndFixed);
-					NMake::Unpack(CV->Get("count"), &Shape.Count);
-					CreateRope(Shape, CcdMotionThreshold);
-				}
-
-				if (!Instance)
-					return;
-
-				Core::Document* Conf = Node->Get("config");
-				if (Conf != nullptr)
-				{
-					Compute::SoftBody::Desc::SConfig I;
-					NMake::Unpack(Conf->Get("vcf"), &I.VCF);
-					NMake::Unpack(Conf->Get("dp"), &I.DP);
-					NMake::Unpack(Conf->Get("dg"), &I.DG);
-					NMake::Unpack(Conf->Get("lf"), &I.LF);
-					NMake::Unpack(Conf->Get("pr"), &I.PR);
-					NMake::Unpack(Conf->Get("vc"), &I.VC);
-					NMake::Unpack(Conf->Get("df"), &I.DF);
-					NMake::Unpack(Conf->Get("mt"), &I.MT);
-					NMake::Unpack(Conf->Get("chr"), &I.CHR);
-					NMake::Unpack(Conf->Get("khr"), &I.KHR);
-					NMake::Unpack(Conf->Get("shr"), &I.SHR);
-					NMake::Unpack(Conf->Get("ahr"), &I.AHR);
-					NMake::Unpack(Conf->Get("srhr-cl"), &I.SRHR_CL);
-					NMake::Unpack(Conf->Get("skhr-cl"), &I.SKHR_CL);
-					NMake::Unpack(Conf->Get("sshr-cl"), &I.SSHR_CL);
-					NMake::Unpack(Conf->Get("sr-splt-cl"), &I.SR_SPLT_CL);
-					NMake::Unpack(Conf->Get("sk-splt-cl"), &I.SK_SPLT_CL);
-					NMake::Unpack(Conf->Get("ss-splt-cl"), &I.SS_SPLT_CL);
-					NMake::Unpack(Conf->Get("max-volume"), &I.MaxVolume);
-					NMake::Unpack(Conf->Get("time-scale"), &I.TimeScale);
-					NMake::Unpack(Conf->Get("drag"), &I.Drag);
-					NMake::Unpack(Conf->Get("max-stress"), &I.MaxStress);
-					NMake::Unpack(Conf->Get("constraints"), &I.Constraints);
-					NMake::Unpack(Conf->Get("clusters"), &I.Clusters);
-					NMake::Unpack(Conf->Get("v-it"), &I.VIterations);
-					NMake::Unpack(Conf->Get("p-it"), &I.PIterations);
-					NMake::Unpack(Conf->Get("d-it"), &I.DIterations);
-					NMake::Unpack(Conf->Get("c-it"), &I.CIterations);
-					NMake::Unpack(Conf->Get("collisions"), &I.Collisions);
-
-					uint64_t AeroModel;
-					if (NMake::Unpack(Conf->Get("aero-model"), &AeroModel))
-						I.AeroModel = (Compute::SoftAeroModel)AeroModel;
-
-					Instance->SetConfig(I);
-				}
-
-				uint64_t ActivationState;
-				if (NMake::Unpack(Node->Find("activation-state"), &ActivationState))
-					Instance->SetActivationState((Compute::MotionState)ActivationState);
-
-				float Friction;
-				if (NMake::Unpack(Node->Find("friction"), &Friction))
-					Instance->SetFriction(Friction);
-
-				float Restitution;
-				if (NMake::Unpack(Node->Find("restitution"), &Restitution))
-					Instance->SetRestitution(Restitution);
-
-				float HitFraction;
-				if (NMake::Unpack(Node->Find("hit-fraction"), &HitFraction))
-					Instance->SetHitFraction(HitFraction);
-
-				float CcdSweptSphereRadius;
-				if (NMake::Unpack(Node->Find("ccd-swept-sphere-radius"), &CcdSweptSphereRadius))
-					Instance->SetCcdSweptSphereRadius(CcdSweptSphereRadius);
-
-				float ContactProcessingThreshold;
-				if (NMake::Unpack(Node->Find("contact-processing-threshold"), &ContactProcessingThreshold))
-					Instance->SetContactProcessingThreshold(ContactProcessingThreshold);
-
-				float DeactivationTime;
-				if (NMake::Unpack(Node->Find("deactivation-time"), &DeactivationTime))
-					Instance->SetDeactivationTime(DeactivationTime);
-
-				float RollingFriction;
-				if (NMake::Unpack(Node->Find("rolling-friction"), &RollingFriction))
-					Instance->SetRollingFriction(RollingFriction);
-
-				float SpinningFriction;
-				if (NMake::Unpack(Node->Find("spinning-friction"), &SpinningFriction))
-					Instance->SetSpinningFriction(SpinningFriction);
-
-				float ContactStiffness;
-				if (NMake::Unpack(Node->Find("contact-stiffness"), &ContactStiffness))
-					Instance->SetContactStiffness(ContactStiffness);
-
-				float ContactDamping;
-				if (NMake::Unpack(Node->Find("contact-damping"), &ContactDamping))
-					Instance->SetContactDamping(ContactDamping);
-
-				Compute::Vector3 AnisotropicFriction;
-				if (NMake::Unpack(Node->Find("anisotropic-friction"), &AnisotropicFriction))
-					Instance->SetAnisotropicFriction(AnisotropicFriction);
-
-				Compute::Vector3 WindVelocity;
-				if (NMake::Unpack(Node->Find("wind-velocity"), &WindVelocity))
-					Instance->SetWindVelocity(WindVelocity);
-
-				float TotalMass;
-				if (NMake::Unpack(Node->Find("total-mass"), &TotalMass))
-					Instance->SetTotalMass(TotalMass);
-
-				float RestLengthScale;
-				if (NMake::Unpack(Node->Find("core-length-scale"), &RestLengthScale))
-					Instance->SetRestLengthScale(RestLengthScale);
-			}
-			void SoftBody::Serialize(ContentManager* Content, Core::Document* Node)
-			{
-				Material* Slot = GetMaterial();
-				if (Slot != nullptr)
-					NMake::Pack(Node->Set("material"), Slot->GetSlot());
-
-				NMake::Pack(Node->Set("texcoord"), TexCoord);
-				NMake::Pack(Node->Set("transparency"), HasTransparency());
-				NMake::Pack(Node->Set("kinematic"), Kinematic);
-				NMake::Pack(Node->Set("manage"), Manage);
-				NMake::Pack(Node->Set("extended"), Instance != nullptr);
-				NMake::Pack(Node->Set("static"), Static);
-
-				if (!Instance)
-					return;
-
-				Compute::SoftBody::Desc& I = Instance->GetInitialState();
-				Core::Document* Conf = Node->Set("config");
-				NMake::Pack(Conf->Set("aero-model"), (uint64_t)I.Config.AeroModel);
-				NMake::Pack(Conf->Set("vcf"), I.Config.VCF);
-				NMake::Pack(Conf->Set("dp"), I.Config.DP);
-				NMake::Pack(Conf->Set("dg"), I.Config.DG);
-				NMake::Pack(Conf->Set("lf"), I.Config.LF);
-				NMake::Pack(Conf->Set("pr"), I.Config.PR);
-				NMake::Pack(Conf->Set("vc"), I.Config.VC);
-				NMake::Pack(Conf->Set("df"), I.Config.DF);
-				NMake::Pack(Conf->Set("mt"), I.Config.MT);
-				NMake::Pack(Conf->Set("chr"), I.Config.CHR);
-				NMake::Pack(Conf->Set("khr"), I.Config.KHR);
-				NMake::Pack(Conf->Set("shr"), I.Config.SHR);
-				NMake::Pack(Conf->Set("ahr"), I.Config.AHR);
-				NMake::Pack(Conf->Set("srhr-cl"), I.Config.SRHR_CL);
-				NMake::Pack(Conf->Set("skhr-cl"), I.Config.SKHR_CL);
-				NMake::Pack(Conf->Set("sshr-cl"), I.Config.SSHR_CL);
-				NMake::Pack(Conf->Set("sr-splt-cl"), I.Config.SR_SPLT_CL);
-				NMake::Pack(Conf->Set("sk-splt-cl"), I.Config.SK_SPLT_CL);
-				NMake::Pack(Conf->Set("ss-splt-cl"), I.Config.SS_SPLT_CL);
-				NMake::Pack(Conf->Set("max-volume"), I.Config.MaxVolume);
-				NMake::Pack(Conf->Set("time-scale"), I.Config.TimeScale);
-				NMake::Pack(Conf->Set("drag"), I.Config.Drag);
-				NMake::Pack(Conf->Set("max-stress"), I.Config.MaxStress);
-				NMake::Pack(Conf->Set("constraints"), I.Config.Constraints);
-				NMake::Pack(Conf->Set("clusters"), I.Config.Clusters);
-				NMake::Pack(Conf->Set("v-it"), I.Config.VIterations);
-				NMake::Pack(Conf->Set("p-it"), I.Config.PIterations);
-				NMake::Pack(Conf->Set("d-it"), I.Config.DIterations);
-				NMake::Pack(Conf->Set("c-it"), I.Config.CIterations);
-				NMake::Pack(Conf->Set("collisions"), I.Config.Collisions);
-
-				auto& Desc = Instance->GetInitialState();
-				if (Desc.Shape.Convex.Enabled)
-				{
-					if (Instance->GetCollisionShapeType() == Compute::Shape_Convex_Hull)
-					{
-						AssetCache* Asset = Content->Find<Compute::UnmanagedShape>(Desc.Shape.Convex.Hull);
-						if (Asset != nullptr)
-						{
-							Core::Document* Shape = Node->Set("shape");
-							NMake::Pack(Shape->Set("path"), Asset->Path);
-						}
-					}
-				}
-				else if (Desc.Shape.Ellipsoid.Enabled)
-				{
-					Core::Document* Shape = Node->Set("ellipsoid");
-					NMake::Pack(Shape->Set("center"), Desc.Shape.Ellipsoid.Center);
-					NMake::Pack(Shape->Set("radius"), Desc.Shape.Ellipsoid.Radius);
-					NMake::Pack(Shape->Set("count"), Desc.Shape.Ellipsoid.Count);
-				}
-				else if (Desc.Shape.Patch.Enabled)
-				{
-					Core::Document* Shape = Node->Set("patch");
-					NMake::Pack(Shape->Set("corner-00"), Desc.Shape.Patch.Corner00);
-					NMake::Pack(Shape->Set("corner-00-fixed"), Desc.Shape.Patch.Corner00Fixed);
-					NMake::Pack(Shape->Set("corner-01"), Desc.Shape.Patch.Corner01);
-					NMake::Pack(Shape->Set("corner-01-fixed"), Desc.Shape.Patch.Corner01Fixed);
-					NMake::Pack(Shape->Set("corner-10"), Desc.Shape.Patch.Corner10);
-					NMake::Pack(Shape->Set("corner-10-fixed"), Desc.Shape.Patch.Corner10Fixed);
-					NMake::Pack(Shape->Set("corner-11"), Desc.Shape.Patch.Corner11);
-					NMake::Pack(Shape->Set("corner-11-fixed"), Desc.Shape.Patch.Corner11Fixed);
-					NMake::Pack(Shape->Set("count-x"), Desc.Shape.Patch.CountX);
-					NMake::Pack(Shape->Set("count-y"), Desc.Shape.Patch.CountY);
-					NMake::Pack(Shape->Set("diagonals"), Desc.Shape.Patch.GenerateDiagonals);
-				}
-				else if (Desc.Shape.Rope.Enabled)
-				{
-					Core::Document* Shape = Node->Set("rope");
-					NMake::Pack(Shape->Set("start"), Desc.Shape.Rope.Start);
-					NMake::Pack(Shape->Set("start-fixed"), Desc.Shape.Rope.StartFixed);
-					NMake::Pack(Shape->Set("end"), Desc.Shape.Rope.End);
-					NMake::Pack(Shape->Set("end-fixed"), Desc.Shape.Rope.EndFixed);
-					NMake::Pack(Shape->Set("count"), Desc.Shape.Rope.Count);
-				}
-				
-				NMake::Pack(Node->Set("ccd-motion-threshold"), Instance->GetCcdMotionThreshold());
-				NMake::Pack(Node->Set("activation-state"), (uint64_t)Instance->GetActivationState());
-				NMake::Pack(Node->Set("friction"), Instance->GetFriction());
-				NMake::Pack(Node->Set("restitution"), Instance->GetRestitution());
-				NMake::Pack(Node->Set("hit-fraction"), Instance->GetHitFraction());
-				NMake::Pack(Node->Set("ccd-swept-sphere-radius"), Instance->GetCcdSweptSphereRadius());
-				NMake::Pack(Node->Set("contact-processing-threshold"), Instance->GetContactProcessingThreshold());
-				NMake::Pack(Node->Set("deactivation-time"), Instance->GetDeactivationTime());
-				NMake::Pack(Node->Set("rolling-friction"), Instance->GetRollingFriction());
-				NMake::Pack(Node->Set("spinning-friction"), Instance->GetSpinningFriction());
-				NMake::Pack(Node->Set("contact-stiffness"), Instance->GetContactStiffness());
-				NMake::Pack(Node->Set("contact-damping"), Instance->GetContactDamping());
-				NMake::Pack(Node->Set("angular-velocity"), Instance->GetAngularVelocity());
-				NMake::Pack(Node->Set("anisotropic-friction"), Instance->GetAnisotropicFriction());
-				NMake::Pack(Node->Set("linear-velocity"), Instance->GetLinearVelocity());
-				NMake::Pack(Node->Set("collision-flags"), (uint64_t)Instance->GetCollisionFlags());
-				NMake::Pack(Node->Set("wind-velocity"), Instance->GetWindVelocity());
-				NMake::Pack(Node->Set("total-mass"), Instance->GetTotalMass());
-				NMake::Pack(Node->Set("core-length-scale"), Instance->GetRestLengthScale());
-			}
-			void SoftBody::Synchronize(Core::Timer* Time)
-			{
-				if (!Instance)
-					return;
-
-				if (Manage)
-					Instance->Synchronize(Parent->Transform, Kinematic);
-
-				if (!Visibility)
-					return;
-
-				Instance->GetVertices(&Vertices);
-				if (Indices.empty())
-					Instance->GetIndices(&Indices);
-			}
-			void SoftBody::Awake(Component* New)
-			{
-				if (!New)
-					Attach();
-			}
-			void SoftBody::Asleep()
-			{
-				Detach();
-				if (Instance != nullptr)
-					Instance->SetAsGhost();
-			}
-			void SoftBody::Create(Compute::UnmanagedShape* Shape, float Anticipation)
-			{
-				if (!Shape || !Parent)
-					return;
-
-				SceneGraph* Scene = Parent->GetScene();
-				if (!Scene || !Scene->GetSimulator())
-					return;
-
-				Scene->Lock();
-				TH_RELEASE(Instance);
-
-				Compute::SoftBody::Desc I;
-				I.Anticipation = Anticipation;
-				I.Shape.Convex.Hull = Shape;
-				I.Shape.Convex.Enabled = true;
-
-				Instance = Scene->GetSimulator()->CreateSoftBody(I, Parent->Transform);
-				if (!Instance)
-				{
-					TH_ERROR("cannot create soft body");
-					return Scene->Unlock();
-				}
-
-				Vertices.clear();
-				Indices.clear();
-
-				Instance->UserPointer = this;
-				Instance->SetActivity(true);
-				Scene->Unlock();
-			}
-			void SoftBody::Create(ContentManager* Content, const std::string& Path, float Anticipation)
-			{
-				if (Content != nullptr)
-				{
-					Compute::UnmanagedShape* Hull = Content->Load<Compute::UnmanagedShape>(Path);
-					if (Hull != nullptr)
-						Create(Hull, Anticipation);
-				}
-			}
-			void SoftBody::CreateEllipsoid(const Compute::SoftBody::Desc::CV::SEllipsoid& Shape, float Anticipation)
-			{
-				if (!Parent)
-					return;
-
-				SceneGraph* Scene = Parent->GetScene();
-				if (!Scene || !Scene->GetSimulator())
-					return;
-
-				Scene->Lock();
-				TH_RELEASE(Instance);
-
-				Compute::SoftBody::Desc I;
-				I.Anticipation = Anticipation;
-				I.Shape.Ellipsoid = Shape;
-				I.Shape.Ellipsoid.Enabled = true;
-
-				Instance = Scene->GetSimulator()->CreateSoftBody(I, Parent->Transform);
-				if (!Instance)
-				{
-					TH_ERROR("cannot create soft body");
-					return Scene->Unlock();
-				}
-
-				Vertices.clear();
-				Indices.clear();
-
-				Instance->UserPointer = this;
-				Instance->SetActivity(true);
-				Scene->Unlock();
-			}
-			void SoftBody::CreatePatch(const Compute::SoftBody::Desc::CV::SPatch& Shape, float Anticipation)
-			{
-				if (!Parent)
-					return;
-
-				SceneGraph* Scene = Parent->GetScene();
-				if (!Scene || !Scene->GetSimulator())
-					return;
-
-				Scene->Lock();
-				TH_RELEASE(Instance);
-
-				Compute::SoftBody::Desc I;
-				I.Anticipation = Anticipation;
-				I.Shape.Patch = Shape;
-				I.Shape.Patch.Enabled = true;
-
-				Instance = Scene->GetSimulator()->CreateSoftBody(I, Parent->Transform);
-				if (!Instance)
-				{
-					TH_ERROR("cannot create soft body");
-					return Scene->Unlock();
-				}
-
-				Vertices.clear();
-				Indices.clear();
-
-				Instance->UserPointer = this;
-				Instance->SetActivity(true);
-				Scene->Unlock();
-			}
-			void SoftBody::CreateRope(const Compute::SoftBody::Desc::CV::SRope& Shape, float Anticipation)
-			{
-				if (!Parent)
-					return;
-
-				SceneGraph* Scene = Parent->GetScene();
-				if (!Scene || !Scene->GetSimulator())
-					return;
-
-				Scene->Lock();
-				TH_RELEASE(Instance);
-
-				Compute::SoftBody::Desc I;
-				I.Anticipation = Anticipation;
-				I.Shape.Rope = Shape;
-				I.Shape.Rope.Enabled = true;
-
-				Instance = Scene->GetSimulator()->CreateSoftBody(I, Parent->Transform);
-				if (!Instance)
-				{
-					TH_ERROR("cannot create soft body");
-					return Scene->Unlock();
-				}
-
-				Vertices.clear();
-				Indices.clear();
-
-				Instance->UserPointer = this;
-				Instance->SetActivity(true);
-				Scene->Unlock();
-			}
-			void SoftBody::Fill(Graphics::GraphicsDevice* Device, Graphics::ElementBuffer* IndexBuffer, Graphics::ElementBuffer* VertexBuffer)
-			{
-				Graphics::MappedSubresource Map;
-				if (VertexBuffer != nullptr && !Vertices.empty())
-				{
-					Device->Map(VertexBuffer, Graphics::ResourceMap_Write_Discard, &Map);
-					memcpy(Map.Pointer, (void*)Vertices.data(), Vertices.size() * sizeof(Compute::Vertex));
-					Device->Unmap(VertexBuffer, &Map);
-				}
-
-				if (IndexBuffer != nullptr && !Indices.empty())
-				{
-					Device->Map(IndexBuffer, Graphics::ResourceMap_Write_Discard, &Map);
-					memcpy(Map.Pointer, (void*)Indices.data(), Indices.size() * sizeof(int));
-					Device->Unmap(IndexBuffer, &Map);
-				}
-			}
-			void SoftBody::Regenerate()
-			{
-				if (!Instance || !Parent)
-					return;
-
-				SceneGraph* Scene = Parent->GetScene();
-				if (!Scene || !Scene->GetSimulator())
-					return;
-
-				Scene->Lock();
-				Compute::SoftBody::Desc I = Instance->GetInitialState();
-				TH_RELEASE(Instance);
-
-				Instance = Scene->GetSimulator()->CreateSoftBody(I, Parent->Transform);
-				if (!Instance)
-					TH_ERROR("cannot regenerate soft body");
-				Scene->Unlock();
-			}
-			void SoftBody::Clear()
-			{
-				if (!Instance || !Parent)
-					return;
-
-				SceneGraph* Scene = Parent->GetScene();
-				if (!Scene || !Scene->GetSimulator())
-					return;
-
-				Scene->Lock();
-				TH_CLEAR(Instance);
-				Scene->Unlock();
-			}
-			void SoftBody::SetTransform(const Compute::Vector3& Position, const Compute::Vector3& Scale, const Compute::Vector3& Rotation)
-			{
-				if (!Instance || !Parent)
-					return;
-
-				SceneGraph* Scene = Parent->GetScene();
-				if (Scene != nullptr)
-					Scene->Lock();
-
-				Parent->Transform->SetTransform(Compute::TransformSpace_Global, Position, Scale, Rotation);
-				Instance->Synchronize(Parent->Transform, true);
-				Instance->SetActivity(true);
-
-				if (Scene != nullptr)
-					Scene->Unlock();
-			}
-			void SoftBody::SetTransform(bool Kinematics)
-			{
-				if (!Instance || !Parent)
-					return;
-
-				SceneGraph* Scene = Parent->GetScene();
-				if (Scene != nullptr)
-					Scene->Lock();
-
-				Instance->Synchronize(Parent->Transform, Kinematics);
-				Instance->SetActivity(true);
-
-				if (Scene != nullptr)
-					Scene->Unlock();
-			}
-			float SoftBody::Cull(const Viewer& View)
-			{
-				float Result = 0.0f;
-				if (Instance != nullptr)
-				{
-					Compute::Matrix4x4 Box = GetBoundingBox();
-					Result = IsVisible(View, &Box) ? 1.0f : 0.0f;
-				}
-
-				return Result;
-			}
-			Compute::Matrix4x4 SoftBody::GetBoundingBox()
-			{
-				if (!Instance)
-					return Parent->Transform->GetWorld();
-
-				Compute::Vector3 Min, Max;
-				Instance->GetBoundingBox(&Min, &Max);
-
-				return Compute::Matrix4x4::Create((Max + Min).Div(2.0f), Parent->Transform->Scale * Instance->GetScale(), Parent->Transform->Rotation);
-			}
-			Component* SoftBody::Copy(Entity* New)
-			{
-				SoftBody* Target = new SoftBody(New);
-				Target->SetTransparency(HasTransparency());
-				Target->Kinematic = Kinematic;
-
-				if (Instance != nullptr)
-				{
-					Target->Instance = Instance->Copy();
-					Target->Instance->UserPointer = Target;
-				}
-
-				return Target;
-			}
-			Compute::SoftBody* SoftBody::GetBody()
-			{
-				return Instance;
-			}
-			std::vector<Compute::Vertex>& SoftBody::GetVertices()
-			{
-				return Vertices;
-			}
-			std::vector<int>& SoftBody::GetIndices()
-			{
-				return Indices;
 			}
 
 			Decal::Decal(Entity* Ref) : Drawable(Ref, Decal::GetTypeId(), false)
@@ -989,7 +1662,7 @@ namespace Tomahawk
 			{
 				float Result = 1.0f - Parent->Transform->Position.Distance(fView.WorldPosition) / fView.FarPlane;
 				if (Result > 0.0f)
-					Result = Compute::Common::IsCubeInFrustum(Parent->Transform->GetWorld() * fView.ViewProjection, GetRange()) == -1 ? Result : 0.0f;
+					Result = Compute::Common::IsCubeInFrustum(Parent->Transform->GetWorld() * fView.ViewProjection, GetRange()) == -1.0f ? Result : 0.0f;
 
 				return Result;
 			}
@@ -1642,678 +2315,6 @@ namespace Tomahawk
 				return Base;
 			}
 
-			RigidBody::RigidBody(Entity* Ref) : Component(Ref)
-			{
-			}
-			RigidBody::~RigidBody()
-			{
-				TH_RELEASE(Instance);
-			}
-			void RigidBody::Deserialize(ContentManager* Content, Core::Document* Node)
-			{
-				bool Extended = false;
-				NMake::Unpack(Node->Find("extended"), &Extended);
-				NMake::Unpack(Node->Find("kinematic"), &Kinematic);
-				NMake::Unpack(Node->Find("manage"), &Manage);
-
-				SceneGraph* Scene = Parent->GetScene();
-				if (!Extended)
-					return;
-
-				float Mass = 0, CcdMotionThreshold = 0;
-				NMake::Unpack(Node->Find("mass"), &Mass);
-				NMake::Unpack(Node->Find("ccd-motion-threshold"), &CcdMotionThreshold);
-
-				Core::Document* CV = nullptr;
-				if ((CV = Node->Find("shape")) != nullptr)
-				{
-					std::string Path; uint64_t Type;
-					if (NMake::Unpack(Node->Find("path"), &Path))
-					{
-						auto* Shape = Content->Load<Compute::UnmanagedShape>(Path);
-						if (Shape != nullptr)
-							Create(Shape->Shape, Mass, CcdMotionThreshold);
-					}
-					else if (!NMake::Unpack(CV->Find("type"), &Type))
-					{
-						std::vector<Compute::Vector3> Vertices;
-						if (NMake::Unpack(CV->Find("data"), &Vertices))
-						{
-							btCollisionShape* Shape = Scene->GetSimulator()->CreateConvexHull(Vertices);
-							if (Shape != nullptr)
-								Create(Shape, Mass, CcdMotionThreshold);
-						}
-					}
-					else
-					{
-						btCollisionShape* Shape = Scene->GetSimulator()->CreateShape((Compute::Shape)Type);
-						if (Shape != nullptr)
-							Create(Shape, Mass, CcdMotionThreshold);
-					}
-				}
-
-				if (!Instance)
-					return;
-
-				uint64_t ActivationState;
-				if (NMake::Unpack(Node->Find("activation-state"), &ActivationState))
-					Instance->SetActivationState((Compute::MotionState)ActivationState);
-
-				float AngularDamping;
-				if (NMake::Unpack(Node->Find("angular-damping"), &AngularDamping))
-					Instance->SetAngularDamping(AngularDamping);
-
-				float AngularSleepingThreshold;
-				if (NMake::Unpack(Node->Find("angular-sleeping-threshold"), &AngularSleepingThreshold))
-					Instance->SetAngularSleepingThreshold(AngularSleepingThreshold);
-
-				float Friction;
-				if (NMake::Unpack(Node->Find("friction"), &Friction))
-					Instance->SetFriction(Friction);
-
-				float Restitution;
-				if (NMake::Unpack(Node->Find("restitution"), &Restitution))
-					Instance->SetRestitution(Restitution);
-
-				float HitFraction;
-				if (NMake::Unpack(Node->Find("hit-fraction"), &HitFraction))
-					Instance->SetHitFraction(HitFraction);
-
-				float LinearDamping;
-				if (NMake::Unpack(Node->Find("linear-damping"), &LinearDamping))
-					Instance->SetLinearDamping(LinearDamping);
-
-				float LinearSleepingThreshold;
-				if (NMake::Unpack(Node->Find("linear-sleeping-threshold"), &LinearSleepingThreshold))
-					Instance->SetLinearSleepingThreshold(LinearSleepingThreshold);
-
-				float CcdSweptSphereRadius;
-				if (NMake::Unpack(Node->Find("ccd-swept-sphere-radius"), &CcdSweptSphereRadius))
-					Instance->SetCcdSweptSphereRadius(CcdSweptSphereRadius);
-
-				float ContactProcessingThreshold;
-				if (NMake::Unpack(Node->Find("contact-processing-threshold"), &ContactProcessingThreshold))
-					Instance->SetContactProcessingThreshold(ContactProcessingThreshold);
-
-				float DeactivationTime;
-				if (NMake::Unpack(Node->Find("deactivation-time"), &DeactivationTime))
-					Instance->SetDeactivationTime(DeactivationTime);
-
-				float RollingFriction;
-				if (NMake::Unpack(Node->Find("rolling-friction"), &RollingFriction))
-					Instance->SetRollingFriction(RollingFriction);
-
-				float SpinningFriction;
-				if (NMake::Unpack(Node->Find("spinning-friction"), &SpinningFriction))
-					Instance->SetSpinningFriction(SpinningFriction);
-
-				float ContactStiffness;
-				if (NMake::Unpack(Node->Find("contact-stiffness"), &ContactStiffness))
-					Instance->SetContactStiffness(ContactStiffness);
-
-				float ContactDamping;
-				if (NMake::Unpack(Node->Find("contact-damping"), &ContactDamping))
-					Instance->SetContactDamping(ContactDamping);
-
-				Compute::Vector3 AngularFactor;
-				if (NMake::Unpack(Node->Find("angular-factor"), &AngularFactor))
-					Instance->SetAngularFactor(AngularFactor);
-
-				Compute::Vector3 AngularVelocity;
-				if (NMake::Unpack(Node->Find("angular-velocity"), &AngularVelocity))
-					Instance->SetAngularVelocity(AngularVelocity);
-
-				Compute::Vector3 AnisotropicFriction;
-				if (NMake::Unpack(Node->Find("anisotropic-friction"), &AnisotropicFriction))
-					Instance->SetAnisotropicFriction(AnisotropicFriction);
-
-				Compute::Vector3 Gravity;
-				if (NMake::Unpack(Node->Find("gravity"), &Gravity))
-					Instance->SetGravity(Gravity);
-
-				Compute::Vector3 LinearFactor;
-				if (NMake::Unpack(Node->Find("linear-factor"), &LinearFactor))
-					Instance->SetLinearFactor(LinearFactor);
-
-				Compute::Vector3 LinearVelocity;
-				if (NMake::Unpack(Node->Find("linear-velocity"), &LinearVelocity))
-					Instance->SetLinearVelocity(LinearVelocity);
-
-				uint64_t CollisionFlags;
-				if (NMake::Unpack(Node->Find("collision-flags"), &CollisionFlags))
-					Instance->SetCollisionFlags(CollisionFlags);
-			}
-			void RigidBody::Serialize(ContentManager* Content, Core::Document* Node)
-			{
-				SceneGraph* Scene = Parent->GetScene();
-				NMake::Pack(Node->Set("kinematic"), Kinematic);
-				NMake::Pack(Node->Set("manage"), Manage);
-				NMake::Pack(Node->Set("extended"), Instance != nullptr);
-				if (!Instance)
-					return;
-
-				Core::Document* CV = Node->Set("shape");
-				if (Instance->GetCollisionShapeType() == Compute::Shape_Convex_Hull)
-				{
-					AssetCache* Asset = Content->Find<Compute::UnmanagedShape>(Hull);
-					if (!Asset || !Hull)
-					{
-						std::vector<Compute::Vector3> Vertices = Scene->GetSimulator()->GetShapeVertices(Instance->GetCollisionShape());
-						NMake::Pack(CV->Set("data"), Vertices);
-					}
-					else
-						NMake::Pack(CV->Set("path"), Asset->Path);
-				}
-				else
-					NMake::Pack(CV->Set("type"), (uint64_t)Instance->GetCollisionShapeType());
-
-				NMake::Pack(Node->Set("mass"), Instance->GetMass());
-				NMake::Pack(Node->Set("ccd-motion-threshold"), Instance->GetCcdMotionThreshold());
-				NMake::Pack(Node->Set("activation-state"), (uint64_t)Instance->GetActivationState());
-				NMake::Pack(Node->Set("angular-damping"), Instance->GetAngularDamping());
-				NMake::Pack(Node->Set("angular-sleeping-threshold"), Instance->GetAngularSleepingThreshold());
-				NMake::Pack(Node->Set("friction"), Instance->GetFriction());
-				NMake::Pack(Node->Set("restitution"), Instance->GetRestitution());
-				NMake::Pack(Node->Set("hit-fraction"), Instance->GetHitFraction());
-				NMake::Pack(Node->Set("linear-damping"), Instance->GetLinearDamping());
-				NMake::Pack(Node->Set("linear-sleeping-threshold"), Instance->GetLinearSleepingThreshold());
-				NMake::Pack(Node->Set("ccd-swept-sphere-radius"), Instance->GetCcdSweptSphereRadius());
-				NMake::Pack(Node->Set("contact-processing-threshold"), Instance->GetContactProcessingThreshold());
-				NMake::Pack(Node->Set("deactivation-time"), Instance->GetDeactivationTime());
-				NMake::Pack(Node->Set("rolling-friction"), Instance->GetRollingFriction());
-				NMake::Pack(Node->Set("spinning-friction"), Instance->GetSpinningFriction());
-				NMake::Pack(Node->Set("contact-stiffness"), Instance->GetContactStiffness());
-				NMake::Pack(Node->Set("contact-damping"), Instance->GetContactDamping());
-				NMake::Pack(Node->Set("angular-factor"), Instance->GetAngularFactor());
-				NMake::Pack(Node->Set("angular-velocity"), Instance->GetAngularVelocity());
-				NMake::Pack(Node->Set("anisotropic-friction"), Instance->GetAnisotropicFriction());
-				NMake::Pack(Node->Set("gravity"), Instance->GetGravity());
-				NMake::Pack(Node->Set("linear-factor"), Instance->GetLinearFactor());
-				NMake::Pack(Node->Set("linear-velocity"), Instance->GetLinearVelocity());
-				NMake::Pack(Node->Set("collision-flags"), (uint64_t)Instance->GetCollisionFlags());
-			}
-			void RigidBody::Synchronize(Core::Timer* Time)
-			{
-				if (Instance && Manage)
-					Instance->Synchronize(Parent->Transform, Kinematic);
-			}
-			void RigidBody::Asleep()
-			{
-				if (Instance != nullptr)
-					Instance->SetAsGhost();
-			}
-			void RigidBody::Create(btCollisionShape* Shape, float Mass, float Anticipation)
-			{
-				if (!Shape || !Parent)
-					return;
-
-				SceneGraph* Scene = Parent->GetScene();
-				if (!Scene || !Scene->GetSimulator())
-					return;
-
-				Scene->Lock();
-				TH_RELEASE(Instance);
-
-				Compute::RigidBody::Desc I;
-				I.Anticipation = Anticipation;
-				I.Mass = Mass;
-				I.Shape = Shape;
-
-				Instance = Scene->GetSimulator()->CreateRigidBody(I, Parent->Transform);
-				Instance->UserPointer = this;
-				Instance->SetActivity(true);
-				Scene->Unlock();
-			}
-			void RigidBody::Create(ContentManager* Content, const std::string& Path, float Mass, float Anticipation)
-			{
-				if (Content != nullptr)
-				{
-					Hull = Content->Load<Compute::UnmanagedShape>(Path);
-					if (Hull != nullptr)
-						Create(Hull->Shape, Mass, Anticipation);
-				}
-			}
-			void RigidBody::Clear()
-			{
-				if (!Instance || !Parent)
-					return;
-
-				SceneGraph* Scene = Parent->GetScene();
-				if (!Scene || !Scene->GetSimulator())
-					return;
-
-				Scene->Lock();
-				TH_CLEAR(Instance);
-				Scene->Unlock();
-			}
-			void RigidBody::SetTransform(const Compute::Vector3& Position, const Compute::Vector3& Scale, const Compute::Vector3& Rotation)
-			{
-				if (!Instance || !Parent)
-					return;
-
-				SceneGraph* Scene = Parent->GetScene();
-				if (Scene != nullptr)
-					Scene->Lock();
-
-				Parent->Transform->SetTransform(Compute::TransformSpace_Global, Position, Scale, Rotation);
-				Instance->Synchronize(Parent->Transform, true);
-				Instance->SetActivity(true);
-
-				if (Scene != nullptr)
-					Scene->Unlock();
-			}
-			void RigidBody::SetTransform(bool Kinematics)
-			{
-				if (!Instance || !Parent)
-					return;
-
-				SceneGraph* Scene = Parent->GetScene();
-				if (Scene != nullptr)
-					Scene->Lock();
-
-				Instance->Synchronize(Parent->Transform, Kinematics);
-				Instance->SetActivity(true);
-
-				if (Scene != nullptr)
-					Scene->Unlock();
-			}
-			void RigidBody::SetMass(float Mass)
-			{
-				if (!Instance || !Parent)
-					return;
-
-				SceneGraph* Scene = Parent->GetScene();
-				if (!Scene)
-					return;
-
-				Scene->Lock();
-				Instance->SetMass(Mass);
-				Scene->Unlock();
-			}
-			Component* RigidBody::Copy(Entity* New)
-			{
-				RigidBody* Target = new RigidBody(New);
-				Target->Kinematic = Kinematic;
-
-				if (Instance != nullptr)
-				{
-					Target->Instance = Instance->Copy();
-					Target->Instance->UserPointer = Target;
-				}
-
-				return Target;
-			}
-			Compute::RigidBody* RigidBody::GetBody() const
-			{
-				return Instance;
-			}
-
-			Acceleration::Acceleration(Entity* Ref) : Component(Ref)
-			{
-			}
-			void Acceleration::Deserialize(ContentManager* Content, Core::Document* Node)
-			{
-				NMake::Unpack(Node->Find("amplitude-velocity"), &AmplitudeVelocity);
-				NMake::Unpack(Node->Find("amplitude-torque"), &AmplitudeTorque);
-				NMake::Unpack(Node->Find("constant-velocity"), &ConstantVelocity);
-				NMake::Unpack(Node->Find("constant-torque"), &ConstantTorque);
-				NMake::Unpack(Node->Find("constant-center"), &ConstantCenter);
-				NMake::Unpack(Node->Find("kinematic"), &Kinematic);
-			}
-			void Acceleration::Serialize(ContentManager* Content, Core::Document* Node)
-			{
-				NMake::Pack(Node->Set("amplitude-velocity"), AmplitudeVelocity);
-				NMake::Pack(Node->Set("amplitude-torque"), AmplitudeTorque);
-				NMake::Pack(Node->Set("constant-velocity"), ConstantVelocity);
-				NMake::Pack(Node->Set("constant-torque"), ConstantTorque);
-				NMake::Pack(Node->Set("constant-center"), ConstantCenter);
-				NMake::Pack(Node->Set("kinematic"), Kinematic);
-			}
-			void Acceleration::Awake(Component* New)
-			{
-				if (RigidBody)
-					return;
-
-				Components::RigidBody* Component = Parent->GetComponent<Components::RigidBody>();
-				if (Component != nullptr)
-					RigidBody = Component->GetBody();
-			}
-			void Acceleration::Update(Core::Timer* Time)
-			{
-				if (!RigidBody)
-					return;
-
-				float DeltaTime = (float)Time->GetDeltaTime();
-				if (Kinematic)
-				{
-					RigidBody->SetLinearVelocity(ConstantVelocity);
-					RigidBody->SetAngularVelocity(ConstantTorque);
-				}
-				else
-					RigidBody->Push(ConstantVelocity * DeltaTime, ConstantTorque * DeltaTime, ConstantCenter);
-
-				Compute::Vector3 Force = RigidBody->GetLinearVelocity();
-				Compute::Vector3 Torque = RigidBody->GetAngularVelocity();
-				Compute::Vector3 ACT = ConstantTorque.Abs();
-				Compute::Vector3 ACV = ConstantVelocity.Abs();
-
-				if (AmplitudeVelocity.X > 0 && Force.X > AmplitudeVelocity.X)
-					ConstantVelocity.X = -ACV.X;
-				else if (AmplitudeVelocity.X > 0 && Force.X < -AmplitudeVelocity.X)
-					ConstantVelocity.X = ACV.X;
-
-				if (AmplitudeVelocity.Y > 0 && Force.Y > AmplitudeVelocity.Y)
-					ConstantVelocity.Y = -ACV.Y;
-				else if (AmplitudeVelocity.Y > 0 && Force.Y < -AmplitudeVelocity.Y)
-					ConstantVelocity.Y = ACV.Y;
-
-				if (AmplitudeVelocity.Z > 0 && Force.Z > AmplitudeVelocity.Z)
-					ConstantVelocity.Z = -ACV.Z;
-				else if (AmplitudeVelocity.Z > 0 && Force.Z < -AmplitudeVelocity.Z)
-					ConstantVelocity.Z = ACV.Z;
-
-				if (AmplitudeTorque.X > 0 && Torque.X > AmplitudeTorque.X)
-					ConstantTorque.X = -ACT.X;
-				else if (AmplitudeTorque.X > 0 && Torque.X < -AmplitudeTorque.X)
-					ConstantTorque.X = ACT.X;
-
-				if (AmplitudeTorque.Y > 0 && Torque.Y > AmplitudeTorque.Y)
-					ConstantTorque.Y = -ACT.Y;
-				else if (AmplitudeTorque.Y > 0 && Torque.Y < -AmplitudeTorque.Y)
-					ConstantTorque.Y = ACT.Y;
-
-				if (AmplitudeTorque.Z > 0 && Torque.Z > AmplitudeTorque.Z)
-					ConstantTorque.Z = -ACT.Z;
-				else if (AmplitudeTorque.Z > 0 && Torque.Z < -AmplitudeTorque.Z)
-					ConstantTorque.Z = ACT.Z;
-			}
-			Component* Acceleration::Copy(Entity* New)
-			{
-				Acceleration* Target = new Acceleration(New);
-				Target->Kinematic = Kinematic;
-				Target->AmplitudeTorque = AmplitudeTorque;
-				Target->AmplitudeVelocity = AmplitudeVelocity;
-				Target->ConstantCenter = ConstantCenter;
-				Target->ConstantTorque = ConstantTorque;
-				Target->ConstantVelocity = ConstantVelocity;
-				Target->RigidBody = RigidBody;
-
-				return Target;
-			}
-			Compute::RigidBody* Acceleration::GetBody() const
-			{
-				return RigidBody;
-			}
-
-			SliderConstraint::SliderConstraint(Entity* Ref) : Component(Ref), Instance(nullptr), Connection(nullptr)
-			{
-			}
-			SliderConstraint::~SliderConstraint()
-			{
-				TH_RELEASE(Instance);
-			}
-			void SliderConstraint::Deserialize(ContentManager* Content, Core::Document* Node)
-			{
-				bool Extended;
-				NMake::Unpack(Node->Find("extended"), &Extended);
-				if (!Extended)
-					return;
-
-				uint64_t Index;
-				if (NMake::Unpack(Node->Find("connection"), &Index))
-					Wanted.Connection = Index;
-
-				NMake::Unpack(Node->Find("collision-state"), &Wanted.Ghost);
-				NMake::Unpack(Node->Find("linear-power-state"), &Wanted.Linear);
-				Create(Connection, Wanted.Ghost, Wanted.Linear);
-
-				if (!Instance)
-					return;
-
-				float AngularMotorVelocity;
-				if (NMake::Unpack(Node->Find("angular-motor-velocity"), &AngularMotorVelocity))
-					Instance->SetAngularMotorVelocity(AngularMotorVelocity);
-
-				float LinearMotorVelocity;
-				if (NMake::Unpack(Node->Find("linear-motor-velocity"), &LinearMotorVelocity))
-					Instance->SetLinearMotorVelocity(LinearMotorVelocity);
-
-				float UpperLinearLimit;
-				if (NMake::Unpack(Node->Find("upper-linear-limit"), &UpperLinearLimit))
-					Instance->SetUpperLinearLimit(UpperLinearLimit);
-
-				float LowerLinearLimit;
-				if (NMake::Unpack(Node->Find("lower-linear-limit"), &LowerLinearLimit))
-					Instance->SetLowerLinearLimit(LowerLinearLimit);
-
-				float AngularDampingDirection;
-				if (NMake::Unpack(Node->Find("angular-damping-direction"), &AngularDampingDirection))
-					Instance->SetAngularDampingDirection(AngularDampingDirection);
-
-				float LinearDampingDirection;
-				if (NMake::Unpack(Node->Find("linear-damping-direction"), &LinearDampingDirection))
-					Instance->SetLinearDampingDirection(LinearDampingDirection);
-
-				float AngularDampingLimit;
-				if (NMake::Unpack(Node->Find("angular-damping-limit"), &AngularDampingLimit))
-					Instance->SetAngularDampingLimit(AngularDampingLimit);
-
-				float LinearDampingLimit;
-				if (NMake::Unpack(Node->Find("linear-damping-limit"), &LinearDampingLimit))
-					Instance->SetLinearDampingLimit(LinearDampingLimit);
-
-				float AngularDampingOrtho;
-				if (NMake::Unpack(Node->Find("angular-damping-ortho"), &AngularDampingOrtho))
-					Instance->SetAngularDampingOrtho(AngularDampingOrtho);
-
-				float LinearDampingOrtho;
-				if (NMake::Unpack(Node->Find("linear-damping-ortho"), &LinearDampingOrtho))
-					Instance->SetLinearDampingOrtho(LinearDampingOrtho);
-
-				float UpperAngularLimit;
-				if (NMake::Unpack(Node->Find("upper-angular-limit"), &UpperAngularLimit))
-					Instance->SetUpperAngularLimit(UpperAngularLimit);
-
-				float LowerAngularLimit;
-				if (NMake::Unpack(Node->Find("lower-angular-limit"), &LowerAngularLimit))
-					Instance->SetLowerAngularLimit(LowerAngularLimit);
-
-				float MaxAngularMotorForce;
-				if (NMake::Unpack(Node->Find("max-angular-motor-force"), &MaxAngularMotorForce))
-					Instance->SetMaxAngularMotorForce(MaxAngularMotorForce);
-
-				float MaxLinearMotorForce;
-				if (NMake::Unpack(Node->Find("max-linear-motor-force"), &MaxLinearMotorForce))
-					Instance->SetMaxLinearMotorForce(MaxLinearMotorForce);
-
-				float AngularRestitutionDirection;
-				if (NMake::Unpack(Node->Find("angular-restitution-direction"), &AngularRestitutionDirection))
-					Instance->SetAngularRestitutionDirection(AngularRestitutionDirection);
-
-				float LinearRestitutionDirection;
-				if (NMake::Unpack(Node->Find("linear-restitution-direction"), &LinearRestitutionDirection))
-					Instance->SetLinearRestitutionDirection(LinearRestitutionDirection);
-
-				float AngularRestitutionLimit;
-				if (NMake::Unpack(Node->Find("angular-restitution-limit"), &AngularRestitutionLimit))
-					Instance->SetAngularRestitutionLimit(AngularRestitutionLimit);
-
-				float LinearRestitutionLimit;
-				if (NMake::Unpack(Node->Find("linear-restitution-limit"), &LinearRestitutionLimit))
-					Instance->SetLinearRestitutionLimit(LinearRestitutionLimit);
-
-				float AngularRestitutionOrtho;
-				if (NMake::Unpack(Node->Find("angular-restitution-ortho"), &AngularRestitutionOrtho))
-					Instance->SetAngularRestitutionOrtho(AngularRestitutionOrtho);
-
-				float LinearRestitutionOrtho;
-				if (NMake::Unpack(Node->Find("linear-restitution-ortho"), &LinearRestitutionOrtho))
-					Instance->SetLinearRestitutionOrtho(LinearRestitutionOrtho);
-
-				float AngularSoftnessDirection;
-				if (NMake::Unpack(Node->Find("angular-softness-direction"), &AngularSoftnessDirection))
-					Instance->SetAngularSoftnessDirection(AngularSoftnessDirection);
-
-				float LinearSoftnessDirection;
-				if (NMake::Unpack(Node->Find("linear-softness-direction"), &LinearSoftnessDirection))
-					Instance->SetLinearSoftnessDirection(LinearSoftnessDirection);
-
-				float AngularSoftnessLimit;
-				if (NMake::Unpack(Node->Find("angular-softness-limit"), &AngularSoftnessLimit))
-					Instance->SetAngularSoftnessLimit(AngularSoftnessLimit);
-
-				float LinearSoftnessLimit;
-				if (NMake::Unpack(Node->Find("linear-softness-limit"), &LinearSoftnessLimit))
-					Instance->SetLinearSoftnessLimit(LinearSoftnessLimit);
-
-				float AngularSoftnessOrtho;
-				if (NMake::Unpack(Node->Find("angular-softness-ortho"), &AngularSoftnessOrtho))
-					Instance->SetAngularSoftnessOrtho(AngularSoftnessOrtho);
-
-				float LinearSoftnessOrtho;
-				if (NMake::Unpack(Node->Find("linear-softness-ortho"), &LinearSoftnessOrtho))
-					Instance->SetLinearSoftnessOrtho(LinearSoftnessOrtho);
-
-				bool PoweredAngularMotor;
-				if (NMake::Unpack(Node->Find("powered-angular-motor"), &PoweredAngularMotor))
-					Instance->SetPoweredAngularMotor(PoweredAngularMotor);
-
-				bool PoweredLinearMotor;
-				if (NMake::Unpack(Node->Find("powered-linear-motor"), &PoweredLinearMotor))
-					Instance->SetPoweredLinearMotor(PoweredLinearMotor);
-
-				bool Enabled;
-				if (NMake::Unpack(Node->Find("enabled"), &Enabled))
-					Instance->SetEnabled(Enabled);
-			}
-			void SliderConstraint::Serialize(ContentManager* Content, Core::Document* Node)
-			{
-				NMake::Pack(Node->Set("extended"), Instance != nullptr);
-				if (!Instance)
-					return;
-
-				NMake::Pack(Node->Set("collision-state"), Instance->GetInitialState().UseCollisions);
-				NMake::Pack(Node->Set("linear-power-state"), Instance->GetInitialState().UseLinearPower);
-				NMake::Pack(Node->Set("connection"), (uint64_t)(Connection ? Connection->Id : -1));
-				NMake::Pack(Node->Set("angular-motor-velocity"), Instance->GetAngularMotorVelocity());
-				NMake::Pack(Node->Set("linear-motor-velocity"), Instance->GetLinearMotorVelocity());
-				NMake::Pack(Node->Set("upper-linear-limit"), Instance->GetUpperLinearLimit());
-				NMake::Pack(Node->Set("lower-linear-limit"), Instance->GetLowerLinearLimit());
-				NMake::Pack(Node->Set("breaking-impulse-threshold"), Instance->GetBreakingImpulseThreshold());
-				NMake::Pack(Node->Set("angular-damping-direction"), Instance->GetAngularDampingDirection());
-				NMake::Pack(Node->Set("linear-amping-direction"), Instance->GetLinearDampingDirection());
-				NMake::Pack(Node->Set("angular-damping-limit"), Instance->GetAngularDampingLimit());
-				NMake::Pack(Node->Set("linear-damping-limit"), Instance->GetLinearDampingLimit());
-				NMake::Pack(Node->Set("angular-damping-ortho"), Instance->GetAngularDampingOrtho());
-				NMake::Pack(Node->Set("linear-damping-ortho"), Instance->GetLinearDampingOrtho());
-				NMake::Pack(Node->Set("upper-angular-limit"), Instance->GetUpperAngularLimit());
-				NMake::Pack(Node->Set("lower-angular-limit"), Instance->GetLowerAngularLimit());
-				NMake::Pack(Node->Set("max-angular-motor-force"), Instance->GetMaxAngularMotorForce());
-				NMake::Pack(Node->Set("max-linear-motor-force"), Instance->GetMaxLinearMotorForce());
-				NMake::Pack(Node->Set("angular-restitution-direction"), Instance->GetAngularRestitutionDirection());
-				NMake::Pack(Node->Set("linear-restitution-direction"), Instance->GetLinearRestitutionDirection());
-				NMake::Pack(Node->Set("angular-restitution-limit"), Instance->GetAngularRestitutionLimit());
-				NMake::Pack(Node->Set("linear-restitution-limit"), Instance->GetLinearRestitutionLimit());
-				NMake::Pack(Node->Set("angular-restitution-ortho"), Instance->GetAngularRestitutionOrtho());
-				NMake::Pack(Node->Set("linear-restitution-ortho"), Instance->GetLinearRestitutionOrtho());
-				NMake::Pack(Node->Set("angular-softness-direction"), Instance->GetAngularSoftnessDirection());
-				NMake::Pack(Node->Set("linear-softness-direction"), Instance->GetLinearSoftnessDirection());
-				NMake::Pack(Node->Set("angular-softness-limit"), Instance->GetAngularSoftnessLimit());
-				NMake::Pack(Node->Set("linear-softness-limit"), Instance->GetLinearSoftnessLimit());
-				NMake::Pack(Node->Set("angular-softness-ortho"), Instance->GetAngularSoftnessOrtho());
-				NMake::Pack(Node->Set("linear-softness-ortho"), Instance->GetLinearSoftnessOrtho());
-				NMake::Pack(Node->Set("powered-angular-motor"), Instance->GetPoweredAngularMotor());
-				NMake::Pack(Node->Set("powered-linear-motor"), Instance->GetPoweredLinearMotor());
-				NMake::Pack(Node->Set("enabled"), Instance->IsEnabled());
-			}
-			void SliderConstraint::Synchronize(Core::Timer* Time)
-			{
-				if (Wanted.Connection < 0)
-					return;
-
-				if (!Connection)
-					Create(Parent->GetScene()->GetEntity(Wanted.Connection), Wanted.Ghost, Wanted.Linear);
-
-				Wanted.Connection = -1;
-			}
-			void SliderConstraint::Create(Entity* Other, bool IsGhosted, bool IsLinear)
-			{
-				if (Parent == Other || !Parent)
-					return;
-
-				SceneGraph* Scene = Parent->GetScene();
-				if (!Scene || !Scene->GetSimulator())
-					return;
-
-				Scene->Lock();
-				TH_RELEASE(Instance);
-
-				Connection = Other;
-				if (!Connection)
-					return Scene->Unlock();
-
-				RigidBody* FirstBody = Parent->GetComponent<RigidBody>();
-				RigidBody* SecondBody = Connection->GetComponent<RigidBody>();
-				if (!FirstBody || !SecondBody)
-					return Scene->Unlock();
-
-				Compute::SliderConstraint::Desc I;
-				I.Target1 = FirstBody->GetBody();
-				I.Target2 = SecondBody->GetBody();
-				I.UseCollisions = !IsGhosted;
-				I.UseLinearPower = IsLinear;
-
-				if (!I.Target1 || !I.Target2)
-					return Scene->Unlock();
-
-				Instance = Scene->GetSimulator()->CreateSliderConstraint(I);
-				Scene->Unlock();
-			}
-			void SliderConstraint::Clear()
-			{
-				if (!Instance || !Parent)
-					return;
-
-				SceneGraph* Scene = Parent->GetScene();
-				if (!Scene || !Scene->GetSimulator())
-					return;
-
-				Scene->Lock();
-				TH_CLEAR(Instance);
-				Connection = nullptr;
-				Scene->Unlock();
-			}
-			Component* SliderConstraint::Copy(Entity* New)
-			{
-				SliderConstraint* Target = new SliderConstraint(New);
-				Target->Connection = Connection;
-
-				if (!Instance)
-					return Target;
-
-				RigidBody* FirstBody = New->GetComponent<RigidBody>();
-				if (!FirstBody)
-					FirstBody = Parent->GetComponent<RigidBody>();
-
-				if (!FirstBody)
-					return Target;
-
-				Compute::SliderConstraint::Desc I(Instance->GetInitialState());
-				Instance->GetInitialState().Target1 = FirstBody->GetBody();
-				Target->Instance = Instance->Copy();
-				Instance->GetInitialState() = I;
-
-				return Target;
-			}
-			Compute::SliderConstraint* SliderConstraint::GetConstraint() const
-			{
-				return Instance;
-			}
-			Entity* SliderConstraint::GetConnection() const
-			{
-				return Connection;
-			}
-
 			FreeLook::FreeLook(Entity* Ref) : Component(Ref), Activity(nullptr), Rotate(Graphics::KeyCode_CURSORRIGHT), Sensivity(0.005f)
 			{
 			}
@@ -2649,7 +2650,7 @@ namespace Tomahawk
 			{
 				float Result = 1.0f - Parent->Transform->Position.Distance(Base.WorldPosition) / Base.FarPlane;
 				if (Result > 0.0f)
-					Result = Compute::Common::IsCubeInFrustum(Parent->Transform->GetWorldUnscaled() * Base.ViewProjection, GetBoxRange()) == -1 ? Result : 0.0f;
+					Result = Compute::Common::IsCubeInFrustum(Parent->Transform->GetWorldUnscaled() * Base.ViewProjection, GetBoxRange()) == -1.0f ? Result : 0.0f;
 
 				return Result;
 			}
@@ -2658,7 +2659,7 @@ namespace Tomahawk
 				if (Parent->Transform->Position.Distance(fView.WorldPosition) > fView.FarPlane + GetBoxRange())
 					return false;
 
-				return Compute::Common::IsCubeInFrustum((World ? *World : Parent->Transform->GetWorld()) * fView.ViewProjection, 1.65f) == -1;
+				return Compute::Common::IsCubeInFrustum((World ? *World : Parent->Transform->GetWorld()) * fView.ViewProjection, 1.65f) == -1.0f;
 			}
 			bool PointLight::IsNear(const Viewer& fView)
 			{
@@ -2728,7 +2729,7 @@ namespace Tomahawk
 			{
 				float Result = 1.0f - Parent->Transform->Position.Distance(fView.WorldPosition) / fView.FarPlane;
 				if (Result > 0.0f)
-					Result = Compute::Common::IsCubeInFrustum(Parent->Transform->GetWorldUnscaled() * fView.ViewProjection, GetBoxRange()) == -1 ? Result : 0.0f;
+					Result = Compute::Common::IsCubeInFrustum(Parent->Transform->GetWorldUnscaled() * fView.ViewProjection, GetBoxRange()) == -1.0f ? Result : 0.0f;
 
 				return Result;
 			}
@@ -2737,7 +2738,7 @@ namespace Tomahawk
 				if (Parent->Transform->Position.Distance(fView.WorldPosition) > fView.FarPlane + GetBoxRange())
 					return false;
 
-				return Compute::Common::IsCubeInFrustum((World ? *World : Parent->Transform->GetWorld()) * fView.ViewProjection, 1.65f) == -1;
+				return Compute::Common::IsCubeInFrustum((World ? *World : Parent->Transform->GetWorld()) * fView.ViewProjection, 1.65f) == -1.0f;
 			}
 			bool SpotLight::IsNear(const Viewer& fView)
 			{
@@ -3008,7 +3009,7 @@ namespace Tomahawk
 				{
 					Result = 1.0f - Parent->Transform->Position.Distance(fView.WorldPosition) / fView.FarPlane;
 					if (Result > 0.0f)
-						Result = Compute::Common::IsCubeInFrustum(Parent->Transform->GetWorldUnscaled() * fView.ViewProjection, GetBoxRange()) == -1 ? Result : 0.0f;
+						Result = Compute::Common::IsCubeInFrustum(Parent->Transform->GetWorldUnscaled() * fView.ViewProjection, GetBoxRange()) == -1.0f ? Result : 0.0f;
 				}
 
 				return Result;

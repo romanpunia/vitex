@@ -1,17 +1,15 @@
-#Resolve headers and compile options
-target_include_directories(tomahawk PRIVATE ${CMAKE_CURRENT_LIST_DIR})
-target_include_directories(tomahawk PRIVATE ${CMAKE_CURRENT_LIST_DIR}/BulletCollision/BroadphaseCollision)
-target_include_directories(tomahawk PRIVATE ${CMAKE_CURRENT_LIST_DIR}/BulletCollision/CollisionDispatch)
-target_include_directories(tomahawk PRIVATE ${CMAKE_CURRENT_LIST_DIR}/BulletCollision/CollisionShapes)
-target_include_directories(tomahawk PRIVATE ${CMAKE_CURRENT_LIST_DIR}/BulletCollision/Gimpact)
-target_include_directories(tomahawk PRIVATE ${CMAKE_CURRENT_LIST_DIR}/BulletCollision/NarrowPhaseCollision)
-target_include_directories(tomahawk PRIVATE ${CMAKE_CURRENT_LIST_DIR}/BulletDynamics/Character)
-target_include_directories(tomahawk PRIVATE ${CMAKE_CURRENT_LIST_DIR}/BulletDynamics/ConstraintSolver)
-target_include_directories(tomahawk PRIVATE ${CMAKE_CURRENT_LIST_DIR}/BulletDynamics/Dynamics)
-target_include_directories(tomahawk PRIVATE ${CMAKE_CURRENT_LIST_DIR}/BulletDynamics/Featherstone)
-target_include_directories(tomahawk PRIVATE ${CMAKE_CURRENT_LIST_DIR}/BulletDynamics/MLCPSolvers)
-target_include_directories(tomahawk PRIVATE ${CMAKE_CURRENT_LIST_DIR}/BulletDynamics/Vehicle)
-target_include_directories(tomahawk PRIVATE ${CMAKE_CURRENT_LIST_DIR}/BulletSoftBody)
-target_include_directories(tomahawk PRIVATE ${CMAKE_CURRENT_LIST_DIR}/LinearMath)
-target_include_directories(tomahawk PRIVATE ${CMAKE_CURRENT_LIST_DIR}/LinearMath/TaskScheduler)
-target_compile_definitions(tomahawk PRIVATE -DBT_NO_PROFILE)
+set(TH_WITH_BULLET3 ON CACHE BOOL "Enable Bullet3 built-in library")
+if (TH_WITH_BULLET3)
+	#Resolve source targets
+	file(GLOB_RECURSE SOURCE_BULLET3
+			${CMAKE_CURRENT_LIST_DIR}/*.inl*
+			${CMAKE_CURRENT_LIST_DIR}/*.h*
+			${CMAKE_CURRENT_LIST_DIR}/*.c*
+			${CMAKE_CURRENT_LIST_DIR}/*.cc*
+			${CMAKE_CURRENT_LIST_DIR}/*.hpp*
+			${CMAKE_CURRENT_LIST_DIR}/*.cpp*
+			${CMAKE_CURRENT_LIST_DIR}/*.hxx*
+			${CMAKE_CURRENT_LIST_DIR}/*.cxx*)
+	list (APPEND SOURCE ${SOURCE_BULLET3})
+	message(STATUS "Bullet3 library enabled")
+endif()

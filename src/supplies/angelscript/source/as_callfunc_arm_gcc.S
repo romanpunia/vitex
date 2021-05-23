@@ -1,6 +1,6 @@
 /*
   AngelCode Scripting Library
-  Copyright (c) 2003-2016 Andreas Jonsson
+  Copyright (c) 2003-2020 Andreas Jonsson
 
   This software is provided 'as-is', without any express or implied
   warranty. In no event will the authors be held liable for any
@@ -21,7 +21,7 @@
   3. This notice may not be removed or altered from any source
      distribution.
 
-  The original version of this refs can be located at:
+  The original version of this library can be located at:
   http://www.angelcode.com/angelscript/
 
   Andreas Jonsson
@@ -43,7 +43,7 @@
 
 #if defined(__arm__) || defined(__ARM__) || defined(I3D_ARCH_ARM)
 
-#if !defined(__linux__) || defined(__ANDROID__) || defined(ANDROID) || defined(__SOFTFP__)
+#if !defined(__linux__) || defined(__ANDROID__) || defined(ANDROID) || defined(__SOFTFP__) || defined(__ARM_PCS)
 
 /* iOS, Android, Marmalade, and Linux with soft-float ABI goes here */
 
@@ -287,7 +287,7 @@ nomoreargsarmFuncR0R1:
     ldmia   sp!, {r4-r8, pc}
 
 /* --------------------------------------------------------------------------------------------*/
-#elif defined(__linux__) && !defined(__SOFTFP__)
+#elif defined(__linux__) && !defined(__SOFTFP__) && !defined(__ARM_PCS)
 
 /* The Linux with hard-float ABI code goes here */
 
@@ -301,7 +301,7 @@ nomoreargsarmFuncR0R1:
 
 
 /* SP is a multiple of 8 when control first enters a program.*/
-/* This places an obligation on authors of low level OS, RTOS, and runtime refs code to align SP at all points */
+/* This places an obligation on authors of low level OS, RTOS, and runtime library code to align SP at all points */
 /* at which control first enters a body of (AAPCS-conforming) code. (please read "ARM IHI 0046B" document)*/
 
 
@@ -388,14 +388,14 @@ nomoreargs:
 #endif
     .globl armFuncObjLast       /* Make the function globally accessible.*/
 armFuncObjLast:
-    push {r4-r8, r10, r11, lr}  /* Weï¿½re storing r11 just to keep the stack aligned to an 8 byte boundary */
+    push {r4-r8, r10, r11, lr}  /* We´re storing r11 just to keep the stack aligned to an 8 byte boundary */
 
     mov     r6, r0  /* arg table */
     movs    r7, r1  /* arg size (also set the condition code flags so that we detect if there are no arguments) */
     mov     r4, r2  /* function address */
 
     mov     r0, r3          /* objlast. might get overwritten */
-    mov     r5, #0          /* This will hold an offset of #4 only if objlast couldnï¿½t be placed into an "r" register */
+    mov     r5, #0          /* This will hold an offset of #4 only if objlast couldn´t be placed into an "r" register */
 
     /* Load float and double args into d0-d7 and s0-s15 (r10 holds pointer to first float value) */
     add     r10, r6, #272   /* r10 (r6 + 272) points to the first value for the VFP registers */
@@ -485,7 +485,7 @@ armFuncR0ObjLast:
 
     mov     r0, r3      /* r0 explicitly set */
     mov     r1, r5      /* objlast.  might get overwritten */
-    mov     r5, #0      /* This will hold an offset of #4 or #8 if objlast or one arg couldnï¿½t be placed into an "r" register */
+    mov     r5, #0      /* This will hold an offset of #4 or #8 if objlast or one arg couldn´t be placed into an "r" register */
 
     /* Load float and double args into d0-d7 and s0-s15 (r10 holds pointer to first float value) */
     add     r10, r6, #272   /* r10 (r6 + 272) points to the first value for the VFP registers */
@@ -517,7 +517,7 @@ armFuncR0ObjLast:
     str     r5, [r6, #12]           /* Put objlast in r6 + 12 */
     mov     r5, #0
 
-    movge   r5, #4                  /* Set r5 with an offset of #4 if thereï¿½s one last arg that couldnï¿½t be placed in r registers */
+    movge   r5, #4                  /* Set r5 with an offset of #4 if there´s one last arg that couldn´t be placed in r registers */
     add     r5, r5, #4              /* Set r5 with an offset of + #4, so objlast can be loaded into the stack */
 
 stackargsFuncR0ObjLast:

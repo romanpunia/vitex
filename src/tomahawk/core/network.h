@@ -91,8 +91,8 @@ namespace Tomahawk
 			{
 				std::mutex IO;
 				std::mutex Device;
+				std::atomic_uint32_t Events;
 				int64_t Time, Timeout;
-				bool Await;
 			} Sync;
 
 		private:
@@ -193,6 +193,7 @@ namespace Tomahawk
 
 		struct TH_OUT SourceURL
 		{
+		public:
 			std::unordered_map<std::string, std::string> Query;
 			std::string URL;
 			std::string Protocol;
@@ -200,9 +201,17 @@ namespace Tomahawk
 			std::string Password;
 			std::string Host;
 			std::string Path;
+			std::string Filename;
+			std::string Extension;
 			int Port;
 
-			SourceURL(const std::string& Src);
+		public:
+			SourceURL(const std::string& Src) noexcept;
+			SourceURL(const SourceURL& Other) noexcept;
+			SourceURL(SourceURL&& Other) noexcept;
+
+		private:
+			void MakePath();
 		};
 
 		struct TH_OUT Certificate
@@ -289,7 +298,7 @@ namespace Tomahawk
 			static void Release();
             static void Assign(Core::Schedule* Queue);
 			static int Dispatch();
-			static int Listen(Socket* Value);
+			static int Listen(Socket* Value, uint32_t Events);
 			static int Unlisten(Socket* Value);
 			static int Dispatch(Socket* Value, int* Events, int64_t Time);
 			static int Poll(pollfd* Fd, int FdCount, int Timeout);

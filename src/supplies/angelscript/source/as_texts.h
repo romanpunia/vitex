@@ -21,7 +21,7 @@
    3. This notice may not be removed or altered from any source 
       distribution.
 
-   The original version of this refs can be located at:
+   The original version of this library can be located at:
    http://www.angelcode.com/angelscript/
 
    Andreas Jonsson
@@ -32,7 +32,7 @@
 //
 // as_texts.h
 //
-// These are text strings used through out the refs
+// These are text strings used through out the library
 //
 
 

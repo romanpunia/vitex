@@ -1,6 +1,6 @@
 /*
    AngelCode Scripting Library
-   Copyright (c) 2003-2017 Andreas Jonsson
+   Copyright (c) 2003-2020 Andreas Jonsson
 
    This software is provided 'as-is', without any express or implied
    warranty. In no event will the authors be held liable for any
@@ -21,7 +21,7 @@
    3. This notice may not be removed or altered from any source
       distribution.
 
-   The original version of this refs can be located at:
+   The original version of this library can be located at:
    http://www.angelcode.com/angelscript/
 
    Andreas Jonsson
@@ -416,7 +416,8 @@ asCFuncdefType::asCFuncdefType(asCScriptEngine *en, asCScriptFunction *func) : a
 	asASSERT(func->funcdefType == 0);
 
 	// A function pointer is special kind of reference type
-	flags       = asOBJ_REF | asOBJ_FUNCDEF | (func->IsShared() ? asOBJ_SHARED : 0);
+	// It must be possible to garbage collect, as funcdefs can form circular references if used as delegates
+	flags       = asOBJ_REF | asOBJ_GC | asOBJ_FUNCDEF | (func->IsShared() ? asOBJ_SHARED : 0);
 	name        = func->name;
 	nameSpace   = func->nameSpace;
 	module      = func->module;

@@ -9,6 +9,7 @@ namespace Tomahawk
 	{
 		bool RegisterGuiElementAPI(VMManager* Engine)
 		{
+#ifdef TH_WITH_RMLUI
 			if (!Engine)
 				return false;
 
@@ -17,9 +18,13 @@ namespace Tomahawk
 			VMTypeClass VElement = Register.SetStructUnmanaged<Engine::GUI::IElement>("GuiElement");
 
 			return true;
+#else
+			return false;
+#endif
 		}
 		bool RegisterGuiDocumentAPI(VMManager* Engine)
 		{
+#ifdef TH_WITH_RMLUI
 			if (!Engine)
 				return false;
 
@@ -28,9 +33,13 @@ namespace Tomahawk
 			VMTypeClass VDocument = Register.SetStructUnmanaged<Engine::GUI::IElementDocument>("GuiDocument");
 
 			return true;
+#else
+			return false;
+#endif
 		}
 		bool RegisterGuiEventAPI(VMManager* Engine)
 		{
+#ifdef TH_WITH_RMLUI
 			if (!Engine)
 				return false;
 
@@ -39,9 +48,13 @@ namespace Tomahawk
 			VMTypeClass VEvent = Register.SetStructUnmanaged<Engine::GUI::IEvent>("GuiEvent");
 
 			return true;
+#else
+			return false;
+#endif
 		}
 		bool RegisterGuiContextAPI(VMManager* Engine)
 		{
+#ifdef TH_WITH_RMLUI
 			if (!Engine)
 				return false;
 
@@ -50,6 +63,9 @@ namespace Tomahawk
 			VMRefClass VContext = Register.SetClassUnmanaged<Engine::GUI::Context>("GuiContext");
 
 			return true;
+#else
+			return false;
+#endif
 		}
 	}
 }

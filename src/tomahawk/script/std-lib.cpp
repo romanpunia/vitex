@@ -1225,7 +1225,8 @@ namespace Tomahawk
 
 			if (Buffer->MaxElements < Buffer->NumElements + delta)
 			{
-				SBuffer *newBuffer = reinterpret_cast<SBuffer*>(asAllocMem(sizeof(SBuffer) - 1 + (size_t)ElementSize * (size_t)(Buffer->NumElements + delta)));
+				size_t Count = (size_t)Buffer->NumElements + (size_t)delta, Size = (size_t)ElementSize;
+				SBuffer *newBuffer = reinterpret_cast<SBuffer*>(asAllocMem(sizeof(SBuffer) - 1 + Size * Count));
 				if (newBuffer)
 				{
 					newBuffer->NumElements = Buffer->NumElements + delta;
@@ -4461,8 +4462,11 @@ namespace Tomahawk
 			if (!Base)
 				return asEXECUTION_ERROR;
 
-			Base->PopCoroutine();
-			return Base->Resume();
+			return Core::Schedule::Get()->SetTask([Base]()
+			{
+				Base->PopCoroutine();
+				Base->Resume();
+			});
 		}
 		int VMCAsync::Set(void* fRef, int TypeId)
 		{

@@ -12,7 +12,7 @@
 \*****************************************************************************/
 
 #include "instrset.h"
-
+#ifndef TH_VSIMD_H
 #ifdef VCL_NAMESPACE
 namespace VCL_NAMESPACE {
 #endif
@@ -165,4 +165,5 @@ bool hasAVX512VBMI2(void) {
 
 #ifdef VCL_NAMESPACE
 }
+#endif
 #endif

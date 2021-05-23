@@ -1081,14 +1081,14 @@ namespace Tomahawk
 		public:
 			struct Desc
 			{
+				void* Elements = nullptr;
+				unsigned int StructureByteStride = 0;
+				unsigned int ElementWidth = 0;
+				unsigned int ElementCount = 0;
 				CPUAccess AccessFlags = CPUAccess_Invalid;
 				ResourceUsage Usage = ResourceUsage_Default;
 				ResourceBind BindFlags = ResourceBind_Vertex_Buffer;
 				ResourceMisc MiscFlags = ResourceMisc_None;
-				unsigned int StructureByteStride = 0;
-				unsigned int ElementWidth = 0;
-				unsigned int ElementCount = 0;
-				void* Elements = nullptr;
 				bool Writable = false;
 			};
 
@@ -1934,17 +1934,14 @@ namespace Tomahawk
 		{
 			return static_cast<ResourceMap>(static_cast<uint64_t>(A) | static_cast<uint64_t>(B));
 		}
-
 		inline ShaderCompile operator |(ShaderCompile A, ShaderCompile B)
 		{
 			return static_cast<ShaderCompile>(static_cast<uint64_t>(A) | static_cast<uint64_t>(B));
 		}
-
 		inline ResourceMisc operator |(ResourceMisc A, ResourceMisc B)
 		{
 			return static_cast<ResourceMisc>(static_cast<uint64_t>(A) | static_cast<uint64_t>(B));
 		}
-
 		inline ResourceBind operator |(ResourceBind A, ResourceBind B)
 		{
 			return static_cast<ResourceBind>(static_cast<uint64_t>(A) | static_cast<uint64_t>(B));

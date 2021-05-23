@@ -21,7 +21,7 @@
    3. This notice may not be removed or altered from any source
       distribution.
 
-   The original version of this refs can be located at:
+   The original version of this library can be located at:
    http://www.angelcode.com/angelscript/
 
    Andreas Jonsson
@@ -73,7 +73,7 @@ protected:
 #if defined(_MSC_VER) && defined(AS_WINDOWS_THREADS) && (WINAPI_FAMILY & WINAPI_FAMILY_PHONE_APP)
 	// On Windows Store we must use MSVC specific thread variables for thread
 	// local storage, as the TLS API isn't available. On desktop we can't use
-	// this as it may cause problems if the refs is used in a dll.
+	// this as it may cause problems if the library is used in a dll.
 	// ref: http://msdn.microsoft.com/en-us/library/2s9wt68x.aspx
 	// ref: http://msdn.microsoft.com/en-us/library/9w1sdazb.aspx
 	__declspec(thread) static asCThreadLocalData *tld;

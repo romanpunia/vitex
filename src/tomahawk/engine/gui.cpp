@@ -1,4 +1,5 @@
 #include "gui.h"
+#ifdef TH_WITH_RMLUI
 #include <RmlUi/Core.h>
 #include <RmlUi/Core/Stream.h>
 #include <RmlUi/Core/Elements/DataSource.h>
@@ -3170,7 +3171,11 @@ namespace Tomahawk
 			Context::Context(const Compute::Vector2& Size) : Compiler(nullptr), Cursor(-1.0f), Loading(false)
 			{
 				Base = (ScopedContext*)Rml::CreateContext(std::to_string(Subsystem::Id++), Rml::Vector2i(Size.X, Size.Y));
-				Base->Basis = this; CreateVM();
+				if (Base != nullptr)
+				{
+					Base->Basis = this;
+					CreateVM();
+				}
 			}
 			Context::Context(Graphics::GraphicsDevice* Device) : Compiler(nullptr), Cursor(-1.0f), Loading(false)
 			{
@@ -3180,13 +3185,22 @@ namespace Tomahawk
 					if (Target != nullptr)
 					{
 						Base = (ScopedContext*)Rml::CreateContext(std::to_string(Subsystem::Id++), Rml::Vector2i((int)Target->GetWidth(), (int)Target->GetHeight()));
-						Base->Basis = this; CreateVM();
+						if (Base != nullptr)
+						{
+							Base->Basis = this;
+							CreateVM();
+						}
+
 						return;
 					}
 				}
 
 				Base = (ScopedContext*)Rml::CreateContext(std::to_string(Subsystem::Id++), Rml::Vector2i(512, 512));
-				Base->Basis = this; CreateVM();
+				if (Base != nullptr)
+				{
+					Base->Basis = this;
+					CreateVM();
+				}
 			}
 			Context::~Context()
 			{
@@ -4023,3 +4037,4 @@ namespace Tomahawk
 		}
 	}
 }
+#endif

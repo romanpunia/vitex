@@ -596,7 +596,7 @@ namespace Tomahawk
 			if (!Effect)
 				return -1;
 
-			Effect->Bind(this, Effects.size());
+			Effect->Bind(this, (int)Effects.size());
 			Effects.push_back(Effect);
 			return Effects.size() - 1;
 		}
@@ -616,7 +616,7 @@ namespace Tomahawk
 					continue;
 
 				Effect->Unbind();
-				Effect->Bind(this, i);	
+				Effect->Bind(this, (int)i);	
 			}
 
 			return true;

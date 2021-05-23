@@ -1,5 +1,9 @@
 cmake_minimum_required(VERSION 3.6)
-cmake_policy(SET CMP0054 NEW)
+if (POLICY CMP0077)
+	cmake_policy(SET CMP0077 NEW)
+else()
+	cmake_policy(SET CMP0054 NEW)
+endif()
 
 #Setup toolchain file if needed
 include(lib/toolchain.cmake)
@@ -22,40 +26,53 @@ if (NOT DEFINED CMAKE_LIBRARY_OUTPUT_DIRECTORY)
 	set(CMAKE_LIBRARY_OUTPUT_DIRECTORY_RELEASE ${CMAKE_SOURCE_DIR}/bin)
 endif()
 
-#RmlUi's FreeType resolver
-set(TH_USE_FREETYPE ON CACHE BOOL "Enable FreeType library")
-
-#Project's inputs
+#Project's inputs and source targets
 include(lib/targets.cmake)
+include(src/supplies/angelscript/CMakeLists.txt)
+include(src/supplies/bullet3/CMakeLists.txt)
+include(src/supplies/rmlui/CMakeLists.txt)
+include(src/supplies/tinyfiledialogs/CMakeLists.txt)
+include(src/supplies/rapidxml/CMakeLists.txt)
+include(src/supplies/rapidjson/CMakeLists.txt)
+include(src/supplies/stb/CMakeLists.txt)
+include(src/supplies/wepoll/CMakeLists.txt)
+include(src/supplies/vcl/CMakeLists.txt)
+
+#Group sources from previous stage
+foreach(ITEM IN ITEMS ${SOURCE})
+    get_filename_component(ITEM_PATH "${ITEM}" PATH)
+    string(REPLACE "${PROJECT_SOURCE_DIR}" "" ITEM_GROUP "${ITEM_PATH}")
+    string(REPLACE "/" "\\" ITEM_GROUP "${ITEM_GROUP}")
+    source_group("${ITEM_GROUP}" FILES "${ITEM}")
+endforeach()
 
 #Project's outputs
 add_library(tomahawk SHARED ${SOURCE})
 set_target_properties(tomahawk PROPERTIES
         OUTPUT_NAME "tomahawk"
-        CXX_STANDARD_REQUIRED 14
+		CXX_STANDARD 14
+		CXX_STANDARD_REQUIRED ON
+		CXX_EXTENSIONS OFF
         VERSION ${PROJECT_VERSION}
         SOVERSION ${PROJECT_VERSION})
-target_compile_definitions(tomahawk PRIVATE
-		-D_GNU_SOURCE
-		-DTH_EXPORT
-		-DNOMINMAX)
 
 #Project's logging
-set(TH_INFO true CACHE BOOL "Allow to log info messages")
-set(TH_WARN true CACHE BOOL "Allow to log warning messages")
-set(TH_ERROR true CACHE BOOL "Allow to log error messages")
-if (TH_INFO AND TH_WARN AND TH_ERROR)
+set(TH_MSG_INFO true CACHE BOOL "Enable info messages")
+set(TH_MSG_WARN true CACHE BOOL "Enable warning messages")
+set(TH_MSG_ERROR true CACHE BOOL "Enable error messages")
+if (TH_MSG_INFO AND TH_MSG_WARN AND TH_MSG_ERROR)
     target_compile_definitions(tomahawk PUBLIC -DTH_DLEVEL=3)
-elseif (TH_WARN AND TH_ERROR)
+elseif (TH_MSG_WARN AND TH_MSG_ERROR)
     target_compile_definitions(tomahawk PUBLIC -DTH_DLEVEL=2)
-elseif (TH_ERROR)
+elseif (TH_MSG_ERROR)
     target_compile_definitions(tomahawk PUBLIC -DTH_DLEVEL=1)
 else()
     target_compile_definitions(tomahawk PUBLIC -DTH_DLEVEL=0)
 endif()
 
-#Project's options
+#Project's compile options and directories
 include(lib/options.cmake)
+include(src/tomahawk/CMakeLists.txt)
 
 #Project's dependency resolvers
 include(lib/openssl/CMakeLists.txt)
@@ -69,15 +86,3 @@ include(lib/freetype/CMakeLists.txt)
 include(lib/assimp/CMakeLists.txt)
 include(lib/mongoc/CMakeLists.txt)
 include(lib/pq/CMakeLists.txt)
-
-#Project's source resolvers
-include(src/supplies/angelscript/CMakeLists.txt)
-include(src/supplies/bullet3/CMakeLists.txt)
-include(src/supplies/rmlui/CMakeLists.txt)
-include(src/supplies/tinyfiledialogs/CMakeLists.txt)
-include(src/supplies/rapidxml/CMakeLists.txt)
-include(src/supplies/rapidjson/CMakeLists.txt)
-include(src/supplies/stb/CMakeLists.txt)
-include(src/supplies/wepoll/CMakeLists.txt)
-include(src/supplies/vcl/CMakeLists.txt)
-include(src/tomahawk/CMakeLists.txt)

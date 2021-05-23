@@ -1,6 +1,5 @@
 #ifndef TH_VSIMD_H
 #define TH_VSIMD_H
-#ifndef TH_NO_SIMD
 #include "instrset.h"
 #if INSTRSET >= 2
 #include "vectorclass.h"
@@ -20,6 +19,5 @@
 #define LOD_FV16(Name) Vec16f (Name);(Name).load(Row)
 #define LOD_VAR(Name, A) Vec4f (Name);(Name).load(A)
 #define LOD_VAL(Name, A) Vec4f (Name)(A)
-#endif
 #endif
 #endif

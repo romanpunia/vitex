@@ -1335,8 +1335,10 @@ namespace Tomahawk
 								std::string Buffer(Response.Buffer.size(), '\0');
 								fStream.avail_out = (uInt)Buffer.size();
 								fStream.next_out = (Bytef*)Buffer.c_str();
+								bool Compress = (deflate(&fStream, Z_FINISH) == Z_STREAM_END);
+								bool Flush = (deflateEnd(&fStream) == Z_OK);
 
-								if (deflate(&fStream, Z_FINISH) == Z_STREAM_END && deflateEnd(&fStream) == Z_OK)
+								if (Compress && Flush)
 								{
 									TextAssign(Response.Buffer, Buffer.c_str(), (uint64_t)fStream.total_out);
 									if (!Response.GetHeader("Content-Encoding"))
@@ -4307,8 +4309,10 @@ namespace Tomahawk
 							std::string Buffer(Base->Response.Buffer.size(), '\0');
 							Stream.avail_out = (uInt)Buffer.size();
 							Stream.next_out = (Bytef*)Buffer.c_str();
+							bool Compress = (deflate(&Stream, Z_FINISH) == Z_STREAM_END);
+							bool Flush = (deflateEnd(&Stream) == Z_OK);
 
-							if (deflate(&Stream, Z_FINISH) == Z_STREAM_END && deflateEnd(&Stream) == Z_OK)
+							if (Compress && Flush)
 							{
 								TextAssign(Base->Response.Buffer, Buffer.c_str(), (uint64_t)Stream.total_out);
 								if (!Base->Response.GetHeader("Content-Encoding"))
@@ -4550,10 +4554,6 @@ namespace Tomahawk
 				if (!Base || !Base->Route)
 					return false;
 
-				FILE* Stream = (!Base->Resource.IsReferenced ? (FILE*)Core::OS::File::Open(Base->Request.Path.c_str(), "rb") : nullptr);
-				if (!Stream && !Base->Resource.IsReferenced)
-					return Base->Error(500, "System denied to open resource stream.");
-
 				Range = (Range > Base->Resource.Size ? Base->Resource.Size : Range);
 				if (ContentLength > 0 && Base->Resource.IsReferenced && Base->Resource.Size > 0)
 				{
@@ -4575,6 +4575,11 @@ namespace Tomahawk
 						});
 					}
 				}
+
+				FILE* Stream = (FILE*)Core::OS::File::Open(Base->Request.Path.c_str(), "rb");
+				if (!Stream)
+					return Base->Error(500, "System denied to open resource stream.");
+
 #ifdef TH_MICROSOFT
 				if (Range > 0 && _lseeki64(_fileno(Stream), Range, SEEK_SET) == -1)
 				{
@@ -4656,10 +4661,6 @@ namespace Tomahawk
 				if (!Base || !Base->Route)
 					return false;
 
-				FILE* Stream = (!Base->Resource.IsReferenced ? (FILE*)Core::OS::File::Open(Base->Request.Path.c_str(), "rb") : nullptr);
-				if (!Stream && !Base->Resource.IsDirectory)
-					return Base->Error(500, "System denied to open resource stream.");
-
 				Range = (Range > Base->Resource.Size ? Base->Resource.Size : Range);
 				if (ContentLength > 0 && Base->Resource.IsReferenced && Base->Resource.Size > 0)
 				{
@@ -4678,8 +4679,10 @@ namespace Tomahawk
 							std::string Buffer(Base->Response.Buffer.size(), '\0');
 							ZStream.avail_out = (uInt)Buffer.size();
 							ZStream.next_out = (Bytef*)Buffer.c_str();
+							bool Compress = (deflate(&ZStream, Z_FINISH) == Z_STREAM_END);
+							bool Flush = (deflateEnd(&ZStream) == Z_OK);
 
-							if (deflate(&ZStream, Z_FINISH) == Z_STREAM_END && deflateEnd(&ZStream) == Z_OK)
+							if (Compress && Flush)
 								TextAssign(Base->Response.Buffer, Buffer.c_str(), (uint64_t)ZStream.total_out);
 						}
 #endif
@@ -4695,6 +4698,10 @@ namespace Tomahawk
 						});
 					}
 				}
+
+				FILE* Stream = (FILE*)Core::OS::File::Open(Base->Request.Path.c_str(), "rb");
+				if (!Stream)
+					return Base->Error(500, "System denied to open resource stream.");
 
 #ifdef TH_MICROSOFT
 				if (Range > 0 && _lseeki64(_fileno(Stream), Range, SEEK_SET) == -1)

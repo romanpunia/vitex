@@ -191,7 +191,7 @@ namespace Tomahawk
 			}
 			Core::Async<bool> Connection::Disconnect()
 			{
-#ifdef TH_HAS_MONGOC
+#ifdef TH_HAS_POSTGRESQL
 				if (!Connected || !Base)
 					return Core::Async<bool>::Store(false);
 

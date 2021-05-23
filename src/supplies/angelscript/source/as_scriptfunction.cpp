@@ -1,6 +1,6 @@
 /*
    AngelCode Scripting Library
-   Copyright (c) 2003-2019 Andreas Jonsson
+   Copyright (c) 2003-2020 Andreas Jonsson
 
    This software is provided 'as-is', without any express or implied
    warranty. In no event will the authors be held liable for any
@@ -21,7 +21,7 @@
    3. This notice may not be removed or altered from any source
       distribution.
 
-   The original version of this refs can be located at:
+   The original version of this library can be located at:
    http://www.angelcode.com/angelscript/
 
    Andreas Jonsson
@@ -584,9 +584,7 @@ bool asCScriptFunction::IsCompatibleWithTypeId(int typeId) const
 const char *asCScriptFunction::GetModuleName() const
 {
 	if( module )
-	{
-		return module->name.AddressOf();
-	}
+		return module->GetName();
 
 	return 0;
 }

@@ -970,7 +970,7 @@ namespace Tomahawk
 				return Result;
 			}
 			template <typename T, typename R, typename... A>
-			int SetOperator(VMOpFunc Type, VMOp Opts, const char* Out, const char* Args, R(T::*Value)(A...))
+			int SetOperator(VMOpFunc Type, uint32_t Opts, const char* Out, const char* Args, R(T::*Value)(A...))
 			{
 				if (!Out)
 					return -1;
@@ -986,7 +986,7 @@ namespace Tomahawk
 				return Result;
 			}
 			template <typename R, typename... A>
-			int SetOperatorEx(VMOpFunc Type, VMOp Opts, const char* Out, const char* Args, R(*Value)(A...))
+			int SetOperatorEx(VMOpFunc Type, uint32_t Opts, const char* Out, const char* Args, R(*Value)(A...))
 			{
 				if (!Out)
 					return -1;
@@ -1860,11 +1860,6 @@ namespace Tomahawk
 			std::string ToString(void* Value, unsigned int TypeId, int ExpandMembersLevel, VMManager* Engine);
 			VMManager* GetEngine();
 		};
-
-		inline VMOp operator |(VMOp A, VMOp B)
-		{
-			return static_cast<VMOp>(static_cast<uint64_t>(A) | static_cast<uint64_t>(B));
-		}
 	}
 }
 #endif

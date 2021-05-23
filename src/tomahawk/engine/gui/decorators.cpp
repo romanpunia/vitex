@@ -1,4 +1,5 @@
 #include "../gui.h"
+#ifdef TH_WITH_RMLUI
 #include <RmlUi/Core.h>
 #include <Source/Core/TransformState.h>
 
@@ -329,3 +330,4 @@ namespace Tomahawk
 		}
 	}
 }
+#endif

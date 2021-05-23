@@ -6738,17 +6738,22 @@ namespace Tomahawk
 			auto Sources = Used;
 			Safe.unlock();
 
+			size_t Activities = 0;
 			for (auto* Routine : Sources)
 			{
 				if (Swap(Routine))
 					continue;
 
+				Activities++;
 				if (Restore)
 					Reuse(Routine);
 				else
 					Push(Routine);
 				break;
 			}
+
+			if (!Activities)
+				std::this_thread::sleep_for(std::chrono::microseconds(100));
 
 			return !Used.empty();
 		}
@@ -6825,7 +6830,7 @@ namespace Tomahawk
 #else
 			SwitchToFiber(State->Switch->Context);
 #endif
-			if (Routine->Callback)
+			if (Routine != nullptr && Routine->Callback)
 				goto Reuse;
 		}
 		
@@ -7167,16 +7172,16 @@ namespace Tomahawk
 			if (!Comain && Stack > 0 && Coroutines > 0)
 				Comain = new Costate(Stack);
 
-			int Asyncs = DispatchAsync(Comain, true);
-			int Events = DispatchEvent();
-			int Timers = DispatchTimer(nullptr);
-			int Tasks = DispatchTask();
+			int fAsyncs = DispatchAsync(Comain, true);
+			int fEvents = DispatchEvent();
+			int fTimers = DispatchTimer(nullptr);
+			int fTasks = DispatchTask();
 
-			return Asyncs != -1 || Events != -1 || Timers != -1 || Tasks != -1;
+			return fAsyncs != -1 || fEvents != -1 || fTimers != -1 || fTasks != -1;
 		}
 		bool Schedule::Publish()
 		{
-            int Events = -1, Timers = -1;
+            int fEvents = -1, fTimers = -1;
             int64_t When = -1;
             
 			if (!Active)
@@ -7184,16 +7189,16 @@ namespace Tomahawk
 
 			do
 			{
-                Events = DispatchEvent();
-				Timers = DispatchTimer(&When);
+                fEvents = DispatchEvent();
+				fTimers = DispatchTimer(&When);
                 
-				if (Events == -1 && Timers == 0)
+				if (fEvents == -1 && fTimers == 0)
                 {
                     std::unique_lock<std::mutex> Lock(Race.Threads);
                     Queue.Publish.wait_for(Lock, std::chrono::milliseconds(When));
                 }
                 
-				if (Events != -1 || Timers != -1)
+				if (fEvents != -1 || fTimers != -1)
 					continue;
 			Wait:
 				std::unique_lock<std::mutex> Lock(Race.Threads);
@@ -7205,17 +7210,17 @@ namespace Tomahawk
 		bool Schedule::Consume()
 		{
 			Costate* State = (Stack > 0 && Coroutines > 0 ? new Costate(Stack) : nullptr);
-            int Asyncs = -1, Tasks = -1;
+            int fAsyncs = -1, fTasks = -1;
             
             if (!Active)
 				goto Wait;
 
 			do
 			{
-                Asyncs = DispatchAsync(State, false);
-				Tasks = DispatchTask();
+                fAsyncs = DispatchAsync(State, false);
+				fTasks = DispatchTask();
 
-				if (Asyncs != -1 || Tasks != -1)
+				if (fAsyncs != -1 || fTasks != -1)
 					continue;
 			Wait:
 				std::unique_lock<std::mutex> Lock(Race.Threads);
@@ -7232,17 +7237,17 @@ namespace Tomahawk
 
 			if (!State)
 			{
-				std::queue<EventTask> Queue;
+				std::queue<EventTask> fQueue;
 				Race.Asyncs.lock();
 				if (!Asyncs.empty())
-					Asyncs.swap(Queue);
+					Asyncs.swap(fQueue);
 				Race.Asyncs.unlock();
 
-				int Code = (Queue.empty() ? -1 : 1);
-				while (!Queue.empty())
+				int Code = (fQueue.empty() ? -1 : 1);
+				while (!fQueue.empty())
 				{
-					Queue.front()();
-					Queue.pop();
+					fQueue.front()();
+					fQueue.pop();
 				}
 
 				return Code;
@@ -7269,16 +7274,16 @@ namespace Tomahawk
 				}
 
 				DispatchTask();
-				if (!Asyncs.empty())
+				if (Asyncs.empty())
+					continue;
+
+				Race.Asyncs.lock();
+				while (!Asyncs.empty() && State->GetCount() < Coroutines)
 				{
-					Race.Asyncs.lock();
-					while (!Asyncs.empty() && State->GetCount() < Coroutines)
-					{
-						State->Pop(std::move(Asyncs.front()));
-						Asyncs.pop();
-					}
-					Race.Asyncs.unlock();
+					State->Pop(std::move(Asyncs.front()));
+					Asyncs.pop();
 				}
+				Race.Asyncs.unlock();
 			}
 
 			return Code;
@@ -7288,17 +7293,17 @@ namespace Tomahawk
 			if (Tasks.empty())
 				return -1;
 
-			std::queue<EventTask> Queue;
+			std::queue<EventTask> fQueue;
 			Race.Tasks.lock();
 			if (!Tasks.empty())
-				Tasks.swap(Queue);
+				Tasks.swap(fQueue);
 			Race.Tasks.unlock();
 
-			int Code = (Queue.empty() ? -1 : 1);
-			while (!Queue.empty())
+			int Code = (fQueue.empty() ? -1 : 1);
+			while (!fQueue.empty())
 			{
-				Queue.front()();
-				Queue.pop();
+				fQueue.front()();
+				fQueue.pop();
 			}
 
 			return Code;
@@ -7308,17 +7313,17 @@ namespace Tomahawk
 			if (Events.empty())
 				return -1;
 
-			std::queue<EventBase> Queue;
+			std::queue<EventBase> fQueue;
 			Race.Events.lock();
 			if (!Events.empty())
-				Events.swap(Queue);
+				Events.swap(fQueue);
 			Race.Events.unlock();
 
-			int Code = (Queue.empty() ? -1 : 1);
-			while (!Queue.empty())
+			int Code = (fQueue.empty() ? -1 : 1);
+			while (!fQueue.empty())
 			{
-				EventBase Src(std::move(Queue.front()));
-				Queue.pop();
+				EventBase Src(std::move(fQueue.front()));
+				fQueue.pop();
 
 				Race.Listeners.lock();
 				auto Base = Listeners.find(Src.Name);
@@ -8688,20 +8693,6 @@ namespace Tomahawk
 				ProcessNames(Document, Map, Index);
 
 			return true;
-		}
-
-		Parser Form(const char* Format, ...)
-		{
-			char Buffer[16384];
-			if (!Format)
-				return Parser();
-
-			va_list Args;
-			va_start(Args, Format);
-			int Size = vsnprintf(Buffer, sizeof(Buffer), Format, Args);
-			va_end(Args);
-
-			return Parser(Buffer, Size > 16384 ? 16384 : (size_t)Size);
 		}
 	}
 }

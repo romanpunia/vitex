@@ -991,6 +991,7 @@ namespace Tomahawk
 			unsigned int Ref1;
 			unsigned int FaceNb;
 		};
+
 #ifdef TH_WITH_BULLET3
 		struct TH_OUT UnmanagedShape
 		{
@@ -1159,6 +1160,39 @@ namespace Tomahawk
 			static UInt4 H(UInt4 X, UInt4 Y, UInt4 Z);
 			static UInt4 I(UInt4 X, UInt4 Y, UInt4 Z);
 			static UInt4 L(UInt4 X, int n);
+		};
+
+		class TH_OUT S8Hasher
+		{
+		public:
+			S8Hasher() = default;
+			S8Hasher(const S8Hasher&) = default;
+			S8Hasher(S8Hasher&&) noexcept = default;
+			~S8Hasher() = default;
+			S8Hasher& operator=(const S8Hasher&) = default;
+			S8Hasher& operator=(S8Hasher&&) noexcept = default;
+			inline size_t operator()(uint64_t Value) const noexcept
+			{
+				Value ^= (size_t)(Value >> 33);
+				Value *= 0xFF51AFD7ED558CCD;
+				Value ^= (size_t)(Value >> 33);
+				Value *= 0xC4CEB9FE1A85EC53;
+				Value ^= (size_t)(Value >> 33);
+				return (size_t)Value;
+			}
+			static inline uint64_t Parse(const char Data[8]) noexcept
+			{
+				uint64_t Result = 0;
+				Result |= ((uint64_t)Data[0]);
+				Result |= ((uint64_t)Data[1]) << 8;
+				Result |= ((uint64_t)Data[2]) << 16;
+				Result |= ((uint64_t)Data[3]) << 24;
+				Result |= ((uint64_t)Data[4]) << 32;
+				Result |= ((uint64_t)Data[5]) << 40;
+				Result |= ((uint64_t)Data[6]) << 48;
+				Result |= ((uint64_t)Data[7]) << 56;
+				return Result;
+			}
 		};
 
 		template <typename T>

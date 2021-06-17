@@ -851,7 +851,7 @@ namespace Tomahawk
 		{
 			Compute::Matrix4x4 Offsets[96];
 			Compute::Vector3 Padding;
-			float Animated;
+			float Animated = 0.0f;
 		};
 
 		struct TH_OUT RenderBuffer
@@ -872,9 +872,9 @@ namespace Tomahawk
 			Compute::Matrix4x4 Proj;
 			Compute::Matrix4x4 View;
 			Compute::Vector3 Position;
-			float Far;
+			float Far = 1000.0f;
 			Compute::Vector3 Direction;
-			float Near;
+			float Near = 0.1f;
 		};
 
 		struct TH_OUT PoseBuffer

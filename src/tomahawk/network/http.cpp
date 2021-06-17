@@ -107,7 +107,7 @@ namespace Tomahawk
 					if (Base->Gateway && !Base->Gateway->IsDone())
 						return (void)Base->Gateway->Done(true);
 
-					if (Base->Response.StatusCode < 0)
+					if (Base->Response.StatusCode <= 0)
 						Base->Response.StatusCode = 101;
 
 					Save = true;
@@ -158,7 +158,9 @@ namespace Tomahawk
 			{
 				if (State == Script::VMResume_Finish_With_Error)
 				{
-					Base->Response.StatusCode = 500;
+					if (Base->Response.StatusCode <= 0)
+						Base->Response.StatusCode = 500;
+
 					if (Base->Route->Gateway.ReportErrors)
 					{
 						Script::VMContext* Context = Compiler->GetContext();
@@ -873,7 +875,7 @@ namespace Tomahawk
 					return true;
 				}
 
-				if ((memcmp(Request.Method, "POST", 4) != 0 && memcmp(Request.Method, "PATCH", 5) != 0 && memcmp(Request.Method, "PUT", 3) != 0))
+				if ((memcmp(Request.Method, "POST", 4) != 0 && memcmp(Request.Method, "PATCH", 5) != 0 && memcmp(Request.Method, "PUT", 3) != 0) && memcmp(Request.Method, "DELETE", 4) != 0)
 				{
 					Request.ContentState = Content_Empty;
 					if (Callback)
@@ -1572,9 +1574,9 @@ namespace Tomahawk
 				}
 
 				QueryParameter* New = new QueryParameter();
-				if (Name->Length > 0)
+				if (Name->Value && Name->Length > 0)
 				{
-					New->Key.assign(Name->Value, Name->Length);
+					New->Key.assign(Name->Value, (size_t)Name->Length);
 					if (!Core::Parser(&New->Key).HasInteger())
 						Value = Core::Var::Object();
 					else
@@ -1795,9 +1797,9 @@ namespace Tomahawk
 				}
 
 				QueryParameter* New = new QueryParameter();
-				if (Name->Length > 0)
+				if (Name->Value && Name->Length > 0)
 				{
-					New->Key.assign(Name->Value, Name->Length);
+					New->Key.assign(Name->Value, (size_t)Name->Length);
 					if (!Core::Parser(&New->Key).HasInteger())
 						Object->Value = Core::Var::Object();
 					else
@@ -4030,7 +4032,8 @@ namespace Tomahawk
 
 				if (Range != nullptr && HTTP::Util::ParseContentRange(Range, &Range1, &Range2))
 				{
-					Base->Response.StatusCode = 206;
+					if (Base->Response.StatusCode <= 0)
+						Base->Response.StatusCode = 206;
 #ifdef TH_MICROSOFT
 					if (_lseeki64(_fileno(Stream), Range1, SEEK_SET) != 0)
 						return Base->Error(416, "Invalid content range offset (%lld) was specified.", Range1);
@@ -4350,7 +4353,7 @@ namespace Tomahawk
 
 				const char* ContentType = Util::ContentType(Base->Request.Path, &Base->Route->MimeTypes);
 				const char* Range = Base->Request.GetHeader("Range");
-				const char* StatusMessage = Util::StatusMessage(Base->Response.StatusCode = 200);
+				const char* StatusMessage = Util::StatusMessage(Base->Response.StatusCode = (Base->Response.Error && Base->Response.StatusCode > 0 ? Base->Response.StatusCode : 200));
 				int64_t Range1 = 0, Range2 = 0, Count = 0;
 				int64_t ContentLength = Base->Resource.Size;
 
@@ -4363,7 +4366,7 @@ namespace Tomahawk
 						ContentLength -= Range1;
 
 					snprintf(ContentRange, sizeof(ContentRange), "Content-Range: bytes %lld-%lld/%lld\r\n", Range1, Range1 + ContentLength - 1, (int64_t)Base->Resource.Size);
-					StatusMessage = Util::StatusMessage(Base->Response.StatusCode = 206);
+					StatusMessage = Util::StatusMessage(Base->Response.StatusCode = (Base->Response.Error && Base->Response.StatusCode > 0 ? Base->Response.StatusCode : 206));
 				}
 
 #ifdef TH_HAS_ZLIB
@@ -4449,7 +4452,7 @@ namespace Tomahawk
 					return false;
 
 				const char* ContentType = Util::ContentType(Base->Request.Path, &Base->Route->MimeTypes);
-				const char* StatusMessage = Util::StatusMessage(Base->Response.StatusCode = 200);
+				const char* StatusMessage = Util::StatusMessage(Base->Response.StatusCode = (Base->Response.Error && Base->Response.StatusCode > 0 ? Base->Response.StatusCode : 200));
 				int64_t ContentLength = Base->Resource.Size;
 
 				const char* Origin = Base->Request.GetHeader("Origin");

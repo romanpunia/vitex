@@ -1671,15 +1671,35 @@ namespace Tomahawk
 		}
 		std::string Variant::GetBlob() const
 		{
-			if (Type != VarType_String && Type != VarType_Base64)
-				return "";
+			if (Type == VarType_String || Type == VarType_Base64)
+				return std::string(((String*)Data)->Buffer, ((String*)Data)->Size);
 
-			return std::string(((String*)Data)->Buffer, ((String*)Data)->Size);
+			if (Type == VarType_Decimal)
+				return ((Decimal*)Data)->ToString();
+
+			if (Type == VarType_Integer)
+				return std::to_string(GetInteger());
+
+			if (Type == VarType_Number)
+				return std::to_string(GetNumber());
+
+			return "";
 		}
 		Decimal Variant::GetDecimal() const
 		{
 			if (Type != VarType_Decimal)
+			{
+				if (Type == VarType_Integer)
+					return Decimal(std::to_string(GetInteger()));
+
+				if (Type == VarType_Number)
+					return Decimal(std::to_string(GetNumber()));
+
+				if (Type == VarType_String)
+					return Decimal(GetString());
+
 				return Decimal::NaN();
+			}
 
 			return *(Decimal*)Data;
 		}

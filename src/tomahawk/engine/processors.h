@@ -65,7 +65,7 @@ namespace Tomahawk
 			struct TH_OUT MeshNode
 			{
 				Compute::Matrix4x4 Transform;
-				int64_t Index;
+				int64_t Index = -1;
 			};
 
 			class TH_OUT Asset final : public Processor

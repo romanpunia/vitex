@@ -815,7 +815,7 @@ namespace Tomahawk
 					if (!Src.IsValid())
 					{
 						Safe.unlock();
-						return Script::VMResult::INVALID_CONFIGURATION;
+						return (int)Script::VMResult::INVALID_CONFIGURATION;
 					}
 
 					int Index = Src.GetPropertyIndexByName(Name);
@@ -887,7 +887,7 @@ namespace Tomahawk
 					if (!Src.IsValid())
 					{
 						Safe.unlock();
-						return Script::VMResult::INVALID_CONFIGURATION;
+						return (int)Script::VMResult::INVALID_CONFIGURATION;
 					}
 
 					T** Address = (T**)Src.GetAddressOfProperty(Index);

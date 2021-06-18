@@ -5260,7 +5260,7 @@ namespace Tomahawk
 					Parser->UserPointer = &Segment;
 
 					strcpy(Base->Request.RemoteAddress, Base->Stream->GetRemoteAddress().c_str());
-					Base->Info.Start = Multiplexer::Clock();
+					Base->Info.Start = Driver::Clock();
 
 					if (Parser->ParseRequest(Base->Request.Buffer.c_str(), Base->Request.Buffer.size(), 0) < 0)
 					{

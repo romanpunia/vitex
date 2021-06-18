@@ -365,10 +365,10 @@ namespace Tomahawk
 				friend Transaction;
 
 			private:
+				std::atomic<bool> Connected;
 				Transaction Session;
 				TConnection* Base;
 				Queue* Master;
-				bool Connected;
 
 			public:
 				Connection();
@@ -392,9 +392,9 @@ namespace Tomahawk
 			class TH_OUT Queue : public Core::Object
 			{
 			private:
+				std::atomic<bool> Connected;
 				TConnectionPool* Pool;
 				Address SrcAddress;
-				bool Connected;
 
 			public:
 				Queue();
@@ -431,7 +431,7 @@ namespace Tomahawk
 			private:
 				static std::unordered_map<std::string, Sequence>* Queries;
 				static std::mutex* Safe;
-				static int State;
+				static std::atomic<int> State;
 
 			public:
 				static void Create();

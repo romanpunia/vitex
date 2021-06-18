@@ -378,7 +378,7 @@ namespace Tomahawk
 		{
 			Sync.IO.lock();
 			Listener = std::move(Callback);
-			Multiplexer::Listen(this);
+			Driver::Listen(this);
 			Sync.IO.unlock();
 
 			return 0;
@@ -390,13 +390,13 @@ namespace Tomahawk
 				Sync.IO.lock();
 				ReadFlush();
 				WriteFlush();
-				Multiplexer::Unlisten(this);
+				Driver::Unlisten(this);
 				Sync.IO.unlock();
 			}
 			else
 			{
 				Sync.IO.lock();
-				Multiplexer::Unlisten(this);
+				Driver::Unlisten(this);
 				Sync.IO.unlock();
 				while (Skip((uint32_t)(SocketEvent::Read | SocketEvent::Write), -2) == 1);
 			}
@@ -519,7 +519,7 @@ namespace Tomahawk
 				{
 					Sync.IO.lock();
 					bool OK = WriteSet(std::move(Callback), Buffer + Offset, Size);
-					Multiplexer::Listen(this);
+					Driver::Listen(this);
 					Sync.IO.unlock();
 
 					if (!OK && Callback)
@@ -636,7 +636,7 @@ namespace Tomahawk
 				{
 					Sync.IO.lock();
 					bool OK = ReadSet(std::move(Callback), nullptr, Size, 0);
-					Multiplexer::Listen(this);
+					Driver::Listen(this);
 					Sync.IO.unlock();
 
 					if (!OK && Callback)
@@ -726,7 +726,7 @@ namespace Tomahawk
 				{
 					Sync.IO.lock();
 					bool OK = ReadSet(std::move(Callback), Match, Size, Index);
-					Multiplexer::Listen(this);
+					Driver::Listen(this);
 					Sync.IO.unlock();
 
 					if (!OK && Callback)
@@ -946,7 +946,7 @@ namespace Tomahawk
 			Input->Size = Size;
 			Input->Index = Index;
 			Input->Match = (Match ? strdup(Match) : nullptr);
-			Sync.Time = Multiplexer::Clock();
+			Sync.Time = Driver::Clock();
 
 			return true;
 		}
@@ -976,7 +976,7 @@ namespace Tomahawk
 			Output->Size = Size;
 			Output->Buffer = (char*)TH_MALLOC((size_t)Size);
 			memcpy(Output->Buffer, Buffer, (size_t)Size);
-			Sync.Time = Multiplexer::Clock();
+			Sync.Time = Driver::Clock();
 
 			return true;
 		}
@@ -1137,7 +1137,7 @@ namespace Tomahawk
 #endif
 		}
 
-		void Multiplexer::Create(int Length, int64_t Timeout)
+		void Driver::Create(int Length, int64_t Timeout)
 		{
 			PipeTimeout = Timeout;
 			if (Array != nullptr || Handle != INVALID_EPOLL)
@@ -1153,7 +1153,7 @@ namespace Tomahawk
 #endif
 			Assign(Core::Schedule::Get());
 		}
-		void Multiplexer::Release()
+		void Driver::Release()
 		{
 			if (Handle != INVALID_EPOLL)
 			{
@@ -1167,20 +1167,20 @@ namespace Tomahawk
 				Array = nullptr;
 			}
 		}
-		void Multiplexer::Assign(Core::Schedule* Queue)
+		void Driver::Assign(Core::Schedule* Queue)
 		{
 			if (Queue != nullptr)
 			{
-				if (!Assigned)
+				if (!Active)
 				{
-					Queue->SetTask(Multiplexer::Resolve);
-					Assigned = true;
+					Queue->SetTask(Driver::Resolve);
+					Active = true;
 				}
 			}
-			else if (Assigned)
-				Assigned = false;
+			else if (Active)
+				Active = false;
 		}
-		int Multiplexer::Listen(Socket* Value)
+		int Driver::Listen(Socket* Value)
 		{
 			if (!Handle || !Value || Value->Sync.Poll || Value->Fd == INVALID_SOCKET)
 				return -1;
@@ -1207,7 +1207,7 @@ namespace Tomahawk
 			return epoll_ctl(Handle, EPOLL_CTL_ADD, Value->Fd, &Event);
 #endif
 		}
-		int Multiplexer::Unlisten(Socket* Value)
+		int Driver::Unlisten(Socket* Value)
 		{
 			if (!Handle || !Value || Value->Fd == INVALID_SOCKET || !Value->Sync.Poll)
 				return -1;
@@ -1229,17 +1229,17 @@ namespace Tomahawk
 			return Result;
 #endif
 		}
-		void Multiplexer::Resolve()
+		void Driver::Resolve()
 		{
 			Core::Schedule* Queue = Core::Schedule::Get();
 			if (!Queue)
 				return;
 
 			Dispatch();
-			if (Queue->IsActive() && Assigned)
-				Queue->SetTask(Multiplexer::Resolve);
+			if (Queue->IsActive() && Active)
+				Queue->SetTask(Driver::Resolve);
 		}
-		int Multiplexer::Dispatch()
+		int Driver::Dispatch()
 		{
 #ifdef TH_APPLE
 			struct kevent* Events = (struct kevent*)Array;
@@ -1297,7 +1297,7 @@ namespace Tomahawk
 #endif
 			return Size;
 		}
-		int Multiplexer::Dispatch(Socket* Fd, uint32_t* Events, int64_t Time)
+		int Driver::Dispatch(Socket* Fd, uint32_t* Events, int64_t Time)
 		{
 			if (!Fd || Fd->Fd == INVALID_SOCKET)
 				return 1;
@@ -1389,7 +1389,7 @@ namespace Tomahawk
 					if (!Callback(Fd))
 					{
 						Fd->Sync.IO.lock();
-						Multiplexer::Unlisten(Fd);
+						Driver::Unlisten(Fd);
 						Fd->Listener = nullptr;
 						Fd->Sync.IO.unlock();
 					}
@@ -1464,7 +1464,7 @@ namespace Tomahawk
 			Fd->Sync.IO.lock();
 			if (!Fd->Input && !Fd->Output && !Fd->Listener)
 			{
-				Multiplexer::Unlisten(Fd);
+				Driver::Unlisten(Fd);
 				Fd->Sync.IO.unlock();
 				return 1;
 			}
@@ -1485,7 +1485,7 @@ namespace Tomahawk
 
 			return 1;
 		}
-		int Multiplexer::Poll(pollfd* Fd, int FdCount, int Timeout)
+		int Driver::Poll(pollfd* Fd, int FdCount, int Timeout)
 		{
 #if defined(TH_MICROSOFT)
 			return WSAPoll(Fd, FdCount, Timeout);
@@ -1493,19 +1493,19 @@ namespace Tomahawk
 			return poll(Fd, FdCount, Timeout);
 #endif
 		}
-		int64_t Multiplexer::Clock()
+		int64_t Driver::Clock()
 		{
 			return std::chrono::duration_cast<std::chrono::milliseconds>(std::chrono::system_clock::now().time_since_epoch()).count();
 		}
-		bool Multiplexer::Assigned = false;
 #ifdef TH_APPLE
-		struct kevent* Multiplexer::Array = nullptr;
+		struct kevent* Driver::Array = nullptr;
 #else
-		epoll_event* Multiplexer::Array = nullptr;
+		epoll_event* Driver::Array = nullptr;
 #endif
-		epoll_handle Multiplexer::Handle = INVALID_EPOLL;
-		int64_t Multiplexer::PipeTimeout = 200;
-		int Multiplexer::ArraySize = 0;
+		epoll_handle Driver::Handle = INVALID_EPOLL;
+		int64_t Driver::PipeTimeout = 200;
+		int Driver::ArraySize = 0;
+		std::atomic<bool> Driver::Active = false;
 
 		SocketServer::SocketServer()
 		{
@@ -1717,7 +1717,7 @@ namespace Tomahawk
 			{
 				FreeQueued();
 				if (!Queue->IsActive())
-					Multiplexer::Dispatch();
+					Driver::Dispatch();
 			} while (!Bad.empty() || !Good.empty());
 
 			if (!OnUnlisten())
@@ -1750,7 +1750,7 @@ namespace Tomahawk
 			if (!OnListen())
 				return false;
 
-			Multiplexer::Create((int)Router->MaxEvents, Router->MasterTimeout);
+			Driver::Create((int)Router->MaxEvents, Router->MasterTimeout);
 			Timer = Core::Schedule::Get()->SetInterval(Router->CloseTimeout, [this]()
 				{
 					FreeQueued();
@@ -1863,7 +1863,7 @@ namespace Tomahawk
 			SFd.fd = Fd->GetFd();
 			SFd.events = POLLIN | POLLOUT;
 
-			int64_t Timeout = Multiplexer::Clock();
+			int64_t Timeout = Driver::Clock();
 			bool OK = true;
 
 			while (OK)
@@ -1872,7 +1872,7 @@ namespace Tomahawk
 				if (Result >= 0)
 					break;
 
-				if (Multiplexer::Clock() - Timeout > (int64_t)Router->SocketTimeout)
+				if (Driver::Clock() - Timeout > (int64_t)Router->SocketTimeout)
 					return false;
 
 				int Code = SSL_get_error(Fd->GetDevice(), Result);
@@ -1882,7 +1882,7 @@ namespace Tomahawk
 					case SSL_ERROR_WANT_ACCEPT:
 					case SSL_ERROR_WANT_WRITE:
 					case SSL_ERROR_WANT_READ:
-						Multiplexer::Poll(&SFd, 1, Router->SocketTimeout);
+						Driver::Poll(&SFd, 1, Router->SocketTimeout);
 						break;
 					default:
 						OK = false;
@@ -1905,7 +1905,7 @@ namespace Tomahawk
 
 			Base->Info.KeepAlive--;
 			if (Base->Info.KeepAlive >= -1)
-				Base->Info.Finish = Multiplexer::Clock();
+				Base->Info.Finish = Driver::Clock();
 
 			if (!OnRequestEnded(Base, false))
 				return false;
@@ -2135,7 +2135,7 @@ namespace Tomahawk
 					case SSL_ERROR_WANT_ACCEPT:
 					case SSL_ERROR_WANT_WRITE:
 					case SSL_ERROR_WANT_READ:
-						Multiplexer::Poll(&Fd, 1, Timeout);
+						Driver::Poll(&Fd, 1, Timeout);
 						break;
 					default:
 						OK = false;

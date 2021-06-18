@@ -23,7 +23,7 @@ namespace Tomahawk
 		typedef std::function<bool(struct Socket*)> SocketAcceptCallback;
 		typedef std::function<void(class SocketClient*, int)> SocketClientCallback;
 
-		class Multiplexer;
+		class Driver;
 
 		enum class Secure
 		{
@@ -89,7 +89,7 @@ namespace Tomahawk
 
 		struct TH_OUT Socket
 		{
-			friend Multiplexer;
+			friend Driver;
 
 		private:
 			struct
@@ -283,7 +283,7 @@ namespace Tomahawk
 			virtual ~SocketRouter();
 		};
 
-		class TH_OUT Multiplexer
+		class TH_OUT Driver
 		{
 			friend struct Socket;
 
@@ -296,7 +296,7 @@ namespace Tomahawk
 			static epoll_handle Handle;
 			static int64_t PipeTimeout;
 			static int ArraySize;
-            static bool Assigned;
+            static std::atomic<bool> Active;
 
 		public:
 			static void Create(int MaxEvents, int64_t Timeout);

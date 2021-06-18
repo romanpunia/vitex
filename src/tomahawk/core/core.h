@@ -1762,6 +1762,14 @@ namespace Tomahawk
 					Subresult->Free();
 				});
 			}
+			void Steal(Async&& Other)
+			{
+				if (Next != nullptr)
+					Next->Free();
+
+				Next = Other.Next;
+				Other.Next = nullptr;
+			}
 			void Await(std::function<void(T&&)>&& Callback) const
 			{
 				if (!Callback || !Next)

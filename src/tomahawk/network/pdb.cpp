@@ -214,7 +214,7 @@ namespace Tomahawk
 
 				return PQsetvalue(Base, RowIndex, ColumnIndex, Data, Size);
 #else
-				return std::string();
+				return -1;
 #endif
 			}
 			std::string Column::GetName() const
@@ -353,6 +353,7 @@ namespace Tomahawk
 			}
 			unsigned char* Column::GetBlob(size_t* OutSize) const
 			{
+#ifdef TH_HAS_POSTGRESQL
 				if (!OutSize)
 					return nullptr;
 
@@ -362,6 +363,9 @@ namespace Tomahawk
 				PQfreemem(Result);
 
 				return Copy;
+#else
+				return nullptr;
+#endif
 			}
 			char* Column::GetValueData() const
 			{
@@ -415,7 +419,7 @@ namespace Tomahawk
 
 				return PQftable(Base, ColumnIndex);
 #else
-				return InvalidOid;
+				return 0;
 #endif
 			}
 			ObjectId Column::GetTypeId() const
@@ -426,7 +430,7 @@ namespace Tomahawk
 
 				return PQftype(Base, ColumnIndex);
 #else
-				return InvalidOid;
+				return 0;
 #endif
 			}
 			size_t Column::GetIndex() const
@@ -706,7 +710,7 @@ namespace Tomahawk
 
 				return PQoidValue(Base);
 #else
-				return InvalidOid;
+				return 0;
 #endif
 			}
 			size_t Result::GetAffectedRows() const
@@ -1358,6 +1362,7 @@ namespace Tomahawk
 			}
 			int Driver::Dispatch()
 			{
+#ifdef TH_HAS_POSTGRESQL
 				if (!Safe || !Listeners || Listeners->empty())
 					return -1;
 
@@ -1417,6 +1422,9 @@ namespace Tomahawk
 				Safe->unlock();
 
 				return Count;
+#else
+				return -1;
+#endif
 			}
 			bool Driver::Listen(Connection* Value)
 			{
